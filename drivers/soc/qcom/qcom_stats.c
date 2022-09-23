@@ -4,14 +4,18 @@
  * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#include <linux/cdev.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/uaccess.h>
 
 #include <linux/soc/qcom/smem.h>
 #include <clocksource/arm_arch_timer.h>
@@ -34,6 +38,45 @@
 #define DDR_STATS_NAME_ADDR		0x0
 #define DDR_STATS_COUNT_ADDR		0x4
 #define DDR_STATS_DURATION_ADDR		0x8
+
+#define STATS_BASEMINOR				0
+#define STATS_MAX_MINOR				1
+#define STATS_DEVICE_NAME			"stats"
+#define SUBSYSTEM_STATS_MAGIC_NUM		(0x9d)
+#define SUBSYSTEM_STATS_OTHERS_NUM		(-2)
+
+#define APSS_IOCTL		_IOR(SUBSYSTEM_STATS_MAGIC_NUM, 0, \
+				     struct sleep_stats *)
+#define MODEM_IOCTL		_IOR(SUBSYSTEM_STATS_MAGIC_NUM, 1, \
+				     struct sleep_stats *)
+#define WPSS_IOCTL		_IOR(SUBSYSTEM_STATS_MAGIC_NUM, 2, \
+				     struct sleep_stats *)
+#define ADSP_IOCTL		_IOR(SUBSYSTEM_STATS_MAGIC_NUM, 3, \
+				     struct sleep_stats *)
+#define ADSP_ISLAND_IOCTL	_IOR(SUBSYSTEM_STATS_MAGIC_NUM, 4, \
+				     struct sleep_stats *)
+#define CDSP_IOCTL		_IOR(SUBSYSTEM_STATS_MAGIC_NUM, 5, \
+				     struct sleep_stats *)
+#define SLPI_IOCTL		_IOR(SUBSYSTEM_STATS_MAGIC_NUM, 6, \
+				     struct sleep_stats *)
+#define GPU_IOCTL		_IOR(SUBSYSTEM_STATS_MAGIC_NUM, 7, \
+				     struct sleep_stats *)
+#define DISPLAY_IOCTL		_IOR(SUBSYSTEM_STATS_MAGIC_NUM, 8, \
+				     struct sleep_stats *)
+#define SLPI_ISLAND_IOCTL	_IOR(SUBSYSTEM_STATS_MAGIC_NUM, 9, \
+				     struct sleep_stats *)
+
+#define AOSD_IOCTL		_IOR(SUBSYSTEM_STATS_MAGIC_NUM, 10, \
+				     struct sleep_stats *)
+
+#define CXSD_IOCTL		_IOR(SUBSYSTEM_STATS_MAGIC_NUM, 11, \
+				     struct sleep_stats *)
+
+#define DDR_IOCTL		_IOR(SUBSYSTEM_STATS_MAGIC_NUM, 12, \
+				     struct sleep_stats *)
+
+#define DDR_STATS_IOCTL		_IOR(SUBSYSTEM_STATS_MAGIC_NUM, 13, \
+				     struct sleep_stats *)
 
 struct subsystem_data {
 	const char *name;
@@ -63,15 +106,21 @@ struct stats_config {
 	bool subsystem_stats_in_smem;
 };
 
-struct ddr_stats_entry {
-	uint32_t name;
-	uint32_t count;
-	uint64_t duration;
-};
-
 struct stats_data {
 	bool appended_stats_avail;
 	void __iomem *base;
+};
+
+struct stats_drvdata {
+	void __iomem *base;
+	const struct stats_config *config;
+	struct stats_data *d;
+	struct dentry *root;
+	dev_t		dev_no;
+	struct class	*stats_class;
+	struct device	*stats_device;
+	struct cdev	stats_cdev;
+	struct mutex lock;
 };
 
 struct sleep_stats {
@@ -85,6 +134,191 @@ struct sleep_stats {
 struct appended_stats {
 	u32 client_votes;
 	u32 reserved[3];
+};
+
+static inline int qcom_stats_copy_to_user(unsigned long arg, struct sleep_stats *stats,
+					  unsigned long size)
+{
+
+	return copy_to_user((void __user *)arg, stats, size);
+}
+
+static inline void qcom_stats_update_accumulated_duration(struct sleep_stats *stats)
+{
+	/*
+	 * If a subsystem is in sleep when reading the sleep stats from SMEM
+	 * adjust the accumulated sleep duration to show actual sleep time.
+	 * This ensures that the displayed stats are real when used for
+	 * the purpose of computing battery utilization.
+	 */
+	if (stats->last_entered_at > stats->last_exited_at)
+		stats->accumulated += (__arch_counter_get_cntvct() - stats->last_entered_at);
+}
+
+static inline void qcom_stats_copy(struct sleep_stats *src, struct sleep_stats *dst)
+{
+	dst->stat_type = src->stat_type;
+	dst->count = src->count;
+	dst->last_entered_at = src->last_entered_at;
+	dst->last_exited_at = src->last_exited_at;
+	dst->accumulated = src->accumulated;
+}
+
+static u64 qcom_stats_fill_ddr_stats(void __iomem *reg, struct sleep_stats *data, u32 *entry_count)
+{
+	u64 accumulated_duration = 0;
+	int i;
+
+	*entry_count = readl_relaxed(reg + DDR_STATS_NUM_MODES_ADDR);
+	if (*entry_count > DDR_STATS_MAX_NUM_MODES) {
+		pr_err("Invalid entry count\n");
+		return 0;
+	}
+
+	reg += DDR_STATS_NUM_MODES_ADDR + 0x4;
+
+	for (i = 0; i < *entry_count; i++) {
+		data[i].stat_type = readl_relaxed(reg + DDR_STATS_NAME_ADDR);
+		data[i].count = readl_relaxed(reg + DDR_STATS_COUNT_ADDR);
+		data[i].last_entered_at = 0xDEADDEAD;
+		data[i].last_exited_at = 0xDEADDEAD;
+		data[i].accumulated = readq_relaxed(reg + DDR_STATS_DURATION_ADDR);
+
+		accumulated_duration += data[i].accumulated;
+		reg += sizeof(struct sleep_stats) - 2 * sizeof(u64);
+	}
+
+	return accumulated_duration;
+}
+
+static int qcom_stats_device_open(struct inode *inode, struct file *file)
+{
+	struct stats_drvdata *drv = NULL;
+
+	if (!inode || !inode->i_cdev || !file)
+		return -EINVAL;
+
+	drv = container_of(inode->i_cdev, struct stats_drvdata, stats_cdev);
+	file->private_data = drv;
+
+	return 0;
+}
+
+static long qcom_stats_device_ioctl(struct file *file, unsigned int cmd,
+			     unsigned long arg)
+{
+	struct stats_drvdata *drv = file->private_data;
+	const struct subsystem_data *subsystem = NULL;
+	struct sleep_stats *stat;
+	struct sleep_stats *temp;
+	void __iomem *reg = NULL;
+	unsigned long size = sizeof(struct sleep_stats);
+	u32 stats_id, entry_count;
+	int ret;
+
+	mutex_lock(&drv->lock);
+	if (cmd != DDR_STATS_IOCTL)
+		stat = kzalloc(sizeof(struct sleep_stats), GFP_KERNEL);
+	else
+		stat = kcalloc(DDR_STATS_MAX_NUM_MODES, sizeof(struct sleep_stats), GFP_KERNEL);
+	if (!stat) {
+		mutex_unlock(&drv->lock);
+		return -ENOMEM;
+	}
+
+	switch (cmd) {
+	case MODEM_IOCTL:
+		subsystem = &subsystems[0];
+		break;
+	case WPSS_IOCTL:
+		subsystem = &subsystems[1];
+		break;
+	case ADSP_IOCTL:
+		subsystem = &subsystems[2];
+		break;
+	case CDSP_IOCTL:
+		subsystem = &subsystems[3];
+		break;
+	case SLPI_IOCTL:
+		subsystem = &subsystems[4];
+		break;
+	case GPU_IOCTL:
+		subsystem = &subsystems[5];
+		break;
+	case DISPLAY_IOCTL:
+		subsystem = &subsystems[6];
+		break;
+	case ADSP_ISLAND_IOCTL:
+		subsystem = &subsystems[7];
+		break;
+	case SLPI_ISLAND_IOCTL:
+		subsystem = &subsystems[8];
+		break;
+	case APSS_IOCTL:
+		subsystem = &subsystems[9];
+		break;
+	case AOSD_IOCTL:
+		stats_id = 0;
+		if (drv->config->num_records > stats_id)
+			reg = drv->d[stats_id].base;
+		break;
+	case CXSD_IOCTL:
+		stats_id = 1;
+		if (drv->config->num_records > stats_id)
+			reg = drv->d[stats_id].base;
+		break;
+	case DDR_IOCTL:
+		stats_id = 2;
+		if (drv->config->num_records > stats_id)
+			reg = drv->d[stats_id].base;
+		break;
+	case DDR_STATS_IOCTL:
+		break;
+	default:
+		pr_err("Incorrect command error\n");
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	if (subsystem) {
+		/* Items are allocated lazily, so lookup pointer each time */
+		temp = qcom_smem_get(subsystem->pid, subsystem->smem_item, NULL);
+		if (IS_ERR(temp)) {
+			ret = -EIO;
+			goto exit;
+		}
+
+		qcom_stats_copy(temp, stat);
+
+		qcom_stats_update_accumulated_duration(stat);
+
+		ret = qcom_stats_copy_to_user(arg, stat, size);
+	} else if (reg) {
+		memcpy_fromio(stat, reg, sizeof(*stat));
+
+		qcom_stats_update_accumulated_duration(stat);
+
+		ret = qcom_stats_copy_to_user(arg, stat, size);
+	} else {
+		int modes = DDR_STATS_MAX_NUM_MODES;
+
+		reg = drv->base + drv->config->ddr_stats_offset;
+
+		qcom_stats_fill_ddr_stats(reg, stat, &entry_count);
+
+		ret = qcom_stats_copy_to_user(arg, stat, modes * size);
+	}
+
+exit:
+	kfree(stat);
+	mutex_unlock(&drv->lock);
+	return ret;
+}
+
+static const struct file_operations qcom_stats_device_fops = {
+	.owner		=	THIS_MODULE,
+	.open		=	qcom_stats_device_open,
+	.unlocked_ioctl =	qcom_stats_device_ioctl,
 };
 
 static void qcom_print_stats(struct seq_file *s, const struct sleep_stats *stat)
@@ -137,62 +371,46 @@ static int qcom_soc_sleep_stats_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static void  print_ddr_stats(struct seq_file *s, int *count,
-			     struct ddr_stats_entry *data, u64 accumulated_duration)
+static void print_ddr_stats(struct seq_file *s, int *count,
+			     struct sleep_stats *data, u64 accumulated_duration)
 {
-
 	u32 cp_idx = 0;
 	u32 name, duration;
 
 	if (accumulated_duration)
-		duration = (data->duration * 100) / accumulated_duration;
+		duration = (data->accumulated * 100) / accumulated_duration;
 
-	name = (data->name >> 8) & 0xFF;
+	name = (data->stat_type >> 8) & 0xFF;
 	if (name == 0x0) {
-		name = (data->name) & 0xFF;
+		name = (data->stat_type) & 0xFF;
 		*count = *count + 1;
 		seq_printf(s,
 		"LPM %d:\tName:0x%x\tcount:%u\tDuration (ticks):%ld (~%d%%)\n",
-			*count, name, data->count, data->duration, duration);
+			*count, name, data->count, data->accumulated, duration);
 	} else if (name == 0x1) {
-		cp_idx = data->name & 0x1F;
-		name = data->name >> 16;
+		cp_idx = data->stat_type & 0x1F;
+		name = data->stat_type >> 16;
 
 		if (!name || !data->count)
 			return;
 
 		seq_printf(s,
 		"Freq %dMhz:\tCP IDX:%u\tcount:%u\tDuration (ticks):%ld (~%d%%)\n",
-			name, cp_idx, data->count, data->duration, duration);
+			name, cp_idx, data->count, data->accumulated, duration);
 	}
 }
 
 static int ddr_stats_show(struct seq_file *s, void *d)
 {
-	struct ddr_stats_entry data[DDR_STATS_MAX_NUM_MODES];
+	struct sleep_stats data[DDR_STATS_MAX_NUM_MODES];
 	void __iomem *reg = s->private;
 	u32 entry_count;
 	u64 accumulated_duration = 0;
 	int i, lpm_count = 0;
 
-	entry_count = readl_relaxed(reg + DDR_STATS_NUM_MODES_ADDR);
-	if (entry_count > DDR_STATS_MAX_NUM_MODES) {
-		pr_err("Invalid entry count\n");
+	accumulated_duration = qcom_stats_fill_ddr_stats(reg, data, &entry_count);
+	if (!accumulated_duration)
 		return 0;
-	}
-
-	reg += DDR_STATS_NUM_MODES_ADDR + 0x4;
-
-	for (i = 0; i < entry_count; i++) {
-		data[i].count = readl_relaxed(reg + DDR_STATS_COUNT_ADDR);
-
-		data[i].name = readl_relaxed(reg + DDR_STATS_NAME_ADDR);
-
-		data[i].duration = readq_relaxed(reg + DDR_STATS_DURATION_ADDR);
-
-		accumulated_duration += data[i].duration;
-		reg += sizeof(struct ddr_stats_entry);
-	}
 
 	for (i = 0; i < entry_count; i++)
 		print_ddr_stats(s, &lpm_count, &data[i], accumulated_duration);
@@ -203,6 +421,41 @@ static int ddr_stats_show(struct seq_file *s, void *d)
 DEFINE_SHOW_ATTRIBUTE(qcom_soc_sleep_stats);
 DEFINE_SHOW_ATTRIBUTE(qcom_subsystem_sleep_stats);
 DEFINE_SHOW_ATTRIBUTE(ddr_stats);
+
+static int qcom_create_stats_device(struct stats_drvdata *drv)
+{
+	int ret;
+
+	ret = alloc_chrdev_region(&drv->dev_no, STATS_BASEMINOR, STATS_MAX_MINOR,
+				  STATS_DEVICE_NAME);
+	if (ret)
+		return ret;
+
+	cdev_init(&drv->stats_cdev, &qcom_stats_device_fops);
+	ret = cdev_add(&drv->stats_cdev, drv->dev_no, 1);
+	if (ret) {
+		unregister_chrdev_region(drv->dev_no, 1);
+		return ret;
+	}
+
+	drv->stats_class = class_create(THIS_MODULE, STATS_DEVICE_NAME);
+	if (IS_ERR_OR_NULL(drv->stats_class)) {
+		cdev_del(&drv->stats_cdev);
+		unregister_chrdev_region(drv->dev_no, 1);
+		return PTR_ERR(drv->stats_class);
+	}
+
+	drv->stats_device = device_create(drv->stats_class, NULL, drv->dev_no, NULL,
+					  STATS_DEVICE_NAME);
+	if (IS_ERR_OR_NULL(drv->stats_device)) {
+		class_destroy(drv->stats_class);
+		cdev_del(&drv->stats_cdev);
+		unregister_chrdev_region(drv->dev_no, 1);
+		return PTR_ERR(drv->stats_device);
+	}
+
+	return ret;
+}
 
 static void qcom_create_ddr_stat_files(struct dentry *root, void __iomem *reg,
 					     struct stats_data *d,
@@ -301,7 +554,9 @@ static int qcom_stats_probe(struct platform_device *pdev)
 	struct dentry *root;
 	const struct stats_config *config;
 	struct stats_data *d;
+	struct stats_drvdata *drv;
 	int i;
+	int ret;
 
 	config = device_get_match_data(&pdev->dev);
 	if (!config)
@@ -325,16 +580,35 @@ static int qcom_stats_probe(struct platform_device *pdev)
 	qcom_create_soc_sleep_stat_files(root, reg, d, config);
 	qcom_create_ddr_stat_files(root, reg, d, config);
 
-	platform_set_drvdata(pdev, root);
+	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
+	if (!drv)
+		return -ENOMEM;
+
+	drv->d = d;
+	drv->config = config;
+	drv->base = reg;
+	drv->root = root;
+	mutex_init(&drv->lock);
+
+	ret = qcom_create_stats_device(drv);
+	if (ret)
+		return ret;
+
+	platform_set_drvdata(pdev, drv);
 
 	return 0;
 }
 
 static int qcom_stats_remove(struct platform_device *pdev)
 {
-	struct dentry *root = platform_get_drvdata(pdev);
+	struct stats_drvdata *drv = platform_get_drvdata(pdev);
 
-	debugfs_remove_recursive(root);
+	device_destroy(drv->stats_class, drv->dev_no);
+	class_destroy(drv->stats_class);
+	cdev_del(&drv->stats_cdev);
+	unregister_chrdev_region(drv->dev_no, 1);
+
+	debugfs_remove_recursive(drv->root);
 
 	return 0;
 }
