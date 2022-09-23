@@ -4,7 +4,8 @@ Rockchip CANFD controller Device Tree Bindings
 Required properties:
 - compatible		: Should be:
 			  - "rockchip,canfd-1.0" for CANFD controllers 1.0
-			  - "rockchip,can-2.0" for CAN controllers 2.0
+			  - "rockchip,can-2.0" for RK3588 CAN controllers 2.0
+			  - "rockchip,rk3568-can-2.0" for RK3568 CAN controllers 2.0
 - reg			: Physical base address and size of the controller
 			  registers map.
 - interrupts		: Property with a value describing the interrupt
