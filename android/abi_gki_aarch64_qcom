@@ -485,8 +485,8 @@
   drain_workqueue
   driver_find_device
   driver_register
-  driver_unregister
   driver_set_override
+  driver_unregister
   dump_stack
   __dynamic_dev_dbg
   __dynamic_pr_debug
@@ -856,7 +856,6 @@
   __kfifo_out
   kfree
   kfree_const
-  kfree_skb_reason
   kfree_skb_reason
   kick_all_cpus_sync
   kill_anon_super
@@ -1728,6 +1727,7 @@
   tasklet_unlock_wait
   tasklist_lock
   __task_rq_lock
+  thermal_cdev_update
   thermal_cooling_device_register
   thermal_cooling_device_unregister
   thermal_of_cooling_device_register
