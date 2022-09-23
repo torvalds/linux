@@ -41,7 +41,15 @@ enum vfio_group_type {
 struct vfio_group {
 	struct device 			dev;
 	struct cdev			cdev;
+	/*
+	 * When drivers is non-zero a driver is attached to the struct device
+	 * that provided the iommu_group and thus the iommu_group is a valid
+	 * pointer. When drivers is 0 the driver is being detached. Once users
+	 * reaches 0 then the iommu_group is invalid.
+	 */
+	refcount_t			drivers;
 	refcount_t			users;
+	struct completion		users_comp;
 	unsigned int			container_users;
 	struct iommu_group		*iommu_group;
 	struct vfio_container		*container;
