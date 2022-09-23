@@ -351,3 +351,16 @@ static int aqua_vanjaram_xcp_mgr_init(struct amdgpu_device *adev)
 
 	return ret;
 }
+
+int aqua_vanjaram_init_soc_config(struct amdgpu_device *adev)
+{
+	int ret;
+
+	ret = aqua_vanjaram_xcp_mgr_init(adev);
+	if (ret)
+		return ret;
+
+	aqua_vanjaram_ip_map_init(adev);
+
+	return 0;
+}
