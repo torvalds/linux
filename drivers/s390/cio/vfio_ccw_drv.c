@@ -221,7 +221,8 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 
 	dev_set_drvdata(&sch->dev, private);
 
-	ret = mdev_register_device(&sch->dev, &vfio_ccw_mdev_driver);
+	ret = mdev_register_parent(&private->parent, &sch->dev,
+				   &vfio_ccw_mdev_driver);
 	if (ret)
 		goto out_free;
 
@@ -240,7 +241,7 @@ static void vfio_ccw_sch_remove(struct subchannel *sch)
 {
 	struct vfio_ccw_private *private = dev_get_drvdata(&sch->dev);
 
-	mdev_unregister_device(&sch->dev);
+	mdev_unregister_parent(&private->parent);
 
 	dev_set_drvdata(&sch->dev, NULL);
 

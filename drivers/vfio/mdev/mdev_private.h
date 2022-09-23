@@ -13,17 +13,6 @@
 int  mdev_bus_register(void);
 void mdev_bus_unregister(void);
 
-struct mdev_parent {
-	struct device *dev;
-	struct mdev_driver *mdev_driver;
-	struct kref ref;
-	struct list_head next;
-	struct kset *mdev_types_kset;
-	struct list_head type_list;
-	/* Synchronize device creation/removal with parent unregistration */
-	struct rw_semaphore unreg_sem;
-};
-
 struct mdev_type {
 	struct kobject kobj;
 	struct kobject *devices_kobj;
@@ -47,17 +36,5 @@ void mdev_remove_sysfs_files(struct mdev_device *mdev);
 
 int mdev_device_create(struct mdev_type *kobj, const guid_t *uuid);
 int  mdev_device_remove(struct mdev_device *dev);
-
-void mdev_release_parent(struct kref *kref);
-
-static inline void mdev_get_parent(struct mdev_parent *parent)
-{
-	kref_get(&parent->ref);
-}
-
-static inline void mdev_put_parent(struct mdev_parent *parent)
-{
-	kref_put(&parent->ref, mdev_release_parent);
-}
 
 #endif /* MDEV_PRIVATE_H */

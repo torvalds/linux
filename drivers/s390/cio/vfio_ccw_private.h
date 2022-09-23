@@ -18,6 +18,7 @@
 #include <linux/workqueue.h>
 #include <linux/vfio_ccw.h>
 #include <linux/vfio.h>
+#include <linux/mdev.h>
 #include <asm/crw.h>
 #include <asm/debug.h>
 
@@ -89,6 +90,7 @@ struct vfio_ccw_crw {
  * @io_work: work for deferral process of I/O handling
  * @crw_work: work for deferral process of CRW handling
  * @release_comp: synchronization helper for vfio device release
+ * @parent: parent data structures for mdevs created
  */
 struct vfio_ccw_private {
 	struct vfio_device vdev;
@@ -116,6 +118,8 @@ struct vfio_ccw_private {
 	struct work_struct	crw_work;
 
 	struct completion	release_comp;
+
+	struct mdev_parent	parent;
 } __aligned(8);
 
 int vfio_ccw_sch_quiesce(struct subchannel *sch);

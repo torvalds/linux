@@ -23,6 +23,16 @@ struct mdev_device {
 	bool active;
 };
 
+/* embedded into the struct device that the mdev devices hang off */
+struct mdev_parent {
+	struct device *dev;
+	struct mdev_driver *mdev_driver;
+	struct kset *mdev_types_kset;
+	struct list_head type_list;
+	/* Synchronize device creation/removal with parent unregistration */
+	struct rw_semaphore unreg_sem;
+};
+
 static inline struct mdev_device *to_mdev_device(struct device *dev)
 {
 	return container_of(dev, struct mdev_device, dev);
@@ -70,8 +80,9 @@ struct mdev_driver {
 
 extern struct bus_type mdev_bus_type;
 
-int mdev_register_device(struct device *dev, struct mdev_driver *mdev_driver);
-void mdev_unregister_device(struct device *dev);
+int mdev_register_parent(struct mdev_parent *parent, struct device *dev,
+		struct mdev_driver *mdev_driver);
+void mdev_unregister_parent(struct mdev_parent *parent);
 
 int mdev_register_driver(struct mdev_driver *drv);
 void mdev_unregister_driver(struct mdev_driver *drv);
