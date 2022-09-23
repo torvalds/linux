@@ -3150,6 +3150,10 @@
   __tracepoint_ipi_entry
   __tracepoint_ipi_raise
   __tracepoint_irq_handler_entry
+  __tracepoint_net_dev_queue
+  __tracepoint_net_dev_xmit
+  __tracepoint_netif_receive_skb
+  __tracepoint_netif_rx
   __tracepoint_pelt_se_tp
   tracepoint_probe_register
   tracepoint_probe_register_prio
