@@ -6,5 +6,4 @@ menuconfig ARCH_RENESAS
 	select GPIOLIB
 	select NO_IOPORT_MAP
 	select PINCTRL
-	select SOC_BUS
 	select ZONE_DMA if ARM_LPAE
