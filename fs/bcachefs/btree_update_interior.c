@@ -1110,8 +1110,8 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 		goto err;
 
 	ret = bch2_btree_reserve_get(trans, as, nr_nodes, flags, NULL);
-	if (ret == -EAGAIN ||
-	    ret == -ENOMEM) {
+	if (bch2_err_matches(ret, ENOSPC) ||
+	    bch2_err_matches(ret, ENOMEM)) {
 		struct closure cl;
 
 		closure_init_stack(&cl);
