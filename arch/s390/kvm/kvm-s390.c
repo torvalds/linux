@@ -505,7 +505,7 @@ int kvm_arch_init(void *opaque)
 		goto out;
 	}
 
-	if (kvm_s390_pci_interp_allowed()) {
+	if (IS_ENABLED(CONFIG_VFIO_PCI_ZDEV_KVM)) {
 		rc = kvm_s390_pci_init();
 		if (rc) {
 			pr_err("Unable to allocate AIFT for PCI\n");
@@ -527,7 +527,7 @@ out:
 void kvm_arch_exit(void)
 {
 	kvm_s390_gib_destroy();
-	if (kvm_s390_pci_interp_allowed())
+	if (IS_ENABLED(CONFIG_VFIO_PCI_ZDEV_KVM))
 		kvm_s390_pci_exit();
 	debug_unregister(kvm_s390_dbf);
 	debug_unregister(kvm_s390_dbf_uv);
