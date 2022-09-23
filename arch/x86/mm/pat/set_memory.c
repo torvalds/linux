@@ -587,6 +587,14 @@ static inline pgprot_t verify_rwx(pgprot_t old, pgprot_t new, unsigned long star
 {
 	unsigned long end;
 
+	/*
+	 * 32-bit has some unfixable W+X issues, like EFI code
+	 * and writeable data being in the same page.  Disable
+	 * detection and enforcement there.
+	 */
+	if (IS_ENABLED(CONFIG_X86_32))
+		return new;
+
 	/* Only enforce when NX is supported: */
 	if (!(__supported_pte_mask & _PAGE_NX))
 		return new;
