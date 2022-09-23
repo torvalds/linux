@@ -151,10 +151,10 @@ static ssize_t description_show(struct mdev_type *mtype,
 	return sprintf(buf, "low_gm_size: %dMB\nhigh_gm_size: %dMB\n"
 		       "fence: %d\nresolution: %s\n"
 		       "weight: %d\n",
-		       BYTES_TO_MB(type->low_gm_size),
-		       BYTES_TO_MB(type->high_gm_size),
-		       type->fence, vgpu_edid_str(type->resolution),
-		       type->weight);
+		       BYTES_TO_MB(type->conf->low_mm),
+		       BYTES_TO_MB(type->conf->high_mm),
+		       type->conf->fence, vgpu_edid_str(type->conf->edid),
+		       type->conf->weight);
 }
 
 static ssize_t name_show(struct mdev_type *mtype,
@@ -1559,7 +1559,7 @@ static int intel_vgpu_init_dev(struct vfio_device *vfio_dev)
 		return -EINVAL;
 
 	vgpu->gvt = gvt;
-	return intel_gvt_create_vgpu(vgpu, type);
+	return intel_gvt_create_vgpu(vgpu, type->conf);
 }
 
 static void intel_vgpu_release_dev(struct vfio_device *vfio_dev)
