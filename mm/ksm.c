@@ -3211,7 +3211,7 @@ static int __init ksm_init(void)
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
 	/* There is no significance to this priority 100 */
-	hotplug_memory_notifier(ksm_memory_callback, 100);
+	hotplug_memory_notifier(ksm_memory_callback, KSM_CALLBACK_PRI);
 #endif
 	return 0;
 

@@ -664,7 +664,7 @@ static int __init memory_tier_init(void)
 	establish_demotion_targets();
 	mutex_unlock(&memory_tier_lock);
 
-	hotplug_memory_notifier(memtier_hotplug_callback, MEMTIER_HOTPLUG_PRIO);
+	hotplug_memory_notifier(memtier_hotplug_callback, MEMTIER_HOTPLUG_PRI);
 	return 0;
 }
 subsys_initcall(memory_tier_init);

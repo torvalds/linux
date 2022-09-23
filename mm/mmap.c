@@ -3751,7 +3751,7 @@ static int reserve_mem_notifier(struct notifier_block *nb,
 
 static int __meminit init_reserve_notifier(void)
 {
-	if (hotplug_memory_notifier(reserve_mem_notifier, 0))
+	if (hotplug_memory_notifier(reserve_mem_notifier, DEFAULT_CALLBACK_PRI))
 		pr_err("Failed registering memory add/remove notifier for admin reserve\n");
 
 	return 0;

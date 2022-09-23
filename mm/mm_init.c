@@ -181,7 +181,7 @@ static int __meminit mm_compute_batch_notifier(struct notifier_block *self,
 static int __init mm_compute_batch_init(void)
 {
 	mm_compute_batch(sysctl_overcommit_memory);
-	hotplug_memory_notifier(mm_compute_batch_notifier, IPC_CALLBACK_PRI);
+	hotplug_memory_notifier(mm_compute_batch_notifier, MM_COMPUTE_BATCH_PRI);
 	return 0;
 }
 
