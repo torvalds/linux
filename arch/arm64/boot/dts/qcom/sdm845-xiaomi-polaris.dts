@@ -126,7 +126,7 @@
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 
-		gpio = <&tlmm 23 0>;
+		gpio = <&tlmm 23 GPIO_ACTIVE_HIGH>;
 		regulator-always-on;
 		regulator-boot-on;
 		enable-active-high;
@@ -522,7 +522,7 @@
 };
 
 &pm8998_gpio {
-	volume_up_gpio: pm8998_gpio6 {
+	volume_up_gpio: pm8998-gpio6-state {
 		pinconf {
 			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
 			function = "normal";
@@ -617,7 +617,7 @@
 		pins = "gpio6", "gpio10";
 		function = "gpio";
 		drive-strength = <8>;
-		bias-disable = <0>;
+		bias-disable;
 	};
 
 	sde_dsi_suspend: sde-dsi-suspend {
@@ -712,7 +712,7 @@
 	pinctrl-names = "default";
 	clock-names = "extclk";
 	clocks = <&rpmhcc RPMH_LN_BB_CLK2>;
-	reset-gpios = <&tlmm 64 0>;
+	reset-gpios = <&tlmm 64 GPIO_ACTIVE_HIGH>;
 	vdd-buck-sido-supply = <&vreg_s4a_1p8>;
 	vdd-buck-supply = <&vreg_s4a_1p8>;
 	vdd-tx-supply = <&vreg_s4a_1p8>;

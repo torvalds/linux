@@ -46,7 +46,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		power-on@800 {
+		pon@800 {
 			compatible = "qcom,pm8916-pon";
 			reg = <0x0800>;
 
@@ -116,7 +116,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		pm8150l_lpg: lpg {
+		pm8150l_lpg: pwm {
 			compatible = "qcom,pm8150l-lpg";
 
 			#address-cells = <1>;

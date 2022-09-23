@@ -54,11 +54,11 @@ properties:
   # Platform constraints are described later.
   clocks:
     minItems: 3
-    maxItems: 12
+    maxItems: 13
 
   clock-names:
     minItems: 3
-    maxItems: 12
+    maxItems: 13
 
   resets:
     minItems: 1
@@ -424,8 +424,8 @@ allOf:
     then:
       properties:
         clocks:
-          minItems: 11
-          maxItems: 11
+          minItems: 13
+          maxItems: 13
         clock-names:
           items:
             - const: pipe # PIPE clock
@@ -439,6 +439,8 @@ allOf:
             - const: slave_q2a # Slave Q2A clock
             - const: tbu # PCIe TBU clock
             - const: ddrss_sf_tbu # PCIe SF TBU clock
+            - const: aggre0 # Aggre NoC PCIe CENTER SF AXI clock
+            - const: aggre1 # Aggre NoC PCIe1 AXI clock
         resets:
           maxItems: 1
         reset-names:

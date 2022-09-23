@@ -42,7 +42,7 @@
 			};
 		};
 
-		pmi8998_lpg: lpg {
+		pmi8998_lpg: pwm {
 			compatible = "qcom,pmi8998-lpg";
 
 			#address-cells = <1>;

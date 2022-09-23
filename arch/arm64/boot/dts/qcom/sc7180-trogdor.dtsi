@@ -299,7 +299,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&en_pp3300_hub>;
 
-		regulator-always-on;
+		/* The BIOS leaves this regulator on */
 		regulator-boot-on;
 
 		vin-supply = <&pp3300_a>;
@@ -936,6 +936,24 @@ ap_spi_fp: &spi10 {
 
 &usb_1_dwc3 {
 	dr_mode = "host";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	/* 2.x hub on port 1 */
+	usb_hub_2_x: hub@1 {
+		compatible = "usbbda,5411";
+		reg = <1>;
+		vdd-supply = <&pp3300_hub>;
+		peer-hub = <&usb_hub_3_x>;
+	};
+
+	/* 3.x hub on port 2 */
+	usb_hub_3_x: hub@2 {
+		compatible = "usbbda,411";
+		reg = <2>;
+		vdd-supply = <&pp3300_hub>;
+		peer-hub = <&usb_hub_2_x>;
+	};
 };
 
 &usb_1_hsphy {
