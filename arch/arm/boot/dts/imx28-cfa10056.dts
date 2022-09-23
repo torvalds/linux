@@ -88,7 +88,7 @@
 		};
 	};
 
-	spi2 {
+	spi-2 {
 		compatible = "spi-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi2_pins_cfa10056>;

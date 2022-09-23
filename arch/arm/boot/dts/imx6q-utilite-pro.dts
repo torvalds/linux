@@ -89,7 +89,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_keys>;
 
-		power {
+		key-power {
 			label = "Power Button";
 			gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;

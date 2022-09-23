@@ -212,7 +212,7 @@
 		enable-active-high;
 	};
 
-	spi_gpio: spi-gpio {
+	spi_gpio: spi {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "spi-gpio";
