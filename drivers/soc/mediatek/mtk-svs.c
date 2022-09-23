@@ -3,6 +3,7 @@
  * Copyright (C) 2022 MediaTek Inc.
  */
 
+#include <linux/bitfield.h>
 #include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
@@ -53,21 +54,78 @@
 #define SVSB_MON_VOLT_IGNORE		BIT(16)
 #define SVSB_REMOVE_DVTFIXED_VOLT	BIT(24)
 
-/* svs bank register common configuration */
-#define SVSB_DET_MAX			0xffff
+/* svs bank register fields and common configuration */
+#define SVSB_PTPCONFIG_DETMAX		GENMASK(15, 0)
+#define SVSB_DET_MAX			FIELD_PREP(SVSB_PTPCONFIG_DETMAX, 0xffff)
 #define SVSB_DET_WINDOW			0xa28
-#define SVSB_DTHI			0x1
-#define SVSB_DTLO			0xfe
-#define SVSB_EN_INIT01			0x1
-#define SVSB_EN_INIT02			0x5
-#define SVSB_EN_MON			0x2
-#define SVSB_EN_OFF			0x0
-#define SVSB_INTEN_INIT0x		0x00005f01
-#define SVSB_INTEN_MONVOPEN		0x00ff0000
-#define SVSB_INTSTS_CLEAN		0x00ffffff
-#define SVSB_INTSTS_COMPLETE		0x1
-#define SVSB_INTSTS_MONVOP		0x00ff0000
+
+/* DESCHAR */
+#define SVSB_DESCHAR_FLD_MDES		GENMASK(7, 0)
+#define SVSB_DESCHAR_FLD_BDES		GENMASK(15, 8)
+
+/* TEMPCHAR */
+#define SVSB_TEMPCHAR_FLD_DVT_FIXED	GENMASK(7, 0)
+#define SVSB_TEMPCHAR_FLD_MTDES		GENMASK(15, 8)
+#define SVSB_TEMPCHAR_FLD_VCO		GENMASK(23, 16)
+
+/* DETCHAR */
+#define SVSB_DETCHAR_FLD_DCMDET		GENMASK(7, 0)
+#define SVSB_DETCHAR_FLD_DCBDET		GENMASK(15, 8)
+
+/* SVSEN (PTPEN) */
+#define SVSB_PTPEN_INIT01		BIT(0)
+#define SVSB_PTPEN_MON			BIT(1)
+#define SVSB_PTPEN_INIT02		(SVSB_PTPEN_INIT01 | BIT(2))
+#define SVSB_PTPEN_OFF			0x0
+
+/* FREQPCTS */
+#define SVSB_FREQPCTS_FLD_PCT0_4	GENMASK(7, 0)
+#define SVSB_FREQPCTS_FLD_PCT1_5	GENMASK(15, 8)
+#define SVSB_FREQPCTS_FLD_PCT2_6	GENMASK(23, 16)
+#define SVSB_FREQPCTS_FLD_PCT3_7	GENMASK(31, 24)
+
+/* INTSTS */
+#define SVSB_INTSTS_VAL_CLEAN		0x00ffffff
+#define SVSB_INTSTS_F0_COMPLETE		BIT(0)
+#define SVSB_INTSTS_FLD_MONVOP		GENMASK(23, 16)
 #define SVSB_RUNCONFIG_DEFAULT		0x80000000
+
+/* LIMITVALS */
+#define SVSB_LIMITVALS_FLD_DTLO		GENMASK(7, 0)
+#define SVSB_LIMITVALS_FLD_DTHI		GENMASK(15, 8)
+#define SVSB_LIMITVALS_FLD_VMIN		GENMASK(23, 16)
+#define SVSB_LIMITVALS_FLD_VMAX		GENMASK(31, 24)
+#define SVSB_VAL_DTHI			0x1
+#define SVSB_VAL_DTLO			0xfe
+
+/* INTEN */
+#define SVSB_INTEN_F0EN			BIT(0)
+#define SVSB_INTEN_DACK0UPEN		BIT(8)
+#define SVSB_INTEN_DC0EN		BIT(9)
+#define SVSB_INTEN_DC1EN		BIT(10)
+#define SVSB_INTEN_DACK0LOEN		BIT(11)
+#define SVSB_INTEN_INITPROD_OVF_EN	BIT(12)
+#define SVSB_INTEN_INITSUM_OVF_EN	BIT(14)
+#define SVSB_INTEN_MONVOPEN		GENMASK(23, 16)
+#define SVSB_INTEN_INIT0x		(SVSB_INTEN_F0EN | SVSB_INTEN_DACK0UPEN |	\
+					 SVSB_INTEN_DC0EN | SVSB_INTEN_DC1EN |		\
+					 SVSB_INTEN_DACK0LOEN |				\
+					 SVSB_INTEN_INITPROD_OVF_EN |			\
+					 SVSB_INTEN_INITSUM_OVF_EN)
+
+/* TSCALCS */
+#define SVSB_TSCALCS_FLD_MTS		GENMASK(11, 0)
+#define SVSB_TSCALCS_FLD_BTS		GENMASK(23, 12)
+
+/* INIT2VALS */
+#define SVSB_INIT2VALS_FLD_DCVOFFSETIN	GENMASK(15, 0)
+#define SVSB_INIT2VALS_FLD_AGEVOFFSETIN	GENMASK(31, 16)
+
+/* VOPS */
+#define SVSB_VOPS_FLD_VOP0_4		GENMASK(7, 0)
+#define SVSB_VOPS_FLD_VOP1_5		GENMASK(15, 8)
+#define SVSB_VOPS_FLD_VOP2_6		GENMASK(23, 16)
+#define SVSB_VOPS_FLD_VOP3_7		GENMASK(31, 24)
 
 /* svs bank related setting */
 #define BITS8				8
@@ -262,7 +320,6 @@ static const u32 svs_regs_v2[] = {
  * @rst: svs platform reset control
  * @efuse_parsing: svs platform efuse parsing function pointer
  * @probe: svs platform probe function pointer
- * @irqflags: svs platform irq settings flags
  * @efuse_max: total number of svs efuse
  * @tefuse_max: total number of thermal efuse
  * @regs: svs platform registers map
@@ -280,7 +337,6 @@ struct svs_platform {
 	struct reset_control *rst;
 	bool (*efuse_parsing)(struct svs_platform *svsp);
 	int (*probe)(struct svs_platform *svsp);
-	unsigned long irqflags;
 	size_t efuse_max;
 	size_t tefuse_max;
 	const u32 *regs;
@@ -294,7 +350,6 @@ struct svs_platform_data {
 	struct svs_bank *banks;
 	bool (*efuse_parsing)(struct svs_platform *svsp);
 	int (*probe)(struct svs_platform *svsp);
-	unsigned long irqflags;
 	const u32 *regs;
 	u32 bank_max;
 };
@@ -668,8 +723,8 @@ static ssize_t svs_enable_debug_write(struct file *filp,
 		svsp->pbank = svsb;
 		svsb->mode_support = SVSB_MODE_ALL_DISABLE;
 		svs_switch_bank(svsp);
-		svs_writel_relaxed(svsp, SVSB_EN_OFF, SVSEN);
-		svs_writel_relaxed(svsp, SVSB_INTSTS_CLEAN, INTSTS);
+		svs_writel_relaxed(svsp, SVSB_PTPEN_OFF, SVSEN);
+		svs_writel_relaxed(svsp, SVSB_INTSTS_VAL_CLEAN, INTSTS);
 		spin_unlock_irqrestore(&svs_lock, flags);
 
 		svsb->phase = SVSB_PHASE_ERROR;
@@ -830,7 +885,7 @@ static void svs_get_bank_volts_v3(struct svs_platform *svsp)
 		} else if (svsb->type == SVSB_LOW) {
 			/* volt[turn_pt] + volt[j] ~ volt[opp_count - 1] */
 			j = svsb->opp_count - 7;
-			svsb->volt[turn_pt] = vop30 & GENMASK(7, 0);
+			svsb->volt[turn_pt] = FIELD_GET(SVSB_VOPS_FLD_VOP0_4, vop30);
 			shift_byte++;
 			for (i = j; i < svsb->opp_count; i++) {
 				b_sft = BITS8 * (shift_byte % REG_BYTES);
@@ -852,7 +907,7 @@ static void svs_get_bank_volts_v3(struct svs_platform *svsp)
 		if (svsb->type == SVSB_HIGH) {
 			/* volt[0] + volt[j] ~ volt[turn_pt - 1] */
 			j = turn_pt - 7;
-			svsb->volt[0] = vop30 & GENMASK(7, 0);
+			svsb->volt[0] = FIELD_GET(SVSB_VOPS_FLD_VOP0_4, vop30);
 			shift_byte++;
 			for (i = j; i < turn_pt; i++) {
 				b_sft = BITS8 * (shift_byte % REG_BYTES);
@@ -983,16 +1038,16 @@ static void svs_get_bank_volts_v2(struct svs_platform *svsp)
 	u32 temp, i;
 
 	temp = svs_readl_relaxed(svsp, VOP74);
-	svsb->volt[14] = (temp >> 24) & GENMASK(7, 0);
-	svsb->volt[12] = (temp >> 16) & GENMASK(7, 0);
-	svsb->volt[10] = (temp >> 8)  & GENMASK(7, 0);
-	svsb->volt[8] = (temp & GENMASK(7, 0));
+	svsb->volt[14] = FIELD_GET(SVSB_VOPS_FLD_VOP3_7, temp);
+	svsb->volt[12] = FIELD_GET(SVSB_VOPS_FLD_VOP2_6, temp);
+	svsb->volt[10] = FIELD_GET(SVSB_VOPS_FLD_VOP1_5, temp);
+	svsb->volt[8] = FIELD_GET(SVSB_VOPS_FLD_VOP0_4, temp);
 
 	temp = svs_readl_relaxed(svsp, VOP30);
-	svsb->volt[6] = (temp >> 24) & GENMASK(7, 0);
-	svsb->volt[4] = (temp >> 16) & GENMASK(7, 0);
-	svsb->volt[2] = (temp >> 8)  & GENMASK(7, 0);
-	svsb->volt[0] = (temp & GENMASK(7, 0));
+	svsb->volt[6] = FIELD_GET(SVSB_VOPS_FLD_VOP3_7, temp);
+	svsb->volt[4] = FIELD_GET(SVSB_VOPS_FLD_VOP2_6, temp);
+	svsb->volt[2] = FIELD_GET(SVSB_VOPS_FLD_VOP1_5, temp);
+	svsb->volt[0] = FIELD_GET(SVSB_VOPS_FLD_VOP0_4, temp);
 
 	for (i = 0; i <= 12; i += 2)
 		svsb->volt[i + 1] = interpolate(svsb->freq_pct[i],
@@ -1014,20 +1069,20 @@ static void svs_get_bank_volts_v2(struct svs_platform *svsp)
 static void svs_set_bank_freq_pct_v2(struct svs_platform *svsp)
 {
 	struct svs_bank *svsb = svsp->pbank;
+	u32 freqpct74_val, freqpct30_val;
 
-	svs_writel_relaxed(svsp,
-			   (svsb->freq_pct[14] << 24) |
-			   (svsb->freq_pct[12] << 16) |
-			   (svsb->freq_pct[10] << 8) |
-			   svsb->freq_pct[8],
-			   FREQPCT74);
+	freqpct74_val = FIELD_PREP(SVSB_FREQPCTS_FLD_PCT0_4, svsb->freq_pct[8]) |
+			FIELD_PREP(SVSB_FREQPCTS_FLD_PCT1_5, svsb->freq_pct[10]) |
+			FIELD_PREP(SVSB_FREQPCTS_FLD_PCT2_6, svsb->freq_pct[12]) |
+			FIELD_PREP(SVSB_FREQPCTS_FLD_PCT3_7, svsb->freq_pct[14]);
 
-	svs_writel_relaxed(svsp,
-			   (svsb->freq_pct[6] << 24) |
-			   (svsb->freq_pct[4] << 16) |
-			   (svsb->freq_pct[2] << 8) |
-			   svsb->freq_pct[0],
-			   FREQPCT30);
+	freqpct30_val = FIELD_PREP(SVSB_FREQPCTS_FLD_PCT0_4, svsb->freq_pct[0]) |
+			FIELD_PREP(SVSB_FREQPCTS_FLD_PCT1_5, svsb->freq_pct[2]) |
+			FIELD_PREP(SVSB_FREQPCTS_FLD_PCT2_6, svsb->freq_pct[4]) |
+			FIELD_PREP(SVSB_FREQPCTS_FLD_PCT3_7, svsb->freq_pct[6]);
+
+	svs_writel_relaxed(svsp, freqpct74_val, FREQPCT74);
+	svs_writel_relaxed(svsp, freqpct30_val, FREQPCT30);
 }
 
 static void svs_set_bank_phase(struct svs_platform *svsp,
@@ -1038,13 +1093,17 @@ static void svs_set_bank_phase(struct svs_platform *svsp,
 
 	svs_switch_bank(svsp);
 
-	des_char = (svsb->bdes << 8) | svsb->mdes;
+	des_char = FIELD_PREP(SVSB_DESCHAR_FLD_BDES, svsb->bdes) |
+		   FIELD_PREP(SVSB_DESCHAR_FLD_MDES, svsb->mdes);
 	svs_writel_relaxed(svsp, des_char, DESCHAR);
 
-	temp_char = (svsb->vco << 16) | (svsb->mtdes << 8) | svsb->dvt_fixed;
+	temp_char = FIELD_PREP(SVSB_TEMPCHAR_FLD_VCO, svsb->vco) |
+		    FIELD_PREP(SVSB_TEMPCHAR_FLD_MTDES, svsb->mtdes) |
+		    FIELD_PREP(SVSB_TEMPCHAR_FLD_DVT_FIXED, svsb->dvt_fixed);
 	svs_writel_relaxed(svsp, temp_char, TEMPCHAR);
 
-	det_char = (svsb->dcbdet << 8) | svsb->dcmdet;
+	det_char = FIELD_PREP(SVSB_DETCHAR_FLD_DCBDET, svsb->dcbdet) |
+		   FIELD_PREP(SVSB_DETCHAR_FLD_DCMDET, svsb->dcmdet);
 	svs_writel_relaxed(svsp, det_char, DETCHAR);
 
 	svs_writel_relaxed(svsp, svsb->dc_config, DCCONFIG);
@@ -1053,33 +1112,37 @@ static void svs_set_bank_phase(struct svs_platform *svsp,
 
 	svsb->set_freq_pct(svsp);
 
-	limit_vals = (svsb->vmax << 24) | (svsb->vmin << 16) |
-		     (SVSB_DTHI << 8) | SVSB_DTLO;
+	limit_vals = FIELD_PREP(SVSB_LIMITVALS_FLD_DTLO, SVSB_VAL_DTLO) |
+		     FIELD_PREP(SVSB_LIMITVALS_FLD_DTHI, SVSB_VAL_DTHI) |
+		     FIELD_PREP(SVSB_LIMITVALS_FLD_VMIN, svsb->vmin) |
+		     FIELD_PREP(SVSB_LIMITVALS_FLD_VMAX, svsb->vmax);
 	svs_writel_relaxed(svsp, limit_vals, LIMITVALS);
 
 	svs_writel_relaxed(svsp, SVSB_DET_WINDOW, DETWINDOW);
 	svs_writel_relaxed(svsp, SVSB_DET_MAX, CONFIG);
 	svs_writel_relaxed(svsp, svsb->chk_shift, CHKSHIFT);
 	svs_writel_relaxed(svsp, svsb->ctl0, CTL0);
-	svs_writel_relaxed(svsp, SVSB_INTSTS_CLEAN, INTSTS);
+	svs_writel_relaxed(svsp, SVSB_INTSTS_VAL_CLEAN, INTSTS);
 
 	switch (target_phase) {
 	case SVSB_PHASE_INIT01:
 		svs_writel_relaxed(svsp, svsb->vboot, VBOOT);
 		svs_writel_relaxed(svsp, SVSB_INTEN_INIT0x, INTEN);
-		svs_writel_relaxed(svsp, SVSB_EN_INIT01, SVSEN);
+		svs_writel_relaxed(svsp, SVSB_PTPEN_INIT01, SVSEN);
 		break;
 	case SVSB_PHASE_INIT02:
+		init2vals = FIELD_PREP(SVSB_INIT2VALS_FLD_AGEVOFFSETIN, svsb->age_voffset_in) |
+			    FIELD_PREP(SVSB_INIT2VALS_FLD_DCVOFFSETIN, svsb->dc_voffset_in);
 		svs_writel_relaxed(svsp, SVSB_INTEN_INIT0x, INTEN);
-		init2vals = (svsb->age_voffset_in << 16) | svsb->dc_voffset_in;
 		svs_writel_relaxed(svsp, init2vals, INIT2VALS);
-		svs_writel_relaxed(svsp, SVSB_EN_INIT02, SVSEN);
+		svs_writel_relaxed(svsp, SVSB_PTPEN_INIT02, SVSEN);
 		break;
 	case SVSB_PHASE_MON:
-		ts_calcs = (svsb->bts << 12) | svsb->mts;
+		ts_calcs = FIELD_PREP(SVSB_TSCALCS_FLD_BTS, svsb->bts) |
+			   FIELD_PREP(SVSB_TSCALCS_FLD_MTS, svsb->mts);
 		svs_writel_relaxed(svsp, ts_calcs, TSCALCS);
 		svs_writel_relaxed(svsp, SVSB_INTEN_MONVOPEN, INTEN);
-		svs_writel_relaxed(svsp, SVSB_EN_MON, SVSEN);
+		svs_writel_relaxed(svsp, SVSB_PTPEN_MON, SVSEN);
 		break;
 	default:
 		dev_err(svsb->dev, "requested unknown target phase: %u\n",
@@ -1115,8 +1178,8 @@ static inline void svs_error_isr_handler(struct svs_platform *svsp)
 	svs_save_bank_register_data(svsp, SVSB_PHASE_ERROR);
 
 	svsb->phase = SVSB_PHASE_ERROR;
-	svs_writel_relaxed(svsp, SVSB_EN_OFF, SVSEN);
-	svs_writel_relaxed(svsp, SVSB_INTSTS_CLEAN, INTSTS);
+	svs_writel_relaxed(svsp, SVSB_PTPEN_OFF, SVSEN);
+	svs_writel_relaxed(svsp, SVSB_INTSTS_VAL_CLEAN, INTSTS);
 }
 
 static inline void svs_init01_isr_handler(struct svs_platform *svsp)
@@ -1141,8 +1204,8 @@ static inline void svs_init01_isr_handler(struct svs_platform *svsp)
 	svsb->age_voffset_in = svs_readl_relaxed(svsp, AGEVALUES) &
 			       GENMASK(15, 0);
 
-	svs_writel_relaxed(svsp, SVSB_EN_OFF, SVSEN);
-	svs_writel_relaxed(svsp, SVSB_INTSTS_COMPLETE, INTSTS);
+	svs_writel_relaxed(svsp, SVSB_PTPEN_OFF, SVSEN);
+	svs_writel_relaxed(svsp, SVSB_INTSTS_F0_COMPLETE, INTSTS);
 	svsb->core_sel &= ~SVSB_DET_CLK_EN;
 }
 
@@ -1160,8 +1223,8 @@ static inline void svs_init02_isr_handler(struct svs_platform *svsp)
 	svsb->phase = SVSB_PHASE_INIT02;
 	svsb->get_volts(svsp);
 
-	svs_writel_relaxed(svsp, SVSB_EN_OFF, SVSEN);
-	svs_writel_relaxed(svsp, SVSB_INTSTS_COMPLETE, INTSTS);
+	svs_writel_relaxed(svsp, SVSB_PTPEN_OFF, SVSEN);
+	svs_writel_relaxed(svsp, SVSB_INTSTS_F0_COMPLETE, INTSTS);
 }
 
 static inline void svs_mon_mode_isr_handler(struct svs_platform *svsp)
@@ -1174,7 +1237,7 @@ static inline void svs_mon_mode_isr_handler(struct svs_platform *svsp)
 	svsb->get_volts(svsp);
 
 	svsb->temp = svs_readl_relaxed(svsp, TEMP) & GENMASK(7, 0);
-	svs_writel_relaxed(svsp, SVSB_INTSTS_MONVOP, INTSTS);
+	svs_writel_relaxed(svsp, SVSB_INTSTS_FLD_MONVOP, INTSTS);
 }
 
 static irqreturn_t svs_isr(int irq, void *data)
@@ -1201,13 +1264,13 @@ static irqreturn_t svs_isr(int irq, void *data)
 		int_sts = svs_readl_relaxed(svsp, INTSTS);
 		svs_en = svs_readl_relaxed(svsp, SVSEN);
 
-		if (int_sts == SVSB_INTSTS_COMPLETE &&
-		    svs_en == SVSB_EN_INIT01)
+		if (int_sts == SVSB_INTSTS_F0_COMPLETE &&
+		    svs_en == SVSB_PTPEN_INIT01)
 			svs_init01_isr_handler(svsp);
-		else if (int_sts == SVSB_INTSTS_COMPLETE &&
-			 svs_en == SVSB_EN_INIT02)
+		else if (int_sts == SVSB_INTSTS_F0_COMPLETE &&
+			 svs_en == SVSB_PTPEN_INIT02)
 			svs_init02_isr_handler(svsp);
-		else if (int_sts & SVSB_INTSTS_MONVOP)
+		else if (int_sts & SVSB_INTSTS_FLD_MONVOP)
 			svs_mon_mode_isr_handler(svsp);
 		else
 			svs_error_isr_handler(svsp);
@@ -1493,8 +1556,8 @@ static int svs_suspend(struct device *dev)
 		spin_lock_irqsave(&svs_lock, flags);
 		svsp->pbank = svsb;
 		svs_switch_bank(svsp);
-		svs_writel_relaxed(svsp, SVSB_EN_OFF, SVSEN);
-		svs_writel_relaxed(svsp, SVSB_INTSTS_CLEAN, INTSTS);
+		svs_writel_relaxed(svsp, SVSB_PTPEN_OFF, SVSEN);
+		svs_writel_relaxed(svsp, SVSB_INTSTS_VAL_CLEAN, INTSTS);
 		spin_unlock_irqrestore(&svs_lock, flags);
 
 		svsb->phase = SVSB_PHASE_ERROR;
@@ -1589,7 +1652,7 @@ static int svs_bank_resource_setup(struct svs_platform *svsp)
 
 		dev_set_drvdata(svsb->dev, svsp);
 
-		ret = dev_pm_opp_of_add_table(svsb->opp_dev);
+		ret = devm_pm_opp_of_add_table(svsb->opp_dev);
 		if (ret) {
 			dev_err(svsb->dev, "add opp table fail: %d\n", ret);
 			return ret;
@@ -1644,11 +1707,36 @@ static int svs_bank_resource_setup(struct svs_platform *svsp)
 	return 0;
 }
 
+static int svs_thermal_efuse_get_data(struct svs_platform *svsp)
+{
+	struct nvmem_cell *cell;
+
+	/* Thermal efuse parsing */
+	cell = nvmem_cell_get(svsp->dev, "t-calibration-data");
+	if (IS_ERR_OR_NULL(cell)) {
+		dev_err(svsp->dev, "no \"t-calibration-data\"? %ld\n", PTR_ERR(cell));
+		return PTR_ERR(cell);
+	}
+
+	svsp->tefuse = nvmem_cell_read(cell, &svsp->tefuse_max);
+	if (IS_ERR(svsp->tefuse)) {
+		dev_err(svsp->dev, "cannot read thermal efuse: %ld\n",
+			PTR_ERR(svsp->tefuse));
+		nvmem_cell_put(cell);
+		return PTR_ERR(svsp->tefuse);
+	}
+
+	svsp->tefuse_max /= sizeof(u32);
+	nvmem_cell_put(cell);
+
+	return 0;
+}
+
 static bool svs_mt8192_efuse_parsing(struct svs_platform *svsp)
 {
 	struct svs_bank *svsb;
-	struct nvmem_cell *cell;
 	u32 idx, i, vmin, golden_temp;
+	int ret;
 
 	for (i = 0; i < svsp->efuse_max; i++)
 		if (svsp->efuse[i])
@@ -1686,24 +1774,9 @@ static bool svs_mt8192_efuse_parsing(struct svs_platform *svsp)
 		svsb->vmax += svsb->dvt_fixed;
 	}
 
-	/* Thermal efuse parsing */
-	cell = nvmem_cell_get(svsp->dev, "t-calibration-data");
-	if (IS_ERR_OR_NULL(cell)) {
-		dev_err(svsp->dev, "no \"t-calibration-data\"? %ld\n",
-			PTR_ERR(cell));
+	ret = svs_thermal_efuse_get_data(svsp);
+	if (ret)
 		return false;
-	}
-
-	svsp->tefuse = nvmem_cell_read(cell, &svsp->tefuse_max);
-	if (IS_ERR(svsp->tefuse)) {
-		dev_err(svsp->dev, "cannot read thermal efuse: %ld\n",
-			PTR_ERR(svsp->tefuse));
-		nvmem_cell_put(cell);
-		return false;
-	}
-
-	svsp->tefuse_max /= sizeof(u32);
-	nvmem_cell_put(cell);
 
 	for (i = 0; i < svsp->tefuse_max; i++)
 		if (svsp->tefuse[i] != 0)
@@ -1726,11 +1799,11 @@ static bool svs_mt8192_efuse_parsing(struct svs_platform *svsp)
 static bool svs_mt8183_efuse_parsing(struct svs_platform *svsp)
 {
 	struct svs_bank *svsb;
-	struct nvmem_cell *cell;
 	int format[6], x_roomt[6], o_vtsmcu[5], o_vtsabb, tb_roomt = 0;
 	int adc_ge_t, adc_oe_t, ge, oe, gain, degc_cali, adc_cali_en_t;
 	int o_slope, o_slope_sign, ts_id;
 	u32 idx, i, ft_pgm, mts, temp0, temp1, temp2;
+	int ret;
 
 	for (i = 0; i < svsp->efuse_max; i++)
 		if (svsp->efuse[i])
@@ -1806,24 +1879,9 @@ static bool svs_mt8183_efuse_parsing(struct svs_platform *svsp)
 		}
 	}
 
-	/* Get thermal efuse by nvmem */
-	cell = nvmem_cell_get(svsp->dev, "t-calibration-data");
-	if (IS_ERR(cell)) {
-		dev_err(svsp->dev, "no \"t-calibration-data\"? %ld\n",
-			PTR_ERR(cell));
-		goto remove_mt8183_svsb_mon_mode;
-	}
-
-	svsp->tefuse = nvmem_cell_read(cell, &svsp->tefuse_max);
-	if (IS_ERR(svsp->tefuse)) {
-		dev_err(svsp->dev, "cannot read thermal efuse: %ld\n",
-			PTR_ERR(svsp->tefuse));
-		nvmem_cell_put(cell);
-		goto remove_mt8183_svsb_mon_mode;
-	}
-
-	svsp->tefuse_max /= sizeof(u32);
-	nvmem_cell_put(cell);
+	ret = svs_thermal_efuse_get_data(svsp);
+	if (ret)
+		return false;
 
 	/* Thermal efuse parsing */
 	adc_ge_t = (svsp->tefuse[1] >> 22) & GENMASK(9, 0);
@@ -2244,7 +2302,6 @@ static const struct svs_platform_data svs_mt8192_platform_data = {
 	.banks = svs_mt8192_banks,
 	.efuse_parsing = svs_mt8192_efuse_parsing,
 	.probe = svs_mt8192_platform_probe,
-	.irqflags = IRQF_TRIGGER_HIGH,
 	.regs = svs_regs_v2,
 	.bank_max = ARRAY_SIZE(svs_mt8192_banks),
 };
@@ -2254,7 +2311,6 @@ static const struct svs_platform_data svs_mt8183_platform_data = {
 	.banks = svs_mt8183_banks,
 	.efuse_parsing = svs_mt8183_efuse_parsing,
 	.probe = svs_mt8183_platform_probe,
-	.irqflags = IRQF_TRIGGER_LOW,
 	.regs = svs_regs_v2,
 	.bank_max = ARRAY_SIZE(svs_mt8183_banks),
 };
@@ -2292,7 +2348,6 @@ static struct svs_platform *svs_platform_probe(struct platform_device *pdev)
 	svsp->banks = svsp_data->banks;
 	svsp->efuse_parsing = svsp_data->efuse_parsing;
 	svsp->probe = svsp_data->probe;
-	svsp->irqflags = svsp_data->irqflags;
 	svsp->regs = svsp_data->regs;
 	svsp->bank_max = svsp_data->bank_max;
 
@@ -2306,8 +2361,7 @@ static struct svs_platform *svs_platform_probe(struct platform_device *pdev)
 static int svs_probe(struct platform_device *pdev)
 {
 	struct svs_platform *svsp;
-	unsigned int svsp_irq;
-	int ret;
+	int svsp_irq, ret;
 
 	svsp = svs_platform_probe(pdev);
 	if (IS_ERR(svsp))
@@ -2325,10 +2379,14 @@ static int svs_probe(struct platform_device *pdev)
 		goto svs_probe_free_resource;
 	}
 
-	svsp_irq = irq_of_parse_and_map(svsp->dev->of_node, 0);
+	svsp_irq = platform_get_irq(pdev, 0);
+	if (svsp_irq < 0) {
+		ret = svsp_irq;
+		goto svs_probe_free_resource;
+	}
+
 	ret = devm_request_threaded_irq(svsp->dev, svsp_irq, NULL, svs_isr,
-					svsp->irqflags | IRQF_ONESHOT,
-					svsp->name, svsp);
+					IRQF_ONESHOT, svsp->name, svsp);
 	if (ret) {
 		dev_err(svsp->dev, "register irq(%d) failed: %d\n",
 			svsp_irq, ret);
@@ -2392,7 +2450,7 @@ static struct platform_driver svs_driver = {
 	.driver	= {
 		.name		= "mtk-svs",
 		.pm		= &svs_pm_ops,
-		.of_match_table	= of_match_ptr(svs_of_match),
+		.of_match_table	= svs_of_match,
 	},
 };
 
