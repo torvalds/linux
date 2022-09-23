@@ -25,6 +25,9 @@
 
 #include "resource.h"
 #include "clk_mgr.h"
+#include "dcn31/dcn31_resource.h"
+#include "dcn315/dcn315_resource.h"
+#include "dcn316/dcn316_resource.h"
 
 #include "dml/dcn20/dcn20_fpu.h"
 #include "dcn31_fpu.h"
@@ -114,7 +117,7 @@ struct _vcs_dpi_ip_params_st dcn3_1_ip = {
 	.dcc_supported = true,
 };
 
-struct _vcs_dpi_soc_bounding_box_st dcn3_1_soc = {
+static struct _vcs_dpi_soc_bounding_box_st dcn3_1_soc = {
 		/*TODO: correct dispclk/dppclk voltage level determination*/
 	.clock_limits = {
 		{
@@ -259,7 +262,7 @@ struct _vcs_dpi_ip_params_st dcn3_15_ip = {
 	.dcc_supported = true,
 };
 
-struct _vcs_dpi_soc_bounding_box_st dcn3_15_soc = {
+static struct _vcs_dpi_soc_bounding_box_st dcn3_15_soc = {
 	.sr_exit_time_us = 9.0,
 	.sr_enter_plus_exit_time_us = 11.0,
 	.sr_exit_z8_time_us = 50.0,
@@ -355,7 +358,7 @@ struct _vcs_dpi_ip_params_st dcn3_16_ip = {
 	.dcc_supported = true,
 };
 
-struct _vcs_dpi_soc_bounding_box_st dcn3_16_soc = {
+static struct _vcs_dpi_soc_bounding_box_st dcn3_16_soc = {
 		/*TODO: correct dispclk/dppclk voltage level determination*/
 	.clock_limits = {
 		{

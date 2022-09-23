@@ -1329,6 +1329,7 @@ free_tz:
 	kfree(tz);
 	return ERR_PTR(result);
 }
+EXPORT_SYMBOL_GPL(thermal_zone_device_register_with_trips);
 
 struct thermal_zone_device *thermal_zone_device_register(const char *type, int ntrips, int mask,
 							 void *devdata, struct thermal_zone_device_ops *ops,

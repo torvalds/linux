@@ -2153,7 +2153,7 @@ static bool dcn31_resource_construct(
 		pool->base.usb4_dpia_count = 4;
 	}
 
-	if (dc->ctx->asic_id.chip_family == AMDGPU_FAMILY_GC_11_0_2)
+	if (dc->ctx->asic_id.chip_family == AMDGPU_FAMILY_GC_11_0_1)
 		pool->base.usb4_dpia_count = 4;
 
 	/* Audio, Stream Encoders including HPO and virtual, MPC 3D LUTs */

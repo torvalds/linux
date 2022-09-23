@@ -26,6 +26,7 @@
 #include "clk_mgr.h"
 #include "dcn20/dcn20_resource.h"
 #include "dcn301/dcn301_resource.h"
+#include "clk_mgr/dcn301/vg_clk_mgr.h"
 
 #include "dml/dcn20/dcn20_fpu.h"
 #include "dcn301_fpu.h"

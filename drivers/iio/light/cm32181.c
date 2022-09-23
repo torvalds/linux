@@ -505,7 +505,7 @@ static int cm32181_resume(struct device *dev)
 					 cm32181->conf_regs[CM32181_REG_ADDR_CMD]);
 }
 
-DEFINE_SIMPLE_DEV_PM_OPS(cm32181_pm_ops, cm32181_suspend, cm32181_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(cm32181_pm_ops, cm32181_suspend, cm32181_resume);
 
 static const struct of_device_id cm32181_of_match[] = {
 	{ .compatible = "capella,cm3218" },

@@ -53,7 +53,6 @@ config KPROBES
 config JUMP_LABEL
 	bool "Optimize very unlikely/likely branches"
 	depends on HAVE_ARCH_JUMP_LABEL
-	depends on CC_HAS_ASM_GOTO
 	select OBJTOOL if HAVE_JUMP_LABEL_HACK
 	help
 	 This option enables a transparent branch optimization that
@@ -1361,7 +1360,7 @@ config HAVE_PREEMPT_DYNAMIC_CALL
 
 config HAVE_PREEMPT_DYNAMIC_KEY
 	bool
-	depends on HAVE_ARCH_JUMP_LABEL && CC_HAS_ASM_GOTO
+	depends on HAVE_ARCH_JUMP_LABEL
 	select HAVE_PREEMPT_DYNAMIC
 	help
 	   An architecture should select this if it can handle the preemption

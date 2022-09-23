@@ -735,7 +735,7 @@ void update_siblings_masks(unsigned int cpuid)
 	int cpu, ret;
 
 	ret = detect_cache_attributes(cpuid);
-	if (ret)
+	if (ret && ret != -ENOENT)
 		pr_info("Early cacheinfo failed, ret = %d\n", ret);
 
 	/* update core and thread sibling masks */

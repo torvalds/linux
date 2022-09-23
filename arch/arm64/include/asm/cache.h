@@ -71,7 +71,7 @@ static __always_inline int icache_is_vpipt(void)
 
 static inline u32 cache_type_cwg(void)
 {
-	return (read_cpuid_cachetype() >> CTR_EL0_CWG_SHIFT) & CTR_EL0_CWG_MASK;
+	return SYS_FIELD_GET(CTR_EL0, CWG, read_cpuid_cachetype());
 }
 
 #define __read_mostly __section(".data..read_mostly")

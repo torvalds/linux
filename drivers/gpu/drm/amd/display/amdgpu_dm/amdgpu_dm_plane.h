@@ -36,16 +36,8 @@ int fill_dc_scaling_info(struct amdgpu_device *adev,
 			 const struct drm_plane_state *state,
 			 struct dc_scaling_info *scaling_info);
 
-void get_min_max_dc_plane_scaling(struct drm_device *dev,
-				  struct drm_framebuffer *fb,
-				  int *min_downscale, int *max_upscale);
-
 int dm_plane_helper_check_state(struct drm_plane_state *state,
 				struct drm_crtc_state *new_crtc_state);
-
-bool modifier_has_dcc(uint64_t modifier);
-
-unsigned int modifier_gfx9_swizzle_mode(uint64_t modifier);
 
 int fill_plane_buffer_attributes(struct amdgpu_device *adev,
 				 const struct amdgpu_framebuffer *afb,

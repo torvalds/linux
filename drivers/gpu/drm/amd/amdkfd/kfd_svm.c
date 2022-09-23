@@ -541,7 +541,6 @@ svm_range_vram_node_new(struct amdgpu_device *adev, struct svm_range *prange,
 		kfree(svm_bo);
 		return -ESRCH;
 	}
-	svm_bo->svms = prange->svms;
 	svm_bo->eviction_fence =
 		amdgpu_amdkfd_fence_create(dma_fence_context_alloc(1),
 					   mm,
@@ -3273,7 +3272,6 @@ int svm_range_schedule_evict_svm_bo(struct amdgpu_amdkfd_fence *fence)
 static void svm_range_evict_svm_bo_worker(struct work_struct *work)
 {
 	struct svm_range_bo *svm_bo;
-	struct kfd_process *p;
 	struct mm_struct *mm;
 	int r = 0;
 
@@ -3281,13 +3279,12 @@ static void svm_range_evict_svm_bo_worker(struct work_struct *work)
 	if (!svm_bo_ref_unless_zero(svm_bo))
 		return; /* svm_bo was freed while eviction was pending */
 
-	/* svm_range_bo_release destroys this worker thread. So during
-	 * the lifetime of this thread, kfd_process and mm will be valid.
-	 */
-	p = container_of(svm_bo->svms, struct kfd_process, svms);
-	mm = p->mm;
-	if (!mm)
+	if (mmget_not_zero(svm_bo->eviction_fence->mm)) {
+		mm = svm_bo->eviction_fence->mm;
+	} else {
+		svm_range_bo_unref(svm_bo);
 		return;
+	}
 
 	mmap_read_lock(mm);
 	spin_lock(&svm_bo->list_lock);
@@ -3305,8 +3302,7 @@ static void svm_range_evict_svm_bo_worker(struct work_struct *work)
 
 		mutex_lock(&prange->migrate_mutex);
 		do {
-			r = svm_migrate_vram_to_ram(prange,
-						svm_bo->eviction_fence->mm,
+			r = svm_migrate_vram_to_ram(prange, mm,
 						KFD_MIGRATE_TRIGGER_TTM_EVICTION);
 		} while (!r && prange->actual_loc && --retries);
 
@@ -3324,6 +3320,7 @@ static void svm_range_evict_svm_bo_worker(struct work_struct *work)
 	}
 	spin_unlock(&svm_bo->list_lock);
 	mmap_read_unlock(mm);
+	mmput(mm);
 
 	dma_fence_signal(&svm_bo->eviction_fence->base);
 

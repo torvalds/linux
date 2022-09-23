@@ -7694,6 +7694,20 @@ static int btrfs_dio_iomap_begin(struct inode *inode, loff_t start,
 	bool unlock_extents = false;
 
 	/*
+	 * We could potentially fault if we have a buffer > PAGE_SIZE, and if
+	 * we're NOWAIT we may submit a bio for a partial range and return
+	 * EIOCBQUEUED, which would result in an errant short read.
+	 *
+	 * The best way to handle this would be to allow for partial completions
+	 * of iocb's, so we could submit the partial bio, return and fault in
+	 * the rest of the pages, and then submit the io for the rest of the
+	 * range.  However we don't have that currently, so simply return
+	 * -EAGAIN at this point so that the normal path is used.
+	 */
+	if (!write && (flags & IOMAP_NOWAIT) && length > PAGE_SIZE)
+		return -EAGAIN;
+
+	/*
 	 * Cap the size of reads to that usually seen in buffered I/O as we need
 	 * to allocate a contiguous array for the checksums.
 	 */

@@ -361,6 +361,7 @@ posix_acl_permission(struct user_namespace *mnt_userns, struct inode *inode,
 		     const struct posix_acl *acl, int want)
 {
 	const struct posix_acl_entry *pa, *pe, *mask_obj;
+	struct user_namespace *fs_userns = i_user_ns(inode);
 	int found = 0;
 	vfsuid_t vfsuid;
 	vfsgid_t vfsgid;
@@ -376,7 +377,7 @@ posix_acl_permission(struct user_namespace *mnt_userns, struct inode *inode,
                                         goto check_perm;
                                 break;
                         case ACL_USER:
-				vfsuid = make_vfsuid(mnt_userns, &init_user_ns,
+				vfsuid = make_vfsuid(mnt_userns, fs_userns,
 						     pa->e_uid);
 				if (vfsuid_eq_kuid(vfsuid, current_fsuid()))
                                         goto mask;
@@ -390,7 +391,7 @@ posix_acl_permission(struct user_namespace *mnt_userns, struct inode *inode,
                                 }
 				break;
                         case ACL_GROUP:
-				vfsgid = make_vfsgid(mnt_userns, &init_user_ns,
+				vfsgid = make_vfsgid(mnt_userns, fs_userns,
 						     pa->e_gid);
 				if (vfsgid_in_group_p(vfsgid)) {
 					found = 1;
@@ -736,6 +737,7 @@ void posix_acl_getxattr_idmapped_mnt(struct user_namespace *mnt_userns,
 {
 	struct posix_acl_xattr_header *header = value;
 	struct posix_acl_xattr_entry *entry = (void *)(header + 1), *end;
+	struct user_namespace *fs_userns = i_user_ns(inode);
 	int count;
 	vfsuid_t vfsuid;
 	vfsgid_t vfsgid;
@@ -753,13 +755,13 @@ void posix_acl_getxattr_idmapped_mnt(struct user_namespace *mnt_userns,
 		switch (le16_to_cpu(entry->e_tag)) {
 		case ACL_USER:
 			uid = make_kuid(&init_user_ns, le32_to_cpu(entry->e_id));
-			vfsuid = make_vfsuid(mnt_userns, &init_user_ns, uid);
+			vfsuid = make_vfsuid(mnt_userns, fs_userns, uid);
 			entry->e_id = cpu_to_le32(from_kuid(&init_user_ns,
 						vfsuid_into_kuid(vfsuid)));
 			break;
 		case ACL_GROUP:
 			gid = make_kgid(&init_user_ns, le32_to_cpu(entry->e_id));
-			vfsgid = make_vfsgid(mnt_userns, &init_user_ns, gid);
+			vfsgid = make_vfsgid(mnt_userns, fs_userns, gid);
 			entry->e_id = cpu_to_le32(from_kgid(&init_user_ns,
 						vfsgid_into_kgid(vfsgid)));
 			break;
@@ -775,6 +777,7 @@ void posix_acl_setxattr_idmapped_mnt(struct user_namespace *mnt_userns,
 {
 	struct posix_acl_xattr_header *header = value;
 	struct posix_acl_xattr_entry *entry = (void *)(header + 1), *end;
+	struct user_namespace *fs_userns = i_user_ns(inode);
 	int count;
 	vfsuid_t vfsuid;
 	vfsgid_t vfsgid;
@@ -793,13 +796,13 @@ void posix_acl_setxattr_idmapped_mnt(struct user_namespace *mnt_userns,
 		case ACL_USER:
 			uid = make_kuid(&init_user_ns, le32_to_cpu(entry->e_id));
 			vfsuid = VFSUIDT_INIT(uid);
-			uid = from_vfsuid(mnt_userns, &init_user_ns, vfsuid);
+			uid = from_vfsuid(mnt_userns, fs_userns, vfsuid);
 			entry->e_id = cpu_to_le32(from_kuid(&init_user_ns, uid));
 			break;
 		case ACL_GROUP:
 			gid = make_kgid(&init_user_ns, le32_to_cpu(entry->e_id));
 			vfsgid = VFSGIDT_INIT(gid);
-			gid = from_vfsgid(mnt_userns, &init_user_ns, vfsgid);
+			gid = from_vfsgid(mnt_userns, fs_userns, vfsgid);
 			entry->e_id = cpu_to_le32(from_kgid(&init_user_ns, gid));
 			break;
 		default:

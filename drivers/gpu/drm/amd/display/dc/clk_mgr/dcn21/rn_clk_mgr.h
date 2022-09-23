@@ -28,6 +28,7 @@
 
 #include "clk_mgr.h"
 #include "dm_pp_smu.h"
+#include "clk_mgr_internal.h"
 
 extern struct wm_table ddr4_wm_table_gs;
 extern struct wm_table lpddr4_wm_table_gs;

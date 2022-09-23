@@ -25,15 +25,11 @@ readonly path_sysctl_mem="net.core.optmem_max"
 # No arguments: automated test
 if [[ "$#" -eq "0" ]]; then
 	IPs=( "4" "6" )
-	protocols=( "tcp" "udp" )
 
 	for IP in "${IPs[@]}"; do
-		for proto in "${protocols[@]}"; do
-			for mode in $(seq 1 3); do
-				$0 "$IP" "$proto" -m "$mode" -t 1 -n 32
-				$0 "$IP" "$proto" -m "$mode" -t 1 -n 32 -f
-				$0 "$IP" "$proto" -m "$mode" -t 1 -n 32 -c -f
-			done
+		for mode in $(seq 1 3); do
+			$0 "$IP" udp -m "$mode" -t 1 -n 32
+			$0 "$IP" tcp -m "$mode" -t 1 -n 32
 		done
 	done
 

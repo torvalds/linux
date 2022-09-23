@@ -656,12 +656,12 @@ struct kvm_irq_routing_table {
 };
 #endif
 
-#ifndef KVM_PRIVATE_MEM_SLOTS
-#define KVM_PRIVATE_MEM_SLOTS 0
+#ifndef KVM_INTERNAL_MEM_SLOTS
+#define KVM_INTERNAL_MEM_SLOTS 0
 #endif
 
 #define KVM_MEM_SLOTS_NUM SHRT_MAX
-#define KVM_USER_MEM_SLOTS (KVM_MEM_SLOTS_NUM - KVM_PRIVATE_MEM_SLOTS)
+#define KVM_USER_MEM_SLOTS (KVM_MEM_SLOTS_NUM - KVM_INTERNAL_MEM_SLOTS)
 
 #ifndef __KVM_VCPU_MULTIPLE_ADDRESS_SPACE
 static inline int kvm_arch_vcpu_memslots_id(struct kvm_vcpu *vcpu)
@@ -765,10 +765,10 @@ struct kvm {
 
 #if defined(CONFIG_MMU_NOTIFIER) && defined(KVM_ARCH_WANT_MMU_NOTIFIER)
 	struct mmu_notifier mmu_notifier;
-	unsigned long mmu_notifier_seq;
-	long mmu_notifier_count;
-	unsigned long mmu_notifier_range_start;
-	unsigned long mmu_notifier_range_end;
+	unsigned long mmu_invalidate_seq;
+	long mmu_invalidate_in_progress;
+	unsigned long mmu_invalidate_range_start;
+	unsigned long mmu_invalidate_range_end;
 #endif
 	struct list_head devices;
 	u64 manual_dirty_log_protect;
@@ -1357,10 +1357,10 @@ void kvm_mmu_free_memory_cache(struct kvm_mmu_memory_cache *mc);
 void *kvm_mmu_memory_cache_alloc(struct kvm_mmu_memory_cache *mc);
 #endif
 
-void kvm_inc_notifier_count(struct kvm *kvm, unsigned long start,
-				   unsigned long end);
-void kvm_dec_notifier_count(struct kvm *kvm, unsigned long start,
-				   unsigned long end);
+void kvm_mmu_invalidate_begin(struct kvm *kvm, unsigned long start,
+			      unsigned long end);
+void kvm_mmu_invalidate_end(struct kvm *kvm, unsigned long start,
+			    unsigned long end);
 
 long kvm_arch_dev_ioctl(struct file *filp,
 			unsigned int ioctl, unsigned long arg);
@@ -1907,42 +1907,44 @@ extern const struct kvm_stats_header kvm_vcpu_stats_header;
 extern const struct _kvm_stats_desc kvm_vcpu_stats_desc[];
 
 #if defined(CONFIG_MMU_NOTIFIER) && defined(KVM_ARCH_WANT_MMU_NOTIFIER)
-static inline int mmu_notifier_retry(struct kvm *kvm, unsigned long mmu_seq)
+static inline int mmu_invalidate_retry(struct kvm *kvm, unsigned long mmu_seq)
 {
-	if (unlikely(kvm->mmu_notifier_count))
+	if (unlikely(kvm->mmu_invalidate_in_progress))
 		return 1;
 	/*
-	 * Ensure the read of mmu_notifier_count happens before the read
-	 * of mmu_notifier_seq.  This interacts with the smp_wmb() in
-	 * mmu_notifier_invalidate_range_end to make sure that the caller
-	 * either sees the old (non-zero) value of mmu_notifier_count or
-	 * the new (incremented) value of mmu_notifier_seq.
-	 * PowerPC Book3s HV KVM calls this under a per-page lock
-	 * rather than under kvm->mmu_lock, for scalability, so
-	 * can't rely on kvm->mmu_lock to keep things ordered.
+	 * Ensure the read of mmu_invalidate_in_progress happens before
+	 * the read of mmu_invalidate_seq.  This interacts with the
+	 * smp_wmb() in mmu_notifier_invalidate_range_end to make sure
+	 * that the caller either sees the old (non-zero) value of
+	 * mmu_invalidate_in_progress or the new (incremented) value of
+	 * mmu_invalidate_seq.
+	 *
+	 * PowerPC Book3s HV KVM calls this under a per-page lock rather
+	 * than under kvm->mmu_lock, for scalability, so can't rely on
+	 * kvm->mmu_lock to keep things ordered.
 	 */
 	smp_rmb();
-	if (kvm->mmu_notifier_seq != mmu_seq)
+	if (kvm->mmu_invalidate_seq != mmu_seq)
 		return 1;
 	return 0;
 }
 
-static inline int mmu_notifier_retry_hva(struct kvm *kvm,
-					 unsigned long mmu_seq,
-					 unsigned long hva)
+static inline int mmu_invalidate_retry_hva(struct kvm *kvm,
+					   unsigned long mmu_seq,
+					   unsigned long hva)
 {
 	lockdep_assert_held(&kvm->mmu_lock);
 	/*
-	 * If mmu_notifier_count is non-zero, then the range maintained by
-	 * kvm_mmu_notifier_invalidate_range_start contains all addresses that
-	 * might be being invalidated. Note that it may include some false
+	 * If mmu_invalidate_in_progress is non-zero, then the range maintained
+	 * by kvm_mmu_notifier_invalidate_range_start contains all addresses
+	 * that might be being invalidated. Note that it may include some false
 	 * positives, due to shortcuts when handing concurrent invalidations.
 	 */
-	if (unlikely(kvm->mmu_notifier_count) &&
-	    hva >= kvm->mmu_notifier_range_start &&
-	    hva < kvm->mmu_notifier_range_end)
+	if (unlikely(kvm->mmu_invalidate_in_progress) &&
+	    hva >= kvm->mmu_invalidate_range_start &&
+	    hva < kvm->mmu_invalidate_range_end)
 		return 1;
-	if (kvm->mmu_notifier_seq != mmu_seq)
+	if (kvm->mmu_invalidate_seq != mmu_seq)
 		return 1;
 	return 0;
 }

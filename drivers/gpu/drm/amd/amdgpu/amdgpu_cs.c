@@ -837,16 +837,12 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 			continue;
 
 		r = amdgpu_vm_bo_update(adev, bo_va, false);
-		if (r) {
-			mutex_unlock(&p->bo_list->bo_list_mutex);
+		if (r)
 			return r;
-		}
 
 		r = amdgpu_sync_fence(&p->job->sync, bo_va->last_pt_update);
-		if (r) {
-			mutex_unlock(&p->bo_list->bo_list_mutex);
+		if (r)
 			return r;
-		}
 	}
 
 	r = amdgpu_vm_handle_moved(adev, vm);
