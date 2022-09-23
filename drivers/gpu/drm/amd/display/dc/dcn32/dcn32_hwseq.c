@@ -206,8 +206,7 @@ static bool dcn32_check_no_memory_request_for_cab(struct dc *dc)
  */
 static uint32_t dcn32_calculate_cab_allocation(struct dc *dc, struct dc_state *ctx)
 {
-	uint8_t i;
-	int j;
+	int i, j;
 	struct dc_stream_state *stream = NULL;
 	struct dc_plane_state *plane = NULL;
 	uint32_t cursor_size = 0;
