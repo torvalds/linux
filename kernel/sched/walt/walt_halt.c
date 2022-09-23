@@ -460,7 +460,7 @@ static void android_rvh_get_nohz_timer_target(void *unused, int *cpu, bool *done
 
 	*done = true;
 
-	if (housekeeping_cpu(*cpu, HK_FLAG_TIMER) && !cpu_halted(*cpu)) {
+	if (housekeeping_cpu(*cpu, HK_TYPE_TIMER) && !cpu_halted(*cpu)) {
 		if (!available_idle_cpu(*cpu))
 			return;
 		default_cpu = *cpu;
@@ -469,7 +469,7 @@ static void android_rvh_get_nohz_timer_target(void *unused, int *cpu, bool *done
 	rcu_read_lock();
 	for_each_domain(*cpu, sd) {
 		for_each_cpu_and(i, sched_domain_span(sd),
-			housekeeping_cpumask(HK_FLAG_TIMER)) {
+			housekeeping_cpumask(HK_TYPE_TIMER)) {
 			if (*cpu == i)
 				continue;
 
@@ -483,7 +483,7 @@ static void android_rvh_get_nohz_timer_target(void *unused, int *cpu, bool *done
 	if (default_cpu == -1) {
 		cpumask_complement(&unhalted, cpu_halt_mask);
 		for_each_cpu_and(i, &unhalted,
-				 housekeeping_cpumask(HK_FLAG_TIMER)) {
+				 housekeeping_cpumask(HK_TYPE_TIMER)) {
 			if (*cpu == i)
 				continue;
 
