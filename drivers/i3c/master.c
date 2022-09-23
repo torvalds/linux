@@ -2087,10 +2087,6 @@ int i3c_master_add_i3c_dev_locked(struct i3c_master_controller *master,
 		i3c_master_free_i3c_dev(olddev);
 	}
 
-	ret = i3c_master_reattach_i3c_dev(newdev, old_dyn_addr);
-	if (ret)
-		goto err_detach_dev;
-
 	/*
 	 * Depending on our previous state, the expected dynamic address might
 	 * differ:
