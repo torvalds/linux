@@ -574,6 +574,20 @@ void kfree(const void *block)
 }
 EXPORT_SYMBOL(kfree);
 
+size_t kmalloc_size_roundup(size_t size)
+{
+	/* Short-circuit the 0 size case. */
+	if (unlikely(size == 0))
+		return 0;
+	/* Short-circuit saturated "too-large" case. */
+	if (unlikely(size == SIZE_MAX))
+		return SIZE_MAX;
+
+	return ALIGN(size, ARCH_KMALLOC_MINALIGN);
+}
+
+EXPORT_SYMBOL(kmalloc_size_roundup);
+
 /* can't use ksize for kmem_cache_alloc memory, only kmalloc */
 size_t __ksize(const void *block)
 {
