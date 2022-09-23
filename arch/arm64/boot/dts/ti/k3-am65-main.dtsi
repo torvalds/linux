@@ -112,13 +112,13 @@
 	crypto: crypto@4e00000 {
 		compatible = "ti,am654-sa2ul";
 		reg = <0x0 0x4e00000 0x0 0x1200>;
-		power-domains = <&k3_pds 136 TI_SCI_PD_EXCLUSIVE>;
+		power-domains = <&k3_pds 136 TI_SCI_PD_SHARED>;
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges = <0x0 0x04e00000 0x00 0x04e00000 0x0 0x30000>;
 
-		dmas = <&main_udmap 0xc000>, <&main_udmap 0x4000>,
-				<&main_udmap 0x4001>;
+		dmas = <&main_udmap 0xc001>, <&main_udmap 0x4002>,
+				<&main_udmap 0x4003>;
 		dma-names = "tx", "rx1", "rx2";
 		dma-coherent;
 
@@ -127,6 +127,7 @@
 			reg = <0x0 0x4e10000 0x0 0x7d>;
 			interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&k3_clks 136 1>;
+			status = "disabled"; /* Used by OP-TEE */
 		};
 	};
 
