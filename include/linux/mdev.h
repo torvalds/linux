@@ -87,8 +87,6 @@ struct mdev_driver {
 	struct device_driver driver;
 };
 
-extern struct bus_type mdev_bus_type;
-
 int mdev_register_parent(struct mdev_parent *parent, struct device *dev,
 		struct mdev_driver *mdev_driver, struct mdev_type **types,
 		unsigned int nr_types);
