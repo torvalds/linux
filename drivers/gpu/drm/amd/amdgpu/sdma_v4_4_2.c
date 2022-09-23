@@ -27,6 +27,7 @@
 #include <linux/pci.h>
 
 #include "amdgpu.h"
+#include "amdgpu_xcp.h"
 #include "amdgpu_ucode.h"
 #include "amdgpu_trace.h"
 
@@ -2024,4 +2025,39 @@ const struct amdgpu_ip_block_version sdma_v4_4_2_ip_block = {
 	.minor = 4,
 	.rev = 0,
 	.funcs = &sdma_v4_4_2_ip_funcs,
+};
+
+static int sdma_v4_4_2_xcp_resume(void *handle, uint32_t inst_mask)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int r;
+
+	if (!amdgpu_sriov_vf(adev))
+		sdma_v4_4_2_inst_init_golden_registers(adev, inst_mask);
+
+	r = sdma_v4_4_2_inst_start(adev, inst_mask);
+
+	return r;
+}
+
+static int sdma_v4_4_2_xcp_suspend(void *handle, uint32_t inst_mask)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	uint32_t tmp_mask = inst_mask;
+	int i;
+
+	for_each_inst(i, tmp_mask) {
+		amdgpu_irq_put(adev, &adev->sdma.ecc_irq,
+			       AMDGPU_SDMA_IRQ_INSTANCE0 + i);
+	}
+
+	sdma_v4_4_2_inst_ctx_switch_enable(adev, false, inst_mask);
+	sdma_v4_4_2_inst_enable(adev, false, inst_mask);
+
+	return 0;
+}
+
+struct amdgpu_xcp_ip_funcs sdma_v4_4_2_xcp_funcs = {
+	.suspend = &sdma_v4_4_2_xcp_suspend,
+	.resume = &sdma_v4_4_2_xcp_resume
 };
