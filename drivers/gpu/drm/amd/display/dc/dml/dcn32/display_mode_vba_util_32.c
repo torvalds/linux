@@ -27,6 +27,8 @@
 #include "display_mode_vba_32.h"
 #include "../display_mode_lib.h"
 
+#define DCN32_MAX_FMT_420_BUFFER_WIDTH 4096
+
 unsigned int dml32_dscceComputeDelay(
 		unsigned int bpc,
 		double BPP,
@@ -1182,6 +1184,7 @@ void dml32_CalculateDETBufferSize(
 void dml32_CalculateODMMode(
 		unsigned int MaximumPixelsPerLinePerDSCUnit,
 		unsigned int HActive,
+		enum output_format_class OutFormat,
 		enum output_encoder_class Output,
 		enum odm_combine_policy ODMUse,
 		double StateDispclk,
@@ -1252,6 +1255,29 @@ void dml32_CalculateODMMode(
 			*NumberOfDPP = 1;
 		else
 			*TotalAvailablePipesSupport = false;
+	}
+	if (OutFormat == dm_420 && HActive > DCN32_MAX_FMT_420_BUFFER_WIDTH &&
+			ODMUse != dm_odm_combine_policy_4to1) {
+		if (HActive > DCN32_MAX_FMT_420_BUFFER_WIDTH * 4) {
+			*ODMMode = dm_odm_combine_mode_disabled;
+			*NumberOfDPP = 0;
+			*TotalAvailablePipesSupport = false;
+		} else if (HActive > DCN32_MAX_FMT_420_BUFFER_WIDTH * 2 ||
+				*ODMMode == dm_odm_combine_mode_4to1) {
+			*ODMMode = dm_odm_combine_mode_4to1;
+			*RequiredDISPCLKPerSurface = SurfaceRequiredDISPCLKWithODMCombineFourToOne;
+			*NumberOfDPP = 4;
+		} else {
+			*ODMMode = dm_odm_combine_mode_2to1;
+			*RequiredDISPCLKPerSurface = SurfaceRequiredDISPCLKWithODMCombineTwoToOne;
+			*NumberOfDPP = 2;
+		}
+	}
+	if (Output == dm_hdmi && OutFormat == dm_420 &&
+			HActive > DCN32_MAX_FMT_420_BUFFER_WIDTH) {
+		*ODMMode = dm_odm_combine_mode_disabled;
+		*NumberOfDPP = 0;
+		*TotalAvailablePipesSupport = false;
 	}
 }
 

@@ -671,7 +671,8 @@ F:	fs/afs/
 F:	include/trace/events/afs.h
 
 AGPGART DRIVER
-M:	David Airlie <airlied@linux.ie>
+M:	David Airlie <airlied@redhat.com>
+L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm
 F:	drivers/char/agp/
@@ -6753,7 +6754,7 @@ F:	Documentation/devicetree/bindings/display/panel/samsung,lms380kf01.yaml
 F:	drivers/gpu/drm/panel/panel-widechips-ws2401.c
 
 DRM DRIVERS
-M:	David Airlie <airlied@linux.ie>
+M:	David Airlie <airlied@gmail.com>
 M:	Daniel Vetter <daniel@ffwll.ch>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
@@ -21567,7 +21568,7 @@ F:	drivers/gpio/gpio-virtio.c
 F:	include/uapi/linux/virtio_gpio.h
 
 VIRTIO GPU DRIVER
-M:	David Airlie <airlied@linux.ie>
+M:	David Airlie <airlied@redhat.com>
 M:	Gerd Hoffmann <kraxel@redhat.com>
 R:	Gurchetan Singh <gurchetansingh@chromium.org>
 R:	Chia-I Wu <olvaffe@gmail.com>

@@ -3584,6 +3584,23 @@ void check_syncd_pipes_for_disabled_master_pipe(struct dc *dc,
 	}
 }
 
+void reset_sync_context_for_pipe(const struct dc *dc,
+	struct dc_state *context,
+	uint8_t pipe_idx)
+{
+	int i;
+	struct pipe_ctx *pipe_ctx_reset;
+
+	/* reset the otg sync context for the pipe and its slave pipes if any */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		pipe_ctx_reset = &context->res_ctx.pipe_ctx[i];
+
+		if (((GET_PIPE_SYNCD_FROM_PIPE(pipe_ctx_reset) == pipe_idx) &&
+			IS_PIPE_SYNCD_VALID(pipe_ctx_reset)) || (i == pipe_idx))
+			SET_PIPE_SYNCD_TO_PIPE(pipe_ctx_reset, i);
+	}
+}
+
 uint8_t resource_transmitter_to_phy_idx(const struct dc *dc, enum transmitter transmitter)
 {
 	/* TODO - get transmitter to phy idx mapping from DMUB */
