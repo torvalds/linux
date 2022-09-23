@@ -7,16 +7,19 @@
 
 /dts-v1/;
 #include "r8a779g0-white-hawk-cpu.dtsi"
+#include "r8a779g0-white-hawk-csi-dsi.dtsi"
+#include "r8a779g0-white-hawk-ethernet.dtsi"
 
 / {
 	model = "Renesas White Hawk CPU and Breakout boards based on r8a779g0";
 	compatible = "renesas,white-hawk-breakout", "renesas,white-hawk-cpu", "renesas,r8a779g0";
+};
 
-	aliases {
-		serial0 = &hscif0;
-	};
-
-	chosen {
-		stdout-path = "serial0:921600n8";
+&i2c0 {
+	eeprom@51 {
+		compatible = "rohm,br24g01", "atmel,24c01";
+		label = "breakout-board";
+		reg = <0x51>;
+		pagesize = <8>;
 	};
 };

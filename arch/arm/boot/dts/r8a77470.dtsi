@@ -357,7 +357,7 @@
 			status = "disabled";
 		};
 
-		usbphy0: usb-phy@e6590100 {
+		usbphy0: usb-phy-controller@e6590100 {
 			compatible = "renesas,usb-phy-r8a77470",
 				     "renesas,rcar-gen2-usb-phy";
 			reg = <0 0xe6590100 0 0x100>;
@@ -369,7 +369,7 @@
 			resets = <&cpg 704>;
 			status = "disabled";
 
-			usb0: usb-channel@0 {
+			usb0: usb-phy@0 {
 				reg = <0>;
 				#phy-cells = <1>;
 			};
@@ -393,7 +393,7 @@
 			status = "disabled";
 		};
 
-		usbphy1: usb-phy@e6598100 {
+		usbphy1: usb-phy-controller@e6598100 {
 			compatible = "renesas,usb-phy-r8a77470",
 				     "renesas,rcar-gen2-usb-phy";
 			reg = <0 0xe6598100 0 0x100>;
@@ -405,7 +405,7 @@
 			resets = <&cpg 706>;
 			status = "disabled";
 
-			usb1: usb-channel@0 {
+			usb1: usb-phy@0 {
 				reg = <0>;
 				#phy-cells = <1>;
 			};

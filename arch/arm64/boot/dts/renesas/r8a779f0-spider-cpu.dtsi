@@ -11,6 +11,16 @@
 	model = "Renesas Spider CPU board";
 	compatible = "renesas,spider-cpu", "renesas,r8a779f0";
 
+	aliases {
+		serial0 = &scif3;
+		serial1 = &scif0;
+	};
+
+	chosen {
+		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
+		stdout-path = "serial0:115200n8";
+	};
+
 	memory@48000000 {
 		device_type = "memory";
 		/* first 128MB is reserved for secure area. */
