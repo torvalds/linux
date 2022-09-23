@@ -1036,11 +1036,31 @@ static int rk817_digital_mute(struct snd_soc_dai *dai, int mute, int stream)
 			SNDRV_PCM_FMTBIT_S24_LE |\
 			SNDRV_PCM_FMTBIT_S32_LE)
 
+static void rk817_codec_shutdown(struct snd_pcm_substream *substream,
+				 struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+
+	/**
+	 * Note: The following configurations will take effect when i2s bclk
+	 * is working, and we just need to handle the part of ADC that is
+	 * output to SoC.
+	 */
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		snd_soc_component_update_bits(component, RK817_CODEC_DTOP_DIGEN_CLKE,
+					      I2STX_CKE_EN, I2STX_CKE_EN);
+		usleep_range(1000, 1100);
+		snd_soc_component_update_bits(component, RK817_CODEC_DTOP_DIGEN_CLKE,
+					      I2STX_CKE_EN, I2STX_CKE_DIS);
+	}
+}
+
 static struct snd_soc_dai_ops rk817_dai_ops = {
 	.hw_params	= rk817_hw_params,
 	.set_fmt	= rk817_set_dai_fmt,
 	.set_sysclk	= rk817_set_dai_sysclk,
 	.mute_stream	= rk817_digital_mute,
+	.shutdown	= rk817_codec_shutdown,
 	.no_capture_mute = 1,
 };
 

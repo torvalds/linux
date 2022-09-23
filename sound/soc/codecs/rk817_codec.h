@@ -83,6 +83,9 @@
 #define ADC_DIG_CLK_DIS			(0x0 << 4)
 #define ADC_DIG_CLK_EN			(0xf << 4)
 
+#define I2STX_CKE_EN			(0x1 << 6)
+#define I2STX_CKE_DIS			(0x0 << 6)
+
 #define DAC_DIG_CLK_MASK		(0xf << 0)
 #define DAC_DIG_CLK_SFT			0
 #define DAC_DIG_CLK_DIS			(0x0 << 0)
