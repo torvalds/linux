@@ -64,6 +64,7 @@ static struct env {
 	int filename_cnt;
 	bool verbose;
 	bool quiet;
+	int log_level;
 	enum resfmt out_fmt;
 	bool comparison_mode;
 
@@ -108,6 +109,7 @@ const char argp_program_doc[] =
 static const struct argp_option opts[] = {
 	{ NULL, 'h', NULL, OPTION_HIDDEN, "Show the full help" },
 	{ "verbose", 'v', NULL, 0, "Verbose mode" },
+	{ "log-level", 'l', "LEVEL", 0, "Verifier log level (default 0 for normal mode, 1 for verbose mode)" },
 	{ "quiet", 'q', NULL, 0, "Quiet mode" },
 	{ "emit", 'e', "SPEC", 0, "Specify stats to be emitted" },
 	{ "sort", 's', "SPEC", 0, "Specify sort order" },
@@ -154,6 +156,14 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		} else {
 			fprintf(stderr, "Unrecognized output format '%s'\n", arg);
 			return -EINVAL;
+		}
+		break;
+	case 'l':
+		errno = 0;
+		env.log_level = strtol(arg, NULL, 10);
+		if (errno) {
+			fprintf(stderr, "invalid log level: %s\n", arg);
+			argp_usage(state);
 		}
 		break;
 	case 'C':
@@ -526,7 +536,7 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 		if (!buf)
 			return -ENOMEM;
 		bpf_program__set_log_buf(prog, buf, buf_sz);
-		bpf_program__set_log_level(prog, 1 | 4); /* stats + log */
+		bpf_program__set_log_level(prog, env.log_level | 4); /* stats + log */
 	} else {
 		bpf_program__set_log_buf(prog, buf, buf_sz);
 		bpf_program__set_log_level(prog, 4); /* only verifier stats */
@@ -1280,6 +1290,8 @@ int main(int argc, char **argv)
 		argp_help(&argp, stderr, ARGP_HELP_USAGE, "veristat");
 		return 1;
 	}
+	if (env.verbose && env.log_level == 0)
+		env.log_level = 1;
 
 	if (env.output_spec.spec_cnt == 0)
 		env.output_spec = default_output_spec;
