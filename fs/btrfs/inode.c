@@ -5256,7 +5256,7 @@ static int btrfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentr
 		err = btrfs_dirty_inode(inode);
 
 		if (!err && attr->ia_valid & ATTR_MODE)
-			err = posix_acl_chmod(mnt_userns, inode, inode->i_mode);
+			err = posix_acl_chmod(mnt_userns, dentry, inode->i_mode);
 	}
 
 	return err;

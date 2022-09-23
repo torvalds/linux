@@ -802,7 +802,7 @@ int ntfs3_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	setattr_copy(mnt_userns, inode, attr);
 
 	if (mode != inode->i_mode) {
-		err = ntfs_acl_chmod(mnt_userns, inode);
+		err = ntfs_acl_chmod(mnt_userns, dentry);
 		if (err)
 			goto out;
 

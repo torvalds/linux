@@ -255,10 +255,11 @@ int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 
 }
 
-int nfs3_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+int nfs3_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 		 struct posix_acl *acl, int type)
 {
 	struct posix_acl *orig = acl, *dfacl = NULL, *alloc;
+	struct inode *inode = d_inode(dentry);
 	int status;
 
 	if (S_ISDIR(inode->i_mode)) {

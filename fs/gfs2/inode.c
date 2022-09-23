@@ -1997,7 +1997,7 @@ static int gfs2_setattr(struct user_namespace *mnt_userns,
 	else {
 		error = gfs2_setattr_simple(inode, attr);
 		if (!error && attr->ia_valid & ATTR_MODE)
-			error = posix_acl_chmod(&init_user_ns, inode,
+			error = posix_acl_chmod(&init_user_ns, dentry,
 						inode->i_mode);
 	}
 

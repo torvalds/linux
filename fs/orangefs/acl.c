@@ -118,12 +118,13 @@ out:
 	return error;
 }
 
-int orangefs_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+int orangefs_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 		     struct posix_acl *acl, int type)
 {
 	int error;
 	struct iattr iattr;
 	int rc;
+	struct inode *inode = d_inode(dentry);
 
 	memset(&iattr, 0, sizeof iattr);
 
@@ -152,7 +153,7 @@ int orangefs_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
 	rc = __orangefs_set_acl(inode, acl, type);
 
 	if (!rc && (iattr.ia_valid == ATTR_MODE))
-		rc = __orangefs_setattr_mode(inode, &iattr);
+		rc = __orangefs_setattr_mode(dentry, &iattr);
 
 	return rc;
 }

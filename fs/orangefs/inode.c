@@ -833,14 +833,15 @@ out:
 	return ret;
 }
 
-int __orangefs_setattr_mode(struct inode *inode, struct iattr *iattr)
+int __orangefs_setattr_mode(struct dentry *dentry, struct iattr *iattr)
 {
 	int ret;
+	struct inode *inode = d_inode(dentry);
 
 	ret = __orangefs_setattr(inode, iattr);
 	/* change mode on a file that has ACLs */
 	if (!ret && (iattr->ia_valid & ATTR_MODE))
-		ret = posix_acl_chmod(&init_user_ns, inode, inode->i_mode);
+		ret = posix_acl_chmod(&init_user_ns, dentry, inode->i_mode);
 	return ret;
 }
 
@@ -856,7 +857,7 @@ int orangefs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	ret = setattr_prepare(&init_user_ns, dentry, iattr);
 	if (ret)
 	        goto out;
-	ret = __orangefs_setattr_mode(d_inode(dentry), iattr);
+	ret = __orangefs_setattr_mode(dentry, iattr);
 	sync_inode_metadata(d_inode(dentry), 1);
 out:
 	gossip_debug(GOSSIP_INODE_DEBUG, "orangefs_setattr: returning %d\n",

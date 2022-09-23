@@ -154,7 +154,7 @@ static int bad_inode_tmpfile(struct user_namespace *mnt_userns,
 }
 
 static int bad_inode_set_acl(struct user_namespace *mnt_userns,
-			     struct inode *inode, struct posix_acl *acl,
+			     struct dentry *dentry, struct posix_acl *acl,
 			     int type)
 {
 	return -EIO;

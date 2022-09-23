@@ -578,19 +578,20 @@ EXPORT_SYMBOL(__posix_acl_chmod);
  * posix_acl_chmod - chmod a posix acl
  *
  * @mnt_userns:	user namespace of the mount @inode was found from
- * @inode:	inode to check permissions on
+ * @dentry:	dentry to check permissions on
  * @mode:	the new mode of @inode
  *
- * If the inode has been found through an idmapped mount the user namespace of
+ * If the dentry has been found through an idmapped mount the user namespace of
  * the vfsmount must be passed through @mnt_userns. This function will then
  * take care to map the inode according to @mnt_userns before checking
  * permissions. On non-idmapped mounts or if permission checking is to be
  * performed on the raw inode simply passs init_user_ns.
  */
 int
- posix_acl_chmod(struct user_namespace *mnt_userns, struct inode *inode,
+ posix_acl_chmod(struct user_namespace *mnt_userns, struct dentry *dentry,
 		    umode_t mode)
 {
+	struct inode *inode = d_inode(dentry);
 	struct posix_acl *acl;
 	int ret = 0;
 
@@ -609,7 +610,7 @@ int
 	ret = __posix_acl_chmod(&acl, GFP_KERNEL, mode);
 	if (ret)
 		return ret;
-	ret = inode->i_op->set_acl(mnt_userns, inode, acl, ACL_TYPE_ACCESS);
+	ret = inode->i_op->set_acl(mnt_userns, dentry, acl, ACL_TYPE_ACCESS);
 	posix_acl_release(acl);
 	return ret;
 }
@@ -1139,9 +1140,11 @@ posix_acl_xattr_get(const struct xattr_handler *handler,
 }
 
 int
-set_posix_acl(struct user_namespace *mnt_userns, struct inode *inode,
+set_posix_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 	      int type, struct posix_acl *acl)
 {
+	struct inode *inode = d_inode(dentry);
+
 	if (!IS_POSIXACL(inode))
 		return -EOPNOTSUPP;
 	if (!inode->i_op->set_acl)
@@ -1157,14 +1160,14 @@ set_posix_acl(struct user_namespace *mnt_userns, struct inode *inode,
 		if (ret)
 			return ret;
 	}
-	return inode->i_op->set_acl(mnt_userns, inode, acl, type);
+	return inode->i_op->set_acl(mnt_userns, dentry, acl, type);
 }
 EXPORT_SYMBOL(set_posix_acl);
 
 static int
 posix_acl_xattr_set(const struct xattr_handler *handler,
 			   struct user_namespace *mnt_userns,
-			   struct dentry *unused, struct inode *inode,
+			   struct dentry *dentry, struct inode *inode,
 			   const char *name, const void *value, size_t size,
 			   int flags)
 {
@@ -1186,7 +1189,7 @@ posix_acl_xattr_set(const struct xattr_handler *handler,
 		if (IS_ERR(acl))
 			return PTR_ERR(acl);
 	}
-	ret = set_posix_acl(mnt_userns, inode, handler->flags, acl);
+	ret = set_posix_acl(mnt_userns, dentry, handler->flags, acl);
 	posix_acl_release(acl);
 	return ret;
 }
@@ -1215,10 +1218,11 @@ const struct xattr_handler posix_acl_default_xattr_handler = {
 };
 EXPORT_SYMBOL_GPL(posix_acl_default_xattr_handler);
 
-int simple_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+int simple_set_acl(struct user_namespace *mnt_userns, struct dentry *dentry,
 		   struct posix_acl *acl, int type)
 {
 	int error;
+	struct inode *inode = d_inode(dentry);
 
 	if (type == ACL_TYPE_ACCESS) {
 		error = posix_acl_update_mode(mnt_userns, inode,
