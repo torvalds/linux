@@ -45,6 +45,9 @@ int sof_apl_ops_init(struct snd_sof_dev *sdev)
 
 		/* ipc */
 		sof_apl_ops.send_msg	= hda_dsp_ipc_send_msg;
+
+		/* debug */
+		sof_apl_ops.ipc_dump	= hda_ipc_dump;
 	}
 
 	if (sdev->pdata->ipc_type == SOF_INTEL_IPC4) {
@@ -64,6 +67,9 @@ int sof_apl_ops_init(struct snd_sof_dev *sdev)
 
 		/* ipc */
 		sof_apl_ops.send_msg	= hda_dsp_ipc4_send_msg;
+
+		/* debug */
+		sof_apl_ops.ipc_dump	= hda_ipc4_dump;
 	}
 
 	/* set DAI driver ops */
@@ -72,7 +78,6 @@ int sof_apl_ops_init(struct snd_sof_dev *sdev)
 	/* debug */
 	sof_apl_ops.debug_map	= apl_dsp_debugfs;
 	sof_apl_ops.debug_map_count	= ARRAY_SIZE(apl_dsp_debugfs);
-	sof_apl_ops.ipc_dump	= hda_ipc_dump;
 
 	/* firmware run */
 	sof_apl_ops.run = hda_dsp_cl_boot_firmware;
