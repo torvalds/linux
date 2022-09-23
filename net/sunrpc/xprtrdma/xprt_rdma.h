@@ -149,6 +149,12 @@ static inline void *rdmab_data(const struct rpcrdma_regbuf *rb)
 	return rb->rg_data;
 }
 
+/* Do not use emergency memory reserves, and fail quickly if memory
+ * cannot be allocated easily. These flags may be used wherever there
+ * is robust logic to handle a failure to allocate.
+ */
+#define XPRTRDMA_GFP_FLAGS  (__GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN)
+
 /* To ensure a transport can always make forward progress,
  * the number of RDMA segments allowed in header chunk lists
  * is capped at 16. This prevents less-capable devices from
