@@ -23,6 +23,7 @@
 #include <linux/firmware.h>
 
 #include "amdgpu.h"
+#include "amdgpu_xcp.h"
 #include "amdgpu_gfx.h"
 #include "soc15.h"
 #include "soc15d.h"
@@ -3176,4 +3177,50 @@ const struct amdgpu_ip_block_version gfx_v9_4_3_ip_block = {
 	.minor = 4,
 	.rev = 0,
 	.funcs = &gfx_v9_4_3_ip_funcs,
+};
+
+static int gfx_v9_4_3_xcp_resume(void *handle, uint32_t inst_mask)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	uint32_t tmp_mask;
+	int i, r;
+
+	/* TODO : Initialize golden regs */
+	/* gfx_v9_4_3_init_golden_registers(adev); */
+
+	tmp_mask = inst_mask;
+	for_each_inst(i, tmp_mask)
+		gfx_v9_4_3_xcc_constants_init(adev, i);
+
+	tmp_mask = inst_mask;
+	for_each_inst(i, tmp_mask) {
+		r = gfx_v9_4_3_xcc_rlc_resume(adev, i);
+		if (r)
+			return r;
+	}
+
+	tmp_mask = inst_mask;
+	for_each_inst(i, tmp_mask) {
+		r = gfx_v9_4_3_xcc_cp_resume(adev, i);
+		if (r)
+			return r;
+	}
+
+	return 0;
+}
+
+static int gfx_v9_4_3_xcp_suspend(void *handle, uint32_t inst_mask)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int i;
+
+	for_each_inst(i, inst_mask)
+		gfx_v9_4_3_xcc_fini(adev, i);
+
+	return 0;
+}
+
+struct amdgpu_xcp_ip_funcs gfx_v9_4_3_xcp_funcs = {
+	.suspend = &gfx_v9_4_3_xcp_suspend,
+	.resume = &gfx_v9_4_3_xcp_resume
 };
