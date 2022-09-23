@@ -101,14 +101,6 @@ static inline void __kvm_perf_overflow(struct kvm_pmc *pmc, bool in_pmi)
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
 	bool skip_pmi = false;
 
-	/*
-	 * Ignore overflow events for counters that are scheduled to be
-	 * reprogrammed, e.g. if a PMI for the previous event races with KVM's
-	 * handling of a related guest WRMSR.
-	 */
-	if (test_and_set_bit(pmc->idx, pmu->reprogram_pmi))
-		return;
-
 	if (pmc->perf_event && pmc->perf_event->attr.precise_ip) {
 		if (!in_pmi) {
 			/*
@@ -126,7 +118,6 @@ static inline void __kvm_perf_overflow(struct kvm_pmc *pmc, bool in_pmi)
 	} else {
 		__set_bit(pmc->idx, (unsigned long *)&pmu->global_status);
 	}
-	kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
 
 	if (!pmc->intr || skip_pmi)
 		return;
@@ -151,7 +142,17 @@ static void kvm_perf_overflow(struct perf_event *perf_event,
 {
 	struct kvm_pmc *pmc = perf_event->overflow_handler_context;
 
+	/*
+	 * Ignore overflow events for counters that are scheduled to be
+	 * reprogrammed, e.g. if a PMI for the previous event races with KVM's
+	 * handling of a related guest WRMSR.
+	 */
+	if (test_and_set_bit(pmc->idx, pmc_to_pmu(pmc)->reprogram_pmi))
+		return;
+
 	__kvm_perf_overflow(pmc, true);
+
+	kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
 }
 
 static int pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type, u64 config,
@@ -311,6 +312,9 @@ static void reprogram_counter(struct kvm_pmc *pmc)
 	if (!check_pmu_event_filter(pmc))
 		goto reprogram_complete;
 
+	if (pmc->counter < pmc->prev_counter)
+		__kvm_perf_overflow(pmc, false);
+
 	if (eventsel & ARCH_PERFMON_EVENTSEL_PIN_CONTROL)
 		printk_once("kvm pmu: pin control bit is ignored\n");
 
@@ -348,6 +352,7 @@ static void reprogram_counter(struct kvm_pmc *pmc)
 
 reprogram_complete:
 	clear_bit(pmc->idx, (unsigned long *)&pmc_to_pmu(pmc)->reprogram_pmi);
+	pmc->prev_counter = 0;
 }
 
 void kvm_pmu_handle_event(struct kvm_vcpu *vcpu)
@@ -536,14 +541,9 @@ void kvm_pmu_destroy(struct kvm_vcpu *vcpu)
 
 static void kvm_pmu_incr_counter(struct kvm_pmc *pmc)
 {
-	u64 prev_count;
-
-	prev_count = pmc->counter;
+	pmc->prev_counter = pmc->counter;
 	pmc->counter = (pmc->counter + 1) & pmc_bitmask(pmc);
-
-	reprogram_counter(pmc);
-	if (pmc->counter < prev_count)
-		__kvm_perf_overflow(pmc, false);
+	kvm_pmu_request_counter_reprogam(pmc);
 }
 
 static inline bool eventsel_match_perf_hw_id(struct kvm_pmc *pmc,
