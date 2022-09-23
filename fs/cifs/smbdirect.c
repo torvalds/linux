@@ -99,7 +99,7 @@ int smbd_keep_alive_interval = 120;
  * User configurable initial values for RDMA transport
  * The actual values used may be lower and are limited to hardware capabilities
  */
-/* Default maximum number of SGEs in a RDMA write/read */
+/* Default maximum number of pages in a single RDMA write/read */
 int smbd_max_frmr_depth = 2048;
 
 /* If payload is less than this byte, use RDMA send/recv not read/write */
@@ -1017,9 +1017,9 @@ static int smbd_post_send_data(
 {
 	int i;
 	u32 data_length = 0;
-	struct scatterlist sgl[SMBDIRECT_MAX_SGE];
+	struct scatterlist sgl[SMBDIRECT_MAX_SEND_SGE - 1];
 
-	if (n_vec > SMBDIRECT_MAX_SGE) {
+	if (n_vec > SMBDIRECT_MAX_SEND_SGE - 1) {
 		cifs_dbg(VFS, "Can't fit data to SGL, n_vec=%d\n", n_vec);
 		return -EINVAL;
 	}
@@ -1562,17 +1562,15 @@ static struct smbd_connection *_smbd_get_connection(
 	info->max_receive_size = smbd_max_receive_size;
 	info->keep_alive_interval = smbd_keep_alive_interval;
 
-	if (info->id->device->attrs.max_send_sge < SMBDIRECT_MAX_SGE) {
+	if (info->id->device->attrs.max_send_sge < SMBDIRECT_MAX_SEND_SGE ||
+	    info->id->device->attrs.max_recv_sge < SMBDIRECT_MAX_RECV_SGE) {
 		log_rdma_event(ERR,
-			"warning: device max_send_sge = %d too small\n",
-			info->id->device->attrs.max_send_sge);
-		log_rdma_event(ERR, "Queue Pair creation may fail\n");
-	}
-	if (info->id->device->attrs.max_recv_sge < SMBDIRECT_MAX_SGE) {
-		log_rdma_event(ERR,
-			"warning: device max_recv_sge = %d too small\n",
+			"device %.*s max_send_sge/max_recv_sge = %d/%d too small\n",
+			IB_DEVICE_NAME_MAX,
+			info->id->device->name,
+			info->id->device->attrs.max_send_sge,
 			info->id->device->attrs.max_recv_sge);
-		log_rdma_event(ERR, "Queue Pair creation may fail\n");
+		goto config_failed;
 	}
 
 	info->send_cq = NULL;
@@ -1598,8 +1596,8 @@ static struct smbd_connection *_smbd_get_connection(
 	qp_attr.qp_context = info;
 	qp_attr.cap.max_send_wr = info->send_credit_target;
 	qp_attr.cap.max_recv_wr = info->receive_credit_max;
-	qp_attr.cap.max_send_sge = SMBDIRECT_MAX_SGE;
-	qp_attr.cap.max_recv_sge = SMBDIRECT_MAX_SGE;
+	qp_attr.cap.max_send_sge = SMBDIRECT_MAX_SEND_SGE;
+	qp_attr.cap.max_recv_sge = SMBDIRECT_MAX_RECV_SGE;
 	qp_attr.cap.max_inline_data = 0;
 	qp_attr.sq_sig_type = IB_SIGNAL_REQ_WR;
 	qp_attr.qp_type = IB_QPT_RC;
