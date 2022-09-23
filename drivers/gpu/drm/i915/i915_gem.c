@@ -1200,8 +1200,6 @@ void i915_gem_driver_remove(struct drm_i915_private *dev_priv)
 
 	/* Flush any outstanding unpin_work. */
 	i915_gem_drain_workqueue(dev_priv);
-
-	i915_gem_drain_freed_objects(dev_priv);
 }
 
 void i915_gem_driver_release(struct drm_i915_private *dev_priv)
