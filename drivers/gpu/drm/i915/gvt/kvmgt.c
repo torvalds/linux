@@ -1488,7 +1488,7 @@ static int intel_vgpu_init_dev(struct vfio_device *vfio_dev)
 	struct intel_vgpu_type *type =
 		container_of(mdev->type, struct intel_vgpu_type, type);
 
-	vgpu->gvt = kdev_to_i915(mdev_parent_dev(mdev))->gvt;
+	vgpu->gvt = kdev_to_i915(mdev->type->parent->dev)->gvt;
 	return intel_gvt_create_vgpu(vgpu, type->conf);
 }
 
