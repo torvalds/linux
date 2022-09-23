@@ -625,6 +625,7 @@ static void btree_update_nodes_written(struct btree_update *as)
 	ret = commit_do(&trans, &as->disk_res, &journal_seq,
 			BTREE_INSERT_NOFAIL|
 			BTREE_INSERT_NOCHECK_RW|
+			BTREE_INSERT_USE_RESERVE|
 			BTREE_INSERT_JOURNAL_RECLAIM|
 			JOURNAL_WATERMARK_reserved,
 			btree_update_nodes_written_trans(&trans, as));
