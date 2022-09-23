@@ -182,12 +182,12 @@ void __init tegra_init_apbmisc(void)
 		 */
 		if (of_address_to_resource(np, 0, &apbmisc) < 0) {
 			pr_err("failed to get APBMISC registers\n");
-			return;
+			goto put;
 		}
 
 		if (of_address_to_resource(np, 1, &straps) < 0) {
 			pr_err("failed to get strapping options registers\n");
-			return;
+			goto put;
 		}
 	}
 
@@ -208,4 +208,7 @@ void __init tegra_init_apbmisc(void)
 	}
 
 	long_ram_code = of_property_read_bool(np, "nvidia,long-ram-code");
+
+put:
+	of_node_put(np);
 }
