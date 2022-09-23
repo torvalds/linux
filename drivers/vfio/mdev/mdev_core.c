@@ -70,6 +70,7 @@ int mdev_register_parent(struct mdev_parent *parent, struct device *dev,
 	parent->mdev_driver = mdev_driver;
 	parent->types = types;
 	parent->nr_types = nr_types;
+	atomic_set(&parent->available_instances, mdev_driver->max_instances);
 
 	if (!mdev_bus_compat_class) {
 		mdev_bus_compat_class = class_compat_register("mdev_bus");
@@ -115,13 +116,16 @@ EXPORT_SYMBOL(mdev_unregister_parent);
 static void mdev_device_release(struct device *dev)
 {
 	struct mdev_device *mdev = to_mdev_device(dev);
-
-	/* Pairs with the get in mdev_device_create() */
-	kobject_put(&mdev->type->kobj);
+	struct mdev_parent *parent = mdev->type->parent;
 
 	mutex_lock(&mdev_list_lock);
 	list_del(&mdev->next);
+	if (!parent->mdev_driver->get_available)
+		atomic_inc(&parent->available_instances);
 	mutex_unlock(&mdev_list_lock);
+
+	/* Pairs with the get in mdev_device_create() */
+	kobject_put(&mdev->type->kobj);
 
 	dev_dbg(&mdev->dev, "MDEV: destroying\n");
 	kfree(mdev);
@@ -142,6 +146,18 @@ int mdev_device_create(struct mdev_type *type, const guid_t *uuid)
 			mutex_unlock(&mdev_list_lock);
 			return -EEXIST;
 		}
+	}
+
+	if (!drv->get_available) {
+		/*
+		 * Note: that non-atomic read and dec is fine here because
+		 * all modifications are under mdev_list_lock.
+		 */
+		if (!atomic_read(&parent->available_instances)) {
+			mutex_unlock(&mdev_list_lock);
+			return -EUSERS;
+		}
+		atomic_dec(&parent->available_instances);
 	}
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);

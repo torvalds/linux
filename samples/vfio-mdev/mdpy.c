@@ -42,11 +42,6 @@
 
 MODULE_LICENSE("GPL v2");
 
-static int max_devices = 4;
-module_param_named(count, max_devices, int, 0444);
-MODULE_PARM_DESC(count, "number of " MDPY_NAME " devices");
-
-
 #define MDPY_TYPE_1 "vga"
 #define MDPY_TYPE_2 "xga"
 #define MDPY_TYPE_3 "hd"
@@ -93,7 +88,6 @@ static struct class	*mdpy_class;
 static struct cdev	mdpy_cdev;
 static struct device	mdpy_dev;
 static struct mdev_parent mdpy_parent;
-static u32		mdpy_count;
 static const struct vfio_device_ops mdpy_dev_ops;
 
 /* State of each mdev device */
@@ -235,9 +229,6 @@ static int mdpy_init_dev(struct vfio_device *vdev)
 	u32 fbsize;
 	int ret = -ENOMEM;
 
-	if (mdpy_count >= max_devices)
-		return ret;
-
 	mdev_state->vconfig = kzalloc(MDPY_CONFIG_SPACE_SIZE, GFP_KERNEL);
 	if (!mdev_state->vconfig)
 		return ret;
@@ -257,8 +248,6 @@ static int mdpy_init_dev(struct vfio_device *vdev)
 
 	dev_info(vdev->dev, "%s: %s (%dx%d)\n", __func__, type->type.pretty_name,
 		 type->width, type->height);
-
-	mdpy_count++;
 	return 0;
 
 out_vconfig:
@@ -292,7 +281,6 @@ static void mdpy_release_dev(struct vfio_device *vdev)
 	struct mdev_state *mdev_state =
 		container_of(vdev, struct mdev_state, vdev);
 
-	mdpy_count--;
 	vfree(mdev_state->memblk);
 	kfree(mdev_state->vconfig);
 	vfio_free_device(vdev);
@@ -669,11 +657,6 @@ static ssize_t mdpy_show_description(struct mdev_type *mtype, char *buf)
 		       type->width, type->height);
 }
 
-static unsigned int mdpy_get_available(struct mdev_type *mtype)
-{
-	return max_devices - mdpy_count;
-}
-
 static const struct vfio_device_ops mdpy_dev_ops = {
 	.init = mdpy_init_dev,
 	.release = mdpy_release_dev,
@@ -685,6 +668,7 @@ static const struct vfio_device_ops mdpy_dev_ops = {
 
 static struct mdev_driver mdpy_driver = {
 	.device_api = VFIO_DEVICE_API_PCI_STRING,
+	.max_instances = 4,
 	.driver = {
 		.name = "mdpy",
 		.owner = THIS_MODULE,
@@ -693,7 +677,6 @@ static struct mdev_driver mdpy_driver = {
 	},
 	.probe = mdpy_probe,
 	.remove	= mdpy_remove,
-	.get_available = mdpy_get_available,
 	.show_description = mdpy_show_description,
 };
 
@@ -769,6 +752,9 @@ static void __exit mdpy_dev_exit(void)
 	class_destroy(mdpy_class);
 	mdpy_class = NULL;
 }
+
+module_param_named(count, mdpy_driver.max_instances, int, 0444);
+MODULE_PARM_DESC(count, "number of " MDPY_NAME " devices");
 
 module_init(mdpy_dev_init)
 module_exit(mdpy_dev_exit)

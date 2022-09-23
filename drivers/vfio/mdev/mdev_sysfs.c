@@ -108,7 +108,10 @@ static ssize_t available_instances_show(struct mdev_type *mtype,
 {
 	struct mdev_driver *drv = mtype->parent->mdev_driver;
 
-	return sysfs_emit(buf, "%u\n", drv->get_available(mtype));
+	if (drv->get_available)
+		return sysfs_emit(buf, "%u\n", drv->get_available(mtype));
+	return sysfs_emit(buf, "%u\n",
+			  atomic_read(&mtype->parent->available_instances));
 }
 static MDEV_TYPE_ATTR_RO(available_instances);
 
