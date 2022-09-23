@@ -26,6 +26,7 @@ struct mdev_device {
 struct mdev_type {
 	/* set by the driver before calling mdev_register parent: */
 	const char *sysfs_name;
+	const char *pretty_name;
 
 	/* set by the core, can be used drivers */
 	struct mdev_parent *parent;
