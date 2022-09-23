@@ -139,7 +139,7 @@ isochron_recv_start()
 	local extra_args=$3
 
 	if ! [ -z "${uds}" ]; then
-		extra_args="--unix-domain-socket ${uds}"
+		extra_args="${extra_args} --unix-domain-socket ${uds}"
 	fi
 
 	isochron rcv \
