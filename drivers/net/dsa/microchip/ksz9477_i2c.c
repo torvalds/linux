@@ -59,8 +59,6 @@ static int ksz9477_i2c_remove(struct i2c_client *i2c)
 	if (dev)
 		ksz_switch_remove(dev);
 
-	i2c_set_clientdata(i2c, NULL);
-
 	return 0;
 }
 
