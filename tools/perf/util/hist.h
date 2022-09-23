@@ -79,6 +79,7 @@ enum hist_column {
 	HISTC_GLOBAL_P_STAGE_CYC,
 	HISTC_ADDR_FROM,
 	HISTC_ADDR_TO,
+	HISTC_ADDR,
 	HISTC_NR_COLS, /* Last entry */
 };
 
