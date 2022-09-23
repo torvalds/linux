@@ -659,12 +659,7 @@ static int sfb_delete(struct Qdisc *sch, unsigned long cl,
 static void sfb_walk(struct Qdisc *sch, struct qdisc_walker *walker)
 {
 	if (!walker->stop) {
-		if (walker->count >= walker->skip)
-			if (walker->fn(sch, 1, walker) < 0) {
-				walker->stop = 1;
-				return;
-			}
-		walker->count++;
+		tc_qdisc_stats_dump(sch, 1, walker);
 	}
 }
 

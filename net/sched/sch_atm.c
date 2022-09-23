@@ -354,12 +354,8 @@ static void atm_tc_walk(struct Qdisc *sch, struct qdisc_walker *walker)
 	if (walker->stop)
 		return;
 	list_for_each_entry(flow, &p->flows, list) {
-		if (walker->count >= walker->skip &&
-		    walker->fn(sch, (unsigned long)flow, walker) < 0) {
-			walker->stop = 1;
+		if (!tc_qdisc_stats_dump(sch, (unsigned long)flow, walker))
 			break;
-		}
-		walker->count++;
 	}
 }
 

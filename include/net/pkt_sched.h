@@ -222,4 +222,17 @@ static inline struct tc_skb_cb *tc_skb_cb(const struct sk_buff *skb)
 	return cb;
 }
 
+static inline bool tc_qdisc_stats_dump(struct Qdisc *sch,
+				       unsigned long cl,
+				       struct qdisc_walker *arg)
+{
+	if (arg->count >= arg->skip && arg->fn(sch, cl, arg) < 0) {
+		arg->stop = 1;
+		return false;
+	}
+
+	arg->count++;
+	return true;
+}
+
 #endif

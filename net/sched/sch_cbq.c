@@ -1676,15 +1676,8 @@ static void cbq_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 
 	for (h = 0; h < q->clhash.hashsize; h++) {
 		hlist_for_each_entry(cl, &q->clhash.hash[h], common.hnode) {
-			if (arg->count < arg->skip) {
-				arg->count++;
-				continue;
-			}
-			if (arg->fn(sch, (unsigned long)cl, arg) < 0) {
-				arg->stop = 1;
+			if (!tc_qdisc_stats_dump(sch, (unsigned long)cl, arg))
 				return;
-			}
-			arg->count++;
 		}
 	}
 }

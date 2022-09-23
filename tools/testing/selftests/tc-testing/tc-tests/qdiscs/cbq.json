@@ -1,10 +1,10 @@
 [
     {
-        "id": "8b6e",
-        "name": "Create RED with no flags",
+        "id": "3460",
+        "name": "Create CBQ with default setting",
         "category": [
             "qdisc",
-            "red"
+            "cbq"
         ],
         "plugins": {
             "requires": "nsPlugin"
@@ -12,10 +12,10 @@
         "setup": [
             "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
-        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root red limit 1M avpkt 1500 min 100K max 300K",
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root cbq bandwidth 10000 avpkt 9000",
         "expExitCode": "0",
         "verifyCmd": "$TC qdisc show dev $DUMMY",
-        "matchPattern": "qdisc red 1: root .* limit 1Mb min 100Kb max 300Kb $",
+        "matchPattern": "qdisc cbq 1: root refcnt [0-9]+ rate 10Kbit \\(bounded,isolated\\) prio no-transmit",
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DUMMY handle 1: root",
@@ -23,11 +23,11 @@
         ]
     },
     {
-        "id": "342e",
-        "name": "Create RED with adaptive flag",
+        "id": "0592",
+        "name": "Create CBQ with mpu",
         "category": [
             "qdisc",
-            "red"
+            "cbq"
         ],
         "plugins": {
             "requires": "nsPlugin"
@@ -35,10 +35,10 @@
         "setup": [
             "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
-        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root red adaptive limit 1M avpkt 1500 min 100K max 300K",
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root cbq bandwidth 10000 avpkt 9000 mpu 1000",
         "expExitCode": "0",
         "verifyCmd": "$TC qdisc show dev $DUMMY",
-        "matchPattern": "qdisc red 1: root .* limit 1Mb min 100Kb max 300Kb adaptive $",
+        "matchPattern": "qdisc cbq 1: root refcnt [0-9]+ rate 10Kbit \\(bounded,isolated\\) prio no-transmit",
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DUMMY handle 1: root",
@@ -46,11 +46,11 @@
         ]
     },
     {
-        "id": "2d4b",
-        "name": "Create RED with ECN flag",
+        "id": "4684",
+        "name": "Create CBQ with valid cell num",
         "category": [
             "qdisc",
-            "red"
+            "cbq"
         ],
         "plugins": {
             "requires": "nsPlugin"
@@ -58,10 +58,10 @@
         "setup": [
             "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
-        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root red ecn limit 1M avpkt 1500 min 100K max 300K",
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root cbq bandwidth 10000 avpkt 9000 cell 128",
         "expExitCode": "0",
         "verifyCmd": "$TC qdisc show dev $DUMMY",
-        "matchPattern": "qdisc red 1: root .* limit 1Mb min 100Kb max 300Kb ecn $",
+        "matchPattern": "qdisc cbq 1: root refcnt [0-9]+ rate 10Kbit \\(bounded,isolated\\) prio no-transmit",
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DUMMY handle 1: root",
@@ -69,11 +69,11 @@
         ]
     },
     {
-        "id": "650f",
-        "name": "Create RED with flags ECN, adaptive",
+        "id": "4345",
+        "name": "Create CBQ with invalid cell num",
         "category": [
             "qdisc",
-            "red"
+            "cbq"
         ],
         "plugins": {
             "requires": "nsPlugin"
@@ -81,90 +81,21 @@
         "setup": [
             "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
-        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root red ecn adaptive limit 1M avpkt 1500 min 100K max 300K",
-        "expExitCode": "0",
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root cbq bandwidth 10000 avpkt 9000 cell 100",
+        "expExitCode": "1",
         "verifyCmd": "$TC qdisc show dev $DUMMY",
-        "matchPattern": "qdisc red 1: root .* limit 1Mb min 100Kb max 300Kb ecn adaptive $",
-        "matchCount": "1",
-        "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
-        ]
-    },
-    {
-        "id": "5f15",
-        "name": "Create RED with flags ECN, harddrop",
-        "category": [
-            "qdisc",
-            "red"
-        ],
-        "plugins": {
-            "requires": "nsPlugin"
-        },
-        "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
-        ],
-        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root red ecn harddrop limit 1M avpkt 1500 min 100K max 300K",
-        "expExitCode": "0",
-        "verifyCmd": "$TC qdisc show dev $DUMMY",
-        "matchPattern": "qdisc red 1: root .* limit 1Mb min 100Kb max 300Kb ecn harddrop $",
-        "matchCount": "1",
-        "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
-        ]
-    },
-    {
-        "id": "53e8",
-        "name": "Create RED with flags ECN, nodrop",
-        "category": [
-            "qdisc",
-            "red"
-        ],
-        "plugins": {
-            "requires": "nsPlugin"
-        },
-        "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
-        ],
-        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root red ecn nodrop limit 1M avpkt 1500 min 100K max 300K",
-        "expExitCode": "0",
-        "verifyCmd": "$TC qdisc show dev $DUMMY",
-        "matchPattern": "qdisc red 1: root .* limit 1Mb min 100Kb max 300Kb ecn nodrop $",
-        "matchCount": "1",
-        "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
-        ]
-    },
-    {
-        "id": "d091",
-        "name": "Fail to create RED with only nodrop flag",
-        "category": [
-            "qdisc",
-            "red"
-        ],
-        "plugins": {
-            "requires": "nsPlugin"
-        },
-        "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
-        ],
-        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root red nodrop limit 1M avpkt 1500 min 100K max 300K",
-        "expExitCode": "2",
-        "verifyCmd": "$TC qdisc show dev $DUMMY",
-        "matchPattern": "qdisc red",
+        "matchPattern": "qdisc cbq 1: root refcnt [0-9]+ rate 10Kbit \\(bounded,isolated\\) prio no-transmit",
         "matchCount": "0",
         "teardown": [
             "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
-        "id": "af8e",
-        "name": "Create RED with flags ECN, nodrop, harddrop",
+        "id": "4525",
+        "name": "Create CBQ with valid ewma",
         "category": [
             "qdisc",
-            "red"
+            "cbq"
         ],
         "plugins": {
             "requires": "nsPlugin"
@@ -172,10 +103,10 @@
         "setup": [
             "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
-        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root red ecn harddrop nodrop limit 1M avpkt 1500 min 100K max 300K",
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root cbq bandwidth 10000 avpkt 9000 ewma 16",
         "expExitCode": "0",
         "verifyCmd": "$TC qdisc show dev $DUMMY",
-        "matchPattern": "qdisc red 1: root .* limit 1Mb min 100Kb max 300Kb ecn harddrop nodrop $",
+        "matchPattern": "qdisc cbq 1: root refcnt [0-9]+ rate 10Kbit \\(bounded,isolated\\) prio no-transmit",
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DUMMY handle 1: root",
@@ -183,11 +114,11 @@
         ]
     },
     {
-        "id": "290a",
-        "name": "Show RED class",
+        "id": "6784",
+        "name": "Create CBQ with invalid ewma",
         "category": [
             "qdisc",
-            "red"
+            "cbq"
         ],
         "plugins": {
             "requires": "nsPlugin"
@@ -195,10 +126,55 @@
         "setup": [
             "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
-        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root red limit 1M avpkt 1500 min 100K max 300K",
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root cbq bandwidth 10000 avpkt 9000 ewma 128",
+        "expExitCode": "1",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc cbq 1: root refcnt [0-9]+ rate 10Kbit \\(bounded,isolated\\) prio no-transmit",
+        "matchCount": "0",
+        "teardown": [
+            "$IP link del dev $DUMMY type dummy"
+        ]
+    },
+    {
+        "id": "5468",
+        "name": "Delete CBQ with handle",
+        "category": [
+            "qdisc",
+            "cbq"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$TC qdisc add dev $DUMMY handle 1: root cbq bandwidth 10000 avpkt 9000"
+        ],
+        "cmdUnderTest": "$TC qdisc del dev $DUMMY handle 1: root",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc cbq 1: root refcnt [0-9]+ rate 10Kbit \\(bounded,isolated\\) prio no-transmit",
+        "matchCount": "0",
+        "teardown": [
+            "$IP link del dev $DUMMY type dummy"
+        ]
+    },
+    {
+        "id": "492a",
+        "name": "Show CBQ class",
+        "category": [
+            "qdisc",
+            "cbq"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$IP link add dev $DUMMY type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root cbq bandwidth 10000 avpkt 9000",
         "expExitCode": "0",
         "verifyCmd": "$TC class show dev $DUMMY",
-        "matchPattern": "class red 1:[0-9]+ parent 1:",
+        "matchPattern": "class cbq 1: root rate 10Kbit \\(bounded,isolated\\) prio no-transmit",
         "matchCount": "1",
         "teardown": [
             "$TC qdisc del dev $DUMMY handle 1: root",
