@@ -21,7 +21,7 @@
 #define DEFAULT_GFP \
 	(GFP_KERNEL | \
 	 __GFP_COMP |    /* compound page lets parts be mapped */ \
-	 __GFP_NORETRY | /* don't trigger OOM-killer */ \
+	 __GFP_RETRY_MAYFAIL | /* don't trigger OOM-killer */ \
 	 __GFP_NOWARN)   /* no stack trace print - this call is non-critical */
 
 static const struct snd_malloc_ops *snd_dma_get_ops(struct snd_dma_buffer *dmab);
