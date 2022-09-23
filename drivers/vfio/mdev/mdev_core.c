@@ -30,26 +30,6 @@ struct device *mdev_parent_dev(struct mdev_device *mdev)
 EXPORT_SYMBOL(mdev_parent_dev);
 
 /*
- * Return the index in supported_type_groups that this mdev_device was created
- * from.
- */
-unsigned int mdev_get_type_group_id(struct mdev_device *mdev)
-{
-	return mdev->type->type_group_id;
-}
-EXPORT_SYMBOL(mdev_get_type_group_id);
-
-/*
- * Used in mdev_type_attribute sysfs functions to return the index in the
- * supported_type_groups that the sysfs is called from.
- */
-unsigned int mtype_get_type_group_id(struct mdev_type *mtype)
-{
-	return mtype->type_group_id;
-}
-EXPORT_SYMBOL(mtype_get_type_group_id);
-
-/*
  * Used in mdev_type_attribute sysfs functions to return the parent struct
  * device
  */
@@ -85,6 +65,8 @@ static int mdev_device_remove_cb(struct device *dev, void *data)
  * @parent: parent structure registered
  * @dev: device structure representing parent device.
  * @mdev_driver: Device driver to bind to the newly created mdev
+ * @types: Array of supported mdev types
+ * @nr_types: Number of entries in @types
  *
  * Registers the @parent stucture as a parent for mdev types and thus mdev
  * devices.  The caller needs to hold a reference on @dev that must not be
@@ -93,20 +75,19 @@ static int mdev_device_remove_cb(struct device *dev, void *data)
  * Returns a negative value on error, otherwise 0.
  */
 int mdev_register_parent(struct mdev_parent *parent, struct device *dev,
-		struct mdev_driver *mdev_driver)
+		struct mdev_driver *mdev_driver, struct mdev_type **types,
+		unsigned int nr_types)
 {
 	char *env_string = "MDEV_STATE=registered";
 	char *envp[] = { env_string, NULL };
 	int ret;
 
-	/* check for mandatory ops */
-	if (!mdev_driver->supported_type_groups)
-		return -EINVAL;
-
 	memset(parent, 0, sizeof(*parent));
 	init_rwsem(&parent->unreg_sem);
 	parent->dev = dev;
 	parent->mdev_driver = mdev_driver;
+	parent->types = types;
+	parent->nr_types = nr_types;
 
 	if (!mdev_bus_compat_class) {
 		mdev_bus_compat_class = class_compat_register("mdev_bus");

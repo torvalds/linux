@@ -113,13 +113,18 @@ int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 	if (!gvt->types)
 		return -ENOMEM;
 
+	gvt->mdev_types = kcalloc(num_types, sizeof(*gvt->mdev_types),
+			     GFP_KERNEL);
+	if (!gvt->mdev_types)
+		goto out_free_types;
+
 	for (i = 0; i < num_types; ++i) {
 		const struct intel_vgpu_config *conf = &intel_vgpu_configs[i];
 
 		if (low_avail / conf->low_mm == 0)
 			break;
 		if (conf->weight < 1 || conf->weight > VGPU_MAX_WEIGHT)
-			goto out_free_types;
+			goto out_free_mdev_types;
 
 		sprintf(gvt->types[i].name, "GVTg_V%u_%s",
 			GRAPHICS_VER(gvt->gt->i915) == 8 ? 4 : 5, conf->name);
@@ -131,11 +136,16 @@ int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 			     i, gvt->types[i].name, gvt->types[i].avail_instance,
 			     conf->low_mm, conf->high_mm, conf->fence,
 			     conf->weight, vgpu_edid_str(conf->edid));
+
+		gvt->mdev_types[i] = &gvt->types[i].type;
+		gvt->mdev_types[i]->sysfs_name = gvt->types[i].name;
 	}
 
 	gvt->num_types = i;
 	return 0;
 
+out_free_mdev_types:
+	kfree(gvt->mdev_types);
 out_free_types:
 	kfree(gvt->types);
 	return -EINVAL;
@@ -143,6 +153,7 @@ out_free_types:
 
 void intel_gvt_clean_vgpu_types(struct intel_gvt *gvt)
 {
+	kfree(gvt->mdev_types);
 	kfree(gvt->types);
 }
 

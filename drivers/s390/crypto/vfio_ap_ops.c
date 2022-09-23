@@ -816,20 +816,10 @@ static ssize_t device_api_show(struct mdev_type *mtype,
 
 static MDEV_TYPE_ATTR_RO(device_api);
 
-static struct attribute *vfio_ap_mdev_type_attrs[] = {
+static const struct attribute *vfio_ap_mdev_type_attrs[] = {
 	&mdev_type_attr_name.attr,
 	&mdev_type_attr_device_api.attr,
 	&mdev_type_attr_available_instances.attr,
-	NULL,
-};
-
-static struct attribute_group vfio_ap_mdev_hwvirt_type_group = {
-	.name = VFIO_AP_MDEV_TYPE_HWVIRT,
-	.attrs = vfio_ap_mdev_type_attrs,
-};
-
-static struct attribute_group *vfio_ap_mdev_type_groups[] = {
-	&vfio_ap_mdev_hwvirt_type_group,
 	NULL,
 };
 
@@ -1817,7 +1807,7 @@ static struct mdev_driver vfio_ap_matrix_driver = {
 	},
 	.probe = vfio_ap_mdev_probe,
 	.remove = vfio_ap_mdev_remove,
-	.supported_type_groups = vfio_ap_mdev_type_groups,
+	.types_attrs = vfio_ap_mdev_type_attrs,
 };
 
 int vfio_ap_mdev_register(void)
@@ -1830,8 +1820,11 @@ int vfio_ap_mdev_register(void)
 	if (ret)
 		return ret;
 
+	matrix_dev->mdev_type.sysfs_name = VFIO_AP_MDEV_TYPE_HWVIRT;
+	matrix_dev->mdev_types[0] = &matrix_dev->mdev_type;
 	ret = mdev_register_parent(&matrix_dev->parent, &matrix_dev->device,
-				   &vfio_ap_matrix_driver);
+				   &vfio_ap_matrix_driver,
+				   matrix_dev->mdev_types, 1);
 	if (ret)
 		goto err_driver;
 	return 0;

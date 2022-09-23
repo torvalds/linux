@@ -120,6 +120,8 @@ struct vfio_ccw_private {
 	struct completion	release_comp;
 
 	struct mdev_parent	parent;
+	struct mdev_type	mdev_type;
+	struct mdev_type	*mdev_types[1];
 } __aligned(8);
 
 int vfio_ccw_sch_quiesce(struct subchannel *sch);

@@ -310,8 +310,8 @@ struct intel_vgpu_config {
 	const char *name;
 };
 
-#define NR_MAX_INTEL_VGPU_TYPES 20
 struct intel_vgpu_type {
+	struct mdev_type type;
 	char name[16];
 	const struct intel_vgpu_config *conf;
 	unsigned int avail_instance;
@@ -339,6 +339,7 @@ struct intel_gvt {
 	struct notifier_block shadow_ctx_notifier_block[I915_NUM_ENGINES];
 	DECLARE_HASHTABLE(cmd_table, GVT_CMD_HASH_BITS);
 	struct mdev_parent parent;
+	struct mdev_type **mdev_types;
 	struct intel_vgpu_type *types;
 	unsigned int num_types;
 	struct intel_vgpu *idle_vgpu;

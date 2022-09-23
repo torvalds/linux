@@ -143,6 +143,20 @@ struct mdev_state {
 	int nr_ports;
 };
 
+static struct mtty_type {
+	struct mdev_type type;
+	int nr_ports;
+	const char *name;
+} mtty_types[2] = {
+	{ .nr_ports = 1, .type.sysfs_name = "1", .name = "Single port serial" },
+	{ .nr_ports = 2, .type.sysfs_name = "2", .name = "Dual port serial" },
+};
+
+static struct mdev_type *mtty_mdev_types[] = {
+	&mtty_types[0].type,
+	&mtty_types[1].type,
+};
+
 static atomic_t mdev_avail_ports = ATOMIC_INIT(MAX_MTTYS);
 
 static const struct file_operations vd_fops = {
@@ -707,17 +721,19 @@ static int mtty_init_dev(struct vfio_device *vdev)
 	struct mdev_state *mdev_state =
 		container_of(vdev, struct mdev_state, vdev);
 	struct mdev_device *mdev = to_mdev_device(vdev->dev);
-	int nr_ports = mdev_get_type_group_id(mdev) + 1;
+	struct mtty_type *type =
+		container_of(mdev->type, struct mtty_type, type);
 	int avail_ports = atomic_read(&mdev_avail_ports);
 	int ret;
 
 	do {
-		if (avail_ports < nr_ports)
+		if (avail_ports < type->nr_ports)
 			return -ENOSPC;
 	} while (!atomic_try_cmpxchg(&mdev_avail_ports,
-				     &avail_ports, avail_ports - nr_ports));
+				     &avail_ports,
+				     avail_ports - type->nr_ports));
 
-	mdev_state->nr_ports = nr_ports;
+	mdev_state->nr_ports = type->nr_ports;
 	mdev_state->irq_index = -1;
 	mdev_state->s[0].max_fifo_size = MAX_FIFO_SIZE;
 	mdev_state->s[1].max_fifo_size = MAX_FIFO_SIZE;
@@ -735,7 +751,7 @@ static int mtty_init_dev(struct vfio_device *vdev)
 	return 0;
 
 err_nr_ports:
-	atomic_add(nr_ports, &mdev_avail_ports);
+	atomic_add(type->nr_ports, &mdev_avail_ports);
 	return ret;
 }
 
@@ -1242,11 +1258,9 @@ static const struct attribute_group *mdev_dev_groups[] = {
 static ssize_t name_show(struct mdev_type *mtype,
 			 struct mdev_type_attribute *attr, char *buf)
 {
-	static const char *name_str[2] = { "Single port serial",
-					   "Dual port serial" };
+	struct mtty_type *type = container_of(mtype, struct mtty_type, type);
 
-	return sysfs_emit(buf, "%s\n",
-			  name_str[mtype_get_type_group_id(mtype)]);
+	return sysfs_emit(buf, "%s\n", type->name);
 }
 
 static MDEV_TYPE_ATTR_RO(name);
@@ -1255,9 +1269,10 @@ static ssize_t available_instances_show(struct mdev_type *mtype,
 					struct mdev_type_attribute *attr,
 					char *buf)
 {
-	unsigned int ports = mtype_get_type_group_id(mtype) + 1;
+	struct mtty_type *type = container_of(mtype, struct mtty_type, type);
 
-	return sprintf(buf, "%d\n", atomic_read(&mdev_avail_ports) / ports);
+	return sprintf(buf, "%d\n", atomic_read(&mdev_avail_ports) /
+			type->nr_ports);
 }
 
 static MDEV_TYPE_ATTR_RO(available_instances);
@@ -1270,26 +1285,10 @@ static ssize_t device_api_show(struct mdev_type *mtype,
 
 static MDEV_TYPE_ATTR_RO(device_api);
 
-static struct attribute *mdev_types_attrs[] = {
+static const struct attribute *mdev_types_attrs[] = {
 	&mdev_type_attr_name.attr,
 	&mdev_type_attr_device_api.attr,
 	&mdev_type_attr_available_instances.attr,
-	NULL,
-};
-
-static struct attribute_group mdev_type_group1 = {
-	.name  = "1",
-	.attrs = mdev_types_attrs,
-};
-
-static struct attribute_group mdev_type_group2 = {
-	.name  = "2",
-	.attrs = mdev_types_attrs,
-};
-
-static struct attribute_group *mdev_type_groups[] = {
-	&mdev_type_group1,
-	&mdev_type_group2,
 	NULL,
 };
 
@@ -1311,7 +1310,7 @@ static struct mdev_driver mtty_driver = {
 	},
 	.probe = mtty_probe,
 	.remove	= mtty_remove,
-	.supported_type_groups = mdev_type_groups,
+	.types_attrs = mdev_types_attrs,
 };
 
 static void mtty_device_release(struct device *dev)
@@ -1363,7 +1362,8 @@ static int __init mtty_dev_init(void)
 		goto err_class;
 
 	ret = mdev_register_parent(&mtty_dev.parent, &mtty_dev.dev,
-				   &mtty_driver);
+				   &mtty_driver, mtty_mdev_types,
+				   ARRAY_SIZE(mtty_mdev_types));
 	if (ret)
 		goto err_device;
 	return 0;

@@ -82,7 +82,6 @@ static void mdev_type_release(struct kobject *kobj)
 	pr_debug("Releasing group %s\n", kobj->name);
 	/* Pairs with the get in add_mdev_supported_type() */
 	put_device(type->parent->dev);
-	kfree(type);
 }
 
 static struct kobj_type mdev_type_ktype = {
@@ -90,35 +89,21 @@ static struct kobj_type mdev_type_ktype = {
 	.release = mdev_type_release,
 };
 
-static struct mdev_type *add_mdev_supported_type(struct mdev_parent *parent,
-						 unsigned int type_group_id)
+static int mdev_type_add(struct mdev_parent *parent, struct mdev_type *type)
 {
-	struct mdev_type *type;
-	struct attribute_group *group =
-		parent->mdev_driver->supported_type_groups[type_group_id];
 	int ret;
-
-	if (!group->name) {
-		pr_err("%s: Type name empty!\n", __func__);
-		return ERR_PTR(-EINVAL);
-	}
-
-	type = kzalloc(sizeof(*type), GFP_KERNEL);
-	if (!type)
-		return ERR_PTR(-ENOMEM);
 
 	type->kobj.kset = parent->mdev_types_kset;
 	type->parent = parent;
 	/* Pairs with the put in mdev_type_release() */
 	get_device(parent->dev);
-	type->type_group_id = type_group_id;
 
 	ret = kobject_init_and_add(&type->kobj, &mdev_type_ktype, NULL,
 				   "%s-%s", dev_driver_string(parent->dev),
-				   group->name);
+				   type->sysfs_name);
 	if (ret) {
 		kobject_put(&type->kobj);
-		return ERR_PTR(ret);
+		return ret;
 	}
 
 	ret = sysfs_create_file(&type->kobj, &mdev_type_attr_create.attr);
@@ -131,13 +116,10 @@ static struct mdev_type *add_mdev_supported_type(struct mdev_parent *parent,
 		goto attr_devices_failed;
 	}
 
-	ret = sysfs_create_files(&type->kobj,
-				 (const struct attribute **)group->attrs);
-	if (ret) {
-		ret = -ENOMEM;
+	ret = sysfs_create_files(&type->kobj, parent->mdev_driver->types_attrs);
+	if (ret)
 		goto attrs_failed;
-	}
-	return type;
+	return 0;
 
 attrs_failed:
 	kobject_put(type->devices_kobj);
@@ -146,78 +128,49 @@ attr_devices_failed:
 attr_create_failed:
 	kobject_del(&type->kobj);
 	kobject_put(&type->kobj);
-	return ERR_PTR(ret);
+	return ret;
 }
 
-static void remove_mdev_supported_type(struct mdev_type *type)
+static void mdev_type_remove(struct mdev_type *type)
 {
-	struct attribute_group *group =
-		type->parent->mdev_driver->supported_type_groups[type->type_group_id];
+	sysfs_remove_files(&type->kobj, type->parent->mdev_driver->types_attrs);
 
-	sysfs_remove_files(&type->kobj,
-			   (const struct attribute **)group->attrs);
 	kobject_put(type->devices_kobj);
 	sysfs_remove_file(&type->kobj, &mdev_type_attr_create.attr);
 	kobject_del(&type->kobj);
 	kobject_put(&type->kobj);
 }
 
-static int add_mdev_supported_type_groups(struct mdev_parent *parent)
-{
-	int i;
-
-	for (i = 0; parent->mdev_driver->supported_type_groups[i]; i++) {
-		struct mdev_type *type;
-
-		type = add_mdev_supported_type(parent, i);
-		if (IS_ERR(type)) {
-			struct mdev_type *ltype, *tmp;
-
-			list_for_each_entry_safe(ltype, tmp, &parent->type_list,
-						  next) {
-				list_del(&ltype->next);
-				remove_mdev_supported_type(ltype);
-			}
-			return PTR_ERR(type);
-		}
-		list_add(&type->next, &parent->type_list);
-	}
-	return 0;
-}
-
 /* mdev sysfs functions */
 void parent_remove_sysfs_files(struct mdev_parent *parent)
 {
-	struct mdev_type *type, *tmp;
+	int i;
 
-	list_for_each_entry_safe(type, tmp, &parent->type_list, next) {
-		list_del(&type->next);
-		remove_mdev_supported_type(type);
-	}
-
+	for (i = 0; i < parent->nr_types; i++)
+		mdev_type_remove(parent->types[i]);
 	kset_unregister(parent->mdev_types_kset);
 }
 
 int parent_create_sysfs_files(struct mdev_parent *parent)
 {
-	int ret;
+	int ret, i;
 
 	parent->mdev_types_kset = kset_create_and_add("mdev_supported_types",
 					       NULL, &parent->dev->kobj);
-
 	if (!parent->mdev_types_kset)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&parent->type_list);
-
-	ret = add_mdev_supported_type_groups(parent);
-	if (ret)
-		goto create_err;
+	for (i = 0; i < parent->nr_types; i++) {
+		ret = mdev_type_add(parent, parent->types[i]);
+		if (ret)
+			goto out_err;
+	}
 	return 0;
 
-create_err:
-	kset_unregister(parent->mdev_types_kset);
-	return ret;
+out_err:
+	while (--i >= 0)
+		mdev_type_remove(parent->types[i]);
+	return 0;
 }
 
 static ssize_t remove_store(struct device *dev, struct device_attribute *attr,

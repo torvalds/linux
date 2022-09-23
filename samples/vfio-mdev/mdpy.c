@@ -51,7 +51,8 @@ MODULE_PARM_DESC(count, "number of " MDPY_NAME " devices");
 #define MDPY_TYPE_2 "xga"
 #define MDPY_TYPE_3 "hd"
 
-static const struct mdpy_type {
+static struct mdpy_type {
+	struct mdev_type type;
 	const char *name;
 	u32 format;
 	u32 bytepp;
@@ -59,24 +60,33 @@ static const struct mdpy_type {
 	u32 height;
 } mdpy_types[] = {
 	{
+		.type.sysfs_name 	= MDPY_TYPE_1,
 		.name	= MDPY_CLASS_NAME "-" MDPY_TYPE_1,
 		.format = DRM_FORMAT_XRGB8888,
 		.bytepp = 4,
 		.width	= 640,
 		.height = 480,
 	}, {
+		.type.sysfs_name 	= MDPY_TYPE_2,
 		.name	= MDPY_CLASS_NAME "-" MDPY_TYPE_2,
 		.format = DRM_FORMAT_XRGB8888,
 		.bytepp = 4,
 		.width	= 1024,
 		.height = 768,
 	}, {
+		.type.sysfs_name 	= MDPY_TYPE_3,
 		.name	= MDPY_CLASS_NAME "-" MDPY_TYPE_3,
 		.format = DRM_FORMAT_XRGB8888,
 		.bytepp = 4,
 		.width	= 1920,
 		.height = 1080,
 	},
+};
+
+static struct mdev_type *mdpy_mdev_types[] = {
+	&mdpy_types[0].type,
+	&mdpy_types[1].type,
+	&mdpy_types[2].type,
 };
 
 static dev_t		mdpy_devt;
@@ -222,7 +232,7 @@ static int mdpy_init_dev(struct vfio_device *vdev)
 		container_of(vdev, struct mdev_state, vdev);
 	struct mdev_device *mdev = to_mdev_device(vdev->dev);
 	const struct mdpy_type *type =
-		&mdpy_types[mdev_get_type_group_id(mdev)];
+		container_of(mdev->type, struct mdpy_type, type);
 	u32 fbsize;
 	int ret = -ENOMEM;
 
@@ -655,8 +665,7 @@ static const struct attribute_group *mdev_dev_groups[] = {
 static ssize_t name_show(struct mdev_type *mtype,
 			 struct mdev_type_attribute *attr, char *buf)
 {
-	const struct mdpy_type *type =
-		&mdpy_types[mtype_get_type_group_id(mtype)];
+	struct mdpy_type *type = container_of(mtype, struct mdpy_type, type);
 
 	return sprintf(buf, "%s\n", type->name);
 }
@@ -665,8 +674,7 @@ static MDEV_TYPE_ATTR_RO(name);
 static ssize_t description_show(struct mdev_type *mtype,
 				struct mdev_type_attribute *attr, char *buf)
 {
-	const struct mdpy_type *type =
-		&mdpy_types[mtype_get_type_group_id(mtype)];
+	struct mdpy_type *type = container_of(mtype, struct mdpy_type, type);
 
 	return sprintf(buf, "virtual display, %dx%d framebuffer\n",
 		       type->width, type->height);
@@ -688,33 +696,11 @@ static ssize_t device_api_show(struct mdev_type *mtype,
 }
 static MDEV_TYPE_ATTR_RO(device_api);
 
-static struct attribute *mdev_types_attrs[] = {
+static const struct attribute *mdev_types_attrs[] = {
 	&mdev_type_attr_name.attr,
 	&mdev_type_attr_description.attr,
 	&mdev_type_attr_device_api.attr,
 	&mdev_type_attr_available_instances.attr,
-	NULL,
-};
-
-static struct attribute_group mdev_type_group1 = {
-	.name  = MDPY_TYPE_1,
-	.attrs = mdev_types_attrs,
-};
-
-static struct attribute_group mdev_type_group2 = {
-	.name  = MDPY_TYPE_2,
-	.attrs = mdev_types_attrs,
-};
-
-static struct attribute_group mdev_type_group3 = {
-	.name  = MDPY_TYPE_3,
-	.attrs = mdev_types_attrs,
-};
-
-static struct attribute_group *mdev_type_groups[] = {
-	&mdev_type_group1,
-	&mdev_type_group2,
-	&mdev_type_group3,
 	NULL,
 };
 
@@ -736,7 +722,7 @@ static struct mdev_driver mdpy_driver = {
 	},
 	.probe = mdpy_probe,
 	.remove	= mdpy_remove,
-	.supported_type_groups = mdev_type_groups,
+	.types_attrs = mdev_types_attrs,
 };
 
 static const struct file_operations vd_fops = {
@@ -779,7 +765,9 @@ static int __init mdpy_dev_init(void)
 	if (ret)
 		goto err_class;
 
-	ret = mdev_register_parent(&mdpy_parent, &mdpy_dev, &mdpy_driver);
+	ret = mdev_register_parent(&mdpy_parent, &mdpy_dev, &mdpy_driver,
+				   mdpy_mdev_types,
+				   ARRAY_SIZE(mdpy_mdev_types));
 	if (ret)
 		goto err_device;
 

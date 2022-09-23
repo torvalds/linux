@@ -13,14 +13,6 @@
 int  mdev_bus_register(void);
 void mdev_bus_unregister(void);
 
-struct mdev_type {
-	struct kobject kobj;
-	struct kobject *devices_kobj;
-	struct mdev_parent *parent;
-	struct list_head next;
-	unsigned int type_group_id;
-};
-
 extern const struct attribute_group *mdev_device_groups[];
 
 #define to_mdev_type_attr(_attr)	\

@@ -23,14 +23,27 @@ struct mdev_device {
 	bool active;
 };
 
+struct mdev_type {
+	/* set by the driver before calling mdev_register parent: */
+	const char *sysfs_name;
+
+	/* set by the core, can be used drivers */
+	struct mdev_parent *parent;
+
+	/* internal only */
+	struct kobject kobj;
+	struct kobject *devices_kobj;
+};
+
 /* embedded into the struct device that the mdev devices hang off */
 struct mdev_parent {
 	struct device *dev;
 	struct mdev_driver *mdev_driver;
 	struct kset *mdev_types_kset;
-	struct list_head type_list;
 	/* Synchronize device creation/removal with parent unregistration */
 	struct rw_semaphore unreg_sem;
+	struct mdev_type **types;
+	unsigned int nr_types;
 };
 
 static inline struct mdev_device *to_mdev_device(struct device *dev)
@@ -38,8 +51,6 @@ static inline struct mdev_device *to_mdev_device(struct device *dev)
 	return container_of(dev, struct mdev_device, dev);
 }
 
-unsigned int mdev_get_type_group_id(struct mdev_device *mdev);
-unsigned int mtype_get_type_group_id(struct mdev_type *mtype);
 struct device *mtype_get_parent_dev(struct mdev_type *mtype);
 
 /* interface for exporting mdev supported type attributes */
@@ -66,22 +77,21 @@ struct mdev_type_attribute mdev_type_attr_##_name =		\
  * struct mdev_driver - Mediated device driver
  * @probe: called when new device created
  * @remove: called when device removed
- * @supported_type_groups: Attributes to define supported types. It is mandatory
- *			to provide supported types.
+ * @types_attrs: attributes to the type kobjects.
  * @driver: device driver structure
- *
  **/
 struct mdev_driver {
 	int (*probe)(struct mdev_device *dev);
 	void (*remove)(struct mdev_device *dev);
-	struct attribute_group **supported_type_groups;
+	const struct attribute * const *types_attrs;
 	struct device_driver driver;
 };
 
 extern struct bus_type mdev_bus_type;
 
 int mdev_register_parent(struct mdev_parent *parent, struct device *dev,
-		struct mdev_driver *mdev_driver);
+		struct mdev_driver *mdev_driver, struct mdev_type **types,
+		unsigned int nr_types);
 void mdev_unregister_parent(struct mdev_parent *parent);
 
 int mdev_register_driver(struct mdev_driver *drv);
