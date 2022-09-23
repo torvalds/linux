@@ -76,6 +76,8 @@
 
 #define UBLK_F_USER_RECOVERY	(1UL << 3)
 
+#define UBLK_F_USER_RECOVERY_REISSUE	(1UL << 4)
+
 /* device state */
 #define UBLK_S_DEV_DEAD	0
 #define UBLK_S_DEV_LIVE	1
