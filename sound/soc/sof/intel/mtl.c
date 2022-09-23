@@ -144,7 +144,6 @@ static int mtl_enable_interrupts(struct snd_sof_dev *sdev)
 
 	/* check if operation was successful */
 	host_ipc = MTL_IRQ_INTEN_L_HOST_IPC_MASK | MTL_IRQ_INTEN_L_SOUNDWIRE_MASK;
-	irqinten = snd_sof_dsp_read(sdev, HDA_DSP_BAR, hfintipptr);
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, hfintipptr, irqinten,
 					    (irqinten & host_ipc) == host_ipc,
 					    HDA_DSP_REG_POLL_INTERVAL_US, HDA_DSP_RESET_TIMEOUT_US);
@@ -159,7 +158,6 @@ static int mtl_enable_interrupts(struct snd_sof_dev *sdev)
 
 	/* check if operation was successful */
 	host_ipc = MTL_DSP_REG_HfHIPCIE_IE_MASK;
-	hipcie = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfHIPCIE);
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfHIPCIE, hipcie,
 					    (hipcie & host_ipc) == host_ipc,
 					    HDA_DSP_REG_POLL_INTERVAL_US, HDA_DSP_RESET_TIMEOUT_US);
@@ -171,7 +169,6 @@ static int mtl_enable_interrupts(struct snd_sof_dev *sdev)
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfSNDWIE,
 				MTL_DSP_REG_HfSNDWIE_IE_MASK, MTL_DSP_REG_HfSNDWIE_IE_MASK);
 	host_ipc = MTL_DSP_REG_HfSNDWIE_IE_MASK;
-	hipcie = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfSNDWIE);
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfSNDWIE, hipcie,
 					    (hipcie & host_ipc) == host_ipc,
 					    HDA_DSP_REG_POLL_INTERVAL_US, HDA_DSP_RESET_TIMEOUT_US);
@@ -199,7 +196,6 @@ static int mtl_disable_interrupts(struct snd_sof_dev *sdev)
 
 	/* check if operation was successful */
 	host_ipc = MTL_IRQ_INTEN_L_HOST_IPC_MASK | MTL_IRQ_INTEN_L_SOUNDWIRE_MASK;
-	irqinten = snd_sof_dsp_read(sdev, HDA_DSP_BAR, hfintipptr);
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, hfintipptr, irqinten,
 					    (irqinten & host_ipc) == 0,
 					    HDA_DSP_REG_POLL_INTERVAL_US, HDA_DSP_RESET_TIMEOUT_US);
@@ -213,7 +209,6 @@ static int mtl_disable_interrupts(struct snd_sof_dev *sdev)
 
 	/* check if operation was successful */
 	host_ipc = MTL_DSP_REG_HfHIPCIE_IE_MASK;
-	hipcie = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfHIPCIE);
 	ret1 = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfHIPCIE, hipcie,
 					     (hipcie & host_ipc) == 0,
 					     HDA_DSP_REG_POLL_INTERVAL_US,
@@ -228,7 +223,6 @@ static int mtl_disable_interrupts(struct snd_sof_dev *sdev)
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfSNDWIE,
 				MTL_DSP_REG_HfSNDWIE_IE_MASK, 0);
 	host_ipc = MTL_DSP_REG_HfSNDWIE_IE_MASK;
-	hipcie = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfSNDWIE);
 	ret1 = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_DSP_REG_HfSNDWIE, hipcie,
 					     (hipcie & host_ipc) == 0,
 					     HDA_DSP_REG_POLL_INTERVAL_US,
@@ -260,7 +254,6 @@ static int mtl_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 
 	/* poll with timeout to check if operation successful */
 	cpa = MTL_HFDSSCS_CPA_MASK;
-	dsphfdsscs = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_HFDSSCS);
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_HFDSSCS, dsphfdsscs,
 					    (dsphfdsscs & cpa) == cpa, HDA_DSP_REG_POLL_INTERVAL_US,
 					    HDA_DSP_RESET_TIMEOUT_US);
@@ -277,7 +270,6 @@ static int mtl_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 
 	/* poll with timeout to check if operation successful */
 	pgs = MTL_HFPWRSTS_DSPHPXPGS_MASK;
-	dsphfpwrsts = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_HFPWRSTS);
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_HFPWRSTS, dsphfpwrsts,
 					    (dsphfpwrsts & pgs) == pgs,
 					    HDA_DSP_REG_POLL_INTERVAL_US,
@@ -404,6 +396,33 @@ static int mtl_dsp_core_power_down(struct snd_sof_dev *sdev, int core)
 		dev_err(sdev->dev, "failed to power down primary core\n");
 
 	return ret;
+}
+
+static int mtl_power_down_dsp(struct snd_sof_dev *sdev)
+{
+	u32 dsphfdsscs, cpa;
+	int ret;
+
+	/* first power down core */
+	ret = mtl_dsp_core_power_down(sdev, SOF_DSP_PRIMARY_CORE);
+	if (ret) {
+		dev_err(sdev->dev, "mtl dsp power down error, %d\n", ret);
+		return ret;
+	}
+
+	/* Set the DSP subsystem power down */
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_HFDSSCS,
+				MTL_HFDSSCS_SPA_MASK, 0);
+
+	/* Wait for unstable CPA read (1 then 0 then 1) just after setting SPA bit */
+	usleep_range(1000, 1010);
+
+	/* poll with timeout to check if operation successful */
+	cpa = MTL_HFDSSCS_CPA_MASK;
+	dsphfdsscs = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_HFDSSCS);
+	return snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_HFDSSCS, dsphfdsscs,
+					     (dsphfdsscs & cpa) == 0, HDA_DSP_REG_POLL_INTERVAL_US,
+					     HDA_DSP_RESET_TIMEOUT_US);
 }
 
 static int mtl_dsp_cl_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot)
@@ -552,150 +571,6 @@ static int mtl_dsp_ipc_get_window_offset(struct snd_sof_dev *sdev, u32 id)
 	return MTL_SRAM_WINDOW_OFFSET(id);
 }
 
-static int mtl_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
-{
-	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
-	const struct sof_intel_dsp_desc *chip = hda->desc;
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	struct hdac_bus *bus = sof_to_bus(sdev);
-#endif
-	u32 dsphfdsscs;
-	u32 cpa;
-	int ret;
-	int i;
-
-	mtl_disable_ipc_interrupts(sdev);
-	ret = mtl_disable_interrupts(sdev);
-	if (ret)
-		return ret;
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	hda_codec_jack_wake_enable(sdev, runtime_suspend);
-	/* power down all hda link */
-	snd_hdac_ext_bus_link_power_down_all(bus);
-#endif
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_HFPWRCTL,
-				MTL_HFPWRCTL_WPDSPHPXPG, 0);
-
-	/* Set the DSP subsystem power down */
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, MTL_HFDSSCS,
-				MTL_HFDSSCS_SPA_MASK, 0);
-
-	/* Wait for unstable CPA read (1 then 0 then 1) just after setting SPA bit */
-	usleep_range(1000, 1010);
-
-	/* poll with timeout to check if operation successful */
-	cpa = MTL_HFDSSCS_CPA_MASK;
-	dsphfdsscs = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_HFDSSCS);
-	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_HFDSSCS, dsphfdsscs,
-					    (dsphfdsscs & cpa) == 0, HDA_DSP_REG_POLL_INTERVAL_US,
-					HDA_DSP_RESET_TIMEOUT_US);
-	if (ret < 0)
-		dev_err(sdev->dev, "failed to disable DSP subsystem\n");
-
-	/* reset ref counts for all cores */
-	for (i = 0; i < chip->cores_num; i++)
-		sdev->dsp_core_ref_count[i] = 0;
-
-	/* TODO: need to reset controller? */
-
-	/* display codec can be powered off after link reset */
-	hda_codec_i915_display_power(sdev, false);
-
-	return 0;
-}
-
-static int mtl_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
-{
-	const struct sof_dsp_power_state target_dsp_state = {
-		.state = target_state,
-		.substate = target_state == SOF_DSP_PM_D0 ?
-				SOF_HDA_DSP_PM_D0I3 : 0,
-	};
-	int ret;
-
-	ret = mtl_suspend(sdev, false);
-	if (ret < 0)
-		return ret;
-
-	return snd_sof_dsp_set_power_state(sdev, &target_dsp_state);
-}
-
-static int mtl_dsp_runtime_suspend(struct snd_sof_dev *sdev)
-{
-	const struct sof_dsp_power_state target_state = {
-		.state = SOF_DSP_PM_D3,
-	};
-	int ret;
-
-	ret = mtl_suspend(sdev, true);
-	if (ret < 0)
-		return ret;
-
-	return snd_sof_dsp_set_power_state(sdev, &target_state);
-}
-
-static int mtl_resume(struct snd_sof_dev *sdev, bool runtime_resume)
-{
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	struct hdac_bus *bus = sof_to_bus(sdev);
-	struct hdac_ext_link *hlink = NULL;
-#endif
-
-	/* display codec must be powered before link reset */
-	hda_codec_i915_display_power(sdev, true);
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	/* check jack status */
-	if (runtime_resume) {
-		hda_codec_jack_wake_enable(sdev, false);
-		if (sdev->system_suspend_target == SOF_SUSPEND_NONE)
-			hda_codec_jack_check(sdev);
-	}
-
-	/* turn off the links that were off before suspend */
-	list_for_each_entry(hlink, &bus->hlink_list, list) {
-		if (!hlink->ref_count)
-			snd_hdac_ext_bus_link_power_down(hlink);
-	}
-
-	/* check dma status and clean up CORB/RIRB buffers */
-	if (!bus->cmd_dma_state)
-		snd_hdac_bus_stop_cmd_io(bus);
-#endif
-
-	return 0;
-}
-
-static int mtl_dsp_resume(struct snd_sof_dev *sdev)
-{
-	const struct sof_dsp_power_state target_state = {
-		.state = SOF_DSP_PM_D0,
-		.substate = SOF_HDA_DSP_PM_D0I0,
-	};
-	int ret;
-
-	ret = mtl_resume(sdev, false);
-	if (ret < 0)
-		return ret;
-
-	return snd_sof_dsp_set_power_state(sdev, &target_state);
-}
-
-static int mtl_dsp_runtime_resume(struct snd_sof_dev *sdev)
-{
-	const struct sof_dsp_power_state target_state = {
-		.state = SOF_DSP_PM_D0,
-	};
-	int ret;
-
-	ret = mtl_resume(sdev, true);
-	if (ret < 0)
-		return ret;
-
-	return snd_sof_dsp_set_power_state(sdev, &target_state);
-}
-
 static void mtl_ipc_dump(struct snd_sof_dev *sdev)
 {
 	u32 hipcctl;
@@ -712,6 +587,12 @@ static void mtl_ipc_dump(struct snd_sof_dev *sdev)
 	dev_err(sdev->dev,
 		"error: host status 0x%8.8x dsp status 0x%8.8x mask 0x%8.8x\n",
 		hipcida, hipctdr, hipcctl);
+}
+
+static int mtl_dsp_disable_interrupts(struct snd_sof_dev *sdev)
+{
+	mtl_disable_ipc_interrupts(sdev);
+	return mtl_disable_interrupts(sdev);
 }
 
 /* Meteorlake ops */
@@ -752,12 +633,6 @@ int sof_mtl_ops_init(struct snd_sof_dev *sdev)
 	/* dsp core get/put */
 	/* TODO: add core_get and core_put */
 
-	/* PM */
-	sof_mtl_ops.suspend = mtl_dsp_suspend;
-	sof_mtl_ops.resume = mtl_dsp_resume;
-	sof_mtl_ops.runtime_suspend = mtl_dsp_runtime_suspend;
-	sof_mtl_ops.runtime_resume = mtl_dsp_runtime_resume;
-
 	sdev->private = devm_kzalloc(sdev->dev, sizeof(struct sof_ipc4_fw_data), GFP_KERNEL);
 	if (!sdev->private)
 		return -ENOMEM;
@@ -792,6 +667,8 @@ const struct sof_intel_dsp_desc mtl_chip_info = {
 	.check_sdw_irq = mtl_dsp_check_sdw_irq,
 	.check_ipc_irq = mtl_dsp_check_ipc_irq,
 	.cl_init = mtl_dsp_cl_init,
+	.power_down_dsp = mtl_power_down_dsp,
+	.disable_interrupts = mtl_dsp_disable_interrupts,
 	.hw_ip_version = SOF_INTEL_ACE_1_0,
 };
 EXPORT_SYMBOL_NS(mtl_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);

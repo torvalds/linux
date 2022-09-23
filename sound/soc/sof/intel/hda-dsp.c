@@ -629,10 +629,9 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 	    sdev->fw_state == SOF_FW_BOOT_FAILED)
 		hda->skip_imr_boot = true;
 
-	hda_sdw_int_enable(sdev, false);
-
-	/* disable IPC interrupts */
-	hda_dsp_ipc_int_disable(sdev);
+	ret = chip->disable_interrupts(sdev);
+	if (ret < 0)
+		return ret;
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	hda_codec_jack_wake_enable(sdev, runtime_suspend);
@@ -641,11 +640,9 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 	snd_hdac_ext_bus_link_power_down_all(bus);
 #endif
 
-	/* power down DSP */
-	ret = hda_dsp_core_reset_power_down(sdev, chip->host_managed_cores_mask);
+	ret = chip->power_down_dsp(sdev);
 	if (ret < 0) {
-		dev_err(sdev->dev,
-			"error: failed to power down core during suspend\n");
+		dev_err(sdev->dev, "failed to power down DSP during suspend\n");
 		return ret;
 	}
 
@@ -988,4 +985,12 @@ power_down:
 		dev_err(sdev->dev, "failed to power down core: %d with err: %d\n", core, ret1);
 
 	return ret;
+}
+
+int hda_dsp_disable_interrupts(struct snd_sof_dev *sdev)
+{
+	hda_sdw_int_enable(sdev, false);
+	hda_dsp_ipc_int_disable(sdev);
+
+	return 0;
 }
