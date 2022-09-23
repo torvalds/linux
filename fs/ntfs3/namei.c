@@ -7,6 +7,7 @@
 
 #include <linux/fs.h>
 #include <linux/nls.h>
+#include <linux/ctype.h>
 
 #include "debug.h"
 #include "ntfs.h"
@@ -355,6 +356,138 @@ struct dentry *ntfs3_get_parent(struct dentry *child)
 	return ERR_PTR(-ENOENT);
 }
 
+/*
+ * dentry_operations::d_hash
+ */
+static int ntfs_d_hash(const struct dentry *dentry, struct qstr *name)
+{
+	struct ntfs_sb_info *sbi;
+	const char *n = name->name;
+	unsigned int len = name->len;
+	unsigned long hash;
+	struct cpu_str *uni;
+	unsigned int c;
+	int err;
+
+	/* First try fast implementation. */
+	hash = init_name_hash(dentry);
+
+	for (;;) {
+		if (!len--) {
+			name->hash = end_name_hash(hash);
+			return 0;
+		}
+
+		c = *n++;
+		if (c >= 0x80)
+			break;
+
+		hash = partial_name_hash(toupper(c), hash);
+	}
+
+	/*
+	 * Try slow way with current upcase table
+	 */
+	uni = __getname();
+	if (!uni)
+		return -ENOMEM;
+
+	sbi = dentry->d_sb->s_fs_info;
+
+	err = ntfs_nls_to_utf16(sbi, name->name, name->len, uni, NTFS_NAME_LEN,
+				UTF16_HOST_ENDIAN);
+	if (err < 0)
+		goto out;
+
+	if (!err) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	hash = ntfs_names_hash(uni->name, uni->len, sbi->upcase,
+			       init_name_hash(dentry));
+	name->hash = end_name_hash(hash);
+	err = 0;
+
+out:
+	__putname(uni);
+	return err;
+}
+
+/*
+ * dentry_operations::d_compare
+ */
+static int ntfs_d_compare(const struct dentry *dentry, unsigned int len1,
+			  const char *str, const struct qstr *name)
+{
+	struct ntfs_sb_info *sbi;
+	int ret;
+	const char *n1 = str;
+	const char *n2 = name->name;
+	unsigned int len2 = name->len;
+	unsigned int lm = min(len1, len2);
+	unsigned char c1, c2;
+	struct cpu_str *uni1, *uni2;
+
+	/* First try fast implementation. */
+	for (;;) {
+		if (!lm--) {
+			ret = len1 == len2 ? 0 : 1;
+			goto out;
+		}
+
+		if ((c1 = *n1++) == (c2 = *n2++))
+			continue;
+
+		if (c1 >= 0x80 || c2 >= 0x80)
+			break;
+
+		if (toupper(c1) != toupper(c2)) {
+			ret = 1;
+			goto out;
+		}
+	}
+
+	/*
+	 * Try slow way with current upcase table
+	 */
+	sbi = dentry->d_sb->s_fs_info;
+	uni1 = __getname();
+	if (!uni1)
+		return -ENOMEM;
+
+	ret = ntfs_nls_to_utf16(sbi, str, len1, uni1, NTFS_NAME_LEN,
+				UTF16_HOST_ENDIAN);
+	if (ret < 0)
+		goto out;
+
+	if (!ret) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	uni2 = Add2Ptr(uni1, 2048);
+
+	ret = ntfs_nls_to_utf16(sbi, name->name, name->len, uni2, NTFS_NAME_LEN,
+				UTF16_HOST_ENDIAN);
+	if (ret < 0)
+		goto out;
+
+	if (!ret) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = !ntfs_cmp_names(uni1->name, uni1->len, uni2->name, uni2->len,
+			      sbi->upcase, false)
+		      ? 0
+		      : 1;
+
+out:
+	__putname(uni1);
+	return ret;
+}
+
 // clang-format off
 const struct inode_operations ntfs_dir_inode_operations = {
 	.lookup		= ntfs_lookup,
@@ -382,4 +515,10 @@ const struct inode_operations ntfs_special_inode_operations = {
 	.get_acl	= ntfs_get_acl,
 	.set_acl	= ntfs_set_acl,
 };
+
+const struct dentry_operations ntfs_dentry_ops = {
+	.d_hash		= ntfs_d_hash,
+	.d_compare	= ntfs_d_compare,
+};
+
 // clang-format on

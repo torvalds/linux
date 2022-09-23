@@ -253,6 +253,7 @@ enum Opt {
 	Opt_iocharset,
 	Opt_prealloc,
 	Opt_noacsrules,
+	Opt_nocase,
 	Opt_err,
 };
 
@@ -272,6 +273,7 @@ static const struct fs_parameter_spec ntfs_fs_parameters[] = {
 	fsparam_flag_no("showmeta",		Opt_showmeta),
 	fsparam_flag_no("prealloc",		Opt_prealloc),
 	fsparam_flag_no("acsrules",		Opt_noacsrules),
+	fsparam_flag_no("nocase",		Opt_nocase),
 	fsparam_string("iocharset",		Opt_iocharset),
 	{}
 };
@@ -382,6 +384,9 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 		break;
 	case Opt_noacsrules:
 		opts->noacsrules = result.negated ? 1 : 0;
+		break;
+	case Opt_nocase:
+		opts->nocase = result.negated ? 1 : 0;
 		break;
 	default:
 		/* Should not be here unless we forget add case. */
@@ -936,6 +941,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_export_op = &ntfs_export_ops;
 	sb->s_time_gran = NTFS_TIME_GRAN; // 100 nsec
 	sb->s_xattr = ntfs_xattr_handlers;
+	sb->s_d_op = sbi->options->nocase ? &ntfs_dentry_ops : NULL;
 
 	sbi->options->nls = ntfs_load_nls(sbi->options->nls_name);
 	if (IS_ERR(sbi->options->nls)) {

@@ -47,7 +47,7 @@ static int cmp_fnames(const void *key1, size_t l1, const void *key2, size_t l2,
 	if (l2 < fsize2)
 		return -1;
 
-	both_case = f2->type != FILE_NAME_DOS /*&& !sbi->options.nocase*/;
+	both_case = f2->type != FILE_NAME_DOS && !sbi->options->nocase;
 	if (!l1) {
 		const struct le_str *s2 = (struct le_str *)&f2->name_len;
 
