@@ -2066,12 +2066,11 @@ static char *vfio_devnode(struct device *dev, umode_t *mode)
 	return kasprintf(GFP_KERNEL, "vfio/%s", dev_name(dev));
 }
 
-static int __init vfio_init(void)
+static int __init vfio_group_init(void)
 {
 	int ret;
 
 	ida_init(&vfio.group_ida);
-	ida_init(&vfio.device_ida);
 	mutex_init(&vfio.group_lock);
 	INIT_LIST_HEAD(&vfio.group_list);
 
@@ -2088,24 +2087,12 @@ static int __init vfio_init(void)
 
 	vfio.class->devnode = vfio_devnode;
 
-	/* /sys/class/vfio-dev/vfioX */
-	vfio.device_class = class_create(THIS_MODULE, "vfio-dev");
-	if (IS_ERR(vfio.device_class)) {
-		ret = PTR_ERR(vfio.device_class);
-		goto err_dev_class;
-	}
-
 	ret = alloc_chrdev_region(&vfio.group_devt, 0, MINORMASK + 1, "vfio");
 	if (ret)
 		goto err_alloc_chrdev;
-
-	pr_info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 	return 0;
 
 err_alloc_chrdev:
-	class_destroy(vfio.device_class);
-	vfio.device_class = NULL;
-err_dev_class:
 	class_destroy(vfio.class);
 	vfio.class = NULL;
 err_group_class:
@@ -2113,18 +2100,47 @@ err_group_class:
 	return ret;
 }
 
-static void __exit vfio_cleanup(void)
+static void vfio_group_cleanup(void)
 {
 	WARN_ON(!list_empty(&vfio.group_list));
-
-	ida_destroy(&vfio.device_ida);
 	ida_destroy(&vfio.group_ida);
 	unregister_chrdev_region(vfio.group_devt, MINORMASK + 1);
+	class_destroy(vfio.class);
+	vfio.class = NULL;
+	vfio_container_cleanup();
+}
+
+static int __init vfio_init(void)
+{
+	int ret;
+
+	ida_init(&vfio.device_ida);
+
+	ret = vfio_group_init();
+	if (ret)
+		return ret;
+
+	/* /sys/class/vfio-dev/vfioX */
+	vfio.device_class = class_create(THIS_MODULE, "vfio-dev");
+	if (IS_ERR(vfio.device_class)) {
+		ret = PTR_ERR(vfio.device_class);
+		goto err_dev_class;
+	}
+
+	pr_info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
+	return 0;
+
+err_dev_class:
+	vfio_group_cleanup();
+	return ret;
+}
+
+static void __exit vfio_cleanup(void)
+{
+	ida_destroy(&vfio.device_ida);
 	class_destroy(vfio.device_class);
 	vfio.device_class = NULL;
-	class_destroy(vfio.class);
-	vfio_container_cleanup();
-	vfio.class = NULL;
+	vfio_group_cleanup();
 	xa_destroy(&vfio_device_set_xa);
 }
 
