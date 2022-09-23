@@ -289,6 +289,18 @@
 					marvell,pins = "mpp44";
 					marvell,function = "sata3";
 				};
+
+				i2s_pins: i2s-pins {
+					marvell,pins = "mpp48", "mpp49",
+						       "mpp50", "mpp51",
+						       "mpp52", "mpp53";
+					marvell,function = "audio";
+				};
+
+				spdif_pins: spdif-pins {
+					marvell,pins = "mpp51";
+					marvell,function = "audio";
+				};
 			};
 
 			gpio0: gpio@18100 {
@@ -298,6 +310,7 @@
 				reg-names = "gpio", "pwm";
 				ngpios = <32>;
 				gpio-controller;
+				gpio-ranges = <&pinctrl 0 0 32>;
 				#gpio-cells = <2>;
 				#pwm-cells = <2>;
 				interrupt-controller;
@@ -316,6 +329,7 @@
 				reg-names = "gpio", "pwm";
 				ngpios = <28>;
 				gpio-controller;
+				gpio-ranges = <&pinctrl 0 32 28>;
 				#gpio-cells = <2>;
 				#pwm-cells = <2>;
 				interrupt-controller;
@@ -615,6 +629,18 @@
 				interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gateclk 17>;
 				mrvl,clk-delay-cycles = <0x1F>;
+				status = "disabled";
+			};
+
+			audio_controller: audio-controller@e8000 {
+				#sound-dai-cells = <1>;
+				compatible = "marvell,armada-380-audio";
+				reg = <0xe8000 0x4000>, <0x18410 0xc>,
+				      <0x18204 0x4>;
+				reg-names = "i2s_regs", "pll_regs", "soc_ctrl";
+				interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&gateclk 0>;
+				clock-names = "internal";
 				status = "disabled";
 			};
 
