@@ -366,12 +366,19 @@ static void md_rm_add_work(struct md_region *entry)
 	slot_num =
 		gh_rm_minidump_register_range(entry->phys_addr, entry->size,
 					      entry->name, strlen(entry->name));
+	spin_lock_irqsave(&mdt_lock, flags);
 	if (slot_num < 0) {
+		memmove(&minidump_rm_table->entry[entry_num],
+			&minidump_rm_table->entry[entry_num + 1],
+			((num_regions - entry_num - 1) *
+			 sizeof(struct md_rm_region)));
+		memset(&minidump_rm_table->entry[num_regions - 1], 0,
+		       sizeof(struct md_rm_region));
+		num_regions--;
 		pr_err("Failed to register minidump entry:%s ret:%d\n",
 		       entry->name, slot_num);
-		return;
+		goto out;
 	}
-	spin_lock_irqsave(&mdt_lock, flags);
 	if (strcmp(entry->name, minidump_rm_table->entry[entry_num].name)) {
 		printk_deferred(
 			"Add entry:%s failed, minidump table is corrupt\n",
