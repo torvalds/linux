@@ -131,10 +131,6 @@
 	(((u32)(val) & HINIC_MSIX_##member##_MASK) <<           \
 	 HINIC_MSIX_##member##_SHIFT)
 
-#define HINIC_MSIX_ATTR_GET(val, member)                        \
-	(((val) >> HINIC_MSIX_##member##_SHIFT) &               \
-	 HINIC_MSIX_##member##_MASK)
-
 #define HINIC_MSIX_CNT_RESEND_TIMER_SHIFT                       29
 
 #define HINIC_MSIX_CNT_RESEND_TIMER_MASK                        0x1
@@ -268,11 +264,6 @@ int hinic_msix_attr_set(struct hinic_hwif *hwif, u16 msix_index,
 			u8 pending_limit, u8 coalesc_timer,
 			u8 lli_timer_cfg, u8 lli_credit_limit,
 			u8 resend_timer);
-
-int hinic_msix_attr_get(struct hinic_hwif *hwif, u16 msix_index,
-			u8 *pending_limit, u8 *coalesc_timer_cfg,
-			u8 *lli_timer, u8 *lli_credit_limit,
-			u8 *resend_timer);
 
 void hinic_set_msix_state(struct hinic_hwif *hwif, u16 msix_idx,
 			  enum hinic_msix_state flag);

@@ -22,7 +22,6 @@
 	(HINIC_DMA_ATTR_BASE + (idx) * HINIC_DMA_ATTR_STRIDE)
 
 #define HINIC_PPF_ELECTION_STRIDE                       0x4
-#define HINIC_CSR_MAX_PORTS                             4
 
 #define HINIC_CSR_PPF_ELECTION_ADDR(idx)                \
 	(HINIC_ELECTION_BASE +  (idx) * HINIC_PPF_ELECTION_STRIDE)

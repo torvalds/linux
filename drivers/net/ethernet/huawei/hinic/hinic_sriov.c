@@ -24,6 +24,7 @@ MODULE_PARM_DESC(set_vf_link_state, "Set vf link state, 0 represents link auto, 
 #define HINIC_VLAN_PRIORITY_SHIFT 13
 #define HINIC_ADD_VLAN_IN_MAC 0x8000
 #define HINIC_TX_RATE_TABLE_FULL 12
+#define HINIC_MAX_QOS 7
 
 static int hinic_set_mac(struct hinic_hwdev *hwdev, const u8 *mac_addr,
 			 u16 vlan_id, u16 func_id)
@@ -774,7 +775,7 @@ int hinic_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos,
 	u16 vlanprio, cur_vlanprio;
 
 	sriov_info = &nic_dev->sriov_info;
-	if (vf >= sriov_info->num_vfs || vlan > 4095 || qos > 7)
+	if (vf >= sriov_info->num_vfs || vlan >= VLAN_N_VID || qos > HINIC_MAX_QOS)
 		return -EINVAL;
 	if (vlan_proto != htons(ETH_P_8021Q))
 		return -EPROTONOSUPPORT;
@@ -820,7 +821,7 @@ int hinic_ndo_set_vf_trust(struct net_device *netdev, int vf, bool setting)
 
 	cur_trust = nic_io->vf_infos[vf].trust;
 	/* same request, so just return success */
-	if ((setting && cur_trust) || (!setting && !cur_trust))
+	if (setting == cur_trust)
 		return 0;
 
 	err = hinic_set_vf_trust(adapter->hwdev, vf, setting);
@@ -940,7 +941,7 @@ int hinic_ndo_set_vf_spoofchk(struct net_device *netdev, int vf, bool setting)
 	cur_spoofchk = nic_dev->hwdev->func_to_io.vf_infos[vf].spoofchk;
 
 	/* same request, so just return success */
-	if ((setting && cur_spoofchk) || (!setting && !cur_spoofchk))
+	if (setting == cur_spoofchk)
 		return 0;
 
 	err = hinic_set_vf_spoofchk(sriov_info->hwdev,
@@ -1131,8 +1132,8 @@ static void hinic_clear_vf_infos(struct hinic_dev *nic_dev, u16 vf_id)
 	hinic_init_vf_infos(&nic_dev->hwdev->func_to_io, HW_VF_ID_TO_OS(vf_id));
 }
 
-static int hinic_deinit_vf_hw(struct hinic_sriov_info *sriov_info,
-			      u16 start_vf_id, u16 end_vf_id)
+static void hinic_deinit_vf_hw(struct hinic_sriov_info *sriov_info,
+			       u16 start_vf_id, u16 end_vf_id)
 {
 	struct hinic_dev *nic_dev;
 	u16 func_idx, idx;
@@ -1145,8 +1146,6 @@ static int hinic_deinit_vf_hw(struct hinic_sriov_info *sriov_info,
 				       HINIC_HW_WQ_PAGE_SIZE);
 		hinic_clear_vf_infos(nic_dev, idx);
 	}
-
-	return 0;
 }
 
 int hinic_vf_func_init(struct hinic_hwdev *hwdev)
@@ -1293,7 +1292,7 @@ int hinic_pci_sriov_disable(struct pci_dev *pdev)
 	return 0;
 }
 
-int hinic_pci_sriov_enable(struct pci_dev *pdev, int num_vfs)
+static int hinic_pci_sriov_enable(struct pci_dev *pdev, int num_vfs)
 {
 	struct hinic_sriov_info *sriov_info;
 	int err;

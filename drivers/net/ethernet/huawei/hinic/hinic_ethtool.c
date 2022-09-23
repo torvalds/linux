@@ -55,7 +55,6 @@
 #define COALESCE_ALL_QUEUE		0xFFFF
 #define COALESCE_MAX_PENDING_LIMIT	(255 * COALESCE_PENDING_LIMIT_UNIT)
 #define COALESCE_MAX_TIMER_CFG		(255 * COALESCE_TIMER_CFG_UNIT)
-#define OBJ_STR_MAX_LEN			32
 
 struct hw2ethtool_link_mode {
 	enum ethtool_link_mode_bit_indices link_mode_bit;

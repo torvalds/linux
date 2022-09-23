@@ -117,7 +117,6 @@ enum hinic_mbox_tx_status {
 #define MBOX_WB_STATUS_MASK			0xFF
 #define MBOX_WB_ERROR_CODE_MASK			0xFF00
 #define MBOX_WB_STATUS_FINISHED_SUCCESS		0xFF
-#define MBOX_WB_STATUS_FINISHED_WITH_ERR	0xFE
 #define MBOX_WB_STATUS_NOT_FINISHED		0x00
 
 #define MBOX_STATUS_FINISHED(wb)	\
@@ -130,11 +129,8 @@ enum hinic_mbox_tx_status {
 #define SEQ_ID_START_VAL			0
 #define SEQ_ID_MAX_VAL				42
 
-#define DST_AEQ_IDX_DEFAULT_VAL			0
-#define SRC_AEQ_IDX_DEFAULT_VAL			0
 #define NO_DMA_ATTRIBUTE_VAL			0
 
-#define HINIC_MGMT_RSP_AEQN			0
 #define HINIC_MBOX_RSP_AEQN			2
 #define HINIC_MBOX_RECV_AEQN			0
 
@@ -146,7 +142,6 @@ enum hinic_mbox_tx_status {
 
 #define IS_PF_OR_PPF_SRC(src_func_idx)	((src_func_idx) < HINIC_MAX_PF_FUNCS)
 
-#define MBOX_RESPONSE_ERROR		0x1
 #define MBOX_MSG_ID_MASK		0xFF
 #define MBOX_MSG_ID(func_to_func)	((func_to_func)->send_msg_id)
 #define MBOX_MSG_ID_INC(func_to_func_mbox) (MBOX_MSG_ID(func_to_func_mbox) = \
@@ -621,7 +616,7 @@ static bool check_vf_mbox_random_id(struct hinic_mbox_func_to_func *func_to_func
 	return false;
 }
 
-void hinic_mbox_func_aeqe_handler(void *handle, void *header, u8 size)
+static void hinic_mbox_func_aeqe_handler(void *handle, void *header, u8 size)
 {
 	struct hinic_mbox_func_to_func *func_to_func;
 	u64 mbox_header = *((u64 *)header);
@@ -649,7 +644,7 @@ void hinic_mbox_func_aeqe_handler(void *handle, void *header, u8 size)
 	recv_mbox_handler(func_to_func, (u64 *)header, recv_mbox);
 }
 
-void hinic_mbox_self_aeqe_handler(void *handle, void *header, u8 size)
+static void hinic_mbox_self_aeqe_handler(void *handle, void *header, u8 size)
 {
 	struct hinic_mbox_func_to_func *func_to_func;
 	struct hinic_send_mbox *send_mbox;
