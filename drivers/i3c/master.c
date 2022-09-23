@@ -1519,6 +1519,9 @@ static int i3c_master_reattach_i3c_dev(struct i3c_dev_desc *dev,
 		i3c_bus_set_addr_slot_status(&master->bus,
 					     dev->info.dyn_addr,
 					     I3C_ADDR_SLOT_I3C_DEV);
+		if (old_dyn_addr)
+			i3c_bus_set_addr_slot_status(&master->bus, old_dyn_addr,
+						     I3C_ADDR_SLOT_FREE);
 	}
 
 	if (master->ops->reattach_i3c_dev) {
