@@ -343,7 +343,7 @@ int gh_secure_vm_loader_reclaim_fw(struct gh_vm *vm)
 
 	ret = gh_reclaim_mem(vm, sec_vm_dev->fw_phys,
 			sec_vm_dev->fw_size, sec_vm_dev->system_vm);
-	if (!sec_vm_dev->is_static) {
+	if (!ret && !sec_vm_dev->is_static) {
 		dma_free_coherent(dev, sec_vm_dev->fw_size, sec_vm_dev->fw_virt,
 			phys_to_dma(dev, sec_vm_dev->fw_phys));
 	}
