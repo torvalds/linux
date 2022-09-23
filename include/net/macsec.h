@@ -271,8 +271,6 @@ struct macsec_context {
 		struct macsec_rx_sa_stats *rx_sa_stats;
 		struct macsec_dev_stats  *dev_stats;
 	} stats;
-
-	u8 prepare:1;
 };
 
 /**
