@@ -106,6 +106,15 @@ static void unregister_sched_switch_ctrs(void)
 	cpuhp_remove_state_nocalls(USE_CPUHP_STATE);
 }
 
+const struct cpumask *sched_trace_rd_span(struct root_domain *rd)
+{
+#ifdef CONFIG_SMP
+	return rd ? rd->span : NULL;
+#else
+	return NULL;
+#endif
+}
+
 static void sched_overutilized(void *data, struct root_domain *rd,
 				 bool overutilized)
 {
