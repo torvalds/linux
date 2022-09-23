@@ -264,6 +264,12 @@ static int create_sf7110_cfg(struct device *dev)
 		goto err_gpu_unmap;
 	}
 
+	psf->clk_div = devm_clk_get_optional(dev, "clk_bv");
+	if (IS_ERR(psf->clk_div)) {
+		dev_err(dev, "failed to get gpu clk_div\n");
+		goto err_gpu_unmap;
+	}
+
 	psf->rst_apb = devm_reset_control_get_exclusive(dev, "rst_apb");
 	if (IS_ERR(psf->rst_apb)) {
 		dev_err(dev, "failed to get GPU rst_apb\n");
@@ -289,6 +295,7 @@ void u0_img_gpu_enable(void)
 
 	clk_prepare_enable(sf_cfg_t.clk_apb);
 	clk_prepare_enable(sf_cfg_t.clk_rtc);
+	clk_set_rate(sf_cfg_t.clk_div, RGX_STARFIVE_7100_CORE_CLOCK_SPEED);
 	clk_prepare_enable(sf_cfg_t.clk_core);
 	clk_prepare_enable(sf_cfg_t.clk_sys);
 }

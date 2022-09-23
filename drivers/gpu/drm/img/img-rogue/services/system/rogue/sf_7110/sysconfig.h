@@ -62,6 +62,7 @@ struct sf7110_cfg {
 	struct clk *clk_core;
 	struct clk *clk_sys;
 	struct clk *clk_axi;
+	struct clk *clk_div;
 	struct reset_control *rst_apb;
 	struct reset_control *rst_doma;
 
@@ -79,7 +80,7 @@ struct sf7110_cfg {
 #define RGX_STARFIVE_7100_CORE_CLOCK_SPEED (8 * 1000 * 1000)//actually the CLK is 8M on FPGA platform 
 #define SYS_RGX_ACTIVE_POWER_LATENCY_MS (80000)
 #else
-#define RGX_STARFIVE_7100_CORE_CLOCK_SPEED (409.6 * 1000 * 1000)//maybe 400M?
+#define RGX_STARFIVE_7100_CORE_CLOCK_SPEED (594.0 * 1000 * 1000)//maybe 400M?
 #define SYS_RGX_ACTIVE_POWER_LATENCY_MS (100)
 #endif
 
