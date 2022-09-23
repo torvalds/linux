@@ -805,7 +805,8 @@ static int annotate_browser__run(struct annotate_browser *browser,
 		"r             Run available scripts\n"
 		"p             Toggle percent type [local/global]\n"
 		"b             Toggle percent base [period/hits]\n"
-		"?             Search string backwards\n");
+		"?             Search string backwards\n"
+		"f             Toggle showing offsets to full address\n");
 			continue;
 		case 'r':
 			script_browse(NULL, NULL);
@@ -911,6 +912,9 @@ show_sup_ins:
 			switch_percent_type(browser->opts, key == 'b');
 			hists__scnprintf_title(hists, title, sizeof(title));
 			annotate_browser__show(&browser->b, title, help);
+			continue;
+		case 'f':
+			annotation__toggle_full_addr(notes, ms);
 			continue;
 		case K_LEFT:
 		case K_ESC:

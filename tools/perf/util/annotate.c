@@ -2239,7 +2239,10 @@ int symbol__annotate(struct map_symbol *ms, struct evsel *evsel,
 	}
 
 	args.ms = *ms;
-	notes->start = map__rip_2objdump(ms->map, sym->start);
+	if (notes->options && notes->options->full_addr)
+		notes->start = map__objdump_2mem(ms->map, ms->sym->start);
+	else
+		notes->start = map__rip_2objdump(ms->map, ms->sym->start);
 
 	return symbol__disassemble(sym, &args);
 }
@@ -2762,6 +2765,8 @@ void annotation__update_column_widths(struct annotation *notes)
 {
 	if (notes->options->use_offset)
 		notes->widths.target = notes->widths.min_addr;
+	else if (notes->options->full_addr)
+		notes->widths.target = BITS_PER_LONG / 4;
 	else
 		notes->widths.target = notes->widths.max_addr;
 
@@ -2769,6 +2774,18 @@ void annotation__update_column_widths(struct annotation *notes)
 
 	if (notes->options->show_nr_jumps)
 		notes->widths.addr += notes->widths.jumps + 1;
+}
+
+void annotation__toggle_full_addr(struct annotation *notes, struct map_symbol *ms)
+{
+	notes->options->full_addr = !notes->options->full_addr;
+
+	if (notes->options->full_addr)
+		notes->start = map__objdump_2mem(ms->map, ms->sym->start);
+	else
+		notes->start = map__rip_2objdump(ms->map, ms->sym->start);
+
+	annotation__update_column_widths(notes);
 }
 
 static void annotation__calc_lines(struct annotation *notes, struct map *map,
