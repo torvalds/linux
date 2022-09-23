@@ -58,6 +58,23 @@ enum {
 	TLS_NUM_PROTS,
 };
 
+#define CIPHER_SIZE_DESC(cipher) [cipher] = { \
+	.iv = cipher ## _IV_SIZE, \
+	.key = cipher ## _KEY_SIZE, \
+	.salt = cipher ## _SALT_SIZE, \
+	.tag = cipher ## _TAG_SIZE, \
+	.rec_seq = cipher ## _REC_SEQ_SIZE, \
+}
+
+const struct tls_cipher_size_desc tls_cipher_size_desc[] = {
+	CIPHER_SIZE_DESC(TLS_CIPHER_AES_GCM_128),
+	CIPHER_SIZE_DESC(TLS_CIPHER_AES_GCM_256),
+	CIPHER_SIZE_DESC(TLS_CIPHER_AES_CCM_128),
+	CIPHER_SIZE_DESC(TLS_CIPHER_CHACHA20_POLY1305),
+	CIPHER_SIZE_DESC(TLS_CIPHER_SM4_GCM),
+	CIPHER_SIZE_DESC(TLS_CIPHER_SM4_CCM),
+};
+
 static const struct proto *saved_tcpv6_prot;
 static DEFINE_MUTEX(tcpv6_prot_mutex);
 static const struct proto *saved_tcpv4_prot;

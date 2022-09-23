@@ -43,7 +43,7 @@ struct mlx5e_ktls_rx_resync_ctx {
 };
 
 struct mlx5e_ktls_offload_context_rx {
-	struct tls12_crypto_info_aes_gcm_128 crypto_info;
+	union mlx5e_crypto_info crypto_info;
 	struct accel_rule rule;
 	struct sock *sk;
 	struct mlx5e_rq_stats *rq_stats;
@@ -362,7 +362,6 @@ static void resync_init(struct mlx5e_ktls_rx_resync_ctx *resync,
 static void resync_handle_seq_match(struct mlx5e_ktls_offload_context_rx *priv_rx,
 				    struct mlx5e_channel *c)
 {
-	struct tls12_crypto_info_aes_gcm_128 *info = &priv_rx->crypto_info;
 	struct mlx5e_ktls_resync_resp *ktls_resync;
 	struct mlx5e_icosq *sq;
 	bool trigger_poll;
@@ -373,7 +372,31 @@ static void resync_handle_seq_match(struct mlx5e_ktls_offload_context_rx *priv_r
 
 	spin_lock_bh(&ktls_resync->lock);
 	spin_lock_bh(&priv_rx->lock);
-	memcpy(info->rec_seq, &priv_rx->resync.sw_rcd_sn_be, sizeof(info->rec_seq));
+	switch (priv_rx->crypto_info.crypto_info.cipher_type) {
+	case TLS_CIPHER_AES_GCM_128: {
+		struct tls12_crypto_info_aes_gcm_128 *info =
+			&priv_rx->crypto_info.crypto_info_128;
+
+		memcpy(info->rec_seq, &priv_rx->resync.sw_rcd_sn_be,
+		       sizeof(info->rec_seq));
+		break;
+	}
+	case TLS_CIPHER_AES_GCM_256: {
+		struct tls12_crypto_info_aes_gcm_256 *info =
+			&priv_rx->crypto_info.crypto_info_256;
+
+		memcpy(info->rec_seq, &priv_rx->resync.sw_rcd_sn_be,
+		       sizeof(info->rec_seq));
+		break;
+	}
+	default:
+		WARN_ONCE(1, "Unsupported cipher type %u\n",
+			  priv_rx->crypto_info.crypto_info.cipher_type);
+		spin_unlock_bh(&priv_rx->lock);
+		spin_unlock_bh(&ktls_resync->lock);
+		return;
+	}
+
 	if (list_empty(&priv_rx->list)) {
 		list_add_tail(&priv_rx->list, &ktls_resync->list);
 		trigger_poll = !test_and_set_bit(MLX5E_SQ_STATE_PENDING_TLS_RX_RESYNC, &sq->state);
@@ -604,8 +627,20 @@ int mlx5e_ktls_add_rx(struct net_device *netdev, struct sock *sk,
 
 	INIT_LIST_HEAD(&priv_rx->list);
 	spin_lock_init(&priv_rx->lock);
-	priv_rx->crypto_info  =
-		*(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
+	switch (crypto_info->cipher_type) {
+	case TLS_CIPHER_AES_GCM_128:
+		priv_rx->crypto_info.crypto_info_128 =
+			*(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
+		break;
+	case TLS_CIPHER_AES_GCM_256:
+		priv_rx->crypto_info.crypto_info_256 =
+			*(struct tls12_crypto_info_aes_gcm_256 *)crypto_info;
+		break;
+	default:
+		WARN_ONCE(1, "Unsupported cipher type %u\n",
+			  crypto_info->cipher_type);
+		return -EOPNOTSUPP;
+	}
 
 	rxq = mlx5e_ktls_sk_get_rxq(sk);
 	priv_rx->rxq = rxq;
