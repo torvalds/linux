@@ -3818,28 +3818,14 @@ void dcn10_calc_vupdate_position(
 		uint32_t *start_line,
 		uint32_t *end_line)
 {
-	const struct dc_crtc_timing *dc_crtc_timing = &pipe_ctx->stream->timing;
-	int vline_int_offset_from_vupdate =
-			pipe_ctx->stream->periodic_interrupt.lines_offset;
-	int vupdate_offset_from_vsync = dc->hwss.get_vupdate_offset_from_vsync(pipe_ctx);
-	int start_position;
+	const struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
+	int vupdate_pos = dc->hwss.get_vupdate_offset_from_vsync(pipe_ctx);
 
-	if (vline_int_offset_from_vupdate > 0)
-		vline_int_offset_from_vupdate--;
-	else if (vline_int_offset_from_vupdate < 0)
-		vline_int_offset_from_vupdate++;
-
-	start_position = vline_int_offset_from_vupdate + vupdate_offset_from_vsync;
-
-	if (start_position >= 0)
-		*start_line = start_position;
+	if (vupdate_pos >= 0)
+		*start_line = vupdate_pos - ((vupdate_pos / timing->v_total) * timing->v_total);
 	else
-		*start_line = dc_crtc_timing->v_total + start_position - 1;
-
-	*end_line = *start_line + 2;
-
-	if (*end_line >= dc_crtc_timing->v_total)
-		*end_line = 2;
+		*start_line = vupdate_pos + ((-vupdate_pos / timing->v_total) + 1) * timing->v_total - 1;
+	*end_line = (*start_line + 2) % timing->v_total;
 }
 
 static void dcn10_cal_vline_position(
@@ -3848,23 +3834,27 @@ static void dcn10_cal_vline_position(
 		uint32_t *start_line,
 		uint32_t *end_line)
 {
-	switch (pipe_ctx->stream->periodic_interrupt.ref_point) {
-	case START_V_UPDATE:
-		dcn10_calc_vupdate_position(
-				dc,
-				pipe_ctx,
-				start_line,
-				end_line);
-		break;
-	case START_V_SYNC:
+	const struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
+	int vline_pos = pipe_ctx->stream->periodic_interrupt.lines_offset;
+
+	if (pipe_ctx->stream->periodic_interrupt.ref_point == START_V_UPDATE) {
+		if (vline_pos > 0)
+			vline_pos--;
+		else if (vline_pos < 0)
+			vline_pos++;
+
+		vline_pos += dc->hwss.get_vupdate_offset_from_vsync(pipe_ctx);
+		if (vline_pos >= 0)
+			*start_line = vline_pos - ((vline_pos / timing->v_total) * timing->v_total);
+		else
+			*start_line = vline_pos + ((-vline_pos / timing->v_total) + 1) * timing->v_total - 1;
+		*end_line = (*start_line + 2) % timing->v_total;
+	} else if (pipe_ctx->stream->periodic_interrupt.ref_point == START_V_SYNC) {
 		// vsync is line 0 so start_line is just the requested line offset
-		*start_line = pipe_ctx->stream->periodic_interrupt.lines_offset;
-		*end_line = *start_line + 2;
-		break;
-	default:
+		*start_line = vline_pos;
+		*end_line = (*start_line + 2) % timing->v_total;
+	} else
 		ASSERT(0);
-		break;
-	}
 }
 
 void dcn10_setup_periodic_interrupt(
