@@ -2536,32 +2536,18 @@ static int unix_dgram_recvmsg(struct socket *sock, struct msghdr *msg, size_t si
 
 static int unix_read_skb(struct sock *sk, skb_read_actor_t recv_actor)
 {
-	int copied = 0;
+	struct unix_sock *u = unix_sk(sk);
+	struct sk_buff *skb;
+	int err, copied;
 
-	while (1) {
-		struct unix_sock *u = unix_sk(sk);
-		struct sk_buff *skb;
-		int used, err;
+	mutex_lock(&u->iolock);
+	skb = skb_recv_datagram(sk, MSG_DONTWAIT, &err);
+	mutex_unlock(&u->iolock);
+	if (!skb)
+		return err;
 
-		mutex_lock(&u->iolock);
-		skb = skb_recv_datagram(sk, MSG_DONTWAIT, &err);
-		mutex_unlock(&u->iolock);
-		if (!skb)
-			return err;
-
-		used = recv_actor(sk, skb);
-		if (used <= 0) {
-			if (!copied)
-				copied = used;
-			kfree_skb(skb);
-			break;
-		} else if (used <= skb->len) {
-			copied += used;
-		}
-
-		kfree_skb(skb);
-		break;
-	}
+	copied = recv_actor(sk, skb);
+	kfree_skb(skb);
 
 	return copied;
 }
