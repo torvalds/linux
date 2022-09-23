@@ -795,6 +795,7 @@ struct rkcif_device {
 	bool				can_be_reset;
 	struct rkmodule_hdr_cfg		hdr;
 	struct rkcif_buffer		*rdbk_buf[RDBK_MAX];
+	struct rkcif_rx_buffer		*rdbk_rx_buf[RDBK_MAX];
 	struct rkcif_luma_vdev		luma_vdev;
 	struct rkcif_lvds_subdev	lvds_subdev;
 	struct rkcif_dvp_sof_subdev	dvp_sof_subdev;

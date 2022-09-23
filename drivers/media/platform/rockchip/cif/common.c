@@ -345,6 +345,8 @@ int rkcif_alloc_reserved_mem_buf(struct rkcif_device *dev, struct rkcif_rx_buffe
 void rkcif_free_reserved_mem_buf(struct rkcif_device *dev, struct rkcif_rx_buffer *buf)
 {
 	struct rkcif_dummy_buffer *dummy = &buf->dummy;
+	struct media_pad *pad = NULL;
+	struct v4l2_subdev *sd;
 
 	if (buf->dummy.is_free)
 		return;
@@ -353,7 +355,26 @@ void rkcif_free_reserved_mem_buf(struct rkcif_device *dev, struct rkcif_rx_buffe
 		v4l2_info(&dev->v4l2_dev,
 			  "free reserved mem addr 0x%x\n",
 			  (u32)dummy->dma_addr);
-
+	if (dev->sditf[0]) {
+		if (dev->sditf[0]->is_combine_mode)
+			pad = media_entity_remote_pad(&dev->sditf[0]->pads[1]);
+		else
+			pad = media_entity_remote_pad(&dev->sditf[0]->pads[0]);
+	} else {
+		v4l2_info(&dev->v4l2_dev,
+			  "not find sditf\n");
+		return;
+	}
+	if (pad) {
+		sd = media_entity_to_v4l2_subdev(pad->entity);
+	} else {
+		v4l2_info(&dev->v4l2_dev,
+			  "not find remote pad\n");
+		return;
+	}
+	if (buf->dbufs.is_init)
+		v4l2_subdev_call(sd, core, ioctl,
+				 RKISP_VICAP_CMD_RX_BUFFER_FREE, &buf->dbufs);
 	if (dummy->is_need_vaddr)
 		dummy->dbuf->ops->vunmap(dummy->dbuf, dummy->vaddr);
 #ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP
