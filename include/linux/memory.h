@@ -19,7 +19,6 @@
 #include <linux/node.h>
 #include <linux/compiler.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
 
 #define MIN_MEMORY_BLOCK_SIZE     (1UL << SECTION_SIZE_BITS)
 
@@ -136,9 +135,6 @@ static inline int hotplug_memory_notifier(notifier_fn_t fn, int pri)
 {
 	return 0;
 }
-/* These aren't inline functions due to a GCC bug. */
-#define register_hotmemory_notifier(nb)    ({ (void)(nb); 0; })
-#define unregister_hotmemory_notifier(nb)  ({ (void)(nb); })
 #else /* CONFIG_MEMORY_HOTPLUG */
 extern int register_memory_notifier(struct notifier_block *nb);
 extern void unregister_memory_notifier(struct notifier_block *nb);
@@ -166,8 +162,6 @@ int walk_dynamic_memory_groups(int nid, walk_memory_groups_func_t func,
 		{ .notifier_call = fn, .priority = pri };\
 	register_memory_notifier(&fn##_mem_nb);			\
 })
-#define register_hotmemory_notifier(nb)		register_memory_notifier(nb)
-#define unregister_hotmemory_notifier(nb) 	unregister_memory_notifier(nb)
 
 #ifdef CONFIG_NUMA
 void memory_block_add_nid(struct memory_block *mem, int nid,
