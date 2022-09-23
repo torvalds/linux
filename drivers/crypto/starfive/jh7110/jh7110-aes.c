@@ -55,8 +55,6 @@
 /* Misc */
 #define AES_BLOCK_32				(AES_BLOCK_SIZE / sizeof(u32))
 #define GCM_CTR_INIT				1
-#define _walked_in                             (cryp->in_walk.offset - cryp->in_sg->offset)
-#define _walked_out                            (cryp->out_walk.offset - cryp->out_sg->offset)
 #define CRYP_AUTOSUSPEND_DELAY			50
 
 static inline int jh7110_aes_wait_busy(struct jh7110_sec_ctx *ctx)
@@ -832,7 +830,7 @@ static int jh7110_cryp_write_out_cpu(struct jh7110_sec_ctx *ctx)
 	struct jh7110_sec_dev *sdev = ctx->sdev;
 	struct jh7110_sec_request_ctx *rctx = ctx->rctx;
 	unsigned int  *buffer, *out;
-	int total_len, mlen, loop, count;
+	int total_len, loop, count;
 
 	total_len = rctx->bufcnt;
 	buffer = (unsigned int *)sdev->aes_data;
@@ -911,8 +909,6 @@ static int jh7110_cryp_write_data(struct jh7110_sec_ctx *ctx)
 			rctx->bufcnt = rctx->bufcnt - rctx->authsize;
 
 		if (rctx->bufcnt) {
-			memcpy((void *)rctx->msg_end, (void *)sdev->aes_data + rctx->bufcnt - JH7110_AES_IV_LEN,
-			       JH7110_AES_IV_LEN);
 			if (sdev->use_dma)
 				ret = jh7110_cryp_write_out_dma(ctx);
 			else
@@ -948,6 +944,7 @@ static int jh7110_cryp_gcm_write_aad(struct jh7110_sec_ctx *ctx)
 		buffer++;
 		jh7110_sec_write(sdev, JH7110_AES_NONCE3, *buffer);
 		buffer++;
+		udelay(2);
 	}
 
 	if (jh7110_aes_wait_gcmdone(ctx))
@@ -1023,8 +1020,6 @@ static int jh7110_cryp_xcm_write_data(struct jh7110_sec_ctx *ctx)
 	struct jh7110_sec_dev *sdev = ctx->sdev;
 	struct jh7110_sec_request_ctx *rctx = ctx->rctx;
 	size_t data_len, total, count, data_buf_len, offset, auths;
-	unsigned int *out;
-	int loop;
 	int ret;
 	bool fragmented = false;
 
@@ -1105,11 +1100,6 @@ static int jh7110_cryp_xcm_write_data(struct jh7110_sec_ctx *ctx)
 		total += data_len;
 
 		if (rctx->bufcnt) {
-			memcpy((void *)rctx->msg_end, (void *)sdev->aes_data + rctx->bufcnt - JH7110_AES_IV_LEN,
-			       JH7110_AES_IV_LEN);
-			out = (unsigned int *)sdev->aes_data;
-			for (loop = 0; loop < rctx->bufcnt / 4; loop++)
-				dev_dbg(sdev->dev, "aes_data[%d] = %x\n", loop, out[loop]);
 			if (sdev->use_dma)
 				ret = jh7110_cryp_write_out_dma(ctx);
 			else
@@ -1205,6 +1195,8 @@ static int jh7110_cryp_prepare_aead_req(struct crypto_engine *engine,
 static int jh7110_cryp_aes_aead_init(struct crypto_aead *tfm)
 {
 	struct jh7110_sec_ctx *ctx = crypto_aead_ctx(tfm);
+	struct crypto_tfm *aead = crypto_aead_tfm(tfm);
+	struct crypto_alg *alg = aead->__crt_alg;
 
 	ctx->sdev = jh7110_sec_find_dev(ctx);
 
@@ -1212,6 +1204,18 @@ static int jh7110_cryp_aes_aead_init(struct crypto_aead *tfm)
 		return -ENODEV;
 
 	crypto_aead_set_reqsize(tfm, sizeof(struct jh7110_sec_request_ctx));
+
+	if (alg->cra_flags & CRYPTO_ALG_NEED_FALLBACK) {
+		ctx->fallback.aead =
+			crypto_alloc_aead(alg->cra_name, 0,
+					CRYPTO_ALG_ASYNC |
+					CRYPTO_ALG_NEED_FALLBACK);
+		if (IS_ERR(ctx->fallback.aead)) {
+			pr_err("%s() failed to allocate fallback for %s\n",
+					__func__, alg->cra_name);
+			return PTR_ERR(ctx->fallback.aead);
+		}
+	}
 
 	ctx->enginectx.op.do_one_request = jh7110_cryp_aead_one_req;
 	ctx->enginectx.op.prepare_request = jh7110_cryp_prepare_aead_req;
@@ -1223,6 +1227,11 @@ static int jh7110_cryp_aes_aead_init(struct crypto_aead *tfm)
 static void jh7110_cryp_aes_aead_exit(struct crypto_aead *tfm)
 {
 	struct jh7110_sec_ctx *ctx = crypto_aead_ctx(tfm);
+
+	if (ctx->fallback.aead) {
+		crypto_free_aead(ctx->fallback.aead);
+		ctx->fallback.aead = NULL;
+	}
 
 	ctx->enginectx.op.do_one_request = NULL;
 	ctx->enginectx.op.prepare_request = NULL;
@@ -1245,6 +1254,22 @@ static int jh7110_cryp_crypt(struct skcipher_request *req, unsigned long flags)
 	return crypto_transfer_skcipher_request_to_engine(sdev->engine, req);
 }
 
+static int aead_do_fallback(struct aead_request *req)
+{
+	struct aead_request *subreq = aead_request_ctx(req);
+	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+	struct jh7110_sec_ctx *ctx = crypto_aead_ctx(aead);
+
+	aead_request_set_tfm(subreq, ctx->fallback.aead);
+	aead_request_set_callback(subreq, req->base.flags,
+			req->base.complete, req->base.data);
+	aead_request_set_crypt(subreq, req->src,
+			req->dst, req->cryptlen, req->iv);
+	aead_request_set_ad(subreq, req->assoclen);
+
+	return crypto_aead_decrypt(subreq);
+}
+
 static int jh7110_cryp_aead_crypt(struct aead_request *req, unsigned long flags)
 {
 	struct jh7110_sec_ctx *ctx = crypto_aead_ctx(crypto_aead_reqtfm(req));
@@ -1256,6 +1281,12 @@ static int jh7110_cryp_aead_crypt(struct aead_request *req, unsigned long flags)
 
 	rctx->flags = flags;
 	rctx->req_type = JH7110_AEAD_REQ;
+
+	/* HW engine could not perform tag verification on
+	 * non-blocksize aligned ciphertext, use fallback algo instead
+	 */
+	if (ctx->fallback.aead && is_decrypt(rctx))
+		return aead_do_fallback(req);
 
 	return crypto_transfer_aead_request_to_engine(sdev->engine, req);
 }
@@ -1290,6 +1321,7 @@ static int jh7110_cryp_aes_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 				      unsigned int keylen)
 {
 	struct jh7110_sec_ctx *ctx = crypto_aead_ctx(tfm);
+	int ret = 0;
 
 	if (keylen != AES_KEYSIZE_128 && keylen != AES_KEYSIZE_192 &&
 	    keylen != AES_KEYSIZE_256) {
@@ -1298,13 +1330,11 @@ static int jh7110_cryp_aes_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 
 	memcpy(ctx->key, key, keylen);
 	ctx->keylen = keylen;
-	{
-		int loop;
 
-		for (loop = 0; loop < keylen; loop++)
-			pr_debug("key[%d] = %x ctx->key[%d] = %x\n", loop, key[loop], loop, ctx->key[loop]);
-	}
-	return 0;
+	if (ctx->fallback.aead)
+		ret = crypto_aead_setkey(ctx->fallback.aead, key, keylen);
+
+	return ret;
 }
 
 static int jh7110_cryp_aes_gcm_setauthsize(struct crypto_aead *tfm,
@@ -1316,6 +1346,9 @@ static int jh7110_cryp_aes_gcm_setauthsize(struct crypto_aead *tfm,
 static int jh7110_cryp_aes_ccm_setauthsize(struct crypto_aead *tfm,
 					  unsigned int authsize)
 {
+	struct jh7110_sec_ctx *ctx = crypto_aead_ctx(tfm);
+	int ret = 0;
+
 	switch (authsize) {
 	case 4:
 	case 6:
@@ -1329,7 +1362,12 @@ static int jh7110_cryp_aes_ccm_setauthsize(struct crypto_aead *tfm,
 		return -EINVAL;
 	}
 
-	return 0;
+	tfm->authsize = authsize;
+
+	if (ctx->fallback.aead)
+		ctx->fallback.aead->authsize = authsize;
+
+	return ret;
 }
 
 static int jh7110_cryp_aes_ecb_encrypt(struct skcipher_request *req)
@@ -1594,7 +1632,7 @@ static struct skcipher_alg crypto_algs[] = {
 	.base.cra_name		        = "cbc(aes)",
 	.base.cra_driver_name	        = "jh7110-cbc-aes",
 	.base.cra_priority		= 200,
-	.base.cra_flags		        =  CRYPTO_ALG_ASYNC,
+	.base.cra_flags		        = CRYPTO_ALG_ASYNC,
 	.base.cra_blocksize		= AES_BLOCK_SIZE,
 	.base.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
 	.base.cra_alignmask		= 0xf,
@@ -1696,7 +1734,7 @@ static struct aead_alg aead_algs[] = {
 		.cra_name		= "ccm(aes)",
 		.cra_driver_name	= "jh7110-ccm-aes",
 		.cra_priority		= 200,
-		.cra_flags		= CRYPTO_ALG_ASYNC,
+		.cra_flags		= CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize		= 1,
 		.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
 		.cra_alignmask		= 0xf,

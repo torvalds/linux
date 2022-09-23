@@ -387,7 +387,7 @@ static int jh7110_rsa_enc(struct akcipher_request *req)
 	int ret = 0;
 
 	if (key->key_sz > JH7110_RSA_MAX_KEYSZ) {
-		akcipher_request_set_tfm(req, ctx->soft_tfm);
+		akcipher_request_set_tfm(req, ctx->fallback.akcipher);
 		ret = crypto_akcipher_encrypt(req);
 		akcipher_request_set_tfm(req, tfm);
 		return ret;
@@ -427,7 +427,7 @@ static int jh7110_rsa_dec(struct akcipher_request *req)
 	int ret = 0;
 
 	if (key->key_sz > JH7110_RSA_MAX_KEYSZ) {
-		akcipher_request_set_tfm(req, ctx->soft_tfm);
+		akcipher_request_set_tfm(req, ctx->fallback.akcipher);
 		ret = crypto_akcipher_decrypt(req);
 		akcipher_request_set_tfm(req, tfm);
 		return ret;
@@ -627,7 +627,7 @@ static int jh7110_rsa_set_pub_key(struct crypto_akcipher *tfm, const void *key,
 	struct jh7110_sec_ctx *ctx = akcipher_tfm_ctx(tfm);
 	int ret;
 
-	ret = crypto_akcipher_set_pub_key(ctx->soft_tfm, key, keylen);
+	ret = crypto_akcipher_set_pub_key(ctx->fallback.akcipher, key, keylen);
 	if (ret)
 		return ret;
 
@@ -640,7 +640,7 @@ static int jh7110_rsa_set_priv_key(struct crypto_akcipher *tfm, const void *key,
 	struct jh7110_sec_ctx *ctx = akcipher_tfm_ctx(tfm);
 	int ret;
 
-	ret = crypto_akcipher_set_priv_key(ctx->soft_tfm, key, keylen);
+	ret = crypto_akcipher_set_priv_key(ctx->fallback.akcipher, key, keylen);
 	if (ret)
 		return ret;
 
@@ -653,7 +653,7 @@ static unsigned int jh7110_rsa_max_size(struct crypto_akcipher *tfm)
 
 	/* For key sizes > 2Kb, use software tfm */
 	if (ctx->rsa_key.key_sz > JH7110_RSA_MAX_KEYSZ)
-		return crypto_akcipher_maxsize(ctx->soft_tfm);
+		return crypto_akcipher_maxsize(ctx->fallback.akcipher);
 
 	return ctx->rsa_key.key_sz;
 }
@@ -663,15 +663,15 @@ static int jh7110_rsa_init_tfm(struct crypto_akcipher *tfm)
 {
 	struct jh7110_sec_ctx *ctx = akcipher_tfm_ctx(tfm);
 
-	ctx->soft_tfm = crypto_alloc_akcipher("rsa-generic", 0, 0);
-	if (IS_ERR(ctx->soft_tfm)) {
+	ctx->fallback.akcipher = crypto_alloc_akcipher("rsa-generic", 0, 0);
+	if (IS_ERR(ctx->fallback.akcipher)) {
 		pr_err("Can not alloc_akcipher!\n");
-		return PTR_ERR(ctx->soft_tfm);
+		return PTR_ERR(ctx->fallback.akcipher);
 	}
 
 	ctx->sdev = jh7110_sec_find_dev(ctx);
 	if (!ctx->sdev) {
-		crypto_free_akcipher(ctx->soft_tfm);
+		crypto_free_akcipher(ctx->fallback.akcipher);
 		return -ENODEV;
 	}
 
@@ -686,7 +686,7 @@ static void jh7110_rsa_exit_tfm(struct crypto_akcipher *tfm)
 	struct jh7110_sec_ctx *ctx = akcipher_tfm_ctx(tfm);
 	struct jh7110_rsa_key *key = (struct jh7110_rsa_key *)&ctx->rsa_key;
 
-	crypto_free_akcipher(ctx->soft_tfm);
+	crypto_free_akcipher(ctx->fallback.akcipher);
 	jh7110_rsa_free_key(key);
 }
 
