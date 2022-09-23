@@ -114,31 +114,6 @@ static inline void aead_init_queue(struct aead_queue *queue,
 	crypto_init_queue(&queue->base, max_qlen);
 }
 
-static inline int aead_enqueue_request(struct aead_queue *queue,
-				       struct aead_request *request)
-{
-	return crypto_enqueue_request(&queue->base, &request->base);
-}
-
-static inline struct aead_request *aead_dequeue_request(
-	struct aead_queue *queue)
-{
-	struct crypto_async_request *req;
-
-	req = crypto_dequeue_request(&queue->base);
-
-	return req ? container_of(req, struct aead_request, base) : NULL;
-}
-
-static inline struct aead_request *aead_get_backlog(struct aead_queue *queue)
-{
-	struct crypto_async_request *req;
-
-	req = crypto_get_backlog(&queue->base);
-
-	return req ? container_of(req, struct aead_request, base) : NULL;
-}
-
 static inline unsigned int crypto_aead_alg_chunksize(struct aead_alg *alg)
 {
 	return alg->chunksize;
