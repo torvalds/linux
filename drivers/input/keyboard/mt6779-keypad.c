@@ -5,6 +5,7 @@
  */
 #include <linux/bitops.h>
 #include <linux/clk.h>
+#include <linux/input.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
