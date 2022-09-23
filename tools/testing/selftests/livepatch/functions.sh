@@ -86,7 +86,7 @@ function set_ftrace_enabled() {
 
 	if [[ "$result" != "$1" ]] ; then
 		if [[ $can_fail -eq 1 ]] ; then
-			echo "livepatch: $err" > /dev/kmsg
+			echo "livepatch: $err" | sed 's#/proc/sys/kernel/#kernel.#' > /dev/kmsg
 			return
 		fi
 
