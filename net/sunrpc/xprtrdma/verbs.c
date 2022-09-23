@@ -811,7 +811,7 @@ struct rpcrdma_req *rpcrdma_req_create(struct rpcrdma_xprt *r_xprt,
 	struct rpcrdma_buffer *buffer = &r_xprt->rx_buf;
 	struct rpcrdma_req *req;
 
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc(sizeof(*req), XPRTRDMA_GFP_FLAGS);
 	if (req == NULL)
 		goto out1;
 
@@ -926,7 +926,7 @@ struct rpcrdma_rep *rpcrdma_rep_create(struct rpcrdma_xprt *r_xprt,
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	struct rpcrdma_rep *rep;
 
-	rep = kzalloc(sizeof(*rep), GFP_KERNEL);
+	rep = kzalloc(sizeof(*rep), XPRTRDMA_GFP_FLAGS);
 	if (rep == NULL)
 		goto out;
 
@@ -1236,10 +1236,10 @@ rpcrdma_regbuf_alloc(size_t size, enum dma_data_direction direction)
 {
 	struct rpcrdma_regbuf *rb;
 
-	rb = kmalloc(sizeof(*rb), GFP_KERNEL);
+	rb = kmalloc(sizeof(*rb), XPRTRDMA_GFP_FLAGS);
 	if (!rb)
 		return NULL;
-	rb->rg_data = kmalloc(size, GFP_KERNEL);
+	rb->rg_data = kmalloc(size, XPRTRDMA_GFP_FLAGS);
 	if (!rb->rg_data) {
 		kfree(rb);
 		return NULL;
