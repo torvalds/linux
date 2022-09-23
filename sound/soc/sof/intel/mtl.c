@@ -573,20 +573,19 @@ static int mtl_dsp_ipc_get_window_offset(struct snd_sof_dev *sdev, u32 id)
 
 static void mtl_ipc_dump(struct snd_sof_dev *sdev)
 {
-	u32 hipcctl;
-	u32 hipcida;
-	u32 hipctdr;
+	u32 hipcidr, hipcidd, hipcida, hipctdr, hipctdd, hipctda, hipcctl;
 
-	/* read IPC status */
+	hipcidr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFIPCXIDR);
+	hipcidd = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFIPCXIDDY);
 	hipcida = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFIPCXIDA);
-	hipcctl = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFIPCXCTL);
 	hipctdr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFIPCXTDR);
+	hipctdd = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFIPCXTDDY);
+	hipctda = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFIPCXTDA);
+	hipcctl = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFIPCXCTL);
 
-	/* dump the IPC regs */
-	/* TODO: parse the raw msg */
 	dev_err(sdev->dev,
-		"error: host status 0x%8.8x dsp status 0x%8.8x mask 0x%8.8x\n",
-		hipcida, hipctdr, hipcctl);
+		"Host IPC initiator: %#x|%#x|%#x, target: %#x|%#x|%#x, ctl: %#x\n",
+		hipcidr, hipcidd, hipcida, hipctdr, hipctdd, hipctda, hipcctl);
 }
 
 static int mtl_dsp_disable_interrupts(struct snd_sof_dev *sdev)

@@ -68,6 +68,9 @@ int sof_tgl_ops_init(struct snd_sof_dev *sdev)
 
 		/* ipc */
 		sof_tgl_ops.send_msg	= cnl_ipc_send_msg;
+
+		/* debug */
+		sof_tgl_ops.ipc_dump	= cnl_ipc_dump;
 	}
 
 	if (sdev->pdata->ipc_type == SOF_INTEL_IPC4) {
@@ -87,6 +90,9 @@ int sof_tgl_ops_init(struct snd_sof_dev *sdev)
 
 		/* ipc */
 		sof_tgl_ops.send_msg	= cnl_ipc4_send_msg;
+
+		/* debug */
+		sof_tgl_ops.ipc_dump	= cnl_ipc4_dump;
 	}
 
 	/* set DAI driver ops */
@@ -95,7 +101,6 @@ int sof_tgl_ops_init(struct snd_sof_dev *sdev)
 	/* debug */
 	sof_tgl_ops.debug_map	= tgl_dsp_debugfs;
 	sof_tgl_ops.debug_map_count	= ARRAY_SIZE(tgl_dsp_debugfs);
-	sof_tgl_ops.ipc_dump	= cnl_ipc_dump;
 
 	/* pre/post fw run */
 	sof_tgl_ops.post_fw_run = hda_dsp_post_fw_run;

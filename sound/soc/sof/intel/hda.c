@@ -598,7 +598,8 @@ void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 	/* print ROM/FW status */
 	hda_dsp_get_state(sdev, level);
 
-	if (flags & SOF_DBG_DUMP_REGS) {
+	/* The firmware register dump only available with IPC3 */
+	if (flags & SOF_DBG_DUMP_REGS && sdev->pdata->ipc_type == SOF_IPC) {
 		u32 status = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_SRAM_REG_FW_STATUS);
 		u32 panic = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_SRAM_REG_FW_TRACEP);
 
@@ -660,6 +661,24 @@ void hda_ipc_dump(struct snd_sof_dev *sdev)
 	/* TODO: parse the raw msg */
 	dev_err(sdev->dev, "host status 0x%8.8x dsp status 0x%8.8x mask 0x%8.8x\n",
 		hipcie, hipct, hipcctl);
+}
+
+void hda_ipc4_dump(struct snd_sof_dev *sdev)
+{
+	u32 hipci, hipcie, hipct, hipcte, hipcctl;
+
+	hda_ipc_irq_dump(sdev);
+
+	hipci = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCI);
+	hipcie = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCIE);
+	hipct = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCT);
+	hipcte = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCTE);
+	hipcctl = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCCTL);
+
+	/* dump the IPC regs */
+	/* TODO: parse the raw msg */
+	dev_err(sdev->dev, "Host IPC initiator: %#x|%#x, target: %#x|%#x, ctl: %#x\n",
+		hipci, hipcie, hipct, hipcte, hipcctl);
 }
 
 static int hda_init(struct snd_sof_dev *sdev)
