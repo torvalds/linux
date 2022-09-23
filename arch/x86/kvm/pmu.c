@@ -150,9 +150,9 @@ static void kvm_perf_overflow(struct perf_event *perf_event,
 	__kvm_perf_overflow(pmc, true);
 }
 
-static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
-				  u64 config, bool exclude_user,
-				  bool exclude_kernel, bool intr)
+static int pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type, u64 config,
+				 bool exclude_user, bool exclude_kernel,
+				 bool intr)
 {
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
 	struct perf_event *event;
@@ -204,14 +204,14 @@ static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
 	if (IS_ERR(event)) {
 		pr_debug_ratelimited("kvm_pmu: event creation failed %ld for pmc->idx = %d\n",
 			    PTR_ERR(event), pmc->idx);
-		return;
+		return PTR_ERR(event);
 	}
 
 	pmc->perf_event = event;
 	pmc_to_pmu(pmc)->event_count++;
-	clear_bit(pmc->idx, pmc_to_pmu(pmc)->reprogram_pmi);
 	pmc->is_paused = false;
 	pmc->intr = intr || pebs;
+	return 0;
 }
 
 static void pmc_pause_counter(struct kvm_pmc *pmc)
@@ -245,7 +245,6 @@ static bool pmc_resume_counter(struct kvm_pmc *pmc)
 	perf_event_enable(pmc->perf_event);
 	pmc->is_paused = false;
 
-	clear_bit(pmc->idx, (unsigned long *)&pmc_to_pmu(pmc)->reprogram_pmi);
 	return true;
 }
 
@@ -303,10 +302,10 @@ void reprogram_counter(struct kvm_pmc *pmc)
 	pmc_pause_counter(pmc);
 
 	if (!pmc_speculative_in_use(pmc) || !pmc_is_enabled(pmc))
-		return;
+		goto reprogram_complete;
 
 	if (!check_pmu_event_filter(pmc))
-		return;
+		goto reprogram_complete;
 
 	if (eventsel & ARCH_PERFMON_EVENTSEL_PIN_CONTROL)
 		printk_once("kvm pmu: pin control bit is ignored\n");
@@ -324,16 +323,27 @@ void reprogram_counter(struct kvm_pmc *pmc)
 	}
 
 	if (pmc->current_config == new_config && pmc_resume_counter(pmc))
-		return;
+		goto reprogram_complete;
 
 	pmc_release_perf_event(pmc);
 
 	pmc->current_config = new_config;
-	pmc_reprogram_counter(pmc, PERF_TYPE_RAW,
-			      (eventsel & pmu->raw_event_mask),
-			      !(eventsel & ARCH_PERFMON_EVENTSEL_USR),
-			      !(eventsel & ARCH_PERFMON_EVENTSEL_OS),
-			      eventsel & ARCH_PERFMON_EVENTSEL_INT);
+
+	/*
+	 * If reprogramming fails, e.g. due to contention, leave the counter's
+	 * regprogram bit set, i.e. opportunistically try again on the next PMU
+	 * refresh.  Don't make a new request as doing so can stall the guest
+	 * if reprogramming repeatedly fails.
+	 */
+	if (pmc_reprogram_counter(pmc, PERF_TYPE_RAW,
+				  (eventsel & pmu->raw_event_mask),
+				  !(eventsel & ARCH_PERFMON_EVENTSEL_USR),
+				  !(eventsel & ARCH_PERFMON_EVENTSEL_OS),
+				  eventsel & ARCH_PERFMON_EVENTSEL_INT))
+		return;
+
+reprogram_complete:
+	clear_bit(pmc->idx, (unsigned long *)&pmc_to_pmu(pmc)->reprogram_pmi);
 }
 EXPORT_SYMBOL_GPL(reprogram_counter);
 
