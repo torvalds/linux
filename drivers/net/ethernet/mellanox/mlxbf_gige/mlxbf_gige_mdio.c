@@ -244,8 +244,8 @@ int mlxbf_gige_mdio_probe(struct platform_device *pdev, struct mlxbf_gige *priv)
 	}
 
 	priv->clk_io = devm_ioremap(dev, res->start, resource_size(res));
-	if (IS_ERR(priv->clk_io))
-		return PTR_ERR(priv->clk_io);
+	if (!priv->clk_io)
+		return -ENOMEM;
 
 	mlxbf_gige_mdio_cfg(priv);
 
