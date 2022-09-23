@@ -21,6 +21,7 @@
  *
  */
 #include "amdgpu.h"
+#include "amdgpu_xcp.h"
 #include "gfxhub_v1_2.h"
 #include "gfxhub_v1_1.h"
 
@@ -637,4 +638,38 @@ const struct amdgpu_gfxhub_funcs gfxhub_v1_2_funcs = {
 	.set_fault_enable_default = gfxhub_v1_2_set_fault_enable_default,
 	.init = gfxhub_v1_2_init,
 	.get_xgmi_info = gfxhub_v1_2_get_xgmi_info,
+};
+
+static int gfxhub_v1_2_xcp_resume(void *handle, uint32_t inst_mask)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	bool value;
+	int ret;
+
+	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS)
+		value = false;
+	else
+		value = true;
+
+	gfxhub_v1_2_xcc_set_fault_enable_default(adev, value, inst_mask);
+
+	if (!amdgpu_sriov_vf(adev))
+		ret = gfxhub_v1_2_xcc_gart_enable(adev, inst_mask);
+
+	return ret;
+}
+
+static int gfxhub_v1_2_xcp_suspend(void *handle, uint32_t inst_mask)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (!amdgpu_sriov_vf(adev))
+		gfxhub_v1_2_xcc_gart_disable(adev, inst_mask);
+
+	return 0;
+}
+
+struct amdgpu_xcp_ip_funcs gfxhub_v1_2_xcp_funcs = {
+	.suspend = &gfxhub_v1_2_xcp_suspend,
+	.resume = &gfxhub_v1_2_xcp_resume
 };
