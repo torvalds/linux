@@ -372,7 +372,7 @@ static int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
 	struct rpcrdma_ep *ep;
 	int rc;
 
-	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
+	ep = kzalloc(sizeof(*ep), XPRTRDMA_GFP_FLAGS);
 	if (!ep)
 		return -ENOTCONN;
 	ep->re_xprt = &r_xprt->rx_xprt;
@@ -605,7 +605,7 @@ static struct rpcrdma_sendctx *rpcrdma_sendctx_create(struct rpcrdma_ep *ep)
 	struct rpcrdma_sendctx *sc;
 
 	sc = kzalloc(struct_size(sc, sc_sges, ep->re_attr.cap.max_send_sge),
-		     GFP_KERNEL);
+		     XPRTRDMA_GFP_FLAGS);
 	if (!sc)
 		return NULL;
 
@@ -628,7 +628,7 @@ static int rpcrdma_sendctxs_create(struct rpcrdma_xprt *r_xprt)
 	 * Sends are posted.
 	 */
 	i = r_xprt->rx_ep->re_max_requests + RPCRDMA_MAX_BC_REQUESTS;
-	buf->rb_sc_ctxs = kcalloc(i, sizeof(sc), GFP_KERNEL);
+	buf->rb_sc_ctxs = kcalloc(i, sizeof(sc), XPRTRDMA_GFP_FLAGS);
 	if (!buf->rb_sc_ctxs)
 		return -ENOMEM;
 
