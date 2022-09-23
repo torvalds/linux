@@ -511,13 +511,9 @@ EXPORT_SYMBOL(kmem_cache_destroy);
  */
 int kmem_cache_shrink(struct kmem_cache *cachep)
 {
-	int ret;
-
-
 	kasan_cache_shrink(cachep);
-	ret = __kmem_cache_shrink(cachep);
 
-	return ret;
+	return __kmem_cache_shrink(cachep);
 }
 EXPORT_SYMBOL(kmem_cache_shrink);
 
