@@ -53,7 +53,7 @@ properties:
         const: 0
 
     patternProperties:
-      "power-domain@[0-9]$":
+      "power-domain@[0-9a-f]+$":
         type: object
         additionalProperties: false
 
