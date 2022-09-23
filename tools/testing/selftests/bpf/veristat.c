@@ -63,6 +63,7 @@ static struct env {
 	char **filenames;
 	int filename_cnt;
 	bool verbose;
+	bool quiet;
 	enum resfmt out_fmt;
 	bool comparison_mode;
 
@@ -107,6 +108,7 @@ const char argp_program_doc[] =
 static const struct argp_option opts[] = {
 	{ NULL, 'h', NULL, OPTION_HIDDEN, "Show the full help" },
 	{ "verbose", 'v', NULL, 0, "Verbose mode" },
+	{ "quiet", 'q', NULL, 0, "Quiet mode" },
 	{ "emit", 'e', "SPEC", 0, "Specify stats to be emitted" },
 	{ "sort", 's', "SPEC", 0, "Specify sort order" },
 	{ "output-format", 'o', "FMT", 0, "Result output format (table, csv), default is table." },
@@ -130,6 +132,9 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		break;
 	case 'v':
 		env.verbose = true;
+		break;
+	case 'q':
+		env.quiet = true;
 		break;
 	case 'e':
 		err = parse_stats(arg, &env.output_spec);
@@ -569,8 +574,10 @@ static int process_obj(const char *filename)
 		return 0;
 	}
 
-	old_libbpf_print_fn = libbpf_set_print(libbpf_print_fn);
+	if (!env.quiet && env.out_fmt == RESFMT_TABLE)
+		printf("Processing '%s'...\n", basename(filename));
 
+	old_libbpf_print_fn = libbpf_set_print(libbpf_print_fn);
 	obj = bpf_object__open_file(filename, &opts);
 	if (!obj) {
 		/* if libbpf can't open BPF object file, it could be because
@@ -1267,6 +1274,12 @@ int main(int argc, char **argv)
 
 	if (argp_parse(&argp, argc, argv, 0, NULL, NULL))
 		return 1;
+
+	if (env.verbose && env.quiet) {
+		fprintf(stderr, "Verbose and quiet modes are incompatible, please specify just one or neither!\n");
+		argp_help(&argp, stderr, ARGP_HELP_USAGE, "veristat");
+		return 1;
+	}
 
 	if (env.output_spec.spec_cnt == 0)
 		env.output_spec = default_output_spec;
