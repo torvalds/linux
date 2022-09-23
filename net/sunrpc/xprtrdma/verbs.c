@@ -76,8 +76,7 @@ static void rpcrdma_mrs_destroy(struct rpcrdma_xprt *r_xprt);
 static void rpcrdma_ep_get(struct rpcrdma_ep *ep);
 static int rpcrdma_ep_put(struct rpcrdma_ep *ep);
 static struct rpcrdma_regbuf *
-rpcrdma_regbuf_alloc(size_t size, enum dma_data_direction direction,
-		     gfp_t flags);
+rpcrdma_regbuf_alloc(size_t size, enum dma_data_direction direction);
 static void rpcrdma_regbuf_dma_unmap(struct rpcrdma_regbuf *rb);
 static void rpcrdma_regbuf_free(struct rpcrdma_regbuf *rb);
 
@@ -813,12 +812,11 @@ struct rpcrdma_req *rpcrdma_req_create(struct rpcrdma_xprt *r_xprt,
 	if (req == NULL)
 		goto out1;
 
-	req->rl_sendbuf = rpcrdma_regbuf_alloc(size, DMA_TO_DEVICE,
-					       GFP_KERNEL);
+	req->rl_sendbuf = rpcrdma_regbuf_alloc(size, DMA_TO_DEVICE);
 	if (!req->rl_sendbuf)
 		goto out2;
 
-	req->rl_recvbuf = rpcrdma_regbuf_alloc(size, DMA_NONE, GFP_KERNEL);
+	req->rl_recvbuf = rpcrdma_regbuf_alloc(size, DMA_NONE);
 	if (!req->rl_recvbuf)
 		goto out3;
 
@@ -854,7 +852,7 @@ int rpcrdma_req_setup(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 		     r_xprt->rx_ep->re_max_rdma_segs * rpcrdma_readchunk_maxsz;
 	maxhdrsize *= sizeof(__be32);
 	rb = rpcrdma_regbuf_alloc(__roundup_pow_of_two(maxhdrsize),
-				  DMA_TO_DEVICE, GFP_KERNEL);
+				  DMA_TO_DEVICE);
 	if (!rb)
 		goto out;
 
@@ -930,7 +928,7 @@ struct rpcrdma_rep *rpcrdma_rep_create(struct rpcrdma_xprt *r_xprt,
 		goto out;
 
 	rep->rr_rdmabuf = rpcrdma_regbuf_alloc(r_xprt->rx_ep->re_inline_recv,
-					       DMA_FROM_DEVICE, GFP_KERNEL);
+					       DMA_FROM_DEVICE);
 	if (!rep->rr_rdmabuf)
 		goto out_free;
 
@@ -1231,15 +1229,14 @@ void rpcrdma_buffer_put(struct rpcrdma_buffer *buffers, struct rpcrdma_req *req)
  * or Replies they may be registered externally via frwr_map.
  */
 static struct rpcrdma_regbuf *
-rpcrdma_regbuf_alloc(size_t size, enum dma_data_direction direction,
-		     gfp_t flags)
+rpcrdma_regbuf_alloc(size_t size, enum dma_data_direction direction)
 {
 	struct rpcrdma_regbuf *rb;
 
-	rb = kmalloc(sizeof(*rb), flags);
+	rb = kmalloc(sizeof(*rb), GFP_KERNEL);
 	if (!rb)
 		return NULL;
-	rb->rg_data = kmalloc(size, flags);
+	rb->rg_data = kmalloc(size, GFP_KERNEL);
 	if (!rb->rg_data) {
 		kfree(rb);
 		return NULL;
