@@ -577,6 +577,8 @@ EXPORT_SYMBOL_GPL(kvm_pmu_trigger_event);
 int kvm_vm_ioctl_set_pmu_event_filter(struct kvm *kvm, void __user *argp)
 {
 	struct kvm_pmu_event_filter tmp, *filter;
+	struct kvm_vcpu *vcpu;
+	unsigned long i;
 	size_t size;
 	int r;
 
@@ -613,9 +615,18 @@ int kvm_vm_ioctl_set_pmu_event_filter(struct kvm *kvm, void __user *argp)
 	mutex_lock(&kvm->lock);
 	filter = rcu_replace_pointer(kvm->arch.pmu_event_filter, filter,
 				     mutex_is_locked(&kvm->lock));
+	synchronize_srcu_expedited(&kvm->srcu);
+
+	BUILD_BUG_ON(sizeof(((struct kvm_pmu *)0)->reprogram_pmi) >
+		     sizeof(((struct kvm_pmu *)0)->__reprogram_pmi));
+
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		atomic64_set(&vcpu_to_pmu(vcpu)->__reprogram_pmi, -1ull);
+
+	kvm_make_all_cpus_request(kvm, KVM_REQ_PMU);
+
 	mutex_unlock(&kvm->lock);
 
-	synchronize_srcu_expedited(&kvm->srcu);
 	r = 0;
 cleanup:
 	kfree(filter);

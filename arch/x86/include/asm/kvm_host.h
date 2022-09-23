@@ -527,7 +527,16 @@ struct kvm_pmu {
 	struct kvm_pmc gp_counters[KVM_INTEL_PMC_MAX_GENERIC];
 	struct kvm_pmc fixed_counters[KVM_PMC_MAX_FIXED];
 	struct irq_work irq_work;
-	DECLARE_BITMAP(reprogram_pmi, X86_PMC_IDX_MAX);
+
+	/*
+	 * Overlay the bitmap with a 64-bit atomic so that all bits can be
+	 * set in a single access, e.g. to reprogram all counters when the PMU
+	 * filter changes.
+	 */
+	union {
+		DECLARE_BITMAP(reprogram_pmi, X86_PMC_IDX_MAX);
+		atomic64_t __reprogram_pmi;
+	};
 	DECLARE_BITMAP(all_valid_pmc_idx, X86_PMC_IDX_MAX);
 	DECLARE_BITMAP(pmc_in_use, X86_PMC_IDX_MAX);
 
