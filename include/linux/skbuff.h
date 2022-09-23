@@ -533,25 +533,8 @@ enum {
 struct ubuf_info {
 	void (*callback)(struct sk_buff *, struct ubuf_info *,
 			 bool zerocopy_success);
-	union {
-		struct {
-			unsigned long desc;
-			void *ctx;
-		};
-		struct {
-			u32 id;
-			u16 len;
-			u16 zerocopy:1;
-			u32 bytelen;
-		};
-	};
 	refcount_t refcnt;
 	u8 flags;
-
-	struct mmpin {
-		struct user_struct *user;
-		unsigned int num_pg;
-	} mmp;
 };
 
 struct ubuf_info_msgzc {
@@ -570,7 +553,10 @@ struct ubuf_info_msgzc {
 		};
 	};
 
-	struct mmpin mmp;
+	struct mmpin {
+		struct user_struct *user;
+		unsigned int num_pg;
+	} mmp;
 };
 
 #define skb_uarg(SKB)	((struct ubuf_info *)(skb_shinfo(SKB)->destructor_arg))
