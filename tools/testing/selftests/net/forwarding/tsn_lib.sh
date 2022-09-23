@@ -22,8 +22,7 @@ fi
 
 phc2sys_start()
 {
-	local if_name=$1
-	local uds_address=$2
+	local uds_address=$1
 	local extra_args=""
 
 	if ! [ -z "${uds_address}" ]; then
@@ -33,9 +32,7 @@ phc2sys_start()
 	phc2sys_log="$(mktemp)"
 
 	chrt -f 10 phc2sys -m \
-		-c ${if_name} \
-		-s CLOCK_REALTIME \
-		-O ${UTC_TAI_OFFSET} \
+		-a -rr \
 		--step_threshold 0.00002 \
 		--first_step_threshold 0.00002 \
 		${extra_args} \
