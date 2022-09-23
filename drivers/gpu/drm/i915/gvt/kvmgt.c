@@ -113,16 +113,6 @@ static void kvmgt_page_track_flush_slot(struct kvm *kvm,
 		struct kvm_memory_slot *slot,
 		struct kvm_page_track_notifier_node *node);
 
-static ssize_t available_instances_show(struct mdev_type *mtype,
-					struct mdev_type_attribute *attr,
-					char *buf)
-{
-	struct intel_vgpu_type *type =
-		container_of(mtype, struct intel_vgpu_type, type);
-
-	return sprintf(buf, "%u\n", type->avail_instance);
-}
-
 static ssize_t description_show(struct mdev_type *mtype,
 				struct mdev_type_attribute *attr, char *buf)
 {
@@ -138,11 +128,9 @@ static ssize_t description_show(struct mdev_type *mtype,
 		       type->conf->weight);
 }
 
-static MDEV_TYPE_ATTR_RO(available_instances);
 static MDEV_TYPE_ATTR_RO(description);
 
 static const struct attribute *gvt_type_attrs[] = {
-	&mdev_type_attr_available_instances.attr,
 	&mdev_type_attr_description.attr,
 	NULL,
 };
@@ -1533,6 +1521,27 @@ static void intel_vgpu_remove(struct mdev_device *mdev)
 	vfio_put_device(&vgpu->vfio_device);
 }
 
+static unsigned int intel_vgpu_get_available(struct mdev_type *mtype)
+{
+	struct intel_vgpu_type *type =
+		container_of(mtype, struct intel_vgpu_type, type);
+	struct intel_gvt *gvt = kdev_to_i915(mtype->parent->dev)->gvt;
+	unsigned int low_gm_avail, high_gm_avail, fence_avail;
+
+	mutex_lock(&gvt->lock);
+	low_gm_avail = gvt_aperture_sz(gvt) - HOST_LOW_GM_SIZE -
+		gvt->gm.vgpu_allocated_low_gm_size;
+	high_gm_avail = gvt_hidden_sz(gvt) - HOST_HIGH_GM_SIZE -
+		gvt->gm.vgpu_allocated_high_gm_size;
+	fence_avail = gvt_fence_sz(gvt) - HOST_FENCE -
+		gvt->fence.vgpu_allocated_fence_num;
+	mutex_unlock(&gvt->lock);
+
+	return min3(low_gm_avail / type->conf->low_mm,
+		    high_gm_avail / type->conf->high_mm,
+		    fence_avail / type->conf->fence);
+}
+
 static struct mdev_driver intel_vgpu_mdev_driver = {
 	.device_api	= VFIO_DEVICE_API_PCI_STRING,
 	.driver = {
@@ -1542,6 +1551,7 @@ static struct mdev_driver intel_vgpu_mdev_driver = {
 	},
 	.probe		= intel_vgpu_probe,
 	.remove		= intel_vgpu_remove,
+	.get_available	= intel_vgpu_get_available,
 	.types_attrs	= gvt_type_attrs,
 };
 

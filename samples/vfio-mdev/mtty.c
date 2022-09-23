@@ -1256,22 +1256,12 @@ static const struct attribute_group *mdev_dev_groups[] = {
 	NULL,
 };
 
-static ssize_t available_instances_show(struct mdev_type *mtype,
-					struct mdev_type_attribute *attr,
-					char *buf)
+static unsigned int mtty_get_available(struct mdev_type *mtype)
 {
 	struct mtty_type *type = container_of(mtype, struct mtty_type, type);
 
-	return sprintf(buf, "%d\n", atomic_read(&mdev_avail_ports) /
-			type->nr_ports);
+	return atomic_read(&mdev_avail_ports) / type->nr_ports;
 }
-
-static MDEV_TYPE_ATTR_RO(available_instances);
-
-static const struct attribute *mdev_types_attrs[] = {
-	&mdev_type_attr_available_instances.attr,
-	NULL,
-};
 
 static const struct vfio_device_ops mtty_dev_ops = {
 	.name = "vfio-mtty",
@@ -1292,7 +1282,7 @@ static struct mdev_driver mtty_driver = {
 	},
 	.probe = mtty_probe,
 	.remove	= mtty_remove,
-	.types_attrs = mdev_types_attrs,
+	.get_available = mtty_get_available,
 };
 
 static void mtty_device_release(struct device *dev)

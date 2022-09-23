@@ -90,10 +90,21 @@ static ssize_t name_show(struct mdev_type *mtype,
 
 static MDEV_TYPE_ATTR_RO(name);
 
+static ssize_t available_instances_show(struct mdev_type *mtype,
+					struct mdev_type_attribute *attr,
+					char *buf)
+{
+	struct mdev_driver *drv = mtype->parent->mdev_driver;
+
+	return sysfs_emit(buf, "%u\n", drv->get_available(mtype));
+}
+static MDEV_TYPE_ATTR_RO(available_instances);
+
 static struct attribute *mdev_types_core_attrs[] = {
 	&mdev_type_attr_create.attr,
 	&mdev_type_attr_device_api.attr,
 	&mdev_type_attr_name.attr,
+	&mdev_type_attr_available_instances.attr,
 	NULL,
 };
 

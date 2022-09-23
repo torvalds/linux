@@ -129,11 +129,11 @@ int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 		sprintf(gvt->types[i].name, "GVTg_V%u_%s",
 			GRAPHICS_VER(gvt->gt->i915) == 8 ? 4 : 5, conf->name);
 		gvt->types[i].conf = conf;
-		gvt->types[i].avail_instance = min(low_avail / conf->low_mm,
-						   high_avail / conf->high_mm);
 
 		gvt_dbg_core("type[%d]: %s avail %u low %u high %u fence %u weight %u res %s\n",
-			     i, gvt->types[i].name, gvt->types[i].avail_instance,
+			     i, gvt->types[i].name,
+			     min(low_avail / conf->low_mm,
+				 high_avail / conf->high_mm),
 			     conf->low_mm, conf->high_mm, conf->fence,
 			     conf->weight, vgpu_edid_str(conf->edid));
 
@@ -155,36 +155,6 @@ void intel_gvt_clean_vgpu_types(struct intel_gvt *gvt)
 {
 	kfree(gvt->mdev_types);
 	kfree(gvt->types);
-}
-
-static void intel_gvt_update_vgpu_types(struct intel_gvt *gvt)
-{
-	int i;
-	unsigned int low_gm_avail, high_gm_avail, fence_avail;
-	unsigned int low_gm_min, high_gm_min, fence_min;
-
-	/* Need to depend on maxium hw resource size but keep on
-	 * static config for now.
-	 */
-	low_gm_avail = gvt_aperture_sz(gvt) - HOST_LOW_GM_SIZE -
-		gvt->gm.vgpu_allocated_low_gm_size;
-	high_gm_avail = gvt_hidden_sz(gvt) - HOST_HIGH_GM_SIZE -
-		gvt->gm.vgpu_allocated_high_gm_size;
-	fence_avail = gvt_fence_sz(gvt) - HOST_FENCE -
-		gvt->fence.vgpu_allocated_fence_num;
-
-	for (i = 0; i < gvt->num_types; i++) {
-		low_gm_min = low_gm_avail / gvt->types[i].conf->low_mm;
-		high_gm_min = high_gm_avail / gvt->types[i].conf->high_mm;
-		fence_min = fence_avail / gvt->types[i].conf->fence;
-		gvt->types[i].avail_instance = min(min(low_gm_min, high_gm_min),
-						   fence_min);
-
-		gvt_dbg_core("update type[%d]: %s avail %u low %u high %u fence %u\n",
-		       i, gvt->types[i].name,
-		       gvt->types[i].avail_instance, gvt->types[i].conf->low_mm,
-		       gvt->types[i].conf->high_mm, gvt->types[i].conf->fence);
-	}
 }
 
 /**
@@ -281,10 +251,6 @@ void intel_gvt_destroy_vgpu(struct intel_vgpu *vgpu)
 	intel_vgpu_clean_mmio(vgpu);
 	intel_vgpu_dmabuf_cleanup(vgpu);
 	mutex_unlock(&vgpu->vgpu_lock);
-
-	mutex_lock(&gvt->lock);
-	intel_gvt_update_vgpu_types(gvt);
-	mutex_unlock(&gvt->lock);
 }
 
 #define IDLE_VGPU_IDR 0
@@ -414,7 +380,6 @@ int intel_gvt_create_vgpu(struct intel_vgpu *vgpu,
 	if (ret)
 		goto out_clean_sched_policy;
 
-	intel_gvt_update_vgpu_types(gvt);
 	intel_gvt_update_reg_whitelist(vgpu);
 	mutex_unlock(&gvt->lock);
 	return 0;

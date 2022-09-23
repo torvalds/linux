@@ -314,7 +314,6 @@ struct intel_vgpu_type {
 	struct mdev_type type;
 	char name[16];
 	const struct intel_vgpu_config *conf;
-	unsigned int avail_instance;
 };
 
 struct intel_gvt {

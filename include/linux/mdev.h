@@ -72,6 +72,7 @@ struct mdev_type_attribute {
  * @device_api: string to return for the device_api sysfs
  * @probe: called when new device created
  * @remove: called when device removed
+ * @get_available: Return the max number of instances that can be created
  * @types_attrs: attributes to the type kobjects.
  * @driver: device driver structure
  **/
@@ -79,6 +80,7 @@ struct mdev_driver {
 	const char *device_api;
 	int (*probe)(struct mdev_device *dev);
 	void (*remove)(struct mdev_device *dev);
+	unsigned int (*get_available)(struct mdev_type *mtype);
 	const struct attribute * const *types_attrs;
 	struct device_driver driver;
 };

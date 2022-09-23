@@ -790,20 +790,10 @@ static void vfio_ap_mdev_remove(struct mdev_device *mdev)
 	vfio_put_device(&matrix_mdev->vdev);
 }
 
-static ssize_t available_instances_show(struct mdev_type *mtype,
-					struct mdev_type_attribute *attr,
-					char *buf)
+static unsigned int vfio_ap_mdev_get_available(struct mdev_type *mtype)
 {
-	return sprintf(buf, "%d\n",
-		       atomic_read(&matrix_dev->available_instances));
+	return atomic_read(&matrix_dev->available_instances);
 }
-
-static MDEV_TYPE_ATTR_RO(available_instances);
-
-static const struct attribute *vfio_ap_mdev_type_attrs[] = {
-	&mdev_type_attr_available_instances.attr,
-	NULL,
-};
 
 #define MDEV_SHARING_ERR "Userspace may not re-assign queue %02lx.%04lx " \
 			 "already assigned to %s"
@@ -1790,7 +1780,7 @@ static struct mdev_driver vfio_ap_matrix_driver = {
 	},
 	.probe = vfio_ap_mdev_probe,
 	.remove = vfio_ap_mdev_remove,
-	.types_attrs = vfio_ap_mdev_type_attrs,
+	.get_available = vfio_ap_mdev_get_available,
 };
 
 int vfio_ap_mdev_register(void)

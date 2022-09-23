@@ -44,20 +44,12 @@ static void vfio_ccw_dma_unmap(struct vfio_device *vdev, u64 iova, u64 length)
 	vfio_ccw_mdev_reset(private);
 }
 
-static ssize_t available_instances_show(struct mdev_type *mtype,
-					struct mdev_type_attribute *attr,
-					char *buf)
+static unsigned int vfio_ccw_get_available(struct mdev_type *mtype)
 {
 	struct vfio_ccw_private *private = dev_get_drvdata(mtype->parent->dev);
 
-	return sprintf(buf, "%d\n", atomic_read(&private->avail));
+	return atomic_read(&private->avail);
 }
-static MDEV_TYPE_ATTR_RO(available_instances);
-
-static const struct attribute *mdev_types_attrs[] = {
-	&mdev_type_attr_available_instances.attr,
-	NULL,
-};
 
 static int vfio_ccw_mdev_init_dev(struct vfio_device *vdev)
 {
@@ -620,5 +612,5 @@ struct mdev_driver vfio_ccw_mdev_driver = {
 	},
 	.probe = vfio_ccw_mdev_probe,
 	.remove = vfio_ccw_mdev_remove,
-	.types_attrs = mdev_types_attrs,
+	.get_available = vfio_ccw_get_available,
 };
