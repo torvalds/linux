@@ -2945,7 +2945,6 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_out;
 	pci_set_master(pdev);
-	err = -ENODEV;
 
 	if (!strcmp(prom_name, "SUNW,qfe") || !strcmp(prom_name, "qfe")) {
 		qp = quattro_pci_find(pdev);
@@ -2963,9 +2962,10 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 	}
 
 	dev = alloc_etherdev(sizeof(struct happy_meal));
-	err = -ENOMEM;
-	if (!dev)
+	if (!dev) {
+		err = -ENOMEM;
 		goto err_out;
+	}
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	hp = netdev_priv(dev);
@@ -2982,18 +2982,22 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 	}
 
 	hpreg_res = pci_resource_start(pdev, 0);
-	err = -ENODEV;
+	err = -EINVAL;
 	if ((pci_resource_flags(pdev, 0) & IORESOURCE_IO) != 0) {
 		printk(KERN_ERR "happymeal(PCI): Cannot find proper PCI device base address.\n");
 		goto err_out_clear_quattro;
 	}
-	if (pci_request_regions(pdev, DRV_NAME)) {
+
+	err = pci_request_regions(pdev, DRV_NAME);
+	if (err) {
 		printk(KERN_ERR "happymeal(PCI): Cannot obtain PCI resources, "
 		       "aborting.\n");
 		goto err_out_clear_quattro;
 	}
 
-	if ((hpreg_base = ioremap(hpreg_res, 0x8000)) == NULL) {
+	hpreg_base = ioremap(hpreg_res, 0x8000);
+	if (!hpreg_base) {
+		err = -ENOMEM;
 		printk(KERN_ERR "happymeal(PCI): Unable to remap card memory.\n");
 		goto err_out_free_res;
 	}
@@ -3063,9 +3067,10 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 
 	hp->happy_block = dma_alloc_coherent(&pdev->dev, PAGE_SIZE,
 					     &hp->hblock_dvma, GFP_KERNEL);
-	err = -ENODEV;
-	if (!hp->happy_block)
+	if (!hp->happy_block) {
+		err = -ENOMEM;
 		goto err_out_iounmap;
+	}
 
 	hp->linkcheck = 0;
 	hp->timer_state = asleep;
