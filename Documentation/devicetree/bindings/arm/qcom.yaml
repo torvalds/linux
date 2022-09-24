@@ -114,6 +114,7 @@ properties:
       - items:
           - enum:
               - asus,sparrow
+              - huawei,sturgeon
               - lg,lenok
               - samsung,matisse-wifi
           - const: qcom,apq8026
