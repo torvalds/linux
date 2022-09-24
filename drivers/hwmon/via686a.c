@@ -34,6 +34,8 @@
 #include <linux/acpi.h>
 #include <linux/io.h>
 
+#define DRIVER_NAME "via686a"
+
 /*
  * If force_addr is set to anything different from 0, we forcibly enable
  * the device at the given address.
@@ -656,7 +658,7 @@ static const struct attribute_group via686a_group = {
 
 static struct platform_driver via686a_driver = {
 	.driver = {
-		.name	= "via686a",
+		.name	= DRIVER_NAME,
 	},
 	.probe		= via686a_probe,
 	.remove		= via686a_remove,
@@ -672,7 +674,7 @@ static int via686a_probe(struct platform_device *pdev)
 	/* Reserve the ISA region */
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!devm_request_region(&pdev->dev, res->start, VIA686A_EXTENT,
-				 via686a_driver.driver.name)) {
+				 DRIVER_NAME)) {
 		dev_err(&pdev->dev, "Region 0x%lx-0x%lx already in use!\n",
 			(unsigned long)res->start, (unsigned long)res->end);
 		return -ENODEV;
@@ -685,7 +687,7 @@ static int via686a_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 	data->addr = res->start;
-	data->name = "via686a";
+	data->name = DRIVER_NAME;
 	mutex_init(&data->update_lock);
 
 	/* Initialize the VIA686A chip */
@@ -819,7 +821,7 @@ static int via686a_device_add(unsigned short address)
 	struct resource res = {
 		.start	= address,
 		.end	= address + VIA686A_EXTENT - 1,
-		.name	= "via686a",
+		.name	= DRIVER_NAME,
 		.flags	= IORESOURCE_IO,
 	};
 	int err;
@@ -828,7 +830,7 @@ static int via686a_device_add(unsigned short address)
 	if (err)
 		goto exit;
 
-	pdev = platform_device_alloc("via686a", address);
+	pdev = platform_device_alloc(DRIVER_NAME, address);
 	if (!pdev) {
 		err = -ENOMEM;
 		pr_err("Device allocation failed\n");
@@ -918,7 +920,7 @@ exit:
 }
 
 static struct pci_driver via686a_pci_driver = {
-	.name		= "via686a",
+	.name		= DRIVER_NAME,
 	.id_table	= via686a_pci_ids,
 	.probe		= via686a_pci_probe,
 };
