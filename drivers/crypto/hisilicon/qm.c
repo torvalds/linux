@@ -909,8 +909,8 @@ static void qm_get_xqc_depth(struct hisi_qm *qm, u16 *low_bits,
 	u32 depth;
 
 	depth = hisi_qm_get_hw_info(qm, qm_basic_info, type, qm->cap_ver);
-	*high_bits = depth & QM_XQ_DEPTH_MASK;
-	*low_bits = (depth >> QM_XQ_DEPTH_SHIFT) & QM_XQ_DEPTH_MASK;
+	*low_bits = depth & QM_XQ_DEPTH_MASK;
+	*high_bits = (depth >> QM_XQ_DEPTH_SHIFT) & QM_XQ_DEPTH_MASK;
 }
 
 static u32 qm_get_irq_num(struct hisi_qm *qm)
