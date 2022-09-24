@@ -80,13 +80,37 @@ static struct quattro *qfe_sbus_list;
 static struct quattro *qfe_pci_list;
 #endif
 
-#undef HMEDEBUG
-#undef SXDEBUG
-#undef RXDEBUG
-#undef TXDEBUG
-#undef TXLOGGING
+#define HMD pr_debug
 
-#ifdef TXLOGGING
+/* "Auto Switch Debug" aka phy debug */
+#if 0
+#define ASD pr_debug
+#else
+#define ASD(...)
+#endif
+
+/* Transmit debug */
+#if 0
+#define TXD pr_debug
+#else
+#define TXD(...)
+#endif
+
+/* Skid buffer debug */
+#if 0
+#define SXD pr_debug
+#else
+#define SXD(...)
+#endif
+
+/* Receive debug */
+#if 0
+#define RXD pr_debug
+#else
+#define RXD(...)
+#endif
+
+#if 0
 struct hme_tx_logent {
 	unsigned int tstamp;
 	int tx_new, tx_old;
@@ -129,22 +153,8 @@ static __inline__ void tx_dump_log(void)
 	}
 }
 #else
-#define tx_add_log(hp, a, s)		do { } while(0)
-#define tx_dump_log()			do { } while(0)
-#endif
-
-#ifdef HMEDEBUG
-#define HMD printk
-#else
-#define HMD(...)
-#endif
-
-/* #define AUTO_SWITCH_DEBUG */
-
-#ifdef AUTO_SWITCH_DEBUG
-#define ASD printk
-#else
-#define ASD(...)
+#define tx_add_log(hp, a, s)
+#define tx_dump_log()
 #endif
 
 #define DEFAULT_IPG0      16 /* For lance-mode only */
@@ -1842,12 +1852,6 @@ static void happy_meal_mif_interrupt(struct happy_meal *hp)
 	happy_meal_poll_stop(hp, tregs);
 }
 
-#ifdef TXDEBUG
-#define TXD printk
-#else
-#define TXD(...)
-#endif
-
 /* hp->happy_lock must be held */
 static void happy_meal_tx(struct happy_meal *hp)
 {
@@ -1905,12 +1909,6 @@ static void happy_meal_tx(struct happy_meal *hp)
 	    TX_BUFFS_AVAIL(hp) > (MAX_SKB_FRAGS + 1))
 		netif_wake_queue(dev);
 }
-
-#ifdef RXDEBUG
-#define RXD printk
-#else
-#define RXD(...)
-#endif
 
 /* Originally I used to handle the allocation failure by just giving back just
  * that one ring buffer to the happy meal.  Problem is that usually when that
@@ -2172,12 +2170,6 @@ static int happy_meal_close(struct net_device *dev)
 
 	return 0;
 }
-
-#ifdef SXDEBUG
-#define SXD printk
-#else
-#define SXD(...)
-#endif
 
 static void happy_meal_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
