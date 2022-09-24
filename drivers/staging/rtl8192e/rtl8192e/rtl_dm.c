@@ -2334,14 +2334,9 @@ static void _rtl92e_dm_check_txrateandretrycount(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
 
-	ieee->softmac_stats.CurrentShowTxate = rtl92e_readb(dev,
-						 Current_Tx_Rate_Reg);
-
-	ieee->softmac_stats.last_packet_rate = rtl92e_readb(dev,
-						 Initial_Tx_Rate_Reg);
-
-	ieee->softmac_stats.txretrycount = rtl92e_readl(dev,
-						 Tx_Retry_Count_Reg);
+	ieee->softmac_stats.CurrentShowTxate = rtl92e_readb(dev, CURRENT_TX_RATE_REG);
+	ieee->softmac_stats.last_packet_rate = rtl92e_readb(dev, INITIAL_TX_RATE_REG);
+	ieee->softmac_stats.txretrycount = rtl92e_readl(dev, TX_RETRY_COUNT_REG);
 }
 
 static void _rtl92e_dm_send_rssi_to_fw(struct net_device *dev)
