@@ -46,6 +46,12 @@
 		clock-frequency = <25000000>;
 	};
 
+	clk_xtal32k: clk-xtal32k {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+	};
+
 	panel: panel {
 		backlight = <&backlight>;
 		power-supply = <&reg_panel_vcc>;
@@ -271,6 +277,9 @@
 	pmic: pmic@4b {
 		compatible = "rohm,bd71847";
 		reg = <0x4b>;
+		#clock-cells = <0>;
+		clocks = <&clk_xtal32k 0>;
+		clock-output-names = "clk-32k-out";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_pmic>;
 		interrupt-parent = <&gpio1>;
@@ -926,6 +935,10 @@
 	assigned-clock-rates = <22579200>;
 	/* Disabled by default, unless display board plugged in. */
 	status = "disabled";
+};
+
+&snvs_rtc {
+	clocks = <&pmic>;
 };
 
 &uart1 {
