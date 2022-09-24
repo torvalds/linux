@@ -519,22 +519,18 @@ static const struct dma_buf_ops system_heap_buf_ops = {
 	.release = system_heap_dma_buf_release,
 };
 
-static struct page *system_heap_alloc_largest_available(struct dma_heap *heap,
-							unsigned long size,
-							unsigned int max_order)
+static struct page *alloc_largest_available(unsigned long size,
+					    unsigned int max_order)
 {
 	struct page *page;
 	int i;
-	const char *name = dma_heap_get_name(heap);
-	struct dmabuf_page_pool **pool;
 
-	pool = strstr(name, "dma32") ? dma32_pools : pools;
 	for (i = 0; i < NUM_ORDERS; i++) {
 		if (size <  (PAGE_SIZE << orders[i]))
 			continue;
 		if (max_order < orders[i])
 			continue;
-		page = dmabuf_page_pool_alloc(pool[i]);
+		page = dmabuf_page_pool_alloc(pools[i]);
 		if (!page)
 			continue;
 		return page;
@@ -587,7 +583,7 @@ static struct dma_buf *system_heap_do_allocate(struct dma_heap *heap,
 		if (fatal_signal_pending(current))
 			goto free_buffer;
 
-		page = system_heap_alloc_largest_available(heap, size_remaining, max_order);
+		page = alloc_largest_available(size_remaining, max_order);
 		if (!page)
 			goto free_buffer;
 
