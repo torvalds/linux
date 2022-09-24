@@ -220,9 +220,6 @@ int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
 }
 #endif /* CONFIG_PRINTK && CONFIG_SYSCTL */
 
-/* Number of registered extended console drivers. */
-static int nr_ext_console_drivers;
-
 /*
  * Helper macros to handle lockdep when locking/unlocking console_sem. We use
  * macros instead of functions so that _RET_IP_ contains useful information.
@@ -3188,9 +3185,6 @@ void register_console(struct console *newcon)
 		console_drivers->next = newcon;
 	}
 
-	if (newcon->flags & CON_EXTENDED)
-		nr_ext_console_drivers++;
-
 	newcon->dropped = 0;
 	if (newcon->flags & CON_PRINTBUFFER) {
 		/* Get a consistent copy of @syslog_seq. */
@@ -3255,9 +3249,6 @@ int unregister_console(struct console *console)
 
 	if (res)
 		goto out_disable_unlock;
-
-	if (console->flags & CON_EXTENDED)
-		nr_ext_console_drivers--;
 
 	/*
 	 * If this isn't the last console and it has CON_CONSDEV set, we
