@@ -358,7 +358,7 @@ static void rtllib_query_HTCapShortGI(struct rtllib_device *ieee,
 	if (!pHTInfo->bCurrentHTSupport || !pHTInfo->bEnableHT)
 		return;
 
-	if (pHTInfo->bForcedShortGI) {
+	if (pHTInfo->forced_short_gi) {
 		tcb_desc->bUseShortGI = true;
 		return;
 	}
@@ -440,7 +440,7 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 			break;
 		}
 		if (pHTInfo->bCurrentHTSupport  && pHTInfo->bEnableHT) {
-			u8 HTOpMode = pHTInfo->CurrentOpMode;
+			u8 HTOpMode = pHTInfo->current_op_mode;
 
 			if ((pHTInfo->bCurBW40MHz && (HTOpMode == 2 ||
 			     HTOpMode == 3)) ||

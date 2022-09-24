@@ -140,11 +140,11 @@ struct rt_hi_throughput {
 	enum ht_aggre_mode ForcedAMSDUMode;
 	u16				ForcedAMSDUMaxSize;
 
-	u8				bForcedShortGI;
+	u8 forced_short_gi;
 
-	u8				CurrentOpMode;
+	u8 current_op_mode;
 
-	u8				SelfMimoPs;
+	u8 self_mimo_ps;
 	u8 peer_mimo_ps;
 
 	enum ht_extchnl_offset CurSTAExtChnlOffset;

@@ -90,9 +90,9 @@ void HTUpdateDefaultSetting(struct rtllib_device *ieee)
 	pHTInfo->AMPDU_Factor = 2;
 	pHTInfo->MPDU_Density = 0;
 
-	pHTInfo->SelfMimoPs = 3;
-	if (pHTInfo->SelfMimoPs == 2)
-		pHTInfo->SelfMimoPs = 3;
+	pHTInfo->self_mimo_ps = 3;
+	if (pHTInfo->self_mimo_ps == 2)
+		pHTInfo->self_mimo_ps = 3;
 	ieee->bTxDisableRateFallBack = 0;
 	ieee->bTxUseDriverAssingedRate = 0;
 
@@ -300,7 +300,7 @@ void HTConstructCapabilityElement(struct rtllib_device *ieee, u8 *posHTCap,
 	else
 		pCapELE->ChlWidth = (pHT->bRegBW40MHz ? 1 : 0);
 
-	pCapELE->MimoPwrSave		= pHT->SelfMimoPs;
+	pCapELE->MimoPwrSave		= pHT->self_mimo_ps;
 	pCapELE->GreenField		= 0;
 	pCapELE->ShortGI20Mhz		= 1;
 	pCapELE->ShortGI40Mhz		= 1;
@@ -377,7 +377,7 @@ void HTConstructInfoElement(struct rtllib_device *ieee, u8 *posHTInfo,
 		pHTInfoEle->RIFS			= 0;
 		pHTInfoEle->PSMPAccessOnly		= 0;
 		pHTInfoEle->SrvIntGranularity		= 0;
-		pHTInfoEle->OptMode			= pHT->CurrentOpMode;
+		pHTInfoEle->OptMode			= pHT->current_op_mode;
 		pHTInfoEle->NonGFDevPresent		= 0;
 		pHTInfoEle->DualBeacon			= 0;
 		pHTInfoEle->SecondaryBeacon		= 0;
@@ -623,7 +623,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 				   ieee->dot11HTOperationalRateSet, pMcsFilter);
 	ieee->HTCurrentOperaRate = ieee->HTHighestOperaRate;
 
-	pHTInfo->CurrentOpMode = pPeerHTInfo->OptMode;
+	pHTInfo->current_op_mode = pPeerHTInfo->OptMode;
 }
 
 void HTInitializeHTInfo(struct rtllib_device *ieee)
@@ -637,7 +637,7 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 
 	pHTInfo->bCurShortGI20MHz = false;
 	pHTInfo->bCurShortGI40MHz = false;
-	pHTInfo->bForcedShortGI = false;
+	pHTInfo->forced_short_gi = false;
 
 	pHTInfo->bCurSuppCCK = true;
 
@@ -774,7 +774,7 @@ void HT_update_self_and_peer_setting(struct rtllib_device *ieee,
 
 	if (pHTInfo->bCurrentHTSupport) {
 		if (pNetwork->bssht.bd_ht_info_len != 0)
-			pHTInfo->CurrentOpMode = pPeerHTInfo->OptMode;
+			pHTInfo->current_op_mode = pPeerHTInfo->OptMode;
 	}
 }
 EXPORT_SYMBOL(HT_update_self_and_peer_setting);
