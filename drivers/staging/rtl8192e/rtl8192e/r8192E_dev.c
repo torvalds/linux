@@ -1985,7 +1985,7 @@ void rtl92e_update_ratr_table(struct net_device *dev)
 		break;
 	case IEEE_N_24G:
 	case IEEE_N_5G:
-		if (ieee->pHTInfo->PeerMimoPs == 0) {
+		if (ieee->pHTInfo->peer_mimo_ps == 0) {
 			ratr_value &= 0x0007F007;
 		} else {
 			if (priv->rf_type == RF_1T2R)

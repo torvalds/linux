@@ -246,7 +246,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 
 	if (!ieee->current_network.qos_data.active ||
 	    !ieee->pHTInfo->bCurrentHTSupport ||
-	    (ieee->pHTInfo->IOTAction & HT_IOT_ACT_REJECT_ADDBA_REQ)) {
+	    (ieee->pHTInfo->iot_action & HT_IOT_ACT_REJECT_ADDBA_REQ)) {
 		rc = ADDBA_STATUS_REFUSED;
 		netdev_warn(ieee->dev,
 			    "Failed to reply on ADDBA_REQ as some capability is not ready(%d, %d)\n",
@@ -278,7 +278,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 	pBA->ba_start_seq_ctrl = *pBaStartSeqCtrl;
 
 	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev) ||
-	   (ieee->pHTInfo->IOTAction & HT_IOT_ACT_ALLOW_PEER_AGG_ONE_PKT))
+	   (ieee->pHTInfo->iot_action & HT_IOT_ACT_ALLOW_PEER_AGG_ONE_PKT))
 		pBA->ba_param_set.field.buffer_size = 1;
 	else
 		pBA->ba_param_set.field.buffer_size = 32;

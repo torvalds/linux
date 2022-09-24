@@ -1548,13 +1548,13 @@ static void _rtl92e_dm_check_edca_turbo(struct net_device *dev)
 		goto dm_CheckEdcaTurbo_EXIT;
 	if (priv->rtllib->state != RTLLIB_LINKED)
 		goto dm_CheckEdcaTurbo_EXIT;
-	if (priv->rtllib->pHTInfo->IOTAction & HT_IOT_ACT_DISABLE_EDCA_TURBO)
+	if (priv->rtllib->pHTInfo->iot_action & HT_IOT_ACT_DISABLE_EDCA_TURBO)
 		goto dm_CheckEdcaTurbo_EXIT;
 
 	if (!priv->rtllib->bis_any_nonbepkts) {
 		curTxOkCnt = priv->stats.txbytesunicast - lastTxOkCnt;
 		curRxOkCnt = priv->stats.rxbytesunicast - lastRxOkCnt;
-		if (pHTInfo->IOTAction & HT_IOT_ACT_EDCA_BIAS_ON_RX) {
+		if (pHTInfo->iot_action & HT_IOT_ACT_EDCA_BIAS_ON_RX) {
 			if (curTxOkCnt > 4*curRxOkCnt) {
 				if (priv->bis_cur_rdlstate ||
 				    !priv->bcurrent_turbo_EDCA) {
@@ -1633,16 +1633,16 @@ static void _rtl92e_dm_cts_to_self(struct net_device *dev)
 	unsigned long curRxOkCnt = 0;
 
 	if (!priv->rtllib->bCTSToSelfEnable) {
-		pHTInfo->IOTAction &= ~HT_IOT_ACT_FORCED_CTS2SELF;
+		pHTInfo->iot_action &= ~HT_IOT_ACT_FORCED_CTS2SELF;
 		return;
 	}
 	if (pHTInfo->IOTPeer == HT_IOT_PEER_BROADCOM) {
 		curTxOkCnt = priv->stats.txbytesunicast - lastTxOkCnt;
 		curRxOkCnt = priv->stats.rxbytesunicast - lastRxOkCnt;
 		if (curRxOkCnt > 4*curTxOkCnt)
-			pHTInfo->IOTAction &= ~HT_IOT_ACT_FORCED_CTS2SELF;
+			pHTInfo->iot_action &= ~HT_IOT_ACT_FORCED_CTS2SELF;
 		else
-			pHTInfo->IOTAction |= HT_IOT_ACT_FORCED_CTS2SELF;
+			pHTInfo->iot_action |= HT_IOT_ACT_FORCED_CTS2SELF;
 
 		lastTxOkCnt = priv->stats.txbytesunicast;
 		lastRxOkCnt = priv->stats.rxbytesunicast;
@@ -1997,7 +1997,7 @@ static void _rtl92e_dm_fsync_timer_callback(struct timer_list *t)
 
 	if (priv->rtllib->state == RTLLIB_LINKED &&
 	    priv->rtllib->bfsync_enable &&
-	    (priv->rtllib->pHTInfo->IOTAction & HT_IOT_ACT_CDD_FSYNC)) {
+	    (priv->rtllib->pHTInfo->iot_action & HT_IOT_ACT_CDD_FSYNC)) {
 		u32 rate_bitmap;
 
 		for (rate_index = 0; rate_index <= 27; rate_index++) {

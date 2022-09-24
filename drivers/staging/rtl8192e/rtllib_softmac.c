@@ -180,7 +180,7 @@ static u8 MgntQuery_MgntFrameTxRate(struct rtllib_device *ieee)
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	u8 rate;
 
-	if (pHTInfo->IOTAction & HT_IOT_ACT_MGNT_USE_CCK_6M)
+	if (pHTInfo->iot_action & HT_IOT_ACT_MGNT_USE_CCK_6M)
 		rate = 0x0c;
 	else
 		rate = ieee->basic_rate & 0x7f;
@@ -1894,7 +1894,7 @@ static inline u16 assoc_parse(struct rtllib_device *ieee, struct sk_buff *skb,
 	   ((ieee->mode == IEEE_G) &&
 	   (ieee->current_network.mode == IEEE_N_24G) &&
 	   (ieee->AsocRetryCount++ < (RT_ASOC_RETRY_LIMIT-1)))) {
-		ieee->pHTInfo->IOTAction |= HT_IOT_ACT_PURE_N_MODE;
+		ieee->pHTInfo->iot_action |= HT_IOT_ACT_PURE_N_MODE;
 	} else {
 		ieee->AsocRetryCount = 0;
 	}
@@ -2101,7 +2101,7 @@ static void rtllib_sta_wakeup(struct rtllib_device *ieee, short nl)
 {
 	if (ieee->sta_sleep == LPS_IS_WAKE) {
 		if (nl) {
-			if (ieee->pHTInfo->IOTAction &
+			if (ieee->pHTInfo->iot_action &
 			    HT_IOT_ACT_NULL_DATA_POWER_SAVING) {
 				ieee->ack_tx_to_ieee = 1;
 				rtllib_sta_ps_send_null_frame(ieee, 0);
@@ -2117,7 +2117,7 @@ static void rtllib_sta_wakeup(struct rtllib_device *ieee, short nl)
 	if (ieee->sta_sleep == LPS_IS_SLEEP)
 		ieee->sta_wake_up(ieee->dev);
 	if (nl) {
-		if (ieee->pHTInfo->IOTAction &
+		if (ieee->pHTInfo->iot_action &
 		    HT_IOT_ACT_NULL_DATA_POWER_SAVING) {
 			ieee->ack_tx_to_ieee = 1;
 			rtllib_sta_ps_send_null_frame(ieee, 0);
@@ -2152,7 +2152,7 @@ void rtllib_ps_tx_ack(struct rtllib_device *ieee, short success)
 
 		if ((ieee->sta_sleep == LPS_IS_WAKE) && !success) {
 			spin_lock_irqsave(&ieee->mgmt_tx_lock, flags2);
-			if (ieee->pHTInfo->IOTAction &
+			if (ieee->pHTInfo->iot_action &
 			    HT_IOT_ACT_NULL_DATA_POWER_SAVING)
 				rtllib_sta_ps_send_null_frame(ieee, 0);
 			else
@@ -2296,7 +2296,7 @@ static void rtllib_rx_auth_resp(struct rtllib_device *ieee, struct sk_buff *skb)
 	if (ieee->open_wep || !challenge) {
 		ieee->state = RTLLIB_ASSOCIATING_AUTHENTICATED;
 		ieee->softmac_stats.rx_auth_rs_ok++;
-		if (!(ieee->pHTInfo->IOTAction & HT_IOT_ACT_PURE_N_MODE)) {
+		if (!(ieee->pHTInfo->iot_action & HT_IOT_ACT_PURE_N_MODE)) {
 			if (!ieee->GetNmodeSupportBySecCfg(ieee->dev)) {
 				if (IsHTHalfNmodeAPs(ieee)) {
 					bSupportNmode = true;

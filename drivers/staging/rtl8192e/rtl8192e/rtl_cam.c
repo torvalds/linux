@@ -42,7 +42,7 @@ void rtl92e_enable_hw_security_config(struct net_device *dev)
 
 
 	ieee->hwsec_active = 1;
-	if ((ieee->pHTInfo->IOTAction&HT_IOT_ACT_PURE_N_MODE) || !hwwep) {
+	if ((ieee->pHTInfo->iot_action & HT_IOT_ACT_PURE_N_MODE) || !hwwep) {
 		ieee->hwsec_active = 0;
 		SECR_value &= ~SCR_RxDecEnable;
 	}

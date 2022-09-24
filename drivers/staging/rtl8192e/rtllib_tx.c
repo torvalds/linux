@@ -284,7 +284,7 @@ static void rtllib_tx_query_agg_cap(struct rtllib_device *ieee,
 	if (tcb_desc->bdhcp || ieee->CntAfterLink < 2)
 		return;
 
-	if (pHTInfo->IOTAction & HT_IOT_ACT_TX_NO_AGGREGATION)
+	if (pHTInfo->iot_action & HT_IOT_ACT_TX_NO_AGGREGATION)
 		return;
 
 	if (!ieee->GetNmodeSupportBySecCfg(ieee->dev))
@@ -422,12 +422,12 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 	pHTInfo = ieee->pHTInfo;
 
 	while (true) {
-		if (pHTInfo->IOTAction & HT_IOT_ACT_FORCED_CTS2SELF) {
+		if (pHTInfo->iot_action & HT_IOT_ACT_FORCED_CTS2SELF) {
 			tcb_desc->bCTSEnable	= true;
 			tcb_desc->rts_rate  =	MGN_24M;
 			tcb_desc->bRTSEnable = true;
 			break;
-		} else if (pHTInfo->IOTAction & (HT_IOT_ACT_FORCED_RTS |
+		} else if (pHTInfo->iot_action & (HT_IOT_ACT_FORCED_RTS |
 			   HT_IOT_ACT_PURE_N_MODE)) {
 			tcb_desc->bRTSEnable = true;
 			tcb_desc->rts_rate  =	MGN_24M;
@@ -885,7 +885,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		tcb_desc->priority = skb->priority;
 
 		if (ether_type == ETH_P_PAE) {
-			if (ieee->pHTInfo->IOTAction &
+			if (ieee->pHTInfo->iot_action &
 			    HT_IOT_ACT_WA_IOT_Broadcom) {
 				tcb_desc->data_rate =
 					 MgntQuery_TxRateExcludeCCKRates(ieee);
@@ -910,7 +910,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 				tcb_desc->data_rate = rtllib_current_rate(ieee);
 
 			if (bdhcp) {
-				if (ieee->pHTInfo->IOTAction &
+				if (ieee->pHTInfo->iot_action &
 				    HT_IOT_ACT_WA_IOT_Broadcom) {
 					tcb_desc->data_rate =
 					   MgntQuery_TxRateExcludeCCKRates(ieee);

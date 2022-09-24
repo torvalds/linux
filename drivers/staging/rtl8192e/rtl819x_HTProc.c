@@ -254,20 +254,20 @@ static void HTIOTActDetermineRaFunc(struct rtllib_device *ieee, bool bPeerRx2ss)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 
-	pHTInfo->IOTRaFunc &= HT_IOT_RAFUNC_DISABLE_ALL;
+	pHTInfo->iot_ra_func &= HT_IOT_RAFUNC_DISABLE_ALL;
 
 	if (pHTInfo->IOTPeer == HT_IOT_PEER_RALINK && !bPeerRx2ss)
-		pHTInfo->IOTRaFunc |= HT_IOT_RAFUNC_PEER_1R;
+		pHTInfo->iot_ra_func |= HT_IOT_RAFUNC_PEER_1R;
 
-	if (pHTInfo->IOTAction & HT_IOT_ACT_AMSDU_ENABLE)
-		pHTInfo->IOTRaFunc |= HT_IOT_RAFUNC_TX_AMSDU;
+	if (pHTInfo->iot_action & HT_IOT_ACT_AMSDU_ENABLE)
+		pHTInfo->iot_ra_func |= HT_IOT_RAFUNC_TX_AMSDU;
 }
 
 void HTResetIOTSetting(struct rt_hi_throughput *pHTInfo)
 {
-	pHTInfo->IOTAction = 0;
+	pHTInfo->iot_action = 0;
 	pHTInfo->IOTPeer = HT_IOT_PEER_UNKNOWN;
-	pHTInfo->IOTRaFunc = 0;
+	pHTInfo->iot_ra_func = 0;
 }
 
 void HTConstructCapabilityElement(struct rtllib_device *ieee, u8 *posHTCap,
@@ -332,16 +332,16 @@ void HTConstructCapabilityElement(struct rtllib_device *ieee, u8 *posHTCap,
 	pCapELE->ASCap = 0;
 
 	if (bAssoc) {
-		if (pHT->IOTAction & HT_IOT_ACT_DISABLE_MCS15)
+		if (pHT->iot_action & HT_IOT_ACT_DISABLE_MCS15)
 			pCapELE->MCS[1] &= 0x7f;
 
-		if (pHT->IOTAction & HT_IOT_ACT_DISABLE_MCS14)
+		if (pHT->iot_action & HT_IOT_ACT_DISABLE_MCS14)
 			pCapELE->MCS[1] &= 0xbf;
 
-		if (pHT->IOTAction & HT_IOT_ACT_DISABLE_ALL_2SS)
+		if (pHT->iot_action & HT_IOT_ACT_DISABLE_ALL_2SS)
 			pCapELE->MCS[1] &= 0x00;
 
-		if (pHT->IOTAction & HT_IOT_ACT_DISABLE_RX_40MHZ_SHORT_GI)
+		if (pHT->iot_action & HT_IOT_ACT_DISABLE_RX_40MHZ_SHORT_GI)
 			pCapELE->ShortGI40Mhz		= 0;
 
 		if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev)) {
@@ -600,7 +600,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 		pHTInfo->CurrentMPDUDensity = pHTInfo->MPDU_Density;
 	else
 		pHTInfo->CurrentMPDUDensity = pPeerHTCap->MPDUDensity;
-	if (pHTInfo->IOTAction & HT_IOT_ACT_TX_USE_AMSDU_8K) {
+	if (pHTInfo->iot_action & HT_IOT_ACT_TX_USE_AMSDU_8K) {
 		pHTInfo->bCurrentAMPDUEnable = false;
 		pHTInfo->ForcedAMSDUMode = HT_AGG_FORCE_ENABLE;
 		pHTInfo->ForcedAMSDUMaxSize = 7935;
@@ -614,8 +614,8 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 
 	HTFilterMCSRate(ieee, pPeerHTCap->MCS, ieee->dot11HTOperationalRateSet);
 
-	pHTInfo->PeerMimoPs = pPeerHTCap->MimoPwrSave;
-	if (pHTInfo->PeerMimoPs == MIMO_PS_STATIC)
+	pHTInfo->peer_mimo_ps = pPeerHTCap->MimoPwrSave;
+	if (pHTInfo->peer_mimo_ps == MIMO_PS_STATIC)
 		pMcsFilter = MCS_FILTER_1SS;
 	else
 		pMcsFilter = MCS_FILTER_ALL;
@@ -664,8 +664,8 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 	pHTInfo->RT2RT_HT_Mode = (enum rt_ht_capability)0;
 
 	pHTInfo->IOTPeer = 0;
-	pHTInfo->IOTAction = 0;
-	pHTInfo->IOTRaFunc = 0;
+	pHTInfo->iot_action = 0;
+	pHTInfo->iot_ra_func = 0;
 
 	{
 		u8 *RegHTSuppRateSets = &(ieee->RegHTSuppRateSet[0]);
@@ -731,37 +731,37 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
 
 		HTIOTPeerDetermine(ieee);
 
-		pHTInfo->IOTAction = 0;
+		pHTInfo->iot_action = 0;
 		bIOTAction = HTIOTActIsDisableMCS14(ieee, pNetwork->bssid);
 		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_DISABLE_MCS14;
+			pHTInfo->iot_action |= HT_IOT_ACT_DISABLE_MCS14;
 
 		bIOTAction = HTIOTActIsDisableMCS15(ieee);
 		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_DISABLE_MCS15;
+			pHTInfo->iot_action |= HT_IOT_ACT_DISABLE_MCS15;
 
 		bIOTAction = HTIOTActIsDisableMCSTwoSpatialStream(ieee);
 		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_DISABLE_ALL_2SS;
+			pHTInfo->iot_action |= HT_IOT_ACT_DISABLE_ALL_2SS;
 
 		bIOTAction = HTIOTActIsDisableEDCATurbo(ieee, pNetwork->bssid);
 		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_DISABLE_EDCA_TURBO;
+			pHTInfo->iot_action |= HT_IOT_ACT_DISABLE_EDCA_TURBO;
 
 		bIOTAction = HTIOTActIsMgntUseCCK6M(ieee, pNetwork);
 		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_MGNT_USE_CCK_6M;
+			pHTInfo->iot_action |= HT_IOT_ACT_MGNT_USE_CCK_6M;
 		bIOTAction = HTIOTActIsCCDFsync(ieee);
 		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_CDD_FSYNC;
+			pHTInfo->iot_action |= HT_IOT_ACT_CDD_FSYNC;
 	} else {
 		pHTInfo->bCurrentHTSupport = false;
 		pHTInfo->current_rt2rt_aggregation = false;
 		pHTInfo->current_rt2rt_long_slot_time = false;
 		pHTInfo->RT2RT_HT_Mode = (enum rt_ht_capability)0;
 
-		pHTInfo->IOTAction = 0;
-		pHTInfo->IOTRaFunc = 0;
+		pHTInfo->iot_action = 0;
+		pHTInfo->iot_ra_func = 0;
 	}
 }
 

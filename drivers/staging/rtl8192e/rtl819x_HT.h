@@ -145,7 +145,7 @@ struct rt_hi_throughput {
 	u8				CurrentOpMode;
 
 	u8				SelfMimoPs;
-	u8				PeerMimoPs;
+	u8 peer_mimo_ps;
 
 	enum ht_extchnl_offset CurSTAExtChnlOffset;
 	u8 cur_tx_bw40mhz;
@@ -169,8 +169,8 @@ struct rt_hi_throughput {
 	u8				bIsPeerBcm;
 
 	u8				IOTPeer;
-	u32				IOTAction;
-	u8				IOTRaFunc;
+	u32 iot_action;
+	u8 iot_ra_func;
 
 	u8	bWAIotBroadcom;
 	u8	WAIotTH;
