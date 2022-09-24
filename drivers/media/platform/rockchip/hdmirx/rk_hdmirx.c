@@ -881,11 +881,21 @@ static int hdmirx_try_to_get_timings(struct rk_hdmirx_dev *hdmirx_dev,
 	int i, cnt = 0, fail_cnt = 0, ret = 0;
 	bool from_dma = false;
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
+	u32 last_w, last_h;
+	struct v4l2_bt_timings *bt = &timings->bt;
 
+	last_w = 0;
+	last_h = 0;
 	hdmirx_set_negative_pol(hdmirx_dev, false);
 	for (i = 0; i < try_cnt; i++) {
 		ret = hdmirx_get_detected_timings(hdmirx_dev, timings, from_dma);
-		if (ret) {
+
+		if ((last_w == 0) && (last_h == 0)) {
+			last_w = bt->width;
+			last_h = bt->height;
+		}
+
+		if (ret || (last_w != bt->width) || (last_h != bt->height)) {
 			cnt = 0;
 			fail_cnt++;
 			if (fail_cnt > 3) {
@@ -896,9 +906,11 @@ static int hdmirx_try_to_get_timings(struct rk_hdmirx_dev *hdmirx_dev,
 			cnt++;
 		}
 
-		if (cnt >= 5)
+		if (cnt >= 8)
 			break;
 
+		last_w = bt->width;
+		last_h = bt->height;
 		usleep_range(10*1000, 10*1100);
 	}
 
