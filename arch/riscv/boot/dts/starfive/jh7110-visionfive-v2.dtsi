@@ -489,8 +489,8 @@
 	pinctrl-0 = <&i2c6_pins>;
 	status = "okay";
 
-	imx219@10 {
-		compatible = "imx219";
+	imx219: imx219@10 {
+		compatible = "sony,imx219";
 		reg = <0x10>;
 		clocks = <&clk_ext_camera>;
 		clock-names = "xclk";
@@ -766,10 +766,22 @@
 };
 
 &usbdrd30 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb_pins>;
-	dr_mode = "host"; /*host or peripheral*/
-	status = "disabled";
+	clocks = <&clkgen JH7110_USB_125M>,
+		 <&clkgen JH7110_USB0_CLK_APP_125>,
+		 <&clkgen JH7110_USB0_CLK_LPM>,
+		 <&clkgen JH7110_USB0_CLK_STB>,
+		 <&clkgen JH7110_USB0_CLK_USB_APB>,
+		 <&clkgen JH7110_USB0_CLK_AXI>,
+		 <&clkgen JH7110_USB0_CLK_UTMI_APB>;
+	clock-names = "125m","app","lpm","stb","apb","axi","utmi";
+	resets = <&rstgen RSTN_U0_CDN_USB_PWRUP>,
+		 <&rstgen RSTN_U0_CDN_USB_APB>,
+		 <&rstgen RSTN_U0_CDN_USB_AXI>,
+		 <&rstgen RSTN_U0_CDN_USB_UTMI_APB>;
+	reset-names = "pwrup","apb","axi","utmi";
+	starfive,usb2-only;
+	dr_mode = "peripheral"; /*host or peripheral*/
+	status = "okay";
 };
 
 &xrp {
