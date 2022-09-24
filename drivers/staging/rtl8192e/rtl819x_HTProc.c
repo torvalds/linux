@@ -101,8 +101,8 @@ void HTUpdateDefaultSetting(struct rtllib_device *ieee)
 	pHTInfo->reg_rt2rt_aggregation = 1;
 
 	pHTInfo->reg_rx_reorder_enable = 1;
-	pHTInfo->RxReorderWinSize = 64;
-	pHTInfo->RxReorderPendingTime = 30;
+	pHTInfo->rx_reorder_win_size = 64;
+	pHTInfo->rx_reorder_pending_time = 30;
 }
 
 static u16 HTMcsToDataRate(struct rtllib_device *ieee, u8 nMcsRate)
