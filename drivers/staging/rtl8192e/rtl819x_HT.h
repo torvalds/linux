@@ -138,8 +138,6 @@ struct rt_hi_throughput {
 	u8 forced_mpdu_density;
 
 	enum ht_aggre_mode ForcedAMSDUMode;
-	u16				ForcedAMSDUMaxSize;
-
 	u8 forced_short_gi;
 
 	u8 current_op_mode;
@@ -149,11 +147,7 @@ struct rt_hi_throughput {
 
 	enum ht_extchnl_offset CurSTAExtChnlOffset;
 	u8 cur_tx_bw40mhz;
-	u8				PeerBandwidth;
-
 	u8 sw_bw_in_progress;
-	u8				SwBwStep;
-
 	u8 reg_rt2rt_aggregation;
 	u8				RT2RT_HT_Mode;
 	u8 current_rt2rt_aggregation;
@@ -165,17 +159,12 @@ struct rt_hi_throughput {
 	u8 rx_reorder_win_size;
 	u8 rx_reorder_pending_time;
 	u16 rx_reorder_drop_counter;
-
-	u8				bIsPeerBcm;
-
 	u8				IOTPeer;
 	u32 iot_action;
 	u8 iot_ra_func;
 
 	u8	bWAIotBroadcom;
 	u8	WAIotTH;
-
-	u8				bAcceptAddbaReq;
 } __packed;
 
 struct bss_ht {

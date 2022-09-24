@@ -70,9 +70,6 @@ static u8 LINKSYS_MARVELL_4400N[3] = {0x00, 0x14, 0xa4};
 void HTUpdateDefaultSetting(struct rtllib_device *ieee)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
-
-	pHTInfo->bAcceptAddbaReq = 1;
-
 	pHTInfo->bRegShortGI20MHz = 1;
 	pHTInfo->bRegShortGI40MHz = 1;
 
@@ -603,7 +600,6 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 	if (pHTInfo->iot_action & HT_IOT_ACT_TX_USE_AMSDU_8K) {
 		pHTInfo->bCurrentAMPDUEnable = false;
 		pHTInfo->ForcedAMSDUMode = HT_AGG_FORCE_ENABLE;
-		pHTInfo->ForcedAMSDUMaxSize = 7935;
 	}
 	pHTInfo->cur_rx_reorder_enable = pHTInfo->reg_rx_reorder_enable;
 
