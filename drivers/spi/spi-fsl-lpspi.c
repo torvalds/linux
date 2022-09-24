@@ -855,8 +855,7 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 
 	init_completion(&fsl_lpspi->xfer_done);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	fsl_lpspi->base = devm_ioremap_resource(&pdev->dev, res);
+	fsl_lpspi->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(fsl_lpspi->base)) {
 		ret = PTR_ERR(fsl_lpspi->base);
 		goto out_controller_put;
