@@ -19,7 +19,6 @@
 #include <linux/module.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
-#include <linux/swiotlb.h>
 #include <linux/vmalloc.h>
 
 #include "page_pool.h"
@@ -62,7 +61,7 @@ static gfp_t order_flags[] = {HIGH_ORDER_GFP, MID_ORDER_GFP, LOW_ORDER_GFP};
  * of order 0 pages can significantly improve the performance of many IOMMUs
  * by reducing TLB pressure and time spent updating page tables.
  */
-static unsigned int orders[] = {8, 4, 0};
+static const unsigned int orders[] = {8, 4, 0};
 #define NUM_ORDERS ARRAY_SIZE(orders)
 struct dmabuf_page_pool *pools[NUM_ORDERS];
 
@@ -575,30 +574,6 @@ static int system_heap_create(void)
 {
 	struct dma_heap_export_info exp_info;
 	int i, err = 0;
-
-	/*
-	 * Since swiotlb has memory size limitation, this will calculate
-	 * the maximum size locally.
-	 *
-	 * Once swiotlb_max_segment() return not '0', means that the totalram size
-	 * is larger than 4GiB and swiotlb is not force mode, in this case, system
-	 * heap should limit largest allocation.
-	 *
-	 * FIX: fix the orders[] as a workaround.
-	 */
-	if (swiotlb_max_segment()) {
-		unsigned int max_size = (1 << IO_TLB_SHIFT) * IO_TLB_SEGSIZE;
-		int max_order = MAX_ORDER;
-		int i;
-
-		max_size = max_t(unsigned int, max_size, PAGE_SIZE) >> PAGE_SHIFT;
-		max_order = min(max_order, ilog2(max_size));
-		for (i = 0; i < NUM_ORDERS; i++) {
-			if (max_order < orders[i])
-				orders[i] = max_order;
-			pr_info("system_heap: orders[%d] = %u\n", i, orders[i]);
-		}
-	}
 
 	for (i = 0; i < NUM_ORDERS; i++) {
 		pools[i] = dmabuf_page_pool_create(order_flags[i], orders[i]);
