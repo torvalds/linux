@@ -1330,7 +1330,7 @@
 		};
 
 
-		dsi0_phy: dsi-phy@4700200 {
+		dsi0_phy: phy@4700200 {
 			compatible = "qcom,dsi-phy-28nm-8960";
 			#clock-cells = <1>;
 			#phy-cells = <0>;
