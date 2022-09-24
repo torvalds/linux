@@ -3583,7 +3583,7 @@ static int do_open(struct nameidata *nd,
  * On non-idmapped mounts or if permission checking is to be performed on the
  * raw inode simply passs init_user_ns.
  */
-struct dentry *vfs_tmpfile(struct user_namespace *mnt_userns,
+static struct dentry *vfs_tmpfile(struct user_namespace *mnt_userns,
 			   struct dentry *dentry, umode_t mode, int open_flag)
 {
 	struct dentry *child = NULL;
@@ -3622,7 +3622,6 @@ out_err:
 	dput(child);
 	return ERR_PTR(error);
 }
-EXPORT_SYMBOL(vfs_tmpfile);
 
 /**
  * vfs_tmpfile_open - open a tmpfile for kernel internal use
