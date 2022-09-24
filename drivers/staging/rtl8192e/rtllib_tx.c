@@ -315,7 +315,7 @@ static void rtllib_tx_query_agg_cap(struct rtllib_device *ieee,
 		if (ieee->iw_mode == IW_MODE_INFRA) {
 			tcb_desc->bAMPDUEnable = true;
 			tcb_desc->ampdu_factor = pHTInfo->CurrentAMPDUFactor;
-			tcb_desc->ampdu_density = pHTInfo->CurrentMPDUDensity;
+			tcb_desc->ampdu_density = pHTInfo->current_mpdu_density;
 		}
 	}
 FORCED_AGG_SETTING:
@@ -325,8 +325,8 @@ FORCED_AGG_SETTING:
 
 	case HT_AGG_FORCE_ENABLE:
 		tcb_desc->bAMPDUEnable = true;
-		tcb_desc->ampdu_density = pHTInfo->ForcedMPDUDensity;
-		tcb_desc->ampdu_factor = pHTInfo->ForcedAMPDUFactor;
+		tcb_desc->ampdu_density = pHTInfo->forced_mpdu_density;
+		tcb_desc->ampdu_factor = pHTInfo->forced_ampdu_factor;
 		break;
 
 	case HT_AGG_FORCE_DISABLE:

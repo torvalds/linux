@@ -131,11 +131,11 @@ struct rt_hi_throughput {
 	u8				AMPDU_Factor;
 	u8				CurrentAMPDUFactor;
 	u8				MPDU_Density;
-	u8				CurrentMPDUDensity;
+	u8 current_mpdu_density;
 
 	enum ht_aggre_mode ForcedAMPDUMode;
-	u8				ForcedAMPDUFactor;
-	u8				ForcedMPDUDensity;
+	u8 forced_ampdu_factor;
+	u8 forced_mpdu_density;
 
 	enum ht_aggre_mode ForcedAMSDUMode;
 	u16				ForcedAMSDUMaxSize;

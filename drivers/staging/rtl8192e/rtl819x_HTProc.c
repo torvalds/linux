@@ -597,9 +597,9 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 		}
 	}
 	if (pHTInfo->MPDU_Density > pPeerHTCap->MPDUDensity)
-		pHTInfo->CurrentMPDUDensity = pHTInfo->MPDU_Density;
+		pHTInfo->current_mpdu_density = pHTInfo->MPDU_Density;
 	else
-		pHTInfo->CurrentMPDUDensity = pPeerHTCap->MPDUDensity;
+		pHTInfo->current_mpdu_density = pPeerHTCap->MPDUDensity;
 	if (pHTInfo->iot_action & HT_IOT_ACT_TX_USE_AMSDU_8K) {
 		pHTInfo->bCurrentAMPDUEnable = false;
 		pHTInfo->ForcedAMSDUMode = HT_AGG_FORCE_ENABLE;
@@ -643,7 +643,7 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 
 	pHTInfo->bCurrent_AMSDU_Support = false;
 	pHTInfo->nCurrent_AMSDU_MaxSize = pHTInfo->nAMSDU_MaxSize;
-	pHTInfo->CurrentMPDUDensity = pHTInfo->MPDU_Density;
+	pHTInfo->current_mpdu_density = pHTInfo->MPDU_Density;
 	pHTInfo->CurrentAMPDUFactor = pHTInfo->AMPDU_Factor;
 
 	memset((void *)(&(pHTInfo->SelfHTCap)), 0,
@@ -801,7 +801,7 @@ void HTUseDefaultSetting(struct rtllib_device *ieee)
 		pHTInfo->bCurrentAMPDUEnable = pHTInfo->bAMPDUEnable;
 		pHTInfo->CurrentAMPDUFactor = pHTInfo->AMPDU_Factor;
 
-		pHTInfo->CurrentMPDUDensity = pHTInfo->CurrentMPDUDensity;
+		pHTInfo->current_mpdu_density = pHTInfo->current_mpdu_density;
 
 		HTFilterMCSRate(ieee, ieee->Regdot11TxHTOperationalRateSet,
 				ieee->dot11HTOperationalRateSet);
