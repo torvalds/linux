@@ -166,10 +166,10 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 		}
 	}
 
-	rt_state = priv->rtllib->eRFPowerState;
+	rt_state = priv->rtllib->rf_power_state;
 
 	switch (state_to_set) {
-	case eRfOn:
+	case rf_on:
 		priv->rtllib->RfOffReason &= (~change_source);
 
 		if ((change_source == RF_CHANGE_BY_HW) && priv->hw_radio_off)
@@ -179,13 +179,13 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 			priv->rtllib->RfOffReason = 0;
 			action_allowed = true;
 
-			if (rt_state == eRfOff &&
+			if (rt_state == rf_off &&
 			    change_source >= RF_CHANGE_BY_HW)
 				connect_by_ssid = true;
 		}
 		break;
 
-	case eRfOff:
+	case rf_off:
 
 		if ((priv->rtllib->iw_mode == IW_MODE_INFRA) ||
 		    (priv->rtllib->iw_mode == IW_MODE_ADHOC)) {
@@ -216,7 +216,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 
 	if (action_allowed) {
 		rtl92e_set_rf_power_state(dev, state_to_set);
-		if (state_to_set == eRfOn) {
+		if (state_to_set == rf_on) {
 			if (connect_by_ssid && priv->blinked_ingpio) {
 				schedule_delayed_work(
 					 &ieee->associate_procedure_wq, 0);
@@ -892,7 +892,7 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->rtllib->PowerSaveControl.bFwCtrlLPS = false;
 	priv->rtllib->LPSDelayCnt = 0;
 	priv->rtllib->sta_sleep = LPS_IS_WAKE;
-	priv->rtllib->eRFPowerState = eRfOn;
+	priv->rtllib->rf_power_state = rf_on;
 
 	priv->rtllib->current_network.beacon_interval = DEFAULT_BEACONINTERVAL;
 	priv->rtllib->iw_mode = IW_MODE_INFRA;
@@ -1114,12 +1114,12 @@ static enum reset_type _rtl92e_if_check_reset(struct net_device *dev)
 	enum reset_type RxResetType = RESET_TYPE_NORESET;
 	enum rt_rf_power_state rfState;
 
-	rfState = priv->rtllib->eRFPowerState;
+	rfState = priv->rtllib->rf_power_state;
 
-	if (rfState == eRfOn)
+	if (rfState == rf_on)
 		TxResetType = _rtl92e_tx_check_stuck(dev);
 
-	if (rfState == eRfOn &&
+	if (rfState == rf_on &&
 	    (priv->rtllib->iw_mode == IW_MODE_INFRA) &&
 	    (priv->rtllib->state == RTLLIB_LINKED))
 		RxResetType = _rtl92e_rx_check_stuck(dev);
@@ -1307,7 +1307,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	if (!rtllib_act_scanning(priv->rtllib, false)) {
 		if ((ieee->iw_mode == IW_MODE_INFRA) && (ieee->state ==
 		     RTLLIB_NOLINK) &&
-		     (ieee->eRFPowerState == eRfOn) && !ieee->is_set_key &&
+		     (ieee->rf_power_state == rf_on) && !ieee->is_set_key &&
 		     (!ieee->proto_stoppping) && !ieee->wx_set_enc) {
 			if ((ieee->PowerSaveControl.ReturnPoint ==
 			     IPS_CALLBACK_NONE) &&
@@ -1370,7 +1370,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 			priv->check_roaming_cnt = 0;
 
 		if (priv->check_roaming_cnt > 0) {
-			if (ieee->eRFPowerState == eRfOff)
+			if (ieee->rf_power_state == rf_off)
 				netdev_info(dev, "%s(): RF is off\n", __func__);
 
 			netdev_info(dev,
@@ -1507,7 +1507,7 @@ static void _rtl92e_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 				    MAX_DEV_ADDR_SIZE);
 	u8 queue_index = tcb_desc->queue_index;
 
-	if ((priv->rtllib->eRFPowerState == eRfOff) || !priv->up ||
+	if ((priv->rtllib->rf_power_state == rf_off) || !priv->up ||
 	     priv->bResetInProgress) {
 		kfree_skb(skb);
 		return;
@@ -1540,7 +1540,7 @@ static int _rtl92e_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	u8 queue_index = tcb_desc->queue_index;
 
 	if (queue_index != TXCMD_QUEUE) {
-		if ((priv->rtllib->eRFPowerState == eRfOff) ||
+		if ((priv->rtllib->rf_power_state == rf_off) ||
 		     !priv->up || priv->bResetInProgress) {
 			kfree_skb(skb);
 			return 0;

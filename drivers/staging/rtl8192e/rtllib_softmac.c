@@ -586,9 +586,9 @@ static void rtllib_softmac_scan_wq(void *data)
 
 	mutex_lock(&ieee->scan_mutex);
 
-	if (ieee->eRFPowerState == eRfOff) {
+	if (ieee->rf_power_state == rf_off) {
 		netdev_info(ieee->dev,
-			    "======>%s():rf state is eRfOff, return\n",
+			    "======>%s():rf state is rf_off, return\n",
 			    __func__);
 		goto out1;
 	}
@@ -1585,7 +1585,7 @@ static void rtllib_associate_procedure_wq(void *data)
 
 	rtllib_stop_scan(ieee);
 	HTSetConnectBwMode(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
-	if (ieee->eRFPowerState == eRfOff) {
+	if (ieee->rf_power_state == rf_off) {
 		if (ieee->rtllib_ips_leave_wq != NULL)
 			ieee->rtllib_ips_leave_wq(ieee->dev);
 		mutex_unlock(&ieee->wx_mutex);

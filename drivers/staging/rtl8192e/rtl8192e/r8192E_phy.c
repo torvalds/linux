@@ -200,7 +200,7 @@ void rtl92e_set_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 
 	if (!rtl92e_is_legal_rf_path(dev, eRFPath))
 		return;
-	if (priv->rtllib->eRFPowerState != eRfOn && !priv->being_init_adapter)
+	if (priv->rtllib->rf_power_state != rf_on && !priv->being_init_adapter)
 		return;
 
 	if (priv->Rf_Mode == RF_OP_By_FW) {
@@ -237,7 +237,7 @@ u32 rtl92e_get_rf_reg(struct net_device *dev, enum rf90_radio_path eRFPath,
 
 	if (!rtl92e_is_legal_rf_path(dev, eRFPath))
 		return 0;
-	if (priv->rtllib->eRFPowerState != eRfOn && !priv->being_init_adapter)
+	if (priv->rtllib->rf_power_state != rf_on && !priv->being_init_adapter)
 		return	0;
 	mutex_lock(&priv->rf_mutex);
 	if (priv->Rf_Mode == RF_OP_By_FW) {
@@ -1301,7 +1301,7 @@ void rtl92e_set_rf_off(struct net_device *dev)
 }
 
 static bool _rtl92e_set_rf_power_state(struct net_device *dev,
-				       enum rt_rf_power_state eRFPowerState)
+				       enum rt_rf_power_state rf_power_state)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
@@ -1316,9 +1316,9 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 
 	switch (priv->rf_chip) {
 	case RF_8256:
-		switch (eRFPowerState) {
-		case eRfOn:
-			if ((priv->rtllib->eRFPowerState == eRfOff) &&
+		switch (rf_power_state) {
+		case rf_on:
+			if ((priv->rtllib->rf_power_state == rf_off) &&
 			     RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC)) {
 				bool rtstatus;
 				u32 InitilizeCount = 3;
@@ -1364,7 +1364,7 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 			break;
 
 		case eRfSleep:
-			if (priv->rtllib->eRFPowerState == eRfOff)
+			if (priv->rtllib->rf_power_state == rf_off)
 				break;
 
 
@@ -1386,7 +1386,7 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 			rtl92e_set_rf_off(dev);
 			break;
 
-		case eRfOff:
+		case rf_off:
 			for (QueueID = 0, i = 0; QueueID < MAX_TX_QUEUE; ) {
 				ring = &priv->tx_ring[QueueID];
 
@@ -1418,7 +1418,7 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 			bResult = false;
 			netdev_warn(dev,
 				    "%s(): Unknown state requested: 0x%X.\n",
-				    __func__, eRFPowerState);
+				    __func__, rf_power_state);
 			break;
 		}
 
@@ -1430,7 +1430,7 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 	}
 
 	if (bResult) {
-		priv->rtllib->eRFPowerState = eRFPowerState;
+		priv->rtllib->rf_power_state = rf_power_state;
 
 		switch (priv->rf_chip) {
 		case RF_8256:
@@ -1447,18 +1447,18 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 }
 
 bool rtl92e_set_rf_power_state(struct net_device *dev,
-			       enum rt_rf_power_state eRFPowerState)
+			       enum rt_rf_power_state rf_power_state)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	bool bResult = false;
 
-	if (eRFPowerState == priv->rtllib->eRFPowerState &&
+	if (rf_power_state == priv->rtllib->rf_power_state &&
 	    priv->bHwRfOffAction == 0) {
 		return bResult;
 	}
 
-	bResult = _rtl92e_set_rf_power_state(dev, eRFPowerState);
+	bResult = _rtl92e_set_rf_power_state(dev, rf_power_state);
 	return bResult;
 }
 

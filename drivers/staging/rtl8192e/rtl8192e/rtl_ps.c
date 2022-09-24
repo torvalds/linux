@@ -51,7 +51,7 @@ void rtl92e_hw_wakeup(struct net_device *dev)
 		return;
 	}
 	spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
-	rtl92e_set_rf_state(dev, eRfOn, RF_CHANGE_BY_PS);
+	rtl92e_set_rf_state(dev, rf_on, RF_CHANGE_BY_PS);
 }
 
 void rtl92e_hw_wakeup_wq(void *data)
@@ -117,11 +117,11 @@ void rtl92e_ips_enter(struct net_device *dev)
 	enum rt_rf_power_state rt_state;
 
 	if (pPSC->bInactivePs) {
-		rt_state = priv->rtllib->eRFPowerState;
-		if (rt_state == eRfOn && !pPSC->bSwRfProcessing &&
+		rt_state = priv->rtllib->rf_power_state;
+		if (rt_state == rf_on && !pPSC->bSwRfProcessing &&
 			(priv->rtllib->state != RTLLIB_LINKED) &&
 			(priv->rtllib->iw_mode != IW_MODE_MASTER)) {
-			pPSC->eInactivePowerState = eRfOff;
+			pPSC->eInactivePowerState = rf_off;
 			priv->isRFOff = true;
 			priv->bInPowerSaveMode = true;
 			_rtl92e_ps_update_rf_state(dev);
@@ -137,10 +137,10 @@ void rtl92e_ips_leave(struct net_device *dev)
 	enum rt_rf_power_state rt_state;
 
 	if (pPSC->bInactivePs) {
-		rt_state = priv->rtllib->eRFPowerState;
-		if (rt_state != eRfOn  && !pPSC->bSwRfProcessing &&
+		rt_state = priv->rtllib->rf_power_state;
+		if (rt_state != rf_on  && !pPSC->bSwRfProcessing &&
 		    priv->rtllib->RfOffReason <= RF_CHANGE_BY_IPS) {
-			pPSC->eInactivePowerState = eRfOn;
+			pPSC->eInactivePowerState = rf_on;
 			priv->bInPowerSaveMode = false;
 			_rtl92e_ps_update_rf_state(dev);
 		}
@@ -164,10 +164,10 @@ void rtl92e_rtllib_ips_leave_wq(struct net_device *dev)
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	enum rt_rf_power_state rt_state;
 
-	rt_state = priv->rtllib->eRFPowerState;
+	rt_state = priv->rtllib->rf_power_state;
 
 	if (priv->rtllib->PowerSaveControl.bInactivePs) {
-		if (rt_state == eRfOff) {
+		if (rt_state == rf_off) {
 			if (priv->rtllib->RfOffReason > RF_CHANGE_BY_IPS) {
 				netdev_warn(dev, "%s(): RF is OFF.\n",
 					    __func__);

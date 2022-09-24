@@ -648,7 +648,7 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 					rtl92e_writeb(dev, FW_Busy_Flag, 0);
 					return;
 				}
-				if (priv->rtllib->eRFPowerState != eRfOn) {
+				if (priv->rtllib->rf_power_state != rf_on) {
 					rtl92e_writeb(dev, Pw_Track_Flag, 0);
 					rtl92e_writeb(dev, FW_Busy_Flag, 0);
 					return;
@@ -1684,13 +1684,13 @@ static void _rtl92e_dm_check_rf_ctrl_gpio(void *data)
 
 	tmp1byte = rtl92e_readb(dev, GPI);
 
-	eRfPowerStateToSet = (tmp1byte&BIT1) ?  eRfOn : eRfOff;
+	eRfPowerStateToSet = (tmp1byte&BIT1) ?  rf_on : rf_off;
 
-	if (priv->hw_radio_off && (eRfPowerStateToSet == eRfOn)) {
+	if (priv->hw_radio_off && (eRfPowerStateToSet == rf_on)) {
 		netdev_info(dev, "gpiochangeRF  - HW Radio ON\n");
 		priv->hw_radio_off = false;
 		bActuallySet = true;
-	} else if (!priv->hw_radio_off && (eRfPowerStateToSet == eRfOff)) {
+	} else if (!priv->hw_radio_off && (eRfPowerStateToSet == rf_off)) {
 		netdev_info(dev, "gpiochangeRF  - HW Radio OFF\n");
 		priv->hw_radio_off = true;
 		bActuallySet = true;

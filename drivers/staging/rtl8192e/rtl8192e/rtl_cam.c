@@ -80,9 +80,9 @@ void rtl92e_set_key(struct net_device *dev, u8 EntryNo, u8 KeyIndex,
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	enum rt_rf_power_state rt_state;
 
-	rt_state = priv->rtllib->eRFPowerState;
+	rt_state = priv->rtllib->rf_power_state;
 	if (priv->rtllib->PowerSaveControl.bInactivePs) {
-		if (rt_state == eRfOff) {
+		if (rt_state == rf_off) {
 			if (priv->rtllib->RfOffReason > RF_CHANGE_BY_IPS) {
 				netdev_warn(dev, "%s(): RF is OFF.\n",
 					    __func__);

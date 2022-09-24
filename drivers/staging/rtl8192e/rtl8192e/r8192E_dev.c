@@ -625,7 +625,7 @@ start:
 	priv->pFirmware->status = FW_STATUS_0_INIT;
 
 	if (priv->RegRfOff)
-		priv->rtllib->eRFPowerState = eRfOff;
+		priv->rtllib->rf_power_state = rf_off;
 
 	ulRegRead = rtl92e_readl(dev, CPU_GEN);
 	if (priv->pFirmware->status == FW_STATUS_0_INIT)
@@ -757,13 +757,13 @@ start:
 	rtl92e_writeb(dev, 0x87, 0x0);
 
 	if (priv->RegRfOff) {
-		rtl92e_set_rf_state(dev, eRfOff, RF_CHANGE_BY_SW);
+		rtl92e_set_rf_state(dev, rf_off, RF_CHANGE_BY_SW);
 	} else if (priv->rtllib->RfOffReason > RF_CHANGE_BY_PS) {
-		rtl92e_set_rf_state(dev, eRfOff, priv->rtllib->RfOffReason);
+		rtl92e_set_rf_state(dev, rf_off, priv->rtllib->RfOffReason);
 	} else if (priv->rtllib->RfOffReason >= RF_CHANGE_BY_IPS) {
-		rtl92e_set_rf_state(dev, eRfOff, priv->rtllib->RfOffReason);
+		rtl92e_set_rf_state(dev, rf_off, priv->rtllib->RfOffReason);
 	} else {
-		priv->rtllib->eRFPowerState = eRfOn;
+		priv->rtllib->rf_power_state = rf_on;
 		priv->rtllib->RfOffReason = 0;
 	}
 

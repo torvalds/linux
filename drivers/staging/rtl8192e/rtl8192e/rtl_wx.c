@@ -248,12 +248,12 @@ static int _rtl92e_wx_set_mode(struct net_device *dev,
 
 	if (priv->hw_radio_off)
 		return 0;
-	rt_state = priv->rtllib->eRFPowerState;
+	rt_state = priv->rtllib->rf_power_state;
 	mutex_lock(&priv->wx_mutex);
 	if (wrqu->mode == IW_MODE_ADHOC || wrqu->mode == IW_MODE_MONITOR ||
 	    ieee->bNetPromiscuousMode) {
 		if (priv->rtllib->PowerSaveControl.bInactivePs) {
-			if (rt_state == eRfOff) {
+			if (rt_state == rf_off) {
 				if (priv->rtllib->RfOffReason >
 				    RF_CHANGE_BY_IPS) {
 					netdev_warn(dev, "%s(): RF is OFF.\n",
@@ -392,7 +392,7 @@ static int _rtl92e_wx_set_scan(struct net_device *dev,
 			    __func__);
 		return 0;
 	}
-	rt_state = priv->rtllib->eRFPowerState;
+	rt_state = priv->rtllib->rf_power_state;
 	if (!priv->up)
 		return -ENETDOWN;
 	if (priv->rtllib->LinkDetectInfo.bBusyTraffic == true)
@@ -415,7 +415,7 @@ static int _rtl92e_wx_set_scan(struct net_device *dev,
 
 	if (priv->rtllib->state != RTLLIB_LINKED) {
 		if (priv->rtllib->PowerSaveControl.bInactivePs) {
-			if (rt_state == eRfOff) {
+			if (rt_state == rf_off) {
 				if (priv->rtllib->RfOffReason >
 				    RF_CHANGE_BY_IPS) {
 					netdev_warn(dev, "%s(): RF is OFF.\n",
@@ -433,7 +433,7 @@ static int _rtl92e_wx_set_scan(struct net_device *dev,
 			priv->rtllib->LedControlHandler(dev,
 							 LED_CTL_SITE_SURVEY);
 
-		if (priv->rtllib->eRFPowerState != eRfOff) {
+		if (priv->rtllib->rf_power_state != rf_off) {
 			priv->rtllib->actscanning = true;
 
 			if (ieee->ScanOperationBackupHandler)
@@ -487,7 +487,7 @@ static int _rtl92e_wx_set_essid(struct net_device *dev,
 
 	if (priv->hw_radio_off) {
 		netdev_info(dev,
-			    "=========>%s():hw radio off,or Rf state is eRfOff, return\n",
+			    "=========>%s():hw radio off,or Rf state is rf_off, return\n",
 			    __func__);
 		return 0;
 	}

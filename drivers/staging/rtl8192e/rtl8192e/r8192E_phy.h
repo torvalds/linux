@@ -82,7 +82,7 @@ void rtl92e_init_gain(struct net_device *dev, u8 Operation);
 void rtl92e_set_rf_off(struct net_device *dev);
 
 bool rtl92e_set_rf_power_state(struct net_device *dev,
-			       enum rt_rf_power_state eRFPowerState);
+			       enum rt_rf_power_state rf_power_state);
 
 void rtl92e_scan_op_backup(struct net_device *dev, u8 Operation);
 
