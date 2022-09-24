@@ -170,13 +170,13 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 
 	switch (state_to_set) {
 	case rf_on:
-		priv->rtllib->RfOffReason &= (~change_source);
+		priv->rtllib->rf_off_reason &= (~change_source);
 
 		if ((change_source == RF_CHANGE_BY_HW) && priv->hw_radio_off)
 			priv->hw_radio_off = false;
 
-		if (!priv->rtllib->RfOffReason) {
-			priv->rtllib->RfOffReason = 0;
+		if (!priv->rtllib->rf_off_reason) {
+			priv->rtllib->rf_off_reason = 0;
 			action_allowed = true;
 
 			if (rt_state == rf_off &&
@@ -189,7 +189,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 
 		if ((priv->rtllib->iw_mode == IW_MODE_INFRA) ||
 		    (priv->rtllib->iw_mode == IW_MODE_ADHOC)) {
-			if ((priv->rtllib->RfOffReason > RF_CHANGE_BY_IPS) ||
+			if ((priv->rtllib->rf_off_reason > RF_CHANGE_BY_IPS) ||
 			    (change_source > RF_CHANGE_BY_IPS)) {
 				if (ieee->state == RTLLIB_LINKED)
 					priv->blinked_ingpio = true;
@@ -201,12 +201,12 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 		}
 		if ((change_source == RF_CHANGE_BY_HW) && !priv->hw_radio_off)
 			priv->hw_radio_off = true;
-		priv->rtllib->RfOffReason |= change_source;
+		priv->rtllib->rf_off_reason |= change_source;
 		action_allowed = true;
 		break;
 
-	case eRfSleep:
-		priv->rtllib->RfOffReason |= change_source;
+	case rf_sleep:
+		priv->rtllib->rf_off_reason |= change_source;
 		action_allowed = true;
 		break;
 
@@ -882,7 +882,7 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->RegRfOff = false;
 	priv->isRFOff = false;
 	priv->bInPowerSaveMode = false;
-	priv->rtllib->RfOffReason = 0;
+	priv->rtllib->rf_off_reason = 0;
 	priv->rf_change_in_progress = false;
 	priv->bHwRfOffAction = 0;
 	priv->SetRFPowerStateInProgress = false;

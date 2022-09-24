@@ -254,7 +254,7 @@ static int _rtl92e_wx_set_mode(struct net_device *dev,
 	    ieee->bNetPromiscuousMode) {
 		if (priv->rtllib->PowerSaveControl.bInactivePs) {
 			if (rt_state == rf_off) {
-				if (priv->rtllib->RfOffReason >
+				if (priv->rtllib->rf_off_reason >
 				    RF_CHANGE_BY_IPS) {
 					netdev_warn(dev, "%s(): RF is OFF.\n",
 						    __func__);
@@ -416,7 +416,7 @@ static int _rtl92e_wx_set_scan(struct net_device *dev,
 	if (priv->rtllib->state != RTLLIB_LINKED) {
 		if (priv->rtllib->PowerSaveControl.bInactivePs) {
 			if (rt_state == rf_off) {
-				if (priv->rtllib->RfOffReason >
+				if (priv->rtllib->rf_off_reason >
 				    RF_CHANGE_BY_IPS) {
 					netdev_warn(dev, "%s(): RF is OFF.\n",
 						    __func__);

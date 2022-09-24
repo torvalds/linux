@@ -26,7 +26,7 @@ static void _rtl92e_hw_sleep(struct net_device *dev)
 		return;
 	}
 	spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
-	rtl92e_set_rf_state(dev, eRfSleep, RF_CHANGE_BY_PS);
+	rtl92e_set_rf_state(dev, rf_sleep, RF_CHANGE_BY_PS);
 }
 
 void rtl92e_hw_sleep_wq(void *data)
@@ -139,7 +139,7 @@ void rtl92e_ips_leave(struct net_device *dev)
 	if (pPSC->bInactivePs) {
 		rt_state = priv->rtllib->rf_power_state;
 		if (rt_state != rf_on  && !pPSC->bSwRfProcessing &&
-		    priv->rtllib->RfOffReason <= RF_CHANGE_BY_IPS) {
+		    priv->rtllib->rf_off_reason <= RF_CHANGE_BY_IPS) {
 			pPSC->eInactivePowerState = rf_on;
 			priv->bInPowerSaveMode = false;
 			_rtl92e_ps_update_rf_state(dev);
@@ -168,7 +168,7 @@ void rtl92e_rtllib_ips_leave_wq(struct net_device *dev)
 
 	if (priv->rtllib->PowerSaveControl.bInactivePs) {
 		if (rt_state == rf_off) {
-			if (priv->rtllib->RfOffReason > RF_CHANGE_BY_IPS) {
+			if (priv->rtllib->rf_off_reason > RF_CHANGE_BY_IPS) {
 				netdev_warn(dev, "%s(): RF is OFF.\n",
 					    __func__);
 				return;

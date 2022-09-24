@@ -1245,7 +1245,7 @@ enum ips_callback_function {
 
 enum rt_rf_power_state {
 	rf_on,
-	eRfSleep,
+	rf_sleep,
 	rf_off
 };
 
@@ -1435,7 +1435,7 @@ struct rtllib_device {
 	bool be_scan_inprogress;
 	bool beinretry;
 	enum rt_rf_power_state rf_power_state;
-	RT_RF_CHANGE_SOURCE	RfOffReason;
+	RT_RF_CHANGE_SOURCE rf_off_reason;
 	bool is_set_key;
 	bool wx_set_enc;
 	struct rt_hi_throughput *pHTInfo;

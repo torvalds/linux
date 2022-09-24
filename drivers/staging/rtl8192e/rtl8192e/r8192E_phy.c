@@ -1363,7 +1363,7 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 
 			break;
 
-		case eRfSleep:
+		case rf_sleep:
 			if (priv->rtllib->rf_power_state == rf_off)
 				break;
 

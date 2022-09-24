@@ -1665,7 +1665,7 @@ static void _rtl92e_dm_check_rf_ctrl_gpio(void *data)
 				  struct r8192_priv, gpio_change_rf_wq);
 	struct net_device *dev = priv->rtllib->dev;
 	u8 tmp1byte;
-	enum rt_rf_power_state eRfPowerStateToSet;
+	enum rt_rf_power_state rf_power_state_to_set;
 	bool bActuallySet = false;
 	char *argv[3];
 	static const char RadioPowerPath[] = "/etc/acpi/events/RadioPower.sh";
@@ -1684,13 +1684,13 @@ static void _rtl92e_dm_check_rf_ctrl_gpio(void *data)
 
 	tmp1byte = rtl92e_readb(dev, GPI);
 
-	eRfPowerStateToSet = (tmp1byte&BIT1) ?  rf_on : rf_off;
+	rf_power_state_to_set = (tmp1byte&BIT1) ?  rf_on : rf_off;
 
-	if (priv->hw_radio_off && (eRfPowerStateToSet == rf_on)) {
+	if (priv->hw_radio_off && (rf_power_state_to_set == rf_on)) {
 		netdev_info(dev, "gpiochangeRF  - HW Radio ON\n");
 		priv->hw_radio_off = false;
 		bActuallySet = true;
-	} else if (!priv->hw_radio_off && (eRfPowerStateToSet == rf_off)) {
+	} else if (!priv->hw_radio_off && (rf_power_state_to_set == rf_off)) {
 		netdev_info(dev, "gpiochangeRF  - HW Radio OFF\n");
 		priv->hw_radio_off = true;
 		bActuallySet = true;
@@ -1699,7 +1699,7 @@ static void _rtl92e_dm_check_rf_ctrl_gpio(void *data)
 	if (bActuallySet) {
 		mdelay(1000);
 		priv->bHwRfOffAction = 1;
-		rtl92e_set_rf_state(dev, eRfPowerStateToSet, RF_CHANGE_BY_HW);
+		rtl92e_set_rf_state(dev, rf_power_state_to_set, RF_CHANGE_BY_HW);
 		if (priv->hw_radio_off)
 			argv[1] = "RFOFF";
 		else

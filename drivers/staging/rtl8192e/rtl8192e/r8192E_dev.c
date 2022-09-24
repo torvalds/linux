@@ -758,13 +758,13 @@ start:
 
 	if (priv->RegRfOff) {
 		rtl92e_set_rf_state(dev, rf_off, RF_CHANGE_BY_SW);
-	} else if (priv->rtllib->RfOffReason > RF_CHANGE_BY_PS) {
-		rtl92e_set_rf_state(dev, rf_off, priv->rtllib->RfOffReason);
-	} else if (priv->rtllib->RfOffReason >= RF_CHANGE_BY_IPS) {
-		rtl92e_set_rf_state(dev, rf_off, priv->rtllib->RfOffReason);
+	} else if (priv->rtllib->rf_off_reason > RF_CHANGE_BY_PS) {
+		rtl92e_set_rf_state(dev, rf_off, priv->rtllib->rf_off_reason);
+	} else if (priv->rtllib->rf_off_reason >= RF_CHANGE_BY_IPS) {
+		rtl92e_set_rf_state(dev, rf_off, priv->rtllib->rf_off_reason);
 	} else {
 		priv->rtllib->rf_power_state = rf_on;
-		priv->rtllib->RfOffReason = 0;
+		priv->rtllib->rf_off_reason = 0;
 	}
 
 	if (priv->rtllib->FwRWRF)
