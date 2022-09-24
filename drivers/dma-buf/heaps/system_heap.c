@@ -272,9 +272,8 @@ system_heap_dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
 					     unsigned int len)
 {
 	struct system_heap_buffer *buffer = dmabuf->priv;
-	struct dma_heap *heap = buffer->heap;
-	struct sg_table *table = &buffer->sg_table;
-	int ret;
+	struct dma_heap_attachment *a;
+	int ret = 0;
 
 	if (direction == DMA_TO_DEVICE)
 		return 0;
@@ -283,13 +282,25 @@ system_heap_dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
 	if (buffer->vmap_cnt)
 		invalidate_kernel_vmap_range(buffer->vaddr, buffer->len);
 
-	if (buffer->uncached) {
-		mutex_unlock(&buffer->lock);
-		return 0;
-	}
+	if (buffer->uncached)
+		goto unlock;
 
-	ret = system_heap_sgl_sync_range(dma_heap_get_dev(heap), table,
-					 offset, len, direction, true);
+	list_for_each_entry(a, &buffer->attachments, list) {
+		if (!a->mapped)
+			continue;
+
+		ret = system_heap_sgl_sync_range(a->dev, a->table, offset, len,
+						 direction, true);
+	}
+	if (list_empty(&buffer->attachments)) {
+		struct dma_heap *heap = buffer->heap;
+		struct sg_table *table = &buffer->sg_table;
+
+		ret = system_heap_sgl_sync_range(dma_heap_get_dev(heap), table,
+						 offset, len,
+						 direction, true);
+	}
+unlock:
 	mutex_unlock(&buffer->lock);
 
 	return ret;
@@ -302,21 +313,32 @@ system_heap_dma_buf_end_cpu_access_partial(struct dma_buf *dmabuf,
 					   unsigned int len)
 {
 	struct system_heap_buffer *buffer = dmabuf->priv;
-	struct dma_heap *heap = buffer->heap;
-	struct sg_table *table = &buffer->sg_table;
-	int ret;
+	struct dma_heap_attachment *a;
+	int ret = 0;
 
 	mutex_lock(&buffer->lock);
 	if (buffer->vmap_cnt)
 		flush_kernel_vmap_range(buffer->vaddr, buffer->len);
 
-	if (buffer->uncached) {
-		mutex_unlock(&buffer->lock);
-		return 0;
-	}
+	if (buffer->uncached)
+		goto unlock;
 
-	ret = system_heap_sgl_sync_range(dma_heap_get_dev(heap), table,
-					 offset, len, direction, false);
+	list_for_each_entry(a, &buffer->attachments, list) {
+		if (!a->mapped)
+			continue;
+
+		ret = system_heap_sgl_sync_range(a->dev, a->table, offset, len,
+						 direction, false);
+	}
+	if (list_empty(&buffer->attachments)) {
+		struct dma_heap *heap = buffer->heap;
+		struct sg_table *table = &buffer->sg_table;
+
+		ret = system_heap_sgl_sync_range(dma_heap_get_dev(heap), table,
+						 offset, len,
+						 direction, false);
+	}
+unlock:
 	mutex_unlock(&buffer->lock);
 
 	return ret;
