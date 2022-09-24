@@ -40,6 +40,7 @@ test_cpp
 /runqslower
 /bench
 /veristat
+/sign-file
 *.ko
 *.tmp
 xskxceiver

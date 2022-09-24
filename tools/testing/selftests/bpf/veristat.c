@@ -15,6 +15,8 @@
 #include <sys/sysinfo.h>
 #include <sys/stat.h>
 #include <bpf/libbpf.h>
+#include <libelf.h>
+#include <gelf.h>
 
 enum stat_id {
 	VERDICT,
@@ -61,6 +63,8 @@ static struct env {
 	char **filenames;
 	int filename_cnt;
 	bool verbose;
+	bool quiet;
+	int log_level;
 	enum resfmt out_fmt;
 	bool comparison_mode;
 
@@ -78,6 +82,11 @@ static struct env {
 	struct filter *deny_filters;
 	int allow_filter_cnt;
 	int deny_filter_cnt;
+
+	int files_processed;
+	int files_skipped;
+	int progs_processed;
+	int progs_skipped;
 } env;
 
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
@@ -100,6 +109,8 @@ const char argp_program_doc[] =
 static const struct argp_option opts[] = {
 	{ NULL, 'h', NULL, OPTION_HIDDEN, "Show the full help" },
 	{ "verbose", 'v', NULL, 0, "Verbose mode" },
+	{ "log-level", 'l', "LEVEL", 0, "Verifier log level (default 0 for normal mode, 1 for verbose mode)" },
+	{ "quiet", 'q', NULL, 0, "Quiet mode" },
 	{ "emit", 'e', "SPEC", 0, "Specify stats to be emitted" },
 	{ "sort", 's', "SPEC", 0, "Specify sort order" },
 	{ "output-format", 'o', "FMT", 0, "Result output format (table, csv), default is table." },
@@ -124,6 +135,9 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	case 'v':
 		env.verbose = true;
 		break;
+	case 'q':
+		env.quiet = true;
+		break;
 	case 'e':
 		err = parse_stats(arg, &env.output_spec);
 		if (err)
@@ -142,6 +156,14 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		} else {
 			fprintf(stderr, "Unrecognized output format '%s'\n", arg);
 			return -EINVAL;
+		}
+		break;
+	case 'l':
+		errno = 0;
+		env.log_level = strtol(arg, NULL, 10);
+		if (errno) {
+			fprintf(stderr, "invalid log level: %s\n", arg);
+			argp_usage(state);
 		}
 		break;
 	case 'C':
@@ -226,8 +248,41 @@ static bool should_process_file(const char *filename)
 	return false;
 }
 
-static bool should_process_prog(const char *filename, const char *prog_name)
+static bool is_bpf_obj_file(const char *path) {
+	Elf64_Ehdr *ehdr;
+	int fd, err = -EINVAL;
+	Elf *elf = NULL;
+
+	fd = open(path, O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
+		return true; /* we'll fail later and propagate error */
+
+	/* ensure libelf is initialized */
+	(void)elf_version(EV_CURRENT);
+
+	elf = elf_begin(fd, ELF_C_READ, NULL);
+	if (!elf)
+		goto cleanup;
+
+	if (elf_kind(elf) != ELF_K_ELF || gelf_getclass(elf) != ELFCLASS64)
+		goto cleanup;
+
+	ehdr = elf64_getehdr(elf);
+	/* Old LLVM set e_machine to EM_NONE */
+	if (!ehdr || ehdr->e_type != ET_REL || (ehdr->e_machine && ehdr->e_machine != EM_BPF))
+		goto cleanup;
+
+	err = 0;
+cleanup:
+	if (elf)
+		elf_end(elf);
+	close(fd);
+	return err == 0;
+}
+
+static bool should_process_prog(const char *path, const char *prog_name)
 {
+	const char *filename = basename(path);
 	int i;
 
 	if (env.deny_filter_cnt > 0) {
@@ -303,7 +358,7 @@ static int append_filter_file(const char *path)
 	f = fopen(path, "r");
 	if (!f) {
 		err = -errno;
-		fprintf(stderr, "Failed to open '%s': %d\n", path, err);
+		fprintf(stderr, "Failed to open filters in '%s': %d\n", path, err);
 		return err;
 	}
 
@@ -419,19 +474,30 @@ static void free_verif_stats(struct verif_stats *stats, size_t stat_cnt)
 
 static char verif_log_buf[64 * 1024];
 
-static int parse_verif_log(const char *buf, size_t buf_sz, struct verif_stats *s)
+#define MAX_PARSED_LOG_LINES 100
+
+static int parse_verif_log(char * const buf, size_t buf_sz, struct verif_stats *s)
 {
-	const char *next;
-	int pos;
+	const char *cur;
+	int pos, lines;
 
-	for (pos = 0; buf[0]; buf = next) {
-		if (buf[0] == '\n')
-			buf++;
-		next = strchrnul(&buf[pos], '\n');
+	buf[buf_sz - 1] = '\0';
 
-		if (1 == sscanf(buf, "verification time %ld usec\n", &s->stats[DURATION]))
+	for (pos = strlen(buf) - 1, lines = 0; pos >= 0 && lines < MAX_PARSED_LOG_LINES; lines++) {
+		/* find previous endline or otherwise take the start of log buf */
+		for (cur = &buf[pos]; cur > buf && cur[0] != '\n'; cur--, pos--) {
+		}
+		/* next time start from end of previous line (or pos goes to <0) */
+		pos--;
+		/* if we found endline, point right after endline symbol;
+		 * otherwise, stay at the beginning of log buf
+		 */
+		if (cur[0] == '\n')
+			cur++;
+
+		if (1 == sscanf(cur, "verification time %ld usec\n", &s->stats[DURATION]))
 			continue;
-		if (6 == sscanf(buf, "processed %ld insns (limit %*d) max_states_per_insn %ld total_states %ld peak_states %ld mark_read %ld",
+		if (6 == sscanf(cur, "processed %ld insns (limit %*d) max_states_per_insn %ld total_states %ld peak_states %ld mark_read %ld",
 				&s->stats[TOTAL_INSNS],
 				&s->stats[MAX_STATES_PER_INSN],
 				&s->stats[TOTAL_STATES],
@@ -452,8 +518,10 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 	int err = 0;
 	void *tmp;
 
-	if (!should_process_prog(basename(filename), bpf_program__name(prog)))
+	if (!should_process_prog(filename, bpf_program__name(prog))) {
+		env.progs_skipped++;
 		return 0;
+	}
 
 	tmp = realloc(env.prog_stats, (env.prog_stat_cnt + 1) * sizeof(*env.prog_stats));
 	if (!tmp)
@@ -468,7 +536,7 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 		if (!buf)
 			return -ENOMEM;
 		bpf_program__set_log_buf(prog, buf, buf_sz);
-		bpf_program__set_log_level(prog, 1 | 4); /* stats + log */
+		bpf_program__set_log_level(prog, env.log_level | 4); /* stats + log */
 	} else {
 		bpf_program__set_log_buf(prog, buf, buf_sz);
 		bpf_program__set_log_level(prog, 4); /* only verifier stats */
@@ -476,6 +544,7 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 	verif_log_buf[0] = '\0';
 
 	err = bpf_object__load(obj);
+	env.progs_processed++;
 
 	stats->file_name = strdup(basename(filename));
 	stats->prog_name = strdup(bpf_program__name(prog));
@@ -502,17 +571,38 @@ static int process_obj(const char *filename)
 	LIBBPF_OPTS(bpf_object_open_opts, opts);
 	int err = 0, prog_cnt = 0;
 
-	if (!should_process_file(basename(filename)))
+	if (!should_process_file(basename(filename))) {
+		if (env.verbose)
+			printf("Skipping '%s' due to filters...\n", filename);
+		env.files_skipped++;
 		return 0;
+	}
+	if (!is_bpf_obj_file(filename)) {
+		if (env.verbose)
+			printf("Skipping '%s' as it's not a BPF object file...\n", filename);
+		env.files_skipped++;
+		return 0;
+	}
+
+	if (!env.quiet && env.out_fmt == RESFMT_TABLE)
+		printf("Processing '%s'...\n", basename(filename));
 
 	old_libbpf_print_fn = libbpf_set_print(libbpf_print_fn);
-
 	obj = bpf_object__open_file(filename, &opts);
 	if (!obj) {
-		err = -errno;
-		fprintf(stderr, "Failed to open '%s': %d\n", filename, err);
+		/* if libbpf can't open BPF object file, it could be because
+		 * that BPF object file is incomplete and has to be statically
+		 * linked into a final BPF object file; instead of bailing
+		 * out, report it into stderr, mark it as skipped, and
+		 * proceeed
+		 */
+		fprintf(stderr, "Failed to open '%s': %d\n", filename, -errno);
+		env.files_skipped++;
+		err = 0;
 		goto cleanup;
 	}
+
+	env.files_processed++;
 
 	bpf_object__for_each_program(prog, obj) {
 		prog_cnt++;
@@ -721,8 +811,8 @@ static void output_stats(const struct verif_stats *s, enum resfmt fmt, bool last
 
 	if (last && fmt == RESFMT_TABLE) {
 		output_header_underlines();
-		printf("Done. Processed %d object files, %d programs.\n",
-		       env.filename_cnt, env.prog_stat_cnt);
+		printf("Done. Processed %d files, %d programs. Skipped %d files, %d programs.\n",
+		       env.files_processed, env.files_skipped, env.progs_processed, env.progs_skipped);
 	}
 }
 
@@ -1194,6 +1284,14 @@ int main(int argc, char **argv)
 
 	if (argp_parse(&argp, argc, argv, 0, NULL, NULL))
 		return 1;
+
+	if (env.verbose && env.quiet) {
+		fprintf(stderr, "Verbose and quiet modes are incompatible, please specify just one or neither!\n");
+		argp_help(&argp, stderr, ARGP_HELP_USAGE, "veristat");
+		return 1;
+	}
+	if (env.verbose && env.log_level == 0)
+		env.log_level = 1;
 
 	if (env.output_spec.spec_cnt == 0)
 		env.output_spec = default_output_spec;
