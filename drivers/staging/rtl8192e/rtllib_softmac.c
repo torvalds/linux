@@ -865,7 +865,7 @@ static struct sk_buff *rtllib_probe_resp(struct rtllib_device *ieee,
 		HTConstructInfoElement(ieee, tmp_ht_info_buf, &tmp_ht_info_len,
 				       encrypt);
 
-		if (pHTInfo->bRegRT2RTAggregation) {
+		if (pHTInfo->reg_rt2rt_aggregation) {
 			tmp_generic_ie_buf = ieee->pHTInfo->szRT2RTAggBuffer;
 			tmp_generic_ie_len =
 				 sizeof(ieee->pHTInfo->szRT2RTAggBuffer);
@@ -1189,7 +1189,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 		ht_cap_len = sizeof(ieee->pHTInfo->SelfHTCap);
 		HTConstructCapabilityElement(ieee, ht_cap_buf, &ht_cap_len,
 					     encrypt, true);
-		if (ieee->pHTInfo->bCurrentRT2RTAggregation) {
+		if (ieee->pHTInfo->current_rt2rt_aggregation) {
 			realtek_ie_buf = ieee->pHTInfo->szRT2RTAggBuffer;
 			realtek_ie_len =
 				 sizeof(ieee->pHTInfo->szRT2RTAggBuffer);
@@ -1368,7 +1368,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 			tag += ht_cap_len - 2;
 		}
 
-		if (ieee->pHTInfo->bCurrentRT2RTAggregation) {
+		if (ieee->pHTInfo->current_rt2rt_aggregation) {
 			tag = skb_put(skb, realtek_ie_len);
 			*tag++ = MFIE_TYPE_GENERIC;
 			*tag++ = realtek_ie_len - 2;

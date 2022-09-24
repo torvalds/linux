@@ -151,12 +151,12 @@ struct rt_hi_throughput {
 	u8 cur_tx_bw40mhz;
 	u8				PeerBandwidth;
 
-	u8				bSwBwInProgress;
+	u8 sw_bw_in_progress;
 	u8				SwBwStep;
 
-	u8				bRegRT2RTAggregation;
+	u8 reg_rt2rt_aggregation;
 	u8				RT2RT_HT_Mode;
-	u8				bCurrentRT2RTAggregation;
+	u8 current_rt2rt_aggregation;
 	u8 current_rt2rt_long_slot_time;
 	u8				szRT2RTAggBuffer[10];
 

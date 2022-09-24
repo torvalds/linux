@@ -98,7 +98,7 @@ void HTUpdateDefaultSetting(struct rtllib_device *ieee)
 
 	ieee->bTxEnableFwCalcDur = 1;
 
-	pHTInfo->bRegRT2RTAggregation = 1;
+	pHTInfo->reg_rt2rt_aggregation = 1;
 
 	pHTInfo->bRegRxReorderEnable = 1;
 	pHTInfo->RxReorderWinSize = 64;
@@ -574,7 +574,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 			pHTInfo->bCurrentAMPDUEnable = false;
 	}
 
-	if (!pHTInfo->bRegRT2RTAggregation) {
+	if (!pHTInfo->reg_rt2rt_aggregation) {
 		if (pHTInfo->AMPDU_Factor > pPeerHTCap->MaxRxAMPDUFactor)
 			pHTInfo->CurrentAMPDUFactor =
 						 pPeerHTCap->MaxRxAMPDUFactor;
@@ -655,11 +655,11 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 	memset((void *)(&(pHTInfo->PeerHTInfoBuf)), 0,
 		sizeof(pHTInfo->PeerHTInfoBuf));
 
-	pHTInfo->bSwBwInProgress = false;
+	pHTInfo->sw_bw_in_progress = false;
 
 	pHTInfo->ePeerHTSpecVer = HT_SPEC_VER_IEEE;
 
-	pHTInfo->bCurrentRT2RTAggregation = false;
+	pHTInfo->current_rt2rt_aggregation = false;
 	pHTInfo->current_rt2rt_long_slot_time = false;
 	pHTInfo->RT2RT_HT_Mode = (enum rt_ht_capability)0;
 
@@ -717,14 +717,14 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
 			       pNetwork->bssht.bd_ht_info_buf,
 			       pNetwork->bssht.bd_ht_info_len);
 
-		if (pHTInfo->bRegRT2RTAggregation) {
-			pHTInfo->bCurrentRT2RTAggregation =
+		if (pHTInfo->reg_rt2rt_aggregation) {
+			pHTInfo->current_rt2rt_aggregation =
 				 pNetwork->bssht.bd_rt2rt_aggregation;
 			pHTInfo->current_rt2rt_long_slot_time =
 				 pNetwork->bssht.bd_rt2rt_long_slot_time;
 			pHTInfo->RT2RT_HT_Mode = pNetwork->bssht.rt2rt_ht_mode;
 		} else {
-			pHTInfo->bCurrentRT2RTAggregation = false;
+			pHTInfo->current_rt2rt_aggregation = false;
 			pHTInfo->current_rt2rt_long_slot_time = false;
 			pHTInfo->RT2RT_HT_Mode = (enum rt_ht_capability)0;
 		}
@@ -756,7 +756,7 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
 			pHTInfo->IOTAction |= HT_IOT_ACT_CDD_FSYNC;
 	} else {
 		pHTInfo->bCurrentHTSupport = false;
-		pHTInfo->bCurrentRT2RTAggregation = false;
+		pHTInfo->current_rt2rt_aggregation = false;
 		pHTInfo->current_rt2rt_long_slot_time = false;
 		pHTInfo->RT2RT_HT_Mode = (enum rt_ht_capability)0;
 
@@ -850,7 +850,7 @@ static void HTSetConnectBwModeCallback(struct rtllib_device *ieee)
 				       HT_EXTCHNL_OFFSET_NO_EXT);
 	}
 
-	pHTInfo->bSwBwInProgress = false;
+	pHTInfo->sw_bw_in_progress = false;
 }
 
 void HTSetConnectBwMode(struct rtllib_device *ieee,
@@ -865,8 +865,8 @@ void HTSetConnectBwMode(struct rtllib_device *ieee,
 	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
 		Bandwidth = HT_CHANNEL_WIDTH_20;
 
-	if (pHTInfo->bSwBwInProgress) {
-		pr_info("%s: bSwBwInProgress!!\n", __func__);
+	if (pHTInfo->sw_bw_in_progress) {
+		pr_info("%s: sw_bw_in_progress!!\n", __func__);
 		return;
 	}
 	if (Bandwidth == HT_CHANNEL_WIDTH_20_40) {
@@ -889,7 +889,7 @@ void HTSetConnectBwMode(struct rtllib_device *ieee,
 	netdev_dbg(ieee->dev, "%s():pHTInfo->bCurBW40MHz:%x\n", __func__,
 		   pHTInfo->bCurBW40MHz);
 
-	pHTInfo->bSwBwInProgress = true;
+	pHTInfo->sw_bw_in_progress = true;
 
 	HTSetConnectBwModeCallback(ieee);
 }
