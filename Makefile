@@ -645,6 +645,8 @@ else
 __all: modules
 endif
 
+targets :=
+
 # Decide whether to build built-in, modular, or both.
 # Normally, just do built-in.
 
@@ -1107,7 +1109,7 @@ export ARCH_LIB		:= $(filter %/, $(libs-y))
 export ARCH_DRIVERS	:= $(drivers-y) $(drivers-m)
 # Externally visible symbols (used by link-vmlinux.sh)
 
-KBUILD_VMLINUX_OBJS := $(head-y) ./built-in.a
+KBUILD_VMLINUX_OBJS := ./built-in.a
 ifdef CONFIG_MODULES
 KBUILD_VMLINUX_OBJS += $(patsubst %/, %/lib.a, $(filter %/, $(libs-y)))
 KBUILD_VMLINUX_LIBS := $(filter-out %/, $(libs-y))
@@ -1115,7 +1117,7 @@ else
 KBUILD_VMLINUX_LIBS := $(patsubst %/,%/lib.a, $(libs-y))
 endif
 
-export KBUILD_VMLINUX_OBJS KBUILD_VMLINUX_LIBS
+export KBUILD_VMLINUX_LIBS
 export KBUILD_LDS          := arch/$(SRCARCH)/kernel/vmlinux.lds
 
 # Recurse until adjust_autoksyms.sh is satisfied
@@ -1140,7 +1142,18 @@ quiet_cmd_autoksyms_h = GEN     $@
 $(autoksyms_h):
 	$(call cmd,autoksyms_h)
 
-vmlinux.o: autoksyms_recursive $(KBUILD_VMLINUX_OBJS) $(KBUILD_VMLINUX_LIBS) FORCE
+# '$(AR) mPi' needs 'T' to workaround the bug of llvm-ar <= 14
+quiet_cmd_ar_vmlinux.a = AR      $@
+      cmd_ar_vmlinux.a = \
+	rm -f $@; \
+	$(AR) cDPrST $@ $(KBUILD_VMLINUX_OBJS); \
+	$(AR) mPiT $$($(AR) t $@ | head -n1) $@ $(head-y)
+
+targets += vmlinux.a
+vmlinux.a: $(KBUILD_VMLINUX_OBJS) autoksyms_recursive FORCE
+	$(call if_changed,ar_vmlinux.a)
+
+vmlinux.o: vmlinux.a $(KBUILD_VMLINUX_LIBS) FORCE
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.vmlinux_o
 
 ARCH_POSTLINK := $(wildcard $(srctree)/arch/$(SRCARCH)/Makefile.postlink)
@@ -1153,7 +1166,7 @@ cmd_link-vmlinux =                                                 \
 vmlinux: scripts/link-vmlinux.sh vmlinux.o $(KBUILD_LDS) modpost FORCE
 	+$(call if_changed_dep,link-vmlinux)
 
-targets := vmlinux
+targets += vmlinux
 
 # The actual objects are generated when descending,
 # make sure no implicit rule kicks in
@@ -1878,7 +1891,7 @@ quiet_cmd_gen_compile_commands = GEN     $@
       cmd_gen_compile_commands = $(PYTHON3) $< -a $(AR) -o $@ $(filter-out $<, $(real-prereqs))
 
 $(extmod_prefix)compile_commands.json: scripts/clang-tools/gen_compile_commands.py \
-	$(if $(KBUILD_EXTMOD),,$(KBUILD_VMLINUX_OBJS) $(KBUILD_VMLINUX_LIBS)) \
+	$(if $(KBUILD_EXTMOD),, vmlinux.a $(KBUILD_VMLINUX_LIBS)) \
 	$(if $(CONFIG_MODULES), $(MODORDER)) FORCE
 	$(call if_changed,gen_compile_commands)
 

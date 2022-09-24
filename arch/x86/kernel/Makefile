@@ -3,10 +3,6 @@
 # Makefile for the linux kernel.
 #
 
-extra-y	:= head_$(BITS).o
-extra-y	+= head$(BITS).o
-extra-y	+= ebda.o
-extra-y	+= platform-quirks.o
 extra-y	+= vmlinux.lds
 
 CPPFLAGS_vmlinux.lds += -U$(UTS_MACHINE)
@@ -42,7 +38,11 @@ KCOV_INSTRUMENT		:= n
 
 CFLAGS_irq.o := -I $(srctree)/$(src)/../include/asm/trace
 
-obj-y			:= process_$(BITS).o signal.o
+obj-y			+= head_$(BITS).o
+obj-y			+= head$(BITS).o
+obj-y			+= ebda.o
+obj-y			+= platform-quirks.o
+obj-y			+= process_$(BITS).o signal.o
 obj-$(CONFIG_COMPAT)	+= signal_compat.o
 obj-y			+= traps.o idt.o irq.o irq_$(BITS).o dumpstack_$(BITS).o
 obj-y			+= time.o ioport.o dumpstack.o nmi.o

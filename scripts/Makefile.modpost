@@ -70,13 +70,12 @@ quiet_cmd_vmlinux_objs = GEN     $@
 	for f in $(real-prereqs); do	\
 		case $${f} in		\
 		*libgcc.a) ;;		\
-		*.a) $(AR) t $${f} ;;	\
-		*) echo $${f} ;;	\
+		*) $(AR) t $${f} ;;	\
 		esac			\
 	done > $@
 
 targets += .vmlinux.objs
-.vmlinux.objs: $(KBUILD_VMLINUX_OBJS) $(KBUILD_VMLINUX_LIBS) FORCE
+.vmlinux.objs: vmlinux.a $(KBUILD_VMLINUX_LIBS) FORCE
 	$(call if_changed,vmlinux_objs)
 
 vmlinux.o-if-present := $(wildcard vmlinux.o)

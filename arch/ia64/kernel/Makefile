@@ -7,9 +7,9 @@ ifdef CONFIG_DYNAMIC_FTRACE
 CFLAGS_REMOVE_ftrace.o = -pg
 endif
 
-extra-y	:= head.o vmlinux.lds
+extra-y	:= vmlinux.lds
 
-obj-y := entry.o efi.o efi_stub.o gate-data.o fsys.o irq.o irq_ia64.o	\
+obj-y := head.o entry.o efi.o efi_stub.o gate-data.o fsys.o irq.o irq_ia64.o	\
 	 irq_lsapic.o ivt.o pal.o patch.o process.o ptrace.o sal.o		\
 	 salinfo.o setup.o signal.o sys_ia64.o time.o traps.o unaligned.o \
 	 unwind.o mca.o mca_asm.o topology.o dma-mapping.o iosapic.o acpi.o \

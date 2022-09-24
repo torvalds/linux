@@ -118,12 +118,12 @@ obj-$(CONFIG_PPC_FSL_BOOK3E)	+= cpu_setup_fsl_booke.o
 obj-$(CONFIG_PPC_DOORBELL)	+= dbell.o
 obj-$(CONFIG_JUMP_LABEL)	+= jump_label.o
 
-extra-$(CONFIG_PPC64)		:= head_64.o
-extra-$(CONFIG_PPC_BOOK3S_32)	:= head_book3s_32.o
-extra-$(CONFIG_40x)		:= head_40x.o
-extra-$(CONFIG_44x)		:= head_44x.o
-extra-$(CONFIG_FSL_BOOKE)	:= head_fsl_booke.o
-extra-$(CONFIG_PPC_8xx)		:= head_8xx.o
+obj-$(CONFIG_PPC64)		+= head_64.o
+obj-$(CONFIG_PPC_BOOK3S_32)	+= head_book3s_32.o
+obj-$(CONFIG_40x)		+= head_40x.o
+obj-$(CONFIG_44x)		+= head_44x.o
+obj-$(CONFIG_FSL_BOOKE)		+= head_fsl_booke.o
+obj-$(CONFIG_PPC_8xx)		+= head_8xx.o
 extra-y				+= vmlinux.lds
 
 obj-$(CONFIG_RELOCATABLE)	+= reloc_$(BITS).o
@@ -198,10 +198,10 @@ KCOV_INSTRUMENT_paca.o := n
 CFLAGS_setup_64.o		+= -fno-stack-protector
 CFLAGS_paca.o			+= -fno-stack-protector
 
-extra-$(CONFIG_PPC_FPU)		+= fpu.o
-extra-$(CONFIG_ALTIVEC)		+= vector.o
-extra-$(CONFIG_PPC64)		+= entry_64.o
-extra-$(CONFIG_PPC_OF_BOOT_TRAMPOLINE)	+= prom_init.o
+obj-$(CONFIG_PPC_FPU)		+= fpu.o
+obj-$(CONFIG_ALTIVEC)		+= vector.o
+obj-$(CONFIG_PPC64)		+= entry_64.o
+obj-$(CONFIG_PPC_OF_BOOT_TRAMPOLINE)	+= prom_init.o
 
 extra-$(CONFIG_PPC_OF_BOOT_TRAMPOLINE)	+= prom_init_check
 

@@ -3,17 +3,15 @@
 #
 # link vmlinux
 #
-# vmlinux is linked from the objects selected by $(KBUILD_VMLINUX_OBJS) and
-# $(KBUILD_VMLINUX_LIBS). Most are built-in.a files from top-level directories
-# in the kernel tree, others are specified in arch/$(ARCH)/Makefile.
+# vmlinux is linked from the objects in vmlinux.a and $(KBUILD_VMLINUX_LIBS).
+# vmlinux.a contains objects that are linked unconditionally.
 # $(KBUILD_VMLINUX_LIBS) are archives which are linked conditionally
 # (not within --whole-archive), and do not require symbol indexes added.
 #
 # vmlinux
 #   ^
 #   |
-#   +--< $(KBUILD_VMLINUX_OBJS)
-#   |    +--< init/built-in.a drivers/built-in.a mm/built-in.a + more
+#   +--< vmlinux.a
 #   |
 #   +--< $(KBUILD_VMLINUX_LIBS)
 #   |    +--< lib/lib.a + more
@@ -67,7 +65,7 @@ vmlinux_link()
 		objs=vmlinux.o
 		libs=
 	else
-		objs="${KBUILD_VMLINUX_OBJS}"
+		objs=vmlinux.a
 		libs="${KBUILD_VMLINUX_LIBS}"
 	fi
 

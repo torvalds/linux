@@ -3,7 +3,7 @@
 # Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
 #
 
-obj-y	:= arcksyms.o setup.o irq.o reset.o ptrace.o process.o devtree.o
+obj-y	:= head.o arcksyms.o setup.o irq.o reset.o ptrace.o process.o devtree.o
 obj-y	+= signal.o traps.o sys.o troubleshoot.o stacktrace.o disasm.o
 obj-$(CONFIG_ISA_ARCOMPACT)		+= entry-compact.o intc-compact.o
 obj-$(CONFIG_ISA_ARCV2)			+= entry-arcv2.o intc-arcv2.o
@@ -31,4 +31,4 @@ else
 obj-y += ctx_sw_asm.o
 endif
 
-extra-y := vmlinux.lds head.o
+extra-y := vmlinux.lds

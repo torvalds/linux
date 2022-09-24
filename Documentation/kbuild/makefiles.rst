@@ -340,19 +340,7 @@ more details, with real examples.
 
 	Examples are:
 
-	1) head objects
-
-	    Some objects must be placed at the head of vmlinux. They are
-	    directly linked to vmlinux without going through built-in.a
-	    A typical use-case is an object that contains the entry point.
-
-	    arch/$(SRCARCH)/Makefile should specify such objects as head-y.
-
-	    Discussion:
-	      Given that we can control the section order in the linker script,
-	      why do we need head-y?
-
-	2) vmlinux linker script
+	1) vmlinux linker script
 
 	    The linker script for vmlinux is located at
 	    arch/$(SRCARCH)/kernel/vmlinux.lds
@@ -360,10 +348,6 @@ more details, with real examples.
 	Example::
 
 		# arch/x86/kernel/Makefile
-		extra-y	:= head_$(BITS).o
-		extra-y	+= head$(BITS).o
-		extra-y	+= ebda.o
-		extra-y	+= platform-quirks.o
 		extra-y	+= vmlinux.lds
 
 	$(extra-y) should only contain targets needed for vmlinux.
