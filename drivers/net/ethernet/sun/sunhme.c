@@ -61,15 +61,8 @@
 #include "sunhme.h"
 
 #define DRV_NAME	"sunhme"
-#define DRV_VERSION	"3.10"
-#define DRV_RELDATE	"August 26, 2008"
-#define DRV_AUTHOR	"David S. Miller (davem@davemloft.net)"
 
-static char version[] =
-	DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE " " DRV_AUTHOR "\n";
-
-MODULE_VERSION(DRV_VERSION);
-MODULE_AUTHOR(DRV_AUTHOR);
+MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
 MODULE_DESCRIPTION("Sun HappyMealEthernet(HME) 10/100baseT ethernet driver");
 MODULE_LICENSE("GPL");
 
@@ -2451,8 +2444,7 @@ static void hme_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info
 {
 	struct happy_meal *hp = netdev_priv(dev);
 
-	strscpy(info->driver, "sunhme", sizeof(info->driver));
-	strscpy(info->version, "2.02", sizeof(info->version));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
 	if (hp->happy_flags & HFLAG_PCI) {
 		struct pci_dev *pdev = hp->happy_dev;
 		strscpy(info->bus_info, pci_name(pdev), sizeof(info->bus_info));
@@ -2487,8 +2479,6 @@ static const struct ethtool_ops hme_ethtool_ops = {
 	.get_link_ksettings	= hme_get_link_ksettings,
 	.set_link_ksettings	= hme_set_link_ksettings,
 };
-
-static int hme_version_printed;
 
 #ifdef CONFIG_SBUS
 /* Given a happy meal sbus device, find it's quattro parent.
@@ -2972,9 +2962,6 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 	if (!dev)
 		goto err_out;
 	SET_NETDEV_DEV(dev, &pdev->dev);
-
-	if (hme_version_printed++ == 0)
-		printk(KERN_INFO "%s", version);
 
 	hp = netdev_priv(dev);
 
