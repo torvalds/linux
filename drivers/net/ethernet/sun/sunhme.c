@@ -90,27 +90,6 @@ static struct quattro *qfe_pci_list;
 #define ASD(...)
 #endif
 
-/* Transmit debug */
-#if 1
-#define TXD hme_debug
-#else
-#define TXD(...)
-#endif
-
-/* Skid buffer debug */
-#if 1
-#define SXD hme_debug
-#else
-#define SXD(...)
-#endif
-
-/* Receive debug */
-#if 1
-#define RXD hme_debug
-#else
-#define RXD(...)
-#endif
-
 #if 0
 struct hme_tx_logent {
 	unsigned int tstamp;
@@ -1832,7 +1811,7 @@ static void happy_meal_tx(struct happy_meal *hp)
 		u32 flags, dma_addr, dma_len;
 		int frag;
 
-		TXD("TX[%d]\n", elem);
+		netdev_vdbg(hp->dev, "TX[%d]\n", elem);
 		this = &txbase[elem];
 		flags = hme_read_desc32(hp, &this->tx_flags);
 		if (flags & TXFLAG_OWN)
@@ -1899,7 +1878,7 @@ static void happy_meal_rx(struct happy_meal *hp, struct net_device *dev)
 
 		/* Check for errors. */
 		if ((len < ETH_ZLEN) || (flags & RXFLAG_OVERFLOW)) {
-			RXD("RX[%d ERR(%08x)]", elem, flags);
+			netdev_vdbg(dev, "RX[%d ERR(%08x)]", elem, flags);
 			dev->stats.rx_errors++;
 			if (len < ETH_ZLEN)
 				dev->stats.rx_length_errors++;
@@ -1971,7 +1950,7 @@ static void happy_meal_rx(struct happy_meal *hp, struct net_device *dev)
 		skb->csum = csum_unfold(~(__force __sum16)htons(csum));
 		skb->ip_summed = CHECKSUM_COMPLETE;
 
-		RXD("RX[%d len=%d csum=%4x]", elem, len, csum);
+		netdev_vdbg(dev, "RX[%d len=%d csum=%4x]", elem, len, csum);
 		skb->protocol = eth_type_trans(skb, dev);
 		netif_rx(skb);
 
@@ -2177,7 +2156,7 @@ static netdev_tx_t happy_meal_start_xmit(struct sk_buff *skb,
 	}
 
 	entry = hp->tx_new;
-	SXD("SX<l[%d]e[%d]>\n", skb->len, entry);
+	netdev_vdbg(dev, "SX<l[%d]e[%d]>\n", skb->len, entry);
 	hp->tx_skbs[entry] = skb;
 
 	if (skb_shinfo(skb)->nr_frags == 0) {
