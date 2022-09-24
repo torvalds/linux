@@ -58,6 +58,7 @@ static bool use_bpf;
 static unsigned long bpf_map_entries = 10240;
 static int max_stack_depth = CONTENTION_STACK_DEPTH;
 static int stack_skip = CONTENTION_STACK_SKIP;
+static int print_nr_entries = INT_MAX / 2;
 
 static enum {
 	LOCK_AGGR_ADDR,
@@ -1266,14 +1267,14 @@ static void print_result(void)
 	struct lock_stat *st;
 	struct lock_key *key;
 	char cut_name[20];
-	int bad, total;
+	int bad, total, printed;
 
 	pr_info("%20s ", "Name");
 	list_for_each_entry(key, &lock_keys, list)
 		pr_info("%*s ", key->len, key->header);
 	pr_info("\n\n");
 
-	bad = total = 0;
+	bad = total = printed = 0;
 	while ((st = pop_from_result())) {
 		total++;
 		if (st->broken)
@@ -1311,6 +1312,9 @@ static void print_result(void)
 			pr_info(" ");
 		}
 		pr_info("\n");
+
+		if (++printed >= print_nr_entries)
+			break;
 	}
 
 	print_bad_events(bad, total);
@@ -1476,7 +1480,7 @@ static void print_contention_result(struct lock_contention *con)
 {
 	struct lock_stat *st;
 	struct lock_key *key;
-	int bad, total;
+	int bad, total, printed;
 
 	list_for_each_entry(key, &lock_keys, list)
 		pr_info("%*s ", key->len, key->header);
@@ -1486,7 +1490,7 @@ static void print_contention_result(struct lock_contention *con)
 	else
 		pr_info("  %10s   %s\n\n", "type", "caller");
 
-	bad = total = 0;
+	bad = total = printed = 0;
 	if (use_bpf)
 		bad = bad_hist[BROKEN_CONTENDED];
 
@@ -1507,7 +1511,7 @@ static void print_contention_result(struct lock_contention *con)
 			/* st->addr contains tid of thread */
 			t = perf_session__findnew(session, pid);
 			pr_info("  %10d   %s\n", pid, thread__comm_str(t));
-			continue;
+			goto next;
 		}
 
 		pr_info("  %10s   %s\n", get_type_str(st), st->name);
@@ -1527,6 +1531,10 @@ static void print_contention_result(struct lock_contention *con)
 				pr_info("\t\t\t%#lx  %s\n", (unsigned long)ip, buf);
 			}
 		}
+
+next:
+		if (++printed >= print_nr_entries)
+			break;
 	}
 
 	print_bad_events(bad, total);
@@ -1878,6 +1886,7 @@ int cmd_lock(int argc, const char **argv)
 		    "combine locks in the same class"),
 	OPT_BOOLEAN('t', "threads", &show_thread_stats,
 		    "show per-thread lock stats"),
+	OPT_INTEGER('E', "entries", &print_nr_entries, "display this many functions"),
 	OPT_PARENT(lock_options)
 	};
 
@@ -1905,6 +1914,7 @@ int cmd_lock(int argc, const char **argv)
 	OPT_INTEGER(0, "stack-skip", &stack_skip,
 		    "Set the number of stack depth to skip when finding a lock caller, "
 		    "Default: " __stringify(CONTENTION_STACK_SKIP)),
+	OPT_INTEGER('E', "entries", &print_nr_entries, "display this many functions"),
 	OPT_PARENT(lock_options)
 	};
 

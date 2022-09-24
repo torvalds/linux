@@ -94,6 +94,11 @@ REPORT OPTIONS
          EventManager_De       1845          1             636
          futex-default-S       1609          0               0
 
+-E::
+--entries=<value>::
+	Display this many entries.
+
+
 INFO OPTIONS
 ------------
 
@@ -104,6 +109,7 @@ INFO OPTIONS
 -m::
 --map::
 	dump map of lock instances (address:name table)
+
 
 CONTENTION OPTIONS
 --------------
@@ -153,6 +159,10 @@ CONTENTION OPTIONS
 
 --stack-skip
 	Number of stack depth to skip when finding a lock caller (default: 3).
+
+-E::
+--entries=<value>::
+	Display this many entries.
 
 
 SEE ALSO
