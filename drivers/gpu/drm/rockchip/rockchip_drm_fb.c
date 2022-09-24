@@ -198,11 +198,19 @@ rockchip_fb_create(struct drm_device *dev, struct drm_file *file,
 {
 	struct drm_afbc_framebuffer *afbc_fb;
 	const struct drm_format_info *info;
-	int ret;
+	int ret, i;
 
 	info = drm_get_format_info(dev, mode_cmd);
 	if (!info)
 		return ERR_PTR(-ENOMEM);
+
+	for (i = 0; i < info->num_planes; ++i) {
+		if (mode_cmd->pitches[i] % 4) {
+			DRM_DEV_ERROR_RATELIMITED(dev->dev,
+				"fb pitch[%d] must be 4 byte aligned: %d\n", i, mode_cmd->pitches[i]);
+			return ERR_PTR(-EINVAL);
+		}
+	}
 
 	afbc_fb = kzalloc(sizeof(*afbc_fb), GFP_KERNEL);
 	if (!afbc_fb)
@@ -216,8 +224,6 @@ rockchip_fb_create(struct drm_device *dev, struct drm_file *file,
 	}
 
 	if (drm_is_afbc(mode_cmd->modifier[0])) {
-		int i;
-
 		ret = drm_gem_fb_afbc_init(dev, mode_cmd, afbc_fb);
 		if (ret) {
 			struct drm_gem_object **obj = afbc_fb->base.obj;
