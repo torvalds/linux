@@ -270,6 +270,7 @@ system_heap_dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
 					     unsigned int len)
 {
 	struct system_heap_buffer *buffer = dmabuf->priv;
+	struct sg_table *table = &buffer->sg_table;
 	struct dma_heap_attachment *a;
 	int ret = 0;
 
@@ -279,7 +280,6 @@ system_heap_dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
 	mutex_lock(&buffer->lock);
 	if (IS_ENABLED(CONFIG_SYSTEM_HEAP_FORCE_DMA_SYNC)) {
 		struct dma_heap *heap = buffer->heap;
-		struct sg_table *table = &buffer->sg_table;
 
 		ret = system_heap_sgl_sync_range(dma_heap_get_dev(heap),
 						 table->sgl,
@@ -318,13 +318,13 @@ system_heap_dma_buf_end_cpu_access_partial(struct dma_buf *dmabuf,
 					   unsigned int len)
 {
 	struct system_heap_buffer *buffer = dmabuf->priv;
+	struct sg_table *table = &buffer->sg_table;
 	struct dma_heap_attachment *a;
 	int ret = 0;
 
 	mutex_lock(&buffer->lock);
 	if (IS_ENABLED(CONFIG_SYSTEM_HEAP_FORCE_DMA_SYNC)) {
 		struct dma_heap *heap = buffer->heap;
-		struct sg_table *table = &buffer->sg_table;
 
 		ret = system_heap_sgl_sync_range(dma_heap_get_dev(heap),
 						 table->sgl,
