@@ -672,6 +672,12 @@ int ath11k_wow_op_suspend(struct ieee80211_hw *hw,
 	struct ath11k *ar = hw->priv;
 	int ret;
 
+	ret = ath11k_mac_wait_tx_complete(ar);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to wait tx complete: %d\n", ret);
+		return ret;
+	}
+
 	mutex_lock(&ar->conf_mutex);
 
 	ret = ath11k_dp_rx_pktlog_stop(ar->ab, true);
@@ -700,12 +706,6 @@ int ath11k_wow_op_suspend(struct ieee80211_hw *hw,
 	if (ret) {
 		ath11k_warn(ar->ab, "failed to set wow protocol offload events: %d\n",
 			    ret);
-		goto cleanup;
-	}
-
-	ret = ath11k_mac_wait_tx_complete(ar);
-	if (ret) {
-		ath11k_warn(ar->ab, "failed to wait tx complete: %d\n", ret);
 		goto cleanup;
 	}
 
