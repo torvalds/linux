@@ -18,7 +18,7 @@
 #define EBUG_ON(cond)		do {} while (0)
 #endif
 
-#define six_acquire(l, t)	lock_acquire(l, 0, t, 0, 0, NULL, _RET_IP_)
+#define six_acquire(l, t, r)	lock_acquire(l, 0, t, r, 1, NULL, _RET_IP_)
 #define six_release(l)		lock_release(l, _RET_IP_)
 
 struct six_lock_vals {
@@ -258,7 +258,7 @@ static bool __six_trylock_type(struct six_lock *lock, enum six_lock_type type)
 		return false;
 
 	if (type != SIX_LOCK_write)
-		six_acquire(&lock->dep_map, 1);
+		six_acquire(&lock->dep_map, 1, type == SIX_LOCK_read);
 	return true;
 }
 
@@ -295,7 +295,7 @@ static bool __six_relock_type(struct six_lock *lock, enum six_lock_type type,
 			six_lock_wakeup(lock, old, SIX_LOCK_write);
 
 		if (ret)
-			six_acquire(&lock->dep_map, 1);
+			six_acquire(&lock->dep_map, 1, type == SIX_LOCK_read);
 
 		return ret;
 	}
@@ -312,7 +312,7 @@ static bool __six_relock_type(struct six_lock *lock, enum six_lock_type type,
 
 	six_set_owner(lock, type, old);
 	if (type != SIX_LOCK_write)
-		six_acquire(&lock->dep_map, 1);
+		six_acquire(&lock->dep_map, 1, type == SIX_LOCK_read);
 	return true;
 }
 
@@ -518,7 +518,7 @@ static int __six_lock_type_waiter(struct six_lock *lock, enum six_lock_type type
 	wait->start_time = 0;
 
 	if (type != SIX_LOCK_write)
-		six_acquire(&lock->dep_map, 0);
+		six_acquire(&lock->dep_map, 0, type == SIX_LOCK_read);
 
 	ret = do_six_trylock_type(lock, type, true) ? 0
 		: __six_lock_type_slowpath(lock, type, wait, should_sleep_fn, p);
@@ -681,7 +681,7 @@ void six_lock_increment(struct six_lock *lock, enum six_lock_type type)
 {
 	const struct six_lock_vals l[] = LOCK_VALS;
 
-	six_acquire(&lock->dep_map, 0);
+	six_acquire(&lock->dep_map, 0, type == SIX_LOCK_read);
 
 	/* XXX: assert already locked, and that we don't overflow: */
 
