@@ -3209,9 +3209,6 @@ void register_console(struct console *newcon)
 	if (bootcon_enabled &&
 	    ((newcon->flags & (CON_CONSDEV | CON_BOOT)) == CON_CONSDEV) &&
 	    !keep_bootcon) {
-		/* We need to iterate through all boot consoles, to make
-		 * sure we print everything out, before we unregister them.
-		 */
 		for_each_console(con)
 			if (con->flags & CON_BOOT)
 				unregister_console(con);
