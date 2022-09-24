@@ -2924,7 +2924,7 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 	struct happy_meal *hp;
 	struct net_device *dev;
 	void __iomem *hpreg_base;
-	unsigned long hpreg_res;
+	struct resource *hpreg_res;
 	int i, qfe_slot = -1;
 	char prom_name[64];
 	u8 addr[ETH_ALEN];
@@ -2941,7 +2941,7 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 		strcpy(prom_name, "SUNW,hme");
 #endif
 
-	err = pci_enable_device(pdev);
+	err = pcim_enable_device(pdev);
 	if (err)
 		goto err_out;
 	pci_set_master(pdev);
@@ -2961,7 +2961,7 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 			goto err_out;
 	}
 
-	dev = alloc_etherdev(sizeof(struct happy_meal));
+	dev = devm_alloc_etherdev(&pdev->dev, sizeof(struct happy_meal));
 	if (!dev) {
 		err = -ENOMEM;
 		goto err_out;
@@ -2981,25 +2981,26 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 		qp->happy_meals[qfe_slot] = dev;
 	}
 
-	hpreg_res = pci_resource_start(pdev, 0);
 	err = -EINVAL;
 	if ((pci_resource_flags(pdev, 0) & IORESOURCE_IO) != 0) {
 		printk(KERN_ERR "happymeal(PCI): Cannot find proper PCI device base address.\n");
 		goto err_out_clear_quattro;
 	}
 
-	err = pci_request_regions(pdev, DRV_NAME);
-	if (err) {
+	hpreg_res = devm_request_region(&pdev->dev, pci_resource_start(pdev, 0),
+					pci_resource_len(pdev, 0), DRV_NAME);
+	if (IS_ERR(hpreg_res)) {
+		err = PTR_ERR(hpreg_res);
 		printk(KERN_ERR "happymeal(PCI): Cannot obtain PCI resources, "
 		       "aborting.\n");
 		goto err_out_clear_quattro;
 	}
 
-	hpreg_base = ioremap(hpreg_res, 0x8000);
+	hpreg_base = pcim_iomap(pdev, 0, 0x8000);
 	if (!hpreg_base) {
 		err = -ENOMEM;
 		printk(KERN_ERR "happymeal(PCI): Unable to remap card memory.\n");
-		goto err_out_free_res;
+		goto err_out_clear_quattro;
 	}
 
 	for (i = 0; i < 6; i++) {
@@ -3065,11 +3066,11 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 	hp->happy_bursts = DMA_BURSTBITS;
 #endif
 
-	hp->happy_block = dma_alloc_coherent(&pdev->dev, PAGE_SIZE,
-					     &hp->hblock_dvma, GFP_KERNEL);
+	hp->happy_block = dmam_alloc_coherent(&pdev->dev, PAGE_SIZE,
+					      &hp->hblock_dvma, GFP_KERNEL);
 	if (!hp->happy_block) {
 		err = -ENOMEM;
-		goto err_out_iounmap;
+		goto err_out_clear_quattro;
 	}
 
 	hp->linkcheck = 0;
@@ -3104,11 +3105,11 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 	happy_meal_set_initial_advertisement(hp);
 	spin_unlock_irq(&hp->happy_lock);
 
-	err = register_netdev(hp->dev);
+	err = devm_register_netdev(&pdev->dev, dev);
 	if (err) {
 		printk(KERN_ERR "happymeal(PCI): Cannot register net device, "
 		       "aborting.\n");
-		goto err_out_free_coherent;
+		goto err_out_clear_quattro;
 	}
 
 	pci_set_drvdata(pdev, hp);
@@ -3141,39 +3142,12 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 
 	return 0;
 
-err_out_free_coherent:
-	dma_free_coherent(hp->dma_dev, PAGE_SIZE,
-			  hp->happy_block, hp->hblock_dvma);
-
-err_out_iounmap:
-	iounmap(hp->gregs);
-
-err_out_free_res:
-	pci_release_regions(pdev);
-
 err_out_clear_quattro:
 	if (qp != NULL)
 		qp->happy_meals[qfe_slot] = NULL;
 
-	free_netdev(dev);
-
 err_out:
 	return err;
-}
-
-static void happy_meal_pci_remove(struct pci_dev *pdev)
-{
-	struct happy_meal *hp = pci_get_drvdata(pdev);
-	struct net_device *net_dev = hp->dev;
-
-	unregister_netdev(net_dev);
-
-	dma_free_coherent(hp->dma_dev, PAGE_SIZE,
-			  hp->happy_block, hp->hblock_dvma);
-	iounmap(hp->gregs);
-	pci_release_regions(hp->happy_dev);
-
-	free_netdev(net_dev);
 }
 
 static const struct pci_device_id happymeal_pci_ids[] = {
@@ -3187,7 +3161,6 @@ static struct pci_driver hme_pci_driver = {
 	.name		= "hme",
 	.id_table	= happymeal_pci_ids,
 	.probe		= happy_meal_pci_probe,
-	.remove		= happy_meal_pci_remove,
 };
 
 static int __init happy_meal_pci_init(void)
