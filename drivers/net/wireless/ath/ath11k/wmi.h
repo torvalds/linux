@@ -2090,6 +2090,7 @@ enum wmi_tlv_service {
 	WMI_TLV_SERVICE_PER_PEER_HTT_STATS_RESET = 213,
 	WMI_TLV_SERVICE_FREQINFO_IN_METADATA = 219,
 	WMI_TLV_SERVICE_EXT2_MSG = 220,
+	WMI_TLV_SERVICE_PEER_POWER_SAVE_DURATION_SUPPORT = 246,
 	WMI_TLV_SERVICE_SRG_SRP_SPATIAL_REUSE_SUPPORT = 249,
 
 	/* The second 128 bits */
@@ -5368,6 +5369,26 @@ struct wmi_debug_log_config_cmd_fixed_param {
 
 #define WMI_SERVICE_READY_TIMEOUT_HZ (5 * HZ)
 #define WMI_SEND_TIMEOUT_HZ (3 * HZ)
+
+enum ath11k_wmi_peer_ps_state {
+	WMI_PEER_PS_STATE_OFF,
+	WMI_PEER_PS_STATE_ON,
+	WMI_PEER_PS_STATE_DISABLED,
+};
+
+enum wmi_peer_ps_supported_bitmap {
+	/* Used to indicate that power save state change is valid */
+	WMI_PEER_PS_VALID = 0x1,
+	WMI_PEER_PS_STATE_TIMESTAMP = 0x2,
+};
+
+struct wmi_peer_sta_ps_state_chg_event {
+	struct wmi_mac_addr peer_macaddr;
+	u32 peer_ps_state;
+	u32 ps_supported_bitmap;
+	u32 peer_ps_valid;
+	u32 peer_ps_timestamp;
+} __packed;
 
 struct ath11k_wmi_base {
 	struct ath11k_base *ab;

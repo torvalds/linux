@@ -1369,6 +1369,193 @@ static const struct file_operations fops_dbr_debug = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath11k_write_ps_timekeeper_enable(struct file *file,
+						 const char __user *user_buf,
+						 size_t count, loff_t *ppos)
+{
+	struct ath11k *ar = file->private_data;
+	ssize_t ret;
+	u8 ps_timekeeper_enable;
+
+	if (kstrtou8_from_user(user_buf, count, 0, &ps_timekeeper_enable))
+		return -EINVAL;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH11K_STATE_ON) {
+		ret = -ENETDOWN;
+		goto exit;
+	}
+
+	if (!ar->ps_state_enable) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	ar->ps_timekeeper_enable = !!ps_timekeeper_enable;
+	ret = count;
+exit:
+	mutex_unlock(&ar->conf_mutex);
+
+	return ret;
+}
+
+static ssize_t ath11k_read_ps_timekeeper_enable(struct file *file,
+						char __user *user_buf,
+						size_t count, loff_t *ppos)
+{
+	struct ath11k *ar = file->private_data;
+	char buf[32];
+	int len;
+
+	mutex_lock(&ar->conf_mutex);
+	len = scnprintf(buf, sizeof(buf), "%d\n", ar->ps_timekeeper_enable);
+	mutex_unlock(&ar->conf_mutex);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_ps_timekeeper_enable = {
+	.read = ath11k_read_ps_timekeeper_enable,
+	.write = ath11k_write_ps_timekeeper_enable,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static void ath11k_reset_peer_ps_duration(void *data,
+					  struct ieee80211_sta *sta)
+{
+	struct ath11k *ar = data;
+	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+
+	spin_lock_bh(&ar->data_lock);
+	arsta->ps_total_duration = 0;
+	spin_unlock_bh(&ar->data_lock);
+}
+
+static ssize_t ath11k_write_reset_ps_duration(struct file *file,
+					      const  char __user *user_buf,
+					      size_t count, loff_t *ppos)
+{
+	struct ath11k *ar = file->private_data;
+	int ret;
+	u8 reset_ps_duration;
+
+	if (kstrtou8_from_user(user_buf, count, 0, &reset_ps_duration))
+		return -EINVAL;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state != ATH11K_STATE_ON) {
+		ret = -ENETDOWN;
+		goto exit;
+	}
+
+	if (!ar->ps_state_enable) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	ieee80211_iterate_stations_atomic(ar->hw,
+					  ath11k_reset_peer_ps_duration,
+					  ar);
+
+	ret = count;
+exit:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
+}
+
+static const struct file_operations fops_reset_ps_duration = {
+	.write = ath11k_write_reset_ps_duration,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static void ath11k_peer_ps_state_disable(void *data,
+					 struct ieee80211_sta *sta)
+{
+	struct ath11k *ar = data;
+	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+
+	spin_lock_bh(&ar->data_lock);
+	arsta->peer_ps_state = WMI_PEER_PS_STATE_DISABLED;
+	arsta->ps_start_time = 0;
+	arsta->ps_total_duration = 0;
+	spin_unlock_bh(&ar->data_lock);
+}
+
+static ssize_t ath11k_write_ps_state_enable(struct file *file,
+					    const char __user *user_buf,
+					    size_t count, loff_t *ppos)
+{
+	struct ath11k *ar = file->private_data;
+	struct ath11k_pdev *pdev = ar->pdev;
+	int ret;
+	u32 param;
+	u8 ps_state_enable;
+
+	if (kstrtou8_from_user(user_buf, count, 0, &ps_state_enable))
+		return -EINVAL;
+
+	mutex_lock(&ar->conf_mutex);
+
+	ps_state_enable = !!ps_state_enable;
+
+	if (ar->ps_state_enable == ps_state_enable) {
+		ret = count;
+		goto exit;
+	}
+
+	param = WMI_PDEV_PEER_STA_PS_STATECHG_ENABLE;
+	ret = ath11k_wmi_pdev_set_param(ar, param, ps_state_enable, pdev->pdev_id);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to enable ps_state_enable: %d\n",
+			    ret);
+		goto exit;
+	}
+	ar->ps_state_enable = ps_state_enable;
+
+	if (!ar->ps_state_enable) {
+		ar->ps_timekeeper_enable = false;
+		ieee80211_iterate_stations_atomic(ar->hw,
+						  ath11k_peer_ps_state_disable,
+						  ar);
+	}
+
+	ret = count;
+
+exit:
+	mutex_unlock(&ar->conf_mutex);
+
+	return ret;
+}
+
+static ssize_t ath11k_read_ps_state_enable(struct file *file,
+					   char __user *user_buf,
+					   size_t count, loff_t *ppos)
+{
+	struct ath11k *ar = file->private_data;
+	char buf[32];
+	int len;
+
+	mutex_lock(&ar->conf_mutex);
+	len = scnprintf(buf, sizeof(buf), "%d\n", ar->ps_state_enable);
+	mutex_unlock(&ar->conf_mutex);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_ps_state_enable = {
+	.read = ath11k_read_ps_state_enable,
+	.write = ath11k_write_ps_state_enable,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int ath11k_debugfs_register(struct ath11k *ar)
 {
 	struct ath11k_base *ab = ar->ab;
@@ -1414,6 +1601,20 @@ int ath11k_debugfs_register(struct ath11k *ar)
 	if (ab->hw_params.dbr_debug_support)
 		debugfs_create_file("enable_dbr_debug", 0200, ar->debug.debugfs_pdev,
 				    ar, &fops_dbr_debug);
+
+	debugfs_create_file("ps_state_enable", 0600, ar->debug.debugfs_pdev, ar,
+			    &fops_ps_state_enable);
+
+	if (test_bit(WMI_TLV_SERVICE_PEER_POWER_SAVE_DURATION_SUPPORT,
+		     ar->ab->wmi_ab.svc_map)) {
+		debugfs_create_file("ps_timekeeper_enable", 0600,
+				    ar->debug.debugfs_pdev, ar,
+				    &fops_ps_timekeeper_enable);
+
+		debugfs_create_file("reset_ps_duration", 0200,
+				    ar->debug.debugfs_pdev, ar,
+				    &fops_reset_ps_duration);
+	}
 
 	return 0;
 }
