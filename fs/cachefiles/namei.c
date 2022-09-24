@@ -460,31 +460,27 @@ struct file *cachefiles_create_tmpfile(struct cachefiles_object *object)
 
 	path.mnt = cache->mnt;
 	ret = cachefiles_inject_write_error();
-	if (ret == 0)
+	if (ret == 0) {
 		path.dentry = vfs_tmpfile(&init_user_ns, fan, S_IFREG, O_RDWR);
-	else
-		path.dentry = ERR_PTR(ret);
-	if (IS_ERR(path.dentry)) {
-		trace_cachefiles_vfs_error(object, d_inode(fan), PTR_ERR(path.dentry),
+		ret = PTR_ERR_OR_ZERO(path.dentry);
+	}
+	if (ret) {
+		trace_cachefiles_vfs_error(object, d_inode(fan), ret,
 					   cachefiles_trace_tmpfile_error);
-		if (PTR_ERR(path.dentry) == -EIO)
+		if (ret == -EIO)
 			cachefiles_io_error_obj(object, "Failed to create tmpfile");
-		file = ERR_CAST(path.dentry);
-		goto out;
+		goto err;
 	}
 
 	trace_cachefiles_tmpfile(object, d_backing_inode(path.dentry));
 
-	if (!cachefiles_mark_inode_in_use(object, path.dentry)) {
-		file = ERR_PTR(-EBUSY);
-		goto out_dput;
-	}
+	ret = -EBUSY;
+	if (!cachefiles_mark_inode_in_use(object, path.dentry))
+		goto err_dput;
 
 	ret = cachefiles_ondemand_init_object(object);
-	if (ret < 0) {
-		file = ERR_PTR(ret);
-		goto out_unuse;
-	}
+	if (ret < 0)
+		goto err_unuse;
 
 	ni_size = object->cookie->object_size;
 	ni_size = round_up(ni_size, CACHEFILES_DIO_BLOCK_SIZE);
@@ -499,36 +495,37 @@ struct file *cachefiles_create_tmpfile(struct cachefiles_object *object)
 			trace_cachefiles_vfs_error(
 				object, d_backing_inode(path.dentry), ret,
 				cachefiles_trace_trunc_error);
-			file = ERR_PTR(ret);
-			goto out_unuse;
+			goto err_unuse;
 		}
 	}
 
 	file = open_with_fake_path(&path, O_RDWR | O_LARGEFILE | O_DIRECT,
 				   d_backing_inode(path.dentry), cache->cache_cred);
+	ret = PTR_ERR(file);
 	if (IS_ERR(file)) {
 		trace_cachefiles_vfs_error(object, d_backing_inode(path.dentry),
-					   PTR_ERR(file),
-					   cachefiles_trace_open_error);
-		goto out_unuse;
+					   ret, cachefiles_trace_open_error);
+		goto err_unuse;
 	}
+	ret = -EINVAL;
 	if (unlikely(!file->f_op->read_iter) ||
 	    unlikely(!file->f_op->write_iter)) {
 		fput(file);
 		pr_notice("Cache does not support read_iter and write_iter\n");
-		file = ERR_PTR(-EINVAL);
-		goto out_unuse;
+		goto err_unuse;
 	}
-
-	goto out_dput;
-
-out_unuse:
-	cachefiles_do_unmark_inode_in_use(object, path.dentry);
-out_dput:
 	dput(path.dentry);
 out:
 	cachefiles_end_secure(cache, saved_cred);
 	return file;
+
+err_unuse:
+	cachefiles_do_unmark_inode_in_use(object, path.dentry);
+err_dput:
+	dput(path.dentry);
+err:
+	file = ERR_PTR(ret);
+	goto out;
 }
 
 /*
