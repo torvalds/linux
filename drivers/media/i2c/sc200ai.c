@@ -1360,6 +1360,13 @@ static int __sc200ai_start_stream(struct sc200ai *sc200ai)
 {
 	int ret;
 
+	dev_info(&sc200ai->client->dev,
+		 "%dx%d@%d, mode %d, vts 0x%x\n",
+		 sc200ai->cur_mode->width,
+		 sc200ai->cur_mode->height,
+		 sc200ai->cur_fps.denominator / sc200ai->cur_fps.numerator,
+		 sc200ai->cur_mode->hdr_mode,
+		 sc200ai->cur_vts);
 	if (!sc200ai->is_thunderboot) {
 		ret = sc200ai_write_array(sc200ai->client, sc200ai->cur_mode->reg_list);
 		if (ret)
@@ -1667,8 +1674,8 @@ static void sc200ai_modify_fps_info(struct sc200ai *sc200ai)
 {
 	const struct sc200ai_mode *mode = sc200ai->cur_mode;
 
-	sc200ai->cur_fps.denominator = mode->max_fps.denominator * sc200ai->cur_vts /
-				       mode->vts_def;
+	sc200ai->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def/
+				       sc200ai->cur_vts;
 }
 
 static int sc200ai_set_ctrl(struct v4l2_ctrl *ctrl)
@@ -1799,7 +1806,9 @@ static int sc200ai_initialize_controls(struct sc200ai *sc200ai)
 					    h_blank, h_blank, 1, h_blank);
 	if (sc200ai->hblank)
 		sc200ai->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	sc200ai->cur_fps = mode->max_fps;
 	vblank_def = mode->vts_def - mode->height;
+	sc200ai->cur_vts = mode->vts_def;
 	sc200ai->vblank = v4l2_ctrl_new_std(handler, &sc200ai_ctrl_ops,
 					    V4L2_CID_VBLANK, vblank_def,
 					    SC200AI_VTS_MAX - mode->height,
@@ -1833,8 +1842,6 @@ static int sc200ai_initialize_controls(struct sc200ai *sc200ai)
 
 	sc200ai->subdev.ctrl_handler = handler;
 	sc200ai->has_init_exp = false;
-	sc200ai->cur_fps = mode->max_fps;
-	sc200ai->cur_vts = mode->vts_def;
 
 	return 0;
 
@@ -1880,6 +1887,132 @@ static int sc200ai_configure_regulators(struct sc200ai *sc200ai)
 				       sc200ai->supplies);
 }
 
+#ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP
+static u32 rk_cam_hdr;
+static u32 rk_cam_w;
+static u32 rk_cam_h;
+static u32 rk_cam_fps;
+
+static int __init __maybe_unused rk_cam_hdr_setup(char *str)
+{
+	int ret = 0;
+	unsigned long val = 0;
+
+	ret = kstrtoul(str, 0, &val);
+	if (!ret)
+		rk_cam_hdr = (u32)val;
+	else
+		pr_err("get rk_cam_hdr fail\n");
+	return 1;
+}
+
+static int __init __maybe_unused rk_cam_w_setup(char *str)
+{
+	int ret = 0;
+	unsigned long val = 0;
+
+	ret = kstrtoul(str, 0, &val);
+	if (!ret)
+		rk_cam_w = (u32)val;
+	else
+		pr_err("get rk_cam_w fail\n");
+	return 1;
+}
+
+static int __init __maybe_unused rk_cam_h_setup(char *str)
+{
+	int ret = 0;
+	unsigned long val = 0;
+
+	ret = kstrtoul(str, 0, &val);
+	if (!ret)
+		rk_cam_h = (u32)val;
+	else
+		pr_err("get rk_cam_h fail\n");
+	return 1;
+}
+
+static int __init __maybe_unused rk_cam_fps_setup(char *str)
+{
+	int ret = 0;
+	unsigned long val = 0;
+
+	ret = kstrtoul(str, 0, &val);
+	if (!ret)
+		rk_cam_fps = (u32)val;
+	else
+		pr_err("get rk_cam_fps fail\n");
+	return 1;
+}
+
+__setup("rk_cam_hdr=", rk_cam_hdr_setup);
+__setup("rk_cam_w=", rk_cam_w_setup);
+__setup("rk_cam_h=", rk_cam_h_setup);
+__setup("rk_cam_fps", rk_cam_fps_setup);
+
+static void find_terminal_resolution(struct sc200ai *sc200ai)
+{
+	int i = 0;
+	const struct sc200ai_mode *mode = NULL;
+	const struct sc200ai_mode *fit_mode = NULL;
+	u32 cur_fps = 0;
+	u32 dst_fps = 0;
+	u32 tmp_fps = 0;
+
+	if (rk_cam_w == 0 || rk_cam_h == 0 ||
+	    rk_cam_fps == 0)
+		goto err_find_res;
+
+	dst_fps = rk_cam_fps;
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		mode = &supported_modes[i];
+		cur_fps = mode->max_fps.denominator / mode->max_fps.numerator;
+		if (mode->width == rk_cam_w && mode->height == rk_cam_h &&
+		    mode->hdr_mode == rk_cam_hdr) {
+			if (cur_fps == dst_fps) {
+				sc200ai->cur_mode = mode;
+				return;
+			}
+			if (cur_fps >= dst_fps) {
+				if (fit_mode) {
+					tmp_fps = fit_mode->max_fps.denominator / fit_mode->max_fps.numerator;
+					if (tmp_fps - dst_fps > cur_fps - dst_fps)
+						fit_mode = mode;
+				} else {
+					fit_mode = mode;
+				}
+			}
+		}
+	}
+	if (fit_mode) {
+		sc200ai->cur_mode = fit_mode;
+		return;
+	}
+err_find_res:
+	dev_err(&sc200ai->client->dev, "not match %dx%d@%dfps mode %d\n!",
+		rk_cam_w, rk_cam_h, dst_fps, rk_cam_hdr);
+	sc200ai->cur_mode = &supported_modes[0];
+}
+#else
+static void find_terminal_resolution(struct sc200ai *sc200ai)
+{
+	u32 hdr_mode = 0;
+	struct device_node *node = sc200ai->client->dev.of_node;
+	int i = 0;
+
+	of_property_read_u32(node, OF_CAMERA_HDR_MODE, &hdr_mode);
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		if (hdr_mode == supported_modes[i].hdr_mode) {
+			sc200ai->cur_mode = &supported_modes[i];
+			break;
+		}
+	}
+	if (i == ARRAY_SIZE(supported_modes))
+		sc200ai->cur_mode = &supported_modes[0];
+
+}
+#endif
+
 static int sc200ai_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -1889,7 +2022,6 @@ static int sc200ai_probe(struct i2c_client *client,
 	struct v4l2_subdev *sd;
 	char facing[2];
 	int ret;
-	u32 i, hdr_mode = 0;
 
 	dev_info(dev, "driver version: %02x.%02x.%02x",
 		 DRIVER_VERSION >> 16,
@@ -1900,7 +2032,6 @@ static int sc200ai_probe(struct i2c_client *client,
 	if (!sc200ai)
 		return -ENOMEM;
 
-	of_property_read_u32(node, OF_CAMERA_HDR_MODE, &hdr_mode);
 	ret = of_property_read_u32(node, RKMODULE_CAMERA_MODULE_INDEX,
 				   &sc200ai->module_index);
 	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_FACING,
@@ -1916,14 +2047,8 @@ static int sc200ai_probe(struct i2c_client *client,
 
 	sc200ai->is_thunderboot = IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP);
 	sc200ai->client = client;
-	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
-		if (hdr_mode == supported_modes[i].hdr_mode) {
-			sc200ai->cur_mode = &supported_modes[i];
-			break;
-		}
-	}
-	if (i == ARRAY_SIZE(supported_modes))
-		sc200ai->cur_mode = &supported_modes[0];
+
+	find_terminal_resolution(sc200ai);
 
 	sc200ai->xvclk = devm_clk_get(dev, "xvclk");
 	if (IS_ERR(sc200ai->xvclk)) {
