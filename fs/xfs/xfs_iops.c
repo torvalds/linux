@@ -167,7 +167,7 @@ xfs_generic_create(
 	struct dentry	*dentry,
 	umode_t		mode,
 	dev_t		rdev,
-	bool		tmpfile)	/* unnamed file */
+	struct file	*tmpfile)	/* unnamed file */
 {
 	struct inode	*inode;
 	struct xfs_inode *ip = NULL;
@@ -234,7 +234,7 @@ xfs_generic_create(
 		 * d_tmpfile can immediately set it back to zero.
 		 */
 		set_nlink(inode, 1);
-		d_tmpfile(dentry, inode);
+		d_tmpfile(tmpfile, inode);
 	} else
 		d_instantiate(dentry, inode);
 
@@ -261,7 +261,7 @@ xfs_vn_mknod(
 	umode_t			mode,
 	dev_t			rdev)
 {
-	return xfs_generic_create(mnt_userns, dir, dentry, mode, rdev, false);
+	return xfs_generic_create(mnt_userns, dir, dentry, mode, rdev, NULL);
 }
 
 STATIC int
@@ -272,7 +272,7 @@ xfs_vn_create(
 	umode_t			mode,
 	bool			flags)
 {
-	return xfs_generic_create(mnt_userns, dir, dentry, mode, 0, false);
+	return xfs_generic_create(mnt_userns, dir, dentry, mode, 0, NULL);
 }
 
 STATIC int
@@ -283,7 +283,7 @@ xfs_vn_mkdir(
 	umode_t			mode)
 {
 	return xfs_generic_create(mnt_userns, dir, dentry, mode | S_IFDIR, 0,
-				  false);
+				  NULL);
 }
 
 STATIC struct dentry *
@@ -1080,10 +1080,12 @@ STATIC int
 xfs_vn_tmpfile(
 	struct user_namespace	*mnt_userns,
 	struct inode		*dir,
-	struct dentry		*dentry,
+	struct file		*file,
 	umode_t			mode)
 {
-	return xfs_generic_create(mnt_userns, dir, dentry, mode, 0, true);
+	int err = xfs_generic_create(mnt_userns, dir, file->f_path.dentry, mode, 0, file);
+
+	return finish_open_simple(file, err);
 }
 
 static const struct inode_operations xfs_inode_operations = {

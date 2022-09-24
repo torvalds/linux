@@ -2912,7 +2912,7 @@ out_iput:
 
 static int
 shmem_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
-	      struct dentry *dentry, umode_t mode)
+	      struct file *file, umode_t mode)
 {
 	struct inode *inode;
 	int error = -ENOSPC;
@@ -2927,9 +2927,9 @@ shmem_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
 		error = simple_acl_create(dir, inode);
 		if (error)
 			goto out_iput;
-		d_tmpfile(dentry, inode);
+		d_tmpfile(file, inode);
 	}
-	return error;
+	return finish_open_simple(file, error);
 out_iput:
 	iput(inode);
 	return error;

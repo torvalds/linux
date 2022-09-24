@@ -917,7 +917,7 @@ static int hugetlbfs_create(struct user_namespace *mnt_userns,
 }
 
 static int hugetlbfs_tmpfile(struct user_namespace *mnt_userns,
-			     struct inode *dir, struct dentry *dentry,
+			     struct inode *dir, struct file *file,
 			     umode_t mode)
 {
 	struct inode *inode;
@@ -926,8 +926,8 @@ static int hugetlbfs_tmpfile(struct user_namespace *mnt_userns,
 	if (!inode)
 		return -ENOSPC;
 	dir->i_ctime = dir->i_mtime = current_time(dir);
-	d_tmpfile(dentry, inode);
-	return 0;
+	d_tmpfile(file, inode);
+	return finish_open_simple(file, 0);
 }
 
 static int hugetlbfs_symlink(struct user_namespace *mnt_userns,

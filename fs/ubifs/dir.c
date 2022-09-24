@@ -424,8 +424,9 @@ static void unlock_2_inodes(struct inode *inode1, struct inode *inode2)
 }
 
 static int ubifs_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
-			 struct dentry *dentry, umode_t mode)
+			 struct file *file, umode_t mode)
 {
+	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode;
 	struct ubifs_info *c = dir->i_sb->s_fs_info;
 	struct ubifs_budget_req req = { .new_ino = 1, .new_dent = 1,
@@ -475,7 +476,7 @@ static int ubifs_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
 
 	mutex_lock(&ui->ui_mutex);
 	insert_inode_hash(inode);
-	d_tmpfile(dentry, inode);
+	d_tmpfile(file, inode);
 	ubifs_assert(c, ui->dirty);
 
 	instantiated = 1;
@@ -489,7 +490,7 @@ static int ubifs_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
 
 	ubifs_release_budget(c, &req);
 
-	return 0;
+	return finish_open_simple(file, 0);
 
 out_cancel:
 	unlock_2_inodes(dir, inode);

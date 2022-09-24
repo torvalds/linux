@@ -10168,7 +10168,7 @@ static int btrfs_permission(struct user_namespace *mnt_userns,
 }
 
 static int btrfs_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
-			 struct dentry *dentry, umode_t mode)
+			 struct file *file, umode_t mode)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(dir->i_sb);
 	struct btrfs_trans_handle *trans;
@@ -10176,7 +10176,7 @@ static int btrfs_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
 	struct inode *inode;
 	struct btrfs_new_inode_args new_inode_args = {
 		.dir = dir,
-		.dentry = dentry,
+		.dentry = file->f_path.dentry,
 		.orphan = true,
 	};
 	unsigned int trans_num_items;
@@ -10213,7 +10213,7 @@ static int btrfs_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
 	set_nlink(inode, 1);
 
 	if (!ret) {
-		d_tmpfile(dentry, inode);
+		d_tmpfile(file, inode);
 		unlock_new_inode(inode);
 		mark_inode_dirty(inode);
 	}
@@ -10225,7 +10225,7 @@ out_new_inode_args:
 out_inode:
 	if (ret)
 		iput(inode);
-	return ret;
+	return finish_open_simple(file, ret);
 }
 
 void btrfs_set_range_writeback(struct btrfs_inode *inode, u64 start, u64 end)
