@@ -1039,8 +1039,7 @@ static int __trace_eprobe_create(int argc, const char *argv[])
 	}
 
 	if (!event) {
-		strscpy(buf1, argv[1], MAX_EVENT_NAME_LEN);
-		sanitize_event_name(buf1);
+		strscpy(buf1, sys_event, MAX_EVENT_NAME_LEN);
 		event = buf1;
 	}
 
