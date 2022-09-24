@@ -2498,18 +2498,16 @@ static struct quattro *quattro_sbus_find(struct platform_device *child)
 		return qp;
 
 	qp = kmalloc(sizeof(struct quattro), GFP_KERNEL);
-	if (qp != NULL) {
-		int i;
+	if (!qp)
+		return NULL;
 
-		for (i = 0; i < 4; i++)
-			qp->happy_meals[i] = NULL;
+	memset(qp->happy_meals, 0, sizeof(*qp->happy_meals));
 
-		qp->quattro_dev = child;
-		qp->next = qfe_sbus_list;
-		qfe_sbus_list = qp;
+	qp->quattro_dev = child;
+	qp->next = qfe_sbus_list;
+	qfe_sbus_list = qp;
 
-		platform_set_drvdata(op, qp);
-	}
+	platform_set_drvdata(op, qp);
 	return qp;
 }
 
@@ -2569,30 +2567,33 @@ static void quattro_sbus_free_irqs(void)
 #ifdef CONFIG_PCI
 static struct quattro *quattro_pci_find(struct pci_dev *pdev)
 {
+	int i;
 	struct pci_dev *bdev = pdev->bus->self;
 	struct quattro *qp;
 
-	if (!bdev) return NULL;
+	if (!bdev)
+		return ERR_PTR(-ENODEV);
+
 	for (qp = qfe_pci_list; qp != NULL; qp = qp->next) {
 		struct pci_dev *qpdev = qp->quattro_dev;
 
 		if (qpdev == bdev)
 			return qp;
 	}
+
 	qp = kmalloc(sizeof(struct quattro), GFP_KERNEL);
-	if (qp != NULL) {
-		int i;
+	if (!qp)
+		return ERR_PTR(-ENOMEM);
 
-		for (i = 0; i < 4; i++)
-			qp->happy_meals[i] = NULL;
+	for (i = 0; i < 4; i++)
+		qp->happy_meals[i] = NULL;
 
-		qp->quattro_dev = bdev;
-		qp->next = qfe_pci_list;
-		qfe_pci_list = qp;
+	qp->quattro_dev = bdev;
+	qp->next = qfe_pci_list;
+	qfe_pci_list = qp;
 
-		/* No range tricks necessary on PCI. */
-		qp->nranges = 0;
-	}
+	/* No range tricks necessary on PCI. */
+	qp->nranges = 0;
 	return qp;
 }
 #endif /* CONFIG_PCI */
@@ -2948,11 +2949,15 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 
 	if (!strcmp(prom_name, "SUNW,qfe") || !strcmp(prom_name, "qfe")) {
 		qp = quattro_pci_find(pdev);
-		if (qp == NULL)
+		if (IS_ERR(qp)) {
+			err = PTR_ERR(qp);
 			goto err_out;
+		}
+
 		for (qfe_slot = 0; qfe_slot < 4; qfe_slot++)
-			if (qp->happy_meals[qfe_slot] == NULL)
+			if (!qp->happy_meals[qfe_slot])
 				break;
+
 		if (qfe_slot == 4)
 			goto err_out;
 	}
