@@ -183,6 +183,56 @@ static void ipa_teardown(struct ipa *ipa)
 	gsi_teardown(&ipa->gsi);
 }
 
+static void
+ipa_hardware_config_bcr(struct ipa *ipa, const struct ipa_data *data)
+{
+	u32 val;
+
+	/* IPA v4.5+ has no backward compatibility register */
+	if (ipa->version >= IPA_VERSION_4_5)
+		return;
+
+	val = data->backward_compat;
+	iowrite32(val, ipa->reg_virt + IPA_REG_BCR_OFFSET);
+}
+
+static void ipa_hardware_config_tx(struct ipa *ipa)
+{
+	enum ipa_version version = ipa->version;
+	u32 val;
+
+	if (version <= IPA_VERSION_4_0 || version >= IPA_VERSION_4_5)
+		return;
+
+	/* Disable PA mask to allow HOLB drop */
+	val = ioread32(ipa->reg_virt + IPA_REG_TX_CFG_OFFSET);
+
+	val &= ~PA_MASK_EN_FMASK;
+
+	iowrite32(val, ipa->reg_virt + IPA_REG_TX_CFG_OFFSET);
+}
+
+static void ipa_hardware_config_clkon(struct ipa *ipa)
+{
+	enum ipa_version version = ipa->version;
+	u32 val;
+
+	if (version < IPA_VERSION_3_1 || version >= IPA_VERSION_4_5)
+		return;
+
+	/* Implement some hardware workarounds */
+	if (version >= IPA_VERSION_4_0) {
+		/* Enable open global clocks in the CLKON configuration */
+		val = GLOBAL_FMASK | GLOBAL_2X_CLK_FMASK;
+	} else if (version == IPA_VERSION_3_1) {
+		val = MISC_FMASK;	/* Disable MISC clock gating */
+	} else {
+		return;
+	}
+
+	iowrite32(val, ipa->reg_virt + IPA_REG_CLKON_CFG_OFFSET);
+}
+
 /* Configure bus access behavior for IPA components */
 static void ipa_hardware_config_comp(struct ipa *ipa)
 {
@@ -306,6 +356,39 @@ static void ipa_qtime_config(struct ipa *ipa)
 	iowrite32(val, ipa->reg_virt + IPA_REG_TIMERS_XO_CLK_DIV_CFG_OFFSET);
 }
 
+/* Before IPA v4.5 timing is controlled by a counter register */
+static void ipa_hardware_config_counter(struct ipa *ipa)
+{
+	u32 granularity;
+	u32 val;
+
+	granularity = ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY);
+
+	val = u32_encode_bits(granularity, AGGR_GRANULARITY_FMASK);
+
+	iowrite32(val, ipa->reg_virt + IPA_REG_COUNTER_CFG_OFFSET);
+}
+
+static void ipa_hardware_config_timing(struct ipa *ipa)
+{
+	if (ipa->version < IPA_VERSION_4_5)
+		ipa_hardware_config_counter(ipa);
+	else
+		ipa_qtime_config(ipa);
+}
+
+static void ipa_hardware_config_hashing(struct ipa *ipa)
+{
+	u32 offset;
+
+	if (ipa->version != IPA_VERSION_4_2)
+		return;
+
+	/* IPA v4.2 does not support hashed tables, so disable them */
+	offset = ipa_reg_filt_rout_hash_en_offset(IPA_VERSION_4_2);
+	iowrite32(0, ipa->reg_virt + offset);
+}
+
 static void ipa_idle_indication_cfg(struct ipa *ipa,
 				    u32 enter_idle_debounce_thresh,
 				    bool const_non_idle_enable)
@@ -349,55 +432,13 @@ static void ipa_hardware_dcd_deconfig(struct ipa *ipa)
  */
 static void ipa_hardware_config(struct ipa *ipa, const struct ipa_data *data)
 {
-	enum ipa_version version = ipa->version;
-	u32 granularity;
-	u32 val;
-
-	/* IPA v4.5+ has no backward compatibility register */
-	if (version < IPA_VERSION_4_5) {
-		val = data->backward_compat;
-		iowrite32(val, ipa->reg_virt + IPA_REG_BCR_OFFSET);
-	}
-
-	/* Implement some hardware workarounds */
-	if (version >= IPA_VERSION_4_0 && version < IPA_VERSION_4_5) {
-		/* Disable PA mask to allow HOLB drop */
-		val = ioread32(ipa->reg_virt + IPA_REG_TX_CFG_OFFSET);
-		val &= ~PA_MASK_EN_FMASK;
-		iowrite32(val, ipa->reg_virt + IPA_REG_TX_CFG_OFFSET);
-
-		/* Enable open global clocks in the CLKON configuration */
-		val = GLOBAL_FMASK | GLOBAL_2X_CLK_FMASK;
-	} else if (version == IPA_VERSION_3_1) {
-		val = MISC_FMASK;	/* Disable MISC clock gating */
-	} else {
-		val = 0;		/* No CLKON configuration needed */
-	}
-	if (val)
-		iowrite32(val, ipa->reg_virt + IPA_REG_CLKON_CFG_OFFSET);
-
+	ipa_hardware_config_bcr(ipa, data);
+	ipa_hardware_config_tx(ipa);
+	ipa_hardware_config_clkon(ipa);
 	ipa_hardware_config_comp(ipa);
-
-	/* Configure system bus limits */
 	ipa_hardware_config_qsb(ipa, data);
-
-	if (version < IPA_VERSION_4_5) {
-		/* Configure aggregation timer granularity */
-		granularity = ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY);
-		val = u32_encode_bits(granularity, AGGR_GRANULARITY_FMASK);
-		iowrite32(val, ipa->reg_virt + IPA_REG_COUNTER_CFG_OFFSET);
-	} else {
-		ipa_qtime_config(ipa);
-	}
-
-	/* IPA v4.2 does not support hashed tables, so disable them */
-	if (version == IPA_VERSION_4_2) {
-		u32 offset = ipa_reg_filt_rout_hash_en_offset(version);
-
-		iowrite32(0, ipa->reg_virt + offset);
-	}
-
-	/* Enable dynamic clock division */
+	ipa_hardware_config_timing(ipa);
+	ipa_hardware_config_hashing(ipa);
 	ipa_hardware_dcd_config(ipa);
 }
 

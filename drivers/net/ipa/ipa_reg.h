@@ -220,20 +220,18 @@ static inline u32 ipa_reg_state_aggr_active_offset(enum ipa_version version)
 
 /* The next register is not present for IPA v4.5+ */
 #define IPA_REG_BCR_OFFSET				0x000001d0
-/* The next two fields are not present for IPA v4.2+ */
-#define BCR_CMDQ_L_LACK_ONE_ENTRY_FMASK		GENMASK(0, 0)
-#define BCR_TX_NOT_USING_BRESP_FMASK		GENMASK(1, 1)
-/* The next field is invalid for IPA v4.0+ */
-#define BCR_TX_SUSPEND_IRQ_ASSERT_ONCE_FMASK	GENMASK(2, 2)
-/* The next two fields are not present for IPA v4.2+ */
-#define BCR_SUSPEND_L2_IRQ_FMASK		GENMASK(3, 3)
-#define BCR_HOLB_DROP_L2_IRQ_FMASK		GENMASK(4, 4)
-/* The next five fields are present for IPA v3.5+ */
-#define BCR_DUAL_TX_FMASK			GENMASK(5, 5)
-#define BCR_ENABLE_FILTER_DATA_CACHE_FMASK	GENMASK(6, 6)
-#define BCR_NOTIF_PRIORITY_OVER_ZLT_FMASK	GENMASK(7, 7)
-#define BCR_FILTER_PREFETCH_EN_FMASK		GENMASK(8, 8)
-#define BCR_ROUTER_PREFETCH_EN_FMASK		GENMASK(9, 9)
+enum ipa_bcr_compat {
+	BCR_CMDQ_L_LACK_ONE_ENTRY		= 0x0,	/* Not IPA v4.2+ */
+	BCR_TX_NOT_USING_BRESP			= 0x1,	/* Not IPA v4.2+ */
+	BCR_TX_SUSPEND_IRQ_ASSERT_ONCE		= 0x2,	/* Not IPA v4.0+ */
+	BCR_SUSPEND_L2_IRQ			= 0x3,	/* Not IPA v4.2+ */
+	BCR_HOLB_DROP_L2_IRQ			= 0x4,	/* Not IPA v4.2+ */
+	BCR_DUAL_TX				= 0x5,	/* IPA v3.5+ */
+	BCR_ENABLE_FILTER_DATA_CACHE		= 0x6,	/* IPA v3.5+ */
+	BCR_NOTIF_PRIORITY_OVER_ZLT		= 0x7,	/* IPA v3.5+ */
+	BCR_FILTER_PREFETCH_EN			= 0x8,	/* IPA v3.5+ */
+	BCR_ROUTER_PREFETCH_EN			= 0x9,	/* IPA v3.5+ */
+};
 
 /* The value of the next register must be a multiple of 8 (bottom 3 bits 0) */
 #define IPA_REG_LOCAL_PKT_PROC_CNTXT_OFFSET		0x000001e8
@@ -365,10 +363,10 @@ enum ipa_pulse_gran {
 
 /** enum ipa_cs_offload_en - ENDP_INIT_CFG register CS_OFFLOAD_EN field value */
 enum ipa_cs_offload_en {
-	IPA_CS_OFFLOAD_NONE		= 0x0,
-	IPA_CS_OFFLOAD_UL		= 0x1,	/* Before IPA v4.5 (TX) */
-	IPA_CS_OFFLOAD_DL		= 0x2,	/* Before IPA v4.5 (RX) */
-	IPA_CS_OFFLOAD_INLINE		= 0x1,	/* IPA v4.5 (TX and RX) */
+	IPA_CS_OFFLOAD_NONE			= 0x0,
+	IPA_CS_OFFLOAD_UL	/* TX */	= 0x1,	/* Not IPA v4.5+ */
+	IPA_CS_OFFLOAD_DL	/* RX */	= 0x2,	/* Not IPA v4.5+ */
+	IPA_CS_OFFLOAD_INLINE	/* TX and RX */	= 0x1,	/* IPA v4.5+ */
 };
 
 /* Valid only for TX (IPA consumer) endpoints */
@@ -378,9 +376,9 @@ enum ipa_cs_offload_en {
 
 /** enum ipa_nat_en - ENDP_INIT_NAT register NAT_EN field value */
 enum ipa_nat_en {
-	IPA_NAT_BYPASS			= 0x0,
-	IPA_NAT_SRC			= 0x1,
-	IPA_NAT_DST			= 0x2,
+	IPA_NAT_BYPASS				= 0x0,
+	IPA_NAT_SRC				= 0x1,
+	IPA_NAT_DST				= 0x2,
 };
 
 #define IPA_REG_ENDP_INIT_HDR_N_OFFSET(ep) \
@@ -474,10 +472,10 @@ static inline u32 ipa_metadata_offset_encoded(enum ipa_version version,
 
 /** enum ipa_mode - ENDP_INIT_MODE register MODE field value */
 enum ipa_mode {
-	IPA_BASIC			= 0x0,
-	IPA_ENABLE_FRAMING_HDLC		= 0x1,
-	IPA_ENABLE_DEFRAMING_HDLC	= 0x2,
-	IPA_DMA				= 0x3,
+	IPA_BASIC				= 0x0,
+	IPA_ENABLE_FRAMING_HDLC			= 0x1,
+	IPA_ENABLE_DEFRAMING_HDLC		= 0x2,
+	IPA_DMA					= 0x3,
 };
 
 #define IPA_REG_ENDP_INIT_AGGR_N_OFFSET(ep) \
@@ -526,20 +524,20 @@ static inline u32 aggr_hard_byte_limit_enable_fmask(bool legacy)
 
 /** enum ipa_aggr_en - ENDP_INIT_AGGR register AGGR_EN field value */
 enum ipa_aggr_en {
-	IPA_BYPASS_AGGR			= 0x0,	/* (TX, RX) */
-	IPA_ENABLE_AGGR			= 0x1,	/* (RX) */
-	IPA_ENABLE_DEAGGR		= 0x2,	/* (TX) */
+	IPA_BYPASS_AGGR		/* TX and RX */	= 0x0,
+	IPA_ENABLE_AGGR		/* RX */	= 0x1,
+	IPA_ENABLE_DEAGGR	/* TX */	= 0x2,
 };
 
 /** enum ipa_aggr_type - ENDP_INIT_AGGR register AGGR_TYPE field value */
 enum ipa_aggr_type {
-	IPA_MBIM_16			= 0x0,
-	IPA_HDLC			= 0x1,
-	IPA_TLP				= 0x2,
-	IPA_RNDIS			= 0x3,
-	IPA_GENERIC			= 0x4,
-	IPA_COALESCE			= 0x5,
-	IPA_QCMAP			= 0x6,
+	IPA_MBIM_16				= 0x0,
+	IPA_HDLC				= 0x1,
+	IPA_TLP					= 0x2,
+	IPA_RNDIS				= 0x3,
+	IPA_GENERIC				= 0x4,
+	IPA_COALESCE				= 0x5,
+	IPA_QCMAP				= 0x6,
 };
 
 /* Valid only for RX (IPA producer) endpoints */
