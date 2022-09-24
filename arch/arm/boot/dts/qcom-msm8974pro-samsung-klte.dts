@@ -8,6 +8,7 @@
 / {
 	model = "Samsung Galaxy S5";
 	compatible = "samsung,klte", "qcom,msm8974";
+	chassis-type = "handset";
 
 	aliases {
 		serial0 = &blsp1_uart1;

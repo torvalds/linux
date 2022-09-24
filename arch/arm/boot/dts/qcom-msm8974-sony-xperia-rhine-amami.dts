@@ -4,6 +4,7 @@
 / {
 	model = "Sony Xperia Z1 Compact";
 	compatible = "sony,xperia-amami", "qcom,msm8974";
+	chassis-type = "handset";
 };
 
 &smbb {

@@ -9,6 +9,7 @@
 / {
 	model = "LGE MSM 8974 HAMMERHEAD";
 	compatible = "lge,hammerhead", "qcom,msm8974";
+	chassis-type = "handset";
 
 	aliases {
 		serial0 = &blsp1_uart1;

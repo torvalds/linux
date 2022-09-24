@@ -8,6 +8,7 @@
 / {
 	model = "Sony Xperia Z";
 	compatible = "sony,xperia-yuga", "qcom,apq8064";
+	chassis-type = "handset";
 
 	aliases {
 		serial0 = &gsbi5_serial;

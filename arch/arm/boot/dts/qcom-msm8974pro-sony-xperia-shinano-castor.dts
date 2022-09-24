@@ -9,6 +9,7 @@
 / {
 	model = "Sony Xperia Z2 Tablet";
 	compatible = "sony,xperia-castor", "qcom,msm8974";
+	chassis-type = "tablet";
 
 	aliases {
 		serial0 = &blsp1_uart2;

@@ -6,6 +6,7 @@
 / {
 	model = "Asus Nexus7(flo)";
 	compatible = "asus,nexus7-flo", "qcom,apq8064";
+	chassis-type = "tablet";
 
 	aliases {
 		serial0 = &gsbi7_serial;
