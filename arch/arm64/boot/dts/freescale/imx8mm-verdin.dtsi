@@ -367,8 +367,8 @@
 				nxp,dvs-standby-voltage = <850000>;
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-max-microvolt = <950000>;
-				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <1050000>;
+				regulator-min-microvolt = <805000>;
 				regulator-name = "On-module +VDD_ARM (BUCK2)";
 				regulator-ramp-delay = <3125>;
 			};
@@ -376,8 +376,8 @@
 			reg_vdd_dram: BUCK3 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-max-microvolt = <950000>;
-				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <1000000>;
+				regulator-min-microvolt = <805000>;
 				regulator-name = "On-module +VDD_GPU_VPU_DDR (BUCK3)";
 			};
 
@@ -416,7 +416,7 @@
 			reg_vdd_snvs: LDO2 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-max-microvolt = <900000>;
+				regulator-max-microvolt = <800000>;
 				regulator-min-microvolt = <800000>;
 				regulator-name = "On-module +V0.8_SNVS (LDO2)";
 			};

@@ -1992,6 +1992,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				dml32_CalculateODMMode(
 						mode_lib->vba.MaximumPixelsPerLinePerDSCUnit,
 						mode_lib->vba.HActive[k],
+						mode_lib->vba.OutputFormat[k],
 						mode_lib->vba.Output[k],
 						mode_lib->vba.ODMUse[k],
 						mode_lib->vba.MaxDispclk[i],
@@ -2013,6 +2014,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				dml32_CalculateODMMode(
 						mode_lib->vba.MaximumPixelsPerLinePerDSCUnit,
 						mode_lib->vba.HActive[k],
+						mode_lib->vba.OutputFormat[k],
 						mode_lib->vba.Output[k],
 						mode_lib->vba.ODMUse[k],
 						mode_lib->vba.MaxDispclk[i],
