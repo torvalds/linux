@@ -3583,44 +3583,44 @@ static int do_open(struct nameidata *nd,
  * On non-idmapped mounts or if permission checking is to be performed on the
  * raw inode simply passs init_user_ns.
  */
-static struct dentry *vfs_tmpfile(struct user_namespace *mnt_userns,
-			   struct dentry *dentry, umode_t mode, int open_flag)
+static int vfs_tmpfile(struct user_namespace *mnt_userns,
+		       const struct path *parentpath,
+		       struct file *file, umode_t mode)
 {
-	struct dentry *child = NULL;
-	struct inode *dir = dentry->d_inode;
+	struct dentry *child;
+	struct inode *dir = d_inode(parentpath->dentry);
 	struct inode *inode;
 	int error;
 
 	/* we want directory to be writable */
 	error = inode_permission(mnt_userns, dir, MAY_WRITE | MAY_EXEC);
 	if (error)
-		goto out_err;
-	error = -EOPNOTSUPP;
+		return error;
 	if (!dir->i_op->tmpfile)
-		goto out_err;
-	error = -ENOMEM;
-	child = d_alloc(dentry, &slash_name);
+		return -EOPNOTSUPP;
+	child = d_alloc(parentpath->dentry, &slash_name);
 	if (unlikely(!child))
-		goto out_err;
+		return -ENOMEM;
+	file->f_path.mnt = parentpath->mnt;
+	file->f_path.dentry = child;
 	mode = vfs_prepare_mode(mnt_userns, dir, mode, mode, mode);
 	error = dir->i_op->tmpfile(mnt_userns, dir, child, mode);
+	error = finish_open_simple(file, error);
+	dput(child);
 	if (error)
-		goto out_err;
-	error = -ENOENT;
-	inode = child->d_inode;
-	if (unlikely(!inode))
-		goto out_err;
-	if (!(open_flag & O_EXCL)) {
+		return error;
+	/* Don't check for other permissions, the inode was just created */
+	error = may_open(mnt_userns, &file->f_path, 0, file->f_flags);
+	if (error)
+		return error;
+	inode = file_inode(file);
+	if (!(file->f_flags & O_EXCL)) {
 		spin_lock(&inode->i_lock);
 		inode->i_state |= I_LINKABLE;
 		spin_unlock(&inode->i_lock);
 	}
 	ima_post_create_tmpfile(mnt_userns, inode);
-	return child;
-
-out_err:
-	dput(child);
-	return ERR_PTR(error);
+	return 0;
 }
 
 /**
@@ -3641,25 +3641,15 @@ struct file *vfs_tmpfile_open(struct user_namespace *mnt_userns,
 {
 	struct file *file;
 	int error;
-	struct path path = { .mnt = parentpath->mnt };
 
-	path.dentry = vfs_tmpfile(mnt_userns, parentpath->dentry, mode, open_flag);
-	if (IS_ERR(path.dentry))
-		return ERR_CAST(path.dentry);
-
-	error = may_open(mnt_userns, &path, 0, open_flag);
-	file = ERR_PTR(error);
-	if (error)
-		goto out_dput;
-
-	/*
-	 * This relies on the "noaccount" property of fake open, otherwise
-	 * equivalent to dentry_open().
-	 */
-	file = open_with_fake_path(&path, open_flag, d_inode(path.dentry), cred);
-out_dput:
-	dput(path.dentry);
-
+	file = alloc_empty_file_noaccount(open_flag, cred);
+	if (!IS_ERR(file)) {
+		error = vfs_tmpfile(mnt_userns, parentpath, file, mode);
+		if (error) {
+			fput(file);
+			file = ERR_PTR(error);
+		}
+	}
 	return file;
 }
 EXPORT_SYMBOL(vfs_tmpfile_open);
@@ -3669,26 +3659,19 @@ static int do_tmpfile(struct nameidata *nd, unsigned flags,
 		struct file *file)
 {
 	struct user_namespace *mnt_userns;
-	struct dentry *child;
 	struct path path;
 	int error = path_lookupat(nd, flags | LOOKUP_DIRECTORY, &path);
+
 	if (unlikely(error))
 		return error;
 	error = mnt_want_write(path.mnt);
 	if (unlikely(error))
 		goto out;
 	mnt_userns = mnt_user_ns(path.mnt);
-	child = vfs_tmpfile(mnt_userns, path.dentry, op->mode, op->open_flag);
-	error = PTR_ERR(child);
-	if (IS_ERR(child))
+	error = vfs_tmpfile(mnt_userns, &path, file, op->mode);
+	if (error)
 		goto out2;
-	dput(path.dentry);
-	path.dentry = child;
-	audit_inode(nd->name, child, 0);
-	/* Don't check for other permissions, the inode was just created */
-	error = may_open(mnt_userns, &path, 0, op->open_flag);
-	if (!error)
-		error = vfs_open(&path, file);
+	audit_inode(nd->name, file->f_path.dentry, 0);
 out2:
 	mnt_drop_write(path.mnt);
 out:
