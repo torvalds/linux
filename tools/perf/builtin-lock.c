@@ -1250,7 +1250,7 @@ static void print_bad_events(int bad, int total)
 	for (i = 0; i < BROKEN_MAX; i++)
 		broken += bad_hist[i];
 
-	if (broken == 0 && !verbose)
+	if (quiet || (broken == 0 && !verbose))
 		return;
 
 	pr_info("\n=== output for debug===\n\n");
@@ -1269,10 +1269,12 @@ static void print_result(void)
 	char cut_name[20];
 	int bad, total, printed;
 
-	pr_info("%20s ", "Name");
-	list_for_each_entry(key, &lock_keys, list)
-		pr_info("%*s ", key->len, key->header);
-	pr_info("\n\n");
+	if (!quiet) {
+		pr_info("%20s ", "Name");
+		list_for_each_entry(key, &lock_keys, list)
+			pr_info("%*s ", key->len, key->header);
+		pr_info("\n\n");
+	}
 
 	bad = total = printed = 0;
 	while ((st = pop_from_result())) {
@@ -1482,13 +1484,15 @@ static void print_contention_result(struct lock_contention *con)
 	struct lock_key *key;
 	int bad, total, printed;
 
-	list_for_each_entry(key, &lock_keys, list)
-		pr_info("%*s ", key->len, key->header);
+	if (!quiet) {
+		list_for_each_entry(key, &lock_keys, list)
+			pr_info("%*s ", key->len, key->header);
 
-	if (show_thread_stats)
-		pr_info("  %10s   %s\n\n", "pid", "comm");
-	else
-		pr_info("  %10s   %s\n\n", "type", "caller");
+		if (show_thread_stats)
+			pr_info("  %10s   %s\n\n", "pid", "comm");
+		else
+			pr_info("  %10s   %s\n\n", "type", "caller");
+	}
 
 	bad = total = printed = 0;
 	if (use_bpf)
@@ -1865,6 +1869,7 @@ int cmd_lock(int argc, const char **argv)
 		   "file", "vmlinux pathname"),
 	OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name,
 		   "file", "kallsyms pathname"),
+	OPT_BOOLEAN('q', "quiet", &quiet, "Do not show any message"),
 	OPT_END()
 	};
 
