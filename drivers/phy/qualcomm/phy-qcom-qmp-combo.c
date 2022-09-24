@@ -2717,14 +2717,10 @@ static int qmp_combo_create(struct device *dev, struct device_node *np, int id,
 	 */
 	qphy->pipe_clk = devm_get_clk_from_child(dev, np, NULL);
 	if (IS_ERR(qphy->pipe_clk)) {
-		if (cfg->type == PHY_TYPE_USB3) {
-			ret = PTR_ERR(qphy->pipe_clk);
-			if (ret != -EPROBE_DEFER)
-				dev_err(dev,
-					"failed to get lane%d pipe_clk, %d\n",
-					id, ret);
-			return ret;
-		}
+		if (cfg->type == PHY_TYPE_USB3)
+			return dev_err_probe(dev, PTR_ERR(qphy->pipe_clk),
+					     "failed to get lane%d pipe_clk\n",
+					     id);
 		qphy->pipe_clk = NULL;
 	}
 
@@ -2837,12 +2833,9 @@ static int qmp_combo_probe(struct platform_device *pdev)
 		return ret;
 
 	ret = qmp_combo_vreg_init(dev, cfg);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to get regulator supplies: %d\n",
-				ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "failed to get regulator supplies\n");
 
 	num = of_get_available_child_count(dev->of_node);
 	/* do we have a rogue child node ? */
