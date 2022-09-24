@@ -774,4 +774,49 @@ static inline pci_power_t mid_pci_get_power_state(struct pci_dev *pdev)
 }
 #endif
 
+/*
+ * Config Address for PCI Configuration Mechanism #1
+ *
+ * See PCI Local Bus Specification, Revision 3.0,
+ * Section 3.2.2.3.2, Figure 3-2, p. 50.
+ */
+
+#define PCI_CONF1_BUS_SHIFT	16 /* Bus number */
+#define PCI_CONF1_DEV_SHIFT	11 /* Device number */
+#define PCI_CONF1_FUNC_SHIFT	8  /* Function number */
+
+#define PCI_CONF1_BUS_MASK	0xff
+#define PCI_CONF1_DEV_MASK	0x1f
+#define PCI_CONF1_FUNC_MASK	0x7
+#define PCI_CONF1_REG_MASK	0xfc /* Limit aligned offset to a maximum of 256B */
+
+#define PCI_CONF1_ENABLE	BIT(31)
+#define PCI_CONF1_BUS(x)	(((x) & PCI_CONF1_BUS_MASK) << PCI_CONF1_BUS_SHIFT)
+#define PCI_CONF1_DEV(x)	(((x) & PCI_CONF1_DEV_MASK) << PCI_CONF1_DEV_SHIFT)
+#define PCI_CONF1_FUNC(x)	(((x) & PCI_CONF1_FUNC_MASK) << PCI_CONF1_FUNC_SHIFT)
+#define PCI_CONF1_REG(x)	((x) & PCI_CONF1_REG_MASK)
+
+#define PCI_CONF1_ADDRESS(bus, dev, func, reg) \
+	(PCI_CONF1_ENABLE | \
+	 PCI_CONF1_BUS(bus) | \
+	 PCI_CONF1_DEV(dev) | \
+	 PCI_CONF1_FUNC(func) | \
+	 PCI_CONF1_REG(reg))
+
+/*
+ * Extension of PCI Config Address for accessing extended PCIe registers
+ *
+ * No standardized specification, but used on lot of non-ECAM-compliant ARM SoCs
+ * or on AMD Barcelona and new CPUs. Reserved bits [27:24] of PCI Config Address
+ * are used for specifying additional 4 high bits of PCI Express register.
+ */
+
+#define PCI_CONF1_EXT_REG_SHIFT	16
+#define PCI_CONF1_EXT_REG_MASK	0xf00
+#define PCI_CONF1_EXT_REG(x)	(((x) & PCI_CONF1_EXT_REG_MASK) << PCI_CONF1_EXT_REG_SHIFT)
+
+#define PCI_CONF1_EXT_ADDRESS(bus, dev, func, reg) \
+	(PCI_CONF1_ADDRESS(bus, dev, func, reg) | \
+	 PCI_CONF1_EXT_REG(reg))
+
 #endif /* DRIVERS_PCI_H */
