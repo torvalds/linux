@@ -2007,6 +2007,10 @@ static inline int vfs_whiteout(struct user_namespace *mnt_userns,
 struct dentry *vfs_tmpfile(struct user_namespace *mnt_userns,
 			   struct dentry *dentry, umode_t mode, int open_flag);
 
+struct file *vfs_tmpfile_open(struct user_namespace *mnt_userns,
+			const struct path *parentpath,
+			umode_t mode, int open_flag, const struct cred *cred);
+
 int vfs_mkobj(struct dentry *, umode_t,
 		int (*f)(struct dentry *, umode_t, void *),
 		void *);

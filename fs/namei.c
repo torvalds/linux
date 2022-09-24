@@ -3624,6 +3624,47 @@ out_err:
 }
 EXPORT_SYMBOL(vfs_tmpfile);
 
+/**
+ * vfs_tmpfile_open - open a tmpfile for kernel internal use
+ * @mnt_userns:	user namespace of the mount the inode was found from
+ * @parentpath:	path of the base directory
+ * @mode:	mode of the new tmpfile
+ * @open_flag:	flags
+ * @cred:	credentials for open
+ *
+ * Create and open a temporary file.  The file is not accounted in nr_files,
+ * hence this is only for kernel internal use, and must not be installed into
+ * file tables or such.
+ */
+struct file *vfs_tmpfile_open(struct user_namespace *mnt_userns,
+			  const struct path *parentpath,
+			  umode_t mode, int open_flag, const struct cred *cred)
+{
+	struct file *file;
+	int error;
+	struct path path = { .mnt = parentpath->mnt };
+
+	path.dentry = vfs_tmpfile(mnt_userns, parentpath->dentry, mode, open_flag);
+	if (IS_ERR(path.dentry))
+		return ERR_CAST(path.dentry);
+
+	error = may_open(mnt_userns, &path, 0, open_flag);
+	file = ERR_PTR(error);
+	if (error)
+		goto out_dput;
+
+	/*
+	 * This relies on the "noaccount" property of fake open, otherwise
+	 * equivalent to dentry_open().
+	 */
+	file = open_with_fake_path(&path, open_flag, d_inode(path.dentry), cred);
+out_dput:
+	dput(path.dentry);
+
+	return file;
+}
+EXPORT_SYMBOL(vfs_tmpfile_open);
+
 static int do_tmpfile(struct nameidata *nd, unsigned flags,
 		const struct open_flags *op,
 		struct file *file)
