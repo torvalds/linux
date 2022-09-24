@@ -21,7 +21,6 @@
 #include <linux/slab.h>
 #include <linux/swiotlb.h>
 #include <linux/vmalloc.h>
-#include <linux/rockchip/rockchip_sip.h>
 
 #include "page_pool.h"
 #include "deferred-free-helper.h"
@@ -32,10 +31,6 @@ static struct dma_heap *sys_heap;
 static struct dma_heap *sys_dma32_heap;
 static struct dma_heap *sys_uncached_heap;
 static struct dma_heap *sys_uncached_dma32_heap;
-
-/* Default setting */
-static u32 bank_bit_first = 12;
-static u32 bank_bit_mask = 0x7;
 
 struct system_heap_buffer {
 	struct dma_heap *heap;
@@ -606,10 +601,10 @@ static struct dma_buf *system_heap_do_allocate(struct dma_heap *heap,
 			list_add_tail(&page->lru, &pages);
 		} else {
 			dma_addr_t phys = page_to_phys(page);
-			unsigned int bit_index = ((phys >> bank_bit_first) & bank_bit_mask) & 0x7;
+			unsigned int bit12_14 = (phys >> 12) & 0x7;
 
-			list_add_tail(&page->lru, &lists[bit_index]);
-			block_index[bit_index]++;
+			list_add_tail(&page->lru, &lists[bit12_14]);
+			block_index[bit12_14]++;
 		}
 		i++;
 	}
@@ -766,7 +761,6 @@ static int system_heap_create(void)
 {
 	struct dma_heap_export_info exp_info;
 	int i, err = 0;
-	struct dram_addrmap_info *ddr_map_info;
 
 	/*
 	 * Since swiotlb has memory size limitation, this will calculate
@@ -861,12 +855,6 @@ static int system_heap_create(void)
 
 	mb(); /* make sure we only set allocate after dma_mask is set */
 	system_uncached_heap_ops.allocate = system_uncached_heap_allocate;
-
-	ddr_map_info = sip_smc_get_dram_map();
-	if (ddr_map_info) {
-		bank_bit_first = ddr_map_info->bank_bit_first;
-		bank_bit_mask = ddr_map_info->bank_bit_mask;
-	}
 
 	return 0;
 err_dma32_pool:
