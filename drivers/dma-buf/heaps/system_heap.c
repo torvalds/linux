@@ -283,7 +283,7 @@ system_heap_dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
 	if (buffer->vmap_cnt)
 		invalidate_kernel_vmap_range(buffer->vaddr, buffer->len);
 
-	if (buffer->uncached)
+	if (!buffer->uncached)
 		goto unlock;
 
 	list_for_each_entry(a, &buffer->attachments, list) {
@@ -325,7 +325,7 @@ system_heap_dma_buf_end_cpu_access_partial(struct dma_buf *dmabuf,
 	if (buffer->vmap_cnt)
 		flush_kernel_vmap_range(buffer->vaddr, buffer->len);
 
-	if (buffer->uncached)
+	if (!buffer->uncached)
 		goto unlock;
 
 	list_for_each_entry(a, &buffer->attachments, list) {
