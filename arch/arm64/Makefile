@@ -133,9 +133,6 @@ ifeq ($(CONFIG_DYNAMIC_FTRACE_WITH_REGS),y)
   CC_FLAGS_FTRACE := -fpatchable-function-entry=2
 endif
 
-# Default value
-head-y		:= arch/arm64/kernel/head.o
-
 ifeq ($(CONFIG_KASAN_SW_TAGS), y)
 KASAN_SHADOW_SCALE_SHIFT := 4
 else ifeq ($(CONFIG_KASAN_GENERIC), y)

@@ -37,7 +37,6 @@ KBUILD_CFLAGS += -DUTS_SYSNAME=\"$(UTS_SYSNAME)\"
 KBUILD_CFLAGS += -fno-builtin
 KBUILD_CFLAGS += -G 0
 
-head-y		:= arch/nios2/kernel/head.o
 libs-y		+= arch/nios2/lib/ $(LIBGCC)
 
 INSTALL_PATH ?= /tftpboot

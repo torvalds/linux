@@ -1070,8 +1070,7 @@ When kbuild executes, the following steps are followed (roughly):
    - The values of the above variables are expanded in arch/$(SRCARCH)/Makefile.
 5) All object files are then linked and the resulting file vmlinux is
    located at the root of the obj tree.
-   The very first objects linked are listed in head-y, assigned by
-   arch/$(SRCARCH)/Makefile.
+   The very first objects linked are listed in scripts/head-object-list.txt.
 6) Finally, the architecture-specific part does any required post processing
    and builds the final bootimage.
    - This includes building boot records
@@ -1219,6 +1218,9 @@ When kbuild executes, the following steps are followed (roughly):
 	All object files for vmlinux. They are linked to vmlinux in the same
 	order as listed in KBUILD_VMLINUX_OBJS.
 
+	The objects listed in scripts/head-object-list.txt are exceptions;
+	they are placed before the other objects.
+
     KBUILD_VMLINUX_LIBS
 
 	All .a "lib" files for vmlinux. KBUILD_VMLINUX_OBJS and
@@ -1262,8 +1264,7 @@ When kbuild executes, the following steps are followed (roughly):
 	machinery is all architecture-independent.
 
 
-	head-y, core-y, libs-y, drivers-y
-	    $(head-y) lists objects to be linked first in vmlinux.
+	core-y, libs-y, drivers-y
 
 	    $(libs-y) lists directories where a lib.a archive can be located.
 
