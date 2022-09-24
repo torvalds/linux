@@ -224,7 +224,8 @@ static int system_heap_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 }
 
 static int system_heap_sgl_sync_range(struct device *dev,
-				      struct sg_table *sgt,
+				      struct scatterlist *sgl,
+				      unsigned int nents,
 				      unsigned int offset,
 				      unsigned int length,
 				      enum dma_data_direction dir,
@@ -235,7 +236,7 @@ static int system_heap_sgl_sync_range(struct device *dev,
 	dma_addr_t sg_dma_addr;
 	int i;
 
-	for_each_sgtable_sg(sgt, sg, i) {
+	for_each_sg(sgl, sg, nents, i) {
 		unsigned int sg_offset, sg_left, size = 0;
 
 		sg_dma_addr = sg_phys(sg);
@@ -289,14 +290,18 @@ system_heap_dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
 		if (!a->mapped)
 			continue;
 
-		ret = system_heap_sgl_sync_range(a->dev, a->table, offset, len,
+		ret = system_heap_sgl_sync_range(a->dev, a->table->sgl,
+						 a->table->nents,
+						 offset, len,
 						 direction, true);
 	}
 	if (list_empty(&buffer->attachments)) {
 		struct dma_heap *heap = buffer->heap;
 		struct sg_table *table = &buffer->sg_table;
 
-		ret = system_heap_sgl_sync_range(dma_heap_get_dev(heap), table,
+		ret = system_heap_sgl_sync_range(dma_heap_get_dev(heap),
+						 table->sgl,
+						 table->nents,
 						 offset, len,
 						 direction, true);
 	}
@@ -327,14 +332,18 @@ system_heap_dma_buf_end_cpu_access_partial(struct dma_buf *dmabuf,
 		if (!a->mapped)
 			continue;
 
-		ret = system_heap_sgl_sync_range(a->dev, a->table, offset, len,
+		ret = system_heap_sgl_sync_range(a->dev, a->table->sgl,
+						 a->table->nents,
+						 offset, len,
 						 direction, false);
 	}
 	if (list_empty(&buffer->attachments)) {
 		struct dma_heap *heap = buffer->heap;
 		struct sg_table *table = &buffer->sg_table;
 
-		ret = system_heap_sgl_sync_range(dma_heap_get_dev(heap), table,
+		ret = system_heap_sgl_sync_range(dma_heap_get_dev(heap),
+						 table->sgl,
+						 table->nents,
 						 offset, len,
 						 direction, false);
 	}
