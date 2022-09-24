@@ -15,9 +15,8 @@
  * file or directory.  The caller must hold the inode lock.
  */
 static bool __cachefiles_mark_inode_in_use(struct cachefiles_object *object,
-					   struct dentry *dentry)
+					   struct inode *inode)
 {
-	struct inode *inode = d_backing_inode(dentry);
 	bool can_use = false;
 
 	if (!(inode->i_flags & S_KERNEL_FILE)) {
@@ -26,21 +25,18 @@ static bool __cachefiles_mark_inode_in_use(struct cachefiles_object *object,
 		can_use = true;
 	} else {
 		trace_cachefiles_mark_failed(object, inode);
-		pr_notice("cachefiles: Inode already in use: %pd (B=%lx)\n",
-			  dentry, inode->i_ino);
 	}
 
 	return can_use;
 }
 
 static bool cachefiles_mark_inode_in_use(struct cachefiles_object *object,
-					 struct dentry *dentry)
+					 struct inode *inode)
 {
-	struct inode *inode = d_backing_inode(dentry);
 	bool can_use;
 
 	inode_lock(inode);
-	can_use = __cachefiles_mark_inode_in_use(object, dentry);
+	can_use = __cachefiles_mark_inode_in_use(object, inode);
 	inode_unlock(inode);
 	return can_use;
 }
@@ -49,21 +45,17 @@ static bool cachefiles_mark_inode_in_use(struct cachefiles_object *object,
  * Unmark a backing inode.  The caller must hold the inode lock.
  */
 static void __cachefiles_unmark_inode_in_use(struct cachefiles_object *object,
-					     struct dentry *dentry)
+					     struct inode *inode)
 {
-	struct inode *inode = d_backing_inode(dentry);
-
 	inode->i_flags &= ~S_KERNEL_FILE;
 	trace_cachefiles_mark_inactive(object, inode);
 }
 
 static void cachefiles_do_unmark_inode_in_use(struct cachefiles_object *object,
-					      struct dentry *dentry)
+					      struct inode *inode)
 {
-	struct inode *inode = d_backing_inode(dentry);
-
 	inode_lock(inode);
-	__cachefiles_unmark_inode_in_use(object, dentry);
+	__cachefiles_unmark_inode_in_use(object, inode);
 	inode_unlock(inode);
 }
 
@@ -77,14 +69,12 @@ void cachefiles_unmark_inode_in_use(struct cachefiles_object *object,
 	struct cachefiles_cache *cache = object->volume->cache;
 	struct inode *inode = file_inode(file);
 
-	if (inode) {
-		cachefiles_do_unmark_inode_in_use(object, file->f_path.dentry);
+	cachefiles_do_unmark_inode_in_use(object, inode);
 
-		if (!test_bit(CACHEFILES_OBJECT_USING_TMPFILE, &object->flags)) {
-			atomic_long_add(inode->i_blocks, &cache->b_released);
-			if (atomic_inc_return(&cache->f_released))
-				cachefiles_state_changed(cache);
-		}
+	if (!test_bit(CACHEFILES_OBJECT_USING_TMPFILE, &object->flags)) {
+		atomic_long_add(inode->i_blocks, &cache->b_released);
+		if (atomic_inc_return(&cache->f_released))
+			cachefiles_state_changed(cache);
 	}
 }
 
@@ -164,8 +154,11 @@ retry:
 	inode_lock(d_inode(subdir));
 	inode_unlock(d_inode(dir));
 
-	if (!__cachefiles_mark_inode_in_use(NULL, subdir))
+	if (!__cachefiles_mark_inode_in_use(NULL, d_inode(subdir))) {
+		pr_notice("cachefiles: Inode already in use: %pd (B=%lx)\n",
+			  subdir, d_inode(subdir)->i_ino);
 		goto mark_error;
+	}
 
 	inode_unlock(d_inode(subdir));
 
@@ -224,9 +217,7 @@ nomem_d_alloc:
 void cachefiles_put_directory(struct dentry *dir)
 {
 	if (dir) {
-		inode_lock(dir->d_inode);
-		__cachefiles_unmark_inode_in_use(NULL, dir);
-		inode_unlock(dir->d_inode);
+		cachefiles_do_unmark_inode_in_use(NULL, d_inode(dir));
 		dput(dir);
 	}
 }
@@ -410,7 +401,7 @@ try_again:
 					    "Rename failed with error %d", ret);
 	}
 
-	__cachefiles_unmark_inode_in_use(object, rep);
+	__cachefiles_unmark_inode_in_use(object, d_inode(rep));
 	unlock_rename(cache->graveyard, dir);
 	dput(grave);
 	_leave(" = 0");
@@ -474,9 +465,9 @@ struct file *cachefiles_create_tmpfile(struct cachefiles_object *object)
 
 	trace_cachefiles_tmpfile(object, d_backing_inode(path.dentry));
 
-	ret = -EBUSY;
-	if (!cachefiles_mark_inode_in_use(object, path.dentry))
-		goto err_dput;
+	/* This is a newly created file with no other possible user */
+	if (!cachefiles_mark_inode_in_use(object, d_inode(path.dentry)))
+		WARN_ON(1);
 
 	ret = cachefiles_ondemand_init_object(object);
 	if (ret < 0)
@@ -520,8 +511,7 @@ out:
 	return file;
 
 err_unuse:
-	cachefiles_do_unmark_inode_in_use(object, path.dentry);
-err_dput:
+	cachefiles_do_unmark_inode_in_use(object, d_inode(path.dentry));
 	dput(path.dentry);
 err:
 	file = ERR_PTR(ret);
@@ -566,8 +556,11 @@ static bool cachefiles_open_file(struct cachefiles_object *object,
 
 	_enter("%pd", dentry);
 
-	if (!cachefiles_mark_inode_in_use(object, dentry))
+	if (!cachefiles_mark_inode_in_use(object, d_inode(dentry))) {
+		pr_notice("cachefiles: Inode already in use: %pd (B=%lx)\n",
+			  dentry, d_inode(dentry)->i_ino);
 		return false;
+	}
 
 	/* We need to open a file interface onto a data file now as we can't do
 	 * it on demand because writeback called from do_exit() sees
@@ -621,7 +614,7 @@ check_failed:
 error_fput:
 	fput(file);
 error:
-	cachefiles_do_unmark_inode_in_use(object, dentry);
+	cachefiles_do_unmark_inode_in_use(object, d_inode(dentry));
 	dput(dentry);
 	return false;
 }
