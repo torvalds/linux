@@ -6,6 +6,7 @@
 #include <linux/preempt.h>
 #include <linux/rcupdate.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/sched/rt.h>
 #include <linux/slab.h>
 
@@ -466,6 +467,17 @@ static int __six_lock_type_slowpath(struct six_lock *lock, enum six_lock_type ty
 	raw_spin_lock(&lock->wait_lock);
 	if (!(lock->state.waiters & (1 << type)))
 		set_bit(waitlist_bitnr(type), (unsigned long *) &lock->state.v);
+	wait->start_time = local_clock();
+
+	if (!list_empty(&lock->wait_list)) {
+		struct six_lock_waiter *last =
+			list_last_entry(&lock->wait_list,
+				struct six_lock_waiter, list);
+
+		if (time_before_eq64(wait->start_time, last->start_time))
+			wait->start_time = last->start_time + 1;
+	}
+
 	list_add_tail(&wait->list, &lock->wait_list);
 	raw_spin_unlock(&lock->wait_lock);
 
@@ -502,6 +514,8 @@ static int __six_lock_type_waiter(struct six_lock *lock, enum six_lock_type type
 			 six_lock_should_sleep_fn should_sleep_fn, void *p)
 {
 	int ret;
+
+	wait->start_time = 0;
 
 	if (type != SIX_LOCK_write)
 		six_acquire(&lock->dep_map, 0);
