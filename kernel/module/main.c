@@ -85,9 +85,6 @@ struct mod_tree_root mod_data_tree __cacheline_aligned = {
 };
 #endif
 
-#define module_addr_min mod_tree.addr_min
-#define module_addr_max mod_tree.addr_max
-
 struct symsearch {
 	const struct kernel_symbol *start, *stop;
 	const s32 *crcs;
