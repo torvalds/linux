@@ -822,7 +822,7 @@ static void _rtl92e_net_update(struct net_device *dev)
 
 	net = &priv->rtllib->current_network;
 	rtl92e_config_rate(dev, &rate_config);
-	priv->dot11CurrentPreambleMode = PREAMBLE_AUTO;
+	priv->dot11_current_preamble_mode = PREAMBLE_AUTO;
 	priv->basic_rate = rate_config &= 0x15f;
 	rtl92e_writew(dev, BSSIDR, *(u16 *)net->bssid);
 	rtl92e_writel(dev, BSSIDR + 2, *(u32 *)(net->bssid + 2));
@@ -1998,10 +1998,10 @@ void rtl92e_update_ratr_table(struct net_device *dev)
 		break;
 	}
 	ratr_value &= 0x0FFFFFFF;
-	if (ieee->pHTInfo->bCurTxBW40MHz &&
+	if (ieee->pHTInfo->cur_tx_bw40mhz &&
 	    ieee->pHTInfo->bCurShortGI40MHz)
 		ratr_value |= 0x80000000;
-	else if (!ieee->pHTInfo->bCurTxBW40MHz &&
+	else if (!ieee->pHTInfo->cur_tx_bw40mhz &&
 		  ieee->pHTInfo->bCurShortGI20MHz)
 		ratr_value |= 0x80000000;
 	rtl92e_writel(dev, RATR0+rate_index*4, ratr_value);

@@ -148,7 +148,7 @@ struct rt_hi_throughput {
 	u8				PeerMimoPs;
 
 	enum ht_extchnl_offset CurSTAExtChnlOffset;
-	u8				bCurTxBW40MHz;
+	u8 cur_tx_bw40mhz;
 	u8				PeerBandwidth;
 
 	u8				bSwBwInProgress;
@@ -157,7 +157,7 @@ struct rt_hi_throughput {
 	u8				bRegRT2RTAggregation;
 	u8				RT2RT_HT_Mode;
 	u8				bCurrentRT2RTAggregation;
-	u8				bCurrentRT2RTLongSlotTime;
+	u8 current_rt2rt_long_slot_time;
 	u8				szRT2RTAggBuffer[10];
 
 	u8				bRegRxReorderEnable;

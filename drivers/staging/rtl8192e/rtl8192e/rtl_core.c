@@ -287,16 +287,16 @@ static void _rtl92e_update_cap(struct net_device *dev, u16 cap)
 	bool		ShortPreamble;
 
 	if (cap & WLAN_CAPABILITY_SHORT_PREAMBLE) {
-		if (priv->dot11CurrentPreambleMode != PREAMBLE_SHORT) {
+		if (priv->dot11_current_preamble_mode != PREAMBLE_SHORT) {
 			ShortPreamble = true;
-			priv->dot11CurrentPreambleMode = PREAMBLE_SHORT;
+			priv->dot11_current_preamble_mode = PREAMBLE_SHORT;
 			priv->rtllib->SetHwRegHandler(dev, HW_VAR_ACK_PREAMBLE,
 					(unsigned char *)&ShortPreamble);
 		}
 	} else {
-		if (priv->dot11CurrentPreambleMode != PREAMBLE_LONG) {
+		if (priv->dot11_current_preamble_mode != PREAMBLE_LONG) {
 			ShortPreamble = false;
-			priv->dot11CurrentPreambleMode = PREAMBLE_LONG;
+			priv->dot11_current_preamble_mode = PREAMBLE_LONG;
 			priv->rtllib->SetHwRegHandler(dev, HW_VAR_ACK_PREAMBLE,
 					      (unsigned char *)&ShortPreamble);
 		}
@@ -307,7 +307,7 @@ static void _rtl92e_update_cap(struct net_device *dev, u16 cap)
 		u8	cur_slot_time = priv->slot_time;
 
 		if ((cap & WLAN_CAPABILITY_SHORT_SLOT_TIME) &&
-		   (!priv->rtllib->pHTInfo->bCurrentRT2RTLongSlotTime)) {
+		   (!priv->rtllib->pHTInfo->current_rt2rt_long_slot_time)) {
 			if (cur_slot_time != SHORT_SLOT_TIME) {
 				slot_time_val = SHORT_SLOT_TIME;
 				priv->rtllib->SetHwRegHandler(dev,
@@ -341,7 +341,7 @@ static void _rtl92e_update_beacon(void *data)
 
 	if (ieee->pHTInfo->bCurrentHTSupport)
 		HT_update_self_and_peer_setting(ieee, net);
-	ieee->pHTInfo->bCurrentRT2RTLongSlotTime = net->bssht.bd_rt2rt_long_slot_time;
+	ieee->pHTInfo->current_rt2rt_long_slot_time = net->bssht.bd_rt2rt_long_slot_time;
 	ieee->pHTInfo->RT2RT_HT_Mode = net->bssht.rt2rt_ht_mode;
 	_rtl92e_update_cap(dev, net->capability);
 }
@@ -833,7 +833,7 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	u8 i;
 
 	priv->AcmMethod = eAcmWay2_SW;
-	priv->dot11CurrentPreambleMode = PREAMBLE_AUTO;
+	priv->dot11_current_preamble_mode = PREAMBLE_AUTO;
 	priv->rtllib->status = 0;
 	priv->polling_timer_on = 0;
 	priv->up_first_time = 1;

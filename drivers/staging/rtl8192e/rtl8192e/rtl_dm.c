@@ -343,9 +343,9 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 
 	if (priv->rtllib->state == RTLLIB_LINKED) {
 
-		bshort_gi_enabled = (pHTInfo->bCurTxBW40MHz &&
+		bshort_gi_enabled = (pHTInfo->cur_tx_bw40mhz &&
 				     pHTInfo->bCurShortGI40MHz) ||
-				    (!pHTInfo->bCurTxBW40MHz &&
+				    (!pHTInfo->cur_tx_bw40mhz &&
 				     pHTInfo->bCurShortGI20MHz);
 
 		pra->upper_rssi_threshold_ratr =

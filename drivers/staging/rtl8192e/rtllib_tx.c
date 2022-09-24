@@ -384,7 +384,7 @@ static void rtllib_query_BandwidthMode(struct rtllib_device *ieee,
 
 	if ((tcb_desc->data_rate & 0x80) == 0)
 		return;
-	if (pHTInfo->bCurBW40MHz && pHTInfo->bCurTxBW40MHz &&
+	if (pHTInfo->bCurBW40MHz && pHTInfo->cur_tx_bw40mhz &&
 	    !ieee->bandwidth_auto_switch.bforced_tx20Mhz)
 		tcb_desc->bPacketBW = true;
 }

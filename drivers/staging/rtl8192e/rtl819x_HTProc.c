@@ -543,7 +543,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 #endif
 	HTSetConnectBwMode(ieee, (enum ht_channel_width)(pPeerHTCap->ChlWidth),
 			  (enum ht_extchnl_offset)(pPeerHTInfo->ExtChlOffset));
-	pHTInfo->bCurTxBW40MHz = ((pPeerHTInfo->RecommemdedTxWidth == 1) ?
+	pHTInfo->cur_tx_bw40mhz = ((pPeerHTInfo->RecommemdedTxWidth == 1) ?
 				 true : false);
 
 	pHTInfo->bCurShortGI20MHz = ((pHTInfo->bRegShortGI20MHz) ?
@@ -633,7 +633,7 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 	pHTInfo->bCurrentHTSupport = false;
 
 	pHTInfo->bCurBW40MHz = false;
-	pHTInfo->bCurTxBW40MHz = false;
+	pHTInfo->cur_tx_bw40mhz = false;
 
 	pHTInfo->bCurShortGI20MHz = false;
 	pHTInfo->bCurShortGI40MHz = false;
@@ -660,7 +660,7 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 	pHTInfo->ePeerHTSpecVer = HT_SPEC_VER_IEEE;
 
 	pHTInfo->bCurrentRT2RTAggregation = false;
-	pHTInfo->bCurrentRT2RTLongSlotTime = false;
+	pHTInfo->current_rt2rt_long_slot_time = false;
 	pHTInfo->RT2RT_HT_Mode = (enum rt_ht_capability)0;
 
 	pHTInfo->IOTPeer = 0;
@@ -720,12 +720,12 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
 		if (pHTInfo->bRegRT2RTAggregation) {
 			pHTInfo->bCurrentRT2RTAggregation =
 				 pNetwork->bssht.bd_rt2rt_aggregation;
-			pHTInfo->bCurrentRT2RTLongSlotTime =
+			pHTInfo->current_rt2rt_long_slot_time =
 				 pNetwork->bssht.bd_rt2rt_long_slot_time;
 			pHTInfo->RT2RT_HT_Mode = pNetwork->bssht.rt2rt_ht_mode;
 		} else {
 			pHTInfo->bCurrentRT2RTAggregation = false;
-			pHTInfo->bCurrentRT2RTLongSlotTime = false;
+			pHTInfo->current_rt2rt_long_slot_time = false;
 			pHTInfo->RT2RT_HT_Mode = (enum rt_ht_capability)0;
 		}
 
@@ -757,7 +757,7 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
 	} else {
 		pHTInfo->bCurrentHTSupport = false;
 		pHTInfo->bCurrentRT2RTAggregation = false;
-		pHTInfo->bCurrentRT2RTLongSlotTime = false;
+		pHTInfo->current_rt2rt_long_slot_time = false;
 		pHTInfo->RT2RT_HT_Mode = (enum rt_ht_capability)0;
 
 		pHTInfo->IOTAction = 0;

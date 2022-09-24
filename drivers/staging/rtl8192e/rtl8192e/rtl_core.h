@@ -430,7 +430,7 @@ struct r8192_priv {
 
 	u16 basic_rate;
 	u8 short_preamble;
-	u8 dot11CurrentPreambleMode;
+	u8 dot11_current_preamble_mode;
 	u8 slot_time;
 	u16 SifsTime;
 
