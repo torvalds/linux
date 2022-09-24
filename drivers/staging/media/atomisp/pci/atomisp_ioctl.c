@@ -1711,11 +1711,9 @@ start_sensor:
 
 start_delay_wq:
 	if (asd->continuous_mode->val) {
-		struct v4l2_mbus_framefmt *sink;
-
-		sink = atomisp_subdev_get_ffmt(&asd->subdev, NULL,
-					       V4L2_SUBDEV_FORMAT_ACTIVE,
-					       ATOMISP_SUBDEV_PAD_SINK);
+		atomisp_subdev_get_ffmt(&asd->subdev, NULL,
+				        V4L2_SUBDEV_FORMAT_ACTIVE,
+				        ATOMISP_SUBDEV_PAD_SINK);
 
 		reinit_completion(&asd->init_done);
 		asd->delayed_init = ATOMISP_DELAYED_INIT_QUEUED;
