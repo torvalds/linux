@@ -135,25 +135,9 @@ static __inline__ void tx_dump_log(void)
 		this = (this + 1) & (TX_LOG_LEN - 1);
 	}
 }
-static __inline__ void tx_dump_ring(struct happy_meal *hp)
-{
-	struct hmeal_init_block *hb = hp->happy_block;
-	struct happy_meal_txd *tp = &hb->happy_meal_txd[0];
-	int i;
-
-	for (i = 0; i < TX_RING_SIZE; i+=4) {
-		printk("TXD[%d..%d]: [%08x:%08x] [%08x:%08x] [%08x:%08x] [%08x:%08x]\n",
-		       i, i + 4,
-		       le32_to_cpu(tp[i].tx_flags), le32_to_cpu(tp[i].tx_addr),
-		       le32_to_cpu(tp[i + 1].tx_flags), le32_to_cpu(tp[i + 1].tx_addr),
-		       le32_to_cpu(tp[i + 2].tx_flags), le32_to_cpu(tp[i + 2].tx_addr),
-		       le32_to_cpu(tp[i + 3].tx_flags), le32_to_cpu(tp[i + 3].tx_addr));
-	}
-}
 #else
 #define tx_add_log(hp, a, s)		do { } while(0)
 #define tx_dump_log()			do { } while(0)
-#define tx_dump_ring(hp)		do { } while(0)
 #endif
 
 #ifdef HMEDEBUG
