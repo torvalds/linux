@@ -32,8 +32,7 @@ get_ext_path(struct inode *inode, ext4_lblk_t lblock,
 	if (IS_ERR(path))
 		return PTR_ERR(path);
 	if (path[ext_depth(inode)].p_ext == NULL) {
-		ext4_ext_drop_refs(path);
-		kfree(path);
+		ext4_free_ext_path(path);
 		*ppath = NULL;
 		return -ENODATA;
 	}
@@ -106,8 +105,7 @@ mext_check_coverage(struct inode *inode, ext4_lblk_t from, ext4_lblk_t count,
 	}
 	ret = 1;
 out:
-	ext4_ext_drop_refs(path);
-	kfree(path);
+	ext4_free_ext_path(path);
 	return ret;
 }
 
@@ -691,8 +689,7 @@ out:
 		ext4_discard_preallocations(donor_inode, 0);
 	}
 
-	ext4_ext_drop_refs(path);
-	kfree(path);
+	ext4_free_ext_path(path);
 	ext4_double_up_write_data_sem(orig_inode, donor_inode);
 	unlock_two_nondirectories(orig_inode, donor_inode);
 
