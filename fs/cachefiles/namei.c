@@ -442,18 +442,19 @@ struct file *cachefiles_create_tmpfile(struct cachefiles_object *object)
 	const struct cred *saved_cred;
 	struct dentry *fan = volume->fanout[(u8)object->cookie->key_hash];
 	struct file *file;
-	struct path path;
+	const struct path parentpath = { .mnt = cache->mnt, .dentry = fan };
 	uint64_t ni_size;
 	long ret;
 
 
 	cachefiles_begin_secure(cache, &saved_cred);
 
-	path.mnt = cache->mnt;
 	ret = cachefiles_inject_write_error();
 	if (ret == 0) {
-		path.dentry = vfs_tmpfile(&init_user_ns, fan, S_IFREG, O_RDWR);
-		ret = PTR_ERR_OR_ZERO(path.dentry);
+		file = vfs_tmpfile_open(&init_user_ns, &parentpath, S_IFREG,
+					O_RDWR | O_LARGEFILE | O_DIRECT,
+					cache->cache_cred);
+		ret = PTR_ERR_OR_ZERO(file);
 	}
 	if (ret) {
 		trace_cachefiles_vfs_error(object, d_inode(fan), ret,
@@ -463,10 +464,10 @@ struct file *cachefiles_create_tmpfile(struct cachefiles_object *object)
 		goto err;
 	}
 
-	trace_cachefiles_tmpfile(object, d_backing_inode(path.dentry));
+	trace_cachefiles_tmpfile(object, file_inode(file));
 
 	/* This is a newly created file with no other possible user */
-	if (!cachefiles_mark_inode_in_use(object, d_inode(path.dentry)))
+	if (!cachefiles_mark_inode_in_use(object, file_inode(file)))
 		WARN_ON(1);
 
 	ret = cachefiles_ondemand_init_object(object);
@@ -477,27 +478,19 @@ struct file *cachefiles_create_tmpfile(struct cachefiles_object *object)
 	ni_size = round_up(ni_size, CACHEFILES_DIO_BLOCK_SIZE);
 
 	if (ni_size > 0) {
-		trace_cachefiles_trunc(object, d_backing_inode(path.dentry), 0, ni_size,
+		trace_cachefiles_trunc(object, file_inode(file), 0, ni_size,
 				       cachefiles_trunc_expand_tmpfile);
 		ret = cachefiles_inject_write_error();
 		if (ret == 0)
-			ret = vfs_truncate(&path, ni_size);
+			ret = vfs_truncate(&file->f_path, ni_size);
 		if (ret < 0) {
 			trace_cachefiles_vfs_error(
-				object, d_backing_inode(path.dentry), ret,
+				object, file_inode(file), ret,
 				cachefiles_trace_trunc_error);
 			goto err_unuse;
 		}
 	}
 
-	file = open_with_fake_path(&path, O_RDWR | O_LARGEFILE | O_DIRECT,
-				   d_backing_inode(path.dentry), cache->cache_cred);
-	ret = PTR_ERR(file);
-	if (IS_ERR(file)) {
-		trace_cachefiles_vfs_error(object, d_backing_inode(path.dentry),
-					   ret, cachefiles_trace_open_error);
-		goto err_unuse;
-	}
 	ret = -EINVAL;
 	if (unlikely(!file->f_op->read_iter) ||
 	    unlikely(!file->f_op->write_iter)) {
@@ -505,14 +498,13 @@ struct file *cachefiles_create_tmpfile(struct cachefiles_object *object)
 		pr_notice("Cache does not support read_iter and write_iter\n");
 		goto err_unuse;
 	}
-	dput(path.dentry);
 out:
 	cachefiles_end_secure(cache, saved_cred);
 	return file;
 
 err_unuse:
-	cachefiles_do_unmark_inode_in_use(object, d_inode(path.dentry));
-	dput(path.dentry);
+	cachefiles_do_unmark_inode_in_use(object, file_inode(file));
+	fput(file);
 err:
 	file = ERR_PTR(ret);
 	goto out;
