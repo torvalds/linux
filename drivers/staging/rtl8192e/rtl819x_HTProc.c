@@ -100,7 +100,7 @@ void HTUpdateDefaultSetting(struct rtllib_device *ieee)
 
 	pHTInfo->reg_rt2rt_aggregation = 1;
 
-	pHTInfo->bRegRxReorderEnable = 1;
+	pHTInfo->reg_rx_reorder_enable = 1;
 	pHTInfo->RxReorderWinSize = 64;
 	pHTInfo->RxReorderPendingTime = 30;
 }
@@ -605,7 +605,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 		pHTInfo->ForcedAMSDUMode = HT_AGG_FORCE_ENABLE;
 		pHTInfo->ForcedAMSDUMaxSize = 7935;
 	}
-	pHTInfo->bCurRxReorderEnable = pHTInfo->bRegRxReorderEnable;
+	pHTInfo->cur_rx_reorder_enable = pHTInfo->reg_rx_reorder_enable;
 
 	if (pPeerHTCap->MCS[0] == 0)
 		pPeerHTCap->MCS[0] = 0xff;

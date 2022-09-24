@@ -158,10 +158,10 @@ struct rt_hi_throughput {
 	u8				RT2RT_HT_Mode;
 	u8 current_rt2rt_aggregation;
 	u8 current_rt2rt_long_slot_time;
-	u8				szRT2RTAggBuffer[10];
+	u8 sz_rt2rt_agg_buf[10];
 
-	u8				bRegRxReorderEnable;
-	u8				bCurRxReorderEnable;
+	u8 reg_rx_reorder_enable;
+	u8 cur_rx_reorder_enable;
 	u8				RxReorderWinSize;
 	u8				RxReorderPendingTime;
 	u16				RxReorderDropCounter;
