@@ -103,7 +103,6 @@ mext_check_coverage(struct inode *inode, ext4_lblk_t from, ext4_lblk_t count,
 		if (unwritten != ext4_ext_is_unwritten(ext))
 			goto out;
 		from += ext4_ext_get_actual_len(ext);
-		ext4_ext_drop_refs(path);
 	}
 	ret = 1;
 out:
