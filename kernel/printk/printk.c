@@ -430,7 +430,7 @@ static struct printk_ringbuffer *prb = &printk_rb_static;
  * per_cpu_areas are initialised. This variable is set to true when
  * it's safe to access per-CPU data.
  */
-static bool __printk_percpu_data_ready __read_mostly;
+static bool __printk_percpu_data_ready __ro_after_init;
 
 bool printk_percpu_data_ready(void)
 {
