@@ -1163,7 +1163,7 @@
 				};
 			};
 
-			hdmi_phy: hdmi-phy@9a0600 {
+			hdmi_phy: phy@9a0600 {
 				#phy-cells = <0>;
 				compatible = "qcom,hdmi-phy-8996";
 				reg = <0x009a0600 0x1c4>,
