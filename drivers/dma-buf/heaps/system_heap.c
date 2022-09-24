@@ -28,9 +28,7 @@
 #define CONFIG_SYSTEM_HEAP_FORCE_DMA_SYNC
 
 static struct dma_heap *sys_heap;
-static struct dma_heap *sys_dma32_heap;
 static struct dma_heap *sys_uncached_heap;
-static struct dma_heap *sys_uncached_dma32_heap;
 
 struct system_heap_buffer {
 	struct dma_heap *heap;
@@ -69,7 +67,6 @@ static gfp_t order_flags[] = {HIGH_ORDER_GFP, MID_ORDER_GFP, LOW_ORDER_GFP};
 static unsigned int orders[] = {8, 4, 0};
 #define NUM_ORDERS ARRAY_SIZE(orders)
 struct dmabuf_page_pool *pools[NUM_ORDERS];
-struct dmabuf_page_pool *dma32_pools[NUM_ORDERS];
 
 static struct sg_table *dup_sg_table(struct sg_table *table)
 {
@@ -686,11 +683,8 @@ static long system_get_pool_size(struct dma_heap *heap)
 	int i;
 	long num_pages = 0;
 	struct dmabuf_page_pool **pool;
-	const char *name = dma_heap_get_name(heap);
 
 	pool = pools;
-	if (!strcmp(name, "system-dma32") || !strcmp(name, "system-uncached-dma32"))
-		pool = dma32_pools;
 	for (i = 0; i < NUM_ORDERS; i++, pool++) {
 		num_pages += ((*pool)->count[POOL_LOWPAGE] +
 			      (*pool)->count[POOL_HIGHPAGE]) << (*pool)->order;
@@ -795,19 +789,6 @@ static int system_heap_create(void)
 		}
 	}
 
-	for (i = 0; i < NUM_ORDERS; i++) {
-		dma32_pools[i] = dmabuf_page_pool_create(order_flags[i] | GFP_DMA32, orders[i]);
-
-		if (!dma32_pools[i]) {
-			int j;
-
-			pr_err("%s: page dma32 pool creation failed!\n", __func__);
-			for (j = 0; j < i; j++)
-				dmabuf_page_pool_destroy(dma32_pools[j]);
-			goto err_dma32_pool;
-		}
-	}
-
 	exp_info.name = "system";
 	exp_info.ops = &system_heap_ops;
 	exp_info.priv = NULL;
@@ -815,14 +796,6 @@ static int system_heap_create(void)
 	sys_heap = dma_heap_add(&exp_info);
 	if (IS_ERR(sys_heap))
 		return PTR_ERR(sys_heap);
-
-	exp_info.name = "system-dma32";
-	exp_info.ops = &system_heap_ops;
-	exp_info.priv = NULL;
-
-	sys_dma32_heap = dma_heap_add(&exp_info);
-	if (IS_ERR(sys_dma32_heap))
-		return PTR_ERR(sys_dma32_heap);
 
 	exp_info.name = "system-uncached";
 	exp_info.ops = &system_uncached_heap_ops;
@@ -836,28 +809,10 @@ static int system_heap_create(void)
 	if (err)
 		return err;
 
-	exp_info.name = "system-uncached-dma32";
-	exp_info.ops = &system_uncached_heap_ops;
-	exp_info.priv = NULL;
-
-	sys_uncached_dma32_heap = dma_heap_add(&exp_info);
-	if (IS_ERR(sys_uncached_dma32_heap))
-		return PTR_ERR(sys_uncached_dma32_heap);
-
-	err = set_heap_dev_dma(dma_heap_get_dev(sys_uncached_dma32_heap));
-	if (err)
-		return err;
-	dma_coerce_mask_and_coherent(dma_heap_get_dev(sys_uncached_dma32_heap), DMA_BIT_MASK(32));
-
 	mb(); /* make sure we only set allocate after dma_mask is set */
 	system_uncached_heap_ops.allocate = system_uncached_heap_allocate;
 
 	return 0;
-err_dma32_pool:
-	for (i = 0; i < NUM_ORDERS; i++)
-		dmabuf_page_pool_destroy(pools[i]);
-
-	return -ENOMEM;
 }
 module_init(system_heap_create);
 MODULE_LICENSE("GPL v2");
