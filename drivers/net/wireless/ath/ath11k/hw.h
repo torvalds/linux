@@ -173,6 +173,7 @@ struct ath11k_hw_params {
 		u8 summary_pad_sz;
 		u8 fft_hdr_len;
 		u16 max_fft_bins;
+		bool fragment_160mhz;
 	} spectral;
 
 	u16 interface_modes;
