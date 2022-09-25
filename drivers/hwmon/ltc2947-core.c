@@ -1120,7 +1120,7 @@ int ltc2947_core_probe(struct regmap *map, const char *name)
 }
 EXPORT_SYMBOL_GPL(ltc2947_core_probe);
 
-static int __maybe_unused ltc2947_resume(struct device *dev)
+static int ltc2947_resume(struct device *dev)
 {
 	struct ltc2947_data *st = dev_get_drvdata(dev);
 	u32 ctrl = 0;
@@ -1149,7 +1149,7 @@ static int __maybe_unused ltc2947_resume(struct device *dev)
 				  LTC2947_CONT_MODE_MASK, LTC2947_CONT_MODE(1));
 }
 
-static int __maybe_unused ltc2947_suspend(struct device *dev)
+static int ltc2947_suspend(struct device *dev)
 {
 	struct ltc2947_data *st = dev_get_drvdata(dev);
 
@@ -1157,8 +1157,7 @@ static int __maybe_unused ltc2947_suspend(struct device *dev)
 				  LTC2947_SHUTDOWN_MASK, 1);
 }
 
-SIMPLE_DEV_PM_OPS(ltc2947_pm_ops, ltc2947_suspend, ltc2947_resume);
-EXPORT_SYMBOL_GPL(ltc2947_pm_ops);
+EXPORT_SIMPLE_DEV_PM_OPS(ltc2947_pm_ops, ltc2947_suspend, ltc2947_resume);
 
 const struct of_device_id ltc2947_of_match[] = {
 	{ .compatible = "adi,ltc2947" },
