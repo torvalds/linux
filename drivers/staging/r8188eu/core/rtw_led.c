@@ -51,7 +51,7 @@ static void SwLedOff(struct adapter *padapter, struct led_priv *pLed)
 	u8	LedCfg;
 	int res;
 
-	if (padapter->bSurpriseRemoved || padapter->bDriverStopped)
+	if (padapter->bDriverStopped)
 		goto exit;
 
 	res = rtw_read8(padapter, REG_LEDCFG2, &LedCfg);/* 0x4E */
