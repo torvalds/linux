@@ -639,7 +639,6 @@ static void pwm_fan_shutdown(struct platform_device *pdev)
 	pwm_fan_cleanup(ctx);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int pwm_fan_suspend(struct device *dev)
 {
 	struct pwm_fan_ctx *ctx = dev_get_drvdata(dev);
@@ -653,9 +652,8 @@ static int pwm_fan_resume(struct device *dev)
 
 	return set_pwm(ctx, ctx->pwm_value);
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(pwm_fan_pm, pwm_fan_suspend, pwm_fan_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(pwm_fan_pm, pwm_fan_suspend, pwm_fan_resume);
 
 static const struct of_device_id of_pwm_fan_match[] = {
 	{ .compatible = "pwm-fan", },
@@ -668,7 +666,7 @@ static struct platform_driver pwm_fan_driver = {
 	.shutdown	= pwm_fan_shutdown,
 	.driver	= {
 		.name		= "pwm-fan",
-		.pm		= &pwm_fan_pm,
+		.pm		= pm_sleep_ptr(&pwm_fan_pm),
 		.of_match_table	= of_pwm_fan_match,
 	},
 };
