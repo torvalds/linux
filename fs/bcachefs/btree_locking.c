@@ -401,7 +401,8 @@ static inline bool btree_path_get_locks(struct btree_trans *trans,
 }
 
 bool __bch2_btree_node_relock(struct btree_trans *trans,
-			      struct btree_path *path, unsigned level)
+			      struct btree_path *path, unsigned level,
+			      bool trace)
 {
 	struct btree *b = btree_path_node(path, level);
 	int want = __btree_lock_want(path, level);
@@ -416,7 +417,8 @@ bool __bch2_btree_node_relock(struct btree_trans *trans,
 		return true;
 	}
 fail:
-	trace_and_count(trans->c, btree_path_relock_fail, trans, _RET_IP_, path, level);
+	if (trace)
+		trace_and_count(trans->c, btree_path_relock_fail, trans, _RET_IP_, path, level);
 	return false;
 }
 

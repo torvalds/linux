@@ -167,7 +167,7 @@ static void bch2_btree_path_verify_level(struct btree_trans *trans,
 	if (!btree_path_node(path, level))
 		return;
 
-	if (!bch2_btree_node_relock(trans, path, level))
+	if (!bch2_btree_node_relock_notrace(trans, path, level))
 		return;
 
 	BUG_ON(!btree_path_pos_in_node(path, l->b));
