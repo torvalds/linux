@@ -905,15 +905,6 @@ int io_sendzc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (zc->flags & ~(IORING_RECVSEND_POLL_FIRST |
 			  IORING_RECVSEND_FIXED_BUF))
 		return -EINVAL;
-	if (zc->flags & IORING_RECVSEND_FIXED_BUF) {
-		unsigned idx = READ_ONCE(sqe->buf_index);
-
-		if (unlikely(idx >= ctx->nr_user_bufs))
-			return -EFAULT;
-		idx = array_index_nospec(idx, ctx->nr_user_bufs);
-		req->imu = READ_ONCE(ctx->user_bufs[idx]);
-		io_req_set_rsrc_node(req, ctx, 0);
-	}
 	notif = zc->notif = io_alloc_notif(ctx);
 	if (!notif)
 		return -ENOMEM;
@@ -921,6 +912,15 @@ int io_sendzc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	notif->cqe.res = 0;
 	notif->cqe.flags = IORING_CQE_F_NOTIF;
 	req->flags |= REQ_F_NEED_CLEANUP;
+	if (zc->flags & IORING_RECVSEND_FIXED_BUF) {
+		unsigned idx = READ_ONCE(sqe->buf_index);
+
+		if (unlikely(idx >= ctx->nr_user_bufs))
+			return -EFAULT;
+		idx = array_index_nospec(idx, ctx->nr_user_bufs);
+		req->imu = READ_ONCE(ctx->user_bufs[idx]);
+		io_req_set_rsrc_node(notif, ctx, 0);
+	}
 
 	zc->buf = u64_to_user_ptr(READ_ONCE(sqe->addr));
 	zc->len = READ_ONCE(sqe->len);
@@ -1003,9 +1003,6 @@ int io_sendzc(struct io_kiocb *req, unsigned int issue_flags)
 	unsigned msg_flags, cflags;
 	int ret, min_ret = 0;
 
-	if (!(req->flags & REQ_F_POLLED) &&
-	    (zc->flags & IORING_RECVSEND_POLL_FIRST))
-		return -EAGAIN;
 	sock = sock_from_file(req->file);
 	if (unlikely(!sock))
 		return -ENOTSOCK;
@@ -1029,6 +1026,10 @@ int io_sendzc(struct io_kiocb *req, unsigned int issue_flags)
 		}
 		msg.msg_namelen = zc->addr_len;
 	}
+
+	if (!(req->flags & REQ_F_POLLED) &&
+	    (zc->flags & IORING_RECVSEND_POLL_FIRST))
+		return io_setup_async_addr(req, addr, issue_flags);
 
 	if (zc->flags & IORING_RECVSEND_FIXED_BUF) {
 		ret = io_import_fixed(WRITE, &msg.msg_iter, req->imu,

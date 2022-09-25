@@ -28,11 +28,15 @@
 
 /* Interrupt Source Register */
 #define LAN87XX_INTERRUPT_SOURCE                (0x18)
+#define LAN87XX_INTERRUPT_SOURCE_2              (0x08)
 
 /* Interrupt Mask Register */
 #define LAN87XX_INTERRUPT_MASK                  (0x19)
 #define LAN87XX_MASK_LINK_UP                    (0x0004)
 #define LAN87XX_MASK_LINK_DOWN                  (0x0002)
+
+#define LAN87XX_INTERRUPT_MASK_2                (0x09)
+#define LAN87XX_MASK_COMM_RDY			BIT(10)
 
 /* MISC Control 1 Register */
 #define LAN87XX_CTRL_1                          (0x11)
@@ -424,17 +428,55 @@ static int lan87xx_phy_config_intr(struct phy_device *phydev)
 	int rc, val = 0;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
-		/* unmask all source and clear them before enable */
-		rc = phy_write(phydev, LAN87XX_INTERRUPT_MASK, 0x7FFF);
-		rc = phy_read(phydev, LAN87XX_INTERRUPT_SOURCE);
-		val = LAN87XX_MASK_LINK_UP | LAN87XX_MASK_LINK_DOWN;
+		/* clear all interrupt */
 		rc = phy_write(phydev, LAN87XX_INTERRUPT_MASK, val);
-	} else {
-		rc = phy_write(phydev, LAN87XX_INTERRUPT_MASK, val);
-		if (rc)
+		if (rc < 0)
 			return rc;
 
 		rc = phy_read(phydev, LAN87XX_INTERRUPT_SOURCE);
+		if (rc < 0)
+			return rc;
+
+		rc = access_ereg(phydev, PHYACC_ATTR_MODE_WRITE,
+				 PHYACC_ATTR_BANK_MISC,
+				 LAN87XX_INTERRUPT_MASK_2, val);
+		if (rc < 0)
+			return rc;
+
+		rc = access_ereg(phydev, PHYACC_ATTR_MODE_READ,
+				 PHYACC_ATTR_BANK_MISC,
+				 LAN87XX_INTERRUPT_SOURCE_2, 0);
+		if (rc < 0)
+			return rc;
+
+		/* enable link down and comm ready interrupt */
+		val = LAN87XX_MASK_LINK_DOWN;
+		rc = phy_write(phydev, LAN87XX_INTERRUPT_MASK, val);
+		if (rc < 0)
+			return rc;
+
+		val = LAN87XX_MASK_COMM_RDY;
+		rc = access_ereg(phydev, PHYACC_ATTR_MODE_WRITE,
+				 PHYACC_ATTR_BANK_MISC,
+				 LAN87XX_INTERRUPT_MASK_2, val);
+	} else {
+		rc = phy_write(phydev, LAN87XX_INTERRUPT_MASK, val);
+		if (rc < 0)
+			return rc;
+
+		rc = phy_read(phydev, LAN87XX_INTERRUPT_SOURCE);
+		if (rc < 0)
+			return rc;
+
+		rc = access_ereg(phydev, PHYACC_ATTR_MODE_WRITE,
+				 PHYACC_ATTR_BANK_MISC,
+				 LAN87XX_INTERRUPT_MASK_2, val);
+		if (rc < 0)
+			return rc;
+
+		rc = access_ereg(phydev, PHYACC_ATTR_MODE_READ,
+				 PHYACC_ATTR_BANK_MISC,
+				 LAN87XX_INTERRUPT_SOURCE_2, 0);
 	}
 
 	return rc < 0 ? rc : 0;
@@ -443,6 +485,14 @@ static int lan87xx_phy_config_intr(struct phy_device *phydev)
 static irqreturn_t lan87xx_handle_interrupt(struct phy_device *phydev)
 {
 	int irq_status;
+
+	irq_status  = access_ereg(phydev, PHYACC_ATTR_MODE_READ,
+				  PHYACC_ATTR_BANK_MISC,
+				  LAN87XX_INTERRUPT_SOURCE_2, 0);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
 
 	irq_status = phy_read(phydev, LAN87XX_INTERRUPT_SOURCE);
 	if (irq_status < 0) {
