@@ -484,9 +484,13 @@ static bool unpack_trans_table(struct aa_ext *e, struct aa_str_table *strs)
 		u16 size;
 		int i;
 
-		if (unpack_array(e, NULL, &size) != TRI_TRUE ||
-		    size > (1 << 24))
-		  /* currently 2^24 bits entries 0-3 */
+		if (unpack_array(e, NULL, &size) != TRI_TRUE)
+			/*
+			 * Note: index into trans table array is a max
+			 * of 2^24, but unpack array can only unpack
+			 * an array of 2^16 in size atm so no need
+			 * for size check here
+			 */
 			goto fail;
 		table = kcalloc(size, sizeof(char *), GFP_KERNEL);
 		if (!table)
