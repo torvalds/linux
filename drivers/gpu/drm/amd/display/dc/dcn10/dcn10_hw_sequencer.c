@@ -3005,6 +3005,7 @@ void dcn10_prepare_bandwidth(
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	struct hubbub *hubbub = dc->res_pool->hubbub;
+	int min_fclk_khz, min_dcfclk_khz, socclk_khz;
 
 	if (dc->debug.sanity_checks)
 		hws->funcs.verify_allow_pstate_change_high(dc);
@@ -3027,8 +3028,11 @@ void dcn10_prepare_bandwidth(
 
 	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE) {
 		DC_FP_START();
-		dcn_bw_notify_pplib_of_wm_ranges(dc);
+		dcn_get_soc_clks(
+			dc, &min_fclk_khz, &min_dcfclk_khz, &socclk_khz);
 		DC_FP_END();
+		dcn_bw_notify_pplib_of_wm_ranges(
+			dc, min_fclk_khz, min_dcfclk_khz, socclk_khz);
 	}
 
 	if (dc->debug.sanity_checks)
@@ -3041,6 +3045,7 @@ void dcn10_optimize_bandwidth(
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	struct hubbub *hubbub = dc->res_pool->hubbub;
+	int min_fclk_khz, min_dcfclk_khz, socclk_khz;
 
 	if (dc->debug.sanity_checks)
 		hws->funcs.verify_allow_pstate_change_high(dc);
@@ -3064,8 +3069,11 @@ void dcn10_optimize_bandwidth(
 
 	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE) {
 		DC_FP_START();
-		dcn_bw_notify_pplib_of_wm_ranges(dc);
+		dcn_get_soc_clks(
+			dc, &min_fclk_khz, &min_dcfclk_khz, &socclk_khz);
 		DC_FP_END();
+		dcn_bw_notify_pplib_of_wm_ranges(
+			dc, min_fclk_khz, min_dcfclk_khz, socclk_khz);
 	}
 
 	if (dc->debug.sanity_checks)
