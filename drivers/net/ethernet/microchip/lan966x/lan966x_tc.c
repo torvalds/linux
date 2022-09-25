@@ -37,6 +37,13 @@ static int lan966x_tc_setup_qdisc_tbf(struct lan966x_port *port,
 	return -EOPNOTSUPP;
 }
 
+static int lan966x_tc_setup_qdisc_cbs(struct lan966x_port *port,
+				      struct tc_cbs_qopt_offload *qopt)
+{
+	return qopt->enable ? lan966x_cbs_add(port, qopt) :
+			      lan966x_cbs_del(port, qopt);
+}
+
 int lan966x_tc_setup(struct net_device *dev, enum tc_setup_type type,
 		     void *type_data)
 {
@@ -49,6 +56,8 @@ int lan966x_tc_setup(struct net_device *dev, enum tc_setup_type type,
 		return lan966x_tc_setup_qdisc_taprio(port, type_data);
 	case TC_SETUP_QDISC_TBF:
 		return lan966x_tc_setup_qdisc_tbf(port, type_data);
+	case TC_SETUP_QDISC_CBS:
+		return lan966x_tc_setup_qdisc_cbs(port, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}
