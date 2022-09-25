@@ -746,7 +746,7 @@ static void joydev_cleanup(struct joydev *joydev)
 }
 
 /*
- * These codes are copied from from hid-ids.h, unfortunately there is no common
+ * These codes are copied from hid-ids.h, unfortunately there is no common
  * usb_ids/bt_ids.h header.
  */
 #define USB_VENDOR_ID_SONY			0x054c
