@@ -1242,9 +1242,13 @@ static int mhi_ep_create_device(struct mhi_ep_cntrl *mhi_cntrl, u32 ch_id)
 
 	/* Channel name is same for both UL and DL */
 	mhi_dev->name = mhi_chan->name;
-	dev_set_name(&mhi_dev->dev, "%s_%s",
+	ret = dev_set_name(&mhi_dev->dev, "%s_%s",
 		     dev_name(&mhi_cntrl->mhi_dev->dev),
 		     mhi_dev->name);
+	if (ret) {
+		put_device(&mhi_dev->dev);
+		return ret;
+	}
 
 	ret = device_add(&mhi_dev->dev);
 	if (ret)
@@ -1408,7 +1412,10 @@ int mhi_ep_register_controller(struct mhi_ep_cntrl *mhi_cntrl,
 		goto err_free_irq;
 	}
 
-	dev_set_name(&mhi_dev->dev, "mhi_ep%u", mhi_cntrl->index);
+	ret = dev_set_name(&mhi_dev->dev, "mhi_ep%u", mhi_cntrl->index);
+	if (ret)
+		goto err_put_dev;
+
 	mhi_dev->name = dev_name(&mhi_dev->dev);
 	mhi_cntrl->mhi_dev = mhi_dev;
 

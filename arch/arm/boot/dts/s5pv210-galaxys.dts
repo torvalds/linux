@@ -24,26 +24,26 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		power {
+		key-power {
 			label = "power";
 			gpios = <&gph2 6 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			wakeup-source;
 		};
 
-		vol-down {
+		key-vol-down {
 			label = "volume_down";
 			gpios = <&gph3 1 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEDOWN>;
 		};
 
-		vol-up {
+		key-vol-up {
 			label = "volume_up";
 			gpios = <&gph3 2 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 		};
 
-		home {
+		key-home {
 			label = "home";
 			gpios = <&gph3 5 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_HOME>;
@@ -152,47 +152,47 @@
 
 	fm_i2c_pins: fm-i2c-pins-pins {
 		samsung,pins = "gpd1-2", "gpd1-3";
-		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	headset_det: headset-det-pins {
 		samsung,pins = "gph0-6", "gph3-6";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
-		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-function = <S5PV210_PIN_FUNC_F>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
 	};
 
 	fm_irq: fm-irq-pins {
 		samsung,pins = "gpj2-4";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
-		samsung,pin-pud = <S3C64XX_PIN_PULL_UP>;
-		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+		samsung,pin-function = <S5PV210_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_UP>;
+		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	fm_rst: fm-rst-pins {
 		samsung,pins = "gpj2-5";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+		samsung,pin-function = <S5PV210_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	earpath_sel: earpath-sel-pins {
 		samsung,pins = "gpj2-6";
-		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	massmemory_en: massmemory-en-pins {
 		samsung,pins = "gpj2-7";
-		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
-		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+		samsung,pin-function = <S5PV210_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	micbias_reg_ena: micbias-reg-ena-pins {
 		samsung,pins = "gpj4-2";
-		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
-		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+		samsung,pin-pud = <S5PV210_PIN_PULL_NONE>;
+		samsung,pin-drv = <S5PV210_PIN_DRV_LV1>;
 	};
 
 	/* Based on CyanogenMod 3.0.101 kernel */

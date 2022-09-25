@@ -24,6 +24,15 @@ properties:
   clock-names:
     const: ldb
 
+  reg:
+    minItems: 2
+    maxItems: 2
+
+  reg-names:
+    items:
+      - const: ldb
+      - const: lvds
+
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
 
@@ -56,10 +65,15 @@ examples:
     #include <dt-bindings/clock/imx8mp-clock.h>
 
     blk-ctrl {
-        bridge {
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        bridge@5c {
             compatible = "fsl,imx8mp-ldb";
             clocks = <&clk IMX8MP_CLK_MEDIA_LDB>;
             clock-names = "ldb";
+            reg = <0x5c 0x4>, <0x128 0x4>;
+            reg-names = "ldb", "lvds";
 
             ports {
                 #address-cells = <1>;

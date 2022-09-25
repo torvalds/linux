@@ -651,7 +651,7 @@ mtk_wed_tx_ring_setup(struct mtk_wed_device *dev, int idx, void __iomem *regs)
 	 * WDMA RX.
 	 */
 
-	BUG_ON(idx > ARRAY_SIZE(dev->tx_ring));
+	BUG_ON(idx >= ARRAY_SIZE(dev->tx_ring));
 
 	if (mtk_wed_ring_alloc(dev, ring, MTK_WED_TX_RING_SIZE))
 		return -ENOMEM;

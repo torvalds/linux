@@ -696,6 +696,8 @@ static int qos_notifier_call(struct devfreq *devfreq)
 /**
  * qos_min_notifier_call() - Callback for QoS min_freq changes.
  * @nb:		Should be devfreq->nb_min
+ * @val:	not used
+ * @ptr:	not used
  */
 static int qos_min_notifier_call(struct notifier_block *nb,
 					 unsigned long val, void *ptr)
@@ -706,6 +708,8 @@ static int qos_min_notifier_call(struct notifier_block *nb,
 /**
  * qos_max_notifier_call() - Callback for QoS max_freq changes.
  * @nb:		Should be devfreq->nb_max
+ * @val:	not used
+ * @ptr:	not used
  */
 static int qos_max_notifier_call(struct notifier_block *nb,
 					 unsigned long val, void *ptr)

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * rcar_lvds_regs.h  --  R-Car LVDS Interface Registers Definitions
+ * R-Car LVDS Interface Registers Definitions
  *
  * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *

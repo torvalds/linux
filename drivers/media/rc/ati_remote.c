@@ -135,8 +135,6 @@ MODULE_PARM_DESC(mouse, "Enable mouse device, default = yes");
 
 #define dbginfo(dev, format, arg...) \
 	do { if (debug) dev_info(dev , format , ## arg); } while (0)
-#undef err
-#define err(format, arg...) printk(KERN_ERR format , ## arg)
 
 struct ati_receiver_type {
 	/* either default_keymap or get_default_keymap should be set */
@@ -816,11 +814,12 @@ static int ati_remote_probe(struct usb_interface *interface,
 	struct ati_receiver_type *type = (struct ati_receiver_type *)id->driver_info;
 	struct ati_remote *ati_remote;
 	struct input_dev *input_dev;
+	struct device *device = &interface->dev;
 	struct rc_dev *rc_dev;
 	int err = -ENOMEM;
 
 	if (iface_host->desc.bNumEndpoints != 2) {
-		err("%s: Unexpected desc.bNumEndpoints\n", __func__);
+		dev_err(device, "%s: Unexpected desc.bNumEndpoints\n", __func__);
 		return -ENODEV;
 	}
 
@@ -828,15 +827,15 @@ static int ati_remote_probe(struct usb_interface *interface,
 	endpoint_out = &iface_host->endpoint[1].desc;
 
 	if (!usb_endpoint_is_int_in(endpoint_in)) {
-		err("%s: Unexpected endpoint_in\n", __func__);
+		dev_err(device, "%s: Unexpected endpoint_in\n", __func__);
 		return -ENODEV;
 	}
 	if (le16_to_cpu(endpoint_in->wMaxPacketSize) == 0) {
-		err("%s: endpoint_in message size==0? \n", __func__);
+		dev_err(device, "%s: endpoint_in message size==0?\n", __func__);
 		return -ENODEV;
 	}
 	if (!usb_endpoint_is_int_out(endpoint_out)) {
-		err("%s: Unexpected endpoint_out\n", __func__);
+		dev_err(device, "%s: Unexpected endpoint_out\n", __func__);
 		return -ENODEV;
 	}
 

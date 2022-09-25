@@ -20,8 +20,8 @@
 	};
 
 	psci {
-		compatible   = "arm,psci-0.2";
-		method       = "smc";
+		compatible = "arm,psci-0.2";
+		method = "smc";
 	};
 };
 

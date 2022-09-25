@@ -5,6 +5,7 @@
 #include <linux/percpu.h>
 #include <linux/notifier.h>
 #include <linux/efi.h>
+#include <linux/virtio_anchor.h>
 #include <xen/features.h>
 #include <asm/xen/interface.h>
 #include <xen/interface/vcpu.h>
@@ -217,11 +218,19 @@ static inline void xen_preemptible_hcall_end(void) { }
 #ifdef CONFIG_XEN_GRANT_DMA_OPS
 void xen_grant_setup_dma_ops(struct device *dev);
 bool xen_is_grant_dma_device(struct device *dev);
+bool xen_virtio_mem_acc(struct virtio_device *dev);
 #else
 static inline void xen_grant_setup_dma_ops(struct device *dev)
 {
 }
 static inline bool xen_is_grant_dma_device(struct device *dev)
+{
+	return false;
+}
+
+struct virtio_device;
+
+static inline bool xen_virtio_mem_acc(struct virtio_device *dev)
 {
 	return false;
 }

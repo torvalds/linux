@@ -235,17 +235,7 @@ EXPORT_SYMBOL_GPL(pwm_get_chip_data);
 
 static bool pwm_ops_check(const struct pwm_chip *chip)
 {
-
 	const struct pwm_ops *ops = chip->ops;
-
-	/* driver supports legacy, non-atomic operation */
-	if (ops->config && ops->enable && ops->disable) {
-		if (IS_ENABLED(CONFIG_PWM_DEBUG))
-			dev_warn(chip->dev,
-				 "Driver needs updating to atomic API\n");
-
-		return true;
-	}
 
 	if (!ops->apply)
 		return false;
@@ -548,73 +538,6 @@ static void pwm_apply_state_debug(struct pwm_device *pwm,
 	}
 }
 
-static int pwm_apply_legacy(struct pwm_chip *chip, struct pwm_device *pwm,
-			    const struct pwm_state *state)
-{
-	int err;
-	struct pwm_state initial_state = pwm->state;
-
-	if (state->polarity != pwm->state.polarity) {
-		if (!chip->ops->set_polarity)
-			return -EINVAL;
-
-		/*
-		 * Changing the polarity of a running PWM is only allowed when
-		 * the PWM driver implements ->apply().
-		 */
-		if (pwm->state.enabled) {
-			chip->ops->disable(chip, pwm);
-
-			/*
-			 * Update pwm->state already here in case
-			 * .set_polarity() or another callback depend on that.
-			 */
-			pwm->state.enabled = false;
-		}
-
-		err = chip->ops->set_polarity(chip, pwm, state->polarity);
-		if (err)
-			goto rollback;
-
-		pwm->state.polarity = state->polarity;
-	}
-
-	if (!state->enabled) {
-		if (pwm->state.enabled)
-			chip->ops->disable(chip, pwm);
-
-		return 0;
-	}
-
-	/*
-	 * We cannot skip calling ->config even if state->period ==
-	 * pwm->state.period && state->duty_cycle == pwm->state.duty_cycle
-	 * because we might have exited early in the last call to
-	 * pwm_apply_state because of !state->enabled and so the two values in
-	 * pwm->state might not be configured in hardware.
-	 */
-	err = chip->ops->config(pwm->chip, pwm,
-				state->duty_cycle,
-				state->period);
-	if (err)
-		goto rollback;
-
-	pwm->state.period = state->period;
-	pwm->state.duty_cycle = state->duty_cycle;
-
-	if (!pwm->state.enabled) {
-		err = chip->ops->enable(chip, pwm);
-		if (err)
-			goto rollback;
-	}
-
-	return 0;
-
-rollback:
-	pwm->state = initial_state;
-	return err;
-}
-
 /**
  * pwm_apply_state() - atomically apply a new state to a PWM device
  * @pwm: PWM device
@@ -647,10 +570,7 @@ int pwm_apply_state(struct pwm_device *pwm, const struct pwm_state *state)
 	    state->usage_power == pwm->state.usage_power)
 		return 0;
 
-	if (chip->ops->apply)
-		err = chip->ops->apply(chip, pwm, state);
-	else
-		err = pwm_apply_legacy(chip, pwm, state);
+	err = chip->ops->apply(chip, pwm, state);
 	if (err)
 		return err;
 

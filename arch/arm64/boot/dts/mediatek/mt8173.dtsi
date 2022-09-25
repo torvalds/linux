@@ -1,14 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014 MediaTek Inc.
  * Author: Eddie Huang <eddie.huang@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <dt-bindings/clock/mt8173-clk.h>
@@ -246,9 +239,9 @@
 	psci {
 		compatible = "arm,psci-1.0", "arm,psci-0.2", "arm,psci";
 		method = "smc";
-		cpu_suspend   = <0x84000001>;
-		cpu_off	      = <0x84000002>;
-		cpu_on	      = <0x84000003>;
+		cpu_suspend = <0x84000001>;
+		cpu_off	 = <0x84000002>;
+		cpu_on	 = <0x84000003>;
 	};
 
 	clk26m: oscillator0 {
@@ -588,6 +581,7 @@
 			interrupts = <GIC_SPI 139 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&infracfg CLK_INFRA_M4U>;
 			clock-names = "bclk";
+			mediatek,infracfg = <&infracfg>;
 			mediatek,larbs = <&larb0>, <&larb1>, <&larb2>,
 					 <&larb3>, <&larb4>, <&larb5>;
 			#iommu-cells = <1>;
@@ -790,9 +784,12 @@
 		nor_flash: spi@1100d000 {
 			compatible = "mediatek,mt8173-nor";
 			reg = <0 0x1100d000 0 0xe0>;
+			assigned-clocks = <&topckgen CLK_TOP_SPI_SEL>;
+			assigned-clock-parents = <&clk26m>;
 			clocks = <&pericfg CLK_PERI_SPI>,
-				 <&topckgen CLK_TOP_SPINFI_IFR_SEL>;
-			clock-names = "spi", "sf";
+				 <&topckgen CLK_TOP_SPINFI_IFR_SEL>,
+				 <&pericfg CLK_PERI_NFI>;
+			clock-names = "spi", "sf", "axi";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -1505,7 +1502,7 @@
 
 		vcodec_enc_vp8: vcodec@19002000 {
 			compatible = "mediatek,mt8173-vcodec-enc-vp8";
-			reg =  <0 0x19002000 0 0x1000>; /* VENC_LT_SYS */
+			reg = <0 0x19002000 0 0x1000>; /* VENC_LT_SYS */
 			interrupts = <GIC_SPI 202 IRQ_TYPE_LEVEL_LOW>;
 			iommus = <&iommu M4U_PORT_VENC_RCPU_SET2>,
 				 <&iommu M4U_PORT_VENC_REC_FRM_SET2>,

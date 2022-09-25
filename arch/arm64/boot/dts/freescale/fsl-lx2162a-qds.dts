@@ -34,7 +34,7 @@
 		compatible = "mdio-mux-multiplexer";
 		mux-controls = <&mux 0>;
 		mdio-parent-bus = <&emdio1>;
-		#address-cells=<1>;
+		#address-cells = <1>;
 		#size-cells = <0>;
 
 		mdio@0 { /* On-board RTL8211F PHY #1 RGMII1 */
@@ -114,7 +114,7 @@
 		compatible = "mdio-mux-multiplexer";
 		mux-controls = <&mux 1>;
 		mdio-parent-bus = <&emdio2>;
-		#address-cells=<1>;
+		#address-cells = <1>;
 		#size-cells = <0>;
 
 		mdio@0 { /* Slot #1 (secondary EMI) */

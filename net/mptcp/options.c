@@ -1271,7 +1271,7 @@ raise_win:
 		if (unlikely(th->syn))
 			new_win = min(new_win, 65535U) << tp->rx_opt.rcv_wscale;
 		if (!tp->rx_opt.rcv_wscale &&
-		    sock_net(ssk)->ipv4.sysctl_tcp_workaround_signed_windows)
+		    READ_ONCE(sock_net(ssk)->ipv4.sysctl_tcp_workaround_signed_windows))
 			new_win = min(new_win, MAX_TCP_WINDOW);
 		else
 			new_win = min(new_win, (65535U << tp->rx_opt.rcv_wscale));
@@ -1584,6 +1584,9 @@ mp_rst:
 		*ptr++ = mptcp_option(MPTCPOPT_MP_PRIO,
 				      TCPOLEN_MPTCP_PRIO,
 				      opts->backup, TCPOPT_NOP);
+
+		MPTCP_INC_STATS(sock_net((const struct sock *)tp),
+				MPTCP_MIB_MPPRIOTX);
 	}
 
 mp_capable_done:

@@ -156,7 +156,7 @@
 &sound {
 	compatible = "qcom,apq8096-sndcard";
 	model = "gemini";
-	audio-routing =	"RX_BIAS", "MCLK",
+	audio-routing = "RX_BIAS", "MCLK",
 		"MM_DL1",  "MultiMedia1 Playback",
 		"MM_DL2",  "MultiMedia2 Playback",
 		"MultiMedia3 Capture", "MM_UL3";
@@ -257,7 +257,7 @@
 		"UIM_BATT_ALARM",	/* GPIO_21 */
 		"NC";			/* GPIO_22 */
 
-	divclk2_pin_a: divclk2 {
+	divclk2_pin_a: divclk2-state {
 		pins = "gpio16";
 		function = PMIC_GPIO_FUNC_FUNC2;
 		bias-disable;

@@ -93,8 +93,7 @@ xchk_allocbt_rec(
 	struct xchk_btree	*bs,
 	const union xfs_btree_rec *rec)
 {
-	struct xfs_mount	*mp = bs->cur->bc_mp;
-	xfs_agnumber_t		agno = bs->cur->bc_ag.pag->pag_agno;
+	struct xfs_perag	*pag = bs->cur->bc_ag.pag;
 	xfs_agblock_t		bno;
 	xfs_extlen_t		len;
 
@@ -102,8 +101,8 @@ xchk_allocbt_rec(
 	len = be32_to_cpu(rec->alloc.ar_blockcount);
 
 	if (bno + len <= bno ||
-	    !xfs_verify_agbno(mp, agno, bno) ||
-	    !xfs_verify_agbno(mp, agno, bno + len - 1))
+	    !xfs_verify_agbno(pag, bno) ||
+	    !xfs_verify_agbno(pag, bno + len - 1))
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 
 	xchk_allocbt_xref(bs->sc, bno, len);

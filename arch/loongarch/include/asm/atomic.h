@@ -10,7 +10,6 @@
 #include <linux/types.h>
 #include <asm/barrier.h>
 #include <asm/cmpxchg.h>
-#include <asm/compiler.h>
 
 #if __SIZEOF_LONG__ == 4
 #define __LL		"ll.w	"
@@ -157,27 +156,25 @@ static inline int arch_atomic_sub_if_positive(int i, atomic_t *v)
 		__asm__ __volatile__(
 		"1:	ll.w	%1, %2		# atomic_sub_if_positive\n"
 		"	addi.w	%0, %1, %3				\n"
-		"	or	%1, %0, $zero				\n"
-		"	blt	%0, $zero, 2f				\n"
+		"	move	%1, %0					\n"
+		"	bltz	%0, 2f					\n"
 		"	sc.w	%1, %2					\n"
-		"	beq	$zero, %1, 1b				\n"
+		"	beqz	%1, 1b					\n"
 		"2:							\n"
 		__WEAK_LLSC_MB
-		: "=&r" (result), "=&r" (temp),
-		  "+" GCC_OFF_SMALL_ASM() (v->counter)
+		: "=&r" (result), "=&r" (temp), "+ZC" (v->counter)
 		: "I" (-i));
 	} else {
 		__asm__ __volatile__(
 		"1:	ll.w	%1, %2		# atomic_sub_if_positive\n"
 		"	sub.w	%0, %1, %3				\n"
-		"	or	%1, %0, $zero				\n"
-		"	blt	%0, $zero, 2f				\n"
+		"	move	%1, %0					\n"
+		"	bltz	%0, 2f					\n"
 		"	sc.w	%1, %2					\n"
-		"	beq	$zero, %1, 1b				\n"
+		"	beqz	%1, 1b					\n"
 		"2:							\n"
 		__WEAK_LLSC_MB
-		: "=&r" (result), "=&r" (temp),
-		  "+" GCC_OFF_SMALL_ASM() (v->counter)
+		: "=&r" (result), "=&r" (temp), "+ZC" (v->counter)
 		: "r" (i));
 	}
 
@@ -320,27 +317,25 @@ static inline long arch_atomic64_sub_if_positive(long i, atomic64_t *v)
 		__asm__ __volatile__(
 		"1:	ll.d	%1, %2	# atomic64_sub_if_positive	\n"
 		"	addi.d	%0, %1, %3				\n"
-		"	or	%1, %0, $zero				\n"
-		"	blt	%0, $zero, 2f				\n"
+		"	move	%1, %0					\n"
+		"	bltz	%0, 2f					\n"
 		"	sc.d	%1, %2					\n"
-		"	beq	%1, $zero, 1b				\n"
+		"	beqz	%1, 1b					\n"
 		"2:							\n"
 		__WEAK_LLSC_MB
-		: "=&r" (result), "=&r" (temp),
-		  "+" GCC_OFF_SMALL_ASM() (v->counter)
+		: "=&r" (result), "=&r" (temp), "+ZC" (v->counter)
 		: "I" (-i));
 	} else {
 		__asm__ __volatile__(
 		"1:	ll.d	%1, %2	# atomic64_sub_if_positive	\n"
 		"	sub.d	%0, %1, %3				\n"
-		"	or	%1, %0, $zero				\n"
-		"	blt	%0, $zero, 2f				\n"
+		"	move	%1, %0					\n"
+		"	bltz	%0, 2f					\n"
 		"	sc.d	%1, %2					\n"
-		"	beq	%1, $zero, 1b				\n"
+		"	beqz	%1, 1b					\n"
 		"2:							\n"
 		__WEAK_LLSC_MB
-		: "=&r" (result), "=&r" (temp),
-		  "+" GCC_OFF_SMALL_ASM() (v->counter)
+		: "=&r" (result), "=&r" (temp), "+ZC" (v->counter)
 		: "r" (i));
 	}
 

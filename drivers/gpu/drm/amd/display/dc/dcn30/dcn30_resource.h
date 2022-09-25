@@ -99,6 +99,9 @@ enum dc_status dcn30_add_stream_to_ctx(
 
 void dcn30_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params);
 
+bool dcn30_can_support_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, struct dc_state *context);
 void dcn30_setup_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, struct dc_state *context);
+int dcn30_find_dummy_latency_index_for_fw_based_mclk_switch(struct dc *dc, struct dc_state *context,
+		display_e2e_pipe_params_st *pipes, int pipe_cnt, int vlevel);
 
 #endif /* _DCN30_RESOURCE_H_ */

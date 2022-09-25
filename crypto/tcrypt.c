@@ -58,7 +58,7 @@
  */
 static unsigned int sec;
 
-static char *alg = NULL;
+static char *alg;
 static u32 type;
 static u32 mask;
 static int mode;
@@ -71,7 +71,7 @@ static const char *check[] = {
 	"blowfish", "twofish", "serpent", "sha384", "sha512", "md4", "aes",
 	"cast6", "arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
 	"khazad", "wp512", "wp384", "wp256", "xeta",  "fcrypt",
-	"camellia", "seed", "rmd160",
+	"camellia", "seed", "rmd160", "aria",
 	"lzo", "lzo-rle", "cts", "sha3-224", "sha3-256", "sha3-384",
 	"sha3-512", "streebog256", "streebog512",
 	NULL
@@ -1556,6 +1556,7 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		ret += tcrypt_test("rfc3686(ctr(aes))");
 		ret += tcrypt_test("ofb(aes)");
 		ret += tcrypt_test("cfb(aes)");
+		ret += tcrypt_test("xctr(aes)");
 		break;
 
 	case 11:
@@ -1669,10 +1670,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		ret += tcrypt_test("rmd160");
 		break;
 
-	case 41:
-		ret += tcrypt_test("blake2s-256");
-		break;
-
 	case 42:
 		ret += tcrypt_test("blake2b-512");
 		break;
@@ -1727,6 +1724,14 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 
 	case 56:
 		ret += tcrypt_test("ccm(sm4)");
+		break;
+
+	case 57:
+		ret += tcrypt_test("polyval");
+		break;
+
+	case 58:
+		ret += tcrypt_test("gcm(aria)");
 		break;
 
 	case 100:
@@ -1864,6 +1869,12 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		ret += tcrypt_test("cbc(sm4)");
 		ret += tcrypt_test("cfb(sm4)");
 		ret += tcrypt_test("ctr(sm4)");
+		break;
+	case 192:
+		ret += tcrypt_test("ecb(aria)");
+		ret += tcrypt_test("cbc(aria)");
+		ret += tcrypt_test("cfb(aria)");
+		ret += tcrypt_test("ctr(aria)");
 		break;
 	case 200:
 		test_cipher_speed("ecb(aes)", ENCRYPT, sec, NULL, 0,
@@ -2186,6 +2197,37 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 				   16, 16, aead_speed_template_19, num_mb);
 		break;
 
+	case 226:
+		test_cipher_speed("hctr2(aes)", ENCRYPT, sec, NULL,
+				  0, speed_template_32);
+		break;
+
+	case 227:
+		test_cipher_speed("ecb(aria)", ENCRYPT, sec, NULL, 0,
+				  speed_template_16_24_32);
+		test_cipher_speed("ecb(aria)", DECRYPT, sec, NULL, 0,
+				  speed_template_16_24_32);
+		test_cipher_speed("cbc(aria)", ENCRYPT, sec, NULL, 0,
+				  speed_template_16_24_32);
+		test_cipher_speed("cbc(aria)", DECRYPT, sec, NULL, 0,
+				  speed_template_16_24_32);
+		test_cipher_speed("cfb(aria)", ENCRYPT, sec, NULL, 0,
+				  speed_template_16_24_32);
+		test_cipher_speed("cfb(aria)", DECRYPT, sec, NULL, 0,
+				  speed_template_16_24_32);
+		test_cipher_speed("ctr(aria)", ENCRYPT, sec, NULL, 0,
+				  speed_template_16_24_32);
+		test_cipher_speed("ctr(aria)", DECRYPT, sec, NULL, 0,
+				  speed_template_16_24_32);
+		break;
+
+	case 228:
+		test_aead_speed("gcm(aria)", ENCRYPT, sec,
+				NULL, 0, 16, 8, speed_template_16_24_32);
+		test_aead_speed("gcm(aria)", DECRYPT, sec,
+				NULL, 0, 16, 8, speed_template_16_24_32);
+		break;
+
 	case 300:
 		if (alg) {
 			test_hash_speed(alg, sec, generic_hash_speed_template);
@@ -2238,10 +2280,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		fallthrough;
 	case 315:
 		test_hash_speed("rmd160", sec, generic_hash_speed_template);
-		if (mode > 300 && mode < 400) break;
-		fallthrough;
-	case 316:
-		test_hash_speed("blake2s-256", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
 		fallthrough;
 	case 317:
@@ -2350,10 +2388,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		fallthrough;
 	case 415:
 		test_ahash_speed("rmd160", sec, generic_hash_speed_template);
-		if (mode > 400 && mode < 500) break;
-		fallthrough;
-	case 416:
-		test_ahash_speed("blake2s-256", sec, generic_hash_speed_template);
 		if (mode > 400 && mode < 500) break;
 		fallthrough;
 	case 417:

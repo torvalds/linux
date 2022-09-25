@@ -24,6 +24,7 @@
 #include <linux/firmware.h>
 #include "amdgpu.h"
 #include "amdgpu_imu.h"
+#include "amdgpu_dpm.h"
 
 #include "gc/gc_11_0_0_offset.h"
 #include "gc/gc_11_0_0_sh_mask.h"
@@ -117,32 +118,9 @@ static int imu_v11_0_load_microcode(struct amdgpu_device *adev)
 	return 0;
 }
 
-static void imu_v11_0_setup(struct amdgpu_device *adev)
+static int imu_v11_0_wait_for_reset_status(struct amdgpu_device *adev)
 {
-	int imu_reg_val;
-
-	//enable IMU debug mode
-	WREG32_SOC15(GC, 0, regGFX_IMU_C2PMSG_ACCESS_CTRL0, 0xffffff);
-	WREG32_SOC15(GC, 0, regGFX_IMU_C2PMSG_ACCESS_CTRL1, 0xffff);
-
-	imu_reg_val = RREG32_SOC15(GC, 0, regGFX_IMU_C2PMSG_16);
-	imu_reg_val |= 0x1;
-	WREG32_SOC15(GC, 0, regGFX_IMU_C2PMSG_16, imu_reg_val);
-
-	//disble imu Rtavfs, SmsRepair, DfllBTC, and ClkB
-	imu_reg_val = RREG32_SOC15(GC, 0, regGFX_IMU_SCRATCH_10);
-	imu_reg_val |= 0x10007;
-	WREG32_SOC15(GC, 0, regGFX_IMU_SCRATCH_10, imu_reg_val);
-}
-
-static int imu_v11_0_start(struct amdgpu_device *adev)
-{
-	int imu_reg_val, i;
-
-	//Start IMU by set GFX_IMU_CORE_CTRL.CRESET = 0
-	imu_reg_val = RREG32_SOC15(GC, 0, regGFX_IMU_CORE_CTRL);
-	imu_reg_val &= 0xfffffffe;
-	WREG32_SOC15(GC, 0, regGFX_IMU_CORE_CTRL, imu_reg_val);
+	int i, imu_reg_val = 0;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		imu_reg_val = RREG32_SOC15(GC, 0, regGFX_IMU_GFX_RESET_CTRL);
@@ -157,6 +135,41 @@ static int imu_v11_0_start(struct amdgpu_device *adev)
 	}
 
 	return 0;
+}
+
+static void imu_v11_0_setup(struct amdgpu_device *adev)
+{
+	int imu_reg_val;
+
+	//enable IMU debug mode
+	WREG32_SOC15(GC, 0, regGFX_IMU_C2PMSG_ACCESS_CTRL0, 0xffffff);
+	WREG32_SOC15(GC, 0, regGFX_IMU_C2PMSG_ACCESS_CTRL1, 0xffff);
+
+	if (adev->gfx.imu.mode == DEBUG_MODE) {
+		imu_reg_val = RREG32_SOC15(GC, 0, regGFX_IMU_C2PMSG_16);
+		imu_reg_val |= 0x1;
+		WREG32_SOC15(GC, 0, regGFX_IMU_C2PMSG_16, imu_reg_val);
+	}
+
+	//disble imu Rtavfs, SmsRepair, DfllBTC, and ClkB
+	imu_reg_val = RREG32_SOC15(GC, 0, regGFX_IMU_SCRATCH_10);
+	imu_reg_val |= 0x10007;
+	WREG32_SOC15(GC, 0, regGFX_IMU_SCRATCH_10, imu_reg_val);
+}
+
+static int imu_v11_0_start(struct amdgpu_device *adev)
+{
+	int imu_reg_val;
+
+	//Start IMU by set GFX_IMU_CORE_CTRL.CRESET = 0
+	imu_reg_val = RREG32_SOC15(GC, 0, regGFX_IMU_CORE_CTRL);
+	imu_reg_val &= 0xfffffffe;
+	WREG32_SOC15(GC, 0, regGFX_IMU_CORE_CTRL, imu_reg_val);
+
+	if (adev->flags & AMD_IS_APU)
+		amdgpu_dpm_set_gfx_power_up_by_imu(adev);
+
+	return imu_v11_0_wait_for_reset_status(adev);
 }
 
 static const struct imu_rlc_ram_golden imu_rlc_ram_golden_11[] =
@@ -364,4 +377,5 @@ const struct amdgpu_imu_funcs gfx_v11_0_imu_funcs = {
 	.setup_imu = imu_v11_0_setup,
 	.start_imu = imu_v11_0_start,
 	.program_rlc_ram = imu_v11_0_program_rlc_ram,
+	.wait_for_reset_status = imu_v11_0_wait_for_reset_status,
 };

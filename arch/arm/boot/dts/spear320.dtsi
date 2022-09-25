@@ -78,7 +78,7 @@
 		};
 
 		pwm: pwm@a8000000 {
-			compatible ="st,spear-pwm";
+			compatible = "st,spear-pwm";
 			reg = <0xa8000000 0x1000>;
 			#pwm-cells = <2>;
 			status = "disabled";

@@ -501,6 +501,8 @@ static enum action do_pd_io_start(void)
 			return do_pd_read_start();
 		else
 			return do_pd_write_start();
+	default:
+		break;
 	}
 	return Fail;
 }
@@ -943,7 +945,7 @@ static int pd_probe_drive(struct pd_unit *disk, int autoprobe, int port,
 		goto cleanup_disk;
 	return 0;
 cleanup_disk:
-	blk_cleanup_disk(disk->gd);
+	put_disk(disk->gd);
 put_disk:
 	put_disk(p);
 	disk->gd = NULL;
@@ -1018,7 +1020,7 @@ static void __exit pd_exit(void)
 		if (p) {
 			disk->gd = NULL;
 			del_gendisk(p);
-			blk_cleanup_disk(p);
+			put_disk(p);
 			blk_mq_free_tag_set(&disk->tag_set);
 			pi_release(disk->pi);
 		}

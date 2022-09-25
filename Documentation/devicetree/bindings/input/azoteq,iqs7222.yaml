@@ -37,10 +37,6 @@ properties:
       device is temporarily held in hardware reset prior to initialization if
       this property is present.
 
-  azoteq,rf-filt-enable:
-    type: boolean
-    description: Enables the device's internal RF filter.
-
   azoteq,max-counts:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1, 2, 3]
@@ -421,6 +417,7 @@ patternProperties:
     patternProperties:
       "^event-(prox|touch)$":
         type: object
+        $ref: input.yaml#
         description:
           Represents a proximity or touch event reported by the channel.
 
@@ -467,14 +464,9 @@ patternProperties:
               The IQS7222B does not feature channel-specific timeouts; the time-
               out specified for any one channel applies to all channels.
 
-          linux,code:
-            $ref: /schemas/types.yaml#/definitions/uint32
-            description:
-              Numeric key or switch code associated with the event. Specify
-              KEY_RESERVED (0) to opt out of event reporting.
+          linux,code: true
 
           linux,input-type:
-            $ref: /schemas/types.yaml#/definitions/uint32
             enum: [1, 5]
             default: 1
             description:
@@ -537,9 +529,8 @@ patternProperties:
 
       azoteq,bottom-speed:
         $ref: /schemas/types.yaml#/definitions/uint32
-        multipleOf: 4
         minimum: 0
-        maximum: 1020
+        maximum: 255
         description:
           Specifies the speed of movement after which coordinate filtering is
           linearly reduced.
@@ -575,14 +566,13 @@ patternProperties:
     patternProperties:
       "^event-(press|tap|(swipe|flick)-(pos|neg))$":
         type: object
+        $ref: input.yaml#
         description:
           Represents a press or gesture (IQS7222A only) event reported by
           the slider.
 
         properties:
-          linux,code:
-            $ref: /schemas/types.yaml#/definitions/uint32
-            description: Numeric key code associated with the event.
+          linux,code: true
 
           azoteq,gesture-max-ms:
             multipleOf: 4
@@ -616,16 +606,15 @@ patternProperties:
           azoteq,gpio-select:
             $ref: /schemas/types.yaml#/definitions/uint32-array
             minItems: 1
-            maxItems: 1
+            maxItems: 3
             items:
               minimum: 0
-              maximum: 0
+              maximum: 2
             description: |
-              Specifies an individual GPIO mapped to a tap, swipe or flick
-              gesture as follows:
+              Specifies one or more GPIO mapped to the event as follows:
               0: GPIO0
-              1: GPIO3 (reserved)
-              2: GPIO4 (reserved)
+              1: GPIO3 (IQS7222C only)
+              2: GPIO4 (IQS7222C only)
 
               Note that although multiple events can be mapped to a single
               GPIO, they must all be of the same type (proximity, touch or
@@ -710,6 +699,14 @@ allOf:
               multipleOf: 4
               maximum: 1020
 
+          patternProperties:
+            "^event-(press|tap|(swipe|flick)-(pos|neg))$":
+              properties:
+                azoteq,gpio-select:
+                  maxItems: 1
+                  items:
+                    maximum: 0
+
     else:
       patternProperties:
         "^channel-([0-9]|1[0-9])$":
@@ -725,8 +722,6 @@ allOf:
                 azoteq,gesture-min-ms: false
 
                 azoteq,gesture-dist: false
-
-                azoteq,gpio-select: false
 
 required:
   - compatible

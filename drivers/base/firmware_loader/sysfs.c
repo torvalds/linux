@@ -93,10 +93,9 @@ static void fw_dev_release(struct device *dev)
 {
 	struct fw_sysfs *fw_sysfs = to_fw_sysfs(dev);
 
-	if (fw_sysfs->fw_upload_priv) {
-		free_fw_priv(fw_sysfs->fw_priv);
-		kfree(fw_sysfs->fw_upload_priv);
-	}
+	if (fw_sysfs->fw_upload_priv)
+		fw_upload_free(fw_sysfs);
+
 	kfree(fw_sysfs);
 }
 
@@ -242,19 +241,17 @@ static void firmware_rw(struct fw_priv *fw_priv, char *buffer,
 			loff_t offset, size_t count, bool read)
 {
 	while (count) {
-		void *page_data;
 		int page_nr = offset >> PAGE_SHIFT;
 		int page_ofs = offset & (PAGE_SIZE - 1);
 		int page_cnt = min_t(size_t, PAGE_SIZE - page_ofs, count);
 
-		page_data = kmap(fw_priv->pages[page_nr]);
-
 		if (read)
-			memcpy(buffer, page_data + page_ofs, page_cnt);
+			memcpy_from_page(buffer, fw_priv->pages[page_nr],
+					 page_ofs, page_cnt);
 		else
-			memcpy(page_data + page_ofs, buffer, page_cnt);
+			memcpy_to_page(fw_priv->pages[page_nr], page_ofs,
+				       buffer, page_cnt);
 
-		kunmap(fw_priv->pages[page_nr]);
 		buffer += page_cnt;
 		offset += page_cnt;
 		count -= page_cnt;

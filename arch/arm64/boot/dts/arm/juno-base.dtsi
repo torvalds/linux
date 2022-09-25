@@ -26,7 +26,8 @@
 		compatible = "arm,mhu", "arm,primecell";
 		reg = <0x0 0x2b1f0000 0x0 0x1000>;
 		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+			     <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 		#mbox-cells = <1>;
 		clocks = <&soc_refclk100mhz>;
 		clock-names = "apb_pclk";
@@ -581,36 +582,36 @@
 
 		trig-conns@0 {
 			reg = <0>;
-			arm,trig-in-sigs=<2 3>;
-			arm,trig-in-types=<SNK_FULL SNK_ACQCOMP>;
-			arm,trig-out-sigs=<0 1>;
-			arm,trig-out-types=<SNK_FLUSHIN SNK_TRIGIN>;
+			arm,trig-in-sigs = <2 3>;
+			arm,trig-in-types = <SNK_FULL SNK_ACQCOMP>;
+			arm,trig-out-sigs = <0 1>;
+			arm,trig-out-types = <SNK_FLUSHIN SNK_TRIGIN>;
 			arm,cs-dev-assoc = <&etr_sys>;
 		};
 
 		trig-conns@1 {
 			reg = <1>;
-			arm,trig-in-sigs=<0 1>;
-			arm,trig-in-types=<SNK_FULL SNK_ACQCOMP>;
-			arm,trig-out-sigs=<7 6>;
-			arm,trig-out-types=<SNK_FLUSHIN SNK_TRIGIN>;
+			arm,trig-in-sigs = <0 1>;
+			arm,trig-in-types = <SNK_FULL SNK_ACQCOMP>;
+			arm,trig-out-sigs = <7 6>;
+			arm,trig-out-types = <SNK_FLUSHIN SNK_TRIGIN>;
 			arm,cs-dev-assoc = <&etf_sys0>;
 		};
 
 		trig-conns@2 {
 			reg = <2>;
-			arm,trig-in-sigs=<4 5 6 7>;
-			arm,trig-in-types=<STM_TOUT_SPTE STM_TOUT_SW
+			arm,trig-in-sigs = <4 5 6 7>;
+			arm,trig-in-types = <STM_TOUT_SPTE STM_TOUT_SW
 					   STM_TOUT_HETE STM_ASYNCOUT>;
-			arm,trig-out-sigs=<4 5>;
-			arm,trig-out-types=<STM_HWEVENT STM_HWEVENT>;
+			arm,trig-out-sigs = <4 5>;
+			arm,trig-out-types = <STM_HWEVENT STM_HWEVENT>;
 			arm,cs-dev-assoc = <&stm_sys>;
 		};
 
 		trig-conns@3 {
 			reg = <3>;
-			arm,trig-out-sigs=<2 3>;
-			arm,trig-out-types=<SNK_FLUSHIN SNK_TRIGIN>;
+			arm,trig-out-sigs = <2 3>;
+			arm,trig-out-types = <SNK_FLUSHIN SNK_TRIGIN>;
 			arm,cs-dev-assoc = <&tpiu_sys>;
 		};
 	};
@@ -628,24 +629,24 @@
 
 		trig-conns@0 {
 			reg = <0>;
-			arm,trig-in-sigs=<0>;
-			arm,trig-in-types=<GEN_INTREQ>;
-			arm,trig-out-sigs=<0>;
-			arm,trig-out-types=<GEN_HALTREQ>;
+			arm,trig-in-sigs = <0>;
+			arm,trig-in-types = <GEN_INTREQ>;
+			arm,trig-out-sigs = <0>;
+			arm,trig-out-types = <GEN_HALTREQ>;
 			arm,trig-conn-name = "sys_profiler";
 		};
 
 		trig-conns@1 {
 			reg = <1>;
-			arm,trig-out-sigs=<2 3>;
-			arm,trig-out-types=<GEN_HALTREQ GEN_RESTARTREQ>;
+			arm,trig-out-sigs = <2 3>;
+			arm,trig-out-types = <GEN_HALTREQ GEN_RESTARTREQ>;
 			arm,trig-conn-name = "watchdog";
 		};
 
 		trig-conns@2 {
 			reg = <2>;
-			arm,trig-out-sigs=<1 6>;
-			arm,trig-out-types=<GEN_HALTREQ GEN_RESTARTREQ>;
+			arm,trig-out-sigs = <1 6>;
+			arm,trig-out-types = <GEN_HALTREQ GEN_RESTARTREQ>;
 			arm,trig-conn-name = "g_counter";
 		};
 	};

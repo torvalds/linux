@@ -210,7 +210,7 @@ config ACPI_TINY_POWER_BUTTON_SIGNAL
 
 config ACPI_VIDEO
 	tristate "Video"
-	depends on X86 && BACKLIGHT_CLASS_DEVICE
+	depends on BACKLIGHT_CLASS_DEVICE
 	depends on INPUT
 	select THERMAL
 	help
@@ -255,7 +255,6 @@ config ACPI_DOCK
 
 config ACPI_CPU_FREQ_PSS
 	bool
-	select THERMAL
 
 config ACPI_PROCESSOR_CSTATE
 	def_bool y
@@ -287,6 +286,7 @@ config ACPI_PROCESSOR
 	depends on X86 || IA64 || ARM64 || LOONGARCH
 	select ACPI_PROCESSOR_IDLE
 	select ACPI_CPU_FREQ_PSS if X86 || IA64 || LOONGARCH
+	select THERMAL
 	default y
 	help
 	  This driver adds support for the ACPI Processor package. It is required
@@ -572,6 +572,21 @@ source "drivers/acpi/pmic/Kconfig"
 config ACPI_VIOT
 	bool
 
+config ACPI_PRMT
+	bool "Platform Runtime Mechanism Support"
+	depends on EFI && (X86_64 || ARM64)
+	default y
+	help
+	  Platform Runtime Mechanism (PRM) is a firmware interface exposing a
+	  set of binary executables that can be called from the AML interpreter
+	  or directly from device drivers.
+
+	  Say Y to enable the AML interpreter to execute the PRM code.
+
+	  While this feature is optional in principle, leaving it out may
+	  substantially increase computational overhead related to the
+	  initialization of some server systems.
+
 endif	# ACPI
 
 config X86_PM_TIMER
@@ -589,18 +604,3 @@ config X86_PM_TIMER
 
 	  You should nearly always say Y here because many modern
 	  systems require this timer.
-
-config ACPI_PRMT
-	bool "Platform Runtime Mechanism Support"
-	depends on EFI && X86_64
-	default y
-	help
-	  Platform Runtime Mechanism (PRM) is a firmware interface exposing a
-	  set of binary executables that can be called from the AML interpreter
-	  or directly from device drivers.
-
-	  Say Y to enable the AML interpreter to execute the PRM code.
-
-	  While this feature is optional in principle, leaving it out may
-	  substantially increase computational overhead related to the
-	  initialization of some server systems.

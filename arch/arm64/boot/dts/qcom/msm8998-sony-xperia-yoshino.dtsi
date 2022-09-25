@@ -5,15 +5,13 @@
  * Copyright (c) 2021, Konrad Dybcio <konrad.dybcio@somainline.org>
  */
 
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include "msm8998.dtsi"
 #include "pm8005.dtsi"
 #include "pm8998.dtsi"
 #include "pmi8998.dtsi"
-#include <dt-bindings/input/input.h>
-#include <dt-bindings/leds/common.h>
-#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
-#include <dt-bindings/sound/qcom,q6afe.h>
-#include <dt-bindings/sound/qcom,q6asm.h>
 
 / {
 	/* required for bootloader to select correct board */
@@ -21,8 +19,6 @@
 	qcom,board-id = <8 0>;
 
 	clocks {
-		compatible = "simple-bus";
-
 		div1_mclk: divclk1 {
 			compatible = "gpio-gate-clock";
 			pinctrl-0 = <&audio_mclk_pin>;
@@ -91,13 +87,21 @@
 		regulator-boot-on;
 	};
 
+	extcon_usb: extcon-usb {
+		compatible = "linux,extcon-usb-gpio";
+		id-gpio = <&tlmm 38 GPIO_ACTIVE_HIGH>;
+		vbus-gpio = <&tlmm 128 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb_extcon_active &usb_vbus_active>;
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		label = "Side buttons";
 		pinctrl-names = "default";
 		pinctrl-0 = <&vol_down_pin_a>, <&cam_focus_pin_a>,
 			    <&cam_snapshot_pin_a>;
-		vol-down {
+		button-vol-down {
 			label = "Volume Down";
 			gpios = <&pm8998_gpio 5 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
@@ -106,7 +110,7 @@
 			debounce-interval = <15>;
 		};
 
-		camera-snapshot {
+		button-camera-snapshot {
 			label = "Camera Snapshot";
 			gpios = <&pm8998_gpio 7 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
@@ -114,7 +118,7 @@
 			debounce-interval = <15>;
 		};
 
-		camera-focus {
+		button-camera-focus {
 			label = "Camera Focus";
 			gpios = <&pm8998_gpio 8 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
@@ -129,7 +133,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hall_sensor0_default>;
 
-		hall-sensor0 {
+		event-hall-sensor0 {
 			label = "Cover Hall Sensor";
 			gpios = <&tlmm 124 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;
@@ -245,6 +249,24 @@
 	status = "okay";
 };
 
+&blsp2_i2c2 {
+	status = "okay";
+
+	proximity@29 {
+		compatible = "st,vl53l0x";
+		reg = <0x29>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <22 IRQ_TYPE_EDGE_FALLING>;
+
+		reset-gpios = <&tlmm 27 GPIO_ACTIVE_LOW>;
+		vdd-supply = <&cam_vio_vreg>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&tof_int &tof_reset>;
+	};
+};
+
 &ibb {
 	regulator-min-microamp = <800000>;
 	regulator-max-microamp = <800000>;
@@ -270,32 +292,19 @@
 	regulator-soft-start;
 };
 
-&mmcc {
-	status = "ok";
-};
-
-&mmss_smmu {
-	status = "ok";
-};
-
-&pm8005_lsid1 {
-	pm8005-regulators {
-		compatible = "qcom,pm8005-regulators";
-
-		vdd_s1-supply = <&vph_pwr>;
-
-		/* VDD_GFX supply */
-		pm8005_s1: s1 {
-			regulator-min-microvolt = <524000>;
-			regulator-max-microvolt = <1088000>;
-			regulator-enable-ramp-delay = <500>;
-			regulator-always-on;
-		};
+&pm8005_regulators {
+	/* VDD_GFX supply */
+	pm8005_s1: s1 {
+		regulator-min-microvolt = <524000>;
+		regulator-max-microvolt = <1088000>;
+		regulator-enable-ramp-delay = <500>;
+		/* Hack until we rig up the gpu consumer */
+		regulator-always-on;
 	};
 };
 
 &pm8998_gpio {
-	vol_down_pin_a: vol-down-active {
+	vol_down_pin_a: vol-down-active-state {
 		pins = "gpio5";
 		function = PMIC_GPIO_FUNC_NORMAL;
 		bias-pull-up;
@@ -303,7 +312,7 @@
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
 	};
 
-	cam_focus_pin_a: cam-focus-btn-active {
+	cam_focus_pin_a: cam-focus-btn-active-state {
 		pins = "gpio7";
 		function = PMIC_GPIO_FUNC_NORMAL;
 		bias-pull-up;
@@ -311,7 +320,7 @@
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
 	};
 
-	cam_snapshot_pin_a: cam-snapshot-btn-active {
+	cam_snapshot_pin_a: cam-snapshot-btn-active-state {
 		pins = "gpio8";
 		function = PMIC_GPIO_FUNC_NORMAL;
 		bias-pull-up;
@@ -319,7 +328,7 @@
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
 	};
 
-	audio_mclk_pin: audio-mclk-pin-active {
+	audio_mclk_pin: audio-mclk-pin-active-state {
 		pins = "gpio13";
 		function = "func2";
 		power-source = <0>;
@@ -327,7 +336,7 @@
 };
 
 &pmi8998_gpio {
-	cam_vio_default: cam-vio-active {
+	cam_vio_default: cam-vio-active-state {
 		pins = "gpio1";
 		function = PMIC_GPIO_FUNC_NORMAL;
 		bias-disable;
@@ -337,7 +346,7 @@
 		power-source = <1>;
 	};
 
-	vib_default: vib-en {
+	vib_default: vib-en-state {
 		pins = "gpio5";
 		function = PMIC_GPIO_FUNC_NORMAL;
 		bias-disable;
@@ -549,8 +558,8 @@
 	vqmmc-supply = <&vreg_l13a_2p95>;
 
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sdc2_clk_on  &sdc2_cmd_on  &sdc2_data_on  &sdc2_cd_on>;
-	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
+	pinctrl-0 = <&sdc2_on &sdc2_cd>;
+	pinctrl-1 = <&sdc2_off &sdc2_cd>;
 };
 
 &tlmm {
@@ -606,8 +615,30 @@
 		drive-strength = <2>;
 	};
 
+	tof_int: tof-int {
+		pins = "gpio22";
+		function = "gpio";
+		bias-pull-up;
+		drive-strength = <2>;
+		input-enable;
+	};
+
 	cam1_vdig_default: cam1-vdig-default {
 		pins = "gpio25";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
+	};
+
+	usb_extcon_active: usb-extcon-active {
+		pins = "gpio38";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <16>;
+	};
+
+	tof_reset: tof-reset {
+		pins = "gpio27";
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
@@ -626,6 +657,14 @@
 		function = "gpio";
 		drive-strength = <8>;
 		bias-pull-up;
+	};
+
+	usb_vbus_active: usb-vbus-active {
+		pins = "gpio128";
+		function = "gpio";
+		bias-disable;
+		drive-strength = <2>;
+		output-low;
 	};
 
 	ts_vddio_en: ts-vddio-en-default {
@@ -658,6 +697,7 @@
 &usb3_dwc3 {
 	/* Force to peripheral until we have Type-C hooked up */
 	dr_mode = "peripheral";
+	extcon = <&extcon_usb>;
 };
 
 &usb3phy {

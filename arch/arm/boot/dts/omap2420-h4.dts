@@ -21,7 +21,7 @@
 
 	nor@0,0 {
 		compatible = "cfi-flash";
-		linux,mtd-name= "intel,ge28f256l18b85";
+		linux,mtd-name = "intel,ge28f256l18b85";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0 0 0x04000000>;

@@ -41,7 +41,6 @@ void mlx5_lag_del_mpesw_rule(struct mlx5_core_dev *dev)
 int mlx5_lag_add_mpesw_rule(struct mlx5_core_dev *dev)
 {
 	struct mlx5_lag *ldev = dev->priv.lag;
-	bool shared_fdb;
 	int err = 0;
 
 	if (!ldev)
@@ -55,8 +54,8 @@ int mlx5_lag_add_mpesw_rule(struct mlx5_core_dev *dev)
 		err = -EINVAL;
 		goto out;
 	}
-	shared_fdb = mlx5_shared_fdb_supported(ldev);
-	err = mlx5_activate_lag(ldev, NULL, MLX5_LAG_MODE_MPESW, shared_fdb);
+
+	err = mlx5_activate_lag(ldev, NULL, MLX5_LAG_MODE_MPESW, false);
 	if (err)
 		mlx5_core_warn(dev, "Failed to create LAG in MPESW mode (%d)\n", err);
 

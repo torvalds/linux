@@ -21,14 +21,14 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&volum_down_l &volum_up_l>;
 
-		volum_down {
+		key-volum-down {
 			label = "Volum_down";
 			gpios = <&gpio5 RK_PB3 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEDOWN>;
 			debounce-interval = <100>;
 		};
 
-		volum_up {
+		key-volum-up {
 			label = "Volum_up";
 			gpios = <&gpio5 RK_PB2 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;

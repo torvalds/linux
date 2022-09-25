@@ -698,7 +698,7 @@ imx_media_pipeline_pad(struct media_entity *start_entity, u32 grp_id,
 		    (!upstream && !(spad->flags & MEDIA_PAD_FL_SOURCE)))
 			continue;
 
-		pad = media_entity_remote_pad(spad);
+		pad = media_pad_remote_pad_first(spad);
 		if (!pad)
 			continue;
 

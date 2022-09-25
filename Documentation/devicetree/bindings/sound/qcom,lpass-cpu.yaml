@@ -25,12 +25,12 @@ properties:
       - qcom,sc7280-lpass-cpu
 
   reg:
-    minItems: 2
+    minItems: 1
     maxItems: 6
     description: LPAIF core registers
 
   reg-names:
-    minItems: 2
+    minItems: 1
     maxItems: 6
 
   clocks:
@@ -42,12 +42,12 @@ properties:
     maxItems: 10
 
   interrupts:
-    minItems: 2
+    minItems: 1
     maxItems: 4
     description: LPAIF DMA buffer interrupt
 
   interrupt-names:
-    minItems: 2
+    minItems: 1
     maxItems: 4
 
   qcom,adsp:

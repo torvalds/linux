@@ -38,22 +38,13 @@
 		#size-cells = <0>;
 
 		pms405_gpios: gpio@c000 {
-			compatible = "qcom,pms405-gpio";
+			compatible = "qcom,pms405-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
+			gpio-ranges = <&pms405_gpios 0 0 12>;
 			#gpio-cells = <2>;
-			interrupts = <0 0xc0 0 IRQ_TYPE_NONE>,
-				<0 0xc1 0 IRQ_TYPE_NONE>,
-				<0 0xc2 0 IRQ_TYPE_NONE>,
-				<0 0xc3 0 IRQ_TYPE_NONE>,
-				<0 0xc4 0 IRQ_TYPE_NONE>,
-				<0 0xc5 0 IRQ_TYPE_NONE>,
-				<0 0xc6 0 IRQ_TYPE_NONE>,
-				<0 0xc7 0 IRQ_TYPE_NONE>,
-				<0 0xc8 0 IRQ_TYPE_NONE>,
-				<0 0xc9 0 IRQ_TYPE_NONE>,
-				<0 0xca 0 IRQ_TYPE_NONE>,
-				<0 0xcb 0 IRQ_TYPE_NONE>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 
 		pon@800 {

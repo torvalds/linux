@@ -201,9 +201,6 @@ struct mt7615_mcu_rdd_report {
 	} hw_pulse[32];
 };
 
-#define MCU_PQ_ID(p, q)		(((p) << 15) | ((q) << 10))
-#define MCU_PKT_ID		0xa0
-
 enum {
 	MCU_ATE_SET_FREQ_OFFSET = 0xa,
 	MCU_ATE_SET_TX_POWER_CONTROL = 0x15,

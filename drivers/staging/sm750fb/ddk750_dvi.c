@@ -15,7 +15,7 @@ static struct dvi_ctrl_device dcft_supported_dvi_controller[] = {
 #ifdef DVI_CTRL_SII164
 	{
 		.init = sii164InitChip,
-		.get_vendor_id = sii164GetVendorID,
+		.get_vendor_id = sii164_get_vendor_id,
 		.get_device_id = sii164GetDeviceID,
 #ifdef SII164_FULL_FUNCTIONS
 		.reset_chip = sii164ResetChip,

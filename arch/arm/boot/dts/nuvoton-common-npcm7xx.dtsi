@@ -110,6 +110,7 @@
 			compatible = "nuvoton,npcm750-reset";
 			reg = <0xf0801000 0x70>;
 			#reset-cells = <2>;
+			nuvoton,sysgcr = <&gcr>;
 		};
 
 		clk: clock-controller@f0801000 {
@@ -128,7 +129,7 @@
 			interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
 			ethernet = <0>;
-			clocks	= <&clk_rg1refck>, <&clk NPCM7XX_CLK_AHB>;
+			clocks = <&clk_rg1refck>, <&clk NPCM7XX_CLK_AHB>;
 			clock-names = "stmmaceth", "clk_gmac";
 			pinctrl-names = "default";
 			pinctrl-0 = <&rg1_pins

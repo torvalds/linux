@@ -15,6 +15,7 @@ config SND_SOC_SOF_IMX_COMMON
 	tristate
 	select SND_SOC_SOF_OF_DEV
 	select SND_SOC_SOF
+	select SND_SOC_SOF_IPC3
 	select SND_SOC_SOF_XTENSA
 	select SND_SOC_SOF_COMPRESS
 	help

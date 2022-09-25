@@ -24,7 +24,6 @@ properties:
           - mediatek,mt8192-imp_iic_wrap_w
           - mediatek,mt8192-imp_iic_wrap_n
           - mediatek,mt8192-msdc_top
-          - mediatek,mt8192-msdc
           - mediatek,mt8192-mfgcfg
           - mediatek,mt8192-imgsys
           - mediatek,mt8192-imgsys2
@@ -104,13 +103,6 @@ examples:
     msdc_top: clock-controller@11f10000 {
         compatible = "mediatek,mt8192-msdc_top";
         reg = <0x11f10000 0x1000>;
-        #clock-cells = <1>;
-    };
-
-  - |
-    msdc: clock-controller@11f60000 {
-        compatible = "mediatek,mt8192-msdc";
-        reg = <0x11f60000 0x1000>;
         #clock-cells = <1>;
     };
 

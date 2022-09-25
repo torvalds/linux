@@ -33,7 +33,6 @@ config CRYPTO_ARCH_HAVE_LIB_CHACHA
 
 config CRYPTO_LIB_CHACHA_GENERIC
 	tristate
-	select XOR_BLOCKS
 	help
 	  This symbol can be depended upon by arch implementations of the
 	  ChaCha library interface that require the generic code as a
@@ -120,6 +119,9 @@ config CRYPTO_LIB_CHACHA20POLY1305
 	select CRYPTO_LIB_CHACHA
 	select CRYPTO_LIB_POLY1305
 	select CRYPTO_ALGAPI
+
+config CRYPTO_LIB_SHA1
+	tristate
 
 config CRYPTO_LIB_SHA256
 	tristate

@@ -9,7 +9,6 @@
 
 #include <linux/compiler.h>
 #include <linux/stringify.h>
-#include <asm/compiler.h>
 #include <asm/loongarch.h>
 
 static inline void arch_local_irq_enable(void)

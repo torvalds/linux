@@ -391,7 +391,7 @@
 			reg = <0x101f4000 0x1000>;
 			interrupts = <11>;
 			clocks = <&xtal24mhz>, <&pclk>;
-			clock-names = "SSPCLK", "apb_pclk";
+			clock-names = "sspclk", "apb_pclk";
 		};
 
 		fpga {

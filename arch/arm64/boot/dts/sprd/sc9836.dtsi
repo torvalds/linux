@@ -207,11 +207,11 @@
 	};
 
 	psci {
-		compatible	= "arm,psci";
-		method		= "smc";
-		cpu_on		= <0xc4000003>;
-		cpu_off		= <0x84000002>;
-		cpu_suspend	= <0xc4000001>;
+		compatible = "arm,psci";
+		method = "smc";
+		cpu_on = <0xc4000003>;
+		cpu_off = <0x84000002>;
+		cpu_suspend = <0xc4000001>;
 	};
 
 	timer {

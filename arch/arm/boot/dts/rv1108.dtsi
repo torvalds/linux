@@ -748,7 +748,7 @@
 
 		gmac {
 			rmii_pins: rmii-pins {
-				rockchip,pins =	<1 RK_PC5 2 &pcfg_pull_none>,
+				rockchip,pins = <1 RK_PC5 2 &pcfg_pull_none>,
 						<1 RK_PC3 2 &pcfg_pull_none>,
 						<1 RK_PC4 2 &pcfg_pull_none>,
 						<1 RK_PB2 3 &pcfg_pull_none_drv_12ma>,

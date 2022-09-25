@@ -47,7 +47,7 @@
 #       conflict with any existing interface
 #   * tests the veth and xsk layers of the topology
 #
-# See the source xdpxceiver.c for information on each test
+# See the source xskxceiver.c for information on each test
 #
 # Kernel configuration:
 # ---------------------
@@ -160,14 +160,14 @@ statusList=()
 
 TEST_NAME="XSK_SELFTESTS_SOFTIRQ"
 
-execxdpxceiver
+exec_xskxceiver
 
 cleanup_exit ${VETH0} ${VETH1} ${NS1}
 TEST_NAME="XSK_SELFTESTS_BUSY_POLL"
 busy_poll=1
 
 setup_vethPairs
-execxdpxceiver
+exec_xskxceiver
 
 ## END TESTS
 

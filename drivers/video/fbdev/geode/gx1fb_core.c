@@ -410,13 +410,13 @@ static void __init gx1fb_setup(char *options)
 			continue;
 
 		if (!strncmp(this_opt, "mode:", 5))
-			strlcpy(mode_option, this_opt + 5, sizeof(mode_option));
+			strscpy(mode_option, this_opt + 5, sizeof(mode_option));
 		else if (!strncmp(this_opt, "crt:", 4))
 			crt_option = !!simple_strtoul(this_opt + 4, NULL, 0);
 		else if (!strncmp(this_opt, "panel:", 6))
-			strlcpy(panel_option, this_opt + 6, sizeof(panel_option));
+			strscpy(panel_option, this_opt + 6, sizeof(panel_option));
 		else
-			strlcpy(mode_option, this_opt, sizeof(mode_option));
+			strscpy(mode_option, this_opt, sizeof(mode_option));
 	}
 }
 #endif

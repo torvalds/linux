@@ -13,6 +13,14 @@
 #define BI_VIRT_VIRTIO_BASE	0x8004
 #define BI_VIRT_CTRL_BASE	0x8005
 
+/*
+ * A random seed used to initialize the RNG. Record format:
+ *
+ *   - length       [ 2 bytes, 16-bit big endian ]
+ *   - seed data    [ `length` bytes, padded to preserve 2-byte alignment ]
+ */
+#define BI_VIRT_RNG_SEED	0x8006
+
 #define VIRT_BOOTI_VERSION	MK_BI_VERSION(2, 0)
 
 #endif /* _UAPI_ASM_M68K_BOOTINFO_MAC_H */

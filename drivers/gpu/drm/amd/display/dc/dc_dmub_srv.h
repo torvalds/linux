@@ -31,6 +31,10 @@
 
 struct dmub_srv;
 struct dc;
+struct pipe_ctx;
+struct dc_crtc_timing_adjust;
+struct dc_crtc_timing;
+struct dc_state;
 
 struct dc_reg_helper_state {
 	bool gather_in_progress;
@@ -68,6 +72,12 @@ bool dc_dmub_srv_get_dmub_outbox0_msg(const struct dc *dc, struct dmcub_trace_bu
 
 void dc_dmub_trace_event_control(struct dc *dc, bool enable);
 
+void dc_dmub_srv_drr_update_cmd(struct dc *dc, uint32_t tg_inst, uint32_t vtotal_min, uint32_t vtotal_max);
+
+void dc_dmub_srv_set_drr_manual_trigger_cmd(struct dc *dc, uint32_t tg_inst);
+bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool enable_pstate, struct dc_state *context);
+
+void dc_dmub_srv_query_caps_cmd(struct dmub_srv *dmub);
 void dc_dmub_srv_clear_inbox0_ack(struct dc_dmub_srv *dmub_srv);
 void dc_dmub_srv_wait_for_inbox0_ack(struct dc_dmub_srv *dmub_srv);
 void dc_dmub_srv_send_inbox0_cmd(struct dc_dmub_srv *dmub_srv, union dmub_inbox0_data_register data);

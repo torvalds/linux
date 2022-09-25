@@ -91,10 +91,9 @@ xfs_btree_check_lblock_siblings(
 
 static inline xfs_failaddr_t
 xfs_btree_check_sblock_siblings(
-	struct xfs_mount	*mp,
+	struct xfs_perag	*pag,
 	struct xfs_btree_cur	*cur,
 	int			level,
-	xfs_agnumber_t		agno,
 	xfs_agblock_t		agbno,
 	__be32			dsibling)
 {
@@ -110,7 +109,7 @@ xfs_btree_check_sblock_siblings(
 		if (!xfs_btree_check_sptr(cur, sibling, level + 1))
 			return __this_address;
 	} else {
-		if (!xfs_verify_agbno(mp, agno, sibling))
+		if (!xfs_verify_agbno(pag, sibling))
 			return __this_address;
 	}
 	return NULL;
@@ -195,11 +194,11 @@ __xfs_btree_check_sblock(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = cur->bc_mp;
+	struct xfs_perag	*pag = cur->bc_ag.pag;
 	xfs_btnum_t		btnum = cur->bc_btnum;
 	int			crc = xfs_has_crc(mp);
 	xfs_failaddr_t		fa;
 	xfs_agblock_t		agbno = NULLAGBLOCK;
-	xfs_agnumber_t		agno = NULLAGNUMBER;
 
 	if (crc) {
 		if (!uuid_equal(&block->bb_u.s.bb_uuid, &mp->m_sb.sb_meta_uuid))
@@ -217,16 +216,14 @@ __xfs_btree_check_sblock(
 	    cur->bc_ops->get_maxrecs(cur, level))
 		return __this_address;
 
-	if (bp) {
+	if (bp)
 		agbno = xfs_daddr_to_agbno(mp, xfs_buf_daddr(bp));
-		agno = xfs_daddr_to_agno(mp, xfs_buf_daddr(bp));
-	}
 
-	fa = xfs_btree_check_sblock_siblings(mp, cur, level, agno, agbno,
+	fa = xfs_btree_check_sblock_siblings(pag, cur, level, agbno,
 			block->bb_u.s.bb_leftsib);
 	if (!fa)
-		fa = xfs_btree_check_sblock_siblings(mp, cur, level, agno,
-				 agbno, block->bb_u.s.bb_rightsib);
+		fa = xfs_btree_check_sblock_siblings(pag, cur, level, agbno,
+				block->bb_u.s.bb_rightsib);
 	return fa;
 }
 
@@ -288,7 +285,7 @@ xfs_btree_check_sptr(
 {
 	if (level <= 0)
 		return false;
-	return xfs_verify_agbno(cur->bc_mp, cur->bc_ag.pag->pag_agno, agbno);
+	return xfs_verify_agbno(cur->bc_ag.pag, agbno);
 }
 
 /*
@@ -725,7 +722,7 @@ xfs_btree_ifork_ptr(
 
 	if (cur->bc_flags & XFS_BTREE_STAGING)
 		return cur->bc_ino.ifake->if_fork;
-	return XFS_IFORK_PTR(cur->bc_ino.ip, cur->bc_ino.whichfork);
+	return xfs_ifork_ptr(cur->bc_ino.ip, cur->bc_ino.whichfork);
 }
 
 /*
@@ -3559,7 +3556,7 @@ xfs_btree_kill_iroot(
 {
 	int			whichfork = cur->bc_ino.whichfork;
 	struct xfs_inode	*ip = cur->bc_ino.ip;
-	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
+	struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, whichfork);
 	struct xfs_btree_block	*block;
 	struct xfs_btree_block	*cblock;
 	union xfs_btree_key	*kp;
@@ -4595,7 +4592,6 @@ xfs_btree_sblock_verify(
 {
 	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_btree_block	*block = XFS_BUF_TO_BLOCK(bp);
-	xfs_agnumber_t		agno;
 	xfs_agblock_t		agbno;
 	xfs_failaddr_t		fa;
 
@@ -4604,12 +4600,11 @@ xfs_btree_sblock_verify(
 		return __this_address;
 
 	/* sibling pointer verification */
-	agno = xfs_daddr_to_agno(mp, xfs_buf_daddr(bp));
 	agbno = xfs_daddr_to_agbno(mp, xfs_buf_daddr(bp));
-	fa = xfs_btree_check_sblock_siblings(mp, NULL, -1, agno, agbno,
+	fa = xfs_btree_check_sblock_siblings(bp->b_pag, NULL, -1, agbno,
 			block->bb_u.s.bb_leftsib);
 	if (!fa)
-		fa = xfs_btree_check_sblock_siblings(mp, NULL, -1, agno, agbno,
+		fa = xfs_btree_check_sblock_siblings(bp->b_pag, NULL, -1, agbno,
 				block->bb_u.s.bb_rightsib);
 	return fa;
 }

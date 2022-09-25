@@ -14,6 +14,7 @@ enum gpio_lookup_flags {
 	GPIO_TRANSITORY			= (1 << 3),
 	GPIO_PULL_UP			= (1 << 4),
 	GPIO_PULL_DOWN			= (1 << 5),
+	GPIO_PULL_DISABLE		= (1 << 6),
 
 	GPIO_LOOKUP_FLAGS_DEFAULT	= GPIO_ACTIVE_HIGH | GPIO_PERSISTENT,
 };

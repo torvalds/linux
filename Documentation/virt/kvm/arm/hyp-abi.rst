@@ -60,12 +60,13 @@ these functions (see arch/arm{,64}/include/asm/virt.h):
 
 * ::
 
-    x0 = HVC_VHE_RESTART (arm64 only)
+    x0 = HVC_FINALISE_EL2 (arm64 only)
 
-  Attempt to upgrade the kernel's exception level from EL1 to EL2 by enabling
-  the VHE mode. This is conditioned by the CPU supporting VHE, the EL2 MMU
-  being off, and VHE not being disabled by any other means (command line
-  option, for example).
+  Finish configuring EL2 depending on the command-line options,
+  including an attempt to upgrade the kernel's exception level from
+  EL1 to EL2 by enabling the VHE mode. This is conditioned by the CPU
+  supporting VHE, the EL2 MMU being off, and VHE not being disabled by
+  any other means (command line option, for example).
 
 Any other value of r0/x0 triggers a hypervisor-specific handling,
 which is not documented here.

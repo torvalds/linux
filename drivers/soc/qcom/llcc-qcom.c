@@ -382,7 +382,7 @@ static struct llcc_drv_data *drv_data = (void *) -EPROBE_DEFER;
  * llcc_slice_getd - get llcc slice descriptor
  * @uid: usecase_id for the client
  *
- * A pointer to llcc slice descriptor will be returned on success and
+ * A pointer to llcc slice descriptor will be returned on success
  * and error pointer is returned on failure
  */
 struct llcc_slice_desc *llcc_slice_getd(u32 uid)

@@ -588,6 +588,22 @@ void dpp3_program_CM_dealpha(
 		struct dpp *dpp_base,
 		uint32_t enable, uint32_t additive_blending);
 
+void dpp30_read_state(struct dpp *dpp_base,
+		struct dcn_dpp_state *s);
+
+bool dpp3_get_optimal_number_of_taps(
+		struct dpp *dpp,
+		struct scaler_data *scl_data,
+		const struct scaling_taps *in_taps);
+
+void dpp3_cnv_setup (
+		struct dpp *dpp_base,
+		enum surface_pixel_format format,
+		enum expansion_mode mode,
+		struct dc_csc_transform input_csc_color_matrix,
+		enum dc_color_space input_color_space,
+		struct cnv_alpha_2bit_lut *alpha_2bit_lut);
+
 void dpp3_program_CM_bias(
 		struct dpp *dpp_base,
 		struct CM_bias_params *bias_params);

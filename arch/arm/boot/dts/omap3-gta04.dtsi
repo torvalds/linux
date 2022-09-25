@@ -127,7 +127,7 @@
 			spi-cpol;
 			spi-cpha;
 
-			backlight= <&backlight>;
+			backlight = <&backlight>;
 			label = "lcd";
 			port {
 				lcd_in: endpoint {

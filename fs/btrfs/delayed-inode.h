@@ -58,6 +58,17 @@ struct btrfs_delayed_node {
 	u64 index_cnt;
 	unsigned long flags;
 	int count;
+	/*
+	 * The size of the next batch of dir index items to insert (if this
+	 * node is from a directory inode). Protected by @mutex.
+	 */
+	u32 curr_index_batch_size;
+	/*
+	 * Number of leaves reserved for inserting dir index items (if this
+	 * node belongs to a directory inode). This may be larger then the
+	 * actual number of leaves we end up using. Protected by @mutex.
+	 */
+	u32 index_item_leaves;
 };
 
 struct btrfs_delayed_item {

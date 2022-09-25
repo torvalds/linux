@@ -205,8 +205,8 @@ static int a6xx_hfi_get_fw_version(struct a6xx_gmu *gmu, u32 *version)
 {
 	struct a6xx_hfi_msg_fw_version msg = { 0 };
 
-	/* Currently supporting version 1.1 */
-	msg.supported_version = (1 << 28) | (1 << 16);
+	/* Currently supporting version 1.10 */
+	msg.supported_version = (1 << 28) | (1 << 19) | (1 << 17);
 
 	return a6xx_hfi_send_msg(gmu, HFI_H2F_MSG_FW_VERSION, &msg, sizeof(msg),
 		version, sizeof(*version));
@@ -283,6 +283,65 @@ static void a618_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
 	msg->cnoc_cmds_addrs[0] = 0x5007c;
 	msg->cnoc_cmds_data[0][0] =  0x40000000;
 	msg->cnoc_cmds_data[1][0] =  0x60000001;
+}
+
+static void a619_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
+{
+	msg->bw_level_num = 13;
+
+	msg->ddr_cmds_num = 3;
+	msg->ddr_wait_bitmask = 0x0;
+
+	msg->ddr_cmds_addrs[0] = 0x50000;
+	msg->ddr_cmds_addrs[1] = 0x50004;
+	msg->ddr_cmds_addrs[2] = 0x50080;
+
+	msg->ddr_cmds_data[0][0]  = 0x40000000;
+	msg->ddr_cmds_data[0][1]  = 0x40000000;
+	msg->ddr_cmds_data[0][2]  = 0x40000000;
+	msg->ddr_cmds_data[1][0]  = 0x6000030c;
+	msg->ddr_cmds_data[1][1]  = 0x600000db;
+	msg->ddr_cmds_data[1][2]  = 0x60000008;
+	msg->ddr_cmds_data[2][0]  = 0x60000618;
+	msg->ddr_cmds_data[2][1]  = 0x600001b6;
+	msg->ddr_cmds_data[2][2]  = 0x60000008;
+	msg->ddr_cmds_data[3][0]  = 0x60000925;
+	msg->ddr_cmds_data[3][1]  = 0x60000291;
+	msg->ddr_cmds_data[3][2]  = 0x60000008;
+	msg->ddr_cmds_data[4][0]  = 0x60000dc1;
+	msg->ddr_cmds_data[4][1]  = 0x600003dc;
+	msg->ddr_cmds_data[4][2]  = 0x60000008;
+	msg->ddr_cmds_data[5][0]  = 0x600010ad;
+	msg->ddr_cmds_data[5][1]  = 0x600004ae;
+	msg->ddr_cmds_data[5][2]  = 0x60000008;
+	msg->ddr_cmds_data[6][0]  = 0x600014c3;
+	msg->ddr_cmds_data[6][1]  = 0x600005d4;
+	msg->ddr_cmds_data[6][2]  = 0x60000008;
+	msg->ddr_cmds_data[7][0]  = 0x6000176a;
+	msg->ddr_cmds_data[7][1]  = 0x60000693;
+	msg->ddr_cmds_data[7][2]  = 0x60000008;
+	msg->ddr_cmds_data[8][0]  = 0x60001f01;
+	msg->ddr_cmds_data[8][1]  = 0x600008b5;
+	msg->ddr_cmds_data[8][2]  = 0x60000008;
+	msg->ddr_cmds_data[9][0]  = 0x60002940;
+	msg->ddr_cmds_data[9][1]  = 0x60000b95;
+	msg->ddr_cmds_data[9][2]  = 0x60000008;
+	msg->ddr_cmds_data[10][0] = 0x60002f68;
+	msg->ddr_cmds_data[10][1] = 0x60000d50;
+	msg->ddr_cmds_data[10][2] = 0x60000008;
+	msg->ddr_cmds_data[11][0] = 0x60003700;
+	msg->ddr_cmds_data[11][1] = 0x60000f71;
+	msg->ddr_cmds_data[11][2] = 0x60000008;
+	msg->ddr_cmds_data[12][0] = 0x60003fce;
+	msg->ddr_cmds_data[12][1] = 0x600011ea;
+	msg->ddr_cmds_data[12][2] = 0x60000008;
+
+	msg->cnoc_cmds_num = 1;
+	msg->cnoc_wait_bitmask = 0x0;
+
+	msg->cnoc_cmds_addrs[0] = 0x50054;
+
+	msg->cnoc_cmds_data[0][0] = 0x40000000;
 }
 
 static void a640_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
@@ -462,6 +521,8 @@ static int a6xx_hfi_send_bw_table(struct a6xx_gmu *gmu)
 
 	if (adreno_is_a618(adreno_gpu))
 		a618_build_bw_table(&msg);
+	else if (adreno_is_a619(adreno_gpu))
+		a619_build_bw_table(&msg);
 	else if (adreno_is_a640_family(adreno_gpu))
 		a640_build_bw_table(&msg);
 	else if (adreno_is_a650(adreno_gpu))

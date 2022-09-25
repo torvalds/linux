@@ -1752,7 +1752,7 @@ static int at91_adc_set_watermark(struct iio_dev *indio_dev, unsigned int val)
 	int ret;
 
 	if (val > AT91_HWFIFO_MAX_SIZE)
-		return -EINVAL;
+		val = AT91_HWFIFO_MAX_SIZE;
 
 	if (!st->selected_trig->hw_trig) {
 		dev_dbg(&indio_dev->dev, "we need hw trigger for DMA\n");
@@ -2103,7 +2103,7 @@ static int at91_adc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static __maybe_unused int at91_adc_suspend(struct device *dev)
+static int at91_adc_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct at91_adc_state *st = iio_priv(indio_dev);
@@ -2123,7 +2123,7 @@ static __maybe_unused int at91_adc_suspend(struct device *dev)
 	return pinctrl_pm_select_sleep_state(dev);
 }
 
-static __maybe_unused int at91_adc_resume(struct device *dev)
+static int at91_adc_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct at91_adc_state *st = iio_priv(indio_dev);
@@ -2169,7 +2169,8 @@ resume_failed:
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(at91_adc_pm_ops, at91_adc_suspend, at91_adc_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(at91_adc_pm_ops, at91_adc_suspend,
+				at91_adc_resume);
 
 static const struct of_device_id at91_adc_dt_match[] = {
 	{
@@ -2190,7 +2191,7 @@ static struct platform_driver at91_adc_driver = {
 	.driver = {
 		.name = "at91-sama5d2_adc",
 		.of_match_table = at91_adc_dt_match,
-		.pm = &at91_adc_pm_ops,
+		.pm = pm_sleep_ptr(&at91_adc_pm_ops),
 	},
 };
 module_platform_driver(at91_adc_driver)

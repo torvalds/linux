@@ -24,6 +24,7 @@ properties:
           - qcom,qcs404-dwc3
           - qcom,sc7180-dwc3
           - qcom,sc7280-dwc3
+          - qcom,sc8280xp-dwc3
           - qcom,sdm660-dwc3
           - qcom,sdm845-dwc3
           - qcom,sdx55-dwc3
@@ -32,6 +33,7 @@ properties:
           - qcom,sm6115-dwc3
           - qcom,sm6125-dwc3
           - qcom,sm6350-dwc3
+          - qcom,sm6375-dwc3
           - qcom,sm8150-dwc3
           - qcom,sm8250-dwc3
           - qcom,sm8350-dwc3
@@ -66,11 +68,11 @@ properties:
        - mock_utmi:: Mock utmi clock needed for ITP/SOF generation in host
                      mode. Its frequency should be 19.2MHz.
     minItems: 1
-    maxItems: 6
+    maxItems: 9
 
   clock-names:
     minItems: 1
-    maxItems: 6
+    maxItems: 9
 
   assigned-clocks:
     items:
@@ -93,20 +95,12 @@ properties:
       - const: apps-usb
 
   interrupts:
-    items:
-      - description: The interrupt that is asserted
-          when a wakeup event is received on USB2 bus.
-      - description: The interrupt that is asserted
-          when a wakeup event is received on USB3 bus.
-      - description: Wakeup event on DM line.
-      - description: Wakeup event on DP line.
+    minItems: 1
+    maxItems: 4
 
   interrupt-names:
-    items:
-      - const: hs_phy_irq
-      - const: ss_phy_irq
-      - const: dm_hs_phy_irq
-      - const: dp_hs_phy_irq
+    minItems: 1
+    maxItems: 4
 
   qcom,select-utmi-as-pipe-clk:
     description:
@@ -115,11 +109,16 @@ properties:
       HS/FS/LS modes are supported.
     type: boolean
 
+  wakeup-source: true
+
 # Required child node:
 
 patternProperties:
   "^usb@[0-9a-f]+$":
     $ref: snps,dwc3.yaml#
+
+    properties:
+      wakeup-source: false
 
 required:
   - compatible
@@ -254,6 +253,28 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,sc8280xp-dwc3
+    then:
+      properties:
+        clocks:
+          maxItems: 9
+        clock-names:
+          items:
+            - const: cfg_noc
+            - const: core
+            - const: iface
+            - const: sleep
+            - const: mock_utmi
+            - const: noc_aggr
+            - const: noc_aggr_north
+            - const: noc_aggr_south
+            - const: noc_sys
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
               - qcom,sdm660-dwc3
     then:
       properties:
@@ -311,6 +332,115 @@ allOf:
             - const: mock_utmi
             - const: xo
 
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,ipq4019-dwc3
+              - qcom,ipq6018-dwc3
+              - qcom,ipq8064-dwc3
+              - qcom,ipq8074-dwc3
+              - qcom,msm8994-dwc3
+              - qcom,qcs404-dwc3
+              - qcom,sc7180-dwc3
+              - qcom,sdm845-dwc3
+              - qcom,sdx55-dwc3
+              - qcom,sdx65-dwc3
+              - qcom,sm4250-dwc3
+              - qcom,sm6115-dwc3
+              - qcom,sm6125-dwc3
+              - qcom,sm6350-dwc3
+              - qcom,sm8150-dwc3
+              - qcom,sm8250-dwc3
+              - qcom,sm8350-dwc3
+              - qcom,sm8450-dwc3
+    then:
+      properties:
+        interrupts:
+          items:
+            - description: The interrupt that is asserted
+                when a wakeup event is received on USB2 bus.
+            - description: The interrupt that is asserted
+                when a wakeup event is received on USB3 bus.
+            - description: Wakeup event on DM line.
+            - description: Wakeup event on DP line.
+        interrupt-names:
+          items:
+            - const: hs_phy_irq
+            - const: ss_phy_irq
+            - const: dm_hs_phy_irq
+            - const: dp_hs_phy_irq
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,msm8953-dwc3
+              - qcom,msm8996-dwc3
+              - qcom,msm8998-dwc3
+    then:
+      properties:
+        interrupts:
+          maxItems: 2
+        interrupt-names:
+          items:
+            - const: hs_phy_irq
+            - const: ss_phy_irq
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sdm660-dwc3
+    then:
+      properties:
+        interrupts:
+          minItems: 1
+          maxItems: 2
+        interrupt-names:
+          minItems: 1
+          items:
+            - const: hs_phy_irq
+            - const: ss_phy_irq
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sc7280-dwc3
+    then:
+      properties:
+        interrupts:
+          minItems: 3
+          maxItems: 4
+        interrupt-names:
+          minItems: 3
+          items:
+            - const: hs_phy_irq
+            - const: dp_hs_phy_irq
+            - const: dm_hs_phy_irq
+            - const: ss_phy_irq
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sc8280xp-dwc3
+    then:
+      properties:
+        interrupts:
+          maxItems: 4
+        interrupt-names:
+          items:
+            - const: pwr_event
+            - const: dp_hs_phy_irq
+            - const: dm_hs_phy_irq
+            - const: ss_phy_irq
 
 additionalProperties: false
 

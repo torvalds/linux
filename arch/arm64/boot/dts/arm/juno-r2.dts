@@ -198,6 +198,7 @@
 			cache-size = <0x200000>;
 			cache-line-size = <64>;
 			cache-sets = <2048>;
+			cache-level = <2>;
 		};
 
 		A53_L2: l2-cache1 {
@@ -205,6 +206,7 @@
 			cache-size = <0x100000>;
 			cache-line-size = <64>;
 			cache-sets = <1024>;
+			cache-level = <2>;
 		};
 	};
 

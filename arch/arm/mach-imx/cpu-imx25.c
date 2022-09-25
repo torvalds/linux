@@ -32,6 +32,8 @@ static int mx25_read_cpu_rev(void)
 		return IMX_CHIP_REVISION_1_0;
 	case 0x01:
 		return IMX_CHIP_REVISION_1_1;
+	case 0x02:
+		return IMX_CHIP_REVISION_1_2;
 	default:
 		return IMX_CHIP_REVISION_UNKNOWN;
 	}

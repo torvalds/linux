@@ -21,6 +21,7 @@ struct core_reloc_kernel_output {
 	/* we have test_progs[-flavor], so cut flavor part */
 	char comm[sizeof("test_progs")];
 	int comm_len;
+	bool local_task_struct_matches;
 };
 
 struct task_struct {
@@ -30,11 +31,25 @@ struct task_struct {
 	struct task_struct *group_leader;
 };
 
+struct mm_struct___wrong {
+    int abc_whatever_should_not_exist;
+};
+
+struct task_struct___local {
+    int pid;
+    struct mm_struct___wrong *mm;
+};
+
 #define CORE_READ(dst, src) bpf_core_read(dst, sizeof(*(dst)), src)
 
 SEC("raw_tracepoint/sys_enter")
 int test_core_kernel(void *ctx)
 {
+	/* Support for the BPF_TYPE_MATCHES argument to the
+	 * __builtin_preserve_type_info builtin was added at some point during
+	 * development of clang 15 and it's what we require for this test.
+	 */
+#if __has_builtin(__builtin_preserve_type_info) && __clang_major__ >= 15
 	struct task_struct *task = (void *)bpf_get_current_task();
 	struct core_reloc_kernel_output *out = (void *)&data.out;
 	uint64_t pid_tgid = bpf_get_current_pid_tgid();
@@ -93,6 +108,10 @@ int test_core_kernel(void *ctx)
 		group_leader, group_leader, group_leader, group_leader,
 		comm);
 
+	out->local_task_struct_matches = bpf_core_type_matches(struct task_struct___local);
+#else
+	data.skip = true;
+#endif
 	return 0;
 }
 

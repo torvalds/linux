@@ -62,6 +62,11 @@ static int zlib_uncompress(struct squashfs_sb_info *msblk, void *strm,
 	stream->next_out = squashfs_first_page(output);
 	stream->avail_in = 0;
 
+	if (IS_ERR(stream->next_out)) {
+		error = PTR_ERR(stream->next_out);
+		goto finish;
+	}
+
 	for (;;) {
 		int zlib_err;
 
@@ -85,7 +90,10 @@ static int zlib_uncompress(struct squashfs_sb_info *msblk, void *strm,
 
 		if (stream->avail_out == 0) {
 			stream->next_out = squashfs_next_page(output);
-			if (stream->next_out != NULL)
+			if (IS_ERR(stream->next_out)) {
+				error = PTR_ERR(stream->next_out);
+				break;
+			} else if (stream->next_out != NULL)
 				stream->avail_out = PAGE_SIZE;
 		}
 
@@ -107,6 +115,7 @@ static int zlib_uncompress(struct squashfs_sb_info *msblk, void *strm,
 		}
 	}
 
+finish:
 	squashfs_finish_page(output);
 
 	if (!error)
@@ -122,6 +131,7 @@ const struct squashfs_decompressor squashfs_zlib_comp_ops = {
 	.decompress = zlib_uncompress,
 	.id = ZLIB_COMPRESSION,
 	.name = "zlib",
+	.alloc_buffer = 1,
 	.supported = 1
 };
 

@@ -17,13 +17,6 @@
  */
 #define BTRFS_BDEV_BLOCKSIZE	(4096)
 
-enum btrfs_wq_endio_type {
-	BTRFS_WQ_ENDIO_DATA,
-	BTRFS_WQ_ENDIO_METADATA,
-	BTRFS_WQ_ENDIO_FREE_SPACE,
-	BTRFS_WQ_ENDIO_RAID56,
-};
-
 static inline u64 btrfs_sb_offset(int mirror)
 {
 	u64 start = SZ_16K;
@@ -121,11 +114,9 @@ int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid,
 			  int atomic);
 int btrfs_read_extent_buffer(struct extent_buffer *buf, u64 parent_transid,
 			     int level, struct btrfs_key *first_key);
-blk_status_t btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
-			enum btrfs_wq_endio_type metadata);
-blk_status_t btrfs_wq_submit_bio(struct inode *inode, struct bio *bio,
-				 int mirror_num, u64 dio_file_offset,
-				 extent_submit_bio_start_t *submit_bio_start);
+bool btrfs_wq_submit_bio(struct inode *inode, struct bio *bio, int mirror_num,
+			 u64 dio_file_offset,
+			 extent_submit_bio_start_t *submit_bio_start);
 blk_status_t btrfs_submit_bio_done(void *private_data, struct bio *bio,
 			  int mirror_num);
 int btrfs_alloc_log_tree_node(struct btrfs_trans_handle *trans,
@@ -145,17 +136,5 @@ int btree_lock_page_hook(struct page *page, void *data,
 int btrfs_get_num_tolerated_disk_barrier_failures(u64 flags);
 int btrfs_get_free_objectid(struct btrfs_root *root, u64 *objectid);
 int btrfs_init_root_free_objectid(struct btrfs_root *root);
-int __init btrfs_end_io_wq_init(void);
-void __cold btrfs_end_io_wq_exit(void);
-
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-void btrfs_set_buffer_lockdep_class(u64 objectid,
-			            struct extent_buffer *eb, int level);
-#else
-static inline void btrfs_set_buffer_lockdep_class(u64 objectid,
-					struct extent_buffer *eb, int level)
-{
-}
-#endif
 
 #endif

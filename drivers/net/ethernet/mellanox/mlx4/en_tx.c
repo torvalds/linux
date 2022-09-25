@@ -645,7 +645,7 @@ static int get_real_size(const struct sk_buff *skb,
 		*inline_ok = false;
 		*hopbyhop = 0;
 		if (skb->encapsulation) {
-			*lso_header_size = (skb_inner_transport_header(skb) - skb->data) + inner_tcp_hdrlen(skb);
+			*lso_header_size = skb_inner_tcp_all_headers(skb);
 		} else {
 			/* Detects large IPV6 TCP packets and prepares for removal of
 			 * HBH header that has been pushed by ip6_xmit(),
@@ -653,7 +653,7 @@ static int get_real_size(const struct sk_buff *skb,
 			 */
 			if (ipv6_has_hopopt_jumbo(skb))
 				*hopbyhop = sizeof(struct hop_jumbo_hdr);
-			*lso_header_size = skb_transport_offset(skb) + tcp_hdrlen(skb);
+			*lso_header_size = skb_tcp_all_headers(skb);
 		}
 		real_size = CTRL_SIZE + shinfo->nr_frags * DS_SIZE +
 			ALIGN(*lso_header_size - *hopbyhop + 4, DS_SIZE);

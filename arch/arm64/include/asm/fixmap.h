@@ -62,10 +62,12 @@ enum fixed_addresses {
 #endif /* CONFIG_ACPI_APEI_GHES */
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
+#ifdef CONFIG_RELOCATABLE
+	FIX_ENTRY_TRAMP_TEXT4,	/* one extra slot for the data page */
+#endif
 	FIX_ENTRY_TRAMP_TEXT3,
 	FIX_ENTRY_TRAMP_TEXT2,
 	FIX_ENTRY_TRAMP_TEXT1,
-	FIX_ENTRY_TRAMP_DATA,
 #define TRAMP_VALIAS		(__fix_to_virt(FIX_ENTRY_TRAMP_TEXT1))
 #endif /* CONFIG_UNMAP_KERNEL_AT_EL0 */
 	__end_of_permanent_fixed_addresses,

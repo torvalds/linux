@@ -125,6 +125,8 @@ enum perf_output_field {
 	PERF_OUTPUT_CODE_PAGE_SIZE  = 1ULL << 34,
 	PERF_OUTPUT_INS_LAT         = 1ULL << 35,
 	PERF_OUTPUT_BRSTACKINSNLEN  = 1ULL << 36,
+	PERF_OUTPUT_MACHINE_PID     = 1ULL << 37,
+	PERF_OUTPUT_VCPU            = 1ULL << 38,
 };
 
 struct perf_script {
@@ -193,6 +195,8 @@ struct output_option {
 	{.str = "code_page_size", .field = PERF_OUTPUT_CODE_PAGE_SIZE},
 	{.str = "ins_lat", .field = PERF_OUTPUT_INS_LAT},
 	{.str = "brstackinsnlen", .field = PERF_OUTPUT_BRSTACKINSNLEN},
+	{.str = "machine_pid", .field = PERF_OUTPUT_MACHINE_PID},
+	{.str = "vcpu", .field = PERF_OUTPUT_VCPU},
 };
 
 enum {
@@ -441,6 +445,9 @@ static int evsel__check_attr(struct evsel *evsel, struct perf_session *session)
 	struct perf_event_attr *attr = &evsel->core.attr;
 	bool allow_user_set;
 
+	if (evsel__is_dummy_event(evsel))
+		return 0;
+
 	if (perf_header__has_feat(&session->header, HEADER_STAT))
 		return 0;
 
@@ -562,6 +569,8 @@ static struct evsel *find_first_output_type(struct evlist *evlist,
 	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
+		if (evsel__is_dummy_event(evsel))
+			continue;
 		if (output_type(evsel->core.attr.type) == (int)type)
 			return evsel;
 	}
@@ -745,6 +754,13 @@ static int perf_sample__fprintf_start(struct perf_script *script,
 	unsigned long long nsecs;
 	int printed = 0;
 	char tstr[128];
+
+	if (PRINT_FIELD(MACHINE_PID) && sample->machine_pid)
+		printed += fprintf(fp, "VM:%5d ", sample->machine_pid);
+
+	/* Print VCPU only for guest events i.e. with machine_pid */
+	if (PRINT_FIELD(VCPU) && sample->machine_pid)
+		printed += fprintf(fp, "VCPU:%03d ", sample->vcpu);
 
 	if (PRINT_FIELD(COMM)) {
 		const char *comm = thread ? thread__comm_str(thread) : ":-1";
@@ -3633,6 +3649,9 @@ int process_thread_map_event(struct perf_session *session,
 	struct perf_tool *tool = session->tool;
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
 
+	if (dump_trace)
+		perf_event__fprintf_thread_map(event, stdout);
+
 	if (script->threads) {
 		pr_warning("Extra thread map event, ignoring.\n");
 		return 0;
@@ -3651,6 +3670,9 @@ int process_cpu_map_event(struct perf_session *session,
 {
 	struct perf_tool *tool = session->tool;
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
+
+	if (dump_trace)
+		perf_event__fprintf_cpu_map(event, stdout);
 
 	if (script->cpus) {
 		pr_warning("Extra cpu map event, ignoring.\n");
@@ -3740,6 +3762,7 @@ int cmd_script(int argc, const char **argv)
 	bool header = false;
 	bool header_only = false;
 	bool script_started = false;
+	bool unsorted_dump = false;
 	char *rec_script_path = NULL;
 	char *rep_script_path = NULL;
 	struct perf_session *session;
@@ -3788,6 +3811,8 @@ int cmd_script(int argc, const char **argv)
 	const struct option options[] = {
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
+	OPT_BOOLEAN(0, "dump-unsorted-raw-trace", &unsorted_dump,
+		    "dump unsorted raw trace in ASCII"),
 	OPT_INCR('v', "verbose", &verbose,
 		 "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('L', "Latency", &latency_format,
@@ -3841,7 +3866,7 @@ int cmd_script(int argc, const char **argv)
 	OPT_CALLBACK_OPTARG(0, "xed", NULL, NULL, NULL,
 			"Run xed disassembler on output", parse_xed),
 	OPT_CALLBACK_OPTARG(0, "call-trace", &itrace_synth_opts, NULL, NULL,
-			"Decode calls from from itrace", parse_call_trace),
+			"Decode calls from itrace", parse_call_trace),
 	OPT_CALLBACK_OPTARG(0, "call-ret-trace", &itrace_synth_opts, NULL, NULL,
 			"Decode calls and returns from itrace", parse_callret_trace),
 	OPT_STRING(0, "graph-function", &symbol_conf.graph_function, "symbol[,symbol...]",
@@ -3949,6 +3974,11 @@ int cmd_script(int argc, const char **argv)
 
 	data.path  = input_name;
 	data.force = symbol_conf.force;
+
+	if (unsorted_dump) {
+		dump_trace = true;
+		script.tool.ordered_events = false;
+	}
 
 	if (symbol__validate_sym_arguments())
 		return -1;

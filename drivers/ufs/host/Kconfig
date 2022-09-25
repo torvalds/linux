@@ -92,6 +92,18 @@ config SCSI_UFS_HISI
 	  Select this if you have UFS controller on Hisilicon chipset.
 	  If unsure, say N.
 
+config SCSI_UFS_RENESAS
+	tristate "Renesas specific hooks to UFS controller platform driver"
+	depends on (ARCH_RENESAS || COMPILE_TEST) && SCSI_UFSHCD_PLATFORM
+	help
+	  This selects the Renesas specific additions to UFSHCD platform driver.
+	  UFS host on Renesas needs some vendor specific configuration before
+	  accessing the hardware.
+
+	  Select this if you have UFS controller on Renesas chipset.
+
+	  If unsure, say N.
+
 config SCSI_UFS_TI_J721E
 	tristate "TI glue layer for Cadence UFS Controller"
 	depends on OF && HAS_IOMEM && (ARCH_K3 || COMPILE_TEST)

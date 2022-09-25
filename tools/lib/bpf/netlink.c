@@ -27,6 +27,14 @@ typedef int (*libbpf_dump_nlmsg_t)(void *cookie, void *msg, struct nlattr **tb);
 typedef int (*__dump_nlmsg_t)(struct nlmsghdr *nlmsg, libbpf_dump_nlmsg_t,
 			      void *cookie);
 
+struct xdp_link_info {
+	__u32 prog_id;
+	__u32 drv_prog_id;
+	__u32 hw_prog_id;
+	__u32 skb_prog_id;
+	__u8 attach_mode;
+};
+
 struct xdp_id_md {
 	int ifindex;
 	__u32 flags;
@@ -288,31 +296,6 @@ int bpf_xdp_detach(int ifindex, __u32 flags, const struct bpf_xdp_attach_opts *o
 	return bpf_xdp_attach(ifindex, -1, flags, opts);
 }
 
-int bpf_set_link_xdp_fd_opts(int ifindex, int fd, __u32 flags,
-			     const struct bpf_xdp_set_link_opts *opts)
-{
-	int old_fd = -1, ret;
-
-	if (!OPTS_VALID(opts, bpf_xdp_set_link_opts))
-		return libbpf_err(-EINVAL);
-
-	if (OPTS_HAS(opts, old_fd)) {
-		old_fd = OPTS_GET(opts, old_fd, -1);
-		flags |= XDP_FLAGS_REPLACE;
-	}
-
-	ret = __bpf_set_link_xdp_fd_replace(ifindex, fd, old_fd, flags);
-	return libbpf_err(ret);
-}
-
-int bpf_set_link_xdp_fd(int ifindex, int fd, __u32 flags)
-{
-	int ret;
-
-	ret = __bpf_set_link_xdp_fd_replace(ifindex, fd, 0, flags);
-	return libbpf_err(ret);
-}
-
 static int __dump_link_nlmsg(struct nlmsghdr *nlh,
 			     libbpf_dump_nlmsg_t dump_link_nlmsg, void *cookie)
 {
@@ -413,30 +396,6 @@ int bpf_xdp_query(int ifindex, int xdp_flags, struct bpf_xdp_query_opts *opts)
 	return 0;
 }
 
-int bpf_get_link_xdp_info(int ifindex, struct xdp_link_info *info,
-			  size_t info_size, __u32 flags)
-{
-	LIBBPF_OPTS(bpf_xdp_query_opts, opts);
-	size_t sz;
-	int err;
-
-	if (!info_size)
-		return libbpf_err(-EINVAL);
-
-	err = bpf_xdp_query(ifindex, flags, &opts);
-	if (err)
-		return libbpf_err(err);
-
-	/* struct xdp_link_info field layout matches struct bpf_xdp_query_opts
-	 * layout after sz field
-	 */
-	sz = min(info_size, offsetofend(struct xdp_link_info, attach_mode));
-	memcpy(info, &opts.prog_id, sz);
-	memset((void *)info + sz, 0, info_size - sz);
-
-	return 0;
-}
-
 int bpf_xdp_query_id(int ifindex, int flags, __u32 *prog_id)
 {
 	LIBBPF_OPTS(bpf_xdp_query_opts, opts);
@@ -462,11 +421,6 @@ int bpf_xdp_query_id(int ifindex, int flags, __u32 *prog_id)
 	return 0;
 }
 
-
-int bpf_get_link_xdp_id(int ifindex, __u32 *prog_id, __u32 flags)
-{
-	return bpf_xdp_query_id(ifindex, flags, prog_id);
-}
 
 typedef int (*qdisc_config_t)(struct libbpf_nla_req *req);
 

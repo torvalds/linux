@@ -20,6 +20,7 @@ static int msm_devfreq_target(struct device *dev, unsigned long *freq,
 		u32 flags)
 {
 	struct msm_gpu *gpu = dev_to_gpu(dev);
+	struct msm_gpu_devfreq *df = &gpu->devfreq;
 	struct dev_pm_opp *opp;
 
 	/*
@@ -32,10 +33,13 @@ static int msm_devfreq_target(struct device *dev, unsigned long *freq,
 
 	trace_msm_gpu_freq_change(dev_pm_opp_get_freq(opp));
 
-	if (gpu->funcs->gpu_set_freq)
-		gpu->funcs->gpu_set_freq(gpu, opp);
-	else
+	if (gpu->funcs->gpu_set_freq) {
+		mutex_lock(&df->lock);
+		gpu->funcs->gpu_set_freq(gpu, opp, df->suspended);
+		mutex_unlock(&df->lock);
+	} else {
 		clk_set_rate(gpu->core_clk, *freq);
+	}
 
 	dev_pm_opp_put(opp);
 
@@ -58,18 +62,27 @@ static void get_raw_dev_status(struct msm_gpu *gpu,
 	unsigned long sample_rate;
 	ktime_t time;
 
+	mutex_lock(&df->lock);
+
 	status->current_frequency = get_freq(gpu);
-	busy_cycles = gpu->funcs->gpu_busy(gpu, &sample_rate);
 	time = ktime_get();
-
-	busy_time = busy_cycles - df->busy_cycles;
 	status->total_time = ktime_us_delta(time, df->time);
-
-	df->busy_cycles = busy_cycles;
 	df->time = time;
 
+	if (df->suspended) {
+		mutex_unlock(&df->lock);
+		status->busy_time = 0;
+		return;
+	}
+
+	busy_cycles = gpu->funcs->gpu_busy(gpu, &sample_rate);
+	busy_time = busy_cycles - df->busy_cycles;
+	df->busy_cycles = busy_cycles;
+
+	mutex_unlock(&df->lock);
+
 	busy_time *= USEC_PER_SEC;
-	do_div(busy_time, sample_rate);
+	busy_time = div64_ul(busy_time, sample_rate);
 	if (WARN_ON(busy_time > ~0LU))
 		busy_time = ~0LU;
 
@@ -175,6 +188,8 @@ void msm_devfreq_init(struct msm_gpu *gpu)
 	if (!gpu->funcs->gpu_busy)
 		return;
 
+	mutex_init(&df->lock);
+
 	dev_pm_qos_add_request(&gpu->pdev->dev, &df->idle_freq,
 			       DEV_PM_QOS_MAX_FREQUENCY,
 			       PM_QOS_MAX_FREQUENCY_DEFAULT_VALUE);
@@ -198,6 +213,8 @@ void msm_devfreq_init(struct msm_gpu *gpu)
 
 	if (IS_ERR(df->devfreq)) {
 		DRM_DEV_ERROR(&gpu->pdev->dev, "Couldn't initialize GPU devfreq\n");
+		dev_pm_qos_remove_request(&df->idle_freq);
+		dev_pm_qos_remove_request(&df->boost_freq);
 		df->devfreq = NULL;
 		return;
 	}
@@ -244,12 +261,16 @@ void msm_devfreq_cleanup(struct msm_gpu *gpu)
 void msm_devfreq_resume(struct msm_gpu *gpu)
 {
 	struct msm_gpu_devfreq *df = &gpu->devfreq;
+	unsigned long sample_rate;
 
 	if (!has_devfreq(gpu))
 		return;
 
-	df->busy_cycles = 0;
+	mutex_lock(&df->lock);
+	df->busy_cycles = gpu->funcs->gpu_busy(gpu, &sample_rate);
 	df->time = ktime_get();
+	df->suspended = false;
+	mutex_unlock(&df->lock);
 
 	devfreq_resume_device(df->devfreq);
 }
@@ -260,6 +281,10 @@ void msm_devfreq_suspend(struct msm_gpu *gpu)
 
 	if (!has_devfreq(gpu))
 		return;
+
+	mutex_lock(&df->lock);
+	df->suspended = true;
+	mutex_unlock(&df->lock);
 
 	devfreq_suspend_device(df->devfreq);
 

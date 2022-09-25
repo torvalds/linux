@@ -2,6 +2,10 @@
 #ifndef _NET_MRP_H
 #define _NET_MRP_H
 
+#include <linux/netdevice.h>
+#include <linux/skbuff.h>
+#include <linux/types.h>
+
 #define MRP_END_MARK		0x0
 
 struct mrp_pdu_hdr {

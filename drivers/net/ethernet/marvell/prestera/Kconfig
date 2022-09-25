@@ -8,6 +8,7 @@ config PRESTERA
 	depends on NET_SWITCHDEV && VLAN_8021Q
 	depends on BRIDGE || BRIDGE=n
 	select NET_DEVLINK
+	select PHYLINK
 	help
 	  This driver supports Marvell Prestera Switch ASICs family.
 

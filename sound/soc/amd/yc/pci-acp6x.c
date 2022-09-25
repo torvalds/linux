@@ -159,7 +159,7 @@ static int snd_acp6x_probe(struct pci_dev *pci,
 	case 0x6f:
 		break;
 	default:
-		dev_err(&pci->dev, "acp6x pci device not found\n");
+		dev_dbg(&pci->dev, "acp6x pci device not found\n");
 		return -ENODEV;
 	}
 	if (pci_enable_device(pci)) {

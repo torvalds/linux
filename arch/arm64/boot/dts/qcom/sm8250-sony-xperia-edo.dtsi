@@ -57,7 +57,7 @@
 		 * case, they are both on &pm8150b_gpios: camera focus(2), camera snapshot(1).
 		 */
 
-		vol-down {
+		key-vol-down {
 			label = "Volume Down";
 			linux,code = <KEY_VOLUMEDOWN>;
 			gpios = <&pm8150_gpios 1 GPIO_ACTIVE_LOW>;

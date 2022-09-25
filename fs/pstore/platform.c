@@ -28,10 +28,13 @@
 #include <linux/crypto.h>
 #include <linux/string.h>
 #include <linux/timer.h>
+#include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/jiffies.h>
 #include <linux/workqueue.h>
+
+#include <crypto/acompress.h>
 
 #include "internal.h"
 
@@ -90,7 +93,8 @@ module_param(compress, charp, 0444);
 MODULE_PARM_DESC(compress, "compression to use");
 
 /* Compression parameters */
-static struct crypto_comp *tfm;
+static struct crypto_acomp *tfm;
+static struct acomp_req *creq;
 
 struct pstore_zbackend {
 	int (*zbufsize)(size_t size);
@@ -268,12 +272,21 @@ static const struct pstore_zbackend zbackends[] = {
 static int pstore_compress(const void *in, void *out,
 			   unsigned int inlen, unsigned int outlen)
 {
+	struct scatterlist src, dst;
 	int ret;
 
 	if (!IS_ENABLED(CONFIG_PSTORE_COMPRESS))
 		return -EINVAL;
 
-	ret = crypto_comp_compress(tfm, in, inlen, out, &outlen);
+	sg_init_table(&src, 1);
+	sg_set_buf(&src, in, inlen);
+
+	sg_init_table(&dst, 1);
+	sg_set_buf(&dst, out, outlen);
+
+	acomp_request_set_params(creq, &src, &dst, inlen, outlen);
+
+	ret = crypto_acomp_compress(creq);
 	if (ret) {
 		pr_err("crypto_comp_compress failed, ret = %d!\n", ret);
 		return ret;
@@ -284,7 +297,7 @@ static int pstore_compress(const void *in, void *out,
 
 static void allocate_buf_for_compression(void)
 {
-	struct crypto_comp *ctx;
+	struct crypto_acomp *acomp;
 	int size;
 	char *buf;
 
@@ -296,7 +309,7 @@ static void allocate_buf_for_compression(void)
 	if (!psinfo || tfm)
 		return;
 
-	if (!crypto_has_comp(zbackend->name, 0, 0)) {
+	if (!crypto_has_acomp(zbackend->name, 0, CRYPTO_ALG_ASYNC)) {
 		pr_err("Unknown compression: %s\n", zbackend->name);
 		return;
 	}
@@ -315,16 +328,24 @@ static void allocate_buf_for_compression(void)
 		return;
 	}
 
-	ctx = crypto_alloc_comp(zbackend->name, 0, 0);
-	if (IS_ERR_OR_NULL(ctx)) {
+	acomp = crypto_alloc_acomp(zbackend->name, 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR_OR_NULL(acomp)) {
 		kfree(buf);
 		pr_err("crypto_alloc_comp('%s') failed: %ld\n", zbackend->name,
-		       PTR_ERR(ctx));
+		       PTR_ERR(acomp));
+		return;
+	}
+
+	creq = acomp_request_alloc(acomp);
+	if (!creq) {
+		crypto_free_acomp(acomp);
+		kfree(buf);
+		pr_err("acomp_request_alloc('%s') failed\n", zbackend->name);
 		return;
 	}
 
 	/* A non-NULL big_oops_buf indicates compression is available. */
-	tfm = ctx;
+	tfm = acomp;
 	big_oops_buf_sz = size;
 	big_oops_buf = buf;
 
@@ -334,7 +355,8 @@ static void allocate_buf_for_compression(void)
 static void free_buf_for_compression(void)
 {
 	if (IS_ENABLED(CONFIG_PSTORE_COMPRESS) && tfm) {
-		crypto_free_comp(tfm);
+		acomp_request_free(creq);
+		crypto_free_acomp(tfm);
 		tfm = NULL;
 	}
 	kfree(big_oops_buf);
@@ -671,6 +693,8 @@ static void decompress_record(struct pstore_record *record)
 	int ret;
 	int unzipped_len;
 	char *unzipped, *workspace;
+	struct acomp_req *dreq;
+	struct scatterlist src, dst;
 
 	if (!IS_ENABLED(CONFIG_PSTORE_COMPRESS) || !record->compressed)
 		return;
@@ -694,16 +718,30 @@ static void decompress_record(struct pstore_record *record)
 	if (!workspace)
 		return;
 
+	dreq = acomp_request_alloc(tfm);
+	if (!dreq) {
+		kfree(workspace);
+		return;
+	}
+
+	sg_init_table(&src, 1);
+	sg_set_buf(&src, record->buf, record->size);
+
+	sg_init_table(&dst, 1);
+	sg_set_buf(&dst, workspace, unzipped_len);
+
+	acomp_request_set_params(dreq, &src, &dst, record->size, unzipped_len);
+
 	/* After decompression "unzipped_len" is almost certainly smaller. */
-	ret = crypto_comp_decompress(tfm, record->buf, record->size,
-					  workspace, &unzipped_len);
+	ret = crypto_acomp_decompress(dreq);
 	if (ret) {
-		pr_err("crypto_comp_decompress failed, ret = %d!\n", ret);
+		pr_err("crypto_acomp_decompress failed, ret = %d!\n", ret);
 		kfree(workspace);
 		return;
 	}
 
 	/* Append ECC notice to decompressed buffer. */
+	unzipped_len = dreq->dlen;
 	memcpy(workspace + unzipped_len, record->buf + record->size,
 	       record->ecc_notice_size);
 
@@ -711,6 +749,7 @@ static void decompress_record(struct pstore_record *record)
 	unzipped = kmemdup(workspace, unzipped_len + record->ecc_notice_size,
 			   GFP_KERNEL);
 	kfree(workspace);
+	acomp_request_free(dreq);
 	if (!unzipped)
 		return;
 
@@ -769,6 +808,7 @@ void pstore_get_backend_records(struct pstore_info *psi,
 		if (rc) {
 			/* pstore_mkfile() did not take record, so free it. */
 			kfree(record->buf);
+			kfree(record->priv);
 			kfree(record);
 			if (rc != -EEXIST || !quiet)
 				failed++;
