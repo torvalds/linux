@@ -8,6 +8,7 @@
 
 #include <linux/bio.h>
 #include <linux/blkdev.h>
+#include <linux/console.h>
 #include <linux/ctype.h>
 #include <linux/debugfs.h>
 #include <linux/freezer.h>
@@ -242,6 +243,26 @@ void bch2_prt_u64_binary(struct printbuf *out, u64 v, unsigned nr_bits)
 {
 	while (nr_bits)
 		prt_char(out, '0' + ((v >> --nr_bits) & 1));
+}
+
+void bch2_print_string_as_lines(const char *prefix, const char *lines)
+{
+	const char *p;
+
+	if (!lines) {
+		printk("%s (null)\n", prefix);
+		return;
+	}
+
+	console_lock();
+	while (1) {
+		p = strchrnul(lines, '\n');
+		printk("%s%.*s\n", prefix, (int) (p - lines), lines);
+		if (!*p)
+			break;
+		lines = p + 1;
+	}
+	console_unlock();
 }
 
 /* time stats: */
