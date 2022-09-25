@@ -507,9 +507,11 @@ static void btree_err_msg(struct printbuf *out, struct bch_fs *c,
 			  struct btree *b, struct bset *i,
 			  unsigned offset, int write)
 {
-	prt_printf(out, "error validating btree node ");
-	if (write)
-		prt_printf(out, "before write ");
+	prt_printf(out, bch2_log_msg(c, ""));
+	if (!write)
+		prt_str(out, "error validating btree node ");
+	else
+		prt_str(out, "corrupt btree node before write ");
 	if (ca)
 		prt_printf(out, "on %s ", ca->name);
 	prt_printf(out, "at btree ");
@@ -518,6 +520,7 @@ static void btree_err_msg(struct printbuf *out, struct bch_fs *c,
 	prt_printf(out, "\n  node offset %u", b->written);
 	if (i)
 		prt_printf(out, " bset u64s %u", le16_to_cpu(i->u64s));
+	prt_str(out, ": ");
 }
 
 enum btree_err_type {
@@ -537,7 +540,7 @@ enum btree_validate_ret {
 	struct printbuf out = PRINTBUF;					\
 									\
 	btree_err_msg(&out, c, ca, b, i, b->written, write);		\
-	prt_printf(&out, ": " msg, ##__VA_ARGS__);			\
+	prt_printf(&out, msg, ##__VA_ARGS__);				\
 									\
 	if (type == BTREE_ERR_FIXABLE &&				\
 	    write == READ &&						\
@@ -546,10 +549,10 @@ enum btree_validate_ret {
 		goto out;						\
 	}								\
 									\
+	bch2_print_string_as_lines(KERN_ERR, out.buf);			\
+									\
 	switch (write) {						\
 	case READ:							\
-		bch_err(c, "%s", out.buf);				\
-									\
 		switch (type) {						\
 		case BTREE_ERR_FIXABLE:					\
 			ret = -BCH_ERR_fsck_errors_not_fixed;		\
@@ -569,8 +572,6 @@ enum btree_validate_ret {
 		}							\
 		break;							\
 	case WRITE:							\
-		bch_err(c, "corrupt metadata before write: %s", out.buf);\
-									\
 		if (bch2_fs_inconsistent(c)) {				\
 			ret = -BCH_ERR_fsck_errors_not_fixed;		\
 			goto fsck_err;					\
