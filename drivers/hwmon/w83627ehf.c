@@ -1944,7 +1944,7 @@ static int __init w83627ehf_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
-static int __maybe_unused w83627ehf_suspend(struct device *dev)
+static int w83627ehf_suspend(struct device *dev)
 {
 	struct w83627ehf_data *data = w83627ehf_update_device(dev);
 
@@ -1955,7 +1955,7 @@ static int __maybe_unused w83627ehf_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused w83627ehf_resume(struct device *dev)
+static int w83627ehf_resume(struct device *dev)
 {
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
 	int i;
@@ -2010,12 +2010,12 @@ static int __maybe_unused w83627ehf_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(w83627ehf_dev_pm_ops, w83627ehf_suspend, w83627ehf_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(w83627ehf_dev_pm_ops, w83627ehf_suspend, w83627ehf_resume);
 
 static struct platform_driver w83627ehf_driver = {
 	.driver = {
 		.name	= DRVNAME,
-		.pm	= &w83627ehf_dev_pm_ops,
+		.pm	= pm_sleep_ptr(&w83627ehf_dev_pm_ops),
 	},
 };
 
