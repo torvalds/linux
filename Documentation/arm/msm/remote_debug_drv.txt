@@ -1,0 +1,468 @@
+Introduction
+============
+
+The goal of this debug feature is to provide a reliable, responsive,
+accurate and secure debug capability to developers interested in
+debugging MSM subsystem processor images without the use of a hardware
+debugger.
+
+The Debug Agent along with the Remote Debug Driver implements a shared
+memory based transport mechanism that allows for a debugger (ex. GDB)
+running on a host PC to communicate with a remote stub running on
+peripheral subsystems such as the ADSP, MODEM etc.
+
+The diagram below depicts end to end the components involved to
+support remote debugging:
+
+
+:               :
+:    HOST (PC)  :  MSM
+:  ,--------,   :   ,-------,
+:  |        |   :   | Debug |                         ,--------,
+:  |Debugger|<--:-->| Agent |                         | Remote |
+:  |        |   :   |  App  |                  +----->| Debug  |
+:  `--------`   :   |-------|    ,--------,    |      | Stub   |
+:               :   | Remote|    |        |<---+      `--------`
+:               :   | Debug |<-->|--------|
+:               :   | Driver|    |        |<---+      ,--------,
+:               :   `-------`    `--------`    |      | Remote |
+:               :       LA         Shared      +----->| Debug  |
+:               :                  Memory             | Stub   |
+:               :                                     `--------`
+:               :                               Peripheral Subsystems
+:               :                                 (ADSP, MODEM, ...)
+
+
+Debugger:       Debugger application running on the host PC that
+                communicates with the remote stub.
+                Examples: GDB, LLDB
+
+Debug Agent:    Software that runs on the Linux Android platform
+                that provides connectivity from the MSM to the
+                host PC. This involves two portions:
+                1) User mode Debug Agent application that discovers
+                processes running on the subsystems and creates
+                TCP/IP sockets for the host to connect to. In addition
+                to this, it creates an info port that
+                users can connect to discover the various
+                processes and their corresponding debug ports.
+
+Remote Debug    A character based driver that the Debug
+Driver:         Agent uses to transport the payload received from the
+                host to the debug stub running on the subsystem
+                processor over shared memory and vice versa.
+
+Shared Memory:  Shared memory from the SMEM pool that is accessible
+                from the Applications Processor (AP) and the
+                subsystem processors.
+
+Remote Debug    Privileged code that runs in the kernels of the
+Stub:           subsystem processors that receives debug commands
+                from the debugger running on the host and
+                acts on these commands. These commands include reading
+                and writing to registers and memory belonging to the
+                subsystem's address space, setting breakpoints,
+                single stepping etc.
+
+Hardware description
+====================
+
+The Remote Debug Driver interfaces with the Remote Debug stubs
+running on the subsystem processors and does not drive or
+manage any hardware resources.
+
+Software description
+====================
+
+The debugger and the remote stubs use Remote Serial Protocol (RSP)
+to communicate with each other. This is widely used protocol by both
+software and hardware debuggers. RSP is an ASCII based protocol
+and used when it is not possible to run GDB server on the target under
+debug.
+
+The Debug Agent application along with the Remote Debug Driver
+is responsible for establishing a bi-directional connection from
+the debugger application running on the host to the remote debug
+stub running on a subsystem. The Debug Agent establishes connectivity
+to the host PC via TCP/IP sockets.
+
+This feature uses ADB port forwarding to establish connectivity
+between the debugger running on the host and the target under debug.
+
+Please note the Debug Agent does not expose HLOS memory to the
+remote subsystem processors.
+
+Design
+======
+
+Here is the overall flow:
+
+1) When the Debug Agent application starts up, it opens up a shared memory
+based transport channel to the various subsystem processor images.
+
+2) The Debug Agent application sends messages across to the remote stubs
+to discover the various processes that are running on the subsystem and
+creates debug sockets for each of them.
+
+3) Whenever a process running on a subsystem exits, the Debug Agent
+is notified by the stub so that the debug port and other resources
+can be reclaimed.
+
+4) The Debug Agent uses the services of the Remote Debug Driver to
+transport payload from the host debugger to the remote stub and vice versa.
+
+5) Communication between the Remote Debug Driver and the Remote Debug stub
+running on the subsystem processor is done over shared memory (see figure).
+SMEM services are used to allocate the shared memory that will
+be readable and writeable by the AP and the subsystem image under debug.
+
+A separate SMEM allocation takes place for each subsystem processor
+involved in remote debugging. The remote stub running on each of the
+subsystems allocates a SMEM buffer using a unique identifier so that both
+the AP and subsystem get the same physical block of memory. It should be
+noted that subsystem images can be restarted at any time.
+However, when a subsystem comes back up, its stub uses the same unique
+SMEM identifier to allocate the SMEM block. This would not result in a
+new allocation rather the same block of memory in the first bootup instance
+is provided back to the stub running on the subsystem.
+
+An 8KB chunk of shared memory is allocated and used for communication
+per subsystem. For multi-process capable subsystems, 16KB chunk of shared
+memory is allocated to allow for simultaneous debugging of more than one
+process running on a single subsystem.
+
+The shared memory is used as a circular ring buffer in each direction.
+Thus we have a bi-directional shared memory channel between the AP
+and a subsystem. We call this SMQ. Each memory channel contains a header,
+data and a control mechanism that is used to synchronize read and write
+of data between the AP and the remote subsystem.
+
+Overall SMQ memory view:
+:
+:    +------------------------------------------------+
+:    | SMEM buffer                                    |
+:    |-----------------------+------------------------|
+:    |Producer: LA           | Producer: Remote       |
+:    |Consumer: Remote       |           subsystem    |
+:    |          subsystem    | Consumer: LA           |
+:    |                       |                        |
+:    |               Producer|                Consumer|
+:    +-----------------------+------------------------+
+:    |                       |
+:    |                       |
+:    |                       +--------------------------------------+
+:    |                                                              |
+:    |                                                              |
+:    v                                                              v
+:    +--------------------------------------------------------------+
+:    |   Header  |       Data      |            Control             |
+:    +-----------+---+---+---+-----+----+--+--+-----+---+--+--+-----+
+:    |           | b | b | b |     | S  |n |n |     | S |n |n |     |
+:    |  Producer | l | l | l |     | M  |o |o |     | M |o |o |     |
+:    |    Ver    | o | o | o |     | Q  |d |d |     | Q |d |d |     |
+:    |-----------| c | c | c | ... |    |e |e | ... |   |e |e | ... |
+:    |           | k | k | k |     | O  |  |  |     | I |  |  |     |
+:    |  Consumer |   |   |   |     | u  |0 |1 |     | n |0 |1 |     |
+:    |    Ver    | 0 | 1 | 2 |     | t  |  |  |     |   |  |  |     |
+:    +-----------+---+---+---+-----+----+--+--+-----+---+--+--+-----+
+:                                       |           |
+:                                       +           |
+:                                                   |
+:                          +------------------------+
+:                          |
+:                          v
+:                        +----+----+----+----+
+:                        | SMQ Nodes         |
+:                        |----|----|----|----|
+:                 Node # |  0 |  1 |  2 | ...|
+:                        |----|----|----|----|
+: Starting Block Index # |  0 |  3 |  8 | ...|
+:                        |----|----|----|----|
+:            # of blocks |  3 |  5 |  1 | ...|
+:                        +----+----+----+----+
+:
+
+Header: Contains version numbers for software compatibility to ensure
+that both producers and consumers on the AP and subsystems know how to
+read from and write to the queue.
+Both the producer and consumer versions are 1.
+:     +---------+-------------------+
+:     | Size    | Field             |
+:     +---------+-------------------+
+:     | 1 byte  | Producer Version  |
+:     +---------+-------------------+
+:     | 1 byte  | Consumer Version  |
+:     +---------+-------------------+
+
+
+Data: The data portion contains multiple blocks [0..N] of a fixed size.
+The block size SM_BLOCKSIZE is fixed to 128 bytes for header version #1.
+Payload sent from the debug agent app is split (if necessary) and placed
+in these blocks. The first data block is placed at the next 8 byte aligned
+address after the header.
+
+The number of blocks for a given SMEM allocation is derived as follows:
+  Number of Blocks = ((Total Size - Alignment - Size of Header
+                      - Size of SMQIn - Size of SMQOut)/(SM_BLOCKSIZE))
+
+The producer maintains a private block map of each of these blocks to
+determine which of these blocks in the queue is available and which are free.
+
+Control:
+The control portion contains a list of nodes [0..N] where N is number
+of available data blocks. Each node identifies the data
+block indexes that contain a particular debug message to be transferred,
+and the number of blocks it took to hold the contents of the message.
+
+Each node has the following structure:
+:     +---------+-------------------+
+:     | Size    | Field             |
+:     +---------+-------------------+
+:     | 2 bytes |Staring Block Index|
+:     +---------+-------------------+
+:     | 2 bytes |Number of Blocks   |
+:     +---------+-------------------+
+
+The producer and the consumer update different parts of the control channel
+(SMQOut / SMQIn) respectively. Each of these control data structures contains
+information about the last node that was written / read, and the actual nodes
+that were written/read.
+
+SMQOut Structure (R/W by producer, R by consumer):
+:     +---------+-------------------+
+:     | Size    | Field             |
+:     +---------+-------------------+
+:     | 4 bytes | Magic Init Number |
+:     +---------+-------------------+
+:     | 4 bytes | Reset             |
+:     +---------+-------------------+
+:     | 4 bytes | Last Sent Index   |
+:     +---------+-------------------+
+:     | 4 bytes | Index Free Read   |
+:     +---------+-------------------+
+
+SMQIn Structure (R/W by consumer, R by producer):
+:     +---------+-------------------+
+:     | Size    | Field             |
+:     +---------+-------------------+
+:     | 4 bytes | Magic Init Number |
+:     +---------+-------------------+
+:     | 4 bytes | Reset ACK         |
+:     +---------+-------------------+
+:     | 4 bytes | Last Read Index   |
+:     +---------+-------------------+
+:     | 4 bytes | Index Free Write  |
+:     +---------+-------------------+
+
+Magic Init Number:
+Both SMQ Out and SMQ In initialize this field with a predefined magic
+number so as to make sure that both the consumer and producer blocks
+have fully initialized and have valid data in the shared memory control area.
+  Producer Magic #: 0xFF00FF01
+  Consumer Magic #: 0xFF00FF02
+
+SMQ Out's Last Sent Index and Index Free Read:
+  Only a producer can write to these indexes and they are updated whenever
+  there is new payload to be inserted into the SMQ in order to be sent to a
+  consumer.
+
+  The number of blocks required for the SMQ allocation is determined as:
+   (payload size + SM_BLOCKSIZE - 1) / SM_BLOCKSIZE
+
+  The private block map is searched for a large enough continuous set of blocks
+  and the user data is copied into the data blocks.
+
+  The starting index of the free block(s) is updated in the SMQOut's Last Sent
+  Index. This update keeps track of which index was last written to and the
+  producer uses it to determine where the next allocation could be done.
+
+  Every allocation, a producer updates the Index Free Read from its
+  collaborating consumer's Index Free Write field (if they are unequal).
+  This index value indicates that the consumer has read all blocks associated
+  with allocation on the SMQ and that the producer can reuse these blocks for
+  subsquent allocations since this is a circular queue.
+
+  At cold boot and restart, these indexes are initialized to zero and all
+  blocks are marked as available for allocation.
+
+SMQ In's Last Read Index and Index Free Write:
+  These indexes are written to only by a consumer and are updated whenever
+  there is new payload to be read from the SMQ. The Last Read Index keeps
+  track of which index was last read by the consumer and using this, it
+  determines where the next read should be done.
+  After completing a read, Last Read Index is incremented to the
+  next block index. A consumer updates Index Free Write to the starting
+  index of an allocation whenever it has completed processing the blocks.
+  This is an optimization that can be used to prevent an additional copy
+  of data from the queue into a client's data buffer and the data in the queue
+  itself can be used.
+  Once Index Free Write is updated, the collaborating producer (on the next
+  data allocation) reads the updated Index Free Write value and it then
+  updates its corresponding SMQ Out's Index Free Read and marks the blocks
+  associated with that index as available for allocation. At cold boot and
+  restart, these indexes are initialized to zero.
+
+SMQ Out Reset# and SMQ In Reset ACK #:
+  Since subsystems can restart at anytime, the data blocks and control channel
+  can be in an inconsistent state when a producer or consumer comes up.
+  We use Reset and Reset ACK to manage this. At cold boot, the producer
+  initializes the Reset# to a known number ex. 1. Every other reset that the
+  producer undergoes, the Reset#1 is simply incremented by 1. All the producer
+  indexes are reset.
+  When the producer notifies the consumer of data availability, the consumer
+  reads the producers Reset # and copies that into its SMQ In Reset ACK#
+  field when they differ. When that occurs, the consumer resets its
+  indexes to 0.
+
+6) Asynchronous notifications between a producer and consumer are
+done using the SMP2P service which is interrupt based.
+
+Power Management
+================
+
+None
+
+SMP/multi-core
+==============
+
+The driver uses completion to wake up the Debug Agent client threads.
+
+Security
+========
+
+From the perspective of the subsystem, the AP is untrusted. The remote
+stubs consult the secure debug fuses to determine whether or not the
+remote debugging will be enabled at the subsystem.
+
+If the hardware debug fuses indicate that debugging is disabled, the
+remote stubs will not be functional on the subsystem. Writes to the
+queue will only be done if the driver sees that the remote stub has been
+initialized on the subsystem.
+
+Therefore even if any untrusted software running on the AP requests
+the services of the Remote Debug Driver and inject RSP messages
+into the shared memory buffer, these RSP messages will be discarded and
+an appropriate error code will be sent up to the invoking application.
+
+Performance
+===========
+
+During operation, the Remote Debug Driver copies RSP messages
+asynchronously sent from the host debugger to the remote stub and vice
+versa. The debug messages are ASCII based and relatively short
+(<25 bytes) and may once in a while go up to a maximum 700 bytes
+depending on the command the user requested. Thus we do not
+anticipate any major performance impact. Moreover, in a typical
+functional debug scenario performance should not be a concern.
+
+Interface
+=========
+
+The Remote Debug Driver is a character based device that manages
+a piece of shared memory that is used as a bi-directional
+single producer/consumer circular queue using a next fit allocator.
+Every subsystem, has its own shared memory buffer that is managed
+like a separate device.
+
+The driver distinguishes each subsystem processor's buffer by
+registering a node with a different minor number.
+
+For each subsystem that is supported, the driver exposes a user space
+interface through the following node:
+    - /dev/rdbg-<subsystem>
+    Ex. /dev/rdbg-adsp (for the ADSP subsystem)
+
+The standard open(), close(), read() and write() API set is
+implemented.
+
+The open() syscall will fail if a subsystem is not present or supported
+by the driver or a shared memory buffer cannot be allocated for the
+AP - subsystem communication. It will also fail if the subsytem has
+not initialized the queue on its side. Here are the error codes returned
+in case a call to open() fails:
+ENODEV - memory was not yet allocated for the device
+EEXIST - device is already opened
+ENOMEM - SMEM allocation failed
+ECOMM - Subsytem queue is not yet setup
+ENOMEM - Failure to initialize SMQ
+
+read() is a blocking call that will return with the number of bytes written
+by the subsystem whenever the subsystem sends it some payload. Here are the
+error codes returned in case a call to read() fails:
+EINVAL - Invalid input
+ENODEV - Device has not been opened yet
+ERESTARTSYS - call to wait_for_completion_interruptible is interrupted
+ENODATA - call to smq_receive failed
+
+write() attempts to send user mode payload out to the subsystem. It can fail
+if the SMQ is full. The number of bytes written is returned back to the user.
+Here are the error codes returned in case a call to write() fails:
+EINVAL - Invalid input
+ECOMM - SMQ send failed
+
+In the close() syscall, the control information state of the SMQ is
+initialized to zero thereby preventing any further communication between
+the AP and the subsystem. Here is the error code returned in case
+a call to close() fails:
+ENODEV - device wasn't opened/initialized
+
+The Remote Debug driver uses SMP2P for bi-directional AP to subsystem
+notification. Notifications are sent to indicate that there are new
+debug messages available for processing. Each subsystem that is
+supported will need to add a device tree entry per the usage
+specification of SMP2P driver.
+
+In case the remote stub becomes non operational or the security configuration
+on the subsystem does not permit debugging, any messages put in the SMQ will
+not be responded to. It is the responsibility of the Debug Agent app and the
+host debugger application such as GDB to timeout and notify the user of the
+non availability of remote debugging.
+
+Driver parameters
+=================
+
+None
+
+Config options
+==============
+
+The driver is configured with a device tree entry to map an SMP2P entry
+to the device. The SMP2P entry name used is "rdbg". Please see
+kernel\Documentation\arm\msm\msm_smp2p.txt for information about the
+device tree entry required to configure SMP2P.
+
+The driver uses the SMEM allocation type SMEM_LC_DEBUGGER to allocate memory
+for the queue that is used to share data with the subsystems.
+
+Dependencies
+============
+
+The Debug Agent driver requires services of SMEM to
+allocate shared memory buffers.
+
+SMP2P is used as a bi-directional notification
+mechanism between the AP and a subsystem processor.
+
+User space utilities
+====================
+
+This driver is meant to be used in conjunction with the user mode
+Remote Debug Agent application.
+
+Other
+=====
+
+None
+
+Known issues
+============
+For targets with an external subsystem, we cannot use
+shared memory for communication and would have to use the prevailing
+transport mechanisms that exists between the AP and the external subsystem.
+
+This driver cannot be leveraged for such targets.
+
+To do
+=====
+
+None
