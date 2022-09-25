@@ -1703,8 +1703,6 @@
 				qcom,ipc = <&apcs 8 8>;
 				qcom,smd-edge = <1>;
 				label = "lpass";
-				#address-cells = <1>;
-				#size-cells = <0>;
 			};
 		};
 
