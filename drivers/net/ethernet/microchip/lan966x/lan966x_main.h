@@ -476,6 +476,11 @@ int lan966x_cbs_add(struct lan966x_port *port,
 int lan966x_cbs_del(struct lan966x_port *port,
 		    struct tc_cbs_qopt_offload *qopt);
 
+int lan966x_ets_add(struct lan966x_port *port,
+		    struct tc_ets_qopt_offload *qopt);
+int lan966x_ets_del(struct lan966x_port *port,
+		    struct tc_ets_qopt_offload *qopt);
+
 static inline void __iomem *lan_addr(void __iomem *base[],
 				     int id, int tinst, int tcnt,
 				     int gbase, int ginst,
