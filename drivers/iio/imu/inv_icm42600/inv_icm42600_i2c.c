@@ -93,7 +93,7 @@ static struct i2c_driver inv_icm42600_driver = {
 	.driver = {
 		.name = "inv-icm42600-i2c",
 		.of_match_table = inv_icm42600_of_matches,
-		.pm = &inv_icm42600_pm_ops,
+		.pm = pm_ptr(&inv_icm42600_pm_ops),
 	},
 	.probe_new = inv_icm42600_probe,
 };
@@ -102,3 +102,4 @@ module_i2c_driver(inv_icm42600_driver);
 MODULE_AUTHOR("InvenSense, Inc.");
 MODULE_DESCRIPTION("InvenSense ICM-426xx I2C driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_ICM42600);

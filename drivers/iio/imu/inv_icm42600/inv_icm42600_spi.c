@@ -89,7 +89,7 @@ static struct spi_driver inv_icm42600_driver = {
 	.driver = {
 		.name = "inv-icm42600-spi",
 		.of_match_table = inv_icm42600_of_matches,
-		.pm = &inv_icm42600_pm_ops,
+		.pm = pm_ptr(&inv_icm42600_pm_ops),
 	},
 	.probe = inv_icm42600_probe,
 };
@@ -98,3 +98,4 @@ module_spi_driver(inv_icm42600_driver);
 MODULE_AUTHOR("InvenSense, Inc.");
 MODULE_DESCRIPTION("InvenSense ICM-426xx SPI driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_ICM42600);
