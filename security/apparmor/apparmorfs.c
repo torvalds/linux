@@ -1327,7 +1327,11 @@ static int decompress_zstd(char *src, size_t slen, char *dst, size_t dlen)
 			ret = -ENOMEM;
 			goto cleanup;
 		}
-
+		ctx = zstd_init_dctx(wksp, wksp_len);
+		if (ctx == NULL) {
+			ret = -ENOMEM;
+			goto cleanup;
+		}
 		out_len = zstd_decompress_dctx(ctx, dst, dlen, src, slen);
 		if (zstd_is_error(out_len)) {
 			ret = -EINVAL;
