@@ -524,6 +524,54 @@ static int do_tls_getsockopt_conf(struct sock *sk, char __user *optval,
 			rc = -EFAULT;
 		break;
 	}
+	case TLS_CIPHER_ARIA_GCM_128: {
+		struct tls12_crypto_info_aria_gcm_128 *
+		  crypto_info_aria_gcm_128 =
+		  container_of(crypto_info,
+			       struct tls12_crypto_info_aria_gcm_128,
+			       info);
+
+		if (len != sizeof(*crypto_info_aria_gcm_128)) {
+			rc = -EINVAL;
+			goto out;
+		}
+		lock_sock(sk);
+		memcpy(crypto_info_aria_gcm_128->iv,
+		       cctx->iv + TLS_CIPHER_ARIA_GCM_128_SALT_SIZE,
+		       TLS_CIPHER_ARIA_GCM_128_IV_SIZE);
+		memcpy(crypto_info_aria_gcm_128->rec_seq, cctx->rec_seq,
+		       TLS_CIPHER_ARIA_GCM_128_REC_SEQ_SIZE);
+		release_sock(sk);
+		if (copy_to_user(optval,
+				 crypto_info_aria_gcm_128,
+				 sizeof(*crypto_info_aria_gcm_128)))
+			rc = -EFAULT;
+		break;
+	}
+	case TLS_CIPHER_ARIA_GCM_256: {
+		struct tls12_crypto_info_aria_gcm_256 *
+		  crypto_info_aria_gcm_256 =
+		  container_of(crypto_info,
+			       struct tls12_crypto_info_aria_gcm_256,
+			       info);
+
+		if (len != sizeof(*crypto_info_aria_gcm_256)) {
+			rc = -EINVAL;
+			goto out;
+		}
+		lock_sock(sk);
+		memcpy(crypto_info_aria_gcm_256->iv,
+		       cctx->iv + TLS_CIPHER_ARIA_GCM_256_SALT_SIZE,
+		       TLS_CIPHER_ARIA_GCM_256_IV_SIZE);
+		memcpy(crypto_info_aria_gcm_256->rec_seq, cctx->rec_seq,
+		       TLS_CIPHER_ARIA_GCM_256_REC_SEQ_SIZE);
+		release_sock(sk);
+		if (copy_to_user(optval,
+				 crypto_info_aria_gcm_256,
+				 sizeof(*crypto_info_aria_gcm_256)))
+			rc = -EFAULT;
+		break;
+	}
 	default:
 		rc = -EINVAL;
 	}
@@ -684,6 +732,20 @@ static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 		break;
 	case TLS_CIPHER_SM4_CCM:
 		optsize = sizeof(struct tls12_crypto_info_sm4_ccm);
+		break;
+	case TLS_CIPHER_ARIA_GCM_128:
+		if (crypto_info->version != TLS_1_2_VERSION) {
+			rc = -EINVAL;
+			goto err_crypto_info;
+		}
+		optsize = sizeof(struct tls12_crypto_info_aria_gcm_128);
+		break;
+	case TLS_CIPHER_ARIA_GCM_256:
+		if (crypto_info->version != TLS_1_2_VERSION) {
+			rc = -EINVAL;
+			goto err_crypto_info;
+		}
+		optsize = sizeof(struct tls12_crypto_info_aria_gcm_256);
 		break;
 	default:
 		rc = -EINVAL;
