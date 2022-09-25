@@ -178,7 +178,7 @@
 
 	qcom,power-source = <1>;
 
-	rgb-led {
+	multi-led {
 		color = <LED_COLOR_ID_RGB>;
 		function = LED_FUNCTION_STATUS;
 
