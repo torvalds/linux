@@ -52,6 +52,7 @@ config ADIS16480
 	  ADIS16485, ADIS16488 inertial sensors.
 
 source "drivers/iio/imu/bmi160/Kconfig"
+source "drivers/iio/imu/bno055/Kconfig"
 
 config FXOS8700
 	tristate

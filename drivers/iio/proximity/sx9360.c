@@ -819,7 +819,7 @@ static int sx9360_probe(struct i2c_client *client)
 	return sx_common_probe(client, &sx9360_chip_info, &sx9360_regmap_config);
 }
 
-static int __maybe_unused sx9360_suspend(struct device *dev)
+static int sx9360_suspend(struct device *dev)
 {
 	struct sx_common_data *data = iio_priv(dev_get_drvdata(dev));
 	unsigned int regval;
@@ -844,7 +844,7 @@ out:
 	return ret;
 }
 
-static int __maybe_unused sx9360_resume(struct device *dev)
+static int sx9360_resume(struct device *dev)
 {
 	struct sx_common_data *data = iio_priv(dev_get_drvdata(dev));
 	int ret;
@@ -861,7 +861,7 @@ static int __maybe_unused sx9360_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(sx9360_pm_ops, sx9360_suspend, sx9360_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(sx9360_pm_ops, sx9360_suspend, sx9360_resume);
 
 static const struct acpi_device_id sx9360_acpi_match[] = {
 	{ "STH9360", SX9360_WHOAMI_VALUE },
@@ -886,7 +886,7 @@ static struct i2c_driver sx9360_driver = {
 		.name	= "sx9360",
 		.acpi_match_table = sx9360_acpi_match,
 		.of_match_table = sx9360_of_match,
-		.pm = &sx9360_pm_ops,
+		.pm = pm_sleep_ptr(&sx9360_pm_ops),
 
 		/*
 		 * Lots of i2c transfers in probe + over 200 ms waiting in

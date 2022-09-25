@@ -13,10 +13,14 @@ description: |
   16bit ADC supporting up to 16 single ended or 8 differential inputs.
   I2C interface.
 
+  https://www.analog.com/media/en/technical-documentation/data-sheets/2497fb.pdf
+  https://www.analog.com/media/en/technical-documentation/data-sheets/2499fe.pdf
+
 properties:
   compatible:
-    const:
-      lltc,ltc2497
+    enum:
+      - lltc,ltc2497
+      - lltc,ltc2499
 
   reg: true
   vref-supply: true
