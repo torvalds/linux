@@ -103,7 +103,7 @@ struct fsck_err_state {
 	const char		*fmt;
 	u64			nr;
 	bool			ratelimited;
-	char			buf[512];
+	struct printbuf		buf;
 };
 
 #define FSCK_CAN_FIX		(1 << 0)
@@ -121,7 +121,6 @@ void bch2_flush_fsck_errs(struct bch_fs *);
 									\
 	if (_ret != -BCH_ERR_fsck_fix &&				\
 	    _ret != -BCH_ERR_fsck_ignore) {				\
-		bch_err(c, "Unable to continue, halting");		\
 		ret = _ret;						\
 		goto fsck_err;						\
 	}								\
