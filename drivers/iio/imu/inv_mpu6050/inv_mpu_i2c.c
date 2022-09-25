@@ -267,7 +267,7 @@ static struct i2c_driver inv_mpu_driver = {
 		.of_match_table = inv_of_match,
 		.acpi_match_table = inv_acpi_match,
 		.name	=	"inv-mpu6050-i2c",
-		.pm     =       &inv_mpu_pmops,
+		.pm     =       pm_ptr(&inv_mpu_pmops),
 	},
 };
 
@@ -276,3 +276,4 @@ module_i2c_driver(inv_mpu_driver);
 MODULE_AUTHOR("Invensense Corporation");
 MODULE_DESCRIPTION("Invensense device MPU6050 driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_MPU6050);
