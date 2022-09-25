@@ -110,9 +110,9 @@ static int btree_node_data_alloc(struct bch_fs *c, struct btree *b, gfp_t gfp)
 	return 0;
 }
 
-static struct btree *__btree_node_mem_alloc(struct bch_fs *c)
+static struct btree *__btree_node_mem_alloc(struct bch_fs *c, gfp_t gfp)
 {
-	struct btree *b = kzalloc(sizeof(struct btree), GFP_KERNEL);
+	struct btree *b = kzalloc(sizeof(struct btree), gfp);
 	if (!b)
 		return NULL;
 
@@ -128,7 +128,7 @@ static struct btree *__btree_node_mem_alloc(struct bch_fs *c)
 struct btree *__bch2_btree_node_mem_alloc(struct bch_fs *c)
 {
 	struct btree_cache *bc = &c->btree_cache;
-	struct btree *b = __btree_node_mem_alloc(c);
+	struct btree *b = __btree_node_mem_alloc(c, GFP_KERNEL);
 	if (!b)
 		return NULL;
 
@@ -280,20 +280,17 @@ static unsigned long bch2_btree_cache_scan(struct shrinker *shrink,
 	struct btree *b, *t;
 	unsigned long nr = sc->nr_to_scan;
 	unsigned long can_free = 0;
-	unsigned long touched = 0;
 	unsigned long freed = 0;
+	unsigned long touched = 0;
 	unsigned i, flags;
 	unsigned long ret = SHRINK_STOP;
+	bool trigger_writes = atomic_read(&bc->dirty) + nr >=
+		bc->used * 3 / 4;
 
 	if (bch2_btree_shrinker_disabled)
 		return SHRINK_STOP;
 
-	/* Return -1 if we can't do anything right now */
-	if (sc->gfp_mask & __GFP_FS)
-		mutex_lock(&bc->lock);
-	else if (!mutex_trylock(&bc->lock))
-		goto out_norestore;
-
+	mutex_lock(&bc->lock);
 	flags = memalloc_nofs_save();
 
 	/*
@@ -318,7 +315,7 @@ static unsigned long bch2_btree_cache_scan(struct shrinker *shrink,
 		touched++;
 
 		if (touched >= nr)
-			break;
+			goto out;
 
 		if (!btree_node_reclaim(c, b)) {
 			btree_node_data_free(c, b);
@@ -329,52 +326,46 @@ static unsigned long bch2_btree_cache_scan(struct shrinker *shrink,
 	}
 restart:
 	list_for_each_entry_safe(b, t, &bc->live, list) {
-		/* tweak this */
+		touched++;
+
 		if (btree_node_accessed(b)) {
 			clear_btree_node_accessed(b);
-			goto touched;
-		}
-
-		if (!btree_node_reclaim(c, b)) {
-			/* can't call bch2_btree_node_hash_remove under lock  */
+		} else if (!btree_node_reclaim(c, b)) {
 			freed++;
-			if (&t->list != &bc->live)
-				list_move_tail(&bc->live, &t->list);
-
 			btree_node_data_free(c, b);
-			mutex_unlock(&bc->lock);
 
 			bch2_btree_node_hash_remove(bc, b);
 			six_unlock_write(&b->c.lock);
 			six_unlock_intent(&b->c.lock);
 
-			if (freed >= nr)
-				goto out;
-
-			if (sc->gfp_mask & __GFP_FS)
-				mutex_lock(&bc->lock);
-			else if (!mutex_trylock(&bc->lock))
-				goto out;
+			if (freed == nr)
+				goto out_rotate;
+		} else if (trigger_writes &&
+			   btree_node_dirty(b) &&
+			   !btree_node_will_make_reachable(b) &&
+			   !btree_node_write_blocked(b) &&
+			   six_trylock_read(&b->c.lock)) {
+			list_move(&bc->live, &b->list);
+			mutex_unlock(&bc->lock);
+			__bch2_btree_node_write(c, b, 0);
+			six_unlock_read(&b->c.lock);
+			if (touched >= nr)
+				goto out_nounlock;
+			mutex_lock(&bc->lock);
 			goto restart;
-		} else {
-			continue;
 		}
-touched:
-		touched++;
 
-		if (touched >= nr) {
-			/* Save position */
-			if (&t->list != &bc->live)
-				list_move_tail(&bc->live, &t->list);
+		if (touched >= nr)
 			break;
-		}
 	}
-
-	mutex_unlock(&bc->lock);
+out_rotate:
+	if (&t->list != &bc->live)
+		list_move_tail(&bc->live, &t->list);
 out:
+	mutex_unlock(&bc->lock);
+out_nounlock:
 	ret = freed;
 	memalloc_nofs_restore(flags);
-out_norestore:
 	trace_and_count(c, btree_cache_scan, sc->nr_to_scan, can_free, ret);
 	return ret;
 }
@@ -586,9 +577,14 @@ struct btree *bch2_btree_node_mem_alloc(struct bch_fs *c, bool pcpu_read_locks)
 			goto got_node;
 		}
 
-	b = __btree_node_mem_alloc(c);
-	if (!b)
-		goto err_locked;
+	b = __btree_node_mem_alloc(c, __GFP_NOWARN);
+	if (!b) {
+		mutex_unlock(&bc->lock);
+		b = __btree_node_mem_alloc(c, GFP_KERNEL);
+		if (!b)
+			goto err;
+		mutex_lock(&bc->lock);
+	}
 
 	if (pcpu_read_locks)
 		six_lock_pcpu_alloc(&b->c.lock);
@@ -641,7 +637,7 @@ out:
 	return b;
 err:
 	mutex_lock(&bc->lock);
-err_locked:
+
 	/* Try to cannibalize another cached btree node: */
 	if (bc->alloc_lock == current) {
 		b2 = btree_node_cannibalize(c);
