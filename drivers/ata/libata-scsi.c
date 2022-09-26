@@ -188,6 +188,22 @@ DEVICE_ATTR(unload_heads, S_IRUGO | S_IWUSR,
 	    ata_scsi_park_show, ata_scsi_park_store);
 EXPORT_SYMBOL_GPL(dev_attr_unload_heads);
 
+bool ata_scsi_sense_is_valid(u8 sk, u8 asc, u8 ascq)
+{
+	/*
+	 * If sk == NO_SENSE, and asc + ascq == NO ADDITIONAL SENSE INFORMATION,
+	 * then there is no sense data to add.
+	 */
+	if (sk == 0 && asc == 0 && ascq == 0)
+		return false;
+
+	/* If sk > COMPLETED, sense data is bogus. */
+	if (sk > COMPLETED)
+		return false;
+
+	return true;
+}
+
 void ata_scsi_set_sense(struct ata_device *dev, struct scsi_cmnd *cmd,
 			u8 sk, u8 asc, u8 ascq)
 {

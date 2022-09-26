@@ -1468,10 +1468,13 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 		sense_key = (qc->result_tf.auxiliary >> 16) & 0xff;
 		asc = (qc->result_tf.auxiliary >> 8) & 0xff;
 		ascq = qc->result_tf.auxiliary & 0xff;
-		ata_scsi_set_sense(dev, qc->scsicmd, sense_key, asc, ascq);
-		ata_scsi_set_sense_information(dev, qc->scsicmd,
-					       &qc->result_tf);
-		qc->flags |= ATA_QCFLAG_SENSE_VALID;
+		if (ata_scsi_sense_is_valid(sense_key, asc, ascq)) {
+			ata_scsi_set_sense(dev, qc->scsicmd, sense_key, asc,
+					   ascq);
+			ata_scsi_set_sense_information(dev, qc->scsicmd,
+						       &qc->result_tf);
+			qc->flags |= ATA_QCFLAG_SENSE_VALID;
+		}
 	}
 
 	ehc->i.err_mask &= ~AC_ERR_DEV;
