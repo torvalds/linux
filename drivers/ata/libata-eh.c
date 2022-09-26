@@ -1575,7 +1575,14 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc)
 
 	switch (qc->dev->class) {
 	case ATA_DEV_ZAC:
-		if (stat & ATA_SENSE)
+		/*
+		 * Fetch the sense data explicitly if:
+		 * -It was a non-NCQ command that failed, or
+		 * -It was a NCQ command that failed, but the sense data
+		 *  was not included in the NCQ command error log
+		 *  (i.e. NCQ autosense is not supported by the device).
+		 */
+		if (!(qc->flags & ATA_QCFLAG_SENSE_VALID) && (stat & ATA_SENSE))
 			ata_eh_request_sense(qc);
 		fallthrough;
 	case ATA_DEV_ATA:
