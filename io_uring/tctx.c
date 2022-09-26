@@ -105,17 +105,11 @@ static int io_register_submitter(struct io_ring_ctx *ctx)
 	return ret;
 }
 
-int __io_uring_add_tctx_node(struct io_ring_ctx *ctx, bool submitter)
+int __io_uring_add_tctx_node(struct io_ring_ctx *ctx)
 {
 	struct io_uring_task *tctx = current->io_uring;
 	struct io_tctx_node *node;
 	int ret;
-
-	if ((ctx->flags & IORING_SETUP_SINGLE_ISSUER) && submitter) {
-		ret = io_register_submitter(ctx);
-		if (ret)
-			return ret;
-	}
 
 	if (unlikely(!tctx)) {
 		ret = io_uring_alloc_task_context(current, ctx);
@@ -150,8 +144,24 @@ int __io_uring_add_tctx_node(struct io_ring_ctx *ctx, bool submitter)
 		list_add(&node->ctx_node, &ctx->tctx_list);
 		mutex_unlock(&ctx->uring_lock);
 	}
-	if (submitter)
-		tctx->last = ctx;
+	return 0;
+}
+
+int __io_uring_add_tctx_node_from_submit(struct io_ring_ctx *ctx)
+{
+	int ret;
+
+	if (ctx->flags & IORING_SETUP_SINGLE_ISSUER) {
+		ret = io_register_submitter(ctx);
+		if (ret)
+			return ret;
+	}
+
+	ret = __io_uring_add_tctx_node(ctx);
+	if (ret)
+		return ret;
+
+	current->io_uring->last = ctx;
 	return 0;
 }
 
@@ -259,7 +269,7 @@ int io_ringfd_register(struct io_ring_ctx *ctx, void __user *__arg,
 		return -EINVAL;
 
 	mutex_unlock(&ctx->uring_lock);
-	ret = __io_uring_add_tctx_node(ctx, false);
+	ret = __io_uring_add_tctx_node(ctx);
 	mutex_lock(&ctx->uring_lock);
 	if (ret)
 		return ret;
