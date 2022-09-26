@@ -330,6 +330,31 @@ static void umc_v8_10_err_cnt_init(struct amdgpu_device *adev)
 	}
 }
 
+static uint32_t umc_v8_10_query_ras_poison_mode_per_channel(
+						struct amdgpu_device *adev,
+						uint32_t umc_reg_offset)
+{
+	uint32_t ecc_ctrl_addr, ecc_ctrl;
+
+	ecc_ctrl_addr =
+		SOC15_REG_OFFSET(UMC, 0, regUMCCH0_0_GeccCtrl);
+	ecc_ctrl = RREG32_PCIE((ecc_ctrl_addr +
+					umc_reg_offset) * 4);
+
+	return REG_GET_FIELD(ecc_ctrl, UMCCH0_0_GeccCtrl, UCFatalEn);
+}
+
+static bool umc_v8_10_query_ras_poison_mode(struct amdgpu_device *adev)
+{
+	uint32_t umc_reg_offset  = 0;
+
+	/* Enabling fatal error in umc node0 instance0 channel0 will be
+	 * considered as fatal error mode
+	 */
+	umc_reg_offset = get_umc_v8_10_reg_offset(adev, 0, 0, 0);
+	return !umc_v8_10_query_ras_poison_mode_per_channel(adev, umc_reg_offset);
+}
+
 const struct amdgpu_ras_block_hw_ops umc_v8_10_ras_hw_ops = {
 	.query_ras_error_count = umc_v8_10_query_ras_error_count,
 	.query_ras_error_address = umc_v8_10_query_ras_error_address,
@@ -340,4 +365,5 @@ struct amdgpu_umc_ras umc_v8_10_ras = {
 		.hw_ops = &umc_v8_10_ras_hw_ops,
 	},
 	.err_cnt_init = umc_v8_10_err_cnt_init,
+	.query_ras_poison_mode = umc_v8_10_query_ras_poison_mode,
 };
