@@ -1598,6 +1598,9 @@ static int hdmi_start_flt(struct dw_hdmi_qp *hdmi, u8 rate)
 	hdmi_modb(hdmi, AVP_DATAPATH_VIDEO_SWDISABLE,
 		  AVP_DATAPATH_VIDEO_SWDISABLE, GLOBAL_SWDISABLE);
 
+	/* reset avp data path */
+	hdmi_writel(hdmi, BIT(6), GLOBAL_SWRESET_REQUEST);
+
 	/* FLT_READY & FFE_LEVELS read */
 	for (i = 0; i < 20; i++) {
 		drm_scdc_readb(hdmi->ddc, SCDC_STATUS_FLAGS_0, &val);
