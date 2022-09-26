@@ -1,0 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * CSS tweaks for the Alabaster theme
+ */
+
+/* Shrink the headers a bit */
+div.body h1 { font-size: 180%; }
+div.body h2 { font-size: 150%; }
+div.body h3 { font-size: 130%; }
+
+/* Tighten up the layout slightly */
+div.body { padding: 0 15px 0 10px; }
+div.document { margin: 20px 10px 0 10px; }
+div.sphinxsidebarwrapper { padding: 1em 0.4em; }

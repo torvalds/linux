@@ -345,6 +345,9 @@ if  html_theme == 'classic':
 else:
     html_theme_options = {
         'description': get_cline_version(),
+        'font_size': '10pt',
+        'page_width': '65em',
+        'sidebar_width': '15em',
     }
 
 sys.stderr.write("Using %s theme\n" % html_theme)
