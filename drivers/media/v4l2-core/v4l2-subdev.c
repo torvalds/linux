@@ -8,20 +8,20 @@
  *	    Sakari Ailus <sakari.ailus@iki.fi>
  */
 
+#include <linux/export.h>
 #include <linux/ioctl.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/videodev2.h>
-#include <linux/export.h>
 #include <linux/version.h>
+#include <linux/videodev2.h>
 
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-ioctl.h>
-#include <media/v4l2-fh.h>
 #include <media/v4l2-event.h>
+#include <media/v4l2-fh.h>
+#include <media/v4l2-ioctl.h>
 
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 static int subdev_fh_init(struct v4l2_subdev_fh *fh, struct v4l2_subdev *sd)
