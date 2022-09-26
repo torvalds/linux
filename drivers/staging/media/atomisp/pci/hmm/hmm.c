@@ -41,11 +41,10 @@ static bool hmm_initialized;
 
 /*
  * p: private
- * s: shared
+ * v: vmalloc
  * u: user
- * i: ion
  */
-static const char hmm_bo_type_string[] = "psui";
+static const char hmm_bo_type_string[] = "pvu";
 
 static ssize_t bo_show(struct device *dev, struct device_attribute *attr,
 		       char *buf, struct list_head *bo_list, bool active)
@@ -168,7 +167,9 @@ void hmm_cleanup(void)
 	hmm_initialized = false;
 }
 
-static ia_css_ptr __hmm_alloc(size_t bytes, enum hmm_bo_type type, const void __user *userptr)
+static ia_css_ptr __hmm_alloc(size_t bytes, enum hmm_bo_type type,
+			      const void __user *userptr,
+			      void *vmalloc_addr)
 {
 	unsigned int pgnr;
 	struct hmm_buffer_object *bo;
@@ -192,7 +193,7 @@ static ia_css_ptr __hmm_alloc(size_t bytes, enum hmm_bo_type type, const void __
 	}
 
 	/* Allocate pages for memory */
-	ret = hmm_bo_alloc_pages(bo, type, userptr);
+	ret = hmm_bo_alloc_pages(bo, type, userptr, vmalloc_addr);
 	if (ret) {
 		dev_err(atomisp_dev, "hmm_bo_alloc_pages failed.\n");
 		goto alloc_page_err;
@@ -221,12 +222,17 @@ create_bo_err:
 
 ia_css_ptr hmm_alloc(size_t bytes)
 {
-	return __hmm_alloc(bytes, HMM_BO_PRIVATE, NULL);
+	return __hmm_alloc(bytes, HMM_BO_PRIVATE, NULL, NULL);
+}
+
+ia_css_ptr hmm_create_from_vmalloc_buf(size_t bytes, void *vmalloc_addr)
+{
+	return __hmm_alloc(bytes, HMM_BO_VMALLOC, NULL, vmalloc_addr);
 }
 
 ia_css_ptr hmm_create_from_userdata(size_t bytes, const void __user *userptr)
 {
-	return __hmm_alloc(bytes, HMM_BO_USER, userptr);
+	return __hmm_alloc(bytes, HMM_BO_USER, userptr, NULL);
 }
 
 void hmm_free(ia_css_ptr virt)

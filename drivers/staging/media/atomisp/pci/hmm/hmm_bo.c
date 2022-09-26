@@ -694,18 +694,38 @@ out_of_mem:
 	return -ENOMEM;
 }
 
+static int alloc_vmalloc_pages(struct hmm_buffer_object *bo, void *vmalloc_addr)
+{
+	void *vaddr = vmalloc_addr;
+	int i;
+
+	for (i = 0; i < bo->pgnr; i++) {
+		bo->pages[i] = vmalloc_to_page(vaddr);
+		if (!bo->pages[i]) {
+			dev_err(atomisp_dev, "Error could not get page %d of vmalloc buf\n", i);
+			return -ENOMEM;
+		}
+		vaddr += PAGE_SIZE;
+	}
+
+	return 0;
+}
+
 /*
  * allocate/free physical pages for the bo.
  *
  * type indicate where are the pages from. currently we have 3 types
- * of memory: HMM_BO_PRIVATE, HMM_BO_USER.
+ * of memory: HMM_BO_PRIVATE, HMM_BO_VMALLOC, HMM_BO_USER.
+ *
+ * vmalloc_addr is only valid when type is HMM_BO_VMALLOC.
  *
  * userptr is only valid when type is HMM_BO_USER, it indicates
  * the start address from user space task.
  */
 int hmm_bo_alloc_pages(struct hmm_buffer_object *bo,
 		       enum hmm_bo_type type,
-		       const void __user *userptr)
+		       const void __user *userptr,
+		       void *vmalloc_addr)
 {
 	int ret = -EINVAL;
 
@@ -720,12 +740,10 @@ int hmm_bo_alloc_pages(struct hmm_buffer_object *bo,
 		goto alloc_err;
 	}
 
-	/*
-	 * TO DO:
-	 * add HMM_BO_USER type
-	 */
 	if (type == HMM_BO_PRIVATE) {
 		ret = alloc_private_pages(bo);
+	} else if (type == HMM_BO_VMALLOC) {
+		ret = alloc_vmalloc_pages(bo, vmalloc_addr);
 	} else if (type == HMM_BO_USER) {
 		ret = alloc_user_pages(bo, userptr);
 	} else {
@@ -771,6 +789,8 @@ void hmm_bo_free_pages(struct hmm_buffer_object *bo)
 
 	if (bo->type == HMM_BO_PRIVATE)
 		free_private_bo_pages(bo);
+	else if (bo->type == HMM_BO_VMALLOC)
+		; /* No-op, nothing to do */
 	else if (bo->type == HMM_BO_USER)
 		free_user_pages(bo, bo->pgnr);
 	else
