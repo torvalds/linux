@@ -405,6 +405,7 @@ struct aspeed_i3c_master {
 		u32 i3c_pp_scl_low;
 		u32 i3c_pp_scl_high;
 	} timing;
+	struct work_struct hj_work;
 };
 
 struct aspeed_i3c_i2c_dev_data {
@@ -825,7 +826,7 @@ static void aspeed_i3c_master_demux_ibis(struct aspeed_i3c_master *master)
 			aspeed_i3c_master_sir_handler(master, status);
 
 		if (IBI_TYPE_HJ(status))
-			pr_info("get hj\n");
+			queue_work(master->base.wq, &master->hj_work);
 
 		if (IBI_TYPE_MR(status))
 			pr_info("get mr from %02x\n", addr);
@@ -2324,6 +2325,14 @@ static const struct i3c_master_controller_ops aspeed_i3c_ops = {
 	.put_read_data = aspeed_i3c_master_put_read_data,
 };
 
+static void aspeed_i3c_master_hj(struct work_struct *work)
+{
+	struct aspeed_i3c_master *master =
+		container_of(work, typeof(*master), hj_work);
+
+	i3c_master_do_daa(&master->base);
+}
+
 static int aspeed_i3c_probe(struct platform_device *pdev)
 {
 	struct aspeed_i3c_master *master;
@@ -2402,6 +2411,7 @@ static int aspeed_i3c_probe(struct platform_device *pdev)
 #endif
 	master->dev = &pdev->dev;
 	master->base.pec_supported = true;
+	INIT_WORK(&master->hj_work, aspeed_i3c_master_hj);
 	ret = i3c_master_register(&master->base, &pdev->dev,
 				  &aspeed_i3c_ops, master->secondary);
 	if (ret)
