@@ -37,6 +37,10 @@ struct mae_caps {
 
 int efx_mae_get_caps(struct efx_nic *efx, struct mae_caps *caps);
 
+int efx_mae_match_check_caps(struct efx_nic *efx,
+			     const struct efx_tc_match_fields *mask,
+			     struct netlink_ext_ack *extack);
+
 int efx_mae_alloc_action_set(struct efx_nic *efx, struct efx_tc_action_set *act);
 int efx_mae_free_action_set(struct efx_nic *efx, u32 fw_id);
 

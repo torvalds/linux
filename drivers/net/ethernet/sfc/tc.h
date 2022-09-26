@@ -43,6 +43,7 @@ struct efx_tc_action_set {
 struct efx_tc_match_fields {
 	/* L1 */
 	u32 ingress_port;
+	u8 recirc_id;
 };
 
 struct efx_tc_match {
@@ -64,6 +65,7 @@ struct efx_tc_flow_rule {
 };
 
 enum efx_tc_rule_prios {
+	EFX_TC_PRIO_TC, /* Rule inserted by TC */
 	EFX_TC_PRIO_DFLT, /* Default switch rule; one of efx_tc_default_rules */
 	EFX_TC_PRIO__NUM
 };
