@@ -125,11 +125,15 @@ enum ipa_reg_id {
  * struct ipa_reg - An IPA register descriptor
  * @offset:	Register offset relative to base of the "ipa-reg" memory
  * @stride:	Distance between two instances, if parameterized
+ * @fcount:	Number of entries in the @fmask array
+ * @fmask:	Array of mask values defining position and width of fields
  * @name:	Upper-case name of the IPA register
  */
 struct ipa_reg {
 	u32 offset;
 	u32 stride;
+	u32 fcount;
+	const u32 *fmask;			/* BIT(nr) or GENMASK(h, l) */
 	const char *name;
 };
 
@@ -143,6 +147,18 @@ struct ipa_reg {
 		.name	= #__NAME,					\
 		.offset	= __offset,					\
 		.stride	= __stride,					\
+	}
+
+#define IPA_REG_FIELDS(__NAME, __name, __offset)			\
+	IPA_REG_STRIDE_FIELDS(__NAME, __name, __offset, 0)
+
+#define IPA_REG_STRIDE_FIELDS(__NAME, __name, __offset, __stride)	\
+	static const struct ipa_reg ipa_reg_ ## __name = {		\
+		.name   = #__NAME,					\
+		.offset = __offset,					\
+		.stride = __stride,					\
+		.fcount = ARRAY_SIZE(ipa_reg_ ## __name ## _fmask),	\
+		.fmask  = ipa_reg_ ## __name ## _fmask,			\
 	}
 
 /**
@@ -745,6 +761,58 @@ extern const struct ipa_regs ipa_regs_v4_2;
 extern const struct ipa_regs ipa_regs_v4_5;
 extern const struct ipa_regs ipa_regs_v4_9;
 extern const struct ipa_regs ipa_regs_v4_11;
+
+/* Return the field mask for a field in a register */
+static inline u32 ipa_reg_fmask(const struct ipa_reg *reg, u32 field_id)
+{
+	if (!reg || WARN_ON(field_id >= reg->fcount))
+		return 0;
+
+	return reg->fmask[field_id];
+}
+
+/* Return the mask for a single-bit field in a register */
+static inline u32 ipa_reg_bit(const struct ipa_reg *reg, u32 field_id)
+{
+	u32 fmask = ipa_reg_fmask(reg, field_id);
+
+	WARN_ON(!is_power_of_2(fmask));
+
+	return fmask;
+}
+
+/* Encode a value into the given field of a register */
+static inline u32
+ipa_reg_encode(const struct ipa_reg *reg, u32 field_id, u32 val)
+{
+	u32 fmask = ipa_reg_fmask(reg, field_id);
+
+	if (!fmask)
+		return 0;
+
+	val <<= __ffs(fmask);
+	if (WARN_ON(val & ~fmask))
+		return 0;
+
+	return val;
+}
+
+/* Given a register value, decode (extract) the value in the given field */
+static inline u32
+ipa_reg_decode(const struct ipa_reg *reg, u32 field_id, u32 val)
+{
+	u32 fmask = ipa_reg_fmask(reg, field_id);
+
+	return fmask ? (val & fmask) >> __ffs(fmask) : 0;
+}
+
+/* Return the maximum value representable by the given field; always 2^n - 1 */
+static inline u32 ipa_reg_field_max(const struct ipa_reg *reg, u32 field_id)
+{
+	u32 fmask = ipa_reg_fmask(reg, field_id);
+
+	return fmask ? fmask >> __ffs(fmask) : 0;
+}
 
 const struct ipa_reg *ipa_reg(struct ipa *ipa, enum ipa_reg_id reg_id);
 
