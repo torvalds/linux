@@ -4046,6 +4046,7 @@ static void walt_cpu_frequency_limits(void *unused, struct cpufreq_policy *polic
 		return;
 
 	cpu_cluster(policy->cpu)->max_freq = policy->max;
+	update_cpu_capacity_helper(policy->cpu);
 }
 
 static void android_rvh_sched_cpu_starting(void *unused, int cpu)
@@ -4145,12 +4146,16 @@ static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_st
 {
 	u64 wallclock;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
+	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
 	bool double_enqueue = false;
 
 	if (unlikely(walt_disabled))
 		return;
 
 	lockdep_assert_held(&rq->__lock);
+
+	if (!is_per_cpu_kthread(p))
+		wrq->enqueue_counter++;
 
 	if (p->cpu != cpu_of(rq))
 		WALT_BUG(WALT_BUG_UPSTREAM, p, "enqueuing on rq %d when task->cpu is %d\n",

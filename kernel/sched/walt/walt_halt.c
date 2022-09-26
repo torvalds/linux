@@ -176,13 +176,27 @@ static void migrate_tasks(struct rq *dead_rq, struct rq_flags *rf)
 	rq->stop = stop;
 }
 
+void __balance_callbacks(struct rq *rq);
+
 static int drain_rq_cpu_stop(void *data)
 {
 	struct rq *rq = this_rq();
 	struct rq_flags rf;
+	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
 
 	rq_lock_irqsave(rq, &rf);
 	migrate_tasks(rq, &rf);
+
+	/*
+	 * service any callbacks that were accumulated, prior to unlocking. such that
+	 * any subsequent calls to rq_lock... will see an rq->balance_callback set to
+	 * the default (0 or balance_push_callback);
+	 */
+	wrq->enqueue_counter = 0;
+	__balance_callbacks(rq);
+	if (wrq->enqueue_counter)
+		WALT_BUG(WALT_BUG_WALT, NULL, "cpu: %d task was re-enqueued", cpu_of(rq));
+
 	rq_unlock_irqrestore(rq, &rf);
 
 	return 0;
