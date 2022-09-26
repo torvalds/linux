@@ -2626,6 +2626,7 @@
   snd_pcm_fill_iec958_consumer
   snd_pcm_fill_iec958_consumer_hw_params
   snd_pcm_hw_constraint_eld
+  snd_pcm_stop_xrun
 
 # required by snd-soc-rk817.ko
   snd_soc_component_exit_regmap
