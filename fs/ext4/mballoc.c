@@ -910,7 +910,7 @@ static void ext4_mb_choose_next_group_cr1(struct ext4_allocation_context *ac,
 		int *new_cr, ext4_group_t *group, ext4_group_t ngroups)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
-	struct ext4_group_info *grp, *iter;
+	struct ext4_group_info *grp = NULL, *iter;
 	int i;
 
 	if (unlikely(ac->ac_flags & EXT4_MB_CR1_OPTIMIZED)) {
@@ -927,7 +927,6 @@ static void ext4_mb_choose_next_group_cr1(struct ext4_allocation_context *ac,
 			read_unlock(&sbi->s_mb_avg_fragment_size_locks[i]);
 			continue;
 		}
-		grp = NULL;
 		list_for_each_entry(iter, &sbi->s_mb_avg_fragment_size[i],
 				    bb_avg_fragment_size_node) {
 			if (sbi->s_mb_stats)
