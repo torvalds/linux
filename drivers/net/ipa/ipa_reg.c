@@ -9,14 +9,14 @@
 #include "ipa.h"
 #include "ipa_reg.h"
 
-/* Is this register valid for the current IPA version? */
+/* Is this register valid and defined for the current IPA version? */
 static bool ipa_reg_valid(struct ipa *ipa, enum ipa_reg_id reg_id)
 {
 	enum ipa_version version = ipa->version;
 	bool valid;
 
 	/* Check for bogus (out of range) register IDs */
-	if ((u32)reg_id >= IPA_REG_ID_COUNT)
+	if ((u32)reg_id >= ipa->regs->reg_count)
 		return false;
 
 	switch (reg_id) {
@@ -62,7 +62,9 @@ static bool ipa_reg_valid(struct ipa *ipa, enum ipa_reg_id reg_id)
 		break;
 	}
 
-	return valid;
+	/* To be valid, it must be defined */
+
+	return valid && ipa->regs->reg[reg_id];
 }
 
 /* Assumes the endpoint transfer direction is valid; 0 is a bad offset */
@@ -181,10 +183,38 @@ u32 __ipa_reg_offset(struct ipa *ipa, enum ipa_reg_id reg_id, u32 n)
 	}
 }
 
+static const struct ipa_regs *ipa_regs(enum ipa_version version)
+{
+	switch (version) {
+	case IPA_VERSION_3_1:
+		return &ipa_regs_v3_1;
+	case IPA_VERSION_3_5_1:
+		return &ipa_regs_v3_5_1;
+	case IPA_VERSION_4_2:
+		return &ipa_regs_v4_2;
+	case IPA_VERSION_4_5:
+		return &ipa_regs_v4_5;
+	case IPA_VERSION_4_9:
+		return &ipa_regs_v4_9;
+	case IPA_VERSION_4_11:
+		return &ipa_regs_v4_11;
+	default:
+		return NULL;
+	}
+}
+
 int ipa_reg_init(struct ipa *ipa)
 {
 	struct device *dev = &ipa->pdev->dev;
+	const struct ipa_regs *regs;
 	struct resource *res;
+
+	regs = ipa_regs(ipa->version);
+	if (!regs)
+		return -EINVAL;
+
+	if (WARN_ON(regs->reg_count > IPA_REG_ID_COUNT))
+		return -EINVAL;
 
 	/* Setup IPA register memory  */
 	res = platform_get_resource_byname(ipa->pdev, IORESOURCE_MEM,
@@ -200,6 +230,7 @@ int ipa_reg_init(struct ipa *ipa)
 		return -ENOMEM;
 	}
 	ipa->reg_addr = res->start;
+	ipa->regs = regs;
 
 	return 0;
 }

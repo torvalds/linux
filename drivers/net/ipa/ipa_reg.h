@@ -7,6 +7,7 @@
 #define _IPA_REG_H_
 
 #include <linux/bitfield.h>
+#include <linux/bug.h>
 
 #include "ipa_version.h"
 
@@ -118,6 +119,40 @@ enum ipa_reg_id {
 	IRQ_SUSPEND_EN,					/* IPA v3.1+ */
 	IRQ_SUSPEND_CLR,				/* IPA v3.1+ */
 	IPA_REG_ID_COUNT,				/* Last; not an ID */
+};
+
+/**
+ * struct ipa_reg - An IPA register descriptor
+ * @offset:	Register offset relative to base of the "ipa-reg" memory
+ * @stride:	Distance between two instances, if parameterized
+ * @name:	Upper-case name of the IPA register
+ */
+struct ipa_reg {
+	u32 offset;
+	u32 stride;
+	const char *name;
+};
+
+/* Helper macro for defining "simple" (non-parameterized) registers */
+#define IPA_REG(__NAME, __reg_id, __offset)				\
+	IPA_REG_STRIDE(__NAME, __reg_id, __offset, 0)
+
+/* Helper macro for defining parameterized registers, specifying stride */
+#define IPA_REG_STRIDE(__NAME, __reg_id, __offset, __stride)		\
+	static const struct ipa_reg ipa_reg_ ## __reg_id = {		\
+		.name	= #__NAME,					\
+		.offset	= __offset,					\
+		.stride	= __stride,					\
+	}
+
+/**
+ * struct ipa_regs - Description of registers supported by hardware
+ * @reg_count:	Number of registers in the @reg[] array
+ * @reg:		Array of register descriptors
+ */
+struct ipa_regs {
+	u32 reg_count;
+	const struct ipa_reg **reg;
 };
 
 #define IPA_REG_COMP_CFG_OFFSET				0x0000003c
@@ -898,7 +933,16 @@ ipa_reg_irq_suspend_clr_offset(enum ipa_version version)
 	return ipa_reg_irq_suspend_clr_ee_n_offset(version, GSI_EE_AP);
 }
 
+extern const struct ipa_regs ipa_regs_v3_1;
+extern const struct ipa_regs ipa_regs_v3_5_1;
+extern const struct ipa_regs ipa_regs_v4_2;
+extern const struct ipa_regs ipa_regs_v4_5;
+extern const struct ipa_regs ipa_regs_v4_9;
+extern const struct ipa_regs ipa_regs_v4_11;
+
 u32 __ipa_reg_offset(struct ipa *ipa, enum ipa_reg_id reg_id, u32 n);
+
+const struct ipa_reg *ipa_reg(struct ipa *ipa, enum ipa_reg_id reg_id);
 
 static inline u32 ipa_reg_offset(struct ipa *ipa, enum ipa_reg_id reg_id)
 {
