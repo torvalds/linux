@@ -21,6 +21,7 @@
 #include "clk-pll.h"
 #include "clk-rcg.h"
 #include "clk-regmap.h"
+#include "clk-pm.h"
 #include "reset.h"
 #include "gdsc.h"
 #include "vdd-level-sm8150.h"
@@ -3802,6 +3803,21 @@ static struct gdsc usb30_sec_gdsc = {
 	.flags = POLL_CFG_GDSCR,
 };
 
+static struct critical_clk_offset critical_clk_list[] = {
+	{ .offset = 0x4d110, .mask = BIT(1) | BIT(0) },
+	{ .offset = 0x71028, .mask = BIT(1) | BIT(0) },
+	{ .offset = 0xb008,  .mask = BIT(0) },
+	{ .offset = 0xb044,  .mask = BIT(0) },
+	{ .offset = 0x48190, .mask = BIT(0) },
+	{ .offset = 0x52004, .mask =  BIT(22) },
+	{ .offset = 0xb00c,  .mask = BIT(0) },
+	{ .offset = 0xb048,  .mask = BIT(0) },
+	{ .offset = 0x71004, .mask = BIT(0) },
+	{ .offset = 0x4d004, .mask = BIT(0) },
+	{ .offset = 0xb004,  .mask = BIT(0) },
+	{ .offset = 0xb040,  .mask = BIT(0) },
+};
+
 static struct clk_regmap *gcc_sm8150_clocks[] = {
 	[GCC_AGGRE_NOC_PCIE_TBU_CLK] = &gcc_aggre_noc_pcie_tbu_clk.clkr,
 	[GCC_AGGRE_UFS_CARD_AXI_CLK] = &gcc_aggre_ufs_card_axi_clk.clkr,
@@ -4093,6 +4109,8 @@ static struct qcom_cc_desc gcc_sm8150_desc = {
 	.num_clk_regulators = ARRAY_SIZE(gcc_sm8150_regulators),
 	.gdscs = gcc_sm8150_gdscs,
 	.num_gdscs = ARRAY_SIZE(gcc_sm8150_gdscs),
+	.critical_clk_en = critical_clk_list,
+	.num_critical_clk = ARRAY_SIZE(critical_clk_list),
 };
 
 static const struct of_device_id gcc_sm8150_match_table[] = {
@@ -4148,6 +4166,10 @@ static int gcc_sm8150_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to register GCC clocks\n");
 		return ret;
 	}
+
+	ret = register_qcom_clks_pm(pdev, false, &gcc_sm8150_desc);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to register for pm ops\n");
 
 	dev_info(&pdev->dev, "Registered GCC clocks\n");
 

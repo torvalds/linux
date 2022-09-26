@@ -22,6 +22,7 @@
 #include "common.h"
 #include "reset.h"
 #include "vdd-level-sm8150.h"
+#include "clk-pm.h"
 
 #define CRC_SID_FSM_CTRL		0x100c
 #define CRC_SID_FSM_CTRL_SETTING	0x800000
@@ -493,6 +494,10 @@ static struct clk_branch npu_cc_sleep_clk = {
 	},
 };
 
+static struct critical_clk_offset critical_clk_list[] = {
+	{ .offset = 0x3020, .mask = BIT(0) },
+};
+
 static struct clk_regmap *npu_cc_sm8150_clocks[] = {
 	[NPU_CC_PLL0] = &npu_cc_pll0.clkr,
 	[NPU_CC_PLL1] = &npu_cc_pll1.clkr,
@@ -537,6 +542,8 @@ static struct qcom_cc_desc npu_cc_sm8150_desc = {
 	.num_resets = ARRAY_SIZE(npu_cc_sm8150_resets),
 	.clk_regulators = npu_cc_sm8150_regulators,
 	.num_clk_regulators = ARRAY_SIZE(npu_cc_sm8150_regulators),
+	.critical_clk_en = critical_clk_list,
+	.num_critical_clk = ARRAY_SIZE(critical_clk_list),
 };
 
 static const struct of_device_id npu_cc_sm8150_match_table[] = {
@@ -632,6 +639,10 @@ static int npu_cc_sm8150_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to enable CRC for NPU cal RCG\n");
 		return ret;
 	}
+
+	ret = register_qcom_clks_pm(pdev, false, &npu_cc_sm8150_desc);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to register for pm ops\n");
 
 	dev_info(&pdev->dev, "Registered NPU CC clocks\n");
 

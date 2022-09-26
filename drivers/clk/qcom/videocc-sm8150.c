@@ -19,6 +19,7 @@
 #include "reset.h"
 #include "gdsc.h"
 #include "vdd-level-sm8150.h"
+#include "clk-pm.h"
 
 static DEFINE_VDD_REGULATORS(vdd_mm, VDD_HIGH + 1, 1, vdd_corner);
 
@@ -222,6 +223,11 @@ static struct gdsc vcodec1_gdsc = {
 	.flags = 0,
 	.pwrsts = PWRSTS_OFF_ON,
 };
+
+static struct critical_clk_offset critical_clk_list[] = {
+	{ .offset = 0x984, .mask = BIT(1) },
+};
+
 static struct clk_regmap *video_cc_sm8150_clocks[] = {
 	[VIDEO_CC_IRIS_AHB_CLK] = &video_cc_iris_ahb_clk.clkr,
 	[VIDEO_CC_IRIS_CLK_SRC] = &video_cc_iris_clk_src.clkr,
@@ -263,6 +269,8 @@ static struct qcom_cc_desc video_cc_sm8150_desc = {
 	.num_clk_regulators = ARRAY_SIZE(video_cc_sm8150_regulators),
 	.gdscs = video_cc_sm8150_gdscs,
 	.num_gdscs = ARRAY_SIZE(video_cc_sm8150_gdscs),
+	.critical_clk_en = critical_clk_list,
+	.num_critical_clk = ARRAY_SIZE(critical_clk_list),
 };
 
 static const struct of_device_id video_cc_sm8150_match_table[] = {
@@ -293,6 +301,10 @@ static int video_cc_sm8150_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to register VIDEO CC clocks\n");
 		return ret;
 	}
+
+	ret = register_qcom_clks_pm(pdev, false, &video_cc_sm8150_desc);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to register for pm ops\n");
 
 	dev_info(&pdev->dev, "Registered VIDEO CC clocks\n");
 

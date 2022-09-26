@@ -20,6 +20,7 @@
 #include "reset.h"
 #include "gdsc.h"
 #include "vdd-level-sm8150.h"
+#include "clk-pm.h"
 
 static DEFINE_VDD_REGULATORS(vdd_cx, VDD_HIGH_L1 + 1, 1, vdd_corner);
 static DEFINE_VDD_REGULATORS(vdd_mx, VDD_NOMINAL + 1, 1, vdd_corner);
@@ -257,6 +258,10 @@ static struct gdsc gpu_gx_gdsc = {
 	.flags = CLAMP_IO | AON_RESET | POLL_CFG_GDSCR,
 };
 
+static struct critical_clk_offset critical_clk_list[] = {
+	{ .offset = 0x1078,  .mask = BIT(0) },
+};
+
 static struct clk_regmap *gpu_cc_sm8150_clocks[] = {
 	[GPU_CC_CRC_AHB_CLK] = &gpu_cc_crc_ahb_clk.clkr,
 	[GPU_CC_CX_GMU_CLK] = &gpu_cc_cx_gmu_clk.clkr,
@@ -300,6 +305,9 @@ static struct qcom_cc_desc gpu_cc_sm8150_desc = {
 	.num_clk_regulators = ARRAY_SIZE(gpu_cc_sm8150_regulators),
 	.gdscs = gpu_cc_sm8150_gdscs,
 	.num_gdscs = ARRAY_SIZE(gpu_cc_sm8150_gdscs),
+	.critical_clk_en = critical_clk_list,
+	.num_critical_clk = ARRAY_SIZE(critical_clk_list),
+
 };
 
 static const struct of_device_id gpu_cc_sm8150_match_table[] = {
@@ -358,6 +366,10 @@ static int gpu_cc_sm8150_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to register GPU CC clocks\n");
 		return ret;
 	}
+
+	ret = register_qcom_clks_pm(pdev, false, &gpu_cc_sm8150_desc);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to register for pm ops\n");
 
 	dev_info(&pdev->dev, "Registered GPU CC clocks\n");
 

@@ -21,6 +21,7 @@
 #include "common.h"
 #include "reset.h"
 #include "vdd-level-sm8150.h"
+#include "clk-pm.h"
 
 static DEFINE_VDD_REGULATORS(vdd_mm, VDD_HIGH + 1, 1, vdd_corner);
 static DEFINE_VDD_REGULATORS(vdd_mx, VDD_HIGH + 1, 1, vdd_corner);
@@ -2180,6 +2181,10 @@ static struct clk_branch cam_cc_mclk3_clk = {
 	},
 };
 
+static struct critical_clk_offset critical_clk_list[] = {
+	{ .offset = 0xc1e4, .mask = BIT(0) },
+};
+
 static struct clk_regmap *cam_cc_sm8150_clocks[] = {
 	[CAM_CC_PLL0] = &cam_cc_pll0.clkr,
 	[CAM_CC_PLL0_OUT_EVEN] = &cam_cc_pll0_out_even.clkr,
@@ -2315,6 +2320,8 @@ static struct qcom_cc_desc cam_cc_sm8150_desc = {
 	.num_resets = ARRAY_SIZE(cam_cc_sm8150_resets),
 	.clk_regulators = cam_cc_sm8150_regulators,
 	.num_clk_regulators = ARRAY_SIZE(cam_cc_sm8150_regulators),
+	.critical_clk_en = critical_clk_list,
+	.num_critical_clk = ARRAY_SIZE(critical_clk_list),
 };
 
 static const struct of_device_id cam_cc_sm8150_match_table[] = {
@@ -2352,6 +2359,10 @@ static int cam_cc_sm8150_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to register CAM CC clocks\n");
 		return ret;
 	}
+
+	ret = register_qcom_clks_pm(pdev, false, &cam_cc_sm8150_desc);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to register for pm ops\n");
 
 	dev_info(&pdev->dev, "Registered CAM CC clocks\n");
 
