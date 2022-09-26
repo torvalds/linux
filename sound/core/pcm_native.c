@@ -3668,6 +3668,7 @@ static int snd_pcm_mmap_status(struct snd_pcm_substream *substream, struct file 
 	area->vm_ops = &snd_pcm_vm_ops_status;
 	area->vm_private_data = substream;
 	area->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+	area->vm_flags &= ~(VM_WRITE | VM_MAYWRITE);
 	return 0;
 }
 
