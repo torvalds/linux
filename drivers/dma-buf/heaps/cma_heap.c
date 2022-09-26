@@ -441,7 +441,6 @@ static struct dma_buf *cma_heap_allocate(struct dma_heap *heap,
 	return cma_heap_do_allocate(heap, len, fd_flags, heap_flags, false);
 }
 
-#if IS_ENABLED(CONFIG_NO_GKI)
 static int cma_heap_get_phys(struct dma_heap *heap,
 			     struct dma_heap_phys_data *phys)
 {
@@ -472,7 +471,6 @@ err:
 
 	return (phys->paddr == (__u64)-1) ? -EINVAL : 0;
 }
-#endif
 
 static const struct dma_heap_ops cma_heap_ops = {
 	.allocate = cma_heap_allocate,
