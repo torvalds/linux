@@ -6,8 +6,8 @@
 /dts-v1/;
 
 #include "sm6125.dtsi"
+#include "pm6125.dtsi"
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/input/input.h>
 #include <dt-bindings/input/gpio-keys.h>
 
 / {
@@ -84,6 +84,15 @@
 
 &hsusb_phy1 {
 	status = "okay";
+};
+
+&pon_pwrkey {
+	status = "okay";
+};
+
+&pon_resin {
+	status = "okay";
+	linux,code = <KEY_VOLUMEUP>;
 };
 
 &sdc2_off_state {
