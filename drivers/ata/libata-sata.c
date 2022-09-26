@@ -1392,8 +1392,7 @@ static int ata_eh_read_log_10h(struct ata_device *dev,
 	tf->hob_lbah = buf[10];
 	tf->nsect = buf[12];
 	tf->hob_nsect = buf[13];
-	if (dev->class == ATA_DEV_ZAC && ata_id_has_ncq_autosense(dev->id) &&
-	    (tf->status & ATA_SENSE))
+	if (ata_id_has_ncq_autosense(dev->id) && (tf->status & ATA_SENSE))
 		tf->auxiliary = buf[14] << 16 | buf[15] << 8 | buf[16];
 
 	return 0;

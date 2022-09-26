@@ -1576,6 +1576,7 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc)
 	}
 
 	switch (qc->dev->class) {
+	case ATA_DEV_ATA:
 	case ATA_DEV_ZAC:
 		/*
 		 * Fetch the sense data explicitly if:
@@ -1586,8 +1587,6 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc)
 		 */
 		if (!(qc->flags & ATA_QCFLAG_SENSE_VALID) && (stat & ATA_SENSE))
 			ata_eh_request_sense(qc);
-		fallthrough;
-	case ATA_DEV_ATA:
 		if (err & ATA_ICRC)
 			qc->err_mask |= AC_ERR_ATA_BUS;
 		if (err & (ATA_UNC | ATA_AMNF))
