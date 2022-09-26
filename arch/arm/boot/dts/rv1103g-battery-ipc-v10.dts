@@ -44,7 +44,7 @@
 	};
 
 	chosen {
-		bootargs = "loglevel=0 console=ttyFIQ0 root=/dev/rd0 snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=0 driver_async_probe=dwmmc_rockchip storagemedia=mtd androidboot.storagemedia=mtd androidboot.mode=normal";
+		bootargs = "loglevel=0 rootfstype=erofs rootflags=dax console=ttyFIQ0 root=/dev/rd0 snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=0 driver_async_probe=dwmmc_rockchip storagemedia=mtd androidboot.storagemedia=mtd androidboot.mode=normal";
 	};
 
 	acodec_sound: acodec-sound {
