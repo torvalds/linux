@@ -10,6 +10,7 @@
  */
 
 #include "tc.h"
+#include "tc_bindings.h"
 #include "mae.h"
 #include "ef100_rep.h"
 #include "efx.h"
@@ -217,6 +218,9 @@ int efx_init_tc(struct efx_nic *efx)
 	if (rc)
 		return rc;
 	efx->tc->up = true;
+	rc = flow_indr_dev_register(efx_tc_indr_setup_cb, efx);
+	if (rc)
+		return rc;
 	return 0;
 }
 
@@ -225,6 +229,8 @@ void efx_fini_tc(struct efx_nic *efx)
 	/* We can get called even if efx_init_struct_tc() failed */
 	if (!efx->tc)
 		return;
+	if (efx->tc->up)
+		flow_indr_dev_unregister(efx_tc_indr_setup_cb, efx, efx_tc_block_unbind);
 	efx_tc_deconfigure_rep_mport(efx);
 	efx_tc_deconfigure_default_rule(efx, &efx->tc->dflt.pf);
 	efx_tc_deconfigure_default_rule(efx, &efx->tc->dflt.wire);

@@ -46,7 +46,7 @@ static int efx_tc_block_cb(enum tc_setup_type type, void *type_data,
 	}
 }
 
-static void efx_tc_block_unbind(void *cb_priv)
+void efx_tc_block_unbind(void *cb_priv)
 {
 	struct efx_tc_block_binding *binding = cb_priv;
 
@@ -130,6 +130,77 @@ int efx_tc_setup_block(struct net_device *net_dev, struct efx_nic *efx,
 			       net_dev == efx->net_dev ? "" : "in",
 			       net_dev ? net_dev->name : NULL);
 		return -ENOENT;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+int efx_tc_indr_setup_cb(struct net_device *net_dev, struct Qdisc *sch,
+			 void *cb_priv, enum tc_setup_type type,
+			 void *type_data, void *data,
+			 void (*cleanup)(struct flow_block_cb *block_cb))
+{
+	struct flow_block_offload *tcb = type_data;
+	struct efx_tc_block_binding *binding;
+	struct flow_block_cb *block_cb;
+	struct efx_nic *efx = cb_priv;
+	bool is_ovs_int_port;
+	int rc;
+
+	if (!net_dev)
+		return -EOPNOTSUPP;
+
+	if (tcb->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS &&
+	    tcb->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS)
+		return -EOPNOTSUPP;
+
+	is_ovs_int_port = netif_is_ovs_master(net_dev);
+	if (tcb->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS &&
+	    !is_ovs_int_port)
+		return -EOPNOTSUPP;
+
+	if (is_ovs_int_port)
+		return -EOPNOTSUPP;
+
+	switch (type) {
+	case TC_SETUP_BLOCK:
+		switch (tcb->command) {
+		case FLOW_BLOCK_BIND:
+			binding = efx_tc_create_binding(efx, NULL, net_dev, tcb->block);
+			if (IS_ERR(binding))
+				return PTR_ERR(binding);
+			block_cb = flow_indr_block_cb_alloc(efx_tc_block_cb, binding,
+							    binding, efx_tc_block_unbind,
+							    tcb, net_dev, sch, data, binding,
+							    cleanup);
+			rc = PTR_ERR_OR_ZERO(block_cb);
+			netif_dbg(efx, drv, efx->net_dev,
+				  "bind indr block for device %s, rc %d\n",
+				  net_dev ? net_dev->name : NULL, rc);
+			if (rc) {
+				list_del(&binding->list);
+				kfree(binding);
+			} else {
+				flow_block_cb_add(block_cb, tcb);
+			}
+			return rc;
+		case FLOW_BLOCK_UNBIND:
+			binding = efx_tc_find_binding(efx, net_dev);
+			if (!binding)
+				return -ENOENT;
+			block_cb = flow_block_cb_lookup(tcb->block,
+							efx_tc_block_cb,
+							binding);
+			if (!block_cb)
+				return -ENOENT;
+			flow_indr_block_cb_remove(block_cb, tcb);
+			netif_dbg(efx, drv, efx->net_dev,
+				  "unbind indr block for device %s\n",
+				  net_dev ? net_dev->name : NULL);
+			return 0;
+		default:
+			return -EOPNOTSUPP;
+		}
 	default:
 		return -EOPNOTSUPP;
 	}
