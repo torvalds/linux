@@ -333,7 +333,7 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 	is_bpf = tb[TCA_ACT_BPF_OPS_LEN] && tb[TCA_ACT_BPF_OPS];
 	is_ebpf = tb[TCA_ACT_BPF_FD];
 
-	if ((!is_bpf && !is_ebpf) || (is_bpf && is_ebpf)) {
+	if (is_bpf == is_ebpf) {
 		ret = -EINVAL;
 		goto put_chain;
 	}
