@@ -143,13 +143,16 @@ config EFI_GENERIC_STUB_INITRD_CMDLINE_LOADER
 	bool "Enable the command line initrd loader" if !X86
 	depends on EFI_STUB && (EFI_GENERIC_STUB || X86)
 	default y if X86
-	depends on !RISCV && !LOONGARCH
 	help
 	  Select this config option to add support for the initrd= command
-	  line parameter, allowing an initrd that resides on the same volume
-	  as the kernel image to be loaded into memory.
+	  line parameter, allowing an initrd to be loaded into memory that
+	  resides on a file system backed by an implementation of
+	  EFI_SIMPLE_FILE_SYSTEM_PROTOCOL.
 
-	  This method is deprecated.
+	  This method has been superseded by the simpler LoadFile2 based
+	  initrd loading method, but the initrd= loader is retained as it
+	  can be used from the UEFI Shell or other generic loaders that
+	  don't implement the Linux specific LoadFile2 method.
 
 config EFI_BOOTLOADER_CONTROL
 	tristate "EFI Bootloader Control"
