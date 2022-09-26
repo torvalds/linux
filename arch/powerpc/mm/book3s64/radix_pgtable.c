@@ -30,6 +30,7 @@
 #include <asm/trace.h>
 #include <asm/uaccess.h>
 #include <asm/ultravisor.h>
+#include <asm/set_memory.h>
 
 #include <trace/events/thp.h>
 
@@ -267,13 +268,16 @@ static unsigned long next_boundary(unsigned long addr, unsigned long end)
 
 static int __meminit create_physical_mapping(unsigned long start,
 					     unsigned long end,
-					     unsigned long max_mapping_size,
 					     int nid, pgprot_t _prot)
 {
 	unsigned long vaddr, addr, mapping_size = 0;
 	bool prev_exec, exec = false;
 	pgprot_t prot;
 	int psize;
+	unsigned long max_mapping_size = radix_mem_block_size;
+
+	if (debug_pagealloc_enabled())
+		max_mapping_size = PAGE_SIZE;
 
 	start = ALIGN(start, PAGE_SIZE);
 	end   = ALIGN_DOWN(end, PAGE_SIZE);
@@ -352,7 +356,6 @@ static void __init radix_init_pgtable(void)
 		}
 
 		WARN_ON(create_physical_mapping(start, end,
-						radix_mem_block_size,
 						-1, PAGE_KERNEL));
 	}
 
@@ -850,7 +853,7 @@ int __meminit radix__create_section_mapping(unsigned long start,
 	}
 
 	return create_physical_mapping(__pa(start), __pa(end),
-				       radix_mem_block_size, nid, prot);
+				       nid, prot);
 }
 
 int __meminit radix__remove_section_mapping(unsigned long start, unsigned long end)
@@ -899,7 +902,14 @@ void __meminit radix__vmemmap_remove_mapping(unsigned long start, unsigned long 
 #ifdef CONFIG_DEBUG_PAGEALLOC
 void radix__kernel_map_pages(struct page *page, int numpages, int enable)
 {
-	pr_warn_once("DEBUG_PAGEALLOC not supported in radix mode\n");
+	unsigned long addr;
+
+	addr = (unsigned long)page_address(page);
+
+	if (enable)
+		set_memory_p(addr, numpages);
+	else
+		set_memory_np(addr, numpages);
 }
 #endif
 
