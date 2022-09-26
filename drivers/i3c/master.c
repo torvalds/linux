@@ -1696,6 +1696,29 @@ int i3c_master_do_daa(struct i3c_master_controller *master)
 EXPORT_SYMBOL_GPL(i3c_master_do_daa);
 
 /**
+ * i3c_master_enable_hj() - enable hot-join
+ * @master: master broadcast the enec ccc to enable hot-join.
+ *
+ * This function must be called after the master init done to satisfy
+ * the description "Hot-Join does not allow Targets to join the I3C
+ * Bus before the I3C Bus has been configured." in i3c specification.
+ *
+ * Return: a 0 in case of success, an negative error code otherwise.
+ */
+int i3c_master_enable_hj(struct i3c_master_controller *master)
+{
+	if (!master->init_done)
+		return -ENOPROTOOPT;
+
+	i3c_bus_maintenance_lock(&master->bus);
+	i3c_master_enec_locked(master, I3C_BROADCAST_ADDR, I3C_CCC_EVENT_HJ);
+	i3c_bus_maintenance_unlock(&master->bus);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(i3c_master_enable_hj);
+
+/**
  * i3c_master_set_info() - set master device information
  * @master: master used to send frames on the bus
  * @info: I3C device information
