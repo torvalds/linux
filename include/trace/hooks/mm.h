@@ -237,6 +237,9 @@ DECLARE_HOOK(android_vh_get_swap_page,
 	TP_PROTO(struct page *page, swp_entry_t *entry,
 		struct swap_slots_cache *cache, bool *found),
 	TP_ARGS(page, entry, cache, found));
+DECLARE_HOOK(android_vh_madvise_cold_or_pageout,
+	TP_PROTO(struct vm_area_struct *vma, bool *allow_shared),
+	TP_ARGS(vma, allow_shared));
 DECLARE_HOOK(android_vh_page_isolated_for_reclaim,
 	TP_PROTO(struct mm_struct *mm, struct page *page),
 	TP_ARGS(mm, page));
