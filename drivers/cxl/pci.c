@@ -418,6 +418,11 @@ static void devm_cxl_pci_create_doe(struct cxl_dev_state *cxlds)
 			continue;
 		}
 
+		if (!pci_request_config_region_exclusive(pdev, off,
+							 PCI_DOE_CAP_SIZEOF,
+							 dev_name(dev)))
+			pci_err(pdev, "Failed to exclude DOE registers\n");
+
 		if (xa_insert(&cxlds->doe_mbs, off, doe_mb, GFP_KERNEL)) {
 			dev_err(dev, "xa_insert failed to insert MB @ %x\n",
 				off);
