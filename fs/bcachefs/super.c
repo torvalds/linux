@@ -781,7 +781,8 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 		goto err;
 	}
 
-	ret = bch2_io_clock_init(&c->io_clock[READ]) ?:
+	ret = bch2_fs_counters_init(c) ?:
+	    bch2_io_clock_init(&c->io_clock[READ]) ?:
 	    bch2_io_clock_init(&c->io_clock[WRITE]) ?:
 	    bch2_fs_journal_init(&c->journal) ?:
 	    bch2_fs_replicas_init(c) ?:
@@ -795,8 +796,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    bch2_fs_encryption_init(c) ?:
 	    bch2_fs_compress_init(c) ?:
 	    bch2_fs_ec_init(c) ?:
-	    bch2_fs_fsio_init(c) ?:
-	    bch2_fs_counters_init(c);
+	    bch2_fs_fsio_init(c);
 	if (ret)
 		goto err;
 
