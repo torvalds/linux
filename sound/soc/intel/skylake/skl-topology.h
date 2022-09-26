@@ -233,8 +233,8 @@ struct skl_uuid_inst_map {
 struct skl_kpb_params {
 	u32 num_modules;
 	union {
-		struct skl_mod_inst_map map[0];
-		struct skl_uuid_inst_map map_uuid[0];
+		DECLARE_FLEX_ARRAY(struct skl_mod_inst_map, map);
+		DECLARE_FLEX_ARRAY(struct skl_uuid_inst_map, map_uuid);
 	} u;
 };
 
