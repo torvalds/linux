@@ -2794,6 +2794,16 @@ masked_Hinterrupt:
 masked_interrupt:
 	.endif
 	stw	r9,PACA_EXGEN+EX_CCR(r13)
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
+	/*
+	 * Ensure there was no previous MUST_HARD_MASK interrupt or
+	 * HARD_DIS setting.
+	 */
+	lbz	r9,PACAIRQHAPPENED(r13)
+	andi.	r9,r9,(PACA_IRQ_MUST_HARD_MASK|PACA_IRQ_HARD_DIS)
+0:	tdnei	r9,0
+	EMIT_BUG_ENTRY 0b,__FILE__,__LINE__,0
+#endif
 	lbz	r9,PACAIRQHAPPENED(r13)
 	or	r9,r9,r10
 	stb	r9,PACAIRQHAPPENED(r13)
