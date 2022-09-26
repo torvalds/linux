@@ -322,9 +322,10 @@ int ipa_mem_config(struct ipa *ipa)
 	val = ioread32(ipa->reg_virt + ipa_reg_offset(reg));
 
 	/* The fields in the register are in 8 byte units */
-	ipa->mem_offset = 8 * u32_get_bits(val, SHARED_MEM_BADDR_FMASK);
+	ipa->mem_offset = 8 * ipa_reg_decode(reg, MEM_BADDR, val);
+
 	/* Make sure the end is within the region's mapped space */
-	mem_size = 8 * u32_get_bits(val, SHARED_MEM_SIZE_FMASK);
+	mem_size = 8 * ipa_reg_decode(reg, MEM_SIZE, val);
 
 	/* If the sizes don't match, issue a warning */
 	if (ipa->mem_offset + mem_size < ipa->mem_size) {

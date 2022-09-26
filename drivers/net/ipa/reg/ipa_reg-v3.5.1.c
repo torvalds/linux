@@ -59,15 +59,53 @@ static const u32 ipa_reg_route_fmask[] = {
 
 IPA_REG_FIELDS(ROUTE, route, 0x00000048);
 
-IPA_REG(SHARED_MEM_SIZE, shared_mem_size, 0x00000054);
+static const u32 ipa_reg_shared_mem_size_fmask[] = {
+	[MEM_SIZE]					= GENMASK(15, 0),
+	[MEM_BADDR]					= GENMASK(31, 16),
+};
 
-IPA_REG(QSB_MAX_WRITES, qsb_max_writes, 0x00000074);
+IPA_REG_FIELDS(SHARED_MEM_SIZE, shared_mem_size, 0x00000054);
 
-IPA_REG(QSB_MAX_READS, qsb_max_reads, 0x00000078);
+static const u32 ipa_reg_qsb_max_writes_fmask[] = {
+	[GEN_QMB_0_MAX_WRITES]				= GENMASK(3, 0),
+	[GEN_QMB_1_MAX_WRITES]				= GENMASK(7, 4),
+						/* Bits 8-31 reserved */
+};
 
-IPA_REG(FILT_ROUT_HASH_EN, filt_rout_hash_en, 0x000008c);
+IPA_REG_FIELDS(QSB_MAX_WRITES, qsb_max_writes, 0x00000074);
 
-IPA_REG(FILT_ROUT_HASH_FLUSH, filt_rout_hash_flush, 0x0000090);
+static const u32 ipa_reg_qsb_max_reads_fmask[] = {
+	[GEN_QMB_0_MAX_READS]				= GENMASK(3, 0),
+	[GEN_QMB_1_MAX_READS]				= GENMASK(7, 4),
+};
+
+IPA_REG_FIELDS(QSB_MAX_READS, qsb_max_reads, 0x00000078);
+
+static const u32 ipa_reg_filt_rout_hash_en_fmask[] = {
+	[IPV6_ROUTER_HASH]				= BIT(0),
+						/* Bits 1-3 reserved */
+	[IPV6_FILTER_HASH]				= BIT(4),
+						/* Bits 5-7 reserved */
+	[IPV4_ROUTER_HASH]				= BIT(8),
+						/* Bits 9-11 reserved */
+	[IPV4_FILTER_HASH]				= BIT(12),
+						/* Bits 13-31 reserved */
+};
+
+IPA_REG_FIELDS(FILT_ROUT_HASH_EN, filt_rout_hash_en, 0x000008c);
+
+static const u32 ipa_reg_filt_rout_hash_flush_fmask[] = {
+	[IPV6_ROUTER_HASH]				= BIT(0),
+						/* Bits 1-3 reserved */
+	[IPV6_FILTER_HASH]				= BIT(4),
+						/* Bits 5-7 reserved */
+	[IPV4_ROUTER_HASH]				= BIT(8),
+						/* Bits 9-11 reserved */
+	[IPV4_FILTER_HASH]				= BIT(12),
+						/* Bits 13-31 reserved */
+};
+
+IPA_REG_FIELDS(FILT_ROUT_HASH_FLUSH, filt_rout_hash_flush, 0x0000090);
 
 /* Valid bits defined by ipa->available */
 IPA_REG(STATE_AGGR_ACTIVE, state_aggr_active, 0x0000010c);

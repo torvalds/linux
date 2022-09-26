@@ -247,25 +247,32 @@ enum ipa_reg_route_field_id {
 };
 
 /* SHARED_MEM_SIZE register */
-#define SHARED_MEM_SIZE_FMASK			GENMASK(15, 0)
-#define SHARED_MEM_BADDR_FMASK			GENMASK(31, 16)
+enum ipa_reg_shared_mem_size_field_id {
+	MEM_SIZE,
+	MEM_BADDR,
+};
 
 /* QSB_MAX_WRITES register */
-#define GEN_QMB_0_MAX_WRITES_FMASK		GENMASK(3, 0)
-#define GEN_QMB_1_MAX_WRITES_FMASK		GENMASK(7, 4)
+enum ipa_reg_qsb_max_writes_field_id {
+	GEN_QMB_0_MAX_WRITES,
+	GEN_QMB_1_MAX_WRITES,
+};
 
 /* QSB_MAX_READS register */
-#define GEN_QMB_0_MAX_READS_FMASK		GENMASK(3, 0)
-#define GEN_QMB_1_MAX_READS_FMASK		GENMASK(7, 4)
-/* The next two fields are present for IPA v4.0+ */
-#define GEN_QMB_0_MAX_READS_BEATS_FMASK		GENMASK(23, 16)
-#define GEN_QMB_1_MAX_READS_BEATS_FMASK		GENMASK(31, 24)
+enum ipa_reg_qsb_max_reads_field_id {
+	GEN_QMB_0_MAX_READS,
+	GEN_QMB_1_MAX_READS,
+	GEN_QMB_0_MAX_READS_BEATS,			/* IPA v4.0+ */
+	GEN_QMB_1_MAX_READS_BEATS,			/* IPA v4.0+ */
+};
 
 /* FILT_ROUT_HASH_EN and FILT_ROUT_HASH_FLUSH registers */
-#define IPV6_ROUTER_HASH_FMASK			GENMASK(0, 0)
-#define IPV6_FILTER_HASH_FMASK			GENMASK(4, 4)
-#define IPV4_ROUTER_HASH_FMASK			GENMASK(8, 8)
-#define IPV4_FILTER_HASH_FMASK			GENMASK(12, 12)
+enum ipa_reg_rout_hash_field_id {
+	IPV6_ROUTER_HASH,
+	IPV6_FILTER_HASH,
+	IPV4_ROUTER_HASH,
+	IPV4_FILTER_HASH,
+};
 
 /* BCR register */
 enum ipa_bcr_compat {

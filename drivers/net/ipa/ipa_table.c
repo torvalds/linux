@@ -401,8 +401,10 @@ int ipa_table_hash_flush(struct ipa *ipa)
 	reg = ipa_reg(ipa, FILT_ROUT_HASH_FLUSH);
 	offset = ipa_reg_offset(reg);
 
-	val = IPV4_FILTER_HASH_FMASK | IPV6_FILTER_HASH_FMASK;
-	val |= IPV6_ROUTER_HASH_FMASK | IPV4_ROUTER_HASH_FMASK;
+	val = ipa_reg_bit(reg, IPV6_ROUTER_HASH);
+	val |= ipa_reg_bit(reg, IPV6_FILTER_HASH);
+	val |= ipa_reg_bit(reg, IPV4_ROUTER_HASH);
+	val |= ipa_reg_bit(reg, IPV4_FILTER_HASH);
 
 	ipa_cmd_register_write_add(trans, offset, val, val, false);
 

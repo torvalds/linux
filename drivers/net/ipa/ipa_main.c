@@ -293,26 +293,26 @@ ipa_hardware_config_qsb(struct ipa *ipa, const struct ipa_data *data)
 	/* Max outstanding write accesses for QSB masters */
 	reg = ipa_reg(ipa, QSB_MAX_WRITES);
 
-	val = u32_encode_bits(data0->max_writes, GEN_QMB_0_MAX_WRITES_FMASK);
+	val = ipa_reg_encode(reg, GEN_QMB_0_MAX_WRITES, data0->max_writes);
 	if (data->qsb_count > 1)
-		val |= u32_encode_bits(data1->max_writes,
-				       GEN_QMB_1_MAX_WRITES_FMASK);
+		val |= ipa_reg_encode(reg, GEN_QMB_1_MAX_WRITES,
+				      data1->max_writes);
 
 	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
 
 	/* Max outstanding read accesses for QSB masters */
 	reg = ipa_reg(ipa, QSB_MAX_READS);
 
-	val = u32_encode_bits(data0->max_reads, GEN_QMB_0_MAX_READS_FMASK);
+	val = ipa_reg_encode(reg, GEN_QMB_0_MAX_READS, data0->max_reads);
 	if (ipa->version >= IPA_VERSION_4_0)
-		val |= u32_encode_bits(data0->max_reads_beats,
-				       GEN_QMB_0_MAX_READS_BEATS_FMASK);
+		val |= ipa_reg_encode(reg, GEN_QMB_0_MAX_READS_BEATS,
+				      data0->max_reads_beats);
 	if (data->qsb_count > 1) {
-		val |= u32_encode_bits(data1->max_reads,
-				       GEN_QMB_1_MAX_READS_FMASK);
+		val = ipa_reg_encode(reg, GEN_QMB_1_MAX_READS,
+				     data1->max_reads);
 		if (ipa->version >= IPA_VERSION_4_0)
-			val |= u32_encode_bits(data1->max_reads_beats,
-					       GEN_QMB_1_MAX_READS_BEATS_FMASK);
+			val |= ipa_reg_encode(reg, GEN_QMB_1_MAX_READS_BEATS,
+					      data1->max_reads_beats);
 	}
 
 	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
@@ -419,6 +419,10 @@ static void ipa_hardware_config_hashing(struct ipa *ipa)
 
 	/* IPA v4.2 does not support hashed tables, so disable them */
 	reg = ipa_reg(ipa, FILT_ROUT_HASH_EN);
+
+	/* IPV6_ROUTER_HASH, IPV6_FILTER_HASH, IPV4_ROUTER_HASH,
+	 * IPV4_FILTER_HASH are all zero.
+	 */
 	iowrite32(0, ipa->reg_virt + ipa_reg_offset(reg));
 }
 
