@@ -166,6 +166,13 @@ static u32 array_agc_tab_1t_8188e[] = {
 		0xC78, 0x407F0001,
 };
 
+static void odm_ConfigBB_AGC_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr, u32 Bitmask, u32 Data)
+{
+	rtl8188e_PHY_SetBBReg(pDM_Odm->Adapter, Addr, Bitmask, Data);
+	/*  Add 1us delay between BB/RF register setting. */
+	udelay(1);
+}
+
 enum HAL_STATUS ODM_ReadAndConfig_AGC_TAB_1T_8188E(struct odm_dm_struct *dm_odm)
 {
 	u32     hex         = 0;
@@ -442,6 +449,30 @@ static u32 array_phy_reg_1t_8188e[] = {
 		0xF00, 0x00000300,
 };
 
+static void odm_ConfigBB_PHY_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr, u32 Bitmask, u32 Data)
+{
+	if (Addr == 0xfe) {
+		msleep(50);
+	} else if (Addr == 0xfd) {
+		mdelay(5);
+	} else if (Addr == 0xfc) {
+		mdelay(1);
+	} else if (Addr == 0xfb) {
+		udelay(50);
+	} else if (Addr == 0xfa) {
+		udelay(5);
+	} else if (Addr == 0xf9) {
+		udelay(1);
+	} else {
+		if (Addr == 0xa24)
+			pDM_Odm->RFCalibrateInfo.RegA24 = Data;
+		rtl8188e_PHY_SetBBReg(pDM_Odm->Adapter, Addr, Bitmask, Data);
+
+		/*  Add 1us delay between BB/RF register setting. */
+		udelay(1);
+	}
+}
+
 enum HAL_STATUS ODM_ReadAndConfig_PHY_REG_1T_8188E(struct odm_dm_struct *dm_odm)
 {
 	u32     hex         = 0;
@@ -646,6 +677,25 @@ static u32 array_phy_reg_pg_8188e[] = {
 		0xE1C, 0xFFFFFFFF, 0x00000000,
 
 };
+
+static void odm_ConfigBB_PHY_REG_PG_8188E(struct odm_dm_struct *pDM_Odm, u32 Addr, u32 Bitmask,
+					  u32 Data)
+{
+	if (Addr == 0xfe)
+		msleep(50);
+	else if (Addr == 0xfd)
+		mdelay(5);
+	else if (Addr == 0xfc)
+		mdelay(1);
+	else if (Addr == 0xfb)
+		udelay(50);
+	else if (Addr == 0xfa)
+		udelay(5);
+	else if (Addr == 0xf9)
+		udelay(1);
+	else
+		storePwrIndexDiffRateOffset(pDM_Odm->Adapter, Addr, Bitmask, Data);
+}
 
 void ODM_ReadAndConfig_PHY_REG_PG_8188E(struct odm_dm_struct *dm_odm)
 {

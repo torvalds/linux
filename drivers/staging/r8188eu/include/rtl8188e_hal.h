@@ -23,7 +23,6 @@
 #include "HalHWImg8188E_MAC.h"
 #include "HalHWImg8188E_RF.h"
 #include "HalHWImg8188E_BB.h"
-#include "odm_RegConfig8188E.h"
 #include "odm_RTL8188E.h"
 
 #define DRVINFO_SZ	4 /*  unit is 8bytes */
