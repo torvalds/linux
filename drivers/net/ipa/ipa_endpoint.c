@@ -1473,11 +1473,11 @@ void ipa_endpoint_default_route_set(struct ipa *ipa, u32 endpoint_id)
 
 	reg = ipa_reg(ipa, ROUTE);
 	/* ROUTE_DIS is 0 */
-	val = u32_encode_bits(endpoint_id, ROUTE_DEF_PIPE_FMASK);
-	val |= ROUTE_DEF_HDR_TABLE_FMASK;
-	val |= u32_encode_bits(0, ROUTE_DEF_HDR_OFST_FMASK);
-	val |= u32_encode_bits(endpoint_id, ROUTE_FRAG_DEF_PIPE_FMASK);
-	val |= ROUTE_DEF_RETAIN_HDR_FMASK;
+	val = ipa_reg_encode(reg, ROUTE_DEF_PIPE, endpoint_id);
+	val |= ipa_reg_bit(reg, ROUTE_DEF_HDR_TABLE);
+	/* ROUTE_DEF_HDR_OFST is 0 */
+	val |= ipa_reg_encode(reg, ROUTE_FRAG_DEF_PIPE, endpoint_id);
+	val |= ipa_reg_bit(reg, ROUTE_DEF_RETAIN_HDR);
 
 	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
 }

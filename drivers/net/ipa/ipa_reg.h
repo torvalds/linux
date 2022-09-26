@@ -201,52 +201,50 @@ enum ipa_reg_comp_cfg_field_id {
 };
 
 /* CLKON_CFG register */
-#define RX_FMASK				GENMASK(0, 0)
-#define PROC_FMASK				GENMASK(1, 1)
-#define TX_WRAPPER_FMASK			GENMASK(2, 2)
-#define MISC_FMASK				GENMASK(3, 3)
-#define RAM_ARB_FMASK				GENMASK(4, 4)
-#define FTCH_HPS_FMASK				GENMASK(5, 5)
-#define FTCH_DPS_FMASK				GENMASK(6, 6)
-#define HPS_FMASK				GENMASK(7, 7)
-#define DPS_FMASK				GENMASK(8, 8)
-#define RX_HPS_CMDQS_FMASK			GENMASK(9, 9)
-#define HPS_DPS_CMDQS_FMASK			GENMASK(10, 10)
-#define DPS_TX_CMDQS_FMASK			GENMASK(11, 11)
-#define RSRC_MNGR_FMASK				GENMASK(12, 12)
-#define CTX_HANDLER_FMASK			GENMASK(13, 13)
-#define ACK_MNGR_FMASK				GENMASK(14, 14)
-#define D_DCPH_FMASK				GENMASK(15, 15)
-#define H_DCPH_FMASK				GENMASK(16, 16)
-/* The next field is not present for IPA v4.5+ */
-#define DCMP_FMASK				GENMASK(17, 17)
-/* The next three fields are present for IPA v3.5+ */
-#define NTF_TX_CMDQS_FMASK			GENMASK(18, 18)
-#define TX_0_FMASK				GENMASK(19, 19)
-#define TX_1_FMASK				GENMASK(20, 20)
-/* The next field is present for IPA v3.5.1+ */
-#define FNR_FMASK				GENMASK(21, 21)
-/* The next eight fields are present for IPA v4.0+ */
-#define QSB2AXI_CMDQ_L_FMASK			GENMASK(22, 22)
-#define AGGR_WRAPPER_FMASK			GENMASK(23, 23)
-#define RAM_SLAVEWAY_FMASK			GENMASK(24, 24)
-#define QMB_FMASK				GENMASK(25, 25)
-#define WEIGHT_ARB_FMASK			GENMASK(26, 26)
-#define GSI_IF_FMASK				GENMASK(27, 27)
-#define GLOBAL_FMASK				GENMASK(28, 28)
-#define GLOBAL_2X_CLK_FMASK			GENMASK(29, 29)
-/* The next field is present for IPA v4.5+ */
-#define DPL_FIFO_FMASK				GENMASK(30, 30)
-/* The next field is present for IPA v4.7+ */
-#define DRBIP_FMASK				GENMASK(31, 31)
+enum ipa_reg_clkon_cfg_field_id {
+	CLKON_RX,
+	CLKON_PROC,
+	TX_WRAPPER,
+	CLKON_MISC,
+	RAM_ARB,
+	FTCH_HPS,
+	FTCH_DPS,
+	CLKON_HPS,
+	CLKON_DPS,
+	RX_HPS_CMDQS,
+	HPS_DPS_CMDQS,
+	DPS_TX_CMDQS,
+	RSRC_MNGR,
+	CTX_HANDLER,
+	ACK_MNGR,
+	D_DCPH,
+	H_DCPH,
+	CLKON_DCMP,					/* IPA v4.5+ */
+	NTF_TX_CMDQS,					/* IPA v3.5+ */
+	CLKON_TX_0,					/* IPA v3.5+ */
+	CLKON_TX_1,					/* IPA v3.5+ */
+	CLKON_FNR,					/* IPA v3.5.1+ */
+	QSB2AXI_CMDQ_L,					/* IPA v4.0+ */
+	AGGR_WRAPPER,					/* IPA v4.0+ */
+	RAM_SLAVEWAY,					/* IPA v4.0+ */
+	CLKON_QMB,					/* IPA v4.0+ */
+	WEIGHT_ARB,					/* IPA v4.0+ */
+	GSI_IF,						/* IPA v4.0+ */
+	CLKON_GLOBAL,					/* IPA v4.0+ */
+	GLOBAL_2X_CLK,					/* IPA v4.0+ */
+	DPL_FIFO,					/* IPA v4.5+ */
+	DRBIP,						/* IPA v4.7+ */
+};
 
 /* ROUTE register */
-#define ROUTE_DIS_FMASK				GENMASK(0, 0)
-#define ROUTE_DEF_PIPE_FMASK			GENMASK(5, 1)
-#define ROUTE_DEF_HDR_TABLE_FMASK		GENMASK(6, 6)
-#define ROUTE_DEF_HDR_OFST_FMASK		GENMASK(16, 7)
-#define ROUTE_FRAG_DEF_PIPE_FMASK		GENMASK(21, 17)
-#define ROUTE_DEF_RETAIN_HDR_FMASK		GENMASK(24, 24)
+enum ipa_reg_route_field_id {
+	ROUTE_DIS,
+	ROUTE_DEF_PIPE,
+	ROUTE_DEF_HDR_TABLE,
+	ROUTE_DEF_HDR_OFST,
+	ROUTE_FRAG_DEF_PIPE,
+	ROUTE_DEF_RETAIN_HDR,
+};
 
 /* SHARED_MEM_SIZE register */
 #define SHARED_MEM_SIZE_FMASK			GENMASK(15, 0)

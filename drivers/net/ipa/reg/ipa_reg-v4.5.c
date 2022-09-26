@@ -32,9 +32,55 @@ static const u32 ipa_reg_comp_cfg_fmask[] = {
 
 IPA_REG_FIELDS(COMP_CFG, comp_cfg, 0x0000003c);
 
-IPA_REG(CLKON_CFG, clkon_cfg, 0x00000044);
+static const u32 ipa_reg_clkon_cfg_fmask[] = {
+	[CLKON_RX]					= BIT(0),
+	[CLKON_PROC]					= BIT(1),
+	[TX_WRAPPER]					= BIT(2),
+	[CLKON_MISC]					= BIT(3),
+	[RAM_ARB]					= BIT(4),
+	[FTCH_HPS]					= BIT(5),
+	[FTCH_DPS]					= BIT(6),
+	[CLKON_HPS]					= BIT(7),
+	[CLKON_DPS]					= BIT(8),
+	[RX_HPS_CMDQS]					= BIT(9),
+	[HPS_DPS_CMDQS]					= BIT(10),
+	[DPS_TX_CMDQS]					= BIT(11),
+	[RSRC_MNGR]					= BIT(12),
+	[CTX_HANDLER]					= BIT(13),
+	[ACK_MNGR]					= BIT(14),
+	[D_DCPH]					= BIT(15),
+	[H_DCPH]					= BIT(16),
+	[CLKON_DCMP]					= BIT(17),
+	[NTF_TX_CMDQS]					= BIT(18),
+	[CLKON_TX_0]					= BIT(19),
+	[CLKON_TX_1]					= BIT(20),
+	[CLKON_FNR]					= BIT(21),
+	[QSB2AXI_CMDQ_L]				= BIT(22),
+	[AGGR_WRAPPER]					= BIT(23),
+	[RAM_SLAVEWAY]					= BIT(24),
+	[CLKON_QMB]					= BIT(25),
+	[WEIGHT_ARB]					= BIT(26),
+	[GSI_IF]					= BIT(27),
+	[CLKON_GLOBAL]					= BIT(28),
+	[GLOBAL_2X_CLK]					= BIT(29),
+	[DPL_FIFO]					= BIT(30),
+						/* Bit 31 reserved */
+};
 
-IPA_REG(ROUTE, route, 0x00000048);
+IPA_REG_FIELDS(CLKON_CFG, clkon_cfg, 0x00000044);
+
+static const u32 ipa_reg_route_fmask[] = {
+	[ROUTE_DIS]					= BIT(0),
+	[ROUTE_DEF_PIPE]				= GENMASK(5, 1),
+	[ROUTE_DEF_HDR_TABLE]				= BIT(6),
+	[ROUTE_DEF_HDR_OFST]				= GENMASK(16, 7),
+	[ROUTE_FRAG_DEF_PIPE]				= GENMASK(21, 17),
+						/* Bits 22-23 reserved */
+	[ROUTE_DEF_RETAIN_HDR]				= BIT(24),
+						/* Bits 25-31 reserved */
+};
+
+IPA_REG_FIELDS(ROUTE, route, 0x00000048);
 
 IPA_REG(SHARED_MEM_SIZE, shared_mem_size, 0x00000054);
 

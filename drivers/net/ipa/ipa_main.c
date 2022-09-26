@@ -233,10 +233,14 @@ static void ipa_hardware_config_clkon(struct ipa *ipa)
 
 	/* Implement some hardware workarounds */
 	reg = ipa_reg(ipa, CLKON_CFG);
-	if (version == IPA_VERSION_3_1)
-		val = MISC_FMASK;	/* Disable MISC clock gating */
-	else	/* Enable open global clocks in the CLKON configuration */
-		val = GLOBAL_FMASK | GLOBAL_2X_CLK_FMASK;	/* IPA v4.0+ */
+	if (version == IPA_VERSION_3_1) {
+		/* Disable MISC clock gating */
+		val = ipa_reg_bit(reg, CLKON_MISC);
+	} else {	/* IPA v4.0+ */
+		/* Enable open global clocks in the CLKON configuration */
+		val = ipa_reg_bit(reg, CLKON_GLOBAL);
+		val |= ipa_reg_bit(reg, GLOBAL_2X_CLK);
+	}
 
 	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
 }
