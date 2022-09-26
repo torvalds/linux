@@ -71,6 +71,7 @@ enum efx_tc_rule_prios {
 /**
  * struct efx_tc_state - control plane data for TC offload
  *
+ * @caps: MAE capabilities reported by MCDI
  * @block_list: List of &struct efx_tc_block_binding
  * @mutex: Used to serialise operations on TC hashtables
  * @match_action_ht: Hashtable of TC match-action rules
@@ -85,6 +86,7 @@ enum efx_tc_rule_prios {
  * @up: have TC datastructures been set up?
  */
 struct efx_tc_state {
+	struct mae_caps *caps;
 	struct list_head block_list;
 	struct mutex mutex;
 	struct rhashtable match_action_ht;

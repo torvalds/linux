@@ -112,6 +112,62 @@ int efx_mae_lookup_mport(struct efx_nic *efx, u32 selector, u32 *id)
 	return 0;
 }
 
+static int efx_mae_get_basic_caps(struct efx_nic *efx, struct mae_caps *caps)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_GET_CAPS_OUT_LEN);
+	size_t outlen;
+	int rc;
+
+	BUILD_BUG_ON(MC_CMD_MAE_GET_CAPS_IN_LEN);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_MAE_GET_CAPS, NULL, 0, outbuf,
+			  sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+	if (outlen < sizeof(outbuf))
+		return -EIO;
+	caps->match_field_count = MCDI_DWORD(outbuf, MAE_GET_CAPS_OUT_MATCH_FIELD_COUNT);
+	caps->action_prios = MCDI_DWORD(outbuf, MAE_GET_CAPS_OUT_ACTION_PRIOS);
+	return 0;
+}
+
+static int efx_mae_get_rule_fields(struct efx_nic *efx, u32 cmd,
+				   u8 *field_support)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_GET_AR_CAPS_OUT_LEN(MAE_NUM_FIELDS));
+	MCDI_DECLARE_STRUCT_PTR(caps);
+	unsigned int count;
+	size_t outlen;
+	int rc, i;
+
+	BUILD_BUG_ON(MC_CMD_MAE_GET_AR_CAPS_IN_LEN);
+
+	rc = efx_mcdi_rpc(efx, cmd, NULL, 0, outbuf, sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+	count = MCDI_DWORD(outbuf, MAE_GET_AR_CAPS_OUT_COUNT);
+	memset(field_support, MAE_FIELD_UNSUPPORTED, MAE_NUM_FIELDS);
+	caps = _MCDI_DWORD(outbuf, MAE_GET_AR_CAPS_OUT_FIELD_FLAGS);
+	/* We're only interested in the support status enum, not any other
+	 * flags, so just extract that from each entry.
+	 */
+	for (i = 0; i < count; i++)
+		if (i * sizeof(*outbuf) + MC_CMD_MAE_GET_AR_CAPS_OUT_FIELD_FLAGS_OFST < outlen)
+			field_support[i] = EFX_DWORD_FIELD(caps[i], MAE_FIELD_FLAGS_SUPPORT_STATUS);
+	return 0;
+}
+
+int efx_mae_get_caps(struct efx_nic *efx, struct mae_caps *caps)
+{
+	int rc;
+
+	rc = efx_mae_get_basic_caps(efx, caps);
+	if (rc)
+		return rc;
+	return efx_mae_get_rule_fields(efx, MC_CMD_MAE_GET_AR_CAPS,
+				       caps->action_rule_fields);
+}
+
 static bool efx_mae_asl_id(u32 id)
 {
 	return !!(id & BIT(31));

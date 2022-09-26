@@ -305,6 +305,23 @@ int efx_init_tc(struct efx_nic *efx)
 {
 	int rc;
 
+	rc = efx_mae_get_caps(efx, efx->tc->caps);
+	if (rc)
+		return rc;
+	if (efx->tc->caps->match_field_count > MAE_NUM_FIELDS)
+		/* Firmware supports some match fields the driver doesn't know
+		 * about.  Not fatal, unless any of those fields are required
+		 * (MAE_FIELD_SUPPORTED_MATCH_ALWAYS) but if so we don't know.
+		 */
+		netif_warn(efx, probe, efx->net_dev,
+			   "FW reports additional match fields %u\n",
+			   efx->tc->caps->match_field_count);
+	if (efx->tc->caps->action_prios < EFX_TC_PRIO__NUM) {
+		netif_err(efx, probe, efx->net_dev,
+			  "Too few action prios supported (have %u, need %u)\n",
+			  efx->tc->caps->action_prios, EFX_TC_PRIO__NUM);
+		return -EIO;
+	}
 	rc = efx_tc_configure_default_rule_pf(efx);
 	if (rc)
 		return rc;
@@ -344,6 +361,11 @@ int efx_init_struct_tc(struct efx_nic *efx)
 	efx->tc = kzalloc(sizeof(*efx->tc), GFP_KERNEL);
 	if (!efx->tc)
 		return -ENOMEM;
+	efx->tc->caps = kzalloc(sizeof(struct mae_caps), GFP_KERNEL);
+	if (!efx->tc->caps) {
+		rc = -ENOMEM;
+		goto fail_alloc_caps;
+	}
 	INIT_LIST_HEAD(&efx->tc->block_list);
 
 	mutex_init(&efx->tc->mutex);
@@ -359,6 +381,8 @@ int efx_init_struct_tc(struct efx_nic *efx)
 	return 0;
 fail_match_action_ht:
 	mutex_destroy(&efx->tc->mutex);
+	kfree(efx->tc->caps);
+fail_alloc_caps:
 	kfree(efx->tc);
 	efx->tc = NULL;
 	return rc;
@@ -378,6 +402,7 @@ void efx_fini_struct_tc(struct efx_nic *efx)
 				    efx);
 	mutex_unlock(&efx->tc->mutex);
 	mutex_destroy(&efx->tc->mutex);
+	kfree(efx->tc->caps);
 	kfree(efx->tc);
 	efx->tc = NULL;
 }
