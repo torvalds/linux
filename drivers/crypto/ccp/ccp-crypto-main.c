@@ -400,7 +400,7 @@ static void ccp_unregister_algs(void)
 	}
 }
 
-static int ccp_crypto_init(void)
+static int __init ccp_crypto_init(void)
 {
 	int ret;
 
@@ -421,7 +421,7 @@ static int ccp_crypto_init(void)
 	return ret;
 }
 
-static void ccp_crypto_exit(void)
+static void __exit ccp_crypto_exit(void)
 {
 	ccp_unregister_algs();
 }
