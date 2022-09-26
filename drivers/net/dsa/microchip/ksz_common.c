@@ -14,6 +14,9 @@
 #include <linux/phy.h>
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
+#include <linux/irq.h>
+#include <linux/irqdomain.h>
+#include <linux/of_mdio.h>
 #include <linux/of_device.h>
 #include <linux/of_net.h>
 #include <linux/micrel_phy.h>
@@ -1168,6 +1171,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_statics = 16,
 		.cpu_ports = 0x7F,	/* can be configured as cpu port */
 		.port_cnt = 7,		/* total physical port count */
+		.port_nirqs = 4,
 		.ops = &ksz9477_dev_ops,
 		.phy_errata_9477 = true,
 		.mib_names = ksz9477_mib_names,
@@ -1199,6 +1203,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_statics = 16,
 		.cpu_ports = 0x3F,	/* can be configured as cpu port */
 		.port_cnt = 6,		/* total physical port count */
+		.port_nirqs = 2,
 		.ops = &ksz9477_dev_ops,
 		.phy_errata_9477 = true,
 		.mib_names = ksz9477_mib_names,
@@ -1230,6 +1235,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_statics = 16,
 		.cpu_ports = 0x7F,	/* can be configured as cpu port */
 		.port_cnt = 7,		/* total physical port count */
+		.port_nirqs = 2,
 		.ops = &ksz9477_dev_ops,
 		.phy_errata_9477 = true,
 		.mib_names = ksz9477_mib_names,
@@ -1259,6 +1265,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_statics = 16,
 		.cpu_ports = 0x07,	/* can be configured as cpu port */
 		.port_cnt = 3,		/* total port count */
+		.port_nirqs = 2,
 		.ops = &ksz9477_dev_ops,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
@@ -1283,6 +1290,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_statics = 16,
 		.cpu_ports = 0x7F,	/* can be configured as cpu port */
 		.port_cnt = 7,		/* total physical port count */
+		.port_nirqs = 3,
 		.ops = &ksz9477_dev_ops,
 		.phy_errata_9477 = true,
 		.mib_names = ksz9477_mib_names,
@@ -1312,6 +1320,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_statics = 256,
 		.cpu_ports = 0x10,	/* can be configured as cpu port */
 		.port_cnt = 5,		/* total physical port count */
+		.port_nirqs = 6,
 		.ops = &lan937x_dev_ops,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
@@ -1335,6 +1344,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_statics = 256,
 		.cpu_ports = 0x30,	/* can be configured as cpu port */
 		.port_cnt = 6,		/* total physical port count */
+		.port_nirqs = 6,
 		.ops = &lan937x_dev_ops,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
@@ -1358,6 +1368,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_statics = 256,
 		.cpu_ports = 0x30,	/* can be configured as cpu port */
 		.port_cnt = 8,		/* total physical port count */
+		.port_nirqs = 6,
 		.ops = &lan937x_dev_ops,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
@@ -1385,6 +1396,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_statics = 256,
 		.cpu_ports = 0x38,	/* can be configured as cpu port */
 		.port_cnt = 5,		/* total physical port count */
+		.port_nirqs = 6,
 		.ops = &lan937x_dev_ops,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
@@ -1412,6 +1424,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_statics = 256,
 		.cpu_ports = 0x30,	/* can be configured as cpu port */
 		.port_cnt = 8,		/* total physical port count */
+		.port_nirqs = 6,
 		.ops = &lan937x_dev_ops,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
@@ -1643,9 +1656,280 @@ static void ksz_update_port_member(struct ksz_device *dev, int port)
 	dev->dev_ops->cfg_port_member(dev, port, port_member | cpu_port);
 }
 
+static int ksz_sw_mdio_read(struct mii_bus *bus, int addr, int regnum)
+{
+	struct ksz_device *dev = bus->priv;
+	u16 val;
+	int ret;
+
+	if (regnum & MII_ADDR_C45)
+		return -EOPNOTSUPP;
+
+	ret = dev->dev_ops->r_phy(dev, addr, regnum, &val);
+	if (ret < 0)
+		return ret;
+
+	return val;
+}
+
+static int ksz_sw_mdio_write(struct mii_bus *bus, int addr, int regnum,
+			     u16 val)
+{
+	struct ksz_device *dev = bus->priv;
+
+	if (regnum & MII_ADDR_C45)
+		return -EOPNOTSUPP;
+
+	return dev->dev_ops->w_phy(dev, addr, regnum, val);
+}
+
+static int ksz_irq_phy_setup(struct ksz_device *dev)
+{
+	struct dsa_switch *ds = dev->ds;
+	int phy;
+	int irq;
+	int ret;
+
+	for (phy = 0; phy < KSZ_MAX_NUM_PORTS; phy++) {
+		if (BIT(phy) & ds->phys_mii_mask) {
+			irq = irq_find_mapping(dev->ports[phy].pirq.domain,
+					       PORT_SRC_PHY_INT);
+			if (irq < 0) {
+				ret = irq;
+				goto out;
+			}
+			ds->slave_mii_bus->irq[phy] = irq;
+		}
+	}
+	return 0;
+out:
+	while (phy--)
+		if (BIT(phy) & ds->phys_mii_mask)
+			irq_dispose_mapping(ds->slave_mii_bus->irq[phy]);
+
+	return ret;
+}
+
+static void ksz_irq_phy_free(struct ksz_device *dev)
+{
+	struct dsa_switch *ds = dev->ds;
+	int phy;
+
+	for (phy = 0; phy < KSZ_MAX_NUM_PORTS; phy++)
+		if (BIT(phy) & ds->phys_mii_mask)
+			irq_dispose_mapping(ds->slave_mii_bus->irq[phy]);
+}
+
+static int ksz_mdio_register(struct ksz_device *dev)
+{
+	struct dsa_switch *ds = dev->ds;
+	struct device_node *mdio_np;
+	struct mii_bus *bus;
+	int ret;
+
+	mdio_np = of_get_child_by_name(dev->dev->of_node, "mdio");
+	if (!mdio_np)
+		return 0;
+
+	bus = devm_mdiobus_alloc(ds->dev);
+	if (!bus) {
+		of_node_put(mdio_np);
+		return -ENOMEM;
+	}
+
+	bus->priv = dev;
+	bus->read = ksz_sw_mdio_read;
+	bus->write = ksz_sw_mdio_write;
+	bus->name = "ksz slave smi";
+	snprintf(bus->id, MII_BUS_ID_SIZE, "SMI-%d", ds->index);
+	bus->parent = ds->dev;
+	bus->phy_mask = ~ds->phys_mii_mask;
+
+	ds->slave_mii_bus = bus;
+
+	if (dev->irq > 0) {
+		ret = ksz_irq_phy_setup(dev);
+		if (ret) {
+			of_node_put(mdio_np);
+			return ret;
+		}
+	}
+
+	ret = devm_of_mdiobus_register(ds->dev, bus, mdio_np);
+	if (ret) {
+		dev_err(ds->dev, "unable to register MDIO bus %s\n",
+			bus->id);
+		if (dev->irq > 0)
+			ksz_irq_phy_free(dev);
+	}
+
+	of_node_put(mdio_np);
+
+	return ret;
+}
+
+static void ksz_irq_mask(struct irq_data *d)
+{
+	struct ksz_irq *kirq = irq_data_get_irq_chip_data(d);
+
+	kirq->masked |= BIT(d->hwirq);
+}
+
+static void ksz_irq_unmask(struct irq_data *d)
+{
+	struct ksz_irq *kirq = irq_data_get_irq_chip_data(d);
+
+	kirq->masked &= ~BIT(d->hwirq);
+}
+
+static void ksz_irq_bus_lock(struct irq_data *d)
+{
+	struct ksz_irq *kirq  = irq_data_get_irq_chip_data(d);
+
+	mutex_lock(&kirq->dev->lock_irq);
+}
+
+static void ksz_irq_bus_sync_unlock(struct irq_data *d)
+{
+	struct ksz_irq *kirq  = irq_data_get_irq_chip_data(d);
+	struct ksz_device *dev = kirq->dev;
+	int ret;
+
+	ret = ksz_write32(dev, kirq->reg_mask, kirq->masked);
+	if (ret)
+		dev_err(dev->dev, "failed to change IRQ mask\n");
+
+	mutex_unlock(&dev->lock_irq);
+}
+
+static const struct irq_chip ksz_irq_chip = {
+	.name			= "ksz-irq",
+	.irq_mask		= ksz_irq_mask,
+	.irq_unmask		= ksz_irq_unmask,
+	.irq_bus_lock		= ksz_irq_bus_lock,
+	.irq_bus_sync_unlock	= ksz_irq_bus_sync_unlock,
+};
+
+static int ksz_irq_domain_map(struct irq_domain *d,
+			      unsigned int irq, irq_hw_number_t hwirq)
+{
+	irq_set_chip_data(irq, d->host_data);
+	irq_set_chip_and_handler(irq, &ksz_irq_chip, handle_level_irq);
+	irq_set_noprobe(irq);
+
+	return 0;
+}
+
+static const struct irq_domain_ops ksz_irq_domain_ops = {
+	.map	= ksz_irq_domain_map,
+	.xlate	= irq_domain_xlate_twocell,
+};
+
+static void ksz_irq_free(struct ksz_irq *kirq)
+{
+	int irq, virq;
+
+	free_irq(kirq->irq_num, kirq);
+
+	for (irq = 0; irq < kirq->nirqs; irq++) {
+		virq = irq_find_mapping(kirq->domain, irq);
+		irq_dispose_mapping(virq);
+	}
+
+	irq_domain_remove(kirq->domain);
+}
+
+static irqreturn_t ksz_irq_thread_fn(int irq, void *dev_id)
+{
+	struct ksz_irq *kirq = dev_id;
+	unsigned int nhandled = 0;
+	struct ksz_device *dev;
+	unsigned int sub_irq;
+	u8 data;
+	int ret;
+	u8 n;
+
+	dev = kirq->dev;
+
+	/* Read interrupt status register */
+	ret = ksz_read8(dev, kirq->reg_status, &data);
+	if (ret)
+		goto out;
+
+	for (n = 0; n < kirq->nirqs; ++n) {
+		if (data & BIT(n)) {
+			sub_irq = irq_find_mapping(kirq->domain, n);
+			handle_nested_irq(sub_irq);
+			++nhandled;
+		}
+	}
+out:
+	return (nhandled > 0 ? IRQ_HANDLED : IRQ_NONE);
+}
+
+static int ksz_irq_common_setup(struct ksz_device *dev, struct ksz_irq *kirq)
+{
+	int ret, n;
+
+	kirq->dev = dev;
+	kirq->masked = ~0;
+
+	kirq->domain = irq_domain_add_simple(dev->dev->of_node, kirq->nirqs, 0,
+					     &ksz_irq_domain_ops, kirq);
+	if (!kirq->domain)
+		return -ENOMEM;
+
+	for (n = 0; n < kirq->nirqs; n++)
+		irq_create_mapping(kirq->domain, n);
+
+	ret = request_threaded_irq(kirq->irq_num, NULL, ksz_irq_thread_fn,
+				   IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
+				   kirq->name, kirq);
+	if (ret)
+		goto out;
+
+	return 0;
+
+out:
+	ksz_irq_free(kirq);
+
+	return ret;
+}
+
+static int ksz_girq_setup(struct ksz_device *dev)
+{
+	struct ksz_irq *girq = &dev->girq;
+
+	girq->nirqs = dev->info->port_cnt;
+	girq->reg_mask = REG_SW_PORT_INT_MASK__1;
+	girq->reg_status = REG_SW_PORT_INT_STATUS__1;
+	snprintf(girq->name, sizeof(girq->name), "global_port_irq");
+
+	girq->irq_num = dev->irq;
+
+	return ksz_irq_common_setup(dev, girq);
+}
+
+static int ksz_pirq_setup(struct ksz_device *dev, u8 p)
+{
+	struct ksz_irq *pirq = &dev->ports[p].pirq;
+
+	pirq->nirqs = dev->info->port_nirqs;
+	pirq->reg_mask = dev->dev_ops->get_port_addr(p, REG_PORT_INT_MASK);
+	pirq->reg_status = dev->dev_ops->get_port_addr(p, REG_PORT_INT_STATUS);
+	snprintf(pirq->name, sizeof(pirq->name), "port_irq-%d", p);
+
+	pirq->irq_num = irq_find_mapping(dev->girq.domain, p);
+	if (pirq->irq_num < 0)
+		return pirq->irq_num;
+
+	return ksz_irq_common_setup(dev, pirq);
+}
+
 static int ksz_setup(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
+	struct dsa_port *dp;
 	struct ksz_port *p;
 	const u16 *regs;
 	int ret;
@@ -1694,16 +1978,52 @@ static int ksz_setup(struct dsa_switch *ds)
 	p = &dev->ports[dev->cpu_port];
 	p->learning = true;
 
+	if (dev->irq > 0) {
+		ret = ksz_girq_setup(dev);
+		if (ret)
+			return ret;
+
+		dsa_switch_for_each_user_port(dp, dev->ds) {
+			ret = ksz_pirq_setup(dev, dp->index);
+			if (ret)
+				goto out_girq;
+		}
+	}
+
+	ret = ksz_mdio_register(dev);
+	if (ret < 0) {
+		dev_err(dev->dev, "failed to register the mdio");
+		goto out_pirq;
+	}
+
 	/* start switch */
 	regmap_update_bits(dev->regmap[0], regs[S_START_CTRL],
 			   SW_START, SW_START);
 
 	return 0;
+
+out_pirq:
+	if (dev->irq > 0)
+		dsa_switch_for_each_user_port(dp, dev->ds)
+			ksz_irq_free(&dev->ports[dp->index].pirq);
+out_girq:
+	if (dev->irq > 0)
+		ksz_irq_free(&dev->girq);
+
+	return ret;
 }
 
 static void ksz_teardown(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
+	struct dsa_port *dp;
+
+	if (dev->irq > 0) {
+		dsa_switch_for_each_user_port(dp, dev->ds)
+			ksz_irq_free(&dev->ports[dp->index].pirq);
+
+		ksz_irq_free(&dev->girq);
+	}
 
 	if (dev->dev_ops->teardown)
 		dev->dev_ops->teardown(ds);

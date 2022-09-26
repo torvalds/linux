@@ -45,6 +45,7 @@ struct ksz_chip_data {
 	int num_statics;
 	int cpu_ports;
 	int port_cnt;
+	u8 port_nirqs;
 	const struct ksz_dev_ops *ops;
 	bool phy_errata_9477;
 	bool ksz87xx_eee_link_erratum;
@@ -71,10 +72,13 @@ struct ksz_chip_data {
 
 struct ksz_irq {
 	u16 masked;
-	struct irq_chip chip;
+	u16 reg_mask;
+	u16 reg_status;
 	struct irq_domain *domain;
 	int nirqs;
+	int irq_num;
 	char name[16];
+	struct ksz_device *dev;
 };
 
 struct ksz_port {
@@ -571,6 +575,15 @@ static inline int is_lan937x(struct ksz_device *dev)
 #define P_RGMII_ID_EG_ENABLE		BIT(3)
 #define P_MII_MAC_MODE			BIT(2)
 #define P_MII_SEL_M			0x3
+
+/* Interrupt */
+#define REG_SW_PORT_INT_STATUS__1	0x001B
+#define REG_SW_PORT_INT_MASK__1		0x001F
+
+#define REG_PORT_INT_STATUS		0x001B
+#define REG_PORT_INT_MASK		0x001F
+
+#define PORT_SRC_PHY_INT		1
 
 /* Regmap tables generation */
 #define KSZ_SPI_OP_RD		3
