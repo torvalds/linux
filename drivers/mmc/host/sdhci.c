@@ -3063,10 +3063,6 @@ static bool sdhci_request_done(struct sdhci_host *host)
 			/* This is to force an update */
 			host->ops->set_clock(host, host->clock);
 
-		/*
-		 * Spec says we should do both at the same time, but Ricoh
-		 * controllers do not like that.
-		 */
 		sdhci_do_reset(host, SDHCI_RESET_CMD);
 		sdhci_do_reset(host, SDHCI_RESET_DATA);
 
