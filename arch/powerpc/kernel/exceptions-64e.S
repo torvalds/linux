@@ -688,8 +688,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 
 #ifdef CONFIG_RELOCATABLE
 	__LOAD_PACA_TOC(r15)
-	ld	r14,interrupt_base_book3e@got(r15)
-	ld	r15,__end_interrupts@got(r15)
+	LOAD_REG_ADDR_ALTTOC(r14, r15, interrupt_base_book3e)
+	LOAD_REG_ADDR_ALTTOC(r15, r15, __end_interrupts)
 	cmpld	cr0,r10,r14
 	cmpld	cr1,r10,r15
 #else
@@ -759,8 +759,8 @@ kernel_dbg_exc:
 
 #ifdef CONFIG_RELOCATABLE
 	__LOAD_PACA_TOC(r15)
-	ld	r14,interrupt_base_book3e@got(r15)
-	ld	r15,__end_interrupts@got(r15)
+	LOAD_REG_ADDR_ALTTOC(r14, r15, interrupt_base_book3e)
+	LOAD_REG_ADDR_ALTTOC(r15, r15, __end_interrupts)
 	cmpld	cr0,r10,r14
 	cmpld	cr1,r10,r15
 #else
@@ -884,8 +884,8 @@ kernel_dbg_exc:
 .macro SEARCH_RESTART_TABLE
 #ifdef CONFIG_RELOCATABLE
 	__LOAD_PACA_TOC(r11)
-	ld	r14,__start___restart_table@got(r11)
-	ld	r15,__stop___restart_table@got(r11)
+	LOAD_REG_ADDR_ALTTOC(r14, r11, __start___restart_table)
+	LOAD_REG_ADDR_ALTTOC(r15, r11, __stop___restart_table)
 #else
 	LOAD_REG_IMMEDIATE_SYM(r14, r11, __start___restart_table)
 	LOAD_REG_IMMEDIATE_SYM(r15, r11, __stop___restart_table)
@@ -1303,7 +1303,7 @@ a2_tlbinit_after_linear_map:
 	/* Now we branch the new virtual address mapped by this entry */
 #ifdef CONFIG_RELOCATABLE
 	__LOAD_PACA_TOC(r5)
-	ld	r3,1f@got(r5)
+	LOAD_REG_ADDR_ALTTOC(r3, r5, 1f)
 #else
 	LOAD_REG_IMMEDIATE_SYM(r3, r5, 1f)
 #endif

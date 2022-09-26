@@ -1119,7 +1119,7 @@ tlb_load_linear:
 	 * final implementation, especially when dealing with hypervisors
 	 */
 	__LOAD_PACA_TOC(r11)
-	ld	r11,linear_map_top@got(r11)
+	LOAD_REG_ADDR_ALTTOC(r11, r11, linear_map_top)
 	ld	r10,0(r11)
 	tovirt(10,10)
 	cmpld	cr0,r16,r10
