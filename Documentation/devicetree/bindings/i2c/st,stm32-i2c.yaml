@@ -57,6 +57,11 @@ properties:
       - description: interrupt ID for I2C event
       - description: interrupt ID for I2C error
 
+  interrupt-names:
+    items:
+      - const: event
+      - const: error
+
   resets:
     maxItems: 1
 
