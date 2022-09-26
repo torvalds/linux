@@ -354,7 +354,7 @@ static int pca963x_register_leds(struct i2c_client *client,
 		led->led_cdev.brightness_set_blocking = pca963x_led_set;
 		if (hw_blink)
 			led->led_cdev.blink_set = pca963x_blink_set;
-			led->blinking = false;
+		led->blinking = false;
 
 		init_data.fwnode = child;
 		/* for backwards compatibility */
