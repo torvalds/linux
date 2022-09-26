@@ -195,7 +195,8 @@ static inline void interrupt_enter_prepare(struct pt_regs *regs)
 		 * so avoid recursion.
 		 */
 		if (TRAP(regs) != INTERRUPT_PROGRAM) {
-			CT_WARN_ON(ct_state() != CONTEXT_KERNEL);
+			CT_WARN_ON(ct_state() != CONTEXT_KERNEL &&
+				   ct_state() != CONTEXT_IDLE);
 			if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
 				BUG_ON(is_implicit_soft_masked(regs));
 		}
