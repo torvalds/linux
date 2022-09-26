@@ -179,6 +179,9 @@ static int mlxbf_gige_mdio_read(struct mii_bus *bus, int phy_add, int phy_reg)
 	/* Only return ad bits of the gw register */
 	ret &= MLXBF_GIGE_MDIO_GW_AD_MASK;
 
+	/* The MDIO lock is set on read. To release it, clear gw register */
+	writel(0, priv->mdio_io + MLXBF_GIGE_MDIO_GW_OFFSET);
+
 	return ret;
 }
 
@@ -202,6 +205,9 @@ static int mlxbf_gige_mdio_write(struct mii_bus *bus, int phy_add,
 	ret = readl_poll_timeout_atomic(priv->mdio_io + MLXBF_GIGE_MDIO_GW_OFFSET,
 					temp, !(temp & MLXBF_GIGE_MDIO_GW_BUSY_MASK),
 					5, 1000000);
+
+	/* The MDIO lock is set on read. To release it, clear gw register */
+	writel(0, priv->mdio_io + MLXBF_GIGE_MDIO_GW_OFFSET);
 
 	return ret;
 }

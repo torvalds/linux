@@ -5,6 +5,8 @@ I2C muxes and complex topologies
 There are a couple of reasons for building more complex I2C topologies
 than a straight-forward I2C bus with one adapter and one or more devices.
 
+Some example use cases are:
+
 1. A mux may be needed on the bus to prevent address collisions.
 
 2. The bus may be accessible from some external bus master, and arbitration
@@ -14,10 +16,10 @@ than a straight-forward I2C bus with one adapter and one or more devices.
    from the I2C bus, at least most of the time, and sits behind a gate
    that has to be operated before the device can be accessed.
 
-Etc
-===
+Several types of hardware components such as I2C muxes, I2C gates and I2C
+arbitrators allow to handle such needs.
 
-These constructs are represented as I2C adapter trees by Linux, where
+These components are represented as I2C adapter trees by Linux, where
 each adapter has a parent adapter (except the root adapter) and zero or
 more child adapters. The root adapter is the actual adapter that issues
 I2C transfers, and all adapters with a parent are part of an "i2c-mux"
@@ -35,46 +37,7 @@ Locking
 =======
 
 There are two variants of locking available to I2C muxes, they can be
-mux-locked or parent-locked muxes. As is evident from below, it can be
-useful to know if a mux is mux-locked or if it is parent-locked. The
-following list was correct at the time of writing:
-
-In drivers/i2c/muxes/:
-
-======================    =============================================
-i2c-arb-gpio-challenge    Parent-locked
-i2c-mux-gpio              Normally parent-locked, mux-locked iff
-                          all involved gpio pins are controlled by the
-                          same I2C root adapter that they mux.
-i2c-mux-gpmux             Normally parent-locked, mux-locked iff
-                          specified in device-tree.
-i2c-mux-ltc4306           Mux-locked
-i2c-mux-mlxcpld           Parent-locked
-i2c-mux-pca9541           Parent-locked
-i2c-mux-pca954x           Parent-locked
-i2c-mux-pinctrl           Normally parent-locked, mux-locked iff
-                          all involved pinctrl devices are controlled
-                          by the same I2C root adapter that they mux.
-i2c-mux-reg               Parent-locked
-======================    =============================================
-
-In drivers/iio/:
-
-======================    =============================================
-gyro/mpu3050              Mux-locked
-imu/inv_mpu6050/          Mux-locked
-======================    =============================================
-
-In drivers/media/:
-
-=======================   =============================================
-dvb-frontends/lgdt3306a   Mux-locked
-dvb-frontends/m88ds3103   Parent-locked
-dvb-frontends/rtl2830     Parent-locked
-dvb-frontends/rtl2832     Mux-locked
-dvb-frontends/si2168      Mux-locked
-usb/cx231xx/              Parent-locked
-=======================   =============================================
+mux-locked or parent-locked muxes.
 
 
 Mux-locked muxes
@@ -89,40 +52,8 @@ full transaction, unrelated I2C transfers may interleave the different
 stages of the transaction. This has the benefit that the mux driver
 may be easier and cleaner to implement, but it has some caveats.
 
-==== =====================================================================
-ML1. If you build a topology with a mux-locked mux being the parent
-     of a parent-locked mux, this might break the expectation from the
-     parent-locked mux that the root adapter is locked during the
-     transaction.
-
-ML2. It is not safe to build arbitrary topologies with two (or more)
-     mux-locked muxes that are not siblings, when there are address
-     collisions between the devices on the child adapters of these
-     non-sibling muxes.
-
-     I.e. the select-transfer-deselect transaction targeting e.g. device
-     address 0x42 behind mux-one may be interleaved with a similar
-     operation targeting device address 0x42 behind mux-two. The
-     intension with such a topology would in this hypothetical example
-     be that mux-one and mux-two should not be selected simultaneously,
-     but mux-locked muxes do not guarantee that in all topologies.
-
-ML3. A mux-locked mux cannot be used by a driver for auto-closing
-     gates/muxes, i.e. something that closes automatically after a given
-     number (one, in most cases) of I2C transfers. Unrelated I2C transfers
-     may creep in and close prematurely.
-
-ML4. If any non-I2C operation in the mux driver changes the I2C mux state,
-     the driver has to lock the root adapter during that operation.
-     Otherwise garbage may appear on the bus as seen from devices
-     behind the mux, when an unrelated I2C transfer is in flight during
-     the non-I2C mux-changing operation.
-==== =====================================================================
-
-
 Mux-locked Example
-------------------
-
+~~~~~~~~~~~~~~~~~~
 
 ::
 
@@ -153,6 +84,43 @@ This means that accesses to D2 are lockout out for the full duration
 of the entire operation. But accesses to D3 are possibly interleaved
 at any point.
 
+Mux-locked caveats
+~~~~~~~~~~~~~~~~~~
+
+When using a mux-locked mux, be aware of the following restrictions:
+
+[ML1]
+  If you build a topology with a mux-locked mux being the parent
+  of a parent-locked mux, this might break the expectation from the
+  parent-locked mux that the root adapter is locked during the
+  transaction.
+
+[ML2]
+  It is not safe to build arbitrary topologies with two (or more)
+  mux-locked muxes that are not siblings, when there are address
+  collisions between the devices on the child adapters of these
+  non-sibling muxes.
+
+  I.e. the select-transfer-deselect transaction targeting e.g. device
+  address 0x42 behind mux-one may be interleaved with a similar
+  operation targeting device address 0x42 behind mux-two. The
+  intent with such a topology would in this hypothetical example
+  be that mux-one and mux-two should not be selected simultaneously,
+  but mux-locked muxes do not guarantee that in all topologies.
+
+[ML3]
+  A mux-locked mux cannot be used by a driver for auto-closing
+  gates/muxes, i.e. something that closes automatically after a given
+  number (one, in most cases) of I2C transfers. Unrelated I2C transfers
+  may creep in and close prematurely.
+
+[ML4]
+  If any non-I2C operation in the mux driver changes the I2C mux state,
+  the driver has to lock the root adapter during that operation.
+  Otherwise garbage may appear on the bus as seen from devices
+  behind the mux, when an unrelated I2C transfer is in flight during
+  the non-I2C mux-changing operation.
+
 
 Parent-locked muxes
 -------------------
@@ -161,28 +129,10 @@ Parent-locked muxes lock the parent adapter during the full select-
 transfer-deselect transaction. The implication is that the mux driver
 has to ensure that any and all I2C transfers through that parent
 adapter during the transaction are unlocked I2C transfers (using e.g.
-__i2c_transfer), or a deadlock will follow. There are a couple of
-caveats.
-
-==== ====================================================================
-PL1. If you build a topology with a parent-locked mux being the child
-     of another mux, this might break a possible assumption from the
-     child mux that the root adapter is unused between its select op
-     and the actual transfer (e.g. if the child mux is auto-closing
-     and the parent mux issues I2C transfers as part of its select).
-     This is especially the case if the parent mux is mux-locked, but
-     it may also happen if the parent mux is parent-locked.
-
-PL2. If select/deselect calls out to other subsystems such as gpio,
-     pinctrl, regmap or iio, it is essential that any I2C transfers
-     caused by these subsystems are unlocked. This can be convoluted to
-     accomplish, maybe even impossible if an acceptably clean solution
-     is sought.
-==== ====================================================================
-
+__i2c_transfer), or a deadlock will follow.
 
 Parent-locked Example
----------------------
+~~~~~~~~~~~~~~~~~~~~~
 
 ::
 
@@ -212,9 +162,29 @@ When there is an access to D1, this happens:
  9.  M1 unlocks its parent adapter.
  10. M1 unlocks muxes on its parent.
 
-
 This means that accesses to both D2 and D3 are locked out for the full
 duration of the entire operation.
+
+Parent-locked Caveats
+~~~~~~~~~~~~~~~~~~~~~
+
+When using a parent-locked mux, be aware of the following restrictions:
+
+[PL1]
+  If you build a topology with a parent-locked mux being the child
+  of another mux, this might break a possible assumption from the
+  child mux that the root adapter is unused between its select op
+  and the actual transfer (e.g. if the child mux is auto-closing
+  and the parent mux issues I2C transfers as part of its select).
+  This is especially the case if the parent mux is mux-locked, but
+  it may also happen if the parent mux is parent-locked.
+
+[PL2]
+  If select/deselect calls out to other subsystems such as gpio,
+  pinctrl, regmap or iio, it is essential that any I2C transfers
+  caused by these subsystems are unlocked. This can be convoluted to
+  accomplish, maybe even impossible if an acceptably clean solution
+  is sought.
 
 
 Complex Examples
@@ -261,8 +231,10 @@ This is a good topology::
 When device D1 is accessed, accesses to D2 are locked out for the
 full duration of the operation (muxes on the top child adapter of M1
 are locked). But accesses to D3 and D4 are possibly interleaved at
-any point. Accesses to D3 locks out D1 and D2, but accesses to D4
-are still possibly interleaved.
+any point.
+
+Accesses to D3 locks out D1 and D2, but accesses to D4 are still possibly
+interleaved.
 
 
 Mux-locked mux as parent of parent-locked mux
@@ -394,3 +366,47 @@ This is a good topology::
 When D1 or D2 are accessed, accesses to D3 and D4 are locked out while
 accesses to D5 may interleave. When D3 or D4 are accessed, accesses to
 all other devices are locked out.
+
+
+Mux type of existing device drivers
+===================================
+
+Whether a device is mux-locked or parent-locked depends on its
+implementation. The following list was correct at the time of writing:
+
+In drivers/i2c/muxes/:
+
+======================    =============================================
+i2c-arb-gpio-challenge    Parent-locked
+i2c-mux-gpio              Normally parent-locked, mux-locked iff
+                          all involved gpio pins are controlled by the
+                          same I2C root adapter that they mux.
+i2c-mux-gpmux             Normally parent-locked, mux-locked iff
+                          specified in device-tree.
+i2c-mux-ltc4306           Mux-locked
+i2c-mux-mlxcpld           Parent-locked
+i2c-mux-pca9541           Parent-locked
+i2c-mux-pca954x           Parent-locked
+i2c-mux-pinctrl           Normally parent-locked, mux-locked iff
+                          all involved pinctrl devices are controlled
+                          by the same I2C root adapter that they mux.
+i2c-mux-reg               Parent-locked
+======================    =============================================
+
+In drivers/iio/:
+
+======================    =============================================
+gyro/mpu3050              Mux-locked
+imu/inv_mpu6050/          Mux-locked
+======================    =============================================
+
+In drivers/media/:
+
+=======================   =============================================
+dvb-frontends/lgdt3306a   Mux-locked
+dvb-frontends/m88ds3103   Parent-locked
+dvb-frontends/rtl2830     Parent-locked
+dvb-frontends/rtl2832     Mux-locked
+dvb-frontends/si2168      Mux-locked
+usb/cx231xx/              Parent-locked
+=======================   =============================================

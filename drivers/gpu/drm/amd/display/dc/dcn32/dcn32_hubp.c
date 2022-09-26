@@ -103,6 +103,11 @@ void hubp32_cursor_set_attributes(
 	enum cursor_lines_per_chunk lpc = hubp2_get_lines_per_chunk(
 			attr->width, attr->color_format);
 
+	//Round cursor width up to next multiple of 64
+	uint32_t cursor_width = ((attr->width + 63) / 64) * 64;
+	uint32_t cursor_height = attr->height;
+	uint32_t cursor_size = cursor_width * cursor_height;
+
 	hubp->curs_attr = *attr;
 
 	REG_UPDATE(CURSOR_SURFACE_ADDRESS_HIGH,
@@ -126,7 +131,24 @@ void hubp32_cursor_set_attributes(
 			 /* used to shift the cursor chunk request deadline */
 			CURSOR0_CHUNK_HDL_ADJUST, 3);
 
-	if (attr->width * attr->height * 4 > 16384)
+	switch (attr->color_format) {
+	case CURSOR_MODE_MONO:
+		cursor_size /= 2;
+		break;
+	case CURSOR_MODE_COLOR_1BIT_AND:
+	case CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA:
+	case CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA:
+		cursor_size *= 4;
+		break;
+
+	case CURSOR_MODE_COLOR_64BIT_FP_PRE_MULTIPLIED:
+	case CURSOR_MODE_COLOR_64BIT_FP_UN_PRE_MULTIPLIED:
+	default:
+		cursor_size *= 8;
+		break;
+	}
+
+	if (cursor_size > 16384)
 		REG_UPDATE(DCHUBP_MALL_CONFIG, USE_MALL_FOR_CURSOR, true);
 	else
 		REG_UPDATE(DCHUBP_MALL_CONFIG, USE_MALL_FOR_CURSOR, false);
