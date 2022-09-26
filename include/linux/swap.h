@@ -666,7 +666,7 @@ static inline void folio_throttle_swaprate(struct folio *folio, gfp_t gfp)
 	cgroup_throttle_swaprate(&folio->page, gfp);
 }
 
-#ifdef CONFIG_MEMCG_SWAP
+#if defined(CONFIG_MEMCG) && defined(CONFIG_SWAP)
 void mem_cgroup_swapout(struct folio *folio, swp_entry_t entry);
 int __mem_cgroup_try_charge_swap(struct folio *folio, swp_entry_t entry);
 static inline int mem_cgroup_try_charge_swap(struct folio *folio,
