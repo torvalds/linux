@@ -120,7 +120,7 @@ static void intel_hdmi_get_config(struct intel_encoder *encoder,
 	pipe_config->hw.adjusted_mode.flags |= flags;
 
 	if ((tmp & SDVO_COLOR_FORMAT_MASK) == HDMI_COLOR_FORMAT_12bpc)
-		dotclock = pipe_config->port_clock * 2 / 3;
+		dotclock = DIV_ROUND_CLOSEST(pipe_config->port_clock * 2, 3);
 	else
 		dotclock = pipe_config->port_clock;
 
