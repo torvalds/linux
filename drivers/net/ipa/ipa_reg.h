@@ -65,6 +65,61 @@ struct ipa;
  * of valid bits for the register.
  */
 
+/* enum ipa_reg_id - IPA register IDs */
+enum ipa_reg_id {
+	COMP_CFG,
+	CLKON_CFG,
+	ROUTE,
+	SHARED_MEM_SIZE,
+	QSB_MAX_WRITES,
+	QSB_MAX_READS,
+	FILT_ROUT_HASH_EN,
+	FILT_ROUT_HASH_FLUSH,
+	STATE_AGGR_ACTIVE,
+	IPA_BCR,					/* Not IPA v4.5+ */
+	LOCAL_PKT_PROC_CNTXT,
+	AGGR_FORCE_CLOSE,
+	COUNTER_CFG,					/* Not IPA v4.5+ */
+	IPA_TX_CFG,					/* IPA v3.5+ */
+	FLAVOR_0,					/* IPA v3.5+ */
+	IDLE_INDICATION_CFG,				/* IPA v3.5+ */
+	QTIME_TIMESTAMP_CFG,				/* IPA v4.5+ */
+	TIMERS_XO_CLK_DIV_CFG,				/* IPA v4.5+ */
+	TIMERS_PULSE_GRAN_CFG,				/* IPA v4.5+ */
+	SRC_RSRC_GRP_01_RSRC_TYPE,
+	SRC_RSRC_GRP_23_RSRC_TYPE,
+	SRC_RSRC_GRP_45_RSRC_TYPE,		/* Not IPA v3.5+, IPA v4.5 */
+	SRC_RSRC_GRP_67_RSRC_TYPE,			/* Not IPA v3.5+ */
+	DST_RSRC_GRP_01_RSRC_TYPE,
+	DST_RSRC_GRP_23_RSRC_TYPE,
+	DST_RSRC_GRP_45_RSRC_TYPE,		/* Not IPA v3.5+, IPA v4.5 */
+	DST_RSRC_GRP_67_RSRC_TYPE,			/* Not IPA v3.5+ */
+	ENDP_INIT_CTRL,		/* Not IPA v4.2+ for TX, not IPA v4.0+ for RX */
+	ENDP_INIT_CFG,
+	ENDP_INIT_NAT,			/* TX only */
+	ENDP_INIT_HDR,
+	ENDP_INIT_HDR_EXT,
+	ENDP_INIT_HDR_METADATA_MASK,	/* RX only */
+	ENDP_INIT_MODE,			/* TX only */
+	ENDP_INIT_AGGR,
+	ENDP_INIT_HOL_BLOCK_EN,		/* RX only */
+	ENDP_INIT_HOL_BLOCK_TIMER,	/* RX only */
+	ENDP_INIT_DEAGGR,		/* TX only */
+	ENDP_INIT_RSRC_GRP,
+	ENDP_INIT_SEQ,			/* TX only */
+	ENDP_STATUS,
+	ENDP_FILTER_ROUTER_HSH_CFG,			/* Not IPA v4.2 */
+	/* The IRQ registers are only used for GSI_EE_AP */
+	IPA_IRQ_STTS,
+	IPA_IRQ_EN,
+	IPA_IRQ_CLR,
+	IPA_IRQ_UC,
+	IRQ_SUSPEND_INFO,
+	IRQ_SUSPEND_EN,					/* IPA v3.1+ */
+	IRQ_SUSPEND_CLR,				/* IPA v3.1+ */
+	IPA_REG_ID_COUNT,				/* Last; not an ID */
+};
+
 #define IPA_REG_COMP_CFG_OFFSET				0x0000003c
 /* The next field is not supported for IPA v4.0+, not present for IPA v4.5+ */
 #define ENABLE_FMASK				GENMASK(0, 0)
