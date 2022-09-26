@@ -74,6 +74,9 @@
 #define VCNL4000_PROX_EN	BIT(1) /* start proximity measurement */
 #define VCNL4000_SELF_TIMED_EN	BIT(0) /* start self-timed measurement */
 
+#define VCNL4040_ALS_CONF_ALS_SHUTDOWN	BIT(0)
+#define VCNL4040_PS_CONF1_PS_SHUTDOWN	BIT(0)
+
 /* Bit masks for interrupt registers. */
 #define VCNL4010_INT_THR_SEL	BIT(0) /* Select threshold interrupt source */
 #define VCNL4010_INT_THR_EN	BIT(1) /* Threshold interrupt type */
@@ -188,16 +191,61 @@ static int vcnl4000_init(struct vcnl4000_data *data)
 	return data->chip_spec->set_power_state(data, true);
 };
 
-static int vcnl4200_set_power_state(struct vcnl4000_data *data, bool on)
+static ssize_t vcnl4000_write_als_enable(struct vcnl4000_data *data, bool en)
 {
-	u16 val = on ? 0 /* power on */ : 1 /* shut down */;
 	int ret;
 
-	ret = i2c_smbus_write_word_data(data->client, VCNL4200_AL_CONF, val);
+	mutex_lock(&data->vcnl4000_lock);
+
+	ret = i2c_smbus_read_word_data(data->client, VCNL4200_AL_CONF);
+	if (ret < 0)
+		goto out;
+
+	if (en)
+		ret &= ~VCNL4040_ALS_CONF_ALS_SHUTDOWN;
+	else
+		ret |= VCNL4040_ALS_CONF_ALS_SHUTDOWN;
+
+	ret = i2c_smbus_write_word_data(data->client, VCNL4200_AL_CONF, ret);
+
+out:
+	mutex_unlock(&data->vcnl4000_lock);
+
+	return ret;
+}
+
+static ssize_t vcnl4000_write_ps_enable(struct vcnl4000_data *data, bool en)
+{
+	int ret;
+
+	mutex_lock(&data->vcnl4000_lock);
+
+	ret = i2c_smbus_read_word_data(data->client, VCNL4200_PS_CONF1);
+	if (ret < 0)
+		goto out;
+
+	if (en)
+		ret &= ~VCNL4040_PS_CONF1_PS_SHUTDOWN;
+	else
+		ret |= VCNL4040_PS_CONF1_PS_SHUTDOWN;
+
+	ret = i2c_smbus_write_word_data(data->client, VCNL4200_PS_CONF1, ret);
+
+out:
+	mutex_unlock(&data->vcnl4000_lock);
+
+	return ret;
+}
+
+static int vcnl4200_set_power_state(struct vcnl4000_data *data, bool on)
+{
+	int ret;
+
+	ret = vcnl4000_write_als_enable(data, on);
 	if (ret < 0)
 		return ret;
 
-	ret = i2c_smbus_write_word_data(data->client, VCNL4200_PS_CONF1, val);
+	ret = vcnl4000_write_ps_enable(data, on);
 	if (ret < 0)
 		return ret;
 
