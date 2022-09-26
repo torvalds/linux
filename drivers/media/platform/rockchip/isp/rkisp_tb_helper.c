@@ -17,12 +17,14 @@
 #include <linux/regmap.h>
 #include <linux/dma-buf.h>
 #include <linux/highmem.h>
+#include <linux/soc/rockchip/rockchip_thunderboot_service.h>
 
 #include "rkisp_tb_helper.h"
 
 static struct platform_device *rkisp_tb_pdev;
 static struct clk_bulk_data *rkisp_tb_clk;
 static int rkisp_tb_clk_num;
+static struct rk_tb_client tb_cl;
 
 struct shm_data {
 	int npages;
@@ -187,6 +189,11 @@ static int __maybe_unused rkisp_tb_clocks_loader_unprotect(void)
 	return 0;
 }
 
+static void rkisp_tb_cb(void *data)
+{
+	rkisp_tb_clocks_loader_unprotect();
+}
+
 static int __maybe_unused rkisp_tb_runtime_suspend(struct device *dev)
 {
 	return 0;
@@ -220,6 +227,12 @@ static int rkisp_tb_plat_probe(struct platform_device *pdev)
 		rkisp_tb_clk_num = 0;
 	}
 	rkisp_tb_clocks_loader_protect();
+
+	if (IS_ENABLED(CONFIG_ROCKCHIP_THUNDER_BOOT_SERVICE)) {
+		tb_cl.cb = rkisp_tb_cb;
+		return rk_tb_client_register_cb(&tb_cl);
+	}
+
 	return 0;
 }
 
@@ -264,6 +277,9 @@ long rkisp_tb_shm_ioctl(struct rkisp_thunderboot_shmem *shmem)
 
 void rkisp_tb_unprotect_clk(void)
 {
+	if (IS_ENABLED(CONFIG_ROCKCHIP_THUNDER_BOOT_SERVICE))
+		return;
+
 	rkisp_tb_clocks_loader_unprotect();
 }
 EXPORT_SYMBOL(rkisp_tb_unprotect_clk);

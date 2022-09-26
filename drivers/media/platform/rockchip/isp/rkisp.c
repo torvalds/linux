@@ -3639,9 +3639,9 @@ void rkisp_chk_tb_over(struct rkisp_device *isp_dev)
 			head->enable = 0;
 			dma_sync_single_for_device(isp_dev->dev, isp_dev->resmem_addr,
 						   sizeof(struct rkisp_thunderboot_resmem_head),
-						   DMA_FROM_DEVICE);
+						   DMA_TO_DEVICE);
 		}
-		shm_head_poll_timeout(isp_dev, !!head->complete, 5000, 100 * USEC_PER_MSEC);
+		shm_head_poll_timeout(isp_dev, !!head->complete, 5000, 200 * USEC_PER_MSEC);
 		if (head->complete != RKISP_TB_OK) {
 			v4l2_err(&isp_dev->v4l2_dev, "wait thunderboot over timeout\n");
 		} else {
