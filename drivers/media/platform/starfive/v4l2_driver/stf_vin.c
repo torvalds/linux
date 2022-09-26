@@ -6,6 +6,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
+#include <linux/pm_runtime.h>
 
 #include "stfcamss.h"
 
@@ -218,23 +219,6 @@ int stf_vin_subdev_init(struct stfcamss *stfcamss)
 	vin_dev->hw_ops->vin_wr_irq_enable(vin_dev, 1);
 	vin_dev->hw_ops->vin_wr_irq_enable(vin_dev, 0);
 
-	/* Reset device */
-	/*Do not configure the CLK before powering on the device,
-	 *add vin_power_on() to vin_set_power() 2021 1111
-	 */
-	ret = vin_dev->hw_ops->vin_top_clk_init(vin_dev);
-	if (ret) {
-		st_err(ST_VIN, "Failed to reset device\n");
-		goto out;
-	}
-
-	// /* set the sysctl config */
-	// ret = vin_dev->hw_ops->vin_config_set(vin_dev);
-	// if (ret) {
-	//	st_err(ST_VIN, "Failed to config device\n");
-	//	goto out;
-	// }
-
 	mutex_init(&vin_dev->power_lock);
 	vin_dev->power_count = 0;
 
@@ -283,6 +267,7 @@ static int vin_set_power(struct v4l2_subdev *sd, int on)
 {
 	struct vin_line *line = v4l2_get_subdevdata(sd);
 	struct stf_vin2_dev *vin_dev = line_to_vin2_dev(line);
+	struct stfcamss *stfcamss = vin_dev->stfcamss;
 
 	mutex_lock(&line->power_lock);
 	if (on) {
@@ -303,7 +288,7 @@ exit_line:
 	mutex_lock(&vin_dev->power_lock);
 	if (on) {
 		if (vin_dev->power_count == 0) {
-			//vin_dev->hw_ops->vin_top_clk_init(vin_dev);
+			pm_runtime_get_sync(stfcamss->dev);
 			vin_dev->hw_ops->vin_clk_enable(vin_dev);
 			vin_dev->hw_ops->vin_config_set(vin_dev);
 		}
@@ -316,7 +301,7 @@ exit_line:
 		}
 		if (vin_dev->power_count == 1) {
 			vin_dev->hw_ops->vin_clk_disable(vin_dev);
-			//vin_dev->hw_ops->vin_top_clk_deinit(vin_dev);
+			pm_runtime_put_sync(stfcamss->dev);
 		}
 		vin_dev->power_count--;
 	}

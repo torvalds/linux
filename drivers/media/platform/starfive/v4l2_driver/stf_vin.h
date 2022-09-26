@@ -87,8 +87,6 @@ struct vin_line {
 struct stf_vin2_dev;
 
 struct vin_hw_ops {
-	int (*vin_top_clk_init)(struct stf_vin2_dev *vin_dev);
-	int (*vin_top_clk_deinit)(struct stf_vin2_dev *vin_dev);
 	int (*vin_clk_enable)(struct stf_vin2_dev *vin_dev);
 	int (*vin_clk_disable)(struct stf_vin2_dev *vin_dev);
 	int (*vin_config_set)(struct stf_vin2_dev *vin_dev);

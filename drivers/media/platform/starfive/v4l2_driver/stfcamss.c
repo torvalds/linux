@@ -21,6 +21,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/uaccess.h>
 #include <linux/mfd/syscon.h>
+#include <linux/clk-provider.h>
 
 #include <linux/videodev2.h>
 
@@ -1011,6 +1012,8 @@ static int stfcamss_probe(struct platform_device *pdev)
 		goto err_cam;
 	}
 
+	pm_runtime_enable(dev);
+
 	stfcamss->nclks = ARRAY_SIZE(stfcamss_clocks);
 	stfcamss->sys_clk = stfcamss_clocks;
 
@@ -1175,6 +1178,7 @@ static int stfcamss_remove(struct platform_device *pdev)
 	stfcamss_unregister_subdevices(stfcamss);
 	v4l2_device_unregister(&stfcamss->v4l2_dev);
 	media_device_cleanup(&stfcamss->media_dev);
+	pm_runtime_disable(&pdev->dev);
 
 	kfree(stfcamss);
 
@@ -1188,11 +1192,148 @@ static const struct of_device_id stfcamss_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, stfcamss_of_match);
 
+#ifdef CONFIG_PM_SLEEP
+static int stfcamss_suspend(struct device *dev)
+{
+	struct stfcamss *stfcamss = dev_get_drvdata(dev);
+	struct stf_vin2_dev *vin_dev = stfcamss->vin_dev;
+	struct media_entity *entity;
+	struct media_pad *pad;
+	struct v4l2_subdev *subdev;
+	struct stfcamss_video *video;
+	struct video_device *vdev;
+	int i = 0;
+
+	for (i = 0; i < VIN_LINE_MAX; i++) {
+		if (vin_dev->line[i].stream_count) {
+			vin_dev->line[i].stream_count ++;
+			video = &vin_dev->line[i].video_out;
+			vdev = &vin_dev->line[i].video_out.vdev;
+			entity = &vdev->entity;
+			while (1) {
+				pad = &entity->pads[0];
+				if (!(pad->flags & MEDIA_PAD_FL_SINK))
+					break;
+
+				pad = media_entity_remote_pad(pad);
+				if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
+					break;
+
+				entity = pad->entity;
+				subdev = media_entity_to_v4l2_subdev(entity);
+
+				v4l2_subdev_call(subdev, video, s_stream, 0);
+			}
+			media_pipeline_stop(&vdev->entity);
+			video->ops->flush_buffers(video, VB2_BUF_STATE_ERROR);
+			v4l2_pipeline_pm_put(&vdev->entity);
+		}
+	}
+
+	return pm_runtime_force_suspend(dev);
+}
+
+static int stfcamss_resume(struct device *dev)
+{
+	struct stfcamss *stfcamss = dev_get_drvdata(dev);
+	struct stf_vin2_dev *vin_dev = stfcamss->vin_dev;
+	struct media_entity *entity;
+	struct media_pad *pad;
+	struct v4l2_subdev *subdev;
+	struct stfcamss_video *video;
+	struct video_device *vdev;
+	int i = 0;
+	int ret = 0;
+
+	pm_runtime_force_resume(dev);
+
+	for (i = 0; i < VIN_LINE_MAX; i++) {
+		if (vin_dev->line[i].stream_count) {
+			vin_dev->line[i].stream_count--;
+			video = &vin_dev->line[i].video_out;
+			vdev = &vin_dev->line[i].video_out.vdev;
+
+			ret = v4l2_pipeline_pm_get(&vdev->entity);
+			if (ret < 0)
+				goto err;
+
+			ret = media_pipeline_start(&vdev->entity, &video->stfcamss->pipe);
+			if (ret < 0)
+				goto err_pm_put;
+
+			entity = &vdev->entity;
+			while (1) {
+				pad = &entity->pads[0];
+				if (!(pad->flags & MEDIA_PAD_FL_SINK))
+					break;
+
+				pad = media_entity_remote_pad(pad);
+				if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
+					break;
+
+				entity = pad->entity;
+				subdev = media_entity_to_v4l2_subdev(entity);
+
+				ret = v4l2_subdev_call(subdev, video, s_stream, 1);
+				if (ret < 0 && ret != -ENOIOCTLCMD)
+					goto err_pipeline_stop;
+			}
+		}
+	}
+
+	return 0;
+
+err_pipeline_stop:
+	media_pipeline_stop(&vdev->entity);
+err_pm_put:
+	v4l2_pipeline_pm_put(&vdev->entity);
+err:
+	return ret;
+}
+#endif /* CONFIG_PM_SLEEP */
+
+#ifdef CONFIG_PM
+static int stfcamss_runtime_suspend(struct device *dev)
+{
+	struct stfcamss *stfcamss = dev_get_drvdata(dev);
+
+	if (!__clk_is_enabled(stfcamss->sys_clk[STFCLK_NOC_BUS_CLK_ISP_AXI].clk))
+		clk_prepare_enable(stfcamss->sys_clk[STFCLK_NOC_BUS_CLK_ISP_AXI].clk);
+	else
+		st_warn(ST_VIN, "noc_bus_clk_isp_axi already enable\n");
+
+	reset_control_assert(stfcamss->sys_rst[STFRST_ISP_TOP_AXI].rstc);
+	reset_control_assert(stfcamss->sys_rst[STFRST_ISP_TOP_N].rstc);
+	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_ISP_AXI].clk);
+	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_ISPCORE_2X].clk);
+
+	return 0;
+}
+
+static int stfcamss_runtime_resume(struct device *dev)
+{
+	struct stfcamss *stfcamss = dev_get_drvdata(dev);
+
+	clk_prepare_enable(stfcamss->sys_clk[STFCLK_ISPCORE_2X].clk);
+	clk_prepare_enable(stfcamss->sys_clk[STFCLK_ISP_AXI].clk);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_ISP_TOP_N].rstc);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_ISP_TOP_AXI].rstc);
+
+	return 0;
+}
+#endif /* CONFIG_PM */
+
+static const struct dev_pm_ops stfcamss_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(stfcamss_suspend, stfcamss_resume)
+	SET_RUNTIME_PM_OPS(stfcamss_runtime_suspend, stfcamss_runtime_resume, NULL)
+};
+
 static struct platform_driver stfcamss_driver = {
 	.probe = stfcamss_probe,
 	.remove = stfcamss_remove,
 	.driver = {
 		.name = DRV_NAME,
+		.pm = &stfcamss_pm_ops,
 		.of_match_table = of_match_ptr(stfcamss_of_match),
 	},
 };
