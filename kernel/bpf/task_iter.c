@@ -672,6 +672,21 @@ static const struct bpf_iter_seq_info task_seq_info = {
 	.seq_priv_size		= sizeof(struct bpf_iter_seq_task_info),
 };
 
+static int bpf_iter_fill_link_info(const struct bpf_iter_aux_info *aux, struct bpf_link_info *info)
+{
+	switch (aux->task.type) {
+	case BPF_TASK_ITER_TID:
+		info->iter.task.tid = aux->task.pid;
+		break;
+	case BPF_TASK_ITER_TGID:
+		info->iter.task.pid = aux->task.pid;
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
 static struct bpf_iter_reg task_reg_info = {
 	.target			= "task",
 	.attach_target		= bpf_iter_attach_task,
@@ -682,6 +697,7 @@ static struct bpf_iter_reg task_reg_info = {
 		  PTR_TO_BTF_ID_OR_NULL },
 	},
 	.seq_info		= &task_seq_info,
+	.fill_link_info		= bpf_iter_fill_link_info,
 };
 
 static const struct bpf_iter_seq_info task_file_seq_info = {
@@ -703,6 +719,7 @@ static struct bpf_iter_reg task_file_reg_info = {
 		  PTR_TO_BTF_ID_OR_NULL },
 	},
 	.seq_info		= &task_file_seq_info,
+	.fill_link_info		= bpf_iter_fill_link_info,
 };
 
 static const struct bpf_iter_seq_info task_vma_seq_info = {
@@ -724,6 +741,7 @@ static struct bpf_iter_reg task_vma_reg_info = {
 		  PTR_TO_BTF_ID_OR_NULL },
 	},
 	.seq_info		= &task_vma_seq_info,
+	.fill_link_info		= bpf_iter_fill_link_info,
 };
 
 BPF_CALL_5(bpf_find_vma, struct task_struct *, task, u64, start,
