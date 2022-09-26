@@ -97,6 +97,8 @@ properties:
           - description: register offset within syscfg
           - description: register bitmask for FMP bit
 
+  wakeup-source: true
+
 required:
   - compatible
   - reg
