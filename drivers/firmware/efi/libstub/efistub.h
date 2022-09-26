@@ -44,14 +44,22 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 
 #ifndef ARCH_HAS_EFISTUB_WRAPPERS
 
-#define efi_is_native()		(true)
-#define efi_bs_call(func, ...)	efi_system_table->boottime->func(__VA_ARGS__)
-#define efi_rt_call(func, ...)	efi_system_table->runtime->func(__VA_ARGS__)
-#define efi_dxe_call(func, ...)	efi_dxe_table->func(__VA_ARGS__)
-#define efi_table_attr(inst, attr)	(inst->attr)
-#define efi_call_proto(inst, func, ...) inst->func(inst, ##__VA_ARGS__)
+#define efi_is_native()			(true)
+#define efi_table_attr(inst, attr)	(inst)->attr
+#define efi_fn_call(inst, func, ...)	(inst)->func(__VA_ARGS__)
 
 #endif
+
+#define efi_call_proto(inst, func, ...) ({			\
+	__typeof__(inst) __inst = (inst);			\
+	efi_fn_call(__inst, func, __inst, ##__VA_ARGS__);	\
+})
+#define efi_bs_call(func, ...) \
+	efi_fn_call(efi_table_attr(efi_system_table, boottime), func, ##__VA_ARGS__)
+#define efi_rt_call(func, ...) \
+	efi_fn_call(efi_table_attr(efi_system_table, runtime), func, ##__VA_ARGS__)
+#define efi_dxe_call(func, ...) \
+	efi_fn_call(efi_dxe_table, func, ##__VA_ARGS__)
 
 #define efi_info(fmt, ...) \
 	efi_printk(KERN_INFO fmt, ##__VA_ARGS__)

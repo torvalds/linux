@@ -178,7 +178,7 @@ struct efi_setup_data {
 extern u64 efi_setup;
 
 #ifdef CONFIG_EFI
-extern efi_status_t __efi64_thunk(u32, ...);
+extern u64 __efi64_thunk(u32, ...);
 
 #define efi64_thunk(...) ({						\
 	u64 __pad[3]; /* must have space for 3 args on the stack */	\
@@ -228,16 +228,15 @@ static inline bool efi_is_native(void)
 	return efi_is_64bit();
 }
 
-#define efi_mixed_mode_cast(attr)					\
-	__builtin_choose_expr(						\
-		__builtin_types_compatible_p(u32, __typeof__(attr)),	\
-			(unsigned long)(attr), (attr))
-
 #define efi_table_attr(inst, attr)					\
-	(efi_is_native()						\
-		? inst->attr						\
-		: (__typeof__(inst->attr))				\
-			efi_mixed_mode_cast(inst->mixed_mode.attr))
+	(efi_is_native() ? (inst)->attr					\
+			 : efi_mixed_table_attr((inst), attr))
+
+#define efi_mixed_table_attr(inst, attr)				\
+	(__typeof__(inst->attr))					\
+		_Generic(inst->mixed_mode.attr,				\
+		u32:		(unsigned long)(inst->mixed_mode.attr),	\
+		default:	(inst->mixed_mode.attr))
 
 /*
  * The following macros allow translating arguments if necessary from native to
@@ -344,31 +343,27 @@ static inline u32 efi64_convert_status(efi_status_t status)
 #define __efi_eat(...)
 #define __efi_eval(...) __VA_ARGS__
 
-/* The three macros below handle dispatching via the thunk if needed */
+static inline efi_status_t __efi64_widen_efi_status(u64 status)
+{
+	/* use rotate to move the value of bit #31 into position #63 */
+	return ror64(rol32(status, 1), 1);
+}
 
-#define efi_call_proto(inst, func, ...)					\
-	(efi_is_native()						\
-		? inst->func(inst, ##__VA_ARGS__)			\
-		: __efi64_thunk_map(inst, func, inst, ##__VA_ARGS__))
+/* The macro below handles dispatching via the thunk if needed */
 
-#define efi_bs_call(func, ...)						\
-	(efi_is_native()						\
-		? efi_system_table->boottime->func(__VA_ARGS__)		\
-		: __efi64_thunk_map(efi_table_attr(efi_system_table,	\
-						   boottime),		\
-				    func, __VA_ARGS__))
+#define efi_fn_call(inst, func, ...)					\
+	(efi_is_native() ? (inst)->func(__VA_ARGS__)			\
+			 : efi_mixed_call((inst), func, ##__VA_ARGS__))
 
-#define efi_rt_call(func, ...)						\
-	(efi_is_native()						\
-		? efi_system_table->runtime->func(__VA_ARGS__)		\
-		: __efi64_thunk_map(efi_table_attr(efi_system_table,	\
-						   runtime),		\
-				    func, __VA_ARGS__))
-
-#define efi_dxe_call(func, ...)						\
-	(efi_is_native()						\
-		? efi_dxe_table->func(__VA_ARGS__)			\
-		: __efi64_thunk_map(efi_dxe_table, func, __VA_ARGS__))
+#define efi_mixed_call(inst, func, ...)					\
+	_Generic(inst->func(__VA_ARGS__),				\
+	efi_status_t:							\
+		__efi64_widen_efi_status(				\
+			__efi64_thunk_map(inst, func, ##__VA_ARGS__)),	\
+	u64: ({ BUILD_BUG(); ULONG_MAX; }),				\
+	default:							\
+		(__typeof__(inst->func(__VA_ARGS__)))			\
+			__efi64_thunk_map(inst, func, ##__VA_ARGS__))
 
 #else /* CONFIG_EFI_MIXED */
 
