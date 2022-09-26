@@ -328,7 +328,23 @@ static inline void set_btree_iter_dontneed(struct btree_iter *iter)
 		iter->path->preserve = false;
 }
 
-void *bch2_trans_kmalloc(struct btree_trans *, size_t);
+void *__bch2_trans_kmalloc(struct btree_trans *, size_t);
+
+static inline void *bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
+{
+	unsigned new_top = trans->mem_top + size;
+	void *p = trans->mem + trans->mem_top;
+
+	if (likely(new_top <= trans->mem_bytes)) {
+		trans->mem_top += size;
+		memset(p, 0, size);
+		return p;
+	} else {
+		return __bch2_trans_kmalloc(trans, size);
+
+	}
+}
+
 u32 bch2_trans_begin(struct btree_trans *);
 
 static inline struct btree *
