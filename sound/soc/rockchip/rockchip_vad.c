@@ -872,11 +872,20 @@ static int rockchip_vad_enable_cpudai(struct rockchip_vad *vad)
 		return 0;
 
 	pm_runtime_get_sync(cpu_dai->dev);
+	if (cpu_dai->driver->ops) {
+		if (cpu_dai->driver->ops->startup)
+			ret = cpu_dai->driver->ops->startup(substream,
+							    cpu_dai);
 
-	if (cpu_dai->driver->ops && cpu_dai->driver->ops->trigger)
-		ret = cpu_dai->driver->ops->trigger(substream,
-						    SNDRV_PCM_TRIGGER_START,
-						    cpu_dai);
+		if (cpu_dai->driver->ops->prepare)
+			ret |= cpu_dai->driver->ops->prepare(substream,
+							    cpu_dai);
+
+		if (cpu_dai->driver->ops->trigger)
+			ret |= cpu_dai->driver->ops->trigger(substream,
+							    SNDRV_PCM_TRIGGER_START,
+							    cpu_dai);
+	}
 
 	return ret;
 }
