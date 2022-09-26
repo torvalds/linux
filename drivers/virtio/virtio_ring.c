@@ -1867,7 +1867,7 @@ static int vring_alloc_queue_packed(struct vring_virtqueue_packed *vring_packed,
 
 	ring = vring_alloc_queue(vdev, ring_size_in_bytes,
 				 &ring_dma_addr,
-				 GFP_KERNEL|__GFP_NOWARN|__GFP_ZERO);
+				 GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO);
 	if (!ring)
 		goto err;
 
@@ -1879,7 +1879,7 @@ static int vring_alloc_queue_packed(struct vring_virtqueue_packed *vring_packed,
 
 	driver = vring_alloc_queue(vdev, event_size_in_bytes,
 				   &driver_event_dma_addr,
-				   GFP_KERNEL|__GFP_NOWARN|__GFP_ZERO);
+				   GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO);
 	if (!driver)
 		goto err;
 
@@ -1889,7 +1889,7 @@ static int vring_alloc_queue_packed(struct vring_virtqueue_packed *vring_packed,
 
 	device = vring_alloc_queue(vdev, event_size_in_bytes,
 				   &device_event_dma_addr,
-				   GFP_KERNEL|__GFP_NOWARN|__GFP_ZERO);
+				   GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO);
 	if (!device)
 		goto err;
 
