@@ -36,6 +36,7 @@ int64_t __opal_call(int64_t a0, int64_t a1, int64_t a2, int64_t a3,
 		    int64_t opcode, uint64_t msr);
 
 /* misc runtime */
+void enable_machine_check(void);
 extern u64 __bswapdi2(u64);
 extern s64 __lshrdi3(s64, int);
 extern s64 __ashldi3(s64, int);

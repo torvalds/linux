@@ -68,6 +68,7 @@
 #include <asm/stacktrace.h>
 #include <asm/nmi.h>
 #include <asm/disassemble.h>
+#include <asm/udbg.h>
 
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC_CORE)
 int (*__debugger)(struct pt_regs *regs) __read_mostly;
@@ -850,6 +851,19 @@ bail:
 }
 
 #ifdef CONFIG_PPC_BOOK3S_64
+DEFINE_INTERRUPT_HANDLER_RAW(machine_check_early_boot)
+{
+	udbg_printf("Machine check (early boot)\n");
+	udbg_printf("SRR0=0x%016lx   SRR1=0x%016lx\n", regs->nip, regs->msr);
+	udbg_printf(" DAR=0x%016lx  DSISR=0x%08lx\n", regs->dar, regs->dsisr);
+	udbg_printf("  LR=0x%016lx     R1=0x%08lx\n", regs->link, regs->gpr[1]);
+	udbg_printf("------\n");
+	die("Machine check (early boot)", regs, SIGBUS);
+	for (;;)
+		;
+	return 0;
+}
+
 DEFINE_INTERRUPT_HANDLER_ASYNC(machine_check_exception_async)
 {
 	__machine_check_exception(regs);
