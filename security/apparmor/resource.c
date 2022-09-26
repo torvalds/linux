@@ -45,6 +45,8 @@ static void audit_cb(struct audit_buffer *ab, void *va)
  * @profile: profile being enforced  (NOT NULL)
  * @resource: rlimit being auditing
  * @value: value being set
+ * @peer: aa_albel of the task being set
+ * @info: info being auditing
  * @error: error value
  *
  * Returns: 0 or sa->error else other error code on failure
