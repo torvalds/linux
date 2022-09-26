@@ -2407,14 +2407,6 @@ void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		host->ops->set_clock(host, host->clock);
 	} else
 		sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
-
-	/*
-	 * Some (ENE) controllers go apeshit on some ios operation,
-	 * signalling timeout and CRC errors even on CMD0. Resetting
-	 * it on each ios seems to solve the problem.
-	 */
-	if (host->quirks & SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS)
-		sdhci_do_reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
 }
 EXPORT_SYMBOL_GPL(sdhci_set_ios);
 
