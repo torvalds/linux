@@ -70,117 +70,14 @@ static bool ipa_reg_valid(struct ipa *ipa, enum ipa_reg_id reg_id)
 /* Assumes the endpoint transfer direction is valid; 0 is a bad offset */
 u32 __ipa_reg_offset(struct ipa *ipa, enum ipa_reg_id reg_id, u32 n)
 {
-	enum ipa_version version;
+	const struct ipa_reg *reg;
 
-	if (!ipa_reg_valid(ipa, reg_id))
+	if (WARN_ON(!ipa_reg_valid(ipa, reg_id)))
 		return 0;
 
-	version = ipa->version;
+	reg = ipa->regs->reg[reg_id];
 
-	switch (reg_id) {
-	case COMP_CFG:
-		return IPA_REG_COMP_CFG_OFFSET;
-	case CLKON_CFG:
-		return IPA_REG_CLKON_CFG_OFFSET;
-	case ROUTE:
-		return IPA_REG_ROUTE_OFFSET;
-	case SHARED_MEM_SIZE:
-		return IPA_REG_SHARED_MEM_SIZE_OFFSET;
-	case QSB_MAX_WRITES:
-		return IPA_REG_QSB_MAX_WRITES_OFFSET;
-	case QSB_MAX_READS:
-		return IPA_REG_QSB_MAX_READS_OFFSET;
-	case FILT_ROUT_HASH_EN:
-		return ipa_reg_filt_rout_hash_en_offset(version);
-	case FILT_ROUT_HASH_FLUSH:
-		return ipa_reg_filt_rout_hash_flush_offset(version);
-	case STATE_AGGR_ACTIVE:
-		return ipa_reg_state_aggr_active_offset(version);
-	case IPA_BCR:
-		return IPA_REG_BCR_OFFSET;
-	case LOCAL_PKT_PROC_CNTXT:
-		return IPA_REG_LOCAL_PKT_PROC_CNTXT_OFFSET;
-	case AGGR_FORCE_CLOSE:
-		return IPA_REG_AGGR_FORCE_CLOSE_OFFSET;
-	case COUNTER_CFG:
-		return IPA_REG_COUNTER_CFG_OFFSET;
-	case IPA_TX_CFG:
-		return IPA_REG_TX_CFG_OFFSET;
-	case FLAVOR_0:
-		return IPA_REG_FLAVOR_0_OFFSET;
-	case IDLE_INDICATION_CFG:
-		return ipa_reg_idle_indication_cfg_offset(version);
-	case QTIME_TIMESTAMP_CFG:
-		return IPA_REG_QTIME_TIMESTAMP_CFG_OFFSET;
-	case TIMERS_XO_CLK_DIV_CFG:
-		return IPA_REG_TIMERS_XO_CLK_DIV_CFG_OFFSET;
-	case TIMERS_PULSE_GRAN_CFG:
-		return IPA_REG_TIMERS_PULSE_GRAN_CFG_OFFSET;
-	case SRC_RSRC_GRP_01_RSRC_TYPE:
-		return IPA_REG_SRC_RSRC_GRP_01_RSRC_TYPE_N_OFFSET(n);
-	case SRC_RSRC_GRP_23_RSRC_TYPE:
-		return IPA_REG_SRC_RSRC_GRP_23_RSRC_TYPE_N_OFFSET(n);
-	case SRC_RSRC_GRP_45_RSRC_TYPE:
-		return IPA_REG_SRC_RSRC_GRP_45_RSRC_TYPE_N_OFFSET(n);
-	case SRC_RSRC_GRP_67_RSRC_TYPE:
-		return IPA_REG_SRC_RSRC_GRP_67_RSRC_TYPE_N_OFFSET(n);
-	case DST_RSRC_GRP_01_RSRC_TYPE:
-		return IPA_REG_DST_RSRC_GRP_01_RSRC_TYPE_N_OFFSET(n);
-	case DST_RSRC_GRP_23_RSRC_TYPE:
-		return IPA_REG_DST_RSRC_GRP_23_RSRC_TYPE_N_OFFSET(n);
-	case DST_RSRC_GRP_45_RSRC_TYPE:
-		return IPA_REG_DST_RSRC_GRP_45_RSRC_TYPE_N_OFFSET(n);
-	case DST_RSRC_GRP_67_RSRC_TYPE:
-		return IPA_REG_DST_RSRC_GRP_67_RSRC_TYPE_N_OFFSET(n);
-	case ENDP_INIT_CTRL:
-		return IPA_REG_ENDP_INIT_CTRL_N_OFFSET(n);
-	case ENDP_INIT_CFG:
-		return IPA_REG_ENDP_INIT_CFG_N_OFFSET(n);
-	case ENDP_INIT_NAT:
-		return IPA_REG_ENDP_INIT_NAT_N_OFFSET(n);
-	case ENDP_INIT_HDR:
-		return IPA_REG_ENDP_INIT_HDR_N_OFFSET(n);
-	case ENDP_INIT_HDR_EXT:
-		return IPA_REG_ENDP_INIT_HDR_EXT_N_OFFSET(n);
-	case ENDP_INIT_HDR_METADATA_MASK:
-		return IPA_REG_ENDP_INIT_HDR_METADATA_MASK_N_OFFSET(n);
-	case ENDP_INIT_MODE:
-		return IPA_REG_ENDP_INIT_MODE_N_OFFSET(n);
-	case ENDP_INIT_AGGR:
-		return IPA_REG_ENDP_INIT_AGGR_N_OFFSET(n);
-	case ENDP_INIT_HOL_BLOCK_EN:
-		return IPA_REG_ENDP_INIT_HOL_BLOCK_EN_N_OFFSET(n);
-	case ENDP_INIT_HOL_BLOCK_TIMER:
-		return IPA_REG_ENDP_INIT_HOL_BLOCK_TIMER_N_OFFSET(n);
-	case ENDP_INIT_DEAGGR:
-		return IPA_REG_ENDP_INIT_DEAGGR_N_OFFSET(n);
-	case ENDP_INIT_RSRC_GRP:
-		return IPA_REG_ENDP_INIT_RSRC_GRP_N_OFFSET(n);
-	case ENDP_INIT_SEQ:
-		return IPA_REG_ENDP_INIT_SEQ_N_OFFSET(n);
-	case ENDP_STATUS:
-		return IPA_REG_ENDP_STATUS_N_OFFSET(n);
-	case ENDP_FILTER_ROUTER_HSH_CFG:
-		return IPA_REG_ENDP_FILTER_ROUTER_HSH_CFG_N_OFFSET(n);
-	/* The IRQ registers below are only used for GSI_EE_AP */
-	case IPA_IRQ_STTS:
-		return ipa_reg_irq_stts_offset(version);
-	case IPA_IRQ_EN:
-		return ipa_reg_irq_en_offset(version);
-	case IPA_IRQ_CLR:
-		return ipa_reg_irq_clr_offset(version);
-	case IPA_IRQ_UC:
-		return ipa_reg_irq_uc_offset(version);
-	case IRQ_SUSPEND_INFO:
-		return ipa_reg_irq_suspend_info_offset(version);
-	case IRQ_SUSPEND_EN:
-		return ipa_reg_irq_suspend_en_offset(version);
-	case IRQ_SUSPEND_CLR:
-		return ipa_reg_irq_suspend_clr_offset(version);
-	default:
-		WARN(true, "bad register id %u???\n", reg_id);
-		return 0;
-	}
+	return reg->offset + n * reg->stride;
 }
 
 static const struct ipa_regs *ipa_regs(enum ipa_version version)
