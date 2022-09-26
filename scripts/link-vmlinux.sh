@@ -157,7 +157,7 @@ kallsyms()
 	fi
 
 	info KSYMS ${2}
-	${NM} -n ${1} | scripts/kallsyms ${kallsymopt} > ${2}
+	cat ${1} | scripts/kallsyms ${kallsymopt} > ${2}
 }
 
 # Perform one step in kallsyms generation, including temporary linking of
@@ -170,7 +170,8 @@ kallsyms_step()
 	kallsyms_S=${kallsyms_vmlinux}.S
 
 	vmlinux_link ${kallsyms_vmlinux} "${kallsymso_prev}" ${btf_vmlinux_bin_o}
-	kallsyms ${kallsyms_vmlinux} ${kallsyms_S}
+	mksysmap ${kallsyms_vmlinux} ${kallsyms_vmlinux}.syms
+	kallsyms ${kallsyms_vmlinux}.syms ${kallsyms_S}
 
 	info AS ${kallsyms_S}
 	${CC} ${NOSTDINC_FLAGS} ${LINUXINCLUDE} ${KBUILD_CPPFLAGS} \
@@ -182,6 +183,7 @@ kallsyms_step()
 # See mksymap for additional details
 mksysmap()
 {
+	info NM ${2}
 	${CONFIG_SHELL} "${srctree}/scripts/mksysmap" ${1} ${2}
 }
 
@@ -283,7 +285,6 @@ if is_enabled CONFIG_DEBUG_INFO_BTF && is_enabled CONFIG_BPF; then
 	${RESOLVE_BTFIDS} vmlinux
 fi
 
-info SYSMAP System.map
 mksysmap vmlinux System.map
 
 if is_enabled CONFIG_BUILDTIME_TABLE_SORT; then
@@ -296,9 +297,7 @@ fi
 
 # step a (see comment above)
 if is_enabled CONFIG_KALLSYMS; then
-	mksysmap ${kallsyms_vmlinux} .tmp_System.map
-
-	if ! cmp -s System.map .tmp_System.map; then
+	if ! cmp -s System.map ${kallsyms_vmlinux}.syms; then
 		echo >&2 Inconsistent kallsyms data
 		echo >&2 Try "make KALLSYMS_EXTRA_PASS=1" as a workaround
 		exit 1
