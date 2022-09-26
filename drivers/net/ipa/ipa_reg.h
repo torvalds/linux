@@ -172,63 +172,33 @@ struct ipa_regs {
 };
 
 /* COMP_CFG register */
-/* The next field is not supported for IPA v4.0+, not present for IPA v4.5+ */
-#define ENABLE_FMASK				GENMASK(0, 0)
-/* The next field is present for IPA v4.7+ */
-#define RAM_ARB_PRI_CLIENT_SAMP_FIX_DIS_FMASK	GENMASK(0, 0)
-#define GSI_SNOC_BYPASS_DIS_FMASK		GENMASK(1, 1)
-#define GEN_QMB_0_SNOC_BYPASS_DIS_FMASK		GENMASK(2, 2)
-#define GEN_QMB_1_SNOC_BYPASS_DIS_FMASK		GENMASK(3, 3)
-/* The next field is not present for IPA v4.5+ */
-#define IPA_DCMP_FAST_CLK_EN_FMASK		GENMASK(4, 4)
-/* The next twelve fields are present for IPA v4.0+ */
-#define IPA_QMB_SELECT_CONS_EN_FMASK		GENMASK(5, 5)
-#define IPA_QMB_SELECT_PROD_EN_FMASK		GENMASK(6, 6)
-#define GSI_MULTI_INORDER_RD_DIS_FMASK		GENMASK(7, 7)
-#define GSI_MULTI_INORDER_WR_DIS_FMASK		GENMASK(8, 8)
-#define GEN_QMB_0_MULTI_INORDER_RD_DIS_FMASK	GENMASK(9, 9)
-#define GEN_QMB_1_MULTI_INORDER_RD_DIS_FMASK	GENMASK(10, 10)
-#define GEN_QMB_0_MULTI_INORDER_WR_DIS_FMASK	GENMASK(11, 11)
-#define GEN_QMB_1_MULTI_INORDER_WR_DIS_FMASK	GENMASK(12, 12)
-#define GEN_QMB_0_SNOC_CNOC_LOOP_PROT_DIS_FMASK	GENMASK(13, 13)
-#define GSI_SNOC_CNOC_LOOP_PROT_DISABLE_FMASK	GENMASK(14, 14)
-#define GSI_MULTI_AXI_MASTERS_DIS_FMASK		GENMASK(15, 15)
-#define IPA_QMB_SELECT_GLOBAL_EN_FMASK		GENMASK(16, 16)
-/* The next five fields are present for IPA v4.9+ */
-#define QMB_RAM_RD_CACHE_DISABLE_FMASK		GENMASK(19, 19)
-#define GENQMB_AOOOWR_FMASK			GENMASK(20, 20)
-#define IF_OUT_OF_BUF_STOP_RESET_MASK_EN_FMASK	GENMASK(21, 21)
-#define GEN_QMB_1_DYNAMIC_ASIZE_FMASK		GENMASK(30, 30)
-#define GEN_QMB_0_DYNAMIC_ASIZE_FMASK		GENMASK(31, 31)
-
-/* Encoded value for COMP_CFG register ATOMIC_FETCHER_ARB_LOCK_DIS field */
-static inline u32 arbitration_lock_disable_encoded(enum ipa_version version,
-						   u32 mask)
-{
-	WARN_ON(version < IPA_VERSION_4_0);
-
-	if (version < IPA_VERSION_4_9)
-		return u32_encode_bits(mask, GENMASK(20, 17));
-
-	if (version == IPA_VERSION_4_9)
-		return u32_encode_bits(mask, GENMASK(24, 22));
-
-	return u32_encode_bits(mask, GENMASK(23, 22));
-}
-
-/* Encoded value for COMP_CFG register FULL_FLUSH_WAIT_RS_CLOSURE_EN field */
-static inline u32 full_flush_rsc_closure_en_encoded(enum ipa_version version,
-						    bool enable)
-{
-	u32 val = enable ? 1 : 0;
-
-	WARN_ON(version < IPA_VERSION_4_5);
-
-	if (version == IPA_VERSION_4_5 || version == IPA_VERSION_4_7)
-		return u32_encode_bits(val, GENMASK(21, 21));
-
-	return u32_encode_bits(val, GENMASK(17, 17));
-}
+enum ipa_reg_comp_cfg_field_id {
+	COMP_CFG_ENABLE,				/* Not IPA v4.0+ */
+	RAM_ARB_PRI_CLIENT_SAMP_FIX_DIS,		/* IPA v4.7+ */
+	GSI_SNOC_BYPASS_DIS,
+	GEN_QMB_0_SNOC_BYPASS_DIS,
+	GEN_QMB_1_SNOC_BYPASS_DIS,
+	IPA_DCMP_FAST_CLK_EN,				/* Not IPA v4.5+ */
+	IPA_QMB_SELECT_CONS_EN,				/* IPA v4.0+ */
+	IPA_QMB_SELECT_PROD_EN,				/* IPA v4.0+ */
+	GSI_MULTI_INORDER_RD_DIS,			/* IPA v4.0+ */
+	GSI_MULTI_INORDER_WR_DIS,			/* IPA v4.0+ */
+	GEN_QMB_0_MULTI_INORDER_RD_DIS,			/* IPA v4.0+ */
+	GEN_QMB_1_MULTI_INORDER_RD_DIS,			/* IPA v4.0+ */
+	GEN_QMB_0_MULTI_INORDER_WR_DIS,			/* IPA v4.0+ */
+	GEN_QMB_1_MULTI_INORDER_WR_DIS,			/* IPA v4.0+ */
+	GEN_QMB_0_SNOC_CNOC_LOOP_PROT_DIS,		/* IPA v4.0+ */
+	GSI_SNOC_CNOC_LOOP_PROT_DISABLE,		/* IPA v4.0+ */
+	GSI_MULTI_AXI_MASTERS_DIS,			/* IPA v4.0+ */
+	IPA_QMB_SELECT_GLOBAL_EN,			/* IPA v4.0+ */
+	QMB_RAM_RD_CACHE_DISABLE,			/* IPA v4.9+ */
+	GENQMB_AOOOWR,					/* IPA v4.9+ */
+	IF_OUT_OF_BUF_STOP_RESET_MASK_EN,		/* IPA v4.9+ */
+	GEN_QMB_1_DYNAMIC_ASIZE,			/* IPA v4.9+ */
+	GEN_QMB_0_DYNAMIC_ASIZE,			/* IPA v4.9+ */
+	ATOMIC_FETCHER_ARB_LOCK_DIS,			/* IPA v4.0+ */
+	FULL_FLUSH_WAIT_RS_CLOSURE_EN,			/* IPA v4.5+ */
+};
 
 /* CLKON_CFG register */
 #define RX_FMASK				GENMASK(0, 0)

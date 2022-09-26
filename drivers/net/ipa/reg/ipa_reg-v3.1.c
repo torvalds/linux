@@ -7,7 +7,16 @@
 #include "../ipa.h"
 #include "../ipa_reg.h"
 
-IPA_REG(COMP_CFG, comp_cfg, 0x0000003c);
+static const u32 ipa_reg_comp_cfg_fmask[] = {
+	[COMP_CFG_ENABLE]				= BIT(0),
+	[GSI_SNOC_BYPASS_DIS]				= BIT(1),
+	[GEN_QMB_0_SNOC_BYPASS_DIS]			= BIT(2),
+	[GEN_QMB_1_SNOC_BYPASS_DIS]			= BIT(3),
+	[IPA_DCMP_FAST_CLK_EN]				= BIT(4),
+						/* Bits 5-31 reserved */
+};
+
+IPA_REG_FIELDS(COMP_CFG, comp_cfg, 0x0000003c);
 
 IPA_REG(CLKON_CFG, clkon_cfg, 0x00000044);
 

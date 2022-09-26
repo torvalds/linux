@@ -7,7 +7,30 @@
 #include "../ipa.h"
 #include "../ipa_reg.h"
 
-IPA_REG(COMP_CFG, comp_cfg, 0x0000003c);
+static const u32 ipa_reg_comp_cfg_fmask[] = {
+						/* Bit 0 reserved */
+	[GSI_SNOC_BYPASS_DIS]				= BIT(1),
+	[GEN_QMB_0_SNOC_BYPASS_DIS]			= BIT(2),
+	[GEN_QMB_1_SNOC_BYPASS_DIS]			= BIT(3),
+						/* Bit 4 reserved */
+	[IPA_QMB_SELECT_CONS_EN]			= BIT(5),
+	[IPA_QMB_SELECT_PROD_EN]			= BIT(6),
+	[GSI_MULTI_INORDER_RD_DIS]			= BIT(7),
+	[GSI_MULTI_INORDER_WR_DIS]			= BIT(8),
+	[GEN_QMB_0_MULTI_INORDER_RD_DIS]		= BIT(9),
+	[GEN_QMB_1_MULTI_INORDER_RD_DIS]		= BIT(10),
+	[GEN_QMB_0_MULTI_INORDER_WR_DIS]		= BIT(11),
+	[GEN_QMB_1_MULTI_INORDER_WR_DIS]		= BIT(12),
+	[GEN_QMB_0_SNOC_CNOC_LOOP_PROT_DIS]		= BIT(13),
+	[GSI_SNOC_CNOC_LOOP_PROT_DISABLE]		= BIT(14),
+	[GSI_MULTI_AXI_MASTERS_DIS]			= BIT(15),
+	[IPA_QMB_SELECT_GLOBAL_EN]			= BIT(16),
+	[ATOMIC_FETCHER_ARB_LOCK_DIS]			= GENMASK(20, 17),
+	[FULL_FLUSH_WAIT_RS_CLOSURE_EN]			= BIT(21),
+						/* Bits 22-31 reserved */
+};
+
+IPA_REG_FIELDS(COMP_CFG, comp_cfg, 0x0000003c);
 
 IPA_REG(CLKON_CFG, clkon_cfg, 0x00000044);
 

@@ -257,17 +257,17 @@ static void ipa_hardware_config_comp(struct ipa *ipa)
 	val = ioread32(ipa->reg_virt + offset);
 
 	if (ipa->version == IPA_VERSION_4_0) {
-		val &= ~IPA_QMB_SELECT_CONS_EN_FMASK;
-		val &= ~IPA_QMB_SELECT_PROD_EN_FMASK;
-		val &= ~IPA_QMB_SELECT_GLOBAL_EN_FMASK;
+		val &= ~ipa_reg_bit(reg, IPA_QMB_SELECT_CONS_EN);
+		val &= ~ipa_reg_bit(reg, IPA_QMB_SELECT_PROD_EN);
+		val &= ~ipa_reg_bit(reg, IPA_QMB_SELECT_GLOBAL_EN);
 	} else if (ipa->version < IPA_VERSION_4_5) {
-		val |= GSI_MULTI_AXI_MASTERS_DIS_FMASK;
+		val |= ipa_reg_bit(reg, GSI_MULTI_AXI_MASTERS_DIS);
 	} else {
-		/* For IPA v4.5 IPA_FULL_FLUSH_WAIT_RSC_CLOSE_EN is 0 */
+		/* For IPA v4.5 FULL_FLUSH_WAIT_RS_CLOSURE_EN is 0 */
 	}
 
-	val |= GSI_MULTI_INORDER_RD_DIS_FMASK;
-	val |= GSI_MULTI_INORDER_WR_DIS_FMASK;
+	val |= ipa_reg_bit(reg, GSI_MULTI_INORDER_RD_DIS);
+	val |= ipa_reg_bit(reg, GSI_MULTI_INORDER_WR_DIS);
 
 	iowrite32(val, ipa->reg_virt + offset);
 }
