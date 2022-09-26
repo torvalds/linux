@@ -311,7 +311,7 @@ struct message {
 		struct command_protocol_mt_init	init_mt_command;
 		struct command_protocol_capsl	capsl_command;
 		struct command_protocol_bl	bl_command;
-		u8				data[0];
+		DECLARE_FLEX_ARRAY(u8, 		data);
 	};
 };
 
