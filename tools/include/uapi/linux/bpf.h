@@ -4951,6 +4951,7 @@ union bpf_attr {
  * 		Get address of the traced function (for tracing and kprobe programs).
  * 	Return
  * 		Address of the traced function.
+ * 		0 for kprobes placed within the function (not at the entry).
  *
  * u64 bpf_get_attach_cookie(void *ctx)
  * 	Description
