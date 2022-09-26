@@ -2581,12 +2581,12 @@ void bch2_trans_iter_exit(struct btree_trans *trans, struct btree_iter *iter)
 	iter->key_cache_path = NULL;
 }
 
-static void __bch2_trans_iter_init(struct btree_trans *trans,
-				   struct btree_iter *iter,
-				   enum btree_id btree_id, struct bpos pos,
-				   unsigned locks_want,
-				   unsigned depth,
-				   unsigned flags)
+static inline void __bch2_trans_iter_init(struct btree_trans *trans,
+					  struct btree_iter *iter,
+					  enum btree_id btree_id, struct bpos pos,
+					  unsigned locks_want,
+					  unsigned depth,
+					  unsigned flags)
 {
 	if (trans->restarted)
 		panic("bch2_trans_iter_init(): in transaction restart, %s by %pS\n",
