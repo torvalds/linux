@@ -209,10 +209,9 @@ static void umc_v6_7_ecc_info_query_error_address(struct amdgpu_device *adev,
 	if (!err_data->err_addr)
 		return;
 
-	/* calculate error address if ue/ce error is detected */
+	/* calculate error address if ue error is detected */
 	if (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1 &&
-	    (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UECC) == 1 ||
-	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, CECC) == 1)) {
+	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UECC) == 1) {
 
 		err_addr = ras->umc_ecc.ecc[eccinfo_table_idx].mca_umc_addr;
 		err_addr = REG_GET_FIELD(err_addr, MCA_UMC_UMC0_MCUMC_ADDRT0, ErrorAddr);
@@ -228,22 +227,18 @@ static void umc_v6_7_ecc_info_query_error_address(struct amdgpu_device *adev,
 		/* clear [C4 C3 C2] in soc physical address */
 		soc_pa &= ~(0x7ULL << UMC_V6_7_PA_C2_BIT);
 
-		/* we only save ue error information currently, ce is skipped */
-		if (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UECC)
-				== 1) {
-			/* loop for all possibilities of [C4 C3 C2] */
-			for (column = 0; column < UMC_V6_7_NA_MAP_PA_NUM; column++) {
-				retired_page = soc_pa | (column << UMC_V6_7_PA_C2_BIT);
-				dev_info(adev->dev, "Error Address(PA): 0x%llx\n", retired_page);
-				amdgpu_umc_fill_error_record(err_data, err_addr,
-					retired_page, channel_index, umc_inst);
+		/* loop for all possibilities of [C4 C3 C2] */
+		for (column = 0; column < UMC_V6_7_NA_MAP_PA_NUM; column++) {
+			retired_page = soc_pa | (column << UMC_V6_7_PA_C2_BIT);
+			dev_info(adev->dev, "Error Address(PA): 0x%llx\n", retired_page);
+			amdgpu_umc_fill_error_record(err_data, err_addr,
+				retired_page, channel_index, umc_inst);
 
-				/* shift R14 bit */
-				retired_page ^= (0x1ULL << UMC_V6_7_PA_R14_BIT);
-				dev_info(adev->dev, "Error Address(PA): 0x%llx\n", retired_page);
-				amdgpu_umc_fill_error_record(err_data, err_addr,
-					retired_page, channel_index, umc_inst);
-			}
+			/* shift R14 bit */
+			retired_page ^= (0x1ULL << UMC_V6_7_PA_R14_BIT);
+			dev_info(adev->dev, "Error Address(PA): 0x%llx\n", retired_page);
+			amdgpu_umc_fill_error_record(err_data, err_addr,
+				retired_page, channel_index, umc_inst);
 		}
 	}
 }
@@ -481,10 +476,9 @@ static void umc_v6_7_query_error_address(struct amdgpu_device *adev,
 	channel_index =
 		adev->umc.channel_idx_tbl[umc_inst * adev->umc.channel_inst_num + ch_inst];
 
-	/* calculate error address if ue/ce error is detected */
+	/* calculate error address if ue error is detected */
 	if ((REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1 &&
-	    (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UECC) == 1 ||
-	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, CECC) == 1)) ||
+	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UECC) == 1) ||
 	    mca_addr != UMC_INVALID_ADDR) {
 		if (mca_addr == UMC_INVALID_ADDR) {
 			err_addr = RREG64_PCIE((mc_umc_addrt0 + umc_reg_offset) * 4);
@@ -505,23 +499,18 @@ static void umc_v6_7_query_error_address(struct amdgpu_device *adev,
 		/* clear [C4 C3 C2] in soc physical address */
 		soc_pa &= ~(0x7ULL << UMC_V6_7_PA_C2_BIT);
 
-		/* we only save ue error information currently, ce is skipped */
-		if (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UECC)
-				== 1 ||
-		    mca_addr != UMC_INVALID_ADDR) {
-			/* loop for all possibilities of [C4 C3 C2] */
-			for (column = 0; column < UMC_V6_7_NA_MAP_PA_NUM; column++) {
-				retired_page = soc_pa | (column << UMC_V6_7_PA_C2_BIT);
-				dev_info(adev->dev, "Error Address(PA): 0x%llx\n", retired_page);
-				amdgpu_umc_fill_error_record(err_data, err_addr,
-					retired_page, channel_index, umc_inst);
+		/* loop for all possibilities of [C4 C3 C2] */
+		for (column = 0; column < UMC_V6_7_NA_MAP_PA_NUM; column++) {
+			retired_page = soc_pa | (column << UMC_V6_7_PA_C2_BIT);
+			dev_info(adev->dev, "Error Address(PA): 0x%llx\n", retired_page);
+			amdgpu_umc_fill_error_record(err_data, err_addr,
+				retired_page, channel_index, umc_inst);
 
-				/* shift R14 bit */
-				retired_page ^= (0x1ULL << UMC_V6_7_PA_R14_BIT);
-				dev_info(adev->dev, "Error Address(PA): 0x%llx\n", retired_page);
-				amdgpu_umc_fill_error_record(err_data, err_addr,
-					retired_page, channel_index, umc_inst);
-			}
+			/* shift R14 bit */
+			retired_page ^= (0x1ULL << UMC_V6_7_PA_R14_BIT);
+			dev_info(adev->dev, "Error Address(PA): 0x%llx\n", retired_page);
+			amdgpu_umc_fill_error_record(err_data, err_addr,
+				retired_page, channel_index, umc_inst);
 		}
 	}
 
