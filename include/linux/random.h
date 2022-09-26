@@ -72,7 +72,8 @@ static inline unsigned long get_random_canary(void)
 	return get_random_long() & CANARY_MASK;
 }
 
-int __init random_init(const char *command_line);
+void __init random_init_early(const char *command_line);
+void __init random_init(void);
 bool rng_is_initialized(void);
 int wait_for_random_bytes(void);
 
