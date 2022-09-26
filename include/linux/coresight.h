@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012, 2020-2021, The Linux Foundation. All rights reserved.
  */
 
 #ifndef _LINUX_CORESIGHT_H
@@ -165,6 +165,7 @@ struct coresight_desc {
  * struct coresight_connection - representation of a single connection
  * @outport:	a connection's output port number.
  * @child_port:	remote component's port number @output is connected to.
+ * @source_name:	source component's name.
  * @chid_fwnode: remote component's fwnode handle.
  * @child_dev:	a @coresight_device representation of the component
 		connected to @outport.
@@ -173,6 +174,7 @@ struct coresight_desc {
 struct coresight_connection {
 	int outport;
 	int child_port;
+	const char *source_name;
 	struct fwnode_handle *child_fwnode;
 	struct coresight_device *child_dev;
 	struct coresight_sysfs_link *link;

@@ -246,6 +246,7 @@ static int of_coresight_parse_endpoint(struct device *dev,
 	struct device *rdev = NULL;
 	struct fwnode_handle *rdev_fwnode;
 	struct coresight_connection *conn;
+	struct device_node *sn = NULL;
 
 	do {
 		/* Parse the local port details */
@@ -290,6 +291,13 @@ static int of_coresight_parse_endpoint(struct device *dev,
 		 */
 		conn->child_fwnode = fwnode_handle_get(rdev_fwnode);
 		conn->child_port = rendpoint.port;
+		conn->source_name = NULL;
+		sn = of_parse_phandle(ep, "source", 0);
+		if (sn) {
+			ret = of_property_read_string(sn,
+				"coresight-name", &conn->source_name);
+				of_node_put(sn);
+		}
 		/* Connection record updated */
 	} while (0);
 
