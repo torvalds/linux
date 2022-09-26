@@ -156,7 +156,7 @@ patternProperties:
         description: This property defines the data latency before reading or
           writing the first data in nanoseconds.
 
-      st,fmc2_ebi-cs-write-address-setup-ns:
+      st,fmc2-ebi-cs-write-address-setup-ns:
         description: This property defines the duration of the address setup
           phase in nanoseconds used for asynchronous write transactions.
 
