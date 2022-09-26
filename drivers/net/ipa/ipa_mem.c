@@ -75,6 +75,7 @@ ipa_mem_zero_region_add(struct gsi_trans *trans, enum ipa_mem_id mem_id)
 int ipa_mem_setup(struct ipa *ipa)
 {
 	dma_addr_t addr = ipa->zero_addr;
+	const struct ipa_reg *reg;
 	const struct ipa_mem *mem;
 	struct gsi_trans *trans;
 	u32 offset;
@@ -112,10 +113,10 @@ int ipa_mem_setup(struct ipa *ipa)
 	/* Tell the hardware where the processing context area is located */
 	mem = ipa_mem_find(ipa, IPA_MEM_MODEM_PROC_CTX);
 	offset = ipa->mem_offset + mem->offset;
-	val = proc_cntxt_base_addr_encoded(ipa->version, offset);
 
-	offset = ipa_reg_offset(ipa, LOCAL_PKT_PROC_CNTXT);
-	iowrite32(val, ipa->reg_virt + offset);
+	reg = ipa_reg(ipa, LOCAL_PKT_PROC_CNTXT);
+	val = proc_cntxt_base_addr_encoded(ipa->version, offset);
+	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
 
 	return 0;
 }
@@ -308,6 +309,7 @@ static bool ipa_mem_size_valid(struct ipa *ipa)
 int ipa_mem_config(struct ipa *ipa)
 {
 	struct device *dev = &ipa->pdev->dev;
+	const struct ipa_reg *reg;
 	const struct ipa_mem *mem;
 	dma_addr_t addr;
 	u32 mem_size;
@@ -316,7 +318,8 @@ int ipa_mem_config(struct ipa *ipa)
 	u32 i;
 
 	/* Check the advertised location and size of the shared memory area */
-	val = ioread32(ipa->reg_virt + ipa_reg_offset(ipa, SHARED_MEM_SIZE));
+	reg = ipa_reg(ipa, SHARED_MEM_SIZE);
+	val = ioread32(ipa->reg_virt + ipa_reg_offset(reg));
 
 	/* The fields in the register are in 8 byte units */
 	ipa->mem_offset = 8 * u32_get_bits(val, SHARED_MEM_BADDR_FMASK);

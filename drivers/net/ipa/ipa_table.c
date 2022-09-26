@@ -384,8 +384,9 @@ void ipa_table_reset(struct ipa *ipa, bool modem)
 
 int ipa_table_hash_flush(struct ipa *ipa)
 {
-	u32 offset = ipa_reg_offset(ipa, FILT_ROUT_HASH_FLUSH);
+	const struct ipa_reg *reg;
 	struct gsi_trans *trans;
+	u32 offset;
 	u32 val;
 
 	if (!ipa_table_hash_support(ipa))
@@ -396,6 +397,9 @@ int ipa_table_hash_flush(struct ipa *ipa)
 		dev_err(&ipa->pdev->dev, "no transaction for hash flush\n");
 		return -EBUSY;
 	}
+
+	reg = ipa_reg(ipa, FILT_ROUT_HASH_FLUSH);
+	offset = ipa_reg_offset(reg);
 
 	val = IPV4_FILTER_HASH_FMASK | IPV6_FILTER_HASH_FMASK;
 	val |= IPV6_ROUTER_HASH_FMASK | IPV4_ROUTER_HASH_FMASK;
@@ -517,10 +521,12 @@ static void ipa_filter_tuple_zero(struct ipa_endpoint *endpoint)
 {
 	u32 endpoint_id = endpoint->endpoint_id;
 	struct ipa *ipa = endpoint->ipa;
+	const struct ipa_reg *reg;
 	u32 offset;
 	u32 val;
 
-	offset = ipa_reg_n_offset(ipa, ENDP_FILTER_ROUTER_HSH_CFG, endpoint_id);
+	reg = ipa_reg(ipa, ENDP_FILTER_ROUTER_HSH_CFG);
+	offset = ipa_reg_n_offset(reg, endpoint_id);
 
 	val = ioread32(endpoint->ipa->reg_virt + offset);
 
@@ -566,10 +572,12 @@ static bool ipa_route_id_modem(u32 route_id)
  */
 static void ipa_route_tuple_zero(struct ipa *ipa, u32 route_id)
 {
+	const struct ipa_reg *reg;
 	u32 offset;
 	u32 val;
 
-	offset = ipa_reg_n_offset(ipa, ENDP_FILTER_ROUTER_HSH_CFG, route_id);
+	reg = ipa_reg(ipa, ENDP_FILTER_ROUTER_HSH_CFG);
+	offset = ipa_reg_n_offset(reg, route_id);
 
 	val = ioread32(ipa->reg_virt + offset);
 

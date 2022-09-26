@@ -305,6 +305,7 @@ static bool ipa_cmd_register_write_offset_valid(struct ipa *ipa,
 /* Check whether offsets passed to register_write are valid */
 static bool ipa_cmd_register_write_valid(struct ipa *ipa)
 {
+	const struct ipa_reg *reg;
 	const char *name;
 	u32 offset;
 
@@ -312,7 +313,8 @@ static bool ipa_cmd_register_write_valid(struct ipa *ipa)
 	 * offset will fit in a register write IPA immediate command.
 	 */
 	if (ipa_table_hash_support(ipa)) {
-		offset = ipa_reg_offset(ipa, FILT_ROUT_HASH_FLUSH);
+		reg = ipa_reg(ipa, FILT_ROUT_HASH_FLUSH);
+		offset = ipa_reg_offset(reg);
 		name = "filter/route hash flush";
 		if (!ipa_cmd_register_write_offset_valid(ipa, name, offset))
 			return false;
@@ -325,7 +327,8 @@ static bool ipa_cmd_register_write_valid(struct ipa *ipa)
 	 * worst case (highest endpoint number) offset of that endpoint
 	 * fits in the register write command field(s) that must hold it.
 	 */
-	offset = ipa_reg_n_offset(ipa, ENDP_STATUS, IPA_ENDPOINT_COUNT - 1);
+	reg = ipa_reg(ipa, ENDP_STATUS);
+	offset = ipa_reg_n_offset(reg, IPA_ENDPOINT_COUNT - 1);
 	name = "maximal endpoint status";
 	if (!ipa_cmd_register_write_offset_valid(ipa, name, offset))
 		return false;

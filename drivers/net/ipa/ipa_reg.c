@@ -67,17 +67,12 @@ static bool ipa_reg_valid(struct ipa *ipa, enum ipa_reg_id reg_id)
 	return valid && ipa->regs->reg[reg_id];
 }
 
-/* Assumes the endpoint transfer direction is valid; 0 is a bad offset */
-u32 __ipa_reg_offset(struct ipa *ipa, enum ipa_reg_id reg_id, u32 n)
+const struct ipa_reg *ipa_reg(struct ipa *ipa, enum ipa_reg_id reg_id)
 {
-	const struct ipa_reg *reg;
-
 	if (WARN_ON(!ipa_reg_valid(ipa, reg_id)))
-		return 0;
+		return NULL;
 
-	reg = ipa->regs->reg[reg_id];
-
-	return reg->offset + n * reg->stride;
+	return ipa->regs->reg[reg_id];
 }
 
 static const struct ipa_regs *ipa_regs(enum ipa_version version)

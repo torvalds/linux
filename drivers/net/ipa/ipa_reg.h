@@ -746,19 +746,18 @@ extern const struct ipa_regs ipa_regs_v4_5;
 extern const struct ipa_regs ipa_regs_v4_9;
 extern const struct ipa_regs ipa_regs_v4_11;
 
-u32 __ipa_reg_offset(struct ipa *ipa, enum ipa_reg_id reg_id, u32 n);
-
 const struct ipa_reg *ipa_reg(struct ipa *ipa, enum ipa_reg_id reg_id);
 
-static inline u32 ipa_reg_offset(struct ipa *ipa, enum ipa_reg_id reg_id)
+/* Returns 0 for NULL reg; warning will have already been issued */
+static inline u32 ipa_reg_offset(const struct ipa_reg *reg)
 {
-	return __ipa_reg_offset(ipa, reg_id, 0);
+	return reg ? reg->offset : 0;
 }
 
-static inline u32
-ipa_reg_n_offset(struct ipa *ipa, enum ipa_reg_id reg_id, u32 n)
+/* Returns 0 for NULL reg; warning will have already been issued */
+static inline u32 ipa_reg_n_offset(const struct ipa_reg *reg, u32 n)
 {
-	return __ipa_reg_offset(ipa, reg_id, n);
+	return reg ? reg->offset + n * reg->stride : 0;
 }
 
 int ipa_reg_init(struct ipa *ipa);

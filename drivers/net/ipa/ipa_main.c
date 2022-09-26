@@ -186,20 +186,22 @@ static void ipa_teardown(struct ipa *ipa)
 static void
 ipa_hardware_config_bcr(struct ipa *ipa, const struct ipa_data *data)
 {
+	const struct ipa_reg *reg;
 	u32 val;
 
 	/* IPA v4.5+ has no backward compatibility register */
 	if (ipa->version >= IPA_VERSION_4_5)
 		return;
 
+	reg = ipa_reg(ipa, IPA_BCR);
 	val = data->backward_compat;
-
-	iowrite32(val, ipa->reg_virt + ipa_reg_offset(ipa, IPA_BCR));
+	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
 }
 
 static void ipa_hardware_config_tx(struct ipa *ipa)
 {
 	enum ipa_version version = ipa->version;
+	const struct ipa_reg *reg;
 	u32 offset;
 	u32 val;
 
@@ -207,7 +209,9 @@ static void ipa_hardware_config_tx(struct ipa *ipa)
 		return;
 
 	/* Disable PA mask to allow HOLB drop */
-	offset = ipa_reg_offset(ipa, IPA_TX_CFG);
+	reg = ipa_reg(ipa, IPA_TX_CFG);
+	offset = ipa_reg_offset(reg);
+
 	val = ioread32(ipa->reg_virt + offset);
 
 	val &= ~PA_MASK_EN_FMASK;
@@ -218,28 +222,29 @@ static void ipa_hardware_config_tx(struct ipa *ipa)
 static void ipa_hardware_config_clkon(struct ipa *ipa)
 {
 	enum ipa_version version = ipa->version;
+	const struct ipa_reg *reg;
 	u32 val;
 
-	if (version < IPA_VERSION_3_1 || version >= IPA_VERSION_4_5)
+	if (version >= IPA_VERSION_4_5)
+		return;
+
+	if (version < IPA_VERSION_4_0 && version != IPA_VERSION_3_1)
 		return;
 
 	/* Implement some hardware workarounds */
-
-	if (version >= IPA_VERSION_4_0) {
-		/* Enable open global clocks in the CLKON configuration */
-		val = GLOBAL_FMASK | GLOBAL_2X_CLK_FMASK;
-	} else if (version == IPA_VERSION_3_1) {
+	reg = ipa_reg(ipa, CLKON_CFG);
+	if (version == IPA_VERSION_3_1)
 		val = MISC_FMASK;	/* Disable MISC clock gating */
-	} else {
-		return;
-	}
+	else	/* Enable open global clocks in the CLKON configuration */
+		val = GLOBAL_FMASK | GLOBAL_2X_CLK_FMASK;	/* IPA v4.0+ */
 
-	iowrite32(val, ipa->reg_virt + ipa_reg_offset(ipa, CLKON_CFG));
+	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
 }
 
 /* Configure bus access behavior for IPA components */
 static void ipa_hardware_config_comp(struct ipa *ipa)
 {
+	const struct ipa_reg *reg;
 	u32 offset;
 	u32 val;
 
@@ -247,7 +252,8 @@ static void ipa_hardware_config_comp(struct ipa *ipa)
 	if (ipa->version < IPA_VERSION_4_0)
 		return;
 
-	offset = ipa_reg_offset(ipa, COMP_CFG);
+	reg = ipa_reg(ipa, COMP_CFG);
+	offset = ipa_reg_offset(reg);
 	val = ioread32(ipa->reg_virt + offset);
 
 	if (ipa->version == IPA_VERSION_4_0) {
@@ -272,6 +278,7 @@ ipa_hardware_config_qsb(struct ipa *ipa, const struct ipa_data *data)
 {
 	const struct ipa_qsb_data *data0;
 	const struct ipa_qsb_data *data1;
+	const struct ipa_reg *reg;
 	u32 val;
 
 	/* QMB 0 represents DDR; QMB 1 (if present) represents PCIe */
@@ -280,13 +287,18 @@ ipa_hardware_config_qsb(struct ipa *ipa, const struct ipa_data *data)
 		data1 = &data->qsb_data[IPA_QSB_MASTER_PCIE];
 
 	/* Max outstanding write accesses for QSB masters */
+	reg = ipa_reg(ipa, QSB_MAX_WRITES);
+
 	val = u32_encode_bits(data0->max_writes, GEN_QMB_0_MAX_WRITES_FMASK);
 	if (data->qsb_count > 1)
 		val |= u32_encode_bits(data1->max_writes,
 				       GEN_QMB_1_MAX_WRITES_FMASK);
-	iowrite32(val, ipa->reg_virt + ipa_reg_offset(ipa, QSB_MAX_WRITES));
+
+	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
 
 	/* Max outstanding read accesses for QSB masters */
+	reg = ipa_reg(ipa, QSB_MAX_READS);
+
 	val = u32_encode_bits(data0->max_reads, GEN_QMB_0_MAX_READS_FMASK);
 	if (ipa->version >= IPA_VERSION_4_0)
 		val |= u32_encode_bits(data0->max_reads_beats,
@@ -298,7 +310,8 @@ ipa_hardware_config_qsb(struct ipa *ipa, const struct ipa_data *data)
 			val |= u32_encode_bits(data1->max_reads_beats,
 					       GEN_QMB_1_MAX_READS_BEATS_FMASK);
 	}
-	iowrite32(val, ipa->reg_virt + ipa_reg_offset(ipa, QSB_MAX_READS));
+
+	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
 }
 
 /* The internal inactivity timer clock is used for the aggregation timer */
@@ -334,13 +347,15 @@ static __always_inline u32 ipa_aggr_granularity_val(u32 usec)
  */
 static void ipa_qtime_config(struct ipa *ipa)
 {
+	const struct ipa_reg *reg;
 	u32 offset;
 	u32 val;
 
 	/* Timer clock divider must be disabled when we change the rate */
-	offset = ipa_reg_offset(ipa, TIMERS_XO_CLK_DIV_CFG);
-	iowrite32(0, ipa->reg_virt + offset);
+	reg = ipa_reg(ipa, TIMERS_XO_CLK_DIV_CFG);
+	iowrite32(0, ipa->reg_virt + ipa_reg_offset(reg));
 
+	reg = ipa_reg(ipa, QTIME_TIMESTAMP_CFG);
 	/* Set DPL time stamp resolution to use Qtime (instead of 1 msec) */
 	val = u32_encode_bits(DPL_TIMESTAMP_SHIFT, DPL_TIMESTAMP_LSB_FMASK);
 	val |= u32_encode_bits(1, DPL_TIMESTAMP_SEL_FMASK);
@@ -348,21 +363,21 @@ static void ipa_qtime_config(struct ipa *ipa)
 	val |= u32_encode_bits(TAG_TIMESTAMP_SHIFT, TAG_TIMESTAMP_LSB_FMASK);
 	val |= u32_encode_bits(NAT_TIMESTAMP_SHIFT, NAT_TIMESTAMP_LSB_FMASK);
 
-	offset = ipa_reg_offset(ipa, QTIME_TIMESTAMP_CFG);
-	iowrite32(val, ipa->reg_virt + offset);
+	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
 
 	/* Set granularity of pulse generators used for other timers */
+	reg = ipa_reg(ipa, TIMERS_PULSE_GRAN_CFG);
 	val = u32_encode_bits(IPA_GRAN_100_US, GRAN_0_FMASK);
 	val |= u32_encode_bits(IPA_GRAN_1_MS, GRAN_1_FMASK);
 	val |= u32_encode_bits(IPA_GRAN_1_MS, GRAN_2_FMASK);
 
-	offset = ipa_reg_offset(ipa, TIMERS_PULSE_GRAN_CFG);
-	iowrite32(val, ipa->reg_virt + offset);
+	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
 
 	/* Actual divider is 1 more than value supplied here */
+	reg = ipa_reg(ipa, TIMERS_XO_CLK_DIV_CFG);
+	offset = ipa_reg_offset(reg);
 	val = u32_encode_bits(IPA_XO_CLOCK_DIVIDER - 1, DIV_VALUE_FMASK);
 
-	offset = ipa_reg_offset(ipa, TIMERS_XO_CLK_DIV_CFG);
 	iowrite32(val, ipa->reg_virt + offset);
 
 	/* Divider value is set; re-enable the common timer clock divider */
@@ -374,16 +389,13 @@ static void ipa_qtime_config(struct ipa *ipa)
 /* Before IPA v4.5 timing is controlled by a counter register */
 static void ipa_hardware_config_counter(struct ipa *ipa)
 {
-	u32 granularity;
-	u32 offset;
+	u32 granularity = ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY);
+	const struct ipa_reg *reg;
 	u32 val;
 
-	granularity = ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY);
-
+	reg = ipa_reg(ipa, COUNTER_CFG);
 	val = u32_encode_bits(granularity, AGGR_GRANULARITY_FMASK);
-
-	offset = ipa_reg_offset(ipa, COUNTER_CFG);
-	iowrite32(val, ipa->reg_virt + offset);
+	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
 }
 
 static void ipa_hardware_config_timing(struct ipa *ipa)
@@ -396,30 +408,30 @@ static void ipa_hardware_config_timing(struct ipa *ipa)
 
 static void ipa_hardware_config_hashing(struct ipa *ipa)
 {
-	u32 offset;
+	const struct ipa_reg *reg;
 
 	if (ipa->version != IPA_VERSION_4_2)
 		return;
 
 	/* IPA v4.2 does not support hashed tables, so disable them */
-	offset = ipa_reg_offset(ipa, FILT_ROUT_HASH_EN);
-	iowrite32(0, ipa->reg_virt + offset);
+	reg = ipa_reg(ipa, FILT_ROUT_HASH_EN);
+	iowrite32(0, ipa->reg_virt + ipa_reg_offset(reg));
 }
 
 static void ipa_idle_indication_cfg(struct ipa *ipa,
 				    u32 enter_idle_debounce_thresh,
 				    bool const_non_idle_enable)
 {
-	u32 offset;
+	const struct ipa_reg *reg;
 	u32 val;
 
+	reg = ipa_reg(ipa, IDLE_INDICATION_CFG);
 	val = u32_encode_bits(enter_idle_debounce_thresh,
 			      ENTER_IDLE_DEBOUNCE_THRESH_FMASK);
 	if (const_non_idle_enable)
 		val |= CONST_NON_IDLE_ENABLE_FMASK;
 
-	offset = ipa_reg_offset(ipa, IDLE_INDICATION_CFG);
-	iowrite32(val, ipa->reg_virt + offset);
+	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
 }
 
 /**
