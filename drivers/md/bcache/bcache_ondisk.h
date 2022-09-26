@@ -359,8 +359,8 @@ struct jset {
 	__u64			prio_bucket[MAX_CACHES_PER_SET];
 
 	union {
-		struct bkey	start[0];
-		__u64		d[0];
+		DECLARE_FLEX_ARRAY(struct bkey, start);
+		DECLARE_FLEX_ARRAY(__u64, d);
 	};
 };
 
@@ -424,8 +424,8 @@ struct bset {
 	__u32			keys;
 
 	union {
-		struct bkey	start[0];
-		__u64		d[0];
+		DECLARE_FLEX_ARRAY(struct bkey, start);
+		DECLARE_FLEX_ARRAY(__u64, d);
 	};
 };
 
