@@ -72,14 +72,6 @@ struct ipa_status {
 #define IPA_STATUS_FLAGS1_RT_RULE_ID_FMASK	GENMASK(31, 22)
 #define IPA_STATUS_FLAGS2_TAG_FMASK		GENMASK_ULL(63, 16)
 
-static u32 aggr_byte_limit_max(enum ipa_version version)
-{
-	if (version < IPA_VERSION_4_5)
-		return field_max(aggr_byte_limit_fmask(true));
-
-	return field_max(aggr_byte_limit_fmask(false));
-}
-
 /* Compute the aggregation size value to use for a given buffer size */
 static u32 ipa_aggr_size_kb(u32 rx_buffer_size, bool aggr_hard_limit)
 {
@@ -111,6 +103,7 @@ static bool ipa_endpoint_data_valid_one(struct ipa *ipa, u32 count,
 
 	if (!data->toward_ipa) {
 		const struct ipa_endpoint_rx *rx_config;
+		const struct ipa_reg *reg;
 		u32 buffer_size;
 		u32 aggr_size;
 		u32 limit;
@@ -171,7 +164,9 @@ static bool ipa_endpoint_data_valid_one(struct ipa *ipa, u32 count,
 		 */
 		aggr_size = ipa_aggr_size_kb(buffer_size - NET_SKB_PAD,
 					     rx_config->aggr_hard_limit);
-		limit = aggr_byte_limit_max(ipa->version);
+		reg = ipa_reg(ipa, ENDP_INIT_AGGR);
+
+		limit = ipa_reg_field_max(reg, BYTE_LIMIT);
 		if (aggr_size > limit) {
 			dev_err(dev, "aggregated size too large for RX endpoint %u (%u KB > %u KB)\n",
 				data->endpoint_id, aggr_size, limit);
@@ -769,30 +764,19 @@ static void ipa_endpoint_init_mode(struct ipa_endpoint *endpoint)
 		return;		/* Register not valid for RX endpoints */
 
 	reg = ipa_reg(ipa, ENDP_INIT_MODE);
-	offset = ipa_reg_n_offset(reg, endpoint->endpoint_id);
 	if (endpoint->config.dma_mode) {
 		enum ipa_endpoint_name name = endpoint->config.dma_endpoint;
-		u32 dma_endpoint_id;
+		u32 dma_endpoint_id = ipa->name_map[name]->endpoint_id;
 
-		dma_endpoint_id = ipa->name_map[name]->endpoint_id;
-
-		val = u32_encode_bits(IPA_DMA, MODE_FMASK);
-		val |= u32_encode_bits(dma_endpoint_id, DEST_PIPE_INDEX_FMASK);
+		val = ipa_reg_encode(reg, ENDP_MODE, IPA_DMA);
+		val |= ipa_reg_encode(reg, DEST_PIPE_INDEX, dma_endpoint_id);
 	} else {
-		val = u32_encode_bits(IPA_BASIC, MODE_FMASK);
+		val = ipa_reg_encode(reg, ENDP_MODE, IPA_BASIC);
 	}
 	/* All other bits unspecified (and 0) */
 
+	offset = ipa_reg_n_offset(reg, endpoint->endpoint_id);
 	iowrite32(val, ipa->reg_virt + offset);
-}
-
-/* Encoded values for AGGR endpoint register fields */
-static u32 aggr_byte_limit_encoded(enum ipa_version version, u32 limit)
-{
-	if (version < IPA_VERSION_4_5)
-		return u32_encode_bits(limit, aggr_byte_limit_fmask(true));
-
-	return u32_encode_bits(limit, aggr_byte_limit_fmask(false));
 }
 
 /* For IPA v4.5+, times are expressed using Qtime.  The AP uses one of two
@@ -820,50 +804,39 @@ static int ipa_qtime_val(u32 microseconds, u32 max)
 }
 
 /* Encode the aggregation timer limit (microseconds) based on IPA version */
-static u32 aggr_time_limit_encode(enum ipa_version version, u32 microseconds)
+static u32 aggr_time_limit_encode(struct ipa *ipa, const struct ipa_reg *reg,
+				  u32 microseconds)
 {
-	u32 fmask;
+	u32 max;
 	u32 val;
 
 	if (!microseconds)
 		return 0;	/* Nothing to compute if time limit is 0 */
 
-	if (version >= IPA_VERSION_4_5) {
+	max = ipa_reg_field_max(reg, TIME_LIMIT);
+	if (ipa->version >= IPA_VERSION_4_5) {
 		u32 gran_sel;
 		int ret;
 
 		/* Compute the Qtime limit value to use */
-		fmask = aggr_time_limit_fmask(false);
-		ret = ipa_qtime_val(microseconds, field_max(fmask));
+		ret = ipa_qtime_val(microseconds, max);
 		if (ret < 0) {
 			val = -ret;
-			gran_sel = AGGR_GRAN_SEL_FMASK;
+			gran_sel = ipa_reg_bit(reg, AGGR_GRAN_SEL);
 		} else {
 			val = ret;
 			gran_sel = 0;
 		}
 
-		return gran_sel | u32_encode_bits(val, fmask);
+		return gran_sel | ipa_reg_encode(reg, TIME_LIMIT, val);
 	}
 
-	/* We set aggregation granularity in ipa_hardware_config() */
-	fmask = aggr_time_limit_fmask(true);
+	/* We program aggregation granularity in ipa_hardware_config() */
 	val = DIV_ROUND_CLOSEST(microseconds, IPA_AGGR_GRANULARITY);
-	WARN(val > field_max(fmask),
-	     "aggr_time_limit too large (%u > %u usec)\n",
-	     val, field_max(fmask) * IPA_AGGR_GRANULARITY);
+	WARN(val > max, "aggr_time_limit too large (%u > %u usec)\n",
+	     microseconds, max * IPA_AGGR_GRANULARITY);
 
-	return u32_encode_bits(val, fmask);
-}
-
-static u32 aggr_sw_eof_active_encoded(enum ipa_version version, bool enabled)
-{
-	u32 val = enabled ? 1 : 0;
-
-	if (version < IPA_VERSION_4_5)
-		return u32_encode_bits(val, aggr_sw_eof_active_fmask(true));
-
-	return u32_encode_bits(val, aggr_sw_eof_active_fmask(false));
+	return ipa_reg_encode(reg, TIME_LIMIT, val);
 }
 
 static void ipa_endpoint_init_aggr(struct ipa_endpoint *endpoint)
@@ -877,37 +850,34 @@ static void ipa_endpoint_init_aggr(struct ipa_endpoint *endpoint)
 	if (endpoint->config.aggregation) {
 		if (!endpoint->toward_ipa) {
 			const struct ipa_endpoint_rx *rx_config;
-			enum ipa_version version = ipa->version;
 			u32 buffer_size;
-			bool close_eof;
 			u32 limit;
 
 			rx_config = &endpoint->config.rx;
-			val |= u32_encode_bits(IPA_ENABLE_AGGR, AGGR_EN_FMASK);
-			val |= u32_encode_bits(IPA_GENERIC, AGGR_TYPE_FMASK);
+			val |= ipa_reg_encode(reg, AGGR_EN, IPA_ENABLE_AGGR);
+			val |= ipa_reg_encode(reg, AGGR_TYPE, IPA_GENERIC);
 
 			buffer_size = rx_config->buffer_size;
 			limit = ipa_aggr_size_kb(buffer_size - NET_SKB_PAD,
 						 rx_config->aggr_hard_limit);
-			val |= aggr_byte_limit_encoded(version, limit);
+			val |= ipa_reg_encode(reg, BYTE_LIMIT, limit);
 
 			limit = rx_config->aggr_time_limit;
-			val |= aggr_time_limit_encode(version, limit);
+			val |= aggr_time_limit_encode(ipa, reg, limit);
 
 			/* AGGR_PKT_LIMIT is 0 (unlimited) */
 
-			close_eof = rx_config->aggr_close_eof;
-			val |= aggr_sw_eof_active_encoded(version, close_eof);
+			if (rx_config->aggr_close_eof)
+				val |= ipa_reg_bit(reg, SW_EOF_ACTIVE);
 		} else {
-			val |= u32_encode_bits(IPA_ENABLE_DEAGGR,
-					       AGGR_EN_FMASK);
-			val |= u32_encode_bits(IPA_QCMAP, AGGR_TYPE_FMASK);
+			val |= ipa_reg_encode(reg, AGGR_EN, IPA_ENABLE_DEAGGR);
+			val |= ipa_reg_encode(reg, AGGR_TYPE, IPA_QCMAP);
 			/* other fields ignored */
 		}
 		/* AGGR_FORCE_CLOSE is 0 */
 		/* AGGR_GRAN_SEL is 0 for IPA v4.5 */
 	} else {
-		val |= u32_encode_bits(IPA_BYPASS_AGGR, AGGR_EN_FMASK);
+		val |= ipa_reg_encode(reg, AGGR_EN, IPA_BYPASS_AGGR);
 		/* other fields ignored */
 	}
 
@@ -922,7 +892,8 @@ static void ipa_endpoint_init_aggr(struct ipa_endpoint *endpoint)
  * Return the encoded value representing the timeout period provided
  * that should be written to the ENDP_INIT_HOL_BLOCK_TIMER register.
  */
-static u32 hol_block_timer_encode(struct ipa *ipa, u32 microseconds)
+static u32 hol_block_timer_encode(struct ipa *ipa, const struct ipa_reg *reg,
+				  u32 microseconds)
 {
 	u32 width;
 	u32 scale;
@@ -935,31 +906,33 @@ static u32 hol_block_timer_encode(struct ipa *ipa, u32 microseconds)
 		return 0;	/* Nothing to compute if timer period is 0 */
 
 	if (ipa->version >= IPA_VERSION_4_5) {
+		u32 max = ipa_reg_field_max(reg, TIMER_LIMIT);
 		u32 gran_sel;
 		int ret;
 
 		/* Compute the Qtime limit value to use */
-		ret = ipa_qtime_val(microseconds, field_max(TIME_LIMIT_FMASK));
+		ret = ipa_qtime_val(microseconds, max);
 		if (ret < 0) {
 			val = -ret;
-			gran_sel = GRAN_SEL_FMASK;
+			gran_sel = ipa_reg_bit(reg, TIMER_GRAN_SEL);
 		} else {
 			val = ret;
 			gran_sel = 0;
 		}
 
-		return gran_sel | u32_encode_bits(val, TIME_LIMIT_FMASK);
+		return gran_sel | ipa_reg_encode(reg, TIMER_LIMIT, val);
 	}
 
-	/* Use 64 bit arithmetic to avoid overflow... */
+	/* Use 64 bit arithmetic to avoid overflow */
 	rate = ipa_core_clock_rate(ipa);
 	ticks = DIV_ROUND_CLOSEST(microseconds * rate, 128 * USEC_PER_SEC);
-	/* ...but we still need to fit into a 32-bit register */
-	WARN_ON(ticks > U32_MAX);
+
+	/* We still need the result to fit into the field */
+	WARN_ON(ticks > ipa_reg_field_max(reg, TIMER_BASE_VALUE));
 
 	/* IPA v3.5.1 through v4.1 just record the tick count */
 	if (ipa->version < IPA_VERSION_4_2)
-		return (u32)ticks;
+		return ipa_reg_encode(reg, TIMER_BASE_VALUE, (u32)ticks);
 
 	/* For IPA v4.2, the tick count is represented by base and
 	 * scale fields within the 32-bit timer register, where:
@@ -969,8 +942,8 @@ static u32 hol_block_timer_encode(struct ipa *ipa, u32 microseconds)
 	 * count, and extract the number of bits in the base field
 	 * such that high bit is included.
 	 */
-	high = fls(ticks);		/* 1..32 */
-	width = HWEIGHT32(BASE_VALUE_FMASK);
+	high = fls(ticks);		/* 1..32 (or warning above) */
+	width = hweight32(ipa_reg_fmask(reg, TIMER_BASE_VALUE));
 	scale = high > width ? high - width : 0;
 	if (scale) {
 		/* If we're scaling, round up to get a closer result */
@@ -980,8 +953,8 @@ static u32 hol_block_timer_encode(struct ipa *ipa, u32 microseconds)
 			scale++;
 	}
 
-	val = u32_encode_bits(scale, SCALE_FMASK);
-	val |= u32_encode_bits(ticks >> scale, BASE_VALUE_FMASK);
+	val = ipa_reg_encode(reg, TIMER_SCALE, scale);
+	val |= ipa_reg_encode(reg, TIMER_BASE_VALUE, (u32)ticks >> scale);
 
 	return val;
 }
@@ -997,7 +970,7 @@ static void ipa_endpoint_init_hol_block_timer(struct ipa_endpoint *endpoint,
 
 	/* This should only be changed when HOL_BLOCK_EN is disabled */
 	reg = ipa_reg(ipa, ENDP_INIT_HOL_BLOCK_TIMER);
-	val = hol_block_timer_encode(ipa, microseconds);
+	val = hol_block_timer_encode(ipa, reg, microseconds);
 
 	iowrite32(val, ipa->reg_virt + ipa_reg_n_offset(reg, endpoint_id));
 }
@@ -1013,7 +986,7 @@ ipa_endpoint_init_hol_block_en(struct ipa_endpoint *endpoint, bool enable)
 
 	reg = ipa_reg(ipa, ENDP_INIT_HOL_BLOCK_EN);
 	offset = ipa_reg_n_offset(reg, endpoint_id);
-	val = enable ? HOL_BLOCK_EN_FMASK : 0;
+	val = enable ? ipa_reg_bit(reg, HOL_BLOCK_EN) : 0;
 
 	iowrite32(val, ipa->reg_virt + offset);
 

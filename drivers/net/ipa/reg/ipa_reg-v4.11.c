@@ -326,15 +326,54 @@ IPA_REG_STRIDE_FIELDS(ENDP_INIT_HDR_EXT, endp_init_hdr_ext, 0x00000814, 0x0070);
 IPA_REG_STRIDE(ENDP_INIT_HDR_METADATA_MASK, endp_init_hdr_metadata_mask,
 	       0x00000818, 0x0070);
 
-IPA_REG_STRIDE(ENDP_INIT_MODE, endp_init_mode, 0x00000820, 0x0070);
+static const u32 ipa_reg_endp_init_mode_fmask[] = {
+	[ENDP_MODE]					= GENMASK(2, 0),
+	[DCPH_ENABLE]					= BIT(3),
+	[DEST_PIPE_INDEX]				= GENMASK(8, 4),
+						/* Bits 9-11 reserved */
+	[BYTE_THRESHOLD]				= GENMASK(27, 12),
+	[PIPE_REPLICATION_EN]				= BIT(28),
+	[PAD_EN]					= BIT(29),
+	[DRBIP_ACL_ENABLE]				= BIT(30),
+						/* Bit 31 reserved */
+};
 
-IPA_REG_STRIDE(ENDP_INIT_AGGR, endp_init_aggr, 0x00000824, 0x0070);
+IPA_REG_STRIDE_FIELDS(ENDP_INIT_MODE, endp_init_mode, 0x00000820, 0x0070);
 
-IPA_REG_STRIDE(ENDP_INIT_HOL_BLOCK_EN, endp_init_hol_block_en,
-	       0x0000082c, 0x0070);
+static const u32 ipa_reg_endp_init_aggr_fmask[] = {
+	[AGGR_EN]					= GENMASK(1, 0),
+	[AGGR_TYPE]					= GENMASK(4, 2),
+	[BYTE_LIMIT]					= GENMASK(10, 5),
+						/* Bit 11 reserved */
+	[TIME_LIMIT]					= GENMASK(16, 12),
+	[PKT_LIMIT]					= GENMASK(22, 17),
+	[SW_EOF_ACTIVE]					= BIT(23),
+	[FORCE_CLOSE]					= BIT(24),
+						/* Bit 25 reserved */
+	[HARD_BYTE_LIMIT_EN]				= BIT(26),
+	[AGGR_GRAN_SEL]					= BIT(27),
+						/* Bits 28-31 reserved */
+};
 
-IPA_REG_STRIDE(ENDP_INIT_HOL_BLOCK_TIMER, endp_init_hol_block_timer,
-	       0x00000830, 0x0070);
+IPA_REG_STRIDE_FIELDS(ENDP_INIT_AGGR, endp_init_aggr, 0x00000824, 0x0070);
+
+static const u32 ipa_reg_endp_init_hol_block_en_fmask[] = {
+	[HOL_BLOCK_EN]					= BIT(0),
+						/* Bits 1-31 reserved */
+};
+
+IPA_REG_STRIDE_FIELDS(ENDP_INIT_HOL_BLOCK_EN, endp_init_hol_block_en,
+		      0x0000082c, 0x0070);
+
+static const u32 ipa_reg_endp_init_hol_block_timer_fmask[] = {
+	[TIMER_LIMIT]					= GENMASK(4, 0),
+						/* Bits 5-7 reserved */
+	[TIMER_GRAN_SEL]				= BIT(8),
+						/* Bits 9-31 reserved */
+};
+
+IPA_REG_STRIDE_FIELDS(ENDP_INIT_HOL_BLOCK_TIMER, endp_init_hol_block_timer,
+		      0x00000830, 0x0070);
 
 IPA_REG_STRIDE(ENDP_INIT_DEAGGR, endp_init_deaggr, 0x00000834, 0x0070);
 

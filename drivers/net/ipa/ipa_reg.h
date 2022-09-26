@@ -433,17 +433,16 @@ enum ipa_reg_endp_init_hdr_ext_field_id {
 };
 
 /* ENDP_INIT_MODE register */
-#define MODE_FMASK				GENMASK(2, 0)
-/* The next field is present for IPA v4.5+ */
-#define DCPH_ENABLE_FMASK			GENMASK(3, 3)
-#define DEST_PIPE_INDEX_FMASK			GENMASK(8, 4)
-#define BYTE_THRESHOLD_FMASK			GENMASK(27, 12)
-#define PIPE_REPLICATION_EN_FMASK		GENMASK(28, 28)
-#define PAD_EN_FMASK				GENMASK(29, 29)
-/* The next field is not present for IPA v4.5+ */
-#define HDR_FTCH_DISABLE_FMASK			GENMASK(30, 30)
-/* The next field is present for IPA v4.9+ */
-#define DRBIP_ACL_ENABLE_FMASK			GENMASK(30, 30)
+enum ipa_reg_endp_init_mode_field_id {
+	ENDP_MODE,
+	DCPH_ENABLE,					/* v4.5+ */
+	DEST_PIPE_INDEX,
+	BYTE_THRESHOLD,
+	PIPE_REPLICATION_EN,
+	PAD_EN,
+	HDR_FTCH_DISABLE,				/* v4.5+ */
+	DRBIP_ACL_ENABLE,				/* v4.9+ */
+};
 
 /** enum ipa_mode - ENDP_INIT_MODE register MODE field value */
 enum ipa_mode {
@@ -454,47 +453,17 @@ enum ipa_mode {
 };
 
 /* ENDP_INIT_AGGR register */
-#define AGGR_EN_FMASK				GENMASK(1, 0)
-#define AGGR_TYPE_FMASK				GENMASK(4, 2)
-
-/* The legacy value is used for IPA hardware before IPA v4.5 */
-static inline u32 aggr_byte_limit_fmask(bool legacy)
-{
-	return legacy ? GENMASK(9, 5) : GENMASK(10, 5);
-}
-
-/* The legacy value is used for IPA hardware before IPA v4.5 */
-static inline u32 aggr_time_limit_fmask(bool legacy)
-{
-	return legacy ? GENMASK(14, 10) : GENMASK(16, 12);
-}
-
-/* The legacy value is used for IPA hardware before IPA v4.5 */
-static inline u32 aggr_pkt_limit_fmask(bool legacy)
-{
-	return legacy ? GENMASK(20, 15) : GENMASK(22, 17);
-}
-
-/* The legacy value is used for IPA hardware before IPA v4.5 */
-static inline u32 aggr_sw_eof_active_fmask(bool legacy)
-{
-	return legacy ? GENMASK(21, 21) : GENMASK(23, 23);
-}
-
-/* The legacy value is used for IPA hardware before IPA v4.5 */
-static inline u32 aggr_force_close_fmask(bool legacy)
-{
-	return legacy ? GENMASK(22, 22) : GENMASK(24, 24);
-}
-
-/* The legacy value is used for IPA hardware before IPA v4.5 */
-static inline u32 aggr_hard_byte_limit_enable_fmask(bool legacy)
-{
-	return legacy ? GENMASK(24, 24) : GENMASK(26, 26);
-}
-
-/* The next field is present for IPA v4.5+ */
-#define AGGR_GRAN_SEL_FMASK			GENMASK(27, 27)
+enum ipa_reg_endp_init_aggr_field_id {
+	AGGR_EN,
+	AGGR_TYPE,
+	BYTE_LIMIT,
+	TIME_LIMIT,
+	PKT_LIMIT,
+	SW_EOF_ACTIVE,
+	FORCE_CLOSE,
+	HARD_BYTE_LIMIT_EN,
+	AGGR_GRAN_SEL,
+};
 
 /** enum ipa_aggr_en - ENDP_INIT_AGGR register AGGR_EN field value */
 enum ipa_aggr_en {
@@ -515,15 +484,17 @@ enum ipa_aggr_type {
 };
 
 /* ENDP_INIT_HOL_BLOCK_EN register */
-#define HOL_BLOCK_EN_FMASK			GENMASK(0, 0)
+enum ipa_reg_endp_init_hol_block_en_field_id {
+	HOL_BLOCK_EN,
+};
 
 /* ENDP_INIT_HOL_BLOCK_TIMER register */
-/* The next two fields are present for IPA v4.2 only */
-#define BASE_VALUE_FMASK			GENMASK(4, 0)
-#define SCALE_FMASK				GENMASK(12, 8)
-/* The next two fields are present for IPA v4.5 */
-#define TIME_LIMIT_FMASK			GENMASK(4, 0)
-#define GRAN_SEL_FMASK				GENMASK(8, 8)
+enum ipa_reg_endp_init_hol_block_timer_field_id {
+	TIMER_BASE_VALUE,				/* Not v4.5+ */
+	TIMER_SCALE,					/* v4.2 only */
+	TIMER_LIMIT,					/* v4.5+ */
+	TIMER_GRAN_SEL,					/* v4.5+ */
+};
 
 /* ENDP_INIT_DEAGGR register */
 #define DEAGGR_HDR_LEN_FMASK			GENMASK(5, 0)

@@ -294,15 +294,50 @@ IPA_REG_STRIDE_FIELDS(ENDP_INIT_HDR_EXT, endp_init_hdr_ext, 0x00000814, 0x0070);
 IPA_REG_STRIDE(ENDP_INIT_HDR_METADATA_MASK, endp_init_hdr_metadata_mask,
 	       0x00000818, 0x0070);
 
-IPA_REG_STRIDE(ENDP_INIT_MODE, endp_init_mode, 0x00000820, 0x0070);
+static const u32 ipa_reg_endp_init_mode_fmask[] = {
+	[ENDP_MODE]					= GENMASK(2, 0),
+						/* Bit 3 reserved */
+	[DEST_PIPE_INDEX]				= GENMASK(8, 4),
+						/* Bits 9-11 reserved */
+	[BYTE_THRESHOLD]				= GENMASK(27, 12),
+	[PIPE_REPLICATION_EN]				= BIT(28),
+	[PAD_EN]					= BIT(29),
+	[HDR_FTCH_DISABLE]				= BIT(30),
+						/* Bit 31 reserved */
+};
 
-IPA_REG_STRIDE(ENDP_INIT_AGGR, endp_init_aggr, 0x00000824, 0x0070);
+IPA_REG_STRIDE_FIELDS(ENDP_INIT_MODE, endp_init_mode, 0x00000820, 0x0070);
 
-IPA_REG_STRIDE(ENDP_INIT_HOL_BLOCK_EN, endp_init_hol_block_en,
-	       0x0000082c, 0x0070);
+static const u32 ipa_reg_endp_init_aggr_fmask[] = {
+	[AGGR_EN]					= GENMASK(1, 0),
+	[AGGR_TYPE]					= GENMASK(4, 2),
+	[BYTE_LIMIT]					= GENMASK(9, 5),
+	[TIME_LIMIT]					= GENMASK(14, 10),
+	[PKT_LIMIT]					= GENMASK(20, 15),
+	[SW_EOF_ACTIVE]					= BIT(21),
+	[FORCE_CLOSE]					= BIT(22),
+						/* Bit 23 reserved */
+	[HARD_BYTE_LIMIT_EN]				= BIT(24),
+						/* Bits 25-31 reserved */
+};
 
-IPA_REG_STRIDE(ENDP_INIT_HOL_BLOCK_TIMER, endp_init_hol_block_timer,
-	       0x00000830, 0x0070);
+IPA_REG_STRIDE_FIELDS(ENDP_INIT_AGGR, endp_init_aggr, 0x00000824, 0x0070);
+
+static const u32 ipa_reg_endp_init_hol_block_en_fmask[] = {
+	[HOL_BLOCK_EN]					= BIT(0),
+						/* Bits 1-31 reserved */
+};
+
+IPA_REG_STRIDE_FIELDS(ENDP_INIT_HOL_BLOCK_EN, endp_init_hol_block_en,
+		      0x0000082c, 0x0070);
+
+/* Entire register is a tick count */
+static const u32 ipa_reg_endp_init_hol_block_timer_fmask[] = {
+	[TIMER_BASE_VALUE]				= GENMASK(31, 0),
+};
+
+IPA_REG_STRIDE_FIELDS(ENDP_INIT_HOL_BLOCK_TIMER, endp_init_hol_block_timer,
+		      0x00000830, 0x0070);
 
 IPA_REG_STRIDE(ENDP_INIT_DEAGGR, endp_init_deaggr, 0x00000834, 0x0070);
 
