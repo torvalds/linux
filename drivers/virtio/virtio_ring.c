@@ -1066,7 +1066,7 @@ static int vring_alloc_queue_split(struct vring_virtqueue_split *vring_split,
 	if (!queue) {
 		/* Try to get a single page. You are my only hope! */
 		queue = vring_alloc_queue(vdev, vring_size(num, vring_align),
-					  &dma_addr, GFP_KERNEL|__GFP_ZERO);
+					  &dma_addr, GFP_KERNEL | __GFP_ZERO);
 	}
 	if (!queue)
 		return -ENOMEM;
