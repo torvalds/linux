@@ -179,6 +179,21 @@ union efi_device_path_to_text_protocol {
 
 typedef union efi_device_path_to_text_protocol efi_device_path_to_text_protocol_t;
 
+union efi_device_path_from_text_protocol {
+	struct {
+		efi_device_path_protocol_t *
+			(__efiapi *convert_text_to_device_node)(const efi_char16_t *);
+		efi_device_path_protocol_t *
+			(__efiapi *convert_text_to_device_path)(const efi_char16_t *);
+	};
+	struct {
+		u32 convert_text_to_device_node;
+		u32 convert_text_to_device_path;
+	} mixed_mode;
+};
+
+typedef union efi_device_path_from_text_protocol efi_device_path_from_text_protocol_t;
+
 typedef void *efi_event_t;
 /* Note that notifications won't work in mixed mode */
 typedef void (__efiapi *efi_event_notify_t)(efi_event_t, void *);
