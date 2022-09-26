@@ -587,6 +587,8 @@ err:
 	if (!IS_ERR(ob))
 		trace_and_count(c, bucket_alloc, ca,
 				bch2_alloc_reserves[reserve],
+				may_alloc_partial,
+				ob->bucket,
 				usage.d[BCH_DATA_free].buckets,
 				avail,
 				bch2_copygc_wait_amount(c),
@@ -600,6 +602,8 @@ err:
 	else
 		trace_and_count(c, bucket_alloc_fail, ca,
 				bch2_alloc_reserves[reserve],
+				may_alloc_partial,
+				0,
 				usage.d[BCH_DATA_free].buckets,
 				avail,
 				bch2_copygc_wait_amount(c),
