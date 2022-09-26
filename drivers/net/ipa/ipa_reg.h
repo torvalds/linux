@@ -497,30 +497,25 @@ enum ipa_reg_endp_init_hol_block_timer_field_id {
 };
 
 /* ENDP_INIT_DEAGGR register */
-#define DEAGGR_HDR_LEN_FMASK			GENMASK(5, 0)
-#define SYSPIPE_ERR_DETECTION_FMASK		GENMASK(6, 6)
-#define PACKET_OFFSET_VALID_FMASK		GENMASK(7, 7)
-#define PACKET_OFFSET_LOCATION_FMASK		GENMASK(13, 8)
-#define IGNORE_MIN_PKT_ERR_FMASK		GENMASK(14, 14)
-#define MAX_PACKET_LEN_FMASK			GENMASK(31, 16)
+enum ipa_reg_endp_deaggr_field_id {
+	DEAGGR_HDR_LEN,
+	SYSPIPE_ERR_DETECTION,
+	PACKET_OFFSET_VALID,
+	PACKET_OFFSET_LOCATION,
+	IGNORE_MIN_PKT_ERR,
+	MAX_PACKET_LEN,
+};
 
 /* ENDP_INIT_RSRC_GRP register */
-/* Encoded value for ENDP_INIT_RSRC_GRP register RSRC_GRP field */
-static inline u32 rsrc_grp_encoded(enum ipa_version version, u32 rsrc_grp)
-{
-	if (version < IPA_VERSION_3_5 || version == IPA_VERSION_4_5)
-		return u32_encode_bits(rsrc_grp, GENMASK(2, 0));
-
-	if (version == IPA_VERSION_4_2 || version == IPA_VERSION_4_7)
-		return u32_encode_bits(rsrc_grp, GENMASK(0, 0));
-
-	return u32_encode_bits(rsrc_grp, GENMASK(1, 0));
-}
+enum ipa_reg_endp_init_rsrc_grp_field_id {
+	ENDP_RSRC_GRP,
+};
 
 /* ENDP_INIT_SEQ register */
-#define SEQ_TYPE_FMASK				GENMASK(7, 0)
-/* The next field must be zero for IPA v4.5+ */
-#define SEQ_REP_TYPE_FMASK			GENMASK(15, 8)
+enum ipa_reg_endp_init_seq_field_id {
+	SEQ_TYPE,
+	SEQ_REP_TYPE,					/* Not v4.5+ */
+};
 
 /**
  * enum ipa_seq_type - HPS and DPS sequencer type
@@ -565,31 +560,33 @@ enum ipa_seq_rep_type {
 };
 
 /* ENDP_STATUS register */
-#define STATUS_EN_FMASK				GENMASK(0, 0)
-#define STATUS_ENDP_FMASK			GENMASK(5, 1)
-/* The next field is not present for IPA v4.5+ */
-#define STATUS_LOCATION_FMASK			GENMASK(8, 8)
-/* The next field is present for IPA v4.0+ */
-#define STATUS_PKT_SUPPRESS_FMASK		GENMASK(9, 9)
+enum ipa_reg_endp_status_field_id {
+	STATUS_EN,
+	STATUS_ENDP,
+	STATUS_LOCATION,				/* Not v4.5+ */
+	STATUS_PKT_SUPPRESS,				/* v4.0+ */
+};
 
 /* ENDP_FILTER_ROUTER_HSH_CFG register */
-#define FILTER_HASH_MSK_SRC_ID_FMASK		GENMASK(0, 0)
-#define FILTER_HASH_MSK_SRC_IP_FMASK		GENMASK(1, 1)
-#define FILTER_HASH_MSK_DST_IP_FMASK		GENMASK(2, 2)
-#define FILTER_HASH_MSK_SRC_PORT_FMASK		GENMASK(3, 3)
-#define FILTER_HASH_MSK_DST_PORT_FMASK		GENMASK(4, 4)
-#define FILTER_HASH_MSK_PROTOCOL_FMASK		GENMASK(5, 5)
-#define FILTER_HASH_MSK_METADATA_FMASK		GENMASK(6, 6)
-#define IPA_REG_ENDP_FILTER_HASH_MSK_ALL	GENMASK(6, 0)
+enum ipa_reg_endp_filter_router_hsh_cfg_field_id {
+	FILTER_HASH_MSK_SRC_ID,
+	FILTER_HASH_MSK_SRC_IP,
+	FILTER_HASH_MSK_DST_IP,
+	FILTER_HASH_MSK_SRC_PORT,
+	FILTER_HASH_MSK_DST_PORT,
+	FILTER_HASH_MSK_PROTOCOL,
+	FILTER_HASH_MSK_METADATA,
+	FILTER_HASH_MSK_ALL,		/* Bitwise OR of the above 6 fields */
 
-#define ROUTER_HASH_MSK_SRC_ID_FMASK		GENMASK(16, 16)
-#define ROUTER_HASH_MSK_SRC_IP_FMASK		GENMASK(17, 17)
-#define ROUTER_HASH_MSK_DST_IP_FMASK		GENMASK(18, 18)
-#define ROUTER_HASH_MSK_SRC_PORT_FMASK		GENMASK(19, 19)
-#define ROUTER_HASH_MSK_DST_PORT_FMASK		GENMASK(20, 20)
-#define ROUTER_HASH_MSK_PROTOCOL_FMASK		GENMASK(21, 21)
-#define ROUTER_HASH_MSK_METADATA_FMASK		GENMASK(22, 22)
-#define IPA_REG_ENDP_ROUTER_HASH_MSK_ALL	GENMASK(22, 16)
+	ROUTER_HASH_MSK_SRC_ID,
+	ROUTER_HASH_MSK_SRC_IP,
+	ROUTER_HASH_MSK_DST_IP,
+	ROUTER_HASH_MSK_SRC_PORT,
+	ROUTER_HASH_MSK_DST_PORT,
+	ROUTER_HASH_MSK_PROTOCOL,
+	ROUTER_HASH_MSK_METADATA,
+	ROUTER_HASH_MSK_ALL,		/* Bitwise OR of the above 6 fields */
+};
 
 /* IPA_IRQ_STTS, IPA_IRQ_EN, and IPA_IRQ_CLR registers */
 /**
@@ -668,7 +665,9 @@ enum ipa_irq_id {
 };
 
 /* IPA_IRQ_UC register */
-#define UC_INTR_FMASK				GENMASK(0, 0)
+enum ipa_reg_ipa_irq_uc_field_id {
+	UC_INTR,
+};
 
 extern const struct ipa_regs ipa_regs_v3_1;
 extern const struct ipa_regs ipa_regs_v3_5_1;

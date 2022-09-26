@@ -1044,13 +1044,14 @@ static void ipa_endpoint_init_deaggr(struct ipa_endpoint *endpoint)
 
 static void ipa_endpoint_init_rsrc_grp(struct ipa_endpoint *endpoint)
 {
+	u32 resource_group = endpoint->config.resource_group;
 	u32 endpoint_id = endpoint->endpoint_id;
 	struct ipa *ipa = endpoint->ipa;
 	const struct ipa_reg *reg;
 	u32 val;
 
 	reg = ipa_reg(ipa, ENDP_INIT_RSRC_GRP);
-	val = rsrc_grp_encoded(ipa->version, endpoint->config.resource_group);
+	val = ipa_reg_encode(reg, ENDP_RSRC_GRP, resource_group);
 
 	iowrite32(val, ipa->reg_virt + ipa_reg_n_offset(reg, endpoint_id));
 }
@@ -1060,7 +1061,7 @@ static void ipa_endpoint_init_seq(struct ipa_endpoint *endpoint)
 	u32 endpoint_id = endpoint->endpoint_id;
 	struct ipa *ipa = endpoint->ipa;
 	const struct ipa_reg *reg;
-	u32 val = 0;
+	u32 val;
 
 	if (!endpoint->toward_ipa)
 		return;		/* Register not valid for RX endpoints */
@@ -1068,12 +1069,12 @@ static void ipa_endpoint_init_seq(struct ipa_endpoint *endpoint)
 	reg = ipa_reg(ipa, ENDP_INIT_SEQ);
 
 	/* Low-order byte configures primary packet processing */
-	val |= u32_encode_bits(endpoint->config.tx.seq_type, SEQ_TYPE_FMASK);
+	val = ipa_reg_encode(reg, SEQ_TYPE, endpoint->config.tx.seq_type);
 
 	/* Second byte (if supported) configures replicated packet processing */
 	if (ipa->version < IPA_VERSION_4_5)
-		val |= u32_encode_bits(endpoint->config.tx.seq_rep_type,
-				       SEQ_REP_TYPE_FMASK);
+		val |= ipa_reg_encode(reg, SEQ_REP_TYPE,
+				      endpoint->config.tx.seq_rep_type);
 
 	iowrite32(val, ipa->reg_virt + ipa_reg_n_offset(reg, endpoint_id));
 }
@@ -1130,7 +1131,7 @@ static void ipa_endpoint_status(struct ipa_endpoint *endpoint)
 
 	reg = ipa_reg(ipa, ENDP_STATUS);
 	if (endpoint->config.status_enable) {
-		val |= STATUS_EN_FMASK;
+		val |= ipa_reg_bit(reg, STATUS_EN);
 		if (endpoint->toward_ipa) {
 			enum ipa_endpoint_name name;
 			u32 status_endpoint_id;
@@ -1138,13 +1139,13 @@ static void ipa_endpoint_status(struct ipa_endpoint *endpoint)
 			name = endpoint->config.tx.status_endpoint;
 			status_endpoint_id = ipa->name_map[name]->endpoint_id;
 
-			val |= u32_encode_bits(status_endpoint_id,
-					       STATUS_ENDP_FMASK);
+			val |= ipa_reg_encode(reg, STATUS_ENDP,
+					      status_endpoint_id);
 		}
 		/* STATUS_LOCATION is 0, meaning status element precedes
-		 * packet (not present for IPA v4.5)
+		 * packet (not present for IPA v4.5+)
 		 */
-		/* STATUS_PKT_SUPPRESS_FMASK is 0 (not present for v3.5.1) */
+		/* STATUS_PKT_SUPPRESS_FMASK is 0 (not present for v4.0+) */
 	}
 
 	iowrite32(val, ipa->reg_virt + ipa_reg_n_offset(reg, endpoint_id));

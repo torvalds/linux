@@ -234,7 +234,7 @@ static void send_uc_command(struct ipa *ipa, u32 command, u32 command_param)
 
 	/* Use an interrupt to tell the microcontroller the command is ready */
 	reg = ipa_reg(ipa, IPA_IRQ_UC);
-	val = u32_encode_bits(1, UC_INTR_FMASK);
+	val = ipa_reg_bit(reg, UC_INTR);
 
 	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
 }

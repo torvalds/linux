@@ -528,12 +528,12 @@ static void ipa_filter_tuple_zero(struct ipa_endpoint *endpoint)
 	u32 val;
 
 	reg = ipa_reg(ipa, ENDP_FILTER_ROUTER_HSH_CFG);
-	offset = ipa_reg_n_offset(reg, endpoint_id);
 
+	offset = ipa_reg_n_offset(reg, endpoint_id);
 	val = ioread32(endpoint->ipa->reg_virt + offset);
 
 	/* Zero all filter-related fields, preserving the rest */
-	val &= ~IPA_REG_ENDP_FILTER_HASH_MSK_ALL;
+	val &= ~ipa_reg_fmask(reg, FILTER_HASH_MSK_ALL);
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
@@ -584,7 +584,7 @@ static void ipa_route_tuple_zero(struct ipa *ipa, u32 route_id)
 	val = ioread32(ipa->reg_virt + offset);
 
 	/* Zero all route-related fields, preserving the rest */
-	val &= ~IPA_REG_ENDP_ROUTER_HASH_MSK_ALL;
+	val &= ~ipa_reg_fmask(reg, ROUTER_HASH_MSK_ALL);
 
 	iowrite32(val, ipa->reg_virt + offset);
 }

@@ -318,16 +318,67 @@ static const u32 ipa_reg_endp_init_hol_block_timer_fmask[] = {
 IPA_REG_STRIDE_FIELDS(ENDP_INIT_HOL_BLOCK_TIMER, endp_init_hol_block_timer,
 		      0x00000830, 0x0070);
 
-IPA_REG_STRIDE(ENDP_INIT_DEAGGR, endp_init_deaggr, 0x00000834, 0x0070);
+static const u32 ipa_reg_endp_init_deaggr_fmask[] = {
+	[DEAGGR_HDR_LEN]				= GENMASK(5, 0),
+	[SYSPIPE_ERR_DETECTION]				= BIT(6),
+	[PACKET_OFFSET_VALID]				= BIT(7),
+	[PACKET_OFFSET_LOCATION]			= GENMASK(13, 8),
+	[IGNORE_MIN_PKT_ERR]				= BIT(14),
+						/* Bit 15 reserved */
+	[MAX_PACKET_LEN]				= GENMASK(31, 16),
+};
 
-IPA_REG_STRIDE(ENDP_INIT_RSRC_GRP, endp_init_rsrc_grp, 0x00000838, 0x0070);
+IPA_REG_STRIDE_FIELDS(ENDP_INIT_DEAGGR, endp_init_deaggr, 0x00000834, 0x0070);
 
-IPA_REG_STRIDE(ENDP_INIT_SEQ, endp_init_seq, 0x0000083c, 0x0070);
+static const u32 ipa_reg_endp_init_rsrc_grp_fmask[] = {
+	[ENDP_RSRC_GRP]					= GENMASK(1, 0),
+						/* Bits 2-31 reserved */
+};
 
-IPA_REG_STRIDE(ENDP_STATUS, endp_status, 0x00000840, 0x0070);
+IPA_REG_STRIDE_FIELDS(ENDP_INIT_RSRC_GRP, endp_init_rsrc_grp,
+		      0x00000838, 0x0070);
 
-IPA_REG_STRIDE(ENDP_FILTER_ROUTER_HSH_CFG, endp_filter_router_hsh_cfg,
-	       0x0000085c, 0x0070);
+static const u32 ipa_reg_endp_init_seq_fmask[] = {
+	[SEQ_TYPE]					= GENMASK(7, 0),
+	[SEQ_REP_TYPE]					= GENMASK(15, 8),
+						/* Bits 16-31 reserved */
+};
+
+IPA_REG_STRIDE_FIELDS(ENDP_INIT_SEQ, endp_init_seq, 0x0000083c, 0x0070);
+
+static const u32 ipa_reg_endp_status_fmask[] = {
+	[STATUS_EN]					= BIT(0),
+	[STATUS_ENDP]					= GENMASK(5, 1),
+						/* Bits 6-7 reserved */
+	[STATUS_LOCATION]				= BIT(8),
+						/* Bits 9-31 reserved */
+};
+
+IPA_REG_STRIDE_FIELDS(ENDP_STATUS, endp_status, 0x00000840, 0x0070);
+
+static const u32 ipa_reg_endp_filter_router_hsh_cfg_fmask[] = {
+	[FILTER_HASH_MSK_SRC_ID]			= BIT(0),
+	[FILTER_HASH_MSK_SRC_IP]			= BIT(1),
+	[FILTER_HASH_MSK_DST_IP]			= BIT(2),
+	[FILTER_HASH_MSK_SRC_PORT]			= BIT(3),
+	[FILTER_HASH_MSK_DST_PORT]			= BIT(4),
+	[FILTER_HASH_MSK_PROTOCOL]			= BIT(5),
+	[FILTER_HASH_MSK_METADATA]			= BIT(6),
+	[FILTER_HASH_MSK_ALL]				= GENMASK(6, 0),
+						/* Bits 7-15 reserved */
+	[ROUTER_HASH_MSK_SRC_ID]			= BIT(16),
+	[ROUTER_HASH_MSK_SRC_IP]			= BIT(17),
+	[ROUTER_HASH_MSK_DST_IP]			= BIT(18),
+	[ROUTER_HASH_MSK_SRC_PORT]			= BIT(19),
+	[ROUTER_HASH_MSK_DST_PORT]			= BIT(20),
+	[ROUTER_HASH_MSK_PROTOCOL]			= BIT(21),
+	[ROUTER_HASH_MSK_METADATA]			= BIT(22),
+	[ROUTER_HASH_MSK_ALL]				= GENMASK(22, 16),
+						/* Bits 23-31 reserved */
+};
+
+IPA_REG_STRIDE_FIELDS(ENDP_FILTER_ROUTER_HSH_CFG, endp_filter_router_hsh_cfg,
+		      0x0000085c, 0x0070);
 
 /* Valid bits defined by enum ipa_irq_id; only used for GSI_EE_AP */
 IPA_REG(IPA_IRQ_STTS, ipa_irq_stts, 0x00003008 + 0x1000 * GSI_EE_AP);
@@ -338,7 +389,12 @@ IPA_REG(IPA_IRQ_EN, ipa_irq_en, 0x0000300c + 0x1000 * GSI_EE_AP);
 /* Valid bits defined by enum ipa_irq_id; only used for GSI_EE_AP */
 IPA_REG(IPA_IRQ_CLR, ipa_irq_clr, 0x00003010 + 0x1000 * GSI_EE_AP);
 
-IPA_REG(IPA_IRQ_UC, ipa_irq_uc, 0x0000301c + 0x1000 * GSI_EE_AP);
+static const u32 ipa_reg_ipa_irq_uc_fmask[] = {
+	[UC_INTR]					= BIT(0),
+						/* Bits 1-31 reserved */
+};
+
+IPA_REG_FIELDS(IPA_IRQ_UC, ipa_irq_uc, 0x0000301c + 0x1000 * GSI_EE_AP);
 
 /* Valid bits defined by ipa->available */
 IPA_REG(IRQ_SUSPEND_INFO, irq_suspend_info, 0x00003030 + 0x1000 * GSI_EE_AP);
