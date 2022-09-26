@@ -51,6 +51,16 @@ config QCOM_CPUSS_SLEEP_STATS
 	 low power modes. This driver creates debugfs entry which provide
 	 provision to read those counters.
 
+config QCOM_CRM
+	tristate "Qualcomm Technologies, Inc. (QTI) CRM driver"
+	depends on QCOM_RPMH && (ARCH_QCOM || COMPILE_TEST)
+	help
+	  Support for communication with the hardened-CRM blocks in
+	  Qualcomm Technologies, Inc. (QTI) SoCs. CRM provides interface to
+	  vote desired power state of resources local to a subsystem. A set
+	  of hardware components aggregate requests for these resources and
+	  help apply the aggregated power state on the resource.
+
 config QCOM_DCC_V2
        tristate "Qualcomm Technologies Data Capture and Compare enigne support for V2"
        help
