@@ -1408,7 +1408,8 @@ static void bch2_trans_update_max_paths(struct btree_trans *trans)
 	if (!buf.allocation_failure) {
 		mutex_lock(&s->lock);
 		if (s->nr_max_paths < hweight64(trans->paths_allocated)) {
-			s->nr_max_paths = hweight64(trans->paths_allocated);
+			s->nr_max_paths = trans->nr_max_paths =
+				hweight64(trans->paths_allocated);
 			swap(s->max_paths_text, buf.buf);
 		}
 		mutex_unlock(&s->lock);
@@ -1419,17 +1420,21 @@ static void bch2_trans_update_max_paths(struct btree_trans *trans)
 	trans->nr_max_paths = hweight64(trans->paths_allocated);
 }
 
-static struct btree_path *btree_path_alloc(struct btree_trans *trans,
-					   struct btree_path *pos)
+static noinline void btree_path_overflow(struct btree_trans *trans)
+{
+	bch2_dump_trans_paths_updates(trans);
+	panic("trans path oveflow\n");
+}
+
+static inline struct btree_path *btree_path_alloc(struct btree_trans *trans,
+						  struct btree_path *pos)
 {
 	struct btree_path *path;
 	unsigned idx;
 
 	if (unlikely(trans->paths_allocated ==
-		     ~((~0ULL << 1) << (BTREE_ITER_MAX - 1)))) {
-		bch2_dump_trans_paths_updates(trans);
-		panic("trans path oveflow\n");
-	}
+		     ~((~0ULL << 1) << (BTREE_ITER_MAX - 1))))
+		btree_path_overflow(trans);
 
 	idx = __ffs64(~trans->paths_allocated);
 	trans->paths_allocated |= 1ULL << idx;
