@@ -212,7 +212,7 @@ struct iommu_iotlb_gather {
  * @of_xlate: add OF master IDs to iommu grouping
  * @is_attach_deferred: Check if domain attach should be deferred from iommu
  *                      driver init to device driver init (default no)
- * @dev_has/enable/disable_feat: per device entries to check/enable/disable
+ * @dev_enable/disable_feat: per device entries to enable/disable
  *                               iommu specific features.
  * @sva_bind: Bind process address space to device
  * @sva_unbind: Unbind process address space from device
@@ -227,7 +227,7 @@ struct iommu_iotlb_gather {
  * @owner: Driver module providing these ops
  */
 struct iommu_ops {
-	bool (*capable)(enum iommu_cap);
+	bool (*capable)(struct device *dev, enum iommu_cap);
 
 	/* Domain allocation and freeing by the iommu driver */
 	struct iommu_domain *(*domain_alloc)(unsigned iommu_domain_type);
@@ -416,11 +416,9 @@ static inline const struct iommu_ops *dev_iommu_ops(struct device *dev)
 	return dev->iommu->iommu_dev->ops;
 }
 
-extern int bus_set_iommu(struct bus_type *bus, const struct iommu_ops *ops);
 extern int bus_iommu_probe(struct bus_type *bus);
 extern bool iommu_present(struct bus_type *bus);
 extern bool device_iommu_capable(struct device *dev, enum iommu_cap cap);
-extern bool iommu_capable(struct bus_type *bus, enum iommu_cap cap);
 extern struct iommu_domain *iommu_domain_alloc(struct bus_type *bus);
 extern struct iommu_group *iommu_group_get_by_id(int id);
 extern void iommu_domain_free(struct iommu_domain *domain);
@@ -693,11 +691,6 @@ static inline bool iommu_present(struct bus_type *bus)
 }
 
 static inline bool device_iommu_capable(struct device *dev, enum iommu_cap cap)
-{
-	return false;
-}
-
-static inline bool iommu_capable(struct bus_type *bus, enum iommu_cap cap)
 {
 	return false;
 }
@@ -1069,5 +1062,41 @@ void iommu_debugfs_setup(void);
 #else
 static inline void iommu_debugfs_setup(void) {}
 #endif
+
+#ifdef CONFIG_IOMMU_DMA
+#include <linux/msi.h>
+
+/* Setup call for arch DMA mapping code */
+void iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 dma_limit);
+
+int iommu_get_msi_cookie(struct iommu_domain *domain, dma_addr_t base);
+
+int iommu_dma_prepare_msi(struct msi_desc *desc, phys_addr_t msi_addr);
+void iommu_dma_compose_msi_msg(struct msi_desc *desc, struct msi_msg *msg);
+
+#else /* CONFIG_IOMMU_DMA */
+
+struct msi_desc;
+struct msi_msg;
+
+static inline void iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 dma_limit)
+{
+}
+
+static inline int iommu_get_msi_cookie(struct iommu_domain *domain, dma_addr_t base)
+{
+	return -ENODEV;
+}
+
+static inline int iommu_dma_prepare_msi(struct msi_desc *desc, phys_addr_t msi_addr)
+{
+	return 0;
+}
+
+static inline void iommu_dma_compose_msi_msg(struct msi_desc *desc, struct msi_msg *msg)
+{
+}
+
+#endif	/* CONFIG_IOMMU_DMA */
 
 #endif /* __LINUX_IOMMU_H */

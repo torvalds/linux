@@ -111,7 +111,8 @@ static const struct fec_devinfo fec_imx6q_info = {
 	.quirks = FEC_QUIRK_ENET_MAC | FEC_QUIRK_HAS_GBIT |
 		  FEC_QUIRK_HAS_BUFDESC_EX | FEC_QUIRK_HAS_CSUM |
 		  FEC_QUIRK_HAS_VLAN | FEC_QUIRK_ERR006358 |
-		  FEC_QUIRK_HAS_RACC | FEC_QUIRK_CLEAR_SETUP_MII,
+		  FEC_QUIRK_HAS_RACC | FEC_QUIRK_CLEAR_SETUP_MII |
+		  FEC_QUIRK_HAS_PMQOS,
 };
 
 static const struct fec_devinfo fec_mvf600_info = {
@@ -285,11 +286,8 @@ MODULE_PARM_DESC(macaddr, "FEC Ethernet MAC address");
 #define FEC_MMFR_TA		(2 << 16)
 #define FEC_MMFR_DATA(v)	(v & 0xffff)
 /* FEC ECR bits definition */
-#define FEC_ECR_RESET   BIT(0)
-#define FEC_ECR_ETHEREN BIT(1)
-#define FEC_ECR_MAGICEN BIT(2)
-#define FEC_ECR_SLEEP   BIT(3)
-#define FEC_ECR_EN1588  BIT(4)
+#define FEC_ECR_MAGICEN		(1 << 2)
+#define FEC_ECR_SLEEP		(1 << 3)
 
 #define FEC_MII_TIMEOUT		30000 /* us */
 
@@ -985,9 +983,6 @@ fec_restart(struct net_device *ndev)
 	u32 temp_mac[2];
 	u32 rcntl = OPT_FRAME_SIZE | 0x04;
 	u32 ecntl = 0x2; /* ETHEREN */
-	struct ptp_clock_request ptp_rq = { .type = PTP_CLK_REQ_PPS };
-
-	fec_ptp_save_state(fep);
 
 	/* Whack a reset.  We should wait for this.
 	 * For i.MX6SX SOC, enet use AXI bus, we use disable MAC
@@ -1141,7 +1136,7 @@ fec_restart(struct net_device *ndev)
 	}
 
 	if (fep->bufdesc_ex)
-		ecntl |= FEC_ECR_EN1588;
+		ecntl |= (1 << 4);
 
 	if (fep->quirks & FEC_QUIRK_DELAYED_CLKS_SUPPORT &&
 	    fep->rgmii_txc_dly)
@@ -1161,14 +1156,6 @@ fec_restart(struct net_device *ndev)
 
 	if (fep->bufdesc_ex)
 		fec_ptp_start_cyclecounter(ndev);
-
-	/* Restart PPS if needed */
-	if (fep->pps_enable) {
-		/* Clear flag so fec_ptp_enable_pps() doesn't return immediately */
-		fep->pps_enable = 0;
-		fec_ptp_restore_state(fep);
-		fep->ptp_caps.enable(&fep->ptp_caps, &ptp_rq, 1);
-	}
 
 	/* Enable interrupts we wish to service */
 	if (fep->link)
@@ -1220,8 +1207,6 @@ fec_stop(struct net_device *ndev)
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	u32 rmii_mode = readl(fep->hwp + FEC_R_CNTRL) & (1 << 8);
 	u32 val;
-	struct ptp_clock_request ptp_rq = { .type = PTP_CLK_REQ_PPS };
-	u32 ecntl = 0;
 
 	/* We cannot expect a graceful transmit stop without link !!! */
 	if (fep->link) {
@@ -1230,8 +1215,6 @@ fec_stop(struct net_device *ndev)
 		if (!(readl(fep->hwp + FEC_IEVENT) & FEC_ENET_GRA))
 			netdev_err(ndev, "Graceful transmit stop did not complete!\n");
 	}
-
-	fec_ptp_save_state(fep);
 
 	/* Whack a reset.  We should wait for this.
 	 * For i.MX6SX SOC, enet use AXI bus, we use disable MAC
@@ -1252,27 +1235,11 @@ fec_stop(struct net_device *ndev)
 	writel(fep->phy_speed, fep->hwp + FEC_MII_SPEED);
 	writel(FEC_DEFAULT_IMASK, fep->hwp + FEC_IMASK);
 
-	if (fep->bufdesc_ex)
-		ecntl |= FEC_ECR_EN1588;
-
 	/* We have to keep ENET enabled to have MII interrupt stay working */
 	if (fep->quirks & FEC_QUIRK_ENET_MAC &&
 		!(fep->wol_flag & FEC_WOL_FLAG_SLEEP_ON)) {
-		ecntl |= FEC_ECR_ETHEREN;
+		writel(2, fep->hwp + FEC_ECNTRL);
 		writel(rmii_mode, fep->hwp + FEC_R_CNTRL);
-	}
-
-	writel(ecntl, fep->hwp + FEC_ECNTRL);
-
-	if (fep->bufdesc_ex)
-		fec_ptp_start_cyclecounter(ndev);
-
-	/* Restart PPS if needed */
-	if (fep->pps_enable) {
-		/* Clear flag so fec_ptp_enable_pps() doesn't return immediately */
-		fep->pps_enable = 0;
-		fec_ptp_restore_state(fep);
-		fep->ptp_caps.enable(&fep->ptp_caps, &ptp_rq, 1);
 	}
 }
 
@@ -3244,6 +3211,9 @@ fec_enet_open(struct net_device *ndev)
 	if (fep->quirks & FEC_QUIRK_ERR006687)
 		imx6q_cpuidle_fec_irqs_used();
 
+	if (fep->quirks & FEC_QUIRK_HAS_PMQOS)
+		cpu_latency_qos_add_request(&fep->pm_qos_req, 0);
+
 	napi_enable(&fep->napi);
 	phy_start(ndev->phydev);
 	netif_tx_start_all_queues(ndev);
@@ -3285,6 +3255,9 @@ fec_enet_close(struct net_device *ndev)
 	fec_enet_update_ethtool_stats(ndev);
 
 	fec_enet_clk_enable(ndev, false);
+	if (fep->quirks & FEC_QUIRK_HAS_PMQOS)
+		cpu_latency_qos_remove_request(&fep->pm_qos_req);
+
 	pinctrl_pm_select_sleep_state(&fep->pdev->dev);
 	pm_runtime_mark_last_busy(&fep->pdev->dev);
 	pm_runtime_put_autosuspend(&fep->pdev->dev);

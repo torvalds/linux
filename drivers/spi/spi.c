@@ -1727,8 +1727,7 @@ static void __spi_pump_messages(struct spi_controller *ctlr, bool in_kthread)
 	spin_unlock_irqrestore(&ctlr->queue_lock, flags);
 
 	ret = __spi_pump_transfer_message(ctlr, msg, was_busy);
-	if (!ret)
-		kthread_queue_work(ctlr->kworker, &ctlr->pump_messages);
+	kthread_queue_work(ctlr->kworker, &ctlr->pump_messages);
 
 	ctlr->cur_msg = NULL;
 	ctlr->fallback = false;
@@ -4033,7 +4032,7 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message)
 	 * guard against reentrancy from a different context. The io_mutex
 	 * will catch those cases.
 	 */
-	if (READ_ONCE(ctlr->queue_empty)) {
+	if (READ_ONCE(ctlr->queue_empty) && !ctlr->must_async) {
 		message->actual_length = 0;
 		message->status = -EINPROGRESS;
 

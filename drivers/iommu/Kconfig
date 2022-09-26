@@ -148,7 +148,7 @@ config OF_IOMMU
 
 # IOMMU-agnostic DMA-mapping layer
 config IOMMU_DMA
-	bool
+	def_bool ARM64 || IA64 || X86
 	select DMA_OPS
 	select IOMMU_API
 	select IOMMU_IOVA
@@ -487,7 +487,6 @@ config VIRTIO_IOMMU
 	depends on VIRTIO
 	depends on (ARM64 || X86)
 	select IOMMU_API
-	select IOMMU_DMA
 	select INTERVAL_TREE
 	select ACPI_VIOT if ACPI
 	help

@@ -661,11 +661,6 @@ const char *menu_get_prompt(struct menu *menu)
 	return NULL;
 }
 
-struct menu *menu_get_root_menu(struct menu *menu)
-{
-	return &rootmenu;
-}
-
 struct menu *menu_get_parent_menu(struct menu *menu)
 {
 	enum prop_type type;
