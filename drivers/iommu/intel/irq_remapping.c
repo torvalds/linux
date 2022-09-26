@@ -494,7 +494,8 @@ static void iommu_set_irq_remapping(struct intel_iommu *iommu, int mode)
 	 * Global invalidation of interrupt entry cache to make sure the
 	 * hardware uses the new irq remapping table.
 	 */
-	qi_global_iec(iommu);
+	if (!cap_esirtps(iommu->cap))
+		qi_global_iec(iommu);
 }
 
 static void iommu_enable_irq_remapping(struct intel_iommu *iommu)
@@ -680,7 +681,8 @@ static void iommu_disable_irq_remapping(struct intel_iommu *iommu)
 	 * global invalidation of interrupt entry cache before disabling
 	 * interrupt-remapping.
 	 */
-	qi_global_iec(iommu);
+	if (!cap_esirtps(iommu->cap))
+		qi_global_iec(iommu);
 
 	raw_spin_lock_irqsave(&iommu->register_lock, flags);
 
