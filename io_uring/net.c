@@ -124,20 +124,22 @@ static struct io_async_msghdr *io_msg_alloc_async(struct io_kiocb *req,
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_cache_entry *entry;
+	struct io_async_msghdr *hdr;
 
 	if (!(issue_flags & IO_URING_F_UNLOCKED) &&
 	    (entry = io_alloc_cache_get(&ctx->netmsg_cache)) != NULL) {
-		struct io_async_msghdr *hdr;
-
 		hdr = container_of(entry, struct io_async_msghdr, cache);
+		hdr->free_iov = NULL;
 		req->flags |= REQ_F_ASYNC_DATA;
 		req->async_data = hdr;
 		return hdr;
 	}
 
-	if (!io_alloc_async_data(req))
-		return req->async_data;
-
+	if (!io_alloc_async_data(req)) {
+		hdr = req->async_data;
+		hdr->free_iov = NULL;
+		return hdr;
+	}
 	return NULL;
 }
 
@@ -192,7 +194,6 @@ int io_send_prep_async(struct io_kiocb *req)
 	io = io_msg_alloc_async_prep(req);
 	if (!io)
 		return -ENOMEM;
-	io->free_iov = NULL;
 	ret = move_addr_to_kernel(zc->addr, zc->addr_len, &io->addr);
 	return ret;
 }
@@ -209,7 +210,6 @@ static int io_setup_async_addr(struct io_kiocb *req,
 	io = io_msg_alloc_async(req, issue_flags);
 	if (!io)
 		return -ENOMEM;
-	io->free_iov = NULL;
 	memcpy(&io->addr, addr_storage, sizeof(io->addr));
 	return -EAGAIN;
 }
@@ -479,7 +479,6 @@ static int __io_compat_recvmsg_copy_hdr(struct io_kiocb *req,
 
 		if (msg.msg_iovlen == 0) {
 			sr->len = 0;
-			iomsg->free_iov = NULL;
 		} else if (msg.msg_iovlen > 1) {
 			return -EINVAL;
 		} else {
@@ -490,7 +489,6 @@ static int __io_compat_recvmsg_copy_hdr(struct io_kiocb *req,
 			if (clen < 0)
 				return -EINVAL;
 			sr->len = clen;
-			iomsg->free_iov = NULL;
 		}
 
 		if (req->flags & REQ_F_APOLL_MULTISHOT) {
@@ -913,7 +911,9 @@ void io_send_zc_cleanup(struct io_kiocb *req)
 
 	if (req_has_async_data(req)) {
 		io = req->async_data;
-		kfree(io->free_iov);
+		/* might be ->fast_iov if *msg_copy_hdr failed */
+		if (io->free_iov != io->fast_iov)
+			kfree(io->free_iov);
 	}
 	if (zc->notif) {
 		zc->notif->flags |= REQ_F_CQE_SKIP;
