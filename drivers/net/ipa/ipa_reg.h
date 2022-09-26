@@ -371,16 +371,18 @@ enum ipa_reg_rsrc_grp_rsrc_type_field_id {
 };
 
 /* ENDP_INIT_CTRL register */
-/* Valid only for RX (IPA producer) endpoints (do not use for IPA v4.0+) */
-#define ENDP_SUSPEND_FMASK			GENMASK(0, 0)
-/* Valid only for TX (IPA consumer) endpoints */
-#define ENDP_DELAY_FMASK			GENMASK(1, 1)
+enum ipa_reg_endp_init_ctrl_field_id {
+	ENDP_SUSPEND,					/* Not v4.0+ */
+	ENDP_DELAY,					/* Not v4.2+ */
+};
 
 /* ENDP_INIT_CFG register */
-#define FRAG_OFFLOAD_EN_FMASK			GENMASK(0, 0)
-#define CS_OFFLOAD_EN_FMASK			GENMASK(2, 1)
-#define CS_METADATA_HDR_OFFSET_FMASK		GENMASK(6, 3)
-#define CS_GEN_QMB_MASTER_SEL_FMASK		GENMASK(8, 8)
+enum ipa_reg_endp_init_cfg_field_id {
+	FRAG_OFFLOAD_EN,
+	CS_OFFLOAD_EN,
+	CS_METADATA_HDR_OFFSET,
+	CS_GEN_QMB_MASTER_SEL,
+};
 
 /** enum ipa_cs_offload_en - ENDP_INIT_CFG register CS_OFFLOAD_EN field value */
 enum ipa_cs_offload_en {
@@ -391,7 +393,9 @@ enum ipa_cs_offload_en {
 };
 
 /* ENDP_INIT_NAT register */
-#define NAT_EN_FMASK				GENMASK(1, 0)
+enum ipa_reg_endp_init_nat_field_id {
+	NAT_EN,
+};
 
 /** enum ipa_nat_en - ENDP_INIT_NAT register NAT_EN field value */
 enum ipa_nat_en {
@@ -401,72 +405,32 @@ enum ipa_nat_en {
 };
 
 /* ENDP_INIT_HDR register */
-#define HDR_LEN_FMASK				GENMASK(5, 0)
-#define HDR_OFST_METADATA_VALID_FMASK		GENMASK(6, 6)
-#define HDR_OFST_METADATA_FMASK			GENMASK(12, 7)
-#define HDR_ADDITIONAL_CONST_LEN_FMASK		GENMASK(18, 13)
-#define HDR_OFST_PKT_SIZE_VALID_FMASK		GENMASK(19, 19)
-#define HDR_OFST_PKT_SIZE_FMASK			GENMASK(25, 20)
-/* The next field is not present for IPA v4.9+ */
-#define HDR_A5_MUX_FMASK			GENMASK(26, 26)
-#define HDR_LEN_INC_DEAGG_HDR_FMASK		GENMASK(27, 27)
-/* The next field is not present for IPA v4.5+ */
-#define HDR_METADATA_REG_VALID_FMASK		GENMASK(28, 28)
-/* The next two fields are present for IPA v4.5+ */
-#define HDR_LEN_MSB_FMASK			GENMASK(29, 28)
-#define HDR_OFST_METADATA_MSB_FMASK		GENMASK(31, 30)
-
-/* Encoded value for ENDP_INIT_HDR register HDR_LEN* field(s) */
-static inline u32 ipa_header_size_encoded(enum ipa_version version,
-					  u32 header_size)
-{
-	u32 size = header_size & field_mask(HDR_LEN_FMASK);
-	u32 val;
-
-	val = u32_encode_bits(size, HDR_LEN_FMASK);
-	if (version < IPA_VERSION_4_5) {
-		WARN_ON(header_size != size);
-		return val;
-	}
-
-	/* IPA v4.5 adds a few more most-significant bits */
-	size = header_size >> hweight32(HDR_LEN_FMASK);
-	val |= u32_encode_bits(size, HDR_LEN_MSB_FMASK);
-
-	return val;
-}
-
-/* Encoded value for ENDP_INIT_HDR register OFST_METADATA* field(s) */
-static inline u32 ipa_metadata_offset_encoded(enum ipa_version version,
-					      u32 offset)
-{
-	u32 off = offset & field_mask(HDR_OFST_METADATA_FMASK);
-	u32 val;
-
-	val = u32_encode_bits(off, HDR_OFST_METADATA_FMASK);
-	if (version < IPA_VERSION_4_5) {
-		WARN_ON(offset != off);
-		return val;
-	}
-
-	/* IPA v4.5 adds a few more most-significant bits */
-	off = offset >> hweight32(HDR_OFST_METADATA_FMASK);
-	val |= u32_encode_bits(off, HDR_OFST_METADATA_MSB_FMASK);
-
-	return val;
-}
+enum ipa_reg_endp_init_hdr_field_id {
+	HDR_LEN,
+	HDR_OFST_METADATA_VALID,
+	HDR_OFST_METADATA,
+	HDR_ADDITIONAL_CONST_LEN,
+	HDR_OFST_PKT_SIZE_VALID,
+	HDR_OFST_PKT_SIZE,
+	HDR_A5_MUX,					/* Not v4.9+ */
+	HDR_LEN_INC_DEAGG_HDR,
+	HDR_METADATA_REG_VALID,				/* Not v4.5+ */
+	HDR_LEN_MSB,					/* v4.5+ */
+	HDR_OFST_METADATA_MSB,				/* v4.5+ */
+};
 
 /* ENDP_INIT_HDR_EXT register */
-#define HDR_ENDIANNESS_FMASK			GENMASK(0, 0)
-#define HDR_TOTAL_LEN_OR_PAD_VALID_FMASK	GENMASK(1, 1)
-#define HDR_TOTAL_LEN_OR_PAD_FMASK		GENMASK(2, 2)
-#define HDR_PAYLOAD_LEN_INC_PADDING_FMASK	GENMASK(3, 3)
-#define HDR_TOTAL_LEN_OR_PAD_OFFSET_FMASK	GENMASK(9, 4)
-#define HDR_PAD_TO_ALIGNMENT_FMASK		GENMASK(13, 10)
-/* The next three fields are present for IPA v4.5+ */
-#define HDR_TOTAL_LEN_OR_PAD_OFFSET_MSB_FMASK	GENMASK(17, 16)
-#define HDR_OFST_PKT_SIZE_MSB_FMASK		GENMASK(19, 18)
-#define HDR_ADDITIONAL_CONST_LEN_MSB_FMASK	GENMASK(21, 20)
+enum ipa_reg_endp_init_hdr_ext_field_id {
+	HDR_ENDIANNESS,
+	HDR_TOTAL_LEN_OR_PAD_VALID,
+	HDR_TOTAL_LEN_OR_PAD,
+	HDR_PAYLOAD_LEN_INC_PADDING,
+	HDR_TOTAL_LEN_OR_PAD_OFFSET,
+	HDR_PAD_TO_ALIGNMENT,
+	HDR_TOTAL_LEN_OR_PAD_OFFSET_MSB,		/* v4.5+ */
+	HDR_OFST_PKT_SIZE_MSB,				/* v4.5+ */
+	HDR_ADDITIONAL_CONST_LEN_MSB,			/* v4.5+ */
+};
 
 /* ENDP_INIT_MODE register */
 #define MODE_FMASK				GENMASK(2, 0)

@@ -310,6 +310,7 @@ ipa_endpoint_init_ctrl(struct ipa_endpoint *endpoint, bool suspend_delay)
 {
 	struct ipa *ipa = endpoint->ipa;
 	const struct ipa_reg *reg;
+	u32 field_id;
 	u32 offset;
 	bool state;
 	u32 mask;
@@ -321,9 +322,11 @@ ipa_endpoint_init_ctrl(struct ipa_endpoint *endpoint, bool suspend_delay)
 		WARN_ON(ipa->version >= IPA_VERSION_4_0);
 
 	reg = ipa_reg(ipa, ENDP_INIT_CTRL);
-	mask = endpoint->toward_ipa ? ENDP_DELAY_FMASK : ENDP_SUSPEND_FMASK;
 	offset = ipa_reg_n_offset(reg, endpoint->endpoint_id);
 	val = ioread32(ipa->reg_virt + offset);
+
+	field_id = endpoint->toward_ipa ? ENDP_DELAY : ENDP_SUSPEND;
+	mask = ipa_reg_bit(reg, field_id);
 
 	state = !!(val & mask);
 
@@ -516,10 +519,8 @@ static void ipa_endpoint_init_cfg(struct ipa_endpoint *endpoint)
 			u32 off;
 
 			/* Checksum header offset is in 4-byte units */
-			off = sizeof(struct rmnet_map_header);
-			off /= sizeof(u32);
-			val |= u32_encode_bits(off,
-					       CS_METADATA_HDR_OFFSET_FMASK);
+			off = sizeof(struct rmnet_map_header) / sizeof(u32);
+			val |= ipa_reg_encode(reg, CS_METADATA_HDR_OFFSET, off);
 
 			enabled = version < IPA_VERSION_4_5
 					? IPA_CS_OFFLOAD_UL
@@ -532,7 +533,7 @@ static void ipa_endpoint_init_cfg(struct ipa_endpoint *endpoint)
 	} else {
 		enabled = IPA_CS_OFFLOAD_NONE;
 	}
-	val |= u32_encode_bits(enabled, CS_OFFLOAD_EN_FMASK);
+	val |= ipa_reg_encode(reg, CS_OFFLOAD_EN, enabled);
 	/* CS_GEN_QMB_MASTER_SEL is 0 */
 
 	iowrite32(val, ipa->reg_virt + ipa_reg_n_offset(reg, endpoint_id));
@@ -549,7 +550,7 @@ static void ipa_endpoint_init_nat(struct ipa_endpoint *endpoint)
 		return;
 
 	reg = ipa_reg(ipa, ENDP_INIT_NAT);
-	val = u32_encode_bits(IPA_NAT_BYPASS, NAT_EN_FMASK);
+	val = ipa_reg_encode(reg, NAT_EN, IPA_NAT_BYPASS);
 
 	iowrite32(val, ipa->reg_virt + ipa_reg_n_offset(reg, endpoint_id));
 }
@@ -573,6 +574,50 @@ ipa_qmap_header_size(enum ipa_version version, struct ipa_endpoint *endpoint)
 	}
 
 	return header_size;
+}
+
+/* Encoded value for ENDP_INIT_HDR register HDR_LEN* field(s) */
+static u32 ipa_header_size_encode(enum ipa_version version,
+				  const struct ipa_reg *reg, u32 header_size)
+{
+	u32 field_max = ipa_reg_field_max(reg, HDR_LEN);
+	u32 val;
+
+	/* We know field_max can be used as a mask (2^n - 1) */
+	val = ipa_reg_encode(reg, HDR_LEN, header_size & field_max);
+	if (version < IPA_VERSION_4_5) {
+		WARN_ON(header_size > field_max);
+		return val;
+	}
+
+	/* IPA v4.5 adds a few more most-significant bits */
+	header_size >>= hweight32(field_max);
+	WARN_ON(header_size > ipa_reg_field_max(reg, HDR_LEN_MSB));
+	val |= ipa_reg_encode(reg, HDR_LEN_MSB, header_size);
+
+	return val;
+}
+
+/* Encoded value for ENDP_INIT_HDR register OFST_METADATA* field(s) */
+static u32 ipa_metadata_offset_encode(enum ipa_version version,
+				      const struct ipa_reg *reg, u32 offset)
+{
+	u32 field_max = ipa_reg_field_max(reg, HDR_OFST_METADATA);
+	u32 val;
+
+	/* We know field_max can be used as a mask (2^n - 1) */
+	val = ipa_reg_encode(reg, HDR_OFST_METADATA, offset);
+	if (version < IPA_VERSION_4_5) {
+		WARN_ON(offset > field_max);
+		return val;
+	}
+
+	/* IPA v4.5 adds a few more most-significant bits */
+	offset >>= hweight32(field_max);
+	WARN_ON(offset > ipa_reg_field_max(reg, HDR_OFST_METADATA_MSB));
+	val |= ipa_reg_encode(reg, HDR_OFST_METADATA_MSB, offset);
+
+	return val;
 }
 
 /**
@@ -609,7 +654,7 @@ static void ipa_endpoint_init_hdr(struct ipa_endpoint *endpoint)
 		size_t header_size;
 
 		header_size = ipa_qmap_header_size(version, endpoint);
-		val = ipa_header_size_encoded(version, header_size);
+		val = ipa_header_size_encode(version, reg, header_size);
 
 		/* Define how to fill fields in a received QMAP header */
 		if (!endpoint->toward_ipa) {
@@ -617,19 +662,19 @@ static void ipa_endpoint_init_hdr(struct ipa_endpoint *endpoint)
 
 			/* Where IPA will write the metadata value */
 			off = offsetof(struct rmnet_map_header, mux_id);
-			val |= ipa_metadata_offset_encoded(version, off);
+			val |= ipa_metadata_offset_encode(version, reg, off);
 
 			/* Where IPA will write the length */
 			off = offsetof(struct rmnet_map_header, pkt_len);
 			/* Upper bits are stored in HDR_EXT with IPA v4.5 */
 			if (version >= IPA_VERSION_4_5)
-				off &= field_mask(HDR_OFST_PKT_SIZE_FMASK);
+				off &= ipa_reg_field_max(reg, HDR_OFST_PKT_SIZE);
 
-			val |= HDR_OFST_PKT_SIZE_VALID_FMASK;
-			val |= u32_encode_bits(off, HDR_OFST_PKT_SIZE_FMASK);
+			val |= ipa_reg_bit(reg, HDR_OFST_PKT_SIZE_VALID);
+			val |= ipa_reg_encode(reg, HDR_OFST_PKT_SIZE, off);
 		}
 		/* For QMAP TX, metadata offset is 0 (modem assumes this) */
-		val |= HDR_OFST_METADATA_VALID_FMASK;
+		val |= ipa_reg_bit(reg, HDR_OFST_METADATA_VALID);
 
 		/* HDR_ADDITIONAL_CONST_LEN is 0; (RX only) */
 		/* HDR_A5_MUX is 0 */
@@ -651,7 +696,7 @@ static void ipa_endpoint_init_hdr_ext(struct ipa_endpoint *endpoint)
 	reg = ipa_reg(ipa, ENDP_INIT_HDR_EXT);
 	if (endpoint->config.qmap) {
 		/* We have a header, so we must specify its endianness */
-		val |= HDR_ENDIANNESS_FMASK;	/* big endian */
+		val |= ipa_reg_bit(reg, HDR_ENDIANNESS);	/* big endian */
 
 		/* A QMAP header contains a 6 bit pad field at offset 0.
 		 * The RMNet driver assumes this field is meaningful in
@@ -661,16 +706,16 @@ static void ipa_endpoint_init_hdr_ext(struct ipa_endpoint *endpoint)
 		 * (although 0) should be ignored.
 		 */
 		if (!endpoint->toward_ipa) {
-			val |= HDR_TOTAL_LEN_OR_PAD_VALID_FMASK;
+			val |= ipa_reg_bit(reg, HDR_TOTAL_LEN_OR_PAD_VALID);
 			/* HDR_TOTAL_LEN_OR_PAD is 0 (pad, not total_len) */
-			val |= HDR_PAYLOAD_LEN_INC_PADDING_FMASK;
+			val |= ipa_reg_bit(reg, HDR_PAYLOAD_LEN_INC_PADDING);
 			/* HDR_TOTAL_LEN_OR_PAD_OFFSET is 0 */
 		}
 	}
 
 	/* HDR_PAYLOAD_LEN_INC_PADDING is 0 */
 	if (!endpoint->toward_ipa)
-		val |= u32_encode_bits(pad_align, HDR_PAD_TO_ALIGNMENT_FMASK);
+		val |= ipa_reg_encode(reg, HDR_PAD_TO_ALIGNMENT, pad_align);
 
 	/* IPA v4.5 adds some most-significant bits to a few fields,
 	 * two of which are defined in the HDR (not HDR_EXT) register.
@@ -678,12 +723,13 @@ static void ipa_endpoint_init_hdr_ext(struct ipa_endpoint *endpoint)
 	if (ipa->version >= IPA_VERSION_4_5) {
 		/* HDR_TOTAL_LEN_OR_PAD_OFFSET is 0, so MSB is 0 */
 		if (endpoint->config.qmap && !endpoint->toward_ipa) {
+			u32 mask = ipa_reg_field_max(reg, HDR_OFST_PKT_SIZE);
 			u32 off;     /* Field offset within header */
 
 			off = offsetof(struct rmnet_map_header, pkt_len);
-			off >>= hweight32(HDR_OFST_PKT_SIZE_FMASK);
-			val |= u32_encode_bits(off,
-					       HDR_OFST_PKT_SIZE_MSB_FMASK);
+			/* Low bits are in the ENDP_INIT_HDR register */
+			off >>= hweight32(mask);
+			val |= ipa_reg_encode(reg, HDR_OFST_PKT_SIZE_MSB, off);
 			/* HDR_ADDITIONAL_CONST_LEN is 0 so MSB is 0 */
 		}
 	}

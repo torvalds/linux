@@ -238,15 +238,58 @@ static const u32 ipa_reg_dst_rsrc_grp_67_rsrc_type_fmask[] = {
 IPA_REG_STRIDE_FIELDS(DST_RSRC_GRP_67_RSRC_TYPE, dst_rsrc_grp_67_rsrc_type,
 		      0x0000050c, 0x0020);
 
-IPA_REG_STRIDE(ENDP_INIT_CTRL, endp_init_ctrl, 0x00000800, 0x0070);
+static const u32 ipa_reg_endp_init_ctrl_fmask[] = {
+	[ENDP_SUSPEND]					= BIT(0),
+	[ENDP_DELAY]					= BIT(1),
+						/* Bits 2-31 reserved */
+};
 
-IPA_REG_STRIDE(ENDP_INIT_CFG, endp_init_cfg, 0x00000808, 0x0070);
+IPA_REG_STRIDE_FIELDS(ENDP_INIT_CTRL, endp_init_ctrl, 0x00000800, 0x0070);
 
-IPA_REG_STRIDE(ENDP_INIT_NAT, endp_init_nat, 0x0000080c, 0x0070);
+static const u32 ipa_reg_endp_init_cfg_fmask[] = {
+	[FRAG_OFFLOAD_EN]				= BIT(0),
+	[CS_OFFLOAD_EN]					= GENMASK(2, 1),
+	[CS_METADATA_HDR_OFFSET]			= GENMASK(6, 3),
+						/* Bit 7 reserved */
+	[CS_GEN_QMB_MASTER_SEL]				= BIT(8),
+						/* Bits 9-31 reserved */
+};
 
-IPA_REG_STRIDE(ENDP_INIT_HDR, endp_init_hdr, 0x00000810, 0x0070);
+IPA_REG_STRIDE_FIELDS(ENDP_INIT_CFG, endp_init_cfg, 0x00000808, 0x0070);
 
-IPA_REG_STRIDE(ENDP_INIT_HDR_EXT, endp_init_hdr_ext, 0x00000814, 0x0070);
+static const u32 ipa_reg_endp_init_nat_fmask[] = {
+	[NAT_EN]					= GENMASK(1, 0),
+						/* Bits 2-31 reserved */
+};
+
+IPA_REG_STRIDE_FIELDS(ENDP_INIT_NAT, endp_init_nat, 0x0000080c, 0x0070);
+
+static const u32 ipa_reg_endp_init_hdr_fmask[] = {
+	[HDR_LEN]					= GENMASK(5, 0),
+	[HDR_OFST_METADATA_VALID]			= BIT(6),
+	[HDR_OFST_METADATA]				= GENMASK(12, 7),
+	[HDR_ADDITIONAL_CONST_LEN]			= GENMASK(18, 13),
+	[HDR_OFST_PKT_SIZE_VALID]			= BIT(19),
+	[HDR_OFST_PKT_SIZE]				= GENMASK(25, 20),
+	[HDR_A5_MUX]					= BIT(26),
+	[HDR_LEN_INC_DEAGG_HDR]				= BIT(27),
+	[HDR_METADATA_REG_VALID]			= BIT(28),
+						/* Bits 29-31 reserved */
+};
+
+IPA_REG_STRIDE_FIELDS(ENDP_INIT_HDR, endp_init_hdr, 0x00000810, 0x0070);
+
+static const u32 ipa_reg_endp_init_hdr_ext_fmask[] = {
+	[HDR_ENDIANNESS]				= BIT(0),
+	[HDR_TOTAL_LEN_OR_PAD_VALID]			= BIT(1),
+	[HDR_TOTAL_LEN_OR_PAD]				= BIT(2),
+	[HDR_PAYLOAD_LEN_INC_PADDING]			= BIT(3),
+	[HDR_TOTAL_LEN_OR_PAD_OFFSET]			= GENMASK(9, 4),
+	[HDR_PAD_TO_ALIGNMENT]				= GENMASK(13, 10),
+						/* Bits 14-31 reserved */
+};
+
+IPA_REG_STRIDE_FIELDS(ENDP_INIT_HDR_EXT, endp_init_hdr_ext, 0x00000814, 0x0070);
 
 IPA_REG_STRIDE(ENDP_INIT_HDR_METADATA_MASK, endp_init_hdr_metadata_mask,
 	       0x00000818, 0x0070);
