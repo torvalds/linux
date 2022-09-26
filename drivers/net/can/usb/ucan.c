@@ -245,7 +245,8 @@ struct ucan_message_in {
 		/* CAN transmission complete
 		 * (type == UCAN_IN_TX_COMPLETE)
 		 */
-		struct ucan_tx_complete_entry_t can_tx_complete_msg[0];
+		DECLARE_FLEX_ARRAY(struct ucan_tx_complete_entry_t,
+				   can_tx_complete_msg);
 	} __aligned(0x4) msg;
 } __packed __aligned(0x4);
 
