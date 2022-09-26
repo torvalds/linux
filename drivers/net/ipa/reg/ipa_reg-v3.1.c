@@ -107,13 +107,24 @@ IPA_REG(STATE_AGGR_ACTIVE, state_aggr_active, 0x0000010c);
 
 IPA_REG(IPA_BCR, ipa_bcr, 0x000001d0);
 
+static const u32 ipa_reg_local_pkt_proc_cntxt_fmask[] = {
+	[IPA_BASE_ADDR]					= GENMASK(16, 0),
+						/* Bits 17-31 reserved */
+};
+
 /* Offset must be a multiple of 8 */
-IPA_REG(LOCAL_PKT_PROC_CNTXT, local_pkt_proc_cntxt, 0x000001e8);
+IPA_REG_FIELDS(LOCAL_PKT_PROC_CNTXT, local_pkt_proc_cntxt, 0x000001e8);
 
 /* Valid bits defined by ipa->available */
 IPA_REG(AGGR_FORCE_CLOSE, aggr_force_close, 0x000001ec);
 
-IPA_REG(COUNTER_CFG, counter_cfg, 0x000001f0);
+static const u32 ipa_reg_counter_cfg_fmask[] = {
+	[EOT_COAL_GRANULARITY]				= GENMASK(3, 0),
+	[AGGR_GRANULARITY]				= GENMASK(8, 4),
+						/* Bits 5-31 reserved */
+};
+
+IPA_REG_FIELDS(COUNTER_CFG, counter_cfg, 0x000001f0);
 
 IPA_REG_STRIDE(SRC_RSRC_GRP_01_RSRC_TYPE, src_rsrc_grp_01_rsrc_type,
 	       0x00000400, 0x0020);

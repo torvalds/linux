@@ -136,15 +136,40 @@ IPA_REG(STATE_AGGR_ACTIVE, state_aggr_active, 0x000000b4);
 
 IPA_REG(IPA_BCR, ipa_bcr, 0x000001d0);
 
+static const u32 ipa_reg_local_pkt_proc_cntxt_fmask[] = {
+	[IPA_BASE_ADDR]					= GENMASK(16, 0),
+						/* Bits 17-31 reserved */
+};
+
 /* Offset must be a multiple of 8 */
-IPA_REG(LOCAL_PKT_PROC_CNTXT, local_pkt_proc_cntxt, 0x000001e8);
+IPA_REG_FIELDS(LOCAL_PKT_PROC_CNTXT, local_pkt_proc_cntxt, 0x000001e8);
 
 /* Valid bits defined by ipa->available */
 IPA_REG(AGGR_FORCE_CLOSE, aggr_force_close, 0x000001ec);
 
-IPA_REG(COUNTER_CFG, counter_cfg, 0x000001f0);
+static const u32 ipa_reg_counter_cfg_fmask[] = {
+						/* Bits 0-3 reserved */
+	[AGGR_GRANULARITY]				= GENMASK(8, 4),
+						/* Bits 9-31 reserved */
+};
 
-IPA_REG(IPA_TX_CFG, ipa_tx_cfg, 0x000001fc);
+IPA_REG_FIELDS(COUNTER_CFG, counter_cfg, 0x000001f0);
+
+static const u32 ipa_reg_ipa_tx_cfg_fmask[] = {
+						/* Bits 0-1 reserved */
+	[PREFETCH_ALMOST_EMPTY_SIZE_TX0]		= GENMASK(5, 2),
+	[DMAW_SCND_OUTSD_PRED_THRESHOLD]		= GENMASK(9, 6),
+	[DMAW_SCND_OUTSD_PRED_EN]			= BIT(10),
+	[DMAW_MAX_BEATS_256_DIS]			= BIT(11),
+	[PA_MASK_EN]					= BIT(12),
+	[PREFETCH_ALMOST_EMPTY_SIZE_TX1]		= GENMASK(16, 13),
+						/* Bit 17 reserved */
+	[SSPND_PA_NO_START_STATE]			= BIT(18),
+	[SSPND_PA_NO_BQ_STATE]				= BIT(19),
+						/* Bits 20-31 reserved */
+};
+
+IPA_REG_FIELDS(IPA_TX_CFG, ipa_tx_cfg, 0x000001fc);
 
 IPA_REG(FLAVOR_0, flavor_0, 0x00000210);
 

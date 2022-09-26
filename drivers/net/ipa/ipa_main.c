@@ -214,7 +214,7 @@ static void ipa_hardware_config_tx(struct ipa *ipa)
 
 	val = ioread32(ipa->reg_virt + offset);
 
-	val &= ~PA_MASK_EN_FMASK;
+	val &= ~ipa_reg_bit(reg, PA_MASK_EN);
 
 	iowrite32(val, ipa->reg_virt + offset);
 }
@@ -398,7 +398,8 @@ static void ipa_hardware_config_counter(struct ipa *ipa)
 	u32 val;
 
 	reg = ipa_reg(ipa, COUNTER_CFG);
-	val = u32_encode_bits(granularity, AGGR_GRANULARITY_FMASK);
+	/* If defined, EOT_COAL_GRANULARITY is 0 */
+	val = ipa_reg_encode(reg, AGGR_GRANULARITY, granularity);
 	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
 }
 
@@ -690,8 +691,6 @@ static void ipa_validate_build(void)
 
 	/* Aggregation granularity value can't be 0, and must fit */
 	BUILD_BUG_ON(!ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY));
-	BUILD_BUG_ON(ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY) >
-			field_max(AGGR_GRANULARITY_FMASK));
 }
 
 /**

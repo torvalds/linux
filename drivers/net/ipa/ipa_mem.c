@@ -115,7 +115,7 @@ int ipa_mem_setup(struct ipa *ipa)
 	offset = ipa->mem_offset + mem->offset;
 
 	reg = ipa_reg(ipa, LOCAL_PKT_PROC_CNTXT);
-	val = proc_cntxt_base_addr_encoded(ipa->version, offset);
+	val = ipa_reg_encode(reg, IPA_BASE_ADDR, offset);
 	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
 
 	return 0;

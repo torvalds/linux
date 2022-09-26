@@ -289,39 +289,31 @@ enum ipa_bcr_compat {
 };
 
 /* LOCAL_PKT_PROC_CNTXT register */
-/* Encoded value for LOCAL_PKT_PROC_CNTXT register BASE_ADDR field */
-static inline u32 proc_cntxt_base_addr_encoded(enum ipa_version version,
-					       u32 addr)
-{
-	if (version < IPA_VERSION_4_5)
-		return u32_encode_bits(addr, GENMASK(16, 0));
-
-	return u32_encode_bits(addr, GENMASK(17, 0));
-}
+enum ipa_reg_local_pkt_proc_cntxt_field_id {
+	IPA_BASE_ADDR,
+};
 
 /* COUNTER_CFG register */
-/* The next field is not present for IPA v3.5+ */
-#define EOT_COAL_GRANULARITY_FMASK		GENMASK(3, 0)
-#define AGGR_GRANULARITY_FMASK			GENMASK(8, 4)
+enum ipa_reg_counter_cfg_field_id {
+	EOT_COAL_GRANULARITY,				/* Not v3.5+ */
+	AGGR_GRANULARITY,
+};
 
 /* IPA_TX_CFG register */
-/* The next three fields are not present for IPA v4.0+ */
-#define TX0_PREFETCH_DISABLE_FMASK		GENMASK(0, 0)
-#define TX1_PREFETCH_DISABLE_FMASK		GENMASK(1, 1)
-#define PREFETCH_ALMOST_EMPTY_SIZE_FMASK	GENMASK(4, 2)
-/* The next six fields are present for IPA v4.0+ */
-#define PREFETCH_ALMOST_EMPTY_SIZE_TX0_FMASK	GENMASK(5, 2)
-#define DMAW_SCND_OUTSD_PRED_THRESHOLD_FMASK	GENMASK(9, 6)
-#define DMAW_SCND_OUTSD_PRED_EN_FMASK		GENMASK(10, 10)
-#define DMAW_MAX_BEATS_256_DIS_FMASK		GENMASK(11, 11)
-#define PA_MASK_EN_FMASK			GENMASK(12, 12)
-#define PREFETCH_ALMOST_EMPTY_SIZE_TX1_FMASK	GENMASK(16, 13)
-/* The next field is present for IPA v4.5+ */
-#define DUAL_TX_ENABLE_FMASK			GENMASK(17, 17)
-/* The next field is present for IPA v4.2+, but not IPA v4.5 */
-#define SSPND_PA_NO_START_STATE_FMASK		GENMASK(18, 18)
-/* The next field is present for IPA v4.2 only */
-#define SSPND_PA_NO_BQ_STATE_FMASK		GENMASK(19, 19)
+enum ipa_reg_ipa_tx_cfg_field_id {
+	TX0_PREFETCH_DISABLE,				/* Not v4.0+ */
+	TX1_PREFETCH_DISABLE,				/* Not v4.0+ */
+	PREFETCH_ALMOST_EMPTY_SIZE,			/* Not v4.0+ */
+	PREFETCH_ALMOST_EMPTY_SIZE_TX0,			/* v4.0+ */
+	DMAW_SCND_OUTSD_PRED_THRESHOLD,			/* v4.0+ */
+	DMAW_SCND_OUTSD_PRED_EN,			/* v4.0+ */
+	DMAW_MAX_BEATS_256_DIS,				/* v4.0+ */
+	PA_MASK_EN,					/* v4.0+ */
+	PREFETCH_ALMOST_EMPTY_SIZE_TX1,			/* v4.0+ */
+	DUAL_TX_ENABLE,					/* v4.5+ */
+	SSPND_PA_NO_START_STATE,			/* v4,2+, not v4.5 */
+	SSPND_PA_NO_BQ_STATE,				/* v4.2 only */
+};
 
 /* FLAVOR_0 register */
 #define IPA_MAX_PIPES_FMASK			GENMASK(3, 0)
