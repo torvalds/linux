@@ -16,7 +16,7 @@
 
 #include "hisi_acc_vfio_pci.h"
 
-/* return 0 on VM acc device ready, -ETIMEDOUT hardware timeout */
+/* Return 0 on VM acc device ready, -ETIMEDOUT hardware timeout */
 static int qm_wait_dev_not_ready(struct hisi_qm *qm)
 {
 	u32 val;
@@ -189,7 +189,7 @@ static int qm_set_regs(struct hisi_qm *qm, struct acc_vf_data *vf_data)
 	struct device *dev = &qm->pdev->dev;
 	int ret;
 
-	/* check VF state */
+	/* Check VF state */
 	if (unlikely(hisi_qm_wait_mb_ready(qm))) {
 		dev_err(&qm->pdev->dev, "QM device is not ready to write\n");
 		return -EBUSY;
@@ -373,7 +373,7 @@ static int vf_qm_check_match(struct hisi_acc_vf_core_device *hisi_acc_vdev,
 		return -EINVAL;
 	}
 
-	/* vf qp num check */
+	/* VF qp num check */
 	ret = qm_get_vft(vf_qm, &vf_qm->qp_base);
 	if (ret <= 0) {
 		dev_err(dev, "failed to get vft qp nums\n");
@@ -387,7 +387,7 @@ static int vf_qm_check_match(struct hisi_acc_vf_core_device *hisi_acc_vdev,
 
 	vf_qm->qp_num = ret;
 
-	/* vf isolation state check */
+	/* VF isolation state check */
 	ret = qm_read_regs(pf_qm, QM_QUE_ISO_CFG_V, &que_iso_state, 1);
 	if (ret) {
 		dev_err(dev, "failed to read QM_QUE_ISO_CFG_V\n");
@@ -418,10 +418,10 @@ static int vf_qm_get_match_data(struct hisi_acc_vf_core_device *hisi_acc_vdev,
 	int ret;
 
 	vf_data->acc_magic = ACC_DEV_MAGIC;
-	/* save device id */
+	/* Save device id */
 	vf_data->dev_id = hisi_acc_vdev->vf_dev->device;
 
-	/* vf qp num save from PF */
+	/* VF qp num save from PF */
 	ret = pf_qm_get_qp_num(pf_qm, vf_id, &vf_data->qp_base);
 	if (ret <= 0) {
 		dev_err(dev, "failed to get vft qp nums!\n");
@@ -465,19 +465,19 @@ static int vf_qm_load_data(struct hisi_acc_vf_core_device *hisi_acc_vdev,
 
 	ret = qm_set_regs(qm, vf_data);
 	if (ret) {
-		dev_err(dev, "Set VF regs failed\n");
+		dev_err(dev, "set VF regs failed\n");
 		return ret;
 	}
 
 	ret = hisi_qm_mb(qm, QM_MB_CMD_SQC_BT, qm->sqc_dma, 0, 0);
 	if (ret) {
-		dev_err(dev, "Set sqc failed\n");
+		dev_err(dev, "set sqc failed\n");
 		return ret;
 	}
 
 	ret = hisi_qm_mb(qm, QM_MB_CMD_CQC_BT, qm->cqc_dma, 0, 0);
 	if (ret) {
-		dev_err(dev, "Set cqc failed\n");
+		dev_err(dev, "set cqc failed\n");
 		return ret;
 	}
 
