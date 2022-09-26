@@ -40,5 +40,17 @@
 # 'W' or 'w'.
 #
 # Ignored prefixes:
+#  $                    - local symbols for ARM, MIPS, etc.
+#  .L                   - local labels, .LBB,.Ltmpxxx,.L__unnamed_xx,.LASANPC, etc.
 #  __crc_               - modversions
-$NM -n $1 | grep -v '\( [aNUw] \)\|\(__crc_\)\|\( \$[adt]\)\|\( \.L\)\|\( L0\)' > $2
+#
+# Ignored symbols:
+#  L0                   - for LoongArch?
+
+$NM -n $1 | grep -v		\
+	-e ' [aNUw] '		\
+	-e ' \$'		\
+	-e ' \.L'		\
+	-e ' __crc_'		\
+	-e ' L0$'		\
+> $2
