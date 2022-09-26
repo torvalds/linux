@@ -1331,6 +1331,7 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	unsigned long lock_flags = 0;
 	int ret = 0;
+	bool is_wait = true;
 
 	if (!dev->dmarx_dev.trigger &&
 	    (is_rdbk_stream(stream) || is_hdr_stream(stream))) {
@@ -1348,12 +1349,13 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 		if (IS_HDR_RDBK(dev->rd_mode)) {
 			spin_lock_irqsave(&dev->hw_dev->rdbk_lock, lock_flags);
 			if (dev->hw_dev->cur_dev_id != dev->dev_id || dev->hw_dev->is_idle)
+				is_wait = false;
+			if (atomic_read(&dev->cap_dev.refcnt) == 1 && !is_wait)
 				dev->isp_state = ISP_STOP;
 			spin_unlock_irqrestore(&dev->hw_dev->rdbk_lock, lock_flags);
 		}
 	}
-	if (dev->isp_state & ISP_START &&
-	    !stream->ops->is_stream_stopped(stream)) {
+	if (is_wait && !stream->ops->is_stream_stopped(stream)) {
 		ret = wait_event_timeout(stream->done,
 					 !stream->streaming,
 					 msecs_to_jiffies(500));
