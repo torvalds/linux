@@ -520,12 +520,12 @@ static int vf_qm_state_save(struct hisi_acc_vf_core_device *hisi_acc_vdev,
 		return -EINVAL;
 
 	/* Every reg is 32 bit, the dma address is 64 bit. */
-	vf_data->eqe_dma = vf_data->qm_eqc_dw[2];
+	vf_data->eqe_dma = vf_data->qm_eqc_dw[1];
 	vf_data->eqe_dma <<= QM_XQC_ADDR_OFFSET;
-	vf_data->eqe_dma |= vf_data->qm_eqc_dw[1];
-	vf_data->aeqe_dma = vf_data->qm_aeqc_dw[2];
+	vf_data->eqe_dma |= vf_data->qm_eqc_dw[0];
+	vf_data->aeqe_dma = vf_data->qm_aeqc_dw[1];
 	vf_data->aeqe_dma <<= QM_XQC_ADDR_OFFSET;
-	vf_data->aeqe_dma |= vf_data->qm_aeqc_dw[1];
+	vf_data->aeqe_dma |= vf_data->qm_aeqc_dw[0];
 
 	/* Through SQC_BT/CQC_BT to get sqc and cqc address */
 	ret = qm_get_sqc(vf_qm, &vf_data->sqc_dma);
