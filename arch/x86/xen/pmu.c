@@ -131,6 +131,9 @@ static inline uint32_t get_fam15h_addr(u32 addr)
 
 static inline bool is_amd_pmu_msr(unsigned int msr)
 {
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+		return false;
+
 	if ((msr >= MSR_F15H_PERF_CTL &&
 	     msr < MSR_F15H_PERF_CTR + (amd_num_counters * 2)) ||
 	    (msr >= MSR_K7_EVNTSEL0 &&
@@ -143,6 +146,9 @@ static inline bool is_amd_pmu_msr(unsigned int msr)
 static int is_intel_pmu_msr(u32 msr_index, int *type, int *index)
 {
 	u32 msr_index_pmc;
+
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
+		return false;
 
 	switch (msr_index) {
 	case MSR_CORE_PERF_FIXED_CTR_CTRL:
@@ -290,48 +296,52 @@ static bool xen_amd_pmu_emulate(unsigned int msr, u64 *val, bool is_read)
 	return false;
 }
 
+static bool pmu_msr_chk_emulated(unsigned int msr, uint64_t *val, bool is_read,
+				 bool *emul)
+{
+	int type, index;
+
+	if (is_amd_pmu_msr(msr))
+		*emul = xen_amd_pmu_emulate(msr, val, is_read);
+	else if (is_intel_pmu_msr(msr, &type, &index))
+		*emul = xen_intel_pmu_emulate(msr, val, type, index, is_read);
+	else
+		return false;
+
+	return true;
+}
+
 bool pmu_msr_read(unsigned int msr, uint64_t *val, int *err)
 {
-	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL) {
-		if (is_amd_pmu_msr(msr)) {
-			if (!xen_amd_pmu_emulate(msr, val, 1))
-				*val = native_read_msr_safe(msr, err);
-			return true;
-		}
-	} else {
-		int type, index;
+	bool emulated;
 
-		if (is_intel_pmu_msr(msr, &type, &index)) {
-			if (!xen_intel_pmu_emulate(msr, val, type, index, 1))
-				*val = native_read_msr_safe(msr, err);
-			return true;
-		}
+	if (!pmu_msr_chk_emulated(msr, val, true, &emulated))
+		return false;
+
+	if (!emulated) {
+		*val = err ? native_read_msr_safe(msr, err)
+			   : native_read_msr(msr);
 	}
 
-	return false;
+	return true;
 }
 
 bool pmu_msr_write(unsigned int msr, uint32_t low, uint32_t high, int *err)
 {
 	uint64_t val = ((uint64_t)high << 32) | low;
+	bool emulated;
 
-	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL) {
-		if (is_amd_pmu_msr(msr)) {
-			if (!xen_amd_pmu_emulate(msr, &val, 0))
-				*err = native_write_msr_safe(msr, low, high);
-			return true;
-		}
-	} else {
-		int type, index;
+	if (!pmu_msr_chk_emulated(msr, &val, false, &emulated))
+		return false;
 
-		if (is_intel_pmu_msr(msr, &type, &index)) {
-			if (!xen_intel_pmu_emulate(msr, &val, type, index, 0))
-				*err = native_write_msr_safe(msr, low, high);
-			return true;
-		}
+	if (!emulated) {
+		if (err)
+			*err = native_write_msr_safe(msr, low, high);
+		else
+			native_write_msr(msr, low, high);
 	}
 
-	return false;
+	return true;
 }
 
 static unsigned long long xen_amd_read_pmc(int counter)
