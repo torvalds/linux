@@ -107,6 +107,12 @@ patternProperties:
         minimum: 0
         maximum: 11
 
+    patternProperties:
+      "^(.+-hog(-[0-9]+)?)$":
+        type: object
+        required:
+          - gpio-hog
+
     required:
       - gpio-controller
       - '#gpio-cells'
