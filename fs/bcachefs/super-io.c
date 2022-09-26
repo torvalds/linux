@@ -1161,7 +1161,7 @@ int bch2_sb_clean_validate_late(struct bch_fs *c, struct bch_sb_field_clean *cle
 	for (entry = clean->start;
 	     entry < (struct jset_entry *) vstruct_end(&clean->field);
 	     entry = vstruct_next(entry)) {
-		ret = bch2_journal_entry_validate(c, "superblock", entry,
+		ret = bch2_journal_entry_validate(c, NULL, entry,
 						  le16_to_cpu(c->disk_sb.sb->version),
 						  BCH_SB_BIG_ENDIAN(c->disk_sb.sb),
 						  write);
