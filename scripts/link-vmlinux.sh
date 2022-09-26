@@ -157,7 +157,7 @@ kallsyms()
 	fi
 
 	info KSYMS ${2}
-	cat ${1} | scripts/kallsyms ${kallsymopt} > ${2}
+	scripts/kallsyms ${kallsymopt} ${1} > ${2}
 }
 
 # Perform one step in kallsyms generation, including temporary linking of
