@@ -38,8 +38,6 @@ struct cma_heap_buffer {
 	pgoff_t pagecount;
 	int vmap_cnt;
 	void *vaddr;
-
-	bool uncached;
 };
 
 struct dma_heap_attachment {
@@ -47,8 +45,6 @@ struct dma_heap_attachment {
 	struct sg_table table;
 	struct list_head list;
 	bool mapped;
-
-	bool uncached;
 };
 
 static int cma_heap_attach(struct dma_buf *dmabuf,
@@ -75,7 +71,6 @@ static int cma_heap_attach(struct dma_buf *dmabuf,
 	INIT_LIST_HEAD(&a->list);
 	a->mapped = false;
 
-	a->uncached = buffer->uncached;
 	attachment->priv = a;
 
 	mutex_lock(&buffer->lock);
@@ -107,9 +102,6 @@ static struct sg_table *cma_heap_map_dma_buf(struct dma_buf_attachment *attachme
 	int attrs = attachment->dma_map_attrs;
 	int ret;
 
-	if (a->uncached)
-		attrs |= DMA_ATTR_SKIP_CPU_SYNC;
-
 	ret = dma_map_sgtable(attachment->dev, table, direction, attrs);
 	if (ret)
 		return ERR_PTR(-ENOMEM);
@@ -125,10 +117,6 @@ static void cma_heap_unmap_dma_buf(struct dma_buf_attachment *attachment,
 	int attrs = attachment->dma_map_attrs;
 
 	a->mapped = false;
-
-	if (a->uncached)
-		attrs |= DMA_ATTR_SKIP_CPU_SYNC;
-
 	dma_unmap_sgtable(attachment->dev, table, direction, attrs);
 }
 
@@ -140,9 +128,6 @@ static int cma_heap_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 
 	if (buffer->vmap_cnt)
 		invalidate_kernel_vmap_range(buffer->vaddr, buffer->len);
-
-	if (buffer->uncached)
-		return 0;
 
 	mutex_lock(&buffer->lock);
 	list_for_each_entry(a, &buffer->attachments, list) {
@@ -163,9 +148,6 @@ static int cma_heap_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 
 	if (buffer->vmap_cnt)
 		flush_kernel_vmap_range(buffer->vaddr, buffer->len);
-
-	if (buffer->uncached)
-		return 0;
 
 	mutex_lock(&buffer->lock);
 	list_for_each_entry(a, &buffer->attachments, list) {
@@ -203,9 +185,6 @@ static int cma_heap_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 	if ((vma->vm_flags & (VM_SHARED | VM_MAYSHARE)) == 0)
 		return -EINVAL;
 
-	if (buffer->uncached)
-		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-
 	vma->vm_ops = &dma_heap_vm_ops;
 	vma->vm_private_data = buffer;
 
@@ -215,12 +194,8 @@ static int cma_heap_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 static void *cma_heap_do_vmap(struct cma_heap_buffer *buffer)
 {
 	void *vaddr;
-	pgprot_t pgprot = PAGE_KERNEL;
 
-	if (buffer->uncached)
-		pgprot = pgprot_writecombine(PAGE_KERNEL);
-
-	vaddr = vmap(buffer->pages, buffer->pagecount, VM_MAP, pgprot);
+	vaddr = vmap(buffer->pages, buffer->pagecount, VM_MAP, PAGE_KERNEL);
 	if (!vaddr)
 		return ERR_PTR(-ENOMEM);
 
@@ -293,10 +268,10 @@ static const struct dma_buf_ops cma_heap_buf_ops = {
 	.release = cma_heap_dma_buf_release,
 };
 
-static struct dma_buf *cma_heap_do_allocate(struct dma_heap *heap,
+static struct dma_buf *cma_heap_allocate(struct dma_heap *heap,
 					 unsigned long len,
 					 unsigned long fd_flags,
-					 unsigned long heap_flags, bool uncached)
+					 unsigned long heap_flags)
 {
 	struct cma_heap *cma_heap = dma_heap_get_drvdata(heap);
 	struct cma_heap_buffer *buffer;
@@ -308,13 +283,10 @@ static struct dma_buf *cma_heap_do_allocate(struct dma_heap *heap,
 	struct dma_buf *dmabuf;
 	int ret = -ENOMEM;
 	pgoff_t pg;
-	dma_addr_t dma;
 
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
 	if (!buffer)
 		return ERR_PTR(-ENOMEM);
-
-	buffer->uncached = uncached;
 
 	INIT_LIST_HEAD(&buffer->attachments);
 	mutex_init(&buffer->lock);
@@ -375,13 +347,6 @@ static struct dma_buf *cma_heap_do_allocate(struct dma_heap *heap,
 		goto free_pages;
 	}
 
-	if (buffer->uncached) {
-		dma = dma_map_page(dma_heap_get_dev(heap), buffer->cma_pages, 0,
-			     buffer->pagecount * PAGE_SIZE, DMA_FROM_DEVICE);
-		dma_unmap_page(dma_heap_get_dev(heap), dma,
-			       buffer->pagecount * PAGE_SIZE, DMA_FROM_DEVICE);
-	}
-
 	return dmabuf;
 
 free_pages:
@@ -394,71 +359,14 @@ free_buffer:
 	return ERR_PTR(ret);
 }
 
-static struct dma_buf *cma_heap_allocate(struct dma_heap *heap,
-					 unsigned long len,
-					 unsigned long fd_flags,
-					 unsigned long heap_flags)
-{
-	return cma_heap_do_allocate(heap, len, fd_flags, heap_flags, false);
-}
-
 static const struct dma_heap_ops cma_heap_ops = {
 	.allocate = cma_heap_allocate,
 };
 
-static struct dma_buf *cma_uncached_heap_allocate(struct dma_heap *heap,
-					 unsigned long len,
-					 unsigned long fd_flags,
-					 unsigned long heap_flags)
-{
-	return cma_heap_do_allocate(heap, len, fd_flags, heap_flags, true);
-}
-
-static struct dma_buf *cma_uncached_heap_not_initialized(struct dma_heap *heap,
-					 unsigned long len,
-					 unsigned long fd_flags,
-					 unsigned long heap_flags)
-{
-	pr_info("heap %s not initialized\n", dma_heap_get_name(heap));
-	return ERR_PTR(-EBUSY);
-}
-
-static struct dma_heap_ops cma_uncached_heap_ops = {
-	.allocate = cma_uncached_heap_not_initialized,
-};
-
-static int set_heap_dev_dma(struct device *heap_dev)
-{
-	int err = 0;
-
-	if (!heap_dev)
-		return -EINVAL;
-
-	dma_coerce_mask_and_coherent(heap_dev, DMA_BIT_MASK(64));
-
-	if (!heap_dev->dma_parms) {
-		heap_dev->dma_parms = devm_kzalloc(heap_dev,
-						   sizeof(*heap_dev->dma_parms),
-						   GFP_KERNEL);
-		if (!heap_dev->dma_parms)
-			return -ENOMEM;
-
-		err = dma_set_max_seg_size(heap_dev, (unsigned int)DMA_BIT_MASK(64));
-		if (err) {
-			devm_kfree(heap_dev, heap_dev->dma_parms);
-			dev_err(heap_dev, "Failed to set DMA segment size, err:%d\n", err);
-			return err;
-		}
-	}
-
-	return 0;
-}
-
 static int __add_cma_heap(struct cma *cma, void *data)
 {
-	struct cma_heap *cma_heap, *cma_uncached_heap;
+	struct cma_heap *cma_heap;
 	struct dma_heap_export_info exp_info;
-	int ret;
 
 	cma_heap = kzalloc(sizeof(*cma_heap), GFP_KERNEL);
 	if (!cma_heap)
@@ -471,47 +379,13 @@ static int __add_cma_heap(struct cma *cma, void *data)
 
 	cma_heap->heap = dma_heap_add(&exp_info);
 	if (IS_ERR(cma_heap->heap)) {
-		ret = PTR_ERR(cma_heap->heap);
-		goto free_cma_heap;
+		int ret = PTR_ERR(cma_heap->heap);
+
+		kfree(cma_heap);
+		return ret;
 	}
-
-	cma_uncached_heap = kzalloc(sizeof(*cma_heap), GFP_KERNEL);
-	if (!cma_uncached_heap) {
-		ret = -ENOMEM;
-		goto put_cma_heap;
-	}
-
-	cma_uncached_heap->cma = cma;
-
-	exp_info.name = "cma-uncached";
-	exp_info.ops = &cma_uncached_heap_ops;
-	exp_info.priv = cma_uncached_heap;
-
-	cma_uncached_heap->heap = dma_heap_add(&exp_info);
-	if (IS_ERR(cma_uncached_heap->heap)) {
-		ret = PTR_ERR(cma_uncached_heap->heap);
-		goto free_uncached_cma_heap;
-	}
-
-	ret = set_heap_dev_dma(dma_heap_get_dev(cma_uncached_heap->heap));
-	if (ret)
-		goto put_uncached_cma_heap;
-
-	mb(); /* make sure we only set allocate after dma_mask is set */
-	cma_uncached_heap_ops.allocate = cma_uncached_heap_allocate;
 
 	return 0;
-
-put_uncached_cma_heap:
-	dma_heap_put(cma_uncached_heap->heap);
-free_uncached_cma_heap:
-	kfree(cma_uncached_heap);
-put_cma_heap:
-	dma_heap_put(cma_heap->heap);
-free_cma_heap:
-	kfree(cma_heap);
-
-	return ret;
 }
 
 static int add_default_cma_heap(void)
