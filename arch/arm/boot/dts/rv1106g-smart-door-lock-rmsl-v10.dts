@@ -98,11 +98,6 @@
 	status = "disabled";
 };
 
-&meta {
-	/* reserved meta partition 384KB */
-	reg = <0x01e00000 (384 * 0x400)>;
-};
-
 &pinctrl {
 	mcu {
 		/omit-if-no-ref/
