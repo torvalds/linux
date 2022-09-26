@@ -196,13 +196,14 @@ struct twl6040_gpo_data {
 };
 
 struct twl6040_platform_data {
-	int audpwron_gpio;	/* audio power-on gpio */
+	struct gpio_desc *audpwron_gpio;	/* audio power-on gpio */
 
 	struct twl6040_codec_data *codec;
 	struct twl6040_vibra_data *vibra;
 	struct twl6040_gpo_data *gpo;
 };
 
+struct gpio_desc;
 struct regmap;
 struct regmap_irq_chips_data;
 
@@ -218,7 +219,7 @@ struct twl6040 {
 	struct mfd_cell cells[TWL6040_CELLS];
 	struct completion ready;
 
-	int audpwron;
+	struct gpio_desc *audpwron;
 	int power_count;
 	int rev;
 
