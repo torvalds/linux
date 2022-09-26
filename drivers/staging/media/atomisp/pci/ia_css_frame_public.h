@@ -220,6 +220,17 @@ ia_css_frame_allocate(struct ia_css_frame **frame,
 		      unsigned int stride,
 		      unsigned int raw_bit_depth);
 
+/* @brief Initialize a CSS frame structure using a frame info structure.
+ *
+ * @param	frame	The allocated frame.
+ * @param[in]	info	The frame info structure.
+ * @return		The error code.
+ *
+ * Initialize a frame using the resolution and format from a frame info struct.
+ */
+int ia_css_frame_init_from_info(struct ia_css_frame *frame,
+				const struct ia_css_frame_info *info);
+
 /* @brief Allocate a CSS frame structure using a frame info structure.
  *
  * @param	frame	The allocated frame.

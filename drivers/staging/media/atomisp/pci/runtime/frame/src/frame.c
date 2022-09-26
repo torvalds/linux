@@ -847,3 +847,19 @@ void ia_css_resolution_to_sp_resolution(
 	to->width  = (uint16_t)from->width;
 	to->height = (uint16_t)from->height;
 }
+
+int ia_css_frame_init_from_info(struct ia_css_frame *frame,
+				const struct ia_css_frame_info *frame_info)
+{
+	frame->info.res.width = frame_info->res.width;
+	frame->info.res.height = frame_info->res.height;
+	frame->info.format = frame_info->format;
+	frame->info.padded_width = frame_info->padded_width;
+	frame->info.raw_bit_depth = frame_info->raw_bit_depth;
+	frame->valid = true;
+	/* To indicate it is not valid frame. */
+	frame->dynamic_queue_id = SH_CSS_INVALID_QUEUE_ID;
+	frame->buf_type = IA_CSS_BUFFER_TYPE_INVALID;
+
+	return ia_css_frame_init_planes(frame);
+}
