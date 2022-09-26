@@ -327,6 +327,12 @@ n:
 
 #ifdef __powerpc64__
 
+#define __LOAD_PACA_TOC(reg)			\
+	ld	reg,PACATOC(r13)
+
+#define LOAD_PACA_TOC()				\
+	__LOAD_PACA_TOC(r2)
+
 #define LOAD_REG_IMMEDIATE(reg, expr) __LOAD_REG_IMMEDIATE reg, expr
 
 #define LOAD_REG_IMMEDIATE_SYM(reg, tmp, expr)	\

@@ -57,7 +57,7 @@ _ASM_NOKPROBE_SYMBOL(system_call_vectored_\name)
 	std	r0,GPR0(r1)
 	std	r10,GPR1(r1)
 	std	r2,GPR2(r1)
-	ld	r2,PACATOC(r13)
+	LOAD_PACA_TOC()
 	mfcr	r12
 	li	r11,0
 	/* Save syscall parameters in r3-r8 */
@@ -174,7 +174,7 @@ syscall_vectored_\name\()_restart:
 _ASM_NOKPROBE_SYMBOL(syscall_vectored_\name\()_restart)
 	GET_PACA(r13)
 	ld	r1,PACA_EXIT_SAVE_R1(r13)
-	ld	r2,PACATOC(r13)
+	LOAD_PACA_TOC()
 	ld	r3,RESULT(r1)
 	addi	r4,r1,STACK_FRAME_OVERHEAD
 	li	r11,IRQS_ALL_DISABLED
@@ -224,7 +224,7 @@ START_BTB_FLUSH_SECTION
 	BTB_FLUSH(r10)
 END_BTB_FLUSH_SECTION
 #endif
-	ld	r2,PACATOC(r13)
+	LOAD_PACA_TOC()
 	mfcr	r12
 	li	r11,0
 	/* Save syscall parameters in r3-r8 */
@@ -355,7 +355,7 @@ syscall_restart:
 _ASM_NOKPROBE_SYMBOL(syscall_restart)
 	GET_PACA(r13)
 	ld	r1,PACA_EXIT_SAVE_R1(r13)
-	ld	r2,PACATOC(r13)
+	LOAD_PACA_TOC()
 	ld	r3,RESULT(r1)
 	addi	r4,r1,STACK_FRAME_OVERHEAD
 	li	r11,IRQS_ALL_DISABLED
@@ -502,7 +502,7 @@ interrupt_return_\srr\()_user_restart:
 _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_user_restart)
 	GET_PACA(r13)
 	ld	r1,PACA_EXIT_SAVE_R1(r13)
-	ld	r2,PACATOC(r13)
+	LOAD_PACA_TOC()
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	li	r11,IRQS_ALL_DISABLED
 	stb	r11,PACAIRQSOFTMASK(r13)
@@ -663,7 +663,7 @@ interrupt_return_\srr\()_kernel_restart:
 _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_kernel_restart)
 	GET_PACA(r13)
 	ld	r1,PACA_EXIT_SAVE_R1(r13)
-	ld	r2,PACATOC(r13)
+	LOAD_PACA_TOC()
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	li	r11,IRQS_ALL_DISABLED
 	stb	r11,PACAIRQSOFTMASK(r13)

@@ -841,7 +841,7 @@ __secondary_start:
  * before going into C code.
  */
 start_secondary_prolog:
-	ld	r2,PACATOC(r13)
+	LOAD_PACA_TOC()
 	li	r3,0
 	std	r3,0(r1)		/* Zero the stack frame pointer	*/
 	bl	start_secondary
@@ -981,7 +981,7 @@ start_here_common:
 	std	r1,PACAKSAVE(r13)
 
 	/* Load the TOC (virtual address) */
-	ld	r2,PACATOC(r13)
+	LOAD_PACA_TOC()
 
 	/* Mark interrupts soft and hard disabled (they might be enabled
 	 * in the PACA when doing hotplug)
