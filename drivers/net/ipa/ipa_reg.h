@@ -363,10 +363,12 @@ enum ipa_pulse_gran {
 };
 
 /* {SRC,DST}_RSRC_GRP_{01,23,45,67}_RSRC_TYPE registers */
-#define X_MIN_LIM_FMASK				GENMASK(5, 0)
-#define X_MAX_LIM_FMASK				GENMASK(13, 8)
-#define Y_MIN_LIM_FMASK				GENMASK(21, 16)
-#define Y_MAX_LIM_FMASK				GENMASK(29, 24)
+enum ipa_reg_rsrc_grp_rsrc_type_field_id {
+	X_MIN_LIM,
+	X_MAX_LIM,
+	Y_MIN_LIM,
+	Y_MAX_LIM,
+};
 
 /* ENDP_INIT_CTRL register */
 /* Valid only for RX (IPA producer) endpoints (do not use for IPA v4.0+) */
