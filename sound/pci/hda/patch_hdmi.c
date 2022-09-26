@@ -151,7 +151,7 @@ struct hdmi_spec {
 	 */
 	int dev_num;
 	struct snd_array pins; /* struct hdmi_spec_per_pin */
-	struct hdmi_pcm pcm_rec[16];
+	struct hdmi_pcm pcm_rec[8];
 	struct mutex pcm_lock;
 	struct mutex bind_lock; /* for audio component binding */
 	/* pcm_bitmap means which pcms have been assigned to pins*/
@@ -2299,8 +2299,8 @@ static int generic_hdmi_build_pcms(struct hda_codec *codec)
 		pstr = &info->stream[SNDRV_PCM_STREAM_PLAYBACK];
 		pstr->substreams = 1;
 		pstr->ops = generic_ops;
-		/* pcm number is less than 16 */
-		if (spec->pcm_used >= 16)
+		/* pcm number is less than pcm_rec array size */
+		if (spec->pcm_used >= ARRAY_SIZE(spec->pcm_rec))
 			break;
 		/* other pstr fields are set in open */
 	}
