@@ -1113,7 +1113,7 @@ err:
 	goto retry;
 }
 
-static int check_pos_snapshot_overwritten(struct btree_trans *trans,
+static noinline int __check_pos_snapshot_overwritten(struct btree_trans *trans,
 					  enum btree_id id,
 					  struct bpos pos)
 {
@@ -1121,12 +1121,6 @@ static int check_pos_snapshot_overwritten(struct btree_trans *trans,
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret;
-
-	if (!btree_type_has_snapshots(id))
-		return 0;
-
-	if (!snapshot_t(c, pos.snapshot)->children[0])
-		return 0;
 
 	bch2_trans_iter_init(trans, &iter, id, pos,
 			     BTREE_ITER_NOT_EXTENTS|
@@ -1151,6 +1145,18 @@ static int check_pos_snapshot_overwritten(struct btree_trans *trans,
 	bch2_trans_iter_exit(trans, &iter);
 
 	return ret;
+}
+
+static inline int check_pos_snapshot_overwritten(struct btree_trans *trans,
+					  enum btree_id id,
+					  struct bpos pos)
+{
+	if (!btree_type_has_snapshots(id) ||
+	    pos.snapshot == U32_MAX ||
+	    !snapshot_t(trans->c, pos.snapshot)->children[0])
+		return 0;
+
+	return __check_pos_snapshot_overwritten(trans, id, pos);
 }
 
 static noinline int extent_front_merge(struct btree_trans *trans,
