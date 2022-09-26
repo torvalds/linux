@@ -590,6 +590,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	std	r9,_TRAP(r1)		/* set trap number		*/
 	li	r10,0
 	LOAD_REG_IMMEDIATE(r11, STACK_FRAME_REGS_MARKER)
+	rldimi	r11, r11, 32, 0
 	std	r10,RESULT(r1)		/* clear regs->result		*/
 	std	r11,STACK_FRAME_OVERHEAD-16(r1) /* mark the frame	*/
 .endm
@@ -700,6 +701,60 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	REST_GPR(0, r1)
 	/* restore original r1. */
 	ld	r1,GPR1(r1)
+.endm
+
+/*
+ * EARLY_BOOT_FIXUP - Fix real-mode interrupt with wrong endian in early boot.
+ *
+ * There's a short window during boot where although the kernel is running
+ * little endian, any exceptions will cause the CPU to switch back to big
+ * endian. For example a WARN() boils down to a trap instruction, which will
+ * cause a program check, and we end up here but with the CPU in big endian
+ * mode. The first instruction of the program check handler (in GEN_INT_ENTRY
+ * below) is an mtsprg, which when executed in the wrong endian is an lhzu with
+ * a ~3GB displacement from r3. The content of r3 is random, so that is a load
+ * from some random location, and depending on the system can easily lead to a
+ * checkstop, or an infinitely recursive page fault.
+ *
+ * So to handle that case we have a trampoline here that can detect we are in
+ * the wrong endian and flip us back to the correct endian. We can't flip
+ * MSR[LE] using mtmsr, so we have to use rfid. That requires backing up SRR0/1
+ * as well as a GPR. To do that we use SPRG0/2/3, as SPRG1 is already used for
+ * the paca. SPRG3 is user readable, but this trampoline is only active very
+ * early in boot, and SPRG3 will be reinitialised in vdso_getcpu_init() before
+ * userspace starts.
+ */
+.macro EARLY_BOOT_FIXUP
+#ifdef CONFIG_CPU_LITTLE_ENDIAN
+BEGIN_FTR_SECTION
+	tdi   0,0,0x48    // Trap never, or in reverse endian: b . + 8
+	b     2f          // Skip trampoline if endian is correct
+	.long 0xa643707d  // mtsprg  0, r11      Backup r11
+	.long 0xa6027a7d  // mfsrr0  r11
+	.long 0xa643727d  // mtsprg  2, r11      Backup SRR0 in SPRG2
+	.long 0xa6027b7d  // mfsrr1  r11
+	.long 0xa643737d  // mtsprg  3, r11      Backup SRR1 in SPRG3
+	.long 0xa600607d  // mfmsr   r11
+	.long 0x01006b69  // xori    r11, r11, 1 Invert MSR[LE]
+	.long 0xa6037b7d  // mtsrr1  r11
+	/*
+	 * This is 'li  r11,1f' where 1f is the absolute address of that
+	 * label, byteswapped into the SI field of the instruction.
+	 */
+	.long 0x00006039 | \
+		((ABS_ADDR(1f, real_vectors) & 0x00ff) << 24) | \
+		((ABS_ADDR(1f, real_vectors) & 0xff00) << 8)
+	.long 0xa6037a7d  // mtsrr0  r11
+	.long 0x2400004c  // rfid
+1:
+	mfsprg r11, 3
+	mtsrr1 r11        // Restore SRR1
+	mfsprg r11, 2
+	mtsrr0 r11        // Restore SRR0
+	mfsprg r11, 0     // Restore r11
+2:
+END_FTR_SECTION(0, 1)     // nop out after boot
+#endif
 .endm
 
 /*
@@ -1619,51 +1674,7 @@ INT_DEFINE_BEGIN(program_check)
 INT_DEFINE_END(program_check)
 
 EXC_REAL_BEGIN(program_check, 0x700, 0x100)
-
-#ifdef CONFIG_CPU_LITTLE_ENDIAN
-	/*
-	 * There's a short window during boot where although the kernel is
-	 * running little endian, any exceptions will cause the CPU to switch
-	 * back to big endian. For example a WARN() boils down to a trap
-	 * instruction, which will cause a program check, and we end up here but
-	 * with the CPU in big endian mode. The first instruction of the program
-	 * check handler (in GEN_INT_ENTRY below) is an mtsprg, which when
-	 * executed in the wrong endian is an lhzu with a ~3GB displacement from
-	 * r3. The content of r3 is random, so that is a load from some random
-	 * location, and depending on the system can easily lead to a checkstop,
-	 * or an infinitely recursive page fault.
-	 *
-	 * So to handle that case we have a trampoline here that can detect we
-	 * are in the wrong endian and flip us back to the correct endian. We
-	 * can't flip MSR[LE] using mtmsr, so we have to use rfid. That requires
-	 * backing up SRR0/1 as well as a GPR. To do that we use SPRG0/2/3, as
-	 * SPRG1 is already used for the paca. SPRG3 is user readable, but this
-	 * trampoline is only active very early in boot, and SPRG3 will be
-	 * reinitialised in vdso_getcpu_init() before userspace starts.
-	 */
-BEGIN_FTR_SECTION
-	tdi   0,0,0x48    // Trap never, or in reverse endian: b . + 8
-	b     1f          // Skip trampoline if endian is correct
-	.long 0xa643707d  // mtsprg  0, r11      Backup r11
-	.long 0xa6027a7d  // mfsrr0  r11
-	.long 0xa643727d  // mtsprg  2, r11      Backup SRR0 in SPRG2
-	.long 0xa6027b7d  // mfsrr1  r11
-	.long 0xa643737d  // mtsprg  3, r11      Backup SRR1 in SPRG3
-	.long 0xa600607d  // mfmsr   r11
-	.long 0x01006b69  // xori    r11, r11, 1 Invert MSR[LE]
-	.long 0xa6037b7d  // mtsrr1  r11
-	.long 0x34076039  // li      r11, 0x734
-	.long 0xa6037a7d  // mtsrr0  r11
-	.long 0x2400004c  // rfid
-	mfsprg r11, 3
-	mtsrr1 r11        // Restore SRR1
-	mfsprg r11, 2
-	mtsrr0 r11        // Restore SRR0
-	mfsprg r11, 0     // Restore r11
-1:
-END_FTR_SECTION(0, 1)     // nop out after boot
-#endif /* CONFIG_CPU_LITTLE_ENDIAN */
-
+	EARLY_BOOT_FIXUP
 	GEN_INT_ENTRY program_check, virt=0
 EXC_REAL_END(program_check, 0x700, 0x100)
 EXC_VIRT_BEGIN(program_check, 0x4700, 0x100)
