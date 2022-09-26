@@ -113,7 +113,9 @@ int ipa_mem_setup(struct ipa *ipa)
 	mem = ipa_mem_find(ipa, IPA_MEM_MODEM_PROC_CTX);
 	offset = ipa->mem_offset + mem->offset;
 	val = proc_cntxt_base_addr_encoded(ipa->version, offset);
-	iowrite32(val, ipa->reg_virt + IPA_REG_LOCAL_PKT_PROC_CNTXT_OFFSET);
+
+	offset = ipa_reg_offset(ipa, LOCAL_PKT_PROC_CNTXT);
+	iowrite32(val, ipa->reg_virt + offset);
 
 	return 0;
 }
@@ -314,7 +316,7 @@ int ipa_mem_config(struct ipa *ipa)
 	u32 i;
 
 	/* Check the advertised location and size of the shared memory area */
-	val = ioread32(ipa->reg_virt + IPA_REG_SHARED_MEM_SIZE_OFFSET);
+	val = ioread32(ipa->reg_virt + ipa_reg_offset(ipa, SHARED_MEM_SIZE));
 
 	/* The fields in the register are in 8 byte units */
 	ipa->mem_offset = 8 * u32_get_bits(val, SHARED_MEM_BADDR_FMASK);

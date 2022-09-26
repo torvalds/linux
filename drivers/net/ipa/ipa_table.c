@@ -384,7 +384,7 @@ void ipa_table_reset(struct ipa *ipa, bool modem)
 
 int ipa_table_hash_flush(struct ipa *ipa)
 {
-	u32 offset = ipa_reg_filt_rout_hash_flush_offset(ipa->version);
+	u32 offset = ipa_reg_offset(ipa, FILT_ROUT_HASH_FLUSH);
 	struct gsi_trans *trans;
 	u32 val;
 
@@ -516,10 +516,11 @@ int ipa_table_setup(struct ipa *ipa)
 static void ipa_filter_tuple_zero(struct ipa_endpoint *endpoint)
 {
 	u32 endpoint_id = endpoint->endpoint_id;
+	struct ipa *ipa = endpoint->ipa;
 	u32 offset;
 	u32 val;
 
-	offset = IPA_REG_ENDP_FILTER_ROUTER_HSH_CFG_N_OFFSET(endpoint_id);
+	offset = ipa_reg_n_offset(ipa, ENDP_FILTER_ROUTER_HSH_CFG, endpoint_id);
 
 	val = ioread32(endpoint->ipa->reg_virt + offset);
 
@@ -565,8 +566,10 @@ static bool ipa_route_id_modem(u32 route_id)
  */
 static void ipa_route_tuple_zero(struct ipa *ipa, u32 route_id)
 {
-	u32 offset = IPA_REG_ENDP_FILTER_ROUTER_HSH_CFG_N_OFFSET(route_id);
+	u32 offset;
 	u32 val;
+
+	offset = ipa_reg_n_offset(ipa, ENDP_FILTER_ROUTER_HSH_CFG, route_id);
 
 	val = ioread32(ipa->reg_virt + offset);
 

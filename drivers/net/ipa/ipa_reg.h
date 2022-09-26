@@ -898,6 +898,19 @@ ipa_reg_irq_suspend_clr_offset(enum ipa_version version)
 	return ipa_reg_irq_suspend_clr_ee_n_offset(version, GSI_EE_AP);
 }
 
+u32 __ipa_reg_offset(struct ipa *ipa, enum ipa_reg_id reg_id, u32 n);
+
+static inline u32 ipa_reg_offset(struct ipa *ipa, enum ipa_reg_id reg_id)
+{
+	return __ipa_reg_offset(ipa, reg_id, 0);
+}
+
+static inline u32
+ipa_reg_n_offset(struct ipa *ipa, enum ipa_reg_id reg_id, u32 n)
+{
+	return __ipa_reg_offset(ipa, reg_id, n);
+}
+
 int ipa_reg_init(struct ipa *ipa);
 void ipa_reg_exit(struct ipa *ipa);
 

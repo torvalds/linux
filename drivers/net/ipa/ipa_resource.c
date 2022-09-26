@@ -95,28 +95,32 @@ static void ipa_resource_config_src(struct ipa *ipa, u32 resource_type,
 
 	resource = &data->resource_src[resource_type];
 
-	offset = IPA_REG_SRC_RSRC_GRP_01_RSRC_TYPE_N_OFFSET(resource_type);
+	offset = ipa_reg_n_offset(ipa, SRC_RSRC_GRP_01_RSRC_TYPE,
+				  resource_type);
 	ylimits = group_count == 1 ? NULL : &resource->limits[1];
 	ipa_resource_config_common(ipa, offset, &resource->limits[0], ylimits);
 
 	if (group_count < 3)
 		return;
 
-	offset = IPA_REG_SRC_RSRC_GRP_23_RSRC_TYPE_N_OFFSET(resource_type);
+	offset = ipa_reg_n_offset(ipa, SRC_RSRC_GRP_23_RSRC_TYPE,
+				  resource_type);
 	ylimits = group_count == 3 ? NULL : &resource->limits[3];
 	ipa_resource_config_common(ipa, offset, &resource->limits[2], ylimits);
 
 	if (group_count < 5)
 		return;
 
-	offset = IPA_REG_SRC_RSRC_GRP_45_RSRC_TYPE_N_OFFSET(resource_type);
+	offset = ipa_reg_n_offset(ipa, SRC_RSRC_GRP_45_RSRC_TYPE,
+				  resource_type);
 	ylimits = group_count == 5 ? NULL : &resource->limits[5];
 	ipa_resource_config_common(ipa, offset, &resource->limits[4], ylimits);
 
 	if (group_count < 7)
 		return;
 
-	offset = IPA_REG_SRC_RSRC_GRP_67_RSRC_TYPE_N_OFFSET(resource_type);
+	offset = ipa_reg_n_offset(ipa, SRC_RSRC_GRP_67_RSRC_TYPE,
+				  resource_type);
 	ylimits = group_count == 7 ? NULL : &resource->limits[7];
 	ipa_resource_config_common(ipa, offset, &resource->limits[6], ylimits);
 }
@@ -131,28 +135,32 @@ static void ipa_resource_config_dst(struct ipa *ipa, u32 resource_type,
 
 	resource = &data->resource_dst[resource_type];
 
-	offset = IPA_REG_DST_RSRC_GRP_01_RSRC_TYPE_N_OFFSET(resource_type);
+	offset = ipa_reg_n_offset(ipa, DST_RSRC_GRP_01_RSRC_TYPE,
+				  resource_type);
 	ylimits = group_count == 1 ? NULL : &resource->limits[1];
 	ipa_resource_config_common(ipa, offset, &resource->limits[0], ylimits);
 
 	if (group_count < 3)
 		return;
 
-	offset = IPA_REG_DST_RSRC_GRP_23_RSRC_TYPE_N_OFFSET(resource_type);
+	offset = ipa_reg_n_offset(ipa, DST_RSRC_GRP_23_RSRC_TYPE,
+				  resource_type);
 	ylimits = group_count == 3 ? NULL : &resource->limits[3];
 	ipa_resource_config_common(ipa, offset, &resource->limits[2], ylimits);
 
 	if (group_count < 5)
 		return;
 
-	offset = IPA_REG_DST_RSRC_GRP_45_RSRC_TYPE_N_OFFSET(resource_type);
+	offset = ipa_reg_n_offset(ipa, DST_RSRC_GRP_45_RSRC_TYPE,
+				  resource_type);
 	ylimits = group_count == 5 ? NULL : &resource->limits[5];
 	ipa_resource_config_common(ipa, offset, &resource->limits[4], ylimits);
 
 	if (group_count < 7)
 		return;
 
-	offset = IPA_REG_DST_RSRC_GRP_67_RSRC_TYPE_N_OFFSET(resource_type);
+	offset = ipa_reg_n_offset(ipa, DST_RSRC_GRP_67_RSRC_TYPE,
+				  resource_type);
 	ylimits = group_count == 7 ? NULL : &resource->limits[7];
 	ipa_resource_config_common(ipa, offset, &resource->limits[6], ylimits);
 }
