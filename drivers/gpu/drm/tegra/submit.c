@@ -133,7 +133,7 @@ static void gather_bo_munmap(struct host1x_bo *host_bo, void *addr)
 {
 }
 
-const struct host1x_bo_ops gather_bo_ops = {
+static const struct host1x_bo_ops gather_bo_ops = {
 	.get = gather_bo_get,
 	.put = gather_bo_put,
 	.pin = gather_bo_pin,
