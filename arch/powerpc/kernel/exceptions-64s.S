@@ -589,7 +589,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	li	r9,IVEC
 	std	r9,_TRAP(r1)		/* set trap number		*/
 	li	r10,0
-	ld	r11,exception_marker@toc(r2)
+	LOAD_REG_IMMEDIATE(r11, STACK_FRAME_REGS_MARKER)
 	std	r10,RESULT(r1)		/* clear regs->result		*/
 	std	r11,STACK_FRAME_OVERHEAD-16(r1) /* mark the frame	*/
 .endm

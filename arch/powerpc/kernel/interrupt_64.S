@@ -80,7 +80,7 @@ _ASM_NOKPROBE_SYMBOL(system_call_vectored_\name)
 	/* Calling convention has r3 = regs, r4 = orig r0 */
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	mr	r4,r0
-	ld	r11,exception_marker@toc(r2)
+	LOAD_REG_IMMEDIATE(r11, STACK_FRAME_REGS_MARKER)
 	std	r11,-16(r3)		/* "regshere" marker */
 
 BEGIN_FTR_SECTION
@@ -253,7 +253,7 @@ END_BTB_FLUSH_SECTION
 	/* Calling convention has r3 = regs, r4 = orig r0 */
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	mr	r4,r0
-	ld	r11,exception_marker@toc(r2)
+	LOAD_REG_IMMEDIATE(r11, STACK_FRAME_REGS_MARKER)
 	std	r11,-16(r3)		/* "regshere" marker */
 
 #ifdef CONFIG_PPC_BOOK3S
@@ -614,7 +614,7 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	mtspr	SPRN_XER,r5
 
 	/*
-	 * Leaving a stale exception_marker on the stack can confuse
+	 * Leaving a stale STACK_FRAME_REGS_MARKER on the stack can confuse
 	 * the reliable stack unwinder later on. Clear it.
 	 */
 	std	r0,STACK_FRAME_OVERHEAD-16(r1)
