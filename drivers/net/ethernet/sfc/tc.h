@@ -14,6 +14,24 @@
 #include <net/flow_offload.h>
 #include "net_driver.h"
 
+/* Error reporting: convenience macros.  For indicating why a given filter
+ * insertion is not supported; errors in internal operation or in the
+ * hardware should be netif_err()s instead.
+ */
+/* Used when error message is constant. */
+#define EFX_TC_ERR_MSG(efx, extack, message)	do {			\
+	NL_SET_ERR_MSG_MOD(extack, message);				\
+	if (efx->log_tc_errs)						\
+		netif_info(efx, drv, efx->net_dev, "%s\n", message);	\
+} while (0)
+/* Used when error message is not constant; caller should also supply a
+ * constant extack message with NL_SET_ERR_MSG_MOD().
+ */
+#define efx_tc_err(efx, fmt, args...)	do {		\
+if (efx->log_tc_errs)					\
+	netif_info(efx, drv, efx->net_dev, fmt, ##args);\
+} while (0)
+
 struct efx_tc_action_set {
 	u16 deliver:1;
 	u32 dest_mport;
