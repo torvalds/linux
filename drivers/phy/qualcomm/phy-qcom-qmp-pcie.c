@@ -2210,7 +2210,10 @@ static int qmp_pcie_create(struct device *dev, struct device_node *np, int id,
 	if (IS_ERR(qphy->tx))
 		return PTR_ERR(qphy->tx);
 
-	qphy->rx = devm_of_iomap(dev, np, 1, NULL);
+	if (of_device_is_compatible(dev->of_node, "qcom,sdm845-qhp-pcie-phy"))
+		qphy->rx = qphy->tx;
+	else
+		qphy->rx = devm_of_iomap(dev, np, 1, NULL);
 	if (IS_ERR(qphy->rx))
 		return PTR_ERR(qphy->rx);
 
