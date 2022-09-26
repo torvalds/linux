@@ -75,7 +75,7 @@ int has_task;
 int stack_skip;
 
 /* error stat */
-unsigned long lost;
+int lost;
 
 static inline int can_record(void)
 {
