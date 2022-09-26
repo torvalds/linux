@@ -70,6 +70,9 @@ enum machine_type {
    The first page is unmapped to help trap NULL pointer references */
 #define QMAGIC 0314
 
+/* Code indicating core file.  */
+#define CMAGIC 0421
+
 #if !defined (N_BADMAG)
 #define N_BADMAG(x)	  (N_MAGIC(x) != OMAGIC		\
 			&& N_MAGIC(x) != NMAGIC		\
