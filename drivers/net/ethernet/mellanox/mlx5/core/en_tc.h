@@ -97,8 +97,8 @@ struct mlx5_flow_attr {
 	} lag;
 	/* keep this union last */
 	union {
-		struct mlx5_esw_flow_attr esw_attr[0];
-		struct mlx5_nic_flow_attr nic_attr[0];
+		DECLARE_FLEX_ARRAY(struct mlx5_esw_flow_attr, esw_attr);
+		DECLARE_FLEX_ARRAY(struct mlx5_nic_flow_attr, nic_attr);
 	};
 };
 
