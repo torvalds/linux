@@ -135,7 +135,7 @@ static void efx_ef100_rep_get_stats64(struct net_device *dev,
 	stats->tx_errors = atomic64_read(&efv->stats.tx_errors);
 }
 
-static const struct net_device_ops efx_ef100_rep_netdev_ops = {
+const struct net_device_ops efx_ef100_rep_netdev_ops = {
 	.ndo_open		= efx_ef100_rep_open,
 	.ndo_stop		= efx_ef100_rep_close,
 	.ndo_start_xmit		= efx_ef100_rep_xmit,

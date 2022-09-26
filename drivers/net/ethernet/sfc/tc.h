@@ -12,6 +12,7 @@
 #ifndef EFX_TC_H
 #define EFX_TC_H
 #include <net/flow_offload.h>
+#include <linux/rhashtable.h>
 #include "net_driver.h"
 
 /* Error reporting: convenience macros.  For indicating why a given filter
@@ -55,6 +56,8 @@ struct efx_tc_action_set_list {
 };
 
 struct efx_tc_flow_rule {
+	unsigned long cookie;
+	struct rhash_head linkage;
 	struct efx_tc_match match;
 	struct efx_tc_action_set_list acts;
 	u32 fw_id;
@@ -69,6 +72,8 @@ enum efx_tc_rule_prios {
  * struct efx_tc_state - control plane data for TC offload
  *
  * @block_list: List of &struct efx_tc_block_binding
+ * @mutex: Used to serialise operations on TC hashtables
+ * @match_action_ht: Hashtable of TC match-action rules
  * @reps_mport_id: MAE port allocated for representor RX
  * @reps_filter_uc: VNIC filter for representor unicast RX (promisc)
  * @reps_filter_mc: VNIC filter for representor multicast RX (allmulti)
@@ -81,6 +86,8 @@ enum efx_tc_rule_prios {
  */
 struct efx_tc_state {
 	struct list_head block_list;
+	struct mutex mutex;
+	struct rhashtable match_action_ht;
 	u32 reps_mport_id, reps_mport_vport_id;
 	s32 reps_filter_uc, reps_filter_mc;
 	struct {
