@@ -2001,6 +2001,12 @@ static const struct of_device_id mpp_rkvenc_dt_match[] = {
 		.data = &rkvenc_540c_data,
 	},
 #endif
+#ifdef CONFIG_CPU_RK3562
+	{
+		.compatible = "rockchip,rkv-encoder-rk3562",
+		.data = &rkvenc_540c_data,
+	},
+#endif
 #ifdef CONFIG_CPU_RK3588
 	{
 		.compatible = "rockchip,rkv-encoder-v2-core",
