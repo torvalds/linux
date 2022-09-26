@@ -91,20 +91,6 @@ __cold int io_uring_alloc_task_context(struct task_struct *task,
 	return 0;
 }
 
-static int io_register_submitter(struct io_ring_ctx *ctx)
-{
-	int ret = 0;
-
-	mutex_lock(&ctx->uring_lock);
-	if (!ctx->submitter_task)
-		ctx->submitter_task = get_task_struct(current);
-	else if (ctx->submitter_task != current)
-		ret = -EEXIST;
-	mutex_unlock(&ctx->uring_lock);
-
-	return ret;
-}
-
 int __io_uring_add_tctx_node(struct io_ring_ctx *ctx)
 {
 	struct io_uring_task *tctx = current->io_uring;
@@ -151,11 +137,9 @@ int __io_uring_add_tctx_node_from_submit(struct io_ring_ctx *ctx)
 {
 	int ret;
 
-	if (ctx->flags & IORING_SETUP_SINGLE_ISSUER) {
-		ret = io_register_submitter(ctx);
-		if (ret)
-			return ret;
-	}
+	if (ctx->flags & IORING_SETUP_SINGLE_ISSUER
+	    && ctx->submitter_task != current)
+		return -EEXIST;
 
 	ret = __io_uring_add_tctx_node(ctx);
 	if (ret)
