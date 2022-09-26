@@ -361,31 +361,31 @@ static void ipa_qtime_config(struct ipa *ipa)
 
 	reg = ipa_reg(ipa, QTIME_TIMESTAMP_CFG);
 	/* Set DPL time stamp resolution to use Qtime (instead of 1 msec) */
-	val = u32_encode_bits(DPL_TIMESTAMP_SHIFT, DPL_TIMESTAMP_LSB_FMASK);
-	val |= u32_encode_bits(1, DPL_TIMESTAMP_SEL_FMASK);
+	val = ipa_reg_encode(reg, DPL_TIMESTAMP_LSB, DPL_TIMESTAMP_SHIFT);
+	val |= ipa_reg_bit(reg, DPL_TIMESTAMP_SEL);
 	/* Configure tag and NAT Qtime timestamp resolution as well */
-	val |= u32_encode_bits(TAG_TIMESTAMP_SHIFT, TAG_TIMESTAMP_LSB_FMASK);
-	val |= u32_encode_bits(NAT_TIMESTAMP_SHIFT, NAT_TIMESTAMP_LSB_FMASK);
+	val = ipa_reg_encode(reg, TAG_TIMESTAMP_LSB, TAG_TIMESTAMP_SHIFT);
+	val = ipa_reg_encode(reg, NAT_TIMESTAMP_LSB, NAT_TIMESTAMP_SHIFT);
 
 	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
 
 	/* Set granularity of pulse generators used for other timers */
 	reg = ipa_reg(ipa, TIMERS_PULSE_GRAN_CFG);
-	val = u32_encode_bits(IPA_GRAN_100_US, GRAN_0_FMASK);
-	val |= u32_encode_bits(IPA_GRAN_1_MS, GRAN_1_FMASK);
-	val |= u32_encode_bits(IPA_GRAN_1_MS, GRAN_2_FMASK);
+	val = ipa_reg_encode(reg, PULSE_GRAN_0, IPA_GRAN_100_US);
+	val |= ipa_reg_encode(reg, PULSE_GRAN_1, IPA_GRAN_1_MS);
+	val |= ipa_reg_encode(reg, PULSE_GRAN_2, IPA_GRAN_1_MS);
 
 	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
 
 	/* Actual divider is 1 more than value supplied here */
 	reg = ipa_reg(ipa, TIMERS_XO_CLK_DIV_CFG);
 	offset = ipa_reg_offset(reg);
-	val = u32_encode_bits(IPA_XO_CLOCK_DIVIDER - 1, DIV_VALUE_FMASK);
+	val = ipa_reg_encode(reg, DIV_VALUE, IPA_XO_CLOCK_DIVIDER - 1);
 
 	iowrite32(val, ipa->reg_virt + offset);
 
 	/* Divider value is set; re-enable the common timer clock divider */
-	val |= u32_encode_bits(1, DIV_ENABLE_FMASK);
+	val |= ipa_reg_bit(reg, DIV_ENABLE);
 
 	iowrite32(val, ipa->reg_virt + offset);
 }
@@ -435,10 +435,10 @@ static void ipa_idle_indication_cfg(struct ipa *ipa,
 	u32 val;
 
 	reg = ipa_reg(ipa, IDLE_INDICATION_CFG);
-	val = u32_encode_bits(enter_idle_debounce_thresh,
-			      ENTER_IDLE_DEBOUNCE_THRESH_FMASK);
+	val = ipa_reg_encode(reg, ENTER_IDLE_DEBOUNCE_THRESH,
+			     enter_idle_debounce_thresh);
 	if (const_non_idle_enable)
-		val |= CONST_NON_IDLE_ENABLE_FMASK;
+		val |= ipa_reg_bit(reg, CONST_NON_IDLE_ENABLE);
 
 	iowrite32(val, ipa->reg_virt + ipa_reg_offset(reg));
 }

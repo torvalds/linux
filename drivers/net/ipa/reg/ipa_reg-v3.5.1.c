@@ -140,9 +140,26 @@ static const u32 ipa_reg_ipa_tx_cfg_fmask[] = {
 
 IPA_REG_FIELDS(IPA_TX_CFG, ipa_tx_cfg, 0x000001fc);
 
-IPA_REG(FLAVOR_0, flavor_0, 0x00000210);
+static const u32 ipa_reg_flavor_0_fmask[] = {
+	[MAX_PIPES]					= GENMASK(3, 0),
+						/* Bits 4-7 reserved */
+	[MAX_CONS_PIPES]				= GENMASK(12, 8),
+						/* Bits 13-15 reserved */
+	[MAX_PROD_PIPES]				= GENMASK(20, 16),
+						/* Bits 21-23 reserved */
+	[PROD_LOWEST]					= GENMASK(27, 24),
+						/* Bits 28-31 reserved */
+};
 
-IPA_REG(IDLE_INDICATION_CFG, idle_indication_cfg, 0x00000220);
+IPA_REG_FIELDS(FLAVOR_0, flavor_0, 0x00000210);
+
+static const u32 ipa_reg_idle_indication_cfg_fmask[] = {
+	[ENTER_IDLE_DEBOUNCE_THRESH]			= GENMASK(15, 0),
+	[CONST_NON_IDLE_ENABLE]				= BIT(16),
+						/* Bits 17-31 reserved */
+};
+
+IPA_REG_FIELDS(IDLE_INDICATION_CFG, idle_indication_cfg, 0x00000220);
 
 IPA_REG_STRIDE(SRC_RSRC_GRP_01_RSRC_TYPE, src_rsrc_grp_01_rsrc_type,
 	       0x00000400, 0x0020);

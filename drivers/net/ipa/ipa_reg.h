@@ -316,30 +316,41 @@ enum ipa_reg_ipa_tx_cfg_field_id {
 };
 
 /* FLAVOR_0 register */
-#define IPA_MAX_PIPES_FMASK			GENMASK(3, 0)
-#define IPA_MAX_CONS_PIPES_FMASK		GENMASK(12, 8)
-#define IPA_MAX_PROD_PIPES_FMASK		GENMASK(20, 16)
-#define IPA_PROD_LOWEST_FMASK			GENMASK(27, 24)
+enum ipa_reg_flavor_0_field_id {
+	MAX_PIPES,
+	MAX_CONS_PIPES,
+	MAX_PROD_PIPES,
+	PROD_LOWEST,
+};
 
 /* IDLE_INDICATION_CFG register */
-#define ENTER_IDLE_DEBOUNCE_THRESH_FMASK	GENMASK(15, 0)
-#define CONST_NON_IDLE_ENABLE_FMASK		GENMASK(16, 16)
+enum ipa_reg_idle_indication_cfg_field_id {
+	ENTER_IDLE_DEBOUNCE_THRESH,
+	CONST_NON_IDLE_ENABLE,
+};
 
 /* QTIME_TIMESTAMP_CFG register */
-#define DPL_TIMESTAMP_LSB_FMASK			GENMASK(4, 0)
-#define DPL_TIMESTAMP_SEL_FMASK			GENMASK(7, 7)
-#define TAG_TIMESTAMP_LSB_FMASK			GENMASK(12, 8)
-#define NAT_TIMESTAMP_LSB_FMASK			GENMASK(20, 16)
+enum ipa_reg_qtime_timestamp_cfg_field_id {
+	DPL_TIMESTAMP_LSB,
+	DPL_TIMESTAMP_SEL,
+	TAG_TIMESTAMP_LSB,
+	NAT_TIMESTAMP_LSB,
+};
 
 /* TIMERS_XO_CLK_DIV_CFG register */
-#define DIV_VALUE_FMASK				GENMASK(8, 0)
-#define DIV_ENABLE_FMASK			GENMASK(31, 31)
+enum ipa_reg_timers_xo_clk_div_cfg_field_id {
+	DIV_VALUE,
+	DIV_ENABLE,
+};
 
 /* TIMERS_PULSE_GRAN_CFG register */
-#define GRAN_0_FMASK				GENMASK(2, 0)
-#define GRAN_1_FMASK				GENMASK(5, 3)
-#define GRAN_2_FMASK				GENMASK(8, 6)
-/* Values for GRAN_x fields of TIMERS_PULSE_GRAN_CFG */
+enum ipa_reg_timers_pulse_gran_cfg_field_id {
+	PULSE_GRAN_0,
+	PULSE_GRAN_1,
+	PULSE_GRAN_2,
+};
+
+/* Values for IPA_GRAN_x fields of TIMERS_PULSE_GRAN_CFG */
 enum ipa_pulse_gran {
 	IPA_GRAN_10_US				= 0x0,
 	IPA_GRAN_20_US				= 0x1,

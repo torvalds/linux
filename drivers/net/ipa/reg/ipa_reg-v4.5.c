@@ -161,15 +161,54 @@ static const u32 ipa_reg_ipa_tx_cfg_fmask[] = {
 
 IPA_REG_FIELDS(IPA_TX_CFG, ipa_tx_cfg, 0x000001fc);
 
-IPA_REG(FLAVOR_0, flavor_0, 0x00000210);
+static const u32 ipa_reg_flavor_0_fmask[] = {
+	[MAX_PIPES]					= GENMASK(3, 0),
+						/* Bits 4-7 reserved */
+	[MAX_CONS_PIPES]				= GENMASK(12, 8),
+						/* Bits 13-15 reserved */
+	[MAX_PROD_PIPES]				= GENMASK(20, 16),
+						/* Bits 21-23 reserved */
+	[PROD_LOWEST]					= GENMASK(27, 24),
+						/* Bits 28-31 reserved */
+};
 
-IPA_REG(IDLE_INDICATION_CFG, idle_indication_cfg, 0x00000240);
+IPA_REG_FIELDS(FLAVOR_0, flavor_0, 0x00000210);
 
-IPA_REG(QTIME_TIMESTAMP_CFG, qtime_timestamp_cfg, 0x0000024c);
+static const u32 ipa_reg_idle_indication_cfg_fmask[] = {
+	[ENTER_IDLE_DEBOUNCE_THRESH]			= GENMASK(15, 0),
+	[CONST_NON_IDLE_ENABLE]				= BIT(16),
+						/* Bits 17-31 reserved */
+};
 
-IPA_REG(TIMERS_XO_CLK_DIV_CFG, timers_xo_clk_div_cfg, 0x00000250);
+IPA_REG_FIELDS(IDLE_INDICATION_CFG, idle_indication_cfg, 0x00000240);
 
-IPA_REG(TIMERS_PULSE_GRAN_CFG, timers_pulse_gran_cfg, 0x00000254);
+static const u32 ipa_reg_qtime_timestamp_cfg_fmask[] = {
+	[DPL_TIMESTAMP_LSB]				= GENMASK(4, 0),
+						/* Bits 5-6 reserved */
+	[DPL_TIMESTAMP_SEL]				= BIT(7),
+	[TAG_TIMESTAMP_LSB]				= GENMASK(12, 8),
+						/* Bits 13-15 reserved */
+	[NAT_TIMESTAMP_LSB]				= GENMASK(20, 16),
+						/* Bits 21-31 reserved */
+};
+
+IPA_REG_FIELDS(QTIME_TIMESTAMP_CFG, qtime_timestamp_cfg, 0x0000024c);
+
+static const u32 ipa_reg_timers_xo_clk_div_cfg_fmask[] = {
+	[DIV_VALUE]					= GENMASK(8, 0),
+						/* Bits 9-30 reserved */
+	[DIV_ENABLE]					= BIT(31),
+};
+
+IPA_REG_FIELDS(TIMERS_XO_CLK_DIV_CFG, timers_xo_clk_div_cfg, 0x00000250);
+
+static const u32 ipa_reg_timers_pulse_gran_cfg_fmask[] = {
+	[PULSE_GRAN_0]					= GENMASK(2, 0),
+	[PULSE_GRAN_1]					= GENMASK(5, 3),
+	[PULSE_GRAN_2]					= GENMASK(8, 6),
+};
+
+IPA_REG_FIELDS(TIMERS_PULSE_GRAN_CFG, timers_pulse_gran_cfg, 0x00000254);
 
 IPA_REG_STRIDE(SRC_RSRC_GRP_01_RSRC_TYPE, src_rsrc_grp_01_rsrc_type,
 	       0x00000400, 0x0020);
