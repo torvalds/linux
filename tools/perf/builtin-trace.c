@@ -2759,11 +2759,7 @@ static size_t trace__fprintf_tp_fields(struct trace *trace, struct evsel *evsel,
 
 		printed += scnprintf(bf + printed, size - printed, "%s", printed ? ", " : "");
 
-		/*
-		 * XXX Perhaps we should have a show_tp_arg_names,
-		 * leaving show_arg_names just for syscalls?
-		 */
-		if (1 || trace->show_arg_names)
+		if (trace->show_arg_names)
 			printed += scnprintf(bf + printed, size - printed, "%s: ", field->name);
 
 		printed += syscall_arg_fmt__scnprintf_val(arg, bf + printed, size - printed, &syscall_arg, val);
