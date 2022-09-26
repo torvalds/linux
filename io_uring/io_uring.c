@@ -3357,6 +3357,10 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 		goto err;
 	}
 
+	if (ctx->flags & IORING_SETUP_SINGLE_ISSUER
+	    && !(ctx->flags & IORING_SETUP_R_DISABLED))
+		ctx->submitter_task = get_task_struct(current);
+
 	file = io_uring_get_file(ctx);
 	if (IS_ERR(file)) {
 		ret = PTR_ERR(file);
@@ -3547,6 +3551,9 @@ static int io_register_enable_rings(struct io_ring_ctx *ctx)
 {
 	if (!(ctx->flags & IORING_SETUP_R_DISABLED))
 		return -EBADFD;
+
+	if (ctx->flags & IORING_SETUP_SINGLE_ISSUER && !ctx->submitter_task)
+		ctx->submitter_task = get_task_struct(current);
 
 	if (ctx->restrictions.registered)
 		ctx->restricted = 1;
