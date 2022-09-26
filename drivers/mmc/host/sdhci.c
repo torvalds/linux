@@ -233,23 +233,27 @@ void sdhci_reset(struct sdhci_host *host, u8 mask)
 }
 EXPORT_SYMBOL_GPL(sdhci_reset);
 
-static void sdhci_do_reset(struct sdhci_host *host, u8 mask)
+static bool sdhci_do_reset(struct sdhci_host *host, u8 mask)
 {
 	if (host->quirks & SDHCI_QUIRK_NO_CARD_NO_RESET) {
 		struct mmc_host *mmc = host->mmc;
 
 		if (!mmc->ops->get_cd(mmc))
-			return;
+			return false;
 	}
 
 	host->ops->reset(host, mask);
 
-	if (mask & SDHCI_RESET_ALL) {
+	return true;
+}
+
+static void sdhci_reset_for_all(struct sdhci_host *host)
+{
+	if (sdhci_do_reset(host, SDHCI_RESET_ALL)) {
 		if (host->flags & (SDHCI_USE_SDMA | SDHCI_USE_ADMA)) {
 			if (host->ops->enable_dma)
 				host->ops->enable_dma(host);
 		}
-
 		/* Resetting the controller clears many */
 		host->preset_enabled = false;
 	}
@@ -325,7 +329,7 @@ static void sdhci_init(struct sdhci_host *host, int soft)
 	if (soft)
 		sdhci_do_reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
 	else
-		sdhci_do_reset(host, SDHCI_RESET_ALL);
+		sdhci_reset_for_all(host);
 
 	if (host->v4_mode)
 		sdhci_do_enable_v4_mode(host);
@@ -4066,7 +4070,7 @@ void __sdhci_read_caps(struct sdhci_host *host, const u16 *ver,
 	if (debug_quirks2)
 		host->quirks2 = debug_quirks2;
 
-	sdhci_do_reset(host, SDHCI_RESET_ALL);
+	sdhci_reset_for_all(host);
 
 	if (host->v4_mode)
 		sdhci_do_enable_v4_mode(host);
@@ -4807,7 +4811,7 @@ int __sdhci_add_host(struct sdhci_host *host)
 unled:
 	sdhci_led_unregister(host);
 unirq:
-	sdhci_do_reset(host, SDHCI_RESET_ALL);
+	sdhci_reset_for_all(host);
 	sdhci_writel(host, 0, SDHCI_INT_ENABLE);
 	sdhci_writel(host, 0, SDHCI_SIGNAL_ENABLE);
 	free_irq(host->irq, host);
@@ -4865,7 +4869,7 @@ void sdhci_remove_host(struct sdhci_host *host, int dead)
 	sdhci_led_unregister(host);
 
 	if (!dead)
-		sdhci_do_reset(host, SDHCI_RESET_ALL);
+		sdhci_reset_for_all(host);
 
 	sdhci_writel(host, 0, SDHCI_INT_ENABLE);
 	sdhci_writel(host, 0, SDHCI_SIGNAL_ENABLE);
