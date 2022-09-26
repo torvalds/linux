@@ -64,6 +64,9 @@ patternProperties:
       gpio-controller: true
       '#gpio-cells':
         const: 2
+      interrupt-controller: true
+      '#interrupt-cells':
+        const: 2
 
       reg:
         maxItems: 1
