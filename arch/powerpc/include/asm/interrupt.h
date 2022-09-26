@@ -74,6 +74,19 @@
 #include <asm/kprobes.h>
 #include <asm/runlatch.h>
 
+#ifdef CONFIG_PPC64
+/*
+ * WARN/BUG is handled with a program interrupt so minimise checks here to
+ * avoid recursion and maximise the chance of getting the first oops handled.
+ */
+#define INT_SOFT_MASK_BUG_ON(regs, cond)				\
+do {									\
+	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG) &&		\
+	    (user_mode(regs) || (TRAP(regs) != INTERRUPT_PROGRAM)))	\
+		BUG_ON(cond);						\
+} while (0)
+#endif
+
 #ifdef CONFIG_PPC_BOOK3S_64
 extern char __end_soft_masked[];
 bool search_kernel_soft_mask_table(unsigned long addr);
@@ -170,8 +183,7 @@ static inline void interrupt_enter_prepare(struct pt_regs *regs)
 	 * context.
 	 */
 	if (!(local_paca->irq_happened & PACA_IRQ_HARD_DIS)) {
-		if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
-			BUG_ON(!(regs->msr & MSR_EE));
+		INT_SOFT_MASK_BUG_ON(regs, !(regs->msr & MSR_EE));
 		__hard_irq_enable();
 	} else {
 		__hard_RI_enable();
@@ -194,20 +206,15 @@ static inline void interrupt_enter_prepare(struct pt_regs *regs)
 		 * CT_WARN_ON comes here via program_check_exception,
 		 * so avoid recursion.
 		 */
-		if (TRAP(regs) != INTERRUPT_PROGRAM) {
+		if (TRAP(regs) != INTERRUPT_PROGRAM)
 			CT_WARN_ON(ct_state() != CONTEXT_KERNEL &&
 				   ct_state() != CONTEXT_IDLE);
-			if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
-				BUG_ON(is_implicit_soft_masked(regs));
-		}
-
-		/* Move this under a debugging check */
-		if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG) &&
-				arch_irq_disabled_regs(regs))
-			BUG_ON(search_kernel_restart_table(regs->nip));
+		INT_SOFT_MASK_BUG_ON(regs, is_implicit_soft_masked(regs));
+		INT_SOFT_MASK_BUG_ON(regs, arch_irq_disabled_regs(regs) &&
+					   search_kernel_restart_table(regs->nip));
 	}
-	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
-		BUG_ON(!arch_irq_disabled_regs(regs) && !(regs->msr & MSR_EE));
+	INT_SOFT_MASK_BUG_ON(regs, !arch_irq_disabled_regs(regs) &&
+				   !(regs->msr & MSR_EE));
 #endif
 
 	booke_restore_dbcr0();
