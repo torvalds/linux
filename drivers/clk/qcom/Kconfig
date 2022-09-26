@@ -453,6 +453,14 @@ config SC_GPUCC_7280
 	  Say Y if you want to support graphics controller devices and
 	  functionality such as 3D graphics.
 
+config SC_GPUCC_8280XP
+	tristate "SC8280XP Graphics Clock Controller"
+	select SC_GCC_8280XP
+	help
+	  Support for the graphics clock controller on SC8280XP devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
 config SC_LPASSCC_7280
 	tristate "SC7280 Low Power Audio Subsystem (LPASS) Clock Controller"
 	select SC_GCC_7280
