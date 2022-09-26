@@ -15,7 +15,6 @@
 #include <linux/mfd/mc13xxx.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/err.h>
 #include <linux/spi/spi.h>
 
