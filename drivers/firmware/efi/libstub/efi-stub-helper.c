@@ -539,7 +539,7 @@ efi_status_t efi_load_initrd_cmdline(efi_loaded_image_t *image,
 				     unsigned long hard_limit)
 {
 	if (!IS_ENABLED(CONFIG_EFI_GENERIC_STUB_INITRD_CMDLINE_LOADER) ||
-	    (IS_ENABLED(CONFIG_X86) && (!efi_is_native() || image == NULL)))
+	    (IS_ENABLED(CONFIG_X86) && image == NULL))
 		return EFI_UNSUPPORTED;
 
 	return handle_cmdline_files(image, L"initrd=", sizeof(L"initrd=") - 2,

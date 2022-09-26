@@ -595,36 +595,63 @@ typedef struct {
 	efi_char16_t		filename[];
 } efi_file_info_t;
 
-typedef struct efi_file_protocol efi_file_protocol_t;
+typedef union efi_file_protocol efi_file_protocol_t;
 
-struct efi_file_protocol {
-	u64		revision;
-	efi_status_t	(__efiapi *open)	(efi_file_protocol_t *,
-						 efi_file_protocol_t **,
-						 efi_char16_t *, u64, u64);
-	efi_status_t	(__efiapi *close)	(efi_file_protocol_t *);
-	efi_status_t	(__efiapi *delete)	(efi_file_protocol_t *);
-	efi_status_t	(__efiapi *read)	(efi_file_protocol_t *,
-						 unsigned long *, void *);
-	efi_status_t	(__efiapi *write)	(efi_file_protocol_t *,
-						 unsigned long, void *);
-	efi_status_t	(__efiapi *get_position)(efi_file_protocol_t *, u64 *);
-	efi_status_t	(__efiapi *set_position)(efi_file_protocol_t *, u64);
-	efi_status_t	(__efiapi *get_info)	(efi_file_protocol_t *,
-						 efi_guid_t *, unsigned long *,
-						 void *);
-	efi_status_t	(__efiapi *set_info)	(efi_file_protocol_t *,
-						 efi_guid_t *, unsigned long,
-						 void *);
-	efi_status_t	(__efiapi *flush)	(efi_file_protocol_t *);
+union efi_file_protocol {
+	struct {
+		u64		revision;
+		efi_status_t	(__efiapi *open)	(efi_file_protocol_t *,
+							 efi_file_protocol_t **,
+							 efi_char16_t *, u64,
+							 u64);
+		efi_status_t	(__efiapi *close)	(efi_file_protocol_t *);
+		efi_status_t	(__efiapi *delete)	(efi_file_protocol_t *);
+		efi_status_t	(__efiapi *read)	(efi_file_protocol_t *,
+							 unsigned long *,
+							 void *);
+		efi_status_t	(__efiapi *write)	(efi_file_protocol_t *,
+							 unsigned long, void *);
+		efi_status_t	(__efiapi *get_position)(efi_file_protocol_t *,
+							 u64 *);
+		efi_status_t	(__efiapi *set_position)(efi_file_protocol_t *,
+							 u64);
+		efi_status_t	(__efiapi *get_info)	(efi_file_protocol_t *,
+							 efi_guid_t *,
+							 unsigned long *,
+							 void *);
+		efi_status_t	(__efiapi *set_info)	(efi_file_protocol_t *,
+							 efi_guid_t *,
+							 unsigned long,
+							 void *);
+		efi_status_t	(__efiapi *flush)	(efi_file_protocol_t *);
+	};
+	struct {
+		u64 revision;
+		u32 open;
+		u32 close;
+		u32 delete;
+		u32 read;
+		u32 write;
+		u32 get_position;
+		u32 set_position;
+		u32 get_info;
+		u32 set_info;
+		u32 flush;
+	} mixed_mode;
 };
 
-typedef struct efi_simple_file_system_protocol efi_simple_file_system_protocol_t;
+typedef union efi_simple_file_system_protocol efi_simple_file_system_protocol_t;
 
-struct efi_simple_file_system_protocol {
-	u64	revision;
-	int	(__efiapi *open_volume)(efi_simple_file_system_protocol_t *,
-					efi_file_protocol_t **);
+union efi_simple_file_system_protocol {
+	struct {
+		u64		revision;
+		efi_status_t	(__efiapi *open_volume)(efi_simple_file_system_protocol_t *,
+							efi_file_protocol_t **);
+	};
+	struct {
+		u64 revision;
+		u32 open_volume;
+	} mixed_mode;
 };
 
 #define EFI_FILE_MODE_READ	0x0000000000000001

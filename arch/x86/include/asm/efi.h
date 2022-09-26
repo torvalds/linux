@@ -324,6 +324,17 @@ static inline u32 efi64_convert_status(efi_status_t status)
 #define __efi64_argmap_set_memory_space_attributes(phys, size, flags) \
 	(__efi64_split(phys), __efi64_split(size), __efi64_split(flags))
 
+/* file protocol */
+#define __efi64_argmap_open(prot, newh, fname, mode, attr) \
+	((prot), efi64_zero_upper(newh), (fname), __efi64_split(mode), \
+	 __efi64_split(attr))
+
+#define __efi64_argmap_set_position(pos) (__efi64_split(pos))
+
+/* file system protocol */
+#define __efi64_argmap_open_volume(prot, file) \
+	((prot), efi64_zero_upper(file))
+
 /*
  * The macros below handle the plumbing for the argument mapping. To add a
  * mapping for a specific EFI method, simply define a macro
