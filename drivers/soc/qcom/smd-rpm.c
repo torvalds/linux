@@ -75,7 +75,7 @@ struct qcom_rpm_message {
 	__le32 length;
 	union {
 		__le32 msg_id;
-		u8 message[0];
+		DECLARE_FLEX_ARRAY(u8, message);
 	};
 };
 
