@@ -725,8 +725,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
  * userspace starts.
  */
 .macro EARLY_BOOT_FIXUP
-#ifdef CONFIG_CPU_LITTLE_ENDIAN
 BEGIN_FTR_SECTION
+#ifdef CONFIG_CPU_LITTLE_ENDIAN
 	tdi   0,0,0x48    // Trap never, or in reverse endian: b . + 8
 	b     2f          // Skip trampoline if endian is correct
 	.long 0xa643707d  // mtsprg  0, r11      Backup r11
@@ -753,8 +753,19 @@ BEGIN_FTR_SECTION
 	mtsrr0 r11        // Restore SRR0
 	mfsprg r11, 0     // Restore r11
 2:
-END_FTR_SECTION(0, 1)     // nop out after boot
 #endif
+	/*
+	 * program check could hit at any time, and pseries can not block
+	 * MSR[ME] in early boot. So check if there is anything useful in r13
+	 * yet, and spin forever if not.
+	 */
+	mtsprg	0, r11
+	mfcr	r11
+	cmpdi	r13, 0
+	beq	.
+	mtcr	r11
+	mfsprg	r11, 0
+END_FTR_SECTION(0, 1)     // nop out after boot
 .endm
 
 /*

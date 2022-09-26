@@ -487,6 +487,9 @@ __start_initialization_multiplatform:
 	/* Make sure we are running in 64 bits mode */
 	bl	enable_64b_mode
 
+	/* Zero r13 (paca) so early program check / mce don't use it */
+	li	r13,0
+
 	/* Get TOC pointer (current runtime address) */
 	bl	relative_toc
 

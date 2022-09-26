@@ -364,6 +364,7 @@ void __init early_setup(unsigned long dt_ptr)
 	 */
 	initialise_paca(&boot_paca, 0);
 	fixup_boot_paca(&boot_paca);
+	WARN_ON(local_paca != 0);
 	setup_paca(&boot_paca); /* install the paca into registers */
 
 	/* -------- printk is now safe to use ------- */
