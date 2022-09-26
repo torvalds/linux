@@ -110,6 +110,12 @@ union bpf_iter_link_info {
 		__u32	cgroup_fd;
 		__u64	cgroup_id;
 	} cgroup;
+	/* Parameters of task iterators. */
+	struct {
+		__u32	tid;
+		__u32	pid;
+		__u32	pid_fd;
+	} task;
 };
 
 /* BPF syscall commands, see bpf(2) man-page for more details. */
