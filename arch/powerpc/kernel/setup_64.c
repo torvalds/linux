@@ -177,10 +177,10 @@ early_param("smt-enabled", early_smt_enabled);
 #endif /* CONFIG_SMP */
 
 /** Fix up paca fields required for the boot cpu */
-static void __init fixup_boot_paca(void)
+static void __init fixup_boot_paca(struct paca_struct *boot_paca)
 {
 	/* The boot cpu is started */
-	get_paca()->cpu_start = 1;
+	boot_paca->cpu_start = 1;
 #ifdef CONFIG_PPC_BOOK3S_64
 	/*
 	 * Give the early boot machine check stack somewhere to use, use
@@ -188,14 +188,14 @@ static void __init fixup_boot_paca(void)
 	 * deep stack usage in early init so shouldn't overflow it or overwrite
 	 * things.
 	 */
-	get_paca()->mc_emergency_sp = (void *)&init_thread_union +
+	boot_paca->mc_emergency_sp = (void *)&init_thread_union +
 		(THREAD_SIZE/2);
 #endif
 	/* Allow percpu accesses to work until we setup percpu data */
-	get_paca()->data_offset = 0;
+	boot_paca->data_offset = 0;
 	/* Mark interrupts soft and hard disabled in PACA */
-	irq_soft_mask_set(IRQS_DISABLED);
-	get_paca()->irq_happened = PACA_IRQ_HARD_DIS;
+	boot_paca->irq_soft_mask = IRQS_DISABLED;
+	boot_paca->irq_happened = PACA_IRQ_HARD_DIS;
 	WARN_ON(mfmsr() & MSR_EE);
 }
 
@@ -363,8 +363,8 @@ void __init early_setup(unsigned long dt_ptr)
 	 * what CPU we are on.
 	 */
 	initialise_paca(&boot_paca, 0);
-	setup_paca(&boot_paca);
-	fixup_boot_paca();
+	fixup_boot_paca(&boot_paca);
+	setup_paca(&boot_paca); /* install the paca into registers */
 
 	/* -------- printk is now safe to use ------- */
 
@@ -393,8 +393,8 @@ void __init early_setup(unsigned long dt_ptr)
 		/* Poison paca_ptrs[0] again if it's not the boot cpu */
 		memset(&paca_ptrs[0], 0x88, sizeof(paca_ptrs[0]));
 	}
-	setup_paca(paca_ptrs[boot_cpuid]);
-	fixup_boot_paca();
+	fixup_boot_paca(paca_ptrs[boot_cpuid]);
+	setup_paca(paca_ptrs[boot_cpuid]); /* install the paca into registers */
 
 	/*
 	 * Configure exception handlers. This include setting up trampolines
