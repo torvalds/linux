@@ -15,16 +15,12 @@ static int tcp_server(int family)
 	int err, s;
 
 	s = socket(family, SOCK_STREAM, 0);
-	if (CHECK_FAIL(s == -1)) {
-		perror("socket");
+	if (!ASSERT_GE(s, 0, "socket"))
 		return -1;
-	}
 
 	err = listen(s, SOMAXCONN);
-	if (CHECK_FAIL(err)) {
-		perror("listen");
+	if (!ASSERT_OK(err, "listen"))
 		return -1;
-	}
 
 	return s;
 }
@@ -48,44 +44,31 @@ static void test_sockmap_ktls_disconnect_after_delete(int family, int map)
 		return;
 
 	err = getsockname(srv, (struct sockaddr *)&addr, &len);
-	if (CHECK_FAIL(err)) {
-		perror("getsockopt");
+	if (!ASSERT_OK(err, "getsockopt"))
 		goto close_srv;
-	}
 
 	cli = socket(family, SOCK_STREAM, 0);
-	if (CHECK_FAIL(cli == -1)) {
-		perror("socket");
+	if (!ASSERT_GE(cli, 0, "socket"))
 		goto close_srv;
-	}
 
 	err = connect(cli, (struct sockaddr *)&addr, len);
-	if (CHECK_FAIL(err)) {
-		perror("connect");
+	if (!ASSERT_OK(err, "connect"))
 		goto close_cli;
-	}
 
 	err = bpf_map_update_elem(map, &zero, &cli, 0);
-	if (CHECK_FAIL(err)) {
-		perror("bpf_map_update_elem");
+	if (!ASSERT_OK(err, "bpf_map_update_elem"))
 		goto close_cli;
-	}
 
 	err = setsockopt(cli, IPPROTO_TCP, TCP_ULP, "tls", strlen("tls"));
-	if (CHECK_FAIL(err)) {
-		perror("setsockopt(TCP_ULP)");
+	if (!ASSERT_OK(err, "setsockopt(TCP_ULP)"))
 		goto close_cli;
-	}
 
 	err = bpf_map_delete_elem(map, &zero);
-	if (CHECK_FAIL(err)) {
-		perror("bpf_map_delete_elem");
+	if (!ASSERT_OK(err, "bpf_map_delete_elem"))
 		goto close_cli;
-	}
 
 	err = disconnect(cli);
-	if (CHECK_FAIL(err))
-		perror("disconnect");
+	ASSERT_OK(err, "disconnect");
 
 close_cli:
 	close(cli);
@@ -168,10 +151,8 @@ static void run_tests(int family, enum bpf_map_type map_type)
 	int map;
 
 	map = bpf_map_create(map_type, NULL, sizeof(int), sizeof(int), 1, NULL);
-	if (CHECK_FAIL(map < 0)) {
-		perror("bpf_map_create");
+	if (!ASSERT_GE(map, 0, "bpf_map_create"))
 		return;
-	}
 
 	if (test__start_subtest(fmt_test_name("disconnect_after_delete", family, map_type)))
 		test_sockmap_ktls_disconnect_after_delete(family, map);
