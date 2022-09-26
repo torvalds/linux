@@ -390,7 +390,7 @@
 };
 
 &rpm_requests {
-	pm8998-regulators {
+	regulators-0 {
 		compatible = "qcom,rpm-pm8998-regulators";
 
 		vdd_s1-supply = <&vph_pwr>;
@@ -588,7 +588,7 @@
 
 	};
 
-	pmi8998-regulators {
+	regulators-1 {
 		compatible = "qcom,rpm-pmi8998-regulators";
 
 		vdd_bob-supply = <&vph_pwr>;

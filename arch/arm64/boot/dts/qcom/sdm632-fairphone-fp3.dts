@@ -69,7 +69,7 @@
 };
 
 &rpm_requests {
-	pm8953-regulators {
+	regulators {
 		compatible = "qcom,rpm-pm8953-regulators";
 
 		vdd_l1-supply = <&pm8953_s3>;

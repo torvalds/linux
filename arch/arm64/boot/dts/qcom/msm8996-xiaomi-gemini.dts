@@ -219,7 +219,7 @@
 };
 
 &rpm_requests {
-	pm8994-regulators {
+	regulators-0 {
 		vreg_l17a_2p8: l17 {
 			regulator-name = "vreg_l17a_2p8";
 			regulator-min-microvolt = <2500000>;

@@ -260,7 +260,7 @@
 };
 
 &rpm_requests {
-	pm660l-regulators {
+	regulators-0 {
 		compatible = "qcom,rpm-pm660l-regulators";
 
 		vdd_s1-supply = <&vph_pwr>;
@@ -394,7 +394,7 @@
 		};
 	};
 
-	pm660-regulators {
+	regulators-1 {
 		compatible = "qcom,rpm-pm660-regulators";
 
 		vdd_s1-supply = <&vph_pwr>;

@@ -216,7 +216,7 @@
 };
 
 &rpm_requests {
-	pm8994-regulators {
+	regulators-0 {
 		vreg_l3a_0p875: l3 {
 			regulator-name = "vreg_l3a_0p875";
 			regulator-min-microvolt = <850000>;

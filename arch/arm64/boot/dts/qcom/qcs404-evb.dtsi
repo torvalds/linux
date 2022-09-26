@@ -125,7 +125,7 @@
 };
 
 &rpm_requests {
-	pms405-regulators {
+	regulators {
 		compatible = "qcom,rpm-pms405-regulators";
 
 		vdd_s1-supply = <&vph_pwr>;
