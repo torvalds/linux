@@ -71,6 +71,7 @@ patternProperties:
         maxItems: 1
       resets:
         maxItems: 1
+      gpio-line-names: true
       gpio-ranges:
         minItems: 1
         maxItems: 16
