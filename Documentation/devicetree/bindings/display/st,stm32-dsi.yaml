@@ -58,9 +58,20 @@ properties:
           DSI input port node, connected to the ltdc rgb output port.
 
       port@1:
-        $ref: /schemas/graph.yaml#/properties/port
-        description:
-          DSI output port node, connected to a panel or a bridge input port"
+        $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
+        description: |
+          DSI output port node, connected to a panel or a bridge input port.
+        properties:
+          endpoint:
+            $ref: /schemas/media/video-interfaces.yaml#
+            unevaluatedProperties: false
+            properties:
+              data-lanes:
+                minItems: 1
+                items:
+                  - const: 1
+                  - const: 2
 
 required:
   - "#address-cells"
