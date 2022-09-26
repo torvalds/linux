@@ -321,6 +321,7 @@
 #define XFER_TIMEOUT			(msecs_to_jiffies(1000))
 
 #define ast_setbits(x, set)		writel(readl(x) | (set), x)
+#define ast_clrbits(x, clr)		writel(readl(x) & ~(clr), x)
 #define ast_clrsetbits(x, clr, set)	writel((readl(x) & ~(clr)) | (set), x)
 
 #define MAX_GROUPS			(1 << 4)
@@ -1949,7 +1950,7 @@ static int aspeed_i3c_master_disable_ibi(struct i3c_dev_desc *dev)
 	struct aspeed_i3c_dev_group *dev_grp =
 		aspeed_i3c_master_get_group(master, dev->info.dyn_addr);
 	unsigned long flags;
-	u32 sirmap, dat;
+	u32 sirmap, dat, hj_nack;
 	int ret, i;
 	bool ibi_enable = false;
 
@@ -1987,7 +1988,8 @@ static int aspeed_i3c_master_disable_ibi(struct i3c_dev_desc *dev)
 	}
 
 	sirmap = readl(master->regs + IBI_SIR_REQ_REJECT);
-	if (sirmap == IBI_REQ_REJECT_ALL)
+	hj_nack = readl(master->regs + DEVICE_CTRL) & DEV_CTRL_HOT_JOIN_NACK;
+	if (sirmap == IBI_REQ_REJECT_ALL && hj_nack)
 		aspeed_i3c_master_disable_ibi_irq(master);
 	else
 		aspeed_i3c_master_enable_ibi_irq(master);
@@ -2005,7 +2007,7 @@ static int aspeed_i3c_master_enable_ibi(struct i3c_dev_desc *dev)
 	struct aspeed_i3c_dev_group *dev_grp =
 		aspeed_i3c_master_get_group(master, dev->info.dyn_addr);
 	unsigned long flags;
-	u32 sirmap;
+	u32 sirmap, hj_nack;
 	u32 sirmap_backup, mask_clr_backup, mask_set_backup;
 	int ret;
 
@@ -2044,7 +2046,8 @@ static int aspeed_i3c_master_enable_ibi(struct i3c_dev_desc *dev)
 	}
 
 	sirmap = readl(master->regs + IBI_SIR_REQ_REJECT);
-	if (sirmap == IBI_REQ_REJECT_ALL)
+	hj_nack = readl(master->regs + DEVICE_CTRL) & DEV_CTRL_HOT_JOIN_NACK;
+	if (sirmap == IBI_REQ_REJECT_ALL && hj_nack)
 		aspeed_i3c_master_disable_ibi_irq(master);
 	else
 		aspeed_i3c_master_enable_ibi_irq(master);
@@ -2333,6 +2336,17 @@ static void aspeed_i3c_master_hj(struct work_struct *work)
 	i3c_master_do_daa(&master->base);
 }
 
+static int aspeed_i3c_master_enable_hj(struct aspeed_i3c_master *master)
+{
+	int ret;
+
+	aspeed_i3c_master_enable_ibi_irq(master);
+	ast_clrbits(master->regs + DEVICE_CTRL, DEV_CTRL_HOT_JOIN_NACK);
+	ret = i3c_master_enable_hj(&master->base);
+
+	return ret;
+}
+
 static int aspeed_i3c_probe(struct platform_device *pdev)
 {
 	struct aspeed_i3c_master *master;
@@ -2417,7 +2431,14 @@ static int aspeed_i3c_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_assert_rst;
 
+	ret = aspeed_i3c_master_enable_hj(master);
+	if (ret)
+		goto err_master_register;
+
 	return 0;
+
+err_master_register:
+	i3c_master_unregister(&master->base);
 
 err_assert_rst:
 	reset_control_assert(master->core_rst);
