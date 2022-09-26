@@ -58,6 +58,12 @@ static void efx_tc_delete_rule(struct efx_nic *efx, struct efx_tc_flow_rule *rul
 	rule->fw_id = MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL;
 }
 
+int efx_tc_flower(struct efx_nic *efx, struct net_device *net_dev,
+		  struct flow_cls_offload *tc, struct efx_rep *efv)
+{
+	return -EOPNOTSUPP;
+}
+
 static int efx_tc_configure_default_rule(struct efx_nic *efx, u32 ing_port,
 					 u32 eg_port, struct efx_tc_flow_rule *rule)
 {
@@ -207,7 +213,11 @@ int efx_init_tc(struct efx_nic *efx)
 	rc = efx_tc_configure_default_rule_wire(efx);
 	if (rc)
 		return rc;
-	return efx_tc_configure_rep_mport(efx);
+	rc = efx_tc_configure_rep_mport(efx);
+	if (rc)
+		return rc;
+	efx->tc->up = true;
+	return 0;
 }
 
 void efx_fini_tc(struct efx_nic *efx)
@@ -218,6 +228,7 @@ void efx_fini_tc(struct efx_nic *efx)
 	efx_tc_deconfigure_rep_mport(efx);
 	efx_tc_deconfigure_default_rule(efx, &efx->tc->dflt.pf);
 	efx_tc_deconfigure_default_rule(efx, &efx->tc->dflt.wire);
+	efx->tc->up = false;
 }
 
 int efx_init_struct_tc(struct efx_nic *efx)
@@ -228,6 +239,7 @@ int efx_init_struct_tc(struct efx_nic *efx)
 	efx->tc = kzalloc(sizeof(*efx->tc), GFP_KERNEL);
 	if (!efx->tc)
 		return -ENOMEM;
+	INIT_LIST_HEAD(&efx->tc->block_list);
 
 	efx->tc->reps_filter_uc = -1;
 	efx->tc->reps_filter_mc = -1;

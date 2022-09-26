@@ -11,6 +11,7 @@
 
 #ifndef EFX_TC_H
 #define EFX_TC_H
+#include <net/flow_offload.h>
 #include "net_driver.h"
 
 struct efx_tc_action_set {
@@ -49,6 +50,7 @@ enum efx_tc_rule_prios {
 /**
  * struct efx_tc_state - control plane data for TC offload
  *
+ * @block_list: List of &struct efx_tc_block_binding
  * @reps_mport_id: MAE port allocated for representor RX
  * @reps_filter_uc: VNIC filter for representor unicast RX (promisc)
  * @reps_filter_mc: VNIC filter for representor multicast RX (allmulti)
@@ -57,14 +59,17 @@ enum efx_tc_rule_prios {
  *	%EFX_TC_PRIO_DFLT.  Named by *ingress* port
  * @dflt.pf: rule for traffic ingressing from PF (egresses to wire)
  * @dflt.wire: rule for traffic ingressing from wire (egresses to PF)
+ * @up: have TC datastructures been set up?
  */
 struct efx_tc_state {
+	struct list_head block_list;
 	u32 reps_mport_id, reps_mport_vport_id;
 	s32 reps_filter_uc, reps_filter_mc;
 	struct {
 		struct efx_tc_flow_rule pf;
 		struct efx_tc_flow_rule wire;
 	} dflt;
+	bool up;
 };
 
 struct efx_rep;
@@ -72,6 +77,8 @@ struct efx_rep;
 int efx_tc_configure_default_rule_rep(struct efx_rep *efv);
 void efx_tc_deconfigure_default_rule(struct efx_nic *efx,
 				     struct efx_tc_flow_rule *rule);
+int efx_tc_flower(struct efx_nic *efx, struct net_device *net_dev,
+		  struct flow_cls_offload *tc, struct efx_rep *efv);
 
 int efx_tc_insert_rep_filters(struct efx_nic *efx);
 void efx_tc_remove_rep_filters(struct efx_nic *efx);
