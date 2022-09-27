@@ -2563,6 +2563,7 @@ struct rtw89_imr_info {
 	u32 cpu_disp_imr_set;
 	u32 other_disp_imr_clr;
 	u32 other_disp_imr_set;
+	u32 bbrpt_com_err_imr_reg;
 	u32 bbrpt_chinfo_err_imr_reg;
 	u32 bbrpt_err_imr_set;
 	u32 bbrpt_dfs_err_imr_reg;

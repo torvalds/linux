@@ -431,6 +431,7 @@ static const struct rtw89_imr_info rtw8852a_imr_info = {
 	.cpu_disp_imr_set	= B_AX_CPU_DISP_IMR_SET,
 	.other_disp_imr_clr	= B_AX_OTHER_DISP_IMR_CLR,
 	.other_disp_imr_set	= 0,
+	.bbrpt_com_err_imr_reg	= R_AX_BBRPT_COM_ERR_IMR_ISR,
 	.bbrpt_chinfo_err_imr_reg = R_AX_BBRPT_CHINFO_ERR_IMR_ISR,
 	.bbrpt_err_imr_set	= 0,
 	.bbrpt_dfs_err_imr_reg	= R_AX_BBRPT_DFS_ERR_IMR_ISR,

@@ -2853,7 +2853,7 @@ static void rtw89_bbrpt_imr_enable(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_imr_info *imr = rtwdev->chip->imr_info;
 
-	rtw89_write32_set(rtwdev, R_AX_BBRPT_COM_ERR_IMR,
+	rtw89_write32_set(rtwdev, imr->bbrpt_com_err_imr_reg,
 			  B_AX_BBRPT_COM_NULL_PLPKTID_ERR_INT_EN);
 	rtw89_write32_clr(rtwdev, imr->bbrpt_chinfo_err_imr_reg,
 			  B_AX_BBRPT_CHINFO_IMR_CLR);
