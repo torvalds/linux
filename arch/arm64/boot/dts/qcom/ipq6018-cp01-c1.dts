@@ -81,9 +81,9 @@
 };
 
 &qusb_phy_1 {
-	status = "ok";
+	status = "okay";
 };
 
 &usb2 {
-	status = "ok";
+	status = "okay";
 };
