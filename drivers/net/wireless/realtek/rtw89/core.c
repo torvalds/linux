@@ -2949,7 +2949,9 @@ int rtw89_core_start(struct rtw89_dev *rtwdev)
 	/* efuse process */
 
 	/* pre-config BB/RF, BB reset/RFC reset */
-	rtw89_chip_disable_bb_rf(rtwdev);
+	ret = rtw89_chip_disable_bb_rf(rtwdev);
+	if (ret)
+		return ret;
 	ret = rtw89_chip_enable_bb_rf(rtwdev);
 	if (ret)
 		return ret;

@@ -2976,10 +2976,12 @@ static int rtw8852c_mac_enable_bb_rf(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
-static void rtw8852c_mac_disable_bb_rf(struct rtw89_dev *rtwdev)
+static int rtw8852c_mac_disable_bb_rf(struct rtw89_dev *rtwdev)
 {
 	rtw89_write8_clr(rtwdev, R_AX_SYS_FUNC_EN,
 			 B_AX_FEN_BBRSTB | B_AX_FEN_BB_GLB_RSTN);
+
+	return 0;
 }
 
 static const struct rtw89_chip_ops rtw8852c_chip_ops = {

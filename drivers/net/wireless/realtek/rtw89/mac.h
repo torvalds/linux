@@ -805,7 +805,7 @@ void rtw89_mac_set_he_obss_narrow_bw_ru(struct rtw89_dev *rtwdev,
 					struct ieee80211_vif *vif);
 int rtw89_mac_remove_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *vif);
 int rtw89_mac_enable_bb_rf(struct rtw89_dev *rtwdev);
-void rtw89_mac_disable_bb_rf(struct rtw89_dev *rtwdev);
+int rtw89_mac_disable_bb_rf(struct rtw89_dev *rtwdev);
 
 static inline int rtw89_chip_enable_bb_rf(struct rtw89_dev *rtwdev)
 {
@@ -814,11 +814,11 @@ static inline int rtw89_chip_enable_bb_rf(struct rtw89_dev *rtwdev)
 	return chip->ops->enable_bb_rf(rtwdev);
 }
 
-static inline void rtw89_chip_disable_bb_rf(struct rtw89_dev *rtwdev)
+static inline int rtw89_chip_disable_bb_rf(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
-	chip->ops->disable_bb_rf(rtwdev);
+	return chip->ops->disable_bb_rf(rtwdev);
 }
 
 u32 rtw89_mac_get_err_status(struct rtw89_dev *rtwdev);
@@ -988,8 +988,10 @@ enum rtw89_mac_xtal_si_offset {
 #define XTAL_SI_HIGH_ADDR_MASK	GENMASK(2, 0)
 	XTAL_SI_READ_VAL = 0x7A,
 	XTAL_SI_WL_RFC_S0 = 0x80,
+#define XTAL_SI_RF00S_EN	GENMASK(2, 0)
 #define XTAL_SI_RF00		BIT(0)
 	XTAL_SI_WL_RFC_S1 = 0x81,
+#define XTAL_SI_RF10S_EN	GENMASK(2, 0)
 #define XTAL_SI_RF10		BIT(0)
 	XTAL_SI_ANAPAR_WL = 0x90,
 #define XTAL_SI_SRAM2RFC	BIT(7)
