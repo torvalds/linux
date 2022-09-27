@@ -1356,7 +1356,6 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 			continue;
 
 		memcpy(&res, &felix->info->target_io_res[i], sizeof(res));
-		res.flags = IORESOURCE_MEM;
 		res.start += felix->switch_base;
 		res.end += felix->switch_base;
 
@@ -1393,7 +1392,6 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 		}
 
 		memcpy(&res, &felix->info->port_io_res[port], sizeof(res));
-		res.flags = IORESOURCE_MEM;
 		res.start += felix->switch_base;
 		res.end += felix->switch_base;
 
