@@ -23,6 +23,9 @@
 #define PCIE_DPHY_DLY_25US		0x1
 #define RAC_ANA19			0x19
 #define B_PCIE_BIT_RD_SEL		BIT(2)
+#define RAC_REG_FLD_0			0x1D
+#define BAC_AUTOK_N_MASK		GENMASK(3, 2)
+#define PCIE_AUTOK_4			0x3
 #define RAC_ANA1F			0x1F
 #define RAC_ANA24			0x24
 #define B_AX_DEGLITCH			GENMASK(11, 8)

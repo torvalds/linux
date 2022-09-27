@@ -1874,6 +1874,18 @@ __get_target(struct rtw89_dev *rtwdev, u16 *target, enum rtw89_pcie_phy phy_rate
 	return 0;
 }
 
+static int rtw89_pci_autok_x(struct rtw89_dev *rtwdev)
+{
+	int ret;
+
+	if (rtwdev->chip->chip_id != RTL8852B)
+		return 0;
+
+	ret = rtw89_write16_mdio_mask(rtwdev, RAC_REG_FLD_0, BAC_AUTOK_N_MASK,
+				      PCIE_AUTOK_4, PCIE_PHY_GEN1);
+	return ret;
+}
+
 static int rtw89_pci_auto_refclk_cal(struct rtw89_dev *rtwdev, bool autook_en)
 {
 	enum rtw89_pcie_phy phy_rate;
@@ -2451,6 +2463,12 @@ static int rtw89_pci_ops_mac_pre_init(struct rtw89_dev *rtwdev)
 	rtw89_pci_aphy_pwrcut(rtwdev);
 	rtw89_pci_hci_ldo(rtwdev);
 	rtw89_pci_dphy_delay(rtwdev);
+
+	ret = rtw89_pci_autok_x(rtwdev);
+	if (ret) {
+		rtw89_err(rtwdev, "[ERR] pcie autok_x fail %d\n", ret);
+		return ret;
+	}
 
 	ret = rtw89_pci_auto_refclk_cal(rtwdev, false);
 	if (ret) {
