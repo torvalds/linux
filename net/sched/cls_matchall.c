@@ -394,12 +394,7 @@ static void mall_bind_class(void *fh, u32 classid, unsigned long cl, void *q,
 {
 	struct cls_mall_head *head = fh;
 
-	if (head && head->res.classid == classid) {
-		if (cl)
-			__tcf_bind_filter(q, &head->res, base);
-		else
-			__tcf_unbind_filter(q, &head->res);
-	}
+	tc_cls_bind_class(classid, cl, q, &head->res, base);
 }
 
 static struct tcf_proto_ops cls_mall_ops __read_mostly = {
