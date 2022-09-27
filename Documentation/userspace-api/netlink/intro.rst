@@ -623,22 +623,57 @@ Even though other protocols and Generic Netlink commands often use
 the same verbs in their message names (``GET``, ``SET``) the concept
 of request types did not find wider adoption.
 
-Message flags
--------------
+Notification echo
+-----------------
 
-The earlier section has already covered the basic request flags
-(``NLM_F_REQUEST``, ``NLM_F_ACK``, ``NLM_F_DUMP``) and the ``NLMSG_ERROR`` /
-``NLMSG_DONE`` flags (``NLM_F_CAPPED``, ``NLM_F_ACK_TLVS``).
-Dump flags were also mentioned (``NLM_F_MULTI``, ``NLM_F_DUMP_INTR``).
+``NLM_F_ECHO`` requests for notifications resulting from the request
+to be queued onto the requesting socket. This is useful to discover
+the impact of the request.
 
-Those are the main flags of note, with a small exception (of ``ieee802154``)
-Generic Netlink does not make use of other flags. If the protocol needs
-to communicate special constraints for a request it should use
-an attribute, not the flags in struct nlmsghdr.
+Note that this feature is not universally implemented.
 
-Classic Netlink, however, defined various flags for its ``GET``, ``NEW``
-and ``DEL`` requests. Since request types have not been generalized
-the request type specific flags should not be used either.
+Other request-type-specific flags
+---------------------------------
+
+Classic Netlink defined various flags for its ``GET``, ``NEW``
+and ``DEL`` requests in the upper byte of nlmsg_flags in struct nlmsghdr.
+Since request types have not been generalized the request type specific
+flags are rarely used (and considered deprecated for new families).
+
+For ``GET`` - ``NLM_F_ROOT`` and ``NLM_F_MATCH`` are combined into
+``NLM_F_DUMP``, and not used separately. ``NLM_F_ATOMIC`` is never used.
+
+For ``DEL`` - ``NLM_F_NONREC`` is only used by nftables and ``NLM_F_BULK``
+only by FDB some operations.
+
+The flags for ``NEW`` are used most commonly in classic Netlink. Unfortunately,
+the meaning is not crystal clear. The following description is based on the
+best guess of the intention of the authors, and in practice all families
+stray from it in one way or another. ``NLM_F_REPLACE`` asks to replace
+an existing object, if no matching object exists the operation should fail.
+``NLM_F_EXCL`` has the opposite semantics and only succeeds if object already
+existed.
+``NLM_F_CREATE`` asks for the object to be created if it does not
+exist, it can be combined with ``NLM_F_REPLACE`` and ``NLM_F_EXCL``.
+
+A comment in the main Netlink uAPI header states::
+
+   4.4BSD ADD		NLM_F_CREATE|NLM_F_EXCL
+   4.4BSD CHANGE	NLM_F_REPLACE
+
+   True CHANGE		NLM_F_CREATE|NLM_F_REPLACE
+   Append		NLM_F_CREATE
+   Check		NLM_F_EXCL
+
+which seems to indicate that those flags predate request types.
+``NLM_F_REPLACE`` without ``NLM_F_CREATE`` was initially used instead
+of ``SET`` commands.
+``NLM_F_EXCL`` without ``NLM_F_CREATE`` was used to check if object exists
+without creating it, presumably predating ``GET`` commands.
+
+``NLM_F_APPEND`` indicates that if one key can have multiple objects associated
+with it (e.g. multiple next-hop objects for a route) the new object should be
+added to the list rather than replacing the entire list.
 
 uAPI reference
 ==============

@@ -62,7 +62,7 @@ struct nlmsghdr {
 #define NLM_F_REQUEST		0x01	/* It is request message. 	*/
 #define NLM_F_MULTI		0x02	/* Multipart message, terminated by NLMSG_DONE */
 #define NLM_F_ACK		0x04	/* Reply with ack, with zero or error code */
-#define NLM_F_ECHO		0x08	/* Echo this request 		*/
+#define NLM_F_ECHO		0x08	/* Receive resulting notifications */
 #define NLM_F_DUMP_INTR		0x10	/* Dump was inconsistent due to sequence change */
 #define NLM_F_DUMP_FILTERED	0x20	/* Dump was filtered as requested */
 
