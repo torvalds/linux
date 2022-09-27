@@ -55,8 +55,6 @@ struct felix_info {
 	void	(*tas_guard_bands_update)(struct ocelot *ocelot, int port);
 	void	(*port_sched_speed_set)(struct ocelot *ocelot, int port,
 					u32 speed);
-	struct regmap *(*init_regmap)(struct ocelot *ocelot,
-				      struct resource *res);
 };
 
 /* Methods for initializing the hardware resources specific to a tagging
