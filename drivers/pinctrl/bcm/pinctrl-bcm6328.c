@@ -26,12 +26,6 @@
 #define BCM6328_MUX_OTHER_REG	0x24
 #define  BCM6328_MUX_MASK	GENMASK(1, 0)
 
-struct bcm6328_pingroup {
-	const char *name;
-	const unsigned * const pins;
-	const unsigned num_pins;
-};
-
 struct bcm6328_function {
 	const char *name;
 	const char * const *groups;
