@@ -243,6 +243,28 @@ int apmf_get_dyn_slider_def_dc(struct amd_pmf_dev *pdev, struct apmf_dyn_slider_
 	return apmf_if_call_store_buffer(pdev, APMF_FUNC_DYN_SLIDER_DC, data, sizeof(*data));
 }
 
+int apmf_install_handler(struct amd_pmf_dev *pmf_dev)
+{
+	acpi_handle ahandle = ACPI_HANDLE(pmf_dev->dev);
+	acpi_status status;
+
+	/* Install the APMF Notify handler */
+	if (is_apmf_func_supported(pmf_dev, APMF_FUNC_AUTO_MODE) &&
+	    is_apmf_func_supported(pmf_dev, APMF_FUNC_SBIOS_REQUESTS)) {
+		status = acpi_install_notify_handler(ahandle, ACPI_ALL_NOTIFY,
+						     apmf_event_handler, pmf_dev);
+		if (ACPI_FAILURE(status)) {
+			dev_err(pmf_dev->dev, "failed to install notify handler\n");
+			return -ENODEV;
+		}
+
+		/* Call the handler once manually to catch up with possibly missed notifies. */
+		apmf_event_handler(ahandle, 0, pmf_dev);
+	}
+
+	return 0;
+}
+
 void apmf_acpi_deinit(struct amd_pmf_dev *pmf_dev)
 {
 	acpi_handle ahandle = ACPI_HANDLE(pmf_dev->dev);
@@ -257,8 +279,6 @@ void apmf_acpi_deinit(struct amd_pmf_dev *pmf_dev)
 
 int apmf_acpi_init(struct amd_pmf_dev *pmf_dev)
 {
-	acpi_handle ahandle = ACPI_HANDLE(pmf_dev->dev);
-	acpi_status status;
 	int ret;
 
 	ret = apmf_if_verify_interface(pmf_dev);
@@ -277,20 +297,6 @@ int apmf_acpi_init(struct amd_pmf_dev *pmf_dev)
 		/* send heartbeats only if the interval is not zero */
 		INIT_DELAYED_WORK(&pmf_dev->heart_beat, apmf_sbios_heartbeat_notify);
 		schedule_delayed_work(&pmf_dev->heart_beat, 0);
-	}
-
-	/* Install the APMF Notify handler */
-	if (is_apmf_func_supported(pmf_dev, APMF_FUNC_AUTO_MODE) &&
-	    is_apmf_func_supported(pmf_dev, APMF_FUNC_SBIOS_REQUESTS)) {
-		status = acpi_install_notify_handler(ahandle,
-						     ACPI_ALL_NOTIFY,
-						     apmf_event_handler, pmf_dev);
-		if (ACPI_FAILURE(status)) {
-			dev_err(pmf_dev->dev, "failed to install notify handler\n");
-			return -ENODEV;
-		}
-		/* Call the handler once manually to catch up with possibly missed notifies. */
-		apmf_event_handler(ahandle, 0, pmf_dev);
 	}
 
 out:

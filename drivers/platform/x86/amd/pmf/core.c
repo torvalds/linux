@@ -369,6 +369,7 @@ static int amd_pmf_probe(struct platform_device *pdev)
 	apmf_acpi_init(dev);
 	platform_set_drvdata(pdev, dev);
 	amd_pmf_init_features(dev);
+	apmf_install_handler(dev);
 	amd_pmf_dbgfs_register(dev);
 
 	mutex_init(&dev->lock);
