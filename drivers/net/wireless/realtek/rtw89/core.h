@@ -2716,6 +2716,7 @@ struct rtw89_chip_info {
 	u8 dcfo_comp_sft;
 	const struct rtw89_imr_info *imr_info;
 	const struct rtw89_rrsr_cfgs *rrsr_cfgs;
+	u32 dma_ch_mask;
 };
 
 union rtw89_bus_info {

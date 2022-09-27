@@ -2281,6 +2281,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.dcfo_comp_sft		= 3,
 	.imr_info		= &rtw8852a_imr_info,
 	.rrsr_cfgs		= &rtw8852a_rrsr_cfgs,
+	.dma_ch_mask		= 0,
 };
 EXPORT_SYMBOL(rtw8852a_chip_info);
 
