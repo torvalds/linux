@@ -385,7 +385,7 @@ static int erofs_read_superblock(struct super_block *sb)
 	sbi->packed_inode = NULL;
 	if (erofs_sb_has_fragments(sbi) && dsb->packed_nid) {
 		sbi->packed_inode =
-			erofs_iget(sb, le64_to_cpu(dsb->packed_nid), false);
+			erofs_iget(sb, le64_to_cpu(dsb->packed_nid));
 		if (IS_ERR(sbi->packed_inode)) {
 			ret = PTR_ERR(sbi->packed_inode);
 			goto out;
@@ -668,7 +668,7 @@ static int erofs_init_managed_cache(struct super_block *sb) { return 0; }
 static struct inode *erofs_nfs_get_inode(struct super_block *sb,
 					 u64 ino, u32 generation)
 {
-	return erofs_iget(sb, ino, false);
+	return erofs_iget(sb, ino);
 }
 
 static struct dentry *erofs_fh_to_dentry(struct super_block *sb,
@@ -694,7 +694,7 @@ static struct dentry *erofs_get_parent(struct dentry *child)
 	err = erofs_namei(d_inode(child), &dotdot_name, &nid, &d_type);
 	if (err)
 		return ERR_PTR(err);
-	return d_obtain_alias(erofs_iget(child->d_sb, nid, d_type == FT_DIR));
+	return d_obtain_alias(erofs_iget(child->d_sb, nid));
 }
 
 static const struct export_operations erofs_export_ops = {
@@ -782,7 +782,7 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 #endif
 
 	/* get the root inode */
-	inode = erofs_iget(sb, ROOT_NID(sbi), true);
+	inode = erofs_iget(sb, ROOT_NID(sbi));
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
 

@@ -53,15 +53,14 @@ TRACE_EVENT(erofs_lookup,
 );
 
 TRACE_EVENT(erofs_fill_inode,
-	TP_PROTO(struct inode *inode, int isdir),
-	TP_ARGS(inode, isdir),
+	TP_PROTO(struct inode *inode),
+	TP_ARGS(inode),
 
 	TP_STRUCT__entry(
 		__field(dev_t,		dev	)
 		__field(erofs_nid_t,	nid	)
 		__field(erofs_blk_t,	blkaddr )
 		__field(unsigned int,	ofs	)
-		__field(int,		isdir	)
 	),
 
 	TP_fast_assign(
@@ -69,13 +68,11 @@ TRACE_EVENT(erofs_fill_inode,
 		__entry->nid		= EROFS_I(inode)->nid;
 		__entry->blkaddr	= erofs_blknr(iloc(EROFS_I_SB(inode), __entry->nid));
 		__entry->ofs		= erofs_blkoff(iloc(EROFS_I_SB(inode), __entry->nid));
-		__entry->isdir		= isdir;
 	),
 
-	TP_printk("dev = (%d,%d), nid = %llu, blkaddr %u ofs %u, isdir %d",
+	TP_printk("dev = (%d,%d), nid = %llu, blkaddr %u ofs %u",
 		  show_dev_nid(__entry),
-		  __entry->blkaddr, __entry->ofs,
-		  __entry->isdir)
+		  __entry->blkaddr, __entry->ofs)
 );
 
 TRACE_EVENT(erofs_readpage,
