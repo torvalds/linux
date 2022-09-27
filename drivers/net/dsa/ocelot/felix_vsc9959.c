@@ -1021,7 +1021,7 @@ static int vsc9959_mdio_bus_alloc(struct ocelot *ocelot)
 		return -ENOMEM;
 	}
 
-	memcpy(&res, felix->info->imdio_res, sizeof(res));
+	memcpy(&res, &vsc9959_imdio_res, sizeof(res));
 	res.flags = IORESOURCE_MEM;
 	res.start += felix->imdio_base;
 	res.end += felix->imdio_base;
@@ -2592,7 +2592,6 @@ static const struct ocelot_ops vsc9959_ops = {
 static const struct felix_info felix_info_vsc9959 = {
 	.target_io_res		= vsc9959_target_io_res,
 	.port_io_res		= vsc9959_port_io_res,
-	.imdio_res		= &vsc9959_imdio_res,
 	.regfields		= vsc9959_regfields,
 	.map			= vsc9959_regmap,
 	.ops			= &vsc9959_ops,
