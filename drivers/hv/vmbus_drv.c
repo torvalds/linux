@@ -1130,7 +1130,8 @@ void vmbus_on_msg_dpc(unsigned long data)
 			return;
 
 		INIT_WORK(&ctx->work, vmbus_onmessage_work);
-		memcpy(&ctx->msg, &msg_copy, sizeof(msg->header) + payload_size);
+		ctx->msg.header = msg_copy.header;
+		memcpy(&ctx->msg.payload, msg_copy.u.payload, payload_size);
 
 		/*
 		 * The host can generate a rescind message while we
