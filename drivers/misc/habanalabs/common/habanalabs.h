@@ -2528,7 +2528,7 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 				break; \
 			(val) = __elbi_read; \
 		} else {\
-			(val) = RREG32((u32)(addr)); \
+			(val) = RREG32(lower_32_bits(addr)); \
 		} \
 		if (cond) \
 			break; \
@@ -2539,7 +2539,7 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 					break; \
 				(val) = __elbi_read; \
 			} else {\
-				(val) = RREG32((u32)(addr)); \
+				(val) = RREG32(lower_32_bits(addr)); \
 			} \
 			break; \
 		} \
@@ -2594,7 +2594,7 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 				if (__rc) \
 					break; \
 			} else { \
-				__read_val = RREG32((u32)(addr_arr)[__arr_idx]); \
+				__read_val = RREG32(lower_32_bits(addr_arr[__arr_idx])); \
 			} \
 			if (__read_val == (expected_val))	\
 				__elem_bitmask &= ~BIT_ULL(__arr_idx);	\
