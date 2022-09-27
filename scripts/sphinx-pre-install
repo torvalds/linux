@@ -362,7 +362,6 @@ sub give_debian_hints()
 {
 	my %map = (
 		"python-sphinx"		=> "python3-sphinx",
-		"sphinx_rtd_theme"	=> "python3-sphinx-rtd-theme",
 		"ensurepip"		=> "python3-venv",
 		"virtualenv"		=> "virtualenv",
 		"dot"			=> "graphviz",
@@ -397,7 +396,6 @@ sub give_redhat_hints()
 {
 	my %map = (
 		"python-sphinx"		=> "python3-sphinx",
-		"sphinx_rtd_theme"	=> "python3-sphinx_rtd_theme",
 		"virtualenv"		=> "python3-virtualenv",
 		"dot"			=> "graphviz",
 		"convert"		=> "ImageMagick",
@@ -475,7 +473,6 @@ sub give_opensuse_hints()
 {
 	my %map = (
 		"python-sphinx"		=> "python3-sphinx",
-		"sphinx_rtd_theme"	=> "python3-sphinx_rtd_theme",
 		"virtualenv"		=> "python3-virtualenv",
 		"dot"			=> "graphviz",
 		"convert"		=> "ImageMagick",
@@ -523,7 +520,6 @@ sub give_mageia_hints()
 {
 	my %map = (
 		"python-sphinx"		=> "python3-sphinx",
-		"sphinx_rtd_theme"	=> "python3-sphinx_rtd_theme",
 		"virtualenv"		=> "python3-virtualenv",
 		"dot"			=> "graphviz",
 		"convert"		=> "ImageMagick",
@@ -567,7 +563,6 @@ sub give_mageia_hints()
 sub give_arch_linux_hints()
 {
 	my %map = (
-		"sphinx_rtd_theme"	=> "python-sphinx_rtd_theme",
 		"virtualenv"		=> "python-virtualenv",
 		"dot"			=> "graphviz",
 		"convert"		=> "imagemagick",
@@ -598,7 +593,6 @@ sub give_arch_linux_hints()
 sub give_gentoo_hints()
 {
 	my %map = (
-		"sphinx_rtd_theme"	=> "dev-python/sphinx_rtd_theme",
 		"virtualenv"		=> "dev-python/virtualenv",
 		"dot"			=> "media-gfx/graphviz",
 		"convert"		=> "media-gfx/imagemagick",
@@ -895,7 +889,6 @@ sub recommend_sphinx_version($)
 	$verbose_warn_install = 0;
 
 	add_package("python-sphinx", 0);
-	check_python_module("sphinx_rtd_theme", 1);
 
 	check_distros();
 
@@ -968,7 +961,6 @@ sub check_needs()
 	check_perl_module("Pod::Usage", 0);
 	check_program("make", 0);
 	check_program("gcc", 0);
-	check_python_module("sphinx_rtd_theme", 1) if (!$virtualenv);
 	check_program("dot", 1);
 	check_program("convert", 1);
 
