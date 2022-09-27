@@ -3952,13 +3952,14 @@ static int add_detailed_modes(struct drm_connector *connector,
 	struct detailed_mode_closure closure = {
 		.connector = connector,
 		.drm_edid = drm_edid,
-		.preferred = true,
 		.quirks = quirks,
 	};
 
-	if (closure.preferred && !version_greater(drm_edid, 1, 3))
+	if (version_greater(drm_edid, 1, 3))
+		closure.preferred = true; /* first detailed timing is always preferred */
+	else
 		closure.preferred =
-		    (drm_edid->edid->features & DRM_EDID_FEATURE_PREFERRED_TIMING);
+			drm_edid->edid->features & DRM_EDID_FEATURE_PREFERRED_TIMING;
 
 	drm_for_each_detailed_block(drm_edid, do_detailed_mode, &closure);
 
