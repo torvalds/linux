@@ -21,8 +21,6 @@
 #define TSNEP_RING_ENTRIES_PER_PAGE (PAGE_SIZE / TSNEP_DESC_SIZE)
 #define TSNEP_RING_PAGE_COUNT (TSNEP_RING_SIZE / TSNEP_RING_ENTRIES_PER_PAGE)
 
-#define TSNEP_QUEUES 1
-
 struct tsnep_gcl {
 	void __iomem *addr;
 

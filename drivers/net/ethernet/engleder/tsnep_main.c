@@ -1265,6 +1265,52 @@ static int tsnep_phy_init(struct tsnep_adapter *adapter)
 	return 0;
 }
 
+static int tsnep_queue_init(struct tsnep_adapter *adapter, int queue_count)
+{
+	u32 irq_mask = ECM_INT_TX_0 | ECM_INT_RX_0;
+	char name[8];
+	int i;
+	int retval;
+
+	/* one TX/RX queue pair for netdev is mandatory */
+	if (platform_irq_count(adapter->pdev) == 1)
+		retval = platform_get_irq(adapter->pdev, 0);
+	else
+		retval = platform_get_irq_byname(adapter->pdev, "mac");
+	if (retval < 0)
+		return retval;
+	adapter->num_tx_queues = 1;
+	adapter->num_rx_queues = 1;
+	adapter->num_queues = 1;
+	adapter->queue[0].irq = retval;
+	adapter->queue[0].tx = &adapter->tx[0];
+	adapter->queue[0].rx = &adapter->rx[0];
+	adapter->queue[0].irq_mask = irq_mask;
+
+	adapter->netdev->irq = adapter->queue[0].irq;
+
+	/* add additional TX/RX queue pairs only if dedicated interrupt is
+	 * available
+	 */
+	for (i = 1; i < queue_count; i++) {
+		sprintf(name, "txrx-%d", i);
+		retval = platform_get_irq_byname_optional(adapter->pdev, name);
+		if (retval < 0)
+			break;
+
+		adapter->num_tx_queues++;
+		adapter->num_rx_queues++;
+		adapter->num_queues++;
+		adapter->queue[i].irq = retval;
+		adapter->queue[i].tx = &adapter->tx[i];
+		adapter->queue[i].rx = &adapter->rx[i];
+		adapter->queue[i].irq_mask =
+			irq_mask << (ECM_INT_TXRX_SHIFT * i);
+	}
+
+	return 0;
+}
+
 static int tsnep_probe(struct platform_device *pdev)
 {
 	struct tsnep_adapter *adapter;
@@ -1273,6 +1319,7 @@ static int tsnep_probe(struct platform_device *pdev)
 	u32 type;
 	int revision;
 	int version;
+	int queue_count;
 	int retval;
 
 	netdev = devm_alloc_etherdev_mqs(&pdev->dev,
@@ -1305,18 +1352,14 @@ static int tsnep_probe(struct platform_device *pdev)
 	type = ioread32(adapter->addr + ECM_TYPE);
 	revision = (type & ECM_REVISION_MASK) >> ECM_REVISION_SHIFT;
 	version = (type & ECM_VERSION_MASK) >> ECM_VERSION_SHIFT;
+	queue_count = (type & ECM_QUEUE_COUNT_MASK) >> ECM_QUEUE_COUNT_SHIFT;
 	adapter->gate_control = type & ECM_GATE_CONTROL;
 
-	adapter->num_tx_queues = TSNEP_QUEUES;
-	adapter->num_rx_queues = TSNEP_QUEUES;
-	adapter->num_queues = TSNEP_QUEUES;
-	adapter->queue[0].irq = platform_get_irq(pdev, 0);
-	adapter->queue[0].tx = &adapter->tx[0];
-	adapter->queue[0].rx = &adapter->rx[0];
-	adapter->queue[0].irq_mask = ECM_INT_TX_0 | ECM_INT_RX_0;
-
-	netdev->irq = adapter->queue[0].irq;
 	tsnep_disable_irq(adapter, ECM_INT_ALL);
+
+	retval = tsnep_queue_init(adapter, queue_count);
+	if (retval)
+		return retval;
 
 	retval = dma_set_mask_and_coherent(&adapter->pdev->dev,
 					   DMA_BIT_MASK(64));
