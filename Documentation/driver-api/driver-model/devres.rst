@@ -301,6 +301,7 @@ IO region
   devm_release_region()
   devm_release_resource()
   devm_request_mem_region()
+  devm_request_free_mem_region()
   devm_request_region()
   devm_request_resource()
 
