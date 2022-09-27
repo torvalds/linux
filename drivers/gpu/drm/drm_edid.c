@@ -6052,10 +6052,13 @@ void get_monitor_range(const struct detailed_timing *timing,
 		return;
 
 	/*
-	 * Check for flag range limits only. If flag == 1 then
-	 * no additional timing information provided.
-	 * Default GTF, GTF Secondary curve and CVT are not
-	 * supported
+	 * These limits are used to determine the VRR refresh
+	 * rate range. Only the "range limits only" variant
+	 * of the range descriptor seems to guarantee that
+	 * any and all timings are accepted by the sink, as
+	 * opposed to just timings conforming to the indicated
+	 * formula (GTF/GTF2/CVT). Thus other variants of the
+	 * range descriptor are not accepted here.
 	 */
 	if (range->flags != DRM_EDID_RANGE_LIMITS_ONLY_FLAG)
 		return;
