@@ -10,7 +10,6 @@
  */
 
 #include <linux/efi.h>
-#include <linux/libfdt.h>
 #include <asm/efi.h>
 
 #include "efistub.h"
@@ -130,16 +129,11 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	unsigned long image_addr;
 	unsigned long image_size = 0;
 	/* addr/point and size pairs for memory management*/
-	unsigned long initrd_addr = 0;
-	unsigned long initrd_size = 0;
-	unsigned long fdt_addr = 0;  /* Original DTB */
-	unsigned long fdt_size = 0;
 	char *cmdline_ptr = NULL;
 	int cmdline_size = 0;
 	efi_guid_t loaded_image_proto = LOADED_IMAGE_PROTOCOL_GUID;
 	unsigned long reserve_addr = 0;
 	unsigned long reserve_size = 0;
-	enum efi_secureboot_mode secure_boot;
 	struct screen_info *si;
 	efi_properties_table_t *prop_tbl;
 
@@ -215,40 +209,8 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	/* Ask the firmware to clear memory on unclean shutdown */
 	efi_enable_reset_attack_mitigation();
 
-	secure_boot = efi_get_secureboot();
-
-	/*
-	 * Unauthenticated device tree data is a security hazard, so ignore
-	 * 'dtb=' unless UEFI Secure Boot is disabled.  We assume that secure
-	 * boot is enabled if we can't determine its state.
-	 */
-	if (!IS_ENABLED(CONFIG_EFI_ARMSTUB_DTB_LOADER) ||
-	     secure_boot != efi_secureboot_mode_disabled) {
-		if (strstr(cmdline_ptr, "dtb="))
-			efi_err("Ignoring DTB from command line.\n");
-	} else {
-		status = efi_load_dtb(image, &fdt_addr, &fdt_size);
-
-		if (status != EFI_SUCCESS) {
-			efi_err("Failed to load device tree!\n");
-			goto fail_free_image;
-		}
-	}
-
-	if (fdt_addr) {
-		efi_info("Using DTB from command line\n");
-	} else {
-		/* Look for a device tree configuration table entry. */
-		fdt_addr = (uintptr_t)get_fdt(&fdt_size);
-		if (fdt_addr)
-			efi_info("Using DTB from configuration table\n");
-	}
-
-	if (!fdt_addr)
-		efi_info("Generating empty DTB\n");
-
-	efi_load_initrd(image, &initrd_addr, &initrd_size, ULONG_MAX,
-			efi_get_max_initrd_addr(image_addr));
+	efi_load_initrd(image, ULONG_MAX, efi_get_max_initrd_addr(image_addr),
+			NULL);
 
 	efi_random_get_seed();
 
@@ -290,25 +252,8 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 
 	install_memreserve_table();
 
-	status = allocate_new_fdt_and_exit_boot(handle, &fdt_addr,
-						initrd_addr, initrd_size,
-						cmdline_ptr, fdt_addr, fdt_size);
-	if (status != EFI_SUCCESS)
-		goto fail_free_initrd;
+	status = efi_boot_kernel(handle, image, image_addr, cmdline_ptr);
 
-	if (IS_ENABLED(CONFIG_ARM))
-		efi_handle_post_ebs_state();
-
-	efi_enter_kernel(image_addr, fdt_addr, fdt_totalsize((void *)fdt_addr));
-	/* not reached */
-
-fail_free_initrd:
-	efi_err("Failed to update FDT and exit boot services\n");
-
-	efi_free(initrd_size, initrd_addr);
-	efi_free(fdt_size, fdt_addr);
-
-fail_free_image:
 	efi_free(image_size, image_addr);
 	efi_free(reserve_size, reserve_addr);
 fail_free_screeninfo:
@@ -317,6 +262,35 @@ fail_free_cmdline:
 	efi_bs_call(free_pool, cmdline_ptr);
 fail:
 	return status;
+}
+
+/*
+ * efi_allocate_virtmap() - create a pool allocation for the virtmap
+ *
+ * Create an allocation that is of sufficient size to hold all the memory
+ * descriptors that will be passed to SetVirtualAddressMap() to inform the
+ * firmware about the virtual mapping that will be used under the OS to call
+ * into the firmware.
+ */
+efi_status_t efi_alloc_virtmap(efi_memory_desc_t **virtmap,
+			       unsigned long *desc_size, u32 *desc_ver)
+{
+	unsigned long size, mmap_key;
+	efi_status_t status;
+
+	/*
+	 * Use the size of the current memory map as an upper bound for the
+	 * size of the buffer we need to pass to SetVirtualAddressMap() to
+	 * cover all EFI_MEMORY_RUNTIME regions.
+	 */
+	size = 0;
+	status = efi_bs_call(get_memory_map, &size, NULL, &mmap_key, desc_size,
+			     desc_ver);
+	if (status != EFI_BUFFER_TOO_SMALL)
+		return EFI_LOAD_ERROR;
+
+	return efi_bs_call(allocate_pool, EFI_LOADER_DATA, size,
+			   (void **)virtmap);
 }
 
 /*
@@ -333,6 +307,8 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 	u64 efi_virt_base = virtmap_base;
 	efi_memory_desc_t *in, *out = runtime_map;
 	int l;
+
+	*count = 0;
 
 	for (l = 0; l < map_size; l += desc_size) {
 		u64 paddr, size;
