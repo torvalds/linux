@@ -37,6 +37,24 @@ struct tsnep_gcl {
 	bool change;
 };
 
+enum tsnep_rxnfc_filter_type {
+	TSNEP_RXNFC_ETHER_TYPE,
+};
+
+struct tsnep_rxnfc_filter {
+	enum tsnep_rxnfc_filter_type type;
+	union {
+		u16 ether_type;
+	};
+};
+
+struct tsnep_rxnfc_rule {
+	struct list_head list;
+	struct tsnep_rxnfc_filter filter;
+	int queue_index;
+	int location;
+};
+
 struct tsnep_tx_entry {
 	struct tsnep_tx_desc *desc;
 	struct tsnep_tx_desc_wb *desc_wb;
@@ -141,6 +159,12 @@ struct tsnep_adapter {
 	/* ptp clock lock */
 	spinlock_t ptp_lock;
 
+	/* RX flow classification rules lock */
+	struct mutex rxnfc_lock;
+	struct list_head rxnfc_rules;
+	int rxnfc_count;
+	int rxnfc_max;
+
 	int num_tx_queues;
 	struct tsnep_tx tx[TSNEP_MAX_QUEUES];
 	int num_rx_queues;
@@ -160,6 +184,18 @@ int tsnep_tc_init(struct tsnep_adapter *adapter);
 void tsnep_tc_cleanup(struct tsnep_adapter *adapter);
 int tsnep_tc_setup(struct net_device *netdev, enum tc_setup_type type,
 		   void *type_data);
+
+int tsnep_rxnfc_init(struct tsnep_adapter *adapter);
+void tsnep_rxnfc_cleanup(struct tsnep_adapter *adapter);
+int tsnep_rxnfc_get_rule(struct tsnep_adapter *adapter,
+			 struct ethtool_rxnfc *cmd);
+int tsnep_rxnfc_get_all(struct tsnep_adapter *adapter,
+			struct ethtool_rxnfc *cmd,
+			u32 *rule_locs);
+int tsnep_rxnfc_add_rule(struct tsnep_adapter *adapter,
+			 struct ethtool_rxnfc *cmd);
+int tsnep_rxnfc_del_rule(struct tsnep_adapter *adapter,
+			 struct ethtool_rxnfc *cmd);
 
 #if IS_ENABLED(CONFIG_TSNEP_SELFTESTS)
 int tsnep_ethtool_get_test_count(void);

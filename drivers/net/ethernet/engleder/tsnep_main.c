@@ -1341,6 +1341,8 @@ static int tsnep_probe(struct platform_device *pdev)
 	netdev->max_mtu = TSNEP_MAX_FRAME_SIZE;
 
 	mutex_init(&adapter->gate_control_lock);
+	mutex_init(&adapter->rxnfc_lock);
+	INIT_LIST_HEAD(&adapter->rxnfc_rules);
 
 	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	adapter->addr = devm_ioremap_resource(&pdev->dev, io);
@@ -1354,6 +1356,7 @@ static int tsnep_probe(struct platform_device *pdev)
 	version = (type & ECM_VERSION_MASK) >> ECM_VERSION_SHIFT;
 	queue_count = (type & ECM_QUEUE_COUNT_MASK) >> ECM_QUEUE_COUNT_SHIFT;
 	adapter->gate_control = type & ECM_GATE_CONTROL;
+	adapter->rxnfc_max = TSNEP_RX_ASSIGN_ETHER_TYPE_COUNT;
 
 	tsnep_disable_irq(adapter, ECM_INT_ALL);
 
@@ -1388,6 +1391,10 @@ static int tsnep_probe(struct platform_device *pdev)
 	if (retval)
 		goto tc_init_failed;
 
+	retval = tsnep_rxnfc_init(adapter);
+	if (retval)
+		goto rxnfc_init_failed;
+
 	netdev->netdev_ops = &tsnep_netdev_ops;
 	netdev->ethtool_ops = &tsnep_ethtool_ops;
 	netdev->features = NETIF_F_SG;
@@ -1408,6 +1415,8 @@ static int tsnep_probe(struct platform_device *pdev)
 	return 0;
 
 register_failed:
+	tsnep_rxnfc_cleanup(adapter);
+rxnfc_init_failed:
 	tsnep_tc_cleanup(adapter);
 tc_init_failed:
 	tsnep_ptp_cleanup(adapter);
@@ -1424,6 +1433,8 @@ static int tsnep_remove(struct platform_device *pdev)
 	struct tsnep_adapter *adapter = platform_get_drvdata(pdev);
 
 	unregister_netdev(adapter->netdev);
+
+	tsnep_rxnfc_cleanup(adapter);
 
 	tsnep_tc_cleanup(adapter);
 
