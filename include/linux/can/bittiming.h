@@ -138,6 +138,11 @@ can_calc_tdco(struct can_tdc *tdc, const struct can_tdc_const *tdc_const,
 }
 #endif /* CONFIG_CAN_CALC_BITTIMING */
 
+void can_sjw_set_default(struct can_bittiming *bt);
+
+int can_sjw_check(const struct net_device *dev, const struct can_bittiming *bt,
+		  const struct can_bittiming_const *btc, struct netlink_ext_ack *extack);
+
 int can_get_bittiming(const struct net_device *dev, struct can_bittiming *bt,
 		      const struct can_bittiming_const *btc,
 		      const u32 *bitrate_const,

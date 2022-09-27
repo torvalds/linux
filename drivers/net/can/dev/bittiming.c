@@ -6,6 +6,24 @@
 
 #include <linux/can/dev.h>
 
+void can_sjw_set_default(struct can_bittiming *bt)
+{
+	if (bt->sjw)
+		return;
+
+	/* If user space provides no sjw, use 1 as default */
+	bt->sjw = 1;
+}
+
+int can_sjw_check(const struct net_device *dev, const struct can_bittiming *bt,
+		  const struct can_bittiming_const *btc, struct netlink_ext_ack *extack)
+{
+	if (bt->sjw > btc->sjw_max)
+		return -ERANGE;
+
+	return 0;
+}
+
 /* Checks the validity of the specified bit-timing parameters prop_seg,
  * phase_seg1, phase_seg2 and sjw and tries to determine the bitrate
  * prescaler value brp. You can find more information in the header
@@ -18,12 +36,16 @@ static int can_fixup_bittiming(const struct net_device *dev, struct can_bittimin
 	const struct can_priv *priv = netdev_priv(dev);
 	unsigned int tseg1;
 	u64 brp64;
+	int err;
+
+	can_sjw_set_default(bt);
+
+	err = can_sjw_check(dev, bt, btc, extack);
+	if (err)
+		return err;
 
 	tseg1 = bt->prop_seg + bt->phase_seg1;
-	if (!bt->sjw)
-		bt->sjw = 1;
-	if (bt->sjw > btc->sjw_max ||
-	    tseg1 < btc->tseg1_min || tseg1 > btc->tseg1_max ||
+	if (tseg1 < btc->tseg1_min || tseg1 > btc->tseg1_max ||
 	    bt->phase_seg2 < btc->tseg2_min || bt->phase_seg2 > btc->tseg2_max)
 		return -ERANGE;
 
