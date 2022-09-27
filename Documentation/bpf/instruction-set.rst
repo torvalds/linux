@@ -303,12 +303,6 @@ The ``BPF_CMPXCHG`` operation atomically compares the value addressed by
 value that was at ``dst_reg + off`` before the operation is zero-extended
 and loaded back to ``R0``.
 
-Clang can generate atomic instructions by default when ``-mcpu=v3`` is
-enabled. If a lower version for ``-mcpu`` is set, the only atomic instruction
-Clang can generate is ``BPF_ADD`` *without* ``BPF_FETCH``. If you need to enable
-the atomics features, while keeping a lower ``-mcpu`` version, you can use
-``-Xclang -target-feature -Xclang +alu32``.
-
 64-bit immediate instructions
 -----------------------------
 
