@@ -381,6 +381,8 @@ struct i3c_ccc_cmd_dest {
  * @rnw: true if the CCC should retrieve data from the device. Only valid for
  *	 unicast commands
  * @id: CCC command id
+ * @dbp: true if the defining byte present
+ * @db: the defining byte
  * @ndests: number of destinations. Should always be one for broadcast commands
  * @dests: array of destinations and associated payload for this CCC. Most of
  *	   the time, only one destination is provided
@@ -389,6 +391,8 @@ struct i3c_ccc_cmd_dest {
 struct i3c_ccc_cmd {
 	u8 rnw;
 	u8 id;
+	u8 dbp;
+	u8 db;
 	unsigned int ndests;
 	struct i3c_ccc_cmd_dest *dests;
 	enum i3c_error_code err;
