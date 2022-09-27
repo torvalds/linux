@@ -57,8 +57,8 @@ static u32 mlx5e_rx_get_linear_stride_sz(struct mlx5e_params *params,
 	return roundup_pow_of_two(mlx5e_rx_get_linear_sz_skb(params, false));
 }
 
-u8 mlx5e_mpwqe_log_pkts_per_wqe(struct mlx5e_params *params,
-				struct mlx5e_xsk_param *xsk)
+static u8 mlx5e_mpwqe_log_pkts_per_wqe(struct mlx5e_params *params,
+				       struct mlx5e_xsk_param *xsk)
 {
 	u32 linear_stride_sz = mlx5e_rx_get_linear_stride_sz(params, xsk);
 
