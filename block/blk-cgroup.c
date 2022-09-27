@@ -263,14 +263,6 @@ err_free:
 	return NULL;
 }
 
-static void blkg_update_hint(struct blkcg *blkcg, struct blkcg_gq *blkg)
-{
-	lockdep_assert_held(&blkg->q->queue_lock);
-
-	if (blkcg != &blkcg_root && blkg != rcu_dereference(blkcg->blkg_hint))
-		rcu_assign_pointer(blkcg->blkg_hint, blkg);
-}
-
 /*
  * If @new_blkg is %NULL, this function tries to allocate a new one as
  * necessary using %GFP_NOWAIT.  @new_blkg is always consumed on return.
@@ -383,7 +375,9 @@ static struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
 	spin_lock_irqsave(&q->queue_lock, flags);
 	blkg = blkg_lookup(blkcg, q);
 	if (blkg) {
-		blkg_update_hint(blkcg, blkg);
+		if (blkcg != &blkcg_root &&
+		    blkg != rcu_dereference(blkcg->blkg_hint))
+			rcu_assign_pointer(blkcg->blkg_hint, blkg);
 		goto found;
 	}
 
@@ -680,10 +674,8 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 	}
 
 	blkg = blkg_lookup(blkcg, q);
-	if (blkg) {
-		blkg_update_hint(blkcg, blkg);
+	if (blkg)
 		goto success;
-	}
 
 	/*
 	 * Create blkgs walking down from blkcg_root to @blkcg, so that all
@@ -727,7 +719,6 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 
 		blkg = blkg_lookup(pos, q);
 		if (blkg) {
-			blkg_update_hint(pos, blkg);
 			blkg_free(new_blkg);
 		} else {
 			blkg = blkg_create(pos, disk, new_blkg);
