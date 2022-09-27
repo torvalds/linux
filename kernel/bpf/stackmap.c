@@ -121,8 +121,8 @@ static struct bpf_map *stack_map_alloc(union bpf_attr *attr)
 		return ERR_PTR(-E2BIG);
 
 	cost = n_buckets * sizeof(struct stack_map_bucket *) + sizeof(*smap);
-	cost += n_buckets * (value_size + sizeof(struct stack_map_bucket));
-	err = bpf_map_charge_init(&mem, cost);
+	err = bpf_map_charge_init(&mem, cost + attr->max_entries *
+			   (sizeof(struct stack_map_bucket) + (u64)value_size));
 	if (err)
 		return ERR_PTR(err);
 

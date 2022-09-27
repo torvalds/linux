@@ -768,7 +768,7 @@ asm(
 	RESTORE_REGS_STRING
 	"	popfl\n"
 #endif
-	"	ret\n"
+	ASM_RET
 	".size kretprobe_trampoline, .-kretprobe_trampoline\n"
 );
 NOKPROBE_SYMBOL(kretprobe_trampoline);

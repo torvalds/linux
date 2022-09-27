@@ -266,10 +266,16 @@ int idxd_cdev_register(void)
 		rc = alloc_chrdev_region(&ictx[i].devt, 0, MINORMASK,
 					 ictx[i].name);
 		if (rc)
-			return rc;
+			goto err_free_chrdev_region;
 	}
 
 	return 0;
+
+err_free_chrdev_region:
+	for (i--; i >= 0; i--)
+		unregister_chrdev_region(ictx[i].devt, MINORMASK);
+
+	return rc;
 }
 
 void idxd_cdev_remove(void)

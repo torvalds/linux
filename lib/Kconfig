@@ -101,6 +101,11 @@ config INDIRECT_PIO
 
 	  When in doubt, say N.
 
+source "lib/crypto/Kconfig"
+
+config LIB_MEMNEQ
+	bool
+
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help

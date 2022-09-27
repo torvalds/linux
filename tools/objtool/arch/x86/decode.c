@@ -16,6 +16,7 @@
 #include "../../arch.h"
 #include "../../warn.h"
 #include <asm/orc_types.h>
+#include "arch_elf.h"
 
 static unsigned char op_to_cfi_reg[][2] = {
 	{CFI_AX, CFI_R8},
@@ -455,6 +456,11 @@ int arch_decode_instruction(const struct elf *elf, const struct section *sec,
 
 		break;
 
+	case 0xcc:
+		/* int3 */
+		*type = INSN_TRAP;
+		break;
+
 	case 0xe3:
 		/* jecxz/jrcxz */
 		*type = INSN_JUMP_CONDITIONAL;
@@ -563,8 +569,8 @@ void arch_initial_func_cfi_state(struct cfi_init_state *state)
 	state->cfa.offset = 8;
 
 	/* initial RA (return address) */
-	state->regs[16].base = CFI_CFA;
-	state->regs[16].offset = -8;
+	state->regs[CFI_RA].base = CFI_CFA;
+	state->regs[CFI_RA].offset = -8;
 }
 
 const char *arch_nop_insn(int len)
@@ -585,38 +591,66 @@ const char *arch_nop_insn(int len)
 	return nops[len-1];
 }
 
-int arch_decode_hint_reg(struct instruction *insn, u8 sp_reg)
-{
-	struct cfi_reg *cfa = &insn->cfi.cfa;
+#define BYTE_RET	0xC3
 
+const char *arch_ret_insn(int len)
+{
+	static const char ret[5][5] = {
+		{ BYTE_RET },
+		{ BYTE_RET, 0xcc },
+		{ BYTE_RET, 0xcc, 0x90 },
+		{ BYTE_RET, 0xcc, 0x66, 0x90 },
+		{ BYTE_RET, 0xcc, 0x0f, 0x1f, 0x00 },
+	};
+
+	if (len < 1 || len > 5) {
+		WARN("invalid RET size: %d\n", len);
+		return NULL;
+	}
+
+	return ret[len-1];
+}
+
+int arch_decode_hint_reg(u8 sp_reg, int *base)
+{
 	switch (sp_reg) {
 	case ORC_REG_UNDEFINED:
-		cfa->base = CFI_UNDEFINED;
+		*base = CFI_UNDEFINED;
 		break;
 	case ORC_REG_SP:
-		cfa->base = CFI_SP;
+		*base = CFI_SP;
 		break;
 	case ORC_REG_BP:
-		cfa->base = CFI_BP;
+		*base = CFI_BP;
 		break;
 	case ORC_REG_SP_INDIRECT:
-		cfa->base = CFI_SP_INDIRECT;
+		*base = CFI_SP_INDIRECT;
 		break;
 	case ORC_REG_R10:
-		cfa->base = CFI_R10;
+		*base = CFI_R10;
 		break;
 	case ORC_REG_R13:
-		cfa->base = CFI_R13;
+		*base = CFI_R13;
 		break;
 	case ORC_REG_DI:
-		cfa->base = CFI_DI;
+		*base = CFI_DI;
 		break;
 	case ORC_REG_DX:
-		cfa->base = CFI_DX;
+		*base = CFI_DX;
 		break;
 	default:
 		return -1;
 	}
 
 	return 0;
+}
+
+bool arch_is_retpoline(struct symbol *sym)
+{
+	return !strncmp(sym->name, "__x86_indirect_", 15);
+}
+
+bool arch_is_rethunk(struct symbol *sym)
+{
+	return !strcmp(sym->name, "__x86_return_thunk");
 }

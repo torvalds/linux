@@ -55,7 +55,7 @@ SYM_CODE_START_LOCAL_NOALIGN(__thunk_restore)
 	popq %rsi
 	popq %rdi
 	popq %rbp
-	ret
+	RET
 	_ASM_NOKPROBE(__thunk_restore)
 SYM_CODE_END(__thunk_restore)
 #endif

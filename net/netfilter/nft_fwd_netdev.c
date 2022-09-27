@@ -18,7 +18,7 @@
 #include <net/ip.h>
 
 struct nft_fwd_netdev {
-	enum nft_registers	sreg_dev:8;
+	u8	sreg_dev;
 };
 
 static void nft_fwd_netdev_eval(const struct nft_expr *expr,
@@ -50,8 +50,8 @@ static int nft_fwd_netdev_init(const struct nft_ctx *ctx,
 	if (tb[NFTA_FWD_SREG_DEV] == NULL)
 		return -EINVAL;
 
-	priv->sreg_dev = nft_parse_register(tb[NFTA_FWD_SREG_DEV]);
-	return nft_validate_register_load(priv->sreg_dev, sizeof(int));
+	return nft_parse_register_load(tb[NFTA_FWD_SREG_DEV], &priv->sreg_dev,
+				       sizeof(int));
 }
 
 static int nft_fwd_netdev_dump(struct sk_buff *skb, const struct nft_expr *expr)
@@ -83,8 +83,8 @@ static bool nft_fwd_netdev_offload_action(const struct nft_expr *expr)
 }
 
 struct nft_fwd_neigh {
-	enum nft_registers	sreg_dev:8;
-	enum nft_registers	sreg_addr:8;
+	u8			sreg_dev;
+	u8			sreg_addr;
 	u8			nfproto;
 };
 
@@ -162,8 +162,6 @@ static int nft_fwd_neigh_init(const struct nft_ctx *ctx,
 	    !tb[NFTA_FWD_NFPROTO])
 		return -EINVAL;
 
-	priv->sreg_dev = nft_parse_register(tb[NFTA_FWD_SREG_DEV]);
-	priv->sreg_addr = nft_parse_register(tb[NFTA_FWD_SREG_ADDR]);
 	priv->nfproto = ntohl(nla_get_be32(tb[NFTA_FWD_NFPROTO]));
 
 	switch (priv->nfproto) {
@@ -177,11 +175,13 @@ static int nft_fwd_neigh_init(const struct nft_ctx *ctx,
 		return -EOPNOTSUPP;
 	}
 
-	err = nft_validate_register_load(priv->sreg_dev, sizeof(int));
+	err = nft_parse_register_load(tb[NFTA_FWD_SREG_DEV], &priv->sreg_dev,
+				      sizeof(int));
 	if (err < 0)
 		return err;
 
-	return nft_validate_register_load(priv->sreg_addr, addr_len);
+	return nft_parse_register_load(tb[NFTA_FWD_SREG_ADDR], &priv->sreg_addr,
+				       addr_len);
 }
 
 static int nft_fwd_neigh_dump(struct sk_buff *skb, const struct nft_expr *expr)

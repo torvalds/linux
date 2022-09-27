@@ -309,7 +309,7 @@ do_return:
 	popq    %rsi
 	popq    %rdi
 	popq    %rbx
-        ret
+        RET
 SYM_FUNC_END(crc_pcl)
 
 .section	.rodata, "a", @progbits
