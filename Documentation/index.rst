@@ -76,6 +76,8 @@ developers seeking information on the kernel's user-space APIs.
    User-space tools <tools/index>
    userspace-api/index
 
+See also: the `Linux man pages <https://www.kernel.org/doc/man-pages/>`_,
+which are kept separately from the kernel's own documentation.
 
 Firmware-related documentation
 ------------------------------
