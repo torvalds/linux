@@ -220,8 +220,9 @@ static int can_changelink(struct net_device *dev, struct nlattr *tb[],
 			return err;
 
 		if (priv->bitrate_max && bt.bitrate > priv->bitrate_max) {
-			netdev_err(dev, "arbitration bitrate surpasses transceiver capabilities of %d bps\n",
-				   priv->bitrate_max);
+			NL_SET_ERR_MSG_FMT(extack,
+					   "arbitration bitrate %u bps surpasses transceiver capabilities of %u bps",
+					   bt.bitrate, priv->bitrate_max);
 			return -EINVAL;
 		}
 
@@ -324,8 +325,9 @@ static int can_changelink(struct net_device *dev, struct nlattr *tb[],
 			return err;
 
 		if (priv->bitrate_max && dbt.bitrate > priv->bitrate_max) {
-			netdev_err(dev, "canfd data bitrate surpasses transceiver capabilities of %d bps\n",
-				   priv->bitrate_max);
+			NL_SET_ERR_MSG_FMT(extack,
+					   "CANFD data bitrate %u bps surpasses transceiver capabilities of %u bps",
+					   dbt.bitrate, priv->bitrate_max);
 			return -EINVAL;
 		}
 
