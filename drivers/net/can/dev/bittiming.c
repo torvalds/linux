@@ -67,22 +67,18 @@ int can_get_bittiming(const struct net_device *dev, struct can_bittiming *bt,
 		      const u32 *bitrate_const,
 		      const unsigned int bitrate_const_cnt)
 {
-	int err;
-
 	/* Depending on the given can_bittiming parameter structure the CAN
 	 * timing parameters are calculated based on the provided bitrate OR
 	 * alternatively the CAN timing parameters (tq, prop_seg, etc.) are
 	 * provided directly which are then checked and fixed up.
 	 */
 	if (!bt->tq && bt->bitrate && btc)
-		err = can_calc_bittiming(dev, bt, btc);
-	else if (bt->tq && !bt->bitrate && btc)
-		err = can_fixup_bittiming(dev, bt, btc);
-	else if (!bt->tq && bt->bitrate && bitrate_const)
-		err = can_validate_bitrate(dev, bt, bitrate_const,
-					   bitrate_const_cnt);
-	else
-		err = -EINVAL;
+		return can_calc_bittiming(dev, bt, btc);
+	if (bt->tq && !bt->bitrate && btc)
+		return can_fixup_bittiming(dev, bt, btc);
+	if (!bt->tq && bt->bitrate && bitrate_const)
+		return can_validate_bitrate(dev, bt, bitrate_const,
+					    bitrate_const_cnt);
 
-	return err;
+	return -EINVAL;
 }
