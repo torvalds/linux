@@ -372,7 +372,7 @@ static int mhi_bl_probe(struct mhi_device *mhi_device,
 	ipc_log_string(arch_info->boot_ipc_log, HLOG
 		       "Entered SBL, Session ID:0x%x\n", mhi_cntrl->session_id);
 
-	ret = mhi_prepare_for_transfer(mhi_device, 0);
+	ret = mhi_prepare_for_transfer(mhi_device);
 	if (ret)
 		return ret;
 
