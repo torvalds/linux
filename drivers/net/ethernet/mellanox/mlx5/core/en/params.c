@@ -209,11 +209,11 @@ u16 mlx5e_calc_sq_stop_room(struct mlx5_core_dev *mdev, struct mlx5e_params *par
 	stop_room  = mlx5e_ktls_get_stop_room(mdev, params);
 	stop_room += mlx5e_stop_room_for_max_wqe(mdev);
 	if (is_mpwqe)
-		/* A MPWQE can take up to the maximum-sized WQE + all the normal
-		 * stop room can be taken if a new packet breaks the active
-		 * MPWQE session and allocates its WQEs right away.
+		/* A MPWQE can take up to the maximum cacheline-aligned WQE +
+		 * all the normal stop room can be taken if a new packet breaks
+		 * the active MPWQE session and allocates its WQEs right away.
 		 */
-		stop_room += mlx5e_stop_room_for_max_wqe(mdev);
+		stop_room += mlx5e_stop_room_for_mpwqe(mdev);
 
 	return stop_room;
 }

@@ -439,6 +439,13 @@ static inline u16 mlx5e_stop_room_for_max_wqe(struct mlx5_core_dev *mdev)
 	return MLX5E_STOP_ROOM(mlx5e_get_max_sq_wqebbs(mdev));
 }
 
+static inline u16 mlx5e_stop_room_for_mpwqe(struct mlx5_core_dev *mdev)
+{
+	u8 mpwqe_wqebbs = mlx5e_get_max_sq_aligned_wqebbs(mdev);
+
+	return mlx5e_stop_room_for_wqe(mdev, mpwqe_wqebbs);
+}
+
 static inline bool mlx5e_icosq_can_post_wqe(struct mlx5e_icosq *sq, u16 wqe_size)
 {
 	u16 room = sq->reserved_room;
