@@ -995,7 +995,7 @@ static void apple_mca_release(struct mca_data *mca)
 	if (!IS_ERR_OR_NULL(mca->pd_dev))
 		dev_pm_domain_detach(mca->pd_dev, true);
 
-	reset_control_assert(mca->rstc);
+	reset_control_rearm(mca->rstc);
 }
 
 static int apple_mca_probe(struct platform_device *pdev)
@@ -1049,12 +1049,12 @@ static int apple_mca_probe(struct platform_device *pdev)
 					       DL_FLAG_RPM_ACTIVE);
 	if (!mca->pd_link) {
 		ret = -EINVAL;
-		/* Prevent an unbalanced reset assert */
+		/* Prevent an unbalanced reset rearm */
 		mca->rstc = NULL;
 		goto err_release;
 	}
 
-	reset_control_deassert(mca->rstc);
+	reset_control_reset(mca->rstc);
 
 	for (i = 0; i < nclusters; i++) {
 		struct mca_cluster *cl = &clusters[i];
