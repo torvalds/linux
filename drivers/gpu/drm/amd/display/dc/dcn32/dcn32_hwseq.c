@@ -1402,8 +1402,9 @@ void dcn32_update_dsc_pg(struct dc *dc,
 		bool safe_to_disable)
 {
 	struct dce_hwseq *hws = dc->hwseq;
+	int i;
 
-	for (int i = 0; i < dc->res_pool->res_cap->num_dsc; i++) {
+	for (i = 0; i < dc->res_pool->res_cap->num_dsc; i++) {
 		struct display_stream_compressor *dsc = dc->res_pool->dscs[i];
 		bool is_dsc_ungated = hws->funcs.dsc_pg_status(hws, dsc->inst);
 
