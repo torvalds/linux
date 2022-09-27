@@ -1829,8 +1829,8 @@ static void fun_destroy_netdev(struct net_device *netdev)
 
 	fp = netdev_priv(netdev);
 	devlink_port_type_clear(&fp->dl_port);
-	devlink_port_unregister(&fp->dl_port);
 	unregister_netdev(netdev);
+	devlink_port_unregister(&fp->dl_port);
 	fun_ktls_cleanup(fp);
 	fun_free_stats_area(fp);
 	fun_free_rss(fp);

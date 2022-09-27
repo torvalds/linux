@@ -320,16 +320,16 @@ static int ionic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			dev_err(dev, "Cannot enable existing VFs: %d\n", err);
 	}
 
-	err = ionic_lif_register(ionic->lif);
-	if (err) {
-		dev_err(dev, "Cannot register LIF: %d, aborting\n", err);
-		goto err_out_deinit_lifs;
-	}
-
 	err = ionic_devlink_register(ionic);
 	if (err) {
 		dev_err(dev, "Cannot register devlink: %d\n", err);
-		goto err_out_deregister_lifs;
+		goto err_out_deinit_lifs;
+	}
+
+	err = ionic_lif_register(ionic->lif);
+	if (err) {
+		dev_err(dev, "Cannot register LIF: %d, aborting\n", err);
+		goto err_out_deregister_devlink;
 	}
 
 	mod_timer(&ionic->watchdog_timer,
@@ -337,8 +337,8 @@ static int ionic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	return 0;
 
-err_out_deregister_lifs:
-	ionic_lif_unregister(ionic->lif);
+err_out_deregister_devlink:
+	ionic_devlink_unregister(ionic);
 err_out_deinit_lifs:
 	ionic_vf_dealloc(ionic);
 	ionic_lif_deinit(ionic->lif);
@@ -380,8 +380,8 @@ static void ionic_remove(struct pci_dev *pdev)
 	del_timer_sync(&ionic->watchdog_timer);
 
 	if (ionic->lif) {
-		ionic_devlink_unregister(ionic);
 		ionic_lif_unregister(ionic->lif);
+		ionic_devlink_unregister(ionic);
 		ionic_lif_deinit(ionic->lif);
 		ionic_lif_free(ionic->lif);
 		ionic->lif = NULL;
