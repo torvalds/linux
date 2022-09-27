@@ -736,12 +736,6 @@ static void intf_free(struct kref *ref)
 	kfree(intf);
 }
 
-struct watcher_entry {
-	int              intf_num;
-	struct ipmi_smi  *intf;
-	struct list_head link;
-};
-
 int ipmi_smi_watcher_register(struct ipmi_smi_watcher *watcher)
 {
 	struct ipmi_smi *intf;
