@@ -110,6 +110,8 @@ static int amd_sfh1_1_hid_client_init(struct amd_mp2_dev *privdata)
 	amd_sfh1_1_set_desc_ops(mp2_ops);
 
 	cl_data->num_hid_devices = amd_sfh_get_sensor_num(privdata, &cl_data->sensor_idx[0]);
+	if (cl_data->num_hid_devices == 0)
+		return -ENODEV;
 
 	INIT_DELAYED_WORK(&cl_data->work, amd_sfh_work);
 	INIT_DELAYED_WORK(&cl_data->work_buffer, amd_sfh_work_buffer);
