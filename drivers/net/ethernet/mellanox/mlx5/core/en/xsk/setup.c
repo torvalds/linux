@@ -21,10 +21,6 @@ bool mlx5e_validate_xsk_param(struct mlx5e_params *params,
 			xsk->chunk_size < MLX5E_MIN_XSK_CHUNK_SIZE)
 		return false;
 
-	/* Current MTU and XSK headroom don't allow packets to fit the frames. */
-	if (mlx5e_rx_get_min_frag_sz(params, xsk) > xsk->chunk_size)
-		return false;
-
 	/* frag_sz is different for regular and XSK RQs, so ensure that linear
 	 * SKB mode is possible.
 	 */

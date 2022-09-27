@@ -7,12 +7,6 @@
 #include "en_accel/en_accel.h"
 #include "en_accel/ipsec.h"
 
-static bool mlx5e_rx_is_xdp(struct mlx5e_params *params,
-			    struct mlx5e_xsk_param *xsk)
-{
-	return params->xdp_prog || xsk;
-}
-
 u16 mlx5e_get_linear_rq_headroom(struct mlx5e_params *params,
 				 struct mlx5e_xsk_param *xsk)
 {
@@ -22,7 +16,7 @@ u16 mlx5e_get_linear_rq_headroom(struct mlx5e_params *params,
 		return xsk->headroom;
 
 	headroom = NET_IP_ALIGN;
-	if (mlx5e_rx_is_xdp(params, xsk))
+	if (params->xdp_prog)
 		headroom += XDP_PACKET_HEADROOM;
 	else
 		headroom += MLX5_RX_HEADROOM;
@@ -30,8 +24,8 @@ u16 mlx5e_get_linear_rq_headroom(struct mlx5e_params *params,
 	return headroom;
 }
 
-u32 mlx5e_rx_get_min_frag_sz(struct mlx5e_params *params,
-			     struct mlx5e_xsk_param *xsk)
+static u32 mlx5e_rx_get_min_frag_sz(struct mlx5e_params *params,
+				    struct mlx5e_xsk_param *xsk)
 {
 	u32 hw_mtu = MLX5E_SW2HW_MTU(params, params->sw_mtu);
 	u16 linear_rq_headroom = mlx5e_get_linear_rq_headroom(params, xsk);
