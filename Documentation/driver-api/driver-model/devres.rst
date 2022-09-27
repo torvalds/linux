@@ -334,7 +334,7 @@ IRQ
   devm_irq_alloc_descs_from()
   devm_irq_alloc_generic_chip()
   devm_irq_setup_generic_chip()
-  devm_irq_sim_init()
+  devm_irq_domain_create_sim()
 
 LED
   devm_led_classdev_register()
