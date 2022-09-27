@@ -558,7 +558,10 @@ static void gmc_v11_0_set_umc_funcs(struct amdgpu_device *adev)
 		adev->umc.node_inst_num = adev->gmc.num_umc;
 		adev->umc.max_ras_err_cnt_per_query = UMC_V8_10_TOTAL_CHANNEL_NUM(adev);
 		adev->umc.channel_offs = UMC_V8_10_PER_CHANNEL_OFFSET;
-		adev->umc.channel_idx_tbl = &umc_v8_10_channel_idx_tbl[0][0][0];
+		if (adev->umc.node_inst_num == 4)
+			adev->umc.channel_idx_tbl = &umc_v8_10_channel_idx_tbl_ext0[0][0][0];
+		else
+			adev->umc.channel_idx_tbl = &umc_v8_10_channel_idx_tbl[0][0][0];
 		adev->umc.ras = &umc_v8_10_ras;
 		break;
 	case IP_VERSION(8, 11, 0):
