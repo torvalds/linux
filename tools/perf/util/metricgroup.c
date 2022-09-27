@@ -109,17 +109,6 @@ void metricgroup__rblist_exit(struct rblist *metric_events)
 	rblist__exit(metric_events);
 }
 
-/*
- * A node in the list of referenced metrics. metric_expr
- * is held as a convenience to avoid a search through the
- * metric list.
- */
-struct metric_ref_node {
-	const char *metric_name;
-	const char *metric_expr;
-	struct list_head list;
-};
-
 /**
  * The metric under construction. The data held here will be placed in a
  * metric_expr.
