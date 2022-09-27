@@ -25,6 +25,11 @@ struct pwm_lpss_boardinfo {
 	unsigned long clk_rate;
 	unsigned int npwm;
 	unsigned long base_unit_bits;
+	/*
+	 * Some versions of the IP may stuck in the state machine if enable
+	 * bit is not set, and hence update bit will show busy status till
+	 * the reset. For the rest it may be otherwise.
+	 */
 	bool bypass;
 	/*
 	 * On some devices the _PS0/_PS3 AML code of the GPU (GFX0) device
