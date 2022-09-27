@@ -22,6 +22,8 @@ properties:
   interrupts:
     maxItems: 1
 
+  dma-coherent: true
+
   local-mac-address: true
 
   mac-address: true
