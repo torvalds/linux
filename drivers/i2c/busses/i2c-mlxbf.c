@@ -2247,24 +2247,6 @@ static struct i2c_adapter_quirks mlxbf_i2c_quirks = {
 	.max_write_len = MLXBF_I2C_MASTER_DATA_W_LENGTH,
 };
 
-static const struct of_device_id mlxbf_i2c_dt_ids[] = {
-	{
-		.compatible = "mellanox,i2c-mlxbf1",
-		.data = &mlxbf_i2c_chip[MLXBF_I2C_CHIP_TYPE_1]
-	},
-	{
-		.compatible = "mellanox,i2c-mlxbf2",
-		.data = &mlxbf_i2c_chip[MLXBF_I2C_CHIP_TYPE_2]
-	},
-	{
-		.compatible = "mellanox,i2c-mlxbf3",
-		.data = &mlxbf_i2c_chip[MLXBF_I2C_CHIP_TYPE_3]
-	},
-	{},
-};
-
-MODULE_DEVICE_TABLE(of, mlxbf_i2c_dt_ids);
-
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id mlxbf_i2c_acpi_ids[] = {
 	{ "MLNXBF03", (kernel_ulong_t)&mlxbf_i2c_chip[MLXBF_I2C_CHIP_TYPE_1] },
@@ -2315,31 +2297,6 @@ static int mlxbf_i2c_acpi_probe(struct device *dev, struct mlxbf_i2c_priv *priv)
 }
 #endif /* CONFIG_ACPI */
 
-static int mlxbf_i2c_of_probe(struct device *dev, struct mlxbf_i2c_priv *priv)
-{
-	const struct of_device_id *oid;
-	int bus_id = -1;
-
-	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
-		oid = of_match_node(mlxbf_i2c_dt_ids, dev->of_node);
-		if (!oid)
-			return -ENODEV;
-
-		priv->chip = oid->data;
-
-		bus_id = of_alias_get_id(dev->of_node, "i2c");
-		if (bus_id >= 0)
-			priv->bus = bus_id;
-	}
-
-	if (bus_id < 0) {
-		dev_err(dev, "Cannot get bus id");
-		return bus_id;
-	}
-
-	return 0;
-}
-
 static int mlxbf_i2c_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -2353,14 +2310,11 @@ static int mlxbf_i2c_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ret = mlxbf_i2c_acpi_probe(dev, priv);
-	if (ret < 0 && ret != -ENOENT && ret != -ENXIO)
-		ret = mlxbf_i2c_of_probe(dev, priv);
-
 	if (ret < 0)
 		return ret;
 
 	/* This property allows the driver to stay backward compatible with older
-	 * ACPI table and device trees versions.
+	 * ACPI tables.
 	 * Starting BlueField-3 SoC, the "smbus" resource was broken down into 3
 	 * separate resources "timer", "master" and "slave".
 	 */
@@ -2544,7 +2498,6 @@ static struct platform_driver mlxbf_i2c_driver = {
 	.remove = mlxbf_i2c_remove,
 	.driver = {
 		.name = "i2c-mlxbf",
-		.of_match_table = mlxbf_i2c_dt_ids,
 #ifdef CONFIG_ACPI
 		.acpi_match_table = ACPI_PTR(mlxbf_i2c_acpi_ids),
 #endif /* CONFIG_ACPI  */
