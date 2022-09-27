@@ -467,7 +467,6 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 	return devm_watchdog_register_device(dev, &wdat->wdd);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int wdat_wdt_suspend_noirq(struct device *dev)
 {
 	struct wdat_wdt *wdat = dev_get_drvdata(dev);
@@ -528,18 +527,16 @@ static int wdat_wdt_resume_noirq(struct device *dev)
 
 	return wdat_wdt_start(&wdat->wdd);
 }
-#endif
 
 static const struct dev_pm_ops wdat_wdt_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(wdat_wdt_suspend_noirq,
-				      wdat_wdt_resume_noirq)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(wdat_wdt_suspend_noirq, wdat_wdt_resume_noirq)
 };
 
 static struct platform_driver wdat_wdt_driver = {
 	.probe = wdat_wdt_probe,
 	.driver = {
 		.name = "wdat_wdt",
-		.pm = &wdat_wdt_pm_ops,
+		.pm = pm_sleep_ptr(&wdat_wdt_pm_ops),
 	},
 };
 

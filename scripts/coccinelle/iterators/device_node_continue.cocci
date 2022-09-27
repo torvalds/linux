@@ -4,7 +4,7 @@
 ///
 // Confidence: High
 // Copyright: (C) 2015 Julia Lawall, Inria.
-// URL: http://coccinelle.lip6.fr/
+// URL: https://coccinelle.gitlabpages.inria.fr/website
 // Options: --no-includes --include-headers
 // Requires: 1.0.4
 // Keywords: for_each_child_of_node, etc.

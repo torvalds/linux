@@ -59,10 +59,10 @@ void test(void)
 
 	kvm = open("/dev/kvm", O_RDWR);
 	TEST_ASSERT(kvm != -1, "failed to open /dev/kvm");
-	kvmvm = ioctl(kvm, KVM_CREATE_VM, 0);
-	TEST_ASSERT(kvmvm != -1, "KVM_CREATE_VM failed");
+	kvmvm = __kvm_ioctl(kvm, KVM_CREATE_VM, NULL);
+	TEST_ASSERT(kvmvm > 0, KVM_IOCTL_ERROR(KVM_CREATE_VM, kvmvm));
 	kvmcpu = ioctl(kvmvm, KVM_CREATE_VCPU, 0);
-	TEST_ASSERT(kvmcpu != -1, "KVM_CREATE_VCPU failed");
+	TEST_ASSERT(kvmcpu != -1, KVM_IOCTL_ERROR(KVM_CREATE_VCPU, kvmcpu));
 	run = (struct kvm_run *)mmap(0, 4096, PROT_READ|PROT_WRITE, MAP_SHARED,
 				    kvmcpu, 0);
 	tc.kvmcpu = kvmcpu;
@@ -93,15 +93,9 @@ int main(void)
 {
 	int warnings_before, warnings_after;
 
-	if (!is_intel_cpu()) {
-		print_skip("Must be run on an Intel CPU");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(is_intel_cpu());
 
-	if (vm_is_unrestricted_guest(NULL)) {
-		print_skip("Unrestricted guest must be disabled");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(!vm_is_unrestricted_guest(NULL));
 
 	warnings_before = get_warnings_count();
 

@@ -7,8 +7,12 @@
 #include <dt-bindings/clock/qcom,gcc-ipq8074.h>
 
 / {
+	#address-cells = <2>;
+	#size-cells = <2>;
+
 	model = "Qualcomm Technologies, Inc. IPQ8074";
 	compatible = "qcom,ipq8074";
+	interrupt-parent = <&intc>;
 
 	clocks {
 		sleep_clk: sleep_clk {
@@ -119,7 +123,7 @@
 				<&xo>;
 			clock-names = "aux", "cfg_ahb", "ref";
 
-			resets =  <&gcc GCC_USB1_PHY_BCR>,
+			resets = <&gcc GCC_USB1_PHY_BCR>,
 				<&gcc GCC_USB3PHY_1_PHY_BCR>;
 			reset-names = "phy","common";
 			status = "disabled";
@@ -130,7 +134,7 @@
 				      <0x00058800 0x1f8>,     /* PCS  */
 				      <0x00058600 0x044>;     /* PCS misc*/
 				#phy-cells = <0>;
-				#clock-cells = <1>;
+				#clock-cells = <0>;
 				clocks = <&gcc GCC_USB1_PIPE_CLK>;
 				clock-names = "pipe0";
 				clock-output-names = "gcc_usb1_pipe_clk_src";
@@ -162,7 +166,7 @@
 				<&xo>;
 			clock-names = "aux", "cfg_ahb", "ref";
 
-			resets =  <&gcc GCC_USB0_PHY_BCR>,
+			resets = <&gcc GCC_USB0_PHY_BCR>,
 				<&gcc GCC_USB3PHY_0_PHY_BCR>;
 			reset-names = "phy","common";
 			status = "disabled";
@@ -173,7 +177,7 @@
 				      <0x00078800 0x1f8>,     /* PCS  */
 				      <0x00078600 0x044>;     /* PCS misc*/
 				#phy-cells = <0>;
-				#clock-cells = <1>;
+				#clock-cells = <0>;
 				clocks = <&gcc GCC_USB0_PIPE_CLK>;
 				clock-names = "pipe0";
 				clock-output-names = "gcc_usb0_pipe_clk_src";
@@ -347,6 +351,7 @@
 			compatible = "qcom,gcc-ipq8074";
 			reg = <0x01800000 0x80000>;
 			#clock-cells = <0x1>;
+			#power-domain-cells = <1>;
 			#reset-cells = <0x1>;
 		};
 
@@ -375,7 +380,7 @@
 			cell-index = <0>;
 		};
 
-		sdhc_1: sdhci@7824900 {
+		sdhc_1: mmc@7824900 {
 			compatible = "qcom,sdhci-msm-v4";
 			reg = <0x7824900 0x500>, <0x7824000 0x800>;
 			reg-names = "hc_mem", "core_mem";
@@ -384,10 +389,11 @@
 				     <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "hc_irq", "pwr_irq";
 
-			clocks = <&xo>,
-				 <&gcc GCC_SDCC1_AHB_CLK>,
-				 <&gcc GCC_SDCC1_APPS_CLK>;
-			clock-names = "xo", "iface", "core";
+			clocks = <&gcc GCC_SDCC1_AHB_CLK>,
+				 <&gcc GCC_SDCC1_APPS_CLK>,
+				 <&xo>;
+			clock-names = "iface", "core", "xo";
+			resets = <&gcc GCC_SDCC1_BCR>;
 			max-frequency = <384000000>;
 			mmc-ddr-1_8v;
 			mmc-hs200-1_8v;
@@ -534,7 +540,7 @@
 			status = "disabled";
 		};
 
-		qpic_nand: nand@79b0000 {
+		qpic_nand: nand-controller@79b0000 {
 			compatible = "qcom,ipq8074-nand";
 			reg = <0x079b0000 0x10000>;
 			#address-cells = <1>;
@@ -574,6 +580,8 @@
 			assigned-clock-rates = <133330000>,
 						<133330000>,
 						<19200000>;
+
+			power-domains = <&gcc USB0_GDSC>;
 
 			resets = <&gcc GCC_USB0_BCR>;
 			status = "disabled";
@@ -615,6 +623,8 @@
 						<133330000>,
 						<19200000>;
 
+			power-domains = <&gcc USB1_GDSC>;
+
 			resets = <&gcc GCC_USB1_BCR>;
 			status = "disabled";
 
@@ -648,20 +658,20 @@
 			};
 		};
 
-		timer {
-			compatible = "arm,armv8-timer";
-			interrupts = <GIC_PPI 2 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
-				     <GIC_PPI 3 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
-				     <GIC_PPI 4 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
-				     <GIC_PPI 1 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
-		};
-
 		watchdog: watchdog@b017000 {
 			compatible = "qcom,kpss-wdt";
 			reg = <0xb017000 0x1000>;
 			interrupts = <GIC_SPI 3 IRQ_TYPE_EDGE_RISING>;
 			clocks = <&sleep_clk>;
 			timeout-sec = <30>;
+		};
+
+		apcs_glb: mailbox@b111000 {
+			compatible = "qcom,ipq8074-apcs-apps-global";
+			reg = <0x0b111000 0x6000>;
+
+			#clock-cells = <1>;
+			#mbox-cells = <1>;
 		};
 
 		timer@b120000 {
@@ -846,5 +856,13 @@
 				      "axi_m_sticky";
 			status = "disabled";
 		};
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 2 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 3 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 4 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 1 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 	};
 };

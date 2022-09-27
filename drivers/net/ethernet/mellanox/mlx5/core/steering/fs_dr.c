@@ -501,6 +501,27 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 		}
 	}
 
+	if (fte->action.action & MLX5_FLOW_CONTEXT_ACTION_EXECUTE_ASO) {
+		if (fte->action.exe_aso.type != MLX5_EXE_ASO_FLOW_METER) {
+			err = -EOPNOTSUPP;
+			goto free_actions;
+		}
+
+		tmp_action =
+			mlx5dr_action_create_aso(domain,
+						 fte->action.exe_aso.object_id,
+						 fte->action.exe_aso.return_reg_id,
+						 fte->action.exe_aso.type,
+						 fte->action.exe_aso.flow_meter.init_color,
+						 fte->action.exe_aso.flow_meter.meter_idx);
+		if (!tmp_action) {
+			err = -ENOMEM;
+			goto free_actions;
+		}
+		fs_dr_actions[fs_dr_num_actions++] = tmp_action;
+		actions[num_actions++] = tmp_action;
+	}
+
 	params.match_sz = match_sz;
 	params.match_buf = (u64 *)fte->val;
 	if (num_term_actions == 1) {

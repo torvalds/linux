@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/dev_printk.h>
 #include <linux/ioport.h>
+#include <linux/printk.h>
 #include <asm/e820/api.h>
+#include <asm/pci_x86.h>
 
 static void resource_clip(struct resource *res, resource_size_t start,
 			  resource_size_t end)
@@ -24,14 +25,14 @@ static void resource_clip(struct resource *res, resource_size_t start,
 		res->start = end + 1;
 }
 
-void remove_e820_regions(struct device *dev, struct resource *avail)
+static void remove_e820_regions(struct resource *avail)
 {
 	int i;
 	struct e820_entry *entry;
 	u64 e820_start, e820_end;
 	struct resource orig = *avail;
 
-	if (!(avail->flags & IORESOURCE_MEM))
+	if (!pci_use_e820)
 		return;
 
 	for (i = 0; i < e820_table->nr_entries; i++) {
@@ -41,7 +42,7 @@ void remove_e820_regions(struct device *dev, struct resource *avail)
 
 		resource_clip(avail, e820_start, e820_end);
 		if (orig.start != avail->start || orig.end != avail->end) {
-			dev_info(dev, "clipped %pR to %pR for e820 entry [mem %#010Lx-%#010Lx]\n",
+			pr_info("clipped %pR to %pR for e820 entry [mem %#010Lx-%#010Lx]\n",
 				 &orig, avail, e820_start, e820_end);
 			orig = *avail;
 		}
@@ -55,6 +56,9 @@ void arch_remove_reservations(struct resource *avail)
 	 * the low 1MB unconditionally, as this area is needed for some ISA
 	 * cards requiring a memory range, e.g. the i82365 PCMCIA controller.
 	 */
-	if (avail->flags & IORESOURCE_MEM)
+	if (avail->flags & IORESOURCE_MEM) {
 		resource_clip(avail, BIOS_ROM_BASE, BIOS_ROM_END);
+
+		remove_e820_regions(avail);
+	}
 }

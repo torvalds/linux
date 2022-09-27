@@ -38,10 +38,10 @@
 		};
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 
-		vol_up {
+		key-vol-up {
 			label = "Volume Up";
 			gpios = <&pm8994_gpios 2 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
@@ -49,7 +49,7 @@
 			debounce-interval = <15>;
 		};
 
-		dome {
+		key-dome {
 			label = "Home";
 			gpios = <&tlmm 34 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_HOME>;
@@ -608,7 +608,7 @@
 };
 
 &pm8994_gpios {
-	wlan_en_default: wlan-en-default {
+	wlan_en_default: wlan-en-state {
 		pins = "gpio8";
 		function = PMIC_GPIO_FUNC_NORMAL;
 		output-low;
@@ -617,7 +617,7 @@
 		bias-disable;
 	};
 
-	rome_enable_default: rome-enable-default {
+	rome_enable_default: rome-enable-state {
 		pins = "gpio9";
 		function = PMIC_GPIO_FUNC_NORMAL;
 		output-high;
@@ -625,7 +625,7 @@
 		power-source = <PM8994_GPIO_VPH>;
 	};
 
-	divclk1_default: divclk1_default {
+	divclk1_default: divclk1-state {
 		pins = "gpio15";
 		function = PMIC_GPIO_FUNC_FUNC1;
 		bias-disable;
@@ -633,7 +633,7 @@
 		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
 	};
 
-	divclk4_pin_a: divclk4 {
+	divclk4_pin_a: divclk4-state {
 		pins = "gpio18";
 		function = PMIC_GPIO_FUNC_FUNC2;
 		bias-disable;

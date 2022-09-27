@@ -52,7 +52,7 @@
 
 #define    CN93_SDP_EPF_RINFO_SRN(val)           ((val) & 0xFF)
 #define    CN93_SDP_EPF_RINFO_RPVF(val)          (((val) >> 32) & 0xF)
-#define    CN93_SDP_EPF_RINFO_NVFS(val)          (((val) >> 48) && 0xFF)
+#define    CN93_SDP_EPF_RINFO_NVFS(val)          (((val) >> 48) & 0xFF)
 
 /* SDP Function select */
 #define    CN93_SDP_FUNC_SEL_EPF_BIT_POS         8

@@ -1,0 +1,184 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * lan966x_pcb8309.dts - Device Tree file for PCB8309
+ */
+/dts-v1/;
+#include "lan966x.dtsi"
+#include "dt-bindings/phy/phy-lan966x-serdes.h"
+
+/ {
+	model = "Microchip EVB - LAN9662";
+	compatible = "microchip,lan9662-pcb8309", "microchip,lan9662", "microchip,lan966";
+
+	aliases {
+		serial0 = &usart3;
+		i2c102 = &i2c102;
+		i2c103 = &i2c103;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	gpio-restart {
+		compatible = "gpio-restart";
+		gpios = <&gpio 56 GPIO_ACTIVE_LOW>;
+		priority = <200>;
+	};
+
+	i2c-mux {
+		compatible = "i2c-mux";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		mux-controls = <&mux>;
+		i2c-parent = <&i2c4>;
+
+		i2c102: i2c-sfp@1 {
+			reg = <1>;
+		};
+
+		i2c103: i2c-sfp@2 {
+			reg = <2>;
+		};
+	};
+
+	mux: mux-controller {
+		compatible = "gpio-mux";
+		#mux-control-cells = <0>;
+
+		mux-gpios = <&sgpio_out 11 0 GPIO_ACTIVE_HIGH>, /* p11b0 */
+			    <&sgpio_out 11 1 GPIO_ACTIVE_HIGH>; /* p11b1 */
+	};
+
+	sfp2: sfp2 {
+		compatible = "sff,sfp";
+		i2c-bus = <&i2c102>;
+		tx-disable-gpios = <&sgpio_out 10 0 GPIO_ACTIVE_LOW>;
+		los-gpios = <&sgpio_in  2 0 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&sgpio_in  2 1 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios = <&sgpio_in  1 0 GPIO_ACTIVE_HIGH>;
+	};
+
+	sfp3: sfp3 {
+		compatible = "sff,sfp";
+		i2c-bus = <&i2c103>;
+		tx-disable-gpios = <&sgpio_out 10 1 GPIO_ACTIVE_LOW>;
+		los-gpios = <&sgpio_in  3 0 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&sgpio_in  3 1 GPIO_ACTIVE_LOW>;
+		tx-fault-gpios = <&sgpio_in  1 1 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&flx3 {
+	atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_USART>;
+	status = "okay";
+
+	usart3: serial@200 {
+		pinctrl-0 = <&fc3_b_pins>;
+		pinctrl-names = "default";
+		status = "okay";
+	};
+};
+
+&flx4 {
+	atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_TWI>;
+	status = "okay";
+
+	i2c4: i2c@600 {
+		compatible = "microchip,sam9x60-i2c";
+		reg = <0x600 0x200>;
+		interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&nic_clk>;
+		pinctrl-0 = <&fc4_b_pins>;
+		pinctrl-names = "default";
+		i2c-analog-filter;
+		i2c-digital-filter;
+		i2c-digital-filter-width-ns = <35>;
+		i2c-sda-hold-time-ns = <1500>;
+		status = "okay";
+	};
+};
+
+&gpio {
+	fc3_b_pins: fc3-b-pins {
+		/* RXD, TXD */
+		pins = "GPIO_52", "GPIO_53";
+		function = "fc3_b";
+	};
+
+	fc4_b_pins: fc4-b-pins {
+		/* SCL, SDA */
+		pins = "GPIO_57", "GPIO_58";
+		function = "fc4_b";
+	};
+
+	sgpio_a_pins: sgpio-a-pins {
+		/* SCK, D0, D1, LD */
+		pins = "GPIO_32", "GPIO_33", "GPIO_34", "GPIO_35";
+		function = "sgpio_a";
+	};
+};
+
+&mdio1 {
+	status = "okay";
+};
+
+&phy0 {
+	status = "okay";
+};
+
+&phy1 {
+	status = "okay";
+};
+
+&port0 {
+	phy-handle = <&phy0>;
+	phy-mode = "gmii";
+	phys = <&serdes 0 CU(0)>;
+	status = "okay";
+};
+
+&port1 {
+	phy-handle = <&phy1>;
+	phy-mode = "gmii";
+	phys = <&serdes 1 CU(1)>;
+	status = "okay";
+};
+
+&port2 {
+	sfp = <&sfp2>;
+	managed = "in-band-status";
+	phy-mode = "sgmii";
+	phys = <&serdes 2 SERDES6G(0)>;
+	status = "okay";
+};
+
+&port3 {
+	sfp = <&sfp3>;
+	managed = "in-band-status";
+	phy-mode = "sgmii";
+	phys = <&serdes 3 SERDES6G(1)>;
+	status = "okay";
+};
+
+&serdes {
+	status = "okay";
+};
+
+&sgpio {
+	pinctrl-0 = <&sgpio_a_pins>;
+	pinctrl-names = "default";
+	microchip,sgpio-port-ranges = <0 3>, <8 11>;
+	status = "okay";
+
+	gpio@0 {
+		ngpios = <64>;
+	};
+	gpio@1 {
+		ngpios = <64>;
+	};
+};
+
+&switch {
+	status = "okay";
+};

@@ -395,7 +395,7 @@ static int iss_pipeline_disable(struct iss_pipeline *pipe,
 		if (!(pad->flags & MEDIA_PAD_FL_SINK))
 			break;
 
-		pad = media_entity_remote_pad(pad);
+		pad = media_pad_remote_pad_first(pad);
 		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			break;
 
@@ -464,7 +464,7 @@ static int iss_pipeline_enable(struct iss_pipeline *pipe,
 		if (!(pad->flags & MEDIA_PAD_FL_SINK))
 			break;
 
-		pad = media_entity_remote_pad(pad);
+		pad = media_pad_remote_pad_first(pad);
 		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			break;
 
@@ -553,7 +553,7 @@ static int iss_pipeline_is_last(struct media_entity *me)
 	pipe = to_iss_pipeline(me);
 	if (pipe->stream_state == ISS_PIPELINE_STREAM_STOPPED)
 		return 0;
-	pad = media_entity_remote_pad(&pipe->output->pad);
+	pad = media_pad_remote_pad_first(&pipe->output->pad);
 	return pad->entity == me;
 }
 

@@ -704,7 +704,7 @@ struct xfs_agfl {
  * When the bigtime feature is enabled, ondisk inode timestamps become an
  * unsigned 64-bit nanoseconds counter.  This means that the bigtime inode
  * timestamp epoch is the start of the classic timestamp range, which is
- * Dec 31 20:45:52 UTC 1901.  Because the epochs are not the same, callers
+ * Dec 13 20:45:52 UTC 1901.  Because the epochs are not the same, callers
  * /must/ use the bigtime conversion functions when encoding and decoding raw
  * timestamps.
  */

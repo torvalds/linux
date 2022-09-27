@@ -1078,14 +1078,6 @@ bool smp_crash_stop_failed(void)
 }
 #endif
 
-/*
- * not supported here
- */
-int setup_profiling_timer(unsigned int multiplier)
-{
-	return -EINVAL;
-}
-
 static bool have_cpu_die(void)
 {
 #ifdef CONFIG_HOTPLUG_CPU

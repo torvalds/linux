@@ -159,7 +159,7 @@ int xen_pcibk_enable_msi(struct xen_pcibk_device *pdev,
 		return XEN_PCI_ERR_op_failed;
 	}
 
-	/* The value the guest needs is actually the IDT vector, not the
+	/* The value the guest needs is actually the IDT vector, not
 	 * the local domain's IRQ number. */
 
 	op->value = dev->irq ? xen_pirq_from_irq(dev->irq) : 0;

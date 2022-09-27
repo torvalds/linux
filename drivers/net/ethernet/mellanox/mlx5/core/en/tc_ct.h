@@ -62,10 +62,11 @@ struct mlx5_ct_attr {
 				 misc_parameters_2.metadata_reg_c_4),\
 }
 
+/* 8 LSB of metadata C5 are reserved for packet color */
 #define fteid_to_reg_ct {\
 	.mfield = MLX5_ACTION_IN_FIELD_METADATA_REG_C_5,\
-	.moffset = 0,\
-	.mlen = 32,\
+	.moffset = 8,\
+	.mlen = 24,\
 	.soffset = MLX5_BYTE_OFF(fte_match_param,\
 				 misc_parameters_2.metadata_reg_c_5),\
 }
@@ -84,10 +85,8 @@ struct mlx5_ct_attr {
 	.mlen = ESW_ZONE_ID_BITS,\
 }
 
-#define REG_MAPPING_MLEN(reg) (mlx5e_tc_attr_to_reg_mappings[reg].mlen)
-#define REG_MAPPING_MOFFSET(reg) (mlx5e_tc_attr_to_reg_mappings[reg].moffset)
-#define MLX5_CT_ZONE_BITS (mlx5e_tc_attr_to_reg_mappings[ZONE_TO_REG].mlen)
-#define MLX5_CT_ZONE_MASK GENMASK(MLX5_CT_ZONE_BITS - 1, 0)
+#define MLX5_CT_ZONE_BITS MLX5_REG_MAPPING_MBITS(ZONE_TO_REG)
+#define MLX5_CT_ZONE_MASK MLX5_REG_MAPPING_MASK(ZONE_TO_REG)
 
 #if IS_ENABLED(CONFIG_MLX5_TC_CT)
 

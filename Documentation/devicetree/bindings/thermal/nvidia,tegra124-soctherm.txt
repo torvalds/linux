@@ -96,7 +96,7 @@ critical trip point is reported back to the thermal framework to implement
 software shutdown.
 
 - the "hot" type trip points will be set to SOC_THERM hardware as the throttle
-temperature. Once the the temperature of this thermal zone is higher
+temperature. Once the temperature of this thermal zone is higher
 than it, it will trigger the HW throttle event.
 
 Example :

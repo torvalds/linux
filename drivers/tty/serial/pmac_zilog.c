@@ -52,7 +52,6 @@
 #ifdef CONFIG_PPC_PMAC
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
-#include <asm/dbdma.h>
 #include <asm/macio.h>
 #else
 #include <linux/platform_device.h>

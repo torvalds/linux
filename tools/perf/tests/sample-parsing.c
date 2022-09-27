@@ -86,10 +86,15 @@ static bool samples_same(const struct perf_sample *s1,
 			COMP(read.time_running);
 		/* PERF_FORMAT_ID is forced for PERF_SAMPLE_READ */
 		if (read_format & PERF_FORMAT_GROUP) {
-			for (i = 0; i < s1->read.group.nr; i++)
-				MCOMP(read.group.values[i]);
+			for (i = 0; i < s1->read.group.nr; i++) {
+				/* FIXME: check values without LOST */
+				if (read_format & PERF_FORMAT_LOST)
+					MCOMP(read.group.values[i]);
+			}
 		} else {
 			COMP(read.one.id);
+			if (read_format & PERF_FORMAT_LOST)
+				COMP(read.one.lost);
 		}
 	}
 
@@ -263,7 +268,7 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 			.data	= (void *)aux_data,
 		},
 	};
-	struct sample_read_value values[] = {{1, 5}, {9, 3}, {2, 7}, {6, 4},};
+	struct sample_read_value values[] = {{1, 5, 0}, {9, 3, 0}, {2, 7, 0}, {6, 4, 1},};
 	struct perf_sample sample_out, sample_out_endian;
 	size_t i, sz, bufsz;
 	int err, ret = -1;
@@ -286,6 +291,7 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 	} else {
 		sample.read.one.value = 0x08789faeb786aa87ULL;
 		sample.read.one.id    = 99;
+		sample.read.one.lost  = 1;
 	}
 
 	sz = perf_event__sample_event_size(&sample, sample_type, read_format);
@@ -370,7 +376,7 @@ out_free:
  */
 static int test__sample_parsing(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
-	const u64 rf[] = {4, 5, 6, 7, 12, 13, 14, 15};
+	const u64 rf[] = {4, 5, 6, 7, 12, 13, 14, 15, 20, 21, 22, 28, 29, 30, 31};
 	u64 sample_type;
 	u64 sample_regs;
 	size_t i;

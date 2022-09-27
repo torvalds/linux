@@ -16,9 +16,6 @@ struct gsi_channel;
 
 #define GSI_RING_ELEMENT_SIZE	16	/* bytes; must be a power of 2 */
 
-/* Return the entry that follows one provided in a transaction pool */
-void *gsi_trans_pool_next(struct gsi_trans_pool *pool, void *element);
-
 /**
  * gsi_trans_move_complete() - Mark a GSI transaction completed
  * @trans:	Transaction to commit
@@ -105,14 +102,21 @@ void gsi_channel_doorbell(struct gsi_channel *channel);
 void *gsi_ring_virt(struct gsi_ring *ring, u32 index);
 
 /**
- * gsi_channel_tx_queued() - Report the number of bytes queued to hardware
- * @channel:	Channel whose bytes have been queued
+ * gsi_trans_tx_committed() - Record bytes committed for transmit
+ * @trans:	TX endpoint transaction being committed
  *
- * This arranges for the the number of transactions and bytes for
- * transfer that have been queued to hardware to be reported.  It
- * passes this information up the network stack so it can be used to
- * throttle transmissions.
+ * Report that a TX transaction has been committed.  It updates some
+ * statistics used to manage transmit rates.
  */
-void gsi_channel_tx_queued(struct gsi_channel *channel);
+void gsi_trans_tx_committed(struct gsi_trans *trans);
+
+/**
+ * gsi_trans_tx_queued() - Report a queued TX channel transaction
+ * @trans:	Transaction being passed to hardware
+ *
+ * Report to the network stack that a TX transaction is being supplied
+ * to the hardware.
+ */
+void gsi_trans_tx_queued(struct gsi_trans *trans);
 
 #endif /* _GSI_PRIVATE_H_ */

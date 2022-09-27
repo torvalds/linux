@@ -218,6 +218,7 @@ seg6_lookup_any_nexthop(struct sk_buff *skb, struct in6_addr *nhaddr,
 	struct flowi6 fl6;
 	int dev_flags = 0;
 
+	memset(&fl6, 0, sizeof(fl6));
 	fl6.flowi6_iif = skb->dev->ifindex;
 	fl6.daddr = nhaddr ? *nhaddr : hdr->daddr;
 	fl6.saddr = hdr->saddr;
@@ -825,7 +826,6 @@ static int input_action_end_b6(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 	if (err)
 		goto drop;
 
-	ipv6_hdr(skb)->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
 	skb_set_transport_header(skb, sizeof(struct ipv6hdr));
 
 	seg6_lookup_nexthop(skb, NULL, 0);
@@ -857,7 +857,6 @@ static int input_action_end_b6_encap(struct sk_buff *skb,
 	if (err)
 		goto drop;
 
-	ipv6_hdr(skb)->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
 	skb_set_transport_header(skb, sizeof(struct ipv6hdr));
 
 	seg6_lookup_nexthop(skb, NULL, 0);
@@ -1615,7 +1614,7 @@ static void __destroy_attrs(unsigned long parsed_attrs, int max_parsed,
 	 * callback. If the callback is not available, then we skip to the next
 	 * attribute; otherwise, we call the destroy() callback.
 	 */
-	for (i = 0; i < max_parsed; ++i) {
+	for (i = SEG6_LOCAL_SRH; i < max_parsed; ++i) {
 		if (!(parsed_attrs & SEG6_F_ATTR(i)))
 			continue;
 
@@ -1644,7 +1643,7 @@ static int parse_nla_optional_attrs(struct nlattr **attrs,
 	struct seg6_action_param *param;
 	int err, i;
 
-	for (i = 0; i < SEG6_LOCAL_MAX + 1; ++i) {
+	for (i = SEG6_LOCAL_SRH; i < SEG6_LOCAL_MAX + 1; ++i) {
 		if (!(desc->optattrs & SEG6_F_ATTR(i)) || !attrs[i])
 			continue;
 
@@ -1743,7 +1742,7 @@ static int parse_nla_action(struct nlattr **attrs, struct seg6_local_lwt *slwt)
 	}
 
 	/* parse the required attributes */
-	for (i = 0; i < SEG6_LOCAL_MAX + 1; i++) {
+	for (i = SEG6_LOCAL_SRH; i < SEG6_LOCAL_MAX + 1; i++) {
 		if (desc->attrs & SEG6_F_ATTR(i)) {
 			if (!attrs[i])
 				return -EINVAL;
@@ -1848,7 +1847,7 @@ static int seg6_local_fill_encap(struct sk_buff *skb,
 
 	attrs = slwt->desc->attrs | slwt->parsed_optattrs;
 
-	for (i = 0; i < SEG6_LOCAL_MAX + 1; i++) {
+	for (i = SEG6_LOCAL_SRH; i < SEG6_LOCAL_MAX + 1; i++) {
 		if (attrs & SEG6_F_ATTR(i)) {
 			param = &seg6_action_params[i];
 			err = param->put(skb, slwt);
@@ -1928,7 +1927,7 @@ static int seg6_local_cmp_encap(struct lwtunnel_state *a,
 	if (attrs_a != attrs_b)
 		return 1;
 
-	for (i = 0; i < SEG6_LOCAL_MAX + 1; i++) {
+	for (i = SEG6_LOCAL_SRH; i < SEG6_LOCAL_MAX + 1; i++) {
 		if (attrs_a & SEG6_F_ATTR(i)) {
 			param = &seg6_action_params[i];
 			if (param->cmp(slwt_a, slwt_b))

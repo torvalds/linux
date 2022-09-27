@@ -86,6 +86,7 @@ nvkm_conn_ctor(struct nvkm_disp *disp, int index, struct nvbios_connE *info,
 	conn->disp = disp;
 	conn->index = index;
 	conn->info = *info;
+	conn->info.hpd = DCB_GPIO_UNUSED;
 
 	CONN_DBG(conn, "type %02x loc %d hpd %02x dp %x di %x sr %x lcdid %x",
 		 info->type, info->location, info->hpd, info->dp,
@@ -100,10 +101,11 @@ nvkm_conn_ctor(struct nvkm_disp *disp, int index, struct nvbios_connE *info,
 
 		ret = nvkm_gpio_find(gpio, 0, info->hpd, DCB_GPIO_UNUSED, &func);
 		if (ret) {
-			CONN_ERR(conn, "func %02x lookup failed, %d",
-				 info->hpd, ret);
+			CONN_ERR(conn, "func %02x lookup failed, %d", info->hpd, ret);
 			return;
 		}
+
+		conn->info.hpd = func.line;
 
 		ret = nvkm_notify_init(NULL, &gpio->event, nvkm_conn_hpd,
 				       true, &(struct nvkm_gpio_ntfy_req) {

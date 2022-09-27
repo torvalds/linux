@@ -81,17 +81,24 @@ static int virtio_pmem_probe(struct virtio_device *vdev)
 	ndr_desc.res = &res;
 	ndr_desc.numa_node = nid;
 	ndr_desc.flush = async_pmem_flush;
+	ndr_desc.provider_data = vdev;
 	set_bit(ND_REGION_PAGEMAP, &ndr_desc.flags);
 	set_bit(ND_REGION_ASYNC, &ndr_desc.flags);
+	/*
+	 * The NVDIMM region could be available before the
+	 * virtio_device_ready() that is called by
+	 * virtio_dev_probe(), so we set device ready here.
+	 */
+	virtio_device_ready(vdev);
 	nd_region = nvdimm_pmem_region_create(vpmem->nvdimm_bus, &ndr_desc);
 	if (!nd_region) {
 		dev_err(&vdev->dev, "failed to create nvdimm region\n");
 		err = -ENXIO;
 		goto out_nd;
 	}
-	nd_region->provider_data = dev_to_virtio(nd_region->dev.parent->parent);
 	return 0;
 out_nd:
+	virtio_reset_device(vdev);
 	nvdimm_bus_unregister(vpmem->nvdimm_bus);
 out_vq:
 	vdev->config->del_vqs(vdev);

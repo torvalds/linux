@@ -638,9 +638,9 @@ static int emit_copy(struct i915_request *rq,
 	return 0;
 }
 
-static int scatter_list_length(struct scatterlist *sg)
+static u64 scatter_list_length(struct scatterlist *sg)
 {
-	int len = 0;
+	u64 len = 0;
 
 	while (sg && sg_dma_len(sg)) {
 		len += sg_dma_len(sg);
@@ -650,28 +650,26 @@ static int scatter_list_length(struct scatterlist *sg)
 	return len;
 }
 
-static void
+static int
 calculate_chunk_sz(struct drm_i915_private *i915, bool src_is_lmem,
-		   int *src_sz, u32 bytes_to_cpy, u32 ccs_bytes_to_cpy)
+		   u64 bytes_to_cpy, u64 ccs_bytes_to_cpy)
 {
-	if (ccs_bytes_to_cpy) {
-		if (!src_is_lmem)
-			/*
-			 * When CHUNK_SZ is passed all the pages upto CHUNK_SZ
-			 * will be taken for the blt. in Flat-ccs supported
-			 * platform Smem obj will have more pages than required
-			 * for main meory hence limit it to the required size
-			 * for main memory
-			 */
-			*src_sz = min_t(int, bytes_to_cpy, CHUNK_SZ);
-	} else { /* ccs handling is not required */
-		*src_sz = CHUNK_SZ;
-	}
+	if (ccs_bytes_to_cpy && !src_is_lmem)
+		/*
+		 * When CHUNK_SZ is passed all the pages upto CHUNK_SZ
+		 * will be taken for the blt. in Flat-ccs supported
+		 * platform Smem obj will have more pages than required
+		 * for main meory hence limit it to the required size
+		 * for main memory
+		 */
+		return min_t(u64, bytes_to_cpy, CHUNK_SZ);
+	else
+		return CHUNK_SZ;
 }
 
-static void get_ccs_sg_sgt(struct sgt_dma *it, u32 bytes_to_cpy)
+static void get_ccs_sg_sgt(struct sgt_dma *it, u64 bytes_to_cpy)
 {
-	u32 len;
+	u64 len;
 
 	do {
 		GEM_BUG_ON(!it->sg || !sg_dma_len(it->sg));
@@ -702,13 +700,13 @@ intel_context_migrate_copy(struct intel_context *ce,
 {
 	struct sgt_dma it_src = sg_sgt(src), it_dst = sg_sgt(dst), it_ccs;
 	struct drm_i915_private *i915 = ce->engine->i915;
-	u32 ccs_bytes_to_cpy = 0, bytes_to_cpy;
+	u64 ccs_bytes_to_cpy = 0, bytes_to_cpy;
 	enum i915_cache_level ccs_cache_level;
 	u32 src_offset, dst_offset;
 	u8 src_access, dst_access;
 	struct i915_request *rq;
-	int src_sz, dst_sz;
-	bool ccs_is_src;
+	u64 src_sz, dst_sz;
+	bool ccs_is_src, overwrite_ccs;
 	int err;
 
 	GEM_BUG_ON(ce->vm != ce->engine->gt->migrate.context->vm);
@@ -749,6 +747,8 @@ intel_context_migrate_copy(struct intel_context *ce,
 			get_ccs_sg_sgt(&it_ccs, bytes_to_cpy);
 	}
 
+	overwrite_ccs = HAS_FLAT_CCS(i915) && !ccs_bytes_to_cpy && dst_is_lmem;
+
 	src_offset = 0;
 	dst_offset = CHUNK_SZ;
 	if (HAS_64K_PAGES(ce->engine->i915)) {
@@ -788,8 +788,8 @@ intel_context_migrate_copy(struct intel_context *ce,
 		if (err)
 			goto out_rq;
 
-		calculate_chunk_sz(i915, src_is_lmem, &src_sz,
-				   bytes_to_cpy, ccs_bytes_to_cpy);
+		src_sz = calculate_chunk_sz(i915, src_is_lmem,
+					    bytes_to_cpy, ccs_bytes_to_cpy);
 
 		len = emit_pte(rq, &it_src, src_cache_level, src_is_lmem,
 			       src_offset, src_sz);
@@ -852,6 +852,25 @@ intel_context_migrate_copy(struct intel_context *ce,
 			if (err)
 				goto out_rq;
 			ccs_bytes_to_cpy -= ccs_sz;
+		} else if (overwrite_ccs) {
+			err = rq->engine->emit_flush(rq, EMIT_INVALIDATE);
+			if (err)
+				goto out_rq;
+
+			/*
+			 * While we can't always restore/manage the CCS state,
+			 * we still need to ensure we don't leak the CCS state
+			 * from the previous user, so make sure we overwrite it
+			 * with something.
+			 */
+			err = emit_copy_ccs(rq, dst_offset, INDIRECT_ACCESS,
+					    dst_offset, DIRECT_ACCESS, len);
+			if (err)
+				goto out_rq;
+
+			err = rq->engine->emit_flush(rq, EMIT_INVALIDATE);
+			if (err)
+				goto out_rq;
 		}
 
 		/* Arbitration is re-enabled between requests. */

@@ -11,6 +11,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 
 #include "rt711-sdca.h"
 #include "rt711-sdca-sdw.h"
@@ -364,10 +365,16 @@ static int rt711_sdca_sdw_remove(struct sdw_slave *slave)
 {
 	struct rt711_sdca_priv *rt711 = dev_get_drvdata(&slave->dev);
 
-	if (rt711 && rt711->hw_init) {
+	if (rt711->hw_init) {
 		cancel_delayed_work_sync(&rt711->jack_detect_work);
 		cancel_delayed_work_sync(&rt711->jack_btn_check_work);
 	}
+
+	if (rt711->first_hw_init)
+		pm_runtime_disable(&slave->dev);
+
+	mutex_destroy(&rt711->calibrate_mutex);
+	mutex_destroy(&rt711->disable_irq_lock);
 
 	return 0;
 }

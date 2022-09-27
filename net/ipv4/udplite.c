@@ -51,7 +51,10 @@ struct proto 	udplite_prot = {
 	.unhash		   = udp_lib_unhash,
 	.rehash		   = udp_v4_rehash,
 	.get_port	   = udp_v4_get_port,
+
 	.memory_allocated  = &udp_memory_allocated,
+	.per_cpu_fw_alloc  = &udp_memory_per_cpu_fw_alloc,
+
 	.sysctl_mem	   = sysctl_udp_mem,
 	.obj_size	   = sizeof(struct udp_sock),
 	.h.udp_table	   = &udplite_table,

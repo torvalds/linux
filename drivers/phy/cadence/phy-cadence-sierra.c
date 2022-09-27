@@ -348,7 +348,6 @@ struct cdns_regmap_cdb_context {
 
 struct cdns_sierra_phy {
 	struct device *dev;
-	struct regmap *regmap;
 	const struct cdns_sierra_data *init_data;
 	struct cdns_sierra_inst phys[SIERRA_MAX_LANES];
 	struct reset_control *phy_rst;

@@ -17,3 +17,4 @@ endif
 
 obj-$(CONFIG_UCSI_ACPI)			+= ucsi_acpi.o
 obj-$(CONFIG_UCSI_CCG)			+= ucsi_ccg.o
+obj-$(CONFIG_UCSI_STM32G0)		+= ucsi_stm32g0.o

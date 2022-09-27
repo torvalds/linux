@@ -14,8 +14,6 @@ on the Qualcomm Hexagon core.
 		    "qcom,msm8974-mss-pil"
 		    "qcom,msm8996-mss-pil"
 		    "qcom,msm8998-mss-pil"
-		    "qcom,sc7180-mss-pil"
-		    "qcom,sc7280-mss-pil"
 		    "qcom,sdm845-mss-pil"
 
 - reg:
@@ -37,7 +35,7 @@ on the Qualcomm Hexagon core.
 - interrupt-names:
 	Usage: required
 	Value type: <stringlist>
-	Definition: The interrupts needed depends on the the compatible
+	Definition: The interrupts needed depends on the compatible
 		    string:
 	qcom,q6v5-pil:
 	qcom,ipq8074-wcss-pil:
@@ -47,8 +45,6 @@ on the Qualcomm Hexagon core.
 		    must be "wdog", "fatal", "ready", "handover", "stop-ack"
 	qcom,msm8996-mss-pil:
 	qcom,msm8998-mss-pil:
-	qcom,sc7180-mss-pil:
-	qcom,sc7280-mss-pil:
 	qcom,sdm845-mss-pil:
 		    must be "wdog", "fatal", "ready", "handover", "stop-ack",
 		    "shutdown-ack"
@@ -86,11 +82,6 @@ on the Qualcomm Hexagon core.
 	qcom,msm8998-mss-pil:
 		    must be "iface", "bus", "mem", "xo", "gpll0_mss",
 		    "snoc_axi", "mnoc_axi", "qdss"
-	qcom,sc7180-mss-pil:
-		    must be "iface", "bus", "xo", "snoc_axi", "mnoc_axi",
-		    "nav"
-	qcom,sc7280-mss-pil:
-		    must be "iface", "xo", "snoc_axi", "offline", "pka"
 	qcom,sdm845-mss-pil:
 		    must be "iface", "bus", "mem", "xo", "gpll0_mss",
 		    "snoc_axi", "mnoc_axi", "prng"
@@ -102,7 +93,7 @@ on the Qualcomm Hexagon core.
 		    reference to the list of 3 reset-controllers for the
 		    wcss sub-system
 		    reference to the list of 2 reset-controllers for the modem
-		    sub-system on SC7180, SC7280, SDM845 SoCs
+		    sub-system on SDM845 SoCs
 
 - reset-names:
 	Usage: required
@@ -111,7 +102,7 @@ on the Qualcomm Hexagon core.
 		    must be "wcss_aon_reset", "wcss_reset", "wcss_q6_reset"
 		    for the wcss sub-system
 		    must be "mss_restart", "pdc_reset" for the modem
-		    sub-system on SC7180, SC7280, SDM845 SoCs
+		    sub-system on SDM845 SoCs
 
 For devices where the mba and mpss sub-nodes are not specified, mba/mpss region
 should be referenced as follows:
@@ -176,10 +167,6 @@ For the compatible string below the following supplies are required:
 	qcom,msm8996-mss-pil:
 	qcom,msm8998-mss-pil:
 		    must be "cx", "mx"
-	qcom,sc7180-mss-pil:
-		    must be "cx", "mx", "mss"
-	qcom,sc7280-mss-pil:
-		    must be "cx", "mss"
 	qcom,sdm845-mss-pil:
 		    must be "cx", "mx", "mss"
 
@@ -205,36 +192,6 @@ For the compatible string below the following supplies are required:
 	Definition: a phandle reference to a syscon representing TCSR followed
 		    by the three offsets within syscon for q6, modem and nc
 		    halt registers.
-		    a phandle reference to a syscon representing TCSR followed
-		    by the four offsets within syscon for q6, modem, nc and vq6
-		    halt registers on SC7280 SoCs.
-
-For the compatible strings below the following phandle references are required:
-  "qcom,sc7180-mss-pil"
-- qcom,spare-regs:
-	Usage: required
-	Value type: <prop-encoded-array>
-	Definition: a phandle reference to a syscon representing TCSR followed
-		    by the offset within syscon for conn_box_spare0 register
-		    used by the modem sub-system running on SC7180 SoC.
-
-For the compatible strings below the following phandle references are required:
-  "qcom,sc7280-mss-pil"
-- qcom,ext-regs:
-	Usage: required
-	Value type: <prop-encoded-array>
-	Definition: two phandle references to syscons representing TCSR_REG and
-		    TCSR register space followed by the two offsets within the syscon
-		    to force_clk_en/rscc_disable and axim1_clk_off/crypto_clk_off
-		    registers respectively.
-
-- qcom,qaccept-regs:
-	Usage: required
-	Value type: <prop-encoded-array>
-	Definition: a phandle reference to a syscon representing TCSR followed
-		    by the three offsets within syscon for mdm, cx and axi
-		    qaccept registers used by the modem sub-system running on
-		    SC7280 SoC.
 
 The Hexagon node must contain iommus property as described in ../iommu/iommu.txt
 on platforms which do not have TrustZone.
@@ -257,29 +214,23 @@ related to the Hexagon.  See ../soc/qcom/qcom,smd.yaml and
 The following example describes the resources needed to boot control the
 Hexagon, as it is found on MSM8974 boards.
 
-	modem-rproc@fc880000 {
-		compatible = "qcom,q6v5-pil";
-		reg = <0xfc880000 0x100>,
-		      <0xfc820000 0x020>;
+	remoteproc@fc880000 {
+		compatible = "qcom,msm8974-mss-pil";
+		reg = <0xfc880000 0x100>, <0xfc820000 0x020>;
 		reg-names = "qdsp6", "rmb";
 
-		interrupts-extended = <&intc 0 24 1>,
-				      <&modem_smp2p_in 0 0>,
-				      <&modem_smp2p_in 1 0>,
-				      <&modem_smp2p_in 2 0>,
-				      <&modem_smp2p_in 3 0>;
-		interrupt-names = "wdog",
-				  "fatal",
-				  "ready",
-				  "handover",
-				  "stop-ack";
+		interrupts-extended = <&intc GIC_SPI 24 IRQ_TYPE_EDGE_RISING>,
+				      <&modem_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
+				      <&modem_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
+				      <&modem_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
+				      <&modem_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "wdog", "fatal", "ready", "handover", "stop-ack";
 
 		clocks = <&gcc GCC_MSS_Q6_BIMC_AXI_CLK>,
 			 <&gcc GCC_MSS_CFG_AHB_CLK>,
-			 <&gcc GCC_BOOT_ROM_AHB_CLK>;
-		clock-names = "iface", "bus", "mem";
-
-		qcom,halt-regs = <&tcsr_mutex_block 0x1180 0x1200 0x1280>;
+			 <&gcc GCC_BOOT_ROM_AHB_CLK>,
+			 <&xo_board>;
+		clock-names = "iface", "bus", "mem", "xo";
 
 		resets = <&gcc GCC_MSS_RESTART>;
 		reset-names = "mss_restart";
@@ -288,6 +239,8 @@ Hexagon, as it is found on MSM8974 boards.
 		mss-supply = <&pm8841_s3>;
 		mx-supply = <&pm8841_s1>;
 		pll-supply = <&pm8941_l12>;
+
+		qcom,halt-regs = <&tcsr_mutex_block 0x1180 0x1200 0x1280>;
 
 		qcom,smem-states = <&modem_smp2p_out 0>;
 		qcom,smem-state-names = "stop";
@@ -298,5 +251,14 @@ Hexagon, as it is found on MSM8974 boards.
 
 		mpss {
 			memory-region = <&mpss_region>;
+		};
+
+		smd-edge {
+			interrupts = <GIC_SPI 25 IRQ_TYPE_EDGE_RISING>;
+
+			qcom,ipc = <&apcs 8 12>;
+			qcom,smd-edge = <0>;
+
+			label = "modem";
 		};
 	};

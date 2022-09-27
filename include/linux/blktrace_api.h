@@ -7,6 +7,7 @@
 #include <linux/compat.h>
 #include <uapi/linux/blktrace_api.h>
 #include <linux/list.h>
+#include <linux/blk_types.h>
 
 #if defined(CONFIG_BLK_DEV_IO_TRACE)
 
@@ -77,10 +78,6 @@ extern int blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 			   char __user *arg);
 extern int blk_trace_startstop(struct request_queue *q, int start);
 extern int blk_trace_remove(struct request_queue *q);
-extern void blk_trace_remove_sysfs(struct device *dev);
-extern int blk_trace_init_sysfs(struct device *dev);
-
-extern struct attribute_group blk_trace_attr_group;
 
 #else /* !CONFIG_BLK_DEV_IO_TRACE */
 # define blk_trace_ioctl(bdev, cmd, arg)		(-ENOTTY)
@@ -91,13 +88,7 @@ extern struct attribute_group blk_trace_attr_group;
 # define blk_trace_remove(q)				(-ENOTTY)
 # define blk_add_trace_msg(q, fmt, ...)			do { } while (0)
 # define blk_add_cgroup_trace_msg(q, cg, fmt, ...)	do { } while (0)
-# define blk_trace_remove_sysfs(dev)			do { } while (0)
 # define blk_trace_note_message_enabled(q)		(false)
-static inline int blk_trace_init_sysfs(struct device *dev)
-{
-	return 0;
-}
-
 #endif /* CONFIG_BLK_DEV_IO_TRACE */
 
 #ifdef CONFIG_COMPAT
@@ -115,7 +106,7 @@ struct compat_blk_user_trace_setup {
 
 #endif
 
-void blk_fill_rwbs(char *rwbs, unsigned int op);
+void blk_fill_rwbs(char *rwbs, blk_opf_t opf);
 
 static inline sector_t blk_rq_trace_sector(struct request *rq)
 {

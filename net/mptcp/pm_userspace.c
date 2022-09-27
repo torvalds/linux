@@ -5,6 +5,7 @@
  */
 
 #include "protocol.h"
+#include "mib.h"
 
 void mptcp_free_local_addr_list(struct mptcp_sock *msk)
 {
@@ -306,14 +307,10 @@ static struct sock *mptcp_nl_find_ssk(struct mptcp_sock *msk,
 				      const struct mptcp_addr_info *local,
 				      const struct mptcp_addr_info *remote)
 {
-	struct sock *sk = &msk->sk.icsk_inet.sk;
 	struct mptcp_subflow_context *subflow;
-	struct sock *found = NULL;
 
 	if (local->family != remote->family)
 		return NULL;
-
-	lock_sock(sk);
 
 	mptcp_for_each_subflow(msk, subflow) {
 		const struct inet_sock *issk;
@@ -347,16 +344,11 @@ static struct sock *mptcp_nl_find_ssk(struct mptcp_sock *msk,
 		}
 
 		if (issk->inet_sport == local->port &&
-		    issk->inet_dport == remote->port) {
-			found = ssk;
-			goto found;
-		}
+		    issk->inet_dport == remote->port)
+			return ssk;
 	}
 
-found:
-	release_sock(sk);
-
-	return found;
+	return NULL;
 }
 
 int mptcp_nl_cmd_sf_destroy(struct sk_buff *skb, struct genl_info *info)
@@ -412,18 +404,51 @@ int mptcp_nl_cmd_sf_destroy(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	sk = &msk->sk.icsk_inet.sk;
+	lock_sock(sk);
 	ssk = mptcp_nl_find_ssk(msk, &addr_l, &addr_r);
 	if (ssk) {
 		struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(ssk);
 
 		mptcp_subflow_shutdown(sk, ssk, RCV_SHUTDOWN | SEND_SHUTDOWN);
 		mptcp_close_ssk(sk, ssk, subflow);
+		MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_RMSUBFLOW);
 		err = 0;
 	} else {
 		err = -ESRCH;
 	}
+	release_sock(sk);
 
- destroy_err:
+destroy_err:
 	sock_put((struct sock *)msk);
 	return err;
+}
+
+int mptcp_userspace_pm_set_flags(struct net *net, struct nlattr *token,
+				 struct mptcp_pm_addr_entry *loc,
+				 struct mptcp_pm_addr_entry *rem, u8 bkup)
+{
+	struct mptcp_sock *msk;
+	int ret = -EINVAL;
+	u32 token_val;
+
+	token_val = nla_get_u32(token);
+
+	msk = mptcp_token_get_sock(net, token_val);
+	if (!msk)
+		return ret;
+
+	if (!mptcp_pm_is_userspace(msk))
+		goto set_flags_err;
+
+	if (loc->addr.family == AF_UNSPEC ||
+	    rem->addr.family == AF_UNSPEC)
+		goto set_flags_err;
+
+	lock_sock((struct sock *)msk);
+	ret = mptcp_pm_nl_mp_prio_send_ack(msk, &loc->addr, &rem->addr, bkup);
+	release_sock((struct sock *)msk);
+
+set_flags_err:
+	sock_put((struct sock *)msk);
+	return ret;
 }

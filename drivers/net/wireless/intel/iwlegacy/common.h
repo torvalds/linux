@@ -1683,7 +1683,8 @@ struct il_cfg {
  ***************************/
 
 int il_mac_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		   u16 queue, const struct ieee80211_tx_queue_params *params);
+		   unsigned int link_id, u16 queue,
+		   const struct ieee80211_tx_queue_params *params);
 int il_mac_tx_last_beacon(struct ieee80211_hw *hw);
 
 void il_set_rxon_hwcrypto(struct il_priv *il, int hw_decrypt);
@@ -1947,7 +1948,7 @@ il_get_hw_mode(struct il_priv *il, enum nl80211_band band)
 int il_mac_config(struct ieee80211_hw *hw, u32 changed);
 void il_mac_reset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 void il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			     struct ieee80211_bss_conf *bss_conf, u32 changes);
+			     struct ieee80211_bss_conf *bss_conf, u64 changes);
 void il_tx_cmd_protection(struct il_priv *il, struct ieee80211_tx_info *info,
 			  __le16 fc, __le32 *tx_flags);
 

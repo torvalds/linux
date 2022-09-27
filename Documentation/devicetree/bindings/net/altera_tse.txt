@@ -15,7 +15,7 @@ Required properties:
   "rx_desc":      MSGDMA Rx dispatcher descriptor space region
   "rx_resp":      MSGDMA Rx dispatcher response space region
   "s1":		  SGDMA descriptor memory
-- interrupts: Should contain the TSE interrupts and it's mode.
+- interrupts: Should contain the TSE interrupts and its mode.
 - interrupt-names: Should contain the interrupt names
   "rx_irq":       xDMA Rx dispatcher interrupt
   "tx_irq":       xDMA Tx dispatcher interrupt

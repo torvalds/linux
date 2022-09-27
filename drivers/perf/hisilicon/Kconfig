@@ -14,3 +14,13 @@ config HISI_PCIE_PMU
 	  RCiEP devices.
 	  Adds the PCIe PMU into perf events system for monitoring latency,
 	  bandwidth etc.
+
+config HNS3_PMU
+	tristate "HNS3 PERF PMU"
+	depends on ARM64 || COMPILE_TEST
+	depends on PCI
+	help
+	  Provide support for HNS3 performance monitoring unit (PMU) RCiEP
+	  devices.
+	  Adds the HNS3 PMU into perf events system for monitoring latency,
+	  bandwidth etc.

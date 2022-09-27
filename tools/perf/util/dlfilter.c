@@ -495,6 +495,8 @@ int dlfilter__do_filter_event(struct dlfilter *d,
 	ASSIGN(misc);
 	ASSIGN(raw_size);
 	ASSIGN(raw_data);
+	ASSIGN(machine_pid);
+	ASSIGN(vcpu);
 
 	if (sample->branch_stack) {
 		d_sample.brstack_nr = sample->branch_stack->nr;

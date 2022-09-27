@@ -23,7 +23,37 @@ struct sof_abi_hdr {
 	__u32 size;		/**< size in bytes of data excl. this struct */
 	__u32 abi;		/**< SOF ABI version */
 	__u32 reserved[4];	/**< reserved for future use */
-	__u32 data[0];		/**< Component data - opaque to core */
+	__u32 data[];		/**< Component data - opaque to core */
 }  __packed;
+
+#define SOF_MANIFEST_DATA_TYPE_NHLT 1
+
+/**
+ * struct sof_manifest_tlv - SOF manifest TLV data
+ * @type: type of data
+ * @size: data size (not including the size of this struct)
+ * @data: payload data
+ */
+struct sof_manifest_tlv {
+	__le32 type;
+	__le32 size;
+	__u8 data[];
+};
+
+/**
+ * struct sof_manifest - SOF topology manifest
+ * @abi_major: Major ABI version
+ * @abi_minor: Minor ABI version
+ * @abi_patch: ABI patch
+ * @count: count of tlv items
+ * @items: consecutive variable size tlv items
+ */
+struct sof_manifest {
+	__le16 abi_major;
+	__le16 abi_minor;
+	__le16 abi_patch;
+	__le16 count;
+	struct sof_manifest_tlv items[];
+};
 
 #endif

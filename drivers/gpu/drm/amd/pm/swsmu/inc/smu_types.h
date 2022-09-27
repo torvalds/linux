@@ -74,6 +74,7 @@
        __SMU_DUMMY_MAP(OverDriveSetPercentage),       \
        __SMU_DUMMY_MAP(SetMinDeepSleepDcefclk),       \
        __SMU_DUMMY_MAP(ReenableAcDcInterrupt),        \
+       __SMU_DUMMY_MAP(AllowIHHostInterrupt),        \
        __SMU_DUMMY_MAP(NotifyPowerSource),            \
        __SMU_DUMMY_MAP(SetUclkFastSwitch),            \
        __SMU_DUMMY_MAP(SetUclkDownHyst),              \

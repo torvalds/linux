@@ -21,6 +21,7 @@
 #include "cifsfs.h"
 #include "smb2proto.h"
 #include "fs_context.h"
+#include "cached_dir.h"
 
 /*
  * To be safe - for UCS to UTF-8 with strings loaded with the rare long
@@ -805,8 +806,7 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon, loff_t pos,
 
 		end_of_smb = cfile->srch_inf.ntwrk_buf_start +
 			server->ops->calc_smb_size(
-					cfile->srch_inf.ntwrk_buf_start,
-					server);
+					cfile->srch_inf.ntwrk_buf_start);
 
 		cur_ent = cfile->srch_inf.srch_entries_start;
 		first_entry_in_buffer = cfile->srch_inf.index_of_last_entry
@@ -1071,7 +1071,7 @@ int cifs_readdir(struct file *file, struct dir_context *ctx)
 		tcon = tlink_tcon(cifsFile->tlink);
 	}
 
-	rc = open_cached_dir(xid, tcon, full_path, cifs_sb, &cfid);
+	rc = open_cached_dir(xid, tcon, full_path, cifs_sb, false, &cfid);
 	cifs_put_tlink(tlink);
 	if (rc)
 		goto cache_not_found;
@@ -1142,7 +1142,7 @@ int cifs_readdir(struct file *file, struct dir_context *ctx)
 	tcon = tlink_tcon(cifsFile->tlink);
 	rc = find_cifs_entry(xid, tcon, ctx->pos, file, full_path,
 			     &current_entry, &num_to_fill);
-	open_cached_dir(xid, tcon, full_path, cifs_sb, &cfid);
+	open_cached_dir(xid, tcon, full_path, cifs_sb, false, &cfid);
 	if (rc) {
 		cifs_dbg(FYI, "fce error %d\n", rc);
 		goto rddir2_exit;
@@ -1160,8 +1160,7 @@ int cifs_readdir(struct file *file, struct dir_context *ctx)
 	cifs_dbg(FYI, "loop through %d times filling dir for net buf %p\n",
 		 num_to_fill, cifsFile->srch_inf.ntwrk_buf_start);
 	max_len = tcon->ses->server->ops->calc_smb_size(
-			cifsFile->srch_inf.ntwrk_buf_start,
-			tcon->ses->server);
+			cifsFile->srch_inf.ntwrk_buf_start);
 	end_of_smb = cifsFile->srch_inf.ntwrk_buf_start + max_len;
 
 	tmp_buf = kmalloc(UNICODE_NAME_MAX, GFP_KERNEL);

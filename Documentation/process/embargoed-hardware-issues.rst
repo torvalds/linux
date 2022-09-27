@@ -244,7 +244,7 @@ disclosure of a particular issue, unless requested by a response team or by
 an involved disclosed party. The current ambassadors list:
 
   ============= ========================================================
-  AMD		Tom Lendacky <tom.lendacky@amd.com>
+  AMD		Tom Lendacky <thomas.lendacky@amd.com>
   Ampere	Darren Hart <darren@os.amperecomputing.com>
   ARM		Catalin Marinas <catalin.marinas@arm.com>
   IBM Power	Anton Blanchard <anton@linux.ibm.com>
@@ -264,6 +264,9 @@ an involved disclosed party. The current ambassadors list:
 
   Amazon
   Google	Kees Cook <keescook@chromium.org>
+
+  GCC
+  LLVM		Nick Desaulniers <ndesaulniers@google.com>
   ============= ========================================================
 
 If you want your organization to be added to the ambassadors list, please

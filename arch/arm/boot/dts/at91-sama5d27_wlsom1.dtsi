@@ -194,6 +194,8 @@
 &macb0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_macb0_default>;
+	#address-cells = <1>;
+	#size-cells = <0>;
 	phy-mode = "rmii";
 
 	ethernet-phy@0 {

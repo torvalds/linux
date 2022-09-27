@@ -53,7 +53,7 @@ Properties
 
 - DO use common property unit suffixes for properties with scientific units.
   Recommended suffixes are listed at
-  https://github.com/devicetree-org/dt-schema/blob/master/schemas/property-units.yaml
+  https://github.com/devicetree-org/dt-schema/blob/main/dtschema/schemas/property-units.yaml
 
 - DO define properties in terms of constraints. How many entries? What are
   possible values? What is the order?

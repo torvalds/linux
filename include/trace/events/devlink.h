@@ -186,7 +186,7 @@ TRACE_EVENT(devlink_trap_report,
 		__string(driver_name, devlink_to_dev(devlink)->driver->name)
 		__string(trap_name, metadata->trap_name)
 		__string(trap_group_name, metadata->trap_group_name)
-		__dynamic_array(char, input_dev_name, IFNAMSIZ)
+		__array(char, input_dev_name, IFNAMSIZ)
 	),
 
 	TP_fast_assign(
@@ -197,15 +197,14 @@ TRACE_EVENT(devlink_trap_report,
 		__assign_str(driver_name, devlink_to_dev(devlink)->driver->name);
 		__assign_str(trap_name, metadata->trap_name);
 		__assign_str(trap_group_name, metadata->trap_group_name);
-		__assign_str(input_dev_name,
-			     (input_dev ? input_dev->name : "NULL"));
+		strscpy(__entry->input_dev_name, input_dev ? input_dev->name : "NULL", IFNAMSIZ);
 	),
 
 	TP_printk("bus_name=%s dev_name=%s driver_name=%s trap_name=%s "
 		  "trap_group_name=%s input_dev_name=%s", __get_str(bus_name),
 		  __get_str(dev_name), __get_str(driver_name),
 		  __get_str(trap_name), __get_str(trap_group_name),
-		  __get_str(input_dev_name))
+		  __entry->input_dev_name)
 );
 
 #endif /* _TRACE_DEVLINK_H */

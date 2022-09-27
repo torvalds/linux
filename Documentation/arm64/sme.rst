@@ -371,7 +371,7 @@ The regset data starts with struct user_za_header, containing:
 Appendix A.  SME programmer's model (informative)
 =================================================
 
-This section provides a minimal description of the additions made by SVE to the
+This section provides a minimal description of the additions made by SME to the
 ARMv8-A programmer's model that are relevant to this document.
 
 Note: This section is for information only and not intended to be complete or

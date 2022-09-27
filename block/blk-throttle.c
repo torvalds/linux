@@ -2203,8 +2203,9 @@ out_unlock:
 
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW
 static void throtl_track_latency(struct throtl_data *td, sector_t size,
-	int op, unsigned long time)
+				 enum req_op op, unsigned long time)
 {
+	const bool rw = op_is_write(op);
 	struct latency_bucket *latency;
 	int index;
 
@@ -2215,10 +2216,10 @@ static void throtl_track_latency(struct throtl_data *td, sector_t size,
 
 	index = request_bucket_index(size);
 
-	latency = get_cpu_ptr(td->latency_buckets[op]);
+	latency = get_cpu_ptr(td->latency_buckets[rw]);
 	latency[index].total_latency += time;
 	latency[index].samples++;
-	put_cpu_ptr(td->latency_buckets[op]);
+	put_cpu_ptr(td->latency_buckets[rw]);
 }
 
 void blk_throtl_stat_add(struct request *rq, u64 time_ns)

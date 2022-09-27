@@ -127,9 +127,13 @@ int gnttab_try_end_foreign_access(grant_ref_t ref);
  */
 int gnttab_alloc_grant_references(u16 count, grant_ref_t *pprivate_head);
 
+int gnttab_alloc_grant_reference_seq(unsigned int count, grant_ref_t *first);
+
 void gnttab_free_grant_reference(grant_ref_t ref);
 
 void gnttab_free_grant_references(grant_ref_t head);
+
+void gnttab_free_grant_reference_seq(grant_ref_t head, unsigned int count);
 
 int gnttab_empty_grant_references(const grant_ref_t *pprivate_head);
 

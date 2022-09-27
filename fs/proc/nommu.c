@@ -21,7 +21,6 @@
 #include <linux/seq_file.h>
 #include <linux/hugetlb.h>
 #include <linux/vmalloc.h>
-#include <linux/uaccess.h>
 #include <asm/tlb.h>
 #include <asm/div64.h>
 #include "internal.h"

@@ -80,7 +80,7 @@ static int gfb_set_fbinfo(struct gfb_info *gp)
 	info->pseudo_palette = gp->pseudo_palette;
 
 	/* Fill fix common fields */
-	strlcpy(info->fix.id, "gfb", sizeof(info->fix.id));
+	strscpy(info->fix.id, "gfb", sizeof(info->fix.id));
         info->fix.smem_start = gp->fb_base_phys;
         info->fix.smem_len = gp->fb_size;
         info->fix.type = FB_TYPE_PACKED_PIXELS;

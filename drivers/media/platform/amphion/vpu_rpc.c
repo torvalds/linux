@@ -195,7 +195,7 @@ static struct vpu_iface_ops imx8q_rpc_ops[] = {
 	},
 	[VPU_CORE_TYPE_DEC] = {
 		.check_codec = vpu_imx8q_check_codec,
-		.check_fmt = vpu_imx8q_check_fmt,
+		.check_fmt = vpu_malone_check_fmt,
 		.boot_core = vpu_imx8q_boot_core,
 		.get_power_state = vpu_imx8q_get_power_state,
 		.on_firmware_loaded = vpu_imx8q_on_firmware_loaded,

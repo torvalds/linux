@@ -14,8 +14,6 @@
 #include "kvm_util.h"
 #include "processor.h"
 
-#define VCPU_ID 0
-
 static bool ud_expected;
 
 static void guest_ud_handler(struct ex_regs *regs)
@@ -94,29 +92,27 @@ static void guest_main(void)
 	GUEST_DONE();
 }
 
-static void setup_ud_vector(struct kvm_vm *vm)
+static void setup_ud_vector(struct kvm_vcpu *vcpu)
 {
-	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vm, VCPU_ID);
-	vm_install_exception_handler(vm, UD_VECTOR, guest_ud_handler);
+	vm_init_descriptor_tables(vcpu->vm);
+	vcpu_init_descriptor_tables(vcpu);
+	vm_install_exception_handler(vcpu->vm, UD_VECTOR, guest_ud_handler);
 }
 
-static void enter_guest(struct kvm_vm *vm)
+static void enter_guest(struct kvm_vcpu *vcpu)
 {
-	struct kvm_run *run;
+	struct kvm_run *run = vcpu->run;
 	struct ucall uc;
 
-	run = vcpu_state(vm, VCPU_ID);
-
-	vcpu_run(vm, VCPU_ID);
-	switch (get_ucall(vm, VCPU_ID, &uc)) {
+	vcpu_run(vcpu);
+	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_SYNC:
 		pr_info("%s: %016lx\n", (const char *)uc.args[2], uc.args[3]);
 		break;
 	case UCALL_DONE:
 		return;
 	case UCALL_ABORT:
-		TEST_FAIL("%s at %s:%ld", (const char *)uc.args[0], __FILE__, uc.args[1]);
+		REPORT_GUEST_ASSERT(uc);
 	default:
 		TEST_FAIL("Unhandled ucall: %ld\nexit_reason: %u (%s)",
 			  uc.cmd, run->exit_reason, exit_reason_str(run->exit_reason));
@@ -125,45 +121,42 @@ static void enter_guest(struct kvm_vm *vm)
 
 static void test_fix_hypercall(void)
 {
+	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 
-	vm = vm_create_default(VCPU_ID, 0, guest_main);
-	setup_ud_vector(vm);
+	vm = vm_create_with_one_vcpu(&vcpu, guest_main);
+	setup_ud_vector(vcpu);
 
 	ud_expected = false;
 	sync_global_to_guest(vm, ud_expected);
 
 	virt_pg_map(vm, APIC_DEFAULT_GPA, APIC_DEFAULT_GPA);
 
-	enter_guest(vm);
+	enter_guest(vcpu);
 }
 
 static void test_fix_hypercall_disabled(void)
 {
-	struct kvm_enable_cap cap = {0};
+	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 
-	vm = vm_create_default(VCPU_ID, 0, guest_main);
-	setup_ud_vector(vm);
+	vm = vm_create_with_one_vcpu(&vcpu, guest_main);
+	setup_ud_vector(vcpu);
 
-	cap.cap = KVM_CAP_DISABLE_QUIRKS2;
-	cap.args[0] = KVM_X86_QUIRK_FIX_HYPERCALL_INSN;
-	vm_enable_cap(vm, &cap);
+	vm_enable_cap(vm, KVM_CAP_DISABLE_QUIRKS2,
+		      KVM_X86_QUIRK_FIX_HYPERCALL_INSN);
 
 	ud_expected = true;
 	sync_global_to_guest(vm, ud_expected);
 
 	virt_pg_map(vm, APIC_DEFAULT_GPA, APIC_DEFAULT_GPA);
 
-	enter_guest(vm);
+	enter_guest(vcpu);
 }
 
 int main(void)
 {
-	if (!(kvm_check_cap(KVM_CAP_DISABLE_QUIRKS2) & KVM_X86_QUIRK_FIX_HYPERCALL_INSN)) {
-		print_skip("KVM_X86_QUIRK_HYPERCALL_INSN not supported");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(kvm_check_cap(KVM_CAP_DISABLE_QUIRKS2) & KVM_X86_QUIRK_FIX_HYPERCALL_INSN);
 
 	test_fix_hypercall();
 	test_fix_hypercall_disabled();

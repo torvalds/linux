@@ -33,6 +33,7 @@
 #include <asm/plpar_wrappers.h>
 #endif
 #include <asm/ultravisor.h>
+#include <asm/setup.h>
 
 #include "timing.h"
 #include "irq.h"

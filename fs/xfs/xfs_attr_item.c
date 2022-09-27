@@ -413,11 +413,9 @@ xfs_attr_create_intent(
 	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_attri_log_item	*attrip;
 	struct xfs_attr_intent		*attr;
+	struct xfs_da_args		*args;
 
 	ASSERT(count == 1);
-
-	if (!xfs_sb_version_haslogxattrs(&mp->m_sb))
-		return NULL;
 
 	/*
 	 * Each attr item only performs one attribute operation at a time, so
@@ -425,6 +423,10 @@ xfs_attr_create_intent(
 	 */
 	attr = list_first_entry_or_null(items, struct xfs_attr_intent,
 			xattri_list);
+	args = attr->xattri_da_args;
+
+	if (!(args->op_flags & XFS_DA_OP_LOGGED))
+		return NULL;
 
 	/*
 	 * Create a buffer to store the attribute name and value.  This buffer
@@ -432,8 +434,6 @@ xfs_attr_create_intent(
 	 * and the lower level xattr log items.
 	 */
 	if (!attr->xattri_nameval) {
-		struct xfs_da_args	*args = attr->xattri_da_args;
-
 		/*
 		 * Transfer our reference to the name/value buffer to the
 		 * deferred work state structure.
@@ -576,7 +576,7 @@ xfs_attri_item_recover(
 	struct xfs_trans_res		tres;
 	struct xfs_attri_log_format	*attrp;
 	struct xfs_attri_log_nameval	*nv = attrip->attri_nameval;
-	int				error, ret = 0;
+	int				error;
 	int				total;
 	int				local;
 	struct xfs_attrd_log_item	*done_item = NULL;
@@ -617,7 +617,10 @@ xfs_attri_item_recover(
 	args->namelen = nv->name.i_len;
 	args->hashval = xfs_da_hashname(args->name, args->namelen);
 	args->attr_filter = attrp->alfi_attr_filter & XFS_ATTRI_FILTER_MASK;
-	args->op_flags = XFS_DA_OP_RECOVERY | XFS_DA_OP_OKNOENT;
+	args->op_flags = XFS_DA_OP_RECOVERY | XFS_DA_OP_OKNOENT |
+			 XFS_DA_OP_LOGGED;
+
+	ASSERT(xfs_sb_version_haslogxattrs(&mp->m_sb));
 
 	switch (attr->xattri_op_flags) {
 	case XFS_ATTRI_OP_FLAGS_SET:
@@ -652,29 +655,32 @@ xfs_attri_item_recover(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
 
-	ret = xfs_xattri_finish_update(attr, done_item);
-	if (ret == -EAGAIN) {
-		/* There's more work to do, so add it to this transaction */
+	error = xfs_xattri_finish_update(attr, done_item);
+	if (error == -EAGAIN) {
+		/*
+		 * There's more work to do, so add the intent item to this
+		 * transaction so that we can continue it later.
+		 */
 		xfs_defer_add(tp, XFS_DEFER_OPS_TYPE_ATTR, &attr->xattri_list);
-	} else
-		error = ret;
+		error = xfs_defer_ops_capture_and_commit(tp, capture_list);
+		if (error)
+			goto out_unlock;
 
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+		xfs_irele(ip);
+		return 0;
+	}
 	if (error) {
 		xfs_trans_cancel(tp);
 		goto out_unlock;
 	}
 
 	error = xfs_defer_ops_capture_and_commit(tp, capture_list);
-
 out_unlock:
-	if (attr->xattri_leaf_bp)
-		xfs_buf_relse(attr->xattri_leaf_bp);
-
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	xfs_irele(ip);
 out:
-	if (ret != -EAGAIN)
-		xfs_attr_free_item(attr);
+	xfs_attr_free_item(attr);
 	return error;
 }
 

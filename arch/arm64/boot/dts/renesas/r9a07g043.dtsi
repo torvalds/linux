@@ -483,8 +483,27 @@
 		};
 
 		adc: adc@10059000 {
+			compatible = "renesas,r9a07g043-adc", "renesas,rzg2l-adc";
 			reg = <0 0x10059000 0 0x400>;
-			/* place holder */
+			interrupts = <GIC_SPI 347 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&cpg CPG_MOD R9A07G043_ADC_ADCLK>,
+				 <&cpg CPG_MOD R9A07G043_ADC_PCLK>;
+			clock-names = "adclk", "pclk";
+			resets = <&cpg R9A07G043_ADC_PRESETN>,
+				 <&cpg R9A07G043_ADC_ADRST_N>;
+			reset-names = "presetn", "adrst-n";
+			power-domains = <&cpg>;
+			status = "disabled";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			channel@0 {
+				reg = <0>;
+			};
+			channel@1 {
+				reg = <1>;
+			};
 		};
 
 		tsu: thermal@10059400 {

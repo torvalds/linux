@@ -275,7 +275,7 @@ int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 		xso->dev = NULL;
 		xso->dir = 0;
 		xso->real_dev = NULL;
-		dev_put_track(dev, &xso->dev_tracker);
+		netdev_put(dev, &xso->dev_tracker);
 
 		if (err != -EOPNOTSUPP)
 			return err;

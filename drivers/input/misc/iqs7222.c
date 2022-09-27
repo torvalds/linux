@@ -40,7 +40,6 @@
 #define IQS7222_SLDR_SETUP_2_RES_MASK		GENMASK(15, 8)
 #define IQS7222_SLDR_SETUP_2_RES_SHIFT		8
 #define IQS7222_SLDR_SETUP_2_TOP_SPEED_MASK	GENMASK(7, 0)
-#define IQS7222_SLDR_SETUP_3_CHAN_SEL_MASK	GENMASK(9, 0)
 
 #define IQS7222_GPIO_SETUP_0_GPIO_EN		BIT(0)
 
@@ -54,6 +53,9 @@
 #define IQS7222_SYS_SETUP_ACK_RESET		BIT(0)
 
 #define IQS7222_EVENT_MASK_ATI			BIT(12)
+#define IQS7222_EVENT_MASK_SLDR			BIT(10)
+#define IQS7222_EVENT_MASK_TOUCH		BIT(1)
+#define IQS7222_EVENT_MASK_PROX			BIT(0)
 
 #define IQS7222_COMMS_HOLD			BIT(0)
 #define IQS7222_COMMS_ERROR			0xEEEE
@@ -92,11 +94,11 @@ enum iqs7222_reg_key_id {
 
 enum iqs7222_reg_grp_id {
 	IQS7222_REG_GRP_STAT,
+	IQS7222_REG_GRP_FILT,
 	IQS7222_REG_GRP_CYCLE,
 	IQS7222_REG_GRP_GLBL,
 	IQS7222_REG_GRP_BTN,
 	IQS7222_REG_GRP_CHAN,
-	IQS7222_REG_GRP_FILT,
 	IQS7222_REG_GRP_SLDR,
 	IQS7222_REG_GRP_GPIO,
 	IQS7222_REG_GRP_SYS,
@@ -135,12 +137,12 @@ struct iqs7222_event_desc {
 static const struct iqs7222_event_desc iqs7222_kp_events[] = {
 	{
 		.name = "event-prox",
-		.enable = BIT(0),
+		.enable = IQS7222_EVENT_MASK_PROX,
 		.reg_key = IQS7222_REG_KEY_PROX,
 	},
 	{
 		.name = "event-touch",
-		.enable = BIT(1),
+		.enable = IQS7222_EVENT_MASK_TOUCH,
 		.reg_key = IQS7222_REG_KEY_TOUCH,
 	},
 };
@@ -554,13 +556,6 @@ static const struct iqs7222_prop_desc iqs7222_props[] = {
 		.reg_shift = 0,
 		.reg_width = 4,
 		.label = "current reference trim",
-	},
-	{
-		.name = "azoteq,rf-filt-enable",
-		.reg_grp = IQS7222_REG_GRP_GLBL,
-		.reg_offset = 0,
-		.reg_shift = 15,
-		.reg_width = 1,
 	},
 	{
 		.name = "azoteq,max-counts",
@@ -1272,8 +1267,21 @@ static int iqs7222_ati_trigger(struct iqs7222_private *iqs7222)
 	struct i2c_client *client = iqs7222->client;
 	ktime_t ati_timeout;
 	u16 sys_status = 0;
-	u16 sys_setup = iqs7222->sys_setup[0] & ~IQS7222_SYS_SETUP_ACK_RESET;
+	u16 sys_setup;
 	int error, i;
+
+	/*
+	 * The reserved fields of the system setup register may have changed
+	 * as a result of other registers having been written. As such, read
+	 * the register's latest value to avoid unexpected behavior when the
+	 * register is written in the loop that follows.
+	 */
+	error = iqs7222_read_word(iqs7222, IQS7222_SYS_SETUP, &sys_setup);
+	if (error)
+		return error;
+
+	sys_setup &= ~IQS7222_SYS_SETUP_INTF_MODE_MASK;
+	sys_setup &= ~IQS7222_SYS_SETUP_PWR_MODE_MASK;
 
 	for (i = 0; i < IQS7222_NUM_RETRIES; i++) {
 		/*
@@ -1299,11 +1307,14 @@ static int iqs7222_ati_trigger(struct iqs7222_private *iqs7222)
 			if (error)
 				return error;
 
-			if (sys_status & IQS7222_SYS_STATUS_ATI_ACTIVE)
-				continue;
+			if (sys_status & IQS7222_SYS_STATUS_RESET)
+				return 0;
 
 			if (sys_status & IQS7222_SYS_STATUS_ATI_ERROR)
 				break;
+
+			if (sys_status & IQS7222_SYS_STATUS_ATI_ACTIVE)
+				continue;
 
 			/*
 			 * Use stream-in-touch mode if either slider reports
@@ -1321,7 +1332,7 @@ static int iqs7222_ati_trigger(struct iqs7222_private *iqs7222)
 		dev_err(&client->dev,
 			"ATI attempt %d of %d failed with status 0x%02X, %s\n",
 			i + 1, IQS7222_NUM_RETRIES, (u8)sys_status,
-			i < IQS7222_NUM_RETRIES ? "retrying..." : "stopping");
+			i + 1 < IQS7222_NUM_RETRIES ? "retrying" : "stopping");
 	}
 
 	return -ETIMEDOUT;
@@ -1332,6 +1343,34 @@ static int iqs7222_dev_init(struct iqs7222_private *iqs7222, int dir)
 	const struct iqs7222_dev_desc *dev_desc = iqs7222->dev_desc;
 	int comms_offset = dev_desc->comms_offset;
 	int error, i, j, k;
+
+	/*
+	 * Acknowledge reset before writing any registers in case the device
+	 * suffers a spurious reset during initialization. Because this step
+	 * may change the reserved fields of the second filter beta register,
+	 * its cache must be updated.
+	 *
+	 * Writing the second filter beta register, in turn, may clobber the
+	 * system status register. As such, the filter beta register pair is
+	 * written first to protect against this hazard.
+	 */
+	if (dir == WRITE) {
+		u16 reg = dev_desc->reg_grps[IQS7222_REG_GRP_FILT].base + 1;
+		u16 filt_setup;
+
+		error = iqs7222_write_word(iqs7222, IQS7222_SYS_SETUP,
+					   iqs7222->sys_setup[0] |
+					   IQS7222_SYS_SETUP_ACK_RESET);
+		if (error)
+			return error;
+
+		error = iqs7222_read_word(iqs7222, reg, &filt_setup);
+		if (error)
+			return error;
+
+		iqs7222->filt_setup[1] &= GENMASK(7, 0);
+		iqs7222->filt_setup[1] |= (filt_setup & ~GENMASK(7, 0));
+	}
 
 	/*
 	 * Take advantage of the stop-bit disable function, if available, to
@@ -1957,8 +1996,8 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222, int sldr_index)
 	int num_chan = dev_desc->reg_grps[IQS7222_REG_GRP_CHAN].num_row;
 	int ext_chan = rounddown(num_chan, 10);
 	int count, error, reg_offset, i;
+	u16 *event_mask = &iqs7222->sys_setup[dev_desc->event_offset];
 	u16 *sldr_setup = iqs7222->sldr_setup[sldr_index];
-	u16 *sys_setup = iqs7222->sys_setup;
 	unsigned int chan_sel[4], val;
 
 	error = iqs7222_parse_props(iqs7222, &sldr_node, sldr_index,
@@ -2003,7 +2042,7 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222, int sldr_index)
 	reg_offset = dev_desc->sldr_res < U16_MAX ? 0 : 1;
 
 	sldr_setup[0] |= count;
-	sldr_setup[3 + reg_offset] &= ~IQS7222_SLDR_SETUP_3_CHAN_SEL_MASK;
+	sldr_setup[3 + reg_offset] &= ~GENMASK(ext_chan - 1, 0);
 
 	for (i = 0; i < ARRAY_SIZE(chan_sel); i++) {
 		sldr_setup[5 + reg_offset + i] = 0;
@@ -2081,16 +2120,18 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222, int sldr_index)
 			sldr_setup[0] |= dev_desc->wheel_enable;
 	}
 
+	/*
+	 * The absence of a register offset makes it safe to assume the device
+	 * supports gestures, each of which is first disabled until explicitly
+	 * enabled.
+	 */
+	if (!reg_offset)
+		for (i = 0; i < ARRAY_SIZE(iqs7222_sl_events); i++)
+			sldr_setup[9] &= ~iqs7222_sl_events[i].enable;
+
 	for (i = 0; i < ARRAY_SIZE(iqs7222_sl_events); i++) {
 		const char *event_name = iqs7222_sl_events[i].name;
 		struct fwnode_handle *event_node;
-
-		/*
-		 * The absence of a register offset means the remaining fields
-		 * in the group represent gesture settings.
-		 */
-		if (iqs7222_sl_events[i].enable && !reg_offset)
-			sldr_setup[9] &= ~iqs7222_sl_events[i].enable;
 
 		event_node = fwnode_get_named_child_node(sldr_node, event_name);
 		if (!event_node)
@@ -2104,6 +2145,22 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222, int sldr_index)
 		if (error)
 			return error;
 
+		/*
+		 * The press/release event does not expose a direct GPIO link,
+		 * but one can be emulated by tying each of the participating
+		 * channels to the same GPIO.
+		 */
+		error = iqs7222_gpio_select(iqs7222, event_node,
+					    i ? iqs7222_sl_events[i].enable
+					      : sldr_setup[3 + reg_offset],
+					    i ? 1568 + sldr_index * 30
+					      : sldr_setup[4 + reg_offset]);
+		if (error)
+			return error;
+
+		if (!reg_offset)
+			sldr_setup[9] |= iqs7222_sl_events[i].enable;
+
 		error = fwnode_property_read_u32(event_node, "linux,code",
 						 &val);
 		if (error) {
@@ -2115,26 +2172,20 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222, int sldr_index)
 		iqs7222->sl_code[sldr_index][i] = val;
 		input_set_capability(iqs7222->keypad, EV_KEY, val);
 
-		/*
-		 * The press/release event is determined based on whether the
-		 * coordinate field reports 0xFFFF and has no explicit enable
-		 * control.
-		 */
-		if (!iqs7222_sl_events[i].enable || reg_offset)
-			continue;
-
-		sldr_setup[9] |= iqs7222_sl_events[i].enable;
-
-		error = iqs7222_gpio_select(iqs7222, event_node,
-					    iqs7222_sl_events[i].enable,
-					    1568 + sldr_index * 30);
-		if (error)
-			return error;
-
 		if (!dev_desc->event_offset)
 			continue;
 
-		sys_setup[dev_desc->event_offset] |= BIT(10 + sldr_index);
+		/*
+		 * The press/release event is determined based on whether the
+		 * coordinate field reports 0xFFFF and solely relies on touch
+		 * or proximity interrupts to be unmasked.
+		 */
+		if (i && !reg_offset)
+			*event_mask |= (IQS7222_EVENT_MASK_SLDR << sldr_index);
+		else if (sldr_setup[4 + reg_offset] == dev_desc->touch_link)
+			*event_mask |= IQS7222_EVENT_MASK_TOUCH;
+		else
+			*event_mask |= IQS7222_EVENT_MASK_PROX;
 	}
 
 	/*
@@ -2227,11 +2278,6 @@ static int iqs7222_parse_all(struct iqs7222_private *iqs7222)
 			return error;
 	}
 
-	sys_setup[0] &= ~IQS7222_SYS_SETUP_INTF_MODE_MASK;
-	sys_setup[0] &= ~IQS7222_SYS_SETUP_PWR_MODE_MASK;
-
-	sys_setup[0] |= IQS7222_SYS_SETUP_ACK_RESET;
-
 	return iqs7222_parse_props(iqs7222, NULL, 0, IQS7222_REG_GRP_SYS,
 				   IQS7222_REG_KEY_NONE);
 }
@@ -2299,29 +2345,37 @@ static int iqs7222_report(struct iqs7222_private *iqs7222)
 			input_report_abs(iqs7222->keypad, iqs7222->sl_axis[i],
 					 sldr_pos);
 
-		for (j = 0; j < ARRAY_SIZE(iqs7222_sl_events); j++) {
+		input_report_key(iqs7222->keypad, iqs7222->sl_code[i][0],
+				 sldr_pos < dev_desc->sldr_res);
+
+		/*
+		 * A maximum resolution indicates the device does not support
+		 * gestures, in which case the remaining fields are ignored.
+		 */
+		if (dev_desc->sldr_res == U16_MAX)
+			continue;
+
+		if (!(le16_to_cpu(status[1]) & IQS7222_EVENT_MASK_SLDR << i))
+			continue;
+
+		/*
+		 * Skip the press/release event, as it does not have separate
+		 * status fields and is handled separately.
+		 */
+		for (j = 1; j < ARRAY_SIZE(iqs7222_sl_events); j++) {
 			u16 mask = iqs7222_sl_events[j].mask;
 			u16 val = iqs7222_sl_events[j].val;
-
-			if (!iqs7222_sl_events[j].enable) {
-				input_report_key(iqs7222->keypad,
-						 iqs7222->sl_code[i][j],
-						 sldr_pos < dev_desc->sldr_res);
-				continue;
-			}
-
-			/*
-			 * The remaining offsets represent gesture state, and
-			 * are discarded in the case of IQS7222C because only
-			 * absolute position is reported.
-			 */
-			if (num_stat < IQS7222_MAX_COLS_STAT)
-				continue;
 
 			input_report_key(iqs7222->keypad,
 					 iqs7222->sl_code[i][j],
 					 (state & mask) == val);
 		}
+
+		input_sync(iqs7222->keypad);
+
+		for (j = 1; j < ARRAY_SIZE(iqs7222_sl_events); j++)
+			input_report_key(iqs7222->keypad,
+					 iqs7222->sl_code[i][j], 0);
 	}
 
 	input_sync(iqs7222->keypad);

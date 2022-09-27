@@ -132,7 +132,7 @@ void btrfs_update_delayed_refs_rsv(struct btrfs_trans_handle *trans)
 
 	spin_lock(&delayed_rsv->lock);
 	delayed_rsv->size += num_bytes;
-	delayed_rsv->full = 0;
+	delayed_rsv->full = false;
 	spin_unlock(&delayed_rsv->lock);
 	trans->delayed_ref_updates = 0;
 }
@@ -175,7 +175,7 @@ void btrfs_migrate_to_delayed_refs_rsv(struct btrfs_fs_info *fs_info,
 	if (num_bytes)
 		delayed_refs_rsv->reserved += num_bytes;
 	if (delayed_refs_rsv->reserved >= delayed_refs_rsv->size)
-		delayed_refs_rsv->full = 1;
+		delayed_refs_rsv->full = true;
 	spin_unlock(&delayed_refs_rsv->lock);
 
 	if (num_bytes)

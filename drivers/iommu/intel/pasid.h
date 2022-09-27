@@ -39,6 +39,7 @@
  * only and pass-through transfer modes.
  */
 #define FLPT_DEFAULT_DID		1
+#define NUM_RESERVED_DID		2
 
 /*
  * The SUPERVISOR_MODE flag indicates a first level translation which
@@ -74,7 +75,6 @@ struct pasid_table {
 	void			*table;		/* pasid table pointer */
 	int			order;		/* page order of pasid table */
 	u32			max_pasid;	/* max pasid */
-	struct list_head	dev;		/* device list */
 };
 
 /* Get PRESENT bit of a PASID directory entry. */

@@ -12,16 +12,15 @@
 
 #include <trace/events/rcu.h>
 
-/* Offset to allow distinguishing irq vs. task-based idle entry/exit. */
-#define DYNTICK_IRQ_NONIDLE	((LONG_MAX / 2) + 1)
-
-
 /*
  * Grace-period counter management.
  */
 
 #define RCU_SEQ_CTR_SHIFT	2
 #define RCU_SEQ_STATE_MASK	((1 << RCU_SEQ_CTR_SHIFT) - 1)
+
+/* Low-order bit definition for polled grace-period APIs. */
+#define RCU_GET_STATE_COMPLETED	0x1
 
 extern int sysctl_sched_rt_runtime;
 
@@ -117,6 +116,18 @@ static inline bool rcu_seq_started(unsigned long *sp, unsigned long s)
 static inline bool rcu_seq_done(unsigned long *sp, unsigned long s)
 {
 	return ULONG_CMP_GE(READ_ONCE(*sp), s);
+}
+
+/*
+ * Given a snapshot from rcu_seq_snap(), determine whether or not a
+ * full update-side operation has occurred, but do not allow the
+ * (ULONG_MAX / 2) safety-factor/guard-band.
+ */
+static inline bool rcu_seq_done_exact(unsigned long *sp, unsigned long s)
+{
+	unsigned long cur_s = READ_ONCE(*sp);
+
+	return ULONG_CMP_GE(cur_s, s) || ULONG_CMP_LT(cur_s, s - (2 * RCU_SEQ_STATE_MASK + 1));
 }
 
 /*

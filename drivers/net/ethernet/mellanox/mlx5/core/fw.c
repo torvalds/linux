@@ -273,6 +273,12 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 			return err;
 	}
 
+	if (MLX5_CAP_GEN(dev, adv_virtualization)) {
+		err = mlx5_core_get_caps(dev, MLX5_CAP_ADV_VIRTUALIZATION);
+		if (err)
+			return err;
+	}
+
 	return 0;
 }
 
@@ -288,6 +294,10 @@ int mlx5_cmd_init_hca(struct mlx5_core_dev *dev, uint32_t *sw_owner_id)
 			MLX5_ARRAY_SET(init_hca_in, in, sw_owner_id, i,
 				       sw_owner_id[i]);
 	}
+
+	if (MLX5_CAP_GEN_2_MAX(dev, sw_vhca_id_valid) &&
+	    dev->priv.sw_vhca_id > 0)
+		MLX5_SET(init_hca_in, in, sw_vhca_id, dev->priv.sw_vhca_id);
 
 	return mlx5_cmd_exec_in(dev, init_hca, in);
 }

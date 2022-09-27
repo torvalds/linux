@@ -44,6 +44,7 @@
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/reg.h>
+#include <asm/unwind.h>
 #include <asm/vdso.h>
 
 /*
@@ -120,10 +121,12 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 /*
  * Copy architecture-specific thread state
  */
-int copy_thread(unsigned long clone_flags, unsigned long usp,
-	unsigned long kthread_arg, struct task_struct *p, unsigned long tls)
+int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
 	unsigned long childksp;
+	unsigned long tls = args->tls;
+	unsigned long usp = args->stack;
+	unsigned long clone_flags = args->flags;
 	struct pt_regs *childregs, *regs = current_pt_regs();
 
 	childksp = (unsigned long)task_stack_page(p) + THREAD_SIZE - 32;
@@ -132,16 +135,18 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	childregs = (struct pt_regs *) childksp - 1;
 	/*  Put the stack after the struct pt_regs.  */
 	childksp = (unsigned long) childregs;
+	p->thread.sched_cfa = 0;
 	p->thread.csr_euen = 0;
 	p->thread.csr_crmd = csr_read32(LOONGARCH_CSR_CRMD);
 	p->thread.csr_prmd = csr_read32(LOONGARCH_CSR_PRMD);
 	p->thread.csr_ecfg = csr_read32(LOONGARCH_CSR_ECFG);
-	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
+	if (unlikely(args->fn)) {
 		/* kernel thread */
-		p->thread.reg23 = usp; /* fn */
-		p->thread.reg24 = kthread_arg;
 		p->thread.reg03 = childksp;
-		p->thread.reg01 = (unsigned long) ret_from_kernel_thread;
+		p->thread.reg23 = (unsigned long)args->fn;
+		p->thread.reg24 = (unsigned long)args->fn_arg;
+		p->thread.reg01 = (unsigned long)ret_from_kernel_thread;
+		p->thread.sched_ra = (unsigned long)ret_from_kernel_thread;
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->csr_euen = p->thread.csr_euen;
 		childregs->csr_crmd = p->thread.csr_crmd;
@@ -158,6 +163,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 
 	p->thread.reg03 = (unsigned long) childregs;
 	p->thread.reg01 = (unsigned long) ret_from_fork;
+	p->thread.sched_ra = (unsigned long) ret_from_fork;
 
 	/*
 	 * New tasks lose permission to use the fpu. This accelerates context
@@ -178,7 +184,91 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 
 unsigned long __get_wchan(struct task_struct *task)
 {
-	return 0;
+	unsigned long pc;
+	struct unwind_state state;
+
+	if (!try_get_task_stack(task))
+		return 0;
+
+	unwind_start(&state, task, NULL);
+	state.sp = thread_saved_fp(task);
+	get_stack_info(state.sp, state.task, &state.stack_info);
+	state.pc = thread_saved_ra(task);
+#ifdef CONFIG_UNWINDER_PROLOGUE
+	state.type = UNWINDER_PROLOGUE;
+#endif
+	for (; !unwind_done(&state); unwind_next_frame(&state)) {
+		pc = unwind_get_return_address(&state);
+		if (!pc)
+			break;
+		if (in_sched_functions(pc))
+			continue;
+		break;
+	}
+
+	put_task_stack(task);
+
+	return pc;
+}
+
+bool in_irq_stack(unsigned long stack, struct stack_info *info)
+{
+	unsigned long nextsp;
+	unsigned long begin = (unsigned long)this_cpu_read(irq_stack);
+	unsigned long end = begin + IRQ_STACK_START;
+
+	if (stack < begin || stack >= end)
+		return false;
+
+	nextsp = *(unsigned long *)end;
+	if (nextsp & (SZREG - 1))
+		return false;
+
+	info->begin = begin;
+	info->end = end;
+	info->next_sp = nextsp;
+	info->type = STACK_TYPE_IRQ;
+
+	return true;
+}
+
+bool in_task_stack(unsigned long stack, struct task_struct *task,
+			struct stack_info *info)
+{
+	unsigned long begin = (unsigned long)task_stack_page(task);
+	unsigned long end = begin + THREAD_SIZE - 32;
+
+	if (stack < begin || stack >= end)
+		return false;
+
+	info->begin = begin;
+	info->end = end;
+	info->next_sp = 0;
+	info->type = STACK_TYPE_TASK;
+
+	return true;
+}
+
+int get_stack_info(unsigned long stack, struct task_struct *task,
+		   struct stack_info *info)
+{
+	task = task ? : current;
+
+	if (!stack || stack & (SZREG - 1))
+		goto unknown;
+
+	if (in_task_stack(stack, task, info))
+		return 0;
+
+	if (task != current)
+		goto unknown;
+
+	if (in_irq_stack(stack, info))
+		return 0;
+
+unknown:
+	info->type = STACK_TYPE_UNKNOWN;
+	return -EINVAL;
 }
 
 unsigned long stack_top(void)

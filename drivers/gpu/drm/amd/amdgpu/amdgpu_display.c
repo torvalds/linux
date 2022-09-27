@@ -30,6 +30,9 @@
 #include "atom.h"
 #include "amdgpu_connectors.h"
 #include "amdgpu_display.h"
+#include "soc15_common.h"
+#include "gc/gc_11_0_0_offset.h"
+#include "gc/gc_11_0_0_sh_mask.h"
 #include <asm/div64.h>
 
 #include <linux/pci.h>
@@ -663,6 +666,11 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 {
 	struct amdgpu_device *adev = drm_to_adev(afb->base.dev);
 	uint64_t modifier = 0;
+	int num_pipes = 0;
+	int num_pkrs = 0;
+
+	num_pkrs = adev->gfx.config.gb_addr_config_fields.num_pkrs;
+	num_pipes = adev->gfx.config.gb_addr_config_fields.num_pipes;
 
 	if (!afb->tiling_flags || !AMDGPU_TILING_GET(afb->tiling_flags, SWIZZLE_MODE)) {
 		modifier = DRM_FORMAT_MOD_LINEAR;
@@ -675,7 +683,7 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 		int bank_xor_bits = 0;
 		int packers = 0;
 		int rb = 0;
-		int pipes = ilog2(adev->gfx.config.gb_addr_config_fields.num_pipes);
+		int pipes = ilog2(num_pipes);
 		uint32_t dcc_offset = AMDGPU_TILING_GET(afb->tiling_flags, DCC_OFFSET_256B);
 
 		switch (swizzle >> 2) {
@@ -691,12 +699,17 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 		case 6: /* 64 KiB _X */
 			block_size_bits = 16;
 			break;
+		case 7: /* 256 KiB */
+			block_size_bits = 18;
+			break;
 		default:
 			/* RESERVED or VAR */
 			return -EINVAL;
 		}
 
-		if (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(10, 3, 0))
+		if (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(11, 0, 0))
+			version = AMD_FMT_MOD_TILE_VER_GFX11;
+		else if (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(10, 3, 0))
 			version = AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS;
 		else if (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(10, 0, 0))
 			version = AMD_FMT_MOD_TILE_VER_GFX10;
@@ -707,19 +720,32 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 		case 0: /* Z microtiling */
 			return -EINVAL;
 		case 1: /* S microtiling */
-			if (!has_xor)
-				version = AMD_FMT_MOD_TILE_VER_GFX9;
+			if (adev->ip_versions[GC_HWIP][0] < IP_VERSION(11, 0, 0)) {
+				if (!has_xor)
+					version = AMD_FMT_MOD_TILE_VER_GFX9;
+			}
 			break;
 		case 2:
-			if (!has_xor && afb->base.format->cpp[0] != 4)
-				version = AMD_FMT_MOD_TILE_VER_GFX9;
+			if (adev->ip_versions[GC_HWIP][0] < IP_VERSION(11, 0, 0)) {
+				if (!has_xor && afb->base.format->cpp[0] != 4)
+					version = AMD_FMT_MOD_TILE_VER_GFX9;
+			}
 			break;
 		case 3:
 			break;
 		}
 
 		if (has_xor) {
+			if (num_pipes == num_pkrs && num_pkrs == 0) {
+				DRM_ERROR("invalid number of pipes and packers\n");
+				return -EINVAL;
+			}
+
 			switch (version) {
+			case AMD_FMT_MOD_TILE_VER_GFX11:
+				pipe_xor_bits = min(block_size_bits - 8, pipes);
+				packers = ilog2(adev->gfx.config.gb_addr_config_fields.num_pkrs);
+				break;
 			case AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS:
 				pipe_xor_bits = min(block_size_bits - 8, pipes);
 				packers = min(block_size_bits - 8 - pipe_xor_bits,
@@ -753,9 +779,10 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 			u64 render_dcc_offset;
 
 			/* Enable constant encode on RAVEN2 and later. */
-			bool dcc_constant_encode = adev->asic_type > CHIP_RAVEN ||
+			bool dcc_constant_encode = (adev->asic_type > CHIP_RAVEN ||
 						   (adev->asic_type == CHIP_RAVEN &&
-						    adev->external_rev_id >= 0x81);
+						    adev->external_rev_id >= 0x81)) &&
+						    adev->ip_versions[GC_HWIP][0] < IP_VERSION(11, 0, 0);
 
 			int max_cblock_size = dcc_i64b ? AMD_FMT_MOD_DCC_BLOCK_64B :
 					      dcc_i128b ? AMD_FMT_MOD_DCC_BLOCK_128B :
@@ -870,10 +897,11 @@ static unsigned int get_dcc_block_size(uint64_t modifier, bool rb_aligned,
 		return max(10 + (rb_aligned ? (int)AMD_FMT_MOD_GET(RB, modifier) : 0), 12);
 	}
 	case AMD_FMT_MOD_TILE_VER_GFX10:
-	case AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS: {
+	case AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS:
+	case AMD_FMT_MOD_TILE_VER_GFX11: {
 		int pipes_log2 = AMD_FMT_MOD_GET(PIPE_XOR_BITS, modifier);
 
-		if (ver == AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS && pipes_log2 > 1 &&
+		if (ver >= AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS && pipes_log2 > 1 &&
 		    AMD_FMT_MOD_GET(PACKERS, modifier) == pipes_log2)
 			++pipes_log2;
 
@@ -965,6 +993,9 @@ static int amdgpu_display_verify_sizes(struct amdgpu_framebuffer *rfb)
 			case DC_SW_64KB_S_T:
 			case DC_SW_64KB_S_X:
 				block_size_log2 = 16;
+				break;
+			case DC_SW_VAR_S_X:
+				block_size_log2 = 18;
 				break;
 			default:
 				drm_dbg_kms(rfb->base.dev,
@@ -1528,6 +1559,21 @@ bool amdgpu_crtc_get_scanout_position(struct drm_crtc *crtc,
 						  stime, etime, mode);
 }
 
+static bool
+amdgpu_display_robj_is_fb(struct amdgpu_device *adev, struct amdgpu_bo *robj)
+{
+	struct drm_device *dev = adev_to_drm(adev);
+	struct drm_fb_helper *fb_helper = dev->fb_helper;
+
+	if (!fb_helper || !fb_helper->buffer)
+		return false;
+
+	if (gem_to_amdgpu_bo(fb_helper->buffer->gem) != robj)
+		return false;
+
+	return true;
+}
+
 int amdgpu_display_suspend_helper(struct amdgpu_device *adev)
 {
 	struct drm_device *dev = adev_to_drm(adev);
@@ -1563,10 +1609,12 @@ int amdgpu_display_suspend_helper(struct amdgpu_device *adev)
 			continue;
 		}
 		robj = gem_to_amdgpu_bo(fb->obj[0]);
-		r = amdgpu_bo_reserve(robj, true);
-		if (r == 0) {
-			amdgpu_bo_unpin(robj);
-			amdgpu_bo_unreserve(robj);
+		if (!amdgpu_display_robj_is_fb(adev, robj)) {
+			r = amdgpu_bo_reserve(robj, true);
+			if (r == 0) {
+				amdgpu_bo_unpin(robj);
+				amdgpu_bo_unreserve(robj);
+			}
 		}
 	}
 	return 0;

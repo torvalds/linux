@@ -57,7 +57,7 @@ struct rxrpc_wire_header {
 
 	uint8_t		userStatus;	/* app-layer defined status */
 #define RXRPC_USERSTATUS_SERVICE_UPGRADE 0x01	/* AuriStor service upgrade request */
-	
+
 	uint8_t		securityIndex;	/* security protocol ID */
 	union {
 		__be16	_rsvd;		/* reserved */

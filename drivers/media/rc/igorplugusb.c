@@ -38,7 +38,7 @@ struct igorplugusb {
 
 	struct timer_list timer;
 
-	uint8_t buf_in[MAX_PACKET];
+	u8 *buf_in;
 
 	char phys[64];
 };
@@ -110,7 +110,6 @@ static void igorplugusb_callback(struct urb *urb)
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
-		usb_unlink_urb(urb);
 		return;
 	default:
 		dev_warn(ir->dev, "Error: urb status = %d\n", urb->status);
@@ -126,7 +125,7 @@ static void igorplugusb_cmd(struct igorplugusb *ir, int cmd)
 	ir->request.bRequest = cmd;
 	ir->urb->transfer_flags = 0;
 	ret = usb_submit_urb(ir->urb, GFP_ATOMIC);
-	if (ret)
+	if (ret && ret != -EPERM)
 		dev_err(ir->dev, "submit urb failed: %d", ret);
 }
 
@@ -171,15 +170,18 @@ static int igorplugusb_probe(struct usb_interface *intf,
 
 	ir->request.bRequest = GET_INFRACODE;
 	ir->request.bRequestType = USB_TYPE_VENDOR | USB_DIR_IN;
-	ir->request.wLength = cpu_to_le16(sizeof(ir->buf_in));
+	ir->request.wLength = cpu_to_le16(MAX_PACKET);
 
 	ir->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!ir->urb)
 		goto fail;
 
+	ir->buf_in = kmalloc(MAX_PACKET, GFP_KERNEL);
+	if (!ir->buf_in)
+		goto fail;
 	usb_fill_control_urb(ir->urb, udev,
 		usb_rcvctrlpipe(udev, 0), (uint8_t *)&ir->request,
-		ir->buf_in, sizeof(ir->buf_in), igorplugusb_callback, ir);
+		ir->buf_in, MAX_PACKET, igorplugusb_callback, ir);
 
 	usb_make_path(udev, ir->phys, sizeof(ir->phys));
 
@@ -220,9 +222,12 @@ static int igorplugusb_probe(struct usb_interface *intf,
 
 	return 0;
 fail:
-	rc_free_device(ir->rc);
-	usb_free_urb(ir->urb);
+	usb_poison_urb(ir->urb);
 	del_timer(&ir->timer);
+	usb_unpoison_urb(ir->urb);
+	usb_free_urb(ir->urb);
+	rc_free_device(ir->rc);
+	kfree(ir->buf_in);
 
 	return ret;
 }
@@ -232,10 +237,12 @@ static void igorplugusb_disconnect(struct usb_interface *intf)
 	struct igorplugusb *ir = usb_get_intfdata(intf);
 
 	rc_unregister_device(ir->rc);
+	usb_poison_urb(ir->urb);
 	del_timer_sync(&ir->timer);
 	usb_set_intfdata(intf, NULL);
-	usb_kill_urb(ir->urb);
+	usb_unpoison_urb(ir->urb);
 	usb_free_urb(ir->urb);
+	kfree(ir->buf_in);
 }
 
 static const struct usb_device_id igorplugusb_table[] = {

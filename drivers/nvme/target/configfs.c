@@ -11,6 +11,11 @@
 #include <linux/ctype.h>
 #include <linux/pci.h>
 #include <linux/pci-p2pdma.h>
+#ifdef CONFIG_NVME_TARGET_AUTH
+#include <linux/nvme-auth.h>
+#endif
+#include <crypto/hash.h>
+#include <crypto/kpp.h>
 
 #include "nvmet.h"
 
@@ -773,11 +778,31 @@ static ssize_t nvmet_passthru_io_timeout_store(struct config_item *item,
 }
 CONFIGFS_ATTR(nvmet_passthru_, io_timeout);
 
+static ssize_t nvmet_passthru_clear_ids_show(struct config_item *item,
+		char *page)
+{
+	return sprintf(page, "%u\n", to_subsys(item->ci_parent)->clear_ids);
+}
+
+static ssize_t nvmet_passthru_clear_ids_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct nvmet_subsys *subsys = to_subsys(item->ci_parent);
+	unsigned int clear_ids;
+
+	if (kstrtouint(page, 0, &clear_ids))
+		return -EINVAL;
+	subsys->clear_ids = clear_ids;
+	return count;
+}
+CONFIGFS_ATTR(nvmet_passthru_, clear_ids);
+
 static struct configfs_attribute *nvmet_passthru_attrs[] = {
 	&nvmet_passthru_attr_device_path,
 	&nvmet_passthru_attr_enable,
 	&nvmet_passthru_attr_admin_timeout,
 	&nvmet_passthru_attr_io_timeout,
+	&nvmet_passthru_attr_clear_ids,
 	NULL,
 };
 
@@ -1660,10 +1685,133 @@ static const struct config_item_type nvmet_ports_type = {
 static struct config_group nvmet_subsystems_group;
 static struct config_group nvmet_ports_group;
 
+#ifdef CONFIG_NVME_TARGET_AUTH
+static ssize_t nvmet_host_dhchap_key_show(struct config_item *item,
+		char *page)
+{
+	u8 *dhchap_secret = to_host(item)->dhchap_secret;
+
+	if (!dhchap_secret)
+		return sprintf(page, "\n");
+	return sprintf(page, "%s\n", dhchap_secret);
+}
+
+static ssize_t nvmet_host_dhchap_key_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct nvmet_host *host = to_host(item);
+	int ret;
+
+	ret = nvmet_auth_set_key(host, page, false);
+	/*
+	 * Re-authentication is a soft state, so keep the
+	 * current authentication valid until the host
+	 * requests re-authentication.
+	 */
+	return ret < 0 ? ret : count;
+}
+
+CONFIGFS_ATTR(nvmet_host_, dhchap_key);
+
+static ssize_t nvmet_host_dhchap_ctrl_key_show(struct config_item *item,
+		char *page)
+{
+	u8 *dhchap_secret = to_host(item)->dhchap_ctrl_secret;
+
+	if (!dhchap_secret)
+		return sprintf(page, "\n");
+	return sprintf(page, "%s\n", dhchap_secret);
+}
+
+static ssize_t nvmet_host_dhchap_ctrl_key_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct nvmet_host *host = to_host(item);
+	int ret;
+
+	ret = nvmet_auth_set_key(host, page, true);
+	/*
+	 * Re-authentication is a soft state, so keep the
+	 * current authentication valid until the host
+	 * requests re-authentication.
+	 */
+	return ret < 0 ? ret : count;
+}
+
+CONFIGFS_ATTR(nvmet_host_, dhchap_ctrl_key);
+
+static ssize_t nvmet_host_dhchap_hash_show(struct config_item *item,
+		char *page)
+{
+	struct nvmet_host *host = to_host(item);
+	const char *hash_name = nvme_auth_hmac_name(host->dhchap_hash_id);
+
+	return sprintf(page, "%s\n", hash_name ? hash_name : "none");
+}
+
+static ssize_t nvmet_host_dhchap_hash_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct nvmet_host *host = to_host(item);
+	u8 hmac_id;
+
+	hmac_id = nvme_auth_hmac_id(page);
+	if (hmac_id == NVME_AUTH_HASH_INVALID)
+		return -EINVAL;
+	if (!crypto_has_shash(nvme_auth_hmac_name(hmac_id), 0, 0))
+		return -ENOTSUPP;
+	host->dhchap_hash_id = hmac_id;
+	return count;
+}
+
+CONFIGFS_ATTR(nvmet_host_, dhchap_hash);
+
+static ssize_t nvmet_host_dhchap_dhgroup_show(struct config_item *item,
+		char *page)
+{
+	struct nvmet_host *host = to_host(item);
+	const char *dhgroup = nvme_auth_dhgroup_name(host->dhchap_dhgroup_id);
+
+	return sprintf(page, "%s\n", dhgroup ? dhgroup : "none");
+}
+
+static ssize_t nvmet_host_dhchap_dhgroup_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct nvmet_host *host = to_host(item);
+	int dhgroup_id;
+
+	dhgroup_id = nvme_auth_dhgroup_id(page);
+	if (dhgroup_id == NVME_AUTH_DHGROUP_INVALID)
+		return -EINVAL;
+	if (dhgroup_id != NVME_AUTH_DHGROUP_NULL) {
+		const char *kpp = nvme_auth_dhgroup_kpp(dhgroup_id);
+
+		if (!crypto_has_kpp(kpp, 0, 0))
+			return -EINVAL;
+	}
+	host->dhchap_dhgroup_id = dhgroup_id;
+	return count;
+}
+
+CONFIGFS_ATTR(nvmet_host_, dhchap_dhgroup);
+
+static struct configfs_attribute *nvmet_host_attrs[] = {
+	&nvmet_host_attr_dhchap_key,
+	&nvmet_host_attr_dhchap_ctrl_key,
+	&nvmet_host_attr_dhchap_hash,
+	&nvmet_host_attr_dhchap_dhgroup,
+	NULL,
+};
+#endif /* CONFIG_NVME_TARGET_AUTH */
+
 static void nvmet_host_release(struct config_item *item)
 {
 	struct nvmet_host *host = to_host(item);
 
+#ifdef CONFIG_NVME_TARGET_AUTH
+	kfree(host->dhchap_secret);
+#endif
 	kfree(host);
 }
 
@@ -1673,6 +1821,9 @@ static struct configfs_item_operations nvmet_host_item_ops = {
 
 static const struct config_item_type nvmet_host_type = {
 	.ct_item_ops		= &nvmet_host_item_ops,
+#ifdef CONFIG_NVME_TARGET_AUTH
+	.ct_attrs		= nvmet_host_attrs,
+#endif
 	.ct_owner		= THIS_MODULE,
 };
 
@@ -1684,6 +1835,11 @@ static struct config_group *nvmet_hosts_make_group(struct config_group *group,
 	host = kzalloc(sizeof(*host), GFP_KERNEL);
 	if (!host)
 		return ERR_PTR(-ENOMEM);
+
+#ifdef CONFIG_NVME_TARGET_AUTH
+	/* Default to SHA256 */
+	host->dhchap_hash_id = NVME_AUTH_HASH_SHA256;
+#endif
 
 	config_group_init_type_name(&host->group, name, &nvmet_host_type);
 

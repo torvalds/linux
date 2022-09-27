@@ -26,6 +26,7 @@ enum be_id {
 
 enum cpu_endpoints {
 	NONE = 0,
+	I2S_HS,
 	I2S_SP,
 	I2S_BT,
 	DMIC,
@@ -37,6 +38,12 @@ enum codec_endpoints {
 	RT1019,
 	MAX98360A,
 	RT5682S,
+	NAU8825,
+};
+
+enum platform_end_point {
+	RENOIR = 0,
+	REMBRANDT,
 };
 
 struct acp_card_drvdata {
@@ -47,8 +54,10 @@ struct acp_card_drvdata {
 	unsigned int amp_codec_id;
 	unsigned int dmic_codec_id;
 	unsigned int dai_fmt;
+	unsigned int platform;
 	struct clk *wclk;
 	struct clk *bclk;
+	bool soc_mclk;
 };
 
 int acp_sofdsp_dai_links_create(struct snd_soc_card *card);

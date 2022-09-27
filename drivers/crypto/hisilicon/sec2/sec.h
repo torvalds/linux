@@ -119,7 +119,7 @@ struct sec_qp_ctx {
 	struct idr req_idr;
 	struct sec_alg_res res[QM_Q_DEPTH];
 	struct sec_ctx *ctx;
-	struct mutex req_lock;
+	spinlock_t req_lock;
 	struct list_head backlog;
 	struct hisi_acc_sgl_pool *c_in_pool;
 	struct hisi_acc_sgl_pool *c_out_pool;
@@ -143,10 +143,10 @@ struct sec_ctx {
 	/* Threshold for fake busy, trigger to return -EBUSY to user */
 	u32 fake_req_limit;
 
-	/* Currrent cyclic index to select a queue for encipher */
+	/* Current cyclic index to select a queue for encipher */
 	atomic_t enc_qcyclic;
 
-	 /* Currrent cyclic index to select a queue for decipher */
+	 /* Current cyclic index to select a queue for decipher */
 	atomic_t dec_qcyclic;
 
 	enum sec_alg_type alg_type;

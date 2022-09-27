@@ -132,6 +132,14 @@ struct mlx5dr_action *mlx5dr_action_create_pop_vlan(void);
 struct mlx5dr_action *
 mlx5dr_action_create_push_vlan(struct mlx5dr_domain *domain, __be32 vlan_hdr);
 
+struct mlx5dr_action *
+mlx5dr_action_create_aso(struct mlx5dr_domain *dmn,
+			 u32 obj_id,
+			 u8 return_reg_id,
+			 u8 aso_type,
+			 u8 init_color,
+			 u8 meter_id);
+
 int mlx5dr_action_destroy(struct mlx5dr_action *action);
 
 static inline bool

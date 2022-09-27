@@ -331,7 +331,7 @@ void task_set_vl_onexec(struct task_struct *task, enum vec_type type,
  *    trapping to the kernel.
  *
  *    When stored, Z0-Z31 (incorporating Vn in bits[127:0] or the
- *    corresponding Zn), P0-P15 and FFR are encoded in in
+ *    corresponding Zn), P0-P15 and FFR are encoded in
  *    task->thread.sve_state, formatted appropriately for vector
  *    length task->thread.sve_vl or, if SVCR.SM is set,
  *    task->thread.sme_vl.
@@ -445,7 +445,6 @@ static void fpsimd_save(void)
 
 	if (system_supports_sme()) {
 		u64 *svcr = last->svcr;
-		*svcr = read_sysreg_s(SYS_SVCR);
 
 		*svcr = read_sysreg_s(SYS_SVCR);
 
@@ -716,10 +715,12 @@ size_t sve_state_size(struct task_struct const *task)
  * do_sve_acc() case, there is no ABI requirement to hide stale data
  * written previously be task.
  */
-void sve_alloc(struct task_struct *task)
+void sve_alloc(struct task_struct *task, bool flush)
 {
 	if (task->thread.sve_state) {
-		memset(task->thread.sve_state, 0, sve_state_size(task));
+		if (flush)
+			memset(task->thread.sve_state, 0,
+			       sve_state_size(task));
 		return;
 	}
 
@@ -1389,7 +1390,7 @@ void do_sve_acc(unsigned long esr, struct pt_regs *regs)
 		return;
 	}
 
-	sve_alloc(current);
+	sve_alloc(current, true);
 	if (!current->thread.sve_state) {
 		force_sig(SIGKILL);
 		return;
@@ -1440,7 +1441,7 @@ void do_sme_acc(unsigned long esr, struct pt_regs *regs)
 		return;
 	}
 
-	sve_alloc(current);
+	sve_alloc(current, false);
 	sme_alloc(current);
 	if (!current->thread.sve_state || !current->thread.za_state) {
 		force_sig(SIGKILL);
@@ -1460,17 +1461,6 @@ void do_sme_acc(unsigned long esr, struct pt_regs *regs)
 
 		fpsimd_bind_task_to_cpu();
 	}
-
-	/*
-	 * If SVE was not already active initialise the SVE registers,
-	 * any non-shared state between the streaming and regular SVE
-	 * registers is architecturally guaranteed to be zeroed when
-	 * we enter streaming mode.  We do not need to initialize ZA
-	 * since ZA must be disabled at this point and enabling ZA is
-	 * architecturally defined to zero ZA.
-	 */
-	if (system_supports_sve() && !test_thread_flag(TIF_SVE))
-		sve_init_regs();
 
 	put_cpu_fpsimd_context();
 }
@@ -1916,10 +1906,15 @@ void __efi_fpsimd_begin(void)
 			if (system_supports_sme()) {
 				svcr = read_sysreg_s(SYS_SVCR);
 
-				if (!system_supports_fa64())
-					ffr = svcr & SVCR_SM_MASK;
+				__this_cpu_write(efi_sm_state,
+						 svcr & SVCR_SM_MASK);
 
-				__this_cpu_write(efi_sm_state, ffr);
+				/*
+				 * Unless we have FA64 FFR does not
+				 * exist in streaming mode.
+				 */
+				if (!system_supports_fa64())
+					ffr = !(svcr & SVCR_SM_MASK);
 			}
 
 			sve_save_state(sve_state + sve_ffr_offset(sve_max_vl()),
@@ -1964,8 +1959,13 @@ void __efi_fpsimd_end(void)
 					sysreg_clear_set_s(SYS_SVCR,
 							   0,
 							   SVCR_SM_MASK);
+
+					/*
+					 * Unless we have FA64 FFR does not
+					 * exist in streaming mode.
+					 */
 					if (!system_supports_fa64())
-						ffr = efi_sm_state;
+						ffr = false;
 				}
 			}
 

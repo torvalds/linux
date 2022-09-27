@@ -251,8 +251,8 @@ $(obj)/%.o: $(src)/%.c $(recordmcount_source) FORCE
 
 # To make this rule robust against "Argument list too long" error,
 # ensure to add $(obj)/ prefix by a shell command.
-cmd_mod = echo $(call real-search, $*.o, .o, -objs -y -m) | \
-	$(AWK) -v RS='( |\n)' '!x[$$0]++ { print("$(obj)/"$$0) }' > $@
+cmd_mod = printf '%s\n' $(call real-search, $*.o, .o, -objs -y -m) | \
+	$(AWK) '!x[$$0]++ { print("$(obj)/"$$0) }' > $@
 
 $(obj)/%.mod: FORCE
 	$(call if_changed,mod)
@@ -358,9 +358,8 @@ $(subdir-modorder): $(obj)/%/modules.order: $(obj)/% ;
 
 quiet_cmd_ar_builtin = AR      $@
       cmd_ar_builtin = rm -f $@; \
-		echo $(patsubst $(obj)/%,%,$(real-prereqs)) | \
-		sed -E 's:([^ ]+):$(obj)/\1:g' | \
-		xargs $(AR) cDPrST $@
+	$(if $(real-prereqs), printf "$(obj)/%s " $(patsubst $(obj)/%,%,$(real-prereqs)) | xargs) \
+	$(AR) cDPrST $@
 
 $(obj)/built-in.a: $(real-obj-y) FORCE
 	$(call if_changed,ar_builtin)

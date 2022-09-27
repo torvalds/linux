@@ -170,6 +170,11 @@ struct intel_guc {
 	/** @ads_engine_usage_size: size of engine usage in the ADS */
 	u32 ads_engine_usage_size;
 
+	/** @lrc_desc_pool_v69: object allocated to hold the GuC LRC descriptor pool */
+	struct i915_vma *lrc_desc_pool_v69;
+	/** @lrc_desc_pool_vaddr_v69: contents of the GuC LRC descriptor pool */
+	void *lrc_desc_pool_vaddr_v69;
+
 	/**
 	 * @context_lookup: used to resolve intel_context from guc_id, if a
 	 * context is present in this structure it is registered with the GuC
@@ -230,6 +235,14 @@ struct intel_guc {
 		 * @shift: Right shift value for the gpm timestamp
 		 */
 		u32 shift;
+
+		/**
+		 * @last_stat_jiffies: jiffies at last actual stats collection time
+		 * We use this timestamp to ensure we don't oversample the
+		 * stats because runtime power management events can trigger
+		 * stats collection at much higher rates than required.
+		 */
+		unsigned long last_stat_jiffies;
 	} timestamp;
 
 #ifdef CONFIG_DRM_I915_SELFTEST

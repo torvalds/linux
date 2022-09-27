@@ -18,6 +18,11 @@
 	};
 };
 
+&vdd {
+	regulator-min-microvolt = <2900000>;
+	regulator-max-microvolt = <2900000>;
+};
+
 &pwr_regulators {
 	vdd-supply = <&vdd_io>;
 };

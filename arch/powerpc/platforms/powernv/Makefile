@@ -4,6 +4,7 @@
 # in particular, idle code runs a bunch of things in real mode
 KASAN_SANITIZE_idle.o := n
 KASAN_SANITIZE_pci-ioda.o := n
+KASAN_SANITIZE_pci-ioda-tce.o := n
 # pnv_machine_check_early
 KASAN_SANITIZE_setup.o := n
 

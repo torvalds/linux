@@ -10,7 +10,7 @@
 
 #define pr_fmt(fmt)	"DMAR: " fmt
 
-#include <linux/intel-iommu.h>
+#include "iommu.h"
 #include "cap_audit.h"
 
 static u64 intel_iommu_cap_sanity;

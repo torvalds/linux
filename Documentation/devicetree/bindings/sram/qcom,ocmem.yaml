@@ -72,10 +72,10 @@ patternProperties:
 
 examples:
   - |
-      #include <dt-bindings/clock/qcom,rpmcc.h>
-      #include <dt-bindings/clock/qcom,mmcc-msm8974.h>
+    #include <dt-bindings/clock/qcom,rpmcc.h>
+    #include <dt-bindings/clock/qcom,mmcc-msm8974.h>
 
-      ocmem: ocmem@fdd00000 {
+    sram@fdd00000 {
         compatible = "qcom,msm8974-ocmem";
 
         reg = <0xfdd00000 0x2000>,
@@ -93,6 +93,6 @@ examples:
         ranges = <0 0xfec00000 0x100000>;
 
         gmu-sram@0 {
-                reg = <0x0 0x100000>;
+            reg = <0x0 0x100000>;
         };
-      };
+    };

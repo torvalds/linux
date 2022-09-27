@@ -36,17 +36,15 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		prog {
+		key-prog {
 			label = "PB_PROG";
 			gpios = <&pioC 17 GPIO_ACTIVE_LOW>;
 			linux,code = <0x102>;
 			wakeup-source;
 		};
 
-		reset {
+		key-reset {
 			label = "PB_RST";
 			gpios = <&pioC 16 GPIO_ACTIVE_LOW>;
 			linux,code = <0x100>;

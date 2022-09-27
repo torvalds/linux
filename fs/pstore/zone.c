@@ -363,7 +363,7 @@ static int psz_kmsg_recover_data(struct psz_context *cxt)
 		rcnt = info->read((char *)buf, zone->buffer_size + sizeof(*buf),
 				zone->off);
 		if (rcnt != zone->buffer_size + sizeof(*buf))
-			return (int)rcnt < 0 ? (int)rcnt : -EIO;
+			return rcnt < 0 ? rcnt : -EIO;
 	}
 	return 0;
 }
@@ -372,7 +372,7 @@ static int psz_kmsg_recover_meta(struct psz_context *cxt)
 {
 	struct pstore_zone_info *info = cxt->pstore_zone_info;
 	struct pstore_zone *zone;
-	size_t rcnt, len;
+	ssize_t rcnt, len;
 	struct psz_buffer *buf;
 	struct psz_kmsg_header *hdr;
 	struct timespec64 time = { };
@@ -400,7 +400,7 @@ static int psz_kmsg_recover_meta(struct psz_context *cxt)
 			continue;
 		} else if (rcnt != len) {
 			pr_err("read %s with id %lu failed\n", zone->name, i);
-			return (int)rcnt < 0 ? (int)rcnt : -EIO;
+			return rcnt < 0 ? rcnt : -EIO;
 		}
 
 		if (buf->sig != zone->buffer->sig) {
@@ -502,7 +502,7 @@ static int psz_recover_zone(struct psz_context *cxt, struct pstore_zone *zone)
 	rcnt = info->read((char *)&tmpbuf, len, zone->off);
 	if (rcnt != len) {
 		pr_debug("read zone %s failed\n", zone->name);
-		return (int)rcnt < 0 ? (int)rcnt : -EIO;
+		return rcnt < 0 ? rcnt : -EIO;
 	}
 
 	if (tmpbuf.sig != zone->buffer->sig) {
@@ -544,7 +544,7 @@ static int psz_recover_zone(struct psz_context *cxt, struct pstore_zone *zone)
 	rcnt = info->read(buf, len - start, off + start);
 	if (rcnt != len - start) {
 		pr_err("read zone %s failed\n", zone->name);
-		ret = (int)rcnt < 0 ? (int)rcnt : -EIO;
+		ret = rcnt < 0 ? rcnt : -EIO;
 		goto free_oldbuf;
 	}
 
@@ -552,7 +552,7 @@ static int psz_recover_zone(struct psz_context *cxt, struct pstore_zone *zone)
 	rcnt = info->read(buf + len - start, start, off);
 	if (rcnt != start) {
 		pr_err("read zone %s failed\n", zone->name);
-		ret = (int)rcnt < 0 ? (int)rcnt : -EIO;
+		ret = rcnt < 0 ? rcnt : -EIO;
 		goto free_oldbuf;
 	}
 

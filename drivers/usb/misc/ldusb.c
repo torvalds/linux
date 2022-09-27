@@ -716,9 +716,11 @@ static int ld_usb_probe(struct usb_interface *intf, const struct usb_device_id *
 	dev->interrupt_out_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!dev->interrupt_out_urb)
 		goto error;
-	dev->interrupt_in_interval = min_interrupt_in_interval > dev->interrupt_in_endpoint->bInterval ? min_interrupt_in_interval : dev->interrupt_in_endpoint->bInterval;
+	dev->interrupt_in_interval = max_t(int, min_interrupt_in_interval,
+					   dev->interrupt_in_endpoint->bInterval);
 	if (dev->interrupt_out_endpoint)
-		dev->interrupt_out_interval = min_interrupt_out_interval > dev->interrupt_out_endpoint->bInterval ? min_interrupt_out_interval : dev->interrupt_out_endpoint->bInterval;
+		dev->interrupt_out_interval = max_t(int, min_interrupt_out_interval,
+						    dev->interrupt_out_endpoint->bInterval);
 
 	/* we can register the device now, as it is ready */
 	usb_set_intfdata(intf, dev);

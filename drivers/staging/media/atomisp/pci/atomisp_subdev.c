@@ -1081,9 +1081,6 @@ static void atomisp_init_acc_pipe(struct atomisp_sub_device *asd,
 {
 	pipe->asd = asd;
 	pipe->isp = asd->isp;
-	INIT_LIST_HEAD(&asd->acc.fw);
-	INIT_LIST_HEAD(&asd->acc.memory_maps);
-	ida_init(&asd->acc.ida);
 }
 
 /*

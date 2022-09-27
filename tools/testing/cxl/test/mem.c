@@ -10,6 +10,7 @@
 #include <cxlmem.h>
 
 #define LSA_SIZE SZ_128K
+#define DEV_SIZE SZ_2G
 #define EFFECT(x) (1U << x)
 
 static struct cxl_cel_entry mock_cel[] = {
@@ -23,6 +24,10 @@ static struct cxl_cel_entry mock_cel[] = {
 	},
 	{
 		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_LSA),
+		.effect = cpu_to_le16(0),
+	},
+	{
+		.opcode = cpu_to_le16(CXL_MBOX_OP_GET_PARTITION_INFO),
 		.effect = cpu_to_le16(0),
 	},
 	{
@@ -97,42 +102,37 @@ static int mock_get_log(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
 
 static int mock_id(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd)
 {
-	struct platform_device *pdev = to_platform_device(cxlds->dev);
 	struct cxl_mbox_identify id = {
 		.fw_revision = { "mock fw v1 " },
 		.lsa_size = cpu_to_le32(LSA_SIZE),
-		/* FIXME: Add partition support */
-		.partition_align = cpu_to_le64(0),
+		.partition_align =
+			cpu_to_le64(SZ_256M / CXL_CAPACITY_MULTIPLIER),
+		.total_capacity =
+			cpu_to_le64(DEV_SIZE / CXL_CAPACITY_MULTIPLIER),
 	};
-	u64 capacity = 0;
-	int i;
 
 	if (cmd->size_out < sizeof(id))
 		return -EINVAL;
 
-	for (i = 0; i < 2; i++) {
-		struct resource *res;
-
-		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
-		if (!res)
-			break;
-
-		capacity += resource_size(res) / CXL_CAPACITY_MULTIPLIER;
-
-		if (le64_to_cpu(id.partition_align))
-			continue;
-
-		if (res->desc == IORES_DESC_PERSISTENT_MEMORY)
-			id.persistent_capacity = cpu_to_le64(
-				resource_size(res) / CXL_CAPACITY_MULTIPLIER);
-		else
-			id.volatile_capacity = cpu_to_le64(
-				resource_size(res) / CXL_CAPACITY_MULTIPLIER);
-	}
-
-	id.total_capacity = cpu_to_le64(capacity);
-
 	memcpy(cmd->payload_out, &id, sizeof(id));
+
+	return 0;
+}
+
+static int mock_partition_info(struct cxl_dev_state *cxlds,
+			       struct cxl_mbox_cmd *cmd)
+{
+	struct cxl_mbox_get_partition_info pi = {
+		.active_volatile_cap =
+			cpu_to_le64(DEV_SIZE / 2 / CXL_CAPACITY_MULTIPLIER),
+		.active_persistent_cap =
+			cpu_to_le64(DEV_SIZE / 2 / CXL_CAPACITY_MULTIPLIER),
+	};
+
+	if (cmd->size_out < sizeof(pi))
+		return -EINVAL;
+
+	memcpy(cmd->payload_out, &pi, sizeof(pi));
 
 	return 0;
 }
@@ -221,6 +221,9 @@ static int cxl_mock_mbox_send(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *
 	case CXL_MBOX_OP_GET_LSA:
 		rc = mock_get_lsa(cxlds, cmd);
 		break;
+	case CXL_MBOX_OP_GET_PARTITION_INFO:
+		rc = mock_partition_info(cxlds, cmd);
+		break;
 	case CXL_MBOX_OP_SET_LSA:
 		rc = mock_set_lsa(cxlds, cmd);
 		break;
@@ -282,7 +285,7 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 	if (IS_ERR(cxlmd))
 		return PTR_ERR(cxlmd);
 
-	if (range_len(&cxlds->pmem_range) && IS_ENABLED(CONFIG_CXL_PMEM))
+	if (resource_size(&cxlds->pmem_res) && IS_ENABLED(CONFIG_CXL_PMEM))
 		rc = devm_cxl_add_nvdimm(dev, cxlmd);
 
 	return 0;

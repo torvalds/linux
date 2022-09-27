@@ -710,7 +710,7 @@ static void lan966x_cleanup_ports(struct lan966x *lan966x)
 	disable_irq(lan966x->xtr_irq);
 	lan966x->xtr_irq = -ENXIO;
 
-	if (lan966x->ana_irq) {
+	if (lan966x->ana_irq > 0) {
 		disable_irq(lan966x->ana_irq);
 		lan966x->ana_irq = -ENXIO;
 	}
@@ -718,10 +718,10 @@ static void lan966x_cleanup_ports(struct lan966x *lan966x)
 	if (lan966x->fdma)
 		devm_free_irq(lan966x->dev, lan966x->fdma_irq, lan966x);
 
-	if (lan966x->ptp_irq)
+	if (lan966x->ptp_irq > 0)
 		devm_free_irq(lan966x->dev, lan966x->ptp_irq, lan966x);
 
-	if (lan966x->ptp_ext_irq)
+	if (lan966x->ptp_ext_irq > 0)
 		devm_free_irq(lan966x->dev, lan966x->ptp_ext_irq, lan966x);
 }
 
@@ -994,7 +994,7 @@ static int lan966x_probe(struct platform_device *pdev)
 	struct fwnode_handle *ports, *portnp;
 	struct lan966x *lan966x;
 	u8 mac_addr[ETH_ALEN];
-	int err, i;
+	int err;
 
 	lan966x = devm_kzalloc(&pdev->dev, sizeof(*lan966x), GFP_KERNEL);
 	if (!lan966x)
@@ -1025,11 +1025,7 @@ static int lan966x_probe(struct platform_device *pdev)
 	if (err)
 		return dev_err_probe(&pdev->dev, err, "Reset failed");
 
-	i = 0;
-	fwnode_for_each_available_child_node(ports, portnp)
-		++i;
-
-	lan966x->num_phys_ports = i;
+	lan966x->num_phys_ports = NUM_PHYS_PORTS;
 	lan966x->ports = devm_kcalloc(&pdev->dev, lan966x->num_phys_ports,
 				      sizeof(struct lan966x_port *),
 				      GFP_KERNEL);
@@ -1053,7 +1049,7 @@ static int lan966x_probe(struct platform_device *pdev)
 	}
 
 	lan966x->ana_irq = platform_get_irq_byname(pdev, "ana");
-	if (lan966x->ana_irq) {
+	if (lan966x->ana_irq > 0) {
 		err = devm_request_threaded_irq(&pdev->dev, lan966x->ana_irq, NULL,
 						lan966x_ana_irq_handler, IRQF_ONESHOT,
 						"ana irq", lan966x);

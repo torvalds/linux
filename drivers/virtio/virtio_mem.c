@@ -862,8 +862,7 @@ static void virtio_mem_sbm_notify_online(struct virtio_mem *vm,
 					 unsigned long mb_id,
 					 unsigned long start_pfn)
 {
-	const bool is_movable = page_zonenum(pfn_to_page(start_pfn)) ==
-				ZONE_MOVABLE;
+	const bool is_movable = is_zone_movable_page(pfn_to_page(start_pfn));
 	int new_state;
 
 	switch (virtio_mem_sbm_get_mb_state(vm, mb_id)) {
@@ -1158,8 +1157,7 @@ static void virtio_mem_fake_online(unsigned long pfn, unsigned long nr_pages)
  */
 static int virtio_mem_fake_offline(unsigned long pfn, unsigned long nr_pages)
 {
-	const bool is_movable = page_zonenum(pfn_to_page(pfn)) ==
-				ZONE_MOVABLE;
+	const bool is_movable = is_zone_movable_page(pfn_to_page(pfn));
 	int rc, retry_count;
 
 	/*

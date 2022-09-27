@@ -27,11 +27,12 @@
 #ifndef _OS_TYPES_H_
 #define _OS_TYPES_H_
 
+#include <linux/slab.h>
 #include <linux/kgdb.h>
 #include <linux/kref.h>
 #include <linux/types.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/mm.h>
 
 #include <asm/byteorder.h>
 

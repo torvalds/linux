@@ -109,6 +109,7 @@ static void xrs700x_read_port_counters(struct xrs700x *priv, int port)
 {
 	struct xrs700x_port *p = &priv->ports[port];
 	struct rtnl_link_stats64 stats;
+	unsigned long flags;
 	int i;
 
 	memset(&stats, 0, sizeof(stats));
@@ -138,9 +139,9 @@ static void xrs700x_read_port_counters(struct xrs700x *priv, int port)
 	 */
 	stats.rx_packets += stats.multicast;
 
-	u64_stats_update_begin(&p->syncp);
+	flags = u64_stats_update_begin_irqsave(&p->syncp);
 	p->stats64 = stats;
-	u64_stats_update_end(&p->syncp);
+	u64_stats_update_end_irqrestore(&p->syncp, flags);
 
 	mutex_unlock(&p->mib_mutex);
 }

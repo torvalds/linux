@@ -401,6 +401,7 @@ process_counter_values(struct perf_stat_config *config, struct evsel *evsel,
 		aggr->ena += count->ena;
 		aggr->run += count->run;
 	case AGGR_UNSET:
+	case AGGR_MAX:
 	default:
 		break;
 	}

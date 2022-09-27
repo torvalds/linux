@@ -363,6 +363,16 @@ config ARM_SMMU_QCOM
 	  When running on a Qualcomm platform that has the custom variant
 	  of the ARM SMMU, this needs to be built into the SMMU driver.
 
+config ARM_SMMU_QCOM_DEBUG
+	bool "ARM SMMU QCOM implementation defined debug support"
+	depends on ARM_SMMU_QCOM
+	help
+	  Support for implementation specific debug features in ARM SMMU
+	  hardware found in QTI platforms.
+
+	  Say Y here to enable debug for issues such as TLB sync timeouts
+	  which requires implementation defined register dumps.
+
 config ARM_SMMU_V3
 	tristate "ARM Ltd. System MMU Version 3 (SMMUv3) Support"
 	depends on ARM64

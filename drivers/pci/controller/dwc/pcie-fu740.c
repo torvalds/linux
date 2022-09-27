@@ -16,11 +16,9 @@
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
-#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
-#include <linux/regulator/consumer.h>
 #include <linux/resource.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
@@ -236,7 +234,7 @@ err:
 	return ret;
 }
 
-static int fu740_pcie_host_init(struct pcie_port *pp)
+static int fu740_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct fu740_pcie *afp = to_fu740_pcie(pci);

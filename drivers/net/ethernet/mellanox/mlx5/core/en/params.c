@@ -565,7 +565,8 @@ static void mlx5e_build_rx_cq_param(struct mlx5_core_dev *mdev,
 static u8 rq_end_pad_mode(struct mlx5_core_dev *mdev, struct mlx5e_params *params)
 {
 	bool lro_en = params->packet_merge.type == MLX5E_PACKET_MERGE_LRO;
-	bool ro = MLX5_CAP_GEN(mdev, relaxed_ordering_write);
+	bool ro = pcie_relaxed_ordering_enabled(mdev->pdev) &&
+		MLX5_CAP_GEN(mdev, relaxed_ordering_write);
 
 	return ro && lro_en ?
 		MLX5_WQ_END_PAD_MODE_NONE : MLX5_WQ_END_PAD_MODE_ALIGN;
@@ -789,8 +790,20 @@ static u8 mlx5e_build_icosq_log_wq_sz(struct mlx5_core_dev *mdev,
 		return MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE;
 
 	wqebbs = MLX5E_UMR_WQEBBS * BIT(mlx5e_get_rq_log_wq_sz(rqp->rqc));
+
+	/* If XDP program is attached, XSK may be turned on at any time without
+	 * restarting the channel. ICOSQ must be big enough to fit UMR WQEs of
+	 * both regular RQ and XSK RQ.
+	 * Although mlx5e_mpwqe_get_log_rq_size accepts mlx5e_xsk_param, it
+	 * doesn't affect its return value, as long as params->xdp_prog != NULL,
+	 * so we can just multiply by 2.
+	 */
+	if (params->xdp_prog)
+		wqebbs *= 2;
+
 	if (params->packet_merge.type == MLX5E_PACKET_MERGE_SHAMPO)
 		wqebbs += mlx5e_shampo_icosq_sz(mdev, params, rqp);
+
 	return max_t(u8, MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE, order_base_2(wqebbs));
 }
 

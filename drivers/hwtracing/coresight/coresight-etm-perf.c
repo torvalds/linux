@@ -52,6 +52,7 @@ static DEFINE_PER_CPU(struct coresight_device *, csdev_src);
  * The PMU formats were orignally for ETMv3.5/PTM's ETMCR 'config';
  * now take them as general formats and apply on all ETMs.
  */
+PMU_FORMAT_ATTR(branch_broadcast, "config:"__stringify(ETM_OPT_BRANCH_BROADCAST));
 PMU_FORMAT_ATTR(cycacc,		"config:" __stringify(ETM_OPT_CYCACC));
 /* contextid1 enables tracing CONTEXTIDR_EL1 for ETMv4 */
 PMU_FORMAT_ATTR(contextid1,	"config:" __stringify(ETM_OPT_CTXTID));
@@ -97,6 +98,7 @@ static struct attribute *etm_config_formats_attr[] = {
 	&format_attr_sinkid.attr,
 	&format_attr_preset.attr,
 	&format_attr_configid.attr,
+	&format_attr_branch_broadcast.attr,
 	NULL,
 };
 

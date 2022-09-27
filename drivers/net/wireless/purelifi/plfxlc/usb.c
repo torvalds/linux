@@ -562,7 +562,7 @@ static void sta_queue_cleanup_timer_callb(struct timer_list *t)
 		if (tx->station[sidx].flag & STATION_HEARTBEAT_FLAG) {
 			tx->station[sidx].flag ^= STATION_HEARTBEAT_FLAG;
 		} else {
-			memset(tx->station[sidx].mac, 0, ETH_ALEN);
+			eth_zero_addr(tx->station[sidx].mac);
 			tx->station[sidx].flag = 0;
 		}
 	}

@@ -41,7 +41,9 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 		return r;
 	}
 
-	return kvm_riscv_guest_timer_init(kvm);
+	kvm_riscv_guest_timer_init(kvm);
+
+	return 0;
 }
 
 void kvm_arch_destroy_vm(struct kvm *kvm)

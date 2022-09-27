@@ -89,6 +89,7 @@ struct efx_mcdi_filter_table {
 	 */
 	bool mc_chaining;
 	bool vlan_filter;
+	/* Entries on the vlan_list are added/removed under filter_sem */
 	struct list_head vlan_list;
 };
 

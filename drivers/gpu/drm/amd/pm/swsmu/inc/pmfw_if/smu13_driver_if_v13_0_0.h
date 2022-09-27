@@ -24,12 +24,8 @@
 #ifndef SMU13_DRIVER_IF_V13_0_0_H
 #define SMU13_DRIVER_IF_V13_0_0_H
 
-// *** IMPORTANT ***
-// PMFW TEAM: Always increment the interface version on any change to this file
-#define SMU13_DRIVER_IF_VERSION  0x23
-
 //Increment this version if SkuTable_t or BoardTable_t change
-#define PPTABLE_VERSION 0x1D
+#define PPTABLE_VERSION 0x24
 
 #define NUM_GFXCLK_DPM_LEVELS    16
 #define NUM_SOCCLK_DPM_LEVELS    8
@@ -97,7 +93,7 @@
 #define FEATURE_MEM_TEMP_READ_BIT             47
 #define FEATURE_ATHUB_MMHUB_PG_BIT            48
 #define FEATURE_SOC_PCC_BIT                   49
-#define FEATURE_SPARE_50_BIT                  50
+#define FEATURE_EDC_PWRBRK_BIT                50
 #define FEATURE_SPARE_51_BIT                  51
 #define FEATURE_SPARE_52_BIT                  52
 #define FEATURE_SPARE_53_BIT                  53
@@ -973,8 +969,8 @@ typedef struct {
   uint16_t        Vmin_Hot_Eol[PMFW_VOLT_PLANE_COUNT];           //In mV(Q2) End-of-life Vset to be used at hot.
   uint16_t        Vmin_Cold_Eol[PMFW_VOLT_PLANE_COUNT];          //In mV(Q2) End-of-life Vset to be used at cold.
   uint16_t        Vmin_Aging_Offset[PMFW_VOLT_PLANE_COUNT];      //In mV(Q2) Worst-case aging margin
-  uint16_t        Vmin_Plat_Offset_Hot[PMFW_VOLT_PLANE_COUNT];   //In mV(Q2) Platform offset apply to T0 Hot
-  uint16_t        Vmin_Plat_Offset_Cold[PMFW_VOLT_PLANE_COUNT];  //In mV(Q2) Platform offset apply to T0 Cold
+  uint16_t        Spare_Vmin_Plat_Offset_Hot[PMFW_VOLT_PLANE_COUNT];   //In mV(Q2) Platform offset apply to T0 Hot
+  uint16_t        Spare_Vmin_Plat_Offset_Cold[PMFW_VOLT_PLANE_COUNT];  //In mV(Q2) Platform offset apply to T0 Cold
 
   //This is a fixed/minimum VMIN aging degradation offset which is applied at T0. This reflects the minimum amount of aging already accounted for.
   uint16_t        VcBtcFixedVminAgingOffset[PMFW_VOLT_PLANE_COUNT];
@@ -1041,7 +1037,8 @@ typedef struct {
   uint16_t        GfxclkFreqGfxUlv; // in MHz
   uint8_t         GfxIdlePadding2[2];
 
-  uint32_t        GfxoffSpare[16];
+  uint32_t        GfxOffEntryHysteresis;
+  uint32_t        GfxoffSpare[15];
 
   // GFX GPO
   uint32_t        GfxGpoSpare[16];
@@ -1192,8 +1189,17 @@ typedef struct {
   // SECTION: Advanced Options
   uint32_t          DebugOverrides;
 
+  // Section: Total Board Power idle vs active coefficients
+  uint8_t     TotalBoardPowerSupport;
+  uint8_t     TotalBoardPowerPadding[3];
+
+  int16_t     TotalIdleBoardPowerM;
+  int16_t     TotalIdleBoardPowerB;
+  int16_t     TotalBoardPowerM;
+  int16_t     TotalBoardPowerB;
+
   // SECTION: Sku Reserved
-  uint32_t         Spare[64];
+  uint32_t         Spare[61];
 
   // Padding for MMHUB - do not modify this
   uint32_t     MmHubPadding[8];
@@ -1258,7 +1264,8 @@ typedef struct {
   // SECTION: Clock Spread Spectrum
 
   // UCLK Spread Spectrum
-  uint16_t     UclkSpreadPadding;
+  uint8_t      UclkTrainingModeSpreadPercent;
+  uint8_t      UclkSpreadPadding;
   uint16_t     UclkSpreadFreq;      // kHz
 
   // UCLK Spread Spectrum
@@ -1271,11 +1278,7 @@ typedef struct {
 
   // Section: Memory Config
   uint8_t      DramWidth; // Width of interface to the channel for each DRAM module. See DRAM_BIT_WIDTH_TYPE_e
-  uint8_t      PaddingMem1[3];
-
-  // Section: Total Board Power
-  uint16_t     TotalBoardPower;     //Only needed for TCP Estimated case, where TCP = TGP+Total Board Power
-  uint16_t     BoardPowerPadding;
+  uint8_t      PaddingMem1[7];
 
   // SECTION: UMC feature flags
   uint8_t      HsrEnabled;
@@ -1359,8 +1362,14 @@ typedef struct {
   uint16_t AverageDclk0Frequency  ;
   uint16_t AverageVclk1Frequency  ;
   uint16_t AverageDclk1Frequency  ;
+  uint16_t PCIeBusy;
+  uint16_t dGPU_W_MAX;
+  uint16_t padding;
+
+  uint32_t MetricsCounter;
 
   uint16_t AvgVoltage[SVI_PLANE_COUNT];
+  uint16_t AvgCurrent[SVI_PLANE_COUNT];
 
   uint16_t AverageGfxActivity    ;
   uint16_t AverageUclkActivity   ;
@@ -1368,8 +1377,11 @@ typedef struct {
   uint16_t Vcn1ActivityPercentage  ;
 
   uint32_t EnergyAccumulator;
-  uint16_t AverageSocketPower    ;
+  uint16_t AverageSocketPower;
+  uint16_t AverageTotalBoardPower;
+
   uint16_t AvgTemperature[TEMP_COUNT];
+  uint16_t TempPadding;
 
   uint8_t  PcieRate               ;
   uint8_t  PcieWidth              ;

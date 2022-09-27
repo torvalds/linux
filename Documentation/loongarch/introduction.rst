@@ -45,10 +45,12 @@ Name              Alias           Usage               Preserved
 ``$r23``-``$r31`` ``$s0``-``$s8`` Static registers    Yes
 ================= =============== =================== ============
 
-Note: The register ``$r21`` is reserved in the ELF psABI, but used by the Linux
-kernel for storing the percpu base address. It normally has no ABI name, but is
-called ``$u0`` in the kernel. You may also see ``$v0`` or ``$v1`` in some old code,
-however they are deprecated aliases of ``$a0`` and ``$a1`` respectively.
+.. Note::
+    The register ``$r21`` is reserved in the ELF psABI, but used by the Linux
+    kernel for storing the percpu base address. It normally has no ABI name,
+    but is called ``$u0`` in the kernel. You may also see ``$v0`` or ``$v1``
+    in some old code,however they are deprecated aliases of ``$a0`` and ``$a1``
+    respectively.
 
 FPRs
 ----
@@ -69,8 +71,9 @@ Name              Alias              Usage               Preserved
 ``$f24``-``$f31`` ``$fs0``-``$fs7``  Static registers    Yes
 ================= ================== =================== ============
 
-Note: You may see ``$fv0`` or ``$fv1`` in some old code, however they are deprecated
-aliases of ``$fa0`` and ``$fa1`` respectively.
+.. Note::
+    You may see ``$fv0`` or ``$fv1`` in some old code, however they are
+    deprecated aliases of ``$fa0`` and ``$fa1`` respectively.
 
 VRs
 ----
@@ -218,7 +221,7 @@ I26         Opcode + I26L + I26H
 =========== ==========================
 
 Rd is the destination register operand, while Rj, Rk and Ra ("a" stands for
-"additional") are the source register operands. I8/I12/I16/I21/I26 are
+"additional") are the source register operands. I8/I12/I14/I16/I21/I26 are
 immediate operands of respective width. The longer I21 and I26 are stored
 in separate higher and lower parts in the instruction word, denoted by the "L"
 and "H" suffixes.

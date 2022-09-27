@@ -309,6 +309,8 @@ struct scsi_target {
 	struct list_head	devices;
 	struct device		dev;
 	struct kref		reap_ref; /* last put renders target invisible */
+	atomic_t		sdev_count;
+	wait_queue_head_t	sdev_wq;
 	unsigned int		channel;
 	unsigned int		id; /* target id ... replace
 				     * scsi_device.id eventually */
@@ -457,7 +459,7 @@ extern void scsi_sanitize_inquiry_string(unsigned char *s, int len);
 extern int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 			int data_direction, void *buffer, unsigned bufflen,
 			unsigned char *sense, struct scsi_sense_hdr *sshdr,
-			int timeout, int retries, u64 flags,
+			int timeout, int retries, blk_opf_t flags,
 			req_flags_t rq_flags, int *resid);
 /* Make sure any sense buffer is the correct size. */
 #define scsi_execute(sdev, cmd, data_direction, buffer, bufflen, sense,	\

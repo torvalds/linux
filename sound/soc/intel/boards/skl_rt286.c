@@ -133,7 +133,7 @@ static int skylake_rt286_codec_init(struct snd_soc_pcm_runtime *rtd)
 	if (ret)
 		return ret;
 
-	rt286_mic_detect(component, &skylake_headset);
+	snd_soc_component_set_jack(component, &skylake_headset, NULL);
 
 	snd_soc_dapm_ignore_suspend(&rtd->card->dapm, "SoC DMIC");
 

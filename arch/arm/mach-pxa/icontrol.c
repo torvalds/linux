@@ -140,7 +140,7 @@ struct platform_device pxa_spi_ssp4 = {
 };
 
 static struct gpiod_lookup_table pxa_ssp3_gpio_table = {
-	.dev_id = "pxa2xx-spi.3",
+	.dev_id = "spi3",
 	.table = {
 		GPIO_LOOKUP_IDX("gpio-pxa", ICONTROL_MCP251x_nCS1, "cs", 0, GPIO_ACTIVE_LOW),
 		GPIO_LOOKUP_IDX("gpio-pxa", ICONTROL_MCP251x_nCS2, "cs", 1, GPIO_ACTIVE_LOW),
@@ -149,7 +149,7 @@ static struct gpiod_lookup_table pxa_ssp3_gpio_table = {
 };
 
 static struct gpiod_lookup_table pxa_ssp4_gpio_table = {
-	.dev_id = "pxa2xx-spi.4",
+	.dev_id = "spi4",
 	.table = {
 		GPIO_LOOKUP_IDX("gpio-pxa", ICONTROL_MCP251x_nCS3, "cs", 0, GPIO_ACTIVE_LOW),
 		GPIO_LOOKUP_IDX("gpio-pxa", ICONTROL_MCP251x_nCS4, "cs", 1, GPIO_ACTIVE_LOW),

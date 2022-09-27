@@ -27,9 +27,6 @@ static inline void tlb_flush(struct mmu_gather *tlb);
 static inline bool __tlb_remove_page_size(struct mmu_gather *tlb,
 					  struct page *page, int page_size);
 
-#define tlb_start_vma(tlb, vma)			do { } while (0)
-#define tlb_end_vma(tlb, vma)			do { } while (0)
-
 #define tlb_flush tlb_flush
 #define pte_free_tlb pte_free_tlb
 #define pmd_free_tlb pmd_free_tlb

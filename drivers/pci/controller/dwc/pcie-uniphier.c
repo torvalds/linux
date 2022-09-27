@@ -171,7 +171,7 @@ static void uniphier_pcie_irq_enable(struct uniphier_pcie *pcie)
 
 static void uniphier_pcie_irq_mask(struct irq_data *d)
 {
-	struct pcie_port *pp = irq_data_get_irq_chip_data(d);
+	struct dw_pcie_rp *pp = irq_data_get_irq_chip_data(d);
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct uniphier_pcie *pcie = to_uniphier_pcie(pci);
 	unsigned long flags;
@@ -188,7 +188,7 @@ static void uniphier_pcie_irq_mask(struct irq_data *d)
 
 static void uniphier_pcie_irq_unmask(struct irq_data *d)
 {
-	struct pcie_port *pp = irq_data_get_irq_chip_data(d);
+	struct dw_pcie_rp *pp = irq_data_get_irq_chip_data(d);
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct uniphier_pcie *pcie = to_uniphier_pcie(pci);
 	unsigned long flags;
@@ -225,7 +225,7 @@ static const struct irq_domain_ops uniphier_intx_domain_ops = {
 
 static void uniphier_pcie_irq_handler(struct irq_desc *desc)
 {
-	struct pcie_port *pp = irq_desc_get_handler_data(desc);
+	struct dw_pcie_rp *pp = irq_desc_get_handler_data(desc);
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct uniphier_pcie *pcie = to_uniphier_pcie(pci);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
@@ -258,7 +258,7 @@ static void uniphier_pcie_irq_handler(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static int uniphier_pcie_config_legacy_irq(struct pcie_port *pp)
+static int uniphier_pcie_config_legacy_irq(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct uniphier_pcie *pcie = to_uniphier_pcie(pci);
@@ -295,7 +295,7 @@ out_put_node:
 	return ret;
 }
 
-static int uniphier_pcie_host_init(struct pcie_port *pp)
+static int uniphier_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct uniphier_pcie *pcie = to_uniphier_pcie(pci);

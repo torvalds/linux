@@ -216,7 +216,7 @@ config SND_SOC_INTEL_AVS
 	depends on COMMON_CLK
 	select SND_SOC_ACPI if ACPI
 	select SND_SOC_TOPOLOGY
-	select SND_HDA
+	select SND_SOC_HDA
 	select SND_HDA_EXT_CORE
 	select SND_HDA_DSP_LOADER
 	select SND_INTEL_DSP_CONFIG
@@ -225,6 +225,9 @@ config SND_SOC_INTEL_AVS
 	  Enable support for Intel(R) cAVS 1.5 platforms with DSP
 	  capabilities. This includes Skylake, Kabylake, Amberlake and
 	  Apollolake.
+
+# Machine board drivers
+source "sound/soc/intel/avs/boards/Kconfig"
 
 # ASoC codec drivers
 source "sound/soc/intel/boards/Kconfig"

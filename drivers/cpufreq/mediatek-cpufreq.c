@@ -439,9 +439,13 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 
 	/* Both presence and absence of sram regulator are valid cases. */
 	info->sram_reg = regulator_get_optional(cpu_dev, "sram");
-	if (IS_ERR(info->sram_reg))
+	if (IS_ERR(info->sram_reg)) {
+		ret = PTR_ERR(info->sram_reg);
+		if (ret == -EPROBE_DEFER)
+			goto out_free_resources;
+
 		info->sram_reg = NULL;
-	else {
+	} else {
 		ret = regulator_enable(info->sram_reg);
 		if (ret) {
 			dev_warn(cpu_dev, "cpu%d: failed to enable vsram\n", cpu);
@@ -474,6 +478,7 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	if (info->soc_data->ccifreq_supported) {
 		info->vproc_on_boot = regulator_get_voltage(info->proc_reg);
 		if (info->vproc_on_boot < 0) {
+			ret = info->vproc_on_boot;
 			dev_err(info->cpu_dev,
 				"invalid Vproc value: %d\n", info->vproc_on_boot);
 			goto out_disable_inter_clock;

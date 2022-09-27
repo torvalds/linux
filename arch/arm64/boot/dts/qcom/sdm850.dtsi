@@ -16,6 +16,5 @@
 	cpu4_opp34: opp-2956800000 {
 		opp-hz = /bits/ 64 <2956800000>;
 		opp-peak-kBps = <7216000 25497600>;
-		turbo-mode;
 	};
 };

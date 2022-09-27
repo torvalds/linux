@@ -24,13 +24,6 @@ int efi_set_mapping_permissions(struct mm_struct *mm, efi_memory_desc_t *md);
 #define arch_efi_call_virt_setup()	efi_virtmap_load()
 #define arch_efi_call_virt_teardown()	efi_virtmap_unload()
 
-#define arch_efi_call_virt(p, f, args...)				\
-({									\
-	efi_##f##_t *__f;						\
-	__f = p->f;							\
-	__f(args);							\
-})
-
 #define ARCH_EFI_IRQ_FLAGS_MASK \
 	(PSR_J_BIT | PSR_E_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT | \
 	 PSR_T_BIT | MODE_MASK)

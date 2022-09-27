@@ -38,7 +38,7 @@
 #include <asm/irq.h>
 #include <asm/hydra.h>
 #include <asm/processor.h>
-#include <asm/machdep.h>
+#include <asm/setup.h>
 #include <asm/pmac_feature.h>
 #include <asm/macio.h>
 
@@ -1882,11 +1882,6 @@ static int mesh_probe(struct macio_dev *mdev, const struct of_device_id *match)
 		goto out_release;
 	}
 	
-	/* Old junk for root discovery, that will die ultimately */
-#if !defined(MODULE)
-       	note_scsi_host(mesh, mesh_host);
-#endif
-
 	mesh_host->base = macio_resource_start(mdev, 0);
 	mesh_host->irq = macio_irq(mdev, 0);
        	ms = (struct mesh_state *) mesh_host->hostdata;

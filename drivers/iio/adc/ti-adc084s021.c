@@ -32,10 +32,10 @@ struct adc084s021 {
 		s64 ts __aligned(8);
 	} scan;
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
+	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache line.
 	 */
-	u16 tx_buf[4] ____cacheline_aligned;
+	u16 tx_buf[4] __aligned(IIO_DMA_MINALIGN);
 	__be16 rx_buf[5]; /* First 16-bits are trash */
 };
 

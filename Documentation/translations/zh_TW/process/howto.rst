@@ -99,7 +99,6 @@ Linux內核代碼中包含有大量的文檔。這些文檔對於學習如何與
     的代碼。
 
   :ref:`Documentation/translations/zh_TW/process/submitting-patches.rst <tw_submittingpatches>`
-  :ref:`Documentation/process/submitting-drivers.rst <submittingdrivers>`
 
     這兩份文檔明確描述如何創建和發送補丁，其中包括（但不僅限於)：
        - 郵件內容

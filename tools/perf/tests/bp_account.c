@@ -151,11 +151,21 @@ static int detect_ioctl(void)
 static int detect_share(int wp_cnt, int bp_cnt)
 {
 	struct perf_event_attr attr;
-	int i, fd[wp_cnt + bp_cnt], ret;
+	int i, *fd = NULL, ret = -1;
+
+	if (wp_cnt + bp_cnt == 0)
+		return 0;
+
+	fd = malloc(sizeof(int) * (wp_cnt + bp_cnt));
+	if (!fd)
+		return -1;
 
 	for (i = 0; i < wp_cnt; i++) {
 		fd[i] = wp_event((void *)&the_var, &attr);
-		TEST_ASSERT_VAL("failed to create wp\n", fd[i] != -1);
+		if (fd[i] == -1) {
+			pr_err("failed to create wp\n");
+			goto out;
+		}
 	}
 
 	for (; i < (bp_cnt + wp_cnt); i++) {
@@ -166,9 +176,11 @@ static int detect_share(int wp_cnt, int bp_cnt)
 
 	ret = i != (bp_cnt + wp_cnt);
 
+out:
 	while (i--)
 		close(fd[i]);
 
+	free(fd);
 	return ret;
 }
 

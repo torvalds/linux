@@ -49,6 +49,11 @@ void mpc1_set_bg_color(struct mpc *mpc,
 
 	/* find bottommost mpcc. */
 	while (bottommost_mpcc->mpcc_bot) {
+		/* avoid circular linked link */
+		ASSERT(bottommost_mpcc != bottommost_mpcc->mpcc_bot);
+		if (bottommost_mpcc == bottommost_mpcc->mpcc_bot)
+			break;
+
 		bottommost_mpcc = bottommost_mpcc->mpcc_bot;
 	}
 
@@ -126,6 +131,12 @@ struct mpcc *mpc1_get_mpcc_for_dpp(struct mpc_tree *tree, int dpp_id)
 	while (tmp_mpcc != NULL) {
 		if (tmp_mpcc->dpp_id == dpp_id)
 			return tmp_mpcc;
+
+		/* avoid circular linked list */
+		ASSERT(tmp_mpcc != tmp_mpcc->mpcc_bot);
+		if (tmp_mpcc == tmp_mpcc->mpcc_bot)
+			break;
+
 		tmp_mpcc = tmp_mpcc->mpcc_bot;
 	}
 	return NULL;

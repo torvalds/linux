@@ -416,15 +416,15 @@ xchk_ag_read_headers(
 	if (!sa->pag)
 		return -ENOENT;
 
-	error = xfs_ialloc_read_agi(mp, sc->tp, agno, &sa->agi_bp);
+	error = xfs_ialloc_read_agi(sa->pag, sc->tp, &sa->agi_bp);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGI))
 		return error;
 
-	error = xfs_alloc_read_agf(mp, sc->tp, agno, 0, &sa->agf_bp);
+	error = xfs_alloc_read_agf(sa->pag, sc->tp, 0, &sa->agf_bp);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGF))
 		return error;
 
-	error = xfs_alloc_read_agfl(mp, sc->tp, agno, &sa->agfl_bp);
+	error = xfs_alloc_read_agfl(sa->pag, sc->tp, &sa->agfl_bp);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGFL))
 		return error;
 

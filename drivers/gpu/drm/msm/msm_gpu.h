@@ -64,11 +64,14 @@ struct msm_gpu_funcs {
 	/* for generation specific debugfs: */
 	void (*debugfs_init)(struct msm_gpu *gpu, struct drm_minor *minor);
 #endif
+	/* note: gpu_busy() can assume that we have been pm_resumed */
 	u64 (*gpu_busy)(struct msm_gpu *gpu, unsigned long *out_sample_rate);
 	struct msm_gpu_state *(*gpu_state_get)(struct msm_gpu *gpu);
 	int (*gpu_state_put)(struct msm_gpu_state *state);
 	unsigned long (*gpu_get_freq)(struct msm_gpu *gpu);
-	void (*gpu_set_freq)(struct msm_gpu *gpu, struct dev_pm_opp *opp);
+	/* note: gpu_set_freq() can assume that we have been pm_resumed */
+	void (*gpu_set_freq)(struct msm_gpu *gpu, struct dev_pm_opp *opp,
+			     bool suspended);
 	struct msm_gem_address_space *(*create_address_space)
 		(struct msm_gpu *gpu, struct platform_device *pdev);
 	struct msm_gem_address_space *(*create_private_address_space)
@@ -91,6 +94,9 @@ struct msm_gpu_fault_info {
 struct msm_gpu_devfreq {
 	/** devfreq: devfreq instance */
 	struct devfreq *devfreq;
+
+	/** lock: lock for "suspended", "busy_cycles", and "time" */
+	struct mutex lock;
 
 	/**
 	 * idle_constraint:
@@ -135,6 +141,9 @@ struct msm_gpu_devfreq {
 	 * elapsed
 	 */
 	struct msm_hrtimer_work boost_work;
+
+	/** suspended: tracks if we're suspended */
+	bool suspended;
 };
 
 struct msm_gpu {
@@ -362,6 +371,22 @@ struct msm_file_private {
 	char *cmdline;
 
 	/**
+	 * elapsed:
+	 *
+	 * The total (cumulative) elapsed time GPU was busy with rendering
+	 * from this context in ns.
+	 */
+	uint64_t elapsed_ns;
+
+	/**
+	 * cycles:
+	 *
+	 * The total (cumulative) GPU cycles elapsed attributed to this
+	 * context.
+	 */
+	uint64_t cycles;
+
+	/**
 	 * entities:
 	 *
 	 * Table of per-priority-level sched entities used by submitqueues
@@ -464,6 +489,7 @@ struct msm_gpu_state_bo {
 	size_t size;
 	void *data;
 	bool encoded;
+	char name[32];
 };
 
 struct msm_gpu_state {
@@ -543,6 +569,9 @@ static inline void gpu_write64(struct msm_gpu *gpu, u32 lo, u32 hi, u64 val)
 
 int msm_gpu_pm_suspend(struct msm_gpu *gpu);
 int msm_gpu_pm_resume(struct msm_gpu *gpu);
+
+void msm_gpu_show_fdinfo(struct msm_gpu *gpu, struct msm_file_private *ctx,
+			 struct drm_printer *p);
 
 int msm_submitqueue_init(struct drm_device *drm, struct msm_file_private *ctx);
 struct msm_gpu_submitqueue *msm_submitqueue_get(struct msm_file_private *ctx,

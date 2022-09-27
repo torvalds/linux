@@ -635,7 +635,7 @@ static int gp2ap002_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int __maybe_unused gp2ap002_runtime_suspend(struct device *dev)
+static int gp2ap002_runtime_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct gp2ap002 *gp2ap002 = iio_priv(indio_dev);
@@ -660,7 +660,7 @@ static int __maybe_unused gp2ap002_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused gp2ap002_runtime_resume(struct device *dev)
+static int gp2ap002_runtime_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct gp2ap002 *gp2ap002 = iio_priv(indio_dev);
@@ -691,12 +691,8 @@ static int __maybe_unused gp2ap002_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops gp2ap002_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(gp2ap002_runtime_suspend,
-			   gp2ap002_runtime_resume, NULL)
-};
+static DEFINE_RUNTIME_DEV_PM_OPS(gp2ap002_dev_pm_ops, gp2ap002_runtime_suspend,
+				 gp2ap002_runtime_resume, NULL);
 
 static const struct i2c_device_id gp2ap002_id_table[] = {
 	{ "gp2ap002", 0 },
@@ -715,7 +711,7 @@ static struct i2c_driver gp2ap002_driver = {
 	.driver = {
 		.name = "gp2ap002",
 		.of_match_table = gp2ap002_of_match,
-		.pm = &gp2ap002_dev_pm_ops,
+		.pm = pm_ptr(&gp2ap002_dev_pm_ops),
 	},
 	.probe = gp2ap002_probe,
 	.remove = gp2ap002_remove,

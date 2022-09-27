@@ -180,7 +180,7 @@ static int lvds_codec_probe(struct platform_device *pdev)
 		of_node_put(bus_node);
 		if (ret == -ENODEV) {
 			dev_warn(dev, "missing 'data-mapping' DT property\n");
-		} else if (ret) {
+		} else if (ret < 0) {
 			dev_err(dev, "invalid 'data-mapping' DT property\n");
 			return ret;
 		} else {

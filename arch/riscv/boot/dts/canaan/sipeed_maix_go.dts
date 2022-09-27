@@ -46,19 +46,19 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		up {
+		key-up {
 			label = "UP";
 			linux,code = <BTN_1>;
 			gpios = <&gpio1_0 7 GPIO_ACTIVE_LOW>;
 		};
 
-		press {
+		key-press {
 			label = "PRESS";
 			linux,code = <BTN_0>;
 			gpios = <&gpio0 0 GPIO_ACTIVE_LOW>;
 		};
 
-		down {
+		key-down {
 			label = "DOWN";
 			linux,code = <BTN_2>;
 			gpios = <&gpio0 1 GPIO_ACTIVE_LOW>;
@@ -199,7 +199,7 @@
 	cs-gpios = <&gpio0 13 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
-	slot@0 {
+	mmc@0 {
 		compatible = "mmc-spi-slot";
 		reg = <0>;
 		voltage-ranges = <3300 3300>;

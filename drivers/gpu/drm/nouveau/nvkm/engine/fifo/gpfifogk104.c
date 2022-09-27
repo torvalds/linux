@@ -175,12 +175,18 @@ gk104_fifo_gpfifo_engine_ctor(struct nvkm_fifo_chan *base,
 	struct gk104_fifo_engn *engn = gk104_fifo_gpfifo_engine(chan, engine);
 	int ret;
 
-	if (!gk104_fifo_gpfifo_engine_addr(engine))
-		return 0;
+	if (!gk104_fifo_gpfifo_engine_addr(engine)) {
+		if (engine->subdev.type != NVKM_ENGINE_CE ||
+		    engine->subdev.device->card_type < GV100)
+			return 0;
+	}
 
 	ret = nvkm_object_bind(object, NULL, 0, &engn->inst);
 	if (ret)
 		return ret;
+
+	if (!gk104_fifo_gpfifo_engine_addr(engine))
+		return 0;
 
 	ret = nvkm_vmm_get(chan->base.vmm, 12, engn->inst->size, &engn->vma);
 	if (ret)
@@ -231,7 +237,6 @@ void *
 gk104_fifo_gpfifo_dtor(struct nvkm_fifo_chan *base)
 {
 	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
-	nvkm_memory_unref(&chan->mthd);
 	kfree(chan->cgrp);
 	return chan;
 }

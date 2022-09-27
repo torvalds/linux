@@ -133,7 +133,8 @@ static void nd_region_release(struct device *dev)
 		put_device(&nvdimm->dev);
 	}
 	free_percpu(nd_region->lane);
-	memregion_free(nd_region->id);
+	if (!test_bit(ND_REGION_CXL, &nd_region->flags))
+		memregion_free(nd_region->id);
 	kfree(nd_region);
 }
 
@@ -982,9 +983,14 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 
 	if (!nd_region)
 		return NULL;
-	nd_region->id = memregion_alloc(GFP_KERNEL);
-	if (nd_region->id < 0)
-		goto err_id;
+	/* CXL pre-assigns memregion ids before creating nvdimm regions */
+	if (test_bit(ND_REGION_CXL, &ndr_desc->flags)) {
+		nd_region->id = ndr_desc->memregion;
+	} else {
+		nd_region->id = memregion_alloc(GFP_KERNEL);
+		if (nd_region->id < 0)
+			goto err_id;
+	}
 
 	nd_region->lane = alloc_percpu(struct nd_percpu_lane);
 	if (!nd_region->lane)
@@ -1043,9 +1049,10 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
 
 	return nd_region;
 
- err_percpu:
-	memregion_free(nd_region->id);
- err_id:
+err_percpu:
+	if (!test_bit(ND_REGION_CXL, &ndr_desc->flags))
+		memregion_free(nd_region->id);
+err_id:
 	kfree(nd_region);
 	return NULL;
 }
@@ -1067,6 +1074,13 @@ struct nd_region *nvdimm_volatile_region_create(struct nvdimm_bus *nvdimm_bus,
 			__func__);
 }
 EXPORT_SYMBOL_GPL(nvdimm_volatile_region_create);
+
+void nvdimm_region_delete(struct nd_region *nd_region)
+{
+	if (nd_region)
+		nd_device_unregister(&nd_region->dev, ND_SYNC);
+}
+EXPORT_SYMBOL_GPL(nvdimm_region_delete);
 
 int nvdimm_flush(struct nd_region *nd_region, struct bio *bio)
 {

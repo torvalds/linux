@@ -116,13 +116,13 @@ int hda_dsp_stream_setup_bdl(struct snd_sof_dev *sdev,
 	int remain, ioc;
 
 	period_bytes = hstream->period_bytes;
-	dev_dbg(sdev->dev, "%s: period_bytes:0x%x\n", __func__, period_bytes);
+	dev_dbg(sdev->dev, "period_bytes:0x%x\n", period_bytes);
 	if (!period_bytes)
 		period_bytes = hstream->bufsize;
 
 	periods = hstream->bufsize / period_bytes;
 
-	dev_dbg(sdev->dev, "%s: periods:%d\n", __func__, periods);
+	dev_dbg(sdev->dev, "periods:%d\n", periods);
 
 	remain = hstream->bufsize % period_bytes;
 	if (remain)
@@ -271,7 +271,7 @@ int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag)
 					HDA_VS_INTEL_EM2_L1SEN, HDA_VS_INTEL_EM2_L1SEN);
 
 	if (!found) {
-		dev_dbg(sdev->dev, "%s: stream_tag %d not opened!\n",
+		dev_err(sdev->dev, "%s: stream_tag %d not opened!\n",
 			__func__, stream_tag);
 		return -ENODEV;
 	}
@@ -411,6 +411,11 @@ int hda_dsp_iccmax_stream_hw_params(struct snd_sof_dev *sdev, struct hdac_ext_st
 		return -ENODEV;
 	}
 
+	if (!dmab) {
+		dev_err(sdev->dev, "error: no dma buffer allocated!\n");
+		return -ENODEV;
+	}
+
 	if (hstream->posbuf)
 		*hstream->posbuf = 0;
 
@@ -485,15 +490,15 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 		return -ENODEV;
 	}
 
-	/* decouple host and link DMA */
-	mask = 0x1 << hstream->index;
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
-				mask, mask);
-
 	if (!dmab) {
 		dev_err(sdev->dev, "error: no dma buffer allocated!\n");
 		return -ENODEV;
 	}
+
+	/* decouple host and link DMA */
+	mask = 0x1 << hstream->index;
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
+				mask, mask);
 
 	/* clear stream status */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset,
@@ -707,12 +712,13 @@ bool hda_dsp_check_stream_irq(struct snd_sof_dev *sdev)
 }
 
 static void
-hda_dsp_set_bytes_transferred(struct hdac_stream *hstream, u64 buffer_size)
+hda_dsp_compr_bytes_transferred(struct hdac_stream *hstream, int direction)
 {
+	u64 buffer_size = hstream->bufsize;
 	u64 prev_pos, pos, num_bytes;
 
 	div64_u64_rem(hstream->curr_pos, buffer_size, &prev_pos);
-	pos = snd_hdac_stream_get_pos_posbuf(hstream);
+	pos = hda_dsp_stream_get_position(hstream, direction, false);
 
 	if (pos < prev_pos)
 		num_bytes = (buffer_size - prev_pos) +  pos;
@@ -748,8 +754,7 @@ static bool hda_dsp_stream_check(struct hdac_bus *bus, u32 status)
 			if (s->substream && sof_hda->no_ipc_position) {
 				snd_sof_pcm_period_elapsed(s->substream);
 			} else if (s->cstream) {
-				hda_dsp_set_bytes_transferred(s,
-					s->cstream->runtime->buffer_size);
+				hda_dsp_compr_bytes_transferred(s, s->cstream->direction);
 				snd_compr_fragment_elapsed(s->cstream);
 			}
 		}
@@ -1008,4 +1013,90 @@ void hda_dsp_stream_free(struct snd_sof_dev *sdev)
 					  hext_stream);
 		devm_kfree(sdev->dev, hda_stream);
 	}
+}
+
+snd_pcm_uframes_t hda_dsp_stream_get_position(struct hdac_stream *hstream,
+					      int direction, bool can_sleep)
+{
+	struct hdac_ext_stream *hext_stream = stream_to_hdac_ext_stream(hstream);
+	struct sof_intel_hda_stream *hda_stream = hstream_to_sof_hda_stream(hext_stream);
+	struct snd_sof_dev *sdev = hda_stream->sdev;
+	snd_pcm_uframes_t pos;
+
+	switch (sof_hda_position_quirk) {
+	case SOF_HDA_POSITION_QUIRK_USE_SKYLAKE_LEGACY:
+		/*
+		 * This legacy code, inherited from the Skylake driver,
+		 * mixes DPIB registers and DPIB DDR updates and
+		 * does not seem to follow any known hardware recommendations.
+		 * It's not clear e.g. why there is a different flow
+		 * for capture and playback, the only information that matters is
+		 * what traffic class is used, and on all SOF-enabled platforms
+		 * only VC0 is supported so the work-around was likely not necessary
+		 * and quite possibly wrong.
+		 */
+
+		/* DPIB/posbuf position mode:
+		 * For Playback, Use DPIB register from HDA space which
+		 * reflects the actual data transferred.
+		 * For Capture, Use the position buffer for pointer, as DPIB
+		 * is not accurate enough, its update may be completed
+		 * earlier than the data written to DDR.
+		 */
+		if (direction == SNDRV_PCM_STREAM_PLAYBACK) {
+			pos = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR,
+					       AZX_REG_VS_SDXDPIB_XBASE +
+					       (AZX_REG_VS_SDXDPIB_XINTERVAL *
+						hstream->index));
+		} else {
+			/*
+			 * For capture stream, we need more workaround to fix the
+			 * position incorrect issue:
+			 *
+			 * 1. Wait at least 20us before reading position buffer after
+			 * the interrupt generated(IOC), to make sure position update
+			 * happens on frame boundary i.e. 20.833uSec for 48KHz.
+			 * 2. Perform a dummy Read to DPIB register to flush DMA
+			 * position value.
+			 * 3. Read the DMA Position from posbuf. Now the readback
+			 * value should be >= period boundary.
+			 */
+			if (can_sleep)
+				usleep_range(20, 21);
+
+			snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR,
+					 AZX_REG_VS_SDXDPIB_XBASE +
+					 (AZX_REG_VS_SDXDPIB_XINTERVAL *
+					  hstream->index));
+			pos = snd_hdac_stream_get_pos_posbuf(hstream);
+		}
+		break;
+	case SOF_HDA_POSITION_QUIRK_USE_DPIB_REGISTERS:
+		/*
+		 * In case VC1 traffic is disabled this is the recommended option
+		 */
+		pos = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR,
+				       AZX_REG_VS_SDXDPIB_XBASE +
+				       (AZX_REG_VS_SDXDPIB_XINTERVAL *
+					hstream->index));
+		break;
+	case SOF_HDA_POSITION_QUIRK_USE_DPIB_DDR_UPDATE:
+		/*
+		 * This is the recommended option when VC1 is enabled.
+		 * While this isn't needed for SOF platforms it's added for
+		 * consistency and debug.
+		 */
+		pos = snd_hdac_stream_get_pos_posbuf(hstream);
+		break;
+	default:
+		dev_err_once(sdev->dev, "hda_position_quirk value %d not supported\n",
+			     sof_hda_position_quirk);
+		pos = 0;
+		break;
+	}
+
+	if (pos >= hstream->bufsize)
+		pos = 0;
+
+	return pos;
 }

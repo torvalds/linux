@@ -4,7 +4,7 @@ Versatile Express voltage regulators
 Requires node properties:
 - "compatible" value: "arm,vexpress-volt"
 - "arm,vexpress-sysreg,func" when controlled via vexpress-sysreg
-  (see Documentation/devicetree/bindings/arm/vexpress-sysreg.txt
+  (see Documentation/devicetree/bindings/arm/vexpress-config.yaml
   for more details)
 
 Required regulator properties:

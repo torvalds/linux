@@ -30,8 +30,6 @@ properties:
   reg:
     maxItems: 1
 
-  spi-max-frequency: true
-
   uicc-present:
     type: boolean
     description: |
@@ -55,10 +53,11 @@ then:
   properties:
     spi-max-frequency: false
 else:
+  $ref: /schemas/spi/spi-peripheral-props.yaml#
   required:
     - spi-max-frequency
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

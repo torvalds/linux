@@ -20,6 +20,7 @@
 #include <asm/pte-walk.h>
 #include <asm/reg.h>
 #include <asm/plpar_wrappers.h>
+#include <asm/firmware.h>
 
 static struct patb_entry *pseries_partition_tb;
 
@@ -1579,7 +1580,7 @@ static long int __kvmhv_nested_page_fault(struct kvm_vcpu *vcpu,
 	/* 2. Find the host pte for this L1 guest real address */
 
 	/* Used to check for invalidations in progress */
-	mmu_seq = kvm->mmu_notifier_seq;
+	mmu_seq = kvm->mmu_invalidate_seq;
 	smp_rmb();
 
 	/* See if can find translation in our partition scoped tables for L1 */

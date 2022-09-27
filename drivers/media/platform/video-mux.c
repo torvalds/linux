@@ -118,7 +118,7 @@ static int video_mux_s_stream(struct v4l2_subdev *sd, int enable)
 		return -EINVAL;
 	}
 
-	pad = media_entity_remote_pad(&sd->entity.pads[vmux->active]);
+	pad = media_pad_remote_pad_first(&sd->entity.pads[vmux->active]);
 	if (!pad) {
 		dev_err(sd->dev, "Failed to find remote source pad\n");
 		return -ENOLINK;

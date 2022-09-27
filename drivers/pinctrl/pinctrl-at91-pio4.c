@@ -237,8 +237,6 @@ static void atmel_gpio_irq_unmask(struct irq_data *d)
 			 BIT(pin->line));
 }
 
-#ifdef CONFIG_PM_SLEEP
-
 static int atmel_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 {
 	struct atmel_pioctrl *atmel_pioctrl = irq_data_get_irq_chip_data(d);
@@ -255,9 +253,6 @@ static int atmel_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 
 	return 0;
 }
-#else
-#define atmel_gpio_irq_set_wake NULL
-#endif /* CONFIG_PM_SLEEP */
 
 static struct irq_chip atmel_gpio_irq_chip = {
 	.name		= "GPIO",
@@ -265,7 +260,7 @@ static struct irq_chip atmel_gpio_irq_chip = {
 	.irq_mask	= atmel_gpio_irq_mask,
 	.irq_unmask	= atmel_gpio_irq_unmask,
 	.irq_set_type	= atmel_gpio_irq_set_type,
-	.irq_set_wake	= atmel_gpio_irq_set_wake,
+	.irq_set_wake	= pm_sleep_ptr(atmel_gpio_irq_set_wake),
 };
 
 static int atmel_gpio_to_irq(struct gpio_chip *chip, unsigned int offset)

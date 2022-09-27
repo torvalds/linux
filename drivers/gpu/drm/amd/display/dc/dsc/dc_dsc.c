@@ -619,7 +619,7 @@ static int get_max_dsc_slices(union dsc_enc_slice_caps slice_caps)
 }
 
 
-// Increment sice number in available sice numbers stops if possible, or just increment if not
+// Increment slice number in available slice numbers stops if possible, or just increment if not
 static int inc_num_slices(union dsc_enc_slice_caps slice_caps, int num_slices)
 {
 	// Get next bigger num slices available in common caps
@@ -650,7 +650,7 @@ static int inc_num_slices(union dsc_enc_slice_caps slice_caps, int num_slices)
 }
 
 
-// Decrement sice number in available sice numbers stops if possible, or just decrement if not. Stop at zero.
+// Decrement slice number in available slice numbers stops if possible, or just decrement if not. Stop at zero.
 static int dec_num_slices(union dsc_enc_slice_caps slice_caps, int num_slices)
 {
 	// Get next bigger num slices available in common caps

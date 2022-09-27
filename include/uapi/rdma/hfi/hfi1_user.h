@@ -180,7 +180,7 @@ struct hfi1_sdma_comp_entry {
 struct hfi1_status {
 	__aligned_u64 dev;      /* device/hw status bits */
 	__aligned_u64 port;     /* port state and status bits */
-	char freezemsg[0];
+	char freezemsg[];
 };
 
 enum sdma_req_opcode {
