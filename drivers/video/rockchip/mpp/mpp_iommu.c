@@ -97,7 +97,7 @@ mpp_dma_remove_extra_buffer(struct mpp_dma_session *dma)
 				oldest = buffer;
 			}
 		}
-		if (oldest)
+		if (oldest && kref_read(&oldest->ref) <= 1)
 			kref_put(&oldest->ref, mpp_dma_release_buffer);
 		mutex_unlock(&dma->list_mutex);
 	}
