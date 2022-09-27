@@ -99,7 +99,7 @@ struct pt_regs
 
 #define STACK_FRAME_WITH_PT_REGS (STACK_FRAME_OVERHEAD + sizeof(struct pt_regs))
 
-#define STACK_FRAME_REGS_MARKER	ASM_CONST(0x72656773)
+#define STACK_FRAME_REGS_MARKER	ASM_CONST(0x52454753)
 
 #ifdef __powerpc64__
 
