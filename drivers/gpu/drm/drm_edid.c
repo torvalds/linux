@@ -2984,7 +2984,7 @@ is_rb(const struct detailed_timing *descriptor, void *data)
 	BUILD_BUG_ON(offsetof(typeof(*descriptor), data.other_data.data.range.formula.cvt.flags) != 15);
 
 	if (descriptor->data.other_data.data.range.flags == DRM_EDID_CVT_SUPPORT_FLAG &&
-	    descriptor->data.other_data.data.range.formula.cvt.flags & 0x10)
+	    descriptor->data.other_data.data.range.formula.cvt.flags & DRM_EDID_CVT_FLAGS_REDUCED_BLANKING)
 		*res = true;
 }
 
@@ -3012,7 +3012,7 @@ find_gtf2(const struct detailed_timing *descriptor, void *data)
 
 	BUILD_BUG_ON(offsetof(typeof(*descriptor), data.other_data.data.range.flags) != 10);
 
-	if (descriptor->data.other_data.data.range.flags == 0x02)
+	if (descriptor->data.other_data.data.range.flags == DRM_EDID_SECONDARY_GTF_SUPPORT_FLAG)
 		*res = descriptor;
 }
 
@@ -3415,7 +3415,7 @@ range_pixel_clock(const struct edid *edid, const u8 *t)
 		return 0;
 
 	/* 1.4 with CVT support gives us real precision, yay */
-	if (edid->revision >= 4 && t[10] == 0x04)
+	if (edid->revision >= 4 && t[10] == DRM_EDID_CVT_SUPPORT_FLAG)
 		return (t[9] * 10000) - ((t[12] >> 2) * 250);
 
 	/* 1.3 is pathetic, so fuzz up a bit */
@@ -3441,7 +3441,7 @@ static bool mode_in_range(const struct drm_display_mode *mode,
 			return false;
 
 	/* 1.4 max horizontal check */
-	if (edid->revision >= 4 && t[10] == 0x04)
+	if (edid->revision >= 4 && t[10] == DRM_EDID_CVT_SUPPORT_FLAG)
 		if (t[13] && mode->hdisplay > 8 * (t[13] + (256 * (t[12]&0x3))))
 			return false;
 
@@ -3581,13 +3581,13 @@ do_inferred_modes(const struct detailed_timing *timing, void *c)
 		return; /* GTF not defined yet */
 
 	switch (range->flags) {
-	case 0x02: /* secondary gtf, XXX could do more */
-	case 0x00: /* default gtf */
+	case DRM_EDID_SECONDARY_GTF_SUPPORT_FLAG: /* XXX could do more */
+	case DRM_EDID_DEFAULT_GTF_SUPPORT_FLAG:
 		closure->modes += drm_gtf_modes_for_range(closure->connector,
 							  closure->drm_edid,
 							  timing);
 		break;
-	case 0x04: /* cvt, only in 1.4+ */
+	case DRM_EDID_CVT_SUPPORT_FLAG:
 		if (!version_greater(closure->drm_edid, 1, 3))
 			break;
 
@@ -3595,7 +3595,7 @@ do_inferred_modes(const struct detailed_timing *timing, void *c)
 							  closure->drm_edid,
 							  timing);
 		break;
-	case 0x01: /* just the ranges, no formula */
+	case DRM_EDID_RANGE_LIMITS_ONLY_FLAG:
 	default:
 		break;
 	}
@@ -6402,7 +6402,7 @@ static int _drm_edid_connector_update(struct drm_connector *connector,
 	num_modes += add_cea_modes(connector, drm_edid);
 	num_modes += add_alternate_cea_modes(connector, drm_edid);
 	num_modes += add_displayid_detailed_modes(connector, drm_edid);
-	if (drm_edid->edid->features & DRM_EDID_FEATURE_DEFAULT_GTF)
+	if (drm_edid->edid->features & DRM_EDID_FEATURE_CONTINUOUS_FREQ)
 		num_modes += add_inferred_modes(connector, drm_edid);
 
 	if (quirks & (EDID_QUIRK_PREFER_LARGE_60 | EDID_QUIRK_PREFER_LARGE_75))

@@ -92,10 +92,13 @@ struct detailed_data_string {
 	u8 str[13];
 } __attribute__((packed));
 
-#define DRM_EDID_DEFAULT_GTF_SUPPORT_FLAG   0x00
-#define DRM_EDID_RANGE_LIMITS_ONLY_FLAG     0x01
-#define DRM_EDID_SECONDARY_GTF_SUPPORT_FLAG 0x02
-#define DRM_EDID_CVT_SUPPORT_FLAG           0x04
+#define DRM_EDID_DEFAULT_GTF_SUPPORT_FLAG   0x00 /* 1.3 */
+#define DRM_EDID_RANGE_LIMITS_ONLY_FLAG     0x01 /* 1.4 */
+#define DRM_EDID_SECONDARY_GTF_SUPPORT_FLAG 0x02 /* 1.3 */
+#define DRM_EDID_CVT_SUPPORT_FLAG           0x04 /* 1.4 */
+
+#define DRM_EDID_CVT_FLAGS_STANDARD_BLANKING (1 << 3)
+#define DRM_EDID_CVT_FLAGS_REDUCED_BLANKING  (1 << 4)
 
 struct detailed_data_monitor_range {
 	u8 min_vfreq;
@@ -201,7 +204,8 @@ struct detailed_timing {
 #define DRM_EDID_DIGITAL_TYPE_DP       (5 << 0) /* 1.4 */
 #define DRM_EDID_DIGITAL_DFP_1_X       (1 << 0) /* 1.3 */
 
-#define DRM_EDID_FEATURE_DEFAULT_GTF      (1 << 0)
+#define DRM_EDID_FEATURE_DEFAULT_GTF      (1 << 0) /* 1.2 */
+#define DRM_EDID_FEATURE_CONTINUOUS_FREQ  (1 << 0) /* 1.4 */
 #define DRM_EDID_FEATURE_PREFERRED_TIMING (1 << 1)
 #define DRM_EDID_FEATURE_STANDARD_COLOR   (1 << 2)
 /* If analog */
