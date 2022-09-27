@@ -4737,10 +4737,23 @@ static inline const char *dwc3_msm_usb_role_string(enum usb_role role)
 	return "Invalid";
 }
 
-
-static enum usb_role dwc3_msm_usb_get_role(struct usb_role_switch *sw)
+static bool dwc3_msm_role_allowed(struct dwc3_msm *mdwc, enum usb_role role)
 {
-	struct dwc3_msm *mdwc = usb_role_switch_get_drvdata(sw);
+	dev_dbg(mdwc->dev, "%s: dr_mode=%s role_requested=%s\n",
+			__func__, usb_dr_modes[mdwc->dr_mode],
+			dwc3_msm_usb_role_string(role));
+
+	if (role == USB_ROLE_HOST && mdwc->dr_mode == USB_DR_MODE_PERIPHERAL)
+		return false;
+
+	if (role == USB_ROLE_DEVICE && mdwc->dr_mode == USB_DR_MODE_HOST)
+		return false;
+
+	return true;
+}
+
+static enum usb_role dwc3_msm_get_role(struct dwc3_msm *mdwc)
+{
 	enum usb_role role;
 
 	if (mdwc->vbus_active)
@@ -4750,17 +4763,43 @@ static enum usb_role dwc3_msm_usb_get_role(struct usb_role_switch *sw)
 	else
 		role = USB_ROLE_NONE;
 
-	dbg_log_string("get_role:%s\n", dwc3_msm_usb_role_string(role));
 	return role;
 }
 
-static int dwc3_msm_usb_set_role(struct usb_role_switch *sw, enum usb_role role)
+static enum usb_role dwc3_msm_usb_role_switch_get_role(struct usb_role_switch *sw)
 {
 	struct dwc3_msm *mdwc = usb_role_switch_get_drvdata(sw);
-	enum usb_role cur_role = USB_ROLE_NONE;
+	enum usb_role role;
+
+	role = dwc3_msm_get_role(mdwc);
+	dbg_log_string("get_role:%s\n", dwc3_msm_usb_role_string(role));
+
+	return role;
+}
+
+static int dwc3_msm_set_role(struct dwc3_msm *mdwc, enum usb_role role)
+{
+	enum usb_role cur_role;
+
+	if (!dwc3_msm_role_allowed(mdwc, role))
+		return -EINVAL;
 
 	mutex_lock(&mdwc->role_switch_mutex);
-	cur_role = dwc3_msm_usb_get_role(sw);
+	cur_role = dwc3_msm_get_role(mdwc);
+
+	dbg_log_string("cur_role:%s new_role:%s\n", dwc3_msm_usb_role_string(cur_role),
+						dwc3_msm_usb_role_string(role));
+
+	/*
+	 * For boot up without USB cable connected case, don't check
+	 * previous role value to allow resetting USB controller and
+	 * PHYs.
+	 */
+	if (mdwc->drd_state != DRD_STATE_UNDEFINED && cur_role == role) {
+		dbg_log_string("no USB role change");
+		mutex_unlock(&mdwc->role_switch_mutex);
+		return 0;
+	}
 
 	switch (role) {
 	case USB_ROLE_HOST:
@@ -4780,21 +4819,15 @@ static int dwc3_msm_usb_set_role(struct usb_role_switch *sw, enum usb_role role)
 	}
 	mutex_unlock(&mdwc->role_switch_mutex);
 
-	dbg_log_string("cur_role:%s new_role:%s\n", dwc3_msm_usb_role_string(cur_role),
-						dwc3_msm_usb_role_string(role));
-
-	/*
-	 * For boot up without USB cable connected case, don't check
-	 * previous role value to allow resetting USB controller and
-	 * PHYs.
-	 */
-	if (mdwc->drd_state != DRD_STATE_UNDEFINED && cur_role == role) {
-		dbg_log_string("no USB role change");
-		return 0;
-	}
-
 	dwc3_ext_event_notify(mdwc);
 	return 0;
+}
+
+static int dwc3_msm_usb_role_switch_set_role(struct usb_role_switch *sw, enum usb_role role)
+{
+	struct dwc3_msm *mdwc = usb_role_switch_get_drvdata(sw);
+
+	return dwc3_msm_set_role(mdwc, role);
 }
 
 static ssize_t orientation_show(struct device *dev,
@@ -4831,10 +4864,12 @@ static ssize_t mode_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
 	struct dwc3_msm *mdwc = dev_get_drvdata(dev);
+	enum usb_role cur_role;
 
-	if (mdwc->vbus_active)
+	cur_role = dwc3_msm_get_role(mdwc);
+	if (cur_role == USB_ROLE_DEVICE)
 		return scnprintf(buf, PAGE_SIZE, "peripheral\n");
-	if (mdwc->id_state == DWC3_ID_GROUND)
+	if (cur_role == USB_ROLE_HOST)
 		return scnprintf(buf, PAGE_SIZE, "host\n");
 
 	return scnprintf(buf, PAGE_SIZE, "none\n");
@@ -4844,19 +4879,18 @@ static ssize_t mode_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct dwc3_msm *mdwc = dev_get_drvdata(dev);
+	enum usb_role role = USB_ROLE_NONE;
+	int ret;
 
-	if (sysfs_streq(buf, "peripheral")) {
-		mdwc->vbus_active = true;
-		mdwc->id_state = DWC3_ID_FLOAT;
-	} else if (sysfs_streq(buf, "host")) {
-		mdwc->vbus_active = false;
-		mdwc->id_state = DWC3_ID_GROUND;
-	} else {
-		mdwc->vbus_active = false;
-		mdwc->id_state = DWC3_ID_FLOAT;
-	}
+	if (sysfs_streq(buf, "peripheral"))
+		role = USB_ROLE_DEVICE;
+	else if (sysfs_streq(buf, "host"))
+		role = USB_ROLE_HOST;
 
-	dwc3_ext_event_notify(mdwc);
+	dbg_log_string("mode_request:%s\n", dwc3_msm_usb_role_string(role));
+	ret = dwc3_msm_set_role(mdwc, role);
+	if (ret < 0)
+		return ret;
 
 	return count;
 }
@@ -5679,8 +5713,8 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 
 	if (of_property_read_bool(node, "usb-role-switch")) {
 		struct usb_role_switch_desc role_desc = {
-			.set = dwc3_msm_usb_set_role,
-			.get = dwc3_msm_usb_get_role,
+			.set = dwc3_msm_usb_role_switch_set_role,
+			.get = dwc3_msm_usb_role_switch_get_role,
 			.driver_data = mdwc,
 			.allow_userspace_control = true,
 		};
