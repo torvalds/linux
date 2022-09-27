@@ -78,13 +78,6 @@ struct ccp_crypto_cmd {
 	int ret;
 };
 
-struct ccp_crypto_cpu {
-	struct work_struct work;
-	struct completion completion;
-	struct ccp_crypto_cmd *crypto_cmd;
-	int err;
-};
-
 static inline bool ccp_crypto_success(int err)
 {
 	if (err && (err != -EINPROGRESS) && (err != -EBUSY))
