@@ -17,8 +17,6 @@
 #include <linux/workqueue.h>
 #include <uapi/linux/thermal.h>
 
-#define THERMAL_MAX_TRIPS	12
-
 /* invalid cooling state */
 #define THERMAL_CSTATE_INVALID -1UL
 

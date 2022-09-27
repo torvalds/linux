@@ -1192,7 +1192,20 @@ thermal_zone_device_register_with_trips(const char *type, struct thermal_trip *t
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (num_trips > THERMAL_MAX_TRIPS || num_trips < 0 || mask >> num_trips) {
+	/*
+	 * Max trip count can't exceed 31 as the "mask >> num_trips" condition.
+	 * For example, shifting by 32 will result in compiler warning:
+	 * warning: right shift count >= width of type [-Wshift-count- overflow]
+	 *
+	 * Also "mask >> num_trips" will always be true with 32 bit shift.
+	 * E.g. mask = 0x80000000 for trip id 31 to be RW. Then
+	 * mask >> 32 = 0x80000000
+	 * This will result in failure for the below condition.
+	 *
+	 * Check will be true when the bit 31 of the mask is set.
+	 * 32 bit shift will cause overflow of 4 byte integer.
+	 */
+	if (num_trips > (BITS_PER_TYPE(int) - 1) || num_trips < 0 || mask >> num_trips) {
 		pr_err("Incorrect number of thermal trips\n");
 		return ERR_PTR(-EINVAL);
 	}
