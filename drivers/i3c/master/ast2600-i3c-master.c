@@ -48,12 +48,14 @@
 #define COMMAND_PORT_READ_TRANSFER	BIT(28)
 #define COMMAND_PORT_SDAP		BIT(27)
 #define COMMAND_PORT_ROC		BIT(26)
+#define COMMAND_PORT_DBP(x)		((x) << 25)
 #define COMMAND_PORT_SPEED(x)		(((x) << 21) & GENMASK(23, 21))
 #define COMMAND_PORT_DEV_INDEX(x)	(((x) << 16) & GENMASK(20, 16))
 #define COMMAND_PORT_CP			BIT(15)
 #define COMMAND_PORT_CMD(x)		(((x) << 7) & GENMASK(14, 7))
 #define COMMAND_PORT_TID(x)		(((x) << 3) & GENMASK(6, 3))
 
+#define COMMAND_PORT_ARG_DBP(x)		(((x) << 8) & GENMASK(15, 8))
 #define COMMAND_PORT_ARG_DATA_LEN(x)	(((x) << 16) & GENMASK(31, 16))
 #define COMMAND_PORT_ARG_DATA_LEN_MAX	65536
 #define COMMAND_PORT_TRANSFER_ARG	0x01
@@ -1287,13 +1289,14 @@ static int aspeed_i3c_ccc_set(struct aspeed_i3c_master *master,
 	cmd->tx_len = ccc->dests[0].payload.len;
 
 	cmd->cmd_hi = COMMAND_PORT_ARG_DATA_LEN(ccc->dests[0].payload.len) |
-		      COMMAND_PORT_TRANSFER_ARG;
+		      COMMAND_PORT_TRANSFER_ARG | COMMAND_PORT_ARG_DBP(ccc->db);
 
 	cmd->cmd_lo = COMMAND_PORT_CP |
 		      COMMAND_PORT_DEV_INDEX(pos) |
 		      COMMAND_PORT_CMD(ccc->id) |
 		      COMMAND_PORT_TOC |
-		      COMMAND_PORT_ROC;
+		      COMMAND_PORT_ROC |
+		      COMMAND_PORT_DBP(ccc->dbp);
 
 	dev_dbg(master->dev, "%s:cmd_hi=0x%08x cmd_lo=0x%08x tx_len=%d id=%x\n",
 		__func__, cmd->cmd_hi, cmd->cmd_lo, cmd->tx_len, ccc->id);
@@ -1330,14 +1333,15 @@ static int aspeed_i3c_ccc_get(struct aspeed_i3c_master *master, struct i3c_ccc_c
 	cmd->rx_len = ccc->dests[0].payload.len;
 
 	cmd->cmd_hi = COMMAND_PORT_ARG_DATA_LEN(ccc->dests[0].payload.len) |
-		      COMMAND_PORT_TRANSFER_ARG;
+		      COMMAND_PORT_TRANSFER_ARG | COMMAND_PORT_ARG_DBP(ccc->db);
 
 	cmd->cmd_lo = COMMAND_PORT_READ_TRANSFER |
 		      COMMAND_PORT_CP |
 		      COMMAND_PORT_DEV_INDEX(pos) |
 		      COMMAND_PORT_CMD(ccc->id) |
 		      COMMAND_PORT_TOC |
-		      COMMAND_PORT_ROC;
+		      COMMAND_PORT_ROC |
+		      COMMAND_PORT_DBP(ccc->dbp);
 
 	dev_dbg(master->dev, "%s:cmd_hi=0x%08x cmd_lo=0x%08x rx_len=%d id=%x\n",
 		__func__, cmd->cmd_hi, cmd->cmd_lo, cmd->rx_len, ccc->id);
