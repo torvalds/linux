@@ -166,18 +166,6 @@ struct z_erofs_maprecorder {
 	bool partialref;
 };
 
-static int z_erofs_reload_indexes(struct z_erofs_maprecorder *m,
-				  erofs_blk_t eblk)
-{
-	struct super_block *const sb = m->inode->i_sb;
-
-	m->kaddr = erofs_read_metabuf(&m->map->buf, sb, eblk,
-				      EROFS_KMAP_ATOMIC);
-	if (IS_ERR(m->kaddr))
-		return PTR_ERR(m->kaddr);
-	return 0;
-}
-
 static int legacy_load_cluster_from_disk(struct z_erofs_maprecorder *m,
 					 unsigned long lcn)
 {
@@ -190,11 +178,11 @@ static int legacy_load_cluster_from_disk(struct z_erofs_maprecorder *m,
 		lcn * sizeof(struct z_erofs_vle_decompressed_index);
 	struct z_erofs_vle_decompressed_index *di;
 	unsigned int advise, type;
-	int err;
 
-	err = z_erofs_reload_indexes(m, erofs_blknr(pos));
-	if (err)
-		return err;
+	m->kaddr = erofs_read_metabuf(&m->map->buf, inode->i_sb,
+				      erofs_blknr(pos), EROFS_KMAP_ATOMIC);
+	if (IS_ERR(m->kaddr))
+		return PTR_ERR(m->kaddr);
 
 	m->nextpackoff = pos + sizeof(struct z_erofs_vle_decompressed_index);
 	m->lcn = lcn;
@@ -393,7 +381,6 @@ static int compacted_load_cluster_from_disk(struct z_erofs_maprecorder *m,
 	unsigned int compacted_4b_initial, compacted_2b;
 	unsigned int amortizedshift;
 	erofs_off_t pos;
-	int err;
 
 	if (lclusterbits != 12)
 		return -EOPNOTSUPP;
@@ -430,9 +417,10 @@ static int compacted_load_cluster_from_disk(struct z_erofs_maprecorder *m,
 	amortizedshift = 2;
 out:
 	pos += lcn * (1 << amortizedshift);
-	err = z_erofs_reload_indexes(m, erofs_blknr(pos));
-	if (err)
-		return err;
+	m->kaddr = erofs_read_metabuf(&m->map->buf, inode->i_sb,
+				      erofs_blknr(pos), EROFS_KMAP_ATOMIC);
+	if (IS_ERR(m->kaddr))
+		return PTR_ERR(m->kaddr);
 	return unpack_compacted_index(m, amortizedshift, pos, lookahead);
 }
 
