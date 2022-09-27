@@ -1641,7 +1641,7 @@ static void ath11k_update_11d(struct work_struct *work)
 	}
 }
 
-static void ath11k_core_pre_reconfigure_recovery(struct ath11k_base *ab)
+void ath11k_core_pre_reconfigure_recovery(struct ath11k_base *ab)
 {
 	struct ath11k *ar;
 	struct ath11k_pdev *pdev;
@@ -1729,9 +1729,6 @@ static void ath11k_core_restart(struct work_struct *work)
 {
 	struct ath11k_base *ab = container_of(work, struct ath11k_base, restart_work);
 	int ret;
-
-	if (!ab->is_reset)
-		ath11k_core_pre_reconfigure_recovery(ab);
 
 	ret = ath11k_core_reconfigure_on_crash(ab);
 	if (ret) {
