@@ -245,8 +245,11 @@ struct rk_ahash_rctx {
 struct rk_cipher_ctx {
 	struct rk_crypto_info		*dev;
 	unsigned int			keylen;
-	u32				mode;
 	u8				iv[AES_BLOCK_SIZE];
+};
+
+struct rk_cipher_rctx {
+	u32				mode;
 };
 
 enum alg_type {
