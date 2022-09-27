@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 # Makefile for vm selftests
 
-LOCAL_HDRS += $(top_srcdir)/mm/gup_test.h
+LOCAL_HDRS += $(selfdir)/vm/local_config.h $(top_srcdir)/mm/gup_test.h
+
+include local_config.mk
 
 uname_M := $(shell uname -m 2>/dev/null || echo not)
 MACHINE ?= $(shell echo $(uname_M) | sed -e 's/aarch64.*/arm64/' -e 's/ppc64.*/ppc64/')
@@ -152,8 +154,25 @@ warn_32bit_failure:
 endif
 endif
 
+# ANON_COW_EXTRA_LIBS may get set in local_config.mk, or it may be left empty.
+$(OUTPUT)/anon_cow: LDLIBS += $(ANON_COW_EXTRA_LIBS)
+
 $(OUTPUT)/mlock-random-test $(OUTPUT)/memfd_secret: LDLIBS += -lcap
 
 $(OUTPUT)/ksm_tests: LDLIBS += -lnuma
 
 $(OUTPUT)/migration: LDLIBS += -lnuma
+
+local_config.mk local_config.h: check_config.sh
+	/bin/sh ./check_config.sh $(CC)
+
+EXTRA_CLEAN += local_config.mk local_config.h
+
+ifeq ($(ANON_COW_EXTRA_LIBS),)
+all: warn_missing_liburing
+
+warn_missing_liburing:
+	@echo ; \
+	echo "Warning: missing liburing support. Some COW tests will be skipped." ; \
+	echo
+endif

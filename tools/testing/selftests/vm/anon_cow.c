@@ -19,6 +19,11 @@
 #include <sys/mman.h>
 #include <sys/wait.h>
 
+#include "local_config.h"
+#ifdef LOCAL_CONFIG_HAVE_LIBURING
+#include <liburing.h>
+#endif /* LOCAL_CONFIG_HAVE_LIBURING */
+
 #include "../kselftest.h"
 #include "vm_util.h"
 
@@ -333,6 +338,170 @@ static void test_vmsplice_after_fork(char *mem, size_t size)
 {
 	do_test_vmsplice_in_parent(mem, size, false);
 }
+
+#ifdef LOCAL_CONFIG_HAVE_LIBURING
+static void do_test_iouring(char *mem, size_t size, bool use_fork)
+{
+	struct comm_pipes comm_pipes;
+	struct io_uring_cqe *cqe;
+	struct io_uring_sqe *sqe;
+	struct io_uring ring;
+	ssize_t cur, total;
+	struct iovec iov;
+	char *buf, *tmp;
+	int ret, fd;
+	FILE *file;
+
+	ret = setup_comm_pipes(&comm_pipes);
+	if (ret) {
+		ksft_test_result_fail("pipe() failed\n");
+		return;
+	}
+
+	file = tmpfile();
+	if (!file) {
+		ksft_test_result_fail("tmpfile() failed\n");
+		goto close_comm_pipes;
+	}
+	fd = fileno(file);
+	assert(fd);
+
+	tmp = malloc(size);
+	if (!tmp) {
+		ksft_test_result_fail("malloc() failed\n");
+		goto close_file;
+	}
+
+	/* Skip on errors, as we might just lack kernel support. */
+	ret = io_uring_queue_init(1, &ring, 0);
+	if (ret < 0) {
+		ksft_test_result_skip("io_uring_queue_init() failed\n");
+		goto free_tmp;
+	}
+
+	/*
+	 * Register the range as a fixed buffer. This will FOLL_WRITE | FOLL_PIN
+	 * | FOLL_LONGTERM the range.
+	 *
+	 * Skip on errors, as we might just lack kernel support or might not
+	 * have sufficient MEMLOCK permissions.
+	 */
+	iov.iov_base = mem;
+	iov.iov_len = size;
+	ret = io_uring_register_buffers(&ring, &iov, 1);
+	if (ret) {
+		ksft_test_result_skip("io_uring_register_buffers() failed\n");
+		goto queue_exit;
+	}
+
+	if (use_fork) {
+		/*
+		 * fork() and keep the child alive until we're done. Note that
+		 * we expect the pinned page to not get shared with the child.
+		 */
+		ret = fork();
+		if (ret < 0) {
+			ksft_test_result_fail("fork() failed\n");
+			goto unregister_buffers;
+		} else if (!ret) {
+			write(comm_pipes.child_ready[1], "0", 1);
+			while (read(comm_pipes.parent_ready[0], &buf, 1) != 1)
+				;
+			exit(0);
+		}
+
+		while (read(comm_pipes.child_ready[0], &buf, 1) != 1)
+			;
+	} else {
+		/*
+		 * Map the page R/O into the page table. Enable softdirty
+		 * tracking to stop the page from getting mapped R/W immediately
+		 * again by mprotect() optimizations. Note that we don't have an
+		 * easy way to test if that worked (the pagemap does not export
+		 * if the page is mapped R/O vs. R/W).
+		 */
+		ret = mprotect(mem, size, PROT_READ);
+		clear_softdirty();
+		ret |= mprotect(mem, size, PROT_READ | PROT_WRITE);
+		if (ret) {
+			ksft_test_result_fail("mprotect() failed\n");
+			goto unregister_buffers;
+		}
+	}
+
+	/*
+	 * Modify the page and write page content as observed by the fixed
+	 * buffer pin to the file so we can verify it.
+	 */
+	memset(mem, 0xff, size);
+	sqe = io_uring_get_sqe(&ring);
+	if (!sqe) {
+		ksft_test_result_fail("io_uring_get_sqe() failed\n");
+		goto quit_child;
+	}
+	io_uring_prep_write_fixed(sqe, fd, mem, size, 0, 0);
+
+	ret = io_uring_submit(&ring);
+	if (ret < 0) {
+		ksft_test_result_fail("io_uring_submit() failed\n");
+		goto quit_child;
+	}
+
+	ret = io_uring_wait_cqe(&ring, &cqe);
+	if (ret < 0) {
+		ksft_test_result_fail("io_uring_wait_cqe() failed\n");
+		goto quit_child;
+	}
+
+	if (cqe->res != size) {
+		ksft_test_result_fail("write_fixed failed\n");
+		goto quit_child;
+	}
+	io_uring_cqe_seen(&ring, cqe);
+
+	/* Read back the file content to the temporary buffer. */
+	total = 0;
+	while (total < size) {
+		cur = pread(fd, tmp + total, size - total, total);
+		if (cur < 0) {
+			ksft_test_result_fail("pread() failed\n");
+			goto quit_child;
+		}
+		total += cur;
+	}
+
+	/* Finally, check if we read what we expected. */
+	ksft_test_result(!memcmp(mem, tmp, size),
+			 "Longterm R/W pin is reliable\n");
+
+quit_child:
+	if (use_fork) {
+		write(comm_pipes.parent_ready[1], "0", 1);
+		wait(&ret);
+	}
+unregister_buffers:
+	io_uring_unregister_buffers(&ring);
+queue_exit:
+	io_uring_queue_exit(&ring);
+free_tmp:
+	free(tmp);
+close_file:
+	fclose(file);
+close_comm_pipes:
+	close_comm_pipes(&comm_pipes);
+}
+
+static void test_iouring_ro(char *mem, size_t size)
+{
+	do_test_iouring(mem, size, false);
+}
+
+static void test_iouring_fork(char *mem, size_t size)
+{
+	do_test_iouring(mem, size, true);
+}
+
+#endif /* LOCAL_CONFIG_HAVE_LIBURING */
 
 typedef void (*test_fn)(char *mem, size_t size);
 
@@ -660,6 +829,27 @@ static const struct test_case test_cases[] = {
 		"vmsplice() + unmap in parent after fork()",
 		test_vmsplice_after_fork,
 	},
+#ifdef LOCAL_CONFIG_HAVE_LIBURING
+	/*
+	 * Take a R/W longterm pin and then map the page R/O into the page
+	 * table to trigger a write fault on next access. When modifying the
+	 * page, the page content must be visible via the pin.
+	 */
+	{
+		"R/O-mapping a page registered as iouring fixed buffer",
+		test_iouring_ro,
+	},
+	/*
+	 * Take a R/W longterm pin and then fork() a child. When modifying the
+	 * page, the page content must be visible via the pin. We expect the
+	 * pinned page to not get shared with the child.
+	 */
+	{
+		"fork() with an iouring fixed buffer",
+		test_iouring_fork,
+	},
+
+#endif /* LOCAL_CONFIG_HAVE_LIBURING */
 };
 
 static void run_test_case(struct test_case const *test_case)
