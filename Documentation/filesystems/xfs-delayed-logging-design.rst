@@ -100,7 +100,7 @@ transactions together::
 
 	ntp = xfs_trans_dup(tp);
 	xfs_trans_commit(tp);
-	xfs_log_reserve(ntp);
+	xfs_trans_reserve(ntp);
 
 This results in a series of "rolling transactions" where the inode is locked
 across the entire chain of transactions.  Hence while this series of rolling
@@ -191,7 +191,7 @@ transaction rolling mechanism to re-reserve space on every transaction roll. We
 know from the implementation of the permanent transactions how many transaction
 rolls are likely for the common modifications that need to be made.
 
-For example, and inode allocation is typically two transactions - one to
+For example, an inode allocation is typically two transactions - one to
 physically allocate a free inode chunk on disk, and another to allocate an inode
 from an inode chunk that has free inodes in it.  Hence for an inode allocation
 transaction, we might set the reservation log count to a value of 2 to indicate
@@ -200,7 +200,7 @@ chain. Each time a permanent transaction rolls, it consumes an entire unit
 reservation.
 
 Hence when the permanent transaction is first allocated, the log space
-reservation is increases from a single unit reservation to multiple unit
+reservation is increased from a single unit reservation to multiple unit
 reservations. That multiple is defined by the reservation log count, and this
 means we can roll the transaction multiple times before we have to re-reserve
 log space when we roll the transaction. This ensures that the common
@@ -259,7 +259,7 @@ the next transaction in the sequeunce, but we have none remaining. We cannot
 sleep during the transaction commit process waiting for new log space to become
 available, as we may end up on the end of the FIFO queue and the items we have
 locked while we sleep could end up pinning the tail of the log before there is
-enough free space in the log to fulfil all of the pending reservations and
+enough free space in the log to fulfill all of the pending reservations and
 then wake up transaction commit in progress.
 
 To take a new reservation without sleeping requires us to be able to take a
@@ -551,14 +551,14 @@ Essentially, this shows that an item that is in the AIL can still be modified
 and relogged, so any tracking must be separate to the AIL infrastructure. As
 such, we cannot reuse the AIL list pointers for tracking committed items, nor
 can we store state in any field that is protected by the AIL lock. Hence the
-committed item tracking needs it's own locks, lists and state fields in the log
+committed item tracking needs its own locks, lists and state fields in the log
 item.
 
 Similar to the AIL, tracking of committed items is done through a new list
 called the Committed Item List (CIL).  The list tracks log items that have been
 committed and have formatted memory buffers attached to them. It tracks objects
 in transaction commit order, so when an object is relogged it is removed from
-it's place in the list and re-inserted at the tail. This is entirely arbitrary
+its place in the list and re-inserted at the tail. This is entirely arbitrary
 and done to make it easy for debugging - the last items in the list are the
 ones that are most recently modified. Ordering of the CIL is not necessary for
 transactional integrity (as discussed in the next section) so the ordering is
@@ -615,7 +615,7 @@ those changes into the current checkpoint context. We then initialise a new
 context and attach that to the CIL for aggregation of new transactions.
 
 This allows us to unlock the CIL immediately after transfer of all the
-committed items and effectively allow new transactions to be issued while we
+committed items and effectively allows new transactions to be issued while we
 are formatting the checkpoint into the log. It also allows concurrent
 checkpoints to be written into the log buffers in the case of log force heavy
 workloads, just like the existing transaction commit code does. This, however,
@@ -884,9 +884,9 @@ pin the object the first time it is inserted into the CIL - if it is already in
 the CIL during a transaction commit, then we do not pin it again. Because there
 can be multiple outstanding checkpoint contexts, we can still see elevated pin
 counts, but as each checkpoint completes the pin count will retain the correct
-value according to it's context.
+value according to its context.
 
-Just to make matters more slightly more complex, this checkpoint level context
+Just to make matters slightly more complex, this checkpoint level context
 for the pin count means that the pinning of an item must take place under the
 CIL commit/flush lock. If we pin the object outside this lock, we cannot
 guarantee which context the pin count is associated with. This is because of

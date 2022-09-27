@@ -113,7 +113,7 @@ generally only make sense when searching is disabled, as a search will
 redetect manually removed devices that are present and timeout manually
 added devices that aren't on the bus.
 
-Bus searches occur at an interval, specified as a summ of timeout and
+Bus searches occur at an interval, specified as a sum of timeout and
 timeout_us module parameters (either of which may be 0) for as long as
 w1_master_search remains greater than 0 or is -1.  Each search attempt
 decrements w1_master_search by 1 (down to 0) and increments

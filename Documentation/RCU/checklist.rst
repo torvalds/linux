@@ -477,6 +477,6 @@ over a rather long period of time, but improvements are always welcome!
 	So if you need to wait for both an RCU grace period and for
 	all pre-existing call_rcu() callbacks, you will need to execute
 	both rcu_barrier() and synchronize_rcu(), if necessary, using
-	something like workqueues to to execute them concurrently.
+	something like workqueues to execute them concurrently.
 
 	See rcubarrier.rst for more information.
