@@ -8,6 +8,7 @@
  * Copyright (C) 2010 Thomas Langer, <thomas.langer@lantiq.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/console.h>
 #include <linux/device.h>
@@ -93,7 +94,6 @@
 #define ASCFSTAT_RXFFLMASK	0x003F
 #define ASCFSTAT_TXFFLMASK	0x3F00
 #define ASCFSTAT_TXFREEMASK	0x3F000000
-#define ASCFSTAT_TXFREEOFF	24
 
 static void lqasc_tx_chars(struct uart_port *port);
 static struct ltq_uart_port *lqasc_port[MAXPORTS];
@@ -143,7 +143,7 @@ static bool lqasc_tx_ready(struct uart_port *port)
 {
 	u32 fstat = __raw_readl(port->membase + LTQ_ASC_FSTAT);
 
-	return (fstat & ASCFSTAT_TXFREEMASK) >> ASCFSTAT_TXFREEOFF;
+	return FIELD_GET(ASCFSTAT_TXFREEMASK, fstat);
 }
 
 static void
