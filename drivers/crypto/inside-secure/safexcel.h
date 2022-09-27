@@ -733,6 +733,10 @@ enum safexcel_eip_version {
 	EIP197_DEVBRD
 };
 
+struct safexcel_priv_data {
+	enum safexcel_eip_version version;
+};
+
 /* Priority we use for advertising our algorithms */
 #define SAFEXCEL_CRA_PRIORITY		300
 
@@ -815,7 +819,7 @@ struct safexcel_crypto_priv {
 	struct clk *reg_clk;
 	struct safexcel_config config;
 
-	enum safexcel_eip_version version;
+	struct safexcel_priv_data *data;
 	struct safexcel_register_offsets offsets;
 	struct safexcel_hwconfig hwconfig;
 	u32 flags;
