@@ -22,6 +22,7 @@
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
+#include <linux/phy/pcie.h>
 #include <linux/phy/phy.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
@@ -1496,6 +1497,10 @@ static int qcom_pcie_host_init(struct dw_pcie_rp *pp)
 	ret = pcie->cfg->ops->init(pcie);
 	if (ret)
 		return ret;
+
+	ret = phy_set_mode_ext(pcie->phy, PHY_MODE_PCIE, PHY_MODE_PCIE_RC);
+	if (ret)
+		goto err_deinit;
 
 	ret = phy_power_on(pcie->phy);
 	if (ret)
