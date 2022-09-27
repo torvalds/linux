@@ -496,7 +496,7 @@ static int mcp3911_probe(struct spi_device *spi)
 				indio_dev->name,
 				iio_device_id(indio_dev));
 		if (!adc->trig)
-			return PTR_ERR(adc->trig);
+			return -ENOMEM;
 
 		adc->trig->ops = &mcp3911_trigger_ops;
 		iio_trigger_set_drvdata(adc->trig, adc);
