@@ -100,3 +100,22 @@ void aqua_vanjaram_ip_map_init(struct amdgpu_device *adev)
 
 	adev->ip_map.logical_to_dev_inst = aqua_vanjaram_logical_to_dev_inst;
 }
+
+/* Fixed pattern for smn addressing on different AIDs:
+ *   bit[34]: indicate cross AID access
+ *   bit[33:32]: indicate target AID id
+ * AID id range is 0 ~ 3 as maximum AID number is 4.
+ */
+u64 aqua_vanjaram_encode_ext_smn_addressing(int ext_id)
+{
+	u64 ext_offset;
+
+	/* local routing and bit[34:32] will be zeros */
+	if (ext_id == 0)
+		return 0;
+
+	/* Initiated from host, accessing to all non-zero aids are cross traffic */
+	ext_offset = ((u64)(ext_id & 0x3) << 32) | (1ULL << 34);
+
+	return ext_offset;
+}

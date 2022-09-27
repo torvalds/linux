@@ -188,4 +188,14 @@
 #define RREG32_SOC15_OFFSET_RLC(ip, inst, reg, offset) \
 	__RREG32_SOC15_RLC__((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) + offset, AMDGPU_REGS_RLC, ip##_HWIP)
 
+/* inst equals to ext for some IPs */
+#define RREG32_SOC15_EXT(ip, inst, reg, ext) \
+	RREG32_PCIE_EXT((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) * 4 \
+			+ adev->asic_funcs->encode_ext_smn_addressing(ext)) \
+
+#define WREG32_SOC15_EXT(ip, inst, reg, ext, value) \
+	WREG32_PCIE_EXT((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) * 4 \
+			+ adev->asic_funcs->encode_ext_smn_addressing(ext), \
+			value) \
+
 #endif
