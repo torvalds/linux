@@ -965,7 +965,7 @@ static int rhine_init_one_common(struct device *hwdev, u32 quirks,
 	dev->ethtool_ops = &netdev_ethtool_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
-	netif_napi_add(dev, &rp->napi, rhine_napipoll, 64);
+	netif_napi_add(dev, &rp->napi, rhine_napipoll);
 
 	if (rp->quirks & rqRhineI)
 		dev->features |= NETIF_F_SG|NETIF_F_HW_CSUM;

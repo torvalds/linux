@@ -1109,7 +1109,7 @@ static int cpmac_probe(struct platform_device *pdev)
 	dev->netdev_ops = &cpmac_netdev_ops;
 	dev->ethtool_ops = &cpmac_ethtool_ops;
 
-	netif_napi_add(dev, &priv->napi, cpmac_poll, 64);
+	netif_napi_add(dev, &priv->napi, cpmac_poll);
 
 	spin_lock_init(&priv->lock);
 	spin_lock_init(&priv->rx_lock);

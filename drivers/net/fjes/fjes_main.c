@@ -1057,7 +1057,7 @@ static int fjes_sw_init(struct fjes_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 
-	netif_napi_add(netdev, &adapter->napi, fjes_poll, 64);
+	netif_napi_add(netdev, &adapter->napi, fjes_poll);
 
 	return 0;
 }

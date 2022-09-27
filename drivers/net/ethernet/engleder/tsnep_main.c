@@ -899,7 +899,7 @@ static int tsnep_netdev_open(struct net_device *netdev)
 
 	for (i = 0; i < adapter->num_queues; i++) {
 		netif_napi_add(adapter->netdev, &adapter->queue[i].napi,
-			       tsnep_poll, 64);
+			       tsnep_poll);
 		napi_enable(&adapter->queue[i].napi);
 
 		tsnep_enable_irq(adapter, adapter->queue[i].irq_mask);

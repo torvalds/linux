@@ -787,8 +787,7 @@ void lan966x_fdma_netdev_init(struct lan966x *lan966x, struct net_device *dev)
 		return;
 
 	lan966x->fdma_ndev = dev;
-	netif_napi_add(dev, &lan966x->napi, lan966x_fdma_napi_poll,
-		       NAPI_POLL_WEIGHT);
+	netif_napi_add(dev, &lan966x->napi, lan966x_fdma_napi_poll);
 	napi_enable(&lan966x->napi);
 }
 

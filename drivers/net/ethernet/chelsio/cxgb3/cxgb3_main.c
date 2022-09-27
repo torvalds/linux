@@ -609,8 +609,7 @@ static void init_napi(struct adapter *adap)
 		struct sge_qset *qs = &adap->sge.qs[i];
 
 		if (qs->adap)
-			netif_napi_add(qs->netdev, &qs->napi, qs->napi.poll,
-				       64);
+			netif_napi_add(qs->netdev, &qs->napi, qs->napi.poll);
 	}
 
 	/*

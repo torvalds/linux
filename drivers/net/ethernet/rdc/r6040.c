@@ -1127,7 +1127,7 @@ static int r6040_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->ethtool_ops = &netdev_ethtool_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
-	netif_napi_add(dev, &lp->napi, r6040_poll, 64);
+	netif_napi_add(dev, &lp->napi, r6040_poll);
 
 	lp->mii_bus = mdiobus_alloc();
 	if (!lp->mii_bus) {

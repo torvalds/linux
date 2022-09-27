@@ -43,8 +43,7 @@ static int efx_ef100_rep_open(struct net_device *net_dev)
 {
 	struct efx_rep *efv = netdev_priv(net_dev);
 
-	netif_napi_add(net_dev, &efv->napi, efx_ef100_rep_poll,
-		       NAPI_POLL_WEIGHT);
+	netif_napi_add(net_dev, &efv->napi, efx_ef100_rep_poll);
 	napi_enable(&efv->napi);
 	return 0;
 }

@@ -419,15 +419,14 @@ static void xlgmac_napi_enable(struct xlgmac_pdata *pdata, unsigned int add)
 		for (i = 0; i < pdata->channel_count; i++, channel++) {
 			if (add)
 				netif_napi_add(pdata->netdev, &channel->napi,
-					       xlgmac_one_poll,
-					       NAPI_POLL_WEIGHT);
+					       xlgmac_one_poll);
 
 			napi_enable(&channel->napi);
 		}
 	} else {
 		if (add)
 			netif_napi_add(pdata->netdev, &pdata->napi,
-				       xlgmac_all_poll, NAPI_POLL_WEIGHT);
+				       xlgmac_all_poll);
 
 		napi_enable(&pdata->napi);
 	}

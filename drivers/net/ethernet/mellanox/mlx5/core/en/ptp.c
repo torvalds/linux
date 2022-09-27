@@ -725,7 +725,7 @@ int mlx5e_ptp_open(struct mlx5e_priv *priv, struct mlx5e_params *params,
 	if (err)
 		goto err_free;
 
-	netif_napi_add(netdev, &c->napi, mlx5e_ptp_napi_poll, 64);
+	netif_napi_add(netdev, &c->napi, mlx5e_ptp_napi_poll);
 
 	mlx5e_ptp_build_params(c, cparams, params);
 

@@ -339,8 +339,7 @@ static int fun_alloc_queue_irqs(struct net_device *dev, unsigned int ntx,
 			return PTR_ERR(irq);
 
 		fp->num_rx_irqs++;
-		netif_napi_add(dev, &irq->napi, fun_rxq_napi_poll,
-			       NAPI_POLL_WEIGHT);
+		netif_napi_add(dev, &irq->napi, fun_rxq_napi_poll);
 	}
 
 	netif_info(fp, intr, dev, "Reserved %u/%u IRQs for Tx/Rx queues\n",

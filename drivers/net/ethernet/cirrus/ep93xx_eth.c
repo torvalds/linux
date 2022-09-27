@@ -812,7 +812,7 @@ static int ep93xx_eth_probe(struct platform_device *pdev)
 	ep = netdev_priv(dev);
 	ep->dev = dev;
 	SET_NETDEV_DEV(dev, &pdev->dev);
-	netif_napi_add(dev, &ep->napi, ep93xx_poll, 64);
+	netif_napi_add(dev, &ep->napi, ep93xx_poll);
 
 	platform_set_drvdata(pdev, dev);
 

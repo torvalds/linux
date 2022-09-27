@@ -2044,7 +2044,7 @@ static int am65_cpsw_nuss_init_ndevs(struct am65_cpsw_common *common)
 	}
 
 	netif_napi_add(common->dma_ndev, &common->napi_rx,
-		       am65_cpsw_nuss_rx_poll, NAPI_POLL_WEIGHT);
+		       am65_cpsw_nuss_rx_poll);
 
 	return ret;
 }

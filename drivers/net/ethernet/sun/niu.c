@@ -9115,7 +9115,7 @@ static int niu_ldg_init(struct niu *np)
 	for (i = 0; i < np->num_ldg; i++) {
 		struct niu_ldg *lp = &np->ldg[i];
 
-		netif_napi_add(np->dev, &lp->napi, niu_poll, 64);
+		netif_napi_add(np->dev, &lp->napi, niu_poll);
 
 		lp->np = np;
 		lp->ldg_num = ldg_num_map[i];

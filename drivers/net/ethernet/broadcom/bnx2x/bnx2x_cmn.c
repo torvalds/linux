@@ -44,8 +44,7 @@ static void bnx2x_add_all_napi_cnic(struct bnx2x *bp)
 
 	/* Add NAPI objects */
 	for_each_rx_queue_cnic(bp, i) {
-		netif_napi_add(bp->dev, &bnx2x_fp(bp, i, napi),
-			       bnx2x_poll, NAPI_POLL_WEIGHT);
+		netif_napi_add(bp->dev, &bnx2x_fp(bp, i, napi), bnx2x_poll);
 	}
 }
 
@@ -55,8 +54,7 @@ static void bnx2x_add_all_napi(struct bnx2x *bp)
 
 	/* Add NAPI objects */
 	for_each_eth_queue(bp, i) {
-		netif_napi_add(bp->dev, &bnx2x_fp(bp, i, napi),
-			       bnx2x_poll, NAPI_POLL_WEIGHT);
+		netif_napi_add(bp->dev, &bnx2x_fp(bp, i, napi), bnx2x_poll);
 	}
 }
 

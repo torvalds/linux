@@ -2875,9 +2875,7 @@ static int lan743x_rx_open(struct lan743x_rx *rx)
 	if (ret)
 		goto return_error;
 
-	netif_napi_add(adapter->netdev,
-		       &rx->napi, lan743x_rx_napi_poll,
-		       NAPI_POLL_WEIGHT);
+	netif_napi_add(adapter->netdev, &rx->napi, lan743x_rx_napi_poll);
 
 	lan743x_csr_write(adapter, DMAC_CMD,
 			  DMAC_CMD_RX_SWR_(rx->channel_number));

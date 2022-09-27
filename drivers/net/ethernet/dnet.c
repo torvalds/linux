@@ -788,7 +788,7 @@ static int dnet_probe(struct platform_device *pdev)
 	}
 
 	dev->netdev_ops = &dnet_netdev_ops;
-	netif_napi_add(dev, &bp->napi, dnet_poll, 64);
+	netif_napi_add(dev, &bp->napi, dnet_poll);
 	dev->ethtool_ops = &dnet_ethtool_ops;
 
 	dev->base_addr = (unsigned long)bp->regs;

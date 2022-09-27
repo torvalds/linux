@@ -3183,8 +3183,7 @@ static int dpaa_napi_add(struct net_device *net_dev)
 	for_each_possible_cpu(cpu) {
 		percpu_priv = per_cpu_ptr(priv->percpu_priv, cpu);
 
-		netif_napi_add(net_dev, &percpu_priv->np.napi,
-			       dpaa_eth_poll, NAPI_POLL_WEIGHT);
+		netif_napi_add(net_dev, &percpu_priv->np.napi, dpaa_eth_poll);
 	}
 
 	return 0;

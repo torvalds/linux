@@ -1786,7 +1786,7 @@ void rtw89_core_napi_init(struct rtw89_dev *rtwdev)
 {
 	init_dummy_netdev(&rtwdev->netdev);
 	netif_napi_add(&rtwdev->netdev, &rtwdev->napi,
-		       rtwdev->hci.ops->napi_poll, NAPI_POLL_WEIGHT);
+		       rtwdev->hci.ops->napi_poll);
 }
 EXPORT_SYMBOL(rtw89_core_napi_init);
 

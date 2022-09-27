@@ -3041,8 +3041,8 @@ static int qlge_start_rx_ring(struct qlge_adapter *qdev, struct rx_ring *rx_ring
 		/* Inbound completion handling rx_rings run in
 		 * separate NAPI contexts.
 		 */
-		netif_napi_add_weight(qdev->ndev, &rx_ring->napi,
-				      qlge_napi_poll_msix, 64);
+		netif_napi_add(qdev->ndev, &rx_ring->napi,
+			       qlge_napi_poll_msix);
 		cqicb->irq_delay = cpu_to_le16(qdev->rx_coalesce_usecs);
 		cqicb->pkt_delay = cpu_to_le16(qdev->rx_max_coalesced_frames);
 	} else {

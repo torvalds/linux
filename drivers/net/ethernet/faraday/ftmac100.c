@@ -1091,7 +1091,7 @@ static int ftmac100_probe(struct platform_device *pdev)
 	spin_lock_init(&priv->tx_lock);
 
 	/* initialize NAPI */
-	netif_napi_add(netdev, &priv->napi, ftmac100_poll, 64);
+	netif_napi_add(netdev, &priv->napi, ftmac100_poll);
 
 	/* map io memory */
 	priv->res = request_mem_region(res->start, resource_size(res),

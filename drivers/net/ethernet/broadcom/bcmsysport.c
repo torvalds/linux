@@ -2564,7 +2564,7 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, dev);
 	dev->ethtool_ops = &bcm_sysport_ethtool_ops;
 	dev->netdev_ops = &bcm_sysport_netdev_ops;
-	netif_napi_add(dev, &priv->napi, bcm_sysport_poll, 64);
+	netif_napi_add(dev, &priv->napi, bcm_sysport_poll);
 
 	dev->features |= NETIF_F_RXCSUM | NETIF_F_HIGHDMA |
 			 NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |

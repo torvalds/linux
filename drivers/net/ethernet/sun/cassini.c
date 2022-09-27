@@ -5050,7 +5050,7 @@ static int cas_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->watchdog_timeo = CAS_TX_TIMEOUT;
 
 #ifdef USE_NAPI
-	netif_napi_add(dev, &cp->napi, cas_poll, 64);
+	netif_napi_add(dev, &cp->napi, cas_poll);
 #endif
 	dev->irq = pdev->irq;
 	dev->dma = 0;
