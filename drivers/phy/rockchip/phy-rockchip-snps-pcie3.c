@@ -255,10 +255,15 @@ static int rockchip_p3phy_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->phy_grf);
 	}
 
-	priv->pipe_grf = syscon_regmap_lookup_by_phandle(dev->of_node,
-							 "rockchip,pipe-grf");
-	if (IS_ERR(priv->pipe_grf))
-		dev_info(dev, "failed to find rockchip,pipe_grf regmap\n");
+	if (of_device_is_compatible(np, "rockchip,rk3588-pcie3-phy")) {
+		priv->pipe_grf =
+			syscon_regmap_lookup_by_phandle(dev->of_node,
+							"rockchip,pipe-grf");
+		if (IS_ERR(priv->pipe_grf))
+			dev_info(dev, "failed to find rockchip,pipe_grf regmap\n");
+	} else {
+		priv->pipe_grf = NULL;
+	}
 
 	priv->num_lanes = of_property_read_variable_u32_array(dev->of_node, "data-lanes",
 							     priv->lanes, 2,
