@@ -6,6 +6,8 @@
 #include <asm/kvm_pgtable.h>
 #include <linux/export.h>
 
+typedef void (*dyn_hcall_t)(struct kvm_cpu_context *);
+
 struct pkvm_module_ops {
 	int (*create_private_mapping)(phys_addr_t phys, size_t size,
 				      enum kvm_pgtable_prot prot,
@@ -70,5 +72,28 @@ int __pkvm_load_el2_module(struct pkvm_el2_module *mod, struct module *this,
 									\
 	__pkvm_load_el2_module(&mod, THIS_MODULE, token);		\
 })
+
+int __pkvm_register_el2_call(dyn_hcall_t hfn, unsigned long token,
+			     unsigned long hyp_text_kern_va);
+
+#define pkvm_register_el2_mod_call(hfn, token)				\
+({									\
+	extern char __kvm_nvhe___hypmod_text_start[];			\
+	unsigned long hyp_text_kern_va = 				\
+		(unsigned long)__kvm_nvhe___hypmod_text_start;		\
+	__pkvm_register_el2_call(function_nocfi(hfn), token,		\
+				 hyp_text_kern_va);			\
+})
+
+#define pkvm_el2_mod_call(id, ...)					\
+	({								\
+		struct arm_smccc_res res;				\
+									\
+		arm_smccc_1_1_hvc(KVM_HOST_SMCCC_ID(id),		\
+				  ##__VA_ARGS__, &res);			\
+		WARN_ON(res.a0 != SMCCC_RET_SUCCESS);			\
+									\
+		res.a1;							\
+	})
 #endif
 #endif
