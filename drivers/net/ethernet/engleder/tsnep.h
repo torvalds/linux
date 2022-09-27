@@ -96,9 +96,9 @@ struct tsnep_rx_entry {
 
 	u32 properties;
 
-	struct sk_buff *skb;
+	struct page *page;
 	size_t len;
-	DEFINE_DMA_UNMAP_ADDR(dma);
+	dma_addr_t dma;
 };
 
 struct tsnep_rx {
@@ -113,6 +113,7 @@ struct tsnep_rx {
 	int read;
 	u32 owner_counter;
 	int increment_owner_counter;
+	struct page_pool *page_pool;
 
 	u32 packets;
 	u32 bytes;
