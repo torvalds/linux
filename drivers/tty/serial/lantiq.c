@@ -606,15 +606,12 @@ static const struct uart_ops lqasc_pops = {
 static void
 lqasc_console_putchar(struct uart_port *port, unsigned char ch)
 {
-	int fifofree;
-
 	if (!port->membase)
 		return;
 
-	do {
-		fifofree = (__raw_readl(port->membase + LTQ_ASC_FSTAT)
-			& ASCFSTAT_TXFREEMASK) >> ASCFSTAT_TXFREEOFF;
-	} while (fifofree == 0);
+	while (!lqasc_tx_ready(port))
+		;
+
 	writeb(ch, port->membase + LTQ_ASC_TBUF);
 }
 
