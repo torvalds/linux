@@ -1030,7 +1030,7 @@ static inline unsigned btree_path_up_until_good_node(struct btree_trans *trans,
 						     int check_pos)
 {
 	unsigned i, l = path->level;
-
+again:
 	while (btree_path_node(path, l) &&
 	       !btree_path_good_node(trans, path, l, check_pos))
 		__btree_path_set_level_up(trans, path, l++);
@@ -1039,9 +1039,11 @@ static inline unsigned btree_path_up_until_good_node(struct btree_trans *trans,
 	for (i = l + 1;
 	     i < path->locks_want && btree_path_node(path, i);
 	     i++)
-		if (!bch2_btree_node_relock(trans, path, i))
+		if (!bch2_btree_node_relock(trans, path, i)) {
 			while (l <= i)
 				__btree_path_set_level_up(trans, path, l++);
+			goto again;
+		}
 
 	return l;
 }
