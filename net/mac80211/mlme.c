@@ -4040,7 +4040,6 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 
 	if (!(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE) &&
 	    (!elems->he_cap || !elems->he_operation)) {
-		mutex_unlock(&sdata->local->sta_mtx);
 		sdata_info(sdata,
 			   "HE AP is missing HE capability/operation\n");
 		ret = false;
@@ -5589,12 +5588,16 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 
 	mutex_lock(&local->sta_mtx);
 	sta = sta_info_get(sdata, sdata->vif.cfg.ap_addr);
-	if (WARN_ON(!sta))
+	if (WARN_ON(!sta)) {
+		mutex_unlock(&local->sta_mtx);
 		goto free;
+	}
 	link_sta = rcu_dereference_protected(sta->link[link->link_id],
 					     lockdep_is_held(&local->sta_mtx));
-	if (WARN_ON(!link_sta))
+	if (WARN_ON(!link_sta)) {
+		mutex_unlock(&local->sta_mtx);
 		goto free;
+	}
 
 	changed |= ieee80211_recalc_twt_req(link, link_sta, elems);
 
