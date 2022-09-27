@@ -802,6 +802,7 @@ void __init random_init_early(const char *command_line)
 		++i;
 	}
 
+	_mix_pool_bytes(init_utsname(), sizeof(*(init_utsname())));
 	_mix_pool_bytes(command_line, strlen(command_line));
 
 	/* Reseed if already seeded by earlier phases. */
@@ -820,7 +821,6 @@ void __init random_init(void)
 	unsigned long entropy = random_get_entropy();
 	ktime_t now = ktime_get_real();
 
-	_mix_pool_bytes(utsname(), sizeof(*(utsname())));
 	_mix_pool_bytes(&now, sizeof(now));
 	_mix_pool_bytes(&entropy, sizeof(entropy));
 	add_latent_entropy();
