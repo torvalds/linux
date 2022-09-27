@@ -210,7 +210,7 @@ static void mhi_dtr_status_cb(struct mhi_device *mhi_dev, enum mhi_callback cb)
 	if (cb != MHI_CB_DTR_START_CHANNELS)
 		return;
 
-	ret = mhi_prepare_for_transfer(mhi_dev, 0);
+	ret = mhi_prepare_for_transfer(mhi_dev);
 	if (!ret)
 		dtr_info->mhi_dev = mhi_dev;
 

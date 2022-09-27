@@ -492,7 +492,7 @@ static int mhi_uci_open(struct inode *inode, struct file *filp)
 
 	if (uci_dev->ref_count == 1) {
 		MSG_LOG("Starting channel\n");
-		ret = mhi_prepare_for_transfer(uci_dev->mhi_dev, 0);
+		ret = mhi_prepare_for_transfer(uci_dev->mhi_dev);
 		if (ret) {
 			MSG_ERR("Error starting transfer channels\n");
 			uci_dev->ref_count--;
