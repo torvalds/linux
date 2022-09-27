@@ -5851,6 +5851,13 @@ L:	Dell.Client.Kernel@dell.com
 S:	Maintained
 F:	drivers/platform/x86/dell/dell-wmi-descriptor.c
 
+DELL WMI DDV DRIVER
+M:	Armin Wolf <W_Armin@gmx.de>
+S:	Maintained
+F:	Documentation/ABI/testing/debugfs-dell-wmi-ddv
+F:	Documentation/ABI/testing/sysfs-platform-dell-wmi-ddv
+F:	drivers/platform/x86/dell/dell-wmi-ddv.c
+
 DELL WMI SYSMAN DRIVER
 M:	Divya Bharathi <divya.bharathi@dell.com>
 M:	Prasanth Ksr <prasanth.ksr@dell.com>
