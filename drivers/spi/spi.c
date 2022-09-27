@@ -1649,6 +1649,15 @@ static int __spi_pump_transfer_message(struct spi_controller *ctlr,
 
 	trace_spi_message_start(msg);
 
+	ret = spi_split_transfers_maxsize(ctlr, msg,
+					  spi_max_transfer_size(msg->spi),
+					  GFP_KERNEL | GFP_DMA);
+	if (ret) {
+		msg->status = ret;
+		spi_finalize_current_message(ctlr);
+		return ret;
+	}
+
 	if (ctlr->prepare_message) {
 		ret = ctlr->prepare_message(ctlr, msg);
 		if (ret) {
