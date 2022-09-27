@@ -25,6 +25,8 @@
 static size_t pagesize;
 static int pagemap_fd;
 static size_t thpsize;
+static int nr_hugetlbsizes;
+static size_t hugetlbsizes[10];
 
 static void detect_thpsize(void)
 {
@@ -52,6 +54,31 @@ static void detect_thpsize(void)
 	}
 
 	close(fd);
+}
+
+static void detect_hugetlbsizes(void)
+{
+	DIR *dir = opendir("/sys/kernel/mm/hugepages/");
+
+	if (!dir)
+		return;
+
+	while (nr_hugetlbsizes < ARRAY_SIZE(hugetlbsizes)) {
+		struct dirent *entry = readdir(dir);
+		size_t kb;
+
+		if (!entry)
+			break;
+		if (entry->d_type != DT_DIR)
+			continue;
+		if (sscanf(entry->d_name, "hugepages-%zukB", &kb) != 1)
+			continue;
+		hugetlbsizes[nr_hugetlbsizes] = kb * 1024;
+		nr_hugetlbsizes++;
+		ksft_print_msg("[INFO] detected hugetlb size: %zu KiB\n",
+			       kb);
+	}
+	closedir(dir);
 }
 
 static bool range_is_swapped(void *addr, size_t size)
@@ -556,6 +583,41 @@ static void run_with_partial_shared_thp(test_fn fn, const char *desc)
 	do_run_with_thp(fn, THP_RUN_PARTIAL_SHARED);
 }
 
+static void run_with_hugetlb(test_fn fn, const char *desc, size_t hugetlbsize)
+{
+	int flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB;
+	char *mem, *dummy;
+
+	ksft_print_msg("[RUN] %s ... with hugetlb (%zu kB)\n", desc,
+		       hugetlbsize / 1024);
+
+	flags |= __builtin_ctzll(hugetlbsize) << MAP_HUGE_SHIFT;
+
+	mem = mmap(NULL, hugetlbsize, PROT_READ | PROT_WRITE, flags, -1, 0);
+	if (mem == MAP_FAILED) {
+		ksft_test_result_skip("need more free huge pages\n");
+		return;
+	}
+
+	/* Populate an huge page. */
+	memset(mem, 0, hugetlbsize);
+
+	/*
+	 * We need a total of two hugetlb pages to handle COW/unsharing
+	 * properly, otherwise we might get zapped by a SIGBUS.
+	 */
+	dummy = mmap(NULL, hugetlbsize, PROT_READ | PROT_WRITE, flags, -1, 0);
+	if (dummy == MAP_FAILED) {
+		ksft_test_result_skip("need more free huge pages\n");
+		goto munmap;
+	}
+	munmap(dummy, hugetlbsize);
+
+	fn(mem, hugetlbsize);
+munmap:
+	munmap(mem, hugetlbsize);
+}
+
 struct test_case {
 	const char *desc;
 	test_fn fn;
@@ -602,6 +664,8 @@ static const struct test_case test_cases[] = {
 
 static void run_test_case(struct test_case const *test_case)
 {
+	int i;
+
 	run_with_base_page(test_case->fn, test_case->desc);
 	run_with_base_page_swap(test_case->fn, test_case->desc);
 	if (thpsize) {
@@ -614,6 +678,9 @@ static void run_test_case(struct test_case const *test_case)
 		run_with_partial_mremap_thp(test_case->fn, test_case->desc);
 		run_with_partial_shared_thp(test_case->fn, test_case->desc);
 	}
+	for (i = 0; i < nr_hugetlbsizes; i++)
+		run_with_hugetlb(test_case->fn, test_case->desc,
+				 hugetlbsizes[i]);
 }
 
 static void run_test_cases(void)
@@ -626,7 +693,7 @@ static void run_test_cases(void)
 
 static int tests_per_test_case(void)
 {
-	int tests = 2;
+	int tests = 2 + nr_hugetlbsizes;
 
 	if (thpsize)
 		tests += 8;
@@ -640,6 +707,7 @@ int main(int argc, char **argv)
 
 	pagesize = getpagesize();
 	detect_thpsize();
+	detect_hugetlbsizes();
 
 	ksft_print_header();
 	ksft_set_plan(nr_test_cases * tests_per_test_case());
