@@ -1997,10 +1997,14 @@ static int set_pflag_rx_striding_rq(struct net_device *netdev, bool enable)
 	struct mlx5e_params new_params;
 
 	if (enable) {
-		if (!mlx5e_check_fragmented_striding_rq_cap(mdev))
-			return -EOPNOTSUPP;
-		if (!mlx5e_striding_rq_possible(mdev, &priv->channels.params))
-			return -EINVAL;
+		/* Checking the regular RQ here; mlx5e_validate_xsk_param called
+		 * from mlx5e_open_xsk will check for each XSK queue, and
+		 * mlx5e_safe_switch_params will be reverted if any check fails.
+		 */
+		int err = mlx5e_mpwrq_validate_regular(mdev, &priv->channels.params);
+
+		if (err)
+			return err;
 	} else if (priv->channels.params.packet_merge.type != MLX5E_PACKET_MERGE_NONE) {
 		netdev_warn(netdev, "Can't set legacy RQ with HW-GRO/LRO, disable them first\n");
 		return -EINVAL;

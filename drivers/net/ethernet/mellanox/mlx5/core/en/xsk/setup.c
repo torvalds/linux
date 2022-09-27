@@ -30,7 +30,7 @@ bool mlx5e_validate_xsk_param(struct mlx5e_params *params,
 	 */
 	switch (params->rq_wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
-		return mlx5e_rx_mpwqe_is_linear_skb(mdev, params, xsk);
+		return !mlx5e_mpwrq_validate_xsk(mdev, params, xsk);
 	default: /* MLX5_WQ_TYPE_CYCLIC */
 		return mlx5e_rx_is_linear_skb(params, xsk);
 	}
