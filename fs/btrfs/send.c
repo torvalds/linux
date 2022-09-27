@@ -6469,7 +6469,7 @@ static int finish_inode_if_needed(struct send_ctx *sctx, int at_end)
 		if (ret < 0)
 			goto out;
 	}
-	if (sctx->cur_inode_needs_verity) {
+	if (sctx->proto >= 3 && sctx->cur_inode_needs_verity) {
 		ret = process_verity(sctx);
 		if (ret < 0)
 			goto out;
