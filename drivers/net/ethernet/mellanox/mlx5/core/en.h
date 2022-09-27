@@ -174,8 +174,7 @@ struct page_pool;
 	ALIGN_DOWN(MLX5E_KLM_MAX_ENTRIES_PER_WQE(wqe_size), MLX5_UMR_KLM_ALIGNMENT)
 
 #define MLX5E_MAX_KLM_PER_WQE(mdev) \
-	MLX5E_KLM_ENTRIES_PER_WQE(MLX5_SEND_WQE_BB * \
-		mlx5e_get_sw_max_sq_mpw_wqebbs(mlx5e_get_max_sq_wqebbs(mdev)))
+	MLX5E_KLM_ENTRIES_PER_WQE(MLX5_SEND_WQE_BB * mlx5e_get_max_sq_aligned_wqebbs(mdev))
 
 #define MLX5E_MSG_LEVEL			NETIF_MSG_LINK
 
@@ -235,7 +234,7 @@ static inline u8 mlx5e_get_max_sq_wqebbs(struct mlx5_core_dev *mdev)
 			 MLX5_CAP_GEN(mdev, max_wqe_sz_sq) / MLX5_SEND_WQE_BB);
 }
 
-static inline u8 mlx5e_get_sw_max_sq_mpw_wqebbs(u8 max_sq_wqebbs)
+static inline u8 mlx5e_get_max_sq_aligned_wqebbs(struct mlx5_core_dev *mdev)
 {
 /* The return value will be multiplied by MLX5_SEND_WQEBB_NUM_DS.
  * Since max_sq_wqebbs may be up to MLX5_SEND_WQE_MAX_WQEBBS == 16,
@@ -244,8 +243,9 @@ static inline u8 mlx5e_get_sw_max_sq_mpw_wqebbs(u8 max_sq_wqebbs)
  * than MLX5_SEND_WQE_MAX_WQEBBS to let a full-session WQE be
  * cache-aligned.
  */
-	u8 wqebbs = min_t(u8, max_sq_wqebbs, MLX5_SEND_WQE_MAX_WQEBBS - 1);
+	u8 wqebbs = mlx5e_get_max_sq_wqebbs(mdev);
 
+	wqebbs = min_t(u8, wqebbs, MLX5_SEND_WQE_MAX_WQEBBS - 1);
 #if L1_CACHE_BYTES >= 128
 	wqebbs = ALIGN_DOWN(wqebbs, 2);
 #endif
