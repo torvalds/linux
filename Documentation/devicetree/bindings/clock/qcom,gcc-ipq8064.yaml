@@ -27,14 +27,18 @@ properties:
       - const: syscon
 
   clocks:
+    minItems: 2
     items:
       - description: PXO source
       - description: CXO source
+      - description: PLL4 from LCC
 
   clock-names:
+    minItems: 2
     items:
       - const: pxo
       - const: cxo
+      - const: pll4
 
   thermal-sensor:
     type: object
@@ -51,13 +55,14 @@ unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/clock/qcom,lcc-ipq806x.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     gcc: clock-controller@900000 {
       compatible = "qcom,gcc-ipq8064", "syscon";
       reg = <0x00900000 0x4000>;
-      clocks = <&pxo_board>, <&cxo_board>;
-      clock-names = "pxo", "cxo";
+      clocks = <&pxo_board>, <&cxo_board>, <&lcc PLL4>;
+      clock-names = "pxo", "cxo", "pll4";
       #clock-cells = <1>;
       #reset-cells = <1>;
       #power-domain-cells = <1>;
