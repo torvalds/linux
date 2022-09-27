@@ -490,7 +490,7 @@ static unsigned long damon_region_sz_limit(struct damon_ctx *ctx)
 
 	damon_for_each_target(t, ctx) {
 		damon_for_each_region(r, t)
-			sz += r->ar.end - r->ar.start;
+			sz += damon_sz_region(r);
 	}
 
 	if (ctx->attrs.min_nr_regions)
@@ -673,7 +673,7 @@ static bool __damos_valid_target(struct damon_region *r, struct damos *s)
 {
 	unsigned long sz;
 
-	sz = r->ar.end - r->ar.start;
+	sz = damon_sz_region(r);
 	return s->pattern.min_sz_region <= sz &&
 		sz <= s->pattern.max_sz_region &&
 		s->pattern.min_nr_accesses <= r->nr_accesses &&
@@ -701,7 +701,7 @@ static void damon_do_apply_schemes(struct damon_ctx *c,
 
 	damon_for_each_scheme(s, c) {
 		struct damos_quota *quota = &s->quota;
-		unsigned long sz = r->ar.end - r->ar.start;
+		unsigned long sz = damon_sz_region(r);
 		struct timespec64 begin, end;
 		unsigned long sz_applied = 0;
 
@@ -730,14 +730,14 @@ static void damon_do_apply_schemes(struct damon_ctx *c,
 				sz = ALIGN_DOWN(quota->charge_addr_from -
 						r->ar.start, DAMON_MIN_REGION);
 				if (!sz) {
-					if (r->ar.end - r->ar.start <=
-							DAMON_MIN_REGION)
+					if (damon_sz_region(r) <=
+					    DAMON_MIN_REGION)
 						continue;
 					sz = DAMON_MIN_REGION;
 				}
 				damon_split_region_at(t, r, sz);
 				r = damon_next_region(r);
-				sz = r->ar.end - r->ar.start;
+				sz = damon_sz_region(r);
 			}
 			quota->charge_target_from = NULL;
 			quota->charge_addr_from = 0;
@@ -842,8 +842,7 @@ static void kdamond_apply_schemes(struct damon_ctx *c)
 					continue;
 				score = c->ops.get_scheme_score(
 						c, t, r, s);
-				quota->histogram[score] +=
-					r->ar.end - r->ar.start;
+				quota->histogram[score] += damon_sz_region(r);
 				if (score > max_score)
 					max_score = score;
 			}
@@ -957,7 +956,7 @@ static void damon_split_regions_of(struct damon_target *t, int nr_subs)
 	int i;
 
 	damon_for_each_region_safe(r, next, t) {
-		sz_region = r->ar.end - r->ar.start;
+		sz_region = damon_sz_region(r);
 
 		for (i = 0; i < nr_subs - 1 &&
 				sz_region > 2 * DAMON_MIN_REGION; i++) {
