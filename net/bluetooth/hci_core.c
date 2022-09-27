@@ -2406,6 +2406,10 @@ static int hci_suspend_notifier(struct notifier_block *nb, unsigned long action,
 		container_of(nb, struct hci_dev, suspend_notifier);
 	int ret = 0;
 
+	/* Userspace has full control of this device. Do nothing. */
+	if (hci_dev_test_flag(hdev, HCI_USER_CHANNEL))
+		return NOTIFY_DONE;
+
 	if (action == PM_SUSPEND_PREPARE)
 		ret = hci_suspend_dev(hdev);
 	else if (action == PM_POST_SUSPEND)
