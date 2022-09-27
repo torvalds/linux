@@ -185,7 +185,7 @@ config APPLE_M1_CPU_PMU
 
 config ALIBABA_UNCORE_DRW_PMU
 	tristate "Alibaba T-Head Yitian 710 DDR Sub-system Driveway PMU driver"
-	depends on ARM64 || COMPILE_TEST
+	depends on (ARM64 && ACPI) || COMPILE_TEST
 	help
 	  Support for Driveway PMU events monitoring on Yitian 710 DDR
 	  Sub-system.
