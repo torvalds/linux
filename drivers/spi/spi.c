@@ -1147,6 +1147,8 @@ static int __spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
 		}
 	}
 
+	ctlr->cur_rx_dma_dev = rx_dev;
+	ctlr->cur_tx_dma_dev = tx_dev;
 	ctlr->cur_msg_mapped = true;
 
 	return 0;
@@ -1154,25 +1156,12 @@ static int __spi_map_msg(struct spi_controller *ctlr, struct spi_message *msg)
 
 static int __spi_unmap_msg(struct spi_controller *ctlr, struct spi_message *msg)
 {
+	struct device *rx_dev = ctlr->cur_rx_dma_dev;
+	struct device *tx_dev = ctlr->cur_tx_dma_dev;
 	struct spi_transfer *xfer;
-	struct device *tx_dev, *rx_dev;
 
 	if (!ctlr->cur_msg_mapped || !ctlr->can_dma)
 		return 0;
-
-	if (ctlr->dma_tx)
-		tx_dev = ctlr->dma_tx->device->dev;
-	else if (ctlr->dma_map_dev)
-		tx_dev = ctlr->dma_map_dev;
-	else
-		tx_dev = ctlr->dev.parent;
-
-	if (ctlr->dma_rx)
-		rx_dev = ctlr->dma_rx->device->dev;
-	else if (ctlr->dma_map_dev)
-		rx_dev = ctlr->dma_map_dev;
-	else
-		rx_dev = ctlr->dev.parent;
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
 		if (!ctlr->can_dma(ctlr, msg->spi, xfer))
