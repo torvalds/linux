@@ -310,11 +310,12 @@ static void altera_jtaguart_console_putc(struct uart_port *port, unsigned char c
 
 	spin_lock_irqsave(&port->lock, flags);
 	while (!altera_jtaguart_tx_space(port, &status)) {
+		spin_unlock_irqrestore(&port->lock, flags);
+
 		if ((status & ALTERA_JTAGUART_CONTROL_AC_MSK) == 0) {
-			spin_unlock_irqrestore(&port->lock, flags);
 			return;	/* no connection activity */
 		}
-		spin_unlock_irqrestore(&port->lock, flags);
+
 		cpu_relax();
 		spin_lock_irqsave(&port->lock, flags);
 	}
