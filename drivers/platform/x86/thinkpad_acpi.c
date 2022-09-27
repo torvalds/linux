@@ -9907,7 +9907,7 @@ ATTRIBUTE_GROUPS(tpacpi_battery);
 
 /* ACPI battery hooking */
 
-static int tpacpi_battery_add(struct power_supply *battery)
+static int tpacpi_battery_add(struct power_supply *battery, struct acpi_battery_hook *hook)
 {
 	int batteryid = tpacpi_battery_get_id(battery->desc->name);
 
@@ -9918,7 +9918,7 @@ static int tpacpi_battery_add(struct power_supply *battery)
 	return 0;
 }
 
-static int tpacpi_battery_remove(struct power_supply *battery)
+static int tpacpi_battery_remove(struct power_supply *battery, struct acpi_battery_hook *hook)
 {
 	device_remove_groups(&battery->dev, tpacpi_battery_groups);
 	return 0;

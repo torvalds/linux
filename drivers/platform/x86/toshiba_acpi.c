@@ -3113,7 +3113,7 @@ static struct attribute *toshiba_acpi_battery_attrs[] = {
 
 ATTRIBUTE_GROUPS(toshiba_acpi_battery);
 
-static int toshiba_acpi_battery_add(struct power_supply *battery)
+static int toshiba_acpi_battery_add(struct power_supply *battery, struct acpi_battery_hook *hook)
 {
 	if (toshiba_acpi == NULL) {
 		pr_err("Init order issue\n");
@@ -3126,7 +3126,7 @@ static int toshiba_acpi_battery_add(struct power_supply *battery)
 	return 0;
 }
 
-static int toshiba_acpi_battery_remove(struct power_supply *battery)
+static int toshiba_acpi_battery_remove(struct power_supply *battery, struct acpi_battery_hook *hook)
 {
 	device_remove_groups(&battery->dev, toshiba_acpi_battery_groups);
 	return 0;
