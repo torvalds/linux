@@ -843,13 +843,14 @@ static void audit_filter_syscall(struct task_struct *tsk,
 {
 	struct audit_entry *e;
 	enum audit_state state;
+	unsigned long major = ctx->major;
 
 	if (auditd_test_task(tsk))
 		return;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(e, &audit_filter_list[AUDIT_FILTER_EXIT], list) {
-		if (audit_in_mask(&e->rule, ctx->major) &&
+		if (audit_in_mask(&e->rule, major) &&
 		    audit_filter_rules(tsk, &e->rule, ctx, NULL,
 				       &state, false)) {
 			rcu_read_unlock();
