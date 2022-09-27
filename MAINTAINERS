@@ -5285,7 +5285,7 @@ COUNTER SUBSYSTEM
 M:	William Breathitt Gray <william.gray@linaro.org>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
-T:	git https://git.linaro.org/people/william.gray/counter.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/wbg/counter.git
 F:	Documentation/ABI/testing/sysfs-bus-counter
 F:	Documentation/driver-api/generic-counter.rst
 F:	drivers/counter/
