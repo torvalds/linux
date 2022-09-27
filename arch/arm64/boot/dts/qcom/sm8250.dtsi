@@ -2388,8 +2388,8 @@
 				<&q6afecc LPASS_HW_DCODEC_VOTE LPASS_CLK_ATTRIBUTE_COUPLE_NO>;
 			clock-names = "core", "audio";
 
-			wsa_swr_active: wsa-swr-active-pins {
-				clk {
+			wsa_swr_active: wsa-swr-active-state {
+				clk-pins {
 					pins = "gpio10";
 					function = "wsa_swr_clk";
 					drive-strength = <2>;
@@ -2397,7 +2397,7 @@
 					bias-disable;
 				};
 
-				data {
+				data-pins {
 					pins = "gpio11";
 					function = "wsa_swr_data";
 					drive-strength = <2>;
@@ -2407,8 +2407,8 @@
 				};
 			};
 
-			wsa_swr_sleep: wsa-swr-sleep-pins {
-				clk {
+			wsa_swr_sleep: wsa-swr-sleep-state {
+				clk-pins {
 					pins = "gpio10";
 					function = "wsa_swr_clk";
 					drive-strength = <2>;
@@ -2416,7 +2416,7 @@
 					bias-pull-down;
 				};
 
-				data {
+				data-pins {
 					pins = "gpio11";
 					function = "wsa_swr_data";
 					drive-strength = <2>;
@@ -2426,14 +2426,14 @@
 				};
 			};
 
-			dmic01_active: dmic01-active-pins {
-				clk {
+			dmic01_active: dmic01-active-state {
+				clk-pins {
 					pins = "gpio6";
 					function = "dmic1_clk";
 					drive-strength = <8>;
 					output-high;
 				};
-				data {
+				data-pins {
 					pins = "gpio7";
 					function = "dmic1_data";
 					drive-strength = <8>;
@@ -2441,8 +2441,8 @@
 				};
 			};
 
-			dmic01_sleep: dmic01-sleep-pins {
-				clk {
+			dmic01_sleep: dmic01-sleep-state {
+				clk-pins {
 					pins = "gpio6";
 					function = "dmic1_clk";
 					drive-strength = <2>;
@@ -2450,7 +2450,7 @@
 					output-low;
 				};
 
-				data {
+				data-pins {
 					pins = "gpio7";
 					function = "dmic1_data";
 					drive-strength = <2>;
@@ -2459,8 +2459,8 @@
 				};
 			};
 
-			rx_swr_active: rx_swr-active-pins {
-				clk {
+			rx_swr_active: rx-swr-active-state {
+				clk-pins {
 					pins = "gpio3";
 					function = "swr_rx_clk";
 					drive-strength = <2>;
@@ -2468,7 +2468,7 @@
 					bias-disable;
 				};
 
-				data {
+				data-pins {
 					pins = "gpio4", "gpio5";
 					function = "swr_rx_data";
 					drive-strength = <2>;
@@ -2477,8 +2477,8 @@
 				};
 			};
 
-			tx_swr_active: tx_swr-active-pins {
-				clk {
+			tx_swr_active: tx-swr-active-state {
+				clk-pins {
 					pins = "gpio0";
 					function = "swr_tx_clk";
 					drive-strength = <2>;
@@ -2486,7 +2486,7 @@
 					bias-disable;
 				};
 
-				data {
+				data-pins {
 					pins = "gpio1", "gpio2";
 					function = "swr_tx_data";
 					drive-strength = <2>;
@@ -2495,8 +2495,8 @@
 				};
 			};
 
-			tx_swr_sleep: tx_swr-sleep-pins {
-				clk {
+			tx_swr_sleep: tx-swr-sleep-state {
+				clk-pins {
 					pins = "gpio0";
 					function = "swr_tx_clk";
 					drive-strength = <2>;
@@ -2504,7 +2504,7 @@
 					bias-pull-down;
 				};
 
-				data1 {
+				data1-pins {
 					pins = "gpio1";
 					function = "swr_tx_data";
 					drive-strength = <2>;
@@ -2512,7 +2512,7 @@
 					bias-bus-hold;
 				};
 
-				data2 {
+				data2-pins {
 					pins = "gpio2";
 					function = "swr_tx_data";
 					drive-strength = <2>;
