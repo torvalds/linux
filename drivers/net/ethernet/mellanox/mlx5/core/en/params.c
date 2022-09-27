@@ -90,8 +90,8 @@ bool mlx5e_rx_is_linear_skb(struct mlx5e_params *params,
 		linear_frag_sz <= PAGE_SIZE;
 }
 
-bool mlx5e_verify_rx_mpwqe_strides(struct mlx5_core_dev *mdev,
-				   u8 log_stride_sz, u8 log_num_strides)
+static bool mlx5e_verify_rx_mpwqe_strides(struct mlx5_core_dev *mdev,
+					  u8 log_stride_sz, u8 log_num_strides)
 {
 	if (log_stride_sz + log_num_strides != MLX5_MPWRQ_LOG_WQE_SZ)
 		return false;
