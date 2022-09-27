@@ -27,14 +27,6 @@
 
 static size_t pagesize;
 
-static bool pagemap_is_populated(int fd, char *start)
-{
-	uint64_t entry = pagemap_get_entry(fd, start);
-
-	/* Present or swapped. */
-	return entry & 0xc000000000000000ull;
-}
-
 static void sense_support(void)
 {
 	char *addr;
