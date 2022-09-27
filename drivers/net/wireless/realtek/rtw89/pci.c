@@ -2272,18 +2272,18 @@ static int rtw89_poll_txdma_ch_idle_pcie(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	u32 ret, check, dma_busy;
-	u32 dma_busy1 = info->dma_busy1_reg;
+	u32 dma_busy1 = info->dma_busy1.addr;
 	u32 dma_busy2 = info->dma_busy2_reg;
 
-	check = B_AX_ACH0_BUSY | B_AX_ACH1_BUSY | B_AX_ACH2_BUSY |
-		B_AX_ACH3_BUSY | B_AX_ACH4_BUSY | B_AX_ACH5_BUSY |
-		B_AX_ACH6_BUSY | B_AX_ACH7_BUSY | B_AX_CH8_BUSY |
-		B_AX_CH9_BUSY | B_AX_CH12_BUSY;
+	check = info->dma_busy1.mask;
 
 	ret = read_poll_timeout(rtw89_read32, dma_busy, (dma_busy & check) == 0,
 				10, 100, false, rtwdev, dma_busy1);
 	if (ret)
 		return ret;
+
+	if (!dma_busy2)
+		return 0;
 
 	check = B_AX_CH10_BUSY | B_AX_CH11_BUSY;
 
