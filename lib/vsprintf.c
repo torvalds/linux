@@ -751,31 +751,39 @@ static int __init debug_boot_weak_hash_enable(char *str)
 early_param("debug_boot_weak_hash", debug_boot_weak_hash_enable);
 
 static bool filled_random_ptr_key __read_mostly;
+static siphash_key_t ptr_key __read_mostly;
+static void fill_ptr_key_workfn(struct work_struct *work);
+static DECLARE_DELAYED_WORK(fill_ptr_key_work, fill_ptr_key_workfn);
+
+static void fill_ptr_key_workfn(struct work_struct *work)
+{
+	if (!rng_is_initialized()) {
+		queue_delayed_work(system_unbound_wq, &fill_ptr_key_work, HZ  * 2);
+		return;
+	}
+
+	get_random_bytes(&ptr_key, sizeof(ptr_key));
+
+	/* Pairs with smp_rmb() before reading ptr_key. */
+	smp_wmb();
+	WRITE_ONCE(filled_random_ptr_key, true);
+}
+
+static int __init vsprintf_init_hashval(void)
+{
+	fill_ptr_key_workfn(NULL);
+	return 0;
+}
+subsys_initcall(vsprintf_init_hashval)
 
 /* Maps a pointer to a 32 bit unique identifier. */
 static inline int __ptr_to_hashval(const void *ptr, unsigned long *hashval_out)
 {
-	static siphash_key_t ptr_key __read_mostly;
 	unsigned long hashval;
 
-	if (!READ_ONCE(filled_random_ptr_key)) {
-		static bool filled = false;
-		static DEFINE_SPINLOCK(filling);
-		unsigned long flags;
+	if (!READ_ONCE(filled_random_ptr_key))
+		return -EBUSY;
 
-		if (!rng_is_initialized() ||
-		    !spin_trylock_irqsave(&filling, flags))
-			return -EAGAIN;
-
-		if (!filled) {
-			get_random_bytes(&ptr_key, sizeof(ptr_key));
-			/* Pairs with smp_rmb() before reading ptr_key. */
-			smp_wmb();
-			WRITE_ONCE(filled_random_ptr_key, true);
-			filled = true;
-		}
-		spin_unlock_irqrestore(&filling, flags);
-	}
 	/* Pairs with smp_wmb() after writing ptr_key. */
 	smp_rmb();
 
