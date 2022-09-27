@@ -10,6 +10,13 @@
 / {
 	model = "StarFive VisionFive V2";
 	compatible = "starfive,visionfive-v2", "starfive,jh7110";
+
+	gpio-restart {
+		compatible = "gpio-restart";
+		gpios = <&gpio 35 GPIO_ACTIVE_HIGH>;
+		priority = <224>;
+	};
+
 };
 
 &gpio {
