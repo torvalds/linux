@@ -754,6 +754,7 @@ config CRYPTO_DEV_ROCKCHIP
 	select CRYPTO_CBC
 	select CRYPTO_DES
 	select CRYPTO_AES
+	select CRYPTO_ENGINE
 	select CRYPTO_LIB_DES
 	select CRYPTO_MD5
 	select CRYPTO_SHA1
