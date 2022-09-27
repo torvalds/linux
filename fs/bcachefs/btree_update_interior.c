@@ -1070,23 +1070,23 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 		nr_nodes[!!update_level] += 1 + split;
 		update_level++;
 
-		if (!btree_path_node(path, update_level))
+		ret = bch2_btree_path_upgrade(trans, path, update_level + 1);
+		if (ret)
+			return ERR_PTR(ret);
+
+		if (!btree_path_node(path, update_level)) {
+			/* Allocating new root? */
+			nr_nodes[1] += split;
+			update_level = BTREE_MAX_DEPTH;
+			break;
+		}
+
+		if (bch2_btree_node_insert_fits(c, path->l[update_level].b,
+					BKEY_BTREE_PTR_U64s_MAX * (1 + split)))
 			break;
 
-		/*
-		 * XXX: figure out how far we might need to split,
-		 * instead of locking/reserving all the way to the root:
-		 */
-		split = update_level + 1 < BTREE_MAX_DEPTH;
+		split = true;
 	}
-
-	/* Might have to allocate a new root: */
-	if (update_level < BTREE_MAX_DEPTH)
-		nr_nodes[1] += 1;
-
-	ret = bch2_btree_path_upgrade(trans, path, U8_MAX);
-	if (ret)
-		return ERR_PTR(ret);
 
 	if (flags & BTREE_INSERT_GC_LOCK_HELD)
 		lockdep_assert_held(&c->gc_lock);
@@ -1108,6 +1108,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	as->mode	= BTREE_INTERIOR_NO_UPDATE;
 	as->took_gc_lock = !(flags & BTREE_INSERT_GC_LOCK_HELD);
 	as->btree_id	= path->btree_id;
+	as->update_level = update_level;
 	INIT_LIST_HEAD(&as->list);
 	INIT_LIST_HEAD(&as->unwritten_list);
 	INIT_LIST_HEAD(&as->write_blocked_list);
@@ -1511,7 +1512,7 @@ static int btree_split(struct btree_update *as, struct btree_trans *trans,
 	int ret = 0;
 
 	BUG_ON(!parent && (b != btree_node_root(c, b)));
-	BUG_ON(!btree_node_intent_locked(path, btree_node_root(c, b)->c.level));
+	BUG_ON(parent && !btree_node_intent_locked(path, b->c.level + 1));
 
 	bch2_btree_interior_update_will_free_node(as, b);
 
@@ -1698,7 +1699,7 @@ static int bch2_btree_insert_node(struct btree_update *as, struct btree_trans *t
 	int ret;
 
 	lockdep_assert_held(&c->gc_lock);
-	BUG_ON(!btree_node_intent_locked(path, btree_node_root(c, b)->c.level));
+	BUG_ON(!btree_node_intent_locked(path, b->c.level));
 	BUG_ON(!b->c.level);
 	BUG_ON(!as || as->b);
 	bch2_verify_keylist_sorted(keys);
@@ -1738,6 +1739,13 @@ static int bch2_btree_insert_node(struct btree_update *as, struct btree_trans *t
 	btree_node_interior_verify(c, b);
 	return 0;
 split:
+	/*
+	 * We could attempt to avoid the transaction restart, by calling
+	 * bch2_btree_path_upgrade() and allocating more nodes:
+	 */
+	if (b->c.level >= as->update_level)
+		return btree_trans_restart(trans, BCH_ERR_transaction_restart_split_race);
+
 	return btree_split(as, trans, path, b, keys, flags);
 }
 
@@ -1763,7 +1771,7 @@ int bch2_btree_split_leaf(struct btree_trans *trans,
 
 	bch2_btree_update_done(as, trans);
 
-	for (l = path->level + 1; btree_path_node(path, l) && !ret; l++)
+	for (l = path->level + 1; btree_node_intent_locked(path, l) && !ret; l++)
 		ret = bch2_foreground_maybe_merge(trans, path, l, flags);
 
 	return ret;
