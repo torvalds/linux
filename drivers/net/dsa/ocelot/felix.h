@@ -85,7 +85,6 @@ struct felix {
 	struct mii_bus			*imdio;
 	struct phylink_pcs		**pcs;
 	resource_size_t			switch_base;
-	resource_size_t			imdio_base;
 	enum dsa_tag_protocol		tag_proto;
 	const struct felix_tag_proto_ops *tag_proto_ops;
 	struct kthread_worker		*xmit_worker;
