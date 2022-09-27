@@ -864,18 +864,13 @@ static void kdamond_apply_schemes(struct damon_ctx *c)
 	}
 }
 
-static inline unsigned long sz_damon_region(struct damon_region *r)
-{
-	return r->ar.end - r->ar.start;
-}
-
 /*
  * Merge two adjacent regions into one region
  */
 static void damon_merge_two_regions(struct damon_target *t,
 		struct damon_region *l, struct damon_region *r)
 {
-	unsigned long sz_l = sz_damon_region(l), sz_r = sz_damon_region(r);
+	unsigned long sz_l = damon_sz_region(l), sz_r = damon_sz_region(r);
 
 	l->nr_accesses = (l->nr_accesses * sz_l + r->nr_accesses * sz_r) /
 			(sz_l + sz_r);
@@ -904,7 +899,7 @@ static void damon_merge_regions_of(struct damon_target *t, unsigned int thres,
 
 		if (prev && prev->ar.end == r->ar.start &&
 		    abs(prev->nr_accesses - r->nr_accesses) <= thres &&
-		    sz_damon_region(prev) + sz_damon_region(r) <= sz_limit)
+		    damon_sz_region(prev) + damon_sz_region(r) <= sz_limit)
 			damon_merge_two_regions(t, prev, r);
 		else
 			prev = r;
