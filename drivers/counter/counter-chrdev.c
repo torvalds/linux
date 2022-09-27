@@ -574,4 +574,4 @@ exit_early:
 	if (copied)
 		wake_up_poll(&counter->events_wait, EPOLLIN);
 }
-EXPORT_SYMBOL_GPL(counter_push_event);
+EXPORT_SYMBOL_NS_GPL(counter_push_event, COUNTER);

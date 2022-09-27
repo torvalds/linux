@@ -394,3 +394,4 @@ module_platform_driver(mchp_tc_driver);
 MODULE_AUTHOR("Kamel Bouhara <kamel.bouhara@bootlin.com>");
 MODULE_DESCRIPTION("Microchip TCB Capture driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(COUNTER);
