@@ -8,6 +8,7 @@
 #include <linux/export.h>
 #include <linux/uts.h>
 #include <linux/utsname.h>
+#include <linux/random.h>
 #include <linux/sysctl.h>
 #include <linux/wait.h>
 #include <linux/rwsem.h>
@@ -57,6 +58,7 @@ static int proc_do_uts_string(struct ctl_table *table, int write,
 		 * theoretically be incorrect if there are two parallel writes
 		 * at non-zero offsets to the same sysctl.
 		 */
+		add_device_randomness(tmp_data, sizeof(tmp_data));
 		down_write(&uts_sem);
 		memcpy(get_uts(table), tmp_data, sizeof(tmp_data));
 		up_write(&uts_sem);
