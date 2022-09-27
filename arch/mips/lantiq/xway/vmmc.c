@@ -29,6 +29,7 @@ static int vmmc_probe(struct platform_device *pdev)
 	struct gpio_desc *gpio;
 	int gpio_count;
 	dma_addr_t dma;
+	int error;
 
 	cp1_base =
 		(void *) CPHYSADDR(dma_alloc_coherent(&pdev->dev, CP1_SIZE,
@@ -38,14 +39,15 @@ static int vmmc_probe(struct platform_device *pdev)
 	while (gpio_count > 0) {
 		gpio = devm_gpiod_get_index(&pdev->dev,
 					    NULL, --gpio_count, GPIOD_OUT_HIGH);
-		if (IS_ERR(gpio)) {
+		error = PTR_ERR_OR_ZERO(gpio);
+		if (error) {
 			dev_err(&pdev->dev,
 				"failed to request GPIO idx %d: %d\n",
-				gpio_count, PTR_ERR(gpio);
+				gpio_count, error);
 			continue;
 		}
 
-		gpio_consumer_set_name(gpio, "vmmc-relay");
+		gpiod_set_consumer_name(gpio, "vmmc-relay");
 	}
 
 	dev_info(&pdev->dev, "reserved %dMB at 0x%p", CP1_SIZE >> 20, cp1_base);
