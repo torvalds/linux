@@ -3555,7 +3555,7 @@ static void ath10k_wmi_update_tim(struct ath10k *ar,
 	__le32 t;
 	u32 v, tim_len;
 
-	/* When FW reports 0 in tim_len, ensure atleast first byte
+	/* When FW reports 0 in tim_len, ensure at least first byte
 	 * in tim_bitmap is considered for pvm calculation.
 	 */
 	tim_len = tim_info->tim_len ? __le32_to_cpu(tim_info->tim_len) : 1;

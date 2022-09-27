@@ -3096,7 +3096,7 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		 * enabled always.
 		 *
 		 * We can still enable BTCOEX if firmware has the support
-		 * eventhough btceox_support value is
+		 * even though btceox_support value is
 		 * ATH10K_DT_BTCOEX_NOT_FOUND
 		 */
 
