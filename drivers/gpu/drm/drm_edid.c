@@ -3077,20 +3077,53 @@ drm_gtf2_2j(const struct drm_edid *drm_edid)
 	return descriptor ? descriptor->data.other_data.data.range.formula.gtf2.j : 0;
 }
 
+static void
+get_timing_level(const struct detailed_timing *descriptor, void *data)
+{
+	int *res = data;
+
+	if (!is_display_descriptor(descriptor, EDID_DETAIL_MONITOR_RANGE))
+		return;
+
+	BUILD_BUG_ON(offsetof(typeof(*descriptor), data.other_data.data.range.flags) != 10);
+
+	switch (descriptor->data.other_data.data.range.flags) {
+	case DRM_EDID_DEFAULT_GTF_SUPPORT_FLAG:
+		*res = LEVEL_GTF;
+		break;
+	case DRM_EDID_SECONDARY_GTF_SUPPORT_FLAG:
+		*res = LEVEL_GTF2;
+		break;
+	case DRM_EDID_CVT_SUPPORT_FLAG:
+		*res = LEVEL_CVT;
+		break;
+	default:
+		break;
+	}
+}
+
 /* Get standard timing level (CVT/GTF/DMT). */
 static int standard_timing_level(const struct drm_edid *drm_edid)
 {
 	const struct edid *edid = drm_edid->edid;
 
-	if (edid->revision >= 2) {
-		if (edid->revision >= 4 && (edid->features & DRM_EDID_FEATURE_DEFAULT_GTF))
-			return LEVEL_CVT;
-		if (drm_gtf2_hbreak(drm_edid))
-			return LEVEL_GTF2;
-		if (edid->features & DRM_EDID_FEATURE_DEFAULT_GTF)
-			return LEVEL_GTF;
+	if (edid->revision >= 4) {
+		/*
+		 * If the range descriptor doesn't
+		 * indicate otherwise default to CVT
+		 */
+		int ret = LEVEL_CVT;
+
+		drm_for_each_detailed_block(drm_edid, get_timing_level, &ret);
+
+		return ret;
+	} else if (edid->revision >= 3 && drm_gtf2_hbreak(drm_edid)) {
+		return LEVEL_GTF2;
+	} else if (edid->revision >= 2) {
+		return LEVEL_GTF;
+	} else {
+		return LEVEL_DMT;
 	}
-	return LEVEL_DMT;
 }
 
 /*
