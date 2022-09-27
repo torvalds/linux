@@ -2103,6 +2103,16 @@ int i3c_master_add_i3c_dev_locked(struct i3c_master_controller *master,
 			i3c_dev_free_ibi_locked(olddev);
 		}
 		mutex_unlock(&olddev->ibi_lock);
+		if (olddev->info.max_ibi_len != newdev->info.max_ibi_len ||
+		    olddev->info.max_read_len != newdev->info.max_read_len)
+			i3c_master_setmrl_locked(master, &newdev->info,
+					      olddev->info.max_read_len,
+					      olddev->info.max_ibi_len);
+		if (olddev->info.max_write_len != newdev->info.max_write_len)
+			i3c_master_setmwl_locked(master, &newdev->info,
+					      olddev->info.max_write_len);
+		if (olddev->info.pec != newdev->info.pec)
+			i3c_device_control_pec(newdev->dev, olddev->info.pec);
 
 		old_dyn_addr = olddev->info.dyn_addr;
 
