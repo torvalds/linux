@@ -17,6 +17,7 @@
 #include <dirent.h>
 #include <assert.h>
 #include <sys/mman.h>
+#include <sys/ioctl.h>
 #include <sys/wait.h>
 
 #include "local_config.h"
@@ -24,6 +25,7 @@
 #include <liburing.h>
 #endif /* LOCAL_CONFIG_HAVE_LIBURING */
 
+#include "../../../../mm/gup_test.h"
 #include "../kselftest.h"
 #include "vm_util.h"
 
@@ -32,6 +34,7 @@ static int pagemap_fd;
 static size_t thpsize;
 static int nr_hugetlbsizes;
 static size_t hugetlbsizes[10];
+static int gup_fd;
 
 static void detect_thpsize(void)
 {
@@ -503,6 +506,170 @@ static void test_iouring_fork(char *mem, size_t size)
 
 #endif /* LOCAL_CONFIG_HAVE_LIBURING */
 
+enum ro_pin_test {
+	RO_PIN_TEST_SHARED,
+	RO_PIN_TEST_PREVIOUSLY_SHARED,
+	RO_PIN_TEST_RO_EXCLUSIVE,
+};
+
+static void do_test_ro_pin(char *mem, size_t size, enum ro_pin_test test,
+			   bool fast)
+{
+	struct pin_longterm_test args;
+	struct comm_pipes comm_pipes;
+	char *tmp, buf;
+	__u64 tmp_val;
+	int ret;
+
+	if (gup_fd < 0) {
+		ksft_test_result_skip("gup_test not available\n");
+		return;
+	}
+
+	tmp = malloc(size);
+	if (!tmp) {
+		ksft_test_result_fail("malloc() failed\n");
+		return;
+	}
+
+	ret = setup_comm_pipes(&comm_pipes);
+	if (ret) {
+		ksft_test_result_fail("pipe() failed\n");
+		goto free_tmp;
+	}
+
+	switch (test) {
+	case RO_PIN_TEST_SHARED:
+	case RO_PIN_TEST_PREVIOUSLY_SHARED:
+		/*
+		 * Share the pages with our child. As the pages are not pinned,
+		 * this should just work.
+		 */
+		ret = fork();
+		if (ret < 0) {
+			ksft_test_result_fail("fork() failed\n");
+			goto close_comm_pipes;
+		} else if (!ret) {
+			write(comm_pipes.child_ready[1], "0", 1);
+			while (read(comm_pipes.parent_ready[0], &buf, 1) != 1)
+				;
+			exit(0);
+		}
+
+		/* Wait until our child is ready. */
+		while (read(comm_pipes.child_ready[0], &buf, 1) != 1)
+			;
+
+		if (test == RO_PIN_TEST_PREVIOUSLY_SHARED) {
+			/*
+			 * Tell the child to quit now and wait until it quit.
+			 * The pages should now be mapped R/O into our page
+			 * tables, but they are no longer shared.
+			 */
+			write(comm_pipes.parent_ready[1], "0", 1);
+			wait(&ret);
+			if (!WIFEXITED(ret))
+				ksft_print_msg("[INFO] wait() failed\n");
+		}
+		break;
+	case RO_PIN_TEST_RO_EXCLUSIVE:
+		/*
+		 * Map the page R/O into the page table. Enable softdirty
+		 * tracking to stop the page from getting mapped R/W immediately
+		 * again by mprotect() optimizations. Note that we don't have an
+		 * easy way to test if that worked (the pagemap does not export
+		 * if the page is mapped R/O vs. R/W).
+		 */
+		ret = mprotect(mem, size, PROT_READ);
+		clear_softdirty();
+		ret |= mprotect(mem, size, PROT_READ | PROT_WRITE);
+		if (ret) {
+			ksft_test_result_fail("mprotect() failed\n");
+			goto close_comm_pipes;
+		}
+		break;
+	default:
+		assert(false);
+	}
+
+	/* Take a R/O pin. This should trigger unsharing. */
+	args.addr = (__u64)mem;
+	args.size = size;
+	args.flags = fast ? PIN_LONGTERM_TEST_FLAG_USE_FAST : 0;
+	ret = ioctl(gup_fd, PIN_LONGTERM_TEST_START, &args);
+	if (ret) {
+		if (errno == EINVAL)
+			ksft_test_result_skip("PIN_LONGTERM_TEST_START failed\n");
+		else
+			ksft_test_result_fail("PIN_LONGTERM_TEST_START failed\n");
+		goto wait;
+	}
+
+	/* Modify the page. */
+	memset(mem, 0xff, size);
+
+	/*
+	 * Read back the content via the pin to the temporary buffer and
+	 * test if we observed the modification.
+	 */
+	tmp_val = (__u64)tmp;
+	ret = ioctl(gup_fd, PIN_LONGTERM_TEST_READ, &tmp_val);
+	if (ret)
+		ksft_test_result_fail("PIN_LONGTERM_TEST_READ failed\n");
+	else
+		ksft_test_result(!memcmp(mem, tmp, size),
+				 "Longterm R/O pin is reliable\n");
+
+	ret = ioctl(gup_fd, PIN_LONGTERM_TEST_STOP);
+	if (ret)
+		ksft_print_msg("[INFO] PIN_LONGTERM_TEST_STOP failed\n");
+wait:
+	switch (test) {
+	case RO_PIN_TEST_SHARED:
+		write(comm_pipes.parent_ready[1], "0", 1);
+		wait(&ret);
+		if (!WIFEXITED(ret))
+			ksft_print_msg("[INFO] wait() failed\n");
+		break;
+	default:
+		break;
+	}
+close_comm_pipes:
+	close_comm_pipes(&comm_pipes);
+free_tmp:
+	free(tmp);
+}
+
+static void test_ro_pin_on_shared(char *mem, size_t size)
+{
+	do_test_ro_pin(mem, size, RO_PIN_TEST_SHARED, false);
+}
+
+static void test_ro_fast_pin_on_shared(char *mem, size_t size)
+{
+	do_test_ro_pin(mem, size, RO_PIN_TEST_SHARED, true);
+}
+
+static void test_ro_pin_on_ro_previously_shared(char *mem, size_t size)
+{
+	do_test_ro_pin(mem, size, RO_PIN_TEST_PREVIOUSLY_SHARED, false);
+}
+
+static void test_ro_fast_pin_on_ro_previously_shared(char *mem, size_t size)
+{
+	do_test_ro_pin(mem, size, RO_PIN_TEST_PREVIOUSLY_SHARED, true);
+}
+
+static void test_ro_pin_on_ro_exclusive(char *mem, size_t size)
+{
+	do_test_ro_pin(mem, size, RO_PIN_TEST_RO_EXCLUSIVE, false);
+}
+
+static void test_ro_fast_pin_on_ro_exclusive(char *mem, size_t size)
+{
+	do_test_ro_pin(mem, size, RO_PIN_TEST_RO_EXCLUSIVE, true);
+}
+
 typedef void (*test_fn)(char *mem, size_t size);
 
 static void do_run_with_base_page(test_fn fn, bool swapout)
@@ -850,6 +1017,48 @@ static const struct test_case test_cases[] = {
 	},
 
 #endif /* LOCAL_CONFIG_HAVE_LIBURING */
+	/*
+	 * Take a R/O longterm pin on a R/O-mapped shared anonymous page.
+	 * When modifying the page via the page table, the page content change
+	 * must be visible via the pin.
+	 */
+	{
+		"R/O GUP pin on R/O-mapped shared page",
+		test_ro_pin_on_shared,
+	},
+	/* Same as above, but using GUP-fast. */
+	{
+		"R/O GUP-fast pin on R/O-mapped shared page",
+		test_ro_fast_pin_on_shared,
+	},
+	/*
+	 * Take a R/O longterm pin on a R/O-mapped exclusive anonymous page that
+	 * was previously shared. When modifying the page via the page table,
+	 * the page content change must be visible via the pin.
+	 */
+	{
+		"R/O GUP pin on R/O-mapped previously-shared page",
+		test_ro_pin_on_ro_previously_shared,
+	},
+	/* Same as above, but using GUP-fast. */
+	{
+		"R/O GUP-fast pin on R/O-mapped previously-shared page",
+		test_ro_fast_pin_on_ro_previously_shared,
+	},
+	/*
+	 * Take a R/O longterm pin on a R/O-mapped exclusive anonymous page.
+	 * When modifying the page via the page table, the page content change
+	 * must be visible via the pin.
+	 */
+	{
+		"R/O GUP pin on R/O-mapped exclusive page",
+		test_ro_pin_on_ro_exclusive,
+	},
+	/* Same as above, but using GUP-fast. */
+	{
+		"R/O GUP-fast pin on R/O-mapped exclusive page",
+		test_ro_fast_pin_on_ro_exclusive,
+	},
 };
 
 static void run_test_case(struct test_case const *test_case)
@@ -902,6 +1111,7 @@ int main(int argc, char **argv)
 	ksft_print_header();
 	ksft_set_plan(nr_test_cases * tests_per_test_case());
 
+	gup_fd = open("/sys/kernel/debug/gup_test", O_RDWR);
 	pagemap_fd = open("/proc/self/pagemap", O_RDONLY);
 	if (pagemap_fd < 0)
 		ksft_exit_fail_msg("opening pagemap failed\n");
