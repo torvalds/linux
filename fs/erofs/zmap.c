@@ -731,8 +731,7 @@ out:
 	return err;
 }
 
-int z_erofs_map_blocks_iter(struct inode *inode,
-			    struct erofs_map_blocks *map,
+int z_erofs_map_blocks_iter(struct inode *inode, struct erofs_map_blocks *map,
 			    int flags)
 {
 	struct erofs_inode *const vi = EROFS_I(inode);
