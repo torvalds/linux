@@ -532,7 +532,10 @@ static void amdgpu_discovery_read_harvest_bit_per_ip(struct amdgpu_device *adev,
 				}
 			}
 next_ip:
-			ip_offset += struct_size(ip, base_address, ip->num_base_address);
+			if (ihdr->base_addr_64_bit)
+				ip_offset += struct_size(ip, base_address_64, ip->num_base_address);
+			else
+				ip_offset += struct_size(ip, base_address, ip->num_base_address);
 		}
 	}
 }
@@ -838,7 +841,8 @@ static void ip_disc_release(struct kobject *kobj)
 
 static int amdgpu_discovery_sysfs_ips(struct amdgpu_device *adev,
 				      struct ip_die_entry *ip_die_entry,
-				      const size_t _ip_offset, const int num_ips)
+				      const size_t _ip_offset, const int num_ips,
+				      bool reg_base_64)
 {
 	int ii, jj, kk, res;
 
@@ -910,15 +914,25 @@ static int amdgpu_discovery_sysfs_ips(struct amdgpu_device *adev,
 			ip_hw_instance->harvest = ip->variant;
 			ip_hw_instance->num_base_addresses = ip->num_base_address;
 
-			for (kk = 0; kk < ip_hw_instance->num_base_addresses; kk++)
-				ip_hw_instance->base_addr[kk] = ip->base_address[kk];
+			for (kk = 0; kk < ip_hw_instance->num_base_addresses; kk++) {
+				if (reg_base_64)
+					ip_hw_instance->base_addr[kk] =
+						lower_32_bits(le64_to_cpu(ip->base_address_64[kk])) & 0x3FFFFFFF;
+				else
+					ip_hw_instance->base_addr[kk] = ip->base_address[kk];
+			}
 
 			kobject_init(&ip_hw_instance->kobj, &ip_hw_instance_ktype);
 			ip_hw_instance->kobj.kset = &ip_hw_id->hw_id_kset;
 			res = kobject_add(&ip_hw_instance->kobj, NULL,
 					  "%d", ip_hw_instance->num_instance);
 next_ip:
-			ip_offset += struct_size(ip, base_address, ip->num_base_address);
+			if (reg_base_64)
+				ip_offset += struct_size(ip, base_address_64,
+							 ip->num_base_address);
+			else
+				ip_offset += struct_size(ip, base_address,
+							 ip->num_base_address);
 		}
 	}
 
@@ -972,7 +986,7 @@ static int amdgpu_discovery_sysfs_recurse(struct amdgpu_device *adev)
 			return res;
 		}
 
-		amdgpu_discovery_sysfs_ips(adev, ip_die_entry, ip_offset, num_ips);
+		amdgpu_discovery_sysfs_ips(adev, ip_die_entry, ip_offset, num_ips, !!ihdr->base_addr_64_bit);
 	}
 
 	return 0;
@@ -1174,12 +1188,26 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 				 * convert the endianness of base addresses in place,
 				 * so that we don't need to convert them when accessing adev->reg_offset.
 				 */
-				ip->base_address[k] = le32_to_cpu(ip->base_address[k]);
+				if (ihdr->base_addr_64_bit)
+					/* Truncate the 64bit base address from ip discovery
+					 * and only store lower 32bit ip base in reg_offset[].
+					 * Bits > 32 follows ASIC specific format, thus just
+					 * discard them and handle it within specific ASIC.
+					 * By this way reg_offset[] and related helpers can
+					 * stay unchanged.
+					 * The base address is in dwords, thus clear the
+					 * highest 2 bits to store.
+					 */
+					ip->base_address[k] =
+						lower_32_bits(le64_to_cpu(ip->base_address_64[k])) & 0x3FFFFFFF;
+				else
+					ip->base_address[k] = le32_to_cpu(ip->base_address[k]);
 				DRM_DEBUG("\t0x%08x\n", ip->base_address[k]);
 			}
 
 			for (hw_ip = 0; hw_ip < MAX_HWIP; hw_ip++) {
-				if (hw_id_map[hw_ip] == le16_to_cpu(ip->hw_id)) {
+				if (hw_id_map[hw_ip] == le16_to_cpu(ip->hw_id) &&
+				    hw_id_map[hw_ip] != 0) {
 					DRM_DEBUG("set register base offset for %s\n",
 							hw_id_names[le16_to_cpu(ip->hw_id)]);
 					adev->reg_offset[hw_ip][ip->instance_number] =
@@ -1199,7 +1227,10 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 			}
 
 next_ip:
-			ip_offset += struct_size(ip, base_address, ip->num_base_address);
+			if (ihdr->base_addr_64_bit)
+				ip_offset += struct_size(ip, base_address_64, ip->num_base_address);
+			else
+				ip_offset += struct_size(ip, base_address, ip->num_base_address);
 		}
 	}
 
