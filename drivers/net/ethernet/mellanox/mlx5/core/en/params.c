@@ -24,24 +24,21 @@ u16 mlx5e_get_linear_rq_headroom(struct mlx5e_params *params,
 	return headroom;
 }
 
-static u32 mlx5e_rx_get_min_frag_sz(struct mlx5e_params *params,
-				    struct mlx5e_xsk_param *xsk)
-{
-	u32 hw_mtu = MLX5E_SW2HW_MTU(params, params->sw_mtu);
-	u16 linear_rq_headroom = mlx5e_get_linear_rq_headroom(params, xsk);
-
-	return linear_rq_headroom + hw_mtu;
-}
-
 static u32 mlx5e_rx_get_linear_sz_xsk(struct mlx5e_params *params,
 				      struct mlx5e_xsk_param *xsk)
 {
-	return mlx5e_rx_get_min_frag_sz(params, xsk);
+	u32 hw_mtu = MLX5E_SW2HW_MTU(params, params->sw_mtu);
+
+	return xsk->headroom + hw_mtu;
 }
 
-static u32 mlx5e_rx_get_linear_sz_skb(struct mlx5e_params *params)
+static u32 mlx5e_rx_get_linear_sz_skb(struct mlx5e_params *params, bool xsk)
 {
-	return MLX5_SKB_FRAG_SZ(mlx5e_rx_get_min_frag_sz(params, NULL));
+	/* SKBs built on XDP_PASS on XSK RQs don't have headroom. */
+	u16 headroom = xsk ? 0 : mlx5e_get_linear_rq_headroom(params, NULL);
+	u32 hw_mtu = MLX5E_SW2HW_MTU(params, params->sw_mtu);
+
+	return MLX5_SKB_FRAG_SZ(headroom + hw_mtu);
 }
 
 static u32 mlx5e_rx_get_linear_stride_sz(struct mlx5e_params *params,
@@ -57,7 +54,7 @@ static u32 mlx5e_rx_get_linear_stride_sz(struct mlx5e_params *params,
 	if (params->xdp_prog)
 		return PAGE_SIZE;
 
-	return roundup_pow_of_two(mlx5e_rx_get_linear_sz_skb(params));
+	return roundup_pow_of_two(mlx5e_rx_get_linear_sz_skb(params, false));
 }
 
 u8 mlx5e_mpwqe_log_pkts_per_wqe(struct mlx5e_params *params,
@@ -77,7 +74,7 @@ bool mlx5e_rx_is_linear_skb(struct mlx5e_params *params,
 	/* Both XSK and non-XSK cases allocate an SKB on XDP_PASS. Packet data
 	 * must fit into a CPU page.
 	 */
-	if (mlx5e_rx_get_linear_sz_skb(params) > PAGE_SIZE)
+	if (mlx5e_rx_get_linear_sz_skb(params, xsk) > PAGE_SIZE)
 		return false;
 
 	/* XSK frames must be big enough to hold the packet data. */
