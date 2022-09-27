@@ -293,8 +293,7 @@ struct rxe_mw *rxe_lookup_mw(struct rxe_qp *qp, int access, u32 rkey)
 
 	if (unlikely((mw->rkey != rkey) || rxe_mw_pd(mw) != pd ||
 		     (mw->ibmw.type == IB_MW_TYPE_2 && mw->qp != qp) ||
-		     (mw->length == 0) ||
-		     (access && !(access & mw->access)) ||
+		     (mw->length == 0) || ((access & mw->access) != access) ||
 		     mw->state != RXE_MW_STATE_VALID)) {
 		rxe_put(mw);
 		return NULL;
