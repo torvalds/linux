@@ -730,7 +730,8 @@ enum safexcel_eip_version {
 	EIP97IES_MRVL,
 	EIP197B_MRVL,
 	EIP197D_MRVL,
-	EIP197_DEVBRD
+	EIP197_DEVBRD,
+	EIP197C_MXL,
 };
 
 struct safexcel_priv_data {

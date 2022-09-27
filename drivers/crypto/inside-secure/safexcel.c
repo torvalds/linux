@@ -421,6 +421,8 @@ static int eip197_load_firmwares(struct safexcel_crypto_priv *priv)
 	else if (priv->data->version == EIP197B_MRVL ||
 		 priv->data->version == EIP197_DEVBRD)
 		dir = "eip197b";
+	else if (priv->data->version == EIP197C_MXL)
+		dir = "eip197c";
 	else
 		return -ENODEV;
 
@@ -1828,6 +1830,11 @@ static const struct safexcel_priv_data eip197_devbrd_data = {
 	.version = EIP197_DEVBRD,
 };
 
+static const struct safexcel_priv_data eip197c_mxl_data = {
+	.version = EIP197C_MXL,
+	.fw_little_endian = true,
+};
+
 static const struct of_device_id safexcel_of_match_table[] = {
 	{
 		.compatible = "inside-secure,safexcel-eip97ies",
@@ -1840,6 +1847,10 @@ static const struct of_device_id safexcel_of_match_table[] = {
 	{
 		.compatible = "inside-secure,safexcel-eip197d",
 		.data = &eip197d_mrvl_data,
+	},
+	{
+		.compatible = "inside-secure,safexcel-eip197c-mxl",
+		.data = &eip197c_mxl_data,
 	},
 	/* For backward compatibility and intended for generic use */
 	{
