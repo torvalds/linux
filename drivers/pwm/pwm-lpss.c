@@ -18,6 +18,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/time.h>
 
+#define DEFAULT_SYMBOL_NAMESPACE PWM_LPSS
+
 #include "pwm-lpss.h"
 
 #define PWM				0x00000000
