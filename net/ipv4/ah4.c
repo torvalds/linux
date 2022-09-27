@@ -471,7 +471,7 @@ static int ah4_err(struct sk_buff *skb, u32 info)
 	return 0;
 }
 
-static int ah_init_state(struct xfrm_state *x)
+static int ah_init_state(struct xfrm_state *x, struct netlink_ext_ack *extack)
 {
 	struct ah_data *ahp = NULL;
 	struct xfrm_algo_desc *aalg_desc;

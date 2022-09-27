@@ -22,7 +22,7 @@ static int ipip_xfrm_rcv(struct xfrm_state *x, struct sk_buff *skb)
 	return ip_hdr(skb)->protocol;
 }
 
-static int ipip_init_state(struct xfrm_state *x)
+static int ipip_init_state(struct xfrm_state *x, struct netlink_ext_ack *extack)
 {
 	if (x->props.mode != XFRM_MODE_TUNNEL)
 		return -EINVAL;

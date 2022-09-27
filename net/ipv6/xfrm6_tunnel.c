@@ -270,7 +270,7 @@ static int xfrm6_tunnel_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	return 0;
 }
 
-static int xfrm6_tunnel_init_state(struct xfrm_state *x)
+static int xfrm6_tunnel_init_state(struct xfrm_state *x, struct netlink_ext_ack *extack)
 {
 	if (x->props.mode != XFRM_MODE_TUNNEL)
 		return -EINVAL;

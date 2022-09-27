@@ -2673,7 +2673,7 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload,
 
 	x->type_offload = xfrm_get_type_offload(x->id.proto, family, offload);
 
-	err = x->type->init_state(x);
+	err = x->type->init_state(x, extack);
 	if (err)
 		goto error;
 

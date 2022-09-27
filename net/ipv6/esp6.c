@@ -1174,7 +1174,7 @@ error:
 	return err;
 }
 
-static int esp6_init_state(struct xfrm_state *x)
+static int esp6_init_state(struct xfrm_state *x, struct netlink_ext_ack *extack)
 {
 	struct crypto_aead *aead;
 	u32 align;

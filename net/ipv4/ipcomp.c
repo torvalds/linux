@@ -117,7 +117,8 @@ out:
 	return err;
 }
 
-static int ipcomp4_init_state(struct xfrm_state *x)
+static int ipcomp4_init_state(struct xfrm_state *x,
+			      struct netlink_ext_ack *extack)
 {
 	int err = -EINVAL;
 

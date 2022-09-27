@@ -666,7 +666,7 @@ static int ah6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	return 0;
 }
 
-static int ah6_init_state(struct xfrm_state *x)
+static int ah6_init_state(struct xfrm_state *x, struct netlink_ext_ack *extack)
 {
 	struct ah_data *ahp = NULL;
 	struct xfrm_algo_desc *aalg_desc;
