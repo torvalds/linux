@@ -28,6 +28,13 @@ bool pagemap_is_softdirty(int fd, char *start)
 	return entry & 0x0080000000000000ull;
 }
 
+bool pagemap_is_swapped(int fd, char *start)
+{
+	uint64_t entry = pagemap_get_entry(fd, start);
+
+	return entry & 0x4000000000000000ull;
+}
+
 void clear_softdirty(void)
 {
 	int ret;

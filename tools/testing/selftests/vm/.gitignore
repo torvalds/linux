@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
+anon_cow
 hugepage-mmap
 hugepage-mremap
 hugepage-shm
