@@ -84,6 +84,11 @@ static inline bool mlx5e_qid_validate(const struct mlx5e_profile *profile,
 	return qid < params->num_channels * profile->rq_groups;
 }
 
+/* Striding RQ dynamic parameters */
+
+u16 mlx5e_mpwrq_umr_wqe_sz(u8 pages_per_wqe);
+u8 mlx5e_mpwrq_umr_wqebbs(u8 pages_per_wqe);
+
 /* Parameter calculations */
 
 void mlx5e_reset_tx_moderation(struct mlx5e_params *params, u8 cq_period_mode);

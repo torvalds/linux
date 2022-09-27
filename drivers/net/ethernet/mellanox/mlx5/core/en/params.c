@@ -7,6 +7,17 @@
 #include "en_accel/en_accel.h"
 #include "en_accel/ipsec.h"
 
+u16 mlx5e_mpwrq_umr_wqe_sz(u8 pages_per_wqe)
+{
+	return sizeof(struct mlx5e_umr_wqe) +
+		ALIGN(pages_per_wqe * sizeof(struct mlx5_mtt), MLX5_UMR_MTT_ALIGNMENT);
+}
+
+u8 mlx5e_mpwrq_umr_wqebbs(u8 pages_per_wqe)
+{
+	return DIV_ROUND_UP(mlx5e_mpwrq_umr_wqe_sz(pages_per_wqe), MLX5_SEND_WQE_BB);
+}
+
 u16 mlx5e_get_linear_rq_headroom(struct mlx5e_params *params,
 				 struct mlx5e_xsk_param *xsk)
 {
@@ -786,7 +797,8 @@ static u8 mlx5e_build_icosq_log_wq_sz(struct mlx5_core_dev *mdev,
 	if (params->rq_wq_type != MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ)
 		return MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE;
 
-	wqebbs = MLX5E_UMR_WQEBBS * BIT(mlx5e_get_rq_log_wq_sz(rqp->rqc));
+	wqebbs = mlx5e_mpwrq_umr_wqebbs(MLX5_MPWRQ_PAGES_PER_WQE) *
+		(1 << mlx5e_get_rq_log_wq_sz(rqp->rqc));
 
 	/* If XDP program is attached, XSK may be turned on at any time without
 	 * restarting the channel. ICOSQ must be big enough to fit UMR WQEs of
