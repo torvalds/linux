@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/usb.h>
@@ -131,20 +131,13 @@ static void exynos_ehci_phy_disable(struct device *dev)
 
 static void exynos_setup_vbus_gpio(struct device *dev)
 {
+	struct gpio_desc *gpio;
 	int err;
-	int gpio;
 
-	if (!dev->of_node)
-		return;
-
-	gpio = of_get_named_gpio(dev->of_node, "samsung,vbus-gpio", 0);
-	if (!gpio_is_valid(gpio))
-		return;
-
-	err = devm_gpio_request_one(dev, gpio, GPIOF_OUT_INIT_HIGH,
-				    "ehci_vbus_gpio");
+	gpio = devm_gpiod_get_optional(dev, "samsung,vbus", GPIOD_OUT_HIGH);
+	err = PTR_ERR_OR_ZERO(gpio);
 	if (err)
-		dev_err(dev, "can't request ehci vbus gpio %d", gpio);
+		dev_err(dev, "can't request ehci vbus gpio: %d\n", err);
 }
 
 static int exynos_ehci_probe(struct platform_device *pdev)
