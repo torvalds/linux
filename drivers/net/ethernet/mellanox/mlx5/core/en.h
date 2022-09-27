@@ -227,10 +227,12 @@ static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
  * bytes units. Driver hardens the limitation to 1KB (16
  * WQEBBs), unless firmware capability is stricter.
  */
-static inline u16 mlx5e_get_max_sq_wqebbs(struct mlx5_core_dev *mdev)
+static inline u8 mlx5e_get_max_sq_wqebbs(struct mlx5_core_dev *mdev)
 {
-	return min_t(u16, MLX5_SEND_WQE_MAX_WQEBBS,
-		     MLX5_CAP_GEN(mdev, max_wqe_sz_sq) / MLX5_SEND_WQE_BB);
+	BUILD_BUG_ON(MLX5_SEND_WQE_MAX_WQEBBS > U8_MAX);
+
+	return (u8)min_t(u16, MLX5_SEND_WQE_MAX_WQEBBS,
+			 MLX5_CAP_GEN(mdev, max_wqe_sz_sq) / MLX5_SEND_WQE_BB);
 }
 
 static inline u8 mlx5e_get_sw_max_sq_mpw_wqebbs(u8 max_sq_wqebbs)
