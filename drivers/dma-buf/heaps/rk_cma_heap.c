@@ -142,7 +142,7 @@ cma_heap_dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
 					  unsigned int len)
 {
 	struct cma_heap_buffer *buffer = dmabuf->priv;
-	struct dma_heap_attachment *a;
+	phys_addr_t phys = page_to_phys(buffer->cma_pages);
 
 	if (buffer->vmap_cnt)
 		invalidate_kernel_vmap_range(buffer->vaddr, buffer->len);
@@ -151,19 +151,10 @@ cma_heap_dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
 		return 0;
 
 	mutex_lock(&buffer->lock);
-	list_for_each_entry(a, &buffer->attachments, list) {
-		if (!a->mapped)
-			continue;
-		dma_sync_sgtable_for_cpu(a->dev, &a->table, direction);
-	}
-	if (list_empty(&buffer->attachments)) {
-		phys_addr_t phys = page_to_phys(buffer->cma_pages);
-
-		dma_sync_single_for_cpu(dma_heap_get_dev(buffer->heap->heap),
-					phys + offset,
-					len,
-					direction);
-	}
+	dma_sync_single_for_cpu(dma_heap_get_dev(buffer->heap->heap),
+				phys + offset,
+				len,
+				direction);
 	mutex_unlock(&buffer->lock);
 
 	return 0;
@@ -176,7 +167,7 @@ cma_heap_dma_buf_end_cpu_access_partial(struct dma_buf *dmabuf,
 					unsigned int len)
 {
 	struct cma_heap_buffer *buffer = dmabuf->priv;
-	struct dma_heap_attachment *a;
+	phys_addr_t phys = page_to_phys(buffer->cma_pages);
 
 	if (buffer->vmap_cnt)
 		flush_kernel_vmap_range(buffer->vaddr, buffer->len);
@@ -185,36 +176,53 @@ cma_heap_dma_buf_end_cpu_access_partial(struct dma_buf *dmabuf,
 		return 0;
 
 	mutex_lock(&buffer->lock);
-	list_for_each_entry(a, &buffer->attachments, list) {
-		if (!a->mapped)
-			continue;
-		dma_sync_sgtable_for_device(a->dev, &a->table, direction);
-	}
-	if (list_empty(&buffer->attachments)) {
-		phys_addr_t phys = page_to_phys(buffer->cma_pages);
-
-		dma_sync_single_for_device(dma_heap_get_dev(buffer->heap->heap),
-					   phys + offset,
-					   len,
-					   direction);
-	}
+	dma_sync_single_for_device(dma_heap_get_dev(buffer->heap->heap),
+				   phys + offset,
+				   len,
+				   direction);
 	mutex_unlock(&buffer->lock);
 
 	return 0;
 }
 
 static int cma_heap_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
-					     enum dma_data_direction dir)
+					     enum dma_data_direction direction)
 {
-	return cma_heap_dma_buf_begin_cpu_access_partial(dmabuf, dir, 0,
-							 dmabuf->size);
+	struct cma_heap_buffer *buffer = dmabuf->priv;
+	struct dma_heap_attachment *a;
+
+	if (buffer->vmap_cnt)
+		invalidate_kernel_vmap_range(buffer->vaddr, buffer->len);
+
+	mutex_lock(&buffer->lock);
+	list_for_each_entry(a, &buffer->attachments, list) {
+		if (!a->mapped)
+			continue;
+		dma_sync_sgtable_for_cpu(a->dev, &a->table, direction);
+	}
+	mutex_unlock(&buffer->lock);
+
+	return 0;
 }
 
 static int cma_heap_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
-					   enum dma_data_direction dir)
+					   enum dma_data_direction direction)
 {
-	return cma_heap_dma_buf_end_cpu_access_partial(dmabuf, dir, 0,
-						       dmabuf->size);
+	struct cma_heap_buffer *buffer = dmabuf->priv;
+	struct dma_heap_attachment *a;
+
+	if (buffer->vmap_cnt)
+		flush_kernel_vmap_range(buffer->vaddr, buffer->len);
+
+	mutex_lock(&buffer->lock);
+	list_for_each_entry(a, &buffer->attachments, list) {
+		if (!a->mapped)
+			continue;
+		dma_sync_sgtable_for_device(a->dev, &a->table, direction);
+	}
+	mutex_unlock(&buffer->lock);
+
+	return 0;
 }
 
 static vm_fault_t cma_heap_vm_fault(struct vm_fault *vmf)
