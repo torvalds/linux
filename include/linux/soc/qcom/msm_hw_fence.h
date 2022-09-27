@@ -19,6 +19,15 @@
 #define MSM_HW_FENCE_FLAG_ENABLED_BIT    31
 
 /**
+ * MSM_HW_FENCE_FLAG_SIGNALED_BIT - Hw-fence is signaled for the dma_fence.
+ *
+ * This flag is set by hw-fence driver when a client wants to add itself as
+ * a waiter for this hw-fence. The client uses this flag to avoid adding itself
+ * as a waiter for a fence that is already retired.
+ */
+#define MSM_HW_FENCE_FLAG_SIGNALED_BIT    30
+
+/**
  * MSM_HW_FENCE_ERROR_RESET - Hw-fence flagged as error due to forced reset from producer.
  */
 #define MSM_HW_FENCE_ERROR_RESET    BIT(0)
