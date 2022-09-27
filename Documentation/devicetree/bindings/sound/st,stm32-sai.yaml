@@ -122,6 +122,10 @@ patternProperties:
         description: Configure the SAI device as master clock provider.
         const: 0
 
+      port:
+        $ref: audio-graph-port.yaml#
+        unevaluatedProperties: false
+
     required:
       - compatible
       - "#sound-dai-cells"
