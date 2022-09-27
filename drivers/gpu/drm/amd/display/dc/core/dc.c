@@ -3650,29 +3650,9 @@ static bool commit_minimal_transition_state(struct dc *dc,
 	bool temp_subvp_policy;
 	enum dc_status ret = DC_ERROR_UNEXPECTED;
 	unsigned int i, j;
-	unsigned int pipe_in_use = 0;
 
 	if (!transition_context)
 		return false;
-
-	/* check current pipes in use*/
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &transition_base_context->res_ctx.pipe_ctx[i];
-
-		if (pipe->plane_state)
-			pipe_in_use++;
-	}
-
-	/* When the OS add a new surface if we have been used all of pipes with odm combine
-	 * and mpc split feature, it need use commit_minimal_transition_state to transition safely.
-	 * After OS exit MPO, it will back to use odm and mpc split with all of pipes, we need
-	 * call it again. Otherwise return true to skip.
-	 *
-	 * Reduce the scenarios to use dc_commit_state_no_check in the stage of flip. Especially
-	 * enter/exit MPO when DCN still have enough resources.
-	 */
-	if (pipe_in_use != dc->res_pool->pipe_count)
-		return true;
 
 	if (!dc->config.is_vmin_only_asic) {
 		tmp_mpc_policy = dc->debug.pipe_split_policy;
