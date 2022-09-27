@@ -7,11 +7,12 @@
  * Derived from the original pwm-lpss.c
  */
 
-#include <linux/acpi.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 
 #include "pwm-lpss.h"
 
@@ -19,15 +20,12 @@
 static int pwm_lpss_probe_platform(struct platform_device *pdev)
 {
 	const struct pwm_lpss_boardinfo *info;
-	const struct acpi_device_id *id;
 	struct pwm_lpss_chip *lpwm;
 	void __iomem *base;
 
-	id = acpi_match_device(pdev->dev.driver->acpi_match_table, &pdev->dev);
-	if (!id)
+	info = device_get_match_data(&pdev->dev);
+	if (!info)
 		return -ENODEV;
-
-	info = (const struct pwm_lpss_boardinfo *)id->driver_data;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
