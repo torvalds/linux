@@ -99,7 +99,12 @@ struct pt_regs
 
 #define STACK_FRAME_WITH_PT_REGS (STACK_FRAME_OVERHEAD + sizeof(struct pt_regs))
 
+// Always displays as "REGS" in memory dumps
+#ifdef CONFIG_CPU_BIG_ENDIAN
 #define STACK_FRAME_REGS_MARKER	ASM_CONST(0x52454753)
+#else
+#define STACK_FRAME_REGS_MARKER	ASM_CONST(0x53474552)
+#endif
 
 #ifdef __powerpc64__
 
