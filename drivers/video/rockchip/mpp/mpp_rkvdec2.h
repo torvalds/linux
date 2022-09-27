@@ -73,6 +73,7 @@
 					RKVDEC_BUF_EMPTY_STA |\
 					RKVDEC_TIMEOUT_STA |\
 					RKVDEC_ERROR_STA)
+#define RKVDEC_PERF_WORKING_CNT		0x41c
 
 /* perf sel reference register */
 #define RKVDEC_PERF_SEL_OFFSET		0x20000

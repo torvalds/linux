@@ -71,6 +71,7 @@ struct rkvdec_link_info rkvdec_link_v2_hw_info = {
 		.reg_num = 28,
 	},
 	.tb_reg_int = 180,
+	.tb_reg_cycle = 195,
 	.hack_setup = 0,
 };
 
@@ -124,6 +125,7 @@ struct rkvdec_link_info rkvdec_link_rk356x_hw_info = {
 		.reg_num = 28,
 	},
 	.tb_reg_int = 164,
+	.tb_reg_cycle = 179,
 	.hack_setup = 1,
 };
 
@@ -538,6 +540,7 @@ static int rkvdec_link_isr_recv_task(struct mpp_dev *mpp,
 	struct rkvdec_link_info *info = link_dec->info;
 	u32 *table_base = (u32 *)link_dec->table->vaddr;
 	int i;
+	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 
 	for (i = 0; i < count; i++) {
 		int idx = rkvdec_link_get_task_read(link_dec);
@@ -598,6 +601,8 @@ static int rkvdec_link_isr_recv_task(struct mpp_dev *mpp,
 		task = to_rkvdec2_task(mpp_task);
 		regs = table_base + idx * link_dec->link_reg_count;
 		irq_status = regs[info->tb_reg_int];
+		mpp_task->hw_cycles = regs[info->tb_reg_cycle];
+		mpp_time_diff_with_hw_time(mpp_task, dec->core_clk_info.real_rate_hz);
 		mpp_dbg_link_flow("slot %d rd task %d\n", idx,
 				  mpp_task->task_id);
 
@@ -1207,7 +1212,6 @@ static int mpp_task_queue(struct mpp_dev *mpp, struct mpp_task *task)
 	mpp_debug_enter();
 
 	rkvdec2_link_power_on(mpp);
-	mpp_time_record(task);
 	mpp_debug(DEBUG_TASK_INFO, "pid %d, start hw %s\n",
 		  task->session->pid, dev_name(mpp->dev));
 
@@ -1664,6 +1668,7 @@ static int rkvdec2_soft_ccu_dequeue(struct mpp_taskqueue *queue)
 				 &queue->running_list,
 				 queue_link) {
 		struct mpp_dev *mpp = mpp_get_task_used_device(mpp_task, mpp_task->session);
+		struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 		u32 irq_status = mpp->irq_status;
 		u32 timeout_flag = test_bit(TASK_STATE_TIMEOUT, &mpp_task->state);
 		u32 abort_flag = test_bit(TASK_STATE_ABORT, &mpp_task->state);
@@ -1685,7 +1690,8 @@ static int rkvdec2_soft_ccu_dequeue(struct mpp_taskqueue *queue)
 
 			set_bit(TASK_STATE_HANDLE, &mpp_task->state);
 			cancel_delayed_work(&mpp_task->timeout_work);
-			mpp_time_diff(mpp_task);
+			mpp_task->hw_cycles = mpp_read(mpp, RKVDEC_PERF_WORKING_CNT);
+			mpp_time_diff_with_hw_time(mpp_task, dec->core_clk_info.real_rate_hz);
 			task->irq_status = irq_status;
 			mpp_debug(DEBUG_IRQ_CHECK, "irq_status=%08x, timeout=%u, abort=%u\n",
 				  irq_status, timeout_flag, abort_flag);
