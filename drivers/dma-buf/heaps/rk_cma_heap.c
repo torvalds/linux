@@ -550,7 +550,7 @@ static int __add_cma_heap(struct cma *cma, void *data)
 		return -ENOMEM;
 	cma_heap->cma = cma;
 
-	exp_info.name = cma_get_name(cma);
+	exp_info.name = "cma";
 	exp_info.ops = &cma_heap_ops;
 	exp_info.priv = cma_heap;
 
