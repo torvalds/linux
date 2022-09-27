@@ -1199,13 +1199,10 @@ static void cs42l42_manual_hs_type_detect(struct cs42l42_private *cs42l42)
 			cs42l42->hs_type = CS42L42_PLUG_OMTP;
 			hs_det_sw = CS42L42_HSDET_SW_TYPE2;
 			break;
-		case CS42L42_HSDET_COMP_TYPE3:
+		/* Detect Type 3 and Type 4 Headsets as Headphones */
+		default:
 			cs42l42->hs_type = CS42L42_PLUG_HEADPHONE;
 			hs_det_sw = CS42L42_HSDET_SW_TYPE3;
-			break;
-		default:
-			cs42l42->hs_type = CS42L42_PLUG_INVALID;
-			hs_det_sw = CS42L42_HSDET_SW_TYPE4;
 			break;
 		}
 	}
