@@ -513,8 +513,8 @@
 
 		gcc: clock-controller@900000 {
 			compatible = "qcom,gcc-ipq8064", "syscon";
-			clocks = <&pxo_board>, <&cxo_board>;
-			clock-names = "pxo", "cxo";
+			clocks = <&pxo_board>, <&cxo_board>, <&lcc PLL4>;
+			clock-names = "pxo", "cxo", "pll4";
 			reg = <0x00900000 0x4000>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
