@@ -299,11 +299,8 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 	if (drv->data->get_version) {
 		speedbin_nvmem = of_nvmem_cell_get(np, NULL);
 		if (IS_ERR(speedbin_nvmem)) {
-			if (PTR_ERR(speedbin_nvmem) != -EPROBE_DEFER)
-				dev_err(cpu_dev,
-					"Could not get nvmem cell: %ld\n",
-					PTR_ERR(speedbin_nvmem));
-			ret = PTR_ERR(speedbin_nvmem);
+			ret = dev_err_probe(cpu_dev, PTR_ERR(speedbin_nvmem),
+					    "Could not get nvmem cell\n");
 			goto free_drv;
 		}
 
