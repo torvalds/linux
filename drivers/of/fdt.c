@@ -828,15 +828,6 @@ uint32_t __init of_get_flat_dt_phandle(unsigned long node)
 	return fdt_get_phandle(initial_boot_params, node);
 }
 
-struct fdt_scan_status {
-	const char *name;
-	int namelen;
-	int depth;
-	int found;
-	int (*iterator)(unsigned long node, const char *uname, int depth, void *data);
-	void *data;
-};
-
 const char * __init of_flat_dt_get_machine_name(void)
 {
 	const char *name;
