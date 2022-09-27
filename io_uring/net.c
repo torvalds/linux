@@ -916,7 +916,6 @@ void io_send_zc_cleanup(struct io_kiocb *req)
 			kfree(io->free_iov);
 	}
 	if (zc->notif) {
-		zc->notif->flags |= REQ_F_CQE_SKIP;
 		io_notif_flush(zc->notif);
 		zc->notif = NULL;
 	}
@@ -1047,7 +1046,7 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 	struct msghdr msg;
 	struct iovec iov;
 	struct socket *sock;
-	unsigned msg_flags, cflags;
+	unsigned msg_flags;
 	int ret, min_ret = 0;
 
 	sock = sock_from_file(req->file);
@@ -1115,8 +1114,6 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 			req->flags |= REQ_F_PARTIAL_IO;
 			return io_setup_async_addr(req, &__address, issue_flags);
 		}
-		if (ret < 0 && !zc->done_io)
-			zc->notif->flags |= REQ_F_CQE_SKIP;
 		if (ret == -ERESTARTSYS)
 			ret = -EINTR;
 		req_set_fail(req);
@@ -1129,8 +1126,7 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 
 	io_notif_flush(zc->notif);
 	req->flags &= ~REQ_F_NEED_CLEANUP;
-	cflags = ret >= 0 ? IORING_CQE_F_MORE : 0;
-	io_req_set_res(req, ret, cflags);
+	io_req_set_res(req, ret, IORING_CQE_F_MORE);
 	return IOU_OK;
 }
 
@@ -1139,7 +1135,7 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct io_async_msghdr iomsg, *kmsg;
 	struct socket *sock;
-	unsigned flags, cflags;
+	unsigned flags;
 	int ret, min_ret = 0;
 
 	sock = sock_from_file(req->file);
@@ -1178,8 +1174,6 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 			req->flags |= REQ_F_PARTIAL_IO;
 			return io_setup_async_msg(req, kmsg, issue_flags);
 		}
-		if (ret < 0 && !sr->done_io)
-			sr->notif->flags |= REQ_F_CQE_SKIP;
 		if (ret == -ERESTARTSYS)
 			ret = -EINTR;
 		req_set_fail(req);
@@ -1196,27 +1190,20 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 
 	io_notif_flush(sr->notif);
 	req->flags &= ~REQ_F_NEED_CLEANUP;
-	cflags = ret >= 0 ? IORING_CQE_F_MORE : 0;
-	io_req_set_res(req, ret, cflags);
+	io_req_set_res(req, ret, IORING_CQE_F_MORE);
 	return IOU_OK;
 }
 
 void io_sendrecv_fail(struct io_kiocb *req)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
-	int res = req->cqe.res;
 
 	if (req->flags & REQ_F_PARTIAL_IO)
-		res = sr->done_io;
+		req->cqe.res = sr->done_io;
+
 	if ((req->flags & REQ_F_NEED_CLEANUP) &&
-	    (req->opcode == IORING_OP_SEND_ZC || req->opcode == IORING_OP_SENDMSG_ZC)) {
-		/* preserve notification for partial I/O */
-		if (res < 0)
-			sr->notif->flags |= REQ_F_CQE_SKIP;
-		io_notif_flush(sr->notif);
-		sr->notif = NULL;
-	}
-	io_req_set_res(req, res, req->cqe.flags);
+	    (req->opcode == IORING_OP_SEND_ZC || req->opcode == IORING_OP_SENDMSG_ZC))
+		req->cqe.flags |= IORING_CQE_F_MORE;
 }
 
 int io_accept_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
