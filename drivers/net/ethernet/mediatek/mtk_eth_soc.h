@@ -319,8 +319,8 @@
 #define MTK_RXD5_PPE_CPU_REASON	GENMASK(22, 18)
 #define MTK_RXD5_SRC_PORT	GENMASK(29, 26)
 
-#define RX_DMA_GET_SPORT(x)	(((x) >> 19) & 0xf)
-#define RX_DMA_GET_SPORT_V2(x)	(((x) >> 26) & 0x7)
+#define RX_DMA_GET_SPORT(x)	(((x) >> 19) & 0x7)
+#define RX_DMA_GET_SPORT_V2(x)	(((x) >> 26) & 0xf)
 
 /* PDMA V2 descriptor rxd3 */
 #define RX_DMA_VTAG_V2		BIT(0)
