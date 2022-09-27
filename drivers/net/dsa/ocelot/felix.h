@@ -16,8 +16,13 @@
 
 /* Platform-specific information */
 struct felix_info {
-	const struct resource		*target_io_res;
-	const struct resource		*port_io_res;
+	/* Hardcoded resources provided by the hardware instantiation. */
+	const struct resource		*resources;
+	size_t				num_resources;
+	/* Names of the mandatory resources that will be requested during
+	 * probe. Must have TARGET_MAX elements, since it is indexed by target.
+	 */
+	const char *const		*resource_names;
 	const struct reg_field		*regfields;
 	const u32 *const		*map;
 	const struct ocelot_ops		*ops;

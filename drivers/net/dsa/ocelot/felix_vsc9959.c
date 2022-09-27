@@ -477,26 +477,36 @@ static const u32 *vsc9959_regmap[TARGET_MAX] = {
 };
 
 /* Addresses are relative to the PCI device's base address */
-static const struct resource vsc9959_target_io_res[TARGET_MAX] = {
-	[SYS]  = DEFINE_RES_MEM_NAMED(0x0010000, 0x0010000, "sys"),
-	[REW]  = DEFINE_RES_MEM_NAMED(0x0030000, 0x0010000, "rew"),
-	[S0]   = DEFINE_RES_MEM_NAMED(0x0040000, 0x0000400, "s0"),
-	[S1]   = DEFINE_RES_MEM_NAMED(0x0050000, 0x0000400, "s1"),
-	[S2]   = DEFINE_RES_MEM_NAMED(0x0060000, 0x0000400, "s2"),
-	[GCB]  = DEFINE_RES_MEM_NAMED(0x0070000, 0x0000200, "devcpu_gcb"),
-	[QS]   = DEFINE_RES_MEM_NAMED(0x0080000, 0x0000100, "qs"),
-	[PTP]  = DEFINE_RES_MEM_NAMED(0x0090000, 0x00000cc, "ptp"),
-	[QSYS] = DEFINE_RES_MEM_NAMED(0x0200000, 0x0020000, "qsys"),
-	[ANA]  = DEFINE_RES_MEM_NAMED(0x0280000, 0x0010000, "ana"),
-};
-
-static const struct resource vsc9959_port_io_res[] = {
+static const struct resource vsc9959_resources[] = {
+	DEFINE_RES_MEM_NAMED(0x0010000, 0x0010000, "sys"),
+	DEFINE_RES_MEM_NAMED(0x0030000, 0x0010000, "rew"),
+	DEFINE_RES_MEM_NAMED(0x0040000, 0x0000400, "s0"),
+	DEFINE_RES_MEM_NAMED(0x0050000, 0x0000400, "s1"),
+	DEFINE_RES_MEM_NAMED(0x0060000, 0x0000400, "s2"),
+	DEFINE_RES_MEM_NAMED(0x0070000, 0x0000200, "devcpu_gcb"),
+	DEFINE_RES_MEM_NAMED(0x0080000, 0x0000100, "qs"),
+	DEFINE_RES_MEM_NAMED(0x0090000, 0x00000cc, "ptp"),
 	DEFINE_RES_MEM_NAMED(0x0100000, 0x0010000, "port0"),
 	DEFINE_RES_MEM_NAMED(0x0110000, 0x0010000, "port1"),
 	DEFINE_RES_MEM_NAMED(0x0120000, 0x0010000, "port2"),
 	DEFINE_RES_MEM_NAMED(0x0130000, 0x0010000, "port3"),
 	DEFINE_RES_MEM_NAMED(0x0140000, 0x0010000, "port4"),
 	DEFINE_RES_MEM_NAMED(0x0150000, 0x0010000, "port5"),
+	DEFINE_RES_MEM_NAMED(0x0200000, 0x0020000, "qsys"),
+	DEFINE_RES_MEM_NAMED(0x0280000, 0x0010000, "ana"),
+};
+
+static const char * const vsc9959_resource_names[TARGET_MAX] = {
+	[SYS] = "sys",
+	[REW] = "rew",
+	[S0] = "s0",
+	[S1] = "s1",
+	[S2] = "s2",
+	[GCB] = "devcpu_gcb",
+	[QS] = "qs",
+	[PTP] = "ptp",
+	[QSYS] = "qsys",
+	[ANA] = "ana",
 };
 
 /* Port MAC 0 Internal MDIO bus through which the SerDes acting as an
@@ -2526,8 +2536,9 @@ static const struct ocelot_ops vsc9959_ops = {
 };
 
 static const struct felix_info felix_info_vsc9959 = {
-	.target_io_res		= vsc9959_target_io_res,
-	.port_io_res		= vsc9959_port_io_res,
+	.resources		= vsc9959_resources,
+	.num_resources		= ARRAY_SIZE(vsc9959_resources),
+	.resource_names		= vsc9959_resource_names,
 	.regfields		= vsc9959_regfields,
 	.map			= vsc9959_regmap,
 	.ops			= &vsc9959_ops,
