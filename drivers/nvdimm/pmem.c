@@ -45,7 +45,7 @@ static struct nd_region *to_region(struct pmem_device *pmem)
 	return to_nd_region(to_dev(pmem)->parent);
 }
 
-static phys_addr_t to_phys(struct pmem_device *pmem, phys_addr_t offset)
+static phys_addr_t pmem_to_phys(struct pmem_device *pmem, phys_addr_t offset)
 {
 	return pmem->phys_addr + offset;
 }
@@ -63,7 +63,7 @@ static phys_addr_t to_offset(struct pmem_device *pmem, sector_t sector)
 static void pmem_mkpage_present(struct pmem_device *pmem, phys_addr_t offset,
 		unsigned int len)
 {
-	phys_addr_t phys = to_phys(pmem, offset);
+	phys_addr_t phys = pmem_to_phys(pmem, offset);
 	unsigned long pfn_start, pfn_end, pfn;
 
 	/* only pmem in the linear map supports HWPoison */
@@ -97,7 +97,7 @@ static void pmem_clear_bb(struct pmem_device *pmem, sector_t sector, long blks)
 static long __pmem_clear_poison(struct pmem_device *pmem,
 		phys_addr_t offset, unsigned int len)
 {
-	phys_addr_t phys = to_phys(pmem, offset);
+	phys_addr_t phys = pmem_to_phys(pmem, offset);
 	long cleared = nvdimm_clear_poison(to_dev(pmem), phys, len);
 
 	if (cleared > 0) {

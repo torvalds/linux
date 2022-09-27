@@ -8,7 +8,7 @@ title: ITE it66121 HDMI bridge Device Tree Bindings
 
 maintainers:
   - Phong LE <ple@baylibre.com>
-  - Neil Armstrong <narmstrong@baylibre.com>
+  - Neil Armstrong <neil.armstrong@linaro.org>
 
 description: |
   The IT66121 is a high-performance and low-power single channel HDMI

@@ -2349,13 +2349,6 @@ static int dmar_device_hotplug(acpi_handle handle, bool insert)
 	if (!dmar_in_use())
 		return 0;
 
-	/*
-	 * It's unlikely that any I/O board is hot added before the IOMMU
-	 * subsystem is initialized.
-	 */
-	if (IS_ENABLED(CONFIG_INTEL_IOMMU) && !intel_iommu_enabled)
-		return -EOPNOTSUPP;
-
 	if (dmar_detect_dsm(handle, DMAR_DSM_FUNC_DRHD)) {
 		tmp = handle;
 	} else {

@@ -87,6 +87,9 @@
 #define DCHUBBUB_DEBUG_CTRL_0__DET_DEPTH__SHIFT		0x10
 #define DCHUBBUB_DEBUG_CTRL_0__DET_DEPTH_MASK		0x01FF0000L
 
+#define DSCC0_DSCC_CONFIG0__ICH_RESET_AT_END_OF_LINE__SHIFT                   0x0
+#define DSCC0_DSCC_CONFIG0__ICH_RESET_AT_END_OF_LINE_MASK                     0x0000000FL
+
 #include "reg_helper.h"
 #include "dce/dmub_abm.h"
 #include "dce/dmub_psr.h"
@@ -579,7 +582,7 @@ static const struct dcn30_mmhubbub_mask mcif_wb30_mask = {
 
 #define dsc_regsDCN314(id)\
 [id] = {\
-	DSC_REG_LIST_DCN314(id)\
+	DSC_REG_LIST_DCN20(id)\
 }
 
 static const struct dcn20_dsc_registers dsc_regs[] = {
@@ -590,11 +593,11 @@ static const struct dcn20_dsc_registers dsc_regs[] = {
 };
 
 static const struct dcn20_dsc_shift dsc_shift = {
-	DSC_REG_LIST_SH_MASK_DCN314(__SHIFT)
+	DSC_REG_LIST_SH_MASK_DCN20(__SHIFT)
 };
 
 static const struct dcn20_dsc_mask dsc_mask = {
-	DSC_REG_LIST_SH_MASK_DCN314(_MASK)
+	DSC_REG_LIST_SH_MASK_DCN20(_MASK)
 };
 
 static const struct dcn30_mpc_registers mpc_regs = {
@@ -844,7 +847,7 @@ static const struct resource_caps res_cap_dcn314 = {
 	.num_ddc = 5,
 	.num_vmid = 16,
 	.num_mpc_3dlut = 2,
-	.num_dsc = 4,
+	.num_dsc = 3,
 };
 
 static const struct dc_plane_cap plane_cap = {

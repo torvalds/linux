@@ -364,7 +364,7 @@ stop condition is issued between transaction. The i2c_msg structure
 contains for each message the client address, the number of bytes of the
 message and the message data itself.
 
-You can read the file ``i2c-protocol`` for more information about the
+You can read the file i2c-protocol.rst for more information about the
 actual I2C protocol.
 
 
@@ -414,7 +414,7 @@ transactions return 0 on success; the 'read' transactions return the read
 value, except for block transactions, which return the number of values
 read. The block buffers need not be longer than 32 bytes.
 
-You can read the file ``smbus-protocol`` for more information about the
+You can read the file smbus-protocol.rst for more information about the
 actual SMBus protocol.
 
 
