@@ -225,6 +225,14 @@ static inline bool walt_should_honor_rt_sync(struct rq *rq, struct task_struct *
 		rq->rt.rt_nr_running <= 2;
 }
 
+enum rt_fastpaths {
+	NONE = 0,
+	NON_WAKEUP,
+	SYNC_WAKEUP,
+	CLUSTER_PACKING_FASTPATH,
+};
+
+
 static void walt_select_task_rq_rt(void *unused, struct task_struct *task, int cpu,
 					int sd_flag, int wake_flags, int *new_cpu)
 {
@@ -235,13 +243,16 @@ static void walt_select_task_rq_rt(void *unused, struct task_struct *task, int c
 	int ret, target = -1, this_cpu;
 	struct cpumask *lowest_mask;
 	int packing_cpu;
+	int fastpath = NONE;
 
 	if (unlikely(walt_disabled))
 		return;
 
 	/* For anything but wake ups, just return the task_cpu */
-	if (sd_flag != SD_BALANCE_WAKE && sd_flag != SD_BALANCE_FORK)
-		return;
+	if (sd_flag != SD_BALANCE_WAKE && sd_flag != SD_BALANCE_FORK) {
+		fastpath = NON_WAKEUP;
+		goto out;
+	}
 
 	this_cpu = raw_smp_processor_id();
 	this_cpu_rq = cpu_rq(this_cpu);
@@ -252,8 +263,9 @@ static void walt_select_task_rq_rt(void *unused, struct task_struct *task, int c
 	if (sysctl_sched_sync_hint_enable && cpu_active(this_cpu) && !cpu_halted(this_cpu) &&
 	    cpumask_test_cpu(this_cpu, task->cpus_ptr) &&
 	    walt_should_honor_rt_sync(this_cpu_rq, task, sync)) {
+		fastpath = SYNC_WAKEUP;
 		*new_cpu = this_cpu;
-		return;
+		goto out;
 	}
 
 	*new_cpu = cpu; /* previous CPU as back up */
@@ -292,6 +304,7 @@ static void walt_select_task_rq_rt(void *unused, struct task_struct *task, int c
 	/* create a fastpath for finding a packing cpu */
 	packing_cpu = walt_find_and_choose_cluster_packing_cpu(task_cpu(task), task);
 	if (packing_cpu >= 0) {
+		fastpath = CLUSTER_PACKING_FASTPATH;
 		*new_cpu = packing_cpu;
 		goto unlock;
 	}
@@ -320,6 +333,8 @@ static void walt_select_task_rq_rt(void *unused, struct task_struct *task, int c
 	}
 unlock:
 	rcu_read_unlock();
+out:
+	trace_sched_select_task_rt(task, fastpath);
 }
 
 

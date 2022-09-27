@@ -343,7 +343,8 @@ static void walt_find_best_target(struct sched_domain *sd,
 			if (fbt_env->skip_cpu == i)
 				continue;
 
-			if (wrq->num_mvp_tasks > 0)
+			if (wrq->num_mvp_tasks > 0 &&
+				per_task_boost(p) != TASK_BOOST_STRICT_MAX)
 				continue;
 
 			/*
@@ -568,6 +569,16 @@ cpu_util_next_walt_prs(int cpu, struct task_struct *p, int dst_cpu, bool prev_ds
 	return util;
 }
 
+static inline unsigned long get_util_to_cost(int cpu, unsigned long util)
+{
+	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+
+	if (cpu == 0 && util > sysctl_em_inflate_thres)
+		return mult_frac(wrq->cluster->util_to_cost[util], sysctl_em_inflate_pct, 100);
+	else
+		return wrq->cluster->util_to_cost[util];
+}
+
 /**
  * walt_em_cpu_energy() - Estimates the energy consumed by the CPUs of a
 		performance domain
@@ -586,9 +597,8 @@ static inline unsigned long walt_em_cpu_energy(struct em_perf_domain *pd,
 				unsigned long max_util, unsigned long sum_util,
 				struct compute_energy_output *output, unsigned int x)
 {
-	unsigned long scale_cpu;
+	unsigned long scale_cpu, cost;
 	int cpu;
-	struct walt_rq *wrq;
 
 	if (!sum_util)
 		return 0;
@@ -651,14 +661,14 @@ static inline unsigned long walt_em_cpu_energy(struct em_perf_domain *pd,
 	if (max_util >= 1024)
 		max_util = 1023;
 
-	wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	cost = get_util_to_cost(cpu, max_util);
 
 	if (output) {
-		output->cost[x] = wrq->cluster->util_to_cost[max_util];
+		output->cost[x] = cost;
 		output->max_util[x] = max_util;
 		output->sum_util[x] = sum_util;
 	}
-	return wrq->cluster->util_to_cost[max_util] * sum_util / scale_cpu;
+	return cost * sum_util / scale_cpu;
 }
 
 /*
@@ -987,21 +997,23 @@ static void walt_binder_low_latency_set(void *unused, struct task_struct *task,
 
 	if (unlikely(walt_disabled))
 		return;
-	if (task && current->signal &&
-			(current->signal->oom_score_adj == 0) &&
-			((current->prio < DEFAULT_PRIO) ||
-			(task->group_leader->prio < MAX_RT_PRIO)))
+	if (task && ((task_in_related_thread_group(current) &&
+			task->group_leader->prio < MAX_RT_PRIO) ||
+			(current->group_leader->prio < MAX_RT_PRIO &&
+			task_in_related_thread_group(task))))
 		wts->low_latency |= WALT_LOW_LATENCY_BINDER;
-}
-
-static void walt_binder_low_latency_clear(void *unused, struct binder_transaction *t)
-{
-	struct walt_task_struct *wts = (struct walt_task_struct *) current->android_vendor_data1;
-
-	if (unlikely(walt_disabled))
-		return;
-	if (wts->low_latency & WALT_LOW_LATENCY_BINDER)
+	else
+		/*
+		 * Clear low_latency flag if criterion above is not met, this
+		 * will handle usecase where for a binder thread WALT_LOW_LATENCY_BINDER
+		 * is set by one task and before WALT clears this flag after timer expiry
+		 * some other task tries to use same binder thread.
+		 *
+		 * The only gets cleared when binder transaction is initiated
+		 * and the above condition to set flasg is nto satisfied.
+		 */
 		wts->low_latency &= ~WALT_LOW_LATENCY_BINDER;
+
 }
 
 static void binder_set_priority_hook(void *data,
@@ -1364,7 +1376,6 @@ void walt_cfs_init(void)
 	register_trace_android_rvh_select_task_rq_fair(walt_select_task_rq_fair, NULL);
 
 	register_trace_android_vh_binder_wakeup_ilocked(walt_binder_low_latency_set, NULL);
-	register_trace_binder_transaction_received(walt_binder_low_latency_clear, NULL);
 
 	register_trace_android_vh_binder_set_priority(binder_set_priority_hook, NULL);
 	register_trace_android_vh_binder_restore_priority(binder_restore_priority_hook, NULL);

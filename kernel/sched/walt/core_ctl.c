@@ -392,7 +392,7 @@ static ssize_t show_not_preferred(const struct cluster_data *state, char *buf)
 	for (i = 0; i < state->num_cpus; i++) {
 		c = &per_cpu(cpu_state, i + state->first_cpu);
 		count += scnprintf(buf + count, PAGE_SIZE - count,
-				"CPU#%d: %u\n", c->cpu, c->not_preferred);
+				"%u ", c->not_preferred);
 	}
 	spin_unlock_irqrestore(&state_lock, flags);
 

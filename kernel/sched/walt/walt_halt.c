@@ -500,17 +500,18 @@ unlock:
 	rcu_read_unlock();
 }
 
-static void android_rvh_set_cpus_allowed_ptr_locked(void *unused,
-						    const struct cpumask *cpu_valid_mask,
-						    const struct cpumask *new_mask,
-						    unsigned int *dest_cpu)
+static void android_rvh_set_cpus_allowed_by_task(void *unused,
+						 const struct cpumask *cpu_valid_mask,
+						 const struct cpumask *new_mask,
+						 struct task_struct *p,
+						 unsigned int *dest_cpu)
 {
 	cpumask_t allowed_cpus;
 
 	if (unlikely(walt_disabled))
 		return;
 
-	if (cpu_halted(*dest_cpu)) {
+	if (cpu_halted(*dest_cpu) && !p->migration_disabled) {
 		/* remove halted cpus from the valid mask, and store locally */
 		cpumask_andnot(&allowed_cpus, cpu_valid_mask, cpu_halt_mask);
 		*dest_cpu = cpumask_any_and_distribute(&allowed_cpus, new_mask);
@@ -573,8 +574,8 @@ void walt_halt_init(void)
 	sched_setscheduler_nocheck(walt_drain_thread, SCHED_FIFO, &param);
 
 	register_trace_android_rvh_get_nohz_timer_target(android_rvh_get_nohz_timer_target, NULL);
-	register_trace_android_rvh_set_cpus_allowed_ptr_locked(
-						android_rvh_set_cpus_allowed_ptr_locked, NULL);
+	register_trace_android_rvh_set_cpus_allowed_by_task(
+						android_rvh_set_cpus_allowed_by_task, NULL);
 	register_trace_android_rvh_rto_next_cpu(android_rvh_rto_next_cpu, NULL);
 	register_trace_android_rvh_is_cpu_allowed(android_rvh_is_cpu_allowed, NULL);
 

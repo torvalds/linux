@@ -464,7 +464,7 @@ static void update_task_cpu_cycles(struct task_struct *p, int cpu,
 
 static inline bool is_ed_enabled(void)
 {
-	return (walt_rotation_enabled || (boost_policy != SCHED_BOOST_NONE));
+	return (boost_policy != SCHED_BOOST_NONE);
 }
 
 static inline bool is_ed_task(struct task_struct *p, u64 wallclock)
@@ -652,6 +652,7 @@ __cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load, unsigned int *rea
 		walt_load->pl = pl;
 		walt_load->ws = walt_load_reported_window;
 		walt_load->rtgb_active = rtgb_active;
+		walt_load->big_task_rotation = walt_rotation_enabled;
 		if (wrq->ed_task)
 			walt_load->ed_active = true;
 		else
