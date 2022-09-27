@@ -109,6 +109,7 @@ static void inet_bind2_bucket_init(struct inet_bind2_bucket *tb,
 	tb->l3mdev    = l3mdev;
 	tb->port      = port;
 #if IS_ENABLED(CONFIG_IPV6)
+	tb->family    = sk->sk_family;
 	if (sk->sk_family == AF_INET6)
 		tb->v6_rcv_saddr = sk->sk_v6_rcv_saddr;
 	else
@@ -146,6 +147,9 @@ static bool inet_bind2_bucket_addr_match(const struct inet_bind2_bucket *tb2,
 					 const struct sock *sk)
 {
 #if IS_ENABLED(CONFIG_IPV6)
+	if (sk->sk_family != tb2->family)
+		return false;
+
 	if (sk->sk_family == AF_INET6)
 		return ipv6_addr_equal(&tb2->v6_rcv_saddr,
 				       &sk->sk_v6_rcv_saddr);
@@ -791,6 +795,9 @@ static bool inet_bind2_bucket_match(const struct inet_bind2_bucket *tb,
 				    int l3mdev, const struct sock *sk)
 {
 #if IS_ENABLED(CONFIG_IPV6)
+	if (sk->sk_family != tb->family)
+		return false;
+
 	if (sk->sk_family == AF_INET6)
 		return net_eq(ib2_net(tb), net) && tb->port == port &&
 			tb->l3mdev == l3mdev &&
@@ -806,6 +813,9 @@ bool inet_bind2_bucket_match_addr_any(const struct inet_bind2_bucket *tb, const 
 {
 #if IS_ENABLED(CONFIG_IPV6)
 	struct in6_addr addr_any = {};
+
+	if (sk->sk_family != tb->family)
+		return false;
 
 	if (sk->sk_family == AF_INET6)
 		return net_eq(ib2_net(tb), net) && tb->port == port &&

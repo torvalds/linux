@@ -95,6 +95,9 @@ struct inet_bind2_bucket {
 	possible_net_t		ib_net;
 	int			l3mdev;
 	unsigned short		port;
+#if IS_ENABLED(CONFIG_IPV6)
+	unsigned short		family;
+#endif
 	union {
 #if IS_ENABLED(CONFIG_IPV6)
 		struct in6_addr		v6_rcv_saddr;
