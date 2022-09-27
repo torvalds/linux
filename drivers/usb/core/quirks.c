@@ -416,6 +416,7 @@ static const struct usb_device_id usb_quirk_list[] = {
 	{ USB_DEVICE(0x0bda, 0x8153), .driver_info = USB_QUIRK_NO_LPM },
 
 	/* Sonix FaceBlack device */
+	{ USB_DEVICE(0x0c45, 0x636a), .driver_info = USB_QUIRK_AUTO_SUSPEND },
 	{ USB_DEVICE(0x0c45, 0x64ab), .driver_info = USB_QUIRK_AUTO_SUSPEND },
 	{ USB_DEVICE(0x0c45, 0x64ac), .driver_info = USB_QUIRK_AUTO_SUSPEND },
 
