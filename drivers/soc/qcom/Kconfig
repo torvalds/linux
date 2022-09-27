@@ -387,6 +387,15 @@ config HYP_ASSIGN_DEBUG
 	  Detects double-assign and double-unassign scenarios.
 	  If unsure, say 'N' here.
 
+config QTI_SYS_PM_VX
+	tristate "Qualcomm Technologies, Inc. (QTI) System PM Violators driver"
+	depends on QCOM_AOSS_QMP
+	help
+	  This option enables debug subystems that prevent system low power
+	  modes. The user sends a QMP message to AOP to record subsystems
+	  preventing deeper system low power modes. The data is stored in the
+	  MSGRAM by AOP and read and reported in the debugfs by this driver.
+
 config QCOM_SOCINFO
 	tristate "Qualcomm socinfo driver"
 	depends on QCOM_SMEM
