@@ -282,8 +282,6 @@ arithmetic operations in the imm field to encode the atomic operation:
 
   *(u64 *)(dst_reg + off16) += src_reg
 
-``BPF_XADD`` is a deprecated name for ``BPF_ATOMIC | BPF_ADD``.
-
 In addition to the simple atomic operations, there also is a modifier and
 two complex atomic operations:
 
@@ -331,36 +329,6 @@ There is currently only one such instruction.
 Legacy BPF Packet access instructions
 -------------------------------------
 
-eBPF has special instructions for access to packet data that have been
-carried over from classic BPF to retain the performance of legacy socket
-filters running in the eBPF interpreter.
-
-The instructions come in two forms: ``BPF_ABS | <size> | BPF_LD`` and
-``BPF_IND | <size> | BPF_LD``.
-
-These instructions are used to access packet data and can only be used when
-the program context is a pointer to networking packet.  ``BPF_ABS``
-accesses packet data at an absolute offset specified by the immediate data
-and ``BPF_IND`` access packet data at an offset that includes the value of
-a register in addition to the immediate data.
-
-These instructions have seven implicit operands:
-
- * Register R6 is an implicit input that must contain pointer to a
-   struct sk_buff.
- * Register R0 is an implicit output which contains the data fetched from
-   the packet.
- * Registers R1-R5 are scratch registers that are clobbered after a call to
-   ``BPF_ABS | BPF_LD`` or ``BPF_IND | BPF_LD`` instructions.
-
-These instructions have an implicit program exit condition as well. When an
-eBPF program is trying to access the data beyond the packet boundary, the
-program execution will be aborted.
-
-``BPF_ABS | BPF_W | BPF_LD`` means::
-
-  R0 = ntohl(*(u32 *) (((struct sk_buff *) R6)->data + imm32))
-
-``BPF_IND | BPF_W | BPF_LD`` means::
-
-  R0 = ntohl(*(u32 *) (((struct sk_buff *) R6)->data + src_reg + imm32))
+eBPF previously introduced special instructions for access to packet data that were
+carried over from classic BPF. However, these instructions are
+deprecated and should no longer be used.
