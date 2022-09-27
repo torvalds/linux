@@ -735,6 +735,7 @@ enum safexcel_eip_version {
 
 struct safexcel_priv_data {
 	enum safexcel_eip_version version;
+	bool fw_little_endian;
 };
 
 /* Priority we use for advertising our algorithms */

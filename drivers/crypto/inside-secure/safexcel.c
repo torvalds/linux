@@ -316,14 +316,20 @@ static void eip197_init_firmware(struct safexcel_crypto_priv *priv)
 static int eip197_write_firmware(struct safexcel_crypto_priv *priv,
 				  const struct firmware *fw)
 {
-	const __be32 *data = (const __be32 *)fw->data;
+	u32 val;
 	int i;
 
 	/* Write the firmware */
-	for (i = 0; i < fw->size / sizeof(u32); i++)
-		writel(be32_to_cpu(data[i]),
+	for (i = 0; i < fw->size / sizeof(u32); i++) {
+		if (priv->data->fw_little_endian)
+			val = le32_to_cpu(((const __le32 *)fw->data)[i]);
+		else
+			val = be32_to_cpu(((const __be32 *)fw->data)[i]);
+
+		writel(val,
 		       priv->base + EIP197_CLASSIFICATION_RAMS +
-		       i * sizeof(__be32));
+		       i * sizeof(val));
+	}
 
 	/* Exclude final 2 NOPs from size */
 	return i - EIP197_FW_TERMINAL_NOPS;
