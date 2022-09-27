@@ -14,6 +14,12 @@ Clang defined "CPU" versions, where a CPU version of 3 corresponds to the curren
 
 Clang can select the eBPF ISA version using ``-mcpu=v3`` for example to select version 3.
 
+Arithmetic instructions
+=======================
+
+For CPU versions prior to 3, Clang v7.0 and later can enable ``BPF_ALU`` support with
+``-Xclang -target-feature -Xclang +alu32``.  In CPU version 3, support is automatically included.
+
 Atomic operations
 =================
 
