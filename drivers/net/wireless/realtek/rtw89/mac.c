@@ -1256,6 +1256,10 @@ const struct rtw89_mac_size_set rtw89_mac_size = {
 	.wde_size0 = {RTW89_WDE_PG_64, 4095, 1,},
 	/* DLFW */
 	.wde_size4 = {RTW89_WDE_PG_64, 0, 4096,},
+	/* PCIE 64 */
+	.wde_size6 = {RTW89_WDE_PG_64, 512, 0,},
+	/* DLFW */
+	.wde_size9 = {RTW89_WDE_PG_64, 0, 1024,},
 	/* 8852C DLFW */
 	.wde_size18 = {RTW89_WDE_PG_64, 0, 2048,},
 	/* 8852C PCIE SCC */
@@ -1264,6 +1268,10 @@ const struct rtw89_mac_size_set rtw89_mac_size = {
 	.ple_size0 = {RTW89_PLE_PG_128, 1520, 16,},
 	/* DLFW */
 	.ple_size4 = {RTW89_PLE_PG_128, 64, 1472,},
+	/* PCIE 64 */
+	.ple_size6 = {RTW89_PLE_PG_128, 496, 16,},
+	/* DLFW */
+	.ple_size8 = {RTW89_PLE_PG_128, 64, 960,},
 	/* 8852C DLFW */
 	.ple_size18 = {RTW89_PLE_PG_128, 2544, 16,},
 	/* 8852C PCIE SCC */
@@ -1272,6 +1280,8 @@ const struct rtw89_mac_size_set rtw89_mac_size = {
 	.wde_qt0 = {3792, 196, 0, 107,},
 	/* DLFW */
 	.wde_qt4 = {0, 0, 0, 0,},
+	/* PCIE 64 */
+	.wde_qt6 = {448, 48, 0, 16,},
 	/* 8852C DLFW */
 	.wde_qt17 = {0, 0, 0,  0,},
 	/* 8852C PCIE SCC */
@@ -1282,6 +1292,8 @@ const struct rtw89_mac_size_set rtw89_mac_size = {
 	.ple_qt5 = {264, 0, 32, 20, 64, 13, 1101, 0, 64, 128, 120,},
 	/* DLFW */
 	.ple_qt13 = {0, 0, 16, 48, 0, 0, 0, 0, 0, 0, 0,},
+	/* PCIE 64 */
+	.ple_qt18 = {147, 0, 16, 20, 17, 13, 89, 0, 32, 14, 8, 0,},
 	/* DLFW 52C */
 	.ple_qt44 = {0, 0, 16, 256, 0, 0, 0, 0, 0, 0, 0, 0,},
 	/* DLFW 52C */
@@ -1290,6 +1302,8 @@ const struct rtw89_mac_size_set rtw89_mac_size = {
 	.ple_qt46 = {525, 0, 16, 20, 13, 13, 178, 0, 32, 62, 8, 16,},
 	/* 8852C PCIE SCC */
 	.ple_qt47 = {525, 0, 32, 20, 1034, 13, 1199, 0, 1053, 62, 160, 1037,},
+	/* PCIE 64 */
+	.ple_qt58 = {147, 0, 16, 20, 157, 13, 229, 0, 172, 14, 24, 0,},
 };
 EXPORT_SYMBOL(rtw89_mac_size);
 
