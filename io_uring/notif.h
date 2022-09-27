@@ -8,7 +8,7 @@
 #include "rsrc.h"
 
 #define IO_NOTIF_SPLICE_BATCH	32
-#define IORING_MAX_NOTIF_SLOTS (1U << 10)
+#define IORING_MAX_NOTIF_SLOTS	(1U << 15)
 
 struct io_notif_data {
 	struct file		*file;

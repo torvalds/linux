@@ -202,12 +202,13 @@ static inline unsigned int cpumask_local_spread(unsigned int i, int node)
 	return 0;
 }
 
-static inline int cpumask_any_and_distribute(const struct cpumask *src1p,
-					     const struct cpumask *src2p) {
+static inline unsigned int cpumask_any_and_distribute(const struct cpumask *src1p,
+						      const struct cpumask *src2p)
+{
 	return cpumask_first_and(src1p, src2p);
 }
 
-static inline int cpumask_any_distribute(const struct cpumask *srcp)
+static inline unsigned int cpumask_any_distribute(const struct cpumask *srcp)
 {
 	return cpumask_first(srcp);
 }
@@ -261,7 +262,26 @@ unsigned int cpumask_next_and(int n, const struct cpumask *src1p,
 		(cpu) = cpumask_next_zero((cpu), (mask)),	\
 		(cpu) < nr_cpu_ids;)
 
+#if NR_CPUS == 1
+static inline
+unsigned int cpumask_next_wrap(int n, const struct cpumask *mask, int start, bool wrap)
+{
+	cpumask_check(start);
+	if (n != -1)
+		cpumask_check(n);
+
+	/*
+	 * Return the first available CPU when wrapping, or when starting before cpu0,
+	 * since there is only one valid option.
+	 */
+	if (wrap && n >= 0)
+		return nr_cpumask_bits;
+
+	return cpumask_first(mask);
+}
+#else
 unsigned int __pure cpumask_next_wrap(int n, const struct cpumask *mask, int start, bool wrap);
+#endif
 
 /**
  * for_each_cpu_wrap - iterate over every cpu in a mask, starting at a specified location

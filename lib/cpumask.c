@@ -109,7 +109,6 @@ void __init free_bootmem_cpumask_var(cpumask_var_t mask)
 }
 #endif
 
-#if NR_CPUS > 1
 /**
  * cpumask_local_spread - select the i'th cpu with local numa cpu's first
  * @i: index number
@@ -197,4 +196,3 @@ unsigned int cpumask_any_distribute(const struct cpumask *srcp)
 	return next;
 }
 EXPORT_SYMBOL(cpumask_any_distribute);
-#endif /* NR_CPUS */

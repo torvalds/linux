@@ -247,6 +247,81 @@ static void nbio_v7_7_init_registers(struct amdgpu_device *adev)
 
 }
 
+static void nbio_v7_7_update_medium_grain_clock_gating(struct amdgpu_device *adev,
+						       bool enable)
+{
+	uint32_t def, data;
+
+	if (enable && !(adev->cg_flags & AMD_CG_SUPPORT_BIF_MGCG))
+		return;
+
+	def = data = RREG32_SOC15(NBIO, 0, regBIF0_CPM_CONTROL);
+	if (enable) {
+		data |= (BIF0_CPM_CONTROL__LCLK_DYN_GATE_ENABLE_MASK |
+			 BIF0_CPM_CONTROL__TXCLK_DYN_GATE_ENABLE_MASK |
+			 BIF0_CPM_CONTROL__TXCLK_LCNT_GATE_ENABLE_MASK |
+			 BIF0_CPM_CONTROL__TXCLK_REGS_GATE_ENABLE_MASK |
+			 BIF0_CPM_CONTROL__TXCLK_PRBS_GATE_ENABLE_MASK |
+			 BIF0_CPM_CONTROL__REFCLK_REGS_GATE_ENABLE_MASK);
+	} else {
+		data &= ~(BIF0_CPM_CONTROL__LCLK_DYN_GATE_ENABLE_MASK |
+			  BIF0_CPM_CONTROL__TXCLK_DYN_GATE_ENABLE_MASK |
+			  BIF0_CPM_CONTROL__TXCLK_LCNT_GATE_ENABLE_MASK |
+			  BIF0_CPM_CONTROL__TXCLK_REGS_GATE_ENABLE_MASK |
+			  BIF0_CPM_CONTROL__TXCLK_PRBS_GATE_ENABLE_MASK |
+			  BIF0_CPM_CONTROL__REFCLK_REGS_GATE_ENABLE_MASK);
+	}
+
+	if (def != data)
+		WREG32_SOC15(NBIO, 0, regBIF0_CPM_CONTROL, data);
+}
+
+static void nbio_v7_7_update_medium_grain_light_sleep(struct amdgpu_device *adev,
+						      bool enable)
+{
+	uint32_t def, data;
+
+	if (enable && !(adev->cg_flags & AMD_CG_SUPPORT_BIF_LS))
+		return;
+
+	def = data = RREG32_SOC15(NBIO, 0, regBIF0_PCIE_CNTL2);
+	if (enable)
+		data |= BIF0_PCIE_CNTL2__SLV_MEM_LS_EN_MASK;
+	else
+		data &= ~BIF0_PCIE_CNTL2__SLV_MEM_LS_EN_MASK;
+
+	if (def != data)
+		WREG32_SOC15(NBIO, 0, regBIF0_PCIE_CNTL2, data);
+
+	def = data = RREG32_SOC15(NBIO, 0, regBIF0_PCIE_TX_POWER_CTRL_1);
+	if (enable) {
+		data |= (BIF0_PCIE_TX_POWER_CTRL_1__MST_MEM_LS_EN_MASK |
+			BIF0_PCIE_TX_POWER_CTRL_1__REPLAY_MEM_LS_EN_MASK);
+	} else {
+		data &= ~(BIF0_PCIE_TX_POWER_CTRL_1__MST_MEM_LS_EN_MASK |
+			BIF0_PCIE_TX_POWER_CTRL_1__REPLAY_MEM_LS_EN_MASK);
+	}
+
+	if (def != data)
+		WREG32_SOC15(NBIO, 0, regBIF0_PCIE_TX_POWER_CTRL_1, data);
+}
+
+static void nbio_v7_7_get_clockgating_state(struct amdgpu_device *adev,
+					    u64 *flags)
+{
+	uint32_t data;
+
+	/* AMD_CG_SUPPORT_BIF_MGCG */
+	data = RREG32_SOC15(NBIO, 0, regBIF0_CPM_CONTROL);
+	if (data & BIF0_CPM_CONTROL__LCLK_DYN_GATE_ENABLE_MASK)
+		*flags |= AMD_CG_SUPPORT_BIF_MGCG;
+
+	/* AMD_CG_SUPPORT_BIF_LS */
+	data = RREG32_SOC15(NBIO, 0, regBIF0_PCIE_CNTL2);
+	if (data & BIF0_PCIE_CNTL2__SLV_MEM_LS_EN_MASK)
+		*flags |= AMD_CG_SUPPORT_BIF_LS;
+}
+
 const struct amdgpu_nbio_funcs nbio_v7_7_funcs = {
 	.get_hdp_flush_req_offset = nbio_v7_7_get_hdp_flush_req_offset,
 	.get_hdp_flush_done_offset = nbio_v7_7_get_hdp_flush_done_offset,
@@ -262,6 +337,9 @@ const struct amdgpu_nbio_funcs nbio_v7_7_funcs = {
 	.enable_doorbell_aperture = nbio_v7_7_enable_doorbell_aperture,
 	.enable_doorbell_selfring_aperture = nbio_v7_7_enable_doorbell_selfring_aperture,
 	.ih_doorbell_range = nbio_v7_7_ih_doorbell_range,
+	.update_medium_grain_clock_gating = nbio_v7_7_update_medium_grain_clock_gating,
+	.update_medium_grain_light_sleep = nbio_v7_7_update_medium_grain_light_sleep,
+	.get_clockgating_state = nbio_v7_7_get_clockgating_state,
 	.ih_control = nbio_v7_7_ih_control,
 	.init_registers = nbio_v7_7_init_registers,
 };
