@@ -1395,7 +1395,7 @@ static int prepare_playback_urb(struct snd_usb_substream *subs,
 	transfer_done = subs->transfer_done;
 
 	if (subs->lowlatency_playback &&
-	    runtime->status->state != SNDRV_PCM_STATE_DRAINING) {
+	    runtime->state != SNDRV_PCM_STATE_DRAINING) {
 		unsigned int hwptr = subs->hwptr_done / stride;
 
 		/* calculate the byte offset-in-buffer of the appl_ptr */
@@ -1583,7 +1583,7 @@ static int snd_usb_substream_playback_trigger(struct snd_pcm_substream *substrea
 		return 0;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
-		stop_endpoints(subs, substream->runtime->status->state == SNDRV_PCM_STATE_DRAINING);
+		stop_endpoints(subs, substream->runtime->state == SNDRV_PCM_STATE_DRAINING);
 		snd_usb_endpoint_set_callback(subs->data_endpoint,
 					      NULL, NULL, NULL);
 		subs->running = 0;
