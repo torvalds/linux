@@ -61,10 +61,7 @@ static inline bool mlx5e_is_ktls_tx(struct mlx5_core_dev *mdev)
 	return !is_kdump_kernel() && MLX5_CAP_GEN(mdev, tls_tx);
 }
 
-static inline bool mlx5e_is_ktls_rx(struct mlx5_core_dev *mdev)
-{
-	return !is_kdump_kernel() && MLX5_CAP_GEN(mdev, tls_rx);
-}
+bool mlx5e_is_ktls_rx(struct mlx5_core_dev *mdev);
 
 struct mlx5e_tls_sw_stats {
 	atomic64_t tx_tls_ctx;

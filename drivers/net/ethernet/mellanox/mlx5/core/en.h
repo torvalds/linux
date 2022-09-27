@@ -609,7 +609,6 @@ struct mlx5e_icosq {
 	/* control path */
 	struct mlx5_wq_ctrl        wq_ctrl;
 	struct mlx5e_channel      *channel;
-	u16                        max_sq_wqebbs;
 
 	struct work_struct         recover_work;
 } ____cacheline_aligned_in_smp;

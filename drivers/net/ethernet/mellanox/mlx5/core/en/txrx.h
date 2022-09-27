@@ -448,13 +448,7 @@ static inline u16 mlx5e_stop_room_for_mpwqe(struct mlx5_core_dev *mdev)
 
 static inline bool mlx5e_icosq_can_post_wqe(struct mlx5e_icosq *sq, u16 wqe_size)
 {
-	u16 room = sq->reserved_room;
-
-	WARN_ONCE(wqe_size > sq->max_sq_wqebbs,
-		  "wqe_size %u is greater than max SQ WQEBBs %u",
-		  wqe_size, sq->max_sq_wqebbs);
-
-	room += MLX5E_STOP_ROOM(wqe_size);
+	u16 room = sq->reserved_room + MLX5E_STOP_ROOM(wqe_size);
 
 	return mlx5e_wqc_has_room_for(&sq->wq, sq->cc, sq->pc, room);
 }
