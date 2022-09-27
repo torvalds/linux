@@ -15,11 +15,6 @@
 
 static struct lock_contention_bpf *skel;
 
-/* should be same as bpf_skel/lock_contention.bpf.c */
-struct lock_contention_key {
-	s32 stack_id;
-};
-
 struct lock_contention_data {
 	u64 total_time;
 	u64 min_time;
