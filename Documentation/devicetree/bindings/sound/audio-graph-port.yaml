@@ -74,6 +74,12 @@ patternProperties:
       convert-sample-format:
         $ref: "/schemas/sound/dai-params.yaml#/$defs/dai-sample-format"
 
+      dai-tdm-slot-num:
+        description: Number of slots in use.
+        $ref: /schemas/types.yaml#/definitions/uint32
+      dai-tdm-slot-width:
+        description: Width in bits for each slot.
+        $ref: /schemas/types.yaml#/definitions/uint32
       dai-tdm-slot-width-map:
         description: Mapping of sample widths to slot widths. For hardware
           that cannot support a fixed slot width or a slot width always
