@@ -43,6 +43,7 @@ enum bch_write_flags {
 	__BCH_WRITE_JOURNAL_SEQ_PTR,
 	__BCH_WRITE_IN_WORKER,
 	__BCH_WRITE_DONE,
+	__BCH_WRITE_IO_ERROR,
 };
 
 #define BCH_WRITE_ALLOC_NOWAIT		(1U << __BCH_WRITE_ALLOC_NOWAIT)
@@ -61,6 +62,7 @@ enum bch_write_flags {
 #define BCH_WRITE_JOURNAL_SEQ_PTR	(1U << __BCH_WRITE_JOURNAL_SEQ_PTR)
 #define BCH_WRITE_IN_WORKER		(1U << __BCH_WRITE_IN_WORKER)
 #define BCH_WRITE_DONE			(1U << __BCH_WRITE_DONE)
+#define BCH_WRITE_IO_ERROR		(1U << __BCH_WRITE_IO_ERROR)
 
 static inline u64 *op_journal_seq(struct bch_write_op *op)
 {

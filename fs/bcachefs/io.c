@@ -615,17 +615,11 @@ static void bch2_write_done(struct closure *cl)
 	op->end_io(op);
 }
 
-/**
- * bch_write_index - after a write, update index to point to new data
- */
-static void __bch2_write_index(struct bch_write_op *op)
+static noinline int bch2_write_drop_io_error_ptrs(struct bch_write_op *op)
 {
-	struct bch_fs *c = op->c;
 	struct keylist *keys = &op->insert_keys;
 	struct bch_extent_ptr *ptr;
-	struct bkey_i *src, *dst = keys->keys, *n, *k;
-	unsigned dev;
-	int ret = 0;
+	struct bkey_i *src, *dst = keys->keys, *n;
 
 	for (src = keys->keys; src != keys->top; src = n) {
 		n = bkey_next(src);
@@ -634,10 +628,8 @@ static void __bch2_write_index(struct bch_write_op *op)
 			bch2_bkey_drop_ptrs(bkey_i_to_s(src), ptr,
 					    test_bit(ptr->dev, op->failed.d));
 
-			if (!bch2_bkey_nr_ptrs(bkey_i_to_s_c(src))) {
-				ret = -EIO;
-				goto err;
-			}
+			if (!bch2_bkey_nr_ptrs(bkey_i_to_s_c(src)))
+				return -EIO;
 		}
 
 		if (dst != src)
@@ -646,6 +638,25 @@ static void __bch2_write_index(struct bch_write_op *op)
 	}
 
 	keys->top = dst;
+	return 0;
+}
+
+/**
+ * bch_write_index - after a write, update index to point to new data
+ */
+static void __bch2_write_index(struct bch_write_op *op)
+{
+	struct bch_fs *c = op->c;
+	struct keylist *keys = &op->insert_keys;
+	struct bkey_i *k;
+	unsigned dev;
+	int ret = 0;
+
+	if (unlikely(op->flags & BCH_WRITE_IO_ERROR)) {
+		ret = bch2_write_drop_io_error_ptrs(op);
+		if (ret)
+			goto err;
+	}
 
 	/*
 	 * probably not the ideal place to hook this in, but I don't
@@ -787,8 +798,10 @@ static void bch2_write_endio(struct bio *bio)
 				    op->pos.inode,
 				    op->pos.offset - bio_sectors(bio), /* XXX definitely wrong */
 				    "data write error: %s",
-			       bch2_blk_status_to_str(bio->bi_status)))
+				    bch2_blk_status_to_str(bio->bi_status))) {
 		set_bit(wbio->dev, op->failed.d);
+		op->flags |= BCH_WRITE_IO_ERROR;
+	}
 
 	if (wbio->have_ioref) {
 		bch2_latency_acct(ca, wbio->submit_time, WRITE);
