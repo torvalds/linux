@@ -1915,6 +1915,10 @@ static inline bool lockdep_vif_mutex_held(struct ieee80211_vif *vif)
 	rcu_dereference_protected((vif)->link_conf[link_id],	\
 				  lockdep_vif_mutex_held(vif))
 
+#define link_conf_dereference_check(vif, link_id)		\
+	rcu_dereference_check((vif)->link_conf[link_id],	\
+			      lockdep_vif_mutex_held(vif))
+
 /**
  * enum ieee80211_key_flags - key flags
  *
@@ -2310,6 +2314,10 @@ static inline bool lockdep_sta_mutex_held(struct ieee80211_sta *pubsta)
 #define link_sta_dereference_protected(sta, link_id)		\
 	rcu_dereference_protected((sta)->link[link_id],		\
 				  lockdep_sta_mutex_held(sta))
+
+#define link_sta_dereference_check(sta, link_id)		\
+	rcu_dereference_check((sta)->link[link_id],		\
+			      lockdep_sta_mutex_held(sta))
 
 #define for_each_sta_active_link(vif, sta, link_sta, link_id)			\
 	for (link_id = 0; link_id < ARRAY_SIZE((sta)->link); link_id++)		\
