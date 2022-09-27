@@ -5427,6 +5427,8 @@ static struct ftrace_ops stub_ops = {
  * it is safe to modify the ftrace record, where it should be
  * currently calling @old_addr directly, to call @new_addr.
  *
+ * This is called with direct_mutex locked.
+ *
  * Safety checks should be made to make sure that the code at
  * @rec->ip is currently calling @old_addr. And this must
  * also update entry->direct to @new_addr.
@@ -5438,6 +5440,8 @@ int __weak ftrace_modify_direct_caller(struct ftrace_func_entry *entry,
 {
 	unsigned long ip = rec->ip;
 	int ret;
+
+	lockdep_assert_held(&direct_mutex);
 
 	/*
 	 * The ftrace_lock was used to determine if the record
@@ -5461,7 +5465,7 @@ int __weak ftrace_modify_direct_caller(struct ftrace_func_entry *entry,
 	if (ret)
 		goto out_lock;
 
-	ret = register_ftrace_function(&stub_ops);
+	ret = register_ftrace_function_nolock(&stub_ops);
 	if (ret) {
 		ftrace_set_filter_ip(&stub_ops, ip, 1, 0);
 		goto out_lock;
