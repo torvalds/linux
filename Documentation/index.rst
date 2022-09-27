@@ -89,14 +89,6 @@ platform firmwares.
    devicetree/index
 
 
-Architecture-agnostic documentation
------------------------------------
-
-.. toctree::
-   :maxdepth: 1
-
-   asm-annotations
-
 Architecture-specific documentation
 -----------------------------------
 

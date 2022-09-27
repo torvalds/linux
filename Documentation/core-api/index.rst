@@ -23,6 +23,7 @@ it.
    printk-formats
    printk-index
    symbol-namespaces
+   asm-annotations
 
 Data structures and low-level utilities
 =======================================
