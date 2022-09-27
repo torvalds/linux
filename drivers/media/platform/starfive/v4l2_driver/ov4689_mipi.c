@@ -2122,30 +2122,11 @@ static int ov4689_set_power_mipi(struct ov4689_dev *sensor, bool on)
 static int ov4689_set_power(struct ov4689_dev *sensor, bool on)
 {
 	int ret = 0;
-	u16 chip_id;
 
 	if (on) {
 		ret = ov4689_set_power_on(sensor);
 		if (ret)
 			return ret;
-
-		ret = ov4689_read_reg16(sensor, OV4689_REG_CHIP_ID, &chip_id);
-		if (ret) {
-			dev_err(&sensor->i2c_client->dev, "%s: failed to read chip identifier\n",
-				__func__);
-			ret = -ENODEV;
-			goto power_off;
-		}
-
-		if (chip_id != OV4689_CHIP_ID) {
-			dev_err(&sensor->i2c_client->dev,
-					"%s: wrong chip identifier, expected 0x%x, got 0x%x\n",
-					__func__, OV4689_CHIP_ID, chip_id);
-			ret = -ENXIO;
-			goto power_off;
-		}
-		dev_err(&sensor->i2c_client->dev, "%s: chip identifier, got 0x%x\n",
-			__func__, chip_id);
 
 		ret = ov4689_restore_mode(sensor);
 		if (ret)
