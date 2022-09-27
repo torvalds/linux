@@ -55,6 +55,7 @@ struct tsnep_tx_entry {
 struct tsnep_tx {
 	struct tsnep_adapter *adapter;
 	void __iomem *addr;
+	int queue_index;
 
 	void *page[TSNEP_RING_PAGE_COUNT];
 	dma_addr_t page_dma[TSNEP_RING_PAGE_COUNT];
@@ -105,12 +106,14 @@ struct tsnep_rx {
 
 struct tsnep_queue {
 	struct tsnep_adapter *adapter;
+	char name[IFNAMSIZ + 9];
 
 	struct tsnep_tx *tx;
 	struct tsnep_rx *rx;
 
 	struct napi_struct napi;
 
+	int irq;
 	u32 irq_mask;
 };
 
@@ -126,7 +129,6 @@ struct tsnep_adapter {
 	struct platform_device *pdev;
 	struct device *dmadev;
 	void __iomem *addr;
-	int irq;
 
 	bool gate_control;
 	/* gate control lock */
