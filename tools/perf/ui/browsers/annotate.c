@@ -19,11 +19,6 @@
 #include <sys/ttydefaults.h>
 #include <asm/bug.h>
 
-struct disasm_line_samples {
-	double		      percent;
-	struct sym_hist_entry he;
-};
-
 struct arch;
 
 struct annotate_browser {
