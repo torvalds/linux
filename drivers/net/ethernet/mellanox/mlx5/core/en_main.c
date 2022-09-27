@@ -1155,7 +1155,7 @@ static int mlx5e_alloc_xdpsq(struct mlx5e_channel *c,
 		is_redirect ?
 			&c->priv->channel_stats[c->ix]->xdpsq :
 			&c->priv->channel_stats[c->ix]->rq_xdpsq;
-	sq->stop_room = MLX5E_STOP_ROOM(mlx5e_get_max_sq_wqebbs(mdev));
+	sq->stop_room = mlx5e_stop_room_for_max_wqe(mdev);
 	sq->max_sq_mpw_wqebbs = mlx5e_get_max_sq_aligned_wqebbs(mdev);
 
 	param->wq.db_numa_node = cpu_to_node(c->cpu);
