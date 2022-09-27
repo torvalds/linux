@@ -2612,6 +2612,7 @@ struct rtw89_chip_info {
 	const struct rtw89_chip_ops *ops;
 	const char *fw_name;
 	u32 fifo_size;
+	u32 dle_scc_rsvd_size;
 	u16 max_amsdu_limit;
 	bool dis_2g_40m_ul_ofdma;
 	u32 rsvd_ple_ofst;
