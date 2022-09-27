@@ -1530,8 +1530,8 @@ static void qeth_addr_change_event(struct qeth_card *card,
 	else
 		INIT_DELAYED_WORK(&data->dwork, qeth_l2_dev2br_worker);
 	data->card = card;
-	memcpy(&data->ac_event, hostevs,
-			sizeof(struct qeth_ipacmd_addr_change) + extrasize);
+	data->ac_event = *hostevs;
+	memcpy(data->ac_event.entry, hostevs->entry, extrasize);
 	queue_delayed_work(card->event_wq, &data->dwork, 0);
 }
 
