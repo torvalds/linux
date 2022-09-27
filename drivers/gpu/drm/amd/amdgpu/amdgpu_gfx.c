@@ -868,7 +868,7 @@ int amdgpu_gfx_get_num_kcq(struct amdgpu_device *adev)
 }
 
 void amdgpu_gfx_cp_init_microcode(struct amdgpu_device *adev,
-				  enum AMDGPU_UCODE_ID ucode_id)
+				  uint32_t ucode_id)
 {
 	const struct gfx_firmware_header_v1_0 *cp_hdr;
 	const struct gfx_firmware_header_v2_0 *cp_hdr_v2_0;
