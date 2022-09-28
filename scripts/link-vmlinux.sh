@@ -199,7 +199,6 @@ cleanup()
 	rm -f System.map
 	rm -f vmlinux
 	rm -f vmlinux.map
-	rm -f .vmlinux.export.c
 }
 
 # Use "make V=1" to debug this script
@@ -212,10 +211,6 @@ esac
 if [ "$1" = "clean" ]; then
 	cleanup
 	exit 0
-fi
-
-if is_enabled CONFIG_MODULES; then
-	${MAKE} -f "${srctree}/scripts/Makefile.vmlinux" .vmlinux.export.o
 fi
 
 ${MAKE} -f "${srctree}/scripts/Makefile.build" obj=init init/version-timestamp.o
