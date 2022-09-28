@@ -27,6 +27,8 @@ static const u32 mt7915_reg[] = {
 	[INFRA_MCU_ADDR_END]	= 0x7c3fffff,
 	[FW_EXCEPTION_ADDR]	= 0x219848,
 	[SWDEF_BASE_ADDR]	= 0x41f200,
+	[TXQ_WED_RING_BASE]	= 0xd7300,
+	[RXQ_WED_RING_BASE]	= 0xd7410,
 };
 
 static const u32 mt7916_reg[] = {
@@ -43,6 +45,8 @@ static const u32 mt7916_reg[] = {
 	[INFRA_MCU_ADDR_END]	= 0x7c085fff,
 	[FW_EXCEPTION_ADDR]	= 0x022050bc,
 	[SWDEF_BASE_ADDR]	= 0x411400,
+	[TXQ_WED_RING_BASE]	= 0xd7300,
+	[RXQ_WED_RING_BASE]	= 0xd7410,
 };
 
 static const u32 mt7986_reg[] = {
@@ -59,6 +63,8 @@ static const u32 mt7986_reg[] = {
 	[INFRA_MCU_ADDR_END]	= 0x7c085fff,
 	[FW_EXCEPTION_ADDR]	= 0x02204ffc,
 	[SWDEF_BASE_ADDR]	= 0x411400,
+	[TXQ_WED_RING_BASE]	= 0x24420,
+	[RXQ_WED_RING_BASE]	= 0x24520,
 };
 
 static const u32 mt7915_offs[] = {
@@ -528,8 +534,8 @@ static void mt7915_mmio_wed_offload_disable(struct mtk_wed_device *wed)
 }
 #endif
 
-int mt7915_mmio_wed_init(struct mt7915_dev *dev, struct pci_dev *pdev,
-			 int *irq)
+int mt7915_mmio_wed_init(struct mt7915_dev *dev, void *pdev_ptr,
+			 bool pci, int *irq)
 {
 #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
@@ -538,27 +544,46 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, struct pci_dev *pdev,
 	if (!wed_enable)
 		return 0;
 
-	wed->wlan.pci_dev = pdev;
-	wed->wlan.wpdma_phys = pci_resource_start(pdev, 0) +
-			       MT_WFDMA_EXT_CSR_BASE;
-	wed->wlan.wpdma_int = pci_resource_start(pdev, 0) +
-			      MT_INT_WED_SOURCE_CSR;
-	wed->wlan.wpdma_mask = pci_resource_start(pdev, 0) +
-			       MT_INT_WED_MASK_CSR;
-	wed->wlan.wpdma_tx = pci_resource_start(pdev, 0) +
-			     MT_TXQ_WED_RING_BASE;
-	wed->wlan.wpdma_txfree = pci_resource_start(pdev, 0) +
-				 MT_RXQ_WED_RING_BASE;
+	if (pci) {
+		struct pci_dev *pci_dev = pdev_ptr;
+
+		wed->wlan.pci_dev = pci_dev;
+		wed->wlan.bus_type = MTK_WED_BUS_PCIE;
+		wed->wlan.wpdma_int = pci_resource_start(pci_dev, 0) +
+				      MT_INT_WED_SOURCE_CSR;
+		wed->wlan.wpdma_mask = pci_resource_start(pci_dev, 0) +
+				       MT_INT_WED_MASK_CSR;
+		wed->wlan.wpdma_phys = pci_resource_start(pci_dev, 0) +
+				       MT_WFDMA_EXT_CSR_BASE;
+		wed->wlan.wpdma_tx = pci_resource_start(pci_dev, 0) +
+				     MT_TXQ_WED_RING_BASE;
+		wed->wlan.wpdma_txfree = pci_resource_start(pci_dev, 0) +
+					 MT_RXQ_WED_RING_BASE;
+	} else {
+		struct platform_device *plat_dev = pdev_ptr;
+		struct resource *res;
+
+		res = platform_get_resource(plat_dev, IORESOURCE_MEM, 0);
+		if (!res)
+			return -ENOMEM;
+
+		wed->wlan.platform_dev = plat_dev;
+		wed->wlan.bus_type = MTK_WED_BUS_AXI;
+		wed->wlan.wpdma_int = res->start + MT_INT_SOURCE_CSR;
+		wed->wlan.wpdma_mask = res->start + MT_INT_MASK_CSR;
+		wed->wlan.wpdma_tx = res->start + MT_TXQ_WED_RING_BASE;
+		wed->wlan.wpdma_txfree = res->start + MT_RXQ_WED_RING_BASE;
+	}
 	wed->wlan.nbuf = 4096;
-	wed->wlan.tx_tbit[0] = MT_WED_TX_DONE_BAND0;
-	wed->wlan.tx_tbit[1] = MT_WED_TX_DONE_BAND1;
-	wed->wlan.txfree_tbit = MT_WED_TX_FREE_DONE;
+	wed->wlan.tx_tbit[0] = is_mt7915(&dev->mt76) ? 4 : 30;
+	wed->wlan.tx_tbit[1] = is_mt7915(&dev->mt76) ? 5 : 31;
+	wed->wlan.txfree_tbit = is_mt7915(&dev->mt76) ? 1 : 2;
 	wed->wlan.token_start = MT7915_TOKEN_SIZE - wed->wlan.nbuf;
 	wed->wlan.init_buf = mt7915_wed_init_buf;
 	wed->wlan.offload_enable = mt7915_mmio_wed_offload_enable;
 	wed->wlan.offload_disable = mt7915_mmio_wed_offload_disable;
 
-	if (mtk_wed_device_attach(wed) != 0)
+	if (mtk_wed_device_attach(wed))
 		return 0;
 
 	*irq = wed->irq;
@@ -638,7 +663,11 @@ void mt7915_dual_hif_set_irq_mask(struct mt7915_dev *dev,
 	mdev->mmio.irqmask |= set;
 
 	if (write_reg) {
-		mt76_wr(dev, MT_INT_MASK_CSR, mdev->mmio.irqmask);
+		if (mtk_wed_device_active(&mdev->mmio.wed))
+			mtk_wed_device_irq_set_mask(&mdev->mmio.wed,
+						    mdev->mmio.irqmask);
+		else
+			mt76_wr(dev, MT_INT_MASK_CSR, mdev->mmio.irqmask);
 		mt76_wr(dev, MT_INT1_MASK_CSR, mdev->mmio.irqmask);
 	}
 
@@ -662,6 +691,8 @@ static void mt7915_irq_tasklet(struct tasklet_struct *t)
 
 	if (mtk_wed_device_active(wed)) {
 		mtk_wed_device_irq_set_mask(wed, 0);
+		if (dev->hif2)
+			mt76_wr(dev, MT_INT1_MASK_CSR, 0);
 		intr = mtk_wed_device_irq_get(wed, dev->mt76.mmio.irqmask);
 	} else {
 		mt76_wr(dev, MT_INT_MASK_CSR, 0);
