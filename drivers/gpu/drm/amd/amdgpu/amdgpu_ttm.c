@@ -1966,17 +1966,11 @@ static int amdgpu_ttm_prepare_job(struct amdgpu_device *adev,
 							adev->gart.bo);
 		(*job)->vm_needs_flush = true;
 	}
-	if (resv) {
-		r = amdgpu_sync_resv(adev, &(*job)->sync, resv,
-				     AMDGPU_SYNC_ALWAYS,
-				     AMDGPU_FENCE_OWNER_UNDEFINED);
-		if (r) {
-			DRM_ERROR("sync failed (%d).\n", r);
-			amdgpu_job_free(*job);
-			return r;
-		}
-	}
-	return 0;
+	if (!resv)
+		return 0;
+
+	return drm_sched_job_add_resv_dependencies(&(*job)->base, resv,
+						   DMA_RESV_USAGE_BOOKKEEP);
 }
 
 int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
