@@ -280,7 +280,7 @@ void mt76x2_read_rx_gain(struct mt76x02_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt76x2_read_rx_gain);
 
-void mt76x2_get_rate_power(struct mt76x02_dev *dev, struct mt76_rate_power *t,
+void mt76x2_get_rate_power(struct mt76x02_dev *dev, struct mt76x02_rate_power *t,
 			   struct ieee80211_channel *chan)
 {
 	bool is_5ghz;

@@ -470,19 +470,6 @@ struct mt76_sband {
 	struct mt76_channel_state *chan;
 };
 
-struct mt76_rate_power {
-	union {
-		struct {
-			s8 cck[4];
-			s8 ofdm[8];
-			s8 stbc[10];
-			s8 ht[16];
-			s8 vht[10];
-		};
-		s8 all[48];
-	};
-};
-
 /* addr req mask */
 #define MT_VEND_TYPE_EEPROM	BIT(31)
 #define MT_VEND_TYPE_CFG	BIT(30)
@@ -801,8 +788,6 @@ struct mt76_dev {
 
 	struct debugfs_blob_wrapper eeprom;
 	struct debugfs_blob_wrapper otp;
-
-	struct mt76_rate_power rate_power;
 
 	char alpha2[3];
 	enum nl80211_dfs_regions region;

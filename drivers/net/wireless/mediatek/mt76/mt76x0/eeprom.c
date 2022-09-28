@@ -151,7 +151,7 @@ static s8 mt76x0_get_delta(struct mt76x02_dev *dev)
 
 void mt76x0_get_tx_power_per_rate(struct mt76x02_dev *dev,
 				  struct ieee80211_channel *chan,
-				  struct mt76_rate_power *t)
+				  struct mt76x02_rate_power *t)
 {
 	bool is_2ghz = chan->band == NL80211_BAND_2GHZ;
 	u16 val, addr;
@@ -235,7 +235,7 @@ void mt76x0_get_power_info(struct mt76x02_dev *dev,
 			data = mt76x02_eeprom_get(dev, MT_EE_5G_TARGET_POWER);
 		else
 			data = mt76x02_eeprom_get(dev, MT_EE_2G_TARGET_POWER);
-		target_power = (data & 0xff) - dev->mt76.rate_power.ofdm[7];
+		target_power = (data & 0xff) - dev->rate_power.ofdm[7];
 		*tp = target_power + mt76x0_get_delta(dev);
 
 		return;
