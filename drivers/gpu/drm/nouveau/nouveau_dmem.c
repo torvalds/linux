@@ -139,44 +139,24 @@ static void nouveau_dmem_fence_done(struct nouveau_fence **fence)
 	}
 }
 
-static vm_fault_t nouveau_dmem_fault_copy_one(struct nouveau_drm *drm,
-		struct vm_fault *vmf, struct migrate_vma *args,
-		dma_addr_t *dma_addr)
+static int nouveau_dmem_copy_one(struct nouveau_drm *drm, struct page *spage,
+				struct page *dpage, dma_addr_t *dma_addr)
 {
 	struct device *dev = drm->dev->dev;
-	struct page *dpage, *spage;
-	struct nouveau_svmm *svmm;
 
-	spage = migrate_pfn_to_page(args->src[0]);
-	if (!spage || !(args->src[0] & MIGRATE_PFN_MIGRATE))
-		return 0;
-
-	dpage = alloc_page_vma(GFP_HIGHUSER, vmf->vma, vmf->address);
-	if (!dpage)
-		return VM_FAULT_SIGBUS;
 	lock_page(dpage);
 
 	*dma_addr = dma_map_page(dev, dpage, 0, PAGE_SIZE, DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(dev, *dma_addr))
-		goto error_free_page;
+		return -EIO;
 
-	svmm = spage->zone_device_data;
-	mutex_lock(&svmm->mutex);
-	nouveau_svmm_invalidate(svmm, args->start, args->end);
 	if (drm->dmem->migrate.copy_func(drm, 1, NOUVEAU_APER_HOST, *dma_addr,
-			NOUVEAU_APER_VRAM, nouveau_dmem_page_addr(spage)))
-		goto error_dma_unmap;
-	mutex_unlock(&svmm->mutex);
+					 NOUVEAU_APER_VRAM, nouveau_dmem_page_addr(spage))) {
+		dma_unmap_page(dev, *dma_addr, PAGE_SIZE, DMA_BIDIRECTIONAL);
+		return -EIO;
+	}
 
-	args->dst[0] = migrate_pfn(page_to_pfn(dpage));
 	return 0;
-
-error_dma_unmap:
-	mutex_unlock(&svmm->mutex);
-	dma_unmap_page(dev, *dma_addr, PAGE_SIZE, DMA_BIDIRECTIONAL);
-error_free_page:
-	__free_page(dpage);
-	return VM_FAULT_SIGBUS;
 }
 
 static vm_fault_t nouveau_dmem_migrate_to_ram(struct vm_fault *vmf)
@@ -184,9 +164,11 @@ static vm_fault_t nouveau_dmem_migrate_to_ram(struct vm_fault *vmf)
 	struct nouveau_drm *drm = page_to_drm(vmf->page);
 	struct nouveau_dmem *dmem = drm->dmem;
 	struct nouveau_fence *fence;
+	struct nouveau_svmm *svmm;
+	struct page *spage, *dpage;
 	unsigned long src = 0, dst = 0;
 	dma_addr_t dma_addr = 0;
-	vm_fault_t ret;
+	vm_fault_t ret = 0;
 	struct migrate_vma args = {
 		.vma		= vmf->vma,
 		.start		= vmf->address,
@@ -207,9 +189,25 @@ static vm_fault_t nouveau_dmem_migrate_to_ram(struct vm_fault *vmf)
 	if (!args.cpages)
 		return 0;
 
-	ret = nouveau_dmem_fault_copy_one(drm, vmf, &args, &dma_addr);
-	if (ret || dst == 0)
+	spage = migrate_pfn_to_page(src);
+	if (!spage || !(src & MIGRATE_PFN_MIGRATE))
 		goto done;
+
+	dpage = alloc_page_vma(GFP_HIGHUSER, vmf->vma, vmf->address);
+	if (!dpage)
+		goto done;
+
+	dst = migrate_pfn(page_to_pfn(dpage));
+
+	svmm = spage->zone_device_data;
+	mutex_lock(&svmm->mutex);
+	nouveau_svmm_invalidate(svmm, args.start, args.end);
+	ret = nouveau_dmem_copy_one(drm, spage, dpage, &dma_addr);
+	mutex_unlock(&svmm->mutex);
+	if (ret) {
+		ret = VM_FAULT_SIGBUS;
+		goto done;
+	}
 
 	nouveau_fence_new(dmem->migrate.chan, false, &fence);
 	migrate_vma_pages(&args);
