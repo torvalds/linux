@@ -59,7 +59,6 @@ extern struct omap_hwmod_ocp_if omap2_l4_core__uart2;
 extern struct omap_hwmod_ocp_if omap2_l4_core__uart3;
 extern struct omap_hwmod_ocp_if omap2xxx_l4_core__mcspi1;
 extern struct omap_hwmod_ocp_if omap2xxx_l4_core__mcspi2;
-extern struct omap_hwmod_ocp_if omap2xxx_l4_core__timer2;
 extern struct omap_hwmod_ocp_if omap2xxx_l4_core__timer3;
 extern struct omap_hwmod_ocp_if omap2xxx_l4_core__timer4;
 extern struct omap_hwmod_ocp_if omap2xxx_l4_core__timer5;

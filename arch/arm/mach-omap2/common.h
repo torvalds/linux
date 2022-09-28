@@ -87,12 +87,6 @@ static inline int amx3_common_pm_init(void)
 }
 #endif
 
-extern void omap2_init_common_infrastructure(void);
-
-extern void omap_init_time(void);
-extern void omap3_secure_sync32k_timer_init(void);
-extern void omap3_gptimer_timer_init(void);
-extern void omap4_local_timer_init(void);
 #ifdef CONFIG_CACHE_L2X0
 int omap_l2_cache_init(void);
 #define OMAP_L2C_AUX_CTRL	(L2C_AUX_CTRL_SHARED_OVERRIDE | \
@@ -228,11 +222,6 @@ void __init ti81xx_map_io(void);
 		udelay(1);					\
 	}							\
 })
-
-extern struct device *omap2_get_mpuss_device(void);
-extern struct device *omap2_get_iva_device(void);
-extern struct device *omap2_get_l3_device(void);
-extern struct device *omap4_get_dsp_device(void);
 
 void omap_gic_of_init(void);
 
