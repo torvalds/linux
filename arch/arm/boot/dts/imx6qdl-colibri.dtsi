@@ -24,6 +24,13 @@
 		status = "disabled";
 	};
 
+	extcon_usbc_det: usbc-det {
+		compatible = "linux,extcon-usb-gpio";
+		id-gpio = <&gpio7 12 GPIO_ACTIVE_HIGH>; /* SODIMM 137 / USBC_DET */
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbc_det>;
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
@@ -670,9 +677,11 @@
 	status = "disabled";
 };
 
+/* Colibri USBC */
 &usbotg {
 	disable-over-current;
-	dr_mode = "peripheral";
+	dr_mode = "otg";
+	extcon = <0>, <&extcon_usbc_det>;
 	status = "disabled";
 };
 
@@ -1055,7 +1064,7 @@
 
 	pinctrl_usbc_det: usbcdetgrp {
 		fsl,pins = <
-			/* USBC_DET */
+			/* SODIMM 137 / USBC_DET */
 			MX6QDL_PAD_GPIO_17__GPIO7_IO12		0x1b0b0
 			/* USBC_DET_OVERWRITE */
 			MX6QDL_PAD_RGMII_RXC__GPIO6_IO30	0x0f058
