@@ -94,6 +94,10 @@ static int get_branch_type(unsigned long from, unsigned long to, int abort,
 	u8 buf[MAX_INSN_SIZE];
 	int is64 = 0;
 
+	/* make sure we initialize offset */
+	if (offset)
+		*offset = 0;
+
 	to_plm = kernel_ip(to) ? X86_BR_KERNEL : X86_BR_USER;
 	from_plm = kernel_ip(from) ? X86_BR_KERNEL : X86_BR_USER;
 
