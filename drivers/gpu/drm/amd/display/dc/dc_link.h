@@ -117,6 +117,16 @@ struct psr_settings {
  * Add a struct dc_panel_config under dc_link
  */
 struct dc_panel_config {
+	// extra panel power sequence parameters
+	struct pps {
+		unsigned int extra_t3_ms;
+		unsigned int extra_t7_ms;
+		unsigned int extra_delay_backlight_off;
+		unsigned int extra_post_t7_ms;
+		unsigned int extra_pre_t11_ms;
+		unsigned int extra_t12_ms;
+		unsigned int extra_post_OUI_ms;
+	} pps;
 	// edp DSC
 	struct dsc {
 		bool disable_dsc_edp;
@@ -244,7 +254,7 @@ struct dc_link {
 	struct gpio *hpd_gpio;
 	enum dc_link_fec_state fec_state;
 	struct dc_panel_config panel_config;
-	enum phy_state phy_state;
+	struct phy_state phy_state;
 };
 
 const struct dc_link_status *dc_link_get_status(const struct dc_link *dc_link);

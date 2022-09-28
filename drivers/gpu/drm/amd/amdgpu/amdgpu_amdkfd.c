@@ -686,6 +686,7 @@ int amdgpu_amdkfd_submit_ib(struct amdgpu_device *adev,
 	ib->length_dw = ib_len;
 	/* This works for NO_HWS. TODO: need to handle without knowing VMID */
 	job->vmid = vmid;
+	job->num_ibs = 1;
 
 	ret = amdgpu_ib_schedule(ring, 1, ib, job, &f);
 

@@ -2636,7 +2636,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 					&mode_lib->vba.SrcActiveDrainRate,
 					&mode_lib->vba.TInitXFill,
 					&mode_lib->vba.TslvChk);
-					locals->XFCRemoteSurfaceFlipLatency[k] =
+			locals->XFCRemoteSurfaceFlipLatency[k] =
 					dml_floor(
 							mode_lib->vba.XFCRemoteSurfaceFlipDelay
 									/ (mode_lib->vba.HTotal[k]

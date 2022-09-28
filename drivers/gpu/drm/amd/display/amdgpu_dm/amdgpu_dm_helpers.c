@@ -880,8 +880,17 @@ void dm_helpers_smu_timeout(struct dc_context *ctx, unsigned int msg_id, unsigne
 
 void dm_helpers_init_panel_settings(
 	struct dc_context *ctx,
-	struct dc_panel_config *panel_config)
+	struct dc_panel_config *panel_config,
+	struct dc_sink *sink)
 {
+	// Extra Panel Power Sequence
+	panel_config->pps.extra_t3_ms = sink->edid_caps.panel_patch.extra_t3_ms;
+	panel_config->pps.extra_t7_ms = sink->edid_caps.panel_patch.extra_t7_ms;
+	panel_config->pps.extra_delay_backlight_off = sink->edid_caps.panel_patch.extra_delay_backlight_off;
+	panel_config->pps.extra_post_t7_ms = 0;
+	panel_config->pps.extra_pre_t11_ms = 0;
+	panel_config->pps.extra_t12_ms = sink->edid_caps.panel_patch.extra_t12_ms;
+	panel_config->pps.extra_post_OUI_ms = 0;
 	// Feature DSC
 	panel_config->dsc.disable_dsc_edp = false;
 	panel_config->dsc.force_dsc_edp_policy = 0;

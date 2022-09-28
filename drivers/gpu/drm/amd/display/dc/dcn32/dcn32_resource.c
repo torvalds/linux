@@ -90,29 +90,6 @@
 #include "dcn20/dcn20_vmid.h"
 #include "dml/dcn32/dcn32_fpu.h"
 
-#define DCN_BASE__INST0_SEG1                       0x000000C0
-#define DCN_BASE__INST0_SEG2                       0x000034C0
-#define DCN_BASE__INST0_SEG3                       0x00009000
-#define NBIO_BASE__INST0_SEG1                      0x00000014
-
-#define MAX_INSTANCE                                        6
-#define MAX_SEGMENT                                         6
-
-struct IP_BASE_INSTANCE {
-	unsigned int segment[MAX_SEGMENT];
-};
-
-struct IP_BASE {
-	struct IP_BASE_INSTANCE instance[MAX_INSTANCE];
-};
-
-static const struct IP_BASE DCN_BASE = { { { { 0x00000012, 0x000000C0, 0x000034C0, 0x00009000, 0x02403C00, 0 } },
-					{ { 0, 0, 0, 0, 0, 0 } },
-					{ { 0, 0, 0, 0, 0, 0 } },
-					{ { 0, 0, 0, 0, 0, 0 } },
-					{ { 0, 0, 0, 0, 0, 0 } },
-					{ { 0, 0, 0, 0, 0, 0 } } } };
-
 #define DC_LOGGER_INIT(logger)
 
 enum dcn32_clk_src_array_id {
@@ -743,6 +720,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.enable_single_display_2to1_odm_policy = true,
 	.enable_dp_dig_pixel_rate_div_policy = 1,
 	.allow_sw_cursor_fallback = false,
+	.alloc_extra_way_for_cursor = true,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -919,10 +897,10 @@ static struct hubp *dcn32_hubp_create(
 
 #undef REG_STRUCT
 #define REG_STRUCT hubp_regs
-		hubp_regs_init(0),
-		hubp_regs_init(1),
-		hubp_regs_init(2),
-		hubp_regs_init(3);
+	hubp_regs_init(0),
+	hubp_regs_init(1),
+	hubp_regs_init(2),
+	hubp_regs_init(3);
 
 	if (hubp32_construct(hubp2, ctx, inst,
 			&hubp_regs[inst], &hubp_shift, &hubp_mask))
@@ -1859,12 +1837,6 @@ validate_out:
 	return out;
 }
 
-
-static bool is_dual_plane(enum surface_pixel_format format)
-{
-	return format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN || format == SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA;
-}
-
 int dcn32_populate_dml_pipes_from_context(
 	struct dc *dc, struct dc_state *context,
 	display_e2e_pipe_params_st *pipes,
@@ -1873,11 +1845,35 @@ int dcn32_populate_dml_pipes_from_context(
 	int i, pipe_cnt;
 	struct resource_context *res_ctx = &context->res_ctx;
 	struct pipe_ctx *pipe;
-	bool subvp_in_use = false, is_pipe_split_expected[MAX_PIPES];
+	bool subvp_in_use = false;
 	int plane_count = 0;
 	struct dc_crtc_timing *timing;
 
 	dcn20_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
+
+	/* Determine whether we will apply ODM 2to1 policy:
+	 * Applies to single display and where the number of planes is less than 3.
+	 * For 3 plane case ( 2 MPO planes ), we will not set the policy for the MPO pipes.
+	 *
+	 * Apply pipe split policy first so we can predict the pipe split correctly
+	 * (dcn32_predict_pipe_split).
+	 */
+	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
+		if (!res_ctx->pipe_ctx[i].stream)
+			continue;
+		pipe = &res_ctx->pipe_ctx[i];
+		timing = &pipe->stream->timing;
+
+		pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_dal;
+		if (context->stream_count == 1 && !dc_is_hdmi_signal(res_ctx->pipe_ctx[i].stream->signal) &&
+				is_h_timing_divisible_by_2(res_ctx->pipe_ctx[i].stream)) {
+			if (dc->debug.enable_single_display_2to1_odm_policy) {
+				if (!((plane_count > 2) && pipe->top_pipe))
+					pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_2to1;
+			}
+		}
+		pipe_cnt++;
+	}
 
 	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
 
@@ -1937,31 +1933,6 @@ int dcn32_populate_dml_pipes_from_context(
 		if (pipe->stream && !pipe->prev_odm_pipe &&
 				(!pipe->top_pipe || pipe->top_pipe->plane_state != pipe->plane_state))
 			++plane_count;
-
-		DC_FP_START();
-		is_pipe_split_expected[i] = dcn32_predict_pipe_split(context, pipes[i].pipe, i);
-		DC_FP_END();
-
-		pipe_cnt++;
-	}
-
-	/* Determine whether we will apply ODM 2to1 policy
-	 * Applies to single display and where the number of planes is less than 3
-	 * For 3 plane case ( 2 MPO planes ), we will not set the policy for the MPO pipes
-	 */
-	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
-		if (!res_ctx->pipe_ctx[i].stream)
-			continue;
-		pipe = &res_ctx->pipe_ctx[i];
-		timing = &pipe->stream->timing;
-
-		pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_dal;
-		if (context->stream_count == 1 && !dc_is_hdmi_signal(res_ctx->pipe_ctx[i].stream->signal)) {
-			if (dc->debug.enable_single_display_2to1_odm_policy) {
-				if (!((plane_count > 2) && pipe->top_pipe))
-					pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_2to1;
-			}
-		}
 		pipe_cnt++;
 	}
 
@@ -1969,19 +1940,7 @@ int dcn32_populate_dml_pipes_from_context(
 	 * the DET available for each pipe). Use the DET override input to maintain our driver
 	 * policy.
 	 */
-	if (pipe_cnt == 1 && !is_pipe_split_expected[0]) {
-		pipes[0].pipe.src.det_size_override = DCN3_2_MAX_DET_SIZE;
-		if (pipe->plane_state && !dc->debug.disable_z9_mpc) {
-			if (!is_dual_plane(pipe->plane_state->format)) {
-				pipes[0].pipe.src.det_size_override = DCN3_2_DEFAULT_DET_SIZE;
-				pipes[0].pipe.src.unbounded_req_mode = true;
-				if (pipe->plane_state->src_rect.width >= 5120 &&
-					pipe->plane_state->src_rect.height >= 2880)
-					pipes[0].pipe.src.det_size_override = 320; // 5K or higher
-			}
-		}
-	} else
-		dcn32_determine_det_override(context, pipes, is_pipe_split_expected, dc->res_pool->pipe_count);
+	dcn32_set_det_allocations(dc, context, pipes);
 
 	// In general cases we want to keep the dram clock change requirement
 	// (prefer configs that support MCLK switch). Only override to false

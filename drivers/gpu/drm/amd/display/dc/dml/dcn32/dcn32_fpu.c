@@ -244,6 +244,50 @@ void dcn32_build_wm_range_table_fpu(struct clk_mgr_internal *clk_mgr)
 }
 
 /**
+ * Finds dummy_latency_index when MCLK switching using firmware based
+ * vblank stretch is enabled. This function will iterate through the
+ * table of dummy pstate latencies until the lowest value that allows
+ * dm_allow_self_refresh_and_mclk_switch to happen is found
+ */
+int dcn32_find_dummy_latency_index_for_fw_based_mclk_switch(struct dc *dc,
+							    struct dc_state *context,
+							    display_e2e_pipe_params_st *pipes,
+							    int pipe_cnt,
+							    int vlevel)
+{
+	const int max_latency_table_entries = 4;
+	const struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
+	int dummy_latency_index = 0;
+
+	dc_assert_fp_enabled();
+
+	while (dummy_latency_index < max_latency_table_entries) {
+		context->bw_ctx.dml.soc.dram_clock_change_latency_us =
+				dc->clk_mgr->bw_params->dummy_pstate_table[dummy_latency_index].dummy_pstate_latency_us;
+		dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, false);
+
+		if (vlevel < context->bw_ctx.dml.vba.soc.num_states &&
+				vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] != dm_dram_clock_change_unsupported)
+			break;
+
+		dummy_latency_index++;
+	}
+
+	if (dummy_latency_index == max_latency_table_entries) {
+		ASSERT(dummy_latency_index != max_latency_table_entries);
+		/* If the execution gets here, it means dummy p_states are
+		 * not possible. This should never happen and would mean
+		 * something is severely wrong.
+		 * Here we reset dummy_latency_index to 3, because it is
+		 * better to have underflows than system crashes.
+		 */
+		dummy_latency_index = max_latency_table_entries - 1;
+	}
+
+	return dummy_latency_index;
+}
+
+/**
  * dcn32_helper_populate_phantom_dlg_params - Get DLG params for phantom pipes
  * and populate pipe_ctx with those params.
  *
@@ -286,41 +330,92 @@ void dcn32_helper_populate_phantom_dlg_params(struct dc *dc,
 	}
 }
 
-bool dcn32_predict_pipe_split(struct dc_state *context, display_pipe_params_st pipe, int index)
+/**
+ * *******************************************************************************************
+ * dcn32_predict_pipe_split: Predict if pipe split will occur for a given DML pipe
+ *
+ * This function takes in a DML pipe (pipe_e2e) and predicts if pipe split is required (both
+ * ODM and MPC). For pipe split, ODM combine is determined by the ODM mode, and MPC combine is
+ * determined by DPPClk requirements
+ *
+ * This function follows the same policy as DML:
+ * - Check for ODM combine requirements / policy first
+ * - MPC combine is only chosen if there is no ODM combine requirements / policy in place, and
+ *   MPC is required
+ *
+ * @param [in]: context: New DC state to be programmed
+ * @param [in]: pipe_e2e: DML pipe end to end context
+ *
+ * @return: Number of splits expected (1 for 2:1 split, 3 for 4:1 split, 0 for no splits).
+ *
+ * *******************************************************************************************
+ */
+uint8_t dcn32_predict_pipe_split(struct dc_state *context,
+				  display_e2e_pipe_params_st *pipe_e2e)
 {
 	double pscl_throughput;
 	double pscl_throughput_chroma;
 	double dpp_clk_single_dpp, clock;
 	double clk_frequency = 0.0;
 	double vco_speed = context->bw_ctx.dml.soc.dispclk_dppclk_vco_speed_mhz;
+	bool total_available_pipes_support = false;
+	uint32_t number_of_dpp = 0;
+	enum odm_combine_mode odm_mode = dm_odm_combine_mode_disabled;
+	double req_dispclk_per_surface = 0;
+	uint8_t num_splits = 0;
 
 	dc_assert_fp_enabled();
 
-	dml32_CalculateSinglePipeDPPCLKAndSCLThroughput(pipe.scale_ratio_depth.hscl_ratio,
-							pipe.scale_ratio_depth.hscl_ratio_c,
-							pipe.scale_ratio_depth.vscl_ratio,
-							pipe.scale_ratio_depth.vscl_ratio_c,
-							context->bw_ctx.dml.ip.max_dchub_pscl_bw_pix_per_clk,
-							context->bw_ctx.dml.ip.max_pscl_lb_bw_pix_per_clk,
-							pipe.dest.pixel_rate_mhz,
-							pipe.src.source_format,
-							pipe.scale_taps.htaps,
-							pipe.scale_taps.htaps_c,
-							pipe.scale_taps.vtaps,
-							pipe.scale_taps.vtaps_c,
-							/* Output */
-							&pscl_throughput, &pscl_throughput_chroma,
-							&dpp_clk_single_dpp);
+	dml32_CalculateODMMode(context->bw_ctx.dml.ip.maximum_pixels_per_line_per_dsc_unit,
+			pipe_e2e->pipe.dest.hactive,
+			pipe_e2e->dout.output_format,
+			pipe_e2e->dout.output_type,
+			pipe_e2e->pipe.dest.odm_combine_policy,
+			context->bw_ctx.dml.soc.clock_limits[context->bw_ctx.dml.soc.num_states - 1].dispclk_mhz,
+			context->bw_ctx.dml.soc.clock_limits[context->bw_ctx.dml.soc.num_states - 1].dispclk_mhz,
+			pipe_e2e->dout.dsc_enable != 0,
+			0, /* TotalNumberOfActiveDPP can be 0 since we're predicting pipe split requirement */
+			context->bw_ctx.dml.ip.max_num_dpp,
+			pipe_e2e->pipe.dest.pixel_rate_mhz,
+			context->bw_ctx.dml.soc.dcn_downspread_percent,
+			context->bw_ctx.dml.ip.dispclk_ramp_margin_percent,
+			context->bw_ctx.dml.soc.dispclk_dppclk_vco_speed_mhz,
+			pipe_e2e->dout.dsc_slices,
+			/* Output */
+			&total_available_pipes_support,
+			&number_of_dpp,
+			&odm_mode,
+			&req_dispclk_per_surface);
+
+	dml32_CalculateSinglePipeDPPCLKAndSCLThroughput(pipe_e2e->pipe.scale_ratio_depth.hscl_ratio,
+			pipe_e2e->pipe.scale_ratio_depth.hscl_ratio_c,
+			pipe_e2e->pipe.scale_ratio_depth.vscl_ratio,
+			pipe_e2e->pipe.scale_ratio_depth.vscl_ratio_c,
+			context->bw_ctx.dml.ip.max_dchub_pscl_bw_pix_per_clk,
+			context->bw_ctx.dml.ip.max_pscl_lb_bw_pix_per_clk,
+			pipe_e2e->pipe.dest.pixel_rate_mhz,
+			pipe_e2e->pipe.src.source_format,
+			pipe_e2e->pipe.scale_taps.htaps,
+			pipe_e2e->pipe.scale_taps.htaps_c,
+			pipe_e2e->pipe.scale_taps.vtaps,
+			pipe_e2e->pipe.scale_taps.vtaps_c,
+			/* Output */
+			&pscl_throughput, &pscl_throughput_chroma,
+			&dpp_clk_single_dpp);
 
 	clock = dpp_clk_single_dpp * (1 + context->bw_ctx.dml.soc.dcn_downspread_percent / 100);
 
 	if (clock > 0)
-		clk_frequency = vco_speed * 4.0 / ((int)(vco_speed * 4.0));
+		clk_frequency = vco_speed * 4.0 / ((int)(vco_speed * 4.0) / clock);
 
-	if (clk_frequency > context->bw_ctx.dml.soc.clock_limits[index].dppclk_mhz)
-		return true;
-	else
-		return false;
+	if (odm_mode == dm_odm_combine_mode_2to1)
+		num_splits = 1;
+	else if (odm_mode == dm_odm_combine_mode_4to1)
+		num_splits = 3;
+	else if (clk_frequency > context->bw_ctx.dml.soc.clock_limits[context->bw_ctx.dml.soc.num_states - 1].dppclk_mhz)
+		num_splits = 1;
+
+	return num_splits;
 }
 
 static float calculate_net_bw_in_kbytes_sec(struct _vcs_dpi_voltage_scaling_st *entry)
@@ -1109,17 +1204,23 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 				vba->VoltageLevel = *vlevel;
 			}
 		} else {
-			// only call dcn20_validate_apply_pipe_split_flags if we found a supported config
-			memset(split, 0, MAX_PIPES * sizeof(int));
-			memset(merge, 0, MAX_PIPES * sizeof(bool));
-			*vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, *vlevel, split, merge);
-			vba->VoltageLevel = *vlevel;
-
 			// Most populate phantom DLG params before programming hardware / timing for phantom pipe
 			DC_FP_START();
 			dcn32_helper_populate_phantom_dlg_params(dc, context, pipes, *pipe_cnt);
 			DC_FP_END();
 
+			/* Call validate_apply_pipe_split flags after calling DML getters for
+			 * phantom dlg params, or some of the VBA params indicating pipe split
+			 * can be overwritten by the getters.
+			 *
+			 * When setting up SubVP config, all pipes are merged before attempting to
+			 * add phantom pipes. If pipe split (ODM / MPC) is required, both the main
+			 * and phantom pipes will be split in the regular pipe splitting sequence.
+			 */
+			memset(split, 0, MAX_PIPES * sizeof(int));
+			memset(merge, 0, MAX_PIPES * sizeof(bool));
+			*vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, *vlevel, split, merge);
+			vba->VoltageLevel = *vlevel;
 			// Note: We can't apply the phantom pipes to hardware at this time. We have to wait
 			// until driver has acquired the DMCUB lock to do it safely.
 		}
@@ -1619,8 +1720,20 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 		goto validate_fail;
 	}
 
-	if (repopulate_pipes)
+	if (repopulate_pipes) {
 		pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, fast_validate);
+
+		/* repopulate_pipes = 1 means the pipes were either split or merged. In this case
+		 * we have to re-calculate the DET allocation and run through DML once more to
+		 * ensure all the params are calculated correctly. We do not need to run the
+		 * pipe split check again after this call (pipes are already split / merged).
+		 * */
+		if (!fast_validate) {
+			context->bw_ctx.dml.soc.allow_for_pstate_or_stutter_in_vblank_final =
+						dm_prefetch_support_uclk_fclk_and_stutter_if_possible;
+			vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
+		}
+	}
 	*vlevel_out = vlevel;
 	*pipe_cnt_out = pipe_cnt;
 
@@ -1666,7 +1779,7 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 			dcn30_can_support_mclk_switch_using_fw_based_vblank_stretch(dc, context);
 
 		if (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching) {
-			dummy_latency_index = dcn30_find_dummy_latency_index_for_fw_based_mclk_switch(dc,
+			dummy_latency_index = dcn32_find_dummy_latency_index_for_fw_based_mclk_switch(dc,
 				context, pipes, pipe_cnt, vlevel);
 
 			/* After calling dcn30_find_dummy_latency_index_for_fw_based_mclk_switch
@@ -2140,6 +2253,7 @@ void dcn32_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_pa
 		if ((int)(dcn3_2_soc.urgent_latency_us * 1000) != dc->bb_overrides.urgent_latency_ns
 			&& dc->bb_overrides.urgent_latency_ns) {
 			dcn3_2_soc.urgent_latency_us = dc->bb_overrides.urgent_latency_ns / 1000.0;
+			dcn3_2_soc.urgent_latency_pixel_data_only_us = dc->bb_overrides.urgent_latency_ns / 1000.0;
 		}
 
 		if ((int)(dcn3_2_soc.dram_clock_change_latency_us * 1000)

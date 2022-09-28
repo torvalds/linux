@@ -28,6 +28,10 @@
 
 #include "core_types.h"
 
+#define DCN3_2_DEFAULT_DET_SIZE 256
+#define DCN3_2_MAX_DET_SIZE 1152
+#define DCN3_2_MIN_DET_SIZE 128
+#define DCN3_2_MIN_COMPBUF_SIZE_KB 128
 #define DCN3_2_DET_SEG_SIZE 64
 #define DCN3_2_MALL_MBLK_SIZE_BYTES 65536 // 64 * 1024
 #define DCN3_2_MBLK_WIDTH 128
@@ -109,9 +113,12 @@ struct pipe_ctx *dcn32_acquire_idle_pipe_for_head_pipe_in_layer(
 		struct dc_stream_state *stream,
 		struct pipe_ctx *head_pipe);
 
-void dcn32_determine_det_override(struct dc_state *context, display_e2e_pipe_params_st *pipes,
-		bool *is_pipe_split_expected, int pipe_cnt);
+void dcn32_determine_det_override(struct dc *dc,
+		struct dc_state *context,
+		display_e2e_pipe_params_st *pipes);
 
+void dcn32_set_det_allocations(struct dc *dc, struct dc_state *context,
+	display_e2e_pipe_params_st *pipes);
 /* definitions for run time init of reg offsets */
 
 /* CLK SRC */

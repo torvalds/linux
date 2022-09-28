@@ -511,6 +511,11 @@ static int psp_sw_fini(void *handle)
 	kfree(cmd);
 	cmd = NULL;
 
+	if (psp->km_ring.ring_mem)
+		amdgpu_bo_free_kernel(&adev->firmware.rbuf,
+				      &psp->km_ring.ring_mem_mc_addr,
+				      (void **)&psp->km_ring.ring_mem);
+
 	amdgpu_bo_free_kernel(&psp->fw_pri_bo,
 			      &psp->fw_pri_mc_addr, &psp->fw_pri_buf);
 	amdgpu_bo_free_kernel(&psp->fence_buf_bo,

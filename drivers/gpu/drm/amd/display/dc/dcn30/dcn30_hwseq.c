@@ -939,13 +939,32 @@ bool dcn30_does_plane_fit_in_mall(struct dc *dc, struct dc_plane_state *plane, s
 
 void dcn30_hardware_release(struct dc *dc)
 {
-	dc_dmub_srv_p_state_delegate(dc, false, NULL);
+	bool subvp_in_use = false;
+	uint32_t i;
 
+	dc_dmub_srv_p_state_delegate(dc, false, NULL);
+	dc_dmub_setup_subvp_dmub_command(dc, dc->current_state, false);
+
+	/* SubVP treated the same way as FPO. If driver disable and
+	 * we are using a SubVP config, disable and force on DCN side
+	 * to prevent P-State hang on driver enable.
+	 */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (!pipe->stream)
+			continue;
+
+		if (pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
+			subvp_in_use = true;
+			break;
+		}
+	}
 	/* If pstate unsupported, or still supported
 	 * by firmware, force it supported by dcn
 	 */
 	if (dc->current_state)
-		if ((!dc->clk_mgr->clks.p_state_change_support ||
+		if ((!dc->clk_mgr->clks.p_state_change_support || subvp_in_use ||
 				dc->current_state->bw_ctx.bw.dcn.clk.fw_based_mclk_switching) &&
 				dc->res_pool->hubbub->funcs->force_pstate_change_control)
 			dc->res_pool->hubbub->funcs->force_pstate_change_control(

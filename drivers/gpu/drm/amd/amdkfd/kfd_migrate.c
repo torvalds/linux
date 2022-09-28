@@ -898,7 +898,7 @@ static vm_fault_t svm_migrate_to_ram(struct vm_fault *vmf)
 		return VM_FAULT_SIGBUS;
 	}
 	if (!mmget_not_zero(svm_bo->eviction_fence->mm)) {
-		pr_debug("addr 0x%lx of process mm is detroyed\n", addr);
+		pr_debug("addr 0x%lx of process mm is destroyed\n", addr);
 		return VM_FAULT_SIGBUS;
 	}
 
