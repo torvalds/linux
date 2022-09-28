@@ -112,7 +112,7 @@
 
 	reg_usb_host_vbus: regulator-usb-host-vbus {
 		compatible = "regulator-fixed";
-		gpio = <&gpio3 31 GPIO_ACTIVE_HIGH>; /* USBH_PEN */
+		gpio = <&gpio3 31 GPIO_ACTIVE_HIGH>; /* SODIMM 129 / USBH_PEN */
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_regulator_usbh_pwr>;
 		regulator-max-microvolt = <5000000>;
@@ -677,6 +677,11 @@
 	status = "disabled";
 };
 
+/* Colibri USBH */
+&usbh1 {
+	vbus-supply = <&reg_usb_host_vbus>;
+};
+
 /* Colibri USBC */
 &usbotg {
 	disable-over-current;
@@ -995,7 +1000,7 @@
 
 	pinctrl_regulator_usbh_pwr: gpioregusbhpwrgrp {
 		fsl,pins = <
-			/* USBH_EN */
+			/* SODIMM 129 / USBH_PEN */
 			MX6QDL_PAD_EIM_D31__GPIO3_IO31	0x0f058
 		>;
 	};
