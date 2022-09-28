@@ -505,8 +505,17 @@ void free_zone_device_page(struct page *page)
 	/*
 	 * Reset the page count to 1 to prepare for handing out the page again.
 	 */
-	set_page_count(page, 1);
+	if (page->pgmap->type != MEMORY_DEVICE_PRIVATE &&
+	    page->pgmap->type != MEMORY_DEVICE_COHERENT)
+		set_page_count(page, 1);
 }
+
+void zone_device_page_init(struct page *page)
+{
+	set_page_count(page, 1);
+	lock_page(page);
+}
+EXPORT_SYMBOL_GPL(zone_device_page_init);
 
 #ifdef CONFIG_FS_DAX
 bool __put_devmap_managed_page_refs(struct page *page, int refs)
