@@ -3851,8 +3851,6 @@ void f2fs_handle_stop(struct f2fs_sb_info *sbi, unsigned char reason)
 	struct f2fs_super_block *raw_super = F2FS_RAW_SUPER(sbi);
 	int err;
 
-	f2fs_bug_on(sbi, reason >= MAX_STOP_REASON);
-
 	f2fs_down_write(&sbi->sb_lock);
 
 	if (raw_super->s_stop_reason[reason] < ((1 << BITS_PER_BYTE) - 1))
@@ -3862,7 +3860,51 @@ void f2fs_handle_stop(struct f2fs_sb_info *sbi, unsigned char reason)
 	if (err)
 		f2fs_err(sbi, "f2fs_commit_super fails to record reason:%u err:%d",
 								reason, err);
+	f2fs_up_write(&sbi->sb_lock);
+}
 
+static void f2fs_save_errors(struct f2fs_sb_info *sbi, unsigned char flag)
+{
+	spin_lock(&sbi->error_lock);
+	if (!test_bit(flag, (unsigned long *)sbi->errors)) {
+		set_bit(flag, (unsigned long *)sbi->errors);
+		sbi->error_dirty = true;
+	}
+	spin_unlock(&sbi->error_lock);
+}
+
+static bool f2fs_update_errors(struct f2fs_sb_info *sbi)
+{
+	bool need_update = false;
+
+	spin_lock(&sbi->error_lock);
+	if (sbi->error_dirty) {
+		memcpy(F2FS_RAW_SUPER(sbi)->s_errors, sbi->errors,
+							MAX_F2FS_ERRORS);
+		sbi->error_dirty = false;
+		need_update = true;
+	}
+	spin_unlock(&sbi->error_lock);
+
+	return need_update;
+}
+
+void f2fs_handle_error(struct f2fs_sb_info *sbi, unsigned char error)
+{
+	int err;
+
+	f2fs_save_errors(sbi, error);
+
+	f2fs_down_write(&sbi->sb_lock);
+
+	if (!f2fs_update_errors(sbi))
+		goto out_unlock;
+
+	err = f2fs_commit_super(sbi, false);
+	if (err)
+		f2fs_err(sbi, "f2fs_commit_super fails to record errors:%u, err:%d",
+								error, err);
+out_unlock:
 	f2fs_up_write(&sbi->sb_lock);
 }
 
@@ -4212,6 +4254,9 @@ try_onemore:
 		f2fs_err(sbi, "Failed to initialize post read workqueue");
 		goto free_devices;
 	}
+
+	spin_lock_init(&sbi->error_lock);
+	memcpy(sbi->errors, raw_super->s_errors, MAX_F2FS_ERRORS);
 
 	sbi->total_valid_node_count =
 				le32_to_cpu(sbi->ckpt->valid_node_count);

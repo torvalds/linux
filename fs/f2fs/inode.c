@@ -81,8 +81,10 @@ static int __written_first_block(struct f2fs_sb_info *sbi,
 
 	if (!__is_valid_data_blkaddr(addr))
 		return 1;
-	if (!f2fs_is_valid_blkaddr(sbi, addr, DATA_GENERIC_ENHANCE))
+	if (!f2fs_is_valid_blkaddr(sbi, addr, DATA_GENERIC_ENHANCE)) {
+		f2fs_handle_error(sbi, ERROR_INVALID_BLKADDR);
 		return -EFSCORRUPTED;
+	}
 	return 0;
 }
 
@@ -415,6 +417,7 @@ static int do_read_inode(struct inode *inode)
 
 	if (!sanity_check_inode(inode, node_page)) {
 		f2fs_put_page(node_page, 1);
+		f2fs_handle_error(sbi, ERROR_CORRUPTED_INODE);
 		return -EFSCORRUPTED;
 	}
 
@@ -510,6 +513,7 @@ struct inode *f2fs_iget(struct super_block *sb, unsigned long ino)
 			ret = -EFSCORRUPTED;
 			trace_f2fs_iget_exit(inode, ret);
 			iput(inode);
+			f2fs_handle_error(sbi, ERROR_CORRUPTED_INODE);
 			return ERR_PTR(ret);
 		}
 
