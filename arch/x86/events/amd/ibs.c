@@ -955,6 +955,7 @@ static void perf_ibs_parse_ld_st_data(__u64 sample_type,
 {
 	union ibs_op_data3 op_data3;
 	union ibs_op_data2 op_data2;
+	union ibs_op_data op_data;
 
 	data->data_src.val = PERF_MEM_NA;
 	op_data3.val = ibs_data->regs[ibs_op_msr_idx(MSR_AMD64_IBSOPDATA3)];
@@ -970,6 +971,19 @@ static void perf_ibs_parse_ld_st_data(__u64 sample_type,
 		perf_ibs_get_data_src(ibs_data, data, &op_data2, &op_data3);
 		data->sample_flags |= PERF_SAMPLE_DATA_SRC;
 	}
+
+	if (sample_type & PERF_SAMPLE_WEIGHT_TYPE && op_data3.dc_miss &&
+	    data->data_src.mem_op == PERF_MEM_OP_LOAD) {
+		op_data.val = ibs_data->regs[ibs_op_msr_idx(MSR_AMD64_IBSOPDATA)];
+
+		if (sample_type & PERF_SAMPLE_WEIGHT_STRUCT) {
+			data->weight.var1_dw = op_data3.dc_miss_lat;
+			data->weight.var2_w = op_data.tag_to_ret_ctr;
+		} else if (sample_type & PERF_SAMPLE_WEIGHT) {
+			data->weight.full = op_data3.dc_miss_lat;
+		}
+		data->sample_flags |= PERF_SAMPLE_WEIGHT_TYPE;
+	}
 }
 
 static int perf_ibs_get_offset_max(struct perf_ibs *perf_ibs, u64 sample_type,
@@ -977,7 +991,8 @@ static int perf_ibs_get_offset_max(struct perf_ibs *perf_ibs, u64 sample_type,
 {
 	if (sample_type & PERF_SAMPLE_RAW ||
 	    (perf_ibs == &perf_ibs_op &&
-	     sample_type & PERF_SAMPLE_DATA_SRC))
+	     (sample_type & PERF_SAMPLE_DATA_SRC ||
+	      sample_type & PERF_SAMPLE_WEIGHT_TYPE)))
 		return perf_ibs->offset_max;
 	else if (check_rip)
 		return 3;
