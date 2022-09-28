@@ -773,6 +773,41 @@ int drm_sched_job_add_dependency(struct drm_sched_job *job,
 EXPORT_SYMBOL(drm_sched_job_add_dependency);
 
 /**
+ * drm_sched_job_add_resv_dependencies - add all fences from the resv to the job
+ * @job: scheduler job to add the dependencies to
+ * @resv: the dma_resv object to get the fences from
+ * @usage: the dma_resv_usage to use to filter the fences
+ *
+ * This adds all fences matching the given usage from @resv to @job.
+ * Must be called with the @resv lock held.
+ *
+ * Returns:
+ * 0 on success, or an error on failing to expand the array.
+ */
+int drm_sched_job_add_resv_dependencies(struct drm_sched_job *job,
+					struct dma_resv *resv,
+					enum dma_resv_usage usage)
+{
+	struct dma_resv_iter cursor;
+	struct dma_fence *fence;
+	int ret;
+
+	dma_resv_assert_held(resv);
+
+	dma_resv_for_each_fence(&cursor, resv, usage, fence) {
+		/* Make sure to grab an additional ref on the added fence */
+		dma_fence_get(fence);
+		ret = drm_sched_job_add_dependency(job, fence);
+		if (ret) {
+			dma_fence_put(fence);
+			return ret;
+		}
+	}
+	return 0;
+}
+EXPORT_SYMBOL(drm_sched_job_add_resv_dependencies);
+
+/**
  * drm_sched_job_add_implicit_dependencies - adds implicit dependencies as job
  *   dependencies
  * @job: scheduler job to add the dependencies to
@@ -791,26 +826,10 @@ int drm_sched_job_add_implicit_dependencies(struct drm_sched_job *job,
 					    struct drm_gem_object *obj,
 					    bool write)
 {
-	struct dma_resv_iter cursor;
-	struct dma_fence *fence;
-	int ret;
-
-	dma_resv_assert_held(obj->resv);
-
-	dma_resv_for_each_fence(&cursor, obj->resv, dma_resv_usage_rw(write),
-				fence) {
-		/* Make sure to grab an additional ref on the added fence */
-		dma_fence_get(fence);
-		ret = drm_sched_job_add_dependency(job, fence);
-		if (ret) {
-			dma_fence_put(fence);
-			return ret;
-		}
-	}
-	return 0;
+	return drm_sched_job_add_resv_dependencies(job, obj->resv,
+						   dma_resv_usage_rw(write));
 }
 EXPORT_SYMBOL(drm_sched_job_add_implicit_dependencies);
-
 
 /**
  * drm_sched_job_cleanup - clean up scheduler job resources
