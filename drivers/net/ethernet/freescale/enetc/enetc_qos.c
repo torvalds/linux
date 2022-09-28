@@ -7,6 +7,7 @@
 #include <linux/math64.h>
 #include <linux/refcount.h>
 #include <net/pkt_cls.h>
+#include <net/pkt_sched.h>
 #include <net/tc_act/tc_gate.h>
 
 static u16 enetc_get_max_gcl_len(struct enetc_hw *hw)
@@ -67,6 +68,7 @@ static int enetc_setup_taprio(struct net_device *ndev,
 	tge = enetc_rd(hw, ENETC_PTGCR);
 	if (!admin_conf->enable) {
 		enetc_wr(hw, ENETC_PTGCR, tge & ~ENETC_PTGCR_TGE);
+		enetc_reset_ptcmsdur(hw);
 
 		priv->active_offloads &= ~ENETC_F_QBV;
 
@@ -122,10 +124,13 @@ static int enetc_setup_taprio(struct net_device *ndev,
 
 	enetc_cbd_free_data_mem(priv->si, data_size, tmp, &dma);
 
-	if (!err)
-		priv->active_offloads |= ENETC_F_QBV;
+	if (err)
+		return err;
 
-	return err;
+	enetc_set_ptcmsdur(hw, admin_conf->max_sdu);
+	priv->active_offloads |= ENETC_F_QBV;
+
+	return 0;
 }
 
 int enetc_setup_tc_taprio(struct net_device *ndev, void *type_data)
@@ -1593,4 +1598,24 @@ int enetc_setup_tc_psfp(struct net_device *ndev, void *type_data)
 	}
 
 	return 0;
+}
+
+int enetc_qos_query_caps(struct net_device *ndev, void *type_data)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	struct tc_query_caps_base *base = type_data;
+	struct enetc_si *si = priv->si;
+
+	switch (base->type) {
+	case TC_SETUP_QDISC_TAPRIO: {
+		struct tc_taprio_caps *caps = base->caps;
+
+		if (si->hw_features & ENETC_SI_F_QBV)
+			caps->supports_queue_max_sdu = true;
+
+		return 0;
+	}
+	default:
+		return -EOPNOTSUPP;
+	}
 }
