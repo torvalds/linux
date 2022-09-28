@@ -538,20 +538,22 @@ static int ibmveth_open(struct net_device *netdev)
 		goto out_unmap_buffer_list;
 	}
 
-	adapter->tx_ltb_size = PAGE_ALIGN(IBMVETH_MAX_TX_BUF_SIZE);
-	adapter->tx_ltb_ptr = kzalloc(adapter->tx_ltb_size, GFP_KERNEL);
-	if (!adapter->tx_ltb_ptr) {
-		netdev_err(netdev,
-			   "unable to allocate transmit long term buffer\n");
-		goto out_unmap_buffer_list;
-	}
-	adapter->tx_ltb_dma = dma_map_single(dev, adapter->tx_ltb_ptr,
-					     adapter->tx_ltb_size,
-					     DMA_TO_DEVICE);
-	if (dma_mapping_error(dev, adapter->tx_ltb_dma)) {
-		netdev_err(netdev,
-			   "unable to DMA map transmit long term buffer\n");
-		goto out_unmap_tx_dma;
+	for (i = 0; i < IBMVETH_MAX_QUEUES; i++) {
+		adapter->tx_ltb_ptr[i] = kzalloc(adapter->tx_ltb_size,
+						 GFP_KERNEL);
+		if (!adapter->tx_ltb_ptr[i]) {
+			netdev_err(netdev,
+				   "unable to allocate transmit long term buffer\n");
+			goto out_free_tx_ltb_ptrs;
+		}
+		adapter->tx_ltb_dma[i] = dma_map_single(dev,
+							adapter->tx_ltb_ptr[i],
+							adapter->tx_ltb_size,
+							DMA_TO_DEVICE);
+		if (dma_mapping_error(dev, adapter->tx_ltb_dma[i])) {
+			netdev_err(netdev, "unable to DMA map transmit long term buffer\n");
+			goto out_unmap_tx_dma;
+		}
 	}
 
 	adapter->rx_queue.index = 0;
@@ -614,7 +616,7 @@ static int ibmveth_open(struct net_device *netdev)
 	netdev_dbg(netdev, "initial replenish cycle\n");
 	ibmveth_interrupt(netdev->irq, netdev);
 
-	netif_start_queue(netdev);
+	netif_tx_start_all_queues(netdev);
 
 	netdev_dbg(netdev, "open complete\n");
 
@@ -631,7 +633,14 @@ out_unmap_filter_list:
 			 DMA_BIDIRECTIONAL);
 
 out_unmap_tx_dma:
-	kfree(adapter->tx_ltb_ptr);
+	kfree(adapter->tx_ltb_ptr[i]);
+
+out_free_tx_ltb_ptrs:
+	while (--i >= 0) {
+		dma_unmap_single(dev, adapter->tx_ltb_dma[i],
+				 adapter->tx_ltb_size, DMA_TO_DEVICE);
+		kfree(adapter->tx_ltb_ptr[i]);
+	}
 
 out_unmap_buffer_list:
 	dma_unmap_single(dev, adapter->buffer_list_dma, 4096,
@@ -661,7 +670,7 @@ static int ibmveth_close(struct net_device *netdev)
 	napi_disable(&adapter->napi);
 
 	if (!adapter->pool_config)
-		netif_stop_queue(netdev);
+		netif_tx_stop_all_queues(netdev);
 
 	h_vio_signal(adapter->vdev->unit_address, VIO_IRQ_DISABLE);
 
@@ -695,9 +704,11 @@ static int ibmveth_close(struct net_device *netdev)
 			ibmveth_free_buffer_pool(adapter,
 						 &adapter->rx_buff_pool[i]);
 
-	dma_unmap_single(dev, adapter->tx_ltb_dma, adapter->tx_ltb_size,
-			 DMA_TO_DEVICE);
-	kfree(adapter->tx_ltb_ptr);
+	for (i = 0; i < IBMVETH_MAX_QUEUES; i++) {
+		dma_unmap_single(dev, adapter->tx_ltb_dma[i],
+				 adapter->tx_ltb_size, DMA_TO_DEVICE);
+		kfree(adapter->tx_ltb_ptr[i]);
+	}
 
 	netdev_dbg(netdev, "close complete\n");
 
@@ -1027,15 +1038,13 @@ static netdev_tx_t ibmveth_start_xmit(struct sk_buff *skb,
 				      struct net_device *netdev)
 {
 	struct ibmveth_adapter *adapter = netdev_priv(netdev);
-	unsigned int desc_flags;
+	unsigned int desc_flags, total_bytes;
 	union ibmveth_buf_desc desc;
-	int i;
+	int i, queue_num = skb_get_queue_mapping(skb);
 	unsigned long mss = 0;
-	size_t total_bytes;
 
 	if (ibmveth_is_packet_unsupported(skb, netdev))
 		goto out;
-
 	/* veth can't checksum offload UDP */
 	if (skb->ip_summed == CHECKSUM_PARTIAL &&
 	    ((skb->protocol == htons(ETH_P_IP) &&
@@ -1088,14 +1097,14 @@ static netdev_tx_t ibmveth_start_xmit(struct sk_buff *skb,
 		netdev->stats.tx_dropped++;
 		goto out;
 	}
-	memcpy(adapter->tx_ltb_ptr, skb->data, skb_headlen(skb));
+	memcpy(adapter->tx_ltb_ptr[queue_num], skb->data, skb_headlen(skb));
 	total_bytes = skb_headlen(skb);
 	/* Copy frags into mapped buffers */
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
-		memcpy(adapter->tx_ltb_ptr + total_bytes, skb_frag_address_safe(frag),
-		       skb_frag_size(frag));
+		memcpy(adapter->tx_ltb_ptr[queue_num] + total_bytes,
+		       skb_frag_address_safe(frag), skb_frag_size(frag));
 		total_bytes += skb_frag_size(frag);
 	}
 
@@ -1106,7 +1115,7 @@ static netdev_tx_t ibmveth_start_xmit(struct sk_buff *skb,
 		goto out;
 	}
 	desc.fields.flags_len = desc_flags | skb->len;
-	desc.fields.address = adapter->tx_ltb_dma;
+	desc.fields.address = adapter->tx_ltb_dma[queue_num];
 	/* finish writing to long_term_buff before VIOS accessing it */
 	dma_wmb();
 
@@ -1599,7 +1608,7 @@ static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 		return -EINVAL;
 	}
 
-	netdev = alloc_etherdev(sizeof(struct ibmveth_adapter));
+	netdev = alloc_etherdev_mqs(sizeof(struct ibmveth_adapter), IBMVETH_MAX_QUEUES, 1);
 
 	if (!netdev)
 		return -ENOMEM;
@@ -1665,6 +1674,8 @@ static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 		if (!error)
 			kobject_uevent(kobj, KOBJ_ADD);
 	}
+
+	adapter->tx_ltb_size = PAGE_ALIGN(IBMVETH_MAX_TX_BUF_SIZE);
 
 	netdev_dbg(netdev, "adapter @ 0x%p\n", adapter);
 	netdev_dbg(netdev, "registering netdev...\n");
