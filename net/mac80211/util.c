@@ -2046,7 +2046,7 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 		if (he_cap) {
 			enum nl80211_iftype iftype =
 				ieee80211_vif_type_p2p(&sdata->vif);
-			__le16 cap = ieee80211_get_he_6ghz_capa(sband, iftype);
+			__le16 cap = ieee80211_get_he_6ghz_capa(sband6, iftype);
 
 			pos = ieee80211_write_he_6ghz_cap(pos, cap, end);
 		}
