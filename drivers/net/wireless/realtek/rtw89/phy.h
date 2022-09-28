@@ -317,9 +317,6 @@ struct rtw89_nbi_reg_def {
 	struct rtw89_reg_def notch2_en;
 };
 
-extern const u8 rtw89_rs_idx_max[RTW89_RS_MAX];
-extern const u8 rtw89_rs_nss_max[RTW89_RS_MAX];
-
 static inline void rtw89_phy_write8(struct rtw89_dev *rtwdev,
 				    u32 addr, u8 data)
 {
@@ -460,18 +457,20 @@ void rtw89_phy_write32_idx(struct rtw89_dev *rtwdev, u32 addr, u32 mask,
 			   u32 data, enum rtw89_phy_idx phy_idx);
 void rtw89_phy_load_txpwr_byrate(struct rtw89_dev *rtwdev,
 				 const struct rtw89_txpwr_table *tbl);
-s8 rtw89_phy_read_txpwr_byrate(struct rtw89_dev *rtwdev, u8 band,
-			       const struct rtw89_rate_desc *rate_desc);
-void rtw89_phy_fill_txpwr_limit(struct rtw89_dev *rtwdev,
-				const struct rtw89_chan *chan,
-				struct rtw89_txpwr_limit *lmt,
-				u8 ntx);
-void rtw89_phy_fill_txpwr_limit_ru(struct rtw89_dev *rtwdev,
-				   const struct rtw89_chan *chan,
-				   struct rtw89_txpwr_limit_ru *lmt_ru,
-				   u8 ntx);
 s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev, u8 band,
 			      u8 bw, u8 ntx, u8 rs, u8 bf, u8 ch);
+void rtw89_phy_set_txpwr_byrate(struct rtw89_dev *rtwdev,
+				const struct rtw89_chan *chan,
+				enum rtw89_phy_idx phy_idx);
+void rtw89_phy_set_txpwr_offset(struct rtw89_dev *rtwdev,
+				const struct rtw89_chan *chan,
+				enum rtw89_phy_idx phy_idx);
+void rtw89_phy_set_txpwr_limit(struct rtw89_dev *rtwdev,
+			       const struct rtw89_chan *chan,
+			       enum rtw89_phy_idx phy_idx);
+void rtw89_phy_set_txpwr_limit_ru(struct rtw89_dev *rtwdev,
+				  const struct rtw89_chan *chan,
+				  enum rtw89_phy_idx phy_idx);
 void rtw89_phy_ra_assoc(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta);
 void rtw89_phy_ra_update(struct rtw89_dev *rtwdev);
 void rtw89_phy_ra_updata_sta(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta,

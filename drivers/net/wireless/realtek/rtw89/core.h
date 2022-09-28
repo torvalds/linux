@@ -490,6 +490,8 @@ enum rtw89_bandwidth_section_num {
 	RTW89_BW80_SEC_NUM = 2,
 };
 
+#define RTW89_TXPWR_LMT_PAGE_SIZE 40
+
 struct rtw89_txpwr_limit {
 	s8 cck_20m[RTW89_BF_NUM];
 	s8 cck_40m[RTW89_BF_NUM];
@@ -503,6 +505,8 @@ struct rtw89_txpwr_limit {
 };
 
 #define RTW89_RU_SEC_NUM 8
+
+#define RTW89_TXPWR_LMT_RU_PAGE_SIZE 24
 
 struct rtw89_txpwr_limit_ru {
 	s8 ru26[RTW89_RU_SEC_NUM];

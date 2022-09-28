@@ -2006,75 +2006,6 @@ static void rtw8852c_set_txpwr_ref(struct rtw89_dev *rtwdev,
 				      phy_idx);
 }
 
-static void rtw8852c_set_txpwr_byrate(struct rtw89_dev *rtwdev,
-				      const struct rtw89_chan *chan,
-				      enum rtw89_phy_idx phy_idx)
-{
-	u8 band = chan->band_type;
-	u8 ch = chan->channel;
-	static const u8 rs[] = {
-		RTW89_RS_CCK,
-		RTW89_RS_OFDM,
-		RTW89_RS_MCS,
-		RTW89_RS_HEDCM,
-	};
-	s8 tmp;
-	u8 i, j;
-	u32 val, shf, addr = R_AX_PWR_BY_RATE;
-	struct rtw89_rate_desc cur;
-
-	rtw89_debug(rtwdev, RTW89_DBG_TXPWR,
-		    "[TXPWR] set txpwr byrate with ch=%d\n", ch);
-
-	for (cur.nss = 0; cur.nss <= RTW89_NSS_2; cur.nss++) {
-		for (i = 0; i < ARRAY_SIZE(rs); i++) {
-			if (cur.nss >= rtw89_rs_nss_max[rs[i]])
-				continue;
-
-			val = 0;
-			cur.rs = rs[i];
-
-			for (j = 0; j < rtw89_rs_idx_max[rs[i]]; j++) {
-				cur.idx = j;
-				shf = (j % 4) * 8;
-				tmp = rtw89_phy_read_txpwr_byrate(rtwdev, band,
-								  &cur);
-				val |= (tmp << shf);
-
-				if ((j + 1) % 4)
-					continue;
-
-				rtw89_mac_txpwr_write32(rtwdev, phy_idx, addr, val);
-				val = 0;
-				addr += 4;
-			}
-		}
-	}
-}
-
-static void rtw8852c_set_txpwr_offset(struct rtw89_dev *rtwdev,
-				      const struct rtw89_chan *chan,
-				      enum rtw89_phy_idx phy_idx)
-{
-	u8 band = chan->band_type;
-	struct rtw89_rate_desc desc = {
-		.nss = RTW89_NSS_1,
-		.rs = RTW89_RS_OFFSET,
-	};
-	u32 val = 0;
-	s8 v;
-
-	rtw89_debug(rtwdev, RTW89_DBG_TXPWR, "[TXPWR] set txpwr offset\n");
-
-	for (desc.idx = 0; desc.idx < RTW89_RATE_OFFSET_MAX; desc.idx++) {
-		v = rtw89_phy_read_txpwr_byrate(rtwdev, band, &desc);
-		val |= ((v & 0xf) << (4 * desc.idx));
-	}
-
-	rtw89_mac_txpwr_write32_mask(rtwdev, phy_idx, R_AX_PWR_RATE_OFST_CTRL,
-				     GENMASK(19, 0), val);
-}
-
 static void rtw8852c_bb_set_tx_shape_dfir(struct rtw89_dev *rtwdev,
 					  u8 tx_shape_idx,
 					  enum rtw89_phy_idx phy_idx)
@@ -2147,83 +2078,15 @@ static void rtw8852c_set_tx_shape(struct rtw89_dev *rtwdev,
 					     tx_shape_ofdm);
 }
 
-static void rtw8852c_set_txpwr_limit(struct rtw89_dev *rtwdev,
-				     const struct rtw89_chan *chan,
-				     enum rtw89_phy_idx phy_idx)
-{
-#define __MAC_TXPWR_LMT_PAGE_SIZE 40
-	u8 ch = chan->channel;
-	u8 bw = chan->band_width;
-	struct rtw89_txpwr_limit lmt[NTX_NUM_8852C];
-	u32 addr, val;
-	const s8 *ptr;
-	u8 i, j;
-
-	rtw89_debug(rtwdev, RTW89_DBG_TXPWR,
-		    "[TXPWR] set txpwr limit with ch=%d bw=%d\n", ch, bw);
-
-	for (i = 0; i < NTX_NUM_8852C; i++) {
-		rtw89_phy_fill_txpwr_limit(rtwdev, chan, &lmt[i], i);
-
-		for (j = 0; j < __MAC_TXPWR_LMT_PAGE_SIZE; j += 4) {
-			addr = R_AX_PWR_LMT + j + __MAC_TXPWR_LMT_PAGE_SIZE * i;
-			ptr = (s8 *)&lmt[i] + j;
-
-			val = FIELD_PREP(GENMASK(7, 0), ptr[0]) |
-			      FIELD_PREP(GENMASK(15, 8), ptr[1]) |
-			      FIELD_PREP(GENMASK(23, 16), ptr[2]) |
-			      FIELD_PREP(GENMASK(31, 24), ptr[3]);
-
-			rtw89_mac_txpwr_write32(rtwdev, phy_idx, addr, val);
-		}
-	}
-#undef __MAC_TXPWR_LMT_PAGE_SIZE
-}
-
-static void rtw8852c_set_txpwr_limit_ru(struct rtw89_dev *rtwdev,
-					const struct rtw89_chan *chan,
-					enum rtw89_phy_idx phy_idx)
-{
-#define __MAC_TXPWR_LMT_RU_PAGE_SIZE 24
-	u8 ch = chan->channel;
-	u8 bw = chan->band_width;
-	struct rtw89_txpwr_limit_ru lmt_ru[NTX_NUM_8852C];
-	u32 addr, val;
-	const s8 *ptr;
-	u8 i, j;
-
-	rtw89_debug(rtwdev, RTW89_DBG_TXPWR,
-		    "[TXPWR] set txpwr limit ru with ch=%d bw=%d\n", ch, bw);
-
-	for (i = 0; i < NTX_NUM_8852C; i++) {
-		rtw89_phy_fill_txpwr_limit_ru(rtwdev, chan, &lmt_ru[i], i);
-
-		for (j = 0; j < __MAC_TXPWR_LMT_RU_PAGE_SIZE; j += 4) {
-			addr = R_AX_PWR_RU_LMT + j +
-			       __MAC_TXPWR_LMT_RU_PAGE_SIZE * i;
-			ptr = (s8 *)&lmt_ru[i] + j;
-
-			val = FIELD_PREP(GENMASK(7, 0), ptr[0]) |
-			      FIELD_PREP(GENMASK(15, 8), ptr[1]) |
-			      FIELD_PREP(GENMASK(23, 16), ptr[2]) |
-			      FIELD_PREP(GENMASK(31, 24), ptr[3]);
-
-			rtw89_mac_txpwr_write32(rtwdev, phy_idx, addr, val);
-		}
-	}
-
-#undef __MAC_TXPWR_LMT_RU_PAGE_SIZE
-}
-
 static void rtw8852c_set_txpwr(struct rtw89_dev *rtwdev,
 			       const struct rtw89_chan *chan,
 			       enum rtw89_phy_idx phy_idx)
 {
-	rtw8852c_set_txpwr_byrate(rtwdev, chan, phy_idx);
-	rtw8852c_set_txpwr_offset(rtwdev, chan, phy_idx);
+	rtw89_phy_set_txpwr_byrate(rtwdev, chan, phy_idx);
+	rtw89_phy_set_txpwr_offset(rtwdev, chan, phy_idx);
 	rtw8852c_set_tx_shape(rtwdev, chan, phy_idx);
-	rtw8852c_set_txpwr_limit(rtwdev, chan, phy_idx);
-	rtw8852c_set_txpwr_limit_ru(rtwdev, chan, phy_idx);
+	rtw89_phy_set_txpwr_limit(rtwdev, chan, phy_idx);
+	rtw89_phy_set_txpwr_limit_ru(rtwdev, chan, phy_idx);
 }
 
 static void rtw8852c_set_txpwr_ctrl(struct rtw89_dev *rtwdev,
