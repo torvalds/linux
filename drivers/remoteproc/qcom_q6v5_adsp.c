@@ -9,6 +9,7 @@
 #include <linux/firmware.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/iommu.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
@@ -47,6 +48,8 @@
 #define LPASS_HALTACK_REG		0x4
 #define LPASS_PWR_ON_REG		0x10
 #define LPASS_HALTREQ_REG		0x0
+
+#define SID_MASK_DEFAULT        0xF
 
 #define QDSP6SS_XO_CBCR		0x38
 #define QDSP6SS_CORE_CBCR	0x20
@@ -332,6 +335,47 @@ static int adsp_load(struct rproc *rproc, const struct firmware *fw)
 	return 0;
 }
 
+static void adsp_unmap_carveout(struct rproc *rproc)
+{
+	struct qcom_adsp *adsp = rproc->priv;
+
+	if (adsp->has_iommu)
+		iommu_unmap(rproc->domain, adsp->mem_phys, adsp->mem_size);
+}
+
+static int adsp_map_carveout(struct rproc *rproc)
+{
+	struct qcom_adsp *adsp = rproc->priv;
+	struct of_phandle_args args;
+	long long sid;
+	unsigned long iova;
+	int ret;
+
+	if (!adsp->has_iommu)
+		return 0;
+
+	if (!rproc->domain)
+		return -EINVAL;
+
+	ret = of_parse_phandle_with_args(adsp->dev->of_node, "iommus", "#iommu-cells", 0, &args);
+	if (ret < 0)
+		return ret;
+
+	sid = args.args[0] & SID_MASK_DEFAULT;
+
+	/* Add SID configuration for ADSP Firmware to SMMU */
+	iova =  adsp->mem_phys | (sid << 32);
+
+	ret = iommu_map(rproc->domain, iova, adsp->mem_phys,
+			adsp->mem_size,	IOMMU_READ | IOMMU_WRITE);
+	if (ret) {
+		dev_err(adsp->dev, "Unable to map ADSP Physical Memory\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int adsp_start(struct rproc *rproc)
 {
 	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
@@ -342,9 +386,15 @@ static int adsp_start(struct rproc *rproc)
 	if (ret)
 		return ret;
 
+	ret = adsp_map_carveout(rproc);
+	if (ret) {
+		dev_err(adsp->dev, "ADSP smmu mapping failed\n");
+		goto disable_irqs;
+	}
+
 	ret = clk_prepare_enable(adsp->xo);
 	if (ret)
-		goto disable_irqs;
+		goto adsp_smmu_unmap;
 
 	ret = qcom_rproc_pds_enable(adsp, adsp->proxy_pds,
 				    adsp->proxy_pd_count);
@@ -400,6 +450,8 @@ disable_power_domain:
 	qcom_rproc_pds_disable(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
 disable_xo_clk:
 	clk_disable_unprepare(adsp->xo);
+adsp_smmu_unmap:
+	adsp_unmap_carveout(rproc);
 disable_irqs:
 	qcom_q6v5_unprepare(&adsp->q6v5);
 
@@ -427,6 +479,8 @@ static int adsp_stop(struct rproc *rproc)
 	ret = adsp->shutdown(adsp);
 	if (ret)
 		dev_err(adsp->dev, "failed to shutdown: %d\n", ret);
+
+	adsp_unmap_carveout(rproc);
 
 	handover = qcom_q6v5_unprepare(&adsp->q6v5);
 	if (handover)
