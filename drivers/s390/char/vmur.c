@@ -293,7 +293,6 @@ static void ur_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		return;
 	}
 	urd = dev_get_drvdata(&cdev->dev);
-	BUG_ON(!urd);
 	/* On special conditions irb is an error pointer */
 	if (IS_ERR(irb))
 		urd->io_request_rc = PTR_ERR(irb);
@@ -809,7 +808,6 @@ static int ur_probe(struct ccw_device *cdev)
 		rc = -ENOMEM;
 		goto fail_urdev_put;
 	}
-	cdev->handler = ur_int_handler;
 
 	/* validate virtual unit record device */
 	urd->class = get_urd_class(urd);
@@ -823,6 +821,7 @@ static int ur_probe(struct ccw_device *cdev)
 	}
 	spin_lock_irq(get_ccwdev_lock(cdev));
 	dev_set_drvdata(&cdev->dev, urd);
+	cdev->handler = ur_int_handler;
 	spin_unlock_irq(get_ccwdev_lock(cdev));
 
 	mutex_unlock(&vmur_mutex);
@@ -963,6 +962,7 @@ static void ur_remove(struct ccw_device *cdev)
 	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
 	urdev_put(dev_get_drvdata(&cdev->dev));
 	dev_set_drvdata(&cdev->dev, NULL);
+	cdev->handler = NULL;
 	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 
 	mutex_unlock(&vmur_mutex);
