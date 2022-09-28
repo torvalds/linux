@@ -196,6 +196,7 @@ int idxd_wq_enable(struct idxd_wq *wq)
 	}
 
 	wq->state = IDXD_WQ_ENABLED;
+	set_bit(wq->id, idxd->wq_enable_map);
 	dev_dbg(dev, "WQ %d enabled\n", wq->id);
 	return 0;
 }
@@ -223,6 +224,7 @@ int idxd_wq_disable(struct idxd_wq *wq, bool reset_config)
 
 	if (reset_config)
 		idxd_wq_disable_cleanup(wq);
+	clear_bit(wq->id, idxd->wq_enable_map);
 	wq->state = IDXD_WQ_DISABLED;
 	dev_dbg(dev, "WQ %d disabled\n", wq->id);
 	return 0;

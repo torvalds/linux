@@ -11,6 +11,7 @@
 #include <linux/idr.h>
 #include <linux/pci.h>
 #include <linux/ioasid.h>
+#include <linux/bitmap.h>
 #include <linux/perf_event.h>
 #include <uapi/linux/idxd.h>
 #include "registers.h"
@@ -299,6 +300,7 @@ struct idxd_device {
 	int rdbuf_limit;
 	int nr_rdbufs;		/* non-reserved read buffers */
 	unsigned int wqcfg_size;
+	unsigned long *wq_enable_map;
 
 	union sw_err_reg sw_err;
 	wait_queue_head_t cmd_waitq;

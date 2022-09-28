@@ -151,6 +151,12 @@ static int idxd_setup_wqs(struct idxd_device *idxd)
 	if (!idxd->wqs)
 		return -ENOMEM;
 
+	idxd->wq_enable_map = bitmap_zalloc_node(idxd->max_wqs, GFP_KERNEL, dev_to_node(dev));
+	if (!idxd->wq_enable_map) {
+		kfree(idxd->wqs);
+		return -ENOMEM;
+	}
+
 	for (i = 0; i < idxd->max_wqs; i++) {
 		wq = kzalloc_node(sizeof(*wq), GFP_KERNEL, dev_to_node(dev));
 		if (!wq) {

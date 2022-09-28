@@ -49,11 +49,12 @@ static void idxd_device_reinit(struct work_struct *work)
 		goto out;
 
 	for (i = 0; i < idxd->max_wqs; i++) {
-		struct idxd_wq *wq = idxd->wqs[i];
+		if (test_bit(i, idxd->wq_enable_map)) {
+			struct idxd_wq *wq = idxd->wqs[i];
 
-		if (wq->state == IDXD_WQ_ENABLED) {
 			rc = idxd_wq_enable(wq);
 			if (rc < 0) {
+				clear_bit(i, idxd->wq_enable_map);
 				dev_warn(dev, "Unable to re-enable wq %s\n",
 					 dev_name(wq_confdev(wq)));
 			}
