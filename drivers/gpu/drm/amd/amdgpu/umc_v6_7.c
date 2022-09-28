@@ -457,7 +457,7 @@ static void umc_v6_7_query_error_address(struct amdgpu_device *adev,
 {
 	uint32_t mc_umc_status_addr;
 	uint32_t channel_index;
-	uint64_t mc_umc_status, mc_umc_addrt0;
+	uint64_t mc_umc_status = 0, mc_umc_addrt0;
 	uint64_t err_addr, soc_pa, retired_page, column;
 
 	if (mca_addr == UMC_INVALID_ADDR) {
