@@ -2581,6 +2581,7 @@
   __traceiter_android_vh_jiffies_update
   __traceiter_android_vh_logbuf
   __traceiter_android_vh_logbuf_pr_cont
+  __tracepoint_android_vh_madvise_cold_or_pageout
   __traceiter_android_vh_printk_hotplug
   __traceiter_android_vh_rproc_recovery
   __traceiter_android_vh_rproc_recovery_set
