@@ -232,7 +232,7 @@ static ssize_t mdio_bus_stat_field_show(struct device *dev,
 		val = mdio_bus_get_stat(&bus->stats[sattr->addr],
 					sattr->field_offset);
 
-	return sprintf(buf, "%llu\n", val);
+	return sysfs_emit(buf, "%llu\n", val);
 }
 
 static ssize_t mdio_bus_device_stat_field_show(struct device *dev,
@@ -251,7 +251,7 @@ static ssize_t mdio_bus_device_stat_field_show(struct device *dev,
 
 	val = mdio_bus_get_stat(&bus->stats[addr], sattr->field_offset);
 
-	return sprintf(buf, "%llu\n", val);
+	return sysfs_emit(buf, "%llu\n", val);
 }
 
 #define MDIO_BUS_STATS_ATTR_DECL(field, file)				\
