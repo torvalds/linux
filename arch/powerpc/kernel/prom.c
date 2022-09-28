@@ -137,7 +137,7 @@ static void __init move_device_tree(void)
 }
 
 /*
- * ibm,pa-features is a per-cpu property that contains a string of
+ * ibm,pa/pi-features is a per-cpu property that contains a string of
  * attribute descriptors, each of which has a 2 byte header plus up
  * to 254 bytes worth of processor attribute bits.  First header
  * byte specifies the number of bytes following the header.
@@ -149,15 +149,17 @@ static void __init move_device_tree(void)
  * is supported/not supported.  Note that the bit numbers are
  * big-endian to match the definition in PAPR.
  */
-static struct ibm_pa_feature {
+struct ibm_feature {
 	unsigned long	cpu_features;	/* CPU_FTR_xxx bit */
 	unsigned long	mmu_features;	/* MMU_FTR_xxx bit */
 	unsigned int	cpu_user_ftrs;	/* PPC_FEATURE_xxx bit */
 	unsigned int	cpu_user_ftrs2;	/* PPC_FEATURE2_xxx bit */
-	unsigned char	pabyte;		/* byte number in ibm,pa-features */
+	unsigned char	pabyte;		/* byte number in ibm,pa/pi-features */
 	unsigned char	pabit;		/* bit number (big-endian) */
 	unsigned char	invert;		/* if 1, pa bit set => clear feature */
-} ibm_pa_features[] __initdata = {
+};
+
+static struct ibm_feature ibm_pa_features[] __initdata = {
 	{ .pabyte = 0,  .pabit = 0, .cpu_user_ftrs = PPC_FEATURE_HAS_MMU },
 	{ .pabyte = 0,  .pabit = 1, .cpu_user_ftrs = PPC_FEATURE_HAS_FPU },
 	{ .pabyte = 0,  .pabit = 3, .cpu_features  = CPU_FTR_CTRL },
@@ -179,9 +181,19 @@ static struct ibm_pa_feature {
 	{ .pabyte = 64, .pabit = 0, .cpu_features = CPU_FTR_DAWR1 },
 };
 
+/*
+ * ibm,pi-features property provides the support of processor specific
+ * options not described in ibm,pa-features. Right now use byte 0, bit 3
+ * which indicates the occurrence of DSI interrupt when the paste operation
+ * on the suspended NX window.
+ */
+static struct ibm_feature ibm_pi_features[] __initdata = {
+	{ .pabyte = 0, .pabit = 3, .mmu_features  = MMU_FTR_NX_DSI },
+};
+
 static void __init scan_features(unsigned long node, const unsigned char *ftrs,
 				 unsigned long tablelen,
-				 struct ibm_pa_feature *fp,
+				 struct ibm_feature *fp,
 				 unsigned long ft_size)
 {
 	unsigned long i, len, bit;
@@ -218,17 +230,18 @@ static void __init scan_features(unsigned long node, const unsigned char *ftrs,
 	}
 }
 
-static void __init check_cpu_pa_features(unsigned long node)
+static void __init check_cpu_features(unsigned long node, char *name,
+				      struct ibm_feature *fp,
+				      unsigned long size)
 {
 	const unsigned char *pa_ftrs;
 	int tablelen;
 
-	pa_ftrs = of_get_flat_dt_prop(node, "ibm,pa-features", &tablelen);
+	pa_ftrs = of_get_flat_dt_prop(node, name, &tablelen);
 	if (pa_ftrs == NULL)
 		return;
 
-	scan_features(node, pa_ftrs, tablelen,
-		      ibm_pa_features, ARRAY_SIZE(ibm_pa_features));
+	scan_features(node, pa_ftrs, tablelen, fp, size);
 }
 
 #ifdef CONFIG_PPC_64S_HASH_MMU
@@ -380,7 +393,10 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 			identify_cpu(0, be32_to_cpup(prop));
 
 		check_cpu_feature_properties(node);
-		check_cpu_pa_features(node);
+		check_cpu_features(node, "ibm,pa-features", ibm_pa_features,
+				   ARRAY_SIZE(ibm_pa_features));
+		check_cpu_features(node, "ibm,pi-features", ibm_pi_features,
+				   ARRAY_SIZE(ibm_pi_features));
 	}
 
 	identical_pvr_fixup(node);
