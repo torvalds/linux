@@ -284,7 +284,7 @@ static ssize_t config_show(struct device *dev,
 				test_fw_config->name);
 	else
 		len += scnprintf(buf + len, PAGE_SIZE - len,
-				"name:\tEMTPY\n");
+				"name:\tEMPTY\n");
 
 	len += scnprintf(buf + len, PAGE_SIZE - len,
 			"num_requests:\t%u\n", test_fw_config->num_requests);
@@ -315,7 +315,7 @@ static ssize_t config_show(struct device *dev,
 				test_fw_config->upload_name);
 	else
 		len += scnprintf(buf + len, PAGE_SIZE - len,
-				"upload_name:\tEMTPY\n");
+				"upload_name:\tEMPTY\n");
 
 	mutex_unlock(&test_fw_mutex);
 
