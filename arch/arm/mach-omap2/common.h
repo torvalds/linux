@@ -38,7 +38,6 @@
 #include <asm/hardware/cache-l2x0.h>
 
 #include "i2c.h"
-#include "serial.h"
 
 #define OMAP_INTC_START		NR_IRQS
 
