@@ -325,7 +325,7 @@ int mhi_destroy_device(struct device *dev, void *data)
 		put_device(&dl_chan->mhi_dev->dev);
 	}
 
-	dev_dbg(&mhi_cntrl->mhi_dev->dev, "destroy device for chan:%s\n",
+	MHI_VERB(dev, "destroy device for chan:%s\n",
 		 mhi_dev->name);
 
 	/* Notify the client and remove the device from MHI bus */
@@ -398,7 +398,7 @@ void mhi_create_devices(struct mhi_controller *mhi_cntrl)
 			mhi_dev->dl_event_id = mhi_chan->er_index;
 			break;
 		default:
-			dev_err(dev, "Direction not supported\n");
+			MHI_ERR(dev, "Direction not supported\n");
 			put_device(&mhi_dev->dev);
 			return;
 		}
@@ -477,7 +477,7 @@ irqreturn_t mhi_irq_handler(int irq_number, void *priv)
 	void *dev_rp;
 
 	if (!is_valid_ring_ptr(ev_ring, ptr)) {
-		dev_err(&mhi_cntrl->mhi_dev->dev,
+		MHI_ERR(dev,
 			"Event ring rp points outside of the event ring\n");
 		return IRQ_HANDLED;
 	}
@@ -510,7 +510,7 @@ irqreturn_t mhi_irq_handler(int irq_number, void *priv)
 		queue_work(mhi_cntrl->hiprio_wq, &mhi_event->work);
 		break;
 	default:
-		dev_dbg(dev, "skip unknown priority event\n");
+		MHI_VERB(dev, "skip unknown priority event\n");
 		break;
 	}
 
@@ -533,13 +533,13 @@ irqreturn_t mhi_intvec_threaded_handler(int irq_number, void *priv)
 
 	state = mhi_get_mhi_state(mhi_cntrl);
 	ee = mhi_get_exec_env(mhi_cntrl);
-	dev_dbg(dev, "local ee: %s state: %s device ee: %s state: %s\n",
+	MHI_VERB(dev, "local ee: %s state: %s device ee: %s state: %s\n",
 		TO_MHI_EXEC_STR(mhi_cntrl->ee),
 		mhi_state_str(mhi_cntrl->dev_state),
 		TO_MHI_EXEC_STR(ee), mhi_state_str(state));
 
 	if (state == MHI_STATE_SYS_ERR) {
-		dev_dbg(dev, "System error detected\n");
+		MHI_VERB(dev, "System error detected\n");
 		pm_state = mhi_tryset_pm_state(mhi_cntrl,
 					       MHI_PM_SYS_ERR_DETECT);
 	}
@@ -652,7 +652,7 @@ static int parse_xfer_event(struct mhi_controller *mhi_cntrl,
 		u16 xfer_len;
 
 		if (!is_valid_ring_ptr(tre_ring, ptr)) {
-			dev_err(&mhi_cntrl->mhi_dev->dev,
+			MHI_ERR(dev,
 				"Event element points outside of the tre ring\n");
 			break;
 		}
@@ -705,7 +705,7 @@ static int parse_xfer_event(struct mhi_controller *mhi_cntrl,
 						  mhi_chan->dir,
 						  buf_info->cb_buf,
 						  buf_info->len, MHI_EOT)) {
-					dev_err(dev,
+					MHI_ERR(dev,
 						"Error recycling buffer for chan:%d\n",
 						mhi_chan->chan);
 					kfree(buf_info->cb_buf);
@@ -821,7 +821,7 @@ static void mhi_process_cmd_completion(struct mhi_controller *mhi_cntrl,
 	u32 chan;
 
 	if (!is_valid_ring_ptr(mhi_ring, ptr)) {
-		dev_err(&mhi_cntrl->mhi_dev->dev,
+		MHI_ERR(dev,
 			"Event element points outside of the cmd ring\n");
 		return;
 	}
@@ -848,7 +848,7 @@ static void mhi_process_cmd_completion(struct mhi_controller *mhi_cntrl,
 		complete(&mhi_chan->completion);
 		write_unlock_bh(&mhi_chan->lock);
 	} else {
-		dev_err(&mhi_cntrl->mhi_dev->dev,
+		MHI_ERR(dev,
 			"Completion packet for invalid channel ID: %d\n", chan);
 	}
 
@@ -879,7 +879,7 @@ int mhi_process_ctrl_ev_ring(struct mhi_controller *mhi_cntrl,
 		return -EIO;
 
 	if (!is_valid_ring_ptr(ev_ring, ptr)) {
-		dev_err(&mhi_cntrl->mhi_dev->dev,
+		MHI_ERR(dev,
 			"Event ring rp points outside of the event ring\n");
 		return -EIO;
 	}
@@ -890,7 +890,7 @@ int mhi_process_ctrl_ev_ring(struct mhi_controller *mhi_cntrl,
 	while (dev_rp != local_rp) {
 		enum mhi_pkt_type type = MHI_TRE_GET_EV_TYPE(local_rp);
 
-		dev_dbg(dev, "RP:0x%llx Processing Event:0x%llx 0x%08x 0x%08x\n",
+		MHI_VERB(dev, "RP:0x%llx Processing Event:0x%llx 0x%08x 0x%08x\n",
 			(u64)mhi_to_physical(ev_ring, local_rp),
 			local_rp->ptr, local_rp->dword[0], local_rp->dword[1]);
 
@@ -906,7 +906,7 @@ int mhi_process_ctrl_ev_ring(struct mhi_controller *mhi_cntrl,
 			link_info->target_link_width =
 				MHI_TRE_GET_EV_LINKWIDTH(local_rp);
 			write_unlock_irq(&mhi_cntrl->pm_lock);
-			dev_dbg(dev, "Received BW_REQ event\n");
+			MHI_VERB(dev, "Received BW_REQ event\n");
 			mhi_cntrl->status_cb(mhi_cntrl, MHI_CB_BW_REQ);
 			break;
 		}
@@ -916,7 +916,7 @@ int mhi_process_ctrl_ev_ring(struct mhi_controller *mhi_cntrl,
 
 			new_state = MHI_TRE_GET_EV_STATE(local_rp);
 
-			dev_dbg(dev, "State change event to state: %s\n",
+			MHI_VERB(dev, "State change event to state: %s\n",
 				mhi_state_str(new_state));
 
 			switch (new_state) {
@@ -933,7 +933,7 @@ int mhi_process_ctrl_ev_ring(struct mhi_controller *mhi_cntrl,
 			{
 				enum mhi_pm_state pm_state;
 
-				dev_dbg(dev, "System error detected\n");
+				MHI_VERB(dev, "System error detected\n");
 				write_lock_irq(&mhi_cntrl->pm_lock);
 				pm_state = mhi_tryset_pm_state(mhi_cntrl,
 							MHI_PM_SYS_ERR_DETECT);
@@ -943,7 +943,7 @@ int mhi_process_ctrl_ev_ring(struct mhi_controller *mhi_cntrl,
 				break;
 			}
 			default:
-				dev_err(dev, "Invalid state: %s\n",
+				MHI_ERR(dev, "Invalid state: %s\n",
 					mhi_state_str(new_state));
 			}
 
@@ -957,7 +957,7 @@ int mhi_process_ctrl_ev_ring(struct mhi_controller *mhi_cntrl,
 			enum dev_st_transition st = DEV_ST_TRANSITION_MAX;
 			enum mhi_ee_type event = MHI_TRE_GET_EV_EXECENV(local_rp);
 
-			dev_dbg(dev, "Received EE event: %s\n",
+			MHI_VERB(dev, "Received EE event: %s\n",
 				TO_MHI_EXEC_STR(event));
 			switch (event) {
 			case MHI_EE_SBL:
@@ -978,7 +978,7 @@ int mhi_process_ctrl_ev_ring(struct mhi_controller *mhi_cntrl,
 				wake_up_all(&mhi_cntrl->state_event);
 				break;
 			default:
-				dev_err(dev,
+				MHI_ERR(dev,
 					"Unhandled EE event: 0x%x\n", type);
 			}
 			if (st != DEV_ST_TRANSITION_MAX)
@@ -1004,7 +1004,7 @@ int mhi_process_ctrl_ev_ring(struct mhi_controller *mhi_cntrl,
 			}
 			break;
 		default:
-			dev_err(dev, "Unhandled event type: %d\n", type);
+			MHI_ERR(dev, "Unhandled event type: %d\n", type);
 			break;
 		}
 
@@ -1013,7 +1013,7 @@ int mhi_process_ctrl_ev_ring(struct mhi_controller *mhi_cntrl,
 
 		ptr = le64_to_cpu(er_ctxt->rp);
 		if (!is_valid_ring_ptr(ev_ring, ptr)) {
-			dev_err(&mhi_cntrl->mhi_dev->dev,
+			MHI_ERR(dev,
 				"Event ring rp points outside of the event ring\n");
 			return -EIO;
 		}
@@ -1048,7 +1048,7 @@ int mhi_process_data_event_ring(struct mhi_controller *mhi_cntrl,
 		return -EIO;
 
 	if (!is_valid_ring_ptr(ev_ring, ptr)) {
-		dev_err(&mhi_cntrl->mhi_dev->dev,
+		MHI_ERR(dev,
 			"Event ring rp points outside of the event ring\n");
 		return -EIO;
 	}
@@ -1059,7 +1059,7 @@ int mhi_process_data_event_ring(struct mhi_controller *mhi_cntrl,
 	while (dev_rp != local_rp && event_quota > 0) {
 		enum mhi_pkt_type type = MHI_TRE_GET_EV_TYPE(local_rp);
 
-		dev_dbg(dev, "Processing Event:0x%llx 0x%08x 0x%08x\n",
+		MHI_VERB(dev, "Processing Event:0x%llx 0x%08x 0x%08x\n",
 			local_rp->ptr, local_rp->dword[0], local_rp->dword[1]);
 
 		chan = MHI_TRE_GET_EV_CHID(local_rp);
@@ -1088,7 +1088,7 @@ int mhi_process_data_event_ring(struct mhi_controller *mhi_cntrl,
 
 		ptr = le64_to_cpu(er_ctxt->rp);
 		if (!is_valid_ring_ptr(ev_ring, ptr)) {
-			dev_err(&mhi_cntrl->mhi_dev->dev,
+			MHI_ERR(dev,
 				"Event ring rp points outside of the event ring\n");
 			return -EIO;
 		}
@@ -1152,7 +1152,7 @@ void mhi_ctrl_ev_task(unsigned long data)
 		write_lock_irq(&mhi_cntrl->pm_lock);
 		state = mhi_get_mhi_state(mhi_cntrl);
 		if (state == MHI_STATE_SYS_ERR) {
-			dev_dbg(dev, "System error detected\n");
+			MHI_VERB(dev, "System error detected\n");
 			pm_state = mhi_tryset_pm_state(mhi_cntrl,
 						       MHI_PM_SYS_ERR_DETECT);
 		}
@@ -1169,7 +1169,7 @@ void mhi_process_ev_work(struct work_struct *work)
 	struct mhi_controller *mhi_cntrl = mhi_event->mhi_cntrl;
 	struct device *dev = mhi_cntrl->cntrl_dev;
 
-	dev_dbg(dev, "Enter with pm_state:%s MHI_STATE:%s ee:%s\n",
+	MHI_VERB(dev, "Enter with pm_state:%s MHI_STATE:%s ee:%s\n",
 		to_mhi_pm_state_str(mhi_cntrl->pm_state),
 		mhi_state_str(mhi_cntrl->dev_state),
 		TO_MHI_EXEC_STR(mhi_cntrl->ee));
@@ -1399,7 +1399,7 @@ int mhi_send_cmd(struct mhi_controller *mhi_cntrl,
 							&cmd_tre->dword[1]);
 		break;
 	default:
-		dev_err(dev, "Command not supported\n");
+		MHI_ERR(dev, "Command not supported\n");
 		break;
 	}
 
@@ -1422,7 +1422,7 @@ static int mhi_update_channel_state(struct mhi_controller *mhi_cntrl,
 	enum mhi_cmd_type cmd = MHI_CMD_NOP;
 	int ret;
 
-	dev_dbg(dev, "%d: Updating channel state to: %s\n", mhi_chan->chan,
+	MHI_VERB(dev, "%d: Updating channel state to: %s\n", mhi_chan->chan,
 		TO_CH_STATE_TYPE_STR(to_state));
 
 	switch (to_state) {
@@ -1453,7 +1453,7 @@ static int mhi_update_channel_state(struct mhi_controller *mhi_cntrl,
 		cmd = MHI_CMD_START_CHAN;
 		break;
 	default:
-		dev_err(dev, "%d: Channel state update to %s not allowed\n",
+		MHI_ERR(dev, "%d: Channel state update to %s not allowed\n",
 			mhi_chan->chan, TO_CH_STATE_TYPE_STR(to_state));
 		return -EINVAL;
 	}
@@ -1467,7 +1467,7 @@ static int mhi_update_channel_state(struct mhi_controller *mhi_cntrl,
 	reinit_completion(&mhi_chan->completion);
 	ret = mhi_send_cmd(mhi_cntrl, mhi_chan, cmd);
 	if (ret) {
-		dev_err(dev, "%d: Failed to send %s channel command\n",
+		MHI_ERR(dev, "%d: Failed to send %s channel command\n",
 			mhi_chan->chan, TO_CH_STATE_TYPE_STR(to_state));
 		goto exit_channel_update;
 	}
@@ -1475,7 +1475,7 @@ static int mhi_update_channel_state(struct mhi_controller *mhi_cntrl,
 	ret = wait_for_completion_timeout(&mhi_chan->completion,
 				       msecs_to_jiffies(mhi_cntrl->timeout_ms));
 	if (!ret || mhi_chan->ccs != MHI_EV_CC_SUCCESS) {
-		dev_err(dev,
+		MHI_ERR(dev,
 			"%d: Failed to receive %s channel command completion\n",
 			mhi_chan->chan, TO_CH_STATE_TYPE_STR(to_state));
 		ret = -EIO;
@@ -1491,7 +1491,7 @@ static int mhi_update_channel_state(struct mhi_controller *mhi_cntrl,
 		write_unlock_irq(&mhi_chan->lock);
 	}
 
-	dev_dbg(dev, "%d: Channel state change to %s successful\n",
+	MHI_VERB(dev, "%d: Channel state change to %s successful\n",
 		mhi_chan->chan, TO_CH_STATE_TYPE_STR(to_state));
 
 exit_channel_update:
@@ -1510,7 +1510,7 @@ static void mhi_unprepare_channel(struct mhi_controller *mhi_cntrl,
 	mutex_lock(&mhi_chan->mutex);
 
 	if (!(BIT(mhi_cntrl->ee) & mhi_chan->ee_mask)) {
-		dev_dbg(dev, "Current EE: %s Required EE Mask: 0x%x\n",
+		MHI_VERB(dev, "Current EE: %s Required EE Mask: 0x%x\n",
 			TO_MHI_EXEC_STR(mhi_cntrl->ee), mhi_chan->ee_mask);
 		goto exit_unprepare_channel;
 	}
@@ -1519,7 +1519,7 @@ static void mhi_unprepare_channel(struct mhi_controller *mhi_cntrl,
 	ret = mhi_update_channel_state(mhi_cntrl, mhi_chan,
 				       MHI_CH_STATE_TYPE_RESET);
 	if (ret)
-		dev_err(dev, "%d: Failed to reset channel, still resetting\n",
+		MHI_ERR(dev, "%d: Failed to reset channel, still resetting\n",
 			mhi_chan->chan);
 
 exit_unprepare_channel:
@@ -1531,7 +1531,7 @@ exit_unprepare_channel:
 		mhi_reset_chan(mhi_cntrl, mhi_chan);
 		mhi_deinit_chan_ctxt(mhi_cntrl, mhi_chan);
 	}
-	dev_dbg(dev, "%d: successfully reset\n", mhi_chan->chan);
+	MHI_VERB(dev, "%d: successfully reset\n", mhi_chan->chan);
 
 	mutex_unlock(&mhi_chan->mutex);
 }
@@ -1543,7 +1543,7 @@ int mhi_prepare_channel(struct mhi_controller *mhi_cntrl,
 	struct device *dev = &mhi_chan->mhi_dev->dev;
 
 	if (!(BIT(mhi_cntrl->ee) & mhi_chan->ee_mask)) {
-		dev_err(dev, "Current EE: %s Required EE Mask: 0x%x\n",
+		MHI_ERR(dev, "Current EE: %s Required EE Mask: 0x%x\n",
 			TO_MHI_EXEC_STR(mhi_cntrl->ee), mhi_chan->ee_mask);
 		return -ENOTCONN;
 	}
@@ -1633,7 +1633,7 @@ static void mhi_mark_stale_events(struct mhi_controller *mhi_cntrl,
 	unsigned long flags;
 	dma_addr_t ptr;
 
-	dev_dbg(dev, "Marking all events for chan: %d as stale\n", chan);
+	MHI_VERB(dev, "Marking all events for chan: %d as stale\n", chan);
 
 	ev_ring = &mhi_event->ring;
 
@@ -1642,7 +1642,7 @@ static void mhi_mark_stale_events(struct mhi_controller *mhi_cntrl,
 
 	ptr = le64_to_cpu(er_ctxt->rp);
 	if (!is_valid_ring_ptr(ev_ring, ptr)) {
-		dev_err(&mhi_cntrl->mhi_dev->dev,
+		MHI_ERR(dev,
 			"Event ring rp points outside of the event ring\n");
 		dev_rp = ev_ring->rp;
 	} else {
@@ -1660,7 +1660,7 @@ static void mhi_mark_stale_events(struct mhi_controller *mhi_cntrl,
 			local_rp = ev_ring->base;
 	}
 
-	dev_dbg(dev, "Finished marking events as stale events\n");
+	MHI_VERB(dev, "Finished marking events as stale events\n");
 	spin_unlock_irqrestore(&mhi_event->lock, flags);
 }
 

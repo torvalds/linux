@@ -190,7 +190,7 @@ int mhi_init_irq_setup(struct mhi_controller *mhi_cntrl)
 			continue;
 
 		if (mhi_event->irq >= mhi_cntrl->nr_irqs) {
-			dev_err(dev, "irq %d not available for event ring\n",
+			MHI_ERR(dev, "irq %d not available for event ring\n",
 				mhi_event->irq);
 			ret = -EINVAL;
 			goto error_request;
@@ -201,7 +201,7 @@ int mhi_init_irq_setup(struct mhi_controller *mhi_cntrl)
 				  irq_flags,
 				  "mhi", mhi_event);
 		if (ret) {
-			dev_err(dev, "Error requesting irq:%d for ev:%d\n",
+			MHI_ERR(dev, "Error requesting irq:%d for ev:%d\n",
 				mhi_cntrl->irq[mhi_event->irq], i);
 			goto error_request;
 		}
@@ -507,12 +507,12 @@ int mhi_init_mmio(struct mhi_controller *mhi_cntrl)
 		{0, 0}
 	};
 
-	dev_dbg(dev, "Initializing MHI registers\n");
+	MHI_VERB(dev, "Initializing MHI registers\n");
 
 	/* Read channel db offset */
 	ret = mhi_read_reg(mhi_cntrl, base, CHDBOFF, &val);
 	if (ret) {
-		dev_err(dev, "Unable to read CHDBOFF register\n");
+		MHI_ERR(dev, "Unable to read CHDBOFF register\n");
 		return -EIO;
 	}
 
@@ -528,7 +528,7 @@ int mhi_init_mmio(struct mhi_controller *mhi_cntrl)
 	/* Read event ring db offset */
 	ret = mhi_read_reg(mhi_cntrl, base, ERDBOFF, &val);
 	if (ret) {
-		dev_err(dev, "Unable to read ERDBOFF register\n");
+		MHI_ERR(dev, "Unable to read ERDBOFF register\n");
 		return -EIO;
 	}
 
@@ -552,14 +552,14 @@ int mhi_init_mmio(struct mhi_controller *mhi_cntrl)
 	ret = mhi_write_reg_field(mhi_cntrl, base, MHICFG, MHICFG_NER_MASK,
 				  mhi_cntrl->total_ev_rings);
 	if (ret) {
-		dev_err(dev, "Unable to write MHICFG register\n");
+		MHI_ERR(dev, "Unable to write MHICFG register\n");
 		return ret;
 	}
 
 	ret = mhi_write_reg_field(mhi_cntrl, base, MHICFG, MHICFG_NHWER_MASK,
 				  mhi_cntrl->hw_ev_rings);
 	if (ret) {
-		dev_err(dev, "Unable to write MHICFG register\n");
+		MHI_ERR(dev, "Unable to write MHICFG register\n");
 		return ret;
 	}
 
@@ -680,7 +680,7 @@ static int parse_ev_cfg(struct mhi_controller *mhi_cntrl,
 			/* This event ring has a dedicated channel */
 			mhi_event->chan = event_cfg->channel;
 			if (mhi_event->chan >= mhi_cntrl->max_chan) {
-				dev_err(dev,
+				MHI_ERR(dev,
 					"Event Ring channel not available\n");
 				goto error_ev_cfg;
 			}
@@ -716,7 +716,7 @@ static int parse_ev_cfg(struct mhi_controller *mhi_cntrl,
 			mhi_event->process_event = mhi_process_misc_tsync_ev_ring;
 			break;
 		default:
-			dev_err(dev, "Event Ring type not supported\n");
+			MHI_ERR(dev, "Event Ring type not supported\n");
 			goto error_ev_cfg;
 		}
 
@@ -769,7 +769,7 @@ static int parse_ch_cfg(struct mhi_controller *mhi_cntrl,
 
 		chan = ch_cfg->num;
 		if (chan >= mhi_cntrl->max_chan) {
-			dev_err(dev, "Channel %d not available\n", chan);
+			MHI_ERR(dev, "Channel %d not available\n", chan);
 			goto error_chan_cfg;
 		}
 
@@ -816,7 +816,7 @@ static int parse_ch_cfg(struct mhi_controller *mhi_cntrl,
 		 * should be DMA_FROM_DEVICE
 		 */
 		if (mhi_chan->pre_alloc && mhi_chan->dir != DMA_FROM_DEVICE) {
-			dev_err(dev, "Invalid channel configuration\n");
+			MHI_ERR(dev, "Invalid channel configuration\n");
 			goto error_chan_cfg;
 		}
 
@@ -826,14 +826,14 @@ static int parse_ch_cfg(struct mhi_controller *mhi_cntrl,
 		 */
 		if ((mhi_chan->dir == DMA_BIDIRECTIONAL ||
 		     mhi_chan->dir == DMA_NONE) && !mhi_chan->offload_ch) {
-			dev_err(dev, "Invalid channel configuration\n");
+			MHI_ERR(dev, "Invalid channel configuration\n");
 			goto error_chan_cfg;
 		}
 
 		if (!mhi_chan->offload_ch) {
 			mhi_chan->db_cfg.brstmode = ch_cfg->doorbell;
 			if (MHI_INVALID_BRSTMODE(mhi_chan->db_cfg.brstmode)) {
-				dev_err(dev, "Invalid Door bell mode\n");
+				MHI_ERR(dev, "Invalid Door bell mode\n");
 				goto error_chan_cfg;
 			}
 		}
@@ -1119,12 +1119,12 @@ int mhi_prepare_for_power_up(struct mhi_controller *mhi_cntrl)
 
 	ret = mhi_read_reg(mhi_cntrl, mhi_cntrl->regs, BHIOFF, &bhi_off);
 	if (ret) {
-		dev_err(dev, "Error getting BHI offset\n");
+		MHI_ERR(dev, "Error getting BHI offset\n");
 		goto error_reg_offset;
 	}
 
 	if (bhi_off >= mhi_cntrl->reg_len) {
-		dev_err(dev, "BHI offset: 0x%x is out of range: 0x%zx\n",
+		MHI_ERR(dev, "BHI offset: 0x%x is out of range: 0x%zx\n",
 			bhi_off, mhi_cntrl->reg_len);
 		ret = -EINVAL;
 		goto error_reg_offset;
@@ -1135,12 +1135,12 @@ int mhi_prepare_for_power_up(struct mhi_controller *mhi_cntrl)
 		ret = mhi_read_reg(mhi_cntrl, mhi_cntrl->regs, BHIEOFF,
 				   &bhie_off);
 		if (ret) {
-			dev_err(dev, "Error getting BHIE offset\n");
+			MHI_ERR(dev, "Error getting BHIE offset\n");
 			goto error_reg_offset;
 		}
 
 		if (bhie_off >= mhi_cntrl->reg_len) {
-			dev_err(dev,
+			MHI_ERR(dev,
 				"BHIe offset: 0x%x is out of range: 0x%zx\n",
 				bhie_off, mhi_cntrl->reg_len);
 			ret = -EINVAL;
