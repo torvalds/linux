@@ -189,12 +189,6 @@ struct omap_hwmod omap2xxx_mpu_hwmod = {
 	.main_clk	= "mpu_ck",
 };
 
-/* IVA2 */
-struct omap_hwmod omap2xxx_iva_hwmod = {
-	.name		= "iva",
-	.class		= &iva_hwmod_class,
-};
-
 /* timer3 */
 struct omap_hwmod omap2xxx_timer3_hwmod = {
 	.name		= "timer3",

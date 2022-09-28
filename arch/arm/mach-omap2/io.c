@@ -494,12 +494,6 @@ void __init omap3430_init_early(void)
 	omap_clk_soc_init = omap3430_dt_clk_init;
 }
 
-void __init omap35xx_init_early(void)
-{
-	omap3_init_early();
-	omap_clk_soc_init = omap3430_dt_clk_init;
-}
-
 void __init omap3630_init_early(void)
 {
 	omap3_init_early();

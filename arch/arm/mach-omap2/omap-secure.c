@@ -118,11 +118,6 @@ int __init omap_secure_ram_reserve_memblock(void)
 	return 0;
 }
 
-phys_addr_t omap_secure_ram_mempool_base(void)
-{
-	return omap_secure_memblock_base;
-}
-
 #if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
 u32 omap3_save_secure_ram(void *addr, int size)
 {

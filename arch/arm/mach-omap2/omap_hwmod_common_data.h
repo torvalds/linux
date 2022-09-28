@@ -20,7 +20,6 @@ extern struct omap_hwmod omap2xxx_l3_main_hwmod;
 extern struct omap_hwmod omap2xxx_l4_core_hwmod;
 extern struct omap_hwmod omap2xxx_l4_wkup_hwmod;
 extern struct omap_hwmod omap2xxx_mpu_hwmod;
-extern struct omap_hwmod omap2xxx_iva_hwmod;
 extern struct omap_hwmod omap2xxx_timer3_hwmod;
 extern struct omap_hwmod omap2xxx_timer4_hwmod;
 extern struct omap_hwmod omap2xxx_timer5_hwmod;

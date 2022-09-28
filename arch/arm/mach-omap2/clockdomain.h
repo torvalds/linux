@@ -203,8 +203,6 @@ void clkdm_allow_idle_nolock(struct clockdomain *clkdm);
 void clkdm_allow_idle(struct clockdomain *clkdm);
 void clkdm_deny_idle_nolock(struct clockdomain *clkdm);
 void clkdm_deny_idle(struct clockdomain *clkdm);
-bool clkdm_in_hwsup(struct clockdomain *clkdm);
-bool clkdm_missing_idle_reporting(struct clockdomain *clkdm);
 
 int clkdm_wakeup_nolock(struct clockdomain *clkdm);
 int clkdm_wakeup(struct clockdomain *clkdm);

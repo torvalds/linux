@@ -120,7 +120,6 @@ static inline void omap5_realtime_timer_init(void)
 void omap2420_init_early(void);
 void omap2430_init_early(void);
 void omap3430_init_early(void);
-void omap35xx_init_early(void);
 void omap3630_init_early(void);
 void omap3_init_early(void);	/* Do not use this one */
 void am33xx_init_early(void);
@@ -133,8 +132,6 @@ void omap4430_init_early(void);
 void omap5_init_early(void);
 void omap3_init_late(void);
 void omap4430_init_late(void);
-void omap2420_init_late(void);
-void omap2430_init_late(void);
 void ti81xx_init_late(void);
 void am33xx_init_late(void);
 void omap5_init_late(void);

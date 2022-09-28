@@ -1043,46 +1043,6 @@ void clkdm_deny_idle(struct clockdomain *clkdm)
 	pwrdm_unlock(clkdm->pwrdm.ptr);
 }
 
-/**
- * clkdm_in_hwsup - is clockdomain @clkdm have hardware-supervised idle enabled?
- * @clkdm: struct clockdomain *
- *
- * Returns true if clockdomain @clkdm currently has
- * hardware-supervised idle enabled, or false if it does not or if
- * @clkdm is NULL.  It is only valid to call this function after
- * clkdm_init() has been called.  This function does not actually read
- * bits from the hardware; it instead tests an in-memory flag that is
- * changed whenever the clockdomain code changes the auto-idle mode.
- */
-bool clkdm_in_hwsup(struct clockdomain *clkdm)
-{
-	bool ret;
-
-	if (!clkdm)
-		return false;
-
-	ret = (clkdm->_flags & _CLKDM_FLAG_HWSUP_ENABLED) ? true : false;
-
-	return ret;
-}
-
-/**
- * clkdm_missing_idle_reporting - can @clkdm enter autoidle even if in use?
- * @clkdm: struct clockdomain *
- *
- * Returns true if clockdomain @clkdm has the
- * CLKDM_MISSING_IDLE_REPORTING flag set, or false if not or @clkdm is
- * null.  More information is available in the documentation for the
- * CLKDM_MISSING_IDLE_REPORTING macro.
- */
-bool clkdm_missing_idle_reporting(struct clockdomain *clkdm)
-{
-	if (!clkdm)
-		return false;
-
-	return (clkdm->flags & CLKDM_MISSING_IDLE_REPORTING) ? true : false;
-}
-
 /* Public autodep handling functions (deprecated) */
 
 /**

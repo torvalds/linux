@@ -643,7 +643,6 @@ int omap_hwmod_fill_resources(struct omap_hwmod *oh, struct resource *res);
 int omap_hwmod_get_resource_byname(struct omap_hwmod *oh, unsigned int type,
 				   const char *name, struct resource *res);
 
-struct powerdomain *omap_hwmod_get_pwrdm(struct omap_hwmod *oh);
 void __iomem *omap_hwmod_get_mpu_rt_va(struct omap_hwmod *oh);
 
 int omap_hwmod_for_each_by_class(const char *classname,
@@ -652,11 +651,8 @@ int omap_hwmod_for_each_by_class(const char *classname,
 				 void *user);
 
 int omap_hwmod_set_postsetup_state(struct omap_hwmod *oh, u8 state);
-int omap_hwmod_get_context_loss_count(struct omap_hwmod *oh);
 
 extern void __init omap_hwmod_init(void);
-
-const char *omap_hwmod_get_main_clk(struct omap_hwmod *oh);
 
 #else	/* CONFIG_OMAP_HWMOD */
 
