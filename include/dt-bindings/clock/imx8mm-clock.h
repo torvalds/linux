@@ -281,7 +281,6 @@
 #define IMX8MM_CLK_CLKOUT2_DIV			256
 #define IMX8MM_CLK_CLKOUT2			257
 
-
 #define IMX8MM_CLK_END				258
 
 #endif
