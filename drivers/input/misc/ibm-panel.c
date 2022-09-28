@@ -183,6 +183,7 @@ static const struct of_device_id ibm_panel_match[] = {
 	{ .compatible = "ibm,op-panel" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, ibm_panel_match);
 
 static struct i2c_driver ibm_panel_driver = {
 	.driver = {
