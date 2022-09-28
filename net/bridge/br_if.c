@@ -40,12 +40,21 @@ static int port_cost(struct net_device *dev)
 		switch (ecmd.base.speed) {
 		case SPEED_10000:
 			return 2;
-		case SPEED_1000:
+		case SPEED_5000:
+			return 3;
+		case SPEED_2500:
 			return 4;
+		case SPEED_1000:
+			return 5;
 		case SPEED_100:
 			return 19;
 		case SPEED_10:
 			return 100;
+		case SPEED_UNKNOWN:
+			return 100;
+		default:
+			if (ecmd.base.speed > SPEED_10000)
+				return 1;
 		}
 	}
 
