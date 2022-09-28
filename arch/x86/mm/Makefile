@@ -46,6 +46,9 @@ obj-$(CONFIG_HIGHMEM)		+= highmem_32.o
 KASAN_SANITIZE_kasan_init_$(BITS).o := n
 obj-$(CONFIG_KASAN)		+= kasan_init_$(BITS).o
 
+KMSAN_SANITIZE_kmsan_shadow.o	:= n
+obj-$(CONFIG_KMSAN)		+= kmsan_shadow.o
+
 obj-$(CONFIG_MMIOTRACE)		+= mmiotrace.o
 mmiotrace-y			:= kmmio.o pf_in.o mmio-mod.o
 obj-$(CONFIG_MMIOTRACE_TEST)	+= testmmiotrace.o

@@ -12,7 +12,6 @@
 #include <linux/cacheflush.h>
 #include <linux/memblock.h>
 #include <linux/mm_types.h>
-#include <linux/percpu-defs.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/stddef.h>
@@ -126,6 +125,7 @@ void *kmsan_get_metadata(void *address, bool is_origin)
 {
 	u64 addr = (u64)address, pad, off;
 	struct page *page;
+	void *ret;
 
 	if (is_origin && !IS_ALIGNED(addr, KMSAN_ORIGIN_SIZE)) {
 		pad = addr % KMSAN_ORIGIN_SIZE;
@@ -135,6 +135,10 @@ void *kmsan_get_metadata(void *address, bool is_origin)
 	if (kmsan_internal_is_vmalloc_addr(address) ||
 	    kmsan_internal_is_module_addr(address))
 		return (void *)vmalloc_meta(address, is_origin);
+
+	ret = arch_kmsan_get_meta_or_null(address, is_origin);
+	if (ret)
+		return ret;
 
 	page = virt_to_page_or_null(address);
 	if (!page)

@@ -11,8 +11,40 @@
 
 #ifndef MODULE
 
+#include <asm/cpu_entry_area.h>
 #include <asm/processor.h>
 #include <linux/mmzone.h>
+
+DECLARE_PER_CPU(char[CPU_ENTRY_AREA_SIZE], cpu_entry_area_shadow);
+DECLARE_PER_CPU(char[CPU_ENTRY_AREA_SIZE], cpu_entry_area_origin);
+
+/*
+ * Functions below are declared in the header to make sure they are inlined.
+ * They all are called from kmsan_get_metadata() for every memory access in
+ * the kernel, so speed is important here.
+ */
+
+/*
+ * Compute metadata addresses for the CPU entry area on x86.
+ */
+static inline void *arch_kmsan_get_meta_or_null(void *addr, bool is_origin)
+{
+	unsigned long addr64 = (unsigned long)addr;
+	char *metadata_array;
+	unsigned long off;
+	int cpu;
+
+	if ((addr64 < CPU_ENTRY_AREA_BASE) ||
+	    (addr64 >= (CPU_ENTRY_AREA_BASE + CPU_ENTRY_AREA_MAP_SIZE)))
+		return NULL;
+	cpu = (addr64 - CPU_ENTRY_AREA_BASE) / CPU_ENTRY_AREA_SIZE;
+	off = addr64 - (unsigned long)get_cpu_entry_area(cpu);
+	if ((off < 0) || (off >= CPU_ENTRY_AREA_SIZE))
+		return NULL;
+	metadata_array = is_origin ? cpu_entry_area_origin :
+				     cpu_entry_area_shadow;
+	return &per_cpu(metadata_array[off], cpu);
+}
 
 /*
  * Taken from arch/x86/mm/physaddr.h to avoid using an instrumented version.
