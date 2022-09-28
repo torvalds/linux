@@ -3080,12 +3080,6 @@ MASKED_INTERRUPT hsrr=1
 	 * to HV=1 from HV=0 is delivered via real mode handlers.
 	 */
 
-	/*
-	 * This uses the standard macro, since the original 0x300 vector
-	 * only has extra guff for STAB-based processors -- which never
-	 * come here.
-	 */
-
 USE_FIXED_SECTION(virt_trampolines)
 	/*
 	 * All code below __end_soft_masked is treated as soft-masked. If
