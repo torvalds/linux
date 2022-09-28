@@ -16,7 +16,7 @@ enum HAL_STATUS ODM_ReadAndConfig_AGC_TAB_1T_8188E(struct odm_dm_struct *odm);
 *                           PHY_REG_1T.TXT
 ******************************************************************************/
 
-enum HAL_STATUS ODM_ReadAndConfig_PHY_REG_1T_8188E(struct odm_dm_struct *odm);
+int ODM_ReadAndConfig_PHY_REG_1T_8188E(struct odm_dm_struct *odm);
 
 /******************************************************************************
 *                           PHY_REG_PG.TXT

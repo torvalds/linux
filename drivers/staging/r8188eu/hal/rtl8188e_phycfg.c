@@ -455,7 +455,7 @@ static	int phy_BB8188E_Config_ParaFile(struct adapter *Adapter)
 	/*  1. Read PHY_REG.TXT BB INIT!! */
 	/*  We will separate as 88C / 92C according to chip version */
 	/*  */
-	if (HAL_STATUS_FAILURE == ODM_ReadAndConfig_PHY_REG_1T_8188E(&pHalData->odmpriv))
+	if (ODM_ReadAndConfig_PHY_REG_1T_8188E(&pHalData->odmpriv))
 		return _FAIL;
 
 	/*  2. If EEPROM or EFUSE autoload OK, We must config by PHY_REG_PG.txt */
