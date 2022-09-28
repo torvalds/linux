@@ -33,6 +33,8 @@
 #include <drm/drm_util.h>
 #include <drm/radeon_drm.h>
 
+#include <acpi/video.h>
+
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_legacy_encoders.h"
@@ -386,6 +388,11 @@ void radeon_legacy_backlight_init(struct radeon_encoder *radeon_encoder,
 	    !pmac_has_backlight_type("mnca"))
 		return;
 #endif
+
+	if (!acpi_video_backlight_use_native()) {
+		drm_info(dev, "Skipping radeon legacy LVDS backlight registration\n");
+		return;
+	}
 
 	pdata = kmalloc(sizeof(struct radeon_backlight_privdata), GFP_KERNEL);
 	if (!pdata) {

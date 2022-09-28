@@ -11,7 +11,7 @@
 
 static const struct drm_connector no_connector = {};
 
-static void drm_cmdline_test_force_e_only(struct kunit *test)
+static void drm_test_cmdline_force_e_only(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "e";
@@ -29,7 +29,7 @@ static void drm_cmdline_test_force_e_only(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_ON);
 }
 
-static void drm_cmdline_test_force_D_only_not_digital(struct kunit *test)
+static void drm_test_cmdline_force_D_only_not_digital(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "D";
@@ -51,7 +51,7 @@ static const struct drm_connector connector_hdmi = {
 	.connector_type	= DRM_MODE_CONNECTOR_HDMIB,
 };
 
-static void drm_cmdline_test_force_D_only_hdmi(struct kunit *test)
+static void drm_test_cmdline_force_D_only_hdmi(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "D";
@@ -73,7 +73,7 @@ static const struct drm_connector connector_dvi = {
 	.connector_type	= DRM_MODE_CONNECTOR_DVII,
 };
 
-static void drm_cmdline_test_force_D_only_dvi(struct kunit *test)
+static void drm_test_cmdline_force_D_only_dvi(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "D";
@@ -91,7 +91,7 @@ static void drm_cmdline_test_force_D_only_dvi(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_ON_DIGITAL);
 }
 
-static void drm_cmdline_test_force_d_only(struct kunit *test)
+static void drm_test_cmdline_force_d_only(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "d";
@@ -109,7 +109,7 @@ static void drm_cmdline_test_force_d_only(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_OFF);
 }
 
-static void drm_cmdline_test_res(struct kunit *test)
+static void drm_test_cmdline_res(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480";
@@ -131,7 +131,7 @@ static void drm_cmdline_test_res(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_UNSPECIFIED);
 }
 
-static void drm_cmdline_test_res_vesa(struct kunit *test)
+static void drm_test_cmdline_res_vesa(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480M";
@@ -153,7 +153,7 @@ static void drm_cmdline_test_res_vesa(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_UNSPECIFIED);
 }
 
-static void drm_cmdline_test_res_vesa_rblank(struct kunit *test)
+static void drm_test_cmdline_res_vesa_rblank(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480MR";
@@ -175,7 +175,7 @@ static void drm_cmdline_test_res_vesa_rblank(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_UNSPECIFIED);
 }
 
-static void drm_cmdline_test_res_rblank(struct kunit *test)
+static void drm_test_cmdline_res_rblank(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480R";
@@ -197,7 +197,7 @@ static void drm_cmdline_test_res_rblank(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_UNSPECIFIED);
 }
 
-static void drm_cmdline_test_res_bpp(struct kunit *test)
+static void drm_test_cmdline_res_bpp(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480-24";
@@ -220,7 +220,7 @@ static void drm_cmdline_test_res_bpp(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_UNSPECIFIED);
 }
 
-static void drm_cmdline_test_res_refresh(struct kunit *test)
+static void drm_test_cmdline_res_refresh(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480@60";
@@ -243,7 +243,7 @@ static void drm_cmdline_test_res_refresh(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_UNSPECIFIED);
 }
 
-static void drm_cmdline_test_res_bpp_refresh(struct kunit *test)
+static void drm_test_cmdline_res_bpp_refresh(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480-24@60";
@@ -267,7 +267,7 @@ static void drm_cmdline_test_res_bpp_refresh(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_UNSPECIFIED);
 }
 
-static void drm_cmdline_test_res_bpp_refresh_interlaced(struct kunit *test)
+static void drm_test_cmdline_res_bpp_refresh_interlaced(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480-24@60i";
@@ -291,7 +291,7 @@ static void drm_cmdline_test_res_bpp_refresh_interlaced(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_UNSPECIFIED);
 }
 
-static void drm_cmdline_test_res_bpp_refresh_margins(struct kunit *test)
+static void drm_test_cmdline_res_bpp_refresh_margins(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480-24@60m";
@@ -315,7 +315,7 @@ static void drm_cmdline_test_res_bpp_refresh_margins(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_UNSPECIFIED);
 }
 
-static void drm_cmdline_test_res_bpp_refresh_force_off(struct kunit *test)
+static void drm_test_cmdline_res_bpp_refresh_force_off(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480-24@60d";
@@ -339,7 +339,7 @@ static void drm_cmdline_test_res_bpp_refresh_force_off(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_OFF);
 }
 
-static void drm_cmdline_test_res_bpp_refresh_force_on(struct kunit *test)
+static void drm_test_cmdline_res_bpp_refresh_force_on(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480-24@60e";
@@ -363,7 +363,7 @@ static void drm_cmdline_test_res_bpp_refresh_force_on(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_ON);
 }
 
-static void drm_cmdline_test_res_bpp_refresh_force_on_analog(struct kunit *test)
+static void drm_test_cmdline_res_bpp_refresh_force_on_analog(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480-24@60D";
@@ -387,7 +387,7 @@ static void drm_cmdline_test_res_bpp_refresh_force_on_analog(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_ON);
 }
 
-static void drm_cmdline_test_res_bpp_refresh_force_on_digital(struct kunit *test)
+static void drm_test_cmdline_res_bpp_refresh_force_on_digital(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	static const struct drm_connector connector = {
@@ -414,7 +414,7 @@ static void drm_cmdline_test_res_bpp_refresh_force_on_digital(struct kunit *test
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_ON_DIGITAL);
 }
 
-static void drm_cmdline_test_res_bpp_refresh_interlaced_margins_force_on(struct kunit *test)
+static void drm_test_cmdline_res_bpp_refresh_interlaced_margins_force_on(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480-24@60ime";
@@ -438,7 +438,7 @@ static void drm_cmdline_test_res_bpp_refresh_interlaced_margins_force_on(struct 
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_ON);
 }
 
-static void drm_cmdline_test_res_margins_force_on(struct kunit *test)
+static void drm_test_cmdline_res_margins_force_on(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480me";
@@ -460,7 +460,7 @@ static void drm_cmdline_test_res_margins_force_on(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_ON);
 }
 
-static void drm_cmdline_test_res_vesa_margins(struct kunit *test)
+static void drm_test_cmdline_res_vesa_margins(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480Mm";
@@ -482,7 +482,7 @@ static void drm_cmdline_test_res_vesa_margins(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_UNSPECIFIED);
 }
 
-static void drm_cmdline_test_name(struct kunit *test)
+static void drm_test_cmdline_name(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "NTSC";
@@ -494,7 +494,7 @@ static void drm_cmdline_test_name(struct kunit *test)
 	KUNIT_EXPECT_FALSE(test, mode.bpp_specified);
 }
 
-static void drm_cmdline_test_name_bpp(struct kunit *test)
+static void drm_test_cmdline_name_bpp(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "NTSC-24";
@@ -509,7 +509,7 @@ static void drm_cmdline_test_name_bpp(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.bpp, 24);
 }
 
-static void drm_cmdline_test_name_option(struct kunit *test)
+static void drm_test_cmdline_name_option(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "NTSC,rotate=180";
@@ -521,7 +521,7 @@ static void drm_cmdline_test_name_option(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.rotation_reflection, DRM_MODE_ROTATE_180);
 }
 
-static void drm_cmdline_test_name_bpp_option(struct kunit *test)
+static void drm_test_cmdline_name_bpp_option(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "NTSC-24,rotate=180";
@@ -535,7 +535,7 @@ static void drm_cmdline_test_name_bpp_option(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.bpp, 24);
 }
 
-static void drm_cmdline_test_rotate_0(struct kunit *test)
+static void drm_test_cmdline_rotate_0(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480,rotate=0";
@@ -558,7 +558,7 @@ static void drm_cmdline_test_rotate_0(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_UNSPECIFIED);
 }
 
-static void drm_cmdline_test_rotate_90(struct kunit *test)
+static void drm_test_cmdline_rotate_90(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480,rotate=90";
@@ -581,7 +581,7 @@ static void drm_cmdline_test_rotate_90(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_UNSPECIFIED);
 }
 
-static void drm_cmdline_test_rotate_180(struct kunit *test)
+static void drm_test_cmdline_rotate_180(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480,rotate=180";
@@ -604,7 +604,7 @@ static void drm_cmdline_test_rotate_180(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_UNSPECIFIED);
 }
 
-static void drm_cmdline_test_rotate_270(struct kunit *test)
+static void drm_test_cmdline_rotate_270(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480,rotate=270";
@@ -627,7 +627,7 @@ static void drm_cmdline_test_rotate_270(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_UNSPECIFIED);
 }
 
-static void drm_cmdline_test_hmirror(struct kunit *test)
+static void drm_test_cmdline_hmirror(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480,reflect_x";
@@ -650,7 +650,7 @@ static void drm_cmdline_test_hmirror(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_UNSPECIFIED);
 }
 
-static void drm_cmdline_test_vmirror(struct kunit *test)
+static void drm_test_cmdline_vmirror(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480,reflect_y";
@@ -673,7 +673,7 @@ static void drm_cmdline_test_vmirror(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_UNSPECIFIED);
 }
 
-static void drm_cmdline_test_margin_options(struct kunit *test)
+static void drm_test_cmdline_margin_options(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline =
@@ -700,7 +700,7 @@ static void drm_cmdline_test_margin_options(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_UNSPECIFIED);
 }
 
-static void drm_cmdline_test_multiple_options(struct kunit *test)
+static void drm_test_cmdline_multiple_options(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480,rotate=270,reflect_x";
@@ -723,7 +723,7 @@ static void drm_cmdline_test_multiple_options(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_UNSPECIFIED);
 }
 
-static void drm_cmdline_test_bpp_extra_and_option(struct kunit *test)
+static void drm_test_cmdline_bpp_extra_and_option(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480-24e,rotate=180";
@@ -747,7 +747,7 @@ static void drm_cmdline_test_bpp_extra_and_option(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_ON);
 }
 
-static void drm_cmdline_test_extra_and_option(struct kunit *test)
+static void drm_test_cmdline_extra_and_option(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "720x480e,rotate=180";
@@ -769,7 +769,7 @@ static void drm_cmdline_test_extra_and_option(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_ON);
 }
 
-static void drm_cmdline_test_freestanding_options(struct kunit *test)
+static void drm_test_cmdline_freestanding_options(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "margin_right=14,margin_left=24,margin_bottom=36,margin_top=42";
@@ -792,7 +792,7 @@ static void drm_cmdline_test_freestanding_options(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_UNSPECIFIED);
 }
 
-static void drm_cmdline_test_freestanding_force_e_and_options(struct kunit *test)
+static void drm_test_cmdline_freestanding_force_e_and_options(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "e,margin_right=14,margin_left=24,margin_bottom=36,margin_top=42";
@@ -815,7 +815,7 @@ static void drm_cmdline_test_freestanding_force_e_and_options(struct kunit *test
 	KUNIT_EXPECT_EQ(test, mode.force, DRM_FORCE_ON);
 }
 
-static void drm_cmdline_test_panel_orientation(struct kunit *test)
+static void drm_test_cmdline_panel_orientation(struct kunit *test)
 {
 	struct drm_cmdline_mode mode = { };
 	const char *cmdline = "panel_orientation=upside_down";
@@ -840,7 +840,7 @@ struct drm_cmdline_invalid_test {
 	const char *cmdline;
 };
 
-static void drm_cmdline_test_invalid(struct kunit *test)
+static void drm_test_cmdline_invalid(struct kunit *test)
 {
 	const struct drm_cmdline_invalid_test *params = test->param_value;
 	struct drm_cmdline_mode mode = { };
@@ -938,45 +938,45 @@ static void drm_cmdline_invalid_desc(const struct drm_cmdline_invalid_test *t,
 KUNIT_ARRAY_PARAM(drm_cmdline_invalid, drm_cmdline_invalid_tests, drm_cmdline_invalid_desc);
 
 static struct kunit_case drm_cmdline_parser_tests[] = {
-	KUNIT_CASE(drm_cmdline_test_force_d_only),
-	KUNIT_CASE(drm_cmdline_test_force_D_only_dvi),
-	KUNIT_CASE(drm_cmdline_test_force_D_only_hdmi),
-	KUNIT_CASE(drm_cmdline_test_force_D_only_not_digital),
-	KUNIT_CASE(drm_cmdline_test_force_e_only),
-	KUNIT_CASE(drm_cmdline_test_res),
-	KUNIT_CASE(drm_cmdline_test_res_vesa),
-	KUNIT_CASE(drm_cmdline_test_res_vesa_rblank),
-	KUNIT_CASE(drm_cmdline_test_res_rblank),
-	KUNIT_CASE(drm_cmdline_test_res_bpp),
-	KUNIT_CASE(drm_cmdline_test_res_refresh),
-	KUNIT_CASE(drm_cmdline_test_res_bpp_refresh),
-	KUNIT_CASE(drm_cmdline_test_res_bpp_refresh_interlaced),
-	KUNIT_CASE(drm_cmdline_test_res_bpp_refresh_margins),
-	KUNIT_CASE(drm_cmdline_test_res_bpp_refresh_force_off),
-	KUNIT_CASE(drm_cmdline_test_res_bpp_refresh_force_on),
-	KUNIT_CASE(drm_cmdline_test_res_bpp_refresh_force_on_analog),
-	KUNIT_CASE(drm_cmdline_test_res_bpp_refresh_force_on_digital),
-	KUNIT_CASE(drm_cmdline_test_res_bpp_refresh_interlaced_margins_force_on),
-	KUNIT_CASE(drm_cmdline_test_res_margins_force_on),
-	KUNIT_CASE(drm_cmdline_test_res_vesa_margins),
-	KUNIT_CASE(drm_cmdline_test_name),
-	KUNIT_CASE(drm_cmdline_test_name_bpp),
-	KUNIT_CASE(drm_cmdline_test_name_option),
-	KUNIT_CASE(drm_cmdline_test_name_bpp_option),
-	KUNIT_CASE(drm_cmdline_test_rotate_0),
-	KUNIT_CASE(drm_cmdline_test_rotate_90),
-	KUNIT_CASE(drm_cmdline_test_rotate_180),
-	KUNIT_CASE(drm_cmdline_test_rotate_270),
-	KUNIT_CASE(drm_cmdline_test_hmirror),
-	KUNIT_CASE(drm_cmdline_test_vmirror),
-	KUNIT_CASE(drm_cmdline_test_margin_options),
-	KUNIT_CASE(drm_cmdline_test_multiple_options),
-	KUNIT_CASE(drm_cmdline_test_bpp_extra_and_option),
-	KUNIT_CASE(drm_cmdline_test_extra_and_option),
-	KUNIT_CASE(drm_cmdline_test_freestanding_options),
-	KUNIT_CASE(drm_cmdline_test_freestanding_force_e_and_options),
-	KUNIT_CASE(drm_cmdline_test_panel_orientation),
-	KUNIT_CASE_PARAM(drm_cmdline_test_invalid, drm_cmdline_invalid_gen_params),
+	KUNIT_CASE(drm_test_cmdline_force_d_only),
+	KUNIT_CASE(drm_test_cmdline_force_D_only_dvi),
+	KUNIT_CASE(drm_test_cmdline_force_D_only_hdmi),
+	KUNIT_CASE(drm_test_cmdline_force_D_only_not_digital),
+	KUNIT_CASE(drm_test_cmdline_force_e_only),
+	KUNIT_CASE(drm_test_cmdline_res),
+	KUNIT_CASE(drm_test_cmdline_res_vesa),
+	KUNIT_CASE(drm_test_cmdline_res_vesa_rblank),
+	KUNIT_CASE(drm_test_cmdline_res_rblank),
+	KUNIT_CASE(drm_test_cmdline_res_bpp),
+	KUNIT_CASE(drm_test_cmdline_res_refresh),
+	KUNIT_CASE(drm_test_cmdline_res_bpp_refresh),
+	KUNIT_CASE(drm_test_cmdline_res_bpp_refresh_interlaced),
+	KUNIT_CASE(drm_test_cmdline_res_bpp_refresh_margins),
+	KUNIT_CASE(drm_test_cmdline_res_bpp_refresh_force_off),
+	KUNIT_CASE(drm_test_cmdline_res_bpp_refresh_force_on),
+	KUNIT_CASE(drm_test_cmdline_res_bpp_refresh_force_on_analog),
+	KUNIT_CASE(drm_test_cmdline_res_bpp_refresh_force_on_digital),
+	KUNIT_CASE(drm_test_cmdline_res_bpp_refresh_interlaced_margins_force_on),
+	KUNIT_CASE(drm_test_cmdline_res_margins_force_on),
+	KUNIT_CASE(drm_test_cmdline_res_vesa_margins),
+	KUNIT_CASE(drm_test_cmdline_name),
+	KUNIT_CASE(drm_test_cmdline_name_bpp),
+	KUNIT_CASE(drm_test_cmdline_name_option),
+	KUNIT_CASE(drm_test_cmdline_name_bpp_option),
+	KUNIT_CASE(drm_test_cmdline_rotate_0),
+	KUNIT_CASE(drm_test_cmdline_rotate_90),
+	KUNIT_CASE(drm_test_cmdline_rotate_180),
+	KUNIT_CASE(drm_test_cmdline_rotate_270),
+	KUNIT_CASE(drm_test_cmdline_hmirror),
+	KUNIT_CASE(drm_test_cmdline_vmirror),
+	KUNIT_CASE(drm_test_cmdline_margin_options),
+	KUNIT_CASE(drm_test_cmdline_multiple_options),
+	KUNIT_CASE(drm_test_cmdline_bpp_extra_and_option),
+	KUNIT_CASE(drm_test_cmdline_extra_and_option),
+	KUNIT_CASE(drm_test_cmdline_freestanding_options),
+	KUNIT_CASE(drm_test_cmdline_freestanding_force_e_and_options),
+	KUNIT_CASE(drm_test_cmdline_panel_orientation),
+	KUNIT_CASE_PARAM(drm_test_cmdline_invalid, drm_cmdline_invalid_gen_params),
 	{}
 };
 

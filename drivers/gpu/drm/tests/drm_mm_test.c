@@ -191,7 +191,7 @@ static bool assert_node(struct kunit *test, struct drm_mm_node *node, struct drm
 	return ok;
 }
 
-static void igt_mm_init(struct kunit *test)
+static void drm_test_mm_init(struct kunit *test)
 {
 	const unsigned int size = 4096;
 	struct drm_mm mm;
@@ -245,7 +245,7 @@ out:
 	drm_mm_takedown(&mm);
 }
 
-static void igt_mm_debug(struct kunit *test)
+static void drm_test_mm_debug(struct kunit *test)
 {
 	struct drm_mm mm;
 	struct drm_mm_node nodes[2];
@@ -341,7 +341,7 @@ static bool check_reserve_boundaries(struct kunit *test, struct drm_mm *mm,
 	return true;
 }
 
-static int __igt_reserve(struct kunit *test, unsigned int count, u64 size)
+static int __drm_test_mm_reserve(struct kunit *test, unsigned int count, u64 size)
 {
 	DRM_RND_STATE(prng, random_seed);
 	struct drm_mm mm;
@@ -349,7 +349,7 @@ static int __igt_reserve(struct kunit *test, unsigned int count, u64 size)
 	unsigned int *order, n, m, o = 0;
 	int ret, err;
 
-	/* For exercising drm_mm_reserve_node(struct kunit *test, ), we want to check that
+	/* For exercising drm_mm_reserve_node(), we want to check that
 	 * reservations outside of the drm_mm range are rejected, and to
 	 * overlapping and otherwise already occupied ranges. Afterwards,
 	 * the tree and nodes should be intact.
@@ -463,7 +463,7 @@ err:
 	return ret;
 }
 
-static void igt_mm_reserve(struct kunit *test)
+static void drm_test_mm_reserve(struct kunit *test)
 {
 	const unsigned int count = min_t(unsigned int, BIT(10), max_iterations);
 	int n;
@@ -471,9 +471,9 @@ static void igt_mm_reserve(struct kunit *test)
 	for_each_prime_number_from(n, 1, 54) {
 		u64 size = BIT_ULL(n);
 
-		KUNIT_ASSERT_FALSE(test, __igt_reserve(test, count, size - 1));
-		KUNIT_ASSERT_FALSE(test, __igt_reserve(test, count, size));
-		KUNIT_ASSERT_FALSE(test, __igt_reserve(test, count, size + 1));
+		KUNIT_ASSERT_FALSE(test, __drm_test_mm_reserve(test, count, size - 1));
+		KUNIT_ASSERT_FALSE(test, __drm_test_mm_reserve(test, count, size));
+		KUNIT_ASSERT_FALSE(test, __drm_test_mm_reserve(test, count, size + 1));
 
 		cond_resched();
 	}
@@ -524,7 +524,7 @@ static bool expect_insert_fail(struct kunit *test, struct drm_mm *mm, u64 size)
 	return false;
 }
 
-static int __igt_insert(struct kunit *test, unsigned int count, u64 size, bool replace)
+static int __drm_test_mm_insert(struct kunit *test, unsigned int count, u64 size, bool replace)
 {
 	DRM_RND_STATE(prng, random_seed);
 	const struct insert_mode *mode;
@@ -660,7 +660,7 @@ err_nodes:
 	return ret;
 }
 
-static void igt_mm_insert(struct kunit *test)
+static void drm_test_mm_insert(struct kunit *test)
 {
 	const unsigned int count = min_t(unsigned int, BIT(10), max_iterations);
 	unsigned int n;
@@ -668,20 +668,20 @@ static void igt_mm_insert(struct kunit *test)
 	for_each_prime_number_from(n, 1, 54) {
 		u64 size = BIT_ULL(n);
 
-		KUNIT_ASSERT_FALSE(test, __igt_insert(test, count, size - 1, false));
-		KUNIT_ASSERT_FALSE(test, __igt_insert(test, count, size, false));
-		KUNIT_ASSERT_FALSE(test, __igt_insert(test, count, size + 1, false));
+		KUNIT_ASSERT_FALSE(test, __drm_test_mm_insert(test, count, size - 1, false));
+		KUNIT_ASSERT_FALSE(test, __drm_test_mm_insert(test, count, size, false));
+		KUNIT_ASSERT_FALSE(test, __drm_test_mm_insert(test, count, size + 1, false));
 
 		cond_resched();
 	}
 }
 
-static void igt_mm_replace(struct kunit *test)
+static void drm_test_mm_replace(struct kunit *test)
 {
 	const unsigned int count = min_t(unsigned int, BIT(10), max_iterations);
 	unsigned int n;
 
-	/* Reuse igt_insert to exercise replacement by inserting a dummy node,
+	/* Reuse __drm_test_mm_insert to exercise replacement by inserting a dummy node,
 	 * then replacing it with the intended node. We want to check that
 	 * the tree is intact and all the information we need is carried
 	 * across to the target node.
@@ -690,9 +690,9 @@ static void igt_mm_replace(struct kunit *test)
 	for_each_prime_number_from(n, 1, 54) {
 		u64 size = BIT_ULL(n);
 
-		KUNIT_ASSERT_FALSE(test, __igt_insert(test, count, size - 1, true));
-		KUNIT_ASSERT_FALSE(test, __igt_insert(test, count, size, true));
-		KUNIT_ASSERT_FALSE(test, __igt_insert(test, count, size + 1, true));
+		KUNIT_ASSERT_FALSE(test, __drm_test_mm_insert(test, count, size - 1, true));
+		KUNIT_ASSERT_FALSE(test, __drm_test_mm_insert(test, count, size, true));
+		KUNIT_ASSERT_FALSE(test, __drm_test_mm_insert(test, count, size + 1, true));
 
 		cond_resched();
 	}
@@ -808,7 +808,8 @@ static bool assert_contiguous_in_range(struct kunit *test, struct drm_mm *mm,
 	return true;
 }
 
-static int __igt_insert_range(struct kunit *test, unsigned int count, u64 size, u64 start, u64 end)
+static int __drm_test_mm_insert_range(struct kunit *test, unsigned int count, u64 size,
+				      u64 start, u64 end)
 {
 	const struct insert_mode *mode;
 	struct drm_mm mm;
@@ -820,7 +821,7 @@ static int __igt_insert_range(struct kunit *test, unsigned int count, u64 size, 
 	DRM_MM_BUG_ON(!size);
 	DRM_MM_BUG_ON(end <= start);
 
-	/* Very similar to __igt_insert(struct kunit *test, ), but now instead of populating the
+	/* Very similar to __drm_test_mm_insert(), but now instead of populating the
 	 * full range of the drm_mm, we try to fill a small portion of it.
 	 */
 
@@ -921,7 +922,7 @@ static int insert_outside_range(struct kunit *test)
 	return 0;
 }
 
-static void igt_mm_insert_range(struct kunit *test)
+static void drm_test_mm_insert_range(struct kunit *test)
 {
 	const unsigned int count = min_t(unsigned int, BIT(13), max_iterations);
 	unsigned int n;
@@ -933,21 +934,21 @@ static void igt_mm_insert_range(struct kunit *test)
 		const u64 size = BIT_ULL(n);
 		const u64 max = count * size;
 
-		KUNIT_ASSERT_FALSE(test, __igt_insert_range(test, count, size, 0, max));
-		KUNIT_ASSERT_FALSE(test, __igt_insert_range(test, count, size, 1, max));
-		KUNIT_ASSERT_FALSE(test, __igt_insert_range(test, count, size, 0, max - 1));
-		KUNIT_ASSERT_FALSE(test, __igt_insert_range(test, count, size, 0, max / 2));
-		KUNIT_ASSERT_FALSE(test, __igt_insert_range(test, count, size, max / 2, max / 2));
-		KUNIT_ASSERT_FALSE(test, __igt_insert_range(test, count, size,
-							    max / 4 + 1, 3 * max / 4 - 1));
+		KUNIT_ASSERT_FALSE(test, __drm_test_mm_insert_range(test, count, size, 0, max));
+		KUNIT_ASSERT_FALSE(test, __drm_test_mm_insert_range(test, count, size, 1, max));
+		KUNIT_ASSERT_FALSE(test, __drm_test_mm_insert_range(test, count, size, 0, max - 1));
+		KUNIT_ASSERT_FALSE(test, __drm_test_mm_insert_range(test, count, size, 0, max / 2));
+		KUNIT_ASSERT_FALSE(test, __drm_test_mm_insert_range(test, count, size,
+								    max / 2, max / 2));
+		KUNIT_ASSERT_FALSE(test, __drm_test_mm_insert_range(test, count, size,
+								    max / 4 + 1, 3 * max / 4 - 1));
 
 		cond_resched();
 	}
 }
 
-static int prepare_igt_frag(struct kunit *test, struct drm_mm *mm,
-			    struct drm_mm_node *nodes, unsigned int num_insert,
-			    const struct insert_mode *mode)
+static int prepare_frag(struct kunit *test, struct drm_mm *mm, struct drm_mm_node *nodes,
+			unsigned int num_insert, const struct insert_mode *mode)
 {
 	unsigned int size = 4096;
 	unsigned int i;
@@ -987,7 +988,7 @@ static u64 get_insert_time(struct kunit *test, struct drm_mm *mm,
 	return ktime_to_ns(ktime_sub(ktime_get(), start));
 }
 
-static void igt_mm_frag(struct kunit *test)
+static void drm_test_mm_frag(struct kunit *test)
 {
 	struct drm_mm mm;
 	const struct insert_mode *mode;
@@ -997,15 +998,15 @@ static void igt_mm_frag(struct kunit *test)
 
 	/* We need 4 * insert_size nodes to hold intermediate allocated
 	 * drm_mm nodes.
-	 * 1 times for prepare_igt_frag(struct kunit *test, )
-	 * 1 times for get_insert_time(struct kunit *test, )
-	 * 2 times for get_insert_time(struct kunit *test, )
+	 * 1 times for prepare_frag()
+	 * 1 times for get_insert_time()
+	 * 2 times for get_insert_time()
 	 */
 	nodes = vzalloc(array_size(insert_size * 4, sizeof(*nodes)));
 	KUNIT_ASSERT_TRUE(test, nodes);
 
 	/* For BOTTOMUP and TOPDOWN, we first fragment the
-	 * address space using prepare_igt_frag(struct kunit *test, ) and then try to verify
+	 * address space using prepare_frag() and then try to verify
 	 * that insertions scale quadratically from 10k to 20k insertions
 	 */
 	drm_mm_init(&mm, 1, U64_MAX - 2);
@@ -1016,7 +1017,7 @@ static void igt_mm_frag(struct kunit *test)
 		    mode->mode != DRM_MM_INSERT_HIGH)
 			continue;
 
-		if (prepare_igt_frag(test, &mm, nodes, insert_size, mode))
+		if (prepare_frag(test, &mm, nodes, insert_size, mode))
 			goto err;
 
 		insert_time1 = get_insert_time(test, &mm, insert_size,
@@ -1049,7 +1050,7 @@ err:
 	vfree(nodes);
 }
 
-static void igt_mm_align(struct kunit *test)
+static void drm_test_mm_align(struct kunit *test)
 {
 	const struct insert_mode *mode;
 	const unsigned int max_count = min(8192u, max_prime);
@@ -1096,7 +1097,7 @@ out:
 	vfree(nodes);
 }
 
-static void igt_align_pot(struct kunit *test, int max)
+static void drm_test_mm_align_pot(struct kunit *test, int max)
 {
 	struct drm_mm mm;
 	struct drm_mm_node *node, *next;
@@ -1133,14 +1134,14 @@ out:
 	drm_mm_takedown(&mm);
 }
 
-static void igt_mm_align32(struct kunit *test)
+static void drm_test_mm_align32(struct kunit *test)
 {
-	igt_align_pot(test, 32);
+	drm_test_mm_align_pot(test, 32);
 }
 
-static void igt_mm_align64(struct kunit *test)
+static void drm_test_mm_align64(struct kunit *test)
 {
-	igt_align_pot(test, 64);
+	drm_test_mm_align_pot(test, 64);
 }
 
 static void show_scan(struct kunit *test, const struct drm_mm_scan *scan)
@@ -1386,7 +1387,7 @@ static int evict_something(struct kunit *test, struct drm_mm *mm,
 	return 0;
 }
 
-static void igt_mm_evict(struct kunit *test)
+static void drm_test_mm_evict(struct kunit *test)
 {
 	DRM_RND_STATE(prng, random_seed);
 	const unsigned int size = 8192;
@@ -1477,7 +1478,7 @@ err_nodes:
 	vfree(nodes);
 }
 
-static void igt_mm_evict_range(struct kunit *test)
+static void drm_test_mm_evict_range(struct kunit *test)
 {
 	DRM_RND_STATE(prng, random_seed);
 	const unsigned int size = 8192;
@@ -1490,7 +1491,7 @@ static void igt_mm_evict_range(struct kunit *test)
 	struct drm_mm_node *node, *next;
 	unsigned int *order, n;
 
-	/* Like igt_evict() but now we are limiting the search to a
+	/* Like drm_test_mm_evict() but now we are limiting the search to a
 	 * small portion of the full drm_mm.
 	 */
 
@@ -1564,7 +1565,7 @@ static unsigned int node_index(const struct drm_mm_node *node)
 	return div64_u64(node->start, node->size);
 }
 
-static void igt_mm_topdown(struct kunit *test)
+static void drm_test_mm_topdown(struct kunit *test)
 {
 	const struct insert_mode *topdown = &insert_modes[TOPDOWN];
 
@@ -1671,7 +1672,7 @@ err_nodes:
 	vfree(nodes);
 }
 
-static void igt_mm_bottomup(struct kunit *test)
+static void drm_test_mm_bottomup(struct kunit *test)
 {
 	const struct insert_mode *bottomup = &insert_modes[BOTTOMUP];
 
@@ -1683,7 +1684,7 @@ static void igt_mm_bottomup(struct kunit *test)
 	struct drm_mm_node *nodes, *node, *next;
 	unsigned int *order, n, m, o = 0;
 
-	/* Like igt_topdown, but instead of searching for the last hole,
+	/* Like drm_test_mm_topdown, but instead of searching for the last hole,
 	 * we search for the first.
 	 */
 
@@ -1763,7 +1764,7 @@ err_nodes:
 	vfree(nodes);
 }
 
-static void __igt_once(struct kunit *test, unsigned int mode)
+static void drm_test_mm_once(struct kunit *test, unsigned int mode)
 {
 	struct drm_mm mm;
 	struct drm_mm_node rsvd_lo, rsvd_hi, node;
@@ -1806,14 +1807,14 @@ err:
 	drm_mm_takedown(&mm);
 }
 
-static void igt_mm_lowest(struct kunit *test)
+static void drm_test_mm_lowest(struct kunit *test)
 {
-	__igt_once(test, DRM_MM_INSERT_LOW);
+	drm_test_mm_once(test, DRM_MM_INSERT_LOW);
 }
 
-static void igt_mm_highest(struct kunit *test)
+static void drm_test_mm_highest(struct kunit *test)
 {
-	__igt_once(test, DRM_MM_INSERT_HIGH);
+	drm_test_mm_once(test, DRM_MM_INSERT_HIGH);
 }
 
 static void separate_adjacent_colors(const struct drm_mm_node *node,
@@ -1842,7 +1843,7 @@ static bool colors_abutt(struct kunit *test, const struct drm_mm_node *node)
 	return false;
 }
 
-static void igt_mm_color(struct kunit *test)
+static void drm_test_mm_color(struct kunit *test)
 {
 	const unsigned int count = min(4096u, max_iterations);
 	const struct insert_mode *mode;
@@ -2041,7 +2042,7 @@ static int evict_color(struct kunit *test, struct drm_mm *mm, u64 range_start,
 	return 0;
 }
 
-static void igt_mm_color_evict(struct kunit *test)
+static void drm_test_mm_color_evict(struct kunit *test)
 {
 	DRM_RND_STATE(prng, random_seed);
 	const unsigned int total_size = min(8192u, max_iterations);
@@ -2122,7 +2123,7 @@ err_nodes:
 	vfree(nodes);
 }
 
-static void igt_mm_color_evict_range(struct kunit *test)
+static void drm_test_mm_color_evict_range(struct kunit *test)
 {
 	DRM_RND_STATE(prng, random_seed);
 	const unsigned int total_size = 8192;
@@ -2136,7 +2137,7 @@ static void igt_mm_color_evict_range(struct kunit *test)
 	struct drm_mm_node *node, *next;
 	unsigned int *order, n;
 
-	/* Like igt_color_evict(), but limited to small portion of the full
+	/* Like drm_test_mm_color_evict(), but limited to small portion of the full
 	 * drm_mm range.
 	 */
 
@@ -2221,25 +2222,25 @@ module_param(max_iterations, uint, 0400);
 module_param(max_prime, uint, 0400);
 
 static struct kunit_case drm_mm_tests[] = {
-	KUNIT_CASE(igt_mm_init),
-	KUNIT_CASE(igt_mm_debug),
-	KUNIT_CASE(igt_mm_reserve),
-	KUNIT_CASE(igt_mm_insert),
-	KUNIT_CASE(igt_mm_replace),
-	KUNIT_CASE(igt_mm_insert_range),
-	KUNIT_CASE(igt_mm_frag),
-	KUNIT_CASE(igt_mm_align),
-	KUNIT_CASE(igt_mm_align32),
-	KUNIT_CASE(igt_mm_align64),
-	KUNIT_CASE(igt_mm_evict),
-	KUNIT_CASE(igt_mm_evict_range),
-	KUNIT_CASE(igt_mm_topdown),
-	KUNIT_CASE(igt_mm_bottomup),
-	KUNIT_CASE(igt_mm_lowest),
-	KUNIT_CASE(igt_mm_highest),
-	KUNIT_CASE(igt_mm_color),
-	KUNIT_CASE(igt_mm_color_evict),
-	KUNIT_CASE(igt_mm_color_evict_range),
+	KUNIT_CASE(drm_test_mm_init),
+	KUNIT_CASE(drm_test_mm_debug),
+	KUNIT_CASE(drm_test_mm_reserve),
+	KUNIT_CASE(drm_test_mm_insert),
+	KUNIT_CASE(drm_test_mm_replace),
+	KUNIT_CASE(drm_test_mm_insert_range),
+	KUNIT_CASE(drm_test_mm_frag),
+	KUNIT_CASE(drm_test_mm_align),
+	KUNIT_CASE(drm_test_mm_align32),
+	KUNIT_CASE(drm_test_mm_align64),
+	KUNIT_CASE(drm_test_mm_evict),
+	KUNIT_CASE(drm_test_mm_evict_range),
+	KUNIT_CASE(drm_test_mm_topdown),
+	KUNIT_CASE(drm_test_mm_bottomup),
+	KUNIT_CASE(drm_test_mm_lowest),
+	KUNIT_CASE(drm_test_mm_highest),
+	KUNIT_CASE(drm_test_mm_color),
+	KUNIT_CASE(drm_test_mm_color_evict),
+	KUNIT_CASE(drm_test_mm_color_evict_range),
 	{}
 };
 

@@ -448,6 +448,44 @@ void *__drmm_universal_plane_alloc(struct drm_device *dev, size_t size,
 }
 EXPORT_SYMBOL(__drmm_universal_plane_alloc);
 
+void *__drm_universal_plane_alloc(struct drm_device *dev, size_t size,
+				  size_t offset, uint32_t possible_crtcs,
+				  const struct drm_plane_funcs *funcs,
+				  const uint32_t *formats, unsigned int format_count,
+				  const uint64_t *format_modifiers,
+				  enum drm_plane_type type,
+				  const char *name, ...)
+{
+	void *container;
+	struct drm_plane *plane;
+	va_list ap;
+	int ret;
+
+	if (drm_WARN_ON(dev, !funcs))
+		return ERR_PTR(-EINVAL);
+
+	container = kzalloc(size, GFP_KERNEL);
+	if (!container)
+		return ERR_PTR(-ENOMEM);
+
+	plane = container + offset;
+
+	va_start(ap, name);
+	ret = __drm_universal_plane_init(dev, plane, possible_crtcs, funcs,
+					 formats, format_count, format_modifiers,
+					 type, name, ap);
+	va_end(ap);
+	if (ret)
+		goto err_kfree;
+
+	return container;
+
+err_kfree:
+	kfree(container);
+	return ERR_PTR(ret);
+}
+EXPORT_SYMBOL(__drm_universal_plane_alloc);
+
 int drm_plane_register_all(struct drm_device *dev)
 {
 	unsigned int num_planes = 0;
@@ -481,38 +519,6 @@ void drm_plane_unregister_all(struct drm_device *dev)
 			plane->funcs->early_unregister(plane);
 	}
 }
-
-/**
- * drm_plane_init - Initialize a legacy plane
- * @dev: DRM device
- * @plane: plane object to init
- * @possible_crtcs: bitmask of possible CRTCs
- * @funcs: callbacks for the new plane
- * @formats: array of supported formats (DRM_FORMAT\_\*)
- * @format_count: number of elements in @formats
- * @is_primary: plane type (primary vs overlay)
- *
- * Legacy API to initialize a DRM plane.
- *
- * New drivers should call drm_universal_plane_init() instead.
- *
- * Returns:
- * Zero on success, error code on failure.
- */
-int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
-		   uint32_t possible_crtcs,
-		   const struct drm_plane_funcs *funcs,
-		   const uint32_t *formats, unsigned int format_count,
-		   bool is_primary)
-{
-	enum drm_plane_type type;
-
-	type = is_primary ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
-	return drm_universal_plane_init(dev, plane, possible_crtcs, funcs,
-					formats, format_count,
-					NULL, type, NULL);
-}
-EXPORT_SYMBOL(drm_plane_init);
 
 /**
  * drm_plane_cleanup - Clean up the core plane usage

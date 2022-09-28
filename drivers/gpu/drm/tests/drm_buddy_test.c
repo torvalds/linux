@@ -13,7 +13,7 @@
 
 #include "../lib/drm_random.h"
 
-#define IGT_TIMEOUT(name__)                                                    \
+#define TIMEOUT(name__)								\
 	unsigned long name__ = jiffies + MAX_SCHEDULE_TIMEOUT
 
 static unsigned int random_seed;
@@ -24,7 +24,7 @@ static inline u64 get_size(int order, u64 chunk_size)
 }
 
 __printf(2, 3)
-static bool __igt_timeout(unsigned long timeout, const char *fmt, ...)
+static bool __timeout(unsigned long timeout, const char *fmt, ...)
 {
 	va_list va;
 
@@ -43,8 +43,8 @@ static bool __igt_timeout(unsigned long timeout, const char *fmt, ...)
 	return true;
 }
 
-static void __igt_dump_block(struct kunit *test, struct drm_buddy *mm,
-			     struct drm_buddy_block *block, bool buddy)
+static void __dump_block(struct kunit *test, struct drm_buddy *mm,
+			 struct drm_buddy_block *block, bool buddy)
 {
 	kunit_err(test, "block info: header=%llx, state=%u, order=%d, offset=%llx size=%llx root=%d buddy=%d\n",
 		  block->header, drm_buddy_block_state(block),
@@ -52,20 +52,20 @@ static void __igt_dump_block(struct kunit *test, struct drm_buddy *mm,
 			  drm_buddy_block_size(mm, block), !block->parent, buddy);
 }
 
-static void igt_dump_block(struct kunit *test, struct drm_buddy *mm,
-			   struct drm_buddy_block *block)
+static void dump_block(struct kunit *test, struct drm_buddy *mm,
+		       struct drm_buddy_block *block)
 {
 	struct drm_buddy_block *buddy;
 
-	__igt_dump_block(test, mm, block, false);
+	__dump_block(test, mm, block, false);
 
 	buddy = drm_get_buddy(block);
 	if (buddy)
-		__igt_dump_block(test, mm, buddy, true);
+		__dump_block(test, mm, buddy, true);
 }
 
-static int igt_check_block(struct kunit *test, struct drm_buddy *mm,
-			   struct drm_buddy_block *block)
+static int check_block(struct kunit *test, struct drm_buddy *mm,
+		       struct drm_buddy_block *block)
 {
 	struct drm_buddy_block *buddy;
 	unsigned int block_state;
@@ -137,8 +137,8 @@ static int igt_check_block(struct kunit *test, struct drm_buddy *mm,
 	return err;
 }
 
-static int igt_check_blocks(struct kunit *test, struct drm_buddy *mm,
-			    struct list_head *blocks, u64 expected_size, bool is_contiguous)
+static int check_blocks(struct kunit *test, struct drm_buddy *mm,
+			struct list_head *blocks, u64 expected_size, bool is_contiguous)
 {
 	struct drm_buddy_block *block;
 	struct drm_buddy_block *prev;
@@ -150,7 +150,7 @@ static int igt_check_blocks(struct kunit *test, struct drm_buddy *mm,
 	total = 0;
 
 	list_for_each_entry(block, blocks, link) {
-		err = igt_check_block(test, mm, block);
+		err = check_block(test, mm, block);
 
 		if (!drm_buddy_block_is_allocated(block)) {
 			kunit_err(test, "block not allocated\n");
@@ -190,16 +190,16 @@ static int igt_check_blocks(struct kunit *test, struct drm_buddy *mm,
 
 	if (prev) {
 		kunit_err(test, "prev block, dump:\n");
-		igt_dump_block(test, mm, prev);
+		dump_block(test, mm, prev);
 	}
 
 	kunit_err(test, "bad block, dump:\n");
-	igt_dump_block(test, mm, block);
+	dump_block(test, mm, block);
 
 	return err;
 }
 
-static int igt_check_mm(struct kunit *test, struct drm_buddy *mm)
+static int check_mm(struct kunit *test, struct drm_buddy *mm)
 {
 	struct drm_buddy_block *root;
 	struct drm_buddy_block *prev;
@@ -233,7 +233,7 @@ static int igt_check_mm(struct kunit *test, struct drm_buddy *mm)
 			break;
 		}
 
-		err = igt_check_block(test, mm, root);
+		err = check_block(test, mm, root);
 
 		if (!drm_buddy_block_is_free(root)) {
 			kunit_err(test, "root not free\n");
@@ -289,18 +289,18 @@ static int igt_check_mm(struct kunit *test, struct drm_buddy *mm)
 
 	if (prev) {
 		kunit_err(test, "prev root(%u), dump:\n", i - 1);
-		igt_dump_block(test, mm, prev);
+		dump_block(test, mm, prev);
 	}
 
 	if (root) {
 		kunit_err(test, "bad root(%u), dump:\n", i);
-		igt_dump_block(test, mm, root);
+		dump_block(test, mm, root);
 	}
 
 	return err;
 }
 
-static void igt_mm_config(u64 *size, u64 *chunk_size)
+static void mm_config(u64 *size, u64 *chunk_size)
 {
 	DRM_RND_STATE(prng, random_seed);
 	u32 s, ms;
@@ -321,7 +321,7 @@ static void igt_mm_config(u64 *size, u64 *chunk_size)
 	*size = (u64)s << 12;
 }
 
-static void igt_buddy_alloc_pathological(struct kunit *test)
+static void drm_test_buddy_alloc_pathological(struct kunit *test)
 {
 	u64 mm_size, size, start = 0;
 	struct drm_buddy_block *block;
@@ -402,7 +402,7 @@ static void igt_buddy_alloc_pathological(struct kunit *test)
 	drm_buddy_fini(&mm);
 }
 
-static void igt_buddy_alloc_smoke(struct kunit *test)
+static void drm_test_buddy_alloc_smoke(struct kunit *test)
 {
 	u64 mm_size, chunk_size, start = 0;
 	unsigned long flags = 0;
@@ -411,9 +411,9 @@ static void igt_buddy_alloc_smoke(struct kunit *test)
 	int i;
 
 	DRM_RND_STATE(prng, random_seed);
-	IGT_TIMEOUT(end_time);
+	TIMEOUT(end_time);
 
-	igt_mm_config(&mm_size, &chunk_size);
+	mm_config(&mm_size, &chunk_size);
 
 	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_init(&mm, mm_size, chunk_size),
 			       "buddy_init failed\n");
@@ -430,7 +430,7 @@ static void igt_buddy_alloc_smoke(struct kunit *test)
 		LIST_HEAD(tmp);
 		int order, err;
 
-		KUNIT_ASSERT_FALSE_MSG(test, igt_check_mm(test, &mm),
+		KUNIT_ASSERT_FALSE_MSG(test, check_mm(test, &mm),
 				       "pre-mm check failed, abort\n");
 
 		order = max_order;
@@ -466,19 +466,19 @@ retry:
 
 			total += drm_buddy_block_size(&mm, block);
 
-			if (__igt_timeout(end_time, NULL)) {
+			if (__timeout(end_time, NULL)) {
 				timeout = true;
 				break;
 			}
 		} while (total < mm.size);
 
 		if (!err)
-			err = igt_check_blocks(test, &mm, &blocks, total, false);
+			err = check_blocks(test, &mm, &blocks, total, false);
 
 		drm_buddy_free_list(&mm, &blocks);
 
 		if (!err) {
-			KUNIT_EXPECT_FALSE_MSG(test, igt_check_mm(test, &mm),
+			KUNIT_EXPECT_FALSE_MSG(test, check_mm(test, &mm),
 					       "post-mm check failed\n");
 		}
 
@@ -492,7 +492,7 @@ retry:
 	drm_buddy_fini(&mm);
 }
 
-static void igt_buddy_alloc_pessimistic(struct kunit *test)
+static void drm_test_buddy_alloc_pessimistic(struct kunit *test)
 {
 	u64 mm_size, size, start = 0;
 	struct drm_buddy_block *block, *bn;
@@ -587,7 +587,7 @@ static void igt_buddy_alloc_pessimistic(struct kunit *test)
 	drm_buddy_fini(&mm);
 }
 
-static void igt_buddy_alloc_optimistic(struct kunit *test)
+static void drm_test_buddy_alloc_optimistic(struct kunit *test)
 {
 	u64 mm_size, size, start = 0;
 	struct drm_buddy_block *block;
@@ -633,7 +633,7 @@ static void igt_buddy_alloc_optimistic(struct kunit *test)
 	drm_buddy_fini(&mm);
 }
 
-static void igt_buddy_alloc_range(struct kunit *test)
+static void drm_test_buddy_alloc_range(struct kunit *test)
 {
 	unsigned long flags = DRM_BUDDY_RANGE_ALLOCATION;
 	u64 offset, size, rem, chunk_size, end;
@@ -641,12 +641,12 @@ static void igt_buddy_alloc_range(struct kunit *test)
 	struct drm_buddy mm;
 	LIST_HEAD(blocks);
 
-	igt_mm_config(&size, &chunk_size);
+	mm_config(&size, &chunk_size);
 
 	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_init(&mm, size, chunk_size),
 			       "buddy_init failed");
 
-	KUNIT_ASSERT_FALSE_MSG(test, igt_check_mm(test, &mm),
+	KUNIT_ASSERT_FALSE_MSG(test, check_mm(test, &mm),
 			       "pre-mm check failed, abort!");
 
 	rem = mm.size;
@@ -671,7 +671,7 @@ static void igt_buddy_alloc_range(struct kunit *test)
 				    "alloc_range start offset mismatch, found=%llx, expected=%llx\n",
 							drm_buddy_block_offset(block), offset);
 
-		KUNIT_ASSERT_FALSE(test, igt_check_blocks(test, &mm, &tmp, size, true));
+		KUNIT_ASSERT_FALSE(test, check_blocks(test, &mm, &tmp, size, true));
 
 		list_splice_tail(&tmp, &blocks);
 
@@ -686,12 +686,12 @@ static void igt_buddy_alloc_range(struct kunit *test)
 
 	drm_buddy_free_list(&mm, &blocks);
 
-	KUNIT_EXPECT_FALSE_MSG(test, igt_check_mm(test, &mm), "post-mm check failed\n");
+	KUNIT_EXPECT_FALSE_MSG(test, check_mm(test, &mm), "post-mm check failed\n");
 
 	drm_buddy_fini(&mm);
 }
 
-static void igt_buddy_alloc_limit(struct kunit *test)
+static void drm_test_buddy_alloc_limit(struct kunit *test)
 {
 	u64 size = U64_MAX, start = 0;
 	struct drm_buddy_block *block;
@@ -735,12 +735,12 @@ static int drm_buddy_init_test(struct kunit *test)
 }
 
 static struct kunit_case drm_buddy_tests[] = {
-	KUNIT_CASE(igt_buddy_alloc_limit),
-	KUNIT_CASE(igt_buddy_alloc_range),
-	KUNIT_CASE(igt_buddy_alloc_optimistic),
-	KUNIT_CASE(igt_buddy_alloc_pessimistic),
-	KUNIT_CASE(igt_buddy_alloc_smoke),
-	KUNIT_CASE(igt_buddy_alloc_pathological),
+	KUNIT_CASE(drm_test_buddy_alloc_limit),
+	KUNIT_CASE(drm_test_buddy_alloc_range),
+	KUNIT_CASE(drm_test_buddy_alloc_optimistic),
+	KUNIT_CASE(drm_test_buddy_alloc_pessimistic),
+	KUNIT_CASE(drm_test_buddy_alloc_smoke),
+	KUNIT_CASE(drm_test_buddy_alloc_pathological),
 	{}
 };
 

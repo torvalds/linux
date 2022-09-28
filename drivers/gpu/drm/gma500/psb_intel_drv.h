@@ -197,8 +197,6 @@ extern void psb_intel_lvds_set_brightness(struct drm_device *dev, int level);
 extern void oaktrail_lvds_init(struct drm_device *dev,
 			   struct psb_intel_mode_device *mode_dev);
 extern void oaktrail_wait_for_INTR_PKT_SENT(struct drm_device *dev);
-extern void oaktrail_dsi_init(struct drm_device *dev,
-			   struct psb_intel_mode_device *mode_dev);
 struct gma_i2c_chan *oaktrail_lvds_i2c_init(struct drm_device *dev);
 extern void mid_dsi_init(struct drm_device *dev,
 		    struct psb_intel_mode_device *mode_dev, int dsi_num);
@@ -219,9 +217,6 @@ extern struct drm_crtc *psb_intel_get_crtc_from_pipe(struct drm_device *dev,
 						 int pipe);
 extern struct drm_connector *psb_intel_sdvo_find(struct drm_device *dev,
 					     int sdvoB);
-extern int psb_intel_sdvo_supports_hotplug(struct drm_connector *connector);
-extern void psb_intel_sdvo_set_hotplug(struct drm_connector *connector,
-				   int enable);
 extern int intelfb_probe(struct drm_device *dev);
 extern int intelfb_remove(struct drm_device *dev,
 			  struct drm_framebuffer *fb);

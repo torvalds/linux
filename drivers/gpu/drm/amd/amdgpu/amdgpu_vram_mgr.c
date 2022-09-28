@@ -746,7 +746,7 @@ static bool amdgpu_vram_mgr_intersects(struct ttm_resource_manager *man,
 			(amdgpu_vram_mgr_block_size(block) >> PAGE_SHIFT);
 
 		if (place->fpfn < lpfn &&
-		    (place->lpfn && place->lpfn > fpfn))
+		    (!place->lpfn || place->lpfn > fpfn))
 			return true;
 	}
 

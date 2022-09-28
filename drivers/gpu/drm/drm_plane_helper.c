@@ -30,8 +30,10 @@
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_device.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_print.h>
 #include <drm/drm_rect.h>
 
 #define SUBPIXEL_MASK 0xffff
@@ -195,9 +197,13 @@ int drm_plane_helper_update_primary(struct drm_plane *plane, struct drm_crtc *cr
 		.x2 = crtc_x + crtc_w,
 		.y2 = crtc_y + crtc_h,
 	};
+	struct drm_device *dev = plane->dev;
 	struct drm_connector **connector_list;
 	int num_connectors, ret;
 	bool visible;
+
+	if (drm_WARN_ON_ONCE(dev, drm_drv_uses_atomic_modeset(dev)))
+		return -EINVAL;
 
 	ret = drm_plane_helper_check_update(plane, crtc, fb,
 					    &src, &dest,
@@ -260,6 +266,10 @@ EXPORT_SYMBOL(drm_plane_helper_update_primary);
 int drm_plane_helper_disable_primary(struct drm_plane *plane,
 				     struct drm_modeset_acquire_ctx *ctx)
 {
+	struct drm_device *dev = plane->dev;
+
+	drm_WARN_ON_ONCE(dev, drm_drv_uses_atomic_modeset(dev));
+
 	return -EINVAL;
 }
 EXPORT_SYMBOL(drm_plane_helper_disable_primary);
@@ -278,3 +288,33 @@ void drm_plane_helper_destroy(struct drm_plane *plane)
 	kfree(plane);
 }
 EXPORT_SYMBOL(drm_plane_helper_destroy);
+
+/**
+ * drm_plane_helper_atomic_check() - Helper to check plane atomic-state
+ * @plane: plane to check
+ * @state: atomic state object
+ *
+ * Provides a default plane-state check handler for planes whose atomic-state
+ * scale and positioning are not expected to change since the plane is always
+ * a fullscreen scanout buffer.
+ *
+ * This is often the case for the primary plane of simple framebuffers.
+ *
+ * RETURNS:
+ * Zero on success, or an errno code otherwise.
+ */
+int drm_plane_helper_atomic_check(struct drm_plane *plane, struct drm_atomic_state *state)
+{
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state, plane);
+	struct drm_crtc *new_crtc = new_plane_state->crtc;
+	struct drm_crtc_state *new_crtc_state = NULL;
+
+	if (new_crtc)
+		new_crtc_state = drm_atomic_get_new_crtc_state(state, new_crtc);
+
+	return drm_atomic_helper_check_plane_state(new_plane_state, new_crtc_state,
+						   DRM_PLANE_NO_SCALING,
+						   DRM_PLANE_NO_SCALING,
+						   false, false);
+}
+EXPORT_SYMBOL(drm_plane_helper_atomic_check);

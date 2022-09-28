@@ -155,6 +155,8 @@ int mipi_dbi_dev_init_with_formats(struct mipi_dbi_dev *dbidev,
 int mipi_dbi_dev_init(struct mipi_dbi_dev *dbidev,
 		      const struct drm_simple_display_pipe_funcs *funcs,
 		      const struct drm_display_mode *mode, unsigned int rotation);
+enum drm_mode_status mipi_dbi_pipe_mode_valid(struct drm_simple_display_pipe *pipe,
+					      const struct drm_display_mode *mode);
 void mipi_dbi_pipe_update(struct drm_simple_display_pipe *pipe,
 			  struct drm_plane_state *old_state);
 void mipi_dbi_enable_flush(struct mipi_dbi_dev *dbidev,

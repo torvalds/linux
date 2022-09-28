@@ -621,6 +621,15 @@ static void power_off(struct repaper_epd *epd)
 	gpiod_set_value_cansleep(epd->discharge, 0);
 }
 
+static enum drm_mode_status repaper_pipe_mode_valid(struct drm_simple_display_pipe *pipe,
+						    const struct drm_display_mode *mode)
+{
+	struct drm_crtc *crtc = &pipe->crtc;
+	struct repaper_epd *epd = drm_to_epd(crtc->dev);
+
+	return drm_crtc_helper_mode_valid_fixed(crtc, mode, epd->mode);
+}
+
 static void repaper_pipe_enable(struct drm_simple_display_pipe *pipe,
 				struct drm_crtc_state *crtc_state,
 				struct drm_plane_state *plane_state)
@@ -831,6 +840,7 @@ static void repaper_pipe_update(struct drm_simple_display_pipe *pipe,
 }
 
 static const struct drm_simple_display_pipe_funcs repaper_pipe_funcs = {
+	.mode_valid = repaper_pipe_mode_valid,
 	.enable = repaper_pipe_enable,
 	.disable = repaper_pipe_disable,
 	.update = repaper_pipe_update,
@@ -839,22 +849,8 @@ static const struct drm_simple_display_pipe_funcs repaper_pipe_funcs = {
 static int repaper_connector_get_modes(struct drm_connector *connector)
 {
 	struct repaper_epd *epd = drm_to_epd(connector->dev);
-	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(connector->dev, epd->mode);
-	if (!mode) {
-		DRM_ERROR("Failed to duplicate mode\n");
-		return 0;
-	}
-
-	drm_mode_set_name(mode);
-	mode->type |= DRM_MODE_TYPE_PREFERRED;
-	drm_mode_probed_add(connector, mode);
-
-	connector->display_info.width_mm = mode->width_mm;
-	connector->display_info.height_mm = mode->height_mm;
-
-	return 1;
+	return drm_connector_helper_get_modes_fixed(connector, epd->mode);
 }
 
 static const struct drm_connector_helper_funcs repaper_connector_hfuncs = {

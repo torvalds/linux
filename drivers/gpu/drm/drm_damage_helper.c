@@ -224,6 +224,7 @@ drm_atomic_helper_damage_iter_init(struct drm_atomic_helper_damage_iter *iter,
 				   const struct drm_plane_state *old_state,
 				   const struct drm_plane_state *state)
 {
+	struct drm_rect src;
 	memset(iter, 0, sizeof(*iter));
 
 	if (!state || !state->crtc || !state->fb || !state->visible)
@@ -233,10 +234,12 @@ drm_atomic_helper_damage_iter_init(struct drm_atomic_helper_damage_iter *iter,
 	iter->num_clips = drm_plane_get_damage_clips_count(state);
 
 	/* Round down for x1/y1 and round up for x2/y2 to catch all pixels */
-	iter->plane_src.x1 = state->src.x1 >> 16;
-	iter->plane_src.y1 = state->src.y1 >> 16;
-	iter->plane_src.x2 = (state->src.x2 >> 16) + !!(state->src.x2 & 0xFFFF);
-	iter->plane_src.y2 = (state->src.y2 >> 16) + !!(state->src.y2 & 0xFFFF);
+	src = drm_plane_state_src(state);
+
+	iter->plane_src.x1 = src.x1 >> 16;
+	iter->plane_src.y1 = src.y1 >> 16;
+	iter->plane_src.x2 = (src.x2 >> 16) + !!(src.x2 & 0xFFFF);
+	iter->plane_src.y2 = (src.y2 >> 16) + !!(src.y2 & 0xFFFF);
 
 	if (!iter->clips || !drm_rect_equals(&state->src, &old_state->src)) {
 		iter->clips = NULL;

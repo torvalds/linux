@@ -113,6 +113,9 @@ static bool ast_get_vbios_mode_info(const struct drm_format_info *format,
 	case 1024:
 		vbios_mode->enh_table = &res_1024x768[refresh_rate_index];
 		break;
+	case 1152:
+		vbios_mode->enh_table = &res_1152x864[refresh_rate_index];
+		break;
 	case 1280:
 		if (mode->crtc_vdisplay == 800)
 			vbios_mode->enh_table = &res_1280x800[refresh_rate_index];
@@ -310,7 +313,7 @@ static void ast_set_crtc_reg(struct ast_private *ast,
 	u8 jreg05 = 0, jreg07 = 0, jreg09 = 0, jregAC = 0, jregAD = 0, jregAE = 0;
 	u16 temp, precache = 0;
 
-	if ((ast->chip == AST2500) &&
+	if ((ast->chip == AST2500 || ast->chip == AST2600) &&
 	    (vbios_mode->enh_table->flags & AST2500PreCatchCRT))
 		precache = 40;
 
@@ -350,6 +353,12 @@ static void ast_set_crtc_reg(struct ast_private *ast,
 
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xAC, 0x00, jregAC);
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xAD, 0x00, jregAD);
+
+	// Workaround for HSync Time non octave pixels (1920x1080@60Hz HSync 44 pixels);
+	if ((ast->chip == AST2600) && (mode->crtc_vdisplay == 1080))
+		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xFC, 0xFD, 0x02);
+	else
+		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xFC, 0xFD, 0x00);
 
 	/* vert timings */
 	temp = (mode->crtc_vtotal) - 2;
@@ -428,7 +437,7 @@ static void ast_set_dclk_reg(struct ast_private *ast,
 {
 	const struct ast_vbios_dclk_info *clk_info;
 
-	if (ast->chip == AST2500)
+	if ((ast->chip == AST2500) || (ast->chip == AST2600))
 		clk_info = &dclk_table_ast2500[vbios_mode->enh_table->dclk_index];
 	else
 		clk_info = &dclk_table[vbios_mode->enh_table->dclk_index];
@@ -1057,6 +1066,8 @@ ast_crtc_helper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode 
 			return MODE_OK;
 		if ((mode->hdisplay == 1600) && (mode->vdisplay == 900))
 			return MODE_OK;
+		if ((mode->hdisplay == 1152) && (mode->vdisplay == 864))
+			return MODE_OK;
 
 		if ((ast->chip == AST2100) || (ast->chip == AST2200) ||
 		    (ast->chip == AST2300) || (ast->chip == AST2400) ||
@@ -1087,6 +1098,10 @@ ast_crtc_helper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode 
 		break;
 	case 1024:
 		if (mode->vdisplay == 768)
+			status = MODE_OK;
+		break;
+	case 1152:
+		if (mode->vdisplay == 864)
 			status = MODE_OK;
 		break;
 	case 1280:

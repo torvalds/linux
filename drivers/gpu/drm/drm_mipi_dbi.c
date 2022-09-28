@@ -310,6 +310,24 @@ err_drm_dev_exit:
 }
 
 /**
+ * mipi_dbi_pipe_mode_valid - MIPI DBI mode-valid helper
+ * @pipe: Simple display pipe
+ * @mode: The mode to test
+ *
+ * This function validates a given display mode against the MIPI DBI's hardware
+ * display. Drivers can use this as their &drm_simple_display_pipe_funcs->mode_valid
+ * callback.
+ */
+enum drm_mode_status mipi_dbi_pipe_mode_valid(struct drm_simple_display_pipe *pipe,
+					      const struct drm_display_mode *mode)
+{
+	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
+
+	return drm_crtc_helper_mode_valid_fixed(&pipe->crtc, mode, &dbidev->mode);
+}
+EXPORT_SYMBOL(mipi_dbi_pipe_mode_valid);
+
+/**
  * mipi_dbi_pipe_update - Display pipe update helper
  * @pipe: Simple display pipe
  * @old_state: Old plane state
@@ -415,26 +433,8 @@ EXPORT_SYMBOL(mipi_dbi_pipe_disable);
 static int mipi_dbi_connector_get_modes(struct drm_connector *connector)
 {
 	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(connector->dev);
-	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(connector->dev, &dbidev->mode);
-	if (!mode) {
-		DRM_ERROR("Failed to duplicate mode\n");
-		return 0;
-	}
-
-	if (mode->name[0] == '\0')
-		drm_mode_set_name(mode);
-
-	mode->type |= DRM_MODE_TYPE_PREFERRED;
-	drm_mode_probed_add(connector, mode);
-
-	if (mode->width_mm) {
-		connector->display_info.width_mm = mode->width_mm;
-		connector->display_info.height_mm = mode->height_mm;
-	}
-
-	return 1;
+	return drm_connector_helper_get_modes_fixed(connector, &dbidev->mode);
 }
 
 static const struct drm_connector_helper_funcs mipi_dbi_connector_hfuncs = {

@@ -150,6 +150,7 @@ static void waveshare_enable(struct drm_simple_display_pipe *pipe,
 }
 
 static const struct drm_simple_display_pipe_funcs waveshare_pipe_funcs = {
+	.mode_valid = mipi_dbi_pipe_mode_valid,
 	.enable = waveshare_enable,
 	.disable = mipi_dbi_pipe_disable,
 	.update = mipi_dbi_pipe_update,

@@ -874,7 +874,6 @@ extern struct radeon_encoder_tv_dac *
 radeon_atombios_get_tv_dac_info(struct radeon_encoder *encoder);
 extern struct radeon_encoder_lvds *
 radeon_combios_get_lvds_info(struct radeon_encoder *encoder);
-extern void radeon_combios_get_ext_tmds_info(struct radeon_encoder *encoder);
 extern struct radeon_encoder_tv_dac *
 radeon_combios_get_tv_dac_info(struct radeon_encoder *encoder);
 extern struct radeon_encoder_primary_dac *

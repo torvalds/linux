@@ -9,7 +9,7 @@
 
 #include <drm/drm_rect.h>
 
-static void igt_drm_rect_clip_scaled_div_by_zero(struct kunit *test)
+static void drm_test_rect_clip_scaled_div_by_zero(struct kunit *test)
 {
 	struct drm_rect src, dst, clip;
 	bool visible;
@@ -35,7 +35,7 @@ static void igt_drm_rect_clip_scaled_div_by_zero(struct kunit *test)
 	KUNIT_EXPECT_FALSE_MSG(test, drm_rect_visible(&src), "Source should not be visible\n");
 }
 
-static void igt_drm_rect_clip_scaled_not_clipped(struct kunit *test)
+static void drm_test_rect_clip_scaled_not_clipped(struct kunit *test)
 {
 	struct drm_rect src, dst, clip;
 	bool visible;
@@ -83,7 +83,7 @@ static void igt_drm_rect_clip_scaled_not_clipped(struct kunit *test)
 	KUNIT_EXPECT_TRUE_MSG(test, drm_rect_visible(&src), "Source should be visible\n");
 }
 
-static void igt_drm_rect_clip_scaled_clipped(struct kunit *test)
+static void drm_test_rect_clip_scaled_clipped(struct kunit *test)
 {
 	struct drm_rect src, dst, clip;
 	bool visible;
@@ -173,7 +173,7 @@ static void igt_drm_rect_clip_scaled_clipped(struct kunit *test)
 	KUNIT_EXPECT_TRUE_MSG(test, drm_rect_visible(&src), "Source should be visible\n");
 }
 
-static void igt_drm_rect_clip_scaled_signed_vs_unsigned(struct kunit *test)
+static void drm_test_rect_clip_scaled_signed_vs_unsigned(struct kunit *test)
 {
 	struct drm_rect src, dst, clip;
 	bool visible;
@@ -197,10 +197,10 @@ static void igt_drm_rect_clip_scaled_signed_vs_unsigned(struct kunit *test)
 }
 
 static struct kunit_case drm_rect_tests[] = {
-	KUNIT_CASE(igt_drm_rect_clip_scaled_div_by_zero),
-	KUNIT_CASE(igt_drm_rect_clip_scaled_not_clipped),
-	KUNIT_CASE(igt_drm_rect_clip_scaled_clipped),
-	KUNIT_CASE(igt_drm_rect_clip_scaled_signed_vs_unsigned),
+	KUNIT_CASE(drm_test_rect_clip_scaled_div_by_zero),
+	KUNIT_CASE(drm_test_rect_clip_scaled_not_clipped),
+	KUNIT_CASE(drm_test_rect_clip_scaled_clipped),
+	KUNIT_CASE(drm_test_rect_clip_scaled_signed_vs_unsigned),
 	{ }
 };
 

@@ -7,6 +7,7 @@
 
 #include <linux/pci.h>
 #include <linux/acpi.h>
+#include <acpi/video.h>
 
 #include "i915_drv.h"
 #include "intel_acpi.h"
@@ -330,4 +331,30 @@ void intel_acpi_assign_connector_fwnodes(struct drm_i915_private *i915)
 	 * put this, otherwise fwnode is NULL and the put is a no-op.
 	 */
 	fwnode_handle_put(fwnode);
+}
+
+void intel_acpi_video_register(struct drm_i915_private *i915)
+{
+	struct drm_connector_list_iter conn_iter;
+	struct drm_connector *connector;
+
+	acpi_video_register();
+
+	/*
+	 * If i915 is driving an internal panel without registering its native
+	 * backlight handler try to register the acpi_video backlight.
+	 * For panels not driven by i915 another GPU driver may still register
+	 * a native backlight later and acpi_video_register_backlight() should
+	 * only be called after any native backlights have been registered.
+	 */
+	drm_connector_list_iter_begin(&i915->drm, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		struct intel_panel *panel = &to_intel_connector(connector)->panel;
+
+		if (panel->backlight.funcs && !panel->backlight.device) {
+			acpi_video_register_backlight();
+			break;
+		}
+	}
+	drm_connector_list_iter_end(&conn_iter);
 }

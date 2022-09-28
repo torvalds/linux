@@ -70,7 +70,7 @@ static int tidss_atomic_check(struct drm_device *ddev,
 	 * changes. This is needed for updating the plane positions in
 	 * tidss_crtc_position_planes() which is called from
 	 * crtc_atomic_enable() and crtc_atomic_flush(). We have an
-	 * extra flag to to mark x,y-position changes and together
+	 * extra flag to mark x,y-position changes and together
 	 * with zpos_changed the condition recognizes all the above
 	 * cases.
 	 */

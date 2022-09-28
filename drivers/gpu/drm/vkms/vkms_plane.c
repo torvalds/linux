@@ -105,11 +105,12 @@ static void vkms_plane_atomic_update(struct drm_plane *plane,
 	struct drm_shadow_plane_state *shadow_plane_state;
 	struct drm_framebuffer *fb = new_state->fb;
 	struct vkms_frame_info *frame_info;
-	u32 fmt = fb->format->format;
+	u32 fmt;
 
 	if (!new_state->crtc || !fb)
 		return;
 
+	fmt = fb->format->format;
 	vkms_plane_state = to_vkms_plane_state(new_state);
 	shadow_plane_state = &vkms_plane_state->base;
 
