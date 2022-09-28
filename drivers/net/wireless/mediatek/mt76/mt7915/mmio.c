@@ -541,7 +541,18 @@ int mt7915_mmio_wed_init(struct mt7915_dev *dev, struct pci_dev *pdev,
 	wed->wlan.pci_dev = pdev;
 	wed->wlan.wpdma_phys = pci_resource_start(pdev, 0) +
 			       MT_WFDMA_EXT_CSR_BASE;
+	wed->wlan.wpdma_int = pci_resource_start(pdev, 0) +
+			      MT_INT_WED_SOURCE_CSR;
+	wed->wlan.wpdma_mask = pci_resource_start(pdev, 0) +
+			       MT_INT_WED_MASK_CSR;
+	wed->wlan.wpdma_tx = pci_resource_start(pdev, 0) +
+			     MT_TXQ_WED_RING_BASE;
+	wed->wlan.wpdma_txfree = pci_resource_start(pdev, 0) +
+				 MT_RXQ_WED_RING_BASE;
 	wed->wlan.nbuf = 4096;
+	wed->wlan.tx_tbit[0] = MT_WED_TX_DONE_BAND0;
+	wed->wlan.tx_tbit[1] = MT_WED_TX_DONE_BAND1;
+	wed->wlan.txfree_tbit = MT_WED_TX_FREE_DONE;
 	wed->wlan.token_start = MT7915_TOKEN_SIZE - wed->wlan.nbuf;
 	wed->wlan.init_buf = mt7915_wed_init_buf;
 	wed->wlan.offload_enable = mt7915_mmio_wed_offload_enable;

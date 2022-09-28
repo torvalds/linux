@@ -596,6 +596,7 @@ enum offs_rev {
 #define MT_PCIE_RECOG_ID_MASK		GENMASK(30, 0)
 #define MT_PCIE_RECOG_ID_SEM		BIT(31)
 
+#define MT_INT_WED_SOURCE_CSR		MT_WFDMA_EXT_CSR(0x200)
 #define MT_INT_WED_MASK_CSR		MT_WFDMA_EXT_CSR(0x204)
 
 #define MT_WED_TX_RING_BASE		MT_WFDMA_EXT_CSR(0x300)
@@ -641,6 +642,13 @@ enum offs_rev {
 					 MT_RXQ_ID(q)* 0x4)
 #define MT_TXQ_EXT_CTRL(q)		(MT_Q_BASE(__TXQ(q)) + 0x600 +	\
 					 MT_TXQ_ID(q)* 0x4)
+
+#define MT_TXQ_WED_RING_BASE		0xd7300
+#define MT_RXQ_WED_RING_BASE		0xd7410
+
+#define MT_WED_TX_DONE_BAND0		4
+#define MT_WED_TX_DONE_BAND1		5
+#define MT_WED_TX_FREE_DONE		1
 
 #define MT_INT_SOURCE_CSR		__REG(INT_SOURCE_CSR)
 #define MT_INT_MASK_CSR			__REG(INT_MASK_CSR)
