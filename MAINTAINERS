@@ -7823,7 +7823,7 @@ F:	Documentation/devicetree/bindings/media/i2c/dongwoon,dw9807-vcm.yaml
 F:	drivers/media/i2c/dw9807-vcm.c
 
 DPAA2 DATAPATH I/O (DPIO) DRIVER
-M:	Roy Pledge <Roy.Pledge@nxp.com>
+M:	Ioana Ciornei <ioana.ciornei@nxp.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	drivers/soc/fsl/dpio
