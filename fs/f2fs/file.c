@@ -2256,7 +2256,8 @@ static int f2fs_ioc_shutdown(struct file *filp, unsigned long arg)
 		if (ret) {
 			if (ret == -EROFS) {
 				ret = 0;
-				f2fs_stop_checkpoint(sbi, false);
+				f2fs_stop_checkpoint(sbi, false,
+						STOP_CP_REASON_SHUTDOWN);
 				set_sbi_flag(sbi, SBI_IS_SHUTDOWN);
 				trace_f2fs_shutdown(sbi, in, ret);
 			}
@@ -2269,7 +2270,7 @@ static int f2fs_ioc_shutdown(struct file *filp, unsigned long arg)
 		ret = freeze_bdev(sb->s_bdev);
 		if (ret)
 			goto out;
-		f2fs_stop_checkpoint(sbi, false);
+		f2fs_stop_checkpoint(sbi, false, STOP_CP_REASON_SHUTDOWN);
 		set_sbi_flag(sbi, SBI_IS_SHUTDOWN);
 		thaw_bdev(sb->s_bdev);
 		break;
@@ -2278,16 +2279,16 @@ static int f2fs_ioc_shutdown(struct file *filp, unsigned long arg)
 		ret = f2fs_sync_fs(sb, 1);
 		if (ret)
 			goto out;
-		f2fs_stop_checkpoint(sbi, false);
+		f2fs_stop_checkpoint(sbi, false, STOP_CP_REASON_SHUTDOWN);
 		set_sbi_flag(sbi, SBI_IS_SHUTDOWN);
 		break;
 	case F2FS_GOING_DOWN_NOSYNC:
-		f2fs_stop_checkpoint(sbi, false);
+		f2fs_stop_checkpoint(sbi, false, STOP_CP_REASON_SHUTDOWN);
 		set_sbi_flag(sbi, SBI_IS_SHUTDOWN);
 		break;
 	case F2FS_GOING_DOWN_METAFLUSH:
 		f2fs_sync_meta_pages(sbi, META, LONG_MAX, FS_META_IO);
-		f2fs_stop_checkpoint(sbi, false);
+		f2fs_stop_checkpoint(sbi, false, STOP_CP_REASON_SHUTDOWN);
 		set_sbi_flag(sbi, SBI_IS_SHUTDOWN);
 		break;
 	case F2FS_GOING_DOWN_NEED_FSCK:
