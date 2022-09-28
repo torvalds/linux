@@ -40,8 +40,6 @@
 #include "i2c.h"
 #include "serial.h"
 
-#include "usb.h"
-
 #define OMAP_INTC_START		NR_IRQS
 
 extern int (*omap_pm_soc_init)(void);
