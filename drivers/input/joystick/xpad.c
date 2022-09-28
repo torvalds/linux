@@ -514,13 +514,52 @@ struct xboxone_init_packet {
 		.len		= ARRAY_SIZE(_data),	\
 	}
 
+/*
+ * starting with xbox one, the game input protocol is used
+ * magic numbers are taken from
+ * - https://github.com/xpadneo/gip-dissector/blob/main/src/gip-dissector.lua
+ * - https://github.com/medusalix/xone/blob/master/bus/protocol.c
+ */
+#define GIP_CMD_ACK      0x01
+#define GIP_CMD_IDENTIFY 0x04
+#define GIP_CMD_POWER    0x05
+#define GIP_CMD_AUTHENTICATE 0x06
+#define GIP_CMD_VIRTUAL_KEY  0x07
+#define GIP_CMD_RUMBLE   0x09
+#define GIP_CMD_LED      0x0a
+#define GIP_CMD_FIRMWARE 0x0c
+#define GIP_CMD_INPUT    0x20
+
+#define GIP_SEQ0 0x00
+
+#define GIP_OPT_ACK      0x10
+#define GIP_OPT_INTERNAL 0x20
+
+/*
+ * length of the command payload encoded with
+ * https://en.wikipedia.org/wiki/LEB128
+ * which is a no-op for N < 128
+ */
+#define GIP_PL_LEN(N) (N)
+
+/*
+ * payload specific defines
+ */
+#define GIP_PWR_ON 0x00
+#define GIP_LED_ON 0x01
+
+#define GIP_MOTOR_R  BIT(0)
+#define GIP_MOTOR_L  BIT(1)
+#define GIP_MOTOR_RT BIT(2)
+#define GIP_MOTOR_LT BIT(3)
+#define GIP_MOTOR_ALL (GIP_MOTOR_R | GIP_MOTOR_L | GIP_MOTOR_RT | GIP_MOTOR_LT)
 
 /*
  * This packet is required for all Xbox One pads with 2015
  * or later firmware installed (or present from the factory).
  */
-static const u8 xboxone_fw2015_init[] = {
-	0x05, 0x20, 0x00, 0x01, 0x00
+static const u8 xboxone_power_on[] = {
+	GIP_CMD_POWER, GIP_OPT_INTERNAL, GIP_SEQ0, GIP_PL_LEN(1), GIP_PWR_ON
 };
 
 /*
@@ -530,7 +569,7 @@ static const u8 xboxone_fw2015_init[] = {
  * Bluetooth mode.
  */
 static const u8 xboxone_s_init[] = {
-	0x05, 0x20, 0x00, 0x0f, 0x06
+	GIP_CMD_POWER, GIP_OPT_INTERNAL, GIP_SEQ0, 0x0f, 0x06
 };
 
 /*
@@ -547,9 +586,9 @@ static const u8 extra_input_packet_init[] = {
  * (0x0e6f:0x0165) to finish initialization and for Hori pads
  * (0x0f0d:0x0067) to make the analog sticks work.
  */
-static const u8 xboxone_hori_init[] = {
-	0x01, 0x20, 0x00, 0x09, 0x00, 0x04, 0x20, 0x3a,
-	0x00, 0x00, 0x00, 0x80, 0x00
+static const u8 xboxone_hori_ack_id[] = {
+	GIP_CMD_ACK, GIP_OPT_INTERNAL, GIP_SEQ0, GIP_PL_LEN(9),
+	0x00, GIP_CMD_IDENTIFY, GIP_OPT_INTERNAL, 0x3a, 0x00, 0x00, 0x00, 0x80, 0x00
 };
 
 /*
@@ -557,8 +596,8 @@ static const u8 xboxone_hori_init[] = {
  * sending input reports. These pads include: (0x0e6f:0x02ab),
  * (0x0e6f:0x02a4), (0x0e6f:0x02a6).
  */
-static const u8 xboxone_pdp_init1[] = {
-	0x0a, 0x20, 0x00, 0x03, 0x00, 0x01, 0x14
+static const u8 xboxone_pdp_led_on[] = {
+	GIP_CMD_LED, GIP_OPT_INTERNAL, GIP_SEQ0, GIP_PL_LEN(3), 0x00, GIP_LED_ON, 0x14
 };
 
 /*
@@ -566,8 +605,8 @@ static const u8 xboxone_pdp_init1[] = {
  * sending input reports. These pads include: (0x0e6f:0x02ab),
  * (0x0e6f:0x02a4), (0x0e6f:0x02a6).
  */
-static const u8 xboxone_pdp_init2[] = {
-	0x06, 0x20, 0x00, 0x02, 0x01, 0x00
+static const u8 xboxone_pdp_auth[] = {
+	GIP_CMD_AUTHENTICATE, GIP_OPT_INTERNAL, GIP_SEQ0, GIP_PL_LEN(2), 0x01, 0x00
 };
 
 /*
@@ -575,8 +614,8 @@ static const u8 xboxone_pdp_init2[] = {
  * sending input reports. One of those pads is (0x24c6:0x543a).
  */
 static const u8 xboxone_rumblebegin_init[] = {
-	0x09, 0x00, 0x00, 0x09, 0x00, 0x0F, 0x00, 0x00,
-	0x1D, 0x1D, 0xFF, 0x00, 0x00
+	GIP_CMD_RUMBLE, 0x00, GIP_SEQ0, GIP_PL_LEN(9),
+	0x00, GIP_MOTOR_ALL, 0x00, 0x00, 0x1D, 0x1D, 0xFF, 0x00, 0x00
 };
 
 /*
@@ -586,8 +625,8 @@ static const u8 xboxone_rumblebegin_init[] = {
  * spin up to enough speed to actually vibrate the gamepad.
  */
 static const u8 xboxone_rumbleend_init[] = {
-	0x09, 0x00, 0x00, 0x09, 0x00, 0x0F, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00
+	GIP_CMD_RUMBLE, 0x00, GIP_SEQ0, GIP_PL_LEN(9),
+	0x00, GIP_MOTOR_ALL, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
 /*
@@ -597,14 +636,14 @@ static const u8 xboxone_rumbleend_init[] = {
  * packet is going to be sent.
  */
 static const struct xboxone_init_packet xboxone_init_packets[] = {
-	XBOXONE_INIT_PKT(0x0e6f, 0x0165, xboxone_hori_init),
-	XBOXONE_INIT_PKT(0x0f0d, 0x0067, xboxone_hori_init),
-	XBOXONE_INIT_PKT(0x0000, 0x0000, xboxone_fw2015_init),
+	XBOXONE_INIT_PKT(0x0e6f, 0x0165, xboxone_hori_ack_id),
+	XBOXONE_INIT_PKT(0x0f0d, 0x0067, xboxone_hori_ack_id),
+	XBOXONE_INIT_PKT(0x0000, 0x0000, xboxone_power_on),
 	XBOXONE_INIT_PKT(0x045e, 0x02ea, xboxone_s_init),
 	XBOXONE_INIT_PKT(0x045e, 0x0b00, xboxone_s_init),
 	XBOXONE_INIT_PKT(0x045e, 0x0b00, extra_input_packet_init),
-	XBOXONE_INIT_PKT(0x0e6f, 0x0000, xboxone_pdp_init1),
-	XBOXONE_INIT_PKT(0x0e6f, 0x0000, xboxone_pdp_init2),
+	XBOXONE_INIT_PKT(0x0e6f, 0x0000, xboxone_pdp_led_on),
+	XBOXONE_INIT_PKT(0x0e6f, 0x0000, xboxone_pdp_auth),
 	XBOXONE_INIT_PKT(0x24c6, 0x541a, xboxone_rumblebegin_init),
 	XBOXONE_INIT_PKT(0x24c6, 0x542a, xboxone_rumblebegin_init),
 	XBOXONE_INIT_PKT(0x24c6, 0x543a, xboxone_rumblebegin_init),
@@ -920,19 +959,19 @@ static void xpadone_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char
 	bool do_sync = false;
 
 	/* the xbox button has its own special report */
-	if (data[0] == 0X07) {
+	if (data[0] == GIP_CMD_VIRTUAL_KEY) {
 		/*
 		 * The Xbox One S controller requires these reports to be
 		 * acked otherwise it continues sending them forever and
 		 * won't report further mode button events.
 		 */
-		if (data[1] == 0x30)
+		if (data[1] == (GIP_OPT_ACK | GIP_OPT_INTERNAL))
 			xpadone_ack_mode_report(xpad, data[2]);
 
 		input_report_key(dev, BTN_MODE, data[4] & BIT(0));
 
 		do_sync = true;
-	} else if (data[0] == 0X0C) {
+	} else if (data[0] == GIP_CMD_FIRMWARE) {
 		/* Some packet formats force us to use this separate to poll paddle inputs */
 		if (xpad->packet_type == PKT_XBE2_FW_5_11) {
 			/* Mute paddles if controller is in a custom profile slot
@@ -950,7 +989,7 @@ static void xpadone_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char
 
 			do_sync = true;
 		}
-	} else if (data[0] == 0X20) { /* The main valid packet type for inputs */
+	} else if (data[0] == GIP_CMD_INPUT) { /* The main valid packet type for inputs */
 		/* menu/view buttons */
 		input_report_key(dev, BTN_START,  data[4] & BIT(2));
 		input_report_key(dev, BTN_SELECT, data[4] & BIT(3));
@@ -1363,8 +1402,8 @@ static void xpadone_ack_mode_report(struct usb_xpad *xpad, u8 seq_num)
 	struct xpad_output_packet *packet =
 			&xpad->out_packets[XPAD_OUT_CMD_IDX];
 	static const u8 mode_report_ack[] = {
-		0x01, 0x20, 0x00, 0x09, 0x00, 0x07, 0x20, 0x02,
-		0x00, 0x00, 0x00, 0x00, 0x00
+		GIP_CMD_ACK, GIP_OPT_INTERNAL, GIP_SEQ0, GIP_PL_LEN(9),
+		0x00, GIP_CMD_VIRTUAL_KEY, GIP_OPT_INTERNAL, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00
 	};
 
 	spin_lock_irqsave(&xpad->odata_lock, flags);
@@ -1442,14 +1481,14 @@ static int xpad_play_effect(struct input_dev *dev, void *data, struct ff_effect 
 		break;
 
 	case XTYPE_XBOXONE:
-		packet->data[0] = 0x09; /* activate rumble */
+		packet->data[0] = GIP_CMD_RUMBLE; /* activate rumble */
 		packet->data[1] = 0x00;
 		packet->data[2] = xpad->odata_serial++;
-		packet->data[3] = 0x09;
+		packet->data[3] = GIP_PL_LEN(9);
 		packet->data[4] = 0x00;
-		packet->data[5] = 0x0F;
-		packet->data[6] = 0x00;
-		packet->data[7] = 0x00;
+		packet->data[5] = GIP_MOTOR_ALL;
+		packet->data[6] = 0x00; /* left trigger */
+		packet->data[7] = 0x00; /* right trigger */
 		packet->data[8] = strong / 512;	/* left actuator */
 		packet->data[9] = weak / 512;	/* right actuator */
 		packet->data[10] = 0xFF; /* on period */
