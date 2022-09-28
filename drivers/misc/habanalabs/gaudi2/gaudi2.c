@@ -4535,7 +4535,7 @@ static void gaudi2_init_mme_acc(struct hl_device *hdev, u32 reg_base)
 static void gaudi2_init_dcore_mme(struct hl_device *hdev, int dcore_id,
 							bool config_qman_only)
 {
-	u32 queue_id_base, reg_base, clk_en_addr = 0;
+	u32 queue_id_base, reg_base;
 
 	switch (dcore_id) {
 	case 0:
@@ -4543,22 +4543,17 @@ static void gaudi2_init_dcore_mme(struct hl_device *hdev, int dcore_id,
 		break;
 	case 1:
 		queue_id_base = GAUDI2_QUEUE_ID_DCORE1_MME_0_0;
-		clk_en_addr = mmDCORE1_MME_CTRL_LO_QM_SLV_CLK_EN;
 		break;
 	case 2:
 		queue_id_base = GAUDI2_QUEUE_ID_DCORE2_MME_0_0;
 		break;
 	case 3:
 		queue_id_base = GAUDI2_QUEUE_ID_DCORE3_MME_0_0;
-		clk_en_addr = mmDCORE3_MME_CTRL_LO_QM_SLV_CLK_EN;
 		break;
 	default:
 		dev_err(hdev->dev, "Invalid dcore id %u\n", dcore_id);
 		return;
 	}
-
-	if (clk_en_addr && !(hdev->fw_components & FW_TYPE_BOOT_CPU))
-		WREG32(clk_en_addr, 0x1);
 
 	if (!config_qman_only) {
 		reg_base = gaudi2_mme_acc_blocks_bases[dcore_id];
