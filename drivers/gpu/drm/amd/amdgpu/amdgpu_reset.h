@@ -113,7 +113,8 @@ static inline bool amdgpu_reset_get_reset_domain(struct amdgpu_reset_domain *dom
 
 static inline void amdgpu_reset_put_reset_domain(struct amdgpu_reset_domain *domain)
 {
-	kref_put(&domain->refcount, amdgpu_reset_destroy_reset_domain);
+	if (domain)
+		kref_put(&domain->refcount, amdgpu_reset_destroy_reset_domain);
 }
 
 static inline bool amdgpu_reset_domain_schedule(struct amdgpu_reset_domain *domain,
