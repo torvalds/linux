@@ -670,13 +670,6 @@ omap_hwmod_for_each_by_class(const char *classname,
 #endif	/* CONFIG_OMAP_HWMOD */
 
 /*
- *
- */
-
-void omap_hwmod_rtc_unlock(struct omap_hwmod *oh);
-void omap_hwmod_rtc_lock(struct omap_hwmod *oh);
-
-/*
  * Chip variant-specific hwmod init routines - XXX should be converted
  * to use initcalls once the initial boot ordering is straightened out
  */

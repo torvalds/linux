@@ -7,7 +7,7 @@
 obj-y := id.o io.o control.o devices.o fb.o pm.o \
 	 common.o dma.o omap-headsmp.o sram.o
 
-hwmod-common				= omap_hwmod.o omap_hwmod_reset.o \
+hwmod-common				= omap_hwmod.o \
 					  omap_hwmod_common_data.o \
 					  omap_hwmod_common_ipblock_data.o \
 					  omap_device.o display.o hdq1w.o \
