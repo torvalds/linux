@@ -689,7 +689,7 @@ static int pca955x_probe(struct i2c_client *client)
 	err = i2c_smbus_read_i2c_block_data(client,
 					    0x10 | (pca955x_num_input_regs(chip->bits) + 4), nls,
 					    ls1);
-	if (err)
+	if (err < 0)
 		return err;
 
 	for (i = 0; i < nls; ++i)
