@@ -43,7 +43,7 @@ int mem_buf_hyp_assign_table(struct sg_table *sgt, u32 *src_vmid, int source_nel
 	return ret;
 }
 
-int mem_buf_assign_mem(int op, struct sg_table *sgt,
+int mem_buf_assign_mem(u32 op, struct sg_table *sgt,
 		       struct mem_buf_lend_kernel_arg *arg)
 {
 	int src_vmid[] = {current_vmid};
