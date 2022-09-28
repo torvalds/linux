@@ -67,18 +67,6 @@
 	status = "disabled";
 };
 
-&hdmi0 {
-	status = "disabled";
-};
-
-&hdmi0_in_vp0 {
-	status = "disabled";
-};
-
-&hdmi0_sound {
-	status = "disabled";
-};
-
 &hdmi1 {
 	status = "disabled";
 };
@@ -88,10 +76,6 @@
 };
 
 &hdmi1_sound {
-	status = "disabled";
-};
-
-&hdptxphy_hdmi0 {
 	status = "disabled";
 };
 
