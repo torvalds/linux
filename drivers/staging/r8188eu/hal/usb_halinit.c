@@ -611,7 +611,7 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	if (status == _FAIL)
 		goto exit;
 
-	status = PHY_RFConfig8188E(Adapter);
+	status = phy_RF6052_Config_ParaFile(Adapter);
 	if (status == _FAIL)
 		goto exit;
 
