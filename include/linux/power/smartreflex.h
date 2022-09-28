@@ -273,8 +273,6 @@ struct omap_sr_nvalue_table {
  * @senn_avgweight	SENNAVGWEIGHT value of the sr AVGWEIGHT register
  * @senp_avgweight	SENPAVGWEIGHT value of the sr AVGWEIGHT register
  * @nvalue_count:	Number of distinct nvalues in the nvalue table
- * @enable_on_init:	whether this sr module needs to enabled at
- *			boot up or not.
  * @nvalue_table:	table containing the  efuse offsets and nvalues
  *			corresponding to them.
  * @voltdm:		Pointer to the voltage domain associated with the SR
@@ -290,7 +288,6 @@ struct omap_sr_data {
 	u32				senn_avgweight;
 	u32				senp_avgweight;
 	int				nvalue_count;
-	bool				enable_on_init;
 	struct omap_sr_nvalue_table	*nvalue_table;
 	struct voltagedomain		*voltdm;
 };

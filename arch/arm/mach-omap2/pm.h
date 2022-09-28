@@ -110,14 +110,11 @@ extern u16 pm44xx_errata;
 
 #ifdef CONFIG_POWER_AVS_OMAP
 extern int omap_devinit_smartreflex(void);
-extern void omap_enable_smartreflex_on_init(void);
 #else
 static inline int omap_devinit_smartreflex(void)
 {
 	return -EINVAL;
 }
-
-static inline void omap_enable_smartreflex_on_init(void) {}
 #endif
 
 #ifdef CONFIG_TWL4030_CORE
