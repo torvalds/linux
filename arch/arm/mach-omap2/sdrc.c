@@ -45,7 +45,7 @@ static struct omap2_sms_regs sms_context;
  *
  * Save SMS registers that need to be restored after off mode.
  */
-void omap2_sms_save_context(void)
+static void omap2_sms_save_context(void)
 {
 	sms_context.sms_sysconfig = sms_read_reg(SMS_SYSCONFIG);
 }

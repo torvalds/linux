@@ -461,7 +461,7 @@ void __init omap2430_init_early(void)
  * same machine_id for 34xx and 36xx beagle.. Will get fixed with DT.
  */
 #ifdef CONFIG_ARCH_OMAP3
-void __init omap3_init_early(void)
+static void __init omap3_init_early(void)
 {
 	omap2_set_globals_tap(OMAP343X_CLASS, OMAP2_L4_IO_ADDRESS(0x4830A000));
 	omap2_set_globals_sdrc(OMAP2_L3_IO_ADDRESS(OMAP343X_SDRC_BASE),

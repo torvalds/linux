@@ -269,7 +269,4 @@ extern struct powerdomain gfx_omap2_pwrdm;
 extern void pwrdm_lock(struct powerdomain *pwrdm);
 extern void pwrdm_unlock(struct powerdomain *pwrdm);
 
-extern void pwrdms_save_context(void);
-extern void pwrdms_restore_context(void);
-
 #endif

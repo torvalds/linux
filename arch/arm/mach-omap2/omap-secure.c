@@ -152,7 +152,7 @@ u32 omap3_save_secure_ram(void *addr, int size)
  * NOTE: rx51_secure_dispatcher differs from omap_secure_dispatcher because
  *       it calling omap_smc3() instead omap_smc2() and param[0] is nargs+1
  */
-u32 rx51_secure_dispatcher(u32 idx, u32 process, u32 flag, u32 nargs,
+static u32 rx51_secure_dispatcher(u32 idx, u32 process, u32 flag, u32 nargs,
 			   u32 arg1, u32 arg2, u32 arg3, u32 arg4)
 {
 	static u32 param[5];

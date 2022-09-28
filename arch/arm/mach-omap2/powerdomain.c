@@ -37,8 +37,8 @@
 
 #define PWRDM_TRACE_STATES_FLAG	(1<<31)
 
-void pwrdms_save_context(void);
-void pwrdms_restore_context(void);
+static void pwrdms_save_context(void);
+static void pwrdms_restore_context(void);
 
 enum {
 	PWRDM_STATE_NOW = 0,
@@ -1174,12 +1174,12 @@ static int pwrdm_restore_context(struct powerdomain *pwrdm, void *unused)
 	return 0;
 }
 
-void pwrdms_save_context(void)
+static void pwrdms_save_context(void)
 {
 	pwrdm_for_each(pwrdm_save_context, NULL);
 }
 
-void pwrdms_restore_context(void)
+static void pwrdms_restore_context(void)
 {
 	pwrdm_for_each(pwrdm_restore_context, NULL);
 }

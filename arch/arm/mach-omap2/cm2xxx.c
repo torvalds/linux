@@ -145,8 +145,8 @@ static int omap2xxx_cm_split_idlest_reg(struct clk_omap_reg *idlest_reg,
  * (@prcm_mod, @idlest_id, @idlest_shift) is clocked.  Return 0 upon
  * success or -EBUSY if the module doesn't enable in time.
  */
-int omap2xxx_cm_wait_module_ready(u8 part, s16 prcm_mod, u16 idlest_id,
-				  u8 idlest_shift)
+static int omap2xxx_cm_wait_module_ready(u8 part, s16 prcm_mod, u16 idlest_id,
+					 u8 idlest_shift)
 {
 	int ena = 0, i = 0;
 	u8 cm_idlest_reg;

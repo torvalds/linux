@@ -3054,6 +3054,8 @@ int __init omap_hwmod_register_links(struct omap_hwmod_ocp_if **ois)
 	return 0;
 }
 
+static int __init omap_hwmod_setup_one(const char *oh_name);
+
 /**
  * _ensure_mpu_hwmod_is_setup - ensure the MPU SS hwmod is init'ed and set up
  * @oh: pointer to the hwmod currently being set up (usually not the MPU)
@@ -3084,7 +3086,7 @@ static void __init _ensure_mpu_hwmod_is_setup(struct omap_hwmod *oh)
  * registered omap_hwmod.  Also calls _setup() on each hwmod.  Returns
  * -EINVAL upon error or 0 upon success.
  */
-int __init omap_hwmod_setup_one(const char *oh_name)
+static int __init omap_hwmod_setup_one(const char *oh_name)
 {
 	struct omap_hwmod *oh;
 

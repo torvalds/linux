@@ -187,7 +187,7 @@ int omap_prcm_event_to_irq(const char *name)
  *
  * No return value.
  */
-void omap_prcm_irq_cleanup(void)
+static void omap_prcm_irq_cleanup(void)
 {
 	unsigned int irq;
 	int i;
@@ -689,7 +689,7 @@ static const struct of_device_id omap_prcm_dt_match_table[] __initconst = {
  * on the DT data. Returns 0 in success, negative error value
  * otherwise.
  */
-int __init omap2_prm_base_init(void)
+static int __init omap2_prm_base_init(void)
 {
 	struct device_node *np;
 	const struct of_device_id *match;

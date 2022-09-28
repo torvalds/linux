@@ -84,14 +84,10 @@ extern struct omap_hwmod_class mpu_hwmod_class;
 extern struct omap_hwmod_class iva_hwmod_class;
 extern struct omap_hwmod_class omap2_uart_class;
 extern struct omap_hwmod_class omap2_dss_hwmod_class;
-extern struct omap_hwmod_class omap2_dispc_hwmod_class;
 extern struct omap_hwmod_class omap2_rfbi_hwmod_class;
 extern struct omap_hwmod_class omap2_venc_hwmod_class;
-extern struct omap_hwmod_class_sysconfig omap2_hdq1w_sysc;
 extern struct omap_hwmod_class omap2_hdq1w_class;
 
-extern struct omap_hwmod_class omap2xxx_timer_hwmod_class;
-extern struct omap_hwmod_class omap2xxx_wd_timer_hwmod_class;
 extern struct omap_hwmod_class omap2xxx_gpio_hwmod_class;
 extern struct omap_hwmod_class omap2xxx_mailbox_hwmod_class;
 extern struct omap_hwmod_class omap2xxx_mcspi_class;

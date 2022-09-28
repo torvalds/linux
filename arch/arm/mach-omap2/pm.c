@@ -134,7 +134,7 @@ int __maybe_unused omap_pm_nop_init(void)
 
 int (*omap_pm_soc_init)(void);
 
-int __init omap2_common_pm_late_init(void)
+static int __init omap2_common_pm_late_init(void)
 {
 	int error;
 

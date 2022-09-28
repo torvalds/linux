@@ -80,7 +80,6 @@ static inline void __init omap2_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 					  struct omap_sdrc_params *sdrc_cs1) {};
 #endif
 
-void omap2_sms_save_context(void);
 void omap2_sms_restore_context(void);
 
 struct memory_timings {

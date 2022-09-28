@@ -831,7 +831,7 @@ int clkdm_clear_all_sleepdeps(struct clockdomain *clkdm)
  * -EINVAL if @clkdm is NULL or if clockdomain does not support
  * software-initiated sleep; 0 upon success.
  */
-int clkdm_sleep_nolock(struct clockdomain *clkdm)
+static int clkdm_sleep_nolock(struct clockdomain *clkdm)
 {
 	int ret;
 
@@ -885,7 +885,7 @@ int clkdm_sleep(struct clockdomain *clkdm)
  * -EINVAL if @clkdm is NULL or if the clockdomain does not support
  * software-controlled wakeup; 0 upon success.
  */
-int clkdm_wakeup_nolock(struct clockdomain *clkdm)
+static int clkdm_wakeup_nolock(struct clockdomain *clkdm)
 {
 	int ret;
 

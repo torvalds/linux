@@ -39,6 +39,12 @@
 #include "omap_device.h"
 #include "omap_hwmod.h"
 
+static struct omap_device *omap_device_alloc(struct platform_device *pdev,
+				struct omap_hwmod **ohs, int oh_cnt);
+static void omap_device_delete(struct omap_device *od);
+static struct dev_pm_domain omap_device_fail_pm_domain;
+static struct dev_pm_domain omap_device_pm_domain;
+
 /* Private functions */
 
 static void _add_clkdev(struct omap_device *od, const char *clk_alias,
@@ -296,7 +302,7 @@ static int _omap_device_idle_hwmods(struct omap_device *od)
  *
  * Returns an struct omap_device pointer or ERR_PTR() on error;
  */
-struct omap_device *omap_device_alloc(struct platform_device *pdev,
+static struct omap_device *omap_device_alloc(struct platform_device *pdev,
 					struct omap_hwmod **ohs, int oh_cnt)
 {
 	int ret = -ENOMEM;
@@ -333,7 +339,7 @@ oda_exit1:
 	return ERR_PTR(ret);
 }
 
-void omap_device_delete(struct omap_device *od)
+static void omap_device_delete(struct omap_device *od)
 {
 	if (!od)
 		return;
@@ -425,14 +431,14 @@ static int _od_resume_noirq(struct device *dev)
 #define _od_resume_noirq NULL
 #endif
 
-struct dev_pm_domain omap_device_fail_pm_domain = {
+static struct dev_pm_domain omap_device_fail_pm_domain = {
 	.ops = {
 		SET_RUNTIME_PM_OPS(_od_fail_runtime_suspend,
 				   _od_fail_runtime_resume, NULL)
 	}
 };
 
-struct dev_pm_domain omap_device_pm_domain = {
+static struct dev_pm_domain omap_device_pm_domain = {
 	.ops = {
 		SET_RUNTIME_PM_OPS(_od_runtime_suspend, _od_runtime_resume,
 				   NULL)

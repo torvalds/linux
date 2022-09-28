@@ -106,7 +106,6 @@ void omap2420_init_early(void);
 void omap2430_init_early(void);
 void omap3430_init_early(void);
 void omap3630_init_early(void);
-void omap3_init_early(void);	/* Do not use this one */
 void am33xx_init_early(void);
 void am35xx_init_early(void);
 void ti814x_init_early(void);
@@ -120,7 +119,6 @@ void omap4430_init_late(void);
 void ti81xx_init_late(void);
 void am33xx_init_late(void);
 void omap5_init_late(void);
-int omap2_common_pm_late_init(void);
 void dra7xx_init_early(void);
 void dra7xx_init_late(void);
 

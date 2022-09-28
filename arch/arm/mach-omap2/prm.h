@@ -16,7 +16,6 @@
 extern struct omap_domain_base prm_base;
 extern u16 prm_features;
 int omap_prcm_init(void);
-int omap2_prm_base_init(void);
 int omap2_prcm_base_init(void);
 # endif
 
