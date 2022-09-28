@@ -8,6 +8,8 @@
 #include <drm/i915_pxp_tee_interface.h>
 #include <drm/i915_component.h>
 
+#include "gem/i915_gem_lmem.h"
+
 #include "i915_drv.h"
 #include "intel_pxp.h"
 #include "intel_pxp_session.h"
@@ -64,6 +66,47 @@ static int intel_pxp_tee_io_message(struct intel_pxp *pxp,
 		*msg_out_rcv_size = ret;
 
 	ret = 0;
+unlock:
+	mutex_unlock(&pxp->tee_mutex);
+	return ret;
+}
+
+int intel_pxp_tee_stream_message(struct intel_pxp *pxp,
+				 u8 client_id, u32 fence_id,
+				 void *msg_in, size_t msg_in_len,
+				 void *msg_out, size_t msg_out_len)
+{
+	/* TODO: for bigger objects we need to use a sg of 4k pages */
+	const size_t max_msg_size = PAGE_SIZE;
+	struct drm_i915_private *i915 = pxp_to_gt(pxp)->i915;
+	struct i915_pxp_component *pxp_component = pxp->pxp_component;
+	unsigned int offset = 0;
+	struct scatterlist *sg;
+	int ret;
+
+	if (msg_in_len > max_msg_size || msg_out_len > max_msg_size)
+		return -ENOSPC;
+
+	mutex_lock(&pxp->tee_mutex);
+
+	if (unlikely(!pxp_component || !pxp_component->ops->gsc_command)) {
+		ret = -ENODEV;
+		goto unlock;
+	}
+
+	GEM_BUG_ON(!pxp->stream_cmd.obj);
+
+	sg = i915_gem_object_get_sg_dma(pxp->stream_cmd.obj, 0, &offset);
+
+	memcpy(pxp->stream_cmd.vaddr, msg_in, msg_in_len);
+
+	ret = pxp_component->ops->gsc_command(pxp_component->tee_dev, client_id,
+					      fence_id, sg, msg_in_len, sg);
+	if (ret < 0)
+		drm_err(&i915->drm, "Failed to send PXP TEE gsc command\n");
+	else
+		memcpy(msg_out, pxp->stream_cmd.vaddr, msg_out_len);
+
 unlock:
 	mutex_unlock(&pxp->tee_mutex);
 	return ret;
@@ -126,6 +169,66 @@ static const struct component_ops i915_pxp_tee_component_ops = {
 	.unbind = i915_pxp_tee_component_unbind,
 };
 
+static int alloc_streaming_command(struct intel_pxp *pxp)
+{
+	struct drm_i915_private *i915 = pxp_to_gt(pxp)->i915;
+	struct drm_i915_gem_object *obj = NULL;
+	void *cmd;
+	int err;
+
+	pxp->stream_cmd.obj = NULL;
+	pxp->stream_cmd.vaddr = NULL;
+
+	if (!IS_DGFX(i915))
+		return 0;
+
+	/* allocate lmem object of one page for PXP command memory and store it */
+	obj = i915_gem_object_create_lmem(i915, PAGE_SIZE, I915_BO_ALLOC_CONTIGUOUS);
+	if (IS_ERR(obj)) {
+		drm_err(&i915->drm, "Failed to allocate pxp streaming command!\n");
+		return PTR_ERR(obj);
+	}
+
+	err = i915_gem_object_pin_pages_unlocked(obj);
+	if (err) {
+		drm_err(&i915->drm, "Failed to pin gsc message page!\n");
+		goto out_put;
+	}
+
+	/* map the lmem into the virtual memory pointer */
+	cmd = i915_gem_object_pin_map_unlocked(obj, i915_coherent_map_type(i915, obj, true));
+	if (IS_ERR(cmd)) {
+		drm_err(&i915->drm, "Failed to map gsc message page!\n");
+		err = PTR_ERR(cmd);
+		goto out_unpin;
+	}
+
+	memset(cmd, 0, obj->base.size);
+
+	pxp->stream_cmd.obj = obj;
+	pxp->stream_cmd.vaddr = cmd;
+
+	return 0;
+
+out_unpin:
+	i915_gem_object_unpin_pages(obj);
+out_put:
+	i915_gem_object_put(obj);
+	return err;
+}
+
+static void free_streaming_command(struct intel_pxp *pxp)
+{
+	struct drm_i915_gem_object *obj = fetch_and_zero(&pxp->stream_cmd.obj);
+
+	if (!obj)
+		return;
+
+	i915_gem_object_unpin_map(obj);
+	i915_gem_object_unpin_pages(obj);
+	i915_gem_object_put(obj);
+}
+
 int intel_pxp_tee_component_init(struct intel_pxp *pxp)
 {
 	int ret;
@@ -134,16 +237,24 @@ int intel_pxp_tee_component_init(struct intel_pxp *pxp)
 
 	mutex_init(&pxp->tee_mutex);
 
+	ret = alloc_streaming_command(pxp);
+	if (ret)
+		return ret;
+
 	ret = component_add_typed(i915->drm.dev, &i915_pxp_tee_component_ops,
 				  I915_COMPONENT_PXP);
 	if (ret < 0) {
 		drm_err(&i915->drm, "Failed to add PXP component (%d)\n", ret);
-		return ret;
+		goto out_free;
 	}
 
 	pxp->pxp_component_added = true;
 
 	return 0;
+
+out_free:
+	free_streaming_command(pxp);
+	return ret;
 }
 
 void intel_pxp_tee_component_fini(struct intel_pxp *pxp)
@@ -155,6 +266,8 @@ void intel_pxp_tee_component_fini(struct intel_pxp *pxp)
 
 	component_del(i915->drm.dev, &i915_pxp_tee_component_ops);
 	pxp->pxp_component_added = false;
+
+	free_streaming_command(pxp);
 }
 
 int intel_pxp_tee_cmd_create_arb_session(struct intel_pxp *pxp,
