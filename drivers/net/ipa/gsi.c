@@ -1251,20 +1251,18 @@ static void gsi_evt_ring_rx_update(struct gsi_evt_ring *evt_ring, u32 index)
 /* Initialize a ring, including allocating DMA memory for its entries */
 static int gsi_ring_alloc(struct gsi *gsi, struct gsi_ring *ring, u32 count)
 {
-	size_t size = count * GSI_RING_ELEMENT_SIZE;
+	u32 size = count * GSI_RING_ELEMENT_SIZE;
 	struct device *dev = gsi->dev;
 	dma_addr_t addr;
 
-	/* Hardware requires a 2^n ring size, with alignment equal to size */
+	/* Hardware requires a 2^n ring size, with alignment equal to size.
+	 * The DMA address returned by dma_alloc_coherent() is guaranteed to
+	 * be a power-of-2 number of pages, which satisfies the requirement.
+	 */
 	ring->virt = dma_alloc_coherent(dev, size, &addr, GFP_KERNEL);
-	if (ring->virt && addr % size) {
-		dma_free_coherent(dev, size, ring->virt, addr);
-		dev_err(dev, "unable to alloc 0x%zx-aligned ring buffer\n",
-			size);
-		return -EINVAL;	/* Not a good error value, but distinct */
-	} else if (!ring->virt) {
+	if (!ring->virt)
 		return -ENOMEM;
-	}
+
 	ring->addr = addr;
 	ring->count = count;
 
