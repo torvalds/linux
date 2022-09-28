@@ -1651,14 +1651,17 @@ int bch2_btree_delete_range_trans(struct btree_trans *trans, enum btree_id id,
 	int ret = 0;
 
 	bch2_trans_iter_init(trans, &iter, id, start, BTREE_ITER_INTENT);
-retry:
-	while ((k = bch2_btree_iter_peek(&iter)).k &&
-	       !(ret = bkey_err(k) ?:
-		 btree_trans_too_many_iters(trans)) &&
-	       bkey_cmp(iter.pos, end) < 0) {
+	while ((k = bch2_btree_iter_peek(&iter)).k) {
 		struct disk_reservation disk_res =
 			bch2_disk_reservation_init(trans->c, 0);
 		struct bkey_i delete;
+
+		ret = bkey_err(k);
+		if (ret)
+			goto err;
+
+		if (bkey_cmp(iter.pos, end) >= 0)
+			break;
 
 		bkey_init(&delete.k);
 
@@ -1688,23 +1691,27 @@ retry:
 
 			ret = bch2_extent_trim_atomic(trans, &iter, &delete);
 			if (ret)
-				break;
+				goto err;
 		}
 
 		ret   = bch2_trans_update(trans, &iter, &delete, update_flags) ?:
 			bch2_trans_commit(trans, &disk_res, journal_seq,
 					  BTREE_INSERT_NOFAIL);
 		bch2_disk_reservation_put(trans->c, &disk_res);
+err:
+		/*
+		 * the bch2_trans_begin() call is in a weird place because we
+		 * need to call it after every transaction commit, to avoid path
+		 * overflow, but don't want to call it if the delete operation
+		 * is a no-op and we have no work to do:
+		 */
+		bch2_trans_begin(trans);
+
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+			ret = 0;
 		if (ret)
 			break;
 	}
-
-	if (bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
-		bch2_trans_begin(trans);
-		ret = 0;
-		goto retry;
-	}
-
 	bch2_trans_iter_exit(trans, &iter);
 
 	if (!ret && trans_was_restarted(trans, restart_count))
