@@ -601,7 +601,7 @@ static void mlx5_fw_reporter_err_work(struct work_struct *work)
 	fw_reporter_ctx.miss_counter = health->miss_counter;
 	if (fw_reporter_ctx.err_synd) {
 		devlink_health_report(health->fw_reporter,
-				      "FW syndrom reported", &fw_reporter_ctx);
+				      "FW syndrome reported", &fw_reporter_ctx);
 		return;
 	}
 	if (fw_reporter_ctx.miss_counter)
