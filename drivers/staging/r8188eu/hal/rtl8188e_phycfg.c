@@ -512,7 +512,7 @@ int PHY_RFConfig8188E(struct adapter *Adapter)
 	int		rtStatus = _SUCCESS;
 
 	/*  RF config */
-	rtStatus = PHY_RF6052_Config8188E(Adapter);
+	rtStatus = phy_RF6052_Config_ParaFile(Adapter);
 	return rtStatus;
 }
 
