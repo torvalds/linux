@@ -1169,7 +1169,7 @@ static struct platform_driver cpmac_driver = {
 	.remove = cpmac_remove,
 };
 
-int cpmac_init(void)
+int __init cpmac_init(void)
 {
 	u32 mask;
 	int i, res;
@@ -1239,7 +1239,7 @@ fail_alloc:
 	return res;
 }
 
-void cpmac_exit(void)
+void __exit cpmac_exit(void)
 {
 	platform_driver_unregister(&cpmac_driver);
 	mdiobus_unregister(cpmac_mii);
