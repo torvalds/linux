@@ -156,7 +156,7 @@ void dcn32_init_clocks(struct clk_mgr *clk_mgr_base)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	unsigned int num_levels;
-	unsigned int num_dcfclk_levels, num_dtbclk_levels, num_dispclk_levels;
+	struct clk_limit_num_entries *num_entries_per_clk = &clk_mgr_base->bw_params->clk_table.num_entries_per_clk;
 
 	memset(&(clk_mgr_base->clks), 0, sizeof(struct dc_clocks));
 	clk_mgr_base->clks.p_state_change_support = true;
@@ -180,27 +180,28 @@ void dcn32_init_clocks(struct clk_mgr *clk_mgr_base)
 	/* DCFCLK */
 	dcn32_init_single_clock(clk_mgr, PPCLK_DCFCLK,
 			&clk_mgr_base->bw_params->clk_table.entries[0].dcfclk_mhz,
-			&num_levels);
-	num_dcfclk_levels = num_levels;
+			&num_entries_per_clk->num_dcfclk_levels);
 
 	/* SOCCLK */
 	dcn32_init_single_clock(clk_mgr, PPCLK_SOCCLK,
 					&clk_mgr_base->bw_params->clk_table.entries[0].socclk_mhz,
-					&num_levels);
+					&num_entries_per_clk->num_socclk_levels);
+
 	/* DTBCLK */
 	if (!clk_mgr->base.ctx->dc->debug.disable_dtb_ref_clk_switch)
 		dcn32_init_single_clock(clk_mgr, PPCLK_DTBCLK,
 				&clk_mgr_base->bw_params->clk_table.entries[0].dtbclk_mhz,
-				&num_levels);
-	num_dtbclk_levels = num_levels;
+				&num_entries_per_clk->num_dtbclk_levels);
 
 	/* DISPCLK */
 	dcn32_init_single_clock(clk_mgr, PPCLK_DISPCLK,
 			&clk_mgr_base->bw_params->clk_table.entries[0].dispclk_mhz,
-			&num_levels);
-	num_dispclk_levels = num_levels;
+			&num_entries_per_clk->num_dispclk_levels);
+	num_levels = num_entries_per_clk->num_dispclk_levels;
 
-	if (num_dcfclk_levels && num_dtbclk_levels && num_dispclk_levels)
+	if (num_entries_per_clk->num_dcfclk_levels &&
+			num_entries_per_clk->num_dtbclk_levels &&
+			num_entries_per_clk->num_dispclk_levels)
 		clk_mgr->dpm_present = true;
 
 	if (clk_mgr_base->ctx->dc->debug.min_disp_clk_khz) {
@@ -383,7 +384,7 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 			/* to disable P-State switching, set UCLK min = max */
 			if (!clk_mgr_base->clks.p_state_change_support)
 				dcn32_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK,
-						clk_mgr_base->bw_params->clk_table.entries[clk_mgr_base->bw_params->clk_table.num_entries - 1].memclk_mhz);
+						clk_mgr_base->bw_params->clk_table.entries[clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_memclk_levels - 1].memclk_mhz);
 		}
 
 		/* Always update saved value, even if new value not set due to P-State switching unsupported. Also check safe_to_lower for FCLK */
@@ -634,7 +635,7 @@ static void dcn32_set_hard_min_memclk(struct clk_mgr *clk_mgr_base, bool current
 					khz_to_mhz_ceil(clk_mgr_base->clks.dramclk_khz));
 		else
 			dcn32_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK,
-					clk_mgr_base->bw_params->clk_table.entries[clk_mgr_base->bw_params->clk_table.num_entries - 1].memclk_mhz);
+					clk_mgr_base->bw_params->clk_table.entries[clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_memclk_levels - 1].memclk_mhz);
 	} else {
 		dcn32_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK,
 				clk_mgr_base->bw_params->clk_table.entries[0].memclk_mhz);
@@ -650,22 +651,34 @@ static void dcn32_set_hard_max_memclk(struct clk_mgr *clk_mgr_base)
 		return;
 
 	dcn30_smu_set_hard_max_by_freq(clk_mgr, PPCLK_UCLK,
-			clk_mgr_base->bw_params->clk_table.entries[clk_mgr_base->bw_params->clk_table.num_entries - 1].memclk_mhz);
+			clk_mgr_base->bw_params->clk_table.entries[clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_memclk_levels - 1].memclk_mhz);
 }
 
 /* Get current memclk states, update bounding box */
 static void dcn32_get_memclk_states_from_smu(struct clk_mgr *clk_mgr_base)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	struct clk_limit_num_entries *num_entries_per_clk = &clk_mgr_base->bw_params->clk_table.num_entries_per_clk;
 	unsigned int num_levels;
 
 	if (!clk_mgr->smu_present)
 		return;
 
-	/* Refresh memclk states */
+	/* Refresh memclk and fclk states */
 	dcn32_init_single_clock(clk_mgr, PPCLK_UCLK,
 			&clk_mgr_base->bw_params->clk_table.entries[0].memclk_mhz,
-			&num_levels);
+			&num_entries_per_clk->num_memclk_levels);
+
+	dcn32_init_single_clock(clk_mgr, PPCLK_FCLK,
+			&clk_mgr_base->bw_params->clk_table.entries[0].fclk_mhz,
+			&num_entries_per_clk->num_fclk_levels);
+
+	if (num_entries_per_clk->num_memclk_levels >= num_entries_per_clk->num_fclk_levels) {
+		num_levels = num_entries_per_clk->num_memclk_levels;
+	} else {
+		num_levels = num_entries_per_clk->num_fclk_levels;
+	}
+
 	clk_mgr_base->bw_params->clk_table.num_entries = num_levels ? num_levels : 1;
 
 	if (clk_mgr->dpm_present && !num_levels)
