@@ -21,8 +21,8 @@ static bool ud_expected;
 
 static void guest_ud_handler(struct ex_regs *regs)
 {
-	GUEST_ASSERT(ud_expected);
-	GUEST_DONE();
+	regs->rax = -EFAULT;
+	regs->rip += HYPERCALL_INSN_SIZE;
 }
 
 static const uint8_t vmx_vmcall[HYPERCALL_INSN_SIZE]  = { 0x0f, 0x01, 0xc1 };
@@ -46,6 +46,7 @@ static void guest_main(void)
 {
 	const uint8_t *native_hypercall_insn;
 	const uint8_t *other_hypercall_insn;
+	uint64_t ret;
 
 	if (is_intel_cpu()) {
 		native_hypercall_insn = vmx_vmcall;
@@ -61,15 +62,24 @@ static void guest_main(void)
 
 	memcpy(hypercall_insn, other_hypercall_insn, HYPERCALL_INSN_SIZE);
 
-	do_sched_yield(GET_APIC_ID_FIELD(xapic_read_reg(APIC_ID)));
+	ret = do_sched_yield(GET_APIC_ID_FIELD(xapic_read_reg(APIC_ID)));
 
 	/*
-	 * The hypercall didn't #UD (guest_ud_handler() signals "done" if a #UD
-	 * occurs).  Verify that a #UD is NOT expected and that KVM patched in
-	 * the native hypercall.
+	 * If the quirk is disabled, verify that guest_ud_handler() "returned"
+	 * -EFAULT and that KVM did NOT patch the hypercall.  If the quirk is
+	 * enabled, verify that the hypercall succeeded and that KVM patched in
+	 * the "right" hypercall.
 	 */
-	GUEST_ASSERT(!ud_expected);
-	GUEST_ASSERT(!memcmp(native_hypercall_insn, hypercall_insn, HYPERCALL_INSN_SIZE));
+	if (ud_expected) {
+		GUEST_ASSERT(ret == (uint64_t)-EFAULT);
+		GUEST_ASSERT(!memcmp(other_hypercall_insn, hypercall_insn,
+			     HYPERCALL_INSN_SIZE));
+	} else {
+		GUEST_ASSERT(!ret);
+		GUEST_ASSERT(!memcmp(native_hypercall_insn, hypercall_insn,
+			     HYPERCALL_INSN_SIZE));
+	}
+
 	GUEST_DONE();
 }
 
