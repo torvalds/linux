@@ -44,6 +44,12 @@ static inline int evm_inode_remove_acl(struct user_namespace *mnt_userns,
 {
 	return evm_inode_set_acl(mnt_userns, dentry, acl_name, NULL);
 }
+static inline void evm_inode_post_set_acl(struct dentry *dentry,
+					  const char *acl_name,
+					  struct posix_acl *kacl)
+{
+	return evm_inode_post_setxattr(dentry, acl_name, NULL, 0);
+}
 extern int evm_inode_init_security(struct inode *inode,
 				   const struct xattr *xattr_array,
 				   struct xattr *evm);
@@ -129,6 +135,13 @@ static inline int evm_inode_remove_acl(struct user_namespace *mnt_userns,
 				       const char *acl_name)
 {
 	return 0;
+}
+
+static inline void evm_inode_post_set_acl(struct dentry *dentry,
+					  const char *acl_name,
+					  struct posix_acl *kacl)
+{
+	return;
 }
 
 static inline int evm_inode_init_security(struct inode *inode,
