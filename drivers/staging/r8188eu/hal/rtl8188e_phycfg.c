@@ -465,7 +465,7 @@ static	int phy_BB8188E_Config_ParaFile(struct adapter *Adapter)
 	}
 
 	/*  3. BB AGC table Initialization */
-	if (HAL_STATUS_FAILURE == ODM_ReadAndConfig_AGC_TAB_1T_8188E(&pHalData->odmpriv))
+	if (ODM_ReadAndConfig_AGC_TAB_1T_8188E(&pHalData->odmpriv))
 		return _FAIL;
 
 	return _SUCCESS;
