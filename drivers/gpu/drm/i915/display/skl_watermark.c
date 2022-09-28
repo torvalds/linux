@@ -2486,7 +2486,7 @@ skl_compute_ddb(struct intel_atomic_state *state)
 
 		if (old_dbuf_state->joined_mbus != new_dbuf_state->joined_mbus) {
 			/* TODO: Implement vblank synchronized MBUS joining changes */
-			ret = intel_modeset_all_pipes(state);
+			ret = intel_modeset_all_pipes(state, "MBUS joining change");
 			if (ret)
 				return ret;
 		}

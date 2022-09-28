@@ -5937,7 +5937,8 @@ intel_verify_planes(struct intel_atomic_state *state)
 			     plane_state->uapi.visible);
 }
 
-int intel_modeset_all_pipes(struct intel_atomic_state *state)
+int intel_modeset_all_pipes(struct intel_atomic_state *state,
+			    const char *reason)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc *crtc;
@@ -5957,6 +5958,9 @@ int intel_modeset_all_pipes(struct intel_atomic_state *state)
 		if (!crtc_state->hw.active ||
 		    drm_atomic_crtc_needs_modeset(&crtc_state->uapi))
 			continue;
+
+		drm_dbg_kms(&dev_priv->drm, "[CRTC:%d:%s] Full modeset due to %s\n",
+			    crtc->base.base.id, crtc->base.name, reason);
 
 		crtc_state->uapi.mode_changed = true;
 
