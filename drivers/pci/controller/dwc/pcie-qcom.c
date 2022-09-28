@@ -1512,12 +1512,12 @@ static int qcom_pcie_host_init(struct dw_pcie_rp *pp)
 	if (pcie->cfg->ops->config_sid) {
 		ret = pcie->cfg->ops->config_sid(pcie);
 		if (ret)
-			goto err;
+			goto err_assert_reset;
 	}
 
 	return 0;
 
-err:
+err_assert_reset:
 	qcom_ep_reset_assert(pcie);
 err_disable_phy:
 	phy_power_off(pcie->phy);
