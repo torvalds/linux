@@ -1400,7 +1400,7 @@ static void stm32_cryp_irq_write_ccm_padded_data(struct stm32_cryp *cryp)
 	/* wait end of process */
 	err = stm32_cryp_wait_output(cryp);
 	if (err) {
-		dev_err(cryp->dev, "Timeout (wite ccm padded data)\n");
+		dev_err(cryp->dev, "Timeout (write ccm padded data)\n");
 		return stm32_cryp_finish_req(cryp, err);
 	}
 
@@ -1440,7 +1440,7 @@ static void stm32_cryp_irq_write_ccm_padded_data(struct stm32_cryp *cryp)
 	/* h) wait for completion */
 	err = stm32_cryp_wait_busy(cryp);
 	if (err)
-		dev_err(cryp->dev, "Timeout (wite ccm padded data)\n");
+		dev_err(cryp->dev, "Timeout (write ccm padded data)\n");
 
 	/* i) run the he normal Final phase */
 	stm32_cryp_finish_req(cryp, err);
