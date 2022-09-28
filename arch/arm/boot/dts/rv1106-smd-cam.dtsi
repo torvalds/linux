@@ -9,6 +9,8 @@
 / {
 	vcc1v2_dvdd: vcc1v8_dovdd: vcc2v8_avdd: vcc-camera {
 		compatible = "regulator-fixed";
+		regulator-boot-on;
+		regulator-always-on;
 		regulator-name = "vcc_camera";
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam_pwren>;
@@ -151,6 +153,8 @@
 };
 
 &i2c4 {
+	rockchip,amp-shared;
+
 	status = "okay";
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
@@ -227,6 +231,7 @@
 &rkcif_mipi_lvds {
 	status = "okay";
 
+	memory-region-thunderboot = <&rkisp_thunderboot>;
 	port {
 		/* MIPI CSI-2 endpoint */
 		cif_mipi0_in: endpoint {
@@ -311,6 +316,19 @@
 	pinctrl-0 = <&mipi_pins>;
 
 	max-input = <1920 1280 30>;
+};
+
+&mailbox {
+	status = "okay";
+};
+
+&thunder_boot_service {
+	status = "okay";
+};
+
+&rkisp_thunderboot {
+	/* vicap, capture raw10, ceil(w*10/8/256)*256*h *4(buf num) */
+	reg = <0x00860000 0xa8c000>;
 };
 
 &rkisp_vir0 {

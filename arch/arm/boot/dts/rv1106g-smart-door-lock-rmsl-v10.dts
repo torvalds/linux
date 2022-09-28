@@ -14,6 +14,7 @@
 	model = "Rockchip RV1106G Smart Door Lock RMSL V10 Board";
 	compatible = "rockchip,rv1106g-smart-door-lock-rmsl-v10", "rockchip,rv1106";
 
+	/* rkaiq_prd_type: 1 for one camera, 2 for multi camera */
 	chosen {
 		bootargs = "loglevel=0 rootfstype=erofs rootflags=dax console=ttyFIQ0 root=/dev/rd0 snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=0 driver_async_probe=dwmmc_rockchip";
 	};
@@ -144,6 +145,10 @@
 		spi-rx-bus-width = <4>;
 		spi-tx-bus-width = <1>;
 	};
+};
+
+&thunder_boot_service {
+	status = "okay";
 };
 
 &u2phy_otg {
