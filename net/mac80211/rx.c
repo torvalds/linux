@@ -49,7 +49,7 @@ static struct sk_buff *ieee80211_clean_skb(struct sk_buff *skb,
 
 	if (present_fcs_len)
 		__pskb_trim(skb, skb->len - present_fcs_len);
-	__pskb_pull(skb, rtap_space);
+	pskb_pull(skb, rtap_space);
 
 	hdr = (void *)skb->data;
 	fc = hdr->frame_control;
@@ -74,7 +74,7 @@ static struct sk_buff *ieee80211_clean_skb(struct sk_buff *skb,
 
 	memmove(skb->data + IEEE80211_HT_CTL_LEN, skb->data,
 		hdrlen - IEEE80211_HT_CTL_LEN);
-	__pskb_pull(skb, IEEE80211_HT_CTL_LEN);
+	pskb_pull(skb, IEEE80211_HT_CTL_LEN);
 
 	return skb;
 }
