@@ -2267,6 +2267,15 @@ static int amdgpu_ras_recovery_fini(struct amdgpu_device *adev)
 
 static bool amdgpu_ras_asic_supported(struct amdgpu_device *adev)
 {
+	if (amdgpu_sriov_vf(adev)) {
+		switch (adev->ip_versions[MP0_HWIP][0]) {
+		case IP_VERSION(13, 0, 2):
+			return true;
+		default:
+			return false;
+		}
+	}
+
 	if (adev->asic_type == CHIP_IP_DISCOVERY) {
 		switch (adev->ip_versions[MP0_HWIP][0]) {
 		case IP_VERSION(13, 0, 0):
@@ -2318,11 +2327,6 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev)
 
 	if (!adev->is_atom_fw ||
 	    !amdgpu_ras_asic_supported(adev))
-		return;
-
-	/* If driver run on sriov guest side, only enable ras for aldebaran */
-	if (amdgpu_sriov_vf(adev) &&
-		adev->ip_versions[MP1_HWIP][0] != IP_VERSION(13, 0, 2))
 		return;
 
 	if (!adev->gmc.xgmi.connected_to_cpu) {
