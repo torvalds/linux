@@ -85,4 +85,6 @@ struct rtw8852b_efuse {
 	};
 } __packed;
 
+extern const struct rtw89_chip_info rtw8852b_chip_info;
+
 #endif
