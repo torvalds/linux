@@ -42,4 +42,6 @@ ssize_t memcons_copy(struct memcons *mc, char *to, loff_t pos, size_t count);
 u32 memcons_get_size(struct memcons *mc);
 struct memcons *memcons_init(struct device_node *node, const char *mc_prop_name);
 
+void pnv_rng_init(void);
+
 #endif /* _POWERNV_H */

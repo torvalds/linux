@@ -89,7 +89,7 @@ SYM_FUNC_START(__efi64_thunk)
 
 	pop	%rbx
 	pop	%rbp
-	ret
+	RET
 SYM_FUNC_END(__efi64_thunk)
 
 	.code32

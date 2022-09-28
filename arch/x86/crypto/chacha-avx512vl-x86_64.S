@@ -166,13 +166,13 @@ SYM_FUNC_START(chacha_2block_xor_avx512vl)
 
 .Ldone2:
 	vzeroupper
-	ret
+	RET
 
 .Lxorpart2:
 	# xor remaining bytes from partial register into output
 	mov		%rcx,%rax
 	and		$0xf,%rcx
-	jz		.Ldone8
+	jz		.Ldone2
 	mov		%rax,%r9
 	and		$~0xf,%r9
 
@@ -432,13 +432,13 @@ SYM_FUNC_START(chacha_4block_xor_avx512vl)
 
 .Ldone4:
 	vzeroupper
-	ret
+	RET
 
 .Lxorpart4:
 	# xor remaining bytes from partial register into output
 	mov		%rcx,%rax
 	and		$0xf,%rcx
-	jz		.Ldone8
+	jz		.Ldone4
 	mov		%rax,%r9
 	and		$~0xf,%r9
 
@@ -812,7 +812,7 @@ SYM_FUNC_START(chacha_8block_xor_avx512vl)
 
 .Ldone8:
 	vzeroupper
-	ret
+	RET
 
 .Lxorpart8:
 	# xor remaining bytes from partial register into output

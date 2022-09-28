@@ -243,7 +243,7 @@ SYM_FUNC_START(des3_ede_x86_64_crypt_blk)
 	popq %r12;
 	popq %rbx;
 
-	ret;
+	RET;
 SYM_FUNC_END(des3_ede_x86_64_crypt_blk)
 
 /***********************************************************************
@@ -528,7 +528,7 @@ SYM_FUNC_START(des3_ede_x86_64_crypt_blk_3way)
 	popq %r12;
 	popq %rbx;
 
-	ret;
+	RET;
 SYM_FUNC_END(des3_ede_x86_64_crypt_blk_3way)
 
 .section	.rodata, "a", @progbits

@@ -290,7 +290,7 @@ SYM_FUNC_START(sha1_ni_transform)
 .Ldone_hash:
 	mov		RSPSAVE, %rsp
 
-	ret
+	RET
 SYM_FUNC_END(sha1_ni_transform)
 
 .section	.rodata.cst16.PSHUFFLE_BYTE_FLIP_MASK, "aM", @progbits, 16

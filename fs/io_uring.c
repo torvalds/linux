@@ -696,6 +696,8 @@ struct io_kiocb {
 	 */
 	struct list_head		inflight_entry;
 
+	struct list_head		iopoll_entry;
+
 	struct percpu_ref		*fixed_file_refs;
 	struct callback_head		task_work;
 	/* for polled requests, i.e. IORING_OP_POLL_ADD and async armed poll */
@@ -773,7 +775,8 @@ static const struct io_op_def io_op_defs[] = {
 		.buffer_select		= 1,
 		.needs_async_data	= 1,
 		.async_size		= sizeof(struct io_async_rw),
-		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG |
+					  IO_WQ_WORK_FILES,
 	},
 	[IORING_OP_WRITEV] = {
 		.needs_file		= 1,
@@ -783,7 +786,7 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_async_data	= 1,
 		.async_size		= sizeof(struct io_async_rw),
 		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG |
-						IO_WQ_WORK_FSIZE,
+					  IO_WQ_WORK_FSIZE | IO_WQ_WORK_FILES,
 	},
 	[IORING_OP_FSYNC] = {
 		.needs_file		= 1,
@@ -794,7 +797,8 @@ static const struct io_op_def io_op_defs[] = {
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
 		.async_size		= sizeof(struct io_async_rw),
-		.work_flags		= IO_WQ_WORK_BLKCG | IO_WQ_WORK_MM,
+		.work_flags		= IO_WQ_WORK_BLKCG | IO_WQ_WORK_MM |
+					  IO_WQ_WORK_FILES,
 	},
 	[IORING_OP_WRITE_FIXED] = {
 		.needs_file		= 1,
@@ -803,7 +807,7 @@ static const struct io_op_def io_op_defs[] = {
 		.pollout		= 1,
 		.async_size		= sizeof(struct io_async_rw),
 		.work_flags		= IO_WQ_WORK_BLKCG | IO_WQ_WORK_FSIZE |
-						IO_WQ_WORK_MM,
+					  IO_WQ_WORK_MM | IO_WQ_WORK_FILES,
 	},
 	[IORING_OP_POLL_ADD] = {
 		.needs_file		= 1,
@@ -857,7 +861,7 @@ static const struct io_op_def io_op_defs[] = {
 		.pollout		= 1,
 		.needs_async_data	= 1,
 		.async_size		= sizeof(struct io_async_connect),
-		.work_flags		= IO_WQ_WORK_MM,
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_FS,
 	},
 	[IORING_OP_FALLOCATE] = {
 		.needs_file		= 1,
@@ -885,7 +889,8 @@ static const struct io_op_def io_op_defs[] = {
 		.pollin			= 1,
 		.buffer_select		= 1,
 		.async_size		= sizeof(struct io_async_rw),
-		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG |
+					  IO_WQ_WORK_FILES,
 	},
 	[IORING_OP_WRITE] = {
 		.needs_file		= 1,
@@ -894,7 +899,7 @@ static const struct io_op_def io_op_defs[] = {
 		.pollout		= 1,
 		.async_size		= sizeof(struct io_async_rw),
 		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG |
-						IO_WQ_WORK_FSIZE,
+					  IO_WQ_WORK_FSIZE | IO_WQ_WORK_FILES,
 	},
 	[IORING_OP_FADVISE] = {
 		.needs_file		= 1,
@@ -907,14 +912,16 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
-		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG |
+					  IO_WQ_WORK_FS,
 	},
 	[IORING_OP_RECV] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollin			= 1,
 		.buffer_select		= 1,
-		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG,
+		.work_flags		= IO_WQ_WORK_MM | IO_WQ_WORK_BLKCG |
+					  IO_WQ_WORK_FS,
 	},
 	[IORING_OP_OPENAT2] = {
 		.work_flags		= IO_WQ_WORK_FILES | IO_WQ_WORK_FS |
@@ -2345,8 +2352,8 @@ static void io_iopoll_queue(struct list_head *again)
 	struct io_kiocb *req;
 
 	do {
-		req = list_first_entry(again, struct io_kiocb, inflight_entry);
-		list_del(&req->inflight_entry);
+		req = list_first_entry(again, struct io_kiocb, iopoll_entry);
+		list_del(&req->iopoll_entry);
 		__io_complete_rw(req, -EAGAIN, 0, NULL);
 	} while (!list_empty(again));
 }
@@ -2368,14 +2375,14 @@ static void io_iopoll_complete(struct io_ring_ctx *ctx, unsigned int *nr_events,
 	while (!list_empty(done)) {
 		int cflags = 0;
 
-		req = list_first_entry(done, struct io_kiocb, inflight_entry);
+		req = list_first_entry(done, struct io_kiocb, iopoll_entry);
 		if (READ_ONCE(req->result) == -EAGAIN) {
 			req->result = 0;
 			req->iopoll_completed = 0;
-			list_move_tail(&req->inflight_entry, &again);
+			list_move_tail(&req->iopoll_entry, &again);
 			continue;
 		}
-		list_del(&req->inflight_entry);
+		list_del(&req->iopoll_entry);
 
 		if (req->flags & REQ_F_BUFFER_SELECTED)
 			cflags = io_put_rw_kbuf(req);
@@ -2411,7 +2418,7 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
 	spin = !ctx->poll_multi_file && *nr_events < min;
 
 	ret = 0;
-	list_for_each_entry_safe(req, tmp, &ctx->iopoll_list, inflight_entry) {
+	list_for_each_entry_safe(req, tmp, &ctx->iopoll_list, iopoll_entry) {
 		struct kiocb *kiocb = &req->rw.kiocb;
 
 		/*
@@ -2420,7 +2427,7 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
 		 * and complete those lists first, if we have entries there.
 		 */
 		if (READ_ONCE(req->iopoll_completed)) {
-			list_move_tail(&req->inflight_entry, &done);
+			list_move_tail(&req->iopoll_entry, &done);
 			continue;
 		}
 		if (!list_empty(&done))
@@ -2432,7 +2439,7 @@ static int io_do_iopoll(struct io_ring_ctx *ctx, unsigned int *nr_events,
 
 		/* iopoll may have completed current req */
 		if (READ_ONCE(req->iopoll_completed))
-			list_move_tail(&req->inflight_entry, &done);
+			list_move_tail(&req->iopoll_entry, &done);
 
 		if (ret && spin)
 			spin = false;
@@ -2579,45 +2586,6 @@ static void io_complete_rw_common(struct kiocb *kiocb, long res,
 #ifdef CONFIG_BLOCK
 static bool io_resubmit_prep(struct io_kiocb *req, int error)
 {
-	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
-	ssize_t ret = -ECANCELED;
-	struct iov_iter iter;
-	int rw;
-
-	if (error) {
-		ret = error;
-		goto end_req;
-	}
-
-	switch (req->opcode) {
-	case IORING_OP_READV:
-	case IORING_OP_READ_FIXED:
-	case IORING_OP_READ:
-		rw = READ;
-		break;
-	case IORING_OP_WRITEV:
-	case IORING_OP_WRITE_FIXED:
-	case IORING_OP_WRITE:
-		rw = WRITE;
-		break;
-	default:
-		printk_once(KERN_WARNING "io_uring: bad opcode in resubmit %d\n",
-				req->opcode);
-		goto end_req;
-	}
-
-	if (!req->async_data) {
-		ret = io_import_iovec(rw, req, &iovec, &iter, false);
-		if (ret < 0)
-			goto end_req;
-		ret = io_setup_async_rw(req, iovec, inline_vecs, &iter, false);
-		if (!ret)
-			return true;
-		kfree(iovec);
-	} else {
-		return true;
-	}
-end_req:
 	req_set_fail_links(req);
 	return false;
 }
@@ -2704,7 +2672,7 @@ static void io_iopoll_req_issued(struct io_kiocb *req)
 		struct io_kiocb *list_req;
 
 		list_req = list_first_entry(&ctx->iopoll_list, struct io_kiocb,
-						inflight_entry);
+						iopoll_entry);
 		if (list_req->file != req->file)
 			ctx->poll_multi_file = true;
 	}
@@ -2714,9 +2682,9 @@ static void io_iopoll_req_issued(struct io_kiocb *req)
 	 * it to the front so we find it first.
 	 */
 	if (READ_ONCE(req->iopoll_completed))
-		list_add(&req->inflight_entry, &ctx->iopoll_list);
+		list_add(&req->iopoll_entry, &ctx->iopoll_list);
 	else
-		list_add_tail(&req->inflight_entry, &ctx->iopoll_list);
+		list_add_tail(&req->iopoll_entry, &ctx->iopoll_list);
 
 	if ((ctx->flags & IORING_SETUP_SQPOLL) &&
 	    wq_has_sleeper(&ctx->sq_data->wait))
@@ -3428,6 +3396,7 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
 	struct kiocb *kiocb = &req->rw.kiocb;
 	struct iov_iter __iter, *iter = &__iter;
+	struct iov_iter iter_cp;
 	struct io_async_rw *rw = req->async_data;
 	ssize_t io_size, ret, ret2;
 	bool no_async;
@@ -3438,6 +3407,7 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 	ret = io_import_iovec(READ, req, &iovec, iter, !force_nonblock);
 	if (ret < 0)
 		return ret;
+	iter_cp = *iter;
 	io_size = iov_iter_count(iter);
 	req->result = io_size;
 	ret = 0;
@@ -3473,7 +3443,7 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 		if (req->file->f_flags & O_NONBLOCK)
 			goto done;
 		/* some cases will consume bytes even on error returns */
-		iov_iter_revert(iter, io_size - iov_iter_count(iter));
+		*iter = iter_cp;
 		ret = 0;
 		goto copy_iov;
 	} else if (ret < 0) {
@@ -3556,6 +3526,7 @@ static int io_write(struct io_kiocb *req, bool force_nonblock,
 	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
 	struct kiocb *kiocb = &req->rw.kiocb;
 	struct iov_iter __iter, *iter = &__iter;
+	struct iov_iter iter_cp;
 	struct io_async_rw *rw = req->async_data;
 	ssize_t ret, ret2, io_size;
 
@@ -3565,6 +3536,7 @@ static int io_write(struct io_kiocb *req, bool force_nonblock,
 	ret = io_import_iovec(WRITE, req, &iovec, iter, !force_nonblock);
 	if (ret < 0)
 		return ret;
+	iter_cp = *iter;
 	io_size = iov_iter_count(iter);
 	req->result = io_size;
 
@@ -3626,7 +3598,7 @@ done:
 	} else {
 copy_iov:
 		/* some cases will consume bytes even on error returns */
-		iov_iter_revert(iter, io_size - iov_iter_count(iter));
+		*iter = iter_cp;
 		ret = io_setup_async_rw(req, iovec, inline_vecs, iter, false);
 		if (!ret)
 			return -EAGAIN;
@@ -4394,6 +4366,8 @@ static int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
+	if (unlikely(sqe->addr2 || sqe->splice_fd_in || sqe->ioprio))
+		return -EINVAL;
 
 	sr->msg_flags = READ_ONCE(sqe->msg_flags);
 	sr->umsg = u64_to_user_ptr(READ_ONCE(sqe->addr));
@@ -4628,6 +4602,8 @@ static int io_recvmsg_prep(struct io_kiocb *req,
 	int ret;
 
 	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
+		return -EINVAL;
+	if (unlikely(sqe->addr2 || sqe->splice_fd_in || sqe->ioprio))
 		return -EINVAL;
 
 	sr->msg_flags = READ_ONCE(sqe->msg_flags);
