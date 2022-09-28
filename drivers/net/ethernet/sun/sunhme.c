@@ -2409,11 +2409,9 @@ static struct quattro *quattro_sbus_find(struct platform_device *child)
 	if (qp)
 		return qp;
 
-	qp = kmalloc(sizeof(struct quattro), GFP_KERNEL);
+	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
 	if (!qp)
 		return NULL;
-
-	memset(qp->happy_meals, 0, sizeof(*qp->happy_meals));
 
 	qp->quattro_dev = child;
 	qp->next = qfe_sbus_list;
