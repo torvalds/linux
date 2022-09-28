@@ -2341,6 +2341,7 @@ static const struct of_device_id svs_of_match[] = {
 		/* Sentinel */
 	},
 };
+MODULE_DEVICE_TABLE(of, svs_of_match);
 
 static int svs_probe(struct platform_device *pdev)
 {
