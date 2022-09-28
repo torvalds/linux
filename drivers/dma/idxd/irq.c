@@ -17,12 +17,6 @@ enum irq_work_type {
 	IRQ_WORK_PROCESS_FAULT,
 };
 
-struct idxd_fault {
-	struct work_struct work;
-	u64 addr;
-	struct idxd_device *idxd;
-};
-
 struct idxd_resubmit {
 	struct work_struct work;
 	struct idxd_desc *desc;
