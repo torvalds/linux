@@ -265,7 +265,7 @@ Now we are ready to write the test cases.
 
 	obj-$(CONFIG_MISC_EXAMPLE_TEST) += example_test.o
 
-4. Add the following lines to ``.kunitconfig``:
+4. Add the following lines to ``.kunit/.kunitconfig``:
 
 .. code-block:: none
 
