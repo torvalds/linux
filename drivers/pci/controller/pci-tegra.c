@@ -415,13 +415,6 @@ static inline u32 pads_readl(struct tegra_pcie *pcie, unsigned long offset)
  * address (access to which generates correct config transaction) falls in
  * this 4 KiB region.
  */
-static unsigned int tegra_pcie_conf_offset(u8 bus, unsigned int devfn,
-					   unsigned int where)
-{
-	return ((where & 0xf00) << 16) | (bus << 16) | (PCI_SLOT(devfn) << 11) |
-	       (PCI_FUNC(devfn) << 8) | (where & 0xff);
-}
-
 static void __iomem *tegra_pcie_map_bus(struct pci_bus *bus,
 					unsigned int devfn,
 					int where)
@@ -443,7 +436,9 @@ static void __iomem *tegra_pcie_map_bus(struct pci_bus *bus,
 		unsigned int offset;
 		u32 base;
 
-		offset = tegra_pcie_conf_offset(bus->number, devfn, where);
+		offset = PCI_CONF1_EXT_ADDRESS(bus->number, PCI_SLOT(devfn),
+					       PCI_FUNC(devfn), where) &
+			 ~PCI_CONF1_ENABLE;
 
 		/* move 4 KiB window to offset within the FPCI region */
 		base = 0xfe100000 + ((offset & ~(SZ_4K - 1)) >> 8);
