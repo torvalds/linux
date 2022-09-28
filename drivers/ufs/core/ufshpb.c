@@ -615,14 +615,14 @@ static void ufshpb_activate_subregion(struct ufshpb_lu *hpb,
 
 static void ufshpb_umap_req_compl_fn(struct request *req, blk_status_t error)
 {
-	struct ufshpb_req *umap_req = (struct ufshpb_req *)req->end_io_data;
+	struct ufshpb_req *umap_req = req->end_io_data;
 
 	ufshpb_put_req(umap_req->hpb, umap_req);
 }
 
 static void ufshpb_map_req_compl_fn(struct request *req, blk_status_t error)
 {
-	struct ufshpb_req *map_req = (struct ufshpb_req *) req->end_io_data;
+	struct ufshpb_req *map_req = req->end_io_data;
 	struct ufshpb_lu *hpb = map_req->hpb;
 	struct ufshpb_subregion *srgn;
 	unsigned long flags;
