@@ -396,7 +396,7 @@ static int phy_RF6052_Config_ParaFile(struct adapter *Adapter)
 	udelay(1);/* PlatformStallExecution(1); */
 
 	/*----Initialize RF fom connfiguration file----*/
-	if (ODM_ReadAndConfig_RadioA_1T_8188E(&pHalData->odmpriv) == HAL_STATUS_FAILURE)
+	if (ODM_ReadAndConfig_RadioA_1T_8188E(&pHalData->odmpriv))
 		rtStatus = _FAIL;
 
 	/*----Restore RFENV control type----*/;

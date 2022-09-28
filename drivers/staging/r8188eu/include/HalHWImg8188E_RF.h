@@ -8,6 +8,6 @@
  *                           RadioA_1T.TXT
  ******************************************************************************/
 
-enum HAL_STATUS ODM_ReadAndConfig_RadioA_1T_8188E(struct odm_dm_struct *odm);
+int ODM_ReadAndConfig_RadioA_1T_8188E(struct odm_dm_struct *odm);
 
 #endif /*  end of HWIMG_SUPPORT */
