@@ -38,6 +38,8 @@ static inline int unregister_random_vmfork_notifier(struct notifier_block *nb) {
 #endif
 
 void get_random_bytes(void *buf, size_t len);
+u8 get_random_u8(void);
+u16 get_random_u16(void);
 u32 get_random_u32(void);
 u64 get_random_u64(void);
 static inline unsigned int get_random_int(void)
