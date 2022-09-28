@@ -141,6 +141,11 @@ static inline struct net *qdisc_net(struct Qdisc *q)
 	return dev_net(q->dev_queue->dev);
 }
 
+struct tc_query_caps_base {
+	enum tc_setup_type type;
+	void *caps;
+};
+
 struct tc_cbs_qopt_offload {
 	u8 enable;
 	s32 queue;

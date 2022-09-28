@@ -868,6 +868,23 @@ void qdisc_offload_graft_helper(struct net_device *dev, struct Qdisc *sch,
 }
 EXPORT_SYMBOL(qdisc_offload_graft_helper);
 
+void qdisc_offload_query_caps(struct net_device *dev,
+			      enum tc_setup_type type,
+			      void *caps, size_t caps_len)
+{
+	const struct net_device_ops *ops = dev->netdev_ops;
+	struct tc_query_caps_base base = {
+		.type = type,
+		.caps = caps,
+	};
+
+	memset(caps, 0, caps_len);
+
+	if (ops->ndo_setup_tc)
+		ops->ndo_setup_tc(dev, TC_QUERY_CAPS, &base);
+}
+EXPORT_SYMBOL(qdisc_offload_query_caps);
+
 static void qdisc_offload_graft_root(struct net_device *dev,
 				     struct Qdisc *new, struct Qdisc *old,
 				     struct netlink_ext_ack *extack)

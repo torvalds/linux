@@ -677,6 +677,9 @@ qdisc_offload_graft_helper(struct net_device *dev, struct Qdisc *sch,
 {
 }
 #endif
+void qdisc_offload_query_caps(struct net_device *dev,
+			      enum tc_setup_type type,
+			      void *caps, size_t caps_len);
 struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 			  const struct Qdisc_ops *ops,
 			  struct netlink_ext_ack *extack);
