@@ -99,12 +99,13 @@ static void amd_pmu_lbr_filter(void)
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	int br_sel = cpuc->br_sel, offset, type, i, j;
 	bool compress = false;
+	bool fused_only = false;
 	u64 from, to;
 
 	/* If sampling all branches, there is nothing to filter */
 	if (((br_sel & X86_BR_ALL) == X86_BR_ALL) &&
 	    ((br_sel & X86_BR_TYPE_SAVE) != X86_BR_TYPE_SAVE))
-		return;
+		fused_only = true;
 
 	for (i = 0; i < cpuc->lbr_stack.nr; i++) {
 		from = cpuc->lbr_entries[i].from;
@@ -116,8 +117,11 @@ static void amd_pmu_lbr_filter(void)
 		 * fusion where it points to an instruction preceding the
 		 * actual branch
 		 */
-		if (offset)
+		if (offset) {
 			cpuc->lbr_entries[i].from += offset;
+			if (fused_only)
+				continue;
+		}
 
 		/* If type does not correspond, then discard */
 		if (type == X86_BR_NONE || (br_sel & type) != type) {
