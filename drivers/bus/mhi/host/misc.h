@@ -44,7 +44,12 @@
 
 #define MHI_BW_SCALE_RESULT(status, seq) (((status) & 0xF) << 8 | \
 					((seq) & 0xFF))
-#define MHI_BW_SCALE_NACK 0xF
+
+enum mhi_bw_scale_req_status {
+	MHI_BW_SCALE_SUCCESS = 0x0,
+	MHI_BW_SCALE_INVALID = 0x1,
+	MHI_BW_SCALE_NACK    = 0xF,
+};
 
 /* subsystem failure reason cfg command */
 #define MHI_TRE_CMD_SFR_CFG_PTR(ptr) (ptr)

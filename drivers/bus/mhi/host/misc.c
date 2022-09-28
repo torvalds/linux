@@ -1364,7 +1364,7 @@ int mhi_process_misc_bw_ev_ring(struct mhi_controller *mhi_cntrl,
 	struct mhi_link_info link_info, *cur_info = &mhi_cntrl->mhi_link_info;
 	struct device *dev = &mhi_cntrl->mhi_dev->dev;
 	struct mhi_private *mhi_priv = dev_get_drvdata(dev);
-	u32 result = MHI_BW_SCALE_NACK;
+	enum mhi_bw_scale_req_status result = MHI_BW_SCALE_NACK;
 	int ret = -EINVAL;
 
 	if (!MHI_IN_MISSION_MODE(mhi_cntrl->ee))
@@ -1428,7 +1428,9 @@ int mhi_process_misc_bw_ev_ring(struct mhi_controller *mhi_cntrl,
 	ret = mhi_priv->bw_scale(mhi_cntrl, &link_info);
 	if (!ret) {
 		*cur_info = link_info;
-		result = 0;
+		result = MHI_BW_SCALE_SUCCESS;
+	} else if (ret == -EINVAL) {
+		result = MHI_BW_SCALE_INVALID;
 	}
 
 	write_lock_bh(&mhi_cntrl->pm_lock);
