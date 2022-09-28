@@ -247,8 +247,7 @@ enum mei_ext_hdr_type {
  * struct mei_ext_hdr - extend header descriptor (TLV)
  * @type: enum mei_ext_hdr_type
  * @length: length excluding descriptor
- * @ext_payload: payload of the specific extended header
- * @hdr: place holder for actual header
+ * @data: the extended header payload
  */
 struct mei_ext_hdr {
 	u8 type;
@@ -287,12 +286,11 @@ struct mei_ext_hdr_vtag {
  * Extended header iterator functions
  */
 /**
- * mei_ext_hdr - extended header iterator begin
+ * mei_ext_begin - extended header iterator begin
  *
  * @meta: meta header of the extended header list
  *
- * Return:
- *     The first extended header
+ * Return: The first extended header
  */
 static inline struct mei_ext_hdr *mei_ext_begin(struct mei_ext_meta_hdr *meta)
 {
