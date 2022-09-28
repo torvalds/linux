@@ -907,7 +907,7 @@ static int dmirror_migrate_to_system(struct dmirror *dmirror,
 	struct vm_area_struct *vma;
 	unsigned long src_pfns[64] = { 0 };
 	unsigned long dst_pfns[64] = { 0 };
-	struct migrate_vma args;
+	struct migrate_vma args = { 0 };
 	unsigned long next;
 	int ret;
 
@@ -968,7 +968,7 @@ static int dmirror_migrate_to_device(struct dmirror *dmirror,
 	unsigned long src_pfns[64] = { 0 };
 	unsigned long dst_pfns[64] = { 0 };
 	struct dmirror_bounce bounce;
-	struct migrate_vma args;
+	struct migrate_vma args = { 0 };
 	unsigned long next;
 	int ret;
 
@@ -1334,7 +1334,7 @@ static void dmirror_devmem_free(struct page *page)
 
 static vm_fault_t dmirror_devmem_fault(struct vm_fault *vmf)
 {
-	struct migrate_vma args;
+	struct migrate_vma args = { 0 };
 	unsigned long src_pfns = 0;
 	unsigned long dst_pfns = 0;
 	struct page *rpage;
@@ -1357,6 +1357,7 @@ static vm_fault_t dmirror_devmem_fault(struct vm_fault *vmf)
 	args.dst = &dst_pfns;
 	args.pgmap_owner = dmirror->mdevice;
 	args.flags = dmirror_select_device(dmirror);
+	args.fault_page = vmf->page;
 
 	if (migrate_vma_setup(&args))
 		return VM_FAULT_SIGBUS;
