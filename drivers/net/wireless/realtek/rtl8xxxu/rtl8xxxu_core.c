@@ -52,6 +52,7 @@ MODULE_FIRMWARE("rtlwifi/rtl8192cufw_TMSC.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8192eu_nic.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8723bu_nic.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8723bu_bt.bin");
+MODULE_FIRMWARE("rtlwifi/rtl8188fufw.bin");
 
 module_param_named(debug, rtl8xxxu_debug, int, 0600);
 MODULE_PARM_DESC(debug, "Set debug mask");
@@ -1606,6 +1607,7 @@ static void rtl8xxxu_print_chipinfo(struct rtl8xxxu_priv *priv)
 
 static int rtl8xxxu_identify_chip(struct rtl8xxxu_priv *priv)
 {
+	const struct usb_device_descriptor *descriptor = &priv->udev->descriptor;
 	struct device *dev = &priv->udev->dev;
 	struct ieee80211_hw *hw = priv->hw;
 	u32 val32, bonding;
@@ -1617,6 +1619,17 @@ static int rtl8xxxu_identify_chip(struct rtl8xxxu_priv *priv)
 	if (val32 & SYS_CFG_TRP_VAUX_EN) {
 		dev_info(dev, "Unsupported test chip\n");
 		return -ENOTSUPP;
+	}
+
+	if (descriptor->idVendor == USB_VENDOR_ID_REALTEK &&
+	    descriptor->idProduct == 0xf179) {
+		sprintf(priv->chip_name, "8188FU");
+		priv->rtl_chip = RTL8188F;
+		priv->rf_paths = 1;
+		priv->rx_paths = 1;
+		priv->tx_paths = 1;
+		priv->has_wifi = 1;
+		goto skip_complicated_chip_detection;
 	}
 
 	if (val32 & SYS_CFG_BT_FUNC) {
@@ -1685,11 +1698,14 @@ static int rtl8xxxu_identify_chip(struct rtl8xxxu_priv *priv)
 		priv->has_wifi = 1;
 	}
 
+skip_complicated_chip_detection:
+
 	hw->wiphy->available_antennas_tx = BIT(priv->tx_paths) - 1;
 	hw->wiphy->available_antennas_rx = BIT(priv->rx_paths) - 1;
 
 	switch (priv->rtl_chip) {
 	case RTL8188E:
+	case RTL8188F:
 	case RTL8192E:
 	case RTL8723B:
 		switch (val32 & SYS_CFG_VENDOR_EXT_MASK) {
@@ -1720,7 +1736,18 @@ static int rtl8xxxu_identify_chip(struct rtl8xxxu_priv *priv)
 	val32 = rtl8xxxu_read32(priv, REG_GPIO_OUTSTS);
 	priv->rom_rev = (val32 & GPIO_RF_RL_ID) >> 28;
 
-	val16 = rtl8xxxu_read16(priv, REG_NORMAL_SIE_EP_TX);
+	/*
+	 * 8188FU vendor driver doesn't use REG_NORMAL_SIE_EP_TX,
+	 * it just decides the queue mapping based on nr_out_eps.
+	 * However, reading the register returns "0x321" which
+	 * results in a wrong ep_tx_count of 3 and most frames
+	 * not being transmitted.
+	 */
+	if (priv->rtl_chip == RTL8188F)
+		val16 = 0;
+	else
+		val16 = rtl8xxxu_read16(priv, REG_NORMAL_SIE_EP_TX);
+
 	if (val16 & NORMAL_SIE_EP_TX_HIGH_MASK) {
 		priv->ep_tx_high_queue = 1;
 		priv->ep_tx_count++;
@@ -1763,7 +1790,7 @@ static int rtl8xxxu_identify_chip(struct rtl8xxxu_priv *priv)
 	return 0;
 }
 
-static int
+int
 rtl8xxxu_read_efuse8(struct rtl8xxxu_priv *priv, u16 offset, u8 *data)
 {
 	int i;
@@ -1979,7 +2006,7 @@ static int rtl8xxxu_start_firmware(struct rtl8xxxu_priv *priv)
 	/*
 	 * Init H2C command
 	 */
-	if (priv->rtl_chip == RTL8723B)
+	if (priv->rtl_chip == RTL8723B || priv->rtl_chip == RTL8188F)
 		rtl8xxxu_write8(priv, REG_HMTFR, 0x0f);
 exit:
 	return ret;
@@ -2099,6 +2126,7 @@ int rtl8xxxu_load_firmware(struct rtl8xxxu_priv *priv, char *fw_name)
 	case 0x88c0:
 	case 0x5300:
 	case 0x2300:
+	case 0x88f0:
 		break;
 	default:
 		ret = -EINVAL;
@@ -2166,7 +2194,9 @@ rtl8xxxu_init_mac(struct rtl8xxxu_priv *priv)
 		}
 	}
 
-	if (priv->rtl_chip != RTL8723B && priv->rtl_chip != RTL8192E)
+	if (priv->rtl_chip != RTL8723B &&
+	    priv->rtl_chip != RTL8192E &&
+	    priv->rtl_chip != RTL8188F)
 		rtl8xxxu_write8(priv, REG_MAX_AGGR_NUM, 0x0a);
 
 	return 0;
@@ -3427,7 +3457,7 @@ void rtl8xxxu_gen1_phy_iq_calibrate(struct rtl8xxxu_priv *priv)
 			   priv->bb_recovery_backup, RTL8XXXU_BB_REGS);
 }
 
-static void rtl8723a_phy_lc_calibrate(struct rtl8xxxu_priv *priv)
+void rtl8723a_phy_lc_calibrate(struct rtl8xxxu_priv *priv)
 {
 	u32 val32;
 	u32 rf_amode, rf_bmode = 0, lstf;
@@ -4031,6 +4061,9 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	if (priv->rtl_chip == RTL8192E) {
 		rtl8xxxu_write32(priv, REG_HIMR0, 0x00);
 		rtl8xxxu_write32(priv, REG_HIMR1, 0x00);
+	} else if (priv->rtl_chip == RTL8188F) {
+		rtl8xxxu_write32(priv, REG_HISR0, 0xffffffff);
+		rtl8xxxu_write32(priv, REG_HISR1, 0xffffffff);
 	} else {
 		/*
 		 * Enable all interrupts - not obvious USB needs to do this
@@ -4050,11 +4083,25 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		RCR_APPEND_PHYSTAT | RCR_APPEND_ICV | RCR_APPEND_MIC;
 	rtl8xxxu_write32(priv, REG_RCR, val32);
 
-	/*
-	 * Accept all multicast
-	 */
-	rtl8xxxu_write32(priv, REG_MAR, 0xffffffff);
-	rtl8xxxu_write32(priv, REG_MAR + 4, 0xffffffff);
+	if (priv->rtl_chip == RTL8188F) {
+		/* Accept all data frames */
+		rtl8xxxu_write16(priv, REG_RXFLTMAP2, 0xffff);
+
+		/*
+		 * Since ADF is removed from RCR, ps-poll will not be indicate to driver,
+		 * RxFilterMap should mask ps-poll to gurantee AP mode can rx ps-poll.
+		 */
+		rtl8xxxu_write16(priv, REG_RXFLTMAP1, 0x400);
+
+		/* Accept all management frames */
+		rtl8xxxu_write16(priv, REG_RXFLTMAP0, 0xffff);
+	} else {
+		/*
+		 * Accept all multicast
+		 */
+		rtl8xxxu_write32(priv, REG_MAR, 0xffffffff);
+		rtl8xxxu_write32(priv, REG_MAR + 4, 0xffffffff);
+	}
 
 	/*
 	 * Init adaptive controls
@@ -4105,14 +4152,17 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	val16 = BEACON_DISABLE_TSF_UPDATE | (BEACON_DISABLE_TSF_UPDATE << 8);
 	rtl8xxxu_write16(priv, REG_BEACON_CTRL, val16);
 	rtl8xxxu_write16(priv, REG_TBTT_PROHIBIT, 0x6404);
-	rtl8xxxu_write8(priv, REG_DRIVER_EARLY_INT, DRIVER_EARLY_INT_TIME);
+	if (priv->rtl_chip != RTL8188F)
+		/* Firmware will control REG_DRVERLYINT when power saving is enable, */
+		/* so don't set this register on STA mode. */
+		rtl8xxxu_write8(priv, REG_DRIVER_EARLY_INT, DRIVER_EARLY_INT_TIME);
 	rtl8xxxu_write8(priv, REG_BEACON_DMA_TIME, BEACON_DMA_ATIME_INT_TIME);
 	rtl8xxxu_write16(priv, REG_BEACON_TCFG, 0x660F);
 
 	/*
 	 * Initialize burst parameters
 	 */
-	if (priv->rtl_chip == RTL8723B) {
+	if (priv->rtl_chip == RTL8723B || priv->rtl_chip == RTL8188F) {
 		/*
 		 * For USB high speed set 512B packets
 		 */
@@ -4130,13 +4180,26 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		rtl8xxxu_write8(priv, REG_HT_SINGLE_AMPDU_8723B, val8);
 
 		rtl8xxxu_write16(priv, REG_MAX_AGGR_NUM, 0x0c14);
-		rtl8xxxu_write8(priv, REG_AMPDU_MAX_TIME_8723B, 0x5e);
+		if (priv->rtl_chip == RTL8723B)
+			val8 = 0x5e;
+		else if (priv->rtl_chip == RTL8188F)
+			val8 = 0x70; /* 0x5e would make it very slow */
+		rtl8xxxu_write8(priv, REG_AMPDU_MAX_TIME_8723B, val8);
 		rtl8xxxu_write32(priv, REG_AGGLEN_LMT, 0xffffffff);
 		rtl8xxxu_write8(priv, REG_RX_PKT_LIMIT, 0x18);
 		rtl8xxxu_write8(priv, REG_PIFS, 0x00);
-		rtl8xxxu_write8(priv, REG_USTIME_TSF_8723B, 0x50);
-		rtl8xxxu_write8(priv, REG_USTIME_EDCA, 0x50);
+		if (priv->rtl_chip == RTL8188F) {
+			rtl8xxxu_write8(priv, REG_FWHW_TXQ_CTRL, FWHW_TXQ_CTRL_AMPDU_RETRY);
+			rtl8xxxu_write32(priv, REG_FAST_EDCA_CTRL, 0x03086666);
+		}
+		if (priv->rtl_chip == RTL8723B)
+			val8 = 0x50;
+		else if (priv->rtl_chip == RTL8188F)
+			val8 = 0x28; /* 0x50 would make the upload slow */
+		rtl8xxxu_write8(priv, REG_USTIME_TSF_8723B, val8);
+		rtl8xxxu_write8(priv, REG_USTIME_EDCA, val8);
 
+		/* to prevent mac is reseted by bus. */
 		val8 = rtl8xxxu_read8(priv, REG_RSV_CTRL);
 		val8 |= BIT(5) | BIT(6);
 		rtl8xxxu_write8(priv, REG_RSV_CTRL, val8);
@@ -4144,6 +4207,11 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 
 	if (fops->init_aggregation)
 		fops->init_aggregation(priv);
+
+	if (priv->rtl_chip == RTL8188F) {
+		rtl8xxxu_write16(priv, REG_PKT_VO_VI_LIFE_TIME, 0x0400); /* unit: 256us. 256ms */
+		rtl8xxxu_write16(priv, REG_PKT_BE_BK_LIFE_TIME, 0x0400); /* unit: 256us. 256ms */
+	}
 
 	/*
 	 * Enable CCK and OFDM block
@@ -4163,7 +4231,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	fops->set_tx_power(priv, 1, false);
 
 	/* Let the 8051 take control of antenna setting */
-	if (priv->rtl_chip != RTL8192E) {
+	if (priv->rtl_chip != RTL8192E && priv->rtl_chip != RTL8188F) {
 		val8 = rtl8xxxu_read8(priv, REG_LEDCFG2);
 		val8 |= LEDCFG2_DPDT_SELECT;
 		rtl8xxxu_write8(priv, REG_LEDCFG2, val8);
@@ -4174,7 +4242,8 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	/* Disable BAR - not sure if this has any effect on USB */
 	rtl8xxxu_write32(priv, REG_BAR_MODE_CTRL, 0x0201ffff);
 
-	rtl8xxxu_write16(priv, REG_FAST_EDCA_CTRL, 0);
+	if (priv->rtl_chip != RTL8188F)
+		rtl8xxxu_write16(priv, REG_FAST_EDCA_CTRL, 0);
 
 	if (fops->init_statistics)
 		fops->init_statistics(priv);
@@ -4191,20 +4260,38 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		 * Reset USB mode switch setting
 		 */
 		rtl8xxxu_write8(priv, REG_ACLK_MON, 0x00);
+	} else if (priv->rtl_chip == RTL8188F) {
+		/*
+		 * Init GPIO settings for 8188f
+		 */
+		val8 = rtl8xxxu_read8(priv, REG_GPIO_MUXCFG);
+		val8 &= ~GPIO_MUXCFG_IO_SEL_ENBT;
+		rtl8xxxu_write8(priv, REG_GPIO_MUXCFG, val8);
 	}
 
-	rtl8723a_phy_lc_calibrate(priv);
+	if (priv->rtl_chip == RTL8188F)
+		/* CCK PD */
+		rtl8xxxu_write8(priv, REG_CCK_PD_THRESH, CCK_PD_TYPE1_LV1_TH);
+
+	fops->phy_lc_calibrate(priv);
 
 	fops->phy_iq_calibrate(priv);
 
 	/*
 	 * This should enable thermal meter
 	 */
-	if (fops->gen2_thermal_meter)
-		rtl8xxxu_write_rfreg(priv,
-				     RF_A, RF6052_REG_T_METER_8723B, 0x37cf8);
-	else
+	if (fops->gen2_thermal_meter) {
+		if (priv->rtl_chip == RTL8188F) {
+			val32 = rtl8xxxu_read_rfreg(priv, RF_A, RF6052_REG_T_METER_8723B);
+			val32 |= 0x30000;
+			rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_T_METER_8723B, val32);
+		} else {
+			rtl8xxxu_write_rfreg(priv,
+					     RF_A, RF6052_REG_T_METER_8723B, 0x37cf8);
+		}
+	} else {
 		rtl8xxxu_write_rfreg(priv, RF_A, RF6052_REG_T_METER, 0x60);
+	}
 
 	/* Set NAV_UPPER to 30000us */
 	val8 = ((30000 + NAV_UPPER_UNIT - 1) / NAV_UPPER_UNIT);
@@ -6674,6 +6761,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 		case 0x8178:
 		case 0x817f:
 		case 0x818b:
+		case 0xf179:
 			untested = 0;
 			break;
 		}
@@ -6886,6 +6974,9 @@ static const struct usb_device_id dev_table[] = {
 	.driver_info = (unsigned long)&rtl8723bu_fops},
 {USB_DEVICE_AND_INTERFACE_INFO(0x7392, 0xa611, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8723bu_fops},
+/* RTL8188FU */
+{USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0xf179, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8188fu_fops},
 #ifdef CONFIG_RTL8XXXU_UNTESTED
 /* Still supported by rtlwifi */
 {USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x8176, 0xff, 0xff, 0xff),

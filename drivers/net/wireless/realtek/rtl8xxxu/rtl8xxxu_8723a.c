@@ -366,6 +366,7 @@ struct rtl8xxxu_fileops rtl8723au_fops = {
 	.llt_init = rtl8xxxu_init_llt_table,
 	.init_phy_bb = rtl8xxxu_gen1_init_phy_bb,
 	.init_phy_rf = rtl8723au_init_phy_rf,
+	.phy_lc_calibrate = rtl8723a_phy_lc_calibrate,
 	.phy_iq_calibrate = rtl8xxxu_gen1_phy_iq_calibrate,
 	.config_channel = rtl8xxxu_gen1_config_channel,
 	.parse_rx_desc = rtl8xxxu_parse_rxdesc16,

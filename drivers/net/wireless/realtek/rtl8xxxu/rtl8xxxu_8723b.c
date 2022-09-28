@@ -518,7 +518,7 @@ static int rtl8723bu_init_phy_rf(struct rtl8xxxu_priv *priv)
 	return ret;
 }
 
-static void rtl8723bu_phy_init_antenna_selection(struct rtl8xxxu_priv *priv)
+void rtl8723bu_phy_init_antenna_selection(struct rtl8xxxu_priv *priv)
 {
 	u32 val32;
 
@@ -1650,6 +1650,7 @@ struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.init_phy_bb = rtl8723bu_init_phy_bb,
 	.init_phy_rf = rtl8723bu_init_phy_rf,
 	.phy_init_antenna_selection = rtl8723bu_phy_init_antenna_selection,
+	.phy_lc_calibrate = rtl8723a_phy_lc_calibrate,
 	.phy_iq_calibrate = rtl8723bu_phy_iq_calibrate,
 	.config_channel = rtl8xxxu_gen2_config_channel,
 	.parse_rx_desc = rtl8xxxu_parse_rxdesc24,
