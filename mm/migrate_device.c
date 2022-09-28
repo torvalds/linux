@@ -693,7 +693,7 @@ abort:
 	*src &= ~MIGRATE_PFN_MIGRATE;
 }
 
-static void migrate_device_pages(unsigned long *src_pfns,
+static void __migrate_device_pages(unsigned long *src_pfns,
 				unsigned long *dst_pfns, unsigned long npages,
 				struct migrate_vma *migrate)
 {
@@ -715,6 +715,9 @@ static void migrate_device_pages(unsigned long *src_pfns,
 		if (!page) {
 			unsigned long addr;
 
+			if (!(src_pfns[i] & MIGRATE_PFN_MIGRATE))
+				continue;
+
 			/*
 			 * The only time there is no vma is when called from
 			 * migrate_device_coherent_page(). However this isn't
@@ -722,8 +725,6 @@ static void migrate_device_pages(unsigned long *src_pfns,
 			 */
 			VM_BUG_ON(!migrate);
 			addr = migrate->start + i*PAGE_SIZE;
-			if (!(src_pfns[i] & MIGRATE_PFN_MIGRATE))
-				continue;
 			if (!notified) {
 				notified = true;
 
@@ -779,6 +780,22 @@ static void migrate_device_pages(unsigned long *src_pfns,
 }
 
 /**
+ * migrate_device_pages() - migrate meta-data from src page to dst page
+ * @src_pfns: src_pfns returned from migrate_device_range()
+ * @dst_pfns: array of pfns allocated by the driver to migrate memory to
+ * @npages: number of pages in the range
+ *
+ * Equivalent to migrate_vma_pages(). This is called to migrate struct page
+ * meta-data from source struct page to destination.
+ */
+void migrate_device_pages(unsigned long *src_pfns, unsigned long *dst_pfns,
+			unsigned long npages)
+{
+	__migrate_device_pages(src_pfns, dst_pfns, npages, NULL);
+}
+EXPORT_SYMBOL(migrate_device_pages);
+
+/**
  * migrate_vma_pages() - migrate meta-data from src page to dst page
  * @migrate: migrate struct containing all migration information
  *
@@ -788,12 +805,22 @@ static void migrate_device_pages(unsigned long *src_pfns,
  */
 void migrate_vma_pages(struct migrate_vma *migrate)
 {
-	migrate_device_pages(migrate->src, migrate->dst, migrate->npages, migrate);
+	__migrate_device_pages(migrate->src, migrate->dst, migrate->npages, migrate);
 }
 EXPORT_SYMBOL(migrate_vma_pages);
 
-static void migrate_device_finalize(unsigned long *src_pfns,
-				unsigned long *dst_pfns, unsigned long npages)
+/*
+ * migrate_device_finalize() - complete page migration
+ * @src_pfns: src_pfns returned from migrate_device_range()
+ * @dst_pfns: array of pfns allocated by the driver to migrate memory to
+ * @npages: number of pages in the range
+ *
+ * Completes migration of the page by removing special migration entries.
+ * Drivers must ensure copying of page data is complete and visible to the CPU
+ * before calling this.
+ */
+void migrate_device_finalize(unsigned long *src_pfns,
+			unsigned long *dst_pfns, unsigned long npages)
 {
 	unsigned long i;
 
@@ -837,6 +864,7 @@ static void migrate_device_finalize(unsigned long *src_pfns,
 		}
 	}
 }
+EXPORT_SYMBOL(migrate_device_finalize);
 
 /**
  * migrate_vma_finalize() - restore CPU page table entry
@@ -854,6 +882,53 @@ void migrate_vma_finalize(struct migrate_vma *migrate)
 	migrate_device_finalize(migrate->src, migrate->dst, migrate->npages);
 }
 EXPORT_SYMBOL(migrate_vma_finalize);
+
+/**
+ * migrate_device_range() - migrate device private pfns to normal memory.
+ * @src_pfns: array large enough to hold migrating source device private pfns.
+ * @start: starting pfn in the range to migrate.
+ * @npages: number of pages to migrate.
+ *
+ * migrate_vma_setup() is similar in concept to migrate_vma_setup() except that
+ * instead of looking up pages based on virtual address mappings a range of
+ * device pfns that should be migrated to system memory is used instead.
+ *
+ * This is useful when a driver needs to free device memory but doesn't know the
+ * virtual mappings of every page that may be in device memory. For example this
+ * is often the case when a driver is being unloaded or unbound from a device.
+ *
+ * Like migrate_vma_setup() this function will take a reference and lock any
+ * migrating pages that aren't free before unmapping them. Drivers may then
+ * allocate destination pages and start copying data from the device to CPU
+ * memory before calling migrate_device_pages().
+ */
+int migrate_device_range(unsigned long *src_pfns, unsigned long start,
+			unsigned long npages)
+{
+	unsigned long i, pfn;
+
+	for (pfn = start, i = 0; i < npages; pfn++, i++) {
+		struct page *page = pfn_to_page(pfn);
+
+		if (!get_page_unless_zero(page)) {
+			src_pfns[i] = 0;
+			continue;
+		}
+
+		if (!trylock_page(page)) {
+			src_pfns[i] = 0;
+			put_page(page);
+			continue;
+		}
+
+		src_pfns[i] = migrate_pfn(pfn) | MIGRATE_PFN_MIGRATE;
+	}
+
+	migrate_device_unmap(src_pfns, npages, NULL);
+
+	return 0;
+}
+EXPORT_SYMBOL(migrate_device_range);
 
 /*
  * Migrate a device coherent page back to normal memory. The caller should have
@@ -885,7 +960,7 @@ int migrate_device_coherent_page(struct page *page)
 		dst_pfn = migrate_pfn(page_to_pfn(dpage));
 	}
 
-	migrate_device_pages(&src_pfn, &dst_pfn, 1, NULL);
+	migrate_device_pages(&src_pfn, &dst_pfn, 1);
 	if (src_pfn & MIGRATE_PFN_MIGRATE)
 		copy_highpage(dpage, page);
 	migrate_device_finalize(&src_pfn, &dst_pfn, 1);
