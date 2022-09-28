@@ -7,7 +7,7 @@ int lan966x_mqprio_add(struct lan966x_port *port, u8 num_tc)
 	u8 i;
 
 	if (num_tc != NUM_PRIO_QUEUES) {
-		netdev_err(port->dev, "Only %d tarffic classes supported\n",
+		netdev_err(port->dev, "Only %d traffic classes supported\n",
 			   NUM_PRIO_QUEUES);
 		return -EINVAL;
 	}
