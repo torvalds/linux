@@ -2181,7 +2181,7 @@ out_fail:
 
 static void nvme_tcp_stop_ctrl(struct nvme_ctrl *ctrl)
 {
-	cancel_work_sync(&to_tcp_ctrl(ctrl)->err_work);
+	flush_work(&to_tcp_ctrl(ctrl)->err_work);
 	cancel_delayed_work_sync(&to_tcp_ctrl(ctrl)->connect_work);
 }
 
