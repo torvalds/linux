@@ -89,8 +89,9 @@ exit:
 	return DRM_GPU_SCHED_STAT_NOMINAL;
 }
 
-int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
-		     struct amdgpu_job **job, struct amdgpu_vm *vm)
+int amdgpu_job_alloc(struct amdgpu_device *adev, struct amdgpu_vm *vm,
+		     struct drm_sched_entity *entity, void *owner,
+		     unsigned int num_ibs, struct amdgpu_job **job)
 {
 	if (num_ibs == 0)
 		return -EINVAL;
@@ -111,23 +112,30 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
 	(*job)->vram_lost_counter = atomic_read(&adev->vram_lost_counter);
 	(*job)->vm_pd_addr = AMDGPU_BO_INVALID_OFFSET;
 
-	return 0;
+	if (!entity)
+		return 0;
+
+	return drm_sched_job_init(&(*job)->base, entity, owner);
 }
 
-int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
-		enum amdgpu_ib_pool_type pool_type,
-		struct amdgpu_job **job)
+int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev,
+			     struct drm_sched_entity *entity, void *owner,
+			     size_t size, enum amdgpu_ib_pool_type pool_type,
+			     struct amdgpu_job **job)
 {
 	int r;
 
-	r = amdgpu_job_alloc(adev, 1, job, NULL);
+	r = amdgpu_job_alloc(adev, NULL, entity, owner, 1, job);
 	if (r)
 		return r;
 
 	(*job)->num_ibs = 1;
 	r = amdgpu_ib_get(adev, NULL, size, pool_type, &(*job)->ibs[0]);
-	if (r)
+	if (r) {
+		if (entity)
+			drm_sched_job_cleanup(&(*job)->base);
 		kfree(*job);
+	}
 
 	return r;
 }
@@ -191,6 +199,9 @@ void amdgpu_job_set_gang_leader(struct amdgpu_job *job,
 
 void amdgpu_job_free(struct amdgpu_job *job)
 {
+	if (job->base.entity)
+		drm_sched_job_cleanup(&job->base);
+
 	amdgpu_job_free_resources(job);
 	amdgpu_sync_free(&job->sync);
 	amdgpu_sync_free(&job->sched_sync);
@@ -203,25 +214,16 @@ void amdgpu_job_free(struct amdgpu_job *job)
 		dma_fence_put(&job->hw_fence);
 }
 
-int amdgpu_job_submit(struct amdgpu_job *job, struct drm_sched_entity *entity,
-		      void *owner, struct dma_fence **f)
+struct dma_fence *amdgpu_job_submit(struct amdgpu_job *job)
 {
-	int r;
-
-	if (!f)
-		return -EINVAL;
-
-	r = drm_sched_job_init(&job->base, entity, owner);
-	if (r)
-		return r;
+	struct dma_fence *f;
 
 	drm_sched_job_arm(&job->base);
-
-	*f = dma_fence_get(&job->base.s_fence->finished);
+	f = dma_fence_get(&job->base.s_fence->finished);
 	amdgpu_job_free_resources(job);
 	drm_sched_entity_push_job(&job->base);
 
-	return 0;
+	return f;
 }
 
 int amdgpu_job_submit_direct(struct amdgpu_job *job, struct amdgpu_ring *ring,

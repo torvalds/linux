@@ -291,12 +291,8 @@ static int amdgpu_cs_pass1(struct amdgpu_cs_parser *p,
 		return -EINVAL;
 
 	for (i = 0; i < p->gang_size; ++i) {
-		ret = amdgpu_job_alloc(p->adev, num_ibs[i], &p->jobs[i], vm);
-		if (ret)
-			goto free_all_kdata;
-
-		ret = drm_sched_job_init(&p->jobs[i]->base, p->entities[i],
-					 &fpriv->vm);
+		ret = amdgpu_job_alloc(p->adev, vm, p->entities[i], vm,
+				       num_ibs[i], &p->jobs[i]);
 		if (ret)
 			goto free_all_kdata;
 	}
