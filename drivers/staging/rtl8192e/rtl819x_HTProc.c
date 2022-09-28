@@ -503,7 +503,7 @@ static u8 HTFilterMCSRate(struct rtllib_device *ieee, u8 *pSupportMCS,
 }
 
 void HTSetConnectBwMode(struct rtllib_device *ieee,
-			enum ht_channel_width Bandwidth,
+			enum ht_channel_width bandwidth,
 			enum ht_extchnl_offset Offset);
 
 void HTOnAssocRsp(struct rtllib_device *ieee)
@@ -850,7 +850,7 @@ static void HTSetConnectBwModeCallback(struct rtllib_device *ieee)
 }
 
 void HTSetConnectBwMode(struct rtllib_device *ieee,
-			enum ht_channel_width Bandwidth,
+			enum ht_channel_width bandwidth,
 			enum ht_extchnl_offset Offset)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
@@ -859,13 +859,13 @@ void HTSetConnectBwMode(struct rtllib_device *ieee,
 		return;
 
 	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
-		Bandwidth = HT_CHANNEL_WIDTH_20;
+		bandwidth = HT_CHANNEL_WIDTH_20;
 
 	if (pHTInfo->sw_bw_in_progress) {
 		pr_info("%s: sw_bw_in_progress!!\n", __func__);
 		return;
 	}
-	if (Bandwidth == HT_CHANNEL_WIDTH_20_40) {
+	if (bandwidth == HT_CHANNEL_WIDTH_20_40) {
 		if (ieee->current_network.channel < 2 &&
 		    Offset == HT_EXTCHNL_OFFSET_LOWER)
 			Offset = HT_EXTCHNL_OFFSET_NO_EXT;

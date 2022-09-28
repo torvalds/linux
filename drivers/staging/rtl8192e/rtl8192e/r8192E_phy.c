@@ -1194,7 +1194,7 @@ static void _rtl92e_set_bw_mode_work_item(struct net_device *dev)
 	priv->SetBWModeInProgress = false;
 }
 
-void rtl92e_set_bw_mode(struct net_device *dev, enum ht_channel_width Bandwidth,
+void rtl92e_set_bw_mode(struct net_device *dev, enum ht_channel_width bandwidth,
 			enum ht_extchnl_offset Offset)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -1206,7 +1206,7 @@ void rtl92e_set_bw_mode(struct net_device *dev, enum ht_channel_width Bandwidth,
 	atomic_inc(&(priv->rtllib->atm_swbw));
 	priv->SetBWModeInProgress = true;
 
-	priv->CurrentChannelBW = Bandwidth;
+	priv->CurrentChannelBW = bandwidth;
 
 	if (Offset == HT_EXTCHNL_OFFSET_LOWER)
 		priv->nCur40MhzPrimeSC = HAL_PRIME_CHNL_OFFSET_UPPER;
