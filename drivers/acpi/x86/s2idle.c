@@ -470,7 +470,7 @@ static int lps0_device_attach(struct acpi_device *adev,
 		for (dev_id = &amd_hid_ids[0]; dev_id->id[0]; dev_id++)
 			if (acpi_dev_hid_uid_match(adev, dev_id->id, NULL))
 				break;
-		if (dev_id)
+		if (dev_id->id[0])
 			data = (const struct amd_lps0_hid_device_data *) dev_id->driver_data;
 		else
 			data = &amd_rembrandt;
