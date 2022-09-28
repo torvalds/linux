@@ -124,7 +124,6 @@ int frwr_mr_init(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr *mr)
 	unsigned int depth = ep->re_max_fr_depth;
 	struct scatterlist *sg;
 	struct ib_mr *frmr;
-	int rc;
 
 	sg = kcalloc_node(depth, sizeof(*sg), XPRTRDMA_GFP_FLAGS,
 			  ibdev_to_node(ep->re_id->device));
@@ -148,7 +147,7 @@ int frwr_mr_init(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr *mr)
 
 out_mr_err:
 	kfree(sg);
-	trace_xprtrdma_frwr_alloc(mr, rc);
+	trace_xprtrdma_frwr_alloc(mr, PTR_ERR(frmr));
 	return PTR_ERR(frmr);
 }
 
