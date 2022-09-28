@@ -2107,6 +2107,22 @@ int sas_ex_revalidate_domain(struct domain_device *port_dev)
 	return res;
 }
 
+int sas_find_attached_phy_id(struct expander_device *ex_dev,
+			     struct domain_device *dev)
+{
+	struct ex_phy *phy;
+	int phy_id;
+
+	for (phy_id = 0; phy_id < ex_dev->num_phys; phy_id++) {
+		phy = &ex_dev->ex_phy[phy_id];
+		if (sas_phy_match_dev_addr(dev, phy))
+			return phy_id;
+	}
+
+	return -ENODEV;
+}
+EXPORT_SYMBOL_GPL(sas_find_attached_phy_id);
+
 void sas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 		struct sas_rphy *rphy)
 {
