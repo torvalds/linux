@@ -6844,7 +6844,7 @@ static void dasd_eckd_handle_hpf_error(struct dasd_device *device,
 static void dasd_eckd_setup_blk_queue(struct dasd_block *block)
 {
 	unsigned int logical_block_size = block->bp_block;
-	struct request_queue *q = block->request_queue;
+	struct request_queue *q = block->gdp->queue;
 	struct dasd_device *device = block->base;
 	int max;
 

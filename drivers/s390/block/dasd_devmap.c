@@ -1578,7 +1578,6 @@ dasd_timeout_store(struct device *dev, struct device_attribute *attr,
 		   const char *buf, size_t count)
 {
 	struct dasd_device *device;
-	struct request_queue *q;
 	unsigned long val;
 
 	device = dasd_device_from_cdev(to_ccwdev(dev));
@@ -1590,15 +1589,13 @@ dasd_timeout_store(struct device *dev, struct device_attribute *attr,
 		dasd_put_device(device);
 		return -EINVAL;
 	}
-	q = device->block->request_queue;
-	if (!q) {
+	if (!device->block->gdp) {
 		dasd_put_device(device);
 		return -ENODEV;
 	}
 
 	device->blk_timeout = val;
-
-	blk_queue_rq_timeout(q, device->blk_timeout * HZ);
+	blk_queue_rq_timeout(device->block->gdp->queue, val * HZ);
 
 	dasd_put_device(device);
 	return count;
