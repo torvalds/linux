@@ -96,7 +96,7 @@
 			 <3300000 0x1>;
 	};
 
-	sound0: sound@0 {
+	sound0: sound-0 {
 		compatible = "ti,j721e-cpb-audio";
 		model = "j721e-cpb";
 
