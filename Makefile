@@ -1153,8 +1153,12 @@ targets += vmlinux.a
 vmlinux.a: $(KBUILD_VMLINUX_OBJS) scripts/head-object-list.txt autoksyms_recursive FORCE
 	$(call if_changed,ar_vmlinux.a)
 
-vmlinux.o: vmlinux.a $(KBUILD_VMLINUX_LIBS) FORCE
+PHONY += vmlinux_o
+vmlinux_o: vmlinux.a $(KBUILD_VMLINUX_LIBS)
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.vmlinux_o
+
+vmlinux.o modules.builtin.modinfo modules.builtin: vmlinux_o
+	@:
 
 ARCH_POSTLINK := $(wildcard $(srctree)/arch/$(SRCARCH)/Makefile.postlink)
 
