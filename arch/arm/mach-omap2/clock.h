@@ -63,8 +63,6 @@
 
 extern struct ti_clk_ll_ops omap_clk_ll_ops;
 
-extern u16 cpu_mask;
-
 extern const struct clkops clkops_omap2_dflt_wait;
 extern const struct clkops clkops_omap2_dflt;
 

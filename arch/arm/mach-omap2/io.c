@@ -32,7 +32,6 @@
 #include "clockdomain.h"
 #include "common.h"
 #include "clock.h"
-#include "clock2xxx.h"
 #include "sdrc.h"
 #include "control.h"
 #include "sram.h"
