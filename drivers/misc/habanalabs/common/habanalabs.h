@@ -2811,7 +2811,7 @@ struct hl_mmu_funcs {
 
 /**
  * struct hl_prefetch_work - prefetch work structure handler
- * @pf_work: actual work struct.
+ * @prefetch_work: actual work struct.
  * @ctx: compute context.
  * @va: virtual address to pre-fetch.
  * @size: pre-fetch size.
@@ -2819,7 +2819,7 @@ struct hl_mmu_funcs {
  * @asid: ASID for maintenance operation.
  */
 struct hl_prefetch_work {
-	struct work_struct	pf_work;
+	struct work_struct	prefetch_work;
 	struct hl_ctx		*ctx;
 	u64			va;
 	u64			size;
@@ -3060,7 +3060,7 @@ struct hl_reset_info {
  * @cs_cmplt_wq: work queue of CS completions for executing work in process
  *               context.
  * @ts_free_obj_wq: work queue for timestamp registration objects release.
- * @pf_wq: work queue for MMU pre-fetch operations.
+ * @prefetch_wq: work queue for MMU pre-fetch operations.
  * @kernel_ctx: Kernel driver context structure.
  * @kernel_queues: array of hl_hw_queue.
  * @cs_mirror_list: CS mirror list for TDR.
@@ -3231,7 +3231,7 @@ struct hl_device {
 	struct workqueue_struct		*eq_wq;
 	struct workqueue_struct		*cs_cmplt_wq;
 	struct workqueue_struct		*ts_free_obj_wq;
-	struct workqueue_struct		*pf_wq;
+	struct workqueue_struct		*prefetch_wq;
 	struct hl_ctx			*kernel_ctx;
 	struct hl_hw_queue		*kernel_queues;
 	struct list_head		cs_mirror_list;

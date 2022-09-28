@@ -783,8 +783,8 @@ static int device_early_init(struct hl_device *hdev)
 		goto free_cs_cmplt_wq;
 	}
 
-	hdev->pf_wq = alloc_workqueue("hl-prefetch", WQ_UNBOUND, 0);
-	if (!hdev->pf_wq) {
+	hdev->prefetch_wq = alloc_workqueue("hl-prefetch", WQ_UNBOUND, 0);
+	if (!hdev->prefetch_wq) {
 		dev_err(hdev->dev, "Failed to allocate MMU prefetch workqueue\n");
 		rc = -ENOMEM;
 		goto free_ts_free_wq;
@@ -794,7 +794,7 @@ static int device_early_init(struct hl_device *hdev)
 					GFP_KERNEL);
 	if (!hdev->hl_chip_info) {
 		rc = -ENOMEM;
-		goto free_pf_wq;
+		goto free_prefetch_wq;
 	}
 
 	rc = hl_mmu_if_set_funcs(hdev);
@@ -833,8 +833,8 @@ free_cb_mgr:
 	hl_mem_mgr_fini(&hdev->kernel_mem_mgr);
 free_chip_info:
 	kfree(hdev->hl_chip_info);
-free_pf_wq:
-	destroy_workqueue(hdev->pf_wq);
+free_prefetch_wq:
+	destroy_workqueue(hdev->prefetch_wq);
 free_ts_free_wq:
 	destroy_workqueue(hdev->ts_free_obj_wq);
 free_cs_cmplt_wq:
@@ -877,7 +877,7 @@ static void device_early_fini(struct hl_device *hdev)
 
 	kfree(hdev->hl_chip_info);
 
-	destroy_workqueue(hdev->pf_wq);
+	destroy_workqueue(hdev->prefetch_wq);
 	destroy_workqueue(hdev->ts_free_obj_wq);
 	destroy_workqueue(hdev->cs_cmplt_wq);
 	destroy_workqueue(hdev->eq_wq);
@@ -1076,7 +1076,7 @@ static void cleanup_resources(struct hl_device *hdev, bool hard_reset, bool fw_r
 	hl_cs_rollback_all(hdev, skip_wq_flush);
 
 	/* flush the MMU prefetch workqueue */
-	flush_workqueue(hdev->pf_wq);
+	flush_workqueue(hdev->prefetch_wq);
 
 	/* Release all pending user interrupts, each pending user interrupt
 	 * holds a reference to user context
