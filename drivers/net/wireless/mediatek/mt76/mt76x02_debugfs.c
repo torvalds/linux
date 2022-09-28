@@ -122,8 +122,6 @@ static int mt76x02_read_rate_txpower(struct seq_file *s, void *data)
 			    ARRAY_SIZE(dev->rate_power.cck));
 	mt76_seq_puts_array(s, "OFDM", dev->rate_power.ofdm,
 			    ARRAY_SIZE(dev->rate_power.ofdm));
-	mt76_seq_puts_array(s, "STBC", dev->rate_power.stbc,
-			    ARRAY_SIZE(dev->rate_power.stbc));
 	mt76_seq_puts_array(s, "HT", dev->rate_power.ht,
 			    ARRAY_SIZE(dev->rate_power.ht));
 	mt76_seq_puts_array(s, "VHT", dev->rate_power.vht,

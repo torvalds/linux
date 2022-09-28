@@ -77,11 +77,10 @@ struct mt76x02_rate_power {
 		struct {
 			s8 cck[4];
 			s8 ofdm[8];
-			s8 stbc[10];
 			s8 ht[16];
-			s8 vht[10];
+			s8 vht[2];
 		};
-		s8 all[48];
+		s8 all[30];
 	};
 };
 

@@ -62,7 +62,7 @@ s8 mt76x02_tx_get_max_txpwr_adj(struct mt76x02_dev *dev,
 		u8 mcs = ieee80211_rate_get_vht_mcs(rate);
 
 		if (mcs == 8 || mcs == 9) {
-			max_txpwr = dev->rate_power.vht[8];
+			max_txpwr = dev->rate_power.vht[0];
 		} else {
 			u8 nss, idx;
 
