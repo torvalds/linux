@@ -1812,19 +1812,23 @@ static bool hellcreek_validate_schedule(struct hellcreek *hellcreek,
 static int hellcreek_port_setup_tc(struct dsa_switch *ds, int port,
 				   enum tc_setup_type type, void *type_data)
 {
-	struct tc_taprio_qopt_offload *taprio = type_data;
 	struct hellcreek *hellcreek = ds->priv;
 
-	if (type != TC_SETUP_QDISC_TAPRIO)
+	switch (type) {
+	case TC_SETUP_QDISC_TAPRIO: {
+		struct tc_taprio_qopt_offload *taprio = type_data;
+
+		if (!hellcreek_validate_schedule(hellcreek, taprio))
+			return -EOPNOTSUPP;
+
+		if (taprio->enable)
+			return hellcreek_port_set_schedule(ds, port, taprio);
+
+		return hellcreek_port_del_schedule(ds, port);
+	}
+	default:
 		return -EOPNOTSUPP;
-
-	if (!hellcreek_validate_schedule(hellcreek, taprio))
-		return -EOPNOTSUPP;
-
-	if (taprio->enable)
-		return hellcreek_port_set_schedule(ds, port, taprio);
-
-	return hellcreek_port_del_schedule(ds, port);
+	}
 }
 
 static const struct dsa_switch_ops hellcreek_ds_ops = {
