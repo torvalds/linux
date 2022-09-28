@@ -2234,7 +2234,7 @@ static int proc_otg_show(struct seq_file *s)
 	char		*ctrl_name = "(UNKNOWN)";
 
 	tmp = omap_readl(OTG_REV);
-	ctrl_name = "tranceiver_ctrl";
+	ctrl_name = "transceiver_ctrl";
 	trans = omap_readw(USB_TRANSCEIVER_CTRL);
 	seq_printf(s, "\nOTG rev %d.%d, %s %05x\n",
 		tmp >> 4, tmp & 0xf, ctrl_name, trans);
