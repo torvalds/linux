@@ -2526,9 +2526,11 @@ static void nvme_pci_alloc_tag_set(struct nvme_dev *dev)
 
 	set->ops = &nvme_mq_ops;
 	set->nr_hw_queues = dev->online_queues - 1;
-	set->nr_maps = 2; /* default + read */
+	set->nr_maps = 1;
+	if (dev->io_queues[HCTX_TYPE_READ])
+		set->nr_maps = 2;
 	if (dev->io_queues[HCTX_TYPE_POLL])
-		set->nr_maps++;
+		set->nr_maps = 3;
 	set->timeout = NVME_IO_TIMEOUT;
 	set->numa_node = dev->ctrl.numa_node;
 	set->queue_depth = min_t(unsigned, dev->q_depth, BLK_MQ_MAX_DEPTH) - 1;
@@ -2831,6 +2833,8 @@ static void nvme_reset_work(struct work_struct *work)
 		nvme_start_admin_queue(&dev->ctrl);
 	}
 
+	dma_set_min_align_mask(dev->dev, NVME_CTRL_PAGE_SIZE - 1);
+
 	/*
 	 * Limit the max command size to prevent iod->sg allocations going
 	 * over a single page.
@@ -2843,7 +2847,6 @@ static void nvme_reset_work(struct work_struct *work)
 	 * Don't limit the IOMMU merged segment size.
 	 */
 	dma_set_max_seg_size(dev->dev, 0xffffffff);
-	dma_set_min_align_mask(dev->dev, NVME_CTRL_PAGE_SIZE - 1);
 
 	mutex_unlock(&dev->shutdown_lock);
 

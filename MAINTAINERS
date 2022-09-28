@@ -14542,6 +14542,15 @@ F:	drivers/nvme/common/
 F:	include/linux/nvme*
 F:	include/uapi/linux/nvme_ioctl.h
 
+NVM EXPRESS FABRICS AUTHENTICATION
+M:	Hannes Reinecke <hare@suse.de>
+L:	linux-nvme@lists.infradead.org
+S:	Supported
+F:	drivers/nvme/host/auth.c
+F:	drivers/nvme/target/auth.c
+F:	drivers/nvme/target/fabrics-cmd-auth.c
+F:	include/linux/nvme-auth.h
+
 NVM EXPRESS FC TRANSPORT DRIVERS
 M:	James Smart <james.smart@broadcom.com>
 L:	linux-nvme@lists.infradead.org
