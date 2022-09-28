@@ -9,6 +9,7 @@
 #include <linux/phy.h>
 #include <linux/phylink.h>
 #include <linux/ptp_clock_kernel.h>
+#include <net/pkt_cls.h>
 #include <net/pkt_sched.h>
 #include <net/switchdev.h>
 
@@ -80,6 +81,9 @@
 #define FDMA_XTR_CHANNEL		6
 #define FDMA_INJ_CHANNEL		0
 #define FDMA_DCB_MAX			512
+
+#define SE_IDX_QUEUE			0  /* 0-79 : Queue scheduler elements */
+#define SE_IDX_PORT			80 /* 80-89 : Port schedular elements */
 
 /* MAC table entry types.
  * ENTRYTYPE_NORMAL is subject to aging.
@@ -461,6 +465,21 @@ int lan966x_taprio_add(struct lan966x_port *port,
 		       struct tc_taprio_qopt_offload *qopt);
 int lan966x_taprio_del(struct lan966x_port *port);
 int lan966x_taprio_speed_set(struct lan966x_port *port, int speed);
+
+int lan966x_tbf_add(struct lan966x_port *port,
+		    struct tc_tbf_qopt_offload *qopt);
+int lan966x_tbf_del(struct lan966x_port *port,
+		    struct tc_tbf_qopt_offload *qopt);
+
+int lan966x_cbs_add(struct lan966x_port *port,
+		    struct tc_cbs_qopt_offload *qopt);
+int lan966x_cbs_del(struct lan966x_port *port,
+		    struct tc_cbs_qopt_offload *qopt);
+
+int lan966x_ets_add(struct lan966x_port *port,
+		    struct tc_ets_qopt_offload *qopt);
+int lan966x_ets_del(struct lan966x_port *port,
+		    struct tc_ets_qopt_offload *qopt);
 
 static inline void __iomem *lan_addr(void __iomem *base[],
 				     int id, int tinst, int tcnt,
