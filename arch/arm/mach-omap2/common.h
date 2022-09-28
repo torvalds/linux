@@ -44,15 +44,6 @@
 extern int (*omap_pm_soc_init)(void);
 int omap_pm_nop_init(void);
 
-#if defined(CONFIG_PM) && defined(CONFIG_ARCH_OMAP2)
-int omap2_pm_init(void);
-#else
-static inline int omap2_pm_init(void)
-{
-	return 0;
-}
-#endif
-
 #if defined(CONFIG_PM) && defined(CONFIG_ARCH_OMAP3)
 int omap3_pm_init(void);
 #else
