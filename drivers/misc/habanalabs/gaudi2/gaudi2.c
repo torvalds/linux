@@ -8576,7 +8576,7 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 {
 	u32 ctl, reset_flags = HL_DRV_RESET_HARD | HL_DRV_RESET_DELAY;
 	struct gaudi2_device *gaudi2 = hdev->asic_specific;
-	bool reset_required = false, skip_reset = false;
+	bool reset_required = false, skip_reset = false, is_critical = false;
 	int index, sbte_index;
 	u64 event_mask = 0;
 	u16 event_type;
@@ -8602,6 +8602,7 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 		reset_flags |= HL_DRV_RESET_FW_FATAL_ERR;
 		event_mask |= HL_NOTIFIER_EVENT_GENERAL_HW_ERR;
 		reset_required = gaudi2_handle_ecc_event(hdev, event_type, &eq_entry->ecc_data);
+		is_critical = eq_entry->ecc_data.is_critical;
 		break;
 
 	case GAUDI2_EVENT_TPC0_QM ... GAUDI2_EVENT_PDMA1_QM:
@@ -8976,9 +8977,16 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 	return;
 
 reset_device:
-	if (hdev->hard_reset_on_fw_events) {
+	if (hdev->asic_prop.fw_security_enabled && is_critical) {
+		reset_flags = HL_DRV_RESET_HARD | HL_DRV_RESET_BYPASS_REQ_TO_FW;
+
+		/* notify on device unavailable while the reset triggered by fw */
+		event_mask |= (HL_NOTIFIER_EVENT_DEVICE_RESET |
+					HL_NOTIFIER_EVENT_DEVICE_UNAVAILABLE);
 		hl_device_reset(hdev, reset_flags);
+	} else if (hdev->hard_reset_on_fw_events) {
 		event_mask |= HL_NOTIFIER_EVENT_DEVICE_RESET;
+		hl_device_reset(hdev, reset_flags);
 	} else {
 		if (!gaudi2_irq_map_table[event_type].msg)
 			hl_fw_unmask_irq(hdev, event_type);
