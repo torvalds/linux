@@ -905,17 +905,19 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
 
 	total = le16_get_bits(free->ctrl, MT_TX_FREE_MSDU_CNT);
 	v3 = (FIELD_GET(MT_TX_FREE_VER, txd) == 0x4);
-	if (WARN_ON_ONCE((void *)&tx_info[total >> v3] > end))
-		return;
 
 	for (cur_info = tx_info; count < total; cur_info++) {
-		u32 msdu, info = le32_to_cpu(*cur_info);
+		u32 msdu, info;
 		u8 i;
+
+		if (WARN_ON_ONCE((void *)cur_info >= end))
+			return;
 
 		/*
 		 * 1'b1: new wcid pair.
 		 * 1'b0: msdu_id with the same 'wcid pair' as above.
 		 */
+		info = le32_to_cpu(*cur_info);
 		if (info & MT_TX_FREE_PAIR) {
 			struct mt7915_sta *msta;
 			struct mt76_wcid *wcid;
