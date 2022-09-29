@@ -919,7 +919,8 @@ drm_sched_get_cleanup_job(struct drm_gpu_scheduler *sched)
 	job = list_first_entry_or_null(&sched->pending_list,
 				       struct drm_sched_job, list);
 
-	if (job && dma_fence_is_signaled(job->s_fence->parent)) {
+	if (job && (!job->s_fence->parent ||
+		    dma_fence_is_signaled(job->s_fence->parent))) {
 		/* remove job from pending_list */
 		list_del_init(&job->list);
 
@@ -929,7 +930,7 @@ drm_sched_get_cleanup_job(struct drm_gpu_scheduler *sched)
 		next = list_first_entry_or_null(&sched->pending_list,
 						typeof(*next), list);
 
-		if (next) {
+		if (next && job->s_fence->parent) {
 			next->s_fence->scheduled.timestamp =
 				job->s_fence->parent->timestamp;
 			/* start TO timer for next job */
