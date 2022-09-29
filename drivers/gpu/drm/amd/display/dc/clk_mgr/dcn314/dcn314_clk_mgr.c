@@ -130,11 +130,20 @@ static void dcn314_disable_otg_wa(struct clk_mgr *clk_mgr_base, struct dc_state 
 		if (pipe->top_pipe || pipe->prev_odm_pipe)
 			continue;
 		if (pipe->stream && (pipe->stream->dpms_off || dc_is_virtual_signal(pipe->stream->signal))) {
+			struct stream_encoder *stream_enc = pipe->stream_res.stream_enc;
+
 			if (disable) {
+				if (stream_enc && stream_enc->funcs->disable_fifo)
+					pipe->stream_res.stream_enc->funcs->disable_fifo(stream_enc);
+
 				pipe->stream_res.tg->funcs->immediate_disable_crtc(pipe->stream_res.tg);
 				reset_sync_context_for_pipe(dc, context, i);
-			} else
+			} else {
 				pipe->stream_res.tg->funcs->enable_crtc(pipe->stream_res.tg);
+
+				if (stream_enc && stream_enc->funcs->enable_fifo)
+					pipe->stream_res.stream_enc->funcs->enable_fifo(stream_enc);
+			}
 		}
 	}
 }

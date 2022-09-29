@@ -340,6 +340,8 @@ struct clk_mgr_internal {
 	bool smu_present;
 	void *wm_range_table;
 	long long wm_range_table_addr;
+
+	bool dpm_present;
 };
 
 struct clk_mgr_internal_funcs {

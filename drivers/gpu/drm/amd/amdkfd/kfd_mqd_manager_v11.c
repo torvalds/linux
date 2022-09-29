@@ -126,6 +126,10 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 	m->compute_static_thread_mgmt_se1 = 0xFFFFFFFF;
 	m->compute_static_thread_mgmt_se2 = 0xFFFFFFFF;
 	m->compute_static_thread_mgmt_se3 = 0xFFFFFFFF;
+	m->compute_static_thread_mgmt_se4 = 0xFFFFFFFF;
+	m->compute_static_thread_mgmt_se5 = 0xFFFFFFFF;
+	m->compute_static_thread_mgmt_se6 = 0xFFFFFFFF;
+	m->compute_static_thread_mgmt_se7 = 0xFFFFFFFF;
 
 	m->cp_hqd_persistent_state = CP_HQD_PERSISTENT_STATE__PRELOAD_REQ_MASK |
 			0x55 << CP_HQD_PERSISTENT_STATE__PRELOAD_SIZE__SHIFT;
