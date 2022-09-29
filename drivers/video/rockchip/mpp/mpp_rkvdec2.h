@@ -35,10 +35,10 @@
 
 #define	RKVDEC_SESSION_MAX_BUFFERS	40
 /* The maximum registers number of all the version */
-#define RKVDEC_REG_NUM			278
+#define RKVDEC_REG_NUM			279
 #define RKVDEC_REG_HW_ID_INDEX		0
 #define RKVDEC_REG_START_INDEX		0
-#define RKVDEC_REG_END_INDEX		277
+#define RKVDEC_REG_END_INDEX		278
 
 #define REVDEC_GET_PROD_NUM(x)		(((x) >> 16) & 0xffff)
 #define RKVDEC_REG_FORMAT_INDEX		9
