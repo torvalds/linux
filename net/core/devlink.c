@@ -372,9 +372,9 @@ static struct devlink *devlink_get_from_attrs(struct net *net,
 }
 
 #define ASSERT_DEVLINK_PORT_REGISTERED(devlink_port)				\
-	WARN_ON_ONCE(!(devlink_port)->devlink)
+	WARN_ON_ONCE(!(devlink_port)->registered)
 #define ASSERT_DEVLINK_PORT_NOT_REGISTERED(devlink_port)			\
-	WARN_ON_ONCE((devlink_port)->devlink)
+	WARN_ON_ONCE((devlink_port)->registered)
 
 static struct devlink_port *devlink_port_get_by_index(struct devlink *devlink,
 						      unsigned int port_index)
@@ -9876,6 +9876,7 @@ int devl_port_register(struct devlink *devlink,
 
 	ASSERT_DEVLINK_PORT_NOT_REGISTERED(devlink_port);
 
+	devlink_port->registered = true;
 	devlink_port->devlink = devlink;
 	devlink_port->index = port_index;
 	spin_lock_init(&devlink_port->type_lock);
@@ -9934,6 +9935,7 @@ void devl_port_unregister(struct devlink_port *devlink_port)
 	WARN_ON(!list_empty(&devlink_port->reporter_list));
 	WARN_ON(!list_empty(&devlink_port->region_list));
 	mutex_destroy(&devlink_port->reporters_lock);
+	devlink_port->registered = false;
 }
 EXPORT_SYMBOL_GPL(devl_port_unregister);
 

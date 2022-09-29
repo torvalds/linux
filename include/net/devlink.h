@@ -129,7 +129,8 @@ struct devlink_port {
 	void *type_dev;
 	struct devlink_port_attrs attrs;
 	u8 attrs_set:1,
-	   switch_port:1;
+	   switch_port:1,
+	   registered:1;
 	struct delayed_work type_warn_dw;
 	struct list_head reporter_list;
 	struct mutex reporters_lock; /* Protects reporter_list */
