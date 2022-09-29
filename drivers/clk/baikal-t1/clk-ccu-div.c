@@ -24,9 +24,9 @@
 #include <linux/regmap.h>
 
 #include <dt-bindings/clock/bt1-ccu.h>
-#include <dt-bindings/reset/bt1-ccu.h>
 
 #include "ccu-div.h"
+#include "ccu-rst.h"
 
 #define CCU_AXI_MAIN_BASE		0x030
 #define CCU_AXI_DDR_BASE		0x034
@@ -95,12 +95,6 @@
 		.divider = _divider				\
 	}
 
-#define CCU_DIV_RST_MAP(_rst_id, _clk_id)	\
-	{					\
-		.rst_id = _rst_id,		\
-		.clk_id = _clk_id		\
-	}
-
 struct ccu_div_info {
 	unsigned int id;
 	const char *name;
@@ -115,11 +109,6 @@ struct ccu_div_info {
 	unsigned long features;
 };
 
-struct ccu_div_rst_map {
-	unsigned int rst_id;
-	unsigned int clk_id;
-};
-
 struct ccu_div_data {
 	struct device_node *np;
 	struct regmap *sys_regs;
@@ -128,11 +117,8 @@ struct ccu_div_data {
 	const struct ccu_div_info *divs_info;
 	struct ccu_div **divs;
 
-	unsigned int rst_num;
-	const struct ccu_div_rst_map *rst_map;
-	struct reset_controller_dev rcdev;
+	struct ccu_rst *rsts;
 };
-#define to_ccu_div_data(_rcdev) container_of(_rcdev, struct ccu_div_data, rcdev)
 
 /*
  * AXI Main Interconnect (axi_main_clk) and DDR AXI-bus (axi_ddr_clk) clocks
@@ -177,20 +163,6 @@ static const struct ccu_div_info axi_info[] = {
 	CCU_DIV_VAR_INFO(CCU_AXI_SRAM_CLK, "axi_sram_clk", "eth_clk",
 			 CCU_AXI_SRAM_BASE, 4,
 			 CLK_SET_RATE_GATE, CCU_DIV_RESET_DOMAIN)
-};
-
-static const struct ccu_div_rst_map axi_rst_map[] = {
-	CCU_DIV_RST_MAP(CCU_AXI_MAIN_RST, CCU_AXI_MAIN_CLK),
-	CCU_DIV_RST_MAP(CCU_AXI_DDR_RST, CCU_AXI_DDR_CLK),
-	CCU_DIV_RST_MAP(CCU_AXI_SATA_RST, CCU_AXI_SATA_CLK),
-	CCU_DIV_RST_MAP(CCU_AXI_GMAC0_RST, CCU_AXI_GMAC0_CLK),
-	CCU_DIV_RST_MAP(CCU_AXI_GMAC1_RST, CCU_AXI_GMAC1_CLK),
-	CCU_DIV_RST_MAP(CCU_AXI_XGMAC_RST, CCU_AXI_XGMAC_CLK),
-	CCU_DIV_RST_MAP(CCU_AXI_PCIE_M_RST, CCU_AXI_PCIE_M_CLK),
-	CCU_DIV_RST_MAP(CCU_AXI_PCIE_S_RST, CCU_AXI_PCIE_S_CLK),
-	CCU_DIV_RST_MAP(CCU_AXI_USB_RST, CCU_AXI_USB_CLK),
-	CCU_DIV_RST_MAP(CCU_AXI_HWA_RST, CCU_AXI_HWA_CLK),
-	CCU_DIV_RST_MAP(CCU_AXI_SRAM_RST, CCU_AXI_SRAM_CLK)
 };
 
 /*
@@ -254,11 +226,6 @@ static const struct ccu_div_info sys_info[] = {
 			 CLK_SET_RATE_GATE, CCU_DIV_SKIP_ONE_TO_THREE)
 };
 
-static const struct ccu_div_rst_map sys_rst_map[] = {
-	CCU_DIV_RST_MAP(CCU_SYS_SATA_REF_RST, CCU_SYS_SATA_REF_CLK),
-	CCU_DIV_RST_MAP(CCU_SYS_APB_RST, CCU_SYS_APB_CLK),
-};
-
 static struct ccu_div *ccu_div_find_desc(struct ccu_div_data *data,
 					 unsigned int clk_id)
 {
@@ -274,42 +241,6 @@ static struct ccu_div *ccu_div_find_desc(struct ccu_div_data *data,
 	return ERR_PTR(-EINVAL);
 }
 
-static int ccu_div_reset(struct reset_controller_dev *rcdev,
-			 unsigned long rst_id)
-{
-	struct ccu_div_data *data = to_ccu_div_data(rcdev);
-	const struct ccu_div_rst_map *map;
-	struct ccu_div *div;
-	int idx, ret;
-
-	for (idx = 0, map = data->rst_map; idx < data->rst_num; ++idx, ++map) {
-		if (map->rst_id == rst_id)
-			break;
-	}
-	if (idx == data->rst_num) {
-		pr_err("Invalid reset ID %lu specified\n", rst_id);
-		return -EINVAL;
-	}
-
-	div = ccu_div_find_desc(data, map->clk_id);
-	if (IS_ERR(div)) {
-		pr_err("Invalid clock ID %d in mapping\n", map->clk_id);
-		return PTR_ERR(div);
-	}
-
-	ret = ccu_div_reset_domain(div);
-	if (ret) {
-		pr_err("Reset isn't supported by divider %s\n",
-			clk_hw_get_name(ccu_div_get_clk_hw(div)));
-	}
-
-	return ret;
-}
-
-static const struct reset_control_ops ccu_div_rst_ops = {
-	.reset = ccu_div_reset,
-};
-
 static struct ccu_div_data *ccu_div_create_data(struct device_node *np)
 {
 	struct ccu_div_data *data;
@@ -323,13 +254,9 @@ static struct ccu_div_data *ccu_div_create_data(struct device_node *np)
 	if (of_device_is_compatible(np, "baikal,bt1-ccu-axi")) {
 		data->divs_num = ARRAY_SIZE(axi_info);
 		data->divs_info = axi_info;
-		data->rst_num = ARRAY_SIZE(axi_rst_map);
-		data->rst_map = axi_rst_map;
 	} else if (of_device_is_compatible(np, "baikal,bt1-ccu-sys")) {
 		data->divs_num = ARRAY_SIZE(sys_info);
 		data->divs_info = sys_info;
-		data->rst_num = ARRAY_SIZE(sys_rst_map);
-		data->rst_map = sys_rst_map;
 	} else {
 		pr_err("Incompatible DT node '%s' specified\n",
 			of_node_full_name(np));
@@ -455,18 +382,19 @@ static void ccu_div_clk_unregister(struct ccu_div_data *data)
 
 static int ccu_div_rst_register(struct ccu_div_data *data)
 {
-	int ret;
+	struct ccu_rst_init_data init = {0};
 
-	data->rcdev.ops = &ccu_div_rst_ops;
-	data->rcdev.of_node = data->np;
-	data->rcdev.nr_resets = data->rst_num;
+	init.sys_regs = data->sys_regs;
+	init.np = data->np;
 
-	ret = reset_controller_register(&data->rcdev);
-	if (ret)
+	data->rsts = ccu_rst_hw_register(&init);
+	if (IS_ERR(data->rsts)) {
 		pr_err("Couldn't register divider '%s' reset controller\n",
 			of_node_full_name(data->np));
+		return PTR_ERR(data->rsts);
+	}
 
-	return ret;
+	return 0;
 }
 
 static void ccu_div_init(struct device_node *np)

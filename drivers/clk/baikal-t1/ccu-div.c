@@ -37,7 +37,6 @@
 #define CCU_DIV_CTL_GATE_REF_BUF	BIT(28)
 #define CCU_DIV_CTL_LOCK_NORMAL		BIT(31)
 
-#define CCU_DIV_RST_DELAY_US		1
 #define CCU_DIV_LOCK_CHECK_RETRIES	50
 
 #define CCU_DIV_CLKDIV_MIN		0
@@ -320,24 +319,6 @@ static long ccu_div_fixed_round_rate(struct clk_hw *hw, unsigned long rate,
 static int ccu_div_fixed_set_rate(struct clk_hw *hw, unsigned long rate,
 				  unsigned long parent_rate)
 {
-	return 0;
-}
-
-int ccu_div_reset_domain(struct ccu_div *div)
-{
-	unsigned long flags;
-
-	if (!div || !(div->features & CCU_DIV_RESET_DOMAIN))
-		return -EINVAL;
-
-	spin_lock_irqsave(&div->lock, flags);
-	regmap_update_bits(div->sys_regs, div->reg_ctl,
-			   CCU_DIV_CTL_RST, CCU_DIV_CTL_RST);
-	spin_unlock_irqrestore(&div->lock, flags);
-
-	/* The next delay must be enough to cover all the resets. */
-	udelay(CCU_DIV_RST_DELAY_US);
-
 	return 0;
 }
 
