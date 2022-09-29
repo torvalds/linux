@@ -668,7 +668,7 @@ static int mlx5e_alloc_rq(struct mlx5e_params *params,
 
 		err = mlx5_rq_shampo_alloc(mdev, params, rqp, rq, &pool_size, node);
 		if (err)
-			goto err_free_by_rq_type;
+			goto err_free_mpwqe_info;
 
 		break;
 	default: /* MLX5_WQ_TYPE_CYCLIC */
@@ -720,14 +720,14 @@ static int mlx5e_alloc_rq(struct mlx5e_params *params,
 		if (IS_ERR(rq->page_pool)) {
 			err = PTR_ERR(rq->page_pool);
 			rq->page_pool = NULL;
-			goto err_free_shampo;
+			goto err_free_by_rq_type;
 		}
 		if (xdp_rxq_info_is_reg(&rq->xdp_rxq))
 			err = xdp_rxq_info_reg_mem_model(&rq->xdp_rxq,
 							 MEM_TYPE_PAGE_POOL, rq->page_pool);
 	}
 	if (err)
-		goto err_free_shampo;
+		goto err_destroy_page_pool;
 
 	for (i = 0; i < wq_sz; i++) {
 		if (rq->wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ) {
@@ -780,11 +780,13 @@ static int mlx5e_alloc_rq(struct mlx5e_params *params,
 
 	return 0;
 
-err_free_shampo:
-	mlx5e_rq_free_shampo(rq);
+err_destroy_page_pool:
+	page_pool_destroy(rq->page_pool);
 err_free_by_rq_type:
 	switch (rq->wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
+		mlx5e_rq_free_shampo(rq);
+err_free_mpwqe_info:
 		kvfree(rq->mpwqe.info);
 err_rq_mkey:
 		mlx5_core_destroy_mkey(mdev, be32_to_cpu(rq->mpwqe.umr_mkey_be));
