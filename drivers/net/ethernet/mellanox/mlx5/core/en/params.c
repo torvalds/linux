@@ -951,7 +951,7 @@ static u8 mlx5e_build_icosq_log_wq_sz(struct mlx5_core_dev *mdev,
 				      struct mlx5e_params *params,
 				      struct mlx5e_rq_param *rqp)
 {
-	u32 wqebbs;
+	u32 wqebbs, total_pages, useful_space;
 
 	/* MLX5_WQ_TYPE_CYCLIC */
 	if (params->rq_wq_type != MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ)
@@ -997,6 +997,18 @@ static u8 mlx5e_build_icosq_log_wq_sz(struct mlx5_core_dev *mdev,
 
 	if (params->packet_merge.type == MLX5E_PACKET_MERGE_SHAMPO)
 		wqebbs += mlx5e_shampo_icosq_sz(mdev, params, rqp);
+
+	/* UMR WQEs don't cross the page boundary, they are padded with NOPs.
+	 * This padding is always smaller than the max WQE size. That gives us
+	 * at least (PAGE_SIZE - (max WQE size - MLX5_SEND_WQE_BB)) useful bytes
+	 * per page. The number of pages is estimated as the total size of WQEs
+	 * divided by the useful space in page, rounding up. If some WQEs don't
+	 * fully fit into the useful space, they can occupy part of the padding,
+	 * which proves this estimation to be correct (reserve enough space).
+	 */
+	useful_space = PAGE_SIZE - mlx5e_get_max_sq_wqebbs(mdev) + MLX5_SEND_WQE_BB;
+	total_pages = DIV_ROUND_UP(wqebbs * MLX5_SEND_WQE_BB, useful_space);
+	wqebbs = total_pages * (PAGE_SIZE / MLX5_SEND_WQE_BB);
 
 	return max_t(u8, MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE, order_base_2(wqebbs));
 }
