@@ -10,9 +10,6 @@
  *  by Justin Cormack
  */
 
-/*
- */
-
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/input.h>

@@ -5,9 +5,6 @@
  *  Copyright (c) 2010 Xing Wei <weixing@hanwang.com.cn>
  */
 
-/*
- */
-
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>

@@ -9,9 +9,6 @@
  *      v3.2 - Added sysfs support
  */
 
-/*
- */
-
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>
