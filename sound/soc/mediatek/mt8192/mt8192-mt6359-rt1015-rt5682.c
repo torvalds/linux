@@ -24,6 +24,8 @@
 #include "mt8192-afe-clk.h"
 #include "mt8192-afe-gpio.h"
 
+#define DRIVER_NAME "mt8192_mt6359"
+
 #define RT1015_CODEC_DAI	"rt1015-aif"
 #define RT1015_DEV0_NAME	"rt1015.1-0028"
 #define RT1015_DEV1_NAME	"rt1015.1-0029"
@@ -1070,6 +1072,7 @@ static struct snd_soc_codec_conf rt1015_amp_conf[] = {
 
 static struct snd_soc_card mt8192_mt6359_rt1015_rt5682_card = {
 	.name = RT1015_RT5682_CARD_NAME,
+	.driver_name = DRIVER_NAME,
 	.owner = THIS_MODULE,
 	.dai_link = mt8192_mt6359_dai_links,
 	.num_links = ARRAY_SIZE(mt8192_mt6359_dai_links),
@@ -1105,6 +1108,7 @@ static const struct snd_kcontrol_new mt8192_mt6359_rt1015p_rt5682x_controls[] = 
 };
 
 static struct snd_soc_card mt8192_mt6359_rt1015p_rt5682x_card = {
+	.driver_name = DRIVER_NAME,
 	.owner = THIS_MODULE,
 	.dai_link = mt8192_mt6359_dai_links,
 	.num_links = ARRAY_SIZE(mt8192_mt6359_dai_links),
@@ -1266,7 +1270,7 @@ static const struct dev_pm_ops mt8192_mt6359_pm_ops = {
 
 static struct platform_driver mt8192_mt6359_driver = {
 	.driver = {
-		.name = "mt8192_mt6359",
+		.name = DRIVER_NAME,
 #ifdef CONFIG_OF
 		.of_match_table = mt8192_mt6359_dt_match,
 #endif
