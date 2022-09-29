@@ -307,14 +307,6 @@ choice
 		  Say Y here if you want the debug print routines to direct
 		  their output to the second serial port on these devices.
 
-	config DEBUG_CNS3XXX
-		bool "Kernel Kernel low-level debugging on Cavium Networks CNS3xxx"
-		depends on ARCH_CNS3XXX
-		select DEBUG_UART_8250
-		help
-		  Say Y here if you want the debug print routines to direct
-                  their output to the CNS3xxx UART0.
-
 	config DEBUG_DAVINCI_DA8XX_UART1
 		bool "Kernel low-level debugging on DaVinci DA8XX using UART1"
 		depends on ARCH_DAVINCI_DA8XX
@@ -1685,7 +1677,6 @@ config DEBUG_UART_PHYS
 				DEBUG_S3C2410_UART1)
 	default 0x50008000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART2 || \
 				DEBUG_S3C2410_UART2)
-	default 0x78000000 if DEBUG_CNS3XXX
 	default 0x7c0003f8 if DEBUG_FOOTBRIDGE_COM1
 	default 0x7f005000 if DEBUG_S3C64XX_UART && DEBUG_S3C_UART0
 	default 0x7f005400 if DEBUG_S3C64XX_UART && DEBUG_S3C_UART1
@@ -1818,7 +1809,6 @@ config DEBUG_UART_VIRT
 				DEBUG_OMAP4UART2 || DEBUG_OMAP5UART2
 	default 0xfa06e000 if DEBUG_OMAP2UART3 || DEBUG_OMAP4UART4
 	default 0xfa71e000 if DEBUG_QCOM_UARTDM
-	default 0xfb002000 if DEBUG_CNS3XXX
 	default 0xfb009000 if DEBUG_REALVIEW_STD_PORT
 	default 0xfb00c000 if DEBUG_AT91_SAMA5D4_USART3
 	default 0xfb020000 if DEBUG_OMAP3UART3

@@ -316,18 +316,6 @@ config USB_OCTEON_HCD
 	  To compile this driver as a module, choose M here. The module
 	  will be called octeon-hcd.
 
-config USB_CNS3XXX_EHCI
-	bool "Cavium CNS3XXX EHCI Module (DEPRECATED)"
-	depends on ARCH_CNS3XXX || COMPILE_TEST
-	select USB_EHCI_HCD_PLATFORM
-	help
-	  This option is deprecated now and the driver was removed, use
-	  USB_EHCI_HCD_PLATFORM instead.
-
-	  Enable support for the CNS3XXX SOC's on-chip EHCI controller.
-	  It is needed for high-speed (480Mbit/sec) USB 2.0 device
-	  support.
-
 config USB_EHCI_HCD_PLATFORM
 	tristate "Generic EHCI driver for a platform device"
 	help
@@ -565,17 +553,6 @@ config USB_OHCI_EXYNOS
 	help
 	  Enable support for the Samsung S5Pv210 and Exynos SOC's on-chip OHCI
 	  controller.
-
-config USB_CNS3XXX_OHCI
-	bool "Cavium CNS3XXX OHCI Module (DEPRECATED)"
-	depends on ARCH_CNS3XXX || COMPILE_TEST
-	select USB_OHCI_HCD_PLATFORM
-	help
-	  This option is deprecated now and the driver was removed, use
-	  USB_OHCI_HCD_PLATFORM instead.
-
-	  Enable support for the CNS3XXX SOC's on-chip OHCI controller.
-	  It is needed for low-speed USB 1.0 device support.
 
 config USB_OHCI_HCD_PLATFORM
 	tristate "Generic OHCI driver for a platform device"

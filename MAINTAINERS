@@ -2048,11 +2048,6 @@ F:	arch/arm/boot/dts/ecx-*.dts*
 F:	arch/arm/boot/dts/highbank.dts
 F:	arch/arm/mach-highbank/
 
-ARM/CAVIUM NETWORKS CNS3XXX MACHINE SUPPORT
-M:	Krzysztof Halasa <khalasa@piap.pl>
-S:	Maintained
-F:	arch/arm/mach-cns3xxx/
-
 ARM/CAVIUM THUNDER NETWORK DRIVER
 M:	Sunil Goutham <sgoutham@marvell.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
