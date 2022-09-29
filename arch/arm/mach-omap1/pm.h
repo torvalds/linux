@@ -100,12 +100,6 @@
 #define OMAP1610_IDLECT3		0xfffece24
 #define OMAP1610_IDLE_LOOP_REQUEST	0x0400
 
-#define OMAP7XX_IDLECT1_SLEEP_VAL	0x16c7
-#define OMAP7XX_IDLECT2_SLEEP_VAL	0x09c7
-#define OMAP7XX_IDLECT3_VAL		0x3f
-#define OMAP7XX_IDLECT3		0xfffece24
-#define OMAP7XX_IDLE_LOOP_REQUEST	0x0C00
-
 #ifndef __ASSEMBLER__
 
 #include <linux/clk.h>
@@ -118,17 +112,13 @@ extern void allow_idle_sleep(void);
 extern void omap1_pm_idle(void);
 extern void omap1_pm_suspend(void);
 
-extern void omap7xx_cpu_suspend(unsigned long, unsigned long);
 extern void omap1510_cpu_suspend(unsigned long, unsigned long);
 extern void omap1610_cpu_suspend(unsigned long, unsigned long);
-extern void omap7xx_idle_loop_suspend(void);
 extern void omap1510_idle_loop_suspend(void);
 extern void omap1610_idle_loop_suspend(void);
 
-extern unsigned int omap7xx_cpu_suspend_sz;
 extern unsigned int omap1510_cpu_suspend_sz;
 extern unsigned int omap1610_cpu_suspend_sz;
-extern unsigned int omap7xx_idle_loop_suspend_sz;
 extern unsigned int omap1510_idle_loop_suspend_sz;
 extern unsigned int omap1610_idle_loop_suspend_sz;
 
@@ -150,10 +140,6 @@ extern void omap_serial_wake_trigger(int enable);
 #define ULPD_SAVE(x) ulpd_sleep_save[ULPD_SLEEP_SAVE_##x] = omap_readw(x)
 #define ULPD_RESTORE(x) omap_writew((ulpd_sleep_save[ULPD_SLEEP_SAVE_##x]), (x))
 #define ULPD_SHOW(x) ulpd_sleep_save[ULPD_SLEEP_SAVE_##x]
-
-#define MPUI7XX_SAVE(x) mpui7xx_sleep_save[MPUI7XX_SLEEP_SAVE_##x] = omap_readl(x)
-#define MPUI7XX_RESTORE(x) omap_writel((mpui7xx_sleep_save[MPUI7XX_SLEEP_SAVE_##x]), (x))
-#define MPUI7XX_SHOW(x) mpui7xx_sleep_save[MPUI7XX_SLEEP_SAVE_##x]
 
 #define MPUI1510_SAVE(x) mpui1510_sleep_save[MPUI1510_SLEEP_SAVE_##x] = omap_readl(x)
 #define MPUI1510_RESTORE(x) omap_writel((mpui1510_sleep_save[MPUI1510_SLEEP_SAVE_##x]), (x))
@@ -225,27 +211,6 @@ enum mpui1510_save_state {
 	MPUI1510_SLEEP_SAVE_SIZE
 #else
 	MPUI1510_SLEEP_SAVE_SIZE = 0
-#endif
-};
-
-enum mpui7xx_save_state {
-	MPUI7XX_SLEEP_SAVE_START = 0,
-	/*
-	 * MPUI registers 32 bits
-	 */
-	MPUI7XX_SLEEP_SAVE_MPUI_CTRL,
-	MPUI7XX_SLEEP_SAVE_MPUI_DSP_BOOT_CONFIG,
-	MPUI7XX_SLEEP_SAVE_MPUI_DSP_API_CONFIG,
-	MPUI7XX_SLEEP_SAVE_MPUI_DSP_STATUS,
-	MPUI7XX_SLEEP_SAVE_EMIFF_SDRAM_CONFIG,
-	MPUI7XX_SLEEP_SAVE_EMIFS_CONFIG,
-	MPUI7XX_SLEEP_SAVE_OMAP_IH1_MIR,
-	MPUI7XX_SLEEP_SAVE_OMAP_IH2_0_MIR,
-	MPUI7XX_SLEEP_SAVE_OMAP_IH2_1_MIR,
-#if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
-	MPUI7XX_SLEEP_SAVE_SIZE
-#else
-	MPUI7XX_SLEEP_SAVE_SIZE = 0
 #endif
 };
 

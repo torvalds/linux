@@ -77,51 +77,6 @@ struct isp1301 {
 
 /*-------------------------------------------------------------------------*/
 
-/* board-specific PM hooks */
-
-#if defined(CONFIG_MACH_OMAP_H2) || defined(CONFIG_MACH_OMAP_H3)
-
-#if IS_REACHABLE(CONFIG_TPS65010)
-
-#include <linux/mfd/tps65010.h>
-
-#else
-
-static inline int tps65010_set_vbus_draw(unsigned mA)
-{
-	pr_debug("tps65010: draw %d mA (STUB)\n", mA);
-	return 0;
-}
-
-#endif
-
-static void enable_vbus_draw(struct isp1301 *isp, unsigned mA)
-{
-	int status = tps65010_set_vbus_draw(mA);
-	if (status < 0)
-		pr_debug("  VBUS %d mA error %d\n", mA, status);
-}
-
-#else
-
-static void enable_vbus_draw(struct isp1301 *isp, unsigned mA)
-{
-	/* H4 controls this by DIP switch S2.4; no soft control.
-	 * ON means the charger is always enabled.  Leave it OFF
-	 * unless the OTG port is used only in B-peripheral mode.
-	 */
-}
-
-#endif
-
-static void enable_vbus_source(struct isp1301 *isp)
-{
-	/* this board won't supply more than 8mA vbus power.
-	 * some boards can switch a 100ma "unit load" (or more).
-	 */
-}
-
-
 /* products will deliver OTG messages with LEDs, GUI, etc */
 static inline void notresponding(struct isp1301 *isp)
 {
@@ -916,10 +871,8 @@ static void b_peripheral(struct isp1301 *isp)
 	usb_gadget_vbus_connect(isp->phy.otg->gadget);
 
 #ifdef	CONFIG_USB_OTG
-	enable_vbus_draw(isp, 8);
 	otg_update_isp(isp);
 #else
-	enable_vbus_draw(isp, 100);
 	/* UDC driver just set OTG_BSESSVLD */
 	isp1301_set_bits(isp, ISP1301_OTG_CONTROL_1, OTG1_DP_PULLUP);
 	isp1301_clear_bits(isp, ISP1301_OTG_CONTROL_1, OTG1_DP_PULLDOWN);
@@ -947,7 +900,6 @@ static void isp_update_otg(struct isp1301 *isp, u8 stat)
 				a_idle(isp, "idle");
 				fallthrough;
 			case OTG_STATE_A_IDLE:
-				enable_vbus_source(isp);
 				fallthrough;
 			case OTG_STATE_A_WAIT_VRISE:
 				/* we skip over OTG_STATE_A_WAIT_BCON, since
@@ -1023,7 +975,6 @@ static void isp_update_otg(struct isp1301 *isp, u8 stat)
 		case OTG_STATE_B_HOST:
 			if (likely(isp_bstat & OTG_B_SESS_VLD))
 				break;
-			enable_vbus_draw(isp, 0);
 #ifndef	CONFIG_USB_OTG
 			/* UDC driver will clear OTG_BSESSVLD */
 			isp1301_set_bits(isp, ISP1301_OTG_CONTROL_1,
@@ -1283,9 +1234,6 @@ isp1301_set_host(struct usb_otg *otg, struct usb_bus *host)
 
 	power_up(isp);
 
-	if (machine_is_omap_h2())
-		isp1301_set_bits(isp, ISP1301_MODE_CONTROL_1, MC1_DAT_SE0);
-
 	dev_info(&isp->client->dev, "A-Host sessions ok\n");
 	isp1301_set_bits(isp, ISP1301_INTERRUPT_RISING,
 		INTR_ID_GND);
@@ -1320,8 +1268,6 @@ isp1301_set_peripheral(struct usb_otg *otg, struct usb_gadget *gadget)
 
 	if (!gadget) {
 		omap_writew(0, OTG_IRQ_EN);
-		if (!otg->default_a)
-			enable_vbus_draw(isp, 0);
 		usb_gadget_vbus_disconnect(otg->gadget);
 		otg->gadget = NULL;
 		power_down(isp);
@@ -1352,9 +1298,6 @@ isp1301_set_peripheral(struct usb_otg *otg, struct usb_gadget *gadget)
 	power_up(isp);
 	isp->phy.otg->state = OTG_STATE_B_IDLE;
 
-	if (machine_is_omap_h2() || machine_is_omap_h3())
-		isp1301_set_bits(isp, ISP1301_MODE_CONTROL_1, MC1_DAT_SE0);
-
 	isp1301_set_bits(isp, ISP1301_INTERRUPT_RISING,
 		INTR_SESS_VLD);
 	isp1301_set_bits(isp, ISP1301_INTERRUPT_FALLING,
@@ -1379,16 +1322,6 @@ isp1301_set_peripheral(struct usb_otg *otg, struct usb_gadget *gadget)
 
 
 /*-------------------------------------------------------------------------*/
-
-static int
-isp1301_set_power(struct usb_phy *dev, unsigned mA)
-{
-	if (!the_transceiver)
-		return -ENODEV;
-	if (dev->otg->state == OTG_STATE_B_PERIPHERAL)
-		enable_vbus_draw(the_transceiver, mA);
-	return 0;
-}
 
 static int
 isp1301_start_srp(struct usb_otg *otg)
@@ -1538,26 +1471,7 @@ isp1301_probe(struct i2c_client *i2c)
 	}
 #endif
 
-	if (machine_is_omap_h2()) {
-		struct gpio_desc *gpiod;
-
-		/* full speed signaling by default */
-		isp1301_set_bits(isp, ISP1301_MODE_CONTROL_1,
-			MC1_SPEED);
-		isp1301_set_bits(isp, ISP1301_MODE_CONTROL_2,
-			MC2_SPD_SUSP_CTRL);
-
-		gpiod = devm_gpiod_get(&i2c->dev, NULL, GPIOD_IN);
-		if (IS_ERR(gpiod)) {
-			dev_err(&i2c->dev, "cannot obtain H2 GPIO\n");
-			goto fail;
-		}
-		gpiod_set_consumer_name(gpiod, "isp1301");
-		irq = gpiod_to_irq(gpiod);
-		isp->irq_type = IRQF_TRIGGER_FALLING;
-	} else {
-		irq = i2c->irq;
-	}
+	irq = i2c->irq;
 
 	status = request_irq(irq, isp1301_irq,
 			isp->irq_type, DRIVER_NAME, isp);
@@ -1569,15 +1483,12 @@ isp1301_probe(struct i2c_client *i2c)
 
 	isp->phy.dev = &i2c->dev;
 	isp->phy.label = DRIVER_NAME;
-	isp->phy.set_power = isp1301_set_power;
-
 	isp->phy.otg->usb_phy = &isp->phy;
 	isp->phy.otg->set_host = isp1301_set_host;
 	isp->phy.otg->set_peripheral = isp1301_set_peripheral;
 	isp->phy.otg->start_srp = isp1301_start_srp;
 	isp->phy.otg->start_hnp = isp1301_start_hnp;
 
-	enable_vbus_draw(isp, 0);
 	power_down(isp);
 	the_transceiver = isp;
 

@@ -22,27 +22,6 @@
  * The machine specific code may provide the extra mapping besides the
  * default mapping provided here.
  */
-#if defined (CONFIG_ARCH_OMAP730) || defined (CONFIG_ARCH_OMAP850)
-static struct map_desc omap7xx_io_desc[] __initdata = {
-	{
-		.virtual	= OMAP1_IO_VIRT,
-		.pfn		= __phys_to_pfn(OMAP1_IO_PHYS),
-		.length		= OMAP1_IO_SIZE,
-		.type		= MT_DEVICE
-	},
-	{
-		.virtual	= OMAP7XX_DSP_BASE,
-		.pfn		= __phys_to_pfn(OMAP7XX_DSP_START),
-		.length		= OMAP7XX_DSP_SIZE,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= OMAP7XX_DSPREG_BASE,
-		.pfn		= __phys_to_pfn(OMAP7XX_DSPREG_START),
-		.length		= OMAP7XX_DSPREG_SIZE,
-		.type		= MT_DEVICE
-	}
-};
-#endif
 
 #ifdef CONFIG_ARCH_OMAP15XX
 static struct map_desc omap1510_io_desc[] __initdata = {
@@ -86,13 +65,6 @@ static struct map_desc omap16xx_io_desc[] __initdata = {
 		.type		= MT_DEVICE
 	}
 };
-#endif
-
-#if defined (CONFIG_ARCH_OMAP730) || defined (CONFIG_ARCH_OMAP850)
-void __init omap7xx_map_io(void)
-{
-	iotable_init(omap7xx_io_desc, ARRAY_SIZE(omap7xx_io_desc));
-}
 #endif
 
 #ifdef CONFIG_ARCH_OMAP15XX
