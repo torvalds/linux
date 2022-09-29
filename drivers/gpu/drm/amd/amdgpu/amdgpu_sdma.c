@@ -222,8 +222,10 @@ int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
 		adev->sdma.instance[instance].fw->data;
 	version_major = le16_to_cpu(header->header_version_major);
 
-	if ((duplicate && instance) || (!duplicate && version_major > 1))
-		return -EINVAL;
+	if ((duplicate && instance) || (!duplicate && version_major > 1)) {
+		err = -EINVAL;
+		goto out;
+	}
 
 	err = amdgpu_sdma_init_inst_ctx(&adev->sdma.instance[instance]);
 	if (err)
@@ -272,7 +274,7 @@ int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
 				ALIGN(le32_to_cpu(sdma_hdr->ctl_ucode_size_bytes), PAGE_SIZE);
 			break;
 		default:
-			return -EINVAL;
+			err = -EINVAL;
 		}
 	}
 
