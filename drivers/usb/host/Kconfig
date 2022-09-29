@@ -409,7 +409,6 @@ if USB_OHCI_HCD
 config USB_OHCI_HCD_OMAP1
 	tristate "OHCI support for OMAP1/2 chips"
 	depends on ARCH_OMAP1
-	depends on ISP1301_OMAP || !(MACH_OMAP_H2 || MACH_OMAP_H3)
 	default y
 	help
 	  Enables support for the OHCI controller on OMAP1/2 chips.

@@ -760,30 +760,6 @@ choice
 		depends on ARCH_OMAP2PLUS
 		select DEBUG_UART_8250
 
-	config DEBUG_OMAP7XXUART1
-		bool "Kernel low-level debugging via OMAP730 UART1"
-		depends on ARCH_OMAP730
-		select DEBUG_UART_8250
-		help
-		  Say Y here if you want kernel low-level debugging support
-		  on OMAP730 based platforms on the UART1.
-
-	config DEBUG_OMAP7XXUART2
-		bool "Kernel low-level debugging via OMAP730 UART2"
-		depends on ARCH_OMAP730
-		select DEBUG_UART_8250
-		help
-		  Say Y here if you want kernel low-level debugging support
-		  on OMAP730 based platforms on the UART2.
-
-	config DEBUG_OMAP7XXUART3
-		bool "Kernel low-level debugging via OMAP730 UART3"
-		depends on ARCH_OMAP730
-		select DEBUG_UART_8250
-		help
-		  Say Y here if you want kernel low-level debugging support
-		  on OMAP730 based platforms on the UART3.
-
 	config DEBUG_TI81XXUART1
 		bool "Kernel low-level debugging messages via TI81XX UART1 (ti8148evm)"
 		depends on ARCH_OMAP2PLUS
@@ -1728,9 +1704,9 @@ config DEBUG_UART_PHYS
 	default 0xffe40000 if DEBUG_RCAR_GEN1_SCIF0
 	default 0xffe42000 if DEBUG_RCAR_GEN1_SCIF2
 	default 0xfff36000 if DEBUG_HIGHBANK_UART
-	default 0xfffb0000 if DEBUG_OMAP1UART1 || DEBUG_OMAP7XXUART1
-	default 0xfffb0800 if DEBUG_OMAP1UART2 || DEBUG_OMAP7XXUART2
-	default 0xfffb9800 if DEBUG_OMAP1UART3 || DEBUG_OMAP7XXUART3
+	default 0xfffb0000 if DEBUG_OMAP1UART1
+	default 0xfffb0800 if DEBUG_OMAP1UART2
+	default 0xfffb9800 if DEBUG_OMAP1UART3
 	default 0xfffe8600 if DEBUG_BCM63XX_UART
 	default 0xffffee00 if DEBUG_AT91_SAM9263_DBGU
 	default 0xfffff200 if DEBUG_AT91_RM9200_DBGU
@@ -1847,9 +1823,9 @@ config DEBUG_UART_VIRT
 	default 0xfec00000 if ARCH_IXP4XX && !CPU_BIG_ENDIAN
 	default 0xfec00003 if ARCH_IXP4XX && CPU_BIG_ENDIAN
 	default 0xfef36000 if DEBUG_HIGHBANK_UART
-	default 0xff0b0000 if DEBUG_OMAP1UART1 || DEBUG_OMAP7XXUART1
-	default 0xff0b0800 if DEBUG_OMAP1UART2 || DEBUG_OMAP7XXUART2
-	default 0xff0b9800 if DEBUG_OMAP1UART3 || DEBUG_OMAP7XXUART3
+	default 0xff0b0000 if DEBUG_OMAP1UART1
+	default 0xff0b0800 if DEBUG_OMAP1UART2
+	default 0xff0b9800 if DEBUG_OMAP1UART3
 	default 0xffd01000 if DEBUG_HIP01_UART
 	default DEBUG_UART_PHYS if !MMU
 	depends on DEBUG_LL_UART_8250 || DEBUG_LL_UART_PL01X || \
