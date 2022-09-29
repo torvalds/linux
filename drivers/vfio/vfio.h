@@ -56,7 +56,7 @@ struct vfio_group {
 	struct list_head		vfio_next;
 	struct list_head		container_next;
 	enum vfio_group_type		type;
-	struct rw_semaphore		group_rwsem;
+	struct mutex			group_lock;
 	struct kvm			*kvm;
 	struct file			*opened_file;
 	struct swait_queue_head		opened_file_wait;

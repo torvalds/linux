@@ -158,6 +158,7 @@ static void vfio_group_release(struct device *dev)
 	struct vfio_group *group = container_of(dev, struct vfio_group, dev);
 
 	mutex_destroy(&group->device_lock);
+	mutex_destroy(&group->group_lock);
 	iommu_group_put(group->iommu_group);
 	ida_free(&vfio.group_ida, MINOR(group->dev.devt));
 	kfree(group);
@@ -187,7 +188,7 @@ static struct vfio_group *vfio_group_alloc(struct iommu_group *iommu_group,
 	group->cdev.owner = THIS_MODULE;
 
 	refcount_set(&group->drivers, 1);
-	init_rwsem(&group->group_rwsem);
+	mutex_init(&group->group_lock);
 	init_swait_queue_head(&group->opened_file_wait);
 	INIT_LIST_HEAD(&group->device_list);
 	mutex_init(&group->device_lock);
@@ -665,7 +666,7 @@ static int vfio_group_ioctl_unset_container(struct vfio_group *group)
 {
 	int ret = 0;
 
-	down_write(&group->group_rwsem);
+	mutex_lock(&group->group_lock);
 	if (!group->container) {
 		ret = -EINVAL;
 		goto out_unlock;
@@ -677,7 +678,7 @@ static int vfio_group_ioctl_unset_container(struct vfio_group *group)
 	vfio_group_detach_container(group);
 
 out_unlock:
-	up_write(&group->group_rwsem);
+	mutex_unlock(&group->group_lock);
 	return ret;
 }
 
@@ -696,7 +697,7 @@ static int vfio_group_ioctl_set_container(struct vfio_group *group,
 	if (!f.file)
 		return -EBADF;
 
-	down_write(&group->group_rwsem);
+	mutex_lock(&group->group_lock);
 	if (group->container || WARN_ON(group->container_users)) {
 		ret = -EINVAL;
 		goto out_unlock;
@@ -709,7 +710,7 @@ static int vfio_group_ioctl_set_container(struct vfio_group *group,
 	}
 
 out_unlock:
-	up_write(&group->group_rwsem);
+	mutex_unlock(&group->group_lock);
 	fdput(f);
 	return ret;
 }
@@ -727,9 +728,9 @@ static struct file *vfio_device_open(struct vfio_device *device)
 	struct file *filep;
 	int ret;
 
-	down_write(&device->group->group_rwsem);
+	mutex_lock(&device->group->group_lock);
 	ret = vfio_device_assign_container(device);
-	up_write(&device->group->group_rwsem);
+	mutex_unlock(&device->group->group_lock);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -746,7 +747,7 @@ static struct file *vfio_device_open(struct vfio_device *device)
 		 * lock.  If the device driver will use it, it must obtain a
 		 * reference and release it during close_device.
 		 */
-		down_read(&device->group->group_rwsem);
+		mutex_lock(&device->group->group_lock);
 		device->kvm = device->group->kvm;
 
 		if (device->ops->open_device) {
@@ -755,7 +756,7 @@ static struct file *vfio_device_open(struct vfio_device *device)
 				goto err_undo_count;
 		}
 		vfio_device_container_register(device);
-		up_read(&device->group->group_rwsem);
+		mutex_unlock(&device->group->group_lock);
 	}
 	mutex_unlock(&device->dev_set->lock);
 
@@ -788,14 +789,14 @@ static struct file *vfio_device_open(struct vfio_device *device)
 
 err_close_device:
 	mutex_lock(&device->dev_set->lock);
-	down_read(&device->group->group_rwsem);
+	mutex_lock(&device->group->group_lock);
 	if (device->open_count == 1 && device->ops->close_device) {
 		device->ops->close_device(device);
 
 		vfio_device_container_unregister(device);
 	}
 err_undo_count:
-	up_read(&device->group->group_rwsem);
+	mutex_unlock(&device->group->group_lock);
 	device->open_count--;
 	if (device->open_count == 0 && device->kvm)
 		device->kvm = NULL;
@@ -860,13 +861,13 @@ static int vfio_group_ioctl_get_status(struct vfio_group *group,
 
 	status.flags = 0;
 
-	down_read(&group->group_rwsem);
+	mutex_lock(&group->group_lock);
 	if (group->container)
 		status.flags |= VFIO_GROUP_FLAGS_CONTAINER_SET |
 				VFIO_GROUP_FLAGS_VIABLE;
 	else if (!iommu_group_dma_owner_claimed(group->iommu_group))
 		status.flags |= VFIO_GROUP_FLAGS_VIABLE;
-	up_read(&group->group_rwsem);
+	mutex_unlock(&group->group_lock);
 
 	if (copy_to_user(arg, &status, minsz))
 		return -EFAULT;
@@ -899,7 +900,7 @@ static int vfio_group_fops_open(struct inode *inode, struct file *filep)
 		container_of(inode->i_cdev, struct vfio_group, cdev);
 	int ret;
 
-	down_write(&group->group_rwsem);
+	mutex_lock(&group->group_lock);
 
 	/*
 	 * drivers can be zero if this races with vfio_device_remove_group(), it
@@ -926,7 +927,7 @@ static int vfio_group_fops_open(struct inode *inode, struct file *filep)
 	filep->private_data = group;
 	ret = 0;
 out_unlock:
-	up_write(&group->group_rwsem);
+	mutex_unlock(&group->group_lock);
 	return ret;
 }
 
@@ -936,7 +937,7 @@ static int vfio_group_fops_release(struct inode *inode, struct file *filep)
 
 	filep->private_data = NULL;
 
-	down_write(&group->group_rwsem);
+	mutex_lock(&group->group_lock);
 	/*
 	 * Device FDs hold a group file reference, therefore the group release
 	 * is only called when there are no open devices.
@@ -945,7 +946,7 @@ static int vfio_group_fops_release(struct inode *inode, struct file *filep)
 	if (group->container)
 		vfio_group_detach_container(group);
 	group->opened_file = NULL;
-	up_write(&group->group_rwsem);
+	mutex_unlock(&group->group_lock);
 	swake_up_one(&group->opened_file_wait);
 
 	return 0;
@@ -1001,12 +1002,12 @@ static int vfio_device_fops_release(struct inode *inode, struct file *filep)
 
 	mutex_lock(&device->dev_set->lock);
 	vfio_assert_device_open(device);
-	down_read(&device->group->group_rwsem);
+	mutex_lock(&device->group->group_lock);
 	if (device->open_count == 1 && device->ops->close_device)
 		device->ops->close_device(device);
 
 	vfio_device_container_unregister(device);
-	up_read(&device->group->group_rwsem);
+	mutex_unlock(&device->group->group_lock);
 	device->open_count--;
 	if (device->open_count == 0)
 		device->kvm = NULL;
@@ -1580,7 +1581,7 @@ bool vfio_file_enforced_coherent(struct file *file)
 	if (file->f_op != &vfio_group_fops)
 		return true;
 
-	down_read(&group->group_rwsem);
+	mutex_lock(&group->group_lock);
 	if (group->container) {
 		ret = vfio_container_ioctl_check_extension(group->container,
 							   VFIO_DMA_CC_IOMMU);
@@ -1592,7 +1593,7 @@ bool vfio_file_enforced_coherent(struct file *file)
 		 */
 		ret = true;
 	}
-	up_read(&group->group_rwsem);
+	mutex_unlock(&group->group_lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(vfio_file_enforced_coherent);
@@ -1612,9 +1613,9 @@ void vfio_file_set_kvm(struct file *file, struct kvm *kvm)
 	if (file->f_op != &vfio_group_fops)
 		return;
 
-	down_write(&group->group_rwsem);
+	mutex_lock(&group->group_lock);
 	group->kvm = kvm;
-	up_write(&group->group_rwsem);
+	mutex_unlock(&group->group_lock);
 }
 EXPORT_SYMBOL_GPL(vfio_file_set_kvm);
 

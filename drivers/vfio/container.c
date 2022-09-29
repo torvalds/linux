@@ -430,7 +430,7 @@ int vfio_container_attach_group(struct vfio_container *container,
 	struct vfio_iommu_driver *driver;
 	int ret = 0;
 
-	lockdep_assert_held_write(&group->group_rwsem);
+	lockdep_assert_held(&group->group_lock);
 
 	if (group->type == VFIO_NO_IOMMU && !capable(CAP_SYS_RAWIO))
 		return -EPERM;
@@ -481,7 +481,7 @@ void vfio_group_detach_container(struct vfio_group *group)
 	struct vfio_container *container = group->container;
 	struct vfio_iommu_driver *driver;
 
-	lockdep_assert_held_write(&group->group_rwsem);
+	lockdep_assert_held(&group->group_lock);
 	WARN_ON(group->container_users != 1);
 
 	down_write(&container->group_lock);
@@ -515,7 +515,7 @@ int vfio_device_assign_container(struct vfio_device *device)
 {
 	struct vfio_group *group = device->group;
 
-	lockdep_assert_held_write(&group->group_rwsem);
+	lockdep_assert_held(&group->group_lock);
 
 	if (!group->container || !group->container->iommu_driver ||
 	    WARN_ON(!group->container_users))
@@ -531,11 +531,11 @@ int vfio_device_assign_container(struct vfio_device *device)
 
 void vfio_device_unassign_container(struct vfio_device *device)
 {
-	down_write(&device->group->group_rwsem);
+	mutex_lock(&device->group->group_lock);
 	WARN_ON(device->group->container_users <= 1);
 	device->group->container_users--;
 	fput(device->group->opened_file);
-	up_write(&device->group->group_rwsem);
+	mutex_unlock(&device->group->group_lock);
 }
 
 /*
