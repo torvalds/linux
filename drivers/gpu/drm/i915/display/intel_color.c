@@ -2206,13 +2206,21 @@ static const struct intel_color_funcs ilk_color_funcs = {
 	.read_luts = ilk_read_luts,
 };
 
-void intel_color_init(struct intel_crtc *crtc)
+void intel_crtc_color_init(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	bool has_ctm = INTEL_INFO(dev_priv)->display.color.degamma_lut_size != 0;
 
 	drm_mode_crtc_set_gamma_size(&crtc->base, 256);
 
+	drm_crtc_enable_color_mgmt(&crtc->base,
+				   INTEL_INFO(dev_priv)->display.color.degamma_lut_size,
+				   has_ctm,
+				   INTEL_INFO(dev_priv)->display.color.gamma_lut_size);
+}
+
+void intel_color_init_hooks(struct drm_i915_private *dev_priv)
+{
 	if (HAS_GMCH(dev_priv)) {
 		if (IS_CHERRYVIEW(dev_priv)) {
 			dev_priv->display.funcs.color = &chv_color_funcs;
@@ -2238,9 +2246,4 @@ void intel_color_init(struct intel_crtc *crtc)
 		} else
 			dev_priv->display.funcs.color = &ilk_color_funcs;
 	}
-
-	drm_crtc_enable_color_mgmt(&crtc->base,
-				   INTEL_INFO(dev_priv)->display.color.degamma_lut_size,
-				   has_ctm,
-				   INTEL_INFO(dev_priv)->display.color.gamma_lut_size);
 }
