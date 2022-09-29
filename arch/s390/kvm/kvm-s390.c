@@ -4343,8 +4343,6 @@ retry:
 		goto retry;
 	}
 
-	/* nothing to do, just clear the request */
-	kvm_clear_request(KVM_REQ_UNHALT, vcpu);
 	/* we left the vsie handler, nothing to do, just clear the request */
 	kvm_clear_request(KVM_REQ_VSIE_RESTART, vcpu);
 

@@ -151,12 +151,11 @@ static inline bool is_error_page(struct page *page)
 #define KVM_REQUEST_NO_ACTION      BIT(10)
 /*
  * Architecture-independent vcpu->requests bit members
- * Bits 4-7 are reserved for more arch-independent bits.
+ * Bits 3-7 are reserved for more arch-independent bits.
  */
 #define KVM_REQ_TLB_FLUSH         (0 | KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
 #define KVM_REQ_VM_DEAD           (1 | KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
 #define KVM_REQ_UNBLOCK           2
-#define KVM_REQ_UNHALT            3
 #define KVM_REQUEST_ARCH_BASE     8
 
 /*
@@ -2246,6 +2245,19 @@ static inline void kvm_handle_signal_exit(struct kvm_vcpu *vcpu)
 	vcpu->stat.signal_exits++;
 }
 #endif /* CONFIG_KVM_XFER_TO_GUEST_WORK */
+
+/*
+ * If more than one page is being (un)accounted, @virt must be the address of
+ * the first page of a block of pages what were allocated together (i.e
+ * accounted together).
+ *
+ * kvm_account_pgtable_pages() is thread-safe because mod_lruvec_page_state()
+ * is thread-safe.
+ */
+static inline void kvm_account_pgtable_pages(void *virt, int nr)
+{
+	mod_lruvec_page_state(virt_to_page(virt), NR_SECONDARY_PAGETABLE, nr);
+}
 
 /*
  * This defines how many reserved entries we want to keep before we
