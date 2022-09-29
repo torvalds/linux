@@ -16,7 +16,7 @@
 #include <linux/siphash.h>
 #include <linux/rtnetlink.h>
 
-#include <net/netfilter/nf_conntrack.h>
+#include <net/netfilter/nf_conntrack_bpf.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_seqadj.h>
@@ -1152,7 +1152,7 @@ static int __init nf_nat_init(void)
 	WARN_ON(nf_nat_hook != NULL);
 	RCU_INIT_POINTER(nf_nat_hook, &nat_hook);
 
-	return 0;
+	return register_nf_nat_bpf();
 }
 
 static void __exit nf_nat_cleanup(void)
