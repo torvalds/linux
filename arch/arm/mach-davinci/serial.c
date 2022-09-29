@@ -40,10 +40,6 @@ static void __init davinci_serial_reset(struct plat_serial8250_port *p)
 	pwremu |= (0x3 << 13);
 	pwremu |= 0x1;
 	serial_write_reg(p, UART_DAVINCI_PWREMU, pwremu);
-
-	if (cpu_is_davinci_dm646x())
-		serial_write_reg(p, UART_DM646X_SCR,
-				 UART_DM646X_SCR_TX_WATERMARK);
 }
 
 int __init davinci_serial_init(struct platform_device *serial_dev)

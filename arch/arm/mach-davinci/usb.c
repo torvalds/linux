@@ -41,11 +41,6 @@ static struct resource usb_resources[] = {
 		.flags          = IORESOURCE_IRQ,
 		.name		= "mc"
 	},
-	{
-		/* placeholder for the dedicated CPPI IRQ */
-		.flags          = IORESOURCE_IRQ,
-		.name		= "dma"
-	},
 };
 
 static u64 usb_dmamask = DMA_BIT_MASK(32);
@@ -66,14 +61,6 @@ void __init davinci_setup_usb(unsigned mA, unsigned potpgt_ms)
 {
 	usb_data.power = mA > 510 ? 255 : mA / 2;
 	usb_data.potpgt = (potpgt_ms + 1) / 2;
-
-	if (cpu_is_davinci_dm646x()) {
-		/* Override the defaults as DM6467 uses different IRQs. */
-		usb_dev.resource[1].start = DAVINCI_INTC_IRQ(IRQ_DM646X_USBINT);
-		usb_dev.resource[2].start = DAVINCI_INTC_IRQ(
-							IRQ_DM646X_USBDMAINT);
-	} else	/* other devices don't have dedicated CPPI IRQ */
-		usb_dev.num_resources = 2;
 
 	platform_device_register(&usb_dev);
 }
