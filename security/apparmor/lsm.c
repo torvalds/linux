@@ -1365,7 +1365,7 @@ module_param_named(export_binary, aa_g_export_binary, aabool, 0600);
 #endif
 
 /* policy loaddata compression level */
-int aa_g_rawdata_compression_level = ZSTD_CLEVEL_DEFAULT;
+int aa_g_rawdata_compression_level = AA_DEFAULT_CLEVEL;
 module_param_named(rawdata_compression_level, aa_g_rawdata_compression_level,
 		   aacompressionlevel, 0400);
 
@@ -1547,8 +1547,7 @@ static int param_set_aacompressionlevel(const char *val,
 	error = param_set_int(val, kp);
 
 	aa_g_rawdata_compression_level = clamp(aa_g_rawdata_compression_level,
-					       zstd_min_clevel(),
-					       zstd_max_clevel());
+					       AA_MIN_CLEVEL, AA_MAX_CLEVEL);
 	pr_info("AppArmor: policy rawdata compression level set to %d\n",
 		aa_g_rawdata_compression_level);
 

@@ -1202,13 +1202,13 @@ static int seq_ns_name_show(struct seq_file *seq, void *v)
 
 static int seq_ns_compress_min_show(struct seq_file *seq, void *v)
 {
-	seq_printf(seq, "%d\n", zstd_min_clevel());
+	seq_printf(seq, "%d\n", AA_MIN_CLEVEL);
 	return 0;
 }
 
 static int seq_ns_compress_max_show(struct seq_file *seq, void *v)
 {
-	seq_printf(seq, "%d\n", zstd_max_clevel());
+	seq_printf(seq, "%d\n", AA_MAX_CLEVEL);
 	return 0;
 }
 

@@ -51,4 +51,15 @@ extern bool aa_g_logsyscall;
 extern bool aa_g_paranoid_load;
 extern unsigned int aa_g_path_max;
 
+#ifdef CONFIG_SECURITY_APPARMOR_EXPORT_BINARY
+#define AA_MIN_CLEVEL zstd_min_clevel()
+#define AA_MAX_CLEVEL zstd_max_clevel()
+#define AA_DEFAULT_CLEVEL ZSTD_CLEVEL_DEFAULT
+#else
+#define AA_MIN_CLEVEL 0
+#define AA_MAX_CLEVEL 0
+#define AA_DEFAULT_CLEVEL 0
+#endif /* CONFIG_SECURITY_APPARMOR_EXPORT_BINARY */
+
+
 #endif /* __APPARMOR_H */
