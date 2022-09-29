@@ -197,7 +197,7 @@ unevictable list for the memory cgroup and node being scanned.
 There may be situations where a page is mapped into a VM_LOCKED VMA, but the
 page is not marked as PG_mlocked.  Such pages will make it all the way to
 shrink_active_list() or shrink_page_list() where they will be detected when
-vmscan walks the reverse map in page_referenced() or try_to_unmap().  The page
+vmscan walks the reverse map in folio_referenced() or try_to_unmap().  The page
 is culled to the unevictable list when it is released by the shrinker.
 
 To "cull" an unevictable page, vmscan simply puts the page back on the LRU list
@@ -267,7 +267,7 @@ the LRU.  Such pages can be "noticed" by memory management in several places:
  (4) in the fault path and when a VM_LOCKED stack segment is expanded; or
 
  (5) as mentioned above, in vmscan:shrink_page_list() when attempting to
-     reclaim a page in a VM_LOCKED VMA by page_referenced() or try_to_unmap().
+     reclaim a page in a VM_LOCKED VMA by folio_referenced() or try_to_unmap().
 
 mlocked pages become unlocked and rescued from the unevictable list when:
 
@@ -547,7 +547,7 @@ vmscan's shrink_inactive_list() and shrink_page_list() also divert obviously
 unevictable pages found on the inactive lists to the appropriate memory cgroup
 and node unevictable list.
 
-rmap's page_referenced_one(), called via vmscan's shrink_active_list() or
+rmap's folio_referenced_one(), called via vmscan's shrink_active_list() or
 shrink_page_list(), and rmap's try_to_unmap_one() called via shrink_page_list(),
 check for (3) pages still mapped into VM_LOCKED VMAs, and call mlock_vma_page()
 to correct them.  Such pages are culled to the unevictable list when released
