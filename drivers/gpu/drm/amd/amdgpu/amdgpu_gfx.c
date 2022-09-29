@@ -1216,7 +1216,11 @@ static ssize_t amdgpu_gfx_set_compute_partition(struct device *dev,
 	if (!strncasecmp("SPX", buf, strlen("SPX"))) {
 		mode = AMDGPU_SPX_PARTITION_MODE;
 	} else if (!strncasecmp("DPX", buf, strlen("DPX"))) {
-		if (num_xcc != 4 || num_xcc != 8)
+		/*
+		 * DPX mode needs AIDs to be in multiple of 2.
+		 * Each AID connects 2 XCCs.
+		 */
+		if (num_xcc%4)
 			return -EINVAL;
 		mode = AMDGPU_DPX_PARTITION_MODE;
 	} else if (!strncasecmp("TPX", buf, strlen("TPX"))) {
