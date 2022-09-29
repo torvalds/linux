@@ -510,7 +510,6 @@ static int dsa_port_devlink_setup(struct dsa_port *dp)
 			ds->ops->port_teardown(ds, dp->index);
 		return err;
 	}
-	dp->devlink_port_setup = true;
 
 	return 0;
 }
@@ -520,13 +519,12 @@ static void dsa_port_devlink_teardown(struct dsa_port *dp)
 	struct devlink_port *dlp = &dp->devlink_port;
 	struct dsa_switch *ds = dp->ds;
 
-	if (dp->devlink_port_setup) {
-		devlink_port_unregister(dlp);
-		if (ds->ops->port_teardown)
-			ds->ops->port_teardown(ds, dp->index);
-		devlink_port_fini(dlp);
-	}
-	dp->devlink_port_setup = false;
+	devlink_port_unregister(dlp);
+
+	if (ds->ops->port_teardown)
+		ds->ops->port_teardown(ds, dp->index);
+
+	devlink_port_fini(dlp);
 }
 
 static int dsa_port_setup(struct dsa_port *dp)
