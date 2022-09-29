@@ -75,6 +75,12 @@ struct mtk_jpeg_variant {
 	u32 cap_q_default_fourcc;
 };
 
+struct mtk_jpeg_hw_param {
+	struct vb2_v4l2_buffer *src_buffer;
+	struct vb2_v4l2_buffer *dst_buffer;
+	struct mtk_jpeg_ctx *curr_ctx;
+};
+
 enum mtk_jpegenc_hw_id {
 	MTK_JPEGENC_HW0,
 	MTK_JPEGENC_HW1,
@@ -99,6 +105,8 @@ struct mtk_jpegenc_clk {
  * @master_dev:		mtk_jpeg_dev device
  * @venc_clk:		jpeg encode clock
  * @jpegenc_irq:	jpeg encode irq num
+ * @job_timeout_work:	encode timeout workqueue
+ * @hw_param:		jpeg encode hw parameters
  */
 struct mtk_jpegenc_comp_dev {
 	struct device *dev;
@@ -107,6 +115,8 @@ struct mtk_jpegenc_comp_dev {
 	struct mtk_jpeg_dev *master_dev;
 	struct mtk_jpegenc_clk venc_clk;
 	int jpegenc_irq;
+	struct delayed_work job_timeout_work;
+	struct mtk_jpeg_hw_param hw_param;
 };
 
 /**
