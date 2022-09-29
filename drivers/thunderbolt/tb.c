@@ -570,7 +570,8 @@ static int tb_available_bandwidth(struct tb *tb, struct tb_port *src_port,
 		usb3_consumed_down = 0;
 	}
 
-	*available_up = *available_down = 40000;
+	/* Maximum possible bandwidth asymmetric Gen 4 link is 120 Gb/s */
+	*available_up = *available_down = 120000;
 
 	/* Find the minimum available bandwidth over all links */
 	tb_for_each_port_on_path(src_port, dst_port, port) {
@@ -581,18 +582,45 @@ static int tb_available_bandwidth(struct tb *tb, struct tb_port *src_port,
 
 		if (tb_is_upstream_port(port)) {
 			link_speed = port->sw->link_speed;
+			/*
+			 * sw->link_width is from upstream perspective
+			 * so we use the opposite for downstream of the
+			 * host router.
+			 */
+			if (port->sw->link_width == TB_LINK_WIDTH_ASYM_TX) {
+				up_bw = link_speed * 3 * 1000;
+				down_bw = link_speed * 1 * 1000;
+			} else if (port->sw->link_width == TB_LINK_WIDTH_ASYM_RX) {
+				up_bw = link_speed * 1 * 1000;
+				down_bw = link_speed * 3 * 1000;
+			} else {
+				up_bw = link_speed * port->sw->link_width * 1000;
+				down_bw = up_bw;
+			}
 		} else {
 			link_speed = tb_port_get_link_speed(port);
 			if (link_speed < 0)
 				return link_speed;
+
+			link_width = tb_port_get_link_width(port);
+			if (link_width < 0)
+				return link_width;
+
+			if (link_width == TB_LINK_WIDTH_ASYM_TX) {
+				up_bw = link_speed * 1 * 1000;
+				down_bw = link_speed * 3 * 1000;
+			} else if (link_width == TB_LINK_WIDTH_ASYM_RX) {
+				up_bw = link_speed * 3 * 1000;
+				down_bw = link_speed * 1 * 1000;
+			} else {
+				up_bw = link_speed * link_width * 1000;
+				down_bw = up_bw;
+			}
 		}
 
-		link_width = port->bonded ? 2 : 1;
-
-		up_bw = link_speed * link_width * 1000; /* Mb/s */
 		/* Leave 10% guard band */
 		up_bw -= up_bw / 10;
-		down_bw = up_bw;
+		down_bw -= down_bw / 10;
 
 		tb_port_dbg(port, "link total bandwidth %d/%d Mb/s\n", up_bw,
 			    down_bw);

@@ -135,7 +135,7 @@ struct tb_switch_tmu {
  * @vendor_name: Name of the vendor (or %NULL if not known)
  * @device_name: Name of the device (or %NULL if not known)
  * @link_speed: Speed of the link in Gb/s
- * @link_width: Width of the link (1 or 2)
+ * @link_width: Width of the upstream facing link
  * @link_usb4: Upstream link is USB4
  * @generation: Switch Thunderbolt generation
  * @cap_plug_events: Offset to the plug events capability (%0 if not found)
@@ -173,6 +173,11 @@ struct tb_switch_tmu {
  * switches) you need to have domain lock held.
  *
  * In USB4 terminology this structure represents a router.
+ *
+ * Note @link_width is not the same as whether link is bonded or not.
+ * For Gen 4 links the link is also bonded when it is asymmetric. The
+ * correct way to find out whether the link is bonded or not is to look
+ * @bonded field of the upstream port.
  */
 struct tb_switch {
 	struct device dev;
@@ -188,7 +193,7 @@ struct tb_switch {
 	const char *vendor_name;
 	const char *device_name;
 	unsigned int link_speed;
-	unsigned int link_width;
+	enum tb_link_width link_width;
 	bool link_usb4;
 	unsigned int generation;
 	int cap_plug_events;
@@ -1050,11 +1055,10 @@ static inline bool tb_port_use_credit_allocation(const struct tb_port *port)
 
 int tb_port_get_link_speed(struct tb_port *port);
 int tb_port_get_link_width(struct tb_port *port);
-int tb_port_set_link_width(struct tb_port *port, unsigned int width);
-int tb_port_set_lane_bonding(struct tb_port *port, bool bonding);
+int tb_port_set_link_width(struct tb_port *port, enum tb_link_width width);
 int tb_port_lane_bonding_enable(struct tb_port *port);
 void tb_port_lane_bonding_disable(struct tb_port *port);
-int tb_port_wait_for_link_width(struct tb_port *port, int width,
+int tb_port_wait_for_link_width(struct tb_port *port, unsigned int width_mask,
 				int timeout_msec);
 int tb_port_update_credits(struct tb_port *port);
 

@@ -903,15 +903,23 @@ int tb_port_get_link_speed(struct tb_port *port)
 
 	speed = (val & LANE_ADP_CS_1_CURRENT_SPEED_MASK) >>
 		LANE_ADP_CS_1_CURRENT_SPEED_SHIFT;
-	return speed == LANE_ADP_CS_1_CURRENT_SPEED_GEN3 ? 20 : 10;
+
+	switch (speed) {
+	case LANE_ADP_CS_1_CURRENT_SPEED_GEN4:
+		return 40;
+	case LANE_ADP_CS_1_CURRENT_SPEED_GEN3:
+		return 20;
+	default:
+		return 10;
+	}
 }
 
 /**
  * tb_port_get_link_width() - Get current link width
  * @port: Port to check (USB4 or CIO)
  *
- * Returns link width. Return values can be 1 (Single-Lane), 2 (Dual-Lane)
- * or negative errno in case of failure.
+ * Returns link width. Return the link width as encoded in &enum
+ * tb_link_width or negative errno in case of failure.
  */
 int tb_port_get_link_width(struct tb_port *port)
 {
@@ -926,11 +934,13 @@ int tb_port_get_link_width(struct tb_port *port)
 	if (ret)
 		return ret;
 
+	/* Matches the values in enum tb_link_width */
 	return (val & LANE_ADP_CS_1_CURRENT_WIDTH_MASK) >>
 		LANE_ADP_CS_1_CURRENT_WIDTH_SHIFT;
 }
 
-static bool tb_port_is_width_supported(struct tb_port *port, int width)
+static bool tb_port_is_width_supported(struct tb_port *port,
+				       unsigned int width_mask)
 {
 	u32 phy, widths;
 	int ret;
@@ -946,20 +956,25 @@ static bool tb_port_is_width_supported(struct tb_port *port, int width)
 	widths = (phy & LANE_ADP_CS_0_SUPPORTED_WIDTH_MASK) >>
 		LANE_ADP_CS_0_SUPPORTED_WIDTH_SHIFT;
 
-	return !!(widths & width);
+	return widths & width_mask;
+}
+
+static bool is_gen4_link(struct tb_port *port)
+{
+	return tb_port_get_link_speed(port) > 20;
 }
 
 /**
  * tb_port_set_link_width() - Set target link width of the lane adapter
  * @port: Lane adapter
- * @width: Target link width (%1 or %2)
+ * @width: Target link width
  *
  * Sets the target link width of the lane adapter to @width. Does not
  * enable/disable lane bonding. For that call tb_port_set_lane_bonding().
  *
  * Return: %0 in case of success and negative errno in case of error
  */
-int tb_port_set_link_width(struct tb_port *port, unsigned int width)
+int tb_port_set_link_width(struct tb_port *port, enum tb_link_width width)
 {
 	u32 val;
 	int ret;
@@ -974,11 +989,14 @@ int tb_port_set_link_width(struct tb_port *port, unsigned int width)
 
 	val &= ~LANE_ADP_CS_1_TARGET_WIDTH_MASK;
 	switch (width) {
-	case 1:
+	case TB_LINK_WIDTH_SINGLE:
+		/* Gen 4 link cannot be single */
+		if (is_gen4_link(port))
+			return -EOPNOTSUPP;
 		val |= LANE_ADP_CS_1_TARGET_WIDTH_SINGLE <<
 			LANE_ADP_CS_1_TARGET_WIDTH_SHIFT;
 		break;
-	case 2:
+	case TB_LINK_WIDTH_DUAL:
 		val |= LANE_ADP_CS_1_TARGET_WIDTH_DUAL <<
 			LANE_ADP_CS_1_TARGET_WIDTH_SHIFT;
 		break;
@@ -1000,12 +1018,9 @@ int tb_port_set_link_width(struct tb_port *port, unsigned int width)
  * cases one should use tb_port_lane_bonding_enable() instead to enable
  * lane bonding.
  *
- * As a side effect sets @port->bonding accordingly (and does the same
- * for lane 1 too).
- *
  * Return: %0 in case of success and negative errno in case of error
  */
-int tb_port_set_lane_bonding(struct tb_port *port, bool bonding)
+static int tb_port_set_lane_bonding(struct tb_port *port, bool bonding)
 {
 	u32 val;
 	int ret;
@@ -1023,19 +1038,8 @@ int tb_port_set_lane_bonding(struct tb_port *port, bool bonding)
 	else
 		val &= ~LANE_ADP_CS_1_LB;
 
-	ret = tb_port_write(port, &val, TB_CFG_PORT,
-			    port->cap_phy + LANE_ADP_CS_1, 1);
-	if (ret)
-		return ret;
-
-	/*
-	 * When lane 0 bonding is set it will affect lane 1 too so
-	 * update both.
-	 */
-	port->bonded = bonding;
-	port->dual_link_port->bonded = bonding;
-
-	return 0;
+	return tb_port_write(port, &val, TB_CFG_PORT,
+			     port->cap_phy + LANE_ADP_CS_1, 1);
 }
 
 /**
@@ -1052,36 +1056,52 @@ int tb_port_set_lane_bonding(struct tb_port *port, bool bonding)
  */
 int tb_port_lane_bonding_enable(struct tb_port *port)
 {
+	enum tb_link_width width;
 	int ret;
 
 	/*
 	 * Enable lane bonding for both links if not already enabled by
 	 * for example the boot firmware.
 	 */
-	ret = tb_port_get_link_width(port);
-	if (ret == 1) {
-		ret = tb_port_set_link_width(port, 2);
+	width = tb_port_get_link_width(port);
+	if (width == TB_LINK_WIDTH_SINGLE) {
+		ret = tb_port_set_link_width(port, TB_LINK_WIDTH_DUAL);
 		if (ret)
 			goto err_lane0;
 	}
 
-	ret = tb_port_get_link_width(port->dual_link_port);
-	if (ret == 1) {
-		ret = tb_port_set_link_width(port->dual_link_port, 2);
+	width = tb_port_get_link_width(port->dual_link_port);
+	if (width == TB_LINK_WIDTH_SINGLE) {
+		ret = tb_port_set_link_width(port->dual_link_port,
+					     TB_LINK_WIDTH_DUAL);
 		if (ret)
 			goto err_lane0;
 	}
 
-	ret = tb_port_set_lane_bonding(port, true);
-	if (ret)
-		goto err_lane1;
+	/*
+	 * Only set bonding if the link was not already bonded. This
+	 * avoids the lane adapter to re-enter bonding state.
+	 */
+	if (width == TB_LINK_WIDTH_SINGLE) {
+		ret = tb_port_set_lane_bonding(port, true);
+		if (ret)
+			goto err_lane1;
+	}
+
+	/*
+	 * When lane 0 bonding is set it will affect lane 1 too so
+	 * update both.
+	 */
+	port->bonded = true;
+	port->dual_link_port->bonded = true;
 
 	return 0;
 
 err_lane1:
-	tb_port_set_link_width(port->dual_link_port, 1);
+	tb_port_set_link_width(port->dual_link_port, TB_LINK_WIDTH_SINGLE);
 err_lane0:
-	tb_port_set_link_width(port, 1);
+	tb_port_set_link_width(port, TB_LINK_WIDTH_SINGLE);
+
 	return ret;
 }
 
@@ -1095,26 +1115,33 @@ err_lane0:
 void tb_port_lane_bonding_disable(struct tb_port *port)
 {
 	tb_port_set_lane_bonding(port, false);
-	tb_port_set_link_width(port->dual_link_port, 1);
-	tb_port_set_link_width(port, 1);
+	tb_port_set_link_width(port->dual_link_port, TB_LINK_WIDTH_SINGLE);
+	tb_port_set_link_width(port, TB_LINK_WIDTH_SINGLE);
+	port->dual_link_port->bonded = false;
+	port->bonded = false;
 }
 
 /**
  * tb_port_wait_for_link_width() - Wait until link reaches specific width
  * @port: Port to wait for
- * @width: Expected link width (%1 or %2)
+ * @width_mask: Expected link width mask
  * @timeout_msec: Timeout in ms how long to wait
  *
  * Should be used after both ends of the link have been bonded (or
  * bonding has been disabled) to wait until the link actually reaches
- * the expected state. Returns %-ETIMEDOUT if the @width was not reached
- * within the given timeout, %0 if it did.
+ * the expected state. Returns %-ETIMEDOUT if the width was not reached
+ * within the given timeout, %0 if it did. Can be passed a mask of
+ * expected widths and succeeds if any of the widths is reached.
  */
-int tb_port_wait_for_link_width(struct tb_port *port, int width,
+int tb_port_wait_for_link_width(struct tb_port *port, unsigned int width_mask,
 				int timeout_msec)
 {
 	ktime_t timeout = ktime_add_ms(ktime_get(), timeout_msec);
 	int ret;
+
+	/* Gen 4 link does not support single lane */
+	if ((width_mask & TB_LINK_WIDTH_SINGLE) && is_gen4_link(port))
+		return -EOPNOTSUPP;
 
 	do {
 		ret = tb_port_get_link_width(port);
@@ -1126,7 +1153,7 @@ int tb_port_wait_for_link_width(struct tb_port *port, int width,
 			 */
 			if (ret != -EACCES)
 				return ret;
-		} else if (ret == width) {
+		} else if (ret & width_mask) {
 			return 0;
 		}
 
@@ -1778,20 +1805,57 @@ static ssize_t speed_show(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(rx_speed, 0444, speed_show, NULL);
 static DEVICE_ATTR(tx_speed, 0444, speed_show, NULL);
 
-static ssize_t lanes_show(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+static ssize_t rx_lanes_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
 	struct tb_switch *sw = tb_to_switch(dev);
+	unsigned int width;
 
-	return sysfs_emit(buf, "%u\n", sw->link_width);
+	switch (sw->link_width) {
+	case TB_LINK_WIDTH_SINGLE:
+	case TB_LINK_WIDTH_ASYM_TX:
+		width = 1;
+		break;
+	case TB_LINK_WIDTH_DUAL:
+		width = 2;
+		break;
+	case TB_LINK_WIDTH_ASYM_RX:
+		width = 3;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return -EINVAL;
+	}
+
+	return sysfs_emit(buf, "%u\n", width);
 }
+static DEVICE_ATTR(rx_lanes, 0444, rx_lanes_show, NULL);
 
-/*
- * Currently link has same amount of lanes both directions (1 or 2) but
- * expose them separately to allow possible asymmetric links in the future.
- */
-static DEVICE_ATTR(rx_lanes, 0444, lanes_show, NULL);
-static DEVICE_ATTR(tx_lanes, 0444, lanes_show, NULL);
+static ssize_t tx_lanes_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct tb_switch *sw = tb_to_switch(dev);
+	unsigned int width;
+
+	switch (sw->link_width) {
+	case TB_LINK_WIDTH_SINGLE:
+	case TB_LINK_WIDTH_ASYM_RX:
+		width = 1;
+		break;
+	case TB_LINK_WIDTH_DUAL:
+		width = 2;
+		break;
+	case TB_LINK_WIDTH_ASYM_TX:
+		width = 3;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return -EINVAL;
+	}
+
+	return sysfs_emit(buf, "%u\n", width);
+}
+static DEVICE_ATTR(tx_lanes, 0444, tx_lanes_show, NULL);
 
 static ssize_t nvm_authenticate_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -2624,6 +2688,7 @@ int tb_switch_lane_bonding_enable(struct tb_switch *sw)
 {
 	struct tb_port *up, *down;
 	u64 route = tb_route(sw);
+	unsigned int width_mask;
 	int ret;
 
 	if (!route)
@@ -2635,8 +2700,8 @@ int tb_switch_lane_bonding_enable(struct tb_switch *sw)
 	up = tb_upstream_port(sw);
 	down = tb_switch_downstream_port(sw);
 
-	if (!tb_port_is_width_supported(up, 2) ||
-	    !tb_port_is_width_supported(down, 2))
+	if (!tb_port_is_width_supported(up, TB_LINK_WIDTH_DUAL) ||
+	    !tb_port_is_width_supported(down, TB_LINK_WIDTH_DUAL))
 		return 0;
 
 	ret = tb_port_lane_bonding_enable(up);
@@ -2652,7 +2717,11 @@ int tb_switch_lane_bonding_enable(struct tb_switch *sw)
 		return ret;
 	}
 
-	ret = tb_port_wait_for_link_width(down, 2, 100);
+	/* Any of the widths are all bonded */
+	width_mask = TB_LINK_WIDTH_DUAL | TB_LINK_WIDTH_ASYM_TX |
+		     TB_LINK_WIDTH_ASYM_RX;
+
+	ret = tb_port_wait_for_link_width(down, width_mask, 100);
 	if (ret) {
 		tb_port_warn(down, "timeout enabling lane bonding\n");
 		return ret;
@@ -2676,6 +2745,7 @@ int tb_switch_lane_bonding_enable(struct tb_switch *sw)
 void tb_switch_lane_bonding_disable(struct tb_switch *sw)
 {
 	struct tb_port *up, *down;
+	int ret;
 
 	if (!tb_route(sw))
 		return;
@@ -2693,7 +2763,8 @@ void tb_switch_lane_bonding_disable(struct tb_switch *sw)
 	 * It is fine if we get other errors as the router might have
 	 * been unplugged.
 	 */
-	if (tb_port_wait_for_link_width(down, 1, 100) == -ETIMEDOUT)
+	ret = tb_port_wait_for_link_width(down, TB_LINK_WIDTH_SINGLE, 100);
+	if (ret == -ETIMEDOUT)
 		tb_sw_warn(sw, "timeout disabling lane bonding\n");
 
 	tb_port_update_credits(down);
