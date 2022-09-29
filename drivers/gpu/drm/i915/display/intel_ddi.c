@@ -3600,10 +3600,22 @@ static void intel_ddi_sync_state(struct intel_encoder *encoder,
 static bool intel_ddi_initial_fastset_check(struct intel_encoder *encoder,
 					    struct intel_crtc_state *crtc_state)
 {
-	if (intel_crtc_has_dp_encoder(crtc_state))
-		return intel_dp_initial_fastset_check(encoder, crtc_state);
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	enum phy phy = intel_port_to_phy(i915, encoder->port);
+	bool fastset = true;
 
-	return true;
+	if (intel_phy_is_tc(i915, phy)) {
+		drm_dbg_kms(&i915->drm, "[ENCODER:%d:%s] Forcing full modeset to compute TC port DPLLs\n",
+			    encoder->base.base.id, encoder->base.name);
+		crtc_state->uapi.mode_changed = true;
+		fastset = false;
+	}
+
+	if (intel_crtc_has_dp_encoder(crtc_state) &&
+	    !intel_dp_initial_fastset_check(encoder, crtc_state))
+		fastset = false;
+
+	return fastset;
 }
 
 static enum intel_output_type
