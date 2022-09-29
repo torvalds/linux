@@ -820,7 +820,7 @@ static int vdpa_dev_net_mq_config_fill(struct vdpa_device *vdev,
 static int vdpa_dev_net_config_fill(struct vdpa_device *vdev, struct sk_buff *msg)
 {
 	struct virtio_net_config config = {};
-	u64 features_device, features_driver;
+	u64 features_device;
 	u16 val_u16;
 
 	vdev->config->get_config(vdev, 0, &config, sizeof(config));
@@ -837,11 +837,6 @@ static int vdpa_dev_net_config_fill(struct vdpa_device *vdev, struct sk_buff *ms
 	if (nla_put_u16(msg, VDPA_ATTR_DEV_NET_CFG_MTU, val_u16))
 		return -EMSGSIZE;
 
-	features_driver = vdev->config->get_driver_features(vdev);
-	if (nla_put_u64_64bit(msg, VDPA_ATTR_DEV_NEGOTIATED_FEATURES, features_driver,
-			      VDPA_ATTR_PAD))
-		return -EMSGSIZE;
-
 	features_device = vdev->config->get_device_features(vdev);
 
 	if (nla_put_u64_64bit(msg, VDPA_ATTR_VDPA_DEV_SUPPORTED_FEATURES, features_device,
@@ -855,6 +850,8 @@ static int
 vdpa_dev_config_fill(struct vdpa_device *vdev, struct sk_buff *msg, u32 portid, u32 seq,
 		     int flags, struct netlink_ext_ack *extack)
 {
+	u64 features_driver;
+	u8 status = 0;
 	u32 device_id;
 	void *hdr;
 	int err;
@@ -876,6 +873,17 @@ vdpa_dev_config_fill(struct vdpa_device *vdev, struct sk_buff *msg, u32 portid, 
 	if (nla_put_u32(msg, VDPA_ATTR_DEV_ID, device_id)) {
 		err = -EMSGSIZE;
 		goto msg_err;
+	}
+
+	/* only read driver features after the feature negotiation is done */
+	status = vdev->config->get_status(vdev);
+	if (status & VIRTIO_CONFIG_S_FEATURES_OK) {
+		features_driver = vdev->config->get_driver_features(vdev);
+		if (nla_put_u64_64bit(msg, VDPA_ATTR_DEV_NEGOTIATED_FEATURES, features_driver,
+				      VDPA_ATTR_PAD)) {
+			err = -EMSGSIZE;
+			goto msg_err;
+		}
 	}
 
 	switch (device_id) {
