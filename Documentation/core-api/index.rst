@@ -23,6 +23,7 @@ it.
    printk-formats
    printk-index
    symbol-namespaces
+   asm-annotations
 
 Data structures and low-level utilities
 =======================================
@@ -44,6 +45,8 @@ Library functionality that is used throughout the kernel.
    this_cpu_ops
    timekeeping
    errseq
+   wrappers/atomic_t
+   wrappers/atomic_bitops
 
 Low level entry and exit
 ========================
@@ -67,6 +70,7 @@ Documentation/locking/index.rst for more related documentation.
    local_ops
    padata
    ../RCU/index
+   wrappers/memory-barriers.rst
 
 Low-level hardware management
 =============================
