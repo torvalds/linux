@@ -553,6 +553,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	struct amdgpu_vmhub *hub;
 	const char *mmhub_cid;
 	const char *hub_name;
+	unsigned int vmhub;
 	u64 addr;
 	uint32_t cam_index = 0;
 	int ret, xcc_id = 0;
@@ -565,10 +566,10 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 
 	if (entry->client_id == SOC15_IH_CLIENTID_VMC) {
 		hub_name = "mmhub0";
-		hub = &adev->vmhub[AMDGPU_MMHUB0(node_id / 4)];
+		vmhub = AMDGPU_MMHUB0(node_id / 4);
 	} else if (entry->client_id == SOC15_IH_CLIENTID_VMC1) {
 		hub_name = "mmhub1";
-		hub = &adev->vmhub[AMDGPU_MMHUB1(0)];
+		vmhub = AMDGPU_MMHUB1(0);
 	} else {
 		hub_name = "gfxhub0";
 		if (adev->gfx.funcs->ih_node_to_logical_xcc) {
@@ -577,8 +578,9 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 			if (xcc_id < 0)
 				xcc_id = 0;
 		}
-		hub = &adev->vmhub[xcc_id];
+		vmhub = xcc_id;
 	}
+	hub = &adev->vmhub[vmhub];
 
 	if (retry_fault) {
 		if (adev->irq.retry_cam_enabled) {
@@ -624,7 +626,6 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	if (!printk_ratelimit())
 		return 0;
 
-
 	memset(&task_info, 0, sizeof(struct amdgpu_task_info));
 	amdgpu_vm_get_task_info(adev, entry->pasid, &task_info);
 
@@ -659,6 +660,8 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	cid = REG_GET_FIELD(status, VM_L2_PROTECTION_FAULT_STATUS, CID);
 	rw = REG_GET_FIELD(status, VM_L2_PROTECTION_FAULT_STATUS, RW);
 	WREG32_P(hub->vm_l2_pro_fault_cntl, 1, ~1);
+
+	amdgpu_vm_update_fault_cache(adev, entry->pasid, addr, status, vmhub);
 
 	dev_err(adev->dev,
 		"VM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
