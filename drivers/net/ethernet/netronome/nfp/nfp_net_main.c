@@ -315,18 +315,17 @@ static int nfp_net_pf_cfg_nsp(struct nfp_pf *pf, bool sp_indiff)
 	int err;
 
 	nsp = nfp_nsp_open(pf->cpp);
-	if (IS_ERR(nsp)) {
-		err = PTR_ERR(nsp);
-		return err;
-	}
+	if (IS_ERR(nsp))
+		return PTR_ERR(nsp);
 
 	snprintf(hwinfo, sizeof(hwinfo), "sp_indiff=%d", sp_indiff);
 	err = nfp_nsp_hwinfo_set(nsp, hwinfo, sizeof(hwinfo));
+	/* Not a fatal error, no need to return error to stop driver from loading */
 	if (err)
 		nfp_warn(pf->cpp, "HWinfo(sp_indiff=%d) set failed: %d\n", sp_indiff, err);
 
 	nfp_nsp_close(nsp);
-	return err;
+	return 0;
 }
 
 static int nfp_net_pf_init_nsp(struct nfp_pf *pf)
