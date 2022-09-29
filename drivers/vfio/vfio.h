@@ -48,8 +48,6 @@ struct vfio_group {
 	 * reaches 0 then the iommu_group is invalid.
 	 */
 	refcount_t			drivers;
-	refcount_t			users;
-	struct completion		users_comp;
 	unsigned int			container_users;
 	struct iommu_group		*iommu_group;
 	struct vfio_container		*container;
@@ -61,6 +59,7 @@ struct vfio_group {
 	struct rw_semaphore		group_rwsem;
 	struct kvm			*kvm;
 	struct file			*opened_file;
+	struct swait_queue_head		opened_file_wait;
 	struct blocking_notifier_head	notifier;
 };
 

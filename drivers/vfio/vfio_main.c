@@ -186,10 +186,9 @@ static struct vfio_group *vfio_group_alloc(struct iommu_group *iommu_group,
 	cdev_init(&group->cdev, &vfio_group_fops);
 	group->cdev.owner = THIS_MODULE;
 
-	refcount_set(&group->users, 1);
 	refcount_set(&group->drivers, 1);
-	init_completion(&group->users_comp);
 	init_rwsem(&group->group_rwsem);
+	init_swait_queue_head(&group->opened_file_wait);
 	INIT_LIST_HEAD(&group->device_list);
 	mutex_init(&group->device_lock);
 	group->iommu_group = iommu_group;
@@ -245,12 +244,6 @@ err_put:
 	return ret;
 }
 
-static void vfio_group_put(struct vfio_group *group)
-{
-	if (refcount_dec_and_test(&group->users))
-		complete(&group->users_comp);
-}
-
 static void vfio_device_remove_group(struct vfio_device *device)
 {
 	struct vfio_group *group = device->group;
@@ -270,10 +263,6 @@ static void vfio_device_remove_group(struct vfio_device *device)
 	 * cdev_device_add() will fail due to the name aready existing.
 	 */
 	cdev_device_del(&group->cdev, &group->dev);
-	mutex_unlock(&vfio.group_lock);
-
-	/* Matches the get from vfio_group_alloc() */
-	vfio_group_put(group);
 
 	/*
 	 * Before we allow the last driver in the group to be unplugged the
@@ -281,7 +270,13 @@ static void vfio_device_remove_group(struct vfio_device *device)
 	 * is because the group->iommu_group pointer should only be used so long
 	 * as a device driver is attached to a device in the group.
 	 */
-	wait_for_completion(&group->users_comp);
+	while (group->opened_file) {
+		mutex_unlock(&vfio.group_lock);
+		swait_event_idle_exclusive(group->opened_file_wait,
+					   !group->opened_file);
+		mutex_lock(&vfio.group_lock);
+	}
+	mutex_unlock(&vfio.group_lock);
 
 	/*
 	 * These data structures all have paired operations that can only be
@@ -906,15 +901,18 @@ static int vfio_group_fops_open(struct inode *inode, struct file *filep)
 
 	down_write(&group->group_rwsem);
 
-	/* users can be zero if this races with vfio_device_remove_group() */
-	if (!refcount_inc_not_zero(&group->users)) {
+	/*
+	 * drivers can be zero if this races with vfio_device_remove_group(), it
+	 * will be stable at 0 under the group rwsem
+	 */
+	if (refcount_read(&group->drivers) == 0) {
 		ret = -ENODEV;
-		goto err_unlock;
+		goto out_unlock;
 	}
 
 	if (group->type == VFIO_NO_IOMMU && !capable(CAP_SYS_RAWIO)) {
 		ret = -EPERM;
-		goto err_put;
+		goto out_unlock;
 	}
 
 	/*
@@ -922,16 +920,12 @@ static int vfio_group_fops_open(struct inode *inode, struct file *filep)
 	 */
 	if (group->opened_file) {
 		ret = -EBUSY;
-		goto err_put;
+		goto out_unlock;
 	}
 	group->opened_file = filep;
 	filep->private_data = group;
-
-	up_write(&group->group_rwsem);
-	return 0;
-err_put:
-	vfio_group_put(group);
-err_unlock:
+	ret = 0;
+out_unlock:
 	up_write(&group->group_rwsem);
 	return ret;
 }
@@ -952,8 +946,7 @@ static int vfio_group_fops_release(struct inode *inode, struct file *filep)
 		vfio_group_detach_container(group);
 	group->opened_file = NULL;
 	up_write(&group->group_rwsem);
-
-	vfio_group_put(group);
+	swake_up_one(&group->opened_file_wait);
 
 	return 0;
 }
