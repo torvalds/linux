@@ -249,6 +249,21 @@ static const struct mhi_pci_dev_info mhi_qcom_sdx65_info = {
 	.drv_support = false,
 };
 
+static const struct mhi_pci_dev_info mhi_qcom_sdx75_info = {
+	.device_id = 0x0309,
+	.name = "esoc0",
+	.fw_image = "sdx75m/xbl.elf",
+	.edl_image = "sdx75m/edl.mbn",
+	.config = &modem_qcom_sdx65_mhi_config,
+	.bar_num = MHI_PCI_BAR_NUM,
+	.dma_data_width = 64,
+	.allow_m1 = false,
+	.skip_forced_suspend = true,
+	.sfr_support = true,
+	.timesync = true,
+	.drv_support = false,
+};
+
 static const struct mhi_pci_dev_info mhi_qcom_debug_info = {
 	.device_id = MHI_PCIE_DEBUG_ID,
 	.name = "qcom-debug",
@@ -267,6 +282,8 @@ static const struct mhi_pci_dev_info mhi_qcom_debug_info = {
 static const struct pci_device_id mhi_pcie_device_id[] = {
 	{ PCI_DEVICE(MHI_PCIE_VENDOR_ID, 0x0308),
 		.driver_data = (kernel_ulong_t) &mhi_qcom_sdx65_info },
+	{ PCI_DEVICE(MHI_PCIE_VENDOR_ID, 0x0309),
+		.driver_data = (kernel_ulong_t) &mhi_qcom_sdx75_info },
 	{ PCI_DEVICE(MHI_PCIE_VENDOR_ID, MHI_PCIE_DEBUG_ID),
 		.driver_data = (kernel_ulong_t) &mhi_qcom_debug_info },
 	{  }
