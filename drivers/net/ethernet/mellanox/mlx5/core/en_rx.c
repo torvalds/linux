@@ -673,6 +673,7 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	struct mlx5e_icosq *sq = rq->icosq;
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	struct mlx5e_umr_wqe *umr_wqe;
+	u32 offset; /* 17-bit value with MTT. */
 	u16 pi;
 	int err;
 	int i;
@@ -694,13 +695,27 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 
 	pi = mlx5e_icosq_get_next_pi(sq, rq->mpwqe.umr_wqebbs);
 	umr_wqe = mlx5_wq_cyc_get_wqe(wq, pi);
-	memcpy(umr_wqe, &rq->mpwqe.umr_wqe, offsetof(struct mlx5e_umr_wqe, inline_mtts));
+	memcpy(umr_wqe, &rq->mpwqe.umr_wqe, sizeof(struct mlx5e_umr_wqe));
 
-	for (i = 0; i < rq->mpwqe.pages_per_wqe; i++, dma_info++) {
-		err = mlx5e_page_alloc(rq, dma_info);
-		if (unlikely(err))
-			goto err_unmap;
-		umr_wqe->inline_mtts[i].ptag = cpu_to_be64(dma_info->addr | MLX5_EN_WR);
+	if (unlikely(rq->mpwqe.unaligned)) {
+		for (i = 0; i < rq->mpwqe.pages_per_wqe; i++, dma_info++) {
+			err = mlx5e_page_alloc(rq, dma_info);
+			if (unlikely(err))
+				goto err_unmap;
+			umr_wqe->inline_ksms[i] = (struct mlx5_ksm) {
+				.key = rq->mkey_be,
+				.va = cpu_to_be64(dma_info->addr),
+			};
+		}
+	} else {
+		for (i = 0; i < rq->mpwqe.pages_per_wqe; i++, dma_info++) {
+			err = mlx5e_page_alloc(rq, dma_info);
+			if (unlikely(err))
+				goto err_unmap;
+			umr_wqe->inline_mtts[i] = (struct mlx5_mtt) {
+				.ptag = cpu_to_be64(dma_info->addr | MLX5_EN_WR),
+			};
+		}
 	}
 
 	bitmap_zero(wi->xdp_xmit_bitmap, rq->mpwqe.pages_per_wqe);
@@ -709,8 +724,11 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	umr_wqe->ctrl.opmod_idx_opcode =
 		cpu_to_be32((sq->pc << MLX5_WQE_CTRL_WQE_INDEX_SHIFT) |
 			    MLX5_OPCODE_UMR);
-	umr_wqe->uctrl.xlt_offset =
-		cpu_to_be16(MLX5_ALIGNED_MTTS_OCTW(ix * rq->mpwqe.mtts_per_wqe));
+
+	offset = ix * rq->mpwqe.mtts_per_wqe;
+	if (!rq->mpwqe.unaligned)
+		offset = MLX5_ALIGNED_MTTS_OCTW(offset);
+	umr_wqe->uctrl.xlt_offset = cpu_to_be16(offset);
 
 	sq->db.wqe_info[pi] = (struct mlx5e_icosq_wqe_info) {
 		.wqe_type   = MLX5E_ICOSQ_WQE_UMR_RX,

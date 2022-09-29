@@ -112,8 +112,10 @@ struct page_pool;
 #define MLX5_ALIGN_MTTS(mtts)		(ALIGN(mtts, 8))
 #define MLX5_ALIGNED_MTTS_OCTW(mtts)	((mtts) / 2)
 #define MLX5_MTT_OCTW(mtts)		(MLX5_ALIGNED_MTTS_OCTW(MLX5_ALIGN_MTTS(mtts)))
+#define MLX5_KSM_OCTW(ksms)             (ksms)
 #define MLX5E_MAX_RQ_NUM_MTTS	\
 	(ALIGN_DOWN(U16_MAX, 4) * 2) /* So that MLX5_MTT_OCTW(num_mtts) fits into u16 */
+#define MLX5E_MAX_RQ_NUM_KSMS (U16_MAX - 1) /* So that num_ksms fits into u16. */
 #define MLX5E_ORDER2_MAX_PACKET_MTU (order_base_2(10 * 1024))
 
 #define MLX5E_MIN_SKB_FRAG_SZ		(MLX5_SKB_FRAG_SZ(MLX5_RX_HEADROOM))
@@ -265,6 +267,7 @@ struct mlx5e_umr_wqe {
 	union {
 		DECLARE_FLEX_ARRAY(struct mlx5_mtt, inline_mtts);
 		DECLARE_FLEX_ARRAY(struct mlx5_klm, inline_klms);
+		DECLARE_FLEX_ARRAY(struct mlx5_ksm, inline_ksms);
 	};
 };
 
@@ -708,6 +711,7 @@ struct mlx5e_rq {
 			u8                     pages_per_wqe;
 			u8                     umr_wqebbs;
 			u8                     mtts_per_wqe;
+			u8                     unaligned;
 			struct mlx5e_shampo_hd *shampo;
 		} mpwqe;
 	};
@@ -1007,7 +1011,8 @@ struct mlx5e_profile {
 
 void mlx5e_build_ptys2ethtool_map(void);
 
-bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev, u8 page_shift);
+bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev, u8 page_shift,
+					    bool unaligned);
 
 void mlx5e_shampo_dealloc_hd(struct mlx5e_rq *rq, u16 len, u16 start, bool close);
 void mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats);

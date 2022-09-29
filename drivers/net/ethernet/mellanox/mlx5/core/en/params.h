@@ -9,6 +9,7 @@
 struct mlx5e_xsk_param {
 	u16 headroom;
 	u16 chunk_size;
+	bool unaligned;
 };
 
 struct mlx5e_cq_param {
@@ -87,12 +88,13 @@ static inline bool mlx5e_qid_validate(const struct mlx5e_profile *profile,
 /* Striding RQ dynamic parameters */
 
 u8 mlx5e_mpwrq_page_shift(struct mlx5_core_dev *mdev, struct mlx5e_xsk_param *xsk);
-u8 mlx5e_mpwrq_log_wqe_sz(struct mlx5_core_dev *mdev, u8 page_shift);
-u8 mlx5e_mpwrq_pages_per_wqe(struct mlx5_core_dev *mdev, u8 page_shift);
-u16 mlx5e_mpwrq_umr_wqe_sz(struct mlx5_core_dev *mdev, u8 page_shift);
-u8 mlx5e_mpwrq_umr_wqebbs(struct mlx5_core_dev *mdev, u8 page_shift);
-u8 mlx5e_mpwrq_mtts_per_wqe(struct mlx5_core_dev *mdev, u8 page_shift);
-u8 mlx5e_mpwrq_max_log_rq_pkts(struct mlx5_core_dev *mdev, u8 page_shift);
+u8 mlx5e_mpwrq_log_wqe_sz(struct mlx5_core_dev *mdev, u8 page_shift, bool unaligned);
+u8 mlx5e_mpwrq_pages_per_wqe(struct mlx5_core_dev *mdev, u8 page_shift, bool unaligned);
+u16 mlx5e_mpwrq_umr_wqe_sz(struct mlx5_core_dev *mdev, u8 page_shift, bool unaligned);
+u8 mlx5e_mpwrq_umr_wqebbs(struct mlx5_core_dev *mdev, u8 page_shift, bool unaligned);
+u8 mlx5e_mpwrq_mtts_per_wqe(struct mlx5_core_dev *mdev, u8 page_shift, bool unaligned);
+u32 mlx5e_mpwrq_max_num_entries(struct mlx5_core_dev *mdev, bool unaligned);
+u8 mlx5e_mpwrq_max_log_rq_pkts(struct mlx5_core_dev *mdev, u8 page_shift, bool unaligned);
 
 /* Parameter calculations */
 

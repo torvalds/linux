@@ -478,6 +478,12 @@ struct mlx5_klm {
 	__be64		va;
 };
 
+struct mlx5_ksm {
+	__be32		reserved;
+	__be32		key;
+	__be64		va;
+};
+
 struct mlx5_stride_block_entry {
 	__be16		stride;
 	__be16		bcount;
