@@ -2114,10 +2114,6 @@ F:	tools/perf/arch/arm/util/pmu.c
 F:	tools/perf/util/cs-etm-decoder/*
 F:	tools/perf/util/cs-etm.*
 
-ARM/CORGI MACHINE SUPPORT
-M:	Richard Purdie <rpurdie@rpsys.net>
-S:	Maintained
-
 ARM/CORTINA SYSTEMS GEMINI ARM ARCHITECTURE
 M:	Hans Ulli Kroll <ulli.kroll@googlemail.com>
 M:	Linus Walleij <linus.walleij@linaro.org>
@@ -2156,12 +2152,6 @@ F:	drivers/watchdog/armada_37xx_wdt.c
 F:	include/dt-bindings/bus/moxtet.h
 F:	include/linux/armada-37xx-rwtm-mailbox.h
 F:	include/linux/moxtet.h
-
-ARM/EZX SMARTPHONES (A780, A910, A1200, E680, ROKR E2 and ROKR E6)
-M:	Robert Jarzmik <robert.jarzmik@free.fr>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/mach-pxa/ezx.c
 
 ARM/FARADAY FA526 PORT
 M:	Hans Ulli Kroll <ulli.kroll@googlemail.com>
@@ -2212,24 +2202,10 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux.git
 F:	arch/arm/boot/dts/vf*
 F:	arch/arm/mach-imx/*vf610*
 
-ARM/GLOMATION GESBC9312SX MACHINE SUPPORT
-M:	Lennert Buytenhek <kernel@wantstofly.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-
 ARM/GUMSTIX MACHINE SUPPORT
 M:	Steve Sakoman <sakoman@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-
-ARM/H4700 (HP IPAQ HX4700) MACHINE SUPPORT
-M:	Philipp Zabel <philipp.zabel@gmail.com>
-M:	Paul Parsons <lost.distance@yahoo.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/mach-pxa/hx4700.c
-F:	arch/arm/mach-pxa/include/mach/hx4700.h
-F:	sound/soc/pxa/hx4700.c
 
 ARM/HISILICON SOC SUPPORT
 M:	Wei Xu <xuwei5@hisilicon.com>
@@ -2273,12 +2249,6 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/boot/dts/omap3-igep*
 
-ARM/INCOME PXA270 SUPPORT
-M:	Marek Vasut <marek.vasut@gmail.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/mach-pxa/colibri-pxa270-income.c
-
 ARM/INTEL IXP4XX ARM ARCHITECTURE
 M:	Linus Walleij <linusw@kernel.org>
 M:	Imre Kaloz <kaloz@openwrt.org>
@@ -2311,21 +2281,11 @@ M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 
-ARM/IP FABRICS DOUBLE ESPRESSO MACHINE SUPPORT
-M:	Lennert Buytenhek <kernel@wantstofly.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-
 ARM/LG1K ARCHITECTURE
 M:	Chanho Min <chanho.min@lge.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm64/boot/dts/lg/
-
-ARM/LOGICPD PXA270 MACHINE SUPPORT
-M:	Lennert Buytenhek <kernel@wantstofly.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
 
 ARM/LPC18XX ARCHITECTURE
 M:	Vladimir Zapolskiy <vz@mleia.com>
@@ -2352,10 +2312,6 @@ F:	drivers/net/ethernet/nxp/lpc_eth.c
 F:	drivers/usb/host/ohci-nxp.c
 F:	drivers/watchdog/pnx4008_wdt.c
 N:	lpc32xx
-
-ARM/MAGICIAN MACHINE SUPPORT
-M:	Philipp Zabel <philipp.zabel@gmail.com>
-S:	Maintained
 
 ARM/Marvell Dove/MV78xx0/Orion SOC support
 M:	Andrew Lunn <andrew@lunn.ch>
@@ -2485,12 +2441,6 @@ F:	arch/arm/boot/dts/milbeaut*
 F:	arch/arm/mach-milbeaut/
 N:	milbeaut
 
-ARM/MIOA701 MACHINE SUPPORT
-M:	Robert Jarzmik <robert.jarzmik@free.fr>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/mach-pxa/mioa701.c
-
 ARM/MStar/Sigmastar Armv7 SoC support
 M:	Daniel Palmer <daniel@thingy.jp>
 M:	Romain Perier <romain.perier@gmail.com>
@@ -2510,10 +2460,6 @@ F:	drivers/rtc/rtc-msc313.c
 F:	drivers/watchdog/msc313e_wdt.c
 F:	include/dt-bindings/clock/mstar-*
 F:	include/dt-bindings/gpio/msc313-gpio.h
-
-ARM/NEC MOBILEPRO 900/c MACHINE SUPPORT
-M:	Michael Petchkovsky <mkpetch@internode.on.net>
-S:	Maintained
 
 ARM/NOMADIK/Ux500 ARCHITECTURES
 M:	Linus Walleij <linus.walleij@linaro.org>
@@ -2599,32 +2545,6 @@ F:	arch/arm/boot/dts/ox8*.dts*
 F:	arch/arm/mach-oxnas/
 F:	drivers/power/reset/oxnas-restart.c
 N:	oxnas
-
-ARM/PALM TREO SUPPORT
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Orphan
-F:	arch/arm/mach-pxa/palmtreo.*
-
-ARM/PALMTX,PALMT5,PALMLD,PALMTE2,PALMTC SUPPORT
-M:	Marek Vasut <marek.vasut@gmail.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-W:	http://hackndev.com
-F:	arch/arm/mach-pxa/include/mach/palmld.h
-F:	arch/arm/mach-pxa/include/mach/palmtc.h
-F:	arch/arm/mach-pxa/include/mach/palmtx.h
-F:	arch/arm/mach-pxa/palmld.c
-F:	arch/arm/mach-pxa/palmt5.*
-F:	arch/arm/mach-pxa/palmtc.c
-F:	arch/arm/mach-pxa/palmte2.*
-F:	arch/arm/mach-pxa/palmtx.c
-
-ARM/PALMZ72 SUPPORT
-M:	Sergey Lapin <slapin@ossfans.org>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-W:	http://hackndev.com
-F:	arch/arm/mach-pxa/palmz72.*
 
 ARM/QUALCOMM SUPPORT
 M:	Andy Gross <agross@kernel.org>
@@ -2999,11 +2919,6 @@ F:	arch/arm64/boot/dts/ti/Makefile
 F:	arch/arm64/boot/dts/ti/k3-*
 F:	include/dt-bindings/pinctrl/k3.h
 
-ARM/TOSA MACHINE SUPPORT
-M:	Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
-M:	Dirk Opfer <dirk@opfer-online.de>
-S:	Maintained
-
 ARM/TOSHIBA VISCONTI ARCHITECTURE
 M:	Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -3073,13 +2988,6 @@ S:	Maintained
 W:	http://www.armlinux.org.uk/
 F:	arch/arm/vfp/
 
-ARM/VOIPAC PXA270 SUPPORT
-M:	Marek Vasut <marek.vasut@gmail.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/mach-pxa/include/mach/vpac270.h
-F:	arch/arm/mach-pxa/vpac270.c
-
 ARM/VT8500 ARM ARCHITECTURE
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Orphan
@@ -3096,13 +3004,6 @@ F:	drivers/usb/host/uhci-platform.c
 F:	drivers/video/fbdev/vt8500lcdfb.*
 F:	drivers/video/fbdev/wm8505fb*
 F:	drivers/video/fbdev/wmt_ge_rops.*
-
-ARM/ZIPIT Z2 SUPPORT
-M:	Marek Vasut <marek.vasut@gmail.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-F:	arch/arm/mach-pxa/include/mach/z2.h
-F:	arch/arm/mach-pxa/z2.c
 
 ARM/ZYNQ ARCHITECTURE
 M:	Michal Simek <michal.simek@xilinx.com>

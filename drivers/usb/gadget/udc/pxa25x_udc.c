@@ -1561,40 +1561,6 @@ static int pxa25x_udc_stop(struct usb_gadget*g)
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef CONFIG_ARCH_LUBBOCK
-
-/* Lubbock has separate connect and disconnect irqs.  More typical designs
- * use one GPIO as the VBUS IRQ, and another to control the D+ pullup.
- */
-
-static irqreturn_t
-lubbock_vbus_irq(int irq, void *_dev)
-{
-	struct pxa25x_udc	*dev = _dev;
-	int			vbus;
-
-	dev->stats.irqs++;
-	if (irq == dev->usb_irq) {
-		vbus = 1;
-		disable_irq(dev->usb_irq);
-		enable_irq(dev->usb_disc_irq);
-	} else if (irq == dev->usb_disc_irq) {
-		vbus = 0;
-		disable_irq(dev->usb_disc_irq);
-		enable_irq(dev->usb_irq);
-	} else {
-		return IRQ_NONE;
-	}
-
-	pxa25x_udc_vbus_session(&dev->gadget, vbus);
-	return IRQ_HANDLED;
-}
-
-#endif
-
-
-/*-------------------------------------------------------------------------*/
-
 static inline void clear_ep_state (struct pxa25x_udc *dev)
 {
 	unsigned i;
@@ -2413,34 +2379,6 @@ static int pxa25x_udc_probe(struct platform_device *pdev)
 	}
 	dev->got_irq = 1;
 
-#ifdef CONFIG_ARCH_LUBBOCK
-	if (machine_is_lubbock()) {
-		dev->usb_irq = platform_get_irq(pdev, 1);
-		if (dev->usb_irq < 0)
-			return dev->usb_irq;
-
-		dev->usb_disc_irq = platform_get_irq(pdev, 2);
-		if (dev->usb_disc_irq < 0)
-			return dev->usb_disc_irq;
-
-		retval = devm_request_irq(&pdev->dev, dev->usb_disc_irq,
-					  lubbock_vbus_irq, 0, driver_name,
-					  dev);
-		if (retval != 0) {
-			pr_err("%s: can't get irq %i, err %d\n",
-				driver_name, dev->usb_disc_irq, retval);
-			goto err;
-		}
-		retval = devm_request_irq(&pdev->dev, dev->usb_irq,
-					  lubbock_vbus_irq, 0, driver_name,
-					  dev);
-		if (retval != 0) {
-			pr_err("%s: can't get irq %i, err %d\n",
-				driver_name, dev->usb_irq, retval);
-			goto err;
-		}
-	} else
-#endif
 	create_debug_files(dev);
 
 	retval = usb_add_gadget_udc(&pdev->dev, &dev->gadget);
