@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2016-2021, The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
@@ -204,6 +205,8 @@ struct rpmh_vreg;
  * @mode:			An array of modes supported by an RPMh VRM
  *				regulator resource.
  * @mode_count:			The number of entries in the mode array.
+ * @disable_pmic_mode:		PMIC mode optionally set when aggregated regulator resource
+ *				gets disabled, overriding existing aggregated mode.
  * @aggr_req_active:		Aggregated active set RPMh accelerator register
  *				request
  * @aggr_req_sleep:		Aggregated sleep set RPMh accelerator register
@@ -225,6 +228,7 @@ struct rpmh_aggr_vreg {
 	int				vreg_count;
 	struct rpmh_regulator_mode	*mode;
 	int				mode_count;
+	int				disable_pmic_mode;
 	struct rpmh_regulator_request	aggr_req_active;
 	struct rpmh_regulator_request	aggr_req_sleep;
 };
@@ -630,6 +634,20 @@ static void rpmh_regulator_handle_arc_enable(struct rpmh_aggr_vreg *aggr_vreg,
 	req->valid &= ~BIT(RPMH_REGULATOR_REG_ARC_PSEUDO_ENABLE);
 }
 
+static void rpmh_regulator_handle_disable_mode(struct rpmh_aggr_vreg *aggr_vreg,
+					     struct rpmh_regulator_request *req)
+{
+	if (aggr_vreg->regulator_type != RPMH_REGULATOR_TYPE_VRM
+	   || aggr_vreg->disable_pmic_mode <= 0)
+		return;
+
+	if ((req->valid & BIT(RPMH_REGULATOR_REG_ENABLE))
+	   && !req->reg[RPMH_REGULATOR_REG_ENABLE]) {
+		req->reg[RPMH_REGULATOR_REG_VRM_MODE] = aggr_vreg->disable_pmic_mode;
+		req->valid |= RPMH_REGULATOR_REG_VRM_MODE;
+	}
+}
+
 /**
  * rpmh_regulator_aggregate_requests() - aggregate the requests from all
  *		regulators associated with an RPMh resource
@@ -672,6 +690,8 @@ static void rpmh_regulator_aggregate_requests(struct rpmh_aggr_vreg *aggr_vreg,
 
 	rpmh_regulator_handle_arc_enable(aggr_vreg, req_active);
 	rpmh_regulator_handle_arc_enable(aggr_vreg, req_sleep);
+	rpmh_regulator_handle_disable_mode(aggr_vreg, req_active);
+	rpmh_regulator_handle_disable_mode(aggr_vreg, req_sleep);
 }
 
 /**
@@ -1340,9 +1360,10 @@ static int rpmh_regulator_parse_vrm_modes(struct rpmh_aggr_vreg *aggr_vreg)
 	const struct rpmh_regulator_mode *map;
 	const char *prop;
 	int i, len, rc;
-	u32 *buf;
+	u32 *buf, disable_mode;
 
 	aggr_vreg->regulator_hw_type = RPMH_REGULATOR_HW_TYPE_UNKNOWN;
+	aggr_vreg->disable_pmic_mode = -EINVAL;
 
 	/* qcom,regulator-type is optional */
 	prop = "qcom,regulator-type";
@@ -1387,6 +1408,23 @@ static int rpmh_regulator_parse_vrm_modes(struct rpmh_aggr_vreg *aggr_vreg)
 	}
 
 	map = rpmh_regulator_mode_map[aggr_vreg->regulator_hw_type];
+
+	prop = "qcom,disable-mode";
+	if (!of_property_read_u32(node, prop, &disable_mode)) {
+		if (disable_mode >= RPMH_REGULATOR_MODE_COUNT) {
+			aggr_vreg_err(aggr_vreg, "qcom,disable-mode value %u is invalid\n",
+				disable_mode);
+			return -EINVAL;
+		}
+
+		if (!map[disable_mode].framework_mode) {
+			aggr_vreg_err(aggr_vreg, "qcom,disable-mode value %u is invalid for regulator type = %s\n",
+				disable_mode, type);
+			return -EINVAL;
+		}
+
+		aggr_vreg->disable_pmic_mode = map[disable_mode].pmic_mode;
+	}
 
 	/* qcom,supported-modes is optional */
 	prop = "qcom,supported-modes";
