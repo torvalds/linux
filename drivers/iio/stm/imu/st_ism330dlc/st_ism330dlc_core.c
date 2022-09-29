@@ -1857,7 +1857,7 @@ static ssize_t st_ism330dlc_sysfs_get_selftest_status(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	int8_t result;
-	char *message;
+	char *message = NULL;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ism330dlc_sensor_data *sdata = iio_priv(indio_dev);
 

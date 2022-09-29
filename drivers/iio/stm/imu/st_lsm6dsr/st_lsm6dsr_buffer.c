@@ -17,6 +17,8 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger.h>
 #include <linux/iio/buffer.h>
+#include <linux/version.h>
+
 #include "st_lsm6dsr.h"
 
 #define ST_LSM6DSR_REG_EMB_FUNC_STATUS_MAINPAGE		0x35
@@ -921,7 +923,9 @@ int st_lsm6dsr_buffers_setup(struct st_lsm6dsr_hw *hw)
 {
 	struct device_node *np = hw->dev->of_node;
 	struct st_lsm6dsr_sensor *sensor;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,13,0)
 	struct iio_buffer *buffer;
+#endif /* LINUX_VERSION_CODE */
 	struct iio_dev *iio_dev;
 	unsigned long irq_type;
 	bool irq_active_low;
@@ -976,6 +980,13 @@ int st_lsm6dsr_buffers_setup(struct st_lsm6dsr_hw *hw)
 		if (!hw->iio_devs[i])
 			continue;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,13,0)
+		err = devm_iio_kfifo_buffer_setup(hw->dev, hw->iio_devs[i],
+						  INDIO_BUFFER_SOFTWARE,
+						  &st_lsm6dsr_fifo_ops);
+		if (err)
+			return err;
+#else /* LINUX_VERSION_CODE */
 		buffer = devm_iio_kfifo_allocate(hw->dev);
 		if (!buffer)
 			return -ENOMEM;
@@ -983,6 +994,8 @@ int st_lsm6dsr_buffers_setup(struct st_lsm6dsr_hw *hw)
 		iio_device_attach_buffer(hw->iio_devs[i], buffer);
 		hw->iio_devs[i]->modes |= INDIO_BUFFER_SOFTWARE;
 		hw->iio_devs[i]->setup_ops = &st_lsm6dsr_fifo_ops;
+#endif /* LINUX_VERSION_CODE */
+
 	}
 
 	err = st_lsm6dsr_fifo_init(hw);

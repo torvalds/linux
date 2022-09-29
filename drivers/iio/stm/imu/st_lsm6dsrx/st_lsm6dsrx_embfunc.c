@@ -542,7 +542,6 @@ int st_lsm6dsrx_probe_embfunc(struct st_lsm6dsrx_hw *hw)
 
 	for (i = 0; i < ARRAY_SIZE(st_lsm6dsrx_embfunc_sensor_list);
 	     i++) {
-		int err;
 
 		id = st_lsm6dsrx_embfunc_sensor_list[i];
 		hw->iio_devs[id] = st_lsm6dsrx_alloc_embfunc_iiodev(hw,

@@ -12,6 +12,7 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/kfifo_buf.h>
 #include <linux/iio/events.h>
+#include <linux/version.h>
 
 #include "st_lps22df.h"
 
@@ -231,7 +232,9 @@ static const struct iio_buffer_setup_ops st_lps22df_buffer_ops = {
 
 int st_lps22df_allocate_buffers(struct st_lps22df_hw *hw)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,13,0)
 	struct iio_buffer *buffer;
+#endif /* LINUX_VERSION_CODE */
 	unsigned long irq_type;
 	u8 int_active = 0;
 	int err;
@@ -283,6 +286,14 @@ int st_lps22df_allocate_buffers(struct st_lps22df_hw *hw)
 	if (err)
 		return err;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,13,0)
+	err = devm_iio_kfifo_buffer_setup(hw->dev,
+					  hw->iio_devs[ST_LPS22DF_PRESS],
+					  INDIO_BUFFER_SOFTWARE,
+					  &st_lps22df_buffer_ops);
+	if (err)
+		return err;
+#else /* LINUX_VERSION_CODE */
 	buffer = devm_iio_kfifo_allocate(hw->dev);
 	if (!buffer)
 		return -ENOMEM;
@@ -290,6 +301,7 @@ int st_lps22df_allocate_buffers(struct st_lps22df_hw *hw)
 	iio_device_attach_buffer(hw->iio_devs[ST_LPS22DF_PRESS], buffer);
 	hw->iio_devs[ST_LPS22DF_PRESS]->modes |= INDIO_BUFFER_SOFTWARE;
 	hw->iio_devs[ST_LPS22DF_PRESS]->setup_ops = &st_lps22df_buffer_ops;
+#endif /* LINUX_VERSION_CODE */
 
 	return 0;
 }

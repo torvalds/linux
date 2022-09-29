@@ -15,6 +15,7 @@
 #include <linux/iio/trigger.h>
 #include <linux/interrupt.h>
 #include <linux/iio/events.h>
+#include <linux/version.h>
 
 #include "st_lis2hh12.h"
 
@@ -47,8 +48,16 @@ int lis2hh12_allocate_triggers(struct lis2hh12_data *cdata,
 	int err, i, n;
 
 	for (i = 0; i < LIS2HH12_SENSORS_NUMB; i++) {
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,13,0)
+		cdata->iio_trig[i] = iio_trigger_alloc(cdata->dev,
+						"%s-trigger",
+						cdata->iio_sensors_dev[i]->name);
+#else /* LINUX_VERSION_CODE */
 		cdata->iio_trig[i] = iio_trigger_alloc("%s-trigger",
 						cdata->iio_sensors_dev[i]->name);
+#endif /* LINUX_VERSION_CODE */
+
 		if (!cdata->iio_trig[i]) {
 			dev_err(cdata->dev, "failed to allocate iio trigger.\n");
 			err = -ENOMEM;

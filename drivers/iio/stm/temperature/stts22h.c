@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/workqueue.h>
+#include <linux/version.h>
 
 #include "stts22h.h"
 
@@ -477,7 +478,9 @@ static int st_stts22h_probe(struct i2c_client *client,
 			    const struct i2c_device_id *id)
 {
 	struct st_stts22h_data *data;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,13,0)
 	struct iio_buffer *buffer;
+#endif /* LINUX_VERSION_CODE */
 	struct iio_dev *iio_dev;
 	struct device *dev;
 	int err;
@@ -523,6 +526,13 @@ static int st_stts22h_probe(struct i2c_client *client,
 	if (err < 0)
 		return err;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,13,0)
+	err = devm_iio_kfifo_buffer_setup(data->dev, data->iio_devs,
+					  INDIO_BUFFER_SOFTWARE,
+					  &st_stts22h_buffer_ops);
+	if (err)
+		return err;
+#else /* LINUX_VERSION_CODE */
 	buffer = devm_iio_kfifo_allocate(data->dev);
 	if (!buffer)
 		return -ENOMEM;
@@ -530,6 +540,7 @@ static int st_stts22h_probe(struct i2c_client *client,
 	iio_device_attach_buffer(data->iio_devs, buffer);
 	data->iio_devs->modes |= INDIO_BUFFER_SOFTWARE;
 	data->iio_devs->setup_ops = &st_stts22h_buffer_ops;
+#endif /* LINUX_VERSION_CODE */
 
 	err = devm_iio_device_register(data->dev, data->iio_devs);
 	if (err)

@@ -16,6 +16,7 @@
 #include <linux/iio/trigger.h>
 #include <linux/interrupt.h>
 #include <linux/iio/events.h>
+#include <linux/version.h>
 
 #include "st_lsm6ds3h.h"
 
@@ -144,8 +145,16 @@ int st_lsm6ds3h_allocate_triggers(struct lsm6ds3h_data *cdata,
 	int err, i, n;
 
 	for (i = 0; i < ST_INDIO_DEV_NUM; i++) {
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,13,0)
+		cdata->trig[i] = iio_trigger_alloc(cdata->dev,
+						"%s-trigger",
+						cdata->indio_dev[i]->name);
+#else /* LINUX_VERSION_CODE */
 		cdata->trig[i] = iio_trigger_alloc("%s-trigger",
 						cdata->indio_dev[i]->name);
+#endif /* LINUX_VERSION_CODE */
+
 		if (!cdata->trig[i]) {
 			dev_err(cdata->dev,
 					"failed to allocate iio trigger.\n");

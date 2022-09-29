@@ -17,6 +17,8 @@
 #include <linux/iio/buffer.h>
 #include <asm/unaligned.h>
 #include <linux/iio/buffer.h>
+#include <linux/version.h>
+
 #include "st_asm330lhhx.h"
 
 #define ST_ASM330LHHX_REG_FIFO_STATUS1_ADDR		0x3a
@@ -602,7 +604,9 @@ static const struct iio_buffer_setup_ops st_asm330lhhx_fifo_ops = {
 
 int st_asm330lhhx_buffers_setup(struct st_asm330lhhx_hw *hw)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,13,0)
 	struct iio_buffer *buffer;
+#endif /* LINUX_VERSION_CODE */
 	unsigned long irq_type;
 	bool irq_active_low;
 	int i, err;
@@ -658,6 +662,13 @@ int st_asm330lhhx_buffers_setup(struct st_asm330lhhx_hw *hw)
 		if (!hw->iio_devs[i])
 			continue;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,13,0)
+		err = devm_iio_kfifo_buffer_setup(hw->dev, hw->iio_devs[i],
+						  INDIO_BUFFER_SOFTWARE,
+						  &st_asm330lhhx_fifo_ops);
+		if (err)
+			return err;
+#else /* LINUX_VERSION_CODE */
 		buffer = devm_iio_kfifo_allocate(hw->dev);
 		if (!buffer)
 			return -ENOMEM;
@@ -665,6 +676,8 @@ int st_asm330lhhx_buffers_setup(struct st_asm330lhhx_hw *hw)
 		iio_device_attach_buffer(hw->iio_devs[i], buffer);
 		hw->iio_devs[i]->modes |= INDIO_BUFFER_SOFTWARE;
 		hw->iio_devs[i]->setup_ops = &st_asm330lhhx_fifo_ops;
+#endif /* LINUX_VERSION_CODE */
+
 	}
 
 	err = st_asm330lhhx_hwtimesync_init(hw);

@@ -15,6 +15,7 @@
 #include <linux/iio/events.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
+#include <linux/version.h>
 
 #include "st_lis2dw12.h"
 
@@ -291,7 +292,9 @@ static irqreturn_t st_lis2dw12_handler_thread(int irq, void *private)
 int st_lis2dw12_fifo_setup(struct st_lis2dw12_hw *hw)
 {
 	struct iio_dev *iio_dev = hw->iio_devs[ST_LIS2DW12_ID_ACC];
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,13,0)
 	struct iio_buffer *buffer;
+#endif /* LINUX_VERSION_CODE */
 	int ret;
 
 	ret = devm_request_threaded_irq(hw->dev, hw->irq,
@@ -305,6 +308,13 @@ int st_lis2dw12_fifo_setup(struct st_lis2dw12_hw *hw)
 		return ret;
 	}
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,13,0)
+	ret = devm_iio_kfifo_buffer_setup(hw->dev, iio_dev,
+					  INDIO_BUFFER_SOFTWARE,
+					  &st_lis2dw12_acc_buffer_setup_ops);
+	if (ret)
+		return ret;
+#else /* LINUX_VERSION_CODE */
 	buffer = devm_iio_kfifo_allocate(hw->dev);
 	if (!buffer)
 		return -ENOMEM;
@@ -312,6 +322,7 @@ int st_lis2dw12_fifo_setup(struct st_lis2dw12_hw *hw)
 	iio_device_attach_buffer(iio_dev, buffer);
 	iio_dev->setup_ops = &st_lis2dw12_acc_buffer_setup_ops;
 	iio_dev->modes |= INDIO_BUFFER_SOFTWARE;
+#endif /* LINUX_VERSION_CODE */
 
 	return 0;
 }

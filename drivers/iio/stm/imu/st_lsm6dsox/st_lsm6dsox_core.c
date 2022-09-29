@@ -1137,7 +1137,7 @@ static ssize_t st_lsm6dsox_sysfs_get_selftest_status(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	int8_t result;
-	char *message;
+	char *message = NULL;
 	struct st_lsm6dsox_sensor *sensor = iio_priv(dev_get_drvdata(dev));
 	enum st_lsm6dsox_sensor_id id = sensor->id;
 
@@ -2106,19 +2106,18 @@ int st_lsm6dsox_probe(struct device *dev, int irq, int hw_id,
 	if (err < 0)
 		return err;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,2,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,15,0)
+	err = iio_read_mount_matrix(hw->dev, &hw->orientation);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5,2,0)
 	err = iio_read_mount_matrix(hw->dev, "mount-matrix", &hw->orientation);
-	if (err) {
-		dev_err(dev, "Failed to retrieve mounting matrix %d\n", err);
-		return err;
-	}
 #else /* LINUX_VERSION_CODE */
 	err = of_iio_read_mount_matrix(hw->dev, "mount-matrix", &hw->orientation);
+#endif /* LINUX_VERSION_CODE */
+
 	if (err) {
 		dev_err(dev, "Failed to retrieve mounting matrix %d\n", err);
 		return err;
 	}
-#endif /* LINUX_VERSION_CODE */
 
 	/* register only data sensors */
 	for (i = 0; i < ARRAY_SIZE(st_lsm6dsox_main_sensor_list); i++) {
