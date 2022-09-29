@@ -1685,7 +1685,11 @@ int i3c_master_do_daa(struct i3c_master_controller *master)
 	int ret;
 
 	i3c_bus_maintenance_lock(&master->bus);
-	ret = master->ops->do_daa(master);
+	if (master->jdec_spd) {
+		i3c_master_sethid_locked(master);
+		i3c_master_setaasa_locked(master);
+	} else
+		ret = master->ops->do_daa(master);
 	i3c_bus_maintenance_unlock(&master->bus);
 
 	if (ret)
@@ -1967,18 +1971,6 @@ static int i3c_master_bus_init(struct i3c_master_controller *master)
 	 */
 	if (master->jdec_spd && master->bus.mode != I3C_BUS_MODE_PURE)
 		return 0;
-
-	if (master->jdec_spd) {
-		i3c_bus_maintenance_lock(&master->bus);
-		i3c_master_sethid_locked(master);
-		i3c_master_setaasa_locked(master);
-		i3c_bus_maintenance_unlock(&master->bus);
-
-		i3c_bus_normaluse_lock(&master->bus);
-		i3c_master_register_new_i3c_devs(master);
-		i3c_bus_normaluse_unlock(&master->bus);
-		return 0;
-	}
 
 	ret = i3c_master_do_daa(master);
 	if (ret)
