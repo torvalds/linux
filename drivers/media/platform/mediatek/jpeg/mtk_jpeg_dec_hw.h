@@ -11,8 +11,9 @@
 
 #include <media/videobuf2-core.h>
 
-#include "mtk_jpeg_core.h"
 #include "mtk_jpeg_dec_reg.h"
+
+#define MTK_JPEG_COMP_MAX		3
 
 enum {
 	MTK_JPEG_DEC_RESULT_EOF_DONE		= 0,

@@ -14,10 +14,11 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fh.h>
+#include <media/videobuf2-v4l2.h>
+
+#include "mtk_jpeg_dec_hw.h"
 
 #define MTK_JPEG_NAME		"mtk-jpeg"
-
-#define MTK_JPEG_COMP_MAX		3
 
 #define MTK_JPEG_FMT_FLAG_OUTPUT	BIT(0)
 #define MTK_JPEG_FMT_FLAG_CAPTURE	BIT(1)
@@ -73,6 +74,15 @@ struct mtk_jpeg_variant {
 	const struct v4l2_ioctl_ops *ioctl_ops;
 	u32 out_q_default_fourcc;
 	u32 cap_q_default_fourcc;
+};
+
+struct mtk_jpeg_src_buf {
+	u32 frame_num;
+	struct vb2_v4l2_buffer b;
+	struct list_head list;
+	struct mtk_jpeg_dec_param dec_param;
+
+	struct mtk_jpeg_ctx *curr_ctx;
 };
 
 enum mtk_jpeg_hw_state {
@@ -205,17 +215,20 @@ struct mtk_jpeg_q_data {
 
 /**
  * struct mtk_jpeg_ctx - the device context data
- * @jpeg:		JPEG IP device for this context
- * @out_q:		source (output) queue information
- * @cap_q:		destination (capture) queue queue information
- * @fh:			V4L2 file handle
- * @state:		state of the context
- * @enable_exif:	enable exif mode of jpeg encoder
- * @enc_quality:	jpeg encoder quality
- * @restart_interval:	jpeg encoder restart interval
- * @ctrl_hdl:		controls handler
- * @jpeg_work:		jpeg encoder workqueue
- * @total_frame_num:	encoded frame number
+ * @jpeg:			JPEG IP device for this context
+ * @out_q:			source (output) queue information
+ * @cap_q:			destination queue information
+ * @fh:				V4L2 file handle
+ * @state:			state of the context
+ * @enable_exif:		enable exif mode of jpeg encoder
+ * @enc_quality:		jpeg encoder quality
+ * @restart_interval:		jpeg encoder restart interval
+ * @ctrl_hdl:			controls handler
+ * @jpeg_work:			jpeg encoder workqueue
+ * @total_frame_num:		encoded frame number
+ * @dst_done_queue:		encoded frame buffer queue
+ * @done_queue_lock:		encoded frame operation spinlock
+ * @last_done_frame_num:	the last encoded frame number
  */
 struct mtk_jpeg_ctx {
 	struct mtk_jpeg_dev		*jpeg;
@@ -230,6 +243,10 @@ struct mtk_jpeg_ctx {
 
 	struct work_struct jpeg_work;
 	u32 total_frame_num;
+	struct list_head dst_done_queue;
+	/* spinlock protecting the encode done buffer */
+	spinlock_t done_queue_lock;
+	u32 last_done_frame_num;
 };
 
 #endif /* _MTK_JPEG_CORE_H */

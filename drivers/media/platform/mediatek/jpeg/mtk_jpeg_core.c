@@ -111,15 +111,6 @@ enum {
 	MTK_JPEG_BUF_FLAGS_LAST_FRAME		= 1,
 };
 
-struct mtk_jpeg_src_buf {
-	u32 frame_num;
-	struct vb2_v4l2_buffer b;
-	struct list_head list;
-	struct mtk_jpeg_dec_param dec_param;
-
-	struct mtk_jpeg_ctx *curr_ctx;
-};
-
 static int debug;
 module_param(debug, int, 0644);
 
@@ -1375,6 +1366,8 @@ static int mtk_jpeg_open(struct file *file)
 	if (jpeg->is_jpgenc_multihw)
 		INIT_WORK(&ctx->jpeg_work, mtk_jpegenc_worker);
 
+	INIT_LIST_HEAD(&ctx->dst_done_queue);
+	spin_lock_init(&ctx->done_queue_lock);
 	v4l2_fh_init(&ctx->fh, vfd);
 	file->private_data = &ctx->fh;
 	v4l2_fh_add(&ctx->fh);
