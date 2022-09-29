@@ -911,7 +911,8 @@ static int gs_can_open(struct net_device *netdev)
 	/* flags */
 	if (ctrlmode & CAN_CTRLMODE_LOOPBACK)
 		flags |= GS_CAN_MODE_LOOP_BACK;
-	else if (ctrlmode & CAN_CTRLMODE_LISTENONLY)
+
+	if (ctrlmode & CAN_CTRLMODE_LISTENONLY)
 		flags |= GS_CAN_MODE_LISTEN_ONLY;
 
 	/* Controller is not allowed to retry TX
