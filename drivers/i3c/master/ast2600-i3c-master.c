@@ -872,8 +872,6 @@ static void aspeed_i3c_master_end_xfer_locked(struct aspeed_i3c_master *master, 
 		case RESPONSE_ERROR_CRC:
 		case RESPONSE_ERROR_FRAME:
 		case RESPONSE_ERROR_PEC_ERR:
-			dev_err(master->dev, "RESPONSE ERROR= %x",
-				 xfer->cmds[i].error);
 			ret = -EIO;
 			break;
 		case RESPONSE_ERROR_OVER_UNDER_FLOW:
@@ -1306,6 +1304,8 @@ static int aspeed_i3c_ccc_set(struct aspeed_i3c_master *master,
 		aspeed_i3c_master_dequeue_xfer(master, xfer);
 
 	ret = xfer->ret;
+	if (ret)
+		dev_err(master->dev, "xfer error: %x\n", xfer->cmds[0].error);
 	if (xfer->cmds[0].error == RESPONSE_ERROR_IBA_NACK)
 		ccc->err = I3C_ERROR_M2;
 
@@ -1351,6 +1351,8 @@ static int aspeed_i3c_ccc_get(struct aspeed_i3c_master *master, struct i3c_ccc_c
 		aspeed_i3c_master_dequeue_xfer(master, xfer);
 
 	ret = xfer->ret;
+	if (ret)
+		dev_err(master->dev, "xfer error: %x\n", xfer->cmds[0].error);
 	if (xfer->cmds[0].error == RESPONSE_ERROR_IBA_NACK)
 		ccc->err = I3C_ERROR_M2;
 	aspeed_i3c_master_free_xfer(xfer);
@@ -1642,6 +1644,8 @@ static int aspeed_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 	}
 
 	ret = xfer->ret;
+	if (ret)
+		dev_err(master->dev, "xfer error: %x\n", xfer->cmds[0].error);
 	aspeed_i3c_master_free_xfer(xfer);
 
 	return ret;
@@ -1770,6 +1774,8 @@ static int aspeed_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 		aspeed_i3c_master_dequeue_xfer(master, xfer);
 
 	ret = xfer->ret;
+	if (ret)
+		dev_err(master->dev, "xfer error: %x\n", xfer->cmds[0].error);
 	aspeed_i3c_master_free_xfer(xfer);
 
 	return ret;
