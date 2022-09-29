@@ -1878,7 +1878,13 @@ struct mlx5_ifc_cmd_hca_cap_2_bits {
 	u8	   max_reformat_remove_size[0x8];
 	u8	   max_reformat_remove_offset[0x8];
 
-	u8	   reserved_at_c0[0x160];
+	u8	   reserved_at_c0[0xe0];
+
+	u8	   reserved_at_1a0[0xb];
+	u8	   log_min_mkey_entity_size[0x5];
+	u8	   reserved_at_1b0[0x10];
+
+	u8	   reserved_at_1c0[0x60];
 
 	u8	   reserved_at_220[0x1];
 	u8	   sw_vhca_id_valid[0x1];

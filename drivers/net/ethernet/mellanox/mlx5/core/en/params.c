@@ -7,10 +7,15 @@
 #include "en_accel/en_accel.h"
 #include "en_accel/ipsec.h"
 
-static bool mlx5e_rx_is_xdp(struct mlx5e_params *params,
-			    struct mlx5e_xsk_param *xsk)
+u16 mlx5e_mpwrq_umr_wqe_sz(u8 pages_per_wqe)
 {
-	return params->xdp_prog || xsk;
+	return sizeof(struct mlx5e_umr_wqe) +
+		ALIGN(pages_per_wqe * sizeof(struct mlx5_mtt), MLX5_UMR_MTT_ALIGNMENT);
+}
+
+u8 mlx5e_mpwrq_umr_wqebbs(u8 pages_per_wqe)
+{
+	return DIV_ROUND_UP(mlx5e_mpwrq_umr_wqe_sz(pages_per_wqe), MLX5_SEND_WQE_BB);
 }
 
 u16 mlx5e_get_linear_rq_headroom(struct mlx5e_params *params,
@@ -22,7 +27,7 @@ u16 mlx5e_get_linear_rq_headroom(struct mlx5e_params *params,
 		return xsk->headroom;
 
 	headroom = NET_IP_ALIGN;
-	if (mlx5e_rx_is_xdp(params, xsk))
+	if (params->xdp_prog)
 		headroom += XDP_PACKET_HEADROOM;
 	else
 		headroom += MLX5_RX_HEADROOM;
@@ -30,68 +35,68 @@ u16 mlx5e_get_linear_rq_headroom(struct mlx5e_params *params,
 	return headroom;
 }
 
-u32 mlx5e_rx_get_min_frag_sz(struct mlx5e_params *params,
-			     struct mlx5e_xsk_param *xsk)
+static u32 mlx5e_rx_get_linear_sz_xsk(struct mlx5e_params *params,
+				      struct mlx5e_xsk_param *xsk)
 {
 	u32 hw_mtu = MLX5E_SW2HW_MTU(params, params->sw_mtu);
-	u16 linear_rq_headroom = mlx5e_get_linear_rq_headroom(params, xsk);
 
-	return linear_rq_headroom + hw_mtu;
+	return xsk->headroom + hw_mtu;
 }
 
-static u32 mlx5e_rx_get_linear_frag_sz(struct mlx5e_params *params,
-				       struct mlx5e_xsk_param *xsk)
+static u32 mlx5e_rx_get_linear_sz_skb(struct mlx5e_params *params, bool xsk)
 {
-	u32 frag_sz = mlx5e_rx_get_min_frag_sz(params, xsk);
+	/* SKBs built on XDP_PASS on XSK RQs don't have headroom. */
+	u16 headroom = xsk ? 0 : mlx5e_get_linear_rq_headroom(params, NULL);
+	u32 hw_mtu = MLX5E_SW2HW_MTU(params, params->sw_mtu);
 
-	/* AF_XDP doesn't build SKBs in place. */
-	if (!xsk)
-		frag_sz = MLX5_SKB_FRAG_SZ(frag_sz);
+	return MLX5_SKB_FRAG_SZ(headroom + hw_mtu);
+}
 
-	/* XDP in mlx5e doesn't support multiple packets per page. AF_XDP is a
-	 * special case. It can run with frames smaller than a page, as it
-	 * doesn't allocate pages dynamically. However, here we pretend that
-	 * fragments are page-sized: it allows to treat XSK frames like pages
-	 * by redirecting alloc and free operations to XSK rings and by using
-	 * the fact there are no multiple packets per "page" (which is a frame).
-	 * The latter is important, because frames may come in a random order,
-	 * and we will have trouble assemblying a real page of multiple frames.
-	 */
-	if (mlx5e_rx_is_xdp(params, xsk))
-		frag_sz = max_t(u32, frag_sz, PAGE_SIZE);
-
-	/* Even if we can go with a smaller fragment size, we must not put
-	 * multiple packets into a single frame.
+static u32 mlx5e_rx_get_linear_stride_sz(struct mlx5e_params *params,
+					 struct mlx5e_xsk_param *xsk)
+{
+	/* XSK frames are mapped as individual pages, because frames may come in
+	 * an arbitrary order from random locations in the UMEM.
 	 */
 	if (xsk)
-		frag_sz = max_t(u32, frag_sz, xsk->chunk_size);
+		return PAGE_SIZE;
 
-	return frag_sz;
+	/* XDP in mlx5e doesn't support multiple packets per page. */
+	if (params->xdp_prog)
+		return PAGE_SIZE;
+
+	return roundup_pow_of_two(mlx5e_rx_get_linear_sz_skb(params, false));
 }
 
-u8 mlx5e_mpwqe_log_pkts_per_wqe(struct mlx5e_params *params,
-				struct mlx5e_xsk_param *xsk)
+static u8 mlx5e_mpwqe_log_pkts_per_wqe(struct mlx5e_params *params,
+				       struct mlx5e_xsk_param *xsk)
 {
-	u32 linear_frag_sz = mlx5e_rx_get_linear_frag_sz(params, xsk);
+	u32 linear_stride_sz = mlx5e_rx_get_linear_stride_sz(params, xsk);
 
-	return MLX5_MPWRQ_LOG_WQE_SZ - order_base_2(linear_frag_sz);
+	return MLX5_MPWRQ_LOG_WQE_SZ - order_base_2(linear_stride_sz);
 }
 
 bool mlx5e_rx_is_linear_skb(struct mlx5e_params *params,
 			    struct mlx5e_xsk_param *xsk)
 {
-	/* AF_XDP allocates SKBs on XDP_PASS - ensure they don't occupy more
-	 * than one page. For this, check both with and without xsk.
-	 */
-	u32 linear_frag_sz = max(mlx5e_rx_get_linear_frag_sz(params, xsk),
-				 mlx5e_rx_get_linear_frag_sz(params, NULL));
+	if (params->packet_merge.type != MLX5E_PACKET_MERGE_NONE)
+		return false;
 
-	return params->packet_merge.type == MLX5E_PACKET_MERGE_NONE &&
-		linear_frag_sz <= PAGE_SIZE;
+	/* Both XSK and non-XSK cases allocate an SKB on XDP_PASS. Packet data
+	 * must fit into a CPU page.
+	 */
+	if (mlx5e_rx_get_linear_sz_skb(params, xsk) > PAGE_SIZE)
+		return false;
+
+	/* XSK frames must be big enough to hold the packet data. */
+	if (xsk && mlx5e_rx_get_linear_sz_xsk(params, xsk) > xsk->chunk_size)
+		return false;
+
+	return true;
 }
 
-bool mlx5e_verify_rx_mpwqe_strides(struct mlx5_core_dev *mdev,
-				   u8 log_stride_sz, u8 log_num_strides)
+static bool mlx5e_verify_rx_mpwqe_strides(struct mlx5_core_dev *mdev,
+					  u8 log_stride_sz, u8 log_num_strides)
 {
 	if (log_stride_sz + log_num_strides != MLX5_MPWRQ_LOG_WQE_SZ)
 		return false;
@@ -119,7 +124,7 @@ bool mlx5e_rx_mpwqe_is_linear_skb(struct mlx5_core_dev *mdev,
 	if (!mlx5e_rx_is_linear_skb(params, xsk))
 		return false;
 
-	log_stride_sz = order_base_2(mlx5e_rx_get_linear_frag_sz(params, xsk));
+	log_stride_sz = order_base_2(mlx5e_rx_get_linear_stride_sz(params, xsk));
 	log_num_strides = MLX5_MPWRQ_LOG_WQE_SZ - log_stride_sz;
 
 	return mlx5e_verify_rx_mpwqe_strides(mdev, log_stride_sz, log_num_strides);
@@ -164,7 +169,7 @@ u8 mlx5e_mpwqe_get_log_stride_size(struct mlx5_core_dev *mdev,
 				   struct mlx5e_xsk_param *xsk)
 {
 	if (mlx5e_rx_mpwqe_is_linear_skb(mdev, params, xsk))
-		return order_base_2(mlx5e_rx_get_linear_frag_sz(params, xsk));
+		return order_base_2(mlx5e_rx_get_linear_stride_sz(params, xsk));
 
 	return MLX5_MPWRQ_DEF_LOG_STRIDE_SZ(mdev);
 }
@@ -209,11 +214,11 @@ u16 mlx5e_calc_sq_stop_room(struct mlx5_core_dev *mdev, struct mlx5e_params *par
 	stop_room  = mlx5e_ktls_get_stop_room(mdev, params);
 	stop_room += mlx5e_stop_room_for_max_wqe(mdev);
 	if (is_mpwqe)
-		/* A MPWQE can take up to the maximum-sized WQE + all the normal
-		 * stop room can be taken if a new packet breaks the active
-		 * MPWQE session and allocates its WQEs right away.
+		/* A MPWQE can take up to the maximum cacheline-aligned WQE +
+		 * all the normal stop room can be taken if a new packet breaks
+		 * the active MPWQE session and allocates its WQEs right away.
 		 */
-		stop_room += mlx5e_stop_room_for_max_wqe(mdev);
+		stop_room += mlx5e_stop_room_for_mpwqe(mdev);
 
 	return stop_room;
 }
@@ -320,22 +325,27 @@ bool slow_pci_heuristic(struct mlx5_core_dev *mdev)
 		link_speed > MLX5E_SLOW_PCI_RATIO * pci_bw;
 }
 
-bool mlx5e_striding_rq_possible(struct mlx5_core_dev *mdev,
-				struct mlx5e_params *params)
+int mlx5e_mpwrq_validate_regular(struct mlx5_core_dev *mdev, struct mlx5e_params *params)
 {
 	if (!mlx5e_check_fragmented_striding_rq_cap(mdev))
-		return false;
+		return -EOPNOTSUPP;
 
-	if (params->xdp_prog) {
-		/* XSK params are not considered here. If striding RQ is in use,
-		 * and an XSK is being opened, mlx5e_rx_mpwqe_is_linear_skb will
-		 * be called with the known XSK params.
-		 */
-		if (!mlx5e_rx_mpwqe_is_linear_skb(mdev, params, NULL))
-			return false;
-	}
+	if (params->xdp_prog && !mlx5e_rx_mpwqe_is_linear_skb(mdev, params, NULL))
+		return -EINVAL;
 
-	return true;
+	return 0;
+}
+
+int mlx5e_mpwrq_validate_xsk(struct mlx5_core_dev *mdev, struct mlx5e_params *params,
+			     struct mlx5e_xsk_param *xsk)
+{
+	if (!mlx5e_check_fragmented_striding_rq_cap(mdev))
+		return -EOPNOTSUPP;
+
+	if (!mlx5e_rx_mpwqe_is_linear_skb(mdev, params, xsk))
+		return -EINVAL;
+
+	return 0;
 }
 
 void mlx5e_init_rq_type_params(struct mlx5_core_dev *mdev,
@@ -356,8 +366,7 @@ void mlx5e_init_rq_type_params(struct mlx5_core_dev *mdev,
 
 void mlx5e_set_rq_type(struct mlx5_core_dev *mdev, struct mlx5e_params *params)
 {
-	params->rq_wq_type = mlx5e_striding_rq_possible(mdev, params) &&
-		MLX5E_GET_PFLAG(params, MLX5E_PFLAG_RX_STRIDING_RQ) ?
+	params->rq_wq_type = MLX5E_GET_PFLAG(params, MLX5E_PFLAG_RX_STRIDING_RQ) ?
 		MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ :
 		MLX5_WQ_TYPE_CYCLIC;
 }
@@ -374,7 +383,7 @@ void mlx5e_build_rq_params(struct mlx5_core_dev *mdev,
 	 */
 	if ((!MLX5E_GET_PFLAG(params, MLX5E_PFLAG_RX_CQE_COMPRESS) ||
 	     MLX5_CAP_GEN(mdev, mini_cqe_resp_stride_index)) &&
-	    mlx5e_striding_rq_possible(mdev, params) &&
+	    !mlx5e_mpwrq_validate_regular(mdev, params) &&
 	    (mlx5e_rx_mpwqe_is_linear_skb(mdev, params, NULL) ||
 	     !mlx5e_rx_is_linear_skb(params, NULL)))
 		MLX5E_SET_PFLAG(params, MLX5E_PFLAG_RX_STRIDING_RQ, true);
@@ -422,8 +431,7 @@ static int mlx5e_build_rq_frags_info(struct mlx5_core_dev *mdev,
 	if (mlx5e_rx_is_linear_skb(params, xsk)) {
 		int frag_stride;
 
-		frag_stride = mlx5e_rx_get_linear_frag_sz(params, xsk);
-		frag_stride = roundup_pow_of_two(frag_stride);
+		frag_stride = mlx5e_rx_get_linear_stride_sz(params, xsk);
 
 		info->arr[0].frag_size = byte_count;
 		info->arr[0].frag_stride = frag_stride;
@@ -789,7 +797,8 @@ static u8 mlx5e_build_icosq_log_wq_sz(struct mlx5_core_dev *mdev,
 	if (params->rq_wq_type != MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ)
 		return MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE;
 
-	wqebbs = MLX5E_UMR_WQEBBS * BIT(mlx5e_get_rq_log_wq_sz(rqp->rqc));
+	wqebbs = mlx5e_mpwrq_umr_wqebbs(MLX5_MPWRQ_PAGES_PER_WQE) *
+		(1 << mlx5e_get_rq_log_wq_sz(rqp->rqc));
 
 	/* If XDP program is attached, XSK may be turned on at any time without
 	 * restarting the channel. ICOSQ must be big enough to fit UMR WQEs of

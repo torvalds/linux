@@ -107,7 +107,6 @@ struct page_pool;
  * dropped by the driver at a later stage.
  */
 #define MLX5E_REQUIRED_WQE_MTTS		(MLX5_ALIGN_MTTS(MLX5_MPWRQ_PAGES_PER_WQE + 1))
-#define MLX5E_REQUIRED_MTTS(wqes)	(wqes * MLX5E_REQUIRED_WQE_MTTS)
 #define MLX5E_MAX_RQ_NUM_MTTS	\
 	(ALIGN_DOWN(U16_MAX, 4) * 2) /* So that MLX5_MTT_OCTW(num_mtts) fits into u16 */
 #define MLX5E_ORDER2_MAX_PACKET_MTU (order_base_2(10 * 1024))
@@ -150,13 +149,6 @@ struct page_pool;
 #define MLX5E_TX_XSK_POLL_BUDGET       64
 #define MLX5E_SQ_RECOVER_MIN_INTERVAL  500 /* msecs */
 
-#define MLX5E_UMR_WQE_INLINE_SZ \
-	(sizeof(struct mlx5e_umr_wqe) + \
-	 ALIGN(MLX5_MPWRQ_PAGES_PER_WQE * sizeof(struct mlx5_mtt), \
-	       MLX5_UMR_MTT_ALIGNMENT))
-#define MLX5E_UMR_WQEBBS \
-	(DIV_ROUND_UP(MLX5E_UMR_WQE_INLINE_SZ, MLX5_SEND_WQE_BB))
-
 #define MLX5E_KLM_UMR_WQE_SZ(sgl_len)\
 	(sizeof(struct mlx5e_umr_wqe) +\
 	(sizeof(struct mlx5_klm) * (sgl_len)))
@@ -174,8 +166,7 @@ struct page_pool;
 	ALIGN_DOWN(MLX5E_KLM_MAX_ENTRIES_PER_WQE(wqe_size), MLX5_UMR_KLM_ALIGNMENT)
 
 #define MLX5E_MAX_KLM_PER_WQE(mdev) \
-	MLX5E_KLM_ENTRIES_PER_WQE(MLX5_SEND_WQE_BB * \
-		mlx5e_get_sw_max_sq_mpw_wqebbs(mlx5e_get_max_sq_wqebbs(mdev)))
+	MLX5E_KLM_ENTRIES_PER_WQE(MLX5_SEND_WQE_BB * mlx5e_get_max_sq_aligned_wqebbs(mdev))
 
 #define MLX5E_MSG_LEVEL			NETIF_MSG_LINK
 
@@ -227,13 +218,15 @@ static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
  * bytes units. Driver hardens the limitation to 1KB (16
  * WQEBBs), unless firmware capability is stricter.
  */
-static inline u16 mlx5e_get_max_sq_wqebbs(struct mlx5_core_dev *mdev)
+static inline u8 mlx5e_get_max_sq_wqebbs(struct mlx5_core_dev *mdev)
 {
-	return min_t(u16, MLX5_SEND_WQE_MAX_WQEBBS,
-		     MLX5_CAP_GEN(mdev, max_wqe_sz_sq) / MLX5_SEND_WQE_BB);
+	BUILD_BUG_ON(MLX5_SEND_WQE_MAX_WQEBBS > U8_MAX);
+
+	return (u8)min_t(u16, MLX5_SEND_WQE_MAX_WQEBBS,
+			 MLX5_CAP_GEN(mdev, max_wqe_sz_sq) / MLX5_SEND_WQE_BB);
 }
 
-static inline u8 mlx5e_get_sw_max_sq_mpw_wqebbs(u8 max_sq_wqebbs)
+static inline u8 mlx5e_get_max_sq_aligned_wqebbs(struct mlx5_core_dev *mdev)
 {
 /* The return value will be multiplied by MLX5_SEND_WQEBB_NUM_DS.
  * Since max_sq_wqebbs may be up to MLX5_SEND_WQE_MAX_WQEBBS == 16,
@@ -242,8 +235,9 @@ static inline u8 mlx5e_get_sw_max_sq_mpw_wqebbs(u8 max_sq_wqebbs)
  * than MLX5_SEND_WQE_MAX_WQEBBS to let a full-session WQE be
  * cache-aligned.
  */
-	u8 wqebbs = min_t(u8, max_sq_wqebbs, MLX5_SEND_WQE_MAX_WQEBBS - 1);
+	u8 wqebbs = mlx5e_get_max_sq_wqebbs(mdev);
 
+	wqebbs = min_t(u8, wqebbs, MLX5_SEND_WQE_MAX_WQEBBS - 1);
 #if L1_CACHE_BYTES >= 128
 	wqebbs = ALIGN_DOWN(wqebbs, 2);
 #endif
@@ -476,7 +470,6 @@ struct mlx5e_txqsq {
 	struct work_struct         recover_work;
 	struct mlx5e_ptpsq        *ptpsq;
 	cqe_ts_to_ns               ptp_cyc2time;
-	u16                        max_sq_wqebbs;
 } ____cacheline_aligned_in_smp;
 
 struct mlx5e_dma_info {
@@ -580,7 +573,6 @@ struct mlx5e_xdpsq {
 	/* control path */
 	struct mlx5_wq_ctrl        wq_ctrl;
 	struct mlx5e_channel      *channel;
-	u16                        max_sq_wqebbs;
 } ____cacheline_aligned_in_smp;
 
 struct mlx5e_ktls_resync_resp;
@@ -609,7 +601,6 @@ struct mlx5e_icosq {
 	/* control path */
 	struct mlx5_wq_ctrl        wq_ctrl;
 	struct mlx5e_channel      *channel;
-	u16                        max_sq_wqebbs;
 
 	struct work_struct         recover_work;
 } ____cacheline_aligned_in_smp;
@@ -620,14 +611,10 @@ struct mlx5e_wqe_frag_info {
 	bool last_in_page;
 };
 
-struct mlx5e_umr_dma_info {
-	struct mlx5e_dma_info  dma_info[MLX5_MPWRQ_PAGES_PER_WQE];
-};
-
 struct mlx5e_mpw_info {
-	struct mlx5e_umr_dma_info umr;
 	u16 consumed_strides;
 	DECLARE_BITMAP(xdp_xmit_bitmap, MLX5_MPWRQ_PAGES_PER_WQE);
+	struct mlx5e_dma_info dma_info[];
 };
 
 #define MLX5E_MAX_RX_FRAGS 4
@@ -717,6 +704,10 @@ struct mlx5e_rq {
 			u8                     umr_last_bulk;
 			u8                     umr_completed;
 			u8                     min_wqe_bulk;
+			u8                     page_shift;
+			u8                     pages_per_wqe;
+			u8                     umr_wqebbs;
+			u8                     mtts_per_wqe;
 			struct mlx5e_shampo_hd *shampo;
 		} mpwqe;
 	};

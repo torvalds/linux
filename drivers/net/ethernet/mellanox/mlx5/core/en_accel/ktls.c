@@ -92,6 +92,24 @@ static const struct tlsdev_ops mlx5e_ktls_ops = {
 	.tls_dev_resync = mlx5e_ktls_resync,
 };
 
+bool mlx5e_is_ktls_rx(struct mlx5_core_dev *mdev)
+{
+	u8 max_sq_wqebbs = mlx5e_get_max_sq_wqebbs(mdev);
+
+	if (is_kdump_kernel() || !MLX5_CAP_GEN(mdev, tls_rx))
+		return false;
+
+	/* Check the possibility to post the required ICOSQ WQEs. */
+	if (WARN_ON_ONCE(max_sq_wqebbs < MLX5E_TLS_SET_STATIC_PARAMS_WQEBBS))
+		return false;
+	if (WARN_ON_ONCE(max_sq_wqebbs < MLX5E_TLS_SET_PROGRESS_PARAMS_WQEBBS))
+		return false;
+	if (WARN_ON_ONCE(max_sq_wqebbs < MLX5E_KTLS_GET_PROGRESS_WQEBBS))
+		return false;
+
+	return true;
+}
+
 void mlx5e_ktls_build_netdev(struct mlx5e_priv *priv)
 {
 	struct net_device *netdev = priv->netdev;
