@@ -1188,7 +1188,7 @@ EXPORT_SYMBOL_GPL(mm_unaccount_pinned_pages);
 
 static struct ubuf_info *msg_zerocopy_alloc(struct sock *sk, size_t size)
 {
-	struct ubuf_info *uarg;
+	struct ubuf_info_msgzc *uarg;
 	struct sk_buff *skb;
 
 	WARN_ON_ONCE(!in_task());
@@ -1206,19 +1206,19 @@ static struct ubuf_info *msg_zerocopy_alloc(struct sock *sk, size_t size)
 		return NULL;
 	}
 
-	uarg->callback = msg_zerocopy_callback;
+	uarg->ubuf.callback = msg_zerocopy_callback;
 	uarg->id = ((u32)atomic_inc_return(&sk->sk_zckey)) - 1;
 	uarg->len = 1;
 	uarg->bytelen = size;
 	uarg->zerocopy = 1;
-	uarg->flags = SKBFL_ZEROCOPY_FRAG | SKBFL_DONT_ORPHAN;
-	refcount_set(&uarg->refcnt, 1);
+	uarg->ubuf.flags = SKBFL_ZEROCOPY_FRAG | SKBFL_DONT_ORPHAN;
+	refcount_set(&uarg->ubuf.refcnt, 1);
 	sock_hold(sk);
 
-	return uarg;
+	return &uarg->ubuf;
 }
 
-static inline struct sk_buff *skb_from_uarg(struct ubuf_info *uarg)
+static inline struct sk_buff *skb_from_uarg(struct ubuf_info_msgzc *uarg)
 {
 	return container_of((void *)uarg, struct sk_buff, cb);
 }
@@ -1227,6 +1227,7 @@ struct ubuf_info *msg_zerocopy_realloc(struct sock *sk, size_t size,
 				       struct ubuf_info *uarg)
 {
 	if (uarg) {
+		struct ubuf_info_msgzc *uarg_zc;
 		const u32 byte_limit = 1 << 19;		/* limit to a few TSO */
 		u32 bytelen, next;
 
@@ -1242,8 +1243,9 @@ struct ubuf_info *msg_zerocopy_realloc(struct sock *sk, size_t size,
 			return NULL;
 		}
 
-		bytelen = uarg->bytelen + size;
-		if (uarg->len == USHRT_MAX - 1 || bytelen > byte_limit) {
+		uarg_zc = uarg_to_msgzc(uarg);
+		bytelen = uarg_zc->bytelen + size;
+		if (uarg_zc->len == USHRT_MAX - 1 || bytelen > byte_limit) {
 			/* TCP can create new skb to attach new uarg */
 			if (sk->sk_type == SOCK_STREAM)
 				goto new_alloc;
@@ -1251,11 +1253,11 @@ struct ubuf_info *msg_zerocopy_realloc(struct sock *sk, size_t size,
 		}
 
 		next = (u32)atomic_read(&sk->sk_zckey);
-		if ((u32)(uarg->id + uarg->len) == next) {
-			if (mm_account_pinned_pages(&uarg->mmp, size))
+		if ((u32)(uarg_zc->id + uarg_zc->len) == next) {
+			if (mm_account_pinned_pages(&uarg_zc->mmp, size))
 				return NULL;
-			uarg->len++;
-			uarg->bytelen = bytelen;
+			uarg_zc->len++;
+			uarg_zc->bytelen = bytelen;
 			atomic_set(&sk->sk_zckey, ++next);
 
 			/* no extra ref when appending to datagram (MSG_MORE) */
@@ -1291,7 +1293,7 @@ static bool skb_zerocopy_notify_extend(struct sk_buff *skb, u32 lo, u16 len)
 	return true;
 }
 
-static void __msg_zerocopy_callback(struct ubuf_info *uarg)
+static void __msg_zerocopy_callback(struct ubuf_info_msgzc *uarg)
 {
 	struct sk_buff *tail, *skb = skb_from_uarg(uarg);
 	struct sock_exterr_skb *serr;
@@ -1344,19 +1346,21 @@ release:
 void msg_zerocopy_callback(struct sk_buff *skb, struct ubuf_info *uarg,
 			   bool success)
 {
-	uarg->zerocopy = uarg->zerocopy & success;
+	struct ubuf_info_msgzc *uarg_zc = uarg_to_msgzc(uarg);
+
+	uarg_zc->zerocopy = uarg_zc->zerocopy & success;
 
 	if (refcount_dec_and_test(&uarg->refcnt))
-		__msg_zerocopy_callback(uarg);
+		__msg_zerocopy_callback(uarg_zc);
 }
 EXPORT_SYMBOL_GPL(msg_zerocopy_callback);
 
 void msg_zerocopy_put_abort(struct ubuf_info *uarg, bool have_uref)
 {
-	struct sock *sk = skb_from_uarg(uarg)->sk;
+	struct sock *sk = skb_from_uarg(uarg_to_msgzc(uarg))->sk;
 
 	atomic_dec(&sk->sk_zckey);
-	uarg->len--;
+	uarg_to_msgzc(uarg)->len--;
 
 	if (have_uref)
 		msg_zerocopy_callback(NULL, uarg, true);

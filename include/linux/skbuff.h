@@ -533,6 +533,13 @@ enum {
 struct ubuf_info {
 	void (*callback)(struct sk_buff *, struct ubuf_info *,
 			 bool zerocopy_success);
+	refcount_t refcnt;
+	u8 flags;
+};
+
+struct ubuf_info_msgzc {
+	struct ubuf_info ubuf;
+
 	union {
 		struct {
 			unsigned long desc;
@@ -545,8 +552,6 @@ struct ubuf_info {
 			u32 bytelen;
 		};
 	};
-	refcount_t refcnt;
-	u8 flags;
 
 	struct mmpin {
 		struct user_struct *user;
@@ -555,6 +560,8 @@ struct ubuf_info {
 };
 
 #define skb_uarg(SKB)	((struct ubuf_info *)(skb_shinfo(SKB)->destructor_arg))
+#define uarg_to_msgzc(ubuf_ptr)	container_of((ubuf_ptr), struct ubuf_info_msgzc, \
+					     ubuf)
 
 int mm_account_pinned_pages(struct mmpin *mmp, size_t size);
 void mm_unaccount_pinned_pages(struct mmpin *mmp);
