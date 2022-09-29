@@ -250,7 +250,7 @@ static inline bool mlx5e_rx_cache_put(struct mlx5e_rq *rq, struct page *page)
 	return true;
 }
 
-static inline bool mlx5e_rx_cache_get(struct mlx5e_rq *rq, struct mlx5e_alloc_unit *au)
+static inline bool mlx5e_rx_cache_get(struct mlx5e_rq *rq, union mlx5e_alloc_unit *au)
 {
 	struct mlx5e_page_cache *cache = &rq->page_cache;
 	struct mlx5e_rq_stats *stats = rq->stats;
@@ -276,7 +276,7 @@ static inline bool mlx5e_rx_cache_get(struct mlx5e_rq *rq, struct mlx5e_alloc_un
 	return true;
 }
 
-static inline int mlx5e_page_alloc_pool(struct mlx5e_rq *rq, struct mlx5e_alloc_unit *au)
+static inline int mlx5e_page_alloc_pool(struct mlx5e_rq *rq, union mlx5e_alloc_unit *au)
 {
 	dma_addr_t addr;
 
@@ -300,7 +300,7 @@ static inline int mlx5e_page_alloc_pool(struct mlx5e_rq *rq, struct mlx5e_alloc_
 	return 0;
 }
 
-static inline int mlx5e_page_alloc(struct mlx5e_rq *rq, struct mlx5e_alloc_unit *au)
+static inline int mlx5e_page_alloc(struct mlx5e_rq *rq, union mlx5e_alloc_unit *au)
 {
 	if (rq->xsk_pool)
 		return mlx5e_xsk_page_alloc_pool(rq, au);
@@ -333,7 +333,7 @@ void mlx5e_page_release_dynamic(struct mlx5e_rq *rq, struct page *page, bool rec
 }
 
 static inline void mlx5e_page_release(struct mlx5e_rq *rq,
-				      struct mlx5e_alloc_unit *au,
+				      union mlx5e_alloc_unit *au,
 				      bool recycle)
 {
 	if (rq->xsk_pool)
@@ -458,7 +458,7 @@ free_wqes:
 
 static inline void
 mlx5e_add_skb_frag(struct mlx5e_rq *rq, struct sk_buff *skb,
-		   struct mlx5e_alloc_unit *au, u32 frag_offset, u32 len,
+		   union mlx5e_alloc_unit *au, u32 frag_offset, u32 len,
 		   unsigned int truesize)
 {
 	dma_addr_t addr = page_pool_get_dma_addr(au->page);
@@ -485,7 +485,7 @@ mlx5e_copy_skb_header(struct device *pdev, struct sk_buff *skb,
 static void
 mlx5e_free_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi, bool recycle)
 {
-	struct mlx5e_alloc_unit *alloc_units = wi->alloc_units;
+	union mlx5e_alloc_unit *alloc_units = wi->alloc_units;
 	bool no_xdp_xmit;
 	int i;
 
@@ -582,7 +582,7 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 		header_offset = (index & (MLX5E_SHAMPO_WQ_HEADER_PER_PAGE - 1)) <<
 			MLX5E_SHAMPO_LOG_MAX_HEADER_ENTRY_SIZE;
 		if (!(header_offset & (PAGE_SIZE - 1))) {
-			struct mlx5e_alloc_unit au;
+			union mlx5e_alloc_unit au;
 
 			err = mlx5e_page_alloc(rq, &au);
 			if (unlikely(err))
@@ -620,7 +620,7 @@ err_unmap:
 	while (--i >= 0) {
 		dma_info = &shampo->info[--index];
 		if (!(i & (MLX5E_SHAMPO_WQ_HEADER_PER_PAGE - 1))) {
-			struct mlx5e_alloc_unit au = {
+			union mlx5e_alloc_unit au = {
 				.page = dma_info->page,
 			};
 
@@ -674,7 +674,7 @@ static int mlx5e_alloc_rx_hd_mpwqe(struct mlx5e_rq *rq)
 static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 {
 	struct mlx5e_mpw_info *wi = mlx5e_get_mpw_info(rq, ix);
-	struct mlx5e_alloc_unit *au = &wi->alloc_units[0];
+	union mlx5e_alloc_unit *au = &wi->alloc_units[0];
 	struct mlx5e_icosq *sq = rq->icosq;
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	struct mlx5e_umr_wqe *umr_wqe;
@@ -791,7 +791,7 @@ void mlx5e_shampo_dealloc_hd(struct mlx5e_rq *rq, u16 len, u16 start, bool close
 		hd_info = &shampo->info[index];
 		hd_info->addr = ALIGN_DOWN(hd_info->addr, PAGE_SIZE);
 		if (hd_info->page != deleted_page) {
-			struct mlx5e_alloc_unit au = {
+			union mlx5e_alloc_unit au = {
 				.page = hd_info->page,
 			};
 
@@ -1571,7 +1571,7 @@ static struct sk_buff *
 mlx5e_skb_from_cqe_linear(struct mlx5e_rq *rq, struct mlx5e_wqe_frag_info *wi,
 			  u32 cqe_bcnt)
 {
-	struct mlx5e_alloc_unit *au = wi->au;
+	union mlx5e_alloc_unit *au = wi->au;
 	u16 rx_headroom = rq->buff.headroom;
 	struct bpf_prog *prog;
 	struct sk_buff *skb;
@@ -1619,7 +1619,7 @@ mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5e_wqe_frag_info *wi
 {
 	struct mlx5e_rq_frag_info *frag_info = &rq->wqe.info.arr[0];
 	struct mlx5e_wqe_frag_info *head_wi = wi;
-	struct mlx5e_alloc_unit *au = wi->au;
+	union mlx5e_alloc_unit *au = wi->au;
 	u16 rx_headroom = rq->buff.headroom;
 	struct skb_shared_info *sinfo;
 	u32 frag_consumed_bytes;
@@ -1899,7 +1899,7 @@ const struct mlx5e_rx_handlers mlx5e_rx_handlers_rep = {
 
 static void
 mlx5e_fill_skb_data(struct sk_buff *skb, struct mlx5e_rq *rq,
-		    struct mlx5e_alloc_unit *au, u32 data_bcnt, u32 data_offset)
+		    union mlx5e_alloc_unit *au, u32 data_bcnt, u32 data_offset)
 {
 	net_prefetchw(skb->data);
 
@@ -1926,11 +1926,11 @@ static struct sk_buff *
 mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 				   u16 cqe_bcnt, u32 head_offset, u32 page_idx)
 {
-	struct mlx5e_alloc_unit *au = &wi->alloc_units[page_idx];
+	union mlx5e_alloc_unit *au = &wi->alloc_units[page_idx];
 	u16 headlen = min_t(u16, MLX5E_RX_MAX_HEAD, cqe_bcnt);
 	u32 frag_offset    = head_offset + headlen;
 	u32 byte_cnt       = cqe_bcnt - headlen;
-	struct mlx5e_alloc_unit *head_au = au;
+	union mlx5e_alloc_unit *head_au = au;
 	struct sk_buff *skb;
 	dma_addr_t addr;
 
@@ -1965,7 +1965,7 @@ static struct sk_buff *
 mlx5e_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 				u16 cqe_bcnt, u32 head_offset, u32 page_idx)
 {
-	struct mlx5e_alloc_unit *au = &wi->alloc_units[page_idx];
+	union mlx5e_alloc_unit *au = &wi->alloc_units[page_idx];
 	u16 rx_headroom = rq->buff.headroom;
 	struct bpf_prog *prog;
 	struct sk_buff *skb;
@@ -2107,7 +2107,7 @@ mlx5e_free_rx_shampo_hd_entry(struct mlx5e_rq *rq, u16 header_index)
 	u64 addr = shampo->info[header_index].addr;
 
 	if (((header_index + 1) & (MLX5E_SHAMPO_WQ_HEADER_PER_PAGE - 1)) == 0) {
-		struct mlx5e_alloc_unit au = {
+		union mlx5e_alloc_unit au = {
 			.page = shampo->info[header_index].page,
 		};
 
@@ -2133,7 +2133,7 @@ static void mlx5e_handle_rx_cqe_mpwrq_shampo(struct mlx5e_rq *rq, struct mlx5_cq
 	bool match		= cqe->shampo.match;
 	struct mlx5e_rq_stats *stats = rq->stats;
 	struct mlx5e_rx_wqe_ll *wqe;
-	struct mlx5e_alloc_unit *au;
+	union mlx5e_alloc_unit *au;
 	struct mlx5e_mpw_info *wi;
 	struct mlx5_wq_ll *wq;
 

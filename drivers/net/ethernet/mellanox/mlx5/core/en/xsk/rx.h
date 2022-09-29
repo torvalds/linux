@@ -19,7 +19,7 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_linear(struct mlx5e_rq *rq,
 					      u32 cqe_bcnt);
 
 static inline int mlx5e_xsk_page_alloc_pool(struct mlx5e_rq *rq,
-					    struct mlx5e_alloc_unit *au)
+					    union mlx5e_alloc_unit *au)
 {
 	au->xsk = xsk_buff_alloc(rq->xsk_pool);
 	if (!au->xsk)

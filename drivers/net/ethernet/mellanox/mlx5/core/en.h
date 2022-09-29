@@ -474,11 +474,9 @@ struct mlx5e_txqsq {
 	cqe_ts_to_ns               ptp_cyc2time;
 } ____cacheline_aligned_in_smp;
 
-struct mlx5e_alloc_unit {
-	union {
-		struct page *page;
-		struct xdp_buff *xsk;
-	};
+union mlx5e_alloc_unit {
+	struct page *page;
+	struct xdp_buff *xsk;
 };
 
 /* XDP packets can be transmitted in different ways. On completion, we need to
@@ -607,7 +605,7 @@ struct mlx5e_icosq {
 } ____cacheline_aligned_in_smp;
 
 struct mlx5e_wqe_frag_info {
-	struct mlx5e_alloc_unit *au;
+	union mlx5e_alloc_unit *au;
 	u32 offset;
 	bool last_in_page;
 };
@@ -615,7 +613,7 @@ struct mlx5e_wqe_frag_info {
 struct mlx5e_mpw_info {
 	u16 consumed_strides;
 	DECLARE_BITMAP(xdp_xmit_bitmap, MLX5_MPWRQ_MAX_PAGES_PER_WQE);
-	struct mlx5e_alloc_unit alloc_units[];
+	union mlx5e_alloc_unit alloc_units[];
 };
 
 #define MLX5E_MAX_RX_FRAGS 4
@@ -694,7 +692,7 @@ struct mlx5e_rq {
 		struct {
 			struct mlx5_wq_cyc          wq;
 			struct mlx5e_wqe_frag_info *frags;
-			struct mlx5e_alloc_unit    *alloc_units;
+			union mlx5e_alloc_unit     *alloc_units;
 			struct mlx5e_rq_frags_info  info;
 			mlx5e_fp_skb_from_cqe       skb_from_cqe;
 		} wqe;
