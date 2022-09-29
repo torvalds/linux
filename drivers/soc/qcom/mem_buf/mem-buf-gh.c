@@ -222,6 +222,13 @@ static void mem_buf_rmt_free_dmaheap_mem(struct mem_buf_xfer_mem *xfer_mem)
 	dma_buf_unmap_attachment(attachment, mem_sgt, DMA_BIDIRECTIONAL);
 	dma_buf_detach(dmabuf, attachment);
 	dma_buf_put(dmaheap_mem_data->dmabuf);
+	/*
+	 * No locks should be held at this point, as flush_delayed_fput may call the
+	 * release callbacks of arbitrary files. It should be safe for us since we
+	 * know this function is called only from our recv kthread, so we have control
+	 * over what locks are currently held.
+	 */
+	flush_delayed_fput();
 	pr_debug("%s: DMAHEAP memory freed\n", __func__);
 }
 
@@ -1137,6 +1144,14 @@ static int get_mem_buf(void *membuf_desc)
 
 	return 0;
 }
+
+struct gh_sgl_desc *mem_buf_get_sgl(void *__membuf)
+{
+	struct mem_buf_desc *membuf = __membuf;
+
+	return membuf->sgl_desc;
+}
+EXPORT_SYMBOL(mem_buf_get_sgl);
 
 static void mem_buf_retrieve_release(struct qcom_sg_buffer *buffer)
 {
