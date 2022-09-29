@@ -124,6 +124,7 @@ struct aspeed_spi_controller {
 	struct completion dma_done;
 	struct aspeed_spi_chip *chips; /* pointers to attached chips */
 	uint32_t flag;
+	bool disable_calib;
 	spinlock_t lock;
 };
 
@@ -353,6 +354,14 @@ int aspeed_2600_spi_timing_calibration(struct aspeed_spi_controller *ast_ctrl,
 	 */
 	reg_val = chip->ctrl_val[ASPEED_SPI_READ] & 0xf0fff0ff;
 	writel(reg_val, ast_ctrl->regs + OFFSET_CE0_CTRL_REG + cs * 4);
+
+	/*
+	 * timing calibration should be skipped when
+	 * "timing-calibration-disabled" property is configured
+	 * in the device tree.
+	 */
+	if (ast_ctrl->disable_calib)
+		goto no_calib;
 
 	check_buf = kzalloc(CALIBRATION_LEN, GFP_KERNEL);
 	if (!check_buf)
@@ -1105,10 +1114,13 @@ static int aspeed_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 		ast_ctrl->chips[target_cs].max_clk_freq =
 			desc->mem->spi->max_speed_hz;
 
+		ast_ctrl->disable_calib = false;
 		if (!of_property_read_bool(ast_ctrl->dev->of_node,
 			"timing-calibration-disabled")) {
-			ret = info->calibrate(ast_ctrl, target_cs);
+			ast_ctrl->disable_calib = true;
 		}
+
+		ret = info->calibrate(ast_ctrl, target_cs);
 
 		dev_info(dev, "read bus width: %d [0x%08x]\n",
 			 op_tmpl.data.buswidth,
