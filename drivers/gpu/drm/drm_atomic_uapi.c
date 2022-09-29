@@ -687,7 +687,7 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 		 */
 		return -EINVAL;
 	} else if (property == config->tv_select_subconnector_property) {
-		state->tv.subconnector = val;
+		state->tv.select_subconnector = val;
 	} else if (property == config->tv_left_margin_property) {
 		state->tv.margins.left = val;
 	} else if (property == config->tv_right_margin_property) {
@@ -795,7 +795,7 @@ drm_atomic_connector_get_property(struct drm_connector *connector,
 		else
 			*val = connector->dpms;
 	} else if (property == config->tv_select_subconnector_property) {
-		*val = state->tv.subconnector;
+		*val = state->tv.select_subconnector;
 	} else if (property == config->tv_left_margin_property) {
 		*val = state->tv.margins.left;
 	} else if (property == config->tv_right_margin_property) {
