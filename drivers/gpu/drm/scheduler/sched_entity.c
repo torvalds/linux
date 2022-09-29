@@ -396,8 +396,8 @@ drm_sched_job_dependency(struct drm_sched_job *job,
 	if (!xa_empty(&job->dependencies))
 		return xa_erase(&job->dependencies, job->last_dependency++);
 
-	if (job->sched->ops->dependency)
-		return job->sched->ops->dependency(job, entity);
+	if (job->sched->ops->prepare_job)
+		return job->sched->ops->prepare_job(job, entity);
 
 	return NULL;
 }
