@@ -1127,8 +1127,14 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 	else if (zc->done_io)
 		ret = zc->done_io;
 
-	io_notif_flush(zc->notif);
-	req->flags &= ~REQ_F_NEED_CLEANUP;
+	/*
+	 * If we're in io-wq we can't rely on tw ordering guarantees, defer
+	 * flushing notif to io_send_zc_cleanup()
+	 */
+	if (!(issue_flags & IO_URING_F_UNLOCKED)) {
+		io_notif_flush(zc->notif);
+		req->flags &= ~REQ_F_NEED_CLEANUP;
+	}
 	io_req_set_res(req, ret, IORING_CQE_F_MORE);
 	return IOU_OK;
 }
@@ -1182,8 +1188,10 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 		req_set_fail(req);
 	}
 	/* fast path, check for non-NULL to avoid function call */
-	if (kmsg->free_iov)
+	if (kmsg->free_iov) {
 		kfree(kmsg->free_iov);
+		kmsg->free_iov = NULL;
+	}
 
 	io_netmsg_recycle(req, issue_flags);
 	if (ret >= 0)
@@ -1191,8 +1199,14 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 	else if (sr->done_io)
 		ret = sr->done_io;
 
-	io_notif_flush(sr->notif);
-	req->flags &= ~REQ_F_NEED_CLEANUP;
+	/*
+	 * If we're in io-wq we can't rely on tw ordering guarantees, defer
+	 * flushing notif to io_send_zc_cleanup()
+	 */
+	if (!(issue_flags & IO_URING_F_UNLOCKED)) {
+		io_notif_flush(sr->notif);
+		req->flags &= ~REQ_F_NEED_CLEANUP;
+	}
 	io_req_set_res(req, ret, IORING_CQE_F_MORE);
 	return IOU_OK;
 }
