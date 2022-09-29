@@ -6,6 +6,7 @@
 #include "en/port.h"
 #include "en_accel/en_accel.h"
 #include "en_accel/ipsec.h"
+#include <net/xdp_sock_drv.h>
 
 static u8 mlx5e_mpwrq_min_page_shift(struct mlx5_core_dev *mdev)
 {
@@ -16,8 +17,8 @@ static u8 mlx5e_mpwrq_min_page_shift(struct mlx5_core_dev *mdev)
 
 u8 mlx5e_mpwrq_page_shift(struct mlx5_core_dev *mdev, struct mlx5e_xsk_param *xsk)
 {
+	u8 req_page_shift = xsk ? order_base_2(xsk->chunk_size) : PAGE_SHIFT;
 	u8 min_page_shift = mlx5e_mpwrq_min_page_shift(mdev);
-	u8 req_page_shift = PAGE_SHIFT;
 
 	/* Regular RQ uses order-0 pages, the NIC must be able to map them. */
 	if (WARN_ON_ONCE(!xsk && req_page_shift < min_page_shift))
@@ -933,12 +934,36 @@ static u8 mlx5e_build_icosq_log_wq_sz(struct mlx5_core_dev *mdev,
 	/* If XDP program is attached, XSK may be turned on at any time without
 	 * restarting the channel. ICOSQ must be big enough to fit UMR WQEs of
 	 * both regular RQ and XSK RQ.
-	 * Although mlx5e_mpwqe_get_log_rq_size accepts mlx5e_xsk_param, it
-	 * doesn't affect its return value, as long as params->xdp_prog != NULL,
-	 * so we can just multiply by 2.
+	 *
+	 * XSK uses different values of page_shift, and the total number of UMR
+	 * WQEBBs depends on it. This dependency is complex and not monotonic,
+	 * especially taking into consideration that some of the parameters come
+	 * from capabilities. Hence, we have to try all valid values of XSK
+	 * frame size (and page_shift) to find the maximum.
 	 */
-	if (params->xdp_prog)
-		wqebbs *= 2;
+	if (params->xdp_prog) {
+		u32 max_xsk_wqebbs = 0;
+		u8 frame_shift;
+
+		for (frame_shift = XDP_UMEM_MIN_CHUNK_SHIFT;
+		     frame_shift <= PAGE_SHIFT; frame_shift++) {
+			/* The headroom doesn't affect the calculation. */
+			struct mlx5e_xsk_param xsk = {
+				.chunk_size = 1 << frame_shift,
+			};
+			u32 xsk_wqebbs;
+			u8 page_shift;
+
+			page_shift = mlx5e_mpwrq_page_shift(mdev, &xsk);
+			xsk_wqebbs = mlx5e_mpwrq_umr_wqebbs(mdev, page_shift) *
+				(1 << mlx5e_mpwqe_get_log_rq_size(mdev, params, &xsk));
+
+			if (xsk_wqebbs > max_xsk_wqebbs)
+				max_xsk_wqebbs = xsk_wqebbs;
+		}
+
+		wqebbs += max_xsk_wqebbs;
+	}
 
 	if (params->packet_merge.type == MLX5E_PACKET_MERGE_SHAMPO)
 		wqebbs += mlx5e_shampo_icosq_sz(mdev, params, rqp);
