@@ -1215,6 +1215,12 @@ void blk_execute_rq_nowait(struct request *rq, bool at_head)
 	WARN_ON(!blk_rq_is_passthrough(rq));
 
 	blk_account_io_start(rq);
+
+	/*
+	 * As plugging can be enabled for passthrough requests on a zoned
+	 * device, directly accessing the plug instead of using blk_mq_plug()
+	 * should not have any consequences.
+	 */
 	if (current->plug)
 		blk_add_rq_to_plug(current->plug, rq);
 	else

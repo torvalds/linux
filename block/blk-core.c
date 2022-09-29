@@ -850,6 +850,12 @@ int bio_poll(struct bio *bio, struct io_comp_batch *iob, unsigned int flags)
 	    !test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
 		return 0;
 
+	/*
+	 * As the requests that require a zone lock are not plugged in the
+	 * first place, directly accessing the plug instead of using
+	 * blk_mq_plug() should not have any consequences during flushing for
+	 * zoned devices.
+	 */
 	blk_flush_plug(current->plug, false);
 
 	if (bio_queue_enter(bio))
