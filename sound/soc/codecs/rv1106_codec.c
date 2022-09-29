@@ -1348,7 +1348,7 @@ static int rv1106_codec_adc_enable(struct rv1106_codec_priv *rv1106)
 		return ret;
 	}
 
-	/* vendor step 1 */
+	/* vendor step 00 */
 	if (rv1106->soc_id == SOC_RV1103 && rv1106->adc_mode == DIFF_ADCL) {
 		/* The ADCL is differential mode on rv1103 */
 		regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL3,
@@ -1370,19 +1370,19 @@ static int rv1106_codec_adc_enable(struct rv1106_codec_priv *rv1106)
 				   R(lr, ACODEC_ADC_R_SINGLE_END));
 	}
 
-	/* vendor step 2 */
+	/* vendor step 01 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL1,
 			   L(lr, ACODEC_ADC_L_MIC_MSK) |
 			   R(lr, ACODEC_ADC_R_MIC_MSK),
 			   L(lr, ACODEC_ADC_L_MIC_WORK) |
 			   R(lr, ACODEC_ADC_R_MIC_WORK));
 
-	/* vendor step 3 */
+	/* vendor step 02 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL0,
 			   ACODEC_ADC_IBIAS_MSK,
 			   ACODEC_ADC_IBIAS_EN);
 
-	/* vendor step 4*/
+	/* vendor step 03 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL1,
 			   L(lr, ACODEC_ADC_L_REF_VOL_BUF_MSK) |
 			   R(lr, ACODEC_ADC_R_REF_VOL_BUF_MSK),
@@ -1391,60 +1391,60 @@ static int rv1106_codec_adc_enable(struct rv1106_codec_priv *rv1106)
 	/* waiting VREF be stable */
 	msleep(100);
 
-	/* vendor step 5 */
+	/* vendor step 04 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL3,
 			   L(lr, ACODEC_MIC_L_MSK) |
 			   R(lr, ACODEC_MIC_R_MSK),
 			   L(lr, ACODEC_MIC_L_EN) |
 			   R(lr, ACODEC_MIC_R_EN));
 
-	/* vendor step 6 */
+	/* vendor step 05 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL3,
 			   L(lr, ACODEC_ADC_L_MSK) |
 			   R(lr, ACODEC_ADC_R_MSK),
 			   L(lr, ACODEC_ADC_L_EN) |
 			   R(lr, ACODEC_ADC_R_EN));
 
-	/* vendor step 7 */
+	/* vendor step 06 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL6,
 			   L(lr, ACODEC_ADC_L_CLK_MSK) |
 			   R(lr, ACODEC_ADC_R_CLK_MSK),
 			   L(lr, ACODEC_ADC_L_CLK_WORK) |
 			   R(lr, ACODEC_ADC_R_CLK_WORK));
 
-	/* vendor step 8 */
+	/* vendor step 07 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL6,
 			   L(lr, ACODEC_ADC_L_WORK) |
 			   R(lr, ACODEC_ADC_R_WORK),
 			   L(lr, ACODEC_ADC_L_WORK) |
 			   R(lr, ACODEC_ADC_R_WORK));
 
-	/* vendor step 9 */
+	/* vendor step 08 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL6,
 			   L(lr, ACODEC_ADC_L_SIGNAL_EN) |
 			   R(lr, ACODEC_ADC_R_SIGNAL_EN),
 			   L(lr, ACODEC_ADC_L_SIGNAL_EN) |
 			   R(lr, ACODEC_ADC_R_SIGNAL_EN));
 
-	/* vendor step 10 */
+	/* vendor step 09 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL6,
 			   L(lr, ACODEC_ADC_L_ALC_MSK) |
 			   R(lr, ACODEC_ADC_R_ALC_MSK),
 			   L(lr, ACODEC_ADC_L_ALC_WORK) |
 			   R(lr, ACODEC_ADC_R_ALC_WORK));
 
-	/* vendor step 11 */
+	/* vendor step 10 */
 	regmap_update_bits(rv1106->regmap, ACODEC_ADC_ANA_CTL1,
 			   L(lr, ACODEC_ADC_L_MIC_SIGNAL_MSK) |
 			   R(lr, ACODEC_ADC_R_MIC_SIGNAL_MSK),
 			   L(lr, ACODEC_ADC_L_MIC_SIGNAL_WORK) |
 			   R(lr, ACODEC_ADC_R_MIC_SIGNAL_WORK));
 
-	/* vendor step 12 */
+	/* vendor step 11, configure GAIN_MICL/R by user */
+
+	/* vendor step 12, configure GAIN_ALCL/R by user */
 
 	/* vendor step 13 */
-
-	/* vendor step 14 */
 	regmap_read(rv1106->regmap, ACODEC_ADC_ANA_CTL1, &agc_func_en);
 	if (agc_func_en & ACODEC_AGC_FUNC_SEL_EN) {
 		regmap_update_bits(rv1106->regmap,
