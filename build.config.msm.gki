@@ -15,7 +15,6 @@ KMI_ENFORCED=1
 
 MAKE_GOALS="modules dtbs"
 GKI_BUILD_CONFIG=common/build.config.gki.aarch64
-GKI_SKIP_IF_VERSION_MATCHES=1
 GKI_SKIP_CP_KERNEL_HDR=1
 
 # "Hacks" to enable symbol trimming on the common kernel from here (msm-kernel). To be removed once
