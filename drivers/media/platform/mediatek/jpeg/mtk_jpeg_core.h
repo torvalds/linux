@@ -165,6 +165,8 @@ struct mtk_jpegenc_comp_dev {
  * @master_dev:			mtk_jpeg_dev device
  * @jdec_clk:			mtk_jpegdec_clk
  * @jpegdec_irq:		jpeg decode irq num
+ * @job_timeout_work:		decode timeout workqueue
+ * @hw_param:			jpeg decode hw parameters
  */
 struct mtk_jpegdec_comp_dev {
 	struct device *dev;
@@ -173,6 +175,8 @@ struct mtk_jpegdec_comp_dev {
 	struct mtk_jpeg_dev *master_dev;
 	struct mtk_jpegdec_clk jdec_clk;
 	int jpegdec_irq;
+	struct delayed_work job_timeout_work;
+	struct mtk_jpeg_hw_param hw_param;
 };
 
 /**
