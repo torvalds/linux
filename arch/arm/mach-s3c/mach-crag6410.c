@@ -58,7 +58,6 @@
 #include "keypad.h"
 #include "devs.h"
 #include "cpu.h"
-#include <linux/soc/samsung/s3c-adc.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 #include "pm.h"
 

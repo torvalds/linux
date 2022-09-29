@@ -63,16 +63,6 @@ config S3C_GPIO_TRACK
 	  Internal configuration option to enable the s3c specific gpio
 	  chip tracking if the platform requires it.
 
-# ADC driver
-
-config S3C_ADC
-	bool "ADC common driver support"
-	depends on !ARCH_MULTIPLATFORM
-	help
-	  Core support for the ADC block found in the Samsung SoC systems
-	  for drivers such as the touchscreen and hwmon to use to share
-	  this resource.
-
 # device definitions to compile in
 
 config S3C_DEV_HSMMC
@@ -164,11 +154,6 @@ config S3C_DEV_RTC
 	bool
 	help
 	  Compile in platform device definition for RTC
-
-config SAMSUNG_DEV_ADC
-	bool
-	help
-	  Compile in platform device definition for ADC controller
 
 config S3C64XX_DEV_SPI0
 	bool
