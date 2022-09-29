@@ -5127,6 +5127,13 @@ static int sol_tcp_sockopt(struct sock *sk, int optname,
 	case TCP_CONGESTION:
 		if (*optlen < 2)
 			return -EINVAL;
+		/* "cdg" is the only cc that alloc a ptr
+		 * in inet_csk_ca area.  The bpf-tcp-cc may
+		 * overwrite this ptr after switching to cdg.
+		 */
+		if (!getopt && *optlen >= sizeof("cdg") - 1 &&
+		    !strncmp("cdg", optval, *optlen))
+			return -ENOTSUPP;
 		break;
 	case TCP_SAVED_SYN:
 		if (*optlen < 1)
@@ -5285,12 +5292,6 @@ static int _bpf_getsockopt(struct sock *sk, int level, int optname,
 BPF_CALL_5(bpf_sk_setsockopt, struct sock *, sk, int, level,
 	   int, optname, char *, optval, int, optlen)
 {
-	if (level == SOL_TCP && optname == TCP_CONGESTION) {
-		if (optlen >= sizeof("cdg") - 1 &&
-		    !strncmp("cdg", optval, optlen))
-			return -ENOTSUPP;
-	}
-
 	return _bpf_setsockopt(sk, level, optname, optval, optlen);
 }
 
