@@ -9,6 +9,7 @@
 #ifndef _MTK_JPEG_CORE_H
 #define _MTK_JPEG_CORE_H
 
+#include <linux/clk.h>
 #include <linux/interrupt.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
@@ -74,6 +75,40 @@ struct mtk_jpeg_variant {
 	u32 cap_q_default_fourcc;
 };
 
+enum mtk_jpegenc_hw_id {
+	MTK_JPEGENC_HW0,
+	MTK_JPEGENC_HW1,
+	MTK_JPEGENC_HW_MAX,
+};
+
+/**
+ * struct mtk_jpegenc_clk - Structure used to store vcodec clock information
+ * @clks:		JPEG encode clock
+ * @clk_num:		JPEG encode clock numbers
+ */
+struct mtk_jpegenc_clk {
+	struct clk_bulk_data *clks;
+	int clk_num;
+};
+
+/**
+ * struct mtk_jpegenc_comp_dev - JPEG COREX abstraction
+ * @dev:		JPEG device
+ * @plat_dev:		platform device data
+ * @reg_base:		JPEG registers mapping
+ * @master_dev:		mtk_jpeg_dev device
+ * @venc_clk:		jpeg encode clock
+ * @jpegenc_irq:	jpeg encode irq num
+ */
+struct mtk_jpegenc_comp_dev {
+	struct device *dev;
+	struct platform_device *plat_dev;
+	void __iomem *reg_base;
+	struct mtk_jpeg_dev *master_dev;
+	struct mtk_jpegenc_clk venc_clk;
+	int jpegenc_irq;
+};
+
 /**
  * struct mtk_jpeg_dev - JPEG IP abstraction
  * @lock:		the mutex protecting this structure
@@ -87,6 +122,9 @@ struct mtk_jpeg_variant {
  * @reg_base:		JPEG registers mapping
  * @job_timeout_work:	IRQ timeout structure
  * @variant:		driver variant to be used
+ * @reg_encbase:	jpg encode register base addr
+ * @enc_hw_dev:		jpg encode hardware device
+ * @is_jpgenc_multihw:	the flag of multi-hw core
  */
 struct mtk_jpeg_dev {
 	struct mutex		lock;
@@ -100,6 +138,10 @@ struct mtk_jpeg_dev {
 	void __iomem		*reg_base;
 	struct delayed_work job_timeout_work;
 	const struct mtk_jpeg_variant *variant;
+
+	void __iomem *reg_encbase[MTK_JPEGENC_HW_MAX];
+	struct mtk_jpegenc_comp_dev *enc_hw_dev[MTK_JPEGENC_HW_MAX];
+	bool is_jpgenc_multihw;
 };
 
 /**
