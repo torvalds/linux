@@ -28,16 +28,6 @@
 		and	\rd, \rd, #S3C2410_UFSTAT_TXMASK
 	.endm
 
-/* Select the correct implementation depending on the configuration. The
- * S3C2440 will get selected by default, as these are the most widely
- * used variants of these
-*/
-
-#if defined(CONFIG_DEBUG_S3C2410_UART)
-#define fifo_full  fifo_full_s3c2410
-#define fifo_level fifo_level_s3c2410
-#endif
-
 /* include the reset of the code which will do the work */
 
 #include <debug/samsung.S>

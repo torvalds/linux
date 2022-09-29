@@ -2,9 +2,7 @@
 #
 # Copyright 2009 Simtec Electronics
 
-ifdef CONFIG_ARCH_S3C64XX
 include $(src)/Makefile.s3c64xx
-endif
 
 # Objects we always build independent of SoC choice
 

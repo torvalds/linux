@@ -431,12 +431,12 @@ config USB_OHCI_HCD_STI
 	  STMicroelectronics consumer electronics SoC's.
 
 config USB_OHCI_HCD_S3C2410
-	tristate "OHCI support for Samsung S3C24xx/S3C64xx SoC series"
-	depends on USB_OHCI_HCD && (ARCH_S3C24XX || ARCH_S3C64XX || COMPILE_TEST)
-	default y if (ARCH_S3C24XX || ARCH_S3C64XX)
+	tristate "OHCI support for Samsung S3C64xx SoC series"
+	depends on USB_OHCI_HCD && (ARCH_S3C64XX || COMPILE_TEST)
+	default ARCH_S3C64XX
 	help
 	  Enables support for the on-chip OHCI controller on
-	  S3C24xx/S3C64xx chips.
+	  S3C64xx chips.
 
 config USB_OHCI_HCD_LPC32XX
 	tristate "Support for LPC on-chip OHCI USB controller"

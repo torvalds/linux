@@ -562,73 +562,6 @@ static irqreturn_t s3c2410wdt_irq(int irqno, void *param)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_ARM_S3C24XX_CPUFREQ
-
-static int s3c2410wdt_cpufreq_transition(struct notifier_block *nb,
-					  unsigned long val, void *data)
-{
-	int ret;
-	struct s3c2410_wdt *wdt = freq_to_wdt(nb);
-
-	if (!s3c2410wdt_is_running(wdt))
-		goto done;
-
-	if (val == CPUFREQ_PRECHANGE) {
-		/* To ensure that over the change we don't cause the
-		 * watchdog to trigger, we perform an keep-alive if
-		 * the watchdog is running.
-		 */
-
-		s3c2410wdt_keepalive(&wdt->wdt_device);
-	} else if (val == CPUFREQ_POSTCHANGE) {
-		s3c2410wdt_stop(&wdt->wdt_device);
-
-		ret = s3c2410wdt_set_heartbeat(&wdt->wdt_device,
-						wdt->wdt_device.timeout);
-
-		if (ret >= 0)
-			s3c2410wdt_start(&wdt->wdt_device);
-		else
-			goto err;
-	}
-
-done:
-	return 0;
-
- err:
-	dev_err(wdt->dev, "cannot set new value for timeout %d\n",
-				wdt->wdt_device.timeout);
-	return ret;
-}
-
-static inline int s3c2410wdt_cpufreq_register(struct s3c2410_wdt *wdt)
-{
-	wdt->freq_transition.notifier_call = s3c2410wdt_cpufreq_transition;
-
-	return cpufreq_register_notifier(&wdt->freq_transition,
-					 CPUFREQ_TRANSITION_NOTIFIER);
-}
-
-static inline void s3c2410wdt_cpufreq_deregister(struct s3c2410_wdt *wdt)
-{
-	wdt->freq_transition.notifier_call = s3c2410wdt_cpufreq_transition;
-
-	cpufreq_unregister_notifier(&wdt->freq_transition,
-				    CPUFREQ_TRANSITION_NOTIFIER);
-}
-
-#else
-
-static inline int s3c2410wdt_cpufreq_register(struct s3c2410_wdt *wdt)
-{
-	return 0;
-}
-
-static inline void s3c2410wdt_cpufreq_deregister(struct s3c2410_wdt *wdt)
-{
-}
-#endif
-
 static inline unsigned int s3c2410wdt_get_bootstatus(struct s3c2410_wdt *wdt)
 {
 	unsigned int rst_stat;
@@ -761,12 +694,6 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	wdt->wdt_device.min_timeout = 1;
 	wdt->wdt_device.max_timeout = s3c2410wdt_max_timeout(wdt);
 
-	ret = s3c2410wdt_cpufreq_register(wdt);
-	if (ret < 0) {
-		dev_err(dev, "failed to register cpufreq\n");
-		goto err_src_clk;
-	}
-
 	watchdog_set_drvdata(&wdt->wdt_device, wdt);
 
 	/* see if we can actually set the requested timer margin, and if
@@ -783,7 +710,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 				 S3C2410_WATCHDOG_DEFAULT_TIME);
 		} else {
 			dev_err(dev, "failed to use default timeout\n");
-			goto err_cpufreq;
+			goto err_src_clk;
 		}
 	}
 
@@ -791,7 +718,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 			       pdev->name, pdev);
 	if (ret != 0) {
 		dev_err(dev, "failed to install irq (%d)\n", ret);
-		goto err_cpufreq;
+		goto err_src_clk;
 	}
 
 	watchdog_set_nowayout(&wdt->wdt_device, nowayout);
@@ -817,7 +744,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 
 	ret = watchdog_register_device(&wdt->wdt_device);
 	if (ret)
-		goto err_cpufreq;
+		goto err_src_clk;
 
 	ret = s3c2410wdt_enable(wdt, true);
 	if (ret < 0)
@@ -839,9 +766,6 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
  err_unregister:
 	watchdog_unregister_device(&wdt->wdt_device);
 
- err_cpufreq:
-	s3c2410wdt_cpufreq_deregister(wdt);
-
  err_src_clk:
 	clk_disable_unprepare(wdt->src_clk);
 
@@ -861,8 +785,6 @@ static int s3c2410wdt_remove(struct platform_device *dev)
 		return ret;
 
 	watchdog_unregister_device(&wdt->wdt_device);
-
-	s3c2410wdt_cpufreq_deregister(wdt);
 
 	clk_disable_unprepare(wdt->src_clk);
 	clk_disable_unprepare(wdt->bus_clk);

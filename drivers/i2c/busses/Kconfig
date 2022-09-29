@@ -1010,8 +1010,7 @@ config I2C_RZV2M
 
 config I2C_S3C2410
 	tristate "S3C/Exynos I2C Driver"
-	depends on ARCH_EXYNOS || ARCH_S3C24XX || ARCH_S3C64XX || \
-		   ARCH_S5PV210 || COMPILE_TEST
+	depends on ARCH_EXYNOS || ARCH_S3C64XX || ARCH_S5PV210 || COMPILE_TEST
 	help
 	  Say Y here to include support for I2C controller in the
 	  Samsung SoCs (S3C, S5Pv210, Exynos).
