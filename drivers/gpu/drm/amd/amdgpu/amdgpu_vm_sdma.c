@@ -87,6 +87,7 @@ static int amdgpu_vm_sdma_prepare(struct amdgpu_vm_update_params *p,
 				  struct dma_resv *resv,
 				  enum amdgpu_sync_mode sync_mode)
 {
+	struct amdgpu_sync sync;
 	int r;
 
 	r = amdgpu_vm_sdma_alloc_job(p, 0);
@@ -96,7 +97,12 @@ static int amdgpu_vm_sdma_prepare(struct amdgpu_vm_update_params *p,
 	if (!resv)
 		return 0;
 
-	return amdgpu_sync_resv(p->adev, &p->job->sync, resv, sync_mode, p->vm);
+	amdgpu_sync_create(&sync);
+	r = amdgpu_sync_resv(p->adev, &sync, resv, sync_mode, p->vm);
+	if (!r)
+		r = amdgpu_sync_push_to_job(&sync, p->job);
+	amdgpu_sync_free(&sync);
+	return r;
 }
 
 /**
@@ -225,7 +231,7 @@ static int amdgpu_vm_sdma_update(struct amdgpu_vm_update_params *p,
 	/* Wait for PD/PT moves to be completed */
 	dma_resv_iter_begin(&cursor, bo->tbo.base.resv, DMA_RESV_USAGE_KERNEL);
 	dma_resv_for_each_fence_unlocked(&cursor, fence) {
-		r = amdgpu_sync_fence(&p->job->sync, fence);
+		r = drm_sched_job_add_dependency(&p->job->base, fence);
 		if (r) {
 			dma_resv_iter_end(&cursor);
 			return r;
