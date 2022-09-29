@@ -1836,6 +1836,9 @@ static int invoke_bpf_prog(const struct btf_func_model *m, u8 **pprog,
 	if (p->aux->sleepable) {
 		enter = __bpf_prog_enter_sleepable;
 		exit = __bpf_prog_exit_sleepable;
+	} else if (p->type == BPF_PROG_TYPE_STRUCT_OPS) {
+		enter = __bpf_prog_enter_struct_ops;
+		exit = __bpf_prog_exit_struct_ops;
 	} else if (p->expected_attach_type == BPF_LSM_CGROUP) {
 		enter = __bpf_prog_enter_lsm_cgroup;
 		exit = __bpf_prog_exit_lsm_cgroup;
