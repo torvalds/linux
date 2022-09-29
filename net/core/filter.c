@@ -5102,6 +5102,33 @@ static int bpf_sol_tcp_setsockopt(struct sock *sk, int optname,
 	return 0;
 }
 
+static int sol_tcp_sockopt_congestion(struct sock *sk, char *optval,
+				      int *optlen, bool getopt)
+{
+	if (*optlen < 2)
+		return -EINVAL;
+
+	if (getopt) {
+		if (!inet_csk(sk)->icsk_ca_ops)
+			return -EINVAL;
+		/* BPF expects NULL-terminated tcp-cc string */
+		optval[--(*optlen)] = '\0';
+		return do_tcp_getsockopt(sk, SOL_TCP, TCP_CONGESTION,
+					 KERNEL_SOCKPTR(optval),
+					 KERNEL_SOCKPTR(optlen));
+	}
+
+	/* "cdg" is the only cc that alloc a ptr
+	 * in inet_csk_ca area.  The bpf-tcp-cc may
+	 * overwrite this ptr after switching to cdg.
+	 */
+	if (*optlen >= sizeof("cdg") - 1 && !strncmp("cdg", optval, *optlen))
+		return -ENOTSUPP;
+
+	return do_tcp_setsockopt(sk, SOL_TCP, TCP_CONGESTION,
+				KERNEL_SOCKPTR(optval), *optlen);
+}
+
 static int sol_tcp_sockopt(struct sock *sk, int optname,
 			   char *optval, int *optlen,
 			   bool getopt)
@@ -5125,16 +5152,7 @@ static int sol_tcp_sockopt(struct sock *sk, int optname,
 			return -EINVAL;
 		break;
 	case TCP_CONGESTION:
-		if (*optlen < 2)
-			return -EINVAL;
-		/* "cdg" is the only cc that alloc a ptr
-		 * in inet_csk_ca area.  The bpf-tcp-cc may
-		 * overwrite this ptr after switching to cdg.
-		 */
-		if (!getopt && *optlen >= sizeof("cdg") - 1 &&
-		    !strncmp("cdg", optval, *optlen))
-			return -ENOTSUPP;
-		break;
+		return sol_tcp_sockopt_congestion(sk, optval, optlen, getopt);
 	case TCP_SAVED_SYN:
 		if (*optlen < 1)
 			return -EINVAL;
@@ -5157,13 +5175,6 @@ static int sol_tcp_sockopt(struct sock *sk, int optname,
 			 * does not know if the user space still needs it.
 			 */
 			return 0;
-		}
-
-		if (optname == TCP_CONGESTION) {
-			if (!inet_csk(sk)->icsk_ca_ops)
-				return -EINVAL;
-			/* BPF expects NULL-terminated tcp-cc string */
-			optval[--(*optlen)] = '\0';
 		}
 
 		return do_tcp_getsockopt(sk, SOL_TCP, optname,
