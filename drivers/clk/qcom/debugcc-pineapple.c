@@ -27,6 +27,7 @@ static struct measure_clk_data debug_mux_priv = {
 
 static const char *const apss_cc_debug_mux_parent_names[] = {
 	"measure_only_apcs_gold_post_acd_clk",
+	"measure_only_apcs_goldapc2_post_acd_clk",
 	"measure_only_apcs_goldplus_post_acd_clk",
 	"measure_only_apcs_l3_post_acd_clk",
 	"measure_only_apcs_silver_post_acd_clk",
@@ -34,6 +35,7 @@ static const char *const apss_cc_debug_mux_parent_names[] = {
 
 static int apss_cc_debug_mux_sels[] = {
 	0x4,		/* measure_only_apcs_gold_post_acd_clk */
+	0x22,		/* measure_only_apcs_goldapc2_post_acd_clk */
 	0x8,		/* measure_only_apcs_goldplus_post_acd_clk */
 	0x6,		/* measure_only_apcs_l3_post_acd_clk */
 	0x2,		/* measure_only_apcs_silver_post_acd_clk */
@@ -41,6 +43,7 @@ static int apss_cc_debug_mux_sels[] = {
 
 static int apss_cc_debug_mux_pre_divs[] = {
 	0x8,		/* measure_only_apcs_gold_post_acd_clk */
+	0x8,		/* measure_only_apcs_goldapc2_post_acd_clk */
 	0x8,		/* measure_only_apcs_goldplus_post_acd_clk */
 	0x4,		/* measure_only_apcs_l3_post_acd_clk */
 	0x4,		/* measure_only_apcs_silver_post_acd_clk */
@@ -857,6 +860,14 @@ static struct clk_dummy measure_only_apcs_gold_post_acd_clk = {
 	},
 };
 
+static struct clk_dummy measure_only_apcs_goldapc2_post_acd_clk = {
+	.rrate = 1000,
+	.hw.init = &(const struct clk_init_data){
+		.name = "measure_only_apcs_goldapc2_post_acd_clk",
+		.ops = &clk_dummy_ops,
+	},
+};
+
 static struct clk_dummy measure_only_apcs_goldplus_post_acd_clk = {
 	.rrate = 1000,
 	.hw.init = &(const struct clk_init_data){
@@ -947,6 +958,7 @@ static struct clk_dummy measure_only_snoc_clk = {
 
 static struct clk_hw *debugcc_pineapple_hws[] = {
 	&measure_only_apcs_gold_post_acd_clk.hw,
+	&measure_only_apcs_goldapc2_post_acd_clk.hw,
 	&measure_only_apcs_goldplus_post_acd_clk.hw,
 	&measure_only_apcs_l3_post_acd_clk.hw,
 	&measure_only_apcs_silver_post_acd_clk.hw,
