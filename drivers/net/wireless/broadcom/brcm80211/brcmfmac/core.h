@@ -136,6 +136,7 @@ struct brcmf_pub {
 	struct work_struct bus_reset;
 
 	u8 clmver[BRCMF_DCMD_SMLEN];
+	u8 sta_mac_idx;
 };
 
 /* forward declarations */
