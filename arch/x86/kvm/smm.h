@@ -20,6 +20,7 @@ static inline bool is_smm(struct kvm_vcpu *vcpu)
 }
 
 void kvm_smm_changed(struct kvm_vcpu *vcpu, bool in_smm);
+void enter_smm(struct kvm_vcpu *vcpu);
 void process_smi(struct kvm_vcpu *vcpu);
 
 #endif
