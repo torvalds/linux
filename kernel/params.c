@@ -940,7 +940,6 @@ static const struct kset_uevent_ops module_uevent_ops = {
 };
 
 struct kset *module_kset;
-int module_sysfs_initialized;
 
 static void module_kobj_release(struct kobject *kobj)
 {
@@ -964,7 +963,6 @@ static int __init param_sysfs_init(void)
 			__FILE__, __LINE__);
 		return -ENOMEM;
 	}
-	module_sysfs_initialized = 1;
 
 	version_sysfs_builtin();
 	param_sysfs_builtin();
