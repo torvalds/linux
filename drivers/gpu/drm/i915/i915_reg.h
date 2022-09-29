@@ -8499,6 +8499,10 @@ enum skl_power_gate {
 							   _ICL_PIPE_DSS_CTL2_PB, \
 							   _ICL_PIPE_DSS_CTL2_PC)
 
+#define GGC				_MMIO(0x108040)
+#define   GMS_MASK			REG_GENMASK(15, 8)
+#define   GGMS_MASK			REG_GENMASK(7, 6)
+
 #define GEN12_GSMBASE			_MMIO(0x108100)
 #define GEN12_DSMBASE			_MMIO(0x1080C0)
 #define   GEN12_BDSM_MASK		REG_GENMASK64(63, 20)
