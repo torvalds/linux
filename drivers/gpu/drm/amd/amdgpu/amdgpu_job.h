@@ -47,7 +47,6 @@ enum amdgpu_ib_pool_type;
 struct amdgpu_job {
 	struct drm_sched_job    base;
 	struct amdgpu_vm	*vm;
-	struct amdgpu_sync	sync;
 	struct amdgpu_sync	explicit_sync;
 	struct dma_fence	hw_fence;
 	struct dma_fence	*gang_submit;
