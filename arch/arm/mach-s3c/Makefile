@@ -2,10 +2,6 @@
 #
 # Copyright 2009 Simtec Electronics
 
-ifdef CONFIG_ARCH_S3C24XX
-include $(src)/Makefile.s3c24xx
-endif
-
 ifdef CONFIG_ARCH_S3C64XX
 include $(src)/Makefile.s3c64xx
 endif

@@ -9,14 +9,6 @@ This outlines the Samsung GPIO implementation and the architecture
 specific calls provided alongside the drivers/gpio core.
 
 
-S3C24XX (Legacy)
-----------------
-
-See Documentation/arm/samsung-s3c24xx/gpio.rst for more information
-about these devices. Their implementation has been brought into line
-with the core samsung implementation described in this document.
-
-
 GPIOLIB integration
 -------------------
 

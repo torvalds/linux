@@ -85,8 +85,6 @@ config SAMSUNG_PM_CHECK
 	  Note, this can take several seconds depending on memory size
 	  and CPU speed.
 
-	  See <file:Documentation/arm/samsung-s3c24xx/suspend.rst>
-
 config SAMSUNG_PM_CHECK_CHUNKSIZE
 	int "S3C2410 PM Suspend CRC Chunksize (KiB)"
 	depends on PM && SAMSUNG_PM_CHECK
@@ -96,8 +94,6 @@ config SAMSUNG_PM_CHECK_CHUNKSIZE
 	  corruption over suspend and resume. A smaller value will mean that
 	  the CRC data block will take more memory, but will identify any
 	  faults with better precision.
-
-	  See <file:Documentation/arm/samsung-s3c24xx/suspend.rst>
 
 config EXYNOS_REGULATOR_COUPLER
 	bool "Exynos SoC Regulator Coupler" if COMPILE_TEST

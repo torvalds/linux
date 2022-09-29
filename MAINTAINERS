@@ -2583,13 +2583,6 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm64/boot/dts/freescale/s32g*.dts*
 
-ARM/OPENMOKO NEO FREERUNNER (GTA02) MACHINE SUPPORT
-L:	openmoko-kernel@lists.openmoko.org (subscribers-only)
-S:	Orphan
-W:	http://wiki.openmoko.org/wiki/Neo_FreeRunner
-F:	arch/arm/mach-s3c/gta02.h
-F:	arch/arm/mach-s3c/mach-gta02.c
-
 ARM/Orion SoC/Technologic Systems TS-78xx platform support
 M:	Alexander Clouter <alex@digriz.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -2796,7 +2789,6 @@ F:	include/linux/platform_data/*s3c*
 F:	include/linux/serial_s3c.h
 F:	include/linux/soc/samsung/
 N:	exynos
-N:	s3c2410
 N:	s3c64xx
 N:	s5pv210
 
@@ -19041,14 +19033,6 @@ SIMTEC EB110ATX (Chalice CATS)
 M:	Simtec Linux Team <linux@simtec.co.uk>
 S:	Supported
 W:	http://www.simtec.co.uk/products/EB110ATX/
-
-SIMTEC EB2410ITX (BAST)
-M:	Simtec Linux Team <linux@simtec.co.uk>
-S:	Supported
-W:	http://www.simtec.co.uk/products/EB2410ITX/
-F:	arch/arm/mach-s3c/bast-ide.c
-F:	arch/arm/mach-s3c/bast-irq.c
-F:	arch/arm/mach-s3c/mach-bast.c
 
 SIOX
 M:	Thorsten Scherer <t.scherer@eckelmann.de>

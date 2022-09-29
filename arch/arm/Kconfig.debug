@@ -1006,7 +1006,6 @@ choice
 	config DEBUG_S3C_UART0
 		depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYNOS
 		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
-		select DEBUG_S3C24XX_UART if ARCH_S3C24XX
 		select DEBUG_S3C64XX_UART if ARCH_S3C64XX
 		select DEBUG_S5PV210_UART if ARCH_S5PV210
 		bool "Use Samsung S3C UART 0 for low-level debug"
@@ -1018,7 +1017,6 @@ choice
 	config DEBUG_S3C_UART1
 		depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYNOS
 		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
-		select DEBUG_S3C24XX_UART if ARCH_S3C24XX
 		select DEBUG_S3C64XX_UART if ARCH_S3C64XX
 		select DEBUG_S5PV210_UART if ARCH_S5PV210
 		bool "Use Samsung S3C UART 1 for low-level debug"
@@ -1030,7 +1028,6 @@ choice
 	config DEBUG_S3C_UART2
 		depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYNOS
 		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
-		select DEBUG_S3C24XX_UART if ARCH_S3C24XX
 		select DEBUG_S3C64XX_UART if ARCH_S3C64XX
 		select DEBUG_S5PV210_UART if ARCH_S5PV210
 		bool "Use Samsung S3C UART 2 for low-level debug"
@@ -1048,33 +1045,6 @@ choice
 		help
 		  Say Y here if you want the debug print routines to direct
 		  their output to UART 3. The port must have been initialised
-		  by the boot-loader before use.
-
-	config DEBUG_S3C2410_UART0
-		depends on ARCH_S3C24XX
-		select DEBUG_S3C2410_UART
-		bool "Use S3C2410/S3C2412 UART 0 for low-level debug"
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to UART 0. The port must have been initialised
-		  by the boot-loader before use.
-
-	config DEBUG_S3C2410_UART1
-		depends on ARCH_S3C24XX
-		select DEBUG_S3C2410_UART
-		bool "Use S3C2410/S3C2412 UART 1 for low-level debug"
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to UART 1. The port must have been initialised
-		  by the boot-loader before use.
-
-	config DEBUG_S3C2410_UART2
-		depends on ARCH_S3C24XX
-		select DEBUG_S3C2410_UART
-		bool "Use S3C2410/S3C2412 UART 2 for low-level debug"
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to UART 2. The port must have been initialised
 		  by the boot-loader before use.
 
 	config DEBUG_SA1100
@@ -1439,13 +1409,6 @@ config DEBUG_AT91_UART
 config DEBUG_EXYNOS_UART
 	bool
 
-config DEBUG_S3C2410_UART
-	bool
-	select DEBUG_S3C24XX_UART
-
-config DEBUG_S3C24XX_UART
-	bool
-
 config DEBUG_S3C64XX_UART
 	bool
 
@@ -1453,8 +1416,7 @@ config DEBUG_S5PV210_UART
 	bool
 
 config DEBUG_S3C_UART
-	depends on DEBUG_S3C2410_UART || DEBUG_S3C24XX_UART || \
-		   DEBUG_S3C64XX_UART ||  DEBUG_S5PV210_UART || \
+	depends on DEBUG_S3C64XX_UART ||  DEBUG_S5PV210_UART || \
 		   DEBUG_EXYNOS_UART
 	int
 	default "0" if DEBUG_S3C_UART0
@@ -1555,7 +1517,7 @@ config DEBUG_LL_INCLUDE
 	default "debug/renesas-scif.S" if DEBUG_RMOBILE_SCIFA0
 	default "debug/renesas-scif.S" if DEBUG_RMOBILE_SCIFA1
 	default "debug/renesas-scif.S" if DEBUG_RMOBILE_SCIFA4
-	default "debug/s3c24xx.S" if DEBUG_S3C24XX_UART || DEBUG_S3C64XX_UART
+	default "debug/s3c24xx.S" if DEBUG_S3C64XX_UART
 	default "debug/s5pv210.S" if DEBUG_S5PV210_UART
 	default "debug/sti.S" if DEBUG_STIH41X_ASC2
 	default "debug/sti.S" if DEBUG_STIH41X_SBC_ASC1
@@ -1638,12 +1600,6 @@ config DEBUG_UART_PHYS
 	default 0x4806e000 if DEBUG_OMAP2UART3 || DEBUG_OMAP4UART4
 	default 0x49020000 if DEBUG_OMAP3UART3
 	default 0x49042000 if DEBUG_OMAP3UART4
-	default 0x50000000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART0 || \
-				DEBUG_S3C2410_UART0)
-	default 0x50004000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART1 || \
-				DEBUG_S3C2410_UART1)
-	default 0x50008000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART2 || \
-				DEBUG_S3C2410_UART2)
 	default 0x7c0003f8 if DEBUG_FOOTBRIDGE_COM1
 	default 0x7f005000 if DEBUG_S3C64XX_UART && DEBUG_S3C_UART0
 	default 0x7f005400 if DEBUG_S3C64XX_UART && DEBUG_S3C_UART1
@@ -1711,7 +1667,7 @@ config DEBUG_UART_PHYS
 		DEBUG_RCAR_GEN2_SCIF2 || DEBUG_RCAR_GEN2_SCIF4 || \
 		DEBUG_RCAR_GEN2_SCIFA2 || \
 		DEBUG_RMOBILE_SCIFA0 || DEBUG_RMOBILE_SCIFA1 || \
-		DEBUG_RMOBILE_SCIFA4 || DEBUG_S3C24XX_UART || \
+		DEBUG_RMOBILE_SCIFA4 || \
 		DEBUG_S3C64XX_UART || \
 		DEBUG_BCM63XX_UART || DEBUG_ASM9260_UART || \
 		DEBUG_DIGICOLOR_UA0 || \
@@ -1748,15 +1704,9 @@ config DEBUG_UART_VIRT
 	default 0xf6200000 if DEBUG_PXA_UART1
 	default 0xf7000000 if DEBUG_SUN9I_UART0
 	default 0xf7000000 if DEBUG_S3C64XX_UART && DEBUG_S3C_UART0
-	default 0xf7000000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART0 || \
-				DEBUG_S3C2410_UART0)
 	default 0xf7000400 if DEBUG_S3C64XX_UART && DEBUG_S3C_UART1
 	default 0xf7000800 if DEBUG_S3C64XX_UART && DEBUG_S3C_UART2
 	default 0xf7000c00 if DEBUG_S3C64XX_UART && DEBUG_S3C_UART3
-	default 0xf7004000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART1 || \
-				DEBUG_S3C2410_UART1)
-	default 0xf7008000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART2 || \
-				DEBUG_S3C2410_UART2)
 	default 0xf7020000 if DEBUG_AT91_SAMA5D2_UART1
 	default 0xf7fc9000 if DEBUG_BERLIN_UART
 	default 0xf8007000 if DEBUG_HIP04_UART
@@ -1820,7 +1770,7 @@ config DEBUG_UART_VIRT
 	default DEBUG_UART_PHYS if !MMU
 	depends on DEBUG_LL_UART_8250 || DEBUG_LL_UART_PL01X || \
 		DEBUG_UART_8250 || DEBUG_UART_PL01X || DEBUG_MESON_UARTAO || \
-		DEBUG_QCOM_UARTDM || DEBUG_S3C24XX_UART || \
+		DEBUG_QCOM_UARTDM || \
 		DEBUG_S3C64XX_UART || \
 		DEBUG_BCM63XX_UART || DEBUG_ASM9260_UART || \
 		DEBUG_DIGICOLOR_UA0 || \

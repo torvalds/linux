@@ -152,8 +152,6 @@ CHECKFLAGS	+= -D__arm__
 # during boot, and this offset is critical to the functioning of
 # kexec-tools.
 textofs-y	:= 0x00008000
-# We don't want the htc bootloader to corrupt kernel during resume
-textofs-$(CONFIG_PM_H1940)      := 0x00108000
 # RTD1195 has Boot ROM at start of address space
 textofs-$(CONFIG_ARCH_REALTEK)  := 0x00108000
 # SA1111 DMA bug: we don't want the kernel to live in precious DMA-able memory

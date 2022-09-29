@@ -2,13 +2,10 @@
 #
 # Copyright 2009 Simtec Electronics
 
-source "arch/arm/mach-s3c/Kconfig.s3c24xx"
 source "arch/arm/mach-s3c/Kconfig.s3c64xx"
 
 config PLAT_SAMSUNG
-	bool
-	depends on PLAT_S3C24XX || ARCH_S3C64XX
-	default y
+	def_bool ARCH_S3C64XX
 	select GENERIC_IRQ_CHIP
 	select NO_IOPORT_MAP
 	select SOC_SAMSUNG
@@ -16,9 +13,8 @@ config PLAT_SAMSUNG
 	  Base platform code for all Samsung SoC based systems
 
 config SAMSUNG_PM
-	bool
-	depends on PM && (PLAT_S3C24XX || ARCH_S3C64XX)
-	default y
+	def_bool ARCH_S3C64XX
+	depends on PM
 	help
 	  Base platform power management code for samsung code
 
@@ -99,11 +95,6 @@ config S3C_DEV_HSMMC3
 	help
 	  Compile in platform device definitions for HSMMC channel 3
 
-config S3C_DEV_HWMON
-	bool
-	help
-	  Compile in platform device definitions for HWMON
-
 config S3C_DEV_I2C1
 	bool
 	help
@@ -156,7 +147,6 @@ config S3C_DEV_USB_HSOTG
 
 config S3C_DEV_WDT
 	bool
-	default y if ARCH_S3C24XX
 	help
 	  Compile in platform device definition for Watchdog Timer
 
@@ -180,21 +170,11 @@ config SAMSUNG_DEV_ADC
 	help
 	  Compile in platform device definition for ADC controller
 
-config SAMSUNG_DEV_IDE
-	bool
-	help
-	  Compile in platform device definitions for IDE
-
 config S3C64XX_DEV_SPI0
 	bool
 	help
 	  Compile in platform device definitions for S3C64XX's type
 	  SPI controller 0
-
-config SAMSUNG_DEV_TS
-	bool
-	help
-	  Common in platform device definitions for touchscreen device
 
 config SAMSUNG_DEV_KEYPAD
 	bool
@@ -203,7 +183,6 @@ config SAMSUNG_DEV_KEYPAD
 
 config SAMSUNG_DEV_PWM
 	bool
-	default y if ARCH_S3C24XX
 	help
 	  Compile in platform device definition for PWM Timer
 
