@@ -14,6 +14,12 @@
 #include <linux/of.h>
 
 /*
+ * CCU Divider private clock IDs
+ * @CCU_SYS_XGMAC_CLK: CCU XGMAC internal clock
+ */
+#define CCU_SYS_XGMAC_CLK		-2
+
+/*
  * CCU Divider private flags
  * @CCU_DIV_SKIP_ONE: Due to some reason divider can't be set to 1.
  *		      It can be 0 though, which is functionally the same.

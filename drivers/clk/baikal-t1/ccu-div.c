@@ -579,6 +579,7 @@ struct ccu_div *ccu_div_hw_register(const struct ccu_div_init_data *div_init)
 		goto err_free_div;
 	}
 	parent_data.fw_name = div_init->parent_name;
+	parent_data.name = div_init->parent_name;
 	hw_init.parent_data = &parent_data;
 	hw_init.num_parents = 1;
 
