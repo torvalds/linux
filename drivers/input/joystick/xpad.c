@@ -969,7 +969,8 @@ static void xpadone_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char
 		if (data[1] == (GIP_OPT_ACK | GIP_OPT_INTERNAL))
 			xpadone_ack_mode_report(xpad, data[2]);
 
-		input_report_key(dev, BTN_MODE, data[4] & BIT(0));
+		input_report_key(dev, BTN_MODE, data[4] & GENMASK(1, 0));
+		input_sync(dev);
 
 		do_sync = true;
 	} else if (data[0] == GIP_CMD_FIRMWARE) {
