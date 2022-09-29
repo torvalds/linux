@@ -286,32 +286,6 @@ static void drm_sched_job_done_cb(struct dma_fence *f, struct dma_fence_cb *cb)
 }
 
 /**
- * drm_sched_dependency_optimized - test if the dependency can be optimized
- *
- * @fence: the dependency fence
- * @entity: the entity which depends on the above fence
- *
- * Returns true if the dependency can be optimized and false otherwise
- */
-bool drm_sched_dependency_optimized(struct dma_fence* fence,
-				    struct drm_sched_entity *entity)
-{
-	struct drm_gpu_scheduler *sched = entity->rq->sched;
-	struct drm_sched_fence *s_fence;
-
-	if (!fence || dma_fence_is_signaled(fence))
-		return false;
-	if (fence->context == entity->fence_context)
-		return true;
-	s_fence = to_drm_sched_fence(fence);
-	if (s_fence && s_fence->sched == sched)
-		return true;
-
-	return false;
-}
-EXPORT_SYMBOL(drm_sched_dependency_optimized);
-
-/**
  * drm_sched_start_timeout - start timeout for reset worker
  *
  * @sched: scheduler instance to start the worker for
