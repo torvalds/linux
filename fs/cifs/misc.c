@@ -1071,59 +1071,58 @@ setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw)
 /**
  * cifs_alloc_hash - allocate hash and hash context together
  * @name: The name of the crypto hash algo
- * @shash: Where to put the pointer to the hash algo
- * @sdesc: Where to put the pointer to the hash descriptor
+ * @sdesc: SHASH descriptor where to put the pointer to the hash TFM
  *
  * The caller has to make sure @sdesc is initialized to either NULL or
- * a valid context. Both can be freed via cifs_free_hash().
+ * a valid context. It can be freed via cifs_free_hash().
  */
 int
-cifs_alloc_hash(const char *name,
-		struct crypto_shash **shash, struct sdesc **sdesc)
+cifs_alloc_hash(const char *name, struct shash_desc **sdesc)
 {
 	int rc = 0;
-	size_t size;
+	struct crypto_shash *alg = NULL;
 
-	if (*sdesc != NULL)
+	if (*sdesc)
 		return 0;
 
-	*shash = crypto_alloc_shash(name, 0, 0);
-	if (IS_ERR(*shash)) {
-		cifs_dbg(VFS, "Could not allocate crypto %s\n", name);
-		rc = PTR_ERR(*shash);
-		*shash = NULL;
+	alg = crypto_alloc_shash(name, 0, 0);
+	if (IS_ERR(alg)) {
+		cifs_dbg(VFS, "Could not allocate shash TFM '%s'\n", name);
+		rc = PTR_ERR(alg);
 		*sdesc = NULL;
 		return rc;
 	}
 
-	size = sizeof(struct shash_desc) + crypto_shash_descsize(*shash);
-	*sdesc = kmalloc(size, GFP_KERNEL);
+	*sdesc = kmalloc(sizeof(struct shash_desc) + crypto_shash_descsize(alg), GFP_KERNEL);
 	if (*sdesc == NULL) {
-		cifs_dbg(VFS, "no memory left to allocate crypto %s\n", name);
-		crypto_free_shash(*shash);
-		*shash = NULL;
+		cifs_dbg(VFS, "no memory left to allocate shash TFM '%s'\n", name);
+		crypto_free_shash(alg);
 		return -ENOMEM;
 	}
 
-	(*sdesc)->shash.tfm = *shash;
+	(*sdesc)->tfm = alg;
 	return 0;
 }
 
 /**
  * cifs_free_hash - free hash and hash context together
- * @shash: Where to find the pointer to the hash algo
- * @sdesc: Where to find the pointer to the hash descriptor
+ * @sdesc: Where to find the pointer to the hash TFM
  *
- * Freeing a NULL hash or context is safe.
+ * Freeing a NULL descriptor is safe.
  */
 void
-cifs_free_hash(struct crypto_shash **shash, struct sdesc **sdesc)
+cifs_free_hash(struct shash_desc **sdesc)
 {
+	if (unlikely(!sdesc) || !*sdesc)
+		return;
+
+	if ((*sdesc)->tfm) {
+		crypto_free_shash((*sdesc)->tfm);
+		(*sdesc)->tfm = NULL;
+	}
+
 	kfree_sensitive(*sdesc);
 	*sdesc = NULL;
-	if (*shash)
-		crypto_free_shash(*shash);
-	*shash = NULL;
 }
 
 /**
