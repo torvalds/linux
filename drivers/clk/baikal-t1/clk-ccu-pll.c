@@ -12,6 +12,7 @@
 #define pr_fmt(fmt) "bt1-ccu-pll: " fmt
 
 #include <linux/kernel.h>
+#include <linux/platform_device.h>
 #include <linux/printk.h>
 #include <linux/slab.h>
 #include <linux/clk-provider.h>
@@ -31,13 +32,14 @@
 #define CCU_PCIE_PLL_BASE		0x018
 #define CCU_ETH_PLL_BASE		0x020
 
-#define CCU_PLL_INFO(_id, _name, _pname, _base, _flags)	\
-	{						\
-		.id = _id,				\
-		.name = _name,				\
-		.parent_name = _pname,			\
-		.base = _base,				\
-		.flags = _flags				\
+#define CCU_PLL_INFO(_id, _name, _pname, _base, _flags, _features)	\
+	{								\
+		.id = _id,						\
+		.name = _name,						\
+		.parent_name = _pname,					\
+		.base = _base,						\
+		.flags = _flags,					\
+		.features = _features,					\
 	}
 
 #define CCU_PLL_NUM			ARRAY_SIZE(pll_info)
@@ -48,6 +50,7 @@ struct ccu_pll_info {
 	const char *parent_name;
 	unsigned int base;
 	unsigned long flags;
+	unsigned long features;
 };
 
 /*
@@ -61,15 +64,15 @@ struct ccu_pll_info {
  */
 static const struct ccu_pll_info pll_info[] = {
 	CCU_PLL_INFO(CCU_CPU_PLL, "cpu_pll", "ref_clk", CCU_CPU_PLL_BASE,
-		     CLK_IS_CRITICAL),
+		     CLK_IS_CRITICAL, CCU_PLL_BASIC),
 	CCU_PLL_INFO(CCU_SATA_PLL, "sata_pll", "ref_clk", CCU_SATA_PLL_BASE,
-		     CLK_IS_CRITICAL | CLK_SET_RATE_GATE),
+		     CLK_IS_CRITICAL | CLK_SET_RATE_GATE, 0),
 	CCU_PLL_INFO(CCU_DDR_PLL, "ddr_pll", "ref_clk", CCU_DDR_PLL_BASE,
-		     CLK_IS_CRITICAL | CLK_SET_RATE_GATE),
+		     CLK_IS_CRITICAL | CLK_SET_RATE_GATE, 0),
 	CCU_PLL_INFO(CCU_PCIE_PLL, "pcie_pll", "ref_clk", CCU_PCIE_PLL_BASE,
-		     CLK_IS_CRITICAL),
+		     CLK_IS_CRITICAL, CCU_PLL_BASIC),
 	CCU_PLL_INFO(CCU_ETH_PLL, "eth_pll", "ref_clk", CCU_ETH_PLL_BASE,
-		     CLK_IS_CRITICAL | CLK_SET_RATE_GATE)
+		     CLK_IS_CRITICAL | CLK_SET_RATE_GATE, 0)
 };
 
 struct ccu_pll_data {
@@ -78,16 +81,16 @@ struct ccu_pll_data {
 	struct ccu_pll *plls[CCU_PLL_NUM];
 };
 
+static struct ccu_pll_data *pll_data;
+
 static struct ccu_pll *ccu_pll_find_desc(struct ccu_pll_data *data,
 					 unsigned int clk_id)
 {
-	struct ccu_pll *pll;
 	int idx;
 
 	for (idx = 0; idx < CCU_PLL_NUM; ++idx) {
-		pll = data->plls[idx];
-		if (pll && pll->id == clk_id)
-			return pll;
+		if (pll_info[idx].id == clk_id)
+			return data->plls[idx];
 	}
 
 	return ERR_PTR(-EINVAL);
@@ -133,20 +136,30 @@ static struct clk_hw *ccu_pll_of_clk_hw_get(struct of_phandle_args *clkspec,
 	clk_id = clkspec->args[0];
 	pll = ccu_pll_find_desc(data, clk_id);
 	if (IS_ERR(pll)) {
-		pr_info("Invalid PLL clock ID %d specified\n", clk_id);
+		if (pll != ERR_PTR(-EPROBE_DEFER))
+			pr_info("Invalid PLL clock ID %d specified\n", clk_id);
+
 		return ERR_CAST(pll);
 	}
 
 	return ccu_pll_get_clk_hw(pll);
 }
 
-static int ccu_pll_clk_register(struct ccu_pll_data *data)
+static int ccu_pll_clk_register(struct ccu_pll_data *data, bool defer)
 {
 	int idx, ret;
 
 	for (idx = 0; idx < CCU_PLL_NUM; ++idx) {
 		const struct ccu_pll_info *info = &pll_info[idx];
 		struct ccu_pll_init_data init = {0};
+
+		/* Defer non-basic PLLs allocation for the probe stage */
+		if (!!(info->features & CCU_PLL_BASIC) ^ defer) {
+			if (!data->plls[idx])
+				data->plls[idx] = ERR_PTR(-EPROBE_DEFER);
+
+			continue;
+		}
 
 		init.id = info->id;
 		init.name = info->name;
@@ -155,6 +168,7 @@ static int ccu_pll_clk_register(struct ccu_pll_data *data)
 		init.sys_regs = data->sys_regs;
 		init.np = data->np;
 		init.flags = info->flags;
+		init.features = info->features;
 
 		data->plls[idx] = ccu_pll_hw_register(&init);
 		if (IS_ERR(data->plls[idx])) {
@@ -165,21 +179,69 @@ static int ccu_pll_clk_register(struct ccu_pll_data *data)
 		}
 	}
 
+	return 0;
+
+err_hw_unregister:
+	for (--idx; idx >= 0; --idx) {
+		if (!!(pll_info[idx].features & CCU_PLL_BASIC) ^ defer)
+			continue;
+
+		ccu_pll_hw_unregister(data->plls[idx]);
+	}
+
+	return ret;
+}
+
+static void ccu_pll_clk_unregister(struct ccu_pll_data *data, bool defer)
+{
+	int idx;
+
+	/* Uninstall only the clocks registered on the specfied stage */
+	for (idx = 0; idx < CCU_PLL_NUM; ++idx) {
+		if (!!(pll_info[idx].features & CCU_PLL_BASIC) ^ defer)
+			continue;
+
+		ccu_pll_hw_unregister(data->plls[idx]);
+	}
+}
+
+static int ccu_pll_of_register(struct ccu_pll_data *data)
+{
+	int ret;
+
 	ret = of_clk_add_hw_provider(data->np, ccu_pll_of_clk_hw_get, data);
 	if (ret) {
 		pr_err("Couldn't register PLL provider of '%s'\n",
 			of_node_full_name(data->np));
-		goto err_hw_unregister;
 	}
-
-	return 0;
-
-err_hw_unregister:
-	for (--idx; idx >= 0; --idx)
-		ccu_pll_hw_unregister(data->plls[idx]);
 
 	return ret;
 }
+
+static int ccu_pll_probe(struct platform_device *pdev)
+{
+	struct ccu_pll_data *data = pll_data;
+
+	if (!data)
+		return -EINVAL;
+
+	return ccu_pll_clk_register(data, false);
+}
+
+static const struct of_device_id ccu_pll_of_match[] = {
+	{ .compatible = "baikal,bt1-ccu-pll" },
+	{ }
+};
+
+static struct platform_driver ccu_pll_driver = {
+	.probe  = ccu_pll_probe,
+	.driver = {
+		.name = "clk-ccu-pll",
+		.of_match_table = ccu_pll_of_match,
+		.suppress_bind_attrs = true,
+	},
+};
+builtin_platform_driver(ccu_pll_driver);
 
 static __init void ccu_pll_init(struct device_node *np)
 {
@@ -194,13 +256,22 @@ static __init void ccu_pll_init(struct device_node *np)
 	if (ret)
 		goto err_free_data;
 
-	ret = ccu_pll_clk_register(data);
+	ret = ccu_pll_clk_register(data, true);
 	if (ret)
 		goto err_free_data;
 
+	ret = ccu_pll_of_register(data);
+	if (ret)
+		goto err_clk_unregister;
+
+	pll_data = data;
+
 	return;
+
+err_clk_unregister:
+	ccu_pll_clk_unregister(data, true);
 
 err_free_data:
 	ccu_pll_free_data(data);
 }
-CLK_OF_DECLARE(ccu_pll, "baikal,bt1-ccu-pll", ccu_pll_init);
+CLK_OF_DECLARE_DRIVER(ccu_pll, "baikal,bt1-ccu-pll", ccu_pll_init);

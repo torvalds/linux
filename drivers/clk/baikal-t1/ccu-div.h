@@ -23,6 +23,8 @@
 
 /*
  * CCU Divider private flags
+ * @CCU_DIV_BASIC: Basic divider clock required by the kernel as early as
+ *		   possible.
  * @CCU_DIV_SKIP_ONE: Due to some reason divider can't be set to 1.
  *		      It can be 0 though, which is functionally the same.
  * @CCU_DIV_SKIP_ONE_TO_THREE: For some reason divider can't be within [1,3].
@@ -30,6 +32,7 @@
  * @CCU_DIV_LOCK_SHIFTED: Find lock-bit at non-standard position.
  * @CCU_DIV_RESET_DOMAIN: There is a clock domain reset handle.
  */
+#define CCU_DIV_BASIC			BIT(0)
 #define CCU_DIV_SKIP_ONE		BIT(1)
 #define CCU_DIV_SKIP_ONE_TO_THREE	BIT(2)
 #define CCU_DIV_LOCK_SHIFTED		BIT(3)
