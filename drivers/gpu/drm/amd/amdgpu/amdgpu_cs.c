@@ -449,8 +449,19 @@ static int amdgpu_syncobj_lookup_and_add(struct amdgpu_cs_parser *p,
 	}
 
 	r = amdgpu_sync_fence(&p->gang_leader->sync, fence);
-	dma_fence_put(fence);
+	if (r)
+		goto error;
 
+	/*
+	 * When we have an explicit dependency it might be necessary to insert a
+	 * pipeline sync to make sure that all caches etc are flushed and the
+	 * next job actually sees the results from the previous one.
+	 */
+	if (fence->context == p->gang_leader->base.entity->fence_context)
+		r = amdgpu_sync_fence(&p->gang_leader->explicit_sync, fence);
+
+error:
+	dma_fence_put(fence);
 	return r;
 }
 
