@@ -671,7 +671,8 @@ F:	fs/afs/
 F:	include/trace/events/afs.h
 
 AGPGART DRIVER
-M:	David Airlie <airlied@linux.ie>
+M:	David Airlie <airlied@redhat.com>
+L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm
 F:	drivers/char/agp/
@@ -1017,7 +1018,6 @@ F:	drivers/spi/spi-amd.c
 
 AMD MP2 I2C DRIVER
 M:	Elie Morisse <syniurge@gmail.com>
-M:	Nehal Shah <nehal-bakulchandra.shah@amd.com>
 M:	Shyam Sundar S K <shyam-sundar.s-k@amd.com>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
@@ -2587,7 +2587,7 @@ W:	http://www.armlinux.org.uk/
 
 ARM/QUALCOMM SUPPORT
 M:	Andy Gross <agross@kernel.org>
-M:	Bjorn Andersson <bjorn.andersson@linaro.org>
+M:	Bjorn Andersson <andersson@kernel.org>
 R:	Konrad Dybcio <konrad.dybcio@somainline.org>
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
@@ -5253,6 +5253,7 @@ F:	block/blk-throttle.c
 F:	include/linux/blk-cgroup.h
 
 CONTROL GROUP - CPUSET
+M:	Waiman Long <longman@redhat.com>
 M:	Zefan Li <lizefan.x@bytedance.com>
 L:	cgroups@vger.kernel.org
 S:	Maintained
@@ -6754,7 +6755,7 @@ F:	Documentation/devicetree/bindings/display/panel/samsung,lms380kf01.yaml
 F:	drivers/gpu/drm/panel/panel-widechips-ws2401.c
 
 DRM DRIVERS
-M:	David Airlie <airlied@linux.ie>
+M:	David Airlie <airlied@gmail.com>
 M:	Daniel Vetter <daniel@ffwll.ch>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
@@ -8944,7 +8945,7 @@ F:	include/linux/hw_random.h
 
 HARDWARE SPINLOCK CORE
 M:	Ohad Ben-Cohen <ohad@wizery.com>
-M:	Bjorn Andersson <bjorn.andersson@linaro.org>
+M:	Bjorn Andersson <andersson@kernel.org>
 R:	Baolin Wang <baolin.wang7@gmail.com>
 L:	linux-remoteproc@vger.kernel.org
 S:	Maintained
@@ -16133,7 +16134,7 @@ F:	drivers/gpio/gpio-sama5d2-piobu.c
 F:	drivers/pinctrl/pinctrl-at91*
 
 PIN CONTROLLER - QUALCOMM
-M:	Bjorn Andersson <bjorn.andersson@linaro.org>
+M:	Bjorn Andersson <andersson@kernel.org>
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/pinctrl/qcom,*.txt
@@ -16826,7 +16827,7 @@ F:	Documentation/devicetree/bindings/media/*camss*
 F:	drivers/media/platform/qcom/camss/
 
 QUALCOMM CLOCK DRIVERS
-M:	Bjorn Andersson <bjorn.andersson@linaro.org>
+M:	Bjorn Andersson <andersson@kernel.org>
 L:	linux-arm-msm@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux.git
@@ -17316,7 +17317,7 @@ S:	Supported
 F:	fs/reiserfs/
 
 REMOTE PROCESSOR (REMOTEPROC) SUBSYSTEM
-M:	Bjorn Andersson <bjorn.andersson@linaro.org>
+M:	Bjorn Andersson <andersson@kernel.org>
 M:	Mathieu Poirier <mathieu.poirier@linaro.org>
 L:	linux-remoteproc@vger.kernel.org
 S:	Maintained
@@ -17329,7 +17330,7 @@ F:	include/linux/remoteproc.h
 F:	include/linux/remoteproc/
 
 REMOTE PROCESSOR MESSAGING (RPMSG) SUBSYSTEM
-M:	Bjorn Andersson <bjorn.andersson@linaro.org>
+M:	Bjorn Andersson <andersson@kernel.org>
 M:	Mathieu Poirier <mathieu.poirier@linaro.org>
 L:	linux-remoteproc@vger.kernel.org
 S:	Maintained
@@ -19973,7 +19974,7 @@ S:	Supported
 F:	drivers/net/team/
 F:	include/linux/if_team.h
 F:	include/uapi/linux/if_team.h
-F:	tools/testing/selftests/net/team/
+F:	tools/testing/selftests/drivers/net/team/
 
 TECHNOLOGIC SYSTEMS TS-5500 PLATFORM SUPPORT
 M:	"Savoir-faire Linux Inc." <kernel@savoirfairelinux.com>
@@ -21580,7 +21581,7 @@ F:	drivers/gpio/gpio-virtio.c
 F:	include/uapi/linux/virtio_gpio.h
 
 VIRTIO GPU DRIVER
-M:	David Airlie <airlied@linux.ie>
+M:	David Airlie <airlied@redhat.com>
 M:	Gerd Hoffmann <kraxel@redhat.com>
 R:	Gurchetan Singh <gurchetansingh@chromium.org>
 R:	Chia-I Wu <olvaffe@gmail.com>

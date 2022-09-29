@@ -4386,14 +4386,20 @@ vm_fault_t finish_fault(struct vm_fault *vmf)
 
 	vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd,
 				      vmf->address, &vmf->ptl);
-	ret = 0;
-	/* Re-check under ptl */
-	if (likely(!vmf_pte_changed(vmf)))
-		do_set_pte(vmf, page, vmf->address);
-	else
-		ret = VM_FAULT_NOPAGE;
 
-	update_mmu_tlb(vma, vmf->address, vmf->pte);
+	/* Re-check under ptl */
+	if (likely(!vmf_pte_changed(vmf))) {
+		do_set_pte(vmf, page, vmf->address);
+
+		/* no need to invalidate: a not-present page won't be cached */
+		update_mmu_cache(vma, vmf->address, vmf->pte);
+
+		ret = 0;
+	} else {
+		update_mmu_tlb(vma, vmf->address, vmf->pte);
+		ret = VM_FAULT_NOPAGE;
+	}
+
 	pte_unmap_unlock(vmf->pte, vmf->ptl);
 	return ret;
 }

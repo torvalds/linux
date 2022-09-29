@@ -301,13 +301,13 @@ static void __ieee80211_wake_txqs(struct ieee80211_sub_if_data *sdata, int ac)
 	local_bh_disable();
 	spin_lock(&fq->lock);
 
+	sdata->vif.txqs_stopped[ac] = false;
+
 	if (!test_bit(SDATA_STATE_RUNNING, &sdata->state))
 		goto out;
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP)
 		ps = &sdata->bss->ps;
-
-	sdata->vif.txqs_stopped[ac] = false;
 
 	list_for_each_entry_rcu(sta, &local->sta_list, list) {
 		if (sdata != sta->sdata)

@@ -984,6 +984,11 @@ static ssize_t assign_adapter_store(struct device *dev,
 		goto done;
 	}
 
+	if (test_bit_inv(apid, matrix_mdev->matrix.apm)) {
+		ret = count;
+		goto done;
+	}
+
 	set_bit_inv(apid, matrix_mdev->matrix.apm);
 
 	ret = vfio_ap_mdev_validate_masks(matrix_mdev);
@@ -1109,6 +1114,11 @@ static ssize_t unassign_adapter_store(struct device *dev,
 		goto done;
 	}
 
+	if (!test_bit_inv(apid, matrix_mdev->matrix.apm)) {
+		ret = count;
+		goto done;
+	}
+
 	clear_bit_inv((unsigned long)apid, matrix_mdev->matrix.apm);
 	vfio_ap_mdev_hot_unplug_adapter(matrix_mdev, apid);
 	ret = count;
@@ -1180,6 +1190,11 @@ static ssize_t assign_domain_store(struct device *dev,
 
 	if (apqi > matrix_mdev->matrix.aqm_max) {
 		ret = -ENODEV;
+		goto done;
+	}
+
+	if (test_bit_inv(apqi, matrix_mdev->matrix.aqm)) {
+		ret = count;
 		goto done;
 	}
 
@@ -1286,6 +1301,11 @@ static ssize_t unassign_domain_store(struct device *dev,
 		goto done;
 	}
 
+	if (!test_bit_inv(apqi, matrix_mdev->matrix.aqm)) {
+		ret = count;
+		goto done;
+	}
+
 	clear_bit_inv((unsigned long)apqi, matrix_mdev->matrix.aqm);
 	vfio_ap_mdev_hot_unplug_domain(matrix_mdev, apqi);
 	ret = count;
@@ -1326,6 +1346,11 @@ static ssize_t assign_control_domain_store(struct device *dev,
 
 	if (id > matrix_mdev->matrix.adm_max) {
 		ret = -ENODEV;
+		goto done;
+	}
+
+	if (test_bit_inv(id, matrix_mdev->matrix.adm)) {
+		ret = count;
 		goto done;
 	}
 
@@ -1375,6 +1400,11 @@ static ssize_t unassign_control_domain_store(struct device *dev,
 
 	if (domid > matrix_mdev->matrix.adm_max) {
 		ret = -ENODEV;
+		goto done;
+	}
+
+	if (!test_bit_inv(domid, matrix_mdev->matrix.adm)) {
+		ret = count;
 		goto done;
 	}
 

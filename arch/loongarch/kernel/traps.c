@@ -461,11 +461,9 @@ asmlinkage void noinstr do_watch(struct pt_regs *regs)
 
 asmlinkage void noinstr do_ri(struct pt_regs *regs)
 {
-	int status = -1;
+	int status = SIGILL;
 	unsigned int opcode = 0;
 	unsigned int __user *era = (unsigned int __user *)exception_era(regs);
-	unsigned long old_era = regs->csr_era;
-	unsigned long old_ra = regs->regs[1];
 	irqentry_state_t state = irqentry_enter(regs);
 
 	local_irq_enable();
@@ -477,21 +475,12 @@ asmlinkage void noinstr do_ri(struct pt_regs *regs)
 
 	die_if_kernel("Reserved instruction in kernel code", regs);
 
-	compute_return_era(regs);
-
 	if (unlikely(get_user(opcode, era) < 0)) {
 		status = SIGSEGV;
 		current->thread.error_code = 1;
 	}
 
-	if (status < 0)
-		status = SIGILL;
-
-	if (unlikely(status > 0)) {
-		regs->csr_era = old_era;		/* Undo skip-over.  */
-		regs->regs[1] = old_ra;
-		force_sig(status);
-	}
+	force_sig(status);
 
 out:
 	local_irq_disable();
