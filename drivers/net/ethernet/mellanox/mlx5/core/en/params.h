@@ -86,8 +86,13 @@ static inline bool mlx5e_qid_validate(const struct mlx5e_profile *profile,
 
 /* Striding RQ dynamic parameters */
 
-u16 mlx5e_mpwrq_umr_wqe_sz(u8 pages_per_wqe);
-u8 mlx5e_mpwrq_umr_wqebbs(u8 pages_per_wqe);
+u8 mlx5e_mpwrq_page_shift(struct mlx5_core_dev *mdev, struct mlx5e_xsk_param *xsk);
+u8 mlx5e_mpwrq_log_wqe_sz(struct mlx5_core_dev *mdev, u8 page_shift);
+u8 mlx5e_mpwrq_pages_per_wqe(struct mlx5_core_dev *mdev, u8 page_shift);
+u16 mlx5e_mpwrq_umr_wqe_sz(struct mlx5_core_dev *mdev, u8 page_shift);
+u8 mlx5e_mpwrq_umr_wqebbs(struct mlx5_core_dev *mdev, u8 page_shift);
+u8 mlx5e_mpwrq_mtts_per_wqe(struct mlx5_core_dev *mdev, u8 page_shift);
+u8 mlx5e_mpwrq_max_log_rq_pkts(struct mlx5_core_dev *mdev, u8 page_shift);
 
 /* Parameter calculations */
 
@@ -106,12 +111,14 @@ void mlx5e_init_rq_type_params(struct mlx5_core_dev *mdev, struct mlx5e_params *
 
 u16 mlx5e_get_linear_rq_headroom(struct mlx5e_params *params,
 				 struct mlx5e_xsk_param *xsk);
-bool mlx5e_rx_is_linear_skb(struct mlx5e_params *params,
+bool mlx5e_rx_is_linear_skb(struct mlx5_core_dev *mdev,
+			    struct mlx5e_params *params,
 			    struct mlx5e_xsk_param *xsk);
 bool mlx5e_rx_mpwqe_is_linear_skb(struct mlx5_core_dev *mdev,
 				  struct mlx5e_params *params,
 				  struct mlx5e_xsk_param *xsk);
-u8 mlx5e_mpwqe_get_log_rq_size(struct mlx5e_params *params,
+u8 mlx5e_mpwqe_get_log_rq_size(struct mlx5_core_dev *mdev,
+			       struct mlx5e_params *params,
 			       struct mlx5e_xsk_param *xsk);
 u8 mlx5e_shampo_get_log_hd_entry_size(struct mlx5_core_dev *mdev,
 				      struct mlx5e_params *params);

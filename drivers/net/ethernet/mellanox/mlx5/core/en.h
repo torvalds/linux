@@ -93,28 +93,28 @@ struct page_pool;
 #define MLX5_MPWRQ_DEF_LOG_STRIDE_SZ(mdev) \
 	MLX5_MPWRQ_LOG_STRIDE_SZ(mdev, order_base_2(MLX5E_RX_MAX_HEAD))
 
-#define MLX5_MPWRQ_LOG_WQE_SZ			18
-#define MLX5_MPWRQ_WQE_PAGE_ORDER  (MLX5_MPWRQ_LOG_WQE_SZ - PAGE_SHIFT > 0 ? \
-				    MLX5_MPWRQ_LOG_WQE_SZ - PAGE_SHIFT : 0)
-#define MLX5_MPWRQ_PAGES_PER_WQE		BIT(MLX5_MPWRQ_WQE_PAGE_ORDER)
+#define MLX5_MPWRQ_MAX_LOG_WQE_SZ 18
+
+/* Keep in sync with mlx5e_mpwrq_log_wqe_sz.
+ * These are theoretical maximums, which can be further restricted by
+ * capabilities. These values are used for static resource allocations and
+ * sanity checks.
+ * MLX5_SEND_WQE_MAX_SIZE is a bit bigger than the maximum cacheline-aligned WQE
+ * size actually used at runtime, but it's not a problem when calculating static
+ * array sizes.
+ */
+#define MLX5_UMR_MAX_MTT_SPACE \
+	(ALIGN_DOWN(MLX5_SEND_WQE_MAX_SIZE - sizeof(struct mlx5e_umr_wqe), \
+		    MLX5_UMR_MTT_ALIGNMENT))
+#define MLX5_MPWRQ_MAX_PAGES_PER_WQE \
+	rounddown_pow_of_two(MLX5_UMR_MAX_MTT_SPACE / sizeof(struct mlx5_mtt))
 
 #define MLX5_ALIGN_MTTS(mtts)		(ALIGN(mtts, 8))
 #define MLX5_ALIGNED_MTTS_OCTW(mtts)	((mtts) / 2)
 #define MLX5_MTT_OCTW(mtts)		(MLX5_ALIGNED_MTTS_OCTW(MLX5_ALIGN_MTTS(mtts)))
-/* Add another page to MLX5E_REQUIRED_WQE_MTTS as a buffer between
- * WQEs, This page will absorb write overflow by the hardware, when
- * receiving packets larger than MTU. These oversize packets are
- * dropped by the driver at a later stage.
- */
-#define MLX5E_REQUIRED_WQE_MTTS		(MLX5_ALIGN_MTTS(MLX5_MPWRQ_PAGES_PER_WQE + 1))
 #define MLX5E_MAX_RQ_NUM_MTTS	\
 	(ALIGN_DOWN(U16_MAX, 4) * 2) /* So that MLX5_MTT_OCTW(num_mtts) fits into u16 */
 #define MLX5E_ORDER2_MAX_PACKET_MTU (order_base_2(10 * 1024))
-#define MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE_MPW	\
-		(ilog2(MLX5E_MAX_RQ_NUM_MTTS / MLX5E_REQUIRED_WQE_MTTS))
-#define MLX5E_LOG_MAX_RQ_NUM_PACKETS_MPW \
-	(MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE_MPW + \
-	 (MLX5_MPWRQ_LOG_WQE_SZ - MLX5E_ORDER2_MAX_PACKET_MTU))
 
 #define MLX5E_MIN_SKB_FRAG_SZ		(MLX5_SKB_FRAG_SZ(MLX5_RX_HEADROOM))
 #define MLX5E_LOG_MAX_RX_WQE_BULK	\
@@ -126,8 +126,7 @@ struct page_pool;
 
 #define MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE (1 + MLX5E_LOG_MAX_RX_WQE_BULK)
 #define MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE                0xa
-#define MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE min_t(u8, 0xd,	\
-					       MLX5E_LOG_MAX_RQ_NUM_PACKETS_MPW)
+#define MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE		0xd
 
 #define MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE_MPW            0x2
 
@@ -613,7 +612,7 @@ struct mlx5e_wqe_frag_info {
 
 struct mlx5e_mpw_info {
 	u16 consumed_strides;
-	DECLARE_BITMAP(xdp_xmit_bitmap, MLX5_MPWRQ_PAGES_PER_WQE);
+	DECLARE_BITMAP(xdp_xmit_bitmap, MLX5_MPWRQ_MAX_PAGES_PER_WQE);
 	struct mlx5e_dma_info dma_info[];
 };
 
@@ -622,8 +621,8 @@ struct mlx5e_mpw_info {
 /* a single cache unit is capable to serve one napi call (for non-striding rq)
  * or a MPWQE (for striding rq).
  */
-#define MLX5E_CACHE_UNIT	(MLX5_MPWRQ_PAGES_PER_WQE > NAPI_POLL_WEIGHT ? \
-				 MLX5_MPWRQ_PAGES_PER_WQE : NAPI_POLL_WEIGHT)
+#define MLX5E_CACHE_UNIT (MLX5_MPWRQ_MAX_PAGES_PER_WQE > NAPI_POLL_WEIGHT ? \
+			  MLX5_MPWRQ_MAX_PAGES_PER_WQE : NAPI_POLL_WEIGHT)
 #define MLX5E_CACHE_SIZE	(4 * roundup_pow_of_two(MLX5E_CACHE_UNIT))
 struct mlx5e_page_cache {
 	u32 head;
@@ -1008,7 +1007,7 @@ struct mlx5e_profile {
 
 void mlx5e_build_ptys2ethtool_map(void);
 
-bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev);
+bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev, u8 page_shift);
 
 void mlx5e_shampo_dealloc_hd(struct mlx5e_rq *rq, u16 len, u16 start, bool close);
 void mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats);

@@ -2431,7 +2431,7 @@ int mlx5e_rq_set_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params, bool
 	default: /* MLX5_WQ_TYPE_CYCLIC */
 		rq->wqe.skb_from_cqe = xsk ?
 			mlx5e_xsk_skb_from_cqe_linear :
-			mlx5e_rx_is_linear_skb(params, NULL) ?
+			mlx5e_rx_is_linear_skb(mdev, params, NULL) ?
 				mlx5e_skb_from_cqe_linear :
 				mlx5e_skb_from_cqe_nonlinear;
 		rq->post_wqes = mlx5e_post_rx_wqes;
@@ -2485,7 +2485,7 @@ free_wqe:
 
 void mlx5e_rq_set_trap_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params)
 {
-	rq->wqe.skb_from_cqe = mlx5e_rx_is_linear_skb(params, NULL) ?
+	rq->wqe.skb_from_cqe = mlx5e_rx_is_linear_skb(rq->mdev, params, NULL) ?
 			       mlx5e_skb_from_cqe_linear :
 			       mlx5e_skb_from_cqe_nonlinear;
 	rq->post_wqes = mlx5e_post_rx_wqes;

@@ -5,20 +5,19 @@
 #include "en/params.h"
 #include "en/txrx.h"
 #include "en/health.h"
+#include <net/xdp_sock_drv.h>
 
-/* It matches XDP_UMEM_MIN_CHUNK_SIZE, but as this constant is private and may
- * change unexpectedly, and mlx5e has a minimum valid stride size for striding
- * RQ, keep this check in the driver.
+/* The limitation of 2048 can be altered, but shouldn't go beyond the minimal
+ * stride size of striding RQ.
  */
-#define MLX5E_MIN_XSK_CHUNK_SIZE 2048
+#define MLX5E_MIN_XSK_CHUNK_SIZE max(2048, XDP_UMEM_MIN_CHUNK_SIZE)
 
 bool mlx5e_validate_xsk_param(struct mlx5e_params *params,
 			      struct mlx5e_xsk_param *xsk,
 			      struct mlx5_core_dev *mdev)
 {
 	/* AF_XDP doesn't support frames larger than PAGE_SIZE. */
-	if (xsk->chunk_size > PAGE_SIZE ||
-			xsk->chunk_size < MLX5E_MIN_XSK_CHUNK_SIZE)
+	if (xsk->chunk_size > PAGE_SIZE || xsk->chunk_size < MLX5E_MIN_XSK_CHUNK_SIZE)
 		return false;
 
 	/* frag_sz is different for regular and XSK RQs, so ensure that linear
@@ -28,7 +27,7 @@ bool mlx5e_validate_xsk_param(struct mlx5e_params *params,
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
 		return !mlx5e_mpwrq_validate_xsk(mdev, params, xsk);
 	default: /* MLX5_WQ_TYPE_CYCLIC */
-		return mlx5e_rx_is_linear_skb(params, xsk);
+		return mlx5e_rx_is_linear_skb(mdev, params, xsk);
 	}
 }
 
