@@ -475,7 +475,6 @@ struct mlx5e_txqsq {
 } ____cacheline_aligned_in_smp;
 
 struct mlx5e_alloc_unit {
-	dma_addr_t addr;
 	union {
 		struct page *page;
 		struct xdp_buff *xsk;

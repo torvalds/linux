@@ -25,13 +25,6 @@ static inline int mlx5e_xsk_page_alloc_pool(struct mlx5e_rq *rq,
 	if (!au->xsk)
 		return -ENOMEM;
 
-	/* Store the DMA address without headroom. In striding RQ case, we just
-	 * provide pages for UMR, and headroom is counted at the setup stage
-	 * when creating a WQE. In non-striding RQ case, headroom is accounted
-	 * in mlx5e_alloc_rx_wqe.
-	 */
-	au->addr = xsk_buff_xdp_get_frame_dma(au->xsk);
-
 	return 0;
 }
 
