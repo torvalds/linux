@@ -1308,7 +1308,7 @@ static int rkcif_assign_new_buffer_oneframe(struct rkcif_stream *stream,
 					    enum rkcif_yuvaddr_state stat)
 {
 	struct rkcif_device *dev = stream->cifdev;
-	struct rkcif_dummy_buffer *dummy_buf = &dev->dummy_buf;
+	struct rkcif_dummy_buffer *dummy_buf = &dev->hw_dev->dummy_buf;
 	struct rkcif_buffer *buffer = NULL;
 	u32 frm_addr_y = CIF_REG_DVP_FRM0_ADDR_Y;
 	u32 frm_addr_uv = CIF_REG_DVP_FRM0_ADDR_UV;
@@ -1757,7 +1757,7 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 			goto out_get_buf;
 		if (stream->lack_buf_cnt < 2)
 			stream->lack_buf_cnt++;
-		if (dev->dummy_buf.vaddr) {
+		if (dev->hw_dev->dummy_buf.vaddr) {
 			if (stream->frame_phase == CIF_CSI_FRAME0_READY) {
 				active_buf = stream->curr_buf_toisp;
 				stream->curr_buf_toisp = NULL;
@@ -1793,7 +1793,7 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 			else
 				rkcif_rdbk_frame_end_toisp(stream, active_buf);
 		} else {
-			if (stream->cifdev->rdbk_debug && dev->dummy_buf.vaddr)
+			if (stream->cifdev->rdbk_debug && dev->hw_dev->dummy_buf.vaddr)
 				v4l2_info(&stream->cifdev->v4l2_dev,
 					  "stream[%d] loss frame %d\n",
 					  stream->id,
@@ -1813,10 +1813,10 @@ out_get_buf:
 				  stream->id,
 				  stream->frame_idx - 1,
 				  frm_addr_y, (u32)buffer->dummy.dma_addr);
-	} else if (dev->dummy_buf.vaddr && priv &&
+	} else if (dev->hw_dev->dummy_buf.vaddr && priv &&
 		   priv->mode.rdbk_mode == RKISP_VICAP_RDBK_AUTO) {
 		rkcif_write_register(dev, frm_addr_y,
-				     dev->dummy_buf.dma_addr);
+				     dev->hw_dev->dummy_buf.dma_addr);
 	}
 	spin_unlock_irqrestore(&stream->vbq_lock, flags);
 	return 0;
@@ -1954,7 +1954,7 @@ void rkcif_assign_check_buffer_update_toisp(struct rkcif_stream *stream)
 			stream->last_frame_idx = stream->frame_idx;
 			rkcif_s_rx_buffer(dev, &active_buf->dbufs);
 		}
-		if (dev->dummy_buf.vaddr)
+		if (dev->hw_dev->dummy_buf.vaddr)
 			return;
 		if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
 		    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY ||
@@ -1984,7 +1984,7 @@ static void rkcif_assign_new_buffer_init(struct rkcif_stream *stream,
 	u32 frm0_addr_y, frm0_addr_uv;
 	u32 frm1_addr_y, frm1_addr_uv;
 	unsigned long flags;
-	struct rkcif_dummy_buffer *dummy_buf = &dev->dummy_buf;
+	struct rkcif_dummy_buffer *dummy_buf = &dev->hw_dev->dummy_buf;
 	struct csi_channel_info *channel = &dev->channels[channel_id];
 
 	if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
@@ -2108,7 +2108,7 @@ static int rkcif_assign_new_buffer_update(struct rkcif_stream *stream,
 					  int channel_id)
 {
 	struct rkcif_device *dev = stream->cifdev;
-	struct rkcif_dummy_buffer *dummy_buf = &dev->dummy_buf;
+	struct rkcif_dummy_buffer *dummy_buf = &dev->hw_dev->dummy_buf;
 	struct v4l2_mbus_config *mbus_cfg = &dev->active_sensor->mbus;
 	struct rkcif_buffer *buffer = NULL;
 	u32 frm_addr_y, frm_addr_uv;
@@ -2348,7 +2348,7 @@ stop_dma:
 static int rkcif_get_new_buffer_wake_up_mode(struct rkcif_stream *stream)
 {
 	struct rkcif_device *dev = stream->cifdev;
-	struct rkcif_dummy_buffer *dummy_buf = &dev->dummy_buf;
+	struct rkcif_dummy_buffer *dummy_buf = &dev->hw_dev->dummy_buf;
 	int ret = 0;
 	unsigned long flags;
 
@@ -2406,7 +2406,7 @@ static int rkcif_get_new_buffer_wake_up_mode(struct rkcif_stream *stream)
 static int rkcif_update_new_buffer_wake_up_mode(struct rkcif_stream *stream)
 {
 	struct rkcif_device *dev = stream->cifdev;
-	struct rkcif_dummy_buffer *dummy_buf = &dev->dummy_buf;
+	struct rkcif_dummy_buffer *dummy_buf = &dev->hw_dev->dummy_buf;
 	struct v4l2_mbus_config *mbus_cfg = &dev->active_sensor->mbus;
 	struct rkcif_buffer *buffer = NULL;
 	u32 frm_addr_y, frm_addr_uv;
@@ -2549,7 +2549,7 @@ static void rkcif_assign_dummy_buffer(struct rkcif_stream *stream)
 {
 	struct rkcif_device *dev = stream->cifdev;
 	struct v4l2_mbus_config *mbus_cfg = &dev->active_sensor->mbus;
-	struct rkcif_dummy_buffer *dummy_buf = &dev->dummy_buf;
+	struct rkcif_dummy_buffer *dummy_buf = &dev->hw_dev->dummy_buf;
 	unsigned long flags;
 
 	spin_lock_irqsave(&stream->vbq_lock, flags);
@@ -3512,7 +3512,7 @@ static void rkcif_check_buffer_update_pingpong(struct rkcif_stream *stream,
 	struct rkcif_device *dev = stream->cifdev;
 	struct v4l2_mbus_config *mbus_cfg = &dev->active_sensor->mbus;
 	struct rkcif_buffer *buffer = NULL;
-	struct rkcif_dummy_buffer *dummy_buf = &dev->dummy_buf;
+	struct rkcif_dummy_buffer *dummy_buf = &dev->hw_dev->dummy_buf;
 	u32 frm_addr_y, frm_addr_uv;
 	unsigned long flags;
 	int frame_phase = 0;
@@ -3849,35 +3849,42 @@ int rkcif_init_rx_buf(struct rkcif_stream *stream, int buf_num)
 
 static int rkcif_create_dummy_buf(struct rkcif_stream *stream)
 {
-	u32 fourcc;
 	struct rkcif_device *dev = stream->cifdev;
-	struct rkcif_dummy_buffer *dummy_buf = &dev->dummy_buf;
+	struct rkcif_hw *hw = dev->hw_dev;
+	struct rkcif_dummy_buffer *dummy_buf = &hw->dummy_buf;
+	struct rkcif_device *tmp_dev = NULL;
+	struct rkcif_stream *tmp_stream = NULL;
+	struct v4l2_rect rect;
+	struct csi_channel_info csi_info;
+	const struct cif_input_fmt *input_fmt;
+	u32 max_size = 0;
+	u32 size = 0;
 	int ret = 0;
-	u32 height = 0;
+	int i, j;
 
-	if (stream->crop_enable)
-		height = stream->crop[CROP_SRC_ACT].height;
-	else
-		height = stream->pixm.height;
-
-	if (dev->sditf_cnt > 1 && dev->sditf_cnt <= RKCIF_MAX_SDITF)
-		height *= dev->sditf_cnt;
-
-	/* get a maximum plane size */
-	dummy_buf->size = max3(stream->pixm.plane_fmt[0].bytesperline *
-		height,
-		stream->pixm.plane_fmt[1].sizeimage,
-		stream->pixm.plane_fmt[2].sizeimage);
-	/*
-	 * rk cif don't support output yuyv fmt data
-	 * if user request yuyv fmt, the input mode must be RAW8
-	 * and the width is double Because the real input fmt is
-	 * yuyv
-	 */
-	fourcc = stream->cif_fmt_out->fourcc;
-	if (fourcc == V4L2_PIX_FMT_YUYV || fourcc == V4L2_PIX_FMT_YVYU ||
-	    fourcc == V4L2_PIX_FMT_UYVY || fourcc == V4L2_PIX_FMT_VYUY)
-		dummy_buf->size *= 2;
+	for (i = 0; i < hw->dev_num; i++) {
+		tmp_dev = hw->cif_dev[i];
+		for (j = 0; j < tmp_dev->num_channels; j++) {
+			tmp_stream = &tmp_dev->stream[j];
+			if (tmp_stream) {
+				if (!tmp_dev->terminal_sensor.sd)
+					rkcif_update_sensor_info(tmp_stream);
+				if (tmp_dev->terminal_sensor.sd) {
+					input_fmt = get_input_fmt(tmp_dev->terminal_sensor.sd,
+								  &rect, i, &csi_info);
+					if (input_fmt && input_fmt->mbus_code == MEDIA_BUS_FMT_RGB888_1X24)
+						size = rect.width * rect.height * 3;
+					else
+						size = rect.width * rect.height * 2;
+					if (size > max_size)
+						max_size = size;
+				} else {
+					continue;
+				}
+			}
+		}
+	}
+	dummy_buf->size = max_size;
 
 	dummy_buf->is_need_vaddr = true;
 	dummy_buf->is_need_dbuf = true;
@@ -3897,7 +3904,7 @@ static int rkcif_create_dummy_buf(struct rkcif_stream *stream)
 static void rkcif_destroy_dummy_buf(struct rkcif_stream *stream)
 {
 	struct rkcif_device *dev = stream->cifdev;
-	struct rkcif_dummy_buffer *dummy_buf = &dev->dummy_buf;
+	struct rkcif_dummy_buffer *dummy_buf = &dev->hw_dev->dummy_buf;
 
 	if (dummy_buf->vaddr)
 		rkcif_free_buffer(dev, dummy_buf);
@@ -4175,7 +4182,7 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 			stream->is_line_wake_up = false;
 		}
 	}
-	if (!atomic_read(&dev->pipe.stream_cnt) && dev->dummy_buf.vaddr)
+	if (can_reset && hw_dev->dummy_buf.vaddr)
 		rkcif_destroy_dummy_buf(stream);
 	stream->cur_stream_mode &= ~mode;
 	v4l2_info(&dev->v4l2_dev, "stream[%d] stopping finished, dma_en 0x%x\n", stream->id, stream->dma_en);
@@ -5149,7 +5156,7 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, unsigned int mode)
 
 	if (((dev->active_sensor && dev->active_sensor->mbus.type == V4L2_MBUS_BT656) ||
 	     dev->is_use_dummybuf) &&
-	    (!dev->dummy_buf.vaddr) &&
+	    (!dev->hw_dev->dummy_buf.vaddr) &&
 	    mode == RKCIF_STREAM_MODE_CAPTURE) {
 		ret = rkcif_create_dummy_buf(stream);
 		if (ret < 0) {
@@ -6277,7 +6284,7 @@ int rkcif_register_stream_vdevs(struct rkcif_device *dev,
 		if (ret < 0)
 			goto err;
 	}
-
+	dev->num_channels = stream_num;
 	return 0;
 err:
 	for (j = 0; j < i; j++) {

@@ -8,7 +8,6 @@
 #include <linux/spinlock.h>
 #include <linux/v4l2-mediabus.h>
 
-#include "hw.h"
 #include "dev.h"
 #include "procfs.h"
 

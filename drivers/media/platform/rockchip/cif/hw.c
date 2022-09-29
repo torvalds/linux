@@ -27,7 +27,6 @@
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
 #include <soc/rockchip/rockchip_iommu.h>
-#include "dev.h"
 #include "common.h"
 
 static const struct cif_reg px30_cif_regs[] = {
