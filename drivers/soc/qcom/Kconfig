@@ -97,6 +97,27 @@ config QCOM_MSM_IPCC
 	  Say Y here to compile the driver as a part of kernel or M to compile
 	  as a module.
 
+config QCOM_CPUCP
+        tristate "Qualcomm Technologies, Inc. CPUCP driver"
+        depends on MAILBOX
+        help
+         Qualcomm Technologies, Inc. CPUCP driver for MSM devices. This driver
+         acts as a mailbox controller to do doorbell between APSS and CPUCP
+         subsystem. Say yes here to enable rx and tx channel between both
+         the subsystems.
+         If unsure, say n.
+
+config QTI_CPUCP_LOG
+        tristate "Qualcomm Technologies Inc. HW CPUCP Logging"
+        depends on QCOM_CPUCP
+        default n
+        help
+          CPUCP logging driver, this driver has the infra to collect logs
+          generated in CPUCP HW and log the buffers.
+
+          This driver register with IPC_Logging framework, to have dedicated
+          buffer for cpucp hw device.
+
 config QCOM_LLCC
 	tristate "Qualcomm Technologies, Inc. LLCC driver"
 	depends on ARCH_QCOM || COMPILE_TEST
@@ -401,6 +422,8 @@ config MINIDUMP_ALL_TASK_INFO
 	  info by default, this enables all task info
 	  collection during panic. This can provide more
 	  debug info.
+
+source "drivers/soc/qcom/dcvs/Kconfig"
 
 config QCOM_LOGBUF_VENDOR_HOOKS
 	tristate "QTI Logbuf Vendor Hooks Support"

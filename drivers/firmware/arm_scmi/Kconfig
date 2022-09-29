@@ -134,6 +134,41 @@ config ARM_SCMI_TRANSPORT_VIRTIO_ATOMIC_ENABLE
 	  in atomic context too, at the price of using a number of busy-waiting
 	  primitives all over instead. If unsure say N.
 
+config QTI_SCMI_PMU_PROTOCOL
+	tristate "Qualcomm Technologies, Inc. SCMI PMU vendor Protocol"
+	depends on ARM || ARM64 || COMPILE_TEST
+	depends on ARM_SCMI_PROTOCOL && QCOM_CPUCP
+	help
+	  System Control and Management Interface (SCMI) pmu vendor protocol.
+	  This protocol provides interface to communicate with micro controller
+	  which maintains the PMU configuration for multiple clients.
+
+	  This driver defines the comands or message ID's used for this
+	  communication and also exposes the ops used by clients.
+
+config QTI_SCMI_C1DCVS_PROTOCOL
+	tristate "Qualcomm Technologies, Inc. SCMI C1DCVS vendor Protocol"
+	depends on ARM || ARM64 || COMPILE_TEST
+	depends on ARM_SCMI_PROTOCOL && QCOM_CPUCP
+	help
+	  System Control and Management Interface (SCMI) c1dcvs vendor protocol.
+	  This protocol provides interface to communicate with micro controller
+	  which maintains the c1dcvs algorithm.
+
+	  This driver defines the comands or message ID's used for this
+	  communication and also exposes the ops used by clients.
+
+config QTI_SCMI_MEMLAT_PROTOCOL
+	tristate "Qualcomm Technologies, Inc. SCMI MEMLAT vendor Protocol"
+	depends on ARM || ARM64 || COMPILE_TEST
+	depends on ARM_SCMI_PROTOCOL && QCOM_CPUCP
+	help
+	  System Control and Management Interface (SCMI) memlat vendor protocol.
+	  This protocol provides interface to communicate with micro controller
+	  which is executing the hw memlat governor. This driver defines the
+	  commands or message ID's used for this communication and also exposes
+	  the ops used by clients.
+
 endif #ARM_SCMI_PROTOCOL
 
 config ARM_SCMI_POWER_DOMAIN
