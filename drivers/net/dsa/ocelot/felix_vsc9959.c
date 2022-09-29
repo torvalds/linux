@@ -477,100 +477,43 @@ static const u32 *vsc9959_regmap[TARGET_MAX] = {
 };
 
 /* Addresses are relative to the PCI device's base address */
-static const struct resource vsc9959_target_io_res[TARGET_MAX] = {
-	[ANA] = {
-		.start	= 0x0280000,
-		.end	= 0x028ffff,
-		.name	= "ana",
-	},
-	[QS] = {
-		.start	= 0x0080000,
-		.end	= 0x00800ff,
-		.name	= "qs",
-	},
-	[QSYS] = {
-		.start	= 0x0200000,
-		.end	= 0x021ffff,
-		.name	= "qsys",
-	},
-	[REW] = {
-		.start	= 0x0030000,
-		.end	= 0x003ffff,
-		.name	= "rew",
-	},
-	[SYS] = {
-		.start	= 0x0010000,
-		.end	= 0x001ffff,
-		.name	= "sys",
-	},
-	[S0] = {
-		.start	= 0x0040000,
-		.end	= 0x00403ff,
-		.name	= "s0",
-	},
-	[S1] = {
-		.start	= 0x0050000,
-		.end	= 0x00503ff,
-		.name	= "s1",
-	},
-	[S2] = {
-		.start	= 0x0060000,
-		.end	= 0x00603ff,
-		.name	= "s2",
-	},
-	[PTP] = {
-		.start	= 0x0090000,
-		.end	= 0x00900cb,
-		.name	= "ptp",
-	},
-	[GCB] = {
-		.start	= 0x0070000,
-		.end	= 0x00701ff,
-		.name	= "devcpu_gcb",
-	},
+static const struct resource vsc9959_resources[] = {
+	DEFINE_RES_MEM_NAMED(0x0010000, 0x0010000, "sys"),
+	DEFINE_RES_MEM_NAMED(0x0030000, 0x0010000, "rew"),
+	DEFINE_RES_MEM_NAMED(0x0040000, 0x0000400, "s0"),
+	DEFINE_RES_MEM_NAMED(0x0050000, 0x0000400, "s1"),
+	DEFINE_RES_MEM_NAMED(0x0060000, 0x0000400, "s2"),
+	DEFINE_RES_MEM_NAMED(0x0070000, 0x0000200, "devcpu_gcb"),
+	DEFINE_RES_MEM_NAMED(0x0080000, 0x0000100, "qs"),
+	DEFINE_RES_MEM_NAMED(0x0090000, 0x00000cc, "ptp"),
+	DEFINE_RES_MEM_NAMED(0x0100000, 0x0010000, "port0"),
+	DEFINE_RES_MEM_NAMED(0x0110000, 0x0010000, "port1"),
+	DEFINE_RES_MEM_NAMED(0x0120000, 0x0010000, "port2"),
+	DEFINE_RES_MEM_NAMED(0x0130000, 0x0010000, "port3"),
+	DEFINE_RES_MEM_NAMED(0x0140000, 0x0010000, "port4"),
+	DEFINE_RES_MEM_NAMED(0x0150000, 0x0010000, "port5"),
+	DEFINE_RES_MEM_NAMED(0x0200000, 0x0020000, "qsys"),
+	DEFINE_RES_MEM_NAMED(0x0280000, 0x0010000, "ana"),
 };
 
-static const struct resource vsc9959_port_io_res[] = {
-	{
-		.start	= 0x0100000,
-		.end	= 0x010ffff,
-		.name	= "port0",
-	},
-	{
-		.start	= 0x0110000,
-		.end	= 0x011ffff,
-		.name	= "port1",
-	},
-	{
-		.start	= 0x0120000,
-		.end	= 0x012ffff,
-		.name	= "port2",
-	},
-	{
-		.start	= 0x0130000,
-		.end	= 0x013ffff,
-		.name	= "port3",
-	},
-	{
-		.start	= 0x0140000,
-		.end	= 0x014ffff,
-		.name	= "port4",
-	},
-	{
-		.start	= 0x0150000,
-		.end	= 0x015ffff,
-		.name	= "port5",
-	},
+static const char * const vsc9959_resource_names[TARGET_MAX] = {
+	[SYS] = "sys",
+	[REW] = "rew",
+	[S0] = "s0",
+	[S1] = "s1",
+	[S2] = "s2",
+	[GCB] = "devcpu_gcb",
+	[QS] = "qs",
+	[PTP] = "ptp",
+	[QSYS] = "qsys",
+	[ANA] = "ana",
 };
 
 /* Port MAC 0 Internal MDIO bus through which the SerDes acting as an
  * SGMII/QSGMII MAC PCS can be found.
  */
-static const struct resource vsc9959_imdio_res = {
-	.start		= 0x8030,
-	.end		= 0x8040,
-	.name		= "imdio",
-};
+static const struct resource vsc9959_imdio_res =
+	DEFINE_RES_MEM_NAMED(0x8030, 0x8040, "imdio");
 
 static const struct reg_field vsc9959_regfields[REGFIELD_MAX] = {
 	[ANA_ADVLEARN_VLAN_CHK] = REG_FIELD(ANA_ADVLEARN, 6, 6),
@@ -1003,9 +946,11 @@ static void vsc9959_wm_stat(u32 val, u32 *inuse, u32 *maxuse)
 
 static int vsc9959_mdio_bus_alloc(struct ocelot *ocelot)
 {
+	struct pci_dev *pdev = to_pci_dev(ocelot->dev);
 	struct felix *felix = ocelot_to_felix(ocelot);
 	struct enetc_mdio_priv *mdio_priv;
 	struct device *dev = ocelot->dev;
+	resource_size_t imdio_base;
 	void __iomem *imdio_regs;
 	struct resource res;
 	struct enetc_hw *hw;
@@ -1021,10 +966,11 @@ static int vsc9959_mdio_bus_alloc(struct ocelot *ocelot)
 		return -ENOMEM;
 	}
 
-	memcpy(&res, felix->info->imdio_res, sizeof(res));
-	res.flags = IORESOURCE_MEM;
-	res.start += felix->imdio_base;
-	res.end += felix->imdio_base;
+	imdio_base = pci_resource_start(pdev, VSC9959_IMDIO_PCI_BAR);
+
+	memcpy(&res, &vsc9959_imdio_res, sizeof(res));
+	res.start += imdio_base;
+	res.end += imdio_base;
 
 	imdio_regs = devm_ioremap_resource(dev, &res);
 	if (IS_ERR(imdio_regs))
@@ -2590,9 +2536,9 @@ static const struct ocelot_ops vsc9959_ops = {
 };
 
 static const struct felix_info felix_info_vsc9959 = {
-	.target_io_res		= vsc9959_target_io_res,
-	.port_io_res		= vsc9959_port_io_res,
-	.imdio_res		= &vsc9959_imdio_res,
+	.resources		= vsc9959_resources,
+	.num_resources		= ARRAY_SIZE(vsc9959_resources),
+	.resource_names		= vsc9959_resource_names,
 	.regfields		= vsc9959_regfields,
 	.map			= vsc9959_regmap,
 	.ops			= &vsc9959_ops,
@@ -2614,7 +2560,6 @@ static const struct felix_info felix_info_vsc9959 = {
 	.port_setup_tc		= vsc9959_port_setup_tc,
 	.port_sched_speed_set	= vsc9959_sched_speed_set,
 	.tas_guard_bands_update	= vsc9959_tas_guard_bands_update,
-	.init_regmap		= ocelot_regmap_init,
 };
 
 static irqreturn_t felix_irq_handler(int irq, void *data)
@@ -2666,7 +2611,6 @@ static int felix_pci_probe(struct pci_dev *pdev,
 	ocelot->num_flooding_pgids = OCELOT_NUM_TC;
 	felix->info = &felix_info_vsc9959;
 	felix->switch_base = pci_resource_start(pdev, VSC9959_SWITCH_PCI_BAR);
-	felix->imdio_base = pci_resource_start(pdev, VSC9959_IMDIO_PCI_BAR);
 
 	pci_set_master(pdev);
 
