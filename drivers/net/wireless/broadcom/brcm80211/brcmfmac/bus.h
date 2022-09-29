@@ -24,6 +24,12 @@
 #define BRCMF_NROF_COMMON_MSGRINGS	(BRCMF_NROF_H2D_COMMON_MSGRINGS + \
 					 BRCMF_NROF_D2H_COMMON_MSGRINGS)
 
+/* The interval to poll console */
+#define BRCMF_CONSOLE	10
+
+/* The maximum console interval value (5 mins) */
+#define MAX_CONSOLE_INTERVAL	(5 * 60)
+
 /* The level of bus communication with the dongle */
 enum brcmf_bus_state {
 	BRCMF_BUS_DOWN,		/* Not ready for frame transfers */

@@ -12,6 +12,8 @@
 #include <linux/interrupt.h>
 #include <linux/bcma/bcma.h>
 #include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/kthread.h>
 #include <linux/io.h>
 #include <asm/unaligned.h>
 
@@ -340,6 +342,11 @@ struct brcmf_pciedev_info {
 			  u16 value);
 	struct brcmf_mp_device *settings;
 	struct brcmf_otp_params otp;
+#ifdef DEBUG
+	u32 console_interval;
+	bool console_active;
+	struct timer_list timer;
+#endif
 };
 
 struct brcmf_pcie_ringbuf {
@@ -440,6 +447,9 @@ static void brcmf_pcie_setup(struct device *dev, int ret,
 			     struct brcmf_fw_request *fwreq);
 static struct brcmf_fw_request *
 brcmf_pcie_prepare_fw_request(struct brcmf_pciedev_info *devinfo);
+static void
+brcmf_pcie_fwcon_timer(struct brcmf_pciedev_info *devinfo, bool active);
+static void brcmf_pcie_debugfs_create(struct device *dev);
 
 static u16
 brcmf_pcie_read_reg16(struct brcmf_pciedev_info *devinfo, u32 reg_offset)
@@ -1413,6 +1423,11 @@ fail:
 
 static void brcmf_pcie_down(struct device *dev)
 {
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_pciedev *pcie_bus_dev = bus_if->bus_priv.pcie;
+	struct brcmf_pciedev_info *devinfo = pcie_bus_dev->devinfo;
+
+	brcmf_pcie_fwcon_timer(devinfo, false);
 }
 
 static int brcmf_pcie_preinit(struct device *dev)
@@ -1547,6 +1562,7 @@ static const struct brcmf_bus_ops brcmf_pcie_bus_ops = {
 	.get_memdump = brcmf_pcie_get_memdump,
 	.get_blob = brcmf_pcie_get_blob,
 	.reset = brcmf_pcie_reset,
+	.debugfs_create = brcmf_pcie_debugfs_create,
 };
 
 
@@ -2123,6 +2139,8 @@ static void brcmf_pcie_setup(struct device *dev, int ret,
 
 	brcmf_pcie_bus_console_read(devinfo, false);
 
+	brcmf_pcie_fwcon_timer(devinfo, true);
+
 	return;
 
 fail:
@@ -2196,6 +2214,105 @@ brcmf_pcie_prepare_fw_request(struct brcmf_pciedev_info *devinfo)
 
 	return fwreq;
 }
+
+#ifdef DEBUG
+static void
+brcmf_pcie_fwcon_timer(struct brcmf_pciedev_info *devinfo, bool active)
+{
+	if (!active) {
+		if (devinfo->console_active) {
+			del_timer_sync(&devinfo->timer);
+			devinfo->console_active = false;
+		}
+		return;
+	}
+
+	/* don't start the timer */
+	if (devinfo->state != BRCMFMAC_PCIE_STATE_UP ||
+	    !devinfo->console_interval || !BRCMF_FWCON_ON())
+		return;
+
+	if (!devinfo->console_active) {
+		devinfo->timer.expires = jiffies + devinfo->console_interval;
+		add_timer(&devinfo->timer);
+		devinfo->console_active = true;
+	} else {
+		/* Reschedule the timer */
+		mod_timer(&devinfo->timer, jiffies + devinfo->console_interval);
+	}
+}
+
+static void
+brcmf_pcie_fwcon(struct timer_list *t)
+{
+	struct brcmf_pciedev_info *devinfo = from_timer(devinfo, t, timer);
+
+	if (!devinfo->console_active)
+		return;
+
+	brcmf_pcie_bus_console_read(devinfo, false);
+
+	/* Reschedule the timer if console interval is not zero */
+	mod_timer(&devinfo->timer, jiffies + devinfo->console_interval);
+}
+
+static int brcmf_pcie_console_interval_get(void *data, u64 *val)
+{
+	struct brcmf_pciedev_info *devinfo = data;
+
+	*val = devinfo->console_interval;
+
+	return 0;
+}
+
+static int brcmf_pcie_console_interval_set(void *data, u64 val)
+{
+	struct brcmf_pciedev_info *devinfo = data;
+
+	if (val > MAX_CONSOLE_INTERVAL)
+		return -EINVAL;
+
+	devinfo->console_interval = val;
+
+	if (!val && devinfo->console_active)
+		brcmf_pcie_fwcon_timer(devinfo, false);
+	else if (val)
+		brcmf_pcie_fwcon_timer(devinfo, true);
+
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(brcmf_pcie_console_interval_fops,
+			brcmf_pcie_console_interval_get,
+			brcmf_pcie_console_interval_set,
+			"%llu\n");
+
+static void brcmf_pcie_debugfs_create(struct device *dev)
+{
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_pub *drvr = bus_if->drvr;
+	struct brcmf_pciedev *pcie_bus_dev = bus_if->bus_priv.pcie;
+	struct brcmf_pciedev_info *devinfo = pcie_bus_dev->devinfo;
+	struct dentry *dentry = brcmf_debugfs_get_devdir(drvr);
+
+	if (IS_ERR_OR_NULL(dentry))
+		return;
+
+	devinfo->console_interval = BRCMF_CONSOLE;
+
+	debugfs_create_file("console_interval", 0644, dentry, devinfo,
+			    &brcmf_pcie_console_interval_fops);
+}
+
+#else
+void brcmf_pcie_fwcon_timer(struct brcmf_pciedev_info *devinfo, bool active)
+{
+}
+
+static void brcmf_pcie_debugfs_create(struct device *dev)
+{
+}
+#endif
 
 static int
 brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -2278,6 +2395,11 @@ brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto fail_brcmf;
 	}
 
+#ifdef DEBUG
+	/* Set up the fwcon timer */
+	timer_setup(&devinfo->timer, brcmf_pcie_fwcon, 0);
+#endif
+
 	fwreq = brcmf_pcie_prepare_fw_request(devinfo);
 	if (!fwreq) {
 		ret = -ENOMEM;
@@ -2323,6 +2445,7 @@ brcmf_pcie_remove(struct pci_dev *pdev)
 
 	devinfo = bus->bus_priv.pcie->devinfo;
 	brcmf_pcie_bus_console_read(devinfo, false);
+	brcmf_pcie_fwcon_timer(devinfo, false);
 
 	devinfo->state = BRCMFMAC_PCIE_STATE_DOWN;
 	if (devinfo->ci)
@@ -2366,6 +2489,7 @@ static int brcmf_pcie_pm_enter_D3(struct device *dev)
 	bus = dev_get_drvdata(dev);
 	devinfo = bus->bus_priv.pcie->devinfo;
 
+	brcmf_pcie_fwcon_timer(devinfo, false);
 	brcmf_bus_change_state(bus, BRCMF_BUS_DOWN);
 
 	devinfo->mbdata_completed = false;
@@ -2409,6 +2533,7 @@ static int brcmf_pcie_pm_leave_D3(struct device *dev)
 		brcmf_bus_change_state(bus, BRCMF_BUS_UP);
 		brcmf_pcie_intr_enable(devinfo);
 		brcmf_pcie_hostready(devinfo);
+		brcmf_pcie_fwcon_timer(devinfo, true);
 		return 0;
 	}
 

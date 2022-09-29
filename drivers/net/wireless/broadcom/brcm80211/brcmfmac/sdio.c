@@ -135,8 +135,6 @@ struct rte_console {
 
 #define BRCMF_FIRSTREAD	(1 << 6)
 
-#define BRCMF_CONSOLE	10	/* watchdog interval to poll console */
-
 /* SBSDIO_DEVICE_CTL */
 
 /* 1: device will assert busy signal when receiving CMD53 */
