@@ -59,9 +59,4 @@ static inline bool is_forbidden_offset_for_adrp(void *place)
 
 struct plt_entry get_plt_entry(u64 dst, void *pc);
 
-static inline bool plt_entry_is_initialized(const struct plt_entry *e)
-{
-	return e->adrp || e->add || e->br;
-}
-
 #endif /* __ASM_MODULE_H */
