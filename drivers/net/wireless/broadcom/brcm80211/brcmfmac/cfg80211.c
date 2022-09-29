@@ -7635,16 +7635,15 @@ brcmf_dump_obss(struct brcmf_if *ifp, struct cca_msrmnt_query req,
 	int err;
 
 	buf = kzalloc(sizeof(char) * BRCMF_DCMD_MEDLEN, GFP_KERNEL);
-	if (unlikely(!buf)) {
-		brcmf_err("%s: buf alloc failed\n", __func__);
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	memcpy(buf, &req, sizeof(struct cca_msrmnt_query));
 	err = brcmf_fil_iovar_data_get(ifp, "dump_obss",
 				       buf, BRCMF_DCMD_MEDLEN);
-	if (err < 0) {
+	if (err) {
 		brcmf_err("dump_obss error (%d)\n", err);
+		err = -EINVAL;
 		goto exit;
 	}
 	results = (struct cca_stats_n_flags *)(buf);
@@ -7652,11 +7651,9 @@ brcmf_dump_obss(struct brcmf_if *ifp, struct cca_msrmnt_query req,
 	if (req.msrmnt_query)
 		brcmf_parse_dump_obss(results->buf, survey);
 
-	kfree(buf);
-	return 0;
 exit:
 	kfree(buf);
-	return -EINVAL;
+	return err;
 }
 
 static s32
@@ -7695,7 +7692,7 @@ brcmf_cfg80211_dump_survey(struct wiphy *wiphy, struct net_device *ndev,
 	struct ieee80211_supported_band *band;
 	struct ieee80211_channel *chan;
 	struct cca_msrmnt_query req;
-	u32 val, noise;
+	u32 noise;
 	int err;
 
 	brcmf_dbg(TRACE, "Enter: channel idx=%d\n", idx);
@@ -7721,23 +7718,20 @@ brcmf_cfg80211_dump_survey(struct wiphy *wiphy, struct net_device *ndev,
 		return 0;
 	}
 
-	if (!idx) {
-		/* Disable mpc */
-		val = 0;
-		brcmf_set_mpc(ifp, val);
-		/* Set interface up, explicitly. */
-		val = 1;
-		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_UP, val);
-		if (err) {
-			brcmf_err("BRCMF_C_UP error (%d)\n", err);
-			return -EIO;
-		}
+	/* Disable mpc */
+	brcmf_set_mpc(ifp, 0);
+
+	/* Set interface up, explicitly. */
+	err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_UP, 1);
+	if (err) {
+		brcmf_err("set interface up failed, err = %d\n", err);
+		goto exit;
 	}
 
 	/* Get noise value */
 	err = brcmf_fil_cmd_int_get(ifp, BRCMF_C_GET_PHY_NOISE, &noise);
 	if (err) {
-		brcmf_err("Get Phy Noise failed, error = %d\n", err);
+		brcmf_err("Get Phy Noise failed, use dummy value\n");
 		noise = CHAN_NOISE_DUMMY;
 	}
 
@@ -7754,7 +7748,7 @@ brcmf_cfg80211_dump_survey(struct wiphy *wiphy, struct net_device *ndev,
 	/* Issue IOVAR to collect measurement results */
 	req.msrmnt_query = 1;
 	err = brcmf_dump_obss(ifp, req, &survey);
-	if (err < 0)
+	if (err)
 		goto exit;
 
 	info->channel = chan;
@@ -7775,6 +7769,8 @@ brcmf_cfg80211_dump_survey(struct wiphy *wiphy, struct net_device *ndev,
 		  info->noise, info->time_busy, info->time_rx, info->time_tx);
 
 exit:
+	if (!brcmf_is_apmode(ifp->vif))
+		brcmf_set_mpc(ifp, 1);
 	return err;
 }
 
