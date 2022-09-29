@@ -167,6 +167,8 @@ struct mtk_jpegenc_comp_dev {
  * @jpegdec_irq:		jpeg decode irq num
  * @job_timeout_work:		decode timeout workqueue
  * @hw_param:			jpeg decode hw parameters
+ * @hw_state:			record hw state
+ * @hw_lock:			spinlock protecting hw
  */
 struct mtk_jpegdec_comp_dev {
 	struct device *dev;
@@ -177,6 +179,9 @@ struct mtk_jpegdec_comp_dev {
 	int jpegdec_irq;
 	struct delayed_work job_timeout_work;
 	struct mtk_jpeg_hw_param hw_param;
+	enum mtk_jpeg_hw_state hw_state;
+	/* spinlock protecting the hw device resource */
+	spinlock_t hw_lock;
 };
 
 /**
@@ -200,6 +205,9 @@ struct mtk_jpegdec_comp_dev {
  * @reg_decbase:	jpg decode register base addr
  * @dec_hw_dev:		jpg decode hardware device
  * @is_jpgdec_multihw:	the flag of dec multi-hw core
+ * @dec_hw_wq:		jpg decode wait queue
+ * @dec_workqueue:	jpg decode work queue
+ * @dechw_rdy:		jpg decode hw ready flag
  */
 struct mtk_jpeg_dev {
 	struct mutex		lock;
@@ -223,6 +231,9 @@ struct mtk_jpeg_dev {
 	void __iomem *reg_decbase[MTK_JPEGDEC_HW_MAX];
 	struct mtk_jpegdec_comp_dev *dec_hw_dev[MTK_JPEGDEC_HW_MAX];
 	bool is_jpgdec_multihw;
+	wait_queue_head_t dec_hw_wq;
+	struct workqueue_struct	*dec_workqueue;
+	atomic_t dechw_rdy;
 };
 
 /**
