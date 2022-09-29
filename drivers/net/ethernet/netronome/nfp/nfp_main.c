@@ -729,8 +729,15 @@ static int nfp_pf_cfg_hwinfo(struct nfp_pf *pf, bool sp_indiff)
 	snprintf(hwinfo, sizeof(hwinfo), "sp_indiff=%d", sp_indiff);
 	err = nfp_nsp_hwinfo_set(nsp, hwinfo, sizeof(hwinfo));
 	/* Not a fatal error, no need to return error to stop driver from loading */
-	if (err)
+	if (err) {
 		nfp_warn(pf->cpp, "HWinfo(sp_indiff=%d) set failed: %d\n", sp_indiff, err);
+	} else {
+		/* Need reinit eth_tbl since the eth table state may change
+		 * after sp_indiff is configured.
+		 */
+		kfree(pf->eth_tbl);
+		pf->eth_tbl = __nfp_eth_read_ports(pf->cpp, nsp);
+	}
 
 	nfp_nsp_close(nsp);
 	return 0;

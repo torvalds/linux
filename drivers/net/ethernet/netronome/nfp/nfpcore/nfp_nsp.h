@@ -174,6 +174,7 @@ struct nfp_eth_table {
 		bool enabled;
 		bool tx_enabled;
 		bool rx_enabled;
+		bool supp_aneg;
 
 		bool override_changed;
 
