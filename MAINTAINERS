@@ -5898,10 +5898,9 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
 F:	drivers/usb/dwc2/
 
 DESIGNWARE USB3 DRD IP DRIVER
-M:	Felipe Balbi <balbi@kernel.org>
+M:	Thinh Nguyen <Thinh.Nguyen@synopsys.com>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/balbi/usb.git
 F:	drivers/usb/dwc3/
 
 DEVANTECH SRF ULTRASONIC RANGER IIO DRIVER
