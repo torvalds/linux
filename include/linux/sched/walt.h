@@ -20,7 +20,7 @@ enum pause_reason {
 #if IS_ENABLED(CONFIG_SCHED_WALT)
 
 #define MAX_CPUS_PER_CLUSTER 6
-#define MAX_CLUSTERS 3
+#define MAX_CLUSTERS 4
 
 struct core_ctl_notif_data {
 	unsigned int nr_big;

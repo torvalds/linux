@@ -43,8 +43,6 @@ const char *migrate_type_names[] = {
 #define EARLY_DETECTION_DURATION 9500000
 #define MAX_NUM_CGROUP_COLOC_ID 20
 
-#define MAX_NR_CLUSTERS			3
-
 #define NEW_TASK_ACTIVE_TIME 100000000
 
 DEFINE_PER_CPU(struct walt_rq, walt_rq);
@@ -2533,7 +2531,7 @@ static inline void assign_cluster_ids(struct list_head *head)
 		sched_cluster[pos++] = cluster;
 	}
 
-	WARN_ON(pos > MAX_NR_CLUSTERS);
+	WARN_ON(pos > MAX_CLUSTERS);
 }
 
 static inline void
