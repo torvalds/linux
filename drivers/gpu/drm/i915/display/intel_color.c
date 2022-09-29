@@ -25,9 +25,7 @@
 #include "intel_color.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
-#include "intel_dpll.h"
 #include "intel_dsb.h"
-#include "vlv_dsi_pll.h"
 
 struct intel_color_funcs {
 	int (*color_check)(struct intel_crtc_state *crtc_state);
@@ -580,10 +578,7 @@ static void i9xx_load_lut_8(struct intel_crtc *crtc,
 static void i9xx_load_luts(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct drm_property_blob *gamma_lut = crtc_state->hw.gamma_lut;
-
-	assert_pll_enabled(dev_priv, crtc->pipe);
 
 	i9xx_load_lut_8(crtc, gamma_lut);
 }
@@ -611,13 +606,7 @@ static void i965_load_lut_10p6(struct intel_crtc *crtc,
 static void i965_load_luts(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct drm_property_blob *gamma_lut = crtc_state->hw.gamma_lut;
-
-	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI))
-		assert_dsi_pll_enabled(dev_priv);
-	else
-		assert_pll_enabled(dev_priv, crtc->pipe);
 
 	if (crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT)
 		i9xx_load_lut_8(crtc, gamma_lut);
