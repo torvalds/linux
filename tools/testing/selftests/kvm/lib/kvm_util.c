@@ -50,6 +50,45 @@ int open_kvm_dev_path_or_exit(void)
 	return _open_kvm_dev_path_or_exit(O_RDONLY);
 }
 
+static bool get_module_param_bool(const char *module_name, const char *param)
+{
+	const int path_size = 128;
+	char path[path_size];
+	char value;
+	ssize_t r;
+	int fd;
+
+	r = snprintf(path, path_size, "/sys/module/%s/parameters/%s",
+		     module_name, param);
+	TEST_ASSERT(r < path_size,
+		    "Failed to construct sysfs path in %d bytes.", path_size);
+
+	fd = open_path_or_exit(path, O_RDONLY);
+
+	r = read(fd, &value, 1);
+	TEST_ASSERT(r == 1, "read(%s) failed", path);
+
+	r = close(fd);
+	TEST_ASSERT(!r, "close(%s) failed", path);
+
+	if (value == 'Y')
+		return true;
+	else if (value == 'N')
+		return false;
+
+	TEST_FAIL("Unrecognized value '%c' for boolean module param", value);
+}
+
+bool get_kvm_intel_param_bool(const char *param)
+{
+	return get_module_param_bool("kvm_intel", param);
+}
+
+bool get_kvm_amd_param_bool(const char *param)
+{
+	return get_module_param_bool("kvm_amd", param);
+}
+
 /*
  * Capability
  *
