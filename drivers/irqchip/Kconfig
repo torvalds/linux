@@ -3,7 +3,7 @@ menu "IRQ chip support"
 
 config IRQCHIP
 	def_bool y
-	depends on OF_IRQ
+	depends on (OF_IRQ || ACPI_GENERIC_GSI)
 
 config ARM_GIC
 	bool
