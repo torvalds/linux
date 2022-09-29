@@ -80,6 +80,31 @@ xattr_resolve_name(struct inode *inode, const char **name)
 	return ERR_PTR(-EOPNOTSUPP);
 }
 
+/**
+ * may_write_xattr - check whether inode allows writing xattr
+ * @mnt_userns:	User namespace of the mount the inode was found from
+ * @inode: the inode on which to set an xattr
+ *
+ * Check whether the inode allows writing xattrs. Specifically, we can never
+ * set or remove an extended attribute on a read-only filesystem  or on an
+ * immutable / append-only inode.
+ *
+ * We also need to ensure that the inode has a mapping in the mount to
+ * not risk writing back invalid i_{g,u}id values.
+ *
+ * Return: On success zero is returned. On error a negative errno is returned.
+ */
+int may_write_xattr(struct user_namespace *mnt_userns, struct inode *inode)
+{
+	if (IS_IMMUTABLE(inode))
+		return -EPERM;
+	if (IS_APPEND(inode))
+		return -EPERM;
+	if (HAS_UNMAPPED_ID(mnt_userns, inode))
+		return -EPERM;
+	return 0;
+}
+
 /*
  * Check permissions for extended attribute access.  This is a bit complicated
  * because different namespaces have very different rules.
@@ -88,20 +113,12 @@ static int
 xattr_permission(struct user_namespace *mnt_userns, struct inode *inode,
 		 const char *name, int mask)
 {
-	/*
-	 * We can never set or remove an extended attribute on a read-only
-	 * filesystem  or on an immutable / append-only inode.
-	 */
 	if (mask & MAY_WRITE) {
-		if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
-			return -EPERM;
-		/*
-		 * Updating an xattr will likely cause i_uid and i_gid
-		 * to be writen back improperly if their true value is
-		 * unknown to the vfs.
-		 */
-		if (HAS_UNMAPPED_ID(mnt_userns, inode))
-			return -EPERM;
+		int ret;
+
+		ret = may_write_xattr(mnt_userns, inode);
+		if (ret)
+			return ret;
 	}
 
 	/*
