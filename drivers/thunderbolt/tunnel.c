@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/ktime.h>
+#include <linux/string_helpers.h>
 
 #include "tunnel.h"
 #include "tb.h"
@@ -153,18 +154,49 @@ static struct tb_tunnel *tb_tunnel_alloc(struct tb *tb, size_t npaths,
 	return tunnel;
 }
 
+static int tb_pci_set_ext_encapsulation(struct tb_tunnel *tunnel, bool enable)
+{
+	int ret;
+
+	/* Only supported of both routers are at least USB4 v2 */
+	if (usb4_switch_version(tunnel->src_port->sw) < 2 ||
+	    usb4_switch_version(tunnel->dst_port->sw) < 2)
+		return 0;
+
+	ret = usb4_pci_port_set_ext_encapsulation(tunnel->src_port, enable);
+	if (ret)
+		return ret;
+
+	ret = usb4_pci_port_set_ext_encapsulation(tunnel->dst_port, enable);
+	if (ret)
+		return ret;
+
+	tb_tunnel_dbg(tunnel, "extended encapsulation %s\n",
+		      str_enabled_disabled(enable));
+	return 0;
+}
+
 static int tb_pci_activate(struct tb_tunnel *tunnel, bool activate)
 {
 	int res;
+
+	if (activate) {
+		res = tb_pci_set_ext_encapsulation(tunnel, activate);
+		if (res)
+			return res;
+	}
 
 	res = tb_pci_port_enable(tunnel->src_port, activate);
 	if (res)
 		return res;
 
-	if (tb_port_is_pcie_up(tunnel->dst_port))
-		return tb_pci_port_enable(tunnel->dst_port, activate);
+	if (tb_port_is_pcie_up(tunnel->dst_port)) {
+		res = tb_pci_port_enable(tunnel->dst_port, activate);
+		if (res)
+			return res;
+	}
 
-	return 0;
+	return activate ? 0 : tb_pci_set_ext_encapsulation(tunnel, activate);
 }
 
 static int tb_pci_init_credits(struct tb_path_hop *hop)
