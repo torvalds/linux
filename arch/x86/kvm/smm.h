@@ -27,7 +27,6 @@ void process_smi(struct kvm_vcpu *vcpu);
 #else
 static inline int kvm_inject_smi(struct kvm_vcpu *vcpu) { return -ENOTTY; }
 static inline bool is_smm(struct kvm_vcpu *vcpu) { return false; }
-static inline void enter_smm(struct kvm_vcpu *vcpu) { WARN_ON_ONCE(1); }
 static inline void process_smi(struct kvm_vcpu *vcpu) { WARN_ON_ONCE(1); }
 
 /*
