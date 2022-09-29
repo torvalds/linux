@@ -404,15 +404,17 @@ static int tgl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 		int clpchgroup;
 		int j;
 
-		if (i < num_groups - 1)
-			bi_next = &dev_priv->max_bw[i + 1];
-
 		clpchgroup = (sa->deburst * qi.deinterleave / num_channels) << i;
 
-		if (i < num_groups - 1 && clpchgroup < clperchgroup)
-			bi_next->num_planes = (ipqdepth - clpchgroup) / clpchgroup + 1;
-		else
-			bi_next->num_planes = 0;
+		if (i < num_groups - 1) {
+			bi_next = &dev_priv->max_bw[i + 1];
+
+			if (clpchgroup < clperchgroup)
+				bi_next->num_planes = (ipqdepth - clpchgroup) /
+						       clpchgroup + 1;
+			else
+				bi_next->num_planes = 0;
+		}
 
 		bi->num_qgv_points = qi.num_points;
 		bi->num_psf_gv_points = qi.num_psf_points;

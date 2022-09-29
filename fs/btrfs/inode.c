@@ -1644,10 +1644,9 @@ static noinline int run_delalloc_zoned(struct btrfs_inode *inode,
 			done_offset = end;
 
 		if (done_offset == start) {
-			struct btrfs_fs_info *info = inode->root->fs_info;
-
-			wait_var_event(&info->zone_finish_wait,
-				       !test_bit(BTRFS_FS_NEED_ZONE_FINISH, &info->flags));
+			wait_on_bit_io(&inode->root->fs_info->flags,
+				       BTRFS_FS_NEED_ZONE_FINISH,
+				       TASK_UNINTERRUPTIBLE);
 			continue;
 		}
 
@@ -7692,6 +7691,20 @@ static int btrfs_dio_iomap_begin(struct inode *inode, loff_t start,
 	u64 len = length;
 	const u64 data_alloc_len = length;
 	bool unlock_extents = false;
+
+	/*
+	 * We could potentially fault if we have a buffer > PAGE_SIZE, and if
+	 * we're NOWAIT we may submit a bio for a partial range and return
+	 * EIOCBQUEUED, which would result in an errant short read.
+	 *
+	 * The best way to handle this would be to allow for partial completions
+	 * of iocb's, so we could submit the partial bio, return and fault in
+	 * the rest of the pages, and then submit the io for the rest of the
+	 * range.  However we don't have that currently, so simply return
+	 * -EAGAIN at this point so that the normal path is used.
+	 */
+	if (!write && (flags & IOMAP_NOWAIT) && length > PAGE_SIZE)
+		return -EAGAIN;
 
 	/*
 	 * Cap the size of reads to that usually seen in buffered I/O as we need

@@ -824,6 +824,7 @@ static int gs_can_open(struct net_device *netdev)
 		flags |= GS_CAN_MODE_TRIPLE_SAMPLE;
 
 	/* finally start device */
+	dev->can.state = CAN_STATE_ERROR_ACTIVE;
 	dm->mode = cpu_to_le32(GS_CAN_MODE_START);
 	dm->flags = cpu_to_le32(flags);
 	rc = usb_control_msg(interface_to_usbdev(dev->iface),
@@ -835,12 +836,11 @@ static int gs_can_open(struct net_device *netdev)
 	if (rc < 0) {
 		netdev_err(netdev, "Couldn't start device (err=%d)\n", rc);
 		kfree(dm);
+		dev->can.state = CAN_STATE_STOPPED;
 		return rc;
 	}
 
 	kfree(dm);
-
-	dev->can.state = CAN_STATE_ERROR_ACTIVE;
 
 	parent->active_channels++;
 	if (!(dev->can.ctrlmode & CAN_CTRLMODE_LISTENONLY))
@@ -925,17 +925,21 @@ static int gs_usb_set_identify(struct net_device *netdev, bool do_identify)
 }
 
 /* blink LED's for finding the this interface */
-static int gs_usb_set_phys_id(struct net_device *dev,
+static int gs_usb_set_phys_id(struct net_device *netdev,
 			      enum ethtool_phys_id_state state)
 {
+	const struct gs_can *dev = netdev_priv(netdev);
 	int rc = 0;
+
+	if (!(dev->feature & GS_CAN_FEATURE_IDENTIFY))
+		return -EOPNOTSUPP;
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
-		rc = gs_usb_set_identify(dev, GS_CAN_IDENTIFY_ON);
+		rc = gs_usb_set_identify(netdev, GS_CAN_IDENTIFY_ON);
 		break;
 	case ETHTOOL_ID_INACTIVE:
-		rc = gs_usb_set_identify(dev, GS_CAN_IDENTIFY_OFF);
+		rc = gs_usb_set_identify(netdev, GS_CAN_IDENTIFY_OFF);
 		break;
 	default:
 		break;
@@ -1072,9 +1076,10 @@ static struct gs_can *gs_make_candev(unsigned int channel,
 		dev->feature |= GS_CAN_FEATURE_REQ_USB_QUIRK_LPC546XX |
 			GS_CAN_FEATURE_QUIRK_BREQ_CANTACT_PRO;
 
-	if (le32_to_cpu(dconf->sw_version) > 1)
-		if (feature & GS_CAN_FEATURE_IDENTIFY)
-			netdev->ethtool_ops = &gs_usb_ethtool_ops;
+	/* GS_CAN_FEATURE_IDENTIFY is only supported for sw_version > 1 */
+	if (!(le32_to_cpu(dconf->sw_version) > 1 &&
+	      feature & GS_CAN_FEATURE_IDENTIFY))
+		dev->feature &= ~GS_CAN_FEATURE_IDENTIFY;
 
 	kfree(bt_const);
 

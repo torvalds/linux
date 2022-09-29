@@ -67,8 +67,7 @@ static void enc314_disable_fifo(struct stream_encoder *enc)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
-	REG_UPDATE_2(DIG_FIFO_CTRL0, DIG_FIFO_ENABLE, 0,
-		     DIG_FIFO_READ_START_LEVEL, 0);
+	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_ENABLE, 0);
 }
 
 static void enc314_dp_set_odm_combine(
@@ -317,6 +316,7 @@ static void enc314_stream_encoder_dp_unblank(
 	/* switch DP encoder to CRTC data, but reset it the fifo first. It may happen
 	 * that it overflows during mode transition, and sometimes doesn't recover.
 	 */
+	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_READ_START_LEVEL, 0x7);
 	REG_UPDATE(DP_STEER_FIFO, DP_STEER_FIFO_RESET, 1);
 	udelay(10);
 

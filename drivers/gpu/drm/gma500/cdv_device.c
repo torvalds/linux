@@ -581,11 +581,9 @@ static const struct psb_offset cdv_regmap[2] = {
 static int cdv_chip_setup(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	INIT_WORK(&dev_priv->hotplug_work, cdv_hotplug_work_func);
 
-	if (pci_enable_msi(pdev))
-		dev_warn(dev->dev, "Enabling MSI failed!\n");
+	dev_priv->use_msi = true;
 	dev_priv->regmap = cdv_regmap;
 	gma_get_core_freq(dev);
 	psb_intel_opregion_init(dev);

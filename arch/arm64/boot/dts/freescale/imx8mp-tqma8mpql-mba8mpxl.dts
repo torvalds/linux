@@ -57,13 +57,13 @@
 		switch-1 {
 			label = "S12";
 			linux,code = <BTN_0>;
-			gpios = <&gpio5 26 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio5 27 GPIO_ACTIVE_LOW>;
 		};
 
 		switch-2 {
 			label = "S13";
 			linux,code = <BTN_1>;
-			gpios = <&gpio5 27 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio5 26 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -394,6 +394,8 @@
 
 &pcf85063 {
 	/* RTC_EVENT# is connected on MBa8MPxL */
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcf85063>;
 	interrupt-parent = <&gpio4>;
 	interrupts = <28 IRQ_TYPE_EDGE_FALLING>;
 };
@@ -628,6 +630,10 @@
 
 	pinctrl_lvdsdisplay: lvdsdisplaygrp {
 		fsl,pins = <MX8MP_IOMUXC_SAI5_RXC__GPIO3_IO20		0x10>; /* Power enable */
+	};
+
+	pinctrl_pcf85063: pcf85063grp {
+		fsl,pins = <MX8MP_IOMUXC_SAI3_RXFS__GPIO4_IO28		0x80>;
 	};
 
 	/* LVDS Backlight */
