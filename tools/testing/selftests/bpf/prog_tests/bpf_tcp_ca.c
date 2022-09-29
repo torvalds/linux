@@ -290,6 +290,10 @@ static void test_dctcp_fallback(void)
 		goto done;
 	ASSERT_STREQ(dctcp_skel->bss->cc_res, "cubic", "cc_res");
 	ASSERT_EQ(dctcp_skel->bss->tcp_cdg_res, -ENOTSUPP, "tcp_cdg_res");
+	/* All setsockopt(TCP_CONGESTION) in the recurred
+	 * bpf_dctcp->init() should fail with -EBUSY.
+	 */
+	ASSERT_EQ(dctcp_skel->bss->ebusy_cnt, 3, "ebusy_cnt");
 
 	err = getsockopt(srv_fd, SOL_TCP, TCP_CONGESTION, srv_cc, &cc_len);
 	if (!ASSERT_OK(err, "getsockopt(srv_fd, TCP_CONGESTION)"))
