@@ -2219,30 +2219,29 @@ void intel_crtc_color_init(struct intel_crtc *crtc)
 				   INTEL_INFO(dev_priv)->display.color.gamma_lut_size);
 }
 
-void intel_color_init_hooks(struct drm_i915_private *dev_priv)
+void intel_color_init_hooks(struct drm_i915_private *i915)
 {
-	if (HAS_GMCH(dev_priv)) {
-		if (IS_CHERRYVIEW(dev_priv)) {
-			dev_priv->display.funcs.color = &chv_color_funcs;
-		} else if (DISPLAY_VER(dev_priv) >= 4) {
-			dev_priv->display.funcs.color = &i965_color_funcs;
-		} else {
-			dev_priv->display.funcs.color = &i9xx_color_funcs;
-		}
-	} else {
-		if (DISPLAY_VER(dev_priv) >= 11)
-			dev_priv->display.funcs.color = &icl_color_funcs;
-		else if (DISPLAY_VER(dev_priv) == 10)
-			dev_priv->display.funcs.color = &glk_color_funcs;
-		else if (DISPLAY_VER(dev_priv) == 9)
-			dev_priv->display.funcs.color = &skl_color_funcs;
-		else if (DISPLAY_VER(dev_priv) == 8)
-			dev_priv->display.funcs.color = &bdw_color_funcs;
-		else if (IS_HASWELL(dev_priv))
-			dev_priv->display.funcs.color = &hsw_color_funcs;
-		else if (DISPLAY_VER(dev_priv) == 7)
-			dev_priv->display.funcs.color = &ivb_color_funcs;
+	if (HAS_GMCH(i915)) {
+		if (IS_CHERRYVIEW(i915))
+			i915->display.funcs.color = &chv_color_funcs;
+		else if (DISPLAY_VER(i915) >= 4)
+			i915->display.funcs.color = &i965_color_funcs;
 		else
-			dev_priv->display.funcs.color = &ilk_color_funcs;
+			i915->display.funcs.color = &i9xx_color_funcs;
+	} else {
+		if (DISPLAY_VER(i915) >= 11)
+			i915->display.funcs.color = &icl_color_funcs;
+		else if (DISPLAY_VER(i915) == 10)
+			i915->display.funcs.color = &glk_color_funcs;
+		else if (DISPLAY_VER(i915) == 9)
+			i915->display.funcs.color = &skl_color_funcs;
+		else if (DISPLAY_VER(i915) == 8)
+			i915->display.funcs.color = &bdw_color_funcs;
+		else if (IS_HASWELL(i915))
+			i915->display.funcs.color = &hsw_color_funcs;
+		else if (DISPLAY_VER(i915) == 7)
+			i915->display.funcs.color = &ivb_color_funcs;
+		else
+			i915->display.funcs.color = &ilk_color_funcs;
 	}
 }
