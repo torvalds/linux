@@ -245,8 +245,7 @@ static inline bool mlx5e_rx_cache_put(struct mlx5e_rq *rq, struct page *page)
 		return false;
 	}
 
-	cache->page_cache[cache->tail].page = page;
-	cache->page_cache[cache->tail].addr = page_pool_get_dma_addr(page);
+	cache->page_cache[cache->tail] = page;
 	cache->tail = tail_next;
 	return true;
 }
@@ -262,12 +261,13 @@ static inline bool mlx5e_rx_cache_get(struct mlx5e_rq *rq,
 		return false;
 	}
 
-	if (page_ref_count(cache->page_cache[cache->head].page) != 1) {
+	if (page_ref_count(cache->page_cache[cache->head]) != 1) {
 		stats->cache_busy++;
 		return false;
 	}
 
-	*dma_info = cache->page_cache[cache->head];
+	dma_info->page = cache->page_cache[cache->head];
+	dma_info->addr = page_pool_get_dma_addr(dma_info->page);
 	cache->head = (cache->head + 1) & (MLX5E_CACHE_SIZE - 1);
 	stats->cache_reuse++;
 

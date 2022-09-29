@@ -630,7 +630,7 @@ struct mlx5e_mpw_info {
 struct mlx5e_page_cache {
 	u32 head;
 	u32 tail;
-	struct mlx5e_dma_info page_cache[MLX5E_CACHE_SIZE];
+	struct page *page_cache[MLX5E_CACHE_SIZE];
 };
 
 struct mlx5e_rq;

@@ -830,13 +830,11 @@ static void mlx5e_free_rq(struct mlx5e_rq *rq)
 
 	for (i = rq->page_cache.head; i != rq->page_cache.tail;
 	     i = (i + 1) & (MLX5E_CACHE_SIZE - 1)) {
-		struct mlx5e_dma_info *dma_info = &rq->page_cache.page_cache[i];
-
 		/* With AF_XDP, page_cache is not used, so this loop is not
 		 * entered, and it's safe to call mlx5e_page_release_dynamic
 		 * directly.
 		 */
-		mlx5e_page_release_dynamic(rq, dma_info->page, false);
+		mlx5e_page_release_dynamic(rq, rq->page_cache.page_cache[i], false);
 	}
 
 	xdp_rxq_info_unreg(&rq->xdp_rxq);
