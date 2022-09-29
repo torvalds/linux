@@ -541,8 +541,8 @@ static const struct regval sc200ai_hdr_10_1920x1080_regs[] = {
 	{0x3e13, 0x40},
 	{0x3e16, 0x00},
 	{0x3e17, 0x80},
-	{0x3e23, 0x00},
-	{0x3e24, 0x88},
+	{0x3e23, 0x01},
+	{0x3e24, 0x9e},
 	{0x3f09, 0x48},
 	{0x4816, 0xb1},
 	{0x4819, 0x09},
@@ -938,8 +938,8 @@ static int sc200ai_set_hdrae(struct sc200ai *sc200ai,
 	s_exp_time = s_exp_time * 2;
 	if (l_exp_time > 4362)                  //(2250 - 64 - 5) * 2
 		l_exp_time = 4362;
-	if (s_exp_time > 118)                //(64 - 5) * 2
-		s_exp_time = 118;
+	if (s_exp_time > 404)                //(64 - 5) * 2
+		s_exp_time = 404;
 
 	ret = sc200ai_write_reg(sc200ai->client,
 				SC200AI_REG_EXPOSURE_H,
