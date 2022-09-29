@@ -623,6 +623,7 @@ config CHARGER_MT6370
 	tristate "MediaTek MT6370 Charger Driver"
 	depends on MFD_MT6370
 	depends on REGULATOR
+	depends on IIO
 	select LINEAR_RANGES
 	help
 	  Say Y here to enable MT6370 Charger Part.
