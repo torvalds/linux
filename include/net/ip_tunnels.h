@@ -305,6 +305,9 @@ void ip_tunnel_setup(struct net_device *dev, unsigned int net_id);
 bool ip_tunnel_netlink_encap_parms(struct nlattr *data[],
 				   struct ip_tunnel_encap *encap);
 
+void ip_tunnel_netlink_parms(struct nlattr *data[],
+			     struct ip_tunnel_parm *parms);
+
 extern const struct header_ops ip_tunnel_header_ops;
 __be16 ip_tunnel_parse_protocol(const struct sk_buff *skb);
 
