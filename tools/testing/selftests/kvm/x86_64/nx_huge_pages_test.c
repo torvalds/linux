@@ -112,6 +112,7 @@ void run_test(int reclaim_period_ms, bool disable_nx_huge_pages,
 {
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
+	uint64_t nr_bytes;
 	void *hva;
 	int r;
 
@@ -141,10 +142,24 @@ void run_test(int reclaim_period_ms, bool disable_nx_huge_pages,
 				    HPAGE_GPA, HPAGE_SLOT,
 				    HPAGE_SLOT_NPAGES, 0);
 
-	virt_map(vm, HPAGE_GVA, HPAGE_GPA, HPAGE_SLOT_NPAGES);
+	nr_bytes = HPAGE_SLOT_NPAGES * vm->page_size;
+
+	/*
+	 * Ensure that KVM can map HPAGE_SLOT with huge pages by mapping the
+	 * region into the guest with 2MiB pages whenever TDP is disabled (i.e.
+	 * whenever KVM is shadowing the guest page tables).
+	 *
+	 * When TDP is enabled, KVM should be able to map HPAGE_SLOT with huge
+	 * pages irrespective of the guest page size, so map with 4KiB pages
+	 * to test that that is the case.
+	 */
+	if (kvm_is_tdp_enabled())
+		virt_map_level(vm, HPAGE_GVA, HPAGE_GPA, nr_bytes, PG_LEVEL_4K);
+	else
+		virt_map_level(vm, HPAGE_GVA, HPAGE_GPA, nr_bytes, PG_LEVEL_2M);
 
 	hva = addr_gpa2hva(vm, HPAGE_GPA);
-	memset(hva, RETURN_OPCODE, HPAGE_SLOT_NPAGES * PAGE_SIZE);
+	memset(hva, RETURN_OPCODE, nr_bytes);
 
 	check_2m_page_count(vm, 0);
 	check_split_count(vm, 0);
