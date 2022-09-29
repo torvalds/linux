@@ -22,6 +22,7 @@
 #include "tdp_mmu.h"
 #include "x86.h"
 #include "kvm_cache_regs.h"
+#include "smm.h"
 #include "kvm_emulate.h"
 #include "cpuid.h"
 #include "spte.h"

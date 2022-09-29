@@ -25,6 +25,7 @@
 #include "trace.h"
 #include "mmu.h"
 #include "x86.h"
+#include "smm.h"
 #include "cpuid.h"
 #include "lapic.h"
 #include "svm.h"

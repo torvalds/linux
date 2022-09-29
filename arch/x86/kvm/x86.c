@@ -30,6 +30,7 @@
 #include "hyperv.h"
 #include "lapic.h"
 #include "xen.h"
+#include "smm.h"
 
 #include <linux/clocksource.h>
 #include <linux/interrupt.h>
@@ -119,7 +120,6 @@ static u64 __read_mostly cr4_reserved_bits = CR4_RESERVED_BITS;
 
 static void update_cr8_intercept(struct kvm_vcpu *vcpu);
 static void process_nmi(struct kvm_vcpu *vcpu);
-static void process_smi(struct kvm_vcpu *vcpu);
 static void enter_smm(struct kvm_vcpu *vcpu);
 static void __kvm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags);
 static void store_regs(struct kvm_vcpu *vcpu);
@@ -4889,13 +4889,6 @@ static int kvm_vcpu_ioctl_nmi(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static int kvm_vcpu_ioctl_smi(struct kvm_vcpu *vcpu)
-{
-	kvm_make_request(KVM_REQ_SMI, vcpu);
-
-	return 0;
-}
-
 static int vcpu_ioctl_tpr_access_reporting(struct kvm_vcpu *vcpu,
 					   struct kvm_tpr_access_ctl *tac)
 {
@@ -5117,8 +5110,6 @@ static void kvm_vcpu_ioctl_x86_get_vcpu_events(struct kvm_vcpu *vcpu,
 
 	memset(&events->reserved, 0, sizeof(events->reserved));
 }
-
-static void kvm_smm_changed(struct kvm_vcpu *vcpu, bool entering_smm);
 
 static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 					      struct kvm_vcpu_events *events)
@@ -5572,7 +5563,7 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		break;
 	}
 	case KVM_SMI: {
-		r = kvm_vcpu_ioctl_smi(vcpu);
+		r = kvm_inject_smi(vcpu);
 		break;
 	}
 	case KVM_SET_CPUID: {
@@ -8569,29 +8560,6 @@ static bool retry_instruction(struct x86_emulate_ctxt *ctxt,
 static int complete_emulated_mmio(struct kvm_vcpu *vcpu);
 static int complete_emulated_pio(struct kvm_vcpu *vcpu);
 
-static void kvm_smm_changed(struct kvm_vcpu *vcpu, bool entering_smm)
-{
-	trace_kvm_smm_transition(vcpu->vcpu_id, vcpu->arch.smbase, entering_smm);
-
-	if (entering_smm) {
-		vcpu->arch.hflags |= HF_SMM_MASK;
-	} else {
-		vcpu->arch.hflags &= ~(HF_SMM_MASK | HF_SMM_INSIDE_NMI_MASK);
-
-		/* Process a latched INIT or SMI, if any.  */
-		kvm_make_request(KVM_REQ_EVENT, vcpu);
-
-		/*
-		 * Even if KVM_SET_SREGS2 loaded PDPTRs out of band,
-		 * on SMM exit we still need to reload them from
-		 * guest memory
-		 */
-		vcpu->arch.pdptrs_from_userspace = false;
-	}
-
-	kvm_mmu_reset_context(vcpu);
-}
-
 static int kvm_vcpu_check_hw_bp(unsigned long addr, u32 type, u32 dr7,
 				unsigned long *db)
 {
@@ -10088,16 +10056,16 @@ static void enter_smm_save_seg_32(struct kvm_vcpu *vcpu, char *buf, int n)
 	int offset;
 
 	kvm_get_segment(vcpu, &seg, n);
-	put_smstate(u32, buf, 0x7fa8 + n * 4, seg.selector);
+	PUT_SMSTATE(u32, buf, 0x7fa8 + n * 4, seg.selector);
 
 	if (n < 3)
 		offset = 0x7f84 + n * 12;
 	else
 		offset = 0x7f2c + (n - 3) * 12;
 
-	put_smstate(u32, buf, offset + 8, seg.base);
-	put_smstate(u32, buf, offset + 4, seg.limit);
-	put_smstate(u32, buf, offset, enter_smm_get_segment_flags(&seg));
+	PUT_SMSTATE(u32, buf, offset + 8, seg.base);
+	PUT_SMSTATE(u32, buf, offset + 4, seg.limit);
+	PUT_SMSTATE(u32, buf, offset, enter_smm_get_segment_flags(&seg));
 }
 
 #ifdef CONFIG_X86_64
@@ -10111,10 +10079,10 @@ static void enter_smm_save_seg_64(struct kvm_vcpu *vcpu, char *buf, int n)
 	offset = 0x7e00 + n * 16;
 
 	flags = enter_smm_get_segment_flags(&seg) >> 8;
-	put_smstate(u16, buf, offset, seg.selector);
-	put_smstate(u16, buf, offset + 2, flags);
-	put_smstate(u32, buf, offset + 4, seg.limit);
-	put_smstate(u64, buf, offset + 8, seg.base);
+	PUT_SMSTATE(u16, buf, offset, seg.selector);
+	PUT_SMSTATE(u16, buf, offset + 2, flags);
+	PUT_SMSTATE(u32, buf, offset + 4, seg.limit);
+	PUT_SMSTATE(u64, buf, offset + 8, seg.base);
 }
 #endif
 
@@ -10125,47 +10093,47 @@ static void enter_smm_save_state_32(struct kvm_vcpu *vcpu, char *buf)
 	unsigned long val;
 	int i;
 
-	put_smstate(u32, buf, 0x7ffc, kvm_read_cr0(vcpu));
-	put_smstate(u32, buf, 0x7ff8, kvm_read_cr3(vcpu));
-	put_smstate(u32, buf, 0x7ff4, kvm_get_rflags(vcpu));
-	put_smstate(u32, buf, 0x7ff0, kvm_rip_read(vcpu));
+	PUT_SMSTATE(u32, buf, 0x7ffc, kvm_read_cr0(vcpu));
+	PUT_SMSTATE(u32, buf, 0x7ff8, kvm_read_cr3(vcpu));
+	PUT_SMSTATE(u32, buf, 0x7ff4, kvm_get_rflags(vcpu));
+	PUT_SMSTATE(u32, buf, 0x7ff0, kvm_rip_read(vcpu));
 
 	for (i = 0; i < 8; i++)
-		put_smstate(u32, buf, 0x7fd0 + i * 4, kvm_register_read_raw(vcpu, i));
+		PUT_SMSTATE(u32, buf, 0x7fd0 + i * 4, kvm_register_read_raw(vcpu, i));
 
 	kvm_get_dr(vcpu, 6, &val);
-	put_smstate(u32, buf, 0x7fcc, (u32)val);
+	PUT_SMSTATE(u32, buf, 0x7fcc, (u32)val);
 	kvm_get_dr(vcpu, 7, &val);
-	put_smstate(u32, buf, 0x7fc8, (u32)val);
+	PUT_SMSTATE(u32, buf, 0x7fc8, (u32)val);
 
 	kvm_get_segment(vcpu, &seg, VCPU_SREG_TR);
-	put_smstate(u32, buf, 0x7fc4, seg.selector);
-	put_smstate(u32, buf, 0x7f64, seg.base);
-	put_smstate(u32, buf, 0x7f60, seg.limit);
-	put_smstate(u32, buf, 0x7f5c, enter_smm_get_segment_flags(&seg));
+	PUT_SMSTATE(u32, buf, 0x7fc4, seg.selector);
+	PUT_SMSTATE(u32, buf, 0x7f64, seg.base);
+	PUT_SMSTATE(u32, buf, 0x7f60, seg.limit);
+	PUT_SMSTATE(u32, buf, 0x7f5c, enter_smm_get_segment_flags(&seg));
 
 	kvm_get_segment(vcpu, &seg, VCPU_SREG_LDTR);
-	put_smstate(u32, buf, 0x7fc0, seg.selector);
-	put_smstate(u32, buf, 0x7f80, seg.base);
-	put_smstate(u32, buf, 0x7f7c, seg.limit);
-	put_smstate(u32, buf, 0x7f78, enter_smm_get_segment_flags(&seg));
+	PUT_SMSTATE(u32, buf, 0x7fc0, seg.selector);
+	PUT_SMSTATE(u32, buf, 0x7f80, seg.base);
+	PUT_SMSTATE(u32, buf, 0x7f7c, seg.limit);
+	PUT_SMSTATE(u32, buf, 0x7f78, enter_smm_get_segment_flags(&seg));
 
 	static_call(kvm_x86_get_gdt)(vcpu, &dt);
-	put_smstate(u32, buf, 0x7f74, dt.address);
-	put_smstate(u32, buf, 0x7f70, dt.size);
+	PUT_SMSTATE(u32, buf, 0x7f74, dt.address);
+	PUT_SMSTATE(u32, buf, 0x7f70, dt.size);
 
 	static_call(kvm_x86_get_idt)(vcpu, &dt);
-	put_smstate(u32, buf, 0x7f58, dt.address);
-	put_smstate(u32, buf, 0x7f54, dt.size);
+	PUT_SMSTATE(u32, buf, 0x7f58, dt.address);
+	PUT_SMSTATE(u32, buf, 0x7f54, dt.size);
 
 	for (i = 0; i < 6; i++)
 		enter_smm_save_seg_32(vcpu, buf, i);
 
-	put_smstate(u32, buf, 0x7f14, kvm_read_cr4(vcpu));
+	PUT_SMSTATE(u32, buf, 0x7f14, kvm_read_cr4(vcpu));
 
 	/* revision id */
-	put_smstate(u32, buf, 0x7efc, 0x00020000);
-	put_smstate(u32, buf, 0x7ef8, vcpu->arch.smbase);
+	PUT_SMSTATE(u32, buf, 0x7efc, 0x00020000);
+	PUT_SMSTATE(u32, buf, 0x7ef8, vcpu->arch.smbase);
 }
 
 #ifdef CONFIG_X86_64
@@ -10177,46 +10145,46 @@ static void enter_smm_save_state_64(struct kvm_vcpu *vcpu, char *buf)
 	int i;
 
 	for (i = 0; i < 16; i++)
-		put_smstate(u64, buf, 0x7ff8 - i * 8, kvm_register_read_raw(vcpu, i));
+		PUT_SMSTATE(u64, buf, 0x7ff8 - i * 8, kvm_register_read_raw(vcpu, i));
 
-	put_smstate(u64, buf, 0x7f78, kvm_rip_read(vcpu));
-	put_smstate(u32, buf, 0x7f70, kvm_get_rflags(vcpu));
+	PUT_SMSTATE(u64, buf, 0x7f78, kvm_rip_read(vcpu));
+	PUT_SMSTATE(u32, buf, 0x7f70, kvm_get_rflags(vcpu));
 
 	kvm_get_dr(vcpu, 6, &val);
-	put_smstate(u64, buf, 0x7f68, val);
+	PUT_SMSTATE(u64, buf, 0x7f68, val);
 	kvm_get_dr(vcpu, 7, &val);
-	put_smstate(u64, buf, 0x7f60, val);
+	PUT_SMSTATE(u64, buf, 0x7f60, val);
 
-	put_smstate(u64, buf, 0x7f58, kvm_read_cr0(vcpu));
-	put_smstate(u64, buf, 0x7f50, kvm_read_cr3(vcpu));
-	put_smstate(u64, buf, 0x7f48, kvm_read_cr4(vcpu));
+	PUT_SMSTATE(u64, buf, 0x7f58, kvm_read_cr0(vcpu));
+	PUT_SMSTATE(u64, buf, 0x7f50, kvm_read_cr3(vcpu));
+	PUT_SMSTATE(u64, buf, 0x7f48, kvm_read_cr4(vcpu));
 
-	put_smstate(u32, buf, 0x7f00, vcpu->arch.smbase);
+	PUT_SMSTATE(u32, buf, 0x7f00, vcpu->arch.smbase);
 
 	/* revision id */
-	put_smstate(u32, buf, 0x7efc, 0x00020064);
+	PUT_SMSTATE(u32, buf, 0x7efc, 0x00020064);
 
-	put_smstate(u64, buf, 0x7ed0, vcpu->arch.efer);
+	PUT_SMSTATE(u64, buf, 0x7ed0, vcpu->arch.efer);
 
 	kvm_get_segment(vcpu, &seg, VCPU_SREG_TR);
-	put_smstate(u16, buf, 0x7e90, seg.selector);
-	put_smstate(u16, buf, 0x7e92, enter_smm_get_segment_flags(&seg) >> 8);
-	put_smstate(u32, buf, 0x7e94, seg.limit);
-	put_smstate(u64, buf, 0x7e98, seg.base);
+	PUT_SMSTATE(u16, buf, 0x7e90, seg.selector);
+	PUT_SMSTATE(u16, buf, 0x7e92, enter_smm_get_segment_flags(&seg) >> 8);
+	PUT_SMSTATE(u32, buf, 0x7e94, seg.limit);
+	PUT_SMSTATE(u64, buf, 0x7e98, seg.base);
 
 	static_call(kvm_x86_get_idt)(vcpu, &dt);
-	put_smstate(u32, buf, 0x7e84, dt.size);
-	put_smstate(u64, buf, 0x7e88, dt.address);
+	PUT_SMSTATE(u32, buf, 0x7e84, dt.size);
+	PUT_SMSTATE(u64, buf, 0x7e88, dt.address);
 
 	kvm_get_segment(vcpu, &seg, VCPU_SREG_LDTR);
-	put_smstate(u16, buf, 0x7e70, seg.selector);
-	put_smstate(u16, buf, 0x7e72, enter_smm_get_segment_flags(&seg) >> 8);
-	put_smstate(u32, buf, 0x7e74, seg.limit);
-	put_smstate(u64, buf, 0x7e78, seg.base);
+	PUT_SMSTATE(u16, buf, 0x7e70, seg.selector);
+	PUT_SMSTATE(u16, buf, 0x7e72, enter_smm_get_segment_flags(&seg) >> 8);
+	PUT_SMSTATE(u32, buf, 0x7e74, seg.limit);
+	PUT_SMSTATE(u64, buf, 0x7e78, seg.base);
 
 	static_call(kvm_x86_get_gdt)(vcpu, &dt);
-	put_smstate(u32, buf, 0x7e64, dt.size);
-	put_smstate(u64, buf, 0x7e68, dt.address);
+	PUT_SMSTATE(u32, buf, 0x7e64, dt.size);
+	PUT_SMSTATE(u64, buf, 0x7e68, dt.address);
 
 	for (i = 0; i < 6; i++)
 		enter_smm_save_seg_64(vcpu, buf, i);
@@ -10300,12 +10268,6 @@ static void enter_smm(struct kvm_vcpu *vcpu)
 
 	kvm_update_cpuid_runtime(vcpu);
 	kvm_mmu_reset_context(vcpu);
-}
-
-static void process_smi(struct kvm_vcpu *vcpu)
-{
-	vcpu->arch.smi_pending = true;
-	kvm_make_request(KVM_REQ_EVENT, vcpu);
 }
 
 void kvm_make_scan_ioapic_request_mask(struct kvm *kvm,

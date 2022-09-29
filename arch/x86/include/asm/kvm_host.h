@@ -2087,12 +2087,6 @@ static inline int kvm_cpu_get_apicid(int mps_cpu)
 #endif
 }
 
-#define put_smstate(type, buf, offset, val)                      \
-	*(type *)((buf) + (offset) - 0x7e00) = val
-
-#define GET_SMSTATE(type, buf, offset)		\
-	(*(type *)((buf) + (offset) - 0x7e00))
-
 int kvm_cpu_dirty_log_size(void);
 
 int memslot_rmap_alloc(struct kvm_memory_slot *slot, unsigned long npages);

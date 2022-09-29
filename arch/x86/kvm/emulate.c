@@ -30,6 +30,7 @@
 #include "tss.h"
 #include "mmu.h"
 #include "pmu.h"
+#include "smm.h"
 
 /*
  * Operand types
