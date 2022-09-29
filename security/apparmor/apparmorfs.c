@@ -1315,7 +1315,7 @@ SEQ_RAWDATA_FOPS(compressed_size);
 static int decompress_zstd(char *src, size_t slen, char *dst, size_t dlen)
 {
 #ifdef CONFIG_SECURITY_APPARMOR_EXPORT_BINARY
-	if (aa_g_rawdata_compression_level == 0) {
+	if (slen < dlen) {
 		const size_t wksp_len = zstd_dctx_workspace_bound();
 		zstd_dctx *ctx;
 		void *wksp;

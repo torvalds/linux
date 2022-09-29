@@ -1294,7 +1294,7 @@ static int compress_zstd(const char *src, size_t slen, char **dst, size_t *dlen)
 	}
 
 	out_len = zstd_compress_cctx(ctx, out, out_len, src, slen, &params);
-	if (zstd_is_error(out_len)) {
+	if (zstd_is_error(out_len) || out_len >= slen) {
 		ret = -EINVAL;
 		goto cleanup;
 	}
@@ -1348,9 +1348,10 @@ static int compress_loaddata(struct aa_loaddata *data)
 		void *udata = data->data;
 		int error = compress_zstd(udata, data->size, &data->data,
 					  &data->compressed_size);
-		if (error)
+		if (error) {
+			data->compressed_size = data->size;
 			return error;
-
+		}
 		if (udata != data->data)
 			kvfree(udata);
 	} else
