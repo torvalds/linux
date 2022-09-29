@@ -5105,6 +5105,9 @@ static int bpf_sol_tcp_setsockopt(struct sock *sk, int optname,
 static int sol_tcp_sockopt_congestion(struct sock *sk, char *optval,
 				      int *optlen, bool getopt)
 {
+	struct tcp_sock *tp;
+	int ret;
+
 	if (*optlen < 2)
 		return -EINVAL;
 
@@ -5125,8 +5128,31 @@ static int sol_tcp_sockopt_congestion(struct sock *sk, char *optval,
 	if (*optlen >= sizeof("cdg") - 1 && !strncmp("cdg", optval, *optlen))
 		return -ENOTSUPP;
 
-	return do_tcp_setsockopt(sk, SOL_TCP, TCP_CONGESTION,
+	/* It stops this looping
+	 *
+	 * .init => bpf_setsockopt(tcp_cc) => .init =>
+	 * bpf_setsockopt(tcp_cc)" => .init => ....
+	 *
+	 * The second bpf_setsockopt(tcp_cc) is not allowed
+	 * in order to break the loop when both .init
+	 * are the same bpf prog.
+	 *
+	 * This applies even the second bpf_setsockopt(tcp_cc)
+	 * does not cause a loop.  This limits only the first
+	 * '.init' can call bpf_setsockopt(TCP_CONGESTION) to
+	 * pick a fallback cc (eg. peer does not support ECN)
+	 * and the second '.init' cannot fallback to
+	 * another.
+	 */
+	tp = tcp_sk(sk);
+	if (tp->bpf_chg_cc_inprogress)
+		return -EBUSY;
+
+	tp->bpf_chg_cc_inprogress = 1;
+	ret = do_tcp_setsockopt(sk, SOL_TCP, TCP_CONGESTION,
 				KERNEL_SOCKPTR(optval), *optlen);
+	tp->bpf_chg_cc_inprogress = 0;
+	return ret;
 }
 
 static int sol_tcp_sockopt(struct sock *sk, int optname,
