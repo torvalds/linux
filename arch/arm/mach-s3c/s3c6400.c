@@ -36,7 +36,6 @@
 #include "iic-core.h"
 
 #include "s3c64xx.h"
-#include "onenand-core-s3c64xx.h"
 
 void __init s3c6400_map_io(void)
 {
@@ -48,11 +47,6 @@ void __init s3c6400_map_io(void)
 
 	/* the i2c devices are directly compatible with s3c2440 */
 	s3c_i2c0_setname("s3c2440-i2c");
-
-	s3c_device_nand.name = "s3c6400-nand";
-
-	s3c_onenand_setname("s3c6400-onenand");
-	s3c64xx_onenand1_setname("s3c6400-onenand");
 }
 
 void __init s3c6400_init_irq(void)

@@ -15,7 +15,6 @@ menuconfig ARCH_S3C64XX
 	select HAVE_TCM
 	select PLAT_SAMSUNG
 	select PM_GENERIC_DOMAINS if PM
-	select S3C_DEV_NAND if ATAGS
 	select S3C_GPIO_TRACK if ATAGS
 	select S3C2410_WATCHDOG
 	select SAMSUNG_ATAGS if ATAGS
@@ -121,10 +120,8 @@ config MACH_WLF_CRAGG_6410
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_HSMMC2
 	select S3C_DEV_I2C1
-	select S3C_DEV_RTC
 	select S3C_DEV_USB_HOST
 	select S3C_DEV_USB_HSOTG
-	select S3C_DEV_WDT
 	select SAMSUNG_DEV_KEYPAD
 	select SAMSUNG_DEV_PWM
 	help

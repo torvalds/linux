@@ -90,36 +90,6 @@ config S3C_DEV_I2C1
 	help
 	  Compile in platform device definitions for I2C channel 1
 
-config S3C_DEV_I2C2
-	bool
-	help
-	  Compile in platform device definitions for I2C channel 2
-
-config S3C_DEV_I2C3
-	bool
-	help
-	  Compile in platform device definition for I2C controller 3
-
-config S3C_DEV_I2C4
-	bool
-	help
-	  Compile in platform device definition for I2C controller 4
-
-config S3C_DEV_I2C5
-	bool
-	help
-	  Compile in platform device definition for I2C controller 5
-
-config S3C_DEV_I2C6
-	bool
-	help
-	  Compile in platform device definition for I2C controller 6
-
-config S3C_DEV_I2C7
-	bool
-	help
-	  Compile in platform device definition for I2C controller 7
-
 config S3C_DEV_FB
 	bool
 	help
@@ -134,26 +104,6 @@ config S3C_DEV_USB_HSOTG
 	bool
 	help
 	  Compile in platform device definition for USB high-speed OtG
-
-config S3C_DEV_WDT
-	bool
-	help
-	  Compile in platform device definition for Watchdog Timer
-
-config S3C_DEV_NAND
-	bool
-	help
-	  Compile in platform device definition for NAND controller
-
-config S3C_DEV_ONENAND
-	bool
-	help
-	  Compile in platform device definition for OneNAND controller
-
-config S3C_DEV_RTC
-	bool
-	help
-	  Compile in platform device definition for RTC
 
 config S3C64XX_DEV_SPI0
 	bool
