@@ -8,6 +8,7 @@
 #define PUT_SMSTATE(type, buf, offset, val)                      \
 	*(type *)((buf) + (offset) - 0x7e00) = val
 
+#ifdef CONFIG_KVM_SMM
 static inline int kvm_inject_smi(struct kvm_vcpu *vcpu)
 {
 	kvm_make_request(KVM_REQ_SMI, vcpu);
@@ -23,5 +24,16 @@ void kvm_smm_changed(struct kvm_vcpu *vcpu, bool in_smm);
 void enter_smm(struct kvm_vcpu *vcpu);
 int emulator_leave_smm(struct x86_emulate_ctxt *ctxt);
 void process_smi(struct kvm_vcpu *vcpu);
+#else
+static inline int kvm_inject_smi(struct kvm_vcpu *vcpu) { return -ENOTTY; }
+static inline bool is_smm(struct kvm_vcpu *vcpu) { return false; }
+static inline void enter_smm(struct kvm_vcpu *vcpu) { WARN_ON_ONCE(1); }
+static inline void process_smi(struct kvm_vcpu *vcpu) { WARN_ON_ONCE(1); }
+
+/*
+ * emulator_leave_smm is used as a function pointer, so the
+ * stub is defined in x86.c.
+ */
+#endif
 
 #endif
