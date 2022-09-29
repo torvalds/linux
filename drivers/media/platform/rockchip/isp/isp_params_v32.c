@@ -3419,11 +3419,7 @@ isp_gain_enable(struct rkisp_isp_params_vdev *params_vdev, bool en)
 {
 	struct rkisp_isp_params_val_v32 *priv_val =
 		(struct rkisp_isp_params_val_v32 *)params_vdev->priv_val;
-	u32 val = isp3_param_read_cache(params_vdev, ISP3X_LDCH_STS);
-
-	/* gain will affect ldch,  no support for ldch and gain enable */
-	if (val & ISP32_MODULE_EN && en)
-		return;
+	u32 val = 0;
 
 	val = isp3_param_read_cache(params_vdev, ISP3X_GAIN_CTRL);
 	if (en) {
