@@ -118,6 +118,9 @@
 #define VOP_WIN_GET(vop2, win, name) \
 		vop2_read_reg(vop2, win->offset, &VOP_WIN_NAME(win, name))
 
+#define VOP_WIN_GET_REG_BAK(vop2, win, name) \
+			vop2_read_reg_bak(vop2, win->offset, &VOP_WIN_NAME(win, name))
+
 #define VOP_WIN_NAME(win, name) \
 		(vop2_get_win_regs(win, &win->regs->name)->name)
 
@@ -893,6 +896,12 @@ static inline uint32_t vop2_read_reg(struct vop2 *vop2, uint32_t base,
 	return (vop2_readl(vop2, base + reg->offset) >> reg->shift) & reg->mask;
 }
 
+static inline uint32_t vop2_read_reg_bak(struct vop2 *vop2, uint32_t base,
+					 const struct vop_reg *reg)
+{
+	return (vop2->regsbak[(base + reg->offset) >> 2] >> reg->shift) & reg->mask;
+}
+
 static inline uint32_t vop2_read_grf_reg(struct regmap *regmap, const struct vop_reg *reg)
 {
 	return (vop2_grf_readl(regmap, reg) >> reg->shift) & reg->mask;
@@ -1665,7 +1674,7 @@ static void vop2_win_disable(struct vop2_win *win, bool skip_splice_win)
 		win->splice_win = NULL;
 	}
 
-	if (VOP_WIN_GET(vop2, win, enable)) {
+	if (VOP_WIN_GET(vop2, win, enable) || VOP_WIN_GET_REG_BAK(vop2, win, enable)) {
 		VOP_WIN_SET(vop2, win, enable, 0);
 		if (win->feature & WIN_FEATURE_CLUSTER_MAIN) {
 			struct vop2_win *sub_win;
