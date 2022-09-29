@@ -923,12 +923,12 @@ static int gs_can_open(struct net_device *netdev)
 		flags |= GS_CAN_MODE_FD;
 
 	/* if hardware supports timestamps, enable it */
-	if (dev->feature & GS_CAN_FEATURE_HW_TIMESTAMP)
+	if (dev->feature & GS_CAN_FEATURE_HW_TIMESTAMP) {
 		flags |= GS_CAN_MODE_HW_TIMESTAMP;
 
-	/* start polling timestamp */
-	if (dev->feature & GS_CAN_FEATURE_HW_TIMESTAMP)
+		/* start polling timestamp */
 		gs_usb_timestamp_init(dev);
+	}
 
 	/* finally start device */
 	dev->can.state = CAN_STATE_ERROR_ACTIVE;
