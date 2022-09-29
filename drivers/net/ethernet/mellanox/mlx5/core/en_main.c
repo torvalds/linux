@@ -271,7 +271,7 @@ static int mlx5e_rq_alloc_mpwqe_info(struct mlx5e_rq *rq, int node)
 	int wq_sz = mlx5_wq_ll_get_size(&rq->mpwqe.wq);
 	size_t alloc_size;
 
-	alloc_size = array_size(wq_sz, struct_size(rq->mpwqe.info, dma_info,
+	alloc_size = array_size(wq_sz, struct_size(rq->mpwqe.info, alloc_units,
 						   rq->mpwqe.pages_per_wqe));
 
 	rq->mpwqe.info = kvzalloc_node(alloc_size, GFP_KERNEL, node);
@@ -433,7 +433,7 @@ static void mlx5e_init_frags_partition(struct mlx5e_rq *rq)
 	struct mlx5e_wqe_frag_info *prev = NULL;
 	int i;
 
-	next_frag.di = &rq->wqe.di[0];
+	next_frag.au = &rq->wqe.alloc_units[0];
 
 	for (i = 0; i < mlx5_wq_cyc_get_size(&rq->wqe.wq); i++) {
 		struct mlx5e_rq_frag_info *frag_info = &rq->wqe.info.arr[0];
@@ -443,7 +443,7 @@ static void mlx5e_init_frags_partition(struct mlx5e_rq *rq)
 
 		for (f = 0; f < rq->wqe.info.num_frags; f++, frag++) {
 			if (next_frag.offset + frag_info[f].frag_stride > PAGE_SIZE) {
-				next_frag.di++;
+				next_frag.au++;
 				next_frag.offset = 0;
 				if (prev)
 					prev->last_in_page = true;
@@ -460,12 +460,13 @@ static void mlx5e_init_frags_partition(struct mlx5e_rq *rq)
 		prev->last_in_page = true;
 }
 
-int mlx5e_init_di_list(struct mlx5e_rq *rq, int wq_sz, int node)
+static int mlx5e_init_di_list(struct mlx5e_rq *rq, int wq_sz, int node)
 {
 	int len = wq_sz << rq->wqe.info.log_num_frags;
 
-	rq->wqe.di = kvzalloc_node(array_size(len, sizeof(*rq->wqe.di)), GFP_KERNEL, node);
-	if (!rq->wqe.di)
+	rq->wqe.alloc_units = kvzalloc_node(array_size(len, sizeof(*rq->wqe.alloc_units)),
+					    GFP_KERNEL, node);
+	if (!rq->wqe.alloc_units)
 		return -ENOMEM;
 
 	mlx5e_init_frags_partition(rq);
@@ -473,9 +474,9 @@ int mlx5e_init_di_list(struct mlx5e_rq *rq, int wq_sz, int node)
 	return 0;
 }
 
-void mlx5e_free_di_list(struct mlx5e_rq *rq)
+static void mlx5e_free_di_list(struct mlx5e_rq *rq)
 {
-	kvfree(rq->wqe.di);
+	kvfree(rq->wqe.alloc_units);
 }
 
 static void mlx5e_rq_err_cqe_work(struct work_struct *recover_work)

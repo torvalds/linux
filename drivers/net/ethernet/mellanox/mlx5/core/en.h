@@ -474,7 +474,7 @@ struct mlx5e_txqsq {
 	cqe_ts_to_ns               ptp_cyc2time;
 } ____cacheline_aligned_in_smp;
 
-struct mlx5e_dma_info {
+struct mlx5e_alloc_unit {
 	dma_addr_t addr;
 	union {
 		struct page *page;
@@ -608,7 +608,7 @@ struct mlx5e_icosq {
 } ____cacheline_aligned_in_smp;
 
 struct mlx5e_wqe_frag_info {
-	struct mlx5e_dma_info *di;
+	struct mlx5e_alloc_unit *au;
 	u32 offset;
 	bool last_in_page;
 };
@@ -616,7 +616,7 @@ struct mlx5e_wqe_frag_info {
 struct mlx5e_mpw_info {
 	u16 consumed_strides;
 	DECLARE_BITMAP(xdp_xmit_bitmap, MLX5_MPWRQ_MAX_PAGES_PER_WQE);
-	struct mlx5e_dma_info dma_info[];
+	struct mlx5e_alloc_unit alloc_units[];
 };
 
 #define MLX5E_MAX_RX_FRAGS 4
@@ -665,6 +665,11 @@ struct mlx5e_rq_frags_info {
 	u8 wqe_bulk;
 };
 
+struct mlx5e_dma_info {
+	dma_addr_t addr;
+	struct page *page;
+};
+
 struct mlx5e_shampo_hd {
 	u32 mkey;
 	struct mlx5e_dma_info *info;
@@ -690,7 +695,7 @@ struct mlx5e_rq {
 		struct {
 			struct mlx5_wq_cyc          wq;
 			struct mlx5e_wqe_frag_info *frags;
-			struct mlx5e_dma_info      *di;
+			struct mlx5e_alloc_unit    *alloc_units;
 			struct mlx5e_rq_frags_info  info;
 			mlx5e_fp_skb_from_cqe       skb_from_cqe;
 		} wqe;
@@ -1142,8 +1147,6 @@ void mlx5e_destroy_q_counters(struct mlx5e_priv *priv);
 int mlx5e_open_drop_rq(struct mlx5e_priv *priv,
 		       struct mlx5e_rq *drop_rq);
 void mlx5e_close_drop_rq(struct mlx5e_rq *drop_rq);
-int mlx5e_init_di_list(struct mlx5e_rq *rq, int wq_sz, int node);
-void mlx5e_free_di_list(struct mlx5e_rq *rq);
 
 int mlx5e_create_tis(struct mlx5_core_dev *mdev, void *in, u32 *tisn);
 void mlx5e_destroy_tis(struct mlx5_core_dev *mdev, u32 tisn);

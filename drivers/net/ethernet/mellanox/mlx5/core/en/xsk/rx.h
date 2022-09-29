@@ -19,10 +19,10 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_linear(struct mlx5e_rq *rq,
 					      u32 cqe_bcnt);
 
 static inline int mlx5e_xsk_page_alloc_pool(struct mlx5e_rq *rq,
-					    struct mlx5e_dma_info *dma_info)
+					    struct mlx5e_alloc_unit *au)
 {
-	dma_info->xsk = xsk_buff_alloc(rq->xsk_pool);
-	if (!dma_info->xsk)
+	au->xsk = xsk_buff_alloc(rq->xsk_pool);
+	if (!au->xsk)
 		return -ENOMEM;
 
 	/* Store the DMA address without headroom. In striding RQ case, we just
@@ -30,7 +30,7 @@ static inline int mlx5e_xsk_page_alloc_pool(struct mlx5e_rq *rq,
 	 * when creating a WQE. In non-striding RQ case, headroom is accounted
 	 * in mlx5e_alloc_rx_wqe.
 	 */
-	dma_info->addr = xsk_buff_xdp_get_frame_dma(dma_info->xsk);
+	au->addr = xsk_buff_xdp_get_frame_dma(au->xsk);
 
 	return 0;
 }
