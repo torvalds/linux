@@ -1110,7 +1110,8 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 		hw_params.fb[i] = &fb_info->fb[i];
 
 	switch (adev->ip_versions[DCE_HWIP][0]) {
-	case IP_VERSION(3, 1, 3): /* Only for this asic hw internal rev B0 */
+	case IP_VERSION(3, 1, 3):
+	case IP_VERSION(3, 1, 4):
 		hw_params.dpia_supported = true;
 		hw_params.disable_dpia = adev->dm.dc->debug.dpia_debug.bits.disable_dpia;
 		break;
