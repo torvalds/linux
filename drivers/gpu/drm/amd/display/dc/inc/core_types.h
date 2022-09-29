@@ -39,6 +39,8 @@
 #include "panel_cntl.h"
 
 #define MAX_CLOCK_SOURCES 7
+#define MAX_SVP_PHANTOM_STREAMS 2
+#define MAX_SVP_PHANTOM_PLANES 2
 
 void enable_surface_flip_reporting(struct dc_plane_state *plane_state,
 		uint32_t controller_id);
@@ -492,6 +494,8 @@ struct dcn_bw_output {
 	struct dcn_watermark_set watermarks;
 	struct dcn_bw_writeback bw_writeback;
 	int compbuf_size_kb;
+	unsigned int legacy_svp_drr_stream_index;
+	bool legacy_svp_drr_stream_index_valid;
 };
 
 union bw_output {
