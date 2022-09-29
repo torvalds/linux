@@ -2238,12 +2238,11 @@ void intel_color_init_hooks(struct drm_i915_private *dev_priv)
 			dev_priv->display.funcs.color = &skl_color_funcs;
 		else if (DISPLAY_VER(dev_priv) == 8)
 			dev_priv->display.funcs.color = &bdw_color_funcs;
-		else if (DISPLAY_VER(dev_priv) == 7) {
-			if (IS_HASWELL(dev_priv))
-				dev_priv->display.funcs.color = &hsw_color_funcs;
-			else
-				dev_priv->display.funcs.color = &ivb_color_funcs;
-		} else
+		else if (IS_HASWELL(dev_priv))
+			dev_priv->display.funcs.color = &hsw_color_funcs;
+		else if (DISPLAY_VER(dev_priv) == 7)
+			dev_priv->display.funcs.color = &ivb_color_funcs;
+		else
 			dev_priv->display.funcs.color = &ilk_color_funcs;
 	}
 }
