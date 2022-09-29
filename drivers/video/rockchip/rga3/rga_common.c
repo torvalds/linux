@@ -619,6 +619,9 @@ int rga_image_size_cal(int w, int h, int format,
 	/* YUV FORMAT */
 	case RGA_FORMAT_YCbCr_422_SP:
 	case RGA_FORMAT_YCrCb_422_SP:
+	/* 10bit format stride is externally configured. */
+	case RGA_FORMAT_YCbCr_422_SP_10B:
+	case RGA_FORMAT_YCrCb_422_SP_10B:
 		yrgb = w * h;
 		uv = w * h;
 		break;
