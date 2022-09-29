@@ -291,7 +291,7 @@ struct frame_info {
 void sparx5_xtr_flush(struct sparx5 *sparx5, u8 grp);
 void sparx5_ifh_parse(u32 *ifh, struct frame_info *info);
 irqreturn_t sparx5_xtr_handler(int irq, void *_priv);
-int sparx5_port_xmit_impl(struct sk_buff *skb, struct net_device *dev);
+netdev_tx_t sparx5_port_xmit_impl(struct sk_buff *skb, struct net_device *dev);
 int sparx5_manual_injection_mode(struct sparx5 *sparx5);
 void sparx5_port_inj_timer_setup(struct sparx5_port *port);
 
