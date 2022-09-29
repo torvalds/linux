@@ -77,12 +77,6 @@ static int nfp_net_pf_get_num_ports(struct nfp_pf *pf)
 	return nfp_pf_rtsym_read_optional(pf, "nfd_cfg_pf%u_num_ports", 1);
 }
 
-static int nfp_net_pf_get_app_id(struct nfp_pf *pf)
-{
-	return nfp_pf_rtsym_read_optional(pf, "_pf%u_net_app_id",
-					  NFP_APP_CORE_NIC);
-}
-
 static void nfp_net_pf_free_vnic(struct nfp_pf *pf, struct nfp_net *nn)
 {
 	if (nfp_net_is_data_vnic(nn))
@@ -206,7 +200,6 @@ nfp_net_pf_alloc_vnics(struct nfp_pf *pf, void __iomem *ctrl_bar,
 			nn->port->link_cb = nfp_net_refresh_port_table;
 
 		ctrl_bar += NFP_PF_CSR_SLICE_SIZE;
-		pf->sp_indiff |= nn->tlv_caps.sp_indiff;
 
 		/* Kill the vNIC if app init marked it as invalid */
 		if (nn->port && nn->port->type == NFP_PORT_INVALID)
@@ -308,36 +301,6 @@ err_prev_deinit:
 	return err;
 }
 
-static int nfp_net_pf_cfg_nsp(struct nfp_pf *pf, bool sp_indiff)
-{
-	struct nfp_nsp *nsp;
-	char hwinfo[32];
-	int err;
-
-	nsp = nfp_nsp_open(pf->cpp);
-	if (IS_ERR(nsp))
-		return PTR_ERR(nsp);
-
-	snprintf(hwinfo, sizeof(hwinfo), "sp_indiff=%d", sp_indiff);
-	err = nfp_nsp_hwinfo_set(nsp, hwinfo, sizeof(hwinfo));
-	/* Not a fatal error, no need to return error to stop driver from loading */
-	if (err)
-		nfp_warn(pf->cpp, "HWinfo(sp_indiff=%d) set failed: %d\n", sp_indiff, err);
-
-	nfp_nsp_close(nsp);
-	return 0;
-}
-
-static int nfp_net_pf_init_nsp(struct nfp_pf *pf)
-{
-	return nfp_net_pf_cfg_nsp(pf, pf->sp_indiff);
-}
-
-static void nfp_net_pf_clean_nsp(struct nfp_pf *pf)
-{
-	(void)nfp_net_pf_cfg_nsp(pf, false);
-}
-
 static int
 nfp_net_pf_app_init(struct nfp_pf *pf, u8 __iomem *qc_bar, unsigned int stride)
 {
@@ -348,8 +311,6 @@ nfp_net_pf_app_init(struct nfp_pf *pf, u8 __iomem *qc_bar, unsigned int stride)
 	pf->app = nfp_app_alloc(pf, nfp_net_pf_get_app_id(pf));
 	if (IS_ERR(pf->app))
 		return PTR_ERR(pf->app);
-
-	pf->sp_indiff |= pf->app->type->id == NFP_APP_FLOWER_NIC;
 
 	devl_lock(devlink);
 	err = nfp_app_init(pf->app);
@@ -813,13 +774,9 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	if (err)
 		goto err_clean_ddir;
 
-	err = nfp_net_pf_init_nsp(pf);
-	if (err)
-		goto err_free_vnics;
-
 	err = nfp_net_pf_alloc_irqs(pf);
 	if (err)
-		goto err_clean_nsp;
+		goto err_free_vnics;
 
 	err = nfp_net_pf_app_start(pf);
 	if (err)
@@ -838,8 +795,6 @@ err_stop_app:
 	nfp_net_pf_app_stop(pf);
 err_free_irqs:
 	nfp_net_pf_free_irqs(pf);
-err_clean_nsp:
-	nfp_net_pf_clean_nsp(pf);
 err_free_vnics:
 	nfp_net_pf_free_vnics(pf);
 err_clean_ddir:
@@ -870,7 +825,6 @@ void nfp_net_pci_remove(struct nfp_pf *pf)
 		nfp_net_pf_free_vnic(pf, nn);
 	}
 
-	nfp_net_pf_clean_nsp(pf);
 	nfp_net_pf_app_stop(pf);
 	/* stop app first, to avoid double free of ctrl vNIC's ddir */
 	nfp_net_debugfs_dir_clean(&pf->ddir);
