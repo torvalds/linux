@@ -302,10 +302,12 @@ static inline int mlx5e_page_alloc_pool(struct mlx5e_rq *rq, union mlx5e_alloc_u
 
 static inline int mlx5e_page_alloc(struct mlx5e_rq *rq, union mlx5e_alloc_unit *au)
 {
-	if (rq->xsk_pool)
-		return mlx5e_xsk_page_alloc_pool(rq, au);
-	else
+	if (rq->xsk_pool) {
+		au->xsk = xsk_buff_alloc(rq->xsk_pool);
+		return likely(au->xsk) ? 0 : -ENOMEM;
+	} else {
 		return mlx5e_page_alloc_pool(rq, au);
+	}
 }
 
 void mlx5e_page_dma_unmap(struct mlx5e_rq *rq, struct page *page)
