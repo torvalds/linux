@@ -263,7 +263,7 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 		return dev_err_probe(&pdev->dev, r,
 				     "I/O memory remapping failed\n");
 
-	dev = devm_kzalloc(&pdev->dev, sizeof(struct dw_i2c_dev), GFP_KERNEL);
+	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 
