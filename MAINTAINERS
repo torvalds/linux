@@ -2633,17 +2633,6 @@ S:	Maintained
 W:	http://hackndev.com
 F:	arch/arm/mach-pxa/palmz72.*
 
-ARM/PLEB SUPPORT
-M:	Peter Chubb <pleb@gelato.unsw.edu.au>
-S:	Maintained
-W:	http://www.disy.cse.unsw.edu.au/Hardware/PLEB
-
-ARM/PT DIGITAL BOARD PORT
-M:	Stefan Eletzhofer <stefan.eletzhofer@eletztrick.de>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-W:	http://www.armlinux.org.uk/
-
 ARM/QUALCOMM SUPPORT
 M:	Andy Gross <agross@kernel.org>
 M:	Bjorn Andersson <andersson@kernel.org>

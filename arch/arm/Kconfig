@@ -927,12 +927,6 @@ config ISA
 config ISA_DMA_API
 	bool
 
-config PCI_NANOENGINE
-	bool "BSE nanoEngine PCI support"
-	depends on SA1100_NANOENGINE
-	help
-	  Enable PCI on the BSE nanoEngine board.
-
 config ARM_ERRATA_814220
 	bool "ARM errata: Cache maintenance by set/way operations can execute out of order"
 	depends on CPU_V7
