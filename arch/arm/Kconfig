@@ -283,7 +283,7 @@ config PHYS_OFFSET
 	default 0x00000000 if ARCH_FOOTBRIDGE
 	default 0x10000000 if ARCH_OMAP1 || ARCH_RPC
 	default 0x30000000 if ARCH_S3C24XX
-	default 0xa0000000 if ARCH_IOP32X || ARCH_PXA
+	default 0xa0000000 if ARCH_PXA
 	default 0xc0000000 if ARCH_EP93XX || ARCH_SA1100
 	default 0
 	help
@@ -459,8 +459,6 @@ source "arch/arm/mach-hisi/Kconfig"
 source "arch/arm/mach-hpe/Kconfig"
 
 source "arch/arm/mach-imx/Kconfig"
-
-source "arch/arm/mach-iop32x/Kconfig"
 
 source "arch/arm/mach-ixp4xx/Kconfig"
 
