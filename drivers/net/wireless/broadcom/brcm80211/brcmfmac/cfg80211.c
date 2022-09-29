@@ -89,7 +89,7 @@
 #define BRCMF_PS_MAX_TIMEOUT_MS		2000
 
 /* Dump obss definitions */
-#define ACS_MSRMNT_DELAY		100
+#define ACS_MSRMNT_DELAY		80
 #define CHAN_NOISE_DUMMY		(-80)
 #define OBSS_TOKEN_IDX			15
 #define IBSS_TOKEN_IDX			15
