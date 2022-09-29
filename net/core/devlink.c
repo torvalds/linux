@@ -375,6 +375,8 @@ static struct devlink *devlink_get_from_attrs(struct net *net,
 	WARN_ON_ONCE(!(devlink_port)->registered)
 #define ASSERT_DEVLINK_PORT_NOT_REGISTERED(devlink_port)			\
 	WARN_ON_ONCE((devlink_port)->registered)
+#define ASSERT_DEVLINK_PORT_INITIALIZED(devlink_port)				\
+	WARN_ON_ONCE(!(devlink_port)->initialized)
 
 static struct devlink_port *devlink_port_get_by_index(struct devlink *devlink,
 						      unsigned int port_index)
@@ -9853,6 +9855,44 @@ static void devlink_port_type_warn_cancel(struct devlink_port *devlink_port)
 }
 
 /**
+ * devlink_port_init() - Init devlink port
+ *
+ * @devlink: devlink
+ * @devlink_port: devlink port
+ *
+ * Initialize essencial stuff that is needed for functions
+ * that may be called before devlink port registration.
+ * Call to this function is optional and not needed
+ * in case the driver does not use such functions.
+ */
+void devlink_port_init(struct devlink *devlink,
+		       struct devlink_port *devlink_port)
+{
+	if (devlink_port->initialized)
+		return;
+	devlink_port->devlink = devlink;
+	INIT_LIST_HEAD(&devlink_port->region_list);
+	devlink_port->initialized = true;
+}
+EXPORT_SYMBOL_GPL(devlink_port_init);
+
+/**
+ * devlink_port_fini() - Deinitialize devlink port
+ *
+ * @devlink_port: devlink port
+ *
+ * Deinitialize essencial stuff that is in use for functions
+ * that may be called after devlink port unregistration.
+ * Call to this function is optional and not needed
+ * in case the driver does not use such functions.
+ */
+void devlink_port_fini(struct devlink_port *devlink_port)
+{
+	WARN_ON(!list_empty(&devlink_port->region_list));
+}
+EXPORT_SYMBOL_GPL(devlink_port_fini);
+
+/**
  * devl_port_register() - Register devlink port
  *
  * @devlink: devlink
@@ -9876,14 +9916,13 @@ int devl_port_register(struct devlink *devlink,
 
 	ASSERT_DEVLINK_PORT_NOT_REGISTERED(devlink_port);
 
+	devlink_port_init(devlink, devlink_port);
 	devlink_port->registered = true;
-	devlink_port->devlink = devlink;
 	devlink_port->index = port_index;
 	spin_lock_init(&devlink_port->type_lock);
 	INIT_LIST_HEAD(&devlink_port->reporter_list);
 	mutex_init(&devlink_port->reporters_lock);
 	list_add_tail(&devlink_port->list, &devlink->port_list);
-	INIT_LIST_HEAD(&devlink_port->region_list);
 
 	INIT_DELAYED_WORK(&devlink_port->type_warn_dw, &devlink_port_type_warn);
 	devlink_port_type_warn_schedule(devlink_port);
@@ -9933,7 +9972,6 @@ void devl_port_unregister(struct devlink_port *devlink_port)
 	devlink_port_notify(devlink_port, DEVLINK_CMD_PORT_DEL);
 	list_del(&devlink_port->list);
 	WARN_ON(!list_empty(&devlink_port->reporter_list));
-	WARN_ON(!list_empty(&devlink_port->region_list));
 	mutex_destroy(&devlink_port->reporters_lock);
 	devlink_port->registered = false;
 }
@@ -11346,6 +11384,8 @@ devlink_port_region_create(struct devlink_port *port,
 	struct devlink *devlink = port->devlink;
 	struct devlink_region *region;
 	int err = 0;
+
+	ASSERT_DEVLINK_PORT_INITIALIZED(port);
 
 	if (WARN_ON(!ops) || WARN_ON(!ops->destructor))
 		return ERR_PTR(-EINVAL);

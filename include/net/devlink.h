@@ -130,7 +130,8 @@ struct devlink_port {
 	struct devlink_port_attrs attrs;
 	u8 attrs_set:1,
 	   switch_port:1,
-	   registered:1;
+	   registered:1,
+	   initialized:1;
 	struct delayed_work type_warn_dw;
 	struct list_head reporter_list;
 	struct mutex reporters_lock; /* Protects reporter_list */
@@ -1563,6 +1564,9 @@ void devlink_set_features(struct devlink *devlink, u64 features);
 void devlink_register(struct devlink *devlink);
 void devlink_unregister(struct devlink *devlink);
 void devlink_free(struct devlink *devlink);
+void devlink_port_init(struct devlink *devlink,
+		       struct devlink_port *devlink_port);
+void devlink_port_fini(struct devlink_port *devlink_port);
 int devl_port_register(struct devlink *devlink,
 		       struct devlink_port *devlink_port,
 		       unsigned int port_index);
