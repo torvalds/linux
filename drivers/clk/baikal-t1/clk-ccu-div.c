@@ -76,6 +76,16 @@
 		.divider = _divider				\
 	}
 
+#define CCU_DIV_BUF_INFO(_id, _name, _pname, _base, _flags)	\
+	{							\
+		.id = _id,					\
+		.name = _name,					\
+		.parent_name = _pname,				\
+		.base = _base,					\
+		.type = CCU_DIV_BUF,				\
+		.flags = _flags					\
+	}
+
 #define CCU_DIV_FIXED_INFO(_id, _name, _pname, _divider)	\
 	{							\
 		.id = _id,					\
@@ -188,11 +198,14 @@ static const struct ccu_div_rst_map axi_rst_map[] = {
  * for the SoC devices registers IO-operations.
  */
 static const struct ccu_div_info sys_info[] = {
-	CCU_DIV_VAR_INFO(CCU_SYS_SATA_REF_CLK, "sys_sata_ref_clk",
+	CCU_DIV_VAR_INFO(CCU_SYS_SATA_CLK, "sys_sata_clk",
 			 "sata_clk", CCU_SYS_SATA_REF_BASE, 4,
 			 CLK_SET_RATE_GATE,
 			 CCU_DIV_SKIP_ONE | CCU_DIV_LOCK_SHIFTED |
 			 CCU_DIV_RESET_DOMAIN),
+	CCU_DIV_BUF_INFO(CCU_SYS_SATA_REF_CLK, "sys_sata_ref_clk",
+			 "sys_sata_clk", CCU_SYS_SATA_REF_BASE,
+			 CLK_SET_RATE_PARENT),
 	CCU_DIV_VAR_INFO(CCU_SYS_APB_CLK, "sys_apb_clk",
 			 "pcie_clk", CCU_SYS_APB_BASE, 5,
 			 CLK_IS_CRITICAL, CCU_DIV_RESET_DOMAIN),
@@ -398,6 +411,9 @@ static int ccu_div_clk_register(struct ccu_div_data *data)
 			init.base = info->base;
 			init.sys_regs = data->sys_regs;
 			init.divider = info->divider;
+		} else if (init.type == CCU_DIV_BUF) {
+			init.base = info->base;
+			init.sys_regs = data->sys_regs;
 		} else {
 			init.divider = info->divider;
 		}
