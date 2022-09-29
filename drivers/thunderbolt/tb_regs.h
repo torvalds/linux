@@ -195,6 +195,9 @@ struct tb_regs_switch_header {
 
 #define ROUTER_CS_1				0x01
 #define ROUTER_CS_4				0x04
+/* Used with the router cmuv field */
+#define ROUTER_CS_4_CMUV_V1			0x10
+#define ROUTER_CS_4_CMUV_V2			0x20
 #define ROUTER_CS_5				0x05
 #define ROUTER_CS_5_SLP				BIT(0)
 #define ROUTER_CS_5_WOP				BIT(1)
