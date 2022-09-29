@@ -523,6 +523,53 @@ static u32 mlx5e_rx_res_get_rqtn_direct(struct mlx5e_rx_res *res, unsigned int i
 	return mlx5e_rqt_get_rqtn(&res->channels[ix].direct_rqt);
 }
 
+static void mlx5e_rx_res_channel_activate_direct(struct mlx5e_rx_res *res,
+						 struct mlx5e_channels *chs,
+						 unsigned int ix)
+{
+	u32 rqn;
+	int err;
+
+	mlx5e_channels_get_regular_rqn(chs, ix, &rqn);
+	err = mlx5e_rqt_redirect_direct(&res->channels[ix].direct_rqt, rqn);
+	if (err)
+		mlx5_core_warn(res->mdev, "Failed to redirect direct RQT %#x to RQ %#x (channel %u): err = %d\n",
+			       mlx5e_rqt_get_rqtn(&res->channels[ix].direct_rqt),
+			       rqn, ix, err);
+
+	if (!(res->features & MLX5E_RX_RES_FEATURE_XSK))
+		return;
+
+	if (!mlx5e_channels_get_xsk_rqn(chs, ix, &rqn))
+		rqn = res->drop_rqn;
+	err = mlx5e_rqt_redirect_direct(&res->channels[ix].xsk_rqt, rqn);
+	if (err)
+		mlx5_core_warn(res->mdev, "Failed to redirect XSK RQT %#x to RQ %#x (channel %u): err = %d\n",
+			       mlx5e_rqt_get_rqtn(&res->channels[ix].xsk_rqt),
+			       rqn, ix, err);
+}
+
+static void mlx5e_rx_res_channel_deactivate_direct(struct mlx5e_rx_res *res,
+						   unsigned int ix)
+{
+	int err;
+
+	err = mlx5e_rqt_redirect_direct(&res->channels[ix].direct_rqt, res->drop_rqn);
+	if (err)
+		mlx5_core_warn(res->mdev, "Failed to redirect direct RQT %#x to drop RQ %#x (channel %u): err = %d\n",
+			       mlx5e_rqt_get_rqtn(&res->channels[ix].direct_rqt),
+			       res->drop_rqn, ix, err);
+
+	if (!(res->features & MLX5E_RX_RES_FEATURE_XSK))
+		return;
+
+	err = mlx5e_rqt_redirect_direct(&res->channels[ix].xsk_rqt, res->drop_rqn);
+	if (err)
+		mlx5_core_warn(res->mdev, "Failed to redirect XSK RQT %#x to drop RQ %#x (channel %u): err = %d\n",
+			       mlx5e_rqt_get_rqtn(&res->channels[ix].xsk_rqt),
+			       res->drop_rqn, ix, err);
+}
+
 void mlx5e_rx_res_channels_activate(struct mlx5e_rx_res *res, struct mlx5e_channels *chs)
 {
 	unsigned int nch, ix;
@@ -536,43 +583,10 @@ void mlx5e_rx_res_channels_activate(struct mlx5e_rx_res *res, struct mlx5e_chann
 
 	mlx5e_rx_res_rss_enable(res);
 
-	for (ix = 0; ix < nch; ix++) {
-		u32 rqn;
-
-		mlx5e_channels_get_regular_rqn(chs, ix, &rqn);
-		err = mlx5e_rqt_redirect_direct(&res->channels[ix].direct_rqt, rqn);
-		if (err)
-			mlx5_core_warn(res->mdev, "Failed to redirect direct RQT %#x to RQ %#x (channel %u): err = %d\n",
-				       mlx5e_rqt_get_rqtn(&res->channels[ix].direct_rqt),
-				       rqn, ix, err);
-
-		if (!(res->features & MLX5E_RX_RES_FEATURE_XSK))
-			continue;
-
-		if (!mlx5e_channels_get_xsk_rqn(chs, ix, &rqn))
-			rqn = res->drop_rqn;
-		err = mlx5e_rqt_redirect_direct(&res->channels[ix].xsk_rqt, rqn);
-		if (err)
-			mlx5_core_warn(res->mdev, "Failed to redirect XSK RQT %#x to RQ %#x (channel %u): err = %d\n",
-				       mlx5e_rqt_get_rqtn(&res->channels[ix].xsk_rqt),
-				       rqn, ix, err);
-	}
-	for (ix = nch; ix < res->max_nch; ix++) {
-		err = mlx5e_rqt_redirect_direct(&res->channels[ix].direct_rqt, res->drop_rqn);
-		if (err)
-			mlx5_core_warn(res->mdev, "Failed to redirect direct RQT %#x to drop RQ %#x (channel %u): err = %d\n",
-				       mlx5e_rqt_get_rqtn(&res->channels[ix].direct_rqt),
-				       res->drop_rqn, ix, err);
-
-		if (!(res->features & MLX5E_RX_RES_FEATURE_XSK))
-			continue;
-
-		err = mlx5e_rqt_redirect_direct(&res->channels[ix].xsk_rqt, res->drop_rqn);
-		if (err)
-			mlx5_core_warn(res->mdev, "Failed to redirect XSK RQT %#x to drop RQ %#x (channel %u): err = %d\n",
-				       mlx5e_rqt_get_rqtn(&res->channels[ix].xsk_rqt),
-				       res->drop_rqn, ix, err);
-	}
+	for (ix = 0; ix < nch; ix++)
+		mlx5e_rx_res_channel_activate_direct(res, chs, ix);
+	for (ix = nch; ix < res->max_nch; ix++)
+		mlx5e_rx_res_channel_deactivate_direct(res, ix);
 
 	if (res->features & MLX5E_RX_RES_FEATURE_PTP) {
 		u32 rqn;
@@ -595,22 +609,8 @@ void mlx5e_rx_res_channels_deactivate(struct mlx5e_rx_res *res)
 
 	mlx5e_rx_res_rss_disable(res);
 
-	for (ix = 0; ix < res->max_nch; ix++) {
-		err = mlx5e_rqt_redirect_direct(&res->channels[ix].direct_rqt, res->drop_rqn);
-		if (err)
-			mlx5_core_warn(res->mdev, "Failed to redirect direct RQT %#x to drop RQ %#x (channel %u): err = %d\n",
-				       mlx5e_rqt_get_rqtn(&res->channels[ix].direct_rqt),
-				       res->drop_rqn, ix, err);
-
-		if (!(res->features & MLX5E_RX_RES_FEATURE_XSK))
-			continue;
-
-		err = mlx5e_rqt_redirect_direct(&res->channels[ix].xsk_rqt, res->drop_rqn);
-		if (err)
-			mlx5_core_warn(res->mdev, "Failed to redirect XSK RQT %#x to drop RQ %#x (channel %u): err = %d\n",
-				       mlx5e_rqt_get_rqtn(&res->channels[ix].xsk_rqt),
-				       res->drop_rqn, ix, err);
-	}
+	for (ix = 0; ix < res->max_nch; ix++)
+		mlx5e_rx_res_channel_deactivate_direct(res, ix);
 
 	if (res->features & MLX5E_RX_RES_FEATURE_PTP) {
 		err = mlx5e_rqt_redirect_direct(&res->ptp.rqt, res->drop_rqn);
