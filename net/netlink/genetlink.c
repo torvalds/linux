@@ -739,6 +739,36 @@ out:
 	return err;
 }
 
+static int genl_header_check(const struct genl_family *family,
+			     struct nlmsghdr *nlh, struct genlmsghdr *hdr,
+			     struct netlink_ext_ack *extack)
+{
+	u16 flags;
+
+	/* Only for commands added after we started validating */
+	if (hdr->cmd < family->resv_start_op)
+		return 0;
+
+	if (hdr->reserved) {
+		NL_SET_ERR_MSG(extack, "genlmsghdr.reserved field is not 0");
+		return -EINVAL;
+	}
+
+	/* Old netlink flags have pretty loose semantics, allow only the flags
+	 * consumed by the core where we can enforce the meaning.
+	 */
+	flags = nlh->nlmsg_flags;
+	if ((flags & NLM_F_DUMP) == NLM_F_DUMP) /* DUMP is 2 bits */
+		flags &= ~NLM_F_DUMP;
+	if (flags & ~(NLM_F_REQUEST | NLM_F_ACK | NLM_F_ECHO)) {
+		NL_SET_ERR_MSG(extack,
+			       "ambiguous or reserved bits set in nlmsg_flags");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int genl_family_rcv_msg(const struct genl_family *family,
 			       struct sk_buff *skb,
 			       struct nlmsghdr *nlh,
@@ -757,7 +787,7 @@ static int genl_family_rcv_msg(const struct genl_family *family,
 	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen))
 		return -EINVAL;
 
-	if (hdr->cmd >= family->resv_start_op && hdr->reserved)
+	if (genl_header_check(family, nlh, hdr, extack))
 		return -EINVAL;
 
 	if (genl_get_cmd(hdr->cmd, family, &op))
