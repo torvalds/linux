@@ -2068,13 +2068,14 @@ static void brcmf_pcie_setup(struct device *dev, int ret,
 	struct brcmf_commonring **flowrings;
 	u32 i, nvram_len;
 
+	bus = dev_get_drvdata(dev);
+	pcie_bus_dev = bus->bus_priv.pcie;
+	devinfo = pcie_bus_dev->devinfo;
+
 	/* check firmware loading result */
 	if (ret)
 		goto fail;
 
-	bus = dev_get_drvdata(dev);
-	pcie_bus_dev = bus->bus_priv.pcie;
-	devinfo = pcie_bus_dev->devinfo;
 	brcmf_pcie_attach(devinfo);
 
 	fw = fwreq->items[BRCMF_PCIE_FW_CODE].binary;
@@ -2148,6 +2149,9 @@ static void brcmf_pcie_setup(struct device *dev, int ret,
 	return;
 
 fail:
+	brcmf_err(bus, "Dongle setup failed\n");
+	brcmf_pcie_bus_console_read(devinfo, true);
+	brcmf_fw_crashed(dev);
 	device_release_driver(dev);
 }
 

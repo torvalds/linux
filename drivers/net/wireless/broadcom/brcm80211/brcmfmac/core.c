@@ -1399,7 +1399,8 @@ void brcmf_fw_crashed(struct device *dev)
 
 	brcmf_dev_coredump(dev);
 
-	schedule_work(&drvr->bus_reset);
+	if (drvr->bus_reset.func)
+		schedule_work(&drvr->bus_reset);
 }
 
 void brcmf_detach(struct device *dev)
