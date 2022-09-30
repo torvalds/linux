@@ -292,7 +292,7 @@ int io_sync_cancel(struct io_ring_ctx *ctx, void __user *arg)
 			break;
 
 		mutex_unlock(&ctx->uring_lock);
-		ret = io_run_task_work_sig();
+		ret = io_run_task_work_sig(ctx);
 		if (ret < 0) {
 			mutex_lock(&ctx->uring_lock);
 			break;
