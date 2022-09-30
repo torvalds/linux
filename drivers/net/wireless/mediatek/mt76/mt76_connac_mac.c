@@ -417,9 +417,6 @@ mt76_connac2_mac_write_txwi_80211(struct mt76_dev *dev, __le32 *txwi,
 	if (ieee80211_is_beacon(fc)) {
 		txwi[3] &= ~cpu_to_le32(MT_TXD3_SW_POWER_MGMT);
 		txwi[3] |= cpu_to_le32(MT_TXD3_REM_TX_COUNT);
-		if (!is_mt7921(dev))
-			txwi[7] |= cpu_to_le32(FIELD_PREP(MT_TXD7_SPE_IDX,
-							  0x18));
 	}
 
 	if (info->flags & IEEE80211_TX_CTL_INJECTED) {
@@ -550,6 +547,14 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
 		val |= FIELD_PREP(MT_TXD6_TX_RATE, rate);
 		txwi[6] |= cpu_to_le32(val);
 		txwi[3] |= cpu_to_le32(MT_TXD3_BA_DISABLE);
+
+		if (!is_mt7921(dev)) {
+			u8 spe_idx = mt76_connac_spe_idx(mphy->antenna_mask);
+
+			if (!spe_idx)
+				spe_idx = 24 + phy_idx;
+			txwi[7] |= cpu_to_le32(FIELD_PREP(MT_TXD7_SPE_IDX, spe_idx));
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(mt76_connac2_mac_write_txwi);

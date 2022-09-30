@@ -261,6 +261,17 @@ mt76_connac_txwi_to_txp(struct mt76_dev *dev, struct mt76_txwi_cache *t)
 	return (void *)(txwi + MT_TXD_SIZE);
 }
 
+static inline u8 mt76_connac_spe_idx(u8 antenna_mask)
+{
+	static const u8 ant_to_spe[] = {0, 0, 1, 0, 3, 2, 4, 0,
+					9, 8, 6, 10, 16, 12, 18, 0};
+
+	if (antenna_mask >= sizeof(ant_to_spe))
+		return 0;
+
+	return ant_to_spe[antenna_mask];
+}
+
 int mt76_connac_pm_wake(struct mt76_phy *phy, struct mt76_connac_pm *pm);
 void mt76_connac_power_save_sched(struct mt76_phy *phy,
 				  struct mt76_connac_pm *pm);

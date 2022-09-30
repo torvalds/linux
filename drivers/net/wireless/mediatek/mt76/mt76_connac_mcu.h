@@ -580,7 +580,7 @@ struct sta_rec_ra_fixed {
 
 	struct sta_phy phy;
 
-	u8 spe_en;
+	u8 spe_idx;
 	u8 short_preamble;
 	u8 is_5g;
 	u8 mmps_mode;
