@@ -23,8 +23,6 @@
 #include "ipa_gsi.h"
 #include "ipa_power.h"
 
-#define atomic_dec_not_zero(v)	atomic_add_unless((v), -1, 0)
-
 /* Hardware is told about receive buffers once a "batch" has been queued */
 #define IPA_REPLENISH_BATCH	16		/* Must be non-zero */
 
