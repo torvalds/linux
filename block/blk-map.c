@@ -231,7 +231,7 @@ out_bmd:
 	return ret;
 }
 
-static void bio_map_put(struct bio *bio)
+static void blk_mq_map_bio_put(struct bio *bio)
 {
 	if (bio->bi_opf & REQ_ALLOC_CACHE) {
 		bio_put(bio);
@@ -331,7 +331,7 @@ static int bio_map_user_iov(struct request *rq, struct iov_iter *iter,
 
  out_unmap:
 	bio_release_pages(bio, false);
-	bio_map_put(bio);
+	blk_mq_map_bio_put(bio);
 	return ret;
 }
 
@@ -672,7 +672,7 @@ int blk_rq_unmap_user(struct bio *bio)
 
 		next_bio = bio;
 		bio = bio->bi_next;
-		bio_map_put(next_bio);
+		blk_mq_map_bio_put(next_bio);
 	}
 
 	return ret;
