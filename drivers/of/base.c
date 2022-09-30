@@ -2088,12 +2088,13 @@ int of_find_last_cache_level(unsigned int cpu)
 	struct device_node *prev = NULL, *np = of_cpu_device_node_get(cpu);
 
 	while (np) {
+		of_node_put(prev);
 		prev = np;
-		of_node_put(np);
 		np = of_find_next_cache_node(np);
 	}
 
 	of_property_read_u32(prev, "cache-level", &cache_level);
+	of_node_put(prev);
 
 	return cache_level;
 }
