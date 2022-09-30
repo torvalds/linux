@@ -18,7 +18,7 @@
 	regulators {
 		compatible = "simple-bus";
 
-		ext_l2: gpio-regulator@91 {
+		ext_l2: gpio-regulator {
 			compatible = "regulator-fixed";
 			regulator-name = "ext_l2";
 			gpio = <&msmgpio 91 0>;
