@@ -95,7 +95,7 @@ static void check_hung_task(struct task_struct *t, unsigned long timeout)
 	 * Ensure the task is not frozen.
 	 * Also, skip vfork and any other user process that freezer should skip.
 	 */
-	if (unlikely(READ_ONCE(t->__state) & (TASK_FREEZABLE | TASK_FROZEN)))
+	if (unlikely(READ_ONCE(t->__state) & TASK_FROZEN))
 		return;
 
 	/*
@@ -200,10 +200,14 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 				goto unlock;
 			last_break = jiffies;
 		}
-		/* skip the TASK_KILLABLE tasks -- these can be killed */
+		/*
+		 * skip the TASK_KILLABLE tasks -- these can be killed
+		 * skip the TASK_IDLE tasks -- those are genuinely idle
+		 */
 		state = READ_ONCE(t->__state);
 		if ((state & TASK_UNINTERRUPTIBLE) &&
-		    !(state & TASK_WAKEKILL))
+		    !(state & TASK_WAKEKILL) &&
+		    !(state & TASK_NOLOAD))
 			check_hung_task(t, timeout);
 	}
  unlock:
