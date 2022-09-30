@@ -789,8 +789,10 @@ static void rkisp_rdbk_trigger_handle(struct rkisp_device *dev, u32 cmd)
 			isp->sw_rd_cnt = 1;
 			times = 0;
 		}
-		if (dev->is_pre_on && t.frame_id == 0)
+		if (dev->is_pre_on && t.frame_id == 0) {
 			dev->is_first_double = true;
+			dev->skip_frame = 1;
+		}
 	}
 end:
 	spin_unlock_irqrestore(&hw->rdbk_lock, lock_flags);
@@ -847,8 +849,6 @@ void rkisp_check_idle(struct rkisp_device *dev, u32 irq)
 {
 	u32 val = 0;
 
-	if (dev->is_first_double)
-		return;
 	if (dev->hw_dev->is_multi_overflow &&
 	    dev->sw_rd_cnt &&
 	    irq & ISP_FRAME_END)
@@ -866,6 +866,12 @@ void rkisp_check_idle(struct rkisp_device *dev, u32 irq)
 	}
 	if (dev->irq_ends != dev->irq_ends_mask || !IS_HDR_RDBK(dev->rd_mode))
 		return;
+
+	if (dev->is_first_double) {
+		dev->skip_frame = 0;
+		dev->irq_ends = 0;
+		return;
+	}
 
 	/* check output stream is off */
 	val = ISP_FRAME_MP | ISP_FRAME_SP | ISP_FRAME_MPFBC | ISP_FRAME_BP;

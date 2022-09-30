@@ -1253,6 +1253,7 @@ static int mi_frame_start(struct rkisp_stream *stream, u32 mis)
  */
 static int mi_frame_end(struct rkisp_stream *stream)
 {
+	struct rkisp_device *dev = stream->ispdev;
 	struct capture_fmt *isp_fmt = &stream->out_isp_fmt;
 	unsigned long lock_flags = 0;
 	u32 i;
@@ -1261,6 +1262,13 @@ static int mi_frame_end(struct rkisp_stream *stream)
 
 	if (stream->curr_buf) {
 		struct vb2_buffer *vb2_buf = &stream->curr_buf->vb.vb2_buf;
+
+		if (dev->skip_frame) {
+			spin_lock_irqsave(&stream->vbq_lock, lock_flags);
+			list_add_tail(&stream->curr_buf->queue, &stream->buf_queue);
+			spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+			goto next;
+		}
 
 		for (i = 0; i < isp_fmt->mplanes; i++) {
 			u32 payload_size = stream->out_fmt.plane_fmt[i].sizeimage;
@@ -1273,7 +1281,7 @@ static int mi_frame_end(struct rkisp_stream *stream)
 		else
 			rkisp_rockit_buf_done(stream, ROCKIT_DVBM_END);
 	}
-
+next:
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	stream->curr_buf = stream->next_buf;
 	stream->next_buf = NULL;
