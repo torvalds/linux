@@ -64,6 +64,14 @@ struct iommu_domain;
 #define RK_IF_PROP_COLOR_DEPTH_CAPS	"color_depth_caps"
 #define RK_IF_PROP_COLOR_FORMAT_CAPS	"color_format_caps"
 
+enum rockchip_drm_debug_category {
+	VOP_DEBUG_PLANE		= BIT(0),
+	VOP_DEBUG_OVERLAY	= BIT(1),
+	VOP_DEBUG_WB		= BIT(2),
+	VOP_DEBUG_CFG_DONE	= BIT(3),
+	VOP_DEBUG_VSYNC		= BIT(7),
+};
+
 enum rk_if_color_depth {
 	RK_IF_DEPTH_8,
 	RK_IF_DEPTH_10,
@@ -490,6 +498,9 @@ int rockchip_drm_parse_cea_ext(struct rockchip_drm_dsc_cap *dsc_cap,
 			       const struct edid *edid);
 int rockchip_drm_parse_next_hdr(struct next_hdr_sink_data *sink_data,
 				const struct edid *edid);
+__printf(3, 4)
+void rockchip_drm_dbg(const struct device *dev, enum rockchip_drm_debug_category category,
+		      const char *format, ...);
 
 extern struct platform_driver cdn_dp_driver;
 extern struct platform_driver dw_hdmi_rockchip_pltfm_driver;
