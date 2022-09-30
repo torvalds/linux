@@ -175,8 +175,7 @@ config SND_SOC_SM8250
 
 config SND_SOC_SC8280XP
 	tristate "SoC Machine driver for SC8280XP boards"
-	depends on QCOM_APR || COMPILE_TEST
-	depends on SOUNDWIRE
+	depends on QCOM_APR && SOUNDWIRE
 	depends on COMMON_CLK
 	select SND_SOC_QDSP6
 	select SND_SOC_QCOM_COMMON
