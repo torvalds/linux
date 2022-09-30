@@ -180,12 +180,12 @@ static void dump_kernel_instr(const char *lvl, struct pt_regs *regs)
 
 #define S_SMP " SMP"
 
-static int __die(const char *str, int err, struct pt_regs *regs)
+static int __die(const char *str, long err, struct pt_regs *regs)
 {
 	static int die_counter;
 	int ret;
 
-	pr_emerg("Internal error: %s: %x [#%d]" S_PREEMPT S_SMP "\n",
+	pr_emerg("Internal error: %s: %016lx [#%d]" S_PREEMPT S_SMP "\n",
 		 str, err, ++die_counter);
 
 	/* trap and error numbers are mostly meaningless on ARM */
@@ -206,7 +206,7 @@ static DEFINE_RAW_SPINLOCK(die_lock);
 /*
  * This function is protected against re-entrancy.
  */
-void die(const char *str, struct pt_regs *regs, int err)
+void die(const char *str, struct pt_regs *regs, long err)
 {
 	int ret;
 	unsigned long flags;
@@ -485,7 +485,7 @@ void arm64_notify_segfault(unsigned long addr)
 	force_signal_inject(SIGSEGV, code, addr, 0);
 }
 
-void do_undefinstr(struct pt_regs *regs)
+void do_undefinstr(struct pt_regs *regs, unsigned long esr)
 {
 	/* check for AArch32 breakpoint instructions */
 	if (!aarch32_break_handler(regs))
@@ -494,28 +494,38 @@ void do_undefinstr(struct pt_regs *regs)
 	if (call_undef_hook(regs) == 0)
 		return;
 
-	BUG_ON(!user_mode(regs));
+	if (!user_mode(regs))
+		die("Oops - Undefined instruction", regs, esr);
+
 	force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc, 0);
 }
 NOKPROBE_SYMBOL(do_undefinstr);
 
-void do_bti(struct pt_regs *regs)
+void do_el0_bti(struct pt_regs *regs)
 {
-	BUG_ON(!user_mode(regs));
 	force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc, 0);
 }
-NOKPROBE_SYMBOL(do_bti);
 
-void do_ptrauth_fault(struct pt_regs *regs, unsigned long esr)
+void do_el1_bti(struct pt_regs *regs, unsigned long esr)
 {
-	/*
-	 * Unexpected FPAC exception or pointer authentication failure in
-	 * the kernel: kill the task before it does any more harm.
-	 */
-	BUG_ON(!user_mode(regs));
+	die("Oops - BTI", regs, esr);
+}
+NOKPROBE_SYMBOL(do_el1_bti);
+
+void do_el0_fpac(struct pt_regs *regs, unsigned long esr)
+{
 	force_signal_inject(SIGILL, ILL_ILLOPN, regs->pc, esr);
 }
-NOKPROBE_SYMBOL(do_ptrauth_fault);
+
+void do_el1_fpac(struct pt_regs *regs, unsigned long esr)
+{
+	/*
+	 * Unexpected FPAC exception in the kernel: kill the task before it
+	 * does any more harm.
+	 */
+	die("Oops - FPAC", regs, esr);
+}
+NOKPROBE_SYMBOL(do_el1_fpac)
 
 #define __user_cache_maint(insn, address, res)			\
 	if (address >= TASK_SIZE_MAX) {				\
@@ -758,7 +768,7 @@ void do_cp15instr(unsigned long esr, struct pt_regs *regs)
 		hook_base = cp15_64_hooks;
 		break;
 	default:
-		do_undefinstr(regs);
+		do_undefinstr(regs, esr);
 		return;
 	}
 
@@ -773,7 +783,7 @@ void do_cp15instr(unsigned long esr, struct pt_regs *regs)
 	 * EL0. Fall back to our usual undefined instruction handler
 	 * so that we handle these consistently.
 	 */
-	do_undefinstr(regs);
+	do_undefinstr(regs, esr);
 }
 NOKPROBE_SYMBOL(do_cp15instr);
 #endif
@@ -793,7 +803,7 @@ void do_sysinstr(unsigned long esr, struct pt_regs *regs)
 	 * back to our usual undefined instruction handler so that we handle
 	 * these consistently.
 	 */
-	do_undefinstr(regs);
+	do_undefinstr(regs, esr);
 }
 NOKPROBE_SYMBOL(do_sysinstr);
 
@@ -970,7 +980,7 @@ static int bug_handler(struct pt_regs *regs, unsigned long esr)
 {
 	switch (report_bug(regs->pc, regs)) {
 	case BUG_TRAP_TYPE_BUG:
-		die("Oops - BUG", regs, 0);
+		die("Oops - BUG", regs, esr);
 		break;
 
 	case BUG_TRAP_TYPE_WARN:
@@ -1038,7 +1048,7 @@ static int kasan_handler(struct pt_regs *regs, unsigned long esr)
 	 * This is something that might be fixed at some point in the future.
 	 */
 	if (!recover)
-		die("Oops - KASAN", regs, 0);
+		die("Oops - KASAN", regs, esr);
 
 	/* If thread survives, skip over the brk instruction and continue: */
 	arm64_skip_faulting_instruction(regs, AARCH64_INSN_SIZE);

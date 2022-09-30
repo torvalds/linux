@@ -111,7 +111,7 @@ the SVE instruction set architecture.
 
 * On syscall, V0..V31 are preserved (as without SVE).  Thus, bits [127:0] of
   Z0..Z31 are preserved.  All other bits of Z0..Z31, and all of P0..P15 and FFR
-  become unspecified on return from a syscall.
+  become zero on return from a syscall.
 
 * The SVE registers are not used to pass arguments to or receive results from
   any syscall.

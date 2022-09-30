@@ -733,6 +733,19 @@ config ARM64_ERRATUM_2077057
 
 	  If unsure, say Y.
 
+config ARM64_ERRATUM_2658417
+	bool "Cortex-A510: 2658417: remove BF16 support due to incorrect result"
+	default y
+	help
+	  This option adds the workaround for ARM Cortex-A510 erratum 2658417.
+	  Affected Cortex-A510 (r0p0 to r1p1) may produce the wrong result for
+	  BFMMLA or VMMLA instructions in rare circumstances when a pair of
+	  A510 CPUs are using shared neon hardware. As the sharing is not
+	  discoverable by the kernel, hide the BF16 HWCAP to indicate that
+	  user-space should not be using these instructions.
+
+	  If unsure, say Y.
+
 config ARM64_ERRATUM_2119858
 	bool "Cortex-A710/X2: 2119858: workaround TRBE overwriting trace data in FILL mode"
 	default y

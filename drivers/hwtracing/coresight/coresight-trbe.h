@@ -20,7 +20,8 @@
 static inline bool is_trbe_available(void)
 {
 	u64 aa64dfr0 = read_sysreg_s(SYS_ID_AA64DFR0_EL1);
-	unsigned int trbe = cpuid_feature_extract_unsigned_field(aa64dfr0, ID_AA64DFR0_TRBE_SHIFT);
+	unsigned int trbe = cpuid_feature_extract_unsigned_field(aa64dfr0,
+								 ID_AA64DFR0_EL1_TraceBuffer_SHIFT);
 
 	return trbe >= 0b0001;
 }

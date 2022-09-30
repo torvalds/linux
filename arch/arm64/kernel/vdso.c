@@ -29,9 +29,6 @@
 #include <asm/signal32.h>
 #include <asm/vdso.h>
 
-extern char vdso_start[], vdso_end[];
-extern char vdso32_start[], vdso32_end[];
-
 enum vdso_abi {
 	VDSO_ABI_AA64,
 	VDSO_ABI_AA32,
