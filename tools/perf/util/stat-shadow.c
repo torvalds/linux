@@ -35,7 +35,6 @@ struct saved_value {
 	int ctx;
 	int map_idx;  /* cpu or thread map index */
 	struct cgroup *cgrp;
-	struct runtime_stat *stat;
 	struct stats stats;
 	u64 metric_total;
 	int metric_other;
@@ -66,16 +65,6 @@ static int saved_value_cmp(struct rb_node *rb_node, const void *entry)
 
 	if (a->cgrp != b->cgrp)
 		return (char *)a->cgrp < (char *)b->cgrp ? -1 : +1;
-
-	if (a->evsel == NULL && b->evsel == NULL) {
-		if (a->stat == b->stat)
-			return 0;
-
-		if ((char *)a->stat < (char *)b->stat)
-			return -1;
-
-		return 1;
-	}
 
 	if (a->evsel == b->evsel)
 		return 0;
@@ -120,7 +109,6 @@ static struct saved_value *saved_value_lookup(struct evsel *evsel,
 		.evsel = evsel,
 		.type = type,
 		.ctx = ctx,
-		.stat = st,
 		.cgrp = cgrp,
 	};
 
