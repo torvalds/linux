@@ -161,6 +161,10 @@
 	};
 };
 
+&hdmi_sound {
+	status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 
@@ -398,6 +402,10 @@
 			};
 		};
 	};
+};
+
+&i2s0_8ch {
+	status = "okay";
 };
 
 &i2s1_8ch {
