@@ -43,7 +43,7 @@ enum perf_stat_evsel_id {
 };
 
 struct perf_stat_evsel {
-	struct stats		 res_stats[3];
+	struct stats		 res_stats;
 	enum perf_stat_evsel_id	 id;
 	u64			*group_data;
 };

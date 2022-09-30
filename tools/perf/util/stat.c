@@ -132,12 +132,9 @@ static void perf_stat_evsel_id_init(struct evsel *evsel)
 
 static void evsel__reset_stat_priv(struct evsel *evsel)
 {
-	int i;
 	struct perf_stat_evsel *ps = evsel->stats;
 
-	for (i = 0; i < 3; i++)
-		init_stats(&ps->res_stats[i]);
-
+	init_stats(&ps->res_stats);
 	perf_stat_evsel_id_init(evsel);
 }
 
@@ -437,7 +434,7 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 	struct perf_counts_values *aggr = &counter->counts->aggr;
 	struct perf_stat_evsel *ps = counter->stats;
 	u64 *count = counter->counts->aggr.values;
-	int i, ret;
+	int ret;
 
 	aggr->val = aggr->ena = aggr->run = 0;
 
@@ -455,8 +452,7 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 		evsel__compute_deltas(counter, -1, -1, aggr);
 	perf_counts_values__scale(aggr, config->scale, &counter->counts->scaled);
 
-	for (i = 0; i < 3; i++)
-		update_stats(&ps->res_stats[i], count[i]);
+	update_stats(&ps->res_stats, *count);
 
 	if (verbose > 0) {
 		fprintf(config->output, "%s: %" PRIu64 " %" PRIu64 " %" PRIu64 "\n",

@@ -67,7 +67,7 @@ static void print_noise(struct perf_stat_config *config,
 		return;
 
 	ps = evsel->stats;
-	print_noise_pct(config, stddev_stats(&ps->res_stats[0]), avg);
+	print_noise_pct(config, stddev_stats(&ps->res_stats), avg);
 }
 
 static void print_cgroup(struct perf_stat_config *config, struct evsel *evsel)
