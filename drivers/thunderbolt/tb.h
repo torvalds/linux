@@ -1197,6 +1197,17 @@ static inline struct tb_switch *tb_xdomain_parent(struct tb_xdomain *xd)
 	return tb_to_switch(xd->dev.parent);
 }
 
+/**
+ * tb_xdomain_downstream_port() - Return downstream facing port of parent router
+ * @xd: Xdomain pointer
+ *
+ * Returns the downstream port the XDomain is connected to.
+ */
+static inline struct tb_port *tb_xdomain_downstream_port(struct tb_xdomain *xd)
+{
+	return tb_port_at(xd->route, tb_xdomain_parent(xd));
+}
+
 int tb_retimer_nvm_read(struct tb_retimer *rt, unsigned int address, void *buf,
 			size_t size);
 int tb_retimer_scan(struct tb_port *port, bool add);

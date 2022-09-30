@@ -537,9 +537,8 @@ static int tb_xdp_link_state_status_request(struct tb_ctl *ctl, u64 route,
 static int tb_xdp_link_state_status_response(struct tb *tb, struct tb_ctl *ctl,
 					     struct tb_xdomain *xd, u8 sequence)
 {
-	struct tb_switch *sw = tb_to_switch(xd->dev.parent);
 	struct tb_xdp_link_state_status_response res;
-	struct tb_port *port = tb_port_at(xd->route, sw);
+	struct tb_port *port = tb_xdomain_downstream_port(xd);
 	u32 val[2];
 	int ret;
 
@@ -1137,7 +1136,7 @@ static int tb_xdomain_update_link_attributes(struct tb_xdomain *xd)
 	struct tb_port *port;
 	int ret;
 
-	port = tb_port_at(xd->route, tb_xdomain_parent(xd));
+	port = tb_xdomain_downstream_port(xd);
 
 	ret = tb_port_get_link_speed(port);
 	if (ret < 0)
@@ -1251,8 +1250,7 @@ static int tb_xdomain_get_link_status(struct tb_xdomain *xd)
 static int tb_xdomain_link_state_change(struct tb_xdomain *xd,
 					unsigned int width)
 {
-	struct tb_switch *sw = tb_to_switch(xd->dev.parent);
-	struct tb_port *port = tb_port_at(xd->route, sw);
+	struct tb_port *port = tb_xdomain_downstream_port(xd);
 	struct tb *tb = xd->tb;
 	u8 tlw, tls;
 	u32 val;
@@ -1309,7 +1307,7 @@ static int tb_xdomain_bond_lanes_uuid_high(struct tb_xdomain *xd)
 		return -ETIMEDOUT;
 	}
 
-	port = tb_port_at(xd->route, tb_xdomain_parent(xd));
+	port = tb_xdomain_downstream_port(xd);
 
 	/*
 	 * We can't use tb_xdomain_lane_bonding_enable() here because it
@@ -1425,7 +1423,7 @@ static int tb_xdomain_get_properties(struct tb_xdomain *xd)
 		if (xd->bonding_possible) {
 			struct tb_port *port;
 
-			port = tb_port_at(xd->route, tb_xdomain_parent(xd));
+			port = tb_xdomain_downstream_port(xd);
 			if (!port->bonded)
 				tb_port_disable(port->dual_link_port);
 		}
@@ -1979,7 +1977,7 @@ int tb_xdomain_lane_bonding_enable(struct tb_xdomain *xd)
 	struct tb_port *port;
 	int ret;
 
-	port = tb_port_at(xd->route, tb_xdomain_parent(xd));
+	port = tb_xdomain_downstream_port(xd);
 	if (!port->dual_link_port)
 		return -ENODEV;
 
@@ -2024,7 +2022,7 @@ void tb_xdomain_lane_bonding_disable(struct tb_xdomain *xd)
 {
 	struct tb_port *port;
 
-	port = tb_port_at(xd->route, tb_xdomain_parent(xd));
+	port = tb_xdomain_downstream_port(xd);
 	if (port->dual_link_port) {
 		tb_port_lane_bonding_disable(port);
 		if (tb_port_wait_for_link_width(port, 1, 100) == -ETIMEDOUT)
