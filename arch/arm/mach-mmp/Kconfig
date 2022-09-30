@@ -20,8 +20,6 @@ config MACH_MMP_DT
 	select PINCTRL_SINGLE
 	select ARCH_HAS_RESET_CONTROLLER
 	select CPU_MOHAWK
-	select CPU_PXA168 if ATAGS
-	select CPU_PXA910 if ATAGS
 	help
 	  Include support for Marvell MMP2 based platforms using
 	  the device tree. Needn't select any other machine while
@@ -34,7 +32,6 @@ config MACH_MMP2_DT
 	select PINCTRL_SINGLE
 	select ARCH_HAS_RESET_CONTROLLER
 	select CPU_PJ4
-	select CPU_MMP2 if ATAGS
 	select PM_GENERIC_DOMAINS if PM
 	select PM_GENERIC_DOMAINS_OF if PM && OF
 	help
