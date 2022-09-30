@@ -1669,7 +1669,7 @@ static int phylink_attach_phy(struct phylink *pl, struct phy_device *phy,
 {
 	if (WARN_ON(pl->cfg_link_an_mode == MLO_AN_FIXED ||
 		    (pl->cfg_link_an_mode == MLO_AN_INBAND &&
-		     phy_interface_mode_is_8023z(interface))))
+		     phy_interface_mode_is_8023z(interface) && !pl->sfp_bus)))
 		return -EINVAL;
 
 	if (pl->phydev)
@@ -2917,9 +2917,6 @@ static int phylink_sfp_config_phy(struct phylink *pl, u8 mode,
 			    ERR_PTR(ret));
 		return ret;
 	}
-
-	if (phy_interface_mode_is_8023z(iface) && pl->phydev)
-		return -EINVAL;
 
 	pl->link_port = pl->sfp_port;
 
