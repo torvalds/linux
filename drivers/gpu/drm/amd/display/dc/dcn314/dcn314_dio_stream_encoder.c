@@ -56,7 +56,8 @@ static void enc314_enable_fifo(struct stream_encoder *enc)
 
 	/* TODO: Confirm if we need to wait for DIG_SYMCLK_FE_ON */
 	REG_WAIT(DIG_FE_CNTL, DIG_SYMCLK_FE_ON, 1, 10, 5000);
-	REG_UPDATE_2(DIG_FIFO_CTRL0, DIG_FIFO_RESET, 1, DIG_FIFO_READ_START_LEVEL, 0x7);
+	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_READ_START_LEVEL, 0x7);
+	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_RESET, 1);
 	REG_WAIT(DIG_FIFO_CTRL0, DIG_FIFO_RESET_DONE, 1, 10, 5000);
 	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_RESET, 0);
 	REG_WAIT(DIG_FIFO_CTRL0, DIG_FIFO_RESET_DONE, 0, 10, 5000);
@@ -261,6 +262,16 @@ static bool is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
 	return two_pix;
 }
 
+void enc314_stream_encoder_dp_blank(
+	struct dc_link *link,
+	struct stream_encoder *enc)
+{
+	/* New to DCN314 - disable the FIFO before VID stream disable. */
+	enc314_disable_fifo(enc);
+
+	enc1_stream_encoder_dp_blank(link, enc);
+}
+
 static void enc314_stream_encoder_dp_unblank(
 		struct dc_link *link,
 		struct stream_encoder *enc,
@@ -316,14 +327,10 @@ static void enc314_stream_encoder_dp_unblank(
 	/* switch DP encoder to CRTC data, but reset it the fifo first. It may happen
 	 * that it overflows during mode transition, and sometimes doesn't recover.
 	 */
-	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_READ_START_LEVEL, 0x7);
 	REG_UPDATE(DP_STEER_FIFO, DP_STEER_FIFO_RESET, 1);
 	udelay(10);
 
 	REG_UPDATE(DP_STEER_FIFO, DP_STEER_FIFO_RESET, 0);
-
-	/* DIG Resync FIFO now needs to be explicitly enabled. */
-	enc314_enable_fifo(enc);
 
 	/* wait 100us for DIG/DP logic to prime
 	 * (i.e. a few video lines)
@@ -339,6 +346,12 @@ static void enc314_stream_encoder_dp_unblank(
 	 */
 
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_ENABLE, true);
+
+	/*
+	 * DIG Resync FIFO now needs to be explicitly enabled.
+	 * This should come after DP_VID_STREAM_ENABLE per HW docs.
+	 */
+	enc314_enable_fifo(enc);
 
 	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_DP_VID_STREAM);
 }
@@ -408,7 +421,7 @@ static const struct stream_encoder_funcs dcn314_str_enc_funcs = {
 	.stop_dp_info_packets =
 		enc1_stream_encoder_stop_dp_info_packets,
 	.dp_blank =
-		enc1_stream_encoder_dp_blank,
+		enc314_stream_encoder_dp_blank,
 	.dp_unblank =
 		enc314_stream_encoder_dp_unblank,
 	.audio_mute_control = enc3_audio_mute_control,

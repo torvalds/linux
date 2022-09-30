@@ -205,6 +205,8 @@ static int add_queue_mes(struct device_queue_manager *dqm, struct queue *q,
 	}
 
 	queue_input.is_kfd_process = 1;
+	queue_input.is_aql_queue = (q->properties.format == KFD_QUEUE_FORMAT_AQL);
+	queue_input.queue_size = q->properties.queue_size >> 2;
 
 	queue_input.paging = false;
 	queue_input.tba_addr = qpd->tba_addr;

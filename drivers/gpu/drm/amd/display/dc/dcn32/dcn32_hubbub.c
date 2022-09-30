@@ -98,9 +98,13 @@ static void dcn32_program_det_size(struct hubbub *hubbub, int hubp_inst, unsigne
 	default:
 		break;
 	}
-	/* Should never be hit, if it is we have an erroneous hw config*/
-	ASSERT(hubbub2->det0_size + hubbub2->det1_size + hubbub2->det2_size
-			+ hubbub2->det3_size + hubbub2->compbuf_size_segments <= hubbub2->crb_size_segs);
+	if (hubbub2->det0_size + hubbub2->det1_size + hubbub2->det2_size
+			+ hubbub2->det3_size + hubbub2->compbuf_size_segments > hubbub2->crb_size_segs) {
+		/* This may happen during seamless transition from ODM 2:1 to ODM4:1 */
+		DC_LOG_WARNING("CRB Config Warning: DET size (%d,%d,%d,%d) + Compbuf size (%d) >  CRB segments (%d)\n",
+						hubbub2->det0_size, hubbub2->det1_size, hubbub2->det2_size, hubbub2->det3_size,
+						hubbub2->compbuf_size_segments, hubbub2->crb_size_segs);
+	}
 }
 
 static void dcn32_program_compbuf_size(struct hubbub *hubbub, unsigned int compbuf_size_kb, bool safe_to_increase)
