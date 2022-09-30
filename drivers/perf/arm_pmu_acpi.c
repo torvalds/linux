@@ -242,6 +242,22 @@ static bool pmu_irq_matches(struct arm_pmu *pmu, int irq)
 	return true;
 }
 
+static void arm_pmu_acpi_associate_pmu_cpu(struct arm_pmu *pmu,
+					   unsigned int cpu)
+{
+	int irq = per_cpu(pmu_irqs, cpu);
+
+	per_cpu(probed_pmus, cpu) = pmu;
+
+	if (pmu_irq_matches(pmu, irq)) {
+		struct pmu_hw_events __percpu *hw_events;
+		hw_events = pmu->hw_events;
+		per_cpu(hw_events->irq, cpu) = irq;
+	}
+
+	cpumask_set_cpu(cpu, &pmu->supported_cpus);
+}
+
 /*
  * This must run before the common arm_pmu hotplug logic, so that we can
  * associate a CPU and its interrupt before the common code tries to manage the
@@ -254,27 +270,16 @@ static bool pmu_irq_matches(struct arm_pmu *pmu, int irq)
 static int arm_pmu_acpi_cpu_starting(unsigned int cpu)
 {
 	struct arm_pmu *pmu;
-	struct pmu_hw_events __percpu *hw_events;
-	int irq;
 
 	/* If we've already probed this CPU, we have nothing to do */
 	if (per_cpu(probed_pmus, cpu))
 		return 0;
 
-	irq = per_cpu(pmu_irqs, cpu);
-
 	pmu = arm_pmu_acpi_find_alloc_pmu();
 	if (!pmu)
 		return -ENOMEM;
 
-	per_cpu(probed_pmus, cpu) = pmu;
-
-	if (pmu_irq_matches(pmu, irq)) {
-		hw_events = pmu->hw_events;
-		per_cpu(hw_events->irq, cpu) = irq;
-	}
-
-	cpumask_set_cpu(cpu, &pmu->supported_cpus);
+	arm_pmu_acpi_associate_pmu_cpu(pmu, cpu);
 
 	/*
 	 * Ideally, we'd probe the PMU here when we find the first matching
