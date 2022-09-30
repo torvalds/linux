@@ -1804,26 +1804,8 @@ sg_start_req(Sg_request *srp, unsigned char *cmd)
 			md->from_user = 0;
 	}
 
-	if (iov_count) {
-		struct iovec *iov = NULL;
-		struct iov_iter i;
-
-		res = import_iovec(rw, hp->dxferp, iov_count, 0, &iov, &i);
-		if (res < 0)
-			return res;
-
-		iov_iter_truncate(&i, hp->dxfer_len);
-		if (!iov_iter_count(&i)) {
-			kfree(iov);
-			return -EINVAL;
-		}
-
-		res = blk_rq_map_user_iov(q, rq, md, &i, GFP_ATOMIC);
-		kfree(iov);
-	} else
-		res = blk_rq_map_user(q, rq, md, hp->dxferp,
-				      hp->dxfer_len, GFP_ATOMIC);
-
+	res = blk_rq_map_user_io(rq, md, hp->dxferp, hp->dxfer_len,
+			GFP_ATOMIC, iov_count, iov_count, 1, rw);
 	if (!res) {
 		srp->bio = rq->bio;
 
