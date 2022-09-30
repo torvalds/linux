@@ -29,13 +29,13 @@
 #include "stfcamss.h"
 
 
-#define OV4689_LANES    2
+#define OV4689_LANES    4
 
 #define OV4689_LINK_FREQ_500MHZ         500000000LL
 
 /* min/typical/max system clock (xclk) frequencies */
 #define OV4689_XCLK_MIN  6000000
-#define OV4689_XCLK_MAX 54000000
+#define OV4689_XCLK_MAX 64000000
 
 #define OV4689_CHIP_ID	(0x4688)
 
@@ -60,7 +60,7 @@
 
 #define OV4689_REG_AWB_R_GAIN           0x500C
 #define OV4689_REG_AWB_B_GAIN           0x5010
-
+#define OV4689_REG_STREAM_ON            0x0100
 
 enum ov4689_mode_id {
 	//OV4689_MODE_720P_1280_720 = 0,
@@ -184,9 +184,6 @@ struct ov4689_dev {
 	struct v4l2_fract frame_interval;
 
 	struct ov4689_ctrls ctrls;
-
-	u32 prev_sysclk, prev_hts;
-	u32 ae_low, ae_high, ae_target;
 
 	bool pending_mode_change;
 	int streaming;
@@ -1769,11 +1766,6 @@ static int ov4689_set_gain(struct ov4689_dev *sensor, int gain)
 	return 0;
 }
 
-static int ov4689_set_stream_mipi(struct ov4689_dev *sensor, bool on)
-{
-	return 0;
-}
-
 #ifdef UNUSED_CODE
 static int ov4689_get_sysclk(struct ov4689_dev *sensor)
 {
@@ -1969,8 +1961,6 @@ static u64 ov4689_calc_pixel_rate(struct ov4689_dev *sensor)
 #define OV4689_PLL2_DIVS            0x030e  // bits[2:0]
 #define OV4689_PLL2_DIVDAC          0x0312  // bits[3:0]
 
-#define OV4689_TIMING_HTS           0x380c
-
 static int ov4689_set_mipi_pclk(struct ov4689_dev *sensor,
 				unsigned long rate)
 {
@@ -1983,17 +1973,17 @@ static int ov4689_set_mipi_pclk(struct ov4689_dev *sensor,
 
 	htot = mode->htot * ov4689_framerates[mode->max_fps] / fps;
 
-	ret = ov4689_write_reg16(sensor, OV4689_TIMING_HTS, htot);
+	ret = ov4689_write_reg16(sensor, OV4689_REG_TIMING_HTS, htot);
 
-	ret = ov4689_read_reg(sensor, OV4689_TIMING_HTS, &val);
+	ret = ov4689_read_reg(sensor, OV4689_REG_TIMING_HTS, &val);
 	val16 = val << 8;
-	ret = ov4689_read_reg(sensor, OV4689_TIMING_HTS + 1, &val);
+	ret = ov4689_read_reg(sensor, OV4689_REG_TIMING_HTS + 1, &val);
 	val16 |= val;
 
 	st_info(ST_SENSOR, "fps = %d, max_fps = %d\n", fps, mode->max_fps);
 	st_info(ST_SENSOR, "mode->htot = 0x%x, htot = 0x%x\n", mode->htot,
 			htot);
-	st_info(ST_SENSOR, "reg: 0x%x = 0x%x\n", OV4689_TIMING_HTS, val16);
+	st_info(ST_SENSOR, "reg: 0x%x = 0x%x\n", OV4689_REG_TIMING_HTS, val16);
 
 	return 0;
 }
@@ -2015,7 +2005,6 @@ static int ov4689_set_mode_direct(struct ov4689_dev *sensor,
 static int ov4689_set_mode(struct ov4689_dev *sensor)
 {
 	const struct ov4689_mode_info *mode = sensor->current_mode;
-	//const struct ov4689_mode_info *orig_mode = sensor->last_mode;
 
 	int ret = 0;
 
@@ -2023,12 +2012,7 @@ static int ov4689_set_mode(struct ov4689_dev *sensor)
 	if (ret < 0)
 		return ret;
 
-	/*
-	 * we support have 10 bits raw RGB(mipi)
-	 */
-	if (sensor->ep.bus_type == V4L2_MBUS_CSI2_DPHY)
-		ret = ov4689_set_mipi_pclk(sensor, 0);
-
+	ret = ov4689_set_mipi_pclk(sensor, 0);
 	if (ret < 0)
 		return 0;
 
@@ -2686,7 +2670,7 @@ out:
 
 static int ov4689_stream_start(struct ov4689_dev *sensor, int enable)
 {
-	return ov4689_write_reg(sensor, 0x100, enable);
+	return ov4689_write_reg(sensor, OV4689_REG_STREAM_ON, enable);
 }
 
 static int ov4689_s_stream(struct v4l2_subdev *sd, int enable)
@@ -2718,9 +2702,6 @@ static int ov4689_s_stream(struct v4l2_subdev *sd, int enable)
 			if (ret)
 				goto out;
 		}
-
-		if (sensor->ep.bus_type == V4L2_MBUS_CSI2_DPHY)
-			ov4689_set_stream_mipi(sensor, enable);
 
 		ret = ov4689_stream_start(sensor, enable);
 		if (ret)
@@ -2830,7 +2811,6 @@ static int ov4689_probe(struct i2c_client *client)
 		&ov4689_mode_data[OV4689_MODE_1080P_1920_1080];
 	sensor->last_mode = sensor->current_mode;
 
-	sensor->ae_target = 52;
 
 	/* optional indication of physical rotation of sensor */
 	ret = fwnode_property_read_u32(dev_fwnode(&client->dev), "rotation",
@@ -2862,9 +2842,7 @@ static int ov4689_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	if (sensor->ep.bus_type != V4L2_MBUS_PARALLEL &&
-		sensor->ep.bus_type != V4L2_MBUS_CSI2_DPHY &&
-		sensor->ep.bus_type != V4L2_MBUS_BT656) {
+	if (sensor->ep.bus_type != V4L2_MBUS_CSI2_DPHY) {
 		dev_err(dev, "Unsupported bus type %d\n", sensor->ep.bus_type);
 		return -EINVAL;
 	}
