@@ -432,8 +432,6 @@ mt7915_tm_update_channel(struct mt7915_phy *phy)
 static void
 mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
 {
-	static const u8 spe_idx_map[] = {0, 0, 1, 0, 3, 2, 4, 0,
-					 9, 8, 6, 10, 16, 12, 18, 0};
 	struct mt76_testmode_data *td = &phy->mt76->test;
 	struct mt7915_dev *dev = phy->dev;
 	struct ieee80211_tx_info *info;
@@ -450,7 +448,7 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
 		if (td->tx_spe_idx)
 			phy->test.spe_idx = td->tx_spe_idx;
 		else
-			phy->test.spe_idx = spe_idx_map[td->tx_antenna_mask];
+			phy->test.spe_idx = mt76_connac_spe_idx(td->tx_antenna_mask);
 	}
 
 	mt7915_tm_set_tam_arb(phy, en,

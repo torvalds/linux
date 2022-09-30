@@ -1306,6 +1306,9 @@ int mt7915_mcu_set_fixed_rate_ctrl(struct mt7915_dev *dev,
 	case RATE_PARAM_MMPS_UPDATE:
 		ra->mmps_mode = mt7915_mcu_get_mmps_mode(sta->deflink.smps_mode);
 		break;
+	case RATE_PARAM_SPE_UPDATE:
+		ra->spe_idx = *(u8 *)data;
+		break;
 	default:
 		break;
 	}
@@ -1346,6 +1349,18 @@ int mt7915_mcu_add_smps(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 
 	return mt7915_mcu_set_fixed_rate_ctrl(dev, vif, sta, NULL,
 					      RATE_PARAM_MMPS_UPDATE);
+}
+
+static int
+mt7915_mcu_set_spe_idx(struct mt7915_dev *dev, struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta)
+{
+	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
+	struct mt76_phy *mphy = mvif->phy->mt76;
+	u8 spe_idx = mt76_connac_spe_idx(mphy->antenna_mask);
+
+	return mt7915_mcu_set_fixed_rate_ctrl(dev, vif, sta, &spe_idx,
+					      RATE_PARAM_SPE_UPDATE);
 }
 
 static int
@@ -1435,7 +1450,7 @@ mt7915_mcu_add_rate_ctrl_fixed(struct mt7915_dev *dev,
 			return ret;
 	}
 
-	return 0;
+	return mt7915_mcu_set_spe_idx(dev, vif, sta);
 }
 
 static void
@@ -2647,6 +2662,9 @@ int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)
 		req.rx_path = phy->mt76->test.tx_antenna_mask;
 	}
 #endif
+
+	if (mt76_connac_spe_idx(phy->mt76->antenna_mask))
+		req.tx_path_num = fls(phy->mt76->antenna_mask);
 
 	if (cmd == MCU_EXT_CMD(SET_RX_PATH) ||
 	    dev->mt76.hw->conf.flags & IEEE80211_CONF_MONITOR)
