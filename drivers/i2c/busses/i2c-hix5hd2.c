@@ -360,7 +360,11 @@ static int hix5hd2_i2c_xfer(struct i2c_adapter *adap,
 	pm_runtime_get_sync(priv->dev);
 
 	for (i = 0; i < num; i++, msgs++) {
-		stop = (i == num - 1);
+		if ((i == num - 1) || (msgs->flags & I2C_M_STOP))
+			stop = 1;
+		else
+			stop = 0;
+
 		ret = hix5hd2_i2c_xfer_msg(priv, msgs, stop);
 		if (ret < 0)
 			goto out;
