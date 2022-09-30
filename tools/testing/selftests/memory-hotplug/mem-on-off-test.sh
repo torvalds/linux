@@ -134,6 +134,16 @@ offline_memory_expect_fail()
 	return 0
 }
 
+online_all_offline_memory()
+{
+	for memory in `hotpluggable_offline_memory`; do
+		if ! online_memory_expect_success $memory; then
+			echo "$FUNCNAME $memory: unexpected fail" >&2
+			retval=1
+		fi
+	done
+}
+
 error=-12
 priority=0
 # Run with default of ratio=2 for Kselftest run
@@ -275,11 +285,7 @@ done
 # Online all hot-pluggable memory
 #
 echo 0 > $NOTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_ONLINE/error
-for memory in `hotpluggable_offline_memory`; do
-	if ! online_memory_expect_success $memory; then
-		retval=1
-	fi
-done
+online_all_offline_memory
 
 #
 # Test memory hot-remove error handling (online => offline)
@@ -295,5 +301,10 @@ done
 
 echo 0 > $NOTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_OFFLINE/error
 /sbin/modprobe -q -r memory-notifier-error-inject
+
+#
+# Restore memory before exit
+#
+online_all_offline_memory
 
 exit $retval
