@@ -16,7 +16,9 @@
 
 #include <trace/events/habanalabs.h>
 
-#define HL_RESET_DELAY_USEC		10000	/* 10ms */
+#define HL_RESET_DELAY_USEC			10000	/* 10ms */
+
+#define HL_DEVICE_RELEASE_WATCHDOG_TIMEOUT_SEC	5
 
 enum dma_alloc_type {
 	DMA_ALLOC_COHERENT,
@@ -387,7 +389,7 @@ bool hl_ctrl_device_operational(struct hl_device *hdev,
 static void hpriv_release(struct kref *ref)
 {
 	u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {0};
-	bool device_is_idle = true;
+	bool reset_device, device_is_idle = true;
 	struct hl_fpriv *hpriv;
 	struct hl_device *hdev;
 
@@ -404,14 +406,20 @@ static void hpriv_release(struct kref *ref)
 	mutex_destroy(&hpriv->ctx_lock);
 	mutex_destroy(&hpriv->restore_phase_mutex);
 
-	/* No need for idle status check if device is going to be reset in any case */
-	if (!hdev->reset_upon_device_release && hdev->pdev && !hdev->pldm)
+	/* Device should be reset if reset-upon-device-release is enabled, or if there is a pending
+	 * reset that waits for device release.
+	 */
+	reset_device = hdev->reset_upon_device_release || hdev->reset_info.watchdog_active;
+
+	/* Unless device is reset in any case, check idle status and reset if device is not idle */
+	if (!reset_device && hdev->pdev && !hdev->pldm)
 		device_is_idle = hdev->asic_funcs->is_device_idle(hdev, idle_mask,
 							HL_BUSY_ENGINES_MASK_EXT_SIZE, NULL);
-
-	if (!device_is_idle)
+	if (!device_is_idle) {
 		dev_err(hdev->dev, "device not idle after user context is closed (0x%llx_%llx)\n",
 			idle_mask[1], idle_mask[0]);
+		reset_device = true;
+	}
 
 	/* We need to remove the user from the list to make sure the reset process won't
 	 * try to kill the user process. Because, if we got here, it means there are no
@@ -426,9 +434,10 @@ static void hpriv_release(struct kref *ref)
 	list_del(&hpriv->dev_node);
 	mutex_unlock(&hdev->fpriv_list_lock);
 
-	if (!device_is_idle || hdev->reset_upon_device_release) {
+	if (reset_device) {
 		hl_device_reset(hdev, HL_DRV_RESET_DEV_RELEASE);
 	} else {
+		/* Scrubbing is handled within hl_device_reset(), so here need to do it directly */
 		int rc = hdev->asic_funcs->scrub_device_mem(hdev);
 
 		if (rc)
@@ -695,6 +704,20 @@ static void device_hard_reset_pending(struct work_struct *work)
 	}
 }
 
+static void device_release_watchdog_func(struct work_struct *work)
+{
+	struct hl_device_reset_work *device_release_watchdog_work =
+				container_of(work, struct hl_device_reset_work, reset_work.work);
+	struct hl_device *hdev = device_release_watchdog_work->hdev;
+	u32 flags;
+
+	dev_dbg(hdev->dev, "Device wasn't released in time. Initiate device reset.\n");
+
+	flags = device_release_watchdog_work->flags | HL_DRV_RESET_FROM_WD_THR;
+
+	hl_device_reset(hdev, flags);
+}
+
 /*
  * device_early_init - do some early initialization for the habanalabs device
  *
@@ -813,10 +836,13 @@ static int device_early_init(struct hl_device *hdev)
 		goto free_cb_mgr;
 	}
 
-	INIT_DELAYED_WORK(&hdev->device_reset_work.reset_work,
-			device_hard_reset_pending);
+	INIT_DELAYED_WORK(&hdev->device_reset_work.reset_work, device_hard_reset_pending);
 	hdev->device_reset_work.hdev = hdev;
 	hdev->device_fini_pending = 0;
+
+	INIT_DELAYED_WORK(&hdev->device_release_watchdog_work.reset_work,
+				device_release_watchdog_func);
+	hdev->device_release_watchdog_work.hdev = hdev;
 
 	mutex_init(&hdev->send_cpu_message_lock);
 	mutex_init(&hdev->debug_lock);
@@ -1367,8 +1393,8 @@ static void handle_reset_trigger(struct hl_device *hdev, u32 flags)
 int hl_device_reset(struct hl_device *hdev, u32 flags)
 {
 	bool hard_reset, from_hard_reset_thread, fw_reset, hard_instead_soft = false,
-			reset_upon_device_release = false, schedule_hard_reset = false,
-			skip_wq_flush, delay_reset;
+			reset_upon_device_release = false, schedule_hard_reset = false, delay_reset,
+			from_dev_release, from_watchdog_thread;
 	u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE] = {0};
 	struct hl_ctx *ctx;
 	int i, rc;
@@ -1381,8 +1407,9 @@ int hl_device_reset(struct hl_device *hdev, u32 flags)
 	hard_reset = !!(flags & HL_DRV_RESET_HARD);
 	from_hard_reset_thread = !!(flags & HL_DRV_RESET_FROM_RESET_THR);
 	fw_reset = !!(flags & HL_DRV_RESET_BYPASS_REQ_TO_FW);
-	skip_wq_flush = !!(flags & HL_DRV_RESET_DEV_RELEASE);
+	from_dev_release = !!(flags & HL_DRV_RESET_DEV_RELEASE);
 	delay_reset = !!(flags & HL_DRV_RESET_DELAY);
+	from_watchdog_thread = !!(flags & HL_DRV_RESET_FROM_WD_THR);
 
 	if (!hard_reset && !hdev->asic_prop.supports_compute_reset) {
 		hard_instead_soft = true;
@@ -1439,6 +1466,23 @@ do_reset:
 
 		spin_unlock(&hdev->reset_info.lock);
 
+		/* Cancel the device release watchdog work if required.
+		 * In case of reset-upon-device-release while the release watchdog work is
+		 * scheduled, do hard-reset instead of compute-reset.
+		 */
+		if ((hard_reset || from_dev_release) && hdev->reset_info.watchdog_active) {
+			hdev->reset_info.watchdog_active = 0;
+			if (!from_watchdog_thread)
+				cancel_delayed_work_sync(
+						&hdev->device_release_watchdog_work.reset_work);
+
+			if (from_dev_release) {
+				flags |= HL_DRV_RESET_HARD;
+				flags &= ~HL_DRV_RESET_DEV_RELEASE;
+				hard_reset = true;
+			}
+		}
+
 		if (delay_reset)
 			usleep_range(HL_RESET_DELAY_USEC, HL_RESET_DELAY_USEC << 1);
 
@@ -1474,7 +1518,7 @@ again:
 		return 0;
 	}
 
-	cleanup_resources(hdev, hard_reset, fw_reset, skip_wq_flush);
+	cleanup_resources(hdev, hard_reset, fw_reset, from_dev_release);
 
 kill_processes:
 	if (hard_reset) {
@@ -1735,6 +1779,73 @@ out_err:
 	return rc;
 }
 
+/*
+ * hl_device_cond_reset() - conditionally reset the device.
+ * @hdev: pointer to habanalabs device structure.
+ * @reset_flags: reset flags.
+ * @event_mask: events to notify user about.
+ *
+ * Conditionally reset the device, or alternatively schedule a watchdog work to reset the device
+ * unless another reset precedes it.
+ */
+int hl_device_cond_reset(struct hl_device *hdev, u32 flags, u64 event_mask)
+{
+	struct hl_ctx *ctx = NULL;
+
+	/* Device release watchdog is only for hard reset */
+	if (!(flags & HL_DRV_RESET_HARD) && hdev->asic_prop.allow_inference_soft_reset)
+		goto device_reset;
+
+	/* F/W reset cannot be postponed */
+	if (flags & HL_DRV_RESET_BYPASS_REQ_TO_FW)
+		goto device_reset;
+
+	/* Device release watchdog is relevant only if user exists and gets a reset notification */
+	if (!(event_mask & HL_NOTIFIER_EVENT_DEVICE_RESET)) {
+		dev_err(hdev->dev, "Resetting device without a reset indication to user\n");
+		goto device_reset;
+	}
+
+	ctx = hl_get_compute_ctx(hdev);
+	if (!ctx || !ctx->hpriv->notifier_event.eventfd)
+		goto device_reset;
+
+	/* Schedule the device release watchdog work unless reset is already in progress or if the
+	 * work is already scheduled.
+	 */
+	spin_lock(&hdev->reset_info.lock);
+	if (hdev->reset_info.in_reset) {
+		spin_unlock(&hdev->reset_info.lock);
+		goto device_reset;
+	}
+
+	if (hdev->reset_info.watchdog_active)
+		goto out;
+
+	hdev->device_release_watchdog_work.flags = flags;
+	dev_dbg(hdev->dev, "Device is going to be reset in %u sec unless being released\n",
+		hdev->device_release_watchdog_timeout_sec);
+	schedule_delayed_work(&hdev->device_release_watchdog_work.reset_work,
+				msecs_to_jiffies(hdev->device_release_watchdog_timeout_sec * 1000));
+	hdev->reset_info.watchdog_active = 1;
+out:
+	spin_unlock(&hdev->reset_info.lock);
+
+	hl_notifier_event_send_all(hdev, event_mask);
+
+	hl_ctx_put(ctx);
+
+	return 0;
+
+device_reset:
+	if (event_mask)
+		hl_notifier_event_send_all(hdev, event_mask);
+	if (ctx)
+		hl_ctx_put(ctx);
+
+	return hl_device_reset(hdev, flags);
+}
+
 static void hl_notifier_event_send(struct hl_notifier_event *notifier_event, u64 event_mask)
 {
 	mutex_lock(&notifier_event->lock);
@@ -1931,6 +2042,8 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	hdev->is_compute_ctx_active = false;
 
 	hdev->asic_funcs->state_dump_init(hdev);
+
+	hdev->device_release_watchdog_timeout_sec = HL_DEVICE_RELEASE_WATCHDOG_TIMEOUT_SEC;
 
 	hdev->memory_scrub_val = MEM_SCRUB_DEFAULT_VAL;
 	hl_debugfs_add_device(hdev);
@@ -2151,6 +2264,8 @@ void hl_device_fini(struct hl_device *hdev)
 			return;
 		}
 	}
+
+	cancel_delayed_work_sync(&hdev->device_release_watchdog_work.reset_work);
 
 	/* Disable PCI access from device F/W so it won't send us additional
 	 * interrupts. We disable MSI/MSI-X at the halt_engines function and we

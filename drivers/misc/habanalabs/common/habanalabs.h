@@ -191,6 +191,9 @@ enum hl_mmu_enablement {
  *
  * - HL_DRV_RESET_DELAY
  *       Set if a delay should be added before the reset
+ *
+ * - HL_DRV_RESET_FROM_WD_THR
+ *       Set if the caller is the device release watchdog thread
  */
 
 #define HL_DRV_RESET_HARD		(1 << 0)
@@ -201,6 +204,7 @@ enum hl_mmu_enablement {
 #define HL_DRV_RESET_BYPASS_REQ_TO_FW	(1 << 5)
 #define HL_DRV_RESET_FW_FATAL_ERR	(1 << 6)
 #define HL_DRV_RESET_DELAY		(1 << 7)
+#define HL_DRV_RESET_FROM_WD_THR	(1 << 8)
 
 /*
  * Security
@@ -3009,6 +3013,7 @@ struct hl_error_info {
  *                          same cause.
  * @skip_reset_on_timeout: Skip device reset if CS has timed out, wait for it to
  *                         complete instead.
+ * @watchdog_active: true if a device release watchdog work is scheduled.
  */
 struct hl_reset_info {
 	spinlock_t	lock;
@@ -3019,12 +3024,11 @@ struct hl_reset_info {
 	u8		in_compute_reset;
 	u8		needs_reset;
 	u8		hard_reset_pending;
-
 	u8		curr_reset_cause;
 	u8		prev_reset_trigger;
 	u8		reset_trigger_repeated;
-
 	u8		skip_reset_on_timeout;
+	u8		watchdog_active;
 };
 
 /**
@@ -3040,6 +3044,8 @@ struct hl_reset_info {
  * @dev_ctrl: related kernel device structure for the control device
  * @work_heartbeat: delayed work for CPU-CP is-alive check.
  * @device_reset_work: delayed work which performs hard reset
+ * @device_release_watchdog_work: watchdog work that performs hard reset if user doesn't release
+ *                                device upon certain error cases.
  * @asic_name: ASIC specific name.
  * @asic_type: ASIC specific type.
  * @completion_queue: array of hl_cq.
@@ -3149,6 +3155,7 @@ struct hl_reset_info {
  *                   indicates which decoder engines are binned-out
  * @edma_binning: contains mask of edma engines that is received from the f/w which
  *                   indicates which edma engines are binned-out
+ * @device_release_watchdog_timeout_sec: device release watchdog timeout value in seconds.
  * @id: device minor.
  * @id_control: minor of the control device.
  * @cdev_idx: char device index. Used for setting its name.
@@ -3218,6 +3225,7 @@ struct hl_device {
 	struct device			*dev_ctrl;
 	struct delayed_work		work_heartbeat;
 	struct hl_device_reset_work	device_reset_work;
+	struct hl_device_reset_work	device_release_watchdog_work;
 	char				asic_name[HL_STR_MAX];
 	char				status[HL_DEV_STS_MAX][HL_STR_MAX];
 	enum hl_asic_type		asic_type;
@@ -3312,6 +3320,7 @@ struct hl_device {
 	u32				high_pll;
 	u32				decoder_binning;
 	u32				edma_binning;
+	u32				device_release_watchdog_timeout_sec;
 	u16				id;
 	u16				id_control;
 	u16				cdev_idx;
@@ -3551,6 +3560,7 @@ void hl_device_fini(struct hl_device *hdev);
 int hl_device_suspend(struct hl_device *hdev);
 int hl_device_resume(struct hl_device *hdev);
 int hl_device_reset(struct hl_device *hdev, u32 flags);
+int hl_device_cond_reset(struct hl_device *hdev, u32 flags, u64 event_mask);
 void hl_hpriv_get(struct hl_fpriv *hpriv);
 int hl_hpriv_put(struct hl_fpriv *hpriv);
 int hl_device_utilization(struct hl_device *hdev, u32 *utilization);
