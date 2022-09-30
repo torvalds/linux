@@ -2099,6 +2099,7 @@ static void analogix_dp_link_train_restore(struct analogix_dp_device *dp)
 
 int analogix_dp_loader_protect(struct analogix_dp_device *dp)
 {
+	u8 link_status[DP_LINK_STATUS_SIZE];
 	int ret;
 
 	ret = analogix_dp_phy_power_on(dp);
@@ -2117,6 +2118,18 @@ int analogix_dp_loader_protect(struct analogix_dp_device *dp)
 		ret = analogix_dp_enable_sink_psr(dp);
 		if (ret)
 			goto err_disable;
+	}
+
+	ret = drm_dp_dpcd_read_link_status(&dp->aux, link_status);
+	if (ret < 0) {
+		dev_err(dp->dev, "Failed to read link status\n");
+		goto err_disable;
+	}
+
+	if (!drm_dp_channel_eq_ok(link_status, dp->link_train.lane_count)) {
+		dev_err(dp->dev, "Channel EQ or CR not ok\n");
+		ret = -EINVAL;
+		goto err_disable;
 	}
 
 	return 0;
