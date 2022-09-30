@@ -43,11 +43,6 @@ static const char * const btf_kind_str[NR_BTF_KINDS] = {
 	[BTF_KIND_ENUM64]	= "ENUM64",
 };
 
-struct btf_attach_point {
-	__u32 obj_id;
-	__u32 btf_id;
-};
-
 static const char *btf_int_enc_str(__u8 encoding)
 {
 	switch (encoding) {

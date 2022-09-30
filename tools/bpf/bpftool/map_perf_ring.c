@@ -29,13 +29,6 @@
 
 static volatile bool stop;
 
-struct event_ring_info {
-	int fd;
-	int key;
-	unsigned int cpu;
-	void *mem;
-};
-
 struct perf_event_sample {
 	struct perf_event_header header;
 	__u64 time;
