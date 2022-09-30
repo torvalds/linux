@@ -879,6 +879,9 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 	case HL_INFO_USER_MAPPINGS:
 		return user_mappings_info(hpriv, args);
 
+	case HL_INFO_UNREGISTER_EVENTFD:
+		return eventfd_unregister(hpriv, args);
+
 	default:
 		break;
 	}
@@ -934,9 +937,6 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_REGISTER_EVENTFD:
 		return eventfd_register(hpriv, args);
-
-	case HL_INFO_UNREGISTER_EVENTFD:
-		return eventfd_unregister(hpriv, args);
 
 	case HL_INFO_ENGINE_STATUS:
 		return engine_status_info(hpriv, args);
