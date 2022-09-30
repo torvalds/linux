@@ -183,19 +183,8 @@ static void ieee80211_add_addbaext(struct ieee80211_sub_if_data *sdata,
 				   const struct ieee80211_addba_ext_ie *req,
 				   u16 buf_size)
 {
-	struct ieee80211_supported_band *sband;
 	struct ieee80211_addba_ext_ie *resp;
-	const struct ieee80211_sta_he_cap *he_cap;
-	u8 frag_level, cap_frag_level;
 	u8 *pos;
-
-	sband = ieee80211_get_sband(sdata);
-	if (!sband)
-		return;
-	he_cap = ieee80211_get_he_iftype_cap(sband,
-					     ieee80211_vif_type_p2p(&sdata->vif));
-	if (!he_cap)
-		return;
 
 	pos = skb_put_zero(skb, 2 + sizeof(struct ieee80211_addba_ext_ie));
 	*pos++ = WLAN_EID_ADDBA_EXT;
@@ -203,14 +192,6 @@ static void ieee80211_add_addbaext(struct ieee80211_sub_if_data *sdata,
 	resp = (struct ieee80211_addba_ext_ie *)pos;
 	resp->data = req->data & IEEE80211_ADDBA_EXT_NO_FRAG;
 
-	frag_level = u32_get_bits(req->data,
-				  IEEE80211_ADDBA_EXT_FRAG_LEVEL_MASK);
-	cap_frag_level = u32_get_bits(he_cap->he_cap_elem.mac_cap_info[0],
-				      IEEE80211_HE_MAC_CAP0_DYNAMIC_FRAG_MASK);
-	if (frag_level > cap_frag_level)
-		frag_level = cap_frag_level;
-	resp->data |= u8_encode_bits(frag_level,
-				     IEEE80211_ADDBA_EXT_FRAG_LEVEL_MASK);
 	resp->data |= u8_encode_bits(buf_size >> IEEE80211_ADDBA_EXT_BUF_SIZE_SHIFT,
 				     IEEE80211_ADDBA_EXT_BUF_SIZE_MASK);
 }
