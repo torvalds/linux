@@ -1085,15 +1085,22 @@
 			ports-implemented = <0x1>;
 		};
 
-		/* Temporary fixed regulator */
-		sdcc1bam: dma-controller@12402000{
-			compatible = "qcom,bam-v1.3.0";
-			reg = <0x12402000 0x8000>;
-			interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&gcc SDC1_H_CLK>;
-			clock-names = "bam_clk";
-			#dma-cells = <1>;
-			qcom,ee = <0>;
+		sdcc3: mmc@12180000 {
+			compatible = "arm,pl18x", "arm,primecell";
+			arm,primecell-periphid = <0x00051180>;
+			status = "disabled";
+			reg = <0x12180000 0x2000>;
+			interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "cmd_irq";
+			clocks = <&gcc SDC3_CLK>, <&gcc SDC3_H_CLK>;
+			clock-names = "mclk", "apb_pclk";
+			bus-width = <4>;
+			cap-sd-highspeed;
+			cap-mmc-highspeed;
+			max-frequency = <192000000>;
+			no-1-8-v;
+			dmas = <&sdcc3bam 2>, <&sdcc3bam 1>;
+			dma-names = "tx", "rx";
 		};
 
 		sdcc3bam: dma-controller@12182000{
@@ -1106,6 +1113,25 @@
 			qcom,ee = <0>;
 		};
 
+		sdcc4: mmc@121c0000 {
+			compatible = "arm,pl18x", "arm,primecell";
+			arm,primecell-periphid = <0x00051180>;
+			status = "disabled";
+			reg = <0x121c0000 0x2000>;
+			interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "cmd_irq";
+			clocks = <&gcc SDC4_CLK>, <&gcc SDC4_H_CLK>;
+			clock-names = "mclk", "apb_pclk";
+			bus-width = <4>;
+			cap-sd-highspeed;
+			cap-mmc-highspeed;
+			max-frequency = <48000000>;
+			dmas = <&sdcc4bam 2>, <&sdcc4bam 1>;
+			dma-names = "tx", "rx";
+			pinctrl-names = "default";
+			pinctrl-0 = <&sdc4_gpios>;
+		};
+
 		sdcc4bam: dma-controller@121c2000{
 			compatible = "qcom,bam-v1.3.0";
 			reg = <0x121c2000 0x8000>;
@@ -1116,67 +1142,34 @@
 			qcom,ee = <0>;
 		};
 
-		amba {
-			compatible = "simple-bus";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges;
-			sdcc1: mmc@12400000 {
-				status = "disabled";
-				compatible = "arm,pl18x", "arm,primecell";
-				pinctrl-names = "default";
-				pinctrl-0 = <&sdcc1_pins>;
-				arm,primecell-periphid = <0x00051180>;
-				reg = <0x12400000 0x2000>;
-				interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names = "cmd_irq";
-				clocks = <&gcc SDC1_CLK>, <&gcc SDC1_H_CLK>;
-				clock-names = "mclk", "apb_pclk";
-				bus-width = <8>;
-				max-frequency = <96000000>;
-				non-removable;
-				cap-sd-highspeed;
-				cap-mmc-highspeed;
-				dmas = <&sdcc1bam 2>, <&sdcc1bam 1>;
-				dma-names = "tx", "rx";
-			};
+		sdcc1: mmc@12400000 {
+			status = "disabled";
+			compatible = "arm,pl18x", "arm,primecell";
+			pinctrl-names = "default";
+			pinctrl-0 = <&sdcc1_pins>;
+			arm,primecell-periphid = <0x00051180>;
+			reg = <0x12400000 0x2000>;
+			interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "cmd_irq";
+			clocks = <&gcc SDC1_CLK>, <&gcc SDC1_H_CLK>;
+			clock-names = "mclk", "apb_pclk";
+			bus-width = <8>;
+			max-frequency = <96000000>;
+			non-removable;
+			cap-sd-highspeed;
+			cap-mmc-highspeed;
+			dmas = <&sdcc1bam 2>, <&sdcc1bam 1>;
+			dma-names = "tx", "rx";
+		};
 
-			sdcc3: mmc@12180000 {
-				compatible = "arm,pl18x", "arm,primecell";
-				arm,primecell-periphid = <0x00051180>;
-				status = "disabled";
-				reg = <0x12180000 0x2000>;
-				interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names = "cmd_irq";
-				clocks = <&gcc SDC3_CLK>, <&gcc SDC3_H_CLK>;
-				clock-names = "mclk", "apb_pclk";
-				bus-width = <4>;
-				cap-sd-highspeed;
-				cap-mmc-highspeed;
-				max-frequency = <192000000>;
-				no-1-8-v;
-				dmas = <&sdcc3bam 2>, <&sdcc3bam 1>;
-				dma-names = "tx", "rx";
-			};
-
-			sdcc4: mmc@121c0000 {
-				compatible = "arm,pl18x", "arm,primecell";
-				arm,primecell-periphid = <0x00051180>;
-				status = "disabled";
-				reg = <0x121c0000 0x2000>;
-				interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names = "cmd_irq";
-				clocks = <&gcc SDC4_CLK>, <&gcc SDC4_H_CLK>;
-				clock-names = "mclk", "apb_pclk";
-				bus-width = <4>;
-				cap-sd-highspeed;
-				cap-mmc-highspeed;
-				max-frequency = <48000000>;
-				dmas = <&sdcc4bam 2>, <&sdcc4bam 1>;
-				dma-names = "tx", "rx";
-				pinctrl-names = "default";
-				pinctrl-0 = <&sdc4_gpios>;
-			};
+		sdcc1bam: dma-controller@12402000{
+			compatible = "qcom,bam-v1.3.0";
+			reg = <0x12402000 0x8000>;
+			interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc SDC1_H_CLK>;
+			clock-names = "bam_clk";
+			#dma-cells = <1>;
+			qcom,ee = <0>;
 		};
 
 		tcsr: syscon@1a400000 {
