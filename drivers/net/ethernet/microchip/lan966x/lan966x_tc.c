@@ -4,6 +4,8 @@
 
 #include "lan966x_main.h"
 
+static LIST_HEAD(lan966x_tc_block_cb_list);
+
 static int lan966x_tc_setup_qdisc_mqprio(struct lan966x_port *port,
 					 struct tc_mqprio_qopt_offload *mqprio)
 {
@@ -59,6 +61,52 @@ static int lan966x_tc_setup_qdisc_ets(struct lan966x_port *port,
 	return -EOPNOTSUPP;
 }
 
+static int lan966x_tc_block_cb(enum tc_setup_type type, void *type_data,
+			       void *cb_priv, bool ingress)
+{
+	struct lan966x_port *port = cb_priv;
+
+	switch (type) {
+	case TC_SETUP_CLSMATCHALL:
+		return lan966x_tc_matchall(port, type_data, ingress);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int lan966x_tc_block_cb_ingress(enum tc_setup_type type,
+				       void *type_data, void *cb_priv)
+{
+	return lan966x_tc_block_cb(type, type_data, cb_priv, true);
+}
+
+static int lan966x_tc_block_cb_egress(enum tc_setup_type type,
+				      void *type_data, void *cb_priv)
+{
+	return lan966x_tc_block_cb(type, type_data, cb_priv, false);
+}
+
+static int lan966x_tc_setup_block(struct lan966x_port *port,
+				  struct flow_block_offload *f)
+{
+	flow_setup_cb_t *cb;
+	bool ingress;
+
+	if (f->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS) {
+		cb = lan966x_tc_block_cb_ingress;
+		port->tc.ingress_shared_block = f->block_shared;
+		ingress = true;
+	} else if (f->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS) {
+		cb = lan966x_tc_block_cb_egress;
+		ingress = false;
+	} else {
+		return -EOPNOTSUPP;
+	}
+
+	return flow_block_cb_setup_simple(f, &lan966x_tc_block_cb_list,
+					  cb, port, port, ingress);
+}
+
 int lan966x_tc_setup(struct net_device *dev, enum tc_setup_type type,
 		     void *type_data)
 {
@@ -75,6 +123,8 @@ int lan966x_tc_setup(struct net_device *dev, enum tc_setup_type type,
 		return lan966x_tc_setup_qdisc_cbs(port, type_data);
 	case TC_SETUP_QDISC_ETS:
 		return lan966x_tc_setup_qdisc_ets(port, type_data);
+	case TC_SETUP_BLOCK:
+		return lan966x_tc_setup_block(port, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}
