@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of_device.h>
+#include <linux/pm_runtime.h>
 
 #include <dt-bindings/clock/starfive-jh7110-clkgen.h>
 #include "clk-starfive-jh7110.h"
@@ -53,6 +54,19 @@ void __iomem *jh7110_clk_reg_addr_get(struct jh7110_clk *clk)
 static u32 jh7110_clk_reg_get(struct jh7110_clk *clk)
 {
 	void __iomem *reg = jh7110_clk_reg_addr_get(clk);
+	if (clk->reg_flags == JH7110_CLK_ISP_FLAG) {
+		int ret;
+		struct jh7110_clk_priv *priv = jh7110_priv_from(clk);
+
+		if (pm_runtime_suspended(priv->dev)) {
+			ret = pm_runtime_get_sync(priv->dev);
+			if (ret < 0) {
+				dev_err(priv->dev, "cannot resume device :%d.\n", ret);
+				return 0;
+			}
+			pm_runtime_put(priv->dev);
+		}
+	}
 
 	return readl_relaxed(reg);
 }
@@ -69,7 +83,7 @@ static void jh7110_clk_reg_rmw(struct jh7110_clk *clk, u32 mask, u32 value)
 		|| clk->idx == JH7110_UART5_CLK_CORE)
 		&& (value != JH7110_CLK_ENABLE))
 		value  <<= 8;
-	value |= readl_relaxed(reg) & ~mask;
+	value |= jh7110_clk_reg_get(clk) & ~mask;
 	writel_relaxed(value, reg);
 	spin_unlock_irqrestore(&priv->rmw_lock, flags);
 }
