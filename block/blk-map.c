@@ -611,6 +611,42 @@ int blk_rq_map_user(struct request_queue *q, struct request *rq,
 }
 EXPORT_SYMBOL(blk_rq_map_user);
 
+int blk_rq_map_user_io(struct request *req, struct rq_map_data *map_data,
+		void __user *ubuf, unsigned long buf_len, gfp_t gfp_mask,
+		bool vec, int iov_count, bool check_iter_count, int rw)
+{
+	int ret = 0;
+
+	if (vec) {
+		struct iovec fast_iov[UIO_FASTIOV];
+		struct iovec *iov = fast_iov;
+		struct iov_iter iter;
+
+		ret = import_iovec(rw, ubuf, iov_count ? iov_count : buf_len,
+				UIO_FASTIOV, &iov, &iter);
+		if (ret < 0)
+			return ret;
+
+		if (iov_count) {
+			/* SG_IO howto says that the shorter of the two wins */
+			iov_iter_truncate(&iter, buf_len);
+			if (check_iter_count && !iov_iter_count(&iter)) {
+				kfree(iov);
+				return -EINVAL;
+			}
+		}
+
+		ret = blk_rq_map_user_iov(req->q, req, map_data, &iter,
+				gfp_mask);
+		kfree(iov);
+	} else if (buf_len) {
+		ret = blk_rq_map_user(req->q, req, map_data, ubuf, buf_len,
+				gfp_mask);
+	}
+	return ret;
+}
+EXPORT_SYMBOL(blk_rq_map_user_io);
+
 /**
  * blk_rq_unmap_user - unmap a request with user data
  * @bio:	       start of bio list
