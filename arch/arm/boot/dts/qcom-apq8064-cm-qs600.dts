@@ -29,16 +29,13 @@
 		};
 	};
 
-	soc {
-		/* on board fixed 3.3v supply */
-		v3p3_fixed: v3p3 {
-			compatible = "regulator-fixed";
-			regulator-name = "PCIE V3P3";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-always-on;
-		};
-
+	/* on board fixed 3.3v supply */
+	v3p3_fixed: regulator-v3p3 {
+		compatible = "regulator-fixed";
+		regulator-name = "PCIE V3P3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
 	};
 };
 
