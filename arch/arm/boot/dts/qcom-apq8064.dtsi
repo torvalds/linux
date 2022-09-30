@@ -884,7 +884,7 @@
 			reg = <0x2011000 0x1000>;
 		};
 
-		rpm@108000 {
+		rpm: rpm@108000 {
 			compatible = "qcom,rpm-apq8064";
 			reg = <0x108000 0x1000>;
 			qcom,ipc = <&l2cc 0x8 2>;
