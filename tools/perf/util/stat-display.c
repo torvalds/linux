@@ -189,14 +189,14 @@ static void aggr_printout(struct perf_stat_config *config,
 	case AGGR_THREAD:
 		if (config->json_output) {
 			fprintf(config->output, "\"thread\" : \"%s-%d\", ",
-				perf_thread_map__comm(evsel->core.threads, id.thread),
-				perf_thread_map__pid(evsel->core.threads, id.thread));
+				perf_thread_map__comm(evsel->core.threads, id.thread_idx),
+				perf_thread_map__pid(evsel->core.threads, id.thread_idx));
 		} else {
 			fprintf(config->output, "%*s-%*d%s",
 				config->csv_output ? 0 : 16,
-				perf_thread_map__comm(evsel->core.threads, id.thread),
+				perf_thread_map__comm(evsel->core.threads, id.thread_idx),
 				config->csv_output ? 0 : -8,
-				perf_thread_map__pid(evsel->core.threads, id.thread),
+				perf_thread_map__pid(evsel->core.threads, id.thread_idx),
 				config->csv_sep);
 		}
 		break;
@@ -453,7 +453,7 @@ static int first_shadow_map_idx(struct perf_stat_config *config,
 		return perf_cpu_map__idx(cpus, id->cpu);
 
 	if (config->aggr_mode == AGGR_THREAD)
-		return id->thread;
+		return id->thread_idx;
 
 	if (!config->aggr_get_id)
 		return 0;
@@ -946,7 +946,7 @@ static struct perf_aggr_thread_value *sort_aggr_thread(
 
 		buf[i].counter = counter;
 		buf[i].id = aggr_cpu_id__empty();
-		buf[i].id.thread = thread;
+		buf[i].id.thread_idx = thread;
 		buf[i].uval = uval;
 		buf[i].val = val;
 		buf[i].run = run;
