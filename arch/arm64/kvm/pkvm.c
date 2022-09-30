@@ -109,10 +109,10 @@ void __init kvm_hyp_reserve(void)
  */
 static int __pkvm_create_hyp_vm(struct kvm *host_kvm)
 {
-	size_t pgd_sz, hyp_vm_sz, hyp_vcpu_sz;
+	size_t pgd_sz, hyp_vm_sz, hyp_vcpu_sz, last_ran_sz;
 	struct kvm_vcpu *host_vcpu;
 	pkvm_handle_t handle;
-	void *pgd, *hyp_vm;
+	void *pgd, *hyp_vm, *last_ran;
 	unsigned long idx;
 	int ret;
 
@@ -140,10 +140,18 @@ static int __pkvm_create_hyp_vm(struct kvm *host_kvm)
 		goto free_pgd;
 	}
 
-	/* Donate the VM memory to hyp and let hyp initialize it. */
-	ret = kvm_call_hyp_nvhe(__pkvm_init_vm, host_kvm, hyp_vm, pgd);
-	if (ret < 0)
+	/* Allocate memory to donate to hyp for tracking mmu->last_vcpu_ran. */
+	last_ran_sz = PAGE_ALIGN(array_size(num_possible_cpus(), sizeof(int)));
+	last_ran = alloc_pages_exact(last_ran_sz, GFP_KERNEL_ACCOUNT);
+	if (!last_ran) {
+		ret = -ENOMEM;
 		goto free_vm;
+	}
+
+	/* Donate the VM memory to hyp and let hyp initialize it. */
+	ret = kvm_call_hyp_nvhe(__pkvm_init_vm, host_kvm, hyp_vm, pgd, last_ran);
+	if (ret < 0)
+		goto free_last_ran;
 
 	handle = ret;
 
@@ -179,6 +187,8 @@ static int __pkvm_create_hyp_vm(struct kvm *host_kvm)
 destroy_vm:
 	pkvm_destroy_hyp_vm(host_kvm);
 	return ret;
+free_last_ran:
+	free_pages_exact(last_ran, last_ran_sz);
 free_vm:
 	free_pages_exact(hyp_vm, hyp_vm_sz);
 free_pgd:

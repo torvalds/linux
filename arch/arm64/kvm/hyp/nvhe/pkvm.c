@@ -310,12 +310,19 @@ static void unpin_host_vcpus(struct pkvm_hyp_vcpu *hyp_vcpus[],
 		unpin_host_vcpu(hyp_vcpus[i]->host_vcpu);
 }
 
+static size_t pkvm_get_last_ran_size(void)
+{
+	return array_size(hyp_nr_cpus, sizeof(int));
+}
+
 static void init_pkvm_hyp_vm(struct kvm *host_kvm, struct pkvm_hyp_vm *hyp_vm,
-			     unsigned int nr_vcpus)
+			     int *last_ran, unsigned int nr_vcpus)
 {
 	hyp_vm->host_kvm = host_kvm;
 	hyp_vm->kvm.created_vcpus = nr_vcpus;
 	hyp_vm->kvm.arch.vtcr = host_mmu.arch.vtcr;
+	hyp_vm->kvm.arch.mmu.last_vcpu_ran = last_ran;
+	memset(hyp_vm->kvm.arch.mmu.last_vcpu_ran, -1, pkvm_get_last_ran_size());
 }
 
 static int init_pkvm_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu,
@@ -471,15 +478,17 @@ static void unmap_donated_memory_noclear(void *va, size_t size)
  * pgd_hva: The host va of the area being donated for the stage-2 PGD for
  *	    the VM. Must be page aligned. Its size is implied by the VM's
  *	    VTCR.
- *
+ * last_ran_hva: The host va of the area being donated for hyp to use to track
+ *		 the most recent physical cpu on which each vcpu has run.
  * Return a unique handle to the protected VM on success,
  * negative error code on failure.
  */
 int __pkvm_init_vm(struct kvm *host_kvm, unsigned long vm_hva,
-		   unsigned long pgd_hva)
+		   unsigned long pgd_hva, unsigned long last_ran_hva)
 {
 	struct pkvm_hyp_vm *hyp_vm = NULL;
-	size_t vm_size, pgd_size;
+	void *last_ran = NULL;
+	size_t vm_size, pgd_size, last_ran_size;
 	unsigned int nr_vcpus;
 	void *pgd = NULL;
 	int ret;
@@ -495,6 +504,7 @@ int __pkvm_init_vm(struct kvm *host_kvm, unsigned long vm_hva,
 	}
 
 	vm_size = pkvm_get_hyp_vm_size(nr_vcpus);
+	last_ran_size = pkvm_get_last_ran_size();
 	pgd_size = kvm_pgtable_stage2_pgd_size(host_mmu.arch.vtcr);
 
 	ret = -ENOMEM;
@@ -503,11 +513,15 @@ int __pkvm_init_vm(struct kvm *host_kvm, unsigned long vm_hva,
 	if (!hyp_vm)
 		goto err_remove_mappings;
 
+	last_ran = map_donated_memory(last_ran_hva, last_ran_size);
+	if (!last_ran)
+		goto err_remove_mappings;
+
 	pgd = map_donated_memory_noclear(pgd_hva, pgd_size);
 	if (!pgd)
 		goto err_remove_mappings;
 
-	init_pkvm_hyp_vm(host_kvm, hyp_vm, nr_vcpus);
+	init_pkvm_hyp_vm(host_kvm, hyp_vm, last_ran, nr_vcpus);
 
 	hyp_spin_lock(&vm_table_lock);
 	ret = insert_vm_table_entry(host_kvm, hyp_vm);
@@ -527,6 +541,7 @@ err_unlock:
 	hyp_spin_unlock(&vm_table_lock);
 err_remove_mappings:
 	unmap_donated_memory(hyp_vm, vm_size);
+	unmap_donated_memory(last_ran, last_ran_size);
 	unmap_donated_memory(pgd, pgd_size);
 err_unpin_kvm:
 	hyp_unpin_shared_mem(host_kvm, host_kvm + 1);
@@ -601,10 +616,10 @@ teardown_donated_memory(struct kvm_hyp_memcache *mc, void *addr, size_t size)
 
 int __pkvm_teardown_vm(pkvm_handle_t handle)
 {
+	size_t vm_size, last_ran_size;
 	struct kvm_hyp_memcache *mc;
 	struct pkvm_hyp_vm *hyp_vm;
 	unsigned int idx;
-	size_t vm_size;
 	int err;
 
 	hyp_spin_lock(&vm_table_lock);
@@ -637,6 +652,10 @@ int __pkvm_teardown_vm(pkvm_handle_t handle)
 
 		teardown_donated_memory(mc, hyp_vcpu, sizeof(*hyp_vcpu));
 	}
+
+	last_ran_size = pkvm_get_last_ran_size();
+	teardown_donated_memory(mc, hyp_vm->kvm.arch.mmu.last_vcpu_ran,
+				last_ran_size);
 
 	vm_size = pkvm_get_hyp_vm_size(hyp_vm->kvm.created_vcpus);
 	teardown_donated_memory(mc, hyp_vm, vm_size);

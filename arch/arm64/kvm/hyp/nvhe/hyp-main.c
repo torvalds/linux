@@ -144,6 +144,7 @@ static void handle___pkvm_vcpu_load(struct kvm_cpu_context *host_ctxt)
 	DECLARE_REG(unsigned int, vcpu_idx, host_ctxt, 2);
 	DECLARE_REG(u64, hcr_el2, host_ctxt, 3);
 	struct pkvm_hyp_vcpu *hyp_vcpu;
+	int *last_ran;
 
 	if (!is_protected_kvm_enabled())
 		return;
@@ -151,6 +152,17 @@ static void handle___pkvm_vcpu_load(struct kvm_cpu_context *host_ctxt)
 	hyp_vcpu = pkvm_load_hyp_vcpu(handle, vcpu_idx);
 	if (!hyp_vcpu)
 		return;
+
+	/*
+	 * Guarantee that both TLBs and I-cache are private to each vcpu. If a
+	 * vcpu from the same VM has previously run on the same physical CPU,
+	 * nuke the relevant contexts.
+	 */
+	last_ran = &hyp_vcpu->vcpu.arch.hw_mmu->last_vcpu_ran[hyp_smp_processor_id()];
+	if (*last_ran != hyp_vcpu->vcpu.vcpu_id) {
+		__kvm_flush_cpu_context(hyp_vcpu->vcpu.arch.hw_mmu);
+		*last_ran = hyp_vcpu->vcpu.vcpu_id;
+	}
 
 	if (pkvm_hyp_vcpu_is_protected(hyp_vcpu)) {
 		/* Propagate WFx trapping flags, trap ptrauth */
@@ -435,9 +447,11 @@ static void handle___pkvm_init_vm(struct kvm_cpu_context *host_ctxt)
 	DECLARE_REG(struct kvm *, host_kvm, host_ctxt, 1);
 	DECLARE_REG(unsigned long, vm_hva, host_ctxt, 2);
 	DECLARE_REG(unsigned long, pgd_hva, host_ctxt, 3);
+	DECLARE_REG(unsigned long, last_ran_hva, host_ctxt, 4);
 
 	host_kvm = kern_hyp_va(host_kvm);
-	cpu_reg(host_ctxt, 1) = __pkvm_init_vm(host_kvm, vm_hva, pgd_hva);
+	cpu_reg(host_ctxt, 1) = __pkvm_init_vm(host_kvm, vm_hva, pgd_hva,
+					       last_ran_hva);
 }
 
 static void handle___pkvm_init_vcpu(struct kvm_cpu_context *host_ctxt)
