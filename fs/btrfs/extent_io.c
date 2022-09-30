@@ -5001,7 +5001,8 @@ static int read_extent_buffer_subpage(struct extent_buffer *eb, int wait,
 	if (ret || wait != WAIT_COMPLETE)
 		return ret;
 
-	wait_extent_bit(io_tree, eb->start, eb->start + eb->len - 1, EXTENT_LOCKED);
+	wait_extent_bit(io_tree, eb->start, eb->start + eb->len - 1,
+			EXTENT_LOCKED, NULL);
 	if (!test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags))
 		ret = -EIO;
 	return ret;
