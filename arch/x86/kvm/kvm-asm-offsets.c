@@ -8,9 +8,15 @@
 
 #include <linux/kbuild.h>
 #include "vmx/vmx.h"
+#include "svm/svm.h"
 
 static void __used common(void)
 {
+	if (IS_ENABLED(CONFIG_KVM_AMD)) {
+		BLANK();
+		OFFSET(SVM_vcpu_arch_regs, vcpu_svm, vcpu.arch.regs);
+	}
+
 	if (IS_ENABLED(CONFIG_KVM_INTEL)) {
 		BLANK();
 		OFFSET(VMX_spec_ctrl, vcpu_vmx, spec_ctrl);
