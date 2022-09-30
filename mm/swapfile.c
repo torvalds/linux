@@ -3655,7 +3655,7 @@ void __cgroup_throttle_swaprate(struct page *page, gfp_t gfp_mask)
 	plist_for_each_entry_safe(si, next, &swap_avail_heads[nid],
 				  avail_lists[nid]) {
 		if (si->bdev) {
-			blkcg_schedule_throttle(bdev_get_queue(si->bdev), true);
+			blkcg_schedule_throttle(si->bdev->bd_disk, true);
 			break;
 		}
 	}

@@ -13,7 +13,7 @@
 #include <linux/blkdev.h>
 
 #include "rnbd-srv.h"
-#include "rnbd-srv-dev.h"
+#include "rnbd-srv-trace.h"
 
 MODULE_DESCRIPTION("RDMA Network Block Device Server");
 MODULE_LICENSE("GPL");
@@ -84,18 +84,6 @@ static inline void rnbd_put_sess_dev(struct rnbd_srv_sess_dev *sess_dev)
 	kref_put(&sess_dev->kref, rnbd_sess_dev_release);
 }
 
-void rnbd_endio(void *priv, int error)
-{
-	struct rnbd_io_private *rnbd_priv = priv;
-	struct rnbd_srv_sess_dev *sess_dev = rnbd_priv->sess_dev;
-
-	rnbd_put_sess_dev(sess_dev);
-
-	rtrs_srv_resp_rdma(rnbd_priv->id, error);
-
-	kfree(priv);
-}
-
 static struct rnbd_srv_sess_dev *
 rnbd_get_sess_dev(int dev_id, struct rnbd_srv_session *srv_sess)
 {
@@ -116,7 +104,13 @@ rnbd_get_sess_dev(int dev_id, struct rnbd_srv_session *srv_sess)
 
 static void rnbd_dev_bi_end_io(struct bio *bio)
 {
-	rnbd_endio(bio->bi_private, blk_status_to_errno(bio->bi_status));
+	struct rnbd_io_private *rnbd_priv = bio->bi_private;
+	struct rnbd_srv_sess_dev *sess_dev = rnbd_priv->sess_dev;
+
+	rnbd_put_sess_dev(sess_dev);
+	rtrs_srv_resp_rdma(rnbd_priv->id, blk_status_to_errno(bio->bi_status));
+
+	kfree(rnbd_priv);
 	bio_put(bio);
 }
 
@@ -131,6 +125,8 @@ static int process_rdma(struct rnbd_srv_session *srv_sess,
 	int err;
 	struct bio *bio;
 	short prio;
+
+	trace_process_rdma(srv_sess, msg, id, datalen, usrlen);
 
 	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -149,7 +145,7 @@ static int process_rdma(struct rnbd_srv_session *srv_sess,
 	priv->sess_dev = sess_dev;
 	priv->id = id;
 
-	bio = bio_alloc(sess_dev->rnbd_dev->bdev, 1,
+	bio = bio_alloc(sess_dev->bdev, 1,
 			rnbd_to_bio_flags(le32_to_cpu(msg->rw)), GFP_KERNEL);
 	if (bio_add_page(bio, virt_to_page(data), datalen,
 			offset_in_page(data)) != datalen) {
@@ -223,7 +219,7 @@ void rnbd_destroy_sess_dev(struct rnbd_srv_sess_dev *sess_dev, bool keep_id)
 	rnbd_put_sess_dev(sess_dev);
 	wait_for_completion(&dc); /* wait for inflights to drop to zero */
 
-	rnbd_dev_close(sess_dev->rnbd_dev);
+	blkdev_put(sess_dev->bdev, sess_dev->open_flags);
 	mutex_lock(&sess_dev->dev->lock);
 	list_del(&sess_dev->dev_list);
 	if (sess_dev->open_flags & FMODE_WRITE)
@@ -243,6 +239,8 @@ static void destroy_sess(struct rnbd_srv_session *srv_sess)
 
 	if (xa_empty(&srv_sess->index_idr))
 		goto out;
+
+	trace_destroy_sess(srv_sess);
 
 	mutex_lock(&srv_sess->lock);
 	xa_for_each(&srv_sess->index_idr, index, sess_dev)
@@ -290,6 +288,8 @@ static int create_sess(struct rtrs_srv_sess *rtrs)
 
 	rtrs_srv_set_sess_priv(rtrs, srv_sess);
 
+	trace_create_sess(srv_sess);
+
 	return 0;
 }
 
@@ -332,23 +332,24 @@ void rnbd_srv_sess_dev_force_close(struct rnbd_srv_sess_dev *sess_dev,
 	mutex_unlock(&sess->lock);
 }
 
-static int process_msg_close(struct rnbd_srv_session *srv_sess,
+static void process_msg_close(struct rnbd_srv_session *srv_sess,
 			     void *data, size_t datalen, const void *usr,
 			     size_t usrlen)
 {
 	const struct rnbd_msg_close *close_msg = usr;
 	struct rnbd_srv_sess_dev *sess_dev;
 
+	trace_process_msg_close(srv_sess, close_msg);
+
 	sess_dev = rnbd_get_sess_dev(le32_to_cpu(close_msg->device_id),
 				      srv_sess);
 	if (IS_ERR(sess_dev))
-		return 0;
+		return;
 
 	rnbd_put_sess_dev(sess_dev);
 	mutex_lock(&srv_sess->lock);
 	rnbd_srv_destroy_dev_session_sysfs(sess_dev);
 	mutex_unlock(&srv_sess->lock);
-	return 0;
 }
 
 static int process_msg_open(struct rnbd_srv_session *srv_sess,
@@ -378,7 +379,7 @@ static int rnbd_srv_rdma_ev(void *priv,
 	case RNBD_MSG_IO:
 		return process_rdma(srv_sess, id, data, datalen, usr, usrlen);
 	case RNBD_MSG_CLOSE:
-		ret = process_msg_close(srv_sess, data, datalen, usr, usrlen);
+		process_msg_close(srv_sess, data, datalen, usr, usrlen);
 		break;
 	case RNBD_MSG_OPEN:
 		ret = process_msg_open(srv_sess, usr, usrlen, data, datalen);
@@ -393,6 +394,11 @@ static int rnbd_srv_rdma_ev(void *priv,
 		return -EINVAL;
 	}
 
+	/*
+	 * Since ret is passed to rtrs to handle the failure case, we
+	 * just return 0 at the end otherwise callers in rtrs would call
+	 * send_io_resp_imm again to print redundant err message.
+	 */
 	rtrs_srv_resp_rdma(id, ret);
 	return 0;
 }
@@ -504,14 +510,14 @@ static int rnbd_srv_check_update_open_perm(struct rnbd_srv_dev *srv_dev,
 }
 
 static struct rnbd_srv_dev *
-rnbd_srv_get_or_create_srv_dev(struct rnbd_dev *rnbd_dev,
+rnbd_srv_get_or_create_srv_dev(struct block_device *bdev,
 				struct rnbd_srv_session *srv_sess,
 				enum rnbd_access_mode access_mode)
 {
 	int ret;
 	struct rnbd_srv_dev *new_dev, *dev;
 
-	new_dev = rnbd_srv_init_srv_dev(rnbd_dev->bdev);
+	new_dev = rnbd_srv_init_srv_dev(bdev);
 	if (IS_ERR(new_dev))
 		return new_dev;
 
@@ -531,41 +537,32 @@ rnbd_srv_get_or_create_srv_dev(struct rnbd_dev *rnbd_dev,
 static void rnbd_srv_fill_msg_open_rsp(struct rnbd_msg_open_rsp *rsp,
 					struct rnbd_srv_sess_dev *sess_dev)
 {
-	struct rnbd_dev *rnbd_dev = sess_dev->rnbd_dev;
+	struct block_device *bdev = sess_dev->bdev;
 
 	rsp->hdr.type = cpu_to_le16(RNBD_MSG_OPEN_RSP);
-	rsp->device_id =
-		cpu_to_le32(sess_dev->device_id);
-	rsp->nsectors =
-		cpu_to_le64(get_capacity(rnbd_dev->bdev->bd_disk));
-	rsp->logical_block_size	=
-		cpu_to_le16(bdev_logical_block_size(rnbd_dev->bdev));
-	rsp->physical_block_size =
-		cpu_to_le16(bdev_physical_block_size(rnbd_dev->bdev));
-	rsp->max_segments =
-		cpu_to_le16(rnbd_dev_get_max_segs(rnbd_dev));
+	rsp->device_id = cpu_to_le32(sess_dev->device_id);
+	rsp->nsectors = cpu_to_le64(bdev_nr_sectors(bdev));
+	rsp->logical_block_size	= cpu_to_le16(bdev_logical_block_size(bdev));
+	rsp->physical_block_size = cpu_to_le16(bdev_physical_block_size(bdev));
+	rsp->max_segments = cpu_to_le16(bdev_max_segments(bdev));
 	rsp->max_hw_sectors =
-		cpu_to_le32(rnbd_dev_get_max_hw_sects(rnbd_dev));
+		cpu_to_le32(queue_max_hw_sectors(bdev_get_queue(bdev)));
 	rsp->max_write_same_sectors = 0;
-	rsp->max_discard_sectors =
-		cpu_to_le32(rnbd_dev_get_max_discard_sects(rnbd_dev));
-	rsp->discard_granularity =
-		cpu_to_le32(rnbd_dev_get_discard_granularity(rnbd_dev));
-	rsp->discard_alignment =
-		cpu_to_le32(rnbd_dev_get_discard_alignment(rnbd_dev));
-	rsp->secure_discard =
-		cpu_to_le16(rnbd_dev_get_secure_discard(rnbd_dev));
+	rsp->max_discard_sectors = cpu_to_le32(bdev_max_discard_sectors(bdev));
+	rsp->discard_granularity = cpu_to_le32(bdev_discard_granularity(bdev));
+	rsp->discard_alignment = cpu_to_le32(bdev_discard_alignment(bdev));
+	rsp->secure_discard = cpu_to_le16(bdev_max_secure_erase_sectors(bdev));
 	rsp->cache_policy = 0;
-	if (bdev_write_cache(rnbd_dev->bdev))
+	if (bdev_write_cache(bdev))
 		rsp->cache_policy |= RNBD_WRITEBACK;
-	if (bdev_fua(rnbd_dev->bdev))
+	if (bdev_fua(bdev))
 		rsp->cache_policy |= RNBD_FUA;
 }
 
 static struct rnbd_srv_sess_dev *
 rnbd_srv_create_set_sess_dev(struct rnbd_srv_session *srv_sess,
 			      const struct rnbd_msg_open *open_msg,
-			      struct rnbd_dev *rnbd_dev, fmode_t open_flags,
+			      struct block_device *bdev, fmode_t open_flags,
 			      struct rnbd_srv_dev *srv_dev)
 {
 	struct rnbd_srv_sess_dev *sdev = rnbd_sess_dev_alloc(srv_sess);
@@ -577,7 +574,7 @@ rnbd_srv_create_set_sess_dev(struct rnbd_srv_session *srv_sess,
 
 	strscpy(sdev->pathname, open_msg->dev_name, sizeof(sdev->pathname));
 
-	sdev->rnbd_dev		= rnbd_dev;
+	sdev->bdev		= bdev;
 	sdev->sess		= srv_sess;
 	sdev->dev		= srv_dev;
 	sdev->open_flags	= open_flags;
@@ -643,9 +640,8 @@ static int process_msg_sess_info(struct rnbd_srv_session *srv_sess,
 	struct rnbd_msg_sess_info_rsp *rsp = data;
 
 	srv_sess->ver = min_t(u8, sess_info_msg->ver, RNBD_PROTO_VER_MAJOR);
-	pr_debug("Session %s using protocol version %d (client version: %d, server version: %d)\n",
-		 srv_sess->sessname, srv_sess->ver,
-		 sess_info_msg->ver, RNBD_PROTO_VER_MAJOR);
+
+	trace_process_msg_sess_info(srv_sess, sess_info_msg);
 
 	rsp->hdr.type = cpu_to_le16(RNBD_MSG_SESS_INFO_RSP);
 	rsp->ver = srv_sess->ver;
@@ -685,14 +681,13 @@ static int process_msg_open(struct rnbd_srv_session *srv_sess,
 	struct rnbd_srv_dev *srv_dev;
 	struct rnbd_srv_sess_dev *srv_sess_dev;
 	const struct rnbd_msg_open *open_msg = msg;
+	struct block_device *bdev;
 	fmode_t open_flags;
 	char *full_path;
-	struct rnbd_dev *rnbd_dev;
 	struct rnbd_msg_open_rsp *rsp = data;
 
-	pr_debug("Open message received: session='%s' path='%s' access_mode=%d\n",
-		 srv_sess->sessname, open_msg->dev_name,
-		 open_msg->access_mode);
+	trace_process_msg_open(srv_sess, open_msg);
+
 	open_flags = FMODE_READ;
 	if (open_msg->access_mode != RNBD_ACCESS_RO)
 		open_flags |= FMODE_WRITE;
@@ -725,25 +720,25 @@ static int process_msg_open(struct rnbd_srv_session *srv_sess,
 		goto reject;
 	}
 
-	rnbd_dev = rnbd_dev_open(full_path, open_flags);
-	if (IS_ERR(rnbd_dev)) {
-		pr_err("Opening device '%s' on session %s failed, failed to open the block device, err: %ld\n",
-		       full_path, srv_sess->sessname, PTR_ERR(rnbd_dev));
-		ret = PTR_ERR(rnbd_dev);
+	bdev = blkdev_get_by_path(full_path, open_flags, THIS_MODULE);
+	if (IS_ERR(bdev)) {
+		ret = PTR_ERR(bdev);
+		pr_err("Opening device '%s' on session %s failed, failed to open the block device, err: %d\n",
+		       full_path, srv_sess->sessname, ret);
 		goto free_path;
 	}
 
-	srv_dev = rnbd_srv_get_or_create_srv_dev(rnbd_dev, srv_sess,
+	srv_dev = rnbd_srv_get_or_create_srv_dev(bdev, srv_sess,
 						  open_msg->access_mode);
 	if (IS_ERR(srv_dev)) {
 		pr_err("Opening device '%s' on session %s failed, creating srv_dev failed, err: %ld\n",
 		       full_path, srv_sess->sessname, PTR_ERR(srv_dev));
 		ret = PTR_ERR(srv_dev);
-		goto rnbd_dev_close;
+		goto blkdev_put;
 	}
 
 	srv_sess_dev = rnbd_srv_create_set_sess_dev(srv_sess, open_msg,
-						     rnbd_dev, open_flags,
+						     bdev, open_flags,
 						     srv_dev);
 	if (IS_ERR(srv_sess_dev)) {
 		pr_err("Opening device '%s' on session %s failed, creating sess_dev failed, err: %ld\n",
@@ -758,7 +753,7 @@ static int process_msg_open(struct rnbd_srv_session *srv_sess,
 	 */
 	mutex_lock(&srv_dev->lock);
 	if (!srv_dev->dev_kobj.state_in_sysfs) {
-		ret = rnbd_srv_create_dev_sysfs(srv_dev, rnbd_dev->bdev);
+		ret = rnbd_srv_create_dev_sysfs(srv_dev, bdev);
 		if (ret) {
 			mutex_unlock(&srv_dev->lock);
 			rnbd_srv_err(srv_sess_dev,
@@ -800,8 +795,8 @@ srv_dev_put:
 		mutex_unlock(&srv_dev->lock);
 	}
 	rnbd_put_srv_dev(srv_dev);
-rnbd_dev_close:
-	rnbd_dev_close(rnbd_dev);
+blkdev_put:
+	blkdev_put(bdev, open_flags);
 free_path:
 	kfree(full_path);
 reject:

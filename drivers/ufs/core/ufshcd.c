@@ -2701,9 +2701,9 @@ static inline bool is_device_wlun(struct scsi_device *sdev)
  * Associate the UFS controller queue with the default and poll HCTX types.
  * Initialize the mq_map[] arrays.
  */
-static int ufshcd_map_queues(struct Scsi_Host *shost)
+static void ufshcd_map_queues(struct Scsi_Host *shost)
 {
-	int i, ret;
+	int i;
 
 	for (i = 0; i < shost->nr_maps; i++) {
 		struct blk_mq_queue_map *map = &shost->tag_set.map[i];
@@ -2720,11 +2720,8 @@ static int ufshcd_map_queues(struct Scsi_Host *shost)
 			WARN_ON_ONCE(true);
 		}
 		map->queue_offset = 0;
-		ret = blk_mq_map_queues(map);
-		WARN_ON_ONCE(ret);
+		blk_mq_map_queues(map);
 	}
-
-	return 0;
 }
 
 static void ufshcd_init_lrb(struct ufs_hba *hba, struct ufshcd_lrb *lrb, int i)

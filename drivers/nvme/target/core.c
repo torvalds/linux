@@ -832,6 +832,7 @@ int nvmet_sq_init(struct nvmet_sq *sq)
 	}
 	init_completion(&sq->free_done);
 	init_completion(&sq->confirm_done);
+	nvmet_auth_sq_init(sq);
 
 	return 0;
 }

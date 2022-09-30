@@ -704,7 +704,7 @@ int nvmet_auth_set_key(struct nvmet_host *host, const char *secret,
 		       bool set_ctrl);
 int nvmet_auth_set_host_hash(struct nvmet_host *host, const char *hash);
 int nvmet_setup_auth(struct nvmet_ctrl *ctrl);
-void nvmet_init_auth(struct nvmet_ctrl *ctrl, struct nvmet_req *req);
+void nvmet_auth_sq_init(struct nvmet_sq *sq);
 void nvmet_destroy_auth(struct nvmet_ctrl *ctrl);
 void nvmet_auth_sq_free(struct nvmet_sq *sq);
 int nvmet_setup_dhgroup(struct nvmet_ctrl *ctrl, u8 dhgroup_id);
@@ -726,8 +726,9 @@ static inline int nvmet_setup_auth(struct nvmet_ctrl *ctrl)
 {
 	return 0;
 }
-static inline void nvmet_init_auth(struct nvmet_ctrl *ctrl,
-				   struct nvmet_req *req) {};
+static inline void nvmet_auth_sq_init(struct nvmet_sq *sq)
+{
+}
 static inline void nvmet_destroy_auth(struct nvmet_ctrl *ctrl) {};
 static inline void nvmet_auth_sq_free(struct nvmet_sq *sq) {};
 static inline bool nvmet_check_auth_status(struct nvmet_req *req)

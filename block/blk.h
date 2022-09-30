@@ -270,8 +270,7 @@ bool blk_bio_list_merge(struct request_queue *q, struct list_head *list,
 
 void blk_insert_flush(struct request *rq);
 
-int elevator_switch_mq(struct request_queue *q,
-			      struct elevator_type *new_e);
+int elevator_switch(struct request_queue *q, struct elevator_type *new_e);
 void elevator_exit(struct request_queue *q);
 int elv_register_queue(struct request_queue *q, bool uevent);
 void elv_unregister_queue(struct request_queue *q);
@@ -389,9 +388,9 @@ static inline struct bio *blk_queue_bounce(struct bio *bio,
 }
 
 #ifdef CONFIG_BLK_CGROUP_IOLATENCY
-extern int blk_iolatency_init(struct request_queue *q);
+int blk_iolatency_init(struct gendisk *disk);
 #else
-static inline int blk_iolatency_init(struct request_queue *q) { return 0; }
+static inline int blk_iolatency_init(struct gendisk *disk) { return 0; };
 #endif
 
 #ifdef CONFIG_BLK_DEV_ZONED

@@ -1093,10 +1093,12 @@ bool blk_mq_complete_request_remote(struct request *rq)
 	WRITE_ONCE(rq->state, MQ_RQ_COMPLETE);
 
 	/*
-	 * For a polled request, always complete locally, it's pointless
-	 * to redirect the completion.
+	 * For request which hctx has only one ctx mapping,
+	 * or a polled request, always complete locally,
+	 * it's pointless to redirect the completion.
 	 */
-	if (rq->cmd_flags & REQ_POLLED)
+	if (rq->mq_hctx->nr_ctx == 1 ||
+		rq->cmd_flags & REQ_POLLED)
 		return false;
 
 	if (blk_mq_complete_need_ipi(rq)) {
@@ -1213,6 +1215,12 @@ void blk_execute_rq_nowait(struct request *rq, bool at_head)
 	WARN_ON(!blk_rq_is_passthrough(rq));
 
 	blk_account_io_start(rq);
+
+	/*
+	 * As plugging can be enabled for passthrough requests on a zoned
+	 * device, directly accessing the plug instead of using blk_mq_plug()
+	 * should not have any consequences.
+	 */
 	if (current->plug)
 		blk_add_rq_to_plug(current->plug, rq);
 	else
@@ -1992,7 +2000,7 @@ out:
 		if (!needs_restart ||
 		    (no_tag && list_empty_careful(&hctx->dispatch_wait.entry)))
 			blk_mq_run_hw_queue(hctx, true);
-		else if (needs_restart && needs_resource)
+		else if (needs_resource)
 			blk_mq_delay_run_hw_queue(hctx, BLK_MQ_RESOURCE_DELAY);
 
 		blk_mq_update_dispatch_busy(hctx, true);
@@ -4191,7 +4199,7 @@ static int blk_mq_alloc_set_map_and_rqs(struct blk_mq_tag_set *set)
 	return 0;
 }
 
-static int blk_mq_update_queue_map(struct blk_mq_tag_set *set)
+static void blk_mq_update_queue_map(struct blk_mq_tag_set *set)
 {
 	/*
 	 * blk_mq_map_queues() and multiple .map_queues() implementations
@@ -4221,10 +4229,10 @@ static int blk_mq_update_queue_map(struct blk_mq_tag_set *set)
 		for (i = 0; i < set->nr_maps; i++)
 			blk_mq_clear_mq_map(&set->map[i]);
 
-		return set->ops->map_queues(set);
+		set->ops->map_queues(set);
 	} else {
 		BUG_ON(set->nr_maps > 1);
-		return blk_mq_map_queues(&set->map[HCTX_TYPE_DEFAULT]);
+		blk_mq_map_queues(&set->map[HCTX_TYPE_DEFAULT]);
 	}
 }
 
@@ -4323,9 +4331,7 @@ int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 		set->map[i].nr_queues = is_kdump_kernel() ? 1 : set->nr_hw_queues;
 	}
 
-	ret = blk_mq_update_queue_map(set);
-	if (ret)
-		goto out_free_mq_map;
+	blk_mq_update_queue_map(set);
 
 	ret = blk_mq_alloc_set_map_and_rqs(set);
 	if (ret)
@@ -4473,14 +4479,14 @@ static bool blk_mq_elv_switch_none(struct list_head *head,
 	list_add(&qe->node, head);
 
 	/*
-	 * After elevator_switch_mq, the previous elevator_queue will be
+	 * After elevator_switch, the previous elevator_queue will be
 	 * released by elevator_release. The reference of the io scheduler
 	 * module get by elevator_get will also be put. So we need to get
 	 * a reference of the io scheduler module here to prevent it to be
 	 * removed.
 	 */
 	__module_get(qe->type->elevator_owner);
-	elevator_switch_mq(q, NULL);
+	elevator_switch(q, NULL);
 	mutex_unlock(&q->sysfs_lock);
 
 	return true;
@@ -4512,7 +4518,7 @@ static void blk_mq_elv_switch_back(struct list_head *head,
 	kfree(qe);
 
 	mutex_lock(&q->sysfs_lock);
-	elevator_switch_mq(q, t);
+	elevator_switch(q, t);
 	mutex_unlock(&q->sysfs_lock);
 }
 
