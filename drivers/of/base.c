@@ -561,7 +561,7 @@ EXPORT_SYMBOL(of_device_is_compatible);
  *  a NULL terminated array of strings. Returns the best match
  *  score or 0.
  */
-int of_device_compatible_match(struct device_node *device,
+int of_device_compatible_match(const struct device_node *device,
 			       const char *const *compat)
 {
 	unsigned int tmp, score = 0;
