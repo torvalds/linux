@@ -260,8 +260,10 @@ EXPORT_SYMBOL_GPL(clk_alpha_pll_regs);
 #define LUCID_OLE_RINGOSC_CAL_L_VAL_SHIFT	24
 
 /* LUCID EVO PLL specific settings and offsets */
+#define LUCID_EVO_PCAL_NOT_DONE		BIT(8)
 #define LUCID_EVO_ENABLE_VOTE_RUN       BIT(25)
 #define LUCID_EVO_PLL_L_VAL_MASK        GENMASK(15, 0)
+#define LUCID_EVO_PLL_CAL_L_VAL_SHIFT	16
 
 /* ZONDA PLL specific */
 #define ZONDA_PLL_OUT_MASK	0xf
@@ -1794,7 +1796,7 @@ const struct clk_ops clk_alpha_pll_postdiv_fabia_ops = {
 EXPORT_SYMBOL_GPL(clk_alpha_pll_postdiv_fabia_ops);
 
 /**
- * clk_lucid_pll_configure - configure the lucid pll
+ * clk_trion_pll_configure - configure the trion pll
  *
  * @pll: clk alpha pll
  * @regmap: register map
@@ -2328,7 +2330,7 @@ const struct clk_ops clk_alpha_pll_lucid_5lpe_ops = {
 	.debug_init = clk_common_debug_init,
 	.init = clk_lucid_pll_init,
 };
-EXPORT_SYMBOL(clk_alpha_pll_lucid_5lpe_ops);
+EXPORT_SYMBOL_GPL(clk_alpha_pll_lucid_5lpe_ops);
 
 const struct clk_ops clk_alpha_pll_fixed_lucid_5lpe_ops = {
 	.prepare = clk_prepare_regmap,
@@ -2343,14 +2345,14 @@ const struct clk_ops clk_alpha_pll_fixed_lucid_5lpe_ops = {
 	.debug_init = clk_common_debug_init,
 	.init = clk_lucid_pll_init,
 };
-EXPORT_SYMBOL(clk_alpha_pll_fixed_lucid_5lpe_ops);
+EXPORT_SYMBOL_GPL(clk_alpha_pll_fixed_lucid_5lpe_ops);
 
 const struct clk_ops clk_alpha_pll_postdiv_lucid_5lpe_ops = {
 	.recalc_rate = clk_alpha_pll_postdiv_fabia_recalc_rate,
 	.round_rate = clk_alpha_pll_postdiv_fabia_round_rate,
 	.set_rate = clk_lucid_5lpe_pll_postdiv_set_rate,
 };
-EXPORT_SYMBOL(clk_alpha_pll_postdiv_lucid_5lpe_ops);
+EXPORT_SYMBOL_GPL(clk_alpha_pll_postdiv_lucid_5lpe_ops);
 
 void clk_zonda_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
 			     const struct alpha_pll_config *config)
@@ -2568,7 +2570,7 @@ const struct clk_ops clk_alpha_pll_zonda_ops = {
 	.debug_init = clk_common_debug_init,
 	.init = clk_alpha_pll_zonda_init,
 };
-EXPORT_SYMBOL(clk_alpha_pll_zonda_ops);
+EXPORT_SYMBOL_GPL(clk_alpha_pll_zonda_ops);
 
 static int clk_zonda_5lpe_pll_enable(struct clk_hw *hw)
 {
@@ -3464,8 +3466,8 @@ int clk_rivian_evo_pll_configure(struct clk_alpha_pll *pll,
 }
 EXPORT_SYMBOL(clk_rivian_evo_pll_configure);
 
-static unsigned long
-clk_rivian_evo_pll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
+static unsigned long clk_rivian_evo_pll_recalc_rate(struct clk_hw *hw,
+						    unsigned long parent_rate)
 {
 	struct clk_alpha_pll *pll = to_clk_alpha_pll(hw);
 	u32 l;
@@ -3476,12 +3478,12 @@ clk_rivian_evo_pll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 }
 
 static long clk_rivian_evo_pll_round_rate(struct clk_hw *hw, unsigned long rate,
-				     unsigned long *prate)
+					  unsigned long *prate)
 {
 	struct clk_alpha_pll *pll = to_clk_alpha_pll(hw);
+	unsigned long min_freq, max_freq;
 	u32 l;
 	u64 a;
-	unsigned long min_freq, max_freq;
 
 	rate = alpha_pll_round_rate(rate, *prate, &l, &a, 0);
 	if (!pll->vco_table || alpha_pll_find_vco(pll, rate))
@@ -3548,4 +3550,4 @@ const struct clk_ops clk_alpha_pll_rivian_evo_ops = {
 	.debug_init = clk_common_debug_init,
 	.init = clk_rivian_evo_pll_init,
 };
-EXPORT_SYMBOL(clk_alpha_pll_rivian_evo_ops);
+EXPORT_SYMBOL_GPL(clk_alpha_pll_rivian_evo_ops);

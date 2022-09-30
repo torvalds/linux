@@ -336,6 +336,11 @@ discard_unit=%s		 Control discard unit, the argument can be "block", "segment"
 			 default, it is helpful for large sized SMR or ZNS devices to
 			 reduce memory cost by getting rid of fs metadata supports small
 			 discard.
+memory=%s		 Control memory mode. This supports "normal" and "low" modes.
+			 "low" mode is introduced to support low memory devices.
+			 Because of the nature of low memory devices, in this mode, f2fs
+			 will try to save memory sometimes by sacrificing performance.
+			 "normal" mode is the default mode and same as before.
 ======================== ============================================================
 
 Debugfs Entries

@@ -17,6 +17,9 @@
 /* Full volume for default values */
 #define VOL_ZERO_DB	BIT(VOLUME_FWL)
 
+/* size of tplg ABI in bytes */
+#define SOF_IPC3_TPLG_ABI_SIZE 3
+
 struct sof_widget_data {
 	int ctrl_type;
 	int ipc_cmd;
@@ -263,6 +266,16 @@ static const struct sof_topology_token afe_tokens[] = {
 		offsetof(struct sof_ipc_dai_mtk_afe_params, format)},
 };
 
+/* ACPDMIC */
+static const struct sof_topology_token acpdmic_tokens[] = {
+	{SOF_TKN_AMD_ACPDMIC_RATE,
+		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_dai_acpdmic_params, pdm_rate)},
+	{SOF_TKN_AMD_ACPDMIC_CH,
+		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_dai_acpdmic_params, pdm_ch)},
+};
+
 /* Core tokens */
 static const struct sof_topology_token core_tokens[] = {
 	{SOF_TKN_COMP_CORE_ID, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
@@ -297,6 +310,7 @@ static const struct sof_token_info ipc3_token_list[SOF_TOKEN_COUNT] = {
 	[SOF_ESAI_TOKENS] = {"ESAI tokens", esai_tokens, ARRAY_SIZE(esai_tokens)},
 	[SOF_SAI_TOKENS] = {"SAI tokens", sai_tokens, ARRAY_SIZE(sai_tokens)},
 	[SOF_AFE_TOKENS] = {"AFE tokens", afe_tokens, ARRAY_SIZE(afe_tokens)},
+	[SOF_ACPDMIC_TOKENS] = {"ACPDMIC tokens", acpdmic_tokens, ARRAY_SIZE(acpdmic_tokens)},
 };
 
 /**
@@ -1117,20 +1131,22 @@ static int sof_link_acp_dmic_load(struct snd_soc_component *scomp, struct snd_so
 	struct snd_soc_tplg_hw_config *hw_config = slink->hw_configs;
 	struct sof_dai_private_data *private = dai->private;
 	u32 size = sizeof(*config);
+	int ret;
 
        /* handle master/slave and inverted clocks */
 	sof_dai_set_format(hw_config, config);
 
-	/* init IPC */
-	memset(&config->acpdmic, 0, sizeof(config->acpdmic));
 	config->hdr.size = size;
 
-	config->acpdmic.fsync_rate = le32_to_cpu(hw_config->fsync_rate);
-	config->acpdmic.tdm_slots = le32_to_cpu(hw_config->tdm_slots);
+	/* parse the required set of ACPDMIC tokens based on num_hw_cfgs */
+	ret = sof_update_ipc_object(scomp, &config->acpdmic, SOF_ACPDMIC_TOKENS, slink->tuples,
+				    slink->num_tuples, size, slink->num_hw_configs);
+	if (ret < 0)
+		return ret;
 
 	dev_info(scomp->dev, "ACP_DMIC config ACP%d channel %d rate %d\n",
-		 config->dai_index, config->acpdmic.tdm_slots,
-		 config->acpdmic.fsync_rate);
+		 config->dai_index, config->acpdmic.pdm_ch,
+		 config->acpdmic.pdm_rate);
 
 	dai->number_configs = 1;
 	dai->current_config = 0;
@@ -1436,8 +1452,8 @@ static int sof_ipc3_widget_setup_comp_dai(struct snd_sof_widget *swidget)
 	if (ret < 0)
 		goto free;
 
-	dev_dbg(scomp->dev, "%s dai %s: type %d index %d\n",
-		__func__, swidget->widget->name, comp_dai->type, comp_dai->dai_index);
+	dev_dbg(scomp->dev, "dai %s: type %d index %d\n",
+		swidget->widget->name, comp_dai->type, comp_dai->dai_index);
 	sof_dbg_comp_config(scomp, &comp_dai->config);
 
 	/* now update DAI config */
@@ -1628,6 +1644,7 @@ static int sof_ipc3_control_load_bytes(struct snd_sof_dev *sdev, struct snd_sof_
 	return 0;
 err:
 	kfree(scontrol->ipc_control_data);
+	scontrol->ipc_control_data = NULL;
 	return ret;
 }
 
@@ -2302,6 +2319,45 @@ static int sof_ipc3_dai_get_clk(struct snd_sof_dev *sdev, struct snd_sof_dai *da
 	return -EINVAL;
 }
 
+static int sof_ipc3_parse_manifest(struct snd_soc_component *scomp, int index,
+				   struct snd_soc_tplg_manifest *man)
+{
+	u32 size = le32_to_cpu(man->priv.size);
+	u32 abi_version;
+
+	/* backward compatible with tplg without ABI info */
+	if (!size) {
+		dev_dbg(scomp->dev, "No topology ABI info\n");
+		return 0;
+	}
+
+	if (size != SOF_IPC3_TPLG_ABI_SIZE) {
+		dev_err(scomp->dev, "%s: Invalid topology ABI size: %u\n",
+			__func__, size);
+		return -EINVAL;
+	}
+
+	dev_info(scomp->dev,
+		 "Topology: ABI %d:%d:%d Kernel ABI %d:%d:%d\n",
+		 man->priv.data[0], man->priv.data[1], man->priv.data[2],
+		 SOF_ABI_MAJOR, SOF_ABI_MINOR, SOF_ABI_PATCH);
+
+	abi_version = SOF_ABI_VER(man->priv.data[0], man->priv.data[1], man->priv.data[2]);
+
+	if (SOF_ABI_VERSION_INCOMPATIBLE(SOF_ABI_VERSION, abi_version)) {
+		dev_err(scomp->dev, "%s: Incompatible topology ABI version\n", __func__);
+		return -EINVAL;
+	}
+
+	if (IS_ENABLED(CONFIG_SND_SOC_SOF_STRICT_ABI_CHECKS) &&
+	    SOF_ABI_VERSION_MINOR(abi_version) > SOF_ABI_MINOR) {
+		dev_err(scomp->dev, "%s: Topology ABI is more recent than kernel\n", __func__);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /* token list for each topology object */
 static enum sof_tokens host_token_list[] = {
 	SOF_CORE_TOKENS,
@@ -2412,4 +2468,5 @@ const struct sof_ipc_tplg_ops ipc3_tplg_ops = {
 	.dai_get_clk = sof_ipc3_dai_get_clk,
 	.set_up_all_pipelines = sof_ipc3_set_up_all_pipelines,
 	.tear_down_all_pipelines = sof_ipc3_tear_down_all_pipelines,
+	.parse_manifest = sof_ipc3_parse_manifest,
 };

@@ -183,12 +183,14 @@
 				 BIT(DMA_DEV_TO_DEV))
 
 #define SDMA_WATERMARK_LEVEL_N_FIFOS	GENMASK(15, 12)
+#define SDMA_WATERMARK_LEVEL_OFF_FIFOS  GENMASK(19, 16)
+#define SDMA_WATERMARK_LEVEL_WORDS_PER_FIFO   GENMASK(31, 28)
 #define SDMA_WATERMARK_LEVEL_SW_DONE	BIT(23)
 
 #define SDMA_DONE0_CONFIG_DONE_SEL	BIT(7)
 #define SDMA_DONE0_CONFIG_DONE_DIS	BIT(6)
 
-/**
+/*
  * struct sdma_script_start_addrs - SDMA script start pointers
  *
  * start addresses of the different functions in the physical
@@ -424,6 +426,14 @@ struct sdma_desc {
  * @data:		specific sdma interface structure
  * @bd_pool:		dma_pool for bd
  * @terminate_worker:	used to call back into terminate work function
+ * @terminated:		terminated list
+ * @is_ram_script:	flag for script in ram
+ * @n_fifos_src:	number of source device fifos
+ * @n_fifos_dst:	number of destination device fifos
+ * @sw_done:		software done flag
+ * @stride_fifos_src:	stride for source device FIFOs
+ * @stride_fifos_dst:	stride for destination device FIFOs
+ * @words_per_fifo:	copy number of words one time for one FIFO
  */
 struct sdma_channel {
 	struct virt_dma_chan		vc;
@@ -451,6 +461,9 @@ struct sdma_channel {
 	bool				is_ram_script;
 	unsigned int			n_fifos_src;
 	unsigned int			n_fifos_dst;
+	unsigned int			stride_fifos_src;
+	unsigned int			stride_fifos_dst;
+	unsigned int			words_per_fifo;
 	bool				sw_done;
 };
 
@@ -1240,17 +1253,29 @@ static void sdma_set_watermarklevel_for_p2p(struct sdma_channel *sdmac)
 static void sdma_set_watermarklevel_for_sais(struct sdma_channel *sdmac)
 {
 	unsigned int n_fifos;
+	unsigned int stride_fifos;
+	unsigned int words_per_fifo;
 
 	if (sdmac->sw_done)
 		sdmac->watermark_level |= SDMA_WATERMARK_LEVEL_SW_DONE;
 
-	if (sdmac->direction == DMA_DEV_TO_MEM)
+	if (sdmac->direction == DMA_DEV_TO_MEM) {
 		n_fifos = sdmac->n_fifos_src;
-	else
+		stride_fifos = sdmac->stride_fifos_src;
+	} else {
 		n_fifos = sdmac->n_fifos_dst;
+		stride_fifos = sdmac->stride_fifos_dst;
+	}
+
+	words_per_fifo = sdmac->words_per_fifo;
 
 	sdmac->watermark_level |=
 			FIELD_PREP(SDMA_WATERMARK_LEVEL_N_FIFOS, n_fifos);
+	sdmac->watermark_level |=
+			FIELD_PREP(SDMA_WATERMARK_LEVEL_OFF_FIFOS, stride_fifos);
+	if (words_per_fifo)
+		sdmac->watermark_level |=
+			FIELD_PREP(SDMA_WATERMARK_LEVEL_WORDS_PER_FIFO, (words_per_fifo - 1));
 }
 
 static int sdma_config_channel(struct dma_chan *chan)
@@ -1764,6 +1789,9 @@ static int sdma_config(struct dma_chan *chan,
 		}
 		sdmac->n_fifos_src = sdmacfg->n_fifos_src;
 		sdmac->n_fifos_dst = sdmacfg->n_fifos_dst;
+		sdmac->stride_fifos_src = sdmacfg->stride_fifos_src;
+		sdmac->stride_fifos_dst = sdmacfg->stride_fifos_dst;
+		sdmac->words_per_fifo = sdmacfg->words_per_fifo;
 		sdmac->sw_done = sdmacfg->sw_done;
 	}
 
@@ -2183,8 +2211,8 @@ static int sdma_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clk;
 
-	ret = devm_request_irq(&pdev->dev, irq, sdma_int_handler, 0, "sdma",
-			       sdma);
+	ret = devm_request_irq(&pdev->dev, irq, sdma_int_handler, 0,
+				dev_name(&pdev->dev), sdma);
 	if (ret)
 		goto err_irq;
 

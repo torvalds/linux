@@ -448,6 +448,7 @@ Memory Area, or VMA) there is a series of lines such as the following::
     MMUPageSize:           4 kB
     Rss:                 892 kB
     Pss:                 374 kB
+    Pss_Dirty:             0 kB
     Shared_Clean:        892 kB
     Shared_Dirty:          0 kB
     Private_Clean:         0 kB
@@ -479,7 +480,9 @@ dirty shared and private pages in the mapping.
 The "proportional set size" (PSS) of a process is the count of pages it has
 in memory, where each page is divided by the number of processes sharing it.
 So if a process has 1000 pages all to itself, and 1000 shared with one other
-process, its PSS will be 1500.
+process, its PSS will be 1500.  "Pss_Dirty" is the portion of PSS which
+consists of dirty pages.  ("Pss_Clean" is not included, but it can be
+calculated by subtracting "Pss_Dirty" from "Pss".)
 
 Note that even a page which is part of a MAP_SHARED mapping, but has only
 a single pte mapped, i.e.  is currently used by only one process, is accounted
@@ -514,8 +517,10 @@ replaced by copy-on-write) part of the underlying shmem object out on swap.
 "SwapPss" shows proportional swap share of this mapping. Unlike "Swap", this
 does not take into account swapped out page of underlying shmem objects.
 "Locked" indicates whether the mapping is locked in memory or not.
+
 "THPeligible" indicates whether the mapping is eligible for allocating THP
-pages - 1 if true, 0 otherwise. It just shows the current status.
+pages as well as the THP is PMD mappable or not - 1 if true, 0 otherwise.
+It just shows the current status.
 
 "VmFlags" field deserves a separate description. This member represents the
 kernel flags associated with the particular virtual memory area in two letter
@@ -1109,7 +1114,7 @@ CommitLimit
               yield a CommitLimit of 7.3G.
 
               For more details, see the memory overcommit documentation
-              in vm/overcommit-accounting.
+              in mm/overcommit-accounting.
 Committed_AS
               The amount of memory presently allocated on the system.
               The committed memory is a sum of all of the memory which

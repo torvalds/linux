@@ -11,7 +11,6 @@
 
 #include <linux/thread_info.h>
 #include <asm/current.h>
-#include <linux/sched/signal.h>		/* remove ASAP */
 #include <linux/falloc.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
@@ -40,7 +39,6 @@
 #include <linux/uaccess.h>
 #include <linux/sched/mm.h>
 
-static const struct super_operations hugetlbfs_ops;
 static const struct address_space_operations hugetlbfs_aops;
 const struct file_operations hugetlbfs_file_operations;
 static const struct inode_operations hugetlbfs_dir_inode_operations;
@@ -284,39 +282,9 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 }
 #endif
 
-static size_t
-hugetlbfs_read_actor(struct page *page, unsigned long offset,
-			struct iov_iter *to, unsigned long size)
-{
-	size_t copied = 0;
-	int i, chunksize;
-
-	/* Find which 4k chunk and offset with in that chunk */
-	i = offset >> PAGE_SHIFT;
-	offset = offset & ~PAGE_MASK;
-
-	while (size) {
-		size_t n;
-		chunksize = PAGE_SIZE;
-		if (offset)
-			chunksize -= offset;
-		if (chunksize > size)
-			chunksize = size;
-		n = copy_page_to_iter(&page[i], offset, chunksize, to);
-		copied += n;
-		if (n != chunksize)
-			return copied;
-		offset = 0;
-		size -= chunksize;
-		i++;
-	}
-	return copied;
-}
-
 /*
  * Support for read() - Find the page attached to f_mapping and copy out the
- * data. Its *very* similar to generic_file_buffered_read(), we can't use that
- * since it has PAGE_SIZE assumptions.
+ * data. This provides functionality similar to filemap_read().
  */
 static ssize_t hugetlbfs_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
@@ -363,7 +331,7 @@ static ssize_t hugetlbfs_read_iter(struct kiocb *iocb, struct iov_iter *to)
 			/*
 			 * We have the page, copy it to user space buffer.
 			 */
-			copied = hugetlbfs_read_actor(page, offset, to, nr);
+			copied = copy_page_to_iter(page, offset, nr, to);
 			put_page(page);
 		}
 		offset += copied;
@@ -1082,7 +1050,7 @@ static int hugetlbfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bsize = huge_page_size(h);
 	if (sbinfo) {
 		spin_lock(&sbinfo->stat_lock);
-		/* If no limits set, just report 0 for max/free/used
+		/* If no limits set, just report 0 or -1 for max/free/used
 		 * blocks, like simple_statfs() */
 		if (sbinfo->spool) {
 			long free_pages;
@@ -1309,7 +1277,7 @@ static int hugetlbfs_parse_param(struct fs_context *fc, struct fs_parameter *par
 		ps = memparse(param->string, &rest);
 		ctx->hstate = size_to_hstate(ps);
 		if (!ctx->hstate) {
-			pr_err("Unsupported page size %lu MB\n", ps >> 20);
+			pr_err("Unsupported page size %lu MB\n", ps / SZ_1M);
 			return -EINVAL;
 		}
 		return 0;
@@ -1385,7 +1353,7 @@ hugetlbfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	/*
 	 * Allocate and initialize subpool if maximum or minimum size is
 	 * specified.  Any needed reservations (for minimum size) are taken
-	 * taken when the subpool is created.
+	 * when the subpool is created.
 	 */
 	if (ctx->max_hpages != -1 || ctx->min_hpages != -1) {
 		sbinfo->spool = hugepage_new_subpool(ctx->hstate,
@@ -1555,7 +1523,7 @@ static struct vfsmount *__init mount_one_hugetlbfs(struct hstate *h)
 	}
 	if (IS_ERR(mnt))
 		pr_err("Cannot mount internal hugetlbfs for page size %luK",
-		       huge_page_size(h) >> 10);
+		       huge_page_size(h) / SZ_1K);
 	return mnt;
 }
 

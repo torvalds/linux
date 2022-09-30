@@ -120,8 +120,11 @@ static int rpmsg_eptdev_open(struct inode *inode, struct file *filp)
 	struct rpmsg_device *rpdev = eptdev->rpdev;
 	struct device *dev = &eptdev->dev;
 
-	if (eptdev->ept)
+	mutex_lock(&eptdev->ept_lock);
+	if (eptdev->ept) {
+		mutex_unlock(&eptdev->ept_lock);
 		return -EBUSY;
+	}
 
 	get_device(dev);
 
@@ -137,11 +140,13 @@ static int rpmsg_eptdev_open(struct inode *inode, struct file *filp)
 	if (!ept) {
 		dev_err(dev, "failed to open %s\n", eptdev->chinfo.name);
 		put_device(dev);
+		mutex_unlock(&eptdev->ept_lock);
 		return -EINVAL;
 	}
 
 	eptdev->ept = ept;
 	filp->private_data = eptdev;
+	mutex_unlock(&eptdev->ept_lock);
 
 	return 0;
 }

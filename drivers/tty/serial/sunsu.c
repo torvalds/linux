@@ -1249,8 +1249,6 @@ static int sunsu_kbd_ms_init(struct uart_sunsu_port *up)
 
 #ifdef CONFIG_SERIAL_SUNSU_CONSOLE
 
-#define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
-
 /*
  *	Wait for transmitter & holding register to empty
  */
@@ -1268,7 +1266,7 @@ static void wait_for_xmitr(struct uart_sunsu_port *up)
 		if (--tmout == 0)
 			break;
 		udelay(1);
-	} while ((status & BOTH_EMPTY) != BOTH_EMPTY);
+	} while (!uart_lsr_tx_empty(status));
 
 	/* Wait up to 1s for flow control if necessary */
 	if (up->port.flags & UPF_CONS_FLOW) {

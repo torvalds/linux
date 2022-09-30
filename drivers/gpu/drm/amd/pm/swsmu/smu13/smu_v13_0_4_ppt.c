@@ -43,6 +43,15 @@
 #undef pr_info
 #undef pr_debug
 
+#define mmMP1_SMN_C2PMSG_66			0x0282
+#define mmMP1_SMN_C2PMSG_66_BASE_IDX            1
+
+#define mmMP1_SMN_C2PMSG_82			0x0292
+#define mmMP1_SMN_C2PMSG_82_BASE_IDX            1
+
+#define mmMP1_SMN_C2PMSG_90			0x029a
+#define mmMP1_SMN_C2PMSG_90_BASE_IDX		1
+
 #define FEATURE_MASK(feature) (1ULL << feature)
 
 #define SMC_DPM_FEATURE ( \
@@ -62,7 +71,6 @@ static struct cmn2asic_msg_mapping smu_v13_0_4_message_map[SMU_MSG_MAX_COUNT] = 
 	MSG_MAP(TestMessage,                    PPSMC_MSG_TestMessage,			1),
 	MSG_MAP(GetSmuVersion,                  PPSMC_MSG_GetPmfwVersion,		1),
 	MSG_MAP(GetDriverIfVersion,             PPSMC_MSG_GetDriverIfVersion,		1),
-	MSG_MAP(EnableGfxOff,                   PPSMC_MSG_EnableGfxOff,			1),
 	MSG_MAP(AllowGfxOff,                    PPSMC_MSG_AllowGfxOff,			1),
 	MSG_MAP(DisallowGfxOff,                 PPSMC_MSG_DisallowGfxOff,		1),
 	MSG_MAP(PowerDownVcn,                   PPSMC_MSG_PowerDownVcn,			1),
@@ -190,6 +198,9 @@ static int smu_v13_0_4_fini_smc_tables(struct smu_context *smu)
 	kfree(smu_table->watermarks_table);
 	smu_table->watermarks_table = NULL;
 
+	kfree(smu_table->gpu_metrics_table);
+	smu_table->gpu_metrics_table = NULL;
+
 	return 0;
 }
 
@@ -210,27 +221,10 @@ static int smu_v13_0_4_system_features_control(struct smu_context *smu, bool en)
 {
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
-	/* SMU fw need this message to trigger IMU to complete the initialization */
-	if (en)
-		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_EnableGfxImu, NULL);
-	else {
-		if (!adev->in_s0ix)
-			ret = smu_cmn_send_smc_msg(smu,
-						   SMU_MSG_PrepareMp1ForUnload,
-						   NULL);
-	}
-	return ret;
-}
 
-static int smu_v13_0_4_post_smu_init(struct smu_context *smu)
-{
-	struct amdgpu_device *adev = smu->adev;
-	int ret = 0;
+	if (!en && !adev->in_s0ix)
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_PrepareMp1ForUnload, NULL);
 
-	/* allow message will be sent after enable message */
-	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_EnableGfxOff, NULL);
-	if (ret)
-		dev_err(adev->dev, "Failed to Enable GfxOff!\n");
 	return ret;
 }
 
@@ -1022,7 +1016,6 @@ static const struct pptable_funcs smu_v13_0_4_ppt_funcs = {
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.set_driver_table_location = smu_v13_0_set_driver_table_location,
 	.gfx_off_control = smu_v13_0_gfx_off_control,
-	.post_init = smu_v13_0_4_post_smu_init,
 	.mode2_reset = smu_v13_0_4_mode2_reset,
 	.get_dpm_ultimate_freq = smu_v13_0_4_get_dpm_ultimate_freq,
 	.od_edit_dpm_table = smu_v13_0_od_edit_dpm_table,
@@ -1030,13 +1023,19 @@ static const struct pptable_funcs smu_v13_0_4_ppt_funcs = {
 	.force_clk_levels = smu_v13_0_4_force_clk_levels,
 	.set_performance_level = smu_v13_0_4_set_performance_level,
 	.set_fine_grain_gfx_freq_parameters = smu_v13_0_4_set_fine_grain_gfx_freq_parameters,
+	.set_gfx_power_up_by_imu = smu_v13_0_set_gfx_power_up_by_imu,
 };
 
 void smu_v13_0_4_set_ppt_funcs(struct smu_context *smu)
 {
+	struct amdgpu_device *adev = smu->adev;
+
 	smu->ppt_funcs = &smu_v13_0_4_ppt_funcs;
 	smu->message_map = smu_v13_0_4_message_map;
 	smu->feature_map = smu_v13_0_4_feature_mask_map;
 	smu->table_map = smu_v13_0_4_table_map;
 	smu->is_apu = true;
+	smu->param_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_82);
+	smu->msg_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_66);
+	smu->resp_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_90);
 }

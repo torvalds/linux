@@ -252,7 +252,7 @@ static void vmw_cursor_update_position(struct vmw_private *dev_priv,
 		vmw_write(dev_priv, SVGA_REG_CURSOR4_Y, y);
 		vmw_write(dev_priv, SVGA_REG_CURSOR4_SCREEN_ID, SVGA3D_INVALID_ID);
 		vmw_write(dev_priv, SVGA_REG_CURSOR4_ON, svga_cursor_on);
-		vmw_write(dev_priv, SVGA_REG_CURSOR4_SUBMIT, TRUE);
+		vmw_write(dev_priv, SVGA_REG_CURSOR4_SUBMIT, 1);
 	} else if (vmw_is_cursor_bypass3_enabled(dev_priv)) {
 		vmw_fifo_mem_write(dev_priv, SVGA_FIFO_CURSOR_ON, svga_cursor_on);
 		vmw_fifo_mem_write(dev_priv, SVGA_FIFO_CURSOR_X, x);

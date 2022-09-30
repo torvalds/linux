@@ -840,7 +840,6 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l33 = {
 	.num_dapm_routes	= ARRAY_SIZE(cs35l33_audio_map),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config cs35l33_regmap = {

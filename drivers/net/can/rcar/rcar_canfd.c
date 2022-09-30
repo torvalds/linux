@@ -27,6 +27,7 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/errno.h>
+#include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/platform_device.h>
 #include <linux/can/dev.h>
@@ -1052,7 +1053,7 @@ static void rcar_canfd_error(struct net_device *ndev, u32 cerfl,
 		netdev_dbg(ndev, "Error warning interrupt\n");
 		priv->can.state = CAN_STATE_ERROR_WARNING;
 		priv->can.can_stats.error_warning++;
-		cf->can_id |= CAN_ERR_CRTL;
+		cf->can_id |= CAN_ERR_CRTL | CAN_ERR_CNT;
 		cf->data[1] = txerr > rxerr ? CAN_ERR_CRTL_TX_WARNING :
 			CAN_ERR_CRTL_RX_WARNING;
 		cf->data[6] = txerr;
@@ -1062,7 +1063,7 @@ static void rcar_canfd_error(struct net_device *ndev, u32 cerfl,
 		netdev_dbg(ndev, "Error passive interrupt\n");
 		priv->can.state = CAN_STATE_ERROR_PASSIVE;
 		priv->can.can_stats.error_passive++;
-		cf->can_id |= CAN_ERR_CRTL;
+		cf->can_id |= CAN_ERR_CRTL | CAN_ERR_CNT;
 		cf->data[1] = txerr > rxerr ? CAN_ERR_CRTL_TX_PASSIVE :
 			CAN_ERR_CRTL_RX_PASSIVE;
 		cf->data[6] = txerr;
@@ -1695,6 +1696,10 @@ static const struct net_device_ops rcar_canfd_netdev_ops = {
 	.ndo_change_mtu = can_change_mtu,
 };
 
+static const struct ethtool_ops rcar_canfd_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 static int rcar_canfd_channel_probe(struct rcar_canfd_global *gpriv, u32 ch,
 				    u32 fcan_freq)
 {
@@ -1711,6 +1716,7 @@ static int rcar_canfd_channel_probe(struct rcar_canfd_global *gpriv, u32 ch,
 	priv = netdev_priv(ndev);
 
 	ndev->netdev_ops = &rcar_canfd_netdev_ops;
+	ndev->ethtool_ops = &rcar_canfd_ethtool_ops;
 	ndev->flags |= IFF_ECHO;
 	priv->ndev = ndev;
 	priv->base = gpriv->base;

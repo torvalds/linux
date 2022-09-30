@@ -79,6 +79,9 @@ OPTIONS
 --dump-raw-trace=::
         Display verbose dump of the trace data.
 
+--dump-unsorted-raw-trace=::
+        Same as --dump-raw-trace but not sorted in time order.
+
 -L::
 --Latency=::
         Show latency attributes (irqs/preemption disabled, etc).
@@ -130,7 +133,8 @@ OPTIONS
         comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff,
         srcline, period, iregs, uregs, brstack, brstacksym, flags, bpf-output,
         brstackinsn, brstackinsnlen, brstackoff, callindent, insn, insnlen, synth,
-        phys_addr, metric, misc, srccode, ipc, data_page_size, code_page_size, ins_lat.
+        phys_addr, metric, misc, srccode, ipc, data_page_size, code_page_size, ins_lat,
+        machine_pid, vcpu.
         Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
         e.g., -F sw:comm,tid,time,ip,sym  and -F trace:time,cpu,trace
@@ -222,6 +226,10 @@ OPTIONS
 
 	The ipc (instructions per cycle) field is synthesized and may have a value when
 	Instruction Trace decoding.
+
+	The machine_pid and vcpu fields are derived from data resulting from using
+	perf inject to insert a perf.data file recorded inside a virtual machine into
+	a perf.data file recorded on the host at the same time.
 
 	Finally, a user may not set fields to none for all event types.
 	i.e., -F "" is not allowed.
@@ -499,9 +507,9 @@ include::itrace.txt[]
 	The known limitations include exception handing such as
 	setjmp/longjmp will have calls/returns not match.
 
---guest-code::
-	Indicate that guest code can be found in the hypervisor process,
-	which is a common case for KVM test programs.
+:GMEXAMPLECMD: script
+:GMEXAMPLESUBCMD:
+include::guest-files.txt[]
 
 SEE ALSO
 --------

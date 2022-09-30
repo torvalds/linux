@@ -438,7 +438,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 	if (opts->full_auxtrace) {
 		struct evsel *tracking_evsel;
 
-		err = parse_events(evlist, "dummy:u", NULL);
+		err = parse_event(evlist, "dummy:u");
 		if (err)
 			goto out;
 

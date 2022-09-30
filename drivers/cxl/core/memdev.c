@@ -68,7 +68,7 @@ static ssize_t ram_size_show(struct device *dev, struct device_attribute *attr,
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
-	unsigned long long len = range_len(&cxlds->ram_range);
+	unsigned long long len = resource_size(&cxlds->ram_res);
 
 	return sysfs_emit(buf, "%#llx\n", len);
 }
@@ -81,7 +81,7 @@ static ssize_t pmem_size_show(struct device *dev, struct device_attribute *attr,
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
-	unsigned long long len = range_len(&cxlds->pmem_range);
+	unsigned long long len = resource_size(&cxlds->pmem_res);
 
 	return sysfs_emit(buf, "%#llx\n", len);
 }

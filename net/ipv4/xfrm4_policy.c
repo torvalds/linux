@@ -75,7 +75,7 @@ static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 	xdst->u.rt.rt_iif = fl4->flowi4_iif;
 
 	xdst->u.dst.dev = dev;
-	dev_hold_track(dev, &xdst->u.dst.dev_tracker, GFP_ATOMIC);
+	netdev_hold(dev, &xdst->u.dst.dev_tracker, GFP_ATOMIC);
 
 	/* Sheit... I remember I did this right. Apparently,
 	 * it was magically lost, so this code needs audit */

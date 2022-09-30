@@ -725,11 +725,6 @@
 		#power-domain-cells = <0>;
 		#reset-cells = <0>;
 		label = "ans2";
-		/*
-		 * The ADT makes ps_apcie_st depend on ps_ans2 instead, but this
-		 * doesn't make much sense since ANS2 uses APCIE_ST.
-		 */
-		power-domains = <&ps_apcie_st>;
 	};
 
 	ps_gfx: power-controller@3f8 {
@@ -836,7 +831,7 @@
 		#power-domain-cells = <0>;
 		#reset-cells = <0>;
 		label = "apcie_st";
-		power-domains = <&ps_apcie>;
+		power-domains = <&ps_apcie>, <&ps_ans2>;
 	};
 
 	ps_ane_sys: power-controller@470 {

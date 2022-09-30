@@ -394,8 +394,7 @@ struct iscsi_node_attrib *iscsit_tpg_get_node_attrib(
 {
 	struct se_session *se_sess = sess->se_sess;
 	struct se_node_acl *se_nacl = se_sess->se_node_acl;
-	struct iscsi_node_acl *acl = container_of(se_nacl, struct iscsi_node_acl,
-					se_node_acl);
+	struct iscsi_node_acl *acl = to_iscsi_nacl(se_nacl);
 
 	return &acl->node_attrib;
 }

@@ -5,7 +5,7 @@
 // Confidence: High
 // Copyright: (C) 2012 Julia Lawall, INRIA/LIP6.
 // Copyright: (C) 2012 Gilles Muller, INRIA/LiP6.
-// URL: http://coccinelle.lip6.fr/
+// URL: https://coccinelle.gitlabpages.inria.fr/website
 // Comments:
 // Options: --no-includes --include-headers
 

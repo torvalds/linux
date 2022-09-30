@@ -55,10 +55,14 @@ static bool ef100_has_fcs_error(struct efx_channel *channel, u32 *prefix)
 
 void __ef100_rx_packet(struct efx_channel *channel)
 {
-	struct efx_rx_buffer *rx_buf = efx_rx_buffer(&channel->rx_queue, channel->rx_pkt_index);
+	struct efx_rx_queue *rx_queue = efx_channel_get_rx_queue(channel);
+	struct efx_rx_buffer *rx_buf = efx_rx_buffer(rx_queue,
+						     channel->rx_pkt_index);
 	struct efx_nic *efx = channel->efx;
+	struct ef100_nic_data *nic_data;
 	u8 *eh = efx_rx_buf_va(rx_buf);
 	__wsum csum = 0;
+	u16 ing_port;
 	u32 *prefix;
 
 	prefix = (u32 *)(eh - ESE_GZ_RX_PKT_PREFIX_LEN);
@@ -76,6 +80,37 @@ void __ef100_rx_packet(struct efx_channel *channel)
 		goto out;
 	}
 
+	ing_port = le16_to_cpu((__force __le16) PREFIX_FIELD(prefix, INGRESS_MPORT));
+
+	nic_data = efx->nic_data;
+
+	if (nic_data->have_mport && ing_port != nic_data->base_mport) {
+#ifdef CONFIG_SFC_SRIOV
+		struct efx_rep *efv;
+
+		rcu_read_lock();
+		efv = efx_ef100_find_rep_by_mport(efx, ing_port);
+		if (efv) {
+			if (efv->net_dev->flags & IFF_UP)
+				efx_ef100_rep_rx_packet(efv, rx_buf);
+			rcu_read_unlock();
+			/* Representor Rx doesn't care about PF Rx buffer
+			 * ownership, it just makes a copy. So, we are done
+			 * with the Rx buffer from PF point of view and should
+			 * free it.
+			 */
+			goto free_rx_buffer;
+		}
+		rcu_read_unlock();
+#endif
+		if (net_ratelimit())
+			netif_warn(efx, drv, efx->net_dev,
+				   "Unrecognised ing_port %04x (base %04x), dropping\n",
+				   ing_port, nic_data->base_mport);
+		channel->n_rx_mport_bad++;
+		goto free_rx_buffer;
+	}
+
 	if (likely(efx->net_dev->features & NETIF_F_RXCSUM)) {
 		if (PREFIX_FIELD(prefix, NT_OR_INNER_L3_CLASS) == 1) {
 			++channel->n_rx_ip_hdr_chksum_err;
@@ -87,17 +122,16 @@ void __ef100_rx_packet(struct efx_channel *channel)
 	}
 
 	if (channel->type->receive_skb) {
-		struct efx_rx_queue *rx_queue =
-			efx_channel_get_rx_queue(channel);
-
 		/* no support for special channels yet, so just discard */
 		WARN_ON_ONCE(1);
-		efx_free_rx_buffers(rx_queue, rx_buf, 1);
-		goto out;
+		goto free_rx_buffer;
 	}
 
 	efx_rx_packet_gro(channel, rx_buf, channel->rx_pkt_n_frags, eh, csum);
+	goto out;
 
+free_rx_buffer:
+	efx_free_rx_buffers(rx_queue, rx_buf, 1);
 out:
 	channel->rx_pkt_n_frags = 0;
 }

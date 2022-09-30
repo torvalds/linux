@@ -1165,7 +1165,7 @@ void ath11k_hal_srng_shadow_update_hp_tp(struct ath11k_base *ab,
 	lockdep_assert_held(&srng->lock);
 
 	/* check whether the ring is emptry. Update the shadow
-	 * HP only when then ring isn't' empty.
+	 * HP only when then ring isn't empty.
 	 */
 	if (srng->ring_dir == HAL_SRNG_DIR_SRC &&
 	    *srng->u.src_ring.tp_addr != srng->u.src_ring.hp)

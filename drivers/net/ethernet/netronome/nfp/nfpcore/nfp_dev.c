@@ -9,7 +9,7 @@
 
 const struct nfp_dev_info nfp_dev_info[NFP_DEV_CNT] = {
 	[NFP_DEV_NFP3800] = {
-		.dma_mask		= DMA_BIT_MASK(40),
+		.dma_mask		= DMA_BIT_MASK(48),
 		.qc_idx_mask		= GENMASK(8, 0),
 		.qc_addr_offset		= 0x400000,
 		.min_qc_size		= 512,
@@ -21,7 +21,7 @@ const struct nfp_dev_info nfp_dev_info[NFP_DEV_CNT] = {
 		.qc_area_sz		= 0x100000,
 	},
 	[NFP_DEV_NFP3800_VF] = {
-		.dma_mask		= DMA_BIT_MASK(40),
+		.dma_mask		= DMA_BIT_MASK(48),
 		.qc_idx_mask		= GENMASK(8, 0),
 		.qc_addr_offset		= 0,
 		.min_qc_size		= 512,

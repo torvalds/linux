@@ -1044,10 +1044,9 @@ static void mt76x02_check_mac_err(struct mt76x02_dev *dev)
 			return;
 		}
 
-		if (++dev->beacon_hang_check < 10)
+		if (dev->beacon_hang_check < 10)
 			return;
 
-		dev->beacon_hang_check = 0;
 	} else {
 		u32 val = mt76_rr(dev, 0x10f4);
 		if (!(val & BIT(29)) || !(val & (BIT(7) | BIT(5))))
@@ -1057,10 +1056,16 @@ static void mt76x02_check_mac_err(struct mt76x02_dev *dev)
 	dev_err(dev->mt76.dev, "MAC error detected\n");
 
 	mt76_wr(dev, MT_MAC_SYS_CTRL, 0);
-	mt76x02_wait_for_txrx_idle(&dev->mt76);
+	if (!mt76x02_wait_for_txrx_idle(&dev->mt76)) {
+		dev_err(dev->mt76.dev, "MAC stop failed\n");
+		goto out;
+	}
 
+	dev->beacon_hang_check = 0;
 	mt76_set(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_RESET_CSR);
 	udelay(10);
+
+out:
 	mt76_wr(dev, MT_MAC_SYS_CTRL,
 		MT_MAC_SYS_CTRL_ENABLE_TX | MT_MAC_SYS_CTRL_ENABLE_RX);
 }

@@ -161,5 +161,7 @@ struct vhost_vdpa_iova_range {
  * message
  */
 #define VHOST_BACKEND_F_IOTLB_ASID  0x3
+/* Device can be suspended */
+#define VHOST_BACKEND_F_SUSPEND  0x4
 
 #endif

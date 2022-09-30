@@ -505,7 +505,6 @@ struct btrfs_free_cluster {
 enum btrfs_caching_type {
 	BTRFS_CACHE_NO,
 	BTRFS_CACHE_STARTED,
-	BTRFS_CACHE_FAST,
 	BTRFS_CACHE_FINISHED,
 	BTRFS_CACHE_ERROR,
 };
@@ -1173,6 +1172,8 @@ enum {
 	BTRFS_ROOT_ORPHAN_CLEANUP,
 	/* This root has a drop operation that was started previously. */
 	BTRFS_ROOT_UNFINISHED_DROP,
+	/* This reloc root needs to have its buffers lockdep class reset. */
+	BTRFS_ROOT_RESET_LOCKDEP_CLASS,
 };
 
 static inline void btrfs_wake_unfinished_drop(struct btrfs_fs_info *fs_info)

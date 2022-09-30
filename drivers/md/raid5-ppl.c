@@ -679,7 +679,7 @@ void ppl_quiesce(struct r5conf *conf, int quiesce)
 	}
 }
 
-int ppl_handle_flush_request(struct r5l_log *log, struct bio *bio)
+int ppl_handle_flush_request(struct bio *bio)
 {
 	if (bio->bi_iter.bi_size == 0) {
 		bio_endio(bio);

@@ -33,7 +33,6 @@ extern struct pci_dev *isa_bridge_pcidev;
 #include <asm/delay.h>
 #include <asm/mmiowb.h>
 #include <asm/mmu.h>
-#include <asm/ppc_asm.h>
 
 #define SIO_CONFIG_RA	0x398
 #define SIO_CONFIG_RD	0x399
@@ -984,8 +983,6 @@ static inline void * bus_to_virt(unsigned long address)
         return __va(address - PCI_DRAM_OFFSET);
 }
 #define bus_to_virt bus_to_virt
-
-#define page_to_bus(page)	(page_to_phys(page) + PCI_DRAM_OFFSET)
 
 #endif /* CONFIG_PPC32 */
 

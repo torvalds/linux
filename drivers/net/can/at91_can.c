@@ -8,6 +8,7 @@
 
 #include <linux/clk.h>
 #include <linux/errno.h>
+#include <linux/ethtool.h>
 #include <linux/if_arp.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -1152,6 +1153,10 @@ static const struct net_device_ops at91_netdev_ops = {
 	.ndo_change_mtu = can_change_mtu,
 };
 
+static const struct ethtool_ops at91_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 static ssize_t mb0_id_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
 {
@@ -1293,6 +1298,7 @@ static int at91_can_probe(struct platform_device *pdev)
 	}
 
 	dev->netdev_ops	= &at91_netdev_ops;
+	dev->ethtool_ops = &at91_ethtool_ops;
 	dev->irq = irq;
 	dev->flags |= IFF_ECHO;
 

@@ -427,6 +427,7 @@
 #define HFI_PROPERTY_SYS_CODEC_POWER_PLANE_CTRL			0x5
 #define HFI_PROPERTY_SYS_IMAGE_VERSION				0x6
 #define HFI_PROPERTY_SYS_CONFIG_COVERAGE			0x7
+#define HFI_PROPERTY_SYS_UBWC_CONFIG				0x8
 
 /*
  * HFI_PROPERTY_PARAM_COMMON_START
@@ -624,6 +625,25 @@ struct hfi_capabilities {
 struct hfi_debug_config {
 	u32 config;
 	u32 mode;
+};
+
+struct hfi_ubwc_config {
+	u32 size;
+	u32 packet_type;
+	struct {
+		u32 max_channel_override : 1;
+		u32 mal_length_override : 1;
+		u32 hb_override : 1;
+		u32 bank_swzl_level_override : 1;
+		u32 bank_spreading_override : 1;
+		u32 reserved : 27;
+		} override_bit_info;
+	u32 max_channels;
+	u32 mal_length;
+	u32 highest_bank_bit;
+	u32 bank_swzl_level;
+	u32 bank_spreading;
+	u32 reserved[2];
 };
 
 struct hfi_enable {

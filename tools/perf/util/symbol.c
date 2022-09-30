@@ -2300,11 +2300,13 @@ do_kallsyms:
 static int dso__load_guest_kernel_sym(struct dso *dso, struct map *map)
 {
 	int err;
-	const char *kallsyms_filename = NULL;
+	const char *kallsyms_filename;
 	struct machine *machine = map__kmaps(map)->machine;
 	char path[PATH_MAX];
 
-	if (machine__is_default_guest(machine)) {
+	if (machine->kallsyms_filename) {
+		kallsyms_filename = machine->kallsyms_filename;
+	} else if (machine__is_default_guest(machine)) {
 		/*
 		 * if the user specified a vmlinux filename, use it and only
 		 * it, reporting errors to the user if it cannot be used.

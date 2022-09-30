@@ -252,5 +252,5 @@ static void __exit trng_exit(void)
 	trng_debug_exit();
 }
 
-module_cpu_feature_match(MSA, trng_init);
+module_cpu_feature_match(S390_CPU_FEATURE_MSA, trng_init);
 module_exit(trng_exit);

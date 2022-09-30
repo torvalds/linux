@@ -38,6 +38,7 @@ struct cpu_operations {
 #endif
 };
 
+extern const struct cpu_operations cpu_ops_spinwait;
 extern const struct cpu_operations *cpu_ops[NR_CPUS];
 void __init cpu_set_ops(int cpu);
 

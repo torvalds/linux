@@ -657,7 +657,7 @@ __cold int io_register_rsrc(struct io_ring_ctx *ctx, void __user *arg,
 
 int io_rsrc_update_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	struct io_rsrc_update *up = io_kiocb_to_cmd(req);
+	struct io_rsrc_update *up = io_kiocb_to_cmd(req, struct io_rsrc_update);
 
 	if (unlikely(req->flags & (REQ_F_FIXED_FILE | REQ_F_BUFFER_SELECT)))
 		return -EINVAL;
@@ -676,7 +676,7 @@ int io_rsrc_update_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 static int io_files_update_with_index_alloc(struct io_kiocb *req,
 					    unsigned int issue_flags)
 {
-	struct io_rsrc_update *up = io_kiocb_to_cmd(req);
+	struct io_rsrc_update *up = io_kiocb_to_cmd(req, struct io_rsrc_update);
 	__s32 __user *fds = u64_to_user_ptr(up->arg);
 	unsigned int done;
 	struct file *file;
@@ -714,7 +714,7 @@ static int io_files_update_with_index_alloc(struct io_kiocb *req,
 
 static int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_rsrc_update *up = io_kiocb_to_cmd(req);
+	struct io_rsrc_update *up = io_kiocb_to_cmd(req, struct io_rsrc_update);
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_uring_rsrc_update2 up2;
 	int ret;
@@ -743,7 +743,7 @@ static int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 
 static int io_notif_update(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_rsrc_update *up = io_kiocb_to_cmd(req);
+	struct io_rsrc_update *up = io_kiocb_to_cmd(req, struct io_rsrc_update);
 	struct io_ring_ctx *ctx = req->ctx;
 	unsigned len = up->nr_args;
 	unsigned idx_end, idx = up->offset;
@@ -778,7 +778,7 @@ out:
 
 int io_rsrc_update(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_rsrc_update *up = io_kiocb_to_cmd(req);
+	struct io_rsrc_update *up = io_kiocb_to_cmd(req, struct io_rsrc_update);
 
 	switch (up->type) {
 	case IORING_RSRC_UPDATE_FILES:

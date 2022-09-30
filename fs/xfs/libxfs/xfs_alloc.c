@@ -84,7 +84,7 @@ xfs_prealloc_blocks(
 /*
  * The number of blocks per AG that we withhold from xfs_mod_fdblocks to
  * guarantee that we can refill the AGFL prior to allocating space in a nearly
- * full AG.  Although the the space described by the free space btrees, the
+ * full AG.  Although the space described by the free space btrees, the
  * blocks used by the freesp btrees themselves, and the blocks owned by the
  * AGFL are counted in the ondisk fdblocks, it's a mistake to let the ondisk
  * free space in the AG drop so low that the free space btrees cannot refill an
@@ -248,7 +248,7 @@ xfs_alloc_get_rec(
 	int			*stat)	/* output: success/failure */
 {
 	struct xfs_mount	*mp = cur->bc_mp;
-	xfs_agnumber_t		agno = cur->bc_ag.pag->pag_agno;
+	struct xfs_perag	*pag = cur->bc_ag.pag;
 	union xfs_btree_rec	*rec;
 	int			error;
 
@@ -263,11 +263,11 @@ xfs_alloc_get_rec(
 		goto out_bad_rec;
 
 	/* check for valid extent range, including overflow */
-	if (!xfs_verify_agbno(mp, agno, *bno))
+	if (!xfs_verify_agbno(pag, *bno))
 		goto out_bad_rec;
 	if (*bno > *bno + *len)
 		goto out_bad_rec;
-	if (!xfs_verify_agbno(mp, agno, *bno + *len - 1))
+	if (!xfs_verify_agbno(pag, *bno + *len - 1))
 		goto out_bad_rec;
 
 	return 0;
@@ -275,7 +275,8 @@ xfs_alloc_get_rec(
 out_bad_rec:
 	xfs_warn(mp,
 		"%s Freespace BTree record corruption in AG %d detected!",
-		cur->bc_btnum == XFS_BTNUM_BNO ? "Block" : "Size", agno);
+		cur->bc_btnum == XFS_BTNUM_BNO ? "Block" : "Size",
+		pag->pag_agno);
 	xfs_warn(mp,
 		"start block 0x%x block count 0x%x", *bno, *len);
 	return -EFSCORRUPTED;
@@ -703,20 +704,19 @@ const struct xfs_buf_ops xfs_agfl_buf_ops = {
 /*
  * Read in the allocation group free block array.
  */
-int					/* error */
+int
 xfs_alloc_read_agfl(
-	xfs_mount_t	*mp,		/* mount point structure */
-	xfs_trans_t	*tp,		/* transaction pointer */
-	xfs_agnumber_t	agno,		/* allocation group number */
-	struct xfs_buf	**bpp)		/* buffer for the ag free block array */
+	struct xfs_perag	*pag,
+	struct xfs_trans	*tp,
+	struct xfs_buf		**bpp)
 {
-	struct xfs_buf	*bp;		/* return value */
-	int		error;
+	struct xfs_mount	*mp = pag->pag_mount;
+	struct xfs_buf		*bp;
+	int			error;
 
-	ASSERT(agno != NULLAGNUMBER);
 	error = xfs_trans_read_buf(
 			mp, tp, mp->m_ddev_targp,
-			XFS_AG_DADDR(mp, agno, XFS_AGFL_DADDR(mp)),
+			XFS_AG_DADDR(mp, pag->pag_agno, XFS_AGFL_DADDR(mp)),
 			XFS_FSS_TO_BB(mp, 1), 0, &bp, &xfs_agfl_buf_ops);
 	if (error)
 		return error;
@@ -1075,7 +1075,8 @@ xfs_alloc_ag_vextent_small(
 	    be32_to_cpu(agf->agf_flcount) <= args->minleft)
 		goto out;
 
-	error = xfs_alloc_get_freelist(args->tp, args->agbp, &fbno, 0);
+	error = xfs_alloc_get_freelist(args->pag, args->tp, args->agbp,
+			&fbno, 0);
 	if (error)
 		goto error;
 	if (fbno == NULLAGBLOCK)
@@ -2609,7 +2610,7 @@ xfs_alloc_fix_freelist(
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
 
 	if (!pag->pagf_init) {
-		error = xfs_alloc_read_agf(mp, tp, args->agno, flags, &agbp);
+		error = xfs_alloc_read_agf(pag, tp, flags, &agbp);
 		if (error) {
 			/* Couldn't lock the AGF so skip this AG. */
 			if (error == -EAGAIN)
@@ -2639,7 +2640,7 @@ xfs_alloc_fix_freelist(
 	 * Can fail if we're not blocking on locks, and it's held.
 	 */
 	if (!agbp) {
-		error = xfs_alloc_read_agf(mp, tp, args->agno, flags, &agbp);
+		error = xfs_alloc_read_agf(pag, tp, flags, &agbp);
 		if (error) {
 			/* Couldn't lock the AGF so skip this AG. */
 			if (error == -EAGAIN)
@@ -2697,7 +2698,7 @@ xfs_alloc_fix_freelist(
 	else
 		targs.oinfo = XFS_RMAP_OINFO_AG;
 	while (!(flags & XFS_ALLOC_FLAG_NOSHRINK) && pag->pagf_flcount > need) {
-		error = xfs_alloc_get_freelist(tp, agbp, &bno, 0);
+		error = xfs_alloc_get_freelist(pag, tp, agbp, &bno, 0);
 		if (error)
 			goto out_agbp_relse;
 
@@ -2712,7 +2713,7 @@ xfs_alloc_fix_freelist(
 	targs.alignment = targs.minlen = targs.prod = 1;
 	targs.type = XFS_ALLOCTYPE_THIS_AG;
 	targs.pag = pag;
-	error = xfs_alloc_read_agfl(mp, tp, targs.agno, &agflbp);
+	error = xfs_alloc_read_agfl(pag, tp, &agflbp);
 	if (error)
 		goto out_agbp_relse;
 
@@ -2741,7 +2742,7 @@ xfs_alloc_fix_freelist(
 		 * Put each allocated block on the list.
 		 */
 		for (bno = targs.agbno; bno < targs.agbno + targs.len; bno++) {
-			error = xfs_alloc_put_freelist(tp, agbp,
+			error = xfs_alloc_put_freelist(pag, tp, agbp,
 							agflbp, bno, 0);
 			if (error)
 				goto out_agflbp_relse;
@@ -2767,6 +2768,7 @@ out_no_agbp:
  */
 int
 xfs_alloc_get_freelist(
+	struct xfs_perag	*pag,
 	struct xfs_trans	*tp,
 	struct xfs_buf		*agbp,
 	xfs_agblock_t		*bnop,
@@ -2779,7 +2781,6 @@ xfs_alloc_get_freelist(
 	int			error;
 	uint32_t		logflags;
 	struct xfs_mount	*mp = tp->t_mountp;
-	struct xfs_perag	*pag;
 
 	/*
 	 * Freelist is empty, give up.
@@ -2791,8 +2792,7 @@ xfs_alloc_get_freelist(
 	/*
 	 * Read the array of free blocks.
 	 */
-	error = xfs_alloc_read_agfl(mp, tp, be32_to_cpu(agf->agf_seqno),
-				    &agflbp);
+	error = xfs_alloc_read_agfl(pag, tp, &agflbp);
 	if (error)
 		return error;
 
@@ -2807,7 +2807,6 @@ xfs_alloc_get_freelist(
 	if (be32_to_cpu(agf->agf_flfirst) == xfs_agfl_size(mp))
 		agf->agf_flfirst = 0;
 
-	pag = agbp->b_pag;
 	ASSERT(!pag->pagf_agflreset);
 	be32_add_cpu(&agf->agf_flcount, -1);
 	pag->pagf_flcount--;
@@ -2868,29 +2867,11 @@ xfs_alloc_log_agf(
 }
 
 /*
- * Interface for inode allocation to force the pag data to be initialized.
- */
-int					/* error */
-xfs_alloc_pagf_init(
-	xfs_mount_t		*mp,	/* file system mount structure */
-	xfs_trans_t		*tp,	/* transaction pointer */
-	xfs_agnumber_t		agno,	/* allocation group number */
-	int			flags)	/* XFS_ALLOC_FLAGS_... */
-{
-	struct xfs_buf		*bp;
-	int			error;
-
-	error = xfs_alloc_read_agf(mp, tp, agno, flags, &bp);
-	if (!error)
-		xfs_trans_brelse(tp, bp);
-	return error;
-}
-
-/*
  * Put the block on the freelist for the allocation group.
  */
 int
 xfs_alloc_put_freelist(
+	struct xfs_perag	*pag,
 	struct xfs_trans	*tp,
 	struct xfs_buf		*agbp,
 	struct xfs_buf		*agflbp,
@@ -2899,21 +2880,22 @@ xfs_alloc_put_freelist(
 {
 	struct xfs_mount	*mp = tp->t_mountp;
 	struct xfs_agf		*agf = agbp->b_addr;
-	struct xfs_perag	*pag;
 	__be32			*blockp;
 	int			error;
 	uint32_t		logflags;
 	__be32			*agfl_bno;
 	int			startoff;
 
-	if (!agflbp && (error = xfs_alloc_read_agfl(mp, tp,
-			be32_to_cpu(agf->agf_seqno), &agflbp)))
-		return error;
+	if (!agflbp) {
+		error = xfs_alloc_read_agfl(pag, tp, &agflbp);
+		if (error)
+			return error;
+	}
+
 	be32_add_cpu(&agf->agf_fllast, 1);
 	if (be32_to_cpu(agf->agf_fllast) == xfs_agfl_size(mp))
 		agf->agf_fllast = 0;
 
-	pag = agbp->b_pag;
 	ASSERT(!pag->pagf_agflreset);
 	be32_add_cpu(&agf->agf_flcount, 1);
 	pag->pagf_flcount++;
@@ -3070,61 +3052,57 @@ const struct xfs_buf_ops xfs_agf_buf_ops = {
 /*
  * Read in the allocation group header (free/alloc section).
  */
-int					/* error */
+int
 xfs_read_agf(
-	struct xfs_mount	*mp,	/* mount point structure */
-	struct xfs_trans	*tp,	/* transaction pointer */
-	xfs_agnumber_t		agno,	/* allocation group number */
-	int			flags,	/* XFS_BUF_ */
-	struct xfs_buf		**bpp)	/* buffer for the ag freelist header */
+	struct xfs_perag	*pag,
+	struct xfs_trans	*tp,
+	int			flags,
+	struct xfs_buf		**agfbpp)
 {
-	int		error;
+	struct xfs_mount	*mp = pag->pag_mount;
+	int			error;
 
-	trace_xfs_read_agf(mp, agno);
+	trace_xfs_read_agf(pag->pag_mount, pag->pag_agno);
 
-	ASSERT(agno != NULLAGNUMBER);
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
-			XFS_AG_DADDR(mp, agno, XFS_AGF_DADDR(mp)),
-			XFS_FSS_TO_BB(mp, 1), flags, bpp, &xfs_agf_buf_ops);
+			XFS_AG_DADDR(mp, pag->pag_agno, XFS_AGF_DADDR(mp)),
+			XFS_FSS_TO_BB(mp, 1), flags, agfbpp, &xfs_agf_buf_ops);
 	if (error)
 		return error;
 
-	ASSERT(!(*bpp)->b_error);
-	xfs_buf_set_ref(*bpp, XFS_AGF_REF);
+	xfs_buf_set_ref(*agfbpp, XFS_AGF_REF);
 	return 0;
 }
 
 /*
- * Read in the allocation group header (free/alloc section).
+ * Read in the allocation group header (free/alloc section) and initialise the
+ * perag structure if necessary. If the caller provides @agfbpp, then return the
+ * locked buffer to the caller, otherwise free it.
  */
-int					/* error */
+int
 xfs_alloc_read_agf(
-	struct xfs_mount	*mp,	/* mount point structure */
-	struct xfs_trans	*tp,	/* transaction pointer */
-	xfs_agnumber_t		agno,	/* allocation group number */
-	int			flags,	/* XFS_ALLOC_FLAG_... */
-	struct xfs_buf		**bpp)	/* buffer for the ag freelist header */
+	struct xfs_perag	*pag,
+	struct xfs_trans	*tp,
+	int			flags,
+	struct xfs_buf		**agfbpp)
 {
-	struct xfs_agf		*agf;		/* ag freelist header */
-	struct xfs_perag	*pag;		/* per allocation group data */
+	struct xfs_buf		*agfbp;
+	struct xfs_agf		*agf;
 	int			error;
 	int			allocbt_blks;
 
-	trace_xfs_alloc_read_agf(mp, agno);
+	trace_xfs_alloc_read_agf(pag->pag_mount, pag->pag_agno);
 
 	/* We don't support trylock when freeing. */
 	ASSERT((flags & (XFS_ALLOC_FLAG_FREEING | XFS_ALLOC_FLAG_TRYLOCK)) !=
 			(XFS_ALLOC_FLAG_FREEING | XFS_ALLOC_FLAG_TRYLOCK));
-	ASSERT(agno != NULLAGNUMBER);
-	error = xfs_read_agf(mp, tp, agno,
+	error = xfs_read_agf(pag, tp,
 			(flags & XFS_ALLOC_FLAG_TRYLOCK) ? XBF_TRYLOCK : 0,
-			bpp);
+			&agfbp);
 	if (error)
 		return error;
-	ASSERT(!(*bpp)->b_error);
 
-	agf = (*bpp)->b_addr;
-	pag = (*bpp)->b_pag;
+	agf = agfbp->b_addr;
 	if (!pag->pagf_init) {
 		pag->pagf_freeblks = be32_to_cpu(agf->agf_freeblks);
 		pag->pagf_btreeblks = be32_to_cpu(agf->agf_btreeblks);
@@ -3138,7 +3116,7 @@ xfs_alloc_read_agf(
 			be32_to_cpu(agf->agf_levels[XFS_BTNUM_RMAPi]);
 		pag->pagf_refcount_level = be32_to_cpu(agf->agf_refcount_level);
 		pag->pagf_init = 1;
-		pag->pagf_agflreset = xfs_agfl_needs_reset(mp, agf);
+		pag->pagf_agflreset = xfs_agfl_needs_reset(pag->pag_mount, agf);
 
 		/*
 		 * Update the in-core allocbt counter. Filter out the rmapbt
@@ -3148,13 +3126,14 @@ xfs_alloc_read_agf(
 		 * counter only tracks non-root blocks.
 		 */
 		allocbt_blks = pag->pagf_btreeblks;
-		if (xfs_has_rmapbt(mp))
+		if (xfs_has_rmapbt(pag->pag_mount))
 			allocbt_blks -= be32_to_cpu(agf->agf_rmap_blocks) - 1;
 		if (allocbt_blks > 0)
-			atomic64_add(allocbt_blks, &mp->m_allocbt_blks);
+			atomic64_add(allocbt_blks,
+					&pag->pag_mount->m_allocbt_blks);
 	}
 #ifdef DEBUG
-	else if (!xfs_is_shutdown(mp)) {
+	else if (!xfs_is_shutdown(pag->pag_mount)) {
 		ASSERT(pag->pagf_freeblks == be32_to_cpu(agf->agf_freeblks));
 		ASSERT(pag->pagf_btreeblks == be32_to_cpu(agf->agf_btreeblks));
 		ASSERT(pag->pagf_flcount == be32_to_cpu(agf->agf_flcount));
@@ -3165,6 +3144,10 @@ xfs_alloc_read_agf(
 		       be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNTi]));
 	}
 #endif
+	if (agfbpp)
+		*agfbpp = agfbp;
+	else
+		xfs_trans_brelse(tp, agfbp);
 	return 0;
 }
 

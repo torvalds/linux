@@ -120,17 +120,15 @@ static void free_rd_atomic_resources(struct rxe_qp *qp)
 		for (i = 0; i < qp->attr.max_dest_rd_atomic; i++) {
 			struct resp_res *res = &qp->resp.resources[i];
 
-			free_rd_atomic_resource(qp, res);
+			free_rd_atomic_resource(res);
 		}
 		kfree(qp->resp.resources);
 		qp->resp.resources = NULL;
 	}
 }
 
-void free_rd_atomic_resource(struct rxe_qp *qp, struct resp_res *res)
+void free_rd_atomic_resource(struct resp_res *res)
 {
-	if (res->type == RXE_ATOMIC_MASK)
-		kfree_skb(res->atomic.skb);
 	res->type = 0;
 }
 
@@ -142,7 +140,7 @@ static void cleanup_rd_atomic_resources(struct rxe_qp *qp)
 	if (qp->resp.resources) {
 		for (i = 0; i < qp->attr.max_dest_rd_atomic; i++) {
 			res = &qp->resp.resources[i];
-			free_rd_atomic_resource(qp, res);
+			free_rd_atomic_resource(res);
 		}
 	}
 }
@@ -173,6 +171,14 @@ static void rxe_qp_init_misc(struct rxe_dev *rxe, struct rxe_qp *qp,
 	}
 
 	spin_lock_init(&qp->state_lock);
+
+	spin_lock_init(&qp->req.task.state_lock);
+	spin_lock_init(&qp->resp.task.state_lock);
+	spin_lock_init(&qp->comp.task.state_lock);
+
+	spin_lock_init(&qp->sq.sq_lock);
+	spin_lock_init(&qp->rq.producer_lock);
+	spin_lock_init(&qp->rq.consumer_lock);
 
 	atomic_set(&qp->ssn, 0);
 	atomic_set(&qp->skb_out, 0);
@@ -230,10 +236,10 @@ static int rxe_qp_init_req(struct rxe_dev *rxe, struct rxe_qp *qp,
 					       QUEUE_TYPE_FROM_CLIENT);
 
 	qp->req.state		= QP_STATE_RESET;
+	qp->comp.state		= QP_STATE_RESET;
 	qp->req.opcode		= -1;
 	qp->comp.opcode		= -1;
 
-	spin_lock_init(&qp->sq.sq_lock);
 	skb_queue_head_init(&qp->req_pkts);
 
 	rxe_init_task(rxe, &qp->req.task, qp,
@@ -283,9 +289,6 @@ static int rxe_qp_init_resp(struct rxe_dev *rxe, struct rxe_qp *qp,
 			return err;
 		}
 	}
-
-	spin_lock_init(&qp->rq.producer_lock);
-	spin_lock_init(&qp->rq.consumer_lock);
 
 	skb_queue_head_init(&qp->resp_pkts);
 
@@ -490,6 +493,7 @@ static void rxe_qp_reset(struct rxe_qp *qp)
 
 	/* move qp to the reset state */
 	qp->req.state = QP_STATE_RESET;
+	qp->comp.state = QP_STATE_RESET;
 	qp->resp.state = QP_STATE_RESET;
 
 	/* let state machines reset themselves drain work and packet queues
@@ -507,6 +511,7 @@ static void rxe_qp_reset(struct rxe_qp *qp)
 	atomic_set(&qp->ssn, 0);
 	qp->req.opcode = -1;
 	qp->req.need_retry = 0;
+	qp->req.wait_for_rnr_timer = 0;
 	qp->req.noack_pkts = 0;
 	qp->resp.msn = 0;
 	qp->resp.opcode = -1;
@@ -552,6 +557,7 @@ void rxe_qp_error(struct rxe_qp *qp)
 {
 	qp->req.state = QP_STATE_ERROR;
 	qp->resp.state = QP_STATE_ERROR;
+	qp->comp.state = QP_STATE_ERROR;
 	qp->attr.qp_state = IB_QPS_ERR;
 
 	/* drain work and packet queues */
@@ -689,6 +695,7 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 			pr_debug("qp#%d state -> INIT\n", qp_num(qp));
 			qp->req.state = QP_STATE_INIT;
 			qp->resp.state = QP_STATE_INIT;
+			qp->comp.state = QP_STATE_INIT;
 			break;
 
 		case IB_QPS_RTR:
@@ -699,6 +706,7 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 		case IB_QPS_RTS:
 			pr_debug("qp#%d state -> RTS\n", qp_num(qp));
 			qp->req.state = QP_STATE_READY;
+			qp->comp.state = QP_STATE_READY;
 			break;
 
 		case IB_QPS_SQD:
@@ -804,13 +812,15 @@ static void rxe_qp_do_cleanup(struct work_struct *work)
 	if (qp->rq.queue)
 		rxe_queue_cleanup(qp->rq.queue);
 
-	atomic_dec(&qp->scq->num_wq);
-	if (qp->scq)
+	if (qp->scq) {
+		atomic_dec(&qp->scq->num_wq);
 		rxe_put(qp->scq);
+	}
 
-	atomic_dec(&qp->rcq->num_wq);
-	if (qp->rcq)
+	if (qp->rcq) {
+		atomic_dec(&qp->rcq->num_wq);
 		rxe_put(qp->rcq);
+	}
 
 	if (qp->pd)
 		rxe_put(qp->pd);

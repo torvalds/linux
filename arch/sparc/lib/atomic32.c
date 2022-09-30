@@ -120,7 +120,7 @@ void arch_atomic_set(atomic_t *v, int i)
 }
 EXPORT_SYMBOL(arch_atomic_set);
 
-unsigned long ___set_bit(unsigned long *addr, unsigned long mask)
+unsigned long sp32___set_bit(unsigned long *addr, unsigned long mask)
 {
 	unsigned long old, flags;
 
@@ -131,9 +131,9 @@ unsigned long ___set_bit(unsigned long *addr, unsigned long mask)
 
 	return old & mask;
 }
-EXPORT_SYMBOL(___set_bit);
+EXPORT_SYMBOL(sp32___set_bit);
 
-unsigned long ___clear_bit(unsigned long *addr, unsigned long mask)
+unsigned long sp32___clear_bit(unsigned long *addr, unsigned long mask)
 {
 	unsigned long old, flags;
 
@@ -144,9 +144,9 @@ unsigned long ___clear_bit(unsigned long *addr, unsigned long mask)
 
 	return old & mask;
 }
-EXPORT_SYMBOL(___clear_bit);
+EXPORT_SYMBOL(sp32___clear_bit);
 
-unsigned long ___change_bit(unsigned long *addr, unsigned long mask)
+unsigned long sp32___change_bit(unsigned long *addr, unsigned long mask)
 {
 	unsigned long old, flags;
 
@@ -157,7 +157,7 @@ unsigned long ___change_bit(unsigned long *addr, unsigned long mask)
 
 	return old & mask;
 }
-EXPORT_SYMBOL(___change_bit);
+EXPORT_SYMBOL(sp32___change_bit);
 
 unsigned long __cmpxchg_u32(volatile u32 *ptr, u32 old, u32 new)
 {

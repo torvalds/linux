@@ -44,18 +44,28 @@ static_assert(sizeof(struct rt_firmware_hdr) == 32);
 static void fw_download_enable(struct adapter *padapter, bool enable)
 {
 	u8 tmp;
+	int res;
 
 	if (enable) {
 		/*  MCU firmware download enable. */
-		tmp = rtw_read8(padapter, REG_MCUFWDL);
+		res = rtw_read8(padapter, REG_MCUFWDL, &tmp);
+		if (res)
+			return;
+
 		rtw_write8(padapter, REG_MCUFWDL, tmp | 0x01);
 
 		/*  8051 reset */
-		tmp = rtw_read8(padapter, REG_MCUFWDL + 2);
+		res = rtw_read8(padapter, REG_MCUFWDL + 2, &tmp);
+		if (res)
+			return;
+
 		rtw_write8(padapter, REG_MCUFWDL + 2, tmp & 0xf7);
 	} else {
 		/*  MCU firmware download disable. */
-		tmp = rtw_read8(padapter, REG_MCUFWDL);
+		res = rtw_read8(padapter, REG_MCUFWDL, &tmp);
+		if (res)
+			return;
+
 		rtw_write8(padapter, REG_MCUFWDL, tmp & 0xfe);
 
 		/*  Reserved for fw extension. */
@@ -125,8 +135,13 @@ static int page_write(struct adapter *padapter, u32 page, u8 *buffer, u32 size)
 {
 	u8 value8;
 	u8 u8Page = (u8)(page & 0x07);
+	int res;
 
-	value8 = (rtw_read8(padapter, REG_MCUFWDL + 2) & 0xF8) | u8Page;
+	res = rtw_read8(padapter, REG_MCUFWDL + 2, &value8);
+	if (res)
+		return _FAIL;
+
+	value8 = (value8 & 0xF8) | u8Page;
 	rtw_write8(padapter, REG_MCUFWDL + 2, value8);
 
 	return block_write(padapter, buffer, size);
@@ -165,8 +180,12 @@ exit:
 void rtw_reset_8051(struct adapter *padapter)
 {
 	u8 val8;
+	int res;
 
-	val8 = rtw_read8(padapter, REG_SYS_FUNC_EN + 1);
+	res = rtw_read8(padapter, REG_SYS_FUNC_EN + 1, &val8);
+	if (res)
+		return;
+
 	rtw_write8(padapter, REG_SYS_FUNC_EN + 1, val8 & (~BIT(2)));
 	rtw_write8(padapter, REG_SYS_FUNC_EN + 1, val8 | (BIT(2)));
 }
@@ -175,10 +194,14 @@ static int fw_free_to_go(struct adapter *padapter)
 {
 	u32	counter = 0;
 	u32	value32;
+	int res;
 
 	/*  polling CheckSum report */
 	do {
-		value32 = rtw_read32(padapter, REG_MCUFWDL);
+		res = rtw_read32(padapter, REG_MCUFWDL, &value32);
+		if (res)
+			continue;
+
 		if (value32 & FWDL_CHKSUM_RPT)
 			break;
 	} while (counter++ < POLLING_READY_TIMEOUT_COUNT);
@@ -186,7 +209,10 @@ static int fw_free_to_go(struct adapter *padapter)
 	if (counter >= POLLING_READY_TIMEOUT_COUNT)
 		return _FAIL;
 
-	value32 = rtw_read32(padapter, REG_MCUFWDL);
+	res = rtw_read32(padapter, REG_MCUFWDL, &value32);
+	if (res)
+		return _FAIL;
+
 	value32 |= MCUFWDL_RDY;
 	value32 &= ~WINTINI_RDY;
 	rtw_write32(padapter, REG_MCUFWDL, value32);
@@ -196,9 +222,10 @@ static int fw_free_to_go(struct adapter *padapter)
 	/*  polling for FW ready */
 	counter = 0;
 	do {
-		value32 = rtw_read32(padapter, REG_MCUFWDL);
-		if (value32 & WINTINI_RDY)
+		res = rtw_read32(padapter, REG_MCUFWDL, &value32);
+		if (!res && value32 & WINTINI_RDY)
 			return _SUCCESS;
+
 		udelay(5);
 	} while (counter++ < POLLING_READY_TIMEOUT_COUNT);
 
@@ -239,7 +266,7 @@ exit:
 int rtl8188e_firmware_download(struct adapter *padapter)
 {
 	int ret = _SUCCESS;
-	u8 write_fw_retry = 0;
+	u8 reg;
 	unsigned long fwdl_timeout;
 	struct dvobj_priv *dvobj = adapter_to_dvobj(padapter);
 	struct device *device = dvobj_to_dev(dvobj);
@@ -259,9 +286,9 @@ int rtl8188e_firmware_download(struct adapter *padapter)
 	fwhdr = (struct rt_firmware_hdr *)dvobj->firmware.data;
 
 	if (IS_FW_HEADER_EXIST(fwhdr)) {
-		pr_info_once("R8188EU: Firmware Version %d, SubVersion %d, Signature 0x%x\n",
-			     le16_to_cpu(fwhdr->version), fwhdr->subversion,
-			     le16_to_cpu(fwhdr->signature));
+		dev_info_once(device, "Firmware Version %d, SubVersion %d, Signature 0x%x\n",
+			      le16_to_cpu(fwhdr->version), fwhdr->subversion,
+			      le16_to_cpu(fwhdr->signature));
 
 		fw_data = fw_data + sizeof(struct rt_firmware_hdr);
 		fw_size = fw_size - sizeof(struct rt_firmware_hdr);
@@ -269,23 +296,34 @@ int rtl8188e_firmware_download(struct adapter *padapter)
 
 	/*  Suggested by Filen. If 8051 is running in RAM code, driver should inform Fw to reset by itself, */
 	/*  or it will cause download Fw fail. 2010.02.01. by tynli. */
-	if (rtw_read8(padapter, REG_MCUFWDL) & RAM_DL_SEL) { /* 8051 RAM code */
+	ret = rtw_read8(padapter, REG_MCUFWDL, &reg);
+	if (ret) {
+		ret = _FAIL;
+		goto exit;
+	}
+
+	if (reg & RAM_DL_SEL) { /* 8051 RAM code */
 		rtw_write8(padapter, REG_MCUFWDL, 0x00);
 		rtw_reset_8051(padapter);
 	}
 
 	fw_download_enable(padapter, true);
 	fwdl_timeout = jiffies + msecs_to_jiffies(500);
-	while (1) {
+	do {
 		/* reset the FWDL chksum */
-		rtw_write8(padapter, REG_MCUFWDL, rtw_read8(padapter, REG_MCUFWDL) | FWDL_CHKSUM_RPT);
+		ret = rtw_read8(padapter, REG_MCUFWDL, &reg);
+		if (ret) {
+			ret = _FAIL;
+			continue;
+		}
+
+		rtw_write8(padapter, REG_MCUFWDL, reg | FWDL_CHKSUM_RPT);
 
 		ret = write_fw(padapter, fw_data, fw_size);
-
-		if (ret == _SUCCESS ||
-		    (time_after(jiffies, fwdl_timeout) && write_fw_retry++ >= 3))
+		if (ret == _SUCCESS)
 			break;
-	}
+	} while (!time_after(jiffies, fwdl_timeout));
+
 	fw_download_enable(padapter, false);
 	if (ret != _SUCCESS)
 		goto exit;

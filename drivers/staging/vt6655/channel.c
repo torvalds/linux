@@ -94,7 +94,7 @@ bool set_channel(struct vnt_private *priv, struct ieee80211_channel *ch)
 	}
 
 	/* clear NAV */
-	MACvRegBitsOn(priv->port_offset, MAC_REG_MACCR, MACCR_CLRNAV);
+	vt6655_mac_reg_bits_on(priv->port_offset, MAC_REG_MACCR, MACCR_CLRNAV);
 
 	/* TX_PE will reserve 3 us for MAX2829 A mode only,
 	 * it is for better TX throughput

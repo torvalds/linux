@@ -463,14 +463,12 @@ static void scsi_report_sense(struct scsi_device *sdev,
 			evt_type = SDEV_EVT_LUN_CHANGE_REPORTED;
 			scsi_report_lun_change(sdev);
 			sdev_printk(KERN_WARNING, sdev,
-				    "Warning! Received an indication that the "
 				    "LUN assignments on this target have "
 				    "changed. The Linux SCSI layer does not "
 				    "automatically remap LUN assignments.\n");
 		} else if (sshdr->asc == 0x3f)
 			sdev_printk(KERN_WARNING, sdev,
-				    "Warning! Received an indication that the "
-				    "operating parameters on this target have "
+				    "Operating parameters on this target have "
 				    "changed. The Linux SCSI layer does not "
 				    "automatically adjust these parameters.\n");
 

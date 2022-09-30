@@ -69,6 +69,7 @@ struct rv_jit_context {
 	struct bpf_prog *prog;
 	u16 *insns;		/* RV insns */
 	int ninsns;
+	int body_len;
 	int epilogue_offset;
 	int *offset;		/* BPF to RV */
 	int nexentries;

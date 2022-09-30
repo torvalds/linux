@@ -134,6 +134,7 @@ struct cscfg_feature_desc {
  * @active_cnt:		ref count for activate on this configuration.
  * @load_owner:		handle to load owner for dynamic load and unload of configs.
  * @fs_group:		reference to configfs group for dynamic unload.
+ * @available:		config can be activated - multi-stage load sets true on completion.
  */
 struct cscfg_config_desc {
 	const char *name;
@@ -148,6 +149,7 @@ struct cscfg_config_desc {
 	atomic_t active_cnt;
 	void *load_owner;
 	struct config_group *fs_group;
+	bool available;
 };
 
 /**

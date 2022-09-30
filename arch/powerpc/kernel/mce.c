@@ -756,7 +756,7 @@ void __init mce_init(void)
 		mce_info = memblock_alloc_try_nid(sizeof(*mce_info),
 						  __alignof__(*mce_info),
 						  MEMBLOCK_LOW_LIMIT,
-						  limit, cpu_to_node(i));
+						  limit, early_cpu_to_node(i));
 		if (!mce_info)
 			goto err;
 		paca_ptrs[i]->mce_info = mce_info;

@@ -2321,7 +2321,7 @@ static const char *lm90_detect_nuvoton(struct i2c_client *client, int chip_id,
 	const char *name = NULL;
 
 	if (config2 < 0)
-		return ERR_PTR(-ENODEV);
+		return NULL;
 
 	if (address == 0x4c && !(config1 & 0x2a) && !(config2 & 0xf8)) {
 		if (chip_id == 0x01 && convrate <= 0x09) {

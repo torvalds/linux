@@ -1944,6 +1944,7 @@ static netdev_tx_t gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		lstatus |= BD_LFLAG(TXBD_CRC | TXBD_READY) | skb_headlen(skb);
 	}
 
+	skb_tx_timestamp(skb);
 	netdev_tx_sent_queue(txq, bytes_sent);
 
 	gfar_wmb();

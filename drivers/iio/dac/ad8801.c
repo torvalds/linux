@@ -26,7 +26,7 @@ struct ad8801_state {
 	struct regulator *vrefh_reg;
 	struct regulator *vrefl_reg;
 
-	__be16 data ____cacheline_aligned;
+	__be16 data __aligned(IIO_DMA_MINALIGN);
 };
 
 static int ad8801_spi_write(struct ad8801_state *state,

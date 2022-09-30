@@ -15,7 +15,6 @@ struct msm_dp {
 	struct device *codec_dev;
 	struct drm_bridge *bridge;
 	struct drm_connector *connector;
-	struct drm_encoder *encoder;
 	struct drm_bridge *next_bridge;
 	bool is_connected;
 	bool audio_enabled;

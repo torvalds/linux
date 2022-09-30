@@ -367,7 +367,7 @@ static void xiic_fill_tx_fifo(struct xiic_i2c *i2c)
 	}
 }
 
-static void xiic_wakeup(struct xiic_i2c *i2c, int code)
+static void xiic_wakeup(struct xiic_i2c *i2c, enum xilinx_i2c_state code)
 {
 	i2c->tx_msg = NULL;
 	i2c->rx_msg = NULL;
@@ -383,7 +383,7 @@ static irqreturn_t xiic_process(int irq, void *dev_id)
 	u32 clr = 0;
 	int xfer_more = 0;
 	int wakeup_req = 0;
-	int wakeup_code = 0;
+	enum xilinx_i2c_state wakeup_code = STATE_DONE;
 	int ret;
 
 	/* Get the interrupt Status from the IPIF. There is no clearing of

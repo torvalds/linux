@@ -2399,7 +2399,7 @@ static void pkt_submit_bio(struct bio *bio)
 	struct pktcdvd_device *pd = bio->bi_bdev->bd_disk->queue->queuedata;
 	struct bio *split;
 
-	blk_queue_split(&bio);
+	bio = bio_split_to_limits(bio);
 
 	pkt_dbg(2, pd, "start = %6llx stop = %6llx\n",
 		(unsigned long long)bio->bi_iter.bi_sector,

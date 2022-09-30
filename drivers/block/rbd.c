@@ -1297,7 +1297,7 @@ static void rbd_osd_submit(struct ceph_osd_request *osd_req)
 	dout("%s osd_req %p for obj_req %p objno %llu %llu~%llu\n",
 	     __func__, osd_req, obj_req, obj_req->ex.oe_objno,
 	     obj_req->ex.oe_off, obj_req->ex.oe_len);
-	ceph_osdc_start_request(osd_req->r_osdc, osd_req, false);
+	ceph_osdc_start_request(osd_req->r_osdc, osd_req);
 }
 
 /*
@@ -2081,7 +2081,7 @@ static int rbd_object_map_update(struct rbd_obj_request *obj_req, u64 snap_id,
 	if (ret)
 		return ret;
 
-	ceph_osdc_start_request(osdc, req, false);
+	ceph_osdc_start_request(osdc, req);
 	return 0;
 }
 
@@ -4768,7 +4768,7 @@ static int rbd_obj_read_sync(struct rbd_device *rbd_dev,
 	if (ret)
 		goto out_req;
 
-	ceph_osdc_start_request(osdc, req, false);
+	ceph_osdc_start_request(osdc, req);
 	ret = ceph_osdc_wait_request(osdc, req);
 	if (ret >= 0)
 		ceph_copy_from_page_vector(pages, buf, 0, ret);

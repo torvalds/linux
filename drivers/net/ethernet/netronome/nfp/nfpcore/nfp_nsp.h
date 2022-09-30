@@ -196,6 +196,8 @@ int nfp_eth_set_configured(struct nfp_cpp *cpp, unsigned int idx,
 int
 nfp_eth_set_fec(struct nfp_cpp *cpp, unsigned int idx, enum nfp_eth_fec mode);
 
+int nfp_eth_set_idmode(struct nfp_cpp *cpp, unsigned int idx, bool state);
+
 static inline bool nfp_eth_can_support_fec(struct nfp_eth_table_port *eth_port)
 {
 	return !!eth_port->fec_modes_supported;

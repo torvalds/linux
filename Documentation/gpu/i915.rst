@@ -246,6 +246,18 @@ Display State Buffer
 .. kernel-doc:: drivers/gpu/drm/i915/display/intel_dsb.c
    :internal:
 
+GT Programming
+==============
+
+Multicast/Replicated (MCR) Registers
+------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/gt/intel_gt_mcr.c
+   :doc: GT Multicast/Replicated (MCR) Register Support
+
+.. kernel-doc:: drivers/gpu/drm/i915/gt/intel_gt_mcr.c
+   :internal:
+
 Memory Management and Command Submission
 ========================================
 

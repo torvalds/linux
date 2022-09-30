@@ -191,11 +191,11 @@ static void wilc_wlan_power(struct wilc *wilc, bool on)
 		/* assert ENABLE: */
 		gpiod_set_value(gpios->enable, 1);
 		mdelay(5);
-		/* deassert RESET: */
-		gpiod_set_value(gpios->reset, 0);
-	} else {
 		/* assert RESET: */
 		gpiod_set_value(gpios->reset, 1);
+	} else {
+		/* deassert RESET: */
+		gpiod_set_value(gpios->reset, 0);
 		/* deassert ENABLE: */
 		gpiod_set_value(gpios->enable, 0);
 	}
@@ -1029,6 +1029,13 @@ static int wilc_spi_reset(struct wilc *wilc)
 	return result;
 }
 
+static bool wilc_spi_is_init(struct wilc *wilc)
+{
+	struct wilc_spi *spi_priv = wilc->bus_data;
+
+	return spi_priv->isinit;
+}
+
 static int wilc_spi_deinit(struct wilc *wilc)
 {
 	struct wilc_spi *spi_priv = wilc->bus_data;
@@ -1250,4 +1257,5 @@ static const struct wilc_hif_func wilc_hif_spi = {
 	.hif_block_rx_ext = wilc_spi_read,
 	.hif_sync_ext = wilc_spi_sync_ext,
 	.hif_reset = wilc_spi_reset,
+	.hif_is_init = wilc_spi_is_init,
 };

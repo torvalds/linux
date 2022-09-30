@@ -10,6 +10,10 @@
 #ifndef _PTP_PCH_H_
 #define _PTP_PCH_H_
 
+#include <linux/types.h>
+
+struct pci_dev;
+
 void pch_ch_control_write(struct pci_dev *pdev, u32 val);
 u32  pch_ch_event_read(struct pci_dev *pdev);
 void pch_ch_event_write(struct pci_dev *pdev, u32 val);

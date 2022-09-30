@@ -1124,10 +1124,12 @@ static int ufs_qcom_link_startup_notify(struct ufs_hba *hba,
 		if (host->bypass_g4_cfgready)
 			err = ufs_qcom_bypass_cfgready_signal(hba);
 		break;
+
 	case POST_CHANGE:
 		ufs_qcom_link_startup_post_change(hba);
 		ufs_qcom_validate_link_params(hba);
 		break;
+
 	default:
 		break;
 	}
@@ -4272,7 +4274,7 @@ static void ufs_qcom_hook_compl_command(void *param, struct ufs_hba *hba,
 }
 
 static void ufs_qcom_hook_send_uic_command(void *param, struct ufs_hba *hba,
-					struct uic_command *ucmd,
+					const struct uic_command *ucmd,
 					int str_t)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);

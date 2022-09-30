@@ -147,7 +147,7 @@ static int sdw_free_stream(struct device *dev,
 	return hda_ctrl_dai_widget_free(w, SOF_DAI_CONFIG_FLAGS_NONE, &data);
 }
 
-static const struct sdw_intel_ops sdw_callback = {
+struct sdw_intel_ops sdw_callback = {
 	.params_stream = sdw_params_stream,
 	.free_stream = sdw_free_stream,
 };
@@ -353,7 +353,7 @@ static inline bool hda_sdw_check_wakeen_irq(struct snd_sof_dev *sdev)
 
 struct hda_dsp_msg_code {
 	u32 code;
-	const char *msg;
+	const char *text;
 };
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG)
@@ -382,10 +382,7 @@ module_param_named(use_common_hdmi, hda_codec_use_common_hdmi, bool, 0444);
 MODULE_PARM_DESC(use_common_hdmi, "SOF HDA use common HDMI codec driver");
 #endif
 
-static const struct hda_dsp_msg_code hda_dsp_rom_msg[] = {
-	{HDA_DSP_ROM_FW_MANIFEST_LOADED, "status: manifest loaded"},
-	{HDA_DSP_ROM_FW_FW_LOADED, "status: fw loaded"},
-	{HDA_DSP_ROM_FW_ENTERED, "status: fw entered"},
+static const struct hda_dsp_msg_code hda_dsp_rom_fw_error_texts[] = {
 	{HDA_DSP_ROM_CSE_ERROR, "error: cse error"},
 	{HDA_DSP_ROM_CSE_WRONG_RESPONSE, "error: cse wrong response"},
 	{HDA_DSP_ROM_IMR_TO_SMALL, "error: IMR too small"},
@@ -404,26 +401,136 @@ static const struct hda_dsp_msg_code hda_dsp_rom_msg[] = {
 	{HDA_DSP_ROM_NULL_FW_ENTRY,	"error: null FW entry point"},
 };
 
-static void hda_dsp_get_status(struct snd_sof_dev *sdev, const char *level)
+#define FSR_ROM_STATE_ENTRY(state)	{FSR_STATE_ROM_##state, #state}
+static const struct hda_dsp_msg_code fsr_rom_state_names[] = {
+	FSR_ROM_STATE_ENTRY(INIT),
+	FSR_ROM_STATE_ENTRY(INIT_DONE),
+	FSR_ROM_STATE_ENTRY(CSE_MANIFEST_LOADED),
+	FSR_ROM_STATE_ENTRY(FW_MANIFEST_LOADED),
+	FSR_ROM_STATE_ENTRY(FW_FW_LOADED),
+	FSR_ROM_STATE_ENTRY(FW_ENTERED),
+	FSR_ROM_STATE_ENTRY(VERIFY_FEATURE_MASK),
+	FSR_ROM_STATE_ENTRY(GET_LOAD_OFFSET),
+	FSR_ROM_STATE_ENTRY(FETCH_ROM_EXT),
+	FSR_ROM_STATE_ENTRY(FETCH_ROM_EXT_DONE),
+	/* CSE states */
+	FSR_ROM_STATE_ENTRY(CSE_IMR_REQUEST),
+	FSR_ROM_STATE_ENTRY(CSE_IMR_GRANTED),
+	FSR_ROM_STATE_ENTRY(CSE_VALIDATE_IMAGE_REQUEST),
+	FSR_ROM_STATE_ENTRY(CSE_IMAGE_VALIDATED),
+	FSR_ROM_STATE_ENTRY(CSE_IPC_IFACE_INIT),
+	FSR_ROM_STATE_ENTRY(CSE_IPC_RESET_PHASE_1),
+	FSR_ROM_STATE_ENTRY(CSE_IPC_OPERATIONAL_ENTRY),
+	FSR_ROM_STATE_ENTRY(CSE_IPC_OPERATIONAL),
+	FSR_ROM_STATE_ENTRY(CSE_IPC_DOWN),
+};
+
+#define FSR_BRINGUP_STATE_ENTRY(state)	{FSR_STATE_BRINGUP_##state, #state}
+static const struct hda_dsp_msg_code fsr_bringup_state_names[] = {
+	FSR_BRINGUP_STATE_ENTRY(INIT),
+	FSR_BRINGUP_STATE_ENTRY(INIT_DONE),
+	FSR_BRINGUP_STATE_ENTRY(HPSRAM_LOAD),
+	FSR_BRINGUP_STATE_ENTRY(UNPACK_START),
+	FSR_BRINGUP_STATE_ENTRY(IMR_RESTORE),
+	FSR_BRINGUP_STATE_ENTRY(FW_ENTERED),
+};
+
+#define FSR_WAIT_STATE_ENTRY(state)	{FSR_WAIT_FOR_##state, #state}
+static const struct hda_dsp_msg_code fsr_wait_state_names[] = {
+	FSR_WAIT_STATE_ENTRY(IPC_BUSY),
+	FSR_WAIT_STATE_ENTRY(IPC_DONE),
+	FSR_WAIT_STATE_ENTRY(CACHE_INVALIDATION),
+	FSR_WAIT_STATE_ENTRY(LP_SRAM_OFF),
+	FSR_WAIT_STATE_ENTRY(DMA_BUFFER_FULL),
+	FSR_WAIT_STATE_ENTRY(CSE_CSR),
+};
+
+#define FSR_MODULE_NAME_ENTRY(mod)	[FSR_MOD_##mod] = #mod
+static const char * const fsr_module_names[] = {
+	FSR_MODULE_NAME_ENTRY(ROM),
+	FSR_MODULE_NAME_ENTRY(ROM_BYP),
+	FSR_MODULE_NAME_ENTRY(BASE_FW),
+	FSR_MODULE_NAME_ENTRY(LP_BOOT),
+	FSR_MODULE_NAME_ENTRY(BRNGUP),
+	FSR_MODULE_NAME_ENTRY(ROM_EXT),
+};
+
+static const char *
+hda_dsp_get_state_text(u32 code, const struct hda_dsp_msg_code *msg_code,
+		       size_t array_size)
 {
-	const struct sof_intel_dsp_desc *chip;
-	u32 status;
 	int i;
 
-	chip = get_chip_info(sdev->pdata);
-	status = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-				  chip->rom_status_reg);
-
-	for (i = 0; i < ARRAY_SIZE(hda_dsp_rom_msg); i++) {
-		if (status == hda_dsp_rom_msg[i].code) {
-			dev_printk(level, sdev->dev, "%s - code %8.8x\n",
-				   hda_dsp_rom_msg[i].msg, status);
-			return;
-		}
+	for (i = 0; i < array_size; i++) {
+		if (code == msg_code[i].code)
+			return msg_code[i].text;
 	}
 
+	return NULL;
+}
+
+static void hda_dsp_get_state(struct snd_sof_dev *sdev, const char *level)
+{
+	const struct sof_intel_dsp_desc *chip = get_chip_info(sdev->pdata);
+	const char *state_text, *error_text, *module_text;
+	u32 fsr, state, wait_state, module, error_code;
+
+	fsr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, chip->rom_status_reg);
+	state = FSR_TO_STATE_CODE(fsr);
+	wait_state = FSR_TO_WAIT_STATE_CODE(fsr);
+	module = FSR_TO_MODULE_CODE(fsr);
+
+	if (module > FSR_MOD_ROM_EXT)
+		module_text = "unknown";
+	else
+		module_text = fsr_module_names[module];
+
+	if (module == FSR_MOD_BRNGUP)
+		state_text = hda_dsp_get_state_text(state, fsr_bringup_state_names,
+						    ARRAY_SIZE(fsr_bringup_state_names));
+	else
+		state_text = hda_dsp_get_state_text(state, fsr_rom_state_names,
+						    ARRAY_SIZE(fsr_rom_state_names));
+
 	/* not for us, must be generic sof message */
-	dev_dbg(sdev->dev, "unknown ROM status value %8.8x\n", status);
+	if (!state_text) {
+		dev_printk(level, sdev->dev, "%#010x: unknown ROM status value\n", fsr);
+		return;
+	}
+
+	if (wait_state) {
+		const char *wait_state_text;
+
+		wait_state_text = hda_dsp_get_state_text(wait_state, fsr_wait_state_names,
+							 ARRAY_SIZE(fsr_wait_state_names));
+		if (!wait_state_text)
+			wait_state_text = "unknown";
+
+		dev_printk(level, sdev->dev,
+			   "%#010x: module: %s, state: %s, waiting for: %s, %s\n",
+			   fsr, module_text, state_text, wait_state_text,
+			   fsr & FSR_HALTED ? "not running" : "running");
+	} else {
+		dev_printk(level, sdev->dev, "%#010x: module: %s, state: %s, %s\n",
+			   fsr, module_text, state_text,
+			   fsr & FSR_HALTED ? "not running" : "running");
+	}
+
+	error_code = snd_sof_dsp_read(sdev, HDA_DSP_BAR, chip->rom_status_reg + 4);
+	if (!error_code)
+		return;
+
+	error_text = hda_dsp_get_state_text(error_code, hda_dsp_rom_fw_error_texts,
+					    ARRAY_SIZE(hda_dsp_rom_fw_error_texts));
+	if (!error_text)
+		error_text = "unknown";
+
+	if (state == FSR_STATE_FW_ENTERED)
+		dev_printk(level, sdev->dev, "status code: %#x (%s)\n", error_code,
+			   error_text);
+	else
+		dev_printk(level, sdev->dev, "error code: %#x (%s)\n", error_code,
+			   error_text);
 }
 
 static void hda_dsp_get_registers(struct snd_sof_dev *sdev,
@@ -467,7 +574,7 @@ static void hda_dsp_dump_ext_rom_status(struct snd_sof_dev *sdev, const char *le
 	chip = get_chip_info(sdev->pdata);
 	for (i = 0; i < HDA_EXT_ROM_STATUS_SIZE; i++) {
 		value = snd_sof_dsp_read(sdev, HDA_DSP_BAR, chip->rom_status_reg + i * 0x4);
-		len += snprintf(msg + len, sizeof(msg) - len, " 0x%x", value);
+		len += scnprintf(msg + len, sizeof(msg) - len, " 0x%x", value);
 	}
 
 	dev_printk(level, sdev->dev, "extended rom status: %s", msg);
@@ -482,7 +589,7 @@ void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 	u32 stack[HDA_DSP_STACK_DUMP_SIZE];
 
 	/* print ROM/FW status */
-	hda_dsp_get_status(sdev, level);
+	hda_dsp_get_state(sdev, level);
 
 	if (flags & SOF_DBG_DUMP_REGS) {
 		u32 status = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_SRAM_REG_FW_STATUS);
@@ -669,13 +776,12 @@ static const char *fixup_tplg_name(struct snd_sof_dev *sdev,
 	return tplg_filename;
 }
 
-static int dmic_topology_fixup(struct snd_sof_dev *sdev,
-			       const char **tplg_filename,
-			       const char *idisp_str,
-			       int *dmic_found)
+static int dmic_detect_topology_fixup(struct snd_sof_dev *sdev,
+				      const char **tplg_filename,
+				      const char *idisp_str,
+				      int *dmic_found,
+				      bool tplg_fixup)
 {
-	const char *default_tplg_filename = *tplg_filename;
-	const char *fixed_tplg_filename;
 	const char *dmic_str;
 	int dmic_num;
 
@@ -701,14 +807,19 @@ static int dmic_topology_fixup(struct snd_sof_dev *sdev,
 		break;
 	}
 
-	fixed_tplg_filename = fixup_tplg_name(sdev, default_tplg_filename,
-					      idisp_str, dmic_str);
-	if (!fixed_tplg_filename)
-		return -ENOMEM;
+	if (tplg_fixup) {
+		const char *default_tplg_filename = *tplg_filename;
+		const char *fixed_tplg_filename;
+
+		fixed_tplg_filename = fixup_tplg_name(sdev, default_tplg_filename,
+						      idisp_str, dmic_str);
+		if (!fixed_tplg_filename)
+			return -ENOMEM;
+		*tplg_filename = fixed_tplg_filename;
+	}
 
 	dev_info(sdev->dev, "DMICs detected in NHLT tables: %d\n", dmic_num);
 	*dmic_found = dmic_num;
-	*tplg_filename = fixed_tplg_filename;
 
 	return 0;
 }
@@ -1114,6 +1225,8 @@ static void hda_generic_machine_select(struct snd_sof_dev *sdev,
 		 *  - one external HDAudio codec
 		 */
 		if (!*mach && codec_num <= 2) {
+			bool tplg_fixup;
+
 			hda_mach = snd_soc_acpi_intel_hda_machines;
 
 			dev_info(bus->dev, "using HDA machine driver %s now\n",
@@ -1125,8 +1238,15 @@ static void hda_generic_machine_select(struct snd_sof_dev *sdev,
 				idisp_str = "";
 
 			/* topology: use the info from hda_machines */
-			tplg_filename = hda_mach->sof_tplg_filename;
-			ret = dmic_topology_fixup(sdev, &tplg_filename, idisp_str, &dmic_num);
+			if (pdata->tplg_filename) {
+				tplg_fixup = false;
+				tplg_filename = pdata->tplg_filename;
+			} else {
+				tplg_fixup = true;
+				tplg_filename = hda_mach->sof_tplg_filename;
+			}
+			ret = dmic_detect_topology_fixup(sdev, &tplg_filename, idisp_str, &dmic_num,
+							 tplg_fixup);
 			if (ret < 0)
 				return;
 
@@ -1290,30 +1410,37 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 		}
 		if (mach && mach->link_mask) {
 			int dmic_num = 0;
+			bool tplg_fixup;
+			const char *tplg_filename;
 
 			mach->mach_params.links = mach->links;
 			mach->mach_params.link_mask = mach->link_mask;
 			mach->mach_params.platform = dev_name(sdev->dev);
-			pdata->fw_filename = pdata->desc->default_fw_filename[pdata->ipc_type];
-			pdata->tplg_filename = mach->sof_tplg_filename;
+
+			if (pdata->tplg_filename) {
+				tplg_fixup = false;
+			} else {
+				tplg_fixup = true;
+				tplg_filename = mach->sof_tplg_filename;
+			}
 
 			/*
 			 * DMICs use up to 4 pins and are typically pin-muxed with SoundWire
-			 * link 2 and 3, thus we only try to enable dmics if all conditions
-			 * are true:
-			 * a) link 2 and 3 are not used by SoundWire
+			 * link 2 and 3, or link 1 and 2, thus we only try to enable dmics
+			 * if all conditions are true:
+			 * a) 2 or fewer links are used by SoundWire
 			 * b) the NHLT table reports the presence of microphones
 			 */
-			if (!(mach->link_mask & GENMASK(3, 2))) {
-				const char *tplg_filename = mach->sof_tplg_filename;
+			if (hweight_long(mach->link_mask) <= 2) {
 				int ret;
 
-				ret = dmic_topology_fixup(sdev, &tplg_filename, "", &dmic_num);
+				ret = dmic_detect_topology_fixup(sdev, &tplg_filename, "",
+								 &dmic_num, tplg_fixup);
 				if (ret < 0)
 					return NULL;
-
-				pdata->tplg_filename = tplg_filename;
 			}
+			if (tplg_fixup)
+				pdata->tplg_filename = tplg_filename;
 			mach->mach_params.dmic_num = dmic_num;
 
 			dev_dbg(sdev->dev,
@@ -1359,18 +1486,22 @@ struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev)
 	mach = snd_soc_acpi_find_machine(desc->machines);
 	if (mach) {
 		bool add_extension = false;
+		bool tplg_fixup = false;
 
 		/*
 		 * If tplg file name is overridden, use it instead of
 		 * the one set in mach table
 		 */
-		if (!sof_pdata->tplg_filename)
+		if (!sof_pdata->tplg_filename) {
 			sof_pdata->tplg_filename = mach->sof_tplg_filename;
+			tplg_fixup = true;
+		}
 
 		/* report to machine driver if any DMICs are found */
 		mach->mach_params.dmic_num = check_dmic_num(sdev);
 
-		if (mach->tplg_quirk_mask & SND_SOC_ACPI_TPLG_INTEL_DMIC_NUMBER &&
+		if (tplg_fixup &&
+		    mach->tplg_quirk_mask & SND_SOC_ACPI_TPLG_INTEL_DMIC_NUMBER &&
 		    mach->mach_params.dmic_num) {
 			tplg_filename = devm_kasprintf(sdev->dev, GFP_KERNEL,
 						       "%s%s%d%s",
@@ -1393,8 +1524,10 @@ struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev)
 		/* report SSP link mask to machine driver */
 		mach->mach_params.i2s_link_mask = check_nhlt_ssp_mask(sdev);
 
-		if (mach->tplg_quirk_mask & SND_SOC_ACPI_TPLG_INTEL_SSP_NUMBER &&
+		if (tplg_fixup &&
+		    mach->tplg_quirk_mask & SND_SOC_ACPI_TPLG_INTEL_SSP_NUMBER &&
 		    mach->mach_params.i2s_link_mask) {
+			const struct sof_intel_dsp_desc *chip = get_chip_info(sdev->pdata);
 			int ssp_num;
 
 			if (hweight_long(mach->mach_params.i2s_link_mask) > 1 &&
@@ -1403,6 +1536,12 @@ struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev)
 
 			/* fls returns 1-based results, SSPs indices are 0-based */
 			ssp_num = fls(mach->mach_params.i2s_link_mask) - 1;
+
+			if (ssp_num >= chip->ssp_count) {
+				dev_err(sdev->dev, "Invalid SSP %d, max on this platform is %d\n",
+					ssp_num, chip->ssp_count);
+				return NULL;
+			}
 
 			tplg_filename = devm_kasprintf(sdev->dev, GFP_KERNEL,
 						       "%s%s%d",
@@ -1416,7 +1555,7 @@ struct snd_soc_acpi_mach *hda_machine_select(struct snd_sof_dev *sdev)
 			add_extension = true;
 		}
 
-		if (add_extension) {
+		if (tplg_fixup && add_extension) {
 			tplg_filename = devm_kasprintf(sdev->dev, GFP_KERNEL,
 						       "%s%s",
 						       sof_pdata->tplg_filename,

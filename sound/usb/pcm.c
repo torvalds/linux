@@ -1269,7 +1269,7 @@ static inline void fill_playback_urb_dsd_dop(struct snd_usb_substream *subs,
 	unsigned int wrap = subs->buffer_bytes;
 	u8 *dst = urb->transfer_buffer;
 	u8 *src = runtime->dma_area;
-	u8 marker[] = { 0x05, 0xfa };
+	static const u8 marker[] = { 0x05, 0xfa };
 	unsigned int queued = 0;
 
 	/*

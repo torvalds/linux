@@ -30,11 +30,11 @@ DAMON provides below interfaces for different users.
   <sysfs_interface>`.  This will be removed after next LTS kernel is released,
   so users should move to the :ref:`sysfs interface <sysfs_interface>`.
 - *Kernel Space Programming Interface.*
-  :doc:`This </vm/damon/api>` is for kernel space programmers.  Using this,
+  :doc:`This </mm/damon/api>` is for kernel space programmers.  Using this,
   users can utilize every feature of DAMON most flexibly and efficiently by
   writing kernel space DAMON application programs for you.  You can even extend
   DAMON for various address spaces.  For detail, please refer to the interface
-  :doc:`document </vm/damon/api>`.
+  :doc:`document </mm/damon/api>`.
 
 .. _sysfs_interface:
 
@@ -185,7 +185,7 @@ controls the monitoring overhead, exist.  You can set and get the values by
 writing to and rading from the files.
 
 For more details about the intervals and monitoring regions range, please refer
-to the Design document (:doc:`/vm/damon/design`).
+to the Design document (:doc:`/mm/damon/design`).
 
 contexts/<N>/targets/
 ---------------------
@@ -264,6 +264,8 @@ that can be written to and read from the file and their meaning are as below.
  - ``pageout``: Call ``madvise()`` for the region with ``MADV_PAGEOUT``
  - ``hugepage``: Call ``madvise()`` for the region with ``MADV_HUGEPAGE``
  - ``nohugepage``: Call ``madvise()`` for the region with ``MADV_NOHUGEPAGE``
+ - ``lru_prio``: Prioritize the region on its LRU lists.
+ - ``lru_deprio``: Deprioritize the region on its LRU lists.
  - ``stat``: Do nothing but count the statistics
 
 schemes/<N>/access_pattern/
@@ -402,7 +404,7 @@ Attributes
 Users can get and set the ``sampling interval``, ``aggregation interval``,
 ``update interval``, and min/max number of monitoring target regions by
 reading from and writing to the ``attrs`` file.  To know about the monitoring
-attributes in detail, please refer to the :doc:`/vm/damon/design`.  For
+attributes in detail, please refer to the :doc:`/mm/damon/design`.  For
 example, below commands set those values to 5 ms, 100 ms, 1,000 ms, 10 and
 1000, and then check it again::
 

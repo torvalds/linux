@@ -235,6 +235,14 @@ struct intel_guc {
 		 * @shift: Right shift value for the gpm timestamp
 		 */
 		u32 shift;
+
+		/**
+		 * @last_stat_jiffies: jiffies at last actual stats collection time
+		 * We use this timestamp to ensure we don't oversample the
+		 * stats because runtime power management events can trigger
+		 * stats collection at much higher rates than required.
+		 */
+		unsigned long last_stat_jiffies;
 	} timestamp;
 
 #ifdef CONFIG_DRM_I915_SELFTEST

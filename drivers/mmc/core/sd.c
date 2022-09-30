@@ -793,7 +793,7 @@ static umode_t sd_std_is_visible(struct kobject *kobj, struct attribute *attr,
 	     attr == &dev_attr_info2.attr ||
 	     attr == &dev_attr_info3.attr ||
 	     attr == &dev_attr_info4.attr
-	    ) && card->type != MMC_TYPE_SD_COMBO)
+	    ) &&!mmc_card_sd_combo(card))
 		return 0;
 
 	return attr->mode;
@@ -870,7 +870,7 @@ try_again:
 	 * the CCS bit is set as well. We deliberately deviate from the spec in
 	 * regards to this, which allows UHS-I to be supported for SDSC cards.
 	 */
-	if (!mmc_host_is_spi(host) && rocr && (*rocr & 0x01000000)) {
+	if (!mmc_host_is_spi(host) && rocr && (*rocr & SD_ROCR_S18A)) {
 		err = mmc_set_uhs_voltage(host, pocr);
 		if (err == -EAGAIN) {
 			retries--;

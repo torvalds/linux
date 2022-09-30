@@ -41,7 +41,7 @@ Description:	Kernel Samepage Merging daemon sysfs interface
 		sleep_millisecs: how many milliseconds ksm should sleep between
 		scans.
 
-		See Documentation/vm/ksm.rst for more information.
+		See Documentation/mm/ksm.rst for more information.
 
 What:		/sys/kernel/mm/ksm/merge_across_nodes
 Date:		January 2013

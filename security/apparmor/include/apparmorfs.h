@@ -114,7 +114,21 @@ int __aafs_ns_mkdir(struct aa_ns *ns, struct dentry *parent, const char *name,
 		     struct dentry *dent);
 
 struct aa_loaddata;
+
+#ifdef CONFIG_SECURITY_APPARMOR_EXPORT_BINARY
 void __aa_fs_remove_rawdata(struct aa_loaddata *rawdata);
 int __aa_fs_create_rawdata(struct aa_ns *ns, struct aa_loaddata *rawdata);
+#else
+static inline void __aa_fs_remove_rawdata(struct aa_loaddata *rawdata)
+{
+	/* empty stub */
+}
+
+static inline int __aa_fs_create_rawdata(struct aa_ns *ns,
+					 struct aa_loaddata *rawdata)
+{
+	return 0;
+}
+#endif /* CONFIG_SECURITY_APPARMOR_EXPORT_BINARY */
 
 #endif /* __AA_APPARMORFS_H */

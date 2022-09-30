@@ -34,6 +34,7 @@
 #include <linux/rseq.h>
 #include <linux/seqlock.h>
 #include <linux/kcsan.h>
+#include <linux/rv.h>
 #include <linux/android_vendor.h>
 #include <asm/kmap_size.h>
 
@@ -1509,6 +1510,16 @@ struct task_struct {
 	struct callback_head		l1d_flush_kill;
 #endif
 
+#ifdef CONFIG_RV
+	/*
+	 * Per-task RV monitor. Nowadays fixed in RV_PER_TASK_MONITORS.
+	 * If we find justification for more monitors, we can think
+	 * about adding more or developing a dynamic method. So far,
+	 * none of these are justified.
+	 */
+	union rv_task_monitor		rv[RV_PER_TASK_MONITORS];
+#endif
+
 	/*
 	 * New fields for task_struct should be added above here, so that
 	 * they are included in the randomized portion of task_struct.
@@ -1822,7 +1833,7 @@ current_restore_flags(unsigned long orig_flags, unsigned long flags)
 }
 
 extern int cpuset_cpumask_can_shrink(const struct cpumask *cur, const struct cpumask *trial);
-extern int task_can_attach(struct task_struct *p, const struct cpumask *cs_cpus_allowed);
+extern int task_can_attach(struct task_struct *p, const struct cpumask *cs_effective_cpus);
 #ifdef CONFIG_SMP
 extern void do_set_cpus_allowed(struct task_struct *p, const struct cpumask *new_mask);
 extern int set_cpus_allowed_ptr(struct task_struct *p, const struct cpumask *new_mask);

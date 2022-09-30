@@ -1160,7 +1160,9 @@ void vmbus_on_msg_dpc(unsigned long data)
 			 * work queue: the RESCIND handler can not start to
 			 * run before the OFFER handler finishes.
 			 */
-			schedule_work(&ctx->work);
+			if (vmbus_connection.ignore_any_offer_msg)
+				break;
+			queue_work(vmbus_connection.rescind_work_queue, &ctx->work);
 			break;
 
 		case CHANNELMSG_OFFERCHANNEL:
@@ -1186,6 +1188,8 @@ void vmbus_on_msg_dpc(unsigned long data)
 			 * to the CPUs which will execute the offer & rescind
 			 * works by the time these works will start execution.
 			 */
+			if (vmbus_connection.ignore_any_offer_msg)
+				break;
 			atomic_inc(&vmbus_connection.offer_in_progress);
 			fallthrough;
 
@@ -2446,15 +2450,20 @@ acpi_walk_err:
 #ifdef CONFIG_PM_SLEEP
 static int vmbus_bus_suspend(struct device *dev)
 {
+	struct hv_per_cpu_context *hv_cpu = per_cpu_ptr(
+			hv_context.cpu_context, VMBUS_CONNECT_CPU);
 	struct vmbus_channel *channel, *sc;
 
-	while (atomic_read(&vmbus_connection.offer_in_progress) != 0) {
-		/*
-		 * We wait here until the completion of any channel
-		 * offers that are currently in progress.
-		 */
-		usleep_range(1000, 2000);
-	}
+	tasklet_disable(&hv_cpu->msg_dpc);
+	vmbus_connection.ignore_any_offer_msg = true;
+	/* The tasklet_enable() takes care of providing a memory barrier */
+	tasklet_enable(&hv_cpu->msg_dpc);
+
+	/* Drain all the workqueues as we are in suspend */
+	drain_workqueue(vmbus_connection.rescind_work_queue);
+	drain_workqueue(vmbus_connection.work_queue);
+	drain_workqueue(vmbus_connection.handle_primary_chan_wq);
+	drain_workqueue(vmbus_connection.handle_sub_chan_wq);
 
 	mutex_lock(&vmbus_connection.channel_mutex);
 	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
@@ -2530,6 +2539,8 @@ static int vmbus_bus_resume(struct device *dev)
 	struct vmbus_channel_msginfo *msginfo;
 	size_t msgsize;
 	int ret;
+
+	vmbus_connection.ignore_any_offer_msg = false;
 
 	/*
 	 * We only use the 'vmbus_proto_version', which was in use before

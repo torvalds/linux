@@ -533,7 +533,7 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 			iomi.flags |= IOMAP_NOWAIT;
 		}
 
-		if (iter_is_iovec(iter))
+		if (user_backed_iter(iter))
 			dio->flags |= IOMAP_DIO_DIRTY;
 	} else {
 		iomi.flags |= IOMAP_WRITE;

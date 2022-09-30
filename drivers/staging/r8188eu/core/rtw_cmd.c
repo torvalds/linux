@@ -898,8 +898,12 @@ static void traffic_status_watchdog(struct adapter *padapter)
 static void rtl8188e_sreset_xmit_status_check(struct adapter *padapter)
 {
 	u32 txdma_status;
+	int res;
 
-	txdma_status = rtw_read32(padapter, REG_TXDMA_STATUS);
+	res = rtw_read32(padapter, REG_TXDMA_STATUS, &txdma_status);
+	if (res)
+		return;
+
 	if (txdma_status != 0x00)
 		rtw_write32(padapter, REG_TXDMA_STATUS, txdma_status);
 	/* total xmit irp = 4 */
@@ -1177,7 +1181,14 @@ exit:
 
 static bool rtw_is_hi_queue_empty(struct adapter *adapter)
 {
-	return (rtw_read32(adapter, REG_HGQ_INFORMATION) & 0x0000ff00) == 0;
+	int res;
+	u32 reg;
+
+	res = rtw_read32(adapter, REG_HGQ_INFORMATION, &reg);
+	if (res)
+		return false;
+
+	return (reg & 0x0000ff00) == 0;
 }
 
 static void rtw_chk_hi_queue_hdl(struct adapter *padapter)

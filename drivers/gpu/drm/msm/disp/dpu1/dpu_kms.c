@@ -16,6 +16,7 @@
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_file.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_vblank.h>
 #include <drm/drm_writeback.h>
 
@@ -582,9 +583,7 @@ static int _dpu_kms_initialize_dsi(struct drm_device *dev,
 		}
 
 		info.h_tile_instance[info.num_of_h_tiles++] = i;
-		info.capabilities = msm_dsi_is_cmd_mode(priv->dsi[i]) ?
-			MSM_DISPLAY_CAP_CMD_MODE :
-			MSM_DISPLAY_CAP_VID_MODE;
+		info.is_cmd_mode = msm_dsi_is_cmd_mode(priv->dsi[i]);
 
 		info.dsc = msm_dsi_get_dsc_config(priv->dsi[i]);
 
@@ -637,7 +636,6 @@ static int _dpu_kms_initialize_displayport(struct drm_device *dev,
 
 		info.num_of_h_tiles = 1;
 		info.h_tile_instance[0] = i;
-		info.capabilities = MSM_DISPLAY_CAP_VID_MODE;
 		info.intf_type = encoder->encoder_type;
 		rc = dpu_encoder_setup(dev, encoder, &info);
 		if (rc) {
@@ -745,7 +743,7 @@ static int _dpu_kms_drm_obj_init(struct dpu_kms *dpu_kms)
 	unsigned int num_encoders;
 
 	struct msm_drm_private *priv;
-	struct dpu_mdss_cfg *catalog;
+	const struct dpu_mdss_cfg *catalog;
 
 	int primary_planes_idx = 0, cursor_planes_idx = 0, i, ret;
 	int max_crtc_count;
@@ -842,8 +840,6 @@ static void _dpu_kms_hw_destroy(struct dpu_kms *dpu_kms)
 		dpu_rm_destroy(&dpu_kms->rm);
 	dpu_kms->rm_init = false;
 
-	if (dpu_kms->catalog)
-		dpu_hw_catalog_deinit(dpu_kms->catalog);
 	dpu_kms->catalog = NULL;
 
 	if (dpu_kms->vbif[VBIF_NRT])
@@ -905,7 +901,7 @@ static void dpu_kms_mdp_snapshot(struct msm_disp_state *disp_state, struct msm_k
 {
 	int i;
 	struct dpu_kms *dpu_kms;
-	struct dpu_mdss_cfg *cat;
+	const struct dpu_mdss_cfg *cat;
 	struct dpu_hw_mdp *top;
 
 	dpu_kms = to_dpu_kms(kms);
@@ -950,8 +946,8 @@ static void dpu_kms_mdp_snapshot(struct msm_disp_state *disp_state, struct msm_k
 		msm_disp_snapshot_add_block(disp_state, cat->wb[i].len,
 				dpu_kms->mmio + cat->wb[i].base, "wb_%d", i);
 
-	msm_disp_snapshot_add_block(disp_state, top->hw.length,
-			dpu_kms->mmio + top->hw.blk_off, "top");
+	msm_disp_snapshot_add_block(disp_state, cat->mdp[0].len,
+			dpu_kms->mmio + cat->mdp[0].base, "top");
 
 	pm_runtime_put_sync(&dpu_kms->pdev->dev);
 }
@@ -997,32 +993,14 @@ static void _dpu_kms_mmu_destroy(struct dpu_kms *dpu_kms)
 
 static int _dpu_kms_mmu_init(struct dpu_kms *dpu_kms)
 {
-	struct iommu_domain *domain;
 	struct msm_gem_address_space *aspace;
-	struct msm_mmu *mmu;
-	struct device *dpu_dev = dpu_kms->dev->dev;
-	struct device *mdss_dev = dpu_dev->parent;
 
-	domain = iommu_domain_alloc(&platform_bus_type);
-	if (!domain)
-		return 0;
-
-	/* IOMMUs are a part of MDSS device tree binding, not the
-	 * MDP/DPU device. */
-	mmu = msm_iommu_new(mdss_dev, domain);
-	if (IS_ERR(mmu)) {
-		iommu_domain_free(domain);
-		return PTR_ERR(mmu);
-	}
-	aspace = msm_gem_address_space_create(mmu, "dpu1",
-		0x1000, 0x100000000 - 0x1000);
-
-	if (IS_ERR(aspace)) {
-		mmu->funcs->destroy(mmu);
+	aspace = msm_kms_init_aspace(dpu_kms->dev);
+	if (IS_ERR(aspace))
 		return PTR_ERR(aspace);
-	}
 
 	dpu_kms->base.aspace = aspace;
+
 	return 0;
 }
 

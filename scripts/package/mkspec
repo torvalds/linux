@@ -49,6 +49,9 @@ sed -e '/^DEL/d' -e 's/^\t*//' <<EOF
 	URL: https://www.kernel.org
 $S	Source: kernel-$__KERNELRELEASE.tar.gz
 	Provides: $PROVIDES
+	# $UTS_MACHINE as a fallback of _arch in case
+	# /usr/lib/rpm/platform/*/macros was not included.
+	%define _arch %{?_arch:$UTS_MACHINE}
 	%define __spec_install_post /usr/lib/rpm/brp-compress || :
 	%define debug_package %{nil}
 

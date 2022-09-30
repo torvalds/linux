@@ -70,9 +70,6 @@ struct cpu_spec {
 	/* Used to restore cpu setup on secondary processors and at resume */
 	cpu_restore_t	cpu_restore;
 
-	/* Used by oprofile userspace to select the right counters */
-	char		*oprofile_cpu_type;
-
 	/* Name of processor class, for the ELF AT_PLATFORM entry */
 	char		*platform;
 

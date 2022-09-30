@@ -33,8 +33,6 @@
 #include <linux/kernel.h>
 #include <linux/pfn.h>
 
-#define MAX_DMA32_PFN  (1UL << (32 - PAGE_SHIFT))
-
 /*
  * It's normally defined only for FLATMEM config but it's
  * used in our early mem init code for all memory models.
@@ -97,7 +95,7 @@ static inline int pfn_valid(unsigned long pfn)
 
 #endif
 
-#define virt_to_pfn(kaddr)	PFN_DOWN(virt_to_phys((void *)(kaddr)))
+#define virt_to_pfn(kaddr)	PFN_DOWN(PHYSADDR(kaddr))
 #define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
 
 extern int __virt_addr_valid(volatile void *kaddr);

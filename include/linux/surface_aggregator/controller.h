@@ -470,6 +470,67 @@ struct ssam_request_spec_md {
 	}
 
 /**
+ * SSAM_DEFINE_SYNC_REQUEST_WR() - Define synchronous SAM request function with
+ * both argument and return value.
+ * @name:  Name of the generated function.
+ * @atype: Type of the request's argument.
+ * @rtype: Type of the request's return value.
+ * @spec:  Specification (&struct ssam_request_spec) defining the request.
+ *
+ * Defines a function executing the synchronous SAM request specified by @spec,
+ * with the request taking an argument of type @atype and having a return value
+ * of type @rtype. The generated function takes care of setting up the request
+ * and response structs, buffer allocation, as well as execution of the request
+ * itself, returning once the request has been fully completed. The required
+ * transport buffer will be allocated on the stack.
+ *
+ * The generated function is defined as ``static int name(struct
+ * ssam_controller *ctrl, const atype *arg, rtype *ret)``, returning the status
+ * of the request, which is zero on success and negative on failure. The
+ * ``ctrl`` parameter is the controller via which the request is sent. The
+ * request argument is specified via the ``arg`` pointer. The request's return
+ * value is written to the memory pointed to by the ``ret`` parameter.
+ *
+ * Refer to ssam_request_sync_onstack() for more details on the behavior of
+ * the generated function.
+ */
+#define SSAM_DEFINE_SYNC_REQUEST_WR(name, atype, rtype, spec...)		\
+	static int name(struct ssam_controller *ctrl, const atype *arg, rtype *ret) \
+	{									\
+		struct ssam_request_spec s = (struct ssam_request_spec)spec;	\
+		struct ssam_request rqst;					\
+		struct ssam_response rsp;					\
+		int status;							\
+										\
+		rqst.target_category = s.target_category;			\
+		rqst.target_id = s.target_id;					\
+		rqst.command_id = s.command_id;					\
+		rqst.instance_id = s.instance_id;				\
+		rqst.flags = s.flags | SSAM_REQUEST_HAS_RESPONSE;		\
+		rqst.length = sizeof(atype);					\
+		rqst.payload = (u8 *)arg;					\
+										\
+		rsp.capacity = sizeof(rtype);					\
+		rsp.length = 0;							\
+		rsp.pointer = (u8 *)ret;					\
+										\
+		status = ssam_request_sync_onstack(ctrl, &rqst, &rsp, sizeof(atype)); \
+		if (status)							\
+			return status;						\
+										\
+		if (rsp.length != sizeof(rtype)) {				\
+			struct device *dev = ssam_controller_device(ctrl);	\
+			dev_err(dev,						\
+				"rqst: invalid response length, expected %zu, got %zu (tc: %#04x, cid: %#04x)", \
+				sizeof(rtype), rsp.length, rqst.target_category,\
+				rqst.command_id);				\
+			return -EIO;						\
+		}								\
+										\
+		return 0;							\
+	}
+
+/**
  * SSAM_DEFINE_SYNC_REQUEST_MD_N() - Define synchronous multi-device SAM
  * request function with neither argument nor return value.
  * @name: Name of the generated function.
@@ -598,6 +659,70 @@ struct ssam_request_spec_md {
 		rsp.pointer = (u8 *)ret;					\
 										\
 		status = ssam_request_sync_onstack(ctrl, &rqst, &rsp, 0);	\
+		if (status)							\
+			return status;						\
+										\
+		if (rsp.length != sizeof(rtype)) {				\
+			struct device *dev = ssam_controller_device(ctrl);	\
+			dev_err(dev,						\
+				"rqst: invalid response length, expected %zu, got %zu (tc: %#04x, cid: %#04x)", \
+				sizeof(rtype), rsp.length, rqst.target_category,\
+				rqst.command_id);				\
+			return -EIO;						\
+		}								\
+										\
+		return 0;							\
+	}
+
+/**
+ * SSAM_DEFINE_SYNC_REQUEST_MD_WR() - Define synchronous multi-device SAM
+ * request function with both argument and return value.
+ * @name:  Name of the generated function.
+ * @atype: Type of the request's argument.
+ * @rtype: Type of the request's return value.
+ * @spec:  Specification (&struct ssam_request_spec_md) defining the request.
+ *
+ * Defines a function executing the synchronous SAM request specified by @spec,
+ * with the request taking an argument of type @atype and having a return value
+ * of type @rtype. Device specifying parameters are not hard-coded, but instead
+ * must be provided to the function. The generated function takes care of
+ * setting up the request and response structs, buffer allocation, as well as
+ * execution of the request itself, returning once the request has been fully
+ * completed. The required transport buffer will be allocated on the stack.
+ *
+ * The generated function is defined as ``static int name(struct
+ * ssam_controller *ctrl, u8 tid, u8 iid, const atype *arg, rtype *ret)``,
+ * returning the status of the request, which is zero on success and negative
+ * on failure. The ``ctrl`` parameter is the controller via which the request
+ * is sent, ``tid`` the target ID for the request, and ``iid`` the instance ID.
+ * The request argument is specified via the ``arg`` pointer. The request's
+ * return value is written to the memory pointed to by the ``ret`` parameter.
+ *
+ * Refer to ssam_request_sync_onstack() for more details on the behavior of
+ * the generated function.
+ */
+#define SSAM_DEFINE_SYNC_REQUEST_MD_WR(name, atype, rtype, spec...)		\
+	static int name(struct ssam_controller *ctrl, u8 tid, u8 iid,		\
+			const atype *arg, rtype *ret)				\
+	{									\
+		struct ssam_request_spec_md s = (struct ssam_request_spec_md)spec; \
+		struct ssam_request rqst;					\
+		struct ssam_response rsp;					\
+		int status;							\
+										\
+		rqst.target_category = s.target_category;			\
+		rqst.target_id = tid;						\
+		rqst.command_id = s.command_id;					\
+		rqst.instance_id = iid;						\
+		rqst.flags = s.flags | SSAM_REQUEST_HAS_RESPONSE;		\
+		rqst.length = sizeof(atype);					\
+		rqst.payload = (u8 *)arg;					\
+										\
+		rsp.capacity = sizeof(rtype);					\
+		rsp.length = 0;							\
+		rsp.pointer = (u8 *)ret;					\
+										\
+		status = ssam_request_sync_onstack(ctrl, &rqst, &rsp, sizeof(atype)); \
 		if (status)							\
 			return status;						\
 										\
@@ -835,8 +960,28 @@ struct ssam_event_notifier {
 int ssam_notifier_register(struct ssam_controller *ctrl,
 			   struct ssam_event_notifier *n);
 
-int ssam_notifier_unregister(struct ssam_controller *ctrl,
-			     struct ssam_event_notifier *n);
+int __ssam_notifier_unregister(struct ssam_controller *ctrl,
+			       struct ssam_event_notifier *n, bool disable);
+
+/**
+ * ssam_notifier_unregister() - Unregister an event notifier.
+ * @ctrl:    The controller the notifier has been registered on.
+ * @n:       The event notifier to unregister.
+ *
+ * Unregister an event notifier. Decrement the usage counter of the associated
+ * SAM event if the notifier is not marked as an observer. If the usage counter
+ * reaches zero, the event will be disabled.
+ *
+ * Return: Returns zero on success, %-ENOENT if the given notifier block has
+ * not been registered on the controller. If the given notifier block was the
+ * last one associated with its specific event, returns the status of the
+ * event-disable EC-command.
+ */
+static inline int ssam_notifier_unregister(struct ssam_controller *ctrl,
+					   struct ssam_event_notifier *n)
+{
+	return __ssam_notifier_unregister(ctrl, n, true);
+}
 
 int ssam_controller_event_enable(struct ssam_controller *ctrl,
 				 struct ssam_event_registry reg,

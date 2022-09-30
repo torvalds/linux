@@ -19,6 +19,7 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/dcvsh.h>
+#include <linux/units.h>
 
 #define LUT_MAX_ENTRIES			40U
 #define LUT_SRC				GENMASK(31, 30)
@@ -29,8 +30,6 @@
 #define LUT_TURBO_IND			1
 
 #define GT_IRQ_STATUS			BIT(2)
-
-#define HZ_PER_KHZ			1000
 
 #define CYCLE_CNTR_OFFSET(c, m, acc_count)		\
 				(acc_count ? ((c - cpumask_first(m) + 1) * 4) : 0)
@@ -501,7 +500,7 @@ static int qcom_cpufreq_hw_lmh_init(struct cpufreq_policy *policy, int index)
 		return 0;
 	}
 
-	ret = irq_set_affinity_hint(data->throttle_irq, policy->cpus);
+	ret = irq_set_affinity_and_hint(data->throttle_irq, policy->cpus);
 	if (ret)
 		dev_err(&pdev->dev, "Failed to set CPU affinity of %s[%d]\n",
 			data->irq_name, data->throttle_irq);
@@ -522,7 +521,7 @@ static int qcom_cpufreq_hw_cpu_online(struct cpufreq_policy *policy)
 	data->cancel_throttle = false;
 	mutex_unlock(&data->throttle_lock);
 
-	ret = irq_set_affinity_hint(data->throttle_irq, policy->cpus);
+	ret = irq_set_affinity_and_hint(data->throttle_irq, policy->cpus);
 	if (ret)
 		dev_err(&pdev->dev, "Failed to set CPU affinity of %s[%d]\n",
 			data->irq_name, data->throttle_irq);
@@ -542,7 +541,7 @@ static int qcom_cpufreq_hw_cpu_offline(struct cpufreq_policy *policy)
 	mutex_unlock(&data->throttle_lock);
 
 	cancel_delayed_work_sync(&data->throttle_work);
-	irq_set_affinity_hint(data->throttle_irq, NULL);
+	irq_set_affinity_and_hint(data->throttle_irq, NULL);
 	disable_irq_nosync(data->throttle_irq);
 
 	arch_update_thermal_pressure(policy->related_cpus, U32_MAX);

@@ -488,7 +488,7 @@ static const __u16 spca501_init_data[][3] = {
 
 /* Data for video camera init before capture.
  * Capture and decoding by Colin Peart.
- * This is is for the 3com HomeConnect Lite which is spca501a based.
+ * This is for the 3com HomeConnect Lite which is spca501a based.
  */
 static const __u16 spca501_3com_open_data[][3] = {
 	/* bmRequest,value,index */

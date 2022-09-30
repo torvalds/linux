@@ -5,6 +5,7 @@
  * Copyright 2022, Kajol Jain, IBM Corp.
  */
 
+#include <sys/stat.h>
 #include "../event.h"
 
 #define POWER10 0x80
@@ -16,6 +17,8 @@
 #define MMCR0_PMCCEXT   0x00000200UL /* PMCCEXT control */
 #define MMCR1_RSQ       0x200000000000ULL /* radix scope qual field */
 #define BHRB_DISABLE    0x2000000000ULL /* MMCRA BHRB DISABLE bit */
+
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 extern int ev_mask_pmcxsel, ev_shift_pmcxsel;
 extern int ev_mask_marked, ev_shift_marked;
@@ -35,6 +38,7 @@ extern int ev_mask_mmcr3_src, ev_shift_mmcr3_src;
 extern int pvr;
 extern u64 platform_extended_mask;
 extern int check_pvr_for_sampling_tests(void);
+extern int platform_check_for_tests(void);
 
 /*
  * Event code field extraction macro.
@@ -52,6 +56,9 @@ void *__event_read_samples(void *sample_buff, size_t *size, u64 *sample_count);
 int collect_samples(void *sample_buff);
 u64 *get_intr_regs(struct event *event, void *sample_buff);
 u64 get_reg_value(u64 *intr_regs, char *register_name);
+int get_thresh_cmp_val(struct event event);
+bool check_for_generic_compat_pmu(void);
+bool check_for_compat_mode(void);
 
 static inline int get_mmcr0_fc56(u64 mmcr0, int pmc)
 {
@@ -184,7 +191,7 @@ static inline int get_mmcra_sm(u64 mmcra, int pmc)
 	return ((mmcra >> 42) & 0x3);
 }
 
-static inline int get_mmcra_bhrb_disable(u64 mmcra, int pmc)
+static inline u64 get_mmcra_bhrb_disable(u64 mmcra, int pmc)
 {
 	if (pvr == POWER10)
 		return mmcra & BHRB_DISABLE;

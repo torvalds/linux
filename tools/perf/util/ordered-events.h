@@ -75,4 +75,10 @@ void ordered_events__set_copy_on_queue(struct ordered_events *oe, bool copy)
 {
 	oe->copy_on_queue = copy;
 }
+
+static inline u64 ordered_events__last_flush_time(struct ordered_events *oe)
+{
+	return oe->last_flush;
+}
+
 #endif /* __ORDERED_EVENTS_H */

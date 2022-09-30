@@ -24,11 +24,7 @@ static void c_can_get_ringparam(struct net_device *netdev,
 	ring->tx_pending = priv->msg_obj_tx_num;
 }
 
-static const struct ethtool_ops c_can_ethtool_ops = {
+const struct ethtool_ops c_can_ethtool_ops = {
 	.get_ringparam = c_can_get_ringparam,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
-
-void c_can_set_ethtool_ops(struct net_device *netdev)
-{
-	netdev->ethtool_ops = &c_can_ethtool_ops;
-}

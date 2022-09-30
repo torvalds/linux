@@ -24,7 +24,7 @@ struct io_sync {
 
 int io_sfr_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	struct io_sync *sync = io_kiocb_to_cmd(req);
+	struct io_sync *sync = io_kiocb_to_cmd(req, struct io_sync);
 
 	if (unlikely(sqe->addr || sqe->buf_index || sqe->splice_fd_in))
 		return -EINVAL;
@@ -37,7 +37,7 @@ int io_sfr_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 int io_sync_file_range(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_sync *sync = io_kiocb_to_cmd(req);
+	struct io_sync *sync = io_kiocb_to_cmd(req, struct io_sync);
 	int ret;
 
 	/* sync_file_range always requires a blocking context */
@@ -51,7 +51,7 @@ int io_sync_file_range(struct io_kiocb *req, unsigned int issue_flags)
 
 int io_fsync_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	struct io_sync *sync = io_kiocb_to_cmd(req);
+	struct io_sync *sync = io_kiocb_to_cmd(req, struct io_sync);
 
 	if (unlikely(sqe->addr || sqe->buf_index || sqe->splice_fd_in))
 		return -EINVAL;
@@ -67,7 +67,7 @@ int io_fsync_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 int io_fsync(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_sync *sync = io_kiocb_to_cmd(req);
+	struct io_sync *sync = io_kiocb_to_cmd(req, struct io_sync);
 	loff_t end = sync->off + sync->len;
 	int ret;
 
@@ -83,7 +83,7 @@ int io_fsync(struct io_kiocb *req, unsigned int issue_flags)
 
 int io_fallocate_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	struct io_sync *sync = io_kiocb_to_cmd(req);
+	struct io_sync *sync = io_kiocb_to_cmd(req, struct io_sync);
 
 	if (sqe->buf_index || sqe->rw_flags || sqe->splice_fd_in)
 		return -EINVAL;
@@ -96,7 +96,7 @@ int io_fallocate_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 int io_fallocate(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_sync *sync = io_kiocb_to_cmd(req);
+	struct io_sync *sync = io_kiocb_to_cmd(req, struct io_sync);
 	int ret;
 
 	/* fallocate always requiring blocking context */

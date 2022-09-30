@@ -1167,7 +1167,7 @@ int siw_create_cq(struct ib_cq *base_cq, const struct ib_cq_init_attr *attr,
 err_out:
 	siw_dbg(base_cq->device, "CQ creation failed: %d", rv);
 
-	if (cq && cq->queue) {
+	if (cq->queue) {
 		struct siw_ucontext *ctx =
 			rdma_udata_to_drv_context(udata, struct siw_ucontext,
 						  base_ucontext);

@@ -1151,6 +1151,7 @@ static void disk_release(struct device *dev)
 		blk_mq_exit_queue(disk->queue);
 
 	blkcg_exit_queue(disk->queue);
+	bioset_exit(&disk->bio_split);
 
 	disk_release_events(disk);
 	kfree(disk->random);
@@ -1340,11 +1341,14 @@ struct gendisk *__alloc_disk_node(struct request_queue *q, int node_id,
 
 	disk = kzalloc_node(sizeof(struct gendisk), GFP_KERNEL, node_id);
 	if (!disk)
-		goto out_put_queue;
+		return NULL;
+
+	if (bioset_init(&disk->bio_split, BIO_POOL_SIZE, 0, 0))
+		goto out_free_disk;
 
 	disk->bdi = bdi_alloc(node_id);
 	if (!disk->bdi)
-		goto out_free_disk;
+		goto out_free_bioset;
 
 	/* bdev_alloc() might need the queue, set before the first call */
 	disk->queue = q;
@@ -1382,10 +1386,10 @@ out_destroy_part_tbl:
 	iput(disk->part0->bd_inode);
 out_free_bdi:
 	bdi_put(disk->bdi);
+out_free_bioset:
+	bioset_exit(&disk->bio_split);
 out_free_disk:
 	kfree(disk);
-out_put_queue:
-	blk_put_queue(q);
 	return NULL;
 }
 

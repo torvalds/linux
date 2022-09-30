@@ -1218,7 +1218,6 @@
 				     <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apbs_gates 0>, <&osc24M>, <&osc32k>;
 			clock-names = "apb", "hosc", "losc";
-			resets = <&apbs_rst 0>;
 			gpio-controller;
 			interrupt-controller;
 			#interrupt-cells = <3>;

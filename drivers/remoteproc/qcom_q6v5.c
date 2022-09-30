@@ -113,6 +113,7 @@ static irqreturn_t q6v5_wdog_interrupt(int irq, void *data)
 		dev_err(q6v5->dev, "watchdog without message\n");
 
 	q6v5->running = false;
+
 	trace_rproc_qcom_event(dev_name(q6v5->dev), "q6v5_wdog", msg);
 	dev_err(q6v5->dev, "rproc recovery state: %s\n",
 		q6v5->rproc->recovery_disabled ?

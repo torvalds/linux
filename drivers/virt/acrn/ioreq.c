@@ -246,12 +246,8 @@ void acrn_ioreq_request_clear(struct acrn_vm *vm)
 	spin_lock_bh(&vm->ioreq_clients_lock);
 	client = vm->default_client;
 	if (client) {
-		vcpu = find_first_bit(client->ioreqs_map, ACRN_IO_REQUEST_MAX);
-		while (vcpu < ACRN_IO_REQUEST_MAX) {
+		for_each_set_bit(vcpu, client->ioreqs_map, ACRN_IO_REQUEST_MAX)
 			acrn_ioreq_complete_request(client, vcpu, NULL);
-			vcpu = find_next_bit(client->ioreqs_map,
-					     ACRN_IO_REQUEST_MAX, vcpu + 1);
-		}
 	}
 	spin_unlock_bh(&vm->ioreq_clients_lock);
 

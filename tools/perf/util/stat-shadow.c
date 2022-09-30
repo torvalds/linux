@@ -1193,7 +1193,7 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 						  &rsd);
 		if (retiring > 0.7)
 			color = PERF_COLOR_GREEN;
-		print_metric(config, ctxp, color, "%8.1f%%", "retiring",
+		print_metric(config, ctxp, color, "%8.1f%%", "Retiring",
 				retiring * 100.);
 	} else if (perf_stat_evsel__is(evsel, TOPDOWN_FE_BOUND) &&
 		   full_td(cpu_map_idx, st, &rsd)) {
@@ -1202,7 +1202,7 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 						  &rsd);
 		if (fe_bound > 0.2)
 			color = PERF_COLOR_RED;
-		print_metric(config, ctxp, color, "%8.1f%%", "frontend bound",
+		print_metric(config, ctxp, color, "%8.1f%%", "Frontend Bound",
 				fe_bound * 100.);
 	} else if (perf_stat_evsel__is(evsel, TOPDOWN_BE_BOUND) &&
 		   full_td(cpu_map_idx, st, &rsd)) {
@@ -1211,7 +1211,7 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 						  &rsd);
 		if (be_bound > 0.2)
 			color = PERF_COLOR_RED;
-		print_metric(config, ctxp, color, "%8.1f%%", "backend bound",
+		print_metric(config, ctxp, color, "%8.1f%%", "Backend Bound",
 				be_bound * 100.);
 	} else if (perf_stat_evsel__is(evsel, TOPDOWN_BAD_SPEC) &&
 		   full_td(cpu_map_idx, st, &rsd)) {
@@ -1220,7 +1220,7 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 						  &rsd);
 		if (bad_spec > 0.1)
 			color = PERF_COLOR_RED;
-		print_metric(config, ctxp, color, "%8.1f%%", "bad speculation",
+		print_metric(config, ctxp, color, "%8.1f%%", "Bad Speculation",
 				bad_spec * 100.);
 	} else if (perf_stat_evsel__is(evsel, TOPDOWN_HEAVY_OPS) &&
 			full_td(cpu_map_idx, st, &rsd) && (config->topdown_level > 1)) {
@@ -1234,13 +1234,13 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 
 		if (retiring > 0.7 && heavy_ops > 0.1)
 			color = PERF_COLOR_GREEN;
-		print_metric(config, ctxp, color, "%8.1f%%", "heavy operations",
+		print_metric(config, ctxp, color, "%8.1f%%", "Heavy Operations",
 				heavy_ops * 100.);
 		if (retiring > 0.7 && light_ops > 0.6)
 			color = PERF_COLOR_GREEN;
 		else
 			color = NULL;
-		print_metric(config, ctxp, color, "%8.1f%%", "light operations",
+		print_metric(config, ctxp, color, "%8.1f%%", "Light Operations",
 				light_ops * 100.);
 	} else if (perf_stat_evsel__is(evsel, TOPDOWN_BR_MISPREDICT) &&
 			full_td(cpu_map_idx, st, &rsd) && (config->topdown_level > 1)) {
@@ -1254,13 +1254,13 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 
 		if (bad_spec > 0.1 && br_mis > 0.05)
 			color = PERF_COLOR_RED;
-		print_metric(config, ctxp, color, "%8.1f%%", "branch mispredict",
+		print_metric(config, ctxp, color, "%8.1f%%", "Branch Mispredict",
 				br_mis * 100.);
 		if (bad_spec > 0.1 && m_clears > 0.05)
 			color = PERF_COLOR_RED;
 		else
 			color = NULL;
-		print_metric(config, ctxp, color, "%8.1f%%", "machine clears",
+		print_metric(config, ctxp, color, "%8.1f%%", "Machine Clears",
 				m_clears * 100.);
 	} else if (perf_stat_evsel__is(evsel, TOPDOWN_FETCH_LAT) &&
 			full_td(cpu_map_idx, st, &rsd) && (config->topdown_level > 1)) {
@@ -1274,13 +1274,13 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 
 		if (fe_bound > 0.2 && fetch_lat > 0.15)
 			color = PERF_COLOR_RED;
-		print_metric(config, ctxp, color, "%8.1f%%", "fetch latency",
+		print_metric(config, ctxp, color, "%8.1f%%", "Fetch Latency",
 				fetch_lat * 100.);
 		if (fe_bound > 0.2 && fetch_bw > 0.1)
 			color = PERF_COLOR_RED;
 		else
 			color = NULL;
-		print_metric(config, ctxp, color, "%8.1f%%", "fetch bandwidth",
+		print_metric(config, ctxp, color, "%8.1f%%", "Fetch Bandwidth",
 				fetch_bw * 100.);
 	} else if (perf_stat_evsel__is(evsel, TOPDOWN_MEM_BOUND) &&
 			full_td(cpu_map_idx, st, &rsd) && (config->topdown_level > 1)) {
@@ -1294,13 +1294,13 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 
 		if (be_bound > 0.2 && mem_bound > 0.2)
 			color = PERF_COLOR_RED;
-		print_metric(config, ctxp, color, "%8.1f%%", "memory bound",
+		print_metric(config, ctxp, color, "%8.1f%%", "Memory Bound",
 				mem_bound * 100.);
 		if (be_bound > 0.2 && core_bound > 0.1)
 			color = PERF_COLOR_RED;
 		else
 			color = NULL;
-		print_metric(config, ctxp, color, "%8.1f%%", "Core bound",
+		print_metric(config, ctxp, color, "%8.1f%%", "Core Bound",
 				core_bound * 100.);
 	} else if (evsel->metric_expr) {
 		generic_metric(config, evsel->metric_expr, evsel->metric_events, NULL,

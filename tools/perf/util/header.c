@@ -1512,18 +1512,13 @@ static int write_compressed(struct feat_fd *ff __maybe_unused,
 	return do_write(ff, &(ff->ph->env.comp_mmap_len), sizeof(ff->ph->env.comp_mmap_len));
 }
 
-static int write_per_cpu_pmu_caps(struct feat_fd *ff, struct perf_pmu *pmu,
-				  bool write_pmu)
+static int __write_pmu_caps(struct feat_fd *ff, struct perf_pmu *pmu,
+			    bool write_pmu)
 {
 	struct perf_pmu_caps *caps = NULL;
-	int nr_caps;
 	int ret;
 
-	nr_caps = perf_pmu__caps_parse(pmu);
-	if (nr_caps < 0)
-		return nr_caps;
-
-	ret = do_write(ff, &nr_caps, sizeof(nr_caps));
+	ret = do_write(ff, &pmu->nr_caps, sizeof(pmu->nr_caps));
 	if (ret < 0)
 		return ret;
 
@@ -1550,33 +1545,60 @@ static int write_cpu_pmu_caps(struct feat_fd *ff,
 			      struct evlist *evlist __maybe_unused)
 {
 	struct perf_pmu *cpu_pmu = perf_pmu__find("cpu");
+	int ret;
 
 	if (!cpu_pmu)
 		return -ENOENT;
 
-	return write_per_cpu_pmu_caps(ff, cpu_pmu, false);
+	ret = perf_pmu__caps_parse(cpu_pmu);
+	if (ret < 0)
+		return ret;
+
+	return __write_pmu_caps(ff, cpu_pmu, false);
 }
 
-static int write_hybrid_cpu_pmu_caps(struct feat_fd *ff,
-				     struct evlist *evlist __maybe_unused)
+static int write_pmu_caps(struct feat_fd *ff,
+			  struct evlist *evlist __maybe_unused)
 {
-	struct perf_pmu *pmu;
-	u32 nr_pmu = perf_pmu__hybrid_pmu_num();
+	struct perf_pmu *pmu = NULL;
+	int nr_pmu = 0;
 	int ret;
 
-	if (nr_pmu == 0)
-		return -ENOENT;
+	while ((pmu = perf_pmu__scan(pmu))) {
+		if (!pmu->name || !strcmp(pmu->name, "cpu") ||
+		    perf_pmu__caps_parse(pmu) <= 0)
+			continue;
+		nr_pmu++;
+	}
 
 	ret = do_write(ff, &nr_pmu, sizeof(nr_pmu));
 	if (ret < 0)
 		return ret;
 
+	if (!nr_pmu)
+		return 0;
+
+	/*
+	 * Write hybrid pmu caps first to maintain compatibility with
+	 * older perf tool.
+	 */
+	pmu = NULL;
 	perf_pmu__for_each_hybrid_pmu(pmu) {
-		ret = write_per_cpu_pmu_caps(ff, pmu, true);
+		ret = __write_pmu_caps(ff, pmu, true);
 		if (ret < 0)
 			return ret;
 	}
 
+	pmu = NULL;
+	while ((pmu = perf_pmu__scan(pmu))) {
+		if (!pmu->name || !strcmp(pmu->name, "cpu") ||
+		    !pmu->nr_caps || perf_pmu__is_hybrid(pmu->name))
+			continue;
+
+		ret = __write_pmu_caps(ff, pmu, true);
+		if (ret < 0)
+			return ret;
+	}
 	return 0;
 }
 
@@ -2051,32 +2073,20 @@ static void print_compressed(struct feat_fd *ff, FILE *fp)
 		ff->ph->env.comp_level, ff->ph->env.comp_ratio);
 }
 
-static void print_per_cpu_pmu_caps(FILE *fp, int nr_caps, char *cpu_pmu_caps,
-				   char *pmu_name)
+static void __print_pmu_caps(FILE *fp, int nr_caps, char **caps, char *pmu_name)
 {
-	const char *delimiter;
-	char *str, buf[128];
+	const char *delimiter = "";
+	int i;
 
 	if (!nr_caps) {
-		if (!pmu_name)
-			fprintf(fp, "# cpu pmu capabilities: not available\n");
-		else
-			fprintf(fp, "# %s pmu capabilities: not available\n", pmu_name);
+		fprintf(fp, "# %s pmu capabilities: not available\n", pmu_name);
 		return;
 	}
 
-	if (!pmu_name)
-		scnprintf(buf, sizeof(buf), "# cpu pmu capabilities: ");
-	else
-		scnprintf(buf, sizeof(buf), "# %s pmu capabilities: ", pmu_name);
-
-	delimiter = buf;
-
-	str = cpu_pmu_caps;
-	while (nr_caps--) {
-		fprintf(fp, "%s%s", delimiter, str);
+	fprintf(fp, "# %s pmu capabilities: ", pmu_name);
+	for (i = 0; i < nr_caps; i++) {
+		fprintf(fp, "%s%s", delimiter, caps[i]);
 		delimiter = ", ";
-		str += strlen(str) + 1;
 	}
 
 	fprintf(fp, "\n");
@@ -2084,19 +2094,18 @@ static void print_per_cpu_pmu_caps(FILE *fp, int nr_caps, char *cpu_pmu_caps,
 
 static void print_cpu_pmu_caps(struct feat_fd *ff, FILE *fp)
 {
-	print_per_cpu_pmu_caps(fp, ff->ph->env.nr_cpu_pmu_caps,
-			       ff->ph->env.cpu_pmu_caps, NULL);
+	__print_pmu_caps(fp, ff->ph->env.nr_cpu_pmu_caps,
+			 ff->ph->env.cpu_pmu_caps, (char *)"cpu");
 }
 
-static void print_hybrid_cpu_pmu_caps(struct feat_fd *ff, FILE *fp)
+static void print_pmu_caps(struct feat_fd *ff, FILE *fp)
 {
-	struct hybrid_cpc_node *n;
+	struct pmu_caps *pmu_caps;
 
-	for (int i = 0; i < ff->ph->env.nr_hybrid_cpc_nodes; i++) {
-		n = &ff->ph->env.hybrid_cpc_nodes[i];
-		print_per_cpu_pmu_caps(fp, n->nr_cpu_pmu_caps,
-				       n->cpu_pmu_caps,
-				       n->pmu_name);
+	for (int i = 0; i < ff->ph->env.nr_pmus_with_caps; i++) {
+		pmu_caps = &ff->ph->env.pmu_caps[i];
+		__print_pmu_caps(fp, pmu_caps->nr_caps, pmu_caps->caps,
+				 pmu_caps->pmu_name);
 	}
 }
 
@@ -3207,28 +3216,26 @@ static int process_compressed(struct feat_fd *ff,
 	return 0;
 }
 
-static int process_per_cpu_pmu_caps(struct feat_fd *ff, int *nr_cpu_pmu_caps,
-				    char **cpu_pmu_caps,
-				    unsigned int *max_branches)
+static int __process_pmu_caps(struct feat_fd *ff, int *nr_caps,
+			      char ***caps, unsigned int *max_branches)
 {
-	char *name, *value;
-	struct strbuf sb;
-	u32 nr_caps;
+	char *name, *value, *ptr;
+	u32 nr_pmu_caps, i;
 
-	if (do_read_u32(ff, &nr_caps))
+	*nr_caps = 0;
+	*caps = NULL;
+
+	if (do_read_u32(ff, &nr_pmu_caps))
 		return -1;
 
-	if (!nr_caps) {
-		pr_debug("cpu pmu capabilities not available\n");
+	if (!nr_pmu_caps)
 		return 0;
-	}
 
-	*nr_cpu_pmu_caps = nr_caps;
-
-	if (strbuf_init(&sb, 128) < 0)
+	*caps = zalloc(sizeof(char *) * nr_pmu_caps);
+	if (!*caps)
 		return -1;
 
-	while (nr_caps--) {
+	for (i = 0; i < nr_pmu_caps; i++) {
 		name = do_read_string(ff);
 		if (!name)
 			goto error;
@@ -3237,12 +3244,10 @@ static int process_per_cpu_pmu_caps(struct feat_fd *ff, int *nr_cpu_pmu_caps,
 		if (!value)
 			goto free_name;
 
-		if (strbuf_addf(&sb, "%s=%s", name, value) < 0)
+		if (asprintf(&ptr, "%s=%s", name, value) < 0)
 			goto free_value;
 
-		/* include a NULL character at the end */
-		if (strbuf_add(&sb, "", 1) < 0)
-			goto free_value;
+		(*caps)[i] = ptr;
 
 		if (!strcmp(name, "branches"))
 			*max_branches = atoi(value);
@@ -3250,7 +3255,7 @@ static int process_per_cpu_pmu_caps(struct feat_fd *ff, int *nr_cpu_pmu_caps,
 		free(value);
 		free(name);
 	}
-	*cpu_pmu_caps = strbuf_detach(&sb, NULL);
+	*nr_caps = nr_pmu_caps;
 	return 0;
 
 free_value:
@@ -3258,64 +3263,76 @@ free_value:
 free_name:
 	free(name);
 error:
-	strbuf_release(&sb);
+	for (; i > 0; i--)
+		free((*caps)[i - 1]);
+	free(*caps);
+	*caps = NULL;
+	*nr_caps = 0;
 	return -1;
 }
 
 static int process_cpu_pmu_caps(struct feat_fd *ff,
 				void *data __maybe_unused)
 {
-	return process_per_cpu_pmu_caps(ff, &ff->ph->env.nr_cpu_pmu_caps,
-					&ff->ph->env.cpu_pmu_caps,
-					&ff->ph->env.max_branches);
+	int ret = __process_pmu_caps(ff, &ff->ph->env.nr_cpu_pmu_caps,
+				     &ff->ph->env.cpu_pmu_caps,
+				     &ff->ph->env.max_branches);
+
+	if (!ret && !ff->ph->env.cpu_pmu_caps)
+		pr_debug("cpu pmu capabilities not available\n");
+	return ret;
 }
 
-static int process_hybrid_cpu_pmu_caps(struct feat_fd *ff,
-				       void *data __maybe_unused)
+static int process_pmu_caps(struct feat_fd *ff, void *data __maybe_unused)
 {
-	struct hybrid_cpc_node *nodes;
+	struct pmu_caps *pmu_caps;
 	u32 nr_pmu, i;
 	int ret;
+	int j;
 
 	if (do_read_u32(ff, &nr_pmu))
 		return -1;
 
 	if (!nr_pmu) {
-		pr_debug("hybrid cpu pmu capabilities not available\n");
+		pr_debug("pmu capabilities not available\n");
 		return 0;
 	}
 
-	nodes = zalloc(sizeof(*nodes) * nr_pmu);
-	if (!nodes)
+	pmu_caps = zalloc(sizeof(*pmu_caps) * nr_pmu);
+	if (!pmu_caps)
 		return -ENOMEM;
 
 	for (i = 0; i < nr_pmu; i++) {
-		struct hybrid_cpc_node *n = &nodes[i];
-
-		ret = process_per_cpu_pmu_caps(ff, &n->nr_cpu_pmu_caps,
-					       &n->cpu_pmu_caps,
-					       &n->max_branches);
+		ret = __process_pmu_caps(ff, &pmu_caps[i].nr_caps,
+					 &pmu_caps[i].caps,
+					 &pmu_caps[i].max_branches);
 		if (ret)
 			goto err;
 
-		n->pmu_name = do_read_string(ff);
-		if (!n->pmu_name) {
+		pmu_caps[i].pmu_name = do_read_string(ff);
+		if (!pmu_caps[i].pmu_name) {
 			ret = -1;
 			goto err;
 		}
+		if (!pmu_caps[i].nr_caps) {
+			pr_debug("%s pmu capabilities not available\n",
+				 pmu_caps[i].pmu_name);
+		}
 	}
 
-	ff->ph->env.nr_hybrid_cpc_nodes = nr_pmu;
-	ff->ph->env.hybrid_cpc_nodes = nodes;
+	ff->ph->env.nr_pmus_with_caps = nr_pmu;
+	ff->ph->env.pmu_caps = pmu_caps;
 	return 0;
 
 err:
 	for (i = 0; i < nr_pmu; i++) {
-		free(nodes[i].cpu_pmu_caps);
-		free(nodes[i].pmu_name);
+		for (j = 0; j < pmu_caps[i].nr_caps; j++)
+			free(pmu_caps[i].caps[j]);
+		free(pmu_caps[i].caps);
+		free(pmu_caps[i].pmu_name);
 	}
 
-	free(nodes);
+	free(pmu_caps);
 	return ret;
 }
 
@@ -3381,7 +3398,7 @@ const struct perf_header_feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPR(CPU_PMU_CAPS,	cpu_pmu_caps,	false),
 	FEAT_OPR(CLOCK_DATA,	clock_data,	false),
 	FEAT_OPN(HYBRID_TOPOLOGY,	hybrid_topology,	true),
-	FEAT_OPR(HYBRID_CPU_PMU_CAPS,	hybrid_cpu_pmu_caps,	false),
+	FEAT_OPR(PMU_CAPS,	pmu_caps,	false),
 };
 
 struct header_print_data {
@@ -4362,6 +4379,9 @@ int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
 	struct evlist *evlist;
 	struct evsel *evsel;
 	struct perf_cpu_map *map;
+
+	if (dump_trace)
+		perf_event__fprintf_event_update(event, stdout);
 
 	if (!pevlist || *pevlist == NULL)
 		return -EINVAL;

@@ -104,7 +104,7 @@ static int insert_range(const __be32 *p, int naddr, int nsize, void *arg)
  * "qcom,iommu-dma-addr-pool" property.
  *
  * Caller is responsible for freeing the entries on the list via
- * generic_iommu_put_resv_regions
+ * iommu_put_resv_regions
  */
 int qcom_iommu_generate_dma_regions(struct device *dev,
 		struct list_head *head)
@@ -209,7 +209,7 @@ void qcom_iommu_generate_resv_regions(struct device *dev,
 		return;
 
 	ret = invert_regions(&dma_regions, &resv_regions);
-	generic_iommu_put_resv_regions(dev, &dma_regions);
+	iommu_put_resv_regions(dev, &dma_regions);
 	if (ret)
 		return;
 
@@ -231,15 +231,6 @@ void qcom_iommu_get_resv_regions(struct device *dev, struct list_head *list)
 		ops->get_resv_regions(dev, list);
 }
 EXPORT_SYMBOL(qcom_iommu_get_resv_regions);
-
-void qcom_iommu_put_resv_regions(struct device *dev, struct list_head *list)
-{
-	const struct iommu_ops *ops = dev->bus->iommu_ops;
-
-	if (ops && ops->put_resv_regions)
-		ops->put_resv_regions(dev, list);
-}
-EXPORT_SYMBOL(qcom_iommu_put_resv_regions);
 
 static int get_addr_range(const __be32 *p, int naddr, int nsize, void *arg)
 {

@@ -1657,35 +1657,6 @@ static struct clk_regmap *const sm1_clk_regmaps[] = {
 	&sm1_sysclk_b_en,
 };
 
-static int devm_clk_get_enable(struct device *dev, char *id)
-{
-	struct clk *clk;
-	int ret;
-
-	clk = devm_clk_get(dev, id);
-	if (IS_ERR(clk)) {
-		ret = PTR_ERR(clk);
-		dev_err_probe(dev, ret, "failed to get %s", id);
-		return ret;
-	}
-
-	ret = clk_prepare_enable(clk);
-	if (ret) {
-		dev_err(dev, "failed to enable %s", id);
-		return ret;
-	}
-
-	ret = devm_add_action_or_reset(dev,
-				       (void(*)(void *))clk_disable_unprepare,
-				       clk);
-	if (ret) {
-		dev_err(dev, "failed to add reset action on %s", id);
-		return ret;
-	}
-
-	return 0;
-}
-
 struct axg_audio_reset_data {
 	struct reset_controller_dev rstc;
 	struct regmap *map;
@@ -1787,6 +1758,7 @@ static int axg_audio_clkc_probe(struct platform_device *pdev)
 	struct regmap *map;
 	void __iomem *regs;
 	struct clk_hw *hw;
+	struct clk *clk;
 	int ret, i;
 
 	data = of_device_get_match_data(dev);
@@ -1804,9 +1776,9 @@ static int axg_audio_clkc_probe(struct platform_device *pdev)
 	}
 
 	/* Get the mandatory peripheral clock */
-	ret = devm_clk_get_enable(dev, "pclk");
-	if (ret)
-		return ret;
+	clk = devm_clk_get_enabled(dev, "pclk");
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
 
 	ret = device_reset(dev);
 	if (ret) {

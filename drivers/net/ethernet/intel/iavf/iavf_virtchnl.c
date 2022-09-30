@@ -5,10 +5,6 @@
 #include "iavf_prototype.h"
 #include "iavf_client.h"
 
-/* busy wait delay in msec */
-#define IAVF_BUSY_WAIT_DELAY 10
-#define IAVF_BUSY_WAIT_COUNT 50
-
 /**
  * iavf_send_pf_msg
  * @adapter: adapter structure

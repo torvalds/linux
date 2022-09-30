@@ -345,68 +345,6 @@ sbc_setup_write_same(struct se_cmd *cmd, unsigned char flags, struct sbc_ops *op
 	return 0;
 }
 
-static sense_reason_t xdreadwrite_callback(struct se_cmd *cmd, bool success,
-					   int *post_ret)
-{
-	unsigned char *buf, *addr;
-	struct scatterlist *sg;
-	unsigned int offset;
-	sense_reason_t ret = TCM_NO_SENSE;
-	int i, count;
-
-	if (!success)
-		return 0;
-
-	/*
-	 * From sbc3r22.pdf section 5.48 XDWRITEREAD (10) command
-	 *
-	 * 1) read the specified logical block(s);
-	 * 2) transfer logical blocks from the data-out buffer;
-	 * 3) XOR the logical blocks transferred from the data-out buffer with
-	 *    the logical blocks read, storing the resulting XOR data in a buffer;
-	 * 4) if the DISABLE WRITE bit is set to zero, then write the logical
-	 *    blocks transferred from the data-out buffer; and
-	 * 5) transfer the resulting XOR data to the data-in buffer.
-	 */
-	buf = kmalloc(cmd->data_length, GFP_KERNEL);
-	if (!buf) {
-		pr_err("Unable to allocate xor_callback buf\n");
-		return TCM_OUT_OF_RESOURCES;
-	}
-	/*
-	 * Copy the scatterlist WRITE buffer located at cmd->t_data_sg
-	 * into the locally allocated *buf
-	 */
-	sg_copy_to_buffer(cmd->t_data_sg,
-			  cmd->t_data_nents,
-			  buf,
-			  cmd->data_length);
-
-	/*
-	 * Now perform the XOR against the BIDI read memory located at
-	 * cmd->t_mem_bidi_list
-	 */
-
-	offset = 0;
-	for_each_sg(cmd->t_bidi_data_sg, sg, cmd->t_bidi_data_nents, count) {
-		addr = kmap_atomic(sg_page(sg));
-		if (!addr) {
-			ret = TCM_OUT_OF_RESOURCES;
-			goto out;
-		}
-
-		for (i = 0; i < sg->length; i++)
-			*(addr + sg->offset + i) ^= *(buf + offset + i);
-
-		offset += sg->length;
-		kunmap_atomic(addr);
-	}
-
-out:
-	kfree(buf);
-	return ret;
-}
-
 static sense_reason_t
 sbc_execute_rw(struct se_cmd *cmd)
 {
@@ -933,47 +871,10 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
 		cmd->execute_cmd = sbc_execute_rw;
 		break;
-	case XDWRITEREAD_10:
-		if (cmd->data_direction != DMA_TO_DEVICE ||
-		    !(cmd->se_cmd_flags & SCF_BIDI))
-			return TCM_INVALID_CDB_FIELD;
-		sectors = transport_get_sectors_10(cdb);
-
-		if (sbc_check_dpofua(dev, cmd, cdb))
-			return TCM_INVALID_CDB_FIELD;
-
-		cmd->t_task_lba = transport_lba_32(cdb);
-		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-
-		/*
-		 * Setup BIDI XOR callback to be run after I/O completion.
-		 */
-		cmd->execute_cmd = sbc_execute_rw;
-		cmd->transport_complete_callback = &xdreadwrite_callback;
-		break;
 	case VARIABLE_LENGTH_CMD:
 	{
 		u16 service_action = get_unaligned_be16(&cdb[8]);
 		switch (service_action) {
-		case XDWRITEREAD_32:
-			sectors = transport_get_sectors_32(cdb);
-
-			if (sbc_check_dpofua(dev, cmd, cdb))
-				return TCM_INVALID_CDB_FIELD;
-			/*
-			 * Use WRITE_32 and READ_32 opcodes for the emulated
-			 * XDWRITE_READ_32 logic.
-			 */
-			cmd->t_task_lba = transport_lba_64_ext(cdb);
-			cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-
-			/*
-			 * Setup BIDI XOR callback to be run during after I/O
-			 * completion.
-			 */
-			cmd->execute_cmd = sbc_execute_rw;
-			cmd->transport_complete_callback = &xdreadwrite_callback;
-			break;
 		case WRITE_SAME_32:
 			sectors = transport_get_sectors_32(cdb);
 			if (!sectors) {

@@ -377,7 +377,6 @@ static void blk_timeout_work(struct work_struct *work)
 struct request_queue *blk_alloc_queue(int node_id, bool alloc_srcu)
 {
 	struct request_queue *q;
-	int ret;
 
 	q = kmem_cache_alloc_node(blk_get_queue_kmem_cache(alloc_srcu),
 			GFP_KERNEL | __GFP_ZERO, node_id);
@@ -396,13 +395,9 @@ struct request_queue *blk_alloc_queue(int node_id, bool alloc_srcu)
 	if (q->id < 0)
 		goto fail_srcu;
 
-	ret = bioset_init(&q->bio_split, BIO_POOL_SIZE, 0, 0);
-	if (ret)
-		goto fail_id;
-
 	q->stats = blk_alloc_queue_stats();
 	if (!q->stats)
-		goto fail_split;
+		goto fail_id;
 
 	q->node = node_id;
 
@@ -439,8 +434,6 @@ struct request_queue *blk_alloc_queue(int node_id, bool alloc_srcu)
 
 fail_stats:
 	blk_free_queue_stats(q->stats);
-fail_split:
-	bioset_exit(&q->bio_split);
 fail_id:
 	ida_free(&blk_queue_ida, q->id);
 fail_srcu:

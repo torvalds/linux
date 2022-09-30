@@ -43,6 +43,8 @@
 #define PIL_TZ_PEAK_BW	UINT_MAX
 #define QMP_MSG_LEN	64
 
+#define ADSP_DECRYPT_SHUTDOWN_DELAY_MS	100
+
 static struct icc_path *scm_perf_client;
 static int scm_pas_bw_count;
 static DEFINE_MUTEX(scm_pas_bw_mutex);
@@ -60,6 +62,7 @@ struct adsp_data {
 	bool has_aggre2_clk;
 	bool auto_boot;
 	bool dma_phys_below_32b;
+	bool decrypt_shutdown;
 
 	char **active_pd_names;
 	char **proxy_pd_names;
@@ -103,6 +106,7 @@ struct qcom_adsp {
 	int crash_reason_smem;
 	bool has_aggre2_clk;
 	bool dma_phys_below_32b;
+	bool decrypt_shutdown;
 	const char *info_name;
 
 	struct completion start_done;
@@ -213,6 +217,19 @@ static void adsp_pds_disable(struct qcom_adsp *adsp, struct device **pds,
 		dev_pm_genpd_set_performance_state(pds[i], 0);
 		pm_runtime_put(pds[i]);
 	}
+}
+
+static int adsp_shutdown_poll_decrypt(struct qcom_adsp *adsp)
+{
+	unsigned int retry_num = 50;
+	int ret;
+
+	do {
+		msleep(ADSP_DECRYPT_SHUTDOWN_DELAY_MS);
+		ret = qcom_scm_pas_shutdown(adsp->pas_id);
+	} while (ret == -EINVAL && --retry_num);
+
+	return ret;
 }
 
 static int scm_pas_enable_bw(void)
@@ -541,6 +558,10 @@ static int adsp_stop(struct rproc *rproc)
 		ret = qcom_scm_pas_shutdown_retry(adsp->pas_id);
 	else
 		ret = qcom_scm_pas_shutdown(adsp->pas_id);
+
+	if (ret && adsp->decrypt_shutdown)
+		ret = adsp_shutdown_poll_decrypt(adsp);
+
 	if (ret)
 		panic("Panicking, remoteproc %s failed to shutdown.\n", rproc->name);
 
@@ -804,7 +825,6 @@ get_rproc_client:
 	adsp->bus_client = of_icc_get(adsp->dev, "rproc_ddr");
 	if (IS_ERR(adsp->bus_client))
 		dev_warn(adsp->dev, "%s: No bus client\n", __func__);
-
 }
 
 static int adsp_pds_attach(struct device *dev, struct device **devs,
@@ -981,6 +1001,7 @@ static int adsp_probe(struct platform_device *pdev)
 	adsp->dtb_fw_name = desc->dtb_firmware_name;
 	adsp->has_aggre2_clk = desc->has_aggre2_clk;
 	adsp->info_name = desc->sysmon_name;
+	adsp->decrypt_shutdown = desc->decrypt_shutdown;
 	adsp->qmp_name = desc->qmp_name;
 	adsp->dma_phys_below_32b = desc->dma_phys_below_32b;
 
@@ -988,6 +1009,7 @@ static int adsp_probe(struct platform_device *pdev)
 		adsp->mdata = devm_kzalloc(adsp->dev, sizeof(struct qcom_mdt_metadata), GFP_KERNEL);
 		adsp->retry_shutdown = true;
 	}
+
 	platform_set_drvdata(pdev, adsp);
 
 	ret = device_init_wakeup(adsp->dev, true);

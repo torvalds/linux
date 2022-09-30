@@ -46,33 +46,69 @@ Description:
 		that is supported by the hardware.  The possible values
 		are "MAPv4" or "MAPv5".
 
+What:		.../XXXXXXX.ipa/endpoint_id/
+Date:		July 2022
+KernelVersion:	v5.19
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The .../XXXXXXX.ipa/endpoint_id/ directory contains
+		attributes that define IDs associated with IPA
+		endpoints.  The "rx" or "tx" in an endpoint name is
+		from the perspective of the AP.  An endpoint ID is a
+		small unsigned integer.
+
+What:		.../XXXXXXX.ipa/endpoint_id/modem_rx
+Date:		July 2022
+KernelVersion:	v5.19
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The .../XXXXXXX.ipa/endpoint_id/modem_rx file contains
+		the ID of the AP endpoint on which packets originating
+		from the embedded modem are received.
+
+What:		.../XXXXXXX.ipa/endpoint_id/modem_tx
+Date:		July 2022
+KernelVersion:	v5.19
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The .../XXXXXXX.ipa/endpoint_id/modem_tx file contains
+		the ID of the AP endpoint on which packets destined
+		for the embedded modem are sent.
+
+What:		.../XXXXXXX.ipa/endpoint_id/monitor_rx
+Date:		July 2022
+KernelVersion:	v5.19
+Contact:	Alex Elder <elder@kernel.org>
+Description:
+		The .../XXXXXXX.ipa/endpoint_id/monitor_rx file contains
+		the ID of the AP endpoint on which IPA "monitor" data is
+		received.  The monitor endpoint supplies replicas of
+		packets that enter the IPA hardware for processing.
+		Each replicated packet is preceded by a fixed-size "ODL"
+		header (see .../XXXXXXX.ipa/feature/monitor, above).
+		Large packets are truncated, to reduce the bandwidth
+		required to provide the monitor function.
+
 What:		.../XXXXXXX.ipa/modem/
 Date:		June 2021
 KernelVersion:	v5.14
 Contact:	Alex Elder <elder@kernel.org>
 Description:
-		The .../XXXXXXX.ipa/modem/ directory contains a set of
-		attributes describing properties of the modem execution
-		environment reachable by the IPA hardware.
+		The .../XXXXXXX.ipa/modem/ directory contains attributes
+		describing properties of the modem embedded in the SoC.
 
 What:		.../XXXXXXX.ipa/modem/rx_endpoint_id
 Date:		June 2021
 KernelVersion:	v5.14
 Contact:	Alex Elder <elder@kernel.org>
 Description:
-		The .../XXXXXXX.ipa/feature/rx_endpoint_id file contains
-		the AP endpoint ID that receives packets originating from
-		the modem execution environment.  The "rx" is from the
-		perspective of the AP; this endpoint is considered an "IPA
-		producer".  An endpoint ID is a small unsigned integer.
+		The .../XXXXXXX.ipa/modem/rx_endpoint_id file duplicates
+		the value found in .../XXXXXXX.ipa/endpoint_id/modem_rx.
 
 What:		.../XXXXXXX.ipa/modem/tx_endpoint_id
 Date:		June 2021
 KernelVersion:	v5.14
 Contact:	Alex Elder <elder@kernel.org>
 Description:
-		The .../XXXXXXX.ipa/feature/tx_endpoint_id file contains
-		the AP endpoint ID used to transmit packets destined for
-		the modem execution environment.  The "tx" is from the
-		perspective of the AP; this endpoint is considered an "IPA
-		consumer".  An endpoint ID is a small unsigned integer.
+		The .../XXXXXXX.ipa/modem/tx_endpoint_id file duplicates
+		the value found in .../XXXXXXX.ipa/endpoint_id/modem_tx.

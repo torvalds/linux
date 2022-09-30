@@ -3,6 +3,7 @@
  * Copyright © 2021 Intel Corporation
  */
 
+#include <linux/backlight.h>
 #include <linux/kernel.h>
 #include <linux/pwm.h>
 #include <linux/string_helpers.h>
@@ -1159,9 +1160,10 @@ static u32 vlv_hz_to_pwm(struct intel_connector *connector, u32 pwm_freq_hz)
 	return DIV_ROUND_CLOSEST(clock, pwm_freq_hz * mul);
 }
 
-static u16 get_vbt_pwm_freq(struct drm_i915_private *dev_priv)
+static u16 get_vbt_pwm_freq(struct intel_connector *connector)
 {
-	u16 pwm_freq_hz = dev_priv->vbt.backlight.pwm_freq_hz;
+	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
+	u16 pwm_freq_hz = connector->panel.vbt.backlight.pwm_freq_hz;
 
 	if (pwm_freq_hz) {
 		drm_dbg_kms(&dev_priv->drm,
@@ -1181,7 +1183,7 @@ static u32 get_backlight_max_vbt(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	struct intel_panel *panel = &connector->panel;
-	u16 pwm_freq_hz = get_vbt_pwm_freq(dev_priv);
+	u16 pwm_freq_hz = get_vbt_pwm_freq(connector);
 	u32 pwm;
 
 	if (!panel->backlight.pwm_funcs->hz_to_pwm) {
@@ -1218,11 +1220,11 @@ static u32 get_backlight_min_vbt(struct intel_connector *connector)
 	 * against this by letting the minimum be at most (arbitrarily chosen)
 	 * 25% of the max.
 	 */
-	min = clamp_t(int, dev_priv->vbt.backlight.min_brightness, 0, 64);
-	if (min != dev_priv->vbt.backlight.min_brightness) {
+	min = clamp_t(int, connector->panel.vbt.backlight.min_brightness, 0, 64);
+	if (min != connector->panel.vbt.backlight.min_brightness) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "clamping VBT min backlight %d/255 to %d/255\n",
-			    dev_priv->vbt.backlight.min_brightness, min);
+			    connector->panel.vbt.backlight.min_brightness, min);
 	}
 
 	/* vbt value is a coefficient in range [0..255] */
@@ -1411,7 +1413,7 @@ bxt_setup_backlight(struct intel_connector *connector, enum pipe unused)
 	struct intel_panel *panel = &connector->panel;
 	u32 pwm_ctl, val;
 
-	panel->backlight.controller = dev_priv->vbt.backlight.controller;
+	panel->backlight.controller = connector->panel.vbt.backlight.controller;
 
 	pwm_ctl = intel_de_read(dev_priv,
 				BXT_BLC_PWM_CTL(panel->backlight.controller));
@@ -1484,7 +1486,7 @@ static int ext_pwm_setup_backlight(struct intel_connector *connector,
 	u32 level;
 
 	/* Get the right PWM chip for DSI backlight according to VBT */
-	if (dev_priv->vbt.dsi.config->pwm_blc == PPS_BLC_PMIC) {
+	if (connector->panel.vbt.dsi.config->pwm_blc == PPS_BLC_PMIC) {
 		panel->backlight.pwm = pwm_get(dev->dev, "pwm_pmic_backlight");
 		desc = "PMIC";
 	} else {
@@ -1513,11 +1515,11 @@ static int ext_pwm_setup_backlight(struct intel_connector *connector,
 
 		drm_dbg_kms(&dev_priv->drm, "PWM already enabled at freq %ld, VBT freq %d, level %d\n",
 			    NSEC_PER_SEC / (unsigned long)panel->backlight.pwm_state.period,
-			    get_vbt_pwm_freq(dev_priv), level);
+			    get_vbt_pwm_freq(connector), level);
 	} else {
 		/* Set period from VBT frequency, leave other settings at 0. */
 		panel->backlight.pwm_state.period =
-			NSEC_PER_SEC / get_vbt_pwm_freq(dev_priv);
+			NSEC_PER_SEC / get_vbt_pwm_freq(connector);
 	}
 
 	drm_info(&dev_priv->drm, "Using %s PWM for LCD backlight control\n",
@@ -1602,7 +1604,7 @@ int intel_backlight_setup(struct intel_connector *connector, enum pipe pipe)
 	struct intel_panel *panel = &connector->panel;
 	int ret;
 
-	if (!dev_priv->vbt.backlight.present) {
+	if (!connector->panel.vbt.backlight.present) {
 		if (dev_priv->quirks & QUIRK_BACKLIGHT_PRESENT) {
 			drm_dbg_kms(&dev_priv->drm,
 				    "no backlight present per VBT, but present per quirk\n");

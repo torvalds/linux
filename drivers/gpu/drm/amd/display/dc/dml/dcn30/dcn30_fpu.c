@@ -29,7 +29,7 @@
 #include "dcn20/dcn20_resource.h"
 #include "dcn30/dcn30_resource.h"
 
-
+#include "clk_mgr/dcn30/dcn30_smu11_driver_if.h"
 #include "display_mode_vba_30.h"
 #include "dcn30_fpu.h"
 
@@ -181,7 +181,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_0_soc = {
 void optc3_fpu_set_vrr_m_const(struct timing_generator *optc,
 		double vtotal_avg)
 {
-struct optc *optc1 = DCN10TG_FROM_TG(optc);
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 	double vtotal_min, vtotal_max;
 	double ratio, modulo, phase;
 	uint32_t vblank_start;
@@ -350,24 +350,24 @@ void dcn30_fpu_set_mcif_arb_params(struct mcif_arb_params *wb_arb_params,
 	int pipe_cnt,
 	int cur_pipe)
 {
-    int i;
+	int i;
 
 	dc_assert_fp_enabled();
 
-    for (i = 0; i < sizeof(wb_arb_params->cli_watermark)/sizeof(wb_arb_params->cli_watermark[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(wb_arb_params->cli_watermark); i++) {
 		wb_arb_params->cli_watermark[i] = get_wm_writeback_urgent(dml, pipes, pipe_cnt) * 1000;
 		wb_arb_params->pstate_watermark[i] = get_wm_writeback_dram_clock_change(dml, pipes, pipe_cnt) * 1000;
-    }
+	}
 
-    wb_arb_params->dram_speed_change_duration = dml->vba.WritebackAllowDRAMClockChangeEndPosition[cur_pipe] * pipes[0].clks_cfg.refclk_mhz; /* num_clock_cycles = us * MHz */
+	wb_arb_params->dram_speed_change_duration = dml->vba.WritebackAllowDRAMClockChangeEndPosition[cur_pipe] * pipes[0].clks_cfg.refclk_mhz; /* num_clock_cycles = us * MHz */
 }
 
 void dcn30_fpu_update_soc_for_wm_a(struct dc *dc, struct dc_state *context)
 {
 
-dc_assert_fp_enabled();
+	dc_assert_fp_enabled();
 
-if (dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].valid) {
+	if (dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].valid) {
 		context->bw_ctx.dml.soc.dram_clock_change_latency_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.pstate_latency_us;
 		context->bw_ctx.dml.soc.sr_enter_plus_exit_time_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.sr_enter_plus_exit_time_us;
 		context->bw_ctx.dml.soc.sr_exit_time_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.sr_exit_time_us;
@@ -380,12 +380,12 @@ void dcn30_fpu_calculate_wm_and_dlg(
 		int pipe_cnt,
 		int vlevel)
 {
-int maxMpcComb = context->bw_ctx.dml.vba.maxMpcComb;
+	int maxMpcComb = context->bw_ctx.dml.vba.maxMpcComb;
 	int i, pipe_idx;
 	double dcfclk = context->bw_ctx.dml.vba.DCFCLKState[vlevel][maxMpcComb];
 	bool pstate_en = context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][maxMpcComb] != dm_dram_clock_change_unsupported;
 
-dc_assert_fp_enabled();
+	dc_assert_fp_enabled();
 
 	if (context->bw_ctx.dml.soc.min_dcfclk > dcfclk)
 		dcfclk = context->bw_ctx.dml.soc.min_dcfclk;
@@ -529,6 +529,8 @@ dc_assert_fp_enabled();
 		context->bw_ctx.dml.soc.dram_clock_change_latency_us =
 				dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.pstate_latency_us;
 
+	if (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching)
+		dcn30_setup_mclk_switch_using_fw_based_vblank_stretch(dc, context);
 }
 
 void dcn30_fpu_update_dram_channel_width_bytes(struct dc *dc)
@@ -614,4 +616,128 @@ void dcn30_fpu_update_bw_bounding_box(struct dc *dc,
 
 }
 
+/**
+ * Finds dummy_latency_index when MCLK switching using firmware based
+ * vblank stretch is enabled. This function will iterate through the
+ * table of dummy pstate latencies until the lowest value that allows
+ * dm_allow_self_refresh_and_mclk_switch to happen is found
+ */
+int dcn30_find_dummy_latency_index_for_fw_based_mclk_switch(struct dc *dc,
+							    struct dc_state *context,
+							    display_e2e_pipe_params_st *pipes,
+							    int pipe_cnt,
+							    int vlevel)
+{
+	const int max_latency_table_entries = 4;
+	int dummy_latency_index = 0;
 
+	dc_assert_fp_enabled();
+
+	while (dummy_latency_index < max_latency_table_entries) {
+		context->bw_ctx.dml.soc.dram_clock_change_latency_us =
+				dc->clk_mgr->bw_params->dummy_pstate_table[dummy_latency_index].dummy_pstate_latency_us;
+		dcn30_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, false);
+
+		if (context->bw_ctx.dml.soc.allow_dram_self_refresh_or_dram_clock_change_in_vblank ==
+			dm_allow_self_refresh_and_mclk_switch)
+			break;
+
+		dummy_latency_index++;
+	}
+
+	if (dummy_latency_index == max_latency_table_entries) {
+		ASSERT(dummy_latency_index != max_latency_table_entries);
+		/* If the execution gets here, it means dummy p_states are
+		 * not possible. This should never happen and would mean
+		 * something is severely wrong.
+		 * Here we reset dummy_latency_index to 3, because it is
+		 * better to have underflows than system crashes.
+		 */
+		dummy_latency_index = 3;
+	}
+
+	return dummy_latency_index;
+}
+
+void dcn3_fpu_build_wm_range_table(struct clk_mgr *base)
+{
+	/* defaults */
+	double pstate_latency_us = base->ctx->dc->dml.soc.dram_clock_change_latency_us;
+	double sr_exit_time_us = base->ctx->dc->dml.soc.sr_exit_time_us;
+	double sr_enter_plus_exit_time_us = base->ctx->dc->dml.soc.sr_enter_plus_exit_time_us;
+	uint16_t min_uclk_mhz = base->bw_params->clk_table.entries[0].memclk_mhz;
+
+	dc_assert_fp_enabled();
+
+	/* Set A - Normal - default values*/
+	base->bw_params->wm_table.nv_entries[WM_A].valid = true;
+	base->bw_params->wm_table.nv_entries[WM_A].dml_input.pstate_latency_us = pstate_latency_us;
+	base->bw_params->wm_table.nv_entries[WM_A].dml_input.sr_exit_time_us = sr_exit_time_us;
+	base->bw_params->wm_table.nv_entries[WM_A].dml_input.sr_enter_plus_exit_time_us = sr_enter_plus_exit_time_us;
+	base->bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.wm_type = WATERMARKS_CLOCK_RANGE;
+	base->bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.min_dcfclk = 0;
+	base->bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.max_dcfclk = 0xFFFF;
+	base->bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.min_uclk = min_uclk_mhz;
+	base->bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.max_uclk = 0xFFFF;
+
+	/* Set B - Performance - higher minimum clocks */
+//	base->bw_params->wm_table.nv_entries[WM_B].valid = true;
+//	base->bw_params->wm_table.nv_entries[WM_B].dml_input.pstate_latency_us = pstate_latency_us;
+//	base->bw_params->wm_table.nv_entries[WM_B].dml_input.sr_exit_time_us = sr_exit_time_us;
+//	base->bw_params->wm_table.nv_entries[WM_B].dml_input.sr_enter_plus_exit_time_us = sr_enter_plus_exit_time_us;
+//	base->bw_params->wm_table.nv_entries[WM_B].pmfw_breakdown.wm_type = WATERMARKS_CLOCK_RANGE;
+//	base->bw_params->wm_table.nv_entries[WM_B].pmfw_breakdown.min_dcfclk = TUNED VALUE;
+//	base->bw_params->wm_table.nv_entries[WM_B].pmfw_breakdown.max_dcfclk = 0xFFFF;
+//	base->bw_params->wm_table.nv_entries[WM_B].pmfw_breakdown.min_uclk = TUNED VALUE;
+//	base->bw_params->wm_table.nv_entries[WM_B].pmfw_breakdown.max_uclk = 0xFFFF;
+
+	/* Set C - Dummy P-State - P-State latency set to "dummy p-state" value */
+	base->bw_params->wm_table.nv_entries[WM_C].valid = true;
+	base->bw_params->wm_table.nv_entries[WM_C].dml_input.pstate_latency_us = 0;
+	base->bw_params->wm_table.nv_entries[WM_C].dml_input.sr_exit_time_us = sr_exit_time_us;
+	base->bw_params->wm_table.nv_entries[WM_C].dml_input.sr_enter_plus_exit_time_us = sr_enter_plus_exit_time_us;
+	base->bw_params->wm_table.nv_entries[WM_C].pmfw_breakdown.wm_type = WATERMARKS_DUMMY_PSTATE;
+	base->bw_params->wm_table.nv_entries[WM_C].pmfw_breakdown.min_dcfclk = 0;
+	base->bw_params->wm_table.nv_entries[WM_C].pmfw_breakdown.max_dcfclk = 0xFFFF;
+	base->bw_params->wm_table.nv_entries[WM_C].pmfw_breakdown.min_uclk = min_uclk_mhz;
+	base->bw_params->wm_table.nv_entries[WM_C].pmfw_breakdown.max_uclk = 0xFFFF;
+	base->bw_params->dummy_pstate_table[0].dram_speed_mts = 1600;
+	base->bw_params->dummy_pstate_table[0].dummy_pstate_latency_us = 38;
+	base->bw_params->dummy_pstate_table[1].dram_speed_mts = 8000;
+	base->bw_params->dummy_pstate_table[1].dummy_pstate_latency_us = 9;
+	base->bw_params->dummy_pstate_table[2].dram_speed_mts = 10000;
+	base->bw_params->dummy_pstate_table[2].dummy_pstate_latency_us = 8;
+	base->bw_params->dummy_pstate_table[3].dram_speed_mts = 16000;
+	base->bw_params->dummy_pstate_table[3].dummy_pstate_latency_us = 5;
+
+	/* Set D - MALL - SR enter and exit times adjusted for MALL */
+	base->bw_params->wm_table.nv_entries[WM_D].valid = true;
+	base->bw_params->wm_table.nv_entries[WM_D].dml_input.pstate_latency_us = pstate_latency_us;
+	base->bw_params->wm_table.nv_entries[WM_D].dml_input.sr_exit_time_us = 2;
+	base->bw_params->wm_table.nv_entries[WM_D].dml_input.sr_enter_plus_exit_time_us = 4;
+	base->bw_params->wm_table.nv_entries[WM_D].pmfw_breakdown.wm_type = WATERMARKS_MALL;
+	base->bw_params->wm_table.nv_entries[WM_D].pmfw_breakdown.min_dcfclk = 0;
+	base->bw_params->wm_table.nv_entries[WM_D].pmfw_breakdown.max_dcfclk = 0xFFFF;
+	base->bw_params->wm_table.nv_entries[WM_D].pmfw_breakdown.min_uclk = min_uclk_mhz;
+	base->bw_params->wm_table.nv_entries[WM_D].pmfw_breakdown.max_uclk = 0xFFFF;
+}
+
+void patch_dcn30_soc_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st *dcn3_0_ip)
+{
+	dc_assert_fp_enabled();
+
+	if (dc->ctx->dc_bios->funcs->get_soc_bb_info) {
+		struct bp_soc_bb_info bb_info = {0};
+
+		if (dc->ctx->dc_bios->funcs->get_soc_bb_info(dc->ctx->dc_bios, &bb_info) == BP_RESULT_OK) {
+			if (bb_info.dram_clock_change_latency_100ns > 0)
+				dcn3_0_soc.dram_clock_change_latency_us = bb_info.dram_clock_change_latency_100ns * 10;
+
+			if (bb_info.dram_sr_enter_exit_latency_100ns > 0)
+				dcn3_0_soc.sr_enter_plus_exit_time_us = bb_info.dram_sr_enter_exit_latency_100ns * 10;
+
+			if (bb_info.dram_sr_exit_latency_100ns > 0)
+				dcn3_0_soc.sr_exit_time_us = bb_info.dram_sr_exit_latency_100ns * 10;
+		}
+	}
+}

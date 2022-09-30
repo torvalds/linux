@@ -9,25 +9,26 @@
  * LCR is written whilst busy.  If it is, then a busy detect interrupt is
  * raised, the LCR needs to be rewritten and the uart status register read.
  */
+#include <linux/acpi.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/serial_8250.h>
-#include <linux/serial_reg.h>
+#include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/property.h>
-#include <linux/workqueue.h>
-#include <linux/notifier.h>
-#include <linux/slab.h>
-#include <linux/acpi.h>
-#include <linux/clk.h>
-#include <linux/reset.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
+#include <linux/reset.h>
+#include <linux/slab.h>
+#include <linux/workqueue.h>
 
 #include <asm/byteorder.h>
+
+#include <linux/serial_8250.h>
+#include <linux/serial_reg.h>
 
 #include "8250_dwlib.h"
 
@@ -82,8 +83,21 @@ static inline int dw8250_modify_msr(struct uart_port *p, int offset, int value)
 static void dw8250_force_idle(struct uart_port *p)
 {
 	struct uart_8250_port *up = up_to_u8250p(p);
+	unsigned int lsr;
 
 	serial8250_clear_and_reinit_fifos(up);
+
+	/*
+	 * With PSLVERR_RESP_EN parameter set to 1, the device generates an
+	 * error response when an attempt to read an empty RBR with FIFO
+	 * enabled.
+	 */
+	if (up->fcr & UART_FCR_ENABLE_FIFO) {
+		lsr = p->serial_in(p, UART_LSR);
+		if (!(lsr & UART_LSR_DR))
+			return;
+	}
+
 	(void)p->serial_in(p, UART_RX);
 }
 
@@ -122,12 +136,15 @@ static void dw8250_check_lcr(struct uart_port *p, int value)
 /* Returns once the transmitter is empty or we run out of retries */
 static void dw8250_tx_wait_empty(struct uart_port *p)
 {
+	struct uart_8250_port *up = up_to_u8250p(p);
 	unsigned int tries = 20000;
 	unsigned int delay_threshold = tries - 1000;
 	unsigned int lsr;
 
 	while (tries--) {
 		lsr = readb (p->membase + (UART_LSR << p->regshift));
+		up->lsr_saved_flags |= lsr & up->lsr_save_mask;
+
 		if (lsr & UART_LSR_TEMT)
 			break;
 
@@ -140,21 +157,6 @@ static void dw8250_tx_wait_empty(struct uart_port *p)
 	}
 }
 
-static void dw8250_serial_out38x(struct uart_port *p, int offset, int value)
-{
-	struct dw8250_data *d = to_dw8250_data(p->private_data);
-
-	/* Allow the TX to drain before we reconfigure */
-	if (offset == UART_LCR)
-		dw8250_tx_wait_empty(p);
-
-	writeb(value, p->membase + (offset << p->regshift));
-
-	if (offset == UART_LCR && !d->uart_16550_compatible)
-		dw8250_check_lcr(p, value);
-}
-
-
 static void dw8250_serial_out(struct uart_port *p, int offset, int value)
 {
 	struct dw8250_data *d = to_dw8250_data(p->private_data);
@@ -163,6 +165,15 @@ static void dw8250_serial_out(struct uart_port *p, int offset, int value)
 
 	if (offset == UART_LCR && !d->uart_16550_compatible)
 		dw8250_check_lcr(p, value);
+}
+
+static void dw8250_serial_out38x(struct uart_port *p, int offset, int value)
+{
+	/* Allow the TX to drain before we reconfigure */
+	if (offset == UART_LCR)
+		dw8250_tx_wait_empty(p);
+
+	dw8250_serial_out(p, offset, value);
 }
 
 static unsigned int dw8250_serial_in(struct uart_port *p, int offset)
@@ -253,7 +264,7 @@ static int dw8250_handle_irq(struct uart_port *p)
 	 */
 	if (!up->dma && rx_timeout) {
 		spin_lock_irqsave(&p->lock, flags);
-		status = p->serial_in(p, UART_LSR);
+		status = serial_lsr_in(up);
 
 		if (!(status & (UART_LSR_DR | UART_LSR_BI)))
 			(void) p->serial_in(p, UART_RX);
@@ -263,7 +274,10 @@ static int dw8250_handle_irq(struct uart_port *p)
 
 	/* Manually stop the Rx DMA transfer when acting as flow controller */
 	if (quirks & DW_UART_QUIRK_IS_DMA_FC && up->dma && up->dma->rx_running && rx_timeout) {
-		status = p->serial_in(p, UART_LSR);
+		spin_lock_irqsave(&p->lock, flags);
+		status = serial_lsr_in(up);
+		spin_unlock_irqrestore(&p->lock, flags);
+
 		if (status & (UART_LSR_DR | UART_LSR_BI)) {
 			dw8250_writel_ext(p, RZN1_UART_RDMACR, 0);
 			dw8250_writel_ext(p, DW_UART_DMASA, 1);
@@ -688,7 +702,6 @@ static int dw8250_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int dw8250_suspend(struct device *dev)
 {
 	struct dw8250_data *data = dev_get_drvdata(dev);
@@ -706,9 +719,7 @@ static int dw8250_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PM
 static int dw8250_runtime_suspend(struct device *dev)
 {
 	struct dw8250_data *data = dev_get_drvdata(dev);
@@ -730,11 +741,10 @@ static int dw8250_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops dw8250_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(dw8250_suspend, dw8250_resume)
-	SET_RUNTIME_PM_OPS(dw8250_runtime_suspend, dw8250_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(dw8250_suspend, dw8250_resume)
+	RUNTIME_PM_OPS(dw8250_runtime_suspend, dw8250_runtime_resume, NULL)
 };
 
 static const struct dw8250_platform_data dw8250_dw_apb = {
@@ -792,7 +802,7 @@ MODULE_DEVICE_TABLE(acpi, dw8250_acpi_match);
 static struct platform_driver dw8250_platform_driver = {
 	.driver = {
 		.name		= "dw-apb-uart",
-		.pm		= &dw8250_pm_ops,
+		.pm		= pm_ptr(&dw8250_pm_ops),
 		.of_match_table	= dw8250_of_match,
 		.acpi_match_table = dw8250_acpi_match,
 	},

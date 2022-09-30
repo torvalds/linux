@@ -27,6 +27,7 @@
 #include "dcn30_optc.h"
 #include "dc.h"
 #include "dcn_calc_math.h"
+#include "dc_dmub_srv.h"
 
 #include "dml/dcn30/dcn30_fpu.h"
 
@@ -179,19 +180,8 @@ void optc3_set_dsc_config(struct timing_generator *optc,
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
-	optc2_set_dsc_config(optc, dsc_mode, dsc_bytes_per_pixel,
-		dsc_slice_width);
-
-		REG_UPDATE(OTG_V_SYNC_A_CNTL, OTG_V_SYNC_MODE, 0);
-
-}
-
-void optc3_set_vrr_m_const(struct timing_generator *optc,
-		double vtotal_avg)
-{
-	DC_FP_START();
-	optc3_fpu_set_vrr_m_const(optc, vtotal_avg);
-	DC_FP_END();
+	optc2_set_dsc_config(optc, dsc_mode, dsc_bytes_per_pixel, dsc_slice_width);
+	REG_UPDATE(OTG_V_SYNC_A_CNTL, OTG_V_SYNC_MODE, 0);
 }
 
 void optc3_set_odm_bypass(struct timing_generator *optc,
@@ -290,6 +280,11 @@ static void optc3_set_timing_double_buffer(struct timing_generator *optc, bool e
 
 	REG_UPDATE(OTG_DOUBLE_BUFFER_CONTROL,
 		   OTG_DRR_TIMING_DBUF_UPDATE_MODE, mode);
+}
+
+void optc3_set_vtotal_min_max(struct timing_generator *optc, int vtotal_min, int vtotal_max)
+{
+	optc1_set_vtotal_min_max(optc, vtotal_min, vtotal_max);
 }
 
 void optc3_tg_init(struct timing_generator *optc)

@@ -4013,6 +4013,17 @@ static inline bool ib_uses_virt_dma(struct ib_device *dev)
 	return IS_ENABLED(CONFIG_INFINIBAND_VIRT_DMA) && !dev->dma_device;
 }
 
+/*
+ * Check if a IB device's underlying DMA mapping supports P2PDMA transfers.
+ */
+static inline bool ib_dma_pci_p2p_dma_supported(struct ib_device *dev)
+{
+	if (ib_uses_virt_dma(dev))
+		return false;
+
+	return dma_pci_p2pdma_supported(dev->dma_device);
+}
+
 /**
  * ib_dma_mapping_error - check a DMA addr for error
  * @dev: The device for which the dma_addr was created
@@ -4603,7 +4614,7 @@ static inline enum rdma_ah_attr_type rdma_ah_find_type(struct ib_device *dev,
 
 /**
  * ib_lid_cpu16 - Return lid in 16bit CPU encoding.
- *     In the current implementation the only way to get
+ *     In the current implementation the only way to
  *     get the 32bit lid is from other sources for OPA.
  *     For IB, lids will always be 16bits so cast the
  *     value accordingly.

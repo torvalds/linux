@@ -9,6 +9,7 @@
 #include <linux/bpf.h>
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
+#include <linux/filter.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -49,11 +50,17 @@ struct bpf_prog_priv {
 	struct bpf_insn *insns_buf;
 	int nr_types;
 	int *type_mapping;
+	int *prologue_fds;
 };
 
 struct bpf_perf_object {
 	struct list_head list;
 	struct bpf_object *obj;
+};
+
+struct bpf_preproc_result {
+	struct bpf_insn *new_insn_ptr;
+	int new_insn_cnt;
 };
 
 static LIST_HEAD(bpf_objects_list);
@@ -82,6 +89,7 @@ bpf_perf_object__next(struct bpf_perf_object *prev)
 	     (perf_obj) = (tmp), (tmp) = bpf_perf_object__next(tmp))
 
 static bool libbpf_initialized;
+static int libbpf_sec_handler;
 
 static int bpf_perf_object__add(struct bpf_object *obj)
 {
@@ -95,12 +103,76 @@ static int bpf_perf_object__add(struct bpf_object *obj)
 	return perf_obj ? 0 : -ENOMEM;
 }
 
+static void *program_priv(const struct bpf_program *prog)
+{
+	void *priv;
+
+	if (IS_ERR_OR_NULL(bpf_program_hash))
+		return NULL;
+	if (!hashmap__find(bpf_program_hash, prog, &priv))
+		return NULL;
+	return priv;
+}
+
+static struct bpf_insn prologue_init_insn[] = {
+	BPF_MOV64_IMM(BPF_REG_2, 0),
+	BPF_MOV64_IMM(BPF_REG_3, 0),
+	BPF_MOV64_IMM(BPF_REG_4, 0),
+	BPF_MOV64_IMM(BPF_REG_5, 0),
+};
+
+static int libbpf_prog_prepare_load_fn(struct bpf_program *prog,
+				       struct bpf_prog_load_opts *opts __maybe_unused,
+				       long cookie __maybe_unused)
+{
+	size_t init_size_cnt = ARRAY_SIZE(prologue_init_insn);
+	size_t orig_insn_cnt, insn_cnt, init_size, orig_size;
+	struct bpf_prog_priv *priv = program_priv(prog);
+	const struct bpf_insn *orig_insn;
+	struct bpf_insn *insn;
+
+	if (IS_ERR_OR_NULL(priv)) {
+		pr_debug("bpf: failed to get private field\n");
+		return -BPF_LOADER_ERRNO__INTERNAL;
+	}
+
+	if (!priv->need_prologue)
+		return 0;
+
+	/* prepend initialization code to program instructions */
+	orig_insn = bpf_program__insns(prog);
+	orig_insn_cnt = bpf_program__insn_cnt(prog);
+	init_size = init_size_cnt * sizeof(*insn);
+	orig_size = orig_insn_cnt * sizeof(*insn);
+
+	insn_cnt = orig_insn_cnt + init_size_cnt;
+	insn = malloc(insn_cnt * sizeof(*insn));
+	if (!insn)
+		return -ENOMEM;
+
+	memcpy(insn, prologue_init_insn, init_size);
+	memcpy((char *) insn + init_size, orig_insn, orig_size);
+	bpf_program__set_insns(prog, insn, insn_cnt);
+	return 0;
+}
+
 static int libbpf_init(void)
 {
+	LIBBPF_OPTS(libbpf_prog_handler_opts, handler_opts,
+		.prog_prepare_load_fn = libbpf_prog_prepare_load_fn,
+	);
+
 	if (libbpf_initialized)
 		return 0;
 
 	libbpf_set_print(libbpf_perf_print);
+	libbpf_sec_handler = libbpf_register_prog_handler(NULL, BPF_PROG_TYPE_KPROBE,
+							  0, &handler_opts);
+	if (libbpf_sec_handler < 0) {
+		pr_debug("bpf: failed to register libbpf section handler: %d\n",
+			 libbpf_sec_handler);
+		return -BPF_LOADER_ERRNO__INTERNAL;
+	}
 	libbpf_initialized = true;
 	return 0;
 }
@@ -184,14 +256,31 @@ struct bpf_object *bpf__prepare_load(const char *filename, bool source)
 	return obj;
 }
 
+static void close_prologue_programs(struct bpf_prog_priv *priv)
+{
+	struct perf_probe_event *pev;
+	int i, fd;
+
+	if (!priv->need_prologue)
+		return;
+	pev = &priv->pev;
+	for (i = 0; i < pev->ntevs; i++) {
+		fd = priv->prologue_fds[i];
+		if (fd != -1)
+			close(fd);
+	}
+}
+
 static void
 clear_prog_priv(const struct bpf_program *prog __maybe_unused,
 		void *_priv)
 {
 	struct bpf_prog_priv *priv = _priv;
 
+	close_prologue_programs(priv);
 	cleanup_perf_probe_events(&priv->pev, 1);
 	zfree(&priv->insns_buf);
+	zfree(&priv->prologue_fds);
 	zfree(&priv->type_mapping);
 	zfree(&priv->sys_name);
 	zfree(&priv->evt_name);
@@ -237,17 +326,6 @@ static bool ptr_equal(const void *key1, const void *key2,
 			  void *ctx __maybe_unused)
 {
 	return key1 == key2;
-}
-
-static void *program_priv(const struct bpf_program *prog)
-{
-	void *priv;
-
-	if (IS_ERR_OR_NULL(bpf_program_hash))
-		return NULL;
-	if (!hashmap__find(bpf_program_hash, prog, &priv))
-		return NULL;
-	return priv;
 }
 
 static int program_set_priv(struct bpf_program *prog, void *priv)
@@ -554,8 +632,8 @@ static int bpf__prepare_probe(void)
 
 static int
 preproc_gen_prologue(struct bpf_program *prog, int n,
-		     struct bpf_insn *orig_insns, int orig_insns_cnt,
-		     struct bpf_prog_prep_result *res)
+		     const struct bpf_insn *orig_insns, int orig_insns_cnt,
+		     struct bpf_preproc_result *res)
 {
 	struct bpf_prog_priv *priv = program_priv(prog);
 	struct probe_trace_event *tev;
@@ -603,7 +681,6 @@ preproc_gen_prologue(struct bpf_program *prog, int n,
 
 	res->new_insn_ptr = buf;
 	res->new_insn_cnt = prologue_cnt + orig_insns_cnt;
-	res->pfd = NULL;
 	return 0;
 
 errout:
@@ -711,7 +788,7 @@ static int hook_load_preprocessor(struct bpf_program *prog)
 	struct bpf_prog_priv *priv = program_priv(prog);
 	struct perf_probe_event *pev;
 	bool need_prologue = false;
-	int err, i;
+	int i;
 
 	if (IS_ERR_OR_NULL(priv)) {
 		pr_debug("Internal error when hook preprocessor\n");
@@ -749,6 +826,13 @@ static int hook_load_preprocessor(struct bpf_program *prog)
 		return -ENOMEM;
 	}
 
+	priv->prologue_fds = malloc(sizeof(int) * pev->ntevs);
+	if (!priv->prologue_fds) {
+		pr_debug("Not enough memory: alloc prologue fds failed\n");
+		return -ENOMEM;
+	}
+	memset(priv->prologue_fds, -1, sizeof(int) * pev->ntevs);
+
 	priv->type_mapping = malloc(sizeof(int) * pev->ntevs);
 	if (!priv->type_mapping) {
 		pr_debug("Not enough memory: alloc type_mapping failed\n");
@@ -757,13 +841,7 @@ static int hook_load_preprocessor(struct bpf_program *prog)
 	memset(priv->type_mapping, -1,
 	       sizeof(int) * pev->ntevs);
 
-	err = map_prologue(pev, priv->type_mapping, &priv->nr_types);
-	if (err)
-		return err;
-
-	err = bpf_program__set_prep(prog, priv->nr_types,
-				    preproc_gen_prologue);
-	return err;
+	return map_prologue(pev, priv->type_mapping, &priv->nr_types);
 }
 
 int bpf__probe(struct bpf_object *obj)
@@ -870,6 +948,77 @@ int bpf__unprobe(struct bpf_object *obj)
 	return ret;
 }
 
+static int bpf_object__load_prologue(struct bpf_object *obj)
+{
+	int init_cnt = ARRAY_SIZE(prologue_init_insn);
+	const struct bpf_insn *orig_insns;
+	struct bpf_preproc_result res;
+	struct perf_probe_event *pev;
+	struct bpf_program *prog;
+	int orig_insns_cnt;
+
+	bpf_object__for_each_program(prog, obj) {
+		struct bpf_prog_priv *priv = program_priv(prog);
+		int err, i, fd;
+
+		if (IS_ERR_OR_NULL(priv)) {
+			pr_debug("bpf: failed to get private field\n");
+			return -BPF_LOADER_ERRNO__INTERNAL;
+		}
+
+		if (!priv->need_prologue)
+			continue;
+
+		/*
+		 * For each program that needs prologue we do following:
+		 *
+		 * - take its current instructions and use them
+		 *   to generate the new code with prologue
+		 * - load new instructions with bpf_prog_load
+		 *   and keep the fd in prologue_fds
+		 * - new fd will be used in bpf__foreach_event
+		 *   to connect this program with perf evsel
+		 */
+		orig_insns = bpf_program__insns(prog);
+		orig_insns_cnt = bpf_program__insn_cnt(prog);
+
+		pev = &priv->pev;
+		for (i = 0; i < pev->ntevs; i++) {
+			/*
+			 * Skipping artificall prologue_init_insn instructions
+			 * (init_cnt), so the prologue can be generated instead
+			 * of them.
+			 */
+			err = preproc_gen_prologue(prog, i,
+						   orig_insns + init_cnt,
+						   orig_insns_cnt - init_cnt,
+						   &res);
+			if (err)
+				return err;
+
+			fd = bpf_prog_load(bpf_program__get_type(prog),
+					   bpf_program__name(prog), "GPL",
+					   res.new_insn_ptr,
+					   res.new_insn_cnt, NULL);
+			if (fd < 0) {
+				char bf[128];
+
+				libbpf_strerror(-errno, bf, sizeof(bf));
+				pr_debug("bpf: load objects with prologue failed: err=%d: (%s)\n",
+					 -errno, bf);
+				return -errno;
+			}
+			priv->prologue_fds[i] = fd;
+		}
+		/*
+		 * We no longer need the original program,
+		 * we can unload it.
+		 */
+		bpf_program__unload(prog);
+	}
+	return 0;
+}
+
 int bpf__load(struct bpf_object *obj)
 {
 	int err;
@@ -881,7 +1030,7 @@ int bpf__load(struct bpf_object *obj)
 		pr_debug("bpf: load objects failed: err=%d: (%s)\n", err, bf);
 		return err;
 	}
-	return 0;
+	return bpf_object__load_prologue(obj);
 }
 
 int bpf__foreach_event(struct bpf_object *obj,
@@ -916,13 +1065,10 @@ int bpf__foreach_event(struct bpf_object *obj,
 		for (i = 0; i < pev->ntevs; i++) {
 			tev = &pev->tevs[i];
 
-			if (priv->need_prologue) {
-				int type = priv->type_mapping[i];
-
-				fd = bpf_program__nth_fd(prog, type);
-			} else {
+			if (priv->need_prologue)
+				fd = priv->prologue_fds[i];
+			else
 				fd = bpf_program__fd(prog);
-			}
 
 			if (fd < 0) {
 				pr_debug("bpf: failed to get file descriptor\n");
@@ -1733,7 +1879,7 @@ struct evsel *bpf__setup_output_event(struct evlist *evlist, const char *name)
 		if (asprintf(&event_definition, "bpf-output/no-inherit=1,name=%s/", name) < 0)
 			return ERR_PTR(-ENOMEM);
 
-		err = parse_events(evlist, event_definition, NULL);
+		err = parse_event(evlist, event_definition);
 		free(event_definition);
 
 		if (err) {

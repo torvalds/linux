@@ -183,7 +183,7 @@ static void snd_hdac_bus_process_unsol_events(struct work_struct *work)
 		if (!(caddr & (1 << 4))) /* no unsolicited event? */
 			continue;
 		codec = bus->caddr_tbl[caddr & 0x0f];
-		if (!codec || !codec->dev.driver)
+		if (!codec || !codec->registered)
 			continue;
 		spin_unlock_irq(&bus->reg_lock);
 		drv = drv_to_hdac_driver(codec->dev.driver);

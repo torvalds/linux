@@ -61,6 +61,9 @@ int i915_ttm_buddy_man_reserve(struct ttm_resource_manager *man,
 
 u64 i915_ttm_buddy_man_visible_size(struct ttm_resource_manager *man);
 
+void i915_ttm_buddy_man_avail(struct ttm_resource_manager *man,
+			      u64 *avail, u64 *avail_visible);
+
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 void i915_ttm_buddy_man_force_visible_size(struct ttm_resource_manager *man,
 					   u64 size);

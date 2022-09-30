@@ -940,7 +940,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	adap->nr = dev->id;
 	adap->dev.of_node = dev->dev.of_node;
 
-	strlcpy(adap->name, dev->name, sizeof(adap->name));
+	strscpy(adap->name, dev->name, sizeof(adap->name));
 
 	spin_lock_init(&pd->lock);
 	init_waitqueue_head(&pd->wait);

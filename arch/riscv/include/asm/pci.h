@@ -12,6 +12,9 @@
 
 #include <asm/io.h>
 
+#define PCIBIOS_MIN_IO		4
+#define PCIBIOS_MIN_MEM		16
+
 #if defined(CONFIG_PCI) && defined(CONFIG_NUMA)
 static inline int pcibus_to_node(struct pci_bus *bus)
 {

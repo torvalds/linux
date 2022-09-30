@@ -1262,7 +1262,6 @@ err_power_down:
 
 	return ret;
 }
-EXPORT_SYMBOL(mpu3050_common_probe);
 
 void mpu3050_common_remove(struct device *dev)
 {
@@ -1278,9 +1277,7 @@ void mpu3050_common_remove(struct device *dev)
 	iio_device_unregister(indio_dev);
 	mpu3050_power_down(mpu3050);
 }
-EXPORT_SYMBOL(mpu3050_common_remove);
 
-#ifdef CONFIG_PM
 static int mpu3050_runtime_suspend(struct device *dev)
 {
 	return mpu3050_power_down(iio_priv(dev_get_drvdata(dev)));
@@ -1290,16 +1287,9 @@ static int mpu3050_runtime_resume(struct device *dev)
 {
 	return mpu3050_power_up(iio_priv(dev_get_drvdata(dev)));
 }
-#endif /* CONFIG_PM */
 
-const struct dev_pm_ops mpu3050_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(mpu3050_runtime_suspend,
-			   mpu3050_runtime_resume, NULL)
-};
-EXPORT_SYMBOL(mpu3050_dev_pm_ops);
-
+DEFINE_RUNTIME_DEV_PM_OPS(mpu3050_dev_pm_ops, mpu3050_runtime_suspend,
+			  mpu3050_runtime_resume, NULL);
 MODULE_AUTHOR("Linus Walleij");
 MODULE_DESCRIPTION("MPU3050 gyroscope driver");
 MODULE_LICENSE("GPL");

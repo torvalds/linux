@@ -240,7 +240,7 @@ int atomisp_css_input_configure_port(struct atomisp_sub_device *asd,
 				     unsigned int metadata_width,
 				     unsigned int metadata_height);
 
-void atomisp_create_pipes_stream(struct atomisp_sub_device *asd);
+int atomisp_create_pipes_stream(struct atomisp_sub_device *asd);
 void atomisp_destroy_pipes_stream_force(struct atomisp_sub_device *asd);
 
 void atomisp_css_stop(struct atomisp_sub_device *asd,
@@ -441,33 +441,6 @@ int atomisp_css_get_dis_stat(struct atomisp_sub_device *asd,
 			     struct atomisp_dis_statistics *stats);
 
 int atomisp_css_update_stream(struct atomisp_sub_device *asd);
-
-int atomisp_css_create_acc_pipe(struct atomisp_sub_device *asd);
-
-int atomisp_css_start_acc_pipe(struct atomisp_sub_device *asd);
-
-int atomisp_css_stop_acc_pipe(struct atomisp_sub_device *asd);
-
-void atomisp_css_destroy_acc_pipe(struct atomisp_sub_device *asd);
-
-int atomisp_css_load_acc_extension(struct atomisp_sub_device *asd,
-				   struct ia_css_fw_info *fw,
-				   enum ia_css_pipe_id pipe_id,
-				   unsigned int type);
-
-void atomisp_css_unload_acc_extension(struct atomisp_sub_device *asd,
-				      struct ia_css_fw_info *fw,
-				      enum ia_css_pipe_id pipe_id);
-
-int atomisp_css_wait_acc_finish(struct atomisp_sub_device *asd);
-
-void atomisp_css_acc_done(struct atomisp_sub_device *asd);
-
-int atomisp_css_load_acc_binary(struct atomisp_sub_device *asd,
-				struct ia_css_fw_info *fw,
-				unsigned int index);
-
-void atomisp_css_unload_acc_binary(struct atomisp_sub_device *asd);
 
 struct atomisp_acc_fw;
 int atomisp_css_set_acc_parameters(struct atomisp_acc_fw *acc_fw);

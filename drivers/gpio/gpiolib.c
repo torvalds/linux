@@ -3942,9 +3942,11 @@ int gpiod_configure_flags(struct gpio_desc *desc, const char *con_id,
 	if (lflags & GPIO_OPEN_SOURCE)
 		set_bit(FLAG_OPEN_SOURCE, &desc->flags);
 
-	if ((lflags & GPIO_PULL_UP) && (lflags & GPIO_PULL_DOWN)) {
+	if (((lflags & GPIO_PULL_UP) && (lflags & GPIO_PULL_DOWN)) ||
+	    ((lflags & GPIO_PULL_UP) && (lflags & GPIO_PULL_DISABLE)) ||
+	    ((lflags & GPIO_PULL_DOWN) && (lflags & GPIO_PULL_DISABLE))) {
 		gpiod_err(desc,
-			  "both pull-up and pull-down enabled, invalid configuration\n");
+			  "multiple pull-up, pull-down or pull-disable enabled, invalid configuration\n");
 		return -EINVAL;
 	}
 
@@ -3952,6 +3954,8 @@ int gpiod_configure_flags(struct gpio_desc *desc, const char *con_id,
 		set_bit(FLAG_PULL_UP, &desc->flags);
 	else if (lflags & GPIO_PULL_DOWN)
 		set_bit(FLAG_PULL_DOWN, &desc->flags);
+	else if (lflags & GPIO_PULL_DISABLE)
+		set_bit(FLAG_BIAS_DISABLE, &desc->flags);
 
 	ret = gpiod_set_transitory(desc, (lflags & GPIO_TRANSITORY));
 	if (ret < 0)
