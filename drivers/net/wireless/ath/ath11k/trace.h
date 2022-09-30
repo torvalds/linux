@@ -305,6 +305,34 @@ TRACE_EVENT(ath11k_wmi_diag,
 	)
 );
 
+TRACE_EVENT(ath11k_ps_timekeeper,
+	    TP_PROTO(struct ath11k *ar, const void *peer_addr,
+		     u32 peer_ps_timestamp, u8 peer_ps_state),
+	TP_ARGS(ar, peer_addr, peer_ps_timestamp, peer_ps_state),
+
+	TP_STRUCT__entry(__string(device, dev_name(ar->ab->dev))
+			 __string(driver, dev_driver_string(ar->ab->dev))
+			 __dynamic_array(u8, peer_addr, ETH_ALEN)
+			 __field(u8, peer_ps_state)
+			 __field(u32, peer_ps_timestamp)
+	),
+
+	TP_fast_assign(__assign_str(device, dev_name(ar->ab->dev));
+		       __assign_str(driver, dev_driver_string(ar->ab->dev));
+		       memcpy(__get_dynamic_array(peer_addr), peer_addr,
+			      ETH_ALEN);
+		       __entry->peer_ps_state = peer_ps_state;
+		       __entry->peer_ps_timestamp = peer_ps_timestamp;
+	),
+
+	TP_printk("%s %s %u %u",
+		  __get_str(driver),
+		  __get_str(device),
+		  __entry->peer_ps_state,
+		  __entry->peer_ps_timestamp
+	)
+);
+
 #endif /* _TRACE_H_ || TRACE_HEADER_MULTI_READ*/
 
 /* we don't want to use include/trace/events */

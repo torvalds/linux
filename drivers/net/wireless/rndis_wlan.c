@@ -251,7 +251,7 @@ struct ndis_80211_bssid_ex {
 
 struct ndis_80211_bssid_list_ex {
 	__le32 num_items;
-	struct ndis_80211_bssid_ex bssid[];
+	u8 bssid_data[];
 } __packed;
 
 struct ndis_80211_fixed_ies {
@@ -2084,7 +2084,8 @@ resize_buf:
 	netdev_dbg(usbdev->net, "%s(): buflen: %d\n", __func__, len);
 
 	bssid_len = 0;
-	bssid = next_bssid_list_item(bssid_list->bssid, &bssid_len, buf, len);
+	bssid = next_bssid_list_item((void *)bssid_list->bssid_data,
+				     &bssid_len, buf, len);
 
 	/* Device returns incorrect 'num_items'. Workaround by ignoring the
 	 * received 'num_items' and walking through full bssid buffer instead.

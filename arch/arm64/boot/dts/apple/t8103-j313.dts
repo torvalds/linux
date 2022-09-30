@@ -17,6 +17,10 @@
 	model = "Apple MacBook Air (M1, 2020)";
 };
 
+&wifi0 {
+	brcm,board-type = "apple,shikoku";
+};
+
 /*
  * Remove unused PCIe ports and disable the associated DARTs.
  */

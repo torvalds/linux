@@ -23,6 +23,9 @@
 #define PCIE_DPHY_DLY_25US		0x1
 #define RAC_ANA19			0x19
 #define B_PCIE_BIT_RD_SEL		BIT(2)
+#define RAC_REG_FLD_0			0x1D
+#define BAC_AUTOK_N_MASK		GENMASK(3, 2)
+#define PCIE_AUTOK_4			0x3
 #define RAC_ANA1F			0x1F
 #define RAC_ANA24			0x24
 #define B_AX_DEGLITCH			GENMASK(11, 8)
@@ -410,6 +413,16 @@
 #define B_AX_STOP_RPQ			BIT(1)
 #define B_AX_STOP_RXQ			BIT(0)
 #define B_AX_TX_STOP1_ALL		GENMASK(18, 8)
+#define B_AX_TX_STOP1_MASK		(B_AX_STOP_ACH0 | B_AX_STOP_ACH1 | \
+					 B_AX_STOP_ACH2 | B_AX_STOP_ACH3 | \
+					 B_AX_STOP_ACH4 | B_AX_STOP_ACH5 | \
+					 B_AX_STOP_ACH6 | B_AX_STOP_ACH7 | \
+					 B_AX_STOP_CH8 | B_AX_STOP_CH9 | \
+					 B_AX_STOP_CH12)
+#define B_AX_TX_STOP1_MASK_V1		(B_AX_STOP_ACH0 | B_AX_STOP_ACH1 | \
+					 B_AX_STOP_ACH2 | B_AX_STOP_ACH3 | \
+					 B_AX_STOP_CH8 | B_AX_STOP_CH9 | \
+					 B_AX_STOP_CH12)
 
 #define R_AX_PCIE_DMA_STOP2	0x1310
 #define B_AX_STOP_CH11			BIT(1)
@@ -458,6 +471,13 @@
 #define B_AX_ACH0_BUSY			BIT(8)
 #define B_AX_RPQ_BUSY			BIT(1)
 #define B_AX_RXQ_BUSY			BIT(0)
+#define DMA_BUSY1_CHECK		(B_AX_ACH0_BUSY | B_AX_ACH1_BUSY | B_AX_ACH2_BUSY | \
+				 B_AX_ACH3_BUSY | B_AX_ACH4_BUSY | B_AX_ACH5_BUSY | \
+				 B_AX_ACH6_BUSY | B_AX_ACH7_BUSY | B_AX_CH8_BUSY | \
+				 B_AX_CH9_BUSY | B_AX_CH12_BUSY)
+#define DMA_BUSY1_CHECK_V1	(B_AX_ACH0_BUSY | B_AX_ACH1_BUSY | B_AX_ACH2_BUSY | \
+				 B_AX_ACH3_BUSY | B_AX_CH8_BUSY | B_AX_CH9_BUSY | \
+				 B_AX_CH12_BUSY)
 
 #define R_AX_PCIE_DMA_BUSY2	0x131C
 #define B_AX_CH11_BUSY			BIT(1)
@@ -562,11 +582,6 @@ enum rtw89_pcie_phy {
 	PCIE_PHY_GEN1,
 	PCIE_PHY_GEN2,
 	PCIE_PHY_GEN1_UNDEFINE = 0x7F,
-};
-
-enum mac_ax_func_sw {
-	MAC_AX_FUNC_DIS,
-	MAC_AX_FUNC_EN,
 };
 
 enum rtw89_pcie_l0sdly {
@@ -747,14 +762,15 @@ struct rtw89_pci_info {
 	u32 max_tag_num_mask;
 	u32 rxbd_rwptr_clr_reg;
 	u32 txbd_rwptr_clr2_reg;
-	u32 dma_stop1_reg;
-	u32 dma_stop2_reg;
-	u32 dma_busy1_reg;
+	struct rtw89_reg_def dma_stop1;
+	struct rtw89_reg_def dma_stop2;
+	struct rtw89_reg_def dma_busy1;
 	u32 dma_busy2_reg;
 	u32 dma_busy3_reg;
 
 	u32 rpwm_addr;
 	u32 cpwm_addr;
+	u32 tx_dma_ch_mask;
 	const struct rtw89_pci_bd_idx_addr *bd_idx_addr_low_power;
 	const struct rtw89_pci_ch_dma_addr_set *dma_addr_set;
 

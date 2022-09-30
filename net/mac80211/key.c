@@ -177,6 +177,10 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 		}
 	}
 
+	if (key->conf.link_id >= 0 && sdata->vif.active_links &&
+	    !(sdata->vif.active_links & BIT(key->conf.link_id)))
+		return 0;
+
 	ret = drv_set_key(key->local, SET_KEY, sdata,
 			  sta ? &sta->sta : NULL, &key->conf);
 
@@ -245,6 +249,10 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 
 	sta = key->sta;
 	sdata = key->sdata;
+
+	if (key->conf.link_id >= 0 && sdata->vif.active_links &&
+	    !(sdata->vif.active_links & BIT(key->conf.link_id)))
+		return;
 
 	if (!(key->conf.flags & (IEEE80211_KEY_FLAG_GENERATE_MMIC |
 				 IEEE80211_KEY_FLAG_PUT_MIC_SPACE |
@@ -1437,3 +1445,37 @@ void ieee80211_key_replay(struct ieee80211_key_conf *keyconf)
 	}
 }
 EXPORT_SYMBOL_GPL(ieee80211_key_replay);
+
+int ieee80211_key_switch_links(struct ieee80211_sub_if_data *sdata,
+			       unsigned long del_links_mask,
+			       unsigned long add_links_mask)
+{
+	struct ieee80211_key *key;
+	int ret;
+
+	list_for_each_entry(key, &sdata->key_list, list) {
+		if (key->conf.link_id < 0 ||
+		    !(del_links_mask & BIT(key->conf.link_id)))
+			continue;
+
+		/* shouldn't happen for per-link keys */
+		WARN_ON(key->sta);
+
+		ieee80211_key_disable_hw_accel(key);
+	}
+
+	list_for_each_entry(key, &sdata->key_list, list) {
+		if (key->conf.link_id < 0 ||
+		    !(add_links_mask & BIT(key->conf.link_id)))
+			continue;
+
+		/* shouldn't happen for per-link keys */
+		WARN_ON(key->sta);
+
+		ret = ieee80211_key_enable_hw_accel(key);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}

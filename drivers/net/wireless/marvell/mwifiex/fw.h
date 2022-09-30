@@ -2104,7 +2104,7 @@ struct mwifiex_fw_mef_entry {
 struct host_cmd_ds_mef_cfg {
 	__le32 criteria;
 	__le16 num_entries;
-	struct mwifiex_fw_mef_entry mef_entry[];
+	u8 mef_entry_data[];
 } __packed;
 
 #define CONNECTION_TYPE_INFRA   0
@@ -2254,7 +2254,7 @@ struct coalesce_receive_filt_rule {
 struct host_cmd_ds_coalesce_cfg {
 	__le16 action;
 	__le16 num_of_rules;
-	struct coalesce_receive_filt_rule rule[];
+	u8 rule_data[];
 } __packed;
 
 struct host_cmd_ds_multi_chan_policy {

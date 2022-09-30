@@ -1546,8 +1546,9 @@ void ieee80211_send_nullfunc(struct ieee80211_local *local,
 	struct ieee80211_hdr_3addr *nullfunc;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
-	skb = ieee80211_nullfunc_get(&local->hw, &sdata->vif,
-		!ieee80211_hw_check(&local->hw, DOESNT_SUPPORT_QOS_NDP));
+	skb = ieee80211_nullfunc_get(&local->hw, &sdata->vif, -1,
+				     !ieee80211_hw_check(&local->hw,
+							 DOESNT_SUPPORT_QOS_NDP));
 	if (!skb)
 		return;
 
@@ -4056,11 +4057,11 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 		goto out;
 	}
 
-	sband = ieee80211_get_link_sband(link);
-	if (!sband) {
+	if (WARN_ON(!link->conf->chandef.chan)) {
 		ret = false;
 		goto out;
 	}
+	sband = local->hw.wiphy->bands[link->conf->chandef.chan->band];
 
 	if (!(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE) &&
 	    (!elems->he_cap || !elems->he_operation)) {
@@ -4817,6 +4818,40 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	return ret;
 }
 
+static bool ieee80211_get_dtim(const struct cfg80211_bss_ies *ies,
+			       u8 *dtim_count, u8 *dtim_period)
+{
+	const u8 *tim_ie = cfg80211_find_ie(WLAN_EID_TIM, ies->data, ies->len);
+	const u8 *idx_ie = cfg80211_find_ie(WLAN_EID_MULTI_BSSID_IDX, ies->data,
+					 ies->len);
+	const struct ieee80211_tim_ie *tim = NULL;
+	const struct ieee80211_bssid_index *idx;
+	bool valid = tim_ie && tim_ie[1] >= 2;
+
+	if (valid)
+		tim = (void *)(tim_ie + 2);
+
+	if (dtim_count)
+		*dtim_count = valid ? tim->dtim_count : 0;
+
+	if (dtim_period)
+		*dtim_period = valid ? tim->dtim_period : 0;
+
+	/* Check if value is overridden by non-transmitted profile */
+	if (!idx_ie || idx_ie[1] < 3)
+		return valid;
+
+	idx = (void *)(idx_ie + 2);
+
+	if (dtim_count)
+		*dtim_count = idx->dtim_count;
+
+	if (dtim_period)
+		*dtim_period = idx->dtim_period;
+
+	return true;
+}
+
 static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_mgmt *mgmt,
 				    struct ieee802_11_elems *elems,
@@ -4880,11 +4915,24 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 			goto out_err;
 
 		if (link_id != assoc_data->assoc_link_id) {
-			err = ieee80211_prep_channel(sdata, link,
-						     assoc_data->link[link_id].bss,
+			struct cfg80211_bss *cbss = assoc_data->link[link_id].bss;
+			const struct cfg80211_bss_ies *ies;
+
+			rcu_read_lock();
+			ies = rcu_dereference(cbss->ies);
+			ieee80211_get_dtim(ies,
+					   &link->conf->sync_dtim_count,
+					   &link->u.mgd.dtim_period);
+			link->conf->dtim_period = link->u.mgd.dtim_period ?: 1;
+			link->conf->beacon_int = cbss->beacon_interval;
+			rcu_read_unlock();
+
+			err = ieee80211_prep_channel(sdata, link, cbss,
 						     &link->u.mgd.conn_flags);
-			if (err)
+			if (err) {
+				link_info(link, "prep_channel failed\n");
 				goto out_err;
+			}
 		}
 
 		err = ieee80211_mgd_setup_link_sta(link, sta, link_sta,
@@ -6356,40 +6404,6 @@ void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local)
 	rcu_read_unlock();
 }
 
-static bool ieee80211_get_dtim(const struct cfg80211_bss_ies *ies,
-			       u8 *dtim_count, u8 *dtim_period)
-{
-	const u8 *tim_ie = cfg80211_find_ie(WLAN_EID_TIM, ies->data, ies->len);
-	const u8 *idx_ie = cfg80211_find_ie(WLAN_EID_MULTI_BSSID_IDX, ies->data,
-					 ies->len);
-	const struct ieee80211_tim_ie *tim = NULL;
-	const struct ieee80211_bssid_index *idx;
-	bool valid = tim_ie && tim_ie[1] >= 2;
-
-	if (valid)
-		tim = (void *)(tim_ie + 2);
-
-	if (dtim_count)
-		*dtim_count = valid ? tim->dtim_count : 0;
-
-	if (dtim_period)
-		*dtim_period = valid ? tim->dtim_period : 0;
-
-	/* Check if value is overridden by non-transmitted profile */
-	if (!idx_ie || idx_ie[1] < 3)
-		return valid;
-
-	idx = (void *)(idx_ie + 2);
-
-	if (dtim_count)
-		*dtim_count = idx->dtim_count;
-
-	if (dtim_period)
-		*dtim_period = idx->dtim_period;
-
-	return true;
-}
-
 static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 				     struct cfg80211_bss *cbss, s8 link_id,
 				     const u8 *ap_mld_addr, bool assoc,
@@ -6891,23 +6905,6 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 
 	for (i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++)
 		size += req->links[i].elems_len;
-
-	if (req->ap_mld_addr) {
-		for (i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++) {
-			if (!req->links[i].bss)
-				continue;
-			if (i == assoc_link_id)
-				continue;
-			/*
-			 * For now, support only a single link in MLO, we
-			 * don't have the necessary parsing of the multi-
-			 * link element in the association response, etc.
-			 */
-			sdata_info(sdata,
-				   "refusing MLO association with >1 links\n");
-			return -EINVAL;
-		}
-	}
 
 	/* FIXME: no support for 4-addr MLO yet */
 	if (sdata->u.mgd.use_4addr && req->link_id >= 0)

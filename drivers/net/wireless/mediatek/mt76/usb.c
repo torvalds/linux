@@ -528,6 +528,11 @@ mt76u_process_rx_entry(struct mt76_dev *dev, struct urb *urb,
 
 	head_room = drv_flags & MT_DRV_RX_DMA_HDR ? 0 : MT_DMA_HDR_LEN;
 	data_len = min_t(int, len, data_len - head_room);
+
+	if (len == data_len &&
+	    dev->drv->rx_check && !dev->drv->rx_check(dev, data, data_len))
+		return 0;
+
 	skb = mt76u_build_rx_skb(dev, data, data_len, buf_size);
 	if (!skb)
 		return 0;

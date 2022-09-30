@@ -396,6 +396,7 @@ static void ser_idle_st_hdl(struct rtw89_ser *ser, u8 evt)
 	switch (evt) {
 	case SER_EV_STATE_IN:
 		rtw89_hci_recovery_complete(rtwdev);
+		clear_bit(RTW89_FLAG_CRASH_SIMULATING, rtwdev->flags);
 		break;
 	case SER_EV_L1_RESET:
 		ser_state_goto(ser, SER_RESET_TRX_ST);
@@ -539,7 +540,7 @@ static int rtw89_ser_fw_backtrace_dump(struct rtw89_dev *rtwdev, u8 *buf,
 				       const struct __fw_backtrace_entry *ent)
 {
 	struct __fw_backtrace_info *ptr = (struct __fw_backtrace_info *)buf;
-	u32 fwbt_addr = ent->wcpu_addr - RTW89_WCPU_BASE_ADDR;
+	u32 fwbt_addr = ent->wcpu_addr & RTW89_WCPU_BASE_MASK;
 	u32 fwbt_size = ent->size;
 	u32 fwbt_key = ent->key;
 	u32 i;
@@ -632,7 +633,6 @@ static void ser_l2_reset_st_hdl(struct rtw89_ser *ser, u8 evt)
 		fallthrough;
 	case SER_EV_L2_RECFG_DONE:
 		ser_state_goto(ser, SER_IDLE_ST);
-		clear_bit(RTW89_FLAG_RESTART_TRIGGER, rtwdev->flags);
 		break;
 
 	case SER_EV_STATE_OUT:

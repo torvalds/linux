@@ -302,6 +302,21 @@ static int __ath11k_peer_delete(struct ath11k *ar, u32 vdev_id, const u8 *addr)
 	spin_lock_bh(&ab->base_lock);
 
 	peer = ath11k_peer_find_by_addr(ab, addr);
+	/* Check if the found peer is what we want to remove.
+	 * While the sta is transitioning to another band we may
+	 * have 2 peer with the same addr assigned to different
+	 * vdev_id. Make sure we are deleting the correct peer.
+	 */
+	if (peer && peer->vdev_id == vdev_id)
+		ath11k_peer_rhash_delete(ab, peer);
+
+	/* Fallback to peer list search if the correct peer can't be found.
+	 * Skip the deletion of the peer from the rhash since it has already
+	 * been deleted in peer add.
+	 */
+	if (!peer)
+		peer = ath11k_peer_find(ab, vdev_id, addr);
+
 	if (!peer) {
 		spin_unlock_bh(&ab->base_lock);
 		mutex_unlock(&ab->tbl_mtx_lock);
@@ -311,8 +326,6 @@ static int __ath11k_peer_delete(struct ath11k *ar, u32 vdev_id, const u8 *addr)
 			    vdev_id, addr);
 		return -EINVAL;
 	}
-
-	ath11k_peer_rhash_delete(ab, peer);
 
 	spin_unlock_bh(&ab->base_lock);
 	mutex_unlock(&ab->tbl_mtx_lock);
@@ -372,8 +385,17 @@ int ath11k_peer_create(struct ath11k *ar, struct ath11k_vif *arvif,
 	spin_lock_bh(&ar->ab->base_lock);
 	peer = ath11k_peer_find_by_addr(ar->ab, param->peer_addr);
 	if (peer) {
-		spin_unlock_bh(&ar->ab->base_lock);
-		return -EINVAL;
+		if (peer->vdev_id == param->vdev_id) {
+			spin_unlock_bh(&ar->ab->base_lock);
+			return -EINVAL;
+		}
+
+		/* Assume sta is transitioning to another band.
+		 * Remove here the peer from rhash.
+		 */
+		mutex_lock(&ar->ab->tbl_mtx_lock);
+		ath11k_peer_rhash_delete(ar->ab, peer);
+		mutex_unlock(&ar->ab->tbl_mtx_lock);
 	}
 	spin_unlock_bh(&ar->ab->base_lock);
 

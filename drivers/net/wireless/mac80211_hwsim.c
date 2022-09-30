@@ -229,6 +229,7 @@ static inline void hwsim_clear_magic(struct ieee80211_vif *vif)
 struct hwsim_sta_priv {
 	u32 magic;
 	unsigned int last_link;
+	u16 active_links_rx;
 };
 
 #define HWSIM_STA_MAGIC	0x6d537749
@@ -1566,6 +1567,29 @@ static void mac80211_hwsim_rx(struct mac80211_hwsim_data *data,
 			      struct ieee80211_rx_status *rx_status,
 			      struct sk_buff *skb)
 {
+	struct ieee80211_hdr *hdr = (void *)skb->data;
+
+	if (!ieee80211_has_morefrags(hdr->frame_control) &&
+	    !is_multicast_ether_addr(hdr->addr1) &&
+	    (ieee80211_is_mgmt(hdr->frame_control) ||
+	     ieee80211_is_data(hdr->frame_control))) {
+		struct ieee80211_sta *sta;
+		unsigned int link_id;
+
+		rcu_read_lock();
+		sta = ieee80211_find_sta_by_link_addrs(data->hw, hdr->addr2,
+						       hdr->addr1, &link_id);
+		if (sta) {
+			struct hwsim_sta_priv *sp = (void *)sta->drv_priv;
+
+			if (ieee80211_has_pm(hdr->frame_control))
+				sp->active_links_rx &= ~BIT(link_id);
+			else
+				sp->active_links_rx |= BIT(link_id);
+		}
+		rcu_read_unlock();
+	}
+
 	memcpy(IEEE80211_SKB_RXCB(skb), rx_status, sizeof(*rx_status));
 
 	mac80211_hwsim_add_vendor_rtap(skb);
@@ -1734,12 +1758,22 @@ mac80211_hwsim_select_tx_link(struct mac80211_hwsim_data *data,
 		/* round-robin the available link IDs */
 		link_id = (sp->last_link + i + 1) % ARRAY_SIZE(vif->link_conf);
 
+		if (!(vif->active_links & BIT(link_id)))
+			continue;
+
+		if (!(sp->active_links_rx & BIT(link_id)))
+			continue;
+
 		*link_sta = rcu_dereference(sta->link[link_id]);
 		if (!*link_sta)
 			continue;
 
 		bss_conf = rcu_dereference(vif->link_conf[link_id]);
 		if (WARN_ON_ONCE(!bss_conf))
+			continue;
+
+		/* can happen while switching links */
+		if (!rcu_access_pointer(bss_conf->chanctx_conf))
 			continue;
 
 		sp->last_link = link_id;
@@ -2404,9 +2438,18 @@ static int mac80211_hwsim_sta_add(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif,
 				  struct ieee80211_sta *sta)
 {
+	struct hwsim_sta_priv *sp = (void *)sta->drv_priv;
+
 	hwsim_check_magic(vif);
 	hwsim_set_sta_magic(sta);
 	mac80211_hwsim_sta_rc_update(hw, vif, sta, 0);
+
+	if (sta->valid_links) {
+		WARN(hweight16(sta->valid_links) > 1,
+		     "expect to add STA with single link, have 0x%x\n",
+		     sta->valid_links);
+		sp->active_links_rx = sta->valid_links;
+	}
 
 	return 0;
 }
@@ -2432,6 +2475,14 @@ static int mac80211_hwsim_sta_state(struct ieee80211_hw *hw,
 
 	if (old_state == IEEE80211_STA_NOTEXIST)
 		return mac80211_hwsim_sta_add(hw, vif, sta);
+
+	/*
+	 * when client is authorized (AP station marked as such),
+	 * enable all links
+	 */
+	if (vif->type == NL80211_IFTYPE_STATION &&
+	    new_state == IEEE80211_STA_AUTHORIZED && !sta->tdls)
+		ieee80211_set_active_links_async(vif, vif->valid_links);
 
 	return 0;
 }
@@ -2907,6 +2958,18 @@ static int mac80211_hwsim_assign_vif_chanctx(struct ieee80211_hw *hw,
 	hwsim_check_magic(vif);
 	hwsim_check_chanctx_magic(ctx);
 
+	/* if we activate a link while already associated wake it up */
+	if (vif->type == NL80211_IFTYPE_STATION && vif->cfg.assoc) {
+		struct sk_buff *skb;
+
+		skb = ieee80211_nullfunc_get(hw, vif, link_conf->link_id, true);
+		if (skb) {
+			local_bh_disable();
+			mac80211_hwsim_tx_frame(hw, skb, ctx->def.chan);
+			local_bh_enable();
+		}
+	}
+
 	return 0;
 }
 
@@ -2917,6 +2980,22 @@ static void mac80211_hwsim_unassign_vif_chanctx(struct ieee80211_hw *hw,
 {
 	hwsim_check_magic(vif);
 	hwsim_check_chanctx_magic(ctx);
+
+	/* if we deactivate a link while associated suspend it first */
+	if (vif->type == NL80211_IFTYPE_STATION && vif->cfg.assoc) {
+		struct sk_buff *skb;
+
+		skb = ieee80211_nullfunc_get(hw, vif, link_conf->link_id, true);
+		if (skb) {
+			struct ieee80211_hdr *hdr = (void *)skb->data;
+
+			hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
+
+			local_bh_disable();
+			mac80211_hwsim_tx_frame(hw, skb, ctx->def.chan);
+			local_bh_enable();
+		}
+	}
 }
 
 static const char mac80211_hwsim_gstrings_stats[][ETH_GSTRING_LEN] = {
@@ -2998,8 +3077,7 @@ static int mac80211_hwsim_change_vif_links(struct ieee80211_hw *hw,
 	for_each_set_bit(i, &add, IEEE80211_MLD_MAX_NUM_LINKS) {
 		struct ieee80211_bss_conf *link_conf;
 
-		/* FIXME: figure out how to get the locking here */
-		link_conf = rcu_dereference_protected(vif->link_conf[i], 1);
+		link_conf = link_conf_dereference_protected(vif, i);
 		if (WARN_ON(!link_conf))
 			continue;
 
@@ -3014,7 +3092,12 @@ static int mac80211_hwsim_change_sta_links(struct ieee80211_hw *hw,
 					   struct ieee80211_sta *sta,
 					   u16 old_links, u16 new_links)
 {
+	struct hwsim_sta_priv *sp = (void *)sta->drv_priv;
+
 	hwsim_check_sta_magic(sta);
+
+	if (vif->type == NL80211_IFTYPE_STATION)
+		sp->active_links_rx = new_links;
 
 	return 0;
 }

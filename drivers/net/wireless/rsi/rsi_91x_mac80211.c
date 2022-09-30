@@ -889,6 +889,7 @@ static void rsi_mac80211_conf_filter(struct ieee80211_hw *hw,
  *			    for a hardware TX queue.
  * @hw: Pointer to the ieee80211_hw structure
  * @vif: Pointer to the ieee80211_vif structure.
+ * @link_id: the link ID if MLO is used, otherwise 0
  * @queue: Queue number.
  * @params: Pointer to ieee80211_tx_queue_params structure.
  *

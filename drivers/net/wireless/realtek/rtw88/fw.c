@@ -118,7 +118,7 @@ legacy:
 	si->ra_report.desc_rate = rate;
 	si->ra_report.bit_rate = bit_rate;
 
-	sta->max_rc_amsdu_len = get_max_amsdu_len(bit_rate);
+	sta->deflink.agg.max_rc_amsdu_len = get_max_amsdu_len(bit_rate);
 }
 
 static void rtw_fw_ra_report_handle(struct rtw_dev *rtwdev, u8 *payload,
@@ -1082,10 +1082,10 @@ static struct sk_buff *rtw_get_rsvd_page_skb(struct ieee80211_hw *hw,
 		skb_new = ieee80211_proberesp_get(hw, vif);
 		break;
 	case RSVD_NULL:
-		skb_new = ieee80211_nullfunc_get(hw, vif, false);
+		skb_new = ieee80211_nullfunc_get(hw, vif, -1, false);
 		break;
 	case RSVD_QOS_NULL:
-		skb_new = ieee80211_nullfunc_get(hw, vif, true);
+		skb_new = ieee80211_nullfunc_get(hw, vif, -1, true);
 		break;
 	case RSVD_LPS_PG_DPK:
 		skb_new = rtw_lps_pg_dpk_get(hw);

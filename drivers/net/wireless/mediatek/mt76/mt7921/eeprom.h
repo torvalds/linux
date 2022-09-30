@@ -11,11 +11,14 @@ enum mt7921_eeprom_field {
 	MT_EE_VERSION =		0x002,
 	MT_EE_MAC_ADDR =	0x004,
 	MT_EE_WIFI_CONF =	0x07c,
-	__MT_EE_MAX =		0x3bf
+	MT_EE_HW_TYPE =		0x55b,
+	__MT_EE_MAX =		0x9ff
 };
 
 #define MT_EE_WIFI_CONF_TX_MASK			BIT(0)
 #define MT_EE_WIFI_CONF_BAND_SEL		GENMASK(3, 2)
+
+#define MT_EE_HW_TYPE_ENCAP			BIT(0)
 
 enum mt7921_eeprom_band {
 	MT_EE_NA,

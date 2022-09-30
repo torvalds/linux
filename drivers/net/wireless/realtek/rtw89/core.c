@@ -496,8 +496,14 @@ static u16 rtw89_core_get_mgmt_rate(struct rtw89_dev *rtwdev,
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_vif *vif = tx_info->control.vif;
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
-	u16 lowest_rate = chan->band_type == RTW89_BAND_2G ?
-			  RTW89_HW_RATE_CCK1 : RTW89_HW_RATE_OFDM6;
+	u16 lowest_rate;
+
+	if (tx_info->flags & IEEE80211_TX_CTL_NO_CCK_RATE || vif->p2p)
+		lowest_rate = RTW89_HW_RATE_OFDM6;
+	else if (chan->band_type == RTW89_BAND_2G)
+		lowest_rate = RTW89_HW_RATE_CCK1;
+	else
+		lowest_rate = RTW89_HW_RATE_OFDM6;
 
 	if (!vif || !vif->bss_conf.basic_rates || !tx_req->sta)
 		return lowest_rate;
@@ -708,7 +714,9 @@ rtw89_core_tx_update_data_info(struct rtw89_dev *rtwdev,
 	if (IEEE80211_SKB_CB(skb)->control.hw_key)
 		rtw89_core_tx_update_sec_key(rtwdev, tx_req);
 
-	if (rate_pattern->enable)
+	if (vif->p2p)
+		desc_info->data_retry_lowest_rate = RTW89_HW_RATE_OFDM6;
+	else if (rate_pattern->enable)
 		desc_info->data_retry_lowest_rate = rate_pattern->rate;
 	else if (chan->band_type == RTW89_BAND_2G)
 		desc_info->data_retry_lowest_rate = RTW89_HW_RATE_CCK1;
@@ -768,13 +776,16 @@ static void
 rtw89_core_tx_wake(struct rtw89_dev *rtwdev,
 		   struct rtw89_core_tx_request *tx_req)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
 	if (!RTW89_CHK_FW_FEATURE(TX_WAKE, &rtwdev->fw))
 		return;
 
 	if (!test_bit(RTW89_FLAG_LOW_POWER_MODE, rtwdev->flags))
 		return;
 
-	if (tx_req->tx_type != RTW89_CORE_TX_TYPE_MGMT)
+	if (chip->chip_id != RTL8852C &&
+	    tx_req->tx_type != RTW89_CORE_TX_TYPE_MGMT)
 		return;
 
 	rtw89_mac_notify_wake(rtwdev);
@@ -844,6 +855,7 @@ int rtw89_h2c_tx(struct rtw89_dev *rtwdev,
 		rtw89_debug(rtwdev, RTW89_DBG_FW,
 			    "ignore h2c due to power is off with firmware state=%d\n",
 			    test_bit(RTW89_FLAG_FW_RDY, rtwdev->flags));
+		dev_kfree_skb(skb);
 		return 0;
 	}
 
@@ -993,7 +1005,8 @@ static __le32 rtw89_build_txwd_info0(struct rtw89_tx_desc_info *desc_info)
 
 static __le32 rtw89_build_txwd_info0_v1(struct rtw89_tx_desc_info *desc_info)
 {
-	u32 dword = FIELD_PREP(RTW89_TXWD_INFO0_DISDATAFB, desc_info->dis_data_fb);
+	u32 dword = FIELD_PREP(RTW89_TXWD_INFO0_DISDATAFB, desc_info->dis_data_fb) |
+		    FIELD_PREP(RTW89_TXWD_INFO0_MULTIPORT_ID, desc_info->port);
 
 	return cpu_to_le32(dword);
 }
@@ -1143,9 +1156,14 @@ static void rtw89_core_rx_process_phy_ppdu_iter(void *data,
 {
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 	struct rtw89_rx_phy_ppdu *phy_ppdu = (struct rtw89_rx_phy_ppdu *)data;
+	struct rtw89_dev *rtwdev = rtwsta->rtwdev;
+	int i;
 
-	if (rtwsta->mac_id == phy_ppdu->mac_id && phy_ppdu->to_self)
+	if (rtwsta->mac_id == phy_ppdu->mac_id && phy_ppdu->to_self) {
 		ewma_rssi_add(&rtwsta->avg_rssi, phy_ppdu->rssi_avg);
+		for (i = 0; i < rtwdev->chip->rf_path_num; i++)
+			ewma_rssi_add(&rtwsta->rssi[i], phy_ppdu->rssi[i]);
+	}
 }
 
 #define VAR_LEN 0xff
@@ -1201,15 +1219,15 @@ static int rtw89_core_process_phy_status_ie(struct rtw89_dev *rtwdev, u8 *addr,
 
 static void rtw89_core_update_phy_ppdu(struct rtw89_rx_phy_ppdu *phy_ppdu)
 {
-	s8 *rssi = phy_ppdu->rssi;
+	u8 *rssi = phy_ppdu->rssi;
 	u8 *buf = phy_ppdu->buf;
 
 	phy_ppdu->ie = RTW89_GET_PHY_STS_IE_MAP(buf);
 	phy_ppdu->rssi_avg = RTW89_GET_PHY_STS_RSSI_AVG(buf);
-	rssi[RF_PATH_A] = RTW89_RSSI_RAW_TO_DBM(RTW89_GET_PHY_STS_RSSI_A(buf));
-	rssi[RF_PATH_B] = RTW89_RSSI_RAW_TO_DBM(RTW89_GET_PHY_STS_RSSI_B(buf));
-	rssi[RF_PATH_C] = RTW89_RSSI_RAW_TO_DBM(RTW89_GET_PHY_STS_RSSI_C(buf));
-	rssi[RF_PATH_D] = RTW89_RSSI_RAW_TO_DBM(RTW89_GET_PHY_STS_RSSI_D(buf));
+	rssi[RF_PATH_A] = RTW89_GET_PHY_STS_RSSI_A(buf);
+	rssi[RF_PATH_B] = RTW89_GET_PHY_STS_RSSI_B(buf);
+	rssi[RF_PATH_C] = RTW89_GET_PHY_STS_RSSI_C(buf);
+	rssi[RF_PATH_D] = RTW89_GET_PHY_STS_RSSI_D(buf);
 }
 
 static int rtw89_core_rx_process_phy_ppdu(struct rtw89_dev *rtwdev,
@@ -1703,7 +1721,8 @@ static enum rtw89_ps_mode rtw89_update_ps_mode(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
-	if (rtw89_disable_ps_mode || !chip->ps_mode_supported)
+	if (rtw89_disable_ps_mode || !chip->ps_mode_supported ||
+	    RTW89_CHK_FW_FEATURE(NO_DEEP_PS, &rtwdev->fw))
 		return RTW89_PS_MODE_NONE;
 
 	if (chip->ps_mode_supported & BIT(RTW89_PS_MODE_PWR_GATED))
@@ -1883,21 +1902,14 @@ static void rtw89_core_stop_tx_ba_session(struct rtw89_dev *rtwdev,
 		return;
 
 	spin_lock_bh(&rtwdev->ba_lock);
-	if (!list_empty(&rtwtxq->list)) {
-		list_del_init(&rtwtxq->list);
-		goto out;
-	}
+	if (!test_and_set_bit(RTW89_TXQ_F_FORBID_BA, &rtwtxq->flags))
+		list_add_tail(&rtwtxq->list, &rtwdev->forbid_ba_list);
+	spin_unlock_bh(&rtwdev->ba_lock);
 
-	set_bit(RTW89_TXQ_F_FORBID_BA, &rtwtxq->flags);
-
-	list_add_tail(&rtwtxq->list, &rtwdev->forbid_ba_list);
 	ieee80211_stop_tx_ba_session(sta, txq->tid);
 	cancel_delayed_work(&rtwdev->forbid_ba_work);
 	ieee80211_queue_delayed_work(rtwdev->hw, &rtwdev->forbid_ba_work,
 				     RTW89_FORBID_BA_TIMER);
-
-out:
-	spin_unlock_bh(&rtwdev->ba_lock);
 }
 
 static void rtw89_core_txq_check_agg(struct rtw89_dev *rtwdev,
@@ -1909,15 +1921,15 @@ static void rtw89_core_txq_check_agg(struct rtw89_dev *rtwdev,
 	struct ieee80211_sta *sta = txq->sta;
 	struct rtw89_sta *rtwsta = sta ? (struct rtw89_sta *)sta->drv_priv : NULL;
 
+	if (test_bit(RTW89_TXQ_F_FORBID_BA, &rtwtxq->flags))
+		return;
+
 	if (unlikely(skb->protocol == cpu_to_be16(ETH_P_PAE))) {
 		rtw89_core_stop_tx_ba_session(rtwdev, rtwtxq);
 		return;
 	}
 
 	if (unlikely(!sta))
-		return;
-
-	if (test_bit(RTW89_TXQ_F_FORBID_BA, &rtwtxq->flags))
 		return;
 
 	if (unlikely(test_bit(RTW89_TXQ_F_BLOCK_BA, &rtwtxq->flags)))
@@ -2155,12 +2167,13 @@ static bool rtw89_traffic_stats_track(struct rtw89_dev *rtwdev)
 
 static void rtw89_vif_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
-	if (rtwvif->wifi_role != RTW89_WIFI_ROLE_STATION)
+	if (rtwvif->wifi_role != RTW89_WIFI_ROLE_STATION &&
+	    rtwvif->wifi_role != RTW89_WIFI_ROLE_P2P_CLIENT)
 		return;
 
 	if (rtwvif->stats.tx_tfc_lv == RTW89_TFC_IDLE &&
 	    rtwvif->stats.rx_tfc_lv == RTW89_TFC_IDLE)
-		rtw89_enter_lps(rtwdev, rtwvif->mac_id);
+		rtw89_enter_lps(rtwdev, rtwvif);
 }
 
 static void rtw89_enter_lps_track(struct rtw89_dev *rtwdev)
@@ -2213,6 +2226,7 @@ static void rtw89_track_work(struct work_struct *work)
 	rtw89_chip_rfk_track(rtwdev);
 	rtw89_phy_ra_update(rtwdev);
 	rtw89_phy_cfo_track(rtwdev);
+	rtw89_phy_tx_path_div_track(rtwdev);
 
 	if (rtwdev->lps_enabled && !rtwdev->btc.lps)
 		rtw89_enter_lps_track(rtwdev);
@@ -2320,9 +2334,19 @@ void rtw89_vif_type_mapping(struct ieee80211_vif *vif, bool assoc)
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 
 	switch (vif->type) {
+	case NL80211_IFTYPE_STATION:
+		if (vif->p2p)
+			rtwvif->wifi_role = RTW89_WIFI_ROLE_P2P_CLIENT;
+		else
+			rtwvif->wifi_role = RTW89_WIFI_ROLE_STATION;
+		break;
+	case NL80211_IFTYPE_AP:
+		if (vif->p2p)
+			rtwvif->wifi_role = RTW89_WIFI_ROLE_P2P_GO;
+		else
+			rtwvif->wifi_role = RTW89_WIFI_ROLE_AP;
+		break;
 	RTW89_TYPE_MAPPING(ADHOC);
-	RTW89_TYPE_MAPPING(STATION);
-	RTW89_TYPE_MAPPING(AP);
 	RTW89_TYPE_MAPPING(MONITOR);
 	RTW89_TYPE_MAPPING(MESH_POINT);
 	default:
@@ -2365,6 +2389,7 @@ int rtw89_core_sta_add(struct rtw89_dev *rtwdev,
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 	int i;
 
+	rtwsta->rtwdev = rtwdev;
 	rtwsta->rtwvif = rtwvif;
 	rtwsta->prev_rssi = 0;
 	INIT_LIST_HEAD(&rtwsta->ba_cam_list);
@@ -2373,6 +2398,8 @@ int rtw89_core_sta_add(struct rtw89_dev *rtwdev,
 		rtw89_core_txq_init(rtwdev, sta->txq[i]);
 
 	ewma_rssi_init(&rtwsta->avg_rssi);
+	for (i = 0; i < rtwdev->chip->rf_path_num; i++)
+		ewma_rssi_init(&rtwsta->rssi[i]);
 
 	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls) {
 		/* for station mode, assign the mac_id from itself */
@@ -2540,6 +2567,60 @@ int rtw89_core_sta_remove(struct rtw89_dev *rtwdev,
 		rtw89_core_release_bit_map(rtwdev->mac_id_map, rtwsta->mac_id);
 
 	return 0;
+}
+
+static void _rtw89_core_set_tid_config(struct rtw89_dev *rtwdev,
+				       struct ieee80211_sta *sta,
+				       struct cfg80211_tid_cfg *tid_conf)
+{
+	struct ieee80211_txq *txq;
+	struct rtw89_txq *rtwtxq;
+	u32 mask = tid_conf->mask;
+	u8 tids = tid_conf->tids;
+	int tids_nbit = BITS_PER_BYTE;
+	int i;
+
+	for (i = 0; i < tids_nbit; i++, tids >>= 1) {
+		if (!tids)
+			break;
+
+		if (!(tids & BIT(0)))
+			continue;
+
+		txq = sta->txq[i];
+		rtwtxq = (struct rtw89_txq *)txq->drv_priv;
+
+		if (mask & BIT(NL80211_TID_CONFIG_ATTR_AMPDU_CTRL)) {
+			if (tid_conf->ampdu == NL80211_TID_CONFIG_ENABLE) {
+				clear_bit(RTW89_TXQ_F_FORBID_BA, &rtwtxq->flags);
+			} else {
+				if (test_bit(RTW89_TXQ_F_AMPDU, &rtwtxq->flags))
+					ieee80211_stop_tx_ba_session(sta, txq->tid);
+				spin_lock_bh(&rtwdev->ba_lock);
+				list_del_init(&rtwtxq->list);
+				set_bit(RTW89_TXQ_F_FORBID_BA, &rtwtxq->flags);
+				spin_unlock_bh(&rtwdev->ba_lock);
+			}
+		}
+
+		if (mask & BIT(NL80211_TID_CONFIG_ATTR_AMSDU_CTRL) && tids == 0xff) {
+			if (tid_conf->amsdu == NL80211_TID_CONFIG_ENABLE)
+				sta->max_amsdu_subframes = 0;
+			else
+				sta->max_amsdu_subframes = 1;
+		}
+	}
+}
+
+void rtw89_core_set_tid_config(struct rtw89_dev *rtwdev,
+			       struct ieee80211_sta *sta,
+			       struct cfg80211_tid_config *tid_config)
+{
+	int i;
+
+	for (i = 0; i < tid_config->n_tid_conf; i++)
+		_rtw89_core_set_tid_config(rtwdev, sta,
+					   &tid_config->tid_conf[i]);
 }
 
 static void rtw89_init_ht_cap(struct rtw89_dev *rtwdev,
@@ -2868,7 +2949,9 @@ int rtw89_core_start(struct rtw89_dev *rtwdev)
 	/* efuse process */
 
 	/* pre-config BB/RF, BB reset/RFC reset */
-	rtw89_chip_disable_bb_rf(rtwdev);
+	ret = rtw89_chip_disable_bb_rf(rtwdev);
+	if (ret)
+		return ret;
 	ret = rtw89_chip_enable_bb_rf(rtwdev);
 	if (ret)
 		return ret;
@@ -3153,6 +3236,7 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 	hw->queues = IEEE80211_NUM_ACS;
 	hw->max_rx_aggregation_subframes = RTW89_MAX_RX_AGG_NUM;
 	hw->max_tx_aggregation_subframes = RTW89_MAX_TX_AGG_NUM;
+	hw->uapsd_max_sp_len = IEEE80211_WMM_IE_STA_QOSINFO_SP_ALL;
 
 	ieee80211_hw_set(hw, SIGNAL_DBM);
 	ieee80211_hw_set(hw, HAS_RATE_CONTROL);
@@ -3169,16 +3253,25 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 	ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
 
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
-				     BIT(NL80211_IFTYPE_AP);
+				     BIT(NL80211_IFTYPE_AP) |
+				     BIT(NL80211_IFTYPE_P2P_CLIENT) |
+				     BIT(NL80211_IFTYPE_P2P_GO);
+
 	hw->wiphy->available_antennas_tx = BIT(rtwdev->chip->rf_path_num) - 1;
 	hw->wiphy->available_antennas_rx = BIT(rtwdev->chip->rf_path_num) - 1;
 
 	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS |
-			    WIPHY_FLAG_TDLS_EXTERNAL_SETUP;
+			    WIPHY_FLAG_TDLS_EXTERNAL_SETUP |
+			    WIPHY_FLAG_AP_UAPSD;
 	hw->wiphy->features |= NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
 
 	hw->wiphy->max_scan_ssids = RTW89_SCANOFLD_MAX_SSID;
 	hw->wiphy->max_scan_ie_len = RTW89_SCANOFLD_MAX_IE_LEN;
+
+	hw->wiphy->tid_config_support.vif |= BIT(NL80211_TID_CONFIG_ATTR_AMPDU_CTRL);
+	hw->wiphy->tid_config_support.peer |= BIT(NL80211_TID_CONFIG_ATTR_AMPDU_CTRL);
+	hw->wiphy->tid_config_support.vif |= BIT(NL80211_TID_CONFIG_ATTR_AMSDU_CTRL);
+	hw->wiphy->tid_config_support.peer |= BIT(NL80211_TID_CONFIG_ATTR_AMSDU_CTRL);
 
 	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CAN_REPLACE_PTK0);
 
