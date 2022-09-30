@@ -26,12 +26,11 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
-#include <linux/pinctrl/pinctrl.h>
 #include "stfcamss.h"
 
 /* min/typical/max system clock (xclk) frequencies */
 #define SC2235_XCLK_MIN			6000000
-#define SC2235_XCLK_MAX			54000000
+#define SC2235_XCLK_MAX			27000000
 
 #define SC2235_CHIP_ID		(0x2235)
 
@@ -57,7 +56,6 @@ enum sc2235_mode_id {
 enum sc2235_frame_rate {
 	SC2235_15_FPS = 0,
 	SC2235_30_FPS,
-	SC2235_60_FPS,
 	SC2235_NUM_FRAMERATES,
 };
 
@@ -67,14 +65,12 @@ struct sc2235_pixfmt {
 };
 
 static const struct sc2235_pixfmt sc2235_formats[] = {
-	//{ MEDIA_BUS_FMT_SGBRG10_1X10, V4L2_COLORSPACE_SRGB, },
 	{ MEDIA_BUS_FMT_SBGGR10_1X10, V4L2_COLORSPACE_SRGB, },
 };
 
 static const int sc2235_framerates[] = {
 	[SC2235_15_FPS] = 15,
 	[SC2235_30_FPS] = 30,
-	[SC2235_60_FPS] = 60,
 };
 
 /* regulator supplies */
@@ -155,9 +151,6 @@ struct sc2235_dev {
 	struct v4l2_fract frame_interval;
 
 	struct sc2235_ctrls ctrls;
-
-	u32 prev_sysclk, prev_hts;
-	u32 ae_low, ae_high, ae_target;
 
 	bool pending_mode_change;
 	int streaming;
@@ -407,7 +400,7 @@ static const struct sc2235_mode_info sc2235_mode_init_data = {
 	1920, 0x8ca, 1080, 0x4b0,
 	sc2235_init_regs_tbl_1080,
 	ARRAY_SIZE(sc2235_init_regs_tbl_1080),
-	SC2235_60_FPS,
+	SC2235_30_FPS,
 };
 
 static const struct sc2235_mode_info
@@ -416,7 +409,7 @@ sc2235_mode_data[SC2235_NUM_MODES] = {
 	 1920, 0x8ca, 1080, 0x4b0,
 	 sc2235_setting_1080P_1920_1080,
 	 ARRAY_SIZE(sc2235_setting_1080P_1920_1080),
-	 SC2235_60_FPS},
+	 SC2235_30_FPS},
 };
 
 static int sc2235_write_reg(struct sc2235_dev *sensor, u16 reg, u8 val)
@@ -699,12 +692,6 @@ static int sc2235_set_autogain(struct sc2235_dev *sensor, bool on)
 				BIT(1), on ? 0 : BIT(1));
 }
 
-static int sc2235_set_stream_dvp(struct sc2235_dev *sensor, bool on)
-{
-	return sc2235_mod_reg(sensor, SC2235_REG_STREAM_ON,
-				BIT(0), on);
-}
-
 #ifdef UNUSED_CODE
 static int sc2235_get_sysclk(struct sc2235_dev *sensor)
 {
@@ -874,17 +861,14 @@ static int sc2235_set_mode(struct sc2235_dev *sensor)
 	}
 
 	rate = sc2235_calc_pixel_rate(sensor);
-	if (sensor->ep.bus_type == V4L2_MBUS_PARALLEL)
-		ret = sc2235_set_dvp_pclk(sensor, rate);
 
-
+	ret = sc2235_set_dvp_pclk(sensor, rate);
 	if (ret < 0)
 		return 0;
 
 	ret = sc2235_set_mode_direct(sensor, mode);
 	if (ret < 0)
 		goto restore_auto_exp_gain;
-
 
 	/* restore auto gain and exposure */
 	if (auto_gain)
@@ -1000,37 +984,6 @@ static int sc2235_set_power_off(struct device *dev)
 	return 0;
 }
 
-static int sc2235_set_power_dvp(struct sc2235_dev *sensor, bool on)
-{
-	unsigned int flags = sensor->ep.bus.parallel.flags;
-	u8 polarities = 0;
-
-	/*
-	 * configure parallel port control lines polarity
-	 *
-	 * POLARITY CTRL0
-	 * - [5]:	PCLK polarity (0: active low, 1: active high)
-	 * - [1]:	HREF polarity (0: active low, 1: active high)
-	 * - [0]:	VSYNC polarity (mismatch here between
-	 *		datasheet and hardware, 0 is active high
-	 *		and 1 is active low...)
-	 */
-	if (flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH)
-		polarities |= BIT(1);
-	if (flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)
-		polarities |= BIT(0);
-	if (flags & V4L2_MBUS_PCLK_SAMPLE_RISING)
-		polarities |= BIT(5);
-
-	// ret = sc2235_write_reg(sensor,
-	//		SC2235_REG_POLARITY_CTRL00,
-	//		polarities);
-	// if (ret)
-	//	return ret;
-
-	return 0;
-}
-
 static int sc2235_set_power(struct sc2235_dev *sensor, bool on)
 {
 	int ret = 0;
@@ -1042,11 +995,6 @@ static int sc2235_set_power(struct sc2235_dev *sensor, bool on)
 		if (ret)
 			goto power_off;
 	}
-
-	if (sensor->ep.bus_type == V4L2_MBUS_PARALLEL)
-		ret = sc2235_set_power_dvp(sensor, on);
-	if (ret)
-		goto power_off;
 
 	if (!on)
 		pm_runtime_put_sync(&sensor->i2c_client->dev);
@@ -1088,12 +1036,12 @@ static int sc2235_try_frame_interval(struct sc2235_dev *sensor,
 	int i;
 
 	minfps = sc2235_framerates[SC2235_15_FPS];
-	maxfps = sc2235_framerates[SC2235_60_FPS];
+	maxfps = sc2235_framerates[SC2235_30_FPS];
 
 	if (fi->numerator == 0) {
 		fi->denominator = maxfps;
 		fi->numerator = 1;
-		rate = SC2235_60_FPS;
+		rate = SC2235_30_FPS;
 		goto find_mode;
 	}
 
@@ -1501,7 +1449,7 @@ static int sc2235_init_controls(struct sc2235_dev *sensor)
 						V4L2_EXPOSURE_MANUAL, 0,
 						1);
 	ctrls->exposure = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_EXPOSURE,
-					0, 65535, 1, 0x4600);
+					0, 65535, 1, 720);
 	/* Auto/manual gain */
 	ctrls->auto_gain = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_AUTOGAIN,
 						0, 1, 1, 0);
@@ -1672,6 +1620,11 @@ static int sc2235_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int sc2235_stream_start(struct sc2235_dev *sensor, int enable)
+{
+	return sc2235_mod_reg(sensor, SC2235_REG_STREAM_ON, BIT(0), !!enable);
+}
+
 static int sc2235_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct sc2235_dev *sensor = to_sc2235_dev(sd);
@@ -1699,12 +1652,7 @@ static int sc2235_s_stream(struct v4l2_subdev *sd, int enable)
 			sensor->pending_fmt_change = false;
 		}
 
-		if (sensor->ep.bus_type == V4L2_MBUS_PARALLEL) {
-			ret = sc2235_set_gain(sensor, 0x10);
-			ret = sc2235_set_exposure(sensor, (360 * 2));
-			ret = sc2235_set_stream_dvp(sensor, enable);
-		}
-
+		ret = sc2235_stream_start(sensor, enable);
 		if (ret)
 			goto out;
 	}
@@ -1810,8 +1758,6 @@ static int sc2235_probe(struct i2c_client *client)
 		&sc2235_mode_data[SC2235_MODE_1080P_1920_1080];
 	sensor->last_mode = sensor->current_mode;
 
-	sensor->ae_target = 52;
-
 	/* optional indication of physical rotation of sensor */
 	ret = fwnode_property_read_u32(dev_fwnode(&client->dev), "rotation",
 					&rotation);
@@ -1842,9 +1788,7 @@ static int sc2235_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	if (sensor->ep.bus_type != V4L2_MBUS_PARALLEL &&
-	    sensor->ep.bus_type != V4L2_MBUS_CSI2_DPHY &&
-	    sensor->ep.bus_type != V4L2_MBUS_BT656) {
+	if (sensor->ep.bus_type != V4L2_MBUS_PARALLEL) {
 		dev_err(dev, "Unsupported bus type %d\n", sensor->ep.bus_type);
 		return -EINVAL;
 	}
@@ -1969,5 +1913,5 @@ static struct i2c_driver sc2235_i2c_driver = {
 
 module_i2c_driver(sc2235_i2c_driver);
 
-MODULE_DESCRIPTION("SC2235 MIPI Camera Subdev Driver");
+MODULE_DESCRIPTION("SC2235 Camera Subdev Driver");
 MODULE_LICENSE("GPL");
