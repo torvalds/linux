@@ -3371,6 +3371,31 @@ isp_bay3d_enable(struct rkisp_isp_params_vdev *params_vdev, bool en)
 			return;
 		}
 
+		value = priv_val->buf_3dnr_iir.size;
+		isp3_param_write(params_vdev, value, ISP3X_MI_BAY3D_IIR_WR_SIZE);
+		value = priv_val->buf_3dnr_iir.dma_addr;
+		isp3_param_write(params_vdev, value, ISP3X_MI_BAY3D_IIR_WR_BASE);
+		isp3_param_write(params_vdev, value, ISP3X_MI_BAY3D_IIR_RD_BASE);
+
+		value = priv_val->buf_3dnr_ds.size;
+		isp3_param_write(params_vdev, value, ISP3X_MI_BAY3D_DS_WR_SIZE);
+		value = priv_val->buf_3dnr_ds.dma_addr;
+		isp3_param_write(params_vdev, value, ISP3X_MI_BAY3D_DS_WR_BASE);
+		isp3_param_write(params_vdev, value, ISP3X_MI_BAY3D_DS_RD_BASE);
+
+		value = priv_val->is_sram ?
+			ispdev->hw_dev->sram.dma_addr : priv_val->buf_3dnr_cur.dma_addr;
+		isp3_param_write(params_vdev, value, ISP3X_MI_BAY3D_CUR_WR_BASE);
+		isp3_param_write(params_vdev, value, ISP3X_MI_BAY3D_CUR_RD_BASE);
+		value = priv_val->bay3d_cur_size;
+		isp3_param_write(params_vdev, value, ISP3X_MI_BAY3D_CUR_WR_SIZE);
+		isp3_param_write(params_vdev, value, ISP32_MI_BAY3D_CUR_RD_SIZE);
+		value = priv_val->bay3d_cur_wsize;
+		isp3_param_write(params_vdev, value, ISP3X_MI_BAY3D_CUR_WR_LENGTH);
+		isp3_param_write(params_vdev, value, ISP3X_MI_BAY3D_CUR_RD_LENGTH);
+		value = priv_val->bay3d_cur_wrap_line << 16 | 28;
+		isp3_param_write(params_vdev, value, ISP3X_BAY3D_MI_ST);
+
 		/* mibuf_size for fifo_cur_full, set to max: (3072 - 2) / 2, 2 align */
 		value = 0x5fe << 16;
 		isp3_param_set_bits(params_vdev, ISP3X_BAY3D_IN_IRQ_LINECNT, value);
@@ -4085,7 +4110,6 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 		u32 w = ALIGN(isp_sdev->in_crop.width, 16);
 		u32 h = ALIGN(isp_sdev->in_crop.height, 16);
 		u32 val, wrap_line, wsize, div;
-		dma_addr_t dma_addr;
 		bool is_alloc;
 
 		priv_val->is_lo8x8 = (!new_params->others.bay3d_cfg.lo4x8_en &&
@@ -4120,10 +4144,6 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 				goto err_3dnr;
 			}
 		}
-		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_IIR_WR_SIZE);
-		val = priv_val->buf_3dnr_iir.dma_addr;
-		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_IIR_WR_BASE);
-		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_IIR_RD_BASE);
 
 		div = priv_val->is_lo8x8 ? 64 : 16;
 		val = w * h / div;
@@ -4145,10 +4165,6 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 				goto err_3dnr;
 			}
 		}
-		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_DS_WR_SIZE);
-		val = priv_val->buf_3dnr_ds.dma_addr;
-		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_DS_WR_BASE);
-		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_DS_RD_BASE);
 
 		wrap_line = priv_val->is_lo8x8 ? 76 : 36;
 		wsize = is_bwopt_dis ? w : w * 2;
@@ -4177,22 +4193,13 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 				dev_err(dev->dev, "alloc bay3d cur buf fail:%d\n", ret);
 				goto err_3dnr;
 			}
-			dma_addr = priv_val->buf_3dnr_cur.dma_addr;
 			priv_val->is_sram = false;
 		} else if (val <= dev->hw_dev->sram.size) {
-			dma_addr = dev->hw_dev->sram.dma_addr;
 			priv_val->is_sram = true;
-		} else {
-			dma_addr = priv_val->buf_3dnr_cur.dma_addr;
 		}
-		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_CUR_WR_SIZE);
-		isp3_param_write(params_vdev, val, ISP32_MI_BAY3D_CUR_RD_SIZE);
-		isp3_param_write(params_vdev, wsize, ISP3X_MI_BAY3D_CUR_WR_LENGTH);
-		isp3_param_write(params_vdev, wsize, ISP3X_MI_BAY3D_CUR_RD_LENGTH);
-		isp3_param_write(params_vdev, dma_addr, ISP3X_MI_BAY3D_CUR_WR_BASE);
-		isp3_param_write(params_vdev, dma_addr, ISP3X_MI_BAY3D_CUR_RD_BASE);
-		val = wrap_line << 16 | 28;
-		isp3_param_write(params_vdev, val, ISP3X_BAY3D_MI_ST);
+		priv_val->bay3d_cur_size = val;
+		priv_val->bay3d_cur_wsize = wsize;
+		priv_val->bay3d_cur_wrap_line = wrap_line;
 	}
 	return 0;
 err_3dnr:
@@ -4421,14 +4428,7 @@ rkisp_params_first_cfg_v32(struct rkisp_isp_params_vdev *params_vdev)
 
 static void rkisp_save_first_param_v32(struct rkisp_isp_params_vdev *params_vdev, void *param)
 {
-	struct rkisp_isp_params_val_v32 *priv_val =
-		(struct rkisp_isp_params_val_v32 *)params_vdev->priv_val;
-
 	memcpy(params_vdev->isp32_params, param, params_vdev->vdev_fmt.fmt.meta.buffersize);
-
-	if (!params_vdev->first_params)
-		return;
-	tasklet_enable(&priv_val->lsc_tasklet);
 	rkisp_alloc_internal_buf(params_vdev, params_vdev->isp32_params);
 }
 
@@ -4718,7 +4718,6 @@ rkisp_params_stream_stop_v32(struct rkisp_isp_params_vdev *params_vdev)
 	int i;
 
 	priv_val = (struct rkisp_isp_params_val_v32 *)params_vdev->priv_val;
-	tasklet_disable(&priv_val->lsc_tasklet);
 	rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_iir);
 	rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_cur);
 	rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_ds);
@@ -4944,7 +4943,6 @@ int rkisp_init_params_vdev_v32(struct rkisp_isp_params_vdev *params_vdev)
 	tasklet_init(&priv_val->lsc_tasklet,
 		     isp_lsc_cfg_sram_task,
 		     (unsigned long)params_vdev);
-	tasklet_disable(&priv_val->lsc_tasklet);
 	priv_val->buf_info_owner = 0;
 	priv_val->buf_info_cnt = 0;
 	priv_val->buf_info_idx = -1;

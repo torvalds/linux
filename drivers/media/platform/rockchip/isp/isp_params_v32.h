@@ -185,6 +185,9 @@ struct rkisp_isp_params_val_v32 {
 	u32 buf_info_cnt;
 	int buf_info_idx;
 
+	u32 bay3d_cur_size;
+	u32 bay3d_cur_wsize;
+	u32 bay3d_cur_wrap_line;
 	struct rkisp_dummy_buffer buf_3dnr_iir;
 	struct rkisp_dummy_buffer buf_3dnr_cur;
 	struct rkisp_dummy_buffer buf_3dnr_ds;
