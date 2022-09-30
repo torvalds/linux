@@ -85,18 +85,6 @@ EXPORT_SYMBOL_GPL(pxa27x_configure_ac97reset);
  */
 static unsigned int pwrmode = PWRMODE_SLEEP;
 
-int pxa27x_set_pwrmode(unsigned int mode)
-{
-	switch (mode) {
-	case PWRMODE_SLEEP:
-	case PWRMODE_DEEPSLEEP:
-		pwrmode = mode;
-		return 0;
-	}
-
-	return -EINVAL;
-}
-
 /*
  * List of global PXA peripheral registers to preserve.
  * More ones like CP and general purpose register values are preserved
@@ -109,7 +97,7 @@ enum {
 	SLEEP_SAVE_COUNT
 };
 
-void pxa27x_cpu_pm_save(unsigned long *sleep_save)
+static void pxa27x_cpu_pm_save(unsigned long *sleep_save)
 {
 	sleep_save[SLEEP_SAVE_MDREFR] = __raw_readl(MDREFR);
 	SAVE(PCFR);
@@ -117,7 +105,7 @@ void pxa27x_cpu_pm_save(unsigned long *sleep_save)
 	SAVE(PSTR);
 }
 
-void pxa27x_cpu_pm_restore(unsigned long *sleep_save)
+static void pxa27x_cpu_pm_restore(unsigned long *sleep_save)
 {
 	__raw_writel(sleep_save[SLEEP_SAVE_MDREFR], MDREFR);
 	RESTORE(PCFR);
@@ -127,7 +115,7 @@ void pxa27x_cpu_pm_restore(unsigned long *sleep_save)
 	RESTORE(PSTR);
 }
 
-void pxa27x_cpu_pm_enter(suspend_state_t state)
+static void pxa27x_cpu_pm_enter(suspend_state_t state)
 {
 	extern void pxa_cpu_standby(void);
 #ifndef CONFIG_IWMMXT
