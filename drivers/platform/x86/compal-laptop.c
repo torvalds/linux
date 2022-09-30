@@ -1060,7 +1060,7 @@ static int __init compal_init(void)
 	if (ret)
 		goto err_backlight;
 
-	compal_device = platform_device_alloc(DRIVER_NAME, -1);
+	compal_device = platform_device_alloc(DRIVER_NAME, PLATFORM_DEVID_NONE);
 	if (!compal_device) {
 		ret = -ENOMEM;
 		goto err_platform_driver;

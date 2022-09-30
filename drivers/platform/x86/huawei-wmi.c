@@ -871,7 +871,7 @@ static __init int huawei_wmi_init(void)
 	if (err)
 		goto pdrv_err;
 
-	pdev = platform_device_register_simple("huawei-wmi", -1, NULL, 0);
+	pdev = platform_device_register_simple("huawei-wmi", PLATFORM_DEVID_NONE, NULL, 0);
 	if (IS_ERR(pdev)) {
 		err = PTR_ERR(pdev);
 		goto pdev_err;

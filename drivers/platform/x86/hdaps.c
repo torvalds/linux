@@ -547,7 +547,7 @@ static int __init hdaps_init(void)
 	if (ret)
 		goto out_region;
 
-	pdev = platform_device_register_simple("hdaps", -1, NULL, 0);
+	pdev = platform_device_register_simple("hdaps", PLATFORM_DEVID_NONE, NULL, 0);
 	if (IS_ERR(pdev)) {
 		ret = PTR_ERR(pdev);
 		goto out_driver;
