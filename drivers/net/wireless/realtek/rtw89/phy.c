@@ -1036,6 +1036,7 @@ static void rtw89_phy_config_bb_gain(struct rtw89_dev *rtwdev,
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	union rtw89_phy_bb_gain_arg arg = { .addr = reg->addr };
+	struct rtw89_efuse *efuse = &rtwdev->efuse;
 
 	if (arg.gain_band >= RTW89_BB_GAIN_BAND_NR)
 		return;
@@ -1061,6 +1062,11 @@ static void rtw89_phy_config_bb_gain(struct rtw89_dev *rtwdev,
 	case 3:
 		rtw89_phy_cfg_bb_gain_op1db(rtwdev, arg, reg->data);
 		break;
+	case 4:
+		/* This cfg_type is only used by rfe_type >= 50 with eFEM */
+		if (efuse->rfe_type < 50)
+			break;
+		fallthrough;
 	default:
 		rtw89_warn(rtwdev,
 			   "bb gain {0x%x:0x%x} with unknown cfg type: %d\n",
