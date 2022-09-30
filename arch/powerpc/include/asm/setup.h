@@ -88,6 +88,8 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 			       unsigned long pp, unsigned long r6,
 			       unsigned long r7, unsigned long kbase);
 
+extern struct seq_buf ppc_hw_desc;
+
 #endif /* !__ASSEMBLY__ */
 
 #endif	/* _ASM_POWERPC_SETUP_H */
