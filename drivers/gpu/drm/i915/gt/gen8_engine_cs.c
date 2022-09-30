@@ -396,10 +396,10 @@ int gen8_emit_init_breadcrumb(struct i915_request *rq)
 	return 0;
 }
 
-static int __gen125_emit_bb_start(struct i915_request *rq,
-				  u64 offset, u32 len,
-				  const unsigned int flags,
-				  u32 arb)
+static int __xehp_emit_bb_start(struct i915_request *rq,
+				u64 offset, u32 len,
+				const unsigned int flags,
+				u32 arb)
 {
 	struct intel_context *ce = rq->context;
 	u32 wa_offset = lrc_indirect_bb(ce);
@@ -437,18 +437,18 @@ static int __gen125_emit_bb_start(struct i915_request *rq,
 	return 0;
 }
 
-int gen125_emit_bb_start_noarb(struct i915_request *rq,
-			       u64 offset, u32 len,
-			       const unsigned int flags)
+int xehp_emit_bb_start_noarb(struct i915_request *rq,
+			     u64 offset, u32 len,
+			     const unsigned int flags)
 {
-	return __gen125_emit_bb_start(rq, offset, len, flags, MI_ARB_DISABLE);
+	return __xehp_emit_bb_start(rq, offset, len, flags, MI_ARB_DISABLE);
 }
 
-int gen125_emit_bb_start(struct i915_request *rq,
-			 u64 offset, u32 len,
-			 const unsigned int flags)
+int xehp_emit_bb_start(struct i915_request *rq,
+		       u64 offset, u32 len,
+		       const unsigned int flags)
 {
-	return __gen125_emit_bb_start(rq, offset, len, flags, MI_ARB_ENABLE);
+	return __xehp_emit_bb_start(rq, offset, len, flags, MI_ARB_ENABLE);
 }
 
 int gen8_emit_bb_start_noarb(struct i915_request *rq,
