@@ -7,6 +7,7 @@
 
 #include <dt-bindings/power/jh7110-power.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
@@ -49,6 +50,9 @@
 #define PMU_INT_ALL_MASK		(PMU_INT_SEQ_DONE | \
 					PMU_INT_HW_REQ | \
 					PMU_INT_FAIL_MASK)
+
+#define DELAY_US			10
+#define TIMEOUT_US			100000
 
 struct jh7110_power_dev {
 	struct generic_pm_domain genpd;
@@ -112,13 +116,14 @@ static int jh7110_pmu_set_state(struct jh7110_power_dev *pmd, bool on)
 
 	if (!pmd->mask)
 		return -EINVAL;
+
 	ret = jh7110_pmu_get_state(pmd, &is_on);
 	if (ret)
 		dev_info(pmu->pdev, "unable to get current state for %s\n",
 				pmd->genpd.name);
 	if (is_on == on) {
-		dev_info(pmu->pdev, "pm domain is already %sable status.\n",
-				on ? "en" : "dis");
+		dev_info(pmu->pdev, "pm domain [%s] is already %sable status.\n",
+				pmd->genpd.name, on ? "en" : "dis");
 		return 0;
 	}
 
@@ -134,9 +139,7 @@ static int jh7110_pmu_set_state(struct jh7110_power_dev *pmd, bool on)
 		encourage_hi = SW_MODE_ENCOURAGE_DIS_HI;
 	}
 
-	val = __raw_readl(pmu->base + mode);
-	val |= pmd->mask;
-	__raw_writel(val, pmu->base + mode);
+	__raw_writel(pmd->mask, pmu->base + mode);
 
 	/* write SW_ENCOURAGE to make the configuration take effect */
 	__raw_writel(SW_MODE_ENCOURAGE_ON, pmu->base + SW_ENCOURAGE);
@@ -144,6 +147,24 @@ static int jh7110_pmu_set_state(struct jh7110_power_dev *pmd, bool on)
 	__raw_writel(encourage_hi, pmu->base + SW_ENCOURAGE);
 
 	spin_unlock_irqrestore(&pmu->lock, flags);
+
+	if (on) {
+		ret = readl_poll_timeout_atomic(pmu->base + CURR_POWER_MODE, val,
+						val & pmd->mask, DELAY_US,
+						TIMEOUT_US);
+		if (ret) {
+			dev_err(pmu->pdev, "%s power_on failed", pmd->genpd.name);
+			return -ETIMEDOUT;
+		}
+	} else {
+		ret = readl_poll_timeout_atomic(pmu->base + CURR_POWER_MODE, val,
+						!(val & pmd->mask), DELAY_US,
+						TIMEOUT_US);
+		if (ret) {
+			dev_err(pmu->pdev, "%s power_off failed", pmd->genpd.name);
+			return -ETIMEDOUT;
+		}
+	}
 
 	return 0;
 }
@@ -354,6 +375,6 @@ static struct platform_driver jh7110_pmu_driver = {
 };
 builtin_platform_driver(jh7110_pmu_driver);
 
-MODULE_AUTHOR("Walker Chen <walker.chen@starfivetech.com>");
+MODULE_AUTHOR("Walker Chen <walker.chen@linux.starfivetech.com>");
 MODULE_DESCRIPTION("Starfive JH7110 Power Domain Driver");
 MODULE_LICENSE("GPL");
