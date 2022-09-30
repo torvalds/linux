@@ -165,7 +165,8 @@ done:
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);
 	/* put file to avoid an attempt to IOPOLL the req */
-	io_put_file(req->file);
+	if (!(req->flags & REQ_F_FIXED_FILE))
+		io_put_file(req->file);
 	req->file = NULL;
 	return IOU_OK;
 }

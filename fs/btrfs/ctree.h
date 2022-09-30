@@ -1088,8 +1088,6 @@ struct btrfs_fs_info {
 
 	spinlock_t zone_active_bgs_lock;
 	struct list_head zone_active_bgs;
-	/* Waiters when BTRFS_FS_NEED_ZONE_FINISH is set */
-	wait_queue_head_t zone_finish_wait;
 
 	/* Updates are not protected by any lock */
 	struct btrfs_commit_stats commit_stats;

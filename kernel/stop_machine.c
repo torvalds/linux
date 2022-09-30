@@ -152,6 +152,7 @@ int stop_one_cpu(unsigned int cpu, cpu_stop_fn_t fn, void *arg)
 	wait_for_completion(&done.completion);
 	return done.ret;
 }
+EXPORT_SYMBOL_GPL(stop_one_cpu);
 
 /* This controls the threads on each CPU. */
 enum multi_stop_state {

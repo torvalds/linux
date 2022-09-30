@@ -53,7 +53,7 @@ CONFIG_NR_CPUS=32
 # CONFIG_X86_MCE is not set
 CONFIG_EFI=y
 CONFIG_CMDLINE_BOOL=y
-CONFIG_CMDLINE="console=ttynull stack_depot_disable=on cgroup_disable=pressure"
+CONFIG_CMDLINE="console=ttynull stack_depot_disable=on cgroup_disable=pressure bootconfig"
 CONFIG_PM_WAKELOCKS=y
 CONFIG_PM_WAKELOCKS_LIMIT=0
 # CONFIG_PM_WAKELOCKS_GC is not set

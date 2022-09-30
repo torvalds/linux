@@ -2305,6 +2305,9 @@ static int rto_next_cpu(struct root_domain *rd)
 		/* When rto_cpu is -1 this acts like cpumask_first() */
 		cpu = cpumask_next(rd->rto_cpu, rd->rto_mask);
 
+		/* this will be any CPU in the rd->rto_mask, and can be a halted cpu update it */
+		trace_android_rvh_rto_next_cpu(rd->rto_cpu, rd->rto_mask, &cpu);
+
 		rd->rto_cpu = cpu;
 
 		if (cpu < nr_cpu_ids)

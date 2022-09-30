@@ -249,6 +249,7 @@
 		/* 640x480 16bpp @ 25.175MHz is 36827428 bytes/s */
 		max-memory-bandwidth = <40000000>;
 		memory-region = <&impd1_ram>;
+		dma-ranges;
 
 		port@0 {
 			#address-cells = <1>;
