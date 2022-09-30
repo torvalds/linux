@@ -1753,6 +1753,22 @@ int atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	}
 
 	/*
+	 * There is no guarantee that the buffers queued to / owned by the ISP
+	 * will properly be returned to the queue when stopping. Set a flag to
+	 * avoid new buffers getting queued and then wait for all the current
+	 * buffers to finish.
+	 */
+	pipe->stopping = true;
+	mutex_unlock(&isp->mutex);
+	/* wait max 1 second */
+	ret = wait_event_interruptible_timeout(pipe->capq.wait,
+					       pipe->buffers_in_css == 0, HZ);
+	mutex_lock(&isp->mutex);
+	pipe->stopping = false;
+	if (ret <= 0)
+		return ret ?: -ETIMEDOUT;
+
+	/*
 	 * do only videobuf_streamoff for capture & vf pipes in
 	 * case of continuous capture
 	 */
@@ -1765,29 +1781,6 @@ int atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 				atomisp_css_offline_capture_configure(asd,
 								      0, 0, 0);
 			atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_AUTO, false);
-		}
-		/*
-		 * Currently there is no way to flush buffers queued to css.
-		 * When doing videobuf_streamoff, active buffers will be
-		 * marked as VIDEOBUF_NEEDS_INIT. HAL will be able to use
-		 * these buffers again, and these buffers might be queued to
-		 * css more than once! Warn here, if HAL has not dequeued all
-		 * buffers back before calling streamoff.
-		 */
-		if (pipe->buffers_in_css != 0) {
-			WARN(1, "%s: buffers of vdev %s still in CSS!\n",
-			     __func__, pipe->vdev.name);
-
-			/*
-			 * Buffers remained in css maybe dequeued out in the
-			 * next stream on, while this will causes serious
-			 * issues as buffers already get invalid after
-			 * previous stream off.
-			 *
-			 * No way to flush buffers but to reset the whole css
-			 */
-			dev_warn(isp->dev, "Reset CSS to clean up css buffers.\n");
-			atomisp_css_flush(isp);
 		}
 
 		return videobuf_streamoff(&pipe->capq);

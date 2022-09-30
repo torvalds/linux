@@ -81,7 +81,8 @@ struct atomisp_video_pipe {
 
 	/* Store here the initial run mode */
 	unsigned int default_run_mode;
-
+	/* Set from streamoff to disallow queuing further buffers in CSS */
+	bool stopping;
 	unsigned int buffers_in_css;
 
 	/*
