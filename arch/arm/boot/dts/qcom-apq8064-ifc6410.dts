@@ -22,17 +22,6 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	pwrseq {
-		compatible = "simple-bus";
-
-		sdcc4_pwrseq: sdcc4_pwrseq {
-			pinctrl-names = "default";
-			pinctrl-0 = <&wlan_default_gpios>;
-			compatible = "mmc-pwrseq-simple";
-			reset-gpios = <&pm8921_gpio 43 GPIO_ACTIVE_LOW>;
-		};
-	};
-
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -55,6 +44,13 @@
 				remote-endpoint = <&hdmi_out>;
 			};
 		};
+	};
+
+	sdcc4_pwrseq: pwrseq-sdcc4 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlan_default_gpios>;
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&pm8921_gpio 43 GPIO_ACTIVE_LOW>;
 	};
 
 	ext_3p3v: regulator-ext-3p3v {
