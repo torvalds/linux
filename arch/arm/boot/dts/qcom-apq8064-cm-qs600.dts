@@ -15,18 +15,11 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	pwrseq {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-		compatible = "simple-bus";
-
-		sdcc4_pwrseq: sdcc4_pwrseq {
-			pinctrl-names = "default";
-			pinctrl-0 = <&wlan_default_gpios>;
-			compatible = "mmc-pwrseq-simple";
-			reset-gpios = <&pm8921_gpio 43 GPIO_ACTIVE_LOW>;
-		};
+	sdcc4_pwrseq: pwrseq-sdcc4 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&wlan_default_gpios>;
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&pm8921_gpio 43 GPIO_ACTIVE_LOW>;
 	};
 
 	/* on board fixed 3.3v supply */
