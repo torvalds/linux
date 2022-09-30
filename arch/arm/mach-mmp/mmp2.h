@@ -10,7 +10,6 @@ extern void mmp2_clear_pmic_int(void);
 
 #include <linux/i2c.h>
 #include <linux/platform_data/i2c-pxa.h>
-#include <linux/platform_data/dma-mmp_tdma.h>
 #include <linux/irqchip/mmp.h>
 
 #include "devices.h"
@@ -29,8 +28,6 @@ extern struct mmp_device_desc mmp2_device_sdh0;
 extern struct mmp_device_desc mmp2_device_sdh1;
 extern struct mmp_device_desc mmp2_device_sdh2;
 extern struct mmp_device_desc mmp2_device_sdh3;
-extern struct mmp_device_desc mmp2_device_asram;
-extern struct mmp_device_desc mmp2_device_isram;
 
 extern struct platform_device mmp2_device_gpio;
 
@@ -88,16 +85,6 @@ static inline int mmp2_add_sdhost(int id, struct sdhci_pxa_platdata *data)
 	}
 
 	return mmp_register_device(d, data, sizeof(*data));
-}
-
-static inline int mmp2_add_asram(struct sram_platdata *data)
-{
-	return mmp_register_device(&mmp2_device_asram, data, sizeof(*data));
-}
-
-static inline int mmp2_add_isram(struct sram_platdata *data)
-{
-	return mmp_register_device(&mmp2_device_isram, data, sizeof(*data));
 }
 
 #endif /* __ASM_MACH_MMP2_H */
