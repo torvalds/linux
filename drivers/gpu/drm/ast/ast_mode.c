@@ -48,6 +48,8 @@
 #include "ast_drv.h"
 #include "ast_tables.h"
 
+#define AST_LUT_SIZE 256
+
 static inline void ast_load_palette_index(struct ast_private *ast,
 				     u8 index, u8 red, u8 green,
 				     u8 blue)
@@ -62,20 +64,46 @@ static inline void ast_load_palette_index(struct ast_private *ast,
 	ast_io_read8(ast, AST_IO_SEQ_PORT);
 }
 
-static void ast_crtc_load_lut(struct ast_private *ast, struct drm_crtc *crtc)
+static void ast_crtc_set_gamma_linear(struct ast_private *ast,
+				      const struct drm_format_info *format)
 {
-	u16 *r, *g, *b;
 	int i;
 
-	if (!crtc->enabled)
-		return;
+	switch (format->format) {
+	case DRM_FORMAT_C8: /* In this case, gamma table is used as color palette */
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_XRGB8888:
+		for (i = 0; i < AST_LUT_SIZE; i++)
+			ast_load_palette_index(ast, i, i, i, i);
+		break;
+	default:
+		drm_warn_once(&ast->base, "Unsupported format %p4cc for gamma correction\n",
+			      &format->format);
+		break;
+	}
+}
 
-	r = crtc->gamma_store;
-	g = r + crtc->gamma_size;
-	b = g + crtc->gamma_size;
+static void ast_crtc_set_gamma(struct ast_private *ast,
+			       const struct drm_format_info *format,
+			       struct drm_color_lut *lut)
+{
+	int i;
 
-	for (i = 0; i < 256; i++)
-		ast_load_palette_index(ast, i, *r++ >> 8, *g++ >> 8, *b++ >> 8);
+	switch (format->format) {
+	case DRM_FORMAT_C8: /* In this case, gamma table is used as color palette */
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_XRGB8888:
+		for (i = 0; i < AST_LUT_SIZE; i++)
+			ast_load_palette_index(ast, i,
+					       lut[i].red >> 8,
+					       lut[i].green >> 8,
+					       lut[i].blue >> 8);
+		break;
+	default:
+		drm_warn_once(&ast->base, "Unsupported format %p4cc for gamma correction\n",
+			      &format->format);
+		break;
+	}
 }
 
 static bool ast_get_vbios_mode_info(const struct drm_format_info *format,
@@ -1026,9 +1054,11 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 			ast_set_color_reg(ast, format);
 			ast_set_vbios_color_reg(ast, format, vbios_mode_info);
+			if (crtc->state->gamma_lut)
+				ast_crtc_set_gamma(ast, format, crtc->state->gamma_lut->data);
+			else
+				ast_crtc_set_gamma_linear(ast, format);
 		}
-
-		ast_crtc_load_lut(ast, crtc);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
@@ -1123,6 +1153,8 @@ static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 					struct drm_atomic_state *state)
 {
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state, crtc);
+	struct ast_crtc_state *old_ast_crtc_state = to_ast_crtc_state(old_crtc_state);
 	struct drm_device *dev = crtc->dev;
 	struct ast_crtc_state *ast_state;
 	const struct drm_format_info *format;
@@ -1141,6 +1173,22 @@ static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 	format = ast_state->format;
 	if (drm_WARN_ON_ONCE(dev, !format))
 		return -EINVAL; /* BUG: We didn't set format in primary check(). */
+
+	/*
+	 * The gamma LUT has to be reloaded after changing the primary
+	 * plane's color format.
+	 */
+	if (old_ast_crtc_state->format != format)
+		crtc_state->color_mgmt_changed = true;
+
+	if (crtc_state->color_mgmt_changed && crtc_state->gamma_lut) {
+		if (crtc_state->gamma_lut->length !=
+		    AST_LUT_SIZE * sizeof(struct drm_color_lut)) {
+			drm_err(dev, "Wrong size for gamma_lut %zu\n",
+				crtc_state->gamma_lut->length);
+			return -EINVAL;
+		}
+	}
 
 	succ = ast_get_vbios_mode_info(format, &crtc_state->mode,
 				       &crtc_state->adjusted_mode,
@@ -1172,20 +1220,23 @@ ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 {
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
 									  crtc);
-	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state,
-									      crtc);
 	struct drm_device *dev = crtc->dev;
 	struct ast_private *ast = to_ast_private(dev);
 	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
-	struct ast_crtc_state *old_ast_crtc_state = to_ast_crtc_state(old_crtc_state);
 	struct ast_vbios_mode_info *vbios_mode_info = &ast_crtc_state->vbios_mode_info;
 
 	/*
 	 * The gamma LUT has to be reloaded after changing the primary
 	 * plane's color format.
 	 */
-	if (old_ast_crtc_state->format != ast_crtc_state->format)
-		ast_crtc_load_lut(ast, crtc);
+	if (crtc_state->enable && crtc_state->color_mgmt_changed) {
+		if (crtc_state->gamma_lut)
+			ast_crtc_set_gamma(ast,
+					   ast_crtc_state->format,
+					   crtc_state->gamma_lut->data);
+		else
+			ast_crtc_set_gamma_linear(ast, ast_crtc_state->format);
+	}
 
 	//Set Aspeed Display-Port
 	if (ast->tx_chip_types & AST_TX_ASTDP_BIT)
@@ -1323,7 +1374,9 @@ static int ast_crtc_init(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	drm_mode_crtc_set_gamma_size(crtc, 256);
+	drm_mode_crtc_set_gamma_size(crtc, AST_LUT_SIZE);
+	drm_crtc_enable_color_mgmt(crtc, 0, false, AST_LUT_SIZE);
+
 	drm_crtc_helper_add(crtc, &ast_crtc_helper_funcs);
 
 	return 0;
