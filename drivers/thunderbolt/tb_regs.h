@@ -308,6 +308,7 @@ struct tb_regs_port_header {
 #define ADP_CS_5				0x05
 #define ADP_CS_5_LCA_MASK			GENMASK(28, 22)
 #define ADP_CS_5_LCA_SHIFT			22
+#define ADP_CS_5_DHP				BIT(31)
 
 /* TMU adapter registers */
 #define TMU_ADP_CS_3				0x03
@@ -324,6 +325,7 @@ struct tb_regs_port_header {
 #define LANE_ADP_CS_0_SUPPORTED_WIDTH_DUAL	0x2
 #define LANE_ADP_CS_0_CL0S_SUPPORT		BIT(26)
 #define LANE_ADP_CS_0_CL1_SUPPORT		BIT(27)
+#define LANE_ADP_CS_0_CL2_SUPPORT		BIT(28)
 #define LANE_ADP_CS_1				0x01
 #define LANE_ADP_CS_1_TARGET_SPEED_MASK		GENMASK(3, 0)
 #define LANE_ADP_CS_1_TARGET_SPEED_GEN3		0xc
@@ -333,6 +335,7 @@ struct tb_regs_port_header {
 #define LANE_ADP_CS_1_TARGET_WIDTH_DUAL		0x3
 #define LANE_ADP_CS_1_CL0S_ENABLE		BIT(10)
 #define LANE_ADP_CS_1_CL1_ENABLE		BIT(11)
+#define LANE_ADP_CS_1_CL2_ENABLE		BIT(12)
 #define LANE_ADP_CS_1_LD			BIT(14)
 #define LANE_ADP_CS_1_LB			BIT(15)
 #define LANE_ADP_CS_1_CURRENT_SPEED_MASK	GENMASK(19, 16)
