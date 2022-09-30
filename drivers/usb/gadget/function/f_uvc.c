@@ -995,7 +995,6 @@ static struct usb_function *uvc_alloc(struct usb_function_instance *fi)
 		goto err_config;
 
 	uvc->header = to_uvcg_streaming_header(h);
-	config_item_put(h);
 	if (!uvc->header->linked) {
 		mutex_unlock(&opts->lock);
 		kfree(uvc);
