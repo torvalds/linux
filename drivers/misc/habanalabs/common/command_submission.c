@@ -798,7 +798,7 @@ out:
 static void cs_timedout(struct work_struct *work)
 {
 	struct hl_device *hdev;
-	u64 event_mask;
+	u64 event_mask = 0x0;
 	int rc;
 	struct hl_cs *cs = container_of(work, struct hl_cs,
 						 work_tdr.work);
@@ -830,11 +830,7 @@ static void cs_timedout(struct work_struct *work)
 	if (rc) {
 		hdev->captured_err_info.cs_timeout.timestamp = ktime_get();
 		hdev->captured_err_info.cs_timeout.seq = cs->sequence;
-
-		event_mask = device_reset ? (HL_NOTIFIER_EVENT_CS_TIMEOUT |
-				HL_NOTIFIER_EVENT_DEVICE_RESET) : HL_NOTIFIER_EVENT_CS_TIMEOUT;
-
-		hl_notifier_event_send_all(hdev, event_mask);
+		event_mask |= HL_NOTIFIER_EVENT_CS_TIMEOUT;
 	}
 
 	switch (cs->type) {
@@ -869,8 +865,12 @@ static void cs_timedout(struct work_struct *work)
 
 	cs_put(cs);
 
-	if (device_reset)
-		hl_device_reset(hdev, HL_DRV_RESET_TDR);
+	if (device_reset) {
+		event_mask |= HL_NOTIFIER_EVENT_DEVICE_RESET;
+		hl_device_cond_reset(hdev, HL_DRV_RESET_TDR, event_mask);
+	} else if (event_mask) {
+		hl_notifier_event_send_all(hdev, event_mask);
+	}
 }
 
 static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
