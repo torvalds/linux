@@ -684,9 +684,8 @@ static void device_hard_reset_pending(struct work_struct *work)
 			"Could not reset device. will try again in %u seconds",
 			HL_PENDING_RESET_PER_SEC);
 
-		queue_delayed_work(device_reset_work->wq,
-			&device_reset_work->reset_work,
-			msecs_to_jiffies(HL_PENDING_RESET_PER_SEC * 1000));
+		queue_delayed_work(hdev->reset_wq, &device_reset_work->reset_work,
+					msecs_to_jiffies(HL_PENDING_RESET_PER_SEC * 1000));
 	}
 }
 
@@ -801,9 +800,8 @@ static int device_early_init(struct hl_device *hdev)
 
 	hl_mem_mgr_init(hdev->dev, &hdev->kernel_mem_mgr);
 
-	hdev->device_reset_work.wq =
-			create_singlethread_workqueue("hl_device_reset");
-	if (!hdev->device_reset_work.wq) {
+	hdev->reset_wq = create_singlethread_workqueue("hl_device_reset");
+	if (!hdev->reset_wq) {
 		rc = -ENOMEM;
 		dev_err(hdev->dev, "Failed to create device reset WQ\n");
 		goto free_cb_mgr;
@@ -879,7 +877,7 @@ static void device_early_fini(struct hl_device *hdev)
 	destroy_workqueue(hdev->ts_free_obj_wq);
 	destroy_workqueue(hdev->cs_cmplt_wq);
 	destroy_workqueue(hdev->eq_wq);
-	destroy_workqueue(hdev->device_reset_work.wq);
+	destroy_workqueue(hdev->reset_wq);
 
 	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
 		destroy_workqueue(hdev->cq_wq[i]);
@@ -1460,8 +1458,7 @@ again:
 		 * Because the reset function can't run from heartbeat work,
 		 * we need to call the reset function from a dedicated work.
 		 */
-		queue_delayed_work(hdev->device_reset_work.wq,
-			&hdev->device_reset_work.reset_work, 0);
+		queue_delayed_work(hdev->reset_wq, &hdev->device_reset_work.reset_work, 0);
 
 		return 0;
 	}

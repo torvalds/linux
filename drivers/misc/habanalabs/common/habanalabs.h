@@ -2682,17 +2682,15 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 struct hwmon_chip_info;
 
 /**
- * struct hl_device_reset_work - reset workqueue task wrapper.
- * @wq: work queue for device reset procedure.
+ * struct hl_device_reset_work - reset work wrapper.
  * @reset_work: reset work to be done.
  * @hdev: habanalabs device structure.
  * @flags: reset flags.
  */
 struct hl_device_reset_work {
-	struct workqueue_struct		*wq;
-	struct delayed_work		reset_work;
-	struct hl_device		*hdev;
-	u32				flags;
+	struct delayed_work	reset_work;
+	struct hl_device	*hdev;
+	u32			flags;
 };
 
 /**
@@ -3061,6 +3059,7 @@ struct hl_reset_info {
  *               context.
  * @ts_free_obj_wq: work queue for timestamp registration objects release.
  * @prefetch_wq: work queue for MMU pre-fetch operations.
+ * @reset_wq: work queue for device reset procedure.
  * @kernel_ctx: Kernel driver context structure.
  * @kernel_queues: array of hl_hw_queue.
  * @cs_mirror_list: CS mirror list for TDR.
@@ -3232,6 +3231,7 @@ struct hl_device {
 	struct workqueue_struct		*cs_cmplt_wq;
 	struct workqueue_struct		*ts_free_obj_wq;
 	struct workqueue_struct		*prefetch_wq;
+	struct workqueue_struct		*reset_wq;
 	struct hl_ctx			*kernel_ctx;
 	struct hl_hw_queue		*kernel_queues;
 	struct list_head		cs_mirror_list;
