@@ -546,7 +546,7 @@ static int sfp_i2c_mdiobus_create(struct sfp *sfp)
 	struct mii_bus *i2c_mii;
 	int ret;
 
-	i2c_mii = mdio_i2c_alloc(sfp->dev, sfp->i2c);
+	i2c_mii = mdio_i2c_alloc(sfp->dev, sfp->i2c, sfp->mdio_protocol);
 	if (IS_ERR(i2c_mii))
 		return PTR_ERR(i2c_mii);
 
@@ -1719,6 +1719,10 @@ static int sfp_sm_probe_for_phy(struct sfp *sfp)
 
 	case MDIO_I2C_C45:
 		err = sfp_sm_probe_phy(sfp, true);
+		break;
+
+	case MDIO_I2C_ROLLBALL:
+		err = -EOPNOTSUPP;
 		break;
 	}
 
