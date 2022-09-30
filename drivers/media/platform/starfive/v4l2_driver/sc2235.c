@@ -15,6 +15,7 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <linux/of_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
@@ -144,8 +145,6 @@ struct sc2235_dev {
 
 	/* lock to protect all members below */
 	struct mutex lock;
-
-	int power_count;
 
 	struct v4l2_mbus_framefmt fmt;
 	bool pending_fmt_change;
@@ -956,9 +955,11 @@ static void sc2235_reset(struct sc2235_dev *sensor)
 	usleep_range(20000, 25000);
 }
 
-static int sc2235_set_power_on(struct sc2235_dev *sensor)
+static int sc2235_set_power_on(struct device *dev)
 {
-	struct i2c_client *client = sensor->i2c_client;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct sc2235_dev *sensor = to_sc2235_dev(sd);
 	int ret;
 
 	ret = clk_prepare_enable(sensor->xclk);
@@ -986,12 +987,17 @@ xclk_off:
 	return ret;
 }
 
-static void sc2235_set_power_off(struct sc2235_dev *sensor)
+static int sc2235_set_power_off(struct device *dev)
 {
-	sc2235_power(sensor, false);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct sc2235_dev *sensor = to_sc2235_dev(sd);
 
+	sc2235_power(sensor, false);
 	regulator_bulk_disable(SC2235_NUM_SUPPLIES, sensor->supplies);
 	clk_disable_unprepare(sensor->xclk);
+
+	return 0;
 }
 
 static int sc2235_set_power_dvp(struct sc2235_dev *sensor, bool on)
@@ -1030,9 +1036,7 @@ static int sc2235_set_power(struct sc2235_dev *sensor, bool on)
 	int ret = 0;
 
 	if (on) {
-		ret = sc2235_set_power_on(sensor);
-		if (ret)
-			return ret;
+		pm_runtime_get_sync(&sensor->i2c_client->dev);
 
 		ret = sc2235_restore_mode(sensor);
 		if (ret)
@@ -1045,12 +1049,12 @@ static int sc2235_set_power(struct sc2235_dev *sensor, bool on)
 		goto power_off;
 
 	if (!on)
-		sc2235_set_power_off(sensor);
+		pm_runtime_put_sync(&sensor->i2c_client->dev);
 
 	return 0;
 
 power_off:
-	sc2235_set_power_off(sensor);
+	pm_runtime_put_sync(&sensor->i2c_client->dev);
 
 	return ret;
 }
@@ -1062,27 +1066,15 @@ static int sc2235_s_power(struct v4l2_subdev *sd, int on)
 
 	mutex_lock(&sensor->lock);
 
-	/*
-	 * If the power count is modified from 0 to != 0 or from != 0 to 0,
-	 * update the power state.
-	 */
-	if (sensor->power_count == !on) {
-		ret = sc2235_set_power(sensor, !!on);
-		if (ret)
-			goto out;
-	}
+	ret = sc2235_set_power(sensor, !!on);
+	if (ret)
+		goto out;
 
-	/* Update the power count. */
-	sensor->power_count += on ? 1 : -1;
-	WARN_ON(sensor->power_count < 0);
+	mutex_unlock(&sensor->lock);
+	return 0;
+
 out:
 	mutex_unlock(&sensor->lock);
-
-	if (on && !ret && sensor->power_count == 1) {
-		/* restore controls */
-		ret = v4l2_ctrl_handler_setup(&sensor->ctrls.handler);
-	}
-
 	return ret;
 }
 
@@ -1377,6 +1369,9 @@ static int sc2235_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 
 	/* v4l2_ctrl_lock() locks our own mutex */
 
+	if (!pm_runtime_get_if_in_use(&sensor->i2c_client->dev))
+		return 0;
+
 	switch (ctrl->id) {
 	case V4L2_CID_AUTOGAIN:
 		val = sc2235_get_gain(sensor);
@@ -1392,6 +1387,8 @@ static int sc2235_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
+	pm_runtime_put(&sensor->i2c_client->dev);
+
 	return 0;
 }
 
@@ -1406,9 +1403,9 @@ static int sc2235_s_ctrl(struct v4l2_ctrl *ctrl)
 	/*
 	 * If the device is not powered up by the host driver do
 	 * not apply any controls to H/W at this time. Instead
-	 * the controls will be restored right after power-up.
+	 * the controls will be restored at start streaming time.
 	 */
-	if (sensor->power_count == 0)
+	if (!pm_runtime_get_if_in_use(&sensor->i2c_client->dev))
 		return 0;
 
 	switch (ctrl->id) {
@@ -1446,6 +1443,8 @@ static int sc2235_s_ctrl(struct v4l2_ctrl *ctrl)
 		ret = -EINVAL;
 		break;
 	}
+
+	pm_runtime_put(&sensor->i2c_client->dev);
 
 	return ret;
 }
@@ -1678,6 +1677,12 @@ static int sc2235_s_stream(struct v4l2_subdev *sd, int enable)
 	struct sc2235_dev *sensor = to_sc2235_dev(sd);
 	int ret = 0;
 
+	if (enable) {
+		ret = v4l2_ctrl_handler_setup(&sensor->ctrls.handler);
+		if (ret)
+			return ret;
+	}
+
 	mutex_lock(&sensor->lock);
 
 	if (sensor->streaming == !enable) {
@@ -1756,28 +1761,22 @@ static int sc2235_check_chip_id(struct sc2235_dev *sensor)
 	int ret = 0;
 	u16 chip_id;
 
-	ret = sc2235_set_power_on(sensor);
-	if (ret)
-		return ret;
-
 	ret = sc2235_read_reg16(sensor, SC2235_REG_CHIP_ID, &chip_id);
 	if (ret) {
 		dev_err(&client->dev, "%s: failed to read chip identifier\n",
 			__func__);
-		goto power_off;
+		return ret;
 	}
 
 	if (chip_id != SC2235_CHIP_ID) {
 		dev_err(&client->dev, "%s: wrong chip identifier, expected 0x%x, got 0x%x\n",
 			__func__, SC2235_CHIP_ID, chip_id);
-		ret = -ENXIO;
+		return -ENXIO;
 	}
 	dev_err(&client->dev, "%s: chip identifier, got 0x%x\n",
 		__func__, chip_id);
 
-power_off:
-	sc2235_set_power_off(sensor);
-	return ret;
+	return 0;
 }
 
 static int sc2235_probe(struct i2c_client *client)
@@ -1890,22 +1889,33 @@ static int sc2235_probe(struct i2c_client *client)
 		return ret;
 	mutex_init(&sensor->lock);
 
+	ret = sc2235_set_power_on(dev);
+	if (ret) {
+		dev_err(dev, "failed to power on\n");
+		goto entity_cleanup;
+	}
+
 	ret = sc2235_check_chip_id(sensor);
 	if (ret)
-		goto entity_cleanup;
+		goto entity_power_off;
 
 	ret = sc2235_init_controls(sensor);
 	if (ret)
-		goto entity_cleanup;
+		goto entity_power_off;
 
 	ret = v4l2_async_register_subdev_sensor(&sensor->sd);
 	if (ret)
 		goto free_ctrls;
 
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
 	return 0;
 
 free_ctrls:
 	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
+entity_power_off:
+	sc2235_set_power_off(dev);
 entity_cleanup:
 	media_entity_cleanup(&sensor->sd.entity);
 	mutex_destroy(&sensor->lock);
@@ -1922,6 +1932,11 @@ static int sc2235_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
 	mutex_destroy(&sensor->lock);
 
+	pm_runtime_disable(&client->dev);
+	if (!pm_runtime_status_suspended(&client->dev))
+		sc2235_set_power_off(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
+
 	return 0;
 }
 
@@ -1937,10 +1952,15 @@ static const struct of_device_id sc2235_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, sc2235_dt_ids);
 
+static const struct dev_pm_ops sc2235_pm_ops = {
+	SET_RUNTIME_PM_OPS(sc2235_set_power_off, sc2235_set_power_on, NULL)
+};
+
 static struct i2c_driver sc2235_i2c_driver = {
 	.driver = {
 		.name  = "sc2235",
 		.of_match_table	= sc2235_dt_ids,
+		.pm = &sc2235_pm_ops,
 	},
 	.id_table = sc2235_id,
 	.probe_new = sc2235_probe,
