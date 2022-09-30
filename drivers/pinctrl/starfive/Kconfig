@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-config PINCTRL_STARFIVE
+config PINCTRL_STARFIVE_JH7100
 	tristate "Pinctrl and GPIO driver for the StarFive JH7100 SoC"
 	depends on SOC_STARFIVE || COMPILE_TEST
 	depends on OF

@@ -20,7 +20,7 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 
-#include <dt-bindings/pinctrl/pinctrl-starfive.h>
+#include <dt-bindings/pinctrl/pinctrl-starfive-jh7100.h>
 
 #include "../core.h"
 #include "../pinctrl-utils.h"
