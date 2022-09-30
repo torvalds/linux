@@ -158,18 +158,24 @@ int mlx5e_xsk_alloc_rx_wqes(struct mlx5e_rq *rq, u16 ix, int wqe_bulk)
 	return wqe_bulk;
 }
 
-static struct sk_buff *mlx5e_xsk_construct_skb(struct mlx5e_rq *rq, void *data,
-					       u32 cqe_bcnt)
+static struct sk_buff *mlx5e_xsk_construct_skb(struct mlx5e_rq *rq, struct xdp_buff *xdp)
 {
+	u32 totallen = xdp->data_end - xdp->data_meta;
+	u32 metalen = xdp->data - xdp->data_meta;
 	struct sk_buff *skb;
 
-	skb = napi_alloc_skb(rq->cq.napi, cqe_bcnt);
+	skb = napi_alloc_skb(rq->cq.napi, totallen);
 	if (unlikely(!skb)) {
 		rq->stats->buff_alloc_err++;
 		return NULL;
 	}
 
-	skb_put_data(skb, data, cqe_bcnt);
+	skb_put_data(skb, xdp->data_meta, totallen);
+
+	if (metalen) {
+		skb_metadata_set(skb, metalen);
+		__skb_pull(skb, metalen);
+	}
 
 	return skb;
 }
@@ -197,7 +203,6 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq,
 	WARN_ON_ONCE(head_offset);
 
 	xsk_buff_set_size(xdp, cqe_bcnt);
-	xdp_set_data_meta_invalid(xdp);
 	xsk_buff_dma_sync_for_cpu(xdp, rq->xsk_pool);
 	net_prefetch(xdp->data);
 
@@ -226,7 +231,7 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq,
 	/* XDP_PASS: copy the data from the UMEM to a new SKB and reuse the
 	 * frame. On SKB allocation failure, NULL is returned.
 	 */
-	return mlx5e_xsk_construct_skb(rq, xdp->data, xdp->data_end - xdp->data);
+	return mlx5e_xsk_construct_skb(rq, xdp);
 }
 
 struct sk_buff *mlx5e_xsk_skb_from_cqe_linear(struct mlx5e_rq *rq,
@@ -244,7 +249,6 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_linear(struct mlx5e_rq *rq,
 	WARN_ON_ONCE(wi->offset);
 
 	xsk_buff_set_size(xdp, cqe_bcnt);
-	xdp_set_data_meta_invalid(xdp);
 	xsk_buff_dma_sync_for_cpu(xdp, rq->xsk_pool);
 	net_prefetch(xdp->data);
 
@@ -256,5 +260,5 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_linear(struct mlx5e_rq *rq,
 	 * will be handled by mlx5e_free_rx_wqe.
 	 * On SKB allocation failure, NULL is returned.
 	 */
-	return mlx5e_xsk_construct_skb(rq, xdp->data, xdp->data_end - xdp->data);
+	return mlx5e_xsk_construct_skb(rq, xdp);
 }
