@@ -53,6 +53,7 @@
 #include <linux/uaccess.h>
 #include <linux/suspend.h>
 #include <linux/siphash.h>
+#include <linux/sched/isolation.h>
 #include <crypto/chacha.h>
 #include <crypto/blake2s.h>
 #include <asm/processor.h>
@@ -1232,7 +1233,8 @@ void __cold rand_initialize_disk(struct gendisk *disk)
 struct entropy_timer_state {
 	unsigned long entropy;
 	struct timer_list timer;
-	unsigned int samples, samples_per_bit;
+	atomic_t samples;
+	unsigned int samples_per_bit;
 };
 
 /*
@@ -1250,10 +1252,8 @@ static void __cold entropy_timer(struct timer_list *timer)
 {
 	struct entropy_timer_state *state = container_of(timer, struct entropy_timer_state, timer);
 
-	if (++state->samples == state->samples_per_bit) {
+	if (atomic_inc_return(&state->samples) % state->samples_per_bit == 0)
 		credit_init_bits(1);
-		state->samples = 0;
-	}
 }
 
 /*
@@ -1266,6 +1266,7 @@ static void __cold try_to_generate_entropy(void)
 	struct entropy_timer_state stack;
 	unsigned int i, num_different = 0;
 	unsigned long last = random_get_entropy();
+	int cpu = -1;
 
 	for (i = 0; i < NUM_TRIAL_SAMPLES - 1; ++i) {
 		stack.entropy = random_get_entropy();
@@ -1277,19 +1278,54 @@ static void __cold try_to_generate_entropy(void)
 	if (stack.samples_per_bit > MAX_SAMPLES_PER_BIT)
 		return;
 
-	stack.samples = 0;
+	atomic_set(&stack.samples, 0);
 	timer_setup_on_stack(&stack.timer, entropy_timer, 0);
 	while (!crng_ready() && !signal_pending(current)) {
-		if (!timer_pending(&stack.timer))
-			mod_timer(&stack.timer, jiffies);
+		/*
+		 * Check !timer_pending() and then ensure that any previous callback has finished
+		 * executing by checking try_to_del_timer_sync(), before queueing the next one.
+		 */
+		if (!timer_pending(&stack.timer) && try_to_del_timer_sync(&stack.timer) >= 0) {
+			struct cpumask timer_cpus;
+			unsigned int num_cpus;
+
+			/*
+			 * Preemption must be disabled here, both to read the current CPU number
+			 * and to avoid scheduling a timer on a dead CPU.
+			 */
+			preempt_disable();
+
+			/* Only schedule callbacks on timer CPUs that are online. */
+			cpumask_and(&timer_cpus, housekeeping_cpumask(HK_TYPE_TIMER), cpu_online_mask);
+			num_cpus = cpumask_weight(&timer_cpus);
+			/* In very bizarre case of misconfiguration, fallback to all online. */
+			if (unlikely(num_cpus == 0)) {
+				timer_cpus = *cpu_online_mask;
+				num_cpus = cpumask_weight(&timer_cpus);
+			}
+
+			/* Basic CPU round-robin, which avoids the current CPU. */
+			do {
+				cpu = cpumask_next(cpu, &timer_cpus);
+				if (cpu == nr_cpumask_bits)
+					cpu = cpumask_first(&timer_cpus);
+			} while (cpu == smp_processor_id() && num_cpus > 1);
+
+			/* Expiring the timer at `jiffies` means it's the next tick. */
+			stack.timer.expires = jiffies;
+
+			add_timer_on(&stack.timer, cpu);
+
+			preempt_enable();
+		}
 		mix_pool_bytes(&stack.entropy, sizeof(stack.entropy));
 		schedule();
 		stack.entropy = random_get_entropy();
 	}
+	mix_pool_bytes(&stack.entropy, sizeof(stack.entropy));
 
 	del_timer_sync(&stack.timer);
 	destroy_timer_on_stack(&stack.timer);
-	mix_pool_bytes(&stack.entropy, sizeof(stack.entropy));
 }
 
 
