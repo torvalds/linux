@@ -75,13 +75,6 @@ const struct mlx5e_rx_handlers mlx5e_rx_handlers_nic = {
 	.handle_rx_cqe_mpwqe_shampo = mlx5e_handle_rx_cqe_mpwrq_shampo,
 };
 
-static struct mlx5e_mpw_info *mlx5e_get_mpw_info(struct mlx5e_rq *rq, int i)
-{
-	size_t isz = struct_size(rq->mpwqe.info, alloc_units, rq->mpwqe.pages_per_wqe);
-
-	return (struct mlx5e_mpw_info *)((char *)rq->mpwqe.info + array_size(i, isz));
-}
-
 static inline bool mlx5e_rx_hw_stamp(struct hwtstamp_config *config)
 {
 	return config->rx_filter == HWTSTAMP_FILTER_ALL;
@@ -668,15 +661,6 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	int err;
 	int i;
 
-	/* Check in advance that we have enough frames, instead of allocating
-	 * one-by-one, failing and moving frames to the Reuse Ring.
-	 */
-	if (rq->xsk_pool &&
-	    unlikely(!xsk_buff_can_alloc(rq->xsk_pool, rq->mpwqe.pages_per_wqe))) {
-		err = -ENOMEM;
-		goto err;
-	}
-
 	if (test_bit(MLX5E_RQ_STATE_SHAMPO, &rq->state)) {
 		err = mlx5e_alloc_rx_hd_mpwqe(rq);
 		if (unlikely(err))
@@ -687,33 +671,16 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	umr_wqe = mlx5_wq_cyc_get_wqe(wq, pi);
 	memcpy(umr_wqe, &rq->mpwqe.umr_wqe, sizeof(struct mlx5e_umr_wqe));
 
-	if (unlikely(rq->mpwqe.unaligned)) {
-		for (i = 0; i < rq->mpwqe.pages_per_wqe; i++, au++) {
-			dma_addr_t addr;
+	for (i = 0; i < rq->mpwqe.pages_per_wqe; i++, au++) {
+		dma_addr_t addr;
 
-			err = mlx5e_page_alloc(rq, au);
-			if (unlikely(err))
-				goto err_unmap;
-			/* Unaligned means XSK. */
-			addr = xsk_buff_xdp_get_frame_dma(au->xsk);
-			umr_wqe->inline_ksms[i] = (struct mlx5_ksm) {
-				.key = rq->mkey_be,
-				.va = cpu_to_be64(addr),
-			};
-		}
-	} else {
-		for (i = 0; i < rq->mpwqe.pages_per_wqe; i++, au++) {
-			dma_addr_t addr;
-
-			err = mlx5e_page_alloc(rq, au);
-			if (unlikely(err))
-				goto err_unmap;
-			addr = rq->xsk_pool ? xsk_buff_xdp_get_frame_dma(au->xsk) :
-					      page_pool_get_dma_addr(au->page);
-			umr_wqe->inline_mtts[i] = (struct mlx5_mtt) {
-				.ptag = cpu_to_be64(addr | MLX5_EN_WR),
-			};
-		}
+		err = mlx5e_page_alloc_pool(rq, au);
+		if (unlikely(err))
+			goto err_unmap;
+		addr = page_pool_get_dma_addr(au->page);
+		umr_wqe->inline_mtts[i] = (struct mlx5_mtt) {
+			.ptag = cpu_to_be64(addr | MLX5_EN_WR),
+		};
 	}
 
 	bitmap_zero(wi->xdp_xmit_bitmap, rq->mpwqe.pages_per_wqe);
@@ -723,9 +690,7 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 		cpu_to_be32((sq->pc << MLX5_WQE_CTRL_WQE_INDEX_SHIFT) |
 			    MLX5_OPCODE_UMR);
 
-	offset = ix * rq->mpwqe.mtts_per_wqe;
-	if (!rq->mpwqe.unaligned)
-		offset = MLX5_ALIGNED_MTTS_OCTW(offset);
+	offset = MLX5_ALIGNED_MTTS_OCTW(ix * rq->mpwqe.mtts_per_wqe);
 	umr_wqe->uctrl.xlt_offset = cpu_to_be16(offset);
 
 	sq->db.wqe_info[pi] = (struct mlx5e_icosq_wqe_info) {
@@ -1016,7 +981,8 @@ INDIRECT_CALLABLE_SCOPE bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq)
 	head = rq->mpwqe.actual_wq_head;
 	i = missing;
 	do {
-		alloc_err = mlx5e_alloc_rx_mpwqe(rq, head);
+		alloc_err = rq->xsk_pool ? mlx5e_xsk_alloc_rx_mpwqe(rq, head) :
+					   mlx5e_alloc_rx_mpwqe(rq, head);
 
 		if (unlikely(alloc_err))
 			break;
