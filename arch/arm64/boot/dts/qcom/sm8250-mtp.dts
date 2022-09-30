@@ -799,31 +799,19 @@
 &tlmm {
 	gpio-reserved-ranges = <28 4>, <40 4>;
 
-	wcd938x_reset_default: wcd938x_reset_default {
-		mux {
-			pins = "gpio32";
-			function = "gpio";
-		};
-
-		config {
-			pins = "gpio32";
-			drive-strength = <16>;
-			output-high;
-		};
+	wcd938x_reset_default: wcd938x-reset-default-state {
+		pins = "gpio32";
+		function = "gpio";
+		drive-strength = <16>;
+		output-high;
 	};
 
-	wcd938x_reset_sleep: wcd938x_reset_sleep {
-		mux {
-			pins = "gpio32";
-			function = "gpio";
-		};
-
-		config {
-			pins = "gpio32";
-			drive-strength = <16>;
-			bias-disable;
-			output-low;
-		};
+	wcd938x_reset_sleep: wcd938x-reset-sleep-state {
+		pins = "gpio32";
+		function = "gpio";
+		drive-strength = <16>;
+		bias-disable;
+		output-low;
 	};
 };
 
