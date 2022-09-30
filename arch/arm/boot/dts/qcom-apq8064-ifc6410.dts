@@ -38,7 +38,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&notify_led>;
 
-		led@1 {
+		led-user1 {
 			label = "apq8064:green:user1";
 			color = <LED_COLOR_ID_GREEN>;
 			gpios = <&pm8921_gpio 18 GPIO_ACTIVE_HIGH>;
