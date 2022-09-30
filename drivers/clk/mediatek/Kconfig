@@ -259,6 +259,43 @@ config COMMON_CLK_MT6779_AUDSYS
 	help
 	  This driver supports Mediatek MT6779 audsys clocks.
 
+config COMMON_CLK_MT6795
+	tristate "Clock driver for MediaTek MT6795"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	select COMMON_CLK_MEDIATEK
+	default ARCH_MEDIATEK
+	help
+	  This driver supports MediaTek MT6795 basic clocks and clocks
+	  required for various peripherals found on MediaTek.
+
+config COMMON_CLK_MT6795_MFGCFG
+	tristate "Clock driver for MediaTek MT6795 mfgcfg"
+	depends on COMMON_CLK_MT6795
+	default COMMON_CLK_MT6795
+	help
+	  This driver supports MediaTek MT6795 mfgcfg clocks.
+
+config COMMON_CLK_MT6795_MMSYS
+       tristate "Clock driver for MediaTek MT6795 mmsys"
+       depends on COMMON_CLK_MT6795
+	default COMMON_CLK_MT6795
+       help
+         This driver supports MediaTek MT6795 mmsys clocks.
+
+config COMMON_CLK_MT6795_VDECSYS
+	tristate "Clock driver for MediaTek MT6795 VDECSYS"
+	depends on COMMON_CLK_MT6795
+	default COMMON_CLK_MT6795
+	help
+	  This driver supports MediaTek MT6795 vdecsys clocks.
+
+config COMMON_CLK_MT6795_VENCSYS
+	tristate "Clock driver for MediaTek MT6795 VENCSYS"
+	depends on COMMON_CLK_MT6795
+	default COMMON_CLK_MT6795
+	help
+	  This driver supports MediaTek MT6795 vencsys clocks.
+
 config COMMON_CLK_MT6797
 	bool "Clock driver for MediaTek MT6797"
 	depends on (ARCH_MEDIATEK && ARM64) || COMPILE_TEST
