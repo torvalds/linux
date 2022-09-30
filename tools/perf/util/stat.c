@@ -389,12 +389,8 @@ process_counter_values(struct perf_stat_config *config, struct evsel *evsel,
 		}
 
 		if (config->aggr_mode == AGGR_THREAD) {
-			if (config->stats)
-				perf_stat__update_shadow_stats(evsel,
-					count->val, 0, &config->stats[thread]);
-			else
-				perf_stat__update_shadow_stats(evsel,
-					count->val, 0, &rt_stat);
+			perf_stat__update_shadow_stats(evsel, count->val,
+						       thread, &rt_stat);
 		}
 		break;
 	case AGGR_GLOBAL:

@@ -442,7 +442,7 @@ static void print_metric_header(struct perf_stat_config *config,
 		fprintf(os->fh, "%*s ", config->metric_only_len, unit);
 }
 
-static int first_shadow_cpu_map_idx(struct perf_stat_config *config,
+static int first_shadow_map_idx(struct perf_stat_config *config,
 				struct evsel *evsel, const struct aggr_cpu_id *id)
 {
 	struct perf_cpu_map *cpus = evsel__cpus(evsel);
@@ -451,6 +451,9 @@ static int first_shadow_cpu_map_idx(struct perf_stat_config *config,
 
 	if (config->aggr_mode == AGGR_NONE)
 		return perf_cpu_map__idx(cpus, id->cpu);
+
+	if (config->aggr_mode == AGGR_THREAD)
+		return id->thread;
 
 	if (!config->aggr_get_id)
 		return 0;
@@ -646,7 +649,7 @@ static void printout(struct perf_stat_config *config, struct aggr_cpu_id id, int
 	}
 
 	perf_stat__print_shadow_stats(config, counter, uval,
-				first_shadow_cpu_map_idx(config, counter, &id),
+				first_shadow_map_idx(config, counter, &id),
 				&out, &config->metric_events, st);
 	if (!config->csv_output && !config->metric_only && !config->json_output) {
 		print_noise(config, counter, noise);
@@ -676,7 +679,7 @@ static void aggr_update_shadow(struct perf_stat_config *config,
 				val += perf_counts(counter->counts, idx, 0)->val;
 			}
 			perf_stat__update_shadow_stats(counter, val,
-					first_shadow_cpu_map_idx(config, counter, &id),
+					first_shadow_map_idx(config, counter, &id),
 					&rt_stat);
 		}
 	}
@@ -979,14 +982,9 @@ static void print_aggr_thread(struct perf_stat_config *config,
 			fprintf(output, "%s", prefix);
 
 		id = buf[thread].id;
-		if (config->stats)
-			printout(config, id, 0, buf[thread].counter, buf[thread].uval,
-				 prefix, buf[thread].run, buf[thread].ena, 1.0,
-				 &config->stats[id.thread]);
-		else
-			printout(config, id, 0, buf[thread].counter, buf[thread].uval,
-				 prefix, buf[thread].run, buf[thread].ena, 1.0,
-				 &rt_stat);
+		printout(config, id, 0, buf[thread].counter, buf[thread].uval,
+			 prefix, buf[thread].run, buf[thread].ena, 1.0,
+			 &rt_stat);
 		fputc('\n', output);
 	}
 

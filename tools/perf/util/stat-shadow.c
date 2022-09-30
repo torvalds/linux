@@ -33,7 +33,7 @@ struct saved_value {
 	struct evsel *evsel;
 	enum stat_type type;
 	int ctx;
-	int map_idx;  /* cpu map index */
+	int map_idx;  /* cpu or thread map index */
 	struct cgroup *cgrp;
 	struct runtime_stat *stat;
 	struct stats stats;
