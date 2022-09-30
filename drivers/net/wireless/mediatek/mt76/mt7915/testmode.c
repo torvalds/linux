@@ -447,15 +447,10 @@ mt7915_tm_set_tx_frames(struct mt7915_phy *phy, bool en)
 	if (en) {
 		mt7915_tm_update_channel(phy);
 
-		if (td->tx_spe_idx) {
+		if (td->tx_spe_idx)
 			phy->test.spe_idx = td->tx_spe_idx;
-		} else {
-			u8 tx_ant = td->tx_antenna_mask;
-
-			if (phy != &dev->phy)
-				tx_ant >>= dev->chainshift;
-			phy->test.spe_idx = spe_idx_map[tx_ant];
-		}
+		else
+			phy->test.spe_idx = spe_idx_map[td->tx_antenna_mask];
 	}
 
 	mt7915_tm_set_tam_arb(phy, en,
@@ -696,7 +691,9 @@ mt7915_tm_set_params(struct mt76_phy *mphy, struct nlattr **tb,
 {
 	struct mt76_testmode_data *td = &mphy->test;
 	struct mt7915_phy *phy = mphy->priv;
-	u32 changed = 0;
+	struct mt7915_dev *dev = phy->dev;
+	u32 chainmask = mphy->chainmask, changed = 0;
+	bool ext_phy = phy != &dev->phy;
 	int i;
 
 	BUILD_BUG_ON(NUM_TM_CHANGED >= 32);
@@ -705,7 +702,8 @@ mt7915_tm_set_params(struct mt76_phy *mphy, struct nlattr **tb,
 	    td->state == MT76_TM_STATE_OFF)
 		return 0;
 
-	if (td->tx_antenna_mask & ~mphy->chainmask)
+	chainmask = ext_phy ? chainmask >> dev->chainshift : chainmask;
+	if (td->tx_antenna_mask > chainmask)
 		return -EINVAL;
 
 	for (i = 0; i < ARRAY_SIZE(tm_change_map); i++) {

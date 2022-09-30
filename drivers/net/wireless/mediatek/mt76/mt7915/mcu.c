@@ -2642,14 +2642,9 @@ int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)
 
 #ifdef CONFIG_NL80211_TESTMODE
 	if (phy->mt76->test.tx_antenna_mask &&
-	    (phy->mt76->test.state == MT76_TM_STATE_TX_FRAMES ||
-	     phy->mt76->test.state == MT76_TM_STATE_RX_FRAMES ||
-	     phy->mt76->test.state == MT76_TM_STATE_TX_CONT)) {
+	    mt76_testmode_enabled(phy->mt76)) {
 		req.tx_path_num = fls(phy->mt76->test.tx_antenna_mask);
 		req.rx_path = phy->mt76->test.tx_antenna_mask;
-
-		if (phy != &dev->phy)
-			req.rx_streams >>= dev->chainshift;
 	}
 #endif
 
