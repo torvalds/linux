@@ -700,13 +700,13 @@ mt7915_init_hardware(struct mt7915_dev *dev, struct mt7915_phy *phy2)
 
 void mt7915_set_stream_vht_txbf_caps(struct mt7915_phy *phy)
 {
-	int nss;
+	int sts;
 	u32 *cap;
 
 	if (!phy->mt76->cap.has_5ghz)
 		return;
 
-	nss = hweight8(phy->mt76->chainmask);
+	sts = hweight8(phy->mt76->chainmask);
 	cap = &phy->mt76->sband_5g.sband.vht_cap.cap;
 
 	*cap |= IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE |
@@ -717,28 +717,27 @@ void mt7915_set_stream_vht_txbf_caps(struct mt7915_phy *phy)
 		  IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE |
 		  IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE);
 
-	if (nss < 2)
+	if (sts < 2)
 		return;
 
 	*cap |= IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE |
 		IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE |
 		FIELD_PREP(IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK,
-			   nss - 1);
+			   sts - 1);
 }
 
 static void
-mt7915_set_stream_he_txbf_caps(struct mt7915_dev *dev,
-			       struct ieee80211_sta_he_cap *he_cap,
-			       int vif, int nss)
+mt7915_set_stream_he_txbf_caps(struct mt7915_phy *phy,
+			       struct ieee80211_sta_he_cap *he_cap, int vif)
 {
+	struct mt7915_dev *dev = phy->dev;
 	struct ieee80211_he_cap_elem *elem = &he_cap->he_cap_elem;
-	u8 c, nss_160;
+	int sts = hweight8(phy->mt76->chainmask);
+	u8 c, sts_160 = sts;
 
-	/* Can do 1/2 of NSS streams in 160Mhz mode for mt7915 */
+	/* Can do 1/2 of STS in 160Mhz mode for mt7915 */
 	if (is_mt7915(&dev->mt76) && !dev->dbdc_support)
-		nss_160 = nss / 2;
-	else
-		nss_160 = nss;
+		sts_160 /= 2;
 
 #ifdef CONFIG_MAC80211_MESH
 	if (vif == NL80211_IFTYPE_MESH_POINT)
@@ -778,11 +777,11 @@ mt7915_set_stream_he_txbf_caps(struct mt7915_dev *dev,
 
 	elem->phy_cap_info[6] |= c;
 
-	if (nss < 2)
+	if (sts < 2)
 		return;
 
 	/* the maximum cap is 4 x 3, (Nr, Nc) = (3, 2) */
-	elem->phy_cap_info[7] |= min_t(int, nss - 1, 2) << 3;
+	elem->phy_cap_info[7] |= min_t(int, sts - 1, 2) << 3;
 
 	if (vif != NL80211_IFTYPE_AP)
 		return;
@@ -791,12 +790,12 @@ mt7915_set_stream_he_txbf_caps(struct mt7915_dev *dev,
 	elem->phy_cap_info[4] |= IEEE80211_HE_PHY_CAP4_MU_BEAMFORMER;
 
 	/* num_snd_dim
-	 * for mt7915, max supported nss is 2 for bw > 80MHz
+	 * for mt7915, max supported sts is 2 for bw > 80MHz
 	 */
 	c = FIELD_PREP(IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_UNDER_80MHZ_MASK,
-		       nss - 1) |
+		       sts - 1) |
 	    FIELD_PREP(IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_ABOVE_80MHZ_MASK,
-		       nss_160 - 1);
+		       sts_160 - 1);
 	elem->phy_cap_info[5] |= c;
 
 	c = IEEE80211_HE_PHY_CAP6_TRIG_SU_BEAMFORMING_FB |
@@ -836,7 +835,7 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
 		    struct ieee80211_sband_iftype_data *data)
 {
 	struct mt7915_dev *dev = phy->dev;
-	int i, idx = 0, nss = hweight8(phy->mt76->chainmask);
+	int i, idx = 0, nss = hweight8(phy->mt76->antenna_mask);
 	u16 mcs_map = 0;
 	u16 mcs_map_160 = 0;
 	u8 nss_160;
@@ -969,7 +968,7 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
 		he_mcs->rx_mcs_80p80 = cpu_to_le16(mcs_map_160);
 		he_mcs->tx_mcs_80p80 = cpu_to_le16(mcs_map_160);
 
-		mt7915_set_stream_he_txbf_caps(dev, he_cap, i, nss);
+		mt7915_set_stream_he_txbf_caps(phy, he_cap, i);
 
 		memset(he_cap->ppe_thres, 0, sizeof(he_cap->ppe_thres));
 		if (he_cap_elem->phy_cap_info[6] &

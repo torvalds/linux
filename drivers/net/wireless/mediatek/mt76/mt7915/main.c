@@ -953,7 +953,7 @@ mt7915_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 	struct mt7915_dev *dev = mt7915_hw_dev(hw);
 	struct mt7915_phy *phy = mt7915_hw_phy(hw);
 	int max_nss = hweight8(hw->wiphy->available_antennas_tx);
-	bool ext_phy = phy != &dev->phy;
+	u8 chainshift = dev->chainshift;
 
 	if (!tx_ant || tx_ant != rx_ant || ffs(tx_ant) > max_nss)
 		return -EINVAL;
@@ -965,10 +965,11 @@ mt7915_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 
 	phy->mt76->antenna_mask = tx_ant;
 
-	if (ext_phy)
-		tx_ant <<= dev->chainshift;
-
-	phy->mt76->chainmask = tx_ant;
+	/* handle a variant of mt7916 which has 3T3R but nss2 on 5 GHz band */
+	if (is_mt7916(&dev->mt76) && phy->band_idx && hweight8(tx_ant) == max_nss)
+		phy->mt76->chainmask = (dev->chainmask >> chainshift) << chainshift;
+	else
+		phy->mt76->chainmask = tx_ant << (chainshift * phy->band_idx);
 
 	mt76_set_stream_caps(phy->mt76, true);
 	mt7915_set_stream_vht_txbf_caps(phy);
