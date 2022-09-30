@@ -962,7 +962,7 @@ static void dw_mipi_dsi2_loader_protect(struct dw_mipi_dsi2 *dsi2, bool on)
 		dw_mipi_dsi2_loader_protect(dsi2->slave, on);
 }
 
-static void dw_mipi_dsi2_encoder_loader_protect(struct drm_encoder *encoder,
+static int dw_mipi_dsi2_encoder_loader_protect(struct drm_encoder *encoder,
 					      bool on)
 {
 	struct dw_mipi_dsi2 *dsi2 = encoder_to_dsi2(encoder);
@@ -971,6 +971,8 @@ static void dw_mipi_dsi2_encoder_loader_protect(struct drm_encoder *encoder,
 		panel_simple_loader_protect(dsi2->panel);
 
 	dw_mipi_dsi2_loader_protect(dsi2, on);
+
+	return 0;
 }
 
 static const struct drm_encoder_helper_funcs

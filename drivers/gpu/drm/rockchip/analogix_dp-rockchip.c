@@ -232,25 +232,35 @@ static int rockchip_dp_get_modes(struct analogix_dp_plat_data *plat_data,
 	return 0;
 }
 
-static void rockchip_dp_loader_protect(struct drm_encoder *encoder, bool on)
+static int rockchip_dp_loader_protect(struct drm_encoder *encoder, bool on)
 {
 	struct rockchip_dp_device *dp = to_dp(encoder);
 	struct analogix_dp_plat_data *plat_data = &dp->plat_data;
+	struct rockchip_dp_device *secondary = NULL;
+	int ret;
 
 	if (plat_data->right) {
-		struct rockchip_dp_device *secondary =
-				rockchip_dp_find_by_id(dp->dev->driver, !dp->id);
+		secondary = rockchip_dp_find_by_id(dp->dev->driver, !dp->id);
 
-		rockchip_dp_loader_protect(&secondary->encoder, on);
+		ret = rockchip_dp_loader_protect(&secondary->encoder, on);
+		if (ret)
+			return ret;
 	}
 
 	if (!on)
-		return;
+		return 0;
 
 	if (plat_data->panel)
 		panel_simple_loader_protect(plat_data->panel);
 
-	analogix_dp_loader_protect(dp->adp);
+	ret = analogix_dp_loader_protect(dp->adp);
+	if (ret) {
+		if (secondary)
+			analogix_dp_disable(secondary->adp);
+		return ret;
+	}
+
+	return 0;
 }
 
 static bool rockchip_dp_skip_connector(struct drm_bridge *bridge)

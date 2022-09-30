@@ -308,8 +308,8 @@ rockchip_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
-static void rockchip_rgb_encoder_loader_protect(struct drm_encoder *encoder,
-						bool on)
+static int rockchip_rgb_encoder_loader_protect(struct drm_encoder *encoder,
+					       bool on)
 {
 	struct rockchip_rgb *rgb = encoder_to_rgb(encoder);
 
@@ -319,11 +319,13 @@ static void rockchip_rgb_encoder_loader_protect(struct drm_encoder *encoder,
 		mcu_panel->prepared = true;
 		mcu_panel->enabled = true;
 
-		return;
+		return 0;
 	}
 
 	if (rgb->panel)
 		panel_simple_loader_protect(rgb->panel);
+
+	return 0;
 }
 
 static enum drm_mode_status

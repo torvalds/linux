@@ -1714,6 +1714,12 @@ static void analogix_dp_bridge_disable(struct drm_bridge *bridge)
 	dp->dpms_mode = DRM_MODE_DPMS_OFF;
 }
 
+void analogix_dp_disable(struct analogix_dp_device *dp)
+{
+	analogix_dp_bridge_disable(&dp->bridge);
+}
+EXPORT_SYMBOL_GPL(analogix_dp_disable);
+
 static void
 analogix_dp_bridge_atomic_disable(struct drm_bridge *bridge,
 				  struct drm_bridge_state *old_bridge_state)
@@ -2105,15 +2111,19 @@ int analogix_dp_loader_protect(struct analogix_dp_device *dp)
 
 	ret = analogix_dp_fast_link_train_detection(dp);
 	if (ret)
-		return ret;
+		goto err_disable;
 
 	if (analogix_dp_detect_sink_psr(dp)) {
 		ret = analogix_dp_enable_sink_psr(dp);
 		if (ret)
-			return ret;
+			goto err_disable;
 	}
 
 	return 0;
+
+err_disable:
+	analogix_dp_disable(dp);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(analogix_dp_loader_protect);
 

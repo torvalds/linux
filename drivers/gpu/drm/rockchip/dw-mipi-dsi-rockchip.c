@@ -830,7 +830,7 @@ static void dw_mipi_dsi_rockchip_loader_protect(struct dw_mipi_dsi_rockchip *dsi
 		dw_mipi_dsi_rockchip_loader_protect(dsi->slave, on);
 }
 
-static void dw_mipi_dsi_rockchip_encoder_loader_protect(struct drm_encoder *encoder,
+static int dw_mipi_dsi_rockchip_encoder_loader_protect(struct drm_encoder *encoder,
 					      bool on)
 {
 	struct dw_mipi_dsi_rockchip *dsi = to_dsi(encoder);
@@ -839,6 +839,8 @@ static void dw_mipi_dsi_rockchip_encoder_loader_protect(struct drm_encoder *enco
 		panel_simple_loader_protect(dsi->panel);
 
 	dw_mipi_dsi_rockchip_loader_protect(dsi, on);
+
+	return 0;
 }
 
 static const struct drm_encoder_helper_funcs

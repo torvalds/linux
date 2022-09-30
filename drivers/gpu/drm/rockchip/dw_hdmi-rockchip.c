@@ -1573,7 +1573,7 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 		      ret ? "LIT" : "BIG");
 }
 
-static void dw_hdmi_rockchip_encoder_loader_protect(struct drm_encoder *encoder,
+static int dw_hdmi_rockchip_encoder_loader_protect(struct drm_encoder *encoder,
 						    bool on)
 {
 	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
@@ -1584,7 +1584,7 @@ static void dw_hdmi_rockchip_encoder_loader_protect(struct drm_encoder *encoder,
 			ret = clk_prepare_enable(hdmi->link_clk);
 			if (ret < 0) {
 				DRM_DEV_ERROR(hdmi->dev, "failed to enable link_clk %d\n", ret);
-				return;
+				return ret;
 			}
 		}
 
@@ -1593,6 +1593,8 @@ static void dw_hdmi_rockchip_encoder_loader_protect(struct drm_encoder *encoder,
 		clk_disable_unprepare(hdmi->link_clk);
 		hdmi->phy->power_count--;
 	}
+
+	return 0;
 }
 
 static void rk3588_set_link_mode(struct rockchip_hdmi *hdmi)

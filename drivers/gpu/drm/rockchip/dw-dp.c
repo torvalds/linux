@@ -2106,13 +2106,15 @@ static void _dw_dp_loader_protect(struct dw_dp *dp, bool on)
 	}
 }
 
-static void dw_dp_loader_protect(struct drm_encoder *encoder, bool on)
+static int dw_dp_loader_protect(struct drm_encoder *encoder, bool on)
 {
 	struct dw_dp *dp = encoder_to_dp(encoder);
 
 	_dw_dp_loader_protect(dp, on);
 	if (dp->right)
 		_dw_dp_loader_protect(dp->right, on);
+
+	return 0;
 }
 
 static int dw_dp_connector_init(struct dw_dp *dp)

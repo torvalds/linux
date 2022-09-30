@@ -90,7 +90,7 @@ struct rockchip_drm_sub_dev {
 	struct list_head list;
 	struct drm_connector *connector;
 	struct device_node *of_node;
-	void (*loader_protect)(struct drm_encoder *encoder, bool on);
+	int (*loader_protect)(struct drm_encoder *encoder, bool on);
 	void (*oob_hotplug_event)(struct drm_connector *connector);
 	void (*update_vfp_for_vrr)(struct drm_connector *connector, struct drm_display_mode *mode,
 				   int vfp);
