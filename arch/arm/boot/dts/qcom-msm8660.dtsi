@@ -316,7 +316,7 @@
 			};
 		};
 
-		external-bus@1a100000 {
+		ebi2: external-bus@1a100000 {
 			compatible = "qcom,msm8660-ebi2";
 			#address-cells = <2>;
 			#size-cells = <1>;
@@ -359,12 +359,6 @@
 
 				};
 
-				pm8058_led48: led@48 {
-					compatible = "qcom,pm8058-keypad-led";
-					reg = <0x48>;
-					status = "disabled";
-				};
-
 				pm8058_mpps: mpps@50 {
 					compatible = "qcom,pm8058-mpp",
 						     "qcom,ssbi-mpp";
@@ -383,24 +377,6 @@
 					interrupts = <50 1>, <51 1>;
 					debounce = <15625>;
 					pull-up;
-				};
-
-				pm8058_led131: led@131 {
-					compatible = "qcom,pm8058-led";
-					reg = <0x131>;
-					status = "disabled";
-				};
-
-				pm8058_led132: led@132 {
-					compatible = "qcom,pm8058-led";
-					reg = <0x132>;
-					status = "disabled";
-				};
-
-				pm8058_led133: led@133 {
-					compatible = "qcom,pm8058-led";
-					reg = <0x133>;
-					status = "disabled";
 				};
 
 				pm8058_keypad: keypad@148 {
@@ -468,6 +444,31 @@
 					compatible = "qcom,pm8058-vib";
 					reg = <0x4a>;
 				};
+
+				pm8058_led48: led@48 {
+					compatible = "qcom,pm8058-keypad-led";
+					reg = <0x48>;
+					status = "disabled";
+				};
+
+				pm8058_led131: led@131 {
+					compatible = "qcom,pm8058-led";
+					reg = <0x131>;
+					status = "disabled";
+				};
+
+				pm8058_led132: led@132 {
+					compatible = "qcom,pm8058-led";
+					reg = <0x132>;
+					status = "disabled";
+				};
+
+				pm8058_led133: led@133 {
+					compatible = "qcom,pm8058-led";
+					reg = <0x133>;
+					status = "disabled";
+				};
+
 			};
 		};
 
