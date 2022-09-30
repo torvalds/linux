@@ -29,8 +29,6 @@ Currently, these files are in /proc/sys/fs:
 - aio-max-nr
 - aio-nr
 - dentry-state
-- dquot-max
-- dquot-nr
 - file-max
 - file-nr
 - inode-nr
@@ -88,20 +86,6 @@ nr_negative shows the number of unused dentries that are also
 negative dentries which do not map to any files. Instead,
 they help speeding up rejection of non-existing files provided
 by the users.
-
-
-dquot-max & dquot-nr
---------------------
-
-The file dquot-max shows the maximum number of cached disk
-quota entries.
-
-The file dquot-nr shows the number of allocated disk quota
-entries and the number of free disk quota entries.
-
-If the number of free cached disk quotas is very low and
-you have some awesome number of simultaneous system users,
-you might want to raise the limit.
 
 
 file-max & file-nr
