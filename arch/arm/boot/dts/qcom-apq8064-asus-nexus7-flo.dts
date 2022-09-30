@@ -30,7 +30,7 @@
 		};
 	};
 
-	ext_3p3v: regulator-fixed@1 {
+	ext_3p3v: regulator-ext-3p3v {
 		compatible = "regulator-fixed";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
