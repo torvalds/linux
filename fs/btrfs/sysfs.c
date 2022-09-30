@@ -1160,16 +1160,16 @@ static ssize_t btrfs_read_policy_show(struct kobject *kobj,
 
 	for (i = 0; i < BTRFS_NR_READ_POLICY; i++) {
 		if (fs_devices->read_policy == i)
-			ret += scnprintf(buf + ret, PAGE_SIZE - ret, "%s[%s]",
+			ret += sysfs_emit_at(buf, ret, "%s[%s]",
 					 (ret == 0 ? "" : " "),
 					 btrfs_read_policy_name[i]);
 		else
-			ret += scnprintf(buf + ret, PAGE_SIZE - ret, "%s%s",
+			ret += sysfs_emit_at(buf, ret, "%s%s",
 					 (ret == 0 ? "" : " "),
 					 btrfs_read_policy_name[i]);
 	}
 
-	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "\n");
+	ret += sysfs_emit_at(buf, ret, "\n");
 
 	return ret;
 }
