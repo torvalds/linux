@@ -8,6 +8,46 @@
 
 /* RX data path */
 
+int mlx5e_xsk_alloc_rx_wqes_batched(struct mlx5e_rq *rq, u16 ix, int wqe_bulk)
+{
+	struct mlx5_wq_cyc *wq = &rq->wqe.wq;
+	struct xdp_buff **buffs;
+	u32 contig, alloc;
+	int i;
+
+	/* mlx5e_init_frags_partition creates a 1:1 mapping between
+	 * rq->wqe.frags and rq->wqe.alloc_units, which allows us to
+	 * allocate XDP buffers straight into alloc_units.
+	 */
+	BUILD_BUG_ON(sizeof(rq->wqe.alloc_units[0]) !=
+		     sizeof(rq->wqe.alloc_units[0].xsk));
+	buffs = (struct xdp_buff **)rq->wqe.alloc_units;
+	contig = mlx5_wq_cyc_get_size(wq) - ix;
+	if (wqe_bulk <= contig) {
+		alloc = xsk_buff_alloc_batch(rq->xsk_pool, buffs + ix, wqe_bulk);
+	} else {
+		alloc = xsk_buff_alloc_batch(rq->xsk_pool, buffs + ix, contig);
+		if (likely(alloc == contig))
+			alloc += xsk_buff_alloc_batch(rq->xsk_pool, buffs, wqe_bulk - contig);
+	}
+
+	for (i = 0; i < alloc; i++) {
+		int j = mlx5_wq_cyc_ctr2ix(wq, ix + i);
+		struct mlx5e_wqe_frag_info *frag;
+		struct mlx5e_rx_wqe_cyc *wqe;
+		dma_addr_t addr;
+
+		wqe = mlx5_wq_cyc_get_wqe(wq, j);
+		/* Assumes log_num_frags == 0. */
+		frag = &rq->wqe.frags[j];
+
+		addr = xsk_buff_xdp_get_frame_dma(frag->au->xsk);
+		wqe->data[0].addr = cpu_to_be64(addr + rq->buff.headroom);
+	}
+
+	return alloc;
+}
+
 int mlx5e_xsk_alloc_rx_wqes(struct mlx5e_rq *rq, u16 ix, int wqe_bulk)
 {
 	struct mlx5_wq_cyc *wq = &rq->wqe.wq;

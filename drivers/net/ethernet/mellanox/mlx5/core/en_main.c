@@ -433,6 +433,13 @@ static void mlx5e_init_frags_partition(struct mlx5e_rq *rq)
 	struct mlx5e_wqe_frag_info *prev = NULL;
 	int i;
 
+	if (rq->xsk_pool) {
+		/* Assumptions used by XSK batched allocator. */
+		WARN_ON(rq->wqe.info.num_frags != 1);
+		WARN_ON(rq->wqe.info.log_num_frags != 0);
+		WARN_ON(rq->wqe.info.arr[0].frag_stride != PAGE_SIZE);
+	}
+
 	next_frag.au = &rq->wqe.alloc_units[0];
 
 	for (i = 0; i < mlx5_wq_cyc_get_size(&rq->wqe.wq); i++) {

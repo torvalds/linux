@@ -827,7 +827,14 @@ INDIRECT_CALLABLE_SCOPE bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 
 	if (!rq->xsk_pool)
 		count = mlx5e_alloc_rx_wqes(rq, head, wqe_bulk);
+	else if (likely(!rq->xsk_pool->dma_need_sync))
+		count = mlx5e_xsk_alloc_rx_wqes_batched(rq, head, wqe_bulk);
 	else
+		/* If dma_need_sync is true, it's more efficient to call
+		 * xsk_buff_alloc in a loop, rather than xsk_buff_alloc_batch,
+		 * because the latter does the same check and returns only one
+		 * frame.
+		 */
 		count = mlx5e_xsk_alloc_rx_wqes(rq, head, wqe_bulk);
 
 	mlx5_wq_cyc_push_n(wq, count);
