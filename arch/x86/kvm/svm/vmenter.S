@@ -32,9 +32,69 @@
 
 .section .noinstr.text, "ax"
 
+.macro RESTORE_GUEST_SPEC_CTRL
+	/* No need to do anything if SPEC_CTRL is unset or V_SPEC_CTRL is set */
+	ALTERNATIVE_2 "", \
+		"jmp 800f", X86_FEATURE_MSR_SPEC_CTRL, \
+		"", X86_FEATURE_V_SPEC_CTRL
+801:
+.endm
+.macro RESTORE_GUEST_SPEC_CTRL_BODY
+800:
+	/*
+	 * SPEC_CTRL handling: if the guest's SPEC_CTRL value differs from the
+	 * host's, write the MSR.  This is kept out-of-line so that the common
+	 * case does not have to jump.
+	 *
+	 * IMPORTANT: To avoid RSB underflow attacks and any other nastiness,
+	 * there must not be any returns or indirect branches between this code
+	 * and vmentry.
+	 */
+	movl SVM_spec_ctrl(%_ASM_DI), %eax
+	cmp PER_CPU_VAR(x86_spec_ctrl_current), %eax
+	je 801b
+	mov $MSR_IA32_SPEC_CTRL, %ecx
+	xor %edx, %edx
+	wrmsr
+	jmp 801b
+.endm
+
+.macro RESTORE_HOST_SPEC_CTRL
+	/* No need to do anything if SPEC_CTRL is unset or V_SPEC_CTRL is set */
+	ALTERNATIVE_2 "", \
+		"jmp 900f", X86_FEATURE_MSR_SPEC_CTRL, \
+		"", X86_FEATURE_V_SPEC_CTRL
+901:
+.endm
+.macro RESTORE_HOST_SPEC_CTRL_BODY
+900:
+	/* Same for after vmexit.  */
+	mov $MSR_IA32_SPEC_CTRL, %ecx
+
+	/*
+	 * Load the value that the guest had written into MSR_IA32_SPEC_CTRL,
+	 * if it was not intercepted during guest execution.
+	 */
+	cmpb $0, (%_ASM_SP)
+	jnz 998f
+	rdmsr
+	movl %eax, SVM_spec_ctrl(%_ASM_DI)
+998:
+
+	/* Now restore the host value of the MSR if different from the guest's.  */
+	movl PER_CPU_VAR(x86_spec_ctrl_current), %eax
+	cmp SVM_spec_ctrl(%_ASM_DI), %eax
+	je 901b
+	xor %edx, %edx
+	wrmsr
+	jmp 901b
+.endm
+
+
 /**
  * __svm_vcpu_run - Run a vCPU via a transition to SVM guest mode
  * @svm:	struct vcpu_svm *
+ * @spec_ctrl_intercepted: bool
  */
 SYM_FUNC_START(__svm_vcpu_run)
 	push %_ASM_BP
@@ -54,16 +114,25 @@ SYM_FUNC_START(__svm_vcpu_run)
 	 * order compared to when they are needed.
 	 */
 
+	/* Accessed directly from the stack in RESTORE_HOST_SPEC_CTRL.  */
+	push %_ASM_ARG2
+
 	/* Needed to restore access to percpu variables.  */
 	__ASM_SIZE(push) PER_CPU_VAR(svm_data + SD_save_area_pa)
 
-	/* Save @svm. */
+	/* Finally save @svm. */
 	push %_ASM_ARG1
 
 .ifnc _ASM_ARG1, _ASM_DI
-	/* Move @svm to RDI. */
+	/*
+	 * Stash @svm in RDI early. On 32-bit, arguments are in RAX, RCX
+	 * and RDX which are clobbered by RESTORE_GUEST_SPEC_CTRL.
+	 */
 	mov %_ASM_ARG1, %_ASM_DI
 .endif
+
+	/* Clobbers RAX, RCX, RDX.  */
+	RESTORE_GUEST_SPEC_CTRL
 
 	/*
 	 * Use a single vmcb (vmcb01 because it's always valid) for
@@ -142,6 +211,9 @@ SYM_FUNC_START(__svm_vcpu_run)
 	FILL_RETURN_BUFFER %_ASM_AX, RSB_CLEAR_LOOPS, X86_FEATURE_RETPOLINE
 #endif
 
+	/* Clobbers RAX, RCX, RDX.  */
+	RESTORE_HOST_SPEC_CTRL
+
 	/*
 	 * Mitigate RETBleed for AMD/Hygon Zen uarch. RET should be
 	 * untrained as soon as we exit the VM and are back to the
@@ -177,6 +249,9 @@ SYM_FUNC_START(__svm_vcpu_run)
 	xor %r15d, %r15d
 #endif
 
+	/* "Pop" @spec_ctrl_intercepted.  */
+	pop %_ASM_BX
+
 	pop %_ASM_BX
 
 #ifdef CONFIG_X86_64
@@ -190,6 +265,9 @@ SYM_FUNC_START(__svm_vcpu_run)
 #endif
 	pop %_ASM_BP
 	RET
+
+	RESTORE_GUEST_SPEC_CTRL_BODY
+	RESTORE_HOST_SPEC_CTRL_BODY
 
 10:	cmpb $0, kvm_rebooting
 	jne 2b
@@ -214,6 +292,7 @@ SYM_FUNC_END(__svm_vcpu_run)
 /**
  * __svm_sev_es_vcpu_run - Run a SEV-ES vCPU via a transition to SVM guest mode
  * @svm:	struct vcpu_svm *
+ * @spec_ctrl_intercepted: bool
  */
 SYM_FUNC_START(__svm_sev_es_vcpu_run)
 	push %_ASM_BP
@@ -228,8 +307,30 @@ SYM_FUNC_START(__svm_sev_es_vcpu_run)
 #endif
 	push %_ASM_BX
 
+	/*
+	 * Save variables needed after vmexit on the stack, in inverse
+	 * order compared to when they are needed.
+	 */
+
+	/* Accessed directly from the stack in RESTORE_HOST_SPEC_CTRL.  */
+	push %_ASM_ARG2
+
+	/* Save @svm. */
+	push %_ASM_ARG1
+
+.ifnc _ASM_ARG1, _ASM_DI
+	/*
+	 * Stash @svm in RDI early. On 32-bit, arguments are in RAX, RCX
+	 * and RDX which are clobbered by RESTORE_GUEST_SPEC_CTRL.
+	 */
+	mov %_ASM_ARG1, %_ASM_DI
+.endif
+
+	/* Clobbers RAX, RCX, RDX.  */
+	RESTORE_GUEST_SPEC_CTRL
+
 	/* Get svm->current_vmcb->pa into RAX. */
-	mov SVM_current_vmcb(%_ASM_ARG1), %_ASM_AX
+	mov SVM_current_vmcb(%_ASM_DI), %_ASM_AX
 	mov KVM_VMCB_pa(%_ASM_AX), %_ASM_AX
 
 	/* Enter guest mode */
@@ -239,10 +340,16 @@ SYM_FUNC_START(__svm_sev_es_vcpu_run)
 
 2:	cli
 
+	/* Pop @svm to RDI, guest registers have been saved already. */
+	pop %_ASM_DI
+
 #ifdef CONFIG_RETPOLINE
 	/* IMPORTANT: Stuff the RSB immediately after VM-Exit, before RET! */
 	FILL_RETURN_BUFFER %_ASM_AX, RSB_CLEAR_LOOPS, X86_FEATURE_RETPOLINE
 #endif
+
+	/* Clobbers RAX, RCX, RDX.  */
+	RESTORE_HOST_SPEC_CTRL
 
 	/*
 	 * Mitigate RETBleed for AMD/Hygon Zen uarch. RET should be
@@ -252,6 +359,9 @@ SYM_FUNC_START(__svm_sev_es_vcpu_run)
 	 * from the kernel.
 	 */
 	UNTRAIN_RET
+
+	/* "Pop" @spec_ctrl_intercepted.  */
+	pop %_ASM_BX
 
 	pop %_ASM_BX
 
@@ -266,6 +376,9 @@ SYM_FUNC_START(__svm_sev_es_vcpu_run)
 #endif
 	pop %_ASM_BP
 	RET
+
+	RESTORE_GUEST_SPEC_CTRL_BODY
+	RESTORE_HOST_SPEC_CTRL_BODY
 
 3:	cmpb $0, kvm_rebooting
 	jne 2b
