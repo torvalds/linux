@@ -273,6 +273,9 @@ static int rtw8852c_pwr_on_func(struct rtw89_dev *rtwdev)
 			  B_AX_CMAC_DMA_EN | B_AX_PTCLTOP_EN | B_AX_SCHEDULER_EN |
 			  B_AX_TMAC_EN | B_AX_RMAC_EN);
 
+	rtw89_write32_mask(rtwdev, R_AX_LED1_FUNC_SEL, B_AX_PINMUX_EESK_FUNC_SEL_V1_MASK,
+			   PINMUX_EESK_FUNC_SEL_BT_LOG);
+
 	return 0;
 }
 
