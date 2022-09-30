@@ -207,8 +207,11 @@ echo -e "\t trying to offline $target out of $hotpluggable_num memory block(s):"
 for memory in `hotpluggable_online_memory`; do
 	if [ "$target" -gt 0 ]; then
 		echo "online->offline memory$memory"
-		if offline_memory_expect_success $memory; then
+		if offline_memory_expect_success $memory &>/dev/null; then
 			target=$(($target - 1))
+			echo "-> Success"
+		else
+			echo "-> Failure"
 		fi
 	fi
 done
@@ -267,7 +270,7 @@ prerequisite_extra
 echo 0 > $NOTIFIER_ERR_INJECT_DIR/actions/MEM_GOING_OFFLINE/error
 for memory in `hotpluggable_online_memory`; do
 	if [ $((RANDOM % 100)) -lt $ratio ]; then
-		offline_memory_expect_success $memory
+		offline_memory_expect_success $memory &>/dev/null
 	fi
 done
 
