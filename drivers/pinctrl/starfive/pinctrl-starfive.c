@@ -22,10 +22,10 @@
 
 #include <dt-bindings/pinctrl/pinctrl-starfive.h>
 
-#include "core.h"
-#include "pinctrl-utils.h"
-#include "pinmux.h"
-#include "pinconf.h"
+#include "../core.h"
+#include "../pinctrl-utils.h"
+#include "../pinmux.h"
+#include "../pinconf.h"
 
 #define DRIVER_NAME "pinctrl-starfive"
 
