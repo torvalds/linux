@@ -20,13 +20,13 @@
 #include "internal.h"
 
 static const struct acpi_device_id forbidden_id_list[] = {
+	{"ACPI0009", 0},	/* IOxAPIC */
+	{"ACPI000A", 0},	/* IOAPIC */
 	{"PNP0000",  0},	/* PIC */
 	{"PNP0100",  0},	/* Timer */
 	{"PNP0200",  0},	/* AT DMA Controller */
-	{"ACPI0009", 0},	/* IOxAPIC */
-	{"ACPI000A", 0},	/* IOAPIC */
 	{"SMB0001",  0},	/* ACPI SMBUS virtual device */
-	{"", 0},
+	{ }
 };
 
 static struct platform_device *acpi_platform_device_find_by_companion(struct acpi_device *adev)
@@ -114,13 +114,11 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 
 	INIT_LIST_HEAD(&resource_list);
 	count = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);
-	if (count < 0) {
+	if (count < 0)
 		return NULL;
-	} else if (count > 0) {
-		resources = kcalloc(count, sizeof(struct resource),
-				    GFP_KERNEL);
+	if (count > 0) {
+		resources = kcalloc(count, sizeof(*resources), GFP_KERNEL);
 		if (!resources) {
-			dev_err(&adev->dev, "No memory for resources\n");
 			acpi_dev_free_resource_list(&resource_list);
 			return ERR_PTR(-ENOMEM);
 		}
@@ -140,7 +138,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev,
 	 */
 	pdevinfo.parent = parent ? acpi_get_first_physical_node(parent) : NULL;
 	pdevinfo.name = dev_name(&adev->dev);
-	pdevinfo.id = -1;
+	pdevinfo.id = PLATFORM_DEVID_NONE;
 	pdevinfo.res = resources;
 	pdevinfo.num_res = count;
 	pdevinfo.fwnode = acpi_fwnode_handle(adev);
