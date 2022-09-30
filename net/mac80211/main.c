@@ -1087,6 +1087,16 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 		channels += sband->n_channels;
 
+		/*
+		 * Due to the way the aggregation code handles this and it
+		 * being an HT capability, we can't really support delayed
+		 * BA in MLO (yet).
+		 */
+		if (WARN_ON(sband->ht_cap.ht_supported &&
+			    (sband->ht_cap.cap & IEEE80211_HT_CAP_DELAY_BA) &&
+			    hw->wiphy->flags & WIPHY_FLAG_SUPPORTS_MLO))
+			return -EINVAL;
+
 		if (max_bitrates < sband->n_bitrates)
 			max_bitrates = sband->n_bitrates;
 		supp_ht = supp_ht || sband->ht_cap.ht_supported;
