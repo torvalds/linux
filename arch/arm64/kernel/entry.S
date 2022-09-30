@@ -114,7 +114,7 @@
 	 * them if required.
 	 */
 	.macro	apply_ssbd, state, tmp1, tmp2
-alternative_cb	spectre_v4_patch_fw_mitigation_enable
+alternative_cb	ARM64_ALWAYS_SYSTEM, spectre_v4_patch_fw_mitigation_enable
 	b	.L__asm_ssbd_skip\@		// Patched to NOP
 alternative_cb_end
 	ldr_this_cpu	\tmp2, arm64_ssbd_callback_required, \tmp1
@@ -123,7 +123,7 @@ alternative_cb_end
 	tbnz	\tmp2, #TIF_SSBD, .L__asm_ssbd_skip\@
 	mov	w0, #ARM_SMCCC_ARCH_WORKAROUND_2
 	mov	w1, #\state
-alternative_cb	smccc_patch_fw_mitigation_conduit
+alternative_cb	ARM64_ALWAYS_SYSTEM, smccc_patch_fw_mitigation_conduit
 	nop					// Patched to SMC/HVC #0
 alternative_cb_end
 .L__asm_ssbd_skip\@:
@@ -175,7 +175,7 @@ alternative_else_nop_endif
 
 	.macro mte_set_kernel_gcr, tmp, tmp2
 #ifdef CONFIG_KASAN_HW_TAGS
-alternative_cb	kasan_hw_tags_enable
+alternative_cb	ARM64_ALWAYS_SYSTEM, kasan_hw_tags_enable
 	b	1f
 alternative_cb_end
 	mov	\tmp, KERNEL_GCR_EL1
@@ -186,7 +186,7 @@ alternative_cb_end
 
 	.macro mte_set_user_gcr, tsk, tmp, tmp2
 #ifdef CONFIG_KASAN_HW_TAGS
-alternative_cb	kasan_hw_tags_enable
+alternative_cb	ARM64_ALWAYS_SYSTEM, kasan_hw_tags_enable
 	b	1f
 alternative_cb_end
 	ldr	\tmp, [\tsk, #THREAD_MTE_CTRL]

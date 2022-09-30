@@ -108,8 +108,7 @@ DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
 EXPORT_SYMBOL(cpu_hwcaps);
 static struct arm64_cpu_capabilities const __ro_after_init *cpu_hwcaps_ptrs[ARM64_NCAPS];
 
-/* Need also bit for ARM64_CB_PATCH */
-DECLARE_BITMAP(boot_capabilities, ARM64_NPATCHABLE);
+DECLARE_BITMAP(boot_capabilities, ARM64_NCAPS);
 
 bool arm64_use_ng_mappings = false;
 EXPORT_SYMBOL(arm64_use_ng_mappings);
@@ -134,30 +133,11 @@ DEFINE_STATIC_KEY_FALSE(arm64_mismatched_32bit_el0);
  */
 static cpumask_var_t cpu_32bit_el0_mask __cpumask_var_read_mostly;
 
-/*
- * Flag to indicate if we have computed the system wide
- * capabilities based on the boot time active CPUs. This
- * will be used to determine if a new booting CPU should
- * go through the verification process to make sure that it
- * supports the system capabilities, without using a hotplug
- * notifier. This is also used to decide if we could use
- * the fast path for checking constant CPU caps.
- */
-DEFINE_STATIC_KEY_FALSE(arm64_const_caps_ready);
-EXPORT_SYMBOL(arm64_const_caps_ready);
-static inline void finalize_system_capabilities(void)
-{
-	static_branch_enable(&arm64_const_caps_ready);
-}
-
 void dump_cpu_features(void)
 {
 	/* file-wide pr_fmt adds "CPU features: " prefix */
 	pr_emerg("0x%*pb\n", ARM64_NCAPS, &cpu_hwcaps);
 }
-
-DEFINE_STATIC_KEY_ARRAY_FALSE(cpu_hwcap_keys, ARM64_NCAPS);
-EXPORT_SYMBOL(cpu_hwcap_keys);
 
 #define __ARM64_FTR_BITS(SIGNED, VISIBLE, STRICT, TYPE, SHIFT, WIDTH, SAFE_VAL) \
 	{						\
@@ -1392,6 +1372,12 @@ u64 __read_sysreg_by_encoding(u32 sys_id)
 #include <linux/irqchip/arm-gic-v3.h>
 
 static bool
+has_always(const struct arm64_cpu_capabilities *entry, int scope)
+{
+	return true;
+}
+
+static bool
 feature_matches(u64 reg, const struct arm64_cpu_capabilities *entry)
 {
 	int val = cpuid_feature_extract_field_width(reg, entry->field_pos,
@@ -2110,6 +2096,16 @@ cpucap_panic_on_conflict(const struct arm64_cpu_capabilities *cap)
 }
 
 static const struct arm64_cpu_capabilities arm64_features[] = {
+	{
+		.capability = ARM64_ALWAYS_BOOT,
+		.type = ARM64_CPUCAP_BOOT_CPU_FEATURE,
+		.matches = has_always,
+	},
+	{
+		.capability = ARM64_ALWAYS_SYSTEM,
+		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
+		.matches = has_always,
+	},
 	{
 		.desc = "GIC system register CPU interface",
 		.capability = ARM64_HAS_SYSREG_GIC_CPUIF,
@@ -2953,9 +2949,6 @@ static void __init enable_cpu_capabilities(u16 scope_mask)
 		if (!cpus_have_cap(num))
 			continue;
 
-		/* Ensure cpus_have_const_cap(num) works */
-		static_branch_enable(&cpu_hwcap_keys[num]);
-
 		if (boot_scope && caps->cpu_enable)
 			/*
 			 * Capabilities with SCOPE_BOOT_CPU scope are finalised
@@ -3276,9 +3269,6 @@ void __init setup_cpu_features(void)
 	sve_setup();
 	sme_setup();
 	minsigstksz_setup();
-
-	/* Advertise that we have computed the system capabilities */
-	finalize_system_capabilities();
 
 	/*
 	 * Check for sane CTR_EL0.CWG value.

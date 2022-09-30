@@ -73,6 +73,7 @@ KVM_NVHE_ALIAS(spectre_bhb_patch_loop_iter);
 KVM_NVHE_ALIAS(spectre_bhb_patch_loop_mitigation_enable);
 KVM_NVHE_ALIAS(spectre_bhb_patch_wa3);
 KVM_NVHE_ALIAS(spectre_bhb_patch_clearbhb);
+KVM_NVHE_ALIAS(alt_cb_patch_nops);
 
 /* Global kernel state accessed by nVHE hyp code. */
 KVM_NVHE_ALIAS(kvm_vgic_global_state);
@@ -88,10 +89,6 @@ KVM_NVHE_ALIAS(__icache_flags);
 
 /* VMID bits set by the KVM VMID allocator */
 KVM_NVHE_ALIAS(kvm_arm_vmid_bits);
-
-/* Kernel symbols needed for cpus_have_final/const_caps checks. */
-KVM_NVHE_ALIAS(arm64_const_caps_ready);
-KVM_NVHE_ALIAS(cpu_hwcap_keys);
 
 /* Static keys which are set if a vGIC trap should be handled in hyp. */
 KVM_NVHE_ALIAS(vgic_v2_cpuif_trap);

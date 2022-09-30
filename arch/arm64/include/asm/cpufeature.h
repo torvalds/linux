@@ -6,6 +6,7 @@
 #ifndef __ASM_CPUFEATURE_H
 #define __ASM_CPUFEATURE_H
 
+#include <asm/alternative-macros.h>
 #include <asm/cpucaps.h>
 #include <asm/cputype.h>
 #include <asm/hwcap.h>
@@ -419,12 +420,8 @@ static __always_inline bool is_hyp_code(void)
 }
 
 extern DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
-extern struct static_key_false cpu_hwcap_keys[ARM64_NCAPS];
-extern struct static_key_false arm64_const_caps_ready;
 
-/* ARM64 CAPS + alternative_cb */
-#define ARM64_NPATCHABLE (ARM64_NCAPS + 1)
-extern DECLARE_BITMAP(boot_capabilities, ARM64_NPATCHABLE);
+extern DECLARE_BITMAP(boot_capabilities, ARM64_NCAPS);
 
 #define for_each_available_cap(cap)		\
 	for_each_set_bit(cap, cpu_hwcaps, ARM64_NCAPS)
@@ -440,7 +437,7 @@ unsigned long cpu_get_elf_hwcap2(void);
 
 static __always_inline bool system_capabilities_finalized(void)
 {
-	return static_branch_likely(&arm64_const_caps_ready);
+	return alternative_has_feature_likely(ARM64_ALWAYS_SYSTEM);
 }
 
 /*
@@ -448,11 +445,11 @@ static __always_inline bool system_capabilities_finalized(void)
  *
  * Before the capability is detected, this returns false.
  */
-static inline bool cpus_have_cap(unsigned int num)
+static __always_inline bool cpus_have_cap(unsigned int num)
 {
 	if (num >= ARM64_NCAPS)
 		return false;
-	return test_bit(num, cpu_hwcaps);
+	return arch_test_bit(num, cpu_hwcaps);
 }
 
 /*
@@ -467,7 +464,7 @@ static __always_inline bool __cpus_have_const_cap(int num)
 {
 	if (num >= ARM64_NCAPS)
 		return false;
-	return static_branch_unlikely(&cpu_hwcap_keys[num]);
+	return alternative_has_feature_unlikely(num);
 }
 
 /*
