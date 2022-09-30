@@ -136,11 +136,6 @@ config BRCMSTB_L2_IRQ
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 
-config DAVINCI_AINTC
-	bool
-	select GENERIC_IRQ_CHIP
-	select IRQ_DOMAIN
-
 config DAVINCI_CP_INTC
 	bool
 	select GENERIC_IRQ_CHIP
