@@ -730,13 +730,21 @@ static void idxd_device_wqs_clear_state(struct idxd_device *idxd)
 
 void idxd_device_clear_state(struct idxd_device *idxd)
 {
-	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
-		return;
+	/* IDXD is always disabled. Other states are cleared only when IDXD is configurable. */
+	if (test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags)) {
+		/*
+		 * Clearing wq state is protected by wq lock.
+		 * So no need to be protected by device lock.
+		 */
+		idxd_device_wqs_clear_state(idxd);
 
-	idxd_device_wqs_clear_state(idxd);
-	spin_lock(&idxd->dev_lock);
-	idxd_groups_clear_state(idxd);
-	idxd_engines_clear_state(idxd);
+		spin_lock(&idxd->dev_lock);
+		idxd_groups_clear_state(idxd);
+		idxd_engines_clear_state(idxd);
+	} else {
+		spin_lock(&idxd->dev_lock);
+	}
+
 	idxd->state = IDXD_DEV_DISABLED;
 	spin_unlock(&idxd->dev_lock);
 }
