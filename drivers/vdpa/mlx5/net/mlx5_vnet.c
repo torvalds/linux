@@ -1320,6 +1320,8 @@ static void teardown_vq(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtqueue *
 
 static int create_rqt(struct mlx5_vdpa_net *ndev)
 {
+	int rqt_table_size = roundup_pow_of_two(ndev->rqt_size);
+	int act_sz = roundup_pow_of_two(ndev->cur_num_vqs / 2);
 	__be32 *list;
 	void *rqtc;
 	int inlen;
@@ -1327,7 +1329,7 @@ static int create_rqt(struct mlx5_vdpa_net *ndev)
 	int i, j;
 	int err;
 
-	inlen = MLX5_ST_SZ_BYTES(create_rqt_in) + ndev->rqt_size * MLX5_ST_SZ_BYTES(rq_num);
+	inlen = MLX5_ST_SZ_BYTES(create_rqt_in) + rqt_table_size * MLX5_ST_SZ_BYTES(rq_num);
 	in = kzalloc(inlen, GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
@@ -1336,12 +1338,12 @@ static int create_rqt(struct mlx5_vdpa_net *ndev)
 	rqtc = MLX5_ADDR_OF(create_rqt_in, in, rqt_context);
 
 	MLX5_SET(rqtc, rqtc, list_q_type, MLX5_RQTC_LIST_Q_TYPE_VIRTIO_NET_Q);
-	MLX5_SET(rqtc, rqtc, rqt_max_size, ndev->rqt_size);
+	MLX5_SET(rqtc, rqtc, rqt_max_size, rqt_table_size);
 	list = MLX5_ADDR_OF(rqtc, rqtc, rq_num[0]);
-	for (i = 0, j = 0; i < ndev->rqt_size; i++, j += 2)
+	for (i = 0, j = 0; i < act_sz; i++, j += 2)
 		list[i] = cpu_to_be32(ndev->vqs[j % ndev->cur_num_vqs].virtq_id);
 
-	MLX5_SET(rqtc, rqtc, rqt_actual_size, ndev->rqt_size);
+	MLX5_SET(rqtc, rqtc, rqt_actual_size, act_sz);
 	err = mlx5_vdpa_create_rqt(&ndev->mvdev, in, inlen, &ndev->res.rqtn);
 	kfree(in);
 	if (err)
@@ -1354,6 +1356,7 @@ static int create_rqt(struct mlx5_vdpa_net *ndev)
 
 static int modify_rqt(struct mlx5_vdpa_net *ndev, int num)
 {
+	int act_sz = roundup_pow_of_two(num / 2);
 	__be32 *list;
 	void *rqtc;
 	int inlen;
@@ -1361,7 +1364,7 @@ static int modify_rqt(struct mlx5_vdpa_net *ndev, int num)
 	int i, j;
 	int err;
 
-	inlen = MLX5_ST_SZ_BYTES(modify_rqt_in) + ndev->rqt_size * MLX5_ST_SZ_BYTES(rq_num);
+	inlen = MLX5_ST_SZ_BYTES(modify_rqt_in) + act_sz * MLX5_ST_SZ_BYTES(rq_num);
 	in = kzalloc(inlen, GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
@@ -1372,10 +1375,10 @@ static int modify_rqt(struct mlx5_vdpa_net *ndev, int num)
 	MLX5_SET(rqtc, rqtc, list_q_type, MLX5_RQTC_LIST_Q_TYPE_VIRTIO_NET_Q);
 
 	list = MLX5_ADDR_OF(rqtc, rqtc, rq_num[0]);
-	for (i = 0, j = 0; i < ndev->rqt_size; i++, j += 2)
+	for (i = 0, j = 0; i < act_sz; i++, j = j + 2)
 		list[i] = cpu_to_be32(ndev->vqs[j % num].virtq_id);
 
-	MLX5_SET(rqtc, rqtc, rqt_actual_size, ndev->rqt_size);
+	MLX5_SET(rqtc, rqtc, rqt_actual_size, act_sz);
 	err = mlx5_vdpa_modify_rqt(&ndev->mvdev, in, inlen, ndev->res.rqtn);
 	kfree(in);
 	if (err)
