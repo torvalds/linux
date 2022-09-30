@@ -1549,7 +1549,7 @@
 			};
 		};
 
-		riva: riva-pil@3204000 {
+		riva: riva-pil@3200800 {
 			compatible = "qcom,riva-pil";
 
 			reg = <0x03200800 0x1000>, <0x03202000 0x2000>, <0x03204000 0x100>;
