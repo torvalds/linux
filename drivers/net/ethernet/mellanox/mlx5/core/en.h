@@ -660,6 +660,7 @@ struct mlx5e_rq_frags_info {
 	u8 num_frags;
 	u8 log_num_frags;
 	u8 wqe_bulk;
+	u8 wqe_index_mask;
 };
 
 struct mlx5e_dma_info {

@@ -586,7 +586,14 @@ static int mlx5e_build_rq_frags_info(struct mlx5_core_dev *mdev,
 		info->arr[0].frag_size = byte_count;
 		info->arr[0].frag_stride = frag_stride;
 		info->num_frags = 1;
-		info->wqe_bulk = PAGE_SIZE / frag_stride;
+
+		/* N WQEs share the same page, N = PAGE_SIZE / frag_stride. The
+		 * first WQE in the page is responsible for allocation of this
+		 * page, this WQE's index is k*N. If WQEs [k*N+1; k*N+N-1] are
+		 * still not completed, the allocation must stop before k*N.
+		 */
+		info->wqe_index_mask = (PAGE_SIZE / frag_stride) - 1;
+
 		goto out;
 	}
 
@@ -635,11 +642,21 @@ static int mlx5e_build_rq_frags_info(struct mlx5_core_dev *mdev,
 		i++;
 	}
 	info->num_frags = i;
-	/* number of different wqes sharing a page */
-	info->wqe_bulk = 1 + (info->num_frags % 2);
+
+	/* The last fragment of WQE with index 2*N may share the page with the
+	 * first fragment of WQE with index 2*N+1 in certain cases. If WQE 2*N+1
+	 * is not completed yet, WQE 2*N must not be allocated, as it's
+	 * responsible for allocating a new page.
+	 */
+	info->wqe_index_mask = info->num_frags % 2;
 
 out:
-	info->wqe_bulk = max_t(u8, info->wqe_bulk, 8);
+	/* Bulking optimization to skip allocation until at least 8 WQEs can be
+	 * allocated in a row. At the same time, never start allocation when
+	 * the page is still used by older WQEs.
+	 */
+	info->wqe_bulk = max_t(u8, info->wqe_index_mask + 1, 8);
+
 	info->log_num_frags = order_base_2(info->num_frags);
 
 	return 0;
