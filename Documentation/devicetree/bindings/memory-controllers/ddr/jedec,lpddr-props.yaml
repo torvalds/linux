@@ -9,7 +9,8 @@ title: Common properties for LPDDR types
 description:
   Different LPDDR types generally use the same properties and only differ in the
   range of legal values for each. This file defines the common parts that can be
-  reused for each type.
+  reused for each type. Nodes using this schema should generally be nested under
+  an LPDDR channel node.
 
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
@@ -24,6 +25,13 @@ properties:
       formatted in lower case hexadecimal representation with leading zeroes.
       The latter form can be useful when LPDDR nodes are created at runtime by
       boot firmware that doesn't have access to static part number information.
+
+  reg:
+    description:
+      The rank number of this LPDDR rank when used as a subnode to an LPDDR
+      channel.
+    minimum: 0
+    maximum: 3
 
   revision-id:
     $ref: /schemas/types.yaml#/definitions/uint32-array
