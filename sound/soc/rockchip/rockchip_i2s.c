@@ -162,12 +162,12 @@ static int rockchip_snd_txctrl(struct rk_i2s_dev *i2s, int on)
 						 I2S_CLR_TXC | I2S_CLR_RXC);
 			if (ret < 0)
 				goto end;
-			ret = regmap_read_poll_timeout(i2s->regmap,
-						       I2S_CLR,
-						       val,
-						       val != 0,
-						       20,
-						       200);
+			ret = regmap_read_poll_timeout_atomic(i2s->regmap,
+							      I2S_CLR,
+							      val,
+							      val == 0,
+							      20,
+							      200);
 			if (ret < 0)
 				dev_warn(i2s->dev, "fail to clear: %d\n", ret);
 		}
@@ -220,12 +220,12 @@ static int rockchip_snd_rxctrl(struct rk_i2s_dev *i2s, int on)
 						 I2S_CLR_TXC | I2S_CLR_RXC);
 			if (ret < 0)
 				goto end;
-			ret = regmap_read_poll_timeout(i2s->regmap,
-						       I2S_CLR,
-						       val,
-						       val != 0,
-						       20,
-						       200);
+			ret = regmap_read_poll_timeout_atomic(i2s->regmap,
+							      I2S_CLR,
+							      val,
+							      val == 0,
+							      20,
+							      200);
 			if (ret < 0)
 				dev_warn(i2s->dev, "fail to clear: %d\n", ret);
 		}
