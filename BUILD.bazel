@@ -26,6 +26,14 @@ define_common_kernels(target_configs = {
             "mm/zsmalloc.ko",
         ],
     },
+    # Sync with build.config.gki.aarch64.16k
+    "kernel_aarch64_16k": {
+        "module_implicit_outs": [
+            "drivers/block/zram/zram.ko",
+            "mm/zsmalloc.ko",
+        ],
+    },
+    # Sync with build.config.gki-debug.aarch64
     "kernel_aarch64_debug": {
         "module_implicit_outs": [
             "drivers/block/zram/zram.ko",
