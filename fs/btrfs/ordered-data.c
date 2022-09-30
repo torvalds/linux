@@ -1069,11 +1069,12 @@ void btrfs_lock_and_flush_ordered_range(struct btrfs_inode *inode, u64 start,
  * Return true if btrfs_lock_ordered_range does not return any extents,
  * otherwise false.
  */
-bool btrfs_try_lock_ordered_range(struct btrfs_inode *inode, u64 start, u64 end)
+bool btrfs_try_lock_ordered_range(struct btrfs_inode *inode, u64 start, u64 end,
+				  struct extent_state **cached_state)
 {
 	struct btrfs_ordered_extent *ordered;
 
-	if (!try_lock_extent(&inode->io_tree, start, end, NULL))
+	if (!try_lock_extent(&inode->io_tree, start, end, cached_state))
 		return false;
 
 	ordered = btrfs_lookup_ordered_range(inode, start, end - start + 1);
@@ -1081,7 +1082,7 @@ bool btrfs_try_lock_ordered_range(struct btrfs_inode *inode, u64 start, u64 end)
 		return true;
 
 	btrfs_put_ordered_extent(ordered);
-	unlock_extent(&inode->io_tree, start, end, NULL);
+	unlock_extent(&inode->io_tree, start, end, cached_state);
 
 	return false;
 }

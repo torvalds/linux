@@ -1373,6 +1373,7 @@ int btrfs_check_nocow_lock(struct btrfs_inode *inode, loff_t pos,
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_root *root = inode->root;
+	struct extent_state *cached_state = NULL;
 	u64 lockstart, lockend;
 	u64 num_bytes;
 	int ret;
@@ -1389,12 +1390,14 @@ int btrfs_check_nocow_lock(struct btrfs_inode *inode, loff_t pos,
 	num_bytes = lockend - lockstart + 1;
 
 	if (nowait) {
-		if (!btrfs_try_lock_ordered_range(inode, lockstart, lockend)) {
+		if (!btrfs_try_lock_ordered_range(inode, lockstart, lockend,
+						  &cached_state)) {
 			btrfs_drew_write_unlock(&root->snapshot_lock);
 			return -EAGAIN;
 		}
 	} else {
-		btrfs_lock_and_flush_ordered_range(inode, lockstart, lockend, NULL);
+		btrfs_lock_and_flush_ordered_range(inode, lockstart, lockend,
+						   &cached_state);
 	}
 	ret = can_nocow_extent(&inode->vfs_inode, lockstart, &num_bytes,
 			NULL, NULL, NULL, nowait, false);
@@ -1403,7 +1406,7 @@ int btrfs_check_nocow_lock(struct btrfs_inode *inode, loff_t pos,
 	else
 		*write_bytes = min_t(size_t, *write_bytes ,
 				     num_bytes - pos + lockstart);
-	unlock_extent(&inode->io_tree, lockstart, lockend, NULL);
+	unlock_extent(&inode->io_tree, lockstart, lockend, &cached_state);
 
 	return ret;
 }
