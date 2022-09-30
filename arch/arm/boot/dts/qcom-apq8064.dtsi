@@ -1470,6 +1470,8 @@
 
 			phys = <&hdmi_phy>;
 
+			status = "disabled";
+
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1498,6 +1500,8 @@
 			clocks = <&mmcc HDMI_S_AHB_CLK>;
 			clock-names = "slave_iface";
 			#phy-cells = <0>;
+
+			status = "disabled";
 		};
 
 		mdp: mdp@5100000 {
