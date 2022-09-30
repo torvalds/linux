@@ -153,6 +153,11 @@
 	status = "okay";
 };
 
+&combphy2 {
+	/* used for SATA */
+	status = "okay";
+};
+
 &cpu0 {
 	cpu-supply = <&vdd_cpu>;
 };
@@ -535,6 +540,10 @@
 
 &saradc {
 	vref-supply = <&vcca_1v8>;
+	status = "okay";
+};
+
+&sata2 {
 	status = "okay";
 };
 
