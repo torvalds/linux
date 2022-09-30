@@ -715,6 +715,23 @@ static void __init tm_init(void)
 static void tm_init(void) { }
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
+static int __init
+early_init_dt_scan_model(unsigned long node, const char *uname,
+			 int depth, void *data)
+{
+	const char *prop;
+
+	if (depth != 0)
+		return 0;
+
+	prop = of_get_flat_dt_prop(node, "model", NULL);
+	if (prop)
+		seq_buf_printf(&ppc_hw_desc, "%s ", prop);
+
+	/* break now */
+	return 1;
+}
+
 #ifdef CONFIG_PPC64
 static void __init save_fscr_to_task(void)
 {
@@ -742,6 +759,8 @@ void __init early_init_devtree(void *params)
 	/* Too early to BUG_ON(), do it by hand */
 	if (!early_init_dt_verify(params))
 		panic("BUG: Failed verifying flat device tree, bad version?");
+
+	of_scan_flat_dt(early_init_dt_scan_model, NULL);
 
 #ifdef CONFIG_PPC_RTAS
 	/* Some machines might need RTAS info for debugging, grab it now. */
