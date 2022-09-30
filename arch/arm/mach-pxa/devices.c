@@ -12,7 +12,6 @@
 #include <linux/soc/pxa/cpu.h>
 
 #include "udc.h"
-#include <linux/platform_data/usb-pxa3xx-ulpi.h>
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include "irqs.h"
@@ -129,33 +128,6 @@ struct platform_device pxa27x_device_udc = {
 		.dma_mask	= &udc_dma_mask,
 	}
 };
-
-#ifdef CONFIG_PXA3xx
-static struct resource pxa3xx_u2d_resources[] = {
-	[0] = {
-		.start	= 0x54100000,
-		.end	= 0x54100fff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_USB2,
-		.end	= IRQ_USB2,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device pxa3xx_device_u2d = {
-	.name		= "pxa3xx-u2d",
-	.id		= -1,
-	.resource	= pxa3xx_u2d_resources,
-	.num_resources	= ARRAY_SIZE(pxa3xx_u2d_resources),
-};
-
-void __init pxa3xx_set_u2d_info(struct pxa3xx_u2d_platform_data *info)
-{
-	pxa_register_device(&pxa3xx_device_u2d, info);
-}
-#endif /* CONFIG_PXA3xx */
 
 static struct resource pxafb_resources[] = {
 	[0] = {

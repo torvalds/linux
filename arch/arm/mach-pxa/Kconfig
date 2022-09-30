@@ -144,7 +144,6 @@ config CPU_PXA300
 config CPU_PXA310
 	bool
 	select CPU_PXA300
-	select PXA310_ULPI if USB_ULPI
 	help
 	  PXA310 (codename Monahans-LV)
 
@@ -171,8 +170,5 @@ config SHARPSL_PM_MAX1111
 	select SENSORS_MAX1111
 	select SPI
 	select SPI_MASTER
-
-config PXA310_ULPI
-	bool
 
 endif
