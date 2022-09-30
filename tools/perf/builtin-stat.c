@@ -292,13 +292,8 @@ static inline void diff_timespec(struct timespec *r, struct timespec *a,
 
 static void perf_stat__reset_stats(void)
 {
-	int i;
-
 	evlist__reset_stats(evsel_list);
 	perf_stat__reset_shadow_stats();
-
-	for (i = 0; i < stat_config.stats_num; i++)
-		perf_stat__reset_shadow_per_stat(&stat_config.stats[i]);
 }
 
 static int process_synthesized_event(struct perf_tool *tool __maybe_unused,
@@ -489,46 +484,6 @@ static void read_counters(struct timespec *rs)
 	}
 }
 
-static int runtime_stat_new(struct perf_stat_config *config, int nthreads)
-{
-	int i;
-
-	config->stats = calloc(nthreads, sizeof(struct runtime_stat));
-	if (!config->stats)
-		return -1;
-
-	config->stats_num = nthreads;
-
-	for (i = 0; i < nthreads; i++)
-		runtime_stat__init(&config->stats[i]);
-
-	return 0;
-}
-
-static void runtime_stat_delete(struct perf_stat_config *config)
-{
-	int i;
-
-	if (!config->stats)
-		return;
-
-	for (i = 0; i < config->stats_num; i++)
-		runtime_stat__exit(&config->stats[i]);
-
-	zfree(&config->stats);
-}
-
-static void runtime_stat_reset(struct perf_stat_config *config)
-{
-	int i;
-
-	if (!config->stats)
-		return;
-
-	for (i = 0; i < config->stats_num; i++)
-		perf_stat__reset_shadow_per_stat(&config->stats[i]);
-}
-
 static void process_interval(void)
 {
 	struct timespec ts, rs;
@@ -537,7 +492,6 @@ static void process_interval(void)
 	diff_timespec(&rs, &ts, &ref_time);
 
 	perf_stat__reset_shadow_per_stat(&rt_stat);
-	runtime_stat_reset(&stat_config);
 	read_counters(&rs);
 
 	if (STAT_RECORD) {
@@ -1014,7 +968,6 @@ try_again_reset:
 
 		evlist__copy_prev_raw_counts(evsel_list);
 		evlist__reset_prev_raw_counts(evsel_list);
-		runtime_stat_reset(&stat_config);
 		perf_stat__reset_shadow_per_stat(&rt_stat);
 	} else {
 		update_stats(&walltime_nsecs_stats, t1 - t0);
@@ -2510,12 +2463,6 @@ int cmd_stat(int argc, const char **argv)
 	 */
 	if (stat_config.aggr_mode == AGGR_THREAD) {
 		thread_map__read_comms(evsel_list->core.threads);
-		if (target.system_wide) {
-			if (runtime_stat_new(&stat_config,
-				perf_thread_map__nr(evsel_list->core.threads))) {
-				goto out;
-			}
-		}
 	}
 
 	if (stat_config.aggr_mode == AGGR_NODE)
@@ -2656,7 +2603,6 @@ out:
 	evlist__delete(evsel_list);
 
 	metricgroup__rblist_exit(&stat_config.metric_events);
-	runtime_stat_delete(&stat_config);
 	evlist__close_control(stat_config.ctl_fd, stat_config.ctl_fd_ack, &stat_config.ctl_fd_close);
 
 	return status;

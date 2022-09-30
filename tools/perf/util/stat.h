@@ -153,8 +153,6 @@ struct perf_stat_config {
 	int			 run_count;
 	int			 print_free_counters_hint;
 	int			 print_mixed_hw_group_error;
-	struct runtime_stat	*stats;
-	int			 stats_num;
 	const char		*csv_sep;
 	struct stats		*walltime_nsecs_stats;
 	struct rusage		 ru_data;
