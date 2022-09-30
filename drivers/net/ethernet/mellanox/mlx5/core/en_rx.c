@@ -317,20 +317,6 @@ void mlx5e_page_release_dynamic(struct mlx5e_rq *rq, struct page *page, bool rec
 	}
 }
 
-static inline void mlx5e_page_release(struct mlx5e_rq *rq,
-				      union mlx5e_alloc_unit *au,
-				      bool recycle)
-{
-	if (rq->xsk_pool)
-		/* The `recycle` parameter is ignored, and the page is always
-		 * put into the Reuse Ring, because there is no way to return
-		 * the page to the userspace when the interface goes down.
-		 */
-		xsk_buff_free(au->xsk);
-	else
-		mlx5e_page_release_dynamic(rq, au->page, recycle);
-}
-
 static inline int mlx5e_get_rx_frag(struct mlx5e_rq *rq,
 				    struct mlx5e_wqe_frag_info *frag)
 {
@@ -352,7 +338,7 @@ static inline void mlx5e_put_rx_frag(struct mlx5e_rq *rq,
 				     bool recycle)
 {
 	if (frag->last_in_page)
-		mlx5e_page_release(rq, frag->au, recycle);
+		mlx5e_page_release_dynamic(rq, frag->au->page, recycle);
 }
 
 static inline struct mlx5e_wqe_frag_info *get_frag(struct mlx5e_rq *rq, u16 ix)
@@ -394,6 +380,15 @@ static inline void mlx5e_free_rx_wqe(struct mlx5e_rq *rq,
 				     bool recycle)
 {
 	int i;
+
+	if (rq->xsk_pool) {
+		/* The `recycle` parameter is ignored, and the page is always
+		 * put into the Reuse Ring, because there is no way to return
+		 * the page to the userspace when the interface goes down.
+		 */
+		xsk_buff_free(wi->au->xsk);
+		return;
+	}
 
 	for (i = 0; i < rq->wqe.info.num_frags; i++, wi++)
 		mlx5e_put_rx_frag(rq, wi, recycle);
@@ -463,9 +458,19 @@ mlx5e_free_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi, bool recycle
 
 	no_xdp_xmit = bitmap_empty(wi->xdp_xmit_bitmap, rq->mpwqe.pages_per_wqe);
 
-	for (i = 0; i < rq->mpwqe.pages_per_wqe; i++)
-		if (no_xdp_xmit || !test_bit(i, wi->xdp_xmit_bitmap))
-			mlx5e_page_release(rq, &alloc_units[i], recycle);
+	if (rq->xsk_pool) {
+		/* The `recycle` parameter is ignored, and the page is always
+		 * put into the Reuse Ring, because there is no way to return
+		 * the page to the userspace when the interface goes down.
+		 */
+		for (i = 0; i < rq->mpwqe.pages_per_wqe; i++)
+			if (no_xdp_xmit || !test_bit(i, wi->xdp_xmit_bitmap))
+				xsk_buff_free(alloc_units[i].xsk);
+	} else {
+		for (i = 0; i < rq->mpwqe.pages_per_wqe; i++)
+			if (no_xdp_xmit || !test_bit(i, wi->xdp_xmit_bitmap))
+				mlx5e_page_release_dynamic(rq, alloc_units[i].page, recycle);
+	}
 }
 
 static void mlx5e_post_rx_mpwqe(struct mlx5e_rq *rq, u8 n)

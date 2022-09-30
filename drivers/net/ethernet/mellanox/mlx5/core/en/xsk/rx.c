@@ -253,7 +253,7 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_linear(struct mlx5e_rq *rq,
 		return NULL; /* page/packet was consumed by XDP */
 
 	/* XDP_PASS: copy the data from the UMEM to a new SKB. The frame reuse
-	 * will be handled by mlx5e_put_rx_frag.
+	 * will be handled by mlx5e_free_rx_wqe.
 	 * On SKB allocation failure, NULL is returned.
 	 */
 	return mlx5e_xsk_construct_skb(rq, xdp->data, xdp->data_end - xdp->data);
