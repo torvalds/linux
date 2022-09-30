@@ -16,6 +16,7 @@ struct shrink_control;
 struct fs_context;
 struct user_namespace;
 struct pipe_inode_info;
+struct iov_iter;
 
 /*
  * block/bdev.c
@@ -221,3 +222,5 @@ ssize_t do_getxattr(struct user_namespace *mnt_userns,
 int setxattr_copy(const char __user *name, struct xattr_ctx *ctx);
 int do_setxattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		struct xattr_ctx *ctx);
+
+ssize_t __kernel_write_iter(struct file *file, struct iov_iter *from, loff_t *pos);

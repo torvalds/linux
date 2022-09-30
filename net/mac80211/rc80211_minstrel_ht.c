@@ -10,6 +10,7 @@
 #include <linux/random.h>
 #include <linux/moduleparam.h>
 #include <linux/ieee80211.h>
+#include <linux/minmax.h>
 #include <net/mac80211.h>
 #include "rate.h"
 #include "sta_info.h"
@@ -1550,6 +1551,7 @@ minstrel_ht_update_rates(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 {
 	struct ieee80211_sta_rates *rates;
 	int i = 0;
+	int max_rates = min_t(int, mp->hw->max_rates, IEEE80211_TX_RATE_TABLE_SIZE);
 
 	rates = kzalloc(sizeof(*rates), GFP_ATOMIC);
 	if (!rates)
@@ -1559,10 +1561,10 @@ minstrel_ht_update_rates(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	minstrel_ht_set_rate(mp, mi, rates, i++, mi->max_tp_rate[0]);
 
 	/* Fill up remaining, keep one entry for max_probe_rate */
-	for (; i < (mp->hw->max_rates - 1); i++)
+	for (; i < (max_rates - 1); i++)
 		minstrel_ht_set_rate(mp, mi, rates, i, mi->max_tp_rate[i]);
 
-	if (i < mp->hw->max_rates)
+	if (i < max_rates)
 		minstrel_ht_set_rate(mp, mi, rates, i++, mi->max_prob_rate);
 
 	if (i < IEEE80211_TX_RATE_TABLE_SIZE)
