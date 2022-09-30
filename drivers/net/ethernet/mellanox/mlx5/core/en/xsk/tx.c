@@ -12,15 +12,14 @@ int mlx5e_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags)
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5e_params *params = &priv->channels.params;
 	struct mlx5e_channel *c;
-	u16 ix;
 
 	if (unlikely(!mlx5e_xdp_is_active(priv)))
 		return -ENETDOWN;
 
-	if (unlikely(!mlx5e_qid_get_ch_if_in_group(params, qid, MLX5E_RQ_GROUP_XSK, &ix)))
+	if (unlikely(qid >= params->num_channels))
 		return -EINVAL;
 
-	c = priv->channels.c[ix];
+	c = priv->channels.c[qid];
 
 	if (!napi_if_scheduled_mark_missed(&c->napi)) {
 		/* To avoid WQE overrun, don't post a NOP if async_icosq is not

@@ -181,12 +181,6 @@ do {                                                            \
 #define mlx5e_state_dereference(priv, p) \
 	rcu_dereference_protected((p), lockdep_is_held(&(priv)->state_lock))
 
-enum mlx5e_rq_group {
-	MLX5E_RQ_GROUP_REGULAR,
-	MLX5E_RQ_GROUP_XSK,
-#define MLX5E_NUM_RQ_GROUPS(g) (1 + MLX5E_RQ_GROUP_##g)
-};
-
 static inline u8 mlx5e_get_num_lag_ports(struct mlx5_core_dev *mdev)
 {
 	if (mlx5_lag_is_lacp_owner(mdev))
@@ -1005,7 +999,6 @@ struct mlx5e_profile {
 	mlx5e_stats_grp_t *stats_grps;
 	const struct mlx5e_rx_handlers *rx_handlers;
 	int	max_tc;
-	u8	rq_groups;
 	u32     features;
 };
 

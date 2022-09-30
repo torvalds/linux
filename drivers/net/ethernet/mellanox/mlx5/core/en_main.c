@@ -2690,7 +2690,7 @@ static int mlx5e_update_netdev_queues(struct mlx5e_priv *priv)
 	struct netdev_tc_txq old_tc_to_txq[TC_MAX_QUEUE], *tc_to_txq;
 	struct net_device *netdev = priv->netdev;
 	int old_num_txqs, old_ntc;
-	int num_rxqs, nch, ntc;
+	int nch, ntc;
 	int err;
 	int i;
 
@@ -2701,7 +2701,6 @@ static int mlx5e_update_netdev_queues(struct mlx5e_priv *priv)
 
 	nch = priv->channels.params.num_channels;
 	ntc = priv->channels.params.mqprio.num_tc;
-	num_rxqs = nch * priv->profile->rq_groups;
 	tc_to_txq = priv->channels.params.mqprio.tc_to_txq;
 
 	err = mlx5e_netdev_set_tcs(netdev, nch, ntc, tc_to_txq);
@@ -2710,7 +2709,7 @@ static int mlx5e_update_netdev_queues(struct mlx5e_priv *priv)
 	err = mlx5e_update_tx_netdev_queues(priv);
 	if (err)
 		goto err_tcs;
-	err = netif_set_real_num_rx_queues(netdev, num_rxqs);
+	err = netif_set_real_num_rx_queues(netdev, nch);
 	if (err) {
 		netdev_warn(netdev, "netif_set_real_num_rx_queues failed, %d\n", err);
 		goto err_txqs;
@@ -5199,7 +5198,7 @@ static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
 		goto err_destroy_q_counters;
 	}
 
-	features = MLX5E_RX_RES_FEATURE_XSK | MLX5E_RX_RES_FEATURE_PTP;
+	features = MLX5E_RX_RES_FEATURE_PTP;
 	if (priv->channels.params.tunneled_offload_en)
 		features |= MLX5E_RX_RES_FEATURE_INNER_FT;
 	err = mlx5e_rx_res_init(priv->rx_res, priv->mdev, features,
@@ -5390,7 +5389,6 @@ static const struct mlx5e_profile mlx5e_nic_profile = {
 	.update_carrier	   = mlx5e_update_carrier,
 	.rx_handlers       = &mlx5e_rx_handlers_nic,
 	.max_tc		   = MLX5E_MAX_NUM_TC,
-	.rq_groups	   = MLX5E_NUM_RQ_GROUPS(XSK),
 	.stats_grps	   = mlx5e_nic_stats_grps,
 	.stats_grps_num	   = mlx5e_nic_stats_grps_num,
 	.features          = BIT(MLX5E_PROFILE_FEATURE_PTP_RX) |
@@ -5423,8 +5421,7 @@ mlx5e_calc_max_nch(struct mlx5_core_dev *mdev, struct net_device *netdev,
 	max_nch = mlx5e_profile_max_num_channels(mdev, profile);
 
 	/* netdev rx queues */
-	tmp = netdev->num_rx_queues / max_t(u8, profile->rq_groups, 1);
-	max_nch = min_t(unsigned int, max_nch, tmp);
+	max_nch = min_t(unsigned int, max_nch, netdev->num_rx_queues);
 
 	/* netdev tx queues */
 	tmp = netdev->num_tx_queues;
@@ -5568,11 +5565,7 @@ static unsigned int mlx5e_get_max_num_txqs(struct mlx5_core_dev *mdev,
 static unsigned int mlx5e_get_max_num_rxqs(struct mlx5_core_dev *mdev,
 					   const struct mlx5e_profile *profile)
 {
-	unsigned int nch;
-
-	nch = mlx5e_profile_max_num_channels(mdev, profile);
-
-	return nch * profile->rq_groups;
+	return mlx5e_profile_max_num_channels(mdev, profile);
 }
 
 struct net_device *
