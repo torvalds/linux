@@ -398,16 +398,14 @@ static void hpriv_release(struct kref *ref)
 	mutex_destroy(&hpriv->ctx_lock);
 	mutex_destroy(&hpriv->restore_phase_mutex);
 
-	if ((!hdev->pldm) && (hdev->pdev) &&
-			(!hdev->asic_funcs->is_device_idle(hdev,
-				idle_mask,
-				HL_BUSY_ENGINES_MASK_EXT_SIZE, NULL))) {
-		dev_err(hdev->dev,
-			"device not idle after user context is closed (0x%llx_%llx)\n",
-			idle_mask[1], idle_mask[0]);
+	/* No need for idle status check if device is going to be reset in any case */
+	if (!hdev->reset_upon_device_release && hdev->pdev && !hdev->pldm)
+		device_is_idle = hdev->asic_funcs->is_device_idle(hdev, idle_mask,
+							HL_BUSY_ENGINES_MASK_EXT_SIZE, NULL);
 
-		device_is_idle = false;
-	}
+	if (!device_is_idle)
+		dev_err(hdev->dev, "device not idle after user context is closed (0x%llx_%llx)\n",
+			idle_mask[1], idle_mask[0]);
 
 	/* We need to remove the user from the list to make sure the reset process won't
 	 * try to kill the user process. Because, if we got here, it means there are no
