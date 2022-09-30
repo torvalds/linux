@@ -1654,7 +1654,7 @@ static bool dcn321_resource_construct(
 
 #undef REG_STRUCT
 #define REG_STRUCT dccg_regs
-		dccg_regs_init();
+	dccg_regs_init();
 
 
 	ctx->dc_bios->regs = &bios_regs;
