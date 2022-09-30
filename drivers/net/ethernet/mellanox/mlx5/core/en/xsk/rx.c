@@ -30,7 +30,7 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq,
 						    u32 head_offset,
 						    u32 page_idx)
 {
-	struct xdp_buff *xdp = wi->dma_info[page_idx].xsk;
+	struct xdp_buff *xdp = wi->alloc_units[page_idx].xsk;
 	struct bpf_prog *prog;
 
 	/* Check packet size. Note LRO doesn't use linear SKB */
@@ -83,7 +83,7 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_linear(struct mlx5e_rq *rq,
 					      struct mlx5e_wqe_frag_info *wi,
 					      u32 cqe_bcnt)
 {
-	struct xdp_buff *xdp = wi->di->xsk;
+	struct xdp_buff *xdp = wi->au->xsk;
 	struct bpf_prog *prog;
 
 	/* wi->offset is not used in this function, because xdp->data and the

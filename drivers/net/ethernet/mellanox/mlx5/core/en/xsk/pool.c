@@ -72,6 +72,7 @@ void mlx5e_build_xsk_param(struct xsk_buff_pool *pool, struct mlx5e_xsk_param *x
 {
 	xsk->headroom = xsk_pool_get_headroom(pool);
 	xsk->chunk_size = xsk_pool_get_chunk_size(pool);
+	xsk->unaligned = pool->unaligned;
 }
 
 static int mlx5e_xsk_enable_locked(struct mlx5e_priv *priv,
