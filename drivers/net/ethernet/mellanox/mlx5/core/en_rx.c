@@ -293,16 +293,6 @@ static inline int mlx5e_page_alloc_pool(struct mlx5e_rq *rq, union mlx5e_alloc_u
 	return 0;
 }
 
-static inline int mlx5e_page_alloc(struct mlx5e_rq *rq, union mlx5e_alloc_unit *au)
-{
-	if (rq->xsk_pool) {
-		au->xsk = xsk_buff_alloc(rq->xsk_pool);
-		return likely(au->xsk) ? 0 : -ENOMEM;
-	} else {
-		return mlx5e_page_alloc_pool(rq, au);
-	}
-}
-
 void mlx5e_page_dma_unmap(struct mlx5e_rq *rq, struct page *page)
 {
 	dma_addr_t dma_addr = page_pool_get_dma_addr(page);
@@ -562,7 +552,7 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 		if (!(header_offset & (PAGE_SIZE - 1))) {
 			union mlx5e_alloc_unit au;
 
-			err = mlx5e_page_alloc(rq, &au);
+			err = mlx5e_page_alloc_pool(rq, &au);
 			if (unlikely(err))
 				goto err_unmap;
 			page = dma_info->page = au.page;
