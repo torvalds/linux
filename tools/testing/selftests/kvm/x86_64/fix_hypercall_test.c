@@ -14,6 +14,9 @@
 #include "kvm_util.h"
 #include "processor.h"
 
+/* VMCALL and VMMCALL are both 3-byte opcodes. */
+#define HYPERCALL_INSN_SIZE	3
+
 static bool ud_expected;
 
 static void guest_ud_handler(struct ex_regs *regs)
@@ -22,7 +25,7 @@ static void guest_ud_handler(struct ex_regs *regs)
 	GUEST_DONE();
 }
 
-extern unsigned char svm_hypercall_insn;
+extern uint8_t svm_hypercall_insn[HYPERCALL_INSN_SIZE];
 static uint64_t svm_do_sched_yield(uint8_t apic_id)
 {
 	uint64_t ret;
@@ -39,7 +42,7 @@ static uint64_t svm_do_sched_yield(uint8_t apic_id)
 	return ret;
 }
 
-extern unsigned char vmx_hypercall_insn;
+extern uint8_t vmx_hypercall_insn[HYPERCALL_INSN_SIZE];
 static uint64_t vmx_do_sched_yield(uint8_t apic_id)
 {
 	uint64_t ret;
@@ -56,30 +59,20 @@ static uint64_t vmx_do_sched_yield(uint8_t apic_id)
 	return ret;
 }
 
-static void assert_hypercall_insn(unsigned char *exp_insn, unsigned char *obs_insn)
-{
-	uint32_t exp = 0, obs = 0;
-
-	memcpy(&exp, exp_insn, sizeof(exp));
-	memcpy(&obs, obs_insn, sizeof(obs));
-
-	GUEST_ASSERT_EQ(exp, obs);
-}
-
 static void guest_main(void)
 {
-	unsigned char *native_hypercall_insn, *hypercall_insn;
+	uint8_t *native_hypercall_insn, *hypercall_insn;
 	uint8_t apic_id;
 
 	apic_id = GET_APIC_ID_FIELD(xapic_read_reg(APIC_ID));
 
 	if (is_intel_cpu()) {
-		native_hypercall_insn = &vmx_hypercall_insn;
-		hypercall_insn = &svm_hypercall_insn;
+		native_hypercall_insn = vmx_hypercall_insn;
+		hypercall_insn = svm_hypercall_insn;
 		svm_do_sched_yield(apic_id);
 	} else if (is_amd_cpu()) {
-		native_hypercall_insn = &svm_hypercall_insn;
-		hypercall_insn = &vmx_hypercall_insn;
+		native_hypercall_insn = svm_hypercall_insn;
+		hypercall_insn = vmx_hypercall_insn;
 		vmx_do_sched_yield(apic_id);
 	} else {
 		GUEST_ASSERT(0);
@@ -87,8 +80,13 @@ static void guest_main(void)
 		return;
 	}
 
+	/*
+	 * The hypercall didn't #UD (guest_ud_handler() signals "done" if a #UD
+	 * occurs).  Verify that a #UD is NOT expected and that KVM patched in
+	 * the native hypercall.
+	 */
 	GUEST_ASSERT(!ud_expected);
-	assert_hypercall_insn(native_hypercall_insn, hypercall_insn);
+	GUEST_ASSERT(!memcmp(native_hypercall_insn, hypercall_insn, HYPERCALL_INSN_SIZE));
 	GUEST_DONE();
 }
 

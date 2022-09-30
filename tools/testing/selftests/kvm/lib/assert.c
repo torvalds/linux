@@ -22,7 +22,7 @@ static void test_dump_stack(void)
 	 * Build and run this command:
 	 *
 	 *	addr2line -s -e /proc/$PPID/exe -fpai {backtrace addresses} | \
-	 *		grep -v test_dump_stack | cat -n 1>&2
+	 *		cat -n 1>&2
 	 *
 	 * Note that the spacing is different and there's no newline.
 	 */
@@ -36,18 +36,24 @@ static void test_dump_stack(void)
 		 n * (((sizeof(void *)) * 2) + 1) +
 		 /* Null terminator: */
 		 1];
-	char *c;
+	char *c = cmd;
 
 	n = backtrace(stack, n);
-	c = &cmd[0];
-	c += sprintf(c, "%s", addr2line);
 	/*
-	 * Skip the first 3 frames: backtrace, test_dump_stack, and
-	 * test_assert. We hope that backtrace isn't inlined and the other two
-	 * we've declared noinline.
+	 * Skip the first 2 frames, which should be test_dump_stack() and
+	 * test_assert(); both of which are declared noinline.  Bail if the
+	 * resulting stack trace would be empty. Otherwise, addr2line will block
+	 * waiting for addresses to be passed in via stdin.
 	 */
+	if (n <= 2) {
+		fputs("  (stack trace empty)\n", stderr);
+		return;
+	}
+
+	c += sprintf(c, "%s", addr2line);
 	for (i = 2; i < n; i++)
 		c += sprintf(c, " %lx", ((unsigned long) stack[i]) - 1);
+
 	c += sprintf(c, "%s", pipeline);
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-result"
