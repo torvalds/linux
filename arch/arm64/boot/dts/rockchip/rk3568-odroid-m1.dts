@@ -351,6 +351,20 @@
 };
 
 &pinctrl {
+	fspi {
+		fspi_dual_io_pins: fspi-dual-io-pins {
+			rockchip,pins =
+				/* fspi_clk */
+				<1 RK_PD0 1 &pcfg_pull_none>,
+				/* fspi_cs0n */
+				<1 RK_PD3 1 &pcfg_pull_none>,
+				/* fspi_d0 */
+				<1 RK_PD1 1 &pcfg_pull_none>,
+				/* fspi_d1 */
+				<1 RK_PD2 1 &pcfg_pull_none>;
+		};
+	};
+
 	leds {
 		led_power_pin: led-power-pin {
 			rockchip,pins = <0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
@@ -407,6 +421,50 @@
 	vmmc-supply = <&vcc3v3_sd>;
 	vqmmc-supply = <&vccio_sd>;
 	status = "okay";
+};
+
+&sfc {
+	/* Dual I/O mode as the D2 pin conflicts with the eMMC */
+	pinctrl-0 = <&fspi_dual_io_pins>;
+	pinctrl-names = "default";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <100000000>;
+		spi-rx-bus-width = <2>;
+		spi-tx-bus-width = <1>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "SPL";
+				reg = <0x0 0xe0000>;
+			};
+			partition@e0000 {
+				label = "U-Boot Env";
+				reg = <0xe0000 0x20000>;
+			};
+			partition@100000 {
+				label = "U-Boot";
+				reg = <0x100000 0x200000>;
+			};
+			partition@300000 {
+				label = "splash";
+				reg = <0x300000 0x100000>;
+			};
+			partition@400000 {
+				label = "Filesystem";
+				reg = <0x400000 0xc00000>;
+			};
+		};
+	};
 };
 
 &tsadc {
