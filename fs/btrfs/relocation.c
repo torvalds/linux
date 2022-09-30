@@ -1120,7 +1120,7 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 				WARN_ON(!IS_ALIGNED(end, fs_info->sectorsize));
 				end--;
 				ret = try_lock_extent(&BTRFS_I(inode)->io_tree,
-						      key.offset, end);
+						      key.offset, end, NULL);
 				if (!ret)
 					continue;
 

@@ -1073,7 +1073,7 @@ bool btrfs_try_lock_ordered_range(struct btrfs_inode *inode, u64 start, u64 end)
 {
 	struct btrfs_ordered_extent *ordered;
 
-	if (!try_lock_extent(&inode->io_tree, start, end))
+	if (!try_lock_extent(&inode->io_tree, start, end, NULL))
 		return false;
 
 	ordered = btrfs_lookup_ordered_range(inode, start, end - start + 1);

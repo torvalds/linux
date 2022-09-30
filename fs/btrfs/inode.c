@@ -7255,7 +7255,8 @@ static int lock_extent_direct(struct inode *inode, u64 lockstart, u64 lockend,
 
 	while (1) {
 		if (nowait) {
-			if (!try_lock_extent(io_tree, lockstart, lockend))
+			if (!try_lock_extent(io_tree, lockstart, lockend,
+					     cached_state))
 				return -EAGAIN;
 		} else {
 			lock_extent(io_tree, lockstart, lockend, cached_state);

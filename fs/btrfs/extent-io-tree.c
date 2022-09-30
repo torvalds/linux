@@ -1615,17 +1615,18 @@ int clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 				  changeset);
 }
 
-int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end)
+int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end,
+		    struct extent_state **cached)
 {
 	int err;
 	u64 failed_start;
 
 	err = __set_extent_bit(tree, start, end, EXTENT_LOCKED, &failed_start,
-			       NULL, NULL, GFP_NOFS);
+			       cached, NULL, GFP_NOFS);
 	if (err == -EEXIST) {
 		if (failed_start > start)
 			clear_extent_bit(tree, start, failed_start - 1,
-					 EXTENT_LOCKED, NULL);
+					 EXTENT_LOCKED, cached);
 		return 0;
 	}
 	return 1;

@@ -106,7 +106,8 @@ void extent_io_tree_release(struct extent_io_tree *tree);
 int lock_extent(struct extent_io_tree *tree, u64 start, u64 end,
 		struct extent_state **cached);
 
-int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end);
+int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end,
+		    struct extent_state **cached);
 
 int __init extent_state_init_cachep(void);
 void __cold extent_state_free_cachep(void);
