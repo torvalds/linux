@@ -424,7 +424,7 @@ static void mlx5e_dealloc_rx_wqe(struct mlx5e_rq *rq, u16 ix)
 	mlx5e_free_rx_wqe(rq, wi, false);
 }
 
-static int mlx5e_alloc_rx_wqes(struct mlx5e_rq *rq, u16 ix, u8 wqe_bulk)
+static int mlx5e_alloc_rx_wqes(struct mlx5e_rq *rq, u16 ix, int wqe_bulk)
 {
 	struct mlx5_wq_cyc *wq = &rq->wqe.wq;
 	int i;
@@ -805,38 +805,33 @@ static void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 INDIRECT_CALLABLE_SCOPE bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 {
 	struct mlx5_wq_cyc *wq = &rq->wqe.wq;
+	int wqe_bulk, count;
 	bool busy = false;
-	u8 wqe_bulk;
+	u16 head;
 
 	if (unlikely(!test_bit(MLX5E_RQ_STATE_ENABLED, &rq->state)))
 		return false;
 
-	wqe_bulk = rq->wqe.info.wqe_bulk;
-
-	if (mlx5_wq_cyc_missing(wq) < wqe_bulk)
+	if (mlx5_wq_cyc_missing(wq) < rq->wqe.info.wqe_bulk)
 		return false;
 
 	if (rq->page_pool)
 		page_pool_nid_changed(rq->page_pool, numa_mem_id());
 
-	do {
-		u16 head = mlx5_wq_cyc_get_head(wq);
-		int count;
-		u8 bulk;
+	wqe_bulk = mlx5_wq_cyc_missing(wq);
+	head = mlx5_wq_cyc_get_head(wq);
 
-		/* Don't allow any newly allocated WQEs to share the same page
-		 * with old WQEs that aren't completed yet. Stop earlier.
-		 */
-		bulk = wqe_bulk - ((head + wqe_bulk) & rq->wqe.info.wqe_index_mask);
+	/* Don't allow any newly allocated WQEs to share the same page with old
+	 * WQEs that aren't completed yet. Stop earlier.
+	 */
+	wqe_bulk -= (head + wqe_bulk) & rq->wqe.info.wqe_index_mask;
 
-		count = mlx5e_alloc_rx_wqes(rq, head, bulk);
-		mlx5_wq_cyc_push_n(wq, count);
-		if (unlikely(count != bulk)) {
-			rq->stats->buff_alloc_err++;
-			busy = true;
-			break;
-		}
-	} while (mlx5_wq_cyc_missing(wq) >= wqe_bulk);
+	count = mlx5e_alloc_rx_wqes(rq, head, wqe_bulk);
+	mlx5_wq_cyc_push_n(wq, count);
+	if (unlikely(count != wqe_bulk)) {
+		rq->stats->buff_alloc_err++;
+		busy = true;
+	}
 
 	/* ensure wqes are visible to device before updating doorbell record */
 	dma_wmb();
