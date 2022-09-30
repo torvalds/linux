@@ -2030,7 +2030,7 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	acpi_status status;
 
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE,
-				device->parent->handle, 1,
+				acpi_dev_parent(device)->handle, 1,
 				acpi_video_bus_match, NULL,
 				device, NULL);
 	if (status == AE_ALREADY_EXISTS) {

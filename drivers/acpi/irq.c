@@ -118,12 +118,12 @@ acpi_get_irq_source_fwhandle(const struct acpi_resource_source *source,
 	if (WARN_ON(ACPI_FAILURE(status)))
 		return NULL;
 
-	device = acpi_bus_get_acpi_device(handle);
+	device = acpi_get_acpi_dev(handle);
 	if (WARN_ON(!device))
 		return NULL;
 
 	result = &device->fwnode;
-	acpi_bus_put_acpi_device(device);
+	acpi_put_acpi_dev(device);
 	return result;
 }
 

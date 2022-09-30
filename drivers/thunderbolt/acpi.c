@@ -42,7 +42,7 @@ static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
 	 */
 	dev = acpi_get_first_physical_node(adev);
 	while (!dev) {
-		adev = adev->parent;
+		adev = acpi_dev_parent(adev);
 		if (!adev)
 			break;
 		dev = acpi_get_first_physical_node(adev);
