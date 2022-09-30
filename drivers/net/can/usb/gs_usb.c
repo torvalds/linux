@@ -1153,6 +1153,7 @@ static struct gs_can *gs_make_candev(unsigned int channel,
 	netdev->ethtool_ops = &gs_usb_ethtool_ops;
 
 	netdev->flags |= IFF_ECHO; /* we support full roundtrip echo */
+	netdev->dev_id = channel;
 
 	/* dev setup */
 	strcpy(dev->bt_const.name, KBUILD_MODNAME);
