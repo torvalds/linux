@@ -2799,7 +2799,7 @@ svm_fault_allowed(struct vm_area_struct *vma, bool write_fault)
 
 int
 svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
-			uint32_t client_id, uint32_t node_id,
+			uint32_t vmid, uint32_t node_id,
 			uint64_t addr, bool write_fault)
 {
 	struct mm_struct *mm = NULL;
@@ -2851,10 +2851,10 @@ svm_range_restore_pages(struct amdgpu_device *adev, unsigned int pasid,
 		goto out;
 	}
 
-	node = kfd_node_by_irq_ids(adev, node_id, client_id);
+	node = kfd_node_by_irq_ids(adev, node_id, vmid);
 	if (!node) {
-		pr_debug("kfd node does not exist node_id: %d, client_id: %d\n", node_id,
-			 client_id);
+		pr_debug("kfd node does not exist node_id: %d, vmid: %d\n", node_id,
+			 vmid);
 		r = -EFAULT;
 		goto out;
 	}

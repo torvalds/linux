@@ -587,7 +587,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 
 			cam_index = entry->src_data[2] & 0x3ff;
 
-			ret = amdgpu_vm_handle_fault(adev, entry->pasid, entry->client_id, node_id,
+			ret = amdgpu_vm_handle_fault(adev, entry->pasid, entry->vmid, node_id,
 						     addr, write_fault);
 			WDOORBELL32(adev->irq.retry_cam_doorbell_index, cam_index);
 			if (ret)
@@ -610,7 +610,7 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 			/* Try to handle the recoverable page faults by filling page
 			 * tables
 			 */
-			if (amdgpu_vm_handle_fault(adev, entry->pasid, entry->client_id, node_id,
+			if (amdgpu_vm_handle_fault(adev, entry->pasid, entry->vmid, node_id,
 						   addr, write_fault))
 				return 1;
 		}

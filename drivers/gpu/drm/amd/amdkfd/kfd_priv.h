@@ -1073,18 +1073,14 @@ struct kfd_topology_device *kfd_topology_device_by_id(uint32_t gpu_id);
 struct kfd_node *kfd_device_by_id(uint32_t gpu_id);
 struct kfd_node *kfd_device_by_pci_dev(const struct pci_dev *pdev);
 struct kfd_node *kfd_device_by_adev(const struct amdgpu_device *adev);
-static inline bool kfd_irq_is_from_node(struct kfd_node *node, uint32_t client_id,
-				     uint32_t node_id)
+static inline bool kfd_irq_is_from_node(struct kfd_node *node, uint32_t node_id,
+					uint32_t vmid)
 {
-	if ((node->interrupt_bitmap & (0x1U << node_id)) ||
-	    ((node_id % 4) == 0 &&
-	    (node->interrupt_bitmap >> 16) & (0x1U << client_id)))
-		return true;
-
-	return false;
+	return (node->interrupt_bitmap & (1 << node_id)) != 0 &&
+	       (node->compute_vmid_bitmap & (1 << vmid)) != 0;
 }
 static inline struct kfd_node *kfd_node_by_irq_ids(struct amdgpu_device *adev,
-					uint32_t client_id, uint32_t node_id) {
+					uint32_t node_id, uint32_t vmid) {
 	struct kfd_dev *dev = adev->kfd.dev;
 	uint32_t i;
 
@@ -1092,7 +1088,7 @@ static inline struct kfd_node *kfd_node_by_irq_ids(struct amdgpu_device *adev,
 		return dev->nodes[0];
 
 	for (i = 0; i < dev->num_nodes; i++)
-		if (kfd_irq_is_from_node(dev->nodes[i], client_id, node_id))
+		if (kfd_irq_is_from_node(dev->nodes[i], node_id, vmid))
 			return dev->nodes[i];
 
 	return NULL;
