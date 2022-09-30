@@ -30,6 +30,7 @@
 #include <linux/libfdt.h>
 #include <linux/cpu.h>
 #include <linux/pgtable.h>
+#include <linux/seq_buf.h>
 
 #include <asm/rtas.h>
 #include <asm/page.h>
@@ -818,6 +819,9 @@ void __init early_init_devtree(void *params)
 	DBG("Scanning CPUs ...\n");
 
 	dt_cpu_ftrs_scan();
+
+	// We can now add the CPU name & PVR to the hardware description
+	seq_buf_printf(&ppc_hw_desc, "%s 0x%04lx ", cur_cpu_spec->cpu_name, mfspr(SPRN_PVR));
 
 	/* Retrieve CPU related informations from the flat tree
 	 * (altivec support, boot CPU ID, ...)
