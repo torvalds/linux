@@ -945,13 +945,13 @@ static inline u32 enetc_usecs_to_cycles(u32 usecs)
 }
 
 /* port time gating control register */
-#define ENETC_QBV_PTGCR_OFFSET		0x11a00
-#define ENETC_QBV_TGE			BIT(31)
-#define ENETC_QBV_TGPE			BIT(30)
+#define ENETC_PTGCR			0x11a00
+#define ENETC_PTGCR_TGE			BIT(31)
+#define ENETC_PTGCR_TGPE		BIT(30)
 
 /* Port time gating capability register */
-#define ENETC_QBV_PTGCAPR_OFFSET	0x11a08
-#define ENETC_QBV_MAX_GCL_LEN_MASK	GENMASK(15, 0)
+#define ENETC_PTGCAPR			0x11a08
+#define ENETC_PTGCAPR_MAX_GCL_LEN_MASK	GENMASK(15, 0)
 
 /* Port time specific departure */
 #define ENETC_PTCTSDR(n)	(0x1210 + 4 * (n))

@@ -141,6 +141,11 @@ static inline struct net *qdisc_net(struct Qdisc *q)
 	return dev_net(q->dev_queue->dev);
 }
 
+struct tc_query_caps_base {
+	enum tc_setup_type type;
+	void *caps;
+};
+
 struct tc_cbs_qopt_offload {
 	u8 enable;
 	s32 queue;
@@ -153,6 +158,10 @@ struct tc_cbs_qopt_offload {
 struct tc_etf_qopt_offload {
 	u8 enable;
 	s32 queue;
+};
+
+struct tc_taprio_caps {
+	bool supports_queue_max_sdu:1;
 };
 
 struct tc_taprio_sched_entry {
@@ -168,6 +177,7 @@ struct tc_taprio_qopt_offload {
 	ktime_t base_time;
 	u64 cycle_time;
 	u64 cycle_time_extension;
+	u32 max_sdu[TC_MAX_QUEUE];
 
 	size_t num_entries;
 	struct tc_taprio_sched_entry entries[];
