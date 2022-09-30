@@ -422,12 +422,6 @@ config BATTERY_MAX1721X
 	  Say Y here to enable support for the MAX17211/MAX17215 standalone
 	  battery gas-gauge.
 
-config BATTERY_Z2
-	tristate "Z2 battery driver"
-	depends on I2C && MACH_ZIPIT2
-	help
-	  Say Y to include support for the battery on the Zipit Z2.
-
 config BATTERY_TWL4030_MADC
 	tristate "TWL4030 MADC battery driver"
 	depends on TWL4030_MADC
