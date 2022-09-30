@@ -1666,7 +1666,7 @@ static u8 _dpk_one_shot(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 
 	ret = read_poll_timeout_atomic(rtw89_phy_read32_mask, val, val == 0x55,
 				       10, 20000, false, rtwdev, 0xbff8, MASKBYTE0);
-	mdelay(10);
+	udelay(10);
 	rtw89_phy_write32_clr(rtwdev, R_NCTL_N1, MASKBYTE0);
 
 	rtw89_debug(rtwdev, RTW89_DBG_RFK,
