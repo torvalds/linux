@@ -359,7 +359,7 @@ static inline int mlx5e_get_rx_frag(struct mlx5e_rq *rq,
 		 * offset) should just use the new one without replenishing again
 		 * by themselves.
 		 */
-		err = mlx5e_page_alloc(rq, frag->au);
+		err = mlx5e_page_alloc_pool(rq, frag->au);
 
 	return err;
 }
@@ -393,8 +393,7 @@ static int mlx5e_alloc_rx_wqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe_cyc *wqe,
 			goto free_frags;
 
 		headroom = i == 0 ? rq->buff.headroom : 0;
-		addr = rq->xsk_pool ? xsk_buff_xdp_get_frame_dma(frag->au->xsk) :
-				      page_pool_get_dma_addr(frag->au->page);
+		addr = page_pool_get_dma_addr(frag->au->page);
 		wqe->data[i].addr = cpu_to_be64(addr + frag->offset + headroom);
 	}
 
@@ -826,7 +825,11 @@ INDIRECT_CALLABLE_SCOPE bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 	 */
 	wqe_bulk -= (head + wqe_bulk) & rq->wqe.info.wqe_index_mask;
 
-	count = mlx5e_alloc_rx_wqes(rq, head, wqe_bulk);
+	if (!rq->xsk_pool)
+		count = mlx5e_alloc_rx_wqes(rq, head, wqe_bulk);
+	else
+		count = mlx5e_xsk_alloc_rx_wqes(rq, head, wqe_bulk);
+
 	mlx5_wq_cyc_push_n(wq, count);
 	if (unlikely(count != wqe_bulk)) {
 		rq->stats->buff_alloc_err++;

@@ -8,6 +8,32 @@
 
 /* RX data path */
 
+int mlx5e_xsk_alloc_rx_wqes(struct mlx5e_rq *rq, u16 ix, int wqe_bulk)
+{
+	struct mlx5_wq_cyc *wq = &rq->wqe.wq;
+	int i;
+
+	for (i = 0; i < wqe_bulk; i++) {
+		int j = mlx5_wq_cyc_ctr2ix(wq, ix + i);
+		struct mlx5e_wqe_frag_info *frag;
+		struct mlx5e_rx_wqe_cyc *wqe;
+		dma_addr_t addr;
+
+		wqe = mlx5_wq_cyc_get_wqe(wq, j);
+		/* Assumes log_num_frags == 0. */
+		frag = &rq->wqe.frags[j];
+
+		frag->au->xsk = xsk_buff_alloc(rq->xsk_pool);
+		if (unlikely(!frag->au->xsk))
+			return i;
+
+		addr = xsk_buff_xdp_get_frame_dma(frag->au->xsk);
+		wqe->data[0].addr = cpu_to_be64(addr + rq->buff.headroom);
+	}
+
+	return wqe_bulk;
+}
+
 static struct sk_buff *mlx5e_xsk_construct_skb(struct mlx5e_rq *rq, void *data,
 					       u32 cqe_bcnt)
 {
