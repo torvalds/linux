@@ -588,12 +588,8 @@ err_unmap:
 	while (--i >= 0) {
 		dma_info = &shampo->info[--index];
 		if (!(i & (MLX5E_SHAMPO_WQ_HEADER_PER_PAGE - 1))) {
-			union mlx5e_alloc_unit au = {
-				.page = dma_info->page,
-			};
-
 			dma_info->addr = ALIGN_DOWN(dma_info->addr, PAGE_SIZE);
-			mlx5e_page_release(rq, &au, true);
+			mlx5e_page_release_dynamic(rq, dma_info->page, true);
 		}
 	}
 	rq->stats->buff_alloc_err++;
@@ -698,7 +694,7 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 err_unmap:
 	while (--i >= 0) {
 		au--;
-		mlx5e_page_release(rq, au, true);
+		mlx5e_page_release_dynamic(rq, au->page, true);
 	}
 
 err:
@@ -731,12 +727,8 @@ void mlx5e_shampo_dealloc_hd(struct mlx5e_rq *rq, u16 len, u16 start, bool close
 		hd_info = &shampo->info[index];
 		hd_info->addr = ALIGN_DOWN(hd_info->addr, PAGE_SIZE);
 		if (hd_info->page != deleted_page) {
-			union mlx5e_alloc_unit au = {
-				.page = hd_info->page,
-			};
-
 			deleted_page = hd_info->page;
-			mlx5e_page_release(rq, &au, false);
+			mlx5e_page_release_dynamic(rq, hd_info->page, false);
 		}
 	}
 
@@ -2061,12 +2053,8 @@ mlx5e_free_rx_shampo_hd_entry(struct mlx5e_rq *rq, u16 header_index)
 	u64 addr = shampo->info[header_index].addr;
 
 	if (((header_index + 1) & (MLX5E_SHAMPO_WQ_HEADER_PER_PAGE - 1)) == 0) {
-		union mlx5e_alloc_unit au = {
-			.page = shampo->info[header_index].page,
-		};
-
 		shampo->info[header_index].addr = ALIGN_DOWN(addr, PAGE_SIZE);
-		mlx5e_page_release(rq, &au, true);
+		mlx5e_page_release_dynamic(rq, shampo->info[header_index].page, true);
 	}
 	bitmap_clear(shampo->bitmap, header_index, 1);
 }
