@@ -16,6 +16,7 @@
 #include <linux/syscore_ops.h>
 #include <uapi/linux/sched/types.h>
 #include <linux/sched/walt.h>
+#include <linux/kstrtox.h>
 
 #include "walt.h"
 #include "trace.h"
@@ -405,6 +406,129 @@ static ssize_t show_not_preferred(const struct cluster_data *state, char *buf)
 	return count;
 }
 
+DECLARE_BITMAP(temp_bitmap, WALT_NR_CPUS);
+
+static ssize_t store_nrrun_cpu_mask(struct cluster_data *state,
+				    const char *buf, size_t count)
+{
+	unsigned long bitmask = 0xFF;
+	const unsigned long *bitmaskp = &bitmask;
+	unsigned long flags;
+	int ret = 0;
+
+	ret = kstrtoul(buf, 0, (unsigned long *)bitmaskp);
+	if (ret < 0)
+		return ret;
+
+	bitmap_copy(temp_bitmap, bitmaskp, 8);
+
+	spin_lock_irqsave(&state_lock, flags);
+	cpumask_copy(&state->nrrun_cpu_mask, to_cpumask(temp_bitmap));
+	spin_unlock_irqrestore(&state_lock, flags);
+
+	return count;
+}
+
+static ssize_t show_nrrun_cpu_mask(const struct cluster_data *state, char *buf)
+{
+	int ret = 0;
+
+	ret = scnprintf(buf, PAGE_SIZE, "0x%x\n", (*(cpumask_bits(&state->nrrun_cpu_mask))));
+
+	return ret;
+}
+
+static ssize_t store_nrrun_cpu_misfit_mask(struct cluster_data *state,
+				    const char *buf, size_t count)
+{
+	unsigned long bitmask;
+	const unsigned long *bitmaskp = &bitmask;
+	unsigned long flags;
+	int ret = 0;
+
+	ret = kstrtoul(buf, 0, (unsigned long *)bitmaskp);
+	if (ret < 0)
+		return ret;
+
+	bitmap_copy(temp_bitmap, bitmaskp, 8);
+
+	spin_lock_irqsave(&state_lock, flags);
+	cpumask_copy(&state->nrrun_cpu_misfit_mask, to_cpumask(temp_bitmap));
+	spin_unlock_irqrestore(&state_lock, flags);
+
+	return count;
+}
+
+static ssize_t show_nrrun_cpu_misfit_mask(const struct cluster_data *state, char *buf)
+{
+	int ret = 0;
+
+	ret = scnprintf(buf, PAGE_SIZE, "0x%x\n", (*(cpumask_bits(&state->nrrun_cpu_misfit_mask))));
+
+	return ret;
+}
+
+static ssize_t store_assist_cpu_mask(struct cluster_data *state,
+				    const char *buf, size_t count)
+{
+	unsigned long bitmask;
+	const unsigned long *bitmaskp = &bitmask;
+	unsigned long flags;
+	int ret = 0;
+
+	ret = kstrtoul(buf, 0, (unsigned long *)bitmaskp);
+	if (ret < 0)
+		return ret;
+
+	bitmap_copy(temp_bitmap, bitmaskp, 8);
+
+	spin_lock_irqsave(&state_lock, flags);
+	cpumask_copy(&state->assist_cpu_mask, to_cpumask(temp_bitmap));
+	spin_unlock_irqrestore(&state_lock, flags);
+
+	return count;
+}
+
+static ssize_t show_assist_cpu_mask(const struct cluster_data *state, char *buf)
+{
+	int ret = 0;
+
+	ret = scnprintf(buf, PAGE_SIZE, "0x%x\n", (*(cpumask_bits(&state->assist_cpu_mask))));
+
+	return ret;
+}
+
+static ssize_t store_assist_cpu_misfit_mask(struct cluster_data *state,
+				    const char *buf, size_t count)
+{
+	unsigned long bitmask;
+	const unsigned long *bitmaskp = &bitmask;
+	unsigned long flags;
+	int ret = 0;
+
+	ret = kstrtoul(buf, 0, (unsigned long *)bitmaskp);
+	if (ret < 0)
+		return ret;
+
+	bitmap_copy(temp_bitmap, bitmaskp, 8);
+
+	spin_lock_irqsave(&state_lock, flags);
+	cpumask_copy(&state->assist_cpu_misfit_mask, to_cpumask(temp_bitmap));
+	spin_unlock_irqrestore(&state_lock, flags);
+
+	return count;
+}
+
+static ssize_t show_assist_cpu_misfit_mask(const struct cluster_data *state, char *buf)
+{
+	int ret = 0;
+
+	ret = scnprintf(buf, PAGE_SIZE, "0x%x\n",
+			(*(cpumask_bits(&state->assist_cpu_misfit_mask))));
+
+	return ret;
+}
+
 struct core_ctl_attr {
 	struct attribute	attr;
 	ssize_t			(*show)(const struct cluster_data *cd, char *c);
@@ -432,6 +556,10 @@ core_ctl_attr_ro(active_cpus);
 core_ctl_attr_ro(global_state);
 core_ctl_attr_rw(not_preferred);
 core_ctl_attr_rw(enable);
+core_ctl_attr_rw(nrrun_cpu_mask);
+core_ctl_attr_rw(nrrun_cpu_misfit_mask);
+core_ctl_attr_rw(assist_cpu_mask);
+core_ctl_attr_rw(assist_cpu_misfit_mask);
 
 static struct attribute *default_attrs[] = {
 	&min_cpus.attr,
@@ -446,6 +574,10 @@ static struct attribute *default_attrs[] = {
 	&active_cpus.attr,
 	&global_state.attr,
 	&not_preferred.attr,
+	&nrrun_cpu_mask.attr,
+	&nrrun_cpu_misfit_mask.attr,
+	&assist_cpu_mask.attr,
+	&assist_cpu_misfit_mask.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(default);
