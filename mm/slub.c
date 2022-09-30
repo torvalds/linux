@@ -2836,21 +2836,24 @@ out:
 		set_freepointer(s, tail, prior);
 		slab->freelist = head;
 
-		/* Do we need to remove the slab from full or partial list? */
+		/*
+		 * If the slab is empty, and node's partial list is full,
+		 * it should be discarded anyway no matter it's on full or
+		 * partial list.
+		 */
+		if (slab->inuse == 0 && n->nr_partial >= s->min_partial)
+			slab_free = slab;
+
 		if (!prior) {
+			/* was on full list */
 			remove_full(s, n, slab);
-		} else if (slab->inuse == 0 &&
-			   n->nr_partial >= s->min_partial) {
+			if (!slab_free) {
+				add_partial(n, slab, DEACTIVATE_TO_TAIL);
+				stat(s, FREE_ADD_PARTIAL);
+			}
+		} else if (slab_free) {
 			remove_partial(n, slab);
 			stat(s, FREE_REMOVE_PARTIAL);
-		}
-
-		/* Do we need to discard the slab or add to partial list? */
-		if (slab->inuse == 0 && n->nr_partial >= s->min_partial) {
-			slab_free = slab;
-		} else if (!prior) {
-			add_partial(n, slab, DEACTIVATE_TO_TAIL);
-			stat(s, FREE_ADD_PARTIAL);
 		}
 	}
 
