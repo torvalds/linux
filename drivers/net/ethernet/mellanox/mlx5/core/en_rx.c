@@ -429,17 +429,6 @@ static int mlx5e_alloc_rx_wqes(struct mlx5e_rq *rq, u16 ix, u8 wqe_bulk)
 	struct mlx5_wq_cyc *wq = &rq->wqe.wq;
 	int i;
 
-	if (rq->xsk_pool) {
-		int pages_desired = wqe_bulk << rq->wqe.info.log_num_frags;
-
-		/* Check in advance that we have enough frames, instead of
-		 * allocating one-by-one, failing and moving frames to the
-		 * Reuse Ring.
-		 */
-		if (unlikely(!xsk_buff_can_alloc(rq->xsk_pool, pages_desired)))
-			return -ENOMEM;
-	}
-
 	for (i = 0; i < wqe_bulk; i++) {
 		int j = mlx5_wq_cyc_ctr2ix(wq, ix + i);
 		struct mlx5e_rx_wqe_cyc *wqe;
@@ -841,8 +830,7 @@ INDIRECT_CALLABLE_SCOPE bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 		bulk = wqe_bulk - ((head + wqe_bulk) & rq->wqe.info.wqe_index_mask);
 
 		count = mlx5e_alloc_rx_wqes(rq, head, bulk);
-		if (likely(count > 0))
-			mlx5_wq_cyc_push_n(wq, count);
+		mlx5_wq_cyc_push_n(wq, count);
 		if (unlikely(count != bulk)) {
 			rq->stats->buff_alloc_err++;
 			busy = true;
