@@ -506,6 +506,7 @@ int acpi_dev_get_resources(struct acpi_device *adev, struct list_head *list,
 			   void *preproc_data);
 int acpi_dev_get_dma_resources(struct acpi_device *adev,
 			       struct list_head *list);
+int acpi_dev_get_memory_resources(struct acpi_device *adev, struct list_head *list);
 int acpi_dev_filter_resource_type(struct acpi_resource *ares,
 				  unsigned long types);
 

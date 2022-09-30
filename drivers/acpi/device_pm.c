@@ -1466,7 +1466,7 @@ EXPORT_SYMBOL_GPL(acpi_storage_d3);
  * not valid to ask for the ACPI power state of the device in that time frame.
  *
  * This function is intended to be used in a driver's probe or remove
- * function. See Documentation/firmware-guide/acpi/low-power-probe.rst for
+ * function. See Documentation/firmware-guide/acpi/non-d0-probe.rst for
  * more information.
  */
 bool acpi_dev_state_d0(struct device *dev)
