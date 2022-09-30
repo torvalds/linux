@@ -648,7 +648,26 @@ static int mlx5e_build_rq_frags_info(struct mlx5_core_dev *mdev,
 	 * is not completed yet, WQE 2*N must not be allocated, as it's
 	 * responsible for allocating a new page.
 	 */
-	info->wqe_index_mask = info->num_frags % 2;
+	if (frag_size_max == PAGE_SIZE) {
+		/* No WQE can start in the middle of a page. */
+		info->wqe_index_mask = 0;
+	} else {
+		/* PAGE_SIZEs starting from 8192 don't use 2K-sized fragments,
+		 * because there would be more than MLX5E_MAX_RX_FRAGS of them.
+		 */
+		WARN_ON(PAGE_SIZE != 2 * DEFAULT_FRAG_SIZE);
+
+		/* Odd number of fragments allows to pack the last fragment of
+		 * the previous WQE and the first fragment of the next WQE into
+		 * the same page.
+		 * As long as DEFAULT_FRAG_SIZE is 2048, and MLX5E_MAX_RX_FRAGS
+		 * is 4, the last fragment can be bigger than the rest only if
+		 * it's the fourth one, so WQEs consisting of 3 fragments will
+		 * always share a page.
+		 * When a page is shared, WQE bulk size is 2, otherwise just 1.
+		 */
+		info->wqe_index_mask = info->num_frags % 2;
+	}
 
 out:
 	/* Bulking optimization to skip allocation until at least 8 WQEs can be
