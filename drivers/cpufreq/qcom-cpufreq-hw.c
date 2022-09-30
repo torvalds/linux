@@ -67,6 +67,7 @@ struct qcom_cpufreq_data {
 	 * polling/interrupts
 	 */
 	struct mutex throttle_lock;
+	int hw_clk_domain;
 	int throttle_irq;
 	char irq_name[15];
 	bool cancel_throttle;
@@ -78,6 +79,22 @@ struct qcom_cpufreq_data {
 
 static unsigned long cpu_hw_rate, xo_rate;
 static bool icc_scaling_enabled;
+
+/*
+ * show_hw_clk_domain - the HW clock domain per policy
+ */
+static ssize_t show_hw_clk_domain(struct cpufreq_policy *policy, char *buf)
+{
+	struct qcom_cpufreq_data *data;
+
+	data = policy->driver_data;
+	if (data)
+		return scnprintf(buf, sizeof(int), "%u\n", data->hw_clk_domain);
+
+	return -EIO;
+}
+
+cpufreq_freq_attr_ro(hw_clk_domain);
 
 static int qcom_cpufreq_set_bw(struct cpufreq_policy *policy,
 			       unsigned long freq_khz)
@@ -615,9 +632,16 @@ static int qcom_cpufreq_hw_cpu_init(struct cpufreq_policy *policy)
 			return -ENOMEM;
 		}
 
+		ret = sysfs_create_file(&policy->kobj, &hw_clk_domain.attr);
+		if (ret) {
+			pr_err("%s: cannot register HW clock domain sysfs file\n", __func__);
+			return ret;
+		}
+
 		data->soc_data = of_device_get_match_data(&pdev->dev);
 		data->base = base;
 		data->res = res;
+		data->hw_clk_domain = index;
 	}
 
 	base = data->base;
