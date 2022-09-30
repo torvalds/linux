@@ -350,42 +350,33 @@ static void sfp_quirk_ubnt_uf_instant(const struct sfp_eeprom_id *id,
 	linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseX_Full_BIT, modes);
 }
 
+#define SFP_QUIRK(_v, _p, _m, _f) \
+	{ .vendor = _v, .part = _p, .modes = _m, .fixup = _f, }
+#define SFP_QUIRK_M(_v, _p, _m) SFP_QUIRK(_v, _p, _m, NULL)
+#define SFP_QUIRK_F(_v, _p, _f) SFP_QUIRK(_v, _p, NULL, _f)
+
 static const struct sfp_quirk sfp_quirks[] = {
-	{
-		// Alcatel Lucent G-010S-P can operate at 2500base-X, but
-		// incorrectly report 2500MBd NRZ in their EEPROM
-		.vendor = "ALCATELLUCENT",
-		.part = "G010SP",
-		.modes = sfp_quirk_2500basex,
-	}, {
-		// Alcatel Lucent G-010S-A can operate at 2500base-X, but
-		// report 3.2GBd NRZ in their EEPROM
-		.vendor = "ALCATELLUCENT",
-		.part = "3FE46541AA",
-		.modes = sfp_quirk_2500basex,
-		.fixup = sfp_fixup_long_startup,
-	}, {
-		.vendor = "HALNy",
-		.part = "HL-GSFP",
-		.fixup = sfp_fixup_halny_gsfp,
-	}, {
-		// Huawei MA5671A can operate at 2500base-X, but report 1.2GBd
-		// NRZ in their EEPROM
-		.vendor = "HUAWEI",
-		.part = "MA5671A",
-		.modes = sfp_quirk_2500basex,
-		.fixup = sfp_fixup_ignore_tx_fault,
-	}, {
-		// Lantech 8330-262D-E can operate at 2500base-X, but
-		// incorrectly report 2500MBd NRZ in their EEPROM
-		.vendor = "Lantech",
-		.part = "8330-262D-E",
-		.modes = sfp_quirk_2500basex,
-	}, {
-		.vendor = "UBNT",
-		.part = "UF-INSTANT",
-		.modes = sfp_quirk_ubnt_uf_instant,
-	}
+	// Alcatel Lucent G-010S-P can operate at 2500base-X, but incorrectly
+	// report 2500MBd NRZ in their EEPROM
+	SFP_QUIRK_M("ALCATELLUCENT", "G010SP", sfp_quirk_2500basex),
+
+	// Alcatel Lucent G-010S-A can operate at 2500base-X, but report 3.2GBd
+	// NRZ in their EEPROM
+	SFP_QUIRK("ALCATELLUCENT", "3FE46541AA", sfp_quirk_2500basex,
+		  sfp_fixup_long_startup),
+
+	SFP_QUIRK_F("HALNy", "HL-GSFP", sfp_fixup_halny_gsfp),
+
+	// Huawei MA5671A can operate at 2500base-X, but report 1.2GBd NRZ in
+	// their EEPROM
+	SFP_QUIRK("HUAWEI", "MA5671A", sfp_quirk_2500basex,
+		  sfp_fixup_ignore_tx_fault),
+
+	// Lantech 8330-262D-E can operate at 2500base-X, but incorrectly report
+	// 2500MBd NRZ in their EEPROM
+	SFP_QUIRK_M("Lantech", "8330-262D-E", sfp_quirk_2500basex),
+
+	SFP_QUIRK_M("UBNT", "UF-INSTANT", sfp_quirk_ubnt_uf_instant),
 };
 
 static size_t sfp_strlen(const char *str, size_t maxlen)
