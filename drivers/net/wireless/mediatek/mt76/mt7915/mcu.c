@@ -3447,8 +3447,8 @@ int mt7915_mcu_rf_regval(struct mt7915_dev *dev, u32 regidx, u32 *val, bool set)
 		__le32 ofs;
 		__le32 data;
 	} __packed req = {
-		.idx = cpu_to_le32(u32_get_bits(regidx, GENMASK(31, 28))),
-		.ofs = cpu_to_le32(u32_get_bits(regidx, GENMASK(27, 0))),
+		.idx = cpu_to_le32(u32_get_bits(regidx, GENMASK(31, 24))),
+		.ofs = cpu_to_le32(u32_get_bits(regidx, GENMASK(23, 0))),
 		.data = set ? cpu_to_le32(*val) : 0,
 	};
 	struct sk_buff *skb;
