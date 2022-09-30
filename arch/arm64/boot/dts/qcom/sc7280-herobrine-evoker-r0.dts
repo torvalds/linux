@@ -328,6 +328,5 @@ ts_i2c: &i2c13 {
 			  "MOS_BLE_UART_TX",
 			  "MOS_BLE_UART_RX",
 			  "",
-			  "",
 			  "";
 };
