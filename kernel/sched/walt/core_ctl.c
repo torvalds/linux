@@ -442,6 +442,7 @@ static struct attribute *default_attrs[] = {
 	&not_preferred.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(default);
 
 #define to_cluster_data(k) container_of(k, struct cluster_data, kobj)
 #define to_attr(a) container_of(a, struct core_ctl_attr, attr)
@@ -477,7 +478,7 @@ static const struct sysfs_ops sysfs_ops = {
 
 static struct kobj_type ktype_core_ctl = {
 	.sysfs_ops	= &sysfs_ops,
-	.default_attrs	= default_attrs,
+	.default_groups = default_groups,
 };
 
 /* ==================== runqueue based core count =================== */

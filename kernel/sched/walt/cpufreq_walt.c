@@ -810,7 +810,7 @@ WALTGOV_ATTR_RW(adaptive_high_freq);
 WALTGOV_ATTR_RW(target_load_thresh);
 WALTGOV_ATTR_RW(target_load_shift);
 
-static struct attribute *waltgov_attributes[] = {
+static struct attribute *waltgov_attrs[] = {
 	&up_rate_limit_us.attr,
 	&down_rate_limit_us.attr,
 	&hispeed_load.attr,
@@ -824,9 +824,10 @@ static struct attribute *waltgov_attributes[] = {
 	&target_load_shift.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(waltgov);
 
 static struct kobj_type waltgov_tunables_ktype = {
-	.default_attrs	= waltgov_attributes,
+	.default_groups = waltgov_groups,
 	.sysfs_ops	= &governor_sysfs_ops,
 };
 

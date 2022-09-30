@@ -3753,7 +3753,7 @@ static void update_cpu_capacity_helper(int cpu)
 	rq->cpu_capacity_orig = min(fmax_capacity, thermal_cap);
 
 	if (old != rq->cpu_capacity_orig)
-		trace_update_cpu_capacity(cpu, 0, 0);
+		trace_update_cpu_capacity(cpu, fmax_capacity, rq->cpu_capacity_orig);
 }
 
 /*
@@ -4168,11 +4168,6 @@ static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_st
 			 task_cpu(p), cpu_of(rq));
 		double_enqueue = true;
 	}
-
-	if (cpu_halted(cpu_of(rq)) && !(p->flags & PF_KTHREAD) && !walt_halt_check_last(cpu_of(rq)))
-		WALT_BUG(WALT_BUG_NONCRITICAL, p,
-			 "Non Kthread Started on halted cpu_of(rq)=%d comm=%s(%d) affinity=0x%x\n",
-			 cpu_of(rq), p->comm, p->pid, (*(cpumask_bits(p->cpus_ptr))));
 
 	wallclock = walt_rq_clock(rq);
 	if (wts->enqueue_after_migration != 0) {
