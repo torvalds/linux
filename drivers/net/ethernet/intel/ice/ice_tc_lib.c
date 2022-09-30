@@ -51,11 +51,11 @@ ice_tc_count_lkups(u32 flags, struct ice_tc_flower_lyr_2_4_hdrs *headers,
 		lkups_cnt++;
 
 	/* is VLAN specified? */
-	if (flags & ICE_TC_FLWR_FIELD_VLAN)
+	if (flags & (ICE_TC_FLWR_FIELD_VLAN | ICE_TC_FLWR_FIELD_VLAN_PRIO))
 		lkups_cnt++;
 
 	/* is CVLAN specified? */
-	if (flags & ICE_TC_FLWR_FIELD_CVLAN)
+	if (flags & (ICE_TC_FLWR_FIELD_CVLAN | ICE_TC_FLWR_FIELD_CVLAN_PRIO))
 		lkups_cnt++;
 
 	/* are PPPoE options specified? */
@@ -389,7 +389,7 @@ ice_tc_fill_rules(struct ice_hw *hw, u32 flags,
 	}
 
 	/* copy VLAN info */
-	if (flags & ICE_TC_FLWR_FIELD_VLAN) {
+	if (flags & (ICE_TC_FLWR_FIELD_VLAN | ICE_TC_FLWR_FIELD_VLAN_PRIO)) {
 		vlan_tpid = be16_to_cpu(headers->vlan_hdr.vlan_tpid);
 		rule_info->vlan_type =
 				ice_check_supported_vlan_tpid(vlan_tpid);
@@ -398,15 +398,45 @@ ice_tc_fill_rules(struct ice_hw *hw, u32 flags,
 			list[i].type = ICE_VLAN_EX;
 		else
 			list[i].type = ICE_VLAN_OFOS;
-		list[i].h_u.vlan_hdr.vlan = headers->vlan_hdr.vlan_id;
-		list[i].m_u.vlan_hdr.vlan = cpu_to_be16(0xFFFF);
+
+		if (flags & ICE_TC_FLWR_FIELD_VLAN) {
+			list[i].h_u.vlan_hdr.vlan = headers->vlan_hdr.vlan_id;
+			list[i].m_u.vlan_hdr.vlan = cpu_to_be16(0x0FFF);
+		}
+
+		if (flags & ICE_TC_FLWR_FIELD_VLAN_PRIO) {
+			if (flags & ICE_TC_FLWR_FIELD_VLAN) {
+				list[i].m_u.vlan_hdr.vlan = cpu_to_be16(0xEFFF);
+			} else {
+				list[i].m_u.vlan_hdr.vlan = cpu_to_be16(0xE000);
+				list[i].h_u.vlan_hdr.vlan = 0;
+			}
+			list[i].h_u.vlan_hdr.vlan |=
+				headers->vlan_hdr.vlan_prio;
+		}
+
 		i++;
 	}
 
-	if (flags & ICE_TC_FLWR_FIELD_CVLAN) {
+	if (flags & (ICE_TC_FLWR_FIELD_CVLAN | ICE_TC_FLWR_FIELD_CVLAN_PRIO)) {
 		list[i].type = ICE_VLAN_IN;
-		list[i].h_u.vlan_hdr.vlan = headers->cvlan_hdr.vlan_id;
-		list[i].m_u.vlan_hdr.vlan = cpu_to_be16(0xFFFF);
+
+		if (flags & ICE_TC_FLWR_FIELD_CVLAN) {
+			list[i].h_u.vlan_hdr.vlan = headers->cvlan_hdr.vlan_id;
+			list[i].m_u.vlan_hdr.vlan = cpu_to_be16(0x0FFF);
+		}
+
+		if (flags & ICE_TC_FLWR_FIELD_CVLAN_PRIO) {
+			if (flags & ICE_TC_FLWR_FIELD_CVLAN) {
+				list[i].m_u.vlan_hdr.vlan = cpu_to_be16(0xEFFF);
+			} else {
+				list[i].m_u.vlan_hdr.vlan = cpu_to_be16(0xE000);
+				list[i].h_u.vlan_hdr.vlan = 0;
+			}
+			list[i].h_u.vlan_hdr.vlan |=
+				headers->cvlan_hdr.vlan_prio;
+		}
+
 		i++;
 	}
 
@@ -1280,16 +1310,22 @@ ice_parse_cls_flower(struct net_device *filter_dev, struct ice_vsi *vsi,
 		if (match.mask->vlan_id) {
 			if (match.mask->vlan_id == VLAN_VID_MASK) {
 				fltr->flags |= ICE_TC_FLWR_FIELD_VLAN;
+				headers->vlan_hdr.vlan_id =
+					cpu_to_be16(match.key->vlan_id &
+						    VLAN_VID_MASK);
 			} else {
 				NL_SET_ERR_MSG_MOD(fltr->extack, "Bad VLAN mask");
 				return -EINVAL;
 			}
 		}
 
-		headers->vlan_hdr.vlan_id =
-				cpu_to_be16(match.key->vlan_id & VLAN_VID_MASK);
-		if (match.mask->vlan_priority)
-			headers->vlan_hdr.vlan_prio = match.key->vlan_priority;
+		if (match.mask->vlan_priority) {
+			fltr->flags |= ICE_TC_FLWR_FIELD_VLAN_PRIO;
+			headers->vlan_hdr.vlan_prio =
+				cpu_to_be16((match.key->vlan_priority <<
+					     VLAN_PRIO_SHIFT) & VLAN_PRIO_MASK);
+		}
+
 		if (match.mask->vlan_tpid)
 			headers->vlan_hdr.vlan_tpid = match.key->vlan_tpid;
 	}
@@ -1307,6 +1343,9 @@ ice_parse_cls_flower(struct net_device *filter_dev, struct ice_vsi *vsi,
 		if (match.mask->vlan_id) {
 			if (match.mask->vlan_id == VLAN_VID_MASK) {
 				fltr->flags |= ICE_TC_FLWR_FIELD_CVLAN;
+				headers->cvlan_hdr.vlan_id =
+					cpu_to_be16(match.key->vlan_id &
+						    VLAN_VID_MASK);
 			} else {
 				NL_SET_ERR_MSG_MOD(fltr->extack,
 						   "Bad CVLAN mask");
@@ -1314,10 +1353,12 @@ ice_parse_cls_flower(struct net_device *filter_dev, struct ice_vsi *vsi,
 			}
 		}
 
-		headers->cvlan_hdr.vlan_id =
-				cpu_to_be16(match.key->vlan_id & VLAN_VID_MASK);
-		if (match.mask->vlan_priority)
-			headers->cvlan_hdr.vlan_prio = match.key->vlan_priority;
+		if (match.mask->vlan_priority) {
+			fltr->flags |= ICE_TC_FLWR_FIELD_CVLAN_PRIO;
+			headers->cvlan_hdr.vlan_prio =
+				cpu_to_be16((match.key->vlan_priority <<
+					     VLAN_PRIO_SHIFT) & VLAN_PRIO_MASK);
+		}
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PPPOE)) {
