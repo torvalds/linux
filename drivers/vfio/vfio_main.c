@@ -855,19 +855,40 @@ static void vfio_device_last_close(struct vfio_device *device)
 	module_put(device->dev->driver->owner);
 }
 
-static struct file *vfio_device_open(struct vfio_device *device)
+static int vfio_device_open(struct vfio_device *device)
 {
-	struct file *filep;
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&device->dev_set->lock);
 	device->open_count++;
 	if (device->open_count == 1) {
 		ret = vfio_device_first_open(device);
 		if (ret)
-			goto err_unlock;
+			device->open_count--;
 	}
 	mutex_unlock(&device->dev_set->lock);
+
+	return ret;
+}
+
+static void vfio_device_close(struct vfio_device *device)
+{
+	mutex_lock(&device->dev_set->lock);
+	vfio_assert_device_open(device);
+	if (device->open_count == 1)
+		vfio_device_last_close(device);
+	device->open_count--;
+	mutex_unlock(&device->dev_set->lock);
+}
+
+static struct file *vfio_device_open_file(struct vfio_device *device)
+{
+	struct file *filep;
+	int ret;
+
+	ret = vfio_device_open(device);
+	if (ret)
+		goto err_out;
 
 	/*
 	 * We can't use anon_inode_getfd() because we need to modify
@@ -897,12 +918,8 @@ static struct file *vfio_device_open(struct vfio_device *device)
 	return filep;
 
 err_close_device:
-	mutex_lock(&device->dev_set->lock);
-	if (device->open_count == 1)
-		vfio_device_last_close(device);
-err_unlock:
-	device->open_count--;
-	mutex_unlock(&device->dev_set->lock);
+	vfio_device_close(device);
+err_out:
 	return ERR_PTR(ret);
 }
 
@@ -930,7 +947,7 @@ static int vfio_group_ioctl_get_device_fd(struct vfio_group *group,
 		goto err_put_device;
 	}
 
-	filep = vfio_device_open(device);
+	filep = vfio_device_open_file(device);
 	if (IS_ERR(filep)) {
 		ret = PTR_ERR(filep);
 		goto err_put_fdno;
@@ -1113,12 +1130,7 @@ static int vfio_device_fops_release(struct inode *inode, struct file *filep)
 {
 	struct vfio_device *device = filep->private_data;
 
-	mutex_lock(&device->dev_set->lock);
-	vfio_assert_device_open(device);
-	if (device->open_count == 1)
-		vfio_device_last_close(device);
-	device->open_count--;
-	mutex_unlock(&device->dev_set->lock);
+	vfio_device_close(device);
 
 	vfio_device_put_registration(device);
 
