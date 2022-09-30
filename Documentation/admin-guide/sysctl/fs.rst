@@ -50,11 +50,11 @@ Currently, these files are in /proc/sys/fs:
 aio-nr & aio-max-nr
 -------------------
 
-aio-nr is the running total of the number of events specified on the
-io_setup system call for all currently active aio contexts.  If aio-nr
-reaches aio-max-nr then io_setup will fail with EAGAIN.  Note that
-raising aio-max-nr does not result in the pre-allocation or re-sizing
-of any kernel data structures.
+aio-nr shows the current system-wide number of asynchronous io
+requests.  aio-max-nr allows you to change the maximum value
+aio-nr can grow to.  If aio-nr reaches aio-nr-max then io_setup will
+fail with EAGAIN.  Note that raising aio-max-nr does not result in the
+pre-allocation or re-sizing of any kernel data structures.
 
 
 dentry-state
@@ -285,14 +285,6 @@ thus the maximum number of mounted filesystems the kernel
 can have. You only need to increase super-max if you need to
 mount more filesystems than the current value in super-max
 allows you to.
-
-
-aio-nr & aio-max-nr
--------------------
-
-aio-nr shows the current system-wide number of asynchronous io
-requests.  aio-max-nr allows you to change the maximum value
-aio-nr can grow to.
 
 
 mount-max
