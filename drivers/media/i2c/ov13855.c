@@ -10,6 +10,7 @@
  * V0.0X01.0X03
  * 1. 4224x3136@15fps & 2114x1568@60fps only enable for debug.
  * 2. fix some regs setting.
+ * V0.0X01.0X04 fix power on sequence
  */
 //#define DEBUG
 #include <linux/clk.h>
@@ -31,7 +32,7 @@
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x04)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -1127,6 +1128,8 @@ static int ov13855_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_s_ctrl(ov13855->link_freq,
 				   mode->link_freq_idx);
 	}
+	dev_info(&ov13855->client->dev, "%s: mode->link_freq_idx(%d)",
+		 __func__, mode->link_freq_idx);
 
 	mutex_unlock(&ov13855->mutex);
 
@@ -1470,13 +1473,13 @@ static int __ov13855_power_on(struct ov13855 *ov13855)
 	if (!IS_ERR(ov13855->reset_gpio))
 		gpiod_set_value_cansleep(ov13855->reset_gpio, 1);
 
-	usleep_range(500, 1000);
+	usleep_range(5000, 6000);
 	if (!IS_ERR(ov13855->pwdn_gpio))
 		gpiod_set_value_cansleep(ov13855->pwdn_gpio, 1);
 
 	/* 8192 cycles prior to first SCCB transaction */
 	delay_us = ov13855_cal_delay(8192);
-	usleep_range(delay_us, delay_us * 2);
+	usleep_range(delay_us * 2, delay_us * 3);
 
 	return 0;
 
