@@ -436,32 +436,28 @@ static void dcn31_hpo_dp_stream_enc_update_dp_info_packets(
 {
 	struct dcn31_hpo_dp_stream_encoder *enc3 = DCN3_1_HPO_DP_STREAM_ENC_FROM_HPO_STREAM_ENC(enc);
 	uint32_t dmdata_packet_enabled = 0;
-	bool sdp_stream_enable = false;
 
-	if (info_frame->vsc.valid) {
+	if (info_frame->vsc.valid)
 		enc->vpg->funcs->update_generic_info_packet(
 				enc->vpg,
 				0,  /* packetIndex */
 				&info_frame->vsc,
 				true);
-		sdp_stream_enable = true;
-	}
-	if (info_frame->spd.valid) {
+
+	if (info_frame->spd.valid)
 		enc->vpg->funcs->update_generic_info_packet(
 				enc->vpg,
 				2,  /* packetIndex */
 				&info_frame->spd,
 				true);
-		sdp_stream_enable = true;
-	}
-	if (info_frame->hdrsmd.valid) {
+
+	if (info_frame->hdrsmd.valid)
 		enc->vpg->funcs->update_generic_info_packet(
 				enc->vpg,
 				3,  /* packetIndex */
 				&info_frame->hdrsmd,
 				true);
-		sdp_stream_enable = true;
-	}
+
 	/* enable/disable transmission of packet(s).
 	 * If enabled, packet transmission begins on the next frame
 	 */
