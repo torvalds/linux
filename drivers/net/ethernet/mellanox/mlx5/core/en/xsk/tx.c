@@ -22,9 +22,6 @@ int mlx5e_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags)
 
 	c = priv->channels.c[ix];
 
-	if (unlikely(!test_bit(MLX5E_CHANNEL_STATE_XSK, c->state)))
-		return -EINVAL;
-
 	if (!napi_if_scheduled_mark_missed(&c->napi)) {
 		/* To avoid WQE overrun, don't post a NOP if async_icosq is not
 		 * active and not polled by NAPI. Return 0, because the upcoming
