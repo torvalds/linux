@@ -591,35 +591,35 @@ static struct rockchip_mux_recalced_data rk3308_mux_recalced_data[] = {
 		.bit = 8,
 		.mask = 0xf
 	}, {
-		/* gpio2a2_sel */
+		/* gpio2a2_sel_plus */
 		.num = 2,
 		.pin = 2,
-		.reg = 0x40,
-		.bit = 4,
-		.mask = 0x3
+		.reg = 0x608,
+		.bit = 0,
+		.mask = 0x7
 	}, {
-		/* gpio2a3_sel */
+		/* gpio2a3_sel_plus */
 		.num = 2,
 		.pin = 3,
-		.reg = 0x40,
-		.bit = 6,
-		.mask = 0x3
+		.reg = 0x608,
+		.bit = 4,
+		.mask = 0x7
 	}, {
-		/* gpio2c0_sel */
+		/* gpio2c0_sel_plus */
 		.num = 2,
 		.pin = 16,
-		.reg = 0x50,
-		.bit = 0,
-		.mask = 0x3
+		.reg = 0x610,
+		.bit = 8,
+		.mask = 0x7
 	}, {
-		/* gpio3b2_sel */
+		/* gpio3b2_sel_plus */
 		.num = 3,
 		.pin = 10,
-		.reg = 0x68,
-		.bit = 4,
-		.mask = 0x3
+		.reg = 0x610,
+		.bit = 0,
+		.mask = 0x7
 	}, {
-		/* gpio3b3_sel */
+		/* gpio3b3_sel_plus */
 		.num = 3,
 		.pin = 11,
 		.reg = 0x68,
@@ -3961,9 +3961,8 @@ static int rockchip_pinctrl_probe(struct platform_device *pdev)
 			return PTR_ERR(info->regmap_pmu);
 	}
 
-	/* Special handle for some Socs */
-	if (ctrl->soc_data_init) {
-		ret = ctrl->soc_data_init(info);
+	if (IS_ENABLED(CONFIG_CPU_RK3308) && ctrl->type == RK3308) {
+		ret = rk3308_soc_data_init(info);
 		if (ret)
 			return ret;
 	}
@@ -4408,7 +4407,6 @@ static struct rockchip_pin_ctrl rk3308_pin_ctrl __maybe_unused = {
 		.niomux_recalced	= ARRAY_SIZE(rk3308_mux_recalced_data),
 		.iomux_routes		= rk3308_mux_route_data,
 		.niomux_routes		= ARRAY_SIZE(rk3308_mux_route_data),
-		.soc_data_init		= rk3308_soc_data_init,
 		.pull_calc_reg		= rk3308_calc_pull_reg_and_bit,
 		.drv_calc_reg		= rk3308_calc_drv_reg_and_bit,
 		.schmitt_calc_reg	= rk3308_calc_schmitt_reg_and_bit,
