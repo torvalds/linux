@@ -7942,16 +7942,14 @@ reset_device:
 		reset_required = false;
 	}
 
-	/* despite reset doesn't execute. a notification on
-	 * occurred event needs to be sent here
-	 */
-	if (event_mask)
-		hl_notifier_event_send_all(hdev, event_mask);
-
-	if (reset_required)
-		hl_device_reset(hdev, flags);
-	else
+	if (reset_required) {
+		hl_device_cond_reset(hdev, flags, event_mask);
+	} else {
 		hl_fw_unmask_irq(hdev, event_type);
+		/* Notification on occurred event needs to be sent although reset is not executed */
+		if (event_mask)
+			hl_notifier_event_send_all(hdev, event_mask);
+	}
 }
 
 static void *gaudi_get_events_stat(struct hl_device *hdev, bool aggregate, u32 *size)
