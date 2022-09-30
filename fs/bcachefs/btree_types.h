@@ -163,6 +163,16 @@ struct btree_cache {
 	/* Number of elements in live + freeable lists */
 	unsigned		used;
 	unsigned		reserve;
+	unsigned		freed;
+	unsigned		not_freed_lock_intent;
+	unsigned		not_freed_lock_write;
+	unsigned		not_freed_dirty;
+	unsigned		not_freed_read_in_flight;
+	unsigned		not_freed_write_in_flight;
+	unsigned		not_freed_noevict;
+	unsigned		not_freed_write_blocked;
+	unsigned		not_freed_will_make_reachable;
+	unsigned		not_freed_access_bit;
 	atomic_t		dirty;
 	struct shrinker		*shrink;
 
