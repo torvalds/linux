@@ -2867,9 +2867,8 @@ static void phylink_sfp_set_config(struct phylink *pl, u8 mode,
 		phylink_mac_initial_config(pl, false);
 }
 
-static int phylink_sfp_config(struct phylink *pl, u8 mode,
-			      const unsigned long *supported,
-			      const unsigned long *advertising)
+static int phylink_sfp_config_phy(struct phylink *pl, u8 mode,
+				  struct phy_device *phy)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(support1);
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(support);
@@ -2877,10 +2876,10 @@ static int phylink_sfp_config(struct phylink *pl, u8 mode,
 	phy_interface_t iface;
 	int ret;
 
-	linkmode_copy(support, supported);
+	linkmode_copy(support, phy->supported);
 
 	memset(&config, 0, sizeof(config));
-	linkmode_copy(config.advertising, advertising);
+	linkmode_copy(config.advertising, phy->advertising);
 	config.interface = PHY_INTERFACE_MODE_NA;
 	config.speed = SPEED_UNKNOWN;
 	config.duplex = DUPLEX_UNKNOWN;
@@ -3093,7 +3092,7 @@ static int phylink_sfp_connect_phy(void *upstream, struct phy_device *phy)
 		mode = MLO_AN_INBAND;
 
 	/* Do the initial configuration */
-	ret = phylink_sfp_config(pl, mode, phy->supported, phy->advertising);
+	ret = phylink_sfp_config_phy(pl, mode, phy);
 	if (ret < 0)
 		return ret;
 
