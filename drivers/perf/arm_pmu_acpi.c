@@ -187,7 +187,7 @@ out_err:
 	return err;
 }
 
-static struct arm_pmu *arm_pmu_acpi_find_alloc_pmu(void)
+static struct arm_pmu *arm_pmu_acpi_find_pmu(void)
 {
 	unsigned long cpuid = read_cpuid_id();
 	struct arm_pmu *pmu;
@@ -201,6 +201,17 @@ static struct arm_pmu *arm_pmu_acpi_find_alloc_pmu(void)
 		return pmu;
 	}
 
+	return NULL;
+}
+
+static struct arm_pmu *arm_pmu_acpi_find_alloc_pmu(void)
+{
+	struct arm_pmu *pmu;
+
+	pmu = arm_pmu_acpi_find_pmu();
+	if (pmu)
+		return pmu;
+
 	pmu = armpmu_alloc_atomic();
 	if (!pmu) {
 		pr_warn("Unable to allocate PMU for CPU%d\n",
@@ -208,7 +219,7 @@ static struct arm_pmu *arm_pmu_acpi_find_alloc_pmu(void)
 		return NULL;
 	}
 
-	pmu->acpi_cpuid = cpuid;
+	pmu->acpi_cpuid = read_cpuid_id();
 
 	return pmu;
 }
