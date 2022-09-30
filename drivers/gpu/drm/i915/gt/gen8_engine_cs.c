@@ -405,6 +405,8 @@ static int __gen125_emit_bb_start(struct i915_request *rq,
 	u32 wa_offset = lrc_indirect_bb(ce);
 	u32 *cs;
 
+	GEM_BUG_ON(!ce->wa_bb_page);
+
 	cs = intel_ring_begin(rq, 12);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
