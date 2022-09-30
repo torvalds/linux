@@ -57,18 +57,16 @@
 		};
 	};
 
-	soc {
-		ext_3p3v: regulator-fixed@1 {
-			compatible = "regulator-fixed";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-name = "ext_3p3v";
-			regulator-type = "voltage";
-			startup-delay-us = <0>;
-			gpio = <&tlmm_pinmux 77 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-			regulator-boot-on;
-		};
+	ext_3p3v: regulator-ext-3p3v {
+		compatible = "regulator-fixed";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-name = "ext_3p3v";
+		regulator-type = "voltage";
+		startup-delay-us = <0>;
+		gpio = <&tlmm_pinmux 77 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
 	};
 };
 
