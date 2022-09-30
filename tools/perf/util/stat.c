@@ -135,7 +135,6 @@ static void evsel__reset_stat_priv(struct evsel *evsel)
 	struct perf_stat_evsel *ps = evsel->stats;
 
 	init_stats(&ps->res_stats);
-	perf_stat_evsel_id_init(evsel);
 }
 
 static int evsel__alloc_stat_priv(struct evsel *evsel)
@@ -143,6 +142,7 @@ static int evsel__alloc_stat_priv(struct evsel *evsel)
 	evsel->stats = zalloc(sizeof(struct perf_stat_evsel));
 	if (evsel->stats == NULL)
 		return -ENOMEM;
+	perf_stat_evsel_id_init(evsel);
 	evsel__reset_stat_priv(evsel);
 	return 0;
 }
