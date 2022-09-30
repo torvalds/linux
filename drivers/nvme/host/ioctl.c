@@ -95,8 +95,22 @@ static int nvme_map_user_request(struct request *req, u64 ubuffer,
 	void *meta = NULL;
 	int ret;
 
-	ret = blk_rq_map_user_io(req, NULL, nvme_to_user_ptr(ubuffer), bufflen,
-			GFP_KERNEL, vec, 0, 0, rq_data_dir(req));
+	if (ioucmd && (ioucmd->flags & IORING_URING_CMD_FIXED)) {
+		struct iov_iter iter;
+
+		/* fixedbufs is only for non-vectored io */
+		if (WARN_ON_ONCE(vec))
+			return -EINVAL;
+		ret = io_uring_cmd_import_fixed(ubuffer, bufflen,
+				rq_data_dir(req), &iter, ioucmd);
+		if (ret < 0)
+			goto out;
+		ret = blk_rq_map_user_iov(q, req, NULL, &iter, GFP_KERNEL);
+	} else {
+		ret = blk_rq_map_user_io(req, NULL, nvme_to_user_ptr(ubuffer),
+				bufflen, GFP_KERNEL, vec, 0, 0,
+				rq_data_dir(req));
+	}
 
 	if (ret)
 		goto out;
