@@ -77,6 +77,7 @@ struct phylink {
 
 	struct sfp_bus *sfp_bus;
 	bool sfp_may_have_phy;
+	DECLARE_PHY_INTERFACE_MASK(sfp_interfaces);
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(sfp_support);
 	u8 sfp_port;
 };
@@ -2898,7 +2899,8 @@ static int phylink_sfp_module_insert(void *upstream,
 	ASSERT_RTNL();
 
 	linkmode_zero(support);
-	sfp_parse_support(pl->sfp_bus, id, support);
+	phy_interface_zero(pl->sfp_interfaces);
+	sfp_parse_support(pl->sfp_bus, id, support, pl->sfp_interfaces);
 	pl->sfp_port = sfp_parse_port(pl->sfp_bus, id, support);
 
 	/* If this module may have a PHY connecting later, defer until later */

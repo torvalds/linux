@@ -466,9 +466,10 @@ static int mv3310_sfp_insert(void *upstream, const struct sfp_eeprom_id *id)
 {
 	struct phy_device *phydev = upstream;
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(support) = { 0, };
+	DECLARE_PHY_INTERFACE_MASK(interfaces);
 	phy_interface_t iface;
 
-	sfp_parse_support(phydev->sfp_bus, id, support);
+	sfp_parse_support(phydev->sfp_bus, id, support, interfaces);
 	iface = sfp_select_interface(phydev->sfp_bus, support);
 
 	if (iface != PHY_INTERFACE_MODE_10GBASER) {

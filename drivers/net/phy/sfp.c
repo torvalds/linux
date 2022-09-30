@@ -331,13 +331,16 @@ static void sfp_fixup_halny_gsfp(struct sfp *sfp)
 }
 
 static void sfp_quirk_2500basex(const struct sfp_eeprom_id *id,
-				unsigned long *modes)
+				unsigned long *modes,
+				unsigned long *interfaces)
 {
 	linkmode_set_bit(ETHTOOL_LINK_MODE_2500baseX_Full_BIT, modes);
+	__set_bit(PHY_INTERFACE_MODE_2500BASEX, interfaces);
 }
 
 static void sfp_quirk_ubnt_uf_instant(const struct sfp_eeprom_id *id,
-				      unsigned long *modes)
+				      unsigned long *modes,
+				      unsigned long *interfaces)
 {
 	/* Ubiquiti U-Fiber Instant module claims that support all transceiver
 	 * types including 10G Ethernet which is not truth. So clear all claimed
