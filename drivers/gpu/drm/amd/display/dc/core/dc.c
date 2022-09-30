@@ -4657,6 +4657,37 @@ enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
 }
 
 /**
+ *****************************************************************************
+ *  Function: dc_process_dmub_dpia_hpd_int_enable
+ *
+ *  @brief
+ *		Submits dpia hpd int enable command to dmub via inbox message
+ *
+ *  @param
+ *		[in] dc: dc structure
+ *		[in] hpd_int_enable: 1 for hpd int enable, 0 to disable
+ *
+ *	@return
+ *		None
+ *****************************************************************************
+ */
+void dc_process_dmub_dpia_hpd_int_enable(const struct dc *dc,
+				uint32_t hpd_int_enable)
+{
+	union dmub_rb_cmd cmd = {0};
+	struct dc_dmub_srv *dmub_srv = dc->ctx->dmub_srv;
+
+	cmd.dpia_hpd_int_enable.header.type = DMUB_CMD__DPIA_HPD_INT_ENABLE;
+	cmd.dpia_hpd_int_enable.enable = hpd_int_enable;
+
+	dc_dmub_srv_cmd_queue(dmub_srv, &cmd);
+	dc_dmub_srv_cmd_execute(dmub_srv);
+	dc_dmub_srv_wait_idle(dmub_srv);
+
+	DC_LOG_DEBUG("%s: hpd_int_enable(%d)\n", __func__, hpd_int_enable);
+}
+
+/**
  * dc_disable_accelerated_mode - disable accelerated mode
  * @dc: dc structure
  */
