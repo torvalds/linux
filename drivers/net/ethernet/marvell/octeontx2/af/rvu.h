@@ -25,6 +25,8 @@
 /* Subsystem Device ID */
 #define PCI_SUBSYS_DEVID_96XX                  0xB200
 #define PCI_SUBSYS_DEVID_CN10K_A	       0xB900
+#define PCI_SUBSYS_DEVID_CNF10K_B              0xBC00
+#define PCI_SUBSYS_DEVID_CN10K_B               0xBD00
 
 /* PCI BAR nos */
 #define	PCI_AF_REG_BAR_NUM			0
@@ -497,6 +499,8 @@ struct rvu {
 
 	struct ptp		*ptp;
 
+	int			mcs_blk_cnt;
+
 #ifdef CONFIG_DEBUG_FS
 	struct rvu_debugfs	rvu_dbg;
 #endif
@@ -868,4 +872,8 @@ void rvu_switch_update_rules(struct rvu *rvu, u16 pcifunc);
 int rvu_npc_set_parse_mode(struct rvu *rvu, u16 pcifunc, u64 mode, u8 dir,
 			   u64 pkind, u8 var_len_off, u8 var_len_off_mask,
 			   u8 shift_dir);
+
+/* CN10K MCS */
+int rvu_mcs_init(struct rvu *rvu);
+
 #endif /* RVU_H */
