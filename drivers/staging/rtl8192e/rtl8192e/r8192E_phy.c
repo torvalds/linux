@@ -1325,7 +1325,6 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 
 				do {
 					InitilizeCount--;
-					priv->RegRfOff = false;
 					rtstatus = rtl92e_enable_nic(dev);
 				} while (!rtstatus && (InitilizeCount > 0));
 
