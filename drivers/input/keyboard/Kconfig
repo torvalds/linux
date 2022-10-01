@@ -527,6 +527,19 @@ config KEYBOARD_OPENCORES
 	  To compile this driver as a module, choose M here; the
 	  module will be called opencores-kbd.
 
+config KEYBOARD_PINEPHONE
+	tristate "Pine64 PinePhone Keyboard"
+	depends on I2C && REGULATOR
+	select CRC8
+	select INPUT_MATRIXKMAP
+	help
+	  Say Y here to enable support for the keyboard in the Pine64 PinePhone
+	  keyboard case. This driver supports the FLOSS firmware available at
+	  https://megous.com/git/pinephone-keyboard/
+
+	  To compile this driver as a module, choose M here; the
+	  module will be called pinephone-keyboard.
+
 config KEYBOARD_PXA27x
 	tristate "PXA27x/PXA3xx keypad support"
 	depends on PXA27x || PXA3xx || ARCH_MMP
