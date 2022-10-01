@@ -24,6 +24,17 @@
 #include <linux/debugfs.h>
 #include <linux/bitops.h>
 
+static int dbg_enable;
+
+module_param_named(dbg_level, dbg_enable, int, 0644);
+
+#define SC_DBG(args...) \
+	do { \
+		if (dbg_enable) { \
+			pr_info(args); \
+		} \
+	} while (0)
+
 /* Register 00h */
 #define SC8551_REG_00				0x00
 #define SC8551_BAT_OVP_DIS_MASK			0x80
@@ -1723,13 +1734,6 @@ static int sc8551_init_device(struct sc8551 *sc)
 {
 	int ret;
 
-	/* Reset registers to their default values */
-	ret = sc8551_update_bits(sc,
-				 SC8551_REG_0B,
-				 SC8551_REG_RST_MASK,
-				 SC8551_REG_RST_ENABLE << SC8551_REG_RST_SHIFT);
-	if (ret)
-		return ret;
 	ret = sc8551_enable_wdt(sc, false);
 	if (ret)
 		return ret;
@@ -1852,9 +1856,7 @@ static void sc8551_create_device_node(struct device *dev)
 
 static enum power_supply_property sc8551_charger_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
-	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_CP_CHARGING_ENABLED,
-	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_INPUT_VOLTAGE_LIMIT,
@@ -1875,7 +1877,6 @@ static int sc8551_charger_get_property(struct power_supply *psy,
 {
 	struct sc8551 *sc = power_supply_get_drvdata(psy);
 	int result;
-	u8 reg_val;
 	int ret;
 
 	sc8551_check_alarm_status(sc);
@@ -1886,18 +1887,8 @@ static int sc8551_charger_get_property(struct power_supply *psy,
 		sc8551_check_charge_enabled(sc, &sc->charge_enabled);
 		val->intval = sc->charge_enabled;
 		break;
-	case POWER_SUPPLY_PROP_STATUS:
-		val->intval = 0;
-		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = sc->usb_present;
-		break;
-
-	case POWER_SUPPLY_PROP_ONLINE:
-		ret = sc8551_read_byte(sc, SC8551_REG_0D, &reg_val);
-		if (!ret)
-			sc->vbus_present = !!(reg_val & VBUS_INSERT);
-		val->intval = sc->vbus_present;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		ret = sc8551_get_adc_data(sc, ADC_VBAT, &result);
@@ -2014,7 +2005,7 @@ static int sc8551_psy_register(struct sc8551 *sc)
 
 	sc->psy_desc.name = "sc8551-standalone";
 
-	sc->psy_desc.type = POWER_SUPPLY_TYPE_CHARGE_PUMP;
+	sc->psy_desc.type = POWER_SUPPLY_TYPE_USB_PD;
 	sc->psy_desc.properties = sc8551_charger_props;
 	sc->psy_desc.num_properties = ARRAY_SIZE(sc8551_charger_props);
 	sc->psy_desc.get_property = sc8551_charger_get_property;
