@@ -73,13 +73,20 @@ prestera_kern_fib_cache_find(struct prestera_switch *sw,
 }
 
 static void
+__prestera_kern_fib_cache_destruct(struct prestera_switch *sw,
+				   struct prestera_kern_fib_cache *fib_cache)
+{
+	fib_info_put(fib_cache->fi);
+}
+
+static void
 prestera_kern_fib_cache_destroy(struct prestera_switch *sw,
 				struct prestera_kern_fib_cache *fib_cache)
 {
-	fib_info_put(fib_cache->fi);
 	rhashtable_remove_fast(&sw->router->kern_fib_cache_ht,
 			       &fib_cache->ht_node,
 			       __prestera_kern_fib_cache_ht_params);
+	__prestera_kern_fib_cache_destruct(sw, fib_cache);
 	kfree(fib_cache);
 }
 
@@ -334,6 +341,36 @@ prestera_k_arb_fib_evt(struct prestera_switch *sw,
 	}
 
 	return 0;
+}
+
+static void __prestera_k_arb_abort_fib_ht_cb(void *ptr, void *arg)
+{
+	struct prestera_kern_fib_cache *fib_cache = ptr;
+	struct prestera_switch *sw = arg;
+
+	__prestera_k_arb_fib_lpm_offload_set(sw, fib_cache,
+					     false, false,
+					     false);
+	/* No need to destroy lpm.
+	 * It will be aborted by destroy_ht
+	 */
+	__prestera_kern_fib_cache_destruct(sw, fib_cache);
+	kfree(fib_cache);
+}
+
+static void prestera_k_arb_abort(struct prestera_switch *sw)
+{
+	/* Function to remove all arbiter entries and related hw objects. */
+	/* Sequence:
+	 *   1) Clear arbiter tables, but don't touch hw
+	 *   2) Clear hw
+	 * We use such approach, because arbiter object is not directly mapped
+	 * to hw. So deletion of one arbiter object may even lead to creation of
+	 * hw object (e.g. in case of overlapped routes).
+	 */
+	rhashtable_free_and_destroy(&sw->router->kern_fib_cache_ht,
+				    __prestera_k_arb_abort_fib_ht_cb,
+				    sw);
 }
 
 static int __prestera_inetaddr_port_event(struct net_device *port_dev,
@@ -602,6 +639,9 @@ void prestera_router_fini(struct prestera_switch *sw)
 	unregister_fib_notifier(&init_net, &sw->router->fib_nb);
 	unregister_inetaddr_notifier(&sw->router->inetaddr_nb);
 	unregister_inetaddr_validator_notifier(&sw->router->inetaddr_valid_nb);
+
+	prestera_k_arb_abort(sw);
+
 	kfree(sw->router->nhgrp_hw_state_cache);
 	rhashtable_destroy(&sw->router->kern_fib_cache_ht);
 	prestera_router_hw_fini(sw);
