@@ -81,17 +81,15 @@ void rtl92e_set_key(struct net_device *dev, u8 EntryNo, u8 KeyIndex,
 	enum rt_rf_power_state rt_state;
 
 	rt_state = priv->rtllib->rf_power_state;
-	if (priv->rtllib->PowerSaveControl.bInactivePs) {
-		if (rt_state == rf_off) {
-			if (priv->rtllib->rf_off_reason > RF_CHANGE_BY_IPS) {
-				netdev_warn(dev, "%s(): RF is OFF.\n",
-					    __func__);
-				return;
-			}
-			mutex_lock(&priv->rtllib->ips_mutex);
-			rtl92e_ips_leave(dev);
-			mutex_unlock(&priv->rtllib->ips_mutex);
+	if (rt_state == rf_off) {
+		if (priv->rtllib->rf_off_reason > RF_CHANGE_BY_IPS) {
+			netdev_warn(dev, "%s(): RF is OFF.\n",
+				    __func__);
+			return;
 		}
+		mutex_lock(&priv->rtllib->ips_mutex);
+		rtl92e_ips_leave(dev);
+		mutex_unlock(&priv->rtllib->ips_mutex);
 	}
 	priv->rtllib->is_set_key = true;
 	if (EntryNo >= TOTAL_CAM_ENTRY) {

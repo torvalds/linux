@@ -252,22 +252,20 @@ static int _rtl92e_wx_set_mode(struct net_device *dev,
 	mutex_lock(&priv->wx_mutex);
 	if (wrqu->mode == IW_MODE_ADHOC || wrqu->mode == IW_MODE_MONITOR ||
 	    ieee->bNetPromiscuousMode) {
-		if (priv->rtllib->PowerSaveControl.bInactivePs) {
-			if (rt_state == rf_off) {
-				if (priv->rtllib->rf_off_reason >
-				    RF_CHANGE_BY_IPS) {
-					netdev_warn(dev, "%s(): RF is OFF.\n",
-						    __func__);
-					mutex_unlock(&priv->wx_mutex);
-					return -1;
-				}
-				netdev_info(dev,
-					    "=========>%s(): rtl92e_ips_leave\n",
+		if (rt_state == rf_off) {
+			if (priv->rtllib->rf_off_reason >
+			    RF_CHANGE_BY_IPS) {
+				netdev_warn(dev, "%s(): RF is OFF.\n",
 					    __func__);
-				mutex_lock(&priv->rtllib->ips_mutex);
-				rtl92e_ips_leave(dev);
-				mutex_unlock(&priv->rtllib->ips_mutex);
+				mutex_unlock(&priv->wx_mutex);
+				return -1;
 			}
+			netdev_info(dev,
+				    "=========>%s(): rtl92e_ips_leave\n",
+				    __func__);
+			mutex_lock(&priv->rtllib->ips_mutex);
+			rtl92e_ips_leave(dev);
+			mutex_unlock(&priv->rtllib->ips_mutex);
 		}
 	}
 	ret = rtllib_wx_set_mode(priv->rtllib, a, wrqu, b);
@@ -414,19 +412,17 @@ static int _rtl92e_wx_set_scan(struct net_device *dev,
 	priv->rtllib->FirstIe_InScan = true;
 
 	if (priv->rtllib->state != RTLLIB_LINKED) {
-		if (priv->rtllib->PowerSaveControl.bInactivePs) {
-			if (rt_state == rf_off) {
-				if (priv->rtllib->rf_off_reason >
-				    RF_CHANGE_BY_IPS) {
-					netdev_warn(dev, "%s(): RF is OFF.\n",
-						    __func__);
-					mutex_unlock(&priv->wx_mutex);
-					return -1;
-				}
-				mutex_lock(&priv->rtllib->ips_mutex);
-				rtl92e_ips_leave(dev);
-				mutex_unlock(&priv->rtllib->ips_mutex);
+		if (rt_state == rf_off) {
+			if (priv->rtllib->rf_off_reason >
+			    RF_CHANGE_BY_IPS) {
+				netdev_warn(dev, "%s(): RF is OFF.\n",
+					    __func__);
+				mutex_unlock(&priv->wx_mutex);
+				return -1;
 			}
+			mutex_lock(&priv->rtllib->ips_mutex);
+			rtl92e_ips_leave(dev);
+			mutex_unlock(&priv->rtllib->ips_mutex);
 		}
 		rtllib_stop_scan(priv->rtllib);
 		if (priv->rtllib->LedControlHandler)
