@@ -47,62 +47,77 @@ extern struct page_ext_operations page_idle_ops;
 
 static inline bool page_is_young(struct page *page)
 {
-	struct page_ext *page_ext = lookup_page_ext(page);
+	struct page_ext *page_ext = page_ext_get(page);
+	bool page_young;
 
 	if (unlikely(!page_ext))
 		return false;
 
-	return test_bit(PAGE_EXT_YOUNG, &page_ext->flags);
+	page_young = test_bit(PAGE_EXT_YOUNG, &page_ext->flags);
+	page_ext_put(page_ext);
+
+	return page_young;
 }
 
 static inline void set_page_young(struct page *page)
 {
-	struct page_ext *page_ext = lookup_page_ext(page);
+	struct page_ext *page_ext = page_ext_get(page);
 
 	if (unlikely(!page_ext))
 		return;
 
 	set_bit(PAGE_EXT_YOUNG, &page_ext->flags);
+	page_ext_put(page_ext);
 }
 
 static inline bool test_and_clear_page_young(struct page *page)
 {
-	struct page_ext *page_ext = lookup_page_ext(page);
+	struct page_ext *page_ext = page_ext_get(page);
+	bool page_young;
 
 	if (unlikely(!page_ext))
 		return false;
 
-	return test_and_clear_bit(PAGE_EXT_YOUNG, &page_ext->flags);
+	page_young = test_and_clear_bit(PAGE_EXT_YOUNG, &page_ext->flags);
+	page_ext_put(page_ext);
+
+	return page_young;
 }
 
 static inline bool page_is_idle(struct page *page)
 {
-	struct page_ext *page_ext = lookup_page_ext(page);
+	struct page_ext *page_ext = page_ext_get(page);
+	bool page_idle;
 
 	if (unlikely(!page_ext))
 		return false;
 
-	return test_bit(PAGE_EXT_IDLE, &page_ext->flags);
+	page_idle =  test_bit(PAGE_EXT_IDLE, &page_ext->flags);
+	page_ext_put(page_ext);
+
+	return page_idle;
 }
 
 static inline void set_page_idle(struct page *page)
 {
-	struct page_ext *page_ext = lookup_page_ext(page);
+	struct page_ext *page_ext = page_ext_get(page);
 
 	if (unlikely(!page_ext))
 		return;
 
 	set_bit(PAGE_EXT_IDLE, &page_ext->flags);
+	page_ext_put(page_ext);
 }
 
 static inline void clear_page_idle(struct page *page)
 {
-	struct page_ext *page_ext = lookup_page_ext(page);
+	struct page_ext *page_ext = page_ext_get(page);
 
 	if (unlikely(!page_ext))
 		return;
 
 	clear_bit(PAGE_EXT_IDLE, &page_ext->flags);
+	page_ext_put(page_ext);
 }
 #endif /* CONFIG_64BIT */
 

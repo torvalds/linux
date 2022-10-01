@@ -211,7 +211,7 @@ UBSAN_SANITIZE_jitterentropy-fips.o = n
 # module that is in scope for FIPS 140-2 certification
 #
 crypto-fips-objs := drbg.o ecb.o cbc.o ctr.o cts.o gcm.o xts.o hmac.o cmac.o \
-		    memneq.o gf128mul.o aes_generic.o lib-crypto-aes.o \
+		    gf128mul.o aes_generic.o lib-crypto-aes.o \
 		    jitterentropy.o jitterentropy-kcapi.o \
 		    sha1_generic.o sha256_generic.o sha512_generic.o \
 		    lib-sha1.o lib-crypto-sha256.o

@@ -56,8 +56,9 @@ static inline void page_ext_init(void)
 {
 }
 #endif
-
 struct page_ext *lookup_page_ext(const struct page *page);
+extern struct page_ext *page_ext_get(struct page *page);
+extern void page_ext_put(struct page_ext *page_ext);
 
 static inline struct page_ext *page_ext_next(struct page_ext *curr)
 {
@@ -73,16 +74,20 @@ static inline void pgdat_page_ext_init(struct pglist_data *pgdat)
 {
 }
 
-static inline struct page_ext *lookup_page_ext(const struct page *page)
-{
-	return NULL;
-}
-
 static inline void page_ext_init(void)
 {
 }
 
 static inline void page_ext_init_flatmem(void)
+{
+}
+
+static inline struct page_ext *page_ext_get(struct page *page)
+{
+	return NULL;
+}
+
+static inline void page_ext_put(struct page_ext *page_ext)
 {
 }
 #endif /* CONFIG_PAGE_EXTENSION */

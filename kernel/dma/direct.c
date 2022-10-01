@@ -43,7 +43,6 @@ u64 dma_direct_get_required_mask(struct device *dev)
 
 	return (1ULL << (fls64(max_dma) - 1)) * 2 - 1;
 }
-EXPORT_SYMBOL_GPL(dma_direct_get_required_mask);
 
 static gfp_t dma_direct_optimal_gfp_mask(struct device *dev, u64 dma_mask,
 				  u64 *phys_limit)
@@ -313,7 +312,6 @@ out_free_pages:
 	dma_free_contiguous(dev, page, size);
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(dma_direct_alloc);
 
 void dma_direct_free_pages(struct device *dev, size_t size,
 		struct page *page, dma_addr_t dma_addr,
@@ -331,7 +329,6 @@ void dma_direct_free_pages(struct device *dev, size_t size,
 
 	dma_free_contiguous(dev, page, size);
 }
-EXPORT_SYMBOL_GPL(dma_direct_free);
 
 #if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_DEVICE) || \
     defined(CONFIG_SWIOTLB)
