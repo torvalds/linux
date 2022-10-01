@@ -41,8 +41,6 @@ config DRM_RCAR_LVDS
 	depends on DRM_RCAR_USE_LVDS
 	select DRM_KMS_HELPER
 	select DRM_PANEL
-	select OF_FLATTREE
-	select OF_OVERLAY
 
 config DRM_RCAR_USE_MIPI_DSI
 	bool "R-Car DU MIPI DSI Encoder Support"
