@@ -691,6 +691,71 @@ static int nfp_pf_find_rtsyms(struct nfp_pf *pf)
 	return 0;
 }
 
+int nfp_net_pf_get_app_id(struct nfp_pf *pf)
+{
+	return nfp_pf_rtsym_read_optional(pf, "_pf%u_net_app_id",
+					  NFP_APP_CORE_NIC);
+}
+
+static u64 nfp_net_pf_get_app_cap(struct nfp_pf *pf)
+{
+	char name[32];
+	int err = 0;
+	u64 val;
+
+	snprintf(name, sizeof(name), "_pf%u_net_app_cap", nfp_cppcore_pcie_unit(pf->cpp));
+
+	val = nfp_rtsym_read_le(pf->rtbl, name, &err);
+	if (err) {
+		if (err != -ENOENT)
+			nfp_err(pf->cpp, "Unable to read symbol %s\n", name);
+
+		return 0;
+	}
+
+	return val;
+}
+
+static int nfp_pf_cfg_hwinfo(struct nfp_pf *pf, bool sp_indiff)
+{
+	struct nfp_nsp *nsp;
+	char hwinfo[32];
+	int err;
+
+	nsp = nfp_nsp_open(pf->cpp);
+	if (IS_ERR(nsp))
+		return PTR_ERR(nsp);
+
+	snprintf(hwinfo, sizeof(hwinfo), "sp_indiff=%d", sp_indiff);
+	err = nfp_nsp_hwinfo_set(nsp, hwinfo, sizeof(hwinfo));
+	/* Not a fatal error, no need to return error to stop driver from loading */
+	if (err) {
+		nfp_warn(pf->cpp, "HWinfo(sp_indiff=%d) set failed: %d\n", sp_indiff, err);
+	} else {
+		/* Need reinit eth_tbl since the eth table state may change
+		 * after sp_indiff is configured.
+		 */
+		kfree(pf->eth_tbl);
+		pf->eth_tbl = __nfp_eth_read_ports(pf->cpp, nsp);
+	}
+
+	nfp_nsp_close(nsp);
+	return 0;
+}
+
+static int nfp_pf_nsp_cfg(struct nfp_pf *pf)
+{
+	bool sp_indiff = (nfp_net_pf_get_app_id(pf) == NFP_APP_FLOWER_NIC) ||
+			 (nfp_net_pf_get_app_cap(pf) & NFP_NET_APP_CAP_SP_INDIFF);
+
+	return nfp_pf_cfg_hwinfo(pf, sp_indiff);
+}
+
+static void nfp_pf_nsp_clean(struct nfp_pf *pf)
+{
+	nfp_pf_cfg_hwinfo(pf, false);
+}
+
 static int nfp_pci_probe(struct pci_dev *pdev,
 			 const struct pci_device_id *pci_id)
 {
@@ -791,9 +856,13 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 		goto err_fw_unload;
 	}
 
-	err = nfp_net_pci_probe(pf);
+	err = nfp_pf_nsp_cfg(pf);
 	if (err)
 		goto err_fw_unload;
+
+	err = nfp_net_pci_probe(pf);
+	if (err)
+		goto err_nsp_clean;
 
 	err = nfp_hwmon_register(pf);
 	if (err) {
@@ -805,6 +874,8 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 
 err_net_remove:
 	nfp_net_pci_remove(pf);
+err_nsp_clean:
+	nfp_pf_nsp_clean(pf);
 err_fw_unload:
 	kfree(pf->rtbl);
 	nfp_mip_close(pf->mip);
@@ -844,6 +915,7 @@ static void __nfp_pci_shutdown(struct pci_dev *pdev, bool unload_fw)
 
 	nfp_net_pci_remove(pf);
 
+	nfp_pf_nsp_clean(pf);
 	vfree(pf->dumpspec);
 	kfree(pf->rtbl);
 	nfp_mip_close(pf->mip);
