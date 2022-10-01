@@ -541,7 +541,6 @@ struct r8192_priv {
 
 	enum reset_type ResetProgress;
 	bool		bForcedSilentReset;
-	bool		bDisableNormalResetCheck;
 	u16		TxCounter;
 	u16		RxCounter;
 	bool		bResetInProgress;

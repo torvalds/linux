@@ -871,7 +871,6 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->ScanDelay = 50;
 	priv->ResetProgress = RESET_TYPE_NORESET;
 	priv->bForcedSilentReset = false;
-	priv->bDisableNormalResetCheck = false;
 	priv->force_reset = false;
 	memset(priv->rtllib->swcamtable, 0, sizeof(struct sw_cam_table) * 32);
 
@@ -1403,13 +1402,12 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	}
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
 
-	if (!priv->bDisableNormalResetCheck && ResetType == RESET_TYPE_NORMAL) {
+	if (ResetType == RESET_TYPE_NORMAL) {
 		priv->ResetProgress = RESET_TYPE_NORMAL;
 		return;
 	}
 
-	if (((priv->force_reset) || (!priv->bDisableNormalResetCheck &&
-	      ResetType == RESET_TYPE_SILENT)))
+	if ((priv->force_reset || ResetType == RESET_TYPE_SILENT))
 		_rtl92e_if_silent_reset(dev);
 	priv->force_reset = false;
 	priv->bForcedSilentReset = false;
