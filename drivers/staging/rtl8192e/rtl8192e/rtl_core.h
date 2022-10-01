@@ -475,7 +475,6 @@ struct r8192_priv {
 
 	bool RegRfOff;
 	bool isRFOff;
-	bool bInPowerSaveMode;
 	u8 bHwRfOffAction;
 
 	bool rf_change_in_progress;

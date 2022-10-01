@@ -881,7 +881,6 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->hw_radio_off = false;
 	priv->RegRfOff = false;
 	priv->isRFOff = false;
-	priv->bInPowerSaveMode = false;
 	priv->rtllib->rf_off_reason = 0;
 	priv->rf_change_in_progress = false;
 	priv->bHwRfOffAction = 0;

@@ -122,7 +122,6 @@ void rtl92e_ips_enter(struct net_device *dev)
 		(priv->rtllib->iw_mode != IW_MODE_MASTER)) {
 		pPSC->eInactivePowerState = rf_off;
 		priv->isRFOff = true;
-		priv->bInPowerSaveMode = true;
 		_rtl92e_ps_update_rf_state(dev);
 	}
 }
@@ -138,7 +137,6 @@ void rtl92e_ips_leave(struct net_device *dev)
 	if (rt_state != rf_on  && !pPSC->bSwRfProcessing &&
 	    priv->rtllib->rf_off_reason <= RF_CHANGE_BY_IPS) {
 		pPSC->eInactivePowerState = rf_on;
-		priv->bInPowerSaveMode = false;
 		_rtl92e_ps_update_rf_state(dev);
 	}
 }
