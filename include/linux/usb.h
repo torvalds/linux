@@ -1321,7 +1321,7 @@ struct usb_device_driver {
  */
 struct usb_class_driver {
 	char *name;
-	char *(*devnode)(struct device *dev, umode_t *mode);
+	char *(*devnode)(const struct device *dev, umode_t *mode);
 	const struct file_operations *fops;
 	int minor_base;
 };
