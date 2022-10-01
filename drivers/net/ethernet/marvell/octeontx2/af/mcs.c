@@ -797,6 +797,289 @@ int mcs_alloc_all_rsrc(struct mcs *mcs, u8 *flow_id, u8 *secy_id,
 	return 0;
 }
 
+static void cn10kb_mcs_tx_pn_wrapped_handler(struct mcs *mcs)
+{
+	struct mcs_intr_event event = { 0 };
+	struct rsrc_bmap *sc_bmap;
+	u64 val;
+	int sc;
+
+	sc_bmap = &mcs->tx.sc;
+
+	event.mcs_id = mcs->mcs_id;
+	event.intr_mask = MCS_CPM_TX_PACKET_XPN_EQ0_INT;
+
+	for_each_set_bit(sc, sc_bmap->bmap, mcs->hw->sc_entries) {
+		val = mcs_reg_read(mcs, MCSX_CPM_TX_SLAVE_SA_MAP_MEM_0X(sc));
+
+		if (mcs->tx_sa_active[sc])
+			/* SA_index1 was used and got expired */
+			event.sa_id = (val >> 9) & 0xFF;
+		else
+			/* SA_index0 was used and got expired */
+			event.sa_id = val & 0xFF;
+
+		event.pcifunc = mcs->tx.sa2pf_map[event.sa_id];
+		mcs_add_intr_wq_entry(mcs, &event);
+	}
+}
+
+static void cn10kb_mcs_tx_pn_thresh_reached_handler(struct mcs *mcs)
+{
+	struct mcs_intr_event event = { 0 };
+	struct rsrc_bmap *sc_bmap;
+	u64 val, status;
+	int sc;
+
+	sc_bmap = &mcs->tx.sc;
+
+	event.mcs_id = mcs->mcs_id;
+	event.intr_mask = MCS_CPM_TX_PN_THRESH_REACHED_INT;
+
+	/* TX SA interrupt is raised only if autorekey is enabled.
+	 * MCS_CPM_TX_SLAVE_SA_MAP_MEM_0X[sc].tx_sa_active bit gets toggled if
+	 * one of two SAs mapped to SC gets expired. If tx_sa_active=0 implies
+	 * SA in SA_index1 got expired else SA in SA_index0 got expired.
+	 */
+	for_each_set_bit(sc, sc_bmap->bmap, mcs->hw->sc_entries) {
+		val = mcs_reg_read(mcs, MCSX_CPM_TX_SLAVE_SA_MAP_MEM_0X(sc));
+		/* Auto rekey is enable */
+		if (!((val >> 18) & 0x1))
+			continue;
+
+		status = (val >> 21) & 0x1;
+
+		/* Check if tx_sa_active status had changed */
+		if (status == mcs->tx_sa_active[sc])
+			continue;
+		/* SA_index0 is expired */
+		if (status)
+			event.sa_id = val & 0xFF;
+		else
+			event.sa_id = (val >> 9) & 0xFF;
+
+		event.pcifunc = mcs->tx.sa2pf_map[event.sa_id];
+		mcs_add_intr_wq_entry(mcs, &event);
+	}
+}
+
+static void mcs_rx_pn_thresh_reached_handler(struct mcs *mcs)
+{
+	struct mcs_intr_event event = { 0 };
+	int sa, reg;
+	u64 intr;
+
+	/* Check expired SAs */
+	for (reg = 0; reg < (mcs->hw->sa_entries / 64); reg++) {
+		/* Bit high in *PN_THRESH_REACHEDX implies
+		 * corresponding SAs are expired.
+		 */
+		intr = mcs_reg_read(mcs, MCSX_CPM_RX_SLAVE_PN_THRESH_REACHEDX(reg));
+		for (sa = 0; sa < 64; sa++) {
+			if (!(intr & BIT_ULL(sa)))
+				continue;
+
+			event.mcs_id = mcs->mcs_id;
+			event.intr_mask = MCS_CPM_RX_PN_THRESH_REACHED_INT;
+			event.sa_id = sa + (reg * 64);
+			event.pcifunc = mcs->rx.sa2pf_map[event.sa_id];
+			mcs_add_intr_wq_entry(mcs, &event);
+		}
+	}
+}
+
+static void mcs_rx_misc_intr_handler(struct mcs *mcs, u64 intr)
+{
+	struct mcs_intr_event event = { 0 };
+
+	event.mcs_id = mcs->mcs_id;
+	event.pcifunc = mcs->pf_map[0];
+
+	if (intr & MCS_CPM_RX_INT_SECTAG_V_EQ1)
+		event.intr_mask = MCS_CPM_RX_SECTAG_V_EQ1_INT;
+	if (intr & MCS_CPM_RX_INT_SECTAG_E_EQ0_C_EQ1)
+		event.intr_mask |= MCS_CPM_RX_SECTAG_E_EQ0_C_EQ1_INT;
+	if (intr & MCS_CPM_RX_INT_SL_GTE48)
+		event.intr_mask |= MCS_CPM_RX_SECTAG_SL_GTE48_INT;
+	if (intr & MCS_CPM_RX_INT_ES_EQ1_SC_EQ1)
+		event.intr_mask |= MCS_CPM_RX_SECTAG_ES_EQ1_SC_EQ1_INT;
+	if (intr & MCS_CPM_RX_INT_SC_EQ1_SCB_EQ1)
+		event.intr_mask |= MCS_CPM_RX_SECTAG_SC_EQ1_SCB_EQ1_INT;
+	if (intr & MCS_CPM_RX_INT_PACKET_XPN_EQ0)
+		event.intr_mask |= MCS_CPM_RX_PACKET_XPN_EQ0_INT;
+
+	mcs_add_intr_wq_entry(mcs, &event);
+}
+
+static void mcs_tx_misc_intr_handler(struct mcs *mcs, u64 intr)
+{
+	struct mcs_intr_event event = { 0 };
+
+	if (!(intr & MCS_CPM_TX_INT_SA_NOT_VALID))
+		return;
+
+	event.mcs_id = mcs->mcs_id;
+	event.pcifunc = mcs->pf_map[0];
+
+	event.intr_mask = MCS_CPM_TX_SA_NOT_VALID_INT;
+
+	mcs_add_intr_wq_entry(mcs, &event);
+}
+
+static void mcs_bbe_intr_handler(struct mcs *mcs, u64 intr, enum mcs_direction dir)
+{
+	struct mcs_intr_event event = { 0 };
+	int i;
+
+	if (!(intr & MCS_BBE_INT_MASK))
+		return;
+
+	event.mcs_id = mcs->mcs_id;
+	event.pcifunc = mcs->pf_map[0];
+
+	for (i = 0; i < MCS_MAX_BBE_INT; i++) {
+		if (!(intr & BIT_ULL(i)))
+			continue;
+
+		/* Lower nibble denotes data fifo overflow interrupts and
+		 * upper nibble indicates policy fifo overflow interrupts.
+		 */
+		if (intr & 0xFULL)
+			event.intr_mask = (dir == MCS_RX) ?
+					  MCS_BBE_RX_DFIFO_OVERFLOW_INT :
+					  MCS_BBE_TX_DFIFO_OVERFLOW_INT;
+		else
+			event.intr_mask = (dir == MCS_RX) ?
+					  MCS_BBE_RX_PLFIFO_OVERFLOW_INT :
+					  MCS_BBE_RX_PLFIFO_OVERFLOW_INT;
+
+		/* Notify the lmac_id info which ran into BBE fatal error */
+		event.lmac_id = i & 0x3ULL;
+		mcs_add_intr_wq_entry(mcs, &event);
+	}
+}
+
+static void mcs_pab_intr_handler(struct mcs *mcs, u64 intr, enum mcs_direction dir)
+{
+	struct mcs_intr_event event = { 0 };
+	int i;
+
+	if (!(intr & MCS_PAB_INT_MASK))
+		return;
+
+	event.mcs_id = mcs->mcs_id;
+	event.pcifunc = mcs->pf_map[0];
+
+	for (i = 0; i < MCS_MAX_PAB_INT; i++) {
+		if (!(intr & BIT_ULL(i)))
+			continue;
+
+		event.intr_mask = (dir == MCS_RX) ? MCS_PAB_RX_CHAN_OVERFLOW_INT :
+				  MCS_PAB_TX_CHAN_OVERFLOW_INT;
+
+		/* Notify the lmac_id info which ran into PAB fatal error */
+		event.lmac_id = i;
+		mcs_add_intr_wq_entry(mcs, &event);
+	}
+}
+
+static irqreturn_t mcs_ip_intr_handler(int irq, void *mcs_irq)
+{
+	struct mcs *mcs = (struct mcs *)mcs_irq;
+	u64 intr, cpm_intr, bbe_intr, pab_intr;
+
+	/* Disable and clear the interrupt */
+	mcs_reg_write(mcs, MCSX_IP_INT_ENA_W1C, BIT_ULL(0));
+	mcs_reg_write(mcs, MCSX_IP_INT, BIT_ULL(0));
+
+	/* Check which block has interrupt*/
+	intr = mcs_reg_read(mcs, MCSX_TOP_SLAVE_INT_SUM);
+
+	/* CPM RX */
+	if (intr & MCS_CPM_RX_INT_ENA) {
+		/* Check for PN thresh interrupt bit */
+		cpm_intr = mcs_reg_read(mcs, MCSX_CPM_RX_SLAVE_RX_INT);
+
+		if (cpm_intr & MCS_CPM_RX_INT_PN_THRESH_REACHED)
+			mcs_rx_pn_thresh_reached_handler(mcs);
+
+		if (cpm_intr & MCS_CPM_RX_INT_ALL)
+			mcs_rx_misc_intr_handler(mcs, cpm_intr);
+
+		/* Clear the interrupt */
+		mcs_reg_write(mcs, MCSX_CPM_RX_SLAVE_RX_INT, cpm_intr);
+	}
+
+	/* CPM TX */
+	if (intr & MCS_CPM_TX_INT_ENA) {
+		cpm_intr = mcs_reg_read(mcs, MCSX_CPM_TX_SLAVE_TX_INT);
+
+		if (cpm_intr & MCS_CPM_TX_INT_PN_THRESH_REACHED) {
+			if (mcs->hw->mcs_blks > 1)
+				cnf10kb_mcs_tx_pn_thresh_reached_handler(mcs);
+			else
+				cn10kb_mcs_tx_pn_thresh_reached_handler(mcs);
+		}
+
+		if (cpm_intr & MCS_CPM_TX_INT_SA_NOT_VALID)
+			mcs_tx_misc_intr_handler(mcs, cpm_intr);
+
+		if (cpm_intr & MCS_CPM_TX_INT_PACKET_XPN_EQ0) {
+			if (mcs->hw->mcs_blks > 1)
+				cnf10kb_mcs_tx_pn_wrapped_handler(mcs);
+			else
+				cn10kb_mcs_tx_pn_wrapped_handler(mcs);
+		}
+		/* Clear the interrupt */
+		mcs_reg_write(mcs, MCSX_CPM_TX_SLAVE_TX_INT, cpm_intr);
+	}
+
+	/* BBE RX */
+	if (intr & MCS_BBE_RX_INT_ENA) {
+		bbe_intr = mcs_reg_read(mcs, MCSX_BBE_RX_SLAVE_BBE_INT);
+		mcs_bbe_intr_handler(mcs, bbe_intr, MCS_RX);
+
+		/* Clear the interrupt */
+		mcs_reg_write(mcs, MCSX_BBE_RX_SLAVE_BBE_INT_INTR_RW, 0);
+		mcs_reg_write(mcs, MCSX_BBE_RX_SLAVE_BBE_INT, bbe_intr);
+	}
+
+	/* BBE TX */
+	if (intr & MCS_BBE_TX_INT_ENA) {
+		bbe_intr = mcs_reg_read(mcs, MCSX_BBE_TX_SLAVE_BBE_INT);
+		mcs_bbe_intr_handler(mcs, bbe_intr, MCS_TX);
+
+		/* Clear the interrupt */
+		mcs_reg_write(mcs, MCSX_BBE_TX_SLAVE_BBE_INT_INTR_RW, 0);
+		mcs_reg_write(mcs, MCSX_BBE_TX_SLAVE_BBE_INT, bbe_intr);
+	}
+
+	/* PAB RX */
+	if (intr & MCS_PAB_RX_INT_ENA) {
+		pab_intr = mcs_reg_read(mcs, MCSX_PAB_RX_SLAVE_PAB_INT);
+		mcs_pab_intr_handler(mcs, pab_intr, MCS_RX);
+
+		/* Clear the interrupt */
+		mcs_reg_write(mcs, MCSX_PAB_RX_SLAVE_PAB_INT_INTR_RW, 0);
+		mcs_reg_write(mcs, MCSX_PAB_RX_SLAVE_PAB_INT, pab_intr);
+	}
+
+	/* PAB TX */
+	if (intr & MCS_PAB_TX_INT_ENA) {
+		pab_intr = mcs_reg_read(mcs, MCSX_PAB_TX_SLAVE_PAB_INT);
+		mcs_pab_intr_handler(mcs, pab_intr, MCS_TX);
+
+		/* Clear the interrupt */
+		mcs_reg_write(mcs, MCSX_PAB_TX_SLAVE_PAB_INT_INTR_RW, 0);
+		mcs_reg_write(mcs, MCSX_PAB_TX_SLAVE_PAB_INT, pab_intr);
+	}
+
+	/* Enable the interrupt */
+	mcs_reg_write(mcs, MCSX_IP_INT_ENA_W1S, BIT_ULL(0));
+
+	return IRQ_HANDLED;
+}
+
 static void *alloc_mem(struct mcs *mcs, int n)
 {
 	return devm_kcalloc(mcs->dev, n, sizeof(u16), GFP_KERNEL);
@@ -857,6 +1140,56 @@ static int mcs_alloc_struct_mem(struct mcs *mcs, struct mcs_rsrc_map *res)
 		return err;
 
 	return 0;
+}
+
+static int mcs_register_interrupts(struct mcs *mcs)
+{
+	int ret = 0;
+
+	mcs->num_vec = pci_msix_vec_count(mcs->pdev);
+
+	ret = pci_alloc_irq_vectors(mcs->pdev, mcs->num_vec,
+				    mcs->num_vec, PCI_IRQ_MSIX);
+	if (ret < 0) {
+		dev_err(mcs->dev, "MCS Request for %d msix vector failed err:%d\n",
+			mcs->num_vec, ret);
+		return ret;
+	}
+
+	ret = request_irq(pci_irq_vector(mcs->pdev, MCS_INT_VEC_IP),
+			  mcs_ip_intr_handler, 0, "MCS_IP", mcs);
+	if (ret) {
+		dev_err(mcs->dev, "MCS IP irq registration failed\n");
+		goto exit;
+	}
+
+	/* MCS enable IP interrupts */
+	mcs_reg_write(mcs, MCSX_IP_INT_ENA_W1S, BIT_ULL(0));
+
+	/* Enable CPM Rx/Tx interrupts */
+	mcs_reg_write(mcs, MCSX_TOP_SLAVE_INT_SUM_ENB,
+		      MCS_CPM_RX_INT_ENA | MCS_CPM_TX_INT_ENA |
+		      MCS_BBE_RX_INT_ENA | MCS_BBE_TX_INT_ENA |
+		      MCS_PAB_RX_INT_ENA | MCS_PAB_TX_INT_ENA);
+
+	mcs_reg_write(mcs, MCSX_CPM_TX_SLAVE_TX_INT_ENB, 0x7ULL);
+	mcs_reg_write(mcs, MCSX_CPM_RX_SLAVE_RX_INT_ENB, 0x7FULL);
+
+	mcs_reg_write(mcs, MCSX_BBE_RX_SLAVE_BBE_INT_ENB, 0xff);
+	mcs_reg_write(mcs, MCSX_BBE_TX_SLAVE_BBE_INT_ENB, 0xff);
+
+	mcs_reg_write(mcs, MCSX_PAB_RX_SLAVE_PAB_INT_ENB, 0xff);
+	mcs_reg_write(mcs, MCSX_PAB_TX_SLAVE_PAB_INT_ENB, 0xff);
+
+	mcs->tx_sa_active = alloc_mem(mcs, mcs->hw->sc_entries);
+	if (!mcs->tx_sa_active)
+		goto exit;
+
+	return ret;
+exit:
+	pci_free_irq_vectors(mcs->pdev);
+	mcs->num_vec = 0;
+	return ret;
 }
 
 int mcs_get_blkcnt(void)
@@ -1228,6 +1561,10 @@ static int mcs_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Parser configuration */
 	mcs->mcs_ops->mcs_parser_cfg(mcs);
+
+	err = mcs_register_interrupts(mcs);
+	if (err)
+		goto exit;
 
 	list_add(&mcs->mcs_list, &mcs_list);
 	mutex_init(&mcs->stats_lock);

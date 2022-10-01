@@ -276,6 +276,102 @@
 #define MCSX_BBE_RX_SLAVE_CAL_LEN			0x188ull
 #define MCSX_PAB_RX_SLAVE_FIFO_SKID_CFGX(a)		(0x290ull + (a) * 0x40ull)
 
+#define MCSX_BBE_RX_SLAVE_BBE_INT ({	\
+	u64 offset;			\
+					\
+	offset = 0xe00ull;		\
+	if (mcs->hw->mcs_blks > 1)	\
+		offset = 0x160ull;	\
+	offset; })
+
+#define MCSX_BBE_RX_SLAVE_BBE_INT_ENB ({	\
+	u64 offset;			\
+					\
+	offset = 0xe08ull;		\
+	if (mcs->hw->mcs_blks > 1)	\
+		offset = 0x168ull;	\
+	offset; })
+
+#define MCSX_BBE_RX_SLAVE_BBE_INT_INTR_RW ({	\
+	u64 offset;			\
+					\
+	offset = 0xe08ull;		\
+	if (mcs->hw->mcs_blks > 1)	\
+		offset = 0x178ull;	\
+	offset; })
+
+#define MCSX_BBE_TX_SLAVE_BBE_INT ({	\
+	u64 offset;			\
+					\
+	offset = 0x1278ull;		\
+	if (mcs->hw->mcs_blks > 1)	\
+		offset = 0x1e0ull;	\
+	offset; })
+
+#define MCSX_BBE_TX_SLAVE_BBE_INT_INTR_RW ({	\
+	u64 offset;			\
+					\
+	offset = 0x1278ull;		\
+	if (mcs->hw->mcs_blks > 1)	\
+		offset = 0x1f8ull;	\
+	offset; })
+
+#define MCSX_BBE_TX_SLAVE_BBE_INT_ENB ({	\
+	u64 offset;			\
+					\
+	offset = 0x1280ull;		\
+	if (mcs->hw->mcs_blks > 1)	\
+		offset = 0x1e8ull;	\
+	offset; })
+
+#define MCSX_PAB_RX_SLAVE_PAB_INT ({	\
+	u64 offset;			\
+					\
+	offset = 0x16f0ull;		\
+	if (mcs->hw->mcs_blks > 1)	\
+		offset = 0x260ull;	\
+	offset; })
+
+#define MCSX_PAB_RX_SLAVE_PAB_INT_ENB ({	\
+	u64 offset;			\
+					\
+	offset = 0x16f8ull;		\
+	if (mcs->hw->mcs_blks > 1)	\
+		offset = 0x268ull;	\
+	offset; })
+
+#define MCSX_PAB_RX_SLAVE_PAB_INT_INTR_RW ({	\
+	u64 offset;			\
+					\
+	offset = 0x16f8ull;		\
+	if (mcs->hw->mcs_blks > 1)	\
+		offset = 0x278ull;	\
+	offset; })
+
+#define MCSX_PAB_TX_SLAVE_PAB_INT ({	\
+	u64 offset;			\
+					\
+	offset = 0x2908ull;		\
+	if (mcs->hw->mcs_blks > 1)	\
+		offset = 0x380ull;	\
+	offset; })
+
+#define MCSX_PAB_TX_SLAVE_PAB_INT_ENB ({	\
+	u64 offset;			\
+					\
+	offset = 0x2910ull;		\
+	if (mcs->hw->mcs_blks > 1)	\
+		offset = 0x388ull;	\
+	offset; })
+
+#define MCSX_PAB_TX_SLAVE_PAB_INT_INTR_RW ({	\
+	u64 offset;			\
+					\
+	offset = 0x16f8ull;		\
+	if (mcs->hw->mcs_blks > 1)	\
+		offset = 0x398ull;	\
+	offset; })
+
 /* CPM registers */
 #define MCSX_CPM_RX_SLAVE_FLOWID_TCAM_DATAX(a, b) ({	\
 	u64 offset;					\
@@ -930,5 +1026,77 @@
 #define MCSX_CSE_TX_MEM_SLAVE_OUTPKTSEARLYPREEMPTERRX(a) (0x10eb8ull + (a) * 0x8ull)
 #define MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSAENCRYPTEDX(a)	(0x21c40ull + (a) * 0x8ull)
 #define MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSAPROTECTEDX(a)	(0x20c40ull + (a) * 0x8ull)
+
+#define MCSX_IP_INT ({			\
+	u64 offset;			\
+					\
+	offset = 0x80028ull;		\
+	if (mcs->hw->mcs_blks > 1)	\
+		offset = 0x60028ull;	\
+	offset; })
+
+#define MCSX_IP_INT_ENA_W1S ({		\
+	u64 offset;			\
+					\
+	offset = 0x80040ull;		\
+	if (mcs->hw->mcs_blks > 1)	\
+		offset = 0x60040ull;	\
+	offset; })
+
+#define MCSX_IP_INT_ENA_W1C ({		\
+	u64 offset;			\
+					\
+	offset = 0x80038ull;		\
+	if (mcs->hw->mcs_blks > 1)	\
+		offset = 0x60038ull;	\
+	offset; })
+
+#define MCSX_TOP_SLAVE_INT_SUM ({	\
+	u64 offset;			\
+					\
+	offset = 0xc20ull;		\
+	if (mcs->hw->mcs_blks > 1)	\
+		offset = 0xab8ull;	\
+	offset; })
+
+#define MCSX_TOP_SLAVE_INT_SUM_ENB ({	\
+	u64 offset;			\
+					\
+	offset = 0xc28ull;		\
+	if (mcs->hw->mcs_blks > 1)	\
+		offset = 0xac0ull;	\
+	offset; })
+
+#define MCSX_CPM_RX_SLAVE_RX_INT ({	\
+	u64 offset;			\
+					\
+	offset = 0x23c00ull;		\
+	if (mcs->hw->mcs_blks > 1)	\
+		offset = 0x0ad8ull;	\
+	offset; })
+
+#define MCSX_CPM_RX_SLAVE_RX_INT_ENB ({	\
+	u64 offset;			\
+					\
+	offset = 0x23c08ull;		\
+	if (mcs->hw->mcs_blks > 1)	\
+		offset = 0xae0ull;	\
+	offset; })
+
+#define MCSX_CPM_TX_SLAVE_TX_INT ({	\
+	u64 offset;			\
+					\
+	offset = 0x3d490ull;		\
+	if (mcs->hw->mcs_blks > 1)	\
+		offset = 0x54a0ull;	\
+	offset; })
+
+#define MCSX_CPM_TX_SLAVE_TX_INT_ENB ({	\
+	u64 offset;			\
+					\
+	offset = 0x3d498ull;		\
+	if (mcs->hw->mcs_blks > 1)	\
+		offset = 0x54a8ull;	\
+	offset; })
 
 #endif

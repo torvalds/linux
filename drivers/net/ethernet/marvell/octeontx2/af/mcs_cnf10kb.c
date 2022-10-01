@@ -93,18 +93,18 @@ void cnf10kb_mcs_tx_sa_mem_map_write(struct mcs *mcs, struct mcs_tx_sc_sa_map *m
 	reg = MCSX_CPM_TX_SLAVE_SA_MAP_MEM_0X(map->sc_id);
 	mcs_reg_write(mcs, reg, val);
 
-	if (map->rekey_ena) {
-		reg = MCSX_CPM_TX_SLAVE_AUTO_REKEY_ENABLE_0;
-		val = mcs_reg_read(mcs, reg);
+	reg = MCSX_CPM_TX_SLAVE_AUTO_REKEY_ENABLE_0;
+	val = mcs_reg_read(mcs, reg);
+
+	if (map->rekey_ena)
 		val |= BIT_ULL(map->sc_id);
-		mcs_reg_write(mcs, reg, val);
-	}
+	else
+		val &= ~BIT_ULL(map->sc_id);
 
-	if (map->sa_index0_vld)
-		mcs_reg_write(mcs, MCSX_CPM_TX_SLAVE_SA_INDEX0_VLDX(map->sc_id), BIT_ULL(0));
+	mcs_reg_write(mcs, reg, val);
 
-	if (map->sa_index1_vld)
-		mcs_reg_write(mcs, MCSX_CPM_TX_SLAVE_SA_INDEX1_VLDX(map->sc_id), BIT_ULL(0));
+	mcs_reg_write(mcs, MCSX_CPM_TX_SLAVE_SA_INDEX0_VLDX(map->sc_id), map->sa_index0_vld);
+	mcs_reg_write(mcs, MCSX_CPM_TX_SLAVE_SA_INDEX1_VLDX(map->sc_id), map->sa_index1_vld);
 
 	mcs_reg_write(mcs, MCSX_CPM_TX_SLAVE_TX_SA_ACTIVEX(map->sc_id), map->tx_sa_active);
 }
@@ -143,4 +143,72 @@ int mcs_set_force_clk_en(struct mcs *mcs, bool set)
 	}
 
 	return 0;
+}
+
+/* TX SA interrupt is raised only if autorekey is enabled.
+ * MCS_CPM_TX_SLAVE_SA_MAP_MEM_0X[sc].tx_sa_active bit gets toggled if
+ * one of two SAs mapped to SC gets expired. If tx_sa_active=0 implies
+ * SA in SA_index1 got expired else SA in SA_index0 got expired.
+ */
+void cnf10kb_mcs_tx_pn_thresh_reached_handler(struct mcs *mcs)
+{
+	struct mcs_intr_event event;
+	struct rsrc_bmap *sc_bmap;
+	unsigned long rekey_ena;
+	u64 val, sa_status;
+	int sc;
+
+	sc_bmap = &mcs->tx.sc;
+
+	event.mcs_id = mcs->mcs_id;
+	event.intr_mask = MCS_CPM_TX_PN_THRESH_REACHED_INT;
+
+	rekey_ena = mcs_reg_read(mcs, MCSX_CPM_TX_SLAVE_AUTO_REKEY_ENABLE_0);
+
+	for_each_set_bit(sc, sc_bmap->bmap, mcs->hw->sc_entries) {
+		/* Auto rekey is enable */
+		if (!test_bit(sc, &rekey_ena))
+			continue;
+		sa_status = mcs_reg_read(mcs, MCSX_CPM_TX_SLAVE_TX_SA_ACTIVEX(sc));
+		/* Check if tx_sa_active status had changed */
+		if (sa_status == mcs->tx_sa_active[sc])
+			continue;
+
+		/* SA_index0 is expired */
+		val = mcs_reg_read(mcs, MCSX_CPM_TX_SLAVE_SA_MAP_MEM_0X(sc));
+		if (sa_status)
+			event.sa_id = val & 0x7F;
+		else
+			event.sa_id = (val >> 7) & 0x7F;
+
+		event.pcifunc = mcs->tx.sa2pf_map[event.sa_id];
+		mcs_add_intr_wq_entry(mcs, &event);
+	}
+}
+
+void cnf10kb_mcs_tx_pn_wrapped_handler(struct mcs *mcs)
+{
+	struct mcs_intr_event event = { 0 };
+	struct rsrc_bmap *sc_bmap;
+	u64 val;
+	int sc;
+
+	sc_bmap = &mcs->tx.sc;
+
+	event.mcs_id = mcs->mcs_id;
+	event.intr_mask = MCS_CPM_TX_PACKET_XPN_EQ0_INT;
+
+	for_each_set_bit(sc, sc_bmap->bmap, mcs->hw->sc_entries) {
+		val = mcs_reg_read(mcs, MCSX_CPM_TX_SLAVE_SA_MAP_MEM_0X(sc));
+
+		if (mcs->tx_sa_active[sc])
+			/* SA_index1 was used and got expired */
+			event.sa_id = (val >> 7) & 0x7F;
+		else
+			/* SA_index0 was used and got expired */
+			event.sa_id = val & 0x7F;
+
+		event.pcifunc = mcs->tx.sa2pf_map[event.sa_id];
+		mcs_add_intr_wq_entry(mcs, &event);
+	}
 }

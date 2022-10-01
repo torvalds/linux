@@ -16,6 +16,7 @@
 #define MCSX_LINK_LMAC_BASE_MASK	GENMASK_ULL(11, 0)
 
 #define MCS_ID_MASK			0x7
+#define MCS_MAX_PFS                     128
 
 #define MCS_PORT_MODE_MASK		0x3
 #define MCS_PORT_FIFO_SKID_MASK		0x3F
@@ -41,6 +42,69 @@
 
 /* Reserved resources for default bypass entry */
 #define MCS_RSRC_RSVD_CNT		1
+
+/* MCS Interrupt Vector Enumeration */
+enum mcs_int_vec_e {
+	MCS_INT_VEC_MIL_RX_GBL		= 0x0,
+	MCS_INT_VEC_MIL_RX_LMACX	= 0x1,
+	MCS_INT_VEC_MIL_TX_LMACX	= 0x5,
+	MCS_INT_VEC_HIL_RX_GBL		= 0x9,
+	MCS_INT_VEC_HIL_RX_LMACX	= 0xa,
+	MCS_INT_VEC_HIL_TX_GBL		= 0xe,
+	MCS_INT_VEC_HIL_TX_LMACX	= 0xf,
+	MCS_INT_VEC_IP			= 0x13,
+	MCS_INT_VEC_CNT			= 0x14,
+};
+
+#define MCS_MAX_BBE_INT			8ULL
+#define MCS_BBE_INT_MASK		0xFFULL
+
+#define MCS_MAX_PAB_INT			4ULL
+#define MCS_PAB_INT_MASK		0xFULL
+
+#define MCS_BBE_RX_INT_ENA		BIT_ULL(0)
+#define MCS_BBE_TX_INT_ENA		BIT_ULL(1)
+#define MCS_CPM_RX_INT_ENA		BIT_ULL(2)
+#define MCS_CPM_TX_INT_ENA		BIT_ULL(3)
+#define MCS_PAB_RX_INT_ENA		BIT_ULL(4)
+#define MCS_PAB_TX_INT_ENA		BIT_ULL(5)
+
+#define MCS_CPM_TX_INT_PACKET_XPN_EQ0		BIT_ULL(0)
+#define MCS_CPM_TX_INT_PN_THRESH_REACHED	BIT_ULL(1)
+#define MCS_CPM_TX_INT_SA_NOT_VALID		BIT_ULL(2)
+
+#define MCS_CPM_RX_INT_SECTAG_V_EQ1		BIT_ULL(0)
+#define MCS_CPM_RX_INT_SECTAG_E_EQ0_C_EQ1	BIT_ULL(1)
+#define MCS_CPM_RX_INT_SL_GTE48			BIT_ULL(2)
+#define MCS_CPM_RX_INT_ES_EQ1_SC_EQ1		BIT_ULL(3)
+#define MCS_CPM_RX_INT_SC_EQ1_SCB_EQ1		BIT_ULL(4)
+#define MCS_CPM_RX_INT_PACKET_XPN_EQ0		BIT_ULL(5)
+#define MCS_CPM_RX_INT_PN_THRESH_REACHED	BIT_ULL(6)
+
+#define MCS_CPM_RX_INT_ALL	(MCS_CPM_RX_INT_SECTAG_V_EQ1 |		\
+				 MCS_CPM_RX_INT_SECTAG_E_EQ0_C_EQ1 |    \
+				 MCS_CPM_RX_INT_SL_GTE48 |		\
+				 MCS_CPM_RX_INT_ES_EQ1_SC_EQ1 |		\
+				 MCS_CPM_RX_INT_SC_EQ1_SCB_EQ1 |	\
+				 MCS_CPM_RX_INT_PACKET_XPN_EQ0 |	\
+				 MCS_CPM_RX_INT_PN_THRESH_REACHED)
+
+struct mcs_pfvf {
+	u64 intr_mask;	/* Enabled Interrupt mask */
+};
+
+struct mcs_intr_event {
+	u16 pcifunc;
+	u64 intr_mask;
+	u64 sa_id;
+	u8 mcs_id;
+	u8 lmac_id;
+};
+
+struct mcs_intrq_entry {
+	struct list_head node;
+	struct mcs_intr_event intr_event;
+};
 
 struct secy_mem_map {
 	u8 flow_id;
@@ -82,11 +146,17 @@ struct mcs {
 	struct hwinfo		*hw;
 	struct mcs_rsrc_map	tx;
 	struct mcs_rsrc_map	rx;
+	u16                     pf_map[MCS_MAX_PFS]; /* List of PCIFUNC mapped to MCS */
 	u8			mcs_id;
 	struct mcs_ops		*mcs_ops;
 	struct list_head	mcs_list;
 	/* Lock for mcs stats */
 	struct mutex		stats_lock;
+	struct mcs_pfvf		*pf;
+	struct mcs_pfvf		*vf;
+	u16			num_vec;
+	void			*rvu;
+	u16			*tx_sa_active;
 };
 
 struct mcs_ops {
@@ -157,6 +227,8 @@ void cnf10kb_mcs_tx_sa_mem_map_write(struct mcs *mcs, struct mcs_tx_sc_sa_map *m
 void cnf10kb_mcs_flowid_secy_map(struct mcs *mcs, struct secy_mem_map *map, int dir);
 void cnf10kb_mcs_rx_sa_mem_map_write(struct mcs *mcs, struct mcs_rx_sc_sa_map *map);
 void cnf10kb_mcs_parser_cfg(struct mcs *mcs);
+void cnf10kb_mcs_tx_pn_thresh_reached_handler(struct mcs *mcs);
+void cnf10kb_mcs_tx_pn_wrapped_handler(struct mcs *mcs);
 
 /* Stats APIs */
 void mcs_get_sc_stats(struct mcs *mcs, struct mcs_sc_stats *stats, int id, int dir);
@@ -168,5 +240,7 @@ void mcs_get_tx_secy_stats(struct mcs *mcs, struct mcs_secy_stats *stats, int id
 void mcs_clear_stats(struct mcs *mcs, u8 type, u8 id, int dir);
 int mcs_clear_all_stats(struct mcs *mcs, u16 pcifunc, int dir);
 int mcs_set_force_clk_en(struct mcs *mcs, bool set);
+
+int mcs_add_intr_wq_entry(struct mcs *mcs, struct mcs_intr_event *event);
 
 #endif /* MCS_H */
