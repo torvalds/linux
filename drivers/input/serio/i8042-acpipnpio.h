@@ -2,6 +2,7 @@
 #ifndef _I8042_ACPIPNPIO_H
 #define _I8042_ACPIPNPIO_H
 
+#include <linux/acpi.h>
 
 #ifdef CONFIG_X86
 #include <asm/x86_init.h>
@@ -1453,9 +1454,14 @@ static int __init i8042_pnp_init(void)
 		return -ENODEV;
 #else
 		pr_info("PNP: No PS/2 controller found.\n");
+#if defined(__loongarch__)
+		if (acpi_disabled == 0)
+			return -ENODEV;
+#else
 		if (x86_platform.legacy.i8042 !=
 				X86_LEGACY_I8042_EXPECTED_PRESENT)
 			return -ENODEV;
+#endif
 		pr_info("Probing ports directly.\n");
 		return 0;
 #endif
