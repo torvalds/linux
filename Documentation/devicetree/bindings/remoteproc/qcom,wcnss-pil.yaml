@@ -15,10 +15,15 @@ description:
 
 properties:
   compatible:
-    enum:
-      - qcom,riva-pil
-      - qcom,pronto-v1-pil
-      - qcom,pronto-v2-pil
+    description:
+      Append "qcom,pronto" if the device is actually pronto, and not riva
+    oneOf:
+      - items:
+          - enum:
+              - qcom,pronto-v1-pil
+              - qcom,pronto-v2-pil
+          - const: qcom,pronto
+      - const: qcom,riva-pil
 
   reg:
     maxItems: 3
@@ -200,7 +205,7 @@ examples:
     #include <dt-bindings/clock/qcom,rpmcc.h>
     #include <dt-bindings/power/qcom-rpmpd.h>
     pronto@a21b000 {
-        compatible = "qcom,pronto-v2-pil";
+        compatible = "qcom,pronto-v2-pil", "qcom,pronto";
         reg = <0x0a204000 0x2000>, <0x0a202000 0x1000>, <0x0a21b000 0x3000>;
         reg-names = "ccu", "dxe", "pmu";
 
