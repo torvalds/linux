@@ -452,4 +452,11 @@ static inline bool mlx5e_icosq_can_post_wqe(struct mlx5e_icosq *sq, u16 wqe_size
 
 	return mlx5e_wqc_has_room_for(&sq->wq, sq->cc, sq->pc, room);
 }
+
+static inline struct mlx5e_mpw_info *mlx5e_get_mpw_info(struct mlx5e_rq *rq, int i)
+{
+	size_t isz = struct_size(rq->mpwqe.info, alloc_units, rq->mpwqe.pages_per_wqe);
+
+	return (struct mlx5e_mpw_info *)((char *)rq->mpwqe.info + array_size(i, isz));
+}
 #endif

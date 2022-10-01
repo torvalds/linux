@@ -181,12 +181,6 @@ do {                                                            \
 #define mlx5e_state_dereference(priv, p) \
 	rcu_dereference_protected((p), lockdep_is_held(&(priv)->state_lock))
 
-enum mlx5e_rq_group {
-	MLX5E_RQ_GROUP_REGULAR,
-	MLX5E_RQ_GROUP_XSK,
-#define MLX5E_NUM_RQ_GROUPS(g) (1 + MLX5E_RQ_GROUP_##g)
-};
-
 static inline u8 mlx5e_get_num_lag_ports(struct mlx5_core_dev *mdev)
 {
 	if (mlx5_lag_is_lacp_owner(mdev))
@@ -660,6 +654,7 @@ struct mlx5e_rq_frags_info {
 	u8 num_frags;
 	u8 log_num_frags;
 	u8 wqe_bulk;
+	u8 wqe_index_mask;
 };
 
 struct mlx5e_dma_info {
@@ -1004,7 +999,6 @@ struct mlx5e_profile {
 	mlx5e_stats_grp_t *stats_grps;
 	const struct mlx5e_rx_handlers *rx_handlers;
 	int	max_tc;
-	u8	rq_groups;
 	u32     features;
 };
 
@@ -1096,7 +1090,7 @@ void mlx5e_activate_priv_channels(struct mlx5e_priv *priv);
 void mlx5e_deactivate_priv_channels(struct mlx5e_priv *priv);
 int mlx5e_ptp_rx_manage_fs_ctx(struct mlx5e_priv *priv, void *ctx);
 
-int mlx5e_modify_rq_state(struct mlx5e_rq *rq, int curr_state, int next_state);
+int mlx5e_flush_rq(struct mlx5e_rq *rq, int curr_state);
 void mlx5e_activate_rq(struct mlx5e_rq *rq);
 void mlx5e_deactivate_rq(struct mlx5e_rq *rq);
 void mlx5e_activate_icosq(struct mlx5e_icosq *icosq);

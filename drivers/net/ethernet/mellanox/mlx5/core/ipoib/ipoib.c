@@ -463,7 +463,6 @@ static const struct mlx5e_profile mlx5i_nic_profile = {
 	.update_carrier    = NULL, /* no HW update in IB link */
 	.rx_handlers       = &mlx5i_rx_handlers,
 	.max_tc		   = MLX5I_MAX_NUM_TC,
-	.rq_groups	   = MLX5E_NUM_RQ_GROUPS(REGULAR),
 	.stats_grps        = mlx5i_stats_grps,
 	.stats_grps_num    = mlx5i_stats_grps_num,
 };

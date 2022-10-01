@@ -75,13 +75,6 @@ const struct mlx5e_rx_handlers mlx5e_rx_handlers_nic = {
 	.handle_rx_cqe_mpwqe_shampo = mlx5e_handle_rx_cqe_mpwrq_shampo,
 };
 
-static struct mlx5e_mpw_info *mlx5e_get_mpw_info(struct mlx5e_rq *rq, int i)
-{
-	size_t isz = struct_size(rq->mpwqe.info, alloc_units, rq->mpwqe.pages_per_wqe);
-
-	return (struct mlx5e_mpw_info *)((char *)rq->mpwqe.info + array_size(i, isz));
-}
-
 static inline bool mlx5e_rx_hw_stamp(struct hwtstamp_config *config)
 {
 	return config->rx_filter == HWTSTAMP_FILTER_ALL;
@@ -300,16 +293,6 @@ static inline int mlx5e_page_alloc_pool(struct mlx5e_rq *rq, union mlx5e_alloc_u
 	return 0;
 }
 
-static inline int mlx5e_page_alloc(struct mlx5e_rq *rq, union mlx5e_alloc_unit *au)
-{
-	if (rq->xsk_pool) {
-		au->xsk = xsk_buff_alloc(rq->xsk_pool);
-		return likely(au->xsk) ? 0 : -ENOMEM;
-	} else {
-		return mlx5e_page_alloc_pool(rq, au);
-	}
-}
-
 void mlx5e_page_dma_unmap(struct mlx5e_rq *rq, struct page *page)
 {
 	dma_addr_t dma_addr = page_pool_get_dma_addr(page);
@@ -334,20 +317,6 @@ void mlx5e_page_release_dynamic(struct mlx5e_rq *rq, struct page *page, bool rec
 	}
 }
 
-static inline void mlx5e_page_release(struct mlx5e_rq *rq,
-				      union mlx5e_alloc_unit *au,
-				      bool recycle)
-{
-	if (rq->xsk_pool)
-		/* The `recycle` parameter is ignored, and the page is always
-		 * put into the Reuse Ring, because there is no way to return
-		 * the page to the userspace when the interface goes down.
-		 */
-		xsk_buff_free(au->xsk);
-	else
-		mlx5e_page_release_dynamic(rq, au->page, recycle);
-}
-
 static inline int mlx5e_get_rx_frag(struct mlx5e_rq *rq,
 				    struct mlx5e_wqe_frag_info *frag)
 {
@@ -359,7 +328,7 @@ static inline int mlx5e_get_rx_frag(struct mlx5e_rq *rq,
 		 * offset) should just use the new one without replenishing again
 		 * by themselves.
 		 */
-		err = mlx5e_page_alloc(rq, frag->au);
+		err = mlx5e_page_alloc_pool(rq, frag->au);
 
 	return err;
 }
@@ -369,7 +338,7 @@ static inline void mlx5e_put_rx_frag(struct mlx5e_rq *rq,
 				     bool recycle)
 {
 	if (frag->last_in_page)
-		mlx5e_page_release(rq, frag->au, recycle);
+		mlx5e_page_release_dynamic(rq, frag->au->page, recycle);
 }
 
 static inline struct mlx5e_wqe_frag_info *get_frag(struct mlx5e_rq *rq, u16 ix)
@@ -393,8 +362,7 @@ static int mlx5e_alloc_rx_wqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe_cyc *wqe,
 			goto free_frags;
 
 		headroom = i == 0 ? rq->buff.headroom : 0;
-		addr = rq->xsk_pool ? xsk_buff_xdp_get_frame_dma(frag->au->xsk) :
-				      page_pool_get_dma_addr(frag->au->page);
+		addr = page_pool_get_dma_addr(frag->au->page);
 		wqe->data[i].addr = cpu_to_be64(addr + frag->offset + headroom);
 	}
 
@@ -413,6 +381,15 @@ static inline void mlx5e_free_rx_wqe(struct mlx5e_rq *rq,
 {
 	int i;
 
+	if (rq->xsk_pool) {
+		/* The `recycle` parameter is ignored, and the page is always
+		 * put into the Reuse Ring, because there is no way to return
+		 * the page to the userspace when the interface goes down.
+		 */
+		xsk_buff_free(wi->au->xsk);
+		return;
+	}
+
 	for (i = 0; i < rq->wqe.info.num_frags; i++, wi++)
 		mlx5e_put_rx_frag(rq, wi, recycle);
 }
@@ -424,38 +401,22 @@ static void mlx5e_dealloc_rx_wqe(struct mlx5e_rq *rq, u16 ix)
 	mlx5e_free_rx_wqe(rq, wi, false);
 }
 
-static int mlx5e_alloc_rx_wqes(struct mlx5e_rq *rq, u16 ix, u8 wqe_bulk)
+static int mlx5e_alloc_rx_wqes(struct mlx5e_rq *rq, u16 ix, int wqe_bulk)
 {
 	struct mlx5_wq_cyc *wq = &rq->wqe.wq;
-	int err;
 	int i;
 
-	if (rq->xsk_pool) {
-		int pages_desired = wqe_bulk << rq->wqe.info.log_num_frags;
-
-		/* Check in advance that we have enough frames, instead of
-		 * allocating one-by-one, failing and moving frames to the
-		 * Reuse Ring.
-		 */
-		if (unlikely(!xsk_buff_can_alloc(rq->xsk_pool, pages_desired)))
-			return -ENOMEM;
-	}
-
 	for (i = 0; i < wqe_bulk; i++) {
-		struct mlx5e_rx_wqe_cyc *wqe = mlx5_wq_cyc_get_wqe(wq, ix + i);
+		int j = mlx5_wq_cyc_ctr2ix(wq, ix + i);
+		struct mlx5e_rx_wqe_cyc *wqe;
 
-		err = mlx5e_alloc_rx_wqe(rq, wqe, ix + i);
-		if (unlikely(err))
-			goto free_wqes;
+		wqe = mlx5_wq_cyc_get_wqe(wq, j);
+
+		if (unlikely(mlx5e_alloc_rx_wqe(rq, wqe, j)))
+			break;
 	}
 
-	return 0;
-
-free_wqes:
-	while (--i >= 0)
-		mlx5e_dealloc_rx_wqe(rq, ix + i);
-
-	return err;
+	return i;
 }
 
 static inline void
@@ -497,9 +458,19 @@ mlx5e_free_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi, bool recycle
 
 	no_xdp_xmit = bitmap_empty(wi->xdp_xmit_bitmap, rq->mpwqe.pages_per_wqe);
 
-	for (i = 0; i < rq->mpwqe.pages_per_wqe; i++)
-		if (no_xdp_xmit || !test_bit(i, wi->xdp_xmit_bitmap))
-			mlx5e_page_release(rq, &alloc_units[i], recycle);
+	if (rq->xsk_pool) {
+		/* The `recycle` parameter is ignored, and the page is always
+		 * put into the Reuse Ring, because there is no way to return
+		 * the page to the userspace when the interface goes down.
+		 */
+		for (i = 0; i < rq->mpwqe.pages_per_wqe; i++)
+			if (no_xdp_xmit || !test_bit(i, wi->xdp_xmit_bitmap))
+				xsk_buff_free(alloc_units[i].xsk);
+	} else {
+		for (i = 0; i < rq->mpwqe.pages_per_wqe; i++)
+			if (no_xdp_xmit || !test_bit(i, wi->xdp_xmit_bitmap))
+				mlx5e_page_release_dynamic(rq, alloc_units[i].page, recycle);
+	}
 }
 
 static void mlx5e_post_rx_mpwqe(struct mlx5e_rq *rq, u8 n)
@@ -586,7 +557,7 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 		if (!(header_offset & (PAGE_SIZE - 1))) {
 			union mlx5e_alloc_unit au;
 
-			err = mlx5e_page_alloc(rq, &au);
+			err = mlx5e_page_alloc_pool(rq, &au);
 			if (unlikely(err))
 				goto err_unmap;
 			page = dma_info->page = au.page;
@@ -622,12 +593,8 @@ err_unmap:
 	while (--i >= 0) {
 		dma_info = &shampo->info[--index];
 		if (!(i & (MLX5E_SHAMPO_WQ_HEADER_PER_PAGE - 1))) {
-			union mlx5e_alloc_unit au = {
-				.page = dma_info->page,
-			};
-
 			dma_info->addr = ALIGN_DOWN(dma_info->addr, PAGE_SIZE);
-			mlx5e_page_release(rq, &au, true);
+			mlx5e_page_release_dynamic(rq, dma_info->page, true);
 		}
 	}
 	rq->stats->buff_alloc_err++;
@@ -685,15 +652,6 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	int err;
 	int i;
 
-	/* Check in advance that we have enough frames, instead of allocating
-	 * one-by-one, failing and moving frames to the Reuse Ring.
-	 */
-	if (rq->xsk_pool &&
-	    unlikely(!xsk_buff_can_alloc(rq->xsk_pool, rq->mpwqe.pages_per_wqe))) {
-		err = -ENOMEM;
-		goto err;
-	}
-
 	if (test_bit(MLX5E_RQ_STATE_SHAMPO, &rq->state)) {
 		err = mlx5e_alloc_rx_hd_mpwqe(rq);
 		if (unlikely(err))
@@ -704,33 +662,16 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	umr_wqe = mlx5_wq_cyc_get_wqe(wq, pi);
 	memcpy(umr_wqe, &rq->mpwqe.umr_wqe, sizeof(struct mlx5e_umr_wqe));
 
-	if (unlikely(rq->mpwqe.unaligned)) {
-		for (i = 0; i < rq->mpwqe.pages_per_wqe; i++, au++) {
-			dma_addr_t addr;
+	for (i = 0; i < rq->mpwqe.pages_per_wqe; i++, au++) {
+		dma_addr_t addr;
 
-			err = mlx5e_page_alloc(rq, au);
-			if (unlikely(err))
-				goto err_unmap;
-			/* Unaligned means XSK. */
-			addr = xsk_buff_xdp_get_frame_dma(au->xsk);
-			umr_wqe->inline_ksms[i] = (struct mlx5_ksm) {
-				.key = rq->mkey_be,
-				.va = cpu_to_be64(addr),
-			};
-		}
-	} else {
-		for (i = 0; i < rq->mpwqe.pages_per_wqe; i++, au++) {
-			dma_addr_t addr;
-
-			err = mlx5e_page_alloc(rq, au);
-			if (unlikely(err))
-				goto err_unmap;
-			addr = rq->xsk_pool ? xsk_buff_xdp_get_frame_dma(au->xsk) :
-					      page_pool_get_dma_addr(au->page);
-			umr_wqe->inline_mtts[i] = (struct mlx5_mtt) {
-				.ptag = cpu_to_be64(addr | MLX5_EN_WR),
-			};
-		}
+		err = mlx5e_page_alloc_pool(rq, au);
+		if (unlikely(err))
+			goto err_unmap;
+		addr = page_pool_get_dma_addr(au->page);
+		umr_wqe->inline_mtts[i] = (struct mlx5_mtt) {
+			.ptag = cpu_to_be64(addr | MLX5_EN_WR),
+		};
 	}
 
 	bitmap_zero(wi->xdp_xmit_bitmap, rq->mpwqe.pages_per_wqe);
@@ -740,9 +681,7 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 		cpu_to_be32((sq->pc << MLX5_WQE_CTRL_WQE_INDEX_SHIFT) |
 			    MLX5_OPCODE_UMR);
 
-	offset = ix * rq->mpwqe.mtts_per_wqe;
-	if (!rq->mpwqe.unaligned)
-		offset = MLX5_ALIGNED_MTTS_OCTW(offset);
+	offset = MLX5_ALIGNED_MTTS_OCTW(ix * rq->mpwqe.mtts_per_wqe);
 	umr_wqe->uctrl.xlt_offset = cpu_to_be16(offset);
 
 	sq->db.wqe_info[pi] = (struct mlx5e_icosq_wqe_info) {
@@ -760,7 +699,7 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 err_unmap:
 	while (--i >= 0) {
 		au--;
-		mlx5e_page_release(rq, au, true);
+		mlx5e_page_release_dynamic(rq, au->page, true);
 	}
 
 err:
@@ -793,12 +732,8 @@ void mlx5e_shampo_dealloc_hd(struct mlx5e_rq *rq, u16 len, u16 start, bool close
 		hd_info = &shampo->info[index];
 		hd_info->addr = ALIGN_DOWN(hd_info->addr, PAGE_SIZE);
 		if (hd_info->page != deleted_page) {
-			union mlx5e_alloc_unit au = {
-				.page = hd_info->page,
-			};
-
 			deleted_page = hd_info->page;
-			mlx5e_page_release(rq, &au, false);
+			mlx5e_page_release_dynamic(rq, hd_info->page, false);
 		}
 	}
 
@@ -821,38 +756,51 @@ static void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 INDIRECT_CALLABLE_SCOPE bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
 {
 	struct mlx5_wq_cyc *wq = &rq->wqe.wq;
-	u8 wqe_bulk;
-	int err;
+	int wqe_bulk, count;
+	bool busy = false;
+	u16 head;
 
 	if (unlikely(!test_bit(MLX5E_RQ_STATE_ENABLED, &rq->state)))
 		return false;
 
-	wqe_bulk = rq->wqe.info.wqe_bulk;
-
-	if (mlx5_wq_cyc_missing(wq) < wqe_bulk)
+	if (mlx5_wq_cyc_missing(wq) < rq->wqe.info.wqe_bulk)
 		return false;
 
 	if (rq->page_pool)
 		page_pool_nid_changed(rq->page_pool, numa_mem_id());
 
-	do {
-		u16 head = mlx5_wq_cyc_get_head(wq);
+	wqe_bulk = mlx5_wq_cyc_missing(wq);
+	head = mlx5_wq_cyc_get_head(wq);
 
-		err = mlx5e_alloc_rx_wqes(rq, head, wqe_bulk);
-		if (unlikely(err)) {
-			rq->stats->buff_alloc_err++;
-			break;
-		}
+	/* Don't allow any newly allocated WQEs to share the same page with old
+	 * WQEs that aren't completed yet. Stop earlier.
+	 */
+	wqe_bulk -= (head + wqe_bulk) & rq->wqe.info.wqe_index_mask;
 
-		mlx5_wq_cyc_push_n(wq, wqe_bulk);
-	} while (mlx5_wq_cyc_missing(wq) >= wqe_bulk);
+	if (!rq->xsk_pool)
+		count = mlx5e_alloc_rx_wqes(rq, head, wqe_bulk);
+	else if (likely(!rq->xsk_pool->dma_need_sync))
+		count = mlx5e_xsk_alloc_rx_wqes_batched(rq, head, wqe_bulk);
+	else
+		/* If dma_need_sync is true, it's more efficient to call
+		 * xsk_buff_alloc in a loop, rather than xsk_buff_alloc_batch,
+		 * because the latter does the same check and returns only one
+		 * frame.
+		 */
+		count = mlx5e_xsk_alloc_rx_wqes(rq, head, wqe_bulk);
+
+	mlx5_wq_cyc_push_n(wq, count);
+	if (unlikely(count != wqe_bulk)) {
+		rq->stats->buff_alloc_err++;
+		busy = true;
+	}
 
 	/* ensure wqes are visible to device before updating doorbell record */
 	dma_wmb();
 
 	mlx5_wq_cyc_update_db_record(wq);
 
-	return !!err;
+	return busy;
 }
 
 void mlx5e_free_icosq_descs(struct mlx5e_icosq *sq)
@@ -1020,7 +968,8 @@ INDIRECT_CALLABLE_SCOPE bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq)
 	head = rq->mpwqe.actual_wq_head;
 	i = missing;
 	do {
-		alloc_err = mlx5e_alloc_rx_mpwqe(rq, head);
+		alloc_err = rq->xsk_pool ? mlx5e_xsk_alloc_rx_mpwqe(rq, head) :
+					   mlx5e_alloc_rx_mpwqe(rq, head);
 
 		if (unlikely(alloc_err))
 			break;
@@ -2109,12 +2058,8 @@ mlx5e_free_rx_shampo_hd_entry(struct mlx5e_rq *rq, u16 header_index)
 	u64 addr = shampo->info[header_index].addr;
 
 	if (((header_index + 1) & (MLX5E_SHAMPO_WQ_HEADER_PER_PAGE - 1)) == 0) {
-		union mlx5e_alloc_unit au = {
-			.page = shampo->info[header_index].page,
-		};
-
 		shampo->info[header_index].addr = ALIGN_DOWN(addr, PAGE_SIZE);
-		mlx5e_page_release(rq, &au, true);
+		mlx5e_page_release_dynamic(rq, shampo->info[header_index].page, true);
 	}
 	bitmap_clear(shampo->bitmap, header_index, 1);
 }
