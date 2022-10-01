@@ -311,7 +311,6 @@ struct r8192_priv {
 	bool		bfirst_after_down;
 	bool		initialized_at_probe;
 	bool		being_init_adapter;
-	bool		bDriverIsGoingToUnload;
 
 	int		irq;
 	short	irq_enabled;

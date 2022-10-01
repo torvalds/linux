@@ -686,7 +686,6 @@ static int _rtl92e_sta_up(struct net_device *dev, bool is_silent_reset)
 					(&priv->rtllib->PowerSaveControl);
 	bool init_status;
 
-	priv->bDriverIsGoingToUnload = false;
 	priv->bdisable_nic = false;
 
 	priv->up = 1;
@@ -735,7 +734,6 @@ static int _rtl92e_sta_down(struct net_device *dev, bool shutdownrf)
 	if (priv->rtllib->state == RTLLIB_LINKED)
 		rtl92e_leisure_ps_leave(dev);
 
-	priv->bDriverIsGoingToUnload = true;
 	priv->up = 0;
 	priv->rtllib->ieee_up = 0;
 	priv->bfirst_after_down = true;
@@ -838,7 +836,6 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->polling_timer_on = 0;
 	priv->up_first_time = 1;
 	priv->blinked_ingpio = false;
-	priv->bDriverIsGoingToUnload = false;
 	priv->being_init_adapter = false;
 	priv->initialized_at_probe = false;
 	priv->bdisable_nic = false;
