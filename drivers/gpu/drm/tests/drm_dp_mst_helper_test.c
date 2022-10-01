@@ -16,32 +16,61 @@
 
 #include "../display/drm_dp_mst_topology_internal.h"
 
+struct drm_dp_mst_calc_pbn_mode_test {
+	const int clock;
+	const int bpp;
+	const bool dsc;
+	const int expected;
+};
+
+static const struct drm_dp_mst_calc_pbn_mode_test drm_dp_mst_calc_pbn_mode_cases[] = {
+	{
+		.clock = 154000,
+		.bpp = 30,
+		.dsc = false,
+		.expected = 689
+	},
+	{
+		.clock = 234000,
+		.bpp = 30,
+		.dsc = false,
+		.expected = 1047
+	},
+	{
+		.clock = 297000,
+		.bpp = 24,
+		.dsc = false,
+		.expected = 1063
+	},
+	{
+		.clock = 332880,
+		.bpp = 24,
+		.dsc = true,
+		.expected = 50
+	},
+	{
+		.clock = 324540,
+		.bpp = 24,
+		.dsc = true,
+		.expected = 49
+	},
+};
+
 static void drm_test_dp_mst_calc_pbn_mode(struct kunit *test)
 {
-	int pbn, i;
-	const struct {
-		int rate;
-		int bpp;
-		int expected;
-		bool dsc;
-	} test_params[] = {
-		{ 154000, 30, 689, false },
-		{ 234000, 30, 1047, false },
-		{ 297000, 24, 1063, false },
-		{ 332880, 24, 50, true },
-		{ 324540, 24, 49, true },
-	};
+	const struct drm_dp_mst_calc_pbn_mode_test *params = test->param_value;
 
-	for (i = 0; i < ARRAY_SIZE(test_params); i++) {
-		pbn = drm_dp_calc_pbn_mode(test_params[i].rate,
-					   test_params[i].bpp,
-					   test_params[i].dsc);
-		KUNIT_EXPECT_EQ_MSG(test, pbn, test_params[i].expected,
-				    "Expected PBN %d for clock %d bpp %d, got %d\n",
-		     test_params[i].expected, test_params[i].rate,
-		     test_params[i].bpp, pbn);
-	}
+	KUNIT_EXPECT_EQ(test, drm_dp_calc_pbn_mode(params->clock, params->bpp, params->dsc),
+			params->expected);
 }
+
+static void dp_mst_calc_pbn_mode_desc(const struct drm_dp_mst_calc_pbn_mode_test *t, char *desc)
+{
+	sprintf(desc, "Clock %d BPP %d DSC %s", t->clock, t->bpp, t->dsc ? "enabled" : "disabled");
+}
+
+KUNIT_ARRAY_PARAM(drm_dp_mst_calc_pbn_mode, drm_dp_mst_calc_pbn_mode_cases,
+		  dp_mst_calc_pbn_mode_desc);
 
 static bool
 sideband_msg_req_equal(const struct drm_dp_sideband_msg_req_body *in,
@@ -271,7 +300,7 @@ static void drm_test_dp_mst_sideband_msg_req_decode(struct kunit *test)
 }
 
 static struct kunit_case drm_dp_mst_helper_tests[] = {
-	KUNIT_CASE(drm_test_dp_mst_calc_pbn_mode),
+	KUNIT_CASE_PARAM(drm_test_dp_mst_calc_pbn_mode, drm_dp_mst_calc_pbn_mode_gen_params),
 	KUNIT_CASE(drm_test_dp_mst_sideband_msg_req_decode),
 	{ }
 };
