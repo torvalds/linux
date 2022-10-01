@@ -406,7 +406,7 @@ static void update_affinity_collection(struct kvm *kvm, struct vgic_its *its,
 	struct its_ite *ite;
 
 	for_each_lpi_its(device, ite, its) {
-		if (!ite->collection || coll != ite->collection)
+		if (ite->collection != coll)
 			continue;
 
 		update_affinity_ite(kvm, ite);
