@@ -3,6 +3,7 @@
 // Copyright (C) 2021-2022 Samuel Holland <samuel@sholland.org>
 
 #include <linux/crc8.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
@@ -10,6 +11,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
+#include <linux/of.h>
 #include <linux/regulator/consumer.h>
 #include <linux/types.h>
 
@@ -28,6 +30,11 @@
 #define PPKB_SCAN_DATA			0x08
 #define PPKB_SYS_CONFIG			0x20
 #define PPKB_SYS_CONFIG_DISABLE_SCAN		BIT(0)
+#define PPKB_SYS_SMBUS_COMMAND		0x21
+#define PPKB_SYS_SMBUS_DATA		0x22
+#define PPKB_SYS_COMMAND		0x23
+#define PPKB_SYS_COMMAND_SMBUS_READ		0x91
+#define PPKB_SYS_COMMAND_SMBUS_WRITE		0xa1
 
 #define PPKB_ROWS			6
 #define PPKB_COLS			12
@@ -136,12 +143,64 @@ static const struct matrix_keymap_data ppkb_keymap_data = {
 };
 
 struct pinephone_keyboard {
+	struct i2c_adapter adapter;
 	struct input_dev *input;
 	u8 buf[2][PPKB_BUF_LEN];
 	u8 crc_table[CRC8_TABLE_SIZE];
 	u8 fn_state[PPKB_COLS];
 	bool buf_swap;
 	bool fn_pressed;
+};
+
+static int ppkb_adap_smbus_xfer(struct i2c_adapter *adap, u16 addr,
+				unsigned short flags, char read_write,
+				u8 command, int size,
+				union i2c_smbus_data *data)
+{
+	struct i2c_client *client = adap->algo_data;
+	u8 buf[3];
+	int ret;
+
+	buf[0] = command;
+	buf[1] = data->byte;
+	buf[2] = read_write == I2C_SMBUS_READ ? PPKB_SYS_COMMAND_SMBUS_READ
+					      : PPKB_SYS_COMMAND_SMBUS_WRITE;
+
+	ret = i2c_smbus_write_i2c_block_data(client, PPKB_SYS_SMBUS_COMMAND,
+					     sizeof(buf), buf);
+	if (ret)
+		return ret;
+
+	/* Read back the command status until it passes or fails. */
+	do {
+		usleep_range(300, 500);
+		ret = i2c_smbus_read_byte_data(client, PPKB_SYS_COMMAND);
+	} while (ret == buf[2]);
+	if (ret < 0)
+		return ret;
+	/* Commands return 0x00 on success and 0xff on failure. */
+	if (ret)
+		return -EIO;
+
+	if (read_write == I2C_SMBUS_READ) {
+		ret = i2c_smbus_read_byte_data(client, PPKB_SYS_SMBUS_DATA);
+		if (ret < 0)
+			return ret;
+
+		data->byte = ret;
+	}
+
+	return 0;
+}
+
+static u32 ppkg_adap_functionality(struct i2c_adapter *adap)
+{
+	return I2C_FUNC_SMBUS_BYTE_DATA;
+}
+
+static const struct i2c_algorithm ppkb_adap_algo = {
+	.smbus_xfer		= ppkb_adap_smbus_xfer,
+	.functionality		= ppkg_adap_functionality,
 };
 
 static void ppkb_update(struct i2c_client *client)
@@ -271,6 +330,7 @@ static int ppkb_probe(struct i2c_client *client)
 	struct pinephone_keyboard *ppkb;
 	struct regulator *vbat_supply;
 	u8 info[PPKB_MATRIX_SIZE + 1];
+	struct device_node *i2c_bus;
 	int ret;
 	int error;
 
@@ -329,6 +389,22 @@ static int ppkb_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	i2c_set_clientdata(client, ppkb);
+
+	i2c_bus = of_get_child_by_name(dev->of_node, "i2c");
+	if (i2c_bus) {
+		ppkb->adapter.owner = THIS_MODULE;
+		ppkb->adapter.algo = &ppkb_adap_algo;
+		ppkb->adapter.algo_data = client;
+		ppkb->adapter.dev.parent = dev;
+		ppkb->adapter.dev.of_node = i2c_bus;
+		strscpy(ppkb->adapter.name, DRV_NAME, sizeof(ppkb->adapter.name));
+
+		error = devm_i2c_add_adapter(dev, &ppkb->adapter);
+		if (error) {
+			dev_err(dev, "Failed to add I2C adapter: %d\n", error);
+			return error;
+		}
+	}
 
 	crc8_populate_msb(ppkb->crc_table, PPKB_CRC8_POLYNOMIAL);
 
