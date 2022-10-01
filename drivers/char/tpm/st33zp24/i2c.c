@@ -6,10 +6,7 @@
 
 #include <linux/module.h>
 #include <linux/i2c.h>
-#include <linux/gpio.h>
-#include <linux/gpio/consumer.h>
-#include <linux/of_irq.h>
-#include <linux/of_gpio.h>
+#include <linux/of.h>
 #include <linux/acpi.h>
 #include <linux/tpm.h>
 
@@ -21,7 +18,6 @@
 struct st33zp24_i2c_phy {
 	struct i2c_client *client;
 	u8 buf[ST33ZP24_BUFSIZE + 1];
-	int io_lpcpd;
 };
 
 /*
@@ -98,85 +94,6 @@ static const struct st33zp24_phy_ops i2c_phy_ops = {
 	.recv = st33zp24_i2c_recv,
 };
 
-static const struct acpi_gpio_params lpcpd_gpios = { 1, 0, false };
-
-static const struct acpi_gpio_mapping acpi_st33zp24_gpios[] = {
-	{ "lpcpd-gpios", &lpcpd_gpios, 1 },
-	{},
-};
-
-static int st33zp24_i2c_acpi_request_resources(struct i2c_client *client)
-{
-	struct tpm_chip *chip = i2c_get_clientdata(client);
-	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
-	struct st33zp24_i2c_phy *phy = tpm_dev->phy_id;
-	struct gpio_desc *gpiod_lpcpd;
-	struct device *dev = &client->dev;
-	int ret;
-
-	ret = devm_acpi_dev_add_driver_gpios(dev, acpi_st33zp24_gpios);
-	if (ret)
-		return ret;
-
-	/* Get LPCPD GPIO from ACPI */
-	gpiod_lpcpd = devm_gpiod_get(dev, "lpcpd", GPIOD_OUT_HIGH);
-	if (IS_ERR(gpiod_lpcpd)) {
-		dev_err(&client->dev,
-			"Failed to retrieve lpcpd-gpios from acpi.\n");
-		phy->io_lpcpd = -1;
-		/*
-		 * lpcpd pin is not specified. This is not an issue as
-		 * power management can be also managed by TPM specific
-		 * commands. So leave with a success status code.
-		 */
-		return 0;
-	}
-
-	phy->io_lpcpd = desc_to_gpio(gpiod_lpcpd);
-
-	return 0;
-}
-
-static int st33zp24_i2c_of_request_resources(struct i2c_client *client)
-{
-	struct tpm_chip *chip = i2c_get_clientdata(client);
-	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
-	struct st33zp24_i2c_phy *phy = tpm_dev->phy_id;
-	struct device_node *pp;
-	int gpio;
-	int ret;
-
-	pp = client->dev.of_node;
-	if (!pp) {
-		dev_err(&client->dev, "No platform data\n");
-		return -ENODEV;
-	}
-
-	/* Get GPIO from device tree */
-	gpio = of_get_named_gpio(pp, "lpcpd-gpios", 0);
-	if (gpio < 0) {
-		dev_err(&client->dev,
-			"Failed to retrieve lpcpd-gpios from dts.\n");
-		phy->io_lpcpd = -1;
-		/*
-		 * lpcpd pin is not specified. This is not an issue as
-		 * power management can be also managed by TPM specific
-		 * commands. So leave with a success status code.
-		 */
-		return 0;
-	}
-	/* GPIO request and configuration */
-	ret = devm_gpio_request_one(&client->dev, gpio,
-			GPIOF_OUT_INIT_HIGH, "TPM IO LPCPD");
-	if (ret) {
-		dev_err(&client->dev, "Failed to request lpcpd pin\n");
-		return -ENODEV;
-	}
-	phy->io_lpcpd = gpio;
-
-	return 0;
-}
-
 /*
  * st33zp24_i2c_probe initialize the TPM device
  * @param: client, the i2c_client description (TPM I2C description).
@@ -187,7 +104,6 @@ static int st33zp24_i2c_of_request_resources(struct i2c_client *client)
 static int st33zp24_i2c_probe(struct i2c_client *client,
 			      const struct i2c_device_id *id)
 {
-	int ret;
 	struct st33zp24_i2c_phy *phy;
 
 	if (!client) {
@@ -208,20 +124,7 @@ static int st33zp24_i2c_probe(struct i2c_client *client,
 
 	phy->client = client;
 
-	if (client->dev.of_node) {
-		ret = st33zp24_i2c_of_request_resources(client);
-		if (ret)
-			return ret;
-	} else if (ACPI_HANDLE(&client->dev)) {
-		ret = st33zp24_i2c_acpi_request_resources(client);
-		if (ret)
-			return ret;
-	} else {
-		return -ENODEV;
-	}
-
-	return st33zp24_probe(phy, &i2c_phy_ops, &client->dev, client->irq,
-			      phy->io_lpcpd);
+	return st33zp24_probe(phy, &i2c_phy_ops, &client->dev, client->irq);
 }
 
 /*
