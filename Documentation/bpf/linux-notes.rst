@@ -51,20 +51,3 @@ where ``ntohl()`` converts a 32-bit value from network byte order to host byte o
 ``BPF_IND | BPF_W | BPF_LD`` (0x40) means::
 
   R0 = ntohl(*(u32 *) ((struct sk_buff *) R6->data + src + imm))
-
-Appendix
-========
-
-For reference, the following table lists legacy Linux-specific opcodes in order by value.
-
-======  ====  ===================================================  =============
-opcode  imm   description                                          reference
-======  ====  ===================================================  =============
-0x20    any   dst = ntohl(\*(uint32_t \*)(R6->data + imm))         `Legacy BPF Packet access instructions`_
-0x28    any   dst = ntohs(\*(uint16_t \*)(R6->data + imm))         `Legacy BPF Packet access instructions`_
-0x30    any   dst = (\*(uint8_t \*)(R6->data + imm))               `Legacy BPF Packet access instructions`_
-0x38    any   dst = ntohll(\*(uint64_t \*)(R6->data + imm))        `Legacy BPF Packet access instructions`_
-0x40    any   dst = ntohl(\*(uint32_t \*)(R6->data + src + imm))   `Legacy BPF Packet access instructions`_
-0x48    any   dst = ntohs(\*(uint16_t \*)(R6->data + src + imm))   `Legacy BPF Packet access instructions`_
-0x50    any   dst = \*(uint8_t \*)(R6->data + src + imm))          `Legacy BPF Packet access instructions`_
-0x58    any   dst = ntohll(\*(uint64_t \*)(R6->data + src + imm))  `Legacy BPF Packet access instructions`_
