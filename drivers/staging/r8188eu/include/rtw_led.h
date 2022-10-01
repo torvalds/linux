@@ -47,7 +47,6 @@ struct led_priv {
 
 	u32 BlinkTimes; /*  Number of times to toggle led state for blinking. */
 
-	bool bLedLinkBlinkInProgress;
 	bool bLedScanBlinkInProgress;
 	struct delayed_work blink_work;
 };
