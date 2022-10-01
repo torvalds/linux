@@ -515,22 +515,25 @@ void kunit_do_failed_assertion(struct kunit *test,
 			     fmt,					       \
 			     ##__VA_ARGS__)
 
+/* Helper to safely pass around an initializer list to other macros. */
+#define KUNIT_INIT_ASSERT(initializers...) { initializers }
+
 #define KUNIT_UNARY_ASSERTION(test,					       \
 			      assert_type,				       \
-			      condition,				       \
-			      expected_true,				       \
+			      condition_,				       \
+			      expected_true_,				       \
 			      fmt,					       \
 			      ...)					       \
 do {									       \
-	if (likely(!!(condition) == !!expected_true))			       \
+	if (likely(!!(condition_) == !!expected_true_))			       \
 		break;							       \
 									       \
 	_KUNIT_FAILED(test,						       \
 		      assert_type,					       \
 		      kunit_unary_assert,				       \
 		      kunit_unary_assert_format,			       \
-		      KUNIT_INIT_UNARY_ASSERT_STRUCT(#condition,	       \
-						     expected_true),	       \
+		      KUNIT_INIT_ASSERT(.condition = #condition_,	       \
+					.expected_true = expected_true_),      \
 		      fmt,						       \
 		      ##__VA_ARGS__);					       \
 } while (0)
@@ -590,9 +593,9 @@ do {									       \
 		      assert_type,					       \
 		      assert_class,					       \
 		      format_func,					       \
-		      KUNIT_INIT_BINARY_ASSERT_STRUCT(&__text,		       \
-						      __left,		       \
-						      __right),		       \
+		      KUNIT_INIT_ASSERT(.text = &__text,		       \
+					.left_value = __left,		       \
+					.right_value = __right),	       \
 		      fmt,						       \
 		      ##__VA_ARGS__);					       \
 } while (0)
@@ -651,9 +654,9 @@ do {									       \
 		      assert_type,					       \
 		      kunit_binary_str_assert,				       \
 		      kunit_binary_str_assert_format,			       \
-		      KUNIT_INIT_BINARY_ASSERT_STRUCT(&__text,		       \
-						      __left,		       \
-						      __right),		       \
+		      KUNIT_INIT_ASSERT(.text = &__text,		       \
+					.left_value = __left,		       \
+					.right_value = __right),	       \
 		      fmt,						       \
 		      ##__VA_ARGS__);					       \
 } while (0)
@@ -706,7 +709,7 @@ do {									       \
 		      assert_type,					       \
 		      kunit_ptr_not_err_assert,				       \
 		      kunit_ptr_not_err_assert_format,			       \
-		      KUNIT_INIT_PTR_NOT_ERR_STRUCT(#ptr, __ptr),	       \
+		      KUNIT_INIT_ASSERT(.text = #ptr, .value = __ptr),	       \
 		      fmt,						       \
 		      ##__VA_ARGS__);					       \
 } while (0)
