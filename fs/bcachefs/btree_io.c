@@ -1908,6 +1908,8 @@ do_write:
 	u64s = bch2_sort_keys(i->start, &sort_iter, false);
 	le16_add_cpu(&i->u64s, u64s);
 
+	BUG_ON(!b->written && i->u64s != b->data->keys.u64s);
+
 	set_needs_whiteout(i, false);
 
 	/* do we have data to write? */
@@ -1916,6 +1918,10 @@ do_write:
 
 	bytes_to_write = vstruct_end(i) - data;
 	sectors_to_write = round_up(bytes_to_write, block_bytes(c)) >> 9;
+
+	if (!b->written &&
+	    b->key.k.type == KEY_TYPE_btree_ptr_v2)
+		BUG_ON(btree_ptr_sectors_written(&b->key) != sectors_to_write);
 
 	memset(data + bytes_to_write, 0,
 	       (sectors_to_write << 9) - bytes_to_write);
@@ -2005,11 +2011,6 @@ do_write:
 
 	b->written += sectors_to_write;
 
-	if (wbio->wbio.first_btree_write &&
-	    b->key.k.type == KEY_TYPE_btree_ptr_v2)
-		bkey_i_to_btree_ptr_v2(&b->key)->v.sectors_written =
-			cpu_to_le16(b->written);
-
 	if (wbio->key.k.type == KEY_TYPE_btree_ptr_v2)
 		bkey_i_to_btree_ptr_v2(&wbio->key)->v.sectors_written =
 			cpu_to_le16(b->written);
@@ -2022,10 +2023,6 @@ do_write:
 	return;
 err:
 	set_btree_node_noevict(b);
-	if (!b->written &&
-	    b->key.k.type == KEY_TYPE_btree_ptr_v2)
-		bkey_i_to_btree_ptr_v2(&b->key)->v.sectors_written =
-			cpu_to_le16(sectors_to_write);
 	b->written += sectors_to_write;
 nowrite:
 	btree_bounce_free(c, bytes, used_mempool, data);
