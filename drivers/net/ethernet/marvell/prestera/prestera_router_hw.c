@@ -56,6 +56,7 @@ static int prestera_nexthop_group_set(struct prestera_switch *sw,
 static bool
 prestera_nexthop_group_util_hw_state(struct prestera_switch *sw,
 				     struct prestera_nexthop_group *nh_grp);
+static void prestera_fib_node_destroy_ht_cb(void *ptr, void *arg);
 
 /* TODO: move to router.h as macros */
 static bool prestera_nh_neigh_key_is_valid(struct prestera_nh_neigh_key *key)
@@ -97,6 +98,8 @@ err_nh_neigh_ht_init:
 
 void prestera_router_hw_fini(struct prestera_switch *sw)
 {
+	rhashtable_free_and_destroy(&sw->router->fib_ht,
+				    prestera_fib_node_destroy_ht_cb, sw);
 	WARN_ON(!list_empty(&sw->router->vr_list));
 	WARN_ON(!list_empty(&sw->router->rif_entry_list));
 	rhashtable_destroy(&sw->router->fib_ht);
@@ -603,6 +606,15 @@ void prestera_fib_node_destroy(struct prestera_switch *sw,
 	rhashtable_remove_fast(&sw->router->fib_ht, &fib_node->ht_node,
 			       __prestera_fib_ht_params);
 	kfree(fib_node);
+}
+
+static void prestera_fib_node_destroy_ht_cb(void *ptr, void *arg)
+{
+	struct prestera_fib_node *node = ptr;
+	struct prestera_switch *sw = arg;
+
+	__prestera_fib_node_destruct(sw, node);
+	kfree(node);
 }
 
 struct prestera_fib_node *
