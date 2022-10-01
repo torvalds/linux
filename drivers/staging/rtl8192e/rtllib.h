@@ -1264,9 +1264,6 @@ struct rt_pwr_save_ctrl {
 
 	u32				CurPsLevel;
 	u32				RegRfPsLevel;
-
-	bool				bFwCtrlLPS;
-
 };
 
 #define RT_RF_CHANGE_SOURCE u32
