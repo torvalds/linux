@@ -317,6 +317,15 @@ M(MCS_PN_TABLE_WRITE,	0xa009, mcs_pn_table_write, mcs_pn_table_write_req,	\
 M(MCS_SET_ACTIVE_LMAC,	0xa00a,	mcs_set_active_lmac, mcs_set_active_lmac,	\
 				msg_rsp)					\
 M(MCS_GET_HW_INFO,	0xa00b,	mcs_get_hw_info, msg_req, mcs_hw_info)		\
+M(MCS_GET_FLOWID_STATS, 0xa00c, mcs_get_flowid_stats, mcs_stats_req,		\
+				mcs_flowid_stats)				\
+M(MCS_GET_SECY_STATS,	0xa00d, mcs_get_secy_stats, mcs_stats_req,		\
+				mcs_secy_stats)					\
+M(MCS_GET_SC_STATS,	0xa00e, mcs_get_sc_stats, mcs_stats_req, mcs_sc_stats)	\
+M(MCS_GET_SA_STATS,	0xa00f, mcs_get_sa_stats, mcs_stats_req, mcs_sa_stats)	\
+M(MCS_GET_PORT_STATS,	0xa010, mcs_get_port_stats, mcs_stats_req,		\
+				mcs_port_stats)					\
+M(MCS_CLEAR_STATS,	0xa011,	mcs_clear_stats, mcs_clear_stats, msg_rsp)	\
 M(MCS_SET_LMAC_MODE,	0xa013, mcs_set_lmac_mode, mcs_set_lmac_mode, msg_rsp)	\
 M(MCS_SET_PN_THRESHOLD, 0xa014, mcs_set_pn_threshold, mcs_set_pn_threshold,	\
 				msg_rsp)					\
@@ -1971,6 +1980,108 @@ struct mcs_ctrl_pkt_rule_write_req {
 	u8 mcs_id;
 	u8 dir;
 	u64 rsvd;
+};
+
+struct mcs_stats_req {
+	struct mbox_msghdr hdr;
+	u8 id;
+	u8 mcs_id;
+	u8 dir;
+	u64 rsvd;
+};
+
+struct mcs_flowid_stats {
+	struct mbox_msghdr hdr;
+	u64 tcam_hit_cnt;
+	u64 rsvd;
+};
+
+struct mcs_secy_stats {
+	struct mbox_msghdr hdr;
+	u64 ctl_pkt_bcast_cnt;
+	u64 ctl_pkt_mcast_cnt;
+	u64 ctl_pkt_ucast_cnt;
+	u64 ctl_octet_cnt;
+	u64 unctl_pkt_bcast_cnt;
+	u64 unctl_pkt_mcast_cnt;
+	u64 unctl_pkt_ucast_cnt;
+	u64 unctl_octet_cnt;
+	/* Valid only for RX */
+	u64 octet_decrypted_cnt;
+	u64 octet_validated_cnt;
+	u64 pkt_port_disabled_cnt;
+	u64 pkt_badtag_cnt;
+	u64 pkt_nosa_cnt;
+	u64 pkt_nosaerror_cnt;
+	u64 pkt_tagged_ctl_cnt;
+	u64 pkt_untaged_cnt;
+	u64 pkt_ctl_cnt;	/* CN10K-B */
+	u64 pkt_notag_cnt;	/* CNF10K-B */
+	/* Valid only for TX */
+	u64 octet_encrypted_cnt;
+	u64 octet_protected_cnt;
+	u64 pkt_noactivesa_cnt;
+	u64 pkt_toolong_cnt;
+	u64 pkt_untagged_cnt;
+	u64 rsvd[4];
+};
+
+struct mcs_port_stats {
+	struct mbox_msghdr hdr;
+	u64 tcam_miss_cnt;
+	u64 parser_err_cnt;
+	u64 preempt_err_cnt;  /* CNF10K-B */
+	u64 sectag_insert_err_cnt;
+	u64 rsvd[4];
+};
+
+/* Only for CN10K-B */
+struct mcs_sa_stats {
+	struct mbox_msghdr hdr;
+	/* RX */
+	u64 pkt_invalid_cnt;
+	u64 pkt_nosaerror_cnt;
+	u64 pkt_notvalid_cnt;
+	u64 pkt_ok_cnt;
+	u64 pkt_nosa_cnt;
+	/* TX */
+	u64 pkt_encrypt_cnt;
+	u64 pkt_protected_cnt;
+	u64 rsvd[4];
+};
+
+struct mcs_sc_stats {
+	struct mbox_msghdr hdr;
+	/* RX */
+	u64 hit_cnt;
+	u64 pkt_invalid_cnt;
+	u64 pkt_late_cnt;
+	u64 pkt_notvalid_cnt;
+	u64 pkt_unchecked_cnt;
+	u64 pkt_delay_cnt;	/* CNF10K-B */
+	u64 pkt_ok_cnt;		/* CNF10K-B */
+	u64 octet_decrypt_cnt;	/* CN10K-B */
+	u64 octet_validate_cnt;	/* CN10K-B */
+	/* TX */
+	u64 pkt_encrypt_cnt;
+	u64 pkt_protected_cnt;
+	u64 octet_encrypt_cnt;		/* CN10K-B */
+	u64 octet_protected_cnt;	/* CN10K-B */
+	u64 rsvd[4];
+};
+
+struct mcs_clear_stats {
+	struct mbox_msghdr hdr;
+#define MCS_FLOWID_STATS	0
+#define MCS_SECY_STATS		1
+#define MCS_SC_STATS		2
+#define MCS_SA_STATS		3
+#define MCS_PORT_STATS		4
+	u8 type;	/* FLOWID, SECY, SC, SA, PORT */
+	u8 id;		/* type = PORT, If id = FF(invalid) port no is derived from pcifunc */
+	u8 mcs_id;
+	u8 dir;
+	u8 all;		/* All resources stats mapped to PF are cleared */
 };
 
 #endif /* MBOX_H */

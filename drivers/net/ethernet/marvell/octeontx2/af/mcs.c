@@ -24,6 +24,311 @@ static const struct pci_device_id mcs_id_table[] = {
 
 static LIST_HEAD(mcs_list);
 
+void mcs_get_tx_secy_stats(struct mcs *mcs, struct mcs_secy_stats *stats, int id)
+{
+	u64 reg;
+
+	reg = MCSX_CSE_TX_MEM_SLAVE_IFOUTCTLBCPKTSX(id);
+	stats->ctl_pkt_bcast_cnt = mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_TX_MEM_SLAVE_IFOUTCTLMCPKTSX(id);
+	stats->ctl_pkt_mcast_cnt = mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_TX_MEM_SLAVE_IFOUTCTLOCTETSX(id);
+	stats->ctl_octet_cnt = mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_TX_MEM_SLAVE_IFOUTCTLUCPKTSX(id);
+	stats->ctl_pkt_ucast_cnt = mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_TX_MEM_SLAVE_IFOUTUNCTLBCPKTSX(id);
+	stats->unctl_pkt_bcast_cnt = mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_TX_MEM_SLAVE_IFOUTUNCTLMCPKTSX(id);
+	stats->unctl_pkt_mcast_cnt = mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_TX_MEM_SLAVE_IFOUTUNCTLOCTETSX(id);
+	stats->unctl_octet_cnt = mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_TX_MEM_SLAVE_IFOUTUNCTLUCPKTSX(id);
+	stats->unctl_pkt_ucast_cnt = mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_TX_MEM_SLAVE_OUTOCTETSSECYENCRYPTEDX(id);
+	stats->octet_encrypted_cnt =  mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_TX_MEM_SLAVE_OUTOCTETSSECYPROTECTEDX(id);
+	stats->octet_protected_cnt =  mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSECYNOACTIVESAX(id);
+	stats->pkt_noactivesa_cnt =  mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSECYTOOLONGX(id);
+	stats->pkt_toolong_cnt =  mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSECYUNTAGGEDX(id);
+	stats->pkt_untagged_cnt =  mcs_reg_read(mcs, reg);
+}
+
+void mcs_get_rx_secy_stats(struct mcs *mcs, struct mcs_secy_stats *stats, int id)
+{
+	u64 reg;
+
+	reg = MCSX_CSE_RX_MEM_SLAVE_IFINCTLBCPKTSX(id);
+	stats->ctl_pkt_bcast_cnt = mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_RX_MEM_SLAVE_IFINCTLMCPKTSX(id);
+	stats->ctl_pkt_mcast_cnt = mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_RX_MEM_SLAVE_IFINCTLOCTETSX(id);
+	stats->ctl_octet_cnt = mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_RX_MEM_SLAVE_IFINCTLUCPKTSX(id);
+	stats->ctl_pkt_ucast_cnt = mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_RX_MEM_SLAVE_IFINUNCTLBCPKTSX(id);
+	stats->unctl_pkt_bcast_cnt = mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_RX_MEM_SLAVE_IFINUNCTLMCPKTSX(id);
+	stats->unctl_pkt_mcast_cnt = mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_RX_MEM_SLAVE_IFINUNCTLOCTETSX(id);
+	stats->unctl_octet_cnt = mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_RX_MEM_SLAVE_IFINUNCTLUCPKTSX(id);
+	stats->unctl_pkt_ucast_cnt = mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_RX_MEM_SLAVE_INOCTETSSECYDECRYPTEDX(id);
+	stats->octet_decrypted_cnt =  mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_RX_MEM_SLAVE_INOCTETSSECYVALIDATEX(id);
+	stats->octet_validated_cnt =  mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSCTRLPORTDISABLEDX(id);
+	stats->pkt_port_disabled_cnt =  mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYBADTAGX(id);
+	stats->pkt_badtag_cnt =  mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYNOSAX(id);
+	stats->pkt_nosa_cnt = mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYNOSAERRORX(id);
+	stats->pkt_nosaerror_cnt = mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYTAGGEDCTLX(id);
+	stats->pkt_tagged_ctl_cnt = mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYUNTAGGEDORNOTAGX(id);
+	stats->pkt_untaged_cnt = mcs_reg_read(mcs, reg);
+
+	reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYCTLX(id);
+	stats->pkt_ctl_cnt = mcs_reg_read(mcs, reg);
+
+	if (mcs->hw->mcs_blks > 1) {
+		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYNOTAGX(id);
+		stats->pkt_notag_cnt = mcs_reg_read(mcs, reg);
+	}
+}
+
+void mcs_get_flowid_stats(struct mcs *mcs, struct mcs_flowid_stats *stats,
+			  int id, int dir)
+{
+	u64 reg;
+
+	if (dir == MCS_RX)
+		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSFLOWIDTCAMHITX(id);
+	else
+		reg = MCSX_CSE_TX_MEM_SLAVE_OUTPKTSFLOWIDTCAMHITX(id);
+
+	stats->tcam_hit_cnt = mcs_reg_read(mcs, reg);
+}
+
+void mcs_get_port_stats(struct mcs *mcs, struct mcs_port_stats *stats,
+			int id, int dir)
+{
+	u64 reg;
+
+	if (dir == MCS_RX) {
+		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSFLOWIDTCAMMISSX(id);
+		stats->tcam_miss_cnt = mcs_reg_read(mcs, reg);
+
+		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSPARSEERRX(id);
+		stats->parser_err_cnt = mcs_reg_read(mcs, reg);
+		if (mcs->hw->mcs_blks > 1) {
+			reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSEARLYPREEMPTERRX(id);
+			stats->preempt_err_cnt = mcs_reg_read(mcs, reg);
+		}
+	} else {
+		reg = MCSX_CSE_TX_MEM_SLAVE_OUTPKTSFLOWIDTCAMMISSX(id);
+		stats->tcam_miss_cnt = mcs_reg_read(mcs, reg);
+
+		reg = MCSX_CSE_TX_MEM_SLAVE_OUTPKTSPARSEERRX(id);
+		stats->parser_err_cnt = mcs_reg_read(mcs, reg);
+
+		reg = MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSECTAGINSERTIONERRX(id);
+		stats->sectag_insert_err_cnt = mcs_reg_read(mcs, reg);
+	}
+}
+
+void mcs_get_sa_stats(struct mcs *mcs, struct mcs_sa_stats *stats, int id, int dir)
+{
+	u64 reg;
+
+	if (dir == MCS_RX) {
+		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSAINVALIDX(id);
+		stats->pkt_invalid_cnt = mcs_reg_read(mcs, reg);
+
+		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSANOTUSINGSAERRORX(id);
+		stats->pkt_nosaerror_cnt = mcs_reg_read(mcs, reg);
+
+		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSANOTVALIDX(id);
+		stats->pkt_notvalid_cnt = mcs_reg_read(mcs, reg);
+
+		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSAOKX(id);
+		stats->pkt_ok_cnt = mcs_reg_read(mcs, reg);
+
+		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSAUNUSEDSAX(id);
+		stats->pkt_nosa_cnt = mcs_reg_read(mcs, reg);
+	} else {
+		reg = MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSAENCRYPTEDX(id);
+		stats->pkt_encrypt_cnt = mcs_reg_read(mcs, reg);
+
+		reg = MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSAPROTECTEDX(id);
+		stats->pkt_protected_cnt = mcs_reg_read(mcs, reg);
+	}
+}
+
+void mcs_get_sc_stats(struct mcs *mcs, struct mcs_sc_stats *stats,
+		      int id, int dir)
+{
+	u64 reg;
+
+	if (dir == MCS_RX) {
+		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSCCAMHITX(id);
+		stats->hit_cnt = mcs_reg_read(mcs, reg);
+
+		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSCINVALIDX(id);
+		stats->pkt_invalid_cnt = mcs_reg_read(mcs, reg);
+
+		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSCLATEORDELAYEDX(id);
+		stats->pkt_late_cnt = mcs_reg_read(mcs, reg);
+
+		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSCNOTVALIDX(id);
+		stats->pkt_notvalid_cnt = mcs_reg_read(mcs, reg);
+
+		reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSCUNCHECKEDOROKX(id);
+		stats->pkt_unchecked_cnt = mcs_reg_read(mcs, reg);
+
+		if (mcs->hw->mcs_blks > 1) {
+			reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSCDELAYEDX(id);
+			stats->pkt_delay_cnt = mcs_reg_read(mcs, reg);
+
+			reg = MCSX_CSE_RX_MEM_SLAVE_INPKTSSCOKX(id);
+			stats->pkt_ok_cnt = mcs_reg_read(mcs, reg);
+		}
+		if (mcs->hw->mcs_blks == 1) {
+			reg = MCSX_CSE_RX_MEM_SLAVE_INOCTETSSCDECRYPTEDX(id);
+			stats->octet_decrypt_cnt = mcs_reg_read(mcs, reg);
+
+			reg = MCSX_CSE_RX_MEM_SLAVE_INOCTETSSCVALIDATEX(id);
+			stats->octet_validate_cnt = mcs_reg_read(mcs, reg);
+		}
+	} else {
+		reg = MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSCENCRYPTEDX(id);
+		stats->pkt_encrypt_cnt = mcs_reg_read(mcs, reg);
+
+		reg = MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSCPROTECTEDX(id);
+		stats->pkt_protected_cnt = mcs_reg_read(mcs, reg);
+
+		if (mcs->hw->mcs_blks == 1) {
+			reg = MCSX_CSE_TX_MEM_SLAVE_OUTOCTETSSCENCRYPTEDX(id);
+			stats->octet_encrypt_cnt = mcs_reg_read(mcs, reg);
+
+			reg = MCSX_CSE_TX_MEM_SLAVE_OUTOCTETSSCPROTECTEDX(id);
+			stats->octet_protected_cnt = mcs_reg_read(mcs, reg);
+		}
+	}
+}
+
+void mcs_clear_stats(struct mcs *mcs, u8 type, u8 id, int dir)
+{
+	struct mcs_flowid_stats flowid_st;
+	struct mcs_port_stats port_st;
+	struct mcs_secy_stats secy_st;
+	struct mcs_sc_stats sc_st;
+	struct mcs_sa_stats sa_st;
+	u64 reg;
+
+	if (dir == MCS_RX)
+		reg = MCSX_CSE_RX_SLAVE_CTRL;
+	else
+		reg = MCSX_CSE_TX_SLAVE_CTRL;
+
+	mcs_reg_write(mcs, reg, BIT_ULL(0));
+
+	switch (type) {
+	case MCS_FLOWID_STATS:
+		mcs_get_flowid_stats(mcs, &flowid_st, id, dir);
+		break;
+	case MCS_SECY_STATS:
+		if (dir == MCS_RX)
+			mcs_get_rx_secy_stats(mcs, &secy_st, id);
+		else
+			mcs_get_tx_secy_stats(mcs, &secy_st, id);
+		break;
+	case MCS_SC_STATS:
+		mcs_get_sc_stats(mcs, &sc_st, id, dir);
+		break;
+	case MCS_SA_STATS:
+		mcs_get_sa_stats(mcs, &sa_st, id, dir);
+		break;
+	case MCS_PORT_STATS:
+		mcs_get_port_stats(mcs, &port_st, id, dir);
+		break;
+	}
+
+	mcs_reg_write(mcs, reg, 0x0);
+}
+
+int mcs_clear_all_stats(struct mcs *mcs, u16 pcifunc, int dir)
+{
+	struct mcs_rsrc_map *map;
+	int id;
+
+	if (dir == MCS_RX)
+		map = &mcs->rx;
+	else
+		map = &mcs->tx;
+
+	/* Clear FLOWID stats */
+	for (id = 0; id < map->flow_ids.max; id++) {
+		if (map->flowid2pf_map[id] != pcifunc)
+			continue;
+		mcs_clear_stats(mcs, MCS_FLOWID_STATS, id, dir);
+	}
+
+	/* Clear SECY stats */
+	for (id = 0; id < map->secy.max; id++) {
+		if (map->secy2pf_map[id] != pcifunc)
+			continue;
+		mcs_clear_stats(mcs, MCS_SECY_STATS, id, dir);
+	}
+
+	/* Clear SC stats */
+	for (id = 0; id < map->secy.max; id++) {
+		if (map->sc2pf_map[id] != pcifunc)
+			continue;
+		mcs_clear_stats(mcs, MCS_SC_STATS, id, dir);
+	}
+
+	/* Clear SA stats */
+	for (id = 0; id < map->sa.max; id++) {
+		if (map->sa2pf_map[id] != pcifunc)
+			continue;
+		mcs_clear_stats(mcs, MCS_SA_STATS, id, dir);
+	}
+	return 0;
+}
+
 void mcs_pn_table_write(struct mcs *mcs, u8 pn_id, u64 next_pn, u8 dir)
 {
 	u64 reg;
@@ -816,6 +1121,10 @@ static void mcs_global_cfg(struct mcs *mcs)
 	/* Disable external bypass */
 	mcs_set_external_bypass(mcs, false);
 
+	/* Reset TX/RX stats memory */
+	mcs_reg_write(mcs, MCSX_CSE_RX_SLAVE_STATS_CLEAR, 0x1F);
+	mcs_reg_write(mcs, MCSX_CSE_TX_SLAVE_STATS_CLEAR, 0x1F);
+
 	/* Set MCS to perform standard IEEE802.1AE macsec processing */
 	if (mcs->hw->mcs_blks == 1) {
 		mcs_reg_write(mcs, MCSX_IP_MODE, BIT_ULL(3));
@@ -921,6 +1230,7 @@ static int mcs_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mcs->mcs_ops->mcs_parser_cfg(mcs);
 
 	list_add(&mcs->mcs_list, &mcs_list);
+	mutex_init(&mcs->stats_lock);
 
 	return 0;
 

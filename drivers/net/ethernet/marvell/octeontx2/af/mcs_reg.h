@@ -72,6 +72,14 @@
 		offset = 0x600c8ull;			\
 	offset; })
 
+#define MCSX_MIL_IP_GBL_STATUS ({			\
+	u64 offset;					\
+							\
+	offset = 0x800d0ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0x600d0ull;			\
+	offset; })
+
 /* PAB */
 #define MCSX_PAB_RX_SLAVE_PORT_CFGX(a) ({	\
 	u64 offset;				\
@@ -495,5 +503,432 @@
 #define MCSX_CPM_TX_SLAVE_SA_INDEX0_VLDX(a)		(0x5d50 + (a) * 0x8ull)
 #define MCSX_CPM_TX_SLAVE_SA_INDEX1_VLDX(a)		(0x5f50 + (a) * 0x8ull)
 #define MCSX_CPM_TX_SLAVE_AUTO_REKEY_ENABLE_0		0x5500ull
+
+/* CSE */
+#define MCSX_CSE_RX_MEM_SLAVE_IFINCTLBCPKTSX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x9e80ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xc218ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_RX_MEM_SLAVE_IFINCTLMCPKTSX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x9680ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xc018ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_RX_MEM_SLAVE_IFINCTLOCTETSX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x6e80ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xbc18ull;			\
+	offset +=  (a) * 0x8ull;			\
+	offset; })
+
+#define MCSX_CSE_RX_MEM_SLAVE_IFINCTLUCPKTSX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x8e80ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xbe18ull;			\
+	offset +=  (a) * 0x8ull;			\
+	offset; })
+
+#define	MCSX_CSE_RX_MEM_SLAVE_IFINUNCTLBCPKTSX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x8680ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xca18ull;			\
+	offset +=  (a) * 0x8ull;			\
+	offset; })
+
+#define	MCSX_CSE_RX_MEM_SLAVE_IFINUNCTLMCPKTSX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x7e80ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xc818ull;			\
+	offset +=  (a) * 0x8ull;			\
+	offset; })
+
+#define	MCSX_CSE_RX_MEM_SLAVE_IFINUNCTLOCTETSX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x6680ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xc418ull;			\
+	offset +=  (a) * 0x8ull;			\
+	offset; })
+
+#define	MCSX_CSE_RX_MEM_SLAVE_IFINUNCTLUCPKTSX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x7680ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xc618ull;			\
+	offset +=  (a) * 0x8ull;			\
+	offset; })
+
+#define MCSX_CSE_RX_MEM_SLAVE_INOCTETSSECYDECRYPTEDX(a) ({ \
+	u64 offset;					\
+							\
+	offset = 0x5e80ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xdc18ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_RX_MEM_SLAVE_INOCTETSSECYVALIDATEX(a)({ \
+	u64 offset;					\
+							\
+	offset = 0x5680ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xda18ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSCTRLPORTDISABLEDX(a) ({ \
+	u64 offset;					\
+							\
+	offset = 0xd680ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xce18ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSFLOWIDTCAMHITX(a) ({ \
+	u64 offset;					\
+							\
+	offset = 0x16a80ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xec78ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSFLOWIDTCAMMISSX(a) ({ \
+	u64 offset;					\
+							\
+	offset = 0x16680ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xec38ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSPARSEERRX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x16880ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xec18ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSCCAMHITX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0xfe80ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xde18ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSCINVALIDX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x10680ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xe418ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSCNOTVALIDX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x10e80ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xe218ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYBADTAGX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0xae80ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xd418ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYNOSAX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0xc680ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xd618ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYNOSAERRORX(a) ({ \
+	u64 offset;					\
+							\
+	offset = 0xce80ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xd818ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYTAGGEDCTLX(a) ({ \
+	u64 offset;					\
+							\
+	offset = 0xbe80ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xcc18ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_RX_SLAVE_CTRL	({			\
+	u64 offset;					\
+							\
+	offset = 0x52a0ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0x9c0ull;			\
+	offset; })
+
+#define MCSX_CSE_RX_SLAVE_STATS_CLEAR	({		\
+	u64 offset;					\
+							\
+	offset = 0x52b8ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0x9d8ull;			\
+	offset; })
+
+#define MCSX_CSE_RX_MEM_SLAVE_INOCTETSSCDECRYPTEDX(a)	(0xe680ull + (a) * 0x8ull)
+#define MCSX_CSE_RX_MEM_SLAVE_INOCTETSSCVALIDATEX(a)	(0xde80ull + (a) * 0x8ull)
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYUNTAGGEDORNOTAGX(a)	(0xa680ull + (a) * 0x8ull)
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYNOTAGX(a)	(0xd218 + (a) * 0x8ull)
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYUNTAGGEDX(a)	(0xd018ull + (a) * 0x8ull)
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSCUNCHECKEDOROKX(a)	(0xee80ull + (a) * 0x8ull)
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSECYCTLX(a)		(0xb680ull + (a) * 0x8ull)
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSCLATEORDELAYEDX(a) (0xf680ull + (a) * 0x8ull)
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSAINVALIDX(a)	(0x12680ull + (a) * 0x8ull)
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSANOTUSINGSAERRORX(a) (0x15680ull + (a) * 0x8ull)
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSANOTVALIDX(a)	(0x13680ull + (a) * 0x8ull)
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSAOKX(a)		(0x11680ull + (a) * 0x8ull)
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSAUNUSEDSAX(a)	(0x14680ull + (a) * 0x8ull)
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSEARLYPREEMPTERRX(a) (0xec58ull + (a) * 0x8ull)
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSCOKX(a)		(0xea18ull + (a) * 0x8ull)
+#define MCSX_CSE_RX_MEM_SLAVE_INPKTSSCDELAYEDX(a)	(0xe618ull + (a) * 0x8ull)
+
+/* CSE TX */
+#define MCSX_CSE_TX_MEM_SLAVE_IFOUTCOMMONOCTETSX(a)	(0x18440ull + (a) * 0x8ull)
+#define MCSX_CSE_TX_MEM_SLAVE_IFOUTCTLBCPKTSX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x1c440ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xf478ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_TX_MEM_SLAVE_IFOUTCTLMCPKTSX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x1bc40ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xf278ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_TX_MEM_SLAVE_IFOUTCTLOCTETSX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x19440ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xee78ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_TX_MEM_SLAVE_IFOUTCTLUCPKTSX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x1b440ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xf078ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_TX_MEM_SLAVE_IFOUTUNCTLBCPKTSX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x1ac40ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xfc78ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_TX_MEM_SLAVE_IFOUTUNCTLMCPKTSX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x1a440ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xfa78ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_TX_MEM_SLAVE_IFOUTUNCTLOCTETSX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x18c40ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xf678ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_TX_MEM_SLAVE_IFOUTUNCTLUCPKTSX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x19c40ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xf878ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_TX_MEM_SLAVE_OUTOCTETSSECYENCRYPTEDX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x17c40ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0x10878ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_TX_MEM_SLAVE_OUTOCTETSSECYPROTECTEDX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x17440ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0x10678ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_TX_MEM_SLAVE_OUTPKTSCTRLPORTDISABLEDX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x1e440ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xfe78ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_TX_MEM_SLAVE_OUTPKTSFLOWIDTCAMHITX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x23240ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0x10ed8ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_TX_MEM_SLAVE_OUTPKTSFLOWIDTCAMMISSX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x22c40ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0x10e98ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_TX_MEM_SLAVE_OUTPKTSPARSEERRX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x22e40ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0x10e78ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSCENCRYPTEDX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x20440ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0x10c78ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSCPROTECTEDX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x1fc40ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0x10a78ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSECTAGINSERTIONERRX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x23040ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0x110d8ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSECYNOACTIVESAX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x1dc40ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0x10278ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSECYTOOLONGX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x1d440ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0x10478ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSECYUNTAGGEDX(a) ({	\
+	u64 offset;					\
+							\
+	offset = 0x1cc40ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0x10078ull;			\
+	offset += (a) * 0x8ull;				\
+	offset; })
+
+#define MCSX_CSE_TX_SLAVE_CTRL	({	\
+	u64 offset;					\
+							\
+	offset = 0x54a0ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xa00ull;			\
+	offset; })
+
+#define MCSX_CSE_TX_SLAVE_STATS_CLEAR ({		\
+	u64 offset;					\
+							\
+	offset = 0x54b8ull;				\
+	if (mcs->hw->mcs_blks > 1)			\
+		offset = 0xa18ull;			\
+	offset; })
+
+#define MCSX_CSE_TX_MEM_SLAVE_OUTOCTETSSCENCRYPTEDX(a)	(0x1f440ull + (a) * 0x8ull)
+#define MCSX_CSE_TX_MEM_SLAVE_OUTOCTETSSCPROTECTEDX(a)	(0x1ec40ull + (a) * 0x8ull)
+#define MCSX_CSE_TX_MEM_SLAVE_OUTPKTSEARLYPREEMPTERRX(a) (0x10eb8ull + (a) * 0x8ull)
+#define MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSAENCRYPTEDX(a)	(0x21c40ull + (a) * 0x8ull)
+#define MCSX_CSE_TX_MEM_SLAVE_OUTPKTSSAPROTECTEDX(a)	(0x20c40ull + (a) * 0x8ull)
 
 #endif
