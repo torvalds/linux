@@ -915,9 +915,11 @@ static int mcp2221_probe(struct hid_device *hdev,
 	mcp->gc->can_sleep = 1;
 	mcp->gc->parent = &hdev->dev;
 
+#if IS_REACHABLE(CONFIG_GPIOLIB)
 	ret = devm_gpiochip_add_data(&hdev->dev, mcp->gc, mcp);
 	if (ret)
 		return ret;
+#endif
 
 	return 0;
 }
