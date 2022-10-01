@@ -478,7 +478,7 @@ void kunit_do_failed_assertion(struct kunit *test,
 
 #define _KUNIT_FAILED(test, assert_type, assert_class, assert_format, INITIALIZER, fmt, ...) do { \
 	static const struct kunit_loc __loc = KUNIT_CURRENT_LOC;	       \
-	struct assert_class __assertion = INITIALIZER;			       \
+	const struct assert_class __assertion = INITIALIZER;		       \
 	kunit_do_failed_assertion(test,					       \
 				  &__loc,				       \
 				  assert_type,				       \
