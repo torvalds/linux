@@ -149,7 +149,7 @@ static irqreturn_t dw_hdmi_qp_cec_hardirq(int irq, void *data)
 			len = sizeof(cec->rx_msg.msg);
 
 		for (i = 0; i < 4; i++) {
-			val = dw_hdmi_qp_read(cec, CEC_RX_DATA3_0 + i);
+			val = dw_hdmi_qp_read(cec, CEC_RX_DATA3_0 + i * 4);
 			cec->rx_msg.msg[i * 4] = val & 0xff;
 			cec->rx_msg.msg[i * 4 + 1] = (val >> 8) & 0xff;
 			cec->rx_msg.msg[i * 4 + 2] = (val >> 16) & 0xff;
