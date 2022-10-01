@@ -639,7 +639,7 @@ cifs_chan_is_iface_active(struct cifs_ses *ses,
 int
 cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server);
 int
-SMB3_request_interfaces(const unsigned int xid, struct cifs_tcon *tcon);
+SMB3_request_interfaces(const unsigned int xid, struct cifs_tcon *tcon, bool in_mount);
 
 void extract_unc_hostname(const char *unc, const char **h, size_t *len);
 int copy_path_name(char *dst, const char *src);

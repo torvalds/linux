@@ -155,7 +155,7 @@ static void smb2_query_server_interfaces(struct work_struct *work)
 	/*
 	 * query server network interfaces, in case they change
 	 */
-	rc = SMB3_request_interfaces(0, tcon);
+	rc = SMB3_request_interfaces(0, tcon, false);
 	if (rc) {
 		cifs_dbg(FYI, "%s: failed to query server interfaces: %d\n",
 				__func__, rc);
