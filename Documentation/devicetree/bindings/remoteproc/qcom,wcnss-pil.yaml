@@ -196,9 +196,13 @@ allOf:
           deprecated: true
           description: Deprecated for qcom,pronto-v1/2-pil
 
-      required:
-        - power-domains
-        - power-domain-names
+      oneOf:
+        - required:
+            - power-domains
+            - power-domain-names
+        - required:
+            - vddmx-supply
+            - vddcx-supply
 
   - if:
       properties:
