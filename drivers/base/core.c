@@ -2336,7 +2336,7 @@ static void device_release(struct kobject *kobj)
 
 static const void *device_namespace(struct kobject *kobj)
 {
-	struct device *dev = kobj_to_dev(kobj);
+	const struct device *dev = kobj_to_dev(kobj);
 	const void *ns = NULL;
 
 	if (dev->class && dev->class->ns_type)
@@ -2347,7 +2347,7 @@ static const void *device_namespace(struct kobject *kobj)
 
 static void device_get_ownership(struct kobject *kobj, kuid_t *uid, kgid_t *gid)
 {
-	struct device *dev = kobj_to_dev(kobj);
+	const struct device *dev = kobj_to_dev(kobj);
 
 	if (dev->class && dev->class->get_ownership)
 		dev->class->get_ownership(dev, uid, gid);

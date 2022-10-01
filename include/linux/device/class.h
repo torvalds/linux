@@ -68,9 +68,9 @@ struct class {
 	int (*shutdown_pre)(struct device *dev);
 
 	const struct kobj_ns_type_operations *ns_type;
-	const void *(*namespace)(struct device *dev);
+	const void *(*namespace)(const struct device *dev);
 
-	void (*get_ownership)(struct device *dev, kuid_t *uid, kgid_t *gid);
+	void (*get_ownership)(const struct device *dev, kuid_t *uid, kgid_t *gid);
 
 	const struct dev_pm_ops *pm;
 

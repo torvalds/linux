@@ -524,9 +524,9 @@ static int ib_device_uevent(struct device *device,
 	return 0;
 }
 
-static const void *net_namespace(struct device *d)
+static const void *net_namespace(const struct device *d)
 {
-	struct ib_core_device *coredev =
+	const struct ib_core_device *coredev =
 			container_of(d, struct ib_core_device, dev);
 
 	return read_pnet(&coredev->rdma_net);
