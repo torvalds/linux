@@ -12,7 +12,6 @@
 #include <linux/of_gpio.h>
 #include <linux/acpi.h>
 #include <linux/tpm.h>
-#include <linux/platform_data/st33zp24.h>
 
 #include "../tpm.h"
 #include "st33zp24.h"
@@ -296,37 +295,6 @@ static int st33zp24_spi_of_request_resources(struct spi_device *spi_dev)
 	return 0;
 }
 
-static int st33zp24_spi_request_resources(struct spi_device *dev)
-{
-	struct tpm_chip *chip = spi_get_drvdata(dev);
-	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
-	struct st33zp24_spi_phy *phy = tpm_dev->phy_id;
-	struct st33zp24_platform_data *pdata;
-	int ret;
-
-	pdata = dev->dev.platform_data;
-	if (!pdata) {
-		dev_err(&dev->dev, "No platform data\n");
-		return -ENODEV;
-	}
-
-	/* store for late use */
-	phy->io_lpcpd = pdata->io_lpcpd;
-
-	if (gpio_is_valid(pdata->io_lpcpd)) {
-		ret = devm_gpio_request_one(&dev->dev,
-				pdata->io_lpcpd, GPIOF_OUT_INIT_HIGH,
-				"TPM IO_LPCPD");
-		if (ret) {
-			dev_err(&dev->dev, "%s : reset gpio_request failed\n",
-				__FILE__);
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
 /*
  * st33zp24_spi_probe initialize the TPM device
  * @param: dev, the spi_device description (TPM SPI description).
@@ -336,7 +304,6 @@ static int st33zp24_spi_request_resources(struct spi_device *dev)
 static int st33zp24_spi_probe(struct spi_device *dev)
 {
 	int ret;
-	struct st33zp24_platform_data *pdata;
 	struct st33zp24_spi_phy *phy;
 
 	/* Check SPI platform functionnalities */
@@ -353,19 +320,16 @@ static int st33zp24_spi_probe(struct spi_device *dev)
 
 	phy->spi_device = dev;
 
-	pdata = dev->dev.platform_data;
-	if (!pdata && dev->dev.of_node) {
+	if (dev->dev.of_node) {
 		ret = st33zp24_spi_of_request_resources(dev);
-		if (ret)
-			return ret;
-	} else if (pdata) {
-		ret = st33zp24_spi_request_resources(dev);
 		if (ret)
 			return ret;
 	} else if (ACPI_HANDLE(&dev->dev)) {
 		ret = st33zp24_spi_acpi_request_resources(dev);
 		if (ret)
 			return ret;
+	} else {
+		return -ENODEV;
 	}
 
 	phy->latency = st33zp24_spi_evaluate_latency(phy);
@@ -411,7 +375,7 @@ static SIMPLE_DEV_PM_OPS(st33zp24_spi_ops, st33zp24_pm_suspend,
 
 static struct spi_driver st33zp24_spi_driver = {
 	.driver = {
-		.name = TPM_ST33_SPI,
+		.name = "st33zp24-spi",
 		.pm = &st33zp24_spi_ops,
 		.of_match_table = of_match_ptr(of_st33zp24_spi_match),
 		.acpi_match_table = ACPI_PTR(st33zp24_spi_acpi_match),

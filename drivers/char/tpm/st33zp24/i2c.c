@@ -12,7 +12,6 @@
 #include <linux/of_gpio.h>
 #include <linux/acpi.h>
 #include <linux/tpm.h>
-#include <linux/platform_data/st33zp24.h>
 
 #include "../tpm.h"
 #include "st33zp24.h"
@@ -178,36 +177,6 @@ static int st33zp24_i2c_of_request_resources(struct i2c_client *client)
 	return 0;
 }
 
-static int st33zp24_i2c_request_resources(struct i2c_client *client)
-{
-	struct tpm_chip *chip = i2c_get_clientdata(client);
-	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
-	struct st33zp24_i2c_phy *phy = tpm_dev->phy_id;
-	struct st33zp24_platform_data *pdata;
-	int ret;
-
-	pdata = client->dev.platform_data;
-	if (!pdata) {
-		dev_err(&client->dev, "No platform data\n");
-		return -ENODEV;
-	}
-
-	/* store for late use */
-	phy->io_lpcpd = pdata->io_lpcpd;
-
-	if (gpio_is_valid(pdata->io_lpcpd)) {
-		ret = devm_gpio_request_one(&client->dev,
-				pdata->io_lpcpd, GPIOF_OUT_INIT_HIGH,
-				"TPM IO_LPCPD");
-		if (ret) {
-			dev_err(&client->dev, "Failed to request lpcpd pin\n");
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
 /*
  * st33zp24_i2c_probe initialize the TPM device
  * @param: client, the i2c_client description (TPM I2C description).
@@ -219,7 +188,6 @@ static int st33zp24_i2c_probe(struct i2c_client *client,
 			      const struct i2c_device_id *id)
 {
 	int ret;
-	struct st33zp24_platform_data *pdata;
 	struct st33zp24_i2c_phy *phy;
 
 	if (!client) {
@@ -240,19 +208,16 @@ static int st33zp24_i2c_probe(struct i2c_client *client,
 
 	phy->client = client;
 
-	pdata = client->dev.platform_data;
-	if (!pdata && client->dev.of_node) {
+	if (client->dev.of_node) {
 		ret = st33zp24_i2c_of_request_resources(client);
-		if (ret)
-			return ret;
-	} else if (pdata) {
-		ret = st33zp24_i2c_request_resources(client);
 		if (ret)
 			return ret;
 	} else if (ACPI_HANDLE(&client->dev)) {
 		ret = st33zp24_i2c_acpi_request_resources(client);
 		if (ret)
 			return ret;
+	} else {
+		return -ENODEV;
 	}
 
 	return st33zp24_probe(phy, &i2c_phy_ops, &client->dev, client->irq,
