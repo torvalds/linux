@@ -406,8 +406,13 @@ static inline void efi_reserve_boot_services(void)
 
 #ifdef CONFIG_EFI_FAKE_MEMMAP
 extern void __init efi_fake_memmap_early(void);
+extern void __init efi_fake_memmap(void);
 #else
 static inline void efi_fake_memmap_early(void)
+{
+}
+
+static inline void efi_fake_memmap(void)
 {
 }
 #endif
