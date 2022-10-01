@@ -133,6 +133,27 @@ int rvu_mbox_handler_mcs_custom_tag_cfg_get(struct rvu *rvu, struct mcs_custom_t
 	return 0;
 }
 
+int rvu_mcs_flr_handler(struct rvu *rvu, u16 pcifunc)
+{
+	struct mcs *mcs;
+	int mcs_id;
+
+	/* CNF10K-B mcs0-6 are mapped to RPM2-8*/
+	if (rvu->mcs_blk_cnt > 1) {
+		for (mcs_id = 0; mcs_id < rvu->mcs_blk_cnt; mcs_id++) {
+			mcs = mcs_get_pdata(mcs_id);
+			mcs_free_all_rsrc(mcs, MCS_RX, pcifunc);
+			mcs_free_all_rsrc(mcs, MCS_TX, pcifunc);
+		}
+	} else {
+		/* CN10K-B has only one mcs block */
+		mcs = mcs_get_pdata(0);
+		mcs_free_all_rsrc(mcs, MCS_RX, pcifunc);
+		mcs_free_all_rsrc(mcs, MCS_TX, pcifunc);
+	}
+	return 0;
+}
+
 int rvu_mbox_handler_mcs_flowid_ena_entry(struct rvu *rvu,
 					  struct mcs_flowid_ena_dis_entry *req,
 					  struct msg_rsp *rsp)
@@ -543,8 +564,10 @@ int rvu_mcs_init(struct rvu *rvu)
 		rvu_mcs_set_lmac_bmap(rvu);
 	}
 
+	/* Install default tcam bypass entry and set port to operational mode */
 	for (mcs_id = 0; mcs_id < rvu->mcs_blk_cnt; mcs_id++) {
 		mcs = mcs_get_pdata(mcs_id);
+		mcs_install_flowid_bypass_entry(mcs);
 		for (lmac = 0; lmac < mcs->hw->lmac_cnt; lmac++)
 			mcs_set_lmac_mode(mcs, lmac, 0);
 	}

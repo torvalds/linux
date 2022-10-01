@@ -181,6 +181,51 @@ void mcs_flowid_entry_write(struct mcs *mcs, u64 *data, u64 *mask, int flow_id, 
 	}
 }
 
+int mcs_install_flowid_bypass_entry(struct mcs *mcs)
+{
+	int flow_id, secy_id, reg_id;
+	struct secy_mem_map map;
+	u64 reg, plcy = 0;
+
+	/* Flow entry */
+	flow_id = mcs->hw->tcam_entries - MCS_RSRC_RSVD_CNT;
+	for (reg_id = 0; reg_id < 4; reg_id++) {
+		reg = MCSX_CPM_RX_SLAVE_FLOWID_TCAM_MASKX(reg_id, flow_id);
+		mcs_reg_write(mcs, reg, GENMASK_ULL(63, 0));
+	}
+	for (reg_id = 0; reg_id < 4; reg_id++) {
+		reg = MCSX_CPM_TX_SLAVE_FLOWID_TCAM_MASKX(reg_id, flow_id);
+		mcs_reg_write(mcs, reg, GENMASK_ULL(63, 0));
+	}
+	/* secy */
+	secy_id = mcs->hw->secy_entries - MCS_RSRC_RSVD_CNT;
+
+	/* Set validate frames to NULL and enable control port */
+	plcy = 0x7ull;
+	if (mcs->hw->mcs_blks > 1)
+		plcy = BIT_ULL(0) | 0x3ull << 4;
+	mcs_secy_plcy_write(mcs, plcy, secy_id, MCS_RX);
+
+	/* Enable control port and set mtu to max */
+	plcy = BIT_ULL(0) | GENMASK_ULL(43, 28);
+	if (mcs->hw->mcs_blks > 1)
+		plcy = BIT_ULL(0) | GENMASK_ULL(63, 48);
+	mcs_secy_plcy_write(mcs, plcy, secy_id, MCS_TX);
+
+	/* Map flowid to secy */
+	map.secy = secy_id;
+	map.ctrl_pkt = 0;
+	map.flow_id = flow_id;
+	mcs->mcs_ops->mcs_flowid_secy_map(mcs, &map, MCS_RX);
+	map.sc = secy_id;
+	mcs->mcs_ops->mcs_flowid_secy_map(mcs, &map, MCS_TX);
+
+	/* Enable Flowid entry */
+	mcs_ena_dis_flowid_entry(mcs, flow_id, MCS_RX, true);
+	mcs_ena_dis_flowid_entry(mcs, flow_id, MCS_TX, true);
+	return 0;
+}
+
 void mcs_clear_secy_plcy(struct mcs *mcs, int secy_id, int dir)
 {
 	struct mcs_rsrc_map *map;
