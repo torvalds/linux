@@ -21,8 +21,34 @@
 #define MCS_PORT_FIFO_SKID_MASK		0x3F
 #define MCS_MAX_CUSTOM_TAGS		0x8
 
+#define MCS_CTRLPKT_ETYPE_RULE_MAX	8
+#define MCS_CTRLPKT_DA_RULE_MAX		8
+#define MCS_CTRLPKT_DA_RANGE_RULE_MAX	4
+#define MCS_CTRLPKT_COMBO_RULE_MAX	4
+#define MCS_CTRLPKT_MAC_RULE_MAX	1
+
+#define MCS_MAX_CTRLPKT_RULES	(MCS_CTRLPKT_ETYPE_RULE_MAX + \
+				MCS_CTRLPKT_DA_RULE_MAX + \
+				MCS_CTRLPKT_DA_RANGE_RULE_MAX + \
+				MCS_CTRLPKT_COMBO_RULE_MAX + \
+				MCS_CTRLPKT_MAC_RULE_MAX)
+
+#define MCS_CTRLPKT_ETYPE_RULE_OFFSET		0
+#define MCS_CTRLPKT_DA_RULE_OFFSET		8
+#define MCS_CTRLPKT_DA_RANGE_RULE_OFFSET	16
+#define MCS_CTRLPKT_COMBO_RULE_OFFSET		20
+#define MCS_CTRLPKT_MAC_EN_RULE_OFFSET		24
+
 /* Reserved resources for default bypass entry */
 #define MCS_RSRC_RSVD_CNT		1
+
+struct secy_mem_map {
+	u8 flow_id;
+	u8 secy;
+	u8 ctrl_pkt;
+	u8 sc;
+	u64 sci;
+};
 
 struct mcs_rsrc_map {
 	u16 *flowid2pf_map;
@@ -30,10 +56,12 @@ struct mcs_rsrc_map {
 	u16 *sc2pf_map;
 	u16 *sa2pf_map;
 	u16 *flowid2secy_map;	/* bitmap flowid mapped to secy*/
+	u16 *ctrlpktrule2pf_map;
 	struct rsrc_bmap	flow_ids;
 	struct rsrc_bmap	secy;
 	struct rsrc_bmap	sc;
 	struct rsrc_bmap	sa;
+	struct rsrc_bmap	ctrlpktrule;
 };
 
 struct hwinfo {
@@ -62,6 +90,9 @@ struct mcs {
 struct mcs_ops {
 	void	(*mcs_set_hw_capabilities)(struct mcs *mcs);
 	void	(*mcs_parser_cfg)(struct mcs *mcs);
+	void	(*mcs_tx_sa_mem_map_write)(struct mcs *mcs, struct mcs_tx_sc_sa_map *map);
+	void	(*mcs_rx_sa_mem_map_write)(struct mcs *mcs, struct mcs_rx_sc_sa_map *map);
+	void	(*mcs_flowid_secy_map)(struct mcs *mcs, struct secy_mem_map *map, int dir);
 };
 
 extern struct pci_driver mcs_driver;
@@ -80,7 +111,24 @@ static inline u64 mcs_reg_read(struct mcs *mcs, u64 offset)
 struct mcs *mcs_get_pdata(int mcs_id);
 int mcs_get_blkcnt(void);
 int mcs_set_lmac_channels(int mcs_id, u16 base);
-
+int mcs_alloc_rsrc(struct rsrc_bmap *rsrc, u16 *pf_map, u16 pcifunc);
+int mcs_free_rsrc(struct rsrc_bmap *rsrc, u16 *pf_map, int rsrc_id, u16 pcifunc);
+int mcs_alloc_all_rsrc(struct mcs *mcs, u8 *flowid, u8 *secy_id,
+		       u8 *sc_id, u8 *sa1_id, u8 *sa2_id, u16 pcifunc, int dir);
+int mcs_free_all_rsrc(struct mcs *mcs, int dir, u16 pcifunc);
+void mcs_clear_secy_plcy(struct mcs *mcs, int secy_id, int dir);
+void mcs_ena_dis_flowid_entry(struct mcs *mcs, int id, int dir, int ena);
+void mcs_ena_dis_sc_cam_entry(struct mcs *mcs, int id, int ena);
+void mcs_flowid_entry_write(struct mcs *mcs, u64 *data, u64 *mask, int id, int dir);
+void mcs_secy_plcy_write(struct mcs *mcs, u64 plcy, int id, int dir);
+void mcs_rx_sc_cam_write(struct mcs *mcs, u64 sci, u64 secy, int sc_id);
+void mcs_sa_plcy_write(struct mcs *mcs, u64 *plcy, int sa, int dir);
+void mcs_map_sc_to_sa(struct mcs *mcs, u64 *sa_map, int sc, int dir);
+void mcs_pn_table_write(struct mcs *mcs, u8 pn_id, u64 next_pn, u8 dir);
+void mcs_tx_sa_mem_map_write(struct mcs *mcs, struct mcs_tx_sc_sa_map *map);
+void mcs_flowid_secy_map(struct mcs *mcs, struct secy_mem_map *map, int dir);
+void mcs_rx_sa_mem_map_write(struct mcs *mcs, struct mcs_rx_sc_sa_map *map);
+void mcs_pn_threshold_set(struct mcs *mcs, struct mcs_set_pn_threshold *pn);
 int mcs_install_flowid_bypass_entry(struct mcs *mcs);
 void mcs_set_lmac_mode(struct mcs *mcs, int lmac_id, u8 mode);
 void mcs_reset_port(struct mcs *mcs, u8 port_id, u8 reset);
@@ -89,14 +137,23 @@ void mcs_get_port_cfg(struct mcs *mcs, struct mcs_port_cfg_get_req *req,
 		      struct mcs_port_cfg_get_rsp *rsp);
 void mcs_get_custom_tag_cfg(struct mcs *mcs, struct mcs_custom_tag_cfg_get_req *req,
 			    struct mcs_custom_tag_cfg_get_rsp *rsp);
+int mcs_alloc_ctrlpktrule(struct rsrc_bmap *rsrc, u16 *pf_map, u16 offset, u16 pcifunc);
+int mcs_free_ctrlpktrule(struct mcs *mcs, struct mcs_free_ctrl_pkt_rule_req *req);
+int mcs_ctrlpktrule_write(struct mcs *mcs, struct mcs_ctrl_pkt_rule_write_req *req);
 
 /* CN10K-B APIs */
 void cn10kb_mcs_set_hw_capabilities(struct mcs *mcs);
+void cn10kb_mcs_tx_sa_mem_map_write(struct mcs *mcs, struct mcs_tx_sc_sa_map *map);
+void cn10kb_mcs_flowid_secy_map(struct mcs *mcs, struct secy_mem_map *map, int dir);
+void cn10kb_mcs_rx_sa_mem_map_write(struct mcs *mcs, struct mcs_rx_sc_sa_map *map);
 void cn10kb_mcs_parser_cfg(struct mcs *mcs);
 
 /* CNF10K-B APIs */
 struct mcs_ops *cnf10kb_get_mac_ops(void);
 void cnf10kb_mcs_set_hw_capabilities(struct mcs *mcs);
+void cnf10kb_mcs_tx_sa_mem_map_write(struct mcs *mcs, struct mcs_tx_sc_sa_map *map);
+void cnf10kb_mcs_flowid_secy_map(struct mcs *mcs, struct secy_mem_map *map, int dir);
+void cnf10kb_mcs_rx_sa_mem_map_write(struct mcs *mcs, struct mcs_rx_sc_sa_map *map);
 void cnf10kb_mcs_parser_cfg(struct mcs *mcs);
 
 #endif /* MCS_H */

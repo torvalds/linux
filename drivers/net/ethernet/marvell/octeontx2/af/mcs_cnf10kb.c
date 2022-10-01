@@ -10,6 +10,9 @@
 static struct mcs_ops cnf10kb_mcs_ops   = {
 	.mcs_set_hw_capabilities	= cnf10kb_mcs_set_hw_capabilities,
 	.mcs_parser_cfg			= cnf10kb_mcs_parser_cfg,
+	.mcs_tx_sa_mem_map_write	= cnf10kb_mcs_tx_sa_mem_map_write,
+	.mcs_rx_sa_mem_map_write	= cnf10kb_mcs_rx_sa_mem_map_write,
+	.mcs_flowid_secy_map		= cnf10kb_mcs_flowid_secy_map,
 };
 
 struct mcs_ops *cnf10kb_get_mac_ops(void)
@@ -61,5 +64,57 @@ void cnf10kb_mcs_parser_cfg(struct mcs *mcs)
 	mcs_reg_write(mcs, reg, val);
 
 	reg = MCSX_PEX_TX_SLAVE_ETYPE_ENABLE;
+	mcs_reg_write(mcs, reg, val);
+}
+
+void cnf10kb_mcs_flowid_secy_map(struct mcs *mcs, struct secy_mem_map *map, int dir)
+{
+	u64 reg, val;
+
+	val = (map->secy & 0x3F) | (map->ctrl_pkt & 0x1) << 6;
+	if (dir == MCS_RX) {
+		reg = MCSX_CPM_RX_SLAVE_SECY_MAP_MEMX(map->flow_id);
+	} else {
+		reg = MCSX_CPM_TX_SLAVE_SECY_MAP_MEM_0X(map->flow_id);
+		mcs_reg_write(mcs, reg, map->sci);
+		val |= (map->sc & 0x3F) << 7;
+		reg = MCSX_CPM_TX_SLAVE_SECY_MAP_MEM_1X(map->flow_id);
+	}
+
+	mcs_reg_write(mcs, reg, val);
+}
+
+void cnf10kb_mcs_tx_sa_mem_map_write(struct mcs *mcs, struct mcs_tx_sc_sa_map *map)
+{
+	u64 reg, val;
+
+	val = (map->sa_index0 & 0x7F) | (map->sa_index1 & 0x7F) << 7;
+
+	reg = MCSX_CPM_TX_SLAVE_SA_MAP_MEM_0X(map->sc_id);
+	mcs_reg_write(mcs, reg, val);
+
+	if (map->rekey_ena) {
+		reg = MCSX_CPM_TX_SLAVE_AUTO_REKEY_ENABLE_0;
+		val = mcs_reg_read(mcs, reg);
+		val |= BIT_ULL(map->sc_id);
+		mcs_reg_write(mcs, reg, val);
+	}
+
+	if (map->sa_index0_vld)
+		mcs_reg_write(mcs, MCSX_CPM_TX_SLAVE_SA_INDEX0_VLDX(map->sc_id), BIT_ULL(0));
+
+	if (map->sa_index1_vld)
+		mcs_reg_write(mcs, MCSX_CPM_TX_SLAVE_SA_INDEX1_VLDX(map->sc_id), BIT_ULL(0));
+
+	mcs_reg_write(mcs, MCSX_CPM_TX_SLAVE_TX_SA_ACTIVEX(map->sc_id), map->tx_sa_active);
+}
+
+void cnf10kb_mcs_rx_sa_mem_map_write(struct mcs *mcs, struct mcs_rx_sc_sa_map *map)
+{
+	u64 val, reg;
+
+	val = (map->sa_index & 0x7F) | (map->sa_in_use << 7);
+
+	reg = MCSX_CPM_RX_SLAVE_SA_MAP_MEMX((4 * map->sc_id) + map->an);
 	mcs_reg_write(mcs, reg, val);
 }
