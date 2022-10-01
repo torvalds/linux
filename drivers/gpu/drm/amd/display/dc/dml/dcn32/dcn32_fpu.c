@@ -243,7 +243,7 @@ void dcn32_build_wm_range_table_fpu(struct clk_mgr_internal *clk_mgr)
 	clk_mgr->base.bw_params->wm_table.nv_entries[WM_D].pmfw_breakdown.max_uclk = 0xFFFF;
 }
 
-/**
+/*
  * Finds dummy_latency_index when MCLK switching using firmware based
  * vblank stretch is enabled. This function will iterate through the
  * table of dummy pstate latencies until the lowest value that allows
@@ -290,15 +290,14 @@ int dcn32_find_dummy_latency_index_for_fw_based_mclk_switch(struct dc *dc,
 /**
  * dcn32_helper_populate_phantom_dlg_params - Get DLG params for phantom pipes
  * and populate pipe_ctx with those params.
- *
- * This function must be called AFTER the phantom pipes are added to context
- * and run through DML (so that the DLG params for the phantom pipes can be
- * populated), and BEFORE we program the timing for the phantom pipes.
- *
  * @dc: [in] current dc state
  * @context: [in] new dc state
  * @pipes: [in] DML pipe params array
  * @pipe_cnt: [in] DML pipe count
+ *
+ * This function must be called AFTER the phantom pipes are added to context
+ * and run through DML (so that the DLG params for the phantom pipes can be
+ * populated), and BEFORE we program the timing for the phantom pipes.
  */
 void dcn32_helper_populate_phantom_dlg_params(struct dc *dc,
 					      struct dc_state *context,
@@ -331,8 +330,9 @@ void dcn32_helper_populate_phantom_dlg_params(struct dc *dc,
 }
 
 /**
- * *******************************************************************************************
- * dcn32_predict_pipe_split: Predict if pipe split will occur for a given DML pipe
+ * dcn32_predict_pipe_split - Predict if pipe split will occur for a given DML pipe
+ * @context: [in] New DC state to be programmed
+ * @pipe_e2e: [in] DML pipe end to end context
  *
  * This function takes in a DML pipe (pipe_e2e) and predicts if pipe split is required (both
  * ODM and MPC). For pipe split, ODM combine is determined by the ODM mode, and MPC combine is
@@ -343,12 +343,7 @@ void dcn32_helper_populate_phantom_dlg_params(struct dc *dc,
  * - MPC combine is only chosen if there is no ODM combine requirements / policy in place, and
  *   MPC is required
  *
- * @param [in]: context: New DC state to be programmed
- * @param [in]: pipe_e2e: DML pipe end to end context
- *
- * @return: Number of splits expected (1 for 2:1 split, 3 for 4:1 split, 0 for no splits).
- *
- * *******************************************************************************************
+ * Return: Number of splits expected (1 for 2:1 split, 3 for 4:1 split, 0 for no splits).
  */
 uint8_t dcn32_predict_pipe_split(struct dc_state *context,
 				  display_e2e_pipe_params_st *pipe_e2e)
@@ -504,7 +499,14 @@ void insert_entry_into_table_sorted(struct _vcs_dpi_voltage_scaling_st *table,
 }
 
 /**
- * dcn32_set_phantom_stream_timing: Set timing params for the phantom stream
+ * dcn32_set_phantom_stream_timing - Set timing params for the phantom stream
+ * @dc: current dc state
+ * @context: new dc state
+ * @ref_pipe: Main pipe for the phantom stream
+ * @phantom_stream: target phantom stream state
+ * @pipes: DML pipe params
+ * @pipe_cnt: number of DML pipes
+ * @dc_pipe_idx: DC pipe index for the main pipe (i.e. ref_pipe)
  *
  * Set timing params of the phantom stream based on calculated output from DML.
  * This function first gets the DML pipe index using the DC pipe index, then
@@ -517,13 +519,6 @@ void insert_entry_into_table_sorted(struct _vcs_dpi_voltage_scaling_st *table,
  * that separately.
  *
  * - Set phantom backporch = vstartup of main pipe
- *
- * @dc: current dc state
- * @context: new dc state
- * @ref_pipe: Main pipe for the phantom stream
- * @pipes: DML pipe params
- * @pipe_cnt: number of DML pipes
- * @dc_pipe_idx: DC pipe index for the main pipe (i.e. ref_pipe)
  */
 void dcn32_set_phantom_stream_timing(struct dc *dc,
 				     struct dc_state *context,
@@ -592,16 +587,14 @@ void dcn32_set_phantom_stream_timing(struct dc *dc,
 }
 
 /**
- * dcn32_get_num_free_pipes: Calculate number of free pipes
+ * dcn32_get_num_free_pipes - Calculate number of free pipes
+ * @dc: current dc state
+ * @context: new dc state
  *
  * This function assumes that a "used" pipe is a pipe that has
  * both a stream and a plane assigned to it.
  *
- * @dc: current dc state
- * @context: new dc state
- *
- * Return:
- * Number of free pipes available in the context
+ * Return: Number of free pipes available in the context
  */
 static unsigned int dcn32_get_num_free_pipes(struct dc *dc, struct dc_state *context)
 {
@@ -625,7 +618,10 @@ static unsigned int dcn32_get_num_free_pipes(struct dc *dc, struct dc_state *con
 }
 
 /**
- * dcn32_assign_subvp_pipe: Function to decide which pipe will use Sub-VP.
+ * dcn32_assign_subvp_pipe - Function to decide which pipe will use Sub-VP.
+ * @dc: current dc state
+ * @context: new dc state
+ * @index: [out] dc pipe index for the pipe chosen to have phantom pipes assigned
  *
  * We enter this function if we are Sub-VP capable (i.e. enough pipes available)
  * and regular P-State switching (i.e. VACTIVE/VBLANK) is not supported, or if
@@ -639,12 +635,7 @@ static unsigned int dcn32_get_num_free_pipes(struct dc *dc, struct dc_state *con
  * for determining which should be the SubVP pipe (need a way to determine if a pipe / plane doesn't
  * support MCLK switching naturally [i.e. ACTIVE or VBLANK]).
  *
- * @param dc: current dc state
- * @param context: new dc state
- * @param index: [out] dc pipe index for the pipe chosen to have phantom pipes assigned
- *
- * Return:
- * True if a valid pipe assignment was found for Sub-VP. Otherwise false.
+ * Return: True if a valid pipe assignment was found for Sub-VP. Otherwise false.
  */
 static bool dcn32_assign_subvp_pipe(struct dc *dc,
 				    struct dc_state *context,
@@ -711,7 +702,9 @@ static bool dcn32_assign_subvp_pipe(struct dc *dc,
 }
 
 /**
- * dcn32_enough_pipes_for_subvp: Function to check if there are "enough" pipes for SubVP.
+ * dcn32_enough_pipes_for_subvp - Function to check if there are "enough" pipes for SubVP.
+ * @dc: current dc state
+ * @context: new dc state
  *
  * This function returns true if there are enough free pipes
  * to create the required phantom pipes for any given stream
@@ -722,9 +715,6 @@ static bool dcn32_assign_subvp_pipe(struct dc *dc,
  * this function will return true because there is 1 remaining
  * pipe which can be used as the phantom pipe for the non pipe
  * split pipe.
- *
- * @dc: current dc state
- * @context: new dc state
  *
  * Return:
  * True if there are enough free pipes to assign phantom pipes to at least one
@@ -764,7 +754,9 @@ static bool dcn32_enough_pipes_for_subvp(struct dc *dc, struct dc_state *context
 }
 
 /**
- * subvp_subvp_schedulable: Determine if SubVP + SubVP config is schedulable
+ * subvp_subvp_schedulable - Determine if SubVP + SubVP config is schedulable
+ * @dc: current dc state
+ * @context: new dc state
  *
  * High level algorithm:
  * 1. Find longest microschedule length (in us) between the two SubVP pipes
@@ -772,11 +764,7 @@ static bool dcn32_enough_pipes_for_subvp(struct dc *dc, struct dc_state *context
  * pipes still allows for the maximum microschedule to fit in the active
  * region for both pipes.
  *
- * @dc: current dc state
- * @context: new dc state
- *
- * Return:
- * bool - True if the SubVP + SubVP config is schedulable, false otherwise
+ * Return: True if the SubVP + SubVP config is schedulable, false otherwise
  */
 static bool subvp_subvp_schedulable(struct dc *dc, struct dc_state *context)
 {
@@ -836,7 +824,10 @@ static bool subvp_subvp_schedulable(struct dc *dc, struct dc_state *context)
 }
 
 /**
- * subvp_drr_schedulable: Determine if SubVP + DRR config is schedulable
+ * subvp_drr_schedulable - Determine if SubVP + DRR config is schedulable
+ * @dc: current dc state
+ * @context: new dc state
+ * @drr_pipe: DRR pipe_ctx for the SubVP + DRR config
  *
  * High level algorithm:
  * 1. Get timing for SubVP pipe, phantom pipe, and DRR pipe
@@ -845,12 +836,7 @@ static bool subvp_subvp_schedulable(struct dc *dc, struct dc_state *context)
  * 3.If (SubVP Active - Prefetch > Stretched DRR frame + max(MALL region, Stretched DRR frame))
  * then report the configuration as supported
  *
- * @dc: current dc state
- * @context: new dc state
- * @drr_pipe: DRR pipe_ctx for the SubVP + DRR config
- *
- * Return:
- * bool - True if the SubVP + DRR config is schedulable, false otherwise
+ * Return: True if the SubVP + DRR config is schedulable, false otherwise
  */
 static bool subvp_drr_schedulable(struct dc *dc, struct dc_state *context, struct pipe_ctx *drr_pipe)
 {
@@ -914,7 +900,9 @@ static bool subvp_drr_schedulable(struct dc *dc, struct dc_state *context, struc
 
 
 /**
- * subvp_vblank_schedulable: Determine if SubVP + VBLANK config is schedulable
+ * subvp_vblank_schedulable - Determine if SubVP + VBLANK config is schedulable
+ * @dc: current dc state
+ * @context: new dc state
  *
  * High level algorithm:
  * 1. Get timing for SubVP pipe, phantom pipe, and VBLANK pipe
@@ -922,11 +910,7 @@ static bool subvp_drr_schedulable(struct dc *dc, struct dc_state *context, struc
  * then report the configuration as supported
  * 3. If the VBLANK display is DRR, then take the DRR static schedulability path
  *
- * @dc: current dc state
- * @context: new dc state
- *
- * Return:
- * bool - True if the SubVP + VBLANK/DRR config is schedulable, false otherwise
+ * Return: True if the SubVP + VBLANK/DRR config is schedulable, false otherwise
  */
 static bool subvp_vblank_schedulable(struct dc *dc, struct dc_state *context)
 {
@@ -1003,20 +987,18 @@ static bool subvp_vblank_schedulable(struct dc *dc, struct dc_state *context)
 }
 
 /**
- * subvp_validate_static_schedulability: Check which SubVP case is calculated and handle
- * static analysis based on the case.
+ * subvp_validate_static_schedulability - Check which SubVP case is calculated
+ * and handle static analysis based on the case.
+ * @dc: current dc state
+ * @context: new dc state
+ * @vlevel: Voltage level calculated by DML
  *
  * Three cases:
  * 1. SubVP + SubVP
  * 2. SubVP + VBLANK (DRR checked internally)
  * 3. SubVP + VACTIVE (currently unsupported)
  *
- * @dc: current dc state
- * @context: new dc state
- * @vlevel: Voltage level calculated by DML
- *
- * Return:
- * bool - True if statically schedulable, false otherwise
+ * Return: True if statically schedulable, false otherwise
  */
 static bool subvp_validate_static_schedulability(struct dc *dc,
 				struct dc_state *context,
@@ -2281,7 +2263,7 @@ static int build_synthetic_soc_states(struct clk_bw_params *bw_params,
 	return 0;
 }
 
-/**
+/*
  * dcn32_update_bw_bounding_box
  *
  * This would override some dcn3_2 ip_or_soc initial parameters hardcoded from
