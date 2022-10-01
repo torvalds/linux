@@ -107,6 +107,100 @@ struct mcs *mcs_get_pdata(int mcs_id)
 	return NULL;
 }
 
+void mcs_set_port_cfg(struct mcs *mcs, struct mcs_port_cfg_set_req *req)
+{
+	u64 val = 0;
+
+	mcs_reg_write(mcs, MCSX_PAB_RX_SLAVE_PORT_CFGX(req->port_id),
+		      req->port_mode & MCS_PORT_MODE_MASK);
+
+	req->cstm_tag_rel_mode_sel &= 0x3;
+
+	if (mcs->hw->mcs_blks > 1) {
+		req->fifo_skid &= MCS_PORT_FIFO_SKID_MASK;
+		val = (u32)req->fifo_skid << 0x10;
+		val |= req->fifo_skid;
+		mcs_reg_write(mcs, MCSX_PAB_RX_SLAVE_FIFO_SKID_CFGX(req->port_id), val);
+		mcs_reg_write(mcs, MCSX_PEX_TX_SLAVE_CUSTOM_TAG_REL_MODE_SEL(req->port_id),
+			      req->cstm_tag_rel_mode_sel);
+		val = mcs_reg_read(mcs, MCSX_PEX_RX_SLAVE_PEX_CONFIGURATION);
+
+		if (req->custom_hdr_enb)
+			val |= BIT_ULL(req->port_id);
+		else
+			val &= ~BIT_ULL(req->port_id);
+
+		mcs_reg_write(mcs, MCSX_PEX_RX_SLAVE_PEX_CONFIGURATION, val);
+	} else {
+		val = mcs_reg_read(mcs, MCSX_PEX_TX_SLAVE_PORT_CONFIG(req->port_id));
+		val |= (req->cstm_tag_rel_mode_sel << 2);
+		mcs_reg_write(mcs, MCSX_PEX_TX_SLAVE_PORT_CONFIG(req->port_id), val);
+	}
+}
+
+void mcs_get_port_cfg(struct mcs *mcs, struct mcs_port_cfg_get_req *req,
+		      struct mcs_port_cfg_get_rsp *rsp)
+{
+	u64 reg = 0;
+
+	rsp->port_mode = mcs_reg_read(mcs, MCSX_PAB_RX_SLAVE_PORT_CFGX(req->port_id)) &
+			 MCS_PORT_MODE_MASK;
+
+	if (mcs->hw->mcs_blks > 1) {
+		reg = MCSX_PAB_RX_SLAVE_FIFO_SKID_CFGX(req->port_id);
+		rsp->fifo_skid = mcs_reg_read(mcs, reg) & MCS_PORT_FIFO_SKID_MASK;
+		reg = MCSX_PEX_TX_SLAVE_CUSTOM_TAG_REL_MODE_SEL(req->port_id);
+		rsp->cstm_tag_rel_mode_sel = mcs_reg_read(mcs, reg) & 0x3;
+		if (mcs_reg_read(mcs, MCSX_PEX_RX_SLAVE_PEX_CONFIGURATION) & BIT_ULL(req->port_id))
+			rsp->custom_hdr_enb = 1;
+	} else {
+		reg = MCSX_PEX_TX_SLAVE_PORT_CONFIG(req->port_id);
+		rsp->cstm_tag_rel_mode_sel = mcs_reg_read(mcs, reg) >> 2;
+	}
+
+	rsp->port_id = req->port_id;
+	rsp->mcs_id = req->mcs_id;
+}
+
+void mcs_get_custom_tag_cfg(struct mcs *mcs, struct mcs_custom_tag_cfg_get_req *req,
+			    struct mcs_custom_tag_cfg_get_rsp *rsp)
+{
+	u64 reg = 0, val = 0;
+	u8 idx;
+
+	for (idx = 0; idx < MCS_MAX_CUSTOM_TAGS; idx++) {
+		if (mcs->hw->mcs_blks > 1)
+			reg  = (req->dir == MCS_RX) ? MCSX_PEX_RX_SLAVE_CUSTOM_TAGX(idx) :
+				MCSX_PEX_TX_SLAVE_CUSTOM_TAGX(idx);
+		else
+			reg = (req->dir == MCS_RX) ? MCSX_PEX_RX_SLAVE_VLAN_CFGX(idx) :
+				MCSX_PEX_TX_SLAVE_VLAN_CFGX(idx);
+
+		val = mcs_reg_read(mcs, reg);
+		if (mcs->hw->mcs_blks > 1) {
+			rsp->cstm_etype[idx] = val & GENMASK(15, 0);
+			rsp->cstm_indx[idx] = (val >> 0x16) & 0x3;
+			reg = (req->dir == MCS_RX) ? MCSX_PEX_RX_SLAVE_ETYPE_ENABLE :
+				MCSX_PEX_TX_SLAVE_ETYPE_ENABLE;
+			rsp->cstm_etype_en = mcs_reg_read(mcs, reg) & 0xFF;
+		} else {
+			rsp->cstm_etype[idx] = (val >> 0x1) & GENMASK(15, 0);
+			rsp->cstm_indx[idx] = (val >> 0x11) & 0x3;
+			rsp->cstm_etype_en |= (val & 0x1) << idx;
+		}
+	}
+
+	rsp->mcs_id = req->mcs_id;
+	rsp->dir = req->dir;
+}
+
+void mcs_reset_port(struct mcs *mcs, u8 port_id, u8 reset)
+{
+	u64 reg = MCSX_MCS_TOP_SLAVE_PORT_RESET(port_id);
+
+	mcs_reg_write(mcs, reg, reset & 0x1);
+}
+
 /* Set lmac to bypass/operational mode */
 void mcs_set_lmac_mode(struct mcs *mcs, int lmac_id, u8 mode)
 {

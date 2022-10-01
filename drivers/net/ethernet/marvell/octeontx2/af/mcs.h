@@ -17,6 +17,10 @@
 
 #define MCS_ID_MASK			0x7
 
+#define MCS_PORT_MODE_MASK		0x3
+#define MCS_PORT_FIFO_SKID_MASK		0x3F
+#define MCS_MAX_CUSTOM_TAGS		0x8
+
 /* Reserved resources for default bypass entry */
 #define MCS_RSRC_RSVD_CNT		1
 
@@ -79,6 +83,12 @@ int mcs_set_lmac_channels(int mcs_id, u16 base);
 
 int mcs_install_flowid_bypass_entry(struct mcs *mcs);
 void mcs_set_lmac_mode(struct mcs *mcs, int lmac_id, u8 mode);
+void mcs_reset_port(struct mcs *mcs, u8 port_id, u8 reset);
+void mcs_set_port_cfg(struct mcs *mcs, struct mcs_port_cfg_set_req *req);
+void mcs_get_port_cfg(struct mcs *mcs, struct mcs_port_cfg_get_req *req,
+		      struct mcs_port_cfg_get_rsp *rsp);
+void mcs_get_custom_tag_cfg(struct mcs *mcs, struct mcs_custom_tag_cfg_get_req *req,
+			    struct mcs_custom_tag_cfg_get_rsp *rsp);
 
 /* CN10K-B APIs */
 void cn10kb_mcs_set_hw_capabilities(struct mcs *mcs);
