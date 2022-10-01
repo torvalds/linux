@@ -121,7 +121,6 @@ void rtl92e_ips_enter(struct net_device *dev)
 		(priv->rtllib->state != RTLLIB_LINKED) &&
 		(priv->rtllib->iw_mode != IW_MODE_MASTER)) {
 		pPSC->eInactivePowerState = rf_off;
-		priv->isRFOff = true;
 		_rtl92e_ps_update_rf_state(dev);
 	}
 }

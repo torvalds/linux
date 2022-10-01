@@ -474,7 +474,6 @@ struct r8192_priv {
 	u16 ChannelPlan;
 
 	bool RegRfOff;
-	bool isRFOff;
 	u8 bHwRfOffAction;
 
 	bool rf_change_in_progress;
