@@ -22,6 +22,7 @@ properties:
           - enum:
               - qcom,pronto-v1-pil
               - qcom,pronto-v2-pil
+              - qcom,pronto-v3-pil
           - const: qcom,pronto
       - const: qcom,riva-pil
 
@@ -194,6 +195,21 @@ allOf:
         vddcx-supply:
           deprecated: true
           description: Deprecated for qcom,pronto-v1/2-pil
+
+      required:
+        - power-domains
+        - power-domain-names
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pronto-v3-pil
+    then:
+      properties:
+        vddmx-supply: false
+        vddcx-supply: false
 
       required:
         - power-domains
