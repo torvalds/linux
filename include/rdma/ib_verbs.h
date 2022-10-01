@@ -4334,7 +4334,7 @@ static inline int ib_check_mr_access(struct ib_device *ib_dev,
 
 	if (flags & IB_ACCESS_ON_DEMAND &&
 	    !(ib_dev->attrs.kernel_cap_flags & IBK_ON_DEMAND_PAGING))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	return 0;
 }
 
