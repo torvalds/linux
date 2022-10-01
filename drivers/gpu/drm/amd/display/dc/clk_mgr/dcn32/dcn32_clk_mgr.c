@@ -342,8 +342,8 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 		if (should_update_pstate_support(safe_to_lower, fclk_p_state_change_support, clk_mgr_base->clks.fclk_p_state_change_support)) {
 			clk_mgr_base->clks.fclk_p_state_change_support = fclk_p_state_change_support;
 
-			/* To enable FCLK P-state switching, send FCLK_PSTATE_NOTSUPPORTED message to PMFW */
-			if (clk_mgr_base->ctx->dce_version != DCN_VERSION_3_21 && clk_mgr_base->clks.fclk_p_state_change_support && update_fclk) {
+			/* To enable FCLK P-state switching, send FCLK_PSTATE_SUPPORTED message to PMFW */
+			if (clk_mgr_base->ctx->dce_version != DCN_VERSION_3_21 && clk_mgr_base->clks.fclk_p_state_change_support) {
 				/* Handle the code for sending a message to PMFW that FCLK P-state change is supported */
 				dcn32_smu_send_fclk_pstate_message(clk_mgr, FCLK_PSTATE_SUPPORTED);
 			}
