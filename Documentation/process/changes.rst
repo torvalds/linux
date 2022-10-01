@@ -31,7 +31,7 @@ you probably needn't concern yourself with pcmciautils.
 ====================== ===============  ========================================
 GNU C                  5.1              gcc --version
 Clang/LLVM (optional)  11.0.0           clang --version
-GNU make               3.81             make --version
+GNU make               3.82             make --version
 bash                   4.2              bash --version
 binutils               2.23             ld -v
 flex                   2.5.35           flex --version
@@ -83,7 +83,7 @@ docs on :ref:`Building Linux with Clang/LLVM <kbuild_llvm>`.
 Make
 ----
 
-You will need GNU make 3.81 or later to build the kernel.
+You will need GNU make 3.82 or later to build the kernel.
 
 Bash
 ----
