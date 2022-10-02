@@ -725,11 +725,18 @@ static ssize_t bch2_btree_deadlock_read(struct file *file, char __user *buf,
 		goto out;
 
 	mutex_lock(&c->btree_trans_lock);
-	list_for_each_entry(trans, &c->btree_trans_list, list)
-		if (bch2_check_for_deadlock(trans, &i->buf)) {
-			i->iter = 1;
-			break;
-		}
+	list_for_each_entry(trans, &c->btree_trans_list, list) {
+		if (trans->locking_wait.task->pid <= i->iter)
+			continue;
+
+		ret = flush_buf(i);
+		if (ret)
+			return ret;
+
+		bch2_check_for_deadlock(trans, &i->buf);
+
+		i->iter = trans->locking_wait.task->pid;
+	}
 	mutex_unlock(&c->btree_trans_lock);
 out:
 	if (i->buf.allocation_failure)

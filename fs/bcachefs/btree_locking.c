@@ -71,11 +71,6 @@ struct lock_graph {
 	unsigned			nr;
 };
 
-static void lock_graph_pop(struct lock_graph *g)
-{
-	closure_put(&g->g[--g->nr].trans->ref);
-}
-
 static noinline void print_cycle(struct printbuf *out, struct lock_graph *g)
 {
 	struct trans_waiting_for_lock *i;
@@ -85,6 +80,18 @@ static noinline void print_cycle(struct printbuf *out, struct lock_graph *g)
 
 	for (i = g->g; i < g->g + g->nr; i++)
 		bch2_btree_trans_to_text(out, i->trans);
+}
+
+static noinline void print_chain(struct printbuf *out, struct lock_graph *g)
+{
+	struct trans_waiting_for_lock *i;
+
+	for (i = g->g; i != g->g + g->nr; i++) {
+		if (i != g->g)
+			prt_str(out, "<- ");
+		prt_printf(out, "%u ", i->trans->locking_wait.task->pid);
+	}
+	prt_newline(out);
 }
 
 static int abort_lock(struct lock_graph *g, struct trans_waiting_for_lock *i)
@@ -134,6 +141,21 @@ static noinline int break_cycle(struct lock_graph *g)
 	BUG();
 }
 
+static void lock_graph_pop(struct lock_graph *g)
+{
+	closure_put(&g->g[--g->nr].trans->ref);
+}
+
+static void lock_graph_pop_above(struct lock_graph *g, struct trans_waiting_for_lock *above,
+				 struct printbuf *cycle)
+{
+	if (g->nr > 1 && cycle)
+		print_chain(cycle, g);
+
+	while (g->g + g->nr > above)
+		lock_graph_pop(g);
+}
+
 static int lock_graph_descend(struct lock_graph *g, struct btree_trans *trans,
 			      struct printbuf *cycle)
 {
@@ -142,11 +164,10 @@ static int lock_graph_descend(struct lock_graph *g, struct btree_trans *trans,
 	int ret = 0;
 
 	for (i = g->g; i < g->g + g->nr; i++) {
-		if (i->trans->locking != i->node_want)
-			while (g->g + g->nr >= i) {
-				lock_graph_pop(g);
-				return 0;
-			}
+		if (i->trans->locking != i->node_want) {
+			lock_graph_pop_above(g, i - 1, cycle);
+			return 0;
+		}
 
 		if (i->trans == trans) {
 			if (cycle) {
@@ -185,20 +206,19 @@ static int lock_graph_descend(struct lock_graph *g, struct btree_trans *trans,
 
 	return 0;
 deadlock:
-	while (g->nr)
-		lock_graph_pop(g);
+	lock_graph_pop_above(g, g->g, cycle);
 	return ret;
 }
 
-static noinline void lock_graph_remove_non_waiters(struct lock_graph *g)
+static noinline void lock_graph_remove_non_waiters(struct lock_graph *g,
+						   struct printbuf *cycle)
 {
 	struct trans_waiting_for_lock *i;
 
 	for (i = g->g + 1; i < g->g + g->nr; i++)
 		if (i->trans->locking != i->node_want ||
 		    i->trans->locking_wait.start_time != i[-1].lock_start_time) {
-			while (g->g + g->nr >= i)
-				lock_graph_pop(g);
+			lock_graph_pop_above(g, i - 1, cycle);
 			return;
 		}
 	BUG();
@@ -252,7 +272,7 @@ next:
 			b = &READ_ONCE(path->l[top->level].b)->c;
 
 			if (unlikely(IS_ERR_OR_NULL(b))) {
-				lock_graph_remove_non_waiters(&g);
+				lock_graph_remove_non_waiters(&g, cycle);
 				goto next;
 			}
 
@@ -286,6 +306,8 @@ next:
 		}
 	}
 
+	if (g.nr > 1 && cycle)
+		print_chain(cycle, &g);
 	lock_graph_pop(&g);
 	goto next;
 }
