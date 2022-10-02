@@ -91,6 +91,13 @@ u8 mlx5e_mpwrq_pages_per_wqe(struct mlx5_core_dev *mdev, u8 page_shift,
 
 	pages_per_wqe = log_wqe_sz > page_shift ? (1 << (log_wqe_sz - page_shift)) : 1;
 
+	/* Two MTTs are needed to form an octword. The number of MTTs is encoded
+	 * in octwords in a UMR WQE, so we need at least two to avoid mapping
+	 * garbage addresses.
+	 */
+	if (WARN_ON_ONCE(pages_per_wqe < 2 && umr_mode == MLX5E_MPWRQ_UMR_MODE_ALIGNED))
+		pages_per_wqe = 2;
+
 	/* Sanity check for further calculations to succeed. */
 	BUILD_BUG_ON(MLX5_MPWRQ_MAX_PAGES_PER_WQE > 64);
 	if (WARN_ON_ONCE(pages_per_wqe > MLX5_MPWRQ_MAX_PAGES_PER_WQE))
@@ -131,7 +138,8 @@ u8 mlx5e_mpwrq_mtts_per_wqe(struct mlx5_core_dev *mdev, u8 page_shift,
 	 * MTU. These oversize packets are dropped by the driver at a later
 	 * stage.
 	 */
-	return MLX5_ALIGN_MTTS(pages_per_wqe + 1);
+	return ALIGN(pages_per_wqe + 1,
+		     MLX5_SEND_WQE_BB / mlx5e_mpwrq_umr_entry_size(umr_mode));
 }
 
 u32 mlx5e_mpwrq_max_num_entries(struct mlx5_core_dev *mdev,

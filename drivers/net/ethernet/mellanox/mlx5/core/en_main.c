@@ -205,14 +205,11 @@ static void mlx5e_disable_blocking_events(struct mlx5e_priv *priv)
 
 static u16 mlx5e_mpwrq_umr_octowords(u32 entries, enum mlx5e_mpwrq_umr_mode umr_mode)
 {
-	switch (umr_mode) {
-	case MLX5E_MPWRQ_UMR_MODE_ALIGNED:
-		return MLX5_MTT_OCTW(entries);
-	case MLX5E_MPWRQ_UMR_MODE_UNALIGNED:
-		return MLX5_KSM_OCTW(entries);
-	}
-	WARN_ONCE(1, "MPWRQ UMR mode %d is not known\n", umr_mode);
-	return 0;
+	u8 umr_entry_size = mlx5e_mpwrq_umr_entry_size(umr_mode);
+
+	WARN_ON_ONCE(entries * umr_entry_size % MLX5_OCTWORD);
+
+	return entries * umr_entry_size / MLX5_OCTWORD;
 }
 
 static inline void mlx5e_build_umr_wqe(struct mlx5e_rq *rq,

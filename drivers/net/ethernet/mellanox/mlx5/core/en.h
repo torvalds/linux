@@ -109,12 +109,8 @@ struct page_pool;
 #define MLX5_MPWRQ_MAX_PAGES_PER_WQE \
 	rounddown_pow_of_two(MLX5_UMR_MAX_MTT_SPACE / sizeof(struct mlx5_mtt))
 
-#define MLX5_ALIGN_MTTS(mtts)		(ALIGN(mtts, 8))
-#define MLX5_ALIGNED_MTTS_OCTW(mtts)	((mtts) / 2)
-#define MLX5_MTT_OCTW(mtts)		(MLX5_ALIGNED_MTTS_OCTW(MLX5_ALIGN_MTTS(mtts)))
-#define MLX5_KSM_OCTW(ksms)             (ksms)
 #define MLX5E_MAX_RQ_NUM_MTTS	\
-	(ALIGN_DOWN(U16_MAX, 4) * 2) /* So that MLX5_MTT_OCTW(num_mtts) fits into u16 */
+	(ALIGN_DOWN(U16_MAX, 4) * 2) /* Fits into u16 and aligned by WQEBB. */
 #define MLX5E_MAX_RQ_NUM_KSMS (U16_MAX - 1) /* So that num_ksms fits into u16. */
 #define MLX5E_ORDER2_MAX_PACKET_MTU (order_base_2(10 * 1024))
 

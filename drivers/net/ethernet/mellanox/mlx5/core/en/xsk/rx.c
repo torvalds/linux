@@ -66,9 +66,10 @@ int mlx5e_xsk_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	umr_wqe->ctrl.opmod_idx_opcode =
 		cpu_to_be32((icosq->pc << MLX5_WQE_CTRL_WQE_INDEX_SHIFT) | MLX5_OPCODE_UMR);
 
+	/* Optimized for speed: keep in sync with mlx5e_mpwrq_umr_entry_size. */
 	offset = ix * rq->mpwqe.mtts_per_wqe;
 	if (likely(rq->mpwqe.umr_mode == MLX5E_MPWRQ_UMR_MODE_ALIGNED))
-		offset = MLX5_ALIGNED_MTTS_OCTW(offset);
+		offset = offset * sizeof(struct mlx5_mtt) / MLX5_OCTWORD;
 	umr_wqe->uctrl.xlt_offset = cpu_to_be16(offset);
 
 	icosq->db.wqe_info[pi] = (struct mlx5e_icosq_wqe_info) {
