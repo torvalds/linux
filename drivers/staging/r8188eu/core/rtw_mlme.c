@@ -224,7 +224,6 @@ int rtw_init_mlme_priv(struct adapter *padapter)/* struct	mlme_priv *pmlmepriv) 
 	u8	*pbuf;
 	struct wlan_network	*pnetwork;
 	struct mlme_priv		*pmlmepriv = &padapter->mlmepriv;
-	int	res = _SUCCESS;
 
 	/*  We don't need to memset padapter->XXX to zero, because adapter is allocated by vzalloc(). */
 
@@ -245,10 +244,9 @@ int rtw_init_mlme_priv(struct adapter *padapter)/* struct	mlme_priv *pmlmepriv) 
 
 	pbuf = vzalloc(MAX_BSS_CNT * (sizeof(struct wlan_network)));
 
-	if (!pbuf) {
-		res = _FAIL;
-		goto exit;
-	}
+	if (!pbuf)
+		return -ENOMEM;
+
 	pmlmepriv->free_bss_buf = pbuf;
 
 	pnetwork = (struct wlan_network *)pbuf;
@@ -265,9 +263,7 @@ int rtw_init_mlme_priv(struct adapter *padapter)/* struct	mlme_priv *pmlmepriv) 
 
 	rtw_init_mlme_timer(padapter);
 
-exit:
-
-	return res;
+	return 0;
 }
 
 void rtw_free_mlme_priv(struct mlme_priv *pmlmepriv)

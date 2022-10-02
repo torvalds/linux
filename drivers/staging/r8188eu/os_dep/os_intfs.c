@@ -473,7 +473,7 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 		goto free_cmd_priv;
 	}
 
-	if (rtw_init_mlme_priv(padapter) == _FAIL) {
+	if (rtw_init_mlme_priv(padapter)) {
 		dev_err(dvobj_to_dev(padapter->dvobj), "rtw_init_mlme_priv failed\n");
 		goto free_evt_priv;
 	}
