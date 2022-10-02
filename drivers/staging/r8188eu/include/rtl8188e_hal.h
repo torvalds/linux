@@ -14,7 +14,6 @@
 #include "rtl8188e_xmit.h"
 #include "rtl8188e_cmd.h"
 #include "rtw_efuse.h"
-#include "odm_types.h"
 #include "odm.h"
 #include "odm_HWConfig.h"
 #include "odm_RegDefine11N.h"

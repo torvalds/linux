@@ -119,7 +119,8 @@ enum odm_ability_def {
 	ODM_BB_PWR_TRA			= BIT(8),
 };
 
-# define ODM_ITRF_USB 0x2
+#define ODM_ITRF_USB	0x2
+#define ODM_CE		0x04
 
 /*  ODM_CMNINFO_WM_MODE */
 enum odm_wireless_mode {
