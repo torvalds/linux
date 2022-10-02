@@ -15,7 +15,7 @@ Supported devices:
 
   Corsair HX850i
 
-  Corsair HX1000i
+  Corsair HX1000i (revision 1 and 2)
 
   Corsair HX1200i
 
