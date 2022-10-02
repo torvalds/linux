@@ -760,11 +760,6 @@ enum dmub_cmd_dpia_type {
 	DMUB_CMD__DPIA_MST_ALLOC_SLOTS = 2,
 };
 
-enum dmub_cmd_header_sub_type {
-	DMUB_CMD__SUB_TYPE_GENERAL         = 0,
-	DMUB_CMD__SUB_TYPE_CURSOR_POSITION = 1
-};
-
 #pragma pack(push, 1)
 
 /**
@@ -2089,7 +2084,99 @@ struct dmub_rb_cmd_update_dirty_rect {
 /**
  * Data passed from driver to FW in a DMUB_CMD__UPDATE_CURSOR_INFO command.
  */
-struct dmub_cmd_update_cursor_info_data {
+union dmub_reg_cursor_control_cfg {
+	struct {
+		uint32_t     cur_enable: 1;
+		uint32_t         reser0: 3;
+		uint32_t cur_2x_magnify: 1;
+		uint32_t         reser1: 3;
+		uint32_t           mode: 3;
+		uint32_t         reser2: 5;
+		uint32_t          pitch: 2;
+		uint32_t         reser3: 6;
+		uint32_t line_per_chunk: 5;
+		uint32_t         reser4: 3;
+	} bits;
+	uint32_t raw;
+};
+struct dmub_cursor_position_cache_hubp {
+	union dmub_reg_cursor_control_cfg cur_ctl;
+	union dmub_reg_position_cfg {
+		struct {
+			uint32_t cur_x_pos: 16;
+			uint32_t cur_y_pos: 16;
+		} bits;
+		uint32_t raw;
+	} position;
+	union dmub_reg_hot_spot_cfg {
+		struct {
+			uint32_t hot_x: 16;
+			uint32_t hot_y: 16;
+		} bits;
+		uint32_t raw;
+	} hot_spot;
+	union dmub_reg_dst_offset_cfg {
+		struct {
+			uint32_t dst_x_offset: 13;
+			uint32_t reserved: 19;
+		} bits;
+		uint32_t raw;
+	} dst_offset;
+};
+
+union dmub_reg_cur0_control_cfg {
+	struct {
+		uint32_t     cur0_enable: 1;
+		uint32_t  expansion_mode: 1;
+		uint32_t          reser0: 1;
+		uint32_t     cur0_rom_en: 1;
+		uint32_t            mode: 3;
+		uint32_t        reserved: 25;
+	} bits;
+	uint32_t raw;
+};
+struct dmub_cursor_position_cache_dpp {
+	union dmub_reg_cur0_control_cfg cur0_ctl;
+};
+struct dmub_cursor_position_cfg {
+	struct  dmub_cursor_position_cache_hubp pHubp;
+	struct  dmub_cursor_position_cache_dpp  pDpp;
+	uint8_t pipe_idx;
+	/*
+	 * Padding is required. To be 4 Bytes Aligned.
+	 */
+	uint8_t padding[3];
+};
+
+struct dmub_cursor_attribute_cache_hubp {
+	uint32_t SURFACE_ADDR_HIGH;
+	uint32_t SURFACE_ADDR;
+	union    dmub_reg_cursor_control_cfg  cur_ctl;
+	union    dmub_reg_cursor_size_cfg {
+		struct {
+			uint32_t width: 16;
+			uint32_t height: 16;
+		} bits;
+		uint32_t raw;
+	} size;
+	union    dmub_reg_cursor_settings_cfg {
+		struct {
+			uint32_t     dst_y_offset: 8;
+			uint32_t chunk_hdl_adjust: 2;
+			uint32_t         reserved: 22;
+		} bits;
+		uint32_t raw;
+	} settings;
+};
+struct dmub_cursor_attribute_cache_dpp {
+	union dmub_reg_cur0_control_cfg cur0_ctl;
+};
+struct dmub_cursor_attributes_cfg {
+	struct  dmub_cursor_attribute_cache_hubp aHubp;
+	struct  dmub_cursor_attribute_cache_dpp  aDpp;
+};
+
+struct dmub_cmd_update_cursor_payload0 {
 	/**
 	 * Cursor dirty rects.
 	 */
@@ -2116,6 +2203,20 @@ struct dmub_cmd_update_cursor_info_data {
 	 * Currently the support is only for 0 or 1
 	 */
 	uint8_t panel_inst;
+	/**
+	 * Cursor Position Register.
+	 * Registers contains Hubp & Dpp modules
+	 */
+	struct dmub_cursor_position_cfg position_cfg;
+};
+
+struct dmub_cmd_update_cursor_payload1 {
+	struct dmub_cursor_attributes_cfg attribute_cfg;
+};
+
+union dmub_cmd_update_cursor_info_data {
+	struct dmub_cmd_update_cursor_payload0 payload0;
+	struct dmub_cmd_update_cursor_payload1 payload1;
 };
 /**
  * Definition of a DMUB_CMD__UPDATE_CURSOR_INFO command.
@@ -2128,7 +2229,7 @@ struct dmub_rb_cmd_update_cursor_info {
 	/**
 	 * Data passed from driver to FW in a DMUB_CMD__UPDATE_CURSOR_INFO command.
 	 */
-	struct dmub_cmd_update_cursor_info_data update_cursor_info_data;
+	union dmub_cmd_update_cursor_info_data update_cursor_info_data;
 };
 
 /**
