@@ -192,17 +192,12 @@
 
 #define SYS_ID_AA64PFR0_EL1		sys_reg(3, 0, 0, 4, 0)
 #define SYS_ID_AA64PFR1_EL1		sys_reg(3, 0, 0, 4, 1)
-#define SYS_ID_AA64ZFR0_EL1		sys_reg(3, 0, 0, 4, 4)
-#define SYS_ID_AA64SMFR0_EL1		sys_reg(3, 0, 0, 4, 5)
 
 #define SYS_ID_AA64DFR0_EL1		sys_reg(3, 0, 0, 5, 0)
 #define SYS_ID_AA64DFR1_EL1		sys_reg(3, 0, 0, 5, 1)
 
 #define SYS_ID_AA64AFR0_EL1		sys_reg(3, 0, 0, 5, 4)
 #define SYS_ID_AA64AFR1_EL1		sys_reg(3, 0, 0, 5, 5)
-
-#define SYS_ID_AA64ISAR1_EL1		sys_reg(3, 0, 0, 6, 1)
-#define SYS_ID_AA64ISAR2_EL1		sys_reg(3, 0, 0, 6, 2)
 
 #define SYS_ID_AA64MMFR0_EL1		sys_reg(3, 0, 0, 7, 0)
 #define SYS_ID_AA64MMFR1_EL1		sys_reg(3, 0, 0, 7, 1)
@@ -410,12 +405,6 @@
 #define SYS_MAIR_EL1			sys_reg(3, 0, 10, 2, 0)
 #define SYS_AMAIR_EL1			sys_reg(3, 0, 10, 3, 0)
 
-#define SYS_LORSA_EL1			sys_reg(3, 0, 10, 4, 0)
-#define SYS_LOREA_EL1			sys_reg(3, 0, 10, 4, 1)
-#define SYS_LORN_EL1			sys_reg(3, 0, 10, 4, 2)
-#define SYS_LORC_EL1			sys_reg(3, 0, 10, 4, 3)
-#define SYS_LORID_EL1			sys_reg(3, 0, 10, 4, 7)
-
 #define SYS_VBAR_EL1			sys_reg(3, 0, 12, 0, 0)
 #define SYS_DISR_EL1			sys_reg(3, 0, 12, 1, 1)
 
@@ -454,15 +443,11 @@
 #define SYS_CNTKCTL_EL1			sys_reg(3, 0, 14, 1, 0)
 
 #define SYS_CCSIDR_EL1			sys_reg(3, 1, 0, 0, 0)
-#define SYS_GMID_EL1			sys_reg(3, 1, 0, 0, 4)
 #define SYS_AIDR_EL1			sys_reg(3, 1, 0, 0, 7)
 
 #define SMIDR_EL1_IMPLEMENTER_SHIFT	24
 #define SMIDR_EL1_SMPS_SHIFT	15
 #define SMIDR_EL1_AFFINITY_SHIFT	0
-
-#define SYS_CTR_EL0			sys_reg(3, 3, 0, 0, 1)
-#define SYS_DCZID_EL0			sys_reg(3, 3, 0, 0, 7)
 
 #define SYS_RNDR_EL0			sys_reg(3, 3, 2, 4, 0)
 #define SYS_RNDRRS_EL0			sys_reg(3, 3, 2, 4, 1)
@@ -704,66 +689,6 @@
 /* Position the attr at the correct index */
 #define MAIR_ATTRIDX(attr, idx)		((attr) << ((idx) * 8))
 
-/* id_aa64isar1 */
-#define ID_AA64ISAR1_I8MM_SHIFT		52
-#define ID_AA64ISAR1_DGH_SHIFT		48
-#define ID_AA64ISAR1_BF16_SHIFT		44
-#define ID_AA64ISAR1_SPECRES_SHIFT	40
-#define ID_AA64ISAR1_SB_SHIFT		36
-#define ID_AA64ISAR1_FRINTTS_SHIFT	32
-#define ID_AA64ISAR1_GPI_SHIFT		28
-#define ID_AA64ISAR1_GPA_SHIFT		24
-#define ID_AA64ISAR1_LRCPC_SHIFT	20
-#define ID_AA64ISAR1_FCMA_SHIFT		16
-#define ID_AA64ISAR1_JSCVT_SHIFT	12
-#define ID_AA64ISAR1_API_SHIFT		8
-#define ID_AA64ISAR1_APA_SHIFT		4
-#define ID_AA64ISAR1_DPB_SHIFT		0
-
-#define ID_AA64ISAR1_APA_NI			0x0
-#define ID_AA64ISAR1_APA_ARCHITECTED		0x1
-#define ID_AA64ISAR1_APA_ARCH_EPAC		0x2
-#define ID_AA64ISAR1_APA_ARCH_EPAC2		0x3
-#define ID_AA64ISAR1_APA_ARCH_EPAC2_FPAC	0x4
-#define ID_AA64ISAR1_APA_ARCH_EPAC2_FPAC_CMB	0x5
-#define ID_AA64ISAR1_API_NI			0x0
-#define ID_AA64ISAR1_API_IMP_DEF		0x1
-#define ID_AA64ISAR1_API_IMP_DEF_EPAC		0x2
-#define ID_AA64ISAR1_API_IMP_DEF_EPAC2		0x3
-#define ID_AA64ISAR1_API_IMP_DEF_EPAC2_FPAC	0x4
-#define ID_AA64ISAR1_API_IMP_DEF_EPAC2_FPAC_CMB	0x5
-#define ID_AA64ISAR1_GPA_NI			0x0
-#define ID_AA64ISAR1_GPA_ARCHITECTED		0x1
-#define ID_AA64ISAR1_GPI_NI			0x0
-#define ID_AA64ISAR1_GPI_IMP_DEF		0x1
-
-/* id_aa64isar2 */
-#define ID_AA64ISAR2_CLEARBHB_SHIFT	28
-#define ID_AA64ISAR2_APA3_SHIFT		12
-#define ID_AA64ISAR2_GPA3_SHIFT		8
-#define ID_AA64ISAR2_RPRES_SHIFT	4
-#define ID_AA64ISAR2_WFXT_SHIFT		0
-
-#define ID_AA64ISAR2_RPRES_8BIT		0x0
-#define ID_AA64ISAR2_RPRES_12BIT	0x1
-/*
- * Value 0x1 has been removed from the architecture, and is
- * reserved, but has not yet been removed from the ARM ARM
- * as of ARM DDI 0487G.b.
- */
-#define ID_AA64ISAR2_WFXT_NI		0x0
-#define ID_AA64ISAR2_WFXT_SUPPORTED	0x2
-
-#define ID_AA64ISAR2_APA3_NI			0x0
-#define ID_AA64ISAR2_APA3_ARCHITECTED		0x1
-#define ID_AA64ISAR2_APA3_ARCH_EPAC		0x2
-#define ID_AA64ISAR2_APA3_ARCH_EPAC2		0x3
-#define ID_AA64ISAR2_APA3_ARCH_EPAC2_FPAC	0x4
-#define ID_AA64ISAR2_APA3_ARCH_EPAC2_FPAC_CMB	0x5
-
-#define ID_AA64ISAR2_GPA3_NI			0x0
-#define ID_AA64ISAR2_GPA3_ARCHITECTED		0x1
-
 /* id_aa64pfr0 */
 #define ID_AA64PFR0_CSV3_SHIFT		60
 #define ID_AA64PFR0_CSV2_SHIFT		56
@@ -810,45 +735,6 @@
 #define ID_AA64PFR1_MTE_EL0		0x1
 #define ID_AA64PFR1_MTE			0x2
 #define ID_AA64PFR1_MTE_ASYMM		0x3
-
-/* id_aa64zfr0 */
-#define ID_AA64ZFR0_F64MM_SHIFT		56
-#define ID_AA64ZFR0_F32MM_SHIFT		52
-#define ID_AA64ZFR0_I8MM_SHIFT		44
-#define ID_AA64ZFR0_SM4_SHIFT		40
-#define ID_AA64ZFR0_SHA3_SHIFT		32
-#define ID_AA64ZFR0_BF16_SHIFT		20
-#define ID_AA64ZFR0_BITPERM_SHIFT	16
-#define ID_AA64ZFR0_AES_SHIFT		4
-#define ID_AA64ZFR0_SVEVER_SHIFT	0
-
-#define ID_AA64ZFR0_F64MM		0x1
-#define ID_AA64ZFR0_F32MM		0x1
-#define ID_AA64ZFR0_I8MM		0x1
-#define ID_AA64ZFR0_BF16		0x1
-#define ID_AA64ZFR0_SM4			0x1
-#define ID_AA64ZFR0_SHA3		0x1
-#define ID_AA64ZFR0_BITPERM		0x1
-#define ID_AA64ZFR0_AES			0x1
-#define ID_AA64ZFR0_AES_PMULL		0x2
-#define ID_AA64ZFR0_SVEVER_SVE2		0x1
-
-/* id_aa64smfr0 */
-#define ID_AA64SMFR0_FA64_SHIFT		63
-#define ID_AA64SMFR0_I16I64_SHIFT	52
-#define ID_AA64SMFR0_F64F64_SHIFT	48
-#define ID_AA64SMFR0_I8I32_SHIFT	36
-#define ID_AA64SMFR0_F16F32_SHIFT	35
-#define ID_AA64SMFR0_B16F32_SHIFT	34
-#define ID_AA64SMFR0_F32F32_SHIFT	32
-
-#define ID_AA64SMFR0_FA64		0x1
-#define ID_AA64SMFR0_I16I64		0xf
-#define ID_AA64SMFR0_F64F64		0x1
-#define ID_AA64SMFR0_I8I32		0xf
-#define ID_AA64SMFR0_F16F32		0x1
-#define ID_AA64SMFR0_B16F32		0x1
-#define ID_AA64SMFR0_F32F32		0x1
 
 /* id_aa64mmfr0 */
 #define ID_AA64MMFR0_ECV_SHIFT		60
@@ -902,6 +788,7 @@
 
 /* id_aa64mmfr1 */
 #define ID_AA64MMFR1_ECBHB_SHIFT	60
+#define ID_AA64MMFR1_TIDCP1_SHIFT	52
 #define ID_AA64MMFR1_HCX_SHIFT		40
 #define ID_AA64MMFR1_AFP_SHIFT		44
 #define ID_AA64MMFR1_ETS_SHIFT		36
@@ -917,6 +804,9 @@
 
 #define ID_AA64MMFR1_VMIDBITS_8		0
 #define ID_AA64MMFR1_VMIDBITS_16	2
+
+#define ID_AA64MMFR1_TIDCP1_NI		0
+#define ID_AA64MMFR1_TIDCP1_IMP		1
 
 /* id_aa64mmfr2 */
 #define ID_AA64MMFR2_E0PD_SHIFT		60
@@ -1084,9 +974,6 @@
 #define MVFR2_FPMISC_SHIFT		4
 #define MVFR2_SIMDMISC_SHIFT		0
 
-#define DCZID_DZP_SHIFT			4
-#define DCZID_BS_SHIFT			0
-
 #define CPACR_EL1_FPEN_EL1EN	(BIT(20)) /* enable EL1 access */
 #define CPACR_EL1_FPEN_EL0EN	(BIT(21)) /* enable EL0 access, if EL1EN set */
 
@@ -1121,8 +1008,8 @@
 #define SYS_RGSR_EL1_SEED_MASK	0xffffUL
 
 /* GMID_EL1 field definitions */
-#define SYS_GMID_EL1_BS_SHIFT	0
-#define SYS_GMID_EL1_BS_SIZE	4
+#define GMID_EL1_BS_SHIFT	0
+#define GMID_EL1_BS_SIZE	4
 
 /* TFSR{,E0}_EL1 bit definitions */
 #define SYS_TFSR_EL1_TF0_SHIFT	0
@@ -1229,6 +1116,7 @@
 
 #else
 
+#include <linux/bitfield.h>
 #include <linux/build_bug.h>
 #include <linux/types.h>
 #include <asm/alternative.h>
@@ -1322,12 +1210,15 @@
 	par;								\
 })
 
-#endif
+#define SYS_FIELD_GET(reg, field, val)		\
+		 FIELD_GET(reg##_##field##_MASK, val)
 
 #define SYS_FIELD_PREP(reg, field, val)		\
 		 FIELD_PREP(reg##_##field##_MASK, val)
 
 #define SYS_FIELD_PREP_ENUM(reg, field, val)		\
 		 FIELD_PREP(reg##_##field##_MASK, reg##_##field##_##val)
+
+#endif
 
 #endif	/* __ASM_SYSREG_H */

@@ -20,25 +20,16 @@
 #define PMT_XA_MAX		INT_MAX
 #define PMT_XA_LIMIT		XA_LIMIT(PMT_XA_START, PMT_XA_MAX)
 
-/*
- * Early implementations of PMT on client platforms have some
- * differences from the server platforms (which use the Out Of Band
- * Management Services Module OOBMSM). This list tracks those
- * platforms as needed to handle those differences. Newer client
- * platforms are expected to be fully compatible with server.
- */
-static const struct pci_device_id pmt_telem_early_client_pci_ids[] = {
-	{ PCI_VDEVICE(INTEL, 0x467d) }, /* ADL */
-	{ PCI_VDEVICE(INTEL, 0x490e) }, /* DG1 */
-	{ PCI_VDEVICE(INTEL, 0x9a0d) }, /* TGL */
-	{ }
-};
-
 bool intel_pmt_is_early_client_hw(struct device *dev)
 {
-	struct pci_dev *parent = to_pci_dev(dev->parent);
+	struct intel_vsec_device *ivdev = dev_to_ivdev(dev);
 
-	return !!pci_match_id(pmt_telem_early_client_pci_ids, parent);
+	/*
+	 * Early implementations of PMT on client platforms have some
+	 * differences from the server platforms (which use the Out Of Band
+	 * Management Services Module OOBMSM).
+	 */
+	return !!(ivdev->info->quirks & VSEC_QUIRK_EARLY_HW);
 }
 EXPORT_SYMBOL_GPL(intel_pmt_is_early_client_hw);
 

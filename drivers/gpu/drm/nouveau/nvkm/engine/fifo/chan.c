@@ -272,36 +272,6 @@ nvkm_fifo_chan_map(struct nvkm_object *object, void *argv, u32 argc,
 }
 
 static int
-nvkm_fifo_chan_rd32(struct nvkm_object *object, u64 addr, u32 *data)
-{
-	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
-	if (unlikely(!chan->user)) {
-		chan->user = ioremap(chan->addr, chan->size);
-		if (!chan->user)
-			return -ENOMEM;
-	}
-	if (unlikely(addr + 4 > chan->size))
-		return -EINVAL;
-	*data = ioread32_native(chan->user + addr);
-	return 0;
-}
-
-static int
-nvkm_fifo_chan_wr32(struct nvkm_object *object, u64 addr, u32 data)
-{
-	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
-	if (unlikely(!chan->user)) {
-		chan->user = ioremap(chan->addr, chan->size);
-		if (!chan->user)
-			return -ENOMEM;
-	}
-	if (unlikely(addr + 4 > chan->size))
-		return -EINVAL;
-	iowrite32_native(data, chan->user + addr);
-	return 0;
-}
-
-static int
 nvkm_fifo_chan_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
@@ -332,9 +302,6 @@ nvkm_fifo_chan_dtor(struct nvkm_object *object)
 	}
 	spin_unlock_irqrestore(&fifo->lock, flags);
 
-	if (chan->user)
-		iounmap(chan->user);
-
 	if (chan->vmm) {
 		nvkm_vmm_part(chan->vmm, chan->inst->memory);
 		nvkm_vmm_unref(&chan->vmm);
@@ -352,8 +319,6 @@ nvkm_fifo_chan_func = {
 	.fini = nvkm_fifo_chan_fini,
 	.ntfy = nvkm_fifo_chan_ntfy,
 	.map = nvkm_fifo_chan_map,
-	.rd32 = nvkm_fifo_chan_rd32,
-	.wr32 = nvkm_fifo_chan_wr32,
 	.sclass = nvkm_fifo_chan_child_get,
 };
 
@@ -424,7 +389,5 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *func,
 	chan->addr = device->func->resource_addr(device, bar) +
 		     base + user * chan->chid;
 	chan->size = user;
-
-	nvkm_fifo_cevent(fifo);
 	return 0;
 }

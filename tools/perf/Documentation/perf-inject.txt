@@ -85,6 +85,27 @@ include::itrace.txt[]
 	without updating it. Currently this option is supported only by
 	Intel PT, refer linkperf:perf-intel-pt[1]
 
+--guest-data=<path>,<pid>[,<time offset>[,<time scale>]]::
+	Insert events from a perf.data file recorded in a virtual machine at
+	the same time as the input perf.data file was recorded on the host.
+	The Process ID (PID) of the QEMU hypervisor process must be provided,
+	and the time offset and time scale (multiplier) will likely be needed
+	to convert guest time stamps into host time stamps. For example, for
+	x86 the TSC Offset and Multiplier could be provided for a virtual machine
+	using Linux command line option no-kvmclock.
+	Currently only mmap, mmap2, comm, task, context_switch, ksymbol,
+	and text_poke events are inserted, as well as build ID information.
+	The QEMU option -name debug-threads=on is needed so that thread names
+	can be used to determine which thread is running which VCPU. Note
+	libvirt seems to use this by default.
+	When using perf record in the guest, option --sample-identifier
+	should be used, and also --buildid-all and --switch-events may be
+	useful.
+
+:GMEXAMPLECMD: inject
+:GMEXAMPLESUBCMD:
+include::guestmount.txt[]
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-report[1], linkperf:perf-archive[1],

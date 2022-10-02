@@ -9,7 +9,7 @@
 
 #include <uapi/linux/ppp-comp.h>
 
-
+struct compstat;
 struct module;
 
 /*

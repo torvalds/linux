@@ -631,7 +631,11 @@ config CPU_USE_DOMAINS
 	bool
 	help
 	  This option enables or disables the use of domain switching
-	  via the set_fs() function.
+	  using the DACR (domain access control register) to protect memory
+	  domains from each other. In Linux we use three domains: kernel, user
+	  and IO. The domains are used to protect userspace from kernelspace
+	  and to handle IO-space as a special type of memory by assigning
+	  manager or client roles to running code (such as a process).
 
 config CPU_V7M_NUM_IRQ
 	int "Number of external interrupts connected to the NVIC"

@@ -49,38 +49,52 @@
 /* note: we begin tracing dlm_lock_start() only if ls and lkb are found */
 TRACE_EVENT(dlm_lock_start,
 
-	TP_PROTO(struct dlm_ls *ls, struct dlm_lkb *lkb, int mode,
-		 __u32 flags),
+	TP_PROTO(struct dlm_ls *ls, struct dlm_lkb *lkb, void *name,
+		 unsigned int namelen, int mode, __u32 flags),
 
-	TP_ARGS(ls, lkb, mode, flags),
+	TP_ARGS(ls, lkb, name, namelen, mode, flags),
 
 	TP_STRUCT__entry(
 		__field(__u32, ls_id)
 		__field(__u32, lkb_id)
 		__field(int, mode)
 		__field(__u32, flags)
+		__dynamic_array(unsigned char, res_name,
+				lkb->lkb_resource ? lkb->lkb_resource->res_length : namelen)
 	),
 
 	TP_fast_assign(
+		struct dlm_rsb *r;
+
 		__entry->ls_id = ls->ls_global_id;
 		__entry->lkb_id = lkb->lkb_id;
 		__entry->mode = mode;
 		__entry->flags = flags;
+
+		r = lkb->lkb_resource;
+		if (r)
+			memcpy(__get_dynamic_array(res_name), r->res_name,
+			       __get_dynamic_array_len(res_name));
+		else if (name)
+			memcpy(__get_dynamic_array(res_name), name,
+			       __get_dynamic_array_len(res_name));
 	),
 
-	TP_printk("ls_id=%u lkb_id=%x mode=%s flags=%s",
+	TP_printk("ls_id=%u lkb_id=%x mode=%s flags=%s res_name=%s",
 		  __entry->ls_id, __entry->lkb_id,
 		  show_lock_mode(__entry->mode),
-		  show_lock_flags(__entry->flags))
+		  show_lock_flags(__entry->flags),
+		  __print_hex_str(__get_dynamic_array(res_name),
+				  __get_dynamic_array_len(res_name)))
 
 );
 
 TRACE_EVENT(dlm_lock_end,
 
-	TP_PROTO(struct dlm_ls *ls, struct dlm_lkb *lkb, int mode, __u32 flags,
-		 int error),
+	TP_PROTO(struct dlm_ls *ls, struct dlm_lkb *lkb, void *name,
+		 unsigned int namelen, int mode, __u32 flags, int error),
 
-	TP_ARGS(ls, lkb, mode, flags, error),
+	TP_ARGS(ls, lkb, name, namelen, mode, flags, error),
 
 	TP_STRUCT__entry(
 		__field(__u32, ls_id)
@@ -88,13 +102,25 @@ TRACE_EVENT(dlm_lock_end,
 		__field(int, mode)
 		__field(__u32, flags)
 		__field(int, error)
+		__dynamic_array(unsigned char, res_name,
+				lkb->lkb_resource ? lkb->lkb_resource->res_length : namelen)
 	),
 
 	TP_fast_assign(
+		struct dlm_rsb *r;
+
 		__entry->ls_id = ls->ls_global_id;
 		__entry->lkb_id = lkb->lkb_id;
 		__entry->mode = mode;
 		__entry->flags = flags;
+
+		r = lkb->lkb_resource;
+		if (r)
+			memcpy(__get_dynamic_array(res_name), r->res_name,
+			       __get_dynamic_array_len(res_name));
+		else if (name)
+			memcpy(__get_dynamic_array(res_name), name,
+			       __get_dynamic_array_len(res_name));
 
 		/* return value will be zeroed in those cases by dlm_lock()
 		 * we do it here again to not introduce more overhead if
@@ -104,12 +130,15 @@ TRACE_EVENT(dlm_lock_end,
 			__entry->error = 0;
 		else
 			__entry->error = error;
+
 	),
 
-	TP_printk("ls_id=%u lkb_id=%x mode=%s flags=%s error=%d",
+	TP_printk("ls_id=%u lkb_id=%x mode=%s flags=%s error=%d res_name=%s",
 		  __entry->ls_id, __entry->lkb_id,
 		  show_lock_mode(__entry->mode),
-		  show_lock_flags(__entry->flags), __entry->error)
+		  show_lock_flags(__entry->flags), __entry->error,
+		  __print_hex_str(__get_dynamic_array(res_name),
+				  __get_dynamic_array_len(res_name)))
 
 );
 
@@ -123,42 +152,65 @@ TRACE_EVENT(dlm_bast,
 		__field(__u32, ls_id)
 		__field(__u32, lkb_id)
 		__field(int, mode)
+		__dynamic_array(unsigned char, res_name,
+				lkb->lkb_resource ? lkb->lkb_resource->res_length : 0)
 	),
 
 	TP_fast_assign(
+		struct dlm_rsb *r;
+
 		__entry->ls_id = ls->ls_global_id;
 		__entry->lkb_id = lkb->lkb_id;
 		__entry->mode = mode;
+
+		r = lkb->lkb_resource;
+		if (r)
+			memcpy(__get_dynamic_array(res_name), r->res_name,
+			       __get_dynamic_array_len(res_name));
 	),
 
-	TP_printk("ls_id=%u lkb_id=%x mode=%s", __entry->ls_id,
-		  __entry->lkb_id, show_lock_mode(__entry->mode))
+	TP_printk("ls_id=%u lkb_id=%x mode=%s res_name=%s",
+		  __entry->ls_id, __entry->lkb_id,
+		  show_lock_mode(__entry->mode),
+		  __print_hex_str(__get_dynamic_array(res_name),
+				  __get_dynamic_array_len(res_name)))
 
 );
 
 TRACE_EVENT(dlm_ast,
 
-	TP_PROTO(struct dlm_ls *ls, struct dlm_lkb *lkb, struct dlm_lksb *lksb),
+	TP_PROTO(struct dlm_ls *ls, struct dlm_lkb *lkb),
 
-	TP_ARGS(ls, lkb, lksb),
+	TP_ARGS(ls, lkb),
 
 	TP_STRUCT__entry(
 		__field(__u32, ls_id)
 		__field(__u32, lkb_id)
 		__field(u8, sb_flags)
 		__field(int, sb_status)
+		__dynamic_array(unsigned char, res_name,
+				lkb->lkb_resource ? lkb->lkb_resource->res_length : 0)
 	),
 
 	TP_fast_assign(
+		struct dlm_rsb *r;
+
 		__entry->ls_id = ls->ls_global_id;
 		__entry->lkb_id = lkb->lkb_id;
-		__entry->sb_flags = lksb->sb_flags;
-		__entry->sb_status = lksb->sb_status;
+		__entry->sb_flags = lkb->lkb_lksb->sb_flags;
+		__entry->sb_status = lkb->lkb_lksb->sb_status;
+
+		r = lkb->lkb_resource;
+		if (r)
+			memcpy(__get_dynamic_array(res_name), r->res_name,
+			       __get_dynamic_array_len(res_name));
 	),
 
-	TP_printk("ls_id=%u lkb_id=%x sb_flags=%s sb_status=%d",
+	TP_printk("ls_id=%u lkb_id=%x sb_flags=%s sb_status=%d res_name=%s",
 		  __entry->ls_id, __entry->lkb_id,
-		  show_dlm_sb_flags(__entry->sb_flags), __entry->sb_status)
+		  show_dlm_sb_flags(__entry->sb_flags), __entry->sb_status,
+		  __print_hex_str(__get_dynamic_array(res_name),
+				  __get_dynamic_array_len(res_name)))
 
 );
 
@@ -173,17 +225,28 @@ TRACE_EVENT(dlm_unlock_start,
 		__field(__u32, ls_id)
 		__field(__u32, lkb_id)
 		__field(__u32, flags)
+		__dynamic_array(unsigned char, res_name,
+				lkb->lkb_resource ? lkb->lkb_resource->res_length : 0)
 	),
 
 	TP_fast_assign(
+		struct dlm_rsb *r;
+
 		__entry->ls_id = ls->ls_global_id;
 		__entry->lkb_id = lkb->lkb_id;
 		__entry->flags = flags;
+
+		r = lkb->lkb_resource;
+		if (r)
+			memcpy(__get_dynamic_array(res_name), r->res_name,
+			       __get_dynamic_array_len(res_name));
 	),
 
-	TP_printk("ls_id=%u lkb_id=%x flags=%s",
+	TP_printk("ls_id=%u lkb_id=%x flags=%s res_name=%s",
 		  __entry->ls_id, __entry->lkb_id,
-		  show_lock_flags(__entry->flags))
+		  show_lock_flags(__entry->flags),
+		  __print_hex_str(__get_dynamic_array(res_name),
+				  __get_dynamic_array_len(res_name)))
 
 );
 
@@ -199,18 +262,29 @@ TRACE_EVENT(dlm_unlock_end,
 		__field(__u32, lkb_id)
 		__field(__u32, flags)
 		__field(int, error)
+		__dynamic_array(unsigned char, res_name,
+				lkb->lkb_resource ? lkb->lkb_resource->res_length : 0)
 	),
 
 	TP_fast_assign(
+		struct dlm_rsb *r;
+
 		__entry->ls_id = ls->ls_global_id;
 		__entry->lkb_id = lkb->lkb_id;
 		__entry->flags = flags;
 		__entry->error = error;
+
+		r = lkb->lkb_resource;
+		if (r)
+			memcpy(__get_dynamic_array(res_name), r->res_name,
+			       __get_dynamic_array_len(res_name));
 	),
 
-	TP_printk("ls_id=%u lkb_id=%x flags=%s error=%d",
+	TP_printk("ls_id=%u lkb_id=%x flags=%s error=%d res_name=%s",
 		  __entry->ls_id, __entry->lkb_id,
-		  show_lock_flags(__entry->flags), __entry->error)
+		  show_lock_flags(__entry->flags), __entry->error,
+		  __print_hex_str(__get_dynamic_array(res_name),
+				  __get_dynamic_array_len(res_name)))
 
 );
 

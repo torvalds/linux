@@ -148,7 +148,7 @@ static void gio_device_remove(struct device *dev)
 	struct gio_device *gio_dev = to_gio_device(dev);
 	struct gio_driver *drv = to_gio_driver(dev->driver);
 
-	if (dev->driver && drv->remove)
+	if (drv->remove)
 		drv->remove(gio_dev);
 }
 

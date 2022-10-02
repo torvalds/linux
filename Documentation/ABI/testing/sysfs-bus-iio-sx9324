@@ -5,6 +5,7 @@ Contact:	Gwendal Grignou <gwendal@chromium.org>
 Description:
 		SX9324 has 3 inputs, CS0, CS1 and CS2. Hardware layout
 		defines if the input is
+
 		+ not connected (HZ),
 		+ grounded (GD),
 		+ connected to an antenna where it can act as a base

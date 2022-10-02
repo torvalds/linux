@@ -161,10 +161,11 @@ config VIRT
 	select RTC_CLASS
 	select RTC_DRV_GOLDFISH
 	select TTY
+	select VIRTIO_MENU
 	select VIRTIO_MMIO
 	help
 	  This options enable a pure virtual machine based on m68k,
-	  VIRTIO MMIO devices and GOLDFISH interfaces (TTY, RTC, PIC)
+	  VIRTIO MMIO devices and GOLDFISH interfaces (TTY, RTC, PIC).
 
 config PILOT
 	bool
@@ -492,4 +493,4 @@ config ROMKERNEL
 
 endchoice
 
-endif
+endif # !MMU || COLDFIRE

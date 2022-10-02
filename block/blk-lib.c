@@ -48,10 +48,8 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 
 	/* In case the discard granularity isn't set by buggy device driver */
 	if (WARN_ON_ONCE(!bdev_discard_granularity(bdev))) {
-		char dev_name[BDEVNAME_SIZE];
-
-		bdevname(bdev, dev_name);
-		pr_err_ratelimited("%s: Error: discard_granularity is 0.\n", dev_name);
+		pr_err_ratelimited("%pg: Error: discard_granularity is 0.\n",
+				   bdev);
 		return -EOPNOTSUPP;
 	}
 
@@ -311,6 +309,11 @@ int blkdev_issue_secure_erase(struct block_device *bdev, sector_t sector,
 	struct blk_plug plug;
 	int ret = 0;
 
+	/* make sure that "len << SECTOR_SHIFT" doesn't overflow */
+	if (max_sectors > UINT_MAX >> SECTOR_SHIFT)
+		max_sectors = UINT_MAX >> SECTOR_SHIFT;
+	max_sectors &= ~bs_mask;
+
 	if (max_sectors == 0)
 		return -EOPNOTSUPP;
 	if ((sector | nr_sects) & bs_mask)
@@ -324,10 +327,10 @@ int blkdev_issue_secure_erase(struct block_device *bdev, sector_t sector,
 
 		bio = blk_next_bio(bio, bdev, 0, REQ_OP_SECURE_ERASE, gfp);
 		bio->bi_iter.bi_sector = sector;
-		bio->bi_iter.bi_size = len;
+		bio->bi_iter.bi_size = len << SECTOR_SHIFT;
 
-		sector += len << SECTOR_SHIFT;
-		nr_sects -= len << SECTOR_SHIFT;
+		sector += len;
+		nr_sects -= len;
 		if (!nr_sects) {
 			ret = submit_bio_wait(bio);
 			bio_put(bio);

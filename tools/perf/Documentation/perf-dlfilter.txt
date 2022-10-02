@@ -107,7 +107,29 @@ struct perf_dlfilter_sample {
 	__u64 raw_callchain_nr;	/* Number of raw_callchain entries */
 	const __u64 *raw_callchain; /* Refer <linux/perf_event.h> */
 	const char *event;
+	__s32 machine_pid;
+	__s32 vcpu;
 };
+----
+
+Note: 'machine_pid' and 'vcpu' are not original members, but were added together later.
+'size' can be used to determine their presence at run time.
+PERF_DLFILTER_HAS_MACHINE_PID will be defined if they are present at compile time.
+For example:
+[source,c]
+----
+#include <perf/perf_dlfilter.h>
+#include <stddef.h>
+#include <stdbool.h>
+
+static inline bool have_machine_pid(const struct perf_dlfilter_sample *sample)
+{
+#ifdef PERF_DLFILTER_HAS_MACHINE_PID
+	return sample->size >= offsetof(struct perf_dlfilter_sample, vcpu) + sizeof(sample->vcpu);
+#else
+	return false;
+#endif
+}
 ----
 
 The perf_dlfilter_fns structure

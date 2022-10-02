@@ -68,7 +68,7 @@ const struct hda_verb cs8409_cs42l42_init_verbs[] = {
 	{} /* terminator */
 };
 
-const struct hda_pintbl cs8409_cs42l42_pincfgs[] = {
+static const struct hda_pintbl cs8409_cs42l42_pincfgs[] = {
 	{ CS8409_PIN_ASP1_TRANSMITTER_A, 0x042120f0 },	/* ASP-1-TX */
 	{ CS8409_PIN_ASP1_RECEIVER_A, 0x04a12050 },	/* ASP-1-RX */
 	{ CS8409_PIN_ASP2_TRANSMITTER_A, 0x901000f0 },	/* ASP-2-TX */
@@ -76,7 +76,7 @@ const struct hda_pintbl cs8409_cs42l42_pincfgs[] = {
 	{} /* terminator */
 };
 
-const struct hda_pintbl cs8409_cs42l42_pincfgs_no_dmic[] = {
+static const struct hda_pintbl cs8409_cs42l42_pincfgs_no_dmic[] = {
 	{ CS8409_PIN_ASP1_TRANSMITTER_A, 0x042120f0 },	/* ASP-1-TX */
 	{ CS8409_PIN_ASP1_RECEIVER_A, 0x04a12050 },	/* ASP-1-RX */
 	{ CS8409_PIN_ASP2_TRANSMITTER_A, 0x901000f0 },	/* ASP-2-TX */
@@ -279,7 +279,7 @@ const struct hda_verb dolphin_init_verbs[] = {
 	{} /* terminator */
 };
 
-const struct hda_pintbl dolphin_pincfgs[] = {
+static const struct hda_pintbl dolphin_pincfgs[] = {
 	{ 0x24, 0x022210f0 }, /* ASP-1-TX-A */
 	{ 0x25, 0x010240f0 }, /* ASP-1-TX-B */
 	{ 0x34, 0x02a21050 }, /* ASP-1-RX */
@@ -546,6 +546,10 @@ const struct snd_pci_quirk cs8409_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1028, 0x0BD6, "Dolphin", CS8409_DOLPHIN),
 	SND_PCI_QUIRK(0x1028, 0x0BD7, "Dolphin", CS8409_DOLPHIN),
 	SND_PCI_QUIRK(0x1028, 0x0BD8, "Dolphin", CS8409_DOLPHIN),
+	SND_PCI_QUIRK(0x1028, 0x0C43, "Dolphin", CS8409_DOLPHIN),
+	SND_PCI_QUIRK(0x1028, 0x0C50, "Dolphin", CS8409_DOLPHIN),
+	SND_PCI_QUIRK(0x1028, 0x0C51, "Dolphin", CS8409_DOLPHIN),
+	SND_PCI_QUIRK(0x1028, 0x0C52, "Dolphin", CS8409_DOLPHIN),
 	{} /* terminator */
 };
 

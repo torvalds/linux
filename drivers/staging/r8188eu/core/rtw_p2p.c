@@ -1450,10 +1450,9 @@ static void restore_p2p_state_handler(struct adapter *padapter)
 static void pre_tx_invitereq_handler(struct adapter *padapter)
 {
 	struct wifidirect_info  *pwdinfo = &padapter->wdinfo;
-	u8	val8 = 1;
 
 	set_channel_bwmode(padapter, pwdinfo->invitereq_info.peer_ch, HAL_PRIME_CHNL_OFFSET_DONT_CARE, HT_CHANNEL_WIDTH_20);
-	SetHwReg8188EU(padapter, HW_VAR_MLME_SITESURVEY, (u8 *)(&val8));
+	rtw_mlme_under_site_survey(padapter);
 	issue_probereq_p2p(padapter, NULL);
 	_set_timer(&pwdinfo->pre_tx_scan_timer, P2P_TX_PRESCAN_TIMEOUT);
 
@@ -1462,10 +1461,9 @@ static void pre_tx_invitereq_handler(struct adapter *padapter)
 static void pre_tx_provdisc_handler(struct adapter *padapter)
 {
 	struct wifidirect_info  *pwdinfo = &padapter->wdinfo;
-	u8	val8 = 1;
 
 	set_channel_bwmode(padapter, pwdinfo->tx_prov_disc_info.peer_channel_num[0], HAL_PRIME_CHNL_OFFSET_DONT_CARE, HT_CHANNEL_WIDTH_20);
-	SetHwReg8188EU(padapter, HW_VAR_MLME_SITESURVEY, (u8 *)(&val8));
+	rtw_mlme_under_site_survey(padapter);
 	issue_probereq_p2p(padapter, NULL);
 	_set_timer(&pwdinfo->pre_tx_scan_timer, P2P_TX_PRESCAN_TIMEOUT);
 
@@ -1474,10 +1472,9 @@ static void pre_tx_provdisc_handler(struct adapter *padapter)
 static void pre_tx_negoreq_handler(struct adapter *padapter)
 {
 	struct wifidirect_info  *pwdinfo = &padapter->wdinfo;
-	u8	val8 = 1;
 
 	set_channel_bwmode(padapter, pwdinfo->nego_req_info.peer_channel_num[0], HAL_PRIME_CHNL_OFFSET_DONT_CARE, HT_CHANNEL_WIDTH_20);
-	SetHwReg8188EU(padapter, HW_VAR_MLME_SITESURVEY, (u8 *)(&val8));
+	rtw_mlme_under_site_survey(padapter);
 	issue_probereq_p2p(padapter, NULL);
 	_set_timer(&pwdinfo->pre_tx_scan_timer, P2P_TX_PRESCAN_TIMEOUT);
 
@@ -1891,7 +1888,7 @@ int rtw_p2p_enable(struct adapter *padapter, enum P2P_ROLE role)
 
 	if (role == P2P_ROLE_DEVICE || role == P2P_ROLE_CLIENT || role == P2P_ROLE_GO) {
 		/* leave IPS/Autosuspend */
-		if (rtw_pwr_wakeup(padapter) == _FAIL) {
+		if (rtw_pwr_wakeup(padapter)) {
 			ret = _FAIL;
 			goto exit;
 		}
@@ -1905,7 +1902,7 @@ int rtw_p2p_enable(struct adapter *padapter, enum P2P_ROLE role)
 		init_wifidirect_info(padapter, role);
 
 	} else if (role == P2P_ROLE_DISABLE) {
-		if (rtw_pwr_wakeup(padapter) == _FAIL) {
+		if (rtw_pwr_wakeup(padapter)) {
 			ret = _FAIL;
 			goto exit;
 		}

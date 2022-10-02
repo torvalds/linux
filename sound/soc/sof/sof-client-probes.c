@@ -270,9 +270,9 @@ static int sof_probes_compr_startup(struct snd_compr_stream *cstream,
 	if (ret)
 		return ret;
 
-	ret = ops->assign(cdev, cstream, dai, &priv->extractor_stream_tag);
+	ret = ops->startup(cdev, cstream, dai, &priv->extractor_stream_tag);
 	if (ret) {
-		dev_err(dai->dev, "Failed to assign probe stream: %d\n", ret);
+		dev_err(dai->dev, "Failed to startup probe stream: %d\n", ret);
 		priv->extractor_stream_tag = SOF_PROBES_INVALID_NODE_ID;
 		sof_client_core_module_put(cdev);
 	}
@@ -310,7 +310,7 @@ exit:
 	priv->extractor_stream_tag = SOF_PROBES_INVALID_NODE_ID;
 	snd_compr_free_pages(cstream);
 
-	ret = ops->free(cdev, cstream, dai);
+	ret = ops->shutdown(cdev, cstream, dai);
 
 	sof_client_core_module_put(cdev);
 
@@ -667,6 +667,7 @@ static const struct snd_soc_component_driver sof_probes_component = {
 	.name = "sof-probes-component",
 	.compress_ops = &sof_probes_compressed_ops,
 	.module_get_upon_open = 1,
+	.legacy_dai_naming = 1,
 };
 
 SND_SOC_DAILINK_DEF(dummy, DAILINK_COMP_ARRAY(COMP_DUMMY()));
@@ -693,6 +694,10 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 	if (!sof_probes_enabled)
 		return -ENXIO;
 
+	/* only ipc3 is supported */
+	if (sof_client_get_ipc_type(cdev) != SOF_IPC)
+		return -ENXIO;
+
 	if (!dev->platform_data) {
 		dev_err(dev, "missing platform data\n");
 		return -ENODEV;
@@ -704,7 +709,7 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 
 	ops = dev->platform_data;
 
-	if (!ops->assign || !ops->free || !ops->set_params || !ops->trigger ||
+	if (!ops->startup || !ops->shutdown || !ops->set_params || !ops->trigger ||
 	    !ops->pointer) {
 		dev_err(dev, "missing platform callback(s)\n");
 		return -ENODEV;

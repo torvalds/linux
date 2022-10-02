@@ -698,7 +698,7 @@ static int smc_ib_map_mr_sg(struct smc_buf_desc *buf_slot, u8 link_idx)
 	int sg_num;
 
 	/* map the largest prefix of a dma mapped SG list */
-	sg_num = ib_map_mr_sg(buf_slot->mr_rx[link_idx],
+	sg_num = ib_map_mr_sg(buf_slot->mr[link_idx],
 			      buf_slot->sgt[link_idx].sgl,
 			      buf_slot->sgt[link_idx].orig_nents,
 			      &offset, PAGE_SIZE);
@@ -710,23 +710,47 @@ static int smc_ib_map_mr_sg(struct smc_buf_desc *buf_slot, u8 link_idx)
 int smc_ib_get_memory_region(struct ib_pd *pd, int access_flags,
 			     struct smc_buf_desc *buf_slot, u8 link_idx)
 {
-	if (buf_slot->mr_rx[link_idx])
+	if (buf_slot->mr[link_idx])
 		return 0; /* already done */
 
-	buf_slot->mr_rx[link_idx] =
+	buf_slot->mr[link_idx] =
 		ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG, 1 << buf_slot->order);
-	if (IS_ERR(buf_slot->mr_rx[link_idx])) {
+	if (IS_ERR(buf_slot->mr[link_idx])) {
 		int rc;
 
-		rc = PTR_ERR(buf_slot->mr_rx[link_idx]);
-		buf_slot->mr_rx[link_idx] = NULL;
+		rc = PTR_ERR(buf_slot->mr[link_idx]);
+		buf_slot->mr[link_idx] = NULL;
 		return rc;
 	}
 
-	if (smc_ib_map_mr_sg(buf_slot, link_idx) != 1)
+	if (smc_ib_map_mr_sg(buf_slot, link_idx) !=
+			     buf_slot->sgt[link_idx].orig_nents)
 		return -EINVAL;
 
 	return 0;
+}
+
+bool smc_ib_is_sg_need_sync(struct smc_link *lnk,
+			    struct smc_buf_desc *buf_slot)
+{
+	struct scatterlist *sg;
+	unsigned int i;
+	bool ret = false;
+
+	/* for now there is just one DMA address */
+	for_each_sg(buf_slot->sgt[lnk->link_idx].sgl, sg,
+		    buf_slot->sgt[lnk->link_idx].nents, i) {
+		if (!sg_dma_len(sg))
+			break;
+		if (dma_need_sync(lnk->smcibdev->ibdev->dma_device,
+				  sg_dma_address(sg))) {
+			ret = true;
+			goto out;
+		}
+	}
+
+out:
+	return ret;
 }
 
 /* synchronize buffer usage for cpu access */
@@ -736,6 +760,9 @@ void smc_ib_sync_sg_for_cpu(struct smc_link *lnk,
 {
 	struct scatterlist *sg;
 	unsigned int i;
+
+	if (!(buf_slot->is_dma_need_sync & (1U << lnk->link_idx)))
+		return;
 
 	/* for now there is just one DMA address */
 	for_each_sg(buf_slot->sgt[lnk->link_idx].sgl, sg,
@@ -756,6 +783,9 @@ void smc_ib_sync_sg_for_device(struct smc_link *lnk,
 {
 	struct scatterlist *sg;
 	unsigned int i;
+
+	if (!(buf_slot->is_dma_need_sync & (1U << lnk->link_idx)))
+		return;
 
 	/* for now there is just one DMA address */
 	for_each_sg(buf_slot->sgt[lnk->link_idx].sgl, sg,

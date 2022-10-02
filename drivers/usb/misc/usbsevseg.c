@@ -167,7 +167,7 @@ static ssize_t text_show(struct device *dev,
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct usb_sevsegdev *mydev = usb_get_intfdata(intf);
 
-	return snprintf(buf, mydev->textlength, "%s\n", mydev->text);
+	return sysfs_emit(buf, "%s\n", mydev->text);
 }
 
 static ssize_t text_store(struct device *dev,

@@ -22,6 +22,7 @@
 
 #include <asm/hvcall.h>
 #include <asm/machdep.h>
+#include <asm/firmware.h>
 
 #include "pseries.h"
 

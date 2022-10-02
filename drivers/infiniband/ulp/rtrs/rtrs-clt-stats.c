@@ -32,11 +32,7 @@ void rtrs_clt_update_wc_stats(struct rtrs_clt_con *con)
 
 void rtrs_clt_inc_failover_cnt(struct rtrs_clt_stats *stats)
 {
-	struct rtrs_clt_stats_pcpu *s;
-
-	s = get_cpu_ptr(stats->pcpu_stats);
-	s->rdma.failover_cnt++;
-	put_cpu_ptr(stats->pcpu_stats);
+	this_cpu_inc(stats->pcpu_stats->rdma.failover_cnt);
 }
 
 int rtrs_clt_stats_migration_from_cnt_to_str(struct rtrs_clt_stats *stats, char *buf)
@@ -169,12 +165,8 @@ int rtrs_clt_reset_all_stats(struct rtrs_clt_stats *s, bool enable)
 static inline void rtrs_clt_update_rdma_stats(struct rtrs_clt_stats *stats,
 					       size_t size, int d)
 {
-	struct rtrs_clt_stats_pcpu *s;
-
-	s = get_cpu_ptr(stats->pcpu_stats);
-	s->rdma.dir[d].cnt++;
-	s->rdma.dir[d].size_total += size;
-	put_cpu_ptr(stats->pcpu_stats);
+	this_cpu_inc(stats->pcpu_stats->rdma.dir[d].cnt);
+	this_cpu_add(stats->pcpu_stats->rdma.dir[d].size_total, size);
 }
 
 void rtrs_clt_update_all_stats(struct rtrs_clt_io_req *req, int dir)

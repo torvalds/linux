@@ -282,14 +282,14 @@
 		};
 
 		mdio: mdio@2090300 {
-			compatible	= "ti,keystone_mdio", "ti,davinci_mdio";
+			compatible = "ti,keystone_mdio", "ti,davinci_mdio";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x02090300 0x100>;
 			status = "disabled";
 			clocks = <&clkcpgmac>;
 			clock-names = "fck";
-			bus_freq	= <2500000>;
+			bus_freq = <2500000>;
 		};
 		/include/ "keystone-k2hk-netcp.dtsi"
 };

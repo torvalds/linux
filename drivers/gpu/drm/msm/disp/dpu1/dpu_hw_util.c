@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/*
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
  */
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
 
@@ -80,13 +82,13 @@ void dpu_reg_write(struct dpu_hw_blk_reg_map *c,
 	/* don't need to mutex protect this */
 	if (c->log_mask & dpu_hw_util_log_mask)
 		DPU_DEBUG_DRIVER("[%s:0x%X] <= 0x%X\n",
-				name, c->blk_off + reg_off, val);
-	writel_relaxed(val, c->base_off + c->blk_off + reg_off);
+				name, reg_off, val);
+	writel_relaxed(val, c->blk_addr + reg_off);
 }
 
 int dpu_reg_read(struct dpu_hw_blk_reg_map *c, u32 reg_off)
 {
-	return readl_relaxed(c->base_off + c->blk_off + reg_off);
+	return readl_relaxed(c->blk_addr + reg_off);
 }
 
 u32 *dpu_hw_util_get_log_mask_ptr(void)
@@ -444,6 +446,51 @@ u64 _dpu_hw_get_qos_lut(const struct dpu_qos_lut_tbl *tbl,
 	/* if last fl is zero, use as default */
 	if (!tbl->entries[i-1].fl)
 		return tbl->entries[i-1].lut;
+
+	return 0;
+}
+
+void dpu_hw_setup_misr(struct dpu_hw_blk_reg_map *c,
+		u32 misr_ctrl_offset,
+		bool enable, u32 frame_count)
+{
+	u32 config = 0;
+
+	DPU_REG_WRITE(c, misr_ctrl_offset, MISR_CTRL_STATUS_CLEAR);
+
+	/* Clear old MISR value (in case it's read before a new value is calculated)*/
+	wmb();
+
+	if (enable) {
+		config = (frame_count & MISR_FRAME_COUNT_MASK) |
+			MISR_CTRL_ENABLE | MISR_CTRL_FREE_RUN_MASK;
+
+		DPU_REG_WRITE(c, misr_ctrl_offset, config);
+	} else {
+		DPU_REG_WRITE(c, misr_ctrl_offset, 0);
+	}
+
+}
+
+int dpu_hw_collect_misr(struct dpu_hw_blk_reg_map *c,
+		u32 misr_ctrl_offset,
+		u32 misr_signature_offset,
+		u32 *misr_value)
+{
+	u32 ctrl = 0;
+
+	if (!misr_value)
+		return -EINVAL;
+
+	ctrl = DPU_REG_READ(c, misr_ctrl_offset);
+
+	if (!(ctrl & MISR_CTRL_ENABLE))
+		return -ENODATA;
+
+	if (!(ctrl & MISR_CTRL_STATUS))
+		return -EINVAL;
+
+	*misr_value = DPU_REG_READ(c, misr_signature_offset);
 
 	return 0;
 }

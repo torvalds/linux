@@ -80,6 +80,7 @@ struct tegra_drm_context {
 
 	/* Only used by new UAPI. */
 	struct xarray mappings;
+	struct host1x_memory_context *memory_context;
 };
 
 struct tegra_drm_client_ops {
@@ -91,11 +92,21 @@ struct tegra_drm_client_ops {
 	int (*submit)(struct tegra_drm_context *context,
 		      struct drm_tegra_submit *args, struct drm_device *drm,
 		      struct drm_file *file);
+	int (*get_streamid_offset)(struct tegra_drm_client *client, u32 *offset);
+	int (*can_use_memory_ctx)(struct tegra_drm_client *client, bool *supported);
 };
 
 int tegra_drm_submit(struct tegra_drm_context *context,
 		     struct drm_tegra_submit *args, struct drm_device *drm,
 		     struct drm_file *file);
+
+static inline int
+tegra_drm_get_streamid_offset_thi(struct tegra_drm_client *client, u32 *offset)
+{
+	*offset = 0x30;
+
+	return 0;
+}
 
 struct tegra_drm_client {
 	struct host1x_client base;

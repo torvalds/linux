@@ -231,7 +231,7 @@ enum pl08x_dma_chan_state {
 
 /**
  * struct pl08x_dma_chan - this structure wraps a DMA ENGINE channel
- * @vc: wrappped virtual channel
+ * @vc: wrapped virtual channel
  * @phychan: the physical channel utilized by this channel, if there is one
  * @name: name of channel
  * @cd: channel platform data

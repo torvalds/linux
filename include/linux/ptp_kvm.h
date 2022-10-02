@@ -8,6 +8,8 @@
 #ifndef _PTP_KVM_H_
 #define _PTP_KVM_H_
 
+#include <linux/types.h>
+
 struct timespec64;
 struct clocksource;
 

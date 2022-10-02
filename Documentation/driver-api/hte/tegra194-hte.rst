@@ -25,8 +25,7 @@ and userspace consumers. The kernel space consumers can directly talk to HTE
 subsystem while userspace consumers timestamp requests go through GPIOLIB CDEV
 framework to HTE subsystem.
 
-.. kernel-doc:: drivers/gpio/gpiolib.c
-   :functions: gpiod_enable_hw_timestamp_ns gpiod_disable_hw_timestamp_ns
+See gpiod_enable_hw_timestamp_ns() and gpiod_disable_hw_timestamp_ns().
 
 For userspace consumers, GPIO_V2_LINE_FLAG_EVENT_CLOCK_HTE flag must be
 specified during IOCTL calls. Refer to ``tools/gpio/gpio-event-mon.c``, which
@@ -37,7 +36,7 @@ LIC (Legacy Interrupt Controller) IRQ GTE
 
 This GTE instance timestamps LIC IRQ lines in real time. There are 352 IRQ
 lines which this instance can add timestamps to in real time. The hte
-devicetree binding described at ``Documentation/devicetree/bindings/hte/``
+devicetree binding described at ``Documentation/devicetree/bindings/timestamp``
 provides an example of how a consumer can request an IRQ line. Since it is a
 one-to-one mapping with IRQ GTE provider, consumers can simply specify the IRQ
 number that they are interested in. There is no userspace consumer support for

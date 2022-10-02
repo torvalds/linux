@@ -161,7 +161,7 @@ static inline void check_bogus_address(const unsigned long ptr, unsigned long n,
 static inline void check_heap_object(const void *ptr, unsigned long n,
 				     bool to_user)
 {
-	uintptr_t addr = (uintptr_t)ptr;
+	unsigned long addr = (unsigned long)ptr;
 	unsigned long offset;
 	struct folio *folio;
 

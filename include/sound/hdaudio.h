@@ -93,6 +93,7 @@ struct hdac_device {
 	bool lazy_cache:1;	/* don't wake up for writes */
 	bool caps_overwriting:1; /* caps overwrite being in process */
 	bool cache_coef:1;	/* cache COEF read/write too */
+	unsigned int registered:1; /* codec was registered */
 };
 
 /* device/driver type used for matching */

@@ -25,77 +25,12 @@ EXPORT_SYMBOL(acpi_pci_disabled);
 int acpi_strict = 1; /* We have no workarounds on LoongArch */
 int num_processors;
 int disabled_cpus;
-enum acpi_irq_model_id acpi_irq_model = ACPI_IRQ_MODEL_PLATFORM;
 
 u64 acpi_saved_sp;
 
 #define MAX_CORE_PIC 256
 
 #define PREFIX			"ACPI: "
-
-int acpi_gsi_to_irq(u32 gsi, unsigned int *irqp)
-{
-	if (irqp != NULL)
-		*irqp = acpi_register_gsi(NULL, gsi, -1, -1);
-	return (*irqp >= 0) ? 0 : -EINVAL;
-}
-EXPORT_SYMBOL_GPL(acpi_gsi_to_irq);
-
-int acpi_isa_irq_to_gsi(unsigned int isa_irq, u32 *gsi)
-{
-	if (gsi)
-		*gsi = isa_irq;
-	return 0;
-}
-
-/*
- * success: return IRQ number (>=0)
- * failure: return < 0
- */
-int acpi_register_gsi(struct device *dev, u32 gsi, int trigger, int polarity)
-{
-	struct irq_fwspec fwspec;
-
-	switch (gsi) {
-	case GSI_MIN_CPU_IRQ ... GSI_MAX_CPU_IRQ:
-		fwspec.fwnode = liointc_domain->fwnode;
-		fwspec.param[0] = gsi - GSI_MIN_CPU_IRQ;
-		fwspec.param_count = 1;
-
-		return irq_create_fwspec_mapping(&fwspec);
-
-	case GSI_MIN_LPC_IRQ ... GSI_MAX_LPC_IRQ:
-		if (!pch_lpc_domain)
-			return -EINVAL;
-
-		fwspec.fwnode = pch_lpc_domain->fwnode;
-		fwspec.param[0] = gsi - GSI_MIN_LPC_IRQ;
-		fwspec.param[1] = acpi_dev_get_irq_type(trigger, polarity);
-		fwspec.param_count = 2;
-
-		return irq_create_fwspec_mapping(&fwspec);
-
-	case GSI_MIN_PCH_IRQ ... GSI_MAX_PCH_IRQ:
-		if (!pch_pic_domain[0])
-			return -EINVAL;
-
-		fwspec.fwnode = pch_pic_domain[0]->fwnode;
-		fwspec.param[0] = gsi - GSI_MIN_PCH_IRQ;
-		fwspec.param[1] = IRQ_TYPE_LEVEL_HIGH;
-		fwspec.param_count = 2;
-
-		return irq_create_fwspec_mapping(&fwspec);
-	}
-
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(acpi_register_gsi);
-
-void acpi_unregister_gsi(u32 gsi)
-{
-
-}
-EXPORT_SYMBOL_GPL(acpi_unregister_gsi);
 
 void __init __iomem * __acpi_map_table(unsigned long phys, unsigned long size)
 {
@@ -113,7 +48,7 @@ void __init __acpi_unmap_table(void __iomem *map, unsigned long size)
 	early_memunmap(map, size);
 }
 
-void __init __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
+void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
 {
 	if (!memblock_is_memory(phys))
 		return ioremap(phys, size);
@@ -169,6 +104,39 @@ static int set_processor_mask(u32 id, u32 flags)
 }
 #endif
 
+static int __init
+acpi_parse_processor(union acpi_subtable_headers *header, const unsigned long end)
+{
+	struct acpi_madt_core_pic *processor = NULL;
+
+	processor = (struct acpi_madt_core_pic *)header;
+	if (BAD_MADT_ENTRY(processor, end))
+		return -EINVAL;
+
+	acpi_table_print_madt_entry(&header->common);
+#ifdef CONFIG_SMP
+	set_processor_mask(processor->core_id, processor->flags);
+#endif
+
+	return 0;
+}
+
+static int __init
+acpi_parse_eio_master(union acpi_subtable_headers *header, const unsigned long end)
+{
+	static int core = 0;
+	struct acpi_madt_eio_pic *eiointc = NULL;
+
+	eiointc = (struct acpi_madt_eio_pic *)header;
+	if (BAD_MADT_ENTRY(eiointc, end))
+		return -EINVAL;
+
+	core = eiointc->node * CORES_PER_EIO_NODE;
+	set_bit(core, &(loongson_sysconf.cores_io_master));
+
+	return 0;
+}
+
 static void __init acpi_process_madt(void)
 {
 #ifdef CONFIG_SMP
@@ -179,6 +147,11 @@ static void __init acpi_process_madt(void)
 		__cpu_logical_map[i] = -1;
 	}
 #endif
+	acpi_table_parse_madt(ACPI_MADT_TYPE_CORE_PIC,
+			acpi_parse_processor, MAX_CORE_PIC);
+
+	acpi_table_parse_madt(ACPI_MADT_TYPE_EIO_PIC,
+			acpi_parse_eio_master, MAX_IO_PICS);
 
 	loongson_sysconf.nr_cpus = num_processors;
 }

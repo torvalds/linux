@@ -370,13 +370,13 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 	case snd_soc_dapm_mixer_named_ctl:
 		mc = (struct soc_mixer_control *)kcontrol->private_value;
 
-		if (mc->autodisable && snd_soc_volsw_is_stereo(mc))
-			dev_warn(widget->dapm->dev,
-				 "ASoC: Unsupported stereo autodisable control '%s'\n",
-				 ctrl_name);
-
 		if (mc->autodisable) {
 			struct snd_soc_dapm_widget template;
+
+			if (snd_soc_volsw_is_stereo(mc))
+				dev_warn(widget->dapm->dev,
+					 "ASoC: Unsupported stereo autodisable control '%s'\n",
+					 ctrl_name);
 
 			name = kasprintf(GFP_KERNEL, "%s %s", ctrl_name,
 					 "Autodisable");

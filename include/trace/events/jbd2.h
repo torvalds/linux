@@ -355,22 +355,22 @@ TRACE_EVENT(jbd2_update_log_tail,
 
 TRACE_EVENT(jbd2_write_superblock,
 
-	TP_PROTO(journal_t *journal, int write_op),
+	TP_PROTO(journal_t *journal, blk_opf_t write_flags),
 
-	TP_ARGS(journal, write_op),
+	TP_ARGS(journal, write_flags),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,  dev			)
-		__field(	  int,  write_op		)
+		__field(    blk_opf_t,  write_flags		)
 	),
 
 	TP_fast_assign(
 		__entry->dev		= journal->j_fs_dev->bd_dev;
-		__entry->write_op	= write_op;
+		__entry->write_flags	= write_flags;
 	),
 
-	TP_printk("dev %d,%d write_op %x", MAJOR(__entry->dev),
-		  MINOR(__entry->dev), __entry->write_op)
+	TP_printk("dev %d,%d write_flags %x", MAJOR(__entry->dev),
+		  MINOR(__entry->dev), (__force u32)__entry->write_flags)
 );
 
 TRACE_EVENT(jbd2_lock_buffer_stall,

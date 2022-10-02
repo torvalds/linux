@@ -13,20 +13,8 @@ void efifb_setup_from_dmi(struct screen_info *si, const char *opt);
 
 #define ARCH_EFI_IRQ_FLAGS_MASK  0x00000004  /* Bit 2: CSR.CRMD.IE */
 
-#define arch_efi_call_virt_setup()               \
-({                                               \
-})
-
-#define arch_efi_call_virt(p, f, args...)        \
-({                                               \
-	efi_##f##_t * __f;                       \
-	__f = p->f;                              \
-	__f(args);                               \
-})
-
-#define arch_efi_call_virt_teardown()            \
-({                                               \
-})
+#define arch_efi_call_virt_setup()
+#define arch_efi_call_virt_teardown()
 
 #define EFI_ALLOC_ALIGN		SZ_64K
 

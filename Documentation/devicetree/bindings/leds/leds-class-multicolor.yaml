@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Common properties for the multicolor LED class.
 
 maintainers:
-  - Dan Murphy <dmurphy@ti.com>
+  - Andrew Davis <afd@ti.com>
 
 description: |
   Bindings for multi color LEDs show how to describe current outputs of
@@ -19,22 +19,22 @@ description: |
   LED class.  Common LED nodes and properties are inherited from the common.yaml
   within this documentation directory.
 
-patternProperties:
-  "^multi-led(@[0-9a-f])?$":
-    type: object
-    description: Represents the LEDs that are to be grouped.
-    properties:
-      color:
-        description: |
-          For multicolor LED support this property should be defined as either
-          LED_COLOR_ID_RGB or LED_COLOR_ID_MULTI which can be found in
-          include/linux/leds/common.h.
-        enum: [ 8, 9 ]
+properties:
+  $nodename:
+    pattern: "^multi-led(@[0-9a-f])?$"
 
-    $ref: "common.yaml#"
+  color:
+    description: |
+      For multicolor LED support this property should be defined as either
+      LED_COLOR_ID_RGB or LED_COLOR_ID_MULTI which can be found in
+      include/linux/leds/common.h.
+    enum: [ 8, 9 ]
 
-    required:
-      - color
+required:
+  - color
+
+allOf:
+  - $ref: "common.yaml#"
 
 additionalProperties: true
 

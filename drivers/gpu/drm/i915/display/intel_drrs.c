@@ -217,9 +217,6 @@ static void intel_drrs_frontbuffer_update(struct drm_i915_private *dev_priv,
 {
 	struct intel_crtc *crtc;
 
-	if (dev_priv->vbt.drrs_type != DRRS_TYPE_SEAMLESS)
-		return;
-
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		unsigned int frontbuffer_bits;
 

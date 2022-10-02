@@ -37,8 +37,7 @@ DECLARE_EVENT_CLASS(hns3_skb_template,
 		__entry->gso_segs = skb_shinfo(skb)->gso_segs;
 		__entry->gso_type = skb_shinfo(skb)->gso_type;
 		__entry->hdr_len = skb->encapsulation ?
-		skb_inner_transport_offset(skb) + inner_tcp_hdrlen(skb) :
-		skb_transport_offset(skb) + tcp_hdrlen(skb);
+		skb_inner_tcp_all_headers(skb) : skb_tcp_all_headers(skb);
 		__entry->ip_summed = skb->ip_summed;
 		__entry->fraglist = skb_has_frag_list(skb);
 		hns3_shinfo_pack(skb_shinfo(skb), __entry->size);

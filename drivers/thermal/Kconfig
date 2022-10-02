@@ -221,7 +221,7 @@ config THERMAL_EMULATION
 
 config THERMAL_MMIO
 	tristate "Generic Thermal MMIO driver"
-	depends on OF || COMPILE_TEST
+	depends on OF
 	depends on HAS_IOMEM
 	help
 	  This option enables the generic thermal MMIO driver that will use
@@ -496,7 +496,7 @@ config SPRD_THERMAL
 
 config KHADAS_MCU_FAN_THERMAL
 	tristate "Khadas MCU controller FAN cooling support"
-	depends on OF || COMPILE_TEST
+	depends on OF
 	depends on MFD_KHADAS_MCU
 	select MFD_CORE
 	select REGMAP

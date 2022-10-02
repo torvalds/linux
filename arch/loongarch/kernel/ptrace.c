@@ -193,7 +193,7 @@ static int fpr_set(struct task_struct *target,
 		   const void *kbuf, const void __user *ubuf)
 {
 	const int fcc_start = NUM_FPU_REGS * sizeof(elf_fpreg_t);
-	const int fcc_end = fcc_start + sizeof(u64);
+	const int fcsr_start = fcc_start + sizeof(u64);
 	int err;
 
 	BUG_ON(count % sizeof(elf_fpreg_t));
@@ -209,10 +209,12 @@ static int fpr_set(struct task_struct *target,
 	if (err)
 		return err;
 
-	if (count > 0)
-		err |= user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-					  &target->thread.fpu.fcc,
-					  fcc_start, fcc_end);
+	err |= user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.fpu.fcc, fcc_start,
+				  fcc_start + sizeof(u64));
+	err |= user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.fpu.fcsr, fcsr_start,
+				  fcsr_start + sizeof(u32));
 
 	return err;
 }

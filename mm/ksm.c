@@ -475,7 +475,7 @@ static int break_ksm(struct vm_area_struct *vma, unsigned long addr)
 		cond_resched();
 		page = follow_page(vma, addr,
 				FOLL_GET | FOLL_MIGRATION | FOLL_REMOTE);
-		if (IS_ERR_OR_NULL(page))
+		if (IS_ERR_OR_NULL(page) || is_zone_device_page(page))
 			break;
 		if (PageKsm(page))
 			ret = handle_mm_fault(vma, addr,
@@ -560,7 +560,7 @@ static struct page *get_mergeable_page(struct rmap_item *rmap_item)
 		goto out;
 
 	page = follow_page(vma, addr, FOLL_GET);
-	if (IS_ERR_OR_NULL(page))
+	if (IS_ERR_OR_NULL(page) || is_zone_device_page(page))
 		goto out;
 	if (PageAnon(page)) {
 		flush_anon_page(vma, page, addr);
@@ -712,7 +712,7 @@ again:
 	 * however, it might mean that the page is under page_ref_freeze().
 	 * The __remove_mapping() case is easy, again the node is now stale;
 	 * the same is in reuse_ksm_page() case; but if page is swapcache
-	 * in migrate_page_move_mapping(), it might still be our page,
+	 * in folio_migrate_mapping(), it might still be our page,
 	 * in which case it's essential to keep the node.
 	 */
 	while (!get_page_unless_zero(page)) {
@@ -1083,7 +1083,7 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 		 * No need to notify as we are downgrading page table to read
 		 * only not changing it to point to a new page.
 		 *
-		 * See Documentation/vm/mmu_notifier.rst
+		 * See Documentation/mm/mmu_notifier.rst
 		 */
 		entry = ptep_clear_flush(vma, pvmw.address, pvmw.pte);
 		/*
@@ -1186,7 +1186,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 	 * No need to notify as we are replacing a read only page with another
 	 * read only page with the same content.
 	 *
-	 * See Documentation/vm/mmu_notifier.rst
+	 * See Documentation/mm/mmu_notifier.rst
 	 */
 	ptep_clear_flush(vma, addr, ptep);
 	set_pte_at_notify(mm, addr, ptep, newpte);
@@ -2308,7 +2308,7 @@ next_mm:
 			if (ksm_test_exit(mm))
 				break;
 			*page = follow_page(vma, ksm_scan.address, FOLL_GET);
-			if (IS_ERR_OR_NULL(*page)) {
+			if (IS_ERR_OR_NULL(*page) || is_zone_device_page(*page)) {
 				ksm_scan.address += PAGE_SIZE;
 				cond_resched();
 				continue;

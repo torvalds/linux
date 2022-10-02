@@ -899,7 +899,6 @@ static const struct snd_soc_component_driver cs53l30_driver = {
 	.num_dapm_routes	= ARRAY_SIZE(cs53l30_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static struct regmap_config cs53l30_regmap = {

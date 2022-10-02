@@ -9,7 +9,6 @@
 
 #include "test_util.h"
 #include "kvm_util.h"
-#include "../kvm_util_internal.h"
 #include "processor.h"
 #include "svm_util.h"
 
@@ -163,22 +162,6 @@ void run_guest(struct vmcb *vmcb, uint64_t vmcb_gpa)
 		"vmsave %[vmcb_gpa]\n\t"
 		: : [vmcb] "r" (vmcb), [vmcb_gpa] "a" (vmcb_gpa)
 		: "r15", "memory");
-}
-
-bool nested_svm_supported(void)
-{
-	struct kvm_cpuid_entry2 *entry =
-		kvm_get_supported_cpuid_entry(0x80000001);
-
-	return entry->ecx & CPUID_SVM;
-}
-
-void nested_svm_check_supported(void)
-{
-	if (!nested_svm_supported()) {
-		print_skip("nested SVM not enabled");
-		exit(KSFT_SKIP);
-	}
 }
 
 /*

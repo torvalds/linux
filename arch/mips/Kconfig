@@ -56,7 +56,7 @@ config MIPS
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if CPU_SUPPORTS_HUGEPAGES
 	select HAVE_ASM_MODVERSIONS
-	select HAVE_CONTEXT_TRACKING
+	select HAVE_CONTEXT_TRACKING_USER
 	select HAVE_TIF_NOHZ
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_DEBUG_KMEMLEAK
@@ -100,7 +100,6 @@ config MIPS
 	select RTC_LIB
 	select SYSCTL_EXCEPTION_TRACE
 	select TRACE_IRQFLAGS_SUPPORT
-	select VIRT_TO_BUS
 	select ARCH_HAS_ELFCORE_COMPAT
 	select HAVE_ARCH_KCSAN if 64BIT
 
@@ -294,6 +293,7 @@ config BMIPS_GENERIC
 	select HARDIRQS_SW_RESEND
 	select HAVE_PCI
 	select PCI_DRIVERS_GENERIC
+	select FW_CFE
 	help
 	  Build a generic DT-based kernel image that boots on select
 	  BCM33xx cable modem chips, BCM63xx DSL chips, and BCM7xxx set-top
@@ -587,14 +587,6 @@ config MACH_PIC32
 
 	  Microchip PIC32 is a family of general-purpose 32 bit MIPS core
 	  microcontrollers.
-
-config MACH_VR41XX
-	bool "NEC VR4100 series based machines"
-	select CEVT_R4K
-	select CSRC_R4K
-	select SYS_HAS_CPU_VR41XX
-	select SYS_SUPPORTS_MIPS16
-	select GPIOLIB
 
 config MACH_NINTENDO64
 	bool "Nintendo 64 console"
@@ -1012,7 +1004,6 @@ source "arch/mips/ralink/Kconfig"
 source "arch/mips/sgi-ip27/Kconfig"
 source "arch/mips/sibyte/Kconfig"
 source "arch/mips/txx9/Kconfig"
-source "arch/mips/vr41xx/Kconfig"
 source "arch/mips/cavium-octeon/Kconfig"
 source "arch/mips/loongson2ef/Kconfig"
 source "arch/mips/loongson32/Kconfig"
@@ -1579,17 +1570,6 @@ config CPU_R3000
 	  might be a safe bet.  If the resulting kernel does not work,
 	  try to recompile with R3000.
 
-config CPU_VR41XX
-	bool "R41xx"
-	depends on SYS_HAS_CPU_VR41XX
-	select CPU_SUPPORTS_32BIT_KERNEL
-	select CPU_SUPPORTS_64BIT_KERNEL
-	help
-	  The options selects support for the NEC VR4100 series of processors.
-	  Only choose this option if you have one of these processors as a
-	  kernel built with this option will not run on any other type of
-	  processor or vice versa.
-
 config CPU_R4300
 	bool "R4300"
 	depends on SYS_HAS_CPU_R4300
@@ -1903,9 +1883,6 @@ config SYS_HAS_CPU_P5600
 	select ARCH_HAS_SYNC_DMA_FOR_CPU if DMA_NONCOHERENT
 
 config SYS_HAS_CPU_R3000
-	bool
-
-config SYS_HAS_CPU_VR41XX
 	bool
 
 config SYS_HAS_CPU_R4300
@@ -2692,7 +2669,6 @@ config ARCH_FLATMEM_ENABLE
 
 config ARCH_SPARSEMEM_ENABLE
 	bool
-	select SPARSEMEM_STATIC if !SGI_IP27
 
 config NUMA
 	bool "NUMA Support"

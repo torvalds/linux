@@ -11,6 +11,7 @@
 #include <linux/pagemap.h>
 #include <linux/file.h>
 #include <linux/fs_context.h>
+#include <linux/moduleparam.h>
 #include <linux/sched.h>
 #include <linux/namei.h>
 #include <linux/slab.h>
@@ -20,6 +21,11 @@
 #include <linux/security.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
+
+static bool __read_mostly allow_sys_admin_access;
+module_param(allow_sys_admin_access, bool, 0644);
+MODULE_PARM_DESC(allow_sys_admin_access,
+		 "Allow users with CAP_SYS_ADMIN in initial userns to bypass allow_other access check");
 
 static void fuse_advise_use_readdirplus(struct inode *dir)
 {
@@ -537,6 +543,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 	struct fuse_file *ff;
 	void *security_ctx = NULL;
 	u32 security_ctxlen;
+	bool trunc = flags & O_TRUNC;
 
 	/* Userspace expects S_IFREG in create mode */
 	BUG_ON((mode & S_IFMT) != S_IFREG);
@@ -561,7 +568,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 	inarg.mode = mode;
 	inarg.umask = current_umask();
 
-	if (fm->fc->handle_killpriv_v2 && (flags & O_TRUNC) &&
+	if (fm->fc->handle_killpriv_v2 && trunc &&
 	    !(flags & O_EXCL) && !capable(CAP_FSETID)) {
 		inarg.open_flags |= FUSE_OPEN_KILL_SUIDGID;
 	}
@@ -623,6 +630,10 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 	} else {
 		file->private_data = ff;
 		fuse_finish_open(inode, file);
+		if (fm->fc->atomic_o_trunc && trunc)
+			truncate_pagecache(inode, 0);
+		else if (!(ff->open_flags & FOPEN_KEEP_CACHE))
+			invalidate_inode_pages2(inode->i_mapping);
 	}
 	return err;
 
@@ -1223,6 +1234,9 @@ int fuse_reverse_inval_entry(struct fuse_conn *fc, u64 parent_nodeid,
 int fuse_allow_current_process(struct fuse_conn *fc)
 {
 	const struct cred *cred;
+
+	if (allow_sys_admin_access && capable(CAP_SYS_ADMIN))
+		return 1;
 
 	if (fc->allow_other)
 		return current_in_userns(fc->user_ns);

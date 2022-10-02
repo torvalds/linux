@@ -11,9 +11,9 @@ Introduction
 
 fs-verity (``fs/verity/``) is a support layer that filesystems can
 hook into to support transparent integrity and authenticity protection
-of read-only files.  Currently, it is supported by the ext4 and f2fs
-filesystems.  Like fscrypt, not too much filesystem-specific code is
-needed to support fs-verity.
+of read-only files.  Currently, it is supported by the ext4, f2fs, and
+btrfs filesystems.  Like fscrypt, not too much filesystem-specific
+code is needed to support fs-verity.
 
 fs-verity is similar to `dm-verity
 <https://www.kernel.org/doc/Documentation/device-mapper/verity.txt>`_
@@ -473,9 +473,9 @@ files being swapped around.
 Filesystem support
 ==================
 
-fs-verity is currently supported by the ext4 and f2fs filesystems.
-The CONFIG_FS_VERITY kconfig option must be enabled to use fs-verity
-on either filesystem.
+fs-verity is supported by several filesystems, described below.  The
+CONFIG_FS_VERITY kconfig option must be enabled to use fs-verity on
+any of these filesystems.
 
 ``include/linux/fsverity.h`` declares the interface between the
 ``fs/verity/`` support layer and filesystems.  Briefly, filesystems
@@ -543,6 +543,13 @@ which wouldn't be enough for even a single Merkle tree block.
 Currently, f2fs verity only supports a Merkle tree block size of 4096.
 Also, f2fs doesn't support enabling verity on files that currently
 have atomic or volatile writes pending.
+
+btrfs
+-----
+
+btrfs supports fs-verity since Linux v5.15.  Verity-enabled inodes are
+marked with a RO_COMPAT inode flag, and the verity metadata is stored
+in separate btree items.
 
 Implementation details
 ======================
@@ -622,14 +629,14 @@ workqueue, and then the workqueue work does the decryption or
 verification.  Finally, pages where no decryption or verity error
 occurred are marked Uptodate, and the pages are unlocked.
 
-Files on ext4 and f2fs may contain holes.  Normally, ``->readahead()``
-simply zeroes holes and sets the corresponding pages Uptodate; no bios
-are issued.  To prevent this case from bypassing fs-verity, these
-filesystems use fsverity_verify_page() to verify hole pages.
+On many filesystems, files can contain holes.  Normally,
+``->readahead()`` simply zeroes holes and sets the corresponding pages
+Uptodate; no bios are issued.  To prevent this case from bypassing
+fs-verity, these filesystems use fsverity_verify_page() to verify hole
+pages.
 
-ext4 and f2fs disable direct I/O on verity files, since otherwise
-direct I/O would bypass fs-verity.  (They also do the same for
-encrypted files.)
+Filesystems also disable direct I/O on verity files, since otherwise
+direct I/O would bypass fs-verity.
 
 Userspace utility
 =================
@@ -648,7 +655,7 @@ Tests
 To test fs-verity, use xfstests.  For example, using `kvm-xfstests
 <https://github.com/tytso/xfstests-bld/blob/master/Documentation/kvm-quickstart.md>`_::
 
-    kvm-xfstests -c ext4,f2fs -g verity
+    kvm-xfstests -c ext4,f2fs,btrfs -g verity
 
 FAQ
 ===
@@ -771,15 +778,15 @@ weren't already directly answered in other parts of this document.
     e.g. magically trigger construction of a Merkle tree.
 
 :Q: Does fs-verity support remote filesystems?
-:A: Only ext4 and f2fs support is implemented currently, but in
-    principle any filesystem that can store per-file verity metadata
-    can support fs-verity, regardless of whether it's local or remote.
-    Some filesystems may have fewer options of where to store the
-    verity metadata; one possibility is to store it past the end of
-    the file and "hide" it from userspace by manipulating i_size.  The
-    data verification functions provided by ``fs/verity/`` also assume
-    that the filesystem uses the Linux pagecache, but both local and
-    remote filesystems normally do so.
+:A: So far all filesystems that have implemented fs-verity support are
+    local filesystems, but in principle any filesystem that can store
+    per-file verity metadata can support fs-verity, regardless of
+    whether it's local or remote.  Some filesystems may have fewer
+    options of where to store the verity metadata; one possibility is
+    to store it past the end of the file and "hide" it from userspace
+    by manipulating i_size.  The data verification functions provided
+    by ``fs/verity/`` also assume that the filesystem uses the Linux
+    pagecache, but both local and remote filesystems normally do so.
 
 :Q: Why is anything filesystem-specific at all?  Shouldn't fs-verity
     be implemented entirely at the VFS level?

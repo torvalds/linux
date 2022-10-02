@@ -23,9 +23,6 @@
  *
  */
 
-#include <linux/delay.h>
-#include <linux/slab.h>
-
 #include "dm_services.h"
 #include "basics/dc_common.h"
 #include "dc.h"
@@ -331,6 +328,11 @@ bool dc_stream_set_cursor_attributes(
 	}
 
 	dc = stream->ctx->dc;
+
+	if (dc->debug.allow_sw_cursor_fallback && attributes->height * attributes->width * 4 > 16384)
+		if (stream->mall_stream_config.type == SUBVP_MAIN)
+			return false;
+
 	stream->cursor_attributes = *attributes;
 
 	dc_z10_restore(dc);
@@ -389,7 +391,7 @@ bool dc_stream_set_cursor_position(
 	struct dc_stream_state *stream,
 	const struct dc_cursor_position *position)
 {
-	struct dc  *dc;
+	struct dc  *dc = stream->ctx->dc;
 	bool reset_idle_optimizations = false;
 
 	if (NULL == stream) {
@@ -406,7 +408,8 @@ bool dc_stream_set_cursor_position(
 	dc_z10_restore(dc);
 
 	/* disable idle optimizations if enabling cursor */
-	if (dc->idle_optimizations_allowed && !stream->cursor_position.enable && position->enable) {
+	if (dc->idle_optimizations_allowed && (!stream->cursor_position.enable || dc->debug.exit_idle_opt_for_cursor_updates)
+			&& position->enable) {
 		dc_allow_idle_optimizations(dc, false);
 		reset_idle_optimizations = true;
 	}

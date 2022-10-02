@@ -581,7 +581,6 @@ static const struct snd_soc_component_driver soc_component_dev_cs42l42 = {
 	.num_controls		= ARRAY_SIZE(cs42l42_snd_controls),
 	.idle_bias_on		= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 /* Switch to SCLK. Atomic delay after the write to allow the switch to complete. */
@@ -1618,7 +1617,6 @@ static irqreturn_t cs42l42_irq_thread(int irq, void *data)
 	unsigned int current_plug_status;
 	unsigned int current_button_status;
 	unsigned int i;
-	int report = 0;
 
 	mutex_lock(&cs42l42->irq_lock);
 	if (cs42l42->suspended) {
@@ -1701,8 +1699,7 @@ static irqreturn_t cs42l42_irq_thread(int irq, void *data)
 			break;
 
 		default:
-			if (cs42l42->plug_state != CS42L42_TS_TRANS)
-				cs42l42->plug_state = CS42L42_TS_TRANS;
+			cs42l42->plug_state = CS42L42_TS_TRANS;
 		}
 	}
 
@@ -1713,13 +1710,15 @@ static irqreturn_t cs42l42_irq_thread(int irq, void *data)
 
 			if (current_button_status & CS42L42_M_DETECT_TF_MASK) {
 				dev_dbg(cs42l42->dev, "Button released\n");
-				report = 0;
+				snd_soc_jack_report(cs42l42->jack, 0,
+						    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
+						    SND_JACK_BTN_2 | SND_JACK_BTN_3);
 			} else if (current_button_status & CS42L42_M_DETECT_FT_MASK) {
-				report = cs42l42_handle_button_press(cs42l42);
-
+				snd_soc_jack_report(cs42l42->jack,
+						    cs42l42_handle_button_press(cs42l42),
+						    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
+						    SND_JACK_BTN_2 | SND_JACK_BTN_3);
 			}
-			snd_soc_jack_report(cs42l42->jack, report, SND_JACK_BTN_0 | SND_JACK_BTN_1 |
-								   SND_JACK_BTN_2 | SND_JACK_BTN_3);
 		}
 	}
 

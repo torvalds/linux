@@ -2171,7 +2171,7 @@ DECLARE_EVENT_CLASS(xfs_swap_extent_class,
 		__entry->format = ip->i_df.if_format;
 		__entry->nex = ip->i_df.if_nextents;
 		__entry->broot_size = ip->i_df.if_broot_bytes;
-		__entry->fork_off = XFS_IFORK_BOFF(ip);
+		__entry->fork_off = xfs_inode_fork_boff(ip);
 	),
 	TP_printk("dev %d:%d ino 0x%llx (%s), %s format, num_extents %llu, "
 		  "broot size %d, forkoff 0x%x",
@@ -3672,7 +3672,6 @@ DEFINE_EVENT(xfs_ag_inode_class, name, \
 	TP_ARGS(ip))
 DEFINE_AGINODE_EVENT(xfs_iunlink);
 DEFINE_AGINODE_EVENT(xfs_iunlink_remove);
-DEFINE_AG_EVENT(xfs_iunlink_map_prev_fallback);
 
 DECLARE_EVENT_CLASS(xfs_fs_corrupt_class,
 	TP_PROTO(struct xfs_mount *mp, unsigned int flags),

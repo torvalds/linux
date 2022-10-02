@@ -377,7 +377,7 @@ xchk_bmapbt_rec(
 	struct xfs_inode	*ip = bs->cur->bc_ino.ip;
 	struct xfs_buf		*bp = NULL;
 	struct xfs_btree_block	*block;
-	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, info->whichfork);
+	struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, info->whichfork);
 	uint64_t		owner;
 	int			i;
 
@@ -426,7 +426,7 @@ xchk_bmap_btree(
 	struct xchk_bmap_info	*info)
 {
 	struct xfs_owner_info	oinfo;
-	struct xfs_ifork	*ifp = XFS_IFORK_PTR(sc->ip, whichfork);
+	struct xfs_ifork	*ifp = xfs_ifork_ptr(sc->ip, whichfork);
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_inode	*ip = sc->ip;
 	struct xfs_btree_cur	*cur;
@@ -478,7 +478,7 @@ xchk_bmap_check_rmap(
 		return 0;
 
 	/* Now look up the bmbt record. */
-	ifp = XFS_IFORK_PTR(sc->ip, sbcri->whichfork);
+	ifp = xfs_ifork_ptr(sc->ip, sbcri->whichfork);
 	if (!ifp) {
 		xchk_fblock_set_corrupt(sc, sbcri->whichfork,
 				rec->rm_offset);
@@ -540,7 +540,7 @@ xchk_bmap_check_ag_rmaps(
 	struct xfs_buf			*agf;
 	int				error;
 
-	error = xfs_alloc_read_agf(sc->mp, sc->tp, pag->pag_agno, 0, &agf);
+	error = xfs_alloc_read_agf(pag, sc->tp, 0, &agf);
 	if (error)
 		return error;
 
@@ -563,7 +563,7 @@ xchk_bmap_check_rmaps(
 	struct xfs_scrub	*sc,
 	int			whichfork)
 {
-	struct xfs_ifork	*ifp = XFS_IFORK_PTR(sc->ip, whichfork);
+	struct xfs_ifork	*ifp = xfs_ifork_ptr(sc->ip, whichfork);
 	struct xfs_perag	*pag;
 	xfs_agnumber_t		agno;
 	bool			zero_size;
@@ -578,7 +578,7 @@ xchk_bmap_check_rmaps(
 	if (XFS_IS_REALTIME_INODE(sc->ip) && whichfork == XFS_DATA_FORK)
 		return 0;
 
-	ASSERT(XFS_IFORK_PTR(sc->ip, whichfork) != NULL);
+	ASSERT(xfs_ifork_ptr(sc->ip, whichfork) != NULL);
 
 	/*
 	 * Only do this for complex maps that are in btree format, or for
@@ -624,7 +624,7 @@ xchk_bmap(
 	struct xchk_bmap_info	info = { NULL };
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_inode	*ip = sc->ip;
-	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
+	struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, whichfork);
 	xfs_fileoff_t		endoff;
 	struct xfs_iext_cursor	icur;
 	int			error = 0;
@@ -689,7 +689,7 @@ xchk_bmap(
 
 	/* Scrub extent records. */
 	info.lastoff = 0;
-	ifp = XFS_IFORK_PTR(ip, whichfork);
+	ifp = xfs_ifork_ptr(ip, whichfork);
 	for_each_xfs_iext(ifp, &icur, &irec) {
 		if (xchk_should_terminate(sc, &error) ||
 		    (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))

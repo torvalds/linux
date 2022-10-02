@@ -271,7 +271,7 @@ choice
 
 	config DEBUG_BCM63XX_UART
 		bool "Kernel low-level debugging on BCM63XX UART"
-		depends on ARCH_BCM_63XX
+		depends on ARCH_BCMBCA
 
 	config DEBUG_BERLIN_UART
 		bool "Marvell Berlin SoC Debug UART"

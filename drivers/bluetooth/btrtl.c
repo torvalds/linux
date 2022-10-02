@@ -330,7 +330,7 @@ static int rtlbt_parse_firmware(struct hci_dev *hdev,
 	/* Loop from the end of the firmware parsing instructions, until
 	 * we find an instruction that identifies the "project ID" for the
 	 * hardware supported by this firwmare file.
-	 * Once we have that, we double-check that that project_id is suitable
+	 * Once we have that, we double-check that project_id is suitable
 	 * for the hardware we are working with.
 	 */
 	while (fwptr >= btrtl_dev->fw_data + (sizeof(*epatch_info) + 3)) {

@@ -630,18 +630,16 @@ static int iio_buffer_add_channel_sysfs(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static ssize_t iio_buffer_read_length(struct device *dev,
-				      struct device_attribute *attr,
-				      char *buf)
+static ssize_t length_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 
 	return sysfs_emit(buf, "%d\n", buffer->length);
 }
 
-static ssize_t iio_buffer_write_length(struct device *dev,
-				       struct device_attribute *attr,
-				       const char *buf, size_t len)
+static ssize_t length_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
@@ -672,9 +670,8 @@ out:
 	return ret ? ret : len;
 }
 
-static ssize_t iio_buffer_show_enable(struct device *dev,
-				      struct device_attribute *attr,
-				      char *buf)
+static ssize_t enable_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 
@@ -705,7 +702,7 @@ static unsigned int iio_storage_bytes_for_timestamp(struct iio_dev *indio_dev)
 static int iio_compute_scan_bytes(struct iio_dev *indio_dev,
 				const unsigned long *mask, bool timestamp)
 {
-	unsigned bytes = 0;
+	unsigned int bytes = 0;
 	int length, i, largest = 0;
 
 	/* How much space will the demuxed element take? */
@@ -934,9 +931,9 @@ static int iio_verify_update(struct iio_dev *indio_dev,
  * @l:		list head used for management
  */
 struct iio_demux_table {
-	unsigned from;
-	unsigned to;
-	unsigned length;
+	unsigned int from;
+	unsigned int to;
+	unsigned int length;
 	struct list_head l;
 };
 
@@ -974,7 +971,7 @@ static int iio_buffer_update_demux(struct iio_dev *indio_dev,
 				   struct iio_buffer *buffer)
 {
 	int ret, in_ind = -1, out_ind, length;
-	unsigned in_loc = 0, out_loc = 0;
+	unsigned int in_loc = 0, out_loc = 0;
 	struct iio_demux_table *p = NULL;
 
 	/* Clear out any old demux */
@@ -1292,10 +1289,8 @@ void iio_disable_all_buffers(struct iio_dev *indio_dev)
 	iio_buffer_deactivate_all(indio_dev);
 }
 
-static ssize_t iio_buffer_store_enable(struct device *dev,
-				       struct device_attribute *attr,
-				       const char *buf,
-				       size_t len)
+static ssize_t enable_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t len)
 {
 	int ret;
 	bool requested_state;
@@ -1325,19 +1320,17 @@ done:
 	return (ret < 0) ? ret : len;
 }
 
-static ssize_t iio_buffer_show_watermark(struct device *dev,
-					 struct device_attribute *attr,
-					 char *buf)
+static ssize_t watermark_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
 {
 	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 
 	return sysfs_emit(buf, "%u\n", buffer->watermark);
 }
 
-static ssize_t iio_buffer_store_watermark(struct device *dev,
-					  struct device_attribute *attr,
-					  const char *buf,
-					  size_t len)
+static ssize_t watermark_store(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
@@ -1369,9 +1362,8 @@ out:
 	return ret ? ret : len;
 }
 
-static ssize_t iio_dma_show_data_available(struct device *dev,
-						struct device_attribute *attr,
-						char *buf)
+static ssize_t data_available_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
 {
 	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 
@@ -1394,18 +1386,12 @@ static ssize_t direction_show(struct device *dev,
 	}
 }
 
-static DEVICE_ATTR(length, S_IRUGO | S_IWUSR, iio_buffer_read_length,
-		   iio_buffer_write_length);
-static struct device_attribute dev_attr_length_ro = __ATTR(length,
-	S_IRUGO, iio_buffer_read_length, NULL);
-static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR,
-		   iio_buffer_show_enable, iio_buffer_store_enable);
-static DEVICE_ATTR(watermark, S_IRUGO | S_IWUSR,
-		   iio_buffer_show_watermark, iio_buffer_store_watermark);
-static struct device_attribute dev_attr_watermark_ro = __ATTR(watermark,
-	S_IRUGO, iio_buffer_show_watermark, NULL);
-static DEVICE_ATTR(data_available, S_IRUGO,
-		iio_dma_show_data_available, NULL);
+static DEVICE_ATTR_RW(length);
+static struct device_attribute dev_attr_length_ro = __ATTR_RO(length);
+static DEVICE_ATTR_RW(enable);
+static DEVICE_ATTR_RW(watermark);
+static struct device_attribute dev_attr_watermark_ro = __ATTR_RO(watermark);
+static DEVICE_ATTR_RO(data_available);
 static DEVICE_ATTR_RO(direction);
 
 /*

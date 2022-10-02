@@ -975,7 +975,7 @@ static int __init pf_init_unit(struct pf_unit *pf, bool autoprobe, int port,
 out_pi_release:
 	pi_release(pf->pi);
 out_free_disk:
-	blk_cleanup_disk(pf->disk);
+	put_disk(pf->disk);
 out_free_tag_set:
 	blk_mq_free_tag_set(&pf->tag_set);
 	return ret;
@@ -1044,7 +1044,7 @@ static void __exit pf_exit(void)
 		if (!pf->present)
 			continue;
 		del_gendisk(pf->disk);
-		blk_cleanup_disk(pf->disk);
+		put_disk(pf->disk);
 		blk_mq_free_tag_set(&pf->tag_set);
 		pi_release(pf->pi);
 	}

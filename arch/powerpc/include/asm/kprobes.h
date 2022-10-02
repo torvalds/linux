@@ -29,7 +29,7 @@
 struct pt_regs;
 struct kprobe;
 
-typedef ppc_opcode_t kprobe_opcode_t;
+typedef u32 kprobe_opcode_t;
 
 extern kprobe_opcode_t optinsn_slot;
 

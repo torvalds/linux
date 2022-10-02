@@ -48,7 +48,7 @@ struct igmpv3_grec {
 	__u8	grec_auxwords;
 	__be16	grec_nsrcs;
 	__be32	grec_mca;
-	__be32	grec_src[0];
+	__be32	grec_src[];
 };
 
 struct igmpv3_report {
@@ -57,7 +57,7 @@ struct igmpv3_report {
 	__sum16 csum;
 	__be16 resv2;
 	__be16 ngrec;
-	struct igmpv3_grec grec[0];
+	struct igmpv3_grec grec[];
 };
 
 struct igmpv3_query {
@@ -78,7 +78,7 @@ struct igmpv3_query {
 #endif
 	__u8 qqic;
 	__be16 nsrcs;
-	__be32 srcs[0];
+	__be32 srcs[];
 };
 
 #define IGMP_HOST_MEMBERSHIP_QUERY	0x11	/* From RFC1112 */

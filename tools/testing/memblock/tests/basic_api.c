@@ -4,21 +4,29 @@
 #include "basic_api.h"
 
 #define EXPECTED_MEMBLOCK_REGIONS			128
+#define FUNC_ADD					"memblock_add"
+#define FUNC_RESERVE					"memblock_reserve"
+#define FUNC_REMOVE					"memblock_remove"
+#define FUNC_FREE					"memblock_free"
 
 static int memblock_initialization_check(void)
 {
-	assert(memblock.memory.regions);
-	assert(memblock.memory.cnt == 1);
-	assert(memblock.memory.max == EXPECTED_MEMBLOCK_REGIONS);
-	assert(strcmp(memblock.memory.name, "memory") == 0);
+	PREFIX_PUSH();
 
-	assert(memblock.reserved.regions);
-	assert(memblock.reserved.cnt == 1);
-	assert(memblock.memory.max == EXPECTED_MEMBLOCK_REGIONS);
-	assert(strcmp(memblock.reserved.name, "reserved") == 0);
+	ASSERT_NE(memblock.memory.regions, NULL);
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.max, EXPECTED_MEMBLOCK_REGIONS);
+	ASSERT_EQ(strcmp(memblock.memory.name, "memory"), 0);
 
-	assert(!memblock.bottom_up);
-	assert(memblock.current_limit == MEMBLOCK_ALLOC_ANYWHERE);
+	ASSERT_NE(memblock.reserved.regions, NULL);
+	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.memory.max, EXPECTED_MEMBLOCK_REGIONS);
+	ASSERT_EQ(strcmp(memblock.reserved.name, "reserved"), 0);
+
+	ASSERT_EQ(memblock.bottom_up, false);
+	ASSERT_EQ(memblock.current_limit, MEMBLOCK_ALLOC_ANYWHERE);
+
+	test_pass_pop();
 
 	return 0;
 }
@@ -40,14 +48,18 @@ static int memblock_add_simple_check(void)
 		.size = SZ_4M
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 	memblock_add(r.base, r.size);
 
-	assert(rgn->base == r.base);
-	assert(rgn->size == r.size);
+	ASSERT_EQ(rgn->base, r.base);
+	ASSERT_EQ(rgn->size, r.size);
 
-	assert(memblock.memory.cnt == 1);
-	assert(memblock.memory.total_size == r.size);
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, r.size);
+
+	test_pass_pop();
 
 	return 0;
 }
@@ -69,18 +81,22 @@ static int memblock_add_node_simple_check(void)
 		.size = SZ_16M
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 	memblock_add_node(r.base, r.size, 1, MEMBLOCK_HOTPLUG);
 
-	assert(rgn->base == r.base);
-	assert(rgn->size == r.size);
+	ASSERT_EQ(rgn->base, r.base);
+	ASSERT_EQ(rgn->size, r.size);
 #ifdef CONFIG_NUMA
-	assert(rgn->nid == 1);
+	ASSERT_EQ(rgn->nid, 1);
 #endif
-	assert(rgn->flags == MEMBLOCK_HOTPLUG);
+	ASSERT_EQ(rgn->flags, MEMBLOCK_HOTPLUG);
 
-	assert(memblock.memory.cnt == 1);
-	assert(memblock.memory.total_size == r.size);
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, r.size);
+
+	test_pass_pop();
 
 	return 0;
 }
@@ -113,18 +129,22 @@ static int memblock_add_disjoint_check(void)
 		.size = SZ_8K
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_add(r2.base, r2.size);
 
-	assert(rgn1->base == r1.base);
-	assert(rgn1->size == r1.size);
+	ASSERT_EQ(rgn1->base, r1.base);
+	ASSERT_EQ(rgn1->size, r1.size);
 
-	assert(rgn2->base == r2.base);
-	assert(rgn2->size == r2.size);
+	ASSERT_EQ(rgn2->base, r2.base);
+	ASSERT_EQ(rgn2->size, r2.size);
 
-	assert(memblock.memory.cnt == 2);
-	assert(memblock.memory.total_size == r1.size + r2.size);
+	ASSERT_EQ(memblock.memory.cnt, 2);
+	ASSERT_EQ(memblock.memory.total_size, r1.size + r2.size);
+
+	test_pass_pop();
 
 	return 0;
 }
@@ -162,17 +182,21 @@ static int memblock_add_overlap_top_check(void)
 		.size = SZ_512M
 	};
 
+	PREFIX_PUSH();
+
 	total_size = (r1.base - r2.base) + r1.size;
 
 	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_add(r2.base, r2.size);
 
-	assert(rgn->base == r2.base);
-	assert(rgn->size == total_size);
+	ASSERT_EQ(rgn->base, r2.base);
+	ASSERT_EQ(rgn->size, total_size);
 
-	assert(memblock.memory.cnt == 1);
-	assert(memblock.memory.total_size == total_size);
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, total_size);
+
+	test_pass_pop();
 
 	return 0;
 }
@@ -210,17 +234,21 @@ static int memblock_add_overlap_bottom_check(void)
 		.size = SZ_1G
 	};
 
+	PREFIX_PUSH();
+
 	total_size = (r2.base - r1.base) + r2.size;
 
 	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_add(r2.base, r2.size);
 
-	assert(rgn->base == r1.base);
-	assert(rgn->size == total_size);
+	ASSERT_EQ(rgn->base, r1.base);
+	ASSERT_EQ(rgn->size, total_size);
 
-	assert(memblock.memory.cnt == 1);
-	assert(memblock.memory.total_size == total_size);
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, total_size);
+
+	test_pass_pop();
 
 	return 0;
 }
@@ -255,15 +283,19 @@ static int memblock_add_within_check(void)
 		.size = SZ_1M
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_add(r2.base, r2.size);
 
-	assert(rgn->base == r1.base);
-	assert(rgn->size == r1.size);
+	ASSERT_EQ(rgn->base, r1.base);
+	ASSERT_EQ(rgn->size, r1.size);
 
-	assert(memblock.memory.cnt == 1);
-	assert(memblock.memory.total_size == r1.size);
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, r1.size);
+
+	test_pass_pop();
 
 	return 0;
 }
@@ -279,19 +311,27 @@ static int memblock_add_twice_check(void)
 		.size = SZ_2M
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 
 	memblock_add(r.base, r.size);
 	memblock_add(r.base, r.size);
 
-	assert(memblock.memory.cnt == 1);
-	assert(memblock.memory.total_size == r.size);
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, r.size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 static int memblock_add_checks(void)
 {
+	prefix_reset();
+	prefix_push(FUNC_ADD);
+	test_print("Running %s tests...\n", FUNC_ADD);
+
 	memblock_add_simple_check();
 	memblock_add_node_simple_check();
 	memblock_add_disjoint_check();
@@ -299,6 +339,8 @@ static int memblock_add_checks(void)
 	memblock_add_overlap_bottom_check();
 	memblock_add_within_check();
 	memblock_add_twice_check();
+
+	prefix_pop();
 
 	return 0;
 }
@@ -320,11 +362,15 @@ static int memblock_reserve_simple_check(void)
 		.size = SZ_128M
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 	memblock_reserve(r.base, r.size);
 
-	assert(rgn->base == r.base);
-	assert(rgn->size == r.size);
+	ASSERT_EQ(rgn->base, r.base);
+	ASSERT_EQ(rgn->size, r.size);
+
+	test_pass_pop();
 
 	return 0;
 }
@@ -356,18 +402,22 @@ static int memblock_reserve_disjoint_check(void)
 		.size = SZ_512M
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
 
-	assert(rgn1->base == r1.base);
-	assert(rgn1->size == r1.size);
+	ASSERT_EQ(rgn1->base, r1.base);
+	ASSERT_EQ(rgn1->size, r1.size);
 
-	assert(rgn2->base == r2.base);
-	assert(rgn2->size == r2.size);
+	ASSERT_EQ(rgn2->base, r2.base);
+	ASSERT_EQ(rgn2->size, r2.size);
 
-	assert(memblock.reserved.cnt == 2);
-	assert(memblock.reserved.total_size == r1.size + r2.size);
+	ASSERT_EQ(memblock.reserved.cnt, 2);
+	ASSERT_EQ(memblock.reserved.total_size, r1.size + r2.size);
+
+	test_pass_pop();
 
 	return 0;
 }
@@ -406,17 +456,21 @@ static int memblock_reserve_overlap_top_check(void)
 		.size = SZ_1G
 	};
 
+	PREFIX_PUSH();
+
 	total_size = (r1.base - r2.base) + r1.size;
 
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
 
-	assert(rgn->base == r2.base);
-	assert(rgn->size == total_size);
+	ASSERT_EQ(rgn->base, r2.base);
+	ASSERT_EQ(rgn->size, total_size);
 
-	assert(memblock.reserved.cnt == 1);
-	assert(memblock.reserved.total_size == total_size);
+	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.reserved.total_size, total_size);
+
+	test_pass_pop();
 
 	return 0;
 }
@@ -455,17 +509,21 @@ static int memblock_reserve_overlap_bottom_check(void)
 		.size = SZ_128K
 	};
 
+	PREFIX_PUSH();
+
 	total_size = (r2.base - r1.base) + r2.size;
 
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
 
-	assert(rgn->base == r1.base);
-	assert(rgn->size == total_size);
+	ASSERT_EQ(rgn->base, r1.base);
+	ASSERT_EQ(rgn->size, total_size);
 
-	assert(memblock.reserved.cnt == 1);
-	assert(memblock.reserved.total_size == total_size);
+	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.reserved.total_size, total_size);
+
+	test_pass_pop();
 
 	return 0;
 }
@@ -502,15 +560,19 @@ static int memblock_reserve_within_check(void)
 		.size = SZ_64K
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
 
-	assert(rgn->base == r1.base);
-	assert(rgn->size == r1.size);
+	ASSERT_EQ(rgn->base, r1.base);
+	ASSERT_EQ(rgn->size, r1.size);
 
-	assert(memblock.reserved.cnt == 1);
-	assert(memblock.reserved.total_size == r1.size);
+	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.reserved.total_size, r1.size);
+
+	test_pass_pop();
 
 	return 0;
 }
@@ -527,25 +589,35 @@ static int memblock_reserve_twice_check(void)
 		.size = SZ_2M
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 
 	memblock_reserve(r.base, r.size);
 	memblock_reserve(r.base, r.size);
 
-	assert(memblock.reserved.cnt == 1);
-	assert(memblock.reserved.total_size == r.size);
+	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.reserved.total_size, r.size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 static int memblock_reserve_checks(void)
 {
+	prefix_reset();
+	prefix_push(FUNC_RESERVE);
+	test_print("Running %s tests...\n", FUNC_RESERVE);
+
 	memblock_reserve_simple_check();
 	memblock_reserve_disjoint_check();
 	memblock_reserve_overlap_top_check();
 	memblock_reserve_overlap_bottom_check();
 	memblock_reserve_within_check();
 	memblock_reserve_twice_check();
+
+	prefix_pop();
 
 	return 0;
 }
@@ -581,16 +653,20 @@ static int memblock_remove_simple_check(void)
 		.size = SZ_4M
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_add(r2.base, r2.size);
 	memblock_remove(r1.base, r1.size);
 
-	assert(rgn->base == r2.base);
-	assert(rgn->size == r2.size);
+	ASSERT_EQ(rgn->base, r2.base);
+	ASSERT_EQ(rgn->size, r2.size);
 
-	assert(memblock.memory.cnt == 1);
-	assert(memblock.memory.total_size == r2.size);
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, r2.size);
+
+	test_pass_pop();
 
 	return 0;
 }
@@ -626,15 +702,19 @@ static int memblock_remove_absent_check(void)
 		.size = SZ_1G
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_remove(r2.base, r2.size);
 
-	assert(rgn->base == r1.base);
-	assert(rgn->size == r1.size);
+	ASSERT_EQ(rgn->base, r1.base);
+	ASSERT_EQ(rgn->size, r1.size);
 
-	assert(memblock.memory.cnt == 1);
-	assert(memblock.memory.total_size == r1.size);
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, r1.size);
+
+	test_pass_pop();
 
 	return 0;
 }
@@ -674,6 +754,8 @@ static int memblock_remove_overlap_top_check(void)
 		.size = SZ_32M
 	};
 
+	PREFIX_PUSH();
+
 	r1_end = r1.base + r1.size;
 	r2_end = r2.base + r2.size;
 	total_size = r1_end - r2_end;
@@ -682,11 +764,13 @@ static int memblock_remove_overlap_top_check(void)
 	memblock_add(r1.base, r1.size);
 	memblock_remove(r2.base, r2.size);
 
-	assert(rgn->base == r1.base + r2.base);
-	assert(rgn->size == total_size);
+	ASSERT_EQ(rgn->base, r1.base + r2.base);
+	ASSERT_EQ(rgn->size, total_size);
 
-	assert(memblock.memory.cnt == 1);
-	assert(memblock.memory.total_size == total_size);
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, total_size);
+
+	test_pass_pop();
 
 	return 0;
 }
@@ -724,17 +808,22 @@ static int memblock_remove_overlap_bottom_check(void)
 		.size = SZ_256M
 	};
 
+	PREFIX_PUSH();
+
 	total_size = r2.base - r1.base;
 
 	reset_memblock_regions();
 	memblock_add(r1.base, r1.size);
 	memblock_remove(r2.base, r2.size);
 
-	assert(rgn->base == r1.base);
-	assert(rgn->size == total_size);
+	ASSERT_EQ(rgn->base, r1.base);
+	ASSERT_EQ(rgn->size, total_size);
 
-	assert(memblock.memory.cnt == 1);
-	assert(memblock.memory.total_size == total_size);
+	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.total_size, total_size);
+
+	test_pass_pop();
+
 	return 0;
 }
 
@@ -774,6 +863,8 @@ static int memblock_remove_within_check(void)
 		.size = SZ_1M
 	};
 
+	PREFIX_PUSH();
+
 	r1_size = r2.base - r1.base;
 	r2_size = (r1.base + r1.size) - (r2.base + r2.size);
 	total_size = r1_size + r2_size;
@@ -782,25 +873,33 @@ static int memblock_remove_within_check(void)
 	memblock_add(r1.base, r1.size);
 	memblock_remove(r2.base, r2.size);
 
-	assert(rgn1->base == r1.base);
-	assert(rgn1->size == r1_size);
+	ASSERT_EQ(rgn1->base, r1.base);
+	ASSERT_EQ(rgn1->size, r1_size);
 
-	assert(rgn2->base == r2.base + r2.size);
-	assert(rgn2->size == r2_size);
+	ASSERT_EQ(rgn2->base, r2.base + r2.size);
+	ASSERT_EQ(rgn2->size, r2_size);
 
-	assert(memblock.memory.cnt == 2);
-	assert(memblock.memory.total_size == total_size);
+	ASSERT_EQ(memblock.memory.cnt, 2);
+	ASSERT_EQ(memblock.memory.total_size, total_size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 static int memblock_remove_checks(void)
 {
+	prefix_reset();
+	prefix_push(FUNC_REMOVE);
+	test_print("Running %s tests...\n", FUNC_REMOVE);
+
 	memblock_remove_simple_check();
 	memblock_remove_absent_check();
 	memblock_remove_overlap_top_check();
 	memblock_remove_overlap_bottom_check();
 	memblock_remove_within_check();
+
+	prefix_pop();
 
 	return 0;
 }
@@ -835,16 +934,20 @@ static int memblock_free_simple_check(void)
 		.size = SZ_1M
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_reserve(r2.base, r2.size);
 	memblock_free((void *)r1.base, r1.size);
 
-	assert(rgn->base == r2.base);
-	assert(rgn->size == r2.size);
+	ASSERT_EQ(rgn->base, r2.base);
+	ASSERT_EQ(rgn->size, r2.size);
 
-	assert(memblock.reserved.cnt == 1);
-	assert(memblock.reserved.total_size == r2.size);
+	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.reserved.total_size, r2.size);
+
+	test_pass_pop();
 
 	return 0;
 }
@@ -880,15 +983,19 @@ static int memblock_free_absent_check(void)
 		.size = SZ_128M
 	};
 
+	PREFIX_PUSH();
+
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_free((void *)r2.base, r2.size);
 
-	assert(rgn->base == r1.base);
-	assert(rgn->size == r1.size);
+	ASSERT_EQ(rgn->base, r1.base);
+	ASSERT_EQ(rgn->size, r1.size);
 
-	assert(memblock.reserved.cnt == 1);
-	assert(memblock.reserved.total_size == r1.size);
+	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.reserved.total_size, r1.size);
+
+	test_pass_pop();
 
 	return 0;
 }
@@ -928,17 +1035,21 @@ static int memblock_free_overlap_top_check(void)
 		.size = SZ_8M
 	};
 
+	PREFIX_PUSH();
+
 	total_size = (r1.size + r1.base) - (r2.base + r2.size);
 
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_free((void *)r2.base, r2.size);
 
-	assert(rgn->base == r2.base + r2.size);
-	assert(rgn->size == total_size);
+	ASSERT_EQ(rgn->base, r2.base + r2.size);
+	ASSERT_EQ(rgn->size, total_size);
 
-	assert(memblock.reserved.cnt == 1);
-	assert(memblock.reserved.total_size == total_size);
+	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.reserved.total_size, total_size);
+
+	test_pass_pop();
 
 	return 0;
 }
@@ -973,17 +1084,21 @@ static int memblock_free_overlap_bottom_check(void)
 		.size = SZ_32M
 	};
 
+	PREFIX_PUSH();
+
 	total_size = r2.base - r1.base;
 
 	reset_memblock_regions();
 	memblock_reserve(r1.base, r1.size);
 	memblock_free((void *)r2.base, r2.size);
 
-	assert(rgn->base == r1.base);
-	assert(rgn->size == total_size);
+	ASSERT_EQ(rgn->base, r1.base);
+	ASSERT_EQ(rgn->size, total_size);
 
-	assert(memblock.reserved.cnt == 1);
-	assert(memblock.reserved.total_size == total_size);
+	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.reserved.total_size, total_size);
+
+	test_pass_pop();
 
 	return 0;
 }
@@ -1024,6 +1139,8 @@ static int memblock_free_within_check(void)
 		.size = SZ_1M
 	};
 
+	PREFIX_PUSH();
+
 	r1_size = r2.base - r1.base;
 	r2_size = (r1.base + r1.size) - (r2.base + r2.size);
 	total_size = r1_size + r2_size;
@@ -1032,25 +1149,33 @@ static int memblock_free_within_check(void)
 	memblock_reserve(r1.base, r1.size);
 	memblock_free((void *)r2.base, r2.size);
 
-	assert(rgn1->base == r1.base);
-	assert(rgn1->size == r1_size);
+	ASSERT_EQ(rgn1->base, r1.base);
+	ASSERT_EQ(rgn1->size, r1_size);
 
-	assert(rgn2->base == r2.base + r2.size);
-	assert(rgn2->size == r2_size);
+	ASSERT_EQ(rgn2->base, r2.base + r2.size);
+	ASSERT_EQ(rgn2->size, r2_size);
 
-	assert(memblock.reserved.cnt == 2);
-	assert(memblock.reserved.total_size == total_size);
+	ASSERT_EQ(memblock.reserved.cnt, 2);
+	ASSERT_EQ(memblock.reserved.total_size, total_size);
+
+	test_pass_pop();
 
 	return 0;
 }
 
 static int memblock_free_checks(void)
 {
+	prefix_reset();
+	prefix_push(FUNC_FREE);
+	test_print("Running %s tests...\n", FUNC_FREE);
+
 	memblock_free_simple_check();
 	memblock_free_absent_check();
 	memblock_free_overlap_top_check();
 	memblock_free_overlap_bottom_check();
 	memblock_free_within_check();
+
+	prefix_pop();
 
 	return 0;
 }

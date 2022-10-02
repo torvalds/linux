@@ -1,4 +1,29 @@
 # SPDX-License-Identifier: GPL-2.0
+menuconfig VME_BUS
+	bool "VME bridge support"
+	depends on STAGING && PCI
+	help
+	  If you say Y here you get support for the VME bridge Framework.
+
+if VME_BUS
+
+comment "VME Bridge Drivers"
+
+config VME_TSI148
+	tristate "Tempe"
+	depends on HAS_DMA
+	help
+	 If you say Y here you get support for the Tundra TSI148 VME bridge
+	 chip.
+
+config VME_FAKE
+	tristate "Fake"
+	help
+	 If you say Y here you get support for the fake VME bridge. This
+	 provides a virtualised VME Bus for devices with no VME bridge. This
+	 is mainly useful for VME development (in the absence of VME
+	 hardware).
+
 comment "VME Device Drivers"
 
 config VME_USER
@@ -11,3 +36,5 @@ config VME_USER
 
 	  To compile this driver as a module, choose M here. The module will
 	  be called vme_user. If unsure, say N.
+
+endif

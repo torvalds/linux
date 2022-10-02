@@ -714,7 +714,7 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 	int ret = 0;
 	int counter;
 	int timeout;
-	u32 vmm_table[WILC_VMM_TBL_SIZE];
+	u32 *vmm_table = wilc->vmm_table;
 	u8 ac_pkt_num_to_chip[NQUEUES] = {0, 0, 0, 0};
 	const struct wilc_hif_func *func;
 	int srcu_idx;
@@ -968,7 +968,8 @@ static void wilc_wlan_handle_rx_buff(struct wilc *wilc, u8 *buffer, int size)
 
 		if (pkt_offset & IS_MANAGMEMENT) {
 			buff_ptr += HOST_HDR_OFFSET;
-			wilc_wfi_mgmt_rx(wilc, buff_ptr, pkt_len);
+			wilc_wfi_mgmt_rx(wilc, buff_ptr, pkt_len,
+					 pkt_offset & IS_MGMT_AUTH_PKT);
 		} else {
 			if (!is_cfg_packet) {
 				wilc_frmw_to_host(wilc, buff_ptr, pkt_len,
@@ -1251,6 +1252,8 @@ void wilc_wlan_cleanup(struct net_device *dev)
 	while ((rqe = wilc_wlan_rxq_remove(wilc)))
 		kfree(rqe);
 
+	kfree(wilc->vmm_table);
+	wilc->vmm_table = NULL;
 	kfree(wilc->rx_buffer);
 	wilc->rx_buffer = NULL;
 	kfree(wilc->tx_buffer);
@@ -1480,8 +1483,19 @@ int wilc_wlan_init(struct net_device *dev)
 
 	wilc->quit = 0;
 
-	if (wilc->hif_func->hif_init(wilc, false)) {
-		ret = -EIO;
+	if (!wilc->hif_func->hif_is_init(wilc)) {
+		acquire_bus(wilc, WILC_BUS_ACQUIRE_ONLY);
+		ret = wilc->hif_func->hif_init(wilc, false);
+		release_bus(wilc, WILC_BUS_RELEASE_ONLY);
+		if (ret)
+			goto fail;
+	}
+
+	if (!wilc->vmm_table)
+		wilc->vmm_table = kzalloc(WILC_VMM_TBL_SIZE, GFP_KERNEL);
+
+	if (!wilc->vmm_table) {
+		ret = -ENOBUFS;
 		goto fail;
 	}
 
@@ -1509,7 +1523,8 @@ int wilc_wlan_init(struct net_device *dev)
 	return 0;
 
 fail:
-
+	kfree(wilc->vmm_table);
+	wilc->vmm_table = NULL;
 	kfree(wilc->rx_buffer);
 	wilc->rx_buffer = NULL;
 	kfree(wilc->tx_buffer);

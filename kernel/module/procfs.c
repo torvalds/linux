@@ -91,7 +91,7 @@ static int m_show(struct seq_file *m, void *p)
 
 	/* Taints info */
 	if (mod->taints)
-		seq_printf(m, " %s", module_flags(mod, buf));
+		seq_printf(m, " %s", module_flags(mod, buf, true));
 
 	seq_puts(m, "\n");
 	return 0;

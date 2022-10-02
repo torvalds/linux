@@ -95,6 +95,7 @@ static const struct goodix_chip_data gt9x_chip_data = {
 
 static const struct goodix_chip_id goodix_chip_ids[] = {
 	{ .id = "1151", .data = &gt1x_chip_data },
+	{ .id = "1158", .data = &gt1x_chip_data },
 	{ .id = "5663", .data = &gt1x_chip_data },
 	{ .id = "5688", .data = &gt1x_chip_data },
 	{ .id = "917S", .data = &gt1x_chip_data },
@@ -822,22 +823,16 @@ static int goodix_resource(struct acpi_resource *ares, void *data)
 	struct device *dev = &ts->client->dev;
 	struct acpi_resource_gpio *gpio;
 
-	switch (ares->type) {
-	case ACPI_RESOURCE_TYPE_GPIO:
-		gpio = &ares->data.gpio;
-		if (gpio->connection_type == ACPI_RESOURCE_GPIO_TYPE_INT) {
-			if (ts->gpio_int_idx == -1) {
-				ts->gpio_int_idx = ts->gpio_count;
-			} else {
-				dev_err(dev, "More then one GpioInt resource, ignoring ACPI GPIO resources\n");
-				ts->gpio_int_idx = -2;
-			}
+	if (acpi_gpio_get_irq_resource(ares, &gpio)) {
+		if (ts->gpio_int_idx == -1) {
+			ts->gpio_int_idx = ts->gpio_count;
+		} else {
+			dev_err(dev, "More then one GpioInt resource, ignoring ACPI GPIO resources\n");
+			ts->gpio_int_idx = -2;
 		}
 		ts->gpio_count++;
-		break;
-	default:
-		break;
-	}
+	} else if (acpi_gpio_get_io_resource(ares, &gpio))
+		ts->gpio_count++;
 
 	return 0;
 }
@@ -900,6 +895,11 @@ static int goodix_add_acpi_gpio_mappings(struct goodix_ts_data *ts)
 	} else {
 		dev_warn(dev, "Unexpected ACPI resources: gpio_count %d, gpio_int_idx %d\n",
 			 ts->gpio_count, ts->gpio_int_idx);
+		/*
+		 * On some devices _PS0 does a reset for us and
+		 * sometimes this is necessary for things to work.
+		 */
+		acpi_device_fix_up_power(ACPI_COMPANION(dev));
 		return -EINVAL;
 	}
 
@@ -1509,6 +1509,7 @@ MODULE_DEVICE_TABLE(acpi, goodix_acpi_match);
 #ifdef CONFIG_OF
 static const struct of_device_id goodix_of_match[] = {
 	{ .compatible = "goodix,gt1151" },
+	{ .compatible = "goodix,gt1158" },
 	{ .compatible = "goodix,gt5663" },
 	{ .compatible = "goodix,gt5688" },
 	{ .compatible = "goodix,gt911" },

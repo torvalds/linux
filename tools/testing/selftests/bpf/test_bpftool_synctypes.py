@@ -58,7 +58,7 @@ class BlockParser(object):
 
 class ArrayParser(BlockParser):
     """
-    A parser for extracting dicionaries of values from some BPF-related arrays.
+    A parser for extracting a set of values from some BPF-related arrays.
     @reader: a pointer to the open file to parse
     @array_name: name of the array to parse
     """
@@ -66,7 +66,7 @@ class ArrayParser(BlockParser):
 
     def __init__(self, reader, array_name):
         self.array_name = array_name
-        self.start_marker = re.compile(f'(static )?const char \* const {self.array_name}\[.*\] = {{\n')
+        self.start_marker = re.compile(f'(static )?const bool {self.array_name}\[.*\] = {{\n')
         super().__init__(reader)
 
     def search_block(self):
@@ -80,15 +80,15 @@ class ArrayParser(BlockParser):
         Parse a block and return data as a dictionary. Items to extract must be
         on separate lines in the file.
         """
-        pattern = re.compile('\[(BPF_\w*)\]\s*= "(.*)",?$')
-        entries = {}
+        pattern = re.compile('\[(BPF_\w*)\]\s*= (true|false),?$')
+        entries = set()
         while True:
             line = self.reader.readline()
             if line == '' or re.match(self.end_marker, line):
                 break
             capture = pattern.search(line)
             if capture:
-                entries[capture.group(1)] = capture.group(2)
+                entries |= {capture.group(1)}
         return entries
 
 class InlineListParser(BlockParser):
@@ -115,7 +115,7 @@ class InlineListParser(BlockParser):
 class FileExtractor(object):
     """
     A generic reader for extracting data from a given file. This class contains
-    several helper methods that wrap arround parser objects to extract values
+    several helper methods that wrap around parser objects to extract values
     from different structures.
     This class does not offer a way to set a filename, which is expected to be
     defined in children classes.
@@ -139,21 +139,19 @@ class FileExtractor(object):
 
     def get_types_from_array(self, array_name):
         """
-        Search for and parse an array associating names to BPF_* enum members,
-        for example:
+        Search for and parse a list of allowed BPF_* enum members, for example:
 
-            const char * const prog_type_name[] = {
-                    [BPF_PROG_TYPE_UNSPEC]                  = "unspec",
-                    [BPF_PROG_TYPE_SOCKET_FILTER]           = "socket_filter",
-                    [BPF_PROG_TYPE_KPROBE]                  = "kprobe",
+            const bool prog_type_name[] = {
+                    [BPF_PROG_TYPE_UNSPEC]                  = true,
+                    [BPF_PROG_TYPE_SOCKET_FILTER]           = true,
+                    [BPF_PROG_TYPE_KPROBE]                  = true,
             };
 
-        Return a dictionary with the enum member names as keys and the
-        associated names as values, for example:
+        Return a set of the enum members, for example:
 
-            {'BPF_PROG_TYPE_UNSPEC': 'unspec',
-             'BPF_PROG_TYPE_SOCKET_FILTER': 'socket_filter',
-             'BPF_PROG_TYPE_KPROBE': 'kprobe'}
+            {'BPF_PROG_TYPE_UNSPEC',
+             'BPF_PROG_TYPE_SOCKET_FILTER',
+             'BPF_PROG_TYPE_KPROBE'}
 
         @array_name: name of the array to parse
         """
@@ -185,6 +183,27 @@ class FileExtractor(object):
         parser = BlockParser(self.reader)
         parser.search_block(start_marker)
         return parser.parse(pattern, end_marker)
+
+    def make_enum_map(self, names, enum_prefix):
+        """
+        Search for and parse an enum containing BPF_* members, just as get_enum
+        does. However, instead of just returning a set of the variant names,
+        also generate a textual representation from them by (assuming and)
+        removing a provided prefix and lowercasing the remainder. Then return a
+        dict mapping from name to textual representation.
+
+        @enum_values: a set of enum values; e.g., as retrieved by get_enum
+        @enum_prefix: the prefix to remove from each of the variants to infer
+        textual representation
+        """
+        mapping = {}
+        for name in names:
+            if not name.startswith(enum_prefix):
+                raise Exception(f"enum variant {name} does not start with {enum_prefix}")
+            text = name[len(enum_prefix):].lower()
+            mapping[name] = text
+
+        return mapping
 
     def __get_description_list(self, start_marker, pattern, end_marker):
         parser = InlineListParser(self.reader)
@@ -333,11 +352,9 @@ class ProgFileExtractor(SourceFileExtractor):
     """
     filename = os.path.join(BPFTOOL_DIR, 'prog.c')
 
-    def get_prog_types(self):
-        return self.get_types_from_array('prog_type_name')
-
     def get_attach_types(self):
-        return self.get_types_from_array('attach_type_strings')
+        types = self.get_types_from_array('attach_types')
+        return self.make_enum_map(types, 'BPF_')
 
     def get_prog_attach_help(self):
         return self.get_help_list('ATTACH_TYPE')
@@ -347,9 +364,6 @@ class MapFileExtractor(SourceFileExtractor):
     An extractor for bpftool's map.c.
     """
     filename = os.path.join(BPFTOOL_DIR, 'map.c')
-
-    def get_map_types(self):
-        return self.get_types_from_array('map_type_name')
 
     def get_map_help(self):
         return self.get_help_list('TYPE')
@@ -362,30 +376,6 @@ class CgroupFileExtractor(SourceFileExtractor):
 
     def get_prog_attach_help(self):
         return self.get_help_list('ATTACH_TYPE')
-
-class CommonFileExtractor(SourceFileExtractor):
-    """
-    An extractor for bpftool's common.c.
-    """
-    filename = os.path.join(BPFTOOL_DIR, 'common.c')
-
-    def __init__(self):
-        super().__init__()
-        self.attach_types = {}
-
-    def get_attach_types(self):
-        if not self.attach_types:
-            self.attach_types = self.get_types_from_array('attach_type_name')
-        return self.attach_types
-
-    def get_cgroup_attach_types(self):
-        if not self.attach_types:
-            self.get_attach_types()
-        cgroup_types = {}
-        for (key, value) in self.attach_types.items():
-            if key.find('BPF_CGROUP') != -1:
-                cgroup_types[key] = value
-        return cgroup_types
 
 class GenericSourceExtractor(SourceFileExtractor):
     """
@@ -403,14 +393,28 @@ class BpfHeaderExtractor(FileExtractor):
     """
     filename = os.path.join(INCLUDE_DIR, 'uapi/linux/bpf.h')
 
+    def __init__(self):
+        super().__init__()
+        self.attach_types = {}
+
     def get_prog_types(self):
         return self.get_enum('bpf_prog_type')
 
-    def get_map_types(self):
-        return self.get_enum('bpf_map_type')
+    def get_map_type_map(self):
+        names = self.get_enum('bpf_map_type')
+        return self.make_enum_map(names, 'BPF_MAP_TYPE_')
 
-    def get_attach_types(self):
-        return self.get_enum('bpf_attach_type')
+    def get_attach_type_map(self):
+        if not self.attach_types:
+          names = self.get_enum('bpf_attach_type')
+          self.attach_types = self.make_enum_map(names, 'BPF_')
+        return self.attach_types
+
+    def get_cgroup_attach_type_map(self):
+        if not self.attach_types:
+            self.get_attach_type_map()
+        return {name: text for name, text in self.attach_types.items()
+            if name.startswith('BPF_CGROUP')}
 
 class ManPageExtractor(FileExtractor):
     """
@@ -467,12 +471,6 @@ class BashcompExtractor(FileExtractor):
     def get_prog_attach_types(self):
         return self.get_bashcomp_list('BPFTOOL_PROG_ATTACH_TYPES')
 
-    def get_map_types(self):
-        return self.get_bashcomp_list('BPFTOOL_MAP_CREATE_TYPES')
-
-    def get_cgroup_attach_types(self):
-        return self.get_bashcomp_list('BPFTOOL_CGROUP_ATTACH_TYPES')
-
 def verify(first_set, second_set, message):
     """
     Print all values that differ between two sets.
@@ -495,21 +493,12 @@ def main():
     """)
     args = argParser.parse_args()
 
-    # Map types (enum)
-
     bpf_info = BpfHeaderExtractor()
-    ref = bpf_info.get_map_types()
-
-    map_info = MapFileExtractor()
-    source_map_items = map_info.get_map_types()
-    map_types_enum = set(source_map_items.keys())
-
-    verify(ref, map_types_enum,
-            f'Comparing BPF header (enum bpf_map_type) and {MapFileExtractor.filename} (map_type_name):')
 
     # Map types (names)
 
-    source_map_types = set(source_map_items.values())
+    map_info = MapFileExtractor()
+    source_map_types = set(bpf_info.get_map_type_map().values())
     source_map_types.discard('unspec')
 
     help_map_types = map_info.get_map_help()
@@ -521,41 +510,16 @@ def main():
     man_map_types = man_map_info.get_map_types()
     man_map_info.close()
 
-    bashcomp_info = BashcompExtractor()
-    bashcomp_map_types = bashcomp_info.get_map_types()
-
     verify(source_map_types, help_map_types,
-            f'Comparing {MapFileExtractor.filename} (map_type_name) and {MapFileExtractor.filename} (do_help() TYPE):')
+            f'Comparing {BpfHeaderExtractor.filename} (bpf_map_type) and {MapFileExtractor.filename} (do_help() TYPE):')
     verify(source_map_types, man_map_types,
-            f'Comparing {MapFileExtractor.filename} (map_type_name) and {ManMapExtractor.filename} (TYPE):')
+            f'Comparing {BpfHeaderExtractor.filename} (bpf_map_type) and {ManMapExtractor.filename} (TYPE):')
     verify(help_map_options, man_map_options,
             f'Comparing {MapFileExtractor.filename} (do_help() OPTIONS) and {ManMapExtractor.filename} (OPTIONS):')
-    verify(source_map_types, bashcomp_map_types,
-            f'Comparing {MapFileExtractor.filename} (map_type_name) and {BashcompExtractor.filename} (BPFTOOL_MAP_CREATE_TYPES):')
-
-    # Program types (enum)
-
-    ref = bpf_info.get_prog_types()
-
-    prog_info = ProgFileExtractor()
-    prog_types = set(prog_info.get_prog_types().keys())
-
-    verify(ref, prog_types,
-            f'Comparing BPF header (enum bpf_prog_type) and {ProgFileExtractor.filename} (prog_type_name):')
-
-    # Attach types (enum)
-
-    ref = bpf_info.get_attach_types()
-    bpf_info.close()
-
-    common_info = CommonFileExtractor()
-    attach_types = common_info.get_attach_types()
-
-    verify(ref, attach_types,
-            f'Comparing BPF header (enum bpf_attach_type) and {CommonFileExtractor.filename} (attach_type_name):')
 
     # Attach types (names)
 
+    prog_info = ProgFileExtractor()
     source_prog_attach_types = set(prog_info.get_attach_types().values())
 
     help_prog_attach_types = prog_info.get_prog_attach_help()
@@ -567,22 +531,23 @@ def main():
     man_prog_attach_types = man_prog_info.get_attach_types()
     man_prog_info.close()
 
-    bashcomp_info.reset_read() # We stopped at map types, rewind
+
+    bashcomp_info = BashcompExtractor()
     bashcomp_prog_attach_types = bashcomp_info.get_prog_attach_types()
+    bashcomp_info.close()
 
     verify(source_prog_attach_types, help_prog_attach_types,
-            f'Comparing {ProgFileExtractor.filename} (attach_type_strings) and {ProgFileExtractor.filename} (do_help() ATTACH_TYPE):')
+            f'Comparing {ProgFileExtractor.filename} (bpf_attach_type) and {ProgFileExtractor.filename} (do_help() ATTACH_TYPE):')
     verify(source_prog_attach_types, man_prog_attach_types,
-            f'Comparing {ProgFileExtractor.filename} (attach_type_strings) and {ManProgExtractor.filename} (ATTACH_TYPE):')
+            f'Comparing {ProgFileExtractor.filename} (bpf_attach_type) and {ManProgExtractor.filename} (ATTACH_TYPE):')
     verify(help_prog_options, man_prog_options,
             f'Comparing {ProgFileExtractor.filename} (do_help() OPTIONS) and {ManProgExtractor.filename} (OPTIONS):')
     verify(source_prog_attach_types, bashcomp_prog_attach_types,
-            f'Comparing {ProgFileExtractor.filename} (attach_type_strings) and {BashcompExtractor.filename} (BPFTOOL_PROG_ATTACH_TYPES):')
+            f'Comparing {ProgFileExtractor.filename} (bpf_attach_type) and {BashcompExtractor.filename} (BPFTOOL_PROG_ATTACH_TYPES):')
 
     # Cgroup attach types
-
-    source_cgroup_attach_types = set(common_info.get_cgroup_attach_types().values())
-    common_info.close()
+    source_cgroup_attach_types = set(bpf_info.get_cgroup_attach_type_map().values())
+    bpf_info.close()
 
     cgroup_info = CgroupFileExtractor()
     help_cgroup_attach_types = cgroup_info.get_prog_attach_help()
@@ -594,17 +559,12 @@ def main():
     man_cgroup_attach_types = man_cgroup_info.get_attach_types()
     man_cgroup_info.close()
 
-    bashcomp_cgroup_attach_types = bashcomp_info.get_cgroup_attach_types()
-    bashcomp_info.close()
-
     verify(source_cgroup_attach_types, help_cgroup_attach_types,
-            f'Comparing {CommonFileExtractor.filename} (attach_type_strings) and {CgroupFileExtractor.filename} (do_help() ATTACH_TYPE):')
+            f'Comparing {BpfHeaderExtractor.filename} (bpf_attach_type) and {CgroupFileExtractor.filename} (do_help() ATTACH_TYPE):')
     verify(source_cgroup_attach_types, man_cgroup_attach_types,
-            f'Comparing {CommonFileExtractor.filename} (attach_type_strings) and {ManCgroupExtractor.filename} (ATTACH_TYPE):')
+            f'Comparing {BpfHeaderExtractor.filename} (bpf_attach_type) and {ManCgroupExtractor.filename} (ATTACH_TYPE):')
     verify(help_cgroup_options, man_cgroup_options,
             f'Comparing {CgroupFileExtractor.filename} (do_help() OPTIONS) and {ManCgroupExtractor.filename} (OPTIONS):')
-    verify(source_cgroup_attach_types, bashcomp_cgroup_attach_types,
-            f'Comparing {CommonFileExtractor.filename} (attach_type_strings) and {BashcompExtractor.filename} (BPFTOOL_CGROUP_ATTACH_TYPES):')
 
     # Options for remaining commands
 

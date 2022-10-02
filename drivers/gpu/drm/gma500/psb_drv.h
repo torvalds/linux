@@ -469,7 +469,7 @@ struct drm_psb_private {
 	struct drm_display_mode *sdvo_lvds_vbt_mode;
 
 	struct bdb_lvds_backlight *lvds_bl; /* LVDS backlight info from VBT */
-	struct psb_intel_i2c_chan *lvds_i2c_bus; /* FIXME: Remove this? */
+	struct gma_i2c_chan *lvds_i2c_bus; /* FIXME: Remove this? */
 
 	/* Feature bits from the VBIOS */
 	unsigned int int_tv_support:1;
@@ -490,6 +490,7 @@ struct drm_psb_private {
 	int rpm_enabled;
 
 	/* MID specific */
+	bool use_msi;
 	bool has_gct;
 	struct oaktrail_gct_data gct_data;
 
@@ -498,10 +499,6 @@ struct drm_psb_private {
 
 	/* Register state */
 	struct psb_save_area regs;
-
-	/* MSI reg save */
-	uint32_t msi_addr;
-	uint32_t msi_data;
 
 	/* Hotplug handling */
 	struct work_struct hotplug_work;

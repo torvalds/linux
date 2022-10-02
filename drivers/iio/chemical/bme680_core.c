@@ -638,7 +638,7 @@ static int bme680_read_temp(struct bme680_data *data, int *val)
 	comp_temp = bme680_compensate_temp(data, adc_temp);
 	/*
 	 * val might be NULL if we're called by the read_press/read_humid
-	 * routine which is callled to get t_fine value used in
+	 * routine which is called to get t_fine value used in
 	 * compensate_press/compensate_humid to get compensated
 	 * pressure/humidity readings.
 	 */

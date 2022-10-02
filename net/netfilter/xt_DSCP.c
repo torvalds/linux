@@ -24,6 +24,8 @@ MODULE_ALIAS("ip6t_DSCP");
 MODULE_ALIAS("ipt_TOS");
 MODULE_ALIAS("ip6t_TOS");
 
+#define XT_DSCP_ECN_MASK	3u
+
 static unsigned int
 dscp_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
@@ -34,8 +36,7 @@ dscp_tg(struct sk_buff *skb, const struct xt_action_param *par)
 		if (skb_ensure_writable(skb, sizeof(struct iphdr)))
 			return NF_DROP;
 
-		ipv4_change_dsfield(ip_hdr(skb),
-				    (__force __u8)(~XT_DSCP_MASK),
+		ipv4_change_dsfield(ip_hdr(skb), XT_DSCP_ECN_MASK,
 				    dinfo->dscp << XT_DSCP_SHIFT);
 
 	}
@@ -52,8 +53,7 @@ dscp_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 		if (skb_ensure_writable(skb, sizeof(struct ipv6hdr)))
 			return NF_DROP;
 
-		ipv6_change_dsfield(ipv6_hdr(skb),
-				    (__force __u8)(~XT_DSCP_MASK),
+		ipv6_change_dsfield(ipv6_hdr(skb), XT_DSCP_ECN_MASK,
 				    dinfo->dscp << XT_DSCP_SHIFT);
 	}
 	return XT_CONTINUE;

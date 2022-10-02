@@ -1596,7 +1596,6 @@ qla2x00_hba_attributes(scsi_qla_host_t *vha, void *entries,
 	unsigned int callopt)
 {
 	struct qla_hw_data *ha = vha->hw;
-	struct init_cb_24xx *icb24 = (void *)ha->init_cb;
 	struct new_utsname *p_sysid = utsname();
 	struct ct_fdmi_hba_attr *eiter;
 	uint16_t alen;
@@ -1617,7 +1616,7 @@ qla2x00_hba_attributes(scsi_qla_host_t *vha, void *entries,
 	eiter->type = cpu_to_be16(FDMI_HBA_MANUFACTURER);
 	alen = scnprintf(
 		eiter->a.manufacturer, sizeof(eiter->a.manufacturer),
-		"%s", "QLogic Corporation");
+		"%s", QLA2XXX_MANUFACTURER);
 	alen += FDMI_ATTR_ALIGNMENT(alen);
 	alen += FDMI_ATTR_TYPELEN(eiter);
 	eiter->len = cpu_to_be16(alen);
@@ -1758,8 +1757,8 @@ qla2x00_hba_attributes(scsi_qla_host_t *vha, void *entries,
 	/* MAX CT Payload Length */
 	eiter = entries + size;
 	eiter->type = cpu_to_be16(FDMI_HBA_MAXIMUM_CT_PAYLOAD_LENGTH);
-	eiter->a.max_ct_len = cpu_to_be32(le16_to_cpu(IS_FWI2_CAPABLE(ha) ?
-		icb24->frame_payload_size : ha->init_cb->frame_payload_size));
+	eiter->a.max_ct_len = cpu_to_be32(ha->frame_payload_size >> 2);
+
 	alen = sizeof(eiter->a.max_ct_len);
 	alen += FDMI_ATTR_TYPELEN(eiter);
 	eiter->len = cpu_to_be16(alen);
@@ -1851,7 +1850,6 @@ qla2x00_port_attributes(scsi_qla_host_t *vha, void *entries,
 	unsigned int callopt)
 {
 	struct qla_hw_data *ha = vha->hw;
-	struct init_cb_24xx *icb24 = (void *)ha->init_cb;
 	struct new_utsname *p_sysid = utsname();
 	char *hostname = p_sysid ?
 		p_sysid->nodename : fc_host_system_hostname(vha->host);
@@ -1903,8 +1901,7 @@ qla2x00_port_attributes(scsi_qla_host_t *vha, void *entries,
 	/* Max frame size. */
 	eiter = entries + size;
 	eiter->type = cpu_to_be16(FDMI_PORT_MAX_FRAME_SIZE);
-	eiter->a.max_frame_size = cpu_to_be32(le16_to_cpu(IS_FWI2_CAPABLE(ha) ?
-		icb24->frame_payload_size : ha->init_cb->frame_payload_size));
+	eiter->a.max_frame_size = cpu_to_be32(ha->frame_payload_size);
 	alen = sizeof(eiter->a.max_frame_size);
 	alen += FDMI_ATTR_TYPELEN(eiter);
 	eiter->len = cpu_to_be16(alen);
@@ -3280,19 +3277,12 @@ done:
 	return rval;
 }
 
-void qla24xx_handle_gffid_event(scsi_qla_host_t *vha, struct event_arg *ea)
-{
-	fc_port_t *fcport = ea->fcport;
-
-	qla24xx_post_gnl_work(vha, fcport);
-}
 
 void qla24xx_async_gffid_sp_done(srb_t *sp, int res)
 {
 	struct scsi_qla_host *vha = sp->vha;
 	fc_port_t *fcport = sp->fcport;
 	struct ct_sns_rsp *ct_rsp;
-	struct event_arg ea;
 	uint8_t fc4_scsi_feat;
 	uint8_t fc4_nvme_feat;
 
@@ -3300,10 +3290,10 @@ void qla24xx_async_gffid_sp_done(srb_t *sp, int res)
 	       "Async done-%s res %x ID %x. %8phC\n",
 	       sp->name, res, fcport->d_id.b24, fcport->port_name);
 
-	fcport->flags &= ~FCF_ASYNC_SENT;
-	ct_rsp = &fcport->ct_desc.ct_sns->p.rsp;
+	ct_rsp = sp->u.iocb_cmd.u.ctarg.rsp;
 	fc4_scsi_feat = ct_rsp->rsp.gff_id.fc4_features[GFF_FCP_SCSI_OFFSET];
 	fc4_nvme_feat = ct_rsp->rsp.gff_id.fc4_features[GFF_NVME_OFFSET];
+	sp->rc = res;
 
 	/*
 	 * FC-GS-7, 5.2.3.12 FC-4 Features - format
@@ -3324,24 +3314,42 @@ void qla24xx_async_gffid_sp_done(srb_t *sp, int res)
 		}
 	}
 
-	memset(&ea, 0, sizeof(ea));
-	ea.sp = sp;
-	ea.fcport = sp->fcport;
-	ea.rc = res;
+	if (sp->flags & SRB_WAKEUP_ON_COMP) {
+		complete(sp->comp);
+	} else  {
+		if (sp->u.iocb_cmd.u.ctarg.req) {
+			dma_free_coherent(&vha->hw->pdev->dev,
+				sp->u.iocb_cmd.u.ctarg.req_allocated_size,
+				sp->u.iocb_cmd.u.ctarg.req,
+				sp->u.iocb_cmd.u.ctarg.req_dma);
+			sp->u.iocb_cmd.u.ctarg.req = NULL;
+		}
 
-	qla24xx_handle_gffid_event(vha, &ea);
-	/* ref: INIT */
-	kref_put(&sp->cmd_kref, qla2x00_sp_release);
+		if (sp->u.iocb_cmd.u.ctarg.rsp) {
+			dma_free_coherent(&vha->hw->pdev->dev,
+				sp->u.iocb_cmd.u.ctarg.rsp_allocated_size,
+				sp->u.iocb_cmd.u.ctarg.rsp,
+				sp->u.iocb_cmd.u.ctarg.rsp_dma);
+			sp->u.iocb_cmd.u.ctarg.rsp = NULL;
+		}
+
+		/* ref: INIT */
+		kref_put(&sp->cmd_kref, qla2x00_sp_release);
+		/* we should not be here */
+		dump_stack();
+	}
 }
 
 /* Get FC4 Feature with Nport ID. */
-int qla24xx_async_gffid(scsi_qla_host_t *vha, fc_port_t *fcport)
+int qla24xx_async_gffid(scsi_qla_host_t *vha, fc_port_t *fcport, bool wait)
 {
 	int rval = QLA_FUNCTION_FAILED;
 	struct ct_sns_req       *ct_req;
 	srb_t *sp;
+	DECLARE_COMPLETION_ONSTACK(comp);
 
-	if (!vha->flags.online || (fcport->flags & FCF_ASYNC_SENT))
+	/* this routine does not have handling for no wait */
+	if (!vha->flags.online || !wait)
 		return rval;
 
 	/* ref: INIT */
@@ -3349,43 +3357,86 @@ int qla24xx_async_gffid(scsi_qla_host_t *vha, fc_port_t *fcport)
 	if (!sp)
 		return rval;
 
-	fcport->flags |= FCF_ASYNC_SENT;
 	sp->type = SRB_CT_PTHRU_CMD;
 	sp->name = "gffid";
 	sp->gen1 = fcport->rscn_gen;
 	sp->gen2 = fcport->login_gen;
 	qla2x00_init_async_sp(sp, qla2x00_get_async_timeout(vha) + 2,
 			      qla24xx_async_gffid_sp_done);
+	sp->comp = &comp;
+	sp->u.iocb_cmd.timeout = qla2x00_els_dcmd2_iocb_timeout;
+
+	if (wait)
+		sp->flags = SRB_WAKEUP_ON_COMP;
+
+	sp->u.iocb_cmd.u.ctarg.req_allocated_size = sizeof(struct ct_sns_pkt);
+	sp->u.iocb_cmd.u.ctarg.req = dma_alloc_coherent(&vha->hw->pdev->dev,
+				sp->u.iocb_cmd.u.ctarg.req_allocated_size,
+				&sp->u.iocb_cmd.u.ctarg.req_dma,
+	    GFP_KERNEL);
+	if (!sp->u.iocb_cmd.u.ctarg.req) {
+		ql_log(ql_log_warn, vha, 0xd041,
+		       "%s: Failed to allocate ct_sns request.\n",
+		       __func__);
+		goto done_free_sp;
+	}
+
+	sp->u.iocb_cmd.u.ctarg.rsp_allocated_size = sizeof(struct ct_sns_pkt);
+	sp->u.iocb_cmd.u.ctarg.rsp = dma_alloc_coherent(&vha->hw->pdev->dev,
+				sp->u.iocb_cmd.u.ctarg.rsp_allocated_size,
+				&sp->u.iocb_cmd.u.ctarg.rsp_dma,
+	    GFP_KERNEL);
+	if (!sp->u.iocb_cmd.u.ctarg.rsp) {
+		ql_log(ql_log_warn, vha, 0xd041,
+		       "%s: Failed to allocate ct_sns response.\n",
+		       __func__);
+		goto done_free_sp;
+	}
 
 	/* CT_IU preamble  */
-	ct_req = qla2x00_prep_ct_req(fcport->ct_desc.ct_sns, GFF_ID_CMD,
-	    GFF_ID_RSP_SIZE);
+	ct_req = qla2x00_prep_ct_req(sp->u.iocb_cmd.u.ctarg.req, GFF_ID_CMD, GFF_ID_RSP_SIZE);
 
 	ct_req->req.gff_id.port_id[0] = fcport->d_id.b.domain;
 	ct_req->req.gff_id.port_id[1] = fcport->d_id.b.area;
 	ct_req->req.gff_id.port_id[2] = fcport->d_id.b.al_pa;
 
-	sp->u.iocb_cmd.u.ctarg.req = fcport->ct_desc.ct_sns;
-	sp->u.iocb_cmd.u.ctarg.req_dma = fcport->ct_desc.ct_sns_dma;
-	sp->u.iocb_cmd.u.ctarg.rsp = fcport->ct_desc.ct_sns;
-	sp->u.iocb_cmd.u.ctarg.rsp_dma = fcport->ct_desc.ct_sns_dma;
 	sp->u.iocb_cmd.u.ctarg.req_size = GFF_ID_REQ_SIZE;
 	sp->u.iocb_cmd.u.ctarg.rsp_size = GFF_ID_RSP_SIZE;
 	sp->u.iocb_cmd.u.ctarg.nport_handle = NPH_SNS;
 
-	ql_dbg(ql_dbg_disc, vha, 0x2132,
-	    "Async-%s hdl=%x  %8phC.\n", sp->name,
-	    sp->handle, fcport->port_name);
-
 	rval = qla2x00_start_sp(sp);
-	if (rval != QLA_SUCCESS)
-		goto done_free_sp;
 
-	return rval;
+	if (rval != QLA_SUCCESS) {
+		rval = QLA_FUNCTION_FAILED;
+		goto done_free_sp;
+	} else {
+		ql_dbg(ql_dbg_disc, vha, 0x3074,
+		       "Async-%s hdl=%x portid %06x\n",
+		       sp->name, sp->handle, fcport->d_id.b24);
+	}
+
+	wait_for_completion(sp->comp);
+	rval = sp->rc;
+
 done_free_sp:
+	if (sp->u.iocb_cmd.u.ctarg.req) {
+		dma_free_coherent(&vha->hw->pdev->dev,
+				  sp->u.iocb_cmd.u.ctarg.req_allocated_size,
+				  sp->u.iocb_cmd.u.ctarg.req,
+				  sp->u.iocb_cmd.u.ctarg.req_dma);
+		sp->u.iocb_cmd.u.ctarg.req = NULL;
+	}
+
+	if (sp->u.iocb_cmd.u.ctarg.rsp) {
+		dma_free_coherent(&vha->hw->pdev->dev,
+				  sp->u.iocb_cmd.u.ctarg.rsp_allocated_size,
+				  sp->u.iocb_cmd.u.ctarg.rsp,
+				  sp->u.iocb_cmd.u.ctarg.rsp_dma);
+		sp->u.iocb_cmd.u.ctarg.rsp = NULL;
+	}
+
 	/* ref: INIT */
 	kref_put(&sp->cmd_kref, qla2x00_sp_release);
-	fcport->flags &= ~FCF_ASYNC_SENT;
 	return rval;
 }
 
@@ -3578,7 +3629,7 @@ login_logout:
 				do_delete) {
 				if (fcport->loop_id != FC_NO_LOOP_ID) {
 					if (fcport->flags & FCF_FCP2_DEVICE)
-						fcport->logout_on_delete = 0;
+						continue;
 
 					ql_log(ql_log_warn, vha, 0x20f0,
 					       "%s %d %8phC post del sess\n",

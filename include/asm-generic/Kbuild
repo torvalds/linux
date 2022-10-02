@@ -5,6 +5,7 @@
 # asm headers from the host architecutre.)
 
 mandatory-y += atomic.h
+mandatory-y += archrandom.h
 mandatory-y += barrier.h
 mandatory-y += bitops.h
 mandatory-y += bug.h
@@ -44,7 +45,6 @@ mandatory-y += msi.h
 mandatory-y += pci.h
 mandatory-y += percpu.h
 mandatory-y += pgalloc.h
-mandatory-y += platform-feature.h
 mandatory-y += preempt.h
 mandatory-y += rwonce.h
 mandatory-y += sections.h

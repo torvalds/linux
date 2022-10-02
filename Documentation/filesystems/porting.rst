@@ -914,3 +914,11 @@ Calling conventions for file_open_root() changed; now it takes struct path *
 instead of passing mount and dentry separately.  For callers that used to
 pass <mnt, mnt->mnt_root> pair (i.e. the root of given mount), a new helper
 is provided - file_open_root_mnt().  In-tree users adjusted.
+
+---
+
+**mandatory**
+
+no_llseek is gone; don't set .llseek to that - just leave it NULL instead.
+Checks for "does that file have llseek(2), or should it fail with ESPIPE"
+should be done by looking at FMODE_LSEEK in file->f_mode.

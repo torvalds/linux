@@ -13,25 +13,13 @@
 #include "xfs_mount.h"
 #include "xfs_ag.h"
 
-/* Find the size of the AG, in blocks. */
-inline xfs_agblock_t
-xfs_ag_block_count(
-	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno)
-{
-	ASSERT(agno < mp->m_sb.sb_agcount);
-
-	if (agno < mp->m_sb.sb_agcount - 1)
-		return mp->m_sb.sb_agblocks;
-	return mp->m_sb.sb_dblocks - (agno * mp->m_sb.sb_agblocks);
-}
 
 /*
  * Verify that an AG block number pointer neither points outside the AG
  * nor points at static metadata.
  */
-inline bool
-xfs_verify_agbno(
+static inline bool
+xfs_verify_agno_agbno(
 	struct xfs_mount	*mp,
 	xfs_agnumber_t		agno,
 	xfs_agblock_t		agbno)
@@ -59,7 +47,7 @@ xfs_verify_fsbno(
 
 	if (agno >= mp->m_sb.sb_agcount)
 		return false;
-	return xfs_verify_agbno(mp, agno, XFS_FSB_TO_AGBNO(mp, fsbno));
+	return xfs_verify_agno_agbno(mp, agno, XFS_FSB_TO_AGBNO(mp, fsbno));
 }
 
 /*
@@ -85,40 +73,12 @@ xfs_verify_fsbext(
 		XFS_FSB_TO_AGNO(mp, fsbno + len - 1);
 }
 
-/* Calculate the first and last possible inode number in an AG. */
-inline void
-xfs_agino_range(
-	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno,
-	xfs_agino_t		*first,
-	xfs_agino_t		*last)
-{
-	xfs_agblock_t		bno;
-	xfs_agblock_t		eoag;
-
-	eoag = xfs_ag_block_count(mp, agno);
-
-	/*
-	 * Calculate the first inode, which will be in the first
-	 * cluster-aligned block after the AGFL.
-	 */
-	bno = round_up(XFS_AGFL_BLOCK(mp) + 1, M_IGEO(mp)->cluster_align);
-	*first = XFS_AGB_TO_AGINO(mp, bno);
-
-	/*
-	 * Calculate the last inode, which will be at the end of the
-	 * last (aligned) cluster that can be allocated in the AG.
-	 */
-	bno = round_down(eoag, M_IGEO(mp)->cluster_align);
-	*last = XFS_AGB_TO_AGINO(mp, bno) - 1;
-}
-
 /*
  * Verify that an AG inode number pointer neither points outside the AG
  * nor points at static metadata.
  */
-inline bool
-xfs_verify_agino(
+static inline bool
+xfs_verify_agno_agino(
 	struct xfs_mount	*mp,
 	xfs_agnumber_t		agno,
 	xfs_agino_t		agino)
@@ -128,19 +88,6 @@ xfs_verify_agino(
 
 	xfs_agino_range(mp, agno, &first, &last);
 	return agino >= first && agino <= last;
-}
-
-/*
- * Verify that an AG inode number pointer neither points outside the AG
- * nor points at static metadata, or is NULLAGINO.
- */
-bool
-xfs_verify_agino_or_null(
-	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno,
-	xfs_agino_t		agino)
-{
-	return agino == NULLAGINO || xfs_verify_agino(mp, agno, agino);
 }
 
 /*
@@ -159,7 +106,7 @@ xfs_verify_ino(
 		return false;
 	if (XFS_AGINO_TO_INO(mp, agno, agino) != ino)
 		return false;
-	return xfs_verify_agino(mp, agno, agino);
+	return xfs_verify_agno_agino(mp, agno, agino);
 }
 
 /* Is this an internal inode number? */
@@ -229,12 +176,8 @@ xfs_icount_range(
 	/* root, rtbitmap, rtsum all live in the first chunk */
 	*min = XFS_INODES_PER_CHUNK;
 
-	for_each_perag(mp, agno, pag) {
-		xfs_agino_t	first, last;
-
-		xfs_agino_range(mp, agno, &first, &last);
-		nr_inos += last - first + 1;
-	}
+	for_each_perag(mp, agno, pag)
+		nr_inos += pag->agino_max - pag->agino_min + 1;
 	*max = nr_inos;
 }
 

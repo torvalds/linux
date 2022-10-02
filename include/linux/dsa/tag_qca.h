@@ -3,6 +3,11 @@
 #ifndef __TAG_QCA_H
 #define __TAG_QCA_H
 
+#include <linux/types.h>
+
+struct dsa_switch;
+struct sk_buff;
+
 #define QCA_HDR_LEN	2
 #define QCA_HDR_VERSION	0x2
 

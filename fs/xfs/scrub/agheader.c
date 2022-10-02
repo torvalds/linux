@@ -541,16 +541,16 @@ xchk_agf(
 
 	/* Check the AG length */
 	eoag = be32_to_cpu(agf->agf_length);
-	if (eoag != xfs_ag_block_count(mp, agno))
+	if (eoag != pag->block_count)
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
 	/* Check the AGF btree roots and levels */
 	agbno = be32_to_cpu(agf->agf_roots[XFS_BTNUM_BNO]);
-	if (!xfs_verify_agbno(mp, agno, agbno))
+	if (!xfs_verify_agbno(pag, agbno))
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
 	agbno = be32_to_cpu(agf->agf_roots[XFS_BTNUM_CNT]);
-	if (!xfs_verify_agbno(mp, agno, agbno))
+	if (!xfs_verify_agbno(pag, agbno))
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
 	level = be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNO]);
@@ -563,7 +563,7 @@ xchk_agf(
 
 	if (xfs_has_rmapbt(mp)) {
 		agbno = be32_to_cpu(agf->agf_roots[XFS_BTNUM_RMAP]);
-		if (!xfs_verify_agbno(mp, agno, agbno))
+		if (!xfs_verify_agbno(pag, agbno))
 			xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
 		level = be32_to_cpu(agf->agf_levels[XFS_BTNUM_RMAP]);
@@ -573,7 +573,7 @@ xchk_agf(
 
 	if (xfs_has_reflink(mp)) {
 		agbno = be32_to_cpu(agf->agf_refcount_root);
-		if (!xfs_verify_agbno(mp, agno, agbno))
+		if (!xfs_verify_agbno(pag, agbno))
 			xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
 		level = be32_to_cpu(agf->agf_refcount_level);
@@ -639,9 +639,8 @@ xchk_agfl_block(
 {
 	struct xchk_agfl_info	*sai = priv;
 	struct xfs_scrub	*sc = sai->sc;
-	xfs_agnumber_t		agno = sc->sa.pag->pag_agno;
 
-	if (xfs_verify_agbno(mp, agno, agbno) &&
+	if (xfs_verify_agbno(sc->sa.pag, agbno) &&
 	    sai->nr_entries < sai->sz_entries)
 		sai->entries[sai->nr_entries++] = agbno;
 	else
@@ -871,12 +870,12 @@ xchk_agi(
 
 	/* Check the AG length */
 	eoag = be32_to_cpu(agi->agi_length);
-	if (eoag != xfs_ag_block_count(mp, agno))
+	if (eoag != pag->block_count)
 		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
 
 	/* Check btree roots and levels */
 	agbno = be32_to_cpu(agi->agi_root);
-	if (!xfs_verify_agbno(mp, agno, agbno))
+	if (!xfs_verify_agbno(pag, agbno))
 		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
 
 	level = be32_to_cpu(agi->agi_level);
@@ -885,7 +884,7 @@ xchk_agi(
 
 	if (xfs_has_finobt(mp)) {
 		agbno = be32_to_cpu(agi->agi_free_root);
-		if (!xfs_verify_agbno(mp, agno, agbno))
+		if (!xfs_verify_agbno(pag, agbno))
 			xchk_block_set_corrupt(sc, sc->sa.agi_bp);
 
 		level = be32_to_cpu(agi->agi_free_level);
@@ -902,17 +901,17 @@ xchk_agi(
 
 	/* Check inode pointers */
 	agino = be32_to_cpu(agi->agi_newino);
-	if (!xfs_verify_agino_or_null(mp, agno, agino))
+	if (!xfs_verify_agino_or_null(pag, agino))
 		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
 
 	agino = be32_to_cpu(agi->agi_dirino);
-	if (!xfs_verify_agino_or_null(mp, agno, agino))
+	if (!xfs_verify_agino_or_null(pag, agino))
 		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
 
 	/* Check unlinked inode buckets */
 	for (i = 0; i < XFS_AGI_UNLINKED_BUCKETS; i++) {
 		agino = be32_to_cpu(agi->agi_unlinked[i]);
-		if (!xfs_verify_agino_or_null(mp, agno, agino))
+		if (!xfs_verify_agino_or_null(pag, agino))
 			xchk_block_set_corrupt(sc, sc->sa.agi_bp);
 	}
 

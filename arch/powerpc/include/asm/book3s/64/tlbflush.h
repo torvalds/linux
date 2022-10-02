@@ -138,9 +138,29 @@ static inline void flush_all_mm(struct mm_struct *mm)
 static inline void flush_tlb_fix_spurious_fault(struct vm_area_struct *vma,
 						unsigned long address)
 {
-	/* See ptep_set_access_flags comment */
-	if (atomic_read(&vma->vm_mm->context.copros) > 0)
-		flush_tlb_page(vma, address);
+	/*
+	 * Book3S 64 does not require spurious fault flushes because the PTE
+	 * must be re-fetched in case of an access permission problem. So the
+	 * only reason for a spurious fault should be concurrent modification
+	 * to the PTE, in which case the PTE will eventually be re-fetched by
+	 * the MMU when it attempts the access again.
+	 *
+	 * See: Power ISA Version 3.1B, 6.10.1.2 Modifying a Translation Table
+	 * Entry, Setting a Reference or Change Bit or Upgrading Access
+	 * Authority (PTE Subject to Atomic Hardware Updates):
+	 *
+	 * "If the only change being made to a valid PTE that is subject to
+	 *  atomic hardware updates is to set the Reference or Change bit to
+	 *  1 or to upgrade access authority, a simpler sequence suffices
+	 *  because the translation hardware will refetch the PTE if an
+	 *  access is attempted for which the only problems were reference
+	 *  and/or change bits needing to be set or insufficient access
+	 *  authority."
+	 *
+	 * The nest MMU in POWER9 does not perform this PTE re-fetch, but
+	 * it avoids the spurious fault problem by flushing the TLB before
+	 * upgrading PTE permissions, see radix__ptep_set_access_flags.
+	 */
 }
 
 extern bool tlbie_capable;

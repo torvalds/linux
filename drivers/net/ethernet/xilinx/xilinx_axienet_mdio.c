@@ -106,7 +106,7 @@ static int axienet_mdio_read(struct mii_bus *bus, int phy_id, int reg)
  * Return:	0 on success, -ETIMEDOUT on a timeout
  *
  * Writes the value to the requested register by first writing the value
- * into MWD register. The the MCR register is then appropriately setup
+ * into MWD register. The MCR register is then appropriately setup
  * to finish the write operation.
  */
 static int axienet_mdio_write(struct mii_bus *bus, int phy_id, int reg,

@@ -24,6 +24,7 @@ properties:
           - mediatek,mt2712-mtu3
           - mediatek,mt8173-mtu3
           - mediatek,mt8183-mtu3
+          - mediatek,mt8188-mtu3
           - mediatek,mt8192-mtu3
           - mediatek,mt8195-mtu3
       - const: mediatek,mtu3
@@ -106,6 +107,9 @@ properties:
 
   maximum-speed:
     enum: [super-speed-plus, super-speed, high-speed, full-speed]
+
+  resets:
+    maxItems: 1
 
   "#address-cells":
     enum: [1, 2]

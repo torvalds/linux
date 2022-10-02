@@ -109,8 +109,7 @@ Di seguito una lista di file che sono presenti nei sorgente del kernel e che
     accetteranno patch solo se queste osserveranno tali regole, e molte
     persone revisioneranno il codice solo se scritto nello stile appropriato.
 
-  :ref:`Documentation/translations/it_IT/process/submitting-patches.rst <it_submittingpatches>` e
-  :ref:`Documentation/translations/it_IT/process/submitting-drivers.rst <it_submittingdrivers>`
+  :ref:`Documentation/translations/it_IT/process/submitting-patches.rst <it_submittingpatches>`
 
     Questo file descrive dettagliatamente come creare ed inviare una patch
     con successo, includendo (ma non solo questo):

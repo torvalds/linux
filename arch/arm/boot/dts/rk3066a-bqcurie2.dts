@@ -48,7 +48,7 @@
 		compatible = "gpio-keys";
 		autorepeat;
 
-		power {
+		key-power {
 			gpios = <&gpio6 RK_PA2 GPIO_ACTIVE_LOW>; /* GPIO6_A2 */
 			linux,code = <KEY_POWER>;
 			label = "GPIO Key Power";
@@ -56,7 +56,7 @@
 			wakeup-source;
 			debounce-interval = <100>;
 		};
-		volume-down {
+		key-volume-down {
 			gpios = <&gpio4 RK_PC5 GPIO_ACTIVE_LOW>; /* GPIO4_C5 */
 			linux,code = <KEY_VOLUMEDOWN>;
 			label = "GPIO Key Vol-";

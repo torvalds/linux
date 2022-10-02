@@ -296,12 +296,14 @@ static void queue_cast(struct dlm_rsb *r, struct dlm_lkb *lkb, int rv)
 
 	DLM_ASSERT(lkb->lkb_lksb, dlm_print_lkb(lkb););
 
+#ifdef CONFIG_DLM_DEPRECATED_API
 	/* if the operation was a cancel, then return -DLM_ECANCEL, if a
 	   timeout caused the cancel then return -ETIMEDOUT */
 	if (rv == -DLM_ECANCEL && (lkb->lkb_flags & DLM_IFL_TIMEOUT_CANCEL)) {
 		lkb->lkb_flags &= ~DLM_IFL_TIMEOUT_CANCEL;
 		rv = -ETIMEDOUT;
 	}
+#endif
 
 	if (rv == -DLM_ECANCEL && (lkb->lkb_flags & DLM_IFL_DEADLOCK_CANCEL)) {
 		lkb->lkb_flags &= ~DLM_IFL_DEADLOCK_CANCEL;
@@ -1210,7 +1212,9 @@ static int _create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret,
 	kref_init(&lkb->lkb_ref);
 	INIT_LIST_HEAD(&lkb->lkb_ownqueue);
 	INIT_LIST_HEAD(&lkb->lkb_rsb_lookup);
+#ifdef CONFIG_DLM_DEPRECATED_API
 	INIT_LIST_HEAD(&lkb->lkb_time_list);
+#endif
 	INIT_LIST_HEAD(&lkb->lkb_cb_list);
 	mutex_init(&lkb->lkb_cb_mutex);
 	INIT_WORK(&lkb->lkb_cb_work, dlm_callback_work);
@@ -1306,6 +1310,13 @@ static inline void hold_lkb(struct dlm_lkb *lkb)
 	kref_get(&lkb->lkb_ref);
 }
 
+static void unhold_lkb_assert(struct kref *kref)
+{
+	struct dlm_lkb *lkb = container_of(kref, struct dlm_lkb, lkb_ref);
+
+	DLM_ASSERT(false, dlm_print_lkb(lkb););
+}
+
 /* This is called when we need to remove a reference and are certain
    it's not the last ref.  e.g. del_lkb is always called between a
    find_lkb/put_lkb and is always the inverse of a previous add_lkb.
@@ -1313,9 +1324,7 @@ static inline void hold_lkb(struct dlm_lkb *lkb)
 
 static inline void unhold_lkb(struct dlm_lkb *lkb)
 {
-	int rv;
-	rv = kref_put(&lkb->lkb_ref, kill_lkb);
-	DLM_ASSERT(!rv, dlm_print_lkb(lkb););
+	kref_put(&lkb->lkb_ref, unhold_lkb_assert);
 }
 
 static void lkb_add_ordered(struct list_head *new, struct list_head *head,
@@ -1402,75 +1411,6 @@ static int msg_reply_type(int mstype)
 	return -1;
 }
 
-static int nodeid_warned(int nodeid, int num_nodes, int *warned)
-{
-	int i;
-
-	for (i = 0; i < num_nodes; i++) {
-		if (!warned[i]) {
-			warned[i] = nodeid;
-			return 0;
-		}
-		if (warned[i] == nodeid)
-			return 1;
-	}
-	return 0;
-}
-
-void dlm_scan_waiters(struct dlm_ls *ls)
-{
-	struct dlm_lkb *lkb;
-	s64 us;
-	s64 debug_maxus = 0;
-	u32 debug_scanned = 0;
-	u32 debug_expired = 0;
-	int num_nodes = 0;
-	int *warned = NULL;
-
-	if (!dlm_config.ci_waitwarn_us)
-		return;
-
-	mutex_lock(&ls->ls_waiters_mutex);
-
-	list_for_each_entry(lkb, &ls->ls_waiters, lkb_wait_reply) {
-		if (!lkb->lkb_wait_time)
-			continue;
-
-		debug_scanned++;
-
-		us = ktime_to_us(ktime_sub(ktime_get(), lkb->lkb_wait_time));
-
-		if (us < dlm_config.ci_waitwarn_us)
-			continue;
-
-		lkb->lkb_wait_time = 0;
-
-		debug_expired++;
-		if (us > debug_maxus)
-			debug_maxus = us;
-
-		if (!num_nodes) {
-			num_nodes = ls->ls_num_nodes;
-			warned = kcalloc(num_nodes, sizeof(int), GFP_KERNEL);
-		}
-		if (!warned)
-			continue;
-		if (nodeid_warned(lkb->lkb_wait_nodeid, num_nodes, warned))
-			continue;
-
-		log_error(ls, "waitwarn %x %lld %d us check connection to "
-			  "node %d", lkb->lkb_id, (long long)us,
-			  dlm_config.ci_waitwarn_us, lkb->lkb_wait_nodeid);
-	}
-	mutex_unlock(&ls->ls_waiters_mutex);
-	kfree(warned);
-
-	if (debug_expired)
-		log_debug(ls, "scan_waiters %u warn %u over %d us max %lld us",
-			  debug_scanned, debug_expired,
-			  dlm_config.ci_waitwarn_us, (long long)debug_maxus);
-}
-
 /* add/remove lkb from global waiters list of lkb's waiting for
    a reply from a remote node */
 
@@ -1514,7 +1454,6 @@ static int add_to_waiters(struct dlm_lkb *lkb, int mstype, int to_nodeid)
 
 	lkb->lkb_wait_count++;
 	lkb->lkb_wait_type = mstype;
-	lkb->lkb_wait_time = ktime_get();
 	lkb->lkb_wait_nodeid = to_nodeid; /* for debugging */
 	hold_lkb(lkb);
 	list_add(&lkb->lkb_wait_reply, &ls->ls_waiters);
@@ -1842,6 +1781,7 @@ void dlm_scan_rsbs(struct dlm_ls *ls)
 	}
 }
 
+#ifdef CONFIG_DLM_DEPRECATED_API
 static void add_timeout(struct dlm_lkb *lkb)
 {
 	struct dlm_ls *ls = lkb->lkb_resource->res_ls;
@@ -1962,17 +1902,11 @@ void dlm_adjust_timeouts(struct dlm_ls *ls)
 	list_for_each_entry(lkb, &ls->ls_timeout, lkb_time_list)
 		lkb->lkb_timestamp = ktime_add_us(lkb->lkb_timestamp, adj_us);
 	mutex_unlock(&ls->ls_timeout_mutex);
-
-	if (!dlm_config.ci_waitwarn_us)
-		return;
-
-	mutex_lock(&ls->ls_waiters_mutex);
-	list_for_each_entry(lkb, &ls->ls_waiters, lkb_wait_reply) {
-		if (ktime_to_us(lkb->lkb_wait_time))
-			lkb->lkb_wait_time = ktime_get();
-	}
-	mutex_unlock(&ls->ls_waiters_mutex);
 }
+#else
+static void add_timeout(struct dlm_lkb *lkb) { }
+static void del_timeout(struct dlm_lkb *lkb) { }
+#endif
 
 /* lkb is master or local copy */
 
@@ -2837,12 +2771,20 @@ static void confirm_master(struct dlm_rsb *r, int error)
 	}
 }
 
+#ifdef CONFIG_DLM_DEPRECATED_API
 static int set_lock_args(int mode, struct dlm_lksb *lksb, uint32_t flags,
 			 int namelen, unsigned long timeout_cs,
 			 void (*ast) (void *astparam),
 			 void *astparam,
 			 void (*bast) (void *astparam, int mode),
 			 struct dlm_args *args)
+#else
+static int set_lock_args(int mode, struct dlm_lksb *lksb, uint32_t flags,
+			 int namelen, void (*ast)(void *astparam),
+			 void *astparam,
+			 void (*bast)(void *astparam, int mode),
+			 struct dlm_args *args)
+#endif
 {
 	int rv = -EINVAL;
 
@@ -2895,7 +2837,9 @@ static int set_lock_args(int mode, struct dlm_lksb *lksb, uint32_t flags,
 	args->astfn = ast;
 	args->astparam = astparam;
 	args->bastfn = bast;
+#ifdef CONFIG_DLM_DEPRECATED_API
 	args->timeout = timeout_cs;
+#endif
 	args->mode = mode;
 	args->lksb = lksb;
 	rv = 0;
@@ -2951,7 +2895,9 @@ static int validate_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 	lkb->lkb_lksb = args->lksb;
 	lkb->lkb_lvbptr = args->lksb->sb_lvbptr;
 	lkb->lkb_ownpid = (int) current->pid;
+#ifdef CONFIG_DLM_DEPRECATED_API
 	lkb->lkb_timeout_cs = args->timeout;
+#endif
 	rv = 0;
  out:
 	if (rv)
@@ -3472,10 +3418,15 @@ int dlm_lock(dlm_lockspace_t *lockspace,
 	if (error)
 		goto out;
 
-	trace_dlm_lock_start(ls, lkb, mode, flags);
+	trace_dlm_lock_start(ls, lkb, name, namelen, mode, flags);
 
+#ifdef CONFIG_DLM_DEPRECATED_API
 	error = set_lock_args(mode, lksb, flags, namelen, 0, ast,
 			      astarg, bast, &args);
+#else
+	error = set_lock_args(mode, lksb, flags, namelen, ast, astarg, bast,
+			      &args);
+#endif
 	if (error)
 		goto out_put;
 
@@ -3487,7 +3438,7 @@ int dlm_lock(dlm_lockspace_t *lockspace,
 	if (error == -EINPROGRESS)
 		error = 0;
  out_put:
-	trace_dlm_lock_end(ls, lkb, mode, flags, error);
+	trace_dlm_lock_end(ls, lkb, name, namelen, mode, flags, error);
 
 	if (convert || error)
 		__put_lkb(ls, lkb);
@@ -5839,9 +5790,14 @@ int dlm_recover_process_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 	return 0;
 }
 
+#ifdef CONFIG_DLM_DEPRECATED_API
 int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 		     int mode, uint32_t flags, void *name, unsigned int namelen,
 		     unsigned long timeout_cs)
+#else
+int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
+		     int mode, uint32_t flags, void *name, unsigned int namelen)
+#endif
 {
 	struct dlm_lkb *lkb;
 	struct dlm_args args;
@@ -5864,8 +5820,13 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 			goto out;
 		}
 	}
+#ifdef CONFIG_DLM_DEPRECATED_API
 	error = set_lock_args(mode, &ua->lksb, flags, namelen, timeout_cs,
 			      fake_astfn, ua, fake_bastfn, &args);
+#else
+	error = set_lock_args(mode, &ua->lksb, flags, namelen, fake_astfn, ua,
+			      fake_bastfn, &args);
+#endif
 	if (error) {
 		kfree(ua->lksb.sb_lvbptr);
 		ua->lksb.sb_lvbptr = NULL;
@@ -5904,9 +5865,14 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 	return error;
 }
 
+#ifdef CONFIG_DLM_DEPRECATED_API
 int dlm_user_convert(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 		     int mode, uint32_t flags, uint32_t lkid, char *lvb_in,
 		     unsigned long timeout_cs)
+#else
+int dlm_user_convert(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
+		     int mode, uint32_t flags, uint32_t lkid, char *lvb_in)
+#endif
 {
 	struct dlm_lkb *lkb;
 	struct dlm_args args;
@@ -5941,8 +5907,13 @@ int dlm_user_convert(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 	ua->bastaddr = ua_tmp->bastaddr;
 	ua->user_lksb = ua_tmp->user_lksb;
 
+#ifdef CONFIG_DLM_DEPRECATED_API
 	error = set_lock_args(mode, &ua->lksb, flags, 0, timeout_cs,
 			      fake_astfn, ua, fake_bastfn, &args);
+#else
+	error = set_lock_args(mode, &ua->lksb, flags, 0, fake_astfn, ua,
+			      fake_bastfn, &args);
+#endif
 	if (error)
 		goto out_put;
 
@@ -5966,7 +5937,7 @@ int dlm_user_convert(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 
 int dlm_user_adopt_orphan(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 		     int mode, uint32_t flags, void *name, unsigned int namelen,
-		     unsigned long timeout_cs, uint32_t *lkid)
+		     uint32_t *lkid)
 {
 	struct dlm_lkb *lkb = NULL, *iter;
 	struct dlm_user_args *ua;

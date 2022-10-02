@@ -8,23 +8,7 @@
 #include "drv_types.h"
 #include "Hal8188EPhyCfg.h"
 
-enum hw_variables {
-	HW_VAR_SET_OPMODE,
-	HW_VAR_BASIC_RATE,
-	HW_VAR_CORRECT_TSF,
-	HW_VAR_MLME_SITESURVEY,
-	HW_VAR_SLOT_TIME,
-	HW_VAR_DM_FLAG,
-	HW_VAR_DM_FUNC_OP,
-	HW_VAR_DM_FUNC_RESET,
-	HW_VAR_DM_FUNC_CLR,
-	HW_VAR_AMPDU_FACTOR,
-	HW_VAR_H2C_MEDIA_STATUS_RPT,
-};
-
 typedef s32 (*c2h_id_filter)(u8 id);
-
-#define is_boot_from_eeprom(adapter) (adapter->eeprompriv.EepromOrEfuse)
 
 void rtl8188eu_interface_configure(struct adapter *adapt);
 void ReadAdapterInfo8188EU(struct adapter *Adapter);
@@ -32,7 +16,7 @@ void rtl8188eu_init_default_value(struct adapter *adapt);
 void rtl8188e_SetHalODMVar(struct adapter *Adapter, void *pValue1, bool bSet);
 u32 rtl8188eu_InitPowerOn(struct adapter *adapt);
 void rtl8188e_EfusePowerSwitch(struct adapter *pAdapter, u8 PwrState);
-void rtl8188e_ReadEFuse(struct adapter *Adapter, u16 _offset, u16 _size_byte, u8 *pbuf);
+void rtl8188e_ReadEFuse(struct adapter *Adapter, u16 _size_byte, u8 *pbuf);
 
 void hal_notch_filter_8188e(struct adapter *adapter, bool enable);
 
@@ -43,8 +27,6 @@ int rtl8188e_IOL_exec_cmds_sync(struct adapter *adapter,
 				struct xmit_frame *xmit_frame, u32 max_wating_ms, u32 bndy_cnt);
 
 unsigned int rtl8188eu_inirp_init(struct adapter *Adapter);
-
-void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val);
 
 uint rtw_hal_init(struct adapter *padapter);
 uint rtw_hal_deinit(struct adapter *padapter);

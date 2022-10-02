@@ -28,6 +28,99 @@ properties:
           - const: brcm,bcm47622
           - const: brcm,bcmbca
 
+      - description: BCM4912 based boards
+        items:
+          - enum:
+              - asus,gt-ax6000
+              - brcm,bcm94912
+          - const: brcm,bcm4912
+          - const: brcm,bcmbca
+
+      - description: BCM63138 based boards
+        items:
+          - enum:
+              - brcm,bcm963138
+              - brcm,BCM963138DVT
+          - const: brcm,bcm63138
+          - const: brcm,bcmbca
+
+      - description: BCM63146 based boards
+        items:
+          - enum:
+              - brcm,bcm963146
+          - const: brcm,bcm63146
+          - const: brcm,bcmbca
+
+      - description: BCM63148 based boards
+        items:
+          - enum:
+              - brcm,bcm963148
+          - const: brcm,bcm63148
+          - const: brcm,bcmbca
+
+      - description: BCM63158 based boards
+        items:
+          - enum:
+              - brcm,bcm963158
+          - const: brcm,bcm63158
+          - const: brcm,bcmbca
+
+      - description: BCM63178 based boards
+        items:
+          - enum:
+              - brcm,bcm963178
+          - const: brcm,bcm63178
+          - const: brcm,bcmbca
+
+      - description: BCM6756 based boards
+        items:
+          - enum:
+              - brcm,bcm96756
+          - const: brcm,bcm6756
+          - const: brcm,bcmbca
+
+      - description: BCM6813 based boards
+        items:
+          - enum:
+              - brcm,bcm96813
+          - const: brcm,bcm6813
+          - const: brcm,bcmbca
+
+      - description: BCM6846 based boards
+        items:
+          - enum:
+              - brcm,bcm96846
+          - const: brcm,bcm6846
+          - const: brcm,bcmbca
+
+      - description: BCM6855 based boards
+        items:
+          - enum:
+              - brcm,bcm96855
+          - const: brcm,bcm6855
+          - const: brcm,bcmbca
+
+      - description: BCM6856 based boards
+        items:
+          - enum:
+              - brcm,bcm96856
+          - const: brcm,bcm6856
+          - const: brcm,bcmbca
+
+      - description: BCM6858 based boards
+        items:
+          - enum:
+              - brcm,bcm96858
+          - const: brcm,bcm6858
+          - const: brcm,bcmbca
+
+      - description: BCM6878 based boards
+        items:
+          - enum:
+              - brcm,bcm96878
+          - const: brcm,bcm6878
+          - const: brcm,bcmbca
+
 additionalProperties: true
 
 ...

@@ -34,11 +34,14 @@ static int copy_bio_to_actor(struct bio *bio,
 			     struct squashfs_page_actor *actor,
 			     int offset, int req_length)
 {
-	void *actor_addr = squashfs_first_page(actor);
+	void *actor_addr;
 	struct bvec_iter_all iter_all = {};
 	struct bio_vec *bvec = bvec_init_iter_all(&iter_all);
 	int copied_bytes = 0;
 	int actor_offset = 0;
+
+	squashfs_actor_nobuff(actor);
+	actor_addr = squashfs_first_page(actor);
 
 	if (WARN_ON_ONCE(!bio_next_segment(bio, &iter_all)))
 		return 0;
@@ -49,8 +52,9 @@ static int copy_bio_to_actor(struct bio *bio,
 
 		bytes_to_copy = min_t(int, bytes_to_copy,
 				      req_length - copied_bytes);
-		memcpy(actor_addr + actor_offset, bvec_virt(bvec) + offset,
-		       bytes_to_copy);
+		if (!IS_ERR(actor_addr))
+			memcpy(actor_addr + actor_offset, bvec_virt(bvec) +
+					offset, bytes_to_copy);
 
 		actor_offset += bytes_to_copy;
 		copied_bytes += bytes_to_copy;

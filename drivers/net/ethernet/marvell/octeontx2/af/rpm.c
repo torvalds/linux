@@ -22,6 +22,7 @@ static struct mac_ops	rpm_mac_ops   = {
 	.tx_stats_cnt   =       34,
 	.get_nr_lmacs	=	rpm_get_nr_lmacs,
 	.get_lmac_type  =       rpm_get_lmac_type,
+	.lmac_fifo_len	=	rpm_get_lmac_fifo_len,
 	.mac_lmac_intl_lbk =    rpm_lmac_internal_loopback,
 	.mac_get_rx_stats  =	rpm_get_rx_stats,
 	.mac_get_tx_stats  =	rpm_get_tx_stats,
@@ -276,6 +277,14 @@ void rpm_lmac_pause_frm_config(void *rpmd, int lmac_id, bool enable)
 	cfg = rpm_read(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG);
 	cfg |= RPMX_MTI_MAC100X_COMMAND_CONFIG_TX_P_DISABLE;
 	rpm_write(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG, cfg);
+
+	/* Disable all PFC classes */
+	cfg = rpm_read(rpm, lmac_id, RPMX_CMRX_PRT_CBFC_CTL);
+	cfg = FIELD_SET(RPM_PFC_CLASS_MASK, 0, cfg);
+	rpm_write(rpm, lmac_id, RPMX_CMRX_PRT_CBFC_CTL, cfg);
+
+	/* Enable channel mask for all LMACS */
+	rpm_write(rpm, 0, RPMX_CMR_CHAN_MSK_OR, ~0ULL);
 }
 
 int rpm_get_rx_stats(void *rpmd, int lmac_id, int idx, u64 *rx_stat)
@@ -342,6 +351,35 @@ u8 rpm_get_lmac_type(void *rpmd, int lmac_id)
 	return err;
 }
 
+u32 rpm_get_lmac_fifo_len(void *rpmd, int lmac_id)
+{
+	rpm_t *rpm = rpmd;
+	u64 hi_perf_lmac;
+	u8 num_lmacs;
+	u32 fifo_len;
+
+	fifo_len = rpm->mac_ops->fifo_len;
+	num_lmacs = rpm->mac_ops->get_nr_lmacs(rpm);
+
+	switch (num_lmacs) {
+	case 1:
+		return fifo_len;
+	case 2:
+		return fifo_len / 2;
+	case 3:
+		/* LMAC marked as hi_perf gets half of the FIFO and rest 1/4th */
+		hi_perf_lmac = rpm_read(rpm, 0, CGXX_CMRX_RX_LMACS);
+		hi_perf_lmac = (hi_perf_lmac >> 4) & 0x3ULL;
+		if (lmac_id == hi_perf_lmac)
+			return fifo_len / 2;
+		return fifo_len / 4;
+	case 4:
+	default:
+		return fifo_len / 4;
+	}
+	return 0;
+}
+
 int rpm_lmac_internal_loopback(void *rpmd, int lmac_id, bool enable)
 {
 	rpm_t *rpm = rpmd;
@@ -387,15 +425,14 @@ void rpm_lmac_ptp_config(void *rpmd, int lmac_id, bool enable)
 int rpm_lmac_pfc_config(void *rpmd, int lmac_id, u8 tx_pause, u8 rx_pause, u16 pfc_en)
 {
 	rpm_t *rpm = rpmd;
-	u64 cfg;
+	u64 cfg, class_en;
 
 	if (!is_lmac_valid(rpm, lmac_id))
 		return -ENODEV;
 
-	/* reset PFC class quanta and threshold */
-	rpm_cfg_pfc_quanta_thresh(rpm, lmac_id, 0xffff, false);
-
 	cfg = rpm_read(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG);
+	class_en = rpm_read(rpm, lmac_id, RPMX_CMRX_PRT_CBFC_CTL);
+	pfc_en |= FIELD_GET(RPM_PFC_CLASS_MASK, class_en);
 
 	if (rx_pause) {
 		cfg &= ~(RPMX_MTI_MAC100X_COMMAND_CONFIG_RX_P_DISABLE |
@@ -410,9 +447,11 @@ int rpm_lmac_pfc_config(void *rpmd, int lmac_id, u8 tx_pause, u8 rx_pause, u16 p
 	if (tx_pause) {
 		rpm_cfg_pfc_quanta_thresh(rpm, lmac_id, pfc_en, true);
 		cfg &= ~RPMX_MTI_MAC100X_COMMAND_CONFIG_TX_P_DISABLE;
+		class_en = FIELD_SET(RPM_PFC_CLASS_MASK, pfc_en, class_en);
 	} else {
 		rpm_cfg_pfc_quanta_thresh(rpm, lmac_id, 0xfff, false);
 		cfg |= RPMX_MTI_MAC100X_COMMAND_CONFIG_TX_P_DISABLE;
+		class_en = FIELD_SET(RPM_PFC_CLASS_MASK, 0, class_en);
 	}
 
 	if (!rx_pause && !tx_pause)
@@ -422,9 +461,7 @@ int rpm_lmac_pfc_config(void *rpmd, int lmac_id, u8 tx_pause, u8 rx_pause, u16 p
 
 	rpm_write(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG, cfg);
 
-	cfg = rpm_read(rpm, lmac_id, RPMX_CMRX_PRT_CBFC_CTL);
-	cfg = FIELD_SET(RPM_PFC_CLASS_MASK, pfc_en, cfg);
-	rpm_write(rpm, lmac_id, RPMX_CMRX_PRT_CBFC_CTL, cfg);
+	rpm_write(rpm, lmac_id, RPMX_CMRX_PRT_CBFC_CTL, class_en);
 
 	return 0;
 }

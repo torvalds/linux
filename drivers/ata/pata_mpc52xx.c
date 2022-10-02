@@ -683,7 +683,7 @@ static int mpc52xx_ata_probe(struct platform_device *op)
 	struct bcom_task *dmatsk;
 
 	/* Get ipb frequency */
-	ipb_freq = mpc5xxx_get_bus_frequency(op->dev.of_node);
+	ipb_freq = mpc5xxx_get_bus_frequency(&op->dev);
 	if (!ipb_freq) {
 		dev_err(&op->dev, "could not determine IPB bus frequency\n");
 		return -ENODEV;

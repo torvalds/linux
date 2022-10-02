@@ -29,6 +29,9 @@
 
 struct watermarks;
 
+extern struct wm_table ddr4_wm_table;
+extern struct wm_table lpddr5_wm_table;
+
 struct smu_watermark_set {
 	struct watermarks *wm_set;
 	union large_integer mc_address;

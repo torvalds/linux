@@ -671,7 +671,7 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 
 		/*
 		 *because we should back channel to
-		 *current_network.chan in in scanning,
+		 *current_network.chan in scanning,
 		 *So if set_chan == current_network.chan
 		 *we should set it.
 		 *because mac80211 tell us wrong bw40
@@ -982,7 +982,8 @@ static int _rtl_get_hal_qnum(u16 queue)
  *for rtl819x  BE = 0, BK = 1, VI = 2, VO = 3
  */
 static int rtl_op_conf_tx(struct ieee80211_hw *hw,
-			  struct ieee80211_vif *vif, u16 queue,
+			  struct ieee80211_vif *vif,
+			  unsigned int link_id, u16 queue,
 			  const struct ieee80211_tx_queue_params *param)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -1009,7 +1010,7 @@ static void send_beacon_frame(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct sk_buff *skb = ieee80211_beacon_get(hw, vif);
+	struct sk_buff *skb = ieee80211_beacon_get(hw, vif, 0);
 	struct rtl_tcb_desc tcb_desc;
 
 	if (skb) {
@@ -1040,7 +1041,7 @@ EXPORT_SYMBOL_GPL(rtl_update_beacon_work_callback);
 static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *bss_conf,
-				    u32 changed)
+				    u64 changed)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
@@ -1094,7 +1095,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_ASSOC) {
 		u8 mstatus;
 
-		if (bss_conf->assoc) {
+		if (vif->cfg.assoc) {
 			struct ieee80211_sta *sta = NULL;
 			u8 keep_alive = 10;
 
@@ -1111,7 +1112,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 
 			mac->link_state = MAC80211_LINKED;
 			mac->cnt_after_linked = 0;
-			mac->assoc_id = bss_conf->aid;
+			mac->assoc_id = vif->cfg.aid;
 			memcpy(mac->bssid, bss_conf->bssid, ETH_ALEN);
 
 			if (rtlpriv->cfg->ops->linked_set_reg)
@@ -1702,7 +1703,7 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		rtlpriv->sec.key_len[key_idx] = 0;
 		eth_zero_addr(mac_addr);
 		/*
-		 *mac80211 will delete entrys one by one,
+		 *mac80211 will delete entries one by one,
 		 *so don't use rtl_cam_reset_all_entry
 		 *or clear all entry here.
 		 */

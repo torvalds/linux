@@ -15,12 +15,15 @@ struct task_struct;
  * @prev:	The task previously executed.
  * @next:	The task to begin executing.
  * @next_ti:	task_thread_info(next).
+ * @sched_ra:	__schedule return address.
+ * @sched_cfa:	__schedule call frame address.
  *
  * This function is used whilst scheduling to save the context of prev & load
  * the context of next. Returns prev.
  */
 extern asmlinkage struct task_struct *__switch_to(struct task_struct *prev,
-			struct task_struct *next, struct thread_info *next_ti);
+			struct task_struct *next, struct thread_info *next_ti,
+			void *sched_ra, void *sched_cfa);
 
 /*
  * For newly created kernel threads switch_to() will return to
@@ -28,10 +31,11 @@ extern asmlinkage struct task_struct *__switch_to(struct task_struct *prev,
  * That is, everything following __switch_to() will be skipped for new threads.
  * So everything that matters to new threads should be placed before __switch_to().
  */
-#define switch_to(prev, next, last)					\
-do {									\
-	lose_fpu_inatomic(1, prev);					\
-	(last) = __switch_to(prev, next, task_thread_info(next));	\
+#define switch_to(prev, next, last)						\
+do {										\
+	lose_fpu_inatomic(1, prev);						\
+	(last) = __switch_to(prev, next, task_thread_info(next),		\
+		 __builtin_return_address(0), __builtin_frame_address(0));	\
 } while (0)
 
 #endif /* _ASM_SWITCH_TO_H */

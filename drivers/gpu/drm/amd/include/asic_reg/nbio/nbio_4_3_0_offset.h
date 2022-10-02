@@ -6918,6 +6918,8 @@
 #define regPSWUSCFG0_SSID_CAP                                                                           0x2880031
 #define regPSWUSCFG0_SSID_CAP_BASE_IDX                                                                  5
 
+#define regPCIE_LC_RXRECOVER_RXSTANDBY_CNTL                                                             0x2890102
+#define regPCIE_LC_RXRECOVER_RXSTANDBY_CNTL_BASE_IDX                                                    5
 
 // addressBlock: nbio_nbif0_bif_cfg_dev0_rc_bifcfgdecp
 // base address: 0x10100000

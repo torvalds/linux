@@ -372,7 +372,7 @@
 		gpmc,device-width = <2>;
 		gpmc,wait-pin = <0>;
 		gpmc,wait-monitoring-ns = <0>;
-		gpmc,burst-length= <4>;
+		gpmc,burst-length = <4>;
 		gpmc,cs-on-ns = <0>;
 		gpmc,cs-rd-off-ns = <100>;
 		gpmc,cs-wr-off-ns = <100>;

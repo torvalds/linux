@@ -782,6 +782,7 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	enum port port;
@@ -838,7 +839,7 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 	 * the delay in that case. If there is no deassert-seq, then an
 	 * unconditional msleep is used to give the panel time to power-on.
 	 */
-	if (dev_priv->vbt.dsi.sequence[MIPI_SEQ_DEASSERT_RESET]) {
+	if (connector->panel.vbt.dsi.sequence[MIPI_SEQ_DEASSERT_RESET]) {
 		intel_dsi_msleep(intel_dsi, intel_dsi->panel_on_delay);
 		intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_DEASSERT_RESET);
 	} else {
@@ -1690,7 +1691,8 @@ static void vlv_dphy_param_init(struct intel_dsi *intel_dsi)
 {
 	struct drm_device *dev = intel_dsi->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct mipi_config *mipi_config = dev_priv->vbt.dsi.config;
+	struct intel_connector *connector = intel_dsi->attached_connector;
+	struct mipi_config *mipi_config = connector->panel.vbt.dsi.config;
 	u32 tlpx_ns, extra_byte_count, tlpx_ui;
 	u32 ui_num, ui_den;
 	u32 prepare_cnt, exit_zero_cnt, clk_zero_cnt, trail_cnt;
@@ -1924,13 +1926,22 @@ void vlv_dsi_init(struct drm_i915_private *dev_priv)
 
 	intel_dsi->panel_power_off_time = ktime_get_boottime();
 
-	if (dev_priv->vbt.dsi.config->dual_link)
+	intel_bios_init_panel(dev_priv, &intel_connector->panel, NULL, NULL);
+
+	if (intel_connector->panel.vbt.dsi.config->dual_link)
 		intel_dsi->ports = BIT(PORT_A) | BIT(PORT_C);
 	else
 		intel_dsi->ports = BIT(port);
 
-	intel_dsi->dcs_backlight_ports = dev_priv->vbt.dsi.bl_ports;
-	intel_dsi->dcs_cabc_ports = dev_priv->vbt.dsi.cabc_ports;
+	if (drm_WARN_ON(&dev_priv->drm, intel_connector->panel.vbt.dsi.bl_ports & ~intel_dsi->ports))
+		intel_connector->panel.vbt.dsi.bl_ports &= intel_dsi->ports;
+
+	intel_dsi->dcs_backlight_ports = intel_connector->panel.vbt.dsi.bl_ports;
+
+	if (drm_WARN_ON(&dev_priv->drm, intel_connector->panel.vbt.dsi.cabc_ports & ~intel_dsi->ports))
+		intel_connector->panel.vbt.dsi.cabc_ports &= intel_dsi->ports;
+
+	intel_dsi->dcs_cabc_ports = intel_connector->panel.vbt.dsi.cabc_ports;
 
 	/* Create a DSI host (and a device) for each port. */
 	for_each_dsi_port(port, intel_dsi->ports) {

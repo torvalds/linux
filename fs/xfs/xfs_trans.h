@@ -45,6 +45,7 @@ struct xfs_log_item {
 	struct xfs_log_vec		*li_lv;		/* active log vector */
 	struct xfs_log_vec		*li_lv_shadow;	/* standby vector */
 	xfs_csn_t			li_seq;		/* CIL commit seq */
+	uint32_t			li_order_id;	/* CIL commit order */
 };
 
 /*
@@ -71,10 +72,12 @@ struct xfs_item_ops {
 	void (*iop_format)(struct xfs_log_item *, struct xfs_log_vec *);
 	void (*iop_pin)(struct xfs_log_item *);
 	void (*iop_unpin)(struct xfs_log_item *, int remove);
-	uint (*iop_push)(struct xfs_log_item *, struct list_head *);
+	uint64_t (*iop_sort)(struct xfs_log_item *lip);
+	int (*iop_precommit)(struct xfs_trans *tp, struct xfs_log_item *lip);
 	void (*iop_committing)(struct xfs_log_item *lip, xfs_csn_t seq);
-	void (*iop_release)(struct xfs_log_item *);
 	xfs_lsn_t (*iop_committed)(struct xfs_log_item *, xfs_lsn_t);
+	uint (*iop_push)(struct xfs_log_item *, struct list_head *);
+	void (*iop_release)(struct xfs_log_item *);
 	int (*iop_recover)(struct xfs_log_item *lip,
 			   struct list_head *capture_list);
 	bool (*iop_match)(struct xfs_log_item *item, uint64_t id);

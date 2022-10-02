@@ -39,7 +39,7 @@ otherwise. The length of all the property arrays must be the same.
 
 - ibm,cpu-idle-state-flags:
 	Array of unsigned 32-bit values containing the values of the
-	flags associated with the the aforementioned idle-states. The
+	flags associated with the aforementioned idle-states. The
 	flag bits are as follows:
 		0x00000001 /* Decrementer would stop */
 		0x00000002 /* Needs timebase restore */

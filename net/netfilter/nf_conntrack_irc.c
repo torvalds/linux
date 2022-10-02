@@ -39,6 +39,7 @@ unsigned int (*nf_nat_irc_hook)(struct sk_buff *skb,
 EXPORT_SYMBOL_GPL(nf_nat_irc_hook);
 
 #define HELPER_NAME "irc"
+#define MAX_SEARCH_SIZE	4095
 
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_DESCRIPTION("IRC (DCC) connection tracking helper");
@@ -121,6 +122,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 	int i, ret = NF_ACCEPT;
 	char *addr_beg_p, *addr_end_p;
 	typeof(nf_nat_irc_hook) nf_nat_irc;
+	unsigned int datalen;
 
 	/* If packet is coming from IRC server */
 	if (dir == IP_CT_DIR_REPLY)
@@ -140,8 +142,12 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 	if (dataoff >= skb->len)
 		return NF_ACCEPT;
 
+	datalen = skb->len - dataoff;
+	if (datalen > MAX_SEARCH_SIZE)
+		datalen = MAX_SEARCH_SIZE;
+
 	spin_lock_bh(&irc_buffer_lock);
-	ib_ptr = skb_header_pointer(skb, dataoff, skb->len - dataoff,
+	ib_ptr = skb_header_pointer(skb, dataoff, datalen,
 				    irc_buffer);
 	if (!ib_ptr) {
 		spin_unlock_bh(&irc_buffer_lock);
@@ -149,7 +155,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 	}
 
 	data = ib_ptr;
-	data_limit = ib_ptr + skb->len - dataoff;
+	data_limit = ib_ptr + datalen;
 
 	/* strlen("\1DCC SENT t AAAAAAAA P\1\n")=24
 	 * 5+MINMATCHLEN+strlen("t AAAAAAAA P\1\n")=14 */
@@ -188,8 +194,9 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 
 			/* dcc_ip can be the internal OR external (NAT'ed) IP */
 			tuple = &ct->tuplehash[dir].tuple;
-			if (tuple->src.u3.ip != dcc_ip &&
-			    tuple->dst.u3.ip != dcc_ip) {
+			if ((tuple->src.u3.ip != dcc_ip &&
+			     ct->tuplehash[!dir].tuple.dst.u3.ip != dcc_ip) ||
+			    dcc_port == 0) {
 				net_warn_ratelimited("Forged DCC command from %pI4: %pI4:%u\n",
 						     &tuple->src.u3.ip,
 						     &dcc_ip, dcc_port);
@@ -251,7 +258,7 @@ static int __init nf_conntrack_irc_init(void)
 	irc_exp_policy.max_expected = max_dcc_channels;
 	irc_exp_policy.timeout = dcc_timeout;
 
-	irc_buffer = kmalloc(65536, GFP_KERNEL);
+	irc_buffer = kmalloc(MAX_SEARCH_SIZE + 1, GFP_KERNEL);
 	if (!irc_buffer)
 		return -ENOMEM;
 

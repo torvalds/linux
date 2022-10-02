@@ -249,6 +249,26 @@ still cause this situation.
       - ``p_hdr10_mastering``
       - A pointer to a struct :c:type:`v4l2_ctrl_hdr10_mastering_display`. Valid if this control is
         of type ``V4L2_CTRL_TYPE_HDR10_MASTERING_DISPLAY``.
+    * - struct :c:type:`v4l2_ctrl_hevc_sps` *
+      - ``p_hevc_sps``
+      - A pointer to a struct :c:type:`v4l2_ctrl_hevc_sps`. Valid if this
+        control is of type ``V4L2_CTRL_TYPE_HEVC_SPS``.
+    * - struct :c:type:`v4l2_ctrl_hevc_pps` *
+      - ``p_hevc_pps``
+      - A pointer to a struct :c:type:`v4l2_ctrl_hevc_pps`. Valid if this
+        control is of type ``V4L2_CTRL_TYPE_HEVC_PPS``.
+    * - struct :c:type:`v4l2_ctrl_hevc_slice_params` *
+      - ``p_hevc_slice_params``
+      - A pointer to a struct :c:type:`v4l2_ctrl_hevc_slice_params`. Valid if this
+        control is of type ``V4L2_CTRL_TYPE_HEVC_SLICE_PARAMS``.
+    * - struct :c:type:`v4l2_ctrl_hevc_scaling_matrix` *
+      - ``p_hevc_scaling_matrix``
+      - A pointer to a struct :c:type:`v4l2_ctrl_hevc_scaling_matrix`. Valid if this
+        control is of type ``V4L2_CTRL_TYPE_HEVC_SCALING_MATRIX``.
+    * - struct :c:type:`v4l2_ctrl_hevc_decode_params` *
+      - ``p_hevc_decode_params``
+      - A pointer to a struct :c:type:`v4l2_ctrl_hevc_decode_params`. Valid if this
+        control is of type ``V4L2_CTRL_TYPE_HEVC_DECODE_PARAMS``.
     * - void *
       - ``ptr``
       - A pointer to a compound type which can be an N-dimensional array

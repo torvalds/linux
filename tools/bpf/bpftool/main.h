@@ -63,14 +63,6 @@ static inline void *u64_to_ptr(__u64 ptr)
 #define HELP_SPEC_LINK							\
 	"LINK := { id LINK_ID | pinned FILE }"
 
-extern const char * const prog_type_name[];
-extern const size_t prog_type_name_size;
-
-extern const char * const attach_type_name[__MAX_BPF_ATTACH_TYPE];
-
-extern const char * const map_type_name[];
-extern const size_t map_type_name_size;
-
 /* keep in sync with the definition in skeleton/pid_iter.bpf.c */
 enum bpf_obj_type {
 	BPF_OBJ_UNKNOWN,
@@ -101,6 +93,8 @@ bool is_prefix(const char *pfx, const char *str);
 int detect_common_prefix(const char *arg, ...);
 void fprint_hex(FILE *f, void *arg, unsigned int n, const char *sep);
 void usage(void) __noreturn;
+
+void set_max_rlimit(void);
 
 int mount_tracefs(const char *target);
 
@@ -248,6 +242,20 @@ int print_all_levels(__maybe_unused enum libbpf_print_level level,
 
 size_t hash_fn_for_key_as_id(const void *key, void *ctx);
 bool equal_fn_for_key_as_id(const void *k1, const void *k2, void *ctx);
+
+/* bpf_attach_type_input_str - convert the provided attach type value into a
+ * textual representation that we accept for input purposes.
+ *
+ * This function is similar in nature to libbpf_bpf_attach_type_str, but
+ * recognizes some attach type names that have been used by the program in the
+ * past and which do not follow the string inference scheme that libbpf uses.
+ * These textual representations should only be used for user input.
+ *
+ * @t: The attach type
+ * Returns a pointer to a static string identifying the attach type. NULL is
+ * returned for unknown bpf_attach_type values.
+ */
+const char *bpf_attach_type_input_str(enum bpf_attach_type t);
 
 static inline void *u32_as_hash_field(__u32 x)
 {

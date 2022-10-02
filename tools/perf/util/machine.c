@@ -236,6 +236,7 @@ void machine__exit(struct machine *machine)
 	zfree(&machine->root_dir);
 	zfree(&machine->mmap_name);
 	zfree(&machine->current_tid);
+	zfree(&machine->kallsyms_filename);
 
 	for (i = 0; i < THREADS__TABLE_SIZE; i++) {
 		struct threads *threads = &machine->threads[i];
@@ -1742,6 +1743,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 	struct map *map;
 	enum dso_space_type dso_space;
 	bool is_kernel_mmap;
+	const char *mmap_name = machine->mmap_name;
 
 	/* If we have maps from kcore then we do not need or want any others */
 	if (machine__uses_kcore(machine))
@@ -1752,8 +1754,16 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 	else
 		dso_space = DSO_SPACE__KERNEL_GUEST;
 
-	is_kernel_mmap = memcmp(xm->name, machine->mmap_name,
-				strlen(machine->mmap_name) - 1) == 0;
+	is_kernel_mmap = memcmp(xm->name, mmap_name, strlen(mmap_name) - 1) == 0;
+	if (!is_kernel_mmap && !machine__is_host(machine)) {
+		/*
+		 * If the event was recorded inside the guest and injected into
+		 * the host perf.data file, then it will match a host mmap_name,
+		 * so try that - see machine__set_mmap_name().
+		 */
+		mmap_name = "[kernel.kallsyms]";
+		is_kernel_mmap = memcmp(xm->name, mmap_name, strlen(mmap_name) - 1) == 0;
+	}
 	if (xm->name[0] == '/' ||
 	    (!is_kernel_mmap && xm->name[0] == '[')) {
 		map = machine__addnew_module_map(machine, xm->start,
@@ -1767,7 +1777,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 			dso__set_build_id(map->dso, bid);
 
 	} else if (is_kernel_mmap) {
-		const char *symbol_name = (xm->name + strlen(machine->mmap_name));
+		const char *symbol_name = xm->name + strlen(mmap_name);
 		/*
 		 * Should be there already, from the build-id table in
 		 * the header.
@@ -3174,9 +3184,7 @@ int machines__for_each_thread(struct machines *machines,
 
 pid_t machine__get_current_tid(struct machine *machine, int cpu)
 {
-	int nr_cpus = min(machine->env->nr_cpus_avail, MAX_NR_CPUS);
-
-	if (cpu < 0 || cpu >= nr_cpus || !machine->current_tid)
+	if (cpu < 0 || (size_t)cpu >= machine->current_tid_sz)
 		return -1;
 
 	return machine->current_tid[cpu];
@@ -3186,26 +3194,16 @@ int machine__set_current_tid(struct machine *machine, int cpu, pid_t pid,
 			     pid_t tid)
 {
 	struct thread *thread;
-	int nr_cpus = min(machine->env->nr_cpus_avail, MAX_NR_CPUS);
+	const pid_t init_val = -1;
 
 	if (cpu < 0)
 		return -EINVAL;
 
-	if (!machine->current_tid) {
-		int i;
-
-		machine->current_tid = calloc(nr_cpus, sizeof(pid_t));
-		if (!machine->current_tid)
-			return -ENOMEM;
-		for (i = 0; i < nr_cpus; i++)
-			machine->current_tid[i] = -1;
-	}
-
-	if (cpu >= nr_cpus) {
-		pr_err("Requested CPU %d too large. ", cpu);
-		pr_err("Consider raising MAX_NR_CPUS\n");
-		return -EINVAL;
-	}
+	if (realloc_array_as_needed(machine->current_tid,
+				    machine->current_tid_sz,
+				    (unsigned int)cpu,
+				    &init_val))
+		return -ENOMEM;
 
 	machine->current_tid[cpu] = tid;
 
@@ -3324,6 +3322,21 @@ int machine__for_each_dso(struct machine *machine, machine__dso_t fn, void *priv
 	list_for_each_entry(pos, &machine->dsos.head, node) {
 		if (fn(pos, machine, priv))
 			err = -1;
+	}
+	return err;
+}
+
+int machine__for_each_kernel_map(struct machine *machine, machine__map_t fn, void *priv)
+{
+	struct maps *maps = machine__kernel_maps(machine);
+	struct map *map;
+	int err = 0;
+
+	for (map = maps__first(maps); map != NULL; map = map__next(map)) {
+		err = fn(map, priv);
+		if (err != 0) {
+			break;
+		}
 	}
 	return err;
 }

@@ -11,6 +11,7 @@
 #include <linux/const.h>
 #include <asm/page.h>
 #include <asm/vdso.h>
+#include <asm-generic/vmlinux.lds.h>
 
 OUTPUT_FORMAT("elf64-littleaarch64", "elf64-bigaarch64", "elf64-littleaarch64")
 OUTPUT_ARCH(aarch64)
@@ -49,10 +50,23 @@ SECTIONS
 
 	.dynamic	: { *(.dynamic) }		:text	:dynamic
 
-	.rodata		: { *(.rodata*) }		:text
+	.rela.dyn	: ALIGN(8) { *(.rela .rela*) }
+
+	.rodata		: {
+		*(.rodata*)
+		*(.got)
+		*(.got.plt)
+		*(.plt)
+		*(.plt.*)
+		*(.iplt)
+		*(.igot .igot.plt)
+	}						:text
 
 	_end = .;
 	PROVIDE(end = .);
+
+	DWARF_DEBUG
+	ELF_DETAILS
 
 	/DISCARD/	: {
 		*(.data .data.* .gnu.linkonce.d.* .sdata*)

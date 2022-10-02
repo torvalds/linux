@@ -87,6 +87,13 @@ properties:
           - const: brcm,bcm53012
           - const: brcm,bcm4708
 
+      - description: BCM53015 based boards
+        items:
+          - enum:
+              - meraki,mr26
+          - const: brcm,bcm53015
+          - const: brcm,bcm4708
+
       - description: BCM53016 based boards
         items:
           - enum:

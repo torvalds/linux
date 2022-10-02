@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * rcar_du_crtc.h  --  R-Car Display Unit CRTCs
+ * R-Car Display Unit CRTCs
  *
  * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *

@@ -21,7 +21,6 @@
 #include "kvm_util.h"
 #include "processor.h"
 
-#define VCPU_ID 0
 #define MSR_PLATFORM_INFO_MAX_TURBO_RATIO 0xff00
 
 static void guest_code(void)
@@ -35,28 +34,18 @@ static void guest_code(void)
 	}
 }
 
-static void set_msr_platform_info_enabled(struct kvm_vm *vm, bool enable)
+static void test_msr_platform_info_enabled(struct kvm_vcpu *vcpu)
 {
-	struct kvm_enable_cap cap = {};
-
-	cap.cap = KVM_CAP_MSR_PLATFORM_INFO;
-	cap.flags = 0;
-	cap.args[0] = (int)enable;
-	vm_enable_cap(vm, &cap);
-}
-
-static void test_msr_platform_info_enabled(struct kvm_vm *vm)
-{
-	struct kvm_run *run = vcpu_state(vm, VCPU_ID);
+	struct kvm_run *run = vcpu->run;
 	struct ucall uc;
 
-	set_msr_platform_info_enabled(vm, true);
-	vcpu_run(vm, VCPU_ID);
+	vm_enable_cap(vcpu->vm, KVM_CAP_MSR_PLATFORM_INFO, true);
+	vcpu_run(vcpu);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 			"Exit_reason other than KVM_EXIT_IO: %u (%s),\n",
 			run->exit_reason,
 			exit_reason_str(run->exit_reason));
-	get_ucall(vm, VCPU_ID, &uc);
+	get_ucall(vcpu, &uc);
 	TEST_ASSERT(uc.cmd == UCALL_SYNC,
 			"Received ucall other than UCALL_SYNC: %lu\n", uc.cmd);
 	TEST_ASSERT((uc.args[1] & MSR_PLATFORM_INFO_MAX_TURBO_RATIO) ==
@@ -65,12 +54,12 @@ static void test_msr_platform_info_enabled(struct kvm_vm *vm)
 		MSR_PLATFORM_INFO_MAX_TURBO_RATIO);
 }
 
-static void test_msr_platform_info_disabled(struct kvm_vm *vm)
+static void test_msr_platform_info_disabled(struct kvm_vcpu *vcpu)
 {
-	struct kvm_run *run = vcpu_state(vm, VCPU_ID);
+	struct kvm_run *run = vcpu->run;
 
-	set_msr_platform_info_enabled(vm, false);
-	vcpu_run(vm, VCPU_ID);
+	vm_enable_cap(vcpu->vm, KVM_CAP_MSR_PLATFORM_INFO, false);
+	vcpu_run(vcpu);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_SHUTDOWN,
 			"Exit_reason other than KVM_EXIT_SHUTDOWN: %u (%s)\n",
 			run->exit_reason,
@@ -79,27 +68,23 @@ static void test_msr_platform_info_disabled(struct kvm_vm *vm)
 
 int main(int argc, char *argv[])
 {
+	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
-	int rv;
 	uint64_t msr_platform_info;
 
 	/* Tell stdout not to buffer its content */
 	setbuf(stdout, NULL);
 
-	rv = kvm_check_cap(KVM_CAP_MSR_PLATFORM_INFO);
-	if (!rv) {
-		print_skip("KVM_CAP_MSR_PLATFORM_INFO not supported");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_MSR_PLATFORM_INFO));
 
-	vm = vm_create_default(VCPU_ID, 0, guest_code);
+	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 
-	msr_platform_info = vcpu_get_msr(vm, VCPU_ID, MSR_PLATFORM_INFO);
-	vcpu_set_msr(vm, VCPU_ID, MSR_PLATFORM_INFO,
-		msr_platform_info | MSR_PLATFORM_INFO_MAX_TURBO_RATIO);
-	test_msr_platform_info_enabled(vm);
-	test_msr_platform_info_disabled(vm);
-	vcpu_set_msr(vm, VCPU_ID, MSR_PLATFORM_INFO, msr_platform_info);
+	msr_platform_info = vcpu_get_msr(vcpu, MSR_PLATFORM_INFO);
+	vcpu_set_msr(vcpu, MSR_PLATFORM_INFO,
+		     msr_platform_info | MSR_PLATFORM_INFO_MAX_TURBO_RATIO);
+	test_msr_platform_info_enabled(vcpu);
+	test_msr_platform_info_disabled(vcpu);
+	vcpu_set_msr(vcpu, MSR_PLATFORM_INFO, msr_platform_info);
 
 	kvm_vm_free(vm);
 

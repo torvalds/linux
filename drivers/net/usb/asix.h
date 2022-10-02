@@ -212,9 +212,6 @@ void asix_rx_fixup_common_free(struct asix_common_private *dp);
 struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 			      gfp_t flags);
 
-int asix_set_sw_mii(struct usbnet *dev, int in_pm);
-int asix_set_hw_mii(struct usbnet *dev, int in_pm);
-
 int asix_read_phy_addr(struct usbnet *dev, bool internal);
 
 int asix_sw_reset(struct usbnet *dev, u8 flags, int in_pm);

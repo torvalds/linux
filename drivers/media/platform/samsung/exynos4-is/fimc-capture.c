@@ -737,7 +737,7 @@ static struct media_entity *fimc_pipeline_get_head(struct media_entity *me)
 	struct media_pad *pad = &me->pads[0];
 
 	while (!(pad->flags & MEDIA_PAD_FL_SOURCE)) {
-		pad = media_entity_remote_pad(pad);
+		pad = media_pad_remote_pad_first(pad);
 		if (!pad)
 			break;
 		me = pad->entity;
@@ -810,7 +810,7 @@ static int fimc_pipeline_try_format(struct fimc_ctx *ctx,
 					return ret;
 			}
 
-			pad = media_entity_remote_pad(&me->pads[sfmt.pad]);
+			pad = media_pad_remote_pad_first(&me->pads[sfmt.pad]);
 			if (!pad)
 				return -EINVAL;
 			me = pad->entity;
@@ -1115,7 +1115,7 @@ static int fimc_pipeline_validate(struct fimc_dev *fimc)
 
 			if (p->flags & MEDIA_PAD_FL_SINK) {
 				sink_pad = p;
-				src_pad = media_entity_remote_pad(sink_pad);
+				src_pad = media_pad_remote_pad_first(sink_pad);
 				if (src_pad)
 					break;
 			}

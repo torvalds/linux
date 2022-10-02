@@ -2,7 +2,6 @@
 #ifndef _ARCH_POWERPC_UACCESS_H
 #define _ARCH_POWERPC_UACCESS_H
 
-#include <asm/ppc_asm.h>
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/extable.h>
@@ -348,7 +347,7 @@ copy_mc_to_kernel(void *to, const void *from, unsigned long size)
 static inline unsigned long __must_check
 copy_mc_to_user(void __user *to, const void *from, unsigned long n)
 {
-	if (likely(check_copy_size(from, n, true))) {
+	if (check_copy_size(from, n, true)) {
 		if (access_ok(to, n)) {
 			allow_write_to_user(to, n);
 			n = copy_mc_generic((void *)to, from, n);

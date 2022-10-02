@@ -20,6 +20,7 @@ properties:
   compatible:
     enum:
       - mediatek,mt6779-devapc
+      - mediatek,mt8186-devapc
 
   reg:
     description: The base address of devapc register bank

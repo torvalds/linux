@@ -15,6 +15,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
+#include <linux/units.h>
 
 #define HISI_I2C_FRAME_CTRL		0x0000
 #define   HISI_I2C_FRAME_CTRL_SPEED_MODE	GENMASK(1, 0)
@@ -79,8 +80,6 @@
 #define HISI_I2C_RX_FIFO_DEPTH		64
 #define HISI_I2C_TX_F_AE_THRESH		1
 #define HISI_I2C_RX_F_AF_THRESH		60
-
-#define HZ_PER_KHZ	1000
 
 #define NSEC_TO_CYCLES(ns, clk_rate_khz) \
 	DIV_ROUND_UP_ULL((clk_rate_khz) * (ns), NSEC_PER_MSEC)

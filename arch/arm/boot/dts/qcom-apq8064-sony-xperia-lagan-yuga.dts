@@ -23,28 +23,28 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_keys_pin_a>;
 
-		camera-focus {
+		key-camera-focus {
 			label = "camera_focus";
 			gpios = <&pm8921_gpio 3 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
 			linux,code = <KEY_CAMERA_FOCUS>;
 		};
 
-		camera-snapshot {
+		key-camera-snapshot {
 			label = "camera_snapshot";
 			gpios = <&pm8921_gpio 4 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
 			linux,code = <KEY_CAMERA>;
 		};
 
-		volume-down {
+		key-volume-down {
 			label = "volume_down";
 			gpios = <&pm8921_gpio 29 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
 			linux,code = <KEY_VOLUMEDOWN>;
 		};
 
-		volume-up {
+		key-volume-up {
 			label = "volume_up";
 			gpios = <&pm8921_gpio 35 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
@@ -334,7 +334,7 @@
 		qcom,ssbi@500000 {
 			pmic@0 {
 				gpio@150 {
-					gpio_keys_pin_a: gpio-keys-pin-active {
+					gpio_keys_pin_a: gpio-keys-active-state {
 						pins = "gpio3", "gpio4", "gpio29", "gpio35";
 						function = "normal";
 

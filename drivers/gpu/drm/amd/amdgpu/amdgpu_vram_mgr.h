@@ -50,34 +50,7 @@ static inline u64 amdgpu_vram_mgr_block_start(struct drm_buddy_block *block)
 
 static inline u64 amdgpu_vram_mgr_block_size(struct drm_buddy_block *block)
 {
-	return PAGE_SIZE << drm_buddy_block_order(block);
-}
-
-static inline struct drm_buddy_block *
-amdgpu_vram_mgr_first_block(struct list_head *list)
-{
-	return list_first_entry_or_null(list, struct drm_buddy_block, link);
-}
-
-static inline bool amdgpu_is_vram_mgr_blocks_contiguous(struct list_head *head)
-{
-	struct drm_buddy_block *block;
-	u64 start, size;
-
-	block = amdgpu_vram_mgr_first_block(head);
-	if (!block)
-		return false;
-
-	while (head != block->link.next) {
-		start = amdgpu_vram_mgr_block_start(block);
-		size = amdgpu_vram_mgr_block_size(block);
-
-		block = list_entry(block->link.next, struct drm_buddy_block, link);
-		if (start + size != amdgpu_vram_mgr_block_start(block))
-			return false;
-	}
-
-	return true;
+	return (u64)PAGE_SIZE << drm_buddy_block_order(block);
 }
 
 static inline struct amdgpu_vram_mgr_resource *

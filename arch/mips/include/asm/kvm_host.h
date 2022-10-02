@@ -84,8 +84,6 @@
 
 
 #define KVM_MAX_VCPUS		16
-/* memory slots that does not exposed to userspace */
-#define KVM_PRIVATE_MEM_SLOTS	0
 
 #define KVM_HALT_POLL_NS_DEFAULT 500000
 

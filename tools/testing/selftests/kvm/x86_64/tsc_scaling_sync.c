@@ -46,38 +46,40 @@ static void guest_code(void)
 
 static void *run_vcpu(void *_cpu_nr)
 {
-	unsigned long cpu = (unsigned long)_cpu_nr;
+	unsigned long vcpu_id = (unsigned long)_cpu_nr;
 	unsigned long failures = 0;
 	static bool first_cpu_done;
+	struct kvm_vcpu *vcpu;
 
-	/* The kernel is fine, but vm_vcpu_add_default() needs locking */
+	/* The kernel is fine, but vm_vcpu_add() needs locking */
 	pthread_spin_lock(&create_lock);
 
-	vm_vcpu_add_default(vm, cpu, guest_code);
+	vcpu = vm_vcpu_add(vm, vcpu_id, guest_code);
 
 	if (!first_cpu_done) {
 		first_cpu_done = true;
-		vcpu_set_msr(vm, cpu, MSR_IA32_TSC, TEST_TSC_OFFSET);
+		vcpu_set_msr(vcpu, MSR_IA32_TSC, TEST_TSC_OFFSET);
 	}
 
 	pthread_spin_unlock(&create_lock);
 
 	for (;;) {
-		volatile struct kvm_run *run = vcpu_state(vm, cpu);
+		volatile struct kvm_run *run = vcpu->run;
                 struct ucall uc;
 
-                vcpu_run(vm, cpu);
+		vcpu_run(vcpu);
                 TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
                             "Got exit_reason other than KVM_EXIT_IO: %u (%s)\n",
                             run->exit_reason,
                             exit_reason_str(run->exit_reason));
 
-                switch (get_ucall(vm, cpu, &uc)) {
+		switch (get_ucall(vcpu, &uc)) {
                 case UCALL_DONE:
 			goto out;
 
                 case UCALL_SYNC:
-			printf("Guest %ld sync %lx %lx %ld\n", cpu, uc.args[2], uc.args[3], uc.args[2] - uc.args[3]);
+			printf("Guest %d sync %lx %lx %ld\n", vcpu->id,
+			       uc.args[2], uc.args[3], uc.args[2] - uc.args[3]);
 			failures++;
 			break;
 
@@ -91,12 +93,9 @@ static void *run_vcpu(void *_cpu_nr)
 
 int main(int argc, char *argv[])
 {
-        if (!kvm_check_cap(KVM_CAP_VM_TSC_CONTROL)) {
-		print_skip("KVM_CAP_VM_TSC_CONTROL not available");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_VM_TSC_CONTROL));
 
-	vm = vm_create_default_with_vcpus(0, DEFAULT_STACK_PGS * NR_TEST_VCPUS, 0, guest_code, NULL);
+	vm = vm_create(NR_TEST_VCPUS);
 	vm_ioctl(vm, KVM_SET_TSC_KHZ, (void *) TEST_TSC_KHZ);
 
 	pthread_spin_init(&create_lock, PTHREAD_PROCESS_PRIVATE);

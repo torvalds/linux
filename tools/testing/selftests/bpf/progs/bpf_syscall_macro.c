@@ -64,9 +64,9 @@ int BPF_KPROBE(handle_sys_prctl)
 	return 0;
 }
 
-SEC("kprobe/" SYS_PREFIX "sys_prctl")
-int BPF_KPROBE_SYSCALL(prctl_enter, int option, unsigned long arg2,
-		       unsigned long arg3, unsigned long arg4, unsigned long arg5)
+SEC("ksyscall/prctl")
+int BPF_KSYSCALL(prctl_enter, int option, unsigned long arg2,
+		 unsigned long arg3, unsigned long arg4, unsigned long arg5)
 {
 	pid_t pid = bpf_get_current_pid_tgid() >> 32;
 

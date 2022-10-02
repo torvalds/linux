@@ -591,8 +591,8 @@ static void mt7915_irq_tasklet(struct tasklet_struct *t)
 	if (intr & MT_INT_RX(MT_RXQ_MAIN))
 		napi_schedule(&dev->mt76.napi[MT_RXQ_MAIN]);
 
-	if (intr & MT_INT_RX(MT_RXQ_EXT))
-		napi_schedule(&dev->mt76.napi[MT_RXQ_EXT]);
+	if (intr & MT_INT_RX(MT_RXQ_BAND1))
+		napi_schedule(&dev->mt76.napi[MT_RXQ_BAND1]);
 
 	if (intr & MT_INT_RX(MT_RXQ_MCU))
 		napi_schedule(&dev->mt76.napi[MT_RXQ_MCU]);
@@ -604,8 +604,8 @@ static void mt7915_irq_tasklet(struct tasklet_struct *t)
 	    (intr & MT_INT_RX(MT_RXQ_MAIN_WA)))
 		napi_schedule(&dev->mt76.napi[MT_RXQ_MAIN_WA]);
 
-	if (intr & MT_INT_RX(MT_RXQ_EXT_WA))
-		napi_schedule(&dev->mt76.napi[MT_RXQ_EXT_WA]);
+	if (intr & MT_INT_RX(MT_RXQ_BAND1_WA))
+		napi_schedule(&dev->mt76.napi[MT_RXQ_BAND1_WA]);
 
 	if (intr & MT_INT_MCU_CMD) {
 		u32 val = mt76_rr(dev, MT_MCU_CMD);
@@ -645,14 +645,14 @@ struct mt7915_dev *mt7915_mmio_probe(struct device *pdev,
 {
 	static const struct mt76_driver_ops drv_ops = {
 		/* txwi_size = txd size + txp size */
-		.txwi_size = MT_TXD_SIZE + sizeof(struct mt7915_txp),
+		.txwi_size = MT_TXD_SIZE + sizeof(struct mt76_connac_fw_txp),
 		.drv_flags = MT_DRV_TXWI_NO_FREE | MT_DRV_HW_MGMT_TXQ,
 		.survey_flags = SURVEY_INFO_TIME_TX |
 				SURVEY_INFO_TIME_RX |
 				SURVEY_INFO_TIME_BSS_RX,
 		.token_size = MT7915_TOKEN_SIZE,
 		.tx_prepare_skb = mt7915_tx_prepare_skb,
-		.tx_complete_skb = mt7915_tx_complete_skb,
+		.tx_complete_skb = mt76_connac_tx_complete_skb,
 		.rx_skb = mt7915_queue_rx_skb,
 		.rx_check = mt7915_rx_check,
 		.rx_poll_complete = mt7915_rx_poll_complete,
@@ -661,16 +661,11 @@ struct mt7915_dev *mt7915_mmio_probe(struct device *pdev,
 		.sta_remove = mt7915_mac_sta_remove,
 		.update_survey = mt7915_update_channel,
 	};
-	struct ieee80211_ops *ops;
 	struct mt7915_dev *dev;
 	struct mt76_dev *mdev;
 	int ret;
 
-	ops = devm_kmemdup(pdev, &mt7915_ops, sizeof(mt7915_ops), GFP_KERNEL);
-	if (!ops)
-		return ERR_PTR(-ENOMEM);
-
-	mdev = mt76_alloc_device(pdev, sizeof(*dev), ops, &drv_ops);
+	mdev = mt76_alloc_device(pdev, sizeof(*dev), &mt7915_ops, &drv_ops);
 	if (!mdev)
 		return ERR_PTR(-ENOMEM);
 

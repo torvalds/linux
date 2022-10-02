@@ -707,23 +707,24 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		break;
 
 	case KVM_XEN_VCPU_ATTR_TYPE_TIMER:
-		if (data->u.timer.port) {
-			if (data->u.timer.priority != KVM_IRQ_ROUTING_XEN_EVTCHN_PRIO_2LEVEL) {
-				r = -EINVAL;
-				break;
-			}
-			vcpu->arch.xen.timer_virq = data->u.timer.port;
+		if (data->u.timer.port &&
+		    data->u.timer.priority != KVM_IRQ_ROUTING_XEN_EVTCHN_PRIO_2LEVEL) {
+			r = -EINVAL;
+			break;
+		}
+
+		if (!vcpu->arch.xen.timer.function)
 			kvm_xen_init_timer(vcpu);
 
-			/* Restart the timer if it's set */
-			if (data->u.timer.expires_ns)
-				kvm_xen_start_timer(vcpu, data->u.timer.expires_ns,
-						    data->u.timer.expires_ns -
-						    get_kvmclock_ns(vcpu->kvm));
-		} else if (kvm_xen_timer_enabled(vcpu)) {
-			kvm_xen_stop_timer(vcpu);
-			vcpu->arch.xen.timer_virq = 0;
-		}
+		/* Stop the timer (if it's running) before changing the vector */
+		kvm_xen_stop_timer(vcpu);
+		vcpu->arch.xen.timer_virq = data->u.timer.port;
+
+		/* Start the timer if the new value has a valid vector+expiry. */
+		if (data->u.timer.port && data->u.timer.expires_ns)
+			kvm_xen_start_timer(vcpu, data->u.timer.expires_ns,
+					    data->u.timer.expires_ns -
+					    get_kvmclock_ns(vcpu->kvm));
 
 		r = 0;
 		break;
@@ -1049,7 +1050,7 @@ static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
 	else
 		vcpu->arch.xen.poll_evtchn = -1;
 
-	set_bit(kvm_vcpu_get_idx(vcpu), vcpu->kvm->arch.xen.poll_mask);
+	set_bit(vcpu->vcpu_idx, vcpu->kvm->arch.xen.poll_mask);
 
 	if (!wait_pending_event(vcpu, sched_poll.nr_ports, ports)) {
 		vcpu->arch.mp_state = KVM_MP_STATE_HALTED;
@@ -1071,7 +1072,7 @@ static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
 	*r = 0;
 out:
 	/* Really, this is only needed in case of timeout */
-	clear_bit(kvm_vcpu_get_idx(vcpu), vcpu->kvm->arch.xen.poll_mask);
+	clear_bit(vcpu->vcpu_idx, vcpu->kvm->arch.xen.poll_mask);
 
 	if (unlikely(sched_poll.nr_ports > 1))
 		kfree(ports);
@@ -1311,7 +1312,7 @@ static void kvm_xen_check_poller(struct kvm_vcpu *vcpu, int port)
 	int poll_evtchn = vcpu->arch.xen.poll_evtchn;
 
 	if ((poll_evtchn == port || poll_evtchn == -1) &&
-	    test_and_clear_bit(kvm_vcpu_get_idx(vcpu), vcpu->kvm->arch.xen.poll_mask)) {
+	    test_and_clear_bit(vcpu->vcpu_idx, vcpu->kvm->arch.xen.poll_mask)) {
 		kvm_make_request(KVM_REQ_UNBLOCK, vcpu);
 		kvm_vcpu_kick(vcpu);
 	}
@@ -1344,7 +1345,7 @@ int kvm_xen_set_evtchn_fast(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 		vcpu = kvm_get_vcpu_by_id(kvm, xe->vcpu_id);
 		if (!vcpu)
 			return -EINVAL;
-		WRITE_ONCE(xe->vcpu_idx, kvm_vcpu_get_idx(vcpu));
+		WRITE_ONCE(xe->vcpu_idx, vcpu->vcpu_idx);
 	}
 
 	if (!vcpu->arch.xen.vcpu_info_cache.active)
@@ -1540,7 +1541,7 @@ int kvm_xen_setup_evtchn(struct kvm *kvm,
 	 */
 	vcpu = kvm_get_vcpu_by_id(kvm, ue->u.xen_evtchn.vcpu);
 	if (vcpu)
-		e->xen_evtchn.vcpu_idx = kvm_vcpu_get_idx(vcpu);
+		e->xen_evtchn.vcpu_idx = vcpu->vcpu_idx;
 	else
 		e->xen_evtchn.vcpu_idx = -1;
 

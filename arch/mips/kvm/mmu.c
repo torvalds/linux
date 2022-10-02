@@ -80,7 +80,7 @@ pgd_t *kvm_pgd_alloc(void)
 {
 	pgd_t *ret;
 
-	ret = (pgd_t *)__get_free_pages(GFP_KERNEL, PGD_ORDER);
+	ret = (pgd_t *)__get_free_pages(GFP_KERNEL, PGD_TABLE_ORDER);
 	if (ret)
 		kvm_pgd_init(ret);
 
@@ -615,17 +615,17 @@ retry:
 	 * Used to check for invalidations in progress, of the pfn that is
 	 * returned by pfn_to_pfn_prot below.
 	 */
-	mmu_seq = kvm->mmu_notifier_seq;
+	mmu_seq = kvm->mmu_invalidate_seq;
 	/*
-	 * Ensure the read of mmu_notifier_seq isn't reordered with PTE reads in
-	 * gfn_to_pfn_prot() (which calls get_user_pages()), so that we don't
+	 * Ensure the read of mmu_invalidate_seq isn't reordered with PTE reads
+	 * in gfn_to_pfn_prot() (which calls get_user_pages()), so that we don't
 	 * risk the page we get a reference to getting unmapped before we have a
-	 * chance to grab the mmu_lock without mmu_notifier_retry() noticing.
+	 * chance to grab the mmu_lock without mmu_invalidate_retry() noticing.
 	 *
 	 * This smp_rmb() pairs with the effective smp_wmb() of the combination
 	 * of the pte_unmap_unlock() after the PTE is zapped, and the
 	 * spin_lock() in kvm_mmu_notifier_invalidate_<page|range_end>() before
-	 * mmu_notifier_seq is incremented.
+	 * mmu_invalidate_seq is incremented.
 	 */
 	smp_rmb();
 
@@ -638,7 +638,7 @@ retry:
 
 	spin_lock(&kvm->mmu_lock);
 	/* Check if an invalidation has taken place since we got pfn */
-	if (mmu_notifier_retry(kvm, mmu_seq)) {
+	if (mmu_invalidate_retry(kvm, mmu_seq)) {
 		/*
 		 * This can happen when mappings are changed asynchronously, but
 		 * also synchronously if a COW is triggered by

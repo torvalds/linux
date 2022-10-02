@@ -137,3 +137,7 @@
 	phys = <&usb2phy0_otg>, <&combphy0 PHY_TYPE_USB3>;
 	phy-names = "usb2-phy", "usb3-phy";
 };
+
+&vop {
+	compatible = "rockchip,rk3568-vop";
+};

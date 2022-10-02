@@ -579,11 +579,11 @@ static void ctr_read_handler(unsigned long esr, struct pt_regs *regs)
 
 	if (cpus_have_const_cap(ARM64_WORKAROUND_1542419)) {
 		/* Hide DIC so that we can trap the unnecessary maintenance...*/
-		val &= ~BIT(CTR_DIC_SHIFT);
+		val &= ~BIT(CTR_EL0_DIC_SHIFT);
 
 		/* ... and fake IminLine to reduce the number of traps. */
-		val &= ~CTR_IMINLINE_MASK;
-		val |= (PAGE_SHIFT - 2) & CTR_IMINLINE_MASK;
+		val &= ~CTR_EL0_IminLine_MASK;
+		val |= (PAGE_SHIFT - 2) & CTR_EL0_IminLine_MASK;
 	}
 
 	pt_regs_write_reg(regs, rt, val);

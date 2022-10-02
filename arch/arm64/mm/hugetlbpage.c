@@ -100,16 +100,6 @@ int pud_huge(pud_t pud)
 #endif
 }
 
-/*
- * Select all bits except the pfn
- */
-static inline pgprot_t pte_pgprot(pte_t pte)
-{
-	unsigned long pfn = pte_pfn(pte);
-
-	return __pgprot(pte_val(pfn_pte(pfn, __pgprot(0))) ^ pte_val(pte));
-}
-
 static int find_num_contig(struct mm_struct *mm, unsigned long addr,
 			   pte_t *ptep, size_t *pgsize)
 {
@@ -251,6 +241,13 @@ static void clear_flush(struct mm_struct *mm,
 	flush_tlb_range(&vma, saddr, addr);
 }
 
+static inline struct folio *hugetlb_swap_entry_to_folio(swp_entry_t entry)
+{
+	VM_BUG_ON(!is_migration_entry(entry) && !is_hwpoison_entry(entry));
+
+	return page_folio(pfn_to_page(swp_offset(entry)));
+}
+
 void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 			    pte_t *ptep, pte_t pte)
 {
@@ -260,11 +257,16 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 	unsigned long pfn, dpfn;
 	pgprot_t hugeprot;
 
-	/*
-	 * Code needs to be expanded to handle huge swap and migration
-	 * entries. Needed for HUGETLB and MEMORY_FAILURE.
-	 */
-	WARN_ON(!pte_present(pte));
+	if (!pte_present(pte)) {
+		struct folio *folio;
+
+		folio = hugetlb_swap_entry_to_folio(pte_to_swp_entry(pte));
+		ncontig = num_contig_ptes(folio_size(folio), &pgsize);
+
+		for (i = 0; i < ncontig; i++, ptep++)
+			set_pte_at(mm, addr, ptep, pte);
+		return;
+	}
 
 	if (!pte_cont(pte)) {
 		set_pte_at(mm, addr, ptep, pte);
@@ -280,18 +282,6 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 
 	for (i = 0; i < ncontig; i++, ptep++, addr += pgsize, pfn += dpfn)
 		set_pte_at(mm, addr, ptep, pfn_pte(pfn, hugeprot));
-}
-
-void set_huge_swap_pte_at(struct mm_struct *mm, unsigned long addr,
-			  pte_t *ptep, pte_t pte, unsigned long sz)
-{
-	int i, ncontig;
-	size_t pgsize;
-
-	ncontig = num_contig_ptes(sz, &pgsize);
-
-	for (i = 0; i < ncontig; i++, ptep++)
-		set_pte(ptep, pte);
 }
 
 pte_t *huge_pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
@@ -379,6 +369,28 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 		return pte_offset_kernel(pmdp, (addr & CONT_PTE_MASK));
 
 	return NULL;
+}
+
+unsigned long hugetlb_mask_last_page(struct hstate *h)
+{
+	unsigned long hp_size = huge_page_size(h);
+
+	switch (hp_size) {
+#ifndef __PAGETABLE_PMD_FOLDED
+	case PUD_SIZE:
+		return PGDIR_SIZE - PUD_SIZE;
+#endif
+	case CONT_PMD_SIZE:
+		return PUD_SIZE - CONT_PMD_SIZE;
+	case PMD_SIZE:
+		return PUD_SIZE - PMD_SIZE;
+	case CONT_PTE_SIZE:
+		return PMD_SIZE - CONT_PTE_SIZE;
+	default:
+		break;
+	}
+
+	return 0UL;
 }
 
 pte_t arch_make_huge_pte(pte_t entry, unsigned int shift, vm_flags_t flags)

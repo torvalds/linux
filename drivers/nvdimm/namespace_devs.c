@@ -385,7 +385,7 @@ static resource_size_t init_dpa_allocation(struct nd_label_id *label_id,
  *
  * BLK-space is valid as long as it does not precede a PMEM
  * allocation in a given region. PMEM-space must be contiguous
- * and adjacent to an existing existing allocation (if one
+ * and adjacent to an existing allocation (if one
  * exists).  If reserving PMEM any space is valid.
  */
 static void space_valid(struct nd_region *nd_region, struct nvdimm_drvdata *ndd,

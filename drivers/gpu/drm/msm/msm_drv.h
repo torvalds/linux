@@ -62,16 +62,6 @@ enum msm_dp_controller {
 #define MAX_H_TILES_PER_DISPLAY 2
 
 /**
- * enum msm_display_caps - features/capabilities supported by displays
- * @MSM_DISPLAY_CAP_VID_MODE:           Video or "active" mode supported
- * @MSM_DISPLAY_CAP_CMD_MODE:           Command mode supported
- */
-enum msm_display_caps {
-	MSM_DISPLAY_CAP_VID_MODE	= BIT(0),
-	MSM_DISPLAY_CAP_CMD_MODE	= BIT(1),
-};
-
-/**
  * enum msm_event_wait - type of HW events to wait for
  * @MSM_ENC_COMMIT_DONE - wait for the driver to flush the registers to HW
  * @MSM_ENC_TX_COMPLETE - wait for the HW to transfer the frame to panel
@@ -234,6 +224,7 @@ void msm_crtc_disable_vblank(struct drm_crtc *crtc);
 int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu);
 void msm_unregister_mmu(struct drm_device *dev, struct msm_mmu *mmu);
 
+struct msm_gem_address_space *msm_kms_init_aspace(struct drm_device *dev);
 bool msm_use_mmu(struct drm_device *dev);
 
 int msm_ioctl_gem_submit(struct drm_device *dev, void *data,

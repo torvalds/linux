@@ -1991,15 +1991,9 @@ static int m88e1510_loopback(struct phy_device *phydev, bool enable)
 	int err;
 
 	if (enable) {
-		u16 bmcr_ctl = 0, mscr2_ctl = 0;
+		u16 bmcr_ctl, mscr2_ctl = 0;
 
-		if (phydev->speed == SPEED_1000)
-			bmcr_ctl = BMCR_SPEED1000;
-		else if (phydev->speed == SPEED_100)
-			bmcr_ctl = BMCR_SPEED100;
-
-		if (phydev->duplex == DUPLEX_FULL)
-			bmcr_ctl |= BMCR_FULLDPLX;
+		bmcr_ctl = mii_bmcr_encode_fixed(phydev->speed, phydev->duplex);
 
 		err = phy_write(phydev, MII_BMCR, bmcr_ctl);
 		if (err < 0)

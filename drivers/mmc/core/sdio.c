@@ -226,6 +226,20 @@ static int sdio_read_cccr(struct mmc_card *card, u32 ocr)
 				card->sw_caps.sd3_drv_type |= SD_DRIVER_TYPE_C;
 			if (data & SDIO_DRIVE_SDTD)
 				card->sw_caps.sd3_drv_type |= SD_DRIVER_TYPE_D;
+
+			ret = mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_INTERRUPT_EXT, 0, &data);
+			if (ret)
+				goto out;
+
+			if (data & SDIO_INTERRUPT_EXT_SAI) {
+				data |= SDIO_INTERRUPT_EXT_EAI;
+				ret = mmc_io_rw_direct(card, 1, 0, SDIO_CCCR_INTERRUPT_EXT,
+						       data, NULL);
+				if (ret)
+					goto out;
+
+				card->cccr.enable_async_irq = 1;
+			}
 		}
 
 		/* if no uhs mode ensure we check for high speed */
@@ -335,7 +349,7 @@ static int sdio_disable_4bit_bus(struct mmc_card *card)
 {
 	int err;
 
-	if (card->type == MMC_TYPE_SDIO)
+	if (mmc_card_sdio(card))
 		goto out;
 
 	if (!(card->host->caps & MMC_CAP_4_BIT_DATA))
@@ -360,7 +374,7 @@ static int sdio_enable_4bit_bus(struct mmc_card *card)
 	err = sdio_enable_wide(card);
 	if (err <= 0)
 		return err;
-	if (card->type == MMC_TYPE_SDIO)
+	if (mmc_card_sdio(card))
 		goto out;
 
 	if (card->scr.bus_widths & SD_SCR_BUS_WIDTH_4) {
@@ -415,7 +429,7 @@ static int sdio_enable_hs(struct mmc_card *card)
 	int ret;
 
 	ret = mmc_sdio_switch_hs(card, true);
-	if (ret <= 0 || card->type == MMC_TYPE_SDIO)
+	if (ret <= 0 || mmc_card_sdio(card))
 		return ret;
 
 	ret = mmc_sd_switch_hs(card);
@@ -441,7 +455,7 @@ static unsigned mmc_sdio_get_max_clock(struct mmc_card *card)
 		max_dtr = card->cis.max_dtr;
 	}
 
-	if (card->type == MMC_TYPE_SD_COMBO)
+	if (mmc_card_sd_combo(card))
 		max_dtr = min(max_dtr, mmc_sd_get_max_clock(card));
 
 	return max_dtr;
@@ -689,7 +703,7 @@ try_again:
 	    mmc_sd_get_cid(host, ocr & rocr, card->raw_cid, NULL) == 0) {
 		card->type = MMC_TYPE_SD_COMBO;
 
-		if (oldcard && (oldcard->type != MMC_TYPE_SD_COMBO ||
+		if (oldcard && (!mmc_card_sd_combo(oldcard) ||
 		    memcmp(card->raw_cid, oldcard->raw_cid, sizeof(card->raw_cid)) != 0)) {
 			err = -ENOENT;
 			goto mismatch;
@@ -697,7 +711,7 @@ try_again:
 	} else {
 		card->type = MMC_TYPE_SDIO;
 
-		if (oldcard && oldcard->type != MMC_TYPE_SDIO) {
+		if (oldcard && !mmc_card_sdio(oldcard)) {
 			err = -ENOENT;
 			goto mismatch;
 		}
@@ -754,7 +768,7 @@ try_again:
 	/*
 	 * Read CSD, before selecting the card
 	 */
-	if (!oldcard && card->type == MMC_TYPE_SD_COMBO) {
+	if (!oldcard && mmc_card_sd_combo(card)) {
 		err = mmc_sd_get_csd(card);
 		if (err)
 			goto remove;
@@ -827,7 +841,7 @@ try_again:
 
 	mmc_fixup_device(card, sdio_fixup_methods);
 
-	if (card->type == MMC_TYPE_SD_COMBO) {
+	if (mmc_card_sd_combo(card)) {
 		err = mmc_sd_setup_card(host, card, oldcard != NULL);
 		/* handle as SDIO-only card if memory init failed */
 		if (err) {

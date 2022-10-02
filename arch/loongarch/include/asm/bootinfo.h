@@ -28,10 +28,10 @@ struct loongson_board_info {
 struct loongson_system_configuration {
 	int nr_cpus;
 	int nr_nodes;
-	int nr_io_pics;
 	int boot_cpu_id;
 	int cores_per_node;
 	int cores_per_package;
+	unsigned long cores_io_master;
 	const char *cpuname;
 };
 
