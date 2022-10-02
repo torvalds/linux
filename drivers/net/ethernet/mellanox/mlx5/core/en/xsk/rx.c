@@ -41,7 +41,15 @@ int mlx5e_xsk_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	umr_wqe = mlx5_wq_cyc_get_wqe(wq, pi);
 	memcpy(umr_wqe, &rq->mpwqe.umr_wqe, sizeof(struct mlx5e_umr_wqe));
 
-	if (unlikely(rq->mpwqe.umr_mode == MLX5E_MPWRQ_UMR_MODE_UNALIGNED)) {
+	if (likely(rq->mpwqe.umr_mode == MLX5E_MPWRQ_UMR_MODE_ALIGNED)) {
+		for (i = 0; i < batch; i++) {
+			dma_addr_t addr = xsk_buff_xdp_get_frame_dma(wi->alloc_units[i].xsk);
+
+			umr_wqe->inline_mtts[i] = (struct mlx5_mtt) {
+				.ptag = cpu_to_be64(addr | MLX5_EN_WR),
+			};
+		}
+	} else if (unlikely(rq->mpwqe.umr_mode == MLX5E_MPWRQ_UMR_MODE_UNALIGNED)) {
 		for (i = 0; i < batch; i++) {
 			dma_addr_t addr = xsk_buff_xdp_get_frame_dma(wi->alloc_units[i].xsk);
 
@@ -51,11 +59,22 @@ int mlx5e_xsk_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 			};
 		}
 	} else {
+		__be32 pad_size = cpu_to_be32((1 << rq->mpwqe.page_shift) -
+					      rq->xsk_pool->chunk_size);
+		__be32 frame_size = cpu_to_be32(rq->xsk_pool->chunk_size);
+
 		for (i = 0; i < batch; i++) {
 			dma_addr_t addr = xsk_buff_xdp_get_frame_dma(wi->alloc_units[i].xsk);
 
-			umr_wqe->inline_mtts[i] = (struct mlx5_mtt) {
-				.ptag = cpu_to_be64(addr | MLX5_EN_WR),
+			umr_wqe->inline_klms[i << 1] = (struct mlx5_klm) {
+				.key = rq->mkey_be,
+				.va = cpu_to_be64(addr),
+				.bcount = frame_size,
+			};
+			umr_wqe->inline_klms[(i << 1) + 1] = (struct mlx5_klm) {
+				.key = rq->mkey_be,
+				.va = cpu_to_be64(rq->wqe_overflow.addr),
+				.bcount = pad_size,
 			};
 		}
 	}
@@ -70,6 +89,8 @@ int mlx5e_xsk_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	offset = ix * rq->mpwqe.mtts_per_wqe;
 	if (likely(rq->mpwqe.umr_mode == MLX5E_MPWRQ_UMR_MODE_ALIGNED))
 		offset = offset * sizeof(struct mlx5_mtt) / MLX5_OCTWORD;
+	else if (unlikely(rq->mpwqe.umr_mode == MLX5E_MPWRQ_UMR_MODE_OVERSIZED))
+		offset = offset * sizeof(struct mlx5_klm) * 2 / MLX5_OCTWORD;
 	umr_wqe->uctrl.xlt_offset = cpu_to_be16(offset);
 
 	icosq->db.wqe_info[pi] = (struct mlx5e_icosq_wqe_info) {

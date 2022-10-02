@@ -299,6 +299,8 @@ static u8 mlx5e_mpwrq_access_mode(enum mlx5e_mpwrq_umr_mode umr_mode)
 		return MLX5_MKC_ACCESS_MODE_MTT;
 	case MLX5E_MPWRQ_UMR_MODE_UNALIGNED:
 		return MLX5_MKC_ACCESS_MODE_KSM;
+	case MLX5E_MPWRQ_UMR_MODE_OVERSIZED:
+		return MLX5_MKC_ACCESS_MODE_KLMS;
 	}
 	WARN_ONCE(1, "MPWRQ UMR mode %d is not known\n", umr_mode);
 	return 0;
@@ -307,10 +309,12 @@ static u8 mlx5e_mpwrq_access_mode(enum mlx5e_mpwrq_umr_mode umr_mode)
 static int mlx5e_create_umr_mkey(struct mlx5_core_dev *mdev,
 				 u32 npages, u8 page_shift, u32 *umr_mkey,
 				 dma_addr_t filler_addr,
-				 enum mlx5e_mpwrq_umr_mode umr_mode)
+				 enum mlx5e_mpwrq_umr_mode umr_mode,
+				 u32 xsk_chunk_size)
 {
 	struct mlx5_mtt *mtt;
 	struct mlx5_ksm *ksm;
+	struct mlx5_klm *klm;
 	u32 octwords;
 	int inlen;
 	void *mkc;
@@ -347,7 +351,8 @@ static int mlx5e_create_umr_mkey(struct mlx5_core_dev *mdev,
 	MLX5_SET(mkc, mkc, pd, mdev->mlx5e_res.hw_objs.pdn);
 	MLX5_SET64(mkc, mkc, len, npages << page_shift);
 	MLX5_SET(mkc, mkc, translations_octword_size, octwords);
-	MLX5_SET(mkc, mkc, log_page_size, page_shift);
+	if (umr_mode != MLX5E_MPWRQ_UMR_MODE_OVERSIZED)
+		MLX5_SET(mkc, mkc, log_page_size, page_shift);
 	MLX5_SET(create_mkey_in, in, translations_octword_actual_size, octwords);
 
 	/* Initialize the mkey with all MTTs pointing to a default
@@ -357,6 +362,21 @@ static int mlx5e_create_umr_mkey(struct mlx5_core_dev *mdev,
 	 * to the default page.
 	 */
 	switch (umr_mode) {
+	case MLX5E_MPWRQ_UMR_MODE_OVERSIZED:
+		klm = MLX5_ADDR_OF(create_mkey_in, in, klm_pas_mtt);
+		for (i = 0; i < npages; i++) {
+			klm[i << 1] = (struct mlx5_klm) {
+				.va = cpu_to_be64(filler_addr),
+				.bcount = cpu_to_be32(xsk_chunk_size),
+				.key = cpu_to_be32(mdev->mlx5e_res.hw_objs.mkey),
+			};
+			klm[(i << 1) + 1] = (struct mlx5_klm) {
+				.va = cpu_to_be64(filler_addr),
+				.bcount = cpu_to_be32((1 << page_shift) - xsk_chunk_size),
+				.key = cpu_to_be32(mdev->mlx5e_res.hw_objs.mkey),
+			};
+		}
+		break;
 	case MLX5E_MPWRQ_UMR_MODE_UNALIGNED:
 		ksm = MLX5_ADDR_OF(create_mkey_in, in, klm_pas_mtt);
 		for (i = 0; i < npages; i++)
@@ -415,6 +435,7 @@ static int mlx5e_create_umr_klm_mkey(struct mlx5_core_dev *mdev,
 
 static int mlx5e_create_rq_umr_mkey(struct mlx5_core_dev *mdev, struct mlx5e_rq *rq)
 {
+	u32 xsk_chunk_size = rq->xsk_pool ? rq->xsk_pool->chunk_size : 0;
 	u32 wq_size = mlx5_wq_ll_get_size(&rq->mpwqe.wq);
 	u32 num_entries, max_num_entries;
 	u32 umr_mkey;
@@ -432,7 +453,7 @@ static int mlx5e_create_rq_umr_mkey(struct mlx5_core_dev *mdev, struct mlx5e_rq 
 
 	err = mlx5e_create_umr_mkey(mdev, num_entries, rq->mpwqe.page_shift,
 				    &umr_mkey, rq->wqe_overflow.addr,
-				    rq->mpwqe.umr_mode);
+				    rq->mpwqe.umr_mode, xsk_chunk_size);
 	rq->mpwqe.umr_mkey_be = cpu_to_be32(umr_mkey);
 	return err;
 }

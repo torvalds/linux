@@ -680,6 +680,7 @@ struct mlx5e_hw_gro_data {
 enum mlx5e_mpwrq_umr_mode {
 	MLX5E_MPWRQ_UMR_MODE_ALIGNED,
 	MLX5E_MPWRQ_UMR_MODE_UNALIGNED,
+	MLX5E_MPWRQ_UMR_MODE_OVERSIZED,
 };
 
 struct mlx5e_rq {

@@ -36,8 +36,28 @@ mlx5e_mpwrq_umr_mode(struct mlx5_core_dev *mdev, struct mlx5e_xsk_param *xsk)
 	 * 1. MTT - direct mapping in page granularity.
 	 * 2. KSM - indirect mapping to another MKey to arbitrary addresses, but
 	 *    all mappings have the same size.
+	 * 3. KLM - indirect mapping to another MKey to arbitrary addresses, and
+	 *    mappings can have different sizes.
 	 */
+	u8 page_shift = mlx5e_mpwrq_page_shift(mdev, xsk);
 	bool unaligned = xsk ? xsk->unaligned : false;
+	bool oversized = false;
+
+	if (xsk) {
+		oversized = xsk->chunk_size < (1 << page_shift);
+		WARN_ON_ONCE(xsk->chunk_size > (1 << page_shift));
+	}
+
+	/* XSK frame size doesn't match the UMR page size, either because the
+	 * frame size is not a power of two, or it's smaller than the minimal
+	 * page size supported by the firmware.
+	 * It's possible to receive packets bigger than MTU in certain setups.
+	 * To avoid writing over the XSK frame boundary, the top region of each
+	 * stride is mapped to a garbage page, resulting in two mappings of
+	 * different sizes per frame.
+	 */
+	if (oversized)
+		return MLX5E_MPWRQ_UMR_MODE_OVERSIZED;
 
 	/* XSK frames can start at arbitrary unaligned locations, but they all
 	 * have the same size which is a power of two. It allows to optimize to
@@ -60,6 +80,8 @@ u8 mlx5e_mpwrq_umr_entry_size(enum mlx5e_mpwrq_umr_mode mode)
 		return sizeof(struct mlx5_mtt);
 	case MLX5E_MPWRQ_UMR_MODE_UNALIGNED:
 		return sizeof(struct mlx5_ksm);
+	case MLX5E_MPWRQ_UMR_MODE_OVERSIZED:
+		return sizeof(struct mlx5_klm) * 2;
 	}
 	WARN_ONCE(1, "MPWRQ UMR mode %d is not known\n", mode);
 	return 0;
@@ -145,11 +167,21 @@ u8 mlx5e_mpwrq_mtts_per_wqe(struct mlx5_core_dev *mdev, u8 page_shift,
 u32 mlx5e_mpwrq_max_num_entries(struct mlx5_core_dev *mdev,
 				enum mlx5e_mpwrq_umr_mode umr_mode)
 {
-	if (umr_mode == MLX5E_MPWRQ_UMR_MODE_UNALIGNED)
-		return min(MLX5E_MAX_RQ_NUM_KSMS,
-			   1 << MLX5_CAP_GEN(mdev, log_max_klm_list_size));
+	/* Same limits apply to KSMs and KLMs. */
+	u32 klm_limit = min(MLX5E_MAX_RQ_NUM_KSMS,
+			    1 << MLX5_CAP_GEN(mdev, log_max_klm_list_size));
 
-	return MLX5E_MAX_RQ_NUM_MTTS;
+	switch (umr_mode) {
+	case MLX5E_MPWRQ_UMR_MODE_ALIGNED:
+		return MLX5E_MAX_RQ_NUM_MTTS;
+	case MLX5E_MPWRQ_UMR_MODE_UNALIGNED:
+		return klm_limit;
+	case MLX5E_MPWRQ_UMR_MODE_OVERSIZED:
+		/* Each entry is two KLMs. */
+		return klm_limit / 2;
+	}
+	WARN_ONCE(1, "MPWRQ UMR mode %d is not known\n", umr_mode);
+	return 0;
 }
 
 static u8 mlx5e_mpwrq_max_log_rq_size(struct mlx5_core_dev *mdev, u8 page_shift,
@@ -1082,6 +1114,11 @@ static u8 mlx5e_build_icosq_log_wq_sz(struct mlx5_core_dev *mdev,
 
 			/* XSK unaligned mode, frame size is a power of two. */
 			xsk.unaligned = true;
+			max_xsk_wqebbs = max(max_xsk_wqebbs,
+				mlx5e_mpwrq_total_umr_wqebbs(mdev, params, &xsk));
+
+			/* XSK unaligned mode, frame size is not equal to stride size. */
+			xsk.chunk_size -= 1;
 			max_xsk_wqebbs = max(max_xsk_wqebbs,
 				mlx5e_mpwrq_total_umr_wqebbs(mdev, params, &xsk));
 		}
