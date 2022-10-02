@@ -42,6 +42,7 @@
 	x(BCH_ERR_transaction_restart,	transaction_restart_key_cache_raced)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_key_cache_realloced)\
 	x(BCH_ERR_transaction_restart,	transaction_restart_journal_preres_get)	\
+	x(BCH_ERR_transaction_restart,	transaction_restart_split_race)		\
 	x(BCH_ERR_transaction_restart,	transaction_restart_nested)		\
 	x(0,				no_btree_node)				\
 	x(BCH_ERR_no_btree_node,	no_btree_node_relock)			\
