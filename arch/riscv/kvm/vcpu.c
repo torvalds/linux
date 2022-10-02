@@ -59,6 +59,7 @@ static const unsigned long kvm_isa_ext_arr[] = {
 	KVM_ISA_EXT_ARR(SVINVAL),
 	KVM_ISA_EXT_ARR(SVPBMT),
 	KVM_ISA_EXT_ARR(ZIHINTPAUSE),
+	KVM_ISA_EXT_ARR(ZICBOM),
 };
 
 static unsigned long kvm_riscv_vcpu_base2isa_ext(unsigned long base_ext)
@@ -799,11 +800,15 @@ static void kvm_riscv_vcpu_update_config(const unsigned long *isa)
 {
 	u64 henvcfg = 0;
 
-	if (__riscv_isa_extension_available(isa, RISCV_ISA_EXT_SVPBMT))
+	if (riscv_isa_extension_available(isa, SVPBMT))
 		henvcfg |= ENVCFG_PBMTE;
 
-	if (__riscv_isa_extension_available(isa, RISCV_ISA_EXT_SSTC))
+	if (riscv_isa_extension_available(isa, SSTC))
 		henvcfg |= ENVCFG_STCE;
+
+	if (riscv_isa_extension_available(isa, ZICBOM))
+		henvcfg |= (ENVCFG_CBIE | ENVCFG_CBCFE);
+
 	csr_write(CSR_HENVCFG, henvcfg);
 #ifdef CONFIG_32BIT
 	csr_write(CSR_HENVCFGH, henvcfg >> 32);
