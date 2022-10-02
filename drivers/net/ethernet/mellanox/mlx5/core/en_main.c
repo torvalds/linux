@@ -2408,10 +2408,11 @@ static void mlx5e_activate_channel(struct mlx5e_channel *c)
 		mlx5e_activate_txqsq(&c->sq[tc]);
 	mlx5e_activate_icosq(&c->icosq);
 	mlx5e_activate_icosq(&c->async_icosq);
-	mlx5e_activate_rq(&c->rq);
 
 	if (test_bit(MLX5E_CHANNEL_STATE_XSK, c->state))
 		mlx5e_activate_xsk(c);
+	else
+		mlx5e_activate_rq(&c->rq);
 
 	mlx5e_trigger_napi_icosq(c);
 }
@@ -2422,8 +2423,9 @@ static void mlx5e_deactivate_channel(struct mlx5e_channel *c)
 
 	if (test_bit(MLX5E_CHANNEL_STATE_XSK, c->state))
 		mlx5e_deactivate_xsk(c);
+	else
+		mlx5e_deactivate_rq(&c->rq);
 
-	mlx5e_deactivate_rq(&c->rq);
 	mlx5e_deactivate_icosq(&c->async_icosq);
 	mlx5e_deactivate_icosq(&c->icosq);
 	for (tc = 0; tc < c->num_tc; tc++)
@@ -2515,8 +2517,6 @@ static void mlx5e_activate_channels(struct mlx5e_channels *chs)
 		mlx5e_ptp_activate_channel(chs->ptp);
 }
 
-#define MLX5E_RQ_WQES_TIMEOUT 20000 /* msecs */
-
 static int mlx5e_wait_channels_min_rx_wqes(struct mlx5e_channels *chs)
 {
 	int err = 0;
@@ -2524,8 +2524,12 @@ static int mlx5e_wait_channels_min_rx_wqes(struct mlx5e_channels *chs)
 
 	for (i = 0; i < chs->num; i++) {
 		int timeout = err ? 0 : MLX5E_RQ_WQES_TIMEOUT;
+		struct mlx5e_channel *c = chs->c[i];
 
-		err |= mlx5e_wait_for_min_rx_wqes(&chs->c[i]->rq, timeout);
+		if (test_bit(MLX5E_CHANNEL_STATE_XSK, c->state))
+			continue;
+
+		err |= mlx5e_wait_for_min_rx_wqes(&c->rq, timeout);
 
 		/* Don't wait on the XSK RQ, because the newer xdpsock sample
 		 * doesn't provide any Fill Ring entries at the setup stage.

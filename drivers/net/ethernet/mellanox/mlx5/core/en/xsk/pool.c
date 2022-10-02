@@ -126,6 +126,9 @@ static int mlx5e_xsk_enable_locked(struct mlx5e_priv *priv,
 
 	mlx5e_rx_res_xsk_update(priv->rx_res, &priv->channels, ix, true);
 
+	mlx5e_deactivate_rq(&c->rq);
+	mlx5e_flush_rq(&c->rq, MLX5_RQC_STATE_RDY);
+
 	return 0;
 
 err_remove_pool:
@@ -165,7 +168,13 @@ static int mlx5e_xsk_disable_locked(struct mlx5e_priv *priv, u16 ix)
 		goto remove_pool;
 
 	c = priv->channels.c[ix];
+
+	mlx5e_activate_rq(&c->rq);
+	mlx5e_trigger_napi_icosq(c);
+	mlx5e_wait_for_min_rx_wqes(&c->rq, MLX5E_RQ_WQES_TIMEOUT);
+
 	mlx5e_rx_res_xsk_update(priv->rx_res, &priv->channels, ix, false);
+
 	mlx5e_deactivate_xsk(c);
 	mlx5e_close_xsk(c);
 
