@@ -81,6 +81,8 @@ static void tc(struct kunit *test, char *src, int count, int expected,
 
 static void strscpy_test(struct kunit *test)
 {
+	char dest[8];
+
 	/*
 	 * tc() uses a destination buffer of size 6 and needs at
 	 * least 2 characters spare (one for null and one to check for
@@ -111,6 +113,17 @@ static void strscpy_test(struct kunit *test)
 	tc(test, "ab",   4, 2,	    2, 1, 1);
 	tc(test, "a",    4, 1,	    1, 1, 2);
 	tc(test, "",     4, 0,	    0, 1, 3);
+
+	/* Compile-time-known source strings. */
+	KUNIT_EXPECT_EQ(test, strscpy(dest, "", ARRAY_SIZE(dest)), 0);
+	KUNIT_EXPECT_EQ(test, strscpy(dest, "", 3), 0);
+	KUNIT_EXPECT_EQ(test, strscpy(dest, "", 1), 0);
+	KUNIT_EXPECT_EQ(test, strscpy(dest, "", 0), -E2BIG);
+	KUNIT_EXPECT_EQ(test, strscpy(dest, "Fixed", ARRAY_SIZE(dest)), 5);
+	KUNIT_EXPECT_EQ(test, strscpy(dest, "Fixed", 3), -E2BIG);
+	KUNIT_EXPECT_EQ(test, strscpy(dest, "Fixed", 1), -E2BIG);
+	KUNIT_EXPECT_EQ(test, strscpy(dest, "Fixed", 0), -E2BIG);
+	KUNIT_EXPECT_EQ(test, strscpy(dest, "This is too long", ARRAY_SIZE(dest)), -E2BIG);
 }
 
 static struct kunit_case strscpy_test_cases[] = {

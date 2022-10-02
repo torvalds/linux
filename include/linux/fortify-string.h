@@ -314,6 +314,16 @@ __FORTIFY_INLINE ssize_t strscpy(char * const POS p, const char * const POS q, s
 	if (__compiletime_lessthan(p_size, size))
 		__write_overflow();
 
+	/* Short-circuit for compile-time known-safe lengths. */
+	if (__compiletime_lessthan(p_size, SIZE_MAX)) {
+		len = __compiletime_strlen(q);
+
+		if (len < SIZE_MAX && __compiletime_lessthan(len, size)) {
+			__underlying_memcpy(p, q, len + 1);
+			return len;
+		}
+	}
+
 	/*
 	 * This call protects from read overflow, because len will default to q
 	 * length if it smaller than size.
