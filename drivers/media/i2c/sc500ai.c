@@ -1396,8 +1396,8 @@ static void sc500ai_modify_fps_info(struct sc500ai *sc500ai)
 {
 	const struct sc500ai_mode *mode = sc500ai->cur_mode;
 
-	sc500ai->cur_fps.denominator = mode->max_fps.denominator * sc500ai->cur_vts /
-				       mode->vts_def;
+	sc500ai->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				       sc500ai->cur_vts;
 }
 
 static int sc500ai_set_ctrl(struct v4l2_ctrl *ctrl)

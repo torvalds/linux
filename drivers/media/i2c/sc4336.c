@@ -1104,8 +1104,8 @@ static void sc4336_modify_fps_info(struct sc4336 *sc4336)
 {
 	const struct sc4336_mode *mode = sc4336->cur_mode;
 
-	sc4336->cur_fps.denominator = mode->max_fps.denominator * sc4336->cur_vts /
-				       mode->vts_def;
+	sc4336->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      sc4336->cur_vts;
 }
 
 static int sc4336_set_ctrl(struct v4l2_ctrl *ctrl)

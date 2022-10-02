@@ -1133,8 +1133,8 @@ static void sc3338_modify_fps_info(struct sc3338 *sc3338)
 {
 	const struct sc3338_mode *mode = sc3338->cur_mode;
 
-	sc3338->cur_fps.denominator = mode->max_fps.denominator * sc3338->cur_vts /
-				       mode->vts_def;
+	sc3338->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      sc3338->cur_vts;
 }
 
 static int sc3338_set_ctrl(struct v4l2_ctrl *ctrl)

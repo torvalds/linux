@@ -369,8 +369,8 @@ static void sc210iot_modify_fps_info(struct sc210iot *sc210iot)
 {
 	const struct sc210iot_mode *mode = sc210iot->cur_mode;
 
-	sc210iot->cur_fps.denominator = mode->max_fps.denominator * sc210iot->cur_vts /
-				       mode->vts_def;
+	sc210iot->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+					sc210iot->cur_vts;
 }
 
 static int sc210iot_set_ctrl(struct v4l2_ctrl *ctrl)

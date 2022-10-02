@@ -983,8 +983,8 @@ static void sc035gs_modify_fps_info(struct sc035gs *sc035gs)
 {
 	const struct sc035gs_mode *mode = sc035gs->cur_mode;
 
-	sc035gs->cur_fps.denominator = mode->max_fps.denominator * sc035gs->cur_vts /
-				       mode->vts_def;
+	sc035gs->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				       sc035gs->cur_vts;
 }
 
 static int sc035gs_set_ctrl(struct v4l2_ctrl *ctrl)

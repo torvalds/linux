@@ -2410,8 +2410,8 @@ static void sc4238_modify_fps_info(struct sc4238 *sc4238)
 {
 	const struct sc4238_mode *mode = sc4238->cur_mode;
 
-	sc4238->cur_fps.denominator = mode->max_fps.denominator * sc4238->cur_vts /
-				       mode->vts_def;
+	sc4238->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      sc4238->cur_vts;
 }
 
 static int sc4238_set_ctrl(struct v4l2_ctrl *ctrl)

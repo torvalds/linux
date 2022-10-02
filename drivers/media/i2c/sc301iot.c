@@ -1869,8 +1869,8 @@ static void SC301IOT_modify_fps_info(struct SC301IOT *SC301IOT)
 {
 	const struct SC301IOT_mode *mode = SC301IOT->cur_mode;
 
-	SC301IOT->cur_fps.denominator = mode->max_fps.denominator * SC301IOT->cur_vts /
-				       mode->vts_def;
+	SC301IOT->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+					SC301IOT->cur_vts;
 }
 
 static int SC301IOT_set_ctrl(struct v4l2_ctrl *ctrl)

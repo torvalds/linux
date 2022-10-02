@@ -1574,8 +1574,8 @@ static void sc2310_modify_fps_info(struct sc2310 *sc2310)
 {
 	const struct sc2310_mode *mode = sc2310->cur_mode;
 
-	sc2310->cur_fps.denominator = mode->max_fps.denominator * sc2310->cur_vts /
-				       mode->vts_def;
+	sc2310->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      sc2310->cur_vts;
 }
 
 static int sc2310_set_ctrl(struct v4l2_ctrl *ctrl)

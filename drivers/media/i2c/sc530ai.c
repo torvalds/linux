@@ -950,9 +950,10 @@ static int sc530ai_g_frame_interval(struct v4l2_subdev *sd,
 	struct sc530ai *sc530ai = to_sc530ai(sd);
 	const struct sc530ai_mode *mode = sc530ai->cur_mode;
 
-	mutex_lock(&sc530ai->mutex);
-	fi->interval = mode->max_fps;
-	mutex_unlock(&sc530ai->mutex);
+	if (sc530ai->streaming)
+		fi->interval = sc530ai->cur_fps;
+	else
+		fi->interval = mode->max_fps;
 
 	return 0;
 }
@@ -1635,8 +1636,8 @@ static void sc530ai_modify_fps_info(struct sc530ai *sc5330ai)
 {
 	const struct sc530ai_mode *mode = sc5330ai->cur_mode;
 
-	sc5330ai->cur_fps.denominator = mode->max_fps.denominator * sc5330ai->cur_vts /
-				       mode->vts_def;
+	sc5330ai->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+					sc5330ai->cur_vts;
 }
 
 static int sc530ai_set_ctrl(struct v4l2_ctrl *ctrl)

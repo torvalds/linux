@@ -1098,8 +1098,8 @@ static void sc132gs_modify_fps_info(struct sc132gs *sc132gs)
 {
 	const struct sc132gs_mode *mode = sc132gs->cur_mode;
 
-	sc132gs->cur_fps.denominator = mode->max_fps.denominator * sc132gs->cur_vts /
-				       mode->vts_def;
+	sc132gs->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				       sc132gs->cur_vts;
 }
 
 static int sc132gs_set_ctrl(struct v4l2_ctrl *ctrl)
