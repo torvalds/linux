@@ -1709,9 +1709,10 @@ static void mlx5e_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 		goto free_wqe;
 	}
 
-	skb = INDIRECT_CALL_2(rq->wqe.skb_from_cqe,
+	skb = INDIRECT_CALL_3(rq->wqe.skb_from_cqe,
 			      mlx5e_skb_from_cqe_linear,
 			      mlx5e_skb_from_cqe_nonlinear,
+			      mlx5e_xsk_skb_from_cqe_linear,
 			      rq, wi, cqe_bcnt);
 	if (!skb) {
 		/* probably for XDP */
@@ -2180,9 +2181,10 @@ static void mlx5e_handle_rx_cqe_mpwrq(struct mlx5e_rq *rq, struct mlx5_cqe64 *cq
 
 	cqe_bcnt = mpwrq_get_cqe_byte_cnt(cqe);
 
-	skb = INDIRECT_CALL_2(rq->mpwqe.skb_from_cqe_mpwrq,
+	skb = INDIRECT_CALL_3(rq->mpwqe.skb_from_cqe_mpwrq,
 			      mlx5e_skb_from_cqe_mpwrq_linear,
 			      mlx5e_skb_from_cqe_mpwrq_nonlinear,
+			      mlx5e_xsk_skb_from_cqe_mpwrq_linear,
 			      rq, wi, cqe_bcnt, head_offset, page_idx);
 	if (!skb)
 		goto mpwrq_cqe_out;
