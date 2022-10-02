@@ -301,6 +301,8 @@ static u8 mlx5e_mpwrq_access_mode(enum mlx5e_mpwrq_umr_mode umr_mode)
 		return MLX5_MKC_ACCESS_MODE_KSM;
 	case MLX5E_MPWRQ_UMR_MODE_OVERSIZED:
 		return MLX5_MKC_ACCESS_MODE_KLMS;
+	case MLX5E_MPWRQ_UMR_MODE_TRIPLE:
+		return MLX5_MKC_ACCESS_MODE_KSM;
 	}
 	WARN_ONCE(1, "MPWRQ UMR mode %d is not known\n", umr_mode);
 	return 0;
@@ -322,7 +324,8 @@ static int mlx5e_create_umr_mkey(struct mlx5_core_dev *mdev,
 	int err;
 	int i;
 
-	if (umr_mode == MLX5E_MPWRQ_UMR_MODE_UNALIGNED &&
+	if ((umr_mode == MLX5E_MPWRQ_UMR_MODE_UNALIGNED ||
+	     umr_mode == MLX5E_MPWRQ_UMR_MODE_TRIPLE) &&
 	    !MLX5_CAP_GEN(mdev, fixed_buffer_size)) {
 		mlx5_core_warn(mdev, "Unaligned AF_XDP requires fixed_buffer_size capability\n");
 		return -EINVAL;
@@ -351,7 +354,9 @@ static int mlx5e_create_umr_mkey(struct mlx5_core_dev *mdev,
 	MLX5_SET(mkc, mkc, pd, mdev->mlx5e_res.hw_objs.pdn);
 	MLX5_SET64(mkc, mkc, len, npages << page_shift);
 	MLX5_SET(mkc, mkc, translations_octword_size, octwords);
-	if (umr_mode != MLX5E_MPWRQ_UMR_MODE_OVERSIZED)
+	if (umr_mode == MLX5E_MPWRQ_UMR_MODE_TRIPLE)
+		MLX5_SET(mkc, mkc, log_page_size, page_shift - 2);
+	else if (umr_mode != MLX5E_MPWRQ_UMR_MODE_OVERSIZED)
 		MLX5_SET(mkc, mkc, log_page_size, page_shift);
 	MLX5_SET(create_mkey_in, in, translations_octword_actual_size, octwords);
 
@@ -391,6 +396,15 @@ static int mlx5e_create_umr_mkey(struct mlx5_core_dev *mdev,
 			mtt[i] = (struct mlx5_mtt) {
 				.ptag = cpu_to_be64(filler_addr),
 			};
+		break;
+	case MLX5E_MPWRQ_UMR_MODE_TRIPLE:
+		ksm = MLX5_ADDR_OF(create_mkey_in, in, klm_pas_mtt);
+		for (i = 0; i < npages * 4; i++) {
+			ksm[i] = (struct mlx5_ksm) {
+				.key = cpu_to_be32(mdev->mlx5e_res.hw_objs.mkey),
+				.va = cpu_to_be64(filler_addr),
+			};
+		}
 		break;
 	}
 

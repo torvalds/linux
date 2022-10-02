@@ -56,8 +56,16 @@ mlx5e_mpwrq_umr_mode(struct mlx5_core_dev *mdev, struct mlx5e_xsk_param *xsk)
 	 * stride is mapped to a garbage page, resulting in two mappings of
 	 * different sizes per frame.
 	 */
-	if (oversized)
+	if (oversized) {
+		/* An optimization for frame sizes equal to 3 * power_of_two.
+		 * 3 KSMs point to the frame, and one KSM points to the garbage
+		 * page, which works faster than KLM.
+		 */
+		if (xsk->chunk_size % 3 == 0 && is_power_of_2(xsk->chunk_size / 3))
+			return MLX5E_MPWRQ_UMR_MODE_TRIPLE;
+
 		return MLX5E_MPWRQ_UMR_MODE_OVERSIZED;
+	}
 
 	/* XSK frames can start at arbitrary unaligned locations, but they all
 	 * have the same size which is a power of two. It allows to optimize to
@@ -82,6 +90,8 @@ u8 mlx5e_mpwrq_umr_entry_size(enum mlx5e_mpwrq_umr_mode mode)
 		return sizeof(struct mlx5_ksm);
 	case MLX5E_MPWRQ_UMR_MODE_OVERSIZED:
 		return sizeof(struct mlx5_klm) * 2;
+	case MLX5E_MPWRQ_UMR_MODE_TRIPLE:
+		return sizeof(struct mlx5_ksm) * 4;
 	}
 	WARN_ONCE(1, "MPWRQ UMR mode %d is not known\n", mode);
 	return 0;
@@ -179,6 +189,9 @@ u32 mlx5e_mpwrq_max_num_entries(struct mlx5_core_dev *mdev,
 	case MLX5E_MPWRQ_UMR_MODE_OVERSIZED:
 		/* Each entry is two KLMs. */
 		return klm_limit / 2;
+	case MLX5E_MPWRQ_UMR_MODE_TRIPLE:
+		/* Each entry is four KSMs. */
+		return klm_limit / 4;
 	}
 	WARN_ONCE(1, "MPWRQ UMR mode %d is not known\n", umr_mode);
 	return 0;
@@ -1119,6 +1132,11 @@ static u8 mlx5e_build_icosq_log_wq_sz(struct mlx5_core_dev *mdev,
 
 			/* XSK unaligned mode, frame size is not equal to stride size. */
 			xsk.chunk_size -= 1;
+			max_xsk_wqebbs = max(max_xsk_wqebbs,
+				mlx5e_mpwrq_total_umr_wqebbs(mdev, params, &xsk));
+
+			/* XSK unaligned mode, frame size is a triple power of two. */
+			xsk.chunk_size = (1 << frame_shift) / 4 * 3;
 			max_xsk_wqebbs = max(max_xsk_wqebbs,
 				mlx5e_mpwrq_total_umr_wqebbs(mdev, params, &xsk));
 		}
