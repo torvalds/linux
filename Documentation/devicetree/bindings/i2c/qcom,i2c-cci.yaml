@@ -91,6 +91,7 @@ allOf:
           contains:
             enum:
               - qcom,msm8226-cci
+              - qcom,msm8974-cci
     then:
       properties:
         clocks:
