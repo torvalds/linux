@@ -433,7 +433,7 @@ static void rtw_init_default_value(struct adapter *padapter)
 	padapter->bShowGetP2PState = 1;
 }
 
-u8 rtw_reset_drv_sw(struct adapter *padapter)
+void rtw_reset_drv_sw(struct adapter *padapter)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
@@ -455,8 +455,6 @@ u8 rtw_reset_drv_sw(struct adapter *padapter)
 	padapter->mlmeextpriv.sitesurvey_res.state = SCAN_DISABLE;
 
 	rtw_set_signal_stat_timer(&padapter->recvpriv);
-
-	return _SUCCESS;
 }
 
 u8 rtw_init_drv_sw(struct adapter *padapter)
