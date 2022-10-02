@@ -97,4 +97,21 @@
 	INSN_R(OPCODE_SYSTEM, FUNC3(0), FUNC7(49),		\
 	       __RD(0), RS1(gaddr), RS2(vmid))
 
+#define HLVX_HU(dest, addr)					\
+	INSN_R(OPCODE_SYSTEM, FUNC3(4), FUNC7(50),		\
+	       RD(dest), RS1(addr), __RS2(3))
+
+#define HLV_W(dest, addr)					\
+	INSN_R(OPCODE_SYSTEM, FUNC3(4), FUNC7(52),		\
+	       RD(dest), RS1(addr), __RS2(0))
+
+#ifdef CONFIG_64BIT
+#define HLV_D(dest, addr)					\
+	INSN_R(OPCODE_SYSTEM, FUNC3(4), FUNC7(54),		\
+	       RD(dest), RS1(addr), __RS2(0))
+#else
+#define HLV_D(dest, addr)					\
+	__ASM_STR(.error "hlv.d requires 64-bit support")
+#endif
+
 #endif /* __ASM_INSN_DEF_H */
