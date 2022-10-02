@@ -41,6 +41,7 @@
 #include <net/gro.h>
 #include <net/udp.h>
 #include <net/tcp.h>
+#include <net/xdp_sock_drv.h>
 #include "en.h"
 #include "en/txrx.h"
 #include "en_tc.h"
