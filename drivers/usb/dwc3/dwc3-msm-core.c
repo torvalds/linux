@@ -2650,6 +2650,8 @@ static int msm_ep_setup_ebc_trbs(struct usb_ep *ep, struct usb_request *req)
 	edep->ebc_trb_pool = memremap(phys_base,
 				      num_trbs * sizeof(struct dwc3_trb),
 				      MEMREMAP_WT);
+	if (!edep->ebc_trb_pool)
+		return -ENOMEM;
 
 	for (i = 0; i < num_trbs; i++) {
 		trb = &edep->ebc_trb_pool[i];
