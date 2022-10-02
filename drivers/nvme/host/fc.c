@@ -1475,6 +1475,8 @@ nvme_fc_xmt_ls_rsp_done(struct nvmefc_ls_rsp *lsrsp)
 	fc_dma_unmap_single(lport->dev, lsop->rspdma,
 			sizeof(*lsop->rspbuf), DMA_TO_DEVICE);
 
+	kfree(lsop->rspbuf);
+	kfree(lsop->rqstbuf);
 	kfree(lsop);
 
 	nvme_fc_rport_put(rport);
@@ -1751,20 +1753,17 @@ nvme_fc_rcv_ls_req(struct nvme_fc_remote_port *portptr,
 		goto out_put;
 	}
 
-	lsop = kzalloc(sizeof(*lsop) +
-			sizeof(union nvmefc_ls_requests) +
-			sizeof(union nvmefc_ls_responses),
-			GFP_KERNEL);
-	if (!lsop) {
+	lsop = kzalloc(sizeof(*lsop), GFP_KERNEL);
+	lsop->rqstbuf = kzalloc(sizeof(*lsop->rqstbuf), GFP_KERNEL);
+	lsop->rspbuf = kzalloc(sizeof(*lsop->rspbuf), GFP_KERNEL);
+	if (!lsop || !lsop->rqstbuf || !lsop->rspbuf) {
 		dev_info(lport->dev,
 			"RCV %s LS failed: No memory\n",
 			(w0->ls_cmd <= NVME_FC_LAST_LS_CMD_VALUE) ?
 				nvmefc_ls_names[w0->ls_cmd] : "");
 		ret = -ENOMEM;
-		goto out_put;
+		goto out_free;
 	}
-	lsop->rqstbuf = (union nvmefc_ls_requests *)&lsop[1];
-	lsop->rspbuf = (union nvmefc_ls_responses *)&lsop->rqstbuf[1];
 
 	lsop->rspdma = fc_dma_map_single(lport->dev, lsop->rspbuf,
 					sizeof(*lsop->rspbuf),
@@ -1801,6 +1800,8 @@ out_unmap:
 	fc_dma_unmap_single(lport->dev, lsop->rspdma,
 			sizeof(*lsop->rspbuf), DMA_TO_DEVICE);
 out_free:
+	kfree(lsop->rspbuf);
+	kfree(lsop->rqstbuf);
 	kfree(lsop);
 out_put:
 	nvme_fc_rport_put(rport);
