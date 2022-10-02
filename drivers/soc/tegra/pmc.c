@@ -23,6 +23,7 @@
 #include <linux/err.h>
 #include <linux/export.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/irqdomain.h>
@@ -3147,6 +3148,45 @@ static void wke_clear_wake_status(struct tegra_pmc *pmc)
 	}
 }
 
+/* translate sc7 wake sources back into IRQs to catch edge triggered wakeups */
+static void tegra186_pmc_process_wake_events(struct tegra_pmc *pmc, unsigned int index,
+					     unsigned long status)
+{
+	unsigned int wake;
+
+	dev_dbg(pmc->dev, "Wake[%d:%d]  status=%#lx\n", (index * 32) + 31, index * 32, status);
+
+	for_each_set_bit(wake, &status, 32) {
+		irq_hw_number_t hwirq = wake + 32 * index;
+		struct irq_desc *desc;
+		unsigned int irq;
+
+		irq = irq_find_mapping(pmc->domain, hwirq);
+
+		desc = irq_to_desc(irq);
+		if (!desc || !desc->action || !desc->action->name) {
+			dev_dbg(pmc->dev, "Resume caused by WAKE%ld, IRQ %d\n", hwirq, irq);
+			continue;
+		}
+
+		dev_dbg(pmc->dev, "Resume caused by WAKE%ld, %s\n", hwirq, desc->action->name);
+		generic_handle_irq(irq);
+	}
+}
+
+static void tegra186_pmc_wake_syscore_resume(void)
+{
+	u32 status, mask;
+	unsigned int i;
+
+	for (i = 0; i < pmc->soc->max_wake_vectors; i++) {
+		mask = readl(pmc->wake + WAKE_AOWAKE_TIER2_ROUTING(i));
+		status = readl(pmc->wake + WAKE_AOWAKE_STATUS_R(i)) & mask;
+
+		tegra186_pmc_process_wake_events(pmc, i, status);
+	}
+}
+
 static int tegra186_pmc_wake_syscore_suspend(void)
 {
 	wke_read_sw_wake_status(pmc);
@@ -3812,6 +3852,7 @@ static const struct tegra_pmc_regs tegra186_pmc_regs = {
 static void tegra186_pmc_init(struct tegra_pmc *pmc)
 {
 	pmc->syscore.suspend = tegra186_pmc_wake_syscore_suspend;
+	pmc->syscore.resume = tegra186_pmc_wake_syscore_resume;
 
 	register_syscore_ops(&pmc->syscore);
 }
