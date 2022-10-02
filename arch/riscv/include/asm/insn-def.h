@@ -114,4 +114,24 @@
 	__ASM_STR(.error "hlv.d requires 64-bit support")
 #endif
 
+#define SINVAL_VMA(vaddr, asid)					\
+	INSN_R(OPCODE_SYSTEM, FUNC3(0), FUNC7(11),		\
+	       __RD(0), RS1(vaddr), RS2(asid))
+
+#define SFENCE_W_INVAL()					\
+	INSN_R(OPCODE_SYSTEM, FUNC3(0), FUNC7(12),		\
+	       __RD(0), __RS1(0), __RS2(0))
+
+#define SFENCE_INVAL_IR()					\
+	INSN_R(OPCODE_SYSTEM, FUNC3(0), FUNC7(12),		\
+	       __RD(0), __RS1(0), __RS2(1))
+
+#define HINVAL_VVMA(vaddr, asid)				\
+	INSN_R(OPCODE_SYSTEM, FUNC3(0), FUNC7(19),		\
+	       __RD(0), RS1(vaddr), RS2(asid))
+
+#define HINVAL_GVMA(gaddr, vmid)				\
+	INSN_R(OPCODE_SYSTEM, FUNC3(0), FUNC7(51),		\
+	       __RD(0), RS1(gaddr), RS2(vmid))
+
 #endif /* __ASM_INSN_DEF_H */
