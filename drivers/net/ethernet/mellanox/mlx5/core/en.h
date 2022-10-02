@@ -681,6 +681,11 @@ struct mlx5e_hw_gro_data {
 	int second_ip_id;
 };
 
+enum mlx5e_mpwrq_umr_mode {
+	MLX5E_MPWRQ_UMR_MODE_ALIGNED,
+	MLX5E_MPWRQ_UMR_MODE_UNALIGNED,
+};
+
 struct mlx5e_rq {
 	/* data path */
 	union {
@@ -708,7 +713,7 @@ struct mlx5e_rq {
 			u8                     pages_per_wqe;
 			u8                     umr_wqebbs;
 			u8                     mtts_per_wqe;
-			u8                     unaligned;
+			u8                     umr_mode;
 			struct mlx5e_shampo_hd *shampo;
 		} mpwqe;
 	};
@@ -1008,7 +1013,7 @@ struct mlx5e_profile {
 void mlx5e_build_ptys2ethtool_map(void);
 
 bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev, u8 page_shift,
-					    bool unaligned);
+					    enum mlx5e_mpwrq_umr_mode umr_mode);
 
 void mlx5e_shampo_dealloc_hd(struct mlx5e_rq *rq, u16 len, u16 start, bool close);
 void mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats);

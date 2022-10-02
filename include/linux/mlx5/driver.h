@@ -1288,4 +1288,8 @@ static inline bool mlx5_get_roce_state(struct mlx5_core_dev *dev)
 	return mlx5_is_roce_on(dev);
 }
 
+enum {
+	MLX5_OCTWORD = 16,
+};
+
 #endif /* MLX5_DRIVER_H */

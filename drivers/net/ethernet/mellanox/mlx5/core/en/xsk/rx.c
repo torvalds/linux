@@ -41,7 +41,7 @@ int mlx5e_xsk_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	umr_wqe = mlx5_wq_cyc_get_wqe(wq, pi);
 	memcpy(umr_wqe, &rq->mpwqe.umr_wqe, sizeof(struct mlx5e_umr_wqe));
 
-	if (unlikely(rq->mpwqe.unaligned)) {
+	if (unlikely(rq->mpwqe.umr_mode == MLX5E_MPWRQ_UMR_MODE_UNALIGNED)) {
 		for (i = 0; i < batch; i++) {
 			dma_addr_t addr = xsk_buff_xdp_get_frame_dma(wi->alloc_units[i].xsk);
 
@@ -67,7 +67,7 @@ int mlx5e_xsk_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 		cpu_to_be32((icosq->pc << MLX5_WQE_CTRL_WQE_INDEX_SHIFT) | MLX5_OPCODE_UMR);
 
 	offset = ix * rq->mpwqe.mtts_per_wqe;
-	if (likely(!rq->mpwqe.unaligned))
+	if (likely(rq->mpwqe.umr_mode == MLX5E_MPWRQ_UMR_MODE_ALIGNED))
 		offset = MLX5_ALIGNED_MTTS_OCTW(offset);
 	umr_wqe->uctrl.xlt_offset = cpu_to_be16(offset);
 
