@@ -43,7 +43,7 @@ int netdev_open(struct net_device *pnetdev);
 int netdev_close(struct net_device *pnetdev);
 
 u8 rtw_init_drv_sw(struct adapter *padapter);
-u8 rtw_free_drv_sw(struct adapter *padapter);
+void rtw_free_drv_sw(struct adapter *padapter);
 void rtw_reset_drv_sw(struct adapter *padapter);
 
 u32 rtw_start_drv_threads(struct adapter *padapter);

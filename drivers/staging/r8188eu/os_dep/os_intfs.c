@@ -548,7 +548,7 @@ void rtw_cancel_all_timer(struct adapter *padapter)
 	_cancel_timer_ex(&padapter->recvpriv.signal_stat_timer);
 }
 
-u8 rtw_free_drv_sw(struct adapter *padapter)
+void rtw_free_drv_sw(struct adapter *padapter)
 {
 	/* we can call rtw_p2p_enable here, but: */
 	/*  1. rtw_p2p_enable may have IO operation */
@@ -585,8 +585,6 @@ u8 rtw_free_drv_sw(struct adapter *padapter)
 	/*  clear pbuddystruct adapter to avoid access wrong pointer. */
 	if (padapter->pbuddy_adapter)
 		padapter->pbuddy_adapter->pbuddy_adapter = NULL;
-
-	return _SUCCESS;
 }
 
 void netdev_br_init(struct net_device *netdev)
