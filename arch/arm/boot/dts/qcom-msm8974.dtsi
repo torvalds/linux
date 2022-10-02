@@ -1464,6 +1464,38 @@
 				bias-pull-up;
 			};
 
+			cci_default: cci-default-state {
+				cci_i2c0_default: cci-i2c0-default-pins {
+					pins = "gpio19", "gpio20";
+					function = "cci_i2c0";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				cci_i2c1_default: cci-i2c1-default-pins {
+					pins = "gpio21", "gpio22";
+					function = "cci_i2c1";
+					drive-strength = <2>;
+					bias-disable;
+				};
+			};
+
+			cci_sleep: cci-sleep-state {
+				cci_i2c0_sleep: cci-i2c0-sleep-pins {
+					pins = "gpio19", "gpio20";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				cci_i2c1_sleep: cci-i2c1-sleep-pins {
+					pins = "gpio21", "gpio22";
+					function = "gpio";
+					drive-strength = <2>;
+					bias-disable;
+				};
+			};
+
 			spi8_default: spi8_default {
 				mosi {
 					pins = "gpio45";
@@ -1613,6 +1645,40 @@
 				clock-names = "iface", "ref";
 
 				status = "disabled";
+			};
+		};
+
+		cci: cci@fda0c000 {
+			compatible = "qcom,msm8974-cci";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xfda0c000 0x1000>;
+			interrupts = <GIC_SPI 50 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&mmcc CAMSS_TOP_AHB_CLK>,
+				 <&mmcc CAMSS_CCI_CCI_AHB_CLK>,
+				 <&mmcc CAMSS_CCI_CCI_CLK>;
+			clock-names = "camss_top_ahb",
+				      "cci_ahb",
+				      "cci";
+
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&cci_default>;
+			pinctrl-1 = <&cci_sleep>;
+
+			status = "disabled";
+
+			cci_i2c0: i2c-bus@0 {
+				reg = <0>;
+				clock-frequency = <100000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			cci_i2c1: i2c-bus@1 {
+				reg = <1>;
+				clock-frequency = <100000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 			};
 		};
 
