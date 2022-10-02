@@ -4463,7 +4463,7 @@ int mlx5e_configure_flower(struct net_device *dev, struct mlx5e_priv *priv,
 	int err = 0;
 
 	if (!mlx5_esw_hold(priv->mdev))
-		return -EAGAIN;
+		return -EBUSY;
 
 	mlx5_esw_get(priv->mdev);
 
