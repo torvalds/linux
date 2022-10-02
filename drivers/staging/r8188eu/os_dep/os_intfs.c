@@ -494,7 +494,7 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 		goto free_xmit_priv;
 	}
 
-	if (_rtw_init_sta_priv(&padapter->stapriv) == _FAIL) {
+	if (_rtw_init_sta_priv(&padapter->stapriv)) {
 		dev_err(dvobj_to_dev(padapter->dvobj), "_rtw_init_sta_priv failed\n");
 		goto free_recv_priv;
 	}
