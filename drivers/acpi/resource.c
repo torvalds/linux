@@ -399,6 +399,31 @@ static const struct dmi_system_id medion_laptop[] = {
 	{ }
 };
 
+static const struct dmi_system_id asus_laptop[] = {
+	{
+		.ident = "Asus Vivobook K3402ZA",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "K3402ZA"),
+		},
+	},
+	{
+		.ident = "Asus Vivobook K3502ZA",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "K3502ZA"),
+		},
+	},
+	{
+		.ident = "Asus Vivobook S5402ZA",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_BOARD_NAME, "S5402ZA"),
+		},
+	},
+	{ }
+};
+
 struct irq_override_cmp {
 	const struct dmi_system_id *system;
 	unsigned char irq;
@@ -409,6 +434,7 @@ struct irq_override_cmp {
 
 static const struct irq_override_cmp skip_override_table[] = {
 	{ medion_laptop, 1, ACPI_LEVEL_SENSITIVE, ACPI_ACTIVE_LOW, 0 },
+	{ asus_laptop, 1, ACPI_LEVEL_SENSITIVE, ACPI_ACTIVE_LOW, 0 },
 };
 
 static bool acpi_dev_irq_override(u32 gsi, u8 triggering, u8 polarity,
@@ -690,6 +716,9 @@ static int is_memory(struct acpi_resource *ares, void *not_used)
 
 	memset(&win, 0, sizeof(win));
 
+	if (acpi_dev_filter_resource_type(ares, IORESOURCE_MEM))
+		return 1;
+
 	return !(acpi_dev_resource_memory(ares, res)
 	       || acpi_dev_resource_address_space(ares, &win)
 	       || acpi_dev_resource_ext_address_space(ares, &win));
@@ -717,6 +746,23 @@ int acpi_dev_get_dma_resources(struct acpi_device *adev, struct list_head *list)
 					METHOD_NAME__DMA);
 }
 EXPORT_SYMBOL_GPL(acpi_dev_get_dma_resources);
+
+/**
+ * acpi_dev_get_memory_resources - Get current memory resources of a device.
+ * @adev: ACPI device node to get the resources for.
+ * @list: Head of the resultant list of resources (must be empty).
+ *
+ * This is a helper function that locates all memory type resources of @adev
+ * with acpi_dev_get_resources().
+ *
+ * The number of resources in the output list is returned on success, an error
+ * code reflecting the error condition is returned otherwise.
+ */
+int acpi_dev_get_memory_resources(struct acpi_device *adev, struct list_head *list)
+{
+	return acpi_dev_get_resources(adev, list, is_memory, NULL);
+}
+EXPORT_SYMBOL_GPL(acpi_dev_get_memory_resources);
 
 /**
  * acpi_dev_filter_resource_type - Filter ACPI resource according to resource
