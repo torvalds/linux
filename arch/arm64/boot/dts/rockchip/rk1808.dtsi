@@ -247,6 +247,12 @@
 		#clock-cells = <0>;
 	};
 
+	mipi_csi2: mipi-csi2 {
+		compatible = "rockchip,rk1808-mipi-csi2";
+		rockchip,hw = <&mipi_csi2_hw>;
+		status = "disabled";
+	};
+
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
@@ -1525,8 +1531,8 @@
 		status = "disabled";
 	};
 
-	mipi_csi2: mipi-csi2@ffb10000 {
-		compatible = "rockchip,rk1808-mipi-csi2";
+	mipi_csi2_hw: mipi-csi2-hw@ffb10000 {
+		compatible = "rockchip,rk1808-mipi-csi2-hw";
 		reg = <0x0 0xffb10000 0x0 0x100>;
 		reg-names = "csihost_regs";
 		interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>,
