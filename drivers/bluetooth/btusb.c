@@ -1981,10 +1981,11 @@ static void btusb_work(struct work_struct *work)
 		if (btusb_switch_alt_setting(hdev, new_alts) < 0)
 			bt_dev_err(hdev, "set USB alt:(%d) failed!", new_alts);
 	} else {
-		clear_bit(BTUSB_ISOC_RUNNING, &data->flags);
 		usb_kill_anchored_urbs(&data->isoc_anchor);
 
-		__set_isoc_interface(hdev, 0);
+		if (test_and_clear_bit(BTUSB_ISOC_RUNNING, &data->flags))
+			__set_isoc_interface(hdev, 0);
+
 		if (test_and_clear_bit(BTUSB_DID_ISO_RESUME, &data->flags))
 			usb_autopm_put_interface(data->isoc ? data->isoc : data->intf);
 	}
