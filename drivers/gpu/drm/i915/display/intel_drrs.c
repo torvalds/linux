@@ -325,18 +325,18 @@ static int intel_drrs_debugfs_status_show(struct seq_file *m, void *unused)
 		mutex_lock(&crtc->drrs.mutex);
 
 		/* DRRS Supported */
-		seq_printf(m, "\tDRRS Enabled: %s\n",
+		seq_printf(m, "\tDRRS enabled: %s\n",
 			   str_yes_no(crtc_state->has_drrs));
 
-		seq_printf(m, "\tDRRS Active: %s\n",
+		seq_printf(m, "\tDRRS active: %s\n",
 			   str_yes_no(intel_drrs_is_active(crtc)));
-
-		seq_printf(m, "\tBusy_frontbuffer_bits: 0x%X\n",
-			   crtc->drrs.busy_frontbuffer_bits);
 
 		seq_printf(m, "\tDRRS refresh rate: %s\n",
 			   crtc->drrs.refresh_rate == DRRS_REFRESH_RATE_LOW ?
 			   "low" : "high");
+
+		seq_printf(m, "\tDRRS busy frontbuffer bits: 0x%X\n",
+			   crtc->drrs.busy_frontbuffer_bits);
 
 		mutex_unlock(&crtc->drrs.mutex);
 	}
