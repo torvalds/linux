@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/qrtr.h>
 #include <linux/workqueue.h>
+#include <linux/xarray.h>
 #include <net/sock.h>
 
 #include "qrtr.h"
@@ -15,7 +16,7 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/qrtr.h>
 
-static RADIX_TREE(nodes, GFP_KERNEL);
+static DEFINE_XARRAY(nodes);
 
 static struct {
 	struct socket *sock;
@@ -72,7 +73,7 @@ static struct qrtr_node *node_get(unsigned int node_id)
 {
 	struct qrtr_node *node;
 
-	node = radix_tree_lookup(&nodes, node_id);
+	node = xa_load(&nodes, node_id);
 	if (node)
 		return node;
 
@@ -83,7 +84,7 @@ static struct qrtr_node *node_get(unsigned int node_id)
 
 	node->id = node_id;
 
-	radix_tree_insert(&nodes, node_id, node);
+	xa_store(&nodes, node_id, node, GFP_KERNEL);
 
 	return node;
 }
@@ -569,12 +570,11 @@ static int ctrl_cmd_del_server(struct sockaddr_qrtr *from,
 static int ctrl_cmd_new_lookup(struct sockaddr_qrtr *from,
 			       unsigned int service, unsigned int instance)
 {
-	struct radix_tree_iter node_iter;
 	struct qrtr_server_filter filter;
 	struct radix_tree_iter srv_iter;
 	struct qrtr_lookup *lookup;
 	struct qrtr_node *node;
-	void __rcu **node_slot;
+	unsigned long node_idx;
 	void __rcu **srv_slot;
 
 	/* Accept only local observers */
@@ -594,17 +594,7 @@ static int ctrl_cmd_new_lookup(struct sockaddr_qrtr *from,
 	filter.service = service;
 	filter.instance = instance;
 
-	rcu_read_lock();
-	radix_tree_for_each_slot(node_slot, &nodes, &node_iter, 0) {
-		node = radix_tree_deref_slot(node_slot);
-		if (!node)
-			continue;
-		if (radix_tree_deref_retry(node)) {
-			node_slot = radix_tree_iter_retry(&node_iter);
-			continue;
-		}
-		node_slot = radix_tree_iter_resume(node_slot, &node_iter);
-
+	xa_for_each(&nodes, node_idx, node) {
 		radix_tree_for_each_slot(srv_slot, &node->servers,
 					 &srv_iter, 0) {
 			struct qrtr_server *srv;
@@ -622,12 +612,9 @@ static int ctrl_cmd_new_lookup(struct sockaddr_qrtr *from,
 
 			srv_slot = radix_tree_iter_resume(srv_slot, &srv_iter);
 
-			rcu_read_unlock();
 			lookup_notify(from, srv, true);
-			rcu_read_lock();
 		}
 	}
-	rcu_read_unlock();
 
 	/* Empty notification, to indicate end of listing */
 	lookup_notify(from, NULL, true);
