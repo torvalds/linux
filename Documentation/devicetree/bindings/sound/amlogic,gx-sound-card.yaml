@@ -40,6 +40,7 @@ properties:
 patternProperties:
   "^dai-link-[0-9]+$":
     type: object
+    additionalProperties: false
     description: |-
       dai-link child nodes:
         Container for dai-link level properties and the CODEC sub-nodes.
@@ -63,6 +64,7 @@ patternProperties:
     patternProperties:
       "^codec-[0-9]+$":
         type: object
+        additionalProperties: false
         description: |-
           Codecs:
           dai-link representing backend links should have at least one subnode.

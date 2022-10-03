@@ -445,9 +445,9 @@ static int create_hdmi_dai_links(struct device *dev,
 	if (hdmi_num <= 0)
 		return 0;
 
-	idisp_components = devm_kzalloc(dev,
-					sizeof(struct snd_soc_dai_link_component) *
-					hdmi_num, GFP_KERNEL);
+	idisp_components = devm_kcalloc(dev,
+					hdmi_num,
+					sizeof(struct snd_soc_dai_link_component), GFP_KERNEL);
 	if (!idisp_components)
 		goto devm_err;
 
@@ -543,10 +543,10 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 	struct snd_soc_dai_link *links;
 	int ret, id = 0, link_seq;
 
-	links = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link) *
-			     sof_audio_card_cs42l42.num_links, GFP_KERNEL);
-	cpus = devm_kzalloc(dev, sizeof(struct snd_soc_dai_link_component) *
-			     sof_audio_card_cs42l42.num_links, GFP_KERNEL);
+	links = devm_kcalloc(dev, sof_audio_card_cs42l42.num_links,
+			    sizeof(struct snd_soc_dai_link), GFP_KERNEL);
+	cpus = devm_kcalloc(dev, sof_audio_card_cs42l42.num_links,
+			    sizeof(struct snd_soc_dai_link_component), GFP_KERNEL);
 	if (!links || !cpus)
 		goto devm_err;
 

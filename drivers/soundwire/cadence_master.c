@@ -756,6 +756,14 @@ cdns_reset_page_addr(struct sdw_bus *bus, unsigned int dev_num)
 }
 EXPORT_SYMBOL(cdns_reset_page_addr);
 
+u32 cdns_read_ping_status(struct sdw_bus *bus)
+{
+	struct sdw_cdns *cdns = bus_to_cdns(bus);
+
+	return cdns_readl(cdns, CDNS_MCP_SLAVE_STAT);
+}
+EXPORT_SYMBOL(cdns_read_ping_status);
+
 /*
  * IRQ handling
  */
