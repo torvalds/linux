@@ -688,18 +688,6 @@ static const struct clk_parent_data gcc_parent_data_14[] = {
 	{ .hw = &gpll11.clkr.hw },
 };
 
-static const struct parent_map gcc_parent_map_15[] = {
-	{ P_BI_TCXO, 0 },
-	{ P_GPLL0_OUT_MAIN, 1 },
-	{ P_GPLL6_OUT_EVEN, 4 },
-};
-
-static const struct clk_parent_data gcc_parent_data_15[] = {
-	{ .index = DT_BI_TCXO },
-	{ .hw = &gpll0.clkr.hw },
-	{ .hw = &gpll6_out_even.clkr.hw },
-};
-
 static const struct freq_tbl ftbl_gcc_camss_axi_clk_src[] = {
 	F(19200000, P_BI_TCXO, 1, 0, 0),
 	F(150000000, P_GPLL0_OUT_EVEN, 2, 0, 0),
