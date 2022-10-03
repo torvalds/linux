@@ -1557,6 +1557,19 @@ static bool lookup_backref_shared_cache(struct btrfs_backref_shared_cache *cache
 		return false;
 
 	*is_shared = entry->is_shared;
+	/*
+	 * If the node at this level is shared, than all nodes below are also
+	 * shared. Currently some of the nodes below may be marked as not shared
+	 * because we have just switched from one leaf to another, and switched
+	 * also other nodes above the leaf and below the current level, so mark
+	 * them as shared.
+	 */
+	if (*is_shared) {
+		for (int i = 0; i < level; i++) {
+			cache->entries[i].is_shared = true;
+			cache->entries[i].gen = entry->gen;
+		}
+	}
 
 	return true;
 }
