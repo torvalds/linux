@@ -109,12 +109,8 @@ struct page_pool;
 #define MLX5_MPWRQ_MAX_PAGES_PER_WQE \
 	rounddown_pow_of_two(MLX5_UMR_MAX_MTT_SPACE / sizeof(struct mlx5_mtt))
 
-#define MLX5_ALIGN_MTTS(mtts)		(ALIGN(mtts, 8))
-#define MLX5_ALIGNED_MTTS_OCTW(mtts)	((mtts) / 2)
-#define MLX5_MTT_OCTW(mtts)		(MLX5_ALIGNED_MTTS_OCTW(MLX5_ALIGN_MTTS(mtts)))
-#define MLX5_KSM_OCTW(ksms)             (ksms)
 #define MLX5E_MAX_RQ_NUM_MTTS	\
-	(ALIGN_DOWN(U16_MAX, 4) * 2) /* So that MLX5_MTT_OCTW(num_mtts) fits into u16 */
+	(ALIGN_DOWN(U16_MAX, 4) * 2) /* Fits into u16 and aligned by WQEBB. */
 #define MLX5E_MAX_RQ_NUM_KSMS (U16_MAX - 1) /* So that num_ksms fits into u16. */
 #define MLX5E_ORDER2_MAX_PACKET_MTU (order_base_2(10 * 1024))
 
@@ -681,6 +677,13 @@ struct mlx5e_hw_gro_data {
 	int second_ip_id;
 };
 
+enum mlx5e_mpwrq_umr_mode {
+	MLX5E_MPWRQ_UMR_MODE_ALIGNED,
+	MLX5E_MPWRQ_UMR_MODE_UNALIGNED,
+	MLX5E_MPWRQ_UMR_MODE_OVERSIZED,
+	MLX5E_MPWRQ_UMR_MODE_TRIPLE,
+};
+
 struct mlx5e_rq {
 	/* data path */
 	union {
@@ -708,7 +711,7 @@ struct mlx5e_rq {
 			u8                     pages_per_wqe;
 			u8                     umr_wqebbs;
 			u8                     mtts_per_wqe;
-			u8                     unaligned;
+			u8                     umr_mode;
 			struct mlx5e_shampo_hd *shampo;
 		} mpwqe;
 	};
@@ -1008,7 +1011,7 @@ struct mlx5e_profile {
 void mlx5e_build_ptys2ethtool_map(void);
 
 bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev, u8 page_shift,
-					    bool unaligned);
+					    enum mlx5e_mpwrq_umr_mode umr_mode);
 
 void mlx5e_shampo_dealloc_hd(struct mlx5e_rq *rq, u16 len, u16 start, bool close);
 void mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats);
@@ -1036,6 +1039,7 @@ struct mlx5e_rq_param;
 int mlx5e_open_rq(struct mlx5e_params *params, struct mlx5e_rq_param *param,
 		  struct mlx5e_xsk_param *xsk, int node,
 		  struct mlx5e_rq *rq);
+#define MLX5E_RQ_WQES_TIMEOUT 20000 /* msecs */
 int mlx5e_wait_for_min_rx_wqes(struct mlx5e_rq *rq, int wait_time);
 void mlx5e_close_rq(struct mlx5e_rq *rq);
 int mlx5e_create_rq(struct mlx5e_rq *rq, struct mlx5e_rq_param *param);

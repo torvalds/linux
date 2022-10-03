@@ -483,18 +483,11 @@ esw_setup_dests(struct mlx5_flow_destination *dest,
 	    !(attr->flags & MLX5_ATTR_FLAG_SLOW_PATH)) {
 		esw_setup_sampler_dest(dest, flow_act, attr->sample_attr.sampler_id, *i);
 		(*i)++;
-	} else if (attr->dest_ft) {
-		esw_setup_ft_dest(dest, flow_act, esw, attr, spec, *i);
-		(*i)++;
 	} else if (attr->flags & MLX5_ATTR_FLAG_SLOW_PATH) {
 		esw_setup_slow_path_dest(dest, flow_act, esw, *i);
 		(*i)++;
 	} else if (attr->flags & MLX5_ATTR_FLAG_ACCEPT) {
 		esw_setup_accept_dest(dest, flow_act, chains, *i);
-		(*i)++;
-	} else if (attr->dest_chain) {
-		err = esw_setup_chain_dest(dest, flow_act, chains, attr->dest_chain,
-					   1, 0, *i);
 		(*i)++;
 	} else if (esw_is_indir_table(esw, attr)) {
 		err = esw_setup_indir_table(dest, flow_act, esw, attr, spec, true, i);
@@ -502,6 +495,15 @@ esw_setup_dests(struct mlx5_flow_destination *dest,
 		err = esw_setup_chain_src_port_rewrite(dest, flow_act, esw, chains, attr, i);
 	} else {
 		*i = esw_setup_vport_dests(dest, flow_act, esw, esw_attr, *i);
+
+		if (attr->dest_ft) {
+			err = esw_setup_ft_dest(dest, flow_act, esw, attr, spec, *i);
+			(*i)++;
+		} else if (attr->dest_chain) {
+			err = esw_setup_chain_dest(dest, flow_act, chains, attr->dest_chain,
+						   1, 0, *i);
+			(*i)++;
+		}
 	}
 
 	return err;

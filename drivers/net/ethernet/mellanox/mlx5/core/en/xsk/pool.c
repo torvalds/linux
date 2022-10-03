@@ -99,6 +99,15 @@ static int mlx5e_xsk_enable_locked(struct mlx5e_priv *priv,
 
 	mlx5e_build_xsk_param(pool, &xsk);
 
+	if (priv->channels.params.rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ &&
+	    mlx5e_mpwrq_umr_mode(priv->mdev, &xsk) == MLX5E_MPWRQ_UMR_MODE_OVERSIZED) {
+		const char *recommendation = is_power_of_2(xsk.chunk_size) ?
+			"Upgrade firmware" : "Disable striding RQ";
+
+		mlx5_core_warn(priv->mdev, "Expected slowdown with XSK frame size %u. %s for better performance.\n",
+			       xsk.chunk_size, recommendation);
+	}
+
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		/* XSK objects will be created on open. */
 		goto validate_closed;
@@ -125,6 +134,9 @@ static int mlx5e_xsk_enable_locked(struct mlx5e_priv *priv,
 	 */
 
 	mlx5e_rx_res_xsk_update(priv->rx_res, &priv->channels, ix, true);
+
+	mlx5e_deactivate_rq(&c->rq);
+	mlx5e_flush_rq(&c->rq, MLX5_RQC_STATE_RDY);
 
 	return 0;
 
@@ -165,7 +177,13 @@ static int mlx5e_xsk_disable_locked(struct mlx5e_priv *priv, u16 ix)
 		goto remove_pool;
 
 	c = priv->channels.c[ix];
+
+	mlx5e_activate_rq(&c->rq);
+	mlx5e_trigger_napi_icosq(c);
+	mlx5e_wait_for_min_rx_wqes(&c->rq, MLX5E_RQ_WQES_TIMEOUT);
+
 	mlx5e_rx_res_xsk_update(priv->rx_res, &priv->channels, ix, false);
+
 	mlx5e_deactivate_xsk(c);
 	mlx5e_close_xsk(c);
 

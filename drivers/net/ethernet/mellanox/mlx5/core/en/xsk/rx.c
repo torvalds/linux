@@ -41,7 +41,15 @@ int mlx5e_xsk_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	umr_wqe = mlx5_wq_cyc_get_wqe(wq, pi);
 	memcpy(umr_wqe, &rq->mpwqe.umr_wqe, sizeof(struct mlx5e_umr_wqe));
 
-	if (unlikely(rq->mpwqe.unaligned)) {
+	if (likely(rq->mpwqe.umr_mode == MLX5E_MPWRQ_UMR_MODE_ALIGNED)) {
+		for (i = 0; i < batch; i++) {
+			dma_addr_t addr = xsk_buff_xdp_get_frame_dma(wi->alloc_units[i].xsk);
+
+			umr_wqe->inline_mtts[i] = (struct mlx5_mtt) {
+				.ptag = cpu_to_be64(addr | MLX5_EN_WR),
+			};
+		}
+	} else if (unlikely(rq->mpwqe.umr_mode == MLX5E_MPWRQ_UMR_MODE_UNALIGNED)) {
 		for (i = 0; i < batch; i++) {
 			dma_addr_t addr = xsk_buff_xdp_get_frame_dma(wi->alloc_units[i].xsk);
 
@@ -50,12 +58,46 @@ int mlx5e_xsk_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 				.va = cpu_to_be64(addr),
 			};
 		}
-	} else {
+	} else if (likely(rq->mpwqe.umr_mode == MLX5E_MPWRQ_UMR_MODE_TRIPLE)) {
+		u32 mapping_size = 1 << (rq->mpwqe.page_shift - 2);
+
 		for (i = 0; i < batch; i++) {
 			dma_addr_t addr = xsk_buff_xdp_get_frame_dma(wi->alloc_units[i].xsk);
 
-			umr_wqe->inline_mtts[i] = (struct mlx5_mtt) {
-				.ptag = cpu_to_be64(addr | MLX5_EN_WR),
+			umr_wqe->inline_ksms[i << 2] = (struct mlx5_ksm) {
+				.key = rq->mkey_be,
+				.va = cpu_to_be64(addr),
+			};
+			umr_wqe->inline_ksms[(i << 2) + 1] = (struct mlx5_ksm) {
+				.key = rq->mkey_be,
+				.va = cpu_to_be64(addr + mapping_size),
+			};
+			umr_wqe->inline_ksms[(i << 2) + 2] = (struct mlx5_ksm) {
+				.key = rq->mkey_be,
+				.va = cpu_to_be64(addr + mapping_size * 2),
+			};
+			umr_wqe->inline_ksms[(i << 2) + 3] = (struct mlx5_ksm) {
+				.key = rq->mkey_be,
+				.va = cpu_to_be64(rq->wqe_overflow.addr),
+			};
+		}
+	} else {
+		__be32 pad_size = cpu_to_be32((1 << rq->mpwqe.page_shift) -
+					      rq->xsk_pool->chunk_size);
+		__be32 frame_size = cpu_to_be32(rq->xsk_pool->chunk_size);
+
+		for (i = 0; i < batch; i++) {
+			dma_addr_t addr = xsk_buff_xdp_get_frame_dma(wi->alloc_units[i].xsk);
+
+			umr_wqe->inline_klms[i << 1] = (struct mlx5_klm) {
+				.key = rq->mkey_be,
+				.va = cpu_to_be64(addr),
+				.bcount = frame_size,
+			};
+			umr_wqe->inline_klms[(i << 1) + 1] = (struct mlx5_klm) {
+				.key = rq->mkey_be,
+				.va = cpu_to_be64(rq->wqe_overflow.addr),
+				.bcount = pad_size,
 			};
 		}
 	}
@@ -66,9 +108,14 @@ int mlx5e_xsk_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	umr_wqe->ctrl.opmod_idx_opcode =
 		cpu_to_be32((icosq->pc << MLX5_WQE_CTRL_WQE_INDEX_SHIFT) | MLX5_OPCODE_UMR);
 
+	/* Optimized for speed: keep in sync with mlx5e_mpwrq_umr_entry_size. */
 	offset = ix * rq->mpwqe.mtts_per_wqe;
-	if (likely(!rq->mpwqe.unaligned))
-		offset = MLX5_ALIGNED_MTTS_OCTW(offset);
+	if (likely(rq->mpwqe.umr_mode == MLX5E_MPWRQ_UMR_MODE_ALIGNED))
+		offset = offset * sizeof(struct mlx5_mtt) / MLX5_OCTWORD;
+	else if (unlikely(rq->mpwqe.umr_mode == MLX5E_MPWRQ_UMR_MODE_OVERSIZED))
+		offset = offset * sizeof(struct mlx5_klm) * 2 / MLX5_OCTWORD;
+	else if (unlikely(rq->mpwqe.umr_mode == MLX5E_MPWRQ_UMR_MODE_TRIPLE))
+		offset = offset * sizeof(struct mlx5_ksm) * 4 / MLX5_OCTWORD;
 	umr_wqe->uctrl.xlt_offset = cpu_to_be16(offset);
 
 	icosq->db.wqe_info[pi] = (struct mlx5e_icosq_wqe_info) {
