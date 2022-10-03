@@ -650,6 +650,17 @@ err:
 		 * we're in journal error state:
 		 */
 
+		/*
+		 * Ensure transaction is unlocked before using
+		 * btree_node_lock_nopath() (the use of which is always suspect,
+		 * we need to work on removing this in the future)
+		 *
+		 * It should be, but get_unlocked_mut_path() -> bch2_path_get()
+		 * calls bch2_path_upgrade(), before we call path_make_mut(), so
+		 * we may rarely end up with a locked path besides the one we
+		 * have here:
+		 */
+		bch2_trans_unlock(&trans);
 		btree_node_lock_nopath_nofail(&trans, &b->c, SIX_LOCK_intent);
 		mark_btree_node_locked(&trans, path, b->c.level, SIX_LOCK_intent);
 		path->l[b->c.level].lock_seq = b->c.lock.state.seq;
