@@ -122,8 +122,29 @@ config SND_SOC_AMD_RPL_ACP6x
         tristate "AMD Audio Coprocessor-v6.2 RPL support"
         depends on X86 && PCI
         help
-          This option enables Audio Coprocessor i.e ACP v6.2 support on
+          This option enables Audio Coprocessor i.e. ACP v6.2 support on
           AMD RPL platform. By enabling this flag build will be
           triggered for ACP PCI driver.
+          Say m if you have such a device.
+          If unsure select "N".
+
+config SND_SOC_AMD_PS
+        tristate "AMD Audio Coprocessor-v6.2 Pink Sardine support"
+        depends on X86 && PCI && ACPI
+        help
+          This option enables Audio Coprocessor i.e ACP v6.2 support on
+          AMD Pink sardine platform. By enabling this flag build will be
+          triggered for ACP PCI driver, ACP PDM DMA driver.
+          Say m if you have such a device.
+          If unsure select "N".
+
+config SND_SOC_AMD_PS_MACH
+        tristate "AMD PINK SARDINE support for DMIC"
+        select SND_SOC_DMIC
+        depends on SND_SOC_AMD_PS
+        help
+          This option enables machine driver for Pink Sardine platform
+          using dmic. ACP IP has PDM Decoder block with DMA controller.
+          DMIC can be connected directly to ACP IP.
           Say m if you have such a device.
           If unsure select "N".

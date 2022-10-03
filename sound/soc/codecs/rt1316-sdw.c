@@ -734,6 +734,8 @@ static int __maybe_unused rt1316_dev_resume(struct device *dev)
 				msecs_to_jiffies(RT1316_PROBE_TIMEOUT));
 	if (!time) {
 		dev_err(&slave->dev, "Initialization not complete, timed out\n");
+		sdw_show_ping_status(slave->bus, true);
+
 		return -ETIMEDOUT;
 	}
 

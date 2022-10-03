@@ -61,7 +61,7 @@ static ssize_t platform_id_show(struct device *dev,
 			nhlt->header.oem_revision);
 
 	skl_nhlt_trim_space(platform_id);
-	return sprintf(buf, "%s\n", platform_id);
+	return sysfs_emit(buf, "%s\n", platform_id);
 }
 
 static DEVICE_ATTR_RO(platform_id);

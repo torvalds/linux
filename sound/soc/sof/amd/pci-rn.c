@@ -21,6 +21,7 @@
 #include "../sof-pci-dev.h"
 #include "../../amd/mach-config.h"
 #include "acp.h"
+#include "acp-dsp-offset.h"
 
 #define ACP3x_REG_START		0x1240000
 #define ACP3x_REG_END		0x125C000
@@ -44,7 +45,16 @@ static const struct resource renoir_res[] = {
 };
 
 static const struct sof_amd_acp_desc renoir_chip_info = {
+	.rev		= 3,
 	.host_bridge_id = HOST_BRIDGE_CZN,
+	.i2s_mode	= 0x04,
+	.pgfsm_base	= ACP3X_PGFSM_BASE,
+	.ext_intr_stat	= ACP3X_EXT_INTR_STAT,
+	.dsp_intr_base	= ACP3X_DSP_SW_INTR_BASE,
+	.sram_pte_offset = ACP3X_SRAM_PTE_OFFSET,
+	.i2s_pin_config_offset = ACP3X_I2S_PIN_CONFIG,
+	.hw_semaphore_offset = ACP3X_AXI2DAGB_SEM_0,
+	.acp_clkmux_sel	= ACP3X_CLKMUX_SEL,
 };
 
 static const struct sof_dev_desc renoir_desc = {
@@ -68,6 +78,7 @@ static const struct sof_dev_desc renoir_desc = {
 	},
 	.nocodec_tplg_filename	= "sof-acp.tplg",
 	.ops			= &sof_renoir_ops,
+	.ops_init		= sof_renoir_ops_init,
 };
 
 static int acp_pci_rn_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
