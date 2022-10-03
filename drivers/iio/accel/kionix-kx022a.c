@@ -575,9 +575,9 @@ static ssize_t hwfifo_watermark_show(struct device *dev,
 static IIO_DEVICE_ATTR_RO(hwfifo_enabled, 0);
 static IIO_DEVICE_ATTR_RO(hwfifo_watermark, 0);
 
-static const struct attribute *kx022a_fifo_attributes[] = {
-	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
-	&iio_dev_attr_hwfifo_enabled.dev_attr.attr,
+static const struct iio_dev_attr *kx022a_fifo_attributes[] = {
+	&iio_dev_attr_hwfifo_watermark,
+	&iio_dev_attr_hwfifo_enabled,
 	NULL
 };
 

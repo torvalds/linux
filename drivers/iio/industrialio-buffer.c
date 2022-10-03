@@ -1605,6 +1605,7 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	struct iio_dev_attr *p;
+	const struct iio_dev_attr *id_attr;
 	struct attribute **attr;
 	int ret, i, attrn, scan_el_attrcount, buffer_attrcount;
 	const struct iio_chan_spec *channels;
@@ -1614,6 +1615,7 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 		while (buffer->attrs[buffer_attrcount] != NULL)
 			buffer_attrcount++;
 	}
+	buffer_attrcount += ARRAY_SIZE(iio_buffer_attrs);
 
 	scan_el_attrcount = 0;
 	INIT_LIST_HEAD(&buffer->buffer_attr_list);
@@ -1656,7 +1658,7 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 		}
 	}
 
-	attrn = buffer_attrcount + scan_el_attrcount + ARRAY_SIZE(iio_buffer_attrs);
+	attrn = buffer_attrcount + scan_el_attrcount;
 	attr = kcalloc(attrn + 1, sizeof(*attr), GFP_KERNEL);
 	if (!attr) {
 		ret = -ENOMEM;
@@ -1671,10 +1673,11 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 		attr[2] = &dev_attr_watermark_ro.attr;
 
 	if (buffer->attrs)
-		memcpy(&attr[ARRAY_SIZE(iio_buffer_attrs)], buffer->attrs,
-		       sizeof(struct attribute *) * buffer_attrcount);
+		for (i = 0, id_attr = buffer->attrs[i];
+		     (id_attr = buffer->attrs[i]); i++)
+			attr[ARRAY_SIZE(iio_buffer_attrs) + i] =
+				(struct attribute *)&id_attr->dev_attr.attr;
 
-	buffer_attrcount += ARRAY_SIZE(iio_buffer_attrs);
 	buffer->buffer_group.attrs = attr;
 
 	for (i = 0; i < buffer_attrcount; i++) {
