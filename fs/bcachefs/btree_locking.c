@@ -666,6 +666,16 @@ void bch2_trans_unlock(struct btree_trans *trans)
 		__bch2_btree_path_unlock(trans, path);
 }
 
+bool bch2_trans_locked(struct btree_trans *trans)
+{
+	struct btree_path *path;
+
+	trans_for_each_path(trans, path)
+		if (path->nodes_locked)
+			return true;
+	return false;
+}
+
 /* Debug */
 
 #ifdef CONFIG_BCACHEFS_DEBUG

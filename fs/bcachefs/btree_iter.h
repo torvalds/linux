@@ -207,6 +207,7 @@ void bch2_path_put(struct btree_trans *, struct btree_path *, bool);
 
 int bch2_trans_relock(struct btree_trans *);
 void bch2_trans_unlock(struct btree_trans *);
+bool bch2_trans_locked(struct btree_trans *);
 
 static inline bool trans_was_restarted(struct btree_trans *trans, u32 restart_count)
 {
