@@ -377,7 +377,7 @@ Emulating cr0.wp
 ================
 
 If tdp is not enabled, the host must keep cr0.wp=1 so page write protection
-works for the guest kernel, not guest guest userspace.  When the guest
+works for the guest kernel, not guest userspace.  When the guest
 cr0.wp=1, this does not present a problem.  However when the guest cr0.wp=0,
 we cannot map the permissions for gpte.u=1, gpte.w=0 to any spte (the
 semantics require allowing any guest kernel access plus user read access).

@@ -108,6 +108,7 @@ TODOList:
    :maxdepth: 2
 
    core-api/index
+   driver-api/index
    locking/index
    accounting/index
    cpu-freq/index
@@ -120,10 +121,10 @@ TODOList:
    scheduler/index
    mm/index
    peci/index
+   PCI/index
 
 TODOList:
 
-* driver-api/index
 * block/index
 * cdrom/index
 * ide/index
@@ -148,7 +149,6 @@ TODOList:
 * crypto/index
 * bpf/index
 * usb/index
-* PCI/index
 * scsi/index
 * misc-devices/index
 * mhi/index
