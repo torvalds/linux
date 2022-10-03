@@ -111,9 +111,9 @@ static unsigned int qrtr_local_nid = 1;
 static RADIX_TREE(qrtr_nodes, GFP_ATOMIC);
 static DEFINE_SPINLOCK(qrtr_nodes_lock);
 /* broadcast list */
-static LIST_HEAD(qrtr_all_nodes);
-/* lock for qrtr_all_nodes and node reference */
-static DECLARE_RWSEM(qrtr_node_lock);
+static LIST_HEAD(qrtr_all_epts);
+/* lock for qrtr_all_epts */
+static DECLARE_RWSEM(qrtr_epts_lock);
 
 /* local port allocation management */
 static DEFINE_XARRAY_ALLOC(qrtr_ports);
@@ -219,7 +219,7 @@ static void __qrtr_node_release(struct kref *kref)
 	spin_unlock_irqrestore(&qrtr_nodes_lock, flags);
 
 	list_del(&node->item);
-	up_write(&qrtr_node_lock);
+	up_write(&qrtr_epts_lock);
 
 	skb_queue_purge(&node->rx_queue);
 
@@ -245,7 +245,7 @@ static void qrtr_node_release(struct qrtr_node *node)
 {
 	if (!node)
 		return;
-	kref_put_rwsem_lock(&node->ref, __qrtr_node_release, &qrtr_node_lock);
+	kref_put_rwsem_lock(&node->ref, __qrtr_node_release, &qrtr_epts_lock);
 }
 
 /**
@@ -649,9 +649,9 @@ int qrtr_endpoint_register(struct qrtr_endpoint *ep, unsigned int nid)
 
 	qrtr_node_assign(node, nid);
 
-	down_write(&qrtr_node_lock);
-	list_add(&node->item, &qrtr_all_nodes);
-	up_write(&qrtr_node_lock);
+	down_write(&qrtr_epts_lock);
+	list_add(&node->item, &qrtr_all_epts);
+	up_write(&qrtr_epts_lock);
 	ep->node = node;
 
 	return 0;
@@ -969,17 +969,18 @@ static int qrtr_bcast_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 {
 	struct sk_buff *skbn;
 
-	down_read(&qrtr_node_lock);
-	list_for_each_entry(node, &qrtr_all_nodes, item) {
+	down_read(&qrtr_epts_lock);
+	list_for_each_entry(node, &qrtr_all_epts, item) {
 		if (node->nid == QRTR_EP_NID_AUTO)
 			continue;
+
 		skbn = skb_clone(skb, GFP_KERNEL);
 		if (!skbn)
 			break;
 		skb_set_owner_w(skbn, skb->sk);
 		qrtr_node_enqueue(node, skbn, type, from, to);
 	}
-	up_read(&qrtr_node_lock);
+	up_read(&qrtr_epts_lock);
 
 	qrtr_local_enqueue(NULL, skb, type, from, to);
 
