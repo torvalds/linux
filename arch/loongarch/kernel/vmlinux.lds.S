@@ -12,6 +12,7 @@
 #define BSS_FIRST_SECTIONS *(.bss..swapper_pg_dir)
 
 #include <asm-generic/vmlinux.lds.h>
+#include "image-vars.h"
 
 /*
  * Max avaliable Page Size is 64K, so we set SectionAlignment

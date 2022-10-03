@@ -27,8 +27,13 @@
 static unsigned long efi_nr_tables;
 static unsigned long efi_config_table;
 
+static unsigned long __initdata boot_memmap = EFI_INVALID_TABLE_ADDR;
+
 static efi_system_table_t *efi_systab;
-static efi_config_table_type_t arch_tables[] __initdata = {{},};
+static efi_config_table_type_t arch_tables[] __initdata = {
+	{LINUX_EFI_BOOT_MEMMAP_GUID,	&boot_memmap,	"MEMMAP" },
+	{},
+};
 
 void __init efi_runtime_init(void)
 {
@@ -51,6 +56,7 @@ void __init efi_init(void)
 {
 	int size;
 	void *config_tables;
+	struct efi_boot_memmap *tbl;
 
 	if (!efi_system_table)
 		return;
@@ -61,6 +67,8 @@ void __init efi_init(void)
 		return;
 	}
 
+	efi_systab_report_header(&efi_systab->hdr, efi_systab->fw_vendor);
+
 	set_bit(EFI_64BIT, &efi.flags);
 	efi_nr_tables	 = efi_systab->nr_tables;
 	efi_config_table = (unsigned long)efi_systab->tables;
@@ -69,4 +77,27 @@ void __init efi_init(void)
 	config_tables = early_memremap(efi_config_table, efi_nr_tables * size);
 	efi_config_parse_tables(config_tables, efi_systab->nr_tables, arch_tables);
 	early_memunmap(config_tables, efi_nr_tables * size);
+
+	set_bit(EFI_CONFIG_TABLES, &efi.flags);
+
+	if (screen_info.orig_video_isVGA == VIDEO_TYPE_EFI)
+		memblock_reserve(screen_info.lfb_base, screen_info.lfb_size);
+
+	if (boot_memmap == EFI_INVALID_TABLE_ADDR)
+		return;
+
+	tbl = early_memremap_ro(boot_memmap, sizeof(*tbl));
+	if (tbl) {
+		struct efi_memory_map_data data;
+
+		data.phys_map		= boot_memmap + sizeof(*tbl);
+		data.size		= tbl->map_size;
+		data.desc_size		= tbl->desc_size;
+		data.desc_version	= tbl->desc_ver;
+
+		if (efi_memmap_init_early(&data) < 0)
+			panic("Unable to map EFI memory map.\n");
+
+		early_memunmap(tbl, sizeof(*tbl));
+	}
 }

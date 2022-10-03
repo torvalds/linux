@@ -12,6 +12,26 @@
 #include <asm/loongarch.h>
 #include <asm/stackframe.h>
 
+#ifdef CONFIG_EFI_STUB
+
+#include "efi-header.S"
+
+	__HEAD
+
+_head:
+	.word	MZ_MAGIC		/* "MZ", MS-DOS header */
+	.org	0x3c			/* 0x04 ~ 0x3b reserved */
+	.long	pe_header - _head	/* Offset to the PE header */
+
+pe_header:
+	__EFI_PE_HEADER
+
+SYM_DATA(kernel_asize, .long _end - _text);
+SYM_DATA(kernel_fsize, .long _edata - _text);
+SYM_DATA(kernel_offset, .long kernel_offset - _text);
+
+#endif
+
 	__REF
 
 	.align 12
@@ -49,6 +69,8 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	st.d		a0, t0, 0		# firmware arguments
 	la		t0, fw_arg1
 	st.d		a1, t0, 0
+	la		t0, fw_arg2
+	st.d		a2, t0, 0
 
 	/* KSave3 used for percpu base, initialized as 0 */
 	csrwr		zero, PERCPU_BASE_KS
