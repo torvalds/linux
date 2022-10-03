@@ -176,8 +176,7 @@ static void policy_unpack_test_unpack_array_out_of_bounds(struct kunit *test)
 	puf->e->end = puf->e->start + TEST_ARRAY_BUF_OFFSET + sizeof(u16);
 
 	KUNIT_EXPECT_EQ(test, unpack_array(puf->e, name, &array_size),
-			TRI_TRUE);
-	KUNIT_EXPECT_EQ(test, array_size, 0);
+			TRI_FALSE);
 	KUNIT_EXPECT_PTR_EQ(test, puf->e->pos,
 		puf->e->start + TEST_NAMED_ARRAY_BUF_OFFSET);
 }
