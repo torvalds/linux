@@ -255,12 +255,15 @@ static void qrtr_node_release(struct qrtr_node *node)
  */
 static void qrtr_tx_resume(struct qrtr_node *node, struct sk_buff *skb)
 {
-	struct qrtr_ctrl_pkt *pkt = (struct qrtr_ctrl_pkt *)skb->data;
-	u64 remote_node = le32_to_cpu(pkt->client.node);
-	u32 remote_port = le32_to_cpu(pkt->client.port);
+	struct qrtr_ctrl_pkt pkt = {0,};
 	struct qrtr_tx_flow *flow;
 	unsigned long key;
+	u64 remote_node;
+	u32 remote_port;
 
+	skb_copy_bits(skb, 0, &pkt, sizeof(pkt));
+	remote_node = le32_to_cpu(pkt.client.node);
+	remote_port = le32_to_cpu(pkt.client.port);
 	key = remote_node << 32 | remote_port;
 
 	rcu_read_lock();
@@ -483,14 +486,16 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 	size_t size;
 	unsigned int ver;
 	size_t hdrlen;
+	int errcode;
 
 	if (len == 0 || len & 3)
 		return -EINVAL;
 
-	skb = __netdev_alloc_skb(NULL, len, GFP_ATOMIC | __GFP_NOWARN);
+	skb = alloc_skb_with_frags(sizeof(*v1), len, 0, &errcode, GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
 
+	skb_reserve(skb, sizeof(*v1));
 	cb = (struct qrtr_cb *)skb->cb;
 
 	/* Version field in v1 is little endian, so this works for both cases */
@@ -544,7 +549,9 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 	    cb->type != QRTR_TYPE_RESUME_TX)
 		goto err;
 
-	skb_put_data(skb, data + hdrlen, size);
+	skb->data_len = size;
+	skb->len = size;
+	skb_store_bits(skb, 0, data + hdrlen, size);
 
 	qrtr_node_assign(node, cb->src_node);
 
