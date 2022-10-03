@@ -58,6 +58,7 @@ Various other manuals with useful information for all kernel developers.
    trace/index
    fault-injection/index
    livepatch/index
+   rust/index
 
 
 User-oriented documentation
