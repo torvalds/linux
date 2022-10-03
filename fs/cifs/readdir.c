@@ -1011,6 +1011,8 @@ static int cifs_filldir(char *find_entry, struct file *file,
 		cifs_unix_basic_to_fattr(&fattr,
 					 &((FILE_UNIX_INFO *)find_entry)->basic,
 					 cifs_sb);
+		if (S_ISLNK(fattr.cf_mode))
+			fattr.cf_flags |= CIFS_FATTR_NEED_REVAL;
 		break;
 	case SMB_FIND_FILE_INFO_STANDARD:
 		cifs_std_info_to_fattr(&fattr,
