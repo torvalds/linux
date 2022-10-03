@@ -10,6 +10,7 @@
 #include <linux/termios.h>	/* For TIOCINQ/OUTQ */
 #include <linux/spinlock.h>
 #include <linux/wait.h>
+#include <linux/rwsem.h>
 
 #include <net/sock.h>
 
@@ -112,7 +113,7 @@ static DEFINE_SPINLOCK(qrtr_nodes_lock);
 /* broadcast list */
 static LIST_HEAD(qrtr_all_nodes);
 /* lock for qrtr_all_nodes and node reference */
-static DEFINE_MUTEX(qrtr_node_lock);
+static DECLARE_RWSEM(qrtr_node_lock);
 
 /* local port allocation management */
 static DEFINE_XARRAY_ALLOC(qrtr_ports);
@@ -167,6 +168,32 @@ static int qrtr_bcast_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 static struct qrtr_sock *qrtr_port_lookup(int port);
 static void qrtr_port_put(struct qrtr_sock *ipc);
 
+static bool refcount_dec_and_rwsem_lock(refcount_t *r,
+					struct rw_semaphore *sem)
+{
+	if (refcount_dec_not_one(r))
+		return false;
+
+	down_write(sem);
+	if (!refcount_dec_and_test(r)) {
+		up_write(sem);
+		return false;
+	}
+
+	return true;
+}
+
+static inline int kref_put_rwsem_lock(struct kref *kref,
+				      void (*release)(struct kref *kref),
+				      struct rw_semaphore *sem)
+{
+	if (refcount_dec_and_rwsem_lock(&kref->refcount, sem)) {
+		release(kref);
+		return 1;
+	}
+	return 0;
+}
+
 /* Release node resources and free the node.
  *
  * Do not call directly, use qrtr_node_release.  To be used with
@@ -191,7 +218,7 @@ static void __qrtr_node_release(struct kref *kref)
 	spin_unlock_irqrestore(&qrtr_nodes_lock, flags);
 
 	list_del(&node->item);
-	mutex_unlock(&qrtr_node_lock);
+	up_write(&qrtr_node_lock);
 
 	skb_queue_purge(&node->rx_queue);
 
@@ -217,7 +244,7 @@ static void qrtr_node_release(struct qrtr_node *node)
 {
 	if (!node)
 		return;
-	kref_put_mutex(&node->ref, __qrtr_node_release, &qrtr_node_lock);
+	kref_put_rwsem_lock(&node->ref, __qrtr_node_release, &qrtr_node_lock);
 }
 
 /**
@@ -612,9 +639,9 @@ int qrtr_endpoint_register(struct qrtr_endpoint *ep, unsigned int nid)
 
 	qrtr_node_assign(node, nid);
 
-	mutex_lock(&qrtr_node_lock);
+	down_write(&qrtr_node_lock);
 	list_add(&node->item, &qrtr_all_nodes);
-	mutex_unlock(&qrtr_node_lock);
+	up_write(&qrtr_node_lock);
 	ep->node = node;
 
 	return 0;
@@ -921,7 +948,7 @@ static int qrtr_bcast_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 {
 	struct sk_buff *skbn;
 
-	mutex_lock(&qrtr_node_lock);
+	down_read(&qrtr_node_lock);
 	list_for_each_entry(node, &qrtr_all_nodes, item) {
 		if (node->nid == QRTR_EP_NID_AUTO)
 			continue;
@@ -931,7 +958,7 @@ static int qrtr_bcast_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 		skb_set_owner_w(skbn, skb->sk);
 		qrtr_node_enqueue(node, skbn, type, from, to);
 	}
-	mutex_unlock(&qrtr_node_lock);
+	up_read(&qrtr_node_lock);
 
 	qrtr_local_enqueue(NULL, skb, type, from, to);
 
