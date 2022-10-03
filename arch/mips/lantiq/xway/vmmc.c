@@ -4,9 +4,10 @@
  *  Copyright (C) 2012 John Crispin <john@phrozen.org>
  */
 
+#include <linux/err.h>
 #include <linux/export.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of_platform.h>
-#include <linux/of_gpio.h>
 #include <linux/dma-mapping.h>
 
 #include <lantiq_soc.h>
@@ -25,23 +26,28 @@ EXPORT_SYMBOL(ltq_get_cp1_base);
 static int vmmc_probe(struct platform_device *pdev)
 {
 #define CP1_SIZE       (1 << 20)
+	struct gpio_desc *gpio;
 	int gpio_count;
 	dma_addr_t dma;
+	int error;
 
 	cp1_base =
 		(void *) CPHYSADDR(dma_alloc_coherent(&pdev->dev, CP1_SIZE,
 						    &dma, GFP_KERNEL));
 
-	gpio_count = of_gpio_count(pdev->dev.of_node);
+	gpio_count = gpiod_count(&pdev->dev, NULL);
 	while (gpio_count > 0) {
-		enum of_gpio_flags flags;
-		int gpio = of_get_gpio_flags(pdev->dev.of_node,
-					     --gpio_count, &flags);
-		if (gpio_request(gpio, "vmmc-relay"))
+		gpio = devm_gpiod_get_index(&pdev->dev,
+					    NULL, --gpio_count, GPIOD_OUT_HIGH);
+		error = PTR_ERR_OR_ZERO(gpio);
+		if (error) {
+			dev_err(&pdev->dev,
+				"failed to request GPIO idx %d: %d\n",
+				gpio_count, error);
 			continue;
-		dev_info(&pdev->dev, "requested GPIO %d\n", gpio);
-		gpio_direction_output(gpio,
-				      (flags & OF_GPIO_ACTIVE_LOW) ? (0) : (1));
+		}
+
+		gpiod_set_consumer_name(gpio, "vmmc-relay");
 	}
 
 	dev_info(&pdev->dev, "reserved %dMB at 0x%p", CP1_SIZE >> 20, cp1_base);
