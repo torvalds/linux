@@ -39,6 +39,9 @@
 #include "dc/dc_edid_parser.h"
 #include "dc/dc_stat.h"
 #include "amdgpu_dm_trace.h"
+#include "dpcd_defs.h"
+#include "link/link_dpcd.h"
+#include "link_service_types.h"
 
 #include "vid.h"
 #include "amdgpu.h"
@@ -1228,6 +1231,21 @@ static void mmhub_read_system_context(struct amdgpu_device *adev, struct dc_phy_
 
 }
 
+static void force_connector_state(
+	struct amdgpu_dm_connector *aconnector,
+	enum drm_connector_force force_state)
+{
+	struct drm_connector *connector = &aconnector->base;
+
+	mutex_lock(&connector->dev->mode_config.mutex);
+	aconnector->base.force = force_state;
+	mutex_unlock(&connector->dev->mode_config.mutex);
+
+	mutex_lock(&aconnector->hpd_lock);
+	drm_kms_helper_connector_hotplug_event(connector);
+	mutex_unlock(&aconnector->hpd_lock);
+}
+
 static void dm_handle_hpd_rx_offload_work(struct work_struct *work)
 {
 	struct hpd_rx_irq_offload_work *offload_work;
@@ -1236,6 +1254,9 @@ static void dm_handle_hpd_rx_offload_work(struct work_struct *work)
 	struct amdgpu_device *adev;
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	unsigned long flags;
+	union test_response test_response;
+
+	memset(&test_response, 0, sizeof(test_response));
 
 	offload_work = container_of(work, struct hpd_rx_irq_offload_work, work);
 	aconnector = offload_work->offload_wq->aconnector;
@@ -1260,8 +1281,24 @@ static void dm_handle_hpd_rx_offload_work(struct work_struct *work)
 		goto skip;
 
 	mutex_lock(&adev->dm.dc_lock);
-	if (offload_work->data.bytes.device_service_irq.bits.AUTOMATED_TEST)
+	if (offload_work->data.bytes.device_service_irq.bits.AUTOMATED_TEST) {
 		dc_link_dp_handle_automated_test(dc_link);
+
+		if (aconnector->timing_changed) {
+			/* force connector disconnect and reconnect */
+			force_connector_state(aconnector, DRM_FORCE_OFF);
+			msleep(100);
+			force_connector_state(aconnector, DRM_FORCE_UNSPECIFIED);
+		}
+
+		test_response.bits.ACK = 1;
+
+		core_link_write_dpcd(
+		dc_link,
+		DP_TEST_RESPONSE,
+		&test_response.raw,
+		sizeof(test_response));
+	}
 	else if ((dc_link->connector_signal != SIGNAL_TYPE_EDP) &&
 			hpd_rx_irq_check_link_loss_status(dc_link, &offload_work->data) &&
 			dc_link_dp_allow_hpd_rx_irq(dc_link)) {
@@ -2986,6 +3023,10 @@ void amdgpu_dm_update_connector_after_detect(
 						    aconnector->edid);
 		}
 
+		aconnector->timing_requested = kzalloc(sizeof(struct dc_crtc_timing), GFP_KERNEL);
+		if (!aconnector->timing_requested)
+			dm_error("%s: failed to create aconnector->requested_timing\n", __func__);
+
 		drm_connector_update_edid_property(connector, aconnector->edid);
 		amdgpu_dm_update_freesync_caps(connector, aconnector->edid);
 		update_connector_ext_caps(aconnector);
@@ -2997,6 +3038,8 @@ void amdgpu_dm_update_connector_after_detect(
 		dc_sink_release(aconnector->dc_sink);
 		aconnector->dc_sink = NULL;
 		aconnector->edid = NULL;
+		kfree(aconnector->timing_requested);
+		aconnector->timing_requested = NULL;
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 		/* Set CP to DESIRED if it was ENABLED, so we can re-enable it again on hotplug */
 		if (connector->state->content_protection == DRM_MODE_CONTENT_PROTECTION_ENABLED)
@@ -3040,6 +3083,8 @@ static void handle_hpd_irq_helper(struct amdgpu_dm_connector *aconnector)
 #endif
 	if (aconnector->fake_enable)
 		aconnector->fake_enable = false;
+
+	aconnector->timing_changed = false;
 
 	if (!dc_link_detect_sink(aconnector->dc_link, &new_connection_type))
 		DRM_ERROR("KMS: Failed to detect connector\n");
@@ -5882,6 +5927,14 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		fill_stream_properties_from_drm_display_mode(
 			stream, &mode, &aconnector->base, con_state, old_stream,
 			requested_bpc);
+
+	if (aconnector->timing_changed) {
+		DC_LOG_DEBUG("%s: overriding timing for automated test, bpc %d, changing to %d\n",
+				__func__,
+				stream->timing.display_color_depth,
+				aconnector->timing_requested->display_color_depth);
+		stream->timing = *aconnector->timing_requested;
+	}
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* SST DSC determination policy */
