@@ -264,6 +264,11 @@ struct lan966x {
 	struct lan966x_rx rx;
 	struct lan966x_tx tx;
 	struct napi_struct napi;
+
+	/* Mirror */
+	struct lan966x_port *mirror_monitor;
+	u32 mirror_mask[2];
+	u32 mirror_count;
 };
 
 struct lan966x_port_config {
@@ -274,6 +279,15 @@ struct lan966x_port_config {
 	u32 pause;
 	bool inband;
 	bool autoneg;
+};
+
+struct lan966x_port_tc {
+	bool ingress_shared_block;
+	unsigned long police_id;
+	unsigned long ingress_mirror_id;
+	unsigned long egress_mirror_id;
+	struct flow_stats police_stat;
+	struct flow_stats mirror_stat;
 };
 
 struct lan966x_port {
@@ -302,6 +316,8 @@ struct lan966x_port {
 	struct net_device *bond;
 	bool lag_tx_active;
 	enum netdev_lag_hash hash_type;
+
+	struct lan966x_port_tc tc;
 };
 
 extern const struct phylink_mac_ops lan966x_phylink_mac_ops;
@@ -480,6 +496,34 @@ int lan966x_ets_add(struct lan966x_port *port,
 		    struct tc_ets_qopt_offload *qopt);
 int lan966x_ets_del(struct lan966x_port *port,
 		    struct tc_ets_qopt_offload *qopt);
+
+int lan966x_tc_matchall(struct lan966x_port *port,
+			struct tc_cls_matchall_offload *f,
+			bool ingress);
+
+int lan966x_police_port_add(struct lan966x_port *port,
+			    struct flow_action *action,
+			    struct flow_action_entry *act,
+			    unsigned long police_id,
+			    bool ingress,
+			    struct netlink_ext_ack *extack);
+int lan966x_police_port_del(struct lan966x_port *port,
+			    unsigned long police_id,
+			    struct netlink_ext_ack *extack);
+void lan966x_police_port_stats(struct lan966x_port *port,
+			       struct flow_stats *stats);
+
+int lan966x_mirror_port_add(struct lan966x_port *port,
+			    struct flow_action_entry *action,
+			    unsigned long mirror_id,
+			    bool ingress,
+			    struct netlink_ext_ack *extack);
+int lan966x_mirror_port_del(struct lan966x_port *port,
+			    bool ingress,
+			    struct netlink_ext_ack *extack);
+void lan966x_mirror_port_stats(struct lan966x_port *port,
+			       struct flow_stats *stats,
+			       bool ingress);
 
 static inline void __iomem *lan_addr(void __iomem *base[],
 				     int id, int tinst, int tcnt,
