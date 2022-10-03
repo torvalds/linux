@@ -3825,6 +3825,7 @@ F:	kernel/bpf/dispatcher.c
 F:	kernel/bpf/trampoline.c
 F:	include/linux/bpf*
 F:	include/linux/filter.h
+F:	include/linux/tnum.h
 
 BPF [BTF]
 M:	Martin KaFai Lau <martin.lau@linux.dev>
