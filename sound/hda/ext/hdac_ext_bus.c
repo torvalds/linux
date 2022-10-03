@@ -60,59 +60,6 @@ void snd_hdac_ext_bus_exit(struct hdac_bus *bus)
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_exit);
 
-static void default_release(struct device *dev)
-{
-	snd_hdac_ext_bus_device_exit(dev_to_hdac_dev(dev));
-}
-
-/**
- * snd_hdac_ext_bus_device_init - initialize the HDA extended codec base device
- * @bus: hdac bus to attach to
- * @addr: codec address
- * @hdev: hdac device to init
- * @type: codec type (HDAC_DEV_*) to use for this device
- *
- * Returns zero for success or a negative error code.
- */
-int snd_hdac_ext_bus_device_init(struct hdac_bus *bus, int addr,
-				 struct hdac_device *hdev, int type)
-{
-	char name[15];
-	int ret;
-
-	hdev->bus = bus;
-
-	snprintf(name, sizeof(name), "ehdaudio%dD%d", bus->idx, addr);
-
-	ret  = snd_hdac_device_init(hdev, bus, name, addr);
-	if (ret < 0) {
-		dev_err(bus->dev, "device init failed for hdac device\n");
-		return ret;
-	}
-	hdev->type = type;
-	hdev->dev.release = default_release;
-
-	ret = snd_hdac_device_register(hdev);
-	if (ret) {
-		dev_err(bus->dev, "failed to register hdac device\n");
-		snd_hdac_ext_bus_device_exit(hdev);
-		return ret;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_device_init);
-
-/**
- * snd_hdac_ext_bus_device_exit - clean up a HD-audio extended codec base device
- * @hdev: hdac device to clean up
- */
-void snd_hdac_ext_bus_device_exit(struct hdac_device *hdev)
-{
-	snd_hdac_device_exit(hdev);
-}
-EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_device_exit);
-
 /**
  * snd_hdac_ext_bus_device_remove - remove HD-audio extended codec base devices
  *

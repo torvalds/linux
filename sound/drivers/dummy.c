@@ -42,6 +42,8 @@ MODULE_LICENSE("GPL");
 #define USE_CHANNELS_MAX 	2
 #define USE_PERIODS_MIN 	1
 #define USE_PERIODS_MAX 	1024
+#define USE_MIXER_VOLUME_LEVEL_MIN	-50
+#define USE_MIXER_VOLUME_LEVEL_MAX	100
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
@@ -50,6 +52,8 @@ static char *model[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = NULL};
 static int pcm_devs[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 1};
 static int pcm_substreams[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 8};
 //static int midi_devs[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 2};
+static int mixer_volume_level_min = USE_MIXER_VOLUME_LEVEL_MIN;
+static int mixer_volume_level_max = USE_MIXER_VOLUME_LEVEL_MAX;
 #ifdef CONFIG_HIGH_RES_TIMERS
 static bool hrtimer = 1;
 #endif
@@ -69,6 +73,10 @@ module_param_array(pcm_substreams, int, NULL, 0444);
 MODULE_PARM_DESC(pcm_substreams, "PCM substreams # (1-128) for dummy driver.");
 //module_param_array(midi_devs, int, NULL, 0444);
 //MODULE_PARM_DESC(midi_devs, "MIDI devices # (0-2) for dummy driver.");
+module_param(mixer_volume_level_min, int, 0444);
+MODULE_PARM_DESC(mixer_volume_level_min, "Minimum mixer volume level for dummy driver. Default: -50");
+module_param(mixer_volume_level_max, int, 0444);
+MODULE_PARM_DESC(mixer_volume_level_max, "Maximum mixer volume level for dummy driver. Default: 100");
 module_param(fake_buffer, bool, 0444);
 MODULE_PARM_DESC(fake_buffer, "Fake buffer allocations.");
 #ifdef CONFIG_HIGH_RES_TIMERS
@@ -296,7 +304,7 @@ static void dummy_systimer_callback(struct timer_list *t)
 	struct dummy_systimer_pcm *dpcm = from_timer(dpcm, t, timer);
 	unsigned long flags;
 	int elapsed = 0;
-	
+
 	spin_lock_irqsave(&dpcm->lock, flags);
 	dummy_systimer_update(dpcm);
 	dummy_systimer_rearm(dpcm);
@@ -713,11 +721,11 @@ static int snd_dummy_volume_info(struct snd_kcontrol *kcontrol,
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 2;
-	uinfo->value.integer.min = -50;
-	uinfo->value.integer.max = 100;
+	uinfo->value.integer.min = mixer_volume_level_min;
+	uinfo->value.integer.max = mixer_volume_level_max;
 	return 0;
 }
- 
+
 static int snd_dummy_volume_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
@@ -739,15 +747,15 @@ static int snd_dummy_volume_put(struct snd_kcontrol *kcontrol,
 	int left, right;
 
 	left = ucontrol->value.integer.value[0];
-	if (left < -50)
-		left = -50;
-	if (left > 100)
-		left = 100;
+	if (left < mixer_volume_level_min)
+		left = mixer_volume_level_min;
+	if (left > mixer_volume_level_max)
+		left = mixer_volume_level_max;
 	right = ucontrol->value.integer.value[1];
-	if (right < -50)
-		right = -50;
-	if (right > 100)
-		right = 100;
+	if (right < mixer_volume_level_min)
+		right = mixer_volume_level_min;
+	if (right > mixer_volume_level_max)
+		right = mixer_volume_level_max;
 	spin_lock_irq(&dummy->mixer_lock);
 	change = dummy->mixer_volume[addr][0] != left ||
 	         dummy->mixer_volume[addr][1] != right;
@@ -766,7 +774,7 @@ static const DECLARE_TLV_DB_SCALE(db_scale_dummy, -4500, 30, 0);
   .private_value = addr }
 
 #define snd_dummy_capsrc_info	snd_ctl_boolean_stereo_info
- 
+
 static int snd_dummy_capsrc_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
@@ -1076,6 +1084,12 @@ static int snd_dummy_probe(struct platform_device *devptr)
 			dummy->pcm_hw.channels_max = m->channels_max;
 	}
 
+	if (mixer_volume_level_min > mixer_volume_level_max) {
+		pr_warn("snd-dummy: Invalid mixer volume level: min=%d, max=%d. Fall back to default value.\n",
+		mixer_volume_level_min, mixer_volume_level_max);
+		mixer_volume_level_min = USE_MIXER_VOLUME_LEVEL_MIN;
+		mixer_volume_level_max = USE_MIXER_VOLUME_LEVEL_MAX;
+	}
 	err = snd_card_dummy_new_mixer(dummy);
 	if (err < 0)
 		return err;
@@ -1100,7 +1114,7 @@ static int snd_dummy_suspend(struct device *pdev)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	return 0;
 }
-	
+
 static int snd_dummy_resume(struct device *pdev)
 {
 	struct snd_card *card = dev_get_drvdata(pdev);
