@@ -268,7 +268,7 @@ static int server_del(struct qrtr_node *node, unsigned int port)
 
 	srv = xa_load(&node->servers, port);
 	if (!srv)
-		return -ENOENT;
+		return 0;
 
 	xa_erase(&node->servers, port);
 
