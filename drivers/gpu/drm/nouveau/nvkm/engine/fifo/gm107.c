@@ -123,6 +123,7 @@ gm107_fifo = {
 	.runq_nr = gf100_fifo_runq_nr,
 	.runl_ctor = gk104_fifo_runl_ctor,
 	.init = gk104_fifo_init,
+	.init_pbdmas = gk104_fifo_init_pbdmas,
 	.fini = gk104_fifo_fini,
 	.intr = gk104_fifo_intr,
 	.intr_mmu_fault_unit = gm107_fifo_intr_mmu_fault_unit,

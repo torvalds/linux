@@ -15,6 +15,7 @@ struct nvkm_runq {
 struct nvkm_runq *nvkm_runq_new(struct nvkm_fifo *, int pbid);
 void nvkm_runq_del(struct nvkm_runq *);
 
+#define nvkm_runq_foreach(runq,fifo) list_for_each_entry((runq), &(fifo)->runqs, head)
 #define nvkm_runq_foreach_cond(runq,fifo,cond) nvkm_list_foreach(runq, &(fifo)->runqs, head, (cond))
 
 #define RUNQ_PRINT(r,l,p,f,a...)							   \

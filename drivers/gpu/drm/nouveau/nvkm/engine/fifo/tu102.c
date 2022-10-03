@@ -94,18 +94,8 @@ tu102_fifo_fault_engine[] = {
 	{}
 };
 
-static void
-tu102_fifo_pbdma_init(struct gk104_fifo *fifo)
-{
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	const u32 mask = (1 << fifo->pbdma_nr) - 1;
-	/*XXX: this is a bit of a guess at this point in time. */
-	nvkm_mask(device, 0xb65000, 0x80000fff, 0x80000000 | mask);
-}
-
 static const struct gk104_fifo_pbdma_func
 tu102_fifo_pbdma = {
-	.init = tu102_fifo_pbdma_init,
 	.init_timeout = gk208_fifo_pbdma_init_timeout,
 };
 
@@ -445,6 +435,13 @@ tu102_fifo_intr(struct nvkm_inth *inth)
 	return IRQ_HANDLED;
 }
 
+static void
+tu102_fifo_init_pbdmas(struct nvkm_fifo *fifo, u32 mask)
+{
+	/* Not directly related to PBDMAs, but, enables doorbell to function. */
+	nvkm_mask(fifo->engine.subdev.device, 0xb65000, 0x80000000, 0x80000000);
+}
+
 static const struct nvkm_fifo_func
 tu102_fifo = {
 	.dtor = gk104_fifo_dtor,
@@ -454,6 +451,7 @@ tu102_fifo = {
 	.runq_nr = gm200_fifo_runq_nr,
 	.runl_ctor = gk104_fifo_runl_ctor,
 	.init = gk104_fifo_init,
+	.init_pbdmas = tu102_fifo_init_pbdmas,
 	.fini = gk104_fifo_fini,
 	.intr = tu102_fifo_intr,
 	.mmu_fault = &tu102_fifo_mmu_fault,

@@ -39,7 +39,6 @@ gk208_fifo_pbdma_init_timeout(struct gk104_fifo *fifo)
 
 const struct gk104_fifo_pbdma_func
 gk208_fifo_pbdma = {
-	.init = gk104_fifo_pbdma_init,
 	.init_timeout = gk208_fifo_pbdma_init_timeout,
 };
 
@@ -62,6 +61,7 @@ gk208_fifo = {
 	.runq_nr = gf100_fifo_runq_nr,
 	.runl_ctor = gk104_fifo_runl_ctor,
 	.init = gk104_fifo_init,
+	.init_pbdmas = gk104_fifo_init_pbdmas,
 	.fini = gk104_fifo_fini,
 	.intr = gk104_fifo_intr,
 	.intr_mmu_fault_unit = gf100_fifo_intr_mmu_fault_unit,

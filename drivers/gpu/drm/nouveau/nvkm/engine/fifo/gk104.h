@@ -75,7 +75,6 @@ void gk104_fifo_init(struct nvkm_fifo *base);
 void gk104_fifo_fini(struct nvkm_fifo *base);
 
 extern const struct gk104_fifo_pbdma_func gk104_fifo_pbdma;
-void gk104_fifo_pbdma_init(struct gk104_fifo *);
 extern const struct nvkm_enum gk104_fifo_fault_access[];
 extern const struct nvkm_enum gk104_fifo_fault_engine[];
 extern const struct nvkm_enum gk104_fifo_fault_reason[];

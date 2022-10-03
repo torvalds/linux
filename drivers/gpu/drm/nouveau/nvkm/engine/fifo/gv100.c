@@ -323,6 +323,7 @@ gv100_fifo = {
 	.runq_nr = gm200_fifo_runq_nr,
 	.runl_ctor = gk104_fifo_runl_ctor,
 	.init = gk104_fifo_init,
+	.init_pbdmas = gk104_fifo_init_pbdmas,
 	.fini = gk104_fifo_fini,
 	.intr = gk104_fifo_intr,
 	.mmu_fault = &gv100_fifo_mmu_fault,

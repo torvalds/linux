@@ -278,16 +278,8 @@ static const struct nvkm_runl_func
 gk104_runl = {
 };
 
-void
-gk104_fifo_pbdma_init(struct gk104_fifo *fifo)
-{
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	nvkm_wr32(device, 0x000204, (1 << fifo->pbdma_nr) - 1);
-}
-
 const struct gk104_fifo_pbdma_func
 gk104_fifo_pbdma = {
-	.init = gk104_fifo_pbdma_init,
 };
 
 int
@@ -963,14 +955,19 @@ gk104_fifo_fini(struct nvkm_fifo *base)
 }
 
 void
+gk104_fifo_init_pbdmas(struct nvkm_fifo *fifo, u32 mask)
+{
+	struct nvkm_device *device = fifo->engine.subdev.device;
+
+	nvkm_wr32(device, 0x000204, mask);
+}
+
+void
 gk104_fifo_init(struct nvkm_fifo *base)
 {
 	struct gk104_fifo *fifo = gk104_fifo(base);
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	int i;
-
-	/* Enable PBDMAs. */
-	fifo->func->pbdma->init(fifo);
 
 	/* PBDMA[n] */
 	for (i = 0; i < fifo->pbdma_nr; i++) {
@@ -1147,6 +1144,7 @@ gk104_fifo = {
 	.runq_nr = gf100_fifo_runq_nr,
 	.runl_ctor = gk104_fifo_runl_ctor,
 	.init = gk104_fifo_init,
+	.init_pbdmas = gk104_fifo_init_pbdmas,
 	.fini = gk104_fifo_fini,
 	.intr = gk104_fifo_intr,
 	.intr_mmu_fault_unit = gf100_fifo_intr_mmu_fault_unit,

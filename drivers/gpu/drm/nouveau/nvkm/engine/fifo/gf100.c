@@ -627,18 +627,16 @@ gf100_fifo_fini(struct nvkm_fifo *base)
 }
 
 static void
-gf100_fifo_init(struct nvkm_fifo *base)
+gf100_fifo_init_pbdmas(struct nvkm_fifo *fifo, u32 mask)
 {
-	struct gf100_fifo *fifo = gf100_fifo(base);
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	int i;
+	struct nvkm_device *device = fifo->engine.subdev.device;
 
 	/* Enable PBDMAs. */
-	nvkm_wr32(device, 0x000204, (1 << fifo->pbdma_nr) - 1);
-	nvkm_wr32(device, 0x002204, (1 << fifo->pbdma_nr) - 1);
+	nvkm_wr32(device, 0x000204, mask);
+	nvkm_wr32(device, 0x002204, mask);
 
 	/* Assign engines to PBDMAs. */
-	if (fifo->pbdma_nr >= 3) {
+	if ((mask & 7) == 7) {
 		nvkm_wr32(device, 0x002208, ~(1 << 0)); /* PGRAPH */
 		nvkm_wr32(device, 0x00220c, ~(1 << 1)); /* PVP */
 		nvkm_wr32(device, 0x002210, ~(1 << 1)); /* PMSPP */
@@ -646,6 +644,15 @@ gf100_fifo_init(struct nvkm_fifo *base)
 		nvkm_wr32(device, 0x002218, ~(1 << 2)); /* PCE0 */
 		nvkm_wr32(device, 0x00221c, ~(1 << 1)); /* PCE1 */
 	}
+
+}
+
+static void
+gf100_fifo_init(struct nvkm_fifo *base)
+{
+	struct gf100_fifo *fifo = gf100_fifo(base);
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	int i;
 
 	/* PBDMA[n] */
 	for (i = 0; i < fifo->pbdma_nr; i++) {
@@ -756,6 +763,7 @@ gf100_fifo = {
 	.runq_nr = gf100_fifo_runq_nr,
 	.runl_ctor = gf100_fifo_runl_ctor,
 	.init = gf100_fifo_init,
+	.init_pbdmas = gf100_fifo_init_pbdmas,
 	.fini = gf100_fifo_fini,
 	.intr = gf100_fifo_intr,
 	.mmu_fault = &gf100_fifo_mmu_fault,

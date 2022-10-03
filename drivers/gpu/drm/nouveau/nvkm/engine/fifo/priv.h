@@ -25,6 +25,8 @@ struct nvkm_fifo_func {
 	int (*runl_ctor)(struct nvkm_fifo *);
 
 	void (*init)(struct nvkm_fifo *);
+	void (*init_pbdmas)(struct nvkm_fifo *, u32 mask);
+
 	void (*fini)(struct nvkm_fifo *);
 
 	irqreturn_t (*intr)(struct nvkm_inth *);
@@ -58,7 +60,6 @@ struct nvkm_fifo_func {
 	} *runlist;
 
 	const struct gk104_fifo_pbdma_func {
-		void (*init)(struct gk104_fifo *);
 		void (*init_timeout)(struct gk104_fifo *);
 	} *pbdma;
 
@@ -121,6 +122,7 @@ extern const struct nvkm_engn_func gf100_engn_sw;
 
 int gk104_fifo_chid_nr(struct nvkm_fifo *);
 int gk104_fifo_runl_ctor(struct nvkm_fifo *);
+void gk104_fifo_init_pbdmas(struct nvkm_fifo *, u32);
 irqreturn_t gk104_fifo_intr(struct nvkm_inth *);
 void gk104_fifo_intr_chsw(struct nvkm_fifo *);
 void gk104_fifo_intr_bind(struct nvkm_fifo *);
