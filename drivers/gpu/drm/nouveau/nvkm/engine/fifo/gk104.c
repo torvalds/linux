@@ -960,6 +960,7 @@ gk104_fifo_init_pbdmas(struct nvkm_fifo *fifo, u32 mask)
 	struct nvkm_device *device = fifo->engine.subdev.device;
 
 	nvkm_wr32(device, 0x000204, mask);
+	nvkm_mask(device, 0x002a04, 0xbfffffff, 0xbfffffff);
 }
 
 void

@@ -645,6 +645,7 @@ gf100_fifo_init_pbdmas(struct nvkm_fifo *fifo, u32 mask)
 		nvkm_wr32(device, 0x00221c, ~(1 << 1)); /* PCE1 */
 	}
 
+	nvkm_mask(device, 0x002a04, 0xbfffffff, 0xbfffffff);
 }
 
 static void
