@@ -106,7 +106,7 @@ static struct platform_driver thermal_mmio_driver = {
 	.probe = thermal_mmio_probe,
 	.driver = {
 		.name = "thermal-mmio",
-		.of_match_table = of_match_ptr(thermal_mmio_id_table),
+		.of_match_table = thermal_mmio_id_table,
 	},
 };
 
