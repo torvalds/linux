@@ -165,9 +165,6 @@ static bool has_drrs_modes(struct intel_connector *connector)
 
 enum drrs_type intel_panel_drrs_type(struct intel_connector *connector)
 {
-	if (!has_drrs_modes(connector))
-		return DRRS_TYPE_NONE;
-
 	return connector->panel.vbt.drrs_type;
 }
 
@@ -667,6 +664,9 @@ int intel_panel_init(struct intel_connector *connector)
 	struct intel_panel *panel = &connector->panel;
 
 	intel_backlight_init_funcs(panel);
+
+	if (!has_drrs_modes(connector))
+		connector->panel.vbt.drrs_type = DRRS_TYPE_NONE;
 
 	drm_dbg_kms(connector->base.dev,
 		    "[CONNECTOR:%d:%s] DRRS type: %s\n",
