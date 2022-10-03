@@ -1746,6 +1746,11 @@ void hl_notifier_event_send_all(struct hl_device *hdev, u64 event_mask)
 {
 	struct hl_fpriv	*hpriv;
 
+	if (!event_mask) {
+		dev_warn(hdev->dev, "Skip sending zero event");
+		return;
+	}
+
 	mutex_lock(&hdev->fpriv_list_lock);
 
 	list_for_each_entry(hpriv, &hdev->fpriv_list, dev_node)

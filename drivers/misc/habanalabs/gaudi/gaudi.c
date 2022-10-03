@@ -7945,7 +7945,9 @@ reset_device:
 	/* despite reset doesn't execute. a notification on
 	 * occurred event needs to be sent here
 	 */
-	hl_notifier_event_send_all(hdev, event_mask);
+	if (event_mask)
+		hl_notifier_event_send_all(hdev, event_mask);
+
 	if (reset_required)
 		hl_device_reset(hdev, flags);
 	else
