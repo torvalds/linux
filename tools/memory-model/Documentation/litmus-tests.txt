@@ -946,22 +946,39 @@ Limitations of the Linux-kernel memory model (LKMM) include:
 	carrying a dependency, then the compiler can break that dependency
 	by substituting a constant of that value.
 
-	Conversely, LKMM sometimes doesn't recognize that a particular
-	optimization is not allowed, and as a result, thinks that a
-	dependency is not present (because the optimization would break it).
-	The memory model misses some pretty obvious control dependencies
-	because of this limitation.  A simple example is:
+	Conversely, LKMM will sometimes overestimate the amount of
+	reordering compilers and CPUs can carry out, leading it to miss
+	some pretty obvious cases of ordering.  A simple example is:
 
 		r1 = READ_ONCE(x);
 		if (r1 == 0)
 			smp_mb();
 		WRITE_ONCE(y, 1);
 
-	There is a control dependency from the READ_ONCE to the WRITE_ONCE,
-	even when r1 is nonzero, but LKMM doesn't realize this and thinks
-	that the write may execute before the read if r1 != 0.  (Yes, that
-	doesn't make sense if you think about it, but the memory model's
-	intelligence is limited.)
+	The WRITE_ONCE() does not depend on the READ_ONCE(), and as a
+	result, LKMM does not claim ordering.  However, even though no
+	dependency is present, the WRITE_ONCE() will not be executed before
+	the READ_ONCE().  There are two reasons for this:
+
+                The presence of the smp_mb() in one of the branches
+                prevents the compiler from moving the WRITE_ONCE()
+                up before the "if" statement, since the compiler has
+                to assume that r1 will sometimes be 0 (but see the
+                comment below);
+
+                CPUs do not execute stores before po-earlier conditional
+                branches, even in cases where the store occurs after the
+                two arms of the branch have recombined.
+
+	It is clear that it is not dangerous in the slightest for LKMM to
+	make weaker guarantees than architectures.  In fact, it is
+	desirable, as it gives compilers room for making optimizations.
+	For instance, suppose that a 0 value in r1 would trigger undefined
+	behavior elsewhere.  Then a clever compiler might deduce that r1
+	can never be 0 in the if condition.  As a result, said clever
+	compiler might deem it safe to optimize away the smp_mb(),
+	eliminating the branch and any ordering an architecture would
+	guarantee otherwise.
 
 2.	Multiple access sizes for a single variable are not supported,
 	and neither are misaligned or partially overlapping accesses.
