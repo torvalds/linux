@@ -16,9 +16,9 @@
 static inline u64 kvm_get_parange(u64 mmfr0)
 {
 	u64 parange = cpuid_feature_extract_unsigned_field(mmfr0,
-				ID_AA64MMFR0_PARANGE_SHIFT);
-	if (parange > ID_AA64MMFR0_PARANGE_MAX)
-		parange = ID_AA64MMFR0_PARANGE_MAX;
+				ID_AA64MMFR0_EL1_PARANGE_SHIFT);
+	if (parange > ID_AA64MMFR0_EL1_PARANGE_MAX)
+		parange = ID_AA64MMFR0_EL1_PARANGE_MAX;
 
 	return parange;
 }
