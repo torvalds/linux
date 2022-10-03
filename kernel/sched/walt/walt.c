@@ -3808,11 +3808,6 @@ static void walt_irq_work(struct irq_work *irq_work)
 		level++;
 	}
 
-	if (!is_migration) {
-		for_each_cpu(cpu, &lock_cpus)
-			update_cpu_capacity_helper(cpu);
-	}
-
 	__walt_irq_work_locked(is_migration, &lock_cpus);
 
 	for_each_cpu(cpu, &lock_cpus)
@@ -4440,6 +4435,13 @@ static void android_rvh_build_perf_domains(void *unused, bool *eas_check)
 	*eas_check = true;
 }
 
+static void android_rvh_update_thermal_stats(void *unused, int cpu)
+{
+	if (unlikely(walt_disabled))
+		return;
+	update_cpu_capacity_helper(cpu);
+}
+
 static DECLARE_COMPLETION(rebuild_domains_completion);
 static void rebuild_sd_workfn(struct work_struct *work)
 {
@@ -4492,6 +4494,7 @@ static void register_walt_hooks(void)
 	register_trace_android_rvh_build_perf_domains(android_rvh_build_perf_domains, NULL);
 	register_trace_cpu_frequency_limits(walt_cpu_frequency_limits, NULL);
 	register_trace_android_rvh_do_sched_yield(walt_do_sched_yield, NULL);
+	register_trace_android_rvh_update_thermal_stats(android_rvh_update_thermal_stats, NULL);
 }
 
 atomic64_t walt_irq_work_lastq_ws;
