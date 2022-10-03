@@ -105,6 +105,8 @@
 #define ST_LSM6DSVX_REG_PAGE_SEL_ADDR		0x02
 
 #define ST_LSM6DSVX_REG_EMB_FUNC_EN_A_ADDR	0x04
+#define ST_LSM6DSVX_SFLP_GAME_EN_MASK		BIT(1)
+
 #define ST_LSM6DSVX_REG_EMB_FUNC_EN_B_ADDR	0x05
 #define ST_LSM6DSVX_MLC_EN_MASK			BIT(4)
 #define ST_LSM6DSVX_FSM_EN_MASK			BIT(0)
@@ -122,15 +124,26 @@
 
 #define ST_LSM6DSVX_REG_PAGE_RW_ADDR		0x17
 
+#define ST_LSM6DSVX_REG_EMB_FUNC_FIFO_EN_A_ADDR	0x44
+#define ST_LSM6DSVX_SFLP_GBIAS_FIFO_EN_MASK	BIT(5)
+#define ST_LSM6DSVX_SFLP_GRAVITY_FIFO_EN	BIT(4)
+#define ST_LSM6DSVX_SFLP_GAME_FIFO_EN		BIT(1)
+
 #define ST_LSM6DSVX_REG_FSM_ENABLE_ADDR		0x46
 
 #define ST_LSM6DSVX_REG_FSM_OUTS1_ADDR		0x4c
+
+#define ST_LSM6DSVX_REG_SFLP_ODR_ADDR		0x5e
+#define ST_LSM6DSVX_SFLP_GAME_ODR_MASK		GENMASK(5, 3)
 
 #define ST_LSM6DSVX_REG_FSM_ODR_ADDR		0x5f
 #define ST_LSM6DSVX_FSM_ODR_MASK		GENMASK(5, 3)
 
 #define ST_LSM6DSVX_REG_MLC_ODR_ADDR		0x60
 #define ST_LSM6DSVX_MLC_ODR_MASK		GENMASK(6, 4)
+
+#define ST_LSM6DSVX_REG_EMB_FUNC_INIT_A_ADDR	0x66
+#define ST_LSM6DSVX_SFLP_GAME_INIT_MASK		BIT(1)
 
 #define ST_LSM6DSVX_REG_EMB_FUNC_INIT_B_ADDR	0x67
 #define ST_LSM6DSVX_MLC_INIT_MASK		BIT(4)
@@ -179,6 +192,22 @@
 		.endianness = IIO_LE,				      \
 	},							      \
 	.ext_info = ext_inf,					      \
+}
+
+#define ST_LSM6DSVX_SFLP_DATA_CHANNEL(chan_type, mod, ch2, scan_idx,  \
+				      rb, sb, sg)		      \
+{								      \
+	.type = chan_type,					      \
+	.modified = mod,					      \
+	.channel2 = ch2,					      \
+	.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),      \
+	.scan_index = scan_idx,					      \
+	.scan_type = {						      \
+		.sign = sg,					      \
+		.realbits = rb,					      \
+		.storagebits = sb,				      \
+		.endianness = IIO_LE,				      \
+	},							      \
 }
 
 static const struct iio_event_spec st_lsm6dsvx_flush_event = {
@@ -296,9 +325,10 @@ struct st_lsm6dsvx_mlc_config_t {
  * struct st_lsm6dsvx_settings - ST IMU sensor settings
  * @hw_id: Hw id supported by the driver configuration.
  * @name: Device name supported by the driver configuration.
- * @st_qvar_probe: flag to indicate if QVAR feature is supported.
+ * @st_qvar_probe: QVAR probe flag, indicate if QVAR feature is supported.
  * @st_mlc_probe: MLC probe flag, indicate if MLC feature is supported.
  * @st_fsm_probe: FSM probe flag, indicate if FSM feature is supported.
+ * @st_sflp_probe: SFLP probe flag, indicate if SFLP feature is supported.
  */
 struct st_lsm6dsvx_settings {
 	struct {
@@ -309,11 +339,13 @@ struct st_lsm6dsvx_settings {
 	bool st_qvar_probe;
 	bool st_mlc_probe;
 	bool st_fsm_probe;
+	bool st_sflp_probe;
 };
 
 enum st_lsm6dsvx_sensor_id {
 	ST_LSM6DSVX_ID_GYRO,
 	ST_LSM6DSVX_ID_ACC,
+	ST_LSM6DSVX_ID_6X_GAME,
 	ST_LSM6DSVX_ID_QVAR,
 	ST_LSM6DSVX_ID_EXT0,
 	ST_LSM6DSVX_ID_EXT1,
@@ -337,6 +369,60 @@ static const enum st_lsm6dsvx_sensor_id
 st_lsm6dsvx_main_sensor_list[] = {
 	[0] = ST_LSM6DSVX_ID_GYRO,
 	[1] = ST_LSM6DSVX_ID_ACC,
+	[2] = ST_LSM6DSVX_ID_6X_GAME,
+};
+
+static const enum st_lsm6dsvx_sensor_id
+st_lsm6dsvx_gyro_dep_sensor_list[] = {
+	 [0] = ST_LSM6DSVX_ID_GYRO,
+	 [1] = ST_LSM6DSVX_ID_6X_GAME,
+	 [2] = ST_LSM6DSVX_ID_EXT0,
+	 [3] = ST_LSM6DSVX_ID_EXT1,
+	 [4] = ST_LSM6DSVX_ID_MLC,
+	 [5] = ST_LSM6DSVX_ID_MLC_0,
+	 [6] = ST_LSM6DSVX_ID_MLC_1,
+	 [7] = ST_LSM6DSVX_ID_MLC_2,
+	 [8] = ST_LSM6DSVX_ID_MLC_3,
+	 [9] = ST_LSM6DSVX_ID_FSM_0,
+	 [10] = ST_LSM6DSVX_ID_FSM_1,
+	 [11] = ST_LSM6DSVX_ID_FSM_2,
+	 [12] = ST_LSM6DSVX_ID_FSM_3,
+	 [13] = ST_LSM6DSVX_ID_FSM_4,
+	 [14] = ST_LSM6DSVX_ID_FSM_5,
+	 [15] = ST_LSM6DSVX_ID_FSM_6,
+	 [16] = ST_LSM6DSVX_ID_FSM_7,
+};
+
+static const enum st_lsm6dsvx_sensor_id
+st_lsm6dsvx_acc_dep_sensor_list[] = {
+	 [0] = ST_LSM6DSVX_ID_ACC,
+	 [1] = ST_LSM6DSVX_ID_6X_GAME,
+	 [2] = ST_LSM6DSVX_ID_QVAR,
+	 [3] = ST_LSM6DSVX_ID_EXT0,
+	 [4] = ST_LSM6DSVX_ID_EXT1,
+	 [5] = ST_LSM6DSVX_ID_MLC,
+	 [6] = ST_LSM6DSVX_ID_MLC_0,
+	 [7] = ST_LSM6DSVX_ID_MLC_1,
+	 [8] = ST_LSM6DSVX_ID_MLC_2,
+	 [9] = ST_LSM6DSVX_ID_MLC_3,
+	 [10] = ST_LSM6DSVX_ID_FSM_0,
+	 [11] = ST_LSM6DSVX_ID_FSM_1,
+	 [12] = ST_LSM6DSVX_ID_FSM_2,
+	 [13] = ST_LSM6DSVX_ID_FSM_3,
+	 [14] = ST_LSM6DSVX_ID_FSM_4,
+	 [15] = ST_LSM6DSVX_ID_FSM_5,
+	 [16] = ST_LSM6DSVX_ID_FSM_6,
+	 [17] = ST_LSM6DSVX_ID_FSM_7,
+};
+
+static const enum st_lsm6dsvx_sensor_id
+st_lsm6dsvx_buffered_sensor_list[] = {
+	 [0] = ST_LSM6DSVX_ID_GYRO,
+	 [1] = ST_LSM6DSVX_ID_ACC,
+	 [2] = ST_LSM6DSVX_ID_6X_GAME,
+	 [3] = ST_LSM6DSVX_ID_QVAR,
+	 [4] = ST_LSM6DSVX_ID_EXT0,
+	 [5] = ST_LSM6DSVX_ID_EXT1,
 };
 
 /**
@@ -610,6 +696,8 @@ int st_lsm6dsvx_probe(struct device *dev, int irq, int hw_id,
 		      struct regmap *regmap);
 int st_lsm6dsvx_sensor_set_enable(struct st_lsm6dsvx_sensor *sensor,
 				 bool enable);
+int st_lsm6dsvx_sflp_set_enable(struct st_lsm6dsvx_sensor *sensor,
+				bool enable);
 int st_lsm6dsvx_shub_set_enable(struct st_lsm6dsvx_sensor *sensor,
 				bool enable);
 int st_lsm6dsvx_buffers_setup(struct st_lsm6dsvx_hw *hw);

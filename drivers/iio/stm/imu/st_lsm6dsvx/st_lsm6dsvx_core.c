@@ -35,6 +35,7 @@ static const struct st_lsm6dsvx_settings st_lsm6dsvx_sensor_settings[] = {
 		.st_qvar_probe = true,
 		.st_mlc_probe = true,
 		.st_fsm_probe = true,
+		.st_sflp_probe = true,
 	},
 };
 
@@ -71,7 +72,16 @@ st_lsm6dsvx_odr_table[] = {
 		.odr_avl[6] = { 240, 0, 0x07, 0x07 },
 		.odr_avl[7] = { 480, 0, 0x08, 0x08 },
 		.odr_avl[8] = { 960, 0, 0x09, 0x09 },
-	}
+	},
+	[ST_LSM6DSVX_ID_6X_GAME] = {
+		.size = 6,
+		.odr_avl[0] = {  15, 0, 0, 0x00 },
+		.odr_avl[1] = {  30, 0, 0, 0x01 },
+		.odr_avl[2] = {  60, 0, 0, 0x02 },
+		.odr_avl[3] = { 120, 0, 0, 0x03 },
+		.odr_avl[4] = { 240, 0, 0, 0x04 },
+		.odr_avl[5] = { 480, 0, 0, 0x05 },
+	},
 };
 
 static const struct st_lsm6dsvx_fs_table_entry st_lsm6dsvx_fs_table[] = {
@@ -212,6 +222,17 @@ static const struct iio_chan_spec st_lsm6dsvx_gyro_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(3),
 };
 
+static const struct iio_chan_spec st_lsm6dsvx_sflp_channels[] = {
+	ST_LSM6DSVX_SFLP_DATA_CHANNEL(IIO_ROT, 1, IIO_MOD_X,
+				      0, 16, 16, 'u'),
+	ST_LSM6DSVX_SFLP_DATA_CHANNEL(IIO_ROT, 1, IIO_MOD_Y,
+				      1, 16, 16, 'u'),
+	ST_LSM6DSVX_SFLP_DATA_CHANNEL(IIO_ROT, 1, IIO_MOD_Z,
+				      2, 16, 16, 'u'),
+	ST_LSM6DSVX_EVENT_CHANNEL(IIO_ANGL_VEL, flush),
+	IIO_CHAN_SOFT_TIMESTAMP(3),
+};
+
 static int st_lsm6dsvx_check_whoami(struct st_lsm6dsvx_hw *hw, int id)
 {
 	int data, err, i;
@@ -347,6 +368,30 @@ int st_lsm6dsvx_get_batch_val(struct st_lsm6dsvx_sensor *sensor,
 	return 0;
 }
 
+static int
+st_lsm6dsvx_set_hw_sensor_odr(struct st_lsm6dsvx_hw *hw,
+			      enum st_lsm6dsvx_sensor_id id,
+			      int req_odr, int req_uodr)
+{
+	int err;
+	u8 val = 0;
+
+	if (ST_LSM6DSVX_ODR_EXPAND(req_odr, req_uodr) > 0) {
+		err = st_lsm6dsvx_get_odr_val(id, req_odr, req_uodr,
+					      &req_odr, &req_uodr,
+					      &val);
+		if (err < 0)
+			return err;
+	}
+
+	err = st_lsm6dsvx_write_with_mask(hw,
+				     st_lsm6dsvx_odr_table[id].reg.addr,
+				     st_lsm6dsvx_odr_table[id].reg.mask,
+				     val);
+
+	return err < 0 ? err : 0;
+}
+
 static u16
 st_lsm6dsvx_check_odr_dependency(struct st_lsm6dsvx_hw *hw, int odr,
 				 int uodr,
@@ -369,13 +414,65 @@ st_lsm6dsvx_check_odr_dependency(struct st_lsm6dsvx_hw *hw, int odr,
 	return ret;
 }
 
+static int
+st_lsm6dsvx_check_acc_odr_dependency(struct st_lsm6dsvx_sensor *sensor,
+				     int req_odr, int req_uodr)
+{
+	struct st_lsm6dsvx_hw *hw = sensor->hw;
+	enum st_lsm6dsvx_sensor_id id;
+	int odr = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(st_lsm6dsvx_acc_dep_sensor_list); i++) {
+		id = st_lsm6dsvx_acc_dep_sensor_list[i];
+		if (!hw->iio_devs[id])
+			continue;
+
+		if (id == sensor->id)
+			continue;
+
+		/* req_uodr not used */
+		odr = st_lsm6dsvx_check_odr_dependency(hw, req_odr,
+						       req_uodr, id);
+		if (odr != req_odr)
+			return 0;
+	}
+
+	return odr;
+}
+
+static int
+st_lsm6dsvx_check_gyro_odr_dependency(struct st_lsm6dsvx_sensor *sensor,
+				      int req_odr, int req_uodr)
+{
+	struct st_lsm6dsvx_hw *hw = sensor->hw;
+	enum st_lsm6dsvx_sensor_id id;
+	int odr = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(st_lsm6dsvx_gyro_dep_sensor_list); i++) {
+		id = st_lsm6dsvx_gyro_dep_sensor_list[i];
+		if (!hw->iio_devs[id])
+			continue;
+
+		if (id == sensor->id)
+			continue;
+
+		/* req_uodr not used */
+		odr = st_lsm6dsvx_check_odr_dependency(hw, req_odr,
+						       req_uodr, id);
+		if (odr != req_odr)
+			return 0;
+	}
+
+	return odr;
+}
 static int st_lsm6dsvx_set_odr(struct st_lsm6dsvx_sensor *sensor,
 			       int req_odr, int req_uodr)
 {
 	enum st_lsm6dsvx_sensor_id id = sensor->id;
 	struct st_lsm6dsvx_hw *hw = sensor->hw;
-	u8 val = 0;
-	int err;
+	int err, odr;
 
 	switch (id) {
 	case ST_LSM6DSVX_ID_QVAR:
@@ -393,49 +490,53 @@ static int st_lsm6dsvx_set_odr(struct st_lsm6dsvx_sensor *sensor,
 	case ST_LSM6DSVX_ID_MLC_1:
 	case ST_LSM6DSVX_ID_MLC_2:
 	case ST_LSM6DSVX_ID_MLC_3:
-	case ST_LSM6DSVX_ID_ACC: {
-		int odr;
-		int i;
+	case ST_LSM6DSVX_ID_ACC:
+		odr = st_lsm6dsvx_check_acc_odr_dependency(sensor,
+							   req_odr,
+							   req_uodr);
+		if (odr != req_odr)
+			return 0;
 
-		id = ST_LSM6DSVX_ID_ACC;
-		for (i = ST_LSM6DSVX_ID_ACC;
-		     i < ST_LSM6DSVX_ID_MAX; i++) {
-			if (!hw->iio_devs[i])
-				continue;
+		return st_lsm6dsvx_set_hw_sensor_odr(hw,
+						     ST_LSM6DSVX_ID_ACC,
+						     req_odr, req_uodr);
+	case ST_LSM6DSVX_ID_6X_GAME:
+		odr = st_lsm6dsvx_check_acc_odr_dependency(sensor,
+							   req_odr,
+							   req_uodr);
+		if (odr != req_odr)
+			return 0;
 
-			if (i == sensor->id)
-				continue;
+		err = st_lsm6dsvx_set_hw_sensor_odr(hw,
+						     ST_LSM6DSVX_ID_ACC,
+						     req_odr, req_uodr);
+		if (err < 0)
+			return err;
 
-			/* req_uodr not used */
-			odr = st_lsm6dsvx_check_odr_dependency(hw,
-							      req_odr,
-							      req_uodr,
-							      i);
-			if (odr != req_odr) {
-				/* device already configured */
-				return 0;
-			}
-		}
-		break;
-	}
+		odr = st_lsm6dsvx_check_gyro_odr_dependency(sensor,
+							    req_odr,
+							    req_uodr);
+		if (odr != req_odr)
+			return 0;
+
+		return st_lsm6dsvx_set_hw_sensor_odr(hw,
+						    ST_LSM6DSVX_ID_GYRO,
+						    req_odr, req_uodr);
+	case ST_LSM6DSVX_ID_GYRO:
+		odr = st_lsm6dsvx_check_gyro_odr_dependency(sensor,
+							    req_odr,
+							    req_uodr);
+		if (odr != req_odr)
+			return 0;
+
+		return st_lsm6dsvx_set_hw_sensor_odr(hw,
+						     ST_LSM6DSVX_ID_GYRO,
+						     req_odr, req_uodr);
 	default:
 		break;
 	}
 
-	if (ST_LSM6DSVX_ODR_EXPAND(req_odr, req_uodr) > 0) {
-		err = st_lsm6dsvx_get_odr_val(id, req_odr, req_uodr,
-					      &req_odr, &req_uodr,
-					      &val);
-		if (err < 0)
-			return err;
-	}
-
-	err = st_lsm6dsvx_write_with_mask(hw,
-				     st_lsm6dsvx_odr_table[id].reg.addr,
-				     st_lsm6dsvx_odr_table[id].reg.mask,
-				     val);
-
-	return err < 0 ? err : 0;
+	return 0;
 }
 
 int st_lsm6dsvx_sensor_set_enable(struct st_lsm6dsvx_sensor *sensor,
@@ -455,6 +556,49 @@ int st_lsm6dsvx_sensor_set_enable(struct st_lsm6dsvx_sensor *sensor,
 		sensor->hw->enable_mask &= ~BIT(sensor->id);
 
 	return 0;
+}
+
+int st_lsm6dsvx_sflp_set_enable(struct st_lsm6dsvx_sensor *sensor,
+				bool enable)
+{
+	struct st_lsm6dsvx_hw *hw = sensor->hw;
+	u8 mask, fifo_mask;
+	int err;
+
+	if (sensor->id == ST_LSM6DSVX_ID_6X_GAME) {
+		fifo_mask = ST_LSM6DSVX_SFLP_GAME_FIFO_EN;
+		mask = ST_LSM6DSVX_SFLP_GAME_EN_MASK;
+	} else {
+		return -EINVAL;
+	}
+
+	mutex_lock(&hw->page_lock);
+	err = st_lsm6dsvx_set_page_access(hw,
+			       ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK, 1);
+	if (err < 0)
+		goto unlock;
+
+	err = __st_lsm6dsvx_write_with_mask(hw,
+					    ST_LSM6DSVX_REG_EMB_FUNC_EN_A_ADDR,
+					    mask, enable ? 1 : 0);
+	if (err < 0)
+		goto reset_page;
+
+	err = __st_lsm6dsvx_write_with_mask(hw,
+					ST_LSM6DSVX_REG_EMB_FUNC_FIFO_EN_A_ADDR,
+					fifo_mask, enable ? 1 : 0);
+	if (err < 0)
+		goto reset_page;
+
+	err = __st_lsm6dsvx_set_sensor_batching_odr(sensor, enable);
+
+reset_page:
+	st_lsm6dsvx_set_page_access(hw,
+				    ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK, 0);
+unlock:
+	mutex_unlock(&hw->page_lock);
+
+	return st_lsm6dsvx_sensor_set_enable(sensor, enable);
 }
 
 static int st_lsm6dsvx_read_oneshot(struct st_lsm6dsvx_sensor *sensor,
@@ -686,6 +830,24 @@ static const struct iio_info st_lsm6dsvx_gyro_info = {
 	.write_raw = st_lsm6dsvx_write_raw,
 };
 
+static struct attribute *st_lsm6dsvx_sflp_attributes[] = {
+	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
+	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
+	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
+	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group st_lsm6dsvx_sflp_attribute_group = {
+	.attrs = st_lsm6dsvx_sflp_attributes,
+};
+
+static const struct iio_info st_lsm6dsvx_sflp_info = {
+	.attrs = &st_lsm6dsvx_sflp_attribute_group,
+	.read_raw = st_lsm6dsvx_read_raw,
+	.write_raw = st_lsm6dsvx_write_raw,
+};
+
 static const unsigned long st_lsm6dsvx_available_scan_masks[] = {
 	GENMASK(2, 0), 0x0
 };
@@ -851,6 +1013,21 @@ st_lsm6dsvx_alloc_iiodev(struct st_lsm6dsvx_hw *hw,
 		sensor->uodr = st_lsm6dsvx_odr_table[id].odr_avl[1].uhz;
 		sensor->gain = st_lsm6dsvx_fs_table[id].fs_avl[1].gain;
 		break;
+	case ST_LSM6DSVX_ID_6X_GAME:
+		iio_dev->channels = st_lsm6dsvx_sflp_channels;
+		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsvx_sflp_channels);
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_gamerot", hw->settings->id.name);
+		iio_dev->info = &st_lsm6dsvx_sflp_info;
+		iio_dev->available_scan_masks = st_lsm6dsvx_available_scan_masks;
+
+		sensor->batch_reg.addr = ST_LSM6DSVX_REG_SFLP_ODR_ADDR;
+		sensor->batch_reg.mask = ST_LSM6DSVX_SFLP_GAME_ODR_MASK;
+		sensor->max_watermark = ST_LSM6DSVX_MAX_FIFO_DEPTH;
+		sensor->odr = st_lsm6dsvx_odr_table[id].odr_avl[3].hz;
+		sensor->uodr = st_lsm6dsvx_odr_table[id].odr_avl[3].uhz;
+		sensor->gain = 1;
+		break;
 	default:
 		return NULL;
 	}
@@ -982,6 +1159,11 @@ int st_lsm6dsvx_probe(struct device *dev, int irq, int hw_id,
 
 	for (i = 0; i < ARRAY_SIZE(st_lsm6dsvx_main_sensor_list); i++) {
 		enum st_lsm6dsvx_sensor_id id = st_lsm6dsvx_main_sensor_list[i];
+
+		/* don't probe if sflp not supported */
+		if (!hw->settings->st_sflp_probe &&
+		    (id == ST_LSM6DSVX_ID_6X_GAME))
+			continue;
 
 		hw->iio_devs[id] = st_lsm6dsvx_alloc_iiodev(hw, id);
 		if (!hw->iio_devs[id])

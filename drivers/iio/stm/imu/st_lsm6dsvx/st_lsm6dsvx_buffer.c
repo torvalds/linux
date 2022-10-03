@@ -32,6 +32,7 @@ enum {
 	ST_LSM6DSVX_TS_TAG = 0x04,
 	ST_LSM6DSVX_EXT0_TAG = 0x0f,
 	ST_LSM6DSVX_EXT1_TAG = 0x10,
+	ST_LSM6DSVX_GAMEROT_TAG = 0x13,
 #ifdef CONFIG_IIO_ST_LSM6DSVX_QVAR_IN_FIFO
 	ST_LSM6DSVX_QVAR_TAG = 0x1B,
 #endif /* CONFIG_IIO_ST_LSM6DSVX_QVAR_IN_FIFO */
@@ -97,8 +98,19 @@ __st_lsm6dsvx_set_sensor_batching_odr(struct st_lsm6dsvx_sensor *sensor,
 			return err;
 	}
 
-	return __st_lsm6dsvx_write_with_mask(hw, sensor->batch_reg.addr,
-					  sensor->batch_reg.mask, data);
+	if (sensor->id == ST_LSM6DSVX_ID_6X_GAME) {
+		st_lsm6dsvx_set_page_access(hw,
+			       ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK, 1);
+		err = __st_lsm6dsvx_write_with_mask(hw, sensor->batch_reg.addr,
+						    sensor->batch_reg.mask, data);
+		st_lsm6dsvx_set_page_access(hw,
+			       ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK, 0);
+	} else {
+		err = __st_lsm6dsvx_write_with_mask(hw, sensor->batch_reg.addr,
+						    sensor->batch_reg.mask, data);
+	}
+
+	return err;
 }
 
 static inline int
@@ -127,11 +139,13 @@ st_lsm6dsvx_update_watermark(struct st_lsm6dsvx_sensor *sensor,
 	int data = 0;
 	int i, err;
 
-	for (i = ST_LSM6DSVX_ID_GYRO; i < ST_LSM6DSVX_ID_MAX; i++) {
-		if (!hw->iio_devs[i])
+	for (i = 0; i < ARRAY_SIZE(st_lsm6dsvx_buffered_sensor_list); i++) {
+		enum st_lsm6dsvx_sensor_id id = st_lsm6dsvx_buffered_sensor_list[i];
+
+		if (!hw->iio_devs[id])
 			continue;
 
-		cur_sensor = iio_priv(hw->iio_devs[i]);
+		cur_sensor = iio_priv(hw->iio_devs[id]);
 
 		if (!(hw->enable_mask & BIT(cur_sensor->id)))
 			continue;
@@ -202,6 +216,9 @@ st_lsm6dsvx_get_iiodev_from_tag(struct st_lsm6dsvx_hw *hw, u8 tag)
 		break;
 #endif /* CONFIG_IIO_ST_LSM6DSVX_QVAR_IN_FIFO */
 
+	case ST_LSM6DSVX_GAMEROT_TAG:
+		iio_dev = hw->iio_devs[ST_LSM6DSVX_ID_6X_GAME];
+		break;
 	default:
 		iio_dev = NULL;
 		break;
@@ -449,37 +466,39 @@ int st_lsm6dsvx_update_fifo(struct iio_dev *iio_dev, bool enable)
 
 	disable_irq(hw->irq);
 
+	switch (sensor->id) {
+
 #ifdef CONFIG_IIO_ST_LSM6DSVX_QVAR_IN_FIFO
-	if (sensor->id == ST_LSM6DSVX_ID_QVAR) {
+	case ST_LSM6DSVX_ID_QVAR:
 		err = st_lsm6dsvx_qvar_sensor_set_enable(sensor,
 							 enable);
 		if (err < 0)
 			goto out;
-	} else {
+		break;
 #endif /* CONFIG_IIO_ST_LSM6DSVX_QVAR_IN_FIFO */
 
-		if (sensor->id == ST_LSM6DSVX_ID_EXT0 ||
-		    sensor->id == ST_LSM6DSVX_ID_EXT1) {
-			err = st_lsm6dsvx_shub_set_enable(sensor,
-							  enable);
-			if (err < 0)
-				goto out;
-		} else {
-			err = st_lsm6dsvx_sensor_set_enable(sensor,
-							    enable);
-			if (err < 0)
-				goto out;
+	case ST_LSM6DSVX_ID_EXT0:
+	case ST_LSM6DSVX_ID_EXT1:
+		err = st_lsm6dsvx_shub_set_enable(sensor, enable);
+		if (err < 0)
+			goto out;
+		break;
+	case ST_LSM6DSVX_ID_6X_GAME:
+		err = st_lsm6dsvx_sflp_set_enable(sensor, enable);
+		if (err < 0)
+			goto out;
+		break;
+	default:
+		err = st_lsm6dsvx_sensor_set_enable(sensor, enable);
+		if (err < 0)
+			goto out;
 
-			err = st_lsm6dsvx_set_sensor_batching_odr(sensor,
-								  enable);
-			if (err < 0)
-				goto out;
+		err = st_lsm6dsvx_set_sensor_batching_odr(sensor, enable);
+		if (err < 0)
+			goto out;
 
-		}
-
-#if CONFIG_IIO_ST_LSM6DSVX_QVAR_IN_FIFO
+		break;
 	}
-#endif /* CONFIG_IIO_ST_LSM6DSVX_SHUB */
 
 	err = st_lsm6dsvx_update_watermark(sensor, sensor->watermark);
 	if (err < 0)
