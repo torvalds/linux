@@ -207,7 +207,7 @@ void rxrpc_disconnect_call(struct rxrpc_call *call)
 {
 	struct rxrpc_connection *conn = call->conn;
 
-	call->peer->cong_cwnd = call->cong_cwnd;
+	call->peer->cong_ssthresh = call->cong_ssthresh;
 
 	if (!hlist_unhashed(&call->error_link)) {
 		spin_lock_bh(&call->peer->lock);

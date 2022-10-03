@@ -227,12 +227,7 @@ struct rxrpc_peer *rxrpc_alloc_peer(struct rxrpc_local *local, gfp_t gfp)
 
 		rxrpc_peer_init_rtt(peer);
 
-		if (RXRPC_TX_SMSS > 2190)
-			peer->cong_cwnd = 2;
-		else if (RXRPC_TX_SMSS > 1095)
-			peer->cong_cwnd = 3;
-		else
-			peer->cong_cwnd = 4;
+		peer->cong_ssthresh = RXRPC_TX_MAX_WINDOW;
 		trace_rxrpc_peer(peer->debug_id, rxrpc_peer_new, 1, here);
 	}
 

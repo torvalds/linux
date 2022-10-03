@@ -332,7 +332,7 @@ struct rxrpc_peer {
 	u32			rto_j;		/* Retransmission timeout in jiffies */
 	u8			backoff;	/* Backoff timeout */
 
-	u8			cong_cwnd;	/* Congestion window size */
+	u8			cong_ssthresh;	/* Congestion slow-start threshold */
 };
 
 /*
@@ -626,6 +626,7 @@ struct rxrpc_call {
 	u16			tx_backoff;	/* Delay to insert due to Tx failure */
 	u8			tx_winsize;	/* Maximum size of Tx window */
 #define RXRPC_TX_MAX_WINDOW	128
+	ktime_t			tx_last_sent;	/* Last time a transmission occurred */
 
 	/* Received data tracking */
 	struct sk_buff_head	recvmsg_queue;	/* Queue of packets ready for recvmsg() */
@@ -687,10 +688,10 @@ struct rxrpc_call {
  * Summary of a new ACK and the changes it made to the Tx buffer packet states.
  */
 struct rxrpc_ack_summary {
+	u16			nr_acks;		/* Number of ACKs in packet */
+	u16			nr_new_acks;		/* Number of new ACKs in packet */
+	u16			nr_rot_new_acks;	/* Number of rotated new ACKs */
 	u8			ack_reason;
-	u8			nr_acks;		/* Number of ACKs in packet */
-	u8			nr_new_acks;		/* Number of new ACKs in packet */
-	u8			nr_rot_new_acks;	/* Number of rotated new ACKs */
 	bool			saw_nacks;		/* Saw NACKs in packet */
 	bool			new_low_nack;		/* T if new low NACK found */
 	bool			retrans_timeo;		/* T if reTx due to timeout happened */

@@ -193,6 +193,7 @@
 	EM(rxrpc_cong_new_low_nack,		" NewLowN") \
 	EM(rxrpc_cong_no_change,		" -") \
 	EM(rxrpc_cong_progress,			" Progres") \
+	EM(rxrpc_cong_idle_reset,		" IdleRes") \
 	EM(rxrpc_cong_retransmit_again,		" ReTxAgn") \
 	EM(rxrpc_cong_rtt_window_end,		" RttWinE") \
 	E_(rxrpc_cong_saw_nack,			" SawNack")

@@ -22,10 +22,26 @@
  */
 static bool rxrpc_check_tx_space(struct rxrpc_call *call, rxrpc_seq_t *_tx_win)
 {
-	unsigned int win_size =
-		min_t(unsigned int, call->tx_winsize,
-		      call->cong_cwnd + call->cong_extra);
+	unsigned int win_size;
 	rxrpc_seq_t tx_win = smp_load_acquire(&call->acks_hard_ack);
+
+	/* If we haven't transmitted anything for >1RTT, we should reset the
+	 * congestion management state.
+	 */
+	if (ktime_before(ktime_add_us(call->tx_last_sent,
+				      call->peer->srtt_us >> 3),
+			 ktime_get_real())) {
+		if (RXRPC_TX_SMSS > 2190)
+			win_size = 2;
+		else if (RXRPC_TX_SMSS > 1095)
+			win_size = 3;
+		else
+			win_size = 4;
+		win_size += call->cong_extra;
+	} else {
+		win_size = min_t(unsigned int, call->tx_winsize,
+				 call->cong_cwnd + call->cong_extra);
+	}
 
 	if (_tx_win)
 		*_tx_win = tx_win;

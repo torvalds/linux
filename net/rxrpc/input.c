@@ -58,6 +58,25 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 	summary->cumulative_acks = cumulative_acks;
 	summary->dup_acks = call->cong_dup_acks;
 
+	/* If we haven't transmitted anything for >1RTT, we should reset the
+	 * congestion management state.
+	 */
+	if ((call->cong_mode == RXRPC_CALL_SLOW_START ||
+	     call->cong_mode == RXRPC_CALL_CONGEST_AVOIDANCE) &&
+	    ktime_before(ktime_add_us(call->tx_last_sent,
+				      call->peer->srtt_us >> 3),
+			 ktime_get_real())
+	    ) {
+		change = rxrpc_cong_idle_reset;
+		summary->mode = RXRPC_CALL_SLOW_START;
+		if (RXRPC_TX_SMSS > 2190)
+			summary->cwnd = 2;
+		else if (RXRPC_TX_SMSS > 1095)
+			summary->cwnd = 3;
+		else
+			summary->cwnd = 4;
+	}
+
 	switch (call->cong_mode) {
 	case RXRPC_CALL_SLOW_START:
 		if (summary->saw_nacks)
@@ -205,7 +224,7 @@ static bool rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to,
 
 	if (call->acks_lowest_nak == call->acks_hard_ack) {
 		call->acks_lowest_nak = to;
-	} else if (before_eq(call->acks_lowest_nak, to)) {
+	} else if (after(to, call->acks_lowest_nak)) {
 		summary->new_low_nack = true;
 		call->acks_lowest_nak = to;
 	}

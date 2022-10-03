@@ -217,7 +217,7 @@ static int rxrpc_peer_seq_show(struct seq_file *seq, void *v)
 		seq_puts(seq,
 			 "Proto Local                                          "
 			 " Remote                                         "
-			 " Use  CW   MTU LastUse      RTT      RTO\n"
+			 " Use SST   MTU LastUse      RTT      RTO\n"
 			 );
 		return 0;
 	}
@@ -235,7 +235,7 @@ static int rxrpc_peer_seq_show(struct seq_file *seq, void *v)
 		   lbuff,
 		   rbuff,
 		   refcount_read(&peer->ref),
-		   peer->cong_cwnd,
+		   peer->cong_ssthresh,
 		   peer->mtu,
 		   now - peer->last_tx_at,
 		   peer->srtt_us >> 3,

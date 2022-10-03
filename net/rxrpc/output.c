@@ -501,6 +501,7 @@ dont_set_request_ack:
 
 done:
 	if (ret >= 0) {
+		call->tx_last_sent = txb->last_sent;
 		if (txb->wire.flags & RXRPC_REQUEST_ACK) {
 			call->peer->rtt_last_req = txb->last_sent;
 			if (call->peer->rtt_count > 1) {

@@ -324,7 +324,8 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 	call->security = conn->security;
 	call->security_ix = conn->security_ix;
 	call->peer = rxrpc_get_peer(conn->params.peer);
-	call->cong_cwnd = call->peer->cong_cwnd;
+	call->cong_ssthresh = call->peer->cong_ssthresh;
+	call->tx_last_sent = ktime_get_real();
 	return call;
 }
 
