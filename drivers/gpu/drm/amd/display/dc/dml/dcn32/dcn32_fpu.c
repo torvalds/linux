@@ -121,8 +121,8 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_2_soc = {
 		},
 	},
 	.num_states = 1,
-	.sr_exit_time_us = 20.16,
-	.sr_enter_plus_exit_time_us = 27.13,
+	.sr_exit_time_us = 42.97,
+	.sr_enter_plus_exit_time_us = 49.94,
 	.sr_exit_z8_time_us = 285.0,
 	.sr_enter_plus_exit_z8_time_us = 320,
 	.writeback_latency_us = 12.0,
@@ -674,9 +674,10 @@ static bool dcn32_assign_subvp_pipe(struct dc *dc,
 		 * - Not able to switch in vactive naturally (switching in active means the
 		 *   DET provides enough buffer to hide the P-State switch latency -- trying
 		 *   to combine this with SubVP can cause issues with the scheduling).
+		 * - Not TMZ surface
 		 */
 		if (pipe->plane_state && !pipe->top_pipe &&
-				pipe->stream->mall_stream_config.type == SUBVP_NONE && refresh_rate < 120 &&
+				pipe->stream->mall_stream_config.type == SUBVP_NONE && refresh_rate < 120 && !pipe->plane_state->address.tmz_surface &&
 				vba->ActiveDRAMClockChangeLatencyMarginPerState[vba->VoltageLevel][vba->maxMpcComb][vba->pipe_plane[pipe_idx]] <= 0) {
 			while (pipe) {
 				num_pipes++;
@@ -1119,7 +1120,9 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 	    dc->debug.force_subvp_mclk_switch)) {
 
 		dcn32_merge_pipes_for_subvp(dc, context);
-		// to re-initialize viewport after the pipe merge
+		memset(merge, 0, MAX_PIPES * sizeof(bool));
+
+		/* to re-initialize viewport after the pipe merge */
 		for (i = 0; i < dc->res_pool->pipe_count; i++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
@@ -1588,6 +1591,28 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 			if (pipe->next_odm_pipe)
 				pipe->next_odm_pipe->prev_odm_pipe = pipe->prev_odm_pipe;
 
+			/*2:1ODM+MPC Split MPO to Single Pipe + MPC Split MPO*/
+			if (pipe->bottom_pipe) {
+				if (pipe->bottom_pipe->prev_odm_pipe || pipe->bottom_pipe->next_odm_pipe) {
+					/*MPC split rules will handle this case*/
+					pipe->bottom_pipe->top_pipe = NULL;
+				} else {
+					if (pipe->prev_odm_pipe->bottom_pipe) {
+						/* 3 plane MPO*/
+						pipe->bottom_pipe->top_pipe = pipe->prev_odm_pipe->bottom_pipe;
+						pipe->prev_odm_pipe->bottom_pipe->bottom_pipe = pipe->bottom_pipe;
+					} else {
+						/* 2 plane MPO*/
+						pipe->bottom_pipe->top_pipe = pipe->prev_odm_pipe;
+						pipe->prev_odm_pipe->bottom_pipe = pipe->bottom_pipe;
+					}
+				}
+			}
+
+			if (pipe->top_pipe) {
+				pipe->top_pipe->bottom_pipe = NULL;
+			}
+
 			pipe->bottom_pipe = NULL;
 			pipe->next_odm_pipe = NULL;
 			pipe->plane_state = NULL;
@@ -2017,6 +2042,45 @@ static void remove_entry_from_table_at_index(struct _vcs_dpi_voltage_scaling_st 
 		table[i] = table[i + 1];
 	}
 	memset(&table[--(*num_entries)], 0, sizeof(struct _vcs_dpi_voltage_scaling_st));
+}
+
+void dcn32_patch_dpm_table(struct clk_bw_params *bw_params)
+{
+	int i;
+	unsigned int max_dcfclk_mhz = 0, max_dispclk_mhz = 0, max_dppclk_mhz = 0,
+			max_phyclk_mhz = 0, max_dtbclk_mhz = 0, max_fclk_mhz = 0, max_uclk_mhz = 0;
+
+	for (i = 0; i < MAX_NUM_DPM_LVL; i++) {
+		if (bw_params->clk_table.entries[i].dcfclk_mhz > max_dcfclk_mhz)
+			max_dcfclk_mhz = bw_params->clk_table.entries[i].dcfclk_mhz;
+		if (bw_params->clk_table.entries[i].fclk_mhz > max_fclk_mhz)
+			max_fclk_mhz = bw_params->clk_table.entries[i].fclk_mhz;
+		if (bw_params->clk_table.entries[i].memclk_mhz > max_uclk_mhz)
+			max_uclk_mhz = bw_params->clk_table.entries[i].memclk_mhz;
+		if (bw_params->clk_table.entries[i].dispclk_mhz > max_dispclk_mhz)
+			max_dispclk_mhz = bw_params->clk_table.entries[i].dispclk_mhz;
+		if (bw_params->clk_table.entries[i].dppclk_mhz > max_dppclk_mhz)
+			max_dppclk_mhz = bw_params->clk_table.entries[i].dppclk_mhz;
+		if (bw_params->clk_table.entries[i].phyclk_mhz > max_phyclk_mhz)
+			max_phyclk_mhz = bw_params->clk_table.entries[i].phyclk_mhz;
+		if (bw_params->clk_table.entries[i].dtbclk_mhz > max_dtbclk_mhz)
+			max_dtbclk_mhz = bw_params->clk_table.entries[i].dtbclk_mhz;
+	}
+
+	/* Scan through clock values we currently have and if they are 0,
+	 *  then populate it with dcn3_2_soc.clock_limits[] value.
+	 *
+	 * Do it for DCFCLK, DISPCLK, DTBCLK and UCLK as any of those being
+	 *  0, will cause it to skip building the clock table.
+	 */
+	if (max_dcfclk_mhz == 0)
+		bw_params->clk_table.entries[0].dcfclk_mhz = dcn3_2_soc.clock_limits[0].dcfclk_mhz;
+	if (max_dispclk_mhz == 0)
+		bw_params->clk_table.entries[0].dispclk_mhz = dcn3_2_soc.clock_limits[0].dispclk_mhz;
+	if (max_dtbclk_mhz == 0)
+		bw_params->clk_table.entries[0].dtbclk_mhz = dcn3_2_soc.clock_limits[0].dtbclk_mhz;
+	if (max_uclk_mhz == 0)
+		bw_params->clk_table.entries[0].memclk_mhz = dcn3_2_soc.clock_limits[0].dram_speed_mts / 16;
 }
 
 static int build_synthetic_soc_states(struct clk_bw_params *bw_params,

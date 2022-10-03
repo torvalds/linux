@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.204"
+#define DC_VER "3.2.205"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -406,6 +406,9 @@ struct dc_config {
 	bool ignore_dpref_ss;
 	bool enable_mipi_converter_optimization;
 	bool use_default_clock_table;
+	bool force_bios_enable_lttpr;
+	uint8_t force_bios_fixed_vs;
+
 };
 
 enum visual_confirm {
@@ -832,6 +835,7 @@ struct dc_debug_options {
 	bool force_subvp_mclk_switch;
 	bool allow_sw_cursor_fallback;
 	unsigned int force_subvp_num_ways;
+	unsigned int force_mall_ss_num_ways;
 	bool alloc_extra_way_for_cursor;
 	bool force_usr_allow;
 	/* uses value at boot and disables switch */
@@ -846,6 +850,7 @@ struct dc_debug_options {
 	bool use_legacy_soc_bb_mechanism;
 	bool exit_idle_opt_for_cursor_updates;
 	bool enable_single_display_2to1_odm_policy;
+	bool enable_double_buffered_dsc_pg_support;
 	bool enable_dp_dig_pixel_rate_div_policy;
 	enum lttpr_mode lttpr_mode_override;
 };
@@ -1117,6 +1122,7 @@ union surface_update_flags {
 		uint32_t clock_change:1;
 		uint32_t stereo_format_change:1;
 		uint32_t lut_3d:1;
+		uint32_t tmz_changed:1;
 		uint32_t full_update:1;
 	} bits;
 

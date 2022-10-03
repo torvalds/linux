@@ -37,6 +37,7 @@
 #define DCN3_2_MBLK_WIDTH 128
 #define DCN3_2_MBLK_HEIGHT_4BPE 128
 #define DCN3_2_MBLK_HEIGHT_8BPE 64
+#define DCN3_2_VMIN_DISPCLK_HZ 717000000
 
 #define TO_DCN32_RES_POOL(pool)\
 	container_of(pool, struct dcn32_resource_pool, base)
