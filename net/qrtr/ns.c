@@ -396,10 +396,6 @@ static int ctrl_cmd_del_client(struct sockaddr_qrtr *from,
 	iv.iov_base = &pkt;
 	iv.iov_len = sizeof(pkt);
 
-	/* Don't accept spoofed messages */
-	if (from->sq_node != node_id)
-		return -EINVAL;
-
 	/* Local DEL_CLIENT messages comes from the port being closed */
 	if (from->sq_node == qrtr_ns.local_node && from->sq_port != port)
 		return -EINVAL;
