@@ -118,6 +118,8 @@ static ssize_t usbip_sockfd_store(struct device *dev, struct device_attribute *a
 	} else {
 		dev_info(dev, "stub down\n");
 
+		mutex_lock(&sdev->ud.sysfs_lock);
+
 		spin_lock_irq(&sdev->ud.lock);
 		if (sdev->ud.status != SDEV_ST_USED)
 			goto err;
