@@ -40,12 +40,52 @@ bool rcu_eqs_special_set(int cpu);
 void rcu_momentary_dyntick_idle(void);
 void kfree_rcu_scheduler_running(void);
 bool rcu_gp_might_be_stalled(void);
+
+struct rcu_gp_oldstate {
+	unsigned long rgos_norm;
+	unsigned long rgos_exp;
+};
+
+// Maximum number of rcu_gp_oldstate values corresponding to
+// not-yet-completed RCU grace periods.
+#define NUM_ACTIVE_RCU_POLL_FULL_OLDSTATE 4
+
+/**
+ * same_state_synchronize_rcu_full - Are two old-state values identical?
+ * @rgosp1: First old-state value.
+ * @rgosp2: Second old-state value.
+ *
+ * The two old-state values must have been obtained from either
+ * get_state_synchronize_rcu_full(), start_poll_synchronize_rcu_full(),
+ * or get_completed_synchronize_rcu_full().  Returns @true if the two
+ * values are identical and @false otherwise.  This allows structures
+ * whose lifetimes are tracked by old-state values to push these values
+ * to a list header, allowing those structures to be slightly smaller.
+ *
+ * Note that equality is judged on a bitwise basis, so that an
+ * @rcu_gp_oldstate structure with an already-completed state in one field
+ * will compare not-equal to a structure with an already-completed state
+ * in the other field.  After all, the @rcu_gp_oldstate structure is opaque
+ * so how did such a situation come to pass in the first place?
+ */
+static inline bool same_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp1,
+						   struct rcu_gp_oldstate *rgosp2)
+{
+	return rgosp1->rgos_norm == rgosp2->rgos_norm && rgosp1->rgos_exp == rgosp2->rgos_exp;
+}
+
 unsigned long start_poll_synchronize_rcu_expedited(void);
+void start_poll_synchronize_rcu_expedited_full(struct rcu_gp_oldstate *rgosp);
 void cond_synchronize_rcu_expedited(unsigned long oldstate);
+void cond_synchronize_rcu_expedited_full(struct rcu_gp_oldstate *rgosp);
 unsigned long get_state_synchronize_rcu(void);
+void get_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp);
 unsigned long start_poll_synchronize_rcu(void);
+void start_poll_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp);
 bool poll_state_synchronize_rcu(unsigned long oldstate);
+bool poll_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp);
 void cond_synchronize_rcu(unsigned long oldstate);
+void cond_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp);
 
 bool rcu_is_idle_cpu(int cpu);
 
