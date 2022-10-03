@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Ethernet Power Sourcing Equipment drivers
+#
+
+menuconfig PSE_CONTROLLER
+	bool "Ethernet Power Sourcing Equipment Support"
+	help
+	  Generic Power Sourcing Equipment Controller support.
+
+	  If unsure, say no.
