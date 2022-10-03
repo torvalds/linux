@@ -424,6 +424,57 @@ static struct aa_policy *__lookup_parent(struct aa_ns *ns,
 }
 
 /**
+ * __create_missing_ancestors - create place holders for missing ancestores
+ * @ns: namespace to lookup profile in (NOT NULL)
+ * @hname: hierarchical profile name to find parent of (NOT NULL)
+ * @gfp: type of allocation.
+ *
+ * Returns: NULL on error, parent profile on success
+ *
+ * Requires: ns mutex lock held
+ *
+ * Returns: unrefcounted parent policy or NULL if error creating
+ *          place holder profiles.
+ */
+static struct aa_policy *__create_missing_ancestors(struct aa_ns *ns,
+						    const char *hname,
+						    gfp_t gfp)
+{
+	struct aa_policy *policy;
+	struct aa_profile *parent, *profile = NULL;
+	char *split;
+
+	AA_BUG(!ns);
+	AA_BUG(!hname);
+
+	policy = &ns->base;
+
+	for (split = strstr(hname, "//"); split;) {
+		parent = profile;
+		profile = __strn_find_child(&policy->profiles, hname,
+					    split - hname);
+		if (!profile) {
+			const char *name = kstrndup(hname, split - hname,
+						    gfp);
+			if (!name)
+				return NULL;
+			profile = aa_alloc_null(parent, name, gfp);
+			kfree(name);
+			if (!profile)
+				return NULL;
+			if (!parent)
+				profile->ns = aa_get_ns(ns);
+		}
+		policy = &profile->base;
+		hname = split + 2;
+		split = strstr(hname, "//");
+	}
+	if (!profile)
+		return &ns->base;
+	return &profile->base;
+}
+
+/**
  * __lookupn_profile - lookup the profile matching @hname
  * @base: base list to start looking up profile name from  (NOT NULL)
  * @hname: hierarchical profile name  (NOT NULL)
@@ -1032,6 +1083,7 @@ ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_label *label,
 	/* setup parent and ns info */
 	list_for_each_entry(ent, &lh, list) {
 		struct aa_policy *policy;
+		struct aa_profile *p;
 
 		if (aa_g_export_binary)
 			ent->new->rawdata = aa_get_loaddata(udata);
@@ -1056,21 +1108,38 @@ ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_label *label,
 			continue;
 
 		/* no ref on policy only use inside lock */
+		p = NULL;
 		policy = __lookup_parent(ns, ent->new->base.hname);
 		if (!policy) {
-			struct aa_profile *p;
+			/* first check for parent in the load set */
 			p = __list_lookup_parent(&lh, ent->new);
 			if (!p) {
-				error = -ENOENT;
-				info = "parent does not exist";
-				goto fail_lock;
+				/*
+				 * fill in missing parent with null
+				 * profile that doesn't have
+				 * permissions. This allows for
+				 * individual profile loading where
+				 * the child is loaded before the
+				 * parent, and outside of the current
+				 * atomic set. This unfortunately can
+				 * happen with some userspaces.  The
+				 * null profile will be replaced once
+				 * the parent is loaded.
+				 */
+				policy = __create_missing_ancestors(ns,
+							ent->new->base.hname,
+							GFP_KERNEL);
+				if (!policy) {
+					error = -ENOENT;
+					info = "parent does not exist";
+					goto fail_lock;
+				}
 			}
-			rcu_assign_pointer(ent->new->parent, aa_get_profile(p));
-		} else if (policy != &ns->base) {
-			/* released on profile replacement or free_profile */
-			struct aa_profile *p = (struct aa_profile *) policy;
-			rcu_assign_pointer(ent->new->parent, aa_get_profile(p));
 		}
+		if (!p && policy != &ns->base)
+			/* released on profile replacement or free_profile */
+			p = (struct aa_profile *) policy;
+		rcu_assign_pointer(ent->new->parent, aa_get_profile(p));
 	}
 
 	/* create new fs entries for introspection if needed */
