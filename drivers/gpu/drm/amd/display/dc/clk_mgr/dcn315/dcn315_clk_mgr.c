@@ -41,12 +41,18 @@
 
 #include "dc_dmub_srv.h"
 
-#if defined (CONFIG_DRM_AMD_DC_DP2_0)
+#include "logger_types.h"
+#undef DC_LOGGER
+#define DC_LOGGER \
+	clk_mgr->base.base.ctx->logger
+
 #include "dc_link_dp.h"
-#endif
 
 #define TO_CLK_MGR_DCN315(clk_mgr)\
 	container_of(clk_mgr, struct clk_mgr_dcn315, base)
+
+#define UNSUPPORTED_DCFCLK 10000000
+#define MIN_DPP_DISP_CLK     100000
 
 static int dcn315_get_active_display_cnt_wa(
 		struct dc *dc,
@@ -81,7 +87,7 @@ static int dcn315_get_active_display_cnt_wa(
 	return display_count;
 }
 
-static void dcn315_disable_otg_wa(struct clk_mgr *clk_mgr_base, bool disable)
+static void dcn315_disable_otg_wa(struct clk_mgr *clk_mgr_base, struct dc_state *context, bool disable)
 {
 	struct dc *dc = clk_mgr_base->ctx->dc;
 	int i;
@@ -91,10 +97,12 @@ static void dcn315_disable_otg_wa(struct clk_mgr *clk_mgr_base, bool disable)
 
 		if (pipe->top_pipe || pipe->prev_odm_pipe)
 			continue;
-		if (pipe->stream && (pipe->stream->dpms_off || dc_is_virtual_signal(pipe->stream->signal))) {
-			if (disable)
+		if (pipe->stream && (pipe->stream->dpms_off || pipe->plane_state == NULL ||
+				     dc_is_virtual_signal(pipe->stream->signal))) {
+			if (disable) {
 				pipe->stream_res.tg->funcs->immediate_disable_crtc(pipe->stream_res.tg);
-			else
+				reset_sync_context_for_pipe(dc, context, i);
+			} else
 				pipe->stream_res.tg->funcs->enable_crtc(pipe->stream_res.tg);
 		}
 	}
@@ -147,6 +155,9 @@ static void dcn315_update_clocks(struct clk_mgr *clk_mgr_base,
 		}
 	}
 
+	/* Lock pstate by requesting unsupported dcfclk if change is unsupported */
+	if (!new_clocks->p_state_change_support)
+		new_clocks->dcfclk_khz = UNSUPPORTED_DCFCLK;
 	if (should_set_clock(safe_to_lower, new_clocks->dcfclk_khz, clk_mgr_base->clks.dcfclk_khz)) {
 		clk_mgr_base->clks.dcfclk_khz = new_clocks->dcfclk_khz;
 		dcn315_smu_set_hard_min_dcfclk(clk_mgr, clk_mgr_base->clks.dcfclk_khz);
@@ -160,10 +171,10 @@ static void dcn315_update_clocks(struct clk_mgr *clk_mgr_base,
 
 	// workaround: Limit dppclk to 100Mhz to avoid lower eDP panel switch to plus 4K monitor underflow.
 	if (!IS_DIAG_DC(dc->ctx->dce_environment)) {
-		if (new_clocks->dppclk_khz < 100000)
-			new_clocks->dppclk_khz = 100000;
-		if (new_clocks->dispclk_khz < 100000)
-			new_clocks->dispclk_khz = 100000;
+		if (new_clocks->dppclk_khz < MIN_DPP_DISP_CLK)
+			new_clocks->dppclk_khz = MIN_DPP_DISP_CLK;
+		if (new_clocks->dispclk_khz < MIN_DPP_DISP_CLK)
+			new_clocks->dispclk_khz = MIN_DPP_DISP_CLK;
 	}
 
 	if (should_set_clock(safe_to_lower, new_clocks->dppclk_khz, clk_mgr->base.clks.dppclk_khz)) {
@@ -174,11 +185,14 @@ static void dcn315_update_clocks(struct clk_mgr *clk_mgr_base,
 	}
 
 	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, clk_mgr_base->clks.dispclk_khz)) {
-		dcn315_disable_otg_wa(clk_mgr_base, true);
+		/* No need to apply the w/a if we haven't taken over from bios yet */
+		if (clk_mgr_base->clks.dispclk_khz)
+			dcn315_disable_otg_wa(clk_mgr_base, context, true);
 
 		clk_mgr_base->clks.dispclk_khz = new_clocks->dispclk_khz;
 		dcn315_smu_set_dispclk(clk_mgr, clk_mgr_base->clks.dispclk_khz);
-		dcn315_disable_otg_wa(clk_mgr_base, false);
+		if (clk_mgr_base->clks.dispclk_khz)
+			dcn315_disable_otg_wa(clk_mgr_base, context, false);
 
 		update_dispclk = true;
 	}
@@ -219,8 +233,50 @@ static void dcn315_dump_clk_registers(struct clk_state_registers_and_bypass *reg
 
 static struct clk_bw_params dcn315_bw_params = {
 	.vram_type = Ddr4MemType,
-	.num_channels = 1,
+	.num_channels = 2,
 	.clk_table = {
+		.entries = {
+			{
+				.voltage = 0,
+				.dispclk_mhz = 640,
+				.dppclk_mhz = 640,
+				.phyclk_mhz = 810,
+				.phyclk_d18_mhz = 667,
+				.dtbclk_mhz = 600,
+			},
+			{
+				.voltage = 1,
+				.dispclk_mhz = 739,
+				.dppclk_mhz = 739,
+				.phyclk_mhz = 810,
+				.phyclk_d18_mhz = 667,
+				.dtbclk_mhz = 600,
+			},
+			{
+				.voltage = 2,
+				.dispclk_mhz = 960,
+				.dppclk_mhz = 960,
+				.phyclk_mhz = 810,
+				.phyclk_d18_mhz = 667,
+				.dtbclk_mhz = 600,
+			},
+			{
+				.voltage = 3,
+				.dispclk_mhz = 1200,
+				.dppclk_mhz = 1200,
+				.phyclk_mhz = 810,
+				.phyclk_d18_mhz = 667,
+				.dtbclk_mhz = 600,
+			},
+			{
+				.voltage = 4,
+				.dispclk_mhz = 1372,
+				.dppclk_mhz = 1372,
+				.phyclk_mhz = 810,
+				.phyclk_d18_mhz = 667,
+				.dtbclk_mhz = 600,
+			},
+		},
 		.num_entries = 5,
 	},
 
@@ -231,7 +287,7 @@ static struct wm_table ddr5_wm_table = {
 		{
 			.wm_inst = WM_A,
 			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 64.0,
+			.pstate_latency_us = 129.0,
 			.sr_exit_time_us = 11.5,
 			.sr_enter_plus_exit_time_us = 14.5,
 			.valid = true,
@@ -239,7 +295,7 @@ static struct wm_table ddr5_wm_table = {
 		{
 			.wm_inst = WM_B,
 			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 64.0,
+			.pstate_latency_us = 129.0,
 			.sr_exit_time_us = 11.5,
 			.sr_enter_plus_exit_time_us = 14.5,
 			.valid = true,
@@ -247,7 +303,7 @@ static struct wm_table ddr5_wm_table = {
 		{
 			.wm_inst = WM_C,
 			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 64.0,
+			.pstate_latency_us = 129.0,
 			.sr_exit_time_us = 11.5,
 			.sr_enter_plus_exit_time_us = 14.5,
 			.valid = true,
@@ -255,7 +311,7 @@ static struct wm_table ddr5_wm_table = {
 		{
 			.wm_inst = WM_D,
 			.wm_type = WM_TYPE_PSTATE_CHG,
-			.pstate_latency_us = 64.0,
+			.pstate_latency_us = 129.0,
 			.sr_exit_time_us = 11.5,
 			.sr_enter_plus_exit_time_us = 14.5,
 			.valid = true,
@@ -300,8 +356,8 @@ static struct wm_table lpddr5_wm_table = {
 	}
 };
 
-static DpmClocks_315_t dummy_clocks;
-
+/* Temporary Place holder until we can get them from fuse */
+static DpmClocks_315_t dummy_clocks = { 0 };
 static struct dcn315_watermarks dummy_wms = { 0 };
 
 static void dcn315_build_watermark_ranges(struct clk_bw_params *bw_params, struct dcn315_watermarks *table)
@@ -415,22 +471,6 @@ static uint32_t find_max_clk_value(const uint32_t clocks[], uint32_t num_clocks)
 	return max;
 }
 
-static unsigned int find_clk_for_voltage(
-		const DpmClocks_315_t *clock_table,
-		const uint32_t clocks[],
-		unsigned int voltage)
-{
-	int i;
-
-	for (i = 0; i < NUM_SOC_VOLTAGE_LEVELS; i++) {
-		if (clock_table->SocVoltage[i] == voltage)
-			return clocks[i];
-	}
-
-	ASSERT(0);
-	return 0;
-}
-
 static void dcn315_clk_mgr_helper_populate_bw_params(
 		struct clk_mgr_internal *clk_mgr,
 		struct integrated_info *bios_info,
@@ -438,12 +478,8 @@ static void dcn315_clk_mgr_helper_populate_bw_params(
 {
 	int i;
 	struct clk_bw_params *bw_params = clk_mgr->base.bw_params;
-	uint32_t max_dispclk, max_dppclk, max_pstate, max_socclk, max_fclk = 0, min_pstate = 0;
+	uint32_t max_pstate = 0, max_fclk = 0, min_pstate = 0;
 	struct clk_limit_table_entry def_max = bw_params->clk_table.entries[bw_params->clk_table.num_entries - 1];
-
-	max_dispclk = find_max_clk_value(clock_table->DispClocks, clock_table->NumDispClkLevelsEnabled);
-	max_dppclk = find_max_clk_value(clock_table->DppClocks, clock_table->NumDispClkLevelsEnabled);
-	max_socclk = find_max_clk_value(clock_table->SocClocks, clock_table->NumSocClkLevelsEnabled);
 
 	/* Find highest fclk pstate */
 	for (i = 0; i < clock_table->NumDfPstatesEnabled; i++) {
@@ -466,35 +502,44 @@ static void dcn315_clk_mgr_helper_populate_bw_params(
 			}
 		}
 
+		/* First search defaults for the clocks we don't read using closest lower or equal default dcfclk */
+		for (j = bw_params->clk_table.num_entries - 1; j > 0; j--)
+			if (bw_params->clk_table.entries[j].dcfclk_mhz <= clock_table->DcfClocks[i])
+				break;
+		bw_params->clk_table.entries[i].phyclk_mhz = bw_params->clk_table.entries[j].phyclk_mhz;
+		bw_params->clk_table.entries[i].phyclk_d18_mhz = bw_params->clk_table.entries[j].phyclk_d18_mhz;
+		bw_params->clk_table.entries[i].dtbclk_mhz = bw_params->clk_table.entries[j].dtbclk_mhz;
+
+		/* Now update clocks we do read */
 		bw_params->clk_table.entries[i].fclk_mhz = min_fclk;
 		bw_params->clk_table.entries[i].memclk_mhz = clock_table->DfPstateTable[min_pstate].MemClk;
 		bw_params->clk_table.entries[i].voltage = clock_table->DfPstateTable[min_pstate].Voltage;
 		bw_params->clk_table.entries[i].dcfclk_mhz = clock_table->DcfClocks[i];
 		bw_params->clk_table.entries[i].socclk_mhz = clock_table->SocClocks[i];
-		bw_params->clk_table.entries[i].dispclk_mhz = max_dispclk;
-		bw_params->clk_table.entries[i].dppclk_mhz = max_dppclk;
+		bw_params->clk_table.entries[i].dispclk_mhz = clock_table->DispClocks[i];
+		bw_params->clk_table.entries[i].dppclk_mhz = clock_table->DppClocks[i];
 		bw_params->clk_table.entries[i].wck_ratio = 1;
-	};
+	}
 
 	/* Make sure to include at least one entry and highest pstate */
-	if (max_pstate != min_pstate) {
+	if (max_pstate != min_pstate || i == 0) {
 		bw_params->clk_table.entries[i].fclk_mhz = max_fclk;
 		bw_params->clk_table.entries[i].memclk_mhz = clock_table->DfPstateTable[max_pstate].MemClk;
 		bw_params->clk_table.entries[i].voltage = clock_table->DfPstateTable[max_pstate].Voltage;
-		bw_params->clk_table.entries[i].dcfclk_mhz = find_clk_for_voltage(
-				clock_table, clock_table->DcfClocks, clock_table->DfPstateTable[max_pstate].Voltage);
-		bw_params->clk_table.entries[i].socclk_mhz = find_clk_for_voltage(
-				clock_table, clock_table->SocClocks, clock_table->DfPstateTable[max_pstate].Voltage);
-		bw_params->clk_table.entries[i].dispclk_mhz = max_dispclk;
-		bw_params->clk_table.entries[i].dppclk_mhz = max_dppclk;
+		bw_params->clk_table.entries[i].dcfclk_mhz = find_max_clk_value(clock_table->DcfClocks, NUM_DCFCLK_DPM_LEVELS);
 		bw_params->clk_table.entries[i].wck_ratio = 1;
 		i++;
 	}
-	bw_params->clk_table.num_entries = i;
+	bw_params->clk_table.num_entries = i--;
 
-	/* Include highest socclk */
-	if (bw_params->clk_table.entries[i-1].socclk_mhz < max_socclk)
-		bw_params->clk_table.entries[i-1].socclk_mhz = max_socclk;
+	/* Make sure all highest clocks are included*/
+	bw_params->clk_table.entries[i].socclk_mhz = find_max_clk_value(clock_table->SocClocks, NUM_SOCCLK_DPM_LEVELS);
+	bw_params->clk_table.entries[i].dispclk_mhz = find_max_clk_value(clock_table->DispClocks, NUM_DISPCLK_DPM_LEVELS);
+	bw_params->clk_table.entries[i].dppclk_mhz = find_max_clk_value(clock_table->DppClocks, NUM_DPPCLK_DPM_LEVELS);
+	ASSERT(clock_table->DcfClocks[i] == find_max_clk_value(clock_table->DcfClocks, NUM_DCFCLK_DPM_LEVELS));
+	bw_params->clk_table.entries[i].phyclk_mhz = def_max.phyclk_mhz;
+	bw_params->clk_table.entries[i].phyclk_d18_mhz = def_max.phyclk_d18_mhz;
+	bw_params->clk_table.entries[i].dtbclk_mhz = def_max.dtbclk_mhz;
 
 	/* Set any 0 clocks to max default setting. Not an issue for
 	 * power since we aren't doing switching in such case anyway
@@ -513,9 +558,17 @@ static void dcn315_clk_mgr_helper_populate_bw_params(
 			bw_params->clk_table.entries[i].dispclk_mhz = def_max.dispclk_mhz;
 		if (!bw_params->clk_table.entries[i].dppclk_mhz)
 			bw_params->clk_table.entries[i].dppclk_mhz = def_max.dppclk_mhz;
+		if (!bw_params->clk_table.entries[i].phyclk_mhz)
+			bw_params->clk_table.entries[i].phyclk_mhz = def_max.phyclk_mhz;
+		if (!bw_params->clk_table.entries[i].phyclk_d18_mhz)
+			bw_params->clk_table.entries[i].phyclk_d18_mhz = def_max.phyclk_d18_mhz;
+		if (!bw_params->clk_table.entries[i].dtbclk_mhz)
+			bw_params->clk_table.entries[i].dtbclk_mhz = def_max.dtbclk_mhz;
 	}
+	ASSERT(bw_params->clk_table.entries[i-1].dcfclk_mhz);
 	bw_params->vram_type = bios_info->memory_type;
 	bw_params->num_channels = bios_info->ma_channel_number;
+	bw_params->dram_channel_width_bytes = bios_info->memory_type == 0x22 ? 8 : 4;
 
 	for (i = 0; i < WM_SET_COUNT; i++) {
 		bw_params->wm_table.entries[i].wm_inst = i;
@@ -539,6 +592,7 @@ static void dcn315_enable_pme_wa(struct clk_mgr *clk_mgr_base)
 
 static struct clk_mgr_funcs dcn315_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
+	.get_dtb_ref_clk_frequency = dcn31_get_dtb_ref_freq_khz,
 	.update_clocks = dcn315_update_clocks,
 	.init_clocks = dcn31_init_clocks,
 	.enable_pme_wa = dcn315_enable_pme_wa,
@@ -609,20 +663,62 @@ void dcn315_clk_mgr_construct(
 			dcn315_bw_params.wm_table = ddr5_wm_table;
 		}
 		/* Saved clocks configured at boot for debug purposes */
-		 dcn315_dump_clk_registers(&clk_mgr->base.base.boot_snapshot, &clk_mgr->base.base, &log_info);
+		dcn315_dump_clk_registers(&clk_mgr->base.base.boot_snapshot,
+					  &clk_mgr->base.base, &log_info);
 
 	}
 
 	clk_mgr->base.base.dprefclk_khz = 600000;
 	clk_mgr->base.base.dprefclk_khz = dcn315_smu_get_dpref_clk(&clk_mgr->base);
-	clk_mgr->base.dccg->ref_dtbclk_khz = clk_mgr->base.base.dprefclk_khz;
+	clk_mgr->base.base.clks.ref_dtbclk_khz = clk_mgr->base.base.dprefclk_khz;
 	dce_clock_read_ss_info(&clk_mgr->base);
-	clk_mgr->base.dccg->ref_dtbclk_khz = dce_adjust_dp_ref_freq_for_ss(&clk_mgr->base, clk_mgr->base.base.dprefclk_khz);
+	clk_mgr->base.base.clks.ref_dtbclk_khz = dce_adjust_dp_ref_freq_for_ss(&clk_mgr->base, clk_mgr->base.base.dprefclk_khz);
 
 	clk_mgr->base.base.bw_params = &dcn315_bw_params;
 
 	if (clk_mgr->base.base.ctx->dc->debug.pstate_enabled) {
+		int i;
+
 		dcn315_get_dpm_table_from_smu(&clk_mgr->base, &smu_dpm_clks);
+		DC_LOG_SMU("NumDcfClkLevelsEnabled: %d\n"
+				   "NumDispClkLevelsEnabled: %d\n"
+				   "NumSocClkLevelsEnabled: %d\n"
+				   "VcnClkLevelsEnabled: %d\n"
+				   "NumDfPst atesEnabled: %d\n"
+				   "MinGfxClk: %d\n"
+				   "MaxGfxClk: %d\n",
+				   smu_dpm_clks.dpm_clks->NumDcfClkLevelsEnabled,
+				   smu_dpm_clks.dpm_clks->NumDispClkLevelsEnabled,
+				   smu_dpm_clks.dpm_clks->NumSocClkLevelsEnabled,
+				   smu_dpm_clks.dpm_clks->VcnClkLevelsEnabled,
+				   smu_dpm_clks.dpm_clks->NumDfPstatesEnabled,
+				   smu_dpm_clks.dpm_clks->MinGfxClk,
+				   smu_dpm_clks.dpm_clks->MaxGfxClk);
+		for (i = 0; i < smu_dpm_clks.dpm_clks->NumDcfClkLevelsEnabled; i++) {
+			DC_LOG_SMU("smu_dpm_clks.dpm_clks->DcfClocks[%d] = %d\n",
+					   i,
+					   smu_dpm_clks.dpm_clks->DcfClocks[i]);
+		}
+		for (i = 0; i < smu_dpm_clks.dpm_clks->NumDispClkLevelsEnabled; i++) {
+			DC_LOG_SMU("smu_dpm_clks.dpm_clks->DispClocks[%d] = %d\n",
+					   i, smu_dpm_clks.dpm_clks->DispClocks[i]);
+		}
+		for (i = 0; i < smu_dpm_clks.dpm_clks->NumSocClkLevelsEnabled; i++) {
+			DC_LOG_SMU("smu_dpm_clks.dpm_clks->SocClocks[%d] = %d\n",
+					   i, smu_dpm_clks.dpm_clks->SocClocks[i]);
+		}
+		for (i = 0; i < NUM_SOC_VOLTAGE_LEVELS; i++)
+			DC_LOG_SMU("smu_dpm_clks.dpm_clks->SocVoltage[%d] = %d\n",
+					   i, smu_dpm_clks.dpm_clks->SocVoltage[i]);
+
+		for (i = 0; i < NUM_DF_PSTATE_LEVELS; i++) {
+			DC_LOG_SMU("smu_dpm_clks.dpm_clks.DfPstateTable[%d].FClk = %d\n"
+					   "smu_dpm_clks.dpm_clks->DfPstateTable[%d].MemClk= %d\n"
+					   "smu_dpm_clks.dpm_clks->DfPstateTable[%d].Voltage = %d\n",
+					   i, smu_dpm_clks.dpm_clks->DfPstateTable[i].FClk,
+					   i, smu_dpm_clks.dpm_clks->DfPstateTable[i].MemClk,
+					   i, smu_dpm_clks.dpm_clks->DfPstateTable[i].Voltage);
+		}
 
 		if (ctx->dc_bios && ctx->dc_bios->integrated_info) {
 			dcn315_clk_mgr_helper_populate_bw_params(

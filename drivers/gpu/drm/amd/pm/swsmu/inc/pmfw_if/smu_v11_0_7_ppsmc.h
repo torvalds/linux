@@ -137,7 +137,7 @@
 #define PPSMC_MSG_DisallowGpo                    0x56
 
 #define PPSMC_MSG_Enable2ndUSB20Port             0x57
-
-#define PPSMC_Message_Count                      0x58
+#define PPSMC_MSG_DriverMode2Reset               0x5D
+#define PPSMC_Message_Count                      0x5E
 
 #endif

@@ -1430,7 +1430,6 @@ static int e100_phy_check_without_mii(struct nic *nic)
 #define MII_NSC_CONG		MII_RESV1
 #define NSC_CONG_ENABLE		0x0100
 #define NSC_CONG_TXREADY	0x0400
-#define ADVERTISE_FC_SUPPORTED	0x0400
 static int e100_phy_init(struct nic *nic)
 {
 	struct net_device *netdev = nic->netdev;
@@ -2848,7 +2847,7 @@ static int e100_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
 
 	nic = netdev_priv(netdev);
-	netif_napi_add(netdev, &nic->napi, e100_poll, E100_NAPI_WEIGHT);
+	netif_napi_add_weight(netdev, &nic->napi, e100_poll, E100_NAPI_WEIGHT);
 	nic->netdev = netdev;
 	nic->pdev = pdev;
 	nic->msg_enable = (1 << debug) - 1;

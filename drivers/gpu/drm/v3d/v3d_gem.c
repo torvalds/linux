@@ -6,7 +6,6 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/sched/signal.h>
 #include <linux/uaccess.h>
@@ -314,7 +313,7 @@ v3d_lookup_bos(struct drm_device *dev,
 	}
 
 	job->bo = kvmalloc_array(job->bo_count,
-				 sizeof(struct drm_gem_cma_object *),
+				 sizeof(struct drm_gem_dma_object *),
 				 GFP_KERNEL | __GFP_ZERO);
 	if (!job->bo) {
 		DRM_DEBUG("Failed to allocate validated BO pointers\n");
@@ -371,9 +370,6 @@ v3d_job_free(struct kref *ref)
 
 	dma_fence_put(job->irq_fence);
 	dma_fence_put(job->done_fence);
-
-	pm_runtime_mark_last_busy(job->v3d->drm.dev);
-	pm_runtime_put_autosuspend(job->v3d->drm.dev);
 
 	if (job->perfmon)
 		v3d_perfmon_put(job->perfmon);
@@ -476,14 +472,10 @@ v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
 	job->v3d = v3d;
 	job->free = free;
 
-	ret = pm_runtime_get_sync(v3d->drm.dev);
-	if (ret < 0)
-		goto fail;
-
 	ret = drm_sched_job_init(&job->base, &v3d_priv->sched_entity[queue],
 				 v3d_priv);
 	if (ret)
-		goto fail_job;
+		goto fail;
 
 	if (has_multisync) {
 		if (se->in_sync_count && se->wait_stage == queue) {
@@ -514,8 +506,6 @@ v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
 
 fail_deps:
 	drm_sched_job_cleanup(&job->base);
-fail_job:
-	pm_runtime_put_autosuspend(v3d->drm.dev);
 fail:
 	kfree(*container);
 	*container = NULL;
@@ -1102,7 +1092,7 @@ v3d_gem_init(struct drm_device *dev)
 	if (!v3d->pt) {
 		drm_mm_takedown(&v3d->mm);
 		dev_err(v3d->drm.dev,
-			"Failed to allocate page tables. Please ensure you have CMA enabled.\n");
+			"Failed to allocate page tables. Please ensure you have DMA enabled.\n");
 		return -ENOMEM;
 	}
 

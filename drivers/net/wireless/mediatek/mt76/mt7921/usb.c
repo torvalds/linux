@@ -102,9 +102,16 @@ mt7921u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	u32 pad, ep;
 	int ret;
 
-	ret = mt7921_mcu_fill_message(mdev, skb, cmd, seq);
+	ret = mt76_connac2_mcu_fill_message(mdev, skb, cmd, seq);
 	if (ret)
 		return ret;
+
+	if (cmd == MCU_UNI_CMD(HIF_CTRL) ||
+	    cmd == MCU_UNI_CMD(SUSPEND) ||
+	    cmd == MCU_UNI_CMD(OFFLOAD))
+		mdev->mcu.timeout = HZ;
+	else
+		mdev->mcu.timeout = 3 * HZ;
 
 	if (cmd != MCU_CMD(FW_SCATTER))
 		ep = MT_EP_OUT_INBAND_CMD;
@@ -125,7 +132,8 @@ mt7921u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 static int mt7921u_mcu_init(struct mt7921_dev *dev)
 {
 	static const struct mt76_mcu_ops mcu_ops = {
-		.headroom = MT_SDIO_HDR_SIZE + sizeof(struct mt7921_mcu_txd),
+		.headroom = MT_SDIO_HDR_SIZE +
+			    sizeof(struct mt76_connac2_mcu_txd),
 		.tailroom = MT_USB_TAIL_SIZE,
 		.mcu_skb_send_msg = mt7921u_mcu_send_message,
 		.mcu_parse_response = mt7921_mcu_parse_response,
@@ -158,7 +166,7 @@ static void mt7921u_cleanup(struct mt7921_dev *dev)
 {
 	clear_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 	mt7921u_wfsys_reset(dev);
-	mt7921_mcu_exit(dev);
+	skb_queue_purge(&dev->mt76.mcu.res_q);
 	mt76u_queues_deinit(&dev->mt76);
 }
 
@@ -246,7 +254,7 @@ static int mt7921u_probe(struct usb_interface *usb_intf,
 	if (ret)
 		goto error;
 
-	ret = mt7921u_dma_init(dev);
+	ret = mt7921u_dma_init(dev, false);
 	if (ret)
 		return ret;
 
@@ -288,6 +296,61 @@ static void mt7921u_disconnect(struct usb_interface *usb_intf)
 	mt76_free_device(&dev->mt76);
 }
 
+#ifdef CONFIG_PM
+static int mt7921u_suspend(struct usb_interface *intf, pm_message_t state)
+{
+	struct mt7921_dev *dev = usb_get_intfdata(intf);
+	int err;
+
+	err = mt76_connac_mcu_set_hif_suspend(&dev->mt76, true);
+	if (err)
+		return err;
+
+	mt76u_stop_rx(&dev->mt76);
+	mt76u_stop_tx(&dev->mt76);
+
+	set_bit(MT76_STATE_SUSPEND, &dev->mphy.state);
+
+	return 0;
+}
+
+static int mt7921u_resume(struct usb_interface *intf)
+{
+	struct mt7921_dev *dev = usb_get_intfdata(intf);
+	bool reinit = true;
+	int err, i;
+
+	for (i = 0; i < 10; i++) {
+		u32 val = mt76_rr(dev, MT_WF_SW_DEF_CR_USB_MCU_EVENT);
+
+		if (!(val & MT_WF_SW_SER_TRIGGER_SUSPEND)) {
+			reinit = false;
+			break;
+		}
+		if (val & MT_WF_SW_SER_DONE_SUSPEND) {
+			mt76_wr(dev, MT_WF_SW_DEF_CR_USB_MCU_EVENT, 0);
+			break;
+		}
+
+		msleep(20);
+	}
+
+	if (reinit || mt7921_dma_need_reinit(dev)) {
+		err = mt7921u_dma_init(dev, true);
+		if (err)
+			return err;
+	}
+
+	clear_bit(MT76_STATE_SUSPEND, &dev->mphy.state);
+
+	err = mt76u_resume_rx(&dev->mt76);
+	if (err < 0)
+		return err;
+
+	return mt76_connac_mcu_set_hif_suspend(&dev->mt76, false);
+}
+#endif /* CONFIG_PM */
+
 MODULE_DEVICE_TABLE(usb, mt7921u_device_table);
 MODULE_FIRMWARE(MT7921_FIRMWARE_WM);
 MODULE_FIRMWARE(MT7921_ROM_PATCH);
@@ -297,6 +360,11 @@ static struct usb_driver mt7921u_driver = {
 	.id_table	= mt7921u_device_table,
 	.probe		= mt7921u_probe,
 	.disconnect	= mt7921u_disconnect,
+#ifdef CONFIG_PM
+	.suspend	= mt7921u_suspend,
+	.resume		= mt7921u_resume,
+	.reset_resume	= mt7921u_resume,
+#endif /* CONFIG_PM */
 	.soft_unbind	= 1,
 	.disable_hub_initiated_lpm = 1,
 };

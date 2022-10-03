@@ -13,6 +13,7 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/ethtool.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -345,9 +346,6 @@ static int ifi_canfd_do_rx_poll(struct net_device *ndev, int quota)
 		rxst = readl(priv->base + IFI_CANFD_RXSTCMD);
 	}
 
-	if (pkts)
-		can_led_event(ndev, CAN_LED_EVENT_RX);
-
 	return pkts;
 }
 
@@ -495,7 +493,7 @@ static int ifi_canfd_handle_state_change(struct net_device *ndev,
 	switch (new_state) {
 	case CAN_STATE_ERROR_WARNING:
 		/* error warning state */
-		cf->can_id |= CAN_ERR_CRTL;
+		cf->can_id |= CAN_ERR_CRTL | CAN_ERR_CNT;
 		cf->data[1] = (bec.txerr > bec.rxerr) ?
 			CAN_ERR_CRTL_TX_WARNING :
 			CAN_ERR_CRTL_RX_WARNING;
@@ -504,7 +502,7 @@ static int ifi_canfd_handle_state_change(struct net_device *ndev,
 		break;
 	case CAN_STATE_ERROR_PASSIVE:
 		/* error passive state */
-		cf->can_id |= CAN_ERR_CRTL;
+		cf->can_id |= CAN_ERR_CRTL | CAN_ERR_CNT;
 		cf->data[1] |= CAN_ERR_CRTL_RX_PASSIVE;
 		if (bec.txerr > 127)
 			cf->data[1] |= CAN_ERR_CRTL_TX_PASSIVE;
@@ -626,7 +624,6 @@ static irqreturn_t ifi_canfd_isr(int irq, void *dev_id)
 	if (isr & IFI_CANFD_INTERRUPT_TXFIFO_REMOVE) {
 		stats->tx_bytes += can_get_echo_skb(ndev, 0, NULL);
 		stats->tx_packets++;
-		can_led_event(ndev, CAN_LED_EVENT_TX);
 	}
 
 	if (isr & tx_irq_mask)
@@ -830,7 +827,6 @@ static int ifi_canfd_open(struct net_device *ndev)
 
 	ifi_canfd_start(ndev);
 
-	can_led_event(ndev, CAN_LED_EVENT_OPEN);
 	napi_enable(&priv->napi);
 	netif_start_queue(ndev);
 
@@ -852,8 +848,6 @@ static int ifi_canfd_close(struct net_device *ndev)
 	free_irq(ndev->irq, ndev);
 
 	close_candev(ndev);
-
-	can_led_event(ndev, CAN_LED_EVENT_STOP);
 
 	return 0;
 }
@@ -932,6 +926,10 @@ static const struct net_device_ops ifi_canfd_netdev_ops = {
 	.ndo_change_mtu	= can_change_mtu,
 };
 
+static const struct ethtool_ops ifi_canfd_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 static int ifi_canfd_plat_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -969,6 +967,7 @@ static int ifi_canfd_plat_probe(struct platform_device *pdev)
 	ndev->irq = irq;
 	ndev->flags |= IFF_ECHO;	/* we support local echo */
 	ndev->netdev_ops = &ifi_canfd_netdev_ops;
+	ndev->ethtool_ops = &ifi_canfd_ethtool_ops;
 
 	priv = netdev_priv(ndev);
 	priv->ndev = ndev;
@@ -1003,8 +1002,6 @@ static int ifi_canfd_plat_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to register (ret=%d)\n", ret);
 		goto err_reg;
 	}
-
-	devm_can_led_init(ndev);
 
 	dev_info(dev, "Driver registered: regs=%p, irq=%d, clock=%d\n",
 		 priv->base, ndev->irq, priv->can.clock.freq);

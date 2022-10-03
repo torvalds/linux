@@ -8,7 +8,6 @@
 
 #define MT7530_NUM_PORTS		7
 #define MT7530_NUM_PHYS			5
-#define MT7530_CPU_PORT			6
 #define MT7530_NUM_FDB_RECORDS		2048
 #define MT7530_ALL_MEMBERS		0xff
 
@@ -741,6 +740,12 @@ static const char *p5_intf_modes(unsigned int p5_interface)
 
 struct mt7530_priv;
 
+struct mt753x_pcs {
+	struct phylink_pcs pcs;
+	struct mt7530_priv *priv;
+	int port;
+};
+
 /* struct mt753x_info -	This is the main data structure for holding the specific
  *			part for each supported device
  * @sw_setup:		Holding the handler to a device initialization
@@ -752,36 +757,27 @@ struct mt7530_priv;
  *			port
  * @mac_port_validate:	Holding the way to set addition validate type for a
  *			certan MAC port
- * @mac_port_get_state: Holding the way getting the MAC/PCS state for a certain
- *			MAC port
  * @mac_port_config:	Holding the way setting up the PHY attribute to a
  *			certain MAC port
- * @mac_pcs_an_restart	Holding the way restarting PCS autonegotiation for a
- *			certain MAC port
- * @mac_pcs_link_up:	Holding the way setting up the PHY attribute to the pcs
- *			of the certain MAC port
  */
 struct mt753x_info {
 	enum mt753x_id id;
+
+	const struct phylink_pcs_ops *pcs_ops;
 
 	int (*sw_setup)(struct dsa_switch *ds);
 	int (*phy_read)(struct mt7530_priv *priv, int port, int regnum);
 	int (*phy_write)(struct mt7530_priv *priv, int port, int regnum, u16 val);
 	int (*pad_setup)(struct dsa_switch *ds, phy_interface_t interface);
 	int (*cpu_port_config)(struct dsa_switch *ds, int port);
-	bool (*phy_mode_supported)(struct dsa_switch *ds, int port,
-				   const struct phylink_link_state *state);
+	void (*mac_port_get_caps)(struct dsa_switch *ds, int port,
+				  struct phylink_config *config);
 	void (*mac_port_validate)(struct dsa_switch *ds, int port,
+				  phy_interface_t interface,
 				  unsigned long *supported);
-	int (*mac_port_get_state)(struct dsa_switch *ds, int port,
-				  struct phylink_link_state *state);
 	int (*mac_port_config)(struct dsa_switch *ds, int port,
 			       unsigned int mode,
 			       phy_interface_t interface);
-	void (*mac_pcs_an_restart)(struct dsa_switch *ds, int port);
-	void (*mac_pcs_link_up)(struct dsa_switch *ds, int port,
-				unsigned int mode, phy_interface_t interface,
-				int speed, int duplex);
 };
 
 /* struct mt7530_priv -	This is the main data structure for holding the state
@@ -823,6 +819,7 @@ struct mt7530_priv {
 	u8			mirror_tx;
 
 	struct mt7530_port	ports[MT7530_NUM_PORTS];
+	struct mt753x_pcs	pcs[MT7530_NUM_PORTS];
 	/* protect among processes for registers access*/
 	struct mutex reg_mutex;
 	int irq;

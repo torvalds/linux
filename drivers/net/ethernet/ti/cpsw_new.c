@@ -273,7 +273,7 @@ static void cpsw_ndo_set_rx_mode(struct net_device *ndev)
 
 static unsigned int cpsw_rxbuf_total_len(unsigned int len)
 {
-	len += CPSW_HEADROOM;
+	len += CPSW_HEADROOM_NA;
 	len += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
 	return SKB_DATA_ALIGN(len);
@@ -449,11 +449,9 @@ static int cpsw_ndo_vlan_rx_add_vid(struct net_device *ndev,
 	if (vid == cpsw->data.default_vlan)
 		return 0;
 
-	ret = pm_runtime_get_sync(cpsw->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(cpsw->dev);
+	ret = pm_runtime_resume_and_get(cpsw->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	/* In dual EMAC, reserved VLAN id should not be used for
 	 * creating VLAN interfaces as this can break the dual
@@ -498,6 +496,8 @@ static void cpsw_restore(struct cpsw_priv *priv)
 
 	/* restore CBS offload */
 	cpsw_cbs_resume(&cpsw->slaves[priv->emac_port - 1], priv);
+
+	cpsw_qos_clsflower_resume(priv);
 }
 
 static void cpsw_init_stp_ale_entry(struct cpsw_common *cpsw)
@@ -829,11 +829,9 @@ static int cpsw_ndo_open(struct net_device *ndev)
 
 	dev_info(priv->dev, "starting ndev. mode: %s\n",
 		 cpsw_is_switch_en(cpsw) ? "switch" : "dual_mac");
-	ret = pm_runtime_get_sync(cpsw->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(cpsw->dev);
+	ret = pm_runtime_resume_and_get(cpsw->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	/* Notify the stack of the actual queue counts. */
 	ret = netif_set_real_num_tx_queues(ndev, cpsw->tx_ch_num);
@@ -985,11 +983,9 @@ static int cpsw_ndo_set_mac_address(struct net_device *ndev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	ret = pm_runtime_get_sync(cpsw->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(cpsw->dev);
+	ret = pm_runtime_resume_and_get(cpsw->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	vid = cpsw->slaves[slave_no].port_vlan;
 	flags = ALE_VLAN | ALE_SECURE;
@@ -1024,11 +1020,9 @@ static int cpsw_ndo_vlan_rx_kill_vid(struct net_device *ndev,
 	if (vid == cpsw->data.default_vlan)
 		return 0;
 
-	ret = pm_runtime_get_sync(cpsw->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(cpsw->dev);
+	ret = pm_runtime_resume_and_get(cpsw->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	/* reset the return code as pm_runtime_get_sync() can return
 	 * non zero values as well.
@@ -1246,8 +1240,10 @@ static int cpsw_probe_dt(struct cpsw_common *cpsw)
 	data->slave_data = devm_kcalloc(dev, CPSW_SLAVE_PORTS_NUM,
 					sizeof(struct cpsw_slave_data),
 					GFP_KERNEL);
-	if (!data->slave_data)
+	if (!data->slave_data) {
+		of_node_put(tmp_node);
 		return -ENOMEM;
+	}
 
 	/* Populate all the child nodes here...
 	 */
@@ -1341,6 +1337,7 @@ static int cpsw_probe_dt(struct cpsw_common *cpsw)
 
 err_node_put:
 	of_node_put(port_np);
+	of_node_put(tmp_node);
 	return ret;
 }
 
@@ -1407,7 +1404,7 @@ static int cpsw_create_ports(struct cpsw_common *cpsw)
 		cpsw->slaves[i].ndev = ndev;
 
 		ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER |
-				  NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_NETNS_LOCAL;
+				  NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_NETNS_LOCAL | NETIF_F_HW_TC;
 
 		ndev->netdev_ops = &cpsw_netdev_ops;
 		ndev->ethtool_ops = &cpsw_ethtool_ops;
@@ -1422,11 +1419,10 @@ static int cpsw_create_ports(struct cpsw_common *cpsw)
 			netif_napi_add(ndev, &cpsw->napi_rx,
 				       cpsw->quirk_irq ?
 				       cpsw_rx_poll : cpsw_rx_mq_poll,
-				       CPSW_POLL_WEIGHT);
-			netif_tx_napi_add(ndev, &cpsw->napi_tx,
+				       NAPI_POLL_WEIGHT);
+			netif_napi_add_tx(ndev, &cpsw->napi_tx,
 					  cpsw->quirk_irq ?
-					  cpsw_tx_poll : cpsw_tx_mq_poll,
-					  CPSW_POLL_WEIGHT);
+					  cpsw_tx_poll : cpsw_tx_mq_poll);
 		}
 
 		napi_ndev = ndev;
@@ -1918,9 +1914,8 @@ static int cpsw_probe(struct platform_device *pdev)
 	/* Need to enable clocks with runtime PM api to access module
 	 * registers
 	 */
-	ret = pm_runtime_get_sync(dev);
+	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
 		pm_runtime_disable(dev);
 		return ret;
 	}
@@ -2045,11 +2040,9 @@ static int cpsw_remove(struct platform_device *pdev)
 	struct cpsw_common *cpsw = platform_get_drvdata(pdev);
 	int ret;
 
-	ret = pm_runtime_get_sync(&pdev->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(&pdev->dev);
+	ret = pm_runtime_resume_and_get(&pdev->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	cpsw_unregister_notifiers(cpsw);
 	cpsw_unregister_devlink(cpsw);

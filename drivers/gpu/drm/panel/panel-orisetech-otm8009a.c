@@ -497,14 +497,12 @@ static int otm8009a_probe(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static int otm8009a_remove(struct mipi_dsi_device *dsi)
+static void otm8009a_remove(struct mipi_dsi_device *dsi)
 {
 	struct otm8009a *ctx = mipi_dsi_get_drvdata(dsi);
 
 	mipi_dsi_detach(dsi);
 	drm_panel_remove(&ctx->panel);
-
-	return 0;
 }
 
 static const struct of_device_id orisetech_otm8009a_of_match[] = {

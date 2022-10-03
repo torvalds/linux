@@ -104,7 +104,16 @@ static int mlx5_devlink_reload_fw_activate(struct devlink *devlink, struct netli
 	if (err)
 		return err;
 
-	return mlx5_fw_reset_wait_reset_done(dev);
+	err = mlx5_fw_reset_wait_reset_done(dev);
+	if (err)
+		return err;
+
+	mlx5_unload_one_devl_locked(dev);
+	err = mlx5_health_wait_pci_up(dev);
+	if (err)
+		NL_SET_ERR_MSG_MOD(extack, "FW activate aborted, PCI reads fail after reset");
+
+	return err;
 }
 
 static int mlx5_devlink_trigger_fw_live_patch(struct devlink *devlink,
@@ -134,6 +143,7 @@ static int mlx5_devlink_reload_down(struct devlink *devlink, bool netns_change,
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	struct pci_dev *pdev = dev->pdev;
 	bool sf_dev_allocated;
+	int ret = 0;
 
 	sf_dev_allocated = mlx5_sf_dev_allocated(dev);
 	if (sf_dev_allocated) {
@@ -156,17 +166,21 @@ static int mlx5_devlink_reload_down(struct devlink *devlink, bool netns_change,
 
 	switch (action) {
 	case DEVLINK_RELOAD_ACTION_DRIVER_REINIT:
-		mlx5_unload_one(dev);
-		return 0;
+		mlx5_unload_one_devl_locked(dev);
+		break;
 	case DEVLINK_RELOAD_ACTION_FW_ACTIVATE:
 		if (limit == DEVLINK_RELOAD_LIMIT_NO_RESET)
-			return mlx5_devlink_trigger_fw_live_patch(devlink, extack);
-		return mlx5_devlink_reload_fw_activate(devlink, extack);
+			ret = mlx5_devlink_trigger_fw_live_patch(devlink, extack);
+		else
+			ret = mlx5_devlink_reload_fw_activate(devlink, extack);
+		break;
 	default:
 		/* Unsupported action should not get to this function */
 		WARN_ON(1);
-		return -EOPNOTSUPP;
+		ret = -EOPNOTSUPP;
 	}
+
+	return ret;
 }
 
 static int mlx5_devlink_reload_up(struct devlink *devlink, enum devlink_reload_action action,
@@ -174,24 +188,27 @@ static int mlx5_devlink_reload_up(struct devlink *devlink, enum devlink_reload_a
 				  struct netlink_ext_ack *extack)
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
+	int ret = 0;
 
 	*actions_performed = BIT(action);
 	switch (action) {
 	case DEVLINK_RELOAD_ACTION_DRIVER_REINIT:
-		return mlx5_load_one(dev);
+		ret = mlx5_load_one_devl_locked(dev, false);
+		break;
 	case DEVLINK_RELOAD_ACTION_FW_ACTIVATE:
 		if (limit == DEVLINK_RELOAD_LIMIT_NO_RESET)
 			break;
 		/* On fw_activate action, also driver is reloaded and reinit performed */
 		*actions_performed |= BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT);
-		return mlx5_load_one(dev);
+		ret = mlx5_load_one_devl_locked(dev, false);
+		break;
 	default:
 		/* Unsupported action should not get to this function */
 		WARN_ON(1);
-		return -EOPNOTSUPP;
+		ret = -EOPNOTSUPP;
 	}
 
-	return 0;
+	return ret;
 }
 
 static struct mlx5_devlink_trap *mlx5_find_trap_by_id(struct mlx5_core_dev *dev, int trap_id)
@@ -584,14 +601,6 @@ static void mlx5_devlink_set_params_init_values(struct devlink *devlink)
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	union devlink_param_value value;
 
-	if (dev->priv.steering->mode == MLX5_FLOW_STEERING_MODE_DMFS)
-		strcpy(value.vstr, "dmfs");
-	else
-		strcpy(value.vstr, "smfs");
-	devlink_param_driverinit_value_set(devlink,
-					   MLX5_DEVLINK_PARAM_ID_FLOW_STEERING_MODE,
-					   value);
-
 	value.vbool = MLX5_CAP_GEN(dev, roce);
 	devlink_param_driverinit_value_set(devlink,
 					   DEVLINK_PARAM_GENERIC_ID_ENABLE_ROCE,
@@ -602,18 +611,6 @@ static void mlx5_devlink_set_params_init_values(struct devlink *devlink)
 	devlink_param_driverinit_value_set(devlink,
 					   MLX5_DEVLINK_PARAM_ID_ESW_LARGE_GROUP_NUM,
 					   value);
-
-	if (MLX5_ESWITCH_MANAGER(dev)) {
-		if (mlx5_esw_vport_match_metadata_supported(dev->priv.eswitch)) {
-			dev->priv.eswitch->flags |= MLX5_ESWITCH_VPORT_MATCH_METADATA;
-			value.vbool = true;
-		} else {
-			value.vbool = false;
-		}
-		devlink_param_driverinit_value_set(devlink,
-						   MLX5_DEVLINK_PARAM_ID_ESW_PORT_METADATA,
-						   value);
-	}
 #endif
 
 	value.vu32 = MLX5_COMP_EQ_SIZE;
@@ -848,28 +845,28 @@ static int mlx5_devlink_traps_register(struct devlink *devlink)
 	struct mlx5_core_dev *core_dev = devlink_priv(devlink);
 	int err;
 
-	err = devlink_trap_groups_register(devlink, mlx5_trap_groups_arr,
-					   ARRAY_SIZE(mlx5_trap_groups_arr));
+	err = devl_trap_groups_register(devlink, mlx5_trap_groups_arr,
+					ARRAY_SIZE(mlx5_trap_groups_arr));
 	if (err)
 		return err;
 
-	err = devlink_traps_register(devlink, mlx5_traps_arr, ARRAY_SIZE(mlx5_traps_arr),
-				     &core_dev->priv);
+	err = devl_traps_register(devlink, mlx5_traps_arr, ARRAY_SIZE(mlx5_traps_arr),
+				  &core_dev->priv);
 	if (err)
 		goto err_trap_group;
 	return 0;
 
 err_trap_group:
-	devlink_trap_groups_unregister(devlink, mlx5_trap_groups_arr,
-				       ARRAY_SIZE(mlx5_trap_groups_arr));
+	devl_trap_groups_unregister(devlink, mlx5_trap_groups_arr,
+				    ARRAY_SIZE(mlx5_trap_groups_arr));
 	return err;
 }
 
 static void mlx5_devlink_traps_unregister(struct devlink *devlink)
 {
-	devlink_traps_unregister(devlink, mlx5_traps_arr, ARRAY_SIZE(mlx5_traps_arr));
-	devlink_trap_groups_unregister(devlink, mlx5_trap_groups_arr,
-				       ARRAY_SIZE(mlx5_trap_groups_arr));
+	devl_traps_unregister(devlink, mlx5_traps_arr, ARRAY_SIZE(mlx5_traps_arr));
+	devl_trap_groups_unregister(devlink, mlx5_trap_groups_arr,
+				    ARRAY_SIZE(mlx5_trap_groups_arr));
 }
 
 int mlx5_devlink_register(struct devlink *devlink)

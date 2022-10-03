@@ -342,7 +342,7 @@ void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
 	} else if (mac->opmode == NL80211_IFTYPE_AP ||
 		mac->opmode == NL80211_IFTYPE_ADHOC) {
 		if (sta)
-			bw_40 = sta->bandwidth >= IEEE80211_STA_RX_BW_40;
+			bw_40 = sta->deflink.bandwidth >= IEEE80211_STA_RX_BW_40;
 	}
 
 	seq_number = (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4;

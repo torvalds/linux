@@ -1,15 +1,5 @@
-/*
- * Copyright (C) 2014 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0-only
+// Copyright (C) 2014 Broadcom Corporation
 
 #include <linux/bitops.h>
 #include <linux/clk.h>
@@ -183,8 +173,7 @@ static void bcm_kp_stop(const struct bcm_kp *kp)
 	writel(0xFFFFFFFF, kp->base + KPICR0_OFFSET);
 	writel(0xFFFFFFFF, kp->base + KPICR1_OFFSET);
 
-	if (kp->clk)
-		clk_disable_unprepare(kp->clk);
+	clk_disable_unprepare(kp->clk);
 }
 
 static int bcm_kp_open(struct input_dev *dev)

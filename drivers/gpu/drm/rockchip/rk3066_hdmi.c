@@ -4,6 +4,7 @@
  *    Zheng Yang <zhengyang@rock-chips.com>
  */
 
+#include <drm/drm_edid.h>
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
@@ -22,7 +23,6 @@
 
 struct hdmi_data_info {
 	int vic; /* The CEA Video ID (VIC) of the current drm display mode. */
-	bool sink_is_hdmi;
 	unsigned int enc_out_format;
 	unsigned int colorimetry;
 };
@@ -47,7 +47,7 @@ struct rk3066_hdmi {
 	void __iomem *regs;
 
 	struct drm_connector connector;
-	struct drm_encoder encoder;
+	struct rockchip_encoder encoder;
 
 	struct rk3066_hdmi_i2c *i2c;
 	struct i2c_adapter *ddc;
@@ -58,7 +58,17 @@ struct rk3066_hdmi {
 	struct drm_display_mode previous_mode;
 };
 
-#define to_rk3066_hdmi(x) container_of(x, struct rk3066_hdmi, x)
+static struct rk3066_hdmi *encoder_to_rk3066_hdmi(struct drm_encoder *encoder)
+{
+	struct rockchip_encoder *rkencoder = to_rockchip_encoder(encoder);
+
+	return container_of(rkencoder, struct rk3066_hdmi, encoder);
+}
+
+static struct rk3066_hdmi *connector_to_rk3066_hdmi(struct drm_connector *connector)
+{
+	return container_of(connector, struct rk3066_hdmi, connector);
+}
 
 static inline u8 hdmi_readb(struct rk3066_hdmi *hdmi, u16 offset)
 {
@@ -317,6 +327,8 @@ static void rk3066_hdmi_config_phy(struct rk3066_hdmi *hdmi)
 static int rk3066_hdmi_setup(struct rk3066_hdmi *hdmi,
 			     struct drm_display_mode *mode)
 {
+	struct drm_display_info *display = &hdmi->connector.display_info;
+
 	hdmi->hdmi_data.vic = drm_match_cea_mode(mode);
 	hdmi->hdmi_data.enc_out_format = HDMI_COLORSPACE_RGB;
 
@@ -349,7 +361,7 @@ static int rk3066_hdmi_setup(struct rk3066_hdmi *hdmi,
 
 	rk3066_hdmi_config_video_timing(hdmi, mode);
 
-	if (hdmi->hdmi_data.sink_is_hdmi) {
+	if (display->is_hdmi) {
 		hdmi_modb(hdmi, HDMI_HDCP_CTRL, HDMI_VIDEO_MODE_MASK,
 			  HDMI_VIDEO_MODE_HDMI);
 		rk3066_hdmi_config_avi(hdmi, mode);
@@ -380,7 +392,7 @@ rk3066_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 			     struct drm_display_mode *mode,
 			     struct drm_display_mode *adj_mode)
 {
-	struct rk3066_hdmi *hdmi = to_rk3066_hdmi(encoder);
+	struct rk3066_hdmi *hdmi = encoder_to_rk3066_hdmi(encoder);
 
 	/* Store the display mode for plugin/DPMS poweron events. */
 	memcpy(&hdmi->previous_mode, adj_mode, sizeof(hdmi->previous_mode));
@@ -388,7 +400,7 @@ rk3066_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 
 static void rk3066_hdmi_encoder_enable(struct drm_encoder *encoder)
 {
-	struct rk3066_hdmi *hdmi = to_rk3066_hdmi(encoder);
+	struct rk3066_hdmi *hdmi = encoder_to_rk3066_hdmi(encoder);
 	int mux, val;
 
 	mux = drm_of_encoder_active_endpoint_id(hdmi->dev->of_node, encoder);
@@ -407,7 +419,7 @@ static void rk3066_hdmi_encoder_enable(struct drm_encoder *encoder)
 
 static void rk3066_hdmi_encoder_disable(struct drm_encoder *encoder)
 {
-	struct rk3066_hdmi *hdmi = to_rk3066_hdmi(encoder);
+	struct rk3066_hdmi *hdmi = encoder_to_rk3066_hdmi(encoder);
 
 	DRM_DEV_DEBUG(hdmi->dev, "hdmi encoder disable\n");
 
@@ -455,7 +467,7 @@ struct drm_encoder_helper_funcs rk3066_hdmi_encoder_helper_funcs = {
 static enum drm_connector_status
 rk3066_hdmi_connector_detect(struct drm_connector *connector, bool force)
 {
-	struct rk3066_hdmi *hdmi = to_rk3066_hdmi(connector);
+	struct rk3066_hdmi *hdmi = connector_to_rk3066_hdmi(connector);
 
 	return (hdmi_readb(hdmi, HDMI_HPG_MENS_STA) & HDMI_HPG_IN_STATUS_HIGH) ?
 		connector_status_connected : connector_status_disconnected;
@@ -463,7 +475,7 @@ rk3066_hdmi_connector_detect(struct drm_connector *connector, bool force)
 
 static int rk3066_hdmi_connector_get_modes(struct drm_connector *connector)
 {
-	struct rk3066_hdmi *hdmi = to_rk3066_hdmi(connector);
+	struct rk3066_hdmi *hdmi = connector_to_rk3066_hdmi(connector);
 	struct edid *edid;
 	int ret = 0;
 
@@ -472,7 +484,6 @@ static int rk3066_hdmi_connector_get_modes(struct drm_connector *connector)
 
 	edid = drm_get_edid(connector, hdmi->ddc);
 	if (edid) {
-		hdmi->hdmi_data.sink_is_hdmi = drm_detect_hdmi_monitor(edid);
 		drm_connector_update_edid_property(connector, edid);
 		ret = drm_add_edid_modes(connector, edid);
 		kfree(edid);
@@ -496,9 +507,9 @@ rk3066_hdmi_connector_mode_valid(struct drm_connector *connector,
 static struct drm_encoder *
 rk3066_hdmi_connector_best_encoder(struct drm_connector *connector)
 {
-	struct rk3066_hdmi *hdmi = to_rk3066_hdmi(connector);
+	struct rk3066_hdmi *hdmi = connector_to_rk3066_hdmi(connector);
 
-	return &hdmi->encoder;
+	return &hdmi->encoder.encoder;
 }
 
 static int
@@ -538,7 +549,7 @@ struct drm_connector_helper_funcs rk3066_hdmi_connector_helper_funcs = {
 static int
 rk3066_hdmi_register(struct drm_device *drm, struct rk3066_hdmi *hdmi)
 {
-	struct drm_encoder *encoder = &hdmi->encoder;
+	struct drm_encoder *encoder = &hdmi->encoder.encoder;
 	struct device *dev = hdmi->dev;
 
 	encoder->possible_crtcs =
@@ -816,7 +827,7 @@ static int rk3066_hdmi_bind(struct device *dev, struct device *master,
 
 err_cleanup_hdmi:
 	hdmi->connector.funcs->destroy(&hdmi->connector);
-	hdmi->encoder.funcs->destroy(&hdmi->encoder);
+	hdmi->encoder.encoder.funcs->destroy(&hdmi->encoder.encoder);
 err_disable_i2c:
 	i2c_put_adapter(hdmi->ddc);
 err_disable_hclk:
@@ -831,7 +842,7 @@ static void rk3066_hdmi_unbind(struct device *dev, struct device *master,
 	struct rk3066_hdmi *hdmi = dev_get_drvdata(dev);
 
 	hdmi->connector.funcs->destroy(&hdmi->connector);
-	hdmi->encoder.funcs->destroy(&hdmi->encoder);
+	hdmi->encoder.encoder.funcs->destroy(&hdmi->encoder.encoder);
 
 	i2c_put_adapter(hdmi->ddc);
 	clk_disable_unprepare(hdmi->hclk);

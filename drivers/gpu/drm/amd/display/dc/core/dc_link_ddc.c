@@ -23,8 +23,6 @@
  *
  */
 
-#include <linux/slab.h>
-
 #include "dm_services.h"
 #include "dm_helpers.h"
 #include "gpio_service_interface.h"
@@ -95,16 +93,13 @@ union hdmi_scdc_update_read_data {
 };
 
 union hdmi_scdc_status_flags_data {
-	uint8_t byte[2];
+	uint8_t byte;
 	struct {
 		uint8_t CLOCK_DETECTED:1;
 		uint8_t CH0_LOCKED:1;
 		uint8_t CH1_LOCKED:1;
 		uint8_t CH2_LOCKED:1;
 		uint8_t RESERVED:4;
-		uint8_t RESERVED2:8;
-		uint8_t RESERVED3:8;
-
 	} fields;
 };
 
@@ -543,15 +538,9 @@ bool dal_ddc_service_query_ddc_data(
 
 	uint32_t payloads_num = write_payloads + read_payloads;
 
-
-	if (write_size > EDID_SEGMENT_SIZE || read_size > EDID_SEGMENT_SIZE)
-		return false;
-
 	if (!payloads_num)
 		return false;
 
-	/*TODO: len of payload data for i2c and aux is uint8!!!!,
-	 *  but we want to read 256 over i2c!!!!*/
 	if (dal_ddc_service_is_in_aux_transaction_mode(ddc)) {
 		struct aux_payload payload;
 
@@ -778,7 +767,7 @@ void dal_ddc_service_read_scdc_data(struct ddc_service *ddc_service)
 				sizeof(scramble_status));
 		offset = HDMI_SCDC_STATUS_FLAGS;
 		dal_ddc_service_query_ddc_data(ddc_service, slave_address,
-				&offset, sizeof(offset), status_data.byte,
+				&offset, sizeof(offset), &status_data.byte,
 				sizeof(status_data.byte));
 	}
 }

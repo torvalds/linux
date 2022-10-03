@@ -53,6 +53,8 @@ struct phylink_link_state;
 #define DSA_TAG_PROTO_SJA1110_VALUE		23
 #define DSA_TAG_PROTO_RTL8_4_VALUE		24
 #define DSA_TAG_PROTO_RTL8_4T_VALUE		25
+#define DSA_TAG_PROTO_RZN1_A5PSW_VALUE		26
+#define DSA_TAG_PROTO_LAN937X_VALUE		27
 
 enum dsa_tag_protocol {
 	DSA_TAG_PROTO_NONE		= DSA_TAG_PROTO_NONE_VALUE,
@@ -81,6 +83,8 @@ enum dsa_tag_protocol {
 	DSA_TAG_PROTO_SJA1110		= DSA_TAG_PROTO_SJA1110_VALUE,
 	DSA_TAG_PROTO_RTL8_4		= DSA_TAG_PROTO_RTL8_4_VALUE,
 	DSA_TAG_PROTO_RTL8_4T		= DSA_TAG_PROTO_RTL8_4T_VALUE,
+	DSA_TAG_PROTO_RZN1_A5PSW	= DSA_TAG_PROTO_RZN1_A5PSW_VALUE,
+	DSA_TAG_PROTO_LAN937X		= DSA_TAG_PROTO_LAN937X_VALUE,
 };
 
 struct dsa_switch;
@@ -579,6 +583,10 @@ static inline bool dsa_is_user_port(struct dsa_switch *ds, int p)
 	dsa_switch_for_each_port((_dp), (_ds)) \
 		if (dsa_port_is_cpu((_dp)))
 
+#define dsa_switch_for_each_cpu_port_continue_reverse(_dp, _ds) \
+	dsa_switch_for_each_port_continue_reverse((_dp), (_ds)) \
+		if (dsa_port_is_cpu((_dp)))
+
 static inline u32 dsa_user_ports(struct dsa_switch *ds)
 {
 	struct dsa_port *dp;
@@ -586,6 +594,17 @@ static inline u32 dsa_user_ports(struct dsa_switch *ds)
 
 	dsa_switch_for_each_user_port(dp, ds)
 		mask |= BIT(dp->index);
+
+	return mask;
+}
+
+static inline u32 dsa_cpu_ports(struct dsa_switch *ds)
+{
+	struct dsa_port *cpu_dp;
+	u32 mask = 0;
+
+	dsa_switch_for_each_cpu_port(cpu_dp, ds)
+		mask |= BIT(cpu_dp->index);
 
 	return mask;
 }
@@ -792,7 +811,7 @@ struct dsa_switch_ops {
 	enum dsa_tag_protocol (*get_tag_protocol)(struct dsa_switch *ds,
 						  int port,
 						  enum dsa_tag_protocol mprot);
-	int	(*change_tag_protocol)(struct dsa_switch *ds, int port,
+	int	(*change_tag_protocol)(struct dsa_switch *ds,
 				       enum dsa_tag_protocol proto);
 	/*
 	 * Method for switch drivers to connect to the tagging protocol driver
@@ -873,8 +892,13 @@ struct dsa_switch_ops {
 				     struct ethtool_eth_mac_stats *mac_stats);
 	void	(*get_eth_ctrl_stats)(struct dsa_switch *ds, int port,
 				      struct ethtool_eth_ctrl_stats *ctrl_stats);
+	void	(*get_rmon_stats)(struct dsa_switch *ds, int port,
+				  struct ethtool_rmon_stats *rmon_stats,
+				  const struct ethtool_rmon_hist_range **ranges);
 	void	(*get_stats64)(struct dsa_switch *ds, int port,
 				   struct rtnl_link_stats64 *s);
+	void	(*get_pause_stats)(struct dsa_switch *ds, int port,
+				   struct ethtool_pause_stats *pause_stats);
 	void	(*self_test)(struct dsa_switch *ds, int port,
 			     struct ethtool_test *etest, u64 *data);
 
@@ -967,6 +991,8 @@ struct dsa_switch_ops {
 	int	(*port_bridge_flags)(struct dsa_switch *ds, int port,
 				     struct switchdev_brport_flags flags,
 				     struct netlink_ext_ack *extack);
+	void	(*port_set_host_flood)(struct dsa_switch *ds, int port,
+				       bool uc, bool mc);
 
 	/*
 	 * VLAN support
@@ -1239,12 +1265,6 @@ struct dsa_switch_driver {
 
 struct net_device *dsa_dev_to_net_device(struct device *dev);
 
-typedef int dsa_fdb_walk_cb_t(struct dsa_switch *ds, int port,
-			      const unsigned char *addr, u16 vid,
-			      struct dsa_db db);
-
-int dsa_port_walk_fdbs(struct dsa_switch *ds, int port, dsa_fdb_walk_cb_t cb);
-int dsa_port_walk_mdbs(struct dsa_switch *ds, int port, dsa_fdb_walk_cb_t cb);
 bool dsa_fdb_present_in_other_db(struct dsa_switch *ds, int port,
 				 const unsigned char *addr, u16 vid,
 				 struct dsa_db db);

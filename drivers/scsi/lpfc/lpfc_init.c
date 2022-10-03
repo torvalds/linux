@@ -350,8 +350,7 @@ lpfc_dump_wakeup_param_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 void
 lpfc_update_vport_wwn(struct lpfc_vport *vport)
 {
-	uint8_t vvvl = vport->fc_sparam.cmn.valid_vendor_ver_level;
-	u32 *fawwpn_key = (u32 *)&vport->fc_sparam.un.vendorVersion[0];
+	struct lpfc_hba *phba = vport->phba;
 
 	/*
 	 * If the name is empty or there exists a soft name
@@ -370,21 +369,35 @@ lpfc_update_vport_wwn(struct lpfc_vport *vport)
 	 */
 	if (vport->fc_portname.u.wwn[0] != 0 &&
 		memcmp(&vport->fc_portname, &vport->fc_sparam.portName,
-			sizeof(struct lpfc_name)))
+		       sizeof(struct lpfc_name))) {
 		vport->vport_flag |= FAWWPN_PARAM_CHG;
 
-	if (vport->fc_portname.u.wwn[0] == 0 ||
-	    (vvvl == 1 && cpu_to_be32(*fawwpn_key) == FAPWWN_KEY_VENDOR) ||
-	    vport->vport_flag & FAWWPN_SET) {
-		memcpy(&vport->fc_portname, &vport->fc_sparam.portName,
-			sizeof(struct lpfc_name));
-		vport->vport_flag &= ~FAWWPN_SET;
-		if (vvvl == 1 && cpu_to_be32(*fawwpn_key) == FAPWWN_KEY_VENDOR)
-			vport->vport_flag |= FAWWPN_SET;
+		if (phba->sli_rev == LPFC_SLI_REV4 &&
+		    vport->port_type == LPFC_PHYSICAL_PORT &&
+		    phba->sli4_hba.fawwpn_flag & LPFC_FAWWPN_FABRIC) {
+			if (!(phba->sli4_hba.fawwpn_flag & LPFC_FAWWPN_CONFIG))
+				phba->sli4_hba.fawwpn_flag &=
+						~LPFC_FAWWPN_FABRIC;
+			lpfc_printf_log(phba, KERN_INFO,
+					LOG_SLI | LOG_DISCOVERY | LOG_ELS,
+					"2701 FA-PWWN change WWPN from %llx to "
+					"%llx: vflag x%x fawwpn_flag x%x\n",
+					wwn_to_u64(vport->fc_portname.u.wwn),
+					wwn_to_u64
+					   (vport->fc_sparam.portName.u.wwn),
+					vport->vport_flag,
+					phba->sli4_hba.fawwpn_flag);
+			memcpy(&vport->fc_portname, &vport->fc_sparam.portName,
+			       sizeof(struct lpfc_name));
+		}
 	}
+
+	if (vport->fc_portname.u.wwn[0] == 0)
+		memcpy(&vport->fc_portname, &vport->fc_sparam.portName,
+		       sizeof(struct lpfc_name));
 	else
 		memcpy(&vport->fc_sparam.portName, &vport->fc_portname,
-			sizeof(struct lpfc_name));
+		       sizeof(struct lpfc_name));
 }
 
 /**
@@ -443,15 +456,16 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 				"READ_SPARM mbxStatus x%x\n",
 				mb->mbxCommand, mb->mbxStatus);
 		phba->link_state = LPFC_HBA_ERROR;
-		mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
-		mempool_free(pmb, phba->mbox_mem_pool);
-		lpfc_mbuf_free(phba, mp->virt, mp->phys);
-		kfree(mp);
+		lpfc_mbox_rsrc_cleanup(phba, pmb, MBOX_THD_UNLOCKED);
 		return -EIO;
 	}
 
 	mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
 
+	/* This dmabuf was allocated by lpfc_read_sparam. The dmabuf is no
+	 * longer needed.  Prevent unintended ctx_buf access as the mbox is
+	 * reused.
+	 */
 	memcpy(&vport->fc_sparam, mp->virt, sizeof (struct serv_parm));
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
@@ -686,8 +700,14 @@ lpfc_sli4_refresh_params(struct lpfc_hba *phba)
 		return rc;
 	}
 	mbx_sli4_parameters = &mqe->un.get_sli4_parameters.sli4_parameters;
-	phba->sli4_hba.pc_sli4_params.mi_ver =
+
+	/* Are we forcing MI off via module parameter? */
+	if (phba->cfg_enable_mi)
+		phba->sli4_hba.pc_sli4_params.mi_ver =
 			bf_get(cfg_mi_ver, mbx_sli4_parameters);
+	else
+		phba->sli4_hba.pc_sli4_params.mi_ver = 0;
+
 	phba->sli4_hba.pc_sli4_params.cmf =
 			bf_get(cfg_cmf, mbx_sli4_parameters);
 	phba->sli4_hba.pc_sli4_params.pls =
@@ -2176,7 +2196,6 @@ lpfc_handle_latt(struct lpfc_hba *phba)
 	struct lpfc_sli   *psli = &phba->sli;
 	LPFC_MBOXQ_t *pmb;
 	volatile uint32_t control;
-	struct lpfc_dmabuf *mp;
 	int rc = 0;
 
 	pmb = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -2185,23 +2204,17 @@ lpfc_handle_latt(struct lpfc_hba *phba)
 		goto lpfc_handle_latt_err_exit;
 	}
 
-	mp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
-	if (!mp) {
+	rc = lpfc_mbox_rsrc_prep(phba, pmb);
+	if (rc) {
 		rc = 2;
-		goto lpfc_handle_latt_free_pmb;
-	}
-
-	mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
-	if (!mp->virt) {
-		rc = 3;
-		goto lpfc_handle_latt_free_mp;
+		mempool_free(pmb, phba->mbox_mem_pool);
+		goto lpfc_handle_latt_err_exit;
 	}
 
 	/* Cleanup any outstanding ELS commands */
 	lpfc_els_flush_all_cmd(phba);
-
 	psli->slistat.link_event++;
-	lpfc_read_topology(phba, pmb, mp);
+	lpfc_read_topology(phba, pmb, (struct lpfc_dmabuf *)pmb->ctx_buf);
 	pmb->mbox_cmpl = lpfc_mbx_cmpl_read_topology;
 	pmb->vport = vport;
 	/* Block ELS IOCBs until we have processed this mbox command */
@@ -2222,11 +2235,7 @@ lpfc_handle_latt(struct lpfc_hba *phba)
 
 lpfc_handle_latt_free_mbuf:
 	phba->sli.sli3_ring[LPFC_ELS_RING].flag &= ~LPFC_STOP_IOCB_EVENT;
-	lpfc_mbuf_free(phba, mp->virt, mp->phys);
-lpfc_handle_latt_free_mp:
-	kfree(mp);
-lpfc_handle_latt_free_pmb:
-	mempool_free(pmb, phba->mbox_mem_pool);
+	lpfc_mbox_rsrc_cleanup(phba, pmb, MBOX_THD_UNLOCKED);
 lpfc_handle_latt_err_exit:
 	/* Enable Link attention interrupts */
 	spin_lock_irq(&phba->hbalock);
@@ -2409,6 +2418,90 @@ lpfc_parse_vpd(struct lpfc_hba *phba, uint8_t *vpd, int len)
 }
 
 /**
+ * lpfc_get_atto_model_desc - Retrieve ATTO HBA device model name and description
+ * @phba: pointer to lpfc hba data structure.
+ * @mdp: pointer to the data structure to hold the derived model name.
+ * @descp: pointer to the data structure to hold the derived description.
+ *
+ * This routine retrieves HBA's description based on its registered PCI device
+ * ID. The @descp passed into this function points to an array of 256 chars. It
+ * shall be returned with the model name, maximum speed, and the host bus type.
+ * The @mdp passed into this function points to an array of 80 chars. When the
+ * function returns, the @mdp will be filled with the model name.
+ **/
+static void
+lpfc_get_atto_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
+{
+	uint16_t sub_dev_id = phba->pcidev->subsystem_device;
+	char *model = "<Unknown>";
+	int tbolt = 0;
+
+	switch (sub_dev_id) {
+	case PCI_DEVICE_ID_CLRY_161E:
+		model = "161E";
+		break;
+	case PCI_DEVICE_ID_CLRY_162E:
+		model = "162E";
+		break;
+	case PCI_DEVICE_ID_CLRY_164E:
+		model = "164E";
+		break;
+	case PCI_DEVICE_ID_CLRY_161P:
+		model = "161P";
+		break;
+	case PCI_DEVICE_ID_CLRY_162P:
+		model = "162P";
+		break;
+	case PCI_DEVICE_ID_CLRY_164P:
+		model = "164P";
+		break;
+	case PCI_DEVICE_ID_CLRY_321E:
+		model = "321E";
+		break;
+	case PCI_DEVICE_ID_CLRY_322E:
+		model = "322E";
+		break;
+	case PCI_DEVICE_ID_CLRY_324E:
+		model = "324E";
+		break;
+	case PCI_DEVICE_ID_CLRY_321P:
+		model = "321P";
+		break;
+	case PCI_DEVICE_ID_CLRY_322P:
+		model = "322P";
+		break;
+	case PCI_DEVICE_ID_CLRY_324P:
+		model = "324P";
+		break;
+	case PCI_DEVICE_ID_TLFC_2XX2:
+		model = "2XX2";
+		tbolt = 1;
+		break;
+	case PCI_DEVICE_ID_TLFC_3162:
+		model = "3162";
+		tbolt = 1;
+		break;
+	case PCI_DEVICE_ID_TLFC_3322:
+		model = "3322";
+		tbolt = 1;
+		break;
+	default:
+		model = "Unknown";
+		break;
+	}
+
+	if (mdp && mdp[0] == '\0')
+		snprintf(mdp, 79, "%s", model);
+
+	if (descp && descp[0] == '\0')
+		snprintf(descp, 255,
+			 "ATTO %s%s, Fibre Channel Adapter Initiator, Port %s",
+			 (tbolt) ? "ThunderLink FC " : "Celerity FC-",
+			 model,
+			 phba->Port);
+}
+
+/**
  * lpfc_get_hba_model_desc - Retrieve HBA device model name and description
  * @phba: pointer to lpfc hba data structure.
  * @mdp: pointer to the data structure to hold the derived model name.
@@ -2437,6 +2530,11 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 	if (mdp && mdp[0] != '\0'
 		&& descp && descp[0] != '\0')
 		return;
+
+	if (phba->pcidev->vendor == PCI_VENDOR_ID_ATTO) {
+		lpfc_get_atto_model_desc(phba, mdp, descp);
+		return;
+	}
 
 	if (phba->lmt & LMT_64Gb)
 		max_speed = 64;
@@ -2586,11 +2684,6 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 		break;
 	case PCI_DEVICE_ID_SAT_S:
 		m = (typeof(m)){"LPe12000-S", "PCIe", "Fibre Channel Adapter"};
-		break;
-	case PCI_DEVICE_ID_HORNET:
-		m = (typeof(m)){"LP21000", "PCIe",
-				"Obsolete, Unsupported FCoE Adapter"};
-		GE = 1;
 		break;
 	case PCI_DEVICE_ID_PROTEUS_VF:
 		m = (typeof(m)){"LPev12000", "PCIe IOV",
@@ -4317,9 +4410,10 @@ lpfc_sli4_io_sgl_update(struct lpfc_hba *phba)
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 			"6074 Current allocated XRI sgl count:%d, "
-			"maximum XRI count:%d\n",
+			"maximum XRI count:%d els_xri_cnt:%d\n\n",
 			phba->sli4_hba.io_xri_cnt,
-			phba->sli4_hba.io_xri_max);
+			phba->sli4_hba.io_xri_max,
+			els_xri_cnt);
 
 	cnt = lpfc_io_buf_flush(phba, &io_sgl_list);
 
@@ -4458,12 +4552,11 @@ lpfc_new_io_buf(struct lpfc_hba *phba, int num_to_alloc)
 		}
 		pwqeq->sli4_lxritag = lxri;
 		pwqeq->sli4_xritag = phba->sli4_hba.xri_ids[lxri];
-		pwqeq->context1 = lpfc_ncmd;
 
 		/* Initialize local short-hand pointers. */
 		lpfc_ncmd->dma_sgl = lpfc_ncmd->data;
 		lpfc_ncmd->dma_phys_sgl = lpfc_ncmd->dma_handle;
-		lpfc_ncmd->cur_iocbq.context1 = lpfc_ncmd;
+		lpfc_ncmd->cur_iocbq.io_buf = lpfc_ncmd;
 		spin_lock_init(&lpfc_ncmd->buf_lock);
 
 		/* add the nvme buffer to a post list */
@@ -4472,7 +4565,9 @@ lpfc_new_io_buf(struct lpfc_hba *phba, int num_to_alloc)
 	}
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME,
 			"6114 Allocate %d out of %d requested new NVME "
-			"buffers\n", bcnt, num_to_alloc);
+			"buffers of size x%zu bytes\n", bcnt, num_to_alloc,
+			sizeof(*lpfc_ncmd));
+
 
 	/* post the list of nvme buffer sgls to port if available */
 	if (!list_empty(&post_nblist))
@@ -5307,7 +5402,6 @@ static void
 lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 			 struct lpfc_acqe_link *acqe_link)
 {
-	struct lpfc_dmabuf *mp;
 	LPFC_MBOXQ_t *pmb;
 	MAILBOX_t *mb;
 	struct lpfc_mbx_read_top *la;
@@ -5324,17 +5418,12 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 				"0395 The mboxq allocation failed\n");
 		return;
 	}
-	mp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
-	if (!mp) {
+
+	rc = lpfc_mbox_rsrc_prep(phba, pmb);
+	if (rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"0396 The lpfc_dmabuf allocation failed\n");
+				"0396 mailbox allocation failed\n");
 		goto out_free_pmb;
-	}
-	mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
-	if (!mp->virt) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"0397 The mbuf allocation failed\n");
-		goto out_free_dmabuf;
 	}
 
 	/* Cleanup any outstanding ELS commands */
@@ -5347,7 +5436,7 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 	phba->sli.slistat.link_event++;
 
 	/* Create lpfc_handle_latt mailbox command from link ACQE */
-	lpfc_read_topology(phba, pmb, mp);
+	lpfc_read_topology(phba, pmb, (struct lpfc_dmabuf *)pmb->ctx_buf);
 	pmb->mbox_cmpl = lpfc_mbx_cmpl_read_topology;
 	pmb->vport = phba->pport;
 
@@ -5385,10 +5474,8 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 	 */
 	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
 		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
-		if (rc == MBX_NOT_FINISHED) {
-			lpfc_mbuf_free(phba, mp->virt, mp->phys);
-			goto out_free_dmabuf;
-		}
+		if (rc == MBX_NOT_FINISHED)
+			goto out_free_pmb;
 		return;
 	}
 	/*
@@ -5423,10 +5510,8 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 
 	return;
 
-out_free_dmabuf:
-	kfree(mp);
 out_free_pmb:
-	mempool_free(pmb, phba->mbox_mem_pool);
+	lpfc_mbox_rsrc_cleanup(phba, pmb, MBOX_THD_UNLOCKED);
 }
 
 /**
@@ -5533,7 +5618,7 @@ lpfc_cgn_update_stat(struct lpfc_hba *phba, uint32_t dtag)
 	struct tm broken;
 	struct timespec64 cur_time;
 	u32 cnt;
-	u16 value;
+	u32 value;
 
 	/* Make sure we have a congestion info buffer */
 	if (!phba->cgn_i)
@@ -5866,21 +5951,8 @@ lpfc_cgn_save_evt_cnt(struct lpfc_hba *phba)
 
 	/* Use the frequency found in the last rcv'ed FPIN */
 	value = phba->cgn_fpin_frequency;
-	if (phba->cgn_reg_fpin & LPFC_CGN_FPIN_WARN)
-		cp->cgn_warn_freq = cpu_to_le16(value);
-	if (phba->cgn_reg_fpin & LPFC_CGN_FPIN_ALARM)
-		cp->cgn_alarm_freq = cpu_to_le16(value);
-
-	/* Frequency (in ms) Signal Warning/Signal Congestion Notifications
-	 * are received by the HBA
-	 */
-	value = phba->cgn_sig_freq;
-
-	if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ONLY ||
-	    phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM)
-		cp->cgn_warn_freq = cpu_to_le16(value);
-	if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM)
-		cp->cgn_alarm_freq = cpu_to_le16(value);
+	cp->cgn_warn_freq = cpu_to_le16(value);
+	cp->cgn_alarm_freq = cpu_to_le16(value);
 
 	lvalue = lpfc_cgn_calc_crc32(cp, LPFC_CGN_INFO_SZ,
 				     LPFC_CGN_CRC32_SEED);
@@ -6237,7 +6309,6 @@ lpfc_update_trunk_link_status(struct lpfc_hba *phba,
 static void
 lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 {
-	struct lpfc_dmabuf *mp;
 	LPFC_MBOXQ_t *pmb;
 	MAILBOX_t *mb;
 	struct lpfc_mbx_read_top *la;
@@ -6297,17 +6368,11 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 				"2897 The mboxq allocation failed\n");
 		return;
 	}
-	mp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
-	if (!mp) {
+	rc = lpfc_mbox_rsrc_prep(phba, pmb);
+	if (rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"2898 The lpfc_dmabuf allocation failed\n");
+				"2898 The mboxq prep failed\n");
 		goto out_free_pmb;
-	}
-	mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
-	if (!mp->virt) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"2899 The mbuf allocation failed\n");
-		goto out_free_dmabuf;
 	}
 
 	/* Cleanup any outstanding ELS commands */
@@ -6320,7 +6385,7 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 	phba->sli.slistat.link_event++;
 
 	/* Create lpfc_handle_latt mailbox command from link ACQE */
-	lpfc_read_topology(phba, pmb, mp);
+	lpfc_read_topology(phba, pmb, (struct lpfc_dmabuf *)pmb->ctx_buf);
 	pmb->mbox_cmpl = lpfc_mbx_cmpl_read_topology;
 	pmb->vport = phba->pport;
 
@@ -6364,16 +6429,12 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 	}
 
 	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
-	if (rc == MBX_NOT_FINISHED) {
-		lpfc_mbuf_free(phba, mp->virt, mp->phys);
-		goto out_free_dmabuf;
-	}
+	if (rc == MBX_NOT_FINISHED)
+		goto out_free_pmb;
 	return;
 
-out_free_dmabuf:
-	kfree(mp);
 out_free_pmb:
-	mempool_free(pmb, phba->mbox_mem_pool);
+	lpfc_mbox_rsrc_cleanup(phba, pmb, MBOX_THD_UNLOCKED);
 }
 
 /**
@@ -6565,12 +6626,15 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 	case LPFC_SLI_EVENT_TYPE_MISCONF_FAWWN:
 		/* Misconfigured WWN. Reports that the SLI Port is configured
 		 * to use FA-WWN, but the attached device doesn’t support it.
-		 * No driver action is required.
 		 * Event Data1 - N.A, Event Data2 - N.A
+		 * This event only happens on the physical port.
 		 */
-		lpfc_log_msg(phba, KERN_WARNING, LOG_SLI,
-			     "2699 Misconfigured FA-WWN - Attached device does "
-			     "not support FA-WWN\n");
+		lpfc_log_msg(phba, KERN_WARNING, LOG_SLI | LOG_DISCOVERY,
+			     "2699 Misconfigured FA-PWWN - Attached device "
+			     "does not support FA-PWWN\n");
+		phba->sli4_hba.fawwpn_flag &= ~LPFC_FAWWPN_FABRIC;
+		memset(phba->pport->fc_portname.u.wwn, 0,
+		       sizeof(struct lpfc_name));
 		break;
 	case LPFC_SLI_EVENT_TYPE_EEPROM_FAILURE:
 		/* EEPROM failure. No driver action is required */
@@ -6595,9 +6659,6 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 		/* Alarm overrides warning, so check that first */
 		if (cgn_signal->alarm_cnt) {
 			if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM) {
-				/* Keep track of alarm cnt for cgn_info */
-				atomic_add(cgn_signal->alarm_cnt,
-					   &phba->cgn_fabric_alarm_cnt);
 				/* Keep track of alarm cnt for CMF_SYNC_WQE */
 				atomic_add(cgn_signal->alarm_cnt,
 					   &phba->cgn_sync_alarm_cnt);
@@ -6606,8 +6667,6 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 			/* signal action needs to be taken */
 			if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ONLY ||
 			    phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM) {
-				/* Keep track of warning cnt for cgn_info */
-				atomic_add(cnt, &phba->cgn_fabric_warn_cnt);
 				/* Keep track of warning cnt for CMF_SYNC_WQE */
 				atomic_add(cnt, &phba->cgn_sync_warn_cnt);
 			}
@@ -7631,7 +7690,6 @@ lpfc_setup_driver_resource_phase1(struct lpfc_hba *phba)
 	INIT_LIST_HEAD(&phba->port_list);
 
 	INIT_LIST_HEAD(&phba->work_list);
-	init_waitqueue_head(&phba->wait_4_mlo_m_q);
 
 	/* Initialize the wait queue head for the kernel thread */
 	init_waitqueue_head(&phba->work_waitq);
@@ -7714,13 +7772,6 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 	rc = lpfc_setup_driver_resource_phase1(phba);
 	if (rc)
 		return -ENODEV;
-
-	if (phba->pcidev->device == PCI_DEVICE_ID_HORNET) {
-		phba->menlo_flag |= HBA_MENLO_SUPPORT;
-		/* check for menlo minimum sg count */
-		if (phba->cfg_sg_seg_cnt < LPFC_DEFAULT_MENLO_SG_SEG_CNT)
-			phba->cfg_sg_seg_cnt = LPFC_DEFAULT_MENLO_SG_SEG_CNT;
-	}
 
 	if (!phba->sli.sli3_ring)
 		phba->sli.sli3_ring = kcalloc(LPFC_SLI3_MAX_RING,
@@ -7897,6 +7948,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 
 	/* The lpfc_wq workqueue for deferred irq use */
 	phba->wq = alloc_workqueue("lpfc_wq", WQ_MEM_RECLAIM, 0);
+	if (!phba->wq)
+		return -ENOMEM;
 
 	/*
 	 * Initialize timers used by driver
@@ -8027,6 +8080,18 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	rc = lpfc_sli4_read_config(phba);
 	if (unlikely(rc))
 		goto out_free_bsmbx;
+
+	if (phba->sli4_hba.fawwpn_flag & LPFC_FAWWPN_CONFIG) {
+		/* Right now the link is down, if FA-PWWN is configured the
+		 * firmware will try FLOGI before the driver gets a link up.
+		 * If it fails, the driver should get a MISCONFIGURED async
+		 * event which will clear this flag. The only notification
+		 * the driver gets is if it fails, if it succeeds there is no
+		 * notification given. Assume success.
+		 */
+		phba->sli4_hba.fawwpn_flag |= LPFC_FAWWPN_FABRIC;
+	}
+
 	rc = lpfc_mem_alloc_active_rrq_pool_s4(phba);
 	if (unlikely(rc))
 		goto out_free_bsmbx;
@@ -9001,6 +9066,36 @@ lpfc_hba_free(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_setup_fdmi_mask - Setup initial FDMI mask for HBA and Port attributes
+ * @vport: pointer to lpfc vport data structure.
+ *
+ * This routine is will setup initial FDMI attribute masks for
+ * FDMI2 or SmartSAN depending on module parameters. The driver will attempt
+ * to get these attributes first before falling back, the attribute
+ * fallback hierarchy is SmartSAN -> FDMI2 -> FMDI1
+ **/
+void
+lpfc_setup_fdmi_mask(struct lpfc_vport *vport)
+{
+	struct lpfc_hba *phba = vport->phba;
+
+	vport->load_flag |= FC_ALLOW_FDMI;
+	if (phba->cfg_enable_SmartSAN ||
+	    phba->cfg_fdmi_on == LPFC_FDMI_SUPPORT) {
+		/* Setup appropriate attribute masks */
+		vport->fdmi_hba_mask = LPFC_FDMI2_HBA_ATTR;
+		if (phba->cfg_enable_SmartSAN)
+			vport->fdmi_port_mask = LPFC_FDMI2_SMART_ATTR;
+		else
+			vport->fdmi_port_mask = LPFC_FDMI2_PORT_ATTR;
+	}
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_DISCOVERY,
+			"6077 Setup FDMI mask: hba x%x port x%x\n",
+			vport->fdmi_hba_mask, vport->fdmi_port_mask);
+}
+
+/**
  * lpfc_create_shost - Create hba physical port with associated scsi host.
  * @phba: pointer to lpfc hba data structure.
  *
@@ -9043,21 +9138,12 @@ lpfc_create_shost(struct lpfc_hba *phba)
 	/* Put reference to SCSI host to driver's device private data */
 	pci_set_drvdata(phba->pcidev, shost);
 
+	lpfc_setup_fdmi_mask(vport);
+
 	/*
 	 * At this point we are fully registered with PSA. In addition,
 	 * any initial discovery should be completed.
 	 */
-	vport->load_flag |= FC_ALLOW_FDMI;
-	if (phba->cfg_enable_SmartSAN ||
-	    (phba->cfg_fdmi_on == LPFC_FDMI_SUPPORT)) {
-
-		/* Setup appropriate attribute masks */
-		vport->fdmi_hba_mask = LPFC_FDMI2_HBA_ATTR;
-		if (phba->cfg_enable_SmartSAN)
-			vport->fdmi_port_mask = LPFC_FDMI2_SMART_ATTR;
-		else
-			vport->fdmi_port_mask = LPFC_FDMI2_PORT_ATTR;
-	}
 	return 0;
 }
 
@@ -9830,7 +9916,7 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 	struct lpfc_rsrc_desc_fcfcoe *desc;
 	char *pdesc_0;
 	uint16_t forced_link_speed;
-	uint32_t if_type, qmin;
+	uint32_t if_type, qmin, fawwpn;
 	int length, i, rc = 0, rc2;
 
 	pmb = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -9872,10 +9958,24 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 			phba->sli4_hba.bbscn_params.word0 = rd_config->word8;
 		}
 
+		fawwpn = bf_get(lpfc_mbx_rd_conf_fawwpn, rd_config);
+
+		if (fawwpn) {
+			lpfc_printf_log(phba, KERN_INFO,
+					LOG_INIT | LOG_DISCOVERY,
+					"2702 READ_CONFIG: FA-PWWN is "
+					"configured on\n");
+			phba->sli4_hba.fawwpn_flag |= LPFC_FAWWPN_CONFIG;
+		} else {
+			/* Clear FW configured flag, preserve driver flag */
+			phba->sli4_hba.fawwpn_flag &= ~LPFC_FAWWPN_CONFIG;
+		}
+
 		phba->sli4_hba.conf_trunk =
 			bf_get(lpfc_mbx_rd_conf_trunk, rd_config);
 		phba->sli4_hba.extents_in_use =
 			bf_get(lpfc_mbx_rd_conf_extnts_inuse, rd_config);
+
 		phba->sli4_hba.max_cfg_param.max_xri =
 			bf_get(lpfc_mbx_rd_conf_xri_count, rd_config);
 		/* Reduce resource usage in kdump environment */
@@ -12081,7 +12181,7 @@ lpfc_sli_enable_msi(struct lpfc_hba *phba)
 	rc = pci_enable_msi(phba->pcidev);
 	if (!rc)
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-				"0462 PCI enable MSI mode success.\n");
+				"0012 PCI enable MSI mode success.\n");
 	else {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"0471 PCI enable MSI mode failed (%d)\n", rc);
@@ -14832,9 +14932,6 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	/* Check if there are static vports to be created. */
 	lpfc_create_static_vport(phba);
 
-	/* Enable RAS FW log support */
-	lpfc_sli4_ras_setup(phba);
-
 	timer_setup(&phba->cpuhp_poll_timer, lpfc_sli4_poll_hbtimer, 0);
 	cpuhp_state_add_instance_nocalls(lpfc_cpuhp_state, &phba->cpuhp);
 
@@ -15700,34 +15797,7 @@ void lpfc_dmp_dbg(struct lpfc_hba *phba)
 	unsigned int temp_idx;
 	int i;
 	int j = 0;
-	unsigned long rem_nsec, iflags;
-	bool log_verbose = false;
-	struct lpfc_vport *port_iterator;
-
-	/* Don't dump messages if we explicitly set log_verbose for the
-	 * physical port or any vport.
-	 */
-	if (phba->cfg_log_verbose)
-		return;
-
-	spin_lock_irqsave(&phba->port_list_lock, iflags);
-	list_for_each_entry(port_iterator, &phba->port_list, listentry) {
-		if (port_iterator->load_flag & FC_UNLOADING)
-			continue;
-		if (scsi_host_get(lpfc_shost_from_vport(port_iterator))) {
-			if (port_iterator->cfg_log_verbose)
-				log_verbose = true;
-
-			scsi_host_put(lpfc_shost_from_vport(port_iterator));
-
-			if (log_verbose) {
-				spin_unlock_irqrestore(&phba->port_list_lock,
-						       iflags);
-				return;
-			}
-		}
-	}
-	spin_unlock_irqrestore(&phba->port_list_lock, iflags);
+	unsigned long rem_nsec;
 
 	if (atomic_cmpxchg(&phba->dbg_log_dmping, 0, 1) != 0)
 		return;

@@ -9,7 +9,6 @@
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
 #include <linux/types.h>
-#include <linux/version.h>
 #include <asm/cache.h>
 
 static inline void cache_op(phys_addr_t paddr, size_t size,

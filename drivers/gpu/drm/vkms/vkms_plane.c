@@ -7,37 +7,42 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_plane_helper.h>
 
 #include "vkms_drv.h"
+#include "vkms_formats.h"
 
 static const u32 vkms_formats[] = {
 	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XRGB16161616,
+	DRM_FORMAT_RGB565
 };
 
 static const u32 vkms_plane_formats[] = {
 	DRM_FORMAT_ARGB8888,
-	DRM_FORMAT_XRGB8888
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XRGB16161616,
+	DRM_FORMAT_ARGB16161616,
+	DRM_FORMAT_RGB565
 };
 
 static struct drm_plane_state *
 vkms_plane_duplicate_state(struct drm_plane *plane)
 {
 	struct vkms_plane_state *vkms_state;
-	struct vkms_composer *composer;
+	struct vkms_frame_info *frame_info;
 
 	vkms_state = kzalloc(sizeof(*vkms_state), GFP_KERNEL);
 	if (!vkms_state)
 		return NULL;
 
-	composer = kzalloc(sizeof(*composer), GFP_KERNEL);
-	if (!composer) {
-		DRM_DEBUG_KMS("Couldn't allocate composer\n");
+	frame_info = kzalloc(sizeof(*frame_info), GFP_KERNEL);
+	if (!frame_info) {
+		DRM_DEBUG_KMS("Couldn't allocate frame_info\n");
 		kfree(vkms_state);
 		return NULL;
 	}
 
-	vkms_state->composer = composer;
+	vkms_state->frame_info = frame_info;
 
 	__drm_gem_duplicate_shadow_plane_state(plane, &vkms_state->base);
 
@@ -50,16 +55,16 @@ static void vkms_plane_destroy_state(struct drm_plane *plane,
 	struct vkms_plane_state *vkms_state = to_vkms_plane_state(old_state);
 	struct drm_crtc *crtc = vkms_state->base.base.crtc;
 
-	if (crtc) {
+	if (crtc && vkms_state->frame_info->fb) {
 		/* dropping the reference we acquired in
 		 * vkms_primary_plane_update()
 		 */
-		if (drm_framebuffer_read_refcount(&vkms_state->composer->fb))
-			drm_framebuffer_put(&vkms_state->composer->fb);
+		if (drm_framebuffer_read_refcount(vkms_state->frame_info->fb))
+			drm_framebuffer_put(vkms_state->frame_info->fb);
 	}
 
-	kfree(vkms_state->composer);
-	vkms_state->composer = NULL;
+	kfree(vkms_state->frame_info);
+	vkms_state->frame_info = NULL;
 
 	__drm_gem_destroy_shadow_plane_state(&vkms_state->base);
 	kfree(vkms_state);
@@ -99,23 +104,26 @@ static void vkms_plane_atomic_update(struct drm_plane *plane,
 	struct vkms_plane_state *vkms_plane_state;
 	struct drm_shadow_plane_state *shadow_plane_state;
 	struct drm_framebuffer *fb = new_state->fb;
-	struct vkms_composer *composer;
+	struct vkms_frame_info *frame_info;
+	u32 fmt;
 
 	if (!new_state->crtc || !fb)
 		return;
 
+	fmt = fb->format->format;
 	vkms_plane_state = to_vkms_plane_state(new_state);
 	shadow_plane_state = &vkms_plane_state->base;
 
-	composer = vkms_plane_state->composer;
-	memcpy(&composer->src, &new_state->src, sizeof(struct drm_rect));
-	memcpy(&composer->dst, &new_state->dst, sizeof(struct drm_rect));
-	memcpy(&composer->fb, fb, sizeof(struct drm_framebuffer));
-	memcpy(&composer->map, &shadow_plane_state->data, sizeof(composer->map));
-	drm_framebuffer_get(&composer->fb);
-	composer->offset = fb->offsets[0];
-	composer->pitch = fb->pitches[0];
-	composer->cpp = fb->format->cpp[0];
+	frame_info = vkms_plane_state->frame_info;
+	memcpy(&frame_info->src, &new_state->src, sizeof(struct drm_rect));
+	memcpy(&frame_info->dst, &new_state->dst, sizeof(struct drm_rect));
+	frame_info->fb = fb;
+	memcpy(&frame_info->map, &shadow_plane_state->data, sizeof(frame_info->map));
+	drm_framebuffer_get(frame_info->fb);
+	frame_info->offset = fb->offsets[0];
+	frame_info->pitch = fb->pitches[0];
+	frame_info->cpp = fb->format->cpp[0];
+	vkms_plane_state->plane_read = get_frame_to_line_function(fmt);
 }
 
 static int vkms_plane_atomic_check(struct drm_plane *plane,
@@ -139,8 +147,8 @@ static int vkms_plane_atomic_check(struct drm_plane *plane,
 		can_position = true;
 
 	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
-						  DRM_PLANE_HELPER_NO_SCALING,
-						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
 						  can_position, true);
 	if (ret != 0)
 		return ret;

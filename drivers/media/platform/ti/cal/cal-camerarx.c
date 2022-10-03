@@ -305,7 +305,7 @@ static int cal_camerarx_start(struct cal_camerarx *phy)
 	/*
 	 * CSI-2 PHY Link Initialization Sequence, according to the DRA74xP /
 	 * DRA75xP / DRA76xP / DRA77xP TRM. The DRA71x / DRA72x and the AM65x /
-	 * DRA80xM TRMs have a a slightly simplified sequence.
+	 * DRA80xM TRMs have a slightly simplified sequence.
 	 */
 
 	/*
@@ -581,6 +581,33 @@ static int cal_camerarx_parse_dt(struct cal_camerarx *phy)
 done:
 	of_node_put(ep_node);
 	return ret;
+}
+
+int cal_camerarx_get_remote_frame_desc(struct cal_camerarx *phy,
+				       struct v4l2_mbus_frame_desc *desc)
+{
+	struct media_pad *pad;
+	int ret;
+
+	if (!phy->source)
+		return -EPIPE;
+
+	pad = media_pad_remote_pad_first(&phy->pads[CAL_CAMERARX_PAD_SINK]);
+	if (!pad)
+		return -EPIPE;
+
+	ret = v4l2_subdev_call(phy->source, pad, get_frame_desc, pad->index,
+			       desc);
+	if (ret)
+		return ret;
+
+	if (desc->type != V4L2_MBUS_FRAME_DESC_TYPE_CSI2) {
+		dev_err(phy->cal->dev,
+			"Frame descriptor does not describe CSI-2 link");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 /* ------------------------------------------------------------------

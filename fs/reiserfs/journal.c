@@ -601,14 +601,14 @@ static int journal_list_still_alive(struct super_block *s,
  */
 static void release_buffer_page(struct buffer_head *bh)
 {
-	struct page *page = bh->b_page;
-	if (!page->mapping && trylock_page(page)) {
-		get_page(page);
+	struct folio *folio = page_folio(bh->b_page);
+	if (!folio->mapping && folio_trylock(folio)) {
+		folio_get(folio);
 		put_bh(bh);
-		if (!page->mapping)
-			try_to_free_buffers(page);
-		unlock_page(page);
-		put_page(page);
+		if (!folio->mapping)
+			try_to_free_buffers(folio);
+		folio_unlock(folio);
+		folio_put(folio);
 	} else {
 		put_bh(bh);
 	}
@@ -650,7 +650,7 @@ static void submit_logged_buffer(struct buffer_head *bh)
 		BUG();
 	if (!buffer_uptodate(bh))
 		BUG();
-	submit_bh(REQ_OP_WRITE, 0, bh);
+	submit_bh(REQ_OP_WRITE, bh);
 }
 
 static void submit_ordered_buffer(struct buffer_head *bh)
@@ -660,7 +660,7 @@ static void submit_ordered_buffer(struct buffer_head *bh)
 	clear_buffer_dirty(bh);
 	if (!buffer_uptodate(bh))
 		BUG();
-	submit_bh(REQ_OP_WRITE, 0, bh);
+	submit_bh(REQ_OP_WRITE, bh);
 }
 
 #define CHUNK_SIZE 32
@@ -868,7 +868,7 @@ loop_next:
 		 */
 		if (buffer_dirty(bh) && unlikely(bh->b_page->mapping == NULL)) {
 			spin_unlock(lock);
-			ll_rw_block(REQ_OP_WRITE, 0, 1, &bh);
+			ll_rw_block(REQ_OP_WRITE, 1, &bh);
 			spin_lock(lock);
 		}
 		put_bh(bh);
@@ -1054,7 +1054,7 @@ static int flush_commit_list(struct super_block *s,
 		if (tbh) {
 			if (buffer_dirty(tbh)) {
 		            depth = reiserfs_write_unlock_nested(s);
-			    ll_rw_block(REQ_OP_WRITE, 0, 1, &tbh);
+			    ll_rw_block(REQ_OP_WRITE, 1, &tbh);
 			    reiserfs_write_lock_nested(s, depth);
 			}
 			put_bh(tbh) ;
@@ -2240,7 +2240,7 @@ abort_replay:
 		}
 	}
 	/* read in the log blocks, memcpy to the corresponding real block */
-	ll_rw_block(REQ_OP_READ, 0, get_desc_trans_len(desc), log_blocks);
+	ll_rw_block(REQ_OP_READ, get_desc_trans_len(desc), log_blocks);
 	for (i = 0; i < get_desc_trans_len(desc); i++) {
 
 		wait_on_buffer(log_blocks[i]);
@@ -2342,7 +2342,7 @@ static struct buffer_head *reiserfs_breada(struct block_device *dev,
 		} else
 			bhlist[j++] = bh;
 	}
-	ll_rw_block(REQ_OP_READ, 0, j, bhlist);
+	ll_rw_block(REQ_OP_READ, j, bhlist);
 	for (i = 1; i < j; i++)
 		brelse(bhlist[i]);
 	bh = bhlist[0];

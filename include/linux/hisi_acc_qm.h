@@ -168,6 +168,12 @@ enum qm_vf_state {
 	QM_NOT_READY,
 };
 
+struct dfx_diff_registers {
+	u32 *regs;
+	u32 reg_offset;
+	u32 reg_len;
+};
+
 struct qm_dfx {
 	atomic64_t err_irq_cnt;
 	atomic64_t aeq_irq_cnt;
@@ -190,6 +196,11 @@ struct qm_debug {
 	struct dentry *debug_root;
 	struct dentry *qm_d;
 	struct debugfs_file files[DEBUG_FILE_NUM];
+	unsigned int *qm_last_words;
+	/* ACC engines recoreding last regs */
+	unsigned int *last_words;
+	struct dfx_diff_registers *qm_diff_regs;
+	struct dfx_diff_registers *acc_diff_regs;
 };
 
 struct qm_shaper_factor {
@@ -243,6 +254,7 @@ struct hisi_qm_err_ini {
 	void (*open_sva_prefetch)(struct hisi_qm *qm);
 	void (*close_sva_prefetch)(struct hisi_qm *qm);
 	void (*log_dev_hw_err)(struct hisi_qm *qm, u32 err_sts);
+	void (*show_last_dfx_regs)(struct hisi_qm *qm);
 	void (*err_info_init)(struct hisi_qm *qm);
 };
 
@@ -251,6 +263,12 @@ struct hisi_qm_list {
 	struct list_head list;
 	int (*register_to_crypto)(struct hisi_qm *qm);
 	void (*unregister_from_crypto)(struct hisi_qm *qm);
+};
+
+struct hisi_qm_poll_data {
+	struct hisi_qm *qm;
+	struct work_struct work;
+	u16 *qp_finish_id;
 };
 
 struct hisi_qm {
@@ -290,6 +308,7 @@ struct hisi_qm {
 	struct rw_semaphore qps_lock;
 	struct idr qp_idr;
 	struct hisi_qp *qp_array;
+	struct hisi_qm_poll_data *poll_data;
 
 	struct mutex mailbox_lock;
 
@@ -300,7 +319,6 @@ struct hisi_qm {
 	u32 error_mask;
 
 	struct workqueue_struct *wq;
-	struct work_struct work;
 	struct work_struct rst_work;
 	struct work_struct cmd_process;
 
@@ -433,21 +451,22 @@ int hisi_qm_init(struct hisi_qm *qm);
 void hisi_qm_uninit(struct hisi_qm *qm);
 int hisi_qm_start(struct hisi_qm *qm);
 int hisi_qm_stop(struct hisi_qm *qm, enum qm_stop_reason r);
-struct hisi_qp *hisi_qm_create_qp(struct hisi_qm *qm, u8 alg_type);
 int hisi_qm_start_qp(struct hisi_qp *qp, unsigned long arg);
 int hisi_qm_stop_qp(struct hisi_qp *qp);
-void hisi_qm_release_qp(struct hisi_qp *qp);
 int hisi_qp_send(struct hisi_qp *qp, const void *msg);
-int hisi_qm_get_free_qp_num(struct hisi_qm *qm);
-int hisi_qm_get_vft(struct hisi_qm *qm, u32 *base, u32 *number);
 void hisi_qm_debug_init(struct hisi_qm *qm);
-enum qm_hw_ver hisi_qm_get_hw_version(struct pci_dev *pdev);
 void hisi_qm_debug_regs_clear(struct hisi_qm *qm);
 int hisi_qm_sriov_enable(struct pci_dev *pdev, int max_vfs);
 int hisi_qm_sriov_disable(struct pci_dev *pdev, bool is_frozen);
 int hisi_qm_sriov_configure(struct pci_dev *pdev, int num_vfs);
 void hisi_qm_dev_err_init(struct hisi_qm *qm);
 void hisi_qm_dev_err_uninit(struct hisi_qm *qm);
+int hisi_qm_diff_regs_init(struct hisi_qm *qm,
+		struct dfx_diff_registers *dregs, int reg_len);
+void hisi_qm_diff_regs_uninit(struct hisi_qm *qm, int reg_len);
+void hisi_qm_acc_diff_regs_dump(struct hisi_qm *qm, struct seq_file *s,
+		struct dfx_diff_registers *dregs, int regs_len);
+
 pci_ers_result_t hisi_qm_dev_err_detected(struct pci_dev *pdev,
 					  pci_channel_state_t state);
 pci_ers_result_t hisi_qm_dev_slot_reset(struct pci_dev *pdev);

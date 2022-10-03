@@ -190,6 +190,31 @@ done:
 	return err;
 }
 
+int brcmf_c_set_cur_etheraddr(struct brcmf_if *ifp, const u8 *addr)
+{
+	s32 err;
+
+	err = brcmf_fil_iovar_data_set(ifp, "cur_etheraddr", addr, ETH_ALEN);
+	if (err < 0)
+		bphy_err(ifp->drvr, "Setting cur_etheraddr failed, %d\n", err);
+
+	return err;
+}
+
+/* On some boards there is no eeprom to hold the nvram, in this case instead
+ * a board specific nvram is loaded from /lib/firmware. On most boards the
+ * macaddr setting in the /lib/firmware nvram file is ignored because the
+ * wifibt chip has a unique MAC programmed into the chip itself.
+ * But in some cases the actual MAC from the /lib/firmware nvram file gets
+ * used, leading to MAC conflicts.
+ * The MAC addresses in the troublesome nvram files seem to all come from
+ * the same nvram file template, so we only need to check for 1 known
+ * address to detect this.
+ */
+static const u8 brcmf_default_mac_address[ETH_ALEN] = {
+	0x00, 0x90, 0x4c, 0xc5, 0x12, 0x38
+};
+
 int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 {
 	struct brcmf_pub *drvr = ifp->drvr;
@@ -202,13 +227,30 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	char *ptr;
 	s32 err;
 
-	/* retreive mac address */
-	err = brcmf_fil_iovar_data_get(ifp, "cur_etheraddr", ifp->mac_addr,
-				       sizeof(ifp->mac_addr));
-	if (err < 0) {
-		bphy_err(drvr, "Retrieving cur_etheraddr failed, %d\n", err);
-		goto done;
+	if (is_valid_ether_addr(ifp->mac_addr)) {
+		/* set mac address */
+		err = brcmf_c_set_cur_etheraddr(ifp, ifp->mac_addr);
+		if (err < 0)
+			goto done;
+	} else {
+		/* retrieve mac address */
+		err = brcmf_fil_iovar_data_get(ifp, "cur_etheraddr", ifp->mac_addr,
+					       sizeof(ifp->mac_addr));
+		if (err < 0) {
+			bphy_err(drvr, "Retrieving cur_etheraddr failed, %d\n", err);
+			goto done;
+		}
+
+		if (ether_addr_equal_unaligned(ifp->mac_addr, brcmf_default_mac_address)) {
+			bphy_err(drvr, "Default MAC is used, replacing with random MAC to avoid conflicts\n");
+			eth_random_addr(ifp->mac_addr);
+			ifp->ndev->addr_assign_type = NET_ADDR_RANDOM;
+			err = brcmf_c_set_cur_etheraddr(ifp, ifp->mac_addr);
+			if (err < 0)
+				goto done;
+		}
 	}
+
 	memcpy(ifp->drvr->mac, ifp->mac_addr, sizeof(ifp->drvr->mac));
 	memcpy(ifp->drvr->wiphy->perm_addr, ifp->drvr->mac, ETH_ALEN);
 

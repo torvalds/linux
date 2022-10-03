@@ -5,7 +5,7 @@
  * Copyright 2008 Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright 2016	Intel Deutschland GmbH
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -1829,7 +1829,7 @@ int cfg80211_get_ies_channel_number(const u8 *ie, size_t ielen,
 		if (tmp && tmp->datalen >= sizeof(struct ieee80211_s1g_oper_ie)) {
 			struct ieee80211_s1g_oper_ie *s1gop = (void *)tmp->data;
 
-			return s1gop->primary_ch;
+			return s1gop->oper_ch;
 		}
 	} else {
 		tmp = cfg80211_find_elem(WLAN_EID_DS_PARAMS, ie, ielen);
@@ -2018,11 +2018,13 @@ cfg80211_inform_single_bss_data(struct wiphy *wiphy,
 		/* this is a nontransmitting bss, we need to add it to
 		 * transmitting bss' list if it is not there
 		 */
+		spin_lock_bh(&rdev->bss_lock);
 		if (cfg80211_add_nontrans_list(non_tx_data->tx_bss,
 					       &res->pub)) {
 			if (__cfg80211_unlink_bss(rdev, res))
 				rdev->bss_generation++;
 		}
+		spin_unlock_bh(&rdev->bss_lock);
 	}
 
 	trace_cfg80211_return_bss(&res->pub);
@@ -2615,7 +2617,8 @@ void cfg80211_bss_iter(struct wiphy *wiphy,
 	spin_lock_bh(&rdev->bss_lock);
 
 	list_for_each_entry(bss, &rdev->bss_list, list) {
-		if (!chandef || cfg80211_is_sub_chan(chandef, bss->pub.channel))
+		if (!chandef || cfg80211_is_sub_chan(chandef, bss->pub.channel,
+						     false))
 			iter(wiphy, &bss->pub, iter_data);
 	}
 
@@ -2624,11 +2627,12 @@ void cfg80211_bss_iter(struct wiphy *wiphy,
 EXPORT_SYMBOL(cfg80211_bss_iter);
 
 void cfg80211_update_assoc_bss_entry(struct wireless_dev *wdev,
+				     unsigned int link_id,
 				     struct ieee80211_channel *chan)
 {
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
-	struct cfg80211_internal_bss *cbss = wdev->current_bss;
+	struct cfg80211_internal_bss *cbss = wdev->links[link_id].client.current_bss;
 	struct cfg80211_internal_bss *new = NULL;
 	struct cfg80211_internal_bss *bss;
 	struct cfg80211_bss *nontrans_bss;

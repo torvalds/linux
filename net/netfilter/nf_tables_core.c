@@ -25,9 +25,7 @@ static noinline void __nft_trace_packet(struct nft_traceinfo *info,
 					const struct nft_chain *chain,
 					enum nft_trace_types type)
 {
-	const struct nft_pktinfo *pkt = info->pkt;
-
-	if (!info->trace || !pkt->skb->nf_trace)
+	if (!info->trace || !info->nf_trace)
 		return;
 
 	info->chain = chain;
@@ -36,14 +34,25 @@ static noinline void __nft_trace_packet(struct nft_traceinfo *info,
 	nft_trace_notify(info);
 }
 
-static inline void nft_trace_packet(struct nft_traceinfo *info,
+static inline void nft_trace_packet(const struct nft_pktinfo *pkt,
+				    struct nft_traceinfo *info,
 				    const struct nft_chain *chain,
 				    const struct nft_rule_dp *rule,
 				    enum nft_trace_types type)
 {
 	if (static_branch_unlikely(&nft_trace_enabled)) {
+		info->nf_trace = pkt->skb->nf_trace;
 		info->rule = rule;
 		__nft_trace_packet(info, chain, type);
+	}
+}
+
+static inline void nft_trace_copy_nftrace(const struct nft_pktinfo *pkt,
+					  struct nft_traceinfo *info)
+{
+	if (static_branch_unlikely(&nft_trace_enabled)) {
+		if (info->trace)
+			info->nf_trace = pkt->skb->nf_trace;
 	}
 }
 
@@ -92,8 +101,15 @@ static noinline void __nft_trace_verdict(struct nft_traceinfo *info,
 	case NFT_RETURN:
 		type = NFT_TRACETYPE_RETURN;
 		break;
+	case NF_STOLEN:
+		type = NFT_TRACETYPE_RULE;
+		/* can't access skb->nf_trace; use copy */
+		break;
 	default:
 		type = NFT_TRACETYPE_RULE;
+
+		if (info->trace)
+			info->nf_trace = info->pkt->skb->nf_trace;
 		break;
 	}
 
@@ -254,9 +270,10 @@ next_rule:
 		switch (regs.verdict.code) {
 		case NFT_BREAK:
 			regs.verdict.code = NFT_CONTINUE;
+			nft_trace_copy_nftrace(pkt, &info);
 			continue;
 		case NFT_CONTINUE:
-			nft_trace_packet(&info, chain, rule,
+			nft_trace_packet(pkt, &info, chain, rule,
 					 NFT_TRACETYPE_RULE);
 			continue;
 		}
@@ -300,7 +317,7 @@ next_rule:
 		goto next_rule;
 	}
 
-	nft_trace_packet(&info, basechain, NULL, NFT_TRACETYPE_POLICY);
+	nft_trace_packet(pkt, &info, basechain, NULL, NFT_TRACETYPE_POLICY);
 
 	if (static_branch_unlikely(&nft_counters_enabled))
 		nft_update_chain_stats(basechain, pkt);

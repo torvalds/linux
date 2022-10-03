@@ -103,6 +103,7 @@ static void sd_config_discard(struct scsi_disk *, unsigned int);
 static void sd_config_write_same(struct scsi_disk *);
 static int  sd_revalidate_disk(struct gendisk *);
 static void sd_unlock_native_capacity(struct gendisk *disk);
+static void sd_start_done_work(struct work_struct *work);
 static int  sd_probe(struct device *);
 static int  sd_remove(struct device *);
 static void sd_shutdown(struct device *);
@@ -797,7 +798,6 @@ static void sd_config_discard(struct scsi_disk *sdkp, unsigned int mode)
 	case SD_LBP_FULL:
 	case SD_LBP_DISABLE:
 		blk_queue_max_discard_sectors(q, 0);
-		blk_queue_flag_clear(QUEUE_FLAG_DISCARD, q);
 		return;
 
 	case SD_LBP_UNMAP:
@@ -830,7 +830,6 @@ static void sd_config_discard(struct scsi_disk *sdkp, unsigned int mode)
 	}
 
 	blk_queue_max_discard_sectors(q, max_blocks * (logical_block_size >> 9));
-	blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
 }
 
 static blk_status_t sd_setup_unmap_cmnd(struct scsi_cmnd *cmd)
@@ -2176,40 +2175,48 @@ static int sd_read_protection_type(struct scsi_disk *sdkp, unsigned char *buffer
 {
 	struct scsi_device *sdp = sdkp->device;
 	u8 type;
-	int ret = 0;
 
 	if (scsi_device_protection(sdp) == 0 || (buffer[12] & 1) == 0) {
 		sdkp->protection_type = 0;
-		return ret;
+		return 0;
 	}
 
 	type = ((buffer[12] >> 1) & 7) + 1; /* P_TYPE 0 = Type 1 */
 
-	if (type > T10_PI_TYPE3_PROTECTION)
-		ret = -ENODEV;
-	else if (scsi_host_dif_capable(sdp->host, type))
-		ret = 1;
-
-	if (sdkp->first_scan || type != sdkp->protection_type)
-		switch (ret) {
-		case -ENODEV:
-			sd_printk(KERN_ERR, sdkp, "formatted with unsupported" \
-				  " protection type %u. Disabling disk!\n",
-				  type);
-			break;
-		case 1:
-			sd_printk(KERN_NOTICE, sdkp,
-				  "Enabling DIF Type %u protection\n", type);
-			break;
-		case 0:
-			sd_printk(KERN_NOTICE, sdkp,
-				  "Disabling DIF Type %u protection\n", type);
-			break;
-		}
+	if (type > T10_PI_TYPE3_PROTECTION) {
+		sd_printk(KERN_ERR, sdkp, "formatted with unsupported"	\
+			  " protection type %u. Disabling disk!\n",
+			  type);
+		sdkp->protection_type = 0;
+		return -ENODEV;
+	}
 
 	sdkp->protection_type = type;
 
-	return ret;
+	return 0;
+}
+
+static void sd_config_protection(struct scsi_disk *sdkp)
+{
+	struct scsi_device *sdp = sdkp->device;
+
+	if (!sdkp->first_scan)
+		return;
+
+	sd_dif_config_host(sdkp);
+
+	if (!sdkp->protection_type)
+		return;
+
+	if (!scsi_host_dif_capable(sdp->host, sdkp->protection_type)) {
+		sd_printk(KERN_NOTICE, sdkp,
+			  "Disabling DIF Type %u protection\n",
+			  sdkp->protection_type);
+		sdkp->protection_type = 0;
+	}
+
+	sd_printk(KERN_NOTICE, sdkp, "Enabling DIF Type %u protection\n",
+		  sdkp->protection_type);
 }
 
 static void read_capacity_error(struct scsi_disk *sdkp, struct scsi_device *sdp,
@@ -2843,40 +2850,37 @@ static void sd_read_app_tag_own(struct scsi_disk *sdkp, unsigned char *buffer)
  */
 static void sd_read_block_limits(struct scsi_disk *sdkp)
 {
-	unsigned int sector_sz = sdkp->device->sector_size;
-	const int vpd_len = 64;
-	unsigned char *buffer = kmalloc(vpd_len, GFP_KERNEL);
+	struct scsi_vpd *vpd;
 
-	if (!buffer ||
-	    /* Block Limits VPD */
-	    scsi_get_vpd_page(sdkp->device, 0xb0, buffer, vpd_len))
+	rcu_read_lock();
+
+	vpd = rcu_dereference(sdkp->device->vpd_pgb0);
+	if (!vpd || vpd->len < 16)
 		goto out;
 
-	blk_queue_io_min(sdkp->disk->queue,
-			 get_unaligned_be16(&buffer[6]) * sector_sz);
+	sdkp->min_xfer_blocks = get_unaligned_be16(&vpd->data[6]);
+	sdkp->max_xfer_blocks = get_unaligned_be32(&vpd->data[8]);
+	sdkp->opt_xfer_blocks = get_unaligned_be32(&vpd->data[12]);
 
-	sdkp->max_xfer_blocks = get_unaligned_be32(&buffer[8]);
-	sdkp->opt_xfer_blocks = get_unaligned_be32(&buffer[12]);
-
-	if (buffer[3] == 0x3c) {
+	if (vpd->len >= 64) {
 		unsigned int lba_count, desc_count;
 
-		sdkp->max_ws_blocks = (u32)get_unaligned_be64(&buffer[36]);
+		sdkp->max_ws_blocks = (u32)get_unaligned_be64(&vpd->data[36]);
 
 		if (!sdkp->lbpme)
 			goto out;
 
-		lba_count = get_unaligned_be32(&buffer[20]);
-		desc_count = get_unaligned_be32(&buffer[24]);
+		lba_count = get_unaligned_be32(&vpd->data[20]);
+		desc_count = get_unaligned_be32(&vpd->data[24]);
 
 		if (lba_count && desc_count)
 			sdkp->max_unmap_blocks = lba_count;
 
-		sdkp->unmap_granularity = get_unaligned_be32(&buffer[28]);
+		sdkp->unmap_granularity = get_unaligned_be32(&vpd->data[28]);
 
-		if (buffer[32] & 0x80)
+		if (vpd->data[32] & 0x80)
 			sdkp->unmap_alignment =
-				get_unaligned_be32(&buffer[32]) & ~(1 << 31);
+				get_unaligned_be32(&vpd->data[32]) & ~(1 << 31);
 
 		if (!sdkp->lbpvpd) { /* LBP VPD page not provided */
 
@@ -2898,7 +2902,7 @@ static void sd_read_block_limits(struct scsi_disk *sdkp)
 	}
 
  out:
-	kfree(buffer);
+	rcu_read_unlock();
 }
 
 /**
@@ -2908,18 +2912,21 @@ static void sd_read_block_limits(struct scsi_disk *sdkp)
 static void sd_read_block_characteristics(struct scsi_disk *sdkp)
 {
 	struct request_queue *q = sdkp->disk->queue;
-	unsigned char *buffer;
+	struct scsi_vpd *vpd;
 	u16 rot;
-	const int vpd_len = 64;
+	u8 zoned;
 
-	buffer = kmalloc(vpd_len, GFP_KERNEL);
+	rcu_read_lock();
+	vpd = rcu_dereference(sdkp->device->vpd_pgb1);
 
-	if (!buffer ||
-	    /* Block Device Characteristics VPD */
-	    scsi_get_vpd_page(sdkp->device, 0xb1, buffer, vpd_len))
-		goto out;
+	if (!vpd || vpd->len < 8) {
+		rcu_read_unlock();
+	        return;
+	}
 
-	rot = get_unaligned_be16(&buffer[4]);
+	rot = get_unaligned_be16(&vpd->data[4]);
+	zoned = (vpd->data[8] >> 4) & 3;
+	rcu_read_unlock();
 
 	if (rot == 1) {
 		blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
@@ -2928,20 +2935,20 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp)
 
 	if (sdkp->device->type == TYPE_ZBC) {
 		/* Host-managed */
-		blk_queue_set_zoned(sdkp->disk, BLK_ZONED_HM);
+		disk_set_zoned(sdkp->disk, BLK_ZONED_HM);
 	} else {
-		sdkp->zoned = (buffer[8] >> 4) & 3;
+		sdkp->zoned = zoned;
 		if (sdkp->zoned == 1) {
 			/* Host-aware */
-			blk_queue_set_zoned(sdkp->disk, BLK_ZONED_HA);
+			disk_set_zoned(sdkp->disk, BLK_ZONED_HA);
 		} else {
 			/* Regular disk or drive managed disk */
-			blk_queue_set_zoned(sdkp->disk, BLK_ZONED_NONE);
+			disk_set_zoned(sdkp->disk, BLK_ZONED_NONE);
 		}
 	}
 
 	if (!sdkp->first_scan)
-		goto out;
+		return;
 
 	if (blk_queue_is_zoned(q)) {
 		sd_printk(KERN_NOTICE, sdkp, "Host-%s zoned block device\n",
@@ -2954,9 +2961,6 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp)
 			sd_printk(KERN_NOTICE, sdkp,
 				  "Drive-managed SMR disk\n");
 	}
-
- out:
-	kfree(buffer);
 }
 
 /**
@@ -2965,24 +2969,24 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp)
  */
 static void sd_read_block_provisioning(struct scsi_disk *sdkp)
 {
-	unsigned char *buffer;
-	const int vpd_len = 8;
+	struct scsi_vpd *vpd;
 
 	if (sdkp->lbpme == 0)
 		return;
 
-	buffer = kmalloc(vpd_len, GFP_KERNEL);
+	rcu_read_lock();
+	vpd = rcu_dereference(sdkp->device->vpd_pgb2);
 
-	if (!buffer || scsi_get_vpd_page(sdkp->device, 0xb2, buffer, vpd_len))
-		goto out;
+	if (!vpd || vpd->len < 8) {
+		rcu_read_unlock();
+		return;
+	}
 
 	sdkp->lbpvpd	= 1;
-	sdkp->lbpu	= (buffer[5] >> 7) & 1;	/* UNMAP */
-	sdkp->lbpws	= (buffer[5] >> 6) & 1;	/* WRITE SAME(16) with UNMAP */
-	sdkp->lbpws10	= (buffer[5] >> 5) & 1;	/* WRITE SAME(10) with UNMAP */
-
- out:
-	kfree(buffer);
+	sdkp->lbpu	= (vpd->data[5] >> 7) & 1; /* UNMAP */
+	sdkp->lbpws	= (vpd->data[5] >> 6) & 1; /* WRITE SAME(16) w/ UNMAP */
+	sdkp->lbpws10	= (vpd->data[5] >> 5) & 1; /* WRITE SAME(10) w/ UNMAP */
+	rcu_read_unlock();
 }
 
 static void sd_read_write_same(struct scsi_disk *sdkp, unsigned char *buffer)
@@ -2996,8 +3000,7 @@ static void sd_read_write_same(struct scsi_disk *sdkp, unsigned char *buffer)
 	}
 
 	if (scsi_report_opcode(sdev, buffer, SD_BUF_SIZE, INQUIRY) < 0) {
-		/* too large values might cause issues with arcmsr */
-		int vpd_buf_len = 64;
+		struct scsi_vpd *vpd;
 
 		sdev->no_report_opcodes = 1;
 
@@ -3005,8 +3008,11 @@ static void sd_read_write_same(struct scsi_disk *sdkp, unsigned char *buffer)
 		 * CODES is unsupported and the device has an ATA
 		 * Information VPD page (SAT).
 		 */
-		if (!scsi_get_vpd_page(sdev, 0x89, buffer, vpd_buf_len))
+		rcu_read_lock();
+		vpd = rcu_dereference(sdev->vpd_pg89);
+		if (vpd)
 			sdev->no_write_same = 1;
+		rcu_read_unlock();
 	}
 
 	if (scsi_report_opcode(sdev, buffer, SD_BUF_SIZE, WRITE_SAME_16) == 1)
@@ -3067,7 +3073,7 @@ static void sd_read_cpr(struct scsi_disk *sdkp)
 		goto out;
 
 	/* We must have at least a 64B header and one 32B range descriptor */
-	vpd_len = get_unaligned_be16(&buffer[2]) + 3;
+	vpd_len = get_unaligned_be16(&buffer[2]) + 4;
 	if (vpd_len > buf_len || vpd_len < 64 + 32 || (vpd_len & 31)) {
 		sd_printk(KERN_ERR, sdkp,
 			  "Invalid Concurrent Positioning Ranges VPD page\n");
@@ -3110,6 +3116,29 @@ out:
 	kfree(buffer);
 }
 
+static bool sd_validate_min_xfer_size(struct scsi_disk *sdkp)
+{
+	struct scsi_device *sdp = sdkp->device;
+	unsigned int min_xfer_bytes =
+		logical_to_bytes(sdp, sdkp->min_xfer_blocks);
+
+	if (sdkp->min_xfer_blocks == 0)
+		return false;
+
+	if (min_xfer_bytes & (sdkp->physical_block_size - 1)) {
+		sd_first_printk(KERN_WARNING, sdkp,
+				"Preferred minimum I/O size %u bytes not a " \
+				"multiple of physical block size (%u bytes)\n",
+				min_xfer_bytes, sdkp->physical_block_size);
+		sdkp->min_xfer_blocks = 0;
+		return false;
+	}
+
+	sd_first_printk(KERN_INFO, sdkp, "Preferred minimum I/O size %u bytes\n",
+			min_xfer_bytes);
+	return true;
+}
+
 /*
  * Determine the device's preferred I/O size for reads and writes
  * unless the reported value is unreasonably small, large, not a
@@ -3121,6 +3150,8 @@ static bool sd_validate_opt_xfer_size(struct scsi_disk *sdkp,
 	struct scsi_device *sdp = sdkp->device;
 	unsigned int opt_xfer_bytes =
 		logical_to_bytes(sdp, sdkp->opt_xfer_blocks);
+	unsigned int min_xfer_bytes =
+		logical_to_bytes(sdp, sdkp->min_xfer_blocks);
 
 	if (sdkp->opt_xfer_blocks == 0)
 		return false;
@@ -3146,6 +3177,15 @@ static bool sd_validate_opt_xfer_size(struct scsi_disk *sdkp,
 				"Optimal transfer size %u bytes < " \
 				"PAGE_SIZE (%u bytes)\n",
 				opt_xfer_bytes, (unsigned int)PAGE_SIZE);
+		return false;
+	}
+
+	if (min_xfer_bytes && opt_xfer_bytes % min_xfer_bytes) {
+		sd_first_printk(KERN_WARNING, sdkp,
+				"Optimal transfer size %u bytes not a " \
+				"multiple of preferred minimum block " \
+				"size (%u bytes)\n",
+				opt_xfer_bytes, min_xfer_bytes);
 		return false;
 	}
 
@@ -3226,6 +3266,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 		sd_read_app_tag_own(sdkp, buffer);
 		sd_read_write_same(sdkp, buffer);
 		sd_read_security(sdkp, buffer);
+		sd_config_protection(sdkp);
 	}
 
 	/*
@@ -3241,6 +3282,12 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	dev_max = min_not_zero(dev_max, sdkp->max_xfer_blocks);
 	q->limits.max_dev_sectors = logical_to_sectors(sdp, dev_max);
 
+	if (sd_validate_min_xfer_size(sdkp))
+		blk_queue_io_min(sdkp->disk->queue,
+				 logical_to_bytes(sdp, sdkp->min_xfer_blocks));
+	else
+		blk_queue_io_min(sdkp->disk->queue, 0);
+
 	if (sd_validate_opt_xfer_size(sdkp, dev_max)) {
 		q->limits.io_opt = logical_to_bytes(sdp, sdkp->opt_xfer_blocks);
 		rw_max = logical_to_sectors(sdp, sdkp->opt_xfer_blocks);
@@ -3249,6 +3296,13 @@ static int sd_revalidate_disk(struct gendisk *disk)
 		rw_max = min_not_zero(logical_to_sectors(sdp, dev_max),
 				      (sector_t)BLK_DEF_MAX_SECTORS);
 	}
+
+	/*
+	 * Limit default to SCSI host optimal sector limit if set. There may be
+	 * an impact on performance for when the size of a request exceeds this
+	 * host limit.
+	 */
+	rw_max = min_not_zero(rw_max, sdp->host->opt_sectors);
 
 	/* Do not exceed controller limit */
 	rw_max = min(rw_max, queue_max_hw_sectors(q));
@@ -3394,8 +3448,8 @@ static int sd_probe(struct device *dev)
 	if (!sdkp)
 		goto out;
 
-	gd = __alloc_disk_node(sdp->request_queue, NUMA_NO_NODE,
-			       &sd_bio_compl_lkclass);
+	gd = blk_mq_alloc_disk_for_queue(sdp->request_queue,
+					 &sd_bio_compl_lkclass);
 	if (!gd)
 		goto out_free;
 
@@ -3417,6 +3471,7 @@ static int sd_probe(struct device *dev)
 	sdkp->max_retries = SD_MAX_RETRIES;
 	atomic_set(&sdkp->openers, 0);
 	atomic_set(&sdkp->device->ioerr_cnt, 0);
+	INIT_WORK(&sdkp->start_done_work, sd_start_done_work);
 
 	if (!sdp->request_queue->rq_timeout) {
 		if (sdp->type != TYPE_MOD)
@@ -3475,14 +3530,9 @@ static int sd_probe(struct device *dev)
 	error = device_add_disk(dev, gd, NULL);
 	if (error) {
 		put_device(&sdkp->disk_dev);
-		blk_cleanup_disk(gd);
+		put_disk(gd);
 		goto out;
 	}
-
-	if (sdkp->capacity)
-		sd_dif_config_host(sdkp);
-
-	sd_revalidate_disk(gd);
 
 	if (sdkp->security) {
 		sdkp->opal_dev = init_opal_dev(sdkp, &sd_sec_submit);
@@ -3501,7 +3551,6 @@ static int sd_probe(struct device *dev)
  out_put:
 	put_disk(gd);
  out_free:
-	sd_zbc_release_disk(sdkp);
 	kfree(sdkp);
  out:
 	scsi_autopm_put_device(sdp);
@@ -3538,19 +3587,76 @@ static void scsi_disk_release(struct device *dev)
 	struct scsi_disk *sdkp = to_scsi_disk(dev);
 
 	ida_free(&sd_index_ida, sdkp->index);
-	sd_zbc_release_disk(sdkp);
+	sd_zbc_free_zone_info(sdkp);
 	put_device(&sdkp->device->sdev_gendev);
 	free_opal_dev(sdkp->opal_dev);
 
 	kfree(sdkp);
 }
 
+/* Process sense data after a START command finished. */
+static void sd_start_done_work(struct work_struct *work)
+{
+	struct scsi_disk *sdkp = container_of(work, typeof(*sdkp),
+					      start_done_work);
+	struct scsi_sense_hdr sshdr;
+	int res = sdkp->start_result;
+
+	if (res == 0)
+		return;
+
+	sd_print_result(sdkp, "Start/Stop Unit failed", res);
+
+	if (res < 0)
+		return;
+
+	if (scsi_normalize_sense(sdkp->start_sense_buffer,
+				 sdkp->start_sense_len, &sshdr))
+		sd_print_sense_hdr(sdkp, &sshdr);
+}
+
+/* A START command finished. May be called from interrupt context. */
+static void sd_start_done(struct request *req, blk_status_t status)
+{
+	const struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(req);
+	struct scsi_disk *sdkp = scsi_disk(req->q->disk);
+
+	sdkp->start_result = scmd->result;
+	WARN_ON_ONCE(scmd->sense_len > SCSI_SENSE_BUFFERSIZE);
+	sdkp->start_sense_len = scmd->sense_len;
+	memcpy(sdkp->start_sense_buffer, scmd->sense_buffer,
+	       ARRAY_SIZE(sdkp->start_sense_buffer));
+	WARN_ON_ONCE(!schedule_work(&sdkp->start_done_work));
+}
+
+/* Submit a START command asynchronously. */
+static int sd_submit_start(struct scsi_disk *sdkp, u8 cmd[], u8 cmd_len)
+{
+	struct scsi_device *sdev = sdkp->device;
+	struct request_queue *q = sdev->request_queue;
+	struct request *req;
+	struct scsi_cmnd *scmd;
+
+	req = scsi_alloc_request(q, REQ_OP_DRV_IN, BLK_MQ_REQ_PM);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	scmd = blk_mq_rq_to_pdu(req);
+	scmd->cmd_len = cmd_len;
+	memcpy(scmd->cmnd, cmd, cmd_len);
+	scmd->allowed = sdkp->max_retries;
+	req->timeout = SD_TIMEOUT;
+	req->rq_flags |= RQF_PM | RQF_QUIET;
+	req->end_io = sd_start_done;
+	blk_execute_rq_nowait(req, /*at_head=*/true);
+
+	return 0;
+}
+
 static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 {
 	unsigned char cmd[6] = { START_STOP };	/* START_VALID */
-	struct scsi_sense_hdr sshdr;
 	struct scsi_device *sdp = sdkp->device;
-	int res;
 
 	if (start)
 		cmd[4] |= 1;	/* START */
@@ -3561,23 +3667,10 @@ static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 	if (!scsi_device_online(sdp))
 		return -ENODEV;
 
-	res = scsi_execute(sdp, cmd, DMA_NONE, NULL, 0, NULL, &sshdr,
-			SD_TIMEOUT, sdkp->max_retries, 0, RQF_PM, NULL);
-	if (res) {
-		sd_print_result(sdkp, "Start/Stop Unit failed", res);
-		if (res > 0 && scsi_sense_valid(&sshdr)) {
-			sd_print_sense_hdr(sdkp, &sshdr);
-			/* 0x3a is medium not present */
-			if (sshdr.asc == 0x3a)
-				res = 0;
-		}
-	}
+	/* Wait until processing of sense data has finished. */
+	flush_work(&sdkp->start_done_work);
 
-	/* SCSI error codes must not go to the generic layer */
-	if (res)
-		return -EIO;
-
-	return 0;
+	return sd_submit_start(sdkp, cmd, sizeof(cmd));
 }
 
 /*
@@ -3604,6 +3697,8 @@ static void sd_shutdown(struct device *dev)
 		sd_printk(KERN_NOTICE, sdkp, "Stopping disk\n");
 		sd_start_stop_device(sdkp, 0);
 	}
+
+	flush_work(&sdkp->start_done_work);
 }
 
 static int sd_suspend_common(struct device *dev, bool ignore_stop_errors)

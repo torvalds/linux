@@ -112,7 +112,7 @@ static int __init pnv_save_sprs_for_deep_states(void)
 			if (rc != 0)
 				return rc;
 
-			/* Only p8 needs to set extra HID regiters */
+			/* Only p8 needs to set extra HID registers */
 			if (!cpu_has_feature(CPU_FTR_ARCH_300)) {
 				uint64_t hid1_val = mfspr(SPRN_HID1);
 				uint64_t hid4_val = mfspr(SPRN_HID4);
@@ -1204,7 +1204,7 @@ static void __init pnv_arch300_idle_init(void)
 		 * The idle code does not deal with TB loss occurring
 		 * in a shallower state than SPR loss, so force it to
 		 * behave like SPRs are lost if TB is lost. POWER9 would
-		 * never encouter this, but a POWER8 core would if it
+		 * never encounter this, but a POWER8 core would if it
 		 * implemented the stop instruction. So this is for forward
 		 * compatibility.
 		 */

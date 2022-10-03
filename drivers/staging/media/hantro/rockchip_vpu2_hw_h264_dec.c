@@ -298,7 +298,7 @@ static void set_params(struct hantro_ctx *ctx, struct vb2_v4l2_buffer *src_buf)
 
 static void set_ref(struct hantro_ctx *ctx)
 {
-	const u8 *b0_reflist, *b1_reflist, *p_reflist;
+	const struct v4l2_h264_reference *b0_reflist, *b1_reflist, *p_reflist;
 	struct hantro_dev *vpu = ctx->dev;
 	u32 reg;
 	int i;
@@ -307,20 +307,20 @@ static void set_ref(struct hantro_ctx *ctx)
 	b1_reflist = ctx->h264_dec.reflists.b1;
 	p_reflist = ctx->h264_dec.reflists.p;
 
-	reg = VDPU_REG_PINIT_RLIST_F9(p_reflist[9]) |
-	      VDPU_REG_PINIT_RLIST_F8(p_reflist[8]) |
-	      VDPU_REG_PINIT_RLIST_F7(p_reflist[7]) |
-	      VDPU_REG_PINIT_RLIST_F6(p_reflist[6]) |
-	      VDPU_REG_PINIT_RLIST_F5(p_reflist[5]) |
-	      VDPU_REG_PINIT_RLIST_F4(p_reflist[4]);
+	reg = VDPU_REG_PINIT_RLIST_F9(p_reflist[9].index) |
+	      VDPU_REG_PINIT_RLIST_F8(p_reflist[8].index) |
+	      VDPU_REG_PINIT_RLIST_F7(p_reflist[7].index) |
+	      VDPU_REG_PINIT_RLIST_F6(p_reflist[6].index) |
+	      VDPU_REG_PINIT_RLIST_F5(p_reflist[5].index) |
+	      VDPU_REG_PINIT_RLIST_F4(p_reflist[4].index);
 	vdpu_write_relaxed(vpu, reg, VDPU_SWREG(74));
 
-	reg = VDPU_REG_PINIT_RLIST_F15(p_reflist[15]) |
-	      VDPU_REG_PINIT_RLIST_F14(p_reflist[14]) |
-	      VDPU_REG_PINIT_RLIST_F13(p_reflist[13]) |
-	      VDPU_REG_PINIT_RLIST_F12(p_reflist[12]) |
-	      VDPU_REG_PINIT_RLIST_F11(p_reflist[11]) |
-	      VDPU_REG_PINIT_RLIST_F10(p_reflist[10]);
+	reg = VDPU_REG_PINIT_RLIST_F15(p_reflist[15].index) |
+	      VDPU_REG_PINIT_RLIST_F14(p_reflist[14].index) |
+	      VDPU_REG_PINIT_RLIST_F13(p_reflist[13].index) |
+	      VDPU_REG_PINIT_RLIST_F12(p_reflist[12].index) |
+	      VDPU_REG_PINIT_RLIST_F11(p_reflist[11].index) |
+	      VDPU_REG_PINIT_RLIST_F10(p_reflist[10].index);
 	vdpu_write_relaxed(vpu, reg, VDPU_SWREG(75));
 
 	reg = VDPU_REG_REFER1_NBR(hantro_h264_get_ref_nbr(ctx, 1)) |
@@ -355,54 +355,54 @@ static void set_ref(struct hantro_ctx *ctx)
 	      VDPU_REG_REFER14_NBR(hantro_h264_get_ref_nbr(ctx, 14));
 	vdpu_write_relaxed(vpu, reg, VDPU_SWREG(83));
 
-	reg = VDPU_REG_BINIT_RLIST_F5(b0_reflist[5]) |
-	      VDPU_REG_BINIT_RLIST_F4(b0_reflist[4]) |
-	      VDPU_REG_BINIT_RLIST_F3(b0_reflist[3]) |
-	      VDPU_REG_BINIT_RLIST_F2(b0_reflist[2]) |
-	      VDPU_REG_BINIT_RLIST_F1(b0_reflist[1]) |
-	      VDPU_REG_BINIT_RLIST_F0(b0_reflist[0]);
+	reg = VDPU_REG_BINIT_RLIST_F5(b0_reflist[5].index) |
+	      VDPU_REG_BINIT_RLIST_F4(b0_reflist[4].index) |
+	      VDPU_REG_BINIT_RLIST_F3(b0_reflist[3].index) |
+	      VDPU_REG_BINIT_RLIST_F2(b0_reflist[2].index) |
+	      VDPU_REG_BINIT_RLIST_F1(b0_reflist[1].index) |
+	      VDPU_REG_BINIT_RLIST_F0(b0_reflist[0].index);
 	vdpu_write_relaxed(vpu, reg, VDPU_SWREG(100));
 
-	reg = VDPU_REG_BINIT_RLIST_F11(b0_reflist[11]) |
-	      VDPU_REG_BINIT_RLIST_F10(b0_reflist[10]) |
-	      VDPU_REG_BINIT_RLIST_F9(b0_reflist[9]) |
-	      VDPU_REG_BINIT_RLIST_F8(b0_reflist[8]) |
-	      VDPU_REG_BINIT_RLIST_F7(b0_reflist[7]) |
-	      VDPU_REG_BINIT_RLIST_F6(b0_reflist[6]);
+	reg = VDPU_REG_BINIT_RLIST_F11(b0_reflist[11].index) |
+	      VDPU_REG_BINIT_RLIST_F10(b0_reflist[10].index) |
+	      VDPU_REG_BINIT_RLIST_F9(b0_reflist[9].index) |
+	      VDPU_REG_BINIT_RLIST_F8(b0_reflist[8].index) |
+	      VDPU_REG_BINIT_RLIST_F7(b0_reflist[7].index) |
+	      VDPU_REG_BINIT_RLIST_F6(b0_reflist[6].index);
 	vdpu_write_relaxed(vpu, reg, VDPU_SWREG(101));
 
-	reg = VDPU_REG_BINIT_RLIST_F15(b0_reflist[15]) |
-	      VDPU_REG_BINIT_RLIST_F14(b0_reflist[14]) |
-	      VDPU_REG_BINIT_RLIST_F13(b0_reflist[13]) |
-	      VDPU_REG_BINIT_RLIST_F12(b0_reflist[12]);
+	reg = VDPU_REG_BINIT_RLIST_F15(b0_reflist[15].index) |
+	      VDPU_REG_BINIT_RLIST_F14(b0_reflist[14].index) |
+	      VDPU_REG_BINIT_RLIST_F13(b0_reflist[13].index) |
+	      VDPU_REG_BINIT_RLIST_F12(b0_reflist[12].index);
 	vdpu_write_relaxed(vpu, reg, VDPU_SWREG(102));
 
-	reg = VDPU_REG_BINIT_RLIST_B5(b1_reflist[5]) |
-	      VDPU_REG_BINIT_RLIST_B4(b1_reflist[4]) |
-	      VDPU_REG_BINIT_RLIST_B3(b1_reflist[3]) |
-	      VDPU_REG_BINIT_RLIST_B2(b1_reflist[2]) |
-	      VDPU_REG_BINIT_RLIST_B1(b1_reflist[1]) |
-	      VDPU_REG_BINIT_RLIST_B0(b1_reflist[0]);
+	reg = VDPU_REG_BINIT_RLIST_B5(b1_reflist[5].index) |
+	      VDPU_REG_BINIT_RLIST_B4(b1_reflist[4].index) |
+	      VDPU_REG_BINIT_RLIST_B3(b1_reflist[3].index) |
+	      VDPU_REG_BINIT_RLIST_B2(b1_reflist[2].index) |
+	      VDPU_REG_BINIT_RLIST_B1(b1_reflist[1].index) |
+	      VDPU_REG_BINIT_RLIST_B0(b1_reflist[0].index);
 	vdpu_write_relaxed(vpu, reg, VDPU_SWREG(103));
 
-	reg = VDPU_REG_BINIT_RLIST_B11(b1_reflist[11]) |
-	      VDPU_REG_BINIT_RLIST_B10(b1_reflist[10]) |
-	      VDPU_REG_BINIT_RLIST_B9(b1_reflist[9]) |
-	      VDPU_REG_BINIT_RLIST_B8(b1_reflist[8]) |
-	      VDPU_REG_BINIT_RLIST_B7(b1_reflist[7]) |
-	      VDPU_REG_BINIT_RLIST_B6(b1_reflist[6]);
+	reg = VDPU_REG_BINIT_RLIST_B11(b1_reflist[11].index) |
+	      VDPU_REG_BINIT_RLIST_B10(b1_reflist[10].index) |
+	      VDPU_REG_BINIT_RLIST_B9(b1_reflist[9].index) |
+	      VDPU_REG_BINIT_RLIST_B8(b1_reflist[8].index) |
+	      VDPU_REG_BINIT_RLIST_B7(b1_reflist[7].index) |
+	      VDPU_REG_BINIT_RLIST_B6(b1_reflist[6].index);
 	vdpu_write_relaxed(vpu, reg, VDPU_SWREG(104));
 
-	reg = VDPU_REG_BINIT_RLIST_B15(b1_reflist[15]) |
-	      VDPU_REG_BINIT_RLIST_B14(b1_reflist[14]) |
-	      VDPU_REG_BINIT_RLIST_B13(b1_reflist[13]) |
-	      VDPU_REG_BINIT_RLIST_B12(b1_reflist[12]);
+	reg = VDPU_REG_BINIT_RLIST_B15(b1_reflist[15].index) |
+	      VDPU_REG_BINIT_RLIST_B14(b1_reflist[14].index) |
+	      VDPU_REG_BINIT_RLIST_B13(b1_reflist[13].index) |
+	      VDPU_REG_BINIT_RLIST_B12(b1_reflist[12].index);
 	vdpu_write_relaxed(vpu, reg, VDPU_SWREG(105));
 
-	reg = VDPU_REG_PINIT_RLIST_F3(p_reflist[3]) |
-	      VDPU_REG_PINIT_RLIST_F2(p_reflist[2]) |
-	      VDPU_REG_PINIT_RLIST_F1(p_reflist[1]) |
-	      VDPU_REG_PINIT_RLIST_F0(p_reflist[0]);
+	reg = VDPU_REG_PINIT_RLIST_F3(p_reflist[3].index) |
+	      VDPU_REG_PINIT_RLIST_F2(p_reflist[2].index) |
+	      VDPU_REG_PINIT_RLIST_F1(p_reflist[1].index) |
+	      VDPU_REG_PINIT_RLIST_F0(p_reflist[0].index);
 	vdpu_write_relaxed(vpu, reg, VDPU_SWREG(106));
 
 	reg = VDPU_REG_REFER_LTERM_E(ctx->h264_dec.dpb_longterm);

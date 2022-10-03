@@ -170,7 +170,7 @@
 
 		smi: flash@ea000000 {
 			status = "okay";
-			clock-rate=<50000000>;
+			clock-rate = <50000000>;
 
 			flash@e6000000 {
 				#address-cells = <1>;
@@ -379,7 +379,7 @@
 					};
 				};
 
-				m25p80@1 {
+				flash@1 {
 					compatible = "st,m25p80";
 					reg = <1>;
 					spi-max-frequency = <12000000>;

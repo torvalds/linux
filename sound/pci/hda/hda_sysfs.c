@@ -33,7 +33,7 @@ static ssize_t power_on_acct_show(struct device *dev,
 {
 	struct hda_codec *codec = dev_get_drvdata(dev);
 	snd_hda_update_power_acct(codec);
-	return sprintf(buf, "%u\n", jiffies_to_msecs(codec->power_on_acct));
+	return sysfs_emit(buf, "%u\n", jiffies_to_msecs(codec->power_on_acct));
 }
 
 static ssize_t power_off_acct_show(struct device *dev,
@@ -42,7 +42,7 @@ static ssize_t power_off_acct_show(struct device *dev,
 {
 	struct hda_codec *codec = dev_get_drvdata(dev);
 	snd_hda_update_power_acct(codec);
-	return sprintf(buf, "%u\n", jiffies_to_msecs(codec->power_off_acct));
+	return sysfs_emit(buf, "%u\n", jiffies_to_msecs(codec->power_off_acct));
 }
 
 static DEVICE_ATTR_RO(power_on_acct);
@@ -55,7 +55,7 @@ static ssize_t type##_show(struct device *dev,			\
 			   char *buf)				\
 {								\
 	struct hda_codec *codec = dev_get_drvdata(dev);		\
-	return sprintf(buf, "0x%x\n", codec->field);		\
+	return sysfs_emit(buf, "0x%x\n", codec->field);		\
 }
 
 #define CODEC_INFO_STR_SHOW(type, field)			\
@@ -64,8 +64,8 @@ static ssize_t type##_show(struct device *dev,			\
 					char *buf)		\
 {								\
 	struct hda_codec *codec = dev_get_drvdata(dev);		\
-	return sprintf(buf, "%s\n",				\
-		       codec->field ? codec->field : "");	\
+	return sysfs_emit(buf, "%s\n",				\
+			  codec->field ? codec->field : "");	\
 }
 
 CODEC_INFO_SHOW(vendor_id, core.vendor_id);
@@ -85,8 +85,8 @@ static ssize_t pin_configs_show(struct hda_codec *codec,
 	int i, len = 0;
 	mutex_lock(&codec->user_mutex);
 	snd_array_for_each(list, i, pin) {
-		len += sprintf(buf + len, "0x%02x 0x%08x\n",
-			       pin->nid, pin->cfg);
+		len += sysfs_emit_at(buf, len, "0x%02x 0x%08x\n",
+				     pin->nid, pin->cfg);
 	}
 	mutex_unlock(&codec->user_mutex);
 	return len;
@@ -222,9 +222,8 @@ static ssize_t init_verbs_show(struct device *dev,
 	int i, len = 0;
 	mutex_lock(&codec->user_mutex);
 	snd_array_for_each(&codec->init_verbs, i, v) {
-		len += scnprintf(buf + len, PAGE_SIZE - len,
-				"0x%02x 0x%03x 0x%04x\n",
-				v->nid, v->verb, v->param);
+		len += sysfs_emit_at(buf, len, "0x%02x 0x%03x 0x%04x\n",
+				     v->nid, v->verb, v->param);
 	}
 	mutex_unlock(&codec->user_mutex);
 	return len;
@@ -272,8 +271,8 @@ static ssize_t hints_show(struct device *dev,
 	int i, len = 0;
 	mutex_lock(&codec->user_mutex);
 	snd_array_for_each(&codec->hints, i, hint) {
-		len += scnprintf(buf + len, PAGE_SIZE - len,
-				"%s = %s\n", hint->key, hint->val);
+		len += sysfs_emit_at(buf, len, "%s = %s\n",
+				     hint->key, hint->val);
 	}
 	mutex_unlock(&codec->user_mutex);
 	return len;

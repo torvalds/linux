@@ -553,7 +553,6 @@ static const struct snd_soc_component_driver soc_component_cs4265 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config cs4265_regmap = {
@@ -568,8 +567,7 @@ static const struct regmap_config cs4265_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int cs4265_i2c_probe(struct i2c_client *i2c_client,
-			     const struct i2c_device_id *id)
+static int cs4265_i2c_probe(struct i2c_client *i2c_client)
 {
 	struct cs4265_private *cs4265;
 	int ret;
@@ -653,7 +651,7 @@ static struct i2c_driver cs4265_i2c_driver = {
 		.of_match_table = cs4265_of_match,
 	},
 	.id_table = cs4265_id,
-	.probe =    cs4265_i2c_probe,
+	.probe_new = cs4265_i2c_probe,
 	.remove =   cs4265_i2c_remove,
 };
 

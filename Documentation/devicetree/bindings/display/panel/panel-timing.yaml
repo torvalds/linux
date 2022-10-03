@@ -71,78 +71,72 @@ properties:
 
   hfront-porch:
     description: Horizontal front porch panel timing
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     oneOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-        maxItems: 1
+      - maxItems: 1
         items:
           description: typical number of pixels
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-        minItems: 3
+      - minItems: 3
         maxItems: 3
         items:
           description: min, typ, max number of pixels
 
   hback-porch:
     description: Horizontal back porch timing
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     oneOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-        maxItems: 1
+      - maxItems: 1
         items:
           description: typical number of pixels
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-        minItems: 3
+      - minItems: 3
         maxItems: 3
         items:
           description: min, typ, max number of pixels
 
   hsync-len:
     description: Horizontal sync length panel timing
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     oneOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-        maxItems: 1
+      - maxItems: 1
         items:
           description: typical number of pixels
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-        minItems: 3
+      - minItems: 3
         maxItems: 3
         items:
           description: min, typ, max number of pixels
 
   vfront-porch:
     description: Vertical front porch panel timing
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     oneOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-        maxItems: 1
+      - maxItems: 1
         items:
           description: typical number of lines
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-        minItems: 3
+      - minItems: 3
         maxItems: 3
         items:
           description: min, typ, max number of lines
 
   vback-porch:
     description: Vertical back porch panel timing
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     oneOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-        maxItems: 1
+      - maxItems: 1
         items:
           description: typical number of lines
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-        minItems: 3
+      - minItems: 3
         maxItems: 3
         items:
           description: min, typ, max number of lines
 
   vsync-len:
     description: Vertical sync length panel timing
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     oneOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-        maxItems: 1
+      - maxItems: 1
         items:
           description: typical number of lines
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-        minItems: 3
+      - minItems: 3
         maxItems: 3
         items:
           description: min, typ, max number of lines
@@ -152,6 +146,7 @@ properties:
       Horizontal sync pulse.
       0 selects active low, 1 selects active high.
       If omitted then it is not used by the hardware
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]
 
   vsync-active:
@@ -159,6 +154,7 @@ properties:
       Vertical sync pulse.
       0 selects active low, 1 selects active high.
       If omitted then it is not used by the hardware
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]
 
   de-active:
@@ -166,6 +162,7 @@ properties:
       Data enable.
       0 selects active low, 1 selects active high.
       If omitted then it is not used by the hardware
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]
 
   pixelclk-active:
@@ -175,6 +172,7 @@ properties:
       sample data on rising edge.
       Use 1 to drive pixel data on rising edge and
       sample data on falling edge
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]
 
   syncclk-active:
@@ -185,6 +183,7 @@ properties:
       sample sync on rising edge of pixel clock.
       Use 1 to drive sync on rising edge and
       sample sync on falling edge of pixel clock
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]
 
   interlaced:

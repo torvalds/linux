@@ -49,11 +49,6 @@ struct service_hndl {
 	struct list_head list;
 };
 
-static inline int get_current_node(void)
-{
-	return topology_physical_package_id(raw_smp_processor_id());
-}
-
 int adf_service_register(struct service_hndl *service);
 int adf_service_unregister(struct service_hndl *service);
 
@@ -61,6 +56,7 @@ int adf_dev_init(struct adf_accel_dev *accel_dev);
 int adf_dev_start(struct adf_accel_dev *accel_dev);
 void adf_dev_stop(struct adf_accel_dev *accel_dev);
 void adf_dev_shutdown(struct adf_accel_dev *accel_dev);
+int adf_dev_shutdown_cache_cfg(struct adf_accel_dev *accel_dev);
 
 void adf_devmgr_update_class_index(struct adf_hw_device_data *hw_data);
 void adf_clean_vf_map(bool);
@@ -132,6 +128,8 @@ void adf_vf_isr_resource_free(struct adf_accel_dev *accel_dev);
 
 int adf_pfvf_comms_disabled(struct adf_accel_dev *accel_dev);
 
+int adf_sysfs_init(struct adf_accel_dev *accel_dev);
+
 int qat_hal_init(struct adf_accel_dev *accel_dev);
 void qat_hal_deinit(struct icp_qat_fw_loader_handle *handle);
 int qat_hal_start(struct icp_qat_fw_loader_handle *handle);
@@ -195,10 +193,8 @@ bool adf_misc_wq_queue_work(struct work_struct *work);
 #if defined(CONFIG_PCI_IOV)
 int adf_sriov_configure(struct pci_dev *pdev, int numvfs);
 void adf_disable_sriov(struct adf_accel_dev *accel_dev);
-void adf_disable_vf2pf_interrupts(struct adf_accel_dev *accel_dev,
-				  u32 vf_mask);
-void adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev,
-				 u32 vf_mask);
+void adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev, u32 vf_mask);
+void adf_disable_all_vf2pf_interrupts(struct adf_accel_dev *accel_dev);
 bool adf_recv_and_handle_pf2vf_msg(struct adf_accel_dev *accel_dev);
 bool adf_recv_and_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u32 vf_nr);
 int adf_pf2vf_handle_pf_restarting(struct adf_accel_dev *accel_dev);
@@ -217,14 +213,6 @@ static inline void adf_disable_sriov(struct adf_accel_dev *accel_dev)
 {
 }
 
-static inline void adf_enable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
-{
-}
-
-static inline void adf_disable_pf2vf_interrupts(struct adf_accel_dev *accel_dev)
-{
-}
-
 static inline int adf_init_pf_wq(void)
 {
 	return 0;
@@ -240,10 +228,6 @@ static inline int adf_init_vf_wq(void)
 }
 
 static inline void adf_exit_vf_wq(void)
-{
-}
-
-static inline void adf_flush_vf_wq(struct adf_accel_dev *accel_dev)
 {
 }
 

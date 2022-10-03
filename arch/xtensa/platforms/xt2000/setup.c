@@ -78,7 +78,7 @@ void __init platform_init(bp_tag_t *first)
 
 void platform_heartbeat(void)
 {
-	static int i=0, t = 0;
+	static int i, t;
 
 	if (--t < 0)
 	{

@@ -5813,9 +5813,10 @@ static bool validate_schedule(struct igc_adapter *adapter,
 		return false;
 
 	for (n = 0; n < qopt->num_entries; n++) {
-		const struct tc_taprio_sched_entry *e;
+		const struct tc_taprio_sched_entry *e, *prev;
 		int i;
 
+		prev = n ? &qopt->entries[n - 1] : NULL;
 		e = &qopt->entries[n];
 
 		/* i225 only supports "global" frame preemption
@@ -5828,7 +5829,12 @@ static bool validate_schedule(struct igc_adapter *adapter,
 			if (e->gate_mask & BIT(i))
 				queue_uses[i]++;
 
-			if (queue_uses[i] > 1)
+			/* There are limitations: A single queue cannot be
+			 * opened and closed multiple times per cycle unless the
+			 * gate stays open. Check for it.
+			 */
+			if (queue_uses[i] > 1 &&
+			    !(prev->gate_mask & BIT(i)))
 				return false;
 		}
 	}
@@ -5872,6 +5878,7 @@ static int igc_tsn_clear_schedule(struct igc_adapter *adapter)
 static int igc_save_qbv_schedule(struct igc_adapter *adapter,
 				 struct tc_taprio_qopt_offload *qopt)
 {
+	bool queue_configured[IGC_MAX_TX_QUEUES] = { };
 	u32 start_time = 0, end_time = 0;
 	size_t n;
 
@@ -5887,9 +5894,6 @@ static int igc_save_qbv_schedule(struct igc_adapter *adapter,
 	adapter->cycle_time = qopt->cycle_time;
 	adapter->base_time = qopt->base_time;
 
-	/* FIXME: be a little smarter about cases when the gate for a
-	 * queue stays open for more than one entry.
-	 */
 	for (n = 0; n < qopt->num_entries; n++) {
 		struct tc_taprio_sched_entry *e = &qopt->entries[n];
 		int i;
@@ -5902,8 +5906,15 @@ static int igc_save_qbv_schedule(struct igc_adapter *adapter,
 			if (!(e->gate_mask & BIT(i)))
 				continue;
 
-			ring->start_time = start_time;
+			/* Check whether a queue stays open for more than one
+			 * entry. If so, keep the start and advance the end
+			 * time.
+			 */
+			if (!queue_configured[i])
+				ring->start_time = start_time;
 			ring->end_time = end_time;
+
+			queue_configured[i] = true;
 		}
 
 		start_time += e->interval;
@@ -6171,6 +6182,9 @@ u32 igc_rd32(struct igc_hw *hw, u32 reg)
 	u8 __iomem *hw_addr = READ_ONCE(hw->hw_addr);
 	u32 value = 0;
 
+	if (IGC_REMOVED(hw_addr))
+		return ~value;
+
 	value = readl(&hw_addr[reg]);
 
 	/* reads should not return all F's */
@@ -6185,56 +6199,6 @@ u32 igc_rd32(struct igc_hw *hw, u32 reg)
 	}
 
 	return value;
-}
-
-int igc_set_spd_dplx(struct igc_adapter *adapter, u32 spd, u8 dplx)
-{
-	struct igc_mac_info *mac = &adapter->hw.mac;
-
-	mac->autoneg = false;
-
-	/* Make sure dplx is at most 1 bit and lsb of speed is not set
-	 * for the switch() below to work
-	 */
-	if ((spd & 1) || (dplx & ~1))
-		goto err_inval;
-
-	switch (spd + dplx) {
-	case SPEED_10 + DUPLEX_HALF:
-		mac->forced_speed_duplex = ADVERTISE_10_HALF;
-		break;
-	case SPEED_10 + DUPLEX_FULL:
-		mac->forced_speed_duplex = ADVERTISE_10_FULL;
-		break;
-	case SPEED_100 + DUPLEX_HALF:
-		mac->forced_speed_duplex = ADVERTISE_100_HALF;
-		break;
-	case SPEED_100 + DUPLEX_FULL:
-		mac->forced_speed_duplex = ADVERTISE_100_FULL;
-		break;
-	case SPEED_1000 + DUPLEX_FULL:
-		mac->autoneg = true;
-		adapter->hw.phy.autoneg_advertised = ADVERTISE_1000_FULL;
-		break;
-	case SPEED_1000 + DUPLEX_HALF: /* not supported */
-		goto err_inval;
-	case SPEED_2500 + DUPLEX_FULL:
-		mac->autoneg = true;
-		adapter->hw.phy.autoneg_advertised = ADVERTISE_2500_FULL;
-		break;
-	case SPEED_2500 + DUPLEX_HALF: /* not supported */
-	default:
-		goto err_inval;
-	}
-
-	/* clear MDI, MDI(-X) override is only allowed when autoneg enabled */
-	adapter->hw.phy.mdix = AUTO_ALL_MODES;
-
-	return 0;
-
-err_inval:
-	netdev_err(adapter->netdev, "Unsupported Speed/Duplex configuration\n");
-	return -EINVAL;
 }
 
 /**

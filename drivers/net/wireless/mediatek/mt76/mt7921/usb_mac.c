@@ -121,7 +121,7 @@ static void mt7921u_epctl_rst_opt(struct mt7921_dev *dev, bool reset)
 	mt7921u_uhw_wr(&dev->mt76, MT_SSUSB_EPCTL_CSR_EP_RST_OPT, val);
 }
 
-int mt7921u_dma_init(struct mt7921_dev *dev)
+int mt7921u_dma_init(struct mt7921_dev *dev, bool resume)
 {
 	int err;
 
@@ -135,6 +135,9 @@ int mt7921u_dma_init(struct mt7921_dev *dev)
 	mt76_clear(dev, MT_UDMA_WLCFG_0,
 		   MT_WL_RX_AGG_TO | MT_WL_RX_AGG_LMT);
 	mt76_clear(dev, MT_UDMA_WLCFG_1, MT_WL_RX_AGG_PKT_LMT);
+
+	if (resume)
+		return 0;
 
 	err = mt7921u_dma_rx_evt_ep4(dev);
 	if (err)
@@ -182,7 +185,7 @@ int mt7921u_init_reset(struct mt7921_dev *dev)
 	set_bit(MT76_RESET, &dev->mphy.state);
 
 	wake_up(&dev->mt76.mcu.wait);
-	mt7921_mcu_exit(dev);
+	skb_queue_purge(&dev->mt76.mcu.res_q);
 
 	mt76u_stop_rx(&dev->mt76);
 	mt76u_stop_tx(&dev->mt76);
@@ -205,7 +208,7 @@ int mt7921u_mac_reset(struct mt7921_dev *dev)
 	set_bit(MT76_MCU_RESET, &dev->mphy.state);
 
 	wake_up(&dev->mt76.mcu.wait);
-	mt7921_mcu_exit(dev);
+	skb_queue_purge(&dev->mt76.mcu.res_q);
 
 	mt76u_stop_rx(&dev->mt76);
 	mt76u_stop_tx(&dev->mt76);
@@ -221,7 +224,7 @@ int mt7921u_mac_reset(struct mt7921_dev *dev)
 	if (err)
 		goto out;
 
-	err = mt7921u_dma_init(dev);
+	err = mt7921u_dma_init(dev, false);
 	if (err)
 		goto out;
 

@@ -103,21 +103,11 @@ static inline int book3e_tlb_exists(unsigned long ea, unsigned long pid)
 	int found = 0;
 
 	mtspr(SPRN_MAS6, pid << 16);
-	if (mmu_has_feature(MMU_FTR_USE_TLBRSRV)) {
-		asm volatile(
-			"li	%0,0\n"
-			"tlbsx.	0,%1\n"
-			"bne	1f\n"
-			"li	%0,1\n"
-			"1:\n"
-			: "=&r"(found) : "r"(ea));
-	} else {
-		asm volatile(
-			"tlbsx	0,%1\n"
-			"mfspr	%0,0x271\n"
-			"srwi	%0,%0,31\n"
-			: "=&r"(found) : "r"(ea));
-	}
+	asm volatile(
+		"tlbsx	0,%1\n"
+		"mfspr	%0,0x271\n"
+		"srwi	%0,%0,31\n"
+		: "=&r"(found) : "r"(ea));
 
 	return found;
 }
@@ -142,7 +132,7 @@ book3e_hugetlb_preload(struct vm_area_struct *vma, unsigned long ea, pte_t pte)
 	tsize = shift - 10;
 	/*
 	 * We can't be interrupted while we're setting up the MAS
-	 * regusters or after we've confirmed that no tlb exists.
+	 * registers or after we've confirmed that no tlb exists.
 	 */
 	local_irq_save(flags);
 
@@ -169,13 +159,9 @@ book3e_hugetlb_preload(struct vm_area_struct *vma, unsigned long ea, pte_t pte)
 	mtspr(SPRN_MAS1, mas1);
 	mtspr(SPRN_MAS2, mas2);
 
-	if (mmu_has_feature(MMU_FTR_USE_PAIRED_MAS)) {
-		mtspr(SPRN_MAS7_MAS3, mas7_3);
-	} else {
-		if (mmu_has_feature(MMU_FTR_BIG_PHYS))
-			mtspr(SPRN_MAS7, upper_32_bits(mas7_3));
-		mtspr(SPRN_MAS3, lower_32_bits(mas7_3));
-	}
+	if (mmu_has_feature(MMU_FTR_BIG_PHYS))
+		mtspr(SPRN_MAS7, upper_32_bits(mas7_3));
+	mtspr(SPRN_MAS3, lower_32_bits(mas7_3));
 
 	asm volatile ("tlbwe");
 

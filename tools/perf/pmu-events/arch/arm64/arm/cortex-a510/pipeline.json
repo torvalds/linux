@@ -1,0 +1,107 @@
+[
+    {
+        "ArchStdEvent": "STALL_FRONTEND"
+    },
+    {
+        "ArchStdEvent": "STALL_BACKEND"
+    },
+    {
+        "ArchStdEvent": "STALL"
+    },
+    {
+        "ArchStdEvent": "STALL_SLOT_BACKEND"
+    },
+    {
+        "ArchStdEvent": "STALL_SLOT_FRONTEND"
+    },
+    {
+        "ArchStdEvent": "STALL_SLOT"
+    },
+    {
+        "PublicDescription": "No operation issued due to the frontend, cache miss. This event counts every cycle that the Data Processing Unit (DPU) instruction queue is empty and there is an instruction cache miss being processed",
+        "EventCode": "0xE1",
+        "EventName": "STALL_FRONTEND_CACHE",
+        "BriefDescription": "No operation issued due to the frontend, cache miss. This event counts every cycle that the Data Processing Unit (DPU) instruction queue is empty and there is an instruction cache miss being processed"
+    },
+    {
+        "PublicDescription": "No operation issued due to the frontend, TLB miss. This event counts every cycle that the DPU instruction queue is empty and there is an instruction L1 TLB miss being processed",
+        "EventCode": "0xE2",
+        "EventName": "STALL_FRONTEND_TLB",
+        "BriefDescription": "No operation issued due to the frontend, TLB miss. This event counts every cycle that the DPU instruction queue is empty and there is an instruction L1 TLB miss being processed"
+    },
+    {
+        "PublicDescription": "No operation issued due to the frontend, pre-decode error",
+        "EventCode": "0xE3",
+        "EventName": "STALL_FRONTEND_PDERR",
+        "BriefDescription": "No operation issued due to the frontend, pre-decode error"
+    },
+    {
+        "PublicDescription": "No operation issued due to the backend interlock. This event counts every cycle where the issue of an operation is stalled and there is an interlock. Stall cycles due to a stall in the Wr stage are excluded",
+        "EventCode": "0xE4",
+        "EventName": "STALL_BACKEND_ILOCK",
+        "BriefDescription": "No operation issued due to the backend interlock. This event counts every cycle where the issue of an operation is stalled and there is an interlock. Stall cycles due to a stall in the Wr stage are excluded"
+    },
+    {
+        "PublicDescription": "No operation issued due to the backend, address interlock. This event counts every cycle where the issue of an operation is stalled and there is an interlock on an address operand. This type of interlock is caused by a load/store instruction waiting for data to calculate the address. Stall cycles due to a stall in the Wr stage are excluded",
+        "EventCode": "0xE5",
+        "EventName": "STALL_BACKEND_ILOCK_ADDR",
+        "BriefDescription": "No operation issued due to the backend, address interlock. This event counts every cycle where the issue of an operation is stalled and there is an interlock on an address operand. This type of interlock is caused by a load/store instruction waiting for data to calculate the address. Stall cycles due to a stall in the Wr stage are excluded"
+    },
+    {
+        "PublicDescription": "No operation issued due to the backend, interlock, or the Vector Processing Unit (VPU). This event counts every cycle where there is a stall or an interlock that is caused by a VPU instruction. Stall cycles due to a stall in the Wr stage are excluded",
+        "EventCode": "0xE6",
+        "EventName": "STALL_BACKEND_ILOCK_VPU",
+        "BriefDescription": "No operation issued due to the backend, interlock, or the Vector Processing Unit (VPU). This event counts every cycle where there is a stall or an interlock that is caused by a VPU instruction. Stall cycles due to a stall in the Wr stage are excluded"
+    },
+    {
+        "PublicDescription": "No operation issued due to the backend, load. This event counts every cycle where there is a stall in the Wr stage due to a load",
+        "EventCode": "0xE7",
+        "EventName": "STALL_BACKEND_LD",
+        "BriefDescription": "No operation issued due to the backend, load. This event counts every cycle where there is a stall in the Wr stage due to a load"
+    },
+    {
+        "PublicDescription": "No operation issued due to the backend, store. This event counts every cycle where there is a stall in the Wr stage due to a store",
+        "EventCode": "0xE8",
+        "EventName": "STALL_BACKEND_ST",
+        "BriefDescription": "No operation issued due to the backend, store. This event counts every cycle where there is a stall in the Wr stage due to a store"
+    },
+    {
+        "PublicDescription": "No operation issued due to the backend, load, cache miss. This event counts every cycle where there is a stall in the Wr stage due to a load that is waiting on data. The event counts for stalls that are caused by missing the cache or where the data is Non-cacheable",
+        "EventCode": "0xE9",
+        "EventName": "STALL_BACKEND_LD_CACHE",
+        "BriefDescription": "No operation issued due to the backend, load, cache miss. This event counts every cycle where there is a stall in the Wr stage due to a load that is waiting on data. The event counts for stalls that are caused by missing the cache or where the data is Non-cacheable"
+    },
+    {
+        "PublicDescription": "No operation issued due to the backend, load, TLB miss. This event counts every cycle where there is a stall in the Wr stage due to a load that misses in the L1 TLB",
+        "EventCode": "0xEA",
+        "EventName": "STALL_BACKEND_LD_TLB",
+        "BriefDescription": "No operation issued due to the backend, load, TLB miss. This event counts every cycle where there is a stall in the Wr stage due to a load that misses in the L1 TLB"
+    },
+    {
+        "PublicDescription": "No operation issued due to the backend, store, Store Buffer (STB) full. This event counts every cycle where there is a stall in the Wr stage because of a store operation that is waiting due to the STB being full",
+        "EventCode": "0xEB",
+        "EventName": "STALL_BACKEND_ST_STB",
+        "BriefDescription": "No operation issued due to the backend, store, Store Buffer (STB) full. This event counts every cycle where there is a stall in the Wr stage because of a store operation that is waiting due to the STB being full"
+    },
+    {
+        "PublicDescription": "No operation issued due to the backend, store, TLB miss. This event counts every cycle where there is a stall in the Wr stage because of a store operation that has missed in the L1 TLB",
+        "EventCode": "0xEC",
+        "EventName": "STALL_BACKEND_ST_TLB",
+        "BriefDescription": "No operation issued due to the backend, store, TLB miss. This event counts every cycle where there is a stall in the Wr stage because of a store operation that has missed in the L1 TLB"
+    },
+    {
+        "PublicDescription": "No operation issued due to the backend, VPU hazard. This event counts every cycle where the core stalls due to contention for the VPU with the other core",
+        "EventCode": "0xED",
+        "EventName": "STALL_BACKEND_VPU_HAZARD",
+        "BriefDescription": "No operation issued due to the backend, VPU hazard. This event counts every cycle where the core stalls due to contention for the VPU with the other core"
+    },
+    {
+        "PublicDescription": "Issue slot not issued due to interlock. For each cycle, this event counts each dispatch slot that does not issue due to an interlock",
+        "EventCode": "0xEE",
+        "EventName": "STALL_SLOT_BACKEND_ILOCK",
+        "BriefDescription": "Issue slot not issued due to interlock. For each cycle, this event counts each dispatch slot that does not issue due to an interlock"
+    },
+    {
+        "ArchStdEvent": "STALL_BACKEND_MEM"
+    }
+]

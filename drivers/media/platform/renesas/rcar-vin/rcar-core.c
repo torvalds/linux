@@ -94,8 +94,6 @@ static int rvin_group_init(struct rvin_group *group, struct rvin_dev *vin,
 
 	strscpy(mdev->driver_name, KBUILD_MODNAME, sizeof(mdev->driver_name));
 	strscpy(mdev->model, match->compatible, sizeof(mdev->model));
-	snprintf(mdev->bus_info, sizeof(mdev->bus_info), "platform:%s",
-		 dev_name(mdev->dev));
 
 	media_device_init(mdev);
 
@@ -847,7 +845,7 @@ static int rvin_csi2_link_notify(struct media_link *link, u32 flags,
 				continue;
 
 			/* Get remote CSI-2, if any. */
-			csi_pad = media_entity_remote_pad(
+			csi_pad = media_pad_remote_pad_first(
 					&group->vin[i]->vdev.entity.pads[0]);
 			if (!csi_pad)
 				continue;
@@ -891,7 +889,6 @@ static const struct media_device_ops rvin_csi2_media_ops = {
 
 static int rvin_csi2_create_link(struct rvin_group *group, unsigned int id,
 				 const struct rvin_group_route *route)
-
 {
 	struct media_entity *source = &group->remotes[route->csi].subdev->entity;
 	struct media_entity *sink = &group->vin[id]->vdev.entity;
@@ -1264,7 +1261,7 @@ static const struct rvin_info rcar_info_r8a77980 = {
 };
 
 static const struct rvin_group_route rcar_info_r8a77990_routes[] = {
-	{ .master = 0, .csi = RVIN_CSI40, .chsel = 0x03 },
+	{ .master = 4, .csi = RVIN_CSI40, .chsel = 0x03 },
 	{ /* Sentinel */ }
 };
 

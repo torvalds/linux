@@ -30,7 +30,8 @@
 #include <linux/pci.h>
 #include <linux/gfp.h>
 #include <linux/edd.h>
-#include <linux/objtool.h>
+#include <linux/reboot.h>
+#include <linux/virtio_anchor.h>
 
 #include <xen/xen.h>
 #include <xen/events.h>
@@ -109,6 +110,10 @@ static DEFINE_PER_CPU(struct tls_descs, shadow_tls_desc);
 
 static void __init xen_pv_init_platform(void)
 {
+	/* PV guests can't operate virtio devices without grants. */
+	if (IS_ENABLED(CONFIG_XEN_VIRTIO))
+		virtio_set_mem_acc_cb(virtio_require_restricted_mem_acc);
+
 	populate_extra_pte(fix_to_virt(FIX_PARAVIRT_BOOTMAP));
 
 	set_fixmap(FIX_PARAVIRT_BOOTMAP, xen_start_info->shared_info);
@@ -165,7 +170,6 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 
 	*bx &= maskebx;
 }
-STACK_FRAME_NON_STANDARD(xen_cpuid); /* XEN_EMULATE_PREFIX */
 
 static bool __init xen_check_mwait(void)
 {
@@ -1071,8 +1075,7 @@ static void xen_machine_halt(void)
 
 static void xen_machine_power_off(void)
 {
-	if (pm_power_off)
-		pm_power_off();
+	do_kernel_power_off();
 	xen_reboot(SHUTDOWN_poweroff);
 }
 
@@ -1183,14 +1186,18 @@ static void __init xen_domu_set_legacy_features(void)
 extern void early_xen_iret_patch(void);
 
 /* First C function to be called on Xen boot */
-asmlinkage __visible void __init xen_start_kernel(void)
+asmlinkage __visible void __init xen_start_kernel(struct start_info *si)
 {
 	struct physdev_set_iopl set_iopl;
 	unsigned long initrd_start = 0;
 	int rc;
 
-	if (!xen_start_info)
+	if (!si)
 		return;
+
+	clear_bss();
+
+	xen_start_info = si;
 
 	__text_gen_insn(&early_xen_iret_patch,
 			JMP32_INSN_OPCODE, &early_xen_iret_patch, &xen_iret,

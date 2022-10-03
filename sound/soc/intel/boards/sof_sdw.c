@@ -250,6 +250,16 @@ static const struct dmi_system_id sof_sdw_quirk_table[] = {
 		.callback = sof_sdw_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "0AF0")
+		},
+		.driver_data = (void *)(SOF_SDW_TGL_HDMI |
+					RT711_JD2 |
+					SOF_SDW_FOUR_SPK),
+	},
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "0AF3"),
 		},
 		/* No Jack */
@@ -314,6 +324,23 @@ static const struct dmi_system_id sof_sdw_quirk_table[] = {
 		.driver_data = (void *)(SOF_SDW_TGL_HDMI |
 					RT711_JD2 |
 					SOF_SDW_FOUR_SPK),
+	},
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "OMEN by HP Gaming Laptop 16-k0xxx"),
+		},
+		.driver_data = (void *)(SOF_SDW_TGL_HDMI |
+					RT711_JD2),
+	},
+	/* MeteorLake devices */
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "Intel_mtlrvp"),
+		},
+		.driver_data = (void *)(RT711_JD1 | SOF_SDW_TGL_HDMI),
 	},
 	{}
 };
@@ -1127,10 +1154,14 @@ static int sof_card_dai_links_create(struct device *dev,
 	for (i = 0; i < ARRAY_SIZE(codec_info_list); i++)
 		codec_info_list[i].amp_num = 0;
 
-	if (sof_sdw_quirk & SOF_SDW_TGL_HDMI)
-		hdmi_num = SOF_TGL_HDMI_COUNT;
-	else
-		hdmi_num = SOF_PRE_TGL_HDMI_COUNT;
+	if (mach_params->codec_mask & IDISP_CODEC_MASK) {
+		ctx->idisp_codec = true;
+
+		if (sof_sdw_quirk & SOF_SDW_TGL_HDMI)
+			hdmi_num = SOF_TGL_HDMI_COUNT;
+		else
+			hdmi_num = SOF_PRE_TGL_HDMI_COUNT;
+	}
 
 	ssp_mask = SOF_SSP_GET_PORT(sof_sdw_quirk);
 	/*
@@ -1149,9 +1180,6 @@ static int sof_card_dai_links_create(struct device *dev,
 		dev_err(dev, "failed to get sdw link info %d", ret);
 		return ret;
 	}
-
-	if (mach_params->codec_mask & IDISP_CODEC_MASK)
-		ctx->idisp_codec = true;
 
 	/* enable dmic01 & dmic16k */
 	dmic_num = (sof_sdw_quirk & SOF_SDW_PCH_DMIC || mach_params->dmic_num) ? 2 : 0;
@@ -1375,7 +1403,9 @@ HDMI:
 
 static int sof_sdw_card_late_probe(struct snd_soc_card *card)
 {
-	int i, ret;
+	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
+	int ret = 0;
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(codec_info_list); i++) {
 		if (!codec_info_list[i].late_probe)
@@ -1386,7 +1416,10 @@ static int sof_sdw_card_late_probe(struct snd_soc_card *card)
 			return ret;
 	}
 
-	return sof_sdw_hdmi_card_late_probe(card);
+	if (ctx->idisp_codec)
+		ret = sof_sdw_hdmi_card_late_probe(card);
+
+	return ret;
 }
 
 /* SoC card */
@@ -1398,6 +1431,33 @@ static struct snd_soc_card card_sof_sdw = {
 	.late_probe = sof_sdw_card_late_probe,
 };
 
+static void mc_dailink_exit_loop(struct snd_soc_card *card)
+{
+	struct snd_soc_dai_link *link;
+	int ret;
+	int i, j;
+
+	for (i = 0; i < ARRAY_SIZE(codec_info_list); i++) {
+		if (!codec_info_list[i].exit)
+			continue;
+		/*
+		 * We don't need to call .exit function if there is no matched
+		 * dai link found.
+		 */
+		for_each_card_prelinks(card, j, link) {
+			if (!strcmp(link->codecs[0].dai_name,
+				    codec_info_list[i].dai_name)) {
+				ret = codec_info_list[i].exit(card, link);
+				if (ret)
+					dev_warn(card->dev,
+						 "codec exit failed %d\n",
+						 ret);
+				break;
+			}
+		}
+	}
+}
+
 static int mc_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &card_sof_sdw;
@@ -1406,7 +1466,7 @@ static int mc_probe(struct platform_device *pdev)
 	int amp_num = 0, i;
 	int ret;
 
-	dev_dbg(&pdev->dev, "Entry %s\n", __func__);
+	dev_dbg(&pdev->dev, "Entry\n");
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -1462,6 +1522,7 @@ static int mc_probe(struct platform_device *pdev)
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret) {
 		dev_err(card->dev, "snd_soc_register_card failed %d\n", ret);
+		mc_dailink_exit_loop(card);
 		return ret;
 	}
 
@@ -1473,29 +1534,8 @@ static int mc_probe(struct platform_device *pdev)
 static int mc_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
-	struct snd_soc_dai_link *link;
-	int ret;
-	int i, j;
 
-	for (i = 0; i < ARRAY_SIZE(codec_info_list); i++) {
-		if (!codec_info_list[i].exit)
-			continue;
-		/*
-		 * We don't need to call .exit function if there is no matched
-		 * dai link found.
-		 */
-		for_each_card_prelinks(card, j, link) {
-			if (!strcmp(link->codecs[0].dai_name,
-				    codec_info_list[i].dai_name)) {
-				ret = codec_info_list[i].exit(card, link);
-				if (ret)
-					dev_warn(&pdev->dev,
-						 "codec exit failed %d\n",
-						 ret);
-				break;
-			}
-		}
-	}
+	mc_dailink_exit_loop(card);
 
 	return 0;
 }

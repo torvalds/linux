@@ -526,10 +526,10 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 				}
 				if (v->max_swath_height_c[k] > 0.0) {
 					v->swath_width_granularity_c = 256.0 /dcn_bw_ceil2(v->byte_per_pixel_in_detc[k], 2.0) / v->max_swath_height_c[k];
-				}
-				v->rounded_up_max_swath_size_bytes_c = (dcn_bw_ceil2(v->swath_width_yper_state[i][j][k] / 2.0 - 1.0, v->swath_width_granularity_c) + v->swath_width_granularity_c) * v->byte_per_pixel_in_detc[k] * v->max_swath_height_c[k];
-				if (v->source_pixel_format[k] == dcn_bw_yuv420_sub_10) {
-					v->rounded_up_max_swath_size_bytes_c =dcn_bw_ceil2(v->rounded_up_max_swath_size_bytes_c, 256.0) + 256;
+					v->rounded_up_max_swath_size_bytes_c = (dcn_bw_ceil2(v->swath_width_yper_state[i][j][k] / 2.0 - 1.0, v->swath_width_granularity_c) + v->swath_width_granularity_c) * v->byte_per_pixel_in_detc[k] * v->max_swath_height_c[k];
+					if (v->source_pixel_format[k] == dcn_bw_yuv420_sub_10) {
+						v->rounded_up_max_swath_size_bytes_c = dcn_bw_ceil2(v->rounded_up_max_swath_size_bytes_c, 256.0) + 256;
+					}
 				}
 				if (v->rounded_up_max_swath_size_bytes_y + v->rounded_up_max_swath_size_bytes_c <= v->det_buffer_size_in_kbyte * 1024.0 / 2.0) {
 					v->swath_height_yper_state[i][j][k] = v->max_swath_height_y[k];
@@ -552,14 +552,14 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 					v->lines_in_det_chroma = v->det_buffer_size_in_kbyte * 1024.0 / 3.0 / v->byte_per_pixel_in_dety[k] / (v->swath_width_yper_state[i][j][k] / 2.0);
 				}
 				v->effective_lb_latency_hiding_source_lines_luma =dcn_bw_min2(v->max_line_buffer_lines,dcn_bw_floor2(v->line_buffer_size / v->lb_bit_per_pixel[k] / (v->swath_width_yper_state[i][j][k] /dcn_bw_max2(v->h_ratio[k], 1.0)), 1.0)) - (v->vtaps[k] - 1.0);
-				v->effective_lb_latency_hiding_source_lines_chroma =dcn_bw_min2(v->max_line_buffer_lines,dcn_bw_floor2(v->line_buffer_size / v->lb_bit_per_pixel[k] / (v->swath_width_yper_state[i][j][k] / 2.0 /dcn_bw_max2(v->h_ratio[k] / 2.0, 1.0)), 1.0)) - (v->vta_pschroma[k] - 1.0);
 				v->effective_detlb_lines_luma =dcn_bw_floor2(v->lines_in_det_luma +dcn_bw_min2(v->lines_in_det_luma * v->required_dispclk[i][j] * v->byte_per_pixel_in_dety[k] * v->pscl_factor[k] / v->return_bw_per_state[i], v->effective_lb_latency_hiding_source_lines_luma), v->swath_height_yper_state[i][j][k]);
-				v->effective_detlb_lines_chroma =dcn_bw_floor2(v->lines_in_det_chroma +dcn_bw_min2(v->lines_in_det_chroma * v->required_dispclk[i][j] * v->byte_per_pixel_in_detc[k] * v->pscl_factor_chroma[k] / v->return_bw_per_state[i], v->effective_lb_latency_hiding_source_lines_chroma), v->swath_height_cper_state[i][j][k]);
 				if (v->byte_per_pixel_in_detc[k] == 0.0) {
 					v->urgent_latency_support_us_per_state[i][j][k] = v->effective_detlb_lines_luma * (v->htotal[k] / v->pixel_clock[k]) / v->v_ratio[k] - v->effective_detlb_lines_luma * v->swath_width_yper_state[i][j][k] *dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) / (v->return_bw_per_state[i] / v->no_of_dpp[i][j][k]);
 				}
 				else {
-					v->urgent_latency_support_us_per_state[i][j][k] =dcn_bw_min2(v->effective_detlb_lines_luma * (v->htotal[k] / v->pixel_clock[k]) / v->v_ratio[k] - v->effective_detlb_lines_luma * v->swath_width_yper_state[i][j][k] *dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) / (v->return_bw_per_state[i] / v->no_of_dpp[i][j][k]), v->effective_detlb_lines_chroma * (v->htotal[k] / v->pixel_clock[k]) / (v->v_ratio[k] / 2.0) - v->effective_detlb_lines_chroma * v->swath_width_yper_state[i][j][k] / 2.0 *dcn_bw_ceil2(v->byte_per_pixel_in_detc[k], 2.0) / (v->return_bw_per_state[i] / v->no_of_dpp[i][j][k]));
+					v->effective_lb_latency_hiding_source_lines_chroma = dcn_bw_min2(v->max_line_buffer_lines, dcn_bw_floor2(v->line_buffer_size / v->lb_bit_per_pixel[k] / (v->swath_width_yper_state[i][j][k] / 2.0 / dcn_bw_max2(v->h_ratio[k] / 2.0, 1.0)), 1.0)) - (v->vta_pschroma[k] - 1.0);
+					v->effective_detlb_lines_chroma = dcn_bw_floor2(v->lines_in_det_chroma + dcn_bw_min2(v->lines_in_det_chroma * v->required_dispclk[i][j] * v->byte_per_pixel_in_detc[k] * v->pscl_factor_chroma[k] / v->return_bw_per_state[i], v->effective_lb_latency_hiding_source_lines_chroma), v->swath_height_cper_state[i][j][k]);
+					v->urgent_latency_support_us_per_state[i][j][k] = dcn_bw_min2(v->effective_detlb_lines_luma * (v->htotal[k] / v->pixel_clock[k]) / v->v_ratio[k] - v->effective_detlb_lines_luma * v->swath_width_yper_state[i][j][k] * dcn_bw_ceil2(v->byte_per_pixel_in_dety[k], 1.0) / (v->return_bw_per_state[i] / v->no_of_dpp[i][j][k]), v->effective_detlb_lines_chroma * (v->htotal[k] / v->pixel_clock[k]) / (v->v_ratio[k] / 2.0) - v->effective_detlb_lines_chroma * v->swath_width_yper_state[i][j][k] / 2.0 * dcn_bw_ceil2(v->byte_per_pixel_in_detc[k], 2.0) / (v->return_bw_per_state[i] / v->no_of_dpp[i][j][k]));
 				}
 			}
 		}
@@ -1146,10 +1146,10 @@ void display_pipe_configuration(struct dcn_bw_internal_vars *v)
 		}
 		if (v->maximum_swath_height_c > 0.0) {
 			v->swath_width_granularity_c = 256.0 /dcn_bw_ceil2(v->byte_per_pix_detc, 2.0) / v->maximum_swath_height_c;
-		}
-		v->rounded_up_max_swath_size_bytes_c = (dcn_bw_ceil2(v->swath_width / 2.0 - 1.0, v->swath_width_granularity_c) + v->swath_width_granularity_c) * v->byte_per_pix_detc * v->maximum_swath_height_c;
-		if (v->source_pixel_format[k] == dcn_bw_yuv420_sub_10) {
-			v->rounded_up_max_swath_size_bytes_c =dcn_bw_ceil2(v->rounded_up_max_swath_size_bytes_c, 256.0) + 256;
+			v->rounded_up_max_swath_size_bytes_c = (dcn_bw_ceil2(v->swath_width / 2.0 - 1.0, v->swath_width_granularity_c) + v->swath_width_granularity_c) * v->byte_per_pix_detc * v->maximum_swath_height_c;
+			if (v->source_pixel_format[k] == dcn_bw_yuv420_sub_10) {
+				v->rounded_up_max_swath_size_bytes_c = dcn_bw_ceil2(v->rounded_up_max_swath_size_bytes_c, 256.0) + 256;
+			}
 		}
 		if (v->rounded_up_max_swath_size_bytes_y + v->rounded_up_max_swath_size_bytes_c <= v->det_buffer_size_in_kbyte * 1024.0 / 2.0) {
 			v->swath_height_y[k] = v->maximum_swath_height_y;

@@ -37,6 +37,9 @@
 #include "vcn/vcn_2_0_0_sh_mask.h"
 #include "ivsrcid/vcn/irqsrcs_vcn_2_0.h"
 
+#define VCN_VID_SOC_ADDRESS_2_0					0x1fa00
+#define VCN1_VID_SOC_ADDRESS_3_0				0x48200
+
 #define mmUVD_CONTEXT_ID_INTERNAL_OFFSET			0x1fd
 #define mmUVD_GPCOM_VCPU_CMD_INTERNAL_OFFSET			0x503
 #define mmUVD_GPCOM_VCPU_DATA0_INTERNAL_OFFSET			0x504
@@ -1336,7 +1339,7 @@ static uint64_t vcn_v2_0_dec_ring_get_wptr(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 
 	if (ring->use_doorbell)
-		return adev->wb.wb[ring->wptr_offs];
+		return *ring->wptr_cpu_addr;
 	else
 		return RREG32_SOC15(UVD, 0, mmUVD_RBC_RB_WPTR);
 }
@@ -1357,7 +1360,7 @@ static void vcn_v2_0_dec_ring_set_wptr(struct amdgpu_ring *ring)
 			lower_32_bits(ring->wptr) | 0x80000000);
 
 	if (ring->use_doorbell) {
-		adev->wb.wb[ring->wptr_offs] = lower_32_bits(ring->wptr);
+		*ring->wptr_cpu_addr = lower_32_bits(ring->wptr);
 		WDOORBELL32(ring->doorbell_index, lower_32_bits(ring->wptr));
 	} else {
 		WREG32_SOC15(UVD, 0, mmUVD_RBC_RB_WPTR, lower_32_bits(ring->wptr));
@@ -1565,12 +1568,12 @@ static uint64_t vcn_v2_0_enc_ring_get_wptr(struct amdgpu_ring *ring)
 
 	if (ring == &adev->vcn.inst->ring_enc[0]) {
 		if (ring->use_doorbell)
-			return adev->wb.wb[ring->wptr_offs];
+			return *ring->wptr_cpu_addr;
 		else
 			return RREG32_SOC15(UVD, 0, mmUVD_RB_WPTR);
 	} else {
 		if (ring->use_doorbell)
-			return adev->wb.wb[ring->wptr_offs];
+			return *ring->wptr_cpu_addr;
 		else
 			return RREG32_SOC15(UVD, 0, mmUVD_RB_WPTR2);
 	}
@@ -1589,14 +1592,14 @@ static void vcn_v2_0_enc_ring_set_wptr(struct amdgpu_ring *ring)
 
 	if (ring == &adev->vcn.inst->ring_enc[0]) {
 		if (ring->use_doorbell) {
-			adev->wb.wb[ring->wptr_offs] = lower_32_bits(ring->wptr);
+			*ring->wptr_cpu_addr = lower_32_bits(ring->wptr);
 			WDOORBELL32(ring->doorbell_index, lower_32_bits(ring->wptr));
 		} else {
 			WREG32_SOC15(UVD, 0, mmUVD_RB_WPTR, lower_32_bits(ring->wptr));
 		}
 	} else {
 		if (ring->use_doorbell) {
-			adev->wb.wb[ring->wptr_offs] = lower_32_bits(ring->wptr);
+			*ring->wptr_cpu_addr = lower_32_bits(ring->wptr);
 			WDOORBELL32(ring->doorbell_index, lower_32_bits(ring->wptr));
 		} else {
 			WREG32_SOC15(UVD, 0, mmUVD_RB_WPTR2, lower_32_bits(ring->wptr));

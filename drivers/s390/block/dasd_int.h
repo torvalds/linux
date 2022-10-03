@@ -187,6 +187,7 @@ struct dasd_ccw_req {
 	void (*callback)(struct dasd_ccw_req *, void *data);
 	void *callback_data;
 	unsigned int proc_bytes;	/* bytes for partial completion */
+	unsigned int trkcount;		/* count formatted tracks */
 };
 
 /*
@@ -610,6 +611,7 @@ struct dasd_block {
 
 	struct list_head format_list;
 	spinlock_t format_lock;
+	atomic_t trkcount;
 };
 
 struct dasd_attention_data {
@@ -756,6 +758,18 @@ dasd_check_blocksize(int bsize)
 	return 0;
 }
 
+/*
+ * return the callback data of the original request in case there are
+ * ERP requests build on top of it
+ */
+static inline void *dasd_get_callback_data(struct dasd_ccw_req *cqr)
+{
+	while (cqr->refers)
+		cqr = cqr->refers;
+
+	return cqr->callback_data;
+}
+
 /* externals in dasd.c */
 #define DASD_PROFILE_OFF	 0
 #define DASD_PROFILE_ON 	 1
@@ -781,7 +795,7 @@ void dasd_free_device(struct dasd_device *);
 struct dasd_block *dasd_alloc_block(void);
 void dasd_free_block(struct dasd_block *);
 
-enum blk_eh_timer_return dasd_times_out(struct request *req, bool reserved);
+enum blk_eh_timer_return dasd_times_out(struct request *req);
 
 void dasd_enable_device(struct dasd_device *);
 void dasd_set_target_state(struct dasd_device *, int);

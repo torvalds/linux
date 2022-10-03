@@ -10,7 +10,7 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
-#define pr_fmt(fmt) "ACPI: PM: " fmt
+#define pr_fmt(fmt) "PM: " fmt
 
 #include <linux/acpi.h>
 #include <linux/export.h>
@@ -130,8 +130,8 @@ int acpi_device_get_power(struct acpi_device *device, int *state)
 	*state = result;
 
  out:
-	dev_dbg(&device->dev, "Device power state is %s\n",
-		acpi_power_state_string(*state));
+	acpi_handle_debug(device->handle, "Power state: %s\n",
+			  acpi_power_state_string(*state));
 
 	return 0;
 }
@@ -173,11 +173,8 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 	/* Make sure this is a valid target state */
 
 	/* There is a special case for D0 addressed below. */
-	if (state > ACPI_STATE_D0 && state == device->power.state) {
-		dev_dbg(&device->dev, "Device already in %s\n",
-			acpi_power_state_string(state));
-		return 0;
-	}
+	if (state > ACPI_STATE_D0 && state == device->power.state)
+		goto no_change;
 
 	if (state == ACPI_STATE_D3_COLD) {
 		/*
@@ -189,17 +186,17 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 		if (!device->power.states[ACPI_STATE_D3_COLD].flags.valid)
 			target_state = state;
 	} else if (!device->power.states[state].flags.valid) {
-		dev_warn(&device->dev, "Power state %s not supported\n",
-			 acpi_power_state_string(state));
+		acpi_handle_debug(device->handle, "Power state %s not supported\n",
+				  acpi_power_state_string(state));
 		return -ENODEV;
 	}
 
-	if (!device->power.flags.ignore_parent &&
-	    device->parent && (state < device->parent->power.state)) {
-		dev_warn(&device->dev,
-			 "Cannot transition to power state %s for parent in %s\n",
-			 acpi_power_state_string(state),
-			 acpi_power_state_string(device->parent->power.state));
+	if (!device->power.flags.ignore_parent && device->parent &&
+	    state < device->parent->power.state) {
+		acpi_handle_debug(device->handle,
+				  "Cannot transition to %s for parent in %s\n",
+				  acpi_power_state_string(state),
+				  acpi_power_state_string(device->parent->power.state));
 		return -ENODEV;
 	}
 
@@ -216,9 +213,10 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 		 * (deeper) states to higher-power (shallower) states.
 		 */
 		if (state < device->power.state) {
-			dev_warn(&device->dev, "Cannot transition from %s to %s\n",
-				 acpi_power_state_string(device->power.state),
-				 acpi_power_state_string(state));
+			acpi_handle_debug(device->handle,
+					  "Cannot transition from %s to %s\n",
+					  acpi_power_state_string(device->power.state),
+					  acpi_power_state_string(state));
 			return -ENODEV;
 		}
 
@@ -248,7 +246,7 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 
 			/* Nothing to do here if _PSC is not present. */
 			if (!device->power.flags.explicit_get)
-				return 0;
+				goto no_change;
 
 			/*
 			 * The power state of the device was set to D0 last
@@ -263,23 +261,29 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 			 */
 			result = acpi_dev_pm_explicit_get(device, &psc);
 			if (result || psc == ACPI_STATE_D0)
-				return 0;
+				goto no_change;
 		}
 
 		result = acpi_dev_pm_explicit_set(device, ACPI_STATE_D0);
 	}
 
- end:
+end:
 	if (result) {
-		dev_warn(&device->dev, "Failed to change power state to %s\n",
-			 acpi_power_state_string(target_state));
+		acpi_handle_debug(device->handle,
+				  "Failed to change power state to %s\n",
+				  acpi_power_state_string(target_state));
 	} else {
 		device->power.state = target_state;
-		dev_dbg(&device->dev, "Power state changed to %s\n",
-			acpi_power_state_string(target_state));
+		acpi_handle_debug(device->handle, "Power state changed to %s\n",
+				  acpi_power_state_string(target_state));
 	}
 
 	return result;
+
+no_change:
+	acpi_handle_debug(device->handle, "Already in %s\n",
+			  acpi_power_state_string(state));
+	return 0;
 }
 EXPORT_SYMBOL(acpi_device_set_power);
 
@@ -365,6 +369,28 @@ int acpi_device_fix_up_power(struct acpi_device *device)
 }
 EXPORT_SYMBOL_GPL(acpi_device_fix_up_power);
 
+static int fix_up_power_if_applicable(struct acpi_device *adev, void *not_used)
+{
+	if (adev->status.present && adev->status.enabled)
+		acpi_device_fix_up_power(adev);
+
+	return 0;
+}
+
+/**
+ * acpi_device_fix_up_power_extended - Force device and its children into D0.
+ * @adev: Parent device object whose power state is to be fixed up.
+ *
+ * Call acpi_device_fix_up_power() for @adev and its children so long as they
+ * are reported as present and enabled.
+ */
+void acpi_device_fix_up_power_extended(struct acpi_device *adev)
+{
+	acpi_device_fix_up_power(adev);
+	acpi_dev_for_each_child(adev, fix_up_power_if_applicable, NULL);
+}
+EXPORT_SYMBOL_GPL(acpi_device_fix_up_power_extended);
+
 int acpi_device_update_power(struct acpi_device *device, int *state_p)
 {
 	int state;
@@ -424,6 +450,33 @@ bool acpi_bus_power_manageable(acpi_handle handle)
 	return device && device->flags.power_manageable;
 }
 EXPORT_SYMBOL(acpi_bus_power_manageable);
+
+static int acpi_power_up_if_adr_present(struct acpi_device *adev, void *not_used)
+{
+	if (!(adev->flags.power_manageable && adev->pnp.type.bus_address))
+		return 0;
+
+	acpi_handle_debug(adev->handle, "Power state: %s\n",
+			  acpi_power_state_string(adev->power.state));
+
+	if (adev->power.state == ACPI_STATE_D3_COLD)
+		return acpi_device_set_power(adev, ACPI_STATE_D0);
+
+	return 0;
+}
+
+/**
+ * acpi_dev_power_up_children_with_adr - Power up childres with valid _ADR
+ * @adev: Parent ACPI device object.
+ *
+ * Change the power states of the direct children of @adev that are in D3cold
+ * and hold valid _ADR objects to D0 in order to allow bus (e.g. PCI)
+ * enumeration code to access them.
+ */
+void acpi_dev_power_up_children_with_adr(struct acpi_device *adev)
+{
+	acpi_dev_for_each_child(adev, acpi_power_up_if_adr_present, NULL);
+}
 
 #ifdef CONFIG_PM
 static DEFINE_MUTEX(acpi_pm_notifier_lock);

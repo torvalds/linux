@@ -32,6 +32,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/memblock.h>
+#include <linux/kasan-enabled.h>
 
 #define DEPOT_STACK_BITS (sizeof(depot_stack_handle_t) * 8)
 
@@ -65,6 +66,9 @@ struct stack_record {
 	union handle_parts handle;
 	unsigned long entries[];	/* Variable-sized array of entries. */
 };
+
+static bool __stack_depot_want_early_init __initdata = IS_ENABLED(CONFIG_STACKDEPOT_ALWAYS_INIT);
+static bool __stack_depot_early_init_passed __initdata;
 
 static void *stack_slabs[STACK_ALLOC_MAX_SLABS];
 
@@ -142,9 +146,15 @@ depot_alloc_stack(unsigned long *entries, int size, u32 hash, void **prealloc)
 	return stack;
 }
 
-#define STACK_HASH_SIZE (1L << CONFIG_STACK_HASH_ORDER)
-#define STACK_HASH_MASK (STACK_HASH_SIZE - 1)
+/* one hash table bucket entry per 16kB of memory */
+#define STACK_HASH_SCALE	14
+/* limited between 4k and 1M buckets */
+#define STACK_HASH_ORDER_MIN	12
+#define STACK_HASH_ORDER_MAX	20
 #define STACK_HASH_SEED 0x9747b28c
+
+static unsigned int stack_hash_order;
+static unsigned int stack_hash_mask;
 
 static bool stack_depot_disable;
 static struct stack_record **stack_table;
@@ -162,38 +172,90 @@ static int __init is_stack_depot_disabled(char *str)
 }
 early_param("stack_depot_disable", is_stack_depot_disabled);
 
-/*
- * __ref because of memblock_alloc(), which will not be actually called after
- * the __init code is gone, because at that point slab_is_available() is true
- */
-__ref int stack_depot_init(void)
+void __init stack_depot_want_early_init(void)
+{
+	/* Too late to request early init now */
+	WARN_ON(__stack_depot_early_init_passed);
+
+	__stack_depot_want_early_init = true;
+}
+
+int __init stack_depot_early_init(void)
+{
+	unsigned long entries = 0;
+
+	/* This is supposed to be called only once, from mm_init() */
+	if (WARN_ON(__stack_depot_early_init_passed))
+		return 0;
+
+	__stack_depot_early_init_passed = true;
+
+	if (kasan_enabled() && !stack_hash_order)
+		stack_hash_order = STACK_HASH_ORDER_MAX;
+
+	if (!__stack_depot_want_early_init || stack_depot_disable)
+		return 0;
+
+	if (stack_hash_order)
+		entries = 1UL <<  stack_hash_order;
+	stack_table = alloc_large_system_hash("stackdepot",
+						sizeof(struct stack_record *),
+						entries,
+						STACK_HASH_SCALE,
+						HASH_EARLY | HASH_ZERO,
+						NULL,
+						&stack_hash_mask,
+						1UL << STACK_HASH_ORDER_MIN,
+						1UL << STACK_HASH_ORDER_MAX);
+
+	if (!stack_table) {
+		pr_err("Stack Depot hash table allocation failed, disabling\n");
+		stack_depot_disable = true;
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+int stack_depot_init(void)
 {
 	static DEFINE_MUTEX(stack_depot_init_mutex);
+	int ret = 0;
 
 	mutex_lock(&stack_depot_init_mutex);
 	if (!stack_depot_disable && !stack_table) {
-		size_t size = (STACK_HASH_SIZE * sizeof(struct stack_record *));
-		int i;
+		unsigned long entries;
+		int scale = STACK_HASH_SCALE;
 
-		if (slab_is_available()) {
-			pr_info("Stack Depot allocating hash table with kvmalloc\n");
-			stack_table = kvmalloc(size, GFP_KERNEL);
+		if (stack_hash_order) {
+			entries = 1UL << stack_hash_order;
 		} else {
-			pr_info("Stack Depot allocating hash table with memblock_alloc\n");
-			stack_table = memblock_alloc(size, SMP_CACHE_BYTES);
+			entries = nr_free_buffer_pages();
+			entries = roundup_pow_of_two(entries);
+
+			if (scale > PAGE_SHIFT)
+				entries >>= (scale - PAGE_SHIFT);
+			else
+				entries <<= (PAGE_SHIFT - scale);
 		}
-		if (stack_table) {
-			for (i = 0; i < STACK_HASH_SIZE;  i++)
-				stack_table[i] = NULL;
-		} else {
+
+		if (entries < 1UL << STACK_HASH_ORDER_MIN)
+			entries = 1UL << STACK_HASH_ORDER_MIN;
+		if (entries > 1UL << STACK_HASH_ORDER_MAX)
+			entries = 1UL << STACK_HASH_ORDER_MAX;
+
+		pr_info("Stack Depot allocating hash table of %lu entries with kvcalloc\n",
+				entries);
+		stack_table = kvcalloc(entries, sizeof(struct stack_record *), GFP_KERNEL);
+		if (!stack_table) {
 			pr_err("Stack Depot hash table allocation failed, disabling\n");
 			stack_depot_disable = true;
-			mutex_unlock(&stack_depot_init_mutex);
-			return -ENOMEM;
+			ret = -ENOMEM;
 		}
+		stack_hash_mask = entries - 1;
 	}
 	mutex_unlock(&stack_depot_init_mutex);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(stack_depot_init);
 
@@ -363,7 +425,7 @@ depot_stack_handle_t __stack_depot_save(unsigned long *entries,
 		goto fast_exit;
 
 	hash = hash_stack(entries, nr_entries);
-	bucket = &stack_table[hash & STACK_HASH_MASK];
+	bucket = &stack_table[hash & stack_hash_mask];
 
 	/*
 	 * Fast path: look the stack trace up without locking.

@@ -47,14 +47,16 @@ dma_addr_t hantro_get_ref(struct hantro_ctx *ctx, u64 ts)
 {
 	struct vb2_queue *q = v4l2_m2m_get_dst_vq(ctx->fh.m2m_ctx);
 	struct vb2_buffer *buf;
-	int index;
 
-	index = vb2_find_timestamp(q, ts, 0);
-	if (index < 0)
+	buf = vb2_find_buffer(q, ts);
+	if (!buf)
 		return 0;
-	buf = vb2_get_buffer(q, index);
 	return hantro_get_dec_buf_addr(ctx, buf);
 }
+
+static const struct v4l2_event hantro_eos_event = {
+	.type = V4L2_EVENT_EOS
+};
 
 static void hantro_job_finish_no_pm(struct hantro_dev *vpu,
 				    struct hantro_ctx *ctx,
@@ -72,6 +74,12 @@ static void hantro_job_finish_no_pm(struct hantro_dev *vpu,
 
 	src->sequence = ctx->sequence_out++;
 	dst->sequence = ctx->sequence_cap++;
+
+	if (v4l2_m2m_is_last_draining_src_buf(ctx->fh.m2m_ctx, src)) {
+		dst->flags |= V4L2_BUF_FLAG_LAST;
+		v4l2_event_queue_fh(&ctx->fh, &hantro_eos_event);
+		v4l2_m2m_mark_stopped(ctx->fh.m2m_ctx);
+	}
 
 	v4l2_m2m_buf_done_and_job_finish(ctx->dev->m2m_dev, ctx->fh.m2m_ctx,
 					 result);
@@ -255,7 +263,7 @@ static int hantro_try_ctrl(struct v4l2_ctrl *ctrl)
 		if (sps->bit_depth_luma_minus8 != 0)
 			/* Only 8-bit is supported */
 			return -EINVAL;
-	} else if (ctrl->id == V4L2_CID_MPEG_VIDEO_HEVC_SPS) {
+	} else if (ctrl->id == V4L2_CID_STATELESS_HEVC_SPS) {
 		const struct v4l2_ctrl_hevc_sps *sps = ctrl->p_new.p_hevc_sps;
 
 		if (sps->bit_depth_luma_minus8 != sps->bit_depth_chroma_minus8)
@@ -294,18 +302,16 @@ static int hantro_jpeg_s_ctrl(struct v4l2_ctrl *ctrl)
 	return 0;
 }
 
-static int hantro_hevc_s_ctrl(struct v4l2_ctrl *ctrl)
+static int hantro_vp9_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct hantro_ctx *ctx;
 
 	ctx = container_of(ctrl->handler,
 			   struct hantro_ctx, ctrl_handler);
 
-	vpu_debug(1, "s_ctrl: id = %d, val = %d\n", ctrl->id, ctrl->val);
-
 	switch (ctrl->id) {
-	case V4L2_CID_HANTRO_HEVC_SLICE_HEADER_SKIP:
-		ctx->hevc_dec.ctrls.hevc_hdr_skip_length = ctrl->val;
+	case V4L2_CID_STATELESS_VP9_FRAME:
+		ctx->bit_depth = ctrl->p_new.p_vp9_frame->bit_depth;
 		break;
 	default:
 		return -EINVAL;
@@ -322,8 +328,8 @@ static const struct v4l2_ctrl_ops hantro_jpeg_ctrl_ops = {
 	.s_ctrl = hantro_jpeg_s_ctrl,
 };
 
-static const struct v4l2_ctrl_ops hantro_hevc_ctrl_ops = {
-	.s_ctrl = hantro_hevc_s_ctrl,
+static const struct v4l2_ctrl_ops hantro_vp9_ctrl_ops = {
+	.s_ctrl = hantro_vp9_s_ctrl,
 };
 
 #define HANTRO_JPEG_ACTIVE_MARKERS	(V4L2_JPEG_ACTIVE_MARKER_APP0 | \
@@ -428,18 +434,18 @@ static const struct hantro_ctrl controls[] = {
 	}, {
 		.codec = HANTRO_HEVC_DECODER,
 		.cfg = {
-			.id = V4L2_CID_MPEG_VIDEO_HEVC_DECODE_MODE,
-			.min = V4L2_MPEG_VIDEO_HEVC_DECODE_MODE_FRAME_BASED,
-			.max = V4L2_MPEG_VIDEO_HEVC_DECODE_MODE_FRAME_BASED,
-			.def = V4L2_MPEG_VIDEO_HEVC_DECODE_MODE_FRAME_BASED,
+			.id = V4L2_CID_STATELESS_HEVC_DECODE_MODE,
+			.min = V4L2_STATELESS_HEVC_DECODE_MODE_FRAME_BASED,
+			.max = V4L2_STATELESS_HEVC_DECODE_MODE_FRAME_BASED,
+			.def = V4L2_STATELESS_HEVC_DECODE_MODE_FRAME_BASED,
 		},
 	}, {
 		.codec = HANTRO_HEVC_DECODER,
 		.cfg = {
-			.id = V4L2_CID_MPEG_VIDEO_HEVC_START_CODE,
-			.min = V4L2_MPEG_VIDEO_HEVC_START_CODE_ANNEX_B,
-			.max = V4L2_MPEG_VIDEO_HEVC_START_CODE_ANNEX_B,
-			.def = V4L2_MPEG_VIDEO_HEVC_START_CODE_ANNEX_B,
+			.id = V4L2_CID_STATELESS_HEVC_START_CODE,
+			.min = V4L2_STATELESS_HEVC_START_CODE_ANNEX_B,
+			.max = V4L2_STATELESS_HEVC_START_CODE_ANNEX_B,
+			.def = V4L2_STATELESS_HEVC_START_CODE_ANNEX_B,
 		},
 	}, {
 		.codec = HANTRO_HEVC_DECODER,
@@ -459,40 +465,29 @@ static const struct hantro_ctrl controls[] = {
 	}, {
 		.codec = HANTRO_HEVC_DECODER,
 		.cfg = {
-			.id = V4L2_CID_MPEG_VIDEO_HEVC_SPS,
+			.id = V4L2_CID_STATELESS_HEVC_SPS,
 			.ops = &hantro_ctrl_ops,
 		},
 	}, {
 		.codec = HANTRO_HEVC_DECODER,
 		.cfg = {
-			.id = V4L2_CID_MPEG_VIDEO_HEVC_PPS,
+			.id = V4L2_CID_STATELESS_HEVC_PPS,
 		},
 	}, {
 		.codec = HANTRO_HEVC_DECODER,
 		.cfg = {
-			.id = V4L2_CID_MPEG_VIDEO_HEVC_DECODE_PARAMS,
+			.id = V4L2_CID_STATELESS_HEVC_DECODE_PARAMS,
 		},
 	}, {
 		.codec = HANTRO_HEVC_DECODER,
 		.cfg = {
-			.id = V4L2_CID_MPEG_VIDEO_HEVC_SCALING_MATRIX,
-		},
-	}, {
-		.codec = HANTRO_HEVC_DECODER,
-		.cfg = {
-			.id = V4L2_CID_HANTRO_HEVC_SLICE_HEADER_SKIP,
-			.name = "Hantro HEVC slice header skip bytes",
-			.type = V4L2_CTRL_TYPE_INTEGER,
-			.min = 0,
-			.def = 0,
-			.max = 0x100,
-			.step = 1,
-			.ops = &hantro_hevc_ctrl_ops,
+			.id = V4L2_CID_STATELESS_HEVC_SCALING_MATRIX,
 		},
 	}, {
 		.codec = HANTRO_VP9_DECODER,
 		.cfg = {
 			.id = V4L2_CID_STATELESS_VP9_FRAME,
+			.ops = &hantro_vp9_ctrl_ops,
 		},
 	}, {
 		.codec = HANTRO_VP9_DECODER,
@@ -628,6 +623,8 @@ static const struct of_device_id of_hantro_match[] = {
 	{ .compatible = "rockchip,rk3288-vpu", .data = &rk3288_vpu_variant, },
 	{ .compatible = "rockchip,rk3328-vpu", .data = &rk3328_vpu_variant, },
 	{ .compatible = "rockchip,rk3399-vpu", .data = &rk3399_vpu_variant, },
+	{ .compatible = "rockchip,rk3568-vepu", .data = &rk3568_vepu_variant, },
+	{ .compatible = "rockchip,rk3568-vpu", .data = &rk3568_vpu_variant, },
 #endif
 #ifdef CONFIG_VIDEO_HANTRO_IMX8M
 	{ .compatible = "nxp,imx8mm-vpu-g1", .data = &imx8mm_vpu_g1_variant, },
@@ -809,10 +806,13 @@ static int hantro_add_func(struct hantro_dev *vpu, unsigned int funcid)
 	snprintf(vfd->name, sizeof(vfd->name), "%s-%s", match->compatible,
 		 funcid == MEDIA_ENT_F_PROC_VIDEO_ENCODER ? "enc" : "dec");
 
-	if (funcid == MEDIA_ENT_F_PROC_VIDEO_ENCODER)
+	if (funcid == MEDIA_ENT_F_PROC_VIDEO_ENCODER) {
 		vpu->encoder = func;
-	else
+	} else {
 		vpu->decoder = func;
+		v4l2_disable_ioctl(vfd, VIDIOC_TRY_ENCODER_CMD);
+		v4l2_disable_ioctl(vfd, VIDIOC_ENCODER_CMD);
+	}
 
 	video_set_drvdata(vfd, vpu);
 

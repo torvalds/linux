@@ -455,7 +455,7 @@ retry:
 			break;
 		}
 	}
-	/* upon sucesss lock should stay on hold for the callee */
+	/* upon success lock should stay on hold for the callee */
 	if (!ret)
 		ret = dma_index - start_idx;
 	else

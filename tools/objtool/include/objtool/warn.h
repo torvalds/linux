@@ -11,33 +11,32 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <objtool/builtin.h>
 #include <objtool/elf.h>
 
 extern const char *objname;
 
 static inline char *offstr(struct section *sec, unsigned long offset)
 {
-	struct symbol *func;
-	char *name, *str;
-	unsigned long name_off;
+	bool is_text = (sec->sh.sh_flags & SHF_EXECINSTR);
+	struct symbol *sym = NULL;
+	char *str;
+	int len;
 
-	func = find_func_containing(sec, offset);
-	if (!func)
-		func = find_symbol_containing(sec, offset);
-	if (func) {
-		name = func->name;
-		name_off = offset - func->offset;
+	if (is_text)
+		sym = find_func_containing(sec, offset);
+	if (!sym)
+		sym = find_symbol_containing(sec, offset);
+
+	if (sym) {
+		str = malloc(strlen(sym->name) + strlen(sec->name) + 40);
+		len = sprintf(str, "%s+0x%lx", sym->name, offset - sym->offset);
+		if (opts.sec_address)
+			sprintf(str+len, " (%s+0x%lx)", sec->name, offset);
 	} else {
-		name = sec->name;
-		name_off = offset;
+		str = malloc(strlen(sec->name) + 20);
+		sprintf(str, "%s+0x%lx", sec->name, offset);
 	}
-
-	str = malloc(strlen(name) + 20);
-
-	if (func)
-		sprintf(str, "%s()+0x%lx", name, name_off);
-	else
-		sprintf(str, "%s+0x%lx", name, name_off);
 
 	return str;
 }

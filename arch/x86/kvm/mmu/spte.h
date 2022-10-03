@@ -34,12 +34,12 @@
 static_assert(SPTE_TDP_AD_ENABLED_MASK == 0);
 
 #ifdef CONFIG_DYNAMIC_PHYSICAL_MASK
-#define PT64_BASE_ADDR_MASK (physical_mask & ~(u64)(PAGE_SIZE-1))
+#define SPTE_BASE_ADDR_MASK (physical_mask & ~(u64)(PAGE_SIZE-1))
 #else
-#define PT64_BASE_ADDR_MASK (((1ULL << 52) - 1) & ~(u64)(PAGE_SIZE-1))
+#define SPTE_BASE_ADDR_MASK (((1ULL << 52) - 1) & ~(u64)(PAGE_SIZE-1))
 #endif
 
-#define PT64_PERM_MASK (PT_PRESENT_MASK | PT_WRITABLE_MASK | shadow_user_mask \
+#define SPTE_PERM_MASK (PT_PRESENT_MASK | PT_WRITABLE_MASK | shadow_user_mask \
 			| shadow_x_mask | shadow_nx_mask | shadow_me_mask)
 
 #define ACC_EXEC_MASK    1
@@ -48,17 +48,13 @@ static_assert(SPTE_TDP_AD_ENABLED_MASK == 0);
 #define ACC_ALL          (ACC_EXEC_MASK | ACC_WRITE_MASK | ACC_USER_MASK)
 
 /* The mask for the R/X bits in EPT PTEs */
-#define PT64_EPT_READABLE_MASK			0x1ull
-#define PT64_EPT_EXECUTABLE_MASK		0x4ull
+#define SPTE_EPT_READABLE_MASK			0x1ull
+#define SPTE_EPT_EXECUTABLE_MASK		0x4ull
 
-#define PT64_LEVEL_BITS 9
-
-#define PT64_LEVEL_SHIFT(level) \
-		(PAGE_SHIFT + (level - 1) * PT64_LEVEL_BITS)
-
-#define PT64_INDEX(address, level)\
-	(((address) >> PT64_LEVEL_SHIFT(level)) & ((1 << PT64_LEVEL_BITS) - 1))
-#define SHADOW_PT_INDEX(addr, level) PT64_INDEX(addr, level)
+#define SPTE_LEVEL_BITS			9
+#define SPTE_LEVEL_SHIFT(level)		__PT_LEVEL_SHIFT(level, SPTE_LEVEL_BITS)
+#define SPTE_INDEX(address, level)	__PT_INDEX(address, level, SPTE_LEVEL_BITS)
+#define SPTE_ENT_PER_PAGE		__PT_ENT_PER_PAGE(SPTE_LEVEL_BITS)
 
 /*
  * The mask/shift to use for saving the original R/X bits when marking the PTE
@@ -67,8 +63,8 @@ static_assert(SPTE_TDP_AD_ENABLED_MASK == 0);
  * restored only when a write is attempted to the page.  This mask obviously
  * must not overlap the A/D type mask.
  */
-#define SHADOW_ACC_TRACK_SAVED_BITS_MASK (PT64_EPT_READABLE_MASK | \
-					  PT64_EPT_EXECUTABLE_MASK)
+#define SHADOW_ACC_TRACK_SAVED_BITS_MASK (SPTE_EPT_READABLE_MASK | \
+					  SPTE_EPT_EXECUTABLE_MASK)
 #define SHADOW_ACC_TRACK_SAVED_BITS_SHIFT 54
 #define SHADOW_ACC_TRACK_SAVED_MASK	(SHADOW_ACC_TRACK_SAVED_BITS_MASK << \
 					 SHADOW_ACC_TRACK_SAVED_BITS_SHIFT)
@@ -127,6 +123,20 @@ static_assert(!(EPT_SPTE_MMU_WRITABLE & SHADOW_ACC_TRACK_SAVED_MASK));
 static_assert(!(SPTE_MMU_PRESENT_MASK &
 		(MMIO_SPTE_GEN_LOW_MASK | MMIO_SPTE_GEN_HIGH_MASK)));
 
+/*
+ * The SPTE MMIO mask must NOT overlap the MMIO generation bits or the
+ * MMU-present bit.  The generation obviously co-exists with the magic MMIO
+ * mask/value, and MMIO SPTEs are considered !MMU-present.
+ *
+ * The SPTE MMIO mask is allowed to use hardware "present" bits (i.e. all EPT
+ * RWX bits), all physical address bits (legal PA bits are used for "fast" MMIO
+ * and so they're off-limits for generation; additional checks ensure the mask
+ * doesn't overlap legal PA bits), and bit 63 (carved out for future usage).
+ */
+#define SPTE_MMIO_ALLOWED_MASK (BIT_ULL(63) | GENMASK_ULL(51, 12) | GENMASK_ULL(2, 0))
+static_assert(!(SPTE_MMIO_ALLOWED_MASK &
+		(SPTE_MMU_PRESENT_MASK | MMIO_SPTE_GEN_LOW_MASK | MMIO_SPTE_GEN_HIGH_MASK)));
+
 #define MMIO_SPTE_GEN_LOW_BITS		(MMIO_SPTE_GEN_LOW_END - MMIO_SPTE_GEN_LOW_START + 1)
 #define MMIO_SPTE_GEN_HIGH_BITS		(MMIO_SPTE_GEN_HIGH_END - MMIO_SPTE_GEN_HIGH_START + 1)
 
@@ -149,6 +159,8 @@ extern u64 __read_mostly shadow_mmio_value;
 extern u64 __read_mostly shadow_mmio_mask;
 extern u64 __read_mostly shadow_mmio_access_mask;
 extern u64 __read_mostly shadow_present_mask;
+extern u64 __read_mostly shadow_memtype_mask;
+extern u64 __read_mostly shadow_me_value;
 extern u64 __read_mostly shadow_me_mask;
 
 /*
@@ -191,6 +203,12 @@ static inline bool is_removed_spte(u64 spte)
 	return spte == REMOVED_SPTE;
 }
 
+/* Get an SPTE's index into its parent's page table (and the spt array). */
+static inline int spte_index(u64 *sptep)
+{
+	return ((unsigned long)sptep / sizeof(*sptep)) & (SPTE_ENT_PER_PAGE - 1);
+}
+
 /*
  * In some cases, we need to preserve the GFN of a non-present or reserved
  * SPTE when we usurp the upper five bits of the physical address space to
@@ -201,21 +219,26 @@ static inline bool is_removed_spte(u64 spte)
  */
 extern u64 __read_mostly shadow_nonpresent_or_rsvd_lower_gfn_mask;
 
-/*
- * The number of non-reserved physical address bits irrespective of features
- * that repurpose legal bits, e.g. MKTME.
- */
-extern u8 __read_mostly shadow_phys_bits;
-
 static inline bool is_mmio_spte(u64 spte)
 {
 	return (spte & shadow_mmio_mask) == shadow_mmio_value &&
-	       likely(shadow_mmio_value);
+	       likely(enable_mmio_caching);
 }
 
 static inline bool is_shadow_present_pte(u64 pte)
 {
 	return !!(pte & SPTE_MMU_PRESENT_MASK);
+}
+
+/*
+ * Returns true if A/D bits are supported in hardware and are enabled by KVM.
+ * When enabled, KVM uses A/D bits for all non-nested MMUs.  Because L1 can
+ * disable A/D bits in EPTP12, SP and SPTE variants are needed to handle the
+ * scenario where KVM is using A/D bits for L1, but not L2.
+ */
+static inline bool kvm_ad_enabled(void)
+{
+	return !!shadow_accessed_mask;
 }
 
 static inline bool sp_ad_disabled(struct kvm_mmu_page *sp)
@@ -274,7 +297,7 @@ static inline bool is_executable_pte(u64 spte)
 
 static inline kvm_pfn_t spte_to_pfn(u64 pte)
 {
-	return (pte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT;
+	return (pte & SPTE_BASE_ADDR_MASK) >> PAGE_SHIFT;
 }
 
 static inline bool is_accessed_spte(u64 spte)
@@ -396,7 +419,7 @@ static inline void check_spte_writable_invariants(u64 spte)
 			  "kvm: Writable SPTE is not MMU-writable: %llx", spte);
 }
 
-static inline bool spte_can_locklessly_be_made_writable(u64 spte)
+static inline bool is_mmu_writable_spte(u64 spte)
 {
 	return spte & shadow_mmu_writable_mask;
 }
@@ -410,12 +433,15 @@ static inline u64 get_mmio_spte_generation(u64 spte)
 	return gen;
 }
 
+bool spte_has_volatile_bits(u64 spte);
+
 bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	       const struct kvm_memory_slot *slot,
 	       unsigned int pte_access, gfn_t gfn, kvm_pfn_t pfn,
 	       u64 old_spte, bool prefetch, bool can_unsync,
 	       bool host_writable, u64 *new_spte);
-u64 make_huge_page_split_spte(u64 huge_spte, int huge_level, int index);
+u64 make_huge_page_split_spte(struct kvm *kvm, u64 huge_spte,
+		      	      union kvm_mmu_page_role role, int index);
 u64 make_nonleaf_spte(u64 *child_pt, bool ad_disabled);
 u64 make_mmio_spte(struct kvm_vcpu *vcpu, u64 gfn, unsigned int access);
 u64 mark_spte_for_access_track(u64 spte);
@@ -436,6 +462,7 @@ static inline u64 restore_acc_track_spte(u64 spte)
 
 u64 kvm_mmu_changed_pte_notifier_make_spte(u64 old_spte, kvm_pfn_t new_pfn);
 
+void __init kvm_mmu_spte_module_init(void);
 void kvm_mmu_reset_all_pte_masks(void);
 
 #endif

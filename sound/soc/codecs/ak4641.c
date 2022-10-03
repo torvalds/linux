@@ -535,7 +535,6 @@ static const struct snd_soc_component_driver soc_component_dev_ak4641 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config ak4641_regmap = {
@@ -548,8 +547,7 @@ static const struct regmap_config ak4641_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int ak4641_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int ak4641_i2c_probe(struct i2c_client *i2c)
 {
 	struct ak4641_platform_data *pdata = i2c->dev.platform_data;
 	struct ak4641_priv *ak4641;
@@ -632,7 +630,7 @@ static struct i2c_driver ak4641_i2c_driver = {
 	.driver = {
 		.name = "ak4641",
 	},
-	.probe =    ak4641_i2c_probe,
+	.probe_new = ak4641_i2c_probe,
 	.remove =   ak4641_i2c_remove,
 	.id_table = ak4641_i2c_id,
 };

@@ -2950,9 +2950,6 @@ static int skl_tplg_get_pvt_data(struct snd_soc_tplg_dapm_widget *tplg_w,
 		block_size = ret;
 		off += array->size;
 
-		array = (struct snd_soc_tplg_vendor_array *)
-			(tplg_w->priv.data + off);
-
 		data = (tplg_w->priv.data + off);
 
 		if (block_type == SKL_TYPE_TUPLE) {
@@ -3598,9 +3595,6 @@ static int skl_tplg_get_manifest_data(struct snd_soc_tplg_manifest *manifest,
 			return ret;
 		block_size = ret;
 		off += array->size;
-
-		array = (struct snd_soc_tplg_vendor_array *)
-			(manifest->priv.data + off);
 
 		data = (manifest->priv.data + off);
 

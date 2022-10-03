@@ -184,7 +184,8 @@ static struct inode *ovl_alloc_inode(struct super_block *sb)
 	oi->version = 0;
 	oi->flags = 0;
 	oi->__upperdentry = NULL;
-	oi->lower = NULL;
+	oi->lowerpath.dentry = NULL;
+	oi->lowerpath.layer = NULL;
 	oi->lowerdata = NULL;
 	mutex_init(&oi->lock);
 
@@ -205,7 +206,7 @@ static void ovl_destroy_inode(struct inode *inode)
 	struct ovl_inode *oi = OVL_I(inode);
 
 	dput(oi->__upperdentry);
-	iput(oi->lower);
+	dput(oi->lowerpath.dentry);
 	if (S_ISDIR(inode->i_mode))
 		ovl_dir_cache_free(inode);
 	else
@@ -300,7 +301,7 @@ static int ovl_sync_fs(struct super_block *sb, int wait)
 
 /**
  * ovl_statfs
- * @sb: The overlayfs super block
+ * @dentry: The dentry to query
  * @buf: The struct kstatfs to fill in with stats
  *
  * Get the filesystem statistics.  As writes always target the upper layer
@@ -348,6 +349,8 @@ static inline int ovl_xino_def(void)
 
 /**
  * ovl_show_options
+ * @m: the seq_file handle
+ * @dentry: The dentry to query
  *
  * Prints the mount options for a given superblock.
  * Returns zero; does not fail.
@@ -761,7 +764,7 @@ static struct dentry *ovl_workdir_create(struct ovl_fs *ofs,
 
 	inode_lock_nested(dir, I_MUTEX_PARENT);
 retry:
-	work = lookup_one_len(name, ofs->workbasedir, strlen(name));
+	work = ovl_lookup_upper(ofs, name, ofs->workbasedir, strlen(name));
 
 	if (!IS_ERR(work)) {
 		struct iattr attr = {
@@ -778,7 +781,7 @@ retry:
 				goto out_unlock;
 
 			retried = true;
-			err = ovl_workdir_cleanup(dir, mnt, work, 0);
+			err = ovl_workdir_cleanup(ofs, dir, mnt, work, 0);
 			dput(work);
 			if (err == -EINVAL) {
 				work = ERR_PTR(err);
@@ -787,7 +790,7 @@ retry:
 			goto retry;
 		}
 
-		err = ovl_mkdir_real(dir, &work, attr.ia_mode);
+		err = ovl_mkdir_real(ofs, dir, &work, attr.ia_mode);
 		if (err)
 			goto out_dput;
 
@@ -809,19 +812,19 @@ retry:
 		 * allowed as upper are limited to "normal" ones, where checking
 		 * for the above two errors is sufficient.
 		 */
-		err = vfs_removexattr(&init_user_ns, work,
-				      XATTR_NAME_POSIX_ACL_DEFAULT);
+		err = ovl_do_removexattr(ofs, work,
+					 XATTR_NAME_POSIX_ACL_DEFAULT);
 		if (err && err != -ENODATA && err != -EOPNOTSUPP)
 			goto out_dput;
 
-		err = vfs_removexattr(&init_user_ns, work,
-				      XATTR_NAME_POSIX_ACL_ACCESS);
+		err = ovl_do_removexattr(ofs, work,
+					 XATTR_NAME_POSIX_ACL_ACCESS);
 		if (err && err != -ENODATA && err != -EOPNOTSUPP)
 			goto out_dput;
 
 		/* Clear any inherited mode bits */
 		inode_lock(work->d_inode);
-		err = notify_change(&init_user_ns, work, &attr, NULL);
+		err = ovl_do_notify_change(ofs, work, &attr);
 		inode_unlock(work->d_inode);
 		if (err)
 			goto out_dput;
@@ -871,10 +874,6 @@ static int ovl_mount_dir_noesc(const char *name, struct path *path)
 	err = -EINVAL;
 	if (ovl_dentry_weird(path->dentry)) {
 		pr_err("filesystem on '%s' not supported\n", name);
-		goto out_put;
-	}
-	if (is_idmapped_mnt(path->mnt)) {
-		pr_err("idmapped layers are currently not supported\n");
 		goto out_put;
 	}
 	if (!d_is_dir(path->dentry)) {
@@ -1256,8 +1255,9 @@ out:
  * Returns 1 if RENAME_WHITEOUT is supported, 0 if not supported and
  * negative values if error is encountered.
  */
-static int ovl_check_rename_whiteout(struct dentry *workdir)
+static int ovl_check_rename_whiteout(struct ovl_fs *ofs)
 {
+	struct dentry *workdir = ofs->workdir;
 	struct inode *dir = d_inode(workdir);
 	struct dentry *temp;
 	struct dentry *dest;
@@ -1267,12 +1267,12 @@ static int ovl_check_rename_whiteout(struct dentry *workdir)
 
 	inode_lock_nested(dir, I_MUTEX_PARENT);
 
-	temp = ovl_create_temp(workdir, OVL_CATTR(S_IFREG | 0));
+	temp = ovl_create_temp(ofs, workdir, OVL_CATTR(S_IFREG | 0));
 	err = PTR_ERR(temp);
 	if (IS_ERR(temp))
 		goto out_unlock;
 
-	dest = ovl_lookup_temp(workdir);
+	dest = ovl_lookup_temp(ofs, workdir);
 	err = PTR_ERR(dest);
 	if (IS_ERR(dest)) {
 		dput(temp);
@@ -1281,14 +1281,14 @@ static int ovl_check_rename_whiteout(struct dentry *workdir)
 
 	/* Name is inline and stable - using snapshot as a copy helper */
 	take_dentry_name_snapshot(&name, temp);
-	err = ovl_do_rename(dir, temp, dir, dest, RENAME_WHITEOUT);
+	err = ovl_do_rename(ofs, dir, temp, dir, dest, RENAME_WHITEOUT);
 	if (err) {
 		if (err == -EINVAL)
 			err = 0;
 		goto cleanup_temp;
 	}
 
-	whiteout = lookup_one_len(name.name.name, workdir, name.name.len);
+	whiteout = ovl_lookup_upper(ofs, name.name.name, workdir, name.name.len);
 	err = PTR_ERR(whiteout);
 	if (IS_ERR(whiteout))
 		goto cleanup_temp;
@@ -1297,11 +1297,11 @@ static int ovl_check_rename_whiteout(struct dentry *workdir)
 
 	/* Best effort cleanup of whiteout and temp file */
 	if (err)
-		ovl_cleanup(dir, whiteout);
+		ovl_cleanup(ofs, dir, whiteout);
 	dput(whiteout);
 
 cleanup_temp:
-	ovl_cleanup(dir, temp);
+	ovl_cleanup(ofs, dir, temp);
 	release_dentry_name_snapshot(&name);
 	dput(temp);
 	dput(dest);
@@ -1312,16 +1312,17 @@ out_unlock:
 	return err;
 }
 
-static struct dentry *ovl_lookup_or_create(struct dentry *parent,
+static struct dentry *ovl_lookup_or_create(struct ovl_fs *ofs,
+					   struct dentry *parent,
 					   const char *name, umode_t mode)
 {
 	size_t len = strlen(name);
 	struct dentry *child;
 
 	inode_lock_nested(parent->d_inode, I_MUTEX_PARENT);
-	child = lookup_one_len(name, parent, len);
+	child = ovl_lookup_upper(ofs, name, parent, len);
 	if (!IS_ERR(child) && !child->d_inode)
-		child = ovl_create_real(parent->d_inode, child,
+		child = ovl_create_real(ofs, parent->d_inode, child,
 					OVL_CATTR(mode));
 	inode_unlock(parent->d_inode);
 	dput(parent);
@@ -1343,7 +1344,7 @@ static int ovl_create_volatile_dirty(struct ovl_fs *ofs)
 	const char *const *name = volatile_path;
 
 	for (ctr = ARRAY_SIZE(volatile_path); ctr; ctr--, name++) {
-		d = ovl_lookup_or_create(d, *name, ctr > 1 ? S_IFDIR : S_IFREG);
+		d = ovl_lookup_or_create(ofs, d, *name, ctr > 1 ? S_IFDIR : S_IFREG);
 		if (IS_ERR(d))
 			return PTR_ERR(d);
 	}
@@ -1391,7 +1392,7 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 		pr_warn("upper fs needs to support d_type.\n");
 
 	/* Check if upper/work fs supports O_TMPFILE */
-	temp = ovl_do_tmpfile(ofs->workdir, S_IFREG | 0);
+	temp = ovl_do_tmpfile(ofs, ofs->workdir, S_IFREG | 0);
 	ofs->tmpfile = !IS_ERR(temp);
 	if (ofs->tmpfile)
 		dput(temp);
@@ -1400,7 +1401,7 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 
 
 	/* Check if upper/work fs supports RENAME_WHITEOUT */
-	err = ovl_check_rename_whiteout(ofs->workdir);
+	err = ovl_check_rename_whiteout(ofs);
 	if (err < 0)
 		goto out;
 
@@ -1411,13 +1412,14 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 	/*
 	 * Check if upper/work fs supports (trusted|user).overlay.* xattr
 	 */
-	err = ovl_do_setxattr(ofs, ofs->workdir, OVL_XATTR_OPAQUE, "0", 1);
+	err = ovl_setxattr(ofs, ofs->workdir, OVL_XATTR_OPAQUE, "0", 1);
 	if (err) {
+		pr_warn("failed to set xattr on upper\n");
 		ofs->noxattr = true;
 		if (ofs->config.index || ofs->config.metacopy) {
 			ofs->config.index = false;
 			ofs->config.metacopy = false;
-			pr_warn("upper fs does not support xattr, falling back to index=off,metacopy=off.\n");
+			pr_warn("...falling back to index=off,metacopy=off.\n");
 		}
 		/*
 		 * xattr support is required for persistent st_ino.
@@ -1425,11 +1427,13 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 		 */
 		if (ofs->config.xino == OVL_XINO_AUTO) {
 			ofs->config.xino = OVL_XINO_OFF;
-			pr_warn("upper fs does not support xattr, falling back to xino=off.\n");
+			pr_warn("...falling back to xino=off.\n");
 		}
+		if (err == -EPERM && !ofs->config.userxattr)
+			pr_info("try mounting with 'userxattr' option\n");
 		err = 0;
 	} else {
-		ovl_do_removexattr(ofs, ofs->workdir, OVL_XATTR_OPAQUE);
+		ovl_removexattr(ofs, ofs->workdir, OVL_XATTR_OPAQUE);
 	}
 
 	/*
@@ -2033,7 +2037,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_stack_depth = 0;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	atomic_long_set(&ofs->last_ino, 1);
-	/* Assume underlaying fs uses 32bit inodes unless proven otherwise */
+	/* Assume underlying fs uses 32bit inodes unless proven otherwise */
 	if (ofs->config.xino != OVL_XINO_OFF) {
 		ofs->xino_mode = BITS_PER_LONG - 32;
 		if (!ofs->xino_mode) {

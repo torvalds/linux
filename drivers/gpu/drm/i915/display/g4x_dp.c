@@ -395,26 +395,8 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 		intel_dotclock_calculate(pipe_config->port_clock,
 					 &pipe_config->dp_m_n);
 
-	if (intel_dp_is_edp(intel_dp) && dev_priv->vbt.edp.bpp &&
-	    pipe_config->pipe_bpp > dev_priv->vbt.edp.bpp) {
-		/*
-		 * This is a big fat ugly hack.
-		 *
-		 * Some machines in UEFI boot mode provide us a VBT that has 18
-		 * bpp and 1.62 GHz link bandwidth for eDP, which for reasons
-		 * unknown we fail to light up. Yet the same BIOS boots up with
-		 * 24 bpp and 2.7 GHz link. Use the same bpp as the BIOS uses as
-		 * max, not what it tells us to use.
-		 *
-		 * Note: This will still be broken if the eDP panel is not lit
-		 * up by the BIOS, and thus we can't get the mode at module
-		 * load.
-		 */
-		drm_dbg_kms(&dev_priv->drm,
-			    "pipe has %d bpp for eDP panel, overriding BIOS-provided max %d bpp\n",
-			    pipe_config->pipe_bpp, dev_priv->vbt.edp.bpp);
-		dev_priv->vbt.edp.bpp = pipe_config->pipe_bpp;
-	}
+	if (intel_dp_is_edp(intel_dp))
+		intel_edp_fixup_vbt_bpp(encoder, pipe_config->pipe_bpp);
 }
 
 static void
@@ -1187,7 +1169,7 @@ intel_dp_hotplug(struct intel_encoder *encoder,
 static bool ibx_digital_port_connected(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	u32 bit = dev_priv->hotplug.pch_hpd[encoder->hpd_pin];
+	u32 bit = dev_priv->display.hotplug.pch_hpd[encoder->hpd_pin];
 
 	return intel_de_read(dev_priv, SDEISR) & bit;
 }
@@ -1241,7 +1223,7 @@ static bool gm45_digital_port_connected(struct intel_encoder *encoder)
 static bool ilk_digital_port_connected(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	u32 bit = dev_priv->hotplug.hpd[encoder->hpd_pin];
+	u32 bit = dev_priv->display.hotplug.hpd[encoder->hpd_pin];
 
 	return intel_de_read(dev_priv, DEISR) & bit;
 }

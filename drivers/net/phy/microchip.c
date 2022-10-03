@@ -344,8 +344,12 @@ static int lan88xx_config_aneg(struct phy_device *phydev)
 
 static struct phy_driver microchip_phy_driver[] = {
 {
-	.phy_id		= 0x0007c130,
-	.phy_id_mask	= 0xfffffff0,
+	.phy_id		= 0x0007c132,
+	/* This mask (0xfffffff2) is to differentiate from
+	 * LAN8742 (phy_id 0x0007c130 and 0x0007c131)
+	 * and allows future phy_id revisions.
+	 */
+	.phy_id_mask	= 0xfffffff2,
 	.name		= "Microchip LAN88xx",
 
 	/* PHY_GBIT_FEATURES */
@@ -369,7 +373,7 @@ static struct phy_driver microchip_phy_driver[] = {
 module_phy_driver(microchip_phy_driver);
 
 static struct mdio_device_id __maybe_unused microchip_tbl[] = {
-	{ 0x0007c130, 0xfffffff0 },
+	{ 0x0007c132, 0xfffffff2 },
 	{ }
 };
 

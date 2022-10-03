@@ -27,7 +27,7 @@
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
 #include "dm_helpers.h"
-#include <drm/drm_hdcp.h>
+#include <drm/display/drm_hdcp_helper.h>
 #include "hdcp_psp.h"
 
 /*
@@ -302,7 +302,7 @@ static void event_property_update(struct work_struct *work)
 	mutex_lock(&hdcp_work->mutex);
 
 
-	if (aconnector->base.state->commit) {
+	if (aconnector->base.state && aconnector->base.state->commit) {
 		ret = wait_for_completion_interruptible_timeout(&aconnector->base.state->commit->hw_done, 10 * HZ);
 
 		if (ret == 0) {
@@ -311,17 +311,25 @@ static void event_property_update(struct work_struct *work)
 		}
 	}
 
-	if (hdcp_work->encryption_status != MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF) {
-		if (aconnector->base.state->hdcp_content_type == DRM_MODE_HDCP_CONTENT_TYPE0 &&
-		    hdcp_work->encryption_status <= MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE0_ON)
-			drm_hdcp_update_content_protection(&aconnector->base, DRM_MODE_CONTENT_PROTECTION_ENABLED);
-		else if (aconnector->base.state->hdcp_content_type == DRM_MODE_HDCP_CONTENT_TYPE1 &&
-			 hdcp_work->encryption_status == MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON)
-			drm_hdcp_update_content_protection(&aconnector->base, DRM_MODE_CONTENT_PROTECTION_ENABLED);
-	} else {
-		drm_hdcp_update_content_protection(&aconnector->base, DRM_MODE_CONTENT_PROTECTION_DESIRED);
+	if (aconnector->base.state) {
+		if (hdcp_work->encryption_status != MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF) {
+			if (aconnector->base.state->hdcp_content_type ==
+				DRM_MODE_HDCP_CONTENT_TYPE0 &&
+			hdcp_work->encryption_status <=
+				MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE0_ON)
+				drm_hdcp_update_content_protection(&aconnector->base,
+					DRM_MODE_CONTENT_PROTECTION_ENABLED);
+			else if (aconnector->base.state->hdcp_content_type ==
+					DRM_MODE_HDCP_CONTENT_TYPE1 &&
+				hdcp_work->encryption_status ==
+					MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON)
+				drm_hdcp_update_content_protection(&aconnector->base,
+					DRM_MODE_CONTENT_PROTECTION_ENABLED);
+		} else {
+			drm_hdcp_update_content_protection(&aconnector->base,
+				DRM_MODE_CONTENT_PROTECTION_DESIRED);
+		}
 	}
-
 
 	mutex_unlock(&hdcp_work->mutex);
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
@@ -476,13 +484,16 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 	link->ddc_line = aconnector->dc_link->ddc_hw_inst + 1;
 	display->stream_enc_idx = config->stream_enc_idx;
 	link->link_enc_idx = config->link_enc_idx;
+	link->dio_output_id = config->dio_output_idx;
 	link->phy_idx = config->phy_idx;
+
 	if (sink)
 		link_is_hdcp14 = dc_link_is_hdcp14(aconnector->dc_link, sink->sink_signal);
 	link->hdcp_supported_informational = link_is_hdcp14;
 	link->dp.rev = aconnector->dc_link->dpcd_caps.dpcd_rev.raw;
 	link->dp.assr_enabled = config->assr_enabled;
 	link->dp.mst_enabled = config->mst_enabled;
+	link->dp.usb4_enabled = config->usb4_enabled;
 	display->adjust.disable = MOD_HDCP_DISPLAY_DISABLE_AUTHENTICATION;
 	link->adjust.auth_delay = 3;
 	link->adjust.hdcp1.disable = 0;
@@ -492,7 +503,9 @@ static void update_config(void *handle, struct cp_psp_stream_config *config)
 			(!!aconnector->base.state) ? aconnector->base.state->content_protection : -1,
 			(!!aconnector->base.state) ? aconnector->base.state->hdcp_content_type : -1);
 
-	hdcp_update_display(hdcp_work, link_index, aconnector, conn_state->hdcp_content_type, false);
+	if (conn_state)
+		hdcp_update_display(hdcp_work, link_index, aconnector,
+			conn_state->hdcp_content_type, false);
 }
 
 
@@ -664,6 +677,7 @@ struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev, struct 
 
 		hdcp_work[i].hdcp.config.psp.handle = &adev->psp;
 		if (dc->ctx->dce_version == DCN_VERSION_3_1 ||
+		    dc->ctx->dce_version == DCN_VERSION_3_14 ||
 		    dc->ctx->dce_version == DCN_VERSION_3_15 ||
 		    dc->ctx->dce_version == DCN_VERSION_3_16)
 			hdcp_work[i].hdcp.config.psp.caps.dtm_v3_supported = 1;

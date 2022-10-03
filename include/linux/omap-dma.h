@@ -292,15 +292,22 @@ struct omap_system_dma_plat_info {
 #define dma_omap15xx()	__dma_omap15xx(d)
 #define dma_omap16xx()	__dma_omap16xx(d)
 
-#if defined(CONFIG_ARCH_OMAP)
 extern struct omap_system_dma_plat_info *omap_get_plat_info(void);
 
+#if defined(CONFIG_ARCH_OMAP1)
 extern void omap_set_dma_priority(int lch, int dst_port, int priority);
+#else
+static inline void omap_set_dma_priority(int lch, int dst_port, int priority)
+{
+}
+#endif
+
 extern int omap_request_dma(int dev_id, const char *dev_name,
 			void (*callback)(int lch, u16 ch_status, void *data),
 			void *data, int *dma_ch);
-extern void omap_disable_dma_irq(int ch, u16 irq_bits);
 extern void omap_free_dma(int ch);
+#if IS_ENABLED(CONFIG_USB_OMAP)
+extern void omap_disable_dma_irq(int ch, u16 irq_bits);
 extern void omap_start_dma(int lch);
 extern void omap_stop_dma(int lch);
 extern void omap_set_dma_transfer_params(int lch, int data_type,
@@ -326,33 +333,17 @@ extern void omap_set_dma_dest_burst_mode(int lch,
 extern dma_addr_t omap_get_dma_src_pos(int lch);
 extern dma_addr_t omap_get_dma_dst_pos(int lch);
 extern int omap_get_dma_active_status(int lch);
+#endif
+
 extern int omap_dma_running(void);
 
-#if defined(CONFIG_ARCH_OMAP1) && IS_ENABLED(CONFIG_FB_OMAP)
-#include <mach/lcd_dma.h>
+#if IS_ENABLED(CONFIG_FB_OMAP)
+extern int omap_lcd_dma_running(void);
 #else
 static inline int omap_lcd_dma_running(void)
 {
 	return 0;
 }
 #endif
-
-#else /* CONFIG_ARCH_OMAP */
-
-static inline struct omap_system_dma_plat_info *omap_get_plat_info(void)
-{
-	return NULL;
-}
-
-static inline int omap_request_dma(int dev_id, const char *dev_name,
-			void (*callback)(int lch, u16 ch_status, void *data),
-			void *data, int *dma_ch)
-{
-	return -ENODEV;
-}
-
-static inline void omap_free_dma(int ch) { }
-
-#endif /* CONFIG_ARCH_OMAP */
 
 #endif /* __LINUX_OMAP_DMA_H */

@@ -29,6 +29,8 @@
 #include <asm/kexec.h>
 #include <linux/mutex.h>
 #include <linux/prefetch.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <net/ip.h>
 
@@ -1615,7 +1617,7 @@ static void write_swqe2_immediate(struct sk_buff *skb, struct ehea_swqe *swqe,
 		 * For TSO packets we only copy the headers into the
 		 * immediate area.
 		 */
-		immediate_len = ETH_HLEN + ip_hdrlen(skb) + tcp_hdrlen(skb);
+		immediate_len = skb_tcp_all_headers(skb);
 	}
 
 	if (skb_is_gso(skb) || skb_data_size >= SWQE2_MAX_IMM) {

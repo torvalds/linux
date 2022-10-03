@@ -16,7 +16,6 @@
 #include <net/protocol.h>
 #include <net/udp.h>
 #include <net/udp_tunnel.h>
-#include <net/xfrm.h>
 #include <uapi/linux/fou.h>
 #include <uapi/linux/genetlink.h>
 

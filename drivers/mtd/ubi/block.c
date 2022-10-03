@@ -467,7 +467,7 @@ out_destroy_wq:
 out_remove_minor:
 	idr_remove(&ubiblock_minor_idr, gd->first_minor);
 out_cleanup_disk:
-	blk_cleanup_disk(dev->gd);
+	put_disk(dev->gd);
 out_free_tags:
 	blk_mq_free_tag_set(&dev->tag_set);
 out_free_dev:
@@ -486,7 +486,7 @@ static void ubiblock_cleanup(struct ubiblock *dev)
 	destroy_workqueue(dev->wq);
 	/* Finally destroy the blk queue */
 	dev_info(disk_to_dev(dev->gd), "released");
-	blk_cleanup_disk(dev->gd);
+	put_disk(dev->gd);
 	blk_mq_free_tag_set(&dev->tag_set);
 	idr_remove(&ubiblock_minor_idr, dev->gd->first_minor);
 }

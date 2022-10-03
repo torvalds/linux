@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2006	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2020-2021 Intel Corporation
+ * Copyright (C) 2020-2022 Intel Corporation
  */
 
 #include <linux/kernel.h>
@@ -208,8 +208,8 @@ IEEE80211_IF_FILE_R(rc_rateidx_vht_mcs_mask_5ghz);
 IEEE80211_IF_FILE(flags, flags, HEX);
 IEEE80211_IF_FILE(state, state, LHEX);
 IEEE80211_IF_FILE(txpower, vif.bss_conf.txpower, DEC);
-IEEE80211_IF_FILE(ap_power_level, ap_power_level, DEC);
-IEEE80211_IF_FILE(user_power_level, user_power_level, DEC);
+IEEE80211_IF_FILE(ap_power_level, deflink.ap_power_level, DEC);
+IEEE80211_IF_FILE(user_power_level, deflink.user_power_level, DEC);
 
 static ssize_t
 ieee80211_if_fmt_hw_queues(const struct ieee80211_sub_if_data *sdata,
@@ -232,8 +232,8 @@ ieee80211_if_fmt_hw_queues(const struct ieee80211_sub_if_data *sdata,
 IEEE80211_IF_FILE_R(hw_queues);
 
 /* STA attributes */
-IEEE80211_IF_FILE(bssid, u.mgd.bssid, MAC);
-IEEE80211_IF_FILE(aid, vif.bss_conf.aid, DEC);
+IEEE80211_IF_FILE(bssid, deflink.u.mgd.bssid, MAC);
+IEEE80211_IF_FILE(aid, vif.cfg.aid, DEC);
 IEEE80211_IF_FILE(beacon_timeout, u.mgd.beacon_timeout, JIFFIES_TO_MS);
 
 static int ieee80211_set_smps(struct ieee80211_sub_if_data *sdata,
@@ -256,7 +256,7 @@ static int ieee80211_set_smps(struct ieee80211_sub_if_data *sdata,
 		return -EOPNOTSUPP;
 
 	sdata_lock(sdata);
-	err = __ieee80211_request_smps_mgd(sdata, smps_mode);
+	err = __ieee80211_request_smps_mgd(sdata, &sdata->deflink, smps_mode);
 	sdata_unlock(sdata);
 
 	return err;
@@ -274,8 +274,8 @@ static ssize_t ieee80211_if_fmt_smps(const struct ieee80211_sub_if_data *sdata,
 {
 	if (sdata->vif.type == NL80211_IFTYPE_STATION)
 		return snprintf(buf, buflen, "request: %s\nused: %s\n",
-				smps_modes[sdata->u.mgd.req_smps],
-				smps_modes[sdata->smps_mode]);
+				smps_modes[sdata->deflink.u.mgd.req_smps],
+				smps_modes[sdata->deflink.smps_mode]);
 	return -EINVAL;
 }
 
@@ -337,7 +337,7 @@ static ssize_t ieee80211_if_parse_tkip_mic_test(
 			dev_kfree_skb(skb);
 			return -ENOTCONN;
 		}
-		memcpy(hdr->addr1, sdata->u.mgd.associated->bssid, ETH_ALEN);
+		memcpy(hdr->addr1, sdata->deflink.u.mgd.bssid, ETH_ALEN);
 		memcpy(hdr->addr2, sdata->vif.addr, ETH_ALEN);
 		memcpy(hdr->addr3, addr, ETH_ALEN);
 		sdata_unlock(sdata);
@@ -366,7 +366,7 @@ IEEE80211_IF_FILE_W(tkip_mic_test);
 static ssize_t ieee80211_if_parse_beacon_loss(
 	struct ieee80211_sub_if_data *sdata, const char *buf, int buflen)
 {
-	if (!ieee80211_sdata_running(sdata) || !sdata->vif.bss_conf.assoc)
+	if (!ieee80211_sdata_running(sdata) || !sdata->vif.cfg.assoc)
 		return -ENOTCONN;
 
 	ieee80211_beacon_loss(&sdata->vif);
@@ -509,34 +509,6 @@ static ssize_t ieee80211_if_fmt_aqm(
 	return len;
 }
 IEEE80211_IF_FILE_R(aqm);
-
-static ssize_t ieee80211_if_fmt_airtime(
-	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
-{
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_txq *txq = sdata->vif.txq;
-	struct airtime_info *air_info;
-	int len;
-
-	if (!txq)
-		return 0;
-
-	spin_lock_bh(&local->airtime[txq->ac].lock);
-	air_info = to_airtime_info(txq);
-	len = scnprintf(buf,
-			buflen,
-			"RX: %llu us\nTX: %llu us\nWeight: %u\n"
-			"Virt-T: %lld us\n",
-			air_info->rx_airtime,
-			air_info->tx_airtime,
-			air_info->weight,
-			air_info->v_t);
-	spin_unlock_bh(&local->airtime[txq->ac].lock);
-
-	return len;
-}
-
-IEEE80211_IF_FILE_R(airtime);
 
 IEEE80211_IF_FILE(multicast_to_unicast, u.ap.multicast_to_unicast, HEX);
 
@@ -683,10 +655,8 @@ static void add_common_files(struct ieee80211_sub_if_data *sdata)
 
 	if (sdata->local->ops->wake_tx_queue &&
 	    sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE &&
-	    sdata->vif.type != NL80211_IFTYPE_NAN) {
+	    sdata->vif.type != NL80211_IFTYPE_NAN)
 		DEBUGFS_ADD(aqm);
-		DEBUGFS_ADD(airtime);
-	}
 }
 
 static void add_sta_files(struct ieee80211_sub_if_data *sdata)

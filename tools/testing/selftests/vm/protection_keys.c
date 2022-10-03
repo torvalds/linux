@@ -1523,7 +1523,7 @@ void test_implicit_mprotect_exec_only_memory(int *ptr, u16 pkey)
 	/*
 	 * Reset the shadow, assuming that the above mprotect()
 	 * correctly changed PKRU, but to an unknown value since
-	 * the actual alllocated pkey is unknown.
+	 * the actual allocated pkey is unknown.
 	 */
 	shadow_pkey_reg = __read_pkey_reg();
 

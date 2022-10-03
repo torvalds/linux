@@ -191,15 +191,13 @@
 				reg = <0x2b>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+				status = "okay";
 
 				/*
 				 * LEDs are controlled by MCU (STM32F0) at
 				 * address 0x2b.
 				 *
-				 * The driver does not support HW control mode
-				 * for the LEDs yet. Disable the LEDs for now.
-				 *
-				 * Also LED functions are not stable yet:
+				 * LED functions are not stable yet:
 				 * - there are 3 LEDs connected via MCU to PCIe
 				 *   ports. One of these ports supports mSATA.
 				 *   There is no mSATA nor PCIe function.
@@ -210,7 +208,6 @@
 				 *   B. Again there is no such function defined.
 				 *   For now we use LED_FUNCTION_INDICATOR
 				 */
-				status = "disabled";
 
 				multi-led@0 {
 					reg = <0x0>;
@@ -348,7 +345,11 @@
 			#size-cells = <0>;
 			reg = <5>;
 
-			/* ATSHA204A at address 0x64 */
+			/* ATSHA204A-MAHDA-T crypto module */
+			crypto@64 {
+				compatible = "atmel,atsha204a";
+				reg = <0x64>;
+			};
 		};
 
 		i2c@6 {
@@ -393,7 +394,8 @@
 	phy1: ethernet-phy@1 {
 		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <1>;
-		marvell,reg-init = <3 18 0 0x4985>;
+		marvell,reg-init = <3 18 0 0x4985>,
+				   <3 16 0xfff0 0x0001>;
 
 		/* irq is connected to &pcawan pin 7 */
 	};
@@ -485,7 +487,7 @@
 	pinctrl-0 = <&spi0_pins &spi0cs0_pins>;
 	status = "okay";
 
-	spi-nor@0 {
+	flash@0 {
 		compatible = "spansion,s25fl164k", "jedec,spi-nor";
 		#address-cells = <1>;
 		#size-cells = <1>;

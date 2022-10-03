@@ -40,6 +40,7 @@ if SND_SOC_SOF_ACPI
 config SND_SOC_SOF_BAYTRAIL
 	tristate "SOF support for Baytrail, Braswell and Cherrytrail"
 	default SND_SOC_SOF_ACPI
+	select SND_SOC_SOF_IPC3
 	select SND_SOC_SOF_INTEL_COMMON
 	select SND_SOC_SOF_INTEL_ATOM_HIFI_EP
 	select SND_SOC_SOF_ACPI_DEV
@@ -60,6 +61,7 @@ config SND_SOC_SOF_BAYTRAIL
 config SND_SOC_SOF_BROADWELL
 	tristate "SOF support for Broadwell"
 	default SND_SOC_SOF_ACPI
+	select SND_SOC_SOF_IPC3
 	select SND_SOC_SOF_INTEL_COMMON
 	select SND_SOC_SOF_INTEL_HIFI_EP_IPC
 	select SND_SOC_SOF_ACPI_DEV
@@ -85,6 +87,7 @@ config SND_SOC_SOF_MERRIFIELD
 	tristate "SOF support for Tangier/Merrifield"
 	default SND_SOC_SOF_PCI
 	select SND_SOC_SOF_PCI_DEV
+	select SND_SOC_SOF_IPC3
 	select SND_SOC_SOF_INTEL_ATOM_HIFI_EP
 	help
 	  This adds support for Sound Open Firmware for Intel(R) platforms
@@ -95,6 +98,8 @@ config SND_SOC_SOF_MERRIFIELD
 config SND_SOC_SOF_INTEL_APL
 	tristate
 	select SND_SOC_SOF_HDA_COMMON
+	select SND_SOC_SOF_IPC3
+	select SND_SOC_SOF_INTEL_IPC4
 
 config SND_SOC_SOF_APOLLOLAKE
 	tristate "SOF support for Apollolake"
@@ -120,6 +125,8 @@ config SND_SOC_SOF_INTEL_CNL
 	tristate
 	select SND_SOC_SOF_HDA_COMMON
 	select SND_SOC_SOF_INTEL_SOUNDWIRE_LINK_BASELINE
+	select SND_SOC_SOF_IPC3
+	select SND_SOC_SOF_INTEL_IPC4
 
 config SND_SOC_SOF_CANNONLAKE
 	tristate "SOF support for Cannonlake"
@@ -154,6 +161,8 @@ config SND_SOC_SOF_INTEL_ICL
 	tristate
 	select SND_SOC_SOF_HDA_COMMON
 	select SND_SOC_SOF_INTEL_SOUNDWIRE_LINK_BASELINE
+	select SND_SOC_SOF_IPC3
+	select SND_SOC_SOF_INTEL_IPC4
 
 config SND_SOC_SOF_ICELAKE
 	tristate "SOF support for Icelake"
@@ -179,6 +188,8 @@ config SND_SOC_SOF_INTEL_TGL
 	tristate
 	select SND_SOC_SOF_HDA_COMMON
 	select SND_SOC_SOF_INTEL_SOUNDWIRE_LINK_BASELINE
+	select SND_SOC_SOF_IPC3
+	select SND_SOC_SOF_INTEL_IPC4
 
 config SND_SOC_SOF_TIGERLAKE
 	tristate "SOF support for Tigerlake"
@@ -207,6 +218,22 @@ config SND_SOC_SOF_ALDERLAKE
 	help
 	  This adds support for Sound Open Firmware for Intel(R) platforms
 	  using the Alderlake processors.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
+config SND_SOC_SOF_INTEL_MTL
+	tristate
+	select SND_SOC_SOF_HDA_COMMON
+	select SND_SOC_SOF_INTEL_SOUNDWIRE_LINK_BASELINE
+	select SND_SOC_SOF_INTEL_IPC4
+
+config SND_SOC_SOF_METEORLAKE
+	tristate "SOF support for Meteorlake"
+	default SND_SOC_SOF_PCI
+	select SND_SOC_SOF_INTEL_MTL
+	help
+	  This adds support for Sound Open Firmware for Intel(R) platforms
+	  using the Meteorlake processors.
 	  Say Y if you have such a device.
 	  If unsure select "N".
 
@@ -260,7 +287,7 @@ config SND_SOC_SOF_HDA
 	  'select' statements at a higher level.
 
 config SND_SOC_SOF_HDA_PROBES
-	bool
+	tristate
 	select SND_SOC_SOF_DEBUG_PROBES
 	help
 	  The option enables the data probing for Intel(R) Skylake and newer

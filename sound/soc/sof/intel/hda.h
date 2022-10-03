@@ -187,6 +187,69 @@
 
 #define HDA_DSP_STACK_DUMP_SIZE			32
 
+/* ROM/FW status register */
+#define FSR_STATE_MASK				GENMASK(23, 0)
+#define FSR_WAIT_STATE_MASK			GENMASK(27, 24)
+#define FSR_MODULE_MASK				GENMASK(30, 28)
+#define FSR_HALTED				BIT(31)
+#define FSR_TO_STATE_CODE(x)			((x) & FSR_STATE_MASK)
+#define FSR_TO_WAIT_STATE_CODE(x)		(((x) & FSR_WAIT_STATE_MASK) >> 24)
+#define FSR_TO_MODULE_CODE(x)			(((x) & FSR_MODULE_MASK) >> 28)
+
+/* Wait states */
+#define FSR_WAIT_FOR_IPC_BUSY			0x1
+#define FSR_WAIT_FOR_IPC_DONE			0x2
+#define FSR_WAIT_FOR_CACHE_INVALIDATION		0x3
+#define FSR_WAIT_FOR_LP_SRAM_OFF		0x4
+#define FSR_WAIT_FOR_DMA_BUFFER_FULL		0x5
+#define FSR_WAIT_FOR_CSE_CSR			0x6
+
+/* Module codes */
+#define FSR_MOD_ROM				0x0
+#define FSR_MOD_ROM_BYP				0x1
+#define FSR_MOD_BASE_FW				0x2
+#define FSR_MOD_LP_BOOT				0x3
+#define FSR_MOD_BRNGUP				0x4
+#define FSR_MOD_ROM_EXT				0x5
+
+/* State codes (module dependent) */
+/* Module independent states */
+#define FSR_STATE_INIT				0x0
+#define FSR_STATE_INIT_DONE			0x1
+#define FSR_STATE_FW_ENTERED			0x5
+
+/* ROM states */
+#define FSR_STATE_ROM_INIT			FSR_STATE_INIT
+#define FSR_STATE_ROM_INIT_DONE			FSR_STATE_INIT_DONE
+#define FSR_STATE_ROM_CSE_MANIFEST_LOADED	0x2
+#define FSR_STATE_ROM_FW_MANIFEST_LOADED	0x3
+#define FSR_STATE_ROM_FW_FW_LOADED		0x4
+#define FSR_STATE_ROM_FW_ENTERED		FSR_STATE_FW_ENTERED
+#define FSR_STATE_ROM_VERIFY_FEATURE_MASK	0x6
+#define FSR_STATE_ROM_GET_LOAD_OFFSET		0x7
+#define FSR_STATE_ROM_FETCH_ROM_EXT		0x8
+#define FSR_STATE_ROM_FETCH_ROM_EXT_DONE	0x9
+
+/* (ROM) CSE states */
+#define FSR_STATE_ROM_CSE_IMR_REQUEST			0x10
+#define FSR_STATE_ROM_CSE_IMR_GRANTED			0x11
+#define FSR_STATE_ROM_CSE_VALIDATE_IMAGE_REQUEST	0x12
+#define FSR_STATE_ROM_CSE_IMAGE_VALIDATED		0x13
+
+#define FSR_STATE_ROM_CSE_IPC_IFACE_INIT	0x20
+#define FSR_STATE_ROM_CSE_IPC_RESET_PHASE_1	0x21
+#define FSR_STATE_ROM_CSE_IPC_OPERATIONAL_ENTRY	0x22
+#define FSR_STATE_ROM_CSE_IPC_OPERATIONAL	0x23
+#define FSR_STATE_ROM_CSE_IPC_DOWN		0x24
+
+/* BRINGUP (or BRNGUP) states */
+#define FSR_STATE_BRINGUP_INIT			FSR_STATE_INIT
+#define FSR_STATE_BRINGUP_INIT_DONE		FSR_STATE_INIT_DONE
+#define FSR_STATE_BRINGUP_HPSRAM_LOAD		0x2
+#define FSR_STATE_BRINGUP_UNPACK_START		0X3
+#define FSR_STATE_BRINGUP_IMR_RESTORE		0x4
+#define FSR_STATE_BRINGUP_FW_ENTERED		FSR_STATE_FW_ENTERED
+
 /* ROM  status/error values */
 #define HDA_DSP_ROM_STS_MASK			GENMASK(23, 0)
 #define HDA_DSP_ROM_INIT			0x1
@@ -210,7 +273,9 @@
 #define HDA_DSP_ROM_USER_EXCEPTION		0xBEEF0000
 #define HDA_DSP_ROM_UNEXPECTED_RESET		0xDECAF000
 #define HDA_DSP_ROM_NULL_FW_ENTRY		0x4c4c4e55
-#define HDA_DSP_IPC_PURGE_FW			0x01004000
+
+#define HDA_DSP_ROM_IPC_CONTROL			0x01000000
+#define HDA_DSP_ROM_IPC_PURGE_FW		0x00004000
 
 /* various timeout values */
 #define HDA_DSP_PU_TIMEOUT		50
@@ -223,8 +288,8 @@
 #define HDA_DSP_REG_POLL_INTERVAL_US		500	/* 0.5 msec */
 #define HDA_DSP_REG_POLL_RETRY_COUNT		50
 
-#define HDA_DSP_ADSPIC_IPC			1
-#define HDA_DSP_ADSPIS_IPC			1
+#define HDA_DSP_ADSPIC_IPC			BIT(0)
+#define HDA_DSP_ADSPIS_IPC			BIT(0)
 
 /* Intel HD Audio General DSP Registers */
 #define HDA_DSP_GEN_BASE		0x0
@@ -268,8 +333,8 @@
 /* HIPCTE */
 #define HDA_DSP_REG_HIPCTE_MSG_MASK	0x3FFFFFFF
 
-#define HDA_DSP_ADSPIC_CL_DMA		0x2
-#define HDA_DSP_ADSPIS_CL_DMA		0x2
+#define HDA_DSP_ADSPIC_CL_DMA		BIT(1)
+#define HDA_DSP_ADSPIS_CL_DMA		BIT(1)
 
 /* Delay before scheduling D0i3 entry */
 #define BXT_D0I3_DELAY 5000
@@ -416,6 +481,9 @@ enum sof_hda_D0_substate {
 
 /* represents DSP HDA controller frontend - i.e. host facing control */
 struct sof_intel_hda_dev {
+	bool imrboot_supported;
+	bool skip_imr_boot;
+
 	int boot_iteration;
 
 	struct hda_bus hbus;
@@ -449,6 +517,9 @@ struct sof_intel_hda_dev {
 
 	/* FW clock config, 0:HPRO, 1:LPRO */
 	bool clk_config_lpro;
+
+	/* Intel NHLT information */
+	struct nhlt_acpi_table *nhlt;
 };
 
 static inline struct hdac_bus *sof_to_bus(struct snd_sof_dev *s)
@@ -490,6 +561,7 @@ struct sof_intel_hda_stream {
  */
 int hda_dsp_probe(struct snd_sof_dev *sdev);
 int hda_dsp_remove(struct snd_sof_dev *sdev);
+int hda_dsp_core_power_up(struct snd_sof_dev *sdev, unsigned int core_mask);
 int hda_dsp_core_run(struct snd_sof_dev *sdev, unsigned int core_mask);
 int hda_dsp_enable_core(struct snd_sof_dev *sdev, unsigned int core_mask);
 int hda_dsp_core_reset_power_down(struct snd_sof_dev *sdev,
@@ -557,6 +629,9 @@ int hda_dsp_stream_setup_bdl(struct snd_sof_dev *sdev,
 bool hda_dsp_check_ipc_irq(struct snd_sof_dev *sdev);
 bool hda_dsp_check_stream_irq(struct snd_sof_dev *sdev);
 
+snd_pcm_uframes_t hda_dsp_stream_get_position(struct hdac_stream *hstream,
+					      int direction, bool can_sleep);
+
 struct hdac_ext_stream *
 	hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction, u32 flags);
 int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag);
@@ -588,6 +663,14 @@ int hda_dsp_ipc_cmd_done(struct snd_sof_dev *sdev, int dir);
  */
 int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev);
 int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev);
+int hda_cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *hext_stream);
+struct hdac_ext_stream *hda_cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
+					      unsigned int size, struct snd_dma_buffer *dmab,
+					      int direction);
+int hda_cl_cleanup(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
+		   struct hdac_ext_stream *hext_stream);
+int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot);
+#define HDA_CL_STREAM_FORMAT 0x40
 
 /* pre and post fw run ops */
 int hda_dsp_pre_fw_run(struct snd_sof_dev *sdev);
@@ -644,7 +727,7 @@ static inline int hda_codec_i915_exit(struct snd_sof_dev *sdev) { return 0; }
 /*
  * Trace Control.
  */
-int hda_dsp_trace_init(struct snd_sof_dev *sdev,
+int hda_dsp_trace_init(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
 		       struct sof_ipc_dma_trace_params_ext *dtrace_params);
 int hda_dsp_trace_release(struct snd_sof_dev *sdev);
 int hda_dsp_trace_trigger(struct snd_sof_dev *sdev, int cmd);
@@ -683,24 +766,33 @@ static inline bool hda_common_check_sdw_irq(struct snd_sof_dev *sdev)
 
 /* common dai driver */
 extern struct snd_soc_dai_driver skl_dai[];
+int hda_dsp_dais_suspend(struct snd_sof_dev *sdev);
 
 /*
  * Platform Specific HW abstraction Ops.
  */
-extern const struct snd_sof_dsp_ops sof_apl_ops;
-extern const struct snd_sof_dsp_ops sof_cnl_ops;
-extern const struct snd_sof_dsp_ops sof_tgl_ops;
-extern const struct snd_sof_dsp_ops sof_icl_ops;
+extern struct snd_sof_dsp_ops sof_hda_common_ops;
+
+extern struct snd_sof_dsp_ops sof_apl_ops;
+int sof_apl_ops_init(struct snd_sof_dev *sdev);
+extern struct snd_sof_dsp_ops sof_cnl_ops;
+int sof_cnl_ops_init(struct snd_sof_dev *sdev);
+extern struct snd_sof_dsp_ops sof_tgl_ops;
+int sof_tgl_ops_init(struct snd_sof_dev *sdev);
+extern struct snd_sof_dsp_ops sof_icl_ops;
+int sof_icl_ops_init(struct snd_sof_dev *sdev);
+extern struct snd_sof_dsp_ops sof_mtl_ops;
+int sof_mtl_ops_init(struct snd_sof_dev *sdev);
 
 extern const struct sof_intel_dsp_desc apl_chip_info;
 extern const struct sof_intel_dsp_desc cnl_chip_info;
-extern const struct sof_intel_dsp_desc skl_chip_info;
 extern const struct sof_intel_dsp_desc icl_chip_info;
 extern const struct sof_intel_dsp_desc tgl_chip_info;
 extern const struct sof_intel_dsp_desc tglh_chip_info;
 extern const struct sof_intel_dsp_desc ehl_chip_info;
 extern const struct sof_intel_dsp_desc jsl_chip_info;
 extern const struct sof_intel_dsp_desc adls_chip_info;
+extern const struct sof_intel_dsp_desc mtl_chip_info;
 
 /* Probes support */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_PROBES)
@@ -741,5 +833,15 @@ int hda_ctrl_dai_widget_free(struct snd_soc_dapm_widget *w, unsigned int quirk_f
 #define SOF_HDA_POSITION_QUIRK_USE_DPIB_DDR_UPDATE	(2) /* recommended with VC0 or VC1 */
 
 extern int sof_hda_position_quirk;
+
+void hda_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops);
+void hda_ops_free(struct snd_sof_dev *sdev);
+
+/* IPC4 */
+irqreturn_t cnl_ipc4_irq_thread(int irq, void *context);
+int cnl_ipc4_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg);
+irqreturn_t hda_dsp_ipc4_irq_thread(int irq, void *context);
+int hda_dsp_ipc4_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg);
+extern struct sdw_intel_ops sdw_callback;
 
 #endif

@@ -68,7 +68,7 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 
-			boost_bypass_n_pin: boost-bypass {
+			boost_bypass_n_pin: boost-bypass-state {
 				pins = "gpio21";
 				function = "normal";
 			};
@@ -131,7 +131,7 @@
 			qcom,external-resistor-micro-ohms = <10000>;
 		};
 
-		coincell@2800 {
+		pm8941_coincell: coincell@2800 {
 			compatible = "qcom,pm8941-coincell";
 			reg = <0x2800>;
 			status = "disabled";
@@ -143,6 +143,16 @@
 		reg = <0x1 SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		pm8941_lpg: lpg {
+			compatible = "qcom,pm8941-lpg";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+			#pwm-cells = <2>;
+
+			status = "disabled";
+		};
 
 		pm8941_wled: wled@d800 {
 			compatible = "qcom,pm8941-wled";

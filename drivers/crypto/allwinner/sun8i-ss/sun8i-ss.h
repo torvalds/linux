@@ -82,6 +82,8 @@
 #define PRNG_DATA_SIZE (160 / 8)
 #define PRNG_SEED_SIZE DIV_ROUND_UP(175, 8)
 
+#define MAX_PAD_SIZE 4096
+
 /*
  * struct ss_clock - Describe clocks used by sun8i-ss
  * @name:       Name of clock needed by this variant
@@ -121,11 +123,19 @@ struct sginfo {
  * @complete:	completion for the current task on this flow
  * @status:	set to 1 by interrupt if task is done
  * @stat_req:	number of request done by this flow
+ * @iv:		list of IV to use for each step
+ * @biv:	buffer which contain the backuped IV
+ * @pad:	padding buffer for hash operations
+ * @result:	buffer for storing the result of hash operations
  */
 struct sun8i_ss_flow {
 	struct crypto_engine *engine;
 	struct completion complete;
 	int status;
+	u8 *iv[MAX_SG];
+	u8 *biv;
+	void *pad;
+	void *result;
 #ifdef CONFIG_CRYPTO_DEV_SUN8I_SS_DEBUG
 	unsigned long stat_req;
 #endif
@@ -164,28 +174,28 @@ struct sun8i_ss_dev {
  * @t_src:		list of mapped SGs with their size
  * @t_dst:		list of mapped SGs with their size
  * @p_key:		DMA address of the key
- * @p_iv:		DMA address of the IV
+ * @p_iv:		DMA address of the IVs
+ * @niv:		Number of IVs DMA mapped
  * @method:		current algorithm for this request
  * @op_mode:		op_mode for this request
  * @op_dir:		direction (encrypt vs decrypt) for this request
  * @flow:		the flow to use for this request
- * @ivlen:		size of biv
+ * @ivlen:		size of IVs
  * @keylen:		keylen for this request
- * @biv:		buffer which contain the IV
  * @fallback_req:	request struct for invoking the fallback skcipher TFM
  */
 struct sun8i_cipher_req_ctx {
 	struct sginfo t_src[MAX_SG];
 	struct sginfo t_dst[MAX_SG];
 	u32 p_key;
-	u32 p_iv;
+	u32 p_iv[MAX_SG];
+	int niv;
 	u32 method;
 	u32 op_mode;
 	u32 op_dir;
 	int flow;
 	unsigned int ivlen;
 	unsigned int keylen;
-	void *biv;
 	struct skcipher_request fallback_req;   // keep at the end
 };
 
@@ -229,6 +239,10 @@ struct sun8i_ss_hash_tfm_ctx {
 	struct crypto_engine_ctx enginectx;
 	struct crypto_ahash *fallback_tfm;
 	struct sun8i_ss_dev *ss;
+	u8 *ipad;
+	u8 *opad;
+	u8 key[SHA256_BLOCK_SIZE];
+	int keylen;
 };
 
 /*
@@ -269,11 +283,14 @@ struct sun8i_ss_alg_template {
 		struct rng_alg rng;
 		struct ahash_alg hash;
 	} alg;
-#ifdef CONFIG_CRYPTO_DEV_SUN8I_SS_DEBUG
 	unsigned long stat_req;
 	unsigned long stat_fb;
 	unsigned long stat_bytes;
-#endif
+	unsigned long stat_fb_len;
+	unsigned long stat_fb_sglen;
+	unsigned long stat_fb_align;
+	unsigned long stat_fb_sgnum;
+	char fbname[CRYPTO_MAX_ALG_NAME];
 };
 
 int sun8i_ss_enqueue(struct crypto_async_request *areq, u32 type);
@@ -306,3 +323,5 @@ int sun8i_ss_hash_update(struct ahash_request *areq);
 int sun8i_ss_hash_finup(struct ahash_request *areq);
 int sun8i_ss_hash_digest(struct ahash_request *areq);
 int sun8i_ss_hash_run(struct crypto_engine *engine, void *breq);
+int sun8i_ss_hmac_setkey(struct crypto_ahash *ahash, const u8 *key,
+			 unsigned int keylen);

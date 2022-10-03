@@ -123,7 +123,7 @@ static struct snd_soc_acpi_mach *amd_sof_machine_select(struct snd_sof_dev *sdev
 }
 
 /* AMD Renoir DSP ops */
-const struct snd_sof_dsp_ops sof_renoir_ops = {
+struct snd_sof_dsp_ops sof_renoir_ops = {
 	/* probe and remove */
 	.probe			= amd_sof_acp_probe,
 	.remove			= amd_sof_acp_remove,
@@ -135,9 +135,6 @@ const struct snd_sof_dsp_ops sof_renoir_ops = {
 	/* Block IO */
 	.block_read		= acp_dsp_block_read,
 	.block_write		= acp_dsp_block_write,
-
-	/* Module loading */
-	.load_module		= snd_sof_parse_module_memcpy,
 
 	/*Firmware loading */
 	.load_firmware		= snd_sof_load_firmware_memcpy,
@@ -152,7 +149,6 @@ const struct snd_sof_dsp_ops sof_renoir_ops = {
 	.ipc_msg_data		= acp_sof_ipc_msg_data,
 	.get_mailbox_offset	= acp_sof_ipc_get_mailbox_offset,
 	.irq_thread		= acp_sof_ipc_irq_thread,
-	.fw_ready		= sof_fw_ready,
 
 	/* DAI drivers */
 	.drv			= renoir_sof_dai,
@@ -177,6 +173,10 @@ const struct snd_sof_dsp_ops sof_renoir_ops = {
 	/* Trace Logger */
 	.trace_init		= acp_sof_trace_init,
 	.trace_release		= acp_sof_trace_release,
+
+	/* PM */
+	.suspend                = amd_sof_acp_suspend,
+	.resume                 = amd_sof_acp_resume,
 };
 EXPORT_SYMBOL(sof_renoir_ops);
 

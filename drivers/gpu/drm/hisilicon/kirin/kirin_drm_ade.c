@@ -24,10 +24,10 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_plane_helper.h>
+#include <drm/drm_framebuffer.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 #include <drm/drm_gem_framebuffer_helper.h>
@@ -548,13 +548,13 @@ static const struct drm_crtc_funcs ade_crtc_funcs = {
 static void ade_rdma_set(void __iomem *base, struct drm_framebuffer *fb,
 			 u32 ch, u32 y, u32 in_h, u32 fmt)
 {
-	struct drm_gem_cma_object *obj = drm_fb_cma_get_gem_obj(fb, 0);
+	struct drm_gem_dma_object *obj = drm_fb_dma_get_gem_obj(fb, 0);
 	u32 reg_ctrl, reg_addr, reg_size, reg_stride, reg_space, reg_en;
 	u32 stride = fb->pitches[0];
-	u32 addr = (u32)obj->paddr + y * stride;
+	u32 addr = (u32) obj->dma_addr + y * stride;
 
 	DRM_DEBUG_DRIVER("rdma%d: (y=%d, height=%d), stride=%d, paddr=0x%x\n",
-			 ch + 1, y, in_h, stride, (u32)obj->paddr);
+			 ch + 1, y, in_h, stride, (u32) obj->dma_addr);
 	DRM_DEBUG_DRIVER("addr=0x%x, fb:%dx%d, pixel_format=%d(%p4cc)\n",
 			 addr, fb->width, fb->height, fmt,
 			 &fb->format->format);
@@ -919,12 +919,12 @@ static const struct drm_mode_config_funcs ade_mode_config_funcs = {
 
 };
 
-DEFINE_DRM_GEM_CMA_FOPS(ade_fops);
+DEFINE_DRM_GEM_DMA_FOPS(ade_fops);
 
 static const struct drm_driver ade_driver = {
 	.driver_features = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops = &ade_fops,
-	DRM_GEM_CMA_DRIVER_OPS,
+	DRM_GEM_DMA_DRIVER_OPS,
 	.name = "kirin",
 	.desc = "Hisilicon Kirin620 SoC DRM Driver",
 	.date = "20150718",

@@ -163,7 +163,7 @@ again:
 	ring->intf->out_prod = prod;
 	spin_unlock_irqrestore(&ring->lock, flags);
 	notify_remote_via_irq(ring->irq);
-	p9_req_put(p9_req);
+	p9_req_put(client, p9_req);
 
 	return 0;
 }
@@ -279,13 +279,13 @@ static void xen_9pfs_front_free(struct xen_9pfs_front_priv *priv)
 				grant_ref_t ref;
 
 				ref = priv->rings[i].intf->ref[j];
-				gnttab_end_foreign_access(ref, 0);
+				gnttab_end_foreign_access(ref, NULL);
 			}
 			free_pages_exact(priv->rings[i].data.in,
 				   1UL << (priv->rings[i].intf->ring_order +
 					   XEN_PAGE_SHIFT));
 		}
-		gnttab_end_foreign_access(priv->rings[i].ref, 0);
+		gnttab_end_foreign_access(priv->rings[i].ref, NULL);
 		free_page((unsigned long)priv->rings[i].intf);
 	}
 	kfree(priv->rings);
@@ -353,10 +353,10 @@ static int xen_9pfs_front_alloc_dataring(struct xenbus_device *dev,
 out:
 	if (bytes) {
 		for (i--; i >= 0; i--)
-			gnttab_end_foreign_access(ring->intf->ref[i], 0);
+			gnttab_end_foreign_access(ring->intf->ref[i], NULL);
 		free_pages_exact(bytes, 1UL << (order + XEN_PAGE_SHIFT));
 	}
-	gnttab_end_foreign_access(ring->ref, 0);
+	gnttab_end_foreign_access(ring->ref, NULL);
 	free_page((unsigned long)ring->intf);
 	return ret;
 }

@@ -18,6 +18,10 @@
 	led-max-microamp = <25000>;
 };
 
+&lcd_panel {
+	compatible = "ys,ys57pss36bh5gq";
+};
+
 &proximity {
 	proximity-near-level = <10>;
 };

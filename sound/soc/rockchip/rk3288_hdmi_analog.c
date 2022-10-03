@@ -124,10 +124,10 @@ static int rk_init(struct snd_soc_pcm_runtime *runtime)
 
 	/* Enable Headset Jack detection */
 	if (gpio_is_valid(machine->gpio_hp_det)) {
-		snd_soc_card_jack_new(runtime->card, "Headphone Jack",
-				      SND_JACK_HEADPHONE, &headphone_jack,
-				      headphone_jack_pins,
-				      ARRAY_SIZE(headphone_jack_pins));
+		snd_soc_card_jack_new_pins(runtime->card, "Headphone Jack",
+					   SND_JACK_HEADPHONE, &headphone_jack,
+					   headphone_jack_pins,
+					   ARRAY_SIZE(headphone_jack_pins));
 		rk_hp_jack_gpio.gpio = machine->gpio_hp_det;
 		snd_soc_jack_add_gpios(&headphone_jack, 1, &rk_hp_jack_gpio);
 	}
@@ -169,7 +169,7 @@ static struct snd_soc_card snd_soc_card_rk = {
 
 static int snd_rk_mc_probe(struct platform_device *pdev)
 {
-	int ret = 0;
+	int ret;
 	struct snd_soc_card *card = &snd_soc_card_rk;
 	struct device_node *np = pdev->dev.of_node;
 	struct rk_drvdata *machine;
@@ -253,7 +253,7 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, ret,
 				     "Soc register card failed\n");
 
-	return ret;
+	return 0;
 }
 
 static const struct of_device_id rockchip_sound_of_match[] = {

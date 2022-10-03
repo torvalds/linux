@@ -150,6 +150,8 @@ xfs_da_mount(
 	dageo->freeblk = xfs_dir2_byte_to_da(dageo, XFS_DIR2_FREE_OFFSET);
 	dageo->node_ents = (dageo->blksize - dageo->node_hdr_size) /
 				(uint)sizeof(xfs_da_node_entry_t);
+	dageo->max_extents = (XFS_DIR2_MAX_SPACES * XFS_DIR2_SPACE_SIZE) >>
+					mp->m_sb.sb_blocklog;
 	dageo->magicpct = (dageo->blksize * 37) / 100;
 
 	/* set up attribute geometry - single fsb only */
@@ -161,6 +163,12 @@ xfs_da_mount(
 	dageo->node_hdr_size = mp->m_dir_geo->node_hdr_size;
 	dageo->node_ents = (dageo->blksize - dageo->node_hdr_size) /
 				(uint)sizeof(xfs_da_node_entry_t);
+
+	if (xfs_has_large_extent_counts(mp))
+		dageo->max_extents = XFS_MAX_EXTCNT_ATTR_FORK_LARGE;
+	else
+		dageo->max_extents = XFS_MAX_EXTCNT_ATTR_FORK_SMALL;
+
 	dageo->magicpct = (dageo->blksize * 37) / 100;
 	return 0;
 }
@@ -185,7 +193,7 @@ xfs_dir_isempty(
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	if (dp->i_disk_size == 0)	/* might happen during shutdown. */
 		return 1;
-	if (dp->i_disk_size > XFS_IFORK_DSIZE(dp))
+	if (dp->i_disk_size > xfs_inode_data_fork_size(dp))
 		return 0;
 	sfp = (xfs_dir2_sf_hdr_t *)dp->i_df.if_u1.if_data;
 	return !sfp->count;

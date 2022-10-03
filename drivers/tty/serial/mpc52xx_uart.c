@@ -38,6 +38,8 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/clk.h>
 
@@ -754,9 +756,6 @@ static void mpc512x_psc_get_irq(struct uart_port *port, struct device_node *np)
 	port->irqflags = IRQF_SHARED;
 	port->irq = psc_fifoc_irq;
 }
-#endif
-
-#ifdef CONFIG_PPC_MPC512x
 
 #define PSC_5125(port) ((struct mpc5125_psc __iomem *)((port)->membase))
 #define FIFO_5125(port) ((struct mpc512x_psc_fifo __iomem *)(PSC_5125(port)+1))
@@ -1631,7 +1630,7 @@ mpc52xx_console_setup(struct console *co, char *options)
 		return ret;
 	}
 
-	uartclk = mpc5xxx_get_bus_frequency(np);
+	uartclk = mpc5xxx_fwnode_get_bus_frequency(of_fwnode_handle(np));
 	if (uartclk == 0) {
 		pr_debug("Could not find uart clock frequency!\n");
 		return -EINVAL;
@@ -1748,7 +1747,7 @@ static int mpc52xx_uart_of_probe(struct platform_device *op)
 	/* set the uart clock to the input clock of the psc, the different
 	 * prescalers are taken into account in the set_baudrate() methods
 	 * of the respective chip */
-	uartclk = mpc5xxx_get_bus_frequency(op->dev.of_node);
+	uartclk = mpc5xxx_get_bus_frequency(&op->dev);
 	if (uartclk == 0) {
 		dev_dbg(&op->dev, "Could not find uart clock frequency!\n");
 		return -EINVAL;

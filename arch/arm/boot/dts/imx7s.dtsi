@@ -120,6 +120,7 @@
 		compatible = "usb-nop-xceiv";
 		clocks = <&clks IMX7D_USB_HSIC_ROOT_CLK>;
 		clock-names = "main_clk";
+		power-domains = <&pgc_hsic_phy>;
 		#phy-cells = <0>;
 	};
 
@@ -175,7 +176,7 @@
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_LOW)>;
 	};
 
-	soc {
+	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
@@ -446,7 +447,7 @@
 				status = "disabled";
 			};
 
-			iomuxc_lpsr: iomuxc-lpsr@302c0000 {
+			iomuxc_lpsr: pinctrl@302c0000 {
 				compatible = "fsl,imx7d-iomuxc-lpsr";
 				reg = <0x302c0000 0x10000>;
 				fsl,input-sel = <&iomuxc>;
@@ -1153,7 +1154,6 @@
 				compatible = "fsl,imx7d-usb", "fsl,imx27-usb";
 				reg = <0x30b30000 0x200>;
 				interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
-				power-domains = <&pgc_hsic_phy>;
 				clocks = <&clks IMX7D_USB_CTRL_CLK>;
 				fsl,usbphy = <&usbphynop3>;
 				fsl,usbmisc = <&usbmisc3 0>;

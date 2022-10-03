@@ -262,37 +262,13 @@ static int dsa_slave_close(struct net_device *dev)
 	return 0;
 }
 
-/* Keep flooding enabled towards this port's CPU port as long as it serves at
- * least one port in the tree that requires it.
- */
-static void dsa_port_manage_cpu_flood(struct dsa_port *dp)
+static void dsa_slave_manage_host_flood(struct net_device *dev)
 {
-	struct switchdev_brport_flags flags = {
-		.mask = BR_FLOOD | BR_MCAST_FLOOD,
-	};
-	struct dsa_switch_tree *dst = dp->ds->dst;
-	struct dsa_port *cpu_dp = dp->cpu_dp;
-	struct dsa_port *other_dp;
-	int err;
+	bool mc = dev->flags & (IFF_PROMISC | IFF_ALLMULTI);
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	bool uc = dev->flags & IFF_PROMISC;
 
-	list_for_each_entry(other_dp, &dst->ports, list) {
-		if (!dsa_port_is_user(other_dp))
-			continue;
-
-		if (other_dp->cpu_dp != cpu_dp)
-			continue;
-
-		if (other_dp->slave->flags & IFF_ALLMULTI)
-			flags.val |= BR_MCAST_FLOOD;
-		if (other_dp->slave->flags & IFF_PROMISC)
-			flags.val |= BR_FLOOD;
-	}
-
-	err = dsa_port_pre_bridge_flags(dp, flags, NULL);
-	if (err)
-		return;
-
-	dsa_port_bridge_flags(cpu_dp, flags, NULL);
+	dsa_port_set_host_flood(dp, uc, mc);
 }
 
 static void dsa_slave_change_rx_flags(struct net_device *dev, int change)
@@ -310,7 +286,7 @@ static void dsa_slave_change_rx_flags(struct net_device *dev, int change)
 
 	if (dsa_switch_supports_uc_filtering(ds) &&
 	    dsa_switch_supports_mc_filtering(ds))
-		dsa_port_manage_cpu_flood(dp);
+		dsa_slave_manage_host_flood(dev);
 }
 
 static void dsa_slave_set_rx_mode(struct net_device *dev)
@@ -959,10 +935,10 @@ static void dsa_slave_get_ethtool_stats(struct net_device *dev,
 		s = per_cpu_ptr(dev->tstats, i);
 		do {
 			start = u64_stats_fetch_begin_irq(&s->syncp);
-			tx_packets = s->tx_packets;
-			tx_bytes = s->tx_bytes;
-			rx_packets = s->rx_packets;
-			rx_bytes = s->rx_bytes;
+			tx_packets = u64_stats_read(&s->tx_packets);
+			tx_bytes = u64_stats_read(&s->tx_bytes);
+			rx_packets = u64_stats_read(&s->rx_packets);
+			rx_bytes = u64_stats_read(&s->rx_bytes);
 		} while (u64_stats_fetch_retry_irq(&s->syncp, start));
 		data[0] += tx_packets;
 		data[1] += tx_bytes;
@@ -1024,6 +1000,18 @@ dsa_slave_get_eth_ctrl_stats(struct net_device *dev,
 
 	if (ds->ops->get_eth_ctrl_stats)
 		ds->ops->get_eth_ctrl_stats(ds, dp->index, ctrl_stats);
+}
+
+static void
+dsa_slave_get_rmon_stats(struct net_device *dev,
+			 struct ethtool_rmon_stats *rmon_stats,
+			 const struct ethtool_rmon_hist_range **ranges)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+
+	if (ds->ops->get_rmon_stats)
+		ds->ops->get_rmon_stats(ds, dp->index, rmon_stats, ranges);
 }
 
 static void dsa_slave_net_selftest(struct net_device *ndev,
@@ -1119,6 +1107,16 @@ static int dsa_slave_set_link_ksettings(struct net_device *dev,
 	struct dsa_port *dp = dsa_slave_to_port(dev);
 
 	return phylink_ethtool_ksettings_set(dp->pl, cmd);
+}
+
+static void dsa_slave_get_pause_stats(struct net_device *dev,
+				  struct ethtool_pause_stats *pause_stats)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+
+	if (ds->ops->get_pause_stats)
+		ds->ops->get_pause_stats(ds, dp->index, pause_stats);
 }
 
 static void dsa_slave_get_pauseparam(struct net_device *dev,
@@ -1806,11 +1804,9 @@ int dsa_slave_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct net_device *master = dsa_slave_to_master(dev);
 	struct dsa_port *dp = dsa_slave_to_port(dev);
-	struct dsa_slave_priv *p = netdev_priv(dev);
-	struct dsa_switch *ds = p->dp->ds;
-	struct dsa_port *dp_iter;
-	struct dsa_port *cpu_dp;
-	int port = p->dp->index;
+	struct dsa_port *cpu_dp = dp->cpu_dp;
+	struct dsa_switch *ds = dp->ds;
+	struct dsa_port *other_dp;
 	int largest_mtu = 0;
 	int new_master_mtu;
 	int old_master_mtu;
@@ -1821,32 +1817,27 @@ int dsa_slave_change_mtu(struct net_device *dev, int new_mtu)
 	if (!ds->ops->port_change_mtu)
 		return -EOPNOTSUPP;
 
-	list_for_each_entry(dp_iter, &ds->dst->ports, list) {
+	dsa_tree_for_each_user_port(other_dp, ds->dst) {
 		int slave_mtu;
-
-		if (!dsa_port_is_user(dp_iter))
-			continue;
 
 		/* During probe, this function will be called for each slave
 		 * device, while not all of them have been allocated. That's
 		 * ok, it doesn't change what the maximum is, so ignore it.
 		 */
-		if (!dp_iter->slave)
+		if (!other_dp->slave)
 			continue;
 
 		/* Pretend that we already applied the setting, which we
 		 * actually haven't (still haven't done all integrity checks)
 		 */
-		if (dp_iter == dp)
+		if (dp == other_dp)
 			slave_mtu = new_mtu;
 		else
-			slave_mtu = dp_iter->slave->mtu;
+			slave_mtu = other_dp->slave->mtu;
 
 		if (largest_mtu < slave_mtu)
 			largest_mtu = slave_mtu;
 	}
-
-	cpu_dp = dsa_to_port(ds, port)->cpu_dp;
 
 	mtu_limit = min_t(int, master->max_mtu, dev->max_mtu);
 	old_master_mtu = master->mtu;
@@ -1866,15 +1857,14 @@ int dsa_slave_change_mtu(struct net_device *dev, int new_mtu)
 			goto out_master_failed;
 
 		/* We only need to propagate the MTU of the CPU port to
-		 * upstream switches, so create a non-targeted notifier which
-		 * updates all switches.
+		 * upstream switches, so emit a notifier which updates them.
 		 */
-		err = dsa_port_mtu_change(cpu_dp, cpu_mtu, false);
+		err = dsa_port_mtu_change(cpu_dp, cpu_mtu);
 		if (err)
 			goto out_cpu_failed;
 	}
 
-	err = dsa_port_mtu_change(dp, new_mtu, true);
+	err = ds->ops->port_change_mtu(ds, dp->index, new_mtu);
 	if (err)
 		goto out_port_failed;
 
@@ -1887,8 +1877,7 @@ int dsa_slave_change_mtu(struct net_device *dev, int new_mtu)
 out_port_failed:
 	if (new_master_mtu != old_master_mtu)
 		dsa_port_mtu_change(cpu_dp, old_master_mtu -
-				    dsa_tag_protocol_overhead(cpu_dp->tag_ops),
-				    false);
+				    dsa_tag_protocol_overhead(cpu_dp->tag_ops));
 out_cpu_failed:
 	if (new_master_mtu != old_master_mtu)
 		dev_set_mtu(master, old_master_mtu);
@@ -2114,12 +2103,14 @@ static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.get_eth_phy_stats	= dsa_slave_get_eth_phy_stats,
 	.get_eth_mac_stats	= dsa_slave_get_eth_mac_stats,
 	.get_eth_ctrl_stats	= dsa_slave_get_eth_ctrl_stats,
+	.get_rmon_stats		= dsa_slave_get_rmon_stats,
 	.set_wol		= dsa_slave_set_wol,
 	.get_wol		= dsa_slave_get_wol,
 	.set_eee		= dsa_slave_set_eee,
 	.get_eee		= dsa_slave_get_eee,
 	.get_link_ksettings	= dsa_slave_get_link_ksettings,
 	.set_link_ksettings	= dsa_slave_set_link_ksettings,
+	.get_pause_stats	= dsa_slave_get_pause_stats,
 	.get_pauseparam		= dsa_slave_get_pauseparam,
 	.set_pauseparam		= dsa_slave_set_pauseparam,
 	.get_rxnfc		= dsa_slave_get_rxnfc,
@@ -2493,8 +2484,9 @@ static int dsa_slave_changeupper(struct net_device *dev,
 			if (!err)
 				dsa_bridge_mtu_normalization(dp);
 			if (err == -EOPNOTSUPP) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "Offloading not supported");
+				if (!extack->_msg)
+					NL_SET_ERR_MSG_MOD(extack,
+							   "Offloading not supported");
 				err = 0;
 			}
 			err = notifier_from_errno(err);

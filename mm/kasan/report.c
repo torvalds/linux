@@ -176,8 +176,12 @@ static void end_report(unsigned long *flags, void *addr)
 static void print_error_description(struct kasan_report_info *info)
 {
 	if (info->type == KASAN_REPORT_INVALID_FREE) {
-		pr_err("BUG: KASAN: double-free or invalid-free in %pS\n",
-		       (void *)info->ip);
+		pr_err("BUG: KASAN: invalid-free in %pS\n", (void *)info->ip);
+		return;
+	}
+
+	if (info->type == KASAN_REPORT_DOUBLE_FREE) {
+		pr_err("BUG: KASAN: double-free in %pS\n", (void *)info->ip);
 		return;
 	}
 
@@ -347,7 +351,7 @@ static void print_address_description(void *addr, u8 tag)
 			       va->addr, va->addr + va->size, va->caller);
 			pr_err("\n");
 
-			page = vmalloc_to_page(page);
+			page = vmalloc_to_page(addr);
 		}
 	}
 
@@ -433,7 +437,7 @@ static void print_report(struct kasan_report_info *info)
 	}
 }
 
-void kasan_report_invalid_free(void *ptr, unsigned long ip)
+void kasan_report_invalid_free(void *ptr, unsigned long ip, enum kasan_report_type type)
 {
 	unsigned long flags;
 	struct kasan_report_info info;
@@ -448,7 +452,7 @@ void kasan_report_invalid_free(void *ptr, unsigned long ip)
 
 	start_report(&flags, true);
 
-	info.type = KASAN_REPORT_INVALID_FREE;
+	info.type = type;
 	info.access_addr = ptr;
 	info.first_bad_addr = kasan_reset_tag(ptr);
 	info.access_size = 0;

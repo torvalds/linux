@@ -11,10 +11,9 @@
  */
 #include <linux/module.h>
 #include <linux/regmap.h>
-#include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
-#include <linux/of_irq.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 
 #include <linux/iio/iio.h>
@@ -144,7 +143,7 @@ const struct regmap_config bmi160_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 };
-EXPORT_SYMBOL(bmi160_regmap_config);
+EXPORT_SYMBOL_NS(bmi160_regmap_config, IIO_BMI160);
 
 struct bmi160_regs {
 	u8 data; /* LSB byte register for X-axis */
@@ -525,17 +524,6 @@ static const struct iio_info bmi160_info = {
 	.attrs = &bmi160_attrs_group,
 };
 
-static const char *bmi160_match_acpi_device(struct device *dev)
-{
-	const struct acpi_device_id *id;
-
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!id)
-		return NULL;
-
-	return dev_name(dev);
-}
-
 static int bmi160_write_conf_reg(struct regmap *regmap, unsigned int reg,
 				 unsigned int mask, unsigned int bits,
 				 unsigned int write_usleep)
@@ -645,20 +633,20 @@ int bmi160_enable_irq(struct regmap *regmap, bool enable)
 				     BMI160_DRDY_INT_EN, enable_bit,
 				     BMI160_NORMAL_WRITE_USLEEP);
 }
-EXPORT_SYMBOL(bmi160_enable_irq);
+EXPORT_SYMBOL_NS(bmi160_enable_irq, IIO_BMI160);
 
-static int bmi160_get_irq(struct device_node *of_node, enum bmi160_int_pin *pin)
+static int bmi160_get_irq(struct fwnode_handle *fwnode, enum bmi160_int_pin *pin)
 {
 	int irq;
 
 	/* Use INT1 if possible, otherwise fall back to INT2. */
-	irq = of_irq_get_byname(of_node, "INT1");
+	irq = fwnode_irq_get_byname(fwnode, "INT1");
 	if (irq > 0) {
 		*pin = BMI160_PIN_INT1;
 		return irq;
 	}
 
-	irq = of_irq_get_byname(of_node, "INT2");
+	irq = fwnode_irq_get_byname(fwnode, "INT2");
 	if (irq > 0)
 		*pin = BMI160_PIN_INT2;
 
@@ -688,7 +676,7 @@ static int bmi160_config_device_irq(struct iio_dev *indio_dev, int irq_type,
 		return -EINVAL;
 	}
 
-	open_drain = of_property_read_bool(dev->of_node, "drive-open-drain");
+	open_drain = device_property_read_bool(dev, "drive-open-drain");
 
 	return bmi160_config_pin(data->regmap, pin, open_drain, irq_mask,
 				 BMI160_NORMAL_WRITE_USLEEP);
@@ -730,7 +718,7 @@ static int bmi160_chip_init(struct bmi160_data *data, bool use_spi)
 
 	ret = regmap_write(data->regmap, BMI160_REG_CMD, BMI160_CMD_SOFTRESET);
 	if (ret)
-		return ret;
+		goto disable_regulator;
 
 	usleep_range(BMI160_SOFTRESET_USLEEP, BMI160_SOFTRESET_USLEEP + 1);
 
@@ -741,29 +729,37 @@ static int bmi160_chip_init(struct bmi160_data *data, bool use_spi)
 	if (use_spi) {
 		ret = regmap_read(data->regmap, BMI160_REG_DUMMY, &val);
 		if (ret)
-			return ret;
+			goto disable_regulator;
 	}
 
 	ret = regmap_read(data->regmap, BMI160_REG_CHIP_ID, &val);
 	if (ret) {
 		dev_err(dev, "Error reading chip id\n");
-		return ret;
+		goto disable_regulator;
 	}
 	if (val != BMI160_CHIP_ID_VAL) {
 		dev_err(dev, "Wrong chip id, got %x expected %x\n",
 			val, BMI160_CHIP_ID_VAL);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto disable_regulator;
 	}
 
 	ret = bmi160_set_mode(data, BMI160_ACCEL, true);
 	if (ret)
-		return ret;
+		goto disable_regulator;
 
 	ret = bmi160_set_mode(data, BMI160_GYRO, true);
 	if (ret)
-		return ret;
+		goto disable_accel;
 
 	return 0;
+
+disable_accel:
+	bmi160_set_mode(data, BMI160_ACCEL, false);
+
+disable_regulator:
+	regulator_bulk_disable(ARRAY_SIZE(data->supplies), data->supplies);
+	return ret;
 }
 
 static int bmi160_data_rdy_trigger_set_state(struct iio_trigger *trig,
@@ -864,9 +860,6 @@ int bmi160_core_probe(struct device *dev, struct regmap *regmap,
 	if (ret)
 		return ret;
 
-	if (!name && ACPI_HANDLE(dev))
-		name = bmi160_match_acpi_device(dev);
-
 	indio_dev->channels = bmi160_channels;
 	indio_dev->num_channels = ARRAY_SIZE(bmi160_channels);
 	indio_dev->name = name;
@@ -879,7 +872,7 @@ int bmi160_core_probe(struct device *dev, struct regmap *regmap,
 	if (ret)
 		return ret;
 
-	irq = bmi160_get_irq(dev->of_node, &int_pin);
+	irq = bmi160_get_irq(dev_fwnode(dev), &int_pin);
 	if (irq > 0) {
 		ret = bmi160_setup_irq(indio_dev, irq, int_pin);
 		if (ret)
@@ -891,7 +884,7 @@ int bmi160_core_probe(struct device *dev, struct regmap *regmap,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_GPL(bmi160_core_probe);
+EXPORT_SYMBOL_NS_GPL(bmi160_core_probe, IIO_BMI160);
 
 MODULE_AUTHOR("Daniel Baluta <daniel.baluta@intel.com>");
 MODULE_DESCRIPTION("Bosch BMI160 driver");

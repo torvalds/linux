@@ -55,7 +55,7 @@ void rtw_bf_assoc(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 	}
 
 	ic_vht_cap = &hw->wiphy->bands[NL80211_BAND_5GHZ]->vht_cap;
-	vht_cap = &sta->vht_cap;
+	vht_cap = &sta->deflink.vht_cap;
 
 	if ((ic_vht_cap->cap & IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE) &&
 	    (vht_cap->cap & IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE)) {
@@ -67,7 +67,7 @@ void rtw_bf_assoc(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 		ether_addr_copy(bfee->mac_addr, bssid);
 		bfee->role = RTW_BFEE_MU;
 		bfee->p_aid = (bssid[5] << 1) | (bssid[4] >> 7);
-		bfee->aid = bss_conf->aid;
+		bfee->aid = vif->cfg.aid;
 		bfinfo->bfer_mu_cnt++;
 
 		rtw_chip_config_bfee(rtwdev, rtwvif, bfee, true);

@@ -111,7 +111,7 @@ __secondary_hold_acknowledge:
 #ifdef CONFIG_RELOCATABLE
 	/* This flag is set to 1 by a loader if the kernel should run
 	 * at the loaded address instead of the linked address.  This
-	 * is used by kexec-tools to keep the the kdump kernel in the
+	 * is used by kexec-tools to keep the kdump kernel in the
 	 * crash_kernel region.  The loader is responsible for
 	 * observing the alignment requirement.
 	 */
@@ -435,7 +435,7 @@ generic_secondary_common_init:
 	ld	r12,CPU_SPEC_RESTORE(r23)
 	cmpdi	0,r12,0
 	beq	3f
-#ifdef PPC64_ELF_ABI_v1
+#ifdef CONFIG_PPC64_ELF_ABI_V1
 	ld	r12,0(r12)
 #endif
 	mtctr	r12
@@ -965,6 +965,9 @@ start_here_multiplatform:
 	 * and SLB setup before we turn on relocation.
 	 */
 
+#ifdef CONFIG_KASAN
+	bl	kasan_early_init
+#endif
 	/* Restore parameters passed from prom_init/kexec */
 	mr	r3,r31
 	LOAD_REG_ADDR(r12, DOTSYM(early_setup))

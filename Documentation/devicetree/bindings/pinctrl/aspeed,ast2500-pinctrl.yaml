@@ -17,7 +17,7 @@ description: |+
   			"aspeed,ast2500-scu", "syscon", "simple-mfd"
   			"aspeed,g5-scu", "syscon", "simple-mfd"
 
-  Refer to the the bindings described in
+  Refer to the bindings described in
   Documentation/devicetree/bindings/mfd/syscon.yaml
 
 properties:
@@ -76,73 +76,24 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/clock/aspeed-clock.h>
-    apb {
-        compatible = "simple-bus";
-        #address-cells = <1>;
-        #size-cells = <1>;
-        ranges;
+    scu@1e6e2000 {
+        compatible = "aspeed,ast2500-scu", "syscon", "simple-mfd";
+        reg = <0x1e6e2000 0x1a8>;
+        #clock-cells = <1>;
+        #reset-cells = <1>;
 
-        syscon: scu@1e6e2000 {
-            compatible = "aspeed,ast2500-scu", "syscon", "simple-mfd";
-            reg = <0x1e6e2000 0x1a8>;
-            #clock-cells = <1>;
-            #reset-cells = <1>;
+        pinctrl: pinctrl {
+            compatible = "aspeed,ast2500-pinctrl";
+            aspeed,external-nodes = <&gfx>, <&lhc>;
 
-            pinctrl: pinctrl {
-                compatible = "aspeed,ast2500-pinctrl";
-                aspeed,external-nodes = <&gfx>, <&lhc>;
+            pinctrl_i2c3_default: i2c3_default {
+                function = "I2C3";
+                groups = "I2C3";
+            };
 
-                pinctrl_i2c3_default: i2c3_default {
-                    function = "I2C3";
-                    groups = "I2C3";
-                };
-
-                pinctrl_gpioh0_unbiased_default: gpioh0 {
-                    pins = "A18";
-                    bias-disable;
-                };
+            pinctrl_gpioh0_unbiased_default: gpioh0 {
+                pins = "A18";
+                bias-disable;
             };
         };
-
-        gfx: display@1e6e6000 {
-            compatible = "aspeed,ast2500-gfx", "syscon";
-            reg = <0x1e6e6000 0x1000>;
-            reg-io-width = <4>;
-            clocks = <&syscon ASPEED_CLK_GATE_D1CLK>;
-            resets = <&syscon ASPEED_RESET_CRT1>;
-            interrupts = <0x19>;
-            syscon = <&syscon>;
-            memory-region = <&gfx_memory>;
-        };
-    };
-
-    lpc: lpc@1e789000 {
-        compatible = "aspeed,ast2500-lpc", "simple-mfd";
-        reg = <0x1e789000 0x1000>;
-
-        #address-cells = <1>;
-        #size-cells = <1>;
-        ranges = <0x0 0x1e789000 0x1000>;
-
-        lpc_host: lpc-host@80 {
-            compatible = "aspeed,ast2500-lpc-host", "simple-mfd", "syscon";
-            reg = <0x80 0x1e0>;
-            reg-io-width = <4>;
-
-            #address-cells = <1>;
-            #size-cells = <1>;
-            ranges = <0x0 0x80 0x1e0>;
-
-            lhc: lhc@20 {
-                   compatible = "aspeed,ast2500-lhc";
-                   reg = <0x20 0x24>, <0x48 0x8>;
-            };
-        };
-    };
-
-    gfx_memory: framebuffer {
-        size = <0x01000000>;
-        alignment = <0x01000000>;
-        compatible = "shared-dma-pool";
-        reusable;
     };

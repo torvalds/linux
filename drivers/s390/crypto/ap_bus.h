@@ -148,12 +148,16 @@ struct ap_driver {
 	/*
 	 * Called at the start of the ap bus scan function when
 	 * the crypto config information (qci) has changed.
+	 * This callback is not invoked if there is no AP
+	 * QCI support available.
 	 */
 	void (*on_config_changed)(struct ap_config_info *new_config_info,
 				  struct ap_config_info *old_config_info);
 	/*
 	 * Called at the end of the ap bus scan function when
 	 * the crypto config information (qci) has changed.
+	 * This callback is not invoked if there is no AP
+	 * QCI support available.
 	 */
 	void (*on_scan_complete)(struct ap_config_info *new_config_info,
 				 struct ap_config_info *old_config_info);
@@ -317,6 +321,7 @@ struct ap_perms {
 	unsigned long aqm[BITS_TO_LONGS(AP_DOMAINS)];
 	unsigned long adm[BITS_TO_LONGS(AP_DOMAINS)];
 };
+
 extern struct ap_perms ap_perms;
 extern struct mutex ap_perms_mutex;
 

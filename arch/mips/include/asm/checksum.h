@@ -128,48 +128,45 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 
 static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 					__u32 len, __u8 proto,
-					__wsum sum)
+					__wsum isum)
 {
-	unsigned long tmp = (__force unsigned long)sum;
+	const unsigned int sh32 = IS_ENABLED(CONFIG_64BIT) ? 32 : 0;
+	unsigned long sum = (__force unsigned long)daddr;
+	unsigned long tmp;
+	__u32 osum;
 
-	__asm__(
-	"	.set	push		# csum_tcpudp_nofold\n"
-	"	.set	noat		\n"
-#ifdef CONFIG_32BIT
-	"	addu	%0, %2		\n"
-	"	sltu	$1, %0, %2	\n"
-	"	addu	%0, $1		\n"
+	tmp = (__force unsigned long)saddr;
+	sum += tmp;
 
-	"	addu	%0, %3		\n"
-	"	sltu	$1, %0, %3	\n"
-	"	addu	%0, $1		\n"
+	if (IS_ENABLED(CONFIG_32BIT))
+		sum += sum < tmp;
 
-	"	addu	%0, %4		\n"
-	"	sltu	$1, %0, %4	\n"
-	"	addu	%0, $1		\n"
-#endif
-#ifdef CONFIG_64BIT
-	"	daddu	%0, %2		\n"
-	"	daddu	%0, %3		\n"
-	"	daddu	%0, %4		\n"
-	"	dsll32	$1, %0, 0	\n"
-	"	daddu	%0, $1		\n"
-	"	sltu	$1, %0, $1	\n"
-	"	dsra32	%0, %0, 0	\n"
-	"	addu	%0, $1		\n"
-#endif
-	"	.set	pop"
-	: "=r" (tmp)
-	: "0" ((__force unsigned long)daddr),
-	  "r" ((__force unsigned long)saddr),
-#ifdef __MIPSEL__
-	  "r" ((proto + len) << 8),
-#else
-	  "r" (proto + len),
-#endif
-	  "r" ((__force unsigned long)sum));
+	/*
+	 * We know PROTO + LEN has the sign bit clear, so cast to a signed
+	 * type to avoid an extraneous zero-extension where TMP is 64-bit.
+	 */
+	tmp = (__s32)(proto + len);
+	tmp <<= IS_ENABLED(CONFIG_CPU_LITTLE_ENDIAN) ? 8 : 0;
+	sum += tmp;
+	if (IS_ENABLED(CONFIG_32BIT))
+		sum += sum < tmp;
 
-	return (__force __wsum)tmp;
+	tmp = (__force unsigned long)isum;
+	sum += tmp;
+
+	if (IS_ENABLED(CONFIG_32BIT)) {
+		sum += sum < tmp;
+		osum = sum;
+	} else if (IS_ENABLED(CONFIG_64BIT)) {
+		tmp = sum << sh32;
+		sum += tmp;
+		osum = sum < tmp;
+		osum += sum >> sh32;
+	} else {
+		BUILD_BUG();
+	}
+
+	return (__force __wsum)osum;
 }
 #define csum_tcpudp_nofold csum_tcpudp_nofold
 

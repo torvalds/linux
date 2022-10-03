@@ -57,8 +57,10 @@
 #define ACP_SHA_STAT				0x8000
 #define ACP_PSP_TIMEOUT_COUNTER			5
 #define ACP_EXT_INTR_ERROR_STAT			0x20000000
-#define MP0_C2PMSG_26_REG			0x03810570
-#define MBOX_ACP_SHA_DMA_COMMAND		0x330000
+#define MP0_C2PMSG_114_REG			0x3810AC8
+#define MP0_C2PMSG_73_REG			0x3810A24
+#define MBOX_ACP_SHA_DMA_COMMAND		0x70000
+#define MBOX_DELAY				1000
 #define MBOX_READY_MASK				0x80000000
 #define MBOX_STATUS_MASK			0xFFFF
 
@@ -204,15 +206,19 @@ int acp_pcm_hw_params(struct snd_sof_dev *sdev, struct snd_pcm_substream *substr
 		      struct snd_pcm_hw_params *params,
 		      struct snd_sof_platform_stream_params *platform_params);
 
-extern const struct snd_sof_dsp_ops sof_renoir_ops;
+extern struct snd_sof_dsp_ops sof_renoir_ops;
 
 /* Machine configuration */
 int snd_amd_acp_find_config(struct pci_dev *pci);
 
 /* Trace */
-int acp_sof_trace_init(struct snd_sof_dev *sdev,
+int acp_sof_trace_init(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
 		       struct sof_ipc_dma_trace_params_ext *dtrace_params);
 int acp_sof_trace_release(struct snd_sof_dev *sdev);
+
+/* PM Callbacks */
+int amd_sof_acp_suspend(struct snd_sof_dev *sdev, u32 target_state);
+int amd_sof_acp_resume(struct snd_sof_dev *sdev);
 
 struct sof_amd_acp_desc {
 	unsigned int host_bridge_id;

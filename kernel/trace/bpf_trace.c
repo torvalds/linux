@@ -129,7 +129,10 @@ unsigned int trace_call_bpf(struct trace_event_call *call, void *ctx)
 	 * out of events when it was updated in between this and the
 	 * rcu_dereference() which is accepted risk.
 	 */
-	ret = BPF_PROG_RUN_ARRAY(call->prog_array, ctx, bpf_prog_run);
+	rcu_read_lock();
+	ret = bpf_prog_run_array(rcu_dereference(call->prog_array),
+				 ctx, bpf_prog_run);
+	rcu_read_unlock();
 
  out:
 	__this_cpu_dec(bpf_prog_active);
@@ -1088,6 +1091,21 @@ static const struct bpf_func_proto bpf_get_attach_cookie_proto_pe = {
 	.arg1_type	= ARG_PTR_TO_CTX,
 };
 
+BPF_CALL_1(bpf_get_attach_cookie_tracing, void *, ctx)
+{
+	struct bpf_trace_run_ctx *run_ctx;
+
+	run_ctx = container_of(current->bpf_ctx, struct bpf_trace_run_ctx, run_ctx);
+	return run_ctx->bpf_cookie;
+}
+
+static const struct bpf_func_proto bpf_get_attach_cookie_proto_tracing = {
+	.func		= bpf_get_attach_cookie_tracing,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+};
+
 BPF_CALL_3(bpf_get_branch_snapshot, void *, buf, u32, size, u64, flags)
 {
 #ifndef CONFIG_X86
@@ -1179,6 +1197,8 @@ bpf_tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_map_pop_elem_proto;
 	case BPF_FUNC_map_peek_elem:
 		return &bpf_map_peek_elem_proto;
+	case BPF_FUNC_map_lookup_percpu_elem:
+		return &bpf_map_lookup_percpu_elem_proto;
 	case BPF_FUNC_ktime_get_ns:
 		return &bpf_ktime_get_ns_proto;
 	case BPF_FUNC_ktime_get_boot_ns:
@@ -1685,6 +1705,8 @@ tracing_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_skc_to_udp6_sock_proto;
 	case BPF_FUNC_skc_to_unix_sock:
 		return &bpf_skc_to_unix_sock_proto;
+	case BPF_FUNC_skc_to_mptcp_sock:
+		return &bpf_skc_to_mptcp_sock_proto;
 	case BPF_FUNC_sk_storage_get:
 		return &bpf_sk_storage_get_tracing_proto;
 	case BPF_FUNC_sk_storage_delete:
@@ -1716,6 +1738,8 @@ tracing_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return bpf_prog_has_trampoline(prog) ? &bpf_get_func_ret_proto : NULL;
 	case BPF_FUNC_get_func_arg_cnt:
 		return bpf_prog_has_trampoline(prog) ? &bpf_get_func_arg_cnt_proto : NULL;
+	case BPF_FUNC_get_attach_cookie:
+		return bpf_prog_has_trampoline(prog) ? &bpf_get_attach_cookie_proto_tracing : NULL;
 	default:
 		fn = raw_tp_prog_func_proto(func_id, prog);
 		if (!fn && prog->expected_attach_type == BPF_TRACE_ITER)
@@ -1912,7 +1936,7 @@ int perf_event_attach_bpf_prog(struct perf_event *event,
 	event->prog = prog;
 	event->bpf_cookie = bpf_cookie;
 	rcu_assign_pointer(event->tp_event->prog_array, new_array);
-	bpf_prog_array_free(old_array);
+	bpf_prog_array_free_sleepable(old_array);
 
 unlock:
 	mutex_unlock(&bpf_event_mutex);
@@ -1938,7 +1962,7 @@ void perf_event_detach_bpf_prog(struct perf_event *event)
 		bpf_prog_array_delete_safe(old_array, event->prog);
 	} else {
 		rcu_assign_pointer(event->tp_event->prog_array, new_array);
-		bpf_prog_array_free(old_array);
+		bpf_prog_array_free_sleepable(old_array);
 	}
 
 	bpf_prog_put(event->prog);
@@ -2226,6 +2250,59 @@ struct bpf_kprobe_multi_run_ctx {
 	unsigned long entry_ip;
 };
 
+struct user_syms {
+	const char **syms;
+	char *buf;
+};
+
+static int copy_user_syms(struct user_syms *us, unsigned long __user *usyms, u32 cnt)
+{
+	unsigned long __user usymbol;
+	const char **syms = NULL;
+	char *buf = NULL, *p;
+	int err = -ENOMEM;
+	unsigned int i;
+
+	syms = kvmalloc_array(cnt, sizeof(*syms), GFP_KERNEL);
+	if (!syms)
+		goto error;
+
+	buf = kvmalloc_array(cnt, KSYM_NAME_LEN, GFP_KERNEL);
+	if (!buf)
+		goto error;
+
+	for (p = buf, i = 0; i < cnt; i++) {
+		if (__get_user(usymbol, usyms + i)) {
+			err = -EFAULT;
+			goto error;
+		}
+		err = strncpy_from_user(p, (const char __user *) usymbol, KSYM_NAME_LEN);
+		if (err == KSYM_NAME_LEN)
+			err = -E2BIG;
+		if (err < 0)
+			goto error;
+		syms[i] = p;
+		p += err + 1;
+	}
+
+	us->syms = syms;
+	us->buf = buf;
+	return 0;
+
+error:
+	if (err) {
+		kvfree(syms);
+		kvfree(buf);
+	}
+	return err;
+}
+
+static void free_user_syms(struct user_syms *us)
+{
+	kvfree(us->syms);
+	kvfree(us->buf);
+}
+
 static void bpf_kprobe_multi_link_release(struct bpf_link *link)
 {
 	struct bpf_kprobe_multi_link *kmulti_link;
@@ -2254,15 +2331,13 @@ static void bpf_kprobe_multi_cookie_swap(void *a, void *b, int size, const void 
 	const struct bpf_kprobe_multi_link *link = priv;
 	unsigned long *addr_a = a, *addr_b = b;
 	u64 *cookie_a, *cookie_b;
-	unsigned long tmp1;
-	u64 tmp2;
 
 	cookie_a = link->cookies + (addr_a - link->addrs);
 	cookie_b = link->cookies + (addr_b - link->addrs);
 
 	/* swap addr_a/addr_b and cookie_a/cookie_b values */
-	tmp1 = *addr_a; *addr_a = *addr_b; *addr_b = tmp1;
-	tmp2 = *cookie_a; *cookie_a = *cookie_b; *cookie_b = tmp2;
+	swap(*addr_a, *addr_b);
+	swap(*cookie_a, *cookie_b);
 }
 
 static int __bpf_kprobe_multi_cookie_cmp(const void *a, const void *b)
@@ -2348,53 +2423,34 @@ kprobe_multi_link_handler(struct fprobe *fp, unsigned long entry_ip,
 	kprobe_multi_link_prog_run(link, entry_ip, regs);
 }
 
-static int
-kprobe_multi_resolve_syms(const void __user *usyms, u32 cnt,
-			  unsigned long *addrs)
+static int symbols_cmp_r(const void *a, const void *b, const void *priv)
 {
-	unsigned long addr, size;
-	const char __user **syms;
-	int err = -ENOMEM;
-	unsigned int i;
-	char *func;
+	const char **str_a = (const char **) a;
+	const char **str_b = (const char **) b;
 
-	size = cnt * sizeof(*syms);
-	syms = kvzalloc(size, GFP_KERNEL);
-	if (!syms)
-		return -ENOMEM;
+	return strcmp(*str_a, *str_b);
+}
 
-	func = kmalloc(KSYM_NAME_LEN, GFP_KERNEL);
-	if (!func)
-		goto error;
+struct multi_symbols_sort {
+	const char **funcs;
+	u64 *cookies;
+};
 
-	if (copy_from_user(syms, usyms, size)) {
-		err = -EFAULT;
-		goto error;
+static void symbols_swap_r(void *a, void *b, int size, const void *priv)
+{
+	const struct multi_symbols_sort *data = priv;
+	const char **name_a = a, **name_b = b;
+
+	swap(*name_a, *name_b);
+
+	/* If defined, swap also related cookies. */
+	if (data->cookies) {
+		u64 *cookie_a, *cookie_b;
+
+		cookie_a = data->cookies + (name_a - data->funcs);
+		cookie_b = data->cookies + (name_b - data->funcs);
+		swap(*cookie_a, *cookie_b);
 	}
-
-	for (i = 0; i < cnt; i++) {
-		err = strncpy_from_user(func, syms[i], KSYM_NAME_LEN);
-		if (err == KSYM_NAME_LEN)
-			err = -E2BIG;
-		if (err < 0)
-			goto error;
-		err = -EINVAL;
-		addr = kallsyms_lookup_name(func);
-		if (!addr)
-			goto error;
-		if (!kallsyms_lookup_size_offset(addr, &size, NULL))
-			goto error;
-		addr = ftrace_location_range(addr, addr + size - 1);
-		if (!addr)
-			goto error;
-		addrs[i] = addr;
-	}
-
-	err = 0;
-error:
-	kvfree(syms);
-	kfree(func);
-	return err;
 }
 
 int bpf_kprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
@@ -2430,24 +2486,13 @@ int bpf_kprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 		return -EINVAL;
 
 	size = cnt * sizeof(*addrs);
-	addrs = kvmalloc(size, GFP_KERNEL);
+	addrs = kvmalloc_array(cnt, sizeof(*addrs), GFP_KERNEL);
 	if (!addrs)
 		return -ENOMEM;
 
-	if (uaddrs) {
-		if (copy_from_user(addrs, uaddrs, size)) {
-			err = -EFAULT;
-			goto error;
-		}
-	} else {
-		err = kprobe_multi_resolve_syms(usyms, cnt, addrs);
-		if (err)
-			goto error;
-	}
-
 	ucookies = u64_to_user_ptr(attr->link_create.kprobe_multi.cookies);
 	if (ucookies) {
-		cookies = kvmalloc(size, GFP_KERNEL);
+		cookies = kvmalloc_array(cnt, sizeof(*addrs), GFP_KERNEL);
 		if (!cookies) {
 			err = -ENOMEM;
 			goto error;
@@ -2456,6 +2501,33 @@ int bpf_kprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 			err = -EFAULT;
 			goto error;
 		}
+	}
+
+	if (uaddrs) {
+		if (copy_from_user(addrs, uaddrs, size)) {
+			err = -EFAULT;
+			goto error;
+		}
+	} else {
+		struct multi_symbols_sort data = {
+			.cookies = cookies,
+		};
+		struct user_syms us;
+
+		err = copy_user_syms(&us, usyms, cnt);
+		if (err)
+			goto error;
+
+		if (cookies)
+			data.funcs = us.syms;
+
+		sort_r(us.syms, cnt, sizeof(*us.syms), symbols_cmp_r,
+		       symbols_swap_r, &data);
+
+		err = ftrace_lookup_symbols(us.syms, cnt, addrs);
+		free_user_syms(&us);
+		if (err)
+			goto error;
 	}
 
 	link = kzalloc(sizeof(*link), GFP_KERNEL);

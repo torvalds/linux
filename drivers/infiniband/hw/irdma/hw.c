@@ -61,7 +61,7 @@ static void irdma_iwarp_ce_handler(struct irdma_sc_cq *iwcq)
 	struct irdma_cq *cq = iwcq->back_cq;
 
 	if (!cq->user_mode)
-		cq->armed = false;
+		atomic_set(&cq->armed, 0);
 	if (cq->ibcq.comp_handler)
 		cq->ibcq.comp_handler(&cq->ibcq, cq->ibcq.cq_context);
 }
@@ -257,10 +257,6 @@ static void irdma_process_aeq(struct irdma_pci_f *rf)
 				iwqp->last_aeq = info->ae_id;
 			spin_unlock_irqrestore(&iwqp->lock, flags);
 			ctx_info = &iwqp->ctx_info;
-			if (rdma_protocol_roce(&iwqp->iwdev->ibdev, 1))
-				ctx_info->roce_info->err_rq_idx_valid = true;
-			else
-				ctx_info->iwarp_info->err_rq_idx_valid = true;
 		} else {
 			if (info->ae_id != IRDMA_AE_CQ_OPERATION_ERROR)
 				continue;
@@ -370,16 +366,12 @@ static void irdma_process_aeq(struct irdma_pci_f *rf)
 		case IRDMA_AE_LCE_FUNCTION_CATASTROPHIC:
 		case IRDMA_AE_LCE_CQ_CATASTROPHIC:
 		case IRDMA_AE_UDA_XMIT_DGRAM_TOO_LONG:
-			if (rdma_protocol_roce(&iwdev->ibdev, 1))
-				ctx_info->roce_info->err_rq_idx_valid = false;
-			else
-				ctx_info->iwarp_info->err_rq_idx_valid = false;
-			fallthrough;
 		default:
-			ibdev_err(&iwdev->ibdev, "abnormal ae_id = 0x%x bool qp=%d qp_id = %d\n",
-				  info->ae_id, info->qp, info->qp_cq_id);
+			ibdev_err(&iwdev->ibdev, "abnormal ae_id = 0x%x bool qp=%d qp_id = %d, ae_src=%d\n",
+				  info->ae_id, info->qp, info->qp_cq_id, info->ae_src);
 			if (rdma_protocol_roce(&iwdev->ibdev, 1)) {
-				if (!info->sq && ctx_info->roce_info->err_rq_idx_valid) {
+				ctx_info->roce_info->err_rq_idx_valid = info->rq;
+				if (info->rq) {
 					ctx_info->roce_info->err_rq_idx = info->wqe_idx;
 					irdma_sc_qp_setctx_roce(&iwqp->sc_qp, iwqp->host_ctx.va,
 								ctx_info);
@@ -388,7 +380,8 @@ static void irdma_process_aeq(struct irdma_pci_f *rf)
 				irdma_cm_disconn(iwqp);
 				break;
 			}
-			if (!info->sq && ctx_info->iwarp_info->err_rq_idx_valid) {
+			ctx_info->iwarp_info->err_rq_idx_valid = info->rq;
+			if (info->rq) {
 				ctx_info->iwarp_info->err_rq_idx = info->wqe_idx;
 				ctx_info->tcp_info_valid = false;
 				ctx_info->iwarp_info_valid = true;
@@ -1512,10 +1505,7 @@ static int irdma_hmc_setup(struct irdma_pci_f *rf)
 	int status;
 	u32 qpcnt;
 
-	if (rf->rdma_ver == IRDMA_GEN_1)
-		qpcnt = rsrc_limits_table[rf->limits_sel].qplimit * 2;
-	else
-		qpcnt = rsrc_limits_table[rf->limits_sel].qplimit;
+	qpcnt = rsrc_limits_table[rf->limits_sel].qplimit;
 
 	rf->sd_type = IRDMA_SD_TYPE_DIRECT;
 	status = irdma_cfg_fpm_val(&rf->sc_dev, qpcnt);
@@ -1543,7 +1533,7 @@ static void irdma_del_init_mem(struct irdma_pci_f *rf)
 			  rf->obj_mem.pa);
 	rf->obj_mem.va = NULL;
 	if (rf->rdma_ver != IRDMA_GEN_1) {
-		kfree(rf->allocated_ws_nodes);
+		bitmap_free(rf->allocated_ws_nodes);
 		rf->allocated_ws_nodes = NULL;
 	}
 	kfree(rf->ceqlist);
@@ -1827,10 +1817,6 @@ int irdma_rt_init_hw(struct irdma_device *iwdev,
 			rf->rsrc_created = true;
 		}
 
-		iwdev->device_cap_flags = IB_DEVICE_LOCAL_DMA_LKEY |
-					  IB_DEVICE_MEM_WINDOW |
-					  IB_DEVICE_MEM_MGT_EXTENSIONS;
-
 		if (iwdev->rf->sc_dev.hw_attrs.uk_attrs.hw_rev == IRDMA_GEN_1)
 			irdma_alloc_set_mac(iwdev);
 		irdma_add_ip(iwdev);
@@ -1976,9 +1962,8 @@ u32 irdma_initialize_hw_rsrc(struct irdma_pci_f *rf)
 	u32 ret;
 
 	if (rf->rdma_ver != IRDMA_GEN_1) {
-		rf->allocated_ws_nodes =
-			kcalloc(BITS_TO_LONGS(IRDMA_MAX_WS_NODES),
-				sizeof(unsigned long), GFP_KERNEL);
+		rf->allocated_ws_nodes = bitmap_zalloc(IRDMA_MAX_WS_NODES,
+						       GFP_KERNEL);
 		if (!rf->allocated_ws_nodes)
 			return -ENOMEM;
 
@@ -2027,7 +2012,7 @@ u32 irdma_initialize_hw_rsrc(struct irdma_pci_f *rf)
 	return 0;
 
 mem_rsrc_kzalloc_fail:
-	kfree(rf->allocated_ws_nodes);
+	bitmap_free(rf->allocated_ws_nodes);
 	rf->allocated_ws_nodes = NULL;
 
 	return ret;
@@ -2693,24 +2678,29 @@ void irdma_flush_wqes(struct irdma_qp *iwqp, u32 flush_mask)
 	info.sq = flush_mask & IRDMA_FLUSH_SQ;
 	info.rq = flush_mask & IRDMA_FLUSH_RQ;
 
-	if (flush_mask & IRDMA_REFLUSH) {
-		if (info.sq)
-			iwqp->sc_qp.flush_sq = false;
-		if (info.rq)
-			iwqp->sc_qp.flush_rq = false;
-	}
-
 	/* Generate userflush errors in CQE */
 	info.sq_major_code = IRDMA_FLUSH_MAJOR_ERR;
 	info.sq_minor_code = FLUSH_GENERAL_ERR;
 	info.rq_major_code = IRDMA_FLUSH_MAJOR_ERR;
 	info.rq_minor_code = FLUSH_GENERAL_ERR;
 	info.userflushcode = true;
-	if (flush_code) {
-		if (info.sq && iwqp->sc_qp.sq_flush_code)
-			info.sq_minor_code = flush_code;
-		if (info.rq && iwqp->sc_qp.rq_flush_code)
-			info.rq_minor_code = flush_code;
+
+	if (flush_mask & IRDMA_REFLUSH) {
+		if (info.sq)
+			iwqp->sc_qp.flush_sq = false;
+		if (info.rq)
+			iwqp->sc_qp.flush_rq = false;
+	} else {
+		if (flush_code) {
+			if (info.sq && iwqp->sc_qp.sq_flush_code)
+				info.sq_minor_code = flush_code;
+			if (info.rq && iwqp->sc_qp.rq_flush_code)
+				info.rq_minor_code = flush_code;
+		}
+		if (!iwqp->user_mode)
+			queue_delayed_work(iwqp->iwdev->cleanup_wq,
+					   &iwqp->dwork_flush,
+					   msecs_to_jiffies(IRDMA_FLUSH_DELAY_MS));
 	}
 
 	/* Issue flush */

@@ -679,7 +679,7 @@ static int nfs4_xdr_dec_cb_notify_lock(struct rpc_rqst *rqstp,
  *	case NFS4_OK:
  *		write_response4	coa_resok4;
  *	default:
- *	length4		coa_bytes_copied;
+ *		length4		coa_bytes_copied;
  * };
  * struct CB_OFFLOAD4args {
  *	nfs_fh4		coa_fh;
@@ -688,21 +688,22 @@ static int nfs4_xdr_dec_cb_notify_lock(struct rpc_rqst *rqstp,
  * };
  */
 static void encode_offload_info4(struct xdr_stream *xdr,
-				 __be32 nfserr,
-				 const struct nfsd4_copy *cp)
+				 const struct nfsd4_cb_offload *cbo)
 {
 	__be32 *p;
 
 	p = xdr_reserve_space(xdr, 4);
-	*p++ = nfserr;
-	if (!nfserr) {
+	*p = cbo->co_nfserr;
+	switch (cbo->co_nfserr) {
+	case nfs_ok:
 		p = xdr_reserve_space(xdr, 4 + 8 + 4 + NFS4_VERIFIER_SIZE);
 		p = xdr_encode_empty_array(p);
-		p = xdr_encode_hyper(p, cp->cp_res.wr_bytes_written);
-		*p++ = cpu_to_be32(cp->cp_res.wr_stable_how);
-		p = xdr_encode_opaque_fixed(p, cp->cp_res.wr_verifier.data,
+		p = xdr_encode_hyper(p, cbo->co_res.wr_bytes_written);
+		*p++ = cpu_to_be32(cbo->co_res.wr_stable_how);
+		p = xdr_encode_opaque_fixed(p, cbo->co_res.wr_verifier.data,
 					    NFS4_VERIFIER_SIZE);
-	} else {
+		break;
+	default:
 		p = xdr_reserve_space(xdr, 8);
 		/* We always return success if bytes were written */
 		p = xdr_encode_hyper(p, 0);
@@ -710,18 +711,16 @@ static void encode_offload_info4(struct xdr_stream *xdr,
 }
 
 static void encode_cb_offload4args(struct xdr_stream *xdr,
-				   __be32 nfserr,
-				   const struct knfsd_fh *fh,
-				   const struct nfsd4_copy *cp,
+				   const struct nfsd4_cb_offload *cbo,
 				   struct nfs4_cb_compound_hdr *hdr)
 {
 	__be32 *p;
 
 	p = xdr_reserve_space(xdr, 4);
-	*p++ = cpu_to_be32(OP_CB_OFFLOAD);
-	encode_nfs_fh4(xdr, fh);
-	encode_stateid4(xdr, &cp->cp_res.cb_stateid);
-	encode_offload_info4(xdr, nfserr, cp);
+	*p = cpu_to_be32(OP_CB_OFFLOAD);
+	encode_nfs_fh4(xdr, &cbo->co_fh);
+	encode_stateid4(xdr, &cbo->co_res.cb_stateid);
+	encode_offload_info4(xdr, cbo);
 
 	hdr->nops++;
 }
@@ -731,8 +730,8 @@ static void nfs4_xdr_enc_cb_offload(struct rpc_rqst *req,
 				    const void *data)
 {
 	const struct nfsd4_callback *cb = data;
-	const struct nfsd4_copy *cp =
-		container_of(cb, struct nfsd4_copy, cp_cb);
+	const struct nfsd4_cb_offload *cbo =
+		container_of(cb, struct nfsd4_cb_offload, co_cb);
 	struct nfs4_cb_compound_hdr hdr = {
 		.ident = 0,
 		.minorversion = cb->cb_clp->cl_minorversion,
@@ -740,7 +739,7 @@ static void nfs4_xdr_enc_cb_offload(struct rpc_rqst *req,
 
 	encode_cb_compound4args(xdr, &hdr);
 	encode_cb_sequence4args(xdr, cb, &hdr);
-	encode_cb_offload4args(xdr, cp->nfserr, &cp->fh, cp, &hdr);
+	encode_cb_offload4args(xdr, cbo, &hdr);
 	encode_cb_nops(&hdr);
 }
 

@@ -51,6 +51,8 @@ void dcn31_clk_mgr_construct(struct dc_context *ctx,
 		struct pp_smu_funcs *pp_smu,
 		struct dccg *dccg);
 
+int dcn31_get_dtb_ref_freq_khz(struct clk_mgr *clk_mgr_base);
+
 void dcn31_clk_mgr_destroy(struct clk_mgr_internal *clk_mgr_int);
 
 #endif //__DCN31_CLK_MGR_H__

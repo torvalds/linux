@@ -62,6 +62,8 @@ struct snd_soc_dapm_widget *
 snd_soc_dapm_new_control_unlocked(struct snd_soc_dapm_context *dapm,
 			 const struct snd_soc_dapm_widget *widget);
 
+static unsigned int soc_dapm_read(struct snd_soc_dapm_context *dapm, int reg);
+
 /* dapm power sequences - make this per codec in the future */
 static int dapm_up_seq[] = {
 	[snd_soc_dapm_pre] = 1,
@@ -368,13 +370,13 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 	case snd_soc_dapm_mixer_named_ctl:
 		mc = (struct soc_mixer_control *)kcontrol->private_value;
 
-		if (mc->autodisable && snd_soc_volsw_is_stereo(mc))
-			dev_warn(widget->dapm->dev,
-				 "ASoC: Unsupported stereo autodisable control '%s'\n",
-				 ctrl_name);
-
 		if (mc->autodisable) {
 			struct snd_soc_dapm_widget template;
+
+			if (snd_soc_volsw_is_stereo(mc))
+				dev_warn(widget->dapm->dev,
+					 "ASoC: Unsupported stereo autodisable control '%s'\n",
+					 ctrl_name);
 
 			name = kasprintf(GFP_KERNEL, "%s %s", ctrl_name,
 					 "Autodisable");
@@ -442,6 +444,9 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 
 			snd_soc_dapm_add_path(widget->dapm, data->widget,
 					      widget, NULL, NULL);
+		} else if (e->reg != SND_SOC_NOPM) {
+			data->value = soc_dapm_read(widget->dapm, e->reg) &
+				      (e->mask << e->shift_l);
 		}
 		break;
 	default:
@@ -1687,8 +1692,7 @@ static void dapm_seq_run(struct snd_soc_card *card,
 		switch (w->id) {
 		case snd_soc_dapm_pre:
 			if (!w->event)
-				list_for_each_entry_safe_continue(w, n, list,
-								  power_list);
+				continue;
 
 			if (event == SND_SOC_DAPM_STREAM_START)
 				ret = w->event(w,
@@ -1700,8 +1704,7 @@ static void dapm_seq_run(struct snd_soc_card *card,
 
 		case snd_soc_dapm_post:
 			if (!w->event)
-				list_for_each_entry_safe_continue(w, n, list,
-								  power_list);
+				continue;
 
 			if (event == SND_SOC_DAPM_STREAM_START)
 				ret = w->event(w,
@@ -3439,7 +3442,6 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 			update.val = val;
 			card->update = &update;
 		}
-		change |= reg_change;
 
 		ret = soc_dapm_mixer_update_power(card, kcontrol, connect,
 						  rconnect);
@@ -3541,7 +3543,6 @@ int snd_soc_dapm_put_enum_double(struct snd_kcontrol *kcontrol,
 			update.val = val;
 			card->update = &update;
 		}
-		change |= reg_change;
 
 		ret = soc_dapm_mux_update_power(card, kcontrol, item[0], e);
 

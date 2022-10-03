@@ -2,7 +2,9 @@
 /aarch64/arch_timer
 /aarch64/debug-exceptions
 /aarch64/get-reg-list
-/aarch64/psci_cpu_on_test
+/aarch64/hypercalls
+/aarch64/psci_test
+/aarch64/vcpu_width_config
 /aarch64/vgic_init
 /aarch64/vgic_irq
 /s390x/memop
@@ -15,6 +17,7 @@
 /x86_64/debug_regs
 /x86_64/evmcs_test
 /x86_64/emulator_error_test
+/x86_64/fix_hypercall_test
 /x86_64/get_msr_index_features
 /x86_64/kvm_clock_test
 /x86_64/kvm_pv_test
@@ -22,8 +25,10 @@
 /x86_64/hyperv_cpuid
 /x86_64/hyperv_features
 /x86_64/hyperv_svm_test
+/x86_64/max_vcpuid_cap_test
 /x86_64/mmio_warning_test
-/x86_64/mmu_role_test
+/x86_64/monitor_mwait_test
+/x86_64/nx_huge_pages_test
 /x86_64/platform_info_test
 /x86_64/pmu_event_filter_test
 /x86_64/set_boot_cpu_id
@@ -33,8 +38,11 @@
 /x86_64/state_test
 /x86_64/svm_vmcall_test
 /x86_64/svm_int_ctl_test
+/x86_64/svm_nested_soft_inject_test
 /x86_64/sync_regs_test
 /x86_64/tsc_msrs_test
+/x86_64/tsc_scaling_sync
+/x86_64/ucna_injection_test
 /x86_64/userspace_io_test
 /x86_64/userspace_msr_exit_test
 /x86_64/vmx_apic_access_test
@@ -42,6 +50,7 @@
 /x86_64/vmx_dirty_log_test
 /x86_64/vmx_exception_with_invalid_guest_state
 /x86_64/vmx_invalid_nested_guest_state
+/x86_64/vmx_msrs_test
 /x86_64/vmx_preemption_timer_test
 /x86_64/vmx_set_nested_state_test
 /x86_64/vmx_tsc_adjust_test
@@ -51,7 +60,8 @@
 /x86_64/xen_shinfo_test
 /x86_64/xen_vmcall_test
 /x86_64/xss_msr_test
-/x86_64/vmx_pmu_msrs_test
+/x86_64/vmx_pmu_caps_test
+/x86_64/triple_fault_event_test
 /access_tracking_perf_test
 /demand_paging_test
 /dirty_log_test

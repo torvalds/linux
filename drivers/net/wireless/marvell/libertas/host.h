@@ -528,7 +528,8 @@ struct cmd_ds_802_11_associate {
 	__le16 listeninterval;
 	__le16 bcnperiod;
 	u8 dtimperiod;
-	u8 iebuf[512];    /* Enough for required and most optional IEs */
+	/* 512 permitted - enough for required and most optional IEs */
+	u8 iebuf[];
 } __packed;
 
 struct cmd_ds_802_11_associate_response {
@@ -537,7 +538,8 @@ struct cmd_ds_802_11_associate_response {
 	__le16 capability;
 	__le16 statuscode;
 	__le16 aid;
-	u8 iebuf[512];
+	/* max 512 */
+	u8 iebuf[];
 } __packed;
 
 struct cmd_ds_802_11_set_wep {

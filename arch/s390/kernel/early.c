@@ -149,7 +149,7 @@ static __init void setup_topology(void)
 	topology_max_mnest = max_mnest;
 }
 
-static void early_pgm_check_handler(struct pt_regs *regs)
+void __do_early_pgm_check(struct pt_regs *regs)
 {
 	if (!fixup_exception(regs))
 		disabled_wait();
@@ -159,12 +159,11 @@ static noinline __init void setup_lowcore_early(void)
 {
 	psw_t psw;
 
-	psw.addr = (unsigned long)s390_base_pgm_handler;
+	psw.addr = (unsigned long)early_pgm_check_handler;
 	psw.mask = PSW_MASK_BASE | PSW_DEFAULT_KEY | PSW_MASK_EA | PSW_MASK_BA;
 	if (IS_ENABLED(CONFIG_KASAN))
 		psw.mask |= PSW_MASK_DAT;
 	S390_lowcore.program_new_psw = psw;
-	s390_base_pgm_handler_fn = early_pgm_check_handler;
 	S390_lowcore.preempt_count = INIT_PREEMPT_COUNT;
 }
 

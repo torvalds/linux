@@ -447,29 +447,23 @@ static const struct hwmon_ops peci_cputemp_ops = {
 	.read = cputemp_read,
 };
 
-static const u32 peci_cputemp_temp_channel_config[] = {
-	/* Die temperature */
-	HWMON_T_LABEL | HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT | HWMON_T_CRIT_HYST,
-	/* DTS margin */
-	HWMON_T_LABEL | HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT | HWMON_T_CRIT_HYST,
-	/* Tcontrol temperature */
-	HWMON_T_LABEL | HWMON_T_INPUT | HWMON_T_CRIT,
-	/* Tthrottle temperature */
-	HWMON_T_LABEL | HWMON_T_INPUT,
-	/* Tjmax temperature */
-	HWMON_T_LABEL | HWMON_T_INPUT,
-	/* Core temperature - for all core channels */
-	[channel_core ... CPUTEMP_CHANNEL_NUMS - 1] = HWMON_T_LABEL | HWMON_T_INPUT,
-	0
-};
-
-static const struct hwmon_channel_info peci_cputemp_temp_channel = {
-	.type = hwmon_temp,
-	.config = peci_cputemp_temp_channel_config,
-};
-
 static const struct hwmon_channel_info *peci_cputemp_info[] = {
-	&peci_cputemp_temp_channel,
+	HWMON_CHANNEL_INFO(temp,
+			   /* Die temperature */
+			   HWMON_T_LABEL | HWMON_T_INPUT | HWMON_T_MAX |
+			   HWMON_T_CRIT | HWMON_T_CRIT_HYST,
+			   /* DTS margin */
+			   HWMON_T_LABEL | HWMON_T_INPUT | HWMON_T_MAX |
+			   HWMON_T_CRIT | HWMON_T_CRIT_HYST,
+			   /* Tcontrol temperature */
+			   HWMON_T_LABEL | HWMON_T_INPUT | HWMON_T_CRIT,
+			   /* Tthrottle temperature */
+			   HWMON_T_LABEL | HWMON_T_INPUT,
+			   /* Tjmax temperature */
+			   HWMON_T_LABEL | HWMON_T_INPUT,
+			   /* Core temperature - for all core channels */
+			   [channel_core ... CPUTEMP_CHANNEL_NUMS - 1] =
+						HWMON_T_LABEL | HWMON_T_INPUT),
 	NULL
 };
 

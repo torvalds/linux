@@ -809,7 +809,7 @@ static bool compute_is_dual_link_lvds(struct intel_lvds_encoder *lvds_encoder)
 	else
 		val &= ~(LVDS_DETECTED | LVDS_PIPE_SEL_MASK);
 	if (val == 0)
-		val = dev_priv->vbt.bios_lvds_val;
+		val = connector->panel.vbt.bios_lvds_val;
 
 	return (val & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP;
 }
@@ -837,12 +837,12 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 
 	/* Skip init on machines we know falsely report LVDS */
 	if (dmi_check_system(intel_no_lvds)) {
-		drm_WARN(dev, !dev_priv->vbt.int_lvds_support,
+		drm_WARN(dev, !dev_priv->display.vbt.int_lvds_support,
 			 "Useless DMI match. Internal LVDS support disabled by VBT\n");
 		return;
 	}
 
-	if (!dev_priv->vbt.int_lvds_support) {
+	if (!dev_priv->display.vbt.int_lvds_support) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "Internal LVDS support disabled by VBT\n");
 		return;
@@ -967,9 +967,13 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	}
 	intel_connector->edid = edid;
 
+	intel_bios_init_panel(dev_priv, &intel_connector->panel, NULL,
+			      IS_ERR(edid) ? NULL : edid);
+
 	/* Try EDID first */
 	intel_panel_add_edid_fixed_modes(intel_connector,
-					 dev_priv->vbt.drrs_type != DRRS_TYPE_NONE);
+					 intel_connector->panel.vbt.drrs_type != DRRS_TYPE_NONE,
+					 false);
 
 	/* Failed to get EDID, what about VBT? */
 	if (!intel_panel_preferred_fixed_mode(intel_connector))

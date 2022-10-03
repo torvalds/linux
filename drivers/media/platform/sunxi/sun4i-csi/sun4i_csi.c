@@ -173,8 +173,6 @@ static int sun4i_csi_probe(struct platform_device *pdev)
 	strscpy(csi->mdev.model, "Allwinner Video Capture Device",
 		sizeof(csi->mdev.model));
 	csi->mdev.hw_revision = 0;
-	snprintf(csi->mdev.bus_info, sizeof(csi->mdev.bus_info), "platform:%s",
-		 dev_name(csi->dev));
 	media_device_init(&csi->mdev);
 	csi->v4l.mdev = &csi->mdev;
 

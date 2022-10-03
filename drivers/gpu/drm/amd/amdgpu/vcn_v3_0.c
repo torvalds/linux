@@ -30,12 +30,16 @@
 #include "soc15d.h"
 #include "vcn_v2_0.h"
 #include "mmsch_v3_0.h"
+#include "vcn_sw_ring.h"
 
 #include "vcn/vcn_3_0_0_offset.h"
 #include "vcn/vcn_3_0_0_sh_mask.h"
 #include "ivsrcid/vcn/irqsrcs_vcn_2_0.h"
 
 #include <drm/drm_drv.h>
+
+#define VCN_VID_SOC_ADDRESS_2_0					0x1fa00
+#define VCN1_VID_SOC_ADDRESS_3_0				0x48200
 
 #define mmUVD_CONTEXT_ID_INTERNAL_OFFSET			0x27
 #define mmUVD_GPCOM_VCPU_CMD_INTERNAL_OFFSET			0x0f
@@ -1695,7 +1699,7 @@ static uint64_t vcn_v3_0_dec_ring_get_wptr(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 
 	if (ring->use_doorbell)
-		return adev->wb.wb[ring->wptr_offs];
+		return *ring->wptr_cpu_addr;
 	else
 		return RREG32_SOC15(VCN, ring->me, mmUVD_RBC_RB_WPTR);
 }
@@ -1721,73 +1725,11 @@ static void vcn_v3_0_dec_ring_set_wptr(struct amdgpu_ring *ring)
 	}
 
 	if (ring->use_doorbell) {
-		adev->wb.wb[ring->wptr_offs] = lower_32_bits(ring->wptr);
+		*ring->wptr_cpu_addr = lower_32_bits(ring->wptr);
 		WDOORBELL32(ring->doorbell_index, lower_32_bits(ring->wptr));
 	} else {
 		WREG32_SOC15(VCN, ring->me, mmUVD_RBC_RB_WPTR, lower_32_bits(ring->wptr));
 	}
-}
-
-static void vcn_v3_0_dec_sw_ring_emit_fence(struct amdgpu_ring *ring, u64 addr,
-				u64 seq, uint32_t flags)
-{
-	WARN_ON(flags & AMDGPU_FENCE_FLAG_64BIT);
-
-	amdgpu_ring_write(ring, VCN_DEC_SW_CMD_FENCE);
-	amdgpu_ring_write(ring, addr);
-	amdgpu_ring_write(ring, upper_32_bits(addr));
-	amdgpu_ring_write(ring, seq);
-	amdgpu_ring_write(ring, VCN_DEC_SW_CMD_TRAP);
-}
-
-static void vcn_v3_0_dec_sw_ring_insert_end(struct amdgpu_ring *ring)
-{
-	amdgpu_ring_write(ring, VCN_DEC_SW_CMD_END);
-}
-
-static void vcn_v3_0_dec_sw_ring_emit_ib(struct amdgpu_ring *ring,
-			       struct amdgpu_job *job,
-			       struct amdgpu_ib *ib,
-			       uint32_t flags)
-{
-	uint32_t vmid = AMDGPU_JOB_GET_VMID(job);
-
-	amdgpu_ring_write(ring, VCN_DEC_SW_CMD_IB);
-	amdgpu_ring_write(ring, vmid);
-	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));
-	amdgpu_ring_write(ring, upper_32_bits(ib->gpu_addr));
-	amdgpu_ring_write(ring, ib->length_dw);
-}
-
-static void vcn_v3_0_dec_sw_ring_emit_reg_wait(struct amdgpu_ring *ring, uint32_t reg,
-				uint32_t val, uint32_t mask)
-{
-	amdgpu_ring_write(ring, VCN_DEC_SW_CMD_REG_WAIT);
-	amdgpu_ring_write(ring, reg << 2);
-	amdgpu_ring_write(ring, mask);
-	amdgpu_ring_write(ring, val);
-}
-
-static void vcn_v3_0_dec_sw_ring_emit_vm_flush(struct amdgpu_ring *ring,
-				uint32_t vmid, uint64_t pd_addr)
-{
-	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
-	uint32_t data0, data1, mask;
-
-	pd_addr = amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pd_addr);
-
-	/* wait for register write */
-	data0 = hub->ctx0_ptb_addr_lo32 + vmid * hub->ctx_addr_distance;
-	data1 = lower_32_bits(pd_addr);
-	mask = 0xffffffff;
-	vcn_v3_0_dec_sw_ring_emit_reg_wait(ring, data0, data1, mask);
-}
-
-static void vcn_v3_0_dec_sw_ring_emit_wreg(struct amdgpu_ring *ring, uint32_t reg, uint32_t val)
-{
-	amdgpu_ring_write(ring, VCN_DEC_SW_CMD_REG_WRITE);
-	amdgpu_ring_write(ring,	reg << 2);
-	amdgpu_ring_write(ring, val);
 }
 
 static const struct amdgpu_ring_funcs vcn_v3_0_dec_sw_ring_vm_funcs = {
@@ -1802,22 +1744,20 @@ static const struct amdgpu_ring_funcs vcn_v3_0_dec_sw_ring_vm_funcs = {
 	.emit_frame_size =
 		SOC15_FLUSH_GPU_TLB_NUM_WREG * 3 +
 		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 4 +
-		4 + /* vcn_v3_0_dec_sw_ring_emit_vm_flush */
-		5 + 5 + /* vcn_v3_0_dec_sw_ring_emit_fdec_swe x2 vm fdec_swe */
-		1, /* vcn_v3_0_dec_sw_ring_insert_end */
-	.emit_ib_size = 5, /* vcn_v3_0_dec_sw_ring_emit_ib */
-	.emit_ib = vcn_v3_0_dec_sw_ring_emit_ib,
-	.emit_fence = vcn_v3_0_dec_sw_ring_emit_fence,
-	.emit_vm_flush = vcn_v3_0_dec_sw_ring_emit_vm_flush,
+		VCN_SW_RING_EMIT_FRAME_SIZE,
+	.emit_ib_size = 5, /* vcn_dec_sw_ring_emit_ib */
+	.emit_ib = vcn_dec_sw_ring_emit_ib,
+	.emit_fence = vcn_dec_sw_ring_emit_fence,
+	.emit_vm_flush = vcn_dec_sw_ring_emit_vm_flush,
 	.test_ring = amdgpu_vcn_dec_sw_ring_test_ring,
 	.test_ib = NULL,//amdgpu_vcn_dec_sw_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
-	.insert_end = vcn_v3_0_dec_sw_ring_insert_end,
+	.insert_end = vcn_dec_sw_ring_insert_end,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_vcn_ring_begin_use,
 	.end_use = amdgpu_vcn_ring_end_use,
-	.emit_wreg = vcn_v3_0_dec_sw_ring_emit_wreg,
-	.emit_reg_wait = vcn_v3_0_dec_sw_ring_emit_reg_wait,
+	.emit_wreg = vcn_dec_sw_ring_emit_wreg,
+	.emit_reg_wait = vcn_dec_sw_ring_emit_reg_wait,
 	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
 };
 
@@ -1922,7 +1862,7 @@ static int vcn_v3_0_ring_patch_cs_in_place(struct amdgpu_cs_parser *p,
 					   struct amdgpu_job *job,
 					   struct amdgpu_ib *ib)
 {
-	struct amdgpu_ring *ring = to_amdgpu_ring(job->base.sched);
+	struct amdgpu_ring *ring = amdgpu_job_ring(job);
 	uint32_t msg_lo = 0, msg_hi = 0;
 	unsigned i;
 	int r;
@@ -2012,12 +1952,12 @@ static uint64_t vcn_v3_0_enc_ring_get_wptr(struct amdgpu_ring *ring)
 
 	if (ring == &adev->vcn.inst[ring->me].ring_enc[0]) {
 		if (ring->use_doorbell)
-			return adev->wb.wb[ring->wptr_offs];
+			return *ring->wptr_cpu_addr;
 		else
 			return RREG32_SOC15(VCN, ring->me, mmUVD_RB_WPTR);
 	} else {
 		if (ring->use_doorbell)
-			return adev->wb.wb[ring->wptr_offs];
+			return *ring->wptr_cpu_addr;
 		else
 			return RREG32_SOC15(VCN, ring->me, mmUVD_RB_WPTR2);
 	}
@@ -2036,14 +1976,14 @@ static void vcn_v3_0_enc_ring_set_wptr(struct amdgpu_ring *ring)
 
 	if (ring == &adev->vcn.inst[ring->me].ring_enc[0]) {
 		if (ring->use_doorbell) {
-			adev->wb.wb[ring->wptr_offs] = lower_32_bits(ring->wptr);
+			*ring->wptr_cpu_addr = lower_32_bits(ring->wptr);
 			WDOORBELL32(ring->doorbell_index, lower_32_bits(ring->wptr));
 		} else {
 			WREG32_SOC15(VCN, ring->me, mmUVD_RB_WPTR, lower_32_bits(ring->wptr));
 		}
 	} else {
 		if (ring->use_doorbell) {
-			adev->wb.wb[ring->wptr_offs] = lower_32_bits(ring->wptr);
+			*ring->wptr_cpu_addr = lower_32_bits(ring->wptr);
 			WDOORBELL32(ring->doorbell_index, lower_32_bits(ring->wptr));
 		} else {
 			WREG32_SOC15(VCN, ring->me, mmUVD_RB_WPTR2, lower_32_bits(ring->wptr));

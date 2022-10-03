@@ -2176,7 +2176,6 @@ static const struct snd_soc_component_driver soc_component_dev_rt1011 = {
 	.set_pll = rt1011_set_component_pll,
 	.use_pmdown_time = 1,
 	.endianness = 1,
-	.non_legacy_dai_naming = 1,
 };
 
 static const struct regmap_config rt1011_regmap = {
@@ -2433,8 +2432,7 @@ static int rt1011_parse_dp(struct rt1011_priv *rt1011, struct device *dev)
 	return 0;
 }
 
-static int rt1011_i2c_probe(struct i2c_client *i2c,
-		    const struct i2c_device_id *id)
+static int rt1011_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt1011_priv *rt1011;
 	int ret;
@@ -2485,7 +2483,7 @@ static struct i2c_driver rt1011_i2c_driver = {
 		.of_match_table = of_match_ptr(rt1011_of_match),
 		.acpi_match_table = ACPI_PTR(rt1011_acpi_match)
 	},
-	.probe = rt1011_i2c_probe,
+	.probe_new = rt1011_i2c_probe,
 	.shutdown = rt1011_i2c_shutdown,
 	.id_table = rt1011_i2c_id,
 };

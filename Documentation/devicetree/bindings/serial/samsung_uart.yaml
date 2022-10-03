@@ -100,7 +100,6 @@ allOf:
           maxItems: 3
         clock-names:
           minItems: 2
-          maxItems: 3
           items:
             - const: uart
             - pattern: '^clk_uart_baud[0-1]$'
@@ -118,11 +117,8 @@ allOf:
     then:
       properties:
         clocks:
-          minItems: 2
           maxItems: 2
         clock-names:
-          minItems: 2
-          maxItems: 2
           items:
             - const: uart
             - const: clk_uart_baud0

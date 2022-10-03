@@ -48,8 +48,7 @@
 	.macro	alignment_trap, rtmp1, rtmp2, label
 #ifdef CONFIG_ALIGNMENT_TRAP
 	mrc	p15, 0, \rtmp2, c1, c0, 0
-	ldr	\rtmp1, \label
-	ldr	\rtmp1, [\rtmp1]
+	ldr_va	\rtmp1, \label
 	teq	\rtmp1, \rtmp2
 	mcrne	p15, 0, \rtmp1, c1, c0, 0
 #endif
@@ -367,25 +366,25 @@ ALT_UP_B(.L1_\@)
  * between user and kernel mode.
  */
 	.macro ct_user_exit, save = 1
-#ifdef CONFIG_CONTEXT_TRACKING
+#ifdef CONFIG_CONTEXT_TRACKING_USER
 	.if	\save
 	stmdb   sp!, {r0-r3, ip, lr}
-	bl	context_tracking_user_exit
+	bl	user_exit_callable
 	ldmia	sp!, {r0-r3, ip, lr}
 	.else
-	bl	context_tracking_user_exit
+	bl	user_exit_callable
 	.endif
 #endif
 	.endm
 
 	.macro ct_user_enter, save = 1
-#ifdef CONFIG_CONTEXT_TRACKING
+#ifdef CONFIG_CONTEXT_TRACKING_USER
 	.if	\save
 	stmdb   sp!, {r0-r3, ip, lr}
-	bl	context_tracking_user_enter
+	bl	user_enter_callable
 	ldmia	sp!, {r0-r3, ip, lr}
 	.else
-	bl	context_tracking_user_enter
+	bl	user_enter_callable
 	.endif
 #endif
 	.endm

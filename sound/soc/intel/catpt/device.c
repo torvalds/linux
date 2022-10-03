@@ -254,14 +254,11 @@ static int catpt_acpi_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	spec = device_get_match_data(dev);
-	if (!spec)
-		return -ENODEV;
-
 	cdev = devm_kzalloc(dev, sizeof(*cdev), GFP_KERNEL);
 	if (!cdev)
 		return -ENOMEM;
 
+	spec = (const struct catpt_spec *)id->driver_data;
 	catpt_dev_init(cdev, dev, spec);
 
 	/* map DSP bar address */

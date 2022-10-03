@@ -30,7 +30,7 @@ static struct mlx5e_tc_act *tc_acts_fdb[NUM_FLOW_ACTIONS] = {
 	NULL, /* FLOW_ACTION_WAKE, */
 	NULL, /* FLOW_ACTION_QUEUE, */
 	&mlx5e_tc_act_sample,
-	NULL, /* FLOW_ACTION_POLICE, */
+	&mlx5e_tc_act_police,
 	&mlx5e_tc_act_ct,
 	NULL, /* FLOW_ACTION_CT_METADATA, */
 	&mlx5e_tc_act_mpls_push,
@@ -106,8 +106,8 @@ mlx5e_tc_act_init_parse_state(struct mlx5e_tc_act_parse_state *parse_state,
 {
 	memset(parse_state, 0, sizeof(*parse_state));
 	parse_state->flow = flow;
-	parse_state->num_actions = flow_action->num_entries;
 	parse_state->extack = extack;
+	parse_state->flow_action = flow_action;
 }
 
 void
@@ -145,8 +145,7 @@ mlx5e_tc_act_post_parse(struct mlx5e_tc_act_parse_state *parse_state,
 
 	flow_action_for_each(i, act, flow_action) {
 		tc_act = mlx5e_tc_act_get(act->id, ns_type);
-		if (!tc_act || !tc_act->post_parse ||
-		    !tc_act->can_offload(parse_state, act, i, attr))
+		if (!tc_act || !tc_act->post_parse)
 			continue;
 
 		err = tc_act->post_parse(parse_state, priv, attr);

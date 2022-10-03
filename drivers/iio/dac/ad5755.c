@@ -189,14 +189,14 @@ struct ad5755_state {
 	struct mutex			lock;
 
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
+	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
 	 */
 
 	union {
 		__be32 d32;
 		u8 d8[4];
-	} data[2] ____cacheline_aligned;
+	} data[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 enum ad5755_type {
@@ -502,7 +502,7 @@ static ssize_t ad5755_write_powerdown(struct iio_dev *indio_dev, uintptr_t priv,
 	bool pwr_down;
 	int ret;
 
-	ret = strtobool(buf, &pwr_down);
+	ret = kstrtobool(buf, &pwr_down);
 	if (ret)
 		return ret;
 

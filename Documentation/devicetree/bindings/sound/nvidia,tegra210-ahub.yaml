@@ -106,6 +106,14 @@ patternProperties:
     type: object
     $ref: nvidia,tegra210-mixer.yaml#
 
+  '^asrc@[0-9a-f]+$':
+    type: object
+    $ref: nvidia,tegra186-asrc.yaml#
+
+  '^processing-engine@[0-9a-f]+$':
+    type: object
+    $ref: nvidia,tegra210-ope.yaml#
+
 required:
   - compatible
   - reg

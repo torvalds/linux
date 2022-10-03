@@ -9,15 +9,14 @@
 #include <linux/string.h>
 #include <linux/sched.h>
 #include <asm/cpu_ops.h>
+#include <asm/cpu_ops_sbi.h>
 #include <asm/sbi.h>
 #include <asm/smp.h>
 
 const struct cpu_operations *cpu_ops[NR_CPUS] __ro_after_init;
 
 extern const struct cpu_operations cpu_ops_sbi;
-#ifdef CONFIG_RISCV_BOOT_SPINWAIT
-extern const struct cpu_operations cpu_ops_spinwait;
-#else
+#ifndef CONFIG_RISCV_BOOT_SPINWAIT
 const struct cpu_operations cpu_ops_spinwait = {
 	.name		= "",
 	.cpu_prepare	= NULL,

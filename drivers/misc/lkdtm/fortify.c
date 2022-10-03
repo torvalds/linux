@@ -10,7 +10,7 @@
 
 static volatile int fortify_scratch_space;
 
-void lkdtm_FORTIFIED_OBJECT(void)
+static void lkdtm_FORTIFIED_OBJECT(void)
 {
 	struct target {
 		char a[10];
@@ -31,7 +31,7 @@ void lkdtm_FORTIFIED_OBJECT(void)
 	pr_expected_config(CONFIG_FORTIFY_SOURCE);
 }
 
-void lkdtm_FORTIFIED_SUBOBJECT(void)
+static void lkdtm_FORTIFIED_SUBOBJECT(void)
 {
 	struct target {
 		char a[10];
@@ -67,7 +67,7 @@ void lkdtm_FORTIFIED_SUBOBJECT(void)
  * strscpy and generate a panic because there is a write overflow (i.e. src
  * length is greater than dst length).
  */
-void lkdtm_FORTIFIED_STRSCPY(void)
+static void lkdtm_FORTIFIED_STRSCPY(void)
 {
 	char *src;
 	char dst[5];
@@ -134,3 +134,14 @@ void lkdtm_FORTIFIED_STRSCPY(void)
 
 	kfree(src);
 }
+
+static struct crashtype crashtypes[] = {
+	CRASHTYPE(FORTIFIED_OBJECT),
+	CRASHTYPE(FORTIFIED_SUBOBJECT),
+	CRASHTYPE(FORTIFIED_STRSCPY),
+};
+
+struct crashtype_category fortify_crashtypes = {
+	.crashtypes = crashtypes,
+	.len	    = ARRAY_SIZE(crashtypes),
+};

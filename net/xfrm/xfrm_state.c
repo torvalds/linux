@@ -751,7 +751,7 @@ xfrm_dev_state_flush_secctx_check(struct net *net, struct net_device *dev, bool 
 
 	for (i = 0; i <= net->xfrm.state_hmask; i++) {
 		struct xfrm_state *x;
-		struct xfrm_state_offload *xso;
+		struct xfrm_dev_offload *xso;
 
 		hlist_for_each_entry(x, net->xfrm.state_bydst+i, bydst) {
 			xso = &x->xso;
@@ -835,7 +835,7 @@ int xfrm_dev_state_flush(struct net *net, struct net_device *dev, bool task_vali
 	err = -ESRCH;
 	for (i = 0; i <= net->xfrm.state_hmask; i++) {
 		struct xfrm_state *x;
-		struct xfrm_state_offload *xso;
+		struct xfrm_dev_offload *xso;
 restart:
 		hlist_for_each_entry(x, net->xfrm.state_bydst+i, bydst) {
 			xso = &x->xso;
@@ -2481,22 +2481,20 @@ EXPORT_SYMBOL(xfrm_user_policy);
 
 static DEFINE_SPINLOCK(xfrm_km_lock);
 
-int xfrm_register_km(struct xfrm_mgr *km)
+void xfrm_register_km(struct xfrm_mgr *km)
 {
 	spin_lock_bh(&xfrm_km_lock);
 	list_add_tail_rcu(&km->list, &xfrm_km_list);
 	spin_unlock_bh(&xfrm_km_lock);
-	return 0;
 }
 EXPORT_SYMBOL(xfrm_register_km);
 
-int xfrm_unregister_km(struct xfrm_mgr *km)
+void xfrm_unregister_km(struct xfrm_mgr *km)
 {
 	spin_lock_bh(&xfrm_km_lock);
 	list_del_rcu(&km->list);
 	spin_unlock_bh(&xfrm_km_lock);
 	synchronize_rcu();
-	return 0;
 }
 EXPORT_SYMBOL(xfrm_unregister_km);
 
@@ -2620,7 +2618,7 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload)
 	int err;
 
 	if (family == AF_INET &&
-	    xs_net(x)->ipv4.sysctl_ip_no_pmtu_disc)
+	    READ_ONCE(xs_net(x)->ipv4.sysctl_ip_no_pmtu_disc))
 		x->props.flags |= XFRM_STATE_NOPMTUDISC;
 
 	err = -EPROTONOSUPPORT;

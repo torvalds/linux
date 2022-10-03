@@ -2,8 +2,8 @@
 # Copyright (C) 2020 Texas Instruments Incorporated
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/power/supply/bq27xxx.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/power/supply/bq27xxx.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: TI BQ27XXX fuel gauge family
 

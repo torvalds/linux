@@ -955,8 +955,7 @@ static int cs_dsp_create_control(struct cs_dsp *dsp,
 	ctl->alg_region = *alg_region;
 	if (subname && dsp->fw_ver >= 2) {
 		ctl->subname_len = subname_len;
-		ctl->subname = kmemdup(subname,
-				       strlen(subname) + 1, GFP_KERNEL);
+		ctl->subname = kasprintf(GFP_KERNEL, "%.*s", subname_len, subname);
 		if (!ctl->subname) {
 			ret = -ENOMEM;
 			goto err_ctl;
@@ -2726,6 +2725,9 @@ void cs_dsp_stop(struct cs_dsp *dsp)
 
 	mutex_lock(&dsp->pwr_lock);
 
+	if (dsp->client_ops->pre_stop)
+		dsp->client_ops->pre_stop(dsp);
+
 	dsp->running = false;
 
 	if (dsp->ops->stop_core)
@@ -3177,6 +3179,110 @@ static const struct cs_dsp_ops cs_dsp_halo_ops = {
 	.start_core = cs_dsp_halo_start_core,
 	.stop_core = cs_dsp_halo_stop_core,
 };
+
+/**
+ * cs_dsp_chunk_write() - Format data to a DSP memory chunk
+ * @ch: Pointer to the chunk structure
+ * @nbits: Number of bits to write
+ * @val: Value to write
+ *
+ * This function sequentially writes values into the format required for DSP
+ * memory, it handles both inserting of the padding bytes and converting to
+ * big endian. Note that data is only committed to the chunk when a whole DSP
+ * words worth of data is available.
+ *
+ * Return: Zero for success, a negative number on error.
+ */
+int cs_dsp_chunk_write(struct cs_dsp_chunk *ch, int nbits, u32 val)
+{
+	int nwrite, i;
+
+	nwrite = min(CS_DSP_DATA_WORD_BITS - ch->cachebits, nbits);
+
+	ch->cache <<= nwrite;
+	ch->cache |= val >> (nbits - nwrite);
+	ch->cachebits += nwrite;
+	nbits -= nwrite;
+
+	if (ch->cachebits == CS_DSP_DATA_WORD_BITS) {
+		if (cs_dsp_chunk_end(ch))
+			return -ENOSPC;
+
+		ch->cache &= 0xFFFFFF;
+		for (i = 0; i < sizeof(ch->cache); i++, ch->cache <<= BITS_PER_BYTE)
+			*ch->data++ = (ch->cache & 0xFF000000) >> CS_DSP_DATA_WORD_BITS;
+
+		ch->bytes += sizeof(ch->cache);
+		ch->cachebits = 0;
+	}
+
+	if (nbits)
+		return cs_dsp_chunk_write(ch, nbits, val);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cs_dsp_chunk_write);
+
+/**
+ * cs_dsp_chunk_flush() - Pad remaining data with zero and commit to chunk
+ * @ch: Pointer to the chunk structure
+ *
+ * As cs_dsp_chunk_write only writes data when a whole DSP word is ready to
+ * be written out it is possible that some data will remain in the cache, this
+ * function will pad that data with zeros upto a whole DSP word and write out.
+ *
+ * Return: Zero for success, a negative number on error.
+ */
+int cs_dsp_chunk_flush(struct cs_dsp_chunk *ch)
+{
+	if (!ch->cachebits)
+		return 0;
+
+	return cs_dsp_chunk_write(ch, CS_DSP_DATA_WORD_BITS - ch->cachebits, 0);
+}
+EXPORT_SYMBOL_GPL(cs_dsp_chunk_flush);
+
+/**
+ * cs_dsp_chunk_read() - Parse data from a DSP memory chunk
+ * @ch: Pointer to the chunk structure
+ * @nbits: Number of bits to read
+ *
+ * This function sequentially reads values from a DSP memory formatted buffer,
+ * it handles both removing of the padding bytes and converting from big endian.
+ *
+ * Return: A negative number is returned on error, otherwise the read value.
+ */
+int cs_dsp_chunk_read(struct cs_dsp_chunk *ch, int nbits)
+{
+	int nread, i;
+	u32 result;
+
+	if (!ch->cachebits) {
+		if (cs_dsp_chunk_end(ch))
+			return -ENOSPC;
+
+		ch->cache = 0;
+		ch->cachebits = CS_DSP_DATA_WORD_BITS;
+
+		for (i = 0; i < sizeof(ch->cache); i++, ch->cache <<= BITS_PER_BYTE)
+			ch->cache |= *ch->data++;
+
+		ch->bytes += sizeof(ch->cache);
+	}
+
+	nread = min(ch->cachebits, nbits);
+	nbits -= nread;
+
+	result = ch->cache >> ((sizeof(ch->cache) * BITS_PER_BYTE) - nread);
+	ch->cache <<= nread;
+	ch->cachebits -= nread;
+
+	if (nbits)
+		result = (result << nbits) | cs_dsp_chunk_read(ch, nbits);
+
+	return result;
+}
+EXPORT_SYMBOL_GPL(cs_dsp_chunk_read);
 
 MODULE_DESCRIPTION("Cirrus Logic DSP Support");
 MODULE_AUTHOR("Simon Trimmer <simont@opensource.cirrus.com>");

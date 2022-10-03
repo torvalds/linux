@@ -90,8 +90,7 @@ struct opa_vnic_stats {
 
 static inline bool rdma_cap_opa_vnic(struct ib_device *device)
 {
-	return !!(device->attrs.device_cap_flags &
-		  IB_DEVICE_RDMA_NETDEV_OPA);
+	return !!(device->attrs.kernel_cap_flags & IBK_RDMA_NETDEV_OPA);
 }
 
 #endif /* _OPA_VNIC_H */

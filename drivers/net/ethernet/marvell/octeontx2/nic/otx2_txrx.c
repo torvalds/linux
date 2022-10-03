@@ -484,6 +484,18 @@ process_cqe:
 	return 0;
 }
 
+static void otx2_adjust_adaptive_coalese(struct otx2_nic *pfvf, struct otx2_cq_poll *cq_poll)
+{
+	struct dim_sample dim_sample;
+	u64 rx_frames, rx_bytes;
+
+	rx_frames = OTX2_GET_RX_STATS(RX_BCAST) + OTX2_GET_RX_STATS(RX_MCAST) +
+		OTX2_GET_RX_STATS(RX_UCAST);
+	rx_bytes = OTX2_GET_RX_STATS(RX_OCTS);
+	dim_update_sample(pfvf->napi_events, rx_frames, rx_bytes, &dim_sample);
+	net_dim(&cq_poll->dim, dim_sample);
+}
+
 int otx2_napi_handler(struct napi_struct *napi, int budget)
 {
 	struct otx2_cq_queue *rx_cq = NULL;
@@ -520,6 +532,17 @@ int otx2_napi_handler(struct napi_struct *napi, int budget)
 		/* If interface is going down, don't re-enable IRQ */
 		if (pfvf->flags & OTX2_FLAG_INTF_DOWN)
 			return workdone;
+
+		/* Check for adaptive interrupt coalesce */
+		if (workdone != 0 &&
+		    ((pfvf->flags & OTX2_FLAG_ADPTV_INT_COAL_ENABLED) ==
+		     OTX2_FLAG_ADPTV_INT_COAL_ENABLED)) {
+			/* Adjust irq coalese using net_dim */
+			otx2_adjust_adaptive_coalese(pfvf, cq_poll);
+			/* Update irq coalescing */
+			for (i = 0; i < pfvf->hw.cint_cnt; i++)
+				otx2_config_irq_coalescing(pfvf, i);
+		}
 
 		/* Re-enable interrupts */
 		otx2_write64(pfvf, NIX_LF_CINTX_ENA_W1S(cq_poll->cint_idx),
@@ -601,7 +624,7 @@ static void otx2_sqe_add_ext(struct otx2_nic *pfvf, struct otx2_snd_queue *sq,
 	ext->subdc = NIX_SUBDC_EXT;
 	if (skb_shinfo(skb)->gso_size) {
 		ext->lso = 1;
-		ext->lso_sb = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		ext->lso_sb = skb_tcp_all_headers(skb);
 		ext->lso_mps = skb_shinfo(skb)->gso_size;
 
 		/* Only TSOv4 and TSOv6 GSO offloads are supported */
@@ -908,7 +931,7 @@ static bool is_hw_tso_supported(struct otx2_nic *pfvf,
 	 * be correctly modified, hence don't offload such TSO segments.
 	 */
 
-	payload_len = skb->len - (skb_transport_offset(skb) + tcp_hdrlen(skb));
+	payload_len = skb->len - skb_tcp_all_headers(skb);
 	last_seg_size = payload_len % skb_shinfo(skb)->gso_size;
 	if (last_seg_size && last_seg_size < 16)
 		return false;

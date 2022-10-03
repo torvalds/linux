@@ -2189,8 +2189,8 @@ static bool _dpk_sync_check(struct rtw89_dev *rtwdev,
 		    "[DPK] S%d Corr_idx / Corr_val = %d / %d\n", path, corr_idx,
 		    corr_val);
 
-	dpk->corr_idx[path] = corr_idx;
-	dpk->corr_val[path] = corr_val;
+	dpk->corr_idx[path][0] = corr_idx;
+	dpk->corr_val[path][0] = corr_val;
 
 	rtw89_phy_write32_mask(rtwdev, R_KIP_RPT1, B_KIP_RPT1_SEL, 0x9);
 
@@ -2203,8 +2203,8 @@ static bool _dpk_sync_check(struct rtw89_dev *rtwdev,
 	rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DPK] S%d DC I/Q, = %d / %d\n",
 		    path, dc_i, dc_q);
 
-	dpk->dc_i[path] = dc_i;
-	dpk->dc_q[path] = dc_q;
+	dpk->dc_i[path][0] = dc_i;
+	dpk->dc_q[path][0] = dc_q;
 
 	if (dc_i > DPK_SYNC_TH_DC_I || dc_q > DPK_SYNC_TH_DC_Q ||
 	    corr_val < DPK_SYNC_TH_CORR)
@@ -2330,8 +2330,8 @@ static u8 _dpk_pas_read(struct rtw89_dev *rtwdev, bool is_check)
 		val2_q = abs(sign_extend32(val2_q, 11));
 
 		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DPK] PAS_delta = 0x%x\n",
-			    (val1_i * val1_i + val1_q * val1_q) /
-			    (val2_i * val2_i + val2_q * val2_q));
+			    phy_div(val1_i * val1_i + val1_q * val1_q,
+				    val2_i * val2_i + val2_q * val2_q));
 
 	} else {
 		for (i = 0; i < 32; i++) {
@@ -2907,10 +2907,10 @@ static void _tssi_set_tmeter_tbl(struct rtw89_dev *rtwdev, enum rtw89_phy_idx ph
 	struct rtw89_tssi_info *tssi_info = &rtwdev->tssi;
 	u8 ch = rtwdev->hal.current_channel;
 	u8 subband = rtwdev->hal.current_subband;
-	const u8 *thm_up_a = NULL;
-	const u8 *thm_down_a = NULL;
-	const u8 *thm_up_b = NULL;
-	const u8 *thm_down_b = NULL;
+	const s8 *thm_up_a = NULL;
+	const s8 *thm_down_a = NULL;
+	const s8 *thm_up_b = NULL;
+	const s8 *thm_down_b = NULL;
 	u8 thermal = 0xff;
 	s8 thm_ofst[64] = {0};
 	u32 tmp = 0;

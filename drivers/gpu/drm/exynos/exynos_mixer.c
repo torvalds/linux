@@ -25,7 +25,10 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 
+#include <drm/drm_blend.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_vblank.h>
 #include <drm/exynos_drm.h>
 
@@ -1042,7 +1045,7 @@ static void mixer_atomic_disable(struct exynos_drm_crtc *crtc)
 	clear_bit(MXR_BIT_POWERED, &ctx->flags);
 }
 
-static int mixer_mode_valid(struct exynos_drm_crtc *crtc,
+static enum drm_mode_status mixer_mode_valid(struct exynos_drm_crtc *crtc,
 		const struct drm_display_mode *mode)
 {
 	struct mixer_context *ctx = crtc->ctx;

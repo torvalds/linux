@@ -224,7 +224,6 @@ nouveau_fence_emit(struct nouveau_fence *fence, struct nouveau_channel *chan)
 			       &fctx->lock, fctx->context, ++fctx->sequence);
 	kref_get(&fctx->fence_ref);
 
-	trace_dma_fence_emit(&fence->base);
 	ret = fctx->emit(fence);
 	if (!ret) {
 		dma_fence_get(&fence->base);

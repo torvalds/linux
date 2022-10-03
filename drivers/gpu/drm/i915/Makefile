@@ -222,6 +222,7 @@ i915-y += \
 	display/intel_combo_phy.o \
 	display/intel_connector.o \
 	display/intel_crtc.o \
+	display/intel_crtc_state_dump.o \
 	display/intel_cursor.o \
 	display/intel_display.o \
 	display/intel_display_power.o \
@@ -244,6 +245,8 @@ i915-y += \
 	display/intel_hdcp.o \
 	display/intel_hotplug.o \
 	display/intel_lpe_audio.o \
+	display/intel_modeset_verify.o \
+	display/intel_modeset_setup.o \
 	display/intel_overlay.o \
 	display/intel_pch_display.o \
 	display/intel_pch_refclk.o \
@@ -255,7 +258,8 @@ i915-y += \
 	display/intel_vga.o \
 	display/i9xx_plane.o \
 	display/skl_scaler.o \
-	display/skl_universal_plane.o
+	display/skl_universal_plane.o \
+	display/skl_watermark.o
 i915-$(CONFIG_ACPI) += \
 	display/intel_acpi.o \
 	display/intel_opregion.o

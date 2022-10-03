@@ -212,7 +212,7 @@
 	clk_ext4: clock-ext4 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency= <133000000>;
+		clock-frequency = <133000000>;
 		clock-output-names = "clk_ext4";
 	};
 
@@ -287,7 +287,7 @@
 		clock-names = "main_clk";
 	};
 
-	soc@0 {
+	soc: soc@0 {
 		compatible = "fsl,imx8mm-soc", "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -602,6 +602,11 @@
 					wakeup-source;
 					status = "disabled";
 				};
+
+				snvs_lpgpr: snvs-lpgpr {
+					compatible = "fsl,imx8mm-snvs-lpgpr",
+						     "fsl,imx7d-snvs-lpgpr";
+				};
 			};
 
 			clk: clock-controller@30380000 {
@@ -758,7 +763,7 @@
 				clocks = <&clk IMX8MM_CLK_PWM1_ROOT>,
 					<&clk IMX8MM_CLK_PWM1_ROOT>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				status = "disabled";
 			};
 
@@ -769,7 +774,7 @@
 				clocks = <&clk IMX8MM_CLK_PWM2_ROOT>,
 					 <&clk IMX8MM_CLK_PWM2_ROOT>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				status = "disabled";
 			};
 
@@ -780,7 +785,7 @@
 				clocks = <&clk IMX8MM_CLK_PWM3_ROOT>,
 					 <&clk IMX8MM_CLK_PWM3_ROOT>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				status = "disabled";
 			};
 
@@ -791,7 +796,7 @@
 				clocks = <&clk IMX8MM_CLK_PWM4_ROOT>,
 					 <&clk IMX8MM_CLK_PWM4_ROOT>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				status = "disabled";
 			};
 
@@ -911,6 +916,7 @@
 					compatible = "fsl,sec-v4.0-job-ring";
 					reg = <0x1000 0x1000>;
 					interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
+					status = "disabled";
 				};
 
 				sec_jr1: jr@2000 {
@@ -995,7 +1001,7 @@
 					 <&clk IMX8MM_CLK_USDHC1_ROOT>;
 				clock-names = "ipg", "ahb", "per";
 				fsl,tuning-start-tap = <20>;
-				fsl,tuning-step= <2>;
+				fsl,tuning-step = <2>;
 				bus-width = <4>;
 				status = "disabled";
 			};
@@ -1009,7 +1015,7 @@
 					 <&clk IMX8MM_CLK_USDHC2_ROOT>;
 				clock-names = "ipg", "ahb", "per";
 				fsl,tuning-start-tap = <20>;
-				fsl,tuning-step= <2>;
+				fsl,tuning-step = <2>;
 				bus-width = <4>;
 				status = "disabled";
 			};
@@ -1023,7 +1029,7 @@
 					 <&clk IMX8MM_CLK_USDHC3_ROOT>;
 				clock-names = "ipg", "ahb", "per";
 				fsl,tuning-start-tap = <20>;
-				fsl,tuning-step= <2>;
+				fsl,tuning-step = <2>;
 				bus-width = <4>;
 				status = "disabled";
 			};

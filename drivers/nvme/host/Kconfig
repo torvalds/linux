@@ -91,3 +91,31 @@ config NVME_TCP
 	  from https://github.com/linux-nvme/nvme-cli.
 
 	  If unsure, say N.
+
+config NVME_AUTH
+	bool "NVM Express over Fabrics In-Band Authentication"
+	depends on NVME_CORE
+	select NVME_COMMON
+	select CRYPTO
+	select CRYPTO_HMAC
+	select CRYPTO_SHA256
+	select CRYPTO_SHA512
+	select CRYPTO_DH
+	select CRYPTO_DH_RFC7919_GROUPS
+	help
+	  This provides support for NVMe over Fabrics In-Band Authentication.
+
+	  If unsure, say N.
+
+config NVME_APPLE
+	tristate "Apple ANS2 NVM Express host driver"
+	depends on OF && BLOCK
+	depends on APPLE_RTKIT && APPLE_SART
+	depends on ARCH_APPLE || COMPILE_TEST
+	select NVME_CORE
+	help
+	  This provides support for the NVMe controller embedded in Apple SoCs
+	  such as the M1.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nvme-apple.

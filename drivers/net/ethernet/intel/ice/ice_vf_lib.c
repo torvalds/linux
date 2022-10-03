@@ -220,8 +220,10 @@ static void ice_vf_clear_counters(struct ice_vf *vf)
 {
 	struct ice_vsi *vsi = ice_get_vf_vsi(vf);
 
+	if (vsi)
+		vsi->num_vlan = 0;
+
 	vf->num_mac = 0;
-	vsi->num_vlan = 0;
 	memset(&vf->mdd_tx_events, 0, sizeof(vf->mdd_tx_events));
 	memset(&vf->mdd_rx_events, 0, sizeof(vf->mdd_rx_events));
 }
@@ -251,6 +253,9 @@ static int ice_vf_rebuild_vsi(struct ice_vf *vf)
 	struct ice_vsi *vsi = ice_get_vf_vsi(vf);
 	struct ice_pf *pf = vf->pf;
 
+	if (WARN_ON(!vsi))
+		return -EINVAL;
+
 	if (ice_vsi_rebuild(vsi, true)) {
 		dev_err(ice_pf_to_dev(pf), "failed to rebuild VF %d VSI\n",
 			vf->vf_id);
@@ -266,13 +271,14 @@ static int ice_vf_rebuild_vsi(struct ice_vf *vf)
 }
 
 /**
- * ice_is_any_vf_in_promisc - check if any VF(s) are in promiscuous mode
+ * ice_is_any_vf_in_unicast_promisc - check if any VF(s)
+ * are in unicast promiscuous mode
  * @pf: PF structure for accessing VF(s)
  *
- * Return false if no VF(s) are in unicast and/or multicast promiscuous mode,
+ * Return false if no VF(s) are in unicast promiscuous mode,
  * else return true
  */
-bool ice_is_any_vf_in_promisc(struct ice_pf *pf)
+bool ice_is_any_vf_in_unicast_promisc(struct ice_pf *pf)
 {
 	bool is_vf_promisc = false;
 	struct ice_vf *vf;
@@ -281,8 +287,7 @@ bool ice_is_any_vf_in_promisc(struct ice_pf *pf)
 	rcu_read_lock();
 	ice_for_each_vf_rcu(pf, bkt, vf) {
 		/* found a VF that has promiscuous mode configured */
-		if (test_bit(ICE_VF_STATE_UC_PROMISC, vf->vf_states) ||
-		    test_bit(ICE_VF_STATE_MC_PROMISC, vf->vf_states)) {
+		if (test_bit(ICE_VF_STATE_UC_PROMISC, vf->vf_states)) {
 			is_vf_promisc = true;
 			break;
 		}
@@ -290,6 +295,73 @@ bool ice_is_any_vf_in_promisc(struct ice_pf *pf)
 	rcu_read_unlock();
 
 	return is_vf_promisc;
+}
+
+/**
+ * ice_vf_get_promisc_masks - Calculate masks for promiscuous modes
+ * @vf: the VF pointer
+ * @vsi: the VSI to configure
+ * @ucast_m: promiscuous mask to apply to unicast
+ * @mcast_m: promiscuous mask to apply to multicast
+ *
+ * Decide which mask should be used for unicast and multicast filter,
+ * based on presence of VLANs
+ */
+void
+ice_vf_get_promisc_masks(struct ice_vf *vf, struct ice_vsi *vsi,
+			 u8 *ucast_m, u8 *mcast_m)
+{
+	if (ice_vf_is_port_vlan_ena(vf) ||
+	    ice_vsi_has_non_zero_vlans(vsi)) {
+		*mcast_m = ICE_MCAST_VLAN_PROMISC_BITS;
+		*ucast_m = ICE_UCAST_VLAN_PROMISC_BITS;
+	} else {
+		*mcast_m = ICE_MCAST_PROMISC_BITS;
+		*ucast_m = ICE_UCAST_PROMISC_BITS;
+	}
+}
+
+/**
+ * ice_vf_clear_all_promisc_modes - Clear promisc/allmulticast on VF VSI
+ * @vf: the VF pointer
+ * @vsi: the VSI to configure
+ *
+ * Clear all promiscuous/allmulticast filters for a VF
+ */
+static int
+ice_vf_clear_all_promisc_modes(struct ice_vf *vf, struct ice_vsi *vsi)
+{
+	struct ice_pf *pf = vf->pf;
+	u8 ucast_m, mcast_m;
+	int ret = 0;
+
+	ice_vf_get_promisc_masks(vf, vsi, &ucast_m, &mcast_m);
+	if (test_bit(ICE_VF_STATE_UC_PROMISC, vf->vf_states)) {
+		if (!test_bit(ICE_FLAG_VF_TRUE_PROMISC_ENA, pf->flags)) {
+			if (ice_is_dflt_vsi_in_use(vsi->port_info))
+				ret = ice_clear_dflt_vsi(vsi);
+		} else {
+			ret = ice_vf_clear_vsi_promisc(vf, vsi, ucast_m);
+		}
+
+		if (ret) {
+			dev_err(ice_pf_to_dev(vf->pf), "Disabling promiscuous mode failed\n");
+		} else {
+			clear_bit(ICE_VF_STATE_UC_PROMISC, vf->vf_states);
+			dev_info(ice_pf_to_dev(vf->pf), "Disabling promiscuous mode succeeded\n");
+		}
+	}
+
+	if (test_bit(ICE_VF_STATE_MC_PROMISC, vf->vf_states)) {
+		ret = ice_vf_clear_vsi_promisc(vf, vsi, mcast_m);
+		if (ret) {
+			dev_err(ice_pf_to_dev(vf->pf), "Disabling allmulticast mode failed\n");
+		} else {
+			clear_bit(ICE_VF_STATE_MC_PROMISC, vf->vf_states);
+			dev_info(ice_pf_to_dev(vf->pf), "Disabling allmulticast mode succeeded\n");
+		}
+	}
+	return ret;
 }
 
 /**
@@ -354,12 +426,12 @@ ice_vf_clear_vsi_promisc(struct ice_vf *vf, struct ice_vsi *vsi, u8 promisc_m)
  * ice_reset_all_vfs - reset all allocated VFs in one go
  * @pf: pointer to the PF structure
  *
+ * Reset all VFs at once, in response to a PF or other device reset.
+ *
  * First, tell the hardware to reset each VF, then do all the waiting in one
  * chunk, and finally finish restoring each VF after the wait. This is useful
  * during PF routines which need to reset all VFs, as otherwise it must perform
  * these resets in a serialized fashion.
- *
- * Returns true if any VFs were reset, and false otherwise.
  */
 void ice_reset_all_vfs(struct ice_pf *pf)
 {
@@ -472,8 +544,8 @@ static void ice_notify_vf_reset(struct ice_vf *vf)
  *   ICE_VF_RESET_NOTIFY - Send VF a notification prior to reset
  *   ICE_VF_RESET_LOCK - Acquire VF cfg_lock before resetting
  *
- * Returns 0 if the VF is currently in reset, if the resets are disabled, or
- * if the VF resets successfully. Returns an error code if the VF fails to
+ * Returns 0 if the VF is currently in reset, if resets are disabled, or if
+ * the VF resets successfully. Returns an error code if the VF fails to
  * rebuild.
  */
 int ice_reset_vf(struct ice_vf *vf, u32 flags)
@@ -482,7 +554,6 @@ int ice_reset_vf(struct ice_vf *vf, u32 flags)
 	struct ice_vsi *vsi;
 	struct device *dev;
 	struct ice_hw *hw;
-	u8 promisc_m;
 	int err = 0;
 	bool rsd;
 
@@ -499,6 +570,13 @@ int ice_reset_vf(struct ice_vf *vf, u32 flags)
 	}
 
 	if (ice_is_vf_disabled(vf)) {
+		vsi = ice_get_vf_vsi(vf);
+		if (!vsi) {
+			dev_dbg(dev, "VF is already removed\n");
+			return -EINVAL;
+		}
+		ice_vsi_stop_lan_tx_rings(vsi, ICE_NO_RESET, vf->vf_id);
+		ice_vsi_stop_all_rx_rings(vsi);
 		dev_dbg(dev, "VF is already disabled, there is no need for resetting it, telling VM, all is fine %d\n",
 			vf->vf_id);
 		return 0;
@@ -514,6 +592,10 @@ int ice_reset_vf(struct ice_vf *vf, u32 flags)
 	ice_trigger_vf_reset(vf, flags & ICE_VF_RESET_VFLR, false);
 
 	vsi = ice_get_vf_vsi(vf);
+	if (WARN_ON(!vsi)) {
+		err = -EIO;
+		goto out_unlock;
+	}
 
 	ice_dis_vf_qs(vf);
 
@@ -540,16 +622,7 @@ int ice_reset_vf(struct ice_vf *vf, u32 flags)
 	/* disable promiscuous modes in case they were enabled
 	 * ignore any error if disabling process failed
 	 */
-	if (test_bit(ICE_VF_STATE_UC_PROMISC, vf->vf_states) ||
-	    test_bit(ICE_VF_STATE_MC_PROMISC, vf->vf_states)) {
-		if (ice_vf_is_port_vlan_ena(vf) || vsi->num_vlan)
-			promisc_m = ICE_UCAST_VLAN_PROMISC_BITS;
-		else
-			promisc_m = ICE_UCAST_PROMISC_BITS;
-
-		if (ice_vf_clear_vsi_promisc(vf, vsi, promisc_m))
-			dev_err(dev, "disabling promiscuous mode failed\n");
-	}
+	ice_vf_clear_all_promisc_modes(vf, vsi);
 
 	ice_eswitch_del_vf_mac_rule(vf);
 
@@ -572,6 +645,11 @@ int ice_reset_vf(struct ice_vf *vf, u32 flags)
 
 	vf->vf_ops->post_vsi_rebuild(vf);
 	vsi = ice_get_vf_vsi(vf);
+	if (WARN_ON(!vsi)) {
+		err = -EINVAL;
+		goto out_unlock;
+	}
+
 	ice_eswitch_update_repr(vsi);
 	ice_eswitch_replay_vf_mac_rule(vf);
 
@@ -610,6 +688,9 @@ void ice_dis_vf_qs(struct ice_vf *vf)
 {
 	struct ice_vsi *vsi = ice_get_vf_vsi(vf);
 
+	if (WARN_ON(!vsi))
+		return;
+
 	ice_vsi_stop_lan_tx_rings(vsi, ICE_NO_RESET, vf->vf_id);
 	ice_vsi_stop_all_rx_rings(vsi);
 	ice_set_vf_state_qs_dis(vf);
@@ -640,6 +721,13 @@ struct ice_port_info *ice_vf_get_port_info(struct ice_vf *vf)
 	return vf->pf->hw.port_info;
 }
 
+/**
+ * ice_cfg_mac_antispoof - Configure MAC antispoof checking behavior
+ * @vsi: the VSI to configure
+ * @enable: whether to enable or disable the spoof checking
+ *
+ * Configure a VSI to enable (or disable) spoof checking behavior.
+ */
 static int ice_cfg_mac_antispoof(struct ice_vsi *vsi, bool enable)
 {
 	struct ice_vsi_ctx *ctx;
@@ -676,13 +764,16 @@ static int ice_cfg_mac_antispoof(struct ice_vsi *vsi, bool enable)
 static int ice_vsi_ena_spoofchk(struct ice_vsi *vsi)
 {
 	struct ice_vsi_vlan_ops *vlan_ops;
-	int err;
+	int err = 0;
 
 	vlan_ops = ice_get_compat_vsi_vlan_ops(vsi);
 
-	err = vlan_ops->ena_tx_filtering(vsi);
-	if (err)
-		return err;
+	/* Allow VF with VLAN 0 only to send all tagged traffic */
+	if (vsi->type != ICE_VSI_VF || ice_vsi_has_non_zero_vlans(vsi)) {
+		err = vlan_ops->ena_tx_filtering(vsi);
+		if (err)
+			return err;
+	}
 
 	return ice_cfg_mac_antispoof(vsi, true);
 }
@@ -790,6 +881,9 @@ static int ice_vf_rebuild_host_mac_cfg(struct ice_vf *vf)
 	u8 broadcast[ETH_ALEN];
 	int status;
 
+	if (WARN_ON(!vsi))
+		return -EINVAL;
+
 	if (ice_is_eswitch_mode_switchdev(vf->pf))
 		return 0;
 
@@ -875,6 +969,9 @@ static int ice_vf_rebuild_host_tx_rate_cfg(struct ice_vf *vf)
 	struct ice_vsi *vsi = ice_get_vf_vsi(vf);
 	int err;
 
+	if (WARN_ON(!vsi))
+		return -EINVAL;
+
 	if (vf->min_tx_rate) {
 		err = ice_set_min_bw_limit(vsi, (u64)vf->min_tx_rate * 1000);
 		if (err) {
@@ -937,6 +1034,9 @@ void ice_vf_rebuild_host_cfg(struct ice_vf *vf)
 {
 	struct device *dev = ice_pf_to_dev(vf->pf);
 	struct ice_vsi *vsi = ice_get_vf_vsi(vf);
+
+	if (WARN_ON(!vsi))
+		return;
 
 	ice_vf_set_host_trust_cfg(vf);
 

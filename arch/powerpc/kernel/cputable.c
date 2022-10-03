@@ -12,9 +12,9 @@
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/jump_label.h>
+#include <linux/of.h>
 
 #include <asm/cputable.h>
-#include <asm/prom.h>		/* for PTRRELOC on ARCH=ppc */
 #include <asm/mce.h>
 #include <asm/mmu.h>
 #include <asm/setup.h>
@@ -149,7 +149,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.pmc_type		= PPC_PMC_IBM,
 		.cpu_setup		= __setup_cpu_ppc970,
 		.cpu_restore		= __restore_cpu_ppc970,
-		.oprofile_cpu_type	= "ppc64/970",
 		.platform		= "ppc970",
 	},
 	{	/* PPC970FX */
@@ -166,7 +165,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.pmc_type		= PPC_PMC_IBM,
 		.cpu_setup		= __setup_cpu_ppc970,
 		.cpu_restore		= __restore_cpu_ppc970,
-		.oprofile_cpu_type	= "ppc64/970",
 		.platform		= "ppc970",
 	},
 	{	/* PPC970MP DD1.0 - no DEEPNAP, use regular 970 init */
@@ -183,7 +181,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.pmc_type		= PPC_PMC_IBM,
 		.cpu_setup		= __setup_cpu_ppc970,
 		.cpu_restore		= __restore_cpu_ppc970,
-		.oprofile_cpu_type	= "ppc64/970MP",
 		.platform		= "ppc970",
 	},
 	{	/* PPC970MP */
@@ -200,7 +197,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.pmc_type		= PPC_PMC_IBM,
 		.cpu_setup		= __setup_cpu_ppc970MP,
 		.cpu_restore		= __restore_cpu_ppc970,
-		.oprofile_cpu_type	= "ppc64/970MP",
 		.platform		= "ppc970",
 	},
 	{	/* PPC970GX */
@@ -216,7 +212,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.num_pmcs		= 8,
 		.pmc_type		= PPC_PMC_IBM,
 		.cpu_setup		= __setup_cpu_ppc970,
-		.oprofile_cpu_type	= "ppc64/970",
 		.platform		= "ppc970",
 	},
 	{	/* Power5 GR */
@@ -230,7 +225,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/power5",
 		.platform		= "power5",
 	},
 	{	/* Power5++ */
@@ -243,7 +237,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 6,
-		.oprofile_cpu_type	= "ppc64/power5++",
 		.platform		= "power5+",
 	},
 	{	/* Power5 GS */
@@ -257,7 +250,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/power5+",
 		.platform		= "power5+",
 	},
 	{	/* POWER6 in P5+ mode; 2.04-compliant processor */
@@ -269,7 +261,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.mmu_features		= MMU_FTRS_POWER5,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
-		.oprofile_cpu_type	= "ppc64/ibm-compat-v1",
 		.platform		= "power5+",
 	},
 	{	/* Power6 */
@@ -284,7 +275,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/power6",
 		.platform		= "power6x",
 	},
 	{	/* 2.05-compliant processor, i.e. Power6 "architected" mode */
@@ -296,7 +286,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.mmu_features		= MMU_FTRS_POWER6,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
-		.oprofile_cpu_type	= "ppc64/ibm-compat-v1",
 		.platform		= "power6",
 	},
 	{	/* 2.06-compliant processor, i.e. Power7 "architected" mode */
@@ -309,7 +298,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.mmu_features		= MMU_FTRS_POWER7,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
-		.oprofile_cpu_type	= "ppc64/ibm-compat-v1",
 		.cpu_setup		= __setup_cpu_power7,
 		.cpu_restore		= __restore_cpu_power7,
 		.machine_check_early	= __machine_check_early_realmode_p7,
@@ -325,7 +313,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.mmu_features		= MMU_FTRS_POWER8,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
-		.oprofile_cpu_type	= "ppc64/ibm-compat-v1",
 		.cpu_setup		= __setup_cpu_power8,
 		.cpu_restore		= __restore_cpu_power8,
 		.machine_check_early	= __machine_check_early_realmode_p8,
@@ -341,7 +328,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.mmu_features		= MMU_FTRS_POWER9,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
-		.oprofile_cpu_type	= "ppc64/ibm-compat-v1",
 		.cpu_setup		= __setup_cpu_power9,
 		.cpu_restore		= __restore_cpu_power9,
 		.platform		= "power9",
@@ -356,7 +342,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.mmu_features		= MMU_FTRS_POWER10,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
-		.oprofile_cpu_type	= "ppc64/ibm-compat-v1",
 		.cpu_setup		= __setup_cpu_power10,
 		.cpu_restore		= __restore_cpu_power10,
 		.platform		= "power10",
@@ -373,7 +358,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/power7",
 		.cpu_setup		= __setup_cpu_power7,
 		.cpu_restore		= __restore_cpu_power7,
 		.machine_check_early	= __machine_check_early_realmode_p7,
@@ -391,7 +375,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/power7",
 		.cpu_setup		= __setup_cpu_power7,
 		.cpu_restore		= __restore_cpu_power7,
 		.machine_check_early	= __machine_check_early_realmode_p7,
@@ -409,7 +392,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/power8",
 		.cpu_setup		= __setup_cpu_power8,
 		.cpu_restore		= __restore_cpu_power8,
 		.machine_check_early	= __machine_check_early_realmode_p8,
@@ -427,7 +409,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/power8",
 		.cpu_setup		= __setup_cpu_power8,
 		.cpu_restore		= __restore_cpu_power8,
 		.machine_check_early	= __machine_check_early_realmode_p8,
@@ -445,7 +426,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/power8",
 		.cpu_setup		= __setup_cpu_power8,
 		.cpu_restore		= __restore_cpu_power8,
 		.machine_check_early	= __machine_check_early_realmode_p8,
@@ -463,7 +443,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/power9",
 		.cpu_setup		= __setup_cpu_power9,
 		.cpu_restore		= __restore_cpu_power9,
 		.machine_check_early	= __machine_check_early_realmode_p9,
@@ -481,15 +460,14 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/power9",
 		.cpu_setup		= __setup_cpu_power9,
 		.cpu_restore		= __restore_cpu_power9,
 		.machine_check_early	= __machine_check_early_realmode_p9,
 		.platform		= "power9",
 	},
-	{	/* Power9 DD2.2 or later */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x004e0000,
+	{	/* Power9 DD2.2 */
+		.pvr_mask		= 0xffffefff,
+		.pvr_value		= 0x004e0202,
 		.cpu_name		= "POWER9 (raw)",
 		.cpu_features		= CPU_FTRS_POWER9_DD2_2,
 		.cpu_user_features	= COMMON_USER_POWER9,
@@ -499,7 +477,23 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/power9",
+		.cpu_setup		= __setup_cpu_power9,
+		.cpu_restore		= __restore_cpu_power9,
+		.machine_check_early	= __machine_check_early_realmode_p9,
+		.platform		= "power9",
+	},
+	{	/* Power9 DD2.3 or later */
+		.pvr_mask		= 0xffff0000,
+		.pvr_value		= 0x004e0000,
+		.cpu_name		= "POWER9 (raw)",
+		.cpu_features		= CPU_FTRS_POWER9_DD2_3,
+		.cpu_user_features	= COMMON_USER_POWER9,
+		.cpu_user_features2	= COMMON_USER2_POWER9,
+		.mmu_features		= MMU_FTRS_POWER9,
+		.icache_bsize		= 128,
+		.dcache_bsize		= 128,
+		.num_pmcs		= 6,
+		.pmc_type		= PPC_PMC_IBM,
 		.cpu_setup		= __setup_cpu_power9,
 		.cpu_restore		= __restore_cpu_power9,
 		.machine_check_early	= __machine_check_early_realmode_p9,
@@ -517,7 +511,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/power10",
 		.cpu_setup		= __setup_cpu_power10,
 		.cpu_restore		= __restore_cpu_power10,
 		.machine_check_early	= __machine_check_early_realmode_p10,
@@ -536,7 +529,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.dcache_bsize		= 128,
 		.num_pmcs		= 4,
 		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/cell-be",
 		.platform		= "ppc-cell-be",
 	},
 	{	/* PA Semi PA6T */
@@ -552,7 +544,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.pmc_type		= PPC_PMC_PA6T,
 		.cpu_setup		= __setup_cpu_pa6t,
 		.cpu_restore		= __restore_cpu_pa6t,
-		.oprofile_cpu_type	= "ppc64/pa6t",
 		.platform		= "pa6t",
 	},
 	{	/* default match */
@@ -716,7 +707,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_setup		= __setup_cpu_750,
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc750",
-		.oprofile_cpu_type      = "ppc/750",
 	},
 	{	/* 745/755 */
 		.pvr_mask		= 0xfffff000,
@@ -747,7 +737,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_setup		= __setup_cpu_750,
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc750",
-		.oprofile_cpu_type      = "ppc/750",
 	},
 	{	/* 750FX rev 2.0 must disable HID0[DPM] */
 		.pvr_mask		= 0xffffffff,
@@ -763,7 +752,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_setup		= __setup_cpu_750,
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc750",
-		.oprofile_cpu_type      = "ppc/750",
 	},
 	{	/* 750FX (All revs except 2.0) */
 		.pvr_mask		= 0xffff0000,
@@ -779,7 +767,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_setup		= __setup_cpu_750fx,
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc750",
-		.oprofile_cpu_type      = "ppc/750",
 	},
 	{	/* 750GX */
 		.pvr_mask		= 0xffff0000,
@@ -795,7 +782,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_setup		= __setup_cpu_750fx,
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc750",
-		.oprofile_cpu_type      = "ppc/750",
 	},
 	{	/* 740/750 (L2CR bit need fixup for 740) */
 		.pvr_mask		= 0xffff0000,
@@ -873,7 +859,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_G4,
 		.cpu_setup		= __setup_cpu_745x,
-		.oprofile_cpu_type      = "ppc/7450",
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc7450",
 	},
@@ -890,7 +875,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_G4,
 		.cpu_setup		= __setup_cpu_745x,
-		.oprofile_cpu_type      = "ppc/7450",
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc7450",
 	},
@@ -907,7 +891,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_G4,
 		.cpu_setup		= __setup_cpu_745x,
-		.oprofile_cpu_type      = "ppc/7450",
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc7450",
 	},
@@ -924,7 +907,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_G4,
 		.cpu_setup		= __setup_cpu_745x,
-		.oprofile_cpu_type      = "ppc/7450",
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc7450",
 	},
@@ -941,7 +923,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_G4,
 		.cpu_setup		= __setup_cpu_745x,
-		.oprofile_cpu_type      = "ppc/7450",
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc7450",
 	},
@@ -958,7 +939,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_G4,
 		.cpu_setup		= __setup_cpu_745x,
-		.oprofile_cpu_type      = "ppc/7450",
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc7450",
 	},
@@ -975,7 +955,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_G4,
 		.cpu_setup		= __setup_cpu_745x,
-		.oprofile_cpu_type      = "ppc/7450",
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc7450",
 	},
@@ -992,7 +971,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_G4,
 		.cpu_setup		= __setup_cpu_745x,
-		.oprofile_cpu_type      = "ppc/7450",
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc7450",
 	},
@@ -1008,7 +986,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_G4,
 		.cpu_setup		= __setup_cpu_745x,
-		.oprofile_cpu_type      = "ppc/7450",
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc7450",
 	},
@@ -1025,7 +1002,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_G4,
 		.cpu_setup		= __setup_cpu_745x,
-		.oprofile_cpu_type      = "ppc/7450",
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc7450",
 	},
@@ -1042,7 +1018,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.num_pmcs		= 6,
 		.pmc_type		= PPC_PMC_G4,
 		.cpu_setup		= __setup_cpu_745x,
-		.oprofile_cpu_type      = "ppc/7450",
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc7450",
 	},
@@ -1154,7 +1129,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_setup		= __setup_cpu_603,
 		.machine_check		= machine_check_83xx,
 		.num_pmcs		= 4,
-		.oprofile_cpu_type	= "ppc/e300",
 		.platform		= "ppc603",
 	},
 	{	/* e300c4 (e300c1, plus one IU) */
@@ -1170,7 +1144,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_setup		= __setup_cpu_603,
 		.machine_check		= machine_check_83xx,
 		.num_pmcs		= 4,
-		.oprofile_cpu_type	= "ppc/e300",
 		.platform		= "ppc603",
 	},
 #endif
@@ -1866,7 +1839,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
-		.oprofile_cpu_type	= "ppc/e500",
 		.cpu_setup		= __setup_cpu_e500v1,
 		.machine_check		= machine_check_e500,
 		.platform		= "ppc8540",
@@ -1885,7 +1857,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
-		.oprofile_cpu_type	= "ppc/e500",
 		.cpu_setup		= __setup_cpu_e500v2,
 		.machine_check		= machine_check_e500,
 		.platform		= "ppc8548",
@@ -1904,7 +1875,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.icache_bsize		= 64,
 		.dcache_bsize		= 64,
 		.num_pmcs		= 4,
-		.oprofile_cpu_type	= "ppc/e500mc",
 		.cpu_setup		= __setup_cpu_e500mc,
 		.machine_check		= machine_check_e500mc,
 		.platform		= "ppce500mc",
@@ -1925,7 +1895,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.icache_bsize		= 64,
 		.dcache_bsize		= 64,
 		.num_pmcs		= 4,
-		.oprofile_cpu_type	= "ppc/e500mc",
 		.cpu_setup		= __setup_cpu_e5500,
 #ifndef CONFIG_PPC32
 		.cpu_restore		= __restore_cpu_e5500,
@@ -1947,7 +1916,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.icache_bsize		= 64,
 		.dcache_bsize		= 64,
 		.num_pmcs		= 6,
-		.oprofile_cpu_type	= "ppc/e6500",
 		.cpu_setup		= __setup_cpu_e6500,
 #ifndef CONFIG_PPC32
 		.cpu_restore		= __restore_cpu_e6500,
@@ -2015,23 +1983,10 @@ static struct cpu_spec * __init setup_cpu_spec(unsigned long offset,
 		t->pmc_type = old.pmc_type;
 
 		/*
-		 * If we have passed through this logic once before and
-		 * have pulled the default case because the real PVR was
-		 * not found inside cpu_specs[], then we are possibly
-		 * running in compatibility mode. In that case, let the
-		 * oprofiler know which set of compatibility counters to
-		 * pull from by making sure the oprofile_cpu_type string
-		 * is set to that of compatibility mode. If the
-		 * oprofile_cpu_type already has a value, then we are
-		 * possibly overriding a real PVR with a logical one,
-		 * and, in that case, keep the current value for
-		 * oprofile_cpu_type. Futhermore, let's ensure that the
+		 * Let's ensure that the
 		 * fix for the PMAO bug is enabled on compatibility mode.
 		 */
-		if (old.oprofile_cpu_type != NULL) {
-			t->oprofile_cpu_type = old.oprofile_cpu_type;
-			t->cpu_features |= old.cpu_features & CPU_FTR_PMAO_BUG;
-		}
+		t->cpu_features |= old.cpu_features & CPU_FTR_PMAO_BUG;
 	}
 
 	*PTRRELOC(&cur_cpu_spec) = &the_cpu_spec;
@@ -2119,7 +2074,7 @@ void __init cpu_feature_keys_init(void)
 struct static_key_true mmu_feature_keys[NUM_MMU_FTR_KEYS] = {
 			[0 ... NUM_MMU_FTR_KEYS - 1] = STATIC_KEY_TRUE_INIT
 };
-EXPORT_SYMBOL_GPL(mmu_feature_keys);
+EXPORT_SYMBOL(mmu_feature_keys);
 
 void __init mmu_feature_keys_init(void)
 {

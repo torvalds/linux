@@ -20,7 +20,10 @@ properties:
     maxItems: 1
 
   clocks:
-    minItems: 1
+    maxItems: 1
+
+  resets:
+    maxItems: 1
 
   auto-flow-control:
     description: enable automatic flow control support.

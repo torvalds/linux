@@ -230,39 +230,6 @@ void xen_free_unpopulated_pages(unsigned int nr_pages, struct page **pages)
 }
 EXPORT_SYMBOL(xen_free_unpopulated_pages);
 
-#ifdef CONFIG_XEN_PV
-static int __init init(void)
-{
-	unsigned int i;
-
-	if (!xen_domain())
-		return -ENODEV;
-
-	if (!xen_pv_domain())
-		return 0;
-
-	/*
-	 * Initialize with pages from the extra memory regions (see
-	 * arch/x86/xen/setup.c).
-	 */
-	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++) {
-		unsigned int j;
-
-		for (j = 0; j < xen_extra_mem[i].n_pfns; j++) {
-			struct page *pg =
-				pfn_to_page(xen_extra_mem[i].start_pfn + j);
-
-			pg->zone_device_data = page_list;
-			page_list = pg;
-			list_count++;
-		}
-	}
-
-	return 0;
-}
-subsys_initcall(init);
-#endif
-
 static int __init unpopulated_init(void)
 {
 	int ret;

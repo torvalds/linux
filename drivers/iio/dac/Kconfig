@@ -285,7 +285,6 @@ config CIO_DAC
 
 config DPOT_DAC
 	tristate "DAC emulation using a DPOT"
-	depends on OF
 	help
 	  Say yes here to build support for DAC emulation using a digital
 	  potentiometer.
@@ -305,7 +304,7 @@ config DS4424
 config LPC18XX_DAC
 	tristate "NXP LPC18xx DAC driver"
 	depends on ARCH_LPC18XX || COMPILE_TEST
-	depends on OF && HAS_IOMEM
+	depends on HAS_IOMEM
 	help
 	  Say yes here to build support for NXP LPC18XX DAC.
 
@@ -417,7 +416,7 @@ config TI_DAC5571
 	help
 	  Driver for the Texas Instruments
 	  DAC5571, DAC6571, DAC7571, DAC5574, DAC6574, DAC7574, DAC5573,
-	  DAC6573, DAC7573, DAC8571, DAC8574.
+	  DAC6573, DAC7573, DAC8571, DAC8574, DAC121C081.
 
 	  If compiled as a module, it will be called ti-dac5571.
 
@@ -442,7 +441,6 @@ config TI_DAC7612
 
 config VF610_DAC
 	tristate "Vybrid vf610 DAC driver"
-	depends on OF
 	depends on HAS_IOMEM
 	help
 	  Say yes here to support Vybrid board digital-to-analog converter.

@@ -28,6 +28,8 @@
 #include <linux/bitops.h>
 #include <linux/pgtable.h>
 #include <linux/printk.h>
+#include <linux/of.h>
+#include <linux/of_fdt.h>
 #include <asm/prom.h>
 #include <asm/rtas.h>
 #include <asm/page.h>
@@ -40,7 +42,7 @@
 #include <asm/iommu.h>
 #include <asm/btext.h>
 #include <asm/sections.h>
-#include <asm/machdep.h>
+#include <asm/setup.h>
 #include <asm/asm-prototypes.h>
 #include <asm/ultravisor-api.h>
 
@@ -2300,7 +2302,7 @@ static void __init prom_init_stdout(void)
 
 static int __init prom_find_machine_type(void)
 {
-	char compat[256];
+	static char compat[256] __prombss;
 	int len, i = 0;
 #ifdef CONFIG_PPC64
 	phandle rtas;
@@ -3416,7 +3418,7 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 *
 	 * PowerMacs use a different mechanism to spin CPUs
 	 *
-	 * (This must be done after instanciating RTAS)
+	 * (This must be done after instantiating RTAS)
 	 */
 	if (of_platform != PLATFORM_POWERMAC)
 		prom_hold_cpus();

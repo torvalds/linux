@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2019 Felix Fietkau <nbd@nbd.name>
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2022 Intel Corporation
  */
 
 #include <net/mac80211.h>
@@ -637,7 +637,7 @@ u32 ieee80211_calc_expected_tx_airtime(struct ieee80211_hw *hw,
 
 	len += 38; /* Ethernet header length */
 
-	conf = rcu_dereference(vif->chanctx_conf);
+	conf = rcu_dereference(vif->bss_conf.chanctx_conf);
 	if (conf) {
 		band = conf->def.chan->band;
 		shift = ieee80211_chandef_get_shift(&conf->def);
@@ -647,8 +647,8 @@ u32 ieee80211_calc_expected_tx_airtime(struct ieee80211_hw *hw,
 		struct sta_info *sta = container_of(pubsta, struct sta_info,
 						    sta);
 		struct ieee80211_rx_status stat;
-		struct ieee80211_tx_rate *tx_rate = &sta->tx_stats.last_rate;
-		struct rate_info *ri = &sta->tx_stats.last_rate_info;
+		struct ieee80211_tx_rate *tx_rate = &sta->deflink.tx_stats.last_rate;
+		struct rate_info *ri = &sta->deflink.tx_stats.last_rate_info;
 		u32 duration, overhead;
 		u8 agg_shift;
 

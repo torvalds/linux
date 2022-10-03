@@ -34,14 +34,11 @@ libpoly1305-y					:= poly1305-donna32.o
 libpoly1305-$(CONFIG_ARCH_SUPPORTS_INT128)	:= poly1305-donna64.o
 libpoly1305-y					+= poly1305.o
 
+obj-$(CONFIG_CRYPTO_LIB_SHA1)			+= libsha1.o
+libsha1-y					:= sha1.o
+
 obj-$(CONFIG_CRYPTO_LIB_SHA256)			+= libsha256.o
 libsha256-y					:= sha256.o
-
-obj-$(CONFIG_CRYPTO_LIB_SM3)			+= libsm3.o
-libsm3-y					:= sm3.o
-
-obj-$(CONFIG_CRYPTO_LIB_SM4)			+= libsm4.o
-libsm4-y					:= sm4.o
 
 ifneq ($(CONFIG_CRYPTO_MANAGER_DISABLE_TESTS),y)
 libblake2s-y					+= blake2s-selftest.o

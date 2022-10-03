@@ -1494,7 +1494,7 @@ out:
 	return ret;
 }
 
-static void uvd_v6_0_get_clockgating_state(void *handle, u32 *flags)
+static void uvd_v6_0_get_clockgating_state(void *handle, u64 *flags)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int data;

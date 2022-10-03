@@ -8,9 +8,9 @@
 #include <linux/ktime.h>
 #include "../mt76_connac_mcu.h"
 #include "regs.h"
+#include "acpi_sar.h"
 
 #define MT7921_MAX_INTERFACES		4
-#define MT7921_MAX_WMM_SETS		4
 #define MT7921_WTBL_SIZE		20
 #define MT7921_WTBL_RESERVED		(MT7921_WTBL_SIZE - 1)
 #define MT7921_WTBL_STA			(MT7921_WTBL_RESERVED - \
@@ -155,7 +155,6 @@ struct mt7921_phy {
 
 	struct ieee80211_sband_iftype_data iftype[NUM_NL80211_BANDS][NUM_NL80211_IFTYPES];
 
-	u32 rxfilter;
 	u64 omac_mask;
 
 	u16 noise;
@@ -172,6 +171,9 @@ struct mt7921_phy {
 
 	struct sk_buff_head scan_event_list;
 	struct delayed_work scan_work;
+#ifdef CONFIG_ACPI
+	struct mt7921_acpi_sar *acpisar;
+#endif
 };
 
 #define mt7921_init_reset(dev)		((dev)->hif_ops->init_reset(dev))
@@ -212,6 +214,10 @@ struct mt7921_dev {
 	struct mt76_connac_pm pm;
 	struct mt76_connac_coredump coredump;
 	const struct mt7921_hif_ops *hif_ops;
+
+	struct work_struct ipv6_ns_work;
+	/* IPv6 addresses for WoWLAN */
+	struct sk_buff_head ipv6_ns_list;
 };
 
 enum {
@@ -244,16 +250,6 @@ struct mt7921_txpwr {
 	} data[TXPWR_MAX_NUM];
 };
 
-enum {
-	MT_LMAC_AC00,
-	MT_LMAC_AC01,
-	MT_LMAC_AC02,
-	MT_LMAC_AC03,
-	MT_LMAC_ALTX0 = 0x10,
-	MT_LMAC_BMC0,
-	MT_LMAC_BCN0,
-};
-
 static inline struct mt7921_phy *
 mt7921_hw_phy(struct ieee80211_hw *hw)
 {
@@ -276,7 +272,6 @@ mt7921_hw_dev(struct ieee80211_hw *hw)
 	mt76_connac_mutex_release(&(dev)->mt76, &(dev)->pm)
 
 extern const struct ieee80211_ops mt7921_ops;
-extern struct pci_driver mt7921_pci_driver;
 
 u32 mt7921_reg_map(struct mt7921_dev *dev, u32 addr);
 
@@ -288,6 +283,8 @@ int mt7921_wpdma_reset(struct mt7921_dev *dev, bool force);
 int mt7921_wpdma_reinit_cond(struct mt7921_dev *dev);
 void mt7921_dma_cleanup(struct mt7921_dev *dev);
 int mt7921_run_firmware(struct mt7921_dev *dev);
+int mt7921_mcu_set_bss_pm(struct mt7921_dev *dev, struct ieee80211_vif *vif,
+			  bool enable);
 int mt7921_mcu_sta_update(struct mt7921_dev *dev, struct ieee80211_sta *sta,
 			  struct ieee80211_vif *vif, bool enable,
 			  enum mt76_sta_info_state state);
@@ -298,7 +295,6 @@ int mt7921_mcu_get_rx_rate(struct mt7921_phy *phy, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta, struct rate_info *rate);
 int mt7921_mcu_fw_log_2_host(struct mt7921_dev *dev, u8 ctrl);
 void mt7921_mcu_rx_event(struct mt7921_dev *dev, struct sk_buff *skb);
-void mt7921_mcu_exit(struct mt7921_dev *dev);
 
 static inline void mt7921_irq_enable(struct mt7921_dev *dev, u32 mask)
 {
@@ -349,12 +345,6 @@ static inline bool mt7921_dma_need_reinit(struct mt7921_dev *dev)
 	return !mt76_get_field(dev, MT_WFDMA_DUMMY_CR, MT_WFDMA_NEED_REINIT);
 }
 
-static inline void mt7921_mcu_tx_cleanup(struct mt7921_dev *dev)
-{
-	mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WM], false);
-	mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WA], false);
-}
-
 static inline void
 mt7921_skb_add_usb_sdio_hdr(struct mt7921_dev *dev, struct sk_buff *skb,
 			    int type)
@@ -389,7 +379,6 @@ int mt7921e_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			   struct mt76_tx_info *tx_info);
 
 void mt7921_tx_worker(struct mt76_worker *w);
-void mt7921e_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e);
 void mt7921_tx_token_put(struct mt7921_dev *dev);
 void mt7921_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb);
@@ -421,14 +410,8 @@ int mt7921_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			void *data, int len);
 int mt7921_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
 			 struct netlink_callback *cb, void *data, int len);
-void mt7921_mac_write_txwi(struct mt7921_dev *dev, __le32 *txwi,
-			   struct sk_buff *skb, struct mt76_wcid *wcid,
-			   struct ieee80211_key_conf *key, int pid,
-			   bool beacon);
 void mt7921_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi);
 void mt7921_mac_sta_poll(struct mt7921_dev *dev);
-int mt7921_mcu_fill_message(struct mt76_dev *mdev, struct sk_buff *skb,
-			    int cmd, int *wait_seq);
 int mt7921_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 			      struct sk_buff *skb, int seq);
 
@@ -450,6 +433,10 @@ int mt7921s_mcu_drv_pmctrl(struct mt7921_dev *dev);
 int mt7921s_mcu_fw_pmctrl(struct mt7921_dev *dev);
 void mt7921_mac_add_txs(struct mt7921_dev *dev, void *data);
 void mt7921_set_runtime_pm(struct mt7921_dev *dev);
+void mt7921_mcu_set_suspend_iter(void *priv, u8 *mac,
+				 struct ieee80211_vif *vif);
+void mt7921_set_ipv6_ns_work(struct work_struct *work);
+
 int mt7921_mcu_set_sniffer(struct mt7921_dev *dev, struct ieee80211_vif *vif,
 			   bool enable);
 
@@ -467,7 +454,29 @@ bool mt7921_usb_sdio_tx_status_data(struct mt76_dev *mdev, u8 *update);
 
 int mt7921u_mcu_power_on(struct mt7921_dev *dev);
 int mt7921u_wfsys_reset(struct mt7921_dev *dev);
-int mt7921u_dma_init(struct mt7921_dev *dev);
+int mt7921u_dma_init(struct mt7921_dev *dev, bool resume);
 int mt7921u_init_reset(struct mt7921_dev *dev);
 int mt7921u_mac_reset(struct mt7921_dev *dev);
+int mt7921_mcu_uni_add_beacon_offload(struct mt7921_dev *dev,
+				      struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      bool enable);
+#ifdef CONFIG_ACPI
+int mt7921_init_acpi_sar(struct mt7921_dev *dev);
+int mt7921_init_acpi_sar_power(struct mt7921_phy *phy, bool set_default);
+#else
+static inline int
+mt7921_init_acpi_sar(struct mt7921_dev *dev)
+{
+	return 0;
+}
+
+static inline int
+mt7921_init_acpi_sar_power(struct mt7921_phy *phy, bool set_default)
+{
+	return 0;
+}
+#endif
+int mt7921_set_tx_sar_pwr(struct ieee80211_hw *hw,
+			  const struct cfg80211_sar_specs *sar);
 #endif

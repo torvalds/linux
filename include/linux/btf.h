@@ -12,13 +12,43 @@
 #define BTF_TYPE_EMIT(type) ((void)(type *)0)
 #define BTF_TYPE_EMIT_ENUM(enum_val) ((void)enum_val)
 
-enum btf_kfunc_type {
-	BTF_KFUNC_TYPE_CHECK,
-	BTF_KFUNC_TYPE_ACQUIRE,
-	BTF_KFUNC_TYPE_RELEASE,
-	BTF_KFUNC_TYPE_RET_NULL,
-	BTF_KFUNC_TYPE_MAX,
-};
+/* These need to be macros, as the expressions are used in assembler input */
+#define KF_ACQUIRE	(1 << 0) /* kfunc is an acquire function */
+#define KF_RELEASE	(1 << 1) /* kfunc is a release function */
+#define KF_RET_NULL	(1 << 2) /* kfunc returns a pointer that may be NULL */
+#define KF_KPTR_GET	(1 << 3) /* kfunc returns reference to a kptr */
+/* Trusted arguments are those which are meant to be referenced arguments with
+ * unchanged offset. It is used to enforce that pointers obtained from acquire
+ * kfuncs remain unmodified when being passed to helpers taking trusted args.
+ *
+ * Consider
+ *	struct foo {
+ *		int data;
+ *		struct foo *next;
+ *	};
+ *
+ *	struct bar {
+ *		int data;
+ *		struct foo f;
+ *	};
+ *
+ *	struct foo *f = alloc_foo(); // Acquire kfunc
+ *	struct bar *b = alloc_bar(); // Acquire kfunc
+ *
+ * If a kfunc set_foo_data() wants to operate only on the allocated object, it
+ * will set the KF_TRUSTED_ARGS flag, which will prevent unsafe usage like:
+ *
+ *	set_foo_data(f, 42);	   // Allowed
+ *	set_foo_data(f->next, 42); // Rejected, non-referenced pointer
+ *	set_foo_data(&f->next, 42);// Rejected, referenced, but wrong type
+ *	set_foo_data(&b->f, 42);   // Rejected, referenced, but bad offset
+ *
+ * In the final case, usually for the purposes of type matching, it is deduced
+ * by looking at the type of the member at the offset, but due to the
+ * requirement of trusted argument, this deduction will be strict and not done
+ * for this case.
+ */
+#define KF_TRUSTED_ARGS (1 << 4) /* kfunc only takes trusted pointer arguments */
 
 struct btf;
 struct btf_member;
@@ -29,16 +59,15 @@ struct btf_id_set;
 
 struct btf_kfunc_id_set {
 	struct module *owner;
-	union {
-		struct {
-			struct btf_id_set *check_set;
-			struct btf_id_set *acquire_set;
-			struct btf_id_set *release_set;
-			struct btf_id_set *ret_null_set;
-		};
-		struct btf_id_set *sets[BTF_KFUNC_TYPE_MAX];
-	};
+	struct btf_id_set8 *set;
 };
+
+struct btf_id_dtor_kfunc {
+	u32 btf_id;
+	u32 kfunc_btf_id;
+};
+
+typedef void (*btf_dtor_kfunc_t)(void *);
 
 extern const struct file_operations btf_fops;
 
@@ -123,6 +152,8 @@ bool btf_member_is_reg_int(const struct btf *btf, const struct btf_type *s,
 			   u32 expected_offset, u32 expected_size);
 int btf_find_spin_lock(const struct btf *btf, const struct btf_type *t);
 int btf_find_timer(const struct btf *btf, const struct btf_type *t);
+struct bpf_map_value_off *btf_parse_kptrs(const struct btf *btf,
+					  const struct btf_type *t);
 bool btf_type_is_void(const struct btf_type *t);
 s32 btf_find_by_name_kind(const struct btf *btf, const char *name, u8 kind);
 const struct btf_type *btf_type_skip_modifiers(const struct btf *btf,
@@ -166,6 +197,19 @@ static inline bool btf_type_is_enum(const struct btf_type *t)
 	return BTF_INFO_KIND(t->info) == BTF_KIND_ENUM;
 }
 
+static inline bool btf_is_any_enum(const struct btf_type *t)
+{
+	return BTF_INFO_KIND(t->info) == BTF_KIND_ENUM ||
+	       BTF_INFO_KIND(t->info) == BTF_KIND_ENUM64;
+}
+
+static inline bool btf_kind_core_compat(const struct btf_type *t1,
+					const struct btf_type *t2)
+{
+	return BTF_INFO_KIND(t1->info) == BTF_INFO_KIND(t2->info) ||
+	       (btf_is_any_enum(t1) && btf_is_any_enum(t2));
+}
+
 static inline bool str_is_empty(const char *s)
 {
 	return !s || !s[0];
@@ -179,6 +223,16 @@ static inline u16 btf_kind(const struct btf_type *t)
 static inline bool btf_is_enum(const struct btf_type *t)
 {
 	return btf_kind(t) == BTF_KIND_ENUM;
+}
+
+static inline bool btf_is_enum64(const struct btf_type *t)
+{
+	return btf_kind(t) == BTF_KIND_ENUM64;
+}
+
+static inline u64 btf_enum64_value(const struct btf_enum64 *e)
+{
+	return ((u64)e->val_hi32 << 32) | e->val_lo32;
 }
 
 static inline bool btf_is_composite(const struct btf_type *t)
@@ -321,6 +375,11 @@ static inline struct btf_enum *btf_enum(const struct btf_type *t)
 	return (struct btf_enum *)(t + 1);
 }
 
+static inline struct btf_enum64 *btf_enum64(const struct btf_type *t)
+{
+	return (struct btf_enum64 *)(t + 1);
+}
+
 static inline const struct btf_var_secinfo *btf_type_var_secinfo(
 		const struct btf_type *t)
 {
@@ -339,11 +398,14 @@ const struct btf_type *btf_type_by_id(const struct btf *btf, u32 type_id);
 const char *btf_name_by_offset(const struct btf *btf, u32 offset);
 struct btf *btf_parse_vmlinux(void);
 struct btf *bpf_prog_get_target_btf(const struct bpf_prog *prog);
-bool btf_kfunc_id_set_contains(const struct btf *btf,
+u32 *btf_kfunc_id_set_contains(const struct btf *btf,
 			       enum bpf_prog_type prog_type,
-			       enum btf_kfunc_type type, u32 kfunc_btf_id);
+			       u32 kfunc_btf_id);
 int register_btf_kfunc_id_set(enum bpf_prog_type prog_type,
 			      const struct btf_kfunc_id_set *s);
+s32 btf_find_dtor_kfunc(struct btf *btf, u32 btf_id);
+int register_btf_id_dtor_kfuncs(const struct btf_id_dtor_kfunc *dtors, u32 add_cnt,
+				struct module *owner);
 #else
 static inline const struct btf_type *btf_type_by_id(const struct btf *btf,
 						    u32 type_id)
@@ -355,15 +417,23 @@ static inline const char *btf_name_by_offset(const struct btf *btf,
 {
 	return NULL;
 }
-static inline bool btf_kfunc_id_set_contains(const struct btf *btf,
+static inline u32 *btf_kfunc_id_set_contains(const struct btf *btf,
 					     enum bpf_prog_type prog_type,
-					     enum btf_kfunc_type type,
 					     u32 kfunc_btf_id)
 {
-	return false;
+	return NULL;
 }
 static inline int register_btf_kfunc_id_set(enum bpf_prog_type prog_type,
 					    const struct btf_kfunc_id_set *s)
+{
+	return 0;
+}
+static inline s32 btf_find_dtor_kfunc(struct btf *btf, u32 btf_id)
+{
+	return -ENOENT;
+}
+static inline int register_btf_id_dtor_kfuncs(const struct btf_id_dtor_kfunc *dtors,
+					      u32 add_cnt, struct module *owner)
 {
 	return 0;
 }

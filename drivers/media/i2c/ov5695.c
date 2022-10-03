@@ -1122,7 +1122,7 @@ static int ov5695_set_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
-		/* 4 least significant bits of expsoure are fractional part */
+		/* 4 least significant bits of exposure are fractional part */
 		ret = ov5695_write_reg(ov5695->client, OV5695_REG_EXPOSURE,
 				       OV5695_REG_VALUE_24BIT, ctrl->val << 4);
 		break;

@@ -93,6 +93,7 @@ static int sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 
 static unsigned long sctp_memory_pressure;
 static atomic_long_t sctp_memory_allocated;
+static DEFINE_PER_CPU(int, sctp_memory_per_cpu_fw_alloc);
 struct percpu_counter sctp_sockets_allocated;
 
 static void sctp_enter_memory_pressure(struct sock *sk)
@@ -1823,9 +1824,6 @@ static int sctp_sendmsg_to_asoc(struct sctp_association *asoc,
 	if (sctp_wspace(asoc) < (int)msg_len)
 		sctp_prsctp_prune(asoc, sinfo, msg_len - sctp_wspace(asoc));
 
-	if (sk_under_memory_pressure(sk))
-		sk_mem_reclaim(sk);
-
 	if (sctp_wspace(asoc) <= 0 || !sk_wmem_schedule(sk, msg_len)) {
 		timeo = sock_sndtimeo(sk, msg->msg_flags & MSG_DONTWAIT);
 		err = sctp_wait_for_sndbuf(asoc, &timeo, msg_len);
@@ -2084,7 +2082,7 @@ static int sctp_skb_pull(struct sk_buff *skb, int len)
  *            5 for complete description of the flags.
  */
 static int sctp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
-			int noblock, int flags, int *addr_len)
+			int flags, int *addr_len)
 {
 	struct sctp_ulpevent *event = NULL;
 	struct sctp_sock *sp = sctp_sk(sk);
@@ -2093,9 +2091,8 @@ static int sctp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	int err = 0;
 	int skb_len;
 
-	pr_debug("%s: sk:%p, msghdr:%p, len:%zd, noblock:%d, flags:0x%x, "
-		 "addr_len:%p)\n", __func__, sk, msg, len, noblock, flags,
-		 addr_len);
+	pr_debug("%s: sk:%p, msghdr:%p, len:%zd, flags:0x%x, addr_len:%p)\n",
+		 __func__, sk, msg, len, flags, addr_len);
 
 	lock_sock(sk);
 
@@ -2105,7 +2102,7 @@ static int sctp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		goto out;
 	}
 
-	skb = sctp_skb_recv_datagram(sk, flags, noblock, &err);
+	skb = sctp_skb_recv_datagram(sk, flags, &err);
 	if (!skb)
 		goto out;
 
@@ -2129,7 +2126,7 @@ static int sctp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 		head_skb = event->chunk->head_skb;
 	else
 		head_skb = skb;
-	sock_recv_ts_and_drops(msg, sk, head_skb);
+	sock_recv_cmsgs(msg, sk, head_skb);
 	if (sctp_ulpevent_is_notification(event)) {
 		msg->msg_flags |= MSG_NOTIFICATION;
 		sp->pf->event_msgname(event, msg->msg_name, addr_len);
@@ -5636,7 +5633,7 @@ int sctp_do_peeloff(struct sock *sk, sctp_assoc_t id, struct socket **sockp)
 	 * Set the daddr and initialize id to something more random and also
 	 * copy over any ip options.
 	 */
-	sp->pf->to_sk_daddr(&asoc->peer.primary_addr, sk);
+	sp->pf->to_sk_daddr(&asoc->peer.primary_addr, sock->sk);
 	sp->pf->copy_ip_options(sk, sock->sk);
 
 	/* Populate the fields of the newsk from the oldsk and migrate the
@@ -8978,14 +8975,13 @@ out:
  * Note: This is pretty much the same routine as in core/datagram.c
  * with a few changes to make lksctp work.
  */
-struct sk_buff *sctp_skb_recv_datagram(struct sock *sk, int flags,
-				       int noblock, int *err)
+struct sk_buff *sctp_skb_recv_datagram(struct sock *sk, int flags, int *err)
 {
 	int error;
 	struct sk_buff *skb;
 	long timeo;
 
-	timeo = sock_rcvtimeo(sk, noblock);
+	timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 
 	pr_debug("%s: timeo:%ld, max:%ld\n", __func__, timeo,
 		 MAX_SCHEDULE_TIMEOUT);
@@ -9018,7 +9014,7 @@ struct sk_buff *sctp_skb_recv_datagram(struct sock *sk, int flags,
 			break;
 
 		if (sk_can_busy_loop(sk)) {
-			sk_busy_loop(sk, noblock);
+			sk_busy_loop(sk, flags & MSG_DONTWAIT);
 
 			if (!skb_queue_empty_lockless(&sk->sk_receive_queue))
 				continue;
@@ -9196,8 +9192,6 @@ static int sctp_wait_for_sndbuf(struct sctp_association *asoc, long *timeo_p,
 			goto do_error;
 		if (signal_pending(current))
 			goto do_interrupted;
-		if (sk_under_memory_pressure(sk))
-			sk_mem_reclaim(sk);
 		if ((int)msg_len <= sctp_wspace(asoc) &&
 		    sk_wmem_schedule(sk, msg_len))
 			break;
@@ -9659,7 +9653,10 @@ struct proto sctp_prot = {
 	.sysctl_wmem =  sysctl_sctp_wmem,
 	.memory_pressure = &sctp_memory_pressure,
 	.enter_memory_pressure = sctp_enter_memory_pressure,
+
 	.memory_allocated = &sctp_memory_allocated,
+	.per_cpu_fw_alloc = &sctp_memory_per_cpu_fw_alloc,
+
 	.sockets_allocated = &sctp_sockets_allocated,
 };
 
@@ -9702,7 +9699,10 @@ struct proto sctpv6_prot = {
 	.sysctl_wmem	= sysctl_sctp_wmem,
 	.memory_pressure = &sctp_memory_pressure,
 	.enter_memory_pressure = sctp_enter_memory_pressure,
+
 	.memory_allocated = &sctp_memory_allocated,
+	.per_cpu_fw_alloc = &sctp_memory_per_cpu_fw_alloc,
+
 	.sockets_allocated = &sctp_sockets_allocated,
 };
 #endif /* IS_ENABLED(CONFIG_IPV6) */

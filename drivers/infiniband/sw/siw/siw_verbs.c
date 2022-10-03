@@ -132,8 +132,8 @@ int siw_query_device(struct ib_device *base_dev, struct ib_device_attr *attr,
 
 	/* Revisit atomic caps if RFC 7306 gets supported */
 	attr->atomic_cap = 0;
-	attr->device_cap_flags =
-		IB_DEVICE_MEM_MGT_EXTENSIONS | IB_DEVICE_ALLOW_USER_UNREG;
+	attr->device_cap_flags = IB_DEVICE_MEM_MGT_EXTENSIONS;
+	attr->kernel_cap_flags = IBK_ALLOW_USER_UNREG;
 	attr->max_cq = sdev->attrs.max_cq;
 	attr->max_cqe = sdev->attrs.max_cqe;
 	attr->max_fast_reg_page_list_len = SIW_MAX_SGE_PBL;
@@ -1167,7 +1167,7 @@ int siw_create_cq(struct ib_cq *base_cq, const struct ib_cq_init_attr *attr,
 err_out:
 	siw_dbg(base_cq->device, "CQ creation failed: %d", rv);
 
-	if (cq && cq->queue) {
+	if (cq->queue) {
 		struct siw_ucontext *ctx =
 			rdma_udata_to_drv_context(udata, struct siw_ucontext,
 						  base_ucontext);

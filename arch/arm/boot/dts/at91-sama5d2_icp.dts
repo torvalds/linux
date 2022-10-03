@@ -24,8 +24,8 @@
 		serial1 = &uart1;	/* mikro BUS 3 */
 		serial3 = &uart3;	/* mikro BUS 2 */
 		serial5 = &uart7;	/* flx2 */
-		i2c0	= &i2c0;
-		i2c1	= &i2c1;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
 	};
 
 	chosen {
@@ -42,14 +42,13 @@
 		};
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_key_gpio_default>;
-		status = "okay";
 
-		sw4 {
+		button-1 {
 			label = "USER_PB1";
 			gpios = <&pioA PIN_PD0 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_PROG1>;
@@ -329,21 +328,21 @@
 	status = "okay";
 
 	eeprom@50 {
-		compatible = "atmel,24c32";
+		compatible = "atmel,24c02";
 		reg = <0x50>;
 		pagesize = <16>;
 		status = "okay";
 	};
 
 	eeprom@52 {
-		compatible = "atmel,24c32";
+		compatible = "atmel,24c02";
 		reg = <0x52>;
 		pagesize = <16>;
 		status = "disabled";
 	};
 
 	eeprom@53 {
-		compatible = "atmel,24c32";
+		compatible = "atmel,24c02";
 		reg = <0x53>;
 		pagesize = <16>;
 		status = "disabled";

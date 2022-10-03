@@ -13,6 +13,7 @@
 #include <asm/sections.h>
 #include <asm/mmu.h>
 #include <asm/tlb.h>
+#include <asm/firmware.h>
 
 #include <mm/mmu_decl.h>
 
@@ -377,7 +378,7 @@ int hash__has_transparent_hugepage(void)
 	if (mmu_psize_defs[MMU_PAGE_16M].shift != PMD_SHIFT)
 		return 0;
 	/*
-	 * We need to make sure that we support 16MB hugepage in a segement
+	 * We need to make sure that we support 16MB hugepage in a segment
 	 * with base page size 64K or 4K. We only enable THP with a PAGE_SIZE
 	 * of 64K.
 	 */

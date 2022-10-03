@@ -8,7 +8,6 @@
 
 #include <linux/device.h>
 #include <linux/gpio/driver.h>
-#include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/slab.h>

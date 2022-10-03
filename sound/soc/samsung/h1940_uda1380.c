@@ -8,7 +8,7 @@
 // Based on version from Arnaud Patard <arnaud.patard@rtp-net.org>
 
 #include <linux/types.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
 
 #include <sound/soc.h>
@@ -151,7 +151,8 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static int h1940_uda1380_init(struct snd_soc_pcm_runtime *rtd)
 {
-	snd_soc_card_jack_new(rtd->card, "Headphone Jack", SND_JACK_HEADPHONE,
+	snd_soc_card_jack_new_pins(rtd->card, "Headphone Jack",
+		SND_JACK_HEADPHONE,
 		&hp_jack, hp_jack_pins, ARRAY_SIZE(hp_jack_pins));
 
 	snd_soc_jack_add_gpios(&hp_jack, ARRAY_SIZE(hp_jack_gpios),

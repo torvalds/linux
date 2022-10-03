@@ -417,6 +417,9 @@ static int nfs_do_refmount(struct fs_context *fc, struct rpc_clnt *client)
 	fs_locations = kmalloc(sizeof(struct nfs4_fs_locations), GFP_KERNEL);
 	if (!fs_locations)
 		goto out_free;
+	fs_locations->fattr = nfs_alloc_fattr();
+	if (!fs_locations->fattr)
+		goto out_free_2;
 
 	/* Get locations */
 	dentry = ctx->clone_data.dentry;
@@ -427,14 +430,16 @@ static int nfs_do_refmount(struct fs_context *fc, struct rpc_clnt *client)
 	err = nfs4_proc_fs_locations(client, d_inode(parent), &dentry->d_name, fs_locations, page);
 	dput(parent);
 	if (err != 0)
-		goto out_free_2;
+		goto out_free_3;
 
 	err = -ENOENT;
 	if (fs_locations->nlocations <= 0 ||
 	    fs_locations->fs_path.ncomponents <= 0)
-		goto out_free_2;
+		goto out_free_3;
 
 	err = nfs_follow_referral(fc, fs_locations);
+out_free_3:
+	kfree(fs_locations->fattr);
 out_free_2:
 	kfree(fs_locations);
 out_free:

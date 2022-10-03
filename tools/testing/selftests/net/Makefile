@@ -11,7 +11,7 @@ TEST_PROGS += udpgso_bench.sh fib_rule_tests.sh msg_zerocopy.sh psock_snd.sh
 TEST_PROGS += udpgro_bench.sh udpgro.sh test_vxlan_under_vrf.sh reuseport_addr_any.sh
 TEST_PROGS += test_vxlan_fdb_changelink.sh so_txtime.sh ipv6_flowlabel.sh
 TEST_PROGS += tcp_fastopen_backup_key.sh fcnal-test.sh l2tp.sh traceroute.sh
-TEST_PROGS += fin_ack_lat.sh fib_nexthop_multiprefix.sh fib_nexthops.sh
+TEST_PROGS += fin_ack_lat.sh fib_nexthop_multiprefix.sh fib_nexthops.sh fib_nexthop_nongw.sh
 TEST_PROGS += altnames.sh icmp.sh icmp_redirect.sh ip6_gre_headroom.sh
 TEST_PROGS += route_localnet.sh
 TEST_PROGS += reuseaddr_ports_exhausted.sh
@@ -25,17 +25,23 @@ TEST_PROGS += bareudp.sh
 TEST_PROGS += amt.sh
 TEST_PROGS += unicast_extensions.sh
 TEST_PROGS += udpgro_fwd.sh
+TEST_PROGS += udpgro_frglist.sh
 TEST_PROGS += veth.sh
 TEST_PROGS += ioam6.sh
 TEST_PROGS += gro.sh
 TEST_PROGS += gre_gso.sh
 TEST_PROGS += cmsg_so_mark.sh
-TEST_PROGS += cmsg_time.sh
+TEST_PROGS += cmsg_time.sh cmsg_ipv6.sh
 TEST_PROGS += srv6_end_dt46_l3vpn_test.sh
 TEST_PROGS += srv6_end_dt4_l3vpn_test.sh
 TEST_PROGS += srv6_end_dt6_l3vpn_test.sh
+TEST_PROGS += srv6_hencap_red_l3vpn_test.sh
+TEST_PROGS += srv6_hl2encap_red_l2vpn_test.sh
 TEST_PROGS += vrf_strict_mode_test.sh
 TEST_PROGS += arp_ndisc_evict_nocarrier.sh
+TEST_PROGS += ndisc_unsolicited_na_test.sh
+TEST_PROGS += arp_ndisc_untracked_subnets.sh
+TEST_PROGS += stress_reuseport_listen.sh
 TEST_PROGS_EXTENDED := in_netns.sh setup_loopback.sh setup_veth.sh
 TEST_PROGS_EXTENDED += toeplitz_client.sh toeplitz.sh
 TEST_GEN_FILES =  socket nettest
@@ -51,14 +57,18 @@ TEST_GEN_FILES += ipsec
 TEST_GEN_FILES += ioam6_parser
 TEST_GEN_FILES += gro
 TEST_GEN_PROGS = reuseport_bpf reuseport_bpf_cpu reuseport_bpf_numa
-TEST_GEN_PROGS += reuseport_dualstack reuseaddr_conflict tls
+TEST_GEN_PROGS += reuseport_dualstack reuseaddr_conflict tls tun tap
 TEST_GEN_FILES += toeplitz
 TEST_GEN_FILES += cmsg_sender
+TEST_GEN_FILES += stress_reuseport_listen
+TEST_PROGS += test_vxlan_vnifiltering.sh
+TEST_GEN_FILES += io_uring_zerocopy_tx
 
 TEST_FILES := settings
 
-KSFT_KHDR_INSTALL := 1
 include ../lib.mk
+
+include bpf/Makefile
 
 $(OUTPUT)/reuseport_bpf_numa: LDLIBS += -lnuma
 $(OUTPUT)/tcp_mmap: LDLIBS += -lpthread

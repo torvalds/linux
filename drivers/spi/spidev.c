@@ -8,19 +8,18 @@
  */
 
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/ioctl.h>
 #include <linux/fs.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/list.h>
 #include <linux/errno.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/compat.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/acpi.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spidev.h>
@@ -46,6 +45,7 @@
 
 static DECLARE_BITMAP(minors, N_SPI_MINORS);
 
+static_assert(N_SPI_MINORS > 0 && N_SPI_MINORS <= 256);
 
 /* Bit masks for spi_device.mode management.  Note that incorrect
  * settings for some settings can cause *lots* of trouble for other
@@ -63,7 +63,8 @@ static DECLARE_BITMAP(minors, N_SPI_MINORS);
 				| SPI_LSB_FIRST | SPI_3WIRE | SPI_LOOP \
 				| SPI_NO_CS | SPI_READY | SPI_TX_DUAL \
 				| SPI_TX_QUAD | SPI_TX_OCTAL | SPI_RX_DUAL \
-				| SPI_RX_QUAD | SPI_RX_OCTAL)
+				| SPI_RX_QUAD | SPI_RX_OCTAL \
+				| SPI_RX_CPHA_FLIP)
 
 struct spidev_data {
 	dev_t			devt;
@@ -568,19 +569,20 @@ spidev_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 static int spidev_open(struct inode *inode, struct file *filp)
 {
-	struct spidev_data	*spidev;
+	struct spidev_data	*spidev = NULL, *iter;
 	int			status = -ENXIO;
 
 	mutex_lock(&device_list_lock);
 
-	list_for_each_entry(spidev, &device_list, device_entry) {
-		if (spidev->devt == inode->i_rdev) {
+	list_for_each_entry(iter, &device_list, device_entry) {
+		if (iter->devt == inode->i_rdev) {
 			status = 0;
+			spidev = iter;
 			break;
 		}
 	}
 
-	if (status) {
+	if (!spidev) {
 		pr_debug("spidev: nothing for minor %d\n", iminor(inode));
 		goto err_find_dev;
 	}
@@ -693,25 +695,38 @@ static const struct spi_device_id spidev_spi_ids[] = {
 };
 MODULE_DEVICE_TABLE(spi, spidev_spi_ids);
 
-#ifdef CONFIG_OF
+/*
+ * spidev should never be referenced in DT without a specific compatible string,
+ * it is a Linux implementation thing rather than a description of the hardware.
+ */
+static int spidev_of_check(struct device *dev)
+{
+	if (device_property_match_string(dev, "compatible", "spidev") < 0)
+		return 0;
+
+	dev_err(dev, "spidev listed directly in DT is not supported\n");
+	return -EINVAL;
+}
+
 static const struct of_device_id spidev_dt_ids[] = {
-	{ .compatible = "rohm,dh2228fv" },
-	{ .compatible = "lineartechnology,ltc2488" },
-	{ .compatible = "semtech,sx1301" },
-	{ .compatible = "lwn,bk4" },
-	{ .compatible = "dh,dhcom-board" },
-	{ .compatible = "menlo,m53cpld" },
-	{ .compatible = "cisco,spi-petra" },
-	{ .compatible = "micron,spi-authenta" },
+	{ .compatible = "rohm,dh2228fv", .data = &spidev_of_check },
+	{ .compatible = "lineartechnology,ltc2488", .data = &spidev_of_check },
+	{ .compatible = "semtech,sx1301", .data = &spidev_of_check },
+	{ .compatible = "lwn,bk4", .data = &spidev_of_check },
+	{ .compatible = "dh,dhcom-board", .data = &spidev_of_check },
+	{ .compatible = "menlo,m53cpld", .data = &spidev_of_check },
+	{ .compatible = "cisco,spi-petra", .data = &spidev_of_check },
+	{ .compatible = "micron,spi-authenta", .data = &spidev_of_check },
 	{},
 };
 MODULE_DEVICE_TABLE(of, spidev_dt_ids);
-#endif
-
-#ifdef CONFIG_ACPI
 
 /* Dummy SPI devices not to be used in production systems */
-#define SPIDEV_ACPI_DUMMY	1
+static int spidev_acpi_check(struct device *dev)
+{
+	dev_warn(dev, "do not use this driver in production systems!\n");
+	return 0;
+}
 
 static const struct acpi_device_id spidev_acpi_ids[] = {
 	/*
@@ -720,50 +735,28 @@ static const struct acpi_device_id spidev_acpi_ids[] = {
 	 * description of the connected peripheral and they should also use
 	 * a proper driver instead of poking directly to the SPI bus.
 	 */
-	{ "SPT0001", SPIDEV_ACPI_DUMMY },
-	{ "SPT0002", SPIDEV_ACPI_DUMMY },
-	{ "SPT0003", SPIDEV_ACPI_DUMMY },
+	{ "SPT0001", (kernel_ulong_t)&spidev_acpi_check },
+	{ "SPT0002", (kernel_ulong_t)&spidev_acpi_check },
+	{ "SPT0003", (kernel_ulong_t)&spidev_acpi_check },
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, spidev_acpi_ids);
-
-static void spidev_probe_acpi(struct spi_device *spi)
-{
-	const struct acpi_device_id *id;
-
-	if (!has_acpi_companion(&spi->dev))
-		return;
-
-	id = acpi_match_device(spidev_acpi_ids, &spi->dev);
-	if (WARN_ON(!id))
-		return;
-
-	if (id->driver_data == SPIDEV_ACPI_DUMMY)
-		dev_warn(&spi->dev, "do not use this driver in production systems!\n");
-}
-#else
-static inline void spidev_probe_acpi(struct spi_device *spi) {}
-#endif
 
 /*-------------------------------------------------------------------------*/
 
 static int spidev_probe(struct spi_device *spi)
 {
+	int (*match)(struct device *dev);
 	struct spidev_data	*spidev;
 	int			status;
 	unsigned long		minor;
 
-	/*
-	 * spidev should never be referenced in DT without a specific
-	 * compatible string, it is a Linux implementation thing
-	 * rather than a description of the hardware.
-	 */
-	if (spi->dev.of_node && of_device_is_compatible(spi->dev.of_node, "spidev")) {
-		dev_err(&spi->dev, "spidev listed directly in DT is not supported\n");
-		return -EINVAL;
+	match = device_get_match_data(&spi->dev);
+	if (match) {
+		status = match(&spi->dev);
+		if (status)
+			return status;
 	}
-
-	spidev_probe_acpi(spi);
 
 	/* Allocate driver data */
 	spidev = kzalloc(sizeof(*spidev), GFP_KERNEL);
@@ -832,8 +825,8 @@ static void spidev_remove(struct spi_device *spi)
 static struct spi_driver spidev_spi_driver = {
 	.driver = {
 		.name =		"spidev",
-		.of_match_table = of_match_ptr(spidev_dt_ids),
-		.acpi_match_table = ACPI_PTR(spidev_acpi_ids),
+		.of_match_table = spidev_dt_ids,
+		.acpi_match_table = spidev_acpi_ids,
 	},
 	.probe =	spidev_probe,
 	.remove =	spidev_remove,
@@ -856,7 +849,6 @@ static int __init spidev_init(void)
 	 * that will key udev/mdev to add/remove /dev nodes.  Last, register
 	 * the driver which manages those device numbers.
 	 */
-	BUILD_BUG_ON(N_SPI_MINORS > 256);
 	status = register_chrdev(SPIDEV_MAJOR, "spi", &spidev_fops);
 	if (status < 0)
 		return status;

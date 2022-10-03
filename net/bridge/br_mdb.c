@@ -251,14 +251,16 @@ static int __mdb_fill_info(struct sk_buff *skb,
 	__mdb_entry_fill_flags(&e, flags);
 	e.ifindex = ifindex;
 	e.vid = mp->addr.vid;
-	if (mp->addr.proto == htons(ETH_P_IP))
+	if (mp->addr.proto == htons(ETH_P_IP)) {
 		e.addr.u.ip4 = mp->addr.dst.ip4;
 #if IS_ENABLED(CONFIG_IPV6)
-	else if (mp->addr.proto == htons(ETH_P_IPV6))
+	} else if (mp->addr.proto == htons(ETH_P_IPV6)) {
 		e.addr.u.ip6 = mp->addr.dst.ip6;
 #endif
-	else
+	} else {
 		ether_addr_copy(e.addr.u.mac_addr, mp->addr.dst.mac_addr);
+		e.state = MDB_PG_FLAGS_PERMANENT;
+	}
 	e.addr.proto = mp->addr.proto;
 	nest_ent = nla_nest_start_noflag(skb,
 					 MDBA_MDB_ENTRY_INFO);
@@ -873,8 +875,8 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 		return -EINVAL;
 
 	/* host join errors which can happen before creating the group */
-	if (!port) {
-		/* don't allow any flags for host-joined groups */
+	if (!port && !br_group_is_l2(&group)) {
+		/* don't allow any flags for host-joined IP groups */
 		if (entry->state) {
 			NL_SET_ERR_MSG_MOD(extack, "Flags are not allowed for host groups");
 			return -EINVAL;
@@ -1023,8 +1025,8 @@ static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 			NL_SET_ERR_MSG_MOD(extack, "Port belongs to a different bridge device");
 			return -EINVAL;
 		}
-		if (p->state == BR_STATE_DISABLED) {
-			NL_SET_ERR_MSG_MOD(extack, "Port is in disabled state");
+		if (p->state == BR_STATE_DISABLED && entry->state != MDB_PERMANENT) {
+			NL_SET_ERR_MSG_MOD(extack, "Port is in disabled state and entry is not permanent");
 			return -EINVAL;
 		}
 		vg = nbp_vlan_group(p);
@@ -1084,9 +1086,6 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry,
 		if (!p->key.port || p->key.port->dev->ifindex != entry->ifindex)
 			continue;
 
-		if (p->key.port->state == BR_STATE_DISABLED)
-			goto unlock;
-
 		br_multicast_del_pg(mp, p, pp);
 		err = 0;
 		break;
@@ -1122,8 +1121,14 @@ static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
 			return -ENODEV;
 
 		p = br_port_get_rtnl(pdev);
-		if (!p || p->br != br || p->state == BR_STATE_DISABLED)
+		if (!p) {
+			NL_SET_ERR_MSG_MOD(extack, "Net device is not a bridge port");
 			return -EINVAL;
+		}
+		if (p->br != br) {
+			NL_SET_ERR_MSG_MOD(extack, "Port belongs to a different bridge device");
+			return -EINVAL;
+		}
 		vg = nbp_vlan_group(p);
 	} else {
 		vg = br_vlan_group(br);

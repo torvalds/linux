@@ -109,7 +109,9 @@ REPORT OPTIONS
 
 -d::
 --display::
-	Switch to HITM type (rmt, lcl) to display and sort on. Total HITMs as default.
+	Switch to HITM type (rmt, lcl) or peer snooping type (peer) to display
+	and sort on. Total HITMs (tot) as default, except Arm64 uses peer mode
+	as default.
 
 --stitch-lbr::
 	Show callgraph with stitched LBRs, which may have more complete
@@ -174,11 +176,17 @@ For each cacheline in the 1) list we display following data:
   Cacheline
   - cacheline address (hex number)
 
-  Rmt/Lcl Hitm
+  Rmt/Lcl Hitm (Display with HITM types)
   - cacheline percentage of all Remote/Local HITM accesses
 
-  LLC Load Hitm - Total, LclHitm, RmtHitm
+  Peer Snoop (Display with peer type)
+  - cacheline percentage of all peer accesses
+
+  LLC Load Hitm - Total, LclHitm, RmtHitm (For display with HITM types)
   - count of Total/Local/Remote load HITMs
+
+  Load Peer - Total, Local, Remote (For display with peer type)
+  - count of Total/Local/Remote load from peer cache or DRAM
 
   Total records
   - sum of all cachelines accesses
@@ -189,9 +197,10 @@ For each cacheline in the 1) list we display following data:
   Total stores
   - sum of all store accesses
 
-  Store Reference - L1Hit, L1Miss
+  Store Reference - L1Hit, L1Miss, N/A
     L1Hit - store accesses that hit L1
     L1Miss - store accesses that missed L1
+    N/A - store accesses with memory level is not available
 
   Core Load Hit - FB, L1, L2
   - count of load hits in FB (Fill Buffer), L1 and L2 cache
@@ -200,18 +209,24 @@ For each cacheline in the 1) list we display following data:
   - count of LLC load accesses, includes LLC hits and LLC HITMs
 
   RMT Load Hit - RmtHit, RmtHitm
-  - count of remote load accesses, includes remote hits and remote HITMs
+  - count of remote load accesses, includes remote hits and remote HITMs;
+    on Arm neoverse cores, RmtHit is used to account remote accesses,
+    includes remote DRAM or any upward cache level in remote node
 
   Load Dram - Lcl, Rmt
   - count of local and remote DRAM accesses
 
 For each offset in the 2) list we display following data:
 
-  HITM - Rmt, Lcl
+  HITM - Rmt, Lcl (Display with HITM types)
   - % of Remote/Local HITM accesses for given offset within cacheline
 
-  Store Refs - L1 Hit, L1 Miss
-  - % of store accesses that hit/missed L1 for given offset within cacheline
+  Peer Snoop - Rmt, Lcl (Display with peer type)
+  - % of Remote/Local peer accesses for given offset within cacheline
+
+  Store Refs - L1 Hit, L1 Miss, N/A
+  - % of store accesses that hit L1, missed L1 and N/A (no available) memory
+    level for given offset within cacheline
 
   Data address - Offset
   - offset address
@@ -225,8 +240,11 @@ For each offset in the 2) list we display following data:
   Code address
   - code address responsible for the accesses
 
-  cycles - rmt hitm, lcl hitm, load
+  cycles - rmt hitm, lcl hitm, load (Display with HITM types)
     - sum of cycles for given accesses - Remote/Local HITM and generic load
+
+  cycles - rmt peer, lcl peer, load (Display with peer type)
+    - sum of cycles for given accesses - Remote/Local peer load and generic load
 
   cpu cnt
     - number of cpus that participated on the access
@@ -249,7 +267,8 @@ The 'Node' field displays nodes that accesses given cacheline
 offset. Its output comes in 3 flavors:
   - node IDs separated by ','
   - node IDs with stats for each ID, in following format:
-      Node{cpus %hitms %stores}
+      Node{cpus %hitms %stores} (Display with HITM types)
+      Node{cpus %peers %stores} (Display with peer type)
   - node IDs with list of affected CPUs in following format:
       Node{cpu list}
 

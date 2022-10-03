@@ -35,6 +35,10 @@ struct prestera_acl_rule_entry {
 			u8 valid:1;
 		} accept, drop, trap;
 		struct {
+			u8 valid:1;
+			struct prestera_acl_action_police i;
+		} police;
+		struct {
 			struct prestera_acl_action_jump i;
 			u8 valid:1;
 		} jump;
@@ -57,6 +61,7 @@ struct prestera_acl_ruleset {
 	u32 index;
 	u16 pcl_id;
 	bool offload;
+	bool ingress;
 };
 
 struct prestera_acl_vtcam {
@@ -66,6 +71,7 @@ struct prestera_acl_vtcam {
 	u32 id;
 	bool is_keymask_set;
 	u8 lookup;
+	u8 direction;
 };
 
 static const struct rhashtable_params prestera_acl_ruleset_ht_params = {
@@ -89,23 +95,36 @@ static const struct rhashtable_params __prestera_acl_rule_entry_ht_params = {
 	.automatic_shrinking = true,
 };
 
-int prestera_acl_chain_to_client(u32 chain_index, u32 *client)
+int prestera_acl_chain_to_client(u32 chain_index, bool ingress, u32 *client)
 {
-	static const u32 client_map[] = {
-		PRESTERA_HW_COUNTER_CLIENT_LOOKUP_0,
-		PRESTERA_HW_COUNTER_CLIENT_LOOKUP_1,
-		PRESTERA_HW_COUNTER_CLIENT_LOOKUP_2
+	static const u32 ingress_client_map[] = {
+		PRESTERA_HW_COUNTER_CLIENT_INGRESS_LOOKUP_0,
+		PRESTERA_HW_COUNTER_CLIENT_INGRESS_LOOKUP_1,
+		PRESTERA_HW_COUNTER_CLIENT_INGRESS_LOOKUP_2
 	};
 
-	if (chain_index >= ARRAY_SIZE(client_map))
+	if (!ingress) {
+		/* prestera supports only one chain on egress */
+		if (chain_index > 0)
+			return -EINVAL;
+
+		*client = PRESTERA_HW_COUNTER_CLIENT_EGRESS_LOOKUP;
+		return 0;
+	}
+
+	if (chain_index >= ARRAY_SIZE(ingress_client_map))
 		return -EINVAL;
 
-	*client = client_map[chain_index];
+	*client = ingress_client_map[chain_index];
 	return 0;
 }
 
-static bool prestera_acl_chain_is_supported(u32 chain_index)
+static bool prestera_acl_chain_is_supported(u32 chain_index, bool ingress)
 {
+	if (!ingress)
+		/* prestera supports only one chain on egress */
+		return chain_index == 0;
+
 	return (chain_index & ~PRESTERA_ACL_CHAIN_MASK) == 0;
 }
 
@@ -118,7 +137,7 @@ prestera_acl_ruleset_create(struct prestera_acl *acl,
 	u32 uid = 0;
 	int err;
 
-	if (!prestera_acl_chain_is_supported(chain_index))
+	if (!prestera_acl_chain_is_supported(chain_index, block->ingress))
 		return ERR_PTR(-EINVAL);
 
 	ruleset = kzalloc(sizeof(*ruleset), GFP_KERNEL);
@@ -126,6 +145,7 @@ prestera_acl_ruleset_create(struct prestera_acl *acl,
 		return ERR_PTR(-ENOMEM);
 
 	ruleset->acl = acl;
+	ruleset->ingress = block->ingress;
 	ruleset->ht_key.block = block;
 	ruleset->ht_key.chain_index = chain_index;
 	refcount_set(&ruleset->refcount, 1);
@@ -168,13 +188,18 @@ int prestera_acl_ruleset_offload(struct prestera_acl_ruleset *ruleset)
 {
 	struct prestera_acl_iface iface;
 	u32 vtcam_id;
+	int dir;
 	int err;
+
+	dir = ruleset->ingress ?
+		PRESTERA_HW_VTCAM_DIR_INGRESS : PRESTERA_HW_VTCAM_DIR_EGRESS;
 
 	if (ruleset->offload)
 		return -EEXIST;
 
 	err = prestera_acl_vtcam_id_get(ruleset->acl,
 					ruleset->ht_key.chain_index,
+					dir,
 					ruleset->keymask, &vtcam_id);
 	if (err)
 		goto err_vtcam_create;
@@ -421,13 +446,6 @@ int prestera_acl_rule_add(struct prestera_switch *sw,
 	rule->re_arg.vtcam_id = ruleset->vtcam_id;
 	rule->re_key.prio = rule->priority;
 
-	/* setup counter */
-	rule->re_arg.count.valid = true;
-	err = prestera_acl_chain_to_client(ruleset->ht_key.chain_index,
-					   &rule->re_arg.count.client);
-	if (err)
-		goto err_rule_add;
-
 	rule->re = prestera_acl_rule_entry_find(sw->acl, &rule->re_key);
 	err = WARN_ON(rule->re) ? -EEXIST : 0;
 	if (err)
@@ -540,6 +558,12 @@ static int __prestera_acl_rule_entry2hw_add(struct prestera_switch *sw,
 		act_hw[act_num].id = PRESTERA_ACL_RULE_ACTION_TRAP;
 		act_num++;
 	}
+	/* police */
+	if (e->police.valid) {
+		act_hw[act_num].id = PRESTERA_ACL_RULE_ACTION_POLICE;
+		act_hw[act_num].police = e->police.i;
+		act_num++;
+	}
 	/* jump */
 	if (e->jump.valid) {
 		act_hw[act_num].id = PRESTERA_ACL_RULE_ACTION_JUMP;
@@ -564,6 +588,9 @@ __prestera_acl_rule_entry_act_destruct(struct prestera_switch *sw,
 {
 	/* counter */
 	prestera_counter_put(sw->counter, e->counter.block, e->counter.id);
+	/* police */
+	if (e->police.valid)
+		prestera_hw_policer_release(sw, e->police.i.id);
 }
 
 void prestera_acl_rule_entry_destroy(struct prestera_acl *acl,
@@ -586,6 +613,8 @@ __prestera_acl_rule_entry_act_construct(struct prestera_switch *sw,
 					struct prestera_acl_rule_entry *e,
 					struct prestera_acl_rule_entry_arg *arg)
 {
+	int err;
+
 	/* accept */
 	e->accept.valid = arg->accept.valid;
 	/* drop */
@@ -595,10 +624,26 @@ __prestera_acl_rule_entry_act_construct(struct prestera_switch *sw,
 	/* jump */
 	e->jump.valid = arg->jump.valid;
 	e->jump.i = arg->jump.i;
+	/* police */
+	if (arg->police.valid) {
+		u8 type = arg->police.ingress ? PRESTERA_POLICER_TYPE_INGRESS :
+						PRESTERA_POLICER_TYPE_EGRESS;
+
+		err = prestera_hw_policer_create(sw, type, &e->police.i.id);
+		if (err)
+			goto err_out;
+
+		err = prestera_hw_policer_sr_tcm_set(sw, e->police.i.id,
+						     arg->police.rate,
+						     arg->police.burst);
+		if (err) {
+			prestera_hw_policer_release(sw, e->police.i.id);
+			goto err_out;
+		}
+		e->police.valid = arg->police.valid;
+	}
 	/* counter */
 	if (arg->count.valid) {
-		int err;
-
 		err = prestera_counter_get(sw->counter, arg->count.client,
 					   &e->counter.block,
 					   &e->counter.id);
@@ -695,7 +740,7 @@ vtcam_found:
 	return 0;
 }
 
-int prestera_acl_vtcam_id_get(struct prestera_acl *acl, u8 lookup,
+int prestera_acl_vtcam_id_get(struct prestera_acl *acl, u8 lookup, u8 dir,
 			      void *keymask, u32 *vtcam_id)
 {
 	struct prestera_acl_vtcam *vtcam;
@@ -707,7 +752,8 @@ int prestera_acl_vtcam_id_get(struct prestera_acl *acl, u8 lookup,
 	 * fine for now
 	 */
 	list_for_each_entry(vtcam, &acl->vtcam_list, list) {
-		if (lookup != vtcam->lookup)
+		if (lookup != vtcam->lookup ||
+		    dir != vtcam->direction)
 			continue;
 
 		if (!keymask && !vtcam->is_keymask_set) {
@@ -728,7 +774,7 @@ int prestera_acl_vtcam_id_get(struct prestera_acl *acl, u8 lookup,
 		return -ENOMEM;
 
 	err = prestera_hw_vtcam_create(acl->sw, lookup, keymask, &new_vtcam_id,
-				       PRESTERA_HW_VTCAM_DIR_INGRESS);
+				       dir);
 	if (err) {
 		kfree(vtcam);
 
@@ -741,6 +787,7 @@ int prestera_acl_vtcam_id_get(struct prestera_acl *acl, u8 lookup,
 		return 0;
 	}
 
+	vtcam->direction = dir;
 	vtcam->id = new_vtcam_id;
 	vtcam->lookup = lookup;
 	if (keymask) {

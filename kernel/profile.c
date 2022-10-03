@@ -109,6 +109,13 @@ int __ref profile_init(void)
 
 	/* only text is profiled */
 	prof_len = (_etext - _stext) >> prof_shift;
+
+	if (!prof_len) {
+		pr_warn("profiling shift: %u too large\n", prof_shift);
+		prof_on = 0;
+		return -EINVAL;
+	}
+
 	buffer_bytes = prof_len*sizeof(atomic_t);
 
 	if (!alloc_cpumask_var(&prof_cpu_mask, GFP_KERNEL))
@@ -418,6 +425,12 @@ read_profile(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	return read;
 }
 
+/* default is to not implement this call */
+int __weak setup_profiling_timer(unsigned mult)
+{
+	return -EINVAL;
+}
+
 /*
  * Writing to /proc/profile resets the counters
  *
@@ -428,8 +441,6 @@ static ssize_t write_profile(struct file *file, const char __user *buf,
 			     size_t count, loff_t *ppos)
 {
 #ifdef CONFIG_SMP
-	extern int setup_profiling_timer(unsigned int multiplier);
-
 	if (count == sizeof(int)) {
 		unsigned int multiplier;
 

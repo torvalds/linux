@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI DA850/OMAP-L138 chip specific setup
  *
@@ -6,10 +7,7 @@
  * Derived from: arch/arm/mach-davinci/da830.c
  * Original Copyrights follow:
  *
- * 2009 (c) MontaVista Software, Inc. This file is licensed under
- * the terms of the GNU General Public License version 2. This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
+ * 2009 (c) MontaVista Software, Inc.
  */
 
 #include <linux/clk-provider.h>
@@ -28,16 +26,14 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <clocksource/timer-davinci.h>
 
 #include <asm/mach/map.h>
 
-#include <mach/common.h>
-#include <mach/cputype.h>
-#include <mach/da8xx.h>
-#include <mach/pm.h>
-
-#include <clocksource/timer-davinci.h>
-
+#include "common.h"
+#include "cputype.h"
+#include "da8xx.h"
+#include "pm.h"
 #include "irqs.h"
 #include "mux.h"
 

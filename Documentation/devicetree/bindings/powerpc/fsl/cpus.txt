@@ -5,7 +5,7 @@ Copyright 2013 Freescale Semiconductor Inc.
 Power Architecture CPUs in Freescale SOCs are represented in device trees as
 per the definition in the Devicetree Specification.
 
-In addition to the the Devicetree Specification definitions, the properties
+In addition to the Devicetree Specification definitions, the properties
 defined below may be present on CPU nodes.
 
 PROPERTIES

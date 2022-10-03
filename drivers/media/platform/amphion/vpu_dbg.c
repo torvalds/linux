@@ -27,7 +27,7 @@ struct print_buf_desc {
 	u32 bytes;
 	u32 read;
 	u32 write;
-	char buffer[0];
+	char buffer[];
 };
 
 static char *vb2_stat_name[] = {
@@ -413,10 +413,6 @@ int vpu_inst_create_dbgfs_file(struct vpu_inst *inst)
 					    vpu->debugfs,
 					    inst,
 					    &vpu_dbg_inst_fops);
-	if (!inst->debugfs) {
-		dev_err(inst->dev, "vpu create debugfs %s fail\n", name);
-		return -EINVAL;
-	}
 
 	return 0;
 }
@@ -451,10 +447,6 @@ int vpu_core_create_dbgfs_file(struct vpu_core *core)
 						    vpu->debugfs,
 						    core,
 						    &vpu_dbg_core_fops);
-		if (!core->debugfs) {
-			dev_err(core->dev, "vpu create debugfs %s fail\n", name);
-			return -EINVAL;
-		}
 	}
 	if (!core->debugfs_fwlog) {
 		scnprintf(name, sizeof(name), "fwlog.%d", core->id);
@@ -463,10 +455,6 @@ int vpu_core_create_dbgfs_file(struct vpu_core *core)
 							  vpu->debugfs,
 							  core,
 							  &vpu_dbg_fwlog_fops);
-		if (!core->debugfs_fwlog) {
-			dev_err(core->dev, "vpu create debugfs %s fail\n", name);
-			return -EINVAL;
-		}
 	}
 
 	return 0;

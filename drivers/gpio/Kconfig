@@ -353,8 +353,8 @@ config GPIO_IOP
 
 config GPIO_IXP4XX
 	bool "Intel IXP4xx GPIO"
-	depends on ARM # For <asm/mach-types.h>
 	depends on ARCH_IXP4XX
+	depends on OF
 	select GPIO_GENERIC
 	select GPIOLIB_IRQCHIP
 	select IRQ_DOMAIN_HIERARCHY
@@ -363,6 +363,7 @@ config GPIO_IXP4XX
 	  IXP4xx series of chips.
 
 	  If unsure, say N.
+
 config GPIO_LOGICVC
 	tristate "Xylon LogiCVC GPIO support"
 	depends on MFD_SYSCON && OF
@@ -543,6 +544,7 @@ config GPIO_SAMA5D2_PIOBU
 	tristate "SAMA5D2 PIOBU GPIO support"
 	depends on MFD_SYSCON
 	depends on OF_GPIO
+	depends on ARCH_AT91 || COMPILE_TEST
 	select GPIO_SYSCON
 	help
 	  Say yes here to use the PIOBU pins as GPIOs.
@@ -674,10 +676,10 @@ config GPIO_UNIPHIER
 
 config GPIO_VF610
 	def_bool y
-	depends on ARCH_MXC && SOC_VF610
+	depends on ARCH_MXC
 	select GPIOLIB_IRQCHIP
 	help
-	  Say yes here to support Vybrid vf610 GPIOs.
+	  Say yes here to support i.MX or Vybrid vf610 GPIOs.
 
 config GPIO_VISCONTI
 	tristate "Toshiba Visconti GPIO support"
@@ -688,12 +690,6 @@ config GPIO_VISCONTI
 	select IRQ_DOMAIN_HIERARCHY
 	help
 	  Say yes here to support GPIO on Tohisba Visconti.
-
-config GPIO_VR41XX
-	tristate "NEC VR4100 series General-purpose I/O Unit support"
-	depends on CPU_VR41XX
-	help
-	  Say yes here to support the NEC VR4100 series General-purpose I/O Unit.
 
 config GPIO_VX855
 	tristate "VIA VX855/VX875 GPIO"
@@ -828,11 +824,24 @@ endmenu
 menu "Port-mapped I/O GPIO drivers"
 	depends on X86 # Unconditional I/O space access
 
+config GPIO_I8255
+	tristate
+	help
+	  Enables support for the i8255 interface library functions. The i8255
+	  interface library provides functions to facilitate communication with
+	  interfaces compatible with the venerable Intel 8255 Programmable
+	  Peripheral Interface (PPI). The Intel 8255 PPI chip was first released
+	  in the early 1970s but compatible interfaces are nowadays typically
+	  found embedded in larger VLSI processing chips and FPGA components.
+
+	  If built as a module its name will be gpio-i8255.
+
 config GPIO_104_DIO_48E
 	tristate "ACCES 104-DIO-48E GPIO support"
 	depends on PC104
 	select ISA_BUS_API
 	select GPIOLIB_IRQCHIP
+	select GPIO_I8255
 	help
 	  Enables GPIO support for the ACCES 104-DIO-48E series (104-DIO-48E,
 	  104-DIO-24E). The base port addresses for the devices may be
@@ -856,6 +865,7 @@ config GPIO_104_IDI_48
 	depends on PC104
 	select ISA_BUS_API
 	select GPIOLIB_IRQCHIP
+	select GPIO_I8255
 	help
 	  Enables GPIO support for the ACCES 104-IDI-48 family (104-IDI-48A,
 	  104-IDI-48AC, 104-IDI-48B, 104-IDI-48BC). The base port addresses for
@@ -876,6 +886,7 @@ config GPIO_GPIO_MM
 	tristate "Diamond Systems GPIO-MM GPIO support"
 	depends on PC104
 	select ISA_BUS_API
+	select GPIO_I8255
 	help
 	  Enables GPIO support for the Diamond Systems GPIO-MM and GPIO-MM-12.
 

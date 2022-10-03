@@ -196,7 +196,9 @@ struct dso {
 		u32		 status_seen;
 		u64		 file_size;
 		struct list_head open_entry;
+		u64		 elf_base_addr;
 		u64		 debug_frame_offset;
+		u64		 eh_frame_hdr_addr;
 		u64		 eh_frame_hdr_offset;
 	} data;
 	/* bpf prog information */
@@ -224,6 +226,12 @@ struct dso {
  */
 #define dso__for_each_symbol(dso, pos, n)	\
 	symbols__for_each_entry(&(dso)->symbols, pos, n)
+
+#define dsos__for_each_with_build_id(pos, head)	\
+	list_for_each_entry(pos, head, node)	\
+		if (!pos->has_build_id)		\
+			continue;		\
+		else
 
 static inline void dso__set_loaded(struct dso *dso)
 {

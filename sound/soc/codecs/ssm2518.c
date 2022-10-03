@@ -409,8 +409,8 @@ static int ssm2518_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	bool invert_fclk;
 	int ret;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
 	default:
 		return -EINVAL;
@@ -721,7 +721,6 @@ static const struct snd_soc_component_driver ssm2518_component_driver = {
 	.num_dapm_routes	= ARRAY_SIZE(ssm2518_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config ssm2518_regmap_config = {
@@ -735,8 +734,7 @@ static const struct regmap_config ssm2518_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(ssm2518_reg_defaults),
 };
 
-static int ssm2518_i2c_probe(struct i2c_client *i2c,
-	const struct i2c_device_id *id)
+static int ssm2518_i2c_probe(struct i2c_client *i2c)
 {
 	struct ssm2518_platform_data *pdata = i2c->dev.platform_data;
 	struct ssm2518 *ssm2518;
@@ -815,7 +813,7 @@ static struct i2c_driver ssm2518_driver = {
 		.name = "ssm2518",
 		.of_match_table = of_match_ptr(ssm2518_dt_ids),
 	},
-	.probe = ssm2518_i2c_probe,
+	.probe_new = ssm2518_i2c_probe,
 	.id_table = ssm2518_i2c_ids,
 };
 module_i2c_driver(ssm2518_driver);

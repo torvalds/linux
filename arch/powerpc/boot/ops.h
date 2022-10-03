@@ -200,12 +200,6 @@ void __dt_fixup_mac_addresses(u32 startindex, ...);
 	__dt_fixup_mac_addresses(0, __VA_ARGS__, NULL)
 
 
-static inline void *find_node_by_linuxphandle(const u32 linuxphandle)
-{
-	return find_node_by_prop_value(NULL, "linux,phandle",
-			(char *)&linuxphandle, sizeof(u32));
-}
-
 static inline char *get_path(const void *phandle, char *buf, int len)
 {
 	if (dt_ops.get_path)

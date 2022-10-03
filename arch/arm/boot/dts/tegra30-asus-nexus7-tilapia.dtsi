@@ -25,7 +25,7 @@
 	gpio@6000d000 {
 		init-mode-3g-hog {
 			gpio-hog;
-			gpios =	<TEGRA_GPIO(D, 2) GPIO_ACTIVE_HIGH>,
+			gpios = <TEGRA_GPIO(D, 2) GPIO_ACTIVE_HIGH>,
 				<TEGRA_GPIO(C, 6) GPIO_ACTIVE_HIGH>,
 				<TEGRA_GPIO(W, 3) GPIO_ACTIVE_HIGH>,
 				<TEGRA_GPIO(P, 1) GPIO_ACTIVE_HIGH>,

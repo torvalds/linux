@@ -526,7 +526,7 @@
 	status = "okay";
 
 	spi-max-frequency = <76800000>;
-	m25p80@0 {
+	flash@0 {
 		compatible = "s25fl256s1", "jedec,spi-nor";
 		spi-max-frequency = <76800000>;
 		reg = <0>;

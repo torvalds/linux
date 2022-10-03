@@ -22,7 +22,6 @@
 
 #ifdef CONFIG_PPC_PMAC
 #include <asm/machdep.h>
-#include <asm/prom.h>
 #include <asm/pmac_feature.h>
 #endif
 

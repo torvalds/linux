@@ -536,7 +536,6 @@ static struct platform_driver brcmstb_gisb_arb_driver = {
 		.name	= "brcm-gisb-arb",
 		.of_match_table = brcmstb_gisb_arb_of_match,
 		.pm	= &brcmstb_gisb_arb_pm_ops,
-		.suppress_bind_attrs = true,
 	},
 };
 

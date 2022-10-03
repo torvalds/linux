@@ -31,20 +31,7 @@
 
 #include <linux/string.h>
 
-#ifdef __HAVE_ARCH_MEMCPY
-#ifndef CONFIG_OPT_LIB_FUNCTION
-void *memcpy(void *v_dst, const void *v_src, __kernel_size_t c)
-{
-	const char *src = v_src;
-	char *dst = v_dst;
-
-	/* Simple, byte oriented memcpy. */
-	while (c--)
-		*dst++ = *src++;
-
-	return v_dst;
-}
-#else /* CONFIG_OPT_LIB_FUNCTION */
+#ifdef CONFIG_OPT_LIB_FUNCTION
 void *memcpy(void *v_dst, const void *v_src, __kernel_size_t c)
 {
 	const char *src = v_src;
@@ -188,6 +175,5 @@ void *memcpy(void *v_dst, const void *v_src, __kernel_size_t c)
 
 	return v_dst;
 }
-#endif /* CONFIG_OPT_LIB_FUNCTION */
 EXPORT_SYMBOL(memcpy);
-#endif /* __HAVE_ARCH_MEMCPY */
+#endif /* CONFIG_OPT_LIB_FUNCTION */

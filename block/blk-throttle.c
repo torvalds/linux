@@ -227,7 +227,7 @@ static unsigned int tg_iops_limit(struct throtl_grp *tg, int rw)
 		break;							\
 	if ((__tg)) {							\
 		blk_add_cgroup_trace_msg(__td->queue,			\
-			tg_to_blkg(__tg)->blkcg, "throtl " fmt, ##args);\
+			&tg_to_blkg(__tg)->blkcg->css, "throtl " fmt, ##args);\
 	} else {							\
 		blk_add_trace_msg(__td->queue, "throtl " fmt, ##args);	\
 	}								\
@@ -2189,21 +2189,23 @@ again:
 	}
 
 out_unlock:
-	spin_unlock_irq(&q->queue_lock);
 	bio_set_flag(bio, BIO_THROTTLED);
 
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW
 	if (throttled || !td->track_bio_latency)
 		bio->bi_issue.value |= BIO_ISSUE_THROTL_SKIP_LATENCY;
 #endif
+	spin_unlock_irq(&q->queue_lock);
+
 	rcu_read_unlock();
 	return throttled;
 }
 
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW
 static void throtl_track_latency(struct throtl_data *td, sector_t size,
-	int op, unsigned long time)
+				 enum req_op op, unsigned long time)
 {
+	const bool rw = op_is_write(op);
 	struct latency_bucket *latency;
 	int index;
 
@@ -2214,10 +2216,10 @@ static void throtl_track_latency(struct throtl_data *td, sector_t size,
 
 	index = request_bucket_index(size);
 
-	latency = get_cpu_ptr(td->latency_buckets[op]);
+	latency = get_cpu_ptr(td->latency_buckets[rw]);
 	latency[index].total_latency += time;
 	latency[index].samples++;
-	put_cpu_ptr(td->latency_buckets[op]);
+	put_cpu_ptr(td->latency_buckets[rw]);
 }
 
 void blk_throtl_stat_add(struct request *rq, u64 time_ns)

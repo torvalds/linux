@@ -101,6 +101,17 @@ config SPI_ARMADA_3700
 	  This enables support for the SPI controller present on the
 	  Marvell Armada 3700 SoCs.
 
+config SPI_ASPEED_SMC
+	tristate "Aspeed flash controllers in SPI mode"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	depends on OF
+	help
+	  This enables support for the Firmware Memory controller (FMC)
+	  in the Aspeed AST2600, AST2500 and AST2400 SoCs when attached
+	  to SPI NOR chips, and support for the SPI flash memory
+	  controller (SPI) for the host firmware. The implementation
+	  only supports SPI NOR.
+
 config SPI_ATMEL
 	tristate "Atmel SPI Controller"
 	depends on ARCH_AT91 || COMPILE_TEST
@@ -172,7 +183,7 @@ config SPI_BCM63XX
 
 config SPI_BCM63XX_HSSPI
 	tristate "Broadcom BCM63XX HS SPI controller driver"
-	depends on BCM63XX || BMIPS_GENERIC || ARCH_BCM_63XX || COMPILE_TEST
+	depends on BCM63XX || BMIPS_GENERIC || ARCH_BCMBCA || COMPILE_TEST
 	help
 	  This enables support for the High Speed SPI controller present on
 	  newer Broadcom BCM63XX SoCs.
@@ -360,6 +371,13 @@ config SPI_FSL_QUADSPI
 	  This controller does not support generic SPI messages. It only
 	  supports the high-level SPI memory interface.
 
+config SPI_GXP
+	tristate "GXP SPI driver"
+	depends on ARCH_HPE || COMPILE_TEST
+	help
+	  This enables support for the driver for GXP bus attached SPI
+	  controllers.
+
 config SPI_HISI_KUNPENG
 	tristate "HiSilicon SPI Controller for Kunpeng SoCs"
 	depends on (ARM64 && ACPI) || COMPILE_TEST
@@ -414,15 +432,14 @@ config SPI_IMG_SPFI
 config SPI_IMX
 	tristate "Freescale i.MX SPI controllers"
 	depends on ARCH_MXC || COMPILE_TEST
-	select SPI_BITBANG
 	help
 	  This enables support for the Freescale i.MX SPI controllers.
 
 config SPI_INGENIC
-	tristate "Ingenic JZ47xx SoCs SPI controller"
+	tristate "Ingenic SoCs SPI controller"
 	depends on MACH_INGENIC || COMPILE_TEST
 	help
-	  This enables support for the Ingenic JZ47xx SoCs SPI controller.
+	  This enables support for the Ingenic SoCs SPI controller.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called spi-ingenic.
@@ -565,6 +582,15 @@ config SPI_MESON_SPIFC
 	  This enables master mode support for the SPIFC (SPI flash
 	  controller) available in Amlogic Meson SoCs.
 
+config SPI_MICROCHIP_CORE
+	tristate "Microchip FPGA SPI controllers"
+	depends on SPI_MASTER
+	help
+	  This enables the SPI driver for Microchip FPGA SPI controllers.
+	  Say Y or M here if you want to use the "hard" controllers on
+	  PolarFire SoC.
+	  If built as a module, it will be called spi-microchip-core.
+
 config SPI_MT65XX
 	tristate "MediaTek SPI controller"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
@@ -589,6 +615,16 @@ config SPI_MTK_NOR
 	  It can perform generic SPI transfers up to 6 bytes via generic
 	  SPI interface as well as several SPI NOR specific instructions
 	  via SPI MEM interface.
+
+config SPI_MTK_SNFI
+	tristate "MediaTek SPI NAND Flash Interface"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on MTD_NAND_ECC_MEDIATEK
+	help
+	  This enables support for SPI-NAND mode on the MediaTek NAND
+	  Flash Interface found on MediaTek ARM SoCs. This controller
+	  is implemented as a SPI-MEM controller with pipelined ECC
+	  capcability.
 
 config SPI_NPCM_FIU
 	tristate "Nuvoton NPCM FLASH Interface Unit"
@@ -631,7 +667,7 @@ config SPI_OCTEON
 
 config SPI_OMAP_UWIRE
 	tristate "OMAP1 MicroWire"
-	depends on ARCH_OMAP1
+	depends on ARCH_OMAP1 || (ARM && COMPILE_TEST)
 	select SPI_BITBANG
 	help
 	  This hooks up to the MicroWire controller on OMAP1 chips.

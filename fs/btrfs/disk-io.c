@@ -51,7 +51,6 @@
 				 BTRFS_SUPER_FLAG_METADUMP |\
 				 BTRFS_SUPER_FLAG_METADUMP_V2)
 
-static void end_workqueue_fn(struct btrfs_work *work);
 static void btrfs_destroy_ordered_extents(struct btrfs_root *root);
 static int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 				      struct btrfs_fs_info *fs_info);
@@ -63,40 +62,6 @@ static int btrfs_destroy_pinned_extent(struct btrfs_fs_info *fs_info,
 				       struct extent_io_tree *pinned_extents);
 static int btrfs_cleanup_transaction(struct btrfs_fs_info *fs_info);
 static void btrfs_error_commit_super(struct btrfs_fs_info *fs_info);
-
-/*
- * btrfs_end_io_wq structs are used to do processing in task context when an IO
- * is complete.  This is used during reads to verify checksums, and it is used
- * by writes to insert metadata for new file extents after IO is complete.
- */
-struct btrfs_end_io_wq {
-	struct bio *bio;
-	bio_end_io_t *end_io;
-	void *private;
-	struct btrfs_fs_info *info;
-	blk_status_t status;
-	enum btrfs_wq_endio_type metadata;
-	struct btrfs_work work;
-};
-
-static struct kmem_cache *btrfs_end_io_wq_cache;
-
-int __init btrfs_end_io_wq_init(void)
-{
-	btrfs_end_io_wq_cache = kmem_cache_create("btrfs_end_io_wq",
-					sizeof(struct btrfs_end_io_wq),
-					0,
-					SLAB_MEM_SPREAD,
-					NULL);
-	if (!btrfs_end_io_wq_cache)
-		return -ENOMEM;
-	return 0;
-}
-
-void __cold btrfs_end_io_wq_exit(void)
-{
-	kmem_cache_destroy(btrfs_end_io_wq_cache);
-}
 
 static void btrfs_free_csum_hash(struct btrfs_fs_info *fs_info)
 {
@@ -120,88 +85,6 @@ struct async_submit_bio {
 	struct btrfs_work work;
 	blk_status_t status;
 };
-
-/*
- * Lockdep class keys for extent_buffer->lock's in this root.  For a given
- * eb, the lockdep key is determined by the btrfs_root it belongs to and
- * the level the eb occupies in the tree.
- *
- * Different roots are used for different purposes and may nest inside each
- * other and they require separate keysets.  As lockdep keys should be
- * static, assign keysets according to the purpose of the root as indicated
- * by btrfs_root->root_key.objectid.  This ensures that all special purpose
- * roots have separate keysets.
- *
- * Lock-nesting across peer nodes is always done with the immediate parent
- * node locked thus preventing deadlock.  As lockdep doesn't know this, use
- * subclass to avoid triggering lockdep warning in such cases.
- *
- * The key is set by the readpage_end_io_hook after the buffer has passed
- * csum validation but before the pages are unlocked.  It is also set by
- * btrfs_init_new_buffer on freshly allocated blocks.
- *
- * We also add a check to make sure the highest level of the tree is the
- * same as our lockdep setup here.  If BTRFS_MAX_LEVEL changes, this code
- * needs update as well.
- */
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-# if BTRFS_MAX_LEVEL != 8
-#  error
-# endif
-
-#define DEFINE_LEVEL(stem, level)					\
-	.names[level] = "btrfs-" stem "-0" #level,
-
-#define DEFINE_NAME(stem)						\
-	DEFINE_LEVEL(stem, 0)						\
-	DEFINE_LEVEL(stem, 1)						\
-	DEFINE_LEVEL(stem, 2)						\
-	DEFINE_LEVEL(stem, 3)						\
-	DEFINE_LEVEL(stem, 4)						\
-	DEFINE_LEVEL(stem, 5)						\
-	DEFINE_LEVEL(stem, 6)						\
-	DEFINE_LEVEL(stem, 7)
-
-static struct btrfs_lockdep_keyset {
-	u64			id;		/* root objectid */
-	/* Longest entry: btrfs-free-space-00 */
-	char			names[BTRFS_MAX_LEVEL][20];
-	struct lock_class_key	keys[BTRFS_MAX_LEVEL];
-} btrfs_lockdep_keysets[] = {
-	{ .id = BTRFS_ROOT_TREE_OBJECTID,	DEFINE_NAME("root")	},
-	{ .id = BTRFS_EXTENT_TREE_OBJECTID,	DEFINE_NAME("extent")	},
-	{ .id = BTRFS_CHUNK_TREE_OBJECTID,	DEFINE_NAME("chunk")	},
-	{ .id = BTRFS_DEV_TREE_OBJECTID,	DEFINE_NAME("dev")	},
-	{ .id = BTRFS_CSUM_TREE_OBJECTID,	DEFINE_NAME("csum")	},
-	{ .id = BTRFS_QUOTA_TREE_OBJECTID,	DEFINE_NAME("quota")	},
-	{ .id = BTRFS_TREE_LOG_OBJECTID,	DEFINE_NAME("log")	},
-	{ .id = BTRFS_TREE_RELOC_OBJECTID,	DEFINE_NAME("treloc")	},
-	{ .id = BTRFS_DATA_RELOC_TREE_OBJECTID,	DEFINE_NAME("dreloc")	},
-	{ .id = BTRFS_UUID_TREE_OBJECTID,	DEFINE_NAME("uuid")	},
-	{ .id = BTRFS_FREE_SPACE_TREE_OBJECTID,	DEFINE_NAME("free-space") },
-	{ .id = 0,				DEFINE_NAME("tree")	},
-};
-
-#undef DEFINE_LEVEL
-#undef DEFINE_NAME
-
-void btrfs_set_buffer_lockdep_class(u64 objectid, struct extent_buffer *eb,
-				    int level)
-{
-	struct btrfs_lockdep_keyset *ks;
-
-	BUG_ON(level >= ARRAY_SIZE(ks->keys));
-
-	/* find the matching keyset, id 0 is the default entry */
-	for (ks = btrfs_lockdep_keysets; ks->id; ks++)
-		if (ks->id == objectid)
-			break;
-
-	lockdep_set_class_and_name(&eb->lock,
-				   &ks->keys[level], ks->names[level]);
-}
-
-#endif
 
 /*
  * Compute the csum of a btree block and store the result to provided buffer.
@@ -256,8 +139,8 @@ static int verify_parent_transid(struct extent_io_tree *io_tree,
 		goto out;
 	}
 	btrfs_err_rl(eb->fs_info,
-		"parent transid verify failed on %llu wanted %llu found %llu",
-			eb->start,
+"parent transid verify failed on logical %llu mirror %u wanted %llu found %llu",
+			eb->start, eb->read_mirror,
 			parent_transid, btrfs_header_generation(eb));
 	ret = 1;
 	clear_extent_buffer_uptodate(eb);
@@ -374,9 +257,9 @@ int btrfs_verify_level_key(struct extent_buffer *eb, int level,
  * @level:		expected level, mandatory check
  * @first_key:		expected key of first slot, skip check if NULL
  */
-static int btree_read_extent_buffer_pages(struct extent_buffer *eb,
-					  u64 parent_transid, int level,
-					  struct btrfs_key *first_key)
+int btrfs_read_extent_buffer(struct extent_buffer *eb,
+			     u64 parent_transid, int level,
+			     struct btrfs_key *first_key)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct extent_io_tree *io_tree;
@@ -519,7 +402,7 @@ static int csum_dirty_buffer(struct btrfs_fs_info *fs_info, struct bio_vec *bvec
 	u64 found_start;
 	struct extent_buffer *eb;
 
-	if (fs_info->sectorsize < PAGE_SIZE)
+	if (fs_info->nodesize < PAGE_SIZE)
 		return csum_dirty_subpage_buffers(fs_info, bvec);
 
 	eb = (struct extent_buffer *)page->private;
@@ -587,21 +470,23 @@ static int validate_extent_buffer(struct extent_buffer *eb)
 
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != eb->start) {
-		btrfs_err_rl(fs_info, "bad tree block start, want %llu have %llu",
-			     eb->start, found_start);
+		btrfs_err_rl(fs_info,
+			"bad tree block start, mirror %u want %llu have %llu",
+			     eb->read_mirror, eb->start, found_start);
 		ret = -EIO;
 		goto out;
 	}
 	if (check_tree_block_fsid(eb)) {
-		btrfs_err_rl(fs_info, "bad fsid on block %llu",
-			     eb->start);
+		btrfs_err_rl(fs_info, "bad fsid on logical %llu mirror %u",
+			     eb->start, eb->read_mirror);
 		ret = -EIO;
 		goto out;
 	}
 	found_level = btrfs_header_level(eb);
 	if (found_level >= BTRFS_MAX_LEVEL) {
-		btrfs_err(fs_info, "bad tree block level %d on %llu",
-			  (int)btrfs_header_level(eb), eb->start);
+		btrfs_err(fs_info,
+			"bad tree block level, mirror %u level %d on logical %llu",
+			eb->read_mirror, btrfs_header_level(eb), eb->start);
 		ret = -EIO;
 		goto out;
 	}
@@ -612,8 +497,8 @@ static int validate_extent_buffer(struct extent_buffer *eb)
 
 	if (memcmp(result, header_csum, csum_size) != 0) {
 		btrfs_warn_rl(fs_info,
-	"checksum verify failed on %llu wanted " CSUM_FMT " found " CSUM_FMT " level %d",
-			      eb->start,
+"checksum verify failed on logical %llu mirror %u wanted " CSUM_FMT " found " CSUM_FMT " level %d",
+			      eb->start, eb->read_mirror,
 			      CSUM_FMT_VALUE(csum_size, header_csum),
 			      CSUM_FMT_VALUE(csum_size, result),
 			      btrfs_header_level(eb));
@@ -638,8 +523,8 @@ static int validate_extent_buffer(struct extent_buffer *eb)
 		set_extent_buffer_uptodate(eb);
 	else
 		btrfs_err(fs_info,
-			  "block=%llu read time tree block corruption detected",
-			  eb->start);
+		"read time tree block corruption detected on logical %llu mirror %u",
+			  eb->start, eb->read_mirror);
 out:
 	return ret;
 }
@@ -704,7 +589,7 @@ int btrfs_validate_metadata_buffer(struct btrfs_bio *bbio,
 
 	ASSERT(page->private);
 
-	if (btrfs_sb(page->mapping->host->i_sb)->sectorsize < PAGE_SIZE)
+	if (btrfs_sb(page->mapping->host->i_sb)->nodesize < PAGE_SIZE)
 		return validate_subpage_buffer(page, start, end, mirror);
 
 	eb = (struct extent_buffer *)page->private;
@@ -740,58 +625,6 @@ err:
 	return ret;
 }
 
-static void end_workqueue_bio(struct bio *bio)
-{
-	struct btrfs_end_io_wq *end_io_wq = bio->bi_private;
-	struct btrfs_fs_info *fs_info;
-	struct btrfs_workqueue *wq;
-
-	fs_info = end_io_wq->info;
-	end_io_wq->status = bio->bi_status;
-
-	if (btrfs_op(bio) == BTRFS_MAP_WRITE) {
-		if (end_io_wq->metadata == BTRFS_WQ_ENDIO_METADATA)
-			wq = fs_info->endio_meta_write_workers;
-		else if (end_io_wq->metadata == BTRFS_WQ_ENDIO_FREE_SPACE)
-			wq = fs_info->endio_freespace_worker;
-		else if (end_io_wq->metadata == BTRFS_WQ_ENDIO_RAID56)
-			wq = fs_info->endio_raid56_workers;
-		else
-			wq = fs_info->endio_write_workers;
-	} else {
-		if (end_io_wq->metadata == BTRFS_WQ_ENDIO_RAID56)
-			wq = fs_info->endio_raid56_workers;
-		else if (end_io_wq->metadata)
-			wq = fs_info->endio_meta_workers;
-		else
-			wq = fs_info->endio_workers;
-	}
-
-	btrfs_init_work(&end_io_wq->work, end_workqueue_fn, NULL, NULL);
-	btrfs_queue_work(wq, &end_io_wq->work);
-}
-
-blk_status_t btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
-			enum btrfs_wq_endio_type metadata)
-{
-	struct btrfs_end_io_wq *end_io_wq;
-
-	end_io_wq = kmem_cache_alloc(btrfs_end_io_wq_cache, GFP_NOFS);
-	if (!end_io_wq)
-		return BLK_STS_RESOURCE;
-
-	end_io_wq->private = bio->bi_private;
-	end_io_wq->end_io = bio->bi_end_io;
-	end_io_wq->info = info;
-	end_io_wq->status = 0;
-	end_io_wq->bio = bio;
-	end_io_wq->metadata = metadata;
-
-	bio->bi_private = end_io_wq;
-	bio->bi_end_io = end_workqueue_bio;
-	return 0;
-}
-
 static void run_one_async_start(struct btrfs_work *work)
 {
 	struct async_submit_bio *async;
@@ -816,7 +649,6 @@ static void run_one_async_done(struct btrfs_work *work)
 {
 	struct async_submit_bio *async;
 	struct inode *inode;
-	blk_status_t ret;
 
 	async = container_of(work, struct  async_submit_bio, work);
 	inode = async->inode;
@@ -834,11 +666,7 @@ static void run_one_async_done(struct btrfs_work *work)
 	 * This changes nothing when cgroups aren't in use.
 	 */
 	async->bio->bi_opf |= REQ_CGROUP_PUNT;
-	ret = btrfs_map_bio(btrfs_sb(inode->i_sb), async->bio, async->mirror_num);
-	if (ret) {
-		async->bio->bi_status = ret;
-		bio_endio(async->bio);
-	}
+	btrfs_submit_bio(btrfs_sb(inode->i_sb), async->bio, async->mirror_num);
 }
 
 static void run_one_async_free(struct btrfs_work *work)
@@ -849,17 +677,23 @@ static void run_one_async_free(struct btrfs_work *work)
 	kfree(async);
 }
 
-blk_status_t btrfs_wq_submit_bio(struct inode *inode, struct bio *bio,
-				 int mirror_num, unsigned long bio_flags,
-				 u64 dio_file_offset,
-				 extent_submit_bio_start_t *submit_bio_start)
+/*
+ * Submit bio to an async queue.
+ *
+ * Retrun:
+ * - true if the work has been succesfuly submitted
+ * - false in case of error
+ */
+bool btrfs_wq_submit_bio(struct inode *inode, struct bio *bio, int mirror_num,
+			 u64 dio_file_offset,
+			 extent_submit_bio_start_t *submit_bio_start)
 {
 	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
 	struct async_submit_bio *async;
 
 	async = kmalloc(sizeof(*async), GFP_NOFS);
 	if (!async)
-		return BLK_STS_RESOURCE;
+		return false;
 
 	async->inode = inode;
 	async->bio = bio;
@@ -874,10 +708,10 @@ blk_status_t btrfs_wq_submit_bio(struct inode *inode, struct bio *bio,
 	async->status = 0;
 
 	if (op_is_sync(bio->bi_opf))
-		btrfs_set_work_high_priority(&async->work);
-
-	btrfs_queue_work(fs_info->workers, &async->work);
-	return 0;
+		btrfs_queue_work(fs_info->hipri_workers, &async->work);
+	else
+		btrfs_queue_work(fs_info->workers, &async->work);
+	return true;
 }
 
 static blk_status_t btree_csum_one_bio(struct bio *bio)
@@ -903,7 +737,7 @@ static blk_status_t btree_submit_bio_start(struct inode *inode, struct bio *bio,
 {
 	/*
 	 * when we're called for a write, we're already in the async
-	 * submission context.  Just jump into btrfs_map_bio
+	 * submission context.  Just jump into btrfs_submit_bio.
 	 */
 	return btree_csum_one_bio(bio);
 }
@@ -920,68 +754,58 @@ static bool should_async_write(struct btrfs_fs_info *fs_info,
 	return true;
 }
 
-blk_status_t btrfs_submit_metadata_bio(struct inode *inode, struct bio *bio,
-				       int mirror_num, unsigned long bio_flags)
+void btrfs_submit_metadata_bio(struct inode *inode, struct bio *bio, int mirror_num)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	blk_status_t ret;
 
+	bio->bi_opf |= REQ_META;
+
 	if (btrfs_op(bio) != BTRFS_MAP_WRITE) {
-		/*
-		 * called for a read, do the setup so that checksum validation
-		 * can happen in the async kernel threads
-		 */
-		ret = btrfs_bio_wq_end_io(fs_info, bio,
-					  BTRFS_WQ_ENDIO_METADATA);
-		if (ret)
-			goto out_w_error;
-		ret = btrfs_map_bio(fs_info, bio, mirror_num);
-	} else if (!should_async_write(fs_info, BTRFS_I(inode))) {
-		ret = btree_csum_one_bio(bio);
-		if (ret)
-			goto out_w_error;
-		ret = btrfs_map_bio(fs_info, bio, mirror_num);
-	} else {
-		/*
-		 * kthread helpers are used to submit writes so that
-		 * checksumming can happen in parallel across all CPUs
-		 */
-		ret = btrfs_wq_submit_bio(inode, bio, mirror_num, 0,
-					  0, btree_submit_bio_start);
+		btrfs_submit_bio(fs_info, bio, mirror_num);
+		return;
 	}
 
-	if (ret)
-		goto out_w_error;
-	return 0;
+	/*
+	 * Kthread helpers are used to submit writes so that checksumming can
+	 * happen in parallel across all CPUs.
+	 */
+	if (should_async_write(fs_info, BTRFS_I(inode)) &&
+	    btrfs_wq_submit_bio(inode, bio, mirror_num, 0, btree_submit_bio_start))
+		return;
 
-out_w_error:
-	bio->bi_status = ret;
-	bio_endio(bio);
-	return ret;
+	ret = btree_csum_one_bio(bio);
+	if (ret) {
+		bio->bi_status = ret;
+		bio_endio(bio);
+		return;
+	}
+
+	btrfs_submit_bio(fs_info, bio, mirror_num);
 }
 
 #ifdef CONFIG_MIGRATION
-static int btree_migratepage(struct address_space *mapping,
-			struct page *newpage, struct page *page,
-			enum migrate_mode mode)
+static int btree_migrate_folio(struct address_space *mapping,
+		struct folio *dst, struct folio *src, enum migrate_mode mode)
 {
 	/*
 	 * we can't safely write a btree page from here,
 	 * we haven't done the locking hook
 	 */
-	if (PageDirty(page))
+	if (folio_test_dirty(src))
 		return -EAGAIN;
 	/*
 	 * Buffers may be managed in a filesystem specific way.
 	 * We must have no buffers or drop them.
 	 */
-	if (page_has_private(page) &&
-	    !try_to_release_page(page, GFP_KERNEL))
+	if (folio_get_private(src) &&
+	    !filemap_release_folio(src, GFP_KERNEL))
 		return -EAGAIN;
-	return migrate_page(mapping, newpage, page, mode);
+	return migrate_folio(mapping, dst, src, mode);
 }
+#else
+#define btree_migrate_folio NULL
 #endif
-
 
 static int btree_writepages(struct address_space *mapping,
 			    struct writeback_control *wbc)
@@ -1005,12 +829,12 @@ static int btree_writepages(struct address_space *mapping,
 	return btree_write_cache_pages(mapping, wbc);
 }
 
-static int btree_releasepage(struct page *page, gfp_t gfp_flags)
+static bool btree_release_folio(struct folio *folio, gfp_t gfp_flags)
 {
-	if (PageWriteback(page) || PageDirty(page))
-		return 0;
+	if (folio_test_writeback(folio) || folio_test_dirty(folio))
+		return false;
 
-	return try_release_extent_buffer(page);
+	return try_release_extent_buffer(&folio->page);
 }
 
 static void btree_invalidate_folio(struct folio *folio, size_t offset,
@@ -1019,7 +843,7 @@ static void btree_invalidate_folio(struct folio *folio, size_t offset,
 	struct extent_io_tree *tree;
 	tree = &BTRFS_I(folio->mapping->host)->io_tree;
 	extent_invalidate_folio(tree, folio, offset);
-	btree_releasepage(&folio->page, GFP_NOFS);
+	btree_release_folio(folio, GFP_NOFS);
 	if (folio_get_private(folio)) {
 		btrfs_warn(BTRFS_I(folio->mapping->host)->root->fs_info,
 			   "folio private not zero on folio %llu",
@@ -1080,12 +904,10 @@ static bool btree_dirty_folio(struct address_space *mapping,
 
 static const struct address_space_operations btree_aops = {
 	.writepages	= btree_writepages,
-	.releasepage	= btree_releasepage,
+	.release_folio	= btree_release_folio,
 	.invalidate_folio = btree_invalidate_folio,
-#ifdef CONFIG_MIGRATION
-	.migratepage	= btree_migratepage,
-#endif
-	.dirty_folio = btree_dirty_folio,
+	.migrate_folio	= btree_migrate_folio,
+	.dirty_folio	= btree_dirty_folio,
 };
 
 struct extent_buffer *btrfs_find_create_tree_block(
@@ -1118,11 +940,14 @@ struct extent_buffer *read_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr,
 	if (IS_ERR(buf))
 		return buf;
 
-	ret = btree_read_extent_buffer_pages(buf, parent_transid,
-					     level, first_key);
+	ret = btrfs_read_extent_buffer(buf, parent_transid, level, first_key);
 	if (ret) {
 		free_extent_buffer_stale(buf);
 		return ERR_PTR(ret);
+	}
+	if (btrfs_check_eb_owner(buf, owner_root)) {
+		free_extent_buffer_stale(buf);
+		return ERR_PTR(-EUCLEAN);
 	}
 	return buf;
 
@@ -1563,6 +1388,23 @@ static struct btrfs_root *read_tree_root_path(struct btrfs_root *tree_root,
 		ret = -EIO;
 		goto fail;
 	}
+
+	/*
+	 * For real fs, and not log/reloc trees, root owner must
+	 * match its root node owner
+	 */
+	if (!test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state) &&
+	    root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID &&
+	    root->root_key.objectid != BTRFS_TREE_RELOC_OBJECTID &&
+	    root->root_key.objectid != btrfs_header_owner(root->node)) {
+		btrfs_crit(fs_info,
+"root=%llu block=%llu, tree root owner mismatch, have %llu expect %llu",
+			   root->root_key.objectid, root->node->start,
+			   btrfs_header_owner(root->node),
+			   root->root_key.objectid);
+		ret = -EUCLEAN;
+		goto fail;
+	}
 	root->commit_root = btrfs_root_node(root);
 	return root;
 fail:
@@ -1850,16 +1692,17 @@ again:
 
 	ret = btrfs_insert_fs_root(fs_info, root);
 	if (ret) {
-		btrfs_put_root(root);
-		if (ret == -EEXIST)
+		if (ret == -EEXIST) {
+			btrfs_put_root(root);
 			goto again;
+		}
 		goto fail;
 	}
 	return root;
 fail:
 	/*
 	 * If our caller provided us an anonymous device, then it's his
-	 * responsability to free it in case we fail. So we have to set our
+	 * responsibility to free it in case we fail. So we have to set our
 	 * root's anon_dev to 0 to avoid a double free, once by btrfs_put_root()
 	 * and once again by our caller.
 	 */
@@ -1942,28 +1785,9 @@ struct btrfs_root *btrfs_get_fs_root_commit_root(struct btrfs_fs_info *fs_info,
 	return root;
 }
 
-/*
- * called by the kthread helper functions to finally call the bio end_io
- * functions.  This is where read checksum verification actually happens
- */
-static void end_workqueue_fn(struct btrfs_work *work)
-{
-	struct bio *bio;
-	struct btrfs_end_io_wq *end_io_wq;
-
-	end_io_wq = container_of(work, struct btrfs_end_io_wq, work);
-	bio = end_io_wq->bio;
-
-	bio->bi_status = end_io_wq->status;
-	bio->bi_private = end_io_wq->private;
-	bio->bi_end_io = end_io_wq->end_io;
-	bio_endio(bio);
-	kmem_cache_free(btrfs_end_io_wq_cache, end_io_wq);
-}
-
 static int cleaner_kthread(void *arg)
 {
-	struct btrfs_fs_info *fs_info = (struct btrfs_fs_info *)arg;
+	struct btrfs_fs_info *fs_info = arg;
 	int again;
 
 	while (1) {
@@ -2265,10 +2089,16 @@ static void btrfs_stop_all_workers(struct btrfs_fs_info *fs_info)
 {
 	btrfs_destroy_workqueue(fs_info->fixup_workers);
 	btrfs_destroy_workqueue(fs_info->delalloc_workers);
+	btrfs_destroy_workqueue(fs_info->hipri_workers);
 	btrfs_destroy_workqueue(fs_info->workers);
-	btrfs_destroy_workqueue(fs_info->endio_workers);
-	btrfs_destroy_workqueue(fs_info->endio_raid56_workers);
-	btrfs_destroy_workqueue(fs_info->rmw_workers);
+	if (fs_info->endio_workers)
+		destroy_workqueue(fs_info->endio_workers);
+	if (fs_info->endio_raid56_workers)
+		destroy_workqueue(fs_info->endio_raid56_workers);
+	if (fs_info->rmw_workers)
+		destroy_workqueue(fs_info->rmw_workers);
+	if (fs_info->compressed_write_workers)
+		destroy_workqueue(fs_info->compressed_write_workers);
 	btrfs_destroy_workqueue(fs_info->endio_write_workers);
 	btrfs_destroy_workqueue(fs_info->endio_freespace_worker);
 	btrfs_destroy_workqueue(fs_info->delayed_workers);
@@ -2282,8 +2112,8 @@ static void btrfs_stop_all_workers(struct btrfs_fs_info *fs_info)
 	 * the queues used for metadata I/O, since tasks from those other work
 	 * queues can do metadata I/O operations.
 	 */
-	btrfs_destroy_workqueue(fs_info->endio_meta_workers);
-	btrfs_destroy_workqueue(fs_info->endio_meta_write_workers);
+	if (fs_info->endio_meta_workers)
+		destroy_workqueue(fs_info->endio_meta_workers);
 }
 
 static void free_root_extent_buffers(struct btrfs_root *root)
@@ -2413,7 +2243,9 @@ static void btrfs_init_btree_inode(struct btrfs_fs_info *fs_info)
 	extent_map_tree_init(&BTRFS_I(inode)->extent_tree);
 
 	BTRFS_I(inode)->root = btrfs_grab_root(fs_info->tree_root);
-	memset(&BTRFS_I(inode)->location, 0, sizeof(struct btrfs_key));
+	BTRFS_I(inode)->location.objectid = BTRFS_BTREE_INODE_OBJECTID;
+	BTRFS_I(inode)->location.type = 0;
+	BTRFS_I(inode)->location.offset = 0;
 	set_bit(BTRFS_INODE_DUMMY, &BTRFS_I(inode)->runtime_flags);
 	btrfs_insert_inode_hash(inode);
 }
@@ -2443,7 +2275,9 @@ static int btrfs_init_workqueues(struct btrfs_fs_info *fs_info)
 	unsigned int flags = WQ_MEM_RECLAIM | WQ_FREEZABLE | WQ_UNBOUND;
 
 	fs_info->workers =
-		btrfs_alloc_workqueue(fs_info, "worker",
+		btrfs_alloc_workqueue(fs_info, "worker", flags, max_active, 16);
+	fs_info->hipri_workers =
+		btrfs_alloc_workqueue(fs_info, "worker-high",
 				      flags | WQ_HIGHPRI, max_active, 16);
 
 	fs_info->delalloc_workers =
@@ -2460,26 +2294,18 @@ static int btrfs_init_workqueues(struct btrfs_fs_info *fs_info)
 	fs_info->fixup_workers =
 		btrfs_alloc_workqueue(fs_info, "fixup", flags, 1, 0);
 
-	/*
-	 * endios are largely parallel and should have a very
-	 * low idle thresh
-	 */
 	fs_info->endio_workers =
-		btrfs_alloc_workqueue(fs_info, "endio", flags, max_active, 4);
+		alloc_workqueue("btrfs-endio", flags, max_active);
 	fs_info->endio_meta_workers =
-		btrfs_alloc_workqueue(fs_info, "endio-meta", flags,
-				      max_active, 4);
-	fs_info->endio_meta_write_workers =
-		btrfs_alloc_workqueue(fs_info, "endio-meta-write", flags,
-				      max_active, 2);
+		alloc_workqueue("btrfs-endio-meta", flags, max_active);
 	fs_info->endio_raid56_workers =
-		btrfs_alloc_workqueue(fs_info, "endio-raid56", flags,
-				      max_active, 4);
-	fs_info->rmw_workers =
-		btrfs_alloc_workqueue(fs_info, "rmw", flags, max_active, 2);
+		alloc_workqueue("btrfs-endio-raid56", flags, max_active);
+	fs_info->rmw_workers = alloc_workqueue("btrfs-rmw", flags, max_active);
 	fs_info->endio_write_workers =
 		btrfs_alloc_workqueue(fs_info, "endio-write", flags,
 				      max_active, 2);
+	fs_info->compressed_write_workers =
+		alloc_workqueue("btrfs-compressed-write", flags, max_active);
 	fs_info->endio_freespace_worker =
 		btrfs_alloc_workqueue(fs_info, "freespace-write", flags,
 				      max_active, 0);
@@ -2491,10 +2317,10 @@ static int btrfs_init_workqueues(struct btrfs_fs_info *fs_info)
 	fs_info->discard_ctl.discard_workers =
 		alloc_workqueue("btrfs_discard", WQ_UNBOUND | WQ_FREEZABLE, 1);
 
-	if (!(fs_info->workers && fs_info->delalloc_workers &&
-	      fs_info->flush_workers &&
+	if (!(fs_info->workers && fs_info->hipri_workers &&
+	      fs_info->delalloc_workers && fs_info->flush_workers &&
 	      fs_info->endio_workers && fs_info->endio_meta_workers &&
-	      fs_info->endio_meta_write_workers &&
+	      fs_info->compressed_write_workers &&
 	      fs_info->endio_write_workers && fs_info->endio_raid56_workers &&
 	      fs_info->endio_freespace_worker && fs_info->rmw_workers &&
 	      fs_info->caching_workers && fs_info->fixup_workers &&
@@ -2521,6 +2347,9 @@ static int btrfs_init_csum_hash(struct btrfs_fs_info *fs_info, u16 csum_type)
 
 	fs_info->csum_shash = csum_shash;
 
+	btrfs_info(fs_info, "using %s (%s) checksum algorithm",
+			btrfs_super_csum_name(csum_type),
+			crypto_shash_driver_name(csum_shash));
 	return 0;
 }
 
@@ -2814,12 +2643,14 @@ static int validate_super(struct btrfs_fs_info *fs_info,
 	}
 
 	/*
-	 * For 4K page size, we only support 4K sector size.
-	 * For 64K page size, we support 64K and 4K sector sizes.
+	 * We only support at most two sectorsizes: 4K and PAGE_SIZE.
+	 *
+	 * We can support 16K sectorsize with 64K page size without problem,
+	 * but such sectorsize/pagesize combination doesn't make much sense.
+	 * 4K will be our future standard, PAGE_SIZE is supported from the very
+	 * beginning.
 	 */
-	if ((PAGE_SIZE == SZ_4K && sectorsize != PAGE_SIZE) ||
-	    (PAGE_SIZE == SZ_64K && (sectorsize != SZ_4K &&
-				     sectorsize != SZ_64K))) {
+	if (sectorsize > PAGE_SIZE || (sectorsize != SZ_4K && sectorsize != PAGE_SIZE)) {
 		btrfs_err(fs_info,
 			"sectorsize %llu not yet supported for page size %lu",
 			sectorsize, PAGE_SIZE);
@@ -3156,6 +2987,7 @@ void btrfs_init_fs_info(struct btrfs_fs_info *fs_info)
 	mutex_init(&fs_info->reloc_mutex);
 	mutex_init(&fs_info->delalloc_root_mutex);
 	mutex_init(&fs_info->zoned_meta_io_lock);
+	mutex_init(&fs_info->zoned_data_reloc_io_lock);
 	seqlock_init(&fs_info->profiles_lock);
 
 	INIT_LIST_HEAD(&fs_info->dirty_cowonly_roots);
@@ -3207,9 +3039,8 @@ void btrfs_init_fs_info(struct btrfs_fs_info *fs_info)
 	btrfs_init_balance(fs_info);
 	btrfs_init_async_reclaim_work(fs_info);
 
-	spin_lock_init(&fs_info->block_group_cache_lock);
-	fs_info->block_group_cache_tree = RB_ROOT;
-	fs_info->first_logical_byte = (u64)-1;
+	rwlock_init(&fs_info->block_group_cache_lock);
+	fs_info->block_group_cache_tree = RB_ROOT_CACHED;
 
 	extent_io_tree_init(fs_info, &fs_info->excluded_extents,
 			    IO_TREE_FS_EXCLUDED_EXTENTS, NULL);
@@ -3237,12 +3068,15 @@ void btrfs_init_fs_info(struct btrfs_fs_info *fs_info)
 	init_waitqueue_head(&fs_info->transaction_blocked_wait);
 	init_waitqueue_head(&fs_info->async_submit_wait);
 	init_waitqueue_head(&fs_info->delayed_iputs_wait);
+	init_waitqueue_head(&fs_info->zone_finish_wait);
 
 	/* Usable values until the real ones are cached from the superblock */
 	fs_info->nodesize = 4096;
 	fs_info->sectorsize = 4096;
 	fs_info->sectorsize_bits = ilog2(4096);
 	fs_info->stripesize = 4096;
+
+	fs_info->max_extent_size = BTRFS_MAX_EXTENT_SIZE;
 
 	spin_lock_init(&fs_info->swapfile_pins_lock);
 	fs_info->swapfile_pins = RB_ROOT;
@@ -3293,7 +3127,7 @@ static int init_mount_fs_info(struct btrfs_fs_info *fs_info, struct super_block 
 
 static int btrfs_uuid_rescan_kthread(void *data)
 {
-	struct btrfs_fs_info *fs_info = (struct btrfs_fs_info *)data;
+	struct btrfs_fs_info *fs_info = data;
 	int ret;
 
 	/*
@@ -3575,16 +3409,6 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	 */
 	fs_info->compress_type = BTRFS_COMPRESS_ZLIB;
 
-	/*
-	 * Flag our filesystem as having big metadata blocks if they are bigger
-	 * than the page size.
-	 */
-	if (btrfs_super_nodesize(disk_super) > PAGE_SIZE) {
-		if (!(features & BTRFS_FEATURE_INCOMPAT_BIG_METADATA))
-			btrfs_info(fs_info,
-				"flagging fs with big metadata feature");
-		features |= BTRFS_FEATURE_INCOMPAT_BIG_METADATA;
-	}
 
 	/* Set up fs_info before parsing mount options */
 	nodesize = btrfs_super_nodesize(disk_super);
@@ -3609,7 +3433,7 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 		~BTRFS_FEATURE_INCOMPAT_SUPP;
 	if (features) {
 		btrfs_err(fs_info,
-		    "cannot mount because of unsupported optional features (%llx)",
+		    "cannot mount because of unsupported optional features (0x%llx)",
 		    features);
 		err = -EINVAL;
 		goto fail_alloc;
@@ -3622,8 +3446,12 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	else if (fs_info->compress_type == BTRFS_COMPRESS_ZSTD)
 		features |= BTRFS_FEATURE_INCOMPAT_COMPRESS_ZSTD;
 
-	if (features & BTRFS_FEATURE_INCOMPAT_SKINNY_METADATA)
-		btrfs_info(fs_info, "has skinny extents");
+	/*
+	 * Flag our filesystem as having big metadata blocks if they are bigger
+	 * than the page size.
+	 */
+	if (btrfs_super_nodesize(disk_super) > PAGE_SIZE)
+		features |= BTRFS_FEATURE_INCOMPAT_BIG_METADATA;
 
 	/*
 	 * mixed block groups end up with duplicate but slightly offset
@@ -3647,26 +3475,43 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 		~BTRFS_FEATURE_COMPAT_RO_SUPP;
 	if (!sb_rdonly(sb) && features) {
 		btrfs_err(fs_info,
-	"cannot mount read-write because of unsupported optional features (%llx)",
+	"cannot mount read-write because of unsupported optional features (0x%llx)",
 		       features);
 		err = -EINVAL;
 		goto fail_alloc;
 	}
+	/*
+	 * We have unsupported RO compat features, although RO mounted, we
+	 * should not cause any metadata write, including log replay.
+	 * Or we could screw up whatever the new feature requires.
+	 */
+	if (unlikely(features && btrfs_super_log_root(disk_super) &&
+		     !btrfs_test_opt(fs_info, NOLOGREPLAY))) {
+		btrfs_err(fs_info,
+"cannot replay dirty log with unsupported compat_ro features (0x%llx), try rescue=nologreplay",
+			  features);
+		err = -EINVAL;
+		goto fail_alloc;
+	}
+
 
 	if (sectorsize < PAGE_SIZE) {
 		struct btrfs_subpage_info *subpage_info;
 
+		/*
+		 * V1 space cache has some hardcoded PAGE_SIZE usage, and is
+		 * going to be deprecated.
+		 *
+		 * Force to use v2 cache for subpage case.
+		 */
+		btrfs_clear_opt(fs_info->mount_opt, SPACE_CACHE);
+		btrfs_set_and_info(fs_info, FREE_SPACE_TREE,
+			"forcing free space tree for sector size %u with page size %lu",
+			sectorsize, PAGE_SIZE);
+
 		btrfs_warn(fs_info,
 		"read-write for sector size %u with page size %lu is experimental",
 			   sectorsize, PAGE_SIZE);
-		if (btrfs_super_incompat_flags(fs_info->super_copy) &
-			BTRFS_FEATURE_INCOMPAT_RAID56) {
-			btrfs_err(fs_info,
-		"RAID56 is not yet supported for sector size %u with page size %lu",
-				sectorsize, PAGE_SIZE);
-			err = -EINVAL;
-			goto fail_alloc;
-		}
 		subpage_info = kzalloc(sizeof(*subpage_info), GFP_KERNEL);
 		if (!subpage_info)
 			goto fail_alloc;
@@ -4144,7 +3989,8 @@ static int write_dev_supers(struct btrfs_device *device,
 		if (i == 0 && !btrfs_test_opt(device->fs_info, NOBARRIER))
 			bio->bi_opf |= REQ_FUA;
 
-		btrfsic_submit_bio(bio);
+		btrfsic_check_bio(bio);
+		submit_bio(bio);
 
 		if (btrfs_advance_sb_log(device, i))
 			errors++;
@@ -4225,6 +4071,7 @@ static int wait_dev_supers(struct btrfs_device *device, int max_mirrors)
  */
 static void btrfs_end_empty_barrier(struct bio *bio)
 {
+	bio_uninit(bio);
 	complete(bio->bi_private);
 }
 
@@ -4234,7 +4081,7 @@ static void btrfs_end_empty_barrier(struct bio *bio)
  */
 static void write_dev_flush(struct btrfs_device *device)
 {
-	struct bio *bio = device->flush_bio;
+	struct bio *bio = &device->flush_bio;
 
 #ifndef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 	/*
@@ -4247,17 +4094,18 @@ static void write_dev_flush(struct btrfs_device *device)
 	 * of simplicity, since this is a debug tool and not meant for use in
 	 * non-debug builds.
 	 */
-	struct request_queue *q = bdev_get_queue(device->bdev);
-	if (!test_bit(QUEUE_FLAG_WC, &q->queue_flags))
+	if (!bdev_write_cache(device->bdev))
 		return;
 #endif
 
-	bio_reset(bio, device->bdev, REQ_OP_WRITE | REQ_SYNC | REQ_PREFLUSH);
+	bio_init(bio, device->bdev, NULL, 0,
+		 REQ_OP_WRITE | REQ_SYNC | REQ_PREFLUSH);
 	bio->bi_end_io = btrfs_end_empty_barrier;
 	init_completion(&device->flush_wait);
 	bio->bi_private = &device->flush_wait;
 
-	btrfsic_submit_bio(bio);
+	btrfsic_check_bio(bio);
+	submit_bio(bio);
 	set_bit(BTRFS_DEV_STATE_FLUSH_SENT, &device->dev_state);
 }
 
@@ -4266,7 +4114,7 @@ static void write_dev_flush(struct btrfs_device *device)
  */
 static blk_status_t wait_dev_flush(struct btrfs_device *device)
 {
-	struct bio *bio = device->flush_bio;
+	struct bio *bio = &device->flush_bio;
 
 	if (!test_bit(BTRFS_DEV_STATE_FLUSH_SENT, &device->dev_state))
 		return BLK_STS_OK;
@@ -4626,6 +4474,17 @@ void __cold close_ctree(struct btrfs_fs_info *fs_info)
 	int ret;
 
 	set_bit(BTRFS_FS_CLOSING_START, &fs_info->flags);
+
+	/*
+	 * We may have the reclaim task running and relocating a data block group,
+	 * in which case it may create delayed iputs. So stop it before we park
+	 * the cleaner kthread otherwise we can get new delayed iputs after
+	 * parking the cleaner, and that can make the async reclaim task to hang
+	 * if it's waiting for delayed iputs to complete, since the cleaner is
+	 * parked and can not run delayed iputs - this will make us hang when
+	 * trying to stop the async reclaim task.
+	 */
+	cancel_work_sync(&fs_info->reclaim_bgs_work);
 	/*
 	 * We don't want the cleaner to start new transactions, add more delayed
 	 * iputs, etc. while we're closing. We can't use kthread_stop() yet
@@ -4665,8 +4524,6 @@ void __cold close_ctree(struct btrfs_fs_info *fs_info)
 	cancel_work_sync(&fs_info->async_reclaim_work);
 	cancel_work_sync(&fs_info->async_data_reclaim_work);
 	cancel_work_sync(&fs_info->preempt_reclaim_work);
-
-	cancel_work_sync(&fs_info->reclaim_bgs_work);
 
 	/* Cancel or finish ongoing discard work */
 	btrfs_discard_cleanup(fs_info);
@@ -4847,13 +4704,6 @@ void btrfs_btree_balance_dirty(struct btrfs_fs_info *fs_info)
 void btrfs_btree_balance_dirty_nodelay(struct btrfs_fs_info *fs_info)
 {
 	__btrfs_btree_balance_dirty(fs_info, 0);
-}
-
-int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid, int level,
-		      struct btrfs_key *first_key)
-{
-	return btree_read_extent_buffer_pages(buf, parent_transid,
-					      level, first_key);
 }
 
 static void btrfs_error_commit_super(struct btrfs_fs_info *fs_info)

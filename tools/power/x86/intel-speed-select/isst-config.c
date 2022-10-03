@@ -1892,6 +1892,12 @@ static void set_fact_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 	int ret;
 	int status = *(int *)arg4;
 
+	if (status && no_turbo()) {
+		isst_display_error_info_message(1, "Turbo mode is disabled", 0, 0);
+		ret = -1;
+		goto disp_results;
+	}
+
 	ret = isst_get_ctdp_levels(cpu, &pkg_dev);
 	if (ret) {
 		isst_display_error_info_message(1, "Failed to get number of levels", 0, 0);

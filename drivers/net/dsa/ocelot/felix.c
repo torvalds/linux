@@ -42,145 +42,29 @@ static struct net_device *felix_classify_db(struct dsa_db db)
 	}
 }
 
-/* We are called before felix_npi_port_init(), so ocelot->npi is -1. */
-static int felix_migrate_fdbs_to_npi_port(struct dsa_switch *ds, int port,
-					  const unsigned char *addr, u16 vid,
-					  struct dsa_db db)
-{
-	struct net_device *bridge_dev = felix_classify_db(db);
-	struct ocelot *ocelot = ds->priv;
-	int cpu = ocelot->num_phys_ports;
-	int err;
-
-	err = ocelot_fdb_del(ocelot, port, addr, vid, bridge_dev);
-	if (err)
-		return err;
-
-	return ocelot_fdb_add(ocelot, cpu, addr, vid, bridge_dev);
-}
-
-static int felix_migrate_mdbs_to_npi_port(struct dsa_switch *ds, int port,
-					  const unsigned char *addr, u16 vid,
-					  struct dsa_db db)
-{
-	struct net_device *bridge_dev = felix_classify_db(db);
-	struct switchdev_obj_port_mdb mdb;
-	struct ocelot *ocelot = ds->priv;
-	int cpu = ocelot->num_phys_ports;
-	int err;
-
-	memset(&mdb, 0, sizeof(mdb));
-	ether_addr_copy(mdb.addr, addr);
-	mdb.vid = vid;
-
-	err = ocelot_port_mdb_del(ocelot, port, &mdb, bridge_dev);
-	if (err)
-		return err;
-
-	return ocelot_port_mdb_add(ocelot, cpu, &mdb, bridge_dev);
-}
-
-static void felix_migrate_pgid_bit(struct dsa_switch *ds, int from, int to,
-				   int pgid)
-{
-	struct ocelot *ocelot = ds->priv;
-	bool on;
-	u32 val;
-
-	val = ocelot_read_rix(ocelot, ANA_PGID_PGID, pgid);
-	on = !!(val & BIT(from));
-	val &= ~BIT(from);
-	if (on)
-		val |= BIT(to);
-	else
-		val &= ~BIT(to);
-
-	ocelot_write_rix(ocelot, val, ANA_PGID_PGID, pgid);
-}
-
-static void felix_migrate_flood_to_npi_port(struct dsa_switch *ds, int port)
-{
-	struct ocelot *ocelot = ds->priv;
-
-	felix_migrate_pgid_bit(ds, port, ocelot->num_phys_ports, PGID_UC);
-	felix_migrate_pgid_bit(ds, port, ocelot->num_phys_ports, PGID_MC);
-	felix_migrate_pgid_bit(ds, port, ocelot->num_phys_ports, PGID_BC);
-}
-
-static void
-felix_migrate_flood_to_tag_8021q_port(struct dsa_switch *ds, int port)
-{
-	struct ocelot *ocelot = ds->priv;
-
-	felix_migrate_pgid_bit(ds, ocelot->num_phys_ports, port, PGID_UC);
-	felix_migrate_pgid_bit(ds, ocelot->num_phys_ports, port, PGID_MC);
-	felix_migrate_pgid_bit(ds, ocelot->num_phys_ports, port, PGID_BC);
-}
-
-/* ocelot->npi was already set to -1 by felix_npi_port_deinit, so
- * ocelot_fdb_add() will not redirect FDB entries towards the
- * CPU port module here, which is what we want.
- */
-static int
-felix_migrate_fdbs_to_tag_8021q_port(struct dsa_switch *ds, int port,
-				     const unsigned char *addr, u16 vid,
-				     struct dsa_db db)
-{
-	struct net_device *bridge_dev = felix_classify_db(db);
-	struct ocelot *ocelot = ds->priv;
-	int cpu = ocelot->num_phys_ports;
-	int err;
-
-	err = ocelot_fdb_del(ocelot, cpu, addr, vid, bridge_dev);
-	if (err)
-		return err;
-
-	return ocelot_fdb_add(ocelot, port, addr, vid, bridge_dev);
-}
-
-static int
-felix_migrate_mdbs_to_tag_8021q_port(struct dsa_switch *ds, int port,
-				     const unsigned char *addr, u16 vid,
-				     struct dsa_db db)
-{
-	struct net_device *bridge_dev = felix_classify_db(db);
-	struct switchdev_obj_port_mdb mdb;
-	struct ocelot *ocelot = ds->priv;
-	int cpu = ocelot->num_phys_ports;
-	int err;
-
-	memset(&mdb, 0, sizeof(mdb));
-	ether_addr_copy(mdb.addr, addr);
-	mdb.vid = vid;
-
-	err = ocelot_port_mdb_del(ocelot, cpu, &mdb, bridge_dev);
-	if (err)
-		return err;
-
-	return ocelot_port_mdb_add(ocelot, port, &mdb, bridge_dev);
-}
-
 /* Set up VCAP ES0 rules for pushing a tag_8021q VLAN towards the CPU such that
  * the tagger can perform RX source port identification.
  */
-static int felix_tag_8021q_vlan_add_rx(struct felix *felix, int port, u16 vid)
+static int felix_tag_8021q_vlan_add_rx(struct dsa_switch *ds, int port,
+				       int upstream, u16 vid)
 {
 	struct ocelot_vcap_filter *outer_tagging_rule;
-	struct ocelot *ocelot = &felix->ocelot;
-	struct dsa_switch *ds = felix->ds;
-	int key_length, upstream, err;
+	struct ocelot *ocelot = ds->priv;
+	unsigned long cookie;
+	int key_length, err;
 
 	key_length = ocelot->vcap[VCAP_ES0].keys[VCAP_ES0_IGR_PORT].length;
-	upstream = dsa_upstream_port(ds, port);
 
 	outer_tagging_rule = kzalloc(sizeof(struct ocelot_vcap_filter),
 				     GFP_KERNEL);
 	if (!outer_tagging_rule)
 		return -ENOMEM;
 
+	cookie = OCELOT_VCAP_ES0_TAG_8021Q_RXVLAN(ocelot, port, upstream);
+
 	outer_tagging_rule->key_type = OCELOT_VCAP_KEY_ANY;
 	outer_tagging_rule->prio = 1;
-	outer_tagging_rule->id.cookie = OCELOT_VCAP_ES0_TAG_8021Q_RXVLAN(ocelot, port);
+	outer_tagging_rule->id.cookie = cookie;
 	outer_tagging_rule->id.tc_offload = false;
 	outer_tagging_rule->block_id = VCAP_ES0;
 	outer_tagging_rule->type = OCELOT_VCAP_FILTER_OFFLOAD;
@@ -201,16 +85,19 @@ static int felix_tag_8021q_vlan_add_rx(struct felix *felix, int port, u16 vid)
 	return err;
 }
 
-static int felix_tag_8021q_vlan_del_rx(struct felix *felix, int port, u16 vid)
+static int felix_tag_8021q_vlan_del_rx(struct dsa_switch *ds, int port,
+				       int upstream, u16 vid)
 {
 	struct ocelot_vcap_filter *outer_tagging_rule;
 	struct ocelot_vcap_block *block_vcap_es0;
-	struct ocelot *ocelot = &felix->ocelot;
+	struct ocelot *ocelot = ds->priv;
+	unsigned long cookie;
 
 	block_vcap_es0 = &ocelot->block[VCAP_ES0];
+	cookie = OCELOT_VCAP_ES0_TAG_8021Q_RXVLAN(ocelot, port, upstream);
 
 	outer_tagging_rule = ocelot_vcap_block_find_filter_by_id(block_vcap_es0,
-								 port, false);
+								 cookie, false);
 	if (!outer_tagging_rule)
 		return -ENOENT;
 
@@ -220,12 +107,14 @@ static int felix_tag_8021q_vlan_del_rx(struct felix *felix, int port, u16 vid)
 /* Set up VCAP IS1 rules for stripping the tag_8021q VLAN on TX and VCAP IS2
  * rules for steering those tagged packets towards the correct destination port
  */
-static int felix_tag_8021q_vlan_add_tx(struct felix *felix, int port, u16 vid)
+static int felix_tag_8021q_vlan_add_tx(struct dsa_switch *ds, int port,
+				       u16 vid)
 {
 	struct ocelot_vcap_filter *untagging_rule, *redirect_rule;
-	struct ocelot *ocelot = &felix->ocelot;
-	struct dsa_switch *ds = felix->ds;
-	int upstream, err;
+	unsigned long cpu_ports = dsa_cpu_ports(ds);
+	struct ocelot *ocelot = ds->priv;
+	unsigned long cookie;
+	int err;
 
 	untagging_rule = kzalloc(sizeof(struct ocelot_vcap_filter), GFP_KERNEL);
 	if (!untagging_rule)
@@ -237,14 +126,14 @@ static int felix_tag_8021q_vlan_add_tx(struct felix *felix, int port, u16 vid)
 		return -ENOMEM;
 	}
 
-	upstream = dsa_upstream_port(ds, port);
+	cookie = OCELOT_VCAP_IS1_TAG_8021Q_TXVLAN(ocelot, port);
 
 	untagging_rule->key_type = OCELOT_VCAP_KEY_ANY;
-	untagging_rule->ingress_port_mask = BIT(upstream);
+	untagging_rule->ingress_port_mask = cpu_ports;
 	untagging_rule->vlan.vid.value = vid;
 	untagging_rule->vlan.vid.mask = VLAN_VID_MASK;
 	untagging_rule->prio = 1;
-	untagging_rule->id.cookie = OCELOT_VCAP_IS1_TAG_8021Q_TXVLAN(ocelot, port);
+	untagging_rule->id.cookie = cookie;
 	untagging_rule->id.tc_offload = false;
 	untagging_rule->block_id = VCAP_IS1;
 	untagging_rule->type = OCELOT_VCAP_FILTER_OFFLOAD;
@@ -261,11 +150,13 @@ static int felix_tag_8021q_vlan_add_tx(struct felix *felix, int port, u16 vid)
 		return err;
 	}
 
+	cookie = OCELOT_VCAP_IS2_TAG_8021Q_TXVLAN(ocelot, port);
+
 	redirect_rule->key_type = OCELOT_VCAP_KEY_ANY;
-	redirect_rule->ingress_port_mask = BIT(upstream);
+	redirect_rule->ingress_port_mask = cpu_ports;
 	redirect_rule->pag = port;
 	redirect_rule->prio = 1;
-	redirect_rule->id.cookie = OCELOT_VCAP_IS2_TAG_8021Q_TXVLAN(ocelot, port);
+	redirect_rule->id.cookie = cookie;
 	redirect_rule->id.tc_offload = false;
 	redirect_rule->block_id = VCAP_IS2;
 	redirect_rule->type = OCELOT_VCAP_FILTER_OFFLOAD;
@@ -283,19 +174,21 @@ static int felix_tag_8021q_vlan_add_tx(struct felix *felix, int port, u16 vid)
 	return 0;
 }
 
-static int felix_tag_8021q_vlan_del_tx(struct felix *felix, int port, u16 vid)
+static int felix_tag_8021q_vlan_del_tx(struct dsa_switch *ds, int port, u16 vid)
 {
 	struct ocelot_vcap_filter *untagging_rule, *redirect_rule;
 	struct ocelot_vcap_block *block_vcap_is1;
 	struct ocelot_vcap_block *block_vcap_is2;
-	struct ocelot *ocelot = &felix->ocelot;
+	struct ocelot *ocelot = ds->priv;
+	unsigned long cookie;
 	int err;
 
 	block_vcap_is1 = &ocelot->block[VCAP_IS1];
 	block_vcap_is2 = &ocelot->block[VCAP_IS2];
 
+	cookie = OCELOT_VCAP_IS1_TAG_8021Q_TXVLAN(ocelot, port);
 	untagging_rule = ocelot_vcap_block_find_filter_by_id(block_vcap_is1,
-							     port, false);
+							     cookie, false);
 	if (!untagging_rule)
 		return -ENOENT;
 
@@ -303,8 +196,9 @@ static int felix_tag_8021q_vlan_del_tx(struct felix *felix, int port, u16 vid)
 	if (err)
 		return err;
 
+	cookie = OCELOT_VCAP_IS2_TAG_8021Q_TXVLAN(ocelot, port);
 	redirect_rule = ocelot_vcap_block_find_filter_by_id(block_vcap_is2,
-							    port, false);
+							    cookie, false);
 	if (!redirect_rule)
 		return -ENOENT;
 
@@ -314,7 +208,7 @@ static int felix_tag_8021q_vlan_del_tx(struct felix *felix, int port, u16 vid)
 static int felix_tag_8021q_vlan_add(struct dsa_switch *ds, int port, u16 vid,
 				    u16 flags)
 {
-	struct ocelot *ocelot = ds->priv;
+	struct dsa_port *cpu_dp;
 	int err;
 
 	/* tag_8021q.c assumes we are implementing this via port VLAN
@@ -324,74 +218,65 @@ static int felix_tag_8021q_vlan_add(struct dsa_switch *ds, int port, u16 vid,
 	if (!dsa_is_user_port(ds, port))
 		return 0;
 
-	err = felix_tag_8021q_vlan_add_rx(ocelot_to_felix(ocelot), port, vid);
-	if (err)
-		return err;
-
-	err = felix_tag_8021q_vlan_add_tx(ocelot_to_felix(ocelot), port, vid);
-	if (err) {
-		felix_tag_8021q_vlan_del_rx(ocelot_to_felix(ocelot), port, vid);
-		return err;
+	dsa_switch_for_each_cpu_port(cpu_dp, ds) {
+		err = felix_tag_8021q_vlan_add_rx(ds, port, cpu_dp->index, vid);
+		if (err)
+			return err;
 	}
 
+	err = felix_tag_8021q_vlan_add_tx(ds, port, vid);
+	if (err)
+		goto add_tx_failed;
+
 	return 0;
+
+add_tx_failed:
+	dsa_switch_for_each_cpu_port(cpu_dp, ds)
+		felix_tag_8021q_vlan_del_rx(ds, port, cpu_dp->index, vid);
+
+	return err;
 }
 
 static int felix_tag_8021q_vlan_del(struct dsa_switch *ds, int port, u16 vid)
 {
-	struct ocelot *ocelot = ds->priv;
+	struct dsa_port *cpu_dp;
 	int err;
 
 	if (!dsa_is_user_port(ds, port))
 		return 0;
 
-	err = felix_tag_8021q_vlan_del_rx(ocelot_to_felix(ocelot), port, vid);
-	if (err)
-		return err;
-
-	err = felix_tag_8021q_vlan_del_tx(ocelot_to_felix(ocelot), port, vid);
-	if (err) {
-		felix_tag_8021q_vlan_add_rx(ocelot_to_felix(ocelot), port, vid);
-		return err;
+	dsa_switch_for_each_cpu_port(cpu_dp, ds) {
+		err = felix_tag_8021q_vlan_del_rx(ds, port, cpu_dp->index, vid);
+		if (err)
+			return err;
 	}
 
+	err = felix_tag_8021q_vlan_del_tx(ds, port, vid);
+	if (err)
+		goto del_tx_failed;
+
 	return 0;
+
+del_tx_failed:
+	dsa_switch_for_each_cpu_port(cpu_dp, ds)
+		felix_tag_8021q_vlan_add_rx(ds, port, cpu_dp->index, vid);
+
+	return err;
 }
 
-/* Alternatively to using the NPI functionality, that same hardware MAC
- * connected internally to the enetc or fman DSA master can be configured to
- * use the software-defined tag_8021q frame format. As far as the hardware is
- * concerned, it thinks it is a "dumb switch" - the queues of the CPU port
- * module are now disconnected from it, but can still be accessed through
- * register-based MMIO.
- */
-static void felix_8021q_cpu_port_init(struct ocelot *ocelot, int port)
+static int felix_trap_get_cpu_port(struct dsa_switch *ds,
+				   const struct ocelot_vcap_filter *trap)
 {
-	mutex_lock(&ocelot->fwd_domain_lock);
+	struct dsa_port *dp;
+	int first_port;
 
-	ocelot_port_set_dsa_8021q_cpu(ocelot, port);
+	if (WARN_ON(!trap->ingress_port_mask))
+		return -1;
 
-	/* Overwrite PGID_CPU with the non-tagging port */
-	ocelot_write_rix(ocelot, BIT(port), ANA_PGID_PGID, PGID_CPU);
+	first_port = __ffs(trap->ingress_port_mask);
+	dp = dsa_to_port(ds, first_port);
 
-	ocelot_apply_bridge_fwd_mask(ocelot, true);
-
-	mutex_unlock(&ocelot->fwd_domain_lock);
-}
-
-static void felix_8021q_cpu_port_deinit(struct ocelot *ocelot, int port)
-{
-	mutex_lock(&ocelot->fwd_domain_lock);
-
-	ocelot_port_unset_dsa_8021q_cpu(ocelot, port);
-
-	/* Restore PGID_CPU */
-	ocelot_write_rix(ocelot, BIT(ocelot->num_phys_ports), ANA_PGID_PGID,
-			 PGID_CPU);
-
-	ocelot_apply_bridge_fwd_mask(ocelot, true);
-
-	mutex_unlock(&ocelot->fwd_domain_lock);
+	return dp->cpu_dp->index;
 }
 
 /* On switches with no extraction IRQ wired, trapped packets need to be
@@ -403,28 +288,26 @@ static int felix_update_trapping_destinations(struct dsa_switch *ds,
 {
 	struct ocelot *ocelot = ds->priv;
 	struct felix *felix = ocelot_to_felix(ocelot);
+	struct ocelot_vcap_block *block_vcap_is2;
 	struct ocelot_vcap_filter *trap;
 	enum ocelot_mask_mode mask_mode;
 	unsigned long port_mask;
-	struct dsa_port *dp;
 	bool cpu_copy_ena;
-	int cpu = -1, err;
+	int err;
 
 	if (!felix->info->quirk_no_xtr_irq)
 		return 0;
 
-	/* Figure out the current CPU port */
-	dsa_switch_for_each_cpu_port(dp, ds) {
-		cpu = dp->index;
-		break;
-	}
-
 	/* We are sure that "cpu" was found, otherwise
 	 * dsa_tree_setup_default_cpu() would have failed earlier.
 	 */
+	block_vcap_is2 = &ocelot->block[VCAP_IS2];
 
 	/* Make sure all traps are set up for that destination */
-	list_for_each_entry(trap, &ocelot->traps, trap_list) {
+	list_for_each_entry(trap, &block_vcap_is2->rules, list) {
+		if (!trap->is_trap)
+			continue;
+
 		/* Figure out the current trapping destination */
 		if (using_tag_8021q) {
 			/* Redirect to the tag_8021q CPU port. If timestamps
@@ -432,7 +315,7 @@ static int felix_update_trapping_destinations(struct dsa_switch *ds,
 			 * port module.
 			 */
 			mask_mode = OCELOT_MASK_MODE_REDIRECT;
-			port_mask = BIT(cpu);
+			port_mask = BIT(felix_trap_get_cpu_port(ds, trap));
 			cpu_copy_ena = !!trap->take_ts;
 		} else {
 			/* Trap packets only to the CPU port module, which is
@@ -458,95 +341,6 @@ static int felix_update_trapping_destinations(struct dsa_switch *ds,
 	}
 
 	return 0;
-}
-
-static int felix_setup_tag_8021q(struct dsa_switch *ds, int cpu)
-{
-	struct ocelot *ocelot = ds->priv;
-	struct dsa_port *dp;
-	int err;
-
-	felix_8021q_cpu_port_init(ocelot, cpu);
-
-	dsa_switch_for_each_available_port(dp, ds) {
-		/* This overwrites ocelot_init():
-		 * Do not forward BPDU frames to the CPU port module,
-		 * for 2 reasons:
-		 * - When these packets are injected from the tag_8021q
-		 *   CPU port, we want them to go out, not loop back
-		 *   into the system.
-		 * - STP traffic ingressing on a user port should go to
-		 *   the tag_8021q CPU port, not to the hardware CPU
-		 *   port module.
-		 */
-		ocelot_write_gix(ocelot,
-				 ANA_PORT_CPU_FWD_BPDU_CFG_BPDU_REDIR_ENA(0),
-				 ANA_PORT_CPU_FWD_BPDU_CFG, dp->index);
-	}
-
-	err = dsa_tag_8021q_register(ds, htons(ETH_P_8021AD));
-	if (err)
-		return err;
-
-	err = dsa_port_walk_fdbs(ds, cpu, felix_migrate_fdbs_to_tag_8021q_port);
-	if (err)
-		goto out_tag_8021q_unregister;
-
-	err = dsa_port_walk_mdbs(ds, cpu, felix_migrate_mdbs_to_tag_8021q_port);
-	if (err)
-		goto out_migrate_fdbs;
-
-	felix_migrate_flood_to_tag_8021q_port(ds, cpu);
-
-	err = felix_update_trapping_destinations(ds, true);
-	if (err)
-		goto out_migrate_flood;
-
-	/* The ownership of the CPU port module's queues might have just been
-	 * transferred to the tag_8021q tagger from the NPI-based tagger.
-	 * So there might still be all sorts of crap in the queues. On the
-	 * other hand, the MMIO-based matching of PTP frames is very brittle,
-	 * so we need to be careful that there are no extra frames to be
-	 * dequeued over MMIO, since we would never know to discard them.
-	 */
-	ocelot_drain_cpu_queue(ocelot, 0);
-
-	return 0;
-
-out_migrate_flood:
-	felix_migrate_flood_to_npi_port(ds, cpu);
-	dsa_port_walk_mdbs(ds, cpu, felix_migrate_mdbs_to_npi_port);
-out_migrate_fdbs:
-	dsa_port_walk_fdbs(ds, cpu, felix_migrate_fdbs_to_npi_port);
-out_tag_8021q_unregister:
-	dsa_tag_8021q_unregister(ds);
-	return err;
-}
-
-static void felix_teardown_tag_8021q(struct dsa_switch *ds, int cpu)
-{
-	struct ocelot *ocelot = ds->priv;
-	struct dsa_port *dp;
-	int err;
-
-	err = felix_update_trapping_destinations(ds, false);
-	if (err)
-		dev_err(ds->dev, "felix_teardown_mmio_filtering returned %d",
-			err);
-
-	dsa_tag_8021q_unregister(ds);
-
-	dsa_switch_for_each_available_port(dp, ds) {
-		/* Restore the logic from ocelot_init:
-		 * do not forward BPDU frames to the front ports.
-		 */
-		ocelot_write_gix(ocelot,
-				 ANA_PORT_CPU_FWD_BPDU_CFG_BPDU_REDIR_ENA(0xffff),
-				 ANA_PORT_CPU_FWD_BPDU_CFG,
-				 dp->index);
-	}
-
-	felix_8021q_cpu_port_deinit(ocelot, cpu);
 }
 
 /* The CPU port module is connected to the Node Processor Interface (NPI). This
@@ -592,102 +386,253 @@ static void felix_npi_port_deinit(struct ocelot *ocelot, int port)
 	ocelot_fields_write(ocelot, port, SYS_PAUSE_CFG_PAUSE_ENA, 1);
 }
 
-static int felix_setup_tag_npi(struct dsa_switch *ds, int cpu)
+static int felix_tag_npi_setup(struct dsa_switch *ds)
+{
+	struct dsa_port *dp, *first_cpu_dp = NULL;
+	struct ocelot *ocelot = ds->priv;
+
+	dsa_switch_for_each_user_port(dp, ds) {
+		if (first_cpu_dp && dp->cpu_dp != first_cpu_dp) {
+			dev_err(ds->dev, "Multiple NPI ports not supported\n");
+			return -EINVAL;
+		}
+
+		first_cpu_dp = dp->cpu_dp;
+	}
+
+	if (!first_cpu_dp)
+		return -EINVAL;
+
+	felix_npi_port_init(ocelot, first_cpu_dp->index);
+
+	return 0;
+}
+
+static void felix_tag_npi_teardown(struct dsa_switch *ds)
 {
 	struct ocelot *ocelot = ds->priv;
+
+	felix_npi_port_deinit(ocelot, ocelot->npi);
+}
+
+static unsigned long felix_tag_npi_get_host_fwd_mask(struct dsa_switch *ds)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	return BIT(ocelot->num_phys_ports);
+}
+
+/* Alternatively to using the NPI functionality, that same hardware MAC
+ * connected internally to the enetc or fman DSA master can be configured to
+ * use the software-defined tag_8021q frame format. As far as the hardware is
+ * concerned, it thinks it is a "dumb switch" - the queues of the CPU port
+ * module are now disconnected from it, but can still be accessed through
+ * register-based MMIO.
+ */
+static const struct felix_tag_proto_ops felix_tag_npi_proto_ops = {
+	.setup			= felix_tag_npi_setup,
+	.teardown		= felix_tag_npi_teardown,
+	.get_host_fwd_mask	= felix_tag_npi_get_host_fwd_mask,
+};
+
+static int felix_tag_8021q_setup(struct dsa_switch *ds)
+{
+	struct ocelot *ocelot = ds->priv;
+	struct dsa_port *dp;
 	int err;
 
-	err = dsa_port_walk_fdbs(ds, cpu, felix_migrate_fdbs_to_npi_port);
+	err = dsa_tag_8021q_register(ds, htons(ETH_P_8021AD));
 	if (err)
 		return err;
 
-	err = dsa_port_walk_mdbs(ds, cpu, felix_migrate_mdbs_to_npi_port);
-	if (err)
-		goto out_migrate_fdbs;
+	dsa_switch_for_each_user_port(dp, ds)
+		ocelot_port_assign_dsa_8021q_cpu(ocelot, dp->index,
+						 dp->cpu_dp->index);
 
-	felix_migrate_flood_to_npi_port(ds, cpu);
+	dsa_switch_for_each_available_port(dp, ds)
+		/* This overwrites ocelot_init():
+		 * Do not forward BPDU frames to the CPU port module,
+		 * for 2 reasons:
+		 * - When these packets are injected from the tag_8021q
+		 *   CPU port, we want them to go out, not loop back
+		 *   into the system.
+		 * - STP traffic ingressing on a user port should go to
+		 *   the tag_8021q CPU port, not to the hardware CPU
+		 *   port module.
+		 */
+		ocelot_write_gix(ocelot,
+				 ANA_PORT_CPU_FWD_BPDU_CFG_BPDU_REDIR_ENA(0),
+				 ANA_PORT_CPU_FWD_BPDU_CFG, dp->index);
 
-	felix_npi_port_init(ocelot, cpu);
+	/* The ownership of the CPU port module's queues might have just been
+	 * transferred to the tag_8021q tagger from the NPI-based tagger.
+	 * So there might still be all sorts of crap in the queues. On the
+	 * other hand, the MMIO-based matching of PTP frames is very brittle,
+	 * so we need to be careful that there are no extra frames to be
+	 * dequeued over MMIO, since we would never know to discard them.
+	 */
+	ocelot_drain_cpu_queue(ocelot, 0);
 
 	return 0;
-
-out_migrate_fdbs:
-	dsa_port_walk_fdbs(ds, cpu, felix_migrate_fdbs_to_tag_8021q_port);
-
-	return err;
 }
 
-static void felix_teardown_tag_npi(struct dsa_switch *ds, int cpu)
+static void felix_tag_8021q_teardown(struct dsa_switch *ds)
 {
 	struct ocelot *ocelot = ds->priv;
+	struct dsa_port *dp;
 
-	felix_npi_port_deinit(ocelot, cpu);
+	dsa_switch_for_each_available_port(dp, ds)
+		/* Restore the logic from ocelot_init:
+		 * do not forward BPDU frames to the front ports.
+		 */
+		ocelot_write_gix(ocelot,
+				 ANA_PORT_CPU_FWD_BPDU_CFG_BPDU_REDIR_ENA(0xffff),
+				 ANA_PORT_CPU_FWD_BPDU_CFG,
+				 dp->index);
+
+	dsa_switch_for_each_user_port(dp, ds)
+		ocelot_port_unassign_dsa_8021q_cpu(ocelot, dp->index);
+
+	dsa_tag_8021q_unregister(ds);
 }
 
-static int felix_set_tag_protocol(struct dsa_switch *ds, int cpu,
-				  enum dsa_tag_protocol proto)
+static unsigned long felix_tag_8021q_get_host_fwd_mask(struct dsa_switch *ds)
 {
+	return dsa_cpu_ports(ds);
+}
+
+static const struct felix_tag_proto_ops felix_tag_8021q_proto_ops = {
+	.setup			= felix_tag_8021q_setup,
+	.teardown		= felix_tag_8021q_teardown,
+	.get_host_fwd_mask	= felix_tag_8021q_get_host_fwd_mask,
+};
+
+static void felix_set_host_flood(struct dsa_switch *ds, unsigned long mask,
+				 bool uc, bool mc, bool bc)
+{
+	struct ocelot *ocelot = ds->priv;
+	unsigned long val;
+
+	val = uc ? mask : 0;
+	ocelot_rmw_rix(ocelot, val, mask, ANA_PGID_PGID, PGID_UC);
+
+	val = mc ? mask : 0;
+	ocelot_rmw_rix(ocelot, val, mask, ANA_PGID_PGID, PGID_MC);
+	ocelot_rmw_rix(ocelot, val, mask, ANA_PGID_PGID, PGID_MCIPV4);
+	ocelot_rmw_rix(ocelot, val, mask, ANA_PGID_PGID, PGID_MCIPV6);
+
+	val = bc ? mask : 0;
+	ocelot_rmw_rix(ocelot, val, mask, ANA_PGID_PGID, PGID_BC);
+}
+
+static void
+felix_migrate_host_flood(struct dsa_switch *ds,
+			 const struct felix_tag_proto_ops *proto_ops,
+			 const struct felix_tag_proto_ops *old_proto_ops)
+{
+	struct ocelot *ocelot = ds->priv;
+	struct felix *felix = ocelot_to_felix(ocelot);
+	unsigned long mask;
+
+	if (old_proto_ops) {
+		mask = old_proto_ops->get_host_fwd_mask(ds);
+		felix_set_host_flood(ds, mask, false, false, false);
+	}
+
+	mask = proto_ops->get_host_fwd_mask(ds);
+	felix_set_host_flood(ds, mask, !!felix->host_flood_uc_mask,
+			     !!felix->host_flood_mc_mask, true);
+}
+
+static int felix_migrate_mdbs(struct dsa_switch *ds,
+			      const struct felix_tag_proto_ops *proto_ops,
+			      const struct felix_tag_proto_ops *old_proto_ops)
+{
+	struct ocelot *ocelot = ds->priv;
+	unsigned long from, to;
+
+	if (!old_proto_ops)
+		return 0;
+
+	from = old_proto_ops->get_host_fwd_mask(ds);
+	to = proto_ops->get_host_fwd_mask(ds);
+
+	return ocelot_migrate_mdbs(ocelot, from, to);
+}
+
+/* Configure the shared hardware resources for a transition between
+ * @old_proto_ops and @proto_ops.
+ * Manual migration is needed because as far as DSA is concerned, no change of
+ * the CPU port is taking place here, just of the tagging protocol.
+ */
+static int
+felix_tag_proto_setup_shared(struct dsa_switch *ds,
+			     const struct felix_tag_proto_ops *proto_ops,
+			     const struct felix_tag_proto_ops *old_proto_ops)
+{
+	bool using_tag_8021q = (proto_ops == &felix_tag_8021q_proto_ops);
 	int err;
 
-	switch (proto) {
-	case DSA_TAG_PROTO_SEVILLE:
-	case DSA_TAG_PROTO_OCELOT:
-		err = felix_setup_tag_npi(ds, cpu);
-		break;
-	case DSA_TAG_PROTO_OCELOT_8021Q:
-		err = felix_setup_tag_8021q(ds, cpu);
-		break;
-	default:
-		err = -EPROTONOSUPPORT;
-	}
+	err = felix_migrate_mdbs(ds, proto_ops, old_proto_ops);
+	if (err)
+		return err;
 
-	return err;
-}
+	felix_update_trapping_destinations(ds, using_tag_8021q);
 
-static void felix_del_tag_protocol(struct dsa_switch *ds, int cpu,
-				   enum dsa_tag_protocol proto)
-{
-	switch (proto) {
-	case DSA_TAG_PROTO_SEVILLE:
-	case DSA_TAG_PROTO_OCELOT:
-		felix_teardown_tag_npi(ds, cpu);
-		break;
-	case DSA_TAG_PROTO_OCELOT_8021Q:
-		felix_teardown_tag_8021q(ds, cpu);
-		break;
-	default:
-		break;
-	}
+	felix_migrate_host_flood(ds, proto_ops, old_proto_ops);
+
+	return 0;
 }
 
 /* This always leaves the switch in a consistent state, because although the
  * tag_8021q setup can fail, the NPI setup can't. So either the change is made,
  * or the restoration is guaranteed to work.
  */
-static int felix_change_tag_protocol(struct dsa_switch *ds, int cpu,
+static int felix_change_tag_protocol(struct dsa_switch *ds,
 				     enum dsa_tag_protocol proto)
 {
+	const struct felix_tag_proto_ops *old_proto_ops, *proto_ops;
 	struct ocelot *ocelot = ds->priv;
 	struct felix *felix = ocelot_to_felix(ocelot);
-	enum dsa_tag_protocol old_proto = felix->tag_proto;
 	int err;
 
-	if (proto != DSA_TAG_PROTO_SEVILLE &&
-	    proto != DSA_TAG_PROTO_OCELOT &&
-	    proto != DSA_TAG_PROTO_OCELOT_8021Q)
+	switch (proto) {
+	case DSA_TAG_PROTO_SEVILLE:
+	case DSA_TAG_PROTO_OCELOT:
+		proto_ops = &felix_tag_npi_proto_ops;
+		break;
+	case DSA_TAG_PROTO_OCELOT_8021Q:
+		proto_ops = &felix_tag_8021q_proto_ops;
+		break;
+	default:
 		return -EPROTONOSUPPORT;
-
-	felix_del_tag_protocol(ds, cpu, old_proto);
-
-	err = felix_set_tag_protocol(ds, cpu, proto);
-	if (err) {
-		felix_set_tag_protocol(ds, cpu, old_proto);
-		return err;
 	}
 
+	old_proto_ops = felix->tag_proto_ops;
+
+	if (proto_ops == old_proto_ops)
+		return 0;
+
+	err = proto_ops->setup(ds);
+	if (err)
+		goto setup_failed;
+
+	err = felix_tag_proto_setup_shared(ds, proto_ops, old_proto_ops);
+	if (err)
+		goto setup_shared_failed;
+
+	if (old_proto_ops)
+		old_proto_ops->teardown(ds);
+
+	felix->tag_proto_ops = proto_ops;
 	felix->tag_proto = proto;
 
 	return 0;
+
+setup_shared_failed:
+	proto_ops->teardown(ds);
+setup_failed:
+	return err;
 }
 
 static enum dsa_tag_protocol felix_get_tag_protocol(struct dsa_switch *ds,
@@ -698,6 +643,28 @@ static enum dsa_tag_protocol felix_get_tag_protocol(struct dsa_switch *ds,
 	struct felix *felix = ocelot_to_felix(ocelot);
 
 	return felix->tag_proto;
+}
+
+static void felix_port_set_host_flood(struct dsa_switch *ds, int port,
+				      bool uc, bool mc)
+{
+	struct ocelot *ocelot = ds->priv;
+	struct felix *felix = ocelot_to_felix(ocelot);
+	unsigned long mask;
+
+	if (uc)
+		felix->host_flood_uc_mask |= BIT(port);
+	else
+		felix->host_flood_uc_mask &= ~BIT(port);
+
+	if (mc)
+		felix->host_flood_mc_mask |= BIT(port);
+	else
+		felix->host_flood_mc_mask &= ~BIT(port);
+
+	mask = felix->tag_proto_ops->get_host_fwd_mask(ds);
+	felix_set_host_flood(ds, mask, !!felix->host_flood_uc_mask,
+			     !!felix->host_flood_mc_mask, true);
 }
 
 static int felix_set_ageing_time(struct dsa_switch *ds,
@@ -734,14 +701,18 @@ static int felix_fdb_add(struct dsa_switch *ds, int port,
 			 struct dsa_db db)
 {
 	struct net_device *bridge_dev = felix_classify_db(db);
+	struct dsa_port *dp = dsa_to_port(ds, port);
 	struct ocelot *ocelot = ds->priv;
 
 	if (IS_ERR(bridge_dev))
 		return PTR_ERR(bridge_dev);
 
-	if (dsa_is_cpu_port(ds, port) && !bridge_dev &&
+	if (dsa_port_is_cpu(dp) && !bridge_dev &&
 	    dsa_fdb_present_in_other_db(ds, port, addr, vid, db))
 		return 0;
+
+	if (dsa_port_is_cpu(dp))
+		port = PGID_CPU;
 
 	return ocelot_fdb_add(ocelot, port, addr, vid, bridge_dev);
 }
@@ -751,14 +722,18 @@ static int felix_fdb_del(struct dsa_switch *ds, int port,
 			 struct dsa_db db)
 {
 	struct net_device *bridge_dev = felix_classify_db(db);
+	struct dsa_port *dp = dsa_to_port(ds, port);
 	struct ocelot *ocelot = ds->priv;
 
 	if (IS_ERR(bridge_dev))
 		return PTR_ERR(bridge_dev);
 
-	if (dsa_is_cpu_port(ds, port) && !bridge_dev &&
+	if (dsa_port_is_cpu(dp) && !bridge_dev &&
 	    dsa_fdb_present_in_other_db(ds, port, addr, vid, db))
 		return 0;
+
+	if (dsa_port_is_cpu(dp))
+		port = PGID_CPU;
 
 	return ocelot_fdb_del(ocelot, port, addr, vid, bridge_dev);
 }
@@ -803,6 +778,9 @@ static int felix_mdb_add(struct dsa_switch *ds, int port,
 	    dsa_mdb_present_in_other_db(ds, port, mdb, db))
 		return 0;
 
+	if (port == ocelot->npi)
+		port = ocelot->num_phys_ports;
+
 	return ocelot_port_mdb_add(ocelot, port, mdb, bridge_dev);
 }
 
@@ -819,6 +797,9 @@ static int felix_mdb_del(struct dsa_switch *ds, int port,
 	if (dsa_is_cpu_port(ds, port) && !bridge_dev &&
 	    dsa_mdb_present_in_other_db(ds, port, mdb, db))
 		return 0;
+
+	if (port == ocelot->npi)
+		port = ocelot->num_phys_ports;
 
 	return ocelot_port_mdb_del(ocelot, port, mdb, bridge_dev);
 }
@@ -845,6 +826,9 @@ static int felix_bridge_flags(struct dsa_switch *ds, int port,
 			      struct netlink_ext_ack *extack)
 {
 	struct ocelot *ocelot = ds->priv;
+
+	if (port == ocelot->npi)
+		port = ocelot->num_phys_ports;
 
 	ocelot_port_bridge_flags(ocelot, port, val);
 
@@ -1079,6 +1063,7 @@ static const u32 felix_phy_match_table[PHY_INTERFACE_MODE_MAX] = {
 	[PHY_INTERFACE_MODE_SGMII] = OCELOT_PORT_MODE_SGMII,
 	[PHY_INTERFACE_MODE_QSGMII] = OCELOT_PORT_MODE_QSGMII,
 	[PHY_INTERFACE_MODE_USXGMII] = OCELOT_PORT_MODE_USXGMII,
+	[PHY_INTERFACE_MODE_1000BASEX] = OCELOT_PORT_MODE_1000BASEX,
 	[PHY_INTERFACE_MODE_2500BASEX] = OCELOT_PORT_MODE_2500BASEX,
 };
 
@@ -1174,7 +1159,6 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 
 	ocelot->map		= felix->info->map;
 	ocelot->stats_layout	= felix->info->stats_layout;
-	ocelot->num_stats	= felix->info->num_stats;
 	ocelot->num_mact_rows	= felix->info->num_mact_rows;
 	ocelot->vcap		= felix->info->vcap;
 	ocelot->vcap_pol.base	= felix->info->vcap_pol_base;
@@ -1257,6 +1241,7 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 		ocelot_port->phy_mode = port_phy_modes[port];
 		ocelot_port->ocelot = ocelot;
 		ocelot_port->target = target;
+		ocelot_port->index = port;
 		ocelot->ports[port] = ocelot_port;
 	}
 
@@ -1359,7 +1344,6 @@ static int felix_setup(struct dsa_switch *ds)
 {
 	struct ocelot *ocelot = ds->priv;
 	struct felix *felix = ocelot_to_felix(ocelot);
-	unsigned long cpu_flood;
 	struct dsa_port *dp;
 	int err;
 
@@ -1393,21 +1377,10 @@ static int felix_setup(struct dsa_switch *ds)
 	if (err)
 		goto out_deinit_ports;
 
-	dsa_switch_for_each_cpu_port(dp, ds) {
-		/* The initial tag protocol is NPI which always returns 0, so
-		 * there's no real point in checking for errors.
-		 */
-		felix_set_tag_protocol(ds, dp->index, felix->tag_proto);
-
-		/* Start off with flooding disabled towards the NPI port
-		 * (actually CPU port module).
-		 */
-		cpu_flood = ANA_PGID_PGID_PGID(BIT(ocelot->num_phys_ports));
-		ocelot_rmw_rix(ocelot, 0, cpu_flood, ANA_PGID_PGID, PGID_UC);
-		ocelot_rmw_rix(ocelot, 0, cpu_flood, ANA_PGID_PGID, PGID_MC);
-
-		break;
-	}
+	/* The initial tag protocol is NPI which won't fail during initial
+	 * setup, there's no real point in checking for errors.
+	 */
+	felix_change_tag_protocol(ds, felix->tag_proto);
 
 	ds->mtu_enforcement_ingress = true;
 	ds->assisted_learning_on_cpu_port = true;
@@ -1436,10 +1409,8 @@ static void felix_teardown(struct dsa_switch *ds)
 	struct felix *felix = ocelot_to_felix(ocelot);
 	struct dsa_port *dp;
 
-	dsa_switch_for_each_cpu_port(dp, ds) {
-		felix_del_tag_protocol(ds, dp->index, felix->tag_proto);
-		break;
-	}
+	if (felix->tag_proto_ops)
+		felix->tag_proto_ops->teardown(ds);
 
 	dsa_switch_for_each_available_port(dp, ds)
 		ocelot_deinit_port(ocelot, dp->index);
@@ -1585,8 +1556,17 @@ static void felix_txtstamp(struct dsa_switch *ds, int port,
 static int felix_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 {
 	struct ocelot *ocelot = ds->priv;
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	struct felix *felix = ocelot_to_felix(ocelot);
 
 	ocelot_port_set_maxlen(ocelot, port, new_mtu);
+
+	mutex_lock(&ocelot->tas_lock);
+
+	if (ocelot_port->taprio && felix->info->tas_guard_bands_update)
+		felix->info->tas_guard_bands_update(ocelot, port);
+
+	mutex_unlock(&ocelot->tas_lock);
 
 	return 0;
 }
@@ -1925,6 +1905,7 @@ const struct dsa_switch_ops felix_switch_ops = {
 	.port_get_dscp_prio		= felix_port_get_dscp_prio,
 	.port_add_dscp_prio		= felix_port_add_dscp_prio,
 	.port_del_dscp_prio		= felix_port_del_dscp_prio,
+	.port_set_host_flood		= felix_port_set_host_flood,
 };
 
 struct net_device *felix_port_to_netdev(struct ocelot *ocelot, int port)

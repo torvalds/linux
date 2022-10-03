@@ -419,7 +419,7 @@ static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 		}
 	}
 
-	return 0;
+	return 1;
 }
 
 static const struct snd_kcontrol_new rt5514_snd_controls[] = {
@@ -1173,7 +1173,6 @@ static const struct snd_soc_component_driver soc_component_dev_rt5514 = {
 	.num_dapm_routes	= ARRAY_SIZE(rt5514_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt5514_i2c_regmap = {
@@ -1252,8 +1251,7 @@ static __maybe_unused int rt5514_i2c_resume(struct device *dev)
 	return 0;
 }
 
-static int rt5514_i2c_probe(struct i2c_client *i2c,
-		    const struct i2c_device_id *id)
+static int rt5514_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt5514_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt5514_priv *rt5514;
@@ -1330,7 +1328,7 @@ static struct i2c_driver rt5514_i2c_driver = {
 		.of_match_table = of_match_ptr(rt5514_of_match),
 		.pm = &rt5514_i2_pm_ops,
 	},
-	.probe = rt5514_i2c_probe,
+	.probe_new = rt5514_i2c_probe,
 	.id_table = rt5514_i2c_id,
 };
 module_i2c_driver(rt5514_i2c_driver);

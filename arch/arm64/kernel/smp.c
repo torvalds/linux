@@ -512,6 +512,7 @@ struct acpi_madt_generic_interrupt *acpi_cpu_get_madt_gicc(int cpu)
 {
 	return &cpu_madt_gicc[cpu];
 }
+EXPORT_SYMBOL_GPL(acpi_cpu_get_madt_gicc);
 
 /*
  * acpi_map_gic_cpu_interface - parse processor MADT entry
@@ -1076,14 +1077,6 @@ bool smp_crash_stop_failed(void)
 	return (atomic_read(&waiting_for_crash_ipi) > 0);
 }
 #endif
-
-/*
- * not supported here
- */
-int setup_profiling_timer(unsigned int multiplier)
-{
-	return -EINVAL;
-}
 
 static bool have_cpu_die(void)
 {

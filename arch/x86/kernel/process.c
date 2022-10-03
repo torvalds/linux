@@ -46,6 +46,7 @@
 #include <asm/proto.h>
 #include <asm/frame.h>
 #include <asm/unwind.h>
+#include <asm/tdx.h>
 
 #include "process.h"
 
@@ -130,9 +131,11 @@ static int set_new_tls(struct task_struct *p, unsigned long tls)
 		return do_set_thread_area_64(p, ARCH_SET_FS, tls);
 }
 
-int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
-		struct task_struct *p, unsigned long tls)
+int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
+	unsigned long clone_flags = args->flags;
+	unsigned long sp = args->stack;
+	unsigned long tls = args->tls;
 	struct inactive_task_frame *frame;
 	struct fork_frame *fork_frame;
 	struct pt_regs *childregs;
@@ -160,6 +163,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
 	savesegment(ds, p->thread.ds);
 #else
 	p->thread.sp0 = (unsigned long) (childregs + 1);
+	savesegment(gs, p->thread.gs);
 	/*
 	 * Clear all status flags including IF and set fixed bit. 64bit
 	 * does not have this initialization as the frame does not contain
@@ -169,13 +173,13 @@ int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
 	frame->flags = X86_EFLAGS_FIXED;
 #endif
 
-	fpu_clone(p, clone_flags);
+	fpu_clone(p, clone_flags, args->fn);
 
 	/* Kernel thread ? */
 	if (unlikely(p->flags & PF_KTHREAD)) {
 		p->thread.pkru = pkru_get_init_value();
 		memset(childregs, 0, sizeof(struct pt_regs));
-		kthread_frame_init(frame, sp, arg);
+		kthread_frame_init(frame, args->fn, args->fn_arg);
 		return 0;
 	}
 
@@ -191,14 +195,10 @@ int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
 	if (sp)
 		childregs->sp = sp;
 
-#ifdef CONFIG_X86_32
-	task_user_gs(p) = get_user_gs(current_pt_regs());
-#endif
-
-	if (unlikely(p->flags & PF_IO_WORKER)) {
+	if (unlikely(args->fn)) {
 		/*
-		 * An IO thread is a user space thread, but it doesn't
-		 * return to ret_after_fork().
+		 * A user space thread, but it doesn't return to
+		 * ret_after_fork().
 		 *
 		 * In order to indicate that to tools like gdb,
 		 * we reset the stack and instruction pointers.
@@ -208,7 +208,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
 		 */
 		childregs->sp = 0;
 		childregs->ip = 0;
-		kthread_frame_init(frame, sp, arg);
+		kthread_frame_init(frame, args->fn, args->fn_arg);
 		return 0;
 	}
 
@@ -334,7 +334,7 @@ static int get_cpuid_mode(void)
 	return !test_thread_flag(TIF_NOCPUID);
 }
 
-static int set_cpuid_mode(struct task_struct *task, unsigned long cpuid_enabled)
+static int set_cpuid_mode(unsigned long cpuid_enabled)
 {
 	if (!boot_cpu_has(X86_FEATURE_CPUID_FAULT))
 		return -ENODEV;
@@ -405,7 +405,7 @@ static void tss_copy_io_bitmap(struct tss_struct *tss, struct io_bitmap *iobm)
 }
 
 /**
- * tss_update_io_bitmap - Update I/O bitmap before exiting to usermode
+ * native_tss_update_io_bitmap - Update I/O bitmap before exiting to user mode
  */
 void native_tss_update_io_bitmap(void)
 {
@@ -600,7 +600,7 @@ static __always_inline void __speculation_ctrl_update(unsigned long tifp,
 	}
 
 	if (updmsr)
-		wrmsrl(MSR_IA32_SPEC_CTRL, msr);
+		write_spec_ctrl_current(msr, false);
 }
 
 static unsigned long speculation_ctrl_update_tif(struct task_struct *tsk)
@@ -686,9 +686,6 @@ void __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p)
 		/* Enforce MSR update to ensure consistent state */
 		__speculation_ctrl_update(~tifn, tifn);
 	}
-
-	if ((tifp ^ tifn) & _TIF_SLD)
-		switch_to_sld(tifn);
 }
 
 /*
@@ -813,24 +810,43 @@ static void amd_e400_idle(void)
 }
 
 /*
- * Intel Core2 and older machines prefer MWAIT over HALT for C1.
- * We can't rely on cpuidle installing MWAIT, because it will not load
- * on systems that support only C1 -- so the boot default must be MWAIT.
+ * Prefer MWAIT over HALT if MWAIT is supported, MWAIT_CPUID leaf
+ * exists and whenever MONITOR/MWAIT extensions are present there is at
+ * least one C1 substate.
  *
- * Some AMD machines are the opposite, they depend on using HALT.
- *
- * So for default C1, which is used during boot until cpuidle loads,
- * use MWAIT-C1 on Intel HW that has it, else use HALT.
+ * Do not prefer MWAIT if MONITOR instruction has a bug or idle=nomwait
+ * is passed to kernel commandline parameter.
  */
 static int prefer_mwait_c1_over_halt(const struct cpuinfo_x86 *c)
 {
-	if (c->x86_vendor != X86_VENDOR_INTEL)
+	u32 eax, ebx, ecx, edx;
+
+	/* User has disallowed the use of MWAIT. Fallback to HALT */
+	if (boot_option_idle_override == IDLE_NOMWAIT)
 		return 0;
 
-	if (!cpu_has(c, X86_FEATURE_MWAIT) || boot_cpu_has_bug(X86_BUG_MONITOR))
+	/* MWAIT is not supported on this platform. Fallback to HALT */
+	if (!cpu_has(c, X86_FEATURE_MWAIT))
 		return 0;
 
-	return 1;
+	/* Monitor has a bug. Fallback to HALT */
+	if (boot_cpu_has_bug(X86_BUG_MONITOR))
+		return 0;
+
+	cpuid(CPUID_MWAIT_LEAF, &eax, &ebx, &ecx, &edx);
+
+	/*
+	 * If MWAIT extensions are not available, it is safe to use MWAIT
+	 * with EAX=0, ECX=0.
+	 */
+	if (!(ecx & CPUID5_ECX_EXTENSIONS_SUPPORTED))
+		return 1;
+
+	/*
+	 * If MWAIT extensions are available, there should be at least one
+	 * MWAIT C1 substate present.
+	 */
+	return (edx & MWAIT_C1_SUBSTATE_MASK);
 }
 
 /*
@@ -873,6 +889,9 @@ void select_idle_routine(const struct cpuinfo_x86 *c)
 	} else if (prefer_mwait_c1_over_halt(c)) {
 		pr_info("using mwait in idle threads\n");
 		x86_idle = mwait_idle;
+	} else if (cpu_feature_enabled(X86_FEATURE_TDX_GUEST)) {
+		pr_info("using TDX aware idle routine\n");
+		x86_idle = tdx_safe_halt;
 	} else
 		x86_idle = default_idle;
 }
@@ -932,9 +951,8 @@ static int __init idle_setup(char *str)
 	} else if (!strcmp(str, "nomwait")) {
 		/*
 		 * If the boot option of "idle=nomwait" is added,
-		 * it means that mwait will be disabled for CPU C2/C3
-		 * states. In such case it won't touch the variable
-		 * of boot_option_idle_override.
+		 * it means that mwait will be disabled for CPU C1/C2/C3
+		 * states.
 		 */
 		boot_option_idle_override = IDLE_NOMWAIT;
 	} else
@@ -985,20 +1003,19 @@ unsigned long __get_wchan(struct task_struct *p)
 	return addr;
 }
 
-long do_arch_prctl_common(struct task_struct *task, int option,
-			  unsigned long arg2)
+long do_arch_prctl_common(int option, unsigned long arg2)
 {
 	switch (option) {
 	case ARCH_GET_CPUID:
 		return get_cpuid_mode();
 	case ARCH_SET_CPUID:
-		return set_cpuid_mode(task, arg2);
+		return set_cpuid_mode(arg2);
 	case ARCH_GET_XCOMP_SUPP:
 	case ARCH_GET_XCOMP_PERM:
 	case ARCH_REQ_XCOMP_PERM:
 	case ARCH_GET_XCOMP_GUEST_PERM:
 	case ARCH_REQ_XCOMP_GUEST_PERM:
-		return fpu_xstate_prctl(task, option, arg2);
+		return fpu_xstate_prctl(option, arg2);
 	}
 
 	return -EINVAL;

@@ -288,47 +288,43 @@ static void orangefs_readahead(struct readahead_control *rac)
 	}
 }
 
-static int orangefs_readpage(struct file *file, struct page *page)
+static int orangefs_read_folio(struct file *file, struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct iov_iter iter;
 	struct bio_vec bv;
 	ssize_t ret;
-	loff_t off; /* offset into this page */
+	loff_t off; /* offset of this folio in the file */
 
 	if (folio_test_dirty(folio))
 		orangefs_launder_folio(folio);
 
-	off = page_offset(page);
-	bv.bv_page = page;
-	bv.bv_len = PAGE_SIZE;
+	off = folio_pos(folio);
+	bv.bv_page = &folio->page;
+	bv.bv_len = folio_size(folio);
 	bv.bv_offset = 0;
-	iov_iter_bvec(&iter, READ, &bv, 1, PAGE_SIZE);
+	iov_iter_bvec(&iter, READ, &bv, 1, folio_size(folio));
 
 	ret = wait_for_direct_io(ORANGEFS_IO_READ, inode, &off, &iter,
-	    PAGE_SIZE, inode->i_size, NULL, NULL, file);
-	/* this will only zero remaining unread portions of the page data */
+			folio_size(folio), inode->i_size, NULL, NULL, file);
+	/* this will only zero remaining unread portions of the folio data */
 	iov_iter_zero(~0U, &iter);
 	/* takes care of potential aliasing */
-	flush_dcache_page(page);
+	flush_dcache_folio(folio);
 	if (ret < 0) {
-		SetPageError(page);
+		folio_set_error(folio);
 	} else {
-		SetPageUptodate(page);
-		if (PageError(page))
-			ClearPageError(page);
+		folio_mark_uptodate(folio);
 		ret = 0;
 	}
-	/* unlock the page after the ->readpage() routine completes */
-	unlock_page(page);
+	/* unlock the folio after the ->read_folio() routine completes */
+	folio_unlock(folio);
         return ret;
 }
 
 static int orangefs_write_begin(struct file *file,
-    struct address_space *mapping,
-    loff_t pos, unsigned len, unsigned flags, struct page **pagep,
-    void **fsdata)
+		struct address_space *mapping, loff_t pos, unsigned len,
+		struct page **pagep, void **fsdata)
 {
 	struct orangefs_write_range *wr;
 	struct folio *folio;
@@ -338,7 +334,7 @@ static int orangefs_write_begin(struct file *file,
 
 	index = pos >> PAGE_SHIFT;
 
-	page = grab_cache_page_write_begin(mapping, index, flags);
+	page = grab_cache_page_write_begin(mapping, index);
 	if (!page)
 		return -ENOMEM;
 
@@ -487,14 +483,14 @@ static void orangefs_invalidate_folio(struct folio *folio,
 	orangefs_launder_folio(folio);
 }
 
-static int orangefs_releasepage(struct page *page, gfp_t foo)
+static bool orangefs_release_folio(struct folio *folio, gfp_t foo)
 {
-	return !PagePrivate(page);
+	return !folio_test_private(folio);
 }
 
-static void orangefs_freepage(struct page *page)
+static void orangefs_free_folio(struct folio *folio)
 {
-	kfree(detach_page_private(page));
+	kfree(folio_detach_private(folio));
 }
 
 static int orangefs_launder_folio(struct folio *folio)
@@ -632,14 +628,14 @@ out:
 static const struct address_space_operations orangefs_address_operations = {
 	.writepage = orangefs_writepage,
 	.readahead = orangefs_readahead,
-	.readpage = orangefs_readpage,
+	.read_folio = orangefs_read_folio,
 	.writepages = orangefs_writepages,
 	.dirty_folio = filemap_dirty_folio,
 	.write_begin = orangefs_write_begin,
 	.write_end = orangefs_write_end,
 	.invalidate_folio = orangefs_invalidate_folio,
-	.releasepage = orangefs_releasepage,
-	.freepage = orangefs_freepage,
+	.release_folio = orangefs_release_folio,
+	.free_folio = orangefs_free_folio,
 	.launder_folio = orangefs_launder_folio,
 	.direct_IO = orangefs_direct_IO,
 };

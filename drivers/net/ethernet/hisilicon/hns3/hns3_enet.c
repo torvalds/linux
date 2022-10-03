@@ -1838,9 +1838,9 @@ static unsigned int hns3_tx_bd_num(struct sk_buff *skb, unsigned int *bd_size,
 static unsigned int hns3_gso_hdr_len(struct sk_buff *skb)
 {
 	if (!skb->encapsulation)
-		return skb_transport_offset(skb) + tcp_hdrlen(skb);
+		return skb_tcp_all_headers(skb);
 
-	return skb_inner_transport_offset(skb) + inner_tcp_hdrlen(skb);
+	return skb_inner_tcp_all_headers(skb);
 }
 
 /* HW need every continuous max_non_tso_bd_num buffer data to be larger
@@ -5159,10 +5159,7 @@ static void hns3_set_cq_period_mode(struct hns3_nic_priv *priv,
 			priv->tqp_vector[i].rx_group.dim.mode = mode;
 	}
 
-	/* only device version above V3(include V3), GL can switch CQ/EQ
-	 * period mode.
-	 */
-	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3) {
+	if (hnae3_ae_dev_cq_supported(ae_dev)) {
 		u32 new_mode;
 		u64 reg;
 
@@ -5201,6 +5198,13 @@ static void hns3_state_init(struct hnae3_handle *handle)
 
 	if (hnae3_ae_dev_rxd_adv_layout_supported(ae_dev))
 		set_bit(HNS3_NIC_STATE_RXD_ADV_LAYOUT_ENABLE, &priv->state);
+}
+
+static void hns3_state_uninit(struct hnae3_handle *handle)
+{
+	struct hns3_nic_priv *priv  = handle->priv;
+
+	clear_bit(HNS3_NIC_STATE_INITED, &priv->state);
 }
 
 static int hns3_client_init(struct hnae3_handle *handle)
@@ -5320,7 +5324,9 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	return ret;
 
 out_reg_netdev_fail:
+	hns3_state_uninit(handle);
 	hns3_dbg_uninit(handle);
+	hns3_client_stop(handle);
 out_client_start:
 	hns3_free_rx_cpu_rmap(netdev);
 	hns3_nic_uninit_irq(priv);

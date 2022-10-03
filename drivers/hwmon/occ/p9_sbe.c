@@ -55,8 +55,7 @@ static bool p9_sbe_occ_save_ffdc(struct p9_sbe_occ *ctx, const void *resp,
 	mutex_lock(&ctx->sbe_error_lock);
 	if (!ctx->sbe_error) {
 		if (resp_len > ctx->ffdc_size) {
-			if (ctx->ffdc)
-				kvfree(ctx->ffdc);
+			kvfree(ctx->ffdc);
 			ctx->ffdc = kvmalloc(resp_len, GFP_KERNEL);
 			if (!ctx->ffdc) {
 				ctx->ffdc_len = 0;
@@ -78,11 +77,10 @@ done:
 	return notify;
 }
 
-static int p9_sbe_occ_send_cmd(struct occ *occ, u8 *cmd, size_t len)
+static int p9_sbe_occ_send_cmd(struct occ *occ, u8 *cmd, size_t len,
+			       void *resp, size_t resp_len)
 {
-	struct occ_response *resp = &occ->resp;
 	struct p9_sbe_occ *ctx = to_p9_sbe_occ(occ);
-	size_t resp_len = sizeof(*resp);
 	int rc;
 
 	rc = fsi_occ_submit(ctx->sbe, cmd, len, resp, &resp_len);
@@ -96,7 +94,7 @@ static int p9_sbe_occ_send_cmd(struct occ *occ, u8 *cmd, size_t len)
 		return rc;
 	}
 
-	switch (resp->return_status) {
+	switch (((struct occ_response *)resp)->return_status) {
 	case OCC_RESP_CMD_IN_PRG:
 		rc = -ETIMEDOUT;
 		break;
@@ -145,7 +143,7 @@ static int p9_sbe_occ_probe(struct platform_device *pdev)
 	occ->poll_cmd_data = 0x20;		/* P9 OCC poll data */
 	occ->send_cmd = p9_sbe_occ_send_cmd;
 
-	rc = occ_setup(occ, "p9_occ");
+	rc = occ_setup(occ);
 	if (rc == -ESHUTDOWN)
 		rc = -ENODEV;	/* Host is shutdown, don't spew errors */
 
@@ -171,8 +169,7 @@ static int p9_sbe_occ_remove(struct platform_device *pdev)
 	ctx->sbe = NULL;
 	occ_shutdown(occ);
 
-	if (ctx->ffdc)
-		kvfree(ctx->ffdc);
+	kvfree(ctx->ffdc);
 
 	return 0;
 }

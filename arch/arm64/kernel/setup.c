@@ -225,6 +225,8 @@ static void __init request_standard_resources(void)
 	kernel_code.end     = __pa_symbol(__init_begin - 1);
 	kernel_data.start   = __pa_symbol(_sdata);
 	kernel_data.end     = __pa_symbol(_end - 1);
+	insert_resource(&iomem_resource, &kernel_code);
+	insert_resource(&iomem_resource, &kernel_data);
 
 	num_standard_resources = memblock.memory.cnt;
 	res_size = num_standard_resources * sizeof(*standard_resources);
@@ -246,20 +248,7 @@ static void __init request_standard_resources(void)
 			res->end = __pfn_to_phys(memblock_region_memory_end_pfn(region)) - 1;
 		}
 
-		request_resource(&iomem_resource, res);
-
-		if (kernel_code.start >= res->start &&
-		    kernel_code.end <= res->end)
-			request_resource(res, &kernel_code);
-		if (kernel_data.start >= res->start &&
-		    kernel_data.end <= res->end)
-			request_resource(res, &kernel_data);
-#ifdef CONFIG_KEXEC_CORE
-		/* Userspace will find "Crash kernel" region in /proc/iomem. */
-		if (crashk_res.end && crashk_res.start >= res->start &&
-		    crashk_res.end <= res->end)
-			request_resource(res, &crashk_res);
-#endif
+		insert_resource(&iomem_resource, res);
 	}
 }
 

@@ -292,7 +292,8 @@ mt76x02_vif_init(struct mt76x02_dev *dev, struct ieee80211_vif *vif,
 	mt76_packet_id_init(&mvif->group_wcid);
 
 	mtxq = (struct mt76_txq *)vif->txq->drv_priv;
-	mtxq->wcid = &mvif->group_wcid;
+	rcu_assign_pointer(dev->mt76.wcid[MT_VIF_WCID(idx)], &mvif->group_wcid);
+	mtxq->wcid = MT_VIF_WCID(idx);
 }
 
 int
@@ -327,11 +328,11 @@ mt76x02_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		idx += 8;
 
 	/* vif is already set or idx is 8 for AP/Mesh/... */
-	if (dev->mt76.vif_mask & BIT(idx) ||
+	if (dev->mt76.vif_mask & BIT_ULL(idx) ||
 	    (vif->type != NL80211_IFTYPE_STATION && idx > 7))
 		return -EBUSY;
 
-	dev->mt76.vif_mask |= BIT(idx);
+	dev->mt76.vif_mask |= BIT_ULL(idx);
 
 	mt76x02_vif_init(dev, vif, idx);
 	return 0;
@@ -344,7 +345,8 @@ void mt76x02_remove_interface(struct ieee80211_hw *hw,
 	struct mt76x02_dev *dev = hw->priv;
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
 
-	dev->mt76.vif_mask &= ~BIT(mvif->idx);
+	dev->mt76.vif_mask &= ~BIT_ULL(mvif->idx);
+	rcu_assign_pointer(dev->mt76.wcid[mvif->group_wcid.idx], NULL);
 	mt76_packet_id_flush(&dev->mt76, &mvif->group_wcid);
 }
 EXPORT_SYMBOL_GPL(mt76x02_remove_interface);
@@ -485,7 +487,8 @@ int mt76x02_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 EXPORT_SYMBOL_GPL(mt76x02_set_key);
 
 int mt76x02_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		    u16 queue, const struct ieee80211_tx_queue_params *params)
+		    unsigned int link_id, u16 queue,
+		    const struct ieee80211_tx_queue_params *params)
 {
 	struct mt76x02_dev *dev = hw->priv;
 	u8 cw_min = 5, cw_max = 10, qid;
@@ -634,7 +637,7 @@ EXPORT_SYMBOL_GPL(mt76x02_sta_ps);
 void mt76x02_bss_info_changed(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      struct ieee80211_bss_conf *info,
-			      u32 changed)
+			      u64 changed)
 {
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
 	struct mt76x02_dev *dev = hw->priv;

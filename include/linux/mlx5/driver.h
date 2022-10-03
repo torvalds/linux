@@ -84,7 +84,7 @@ enum mlx5_sqp_t {
 };
 
 enum {
-	MLX5_MAX_PORTS	= 2,
+	MLX5_MAX_PORTS	= 4,
 };
 
 enum {
@@ -272,6 +272,8 @@ struct mlx5_cmd_stats {
 	u32		last_failed_errno;
 	/* last bad status returned by FW */
 	u8		last_failed_mbox_status;
+	/* last command failed syndrome returned by FW */
+	u32		last_failed_syndrome;
 	struct dentry  *root;
 	/* protect command average calculations */
 	spinlock_t	lock;
@@ -445,6 +447,11 @@ struct mlx5_qp_table {
 	struct radix_tree_root	tree;
 };
 
+enum {
+	MLX5_PF_NOTIFY_DISABLE_VF,
+	MLX5_PF_NOTIFY_ENABLE_VF,
+};
+
 struct mlx5_vf_context {
 	int	enabled;
 	u64	port_guid;
@@ -455,6 +462,7 @@ struct mlx5_vf_context {
 	u8	port_guid_valid:1;
 	u8	node_guid_valid:1;
 	enum port_state_policy	policy;
+	struct blocking_notifier_head notifier;
 };
 
 struct mlx5_core_sriov {
@@ -543,6 +551,10 @@ enum {
 	 * creation/deletion on drivers rescan. Unset during device attach.
 	 */
 	MLX5_PRIV_FLAGS_DETACH = 1 << 2,
+	/* Distinguish between mlx5e_probe/remove called by module init/cleanup
+	 * and called by other flows which can already hold devlink lock
+	 */
+	MLX5_PRIV_FLAGS_MLX5E_LOCKED_FLOW = 1 << 3,
 };
 
 struct mlx5_adev {
@@ -558,6 +570,7 @@ struct mlx5_debugfs_entries {
 	struct dentry *cq_debugfs;
 	struct dentry *cmdif_debugfs;
 	struct dentry *pages_debugfs;
+	struct dentry *lag_debugfs;
 };
 
 struct mlx5_ft_pool;
@@ -597,6 +610,7 @@ struct mlx5_priv {
 	spinlock_t              ctx_lock;
 	struct mlx5_adev       **adev;
 	int			adev_idx;
+	int			sw_vhca_id;
 	struct mlx5_events      *events;
 
 	struct mlx5_flow_steering *steering;
@@ -632,6 +646,7 @@ enum mlx5_device_state {
 
 enum mlx5_interface_state {
 	MLX5_INTERFACE_STATE_UP = BIT(0),
+	MLX5_BREAK_FW_WAIT = BIT(1),
 };
 
 enum mlx5_pci_status {
@@ -666,6 +681,7 @@ struct mlx5e_resources {
 enum mlx5_sw_icm_type {
 	MLX5_SW_ICM_TYPE_STEERING,
 	MLX5_SW_ICM_TYPE_HEADER_MODIFY,
+	MLX5_SW_ICM_TYPE_HEADER_MODIFY_PATTERN,
 };
 
 #define MLX5_MAX_RESERVED_GIDS 8
@@ -717,10 +733,10 @@ enum {
 };
 
 enum {
-	MR_CACHE_LAST_STD_ENTRY = 20,
+	MKEY_CACHE_LAST_STD_ENTRY = 20,
 	MLX5_IMR_MTT_CACHE_ENTRY,
 	MLX5_IMR_KSM_CACHE_ENTRY,
-	MAX_MR_CACHE_ENTRIES
+	MAX_MKEY_CACHE_ENTRIES
 };
 
 struct mlx5_profile {
@@ -729,7 +745,7 @@ struct mlx5_profile {
 	struct {
 		int	size;
 		int	limit;
-	} mr_cache[MAX_MR_CACHE_ENTRIES];
+	} mr_cache[MAX_MKEY_CACHE_ENTRIES];
 };
 
 struct mlx5_hca_cap {
@@ -777,9 +793,6 @@ struct mlx5_core_dev {
 	} roce;
 #ifdef CONFIG_MLX5_FPGA
 	struct mlx5_fpga_device *fpga;
-#endif
-#ifdef CONFIG_MLX5_ACCEL
-	const struct mlx5_accel_ipsec_ops *ipsec_ops;
 #endif
 	struct mlx5_clock        clock;
 	struct mlx5_ib_clock_info  *clock_info;
@@ -1052,9 +1065,14 @@ int mlx5_core_access_reg(struct mlx5_core_dev *dev, void *data_in,
 			 int size_in, void *data_out, int size_out,
 			 u16 reg_num, int arg, int write);
 
-int mlx5_db_alloc(struct mlx5_core_dev *dev, struct mlx5_db *db);
 int mlx5_db_alloc_node(struct mlx5_core_dev *dev, struct mlx5_db *db,
 		       int node);
+
+static inline int mlx5_db_alloc(struct mlx5_core_dev *dev, struct mlx5_db *db)
+{
+	return mlx5_db_alloc_node(dev, db, dev->priv.numa_node);
+}
+
 void mlx5_db_free(struct mlx5_core_dev *dev, struct mlx5_db *db);
 
 const char *mlx5_command_str(int command);
@@ -1144,6 +1162,7 @@ int mlx5_lag_query_cong_counters(struct mlx5_core_dev *dev,
 				 int num_counters,
 				 size_t *offsets);
 struct mlx5_core_dev *mlx5_lag_get_peer_mdev(struct mlx5_core_dev *dev);
+u8 mlx5_lag_get_num_ports(struct mlx5_core_dev *dev);
 struct mlx5_uars_page *mlx5_get_uars_page(struct mlx5_core_dev *mdev);
 void mlx5_put_uars_page(struct mlx5_core_dev *mdev, struct mlx5_uars_page *up);
 int mlx5_dm_sw_icm_alloc(struct mlx5_core_dev *dev, enum mlx5_sw_icm_type type,
@@ -1155,6 +1174,12 @@ int mlx5_dm_sw_icm_dealloc(struct mlx5_core_dev *dev, enum mlx5_sw_icm_type type
 struct mlx5_core_dev *mlx5_vf_get_core_dev(struct pci_dev *pdev);
 void mlx5_vf_put_core_dev(struct mlx5_core_dev *mdev);
 
+int mlx5_sriov_blocking_notifier_register(struct mlx5_core_dev *mdev,
+					  int vf_id,
+					  struct notifier_block *nb);
+void mlx5_sriov_blocking_notifier_unregister(struct mlx5_core_dev *mdev,
+					     int vf_id,
+					     struct notifier_block *nb);
 #ifdef CONFIG_MLX5_CORE_IPOIB
 struct net_device *mlx5_rdma_netdev_alloc(struct mlx5_core_dev *mdev,
 					  struct ib_device *ibdev,

@@ -9,6 +9,9 @@
 
 #define RTW89_SEC_CAM_LEN	20
 
+#define RTW89_BSSID_MATCH_ALL GENMASK(5, 0)
+#define RTW89_BSSID_MATCH_5_BYTES GENMASK(4, 0)
+
 static inline void FWCMD_SET_ADDR_IDX(void *cmd, u32 value)
 {
 	le32p_replace_bits((__le32 *)(cmd) + 1, value, GENMASK(7, 0));
@@ -309,6 +312,11 @@ static inline void FWCMD_SET_ADDR_BSSID_BB_SEL(void *cmd, u32 value)
 	le32p_replace_bits((__le32 *)(cmd) + 13, value, BIT(1));
 }
 
+static inline void FWCMD_SET_ADDR_BSSID_MASK(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 13, value, GENMASK(7, 2));
+}
+
 static inline void FWCMD_SET_ADDR_BSSID_BSS_COLOR(void *cmd, u32 value)
 {
 	le32p_replace_bits((__le32 *)(cmd) + 13, value, GENMASK(13, 8));
@@ -351,12 +359,23 @@ int rtw89_cam_init_addr_cam(struct rtw89_dev *rtwdev,
 			    const struct rtw89_bssid_cam_entry *bssid_cam);
 void rtw89_cam_deinit_addr_cam(struct rtw89_dev *rtwdev,
 			       struct rtw89_addr_cam_entry *addr_cam);
+int rtw89_cam_init_bssid_cam(struct rtw89_dev *rtwdev,
+			     struct rtw89_vif *rtwvif,
+			     struct rtw89_bssid_cam_entry *bssid_cam,
+			     const u8 *bssid);
+void rtw89_cam_deinit_bssid_cam(struct rtw89_dev *rtwdev,
+				struct rtw89_bssid_cam_entry *bssid_cam);
 void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
 				  struct rtw89_vif *vif,
 				  struct rtw89_sta *rtwsta,
 				  const u8 *scan_mac_addr, u8 *cmd);
+void rtw89_cam_fill_dctl_sec_cam_info_v1(struct rtw89_dev *rtwdev,
+					 struct rtw89_vif *rtwvif,
+					 struct rtw89_sta *rtwsta,
+					 u8 *cmd);
 int rtw89_cam_fill_bssid_cam_info(struct rtw89_dev *rtwdev,
-				  struct rtw89_vif *vif, u8 *cmd);
+				  struct rtw89_vif *rtwvif,
+				  struct rtw89_sta *rtwsta, u8 *cmd);
 int rtw89_cam_sec_key_add(struct rtw89_dev *rtwdev,
 			  struct ieee80211_vif *vif,
 			  struct ieee80211_sta *sta,

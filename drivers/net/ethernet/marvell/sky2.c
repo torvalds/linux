@@ -63,7 +63,6 @@
 #define TX_DEF_PENDING		63
 
 #define TX_WATCHDOG		(5 * HZ)
-#define NAPI_WEIGHT		64
 #define PHY_RETRIES		1000
 
 #define SKY2_EEPROM_MAGIC	0x9955aabb
@@ -1864,7 +1863,7 @@ static netdev_tx_t sky2_xmit_frame(struct sk_buff *skb,
 	if (mss != 0) {
 
 		if (!(hw->flags & SKY2_HW_NEW_LE))
-			mss += ETH_HLEN + ip_hdrlen(skb) + tcp_hdrlen(skb);
+			mss += skb_tcp_all_headers(skb);
 
 		if (mss != sky2->tx_last_mss) {
 			le = get_tx_le(sky2, &slot);
@@ -4712,7 +4711,7 @@ static irqreturn_t sky2_test_intr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/* Test interrupt path by forcing a a software IRQ */
+/* Test interrupt path by forcing a software IRQ */
 static int sky2_test_msi(struct sky2_hw *hw)
 {
 	struct pci_dev *pdev = hw->pdev;
@@ -4938,7 +4937,7 @@ static int sky2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 
-	netif_napi_add(dev, &hw->napi, sky2_poll, NAPI_WEIGHT);
+	netif_napi_add(dev, &hw->napi, sky2_poll, NAPI_POLL_WEIGHT);
 
 	err = register_netdev(dev);
 	if (err) {

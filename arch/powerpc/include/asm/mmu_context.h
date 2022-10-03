@@ -34,15 +34,10 @@ extern void mm_iommu_init(struct mm_struct *mm);
 extern void mm_iommu_cleanup(struct mm_struct *mm);
 extern struct mm_iommu_table_group_mem_t *mm_iommu_lookup(struct mm_struct *mm,
 		unsigned long ua, unsigned long size);
-extern struct mm_iommu_table_group_mem_t *mm_iommu_lookup_rm(
-		struct mm_struct *mm, unsigned long ua, unsigned long size);
 extern struct mm_iommu_table_group_mem_t *mm_iommu_get(struct mm_struct *mm,
 		unsigned long ua, unsigned long entries);
 extern long mm_iommu_ua_to_hpa(struct mm_iommu_table_group_mem_t *mem,
 		unsigned long ua, unsigned int pageshift, unsigned long *hpa);
-extern long mm_iommu_ua_to_hpa_rm(struct mm_iommu_table_group_mem_t *mem,
-		unsigned long ua, unsigned int pageshift, unsigned long *hpa);
-extern void mm_iommu_ua_mark_dirty_rm(struct mm_struct *mm, unsigned long ua);
 extern bool mm_iommu_is_devmem(struct mm_struct *mm, unsigned long hpa,
 		unsigned int pageshift, unsigned long *size);
 extern long mm_iommu_mapped_inc(struct mm_iommu_table_group_mem_t *mem);

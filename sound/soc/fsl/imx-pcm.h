@@ -9,7 +9,7 @@
 #ifndef _IMX_PCM_H
 #define _IMX_PCM_H
 
-#include <linux/platform_data/dma-imx.h>
+#include <linux/dma/imx-dma.h>
 
 /*
  * Do not change this as the FIQ handler depends on this size

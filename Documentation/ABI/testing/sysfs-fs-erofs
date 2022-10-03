@@ -9,8 +9,9 @@ Description:	Shows all enabled kernel features.
 What:		/sys/fs/erofs/<disk>/sync_decompress
 Date:		November 2021
 Contact:	"Huang Jianan" <huangjianan@oppo.com>
-Description:	Control strategy of sync decompression
+Description:	Control strategy of sync decompression:
+
 		- 0 (default, auto): enable for readpage, and enable for
-				     readahead on atomic contexts only,
+		  readahead on atomic contexts only.
 		- 1 (force on): enable for readpage and readahead.
 		- 2 (force off): disable for all situations.

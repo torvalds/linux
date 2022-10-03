@@ -24,6 +24,7 @@
 #include <linux/sysrq.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
+#include <linux/math64.h>
 #include <linux/security.h>
 
 #include <linux/irq.h>
@@ -41,6 +42,11 @@ static DEFINE_MUTEX(port_mutex);
 static struct lock_class_key port_lock_key;
 
 #define HIGH_BITS_OFFSET	((sizeof(long)-sizeof(int))*8)
+
+/*
+ * Max time with active RTS before/after data is sent.
+ */
+#define RS485_MAX_RTS_DELAY	100 /* msecs */
 
 static void uart_change_speed(struct tty_struct *tty, struct uart_state *state,
 					struct ktermios *old_termios);
@@ -91,9 +97,16 @@ static inline struct uart_port *uart_port_check(struct uart_state *state)
 	return state->uart_port;
 }
 
-/*
- * This routine is used by the interrupt handler to schedule processing in
- * the software interrupt portion of the driver.
+/**
+ * uart_write_wakeup - schedule write processing
+ * @port: port to be processed
+ *
+ * This routine is used by the interrupt handler to schedule processing in the
+ * software interrupt portion of the driver. A driver is expected to call this
+ * function when the number of characters in the transmit buffer have dropped
+ * below a threshold.
+ *
+ * Locking: @port->lock should be held
  */
 void uart_write_wakeup(struct uart_port *port)
 {
@@ -321,48 +334,49 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 }
 
 /**
- *	uart_update_timeout - update per-port FIFO timeout.
- *	@port:  uart_port structure describing the port
- *	@cflag: termios cflag value
- *	@baud:  speed of the port
+ * uart_update_timeout - update per-port frame timing information
+ * @port: uart_port structure describing the port
+ * @cflag: termios cflag value
+ * @baud: speed of the port
  *
- *	Set the port FIFO timeout value.  The @cflag value should
- *	reflect the actual hardware settings.
+ * Set the @port frame timing information from which the FIFO timeout value is
+ * derived. The @cflag value should reflect the actual hardware settings as
+ * number of bits, parity, stop bits and baud rate is taken into account here.
+ *
+ * Locking: caller is expected to take @port->lock
  */
 void
 uart_update_timeout(struct uart_port *port, unsigned int cflag,
 		    unsigned int baud)
 {
-	unsigned int size;
+	unsigned int size = tty_get_frame_size(cflag);
+	u64 frame_time;
 
-	size = tty_get_frame_size(cflag) * port->fifosize;
-
-	/*
-	 * Figure the timeout to send the above number of bits.
-	 * Add .02 seconds of slop
-	 */
-	port->timeout = (HZ * size) / baud + HZ/50;
+	frame_time = (u64)size * NSEC_PER_SEC;
+	port->frame_time = DIV64_U64_ROUND_UP(frame_time, baud);
 }
 EXPORT_SYMBOL(uart_update_timeout);
 
 /**
- *	uart_get_baud_rate - return baud rate for a particular port
- *	@port: uart_port structure describing the port in question.
- *	@termios: desired termios settings.
- *	@old: old termios (or NULL)
- *	@min: minimum acceptable baud rate
- *	@max: maximum acceptable baud rate
+ * uart_get_baud_rate - return baud rate for a particular port
+ * @port: uart_port structure describing the port in question.
+ * @termios: desired termios settings
+ * @old: old termios (or %NULL)
+ * @min: minimum acceptable baud rate
+ * @max: maximum acceptable baud rate
  *
- *	Decode the termios structure into a numeric baud rate,
- *	taking account of the magic 38400 baud rate (with spd_*
- *	flags), and mapping the %B0 rate to 9600 baud.
+ * Decode the termios structure into a numeric baud rate, taking account of the
+ * magic 38400 baud rate (with spd_* flags), and mapping the %B0 rate to 9600
+ * baud.
  *
- *	If the new baud rate is invalid, try the old termios setting.
- *	If it's still invalid, we try 9600 baud.
+ * If the new baud rate is invalid, try the @old termios setting. If it's still
+ * invalid, we try 9600 baud.
  *
- *	Update the @termios structure to reflect the baud rate
- *	we're actually going to be using. Don't do this for the case
- *	where B0 is requested ("hang up").
+ * The @termios structure is updated to reflect the baud rate we're actually
+ * going to be using. Don't do this for the case where B0 is requested ("hang
+ * up").
+ *
+ * Locking: caller dependent
  */
 unsigned int
 uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
@@ -447,11 +461,17 @@ uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
 EXPORT_SYMBOL(uart_get_baud_rate);
 
 /**
- *	uart_get_divisor - return uart clock divisor
- *	@port: uart_port structure describing the port.
- *	@baud: desired baud rate
+ * uart_get_divisor - return uart clock divisor
+ * @port: uart_port structure describing the port
+ * @baud: desired baud rate
  *
- *	Calculate the uart clock divisor for the port.
+ * Calculate the divisor (baud_base / baud) for the specified @baud,
+ * appropriately rounded.
+ *
+ * If 38400 baud and custom divisor is selected, return the custom divisor
+ * instead.
+ *
+ * Locking: caller dependent
  */
 unsigned int
 uart_get_divisor(struct uart_port *port, unsigned int baud)
@@ -1014,10 +1034,10 @@ static int uart_set_info_user(struct tty_struct *tty, struct serial_struct *ss)
 }
 
 /**
- *	uart_get_lsr_info	-	get line status register info
- *	@tty: tty associated with the UART
- *	@state: UART being queried
- *	@value: returned modem value
+ * uart_get_lsr_info - get line status register info
+ * @tty: tty associated with the UART
+ * @state: UART being queried
+ * @value: returned modem value
  */
 static int uart_get_lsr_info(struct tty_struct *tty,
 			struct uart_state *state, unsigned int __user *value)
@@ -1267,6 +1287,126 @@ static int uart_get_icount(struct tty_struct *tty,
 	return 0;
 }
 
+#define SER_RS485_LEGACY_FLAGS	(SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND | \
+				 SER_RS485_RTS_AFTER_SEND | SER_RS485_RX_DURING_TX | \
+				 SER_RS485_TERMINATE_BUS)
+
+static int uart_check_rs485_flags(struct uart_port *port, struct serial_rs485 *rs485)
+{
+	u32 flags = rs485->flags;
+
+	/* Don't return -EINVAL for unsupported legacy flags */
+	flags &= ~SER_RS485_LEGACY_FLAGS;
+
+	/*
+	 * For any bit outside of the legacy ones that is not supported by
+	 * the driver, return -EINVAL.
+	 */
+	if (flags & ~port->rs485_supported.flags)
+		return -EINVAL;
+
+	/* Asking for address w/o addressing mode? */
+	if (!(rs485->flags & SER_RS485_ADDRB) &&
+	    (rs485->flags & (SER_RS485_ADDR_RECV|SER_RS485_ADDR_DEST)))
+		return -EINVAL;
+
+	/* Address given but not enabled? */
+	if (!(rs485->flags & SER_RS485_ADDR_RECV) && rs485->addr_recv)
+		return -EINVAL;
+	if (!(rs485->flags & SER_RS485_ADDR_DEST) && rs485->addr_dest)
+		return -EINVAL;
+
+	return 0;
+}
+
+static void uart_sanitize_serial_rs485_delays(struct uart_port *port,
+					      struct serial_rs485 *rs485)
+{
+	if (!port->rs485_supported.delay_rts_before_send) {
+		if (rs485->delay_rts_before_send) {
+			dev_warn_ratelimited(port->dev,
+				"%s (%d): RTS delay before sending not supported\n",
+				port->name, port->line);
+		}
+		rs485->delay_rts_before_send = 0;
+	} else if (rs485->delay_rts_before_send > RS485_MAX_RTS_DELAY) {
+		rs485->delay_rts_before_send = RS485_MAX_RTS_DELAY;
+		dev_warn_ratelimited(port->dev,
+			"%s (%d): RTS delay before sending clamped to %u ms\n",
+			port->name, port->line, rs485->delay_rts_before_send);
+	}
+
+	if (!port->rs485_supported.delay_rts_after_send) {
+		if (rs485->delay_rts_after_send) {
+			dev_warn_ratelimited(port->dev,
+				"%s (%d): RTS delay after sending not supported\n",
+				port->name, port->line);
+		}
+		rs485->delay_rts_after_send = 0;
+	} else if (rs485->delay_rts_after_send > RS485_MAX_RTS_DELAY) {
+		rs485->delay_rts_after_send = RS485_MAX_RTS_DELAY;
+		dev_warn_ratelimited(port->dev,
+			"%s (%d): RTS delay after sending clamped to %u ms\n",
+			port->name, port->line, rs485->delay_rts_after_send);
+	}
+}
+
+static void uart_sanitize_serial_rs485(struct uart_port *port, struct serial_rs485 *rs485)
+{
+	u32 supported_flags = port->rs485_supported.flags;
+
+	if (!(rs485->flags & SER_RS485_ENABLED)) {
+		memset(rs485, 0, sizeof(*rs485));
+		return;
+	}
+
+	/* Pick sane settings if the user hasn't */
+	if ((supported_flags & (SER_RS485_RTS_ON_SEND|SER_RS485_RTS_AFTER_SEND)) &&
+	    !(rs485->flags & SER_RS485_RTS_ON_SEND) ==
+	    !(rs485->flags & SER_RS485_RTS_AFTER_SEND)) {
+		dev_warn_ratelimited(port->dev,
+			"%s (%d): invalid RTS setting, using RTS_ON_SEND instead\n",
+			port->name, port->line);
+		rs485->flags |= SER_RS485_RTS_ON_SEND;
+		rs485->flags &= ~SER_RS485_RTS_AFTER_SEND;
+		supported_flags |= SER_RS485_RTS_ON_SEND|SER_RS485_RTS_AFTER_SEND;
+	}
+
+	rs485->flags &= supported_flags;
+
+	uart_sanitize_serial_rs485_delays(port, rs485);
+
+	/* Return clean padding area to userspace */
+	memset(rs485->padding0, 0, sizeof(rs485->padding0));
+	memset(rs485->padding1, 0, sizeof(rs485->padding1));
+}
+
+static void uart_set_rs485_termination(struct uart_port *port,
+				       const struct serial_rs485 *rs485)
+{
+	if (!(rs485->flags & SER_RS485_ENABLED))
+		return;
+
+	gpiod_set_value_cansleep(port->rs485_term_gpio,
+				 !!(rs485->flags & SER_RS485_TERMINATE_BUS));
+}
+
+int uart_rs485_config(struct uart_port *port)
+{
+	struct serial_rs485 *rs485 = &port->rs485;
+	int ret;
+
+	uart_sanitize_serial_rs485(port, rs485);
+	uart_set_rs485_termination(port, rs485);
+
+	ret = port->rs485_config(port, NULL, rs485);
+	if (ret)
+		memset(rs485, 0, sizeof(*rs485));
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(uart_rs485_config);
+
 static int uart_get_rs485_config(struct uart_port *port,
 			 struct serial_rs485 __user *rs485)
 {
@@ -1283,7 +1423,7 @@ static int uart_get_rs485_config(struct uart_port *port,
 	return 0;
 }
 
-static int uart_set_rs485_config(struct uart_port *port,
+static int uart_set_rs485_config(struct tty_struct *tty, struct uart_port *port,
 			 struct serial_rs485 __user *rs485_user)
 {
 	struct serial_rs485 rs485;
@@ -1296,8 +1436,16 @@ static int uart_set_rs485_config(struct uart_port *port,
 	if (copy_from_user(&rs485, rs485_user, sizeof(*rs485_user)))
 		return -EFAULT;
 
+	ret = uart_check_rs485_flags(port, &rs485);
+	if (ret)
+		return ret;
+	uart_sanitize_serial_rs485(port, &rs485);
+	uart_set_rs485_termination(port, &rs485);
+
 	spin_lock_irqsave(&port->lock, flags);
-	ret = port->rs485_config(port, &rs485);
+	ret = port->rs485_config(port, &tty->termios, &rs485);
+	if (!ret)
+		port->rs485 = rs485;
 	spin_unlock_irqrestore(&port->lock, flags);
 	if (ret)
 		return ret;
@@ -1404,6 +1552,10 @@ uart_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 	if (ret != -ENOIOCTLCMD)
 		goto out;
 
+	/* rs485_config requires more locking than others */
+	if (cmd == TIOCGRS485)
+		down_write(&tty->termios_rwsem);
+
 	mutex_lock(&port->mutex);
 	uport = uart_port_check(state);
 
@@ -1427,7 +1579,7 @@ uart_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 		break;
 
 	case TIOCSRS485:
-		ret = uart_set_rs485_config(uport, uarg);
+		ret = uart_set_rs485_config(tty, uport, uarg);
 		break;
 
 	case TIOCSISO7816:
@@ -1444,6 +1596,8 @@ uart_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 	}
 out_up:
 	mutex_unlock(&port->mutex);
+	if (cmd == TIOCGRS485)
+		up_write(&tty->termios_rwsem);
 out:
 	return ret;
 }
@@ -1591,7 +1745,7 @@ static void uart_wait_until_sent(struct tty_struct *tty, int timeout)
 {
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port;
-	unsigned long char_time, expire;
+	unsigned long char_time, expire, fifo_timeout;
 
 	port = uart_port_ref(state);
 	if (!port)
@@ -1610,24 +1764,25 @@ static void uart_wait_until_sent(struct tty_struct *tty, int timeout)
 	 * Note: we have to use pretty tight timings here to satisfy
 	 * the NIST-PCTS.
 	 */
-	char_time = (port->timeout - HZ/50) / port->fifosize;
-	char_time = char_time / 5;
-	if (char_time == 0)
-		char_time = 1;
+	char_time = max(nsecs_to_jiffies(port->frame_time / 5), 1UL);
+
 	if (timeout && timeout < char_time)
 		char_time = timeout;
 
-	/*
-	 * If the transmitter hasn't cleared in twice the approximate
-	 * amount of time to send the entire FIFO, it probably won't
-	 * ever clear.  This assumes the UART isn't doing flow
-	 * control, which is currently the case.  Hence, if it ever
-	 * takes longer than port->timeout, this is probably due to a
-	 * UART bug of some kind.  So, we clamp the timeout parameter at
-	 * 2*port->timeout.
-	 */
-	if (timeout == 0 || timeout > 2 * port->timeout)
-		timeout = 2 * port->timeout;
+	if (!uart_cts_enabled(port)) {
+		/*
+		 * If the transmitter hasn't cleared in twice the approximate
+		 * amount of time to send the entire FIFO, it probably won't
+		 * ever clear.  This assumes the UART isn't doing flow
+		 * control, which is currently the case.  Hence, if it ever
+		 * takes longer than FIFO timeout, this is probably due to a
+		 * UART bug of some kind.  So, we clamp the timeout parameter at
+		 * 2 * FIFO timeout.
+		 */
+		fifo_timeout = uart_fifo_timeout(port);
+		if (timeout == 0 || timeout > 2 * fifo_timeout)
+			timeout = 2 * fifo_timeout;
+	}
 
 	expire = jiffies + timeout;
 
@@ -1643,7 +1798,7 @@ static void uart_wait_until_sent(struct tty_struct *tty, int timeout)
 		msleep_interruptible(jiffies_to_msecs(char_time));
 		if (signal_pending(current))
 			break;
-		if (time_after(jiffies, expire))
+		if (timeout && time_after(jiffies, expire))
 			break;
 	}
 	uart_port_deref(port);
@@ -1904,11 +2059,6 @@ static int uart_proc_show(struct seq_file *m, void *v)
 }
 #endif
 
-static inline bool uart_console_enabled(struct uart_port *port)
-{
-	return uart_console(port) && (port->cons->flags & CON_ENABLED);
-}
-
 static void uart_port_spin_lock_init(struct uart_port *port)
 {
 	spin_lock_init(&port->lock);
@@ -1917,11 +2067,11 @@ static void uart_port_spin_lock_init(struct uart_port *port)
 
 #if defined(CONFIG_SERIAL_CORE_CONSOLE) || defined(CONFIG_CONSOLE_POLL)
 /**
- *	uart_console_write - write a console message to a serial port
- *	@port: the port to write the message
- *	@s: array of characters
- *	@count: number of characters in string to write
- *	@putchar: function to write character to port
+ * uart_console_write - write a console message to a serial port
+ * @port: the port to write the message
+ * @s: array of characters
+ * @count: number of characters in string to write
+ * @putchar: function to write character to port
  */
 void uart_console_write(struct uart_port *port, const char *s,
 			unsigned int count,
@@ -1937,10 +2087,15 @@ void uart_console_write(struct uart_port *port, const char *s,
 }
 EXPORT_SYMBOL_GPL(uart_console_write);
 
-/*
- *	Check whether an invalid uart number has been specified, and
- *	if so, search for the first available port that does have
- *	console support.
+/**
+ * uart_get_console - get uart port for console
+ * @ports: ports to search in
+ * @nr: number of @ports
+ * @co: console to search for
+ * Returns: uart_port for the console @co
+ *
+ * Check whether an invalid uart number has been specified (as @co->index), and
+ * if so, search for the first available port that does have console support.
  */
 struct uart_port * __init
 uart_get_console(struct uart_port *ports, int nr, struct console *co)
@@ -1960,24 +2115,23 @@ uart_get_console(struct uart_port *ports, int nr, struct console *co)
 }
 
 /**
- *	uart_parse_earlycon - Parse earlycon options
- *	@p:	  ptr to 2nd field (ie., just beyond '<name>,')
- *	@iotype:  ptr for decoded iotype (out)
- *	@addr:    ptr for decoded mapbase/iobase (out)
- *	@options: ptr for <options> field; NULL if not present (out)
+ * uart_parse_earlycon - Parse earlycon options
+ * @p:	     ptr to 2nd field (ie., just beyond '<name>,')
+ * @iotype:  ptr for decoded iotype (out)
+ * @addr:    ptr for decoded mapbase/iobase (out)
+ * @options: ptr for <options> field; %NULL if not present (out)
  *
- *	Decodes earlycon kernel command line parameters of the form
- *	   earlycon=<name>,io|mmio|mmio16|mmio32|mmio32be|mmio32native,<addr>,<options>
- *	   console=<name>,io|mmio|mmio16|mmio32|mmio32be|mmio32native,<addr>,<options>
+ * Decodes earlycon kernel command line parameters of the form:
+ *  * earlycon=<name>,io|mmio|mmio16|mmio32|mmio32be|mmio32native,<addr>,<options>
+ *  * console=<name>,io|mmio|mmio16|mmio32|mmio32be|mmio32native,<addr>,<options>
  *
- *	The optional form
+ * The optional form:
+ *  * earlycon=<name>,0x<addr>,<options>
+ *  * console=<name>,0x<addr>,<options>
  *
- *	   earlycon=<name>,0x<addr>,<options>
- *	   console=<name>,0x<addr>,<options>
+ * is also accepted; the returned @iotype will be %UPIO_MEM.
  *
- *	is also accepted; the returned @iotype will be UPIO_MEM.
- *
- *	Returns 0 on success or -EINVAL on failure
+ * Returns: 0 on success or -%EINVAL on failure
  */
 int uart_parse_earlycon(char *p, unsigned char *iotype, resource_size_t *addr,
 			char **options)
@@ -2022,16 +2176,16 @@ int uart_parse_earlycon(char *p, unsigned char *iotype, resource_size_t *addr,
 EXPORT_SYMBOL_GPL(uart_parse_earlycon);
 
 /**
- *	uart_parse_options - Parse serial port baud/parity/bits/flow control.
- *	@options: pointer to option string
- *	@baud: pointer to an 'int' variable for the baud rate.
- *	@parity: pointer to an 'int' variable for the parity.
- *	@bits: pointer to an 'int' variable for the number of data bits.
- *	@flow: pointer to an 'int' variable for the flow control character.
+ * uart_parse_options - Parse serial port baud/parity/bits/flow control.
+ * @options: pointer to option string
+ * @baud: pointer to an 'int' variable for the baud rate.
+ * @parity: pointer to an 'int' variable for the parity.
+ * @bits: pointer to an 'int' variable for the number of data bits.
+ * @flow: pointer to an 'int' variable for the flow control character.
  *
- *	uart_parse_options decodes a string containing the serial console
- *	options.  The format of the string is <baud><parity><bits><flow>,
- *	eg: 115200n8r
+ * uart_parse_options() decodes a string containing the serial console
+ * options. The format of the string is <baud><parity><bits><flow>,
+ * eg: 115200n8r
  */
 void
 uart_parse_options(const char *options, int *baud, int *parity,
@@ -2052,13 +2206,13 @@ uart_parse_options(const char *options, int *baud, int *parity,
 EXPORT_SYMBOL_GPL(uart_parse_options);
 
 /**
- *	uart_set_options - setup the serial console parameters
- *	@port: pointer to the serial ports uart_port structure
- *	@co: console pointer
- *	@baud: baud rate
- *	@parity: parity character - 'n' (none), 'o' (odd), 'e' (even)
- *	@bits: number of data bits
- *	@flow: flow control character - 'r' (rts)
+ * uart_set_options - setup the serial console parameters
+ * @port: pointer to the serial ports uart_port structure
+ * @co: console pointer
+ * @baud: baud rate
+ * @parity: parity character - 'n' (none), 'o' (odd), 'e' (even)
+ * @bits: number of data bits
+ * @flow: flow control character - 'r' (rts)
  */
 int
 uart_set_options(struct uart_port *port, struct console *co,
@@ -2174,15 +2328,24 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 	}
 	put_device(tty_dev);
 
-	/* Nothing to do if the console is not suspending */
-	if (!console_suspend_enabled && uart_console(uport))
+	/*
+	 * Nothing to do if the console is not suspending
+	 * except stop_rx to prevent any asynchronous data
+	 * over RX line. However ensure that we will be
+	 * able to Re-start_rx later.
+	 */
+	if (!console_suspend_enabled && uart_console(uport)) {
+		if (uport->ops->start_rx)
+			uport->ops->stop_rx(uport);
 		goto unlock;
+	}
 
 	uport->suspended = 1;
 
 	if (tty_port_initialized(port)) {
 		const struct uart_ops *ops = uport->ops;
 		int tries;
+		unsigned int mctrl;
 
 		tty_port_set_suspended(port, 1);
 		tty_port_set_initialized(port, 0);
@@ -2190,6 +2353,9 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 		spin_lock_irq(&uport->lock);
 		ops->stop_tx(uport);
 		ops->set_mctrl(uport, 0);
+		/* save mctrl so it can be restored on resume */
+		mctrl = uport->mctrl;
+		uport->mctrl = 0;
 		ops->stop_rx(uport);
 		spin_unlock_irq(&uport->lock);
 
@@ -2203,6 +2369,7 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 				uport->name);
 
 		ops->shutdown(uport);
+		uport->mctrl = mctrl;
 	}
 
 	/*
@@ -2261,6 +2428,8 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 		if (console_suspend_enabled)
 			uart_change_pm(state, UART_PM_STATE_ON);
 		uport->ops->set_termios(uport, &termios, NULL);
+		if (!console_suspend_enabled && uport->ops->start_rx)
+			uport->ops->start_rx(uport);
 		if (console_suspend_enabled)
 			console_start(uport->cons);
 	}
@@ -2530,17 +2699,19 @@ static const struct tty_port_operations uart_port_ops = {
 };
 
 /**
- *	uart_register_driver - register a driver with the uart core layer
- *	@drv: low level driver structure
+ * uart_register_driver - register a driver with the uart core layer
+ * @drv: low level driver structure
  *
- *	Register a uart driver with the core driver.  We in turn register
- *	with the tty layer, and initialise the core driver per-port state.
+ * Register a uart driver with the core driver. We in turn register with the
+ * tty layer, and initialise the core driver per-port state.
  *
- *	We have a proc file in /proc/tty/driver which is named after the
- *	normal driver.
+ * We have a proc file in /proc/tty/driver which is named after the normal
+ * driver.
  *
- *	drv->port should be NULL, and the per-port structures should be
- *	registered using uart_add_one_port after this call has succeeded.
+ * @drv->port should be %NULL, and the per-port structures should be registered
+ * using uart_add_one_port() after this call has succeeded.
+ *
+ * Locking: none, Interrupts: enabled
  */
 int uart_register_driver(struct uart_driver *drv)
 {
@@ -2604,13 +2775,14 @@ out:
 EXPORT_SYMBOL(uart_register_driver);
 
 /**
- *	uart_unregister_driver - remove a driver from the uart core layer
- *	@drv: low level driver structure
+ * uart_unregister_driver - remove a driver from the uart core layer
+ * @drv: low level driver structure
  *
- *	Remove all references to a driver from the core driver.  The low
- *	level driver must have removed all its ports via the
- *	uart_remove_one_port() if it registered them with uart_add_one_port().
- *	(ie, drv->port == NULL)
+ * Remove all references to a driver from the core driver. The low level
+ * driver must have removed all its ports via the uart_remove_one_port() if it
+ * registered them with uart_add_one_port(). (I.e. @drv->port is %NULL.)
+ *
+ * Locking: none, Interrupts: enabled
  */
 void uart_unregister_driver(struct uart_driver *drv)
 {
@@ -2859,16 +3031,15 @@ static const struct attribute_group tty_dev_attr_group = {
 };
 
 /**
- *	uart_add_one_port - attach a driver-defined port structure
- *	@drv: pointer to the uart low level driver structure for this port
- *	@uport: uart port structure to use for this port.
+ * uart_add_one_port - attach a driver-defined port structure
+ * @drv: pointer to the uart low level driver structure for this port
+ * @uport: uart port structure to use for this port.
  *
- *	Context: task context, might sleep
+ * Context: task context, might sleep
  *
- *	This allows the driver to register its own uart_port structure
- *	with the core driver.  The main purpose is to allow the low
- *	level uart drivers to expand uart_port, rather than having yet
- *	more levels of structures.
+ * This allows the driver @drv to register its own uart_port structure with the
+ * core driver. The main purpose is to allow the low level uart drivers to
+ * expand uart_port, rather than having yet more levels of structures.
  */
 int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 {
@@ -2963,15 +3134,14 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 EXPORT_SYMBOL(uart_add_one_port);
 
 /**
- *	uart_remove_one_port - detach a driver defined port structure
- *	@drv: pointer to the uart low level driver structure for this port
- *	@uport: uart port structure for this port
+ * uart_remove_one_port - detach a driver defined port structure
+ * @drv: pointer to the uart low level driver structure for this port
+ * @uport: uart port structure for this port
  *
- *	Context: task context, might sleep
+ * Context: task context, might sleep
  *
- *	This unhooks (and hangs up) the specified port structure from the
- *	core driver.  No further calls will be made to the low-level code
- *	for this port.
+ * This unhooks (and hangs up) the specified port structure from the core
+ * driver. No further calls will be made to the low-level code for this port.
  */
 int uart_remove_one_port(struct uart_driver *drv, struct uart_port *uport)
 {
@@ -3043,8 +3213,13 @@ out:
 }
 EXPORT_SYMBOL(uart_remove_one_port);
 
-/*
- *	Are the two ports equivalent?
+/**
+ * uart_match_port - are the two ports equivalent?
+ * @port1: first port
+ * @port2: second port
+ *
+ * This utility function can be used to determine whether two uart_port
+ * structures describe the same port.
  */
 bool uart_match_port(const struct uart_port *port1,
 		const struct uart_port *port2)
@@ -3072,11 +3247,11 @@ bool uart_match_port(const struct uart_port *port1,
 EXPORT_SYMBOL(uart_match_port);
 
 /**
- *	uart_handle_dcd_change - handle a change of carrier detect state
- *	@uport: uart_port structure for the open port
- *	@status: new carrier detect status, nonzero if active
+ * uart_handle_dcd_change - handle a change of carrier detect state
+ * @uport: uart_port structure for the open port
+ * @status: new carrier detect status, nonzero if active
  *
- *	Caller must hold uport->lock
+ * Caller must hold uport->lock.
  */
 void uart_handle_dcd_change(struct uart_port *uport, unsigned int status)
 {
@@ -3107,11 +3282,11 @@ void uart_handle_dcd_change(struct uart_port *uport, unsigned int status)
 EXPORT_SYMBOL_GPL(uart_handle_dcd_change);
 
 /**
- *	uart_handle_cts_change - handle a change of clear-to-send state
- *	@uport: uart_port structure for the open port
- *	@status: new clear to send status, nonzero if active
+ * uart_handle_cts_change - handle a change of clear-to-send state
+ * @uport: uart_port structure for the open port
+ * @status: new clear to send status, nonzero if active
  *
- *	Caller must hold uport->lock
+ * Caller must hold uport->lock.
  */
 void uart_handle_cts_change(struct uart_port *uport, unsigned int status)
 {
@@ -3182,15 +3357,15 @@ static void uart_sysrq_on(struct work_struct *w)
 static DECLARE_WORK(sysrq_enable_work, uart_sysrq_on);
 
 /**
- *	uart_try_toggle_sysrq - Enables SysRq from serial line
- *	@port: uart_port structure where char(s) after BREAK met
- *	@ch: new character in the sequence after received BREAK
+ * uart_try_toggle_sysrq - Enables SysRq from serial line
+ * @port: uart_port structure where char(s) after BREAK met
+ * @ch: new character in the sequence after received BREAK
  *
- *	Enables magic SysRq when the required sequence is met on port
- *	(see CONFIG_MAGIC_SYSRQ_SERIAL_SEQUENCE).
+ * Enables magic SysRq when the required sequence is met on port
+ * (see CONFIG_MAGIC_SYSRQ_SERIAL_SEQUENCE).
  *
- *	Returns false if @ch is out of enabling sequence and should be
- *	handled some other way, true if @ch was consumed.
+ * Returns: %false if @ch is out of enabling sequence and should be
+ * handled some other way, %true if @ch was consumed.
  */
 bool uart_try_toggle_sysrq(struct uart_port *port, unsigned int ch)
 {
@@ -3242,6 +3417,8 @@ int uart_get_rs485_mode(struct uart_port *port)
 		rs485conf->delay_rts_after_send = 0;
 	}
 
+	uart_sanitize_serial_rs485_delays(port, rs485conf);
+
 	/*
 	 * Clear full-duplex and enabled flags, set RTS polarity to active high
 	 * to get to a defined state with the following properties:
@@ -3274,10 +3451,20 @@ int uart_get_rs485_mode(struct uart_port *port)
 		port->rs485_term_gpio = NULL;
 		return dev_err_probe(dev, ret, "Cannot get rs485-term-gpios\n");
 	}
+	if (port->rs485_term_gpio)
+		port->rs485_supported.flags |= SER_RS485_TERMINATE_BUS;
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(uart_get_rs485_mode);
+
+/* Compile-time assertions for serial_rs485 layout */
+static_assert(offsetof(struct serial_rs485, padding) ==
+              (offsetof(struct serial_rs485, delay_rts_after_send) + sizeof(__u32)));
+static_assert(offsetof(struct serial_rs485, padding1) ==
+	      offsetof(struct serial_rs485, padding[1]));
+static_assert((offsetof(struct serial_rs485, padding[4]) + sizeof(__u32)) ==
+	      sizeof(struct serial_rs485));
 
 MODULE_DESCRIPTION("Serial driver core");
 MODULE_LICENSE("GPL");

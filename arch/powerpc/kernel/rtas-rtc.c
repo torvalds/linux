@@ -6,7 +6,6 @@
 #include <linux/rtc.h>
 #include <linux/delay.h>
 #include <linux/ratelimit.h>
-#include <asm/prom.h>
 #include <asm/rtas.h>
 #include <asm/time.h>
 

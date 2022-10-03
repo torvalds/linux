@@ -19,13 +19,17 @@ Required properties:
  * "qcom,scm-msm8953"
  * "qcom,scm-msm8960"
  * "qcom,scm-msm8974"
+ * "qcom,scm-msm8976"
  * "qcom,scm-msm8994"
  * "qcom,scm-msm8996"
  * "qcom,scm-msm8998"
+ * "qcom,scm-qcs404"
  * "qcom,scm-sc7180"
  * "qcom,scm-sc7280"
+ * "qcom,scm-sm6125"
  * "qcom,scm-sdm845"
  * "qcom,scm-sdx55"
+ * "qcom,scm-sdx65"
  * "qcom,scm-sm6350"
  * "qcom,scm-sm8150"
  * "qcom,scm-sm8250"
@@ -37,11 +41,12 @@ Required properties:
  * core clock required for "qcom,scm-apq8064", "qcom,scm-msm8660" and
    "qcom,scm-msm8960"
  * core, iface and bus clocks required for "qcom,scm-apq8084",
-   "qcom,scm-msm8916", "qcom,scm-msm8953" and "qcom,scm-msm8974"
+   "qcom,scm-msm8916", "qcom,scm-msm8953", "qcom,scm-msm8974" and "qcom,scm-msm8976"
 - clock-names: Must contain "core" for the core clock, "iface" for the interface
   clock and "bus" for the bus clock per the requirements of the compatible.
 - qcom,dload-mode: phandle to the TCSR hardware block and offset of the
 		   download mode control register (optional)
+- interconnects: Specifies the bandwidth requirements of the SCM interface (optional)
 
 Example for MSM8916:
 

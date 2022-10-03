@@ -85,9 +85,9 @@ static int check_child_memory_mapping(int mem_type, int mode, int mapping)
 {
 	char *ptr;
 	int run, result;
-	int item = sizeof(sizes)/sizeof(int);
+	int item = ARRAY_SIZE(sizes);
 
-	item = sizeof(sizes)/sizeof(int);
+	item = ARRAY_SIZE(sizes);
 	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG);
 	for (run = 0; run < item; run++) {
 		ptr = (char *)mte_allocate_memory_tag_range(sizes[run], mem_type, mapping,
@@ -107,7 +107,7 @@ static int check_child_file_mapping(int mem_type, int mode, int mapping)
 {
 	char *ptr, *map_ptr;
 	int run, fd, map_size, result = KSFT_PASS;
-	int total = sizeof(sizes)/sizeof(int);
+	int total = ARRAY_SIZE(sizes);
 
 	mte_switch_mode(mode, MTE_ALLOW_NON_ZERO_TAG);
 	for (run = 0; run < total; run++) {
@@ -144,7 +144,7 @@ static int check_child_file_mapping(int mem_type, int mode, int mapping)
 int main(int argc, char *argv[])
 {
 	int err;
-	int item = sizeof(sizes)/sizeof(int);
+	int item = ARRAY_SIZE(sizes);
 
 	page_size = getpagesize();
 	if (!page_size) {

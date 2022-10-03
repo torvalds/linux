@@ -15,6 +15,8 @@ mpi3mr_issue_reset(struct mpi3mr_ioc *mrioc, u16 reset_type, u32 reset_reason);
 static int mpi3mr_setup_admin_qpair(struct mpi3mr_ioc *mrioc);
 static void mpi3mr_process_factsdata(struct mpi3mr_ioc *mrioc,
 	struct mpi3_ioc_facts_data *facts_data);
+static void mpi3mr_pel_wait_complete(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_drv_cmd *drv_cmd);
 
 static int poll_queues;
 module_param(poll_queues, int, 0444);
@@ -297,8 +299,14 @@ mpi3mr_get_drv_cmd(struct mpi3mr_ioc *mrioc, u16 host_tag,
 	switch (host_tag) {
 	case MPI3MR_HOSTTAG_INITCMDS:
 		return &mrioc->init_cmds;
+	case MPI3MR_HOSTTAG_BSG_CMDS:
+		return &mrioc->bsg_cmds;
 	case MPI3MR_HOSTTAG_BLK_TMS:
 		return &mrioc->host_tm_cmds;
+	case MPI3MR_HOSTTAG_PEL_ABORT:
+		return &mrioc->pel_abort_cmd;
+	case MPI3MR_HOSTTAG_PEL_WAIT:
+		return &mrioc->pel_cmds;
 	case MPI3MR_HOSTTAG_INVALID:
 		if (def_reply && def_reply->function ==
 		    MPI3_FUNCTION_EVENT_NOTIFICATION)
@@ -865,10 +873,10 @@ static const struct {
 } mpi3mr_reset_reason_codes[] = {
 	{ MPI3MR_RESET_FROM_BRINGUP, "timeout in bringup" },
 	{ MPI3MR_RESET_FROM_FAULT_WATCH, "fault" },
-	{ MPI3MR_RESET_FROM_IOCTL, "application invocation" },
+	{ MPI3MR_RESET_FROM_APP, "application invocation" },
 	{ MPI3MR_RESET_FROM_EH_HOS, "error handling" },
 	{ MPI3MR_RESET_FROM_TM_TIMEOUT, "TM timeout" },
-	{ MPI3MR_RESET_FROM_IOCTL_TIMEOUT, "IOCTL timeout" },
+	{ MPI3MR_RESET_FROM_APP_TIMEOUT, "application command timeout" },
 	{ MPI3MR_RESET_FROM_MUR_FAILURE, "MUR failure" },
 	{ MPI3MR_RESET_FROM_CTLR_CLEANUP, "timeout in controller cleanup" },
 	{ MPI3MR_RESET_FROM_CIACTIV_FAULT, "component image activation fault" },
@@ -2777,6 +2785,27 @@ static void mpi3mr_process_factsdata(struct mpi3mr_ioc *mrioc,
 	mrioc->facts.shutdown_timeout =
 	    le16_to_cpu(facts_data->shutdown_timeout);
 
+	mrioc->facts.max_dev_per_tg =
+	    facts_data->max_devices_per_throttle_group;
+	mrioc->facts.io_throttle_data_length =
+	    le16_to_cpu(facts_data->io_throttle_data_length);
+	mrioc->facts.max_io_throttle_group =
+	    le16_to_cpu(facts_data->max_io_throttle_group);
+	mrioc->facts.io_throttle_low = le16_to_cpu(facts_data->io_throttle_low);
+	mrioc->facts.io_throttle_high =
+	    le16_to_cpu(facts_data->io_throttle_high);
+
+	/* Store in 512b block count */
+	if (mrioc->facts.io_throttle_data_length)
+		mrioc->io_throttle_data_length =
+		    (mrioc->facts.io_throttle_data_length * 2 * 4);
+	else
+		/* set the length to 1MB + 1K to disable throttle */
+		mrioc->io_throttle_data_length = MPI3MR_MAX_SECTORS + 2;
+
+	mrioc->io_throttle_high = (mrioc->facts.io_throttle_high * 2 * 1024);
+	mrioc->io_throttle_low = (mrioc->facts.io_throttle_low * 2 * 1024);
+
 	ioc_info(mrioc, "ioc_num(%d), maxopQ(%d), maxopRepQ(%d), maxdh(%d),",
 	    mrioc->facts.ioc_num, mrioc->facts.max_op_req_q,
 	    mrioc->facts.max_op_reply_q, mrioc->facts.max_devhandle);
@@ -2790,6 +2819,13 @@ static void mpi3mr_process_factsdata(struct mpi3mr_ioc *mrioc,
 	ioc_info(mrioc, "DMA mask %d InitialPE status 0x%x\n",
 	    mrioc->facts.dma_mask, (facts_flags &
 	    MPI3_IOCFACTS_FLAGS_INITIAL_PORT_ENABLE_MASK));
+	ioc_info(mrioc,
+	    "max_dev_per_throttle_group(%d), max_throttle_groups(%d)\n",
+	    mrioc->facts.max_dev_per_tg, mrioc->facts.max_io_throttle_group);
+	ioc_info(mrioc,
+	   "io_throttle_data_len(%dKiB), io_throttle_high(%dMiB), io_throttle_low(%dMiB)\n",
+	   mrioc->facts.io_throttle_data_length * 4,
+	   mrioc->facts.io_throttle_high, mrioc->facts.io_throttle_low);
 }
 
 /**
@@ -2813,6 +2849,10 @@ static int mpi3mr_alloc_reply_sense_bufs(struct mpi3mr_ioc *mrioc)
 	if (!mrioc->init_cmds.reply)
 		goto out_failed;
 
+	mrioc->bsg_cmds.reply = kzalloc(mrioc->reply_sz, GFP_KERNEL);
+	if (!mrioc->bsg_cmds.reply)
+		goto out_failed;
+
 	for (i = 0; i < MPI3MR_NUM_DEVRMCMD; i++) {
 		mrioc->dev_rmhs_cmds[i].reply = kzalloc(mrioc->reply_sz,
 		    GFP_KERNEL);
@@ -2829,6 +2869,14 @@ static int mpi3mr_alloc_reply_sense_bufs(struct mpi3mr_ioc *mrioc)
 
 	mrioc->host_tm_cmds.reply = kzalloc(mrioc->reply_sz, GFP_KERNEL);
 	if (!mrioc->host_tm_cmds.reply)
+		goto out_failed;
+
+	mrioc->pel_cmds.reply = kzalloc(mrioc->reply_sz, GFP_KERNEL);
+	if (!mrioc->pel_cmds.reply)
+		goto out_failed;
+
+	mrioc->pel_abort_cmd.reply = kzalloc(mrioc->reply_sz, GFP_KERNEL);
+	if (!mrioc->pel_abort_cmd.reply)
 		goto out_failed;
 
 	mrioc->dev_handle_bitmap_sz = mrioc->facts.max_devhandle / 8;
@@ -3646,6 +3694,7 @@ int mpi3mr_init_ioc(struct mpi3mr_ioc *mrioc)
 	int retval = 0;
 	u8 retry = 0;
 	struct mpi3_ioc_facts_data facts_data;
+	u32 sz;
 
 retry_init:
 	retval = mpi3mr_bring_ioc_ready(mrioc);
@@ -3670,6 +3719,9 @@ retry_init:
 	}
 
 	mrioc->max_host_ios = mrioc->facts.max_reqs - MPI3MR_INTERNAL_CMDS_RESVD;
+
+	mrioc->num_io_throttle_group = mrioc->facts.max_io_throttle_group;
+	atomic_set(&mrioc->pend_large_data_sz, 0);
 
 	if (reset_devices)
 		mrioc->max_host_ios = min_t(int, mrioc->max_host_ios,
@@ -3726,6 +3778,27 @@ retry_init:
 		ioc_err(mrioc, "Failed to create OpQueues error %d\n",
 		    retval);
 		goto out_failed;
+	}
+
+	if (!mrioc->pel_seqnum_virt) {
+		dprint_init(mrioc, "allocating memory for pel_seqnum_virt\n");
+		mrioc->pel_seqnum_sz = sizeof(struct mpi3_pel_seq);
+		mrioc->pel_seqnum_virt = dma_alloc_coherent(&mrioc->pdev->dev,
+		    mrioc->pel_seqnum_sz, &mrioc->pel_seqnum_dma,
+		    GFP_KERNEL);
+		if (!mrioc->pel_seqnum_virt) {
+			retval = -ENOMEM;
+			goto out_failed_noretry;
+		}
+	}
+
+	if (!mrioc->throttle_groups && mrioc->num_io_throttle_group) {
+		dprint_init(mrioc, "allocating memory for throttle groups\n");
+		sz = sizeof(struct mpi3mr_throttle_group_info);
+		mrioc->throttle_groups = (struct mpi3mr_throttle_group_info *)
+		    kcalloc(mrioc->num_io_throttle_group, sz, GFP_KERNEL);
+		if (!mrioc->throttle_groups)
+			goto out_failed_noretry;
 	}
 
 	retval = mpi3mr_enable_events(mrioc);
@@ -3837,6 +3910,18 @@ retry_init:
 		goto out_failed;
 	}
 
+	if (!mrioc->pel_seqnum_virt) {
+		dprint_reset(mrioc, "allocating memory for pel_seqnum_virt\n");
+		mrioc->pel_seqnum_sz = sizeof(struct mpi3_pel_seq);
+		mrioc->pel_seqnum_virt = dma_alloc_coherent(&mrioc->pdev->dev,
+		    mrioc->pel_seqnum_sz, &mrioc->pel_seqnum_dma,
+		    GFP_KERNEL);
+		if (!mrioc->pel_seqnum_virt) {
+			retval = -ENOMEM;
+			goto out_failed_noretry;
+		}
+	}
+
 	if (mrioc->shost->nr_hw_queues > mrioc->num_op_reply_q) {
 		ioc_err(mrioc,
 		    "cannot create minimum number of operational queues expected:%d created:%d\n",
@@ -3937,6 +4022,7 @@ static void mpi3mr_memset_op_req_q_buffers(struct mpi3mr_ioc *mrioc, u16 qidx)
 void mpi3mr_memset_buffers(struct mpi3mr_ioc *mrioc)
 {
 	u16 i;
+	struct mpi3mr_throttle_group_info *tg;
 
 	mrioc->change_count = 0;
 	mrioc->active_poll_qcount = 0;
@@ -3948,8 +4034,14 @@ void mpi3mr_memset_buffers(struct mpi3mr_ioc *mrioc)
 
 	if (mrioc->init_cmds.reply) {
 		memset(mrioc->init_cmds.reply, 0, sizeof(*mrioc->init_cmds.reply));
+		memset(mrioc->bsg_cmds.reply, 0,
+		    sizeof(*mrioc->bsg_cmds.reply));
 		memset(mrioc->host_tm_cmds.reply, 0,
 		    sizeof(*mrioc->host_tm_cmds.reply));
+		memset(mrioc->pel_cmds.reply, 0,
+		    sizeof(*mrioc->pel_cmds.reply));
+		memset(mrioc->pel_abort_cmd.reply, 0,
+		    sizeof(*mrioc->pel_abort_cmd.reply));
 		for (i = 0; i < MPI3MR_NUM_DEVRMCMD; i++)
 			memset(mrioc->dev_rmhs_cmds[i].reply, 0,
 			    sizeof(*mrioc->dev_rmhs_cmds[i].reply));
@@ -3978,6 +4070,22 @@ void mpi3mr_memset_buffers(struct mpi3mr_ioc *mrioc)
 		mrioc->req_qinfo[i].reply_qid = 0;
 		spin_lock_init(&mrioc->req_qinfo[i].q_lock);
 		mpi3mr_memset_op_req_q_buffers(mrioc, i);
+	}
+
+	atomic_set(&mrioc->pend_large_data_sz, 0);
+	if (mrioc->throttle_groups) {
+		tg = mrioc->throttle_groups;
+		for (i = 0; i < mrioc->num_io_throttle_group; i++, tg++) {
+			tg->id = 0;
+			tg->fw_qd = 0;
+			tg->modified_qd = 0;
+			tg->io_divert = 0;
+			tg->need_qd_reduction = 0;
+			tg->high = 0;
+			tg->low = 0;
+			tg->qd_reduction = 0;
+			atomic_set(&tg->pend_large_data_sz, 0);
+		}
 	}
 }
 
@@ -4050,8 +4158,17 @@ void mpi3mr_free_mem(struct mpi3mr_ioc *mrioc)
 	kfree(mrioc->init_cmds.reply);
 	mrioc->init_cmds.reply = NULL;
 
+	kfree(mrioc->bsg_cmds.reply);
+	mrioc->bsg_cmds.reply = NULL;
+
 	kfree(mrioc->host_tm_cmds.reply);
 	mrioc->host_tm_cmds.reply = NULL;
+
+	kfree(mrioc->pel_cmds.reply);
+	mrioc->pel_cmds.reply = NULL;
+
+	kfree(mrioc->pel_abort_cmd.reply);
+	mrioc->pel_abort_cmd.reply = NULL;
 
 	for (i = 0; i < MPI3MR_NUM_EVTACKCMD; i++) {
 		kfree(mrioc->evtack_cmds[i].reply);
@@ -4101,6 +4218,16 @@ void mpi3mr_free_mem(struct mpi3mr_ioc *mrioc)
 		    mrioc->admin_req_base, mrioc->admin_req_dma);
 		mrioc->admin_req_base = NULL;
 	}
+
+	if (mrioc->pel_seqnum_virt) {
+		dma_free_coherent(&mrioc->pdev->dev, mrioc->pel_seqnum_sz,
+		    mrioc->pel_seqnum_virt, mrioc->pel_seqnum_dma);
+		mrioc->pel_seqnum_virt = NULL;
+	}
+
+	kfree(mrioc->logdata_buf);
+	mrioc->logdata_buf = NULL;
+
 }
 
 /**
@@ -4235,6 +4362,8 @@ static void mpi3mr_flush_drv_cmds(struct mpi3mr_ioc *mrioc)
 
 	cmdptr = &mrioc->init_cmds;
 	mpi3mr_drv_cmd_comp_reset(mrioc, cmdptr);
+	cmdptr = &mrioc->bsg_cmds;
+	mpi3mr_drv_cmd_comp_reset(mrioc, cmdptr);
 	cmdptr = &mrioc->host_tm_cmds;
 	mpi3mr_drv_cmd_comp_reset(mrioc, cmdptr);
 
@@ -4247,6 +4376,254 @@ static void mpi3mr_flush_drv_cmds(struct mpi3mr_ioc *mrioc)
 		cmdptr = &mrioc->evtack_cmds[i];
 		mpi3mr_drv_cmd_comp_reset(mrioc, cmdptr);
 	}
+
+	cmdptr = &mrioc->pel_cmds;
+	mpi3mr_drv_cmd_comp_reset(mrioc, cmdptr);
+
+	cmdptr = &mrioc->pel_abort_cmd;
+	mpi3mr_drv_cmd_comp_reset(mrioc, cmdptr);
+
+}
+
+/**
+ * mpi3mr_pel_wait_post - Issue PEL Wait
+ * @mrioc: Adapter instance reference
+ * @drv_cmd: Internal command tracker
+ *
+ * Issue PEL Wait MPI request through admin queue and return.
+ *
+ * Return: Nothing.
+ */
+static void mpi3mr_pel_wait_post(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_drv_cmd *drv_cmd)
+{
+	struct mpi3_pel_req_action_wait pel_wait;
+
+	mrioc->pel_abort_requested = false;
+
+	memset(&pel_wait, 0, sizeof(pel_wait));
+	drv_cmd->state = MPI3MR_CMD_PENDING;
+	drv_cmd->is_waiting = 0;
+	drv_cmd->callback = mpi3mr_pel_wait_complete;
+	drv_cmd->ioc_status = 0;
+	drv_cmd->ioc_loginfo = 0;
+	pel_wait.host_tag = cpu_to_le16(MPI3MR_HOSTTAG_PEL_WAIT);
+	pel_wait.function = MPI3_FUNCTION_PERSISTENT_EVENT_LOG;
+	pel_wait.action = MPI3_PEL_ACTION_WAIT;
+	pel_wait.starting_sequence_number = cpu_to_le32(mrioc->pel_newest_seqnum);
+	pel_wait.locale = cpu_to_le16(mrioc->pel_locale);
+	pel_wait.class = cpu_to_le16(mrioc->pel_class);
+	pel_wait.wait_time = MPI3_PEL_WAITTIME_INFINITE_WAIT;
+	dprint_bsg_info(mrioc, "sending pel_wait seqnum(%d), class(%d), locale(0x%08x)\n",
+	    mrioc->pel_newest_seqnum, mrioc->pel_class, mrioc->pel_locale);
+
+	if (mpi3mr_admin_request_post(mrioc, &pel_wait, sizeof(pel_wait), 0)) {
+		dprint_bsg_err(mrioc,
+			    "Issuing PELWait: Admin post failed\n");
+		drv_cmd->state = MPI3MR_CMD_NOTUSED;
+		drv_cmd->callback = NULL;
+		drv_cmd->retry_count = 0;
+		mrioc->pel_enabled = false;
+	}
+}
+
+/**
+ * mpi3mr_pel_get_seqnum_post - Issue PEL Get Sequence number
+ * @mrioc: Adapter instance reference
+ * @drv_cmd: Internal command tracker
+ *
+ * Issue PEL get sequence number MPI request through admin queue
+ * and return.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_pel_get_seqnum_post(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_drv_cmd *drv_cmd)
+{
+	struct mpi3_pel_req_action_get_sequence_numbers pel_getseq_req;
+	u8 sgl_flags = MPI3MR_SGEFLAGS_SYSTEM_SIMPLE_END_OF_LIST;
+	int retval = 0;
+
+	memset(&pel_getseq_req, 0, sizeof(pel_getseq_req));
+	mrioc->pel_cmds.state = MPI3MR_CMD_PENDING;
+	mrioc->pel_cmds.is_waiting = 0;
+	mrioc->pel_cmds.ioc_status = 0;
+	mrioc->pel_cmds.ioc_loginfo = 0;
+	mrioc->pel_cmds.callback = mpi3mr_pel_get_seqnum_complete;
+	pel_getseq_req.host_tag = cpu_to_le16(MPI3MR_HOSTTAG_PEL_WAIT);
+	pel_getseq_req.function = MPI3_FUNCTION_PERSISTENT_EVENT_LOG;
+	pel_getseq_req.action = MPI3_PEL_ACTION_GET_SEQNUM;
+	mpi3mr_add_sg_single(&pel_getseq_req.sgl, sgl_flags,
+	    mrioc->pel_seqnum_sz, mrioc->pel_seqnum_dma);
+
+	retval = mpi3mr_admin_request_post(mrioc, &pel_getseq_req,
+			sizeof(pel_getseq_req), 0);
+	if (retval) {
+		if (drv_cmd) {
+			drv_cmd->state = MPI3MR_CMD_NOTUSED;
+			drv_cmd->callback = NULL;
+			drv_cmd->retry_count = 0;
+		}
+		mrioc->pel_enabled = false;
+	}
+
+	return retval;
+}
+
+/**
+ * mpi3mr_pel_wait_complete - PELWait Completion callback
+ * @mrioc: Adapter instance reference
+ * @drv_cmd: Internal command tracker
+ *
+ * This is a callback handler for the PELWait request and
+ * firmware completes a PELWait request when it is aborted or a
+ * new PEL entry is available. This sends AEN to the application
+ * and if the PELwait completion is not due to PELAbort then
+ * this will send a request for new PEL Sequence number
+ *
+ * Return: Nothing.
+ */
+static void mpi3mr_pel_wait_complete(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_drv_cmd *drv_cmd)
+{
+	struct mpi3_pel_reply *pel_reply = NULL;
+	u16 ioc_status, pe_log_status;
+	bool do_retry = false;
+
+	if (drv_cmd->state & MPI3MR_CMD_RESET)
+		goto cleanup_drv_cmd;
+
+	ioc_status = drv_cmd->ioc_status & MPI3_IOCSTATUS_STATUS_MASK;
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "%s: Failed ioc_status(0x%04x) Loginfo(0x%08x)\n",
+			__func__, ioc_status, drv_cmd->ioc_loginfo);
+		dprint_bsg_err(mrioc,
+		    "pel_wait: failed with ioc_status(0x%04x), log_info(0x%08x)\n",
+		    ioc_status, drv_cmd->ioc_loginfo);
+		do_retry = true;
+	}
+
+	if (drv_cmd->state & MPI3MR_CMD_REPLY_VALID)
+		pel_reply = (struct mpi3_pel_reply *)drv_cmd->reply;
+
+	if (!pel_reply) {
+		dprint_bsg_err(mrioc,
+		    "pel_wait: failed due to no reply\n");
+		goto out_failed;
+	}
+
+	pe_log_status = le16_to_cpu(pel_reply->pe_log_status);
+	if ((pe_log_status != MPI3_PEL_STATUS_SUCCESS) &&
+	    (pe_log_status != MPI3_PEL_STATUS_ABORTED)) {
+		ioc_err(mrioc, "%s: Failed pe_log_status(0x%04x)\n",
+			__func__, pe_log_status);
+		dprint_bsg_err(mrioc,
+		    "pel_wait: failed due to pel_log_status(0x%04x)\n",
+		    pe_log_status);
+		do_retry = true;
+	}
+
+	if (do_retry) {
+		if (drv_cmd->retry_count < MPI3MR_PEL_RETRY_COUNT) {
+			drv_cmd->retry_count++;
+			dprint_bsg_err(mrioc, "pel_wait: retrying(%d)\n",
+			    drv_cmd->retry_count);
+			mpi3mr_pel_wait_post(mrioc, drv_cmd);
+			return;
+		}
+		dprint_bsg_err(mrioc,
+		    "pel_wait: failed after all retries(%d)\n",
+		    drv_cmd->retry_count);
+		goto out_failed;
+	}
+	atomic64_inc(&event_counter);
+	if (!mrioc->pel_abort_requested) {
+		mrioc->pel_cmds.retry_count = 0;
+		mpi3mr_pel_get_seqnum_post(mrioc, &mrioc->pel_cmds);
+	}
+
+	return;
+out_failed:
+	mrioc->pel_enabled = false;
+cleanup_drv_cmd:
+	drv_cmd->state = MPI3MR_CMD_NOTUSED;
+	drv_cmd->callback = NULL;
+	drv_cmd->retry_count = 0;
+}
+
+/**
+ * mpi3mr_pel_get_seqnum_complete - PELGetSeqNum Completion callback
+ * @mrioc: Adapter instance reference
+ * @drv_cmd: Internal command tracker
+ *
+ * This is a callback handler for the PEL get sequence number
+ * request and a new PEL wait request will be issued to the
+ * firmware from this
+ *
+ * Return: Nothing.
+ */
+void mpi3mr_pel_get_seqnum_complete(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_drv_cmd *drv_cmd)
+{
+	struct mpi3_pel_reply *pel_reply = NULL;
+	struct mpi3_pel_seq *pel_seqnum_virt;
+	u16 ioc_status;
+	bool do_retry = false;
+
+	pel_seqnum_virt = (struct mpi3_pel_seq *)mrioc->pel_seqnum_virt;
+
+	if (drv_cmd->state & MPI3MR_CMD_RESET)
+		goto cleanup_drv_cmd;
+
+	ioc_status = drv_cmd->ioc_status & MPI3_IOCSTATUS_STATUS_MASK;
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		dprint_bsg_err(mrioc,
+		    "pel_get_seqnum: failed with ioc_status(0x%04x), log_info(0x%08x)\n",
+		    ioc_status, drv_cmd->ioc_loginfo);
+		do_retry = true;
+	}
+
+	if (drv_cmd->state & MPI3MR_CMD_REPLY_VALID)
+		pel_reply = (struct mpi3_pel_reply *)drv_cmd->reply;
+	if (!pel_reply) {
+		dprint_bsg_err(mrioc,
+		    "pel_get_seqnum: failed due to no reply\n");
+		goto out_failed;
+	}
+
+	if (le16_to_cpu(pel_reply->pe_log_status) != MPI3_PEL_STATUS_SUCCESS) {
+		dprint_bsg_err(mrioc,
+		    "pel_get_seqnum: failed due to pel_log_status(0x%04x)\n",
+		    le16_to_cpu(pel_reply->pe_log_status));
+		do_retry = true;
+	}
+
+	if (do_retry) {
+		if (drv_cmd->retry_count < MPI3MR_PEL_RETRY_COUNT) {
+			drv_cmd->retry_count++;
+			dprint_bsg_err(mrioc,
+			    "pel_get_seqnum: retrying(%d)\n",
+			    drv_cmd->retry_count);
+			mpi3mr_pel_get_seqnum_post(mrioc, drv_cmd);
+			return;
+		}
+
+		dprint_bsg_err(mrioc,
+		    "pel_get_seqnum: failed after all retries(%d)\n",
+		    drv_cmd->retry_count);
+		goto out_failed;
+	}
+	mrioc->pel_newest_seqnum = le32_to_cpu(pel_seqnum_virt->newest) + 1;
+	drv_cmd->retry_count = 0;
+	mpi3mr_pel_wait_post(mrioc, drv_cmd);
+
+	return;
+out_failed:
+	mrioc->pel_enabled = false;
+cleanup_drv_cmd:
+	drv_cmd->state = MPI3MR_CMD_NOTUSED;
+	drv_cmd->callback = NULL;
+	drv_cmd->retry_count = 0;
 }
 
 /**
@@ -4258,7 +4635,7 @@ static void mpi3mr_flush_drv_cmds(struct mpi3mr_ioc *mrioc)
  * This is an handler for recovering controller by issuing soft
  * reset are diag fault reset.  This is a blocking function and
  * when one reset is executed if any other resets they will be
- * blocked. All IOCTLs/IO will be blocked during the reset. If
+ * blocked. All BSG requests will be blocked during the reset. If
  * controller reset is successful then the controller will be
  * reinitalized, otherwise the controller will be marked as not
  * recoverable
@@ -4305,6 +4682,7 @@ int mpi3mr_soft_reset_handler(struct mpi3mr_ioc *mrioc,
 	    mpi3mr_reset_rc_name(reset_reason));
 
 	mrioc->reset_in_progress = 1;
+	mrioc->stop_bsgs = 1;
 	mrioc->prev_reset_result = -1;
 
 	if ((!snapdump) && (reset_reason != MPI3MR_RESET_FROM_FAULT_WATCH) &&
@@ -4343,6 +4721,15 @@ int mpi3mr_soft_reset_handler(struct mpi3mr_ioc *mrioc,
 		ioc_err(mrioc, "Failed to issue soft reset to the ioc\n");
 		goto out;
 	}
+	if (mrioc->num_io_throttle_group !=
+	    mrioc->facts.max_io_throttle_group) {
+		ioc_err(mrioc,
+		    "max io throttle group doesn't match old(%d), new(%d)\n",
+		    mrioc->num_io_throttle_group,
+		    mrioc->facts.max_io_throttle_group);
+		retval = -EPERM;
+		goto out;
+	}
 
 	mpi3mr_flush_delayed_cmd_lists(mrioc);
 	mpi3mr_flush_drv_cmds(mrioc);
@@ -4369,6 +4756,12 @@ out:
 	if (!retval) {
 		mrioc->diagsave_timeout = 0;
 		mrioc->reset_in_progress = 0;
+		mrioc->pel_abort_requested = 0;
+		if (mrioc->pel_enabled) {
+			mrioc->pel_cmds.retry_count = 0;
+			mpi3mr_pel_wait_post(mrioc, &mrioc->pel_cmds);
+		}
+
 		mpi3mr_rfresh_tgtdevs(mrioc);
 		mrioc->ts_update_counter = 0;
 		spin_lock_irqsave(&mrioc->watchdog_lock, flags);
@@ -4377,6 +4770,9 @@ out:
 			    &mrioc->watchdog_work,
 			    msecs_to_jiffies(MPI3MR_WATCHDOG_INTERVAL));
 		spin_unlock_irqrestore(&mrioc->watchdog_lock, flags);
+		mrioc->stop_bsgs = 0;
+		if (mrioc->pel_enabled)
+			atomic64_inc(&event_counter);
 	} else {
 		mpi3mr_issue_reset(mrioc,
 		    MPI3_SYSIF_HOST_DIAG_RESET_ACTION_DIAG_FAULT, reset_reason);

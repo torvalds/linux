@@ -15,7 +15,6 @@
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 
-#include "bpf_rlimit.h"
 #include "cgroup_helpers.h"
 
 #define CGROUP_PATH		"/skb_cgroup_test"
@@ -159,6 +158,9 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Usage: %s iface prog_id\n", argv[0]);
 		exit(EXIT_FAILURE);
 	}
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	cgfd = cgroup_setup_and_join(CGROUP_PATH);
 	if (cgfd < 0)

@@ -28,10 +28,11 @@ properties:
       - enum:
           - realtek,rtl8380-gpio
           - realtek,rtl8390-gpio
+          - realtek,rtl9300-gpio
+          - realtek,rtl9310-gpio
       - const: realtek,otto-gpio
 
-  reg:
-    maxItems: 1
+  reg: true
 
   "#gpio-cells":
     const: 2
@@ -49,6 +50,23 @@ properties:
 
   interrupts:
     maxItems: 1
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: realtek,rtl9300-gpio
+then:
+  properties:
+    reg:
+      items:
+        - description: GPIO and interrupt control
+        - description: interrupt CPU map
+else:
+  properties:
+    reg:
+      items:
+        - description: GPIO and interrupt control
 
 required:
   - compatible
@@ -73,6 +91,18 @@ examples:
         #interrupt-cells = <2>;
         interrupt-parent = <&rtlintc>;
         interrupts = <23>;
+      };
+  - |
+      gpio@3300 {
+        compatible = "realtek,rtl9300-gpio", "realtek,otto-gpio";
+        reg = <0x3300 0x1c>, <0x3338 0x8>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        ngpios = <24>;
+        interrupt-controller;
+        #interrupt-cells = <2>;
+        interrupt-parent = <&rtlintc>;
+        interrupts = <13>;
       };
 
 ...

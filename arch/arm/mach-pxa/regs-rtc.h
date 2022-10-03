@@ -2,7 +2,7 @@
 #ifndef __ASM_MACH_REGS_RTC_H
 #define __ASM_MACH_REGS_RTC_H
 
-#include <mach/hardware.h>
+#include "pxa-regs.h"
 
 /*
  * Real Time Clock

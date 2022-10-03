@@ -45,8 +45,8 @@ static int vp_finalize_features(struct virtio_device *vdev)
 }
 
 /* virtio config->get() implementation */
-static void vp_get(struct virtio_device *vdev, unsigned offset,
-		   void *buf, unsigned len)
+static void vp_get(struct virtio_device *vdev, unsigned int offset,
+		   void *buf, unsigned int len)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	void __iomem *ioaddr = vp_dev->ldev.ioaddr +
@@ -61,8 +61,8 @@ static void vp_get(struct virtio_device *vdev, unsigned offset,
 
 /* the config->set() implementation.  it's symmetric to the config->get()
  * implementation */
-static void vp_set(struct virtio_device *vdev, unsigned offset,
-		   const void *buf, unsigned len)
+static void vp_set(struct virtio_device *vdev, unsigned int offset,
+		   const void *buf, unsigned int len)
 {
 	struct virtio_pci_device *vp_dev = to_vp_device(vdev);
 	void __iomem *ioaddr = vp_dev->ldev.ioaddr +
@@ -109,7 +109,7 @@ static u16 vp_config_vector(struct virtio_pci_device *vp_dev, u16 vector)
 
 static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 				  struct virtio_pci_vq_info *info,
-				  unsigned index,
+				  unsigned int index,
 				  void (*callback)(struct virtqueue *vq),
 				  const char *name,
 				  bool ctx,
@@ -134,6 +134,8 @@ static struct virtqueue *setup_vq(struct virtio_pci_device *vp_dev,
 				    vp_notify, callback, name);
 	if (!vq)
 		return ERR_PTR(-ENOMEM);
+
+	vq->num_max = num;
 
 	q_pfn = virtqueue_get_desc_addr(vq) >> VIRTIO_PCI_QUEUE_ADDR_SHIFT;
 	if (q_pfn >> 32) {
@@ -192,6 +194,7 @@ static const struct virtio_config_ops virtio_pci_config_ops = {
 	.reset		= vp_reset,
 	.find_vqs	= vp_find_vqs,
 	.del_vqs	= vp_del_vqs,
+	.synchronize_cbs = vp_synchronize_vectors,
 	.get_features	= vp_get_features,
 	.finalize_features = vp_finalize_features,
 	.bus_name	= vp_bus_name,

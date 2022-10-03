@@ -21,6 +21,7 @@
 #include <linux/ptrace.h>
 #include <linux/mm.h>
 #include <linux/kbuild.h>
+#include <linux/suspend.h>
 
 #include <asm/ptrace.h>
 #include <asm/traps.h>
@@ -87,14 +88,19 @@ int main(void)
 	OFFSET(TI_STSTUS, thread_info, status);
 	OFFSET(TI_CPU, thread_info, cpu);
 	OFFSET(TI_PRE_COUNT, thread_info, preempt_count);
+#ifdef CONFIG_USER_ABI_CALL0_PROBE
+	OFFSET(TI_PS_WOE_FIX_ADDR, thread_info, ps_woe_fix_addr);
+#endif
 
 	/* struct thread_info (offset from start_struct) */
 	DEFINE(THREAD_RA, offsetof (struct task_struct, thread.ra));
 	DEFINE(THREAD_SP, offsetof (struct task_struct, thread.sp));
-	DEFINE(THREAD_CPENABLE, offsetof (struct thread_info, cpenable));
 #if XCHAL_HAVE_EXCLUSIVE
 	DEFINE(THREAD_ATOMCTL8, offsetof (struct thread_info, atomctl8));
 #endif
+	DEFINE(THREAD_CPENABLE, offsetof(struct thread_info, cpenable));
+	DEFINE(THREAD_CPU, offsetof(struct thread_info, cpu));
+	DEFINE(THREAD_CP_OWNER_CPU, offsetof(struct thread_info, cp_owner_cpu));
 #if XTENSA_HAVE_COPROCESSORS
 	DEFINE(THREAD_XTREGS_CP0, offsetof(struct thread_info, xtregs_cp.cp0));
 	DEFINE(THREAD_XTREGS_CP1, offsetof(struct thread_info, xtregs_cp.cp1));
@@ -137,11 +143,22 @@ int main(void)
 	DEFINE(EXC_TABLE_DOUBLE_SAVE, offsetof(struct exc_table, double_save));
 	DEFINE(EXC_TABLE_FIXUP, offsetof(struct exc_table, fixup));
 	DEFINE(EXC_TABLE_PARAM, offsetof(struct exc_table, fixup_param));
+#if XTENSA_HAVE_COPROCESSORS
+	DEFINE(EXC_TABLE_COPROCESSOR_OWNER,
+	       offsetof(struct exc_table, coprocessor_owner));
+#endif
 	DEFINE(EXC_TABLE_FAST_USER,
 	       offsetof(struct exc_table, fast_user_handler));
 	DEFINE(EXC_TABLE_FAST_KERNEL,
 	       offsetof(struct exc_table, fast_kernel_handler));
 	DEFINE(EXC_TABLE_DEFAULT, offsetof(struct exc_table, default_handler));
+
+#ifdef CONFIG_HIBERNATION
+	DEFINE(PBE_ADDRESS, offsetof(struct pbe, address));
+	DEFINE(PBE_ORIG_ADDRESS, offsetof(struct pbe, orig_address));
+	DEFINE(PBE_NEXT, offsetof(struct pbe, next));
+	DEFINE(PBE_SIZE, sizeof(struct pbe));
+#endif
 
 	return 0;
 }

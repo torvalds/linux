@@ -71,6 +71,10 @@
 #define SUN6I_LOSC_OUT_GATING			0x0060
 #define SUN6I_LOSC_OUT_GATING_EN_OFFSET		0
 
+/* General-purpose data */
+#define SUN6I_GP_DATA				0x0100
+#define SUN6I_GP_DATA_SIZE			0x20
+
 /*
  * Get date values
  */
@@ -370,6 +374,23 @@ CLK_OF_DECLARE_DRIVER(sun8i_h3_rtc_clk, "allwinner,sun8i-h3-rtc",
 CLK_OF_DECLARE_DRIVER(sun50i_h5_rtc_clk, "allwinner,sun50i-h5-rtc",
 		      sun8i_h3_rtc_clk_init);
 
+static const struct sun6i_rtc_clk_data sun50i_h6_rtc_data = {
+	.rc_osc_rate = 16000000,
+	.fixed_prescaler = 32,
+	.has_prescaler = 1,
+	.has_out_clk = 1,
+	.export_iosc = 1,
+	.has_losc_en = 1,
+	.has_auto_swt = 1,
+};
+
+static void __init sun50i_h6_rtc_clk_init(struct device_node *node)
+{
+	sun6i_rtc_clk_init(node, &sun50i_h6_rtc_data);
+}
+CLK_OF_DECLARE_DRIVER(sun50i_h6_rtc_clk, "allwinner,sun50i-h6-rtc",
+		      sun50i_h6_rtc_clk_init);
+
 /*
  * The R40 user manual is self-conflicting on whether the prescaler is
  * fixed or configurable. The clock diagram shows it as fixed, but there
@@ -662,6 +683,39 @@ static const struct rtc_class_ops sun6i_rtc_ops = {
 	.alarm_irq_enable	= sun6i_rtc_alarm_irq_enable
 };
 
+static int sun6i_rtc_nvmem_read(void *priv, unsigned int offset, void *_val, size_t bytes)
+{
+	struct sun6i_rtc_dev *chip = priv;
+	u32 *val = _val;
+	int i;
+
+	for (i = 0; i < bytes / 4; ++i)
+		val[i] = readl(chip->base + SUN6I_GP_DATA + offset + 4 * i);
+
+	return 0;
+}
+
+static int sun6i_rtc_nvmem_write(void *priv, unsigned int offset, void *_val, size_t bytes)
+{
+	struct sun6i_rtc_dev *chip = priv;
+	u32 *val = _val;
+	int i;
+
+	for (i = 0; i < bytes / 4; ++i)
+		writel(val[i], chip->base + SUN6I_GP_DATA + offset + 4 * i);
+
+	return 0;
+}
+
+static struct nvmem_config sun6i_rtc_nvmem_cfg = {
+	.type		= NVMEM_TYPE_BATTERY_BACKED,
+	.reg_read	= sun6i_rtc_nvmem_read,
+	.reg_write	= sun6i_rtc_nvmem_write,
+	.size		= SUN6I_GP_DATA_SIZE,
+	.word_size	= 4,
+	.stride		= 4,
+};
+
 #ifdef CONFIG_PM_SLEEP
 /* Enable IRQ wake on suspend, to wake up from RTC. */
 static int sun6i_rtc_suspend(struct device *dev)
@@ -795,6 +849,11 @@ static int sun6i_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	sun6i_rtc_nvmem_cfg.priv = chip;
+	ret = devm_rtc_nvmem_register(chip->rtc, &sun6i_rtc_nvmem_cfg);
+	if (ret)
+		return ret;
+
 	dev_info(&pdev->dev, "RTC enabled\n");
 
 	return 0;
@@ -815,6 +874,8 @@ static const struct of_device_id sun6i_rtc_dt_ids[] = {
 	{ .compatible = "allwinner,sun50i-h5-rtc" },
 	{ .compatible = "allwinner,sun50i-h6-rtc" },
 	{ .compatible = "allwinner,sun50i-h616-rtc",
+		.data = (void *)RTC_LINEAR_DAY },
+	{ .compatible = "allwinner,sun50i-r329-rtc",
 		.data = (void *)RTC_LINEAR_DAY },
 	{ /* sentinel */ },
 };

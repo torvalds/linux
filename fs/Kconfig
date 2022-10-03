@@ -245,20 +245,26 @@ config HUGETLBFS
 config HUGETLB_PAGE
 	def_bool HUGETLBFS
 
-config HUGETLB_PAGE_FREE_VMEMMAP
+#
+# Select this config option from the architecture Kconfig, if it is preferred
+# to enable the feature of HugeTLB Vmemmap Optimization (HVO).
+#
+config ARCH_WANT_HUGETLB_PAGE_OPTIMIZE_VMEMMAP
+	bool
+
+config HUGETLB_PAGE_OPTIMIZE_VMEMMAP
 	def_bool HUGETLB_PAGE
-	depends on X86_64
+	depends on ARCH_WANT_HUGETLB_PAGE_OPTIMIZE_VMEMMAP
 	depends on SPARSEMEM_VMEMMAP
 
-config HUGETLB_PAGE_FREE_VMEMMAP_DEFAULT_ON
-	bool "Default freeing vmemmap pages of HugeTLB to on"
+config HUGETLB_PAGE_OPTIMIZE_VMEMMAP_DEFAULT_ON
+	bool "HugeTLB Vmemmap Optimization (HVO) defaults to on"
 	default n
-	depends on HUGETLB_PAGE_FREE_VMEMMAP
+	depends on HUGETLB_PAGE_OPTIMIZE_VMEMMAP
 	help
-	  When using HUGETLB_PAGE_FREE_VMEMMAP, the freeing unused vmemmap
-	  pages associated with each HugeTLB page is default off. Say Y here
-	  to enable freeing vmemmap pages of HugeTLB by default. It can then
-	  be disabled on the command line via hugetlb_free_vmemmap=off.
+	  The HugeTLB VmemmapvOptimization (HVO) defaults to off. Say Y here to
+	  enable HVO by default. It can be disabled via hugetlb_free_vmemmap=off
+	  (boot command line) or hugetlb_optimize_vmemmap (sysctl).
 
 config MEMFD_CREATE
 	def_bool TMPFS || HUGETLBFS

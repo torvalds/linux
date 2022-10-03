@@ -1,3 +1,6 @@
+.. title:: Kernel-doc comments
+
+===========================
 Writing kernel-doc comments
 ===========================
 
@@ -436,6 +439,7 @@ The title following ``DOC:`` acts as a heading within the source file, but also
 as an identifier for extracting the documentation comment. Thus, the title must
 be unique within the file.
 
+=============================
 Including kernel-doc comments
 =============================
 

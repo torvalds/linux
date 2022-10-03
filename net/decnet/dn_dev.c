@@ -854,7 +854,7 @@ static void dn_send_endnode_hello(struct net_device *dev, struct dn_ifaddr *ifa)
 	memcpy(msg->neighbor, dn_hiord, ETH_ALEN);
 
 	if (dn_db->router) {
-		struct dn_neigh *dn = (struct dn_neigh *)dn_db->router;
+		struct dn_neigh *dn = container_of(dn_db->router, struct dn_neigh, n);
 		dn_dn2eth(msg->neighbor, dn->addr);
 	}
 
@@ -902,7 +902,7 @@ static void dn_send_router_hello(struct net_device *dev, struct dn_ifaddr *ifa)
 {
 	int n;
 	struct dn_dev *dn_db = rcu_dereference_raw(dev->dn_ptr);
-	struct dn_neigh *dn = (struct dn_neigh *)dn_db->router;
+	struct dn_neigh *dn = container_of(dn_db->router, struct dn_neigh, n);
 	struct sk_buff *skb;
 	size_t size;
 	unsigned char *ptr;

@@ -29,6 +29,16 @@
 		serial0 = &uart5;
 		serial1 = &uart7;
 	};
+
+	pm8350c_pwm_backlight: backlight {
+		compatible = "pwm-backlight";
+		status = "disabled";
+
+		enable-gpios = <&pm8350c_gpios 7 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pmic_edp_bl_en>;
+		pwms = <&pm8350c_pwm 3 65535>;
+	};
 };
 
 &apps_rsc {
@@ -110,6 +120,12 @@
 		vreg_l7b_2p5: ldo7 {
 			regulator-min-microvolt = <2960000>;
 			regulator-max-microvolt = <2960000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
+		vreg_l17b_1p8: ldo17 {
+			regulator-min-microvolt = <1700000>;
+			regulator-max-microvolt = <1900000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
@@ -293,9 +309,45 @@
 	modem-init;
 };
 
+/* NOTE: Not all Qcards have eDP connector stuffed */
+&mdss_edp {
+	aux-bus {
+		edp_panel: panel {
+			compatible = "edp-panel";
+
+			backlight = <&pm8350c_pwm_backlight>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				port@0 {
+					reg = <0>;
+					edp_panel_in: endpoint {
+						remote-endpoint = <&mdss_edp_out>;
+					};
+				};
+			};
+		};
+	};
+};
+
+&mdss_edp_out {
+	remote-endpoint = <&edp_panel_in>;
+};
+
+&mdss_edp_phy {
+	vdda-pll-supply = <&vdd_a_edp_0_0p9>;
+	vdda-phy-supply = <&vdd_a_edp_0_1p2>;
+};
+
 &pcie1_phy {
 	vdda-phy-supply = <&vreg_l10c_0p88>;
 	vdda-pll-supply = <&vreg_l6b_1p2>;
+};
+
+&pm8350c_pwm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pmic_edp_bl_pwm>;
 };
 
 &pmk8350_vadc {
@@ -383,6 +435,11 @@ mos_bt_uart: &uart7 {
  * baseboard or board device tree, not here.
  */
 
+/* No external pull for eDP HPD, so set the internal one. */
+&edp_hot_plug_det {
+	bias-pull-down;
+};
+
 /*
  * For ts_i2c
  *
@@ -398,8 +455,14 @@ mos_bt_uart: &uart7 {
 
 /* For mos_bt_uart */
 &qup_uart7_cts {
-	/* Configure a pull-down on CTS to match the pull of the Bluetooth module. */
-	bias-pull-down;
+	/*
+	 * Configure a bias-bus-hold on CTS to lower power
+	 * usage when Bluetooth is turned off. Bus hold will
+	 * maintain a low power state regardless of whether
+	 * the Bluetooth module drives the pin in either
+	 * direction or leaves the pin fully unpowered.
+	 */
+	bias-bus-hold;
 };
 
 /* For mos_bt_uart */
@@ -457,7 +520,7 @@ mos_bt_uart: &uart7 {
  */
 
 &pm8350c_gpios {
-	pmic_edp_bl_en: pmic-edp-bl-en {
+	pmic_edp_bl_en: pmic-edp-bl-en-state {
 		pins = "gpio7";
 		function = "normal";
 		bias-disable;
@@ -467,7 +530,7 @@ mos_bt_uart: &uart7 {
 		output-low;
 	};
 
-	pmic_edp_bl_pwm: pmic-edp-bl-pwm {
+	pmic_edp_bl_pwm: pmic-edp-bl-pwm-state {
 		pins = "gpio8";
 		function = "func1";
 		bias-disable;
@@ -490,10 +553,13 @@ mos_bt_uart: &uart7 {
 		pins = "gpio28";
 		function = "gpio";
 		/*
-		 * Configure a pull-down on CTS to match the pull of
-		 * the Bluetooth module.
+		 * Configure a bias-bus-hold on CTS to lower power
+		 * usage when Bluetooth is turned off. Bus hold will
+		 * maintain a low power state regardless of whether
+		 * the Bluetooth module drives the pin in either
+		 * direction or leaves the pin fully unpowered.
 		 */
-		bias-pull-down;
+		bias-bus-hold;
 	};
 
 	/* For mos_bt_uart */
@@ -541,7 +607,6 @@ mos_bt_uart: &uart7 {
 	ts_rst_conn: ts-rst-conn {
 		pins = "gpio54";
 		function = "gpio";
-		bias-pull-up;
 		drive-strength = <2>;
 	};
 };

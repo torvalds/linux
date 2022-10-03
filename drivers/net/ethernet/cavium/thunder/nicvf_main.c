@@ -2024,9 +2024,6 @@ static void nicvf_set_rx_mode_task(struct work_struct *work_arg)
 	u8 mode;
 	struct xcast_addr_list *mc;
 
-	if (!vf_work)
-		return;
-
 	/* Save message data locally to prevent them from
 	 * being overwritten by next ndo_set_rx_mode call().
 	 */

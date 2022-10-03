@@ -65,6 +65,8 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_CS35L36
 	imply SND_SOC_CS35L41_SPI
 	imply SND_SOC_CS35L41_I2C
+	imply SND_SOC_CS35L45_I2C
+	imply SND_SOC_CS35L45_SPI
 	imply SND_SOC_CS42L42
 	imply SND_SOC_CS42L51_I2C
 	imply SND_SOC_CS42L52
@@ -127,6 +129,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_MAX98373_I2C
 	imply SND_SOC_MAX98373_SDW
 	imply SND_SOC_MAX98390
+	imply SND_SOC_MAX98396
 	imply SND_SOC_MAX9850
 	imply SND_SOC_MAX9860
 	imply SND_SOC_MAX9759
@@ -168,6 +171,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT1011
 	imply SND_SOC_RT1015
 	imply SND_SOC_RT1015P
+	imply SND_SOC_RT1016
 	imply SND_SOC_RT1019
 	imply SND_SOC_RT1305
 	imply SND_SOC_RT1308
@@ -215,6 +219,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_TAS2562
 	imply SND_SOC_TAS2764
 	imply SND_SOC_TAS2770
+	imply SND_SOC_TAS2780
 	imply SND_SOC_TAS5086
 	imply SND_SOC_TAS571X
 	imply SND_SOC_TAS5720
@@ -265,7 +270,8 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_WM8711
 	imply SND_SOC_WM8727
 	imply SND_SOC_WM8728
-	imply SND_SOC_WM8731
+	imply SND_SOC_WM8731_I2C
+	imply SND_SOC_WM8731_SPI
 	imply SND_SOC_WM8737
 	imply SND_SOC_WM8741
 	imply SND_SOC_WM8750
@@ -303,6 +309,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_WM9712
 	imply SND_SOC_WM9713
 	imply SND_SOC_WSA881X
+	imply SND_SOC_WSA883X
 	imply SND_SOC_ZL38060
 	help
 	  Normally ASoC codec drivers are only built if a machine driver which
@@ -655,6 +662,34 @@ config SND_SOC_CS35L41_I2C
 	select SND_SOC_CS35L41
 	select REGMAP_I2C
 
+config SND_SOC_CS35L45_TABLES
+	tristate
+
+config SND_SOC_CS35L45
+	tristate
+
+config SND_SOC_CS35L45_SPI
+	tristate "Cirrus Logic CS35L45 CODEC (SPI)"
+	depends on SPI_MASTER
+	select REGMAP
+	select REGMAP_SPI
+	select SND_SOC_CS35L45_TABLES
+	select SND_SOC_CS35L45
+	help
+	  Enable support for Cirrus Logic CS35L45 smart speaker amplifier
+	  with SPI control.
+
+config SND_SOC_CS35L45_I2C
+	tristate "Cirrus Logic CS35L45 CODEC (I2C)"
+	depends on I2C
+	select REGMAP
+	select REGMAP_I2C
+	select SND_SOC_CS35L45_TABLES
+	select SND_SOC_CS35L45
+	help
+	  Enable support for Cirrus Logic CS35L45 smart speaker amplifier
+	  with I2C control.
+
 config SND_SOC_CS42L42
 	tristate "Cirrus Logic CS42L42 CODEC"
 	depends on I2C
@@ -904,6 +939,16 @@ config SND_SOC_HDAC_HDA
 	tristate
 	select SND_HDA
 
+config SND_SOC_HDA
+	tristate "HD-Audio codec driver"
+	select SND_HDA_EXT_CORE
+	select SND_HDA
+	help
+	  This enables HD-Audio codec support in ASoC subsystem. Compared
+	  to SND_SOC_HDAC_HDA, driver's behavior is identical to HD-Audio
+	  legacy solution - including the dynamic resource allocation
+	  based on actual codec capabilities.
+
 config SND_SOC_ICS43432
 	tristate "ICS43423 and compatible i2s microphones"
 
@@ -953,7 +998,6 @@ config SND_SOC_MAX98095
 
 config SND_SOC_MAX98357A
 	tristate "Maxim MAX98357A CODEC"
-	depends on GPIOLIB
 
 config SND_SOC_MAX98371
 	tristate
@@ -1014,6 +1058,15 @@ config SND_SOC_MAX98373_SDW
 config SND_SOC_MAX98390
 	tristate "Maxim Integrated MAX98390 Speaker Amplifier"
 	depends on I2C
+
+config SND_SOC_MAX98396
+	tristate "Analog Devices MAX98396 Speaker Amplifier"
+	depends on I2C
+	help
+	  Enable support for Analog Devices MAX98396 audio
+	  amplifier. The device provides a PCM interface for
+	  audio data and a standard I2C interface for control
+	  data communication.
 
 config SND_SOC_MAX9850
 	tristate
@@ -1213,7 +1266,10 @@ config SND_SOC_RT1015
 
 config SND_SOC_RT1015P
 	tristate
-	depends on GPIOLIB
+
+config SND_SOC_RT1016
+	tristate
+	depends on I2C
 
 config SND_SOC_RT1019
 	tristate
@@ -1479,6 +1535,13 @@ config SND_SOC_TAS2764
 config SND_SOC_TAS2770
 	tristate "Texas Instruments TAS2770 speaker amplifier"
 	depends on I2C
+
+config SND_SOC_TAS2780
+	tristate "Texas Instruments TAS2780 Mono Audio amplifier"
+	depends on I2C
+	help
+	  Enable support for Texas Instruments TAS2780 high-efficiency
+	  digital input mono Class-D audio power amplifiers.
 
 config SND_SOC_TAS5086
 	tristate "Texas Instruments TAS5086 speaker amplifier"
@@ -1753,8 +1816,19 @@ config SND_SOC_WM8728
 	depends on SND_SOC_I2C_AND_SPI
 
 config SND_SOC_WM8731
-	tristate "Wolfson Microelectronics WM8731 CODEC"
-	depends on SND_SOC_I2C_AND_SPI
+	tristate
+
+config SND_SOC_WM8731_I2C
+	tristate "Wolfson Microelectronics WM8731 CODEC with I2C"
+	depends on I2C
+	select REGMAP
+	select SND_SOC_WM8731
+
+config SND_SOC_WM8731_SPI
+	tristate "Wolfson Microelectronics WM8731 CODEC with SPI"
+	depends on SPI
+	select REGMAP
+	select SND_SOC_WM8731
 
 config SND_SOC_WM8737
 	tristate "Wolfson Microelectronics WM8737 ADC"
@@ -1811,7 +1885,7 @@ config SND_SOC_WM8904
 	depends on I2C
 
 config SND_SOC_WM8940
-	tristate
+	tristate "Wolfson Microelectronics WM8940 codec"
 	depends on I2C
 
 config SND_SOC_WM8955
@@ -1918,6 +1992,15 @@ config SND_SOC_WSA881X
 	tristate
 	help
 	  This enables support for Qualcomm WSA8810/WSA8815 Class-D
+	  Smart Speaker Amplifier.
+
+config SND_SOC_WSA883X
+	tristate "WSA883X Codec"
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	tristate
+	help
+	  This enables support for Qualcomm WSA8830/WSA8835 Class-D
 	  Smart Speaker Amplifier.
 
 config SND_SOC_ZL38060

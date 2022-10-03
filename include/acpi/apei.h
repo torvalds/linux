@@ -46,6 +46,8 @@ int erst_get_record_id_next(int *pos, u64 *record_id);
 void erst_get_record_id_end(void);
 ssize_t erst_read(u64 record_id, struct cper_record_header *record,
 		  size_t buflen);
+ssize_t erst_read_record(u64 record_id, struct cper_record_header *record,
+		size_t buflen, size_t recordlen, const guid_t *creatorid);
 int erst_clear(u64 record_id);
 
 int arch_apei_enable_cmcff(struct acpi_hest_header *hest_hdr, void *data);

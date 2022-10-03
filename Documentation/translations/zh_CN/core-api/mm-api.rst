@@ -5,6 +5,7 @@
 :翻译:
 
  司延腾 Yanteng Si <siyanteng@loongson.cn>
+ 周彬彬 Binbin Zhou <zhoubinbin@loongson.cn>
 
 :校译:
 
@@ -66,11 +67,23 @@ mm/vmalloc.c
 
 该API在以下内核代码中:
 
-mm/readahead.c
+文件映射
+--------
 
 mm/filemap.c
 
+预读
+----
+
+mm/readahead.c
+
+回写
+----
+
 mm/page-writeback.c
+
+截断
+----
 
 mm/truncate.c
 
@@ -105,6 +118,14 @@ mm/mempolicy.c
 
 include/linux/mm_types.h
 
+include/linux/mm_inline.h
+
+include/linux/page-flags.h
+
 include/linux/mm.h
 
+include/linux/page_ref.h
+
 include/linux/mmzone.h
+
+mm/util.c

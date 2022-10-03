@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0
 
 config BOOTPARAM
-	bool 'Compiled-in Kernel Boot Parameter'
+	bool "Compiled-in Kernel Boot Parameter"
 
 config BOOTPARAM_STRING
-	string 'Kernel Boot Parameter'
-	default 'console=ttyS0,19200'
+	string "Kernel Boot Parameter"
+	default "console=ttyS0,19200"
 	depends on BOOTPARAM
 
 config EARLY_PRINTK

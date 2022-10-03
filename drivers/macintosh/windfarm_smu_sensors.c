@@ -14,7 +14,8 @@
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/completion.h>
-#include <asm/prom.h>
+#include <linux/of.h>
+
 #include <asm/machdep.h>
 #include <asm/io.h>
 #include <asm/sections.h>

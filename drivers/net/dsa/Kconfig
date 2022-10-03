@@ -60,19 +60,19 @@ source "drivers/net/dsa/sja1105/Kconfig"
 
 source "drivers/net/dsa/xrs700x/Kconfig"
 
-config NET_DSA_QCA8K
-	tristate "Qualcomm Atheros QCA8K Ethernet switch family support"
-	select NET_DSA_TAG_QCA
-	select REGMAP
-	help
-	  This enables support for the Qualcomm Atheros QCA8K Ethernet
-	  switch chips.
-
 source "drivers/net/dsa/realtek/Kconfig"
+
+config NET_DSA_RZN1_A5PSW
+	tristate "Renesas RZ/N1 A5PSW Ethernet switch support"
+	depends on OF && ARCH_RZN1
+	select NET_DSA_TAG_RZN1_A5PSW
+	select PCS_RZN1_MIIC
+	help
+	  This driver supports the A5PSW switch, which is embedded in Renesas
+	  RZ/N1 SoC.
 
 config NET_DSA_SMSC_LAN9303
 	tristate
-	depends on VLAN_8021Q || VLAN_8021Q=n
 	select NET_DSA_TAG_LAN9303
 	select REGMAP
 	help
@@ -82,6 +82,7 @@ config NET_DSA_SMSC_LAN9303
 config NET_DSA_SMSC_LAN9303_I2C
 	tristate "SMSC/Microchip LAN9303 3-ports 10/100 ethernet switch in I2C managed mode"
 	depends on I2C
+	depends on VLAN_8021Q || VLAN_8021Q=n
 	select NET_DSA_SMSC_LAN9303
 	select REGMAP_I2C
 	help
@@ -91,6 +92,7 @@ config NET_DSA_SMSC_LAN9303_I2C
 config NET_DSA_SMSC_LAN9303_MDIO
 	tristate "SMSC/Microchip LAN9303 3-ports 10/100 ethernet switch in MDIO managed mode"
 	select NET_DSA_SMSC_LAN9303
+	depends on VLAN_8021Q || VLAN_8021Q=n
 	help
 	  Enable access functions if the SMSC/Microchip LAN9303 is configured
 	  for MDIO managed mode.

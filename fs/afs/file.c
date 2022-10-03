@@ -19,10 +19,10 @@
 #include "internal.h"
 
 static int afs_file_mmap(struct file *file, struct vm_area_struct *vma);
-static int afs_symlink_readpage(struct file *file, struct page *page);
+static int afs_symlink_read_folio(struct file *file, struct folio *folio);
 static void afs_invalidate_folio(struct folio *folio, size_t offset,
 			       size_t length);
-static int afs_releasepage(struct page *page, gfp_t gfp_flags);
+static bool afs_release_folio(struct folio *folio, gfp_t gfp_flags);
 
 static ssize_t afs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter);
 static void afs_vm_open(struct vm_area_struct *area);
@@ -50,11 +50,11 @@ const struct inode_operations afs_file_inode_operations = {
 };
 
 const struct address_space_operations afs_file_aops = {
-	.readpage	= netfs_readpage,
+	.read_folio	= netfs_read_folio,
 	.readahead	= netfs_readahead,
 	.dirty_folio	= afs_dirty_folio,
 	.launder_folio	= afs_launder_folio,
-	.releasepage	= afs_releasepage,
+	.release_folio	= afs_release_folio,
 	.invalidate_folio = afs_invalidate_folio,
 	.write_begin	= afs_write_begin,
 	.write_end	= afs_write_end,
@@ -63,8 +63,8 @@ const struct address_space_operations afs_file_aops = {
 };
 
 const struct address_space_operations afs_symlink_aops = {
-	.readpage	= afs_symlink_readpage,
-	.releasepage	= afs_releasepage,
+	.read_folio	= afs_symlink_read_folio,
+	.release_folio	= afs_release_folio,
 	.invalidate_folio = afs_invalidate_folio,
 };
 
@@ -194,7 +194,7 @@ int afs_release(struct inode *inode, struct file *file)
 		afs_put_wb_key(af->wb);
 
 	if ((file->f_mode & FMODE_WRITE)) {
-		i_size = i_size_read(&vnode->vfs_inode);
+		i_size = i_size_read(&vnode->netfs.inode);
 		afs_set_cache_aux(vnode, &aux);
 		fscache_unuse_cookie(afs_vnode_cache(vnode), &aux, &i_size);
 	} else {
@@ -325,18 +325,17 @@ static void afs_issue_read(struct netfs_io_subrequest *subreq)
 	fsreq->iter	= &fsreq->def_iter;
 
 	iov_iter_xarray(&fsreq->def_iter, READ,
-			&fsreq->vnode->vfs_inode.i_mapping->i_pages,
+			&fsreq->vnode->netfs.inode.i_mapping->i_pages,
 			fsreq->pos, fsreq->len);
 
 	afs_fetch_data(fsreq->vnode, fsreq);
 	afs_put_read(fsreq);
 }
 
-static int afs_symlink_readpage(struct file *file, struct page *page)
+static int afs_symlink_read_folio(struct file *file, struct folio *folio)
 {
-	struct afs_vnode *vnode = AFS_FS_I(page->mapping->host);
+	struct afs_vnode *vnode = AFS_FS_I(folio->mapping->host);
 	struct afs_read *fsreq;
-	struct folio *folio = page_folio(page);
 	int ret;
 
 	fsreq = afs_alloc_read(GFP_NOFS);
@@ -347,13 +346,13 @@ static int afs_symlink_readpage(struct file *file, struct page *page)
 	fsreq->len	= folio_size(folio);
 	fsreq->vnode	= vnode;
 	fsreq->iter	= &fsreq->def_iter;
-	iov_iter_xarray(&fsreq->def_iter, READ, &page->mapping->i_pages,
+	iov_iter_xarray(&fsreq->def_iter, READ, &folio->mapping->i_pages,
 			fsreq->pos, fsreq->len);
 
 	ret = afs_fetch_data(fsreq->vnode, fsreq);
 	if (ret == 0)
-		SetPageUptodate(page);
-	unlock_page(page);
+		folio_mark_uptodate(folio);
+	folio_unlock(folio);
 	return ret;
 }
 
@@ -376,24 +375,24 @@ static int afs_begin_cache_operation(struct netfs_io_request *rreq)
 }
 
 static int afs_check_write_begin(struct file *file, loff_t pos, unsigned len,
-				 struct folio *folio, void **_fsdata)
+				 struct folio **foliop, void **_fsdata)
 {
 	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
 
 	return test_bit(AFS_VNODE_DELETED, &vnode->flags) ? -ESTALE : 0;
 }
 
-static void afs_priv_cleanup(struct address_space *mapping, void *netfs_priv)
+static void afs_free_request(struct netfs_io_request *rreq)
 {
-	key_put(netfs_priv);
+	key_put(rreq->netfs_priv);
 }
 
 const struct netfs_request_ops afs_req_ops = {
 	.init_request		= afs_init_request,
+	.free_request		= afs_free_request,
 	.begin_cache_operation	= afs_begin_cache_operation,
 	.check_write_begin	= afs_check_write_begin,
 	.issue_read		= afs_issue_read,
-	.cleanup		= afs_priv_cleanup,
 };
 
 int afs_write_inode(struct inode *inode, struct writeback_control *wbc)
@@ -482,16 +481,15 @@ static void afs_invalidate_folio(struct folio *folio, size_t offset,
  * release a page and clean up its private state if it's not busy
  * - return true if the page can now be released, false if not
  */
-static int afs_releasepage(struct page *page, gfp_t gfp)
+static bool afs_release_folio(struct folio *folio, gfp_t gfp)
 {
-	struct folio *folio = page_folio(page);
 	struct afs_vnode *vnode = AFS_FS_I(folio_inode(folio));
 
 	_enter("{{%llx:%llu}[%lu],%lx},%x",
 	       vnode->fid.vid, vnode->fid.vnode, folio_index(folio), folio->flags,
 	       gfp);
 
-	/* deny if page is being written to the cache and the caller hasn't
+	/* deny if folio is being written to the cache and the caller hasn't
 	 * elected to wait */
 #ifdef CONFIG_AFS_FSCACHE
 	if (folio_test_fscache(folio)) {

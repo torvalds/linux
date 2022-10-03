@@ -98,7 +98,7 @@ u64 etm4x_sysreg_read(u32 offset, bool _relaxed, bool _64bit)
 	}
 
 	if (!_relaxed)
-		__iormb(res);	/* Imitate the !relaxed I/O helpers */
+		__io_ar(res);	/* Imitate the !relaxed I/O helpers */
 
 	return res;
 }
@@ -106,7 +106,7 @@ u64 etm4x_sysreg_read(u32 offset, bool _relaxed, bool _64bit)
 void etm4x_sysreg_write(u64 val, u32 offset, bool _relaxed, bool _64bit)
 {
 	if (!_relaxed)
-		__iowmb();	/* Imitate the !relaxed I/O helpers */
+		__io_bw();	/* Imitate the !relaxed I/O helpers */
 	if (!_64bit)
 		val &= GENMASK(31, 0);
 
@@ -130,7 +130,7 @@ static u64 ete_sysreg_read(u32 offset, bool _relaxed, bool _64bit)
 	}
 
 	if (!_relaxed)
-		__iormb(res);	/* Imitate the !relaxed I/O helpers */
+		__io_ar(res);	/* Imitate the !relaxed I/O helpers */
 
 	return res;
 }
@@ -138,7 +138,7 @@ static u64 ete_sysreg_read(u32 offset, bool _relaxed, bool _64bit)
 static void ete_sysreg_write(u64 val, u32 offset, bool _relaxed, bool _64bit)
 {
 	if (!_relaxed)
-		__iowmb();	/* Imitate the !relaxed I/O helpers */
+		__io_bw();	/* Imitate the !relaxed I/O helpers */
 	if (!_64bit)
 		val &= GENMASK(31, 0);
 
@@ -443,7 +443,7 @@ static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 	for (i = 0; i < drvdata->nr_ss_cmp; i++) {
 		/* always clear status bit on restart if using single-shot */
 		if (config->ss_ctrl[i] || config->ss_pe_cmp[i])
-			config->ss_status[i] &= ~BIT(31);
+			config->ss_status[i] &= ~TRCSSCSRn_STATUS;
 		etm4x_relaxed_write32(csa, config->ss_ctrl[i], TRCSSCCRn(i));
 		etm4x_relaxed_write32(csa, config->ss_status[i], TRCSSCSRn(i));
 		if (etm4x_sspcicrn_present(drvdata, i))
@@ -633,7 +633,7 @@ static int etm4_parse_event_config(struct coresight_device *csdev,
 
 	/* Go from generic option to ETMv4 specifics */
 	if (attr->config & BIT(ETM_OPT_CYCACC)) {
-		config->cfg |= BIT(4);
+		config->cfg |= TRCCONFIGR_CCI;
 		/* TRM: Must program this for cycacc to work */
 		config->ccctlr = ETM_CYC_THRESHOLD_DEFAULT;
 	}
@@ -653,14 +653,14 @@ static int etm4_parse_event_config(struct coresight_device *csdev,
 			goto out;
 
 		/* bit[11], Global timestamp tracing bit */
-		config->cfg |= BIT(11);
+		config->cfg |= TRCCONFIGR_TS;
 	}
 
 	/* Only trace contextID when runs in root PID namespace */
 	if ((attr->config & BIT(ETM_OPT_CTXTID)) &&
 	    task_is_in_init_pid_ns(current))
 		/* bit[6], Context ID tracing bit */
-		config->cfg |= BIT(ETM4_CFG_BIT_CTXTID);
+		config->cfg |= TRCCONFIGR_CID;
 
 	/*
 	 * If set bit ETM_OPT_CTXTID2 in perf config, this asks to trace VMID
@@ -672,17 +672,15 @@ static int etm4_parse_event_config(struct coresight_device *csdev,
 			ret = -EINVAL;
 			goto out;
 		}
-
 		/* Only trace virtual contextID when runs in root PID namespace */
 		if (task_is_in_init_pid_ns(current))
-			config->cfg |= BIT(ETM4_CFG_BIT_VMID) |
-				       BIT(ETM4_CFG_BIT_VMID_OPT);
+			config->cfg |= TRCCONFIGR_VMID | TRCCONFIGR_VMIDOPT;
 	}
 
 	/* return stack - enable if selected and supported */
 	if ((attr->config & BIT(ETM_OPT_RETSTK)) && drvdata->retstack)
 		/* bit[12], Return stack enable bit */
-		config->cfg |= BIT(12);
+		config->cfg |= TRCCONFIGR_RS;
 
 	/*
 	 * Set any selected configuration and preset.
@@ -696,6 +694,20 @@ static int etm4_parse_event_config(struct coresight_device *csdev,
 		cfg_hash = (u32)(attr->config2 >> 32);
 		preset = attr->config & 0xF;
 		ret = cscfg_csdev_enable_active_config(csdev, cfg_hash, preset);
+	}
+
+	/* branch broadcast - enable if selected and supported */
+	if (attr->config & BIT(ETM_OPT_BRANCH_BROADCAST)) {
+		if (!drvdata->trcbb) {
+			/*
+			 * Missing BB support could cause silent decode errors
+			 * so fail to open if it's not supported.
+			 */
+			ret = -EINVAL;
+			goto out;
+		} else {
+			config->cfg |= BIT(ETM4_CFG_BIT_BB);
+		}
 	}
 
 out:
@@ -1097,107 +1109,67 @@ static void etm4_init_arch_data(void *info)
 	etmidr0 = etm4x_relaxed_read32(csa, TRCIDR0);
 
 	/* INSTP0, bits[2:1] P0 tracing support field */
-	if (BMVAL(etmidr0, 1, 2) == 0b11)
-		drvdata->instrp0 = true;
-	else
-		drvdata->instrp0 = false;
-
+	drvdata->instrp0 = !!(FIELD_GET(TRCIDR0_INSTP0_MASK, etmidr0) == 0b11);
 	/* TRCBB, bit[5] Branch broadcast tracing support bit */
-	if (BMVAL(etmidr0, 5, 5))
-		drvdata->trcbb = true;
-	else
-		drvdata->trcbb = false;
-
+	drvdata->trcbb = !!(etmidr0 & TRCIDR0_TRCBB);
 	/* TRCCOND, bit[6] Conditional instruction tracing support bit */
-	if (BMVAL(etmidr0, 6, 6))
-		drvdata->trccond = true;
-	else
-		drvdata->trccond = false;
-
+	drvdata->trccond = !!(etmidr0 & TRCIDR0_TRCCOND);
 	/* TRCCCI, bit[7] Cycle counting instruction bit */
-	if (BMVAL(etmidr0, 7, 7))
-		drvdata->trccci = true;
-	else
-		drvdata->trccci = false;
-
+	drvdata->trccci = !!(etmidr0 & TRCIDR0_TRCCCI);
 	/* RETSTACK, bit[9] Return stack bit */
-	if (BMVAL(etmidr0, 9, 9))
-		drvdata->retstack = true;
-	else
-		drvdata->retstack = false;
-
+	drvdata->retstack = !!(etmidr0 & TRCIDR0_RETSTACK);
 	/* NUMEVENT, bits[11:10] Number of events field */
-	drvdata->nr_event = BMVAL(etmidr0, 10, 11);
+	drvdata->nr_event = FIELD_GET(TRCIDR0_NUMEVENT_MASK, etmidr0);
 	/* QSUPP, bits[16:15] Q element support field */
-	drvdata->q_support = BMVAL(etmidr0, 15, 16);
+	drvdata->q_support = FIELD_GET(TRCIDR0_QSUPP_MASK, etmidr0);
 	/* TSSIZE, bits[28:24] Global timestamp size field */
-	drvdata->ts_size = BMVAL(etmidr0, 24, 28);
+	drvdata->ts_size = FIELD_GET(TRCIDR0_TSSIZE_MASK, etmidr0);
 
 	/* maximum size of resources */
 	etmidr2 = etm4x_relaxed_read32(csa, TRCIDR2);
 	/* CIDSIZE, bits[9:5] Indicates the Context ID size */
-	drvdata->ctxid_size = BMVAL(etmidr2, 5, 9);
+	drvdata->ctxid_size = FIELD_GET(TRCIDR2_CIDSIZE_MASK, etmidr2);
 	/* VMIDSIZE, bits[14:10] Indicates the VMID size */
-	drvdata->vmid_size = BMVAL(etmidr2, 10, 14);
+	drvdata->vmid_size = FIELD_GET(TRCIDR2_VMIDSIZE_MASK, etmidr2);
 	/* CCSIZE, bits[28:25] size of the cycle counter in bits minus 12 */
-	drvdata->ccsize = BMVAL(etmidr2, 25, 28);
+	drvdata->ccsize = FIELD_GET(TRCIDR2_CCSIZE_MASK, etmidr2);
 
 	etmidr3 = etm4x_relaxed_read32(csa, TRCIDR3);
 	/* CCITMIN, bits[11:0] minimum threshold value that can be programmed */
-	drvdata->ccitmin = BMVAL(etmidr3, 0, 11);
+	drvdata->ccitmin = FIELD_GET(TRCIDR3_CCITMIN_MASK, etmidr3);
 	/* EXLEVEL_S, bits[19:16] Secure state instruction tracing */
-	drvdata->s_ex_level = BMVAL(etmidr3, 16, 19);
+	drvdata->s_ex_level = FIELD_GET(TRCIDR3_EXLEVEL_S_MASK, etmidr3);
 	drvdata->config.s_ex_level = drvdata->s_ex_level;
 	/* EXLEVEL_NS, bits[23:20] Non-secure state instruction tracing */
-	drvdata->ns_ex_level = BMVAL(etmidr3, 20, 23);
-
+	drvdata->ns_ex_level = FIELD_GET(TRCIDR3_EXLEVEL_NS_MASK, etmidr3);
 	/*
 	 * TRCERR, bit[24] whether a trace unit can trace a
 	 * system error exception.
 	 */
-	if (BMVAL(etmidr3, 24, 24))
-		drvdata->trc_error = true;
-	else
-		drvdata->trc_error = false;
-
+	drvdata->trc_error = !!(etmidr3 & TRCIDR3_TRCERR);
 	/* SYNCPR, bit[25] implementation has a fixed synchronization period? */
-	if (BMVAL(etmidr3, 25, 25))
-		drvdata->syncpr = true;
-	else
-		drvdata->syncpr = false;
-
+	drvdata->syncpr = !!(etmidr3 & TRCIDR3_SYNCPR);
 	/* STALLCTL, bit[26] is stall control implemented? */
-	if (BMVAL(etmidr3, 26, 26))
-		drvdata->stallctl = true;
-	else
-		drvdata->stallctl = false;
-
+	drvdata->stallctl = !!(etmidr3 & TRCIDR3_STALLCTL);
 	/* SYSSTALL, bit[27] implementation can support stall control? */
-	if (BMVAL(etmidr3, 27, 27))
-		drvdata->sysstall = true;
-	else
-		drvdata->sysstall = false;
-
+	drvdata->sysstall = !!(etmidr3 & TRCIDR3_SYSSTALL);
 	/*
 	 * NUMPROC - the number of PEs available for tracing, 5bits
 	 *         = TRCIDR3.bits[13:12]bits[30:28]
 	 *  bits[4:3] = TRCIDR3.bits[13:12] (since etm-v4.2, otherwise RES0)
 	 *  bits[3:0] = TRCIDR3.bits[30:28]
 	 */
-	drvdata->nr_pe = (BMVAL(etmidr3, 12, 13) << 3) | BMVAL(etmidr3, 28, 30);
-
+	drvdata->nr_pe =  (FIELD_GET(TRCIDR3_NUMPROC_HI_MASK, etmidr3) << 3) |
+			   FIELD_GET(TRCIDR3_NUMPROC_LO_MASK, etmidr3);
 	/* NOOVERFLOW, bit[31] is trace overflow prevention supported */
-	if (BMVAL(etmidr3, 31, 31))
-		drvdata->nooverflow = true;
-	else
-		drvdata->nooverflow = false;
+	drvdata->nooverflow = !!(etmidr3 & TRCIDR3_NOOVERFLOW);
 
 	/* number of resources trace unit supports */
 	etmidr4 = etm4x_relaxed_read32(csa, TRCIDR4);
 	/* NUMACPAIRS, bits[0:3] number of addr comparator pairs for tracing */
-	drvdata->nr_addr_cmp = BMVAL(etmidr4, 0, 3);
+	drvdata->nr_addr_cmp = FIELD_GET(TRCIDR4_NUMACPAIRS_MASK, etmidr4);
 	/* NUMPC, bits[15:12] number of PE comparator inputs for tracing */
-	drvdata->nr_pe_cmp = BMVAL(etmidr4, 12, 15);
+	drvdata->nr_pe_cmp = FIELD_GET(TRCIDR4_NUMPC_MASK, etmidr4);
 	/*
 	 * NUMRSPAIR, bits[19:16]
 	 * The number of resource pairs conveyed by the HW starts at 0, i.e a
@@ -1208,7 +1180,7 @@ static void etm4_init_arch_data(void *info)
 	 * the default TRUE and FALSE resource selectors are omitted.
 	 * Otherwise for values 0x1 and above the number is N + 1 as per v4.2.
 	 */
-	drvdata->nr_resource = BMVAL(etmidr4, 16, 19);
+	drvdata->nr_resource = FIELD_GET(TRCIDR4_NUMRSPAIR_MASK, etmidr4);
 	if ((drvdata->arch < ETM_ARCH_V4_3) || (drvdata->nr_resource > 0))
 		drvdata->nr_resource += 1;
 	/*
@@ -1216,45 +1188,39 @@ static void etm4_init_arch_data(void *info)
 	 * comparator control for tracing. Read any status regs as these
 	 * also contain RO capability data.
 	 */
-	drvdata->nr_ss_cmp = BMVAL(etmidr4, 20, 23);
+	drvdata->nr_ss_cmp = FIELD_GET(TRCIDR4_NUMSSCC_MASK, etmidr4);
 	for (i = 0; i < drvdata->nr_ss_cmp; i++) {
 		drvdata->config.ss_status[i] =
 			etm4x_relaxed_read32(csa, TRCSSCSRn(i));
 	}
 	/* NUMCIDC, bits[27:24] number of Context ID comparators for tracing */
-	drvdata->numcidc = BMVAL(etmidr4, 24, 27);
+	drvdata->numcidc = FIELD_GET(TRCIDR4_NUMCIDC_MASK, etmidr4);
 	/* NUMVMIDC, bits[31:28] number of VMID comparators for tracing */
-	drvdata->numvmidc = BMVAL(etmidr4, 28, 31);
+	drvdata->numvmidc = FIELD_GET(TRCIDR4_NUMVMIDC_MASK, etmidr4);
 
 	etmidr5 = etm4x_relaxed_read32(csa, TRCIDR5);
 	/* NUMEXTIN, bits[8:0] number of external inputs implemented */
-	drvdata->nr_ext_inp = BMVAL(etmidr5, 0, 8);
+	drvdata->nr_ext_inp = FIELD_GET(TRCIDR5_NUMEXTIN_MASK, etmidr5);
 	/* TRACEIDSIZE, bits[21:16] indicates the trace ID width */
-	drvdata->trcid_size = BMVAL(etmidr5, 16, 21);
+	drvdata->trcid_size = FIELD_GET(TRCIDR5_TRACEIDSIZE_MASK, etmidr5);
 	/* ATBTRIG, bit[22] implementation can support ATB triggers? */
-	if (BMVAL(etmidr5, 22, 22))
-		drvdata->atbtrig = true;
-	else
-		drvdata->atbtrig = false;
+	drvdata->atbtrig = !!(etmidr5 & TRCIDR5_ATBTRIG);
 	/*
 	 * LPOVERRIDE, bit[23] implementation supports
 	 * low-power state override
 	 */
-	if (BMVAL(etmidr5, 23, 23) && (!drvdata->skip_power_up))
-		drvdata->lpoverride = true;
-	else
-		drvdata->lpoverride = false;
+	drvdata->lpoverride = (etmidr5 & TRCIDR5_LPOVERRIDE) && (!drvdata->skip_power_up);
 	/* NUMSEQSTATE, bits[27:25] number of sequencer states implemented */
-	drvdata->nrseqstate = BMVAL(etmidr5, 25, 27);
+	drvdata->nrseqstate = FIELD_GET(TRCIDR5_NUMSEQSTATE_MASK, etmidr5);
 	/* NUMCNTR, bits[30:28] number of counters available for tracing */
-	drvdata->nr_cntr = BMVAL(etmidr5, 28, 30);
+	drvdata->nr_cntr = FIELD_GET(TRCIDR5_NUMCNTR_MASK, etmidr5);
 	etm4_cs_lock(drvdata, csa);
 	cpu_detect_trace_filtering(drvdata);
 }
 
 static inline u32 etm4_get_victlr_access_type(struct etmv4_config *config)
 {
-	return etm4_get_access_type(config) << TRCVICTLR_EXLEVEL_SHIFT;
+	return etm4_get_access_type(config) << __bf_shf(TRCVICTLR_EXLEVEL_MASK);
 }
 
 /* Set ELx trace filter access in the TRCVICTLR register */
@@ -1280,7 +1246,7 @@ static void etm4_set_default_config(struct etmv4_config *config)
 	config->ts_ctrl = 0x0;
 
 	/* TRCVICTLR::EVENT = 0x01, select the always on logic */
-	config->vinst_ctrl = BIT(0);
+	config->vinst_ctrl = FIELD_PREP(TRCVICTLR_EVENT_MASK, 0x01);
 
 	/* TRCVICTLR::EXLEVEL_NS:EXLEVELS: Set kernel / user filtering */
 	etm4_set_victlr_access(config);
@@ -1389,7 +1355,7 @@ static void etm4_set_default_filter(struct etmv4_config *config)
 	 * TRCVICTLR::SSSTATUS == 1, the start-stop logic is
 	 * in the started state
 	 */
-	config->vinst_ctrl |= BIT(9);
+	config->vinst_ctrl |= TRCVICTLR_SSSTATUS;
 	config->mode |= ETM_MODE_VIEWINST_STARTSTOP;
 
 	/* No start-stop filtering for ViewInst */
@@ -1493,7 +1459,7 @@ static int etm4_set_event_filters(struct etmv4_drvdata *drvdata,
 			 * TRCVICTLR::SSSTATUS == 1, the start-stop logic is
 			 * in the started state
 			 */
-			config->vinst_ctrl |= BIT(9);
+			config->vinst_ctrl |= TRCVICTLR_SSSTATUS;
 
 			/* No start-stop filtering for ViewInst */
 			config->vissctlr = 0x0;
@@ -1521,7 +1487,7 @@ static int etm4_set_event_filters(struct etmv4_drvdata *drvdata,
 			 * etm4_disable_perf().
 			 */
 			if (filters->ssstatus)
-				config->vinst_ctrl |= BIT(9);
+				config->vinst_ctrl |= TRCVICTLR_SSSTATUS;
 
 			/* No include/exclude filtering for ViewInst */
 			config->viiectlr = 0x0;

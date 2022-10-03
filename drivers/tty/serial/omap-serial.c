@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/console.h>
+#include <linux/serial.h>
 #include <linux/serial_reg.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -1102,8 +1103,6 @@ serial_omap_type(struct uart_port *port)
 	return up->name;
 }
 
-#define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
-
 static void __maybe_unused wait_for_xmitr(struct uart_omap_port *up)
 {
 	unsigned int status, tmout = 10000;
@@ -1118,7 +1117,7 @@ static void __maybe_unused wait_for_xmitr(struct uart_omap_port *up)
 		if (--tmout == 0)
 			break;
 		udelay(1);
-	} while ((status & BOTH_EMPTY) != BOTH_EMPTY);
+	} while (!uart_lsr_tx_empty(status));
 
 	/* Wait up to 1s for flow control if necessary */
 	if (up->port.flags & UPF_CONS_FLOW) {
@@ -1186,7 +1185,7 @@ static void omap_serial_early_putc(struct uart_port *port, unsigned char c)
 
 	for (;;) {
 		status = omap_serial_early_in(port, UART_LSR);
-		if ((status & BOTH_EMPTY) == BOTH_EMPTY)
+		if (uart_lsr_tx_empty(status))
 			break;
 		cpu_relax();
 	}
@@ -1325,7 +1324,8 @@ static inline void serial_omap_add_console_port(struct uart_omap_port *up)
 
 /* Enable or disable the rs485 support */
 static int
-serial_omap_config_rs485(struct uart_port *port, struct serial_rs485 *rs485)
+serial_omap_config_rs485(struct uart_port *port, struct ktermios *termios,
+			 struct serial_rs485 *rs485)
 {
 	struct uart_omap_port *up = to_uart_omap_port(port);
 	unsigned int mode;
@@ -1336,18 +1336,11 @@ serial_omap_config_rs485(struct uart_port *port, struct serial_rs485 *rs485)
 	up->ier = 0;
 	serial_out(up, UART_IER, 0);
 
-	/* Clamp the delays to [0, 100ms] */
-	rs485->delay_rts_before_send = min(rs485->delay_rts_before_send, 100U);
-	rs485->delay_rts_after_send  = min(rs485->delay_rts_after_send, 100U);
-
-	/* store new config */
-	port->rs485 = *rs485;
-
 	if (up->rts_gpiod) {
 		/* enable / disable rts */
-		val = (port->rs485.flags & SER_RS485_ENABLED) ?
+		val = (rs485->flags & SER_RS485_ENABLED) ?
 			SER_RS485_RTS_AFTER_SEND : SER_RS485_RTS_ON_SEND;
-		val = (port->rs485.flags & val) ? 1 : 0;
+		val = (rs485->flags & val) ? 1 : 0;
 		gpiod_set_value(up->rts_gpiod, val);
 	}
 
@@ -1358,7 +1351,7 @@ serial_omap_config_rs485(struct uart_port *port, struct serial_rs485 *rs485)
 	/* If RS-485 is disabled, make sure the THR interrupt is fired when
 	 * TX FIFO is below the trigger level.
 	 */
-	if (!(port->rs485.flags & SER_RS485_ENABLED) &&
+	if (!(rs485->flags & SER_RS485_ENABLED) &&
 	    (up->scr & OMAP_UART_SCR_TX_EMPTY)) {
 		up->scr &= ~OMAP_UART_SCR_TX_EMPTY;
 		serial_out(up, UART_OMAP_SCR, up->scr);
@@ -1566,6 +1559,13 @@ static int serial_omap_probe_rs485(struct uart_omap_port *up,
 	return 0;
 }
 
+static const struct serial_rs485 serial_omap_rs485_supported = {
+	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND | SER_RS485_RTS_AFTER_SEND |
+		 SER_RS485_RX_DURING_TX,
+	.delay_rts_before_send = 1,
+	.delay_rts_after_send = 1,
+};
+
 static int serial_omap_probe(struct platform_device *pdev)
 {
 	struct omap_uart_port_info *omap_up_info = dev_get_platdata(&pdev->dev);
@@ -1643,6 +1643,7 @@ static int serial_omap_probe(struct platform_device *pdev)
 	up->port.flags = omap_up_info->flags;
 	up->port.uartclk = omap_up_info->uartclk;
 	up->port.rs485_config = serial_omap_config_rs485;
+	up->port.rs485_supported = serial_omap_rs485_supported;
 	if (!up->port.uartclk) {
 		up->port.uartclk = DEFAULT_CLK_SPEED;
 		dev_warn(&pdev->dev,

@@ -2047,8 +2047,6 @@ map_cmd_status(struct fusion_context *fusion,
 
 		scmd->result = (DID_OK << 16) | ext_status;
 		if (ext_status == SAM_STAT_CHECK_CONDITION) {
-			memset(scmd->sense_buffer, 0,
-			       SCSI_SENSE_BUFFERSIZE);
 			memcpy(scmd->sense_buffer, sense,
 			       SCSI_SENSE_BUFFERSIZE);
 		}
@@ -3201,7 +3199,6 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 			struct megasas_cmd_fusion *cmd)
 {
 	int sge_count;
-	u8  cmd_type;
 	u16 pd_index = 0;
 	u8 drive_type = 0;
 	struct MPI2_RAID_SCSI_IO_REQUEST *io_request = cmd->io_request;
@@ -3227,7 +3224,7 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 	 */
 	io_request->IoFlags = cpu_to_le16(scp->cmd_len);
 
-	switch (cmd_type = megasas_cmd_type(scp)) {
+	switch (megasas_cmd_type(scp)) {
 	case READ_WRITE_LDIO:
 		megasas_build_ldio_fusion(instance, scp, cmd);
 		break;

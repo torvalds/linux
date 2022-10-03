@@ -35,7 +35,7 @@ EXPORT_SYMBOL_GPL(smp_atomic_ops_lock);
 
 struct plat_smp_ops  __weak plat_smp_ops;
 
-/* XXX: per cpu ? Only needed once in early seconday boot */
+/* XXX: per cpu ? Only needed once in early secondary boot */
 struct task_struct *secondary_idle_tsk;
 
 /* Called from start_kernel */
@@ -232,14 +232,6 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	return 0;
 }
 
-/*
- * not supported here
- */
-int setup_profiling_timer(unsigned int multiplier)
-{
-	return -EINVAL;
-}
-
 /*****************************************************************************/
 /*              Inter Processor Interrupt Handling                           */
 /*****************************************************************************/
@@ -274,7 +266,7 @@ static void ipi_send_msg_one(int cpu, enum ipi_msg_type msg)
 	 * and read back old value
 	 */
 	do {
-		new = old = READ_ONCE(*ipi_data_ptr);
+		new = old = *ipi_data_ptr;
 		new |= 1U << msg;
 	} while (cmpxchg(ipi_data_ptr, old, new) != old);
 

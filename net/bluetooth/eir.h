@@ -11,9 +11,12 @@ void eir_create(struct hci_dev *hdev, u8 *data);
 
 u8 eir_create_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr);
 u8 eir_create_scan_rsp(struct hci_dev *hdev, u8 instance, u8 *ptr);
+u8 eir_create_per_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr);
 
 u8 eir_append_local_name(struct hci_dev *hdev, u8 *eir, u8 ad_len);
 u8 eir_append_appearance(struct hci_dev *hdev, u8 *ptr, u8 ad_len);
+u8 eir_append_service_data(u8 *eir, u16 eir_len, u16 uuid, u8 *data,
+			   u8 data_len);
 
 static inline u16 eir_precalc_len(u8 data_len)
 {
@@ -92,3 +95,5 @@ static inline void *eir_get_data(u8 *eir, size_t eir_len, u8 type,
 
 	return NULL;
 }
+
+void *eir_get_service_data(u8 *eir, size_t eir_len, u16 uuid, size_t *len);

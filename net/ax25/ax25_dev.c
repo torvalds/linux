@@ -52,7 +52,8 @@ void ax25_dev_device_up(struct net_device *dev)
 {
 	ax25_dev *ax25_dev;
 
-	if ((ax25_dev = kzalloc(sizeof(*ax25_dev), GFP_ATOMIC)) == NULL) {
+	ax25_dev = kzalloc(sizeof(*ax25_dev), GFP_KERNEL);
+	if (!ax25_dev) {
 		printk(KERN_ERR "AX.25: ax25_dev_device_up - out of memory\n");
 		return;
 	}
@@ -60,8 +61,9 @@ void ax25_dev_device_up(struct net_device *dev)
 	refcount_set(&ax25_dev->refcount, 1);
 	dev->ax25_ptr     = ax25_dev;
 	ax25_dev->dev     = dev;
-	dev_hold_track(dev, &ax25_dev->dev_tracker, GFP_ATOMIC);
+	netdev_hold(dev, &ax25_dev->dev_tracker, GFP_KERNEL);
 	ax25_dev->forward = NULL;
+	ax25_dev->device_up = true;
 
 	ax25_dev->values[AX25_VALUES_IPDEFMODE] = AX25_DEF_IPDEFMODE;
 	ax25_dev->values[AX25_VALUES_AXDEFMODE] = AX25_DEF_AXDEFMODE;
@@ -115,29 +117,27 @@ void ax25_dev_device_down(struct net_device *dev)
 
 	if ((s = ax25_dev_list) == ax25_dev) {
 		ax25_dev_list = s->next;
-		spin_unlock_bh(&ax25_dev_lock);
-		ax25_dev_put(ax25_dev);
-		dev->ax25_ptr = NULL;
-		dev_put_track(dev, &ax25_dev->dev_tracker);
-		ax25_dev_put(ax25_dev);
-		return;
+		goto unlock_put;
 	}
 
 	while (s != NULL && s->next != NULL) {
 		if (s->next == ax25_dev) {
 			s->next = ax25_dev->next;
-			spin_unlock_bh(&ax25_dev_lock);
-			ax25_dev_put(ax25_dev);
-			dev->ax25_ptr = NULL;
-			dev_put_track(dev, &ax25_dev->dev_tracker);
-			ax25_dev_put(ax25_dev);
-			return;
+			goto unlock_put;
 		}
 
 		s = s->next;
 	}
 	spin_unlock_bh(&ax25_dev_lock);
 	dev->ax25_ptr = NULL;
+	ax25_dev_put(ax25_dev);
+	return;
+
+unlock_put:
+	spin_unlock_bh(&ax25_dev_lock);
+	ax25_dev_put(ax25_dev);
+	dev->ax25_ptr = NULL;
+	netdev_put(dev, &ax25_dev->dev_tracker);
 	ax25_dev_put(ax25_dev);
 }
 
@@ -206,7 +206,7 @@ void __exit ax25_dev_free(void)
 	ax25_dev = ax25_dev_list;
 	while (ax25_dev != NULL) {
 		s        = ax25_dev;
-		dev_put_track(ax25_dev->dev, &ax25_dev->dev_tracker);
+		netdev_put(ax25_dev->dev, &ax25_dev->dev_tracker);
 		ax25_dev = ax25_dev->next;
 		kfree(s);
 	}

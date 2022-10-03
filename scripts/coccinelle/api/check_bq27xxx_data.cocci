@@ -6,7 +6,7 @@
 ///
 // Confidence: High
 // Copyright: (C) 2017 Julia Lawall, Inria/LIP6,
-// URL: http://coccinelle.lip6.fr/
+// URL: https://coccinelle.gitlabpages.inria.fr/website
 // Requires: 1.0.7
 // Keywords: BQ27XXX_DATA
 

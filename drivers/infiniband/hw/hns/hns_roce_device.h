@@ -106,16 +106,6 @@ enum {
 	SERV_TYPE_XRC = 5,
 };
 
-enum hns_roce_qp_state {
-	HNS_ROCE_QP_STATE_RST,
-	HNS_ROCE_QP_STATE_INIT,
-	HNS_ROCE_QP_STATE_RTR,
-	HNS_ROCE_QP_STATE_RTS,
-	HNS_ROCE_QP_STATE_SQD,
-	HNS_ROCE_QP_STATE_ERR,
-	HNS_ROCE_QP_NUM_STATE,
-};
-
 enum hns_roce_event {
 	HNS_ROCE_EVENT_TYPE_PATH_MIG                  = 0x01,
 	HNS_ROCE_EVENT_TYPE_PATH_MIG_FAILED           = 0x02,
@@ -138,8 +128,6 @@ enum hns_roce_event {
 	HNS_ROCE_EVENT_TYPE_XRCD_VIOLATION	      = 0x16,
 	HNS_ROCE_EVENT_TYPE_INVALID_XRCETH	      = 0x17,
 };
-
-#define HNS_ROCE_CAP_FLAGS_EX_SHIFT 12
 
 enum {
 	HNS_ROCE_CAP_FLAG_REREG_MR		= BIT(0),
@@ -535,6 +523,11 @@ struct hns_roce_cmd_context {
 	u16			busy;
 };
 
+enum hns_roce_cmdq_state {
+	HNS_ROCE_CMDQ_STATE_NORMAL,
+	HNS_ROCE_CMDQ_STATE_FATAL_ERR,
+};
+
 struct hns_roce_cmdq {
 	struct dma_pool		*pool;
 	struct semaphore	poll_sem;
@@ -554,6 +547,7 @@ struct hns_roce_cmdq {
 	 * close device, switch into poll mode(non event mode)
 	 */
 	u8			use_events;
+	enum hns_roce_cmdq_state state;
 };
 
 struct hns_roce_cmd_mailbox {
@@ -657,6 +651,11 @@ struct hns_roce_ceqe {
 	__le32	rsv[15];
 };
 
+#define CEQE_FIELD_LOC(h, l) FIELD_LOC(struct hns_roce_ceqe, h, l)
+
+#define CEQE_CQN CEQE_FIELD_LOC(23, 0)
+#define CEQE_OWNER CEQE_FIELD_LOC(31, 31)
+
 struct hns_roce_aeqe {
 	__le32 asyn;
 	union {
@@ -675,6 +674,13 @@ struct hns_roce_aeqe {
 	 } event;
 	__le32 rsv[12];
 };
+
+#define AEQE_FIELD_LOC(h, l) FIELD_LOC(struct hns_roce_aeqe, h, l)
+
+#define AEQE_EVENT_TYPE AEQE_FIELD_LOC(7, 0)
+#define AEQE_SUB_TYPE AEQE_FIELD_LOC(15, 8)
+#define AEQE_OWNER AEQE_FIELD_LOC(31, 31)
+#define AEQE_EVENT_QUEUE_NUM AEQE_FIELD_LOC(55, 32)
 
 struct hns_roce_eq {
 	struct hns_roce_dev		*hr_dev;
@@ -725,7 +731,6 @@ struct hns_roce_caps {
 	u32		num_pi_qps;
 	u32		reserved_qps;
 	int		num_qpc_timer;
-	int		num_cqc_timer;
 	u32		num_srqs;
 	u32		max_wqes;
 	u32		max_srq_wrs;
@@ -954,6 +959,7 @@ struct hns_roce_dev {
 	const struct hns_roce_hw *hw;
 	void			*priv;
 	struct workqueue_struct *irq_workq;
+	struct work_struct ecc_work;
 	const struct hns_roce_dfx_hw *dfx;
 	u32 func_num;
 	u32 is_vf;
@@ -1191,7 +1197,6 @@ void *hns_roce_get_send_wqe(struct hns_roce_qp *hr_qp, unsigned int n);
 void *hns_roce_get_extend_sge(struct hns_roce_qp *hr_qp, unsigned int n);
 bool hns_roce_wq_overflow(struct hns_roce_wq *hr_wq, u32 nreq,
 			  struct ib_cq *ib_cq);
-enum hns_roce_qp_state to_hns_roce_state(enum ib_qp_state state);
 void hns_roce_lock_cqs(struct hns_roce_cq *send_cq,
 		       struct hns_roce_cq *recv_cq);
 void hns_roce_unlock_cqs(struct hns_roce_cq *send_cq,

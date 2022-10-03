@@ -193,9 +193,13 @@ static int cinergyt2_usb_probe(struct usb_interface *intf,
 				   THIS_MODULE, NULL, adapter_nr);
 }
 
+enum {
+	TERRATEC_CINERGY_T2,
+};
+
 static struct usb_device_id cinergyt2_usb_table[] = {
-	{ USB_DEVICE(USB_VID_TERRATEC, 0x0038) },
-	{ 0 }
+	DVB_USB_DEV(TERRATEC, TERRATEC_CINERGY_T2),
+	{ }
 };
 
 MODULE_DEVICE_TABLE(usb, cinergyt2_usb_table);
@@ -240,7 +244,7 @@ static const struct dvb_usb_device_properties cinergyt2_properties = {
 	.devices = {
 		{ .name = "TerraTec/qanu USB2.0 Highspeed DVB-T Receiver",
 		  .cold_ids = {NULL},
-		  .warm_ids = { &cinergyt2_usb_table[0], NULL },
+		  .warm_ids = { &cinergyt2_usb_table[TERRATEC_CINERGY_T2], NULL },
 		},
 		{ NULL },
 	}

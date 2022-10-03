@@ -118,8 +118,8 @@
 		gpmc,device-width = <2>;
 		gpmc,wait-pin = <0>;
 		gpmc,burst-length = <4>;
-		gpmc,cycle2cycle-samecsen = <1>;
-		gpmc,cycle2cycle-diffcsen = <1>;
+		gpmc,cycle2cycle-samecsen;
+		gpmc,cycle2cycle-diffcsen;
 		gpmc,cs-on-ns = <0>;
 		gpmc,cs-rd-off-ns = <45>;
 		gpmc,cs-wr-off-ns = <45>;

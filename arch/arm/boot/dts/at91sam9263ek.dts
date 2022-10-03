@@ -95,11 +95,15 @@
 			spi0: spi@fffa4000 {
 				status = "okay";
 				cs-gpios = <&pioA 5 0>, <0>, <0>, <0>;
-				mtd_dataflash@0 {
+				flash@0 {
 					compatible = "atmel,at45", "atmel,dataflash";
 					spi-max-frequency = <50000000>;
 					reg = <0>;
 				};
+			};
+
+			rtc@fffffd20 {
+				atmel,rtt-rtc-time-reg = <&gpbr 0x0>;
 			};
 
 			watchdog@fffffd40 {
@@ -228,17 +232,17 @@
 		};
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 
-		left_click {
+		button-left-click {
 			label = "left_click";
 			gpios = <&pioC 5 GPIO_ACTIVE_LOW>;
 			linux,code = <272>;
 			wakeup-source;
 		};
 
-		right_click {
+		button-right-click {
 			label = "right_click";
 			gpios = <&pioC 4 GPIO_ACTIVE_LOW>;
 			linux,code = <273>;

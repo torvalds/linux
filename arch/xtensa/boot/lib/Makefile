@@ -16,6 +16,9 @@ CFLAGS_REMOVE_inffast.o = -pg
 endif
 
 KASAN_SANITIZE := n
+KCSAN_SANITIZE := n
+KCOV_INSTRUMENT := n
+GCOV_PROFILE := n
 
 CFLAGS_REMOVE_inflate.o += -fstack-protector -fstack-protector-strong
 CFLAGS_REMOVE_zmem.o += -fstack-protector -fstack-protector-strong

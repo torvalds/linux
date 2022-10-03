@@ -646,12 +646,8 @@ static void fimc_lite_try_compose(struct fimc_lite *fimc, struct v4l2_rect *r)
 static int fimc_lite_querycap(struct file *file, void *priv,
 					struct v4l2_capability *cap)
 {
-	struct fimc_lite *fimc = video_drvdata(file);
-
 	strscpy(cap->driver, FIMC_LITE_DRV_NAME, sizeof(cap->driver));
 	strscpy(cap->card, FIMC_LITE_DRV_NAME, sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
-					dev_name(&fimc->pdev->dev));
 	return 0;
 }
 
@@ -793,7 +789,7 @@ static int fimc_pipeline_validate(struct fimc_lite *fimc)
 				return -EPIPE;
 		}
 		/* Retrieve format at the source pad */
-		pad = media_entity_remote_pad(pad);
+		pad = media_pad_remote_pad_first(pad);
 		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			break;
 

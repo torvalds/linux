@@ -64,4 +64,3 @@ examples:
         clock-frequency = <12288000>;
     };
 ...
-

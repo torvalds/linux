@@ -52,7 +52,8 @@ static void inet_twsk_kill(struct inet_timewait_sock *tw)
 	spin_unlock(lock);
 
 	/* Disassociate with bind bucket. */
-	bhead = &hashinfo->bhash[tw->tw_bslot];
+	bhead = &hashinfo->bhash[inet_bhashfn(twsk_net(tw), tw->tw_num,
+			hashinfo->bhash_size)];
 
 	spin_lock(&bhead->lock);
 	inet_twsk_bind_unhash(tw, hashinfo);
@@ -111,12 +112,8 @@ void inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 	   Note, that any socket with inet->num != 0 MUST be bound in
 	   binding cache, even if it is closed.
 	 */
-	/* Cache inet_bhashfn(), because 'struct net' might be no longer
-	 * available later in inet_twsk_kill().
-	 */
-	tw->tw_bslot = inet_bhashfn(twsk_net(tw), inet->inet_num,
-				    hashinfo->bhash_size);
-	bhead = &hashinfo->bhash[tw->tw_bslot];
+	bhead = &hashinfo->bhash[inet_bhashfn(twsk_net(tw), inet->inet_num,
+			hashinfo->bhash_size)];
 	spin_lock(&bhead->lock);
 	tw->tw_tb = icsk->icsk_bind_hash;
 	WARN_ON(!icsk->icsk_bind_hash);
@@ -159,7 +156,8 @@ struct inet_timewait_sock *inet_twsk_alloc(const struct sock *sk,
 {
 	struct inet_timewait_sock *tw;
 
-	if (refcount_read(&dr->tw_refcount) - 1 >= dr->sysctl_max_tw_buckets)
+	if (refcount_read(&dr->tw_refcount) - 1 >=
+	    READ_ONCE(dr->sysctl_max_tw_buckets))
 		return NULL;
 
 	tw = kmem_cache_alloc(sk->sk_prot_creator->twsk_prot->twsk_slab,
@@ -257,3 +255,50 @@ void __inet_twsk_schedule(struct inet_timewait_sock *tw, int timeo, bool rearm)
 	}
 }
 EXPORT_SYMBOL_GPL(__inet_twsk_schedule);
+
+void inet_twsk_purge(struct inet_hashinfo *hashinfo, int family)
+{
+	struct inet_timewait_sock *tw;
+	struct sock *sk;
+	struct hlist_nulls_node *node;
+	unsigned int slot;
+
+	for (slot = 0; slot <= hashinfo->ehash_mask; slot++) {
+		struct inet_ehash_bucket *head = &hashinfo->ehash[slot];
+restart_rcu:
+		cond_resched();
+		rcu_read_lock();
+restart:
+		sk_nulls_for_each_rcu(sk, node, &head->chain) {
+			if (sk->sk_state != TCP_TIME_WAIT)
+				continue;
+			tw = inet_twsk(sk);
+			if ((tw->tw_family != family) ||
+				refcount_read(&twsk_net(tw)->ns.count))
+				continue;
+
+			if (unlikely(!refcount_inc_not_zero(&tw->tw_refcnt)))
+				continue;
+
+			if (unlikely((tw->tw_family != family) ||
+				     refcount_read(&twsk_net(tw)->ns.count))) {
+				inet_twsk_put(tw);
+				goto restart;
+			}
+
+			rcu_read_unlock();
+			local_bh_disable();
+			inet_twsk_deschedule_put(tw);
+			local_bh_enable();
+			goto restart_rcu;
+		}
+		/* If the nulls value we got at the end of this lookup is
+		 * not the expected one, we must restart lookup.
+		 * We probably met an item that was moved to another chain.
+		 */
+		if (get_nulls_value(node) != slot)
+			goto restart;
+		rcu_read_unlock();
+	}
+}
+EXPORT_SYMBOL_GPL(inet_twsk_purge);

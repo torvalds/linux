@@ -165,7 +165,6 @@ enum intel_ppgtt_type {
 	func(has_media_ratio_mode); \
 	func(has_mslice_steering); \
 	func(has_one_eu_per_fuse_bit); \
-	func(has_pooled_eu); \
 	func(has_pxp); \
 	func(has_rc6); \
 	func(has_rc6p); \
@@ -181,14 +180,11 @@ enum intel_ppgtt_type {
 	/* Keep in alphabetical order */ \
 	func(cursor_needs_physical); \
 	func(has_cdclk_crawl); \
-	func(has_dmc); \
 	func(has_ddi); \
 	func(has_dp_mst); \
 	func(has_dsb); \
-	func(has_dsc); \
 	func(has_fpga_dbg); \
 	func(has_gmch); \
-	func(has_hdcp); \
 	func(has_hotplug); \
 	func(has_hti); \
 	func(has_ipc); \
@@ -204,24 +200,64 @@ struct ip_version {
 	u8 rel;
 };
 
-struct intel_device_info {
-	struct ip_version graphics;
-	struct ip_version media;
+struct intel_runtime_info {
+	struct {
+		struct ip_version ip;
+	} graphics;
+	struct {
+		struct ip_version ip;
+	} media;
+	struct {
+		struct ip_version ip;
+	} display;
+
+	/*
+	 * Platform mask is used for optimizing or-ed IS_PLATFORM calls into
+	 * single runtime conditionals, and also to provide groundwork for
+	 * future per platform, or per SKU build optimizations.
+	 *
+	 * Array can be extended when necessary if the corresponding
+	 * BUILD_BUG_ON is hit.
+	 */
+	u32 platform_mask[2];
+
+	u16 device_id;
 
 	intel_engine_mask_t platform_engine_mask; /* Engines supported by the HW */
 
-	enum intel_platform platform;
+	u32 rawclk_freq;
 
-	unsigned int dma_mask_size; /* available DMA address bits */
+	struct intel_step_info step;
+
+	unsigned int page_sizes; /* page sizes supported by the HW */
 
 	enum intel_ppgtt_type ppgtt_type;
 	unsigned int ppgtt_size; /* log2, e.g. 31/32/48 bits */
 
-	unsigned int page_sizes; /* page sizes supported by the HW */
-
 	u32 memory_regions; /* regions supported by the HW */
 
-	u32 display_mmio_offset;
+	bool has_pooled_eu;
+
+	/* display */
+	struct {
+		u8 pipe_mask;
+		u8 cpu_transcoder_mask;
+
+		u8 num_sprites[I915_MAX_PIPES];
+		u8 num_scalers[I915_MAX_PIPES];
+
+		u8 fbc_mask;
+
+		bool has_hdcp;
+		bool has_dmc;
+		bool has_dsc;
+	};
+};
+
+struct intel_device_info {
+	enum intel_platform platform;
+
+	unsigned int dma_mask_size; /* available DMA address bits */
 
 	const struct intel_gt_definition *extra_gt_list;
 
@@ -232,56 +268,37 @@ struct intel_device_info {
 #undef DEFINE_FLAG
 
 	struct {
-		u8 ver;
-		u8 rel;
-
-		u8 pipe_mask;
-		u8 cpu_transcoder_mask;
-		u8 fbc_mask;
 		u8 abox_mask;
+
+		struct {
+			u16 size; /* in blocks */
+			u8 slice_mask;
+		} dbuf;
 
 #define DEFINE_FLAG(name) u8 name:1
 		DEV_INFO_DISPLAY_FOR_EACH_FLAG(DEFINE_FLAG);
 #undef DEFINE_FLAG
+
+		/* Global register offset for the display engine */
+		u32 mmio_offset;
+
+		/* Register offsets for the various display pipes and transcoders */
+		u32 pipe_offsets[I915_MAX_TRANSCODERS];
+		u32 trans_offsets[I915_MAX_TRANSCODERS];
+		u32 cursor_offsets[I915_MAX_PIPES];
+
+		struct {
+			u32 degamma_lut_size;
+			u32 gamma_lut_size;
+			u32 degamma_lut_tests;
+			u32 gamma_lut_tests;
+		} color;
 	} display;
 
-	struct {
-		u16 size; /* in blocks */
-		u8 slice_mask;
-	} dbuf;
-
-	/* Register offsets for the various display pipes and transcoders */
-	int pipe_offsets[I915_MAX_TRANSCODERS];
-	int trans_offsets[I915_MAX_TRANSCODERS];
-	int cursor_offsets[I915_MAX_PIPES];
-
-	struct color_luts {
-		u32 degamma_lut_size;
-		u32 gamma_lut_size;
-		u32 degamma_lut_tests;
-		u32 gamma_lut_tests;
-	} color;
-};
-
-struct intel_runtime_info {
 	/*
-	 * Platform mask is used for optimizing or-ed IS_PLATFORM calls into
-	 * into single runtime conditionals, and also to provide groundwork
-	 * for future per platform, or per SKU build optimizations.
-	 *
-	 * Array can be extended when necessary if the corresponding
-	 * BUILD_BUG_ON is hit.
+	 * Initial runtime info. Do not access outside of i915_driver_create().
 	 */
-	u32 platform_mask[2];
-
-	u16 device_id;
-
-	u8 num_sprites[I915_MAX_PIPES];
-	u8 num_scalers[I915_MAX_PIPES];
-
-	u32 rawclk_freq;
-
-	struct intel_step_info step;
+	const struct intel_runtime_info __runtime;
 };
 
 struct intel_driver_caps {
@@ -294,10 +311,9 @@ const char *intel_platform_name(enum intel_platform platform);
 void intel_device_info_subplatform_init(struct drm_i915_private *dev_priv);
 void intel_device_info_runtime_init(struct drm_i915_private *dev_priv);
 
-void intel_device_info_print_static(const struct intel_device_info *info,
-				    struct drm_printer *p);
-void intel_device_info_print_runtime(const struct intel_runtime_info *info,
-				     struct drm_printer *p);
+void intel_device_info_print(const struct intel_device_info *info,
+			     const struct intel_runtime_info *runtime,
+			     struct drm_printer *p);
 
 void intel_driver_caps_print(const struct intel_driver_caps *caps,
 			     struct drm_printer *p);

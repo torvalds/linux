@@ -56,6 +56,7 @@ enum prestera_acl_rule_action {
 	PRESTERA_ACL_RULE_ACTION_TRAP = 2,
 	PRESTERA_ACL_RULE_ACTION_JUMP = 5,
 	PRESTERA_ACL_RULE_ACTION_COUNT = 7,
+	PRESTERA_ACL_RULE_ACTION_POLICE = 8,
 
 	PRESTERA_ACL_RULE_ACTION_MAX
 };
@@ -74,6 +75,10 @@ struct prestera_acl_action_jump {
 	u32 index;
 };
 
+struct prestera_acl_action_police {
+	u32 id;
+};
+
 struct prestera_acl_action_count {
 	u32 id;
 };
@@ -86,6 +91,7 @@ struct prestera_acl_rule_entry_key {
 struct prestera_acl_hw_action_info {
 	enum prestera_acl_rule_action id;
 	union {
+		struct prestera_acl_action_police police;
 		struct prestera_acl_action_count count;
 		struct prestera_acl_action_jump jump;
 	};
@@ -105,6 +111,12 @@ struct prestera_acl_rule_entry_arg {
 			struct prestera_acl_action_jump i;
 			u8 valid:1;
 		} jump;
+		struct {
+			u8 valid:1;
+			u64 rate;
+			u64 burst;
+			bool ingress;
+		} police;
 		struct {
 			u8 valid:1;
 			u32 client;
@@ -187,9 +199,9 @@ void
 prestera_acl_rule_keymask_pcl_id_set(struct prestera_acl_rule *rule,
 				     u16 pcl_id);
 
-int prestera_acl_vtcam_id_get(struct prestera_acl *acl, u8 lookup,
+int prestera_acl_vtcam_id_get(struct prestera_acl *acl, u8 lookup, u8 dir,
 			      void *keymask, u32 *vtcam_id);
 int prestera_acl_vtcam_id_put(struct prestera_acl *acl, u32 vtcam_id);
-int prestera_acl_chain_to_client(u32 chain_index, u32 *client);
+int prestera_acl_chain_to_client(u32 chain_index, bool ingress, u32 *client);
 
 #endif /* _PRESTERA_ACL_H_ */

@@ -44,7 +44,7 @@ struct block_device {
 	unsigned long		bd_stamp;
 	bool			bd_read_only;	/* read-only policy */
 	dev_t			bd_dev;
-	int			bd_openers;
+	atomic_t		bd_openers;
 	struct inode *		bd_inode;	/* will die */
 	struct super_block *	bd_super;
 	void *			bd_claiming;
@@ -105,6 +105,10 @@ typedef u16 blk_short_t;
 /* hack for device mapper, don't use elsewhere: */
 #define BLK_STS_DM_REQUEUE    ((__force blk_status_t)11)
 
+/*
+ * BLK_STS_AGAIN should only be returned if RQF_NOWAIT is set
+ * and the bio would block (cf bio_wouldblock_error())
+ */
 #define BLK_STS_AGAIN		((__force blk_status_t)12)
 
 /*
@@ -236,6 +240,8 @@ static inline void bio_issue_init(struct bio_issue *issue,
 			((u64)size << BIO_ISSUE_SIZE_SHIFT));
 }
 
+typedef __u32 __bitwise blk_opf_t;
+
 typedef unsigned int blk_qc_t;
 #define BLK_QC_T_NONE		-1U
 
@@ -246,9 +252,8 @@ typedef unsigned int blk_qc_t;
 struct bio {
 	struct bio		*bi_next;	/* request queue link */
 	struct block_device	*bi_bdev;
-	unsigned int		bi_opf;		/* bottom bits req flags,
-						 * top bits REQ_OP. Use
-						 * accessors.
+	blk_opf_t		bi_opf;		/* bottom bits REQ_OP, top bits
+						 * req_flags.
 						 */
 	unsigned short		bi_flags;	/* BIO_* below */
 	unsigned short		bi_ioprio;
@@ -329,14 +334,17 @@ enum {
 	BIO_QOS_MERGED,		/* but went through rq_qos merge path */
 	BIO_REMAPPED,
 	BIO_ZONE_WRITE_LOCKED,	/* Owns a zoned device zone write lock */
-	BIO_PERCPU_CACHE,	/* can participate in per-cpu alloc cache */
 	BIO_FLAG_LAST
 };
 
 typedef __u32 __bitwise blk_mq_req_flags_t;
 
-/*
- * Operations and flags common to the bio and request structures.
+#define REQ_OP_BITS	8
+#define REQ_OP_MASK	(__force blk_opf_t)((1 << REQ_OP_BITS) - 1)
+#define REQ_FLAG_BITS	24
+
+/**
+ * enum req_op - Operations common to the bio and request structures.
  * We use 8 bits for encoding the operation, and the remaining 24 for flags.
  *
  * The least significant bit of the operation number indicates the data
@@ -348,41 +356,37 @@ typedef __u32 __bitwise blk_mq_req_flags_t;
  * If a operation does not transfer data the least significant bit has no
  * meaning.
  */
-#define REQ_OP_BITS	8
-#define REQ_OP_MASK	((1 << REQ_OP_BITS) - 1)
-#define REQ_FLAG_BITS	24
-
-enum req_opf {
+enum req_op {
 	/* read sectors from the device */
-	REQ_OP_READ		= 0,
+	REQ_OP_READ		= (__force blk_opf_t)0,
 	/* write sectors to the device */
-	REQ_OP_WRITE		= 1,
+	REQ_OP_WRITE		= (__force blk_opf_t)1,
 	/* flush the volatile write cache */
-	REQ_OP_FLUSH		= 2,
+	REQ_OP_FLUSH		= (__force blk_opf_t)2,
 	/* discard sectors */
-	REQ_OP_DISCARD		= 3,
+	REQ_OP_DISCARD		= (__force blk_opf_t)3,
 	/* securely erase sectors */
-	REQ_OP_SECURE_ERASE	= 5,
+	REQ_OP_SECURE_ERASE	= (__force blk_opf_t)5,
 	/* write the zero filled sector many times */
-	REQ_OP_WRITE_ZEROES	= 9,
+	REQ_OP_WRITE_ZEROES	= (__force blk_opf_t)9,
 	/* Open a zone */
-	REQ_OP_ZONE_OPEN	= 10,
+	REQ_OP_ZONE_OPEN	= (__force blk_opf_t)10,
 	/* Close a zone */
-	REQ_OP_ZONE_CLOSE	= 11,
+	REQ_OP_ZONE_CLOSE	= (__force blk_opf_t)11,
 	/* Transition a zone to full */
-	REQ_OP_ZONE_FINISH	= 12,
+	REQ_OP_ZONE_FINISH	= (__force blk_opf_t)12,
 	/* write data at the current zone write pointer */
-	REQ_OP_ZONE_APPEND	= 13,
+	REQ_OP_ZONE_APPEND	= (__force blk_opf_t)13,
 	/* reset a zone write pointer */
-	REQ_OP_ZONE_RESET	= 15,
+	REQ_OP_ZONE_RESET	= (__force blk_opf_t)15,
 	/* reset all the zone present on the device */
-	REQ_OP_ZONE_RESET_ALL	= 17,
+	REQ_OP_ZONE_RESET_ALL	= (__force blk_opf_t)17,
 
 	/* Driver private requests */
-	REQ_OP_DRV_IN		= 34,
-	REQ_OP_DRV_OUT		= 35,
+	REQ_OP_DRV_IN		= (__force blk_opf_t)34,
+	REQ_OP_DRV_OUT		= (__force blk_opf_t)35,
 
-	REQ_OP_LAST,
+	REQ_OP_LAST		= (__force blk_opf_t)36,
 };
 
 enum req_flag_bits {
@@ -409,39 +413,45 @@ enum req_flag_bits {
 	 * work item to avoid such priority inversions.
 	 */
 	__REQ_CGROUP_PUNT,
+	__REQ_POLLED,		/* caller polls for completion using bio_poll */
+	__REQ_ALLOC_CACHE,	/* allocate IO from cache if available */
+	__REQ_SWAP,		/* swap I/O */
+	__REQ_DRV,		/* for driver use */
 
-	/* command specific flags for REQ_OP_WRITE_ZEROES: */
+	/*
+	 * Command specific flags, keep last:
+	 */
+	/* for REQ_OP_WRITE_ZEROES: */
 	__REQ_NOUNMAP,		/* do not free blocks when zeroing */
 
-	__REQ_POLLED,		/* caller polls for completion using bio_poll */
-
-	/* for driver use */
-	__REQ_DRV,
-	__REQ_SWAP,		/* swapping request. */
 	__REQ_NR_BITS,		/* stops here */
 };
 
-#define REQ_FAILFAST_DEV	(1ULL << __REQ_FAILFAST_DEV)
-#define REQ_FAILFAST_TRANSPORT	(1ULL << __REQ_FAILFAST_TRANSPORT)
-#define REQ_FAILFAST_DRIVER	(1ULL << __REQ_FAILFAST_DRIVER)
-#define REQ_SYNC		(1ULL << __REQ_SYNC)
-#define REQ_META		(1ULL << __REQ_META)
-#define REQ_PRIO		(1ULL << __REQ_PRIO)
-#define REQ_NOMERGE		(1ULL << __REQ_NOMERGE)
-#define REQ_IDLE		(1ULL << __REQ_IDLE)
-#define REQ_INTEGRITY		(1ULL << __REQ_INTEGRITY)
-#define REQ_FUA			(1ULL << __REQ_FUA)
-#define REQ_PREFLUSH		(1ULL << __REQ_PREFLUSH)
-#define REQ_RAHEAD		(1ULL << __REQ_RAHEAD)
-#define REQ_BACKGROUND		(1ULL << __REQ_BACKGROUND)
-#define REQ_NOWAIT		(1ULL << __REQ_NOWAIT)
-#define REQ_CGROUP_PUNT		(1ULL << __REQ_CGROUP_PUNT)
+#define REQ_FAILFAST_DEV	\
+			(__force blk_opf_t)(1ULL << __REQ_FAILFAST_DEV)
+#define REQ_FAILFAST_TRANSPORT	\
+			(__force blk_opf_t)(1ULL << __REQ_FAILFAST_TRANSPORT)
+#define REQ_FAILFAST_DRIVER	\
+			(__force blk_opf_t)(1ULL << __REQ_FAILFAST_DRIVER)
+#define REQ_SYNC	(__force blk_opf_t)(1ULL << __REQ_SYNC)
+#define REQ_META	(__force blk_opf_t)(1ULL << __REQ_META)
+#define REQ_PRIO	(__force blk_opf_t)(1ULL << __REQ_PRIO)
+#define REQ_NOMERGE	(__force blk_opf_t)(1ULL << __REQ_NOMERGE)
+#define REQ_IDLE	(__force blk_opf_t)(1ULL << __REQ_IDLE)
+#define REQ_INTEGRITY	(__force blk_opf_t)(1ULL << __REQ_INTEGRITY)
+#define REQ_FUA		(__force blk_opf_t)(1ULL << __REQ_FUA)
+#define REQ_PREFLUSH	(__force blk_opf_t)(1ULL << __REQ_PREFLUSH)
+#define REQ_RAHEAD	(__force blk_opf_t)(1ULL << __REQ_RAHEAD)
+#define REQ_BACKGROUND	(__force blk_opf_t)(1ULL << __REQ_BACKGROUND)
+#define REQ_NOWAIT	(__force blk_opf_t)(1ULL << __REQ_NOWAIT)
+#define REQ_CGROUP_PUNT	(__force blk_opf_t)(1ULL << __REQ_CGROUP_PUNT)
 
-#define REQ_NOUNMAP		(1ULL << __REQ_NOUNMAP)
-#define REQ_POLLED		(1ULL << __REQ_POLLED)
+#define REQ_NOUNMAP	(__force blk_opf_t)(1ULL << __REQ_NOUNMAP)
+#define REQ_POLLED	(__force blk_opf_t)(1ULL << __REQ_POLLED)
+#define REQ_ALLOC_CACHE	(__force blk_opf_t)(1ULL << __REQ_ALLOC_CACHE)
 
-#define REQ_DRV			(1ULL << __REQ_DRV)
-#define REQ_SWAP		(1ULL << __REQ_SWAP)
+#define REQ_DRV		(__force blk_opf_t)(1ULL << __REQ_DRV)
+#define REQ_SWAP	(__force blk_opf_t)(1ULL << __REQ_SWAP)
 
 #define REQ_FAILFAST_MASK \
 	(REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT | REQ_FAILFAST_DRIVER)
@@ -458,26 +468,28 @@ enum stat_group {
 	NR_STAT_GROUPS
 };
 
-#define bio_op(bio) \
-	((bio)->bi_opf & REQ_OP_MASK)
+static inline enum req_op bio_op(const struct bio *bio)
+{
+	return bio->bi_opf & REQ_OP_MASK;
+}
 
 /* obsolete, don't use in new code */
-static inline void bio_set_op_attrs(struct bio *bio, unsigned op,
-		unsigned op_flags)
+static inline void bio_set_op_attrs(struct bio *bio, enum req_op op,
+				    blk_opf_t op_flags)
 {
 	bio->bi_opf = op | op_flags;
 }
 
-static inline bool op_is_write(unsigned int op)
+static inline bool op_is_write(blk_opf_t op)
 {
-	return (op & 1);
+	return !!(op & (__force blk_opf_t)1);
 }
 
 /*
  * Check if the bio or request is one that needs special treatment in the
  * flush state machine.
  */
-static inline bool op_is_flush(unsigned int op)
+static inline bool op_is_flush(blk_opf_t op)
 {
 	return op & (REQ_FUA | REQ_PREFLUSH);
 }
@@ -487,13 +499,13 @@ static inline bool op_is_flush(unsigned int op)
  * PREFLUSH flag.  Other operations may be marked as synchronous using the
  * REQ_SYNC flag.
  */
-static inline bool op_is_sync(unsigned int op)
+static inline bool op_is_sync(blk_opf_t op)
 {
 	return (op & REQ_OP_MASK) == REQ_OP_READ ||
 		(op & (REQ_SYNC | REQ_FUA | REQ_PREFLUSH));
 }
 
-static inline bool op_is_discard(unsigned int op)
+static inline bool op_is_discard(blk_opf_t op)
 {
 	return (op & REQ_OP_MASK) == REQ_OP_DISCARD;
 }
@@ -504,7 +516,7 @@ static inline bool op_is_discard(unsigned int op)
  * due to its different handling in the block layer and device response in
  * case of command failure.
  */
-static inline bool op_is_zone_mgmt(enum req_opf op)
+static inline bool op_is_zone_mgmt(enum req_op op)
 {
 	switch (op & REQ_OP_MASK) {
 	case REQ_OP_ZONE_RESET:
@@ -517,7 +529,7 @@ static inline bool op_is_zone_mgmt(enum req_opf op)
 	}
 }
 
-static inline int op_stat_group(unsigned int op)
+static inline int op_stat_group(enum req_op op)
 {
 	if (op_is_discard(op))
 		return STAT_DISCARD;

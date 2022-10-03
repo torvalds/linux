@@ -101,26 +101,13 @@
 
 #include "realtek.h"
 
-/* Chip-specific data and limits */
-#define RTL8365MB_CHIP_ID_8365MB_VC	0x6367
-#define RTL8365MB_CHIP_VER_8365MB_VC	0x0040
-
-#define RTL8365MB_CHIP_ID_8367S		0x6367
-#define RTL8365MB_CHIP_VER_8367S	0x00A0
-
-#define RTL8365MB_CHIP_ID_8367RB	0x6367
-#define RTL8365MB_CHIP_VER_8367RB	0x0020
-
 /* Family-specific data and limits */
 #define RTL8365MB_PHYADDRMAX		7
 #define RTL8365MB_NUM_PHYREGS		32
 #define RTL8365MB_PHYREGMAX		(RTL8365MB_NUM_PHYREGS - 1)
-/* RTL8370MB and RTL8310SR, possibly suportable by this driver, have 10 ports */
-#define RTL8365MB_MAX_NUM_PORTS		10
+#define RTL8365MB_MAX_NUM_PORTS		11
+#define RTL8365MB_MAX_NUM_EXTINTS	3
 #define RTL8365MB_LEARN_LIMIT_MAX	2112
-
-/* valid for all 6-port or less variants */
-static const int rtl8365mb_extint_port_map[]  = { -1, -1, -1, -1, -1, -1, 1, 2, -1, -1};
 
 /* Chip identification registers */
 #define RTL8365MB_CHIP_ID_REG		0x1300
@@ -201,7 +188,7 @@ static const int rtl8365mb_extint_port_map[]  = { -1, -1, -1, -1, -1, -1, 1, 2, 
 /* The PHY OCP addresses of PHY registers 0~31 start here */
 #define RTL8365MB_PHY_OCP_ADDR_PHYREG_BASE		0xA400
 
-/* EXT interface port mode values - used in DIGITAL_INTERFACE_SELECT */
+/* External interface port mode values - used in DIGITAL_INTERFACE_SELECT */
 #define RTL8365MB_EXT_PORT_MODE_DISABLE		0
 #define RTL8365MB_EXT_PORT_MODE_RGMII		1
 #define RTL8365MB_EXT_PORT_MODE_MII_MAC		2
@@ -217,19 +204,7 @@ static const int rtl8365mb_extint_port_map[]  = { -1, -1, -1, -1, -1, -1, 1, 2, 
 #define RTL8365MB_EXT_PORT_MODE_1000X		12
 #define RTL8365MB_EXT_PORT_MODE_100FX		13
 
-/* Realtek docs and driver uses logic number as EXT_PORT0=16, EXT_PORT1=17,
- * EXT_PORT2=18, to interact with switch ports. That logic number is internally
- * converted to either a physical port number (0..9) or an external interface id (0..2),
- * depending on which function was called. The external interface id is calculated as
- * (ext_id=logic_port-15), while the logical to physical map depends on the chip id/version.
- *
- * EXT_PORT0 mentioned in datasheets and rtl8367c driver is used in this driver
- * as extid==1, EXT_PORT2, mentioned in Realtek rtl8367c driver for 10-port switches,
- * would have an ext_id of 3 (out of range for most extint macros) and ext_id 0 does
- * not seem to be used as well for this family.
- */
-
-/* EXT interface mode configuration registers 0~1 */
+/* External interface mode configuration registers 0~1 */
 #define RTL8365MB_DIGITAL_INTERFACE_SELECT_REG0		0x1305 /* EXT1 */
 #define RTL8365MB_DIGITAL_INTERFACE_SELECT_REG1		0x13C3 /* EXT2 */
 #define RTL8365MB_DIGITAL_INTERFACE_SELECT_REG(_extint) \
@@ -241,7 +216,7 @@ static const int rtl8365mb_extint_port_map[]  = { -1, -1, -1, -1, -1, -1, 1, 2, 
 #define   RTL8365MB_DIGITAL_INTERFACE_SELECT_MODE_OFFSET(_extint) \
 		(((_extint) % 2) * 4)
 
-/* EXT interface RGMII TX/RX delay configuration registers 0~2 */
+/* External interface RGMII TX/RX delay configuration registers 0~2 */
 #define RTL8365MB_EXT_RGMXF_REG0		0x1306 /* EXT0 */
 #define RTL8365MB_EXT_RGMXF_REG1		0x1307 /* EXT1 */
 #define RTL8365MB_EXT_RGMXF_REG2		0x13C5 /* EXT2 */
@@ -258,7 +233,7 @@ static const int rtl8365mb_extint_port_map[]  = { -1, -1, -1, -1, -1, -1, 1, 2, 
 #define RTL8365MB_PORT_SPEED_100M	1
 #define RTL8365MB_PORT_SPEED_1000M	2
 
-/* EXT interface force configuration registers 0~2 */
+/* External interface force configuration registers 0~2 */
 #define RTL8365MB_DIGITAL_INTERFACE_FORCE_REG0		0x1310 /* EXT0 */
 #define RTL8365MB_DIGITAL_INTERFACE_FORCE_REG1		0x1311 /* EXT1 */
 #define RTL8365MB_DIGITAL_INTERFACE_FORCE_REG2		0x13C4 /* EXT2 */
@@ -490,6 +465,95 @@ static const struct rtl8365mb_jam_tbl_entry rtl8365mb_init_jam_common[] = {
 	{ 0x1D32, 0x0002 },
 };
 
+enum rtl8365mb_phy_interface_mode {
+	RTL8365MB_PHY_INTERFACE_MODE_INVAL = 0,
+	RTL8365MB_PHY_INTERFACE_MODE_INTERNAL = BIT(0),
+	RTL8365MB_PHY_INTERFACE_MODE_MII = BIT(1),
+	RTL8365MB_PHY_INTERFACE_MODE_TMII = BIT(2),
+	RTL8365MB_PHY_INTERFACE_MODE_RMII = BIT(3),
+	RTL8365MB_PHY_INTERFACE_MODE_RGMII = BIT(4),
+	RTL8365MB_PHY_INTERFACE_MODE_SGMII = BIT(5),
+	RTL8365MB_PHY_INTERFACE_MODE_HSGMII = BIT(6),
+};
+
+/**
+ * struct rtl8365mb_extint - external interface info
+ * @port: the port with an external interface
+ * @id: the external interface ID, which is either 0, 1, or 2
+ * @supported_interfaces: a bitmask of supported PHY interface modes
+ *
+ * Represents a mapping: port -> { id, supported_interfaces }. To be embedded
+ * in &struct rtl8365mb_chip_info for every port with an external interface.
+ */
+struct rtl8365mb_extint {
+	int port;
+	int id;
+	unsigned int supported_interfaces;
+};
+
+/**
+ * struct rtl8365mb_chip_info - static chip-specific info
+ * @name: human-readable chip name
+ * @chip_id: chip identifier
+ * @chip_ver: chip silicon revision
+ * @extints: available external interfaces
+ * @jam_table: chip-specific initialization jam table
+ * @jam_size: size of the chip's jam table
+ *
+ * These data are specific to a given chip in the family of switches supported
+ * by this driver. When adding support for another chip in the family, a new
+ * chip info should be added to the rtl8365mb_chip_infos array.
+ */
+struct rtl8365mb_chip_info {
+	const char *name;
+	u32 chip_id;
+	u32 chip_ver;
+	const struct rtl8365mb_extint extints[RTL8365MB_MAX_NUM_EXTINTS];
+	const struct rtl8365mb_jam_tbl_entry *jam_table;
+	size_t jam_size;
+};
+
+/* Chip info for each supported switch in the family */
+#define PHY_INTF(_mode) (RTL8365MB_PHY_INTERFACE_MODE_ ## _mode)
+static const struct rtl8365mb_chip_info rtl8365mb_chip_infos[] = {
+	{
+		.name = "RTL8365MB-VC",
+		.chip_id = 0x6367,
+		.chip_ver = 0x0040,
+		.extints = {
+			{ 6, 1, PHY_INTF(MII) | PHY_INTF(TMII) |
+				PHY_INTF(RMII) | PHY_INTF(RGMII) },
+		},
+		.jam_table = rtl8365mb_init_jam_8365mb_vc,
+		.jam_size = ARRAY_SIZE(rtl8365mb_init_jam_8365mb_vc),
+	},
+	{
+		.name = "RTL8367S",
+		.chip_id = 0x6367,
+		.chip_ver = 0x00A0,
+		.extints = {
+			{ 6, 1, PHY_INTF(SGMII) | PHY_INTF(HSGMII) },
+			{ 7, 2, PHY_INTF(MII) | PHY_INTF(TMII) |
+				PHY_INTF(RMII) | PHY_INTF(RGMII) },
+		},
+		.jam_table = rtl8365mb_init_jam_8365mb_vc,
+		.jam_size = ARRAY_SIZE(rtl8365mb_init_jam_8365mb_vc),
+	},
+	{
+		.name = "RTL8367RB-VB",
+		.chip_id = 0x6367,
+		.chip_ver = 0x0020,
+		.extints = {
+			{ 6, 1, PHY_INTF(MII) | PHY_INTF(TMII) |
+				PHY_INTF(RMII) | PHY_INTF(RGMII) },
+			{ 7, 2, PHY_INTF(MII) | PHY_INTF(TMII) |
+				PHY_INTF(RMII) | PHY_INTF(RGMII) },
+		},
+		.jam_table = rtl8365mb_init_jam_8365mb_vc,
+		.jam_size = ARRAY_SIZE(rtl8365mb_init_jam_8365mb_vc),
+	},
+};
+
 enum rtl8365mb_stp_state {
 	RTL8365MB_STP_STATE_DISABLED = 0,
 	RTL8365MB_STP_STATE_BLOCKING = 1,
@@ -559,33 +623,23 @@ struct rtl8365mb_port {
 };
 
 /**
- * struct rtl8365mb - private chip-specific driver data
+ * struct rtl8365mb - driver private data
  * @priv: pointer to parent realtek_priv data
  * @irq: registered IRQ or zero
- * @chip_id: chip identifier
- * @chip_ver: chip silicon revision
- * @port_mask: mask of all ports
- * @learn_limit_max: maximum number of L2 addresses the chip can learn
+ * @chip_info: chip-specific info about the attached switch
  * @cpu: CPU tagging and CPU port configuration for this chip
  * @mib_lock: prevent concurrent reads of MIB counters
  * @ports: per-port data
- * @jam_table: chip-specific initialization jam table
- * @jam_size: size of the chip's jam table
  *
  * Private data for this driver.
  */
 struct rtl8365mb {
 	struct realtek_priv *priv;
 	int irq;
-	u32 chip_id;
-	u32 chip_ver;
-	u32 port_mask;
-	u32 learn_limit_max;
+	const struct rtl8365mb_chip_info *chip_info;
 	struct rtl8365mb_cpu cpu;
 	struct mutex mib_lock;
 	struct rtl8365mb_port ports[RTL8365MB_MAX_NUM_PORTS];
-	const struct rtl8365mb_jam_tbl_entry *jam_table;
-	size_t jam_size;
 };
 
 static int rtl8365mb_phy_poll_busy(struct realtek_priv *priv)
@@ -780,6 +834,26 @@ static int rtl8365mb_dsa_phy_write(struct dsa_switch *ds, int phy, int regnum,
 	return rtl8365mb_phy_write(ds->priv, phy, regnum, val);
 }
 
+static const struct rtl8365mb_extint *
+rtl8365mb_get_port_extint(struct realtek_priv *priv, int port)
+{
+	struct rtl8365mb *mb = priv->chip_data;
+	int i;
+
+	for (i = 0; i < RTL8365MB_MAX_NUM_EXTINTS; i++) {
+		const struct rtl8365mb_extint *extint =
+			&mb->chip_info->extints[i];
+
+		if (!extint->supported_interfaces)
+			continue;
+
+		if (extint->port == port)
+			return extint;
+	}
+
+	return NULL;
+}
+
 static enum dsa_tag_protocol
 rtl8365mb_get_tag_protocol(struct dsa_switch *ds, int port,
 			   enum dsa_tag_protocol mp)
@@ -800,20 +874,17 @@ rtl8365mb_get_tag_protocol(struct dsa_switch *ds, int port,
 static int rtl8365mb_ext_config_rgmii(struct realtek_priv *priv, int port,
 				      phy_interface_t interface)
 {
+	const struct rtl8365mb_extint *extint =
+		rtl8365mb_get_port_extint(priv, port);
 	struct device_node *dn;
 	struct dsa_port *dp;
 	int tx_delay = 0;
 	int rx_delay = 0;
-	int ext_int;
 	u32 val;
 	int ret;
 
-	ext_int = rtl8365mb_extint_port_map[port];
-
-	if (ext_int <= 0) {
-		dev_err(priv->dev, "Port %d is not an external interface port\n", port);
-		return -EINVAL;
-	}
+	if (!extint)
+		return -ENODEV;
 
 	dp = dsa_to_port(priv->ds, port);
 	dn = dp->dn;
@@ -847,7 +918,7 @@ static int rtl8365mb_ext_config_rgmii(struct realtek_priv *priv, int port,
 			tx_delay = val / 2;
 		else
 			dev_warn(priv->dev,
-				 "EXT interface TX delay must be 0 or 2 ns\n");
+				 "RGMII TX delay must be 0 or 2 ns\n");
 	}
 
 	if (!of_property_read_u32(dn, "rx-internal-delay-ps", &val)) {
@@ -857,11 +928,11 @@ static int rtl8365mb_ext_config_rgmii(struct realtek_priv *priv, int port,
 			rx_delay = val;
 		else
 			dev_warn(priv->dev,
-				 "EXT interface RX delay must be 0 to 2.1 ns\n");
+				 "RGMII RX delay must be 0 to 2.1 ns\n");
 	}
 
 	ret = regmap_update_bits(
-		priv->map, RTL8365MB_EXT_RGMXF_REG(ext_int),
+		priv->map, RTL8365MB_EXT_RGMXF_REG(extint->id),
 		RTL8365MB_EXT_RGMXF_TXDELAY_MASK |
 			RTL8365MB_EXT_RGMXF_RXDELAY_MASK,
 		FIELD_PREP(RTL8365MB_EXT_RGMXF_TXDELAY_MASK, tx_delay) |
@@ -870,11 +941,11 @@ static int rtl8365mb_ext_config_rgmii(struct realtek_priv *priv, int port,
 		return ret;
 
 	ret = regmap_update_bits(
-		priv->map, RTL8365MB_DIGITAL_INTERFACE_SELECT_REG(ext_int),
-		RTL8365MB_DIGITAL_INTERFACE_SELECT_MODE_MASK(ext_int),
+		priv->map, RTL8365MB_DIGITAL_INTERFACE_SELECT_REG(extint->id),
+		RTL8365MB_DIGITAL_INTERFACE_SELECT_MODE_MASK(extint->id),
 		RTL8365MB_EXT_PORT_MODE_RGMII
 			<< RTL8365MB_DIGITAL_INTERFACE_SELECT_MODE_OFFSET(
-				   ext_int));
+				   extint->id));
 	if (ret)
 		return ret;
 
@@ -885,21 +956,18 @@ static int rtl8365mb_ext_config_forcemode(struct realtek_priv *priv, int port,
 					  bool link, int speed, int duplex,
 					  bool tx_pause, bool rx_pause)
 {
+	const struct rtl8365mb_extint *extint =
+		rtl8365mb_get_port_extint(priv, port);
 	u32 r_tx_pause;
 	u32 r_rx_pause;
 	u32 r_duplex;
 	u32 r_speed;
 	u32 r_link;
-	int ext_int;
 	int val;
 	int ret;
 
-	ext_int = rtl8365mb_extint_port_map[port];
-
-	if (ext_int <= 0) {
-		dev_err(priv->dev, "Port %d is not an external interface port\n", port);
-		return -EINVAL;
-	}
+	if (!extint)
+		return -ENODEV;
 
 	if (link) {
 		/* Force the link up with the desired configuration */
@@ -947,7 +1015,7 @@ static int rtl8365mb_ext_config_forcemode(struct realtek_priv *priv, int port,
 			 r_duplex) |
 	      FIELD_PREP(RTL8365MB_DIGITAL_INTERFACE_FORCE_SPEED_MASK, r_speed);
 	ret = regmap_write(priv->map,
-			   RTL8365MB_DIGITAL_INTERFACE_FORCE_REG(ext_int),
+			   RTL8365MB_DIGITAL_INTERFACE_FORCE_REG(extint->id),
 			   val);
 	if (ret)
 		return ret;
@@ -955,38 +1023,34 @@ static int rtl8365mb_ext_config_forcemode(struct realtek_priv *priv, int port,
 	return 0;
 }
 
-static bool rtl8365mb_phy_mode_supported(struct dsa_switch *ds, int port,
-					 phy_interface_t interface)
-{
-	int ext_int;
-
-	ext_int = rtl8365mb_extint_port_map[port];
-
-	if (ext_int < 0 &&
-	    (interface == PHY_INTERFACE_MODE_NA ||
-	     interface == PHY_INTERFACE_MODE_INTERNAL ||
-	     interface == PHY_INTERFACE_MODE_GMII))
-		/* Internal PHY */
-		return true;
-	else if ((ext_int >= 1) &&
-		 phy_interface_mode_is_rgmii(interface))
-		/* Extension MAC */
-		return true;
-
-	return false;
-}
-
 static void rtl8365mb_phylink_get_caps(struct dsa_switch *ds, int port,
 				       struct phylink_config *config)
 {
-	if (dsa_is_user_port(ds, port))
-		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
-			  config->supported_interfaces);
-	else if (dsa_is_cpu_port(ds, port))
-		phy_interface_set_rgmii(config->supported_interfaces);
+	const struct rtl8365mb_extint *extint =
+		rtl8365mb_get_port_extint(ds->priv, port);
 
 	config->mac_capabilities = MAC_SYM_PAUSE | MAC_ASYM_PAUSE |
 				   MAC_10 | MAC_100 | MAC_1000FD;
+
+	if (!extint) {
+		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
+			  config->supported_interfaces);
+
+		/* GMII is the default interface mode for phylib, so
+		 * we have to support it for ports with integrated PHY.
+		 */
+		__set_bit(PHY_INTERFACE_MODE_GMII,
+			  config->supported_interfaces);
+		return;
+	}
+
+	/* Populate according to the modes supported by _this driver_,
+	 * not necessarily the modes supported by the hardware, some of
+	 * which remain unimplemented.
+	 */
+
+	if (extint->supported_interfaces & RTL8365MB_PHY_INTERFACE_MODE_RGMII)
+		phy_interface_set_rgmii(config->supported_interfaces);
 }
 
 static void rtl8365mb_phylink_mac_config(struct dsa_switch *ds, int port,
@@ -995,12 +1059,6 @@ static void rtl8365mb_phylink_mac_config(struct dsa_switch *ds, int port,
 {
 	struct realtek_priv *priv = ds->priv;
 	int ret;
-
-	if (!rtl8365mb_phy_mode_supported(ds, port, state->interface)) {
-		dev_err(priv->dev, "phy mode %s is unsupported on port %d\n",
-			phy_modes(state->interface), port);
-		return;
-	}
 
 	if (mode != MLO_AN_PHY && mode != MLO_AN_FIXED) {
 		dev_err(priv->dev,
@@ -1111,15 +1169,13 @@ static void rtl8365mb_port_stp_state_set(struct dsa_switch *ds, int port,
 static int rtl8365mb_port_set_learning(struct realtek_priv *priv, int port,
 				       bool enable)
 {
-	struct rtl8365mb *mb = priv->chip_data;
-
 	/* Enable/disable learning by limiting the number of L2 addresses the
 	 * port can learn. Realtek documentation states that a limit of zero
 	 * disables learning. When enabling learning, set it to the chip's
 	 * maximum.
 	 */
 	return regmap_write(priv->map, RTL8365MB_LUT_PORT_LEARN_LIMIT_REG(port),
-			    enable ? mb->learn_limit_max : 0);
+			    enable ? RTL8365MB_LEARN_LIMIT_MAX : 0);
 }
 
 static int rtl8365mb_port_set_isolation(struct realtek_priv *priv, int port,
@@ -1509,12 +1565,9 @@ static irqreturn_t rtl8365mb_irq(int irq, void *data)
 {
 	struct realtek_priv *priv = data;
 	unsigned long line_changes = 0;
-	struct rtl8365mb *mb;
 	u32 stat;
 	int line;
 	int ret;
-
-	mb = priv->chip_data;
 
 	ret = rtl8365mb_get_and_clear_status_reg(priv, RTL8365MB_INTR_STATUS_REG,
 						 &stat);
@@ -1540,7 +1593,7 @@ static irqreturn_t rtl8365mb_irq(int irq, void *data)
 
 		linkdown_ind = FIELD_GET(RTL8365MB_PORT_LINKDOWN_IND_MASK, val);
 
-		line_changes = (linkup_ind | linkdown_ind) & mb->port_mask;
+		line_changes = linkup_ind | linkdown_ind;
 	}
 
 	if (!line_changes)
@@ -1778,7 +1831,7 @@ static int rtl8365mb_cpu_config(struct realtek_priv *priv)
 	return 0;
 }
 
-static int rtl8365mb_change_tag_protocol(struct dsa_switch *ds, int cpu_index,
+static int rtl8365mb_change_tag_protocol(struct dsa_switch *ds,
 					 enum dsa_tag_protocol proto)
 {
 	struct realtek_priv *priv = ds->priv;
@@ -1812,14 +1865,17 @@ static int rtl8365mb_change_tag_protocol(struct dsa_switch *ds, int cpu_index,
 static int rtl8365mb_switch_init(struct realtek_priv *priv)
 {
 	struct rtl8365mb *mb = priv->chip_data;
+	const struct rtl8365mb_chip_info *ci;
 	int ret;
 	int i;
 
+	ci = mb->chip_info;
+
 	/* Do any chip-specific init jam before getting to the common stuff */
-	if (mb->jam_table) {
-		for (i = 0; i < mb->jam_size; i++) {
-			ret = regmap_write(priv->map, mb->jam_table[i].reg,
-					   mb->jam_table[i].val);
+	if (ci->jam_table) {
+		for (i = 0; i < ci->jam_size; i++) {
+			ret = regmap_write(priv->map, ci->jam_table[i].reg,
+					   ci->jam_table[i].val);
 			if (ret)
 				return ret;
 		}
@@ -1992,6 +2048,7 @@ static int rtl8365mb_detect(struct realtek_priv *priv)
 	u32 chip_id;
 	u32 chip_ver;
 	int ret;
+	int i;
 
 	ret = rtl8365mb_get_chip_id_and_ver(priv->map, &chip_id, &chip_ver);
 	if (ret) {
@@ -2000,53 +2057,31 @@ static int rtl8365mb_detect(struct realtek_priv *priv)
 		return ret;
 	}
 
-	switch (chip_id) {
-	case RTL8365MB_CHIP_ID_8365MB_VC:
-		switch (chip_ver) {
-		case RTL8365MB_CHIP_VER_8365MB_VC:
-			dev_info(priv->dev,
-				 "found an RTL8365MB-VC switch (ver=0x%04x)\n",
-				 chip_ver);
+	for (i = 0; i < ARRAY_SIZE(rtl8365mb_chip_infos); i++) {
+		const struct rtl8365mb_chip_info *ci = &rtl8365mb_chip_infos[i];
+
+		if (ci->chip_id == chip_id && ci->chip_ver == chip_ver) {
+			mb->chip_info = ci;
 			break;
-		case RTL8365MB_CHIP_VER_8367RB:
-			dev_info(priv->dev,
-				 "found an RTL8367RB-VB switch (ver=0x%04x)\n",
-				 chip_ver);
-			break;
-		case RTL8365MB_CHIP_VER_8367S:
-			dev_info(priv->dev,
-				 "found an RTL8367S switch (ver=0x%04x)\n",
-				 chip_ver);
-			break;
-		default:
-			dev_err(priv->dev, "unrecognized switch version (ver=0x%04x)",
-				chip_ver);
-			return -ENODEV;
 		}
+	}
 
-		priv->num_ports = RTL8365MB_MAX_NUM_PORTS;
-
-		mb->priv = priv;
-		mb->chip_id = chip_id;
-		mb->chip_ver = chip_ver;
-		mb->port_mask = GENMASK(priv->num_ports - 1, 0);
-		mb->learn_limit_max = RTL8365MB_LEARN_LIMIT_MAX;
-		mb->jam_table = rtl8365mb_init_jam_8365mb_vc;
-		mb->jam_size = ARRAY_SIZE(rtl8365mb_init_jam_8365mb_vc);
-
-		mb->cpu.trap_port = RTL8365MB_MAX_NUM_PORTS;
-		mb->cpu.insert = RTL8365MB_CPU_INSERT_TO_ALL;
-		mb->cpu.position = RTL8365MB_CPU_POS_AFTER_SA;
-		mb->cpu.rx_length = RTL8365MB_CPU_RXLEN_64BYTES;
-		mb->cpu.format = RTL8365MB_CPU_FORMAT_8BYTES;
-
-		break;
-	default:
+	if (!mb->chip_info) {
 		dev_err(priv->dev,
-			"found an unknown Realtek switch (id=0x%04x, ver=0x%04x)\n",
-			chip_id, chip_ver);
+			"unrecognized switch (id=0x%04x, ver=0x%04x)", chip_id,
+			chip_ver);
 		return -ENODEV;
 	}
+
+	dev_info(priv->dev, "found an %s switch\n", mb->chip_info->name);
+
+	priv->num_ports = RTL8365MB_MAX_NUM_PORTS;
+	mb->priv = priv;
+	mb->cpu.trap_port = RTL8365MB_MAX_NUM_PORTS;
+	mb->cpu.insert = RTL8365MB_CPU_INSERT_TO_ALL;
+	mb->cpu.position = RTL8365MB_CPU_POS_AFTER_SA;
+	mb->cpu.rx_length = RTL8365MB_CPU_RXLEN_64BYTES;
+	mb->cpu.format = RTL8365MB_CPU_FORMAT_8BYTES;
 
 	return 0;
 }

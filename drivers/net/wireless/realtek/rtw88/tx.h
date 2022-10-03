@@ -33,6 +33,10 @@
 	le32p_replace_bits((__le32 *)(txdesc) + 0x05, value, GENMASK(6, 5))
 #define SET_TX_DESC_SW_SEQ(txdesc, value)                                      \
 	le32p_replace_bits((__le32 *)(txdesc) + 0x09, value, GENMASK(23, 12))
+#define SET_TX_DESC_TIM_EN(txdesc, value)                                      \
+	le32p_replace_bits((__le32 *)(txdesc) + 0x09, value, BIT(7))
+#define SET_TX_DESC_TIM_OFFSET(txdesc, value)                                  \
+	le32p_replace_bits((__le32 *)(txdesc) + 0x09, value, GENMASK(6, 0))
 #define SET_TX_DESC_MAX_AGG_NUM(txdesc, value)                                 \
 	le32p_replace_bits((__le32 *)(txdesc) + 0x03, value, GENMASK(21, 17))
 #define SET_TX_DESC_USE_RTS(tx_desc, value)                                    \

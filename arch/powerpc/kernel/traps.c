@@ -393,7 +393,7 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
  * Builds that do not support KVM could take this second option to increase
  * the recoverability of NMIs.
  */
-void hv_nmi_check_nonrecoverable(struct pt_regs *regs)
+noinstr void hv_nmi_check_nonrecoverable(struct pt_regs *regs)
 {
 #ifdef CONFIG_PPC_POWERNV
 	unsigned long kbase = (unsigned long)_stext;
@@ -433,7 +433,9 @@ void hv_nmi_check_nonrecoverable(struct pt_regs *regs)
 	return;
 
 nonrecoverable:
-	regs_set_unrecoverable(regs);
+	regs->msr &= ~MSR_RI;
+	local_paca->hsrr_valid = 0;
+	local_paca->srr_valid = 0;
 #endif
 }
 DEFINE_INTERRUPT_HANDLER_NMI(system_reset_exception)
@@ -1674,7 +1676,7 @@ DEFINE_INTERRUPT_HANDLER(vsx_unavailable_exception)
 	die("Unrecoverable VSX Unavailable Exception", regs, SIGABRT);
 }
 
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_BOOK3S_64
 static void tm_unavailable(struct pt_regs *regs)
 {
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM

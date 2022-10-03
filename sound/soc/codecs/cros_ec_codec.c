@@ -232,11 +232,11 @@ static int i2s_rx_hw_params(struct snd_pcm_substream *substream,
 	if (params_rate(params) != 48000)
 		return -EINVAL;
 
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S16_LE:
+	switch (params_width(params)) {
+	case 16:
 		depth = EC_CODEC_I2S_RX_SAMPLE_DEPTH_16;
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case 24:
 		depth = EC_CODEC_I2S_RX_SAMPLE_DEPTH_24;
 		break;
 	default:
@@ -387,6 +387,7 @@ static const struct snd_soc_component_driver i2s_rx_component_driver = {
 	.num_dapm_widgets	= ARRAY_SIZE(i2s_rx_dapm_widgets),
 	.dapm_routes		= i2s_rx_dapm_routes,
 	.num_dapm_routes	= ARRAY_SIZE(i2s_rx_dapm_routes),
+	.endianness		= 1,
 };
 
 static void *wov_map_shm(struct cros_ec_codec_priv *priv,
@@ -994,6 +995,7 @@ static int cros_ec_codec_platform_probe(struct platform_device *pdev)
 			dev_dbg(dev, "ap_shm_phys_addr=%#llx len=%#x\n",
 				priv->ap_shm_phys_addr, priv->ap_shm_len);
 		}
+		of_node_put(node);
 	}
 #endif
 

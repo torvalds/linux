@@ -199,6 +199,7 @@ struct va_macro {
 	struct clk *mclk;
 	struct clk *macro;
 	struct clk *dcodec;
+	struct clk *fsgen;
 	struct clk_hw hw;
 	struct lpass_macro *pds;
 
@@ -467,9 +468,9 @@ static int va_macro_mclk_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		return va_macro_mclk_enable(va, true);
+		return clk_prepare_enable(va->fsgen);
 	case SND_SOC_DAPM_POST_PMD:
-		return va_macro_mclk_enable(va, false);
+		clk_disable_unprepare(va->fsgen);
 	}
 
 	return 0;
@@ -1434,8 +1435,10 @@ static int va_macro_probe(struct platform_device *pdev)
 		va->dmic_clk_div = VA_MACRO_CLK_DIV_2;
 	} else {
 		ret = va_macro_validate_dmic_sample_rate(sample_rate, va);
-		if (!ret)
-			return -EINVAL;
+		if (!ret) {
+			ret = -EINVAL;
+			goto err;
+		}
 	}
 
 	base = devm_platform_ioremap_resource(pdev, 0);
@@ -1471,6 +1474,12 @@ static int va_macro_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clkout;
 
+	va->fsgen = clk_hw_get_clk(&va->hw, "fsgen");
+	if (IS_ERR(va->fsgen)) {
+		ret = PTR_ERR(va->fsgen);
+		goto err_clkout;
+	}
+
 	ret = devm_snd_soc_register_component(dev, &va_macro_component_drv,
 					      va_macro_dais,
 					      ARRAY_SIZE(va_macro_dais));
@@ -1492,6 +1501,8 @@ err_mclk:
 err_dcodec:
 	clk_disable_unprepare(va->macro);
 err:
+	lpass_macro_pds_exit(va->pds);
+
 	return ret;
 }
 

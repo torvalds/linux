@@ -253,6 +253,7 @@ static void crypto_pump_work(struct kthread_work *work)
  * crypto_transfer_request - transfer the new request into the engine queue
  * @engine: the hardware engine
  * @req: the request need to be listed into the engine queue
+ * @need_pump: indicates whether queue the pump of request to kthread_work
  */
 static int crypto_transfer_request(struct crypto_engine *engine,
 				   struct crypto_async_request *req,

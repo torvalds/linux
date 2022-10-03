@@ -57,7 +57,7 @@
 		 * case, they are both on &pm8150b_gpios: camera focus(2), camera snapshot(1).
 		 */
 
-		vol-down {
+		key-vol-down {
 			label = "Volume Down";
 			linux,code = <KEY_VOLUMEDOWN>;
 			gpios = <&pm8150_gpios 1 GPIO_ACTIVE_LOW>;
@@ -441,7 +441,35 @@
 	status = "okay";
 	clock-frequency = <1000000>;
 
-	/* Dual Cirrus Logic CS35L41 amps @ 40, 41 */
+	cs35l41_l: cs35l41@40 {
+		compatible = "cirrus,cs35l41";
+		reg = <0x40>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&tlmm 10 GPIO_ACTIVE_HIGH>;
+		cirrus,boost-peak-milliamp = <4000>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <15>;
+		cirrus,asp-sdout-hiz = <3>;
+		cirrus,gpio2-src-select = <2>;
+		cirrus,gpio2-output-enable;
+		#sound-dai-cells = <1>;
+	};
+
+	cs35l41_r: cs35l41@41 {
+		compatible = "cirrus,cs35l41";
+		reg = <0x41>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&tlmm 10 GPIO_ACTIVE_HIGH>;
+		cirrus,boost-peak-milliamp = <4000>;
+		cirrus,boost-ind-nanohenry = <1000>;
+		cirrus,boost-cap-microfarad = <15>;
+		cirrus,asp-sdout-hiz = <3>;
+		cirrus,gpio2-src-select = <2>;
+		cirrus,gpio2-output-enable;
+		#sound-dai-cells = <1>;
+	};
 };
 
 &i2c5 {

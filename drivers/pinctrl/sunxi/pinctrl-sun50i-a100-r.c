@@ -82,6 +82,7 @@ static const struct sunxi_pinctrl_desc a100_r_pinctrl_data = {
 	.npins = ARRAY_SIZE(a100_r_pins),
 	.pin_base = PL_BASE,
 	.irq_banks = 1,
+	.io_bias_cfg_variant = BIAS_VOLTAGE_PIO_POW_MODE_CTL,
 };
 
 static int a100_r_pinctrl_probe(struct platform_device *pdev)

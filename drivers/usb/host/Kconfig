@@ -214,7 +214,7 @@ config USB_EHCI_HCD_NPCM7XX
 
 config USB_EHCI_HCD_OMAP
 	tristate "EHCI support for OMAP3 and later chips"
-	depends on ARCH_OMAP
+	depends on ARCH_OMAP || COMPILE_TEST
 	depends on NOP_USB_XCEIV
 	default y
 	help
@@ -305,6 +305,16 @@ config USB_EHCI_MV
 	  controller used by the EBU-type SoCs including Orion, Kirkwood,
 	  Dova, Armada 370 and Armada XP. See "Support for Marvell EBU
 	  on-chip EHCI USB controller" for those.
+
+config USB_OCTEON_HCD
+	tristate "Cavium Networks Octeon USB support"
+	depends on CAVIUM_OCTEON_SOC && USB
+	help
+	  This driver supports USB host controller on some Cavium
+	  Networks' products in the Octeon family.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called octeon-hcd.
 
 config USB_CNS3XXX_EHCI
 	bool "Cavium CNS3XXX EHCI Module (DEPRECATED)"

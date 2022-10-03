@@ -232,34 +232,34 @@ static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
  * The "__xxx_error" versions set the third argument to -EFAULT if an error
  * occurs, and leave it unchanged on success.
  */
-#define __get_mem_asm(load, reg, x, addr, err)				\
+#define __get_mem_asm(load, reg, x, addr, err, type)			\
 	asm volatile(							\
 	"1:	" load "	" reg "1, [%2]\n"			\
 	"2:\n"								\
-	_ASM_EXTABLE_UACCESS_ERR_ZERO(1b, 2b, %w0, %w1)			\
+	_ASM_EXTABLE_##type##ACCESS_ERR_ZERO(1b, 2b, %w0, %w1)		\
 	: "+r" (err), "=&r" (x)						\
 	: "r" (addr))
 
-#define __raw_get_mem(ldr, x, ptr, err)					\
-do {									\
-	unsigned long __gu_val;						\
-	switch (sizeof(*(ptr))) {					\
-	case 1:								\
-		__get_mem_asm(ldr "b", "%w", __gu_val, (ptr), (err));	\
-		break;							\
-	case 2:								\
-		__get_mem_asm(ldr "h", "%w", __gu_val, (ptr), (err));	\
-		break;							\
-	case 4:								\
-		__get_mem_asm(ldr, "%w", __gu_val, (ptr), (err));	\
-		break;							\
-	case 8:								\
-		__get_mem_asm(ldr, "%x",  __gu_val, (ptr), (err));	\
-		break;							\
-	default:							\
-		BUILD_BUG();						\
-	}								\
-	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
+#define __raw_get_mem(ldr, x, ptr, err, type)					\
+do {										\
+	unsigned long __gu_val;							\
+	switch (sizeof(*(ptr))) {						\
+	case 1:									\
+		__get_mem_asm(ldr "b", "%w", __gu_val, (ptr), (err), type);	\
+		break;								\
+	case 2:									\
+		__get_mem_asm(ldr "h", "%w", __gu_val, (ptr), (err), type);	\
+		break;								\
+	case 4:									\
+		__get_mem_asm(ldr, "%w", __gu_val, (ptr), (err), type);		\
+		break;								\
+	case 8:									\
+		__get_mem_asm(ldr, "%x",  __gu_val, (ptr), (err), type);	\
+		break;								\
+	default:								\
+		BUILD_BUG();							\
+	}									\
+	(x) = (__force __typeof__(*(ptr)))__gu_val;				\
 } while (0)
 
 /*
@@ -274,7 +274,7 @@ do {									\
 	__chk_user_ptr(ptr);						\
 									\
 	uaccess_ttbr0_enable();						\
-	__raw_get_mem("ldtr", __rgu_val, __rgu_ptr, err);		\
+	__raw_get_mem("ldtr", __rgu_val, __rgu_ptr, err, U);		\
 	uaccess_ttbr0_disable();					\
 									\
 	(x) = __rgu_val;						\
@@ -314,40 +314,40 @@ do {									\
 									\
 	__uaccess_enable_tco_async();					\
 	__raw_get_mem("ldr", *((type *)(__gkn_dst)),			\
-		      (__force type *)(__gkn_src), __gkn_err);		\
+		      (__force type *)(__gkn_src), __gkn_err, K);	\
 	__uaccess_disable_tco_async();					\
 									\
 	if (unlikely(__gkn_err))					\
 		goto err_label;						\
 } while (0)
 
-#define __put_mem_asm(store, reg, x, addr, err)				\
+#define __put_mem_asm(store, reg, x, addr, err, type)			\
 	asm volatile(							\
 	"1:	" store "	" reg "1, [%2]\n"			\
 	"2:\n"								\
-	_ASM_EXTABLE_UACCESS_ERR(1b, 2b, %w0)				\
+	_ASM_EXTABLE_##type##ACCESS_ERR(1b, 2b, %w0)			\
 	: "+r" (err)							\
 	: "r" (x), "r" (addr))
 
-#define __raw_put_mem(str, x, ptr, err)					\
-do {									\
-	__typeof__(*(ptr)) __pu_val = (x);				\
-	switch (sizeof(*(ptr))) {					\
-	case 1:								\
-		__put_mem_asm(str "b", "%w", __pu_val, (ptr), (err));	\
-		break;							\
-	case 2:								\
-		__put_mem_asm(str "h", "%w", __pu_val, (ptr), (err));	\
-		break;							\
-	case 4:								\
-		__put_mem_asm(str, "%w", __pu_val, (ptr), (err));	\
-		break;							\
-	case 8:								\
-		__put_mem_asm(str, "%x", __pu_val, (ptr), (err));	\
-		break;							\
-	default:							\
-		BUILD_BUG();						\
-	}								\
+#define __raw_put_mem(str, x, ptr, err, type)					\
+do {										\
+	__typeof__(*(ptr)) __pu_val = (x);					\
+	switch (sizeof(*(ptr))) {						\
+	case 1:									\
+		__put_mem_asm(str "b", "%w", __pu_val, (ptr), (err), type);	\
+		break;								\
+	case 2:									\
+		__put_mem_asm(str "h", "%w", __pu_val, (ptr), (err), type);	\
+		break;								\
+	case 4:									\
+		__put_mem_asm(str, "%w", __pu_val, (ptr), (err), type);		\
+		break;								\
+	case 8:									\
+		__put_mem_asm(str, "%x", __pu_val, (ptr), (err), type);		\
+		break;								\
+	default:								\
+		BUILD_BUG();							\
+	}									\
 } while (0)
 
 /*
@@ -362,7 +362,7 @@ do {									\
 	__chk_user_ptr(__rpu_ptr);					\
 									\
 	uaccess_ttbr0_enable();						\
-	__raw_put_mem("sttr", __rpu_val, __rpu_ptr, err);		\
+	__raw_put_mem("sttr", __rpu_val, __rpu_ptr, err, U);		\
 	uaccess_ttbr0_disable();					\
 } while (0)
 
@@ -400,7 +400,7 @@ do {									\
 									\
 	__uaccess_enable_tco_async();					\
 	__raw_put_mem("str", *((type *)(__pkn_src)),			\
-		      (__force type *)(__pkn_dst), __pkn_err);		\
+		      (__force type *)(__pkn_dst), __pkn_err, K);	\
 	__uaccess_disable_tco_async();					\
 									\
 	if (unlikely(__pkn_err))					\
@@ -459,5 +459,20 @@ static inline int __copy_from_user_flushcache(void *dst, const void __user *src,
 	return __copy_user_flushcache(dst, __uaccess_mask_ptr(src), size);
 }
 #endif
+
+#ifdef CONFIG_ARCH_HAS_SUBPAGE_FAULTS
+
+/*
+ * Return 0 on success, the number of bytes not probed otherwise.
+ */
+static inline size_t probe_subpage_writeable(const char __user *uaddr,
+					     size_t size)
+{
+	if (!system_supports_mte())
+		return 0;
+	return mte_probe_user_range(uaddr, size);
+}
+
+#endif /* CONFIG_ARCH_HAS_SUBPAGE_FAULTS */
 
 #endif /* __ASM_UACCESS_H */

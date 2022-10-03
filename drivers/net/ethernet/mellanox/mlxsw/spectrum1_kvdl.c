@@ -216,8 +216,8 @@ mlxsw_sp1_kvdl_part_init(struct mlxsw_sp *mlxsw_sp,
 	u64 resource_size;
 	int err;
 
-	err = devlink_resource_size_get(devlink, info->resource_id,
-					&resource_size);
+	err = devl_resource_size_get(devlink, info->resource_id,
+				     &resource_size);
 	if (err) {
 		need_update = false;
 		resource_size = info->end_index - info->start_index + 1;
@@ -338,22 +338,22 @@ static int mlxsw_sp1_kvdl_init(struct mlxsw_sp *mlxsw_sp, void *priv)
 	err = mlxsw_sp1_kvdl_parts_init(mlxsw_sp, kvdl);
 	if (err)
 		return err;
-	devlink_resource_occ_get_register(devlink,
-					  MLXSW_SP_RESOURCE_KVD_LINEAR,
-					  mlxsw_sp1_kvdl_occ_get,
-					  kvdl);
-	devlink_resource_occ_get_register(devlink,
-					  MLXSW_SP_RESOURCE_KVD_LINEAR_SINGLE,
-					  mlxsw_sp1_kvdl_single_occ_get,
-					  kvdl);
-	devlink_resource_occ_get_register(devlink,
-					  MLXSW_SP_RESOURCE_KVD_LINEAR_CHUNKS,
-					  mlxsw_sp1_kvdl_chunks_occ_get,
-					  kvdl);
-	devlink_resource_occ_get_register(devlink,
-					  MLXSW_SP_RESOURCE_KVD_LINEAR_LARGE_CHUNKS,
-					  mlxsw_sp1_kvdl_large_chunks_occ_get,
-					  kvdl);
+	devl_resource_occ_get_register(devlink,
+				       MLXSW_SP_RESOURCE_KVD_LINEAR,
+				       mlxsw_sp1_kvdl_occ_get,
+				       kvdl);
+	devl_resource_occ_get_register(devlink,
+				       MLXSW_SP_RESOURCE_KVD_LINEAR_SINGLE,
+				       mlxsw_sp1_kvdl_single_occ_get,
+				       kvdl);
+	devl_resource_occ_get_register(devlink,
+				       MLXSW_SP_RESOURCE_KVD_LINEAR_CHUNKS,
+				       mlxsw_sp1_kvdl_chunks_occ_get,
+				       kvdl);
+	devl_resource_occ_get_register(devlink,
+				       MLXSW_SP_RESOURCE_KVD_LINEAR_LARGE_CHUNKS,
+				       mlxsw_sp1_kvdl_large_chunks_occ_get,
+				       kvdl);
 	return 0;
 }
 
@@ -362,14 +362,14 @@ static void mlxsw_sp1_kvdl_fini(struct mlxsw_sp *mlxsw_sp, void *priv)
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	struct mlxsw_sp1_kvdl *kvdl = priv;
 
-	devlink_resource_occ_get_unregister(devlink,
-					    MLXSW_SP_RESOURCE_KVD_LINEAR_LARGE_CHUNKS);
-	devlink_resource_occ_get_unregister(devlink,
-					    MLXSW_SP_RESOURCE_KVD_LINEAR_CHUNKS);
-	devlink_resource_occ_get_unregister(devlink,
-					    MLXSW_SP_RESOURCE_KVD_LINEAR_SINGLE);
-	devlink_resource_occ_get_unregister(devlink,
-					    MLXSW_SP_RESOURCE_KVD_LINEAR);
+	devl_resource_occ_get_unregister(devlink,
+					 MLXSW_SP_RESOURCE_KVD_LINEAR_LARGE_CHUNKS);
+	devl_resource_occ_get_unregister(devlink,
+					 MLXSW_SP_RESOURCE_KVD_LINEAR_CHUNKS);
+	devl_resource_occ_get_unregister(devlink,
+					 MLXSW_SP_RESOURCE_KVD_LINEAR_SINGLE);
+	devl_resource_occ_get_unregister(devlink,
+					 MLXSW_SP_RESOURCE_KVD_LINEAR);
 	mlxsw_sp1_kvdl_parts_fini(kvdl);
 }
 
@@ -396,32 +396,32 @@ int mlxsw_sp1_kvdl_resources_register(struct mlxsw_core *mlxsw_core)
 	devlink_resource_size_params_init(&size_params, 0, kvdl_max_size,
 					  MLXSW_SP1_KVDL_SINGLE_ALLOC_SIZE,
 					  DEVLINK_RESOURCE_UNIT_ENTRY);
-	err = devlink_resource_register(devlink, MLXSW_SP_RESOURCE_NAME_KVD_LINEAR_SINGLES,
-					MLXSW_SP1_KVDL_SINGLE_SIZE,
-					MLXSW_SP_RESOURCE_KVD_LINEAR_SINGLE,
-					MLXSW_SP_RESOURCE_KVD_LINEAR,
-					&size_params);
+	err = devl_resource_register(devlink, MLXSW_SP_RESOURCE_NAME_KVD_LINEAR_SINGLES,
+				     MLXSW_SP1_KVDL_SINGLE_SIZE,
+				     MLXSW_SP_RESOURCE_KVD_LINEAR_SINGLE,
+				     MLXSW_SP_RESOURCE_KVD_LINEAR,
+				     &size_params);
 	if (err)
 		return err;
 
 	devlink_resource_size_params_init(&size_params, 0, kvdl_max_size,
 					  MLXSW_SP1_KVDL_CHUNKS_ALLOC_SIZE,
 					  DEVLINK_RESOURCE_UNIT_ENTRY);
-	err = devlink_resource_register(devlink, MLXSW_SP_RESOURCE_NAME_KVD_LINEAR_CHUNKS,
-					MLXSW_SP1_KVDL_CHUNKS_SIZE,
-					MLXSW_SP_RESOURCE_KVD_LINEAR_CHUNKS,
-					MLXSW_SP_RESOURCE_KVD_LINEAR,
-					&size_params);
+	err = devl_resource_register(devlink, MLXSW_SP_RESOURCE_NAME_KVD_LINEAR_CHUNKS,
+				     MLXSW_SP1_KVDL_CHUNKS_SIZE,
+				     MLXSW_SP_RESOURCE_KVD_LINEAR_CHUNKS,
+				     MLXSW_SP_RESOURCE_KVD_LINEAR,
+				     &size_params);
 	if (err)
 		return err;
 
 	devlink_resource_size_params_init(&size_params, 0, kvdl_max_size,
 					  MLXSW_SP1_KVDL_LARGE_CHUNKS_ALLOC_SIZE,
 					  DEVLINK_RESOURCE_UNIT_ENTRY);
-	err = devlink_resource_register(devlink, MLXSW_SP_RESOURCE_NAME_KVD_LINEAR_LARGE_CHUNKS,
-					MLXSW_SP1_KVDL_LARGE_CHUNKS_SIZE,
-					MLXSW_SP_RESOURCE_KVD_LINEAR_LARGE_CHUNKS,
-					MLXSW_SP_RESOURCE_KVD_LINEAR,
-					&size_params);
+	err = devl_resource_register(devlink, MLXSW_SP_RESOURCE_NAME_KVD_LINEAR_LARGE_CHUNKS,
+				     MLXSW_SP1_KVDL_LARGE_CHUNKS_SIZE,
+				     MLXSW_SP_RESOURCE_KVD_LINEAR_LARGE_CHUNKS,
+				     MLXSW_SP_RESOURCE_KVD_LINEAR,
+				     &size_params);
 	return err;
 }

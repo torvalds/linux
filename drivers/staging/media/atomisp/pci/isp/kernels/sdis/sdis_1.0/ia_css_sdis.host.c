@@ -331,7 +331,7 @@ ia_css_isp_dvs_statistics_allocate(
 			    HIVE_ISP_DDR_WORD_BYTES);
 
 	me->size = hor_size + ver_size;
-	me->data_ptr = hmm_alloc(me->size, HMM_BO_PRIVATE, 0, NULL, 0);
+	me->data_ptr = hmm_alloc(me->size);
 	if (me->data_ptr == mmgr_NULL)
 		goto err;
 	me->hor_size = hor_size;

@@ -9,6 +9,7 @@
 
 #include "fsl_pamu_domain.h"
 
+#include <linux/platform_device.h>
 #include <sysdev/fsl_pci.h>
 
 /*
@@ -446,15 +447,10 @@ static struct iommu_device *fsl_pamu_probe_device(struct device *dev)
 	return &pamu_iommu;
 }
 
-static void fsl_pamu_release_device(struct device *dev)
-{
-}
-
 static const struct iommu_ops fsl_pamu_ops = {
 	.capable	= fsl_pamu_capable,
 	.domain_alloc	= fsl_pamu_domain_alloc,
 	.probe_device	= fsl_pamu_probe_device,
-	.release_device	= fsl_pamu_release_device,
 	.device_group   = fsl_pamu_device_group,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev	= fsl_pamu_attach_device,

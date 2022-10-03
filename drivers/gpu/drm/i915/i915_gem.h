@@ -26,13 +26,55 @@
 #define __I915_GEM_H__
 
 #include <linux/bug.h>
-#include <linux/interrupt.h>
+#include <linux/types.h>
 
 #include <drm/drm_drv.h>
 
 #include "i915_utils.h"
 
+struct drm_file;
+struct drm_i915_gem_object;
 struct drm_i915_private;
+struct i915_gem_ww_ctx;
+struct i915_gtt_view;
+struct i915_vma;
+
+void i915_gem_init_early(struct drm_i915_private *i915);
+void i915_gem_cleanup_early(struct drm_i915_private *i915);
+
+void i915_gem_drain_freed_objects(struct drm_i915_private *i915);
+void i915_gem_drain_workqueue(struct drm_i915_private *i915);
+
+struct i915_vma * __must_check
+i915_gem_object_ggtt_pin_ww(struct drm_i915_gem_object *obj,
+			    struct i915_gem_ww_ctx *ww,
+			    const struct i915_gtt_view *view,
+			    u64 size, u64 alignment, u64 flags);
+
+struct i915_vma * __must_check
+i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
+			 const struct i915_gtt_view *view,
+			 u64 size, u64 alignment, u64 flags);
+
+int i915_gem_object_unbind(struct drm_i915_gem_object *obj,
+			   unsigned long flags);
+#define I915_GEM_OBJECT_UNBIND_ACTIVE BIT(0)
+#define I915_GEM_OBJECT_UNBIND_BARRIER BIT(1)
+#define I915_GEM_OBJECT_UNBIND_TEST BIT(2)
+#define I915_GEM_OBJECT_UNBIND_VM_TRYLOCK BIT(3)
+#define I915_GEM_OBJECT_UNBIND_ASYNC BIT(4)
+
+void i915_gem_runtime_suspend(struct drm_i915_private *i915);
+
+int __must_check i915_gem_init(struct drm_i915_private *i915);
+void i915_gem_driver_register(struct drm_i915_private *i915);
+void i915_gem_driver_unregister(struct drm_i915_private *i915);
+void i915_gem_driver_remove(struct drm_i915_private *i915);
+void i915_gem_driver_release(struct drm_i915_private *i915);
+
+int i915_gem_open(struct drm_i915_private *i915, struct drm_file *file);
+
+/* FIXME: All of the below belong somewhere else. */
 
 #ifdef CONFIG_DRM_I915_DEBUG_GEM
 
@@ -84,37 +126,5 @@ struct drm_i915_private;
 #endif
 
 #define I915_GEM_IDLE_TIMEOUT (HZ / 5)
-
-static inline void tasklet_lock(struct tasklet_struct *t)
-{
-	while (!tasklet_trylock(t))
-		cpu_relax();
-}
-
-static inline bool tasklet_is_locked(const struct tasklet_struct *t)
-{
-	return test_bit(TASKLET_STATE_RUN, &t->state);
-}
-
-static inline void __tasklet_disable_sync_once(struct tasklet_struct *t)
-{
-	if (!atomic_fetch_inc(&t->count))
-		tasklet_unlock_spin_wait(t);
-}
-
-static inline bool __tasklet_is_enabled(const struct tasklet_struct *t)
-{
-	return !atomic_read(&t->count);
-}
-
-static inline bool __tasklet_enable(struct tasklet_struct *t)
-{
-	return atomic_dec_and_test(&t->count);
-}
-
-static inline bool __tasklet_is_scheduled(struct tasklet_struct *t)
-{
-	return test_bit(TASKLET_STATE_SCHED, &t->state);
-}
 
 #endif /* __I915_GEM_H__ */

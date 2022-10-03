@@ -104,10 +104,22 @@ struct link_encoder *link_enc_cfg_get_link_enc_used_by_stream(
 /* Return DIG link encoder. NULL if unused. */
 struct link_encoder *link_enc_cfg_get_link_enc(const struct dc_link *link);
 
+/* Return DIG link encoder used by stream in current/previous state. NULL if unused. */
+struct link_encoder *link_enc_cfg_get_link_enc_used_by_stream_current(
+		struct dc *dc,
+		const struct dc_stream_state *stream);
+
 /* Return true if encoder available to use. */
 bool link_enc_cfg_is_link_enc_avail(struct dc *dc, enum engine_id eng_id, struct dc_link *link);
 
 /* Returns true if encoder assignments in supplied state pass validity checks. */
 bool link_enc_cfg_validate(struct dc *dc, struct dc_state *state);
+
+/* Set the link encoder assignment mode for the current_state to LINK_ENC_CFG_TRANSIENT mode.
+ * This indicates that a new_state is in the process of being applied to hardware.
+ * During this transition, old and new encoder assignments should be accessible from the old_state.
+ * Only allow transition into transient mode if new encoder assignments are valid.
+ */
+void link_enc_cfg_set_transient_mode(struct dc *dc, struct dc_state *current_state, struct dc_state *new_state);
 
 #endif /* DC_INC_LINK_ENC_CFG_H_ */

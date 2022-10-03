@@ -1631,7 +1631,6 @@ static int atmel_spi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 static int atmel_spi_runtime_suspend(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
@@ -1653,7 +1652,6 @@ static int atmel_spi_runtime_resume(struct device *dev)
 	return clk_prepare_enable(as->clk);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int atmel_spi_suspend(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
@@ -1693,17 +1691,12 @@ static int atmel_spi_resume(struct device *dev)
 	/* Start the queue running */
 	return spi_master_resume(master);
 }
-#endif
 
 static const struct dev_pm_ops atmel_spi_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(atmel_spi_suspend, atmel_spi_resume)
-	SET_RUNTIME_PM_OPS(atmel_spi_runtime_suspend,
-			   atmel_spi_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(atmel_spi_suspend, atmel_spi_resume)
+	RUNTIME_PM_OPS(atmel_spi_runtime_suspend,
+		       atmel_spi_runtime_resume, NULL)
 };
-#define ATMEL_SPI_PM_OPS	(&atmel_spi_pm_ops)
-#else
-#define ATMEL_SPI_PM_OPS	NULL
-#endif
 
 static const struct of_device_id atmel_spi_dt_ids[] = {
 	{ .compatible = "atmel,at91rm9200-spi" },
@@ -1715,7 +1708,7 @@ MODULE_DEVICE_TABLE(of, atmel_spi_dt_ids);
 static struct platform_driver atmel_spi_driver = {
 	.driver		= {
 		.name	= "atmel_spi",
-		.pm	= ATMEL_SPI_PM_OPS,
+		.pm	= pm_ptr(&atmel_spi_pm_ops),
 		.of_match_table	= atmel_spi_dt_ids,
 	},
 	.probe		= atmel_spi_probe,

@@ -204,8 +204,16 @@ void notrace __sanitizer_cov_trace_pc(void)
 	/* The first 64-bit word is the number of subsequent PCs. */
 	pos = READ_ONCE(area[0]) + 1;
 	if (likely(pos < t->kcov_size)) {
-		area[pos] = ip;
+		/* Previously we write pc before updating pos. However, some
+		 * early interrupt code could bypass check_kcov_mode() check
+		 * and invoke __sanitizer_cov_trace_pc(). If such interrupt is
+		 * raised between writing pc and updating pos, the pc could be
+		 * overitten by the recursive __sanitizer_cov_trace_pc().
+		 * Update pos before writing pc to avoid such interleaving.
+		 */
 		WRITE_ONCE(area[0], pos);
+		barrier();
+		area[pos] = ip;
 	}
 }
 EXPORT_SYMBOL(__sanitizer_cov_trace_pc);
@@ -236,11 +244,13 @@ static void notrace write_comp_data(u64 type, u64 arg1, u64 arg2, u64 ip)
 	start_index = 1 + count * KCOV_WORDS_PER_CMP;
 	end_pos = (start_index + KCOV_WORDS_PER_CMP) * sizeof(u64);
 	if (likely(end_pos <= max_pos)) {
+		/* See comment in __sanitizer_cov_trace_pc(). */
+		WRITE_ONCE(area[0], count + 1);
+		barrier();
 		area[start_index] = type;
 		area[start_index + 1] = arg1;
 		area[start_index + 2] = arg2;
 		area[start_index + 3] = ip;
-		WRITE_ONCE(area[0], count + 1);
 	}
 }
 
@@ -475,8 +485,11 @@ static int kcov_mmap(struct file *filep, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_DONTEXPAND;
 	for (off = 0; off < size; off += PAGE_SIZE) {
 		page = vmalloc_to_page(kcov->area + off);
-		if (vm_insert_page(vma, vma->vm_start + off, page))
-			WARN_ONCE(1, "vm_insert_page() failed");
+		res = vm_insert_page(vma, vma->vm_start + off, page);
+		if (res) {
+			pr_warn_once("kcov: vm_insert_page() failed\n");
+			return res;
+		}
 	}
 	return 0;
 exit:

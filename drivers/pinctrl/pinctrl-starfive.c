@@ -207,6 +207,7 @@ struct starfive_pinctrl {
 	void __iomem *base;
 	void __iomem *padctl;
 	struct pinctrl_dev *pctl;
+	struct mutex mutex; /* serialize adding groups and functions */
 };
 
 static inline unsigned int starfive_pin_to_gpio(const struct starfive_pinctrl *sfp,
@@ -522,6 +523,7 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	nmaps = 0;
 	ngroups = 0;
+	mutex_lock(&sfp->mutex);
 	for_each_child_of_node(np, child) {
 		int npins;
 		int i;
@@ -615,12 +617,14 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	*maps = map;
 	*num_maps = nmaps;
+	mutex_unlock(&sfp->mutex);
 	return 0;
 
 put_child:
 	of_node_put(child);
 free_map:
 	pinctrl_utils_free_map(pctldev, map, nmaps);
+	mutex_unlock(&sfp->mutex);
 	return ret;
 }
 
@@ -1074,6 +1078,8 @@ static void starfive_irq_mask(struct irq_data *d)
 	value = readl_relaxed(ie) & ~mask;
 	writel_relaxed(value, ie);
 	raw_spin_unlock_irqrestore(&sfp->lock, flags);
+
+	gpiochip_disable_irq(&sfp->gc, d->hwirq);
 }
 
 static void starfive_irq_mask_ack(struct irq_data *d)
@@ -1101,6 +1107,8 @@ static void starfive_irq_unmask(struct irq_data *d)
 	u32 mask = BIT(gpio % 32);
 	unsigned long flags;
 	u32 value;
+
+	gpiochip_enable_irq(&sfp->gc, d->hwirq);
 
 	raw_spin_lock_irqsave(&sfp->lock, flags);
 	value = readl_relaxed(ie) | mask;
@@ -1163,14 +1171,15 @@ static int starfive_irq_set_type(struct irq_data *d, unsigned int trigger)
 	return 0;
 }
 
-static struct irq_chip starfive_irq_chip = {
+static const struct irq_chip starfive_irq_chip = {
 	.name = "StarFive GPIO",
 	.irq_ack = starfive_irq_ack,
 	.irq_mask = starfive_irq_mask,
 	.irq_mask_ack = starfive_irq_mask_ack,
 	.irq_unmask = starfive_irq_unmask,
 	.irq_set_type = starfive_irq_set_type,
-	.flags = IRQCHIP_SET_TYPE_MASKED,
+	.flags = IRQCHIP_IMMUTABLE | IRQCHIP_SET_TYPE_MASKED,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static void starfive_gpio_irq_handler(struct irq_desc *desc)
@@ -1262,6 +1271,7 @@ static int starfive_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, sfp);
 	sfp->gc.parent = dev;
 	raw_spin_lock_init(&sfp->lock);
+	mutex_init(&sfp->mutex);
 
 	ret = devm_pinctrl_register_and_init(dev, &starfive_desc, sfp, &sfp->pctl);
 	if (ret)
@@ -1308,7 +1318,7 @@ static int starfive_probe(struct platform_device *pdev)
 	sfp->gc.base = -1;
 	sfp->gc.ngpio = NR_GPIOS;
 
-	sfp->gc.irq.chip = &starfive_irq_chip;
+	gpio_irq_chip_set_chip(&sfp->gc.irq, &starfive_irq_chip);
 	sfp->gc.irq.parent_handler = starfive_gpio_irq_handler;
 	sfp->gc.irq.num_parents = 1;
 	sfp->gc.irq.parents = devm_kcalloc(dev, sfp->gc.irq.num_parents,

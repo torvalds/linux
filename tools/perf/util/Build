@@ -26,6 +26,8 @@ perf-y += mmap.o
 perf-y += memswap.o
 perf-y += parse-events.o
 perf-y += parse-events-hybrid.o
+perf-y += print-events.o
+perf-y += tracepoint.o
 perf-y += perf_regs.o
 perf-y += path.o
 perf-y += print_binary.o
@@ -147,6 +149,9 @@ perf-$(CONFIG_LIBBPF) += bpf_map.o
 perf-$(CONFIG_PERF_BPF_SKEL) += bpf_counter.o
 perf-$(CONFIG_PERF_BPF_SKEL) += bpf_counter_cgroup.o
 perf-$(CONFIG_PERF_BPF_SKEL) += bpf_ftrace.o
+perf-$(CONFIG_PERF_BPF_SKEL) += bpf_off_cpu.o
+perf-$(CONFIG_PERF_BPF_SKEL) += bpf_kwork.o
+perf-$(CONFIG_PERF_BPF_SKEL) += bpf_lock_contention.o
 perf-$(CONFIG_BPF_PROLOGUE) += bpf-prologue.o
 perf-$(CONFIG_LIBELF) += symbol-elf.o
 perf-$(CONFIG_LIBELF) += probe-file.o
@@ -284,6 +289,7 @@ CFLAGS_hweight.o       += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ET
 CFLAGS_parse-events.o  += -Wno-redundant-decls
 CFLAGS_expr.o          += -Wno-redundant-decls
 CFLAGS_header.o        += -include $(OUTPUT)PERF-VERSION-FILE
+CFLAGS_arm-spe.o       += -I$(srctree)/tools/arch/arm64/include/
 
 $(OUTPUT)util/kallsyms.o: ../lib/symbol/kallsyms.c FORCE
 	$(call rule_mkdir)

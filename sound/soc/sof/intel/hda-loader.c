@@ -24,8 +24,6 @@
 #include "../sof-priv.h"
 #include "hda.h"
 
-#define HDA_CL_STREAM_FORMAT 0x40
-
 static void hda_ssp_set_cbp_cfp(struct snd_sof_dev *sdev)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
@@ -43,9 +41,9 @@ static void hda_ssp_set_cbp_cfp(struct snd_sof_dev *sdev)
 	}
 }
 
-static struct hdac_ext_stream *cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
-						 unsigned int size, struct snd_dma_buffer *dmab,
-						 int direction)
+struct hdac_ext_stream *hda_cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
+					      unsigned int size, struct snd_dma_buffer *dmab,
+					      int direction)
 {
 	struct hdac_ext_stream *hext_stream;
 	struct hdac_stream *hstream;
@@ -97,22 +95,22 @@ out_put:
 }
 
 /*
- * first boot sequence has some extra steps. core 0 waits for power
- * status on core 1, so power up core 1 also momentarily, keep it in
- * reset/stall and then turn it off
+ * first boot sequence has some extra steps.
+ * power on all host managed cores and only unstall/run the boot core to boot the
+ * DSP then turn off all non boot cores (if any) is powered on.
  */
-static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
+int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
-	unsigned int status;
+	unsigned int status, target_status;
+	u32 flags, ipc_hdr, j;
 	unsigned long mask;
 	char *dump_msg;
-	u32 flags, j;
 	int ret;
 
 	/* step 1: power up corex */
-	ret = hda_dsp_enable_core(sdev, chip->host_managed_cores_mask);
+	ret = hda_dsp_core_power_up(sdev, chip->host_managed_cores_mask);
 	if (ret < 0) {
 		if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
 			dev_err(sdev->dev, "error: dsp core 0/1 power up failed\n");
@@ -121,13 +119,15 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
 
 	hda_ssp_set_cbp_cfp(sdev);
 
-	/* step 2: purge FW request */
-	snd_sof_dsp_write(sdev, HDA_DSP_BAR, chip->ipc_req,
-			  chip->ipc_req_mask | (HDA_DSP_IPC_PURGE_FW |
-			  ((stream_tag - 1) << 9)));
+	/* step 2: Send ROM_CONTROL command (stream_tag is ignored for IMR boot) */
+	ipc_hdr = chip->ipc_req_mask | HDA_DSP_ROM_IPC_CONTROL;
+	if (!imr_boot)
+		ipc_hdr |= HDA_DSP_ROM_IPC_PURGE_FW | ((stream_tag - 1) << 9);
+
+	snd_sof_dsp_write(sdev, HDA_DSP_BAR, chip->ipc_req, ipc_hdr);
 
 	/* step 3: unset core 0 reset state & unstall/run core 0 */
-	ret = hda_dsp_core_run(sdev, BIT(0));
+	ret = hda_dsp_core_run(sdev, chip->init_core_mask);
 	if (ret < 0) {
 		if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
 			dev_err(sdev->dev,
@@ -171,11 +171,20 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
 	/* step 6: enable IPC interrupts */
 	hda_dsp_ipc_int_enable(sdev);
 
-	/* step 7: wait for ROM init */
+	/*
+	 * step 7:
+	 * - Cold/Full boot: wait for ROM init to proceed to download the firmware
+	 * - IMR boot: wait for ROM firmware entered (firmware booted up from IMR)
+	 */
+	if (imr_boot)
+		target_status = HDA_DSP_ROM_FW_ENTERED;
+	else
+		target_status = HDA_DSP_ROM_INIT;
+
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR,
-					HDA_DSP_SRAM_REG_ROM_STATUS, status,
+					chip->rom_status_reg, status,
 					((status & HDA_DSP_ROM_STS_MASK)
-						== HDA_DSP_ROM_INIT),
+						== target_status),
 					HDA_DSP_REG_POLL_INTERVAL_US,
 					chip->rom_init_timeout *
 					USEC_PER_MSEC);
@@ -190,8 +199,8 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag)
 
 	if (hda->boot_iteration == HDA_FW_BOOT_ATTEMPTS)
 		dev_err(sdev->dev,
-			"error: %s: timeout HDA_DSP_SRAM_REG_ROM_STATUS read\n",
-			__func__);
+			"%s: timeout with rom_status_reg (%#x) read\n",
+			__func__, chip->rom_status_reg);
 
 err:
 	flags = SOF_DBG_DUMP_PCI | SOF_DBG_DUMP_MBOX | SOF_DBG_DUMP_OPTIONAL;
@@ -236,8 +245,8 @@ static int cl_trigger(struct snd_sof_dev *sdev,
 	}
 }
 
-static int cl_cleanup(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
-		      struct hdac_ext_stream *hext_stream)
+int hda_cl_cleanup(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
+		   struct hdac_ext_stream *hext_stream)
 {
 	struct hdac_stream *hstream = &hext_stream->hstream;
 	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
@@ -268,8 +277,10 @@ static int cl_cleanup(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
 	return ret;
 }
 
-static int cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *hext_stream)
+int hda_cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *hext_stream)
 {
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
+	const struct sof_intel_dsp_desc *chip = hda->desc;
 	unsigned int reg;
 	int ret, status;
 
@@ -280,7 +291,7 @@ static int cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *hext_str
 	}
 
 	status = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR,
-					HDA_DSP_SRAM_REG_ROM_STATUS, reg,
+					chip->rom_status_reg, reg,
 					((reg & HDA_DSP_ROM_STS_MASK)
 						== HDA_DSP_ROM_FW_ENTERED),
 					HDA_DSP_REG_POLL_INTERVAL_US,
@@ -293,8 +304,8 @@ static int cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *hext_str
 
 	if (status < 0) {
 		dev_err(sdev->dev,
-			"error: %s: timeout HDA_DSP_SRAM_REG_ROM_STATUS read\n",
-			__func__);
+			"%s: timeout with rom_status_reg (%#x) read\n",
+			__func__, chip->rom_status_reg);
 	}
 
 	ret = cl_trigger(sdev, hext_stream, SNDRV_PCM_TRIGGER_STOP);
@@ -313,6 +324,7 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 	struct hdac_ext_stream *iccmax_stream;
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct firmware stripped_firmware;
+	struct snd_dma_buffer dmab_bdl;
 	int ret, ret1;
 	u8 original_gb;
 
@@ -327,8 +339,8 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 	stripped_firmware.size = plat_data->fw->size - plat_data->fw_offset;
 
 	/* prepare capture stream for ICCMAX */
-	iccmax_stream = cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT, stripped_firmware.size,
-					  &sdev->dmab_bdl, SNDRV_PCM_STREAM_CAPTURE);
+	iccmax_stream = hda_cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT, stripped_firmware.size,
+					      &dmab_bdl, SNDRV_PCM_STREAM_CAPTURE);
 	if (IS_ERR(iccmax_stream)) {
 		dev_err(sdev->dev, "error: dma prepare for ICCMAX stream failed\n");
 		return PTR_ERR(iccmax_stream);
@@ -340,7 +352,7 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 	 * Perform iccmax stream cleanup. This should be done even if firmware loading fails.
 	 * If the cleanup also fails, we return the initial error
 	 */
-	ret1 = cl_cleanup(sdev, &sdev->dmab_bdl, iccmax_stream);
+	ret1 = hda_cl_cleanup(sdev, &dmab_bdl, iccmax_stream);
 	if (ret1 < 0) {
 		dev_err(sdev->dev, "error: ICCMAX stream cleanup failed\n");
 
@@ -357,32 +369,17 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 
 static int hda_dsp_boot_imr(struct snd_sof_dev *sdev)
 {
-	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
-	const struct sof_intel_dsp_desc *chip = hda->desc;
-	unsigned long mask;
-	u32 j;
+	const struct sof_intel_dsp_desc *chip_info;
 	int ret;
 
-	/* power up & unstall/run the cores to run the firmware */
-	ret = hda_dsp_enable_core(sdev, chip->init_core_mask);
-	if (ret < 0) {
-		dev_err(sdev->dev, "dsp core start failed %d\n", ret);
-		return -EIO;
-	}
+	chip_info = get_chip_info(sdev->pdata);
+	if (chip_info->cl_init)
+		ret = chip_info->cl_init(sdev, 0, true);
+	else
+		ret = -EINVAL;
 
-	/* set enabled cores mask and increment ref count for cores in init_core_mask */
-	sdev->enabled_cores_mask |= chip->init_core_mask;
-	mask = sdev->enabled_cores_mask;
-	for_each_set_bit(j, &mask, SOF_MAX_DSP_NUM_CORES)
-		sdev->dsp_core_ref_count[j]++;
-
-	hda_ssp_set_cbp_cfp(sdev);
-
-	/* enable IPC interrupts */
-	hda_dsp_ipc_int_enable(sdev);
-
-	/* process wakes */
-	hda_sdw_process_wakeen(sdev);
+	if (!ret)
+		hda_sdw_process_wakeen(sdev);
 
 	return ret;
 }
@@ -395,13 +392,17 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	const struct sof_intel_dsp_desc *chip_info;
 	struct hdac_ext_stream *hext_stream;
 	struct firmware stripped_firmware;
+	struct snd_dma_buffer dmab;
 	int ret, ret1, i;
 
-	if ((sdev->fw_ready.flags & SOF_IPC_INFO_D3_PERSISTENT) &&
-	    !(sof_debug_check_flag(SOF_DBG_IGNORE_D3_PERSISTENT)) &&
-	    !sdev->first_boot) {
+	if (hda->imrboot_supported && !sdev->first_boot && !hda->skip_imr_boot) {
 		dev_dbg(sdev->dev, "IMR restore supported, booting from IMR directly\n");
-		return hda_dsp_boot_imr(sdev);
+		hda->boot_iteration = 0;
+		ret = hda_dsp_boot_imr(sdev);
+		if (!ret)
+			return 0;
+
+		dev_warn(sdev->dev, "IMR restore failed, trying to cold boot\n");
 	}
 
 	chip_info = desc->chip_info;
@@ -418,14 +419,15 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	init_waitqueue_head(&sdev->boot_wait);
 
 	/* prepare DMA for code loader stream */
-	hext_stream = cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT, stripped_firmware.size,
-					&sdev->dmab, SNDRV_PCM_STREAM_PLAYBACK);
+	hext_stream = hda_cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT,
+					    stripped_firmware.size,
+					    &dmab, SNDRV_PCM_STREAM_PLAYBACK);
 	if (IS_ERR(hext_stream)) {
 		dev_err(sdev->dev, "error: dma prepare for fw loading failed\n");
 		return PTR_ERR(hext_stream);
 	}
 
-	memcpy(sdev->dmab.area, stripped_firmware.data,
+	memcpy(dmab.area, stripped_firmware.data,
 	       stripped_firmware.size);
 
 	/* try ROM init a few times before giving up */
@@ -434,7 +436,10 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 			"Attempting iteration %d of Core En/ROM load...\n", i);
 
 		hda->boot_iteration = i + 1;
-		ret = cl_dsp_init(sdev, hext_stream->hstream.stream_tag);
+		if (chip_info->cl_init)
+			ret = chip_info->cl_init(sdev, hext_stream->hstream.stream_tag, false);
+		else
+			ret = -EINVAL;
 
 		/* don't retry anymore if successful */
 		if (!ret)
@@ -473,12 +478,15 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	 * Continue with code loading and firmware boot
 	 */
 	hda->boot_iteration = HDA_FW_BOOT_ATTEMPTS;
-	ret = cl_copy_fw(sdev, hext_stream);
-	if (!ret)
+	ret = hda_cl_copy_fw(sdev, hext_stream);
+	if (!ret) {
 		dev_dbg(sdev->dev, "Firmware download successful, booting...\n");
-	else
+		hda->skip_imr_boot = false;
+	} else {
 		snd_sof_dsp_dbg_dump(sdev, "Firmware download failed",
 				     SOF_DBG_DUMP_PCI | SOF_DBG_DUMP_MBOX);
+		hda->skip_imr_boot = true;
+	}
 
 cleanup:
 	/*
@@ -486,7 +494,7 @@ cleanup:
 	 * This should be done even if firmware loading fails.
 	 * If the cleanup also fails, we return the initial error
 	 */
-	ret1 = cl_cleanup(sdev, &sdev->dmab, hext_stream);
+	ret1 = hda_cl_cleanup(sdev, &dmab, hext_stream);
 	if (ret1 < 0) {
 		dev_err(sdev->dev, "error: Code loader DSP cleanup failed\n");
 
@@ -522,12 +530,20 @@ int hda_dsp_post_fw_run(struct snd_sof_dev *sdev)
 	int ret;
 
 	if (sdev->first_boot) {
+		struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
+
 		ret = hda_sdw_startup(sdev);
 		if (ret < 0) {
 			dev_err(sdev->dev,
 				"error: could not startup SoundWire links\n");
 			return ret;
 		}
+
+		/* Check if IMR boot is usable */
+		if (!sof_debug_check_flag(SOF_DBG_IGNORE_D3_PERSISTENT) &&
+		    (sdev->fw_ready.flags & SOF_IPC_INFO_D3_PERSISTENT ||
+		     sdev->pdata->ipc_type == SOF_INTEL_IPC4))
+			hdev->imrboot_supported = true;
 	}
 
 	hda_sdw_int_enable(sdev, true);

@@ -140,7 +140,7 @@ struct ad5770r_state {
 	bool				ch_pwr_down[AD5770R_MAX_CHANNELS];
 	bool				internal_ref;
 	bool				external_res;
-	u8				transf_buf[2] ____cacheline_aligned;
+	u8				transf_buf[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 static const struct regmap_config ad5770r_spi_regmap_config = {

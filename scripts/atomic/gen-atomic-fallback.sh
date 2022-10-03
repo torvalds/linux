@@ -164,41 +164,44 @@ gen_xchg_fallbacks()
 
 gen_try_cmpxchg_fallback()
 {
+	local cmpxchg="$1"; shift;
 	local order="$1"; shift;
 
 cat <<EOF
-#ifndef arch_try_cmpxchg${order}
-#define arch_try_cmpxchg${order}(_ptr, _oldp, _new) \\
+#ifndef arch_try_${cmpxchg}${order}
+#define arch_try_${cmpxchg}${order}(_ptr, _oldp, _new) \\
 ({ \\
 	typeof(*(_ptr)) *___op = (_oldp), ___o = *___op, ___r; \\
-	___r = arch_cmpxchg${order}((_ptr), ___o, (_new)); \\
+	___r = arch_${cmpxchg}${order}((_ptr), ___o, (_new)); \\
 	if (unlikely(___r != ___o)) \\
 		*___op = ___r; \\
 	likely(___r == ___o); \\
 })
-#endif /* arch_try_cmpxchg${order} */
+#endif /* arch_try_${cmpxchg}${order} */
 
 EOF
 }
 
 gen_try_cmpxchg_fallbacks()
 {
-	printf "#ifndef arch_try_cmpxchg_relaxed\n"
-	printf "#ifdef arch_try_cmpxchg\n"
+	local cmpxchg="$1"; shift;
 
-	gen_basic_fallbacks "arch_try_cmpxchg"
+	printf "#ifndef arch_try_${cmpxchg}_relaxed\n"
+	printf "#ifdef arch_try_${cmpxchg}\n"
 
-	printf "#endif /* arch_try_cmpxchg */\n\n"
+	gen_basic_fallbacks "arch_try_${cmpxchg}"
+
+	printf "#endif /* arch_try_${cmpxchg} */\n\n"
 
 	for order in "" "_acquire" "_release" "_relaxed"; do
-		gen_try_cmpxchg_fallback "${order}"
+		gen_try_cmpxchg_fallback "${cmpxchg}" "${order}"
 	done
 
-	printf "#else /* arch_try_cmpxchg_relaxed */\n"
+	printf "#else /* arch_try_${cmpxchg}_relaxed */\n"
 
-	gen_order_fallbacks "arch_try_cmpxchg"
+	gen_order_fallbacks "arch_try_${cmpxchg}"
 
-	printf "#endif /* arch_try_cmpxchg_relaxed */\n\n"
+	printf "#endif /* arch_try_${cmpxchg}_relaxed */\n\n"
 }
 
 cat << EOF
@@ -218,7 +221,9 @@ for xchg in "arch_xchg" "arch_cmpxchg" "arch_cmpxchg64"; do
 	gen_xchg_fallbacks "${xchg}"
 done
 
-gen_try_cmpxchg_fallbacks
+for cmpxchg in "cmpxchg" "cmpxchg64"; do
+	gen_try_cmpxchg_fallbacks "${cmpxchg}"
+done
 
 grep '^[a-z]' "$1" | while read name meta args; do
 	gen_proto "${meta}" "${name}" "atomic" "int" ${args}

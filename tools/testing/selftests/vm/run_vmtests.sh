@@ -9,12 +9,12 @@ mnt=./huge
 exitcode=0
 
 #get huge pagesize and freepages from /proc/meminfo
-while read name size unit; do
+while read -r name size unit; do
 	if [ "$name" = "HugePages_Free:" ]; then
-		freepgs=$size
+		freepgs="$size"
 	fi
 	if [ "$name" = "Hugepagesize:" ]; then
-		hpgsize_KB=$size
+		hpgsize_KB="$size"
 	fi
 done < /proc/meminfo
 
@@ -30,27 +30,26 @@ needmem_KB=$((half_ufd_size_MB * 2 * 1024))
 
 #set proper nr_hugepages
 if [ -n "$freepgs" ] && [ -n "$hpgsize_KB" ]; then
-	nr_hugepgs=`cat /proc/sys/vm/nr_hugepages`
+	nr_hugepgs=$(cat /proc/sys/vm/nr_hugepages)
 	needpgs=$((needmem_KB / hpgsize_KB))
 	tries=2
-	while [ $tries -gt 0 ] && [ $freepgs -lt $needpgs ]; do
-		lackpgs=$(( $needpgs - $freepgs ))
+	while [ "$tries" -gt 0 ] && [ "$freepgs" -lt "$needpgs" ]; do
+		lackpgs=$((needpgs - freepgs))
 		echo 3 > /proc/sys/vm/drop_caches
-		echo $(( $lackpgs + $nr_hugepgs )) > /proc/sys/vm/nr_hugepages
-		if [ $? -ne 0 ]; then
+		if ! echo $((lackpgs + nr_hugepgs)) > /proc/sys/vm/nr_hugepages; then
 			echo "Please run this test as root"
 			exit $ksft_skip
 		fi
-		while read name size unit; do
+		while read -r name size unit; do
 			if [ "$name" = "HugePages_Free:" ]; then
 				freepgs=$size
 			fi
 		done < /proc/meminfo
 		tries=$((tries - 1))
 	done
-	if [ $freepgs -lt $needpgs ]; then
+	if [ "$freepgs" -lt "$needpgs" ]; then
 		printf "Not enough huge pages available (%d < %d)\n" \
-		       $freepgs $needpgs
+		       "$freepgs" "$needpgs"
 		exit 1
 	fi
 else
@@ -60,453 +59,137 @@ fi
 
 #filter 64bit architectures
 ARCH64STR="arm64 ia64 mips64 parisc64 ppc64 ppc64le riscv64 s390x sh64 sparc64 x86_64"
-if [ -z $ARCH ]; then
-  ARCH=`uname -m 2>/dev/null | sed -e 's/aarch64.*/arm64/'`
+if [ -z "$ARCH" ]; then
+	ARCH=$(uname -m 2>/dev/null | sed -e 's/aarch64.*/arm64/')
 fi
 VADDR64=0
-echo "$ARCH64STR" | grep $ARCH && VADDR64=1
+echo "$ARCH64STR" | grep "$ARCH" && VADDR64=1
 
-mkdir $mnt
-mount -t hugetlbfs none $mnt
+# Usage: run_test [test binary] [arbitrary test arguments...]
+run_test() {
+	local title="running $*"
+	local sep=$(echo -n "$title" | tr "[:graph:][:space:]" -)
+	printf "%s\n%s\n%s\n" "$sep" "$title" "$sep"
 
-echo "---------------------"
-echo "running hugepage-mmap"
-echo "---------------------"
-./hugepage-mmap
-if [ $? -ne 0 ]; then
-	echo "[FAIL]"
-	exitcode=1
-else
-	echo "[PASS]"
-fi
+	"$@"
+	local ret=$?
+	if [ $ret -eq 0 ]; then
+		echo "[PASS]"
+	elif [ $ret -eq $ksft_skip ]; then
+		echo "[SKIP]"
+		exitcode=$ksft_skip
+	else
+		echo "[FAIL]"
+		exitcode=1
+	fi
+}
 
-shmmax=`cat /proc/sys/kernel/shmmax`
-shmall=`cat /proc/sys/kernel/shmall`
+mkdir "$mnt"
+mount -t hugetlbfs none "$mnt"
+
+run_test ./hugepage-mmap
+
+shmmax=$(cat /proc/sys/kernel/shmmax)
+shmall=$(cat /proc/sys/kernel/shmall)
 echo 268435456 > /proc/sys/kernel/shmmax
 echo 4194304 > /proc/sys/kernel/shmall
-echo "--------------------"
-echo "running hugepage-shm"
-echo "--------------------"
-./hugepage-shm
-if [ $? -ne 0 ]; then
-	echo "[FAIL]"
-	exitcode=1
-else
-	echo "[PASS]"
-fi
-echo $shmmax > /proc/sys/kernel/shmmax
-echo $shmall > /proc/sys/kernel/shmall
+run_test ./hugepage-shm
+echo "$shmmax" > /proc/sys/kernel/shmmax
+echo "$shmall" > /proc/sys/kernel/shmall
 
-echo "-------------------"
-echo "running map_hugetlb"
-echo "-------------------"
-./map_hugetlb
-if [ $? -ne 0 ]; then
-	echo "[FAIL]"
-	exitcode=1
-else
-	echo "[PASS]"
-fi
+run_test ./map_hugetlb
 
-echo "-----------------------"
-echo "running hugepage-mremap"
-echo "-----------------------"
-./hugepage-mremap $mnt/huge_mremap
-if [ $? -ne 0 ]; then
-	echo "[FAIL]"
-	exitcode=1
-else
-	echo "[PASS]"
-fi
-rm -f $mnt/huge_mremap
+run_test ./hugepage-mremap "$mnt"/huge_mremap
+rm -f "$mnt"/huge_mremap
 
-echo "------------------------"
-echo "running hugepage-vmemmap"
-echo "------------------------"
-./hugepage-vmemmap
-if [ $? -ne 0 ]; then
-	echo "[FAIL]"
-	exitcode=1
-else
-	echo "[PASS]"
-fi
+run_test ./hugepage-vmemmap
 
-echo "-----------------------"
-echo "running hugetlb-madvise"
-echo "-----------------------"
-./hugetlb-madvise $mnt/madvise-test
-if [ $? -ne 0 ]; then
-	echo "[FAIL]"
-	exitcode=1
-else
-	echo "[PASS]"
-fi
-rm -f $mnt/madvise-test
+run_test ./hugetlb-madvise "$mnt"/madvise-test
+rm -f "$mnt"/madvise-test
 
 echo "NOTE: The above hugetlb tests provide minimal coverage.  Use"
 echo "      https://github.com/libhugetlbfs/libhugetlbfs.git for"
 echo "      hugetlb regression testing."
 
-echo "---------------------------"
-echo "running map_fixed_noreplace"
-echo "---------------------------"
-./map_fixed_noreplace
-if [ $? -ne 0 ]; then
-	echo "[FAIL]"
-	exitcode=1
-else
-	echo "[PASS]"
-fi
+run_test ./map_fixed_noreplace
 
-echo "------------------------------------------------------"
-echo "running: gup_test -u # get_user_pages_fast() benchmark"
-echo "------------------------------------------------------"
-./gup_test -u
-if [ $? -ne 0 ]; then
-	echo "[FAIL]"
-	exitcode=1
-else
-	echo "[PASS]"
-fi
+# get_user_pages_fast() benchmark
+run_test ./gup_test -u
+# pin_user_pages_fast() benchmark
+run_test ./gup_test -a
+# Dump pages 0, 19, and 4096, using pin_user_pages:
+run_test ./gup_test -ct -F 0x1 0 19 0x1000
 
-echo "------------------------------------------------------"
-echo "running: gup_test -a # pin_user_pages_fast() benchmark"
-echo "------------------------------------------------------"
-./gup_test -a
-if [ $? -ne 0 ]; then
-	echo "[FAIL]"
-	exitcode=1
-else
-	echo "[PASS]"
-fi
-
-echo "------------------------------------------------------------"
-echo "# Dump pages 0, 19, and 4096, using pin_user_pages:"
-echo "running: gup_test -ct -F 0x1 0 19 0x1000 # dump_page() test"
-echo "------------------------------------------------------------"
-./gup_test -ct -F 0x1 0 19 0x1000
-if [ $? -ne 0 ]; then
-	echo "[FAIL]"
-	exitcode=1
-else
-	echo "[PASS]"
-fi
-
-echo "-------------------"
-echo "running userfaultfd"
-echo "-------------------"
-./userfaultfd anon 20 16
-if [ $? -ne 0 ]; then
-	echo "[FAIL]"
-	exitcode=1
-else
-	echo "[PASS]"
-fi
-
-echo "---------------------------"
-echo "running userfaultfd_hugetlb"
-echo "---------------------------"
+run_test ./userfaultfd anon 20 16
 # Test requires source and destination huge pages.  Size of source
 # (half_ufd_size_MB) is passed as argument to test.
-./userfaultfd hugetlb $half_ufd_size_MB 32
-if [ $? -ne 0 ]; then
-	echo "[FAIL]"
-	exitcode=1
-else
-	echo "[PASS]"
-fi
-
-echo "-------------------------"
-echo "running userfaultfd_shmem"
-echo "-------------------------"
-./userfaultfd shmem 20 16
-if [ $? -ne 0 ]; then
-	echo "[FAIL]"
-	exitcode=1
-else
-	echo "[PASS]"
-fi
+run_test ./userfaultfd hugetlb "$half_ufd_size_MB" 32
+run_test ./userfaultfd shmem 20 16
 
 #cleanup
-umount $mnt
-rm -rf $mnt
-echo $nr_hugepgs > /proc/sys/vm/nr_hugepages
+umount "$mnt"
+rm -rf "$mnt"
+echo "$nr_hugepgs" > /proc/sys/vm/nr_hugepages
 
-echo "-----------------------"
-echo "running compaction_test"
-echo "-----------------------"
-./compaction_test
-if [ $? -ne 0 ]; then
-	echo "[FAIL]"
-	exitcode=1
-else
-	echo "[PASS]"
-fi
+run_test ./compaction_test
 
-echo "----------------------"
-echo "running on-fault-limit"
-echo "----------------------"
-sudo -u nobody ./on-fault-limit
-if [ $? -ne 0 ]; then
-	echo "[FAIL]"
-	exitcode=1
-else
-	echo "[PASS]"
-fi
+run_test sudo -u nobody ./on-fault-limit
 
-echo "--------------------"
-echo "running map_populate"
-echo "--------------------"
-./map_populate
-if [ $? -ne 0 ]; then
-	echo "[FAIL]"
-	exitcode=1
-else
-	echo "[PASS]"
-fi
+run_test ./map_populate
 
-echo "-------------------------"
-echo "running mlock-random-test"
-echo "-------------------------"
-./mlock-random-test
-if [ $? -ne 0 ]; then
-	echo "[FAIL]"
-	exitcode=1
-else
-	echo "[PASS]"
-fi
+run_test ./mlock-random-test
 
-echo "--------------------"
-echo "running mlock2-tests"
-echo "--------------------"
-./mlock2-tests
-if [ $? -ne 0 ]; then
-	echo "[FAIL]"
-	exitcode=1
-else
-	echo "[PASS]"
-fi
+run_test ./mlock2-tests
 
-echo "-------------------"
-echo "running mremap_test"
-echo "-------------------"
-./mremap_test
-if [ $? -ne 0 ]; then
-	echo "[FAIL]"
-	exitcode=1
-else
-	echo "[PASS]"
-fi
+run_test ./mrelease_test
 
-echo "-----------------"
-echo "running thuge-gen"
-echo "-----------------"
-./thuge-gen
-if [ $? -ne 0 ]; then
-	echo "[FAIL]"
-	exitcode=1
-else
-	echo "[PASS]"
-fi
+run_test ./mremap_test
+
+run_test ./thuge-gen
 
 if [ $VADDR64 -ne 0 ]; then
-echo "-----------------------------"
-echo "running virtual_address_range"
-echo "-----------------------------"
-./virtual_address_range
-if [ $? -ne 0 ]; then
-	echo "[FAIL]"
-	exitcode=1
-else
-	echo "[PASS]"
-fi
+	run_test ./virtual_address_range
 
-echo "-----------------------------"
-echo "running virtual address 128TB switch test"
-echo "-----------------------------"
-./va_128TBswitch
-if [ $? -ne 0 ]; then
-    echo "[FAIL]"
-    exitcode=1
-else
-    echo "[PASS]"
-fi
+	# virtual address 128TB switch test
+	run_test ./va_128TBswitch.sh
 fi # VADDR64
 
-echo "------------------------------------"
-echo "running vmalloc stability smoke test"
-echo "------------------------------------"
-./test_vmalloc.sh smoke
-ret_val=$?
+# vmalloc stability smoke test
+run_test ./test_vmalloc.sh smoke
 
-if [ $ret_val -eq 0 ]; then
-	echo "[PASS]"
-elif [ $ret_val -eq $ksft_skip ]; then
-	 echo "[SKIP]"
-	 exitcode=$ksft_skip
-else
-	echo "[FAIL]"
-	exitcode=1
+run_test ./mremap_dontunmap
+
+run_test ./test_hmm.sh smoke
+
+# MADV_POPULATE_READ and MADV_POPULATE_WRITE tests
+run_test ./madv_populate
+
+run_test ./memfd_secret
+
+# KSM MADV_MERGEABLE test with 10 identical pages
+run_test ./ksm_tests -M -p 10
+# KSM unmerge test
+run_test ./ksm_tests -U
+# KSM test with 10 zero pages and use_zero_pages = 0
+run_test ./ksm_tests -Z -p 10 -z 0
+# KSM test with 10 zero pages and use_zero_pages = 1
+run_test ./ksm_tests -Z -p 10 -z 1
+# KSM test with 2 NUMA nodes and merge_across_nodes = 1
+run_test ./ksm_tests -N -m 1
+# KSM test with 2 NUMA nodes and merge_across_nodes = 0
+run_test ./ksm_tests -N -m 0
+
+# protection_keys tests
+if [ -x ./protection_keys_32 ]
+then
+	run_test ./protection_keys_32
 fi
 
-echo "------------------------------------"
-echo "running MREMAP_DONTUNMAP smoke test"
-echo "------------------------------------"
-./mremap_dontunmap
-ret_val=$?
-
-if [ $ret_val -eq 0 ]; then
-	echo "[PASS]"
-elif [ $ret_val -eq $ksft_skip ]; then
-	 echo "[SKIP]"
-	 exitcode=$ksft_skip
-else
-	echo "[FAIL]"
-	exitcode=1
+if [ -x ./protection_keys_64 ]
+then
+	run_test ./protection_keys_64
 fi
 
-echo "running HMM smoke test"
-echo "------------------------------------"
-./test_hmm.sh smoke
-ret_val=$?
-
-if [ $ret_val -eq 0 ]; then
-	echo "[PASS]"
-elif [ $ret_val -eq $ksft_skip ]; then
-	echo "[SKIP]"
-	exitcode=$ksft_skip
-else
-	echo "[FAIL]"
-	exitcode=1
-fi
-
-echo "--------------------------------------------------------"
-echo "running MADV_POPULATE_READ and MADV_POPULATE_WRITE tests"
-echo "--------------------------------------------------------"
-./madv_populate
-ret_val=$?
-
-if [ $ret_val -eq 0 ]; then
-	echo "[PASS]"
-elif [ $ret_val -eq $ksft_skip ]; then
-	echo "[SKIP]"
-	exitcode=$ksft_skip
-else
-	echo "[FAIL]"
-	exitcode=1
-fi
-
-echo "running memfd_secret test"
-echo "------------------------------------"
-./memfd_secret
-ret_val=$?
-
-if [ $ret_val -eq 0 ]; then
-	echo "[PASS]"
-elif [ $ret_val -eq $ksft_skip ]; then
-	echo "[SKIP]"
-	exitcode=$ksft_skip
-else
-	echo "[FAIL]"
-	exitcode=1
-fi
-
-echo "-------------------------------------------------------"
-echo "running KSM MADV_MERGEABLE test with 10 identical pages"
-echo "-------------------------------------------------------"
-./ksm_tests -M -p 10
-ret_val=$?
-
-if [ $ret_val -eq 0 ]; then
-	echo "[PASS]"
-elif [ $ret_val -eq $ksft_skip ]; then
-	 echo "[SKIP]"
-	 exitcode=$ksft_skip
-else
-	echo "[FAIL]"
-	exitcode=1
-fi
-
-echo "------------------------"
-echo "running KSM unmerge test"
-echo "------------------------"
-./ksm_tests -U
-ret_val=$?
-
-if [ $ret_val -eq 0 ]; then
-	echo "[PASS]"
-elif [ $ret_val -eq $ksft_skip ]; then
-	 echo "[SKIP]"
-	 exitcode=$ksft_skip
-else
-	echo "[FAIL]"
-	exitcode=1
-fi
-
-echo "----------------------------------------------------------"
-echo "running KSM test with 10 zero pages and use_zero_pages = 0"
-echo "----------------------------------------------------------"
-./ksm_tests -Z -p 10 -z 0
-ret_val=$?
-
-if [ $ret_val -eq 0 ]; then
-	echo "[PASS]"
-elif [ $ret_val -eq $ksft_skip ]; then
-	 echo "[SKIP]"
-	 exitcode=$ksft_skip
-else
-	echo "[FAIL]"
-	exitcode=1
-fi
-
-echo "----------------------------------------------------------"
-echo "running KSM test with 10 zero pages and use_zero_pages = 1"
-echo "----------------------------------------------------------"
-./ksm_tests -Z -p 10 -z 1
-ret_val=$?
-
-if [ $ret_val -eq 0 ]; then
-	echo "[PASS]"
-elif [ $ret_val -eq $ksft_skip ]; then
-	 echo "[SKIP]"
-	 exitcode=$ksft_skip
-else
-	echo "[FAIL]"
-	exitcode=1
-fi
-
-echo "-------------------------------------------------------------"
-echo "running KSM test with 2 NUMA nodes and merge_across_nodes = 1"
-echo "-------------------------------------------------------------"
-./ksm_tests -N -m 1
-ret_val=$?
-
-if [ $ret_val -eq 0 ]; then
-	echo "[PASS]"
-elif [ $ret_val -eq $ksft_skip ]; then
-	 echo "[SKIP]"
-	 exitcode=$ksft_skip
-else
-	echo "[FAIL]"
-	exitcode=1
-fi
-
-echo "-------------------------------------------------------------"
-echo "running KSM test with 2 NUMA nodes and merge_across_nodes = 0"
-echo "-------------------------------------------------------------"
-./ksm_tests -N -m 0
-ret_val=$?
-
-if [ $ret_val -eq 0 ]; then
-	echo "[PASS]"
-elif [ $ret_val -eq $ksft_skip ]; then
-	 echo "[SKIP]"
-	 exitcode=$ksft_skip
-else
-	echo "[FAIL]"
-	exitcode=1
-fi
-
-exit $exitcode
+run_test ./soft-dirty
 
 exit $exitcode

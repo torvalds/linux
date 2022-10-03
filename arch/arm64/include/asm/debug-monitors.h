@@ -64,7 +64,7 @@ struct task_struct;
 
 struct step_hook {
 	struct list_head node;
-	int (*fn)(struct pt_regs *regs, unsigned int esr);
+	int (*fn)(struct pt_regs *regs, unsigned long esr);
 };
 
 void register_user_step_hook(struct step_hook *hook);
@@ -75,7 +75,7 @@ void unregister_kernel_step_hook(struct step_hook *hook);
 
 struct break_hook {
 	struct list_head node;
-	int (*fn)(struct pt_regs *regs, unsigned int esr);
+	int (*fn)(struct pt_regs *regs, unsigned long esr);
 	u16 imm;
 	u16 mask; /* These bits are ignored when comparing with imm */
 };

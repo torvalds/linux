@@ -1480,7 +1480,7 @@ static int dasd_eckd_pe_handler(struct dasd_device *device,
 {
 	struct pe_handler_work_data *data;
 
-	data = kmalloc(sizeof(*data), GFP_ATOMIC | GFP_DMA);
+	data = kzalloc(sizeof(*data), GFP_ATOMIC | GFP_DMA);
 	if (!data) {
 		if (mutex_trylock(&dasd_pe_handler_mutex)) {
 			data = pe_handler_worker;
@@ -1488,9 +1488,6 @@ static int dasd_eckd_pe_handler(struct dasd_device *device,
 		} else {
 			return -ENOMEM;
 		}
-	} else {
-		memset(data, 0, sizeof(*data));
-		data->isglobal = 0;
 	}
 	INIT_WORK(&data->worker, do_pe_handler_work);
 	dasd_get_device(device);
@@ -3083,13 +3080,24 @@ static int dasd_eckd_format_device(struct dasd_device *base,
 }
 
 static bool test_and_set_format_track(struct dasd_format_entry *to_format,
-				      struct dasd_block *block)
+				      struct dasd_ccw_req *cqr)
 {
+	struct dasd_block *block = cqr->block;
 	struct dasd_format_entry *format;
 	unsigned long flags;
 	bool rc = false;
 
 	spin_lock_irqsave(&block->format_lock, flags);
+	if (cqr->trkcount != atomic_read(&block->trkcount)) {
+		/*
+		 * The number of formatted tracks has changed after request
+		 * start and we can not tell if the current track was involved.
+		 * To avoid data corruption treat it as if the current track is
+		 * involved
+		 */
+		rc = true;
+		goto out;
+	}
 	list_for_each_entry(format, &block->format_list, list) {
 		if (format->track == to_format->track) {
 			rc = true;
@@ -3109,6 +3117,7 @@ static void clear_format_track(struct dasd_format_entry *format,
 	unsigned long flags;
 
 	spin_lock_irqsave(&block->format_lock, flags);
+	atomic_inc(&block->trkcount);
 	list_del_init(&format->list);
 	spin_unlock_irqrestore(&block->format_lock, flags);
 }
@@ -3145,7 +3154,7 @@ dasd_eckd_ese_format(struct dasd_device *startdev, struct dasd_ccw_req *cqr,
 	sector_t curr_trk;
 	int rc;
 
-	req = cqr->callback_data;
+	req = dasd_get_callback_data(cqr);
 	block = cqr->block;
 	base = block->base;
 	private = base->private;
@@ -3170,8 +3179,11 @@ dasd_eckd_ese_format(struct dasd_device *startdev, struct dasd_ccw_req *cqr,
 	}
 	format->track = curr_trk;
 	/* test if track is already in formatting by another thread */
-	if (test_and_set_format_track(format, block))
+	if (test_and_set_format_track(format, cqr)) {
+		/* this is no real error so do not count down retries */
+		cqr->retries++;
 		return ERR_PTR(-EEXIST);
+	}
 
 	fdata.start_unit = curr_trk;
 	fdata.stop_unit = curr_trk;
@@ -3270,12 +3282,11 @@ static int dasd_eckd_ese_read(struct dasd_ccw_req *cqr, struct irb *irb)
 				cqr->proc_bytes = blk_count * blksize;
 				return 0;
 			}
-			if (dst && !skip_block) {
-				dst += off;
+			if (dst && !skip_block)
 				memset(dst, 0, blksize);
-			} else {
+			else
 				skip_block--;
-			}
+			dst += blksize;
 			blk_count++;
 		}
 	}
@@ -6615,6 +6626,7 @@ static void dasd_eckd_setup_blk_queue(struct dasd_block *block)
 	/* With page sized segments each segment can be translated into one idaw/tidaw */
 	blk_queue_max_segment_size(q, PAGE_SIZE);
 	blk_queue_segment_boundary(q, PAGE_SIZE - 1);
+	blk_queue_dma_alignment(q, PAGE_SIZE - 1);
 }
 
 static struct ccw_driver dasd_eckd_driver = {

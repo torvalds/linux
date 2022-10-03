@@ -28,7 +28,7 @@
 #define ALDEBARAN_UMD_PSTATE_MCLK_LEVEL           0x2
 
 #define MAX_DPM_NUMBER 16
-#define MAX_PCIE_CONF 2
+#define ALDEBARAN_MAX_PCIE_CONF 2
 
 struct aldebaran_dpm_level {
 	bool            enabled;
@@ -51,9 +51,9 @@ struct aldebaran_single_dpm_table {
 
 struct aldebaran_pcie_table {
 	uint16_t count;
-	uint8_t  pcie_gen[MAX_PCIE_CONF];
-	uint8_t  pcie_lane[MAX_PCIE_CONF];
-	uint32_t lclk[MAX_PCIE_CONF];
+	uint8_t  pcie_gen[ALDEBARAN_MAX_PCIE_CONF];
+	uint8_t  pcie_lane[ALDEBARAN_MAX_PCIE_CONF];
+	uint32_t lclk[ALDEBARAN_MAX_PCIE_CONF];
 };
 
 struct aldebaran_dpm_table {

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig CAN_M_CAN
 	tristate "Bosch M_CAN support"
+	select CAN_RX_OFFLOAD
 	help
 	  Say Y here if you want support for Bosch M_CAN controller framework.
 	  This is common support for devices that embed the Bosch M_CAN IP.

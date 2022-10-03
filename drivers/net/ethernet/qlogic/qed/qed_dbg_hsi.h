@@ -1282,7 +1282,7 @@ void qed_dbg_mcp_trace_set_meta_data(struct qed_hwfn *p_hwfn,
  * @results_buf_size: (OUT) required buffer size (in bytes) for the parsed
  *                    results.
  *
- * Return: Rrror if the parsing fails, ok otherwise.
+ * Return: Error if the parsing fails, ok otherwise.
  */
 enum dbg_status qed_get_mcp_trace_results_buf_size(struct qed_hwfn *p_hwfn,
 						   u32 *dump_buf,

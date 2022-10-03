@@ -48,9 +48,9 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
@@ -207,10 +207,10 @@ pl111_gem_import_sg_table(struct drm_device *dev,
 	if (priv->use_device_memory)
 		return ERR_PTR(-EINVAL);
 
-	return drm_gem_cma_prime_import_sg_table(dev, attach, sgt);
+	return drm_gem_dma_prime_import_sg_table(dev, attach, sgt);
 }
 
-DEFINE_DRM_GEM_CMA_FOPS(drm_fops);
+DEFINE_DRM_GEM_DMA_FOPS(drm_fops);
 
 static const struct drm_driver pl111_drm_driver = {
 	.driver_features =
@@ -223,7 +223,7 @@ static const struct drm_driver pl111_drm_driver = {
 	.major = 1,
 	.minor = 0,
 	.patchlevel = 0,
-	.dumb_create = drm_gem_cma_dumb_create,
+	.dumb_create = drm_gem_dma_dumb_create,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import_sg_table = pl111_gem_import_sg_table,

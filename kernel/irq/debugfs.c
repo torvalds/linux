@@ -30,7 +30,7 @@ static void irq_debug_show_bits(struct seq_file *m, int ind, unsigned int state,
 static void irq_debug_show_masks(struct seq_file *m, struct irq_desc *desc)
 {
 	struct irq_data *data = irq_desc_get_irq_data(desc);
-	struct cpumask *msk;
+	const struct cpumask *msk;
 
 	msk = irq_data_get_affinity_mask(data);
 	seq_printf(m, "affinity: %*pbl\n", cpumask_pr_args(msk));
@@ -58,6 +58,7 @@ static const struct irq_bit_descr irqchip_flags[] = {
 	BIT_MASK_DESCR(IRQCHIP_SUPPORTS_LEVEL_MSI),
 	BIT_MASK_DESCR(IRQCHIP_SUPPORTS_NMI),
 	BIT_MASK_DESCR(IRQCHIP_ENABLE_WAKEUP_ON_SUSPEND),
+	BIT_MASK_DESCR(IRQCHIP_IMMUTABLE),
 };
 
 static void

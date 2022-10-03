@@ -31,6 +31,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 
+#include <drm/display/drm_hdmi_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
@@ -2015,7 +2016,7 @@ intel_sdvo_get_analog_edid(struct drm_connector *connector)
 
 	return drm_get_edid(connector,
 			    intel_gmbus_get_adapter(dev_priv,
-						    dev_priv->vbt.crt_ddc_pin));
+						    dev_priv->display.vbt.crt_ddc_pin));
 }
 
 static enum drm_connector_status
@@ -2580,9 +2581,9 @@ intel_sdvo_select_ddc_bus(struct drm_i915_private *dev_priv,
 	struct sdvo_device_mapping *mapping;
 
 	if (sdvo->port == PORT_B)
-		mapping = &dev_priv->vbt.sdvo_mappings[0];
+		mapping = &dev_priv->display.vbt.sdvo_mappings[0];
 	else
-		mapping = &dev_priv->vbt.sdvo_mappings[1];
+		mapping = &dev_priv->display.vbt.sdvo_mappings[1];
 
 	if (mapping->initialized)
 		sdvo->ddc_bus = 1 << ((mapping->ddc_pin & 0xf0) >> 4);
@@ -2598,9 +2599,9 @@ intel_sdvo_select_i2c_bus(struct drm_i915_private *dev_priv,
 	u8 pin;
 
 	if (sdvo->port == PORT_B)
-		mapping = &dev_priv->vbt.sdvo_mappings[0];
+		mapping = &dev_priv->display.vbt.sdvo_mappings[0];
 	else
-		mapping = &dev_priv->vbt.sdvo_mappings[1];
+		mapping = &dev_priv->display.vbt.sdvo_mappings[1];
 
 	if (mapping->initialized &&
 	    intel_gmbus_is_valid_pin(dev_priv, mapping->i2c_pin))
@@ -2638,11 +2639,11 @@ intel_sdvo_get_slave_addr(struct drm_i915_private *dev_priv,
 	struct sdvo_device_mapping *my_mapping, *other_mapping;
 
 	if (sdvo->port == PORT_B) {
-		my_mapping = &dev_priv->vbt.sdvo_mappings[0];
-		other_mapping = &dev_priv->vbt.sdvo_mappings[1];
+		my_mapping = &dev_priv->display.vbt.sdvo_mappings[0];
+		other_mapping = &dev_priv->display.vbt.sdvo_mappings[1];
 	} else {
-		my_mapping = &dev_priv->vbt.sdvo_mappings[1];
-		other_mapping = &dev_priv->vbt.sdvo_mappings[0];
+		my_mapping = &dev_priv->display.vbt.sdvo_mappings[1];
+		other_mapping = &dev_priv->display.vbt.sdvo_mappings[0];
 	}
 
 	/* If the BIOS described our SDVO device, take advantage of it. */
@@ -2868,6 +2869,7 @@ static bool
 intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 {
 	struct drm_encoder *encoder = &intel_sdvo->base.base;
+	struct drm_i915_private *i915 = to_i915(encoder->dev);
 	struct drm_connector *connector;
 	struct intel_connector *intel_connector;
 	struct intel_sdvo_connector *intel_sdvo_connector;
@@ -2899,6 +2901,8 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 	if (!intel_sdvo_create_enhance_property(intel_sdvo, intel_sdvo_connector))
 		goto err;
 
+	intel_bios_init_panel(i915, &intel_connector->panel, NULL, NULL);
+
 	/*
 	 * Fetch modes from VBT. For SDVO prefer the VBT mode since some
 	 * SDVO->LVDS transcoders can't cope with the EDID mode.
@@ -2907,7 +2911,7 @@ intel_sdvo_lvds_init(struct intel_sdvo *intel_sdvo, int device)
 
 	if (!intel_panel_preferred_fixed_mode(intel_connector)) {
 		intel_ddc_get_modes(connector, &intel_sdvo->ddc);
-		intel_panel_add_edid_fixed_modes(intel_connector, false);
+		intel_panel_add_edid_fixed_modes(intel_connector, false, false);
 	}
 
 	intel_panel_init(intel_connector);

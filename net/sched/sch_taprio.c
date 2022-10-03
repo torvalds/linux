@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/rcupdate.h>
+#include <linux/time.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/pkt_cls.h>
@@ -176,7 +177,7 @@ static ktime_t get_interval_end_time(struct sched_gate_list *sched,
 
 static int length_to_duration(struct taprio_sched *q, int len)
 {
-	return div_u64(len * atomic64_read(&q->picos_per_byte), 1000);
+	return div_u64(len * atomic64_read(&q->picos_per_byte), PSEC_PER_NSEC);
 }
 
 /* Returns the entry corresponding to next available interval. If
@@ -417,7 +418,8 @@ static int taprio_enqueue_one(struct sk_buff *skb, struct Qdisc *sch,
 {
 	struct taprio_sched *q = qdisc_priv(sch);
 
-	if (skb->sk && sock_flag(skb->sk, SOCK_TXTIME)) {
+	/* sk_flags are only safe to use on full sockets. */
+	if (skb->sk && sk_fullsock(skb->sk) && sock_flag(skb->sk, SOCK_TXTIME)) {
 		if (!is_valid_interval(skb, sch))
 			return qdisc_drop(skb, sch, to_free);
 	} else if (TXTIME_ASSIST_IS_ENABLED(q->flags)) {
@@ -550,7 +552,7 @@ static struct sk_buff *taprio_peek(struct Qdisc *sch)
 static void taprio_set_budget(struct taprio_sched *q, struct sched_entry *entry)
 {
 	atomic_set(&entry->budget,
-		   div64_u64((u64)entry->interval * 1000,
+		   div64_u64((u64)entry->interval * PSEC_PER_NSEC,
 			     atomic64_read(&q->picos_per_byte)));
 }
 

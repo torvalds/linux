@@ -235,12 +235,6 @@ offgrpjquota		 Turn off group journalled quota.
 offprjjquota		 Turn off project journalled quota.
 quota			 Enable plain user disk quota accounting.
 noquota			 Disable all plain disk quota option.
-whint_mode=%s		 Control which write hints are passed down to block
-			 layer. This supports "off", "user-based", and
-			 "fs-based".  In "off" mode (default), f2fs does not pass
-			 down hints. In "user-based" mode, f2fs tries to pass
-			 down hints given by users. And in "fs-based" mode, f2fs
-			 passes down hints with its policy.
 alloc_mode=%s		 Adjust block allocation policy, which supports "reuse"
 			 and "default".
 fsync_mode=%s		 Control the policy of fsync. Currently supports "posix",
@@ -342,6 +336,11 @@ discard_unit=%s		 Control discard unit, the argument can be "block", "segment"
 			 default, it is helpful for large sized SMR or ZNS devices to
 			 reduce memory cost by getting rid of fs metadata supports small
 			 discard.
+memory=%s		 Control memory mode. This supports "normal" and "low" modes.
+			 "low" mode is introduced to support low memory devices.
+			 Because of the nature of low memory devices, in this mode, f2fs
+			 will try to save memory sometimes by sacrificing performance.
+			 "normal" mode is the default mode and same as before.
 ======================== ============================================================
 
 Debugfs Entries
@@ -751,70 +750,6 @@ In order to identify whether the data in the victim segment are valid or not,
 F2FS manages a bitmap. Each bit represents the validity of a block, and the
 bitmap is composed of a bit stream covering whole blocks in main area.
 
-Write-hint Policy
------------------
-
-1) whint_mode=off. F2FS only passes down WRITE_LIFE_NOT_SET.
-
-2) whint_mode=user-based. F2FS tries to pass down hints given by
-users.
-
-===================== ======================== ===================
-User                  F2FS                     Block
-===================== ======================== ===================
-N/A                   META                     WRITE_LIFE_NOT_SET
-N/A                   HOT_NODE                 "
-N/A                   WARM_NODE                "
-N/A                   COLD_NODE                "
-ioctl(COLD)           COLD_DATA                WRITE_LIFE_EXTREME
-extension list        "                        "
-
--- buffered io
-WRITE_LIFE_EXTREME    COLD_DATA                WRITE_LIFE_EXTREME
-WRITE_LIFE_SHORT      HOT_DATA                 WRITE_LIFE_SHORT
-WRITE_LIFE_NOT_SET    WARM_DATA                WRITE_LIFE_NOT_SET
-WRITE_LIFE_NONE       "                        "
-WRITE_LIFE_MEDIUM     "                        "
-WRITE_LIFE_LONG       "                        "
-
--- direct io
-WRITE_LIFE_EXTREME    COLD_DATA                WRITE_LIFE_EXTREME
-WRITE_LIFE_SHORT      HOT_DATA                 WRITE_LIFE_SHORT
-WRITE_LIFE_NOT_SET    WARM_DATA                WRITE_LIFE_NOT_SET
-WRITE_LIFE_NONE       "                        WRITE_LIFE_NONE
-WRITE_LIFE_MEDIUM     "                        WRITE_LIFE_MEDIUM
-WRITE_LIFE_LONG       "                        WRITE_LIFE_LONG
-===================== ======================== ===================
-
-3) whint_mode=fs-based. F2FS passes down hints with its policy.
-
-===================== ======================== ===================
-User                  F2FS                     Block
-===================== ======================== ===================
-N/A                   META                     WRITE_LIFE_MEDIUM;
-N/A                   HOT_NODE                 WRITE_LIFE_NOT_SET
-N/A                   WARM_NODE                "
-N/A                   COLD_NODE                WRITE_LIFE_NONE
-ioctl(COLD)           COLD_DATA                WRITE_LIFE_EXTREME
-extension list        "                        "
-
--- buffered io
-WRITE_LIFE_EXTREME    COLD_DATA                WRITE_LIFE_EXTREME
-WRITE_LIFE_SHORT      HOT_DATA                 WRITE_LIFE_SHORT
-WRITE_LIFE_NOT_SET    WARM_DATA                WRITE_LIFE_LONG
-WRITE_LIFE_NONE       "                        "
-WRITE_LIFE_MEDIUM     "                        "
-WRITE_LIFE_LONG       "                        "
-
--- direct io
-WRITE_LIFE_EXTREME    COLD_DATA                WRITE_LIFE_EXTREME
-WRITE_LIFE_SHORT      HOT_DATA                 WRITE_LIFE_SHORT
-WRITE_LIFE_NOT_SET    WARM_DATA                WRITE_LIFE_NOT_SET
-WRITE_LIFE_NONE       "                        WRITE_LIFE_NONE
-WRITE_LIFE_MEDIUM     "                        WRITE_LIFE_MEDIUM
-WRITE_LIFE_LONG       "                        WRITE_LIFE_LONG
-===================== ======================== ===================
-
 Fallocate(2) Policy
 -------------------
 
@@ -888,10 +823,11 @@ Compression implementation
   Instead, the main goal is to reduce data writes to flash disk as much as
   possible, resulting in extending disk life time as well as relaxing IO
   congestion. Alternatively, we've added ioctl(F2FS_IOC_RELEASE_COMPRESS_BLOCKS)
-  interface to reclaim compressed space and show it to user after putting the
-  immutable bit. Immutable bit, after release, it doesn't allow writing/mmaping
-  on the file, until reserving compressed space via
-  ioctl(F2FS_IOC_RESERVE_COMPRESS_BLOCKS) or truncating filesize to zero.
+  interface to reclaim compressed space and show it to user after setting a
+  special flag to the inode. Once the compressed space is released, the flag
+  will block writing data to the file until either the compressed space is
+  reserved via ioctl(F2FS_IOC_RESERVE_COMPRESS_BLOCKS) or the file size is
+  truncated to zero.
 
 Compress metadata layout::
 
@@ -900,12 +836,12 @@ Compress metadata layout::
 		| cluster 1 | cluster 2 | ......... | cluster N |
 		+-----------------------------------------------+
 		.           .                       .           .
-	.                       .                .                      .
+	  .                      .                .                      .
     .         Compressed Cluster       .        .        Normal Cluster            .
     +----------+---------+---------+---------+  +---------+---------+---------+---------+
     |compr flag| block 1 | block 2 | block 3 |  | block 1 | block 2 | block 3 | block 4 |
     +----------+---------+---------+---------+  +---------+---------+---------+---------+
-	    .                             .
+	       .                             .
 	    .                                           .
 	.                                                           .
 	+-------------+-------------+----------+----------------------------+

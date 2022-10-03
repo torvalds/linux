@@ -8,6 +8,7 @@
 #include <dt-bindings/clock/qcom,gpucc-sdm660.h>
 #include <dt-bindings/clock/qcom,mmcc-sdm660.h>
 #include <dt-bindings/clock/qcom,rpmcc.h>
+#include <dt-bindings/interconnect/qcom,sdm660.h>
 #include <dt-bindings/power/qcom-rpmpd.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -552,19 +553,19 @@
 		};
 
 		qfprom: qfprom@780000 {
-			compatible = "qcom,qfprom";
+			compatible = "qcom,sdm630-qfprom", "qcom,qfprom";
 			reg = <0x00780000 0x621c>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 
 			qusb2_hstx_trim: hstx-trim@240 {
-				reg = <0x240 0x1>;
-				bits = <25 3>;
+				reg = <0x243 0x1>;
+				bits = <1 3>;
 			};
 
 			gpu_speed_bin: gpu-speed-bin@41a0 {
-				reg = <0x41a0 0x1>;
-				bits = <21 7>;
+				reg = <0x41a2 0x1>;
+				bits = <5 7>;
 			};
 		};
 
@@ -982,12 +983,6 @@
 					bias-pull-up;
 					drive-strength = <10>;
 				};
-
-				sd-cd {
-					pins = "gpio54";
-					bias-pull-up;
-					drive-strength = <2>;
-				};
 			};
 
 			sdc2_state_off: sdc2-off {
@@ -1006,12 +1001,6 @@
 				data {
 					pins = "sdc2_data";
 					bias-pull-up;
-					drive-strength = <2>;
-				};
-
-				sd-cd {
-					pins = "gpio54";
-					bias-disable;
 					drive-strength = <2>;
 				};
 			};
@@ -1045,13 +1034,15 @@
 			nvmem-cells = <&gpu_speed_bin>;
 			nvmem-cell-names = "speed_bin";
 
-			interconnects = <&gnoc 1 &bimc 5>;
+			interconnects = <&bimc MASTER_OXILI &bimc SLAVE_EBI>;
 			interconnect-names = "gfx-mem";
 
 			operating-points-v2 = <&gpu_sdm630_opp_table>;
 
+			status = "disabled";
+
 			gpu_sdm630_opp_table: opp-table {
-				compatible  = "operating-points-v2";
+				compatible = "operating-points-v2";
 				opp-775000000 {
 					opp-hz = /bits/ 64 <775000000>;
 					opp-level = <RPM_SMD_LEVEL_TURBO>;
@@ -1215,11 +1206,15 @@
 			clocks = <&gcc GCC_CFG_NOC_USB3_AXI_CLK>,
 				 <&gcc GCC_USB30_MASTER_CLK>,
 				 <&gcc GCC_AGGRE2_USB3_AXI_CLK>,
-				 <&rpmcc RPM_SMD_AGGR2_NOC_CLK>,
+				 <&gcc GCC_USB30_SLEEP_CLK>,
 				 <&gcc GCC_USB30_MOCK_UTMI_CLK>,
-				 <&gcc GCC_USB30_SLEEP_CLK>;
-			clock-names = "cfg_noc", "core", "iface", "bus",
-				      "mock_utmi", "sleep";
+				 <&rpmcc RPM_SMD_AGGR2_NOC_CLK>;
+			clock-names = "cfg_noc",
+				      "core",
+				      "iface",
+				      "sleep",
+				      "mock_utmi",
+				      "bus";
 
 			assigned-clocks = <&gcc GCC_USB30_MOCK_UTMI_CLK>,
 					  <&gcc GCC_USB30_MASTER_CLK>,
@@ -1248,19 +1243,19 @@
 				 * haven't seen any devices making use of it.
 				 */
 				maximum-speed = "high-speed";
-				phys = <&qusb2phy>;
+				phys = <&qusb2phy0>;
 				phy-names = "usb2-phy";
 				snps,hird-threshold = /bits/ 8 <0>;
 			};
 		};
 
-		qusb2phy: phy@c012000 {
+		qusb2phy0: phy@c012000 {
 			compatible = "qcom,sdm660-qusb2-phy";
 			reg = <0x0c012000 0x180>;
 			#phy-cells = <0>;
 
 			clocks = <&gcc GCC_USB_PHY_CFG_AHB2PHY_CLK>,
-				<&gcc GCC_RX1_USB2_CLKREF_CLK>;
+				 <&gcc GCC_RX0_USB2_CLKREF_CLK>;
 			clock-names = "cfg_ahb", "ref";
 
 			resets = <&gcc GCC_QUSB2PHY_PRIM_BCR>;
@@ -1268,7 +1263,21 @@
 			status = "disabled";
 		};
 
-		sdhc_2: sdhci@c084000 {
+		qusb2phy1: phy@c014000 {
+			compatible = "qcom,sdm660-qusb2-phy";
+			reg = <0x0c014000 0x180>;
+			#phy-cells = <0>;
+
+			clocks = <&gcc GCC_USB_PHY_CFG_AHB2PHY_CLK>,
+				 <&gcc GCC_RX1_USB2_CLKREF_CLK>;
+			clock-names = "cfg_ahb", "ref";
+
+			resets = <&gcc GCC_QUSB2PHY_SEC_BCR>;
+			nvmem-cells = <&qusb2_hstx_trim>;
+			status = "disabled";
+		};
+
+		sdhc_2: mmc@c084000 {
 			compatible = "qcom,sdm630-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0x0c084000 0x1000>;
 			reg-names = "hc";
@@ -1278,13 +1287,16 @@
 			interrupt-names = "hc_irq", "pwr_irq";
 
 			bus-width = <4>;
-			clocks = <&gcc GCC_SDCC2_APPS_CLK>,
-					<&gcc GCC_SDCC2_AHB_CLK>,
+
+			clocks = <&gcc GCC_SDCC2_AHB_CLK>,
+					<&gcc GCC_SDCC2_APPS_CLK>,
 					<&xo_board>;
-			clock-names = "core", "iface", "xo";
+			clock-names = "iface", "core", "xo";
+
 
 			interconnects = <&a2noc 3 &a2noc 10>,
 					<&gnoc 0 &cnoc 28>;
+			interconnect-names = "sdhc-ddr","cpu-sdhc";
 			operating-points-v2 = <&sdhc2_opp_table>;
 
 			pinctrl-names = "default", "sleep";
@@ -1318,7 +1330,7 @@
 			};
 		};
 
-		sdhc_1: sdhci@c0c4000 {
+		sdhc_1: mmc@c0c4000 {
 			compatible = "qcom,sdm630-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0x0c0c4000 0x1000>,
 			      <0x0c0c5000 0x1000>,
@@ -1329,15 +1341,15 @@
 					<GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "hc_irq", "pwr_irq";
 
-			clocks = <&gcc GCC_SDCC1_APPS_CLK>,
-				 <&gcc GCC_SDCC1_AHB_CLK>,
+			clocks = <&gcc GCC_SDCC1_AHB_CLK>,
+				 <&gcc GCC_SDCC1_APPS_CLK>,
 				 <&xo_board>,
 				 <&gcc GCC_SDCC1_ICE_CORE_CLK>;
-			clock-names = "core", "iface", "xo", "ice";
+			clock-names = "iface", "core", "xo", "ice";
 
 			interconnects = <&a2noc 2 &a2noc 10>,
 					<&gnoc 0 &cnoc 27>;
-			interconnect-names = "sdhc1-ddr", "cpu-sdhc1";
+			interconnect-names = "sdhc-ddr", "cpu-sdhc";
 			operating-points-v2 = <&sdhc1_opp_table>;
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&sdc1_state_on>;
@@ -1373,6 +1385,47 @@
 			};
 		};
 
+		usb2: usb@c2f8800 {
+			compatible = "qcom,sdm660-dwc3", "qcom,dwc3";
+			reg = <0x0c2f8800 0x400>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			clocks = <&gcc GCC_CFG_NOC_USB2_AXI_CLK>,
+				 <&gcc GCC_USB20_MASTER_CLK>,
+				 <&gcc GCC_USB20_MOCK_UTMI_CLK>,
+				 <&gcc GCC_USB20_SLEEP_CLK>;
+			clock-names = "cfg_noc", "core",
+				      "mock_utmi", "sleep";
+
+			assigned-clocks = <&gcc GCC_USB20_MOCK_UTMI_CLK>,
+					  <&gcc GCC_USB20_MASTER_CLK>;
+			assigned-clock-rates = <19200000>, <60000000>;
+
+			interrupts = <GIC_SPI 348 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "hs_phy_irq";
+
+			qcom,select-utmi-as-pipe-clk;
+
+			resets = <&gcc GCC_USB_20_BCR>;
+
+			usb2_dwc3: usb@c200000 {
+				compatible = "snps,dwc3";
+				reg = <0x0c200000 0xc8d0>;
+				interrupts = <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>;
+				snps,dis_u2_susphy_quirk;
+				snps,dis_enblslpm_quirk;
+
+				/* This is the HS-only host */
+				maximum-speed = "high-speed";
+				phys = <&qusb2phy1>;
+				phy-names = "usb2-phy";
+				snps,hird-threshold = /bits/ 8 <0>;
+			};
+		};
+
 		mmcc: clock-controller@c8c0000 {
 			compatible = "qcom,mmcc-sdm630";
 			reg = <0x0c8c0000 0x40000>;
@@ -1401,7 +1454,7 @@
 					<0>;
 		};
 
-		dsi_opp_table: dsi-opp-table {
+		dsi_opp_table: opp-table-dsi {
 			compatible = "operating-points-v2";
 
 			opp-131250000 {
@@ -1453,7 +1506,7 @@
 				reg-names = "mdp_phys";
 
 				interrupt-parent = <&mdss>;
-				interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <0>;
 
 				assigned-clocks = <&mmcc MDSS_MDP_CLK>,
 						  <&mmcc MDSS_VSYNC_CLK>;
@@ -1490,7 +1543,7 @@
 					};
 				};
 
-				mdp_opp_table: mdp-opp {
+				mdp_opp_table: opp-table {
 					compatible = "operating-points-v2";
 
 					opp-150000000 {
@@ -1530,7 +1583,7 @@
 				power-domains = <&rpmpd SDM660_VDDCX>;
 
 				interrupt-parent = <&mdss>;
-				interrupts = <4 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <4>;
 
 				assigned-clocks = <&mmcc BYTE0_CLK_SRC>,
 						  <&mmcc PCLK0_CLK_SRC>;
@@ -1558,6 +1611,8 @@
 
 				phys = <&dsi0_phy>;
 				phy-names = "dsi";
+
+				status = "disabled";
 
 				ports {
 					#address-cells = <1>;
@@ -1592,6 +1647,7 @@
 
 				clocks = <&mmcc MDSS_AHB_CLK>, <&xo_board>;
 				clock-names = "iface", "ref";
+				status = "disabled";
 			};
 		};
 
@@ -1825,8 +1881,8 @@
 			status = "disabled";
 		};
 
-		imem@146bf000 {
-			compatible = "simple-mfd";
+		sram@146bf000 {
+			compatible = "qcom,sdm630-imem", "syscon", "simple-mfd";
 			reg = <0x146bf000 0x1000>;
 
 			#address-cells = <1>;
@@ -1842,138 +1898,138 @@
 
 		camss: camss@ca00000 {
 			compatible = "qcom,sdm660-camss";
-			reg = <0x0c824000 0x1000>,
+			reg = <0x0ca00020 0x10>,
+			      <0x0ca30000 0x100>,
+			      <0x0ca30400 0x100>,
+			      <0x0ca30800 0x100>,
+			      <0x0ca30c00 0x100>,
+			      <0x0c824000 0x1000>,
 			      <0x0ca00120 0x4>,
 			      <0x0c825000 0x1000>,
 			      <0x0ca00124 0x4>,
 			      <0x0c826000 0x1000>,
 			      <0x0ca00128 0x4>,
-			      <0x0ca30000 0x100>,
-			      <0x0ca30400 0x100>,
-			      <0x0ca30800 0x100>,
-			      <0x0ca30c00 0x100>,
 			      <0x0ca31000 0x500>,
-			      <0x0ca00020 0x10>,
 			      <0x0ca10000 0x1000>,
 			      <0x0ca14000 0x1000>;
-			reg-names = "csiphy0",
+			reg-names = "csi_clk_mux",
+				    "csid0",
+				    "csid1",
+				    "csid2",
+				    "csid3",
+				    "csiphy0",
 				    "csiphy0_clk_mux",
 				    "csiphy1",
 				    "csiphy1_clk_mux",
 				    "csiphy2",
 				    "csiphy2_clk_mux",
-				    "csid0",
-				    "csid1",
-				    "csid2",
-				    "csid3",
 				    "ispif",
-				    "csi_clk_mux",
 				    "vfe0",
 				    "vfe1";
-			interrupts = <GIC_SPI 78 IRQ_TYPE_EDGE_RISING>,
-				     <GIC_SPI 79 IRQ_TYPE_EDGE_RISING>,
-				     <GIC_SPI 80 IRQ_TYPE_EDGE_RISING>,
-				     <GIC_SPI 296 IRQ_TYPE_EDGE_RISING>,
+			interrupts = <GIC_SPI 296 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 297 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 298 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 299 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 78 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 79 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 80 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 309 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 314 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 315 IRQ_TYPE_EDGE_RISING>;
-			interrupt-names = "csiphy0",
-					  "csiphy1",
-					  "csiphy2",
-					  "csid0",
+			interrupt-names = "csid0",
 					  "csid1",
 					  "csid2",
 					  "csid3",
+					  "csiphy0",
+					  "csiphy1",
+					  "csiphy2",
 					  "ispif",
 					  "vfe0",
 					  "vfe1";
-			clocks = <&mmcc CAMSS_TOP_AHB_CLK>,
-				<&mmcc THROTTLE_CAMSS_AXI_CLK>,
-				<&mmcc CAMSS_ISPIF_AHB_CLK>,
-				<&mmcc CAMSS_CSI0PHYTIMER_CLK>,
-				<&mmcc CAMSS_CSI1PHYTIMER_CLK>,
-				<&mmcc CAMSS_CSI2PHYTIMER_CLK>,
-				<&mmcc CAMSS_CSI0_AHB_CLK>,
-				<&mmcc CAMSS_CSI0_CLK>,
-				<&mmcc CAMSS_CPHY_CSID0_CLK>,
-				<&mmcc CAMSS_CSI0PIX_CLK>,
-				<&mmcc CAMSS_CSI0RDI_CLK>,
-				<&mmcc CAMSS_CSI1_AHB_CLK>,
-				<&mmcc CAMSS_CSI1_CLK>,
-				<&mmcc CAMSS_CPHY_CSID1_CLK>,
-				<&mmcc CAMSS_CSI1PIX_CLK>,
-				<&mmcc CAMSS_CSI1RDI_CLK>,
-				<&mmcc CAMSS_CSI2_AHB_CLK>,
-				<&mmcc CAMSS_CSI2_CLK>,
-				<&mmcc CAMSS_CPHY_CSID2_CLK>,
-				<&mmcc CAMSS_CSI2PIX_CLK>,
-				<&mmcc CAMSS_CSI2RDI_CLK>,
-				<&mmcc CAMSS_CSI3_AHB_CLK>,
-				<&mmcc CAMSS_CSI3_CLK>,
-				<&mmcc CAMSS_CPHY_CSID3_CLK>,
-				<&mmcc CAMSS_CSI3PIX_CLK>,
-				<&mmcc CAMSS_CSI3RDI_CLK>,
-				<&mmcc CAMSS_AHB_CLK>,
-				<&mmcc CAMSS_VFE0_CLK>,
-				<&mmcc CAMSS_CSI_VFE0_CLK>,
-				<&mmcc CAMSS_VFE0_AHB_CLK>,
-				<&mmcc CAMSS_VFE0_STREAM_CLK>,
-				<&mmcc CAMSS_VFE1_CLK>,
-				<&mmcc CAMSS_CSI_VFE1_CLK>,
-				<&mmcc CAMSS_VFE1_AHB_CLK>,
-				<&mmcc CAMSS_VFE1_STREAM_CLK>,
-				<&mmcc CAMSS_VFE_VBIF_AHB_CLK>,
-				<&mmcc CAMSS_VFE_VBIF_AXI_CLK>,
-				<&mmcc CSIPHY_AHB2CRIF_CLK>,
-				<&mmcc CAMSS_CPHY_CSID0_CLK>,
-				<&mmcc CAMSS_CPHY_CSID1_CLK>,
-				<&mmcc CAMSS_CPHY_CSID2_CLK>,
-				<&mmcc CAMSS_CPHY_CSID3_CLK>;
-			clock-names = "top_ahb",
-				"throttle_axi",
-				"ispif_ahb",
-				"csiphy0_timer",
-				"csiphy1_timer",
-				"csiphy2_timer",
-				"csi0_ahb",
-				"csi0",
-				"csi0_phy",
-				"csi0_pix",
-				"csi0_rdi",
-				"csi1_ahb",
-				"csi1",
-				"csi1_phy",
-				"csi1_pix",
-				"csi1_rdi",
-				"csi2_ahb",
-				"csi2",
-				"csi2_phy",
-				"csi2_pix",
-				"csi2_rdi",
-				"csi3_ahb",
-				"csi3",
-				"csi3_phy",
-				"csi3_pix",
-				"csi3_rdi",
-				"ahb",
-				"vfe0",
-				"csi_vfe0",
-				"vfe0_ahb",
-				"vfe0_stream",
-				"vfe1",
-				"csi_vfe1",
-				"vfe1_ahb",
-				"vfe1_stream",
-				"vfe_ahb",
-				"vfe_axi",
-				"csiphy_ahb2crif",
-				"cphy_csid0",
-				"cphy_csid1",
-				"cphy_csid2",
-				"cphy_csid3";
+			clocks = <&mmcc CAMSS_AHB_CLK>,
+				 <&mmcc CAMSS_CPHY_CSID0_CLK>,
+				 <&mmcc CAMSS_CPHY_CSID1_CLK>,
+				 <&mmcc CAMSS_CPHY_CSID2_CLK>,
+				 <&mmcc CAMSS_CPHY_CSID3_CLK>,
+				 <&mmcc CAMSS_CSI0_AHB_CLK>,
+				 <&mmcc CAMSS_CSI0_CLK>,
+				 <&mmcc CAMSS_CPHY_CSID0_CLK>,
+				 <&mmcc CAMSS_CSI0PIX_CLK>,
+				 <&mmcc CAMSS_CSI0RDI_CLK>,
+				 <&mmcc CAMSS_CSI1_AHB_CLK>,
+				 <&mmcc CAMSS_CSI1_CLK>,
+				 <&mmcc CAMSS_CPHY_CSID1_CLK>,
+				 <&mmcc CAMSS_CSI1PIX_CLK>,
+				 <&mmcc CAMSS_CSI1RDI_CLK>,
+				 <&mmcc CAMSS_CSI2_AHB_CLK>,
+				 <&mmcc CAMSS_CSI2_CLK>,
+				 <&mmcc CAMSS_CPHY_CSID2_CLK>,
+				 <&mmcc CAMSS_CSI2PIX_CLK>,
+				 <&mmcc CAMSS_CSI2RDI_CLK>,
+				 <&mmcc CAMSS_CSI3_AHB_CLK>,
+				 <&mmcc CAMSS_CSI3_CLK>,
+				 <&mmcc CAMSS_CPHY_CSID3_CLK>,
+				 <&mmcc CAMSS_CSI3PIX_CLK>,
+				 <&mmcc CAMSS_CSI3RDI_CLK>,
+				 <&mmcc CAMSS_CSI0PHYTIMER_CLK>,
+				 <&mmcc CAMSS_CSI1PHYTIMER_CLK>,
+				 <&mmcc CAMSS_CSI2PHYTIMER_CLK>,
+				 <&mmcc CSIPHY_AHB2CRIF_CLK>,
+				 <&mmcc CAMSS_CSI_VFE0_CLK>,
+				 <&mmcc CAMSS_CSI_VFE1_CLK>,
+				 <&mmcc CAMSS_ISPIF_AHB_CLK>,
+				 <&mmcc THROTTLE_CAMSS_AXI_CLK>,
+				 <&mmcc CAMSS_TOP_AHB_CLK>,
+				 <&mmcc CAMSS_VFE0_AHB_CLK>,
+				 <&mmcc CAMSS_VFE0_CLK>,
+				 <&mmcc CAMSS_VFE0_STREAM_CLK>,
+				 <&mmcc CAMSS_VFE1_AHB_CLK>,
+				 <&mmcc CAMSS_VFE1_CLK>,
+				 <&mmcc CAMSS_VFE1_STREAM_CLK>,
+				 <&mmcc CAMSS_VFE_VBIF_AHB_CLK>,
+				 <&mmcc CAMSS_VFE_VBIF_AXI_CLK>;
+			clock-names = "ahb",
+				      "cphy_csid0",
+				      "cphy_csid1",
+				      "cphy_csid2",
+				      "cphy_csid3",
+				      "csi0_ahb",
+				      "csi0",
+				      "csi0_phy",
+				      "csi0_pix",
+				      "csi0_rdi",
+				      "csi1_ahb",
+				      "csi1",
+				      "csi1_phy",
+				      "csi1_pix",
+				      "csi1_rdi",
+				      "csi2_ahb",
+				      "csi2",
+				      "csi2_phy",
+				      "csi2_pix",
+				      "csi2_rdi",
+				      "csi3_ahb",
+				      "csi3",
+				      "csi3_phy",
+				      "csi3_pix",
+				      "csi3_rdi",
+				      "csiphy0_timer",
+				      "csiphy1_timer",
+				      "csiphy2_timer",
+				      "csiphy_ahb2crif",
+				      "csi_vfe0",
+				      "csi_vfe1",
+				      "ispif_ahb",
+				      "throttle_axi",
+				      "top_ahb",
+				      "vfe0_ahb",
+				      "vfe0",
+				      "vfe0_stream",
+				      "vfe1_ahb",
+				      "vfe1",
+				      "vfe1_stream",
+				      "vfe_ahb",
+				      "vfe_axi";
 			interconnects = <&mnoc 5 &bimc 5>;
 			interconnect-names = "vfe-mem";
 			iommus = <&mmss_smmu 0xc00>,
@@ -2154,8 +2210,6 @@
 				label = "lpass";
 				mboxes = <&apcs_glb 9>;
 				qcom,remote-pid = <2>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 
 				apr {
 					compatible = "qcom,apr-v2";

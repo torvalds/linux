@@ -1,7 +1,19 @@
 # SPDX-License-Identifier: GPL-2.0
-if ARCH_DOVE
+menuconfig ARCH_DOVE
+	bool "Marvell Dove" if ARCH_MULTI_V7
+	depends on ATAGS
+	select CPU_PJ4
+	select GPIOLIB
+	select MVEBU_MBUS
+	select PINCTRL
+	select PINCTRL_DOVE
+	select PLAT_ORION_LEGACY
+	select PM_GENERIC_DOMAINS if PM
+	select PCI_QUIRKS if PCI
+	help
+	  Support for the Marvell Dove SoC 88AP510
 
-menu "Marvell Dove Implementations"
+if ARCH_DOVE
 
 config DOVE_LEGACY
 	bool
@@ -20,7 +32,5 @@ config MACH_CM_A510
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  CompuLab CM-A510 Board.
-
-endmenu
 
 endif

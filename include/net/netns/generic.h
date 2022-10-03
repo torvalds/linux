@@ -8,6 +8,7 @@
 
 #include <linux/bug.h>
 #include <linux/rcupdate.h>
+#include <net/net_namespace.h>
 
 /*
  * Generic net pointers are to be used by modules to put some private

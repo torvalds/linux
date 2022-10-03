@@ -73,7 +73,7 @@ busy.
 If successful, the cache backend can then start setting up the cache.  In the
 event that the initialisation fails, the cache backend should call::
 
-	void fscache_relinquish_cookie(struct fscache_cache *cache);
+	void fscache_relinquish_cache(struct fscache_cache *cache);
 
 to reset and discard the cookie.
 
@@ -110,9 +110,9 @@ to withdraw them, calling::
 
 on the cookie that each object belongs to.  This schedules the specified cookie
 for withdrawal.  This gets offloaded to a workqueue.  The cache backend can
-test for completion by calling::
+wait for completion by calling::
 
-	bool fscache_are_objects_withdrawn(struct fscache_cookie *cache);
+	void fscache_wait_for_objects(struct fscache_cache *cache);
 
 Once all the cookies are withdrawn, a cache backend can withdraw all the
 volumes, calling::
@@ -125,7 +125,7 @@ outstanding accesses on the volume to complete before returning.
 When the the cache is completely withdrawn, fscache should be notified by
 calling::
 
-	void fscache_cache_relinquish(struct fscache_cache *cache);
+	void fscache_relinquish_cache(struct fscache_cache *cache);
 
 to clear fields in the cookie and discard the caller's ref on it.
 

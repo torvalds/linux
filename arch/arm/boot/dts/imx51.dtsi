@@ -114,7 +114,7 @@
 		ports = <&ipu_di0>, <&ipu_di1>;
 	};
 
-	soc {
+	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
@@ -171,7 +171,7 @@
 			};
 		};
 
-		bus@70000000 { /* AIPS1 */
+		aips1: bus@70000000 { /* AIPS1 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -215,6 +215,8 @@
 					clocks = <&clks IMX5_CLK_UART3_IPG_GATE>,
 						 <&clks IMX5_CLK_UART3_PER_GATE>;
 					clock-names = "ipg", "per";
+					dmas = <&sdma 43 5 1>, <&sdma 44 5 2>;
+					dma-names = "rx", "tx";
 					status = "disabled";
 				};
 
@@ -426,6 +428,8 @@
 				clocks = <&clks IMX5_CLK_UART1_IPG_GATE>,
 					 <&clks IMX5_CLK_UART1_PER_GATE>;
 				clock-names = "ipg", "per";
+				dmas = <&sdma 18 4 1>, <&sdma 19 4 2>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
@@ -436,6 +440,8 @@
 				clocks = <&clks IMX5_CLK_UART2_IPG_GATE>,
 					 <&clks IMX5_CLK_UART2_PER_GATE>;
 				clock-names = "ipg", "per";
+				dmas = <&sdma 16 4 1>, <&sdma 17 4 2>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
@@ -454,7 +460,7 @@
 			};
 		};
 
-		bus@80000000 {	/* AIPS2 */
+		aips2: bus@80000000 {	/* AIPS2 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;

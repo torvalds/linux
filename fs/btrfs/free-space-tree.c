@@ -1178,7 +1178,7 @@ int btrfs_create_free_space_tree(struct btrfs_fs_info *fs_info)
 		goto abort;
 	}
 
-	node = rb_first(&fs_info->block_group_cache_tree);
+	node = rb_first_cached(&fs_info->block_group_cache_tree);
 	while (node) {
 		block_group = rb_entry(node, struct btrfs_block_group,
 				       cache_node);

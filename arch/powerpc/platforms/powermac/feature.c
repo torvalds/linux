@@ -31,7 +31,6 @@
 #include <asm/keylargo.h>
 #include <asm/uninorth.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
 #include <asm/dbdma.h>

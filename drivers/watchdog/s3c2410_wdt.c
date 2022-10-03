@@ -845,8 +845,6 @@ static void s3c2410wdt_shutdown(struct platform_device *dev)
 	s3c2410wdt_stop(&wdt->wdt_device);
 }
 
-#ifdef CONFIG_PM_SLEEP
-
 static int s3c2410wdt_suspend(struct device *dev)
 {
 	int ret;
@@ -885,10 +883,9 @@ static int s3c2410wdt_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(s3c2410wdt_pm_ops, s3c2410wdt_suspend,
-			s3c2410wdt_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(s3c2410wdt_pm_ops,
+				s3c2410wdt_suspend, s3c2410wdt_resume);
 
 static struct platform_driver s3c2410wdt_driver = {
 	.probe		= s3c2410wdt_probe,
@@ -897,7 +894,7 @@ static struct platform_driver s3c2410wdt_driver = {
 	.id_table	= s3c2410_wdt_ids,
 	.driver		= {
 		.name	= "s3c2410-wdt",
-		.pm	= &s3c2410wdt_pm_ops,
+		.pm	= pm_sleep_ptr(&s3c2410wdt_pm_ops),
 		.of_match_table	= of_match_ptr(s3c2410_wdt_match),
 	},
 };

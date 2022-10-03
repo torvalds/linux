@@ -29,7 +29,7 @@ static void blktrans_dev_release(struct kref *kref)
 	struct mtd_blktrans_dev *dev =
 		container_of(kref, struct mtd_blktrans_dev, ref);
 
-	blk_cleanup_disk(dev->disk);
+	put_disk(dev->disk);
 	blk_mq_free_tag_set(dev->tag_set);
 	kfree(dev->tag_set);
 	list_del(&dev->list);
@@ -377,7 +377,6 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, new->rq);
 
 	if (tr->discard) {
-		blk_queue_flag_set(QUEUE_FLAG_DISCARD, new->rq);
 		blk_queue_max_discard_sectors(new->rq, UINT_MAX);
 		new->rq->limits.discard_granularity = tr->blksize;
 	}
@@ -399,7 +398,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	return 0;
 
 out_cleanup_disk:
-	blk_cleanup_disk(new->disk);
+	put_disk(new->disk);
 out_free_tag_set:
 	blk_mq_free_tag_set(new->tag_set);
 out_kfree_tag_set:

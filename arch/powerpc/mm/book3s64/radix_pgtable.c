@@ -359,7 +359,7 @@ static void __init radix_init_pgtable(void)
 	if (!cpu_has_feature(CPU_FTR_HVMODE) &&
 			cpu_has_feature(CPU_FTR_P9_RADIX_PREFETCH_BUG)) {
 		/*
-		 * Older versions of KVM on these machines perfer if the
+		 * Older versions of KVM on these machines prefer if the
 		 * guest only uses the low 19 PID bits.
 		 */
 		mmu_pid_bits = 19;
@@ -1018,16 +1018,21 @@ void radix__ptep_set_access_flags(struct vm_area_struct *vma, pte_t *ptep,
 
 	unsigned long change = pte_val(entry) ^ pte_val(*ptep);
 	/*
-	 * To avoid NMMU hang while relaxing access, we need mark
-	 * the pte invalid in between.
+	 * On POWER9, the NMMU is not able to relax PTE access permissions
+	 * for a translation with a TLB. The PTE must be invalidated, TLB
+	 * flushed before the new PTE is installed.
+	 *
+	 * This only needs to be done for radix, because hash translation does
+	 * flush when updating the linux pte (and we don't support NMMU
+	 * accelerators on HPT on POWER9 anyway XXX: do we?).
+	 *
+	 * POWER10 (and P9P) NMMU does behave as per ISA.
 	 */
-	if ((change & _PAGE_RW) && atomic_read(&mm->context.copros) > 0) {
+	if (!cpu_has_feature(CPU_FTR_ARCH_31) && (change & _PAGE_RW) &&
+	    atomic_read(&mm->context.copros) > 0) {
 		unsigned long old_pte, new_pte;
 
 		old_pte = __radix_pte_update(ptep, _PAGE_PRESENT, _PAGE_INVALID);
-		/*
-		 * new value of pte
-		 */
 		new_pte = old_pte | set;
 		radix__flush_tlb_page_psize(mm, address, psize);
 		__radix_pte_update(ptep, _PAGE_INVALID, new_pte);
@@ -1035,9 +1040,12 @@ void radix__ptep_set_access_flags(struct vm_area_struct *vma, pte_t *ptep,
 		__radix_pte_update(ptep, 0, set);
 		/*
 		 * Book3S does not require a TLB flush when relaxing access
-		 * restrictions when the address space is not attached to a
-		 * NMMU, because the core MMU will reload the pte after taking
-		 * an access fault, which is defined by the architecture.
+		 * restrictions when the address space (modulo the POWER9 nest
+		 * MMU issue above) because the MMU will reload the PTE after
+		 * taking an access fault, as defined by the architecture. See
+		 * "Setting a Reference or Change Bit or Upgrading Access
+		 *  Authority (PTE Subject to Atomic Hardware Updates)" in
+		 *  Power ISA Version 3.1B.
 		 */
 	}
 	/* See ptesync comment in radix__set_pte_at */
@@ -1050,11 +1058,12 @@ void radix__ptep_modify_prot_commit(struct vm_area_struct *vma,
 	struct mm_struct *mm = vma->vm_mm;
 
 	/*
-	 * To avoid NMMU hang while relaxing access we need to flush the tlb before
-	 * we set the new value. We need to do this only for radix, because hash
-	 * translation does flush when updating the linux pte.
+	 * POWER9 NMMU must flush the TLB after clearing the PTE before
+	 * installing a PTE with more relaxed access permissions, see
+	 * radix__ptep_set_access_flags.
 	 */
-	if (is_pte_rw_upgrade(pte_val(old_pte), pte_val(pte)) &&
+	if (!cpu_has_feature(CPU_FTR_ARCH_31) &&
+	    is_pte_rw_upgrade(pte_val(old_pte), pte_val(pte)) &&
 	    (atomic_read(&mm->context.copros) > 0))
 		radix__flush_tlb_page(vma, addr);
 

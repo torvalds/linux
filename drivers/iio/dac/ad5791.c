@@ -95,7 +95,7 @@ struct ad5791_state {
 	union {
 		__be32 d32;
 		u8 d8[4];
-	} data[3] ____cacheline_aligned;
+	} data[3] __aligned(IIO_DMA_MINALIGN);
 };
 
 enum ad5791_supported_device_ids {
@@ -188,7 +188,7 @@ static ssize_t ad5791_write_dac_powerdown(struct iio_dev *indio_dev,
 	int ret;
 	struct ad5791_state *st = iio_priv(indio_dev);
 
-	ret = strtobool(buf, &pwr_down);
+	ret = kstrtobool(buf, &pwr_down);
 	if (ret)
 		return ret;
 

@@ -134,8 +134,10 @@ static void ext4_finish_bio(struct bio *bio)
 				continue;
 			}
 			clear_buffer_async_write(bh);
-			if (bio->bi_status)
+			if (bio->bi_status) {
+				set_buffer_write_io_error(bh);
 				buffer_io_error(bh);
+			}
 		} while ((bh = bh->b_this_page) != head);
 		spin_unlock_irqrestore(&head->b_uptodate_lock, flags);
 		if (!under_io) {
@@ -463,7 +465,7 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 	/*
 	 * In the first loop we prepare and mark buffers to submit. We have to
 	 * mark all buffers in the page before submitting so that
-	 * end_page_writeback() cannot be called from ext4_bio_end_io() when IO
+	 * end_page_writeback() cannot be called from ext4_end_bio() when IO
 	 * on the first buffer finishes and we are still working on submitting
 	 * the second buffer.
 	 */

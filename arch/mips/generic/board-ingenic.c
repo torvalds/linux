@@ -131,36 +131,10 @@ static const struct platform_suspend_ops ingenic_pm_ops __maybe_unused = {
 
 static int __init ingenic_pm_init(void)
 {
-	struct device_node *cpu_node;
-	struct clk *cpu0_clk;
-	int ret;
-
 	if (boot_cpu_type() == CPU_XBURST) {
 		if (IS_ENABLED(CONFIG_PM_SLEEP))
 			suspend_set_ops(&ingenic_pm_ops);
 		_machine_halt = ingenic_halt;
-
-		/*
-		 * Unconditionally enable the clock for the first CPU.
-		 * This makes sure that the PLL that feeds the CPU won't be
-		 * stopped while the kernel is running.
-		 */
-		cpu_node = of_get_cpu_node(0, NULL);
-		if (!cpu_node) {
-			pr_err("Unable to get CPU node\n");
-		} else {
-			cpu0_clk = of_clk_get(cpu_node, 0);
-			if (IS_ERR(cpu0_clk)) {
-				pr_err("Unable to get CPU0 clock\n");
-				return PTR_ERR(cpu0_clk);
-			}
-
-			ret = clk_prepare_enable(cpu0_clk);
-			if (ret) {
-				pr_err("Unable to enable CPU0 clock\n");
-				return ret;
-			}
-		}
 	}
 
 	return 0;

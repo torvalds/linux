@@ -50,6 +50,15 @@ ice_tc_count_lkups(u32 flags, struct ice_tc_flower_lyr_2_4_hdrs *headers,
 	if (flags & ICE_TC_FLWR_FIELD_VLAN)
 		lkups_cnt++;
 
+	/* is CVLAN specified? */
+	if (flags & ICE_TC_FLWR_FIELD_CVLAN)
+		lkups_cnt++;
+
+	/* are PPPoE options specified? */
+	if (flags & (ICE_TC_FLWR_FIELD_PPPOE_SESSID |
+		     ICE_TC_FLWR_FIELD_PPP_PROTO))
+		lkups_cnt++;
+
 	/* are IPv[4|6] fields specified? */
 	if (flags & (ICE_TC_FLWR_FIELD_DEST_IPV4 | ICE_TC_FLWR_FIELD_SRC_IPV4 |
 		     ICE_TC_FLWR_FIELD_DEST_IPV6 | ICE_TC_FLWR_FIELD_SRC_IPV6))
@@ -131,6 +140,18 @@ ice_sw_type_from_tunnel(enum ice_tunnel_type type)
 		return ICE_SW_TUN_GTPC;
 	default:
 		return ICE_NON_TUN;
+	}
+}
+
+static u16 ice_check_supported_vlan_tpid(u16 vlan_tpid)
+{
+	switch (vlan_tpid) {
+	case ETH_P_8021Q:
+	case ETH_P_8021AD:
+	case ETH_P_QINQ1:
+		return vlan_tpid;
+	default:
+		return 0;
 	}
 }
 
@@ -269,7 +290,10 @@ ice_tc_fill_rules(struct ice_hw *hw, u32 flags,
 {
 	struct ice_tc_flower_lyr_2_4_hdrs *headers = &tc_fltr->outer_headers;
 	bool inner = false;
+	u16 vlan_tpid = 0;
 	int i = 0;
+
+	rule_info->vlan_type = vlan_tpid;
 
 	rule_info->tun_type = ice_sw_type_from_tunnel(tc_fltr->tunnel_type);
 	if (tc_fltr->tunnel_type != TNL_LAST) {
@@ -311,9 +335,45 @@ ice_tc_fill_rules(struct ice_hw *hw, u32 flags,
 
 	/* copy VLAN info */
 	if (flags & ICE_TC_FLWR_FIELD_VLAN) {
-		list[i].type = ICE_VLAN_OFOS;
+		vlan_tpid = be16_to_cpu(headers->vlan_hdr.vlan_tpid);
+		rule_info->vlan_type =
+				ice_check_supported_vlan_tpid(vlan_tpid);
+
+		if (flags & ICE_TC_FLWR_FIELD_CVLAN)
+			list[i].type = ICE_VLAN_EX;
+		else
+			list[i].type = ICE_VLAN_OFOS;
 		list[i].h_u.vlan_hdr.vlan = headers->vlan_hdr.vlan_id;
 		list[i].m_u.vlan_hdr.vlan = cpu_to_be16(0xFFFF);
+		i++;
+	}
+
+	if (flags & ICE_TC_FLWR_FIELD_CVLAN) {
+		list[i].type = ICE_VLAN_IN;
+		list[i].h_u.vlan_hdr.vlan = headers->cvlan_hdr.vlan_id;
+		list[i].m_u.vlan_hdr.vlan = cpu_to_be16(0xFFFF);
+		i++;
+	}
+
+	if (flags & (ICE_TC_FLWR_FIELD_PPPOE_SESSID |
+		     ICE_TC_FLWR_FIELD_PPP_PROTO)) {
+		struct ice_pppoe_hdr *vals, *masks;
+
+		vals = &list[i].h_u.pppoe_hdr;
+		masks = &list[i].m_u.pppoe_hdr;
+
+		list[i].type = ICE_PPPOE;
+
+		if (flags & ICE_TC_FLWR_FIELD_PPPOE_SESSID) {
+			vals->session_id = headers->pppoe_hdr.session_id;
+			masks->session_id = cpu_to_be16(0xFFFF);
+		}
+
+		if (flags & ICE_TC_FLWR_FIELD_PPP_PROTO) {
+			vals->ppp_prot_id = headers->pppoe_hdr.ppp_proto;
+			masks->ppp_prot_id = cpu_to_be16(0xFFFF);
+		}
+
 		i++;
 	}
 
@@ -524,6 +584,7 @@ ice_eswitch_add_tc_fltr(struct ice_vsi *vsi, struct ice_tc_flower_fltr *fltr)
 	 */
 	fltr->rid = rule_added.rid;
 	fltr->rule_id = rule_added.rule_id;
+	fltr->dest_id = rule_added.vsi_handle;
 
 exit:
 	kfree(list);
@@ -622,7 +683,6 @@ ice_add_tc_flower_adv_fltr(struct ice_vsi *vsi,
 	} else if (ret) {
 		NL_SET_ERR_MSG_MOD(tc_fltr->extack,
 				   "Unable to add filter due to error");
-		ret = -EIO;
 		goto exit;
 	}
 
@@ -658,6 +718,31 @@ ice_add_tc_flower_adv_fltr(struct ice_vsi *vsi,
 exit:
 	kfree(list);
 	return ret;
+}
+
+/**
+ * ice_tc_set_pppoe - Parse PPPoE fields from TC flower filter
+ * @match: Pointer to flow match structure
+ * @fltr: Pointer to filter structure
+ * @headers: Pointer to outer header fields
+ * @returns PPP protocol used in filter (ppp_ses or ppp_disc)
+ */
+static u16
+ice_tc_set_pppoe(struct flow_match_pppoe *match,
+		 struct ice_tc_flower_fltr *fltr,
+		 struct ice_tc_flower_lyr_2_4_hdrs *headers)
+{
+	if (match->mask->session_id) {
+		fltr->flags |= ICE_TC_FLWR_FIELD_PPPOE_SESSID;
+		headers->pppoe_hdr.session_id = match->key->session_id;
+	}
+
+	if (match->mask->ppp_proto) {
+		fltr->flags |= ICE_TC_FLWR_FIELD_PPP_PROTO;
+		headers->pppoe_hdr.ppp_proto = match->key->ppp_proto;
+	}
+
+	return be16_to_cpu(match->key->type);
 }
 
 /**
@@ -945,6 +1030,7 @@ ice_parse_cls_flower(struct net_device *filter_dev, struct ice_vsi *vsi,
 	      BIT(FLOW_DISSECTOR_KEY_BASIC) |
 	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_VLAN) |
+	      BIT(FLOW_DISSECTOR_KEY_CVLAN) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL) |
@@ -954,7 +1040,8 @@ ice_parse_cls_flower(struct net_device *filter_dev, struct ice_vsi *vsi,
 	      BIT(FLOW_DISSECTOR_KEY_ENC_PORTS) |
 	      BIT(FLOW_DISSECTOR_KEY_ENC_OPTS) |
 	      BIT(FLOW_DISSECTOR_KEY_ENC_IP) |
-	      BIT(FLOW_DISSECTOR_KEY_PORTS))) {
+	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
+	      BIT(FLOW_DISSECTOR_KEY_PPPOE))) {
 		NL_SET_ERR_MSG_MOD(fltr->extack, "Unsupported key used");
 		return -EOPNOTSUPP;
 	}
@@ -994,7 +1081,9 @@ ice_parse_cls_flower(struct net_device *filter_dev, struct ice_vsi *vsi,
 		n_proto_key = ntohs(match.key->n_proto);
 		n_proto_mask = ntohs(match.mask->n_proto);
 
-		if (n_proto_key == ETH_P_ALL || n_proto_key == 0) {
+		if (n_proto_key == ETH_P_ALL || n_proto_key == 0 ||
+		    fltr->tunnel_type == TNL_GTPU ||
+		    fltr->tunnel_type == TNL_GTPC) {
 			n_proto_key = 0;
 			n_proto_mask = 0;
 		} else {
@@ -1058,6 +1147,50 @@ ice_parse_cls_flower(struct net_device *filter_dev, struct ice_vsi *vsi,
 				cpu_to_be16(match.key->vlan_id & VLAN_VID_MASK);
 		if (match.mask->vlan_priority)
 			headers->vlan_hdr.vlan_prio = match.key->vlan_priority;
+		if (match.mask->vlan_tpid)
+			headers->vlan_hdr.vlan_tpid = match.key->vlan_tpid;
+	}
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CVLAN)) {
+		struct flow_match_vlan match;
+
+		if (!ice_is_dvm_ena(&vsi->back->hw)) {
+			NL_SET_ERR_MSG_MOD(fltr->extack, "Double VLAN mode is not enabled");
+			return -EINVAL;
+		}
+
+		flow_rule_match_cvlan(rule, &match);
+
+		if (match.mask->vlan_id) {
+			if (match.mask->vlan_id == VLAN_VID_MASK) {
+				fltr->flags |= ICE_TC_FLWR_FIELD_CVLAN;
+			} else {
+				NL_SET_ERR_MSG_MOD(fltr->extack,
+						   "Bad CVLAN mask");
+				return -EINVAL;
+			}
+		}
+
+		headers->cvlan_hdr.vlan_id =
+				cpu_to_be16(match.key->vlan_id & VLAN_VID_MASK);
+		if (match.mask->vlan_priority)
+			headers->cvlan_hdr.vlan_prio = match.key->vlan_priority;
+	}
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PPPOE)) {
+		struct flow_match_pppoe match;
+
+		flow_rule_match_pppoe(rule, &match);
+		n_proto_key = ice_tc_set_pppoe(&match, fltr, headers);
+
+		/* If ethertype equals ETH_P_PPP_SES, n_proto might be
+		 * overwritten by encapsulated protocol (ppp_proto field) or set
+		 * to 0. To correct this, flow_match_pppoe provides the type
+		 * field, which contains the actual ethertype (ETH_P_PPP_SES).
+		 */
+		headers->l2_key.n_proto = cpu_to_be16(n_proto_key);
+		headers->l2_mask.n_proto = cpu_to_be16(0xFFFF);
+		fltr->flags |= ICE_TC_FLWR_FIELD_ETH_TYPE_ID;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CONTROL)) {
@@ -1192,7 +1325,7 @@ ice_handle_tclass_action(struct ice_vsi *vsi,
 			   ICE_TC_FLWR_FIELD_ENC_DST_MAC)) {
 		ether_addr_copy(fltr->outer_headers.l2_key.dst_mac,
 				vsi->netdev->dev_addr);
-		memset(fltr->outer_headers.l2_mask.dst_mac, 0xff, ETH_ALEN);
+		eth_broadcast_addr(fltr->outer_headers.l2_mask.dst_mac);
 	}
 
 	/* validate specified dest MAC address, make sure either it belongs to

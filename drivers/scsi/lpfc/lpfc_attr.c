@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2021 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -922,25 +922,6 @@ lpfc_programtype_show(struct device *dev, struct device_attribute *attr,
 }
 
 /**
- * lpfc_mlomgmt_show - Return the Menlo Maintenance sli flag
- * @dev: class converted to a Scsi_host structure.
- * @attr: device attribute, not used.
- * @buf: on return contains the Menlo Maintenance sli flag.
- *
- * Returns: size of formatted string.
- **/
-static ssize_t
-lpfc_mlomgmt_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct Scsi_Host  *shost = class_to_shost(dev);
-	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-
-	return scnprintf(buf, PAGE_SIZE, "%d\n",
-		(phba->sli.sli_flag & LPFC_MENLO_MAINT));
-}
-
-/**
  * lpfc_vportnum_show - Return the port number in ascii of the hba
  * @dev: class converted to a Scsi_host structure.
  * @attr: device attribute, not used.
@@ -1109,10 +1090,7 @@ lpfc_link_state_show(struct device *dev, struct device_attribute *attr,
 					"Unknown\n");
 			break;
 		}
-		if (phba->sli.sli_flag & LPFC_MENLO_MAINT)
-			len += scnprintf(buf + len, PAGE_SIZE-len,
-					"   Menlo Maint Mode\n");
-		else if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
+		if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 			if (vport->fc_flag & FC_PUBLIC_LOOP)
 				len += scnprintf(buf + len, PAGE_SIZE-len,
 						"   Public Loop\n");
@@ -1120,12 +1098,22 @@ lpfc_link_state_show(struct device *dev, struct device_attribute *attr,
 				len += scnprintf(buf + len, PAGE_SIZE-len,
 						"   Private Loop\n");
 		} else {
-			if (vport->fc_flag & FC_FABRIC)
-				len += scnprintf(buf + len, PAGE_SIZE-len,
-						"   Fabric\n");
-			else
+			if (vport->fc_flag & FC_FABRIC) {
+				if (phba->sli_rev == LPFC_SLI_REV4 &&
+				    vport->port_type == LPFC_PHYSICAL_PORT &&
+				    phba->sli4_hba.fawwpn_flag &
+					LPFC_FAWWPN_FABRIC)
+					len += scnprintf(buf + len,
+							 PAGE_SIZE - len,
+							 "   Fabric FA-PWWN\n");
+				else
+					len += scnprintf(buf + len,
+							 PAGE_SIZE - len,
+							 "   Fabric\n");
+			} else {
 				len += scnprintf(buf + len, PAGE_SIZE-len,
 						"   Point-2-Point\n");
+			}
 		}
 	}
 
@@ -2817,7 +2805,6 @@ static DEVICE_ATTR(option_rom_version, S_IRUGO,
 		   lpfc_option_rom_version_show, NULL);
 static DEVICE_ATTR(num_discovered_ports, S_IRUGO,
 		   lpfc_num_discovered_ports_show, NULL);
-static DEVICE_ATTR(menlo_mgmt_mode, S_IRUGO, lpfc_mlomgmt_show, NULL);
 static DEVICE_ATTR(nport_evt_cnt, S_IRUGO, lpfc_nport_evt_cnt_show, NULL);
 static DEVICE_ATTR_RO(lpfc_drvr_version);
 static DEVICE_ATTR_RO(lpfc_enable_fip);
@@ -6210,7 +6197,6 @@ static struct attribute *lpfc_hba_attrs[] = {
 	&dev_attr_option_rom_version.attr,
 	&dev_attr_link_state.attr,
 	&dev_attr_num_discovered_ports.attr,
-	&dev_attr_menlo_mgmt_mode.attr,
 	&dev_attr_lpfc_drvr_version.attr,
 	&dev_attr_lpfc_enable_fip.attr,
 	&dev_attr_lpfc_temp_sensor.attr,
@@ -6878,17 +6864,34 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	memset(hs, 0, sizeof (struct fc_host_statistics));
 
 	hs->tx_frames = pmb->un.varRdStatus.xmitFrameCnt;
-	/*
-	 * The MBX_READ_STATUS returns tx_k_bytes which has to
-	 * converted to words
-	 */
-	hs->tx_words = (uint64_t)
-			((uint64_t)pmb->un.varRdStatus.xmitByteCnt
-			* (uint64_t)256);
 	hs->rx_frames = pmb->un.varRdStatus.rcvFrameCnt;
-	hs->rx_words = (uint64_t)
-			((uint64_t)pmb->un.varRdStatus.rcvByteCnt
-			 * (uint64_t)256);
+
+	/*
+	 * The MBX_READ_STATUS returns tx_k_bytes which has to be
+	 * converted to words.
+	 *
+	 * Check if extended byte flag is set, to know when to collect upper
+	 * bits of 64 bit wide statistics counter.
+	 */
+	if (pmb->un.varRdStatus.xkb & RD_ST_XKB) {
+		hs->tx_words = (u64)
+			       ((((u64)(pmb->un.varRdStatus.xmit_xkb &
+					RD_ST_XMIT_XKB_MASK) << 32) |
+				(u64)pmb->un.varRdStatus.xmitByteCnt) *
+				(u64)256);
+		hs->rx_words = (u64)
+			       ((((u64)(pmb->un.varRdStatus.rcv_xkb &
+					RD_ST_RCV_XKB_MASK) << 32) |
+				(u64)pmb->un.varRdStatus.rcvByteCnt) *
+				(u64)256);
+	} else {
+		hs->tx_words = (uint64_t)
+				((uint64_t)pmb->un.varRdStatus.xmitByteCnt
+				* (uint64_t)256);
+		hs->rx_words = (uint64_t)
+				((uint64_t)pmb->un.varRdStatus.rcvByteCnt
+				 * (uint64_t)256);
+	}
 
 	memset(pmboxq, 0, sizeof (LPFC_MBOXQ_t));
 	pmb->mbxCommand = MBX_READ_LNK_STAT;
@@ -7369,7 +7372,6 @@ lpfc_get_hba_function_mode(struct lpfc_hba *phba)
 	case PCI_DEVICE_ID_LANCER_FCOE:
 	case PCI_DEVICE_ID_LANCER_FCOE_VF:
 	case PCI_DEVICE_ID_ZEPHYR_DCSP:
-	case PCI_DEVICE_ID_HORNET:
 	case PCI_DEVICE_ID_TIGERSHARK:
 	case PCI_DEVICE_ID_TOMCAT:
 		phba->hba_flag |= HBA_FCOE_MODE;

@@ -2,6 +2,8 @@
 #ifndef __ASM_ARCH_ZYLONITE_H
 #define __ASM_ARCH_ZYLONITE_H
 
+#include <linux/soc/pxa/cpu.h>
+
 #define ZYLONITE_ETH_PHYS	0x14000000
 
 #define EXT_GPIO(x)		(128 + (x))

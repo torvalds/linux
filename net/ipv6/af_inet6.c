@@ -63,6 +63,7 @@
 #include <net/compat.h>
 #include <net/xfrm.h>
 #include <net/ioam6.h>
+#include <net/rawv6.h>
 
 #include <linux/uaccess.h>
 #include <linux/mroute6.h>
@@ -226,7 +227,7 @@ lookup_protocol:
 	RCU_INIT_POINTER(inet->mc_list, NULL);
 	inet->rcv_tos	= 0;
 
-	if (net->ipv4.sysctl_ip_no_pmtu_disc)
+	if (READ_ONCE(net->ipv4.sysctl_ip_no_pmtu_disc))
 		inet->pmtudisc = IP_PMTUDISC_DONT;
 	else
 		inet->pmtudisc = IP_PMTUDISC_WANT;
@@ -318,7 +319,7 @@ static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 		/* Binding to v4-mapped address on a v6-only socket
 		 * makes no sense
 		 */
-		if (sk->sk_ipv6only) {
+		if (ipv6_only_sock(sk)) {
 			err = -EINVAL;
 			goto out;
 		}
@@ -654,7 +655,7 @@ int inet6_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 }
 
 INDIRECT_CALLABLE_DECLARE(int udpv6_recvmsg(struct sock *, struct msghdr *,
-					    size_t, int, int, int *));
+					    size_t, int, int *));
 int inet6_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 		  int flags)
 {
@@ -669,8 +670,7 @@ int inet6_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 	/* IPV6_ADDRFORM can change sk->sk_prot under us. */
 	prot = READ_ONCE(sk->sk_prot);
 	err = INDIRECT_CALL_2(prot->recvmsg, tcp_recvmsg, udpv6_recvmsg,
-			      sk, msg, size, flags & MSG_DONTWAIT,
-			      flags & ~MSG_DONTWAIT, &addr_len);
+			      sk, msg, size, flags, &addr_len);
 	if (err >= 0)
 		msg->msg_namelen = addr_len;
 	return err;
@@ -702,6 +702,7 @@ const struct proto_ops inet6_stream_ops = {
 	.sendpage_locked   = tcp_sendpage_locked,
 	.splice_read	   = tcp_splice_read,
 	.read_sock	   = tcp_read_sock,
+	.read_skb	   = tcp_read_skb,
 	.peek_len	   = tcp_peek_len,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	   = inet6_compat_ioctl,
@@ -727,7 +728,7 @@ const struct proto_ops inet6_dgram_ops = {
 	.getsockopt	   = sock_common_getsockopt,	/* ok		*/
 	.sendmsg	   = inet6_sendmsg,		/* retpoline's sake */
 	.recvmsg	   = inet6_recvmsg,		/* retpoline's sake */
-	.read_sock	   = udp_read_sock,
+	.read_skb	   = udp_read_skb,
 	.mmap		   = sock_no_mmap,
 	.sendpage	   = sock_no_sendpage,
 	.set_peek_off	   = sk_set_peek_off,
@@ -1073,6 +1074,8 @@ static int __init inet6_init(void)
 		pr_info("Loaded, but administratively disabled, reboot required to enable\n");
 		goto out;
 	}
+
+	raw_hashinfo_init(&raw_v6_hashinfo);
 
 	err = proto_register(&tcpv6_prot, 1);
 	if (err)

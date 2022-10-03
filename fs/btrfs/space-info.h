@@ -3,6 +3,8 @@
 #ifndef BTRFS_SPACE_INFO_H
 #define BTRFS_SPACE_INFO_H
 
+#include "volumes.h"
+
 struct btrfs_space_info {
 	spinlock_t lock;
 
@@ -17,12 +19,22 @@ struct btrfs_space_info {
 	u64 bytes_may_use;	/* number of bytes that may be used for
 				   delalloc/allocations */
 	u64 bytes_readonly;	/* total bytes that are read only */
+	/* Total bytes in the space, but only accounts active block groups. */
+	u64 active_total_bytes;
 	u64 bytes_zone_unusable;	/* total bytes that are unusable until
 					   resetting the device zone */
 
 	u64 max_extent_size;	/* This will hold the maximum extent size of
 				   the space info if we had an ENOSPC in the
 				   allocator. */
+	/* Chunk size in bytes */
+	u64 chunk_size;
+
+	/*
+	 * Once a block group drops below this threshold (percents) we'll
+	 * schedule it for reclaim.
+	 */
+	int bg_reclaim_threshold;
 
 	int clamp;		/* Used to scale our threshold for preemptive
 				   flushing. The value is >> clamp, so turns
@@ -114,7 +126,9 @@ int btrfs_init_space_info(struct btrfs_fs_info *fs_info);
 void btrfs_update_space_info(struct btrfs_fs_info *info, u64 flags,
 			     u64 total_bytes, u64 bytes_used,
 			     u64 bytes_readonly, u64 bytes_zone_unusable,
-			     struct btrfs_space_info **space_info);
+			     bool active, struct btrfs_space_info **space_info);
+void btrfs_update_space_info_chunk_size(struct btrfs_space_info *space_info,
+					u64 chunk_size);
 struct btrfs_space_info *btrfs_find_space_info(struct btrfs_fs_info *info,
 					       u64 flags);
 u64 __pure btrfs_space_info_used(struct btrfs_space_info *s_info,

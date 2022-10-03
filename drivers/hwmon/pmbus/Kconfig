@@ -181,6 +181,15 @@ config SENSORS_LM25066_REGULATOR
 	  If you say yes here you get regulator support for National
 	  Semiconductor LM25066, LM5064, and LM5066.
 
+config SENSORS_LT7182S
+	tristate "Analog Devices LT7182S"
+	help
+	  If you say yes here you get hardware monitoring support for Analog
+	  Devices LT7182S.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called lt7182s.
+
 config SENSORS_LTC2978
 	tristate "Linear Technologies LTC2978 and compatibles"
 	help
@@ -228,10 +237,10 @@ config SENSORS_MAX16064
 	  be called max16064.
 
 config SENSORS_MAX16601
-	tristate "Maxim MAX16508, MAX16601"
+	tristate "Maxim MAX16508, MAX16601, MAX16602"
 	help
 	  If you say yes here you get hardware monitoring support for Maxim
-	  MAX16508 and MAX16601.
+	  MAX16508, MAX16601 and MAX16602.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called max16601.
@@ -407,6 +416,15 @@ config SENSORS_UCD9200
 
 	  This driver can also be built as a module. If so, the module will
 	  be called ucd9200.
+
+config SENSORS_XDPE152
+	tristate "Infineon XDPE152 family"
+	help
+	  If you say yes here you get hardware monitoring support for Infineon
+	  XDPE15284, XDPE152C4, device.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called xdpe152c4.
 
 config SENSORS_XDPE122
 	tristate "Infineon XDPE122 family"

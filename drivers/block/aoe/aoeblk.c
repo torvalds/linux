@@ -427,7 +427,7 @@ aoeblk_gdalloc(void *vp)
 	return;
 
 out_disk_cleanup:
-	blk_cleanup_disk(gd);
+	put_disk(gd);
 err_tagset:
 	blk_mq_free_tag_set(set);
 err_mempool:
@@ -435,7 +435,7 @@ err_mempool:
 err:
 	spin_lock_irqsave(&d->lock, flags);
 	d->flags &= ~DEVFL_GD_NOW;
-	schedule_work(&d->work);
+	queue_work(aoe_wq, &d->work);
 	spin_unlock_irqrestore(&d->lock, flags);
 }
 

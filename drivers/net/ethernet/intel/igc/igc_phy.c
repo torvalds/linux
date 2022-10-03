@@ -141,24 +141,14 @@ void igc_power_down_phy_copper(struct igc_hw *hw)
  * igc_check_downshift - Checks whether a downshift in speed occurred
  * @hw: pointer to the HW structure
  *
- * Success returns 0, Failure returns 1
- *
  * A downshift is detected by querying the PHY link health.
  */
-s32 igc_check_downshift(struct igc_hw *hw)
+void igc_check_downshift(struct igc_hw *hw)
 {
 	struct igc_phy_info *phy = &hw->phy;
-	s32 ret_val;
 
-	switch (phy->type) {
-	case igc_phy_i225:
-	default:
-		/* speed downshift not supported */
-		phy->speed_downgraded = false;
-		ret_val = 0;
-	}
-
-	return ret_val;
+	/* speed downshift not supported */
+	phy->speed_downgraded = false;
 }
 
 /**
@@ -581,7 +571,7 @@ static s32 igc_read_phy_reg_mdic(struct igc_hw *hw, u32 offset, u16 *data)
 	 * the lower time out
 	 */
 	for (i = 0; i < IGC_GEN_POLL_TIMEOUT; i++) {
-		usleep_range(500, 1000);
+		udelay(50);
 		mdic = rd32(IGC_MDIC);
 		if (mdic & IGC_MDIC_READY)
 			break;
@@ -638,7 +628,7 @@ static s32 igc_write_phy_reg_mdic(struct igc_hw *hw, u32 offset, u16 data)
 	 * the lower time out
 	 */
 	for (i = 0; i < IGC_GEN_POLL_TIMEOUT; i++) {
-		usleep_range(500, 1000);
+		udelay(50);
 		mdic = rd32(IGC_MDIC);
 		if (mdic & IGC_MDIC_READY)
 			break;

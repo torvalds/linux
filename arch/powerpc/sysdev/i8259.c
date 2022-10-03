@@ -6,11 +6,11 @@
 
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
+#include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <asm/io.h>
 #include <asm/i8259.h>
-#include <asm/prom.h>
 
 static volatile void __iomem *pci_intack; /* RO, gives us the irq vector */
 

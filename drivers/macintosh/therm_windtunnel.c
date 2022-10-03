@@ -38,7 +38,6 @@
 #include <linux/kthread.h>
 #include <linux/of_platform.h>
 
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/io.h>
 #include <asm/sections.h>

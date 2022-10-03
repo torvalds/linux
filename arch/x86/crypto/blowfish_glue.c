@@ -144,7 +144,7 @@ static int cbc_encrypt(struct skcipher_request *req)
 
 	err = skcipher_walk_virt(&walk, req, false);
 
-	while ((nbytes = walk.nbytes)) {
+	while (walk.nbytes) {
 		nbytes = __cbc_encrypt(ctx, &walk);
 		err = skcipher_walk_done(&walk, nbytes);
 	}
@@ -225,7 +225,7 @@ static int cbc_decrypt(struct skcipher_request *req)
 
 	err = skcipher_walk_virt(&walk, req, false);
 
-	while ((nbytes = walk.nbytes)) {
+	while (walk.nbytes) {
 		nbytes = __cbc_decrypt(ctx, &walk);
 		err = skcipher_walk_done(&walk, nbytes);
 	}
@@ -303,7 +303,7 @@ static int force;
 module_param(force, int, 0);
 MODULE_PARM_DESC(force, "Force module load, ignore CPU blacklist");
 
-static int __init init(void)
+static int __init blowfish_init(void)
 {
 	int err;
 
@@ -327,15 +327,15 @@ static int __init init(void)
 	return err;
 }
 
-static void __exit fini(void)
+static void __exit blowfish_fini(void)
 {
 	crypto_unregister_alg(&bf_cipher_alg);
 	crypto_unregister_skciphers(bf_skcipher_algs,
 				    ARRAY_SIZE(bf_skcipher_algs));
 }
 
-module_init(init);
-module_exit(fini);
+module_init(blowfish_init);
+module_exit(blowfish_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Blowfish Cipher Algorithm, asm optimized");

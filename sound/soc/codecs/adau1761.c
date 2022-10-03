@@ -556,8 +556,6 @@ static const struct snd_soc_dapm_route adau1761_dapm_routes[] = {
 	{ "Left DAC", NULL, "Interpolator Resync Clock" },
 	{ "Right DAC", NULL, "Interpolator Resync Clock" },
 
-	{ "DSP", NULL, "Digital Clock 0" },
-
 	{ "Slew Clock", NULL, "Digital Clock 0" },
 	{ "Right Playback Mixer", NULL, "Slew Clock" },
 	{ "Left Playback Mixer", NULL, "Slew Clock" },
@@ -568,6 +566,56 @@ static const struct snd_soc_dapm_route adau1761_dapm_routes[] = {
 	{ "Digital Clock 0", NULL, "SYSCLK" },
 	{ "Digital Clock 1", NULL, "SYSCLK" },
 };
+
+static const struct snd_soc_dapm_route adau1761_dapm_dsp_routes[] = {
+	{ "DSP", NULL, "Digital Clock 0" },
+};
+
+static int adau1761_compatibility_probe(struct device *dev)
+{
+	struct adau *adau = dev_get_drvdata(dev);
+	struct regmap *regmap = adau->regmap;
+	int val, ret = 0;
+
+	/* Only consider compatibility mode when ADAU1361 was specified. */
+	if (adau->type != ADAU1361)
+		return 0;
+
+	regcache_cache_bypass(regmap, true);
+
+	/*
+	 * This will enable the core clock and bypass the PLL,
+	 * so that we can access the registers for probing purposes
+	 * (without having to set up the PLL).
+	 */
+	regmap_write(regmap, ADAU17X1_CLOCK_CONTROL,
+		ADAU17X1_CLOCK_CONTROL_SYSCLK_EN);
+
+	/*
+	 * ADAU17X1_SERIAL_SAMPLING_RATE doesn't exist in non-DSP chips;
+	 * reading it results in zero at all times, and write is a no-op.
+	 * Use this register to probe for ADAU1761.
+	 */
+	regmap_write(regmap, ADAU17X1_SERIAL_SAMPLING_RATE, 1);
+	ret = regmap_read(regmap, ADAU17X1_SERIAL_SAMPLING_RATE, &val);
+	if (ret)
+		goto exit;
+	if (val != 1)
+		goto exit;
+	regmap_write(regmap, ADAU17X1_SERIAL_SAMPLING_RATE, 0);
+	ret = regmap_read(regmap, ADAU17X1_SERIAL_SAMPLING_RATE, &val);
+	if (ret)
+		goto exit;
+	if (val != 0)
+		goto exit;
+
+	adau->type = ADAU1761_AS_1361;
+exit:
+	/* Disable core clock after probing. */
+	regmap_write(regmap, ADAU17X1_CLOCK_CONTROL, 0);
+	regcache_cache_bypass(regmap, false);
+	return ret;
+}
 
 static int adau1761_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
@@ -823,7 +871,11 @@ static int adau1761_component_probe(struct snd_soc_component *component)
 	if (ret)
 		return ret;
 
-	if (adau->type == ADAU1761) {
+	/*
+	 * If we've got an ADAU1761, or an ADAU1761 operating as an
+	 * ADAU1361, we need these non-DSP related DAPM widgets and routes.
+	 */
+	if (adau->type == ADAU1761 || adau->type == ADAU1761_AS_1361) {
 		ret = snd_soc_dapm_new_controls(dapm, adau1761_dapm_widgets,
 			ARRAY_SIZE(adau1761_dapm_widgets));
 		if (ret)
@@ -834,7 +886,29 @@ static int adau1761_component_probe(struct snd_soc_component *component)
 		if (ret)
 			return ret;
 	}
-
+	/*
+	 * These routes are DSP related and only used when we have a
+	 * bona fide ADAU1761.
+	 */
+	if (adau->type == ADAU1761) {
+		ret = snd_soc_dapm_add_routes(dapm, adau1761_dapm_dsp_routes,
+			ARRAY_SIZE(adau1761_dapm_dsp_routes));
+		if (ret)
+			return ret;
+	}
+	/*
+	 * In the ADAU1761, by default, the AIF is routed to the DSP, whereas
+	 * for the ADAU1361, the AIF is permanently routed to the ADC and DAC.
+	 * Thus, if we have an ADAU1761 masquerading as an ADAU1361,
+	 * we need to explicitly route the AIF to the ADC and DAC.
+	 * For the ADAU1761, this is normally done by set_tdm_slot, but this
+	 * function is not necessarily called during stream setup, so set up
+	 * the compatible AIF routings here from the start.
+	 */
+	if  (adau->type == ADAU1761_AS_1361) {
+		regmap_write(adau->regmap, ADAU17X1_SERIAL_INPUT_ROUTE, 0x01);
+		regmap_write(adau->regmap, ADAU17X1_SERIAL_OUTPUT_ROUTE, 0x01);
+	}
 	ret = adau17x1_add_routes(component);
 	if (ret < 0)
 		return ret;
@@ -856,7 +930,6 @@ static const struct snd_soc_component_driver adau1761_component_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 #define ADAU1761_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | \
@@ -916,6 +989,10 @@ int adau1761_probe(struct device *dev, struct regmap *regmap,
 	}
 
 	ret = adau17x1_probe(dev, regmap, type, switch_mode, firmware_name);
+	if (ret)
+		return ret;
+
+	ret = adau1761_compatibility_probe(dev);
 	if (ret)
 		return ret;
 

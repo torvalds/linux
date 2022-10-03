@@ -115,6 +115,7 @@ static void __init_or_module add_nops(void *insns, unsigned int len)
 }
 
 extern s32 __retpoline_sites[], __retpoline_sites_end[];
+extern s32 __return_sites[], __return_sites_end[];
 extern s32 __ibt_endbr_seal[], __ibt_endbr_seal_end[];
 extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
 extern s32 __smp_locks[], __smp_locks_end[];
@@ -338,7 +339,7 @@ next:
 	}
 }
 
-#if defined(CONFIG_RETPOLINE) && defined(CONFIG_STACK_VALIDATION)
+#if defined(CONFIG_RETPOLINE) && defined(CONFIG_OBJTOOL)
 
 /*
  * CALL/JMP *%\reg
@@ -507,11 +508,80 @@ void __init_or_module noinline apply_retpolines(s32 *start, s32 *end)
 	}
 }
 
-#else /* !RETPOLINES || !CONFIG_STACK_VALIDATION */
+#ifdef CONFIG_RETHUNK
+/*
+ * Rewrite the compiler generated return thunk tail-calls.
+ *
+ * For example, convert:
+ *
+ *   JMP __x86_return_thunk
+ *
+ * into:
+ *
+ *   RET
+ */
+static int patch_return(void *addr, struct insn *insn, u8 *bytes)
+{
+	int i = 0;
+
+	if (cpu_feature_enabled(X86_FEATURE_RETHUNK))
+		return -1;
+
+	bytes[i++] = RET_INSN_OPCODE;
+
+	for (; i < insn->length;)
+		bytes[i++] = INT3_INSN_OPCODE;
+
+	return i;
+}
+
+void __init_or_module noinline apply_returns(s32 *start, s32 *end)
+{
+	s32 *s;
+
+	for (s = start; s < end; s++) {
+		void *dest = NULL, *addr = (void *)s + *s;
+		struct insn insn;
+		int len, ret;
+		u8 bytes[16];
+		u8 op;
+
+		ret = insn_decode_kernel(&insn, addr);
+		if (WARN_ON_ONCE(ret < 0))
+			continue;
+
+		op = insn.opcode.bytes[0];
+		if (op == JMP32_INSN_OPCODE)
+			dest = addr + insn.length + insn.immediate.value;
+
+		if (__static_call_fixup(addr, op, dest) ||
+		    WARN_ONCE(dest != &__x86_return_thunk,
+			      "missing return thunk: %pS-%pS: %*ph",
+			      addr, dest, 5, addr))
+			continue;
+
+		DPRINTK("return thunk at: %pS (%px) len: %d to: %pS",
+			addr, addr, insn.length,
+			addr + insn.length + insn.immediate.value);
+
+		len = patch_return(addr, &insn, bytes);
+		if (len == insn.length) {
+			DUMP_BYTES(((u8*)addr),  len, "%px: orig: ", addr);
+			DUMP_BYTES(((u8*)bytes), len, "%px: repl: ", addr);
+			text_poke_early(addr, bytes, len);
+		}
+	}
+}
+#else
+void __init_or_module noinline apply_returns(s32 *start, s32 *end) { }
+#endif /* CONFIG_RETHUNK */
+
+#else /* !CONFIG_RETPOLINE || !CONFIG_OBJTOOL */
 
 void __init_or_module noinline apply_retpolines(s32 *start, s32 *end) { }
+void __init_or_module noinline apply_returns(s32 *start, s32 *end) { }
 
-#endif /* CONFIG_RETPOLINE && CONFIG_STACK_VALIDATION */
+#endif /* CONFIG_RETPOLINE && CONFIG_OBJTOOL */
 
 #ifdef CONFIG_X86_KERNEL_IBT
 
@@ -860,6 +930,7 @@ void __init alternative_instructions(void)
 	 * those can rewrite the retpoline thunks.
 	 */
 	apply_retpolines(__retpoline_sites, __retpoline_sites_end);
+	apply_returns(__return_sites, __return_sites_end);
 
 	/*
 	 * Then patch alternatives, such that those paravirt calls that are in
@@ -994,7 +1065,21 @@ static inline void unuse_temporary_mm(temp_mm_state_t prev_state)
 __ro_after_init struct mm_struct *poking_mm;
 __ro_after_init unsigned long poking_addr;
 
-static void *__text_poke(void *addr, const void *opcode, size_t len)
+static void text_poke_memcpy(void *dst, const void *src, size_t len)
+{
+	memcpy(dst, src, len);
+}
+
+static void text_poke_memset(void *dst, const void *src, size_t len)
+{
+	int c = *(const int *)src;
+
+	memset(dst, c, len);
+}
+
+typedef void text_poke_f(void *dst, const void *src, size_t len);
+
+static void *__text_poke(text_poke_f func, void *addr, const void *src, size_t len)
 {
 	bool cross_page_boundary = offset_in_page(addr) + len > PAGE_SIZE;
 	struct page *pages[2] = {NULL};
@@ -1059,7 +1144,7 @@ static void *__text_poke(void *addr, const void *opcode, size_t len)
 	prev = use_temporary_mm(poking_mm);
 
 	kasan_disable_current();
-	memcpy((u8 *)poking_addr + offset_in_page(addr), opcode, len);
+	func((u8 *)poking_addr + offset_in_page(addr), src, len);
 	kasan_enable_current();
 
 	/*
@@ -1087,11 +1172,13 @@ static void *__text_poke(void *addr, const void *opcode, size_t len)
 			   (cross_page_boundary ? 2 : 1) * PAGE_SIZE,
 			   PAGE_SHIFT, false);
 
-	/*
-	 * If the text does not match what we just wrote then something is
-	 * fundamentally screwy; there's nothing we can really do about that.
-	 */
-	BUG_ON(memcmp(addr, opcode, len));
+	if (func == text_poke_memcpy) {
+		/*
+		 * If the text does not match what we just wrote then something is
+		 * fundamentally screwy; there's nothing we can really do about that.
+		 */
+		BUG_ON(memcmp(addr, src, len));
+	}
 
 	local_irq_restore(flags);
 	pte_unmap_unlock(ptep, ptl);
@@ -1118,7 +1205,7 @@ void *text_poke(void *addr, const void *opcode, size_t len)
 {
 	lockdep_assert_held(&text_mutex);
 
-	return __text_poke(addr, opcode, len);
+	return __text_poke(text_poke_memcpy, addr, opcode, len);
 }
 
 /**
@@ -1137,7 +1224,7 @@ void *text_poke(void *addr, const void *opcode, size_t len)
  */
 void *text_poke_kgdb(void *addr, const void *opcode, size_t len)
 {
-	return __text_poke(addr, opcode, len);
+	return __text_poke(text_poke_memcpy, addr, opcode, len);
 }
 
 /**
@@ -1167,7 +1254,38 @@ void *text_poke_copy(void *addr, const void *opcode, size_t len)
 
 		s = min_t(size_t, PAGE_SIZE * 2 - offset_in_page(ptr), len - patched);
 
-		__text_poke((void *)ptr, opcode + patched, s);
+		__text_poke(text_poke_memcpy, (void *)ptr, opcode + patched, s);
+		patched += s;
+	}
+	mutex_unlock(&text_mutex);
+	return addr;
+}
+
+/**
+ * text_poke_set - memset into (an unused part of) RX memory
+ * @addr: address to modify
+ * @c: the byte to fill the area with
+ * @len: length to copy, could be more than 2x PAGE_SIZE
+ *
+ * This is useful to overwrite unused regions of RX memory with illegal
+ * instructions.
+ */
+void *text_poke_set(void *addr, int c, size_t len)
+{
+	unsigned long start = (unsigned long)addr;
+	size_t patched = 0;
+
+	if (WARN_ON_ONCE(core_kernel_text(start)))
+		return NULL;
+
+	mutex_lock(&text_mutex);
+	while (patched < len) {
+		unsigned long ptr = start + patched;
+		size_t s;
+
+		s = min_t(size_t, PAGE_SIZE * 2 - offset_in_page(ptr), len - patched);
+
+		__text_poke(text_poke_memset, (void *)ptr, (void *)&c, s);
 		patched += s;
 	}
 	mutex_unlock(&text_mutex);

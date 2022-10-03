@@ -116,7 +116,6 @@ extern int radeon_use_pflipirq;
 extern int radeon_bapm;
 extern int radeon_backlight;
 extern int radeon_auxch;
-extern int radeon_mst;
 extern int radeon_uvd;
 extern int radeon_vce;
 extern int radeon_si_support;
@@ -2949,8 +2948,6 @@ struct radeon_hdmi_acr {
 	int cts_48khz;
 
 };
-
-extern struct radeon_hdmi_acr r600_hdmi_acr(uint32_t clock);
 
 extern u32 r6xx_remap_render_backend(struct radeon_device *rdev,
 				     u32 tiling_pipe_num,

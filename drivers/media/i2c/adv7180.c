@@ -43,6 +43,7 @@
 #define ADV7180_INPUT_CONTROL_INSEL_MASK		0x0f
 
 #define ADV7182_REG_INPUT_VIDSEL			0x0002
+#define ADV7182_REG_INPUT_RESERVED			BIT(2)
 
 #define ADV7180_REG_OUTPUT_CONTROL			0x0003
 #define ADV7180_REG_EXTENDED_OUTPUT_CONTROL		0x0004
@@ -66,6 +67,9 @@
 #define ADV7180_HUE_DEF		0
 #define ADV7180_HUE_MAX		128
 
+#define ADV7180_REG_DEF_VALUE_Y	0x000c
+#define ADV7180_DEF_VAL_EN		0x1
+#define ADV7180_DEF_VAL_AUTO_EN	0x2
 #define ADV7180_REG_CTRL		0x000e
 #define ADV7180_CTRL_IRQ_SPACE		0x20
 
@@ -549,6 +553,40 @@ static int adv7180_s_power(struct v4l2_subdev *sd, int on)
 	return ret;
 }
 
+static const char * const test_pattern_menu[] = {
+	"Single color",
+	"Color bars",
+	"Luma ramp",
+	"Boundary box",
+	"Disable",
+};
+
+static int adv7180_test_pattern(struct adv7180_state *state, int value)
+{
+	unsigned int reg = 0;
+
+	/* Map menu value into register value */
+	if (value < 3)
+		reg = value;
+	if (value == 3)
+		reg = 5;
+
+	adv7180_write(state, ADV7180_REG_ANALOG_CLAMP_CTL, reg);
+
+	if (value == ARRAY_SIZE(test_pattern_menu) - 1) {
+		reg = adv7180_read(state, ADV7180_REG_DEF_VALUE_Y);
+		reg &= ~ADV7180_DEF_VAL_EN;
+		adv7180_write(state, ADV7180_REG_DEF_VALUE_Y, reg);
+		return 0;
+	}
+
+	reg = adv7180_read(state, ADV7180_REG_DEF_VALUE_Y);
+	reg |= ADV7180_DEF_VAL_EN | ADV7180_DEF_VAL_AUTO_EN;
+	adv7180_write(state, ADV7180_REG_DEF_VALUE_Y, reg);
+
+	return 0;
+}
+
 static int adv7180_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = to_adv7180_sd(ctrl);
@@ -592,6 +630,9 @@ static int adv7180_s_ctrl(struct v4l2_ctrl *ctrl)
 			adv7180_write(state, ADV7180_REG_FLCONTROL, 0x00);
 		}
 		break;
+	case V4L2_CID_TEST_PATTERN:
+		ret = adv7180_test_pattern(state, val);
+		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -631,6 +672,12 @@ static int adv7180_init_controls(struct adv7180_state *state)
 			  V4L2_CID_HUE, ADV7180_HUE_MIN,
 			  ADV7180_HUE_MAX, 1, ADV7180_HUE_DEF);
 	v4l2_ctrl_new_custom(&state->ctrl_hdl, &adv7180_ctrl_fast_switch, NULL);
+
+	v4l2_ctrl_new_std_menu_items(&state->ctrl_hdl, &adv7180_ctrl_ops,
+				      V4L2_CID_TEST_PATTERN,
+				      ARRAY_SIZE(test_pattern_menu) - 1,
+				      0, ARRAY_SIZE(test_pattern_menu) - 1,
+				      test_pattern_menu);
 
 	state->sd.ctrl_handler = &state->ctrl_hdl;
 	if (state->ctrl_hdl.error) {
@@ -1014,7 +1061,9 @@ static int adv7182_init(struct adv7180_state *state)
 
 static int adv7182_set_std(struct adv7180_state *state, unsigned int std)
 {
-	return adv7180_write(state, ADV7182_REG_INPUT_VIDSEL, std << 4);
+	/* Failing to set the reserved bit can result in increased video noise */
+	return adv7180_write(state, ADV7182_REG_INPUT_VIDSEL,
+			     (std << 4) | ADV7182_REG_INPUT_RESERVED);
 }
 
 enum adv7182_input_type {

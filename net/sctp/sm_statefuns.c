@@ -781,7 +781,7 @@ enum sctp_disposition sctp_sf_do_5_1D_ce(struct net *net,
 		}
 	}
 
-	if (security_sctp_assoc_request(new_asoc, chunk->skb)) {
+	if (security_sctp_assoc_request(new_asoc, chunk->head_skb ?: chunk->skb)) {
 		sctp_association_free(new_asoc);
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 	}
@@ -932,7 +932,7 @@ enum sctp_disposition sctp_sf_do_5_1E_ca(struct net *net,
 
 	/* Set peer label for connection. */
 	if (security_sctp_assoc_established((struct sctp_association *)asoc,
-					    chunk->skb))
+					    chunk->head_skb ?: chunk->skb))
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 
 	/* Verify that the chunk length for the COOKIE-ACK is OK.
@@ -2262,7 +2262,7 @@ enum sctp_disposition sctp_sf_do_5_2_4_dupcook(
 	}
 
 	/* Update socket peer label if first association. */
-	if (security_sctp_assoc_request(new_asoc, chunk->skb)) {
+	if (security_sctp_assoc_request(new_asoc, chunk->head_skb ?: chunk->skb)) {
 		sctp_association_free(new_asoc);
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 	}
@@ -6590,8 +6590,6 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 			pr_debug("%s: under pressure, reneging for tsn:%u\n",
 				 __func__, tsn);
 			deliver = SCTP_CMD_RENEGE;
-		} else {
-			sk_mem_reclaim(sk);
 		}
 	}
 

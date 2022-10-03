@@ -282,7 +282,7 @@ DEFINE_EVENT(kvm_async_get_page_class, kvm_try_async_get_page,
 	TP_ARGS(gva, gfn)
 );
 
-DEFINE_EVENT(kvm_async_get_page_class, kvm_async_pf_doublefault,
+DEFINE_EVENT(kvm_async_get_page_class, kvm_async_pf_repeated_fault,
 
 	TP_PROTO(u64 gva, u64 gfn),
 

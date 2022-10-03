@@ -25,7 +25,6 @@
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/cputable.h>
 #include <asm/sections.h>

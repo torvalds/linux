@@ -3,6 +3,7 @@
 menuconfig ARCH_DAVINCI
 	bool "TI DaVinci"
 	depends on ARCH_MULTI_V5
+	depends on CPU_LITTLE_ENDIAN
 	select DAVINCI_TIMER
 	select ZONE_DMA
 	select PM_GENERIC_DOMAINS if PM
@@ -18,24 +19,16 @@ config ARCH_DAVINCI_DMx
 
 comment "DaVinci Core Type"
 
-config ARCH_DAVINCI_DM644x
-	bool "DaVinci 644x based system"
-	select DAVINCI_AINTC
-	select ARCH_DAVINCI_DMx
-
 config ARCH_DAVINCI_DM355
 	bool "DaVinci 355 based system"
-	select DAVINCI_AINTC
-	select ARCH_DAVINCI_DMx
-
-config ARCH_DAVINCI_DM646x
-	bool "DaVinci 646x based system"
+	depends on ATAGS && UNUSED_BOARD_FILES
 	select DAVINCI_AINTC
 	select ARCH_DAVINCI_DMx
 
 config ARCH_DAVINCI_DA830
 	bool "DA830/OMAP-L137/AM17x based system"
 	depends on !ARCH_DAVINCI_DMx || (AUTO_ZRELADDR && ARM_PATCH_PHYS_VIRT)
+	depends on ATAGS
 	select ARCH_DAVINCI_DA8XX
 	# needed on silicon revs 1.0, 1.1:
 	select CPU_DCACHE_WRITETHROUGH if !CPU_DCACHE_DISABLE
@@ -44,6 +37,7 @@ config ARCH_DAVINCI_DA830
 config ARCH_DAVINCI_DA850
 	bool "DA850/OMAP-L138/AM18x based system"
 	depends on !ARCH_DAVINCI_DMx || (AUTO_ZRELADDR && ARM_PATCH_PHYS_VIRT)
+	depends on ATAGS
 	select ARCH_DAVINCI_DA8XX
 	select DAVINCI_CP_INTC
 
@@ -52,6 +46,7 @@ config ARCH_DAVINCI_DA8XX
 
 config ARCH_DAVINCI_DM365
 	bool "DaVinci 365 based system"
+	depends on ATAGS && UNUSED_BOARD_FILES
 	select DAVINCI_AINTC
 	select ARCH_DAVINCI_DMx
 
@@ -65,28 +60,6 @@ config MACH_DA8XX_DT
 	help
 	  Say y here to include support for TI DaVinci DA850 based using
 	  Flattened Device Tree. More information at Documentation/devicetree
-
-config MACH_DAVINCI_EVM
-	bool "TI DM644x EVM"
-	default ARCH_DAVINCI_DM644x
-	depends on ARCH_DAVINCI_DM644x
-	help
-	  Configure this option to specify the whether the board used
-	  for development is a DM644x EVM
-
-config MACH_SFFSDR
-	bool "Lyrtech SFFSDR"
-	depends on ARCH_DAVINCI_DM644x
-	help
-	  Say Y here to select the Lyrtech Small Form Factor
-	  Software Defined Radio (SFFSDR) board.
-
-config MACH_NEUROS_OSD2
-	bool "Neuros OSD2 Open Television Set Top Box"
-	depends on ARCH_DAVINCI_DM644x
-	help
-	  Configure this option to specify the whether the board used
-	  for development is a Neuros OSD2 Open Set Top Box.
 
 config MACH_DAVINCI_DM355_EVM
 	bool "TI DM355 EVM"
@@ -103,18 +76,6 @@ config MACH_DM355_LEOPARD
 	  Configure this option to specify the whether the board used
 	  for development is a DM355 Leopard board.
 
-config MACH_DAVINCI_DM6467_EVM
-	bool "TI DM6467 EVM"
-	default ARCH_DAVINCI_DM646x
-	depends on ARCH_DAVINCI_DM646x
-	select MACH_DAVINCI_DM6467TEVM
-	help
-	  Configure this option to specify the whether the board used
-	  for development is a DM6467 EVM
-
-config MACH_DAVINCI_DM6467TEVM
-	bool
-
 config MACH_DAVINCI_DM365_EVM
 	bool "TI DM365 EVM"
 	default ARCH_DAVINCI_DM365
@@ -126,6 +87,7 @@ config MACH_DAVINCI_DM365_EVM
 config MACH_DAVINCI_DA830_EVM
 	bool "TI DA830/OMAP-L137/AM17x Reference Platform"
 	default ARCH_DAVINCI_DA830
+	depends on ATAGS && UNUSED_BOARD_FILES
 	depends on ARCH_DAVINCI_DA830
 	select GPIO_PCF857X if I2C
 	help
@@ -155,6 +117,7 @@ endchoice
 
 config MACH_DAVINCI_DA850_EVM
 	bool "TI DA850/OMAP-L138/AM18x Reference Platform"
+	depends on ATAGS && UNUSED_BOARD_FILES
 	default ARCH_DAVINCI_DA850
 	depends on ARCH_DAVINCI_DA850
 	help
@@ -196,6 +159,7 @@ endchoice
 config MACH_MITYOMAPL138
 	bool "Critical Link MityDSP-L138/MityARM-1808 SoM"
 	depends on ARCH_DAVINCI_DA850
+	depends on ATAGS && UNUSED_BOARD_FILES
 	help
 	  Say Y here to select the Critical Link MityDSP-L138/MityARM-1808
 	  System on Module.  Information on this SoM may be found at
@@ -204,6 +168,7 @@ config MACH_MITYOMAPL138
 config MACH_OMAPL138_HAWKBOARD
 	bool "TI AM1808 / OMAPL-138 Hawkboard platform"
 	depends on ARCH_DAVINCI_DA850
+	depends on ATAGS && UNUSED_BOARD_FILES
 	help
 	  Say Y here to select the TI AM1808 / OMAPL-138 Hawkboard platform .
 

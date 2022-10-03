@@ -30,6 +30,8 @@ properties:
       - dallas,ds1672
       # Extremely Accurate I²C RTC with Integrated Crystal and SRAM
       - dallas,ds3232
+      # EM Microelectronic EM3027 RTC
+      - emmicro,em3027
       # I2C-BUS INTERFACE REAL TIME CLOCK MODULE
       - epson,rx8010
       # I2C-BUS INTERFACE REAL TIME CLOCK MODULE

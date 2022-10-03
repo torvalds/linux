@@ -145,7 +145,7 @@
 		reg = <0x0 0x48000000 0x0 0x38000000>;
 	};
 
-	reg_1p8v: regulator0 {
+	reg_1p8v: regulator-1p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-1.8V";
 		regulator-min-microvolt = <1800000>;
@@ -154,7 +154,7 @@
 		regulator-always-on;
 	};
 
-	reg_3p3v: regulator1 {
+	reg_3p3v: regulator-3p3v {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-3.3V";
 		regulator-min-microvolt = <3300000>;
@@ -163,7 +163,7 @@
 		regulator-always-on;
 	};
 
-	reg_12p0v: regulator2 {
+	reg_12p0v: regulator-12p0v {
 		compatible = "regulator-fixed";
 		regulator-name = "D12.0V";
 		regulator-min-microvolt = <12000000>;
@@ -356,7 +356,7 @@
 
 	ports {
 		port@0 {
-			endpoint {
+			du_out_rgb: endpoint {
 				remote-endpoint = <&adv7123_in>;
 			};
 		};
@@ -600,6 +600,12 @@
 		function = "pwm5";
 	};
 
+	rpc_pins: rpc {
+		groups = "rpc_clk2", "rpc_ctrl", "rpc_data", "rpc_reset",
+			 "rpc_int";
+		function = "rpc";
+	};
+
 	scif2_pins: scif2 {
 		groups = "scif2_data_a";
 		function = "scif2";
@@ -705,10 +711,62 @@
 	rcar_sound,dai {
 		dai0 {
 			playback = <&ssi0>, <&src0>, <&dvc0>;
-			capture  = <&ssi1>, <&src1>, <&dvc1>;
+			capture = <&ssi1>, <&src1>, <&dvc1>;
 		};
 	};
 
+};
+
+&rpc {
+	pinctrl-0 = <&rpc_pins>;
+	pinctrl-names = "default";
+
+	/* Left disabled.  To be enabled by firmware when unlocked. */
+
+	flash@0 {
+		compatible = "cypress,hyperflash", "cfi-flash";
+		reg = <0>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			bootparam@0 {
+				reg = <0x00000000 0x040000>;
+				read-only;
+			};
+			bl2@40000 {
+				reg = <0x00040000 0x140000>;
+				read-only;
+			};
+			cert_header_sa6@180000 {
+				reg = <0x00180000 0x040000>;
+				read-only;
+			};
+			bl31@1c0000 {
+				reg = <0x001c0000 0x040000>;
+				read-only;
+			};
+			tee@200000 {
+				reg = <0x00200000 0x440000>;
+				read-only;
+			};
+			uboot@640000 {
+				reg = <0x00640000 0x100000>;
+				read-only;
+			};
+			dtb@740000 {
+				reg = <0x00740000 0x080000>;
+			};
+			kernel@7c0000 {
+				reg = <0x007c0000 0x1400000>;
+			};
+			user@1bc0000 {
+				reg = <0x01bc0000 0x2440000>;
+			};
+		};
+	};
 };
 
 &rwdt {

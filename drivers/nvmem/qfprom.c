@@ -217,9 +217,8 @@ static int qfprom_enable_fuse_blowing(const struct qfprom_priv *priv,
 		goto err_clk_rate_set;
 	}
 
-	ret = pm_runtime_get_sync(priv->dev);
+	ret = pm_runtime_resume_and_get(priv->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(priv->dev);
 		dev_err(priv->dev, "Failed to enable power-domain\n");
 		goto err_reg_enable;
 	}

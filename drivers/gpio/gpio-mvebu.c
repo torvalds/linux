@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * GPIO driver for Marvell SoCs
  *
@@ -6,10 +7,6 @@
  * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
  * Andrew Lunn <andrew@lunn.ch>
  * Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  *
  * This driver is a fairly straightforward GPIO driver for the
  * complete family of Marvell EBU SoC platforms (Orion, Dove,
@@ -707,6 +704,9 @@ static int mvebu_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	unsigned long flags;
 	unsigned int on, off;
 
+	if (state->polarity != PWM_POLARITY_NORMAL)
+		return -EINVAL;
+
 	val = (unsigned long long) mvpwm->clk_rate * state->duty_cycle;
 	do_div(val, NSEC_PER_SEC);
 	if (val > UINT_MAX + 1ULL)
@@ -871,13 +871,6 @@ static int mvebu_pwm_probe(struct platform_device *pdev,
 	mvpwm->chip.dev = dev;
 	mvpwm->chip.ops = &mvebu_pwm_ops;
 	mvpwm->chip.npwm = mvchip->chip.ngpio;
-	/*
-	 * There may already be some PWM allocated, so we can't force
-	 * mvpwm->chip.base to a fixed point like mvchip->chip.base.
-	 * So, we let pwmchip_add() do the numbering and take the next free
-	 * region.
-	 */
-	mvpwm->chip.base = -1;
 
 	spin_lock_init(&mvpwm->lock);
 

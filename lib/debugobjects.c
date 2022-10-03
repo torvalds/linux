@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Generic infrastructure for lifetime debugging of objects.
  *
- * Started by Thomas Gleixner
- *
  * Copyright (C) 2008, Thomas Gleixner <tglx@linutronix.de>
- *
- * For licencing details see kernel-base/COPYING
  */
 
 #define pr_fmt(fmt) "ODEBUG: " fmt

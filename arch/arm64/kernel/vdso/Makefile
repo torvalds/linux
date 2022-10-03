@@ -24,7 +24,13 @@ btildflags-$(CONFIG_ARM64_BTI_KERNEL) += -z force-bti
 # routines, as x86 does (see 6f121e548f83 ("x86, vdso: Reimplement vdso.so
 # preparation in build-time C")).
 ldflags-y := -shared -soname=linux-vdso.so.1 --hash-style=sysv	\
-	     -Bsymbolic --build-id=sha1 -n $(btildflags-y) -T
+	     -Bsymbolic --build-id=sha1 -n $(btildflags-y)
+
+ifdef CONFIG_LD_ORPHAN_WARN
+  ldflags-y += --orphan-handling=warn
+endif
+
+ldflags-y += -T
 
 ccflags-y := -fno-common -fno-builtin -fno-stack-protector -ffixed-x18
 ccflags-y += -DDISABLE_BRANCH_PROFILING -DBUILD_VDSO
@@ -32,7 +38,8 @@ ccflags-y += -DDISABLE_BRANCH_PROFILING -DBUILD_VDSO
 # -Wmissing-prototypes and -Wmissing-declarations are removed from
 # the CFLAGS of vgettimeofday.c to make possible to build the
 # kernel with CONFIG_WERROR enabled.
-CFLAGS_REMOVE_vgettimeofday.o = $(CC_FLAGS_FTRACE) -Os $(CC_FLAGS_SCS) $(GCC_PLUGINS_CFLAGS) \
+CFLAGS_REMOVE_vgettimeofday.o = $(CC_FLAGS_FTRACE) -Os $(CC_FLAGS_SCS) \
+				$(RANDSTRUCT_CFLAGS) $(GCC_PLUGINS_CFLAGS) \
 				$(CC_FLAGS_LTO) -Wmissing-prototypes -Wmissing-declarations
 KASAN_SANITIZE			:= n
 KCSAN_SANITIZE			:= n
@@ -51,9 +58,6 @@ GCOV_PROFILE := n
 
 targets += vdso.lds
 CPPFLAGS_vdso.lds += -P -C -U$(ARCH)
-
-# Force dependency (incbin is bad)
-$(obj)/vdso.o : $(obj)/vdso.so
 
 # Link rule for the .so file, .lds has to be first
 $(obj)/vdso.so.dbg: $(obj)/vdso.lds $(obj-vdso) FORCE

@@ -132,7 +132,7 @@ struct ep93xx_dma_desc {
 /**
  * struct ep93xx_dma_chan - an EP93xx DMA M2P/M2M channel
  * @chan: dmaengine API channel
- * @edma: pointer to to the engine device
+ * @edma: pointer to the engine device
  * @regs: memory mapped registers
  * @irq: interrupt number of the channel
  * @clk: clock used by this channel
@@ -1183,7 +1183,7 @@ fail:
  *
  * Synchronizes the DMA channel termination to the current context. When this
  * function returns it is guaranteed that all transfers for previously issued
- * descriptors have stopped and and it is safe to free the memory associated
+ * descriptors have stopped and it is safe to free the memory associated
  * with them. Furthermore it is guaranteed that all complete callback functions
  * for a previously submitted descriptor have finished running and it is safe to
  * free resources accessed from within the complete callbacks.

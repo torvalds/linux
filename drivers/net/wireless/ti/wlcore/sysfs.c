@@ -56,11 +56,9 @@ static ssize_t bt_coex_state_store(struct device *dev,
 	if (unlikely(wl->state != WLCORE_STATE_ON))
 		goto out;
 
-	ret = pm_runtime_get_sync(wl->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+	ret = pm_runtime_resume_and_get(wl->dev);
+	if (ret < 0)
 		goto out;
-	}
 
 	wl1271_acx_sg_enable(wl, wl->sg_enabled);
 	pm_runtime_mark_last_busy(wl->dev);

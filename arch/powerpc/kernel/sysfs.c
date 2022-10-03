@@ -9,12 +9,12 @@
 #include <linux/nodemask.h>
 #include <linux/cpumask.h>
 #include <linux/notifier.h>
+#include <linux/of.h>
 
 #include <asm/current.h>
 #include <asm/processor.h>
 #include <asm/cputable.h>
 #include <asm/hvcall.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/smp.h>
 #include <asm/pmc.h>

@@ -42,6 +42,7 @@
 #include <linux/module.h>
 #include <linux/compiler.h>
 #include <linux/of.h>
+#include <linux/irqdomain.h>
 
 #include <asm/ftrace.h>
 #include <asm/reg.h>
@@ -1206,7 +1207,7 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 		break;
 #endif
 	case H_RANDOM:
-		if (!arch_get_random_seed_long(&vcpu->arch.regs.gpr[4]))
+		if (!arch_get_random_seed_longs(&vcpu->arch.regs.gpr[4], 1))
 			ret = H_HARDWARE;
 		break;
 	case H_RPT_INVALIDATE:
@@ -1326,6 +1327,12 @@ static int kvmppc_hcall_impl_hv(unsigned long cmd)
 	case H_CONFER:
 	case H_REGISTER_VPA:
 	case H_SET_MODE:
+#ifdef CONFIG_SPAPR_TCE_IOMMU
+	case H_GET_TCE:
+	case H_PUT_TCE:
+	case H_PUT_TCE_INDIRECT:
+	case H_STUFF_TCE:
+#endif
 	case H_LOGICAL_CI_LOAD:
 	case H_LOGICAL_CI_STORE:
 #ifdef CONFIG_KVM_XICS
@@ -2653,11 +2660,21 @@ static struct debugfs_timings_element {
 	const char *name;
 	size_t offset;
 } timings[] = {
+#ifdef CONFIG_KVM_BOOK3S_HV_P9_TIMING
+	{"vcpu_entry",	offsetof(struct kvm_vcpu, arch.vcpu_entry)},
+	{"guest_entry",	offsetof(struct kvm_vcpu, arch.guest_entry)},
+	{"in_guest",	offsetof(struct kvm_vcpu, arch.in_guest)},
+	{"guest_exit",	offsetof(struct kvm_vcpu, arch.guest_exit)},
+	{"vcpu_exit",	offsetof(struct kvm_vcpu, arch.vcpu_exit)},
+	{"hypercall",	offsetof(struct kvm_vcpu, arch.hcall)},
+	{"page_fault",	offsetof(struct kvm_vcpu, arch.pg_fault)},
+#else
 	{"rm_entry",	offsetof(struct kvm_vcpu, arch.rm_entry)},
 	{"rm_intr",	offsetof(struct kvm_vcpu, arch.rm_intr)},
 	{"rm_exit",	offsetof(struct kvm_vcpu, arch.rm_exit)},
 	{"guest",	offsetof(struct kvm_vcpu, arch.guest_time)},
 	{"cede",	offsetof(struct kvm_vcpu, arch.cede_time)},
+#endif
 };
 
 #define N_TIMINGS	(ARRAY_SIZE(timings))
@@ -2776,8 +2793,9 @@ static const struct file_operations debugfs_timings_ops = {
 /* Create a debugfs directory for the vcpu */
 static int kvmppc_arch_create_vcpu_debugfs_hv(struct kvm_vcpu *vcpu, struct dentry *debugfs_dentry)
 {
-	debugfs_create_file("timings", 0444, debugfs_dentry, vcpu,
-			    &debugfs_timings_ops);
+	if (cpu_has_feature(CPU_FTR_ARCH_300) == IS_ENABLED(CONFIG_KVM_BOOK3S_HV_P9_TIMING))
+		debugfs_create_file("timings", 0444, debugfs_dentry, vcpu,
+				    &debugfs_timings_ops);
 	return 0;
 }
 
@@ -2834,7 +2852,7 @@ static int kvmppc_core_vcpu_create_hv(struct kvm_vcpu *vcpu)
 	 * to trap and then we emulate them.
 	 */
 	vcpu->arch.hfscr = HFSCR_TAR | HFSCR_EBB | HFSCR_PM | HFSCR_BHRB |
-		HFSCR_DSCR | HFSCR_VECVSX | HFSCR_FP | HFSCR_PREFIX;
+		HFSCR_DSCR | HFSCR_VECVSX | HFSCR_FP;
 	if (cpu_has_feature(CPU_FTR_HVMODE)) {
 		vcpu->arch.hfscr &= mfspr(SPRN_HFSCR);
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
@@ -3967,6 +3985,7 @@ static int kvmhv_vcpu_entry_p9_nested(struct kvm_vcpu *vcpu, u64 time_limit, uns
 
 	kvmhv_save_hv_regs(vcpu, &hvregs);
 	hvregs.lpcr = lpcr;
+	hvregs.amor = ~0;
 	vcpu->arch.regs.msr = vcpu->arch.shregs.msr;
 	hvregs.version = HV_GUEST_STATE_VERSION;
 	if (vcpu->arch.nested) {
@@ -3997,8 +4016,10 @@ static int kvmhv_vcpu_entry_p9_nested(struct kvm_vcpu *vcpu, u64 time_limit, uns
 	mtspr(SPRN_DAR, vcpu->arch.shregs.dar);
 	mtspr(SPRN_DSISR, vcpu->arch.shregs.dsisr);
 	switch_pmu_to_guest(vcpu, &host_os_sprs);
+	accumulate_time(vcpu, &vcpu->arch.in_guest);
 	trap = plpar_hcall_norets(H_ENTER_NESTED, __pa(&hvregs),
 				  __pa(&vcpu->arch.regs));
+	accumulate_time(vcpu, &vcpu->arch.guest_exit);
 	kvmhv_restore_hv_return_state(vcpu, &hvregs);
 	switch_pmu_to_host(vcpu, &host_os_sprs);
 	vcpu->arch.shregs.msr = vcpu->arch.regs.msr;
@@ -4029,6 +4050,8 @@ static int kvmhv_vcpu_entry_p9_nested(struct kvm_vcpu *vcpu, u64 time_limit, uns
 static int kvmhv_p9_guest_entry(struct kvm_vcpu *vcpu, u64 time_limit,
 			 unsigned long lpcr, u64 *tb)
 {
+	struct kvm *kvm = vcpu->kvm;
+	struct kvm_nested_guest *nested = vcpu->arch.nested;
 	u64 next_timer;
 	int trap;
 
@@ -4048,34 +4071,61 @@ static int kvmhv_p9_guest_entry(struct kvm_vcpu *vcpu, u64 time_limit,
 		trap = kvmhv_vcpu_entry_p9_nested(vcpu, time_limit, lpcr, tb);
 
 		/* H_CEDE has to be handled now, not later */
-		if (trap == BOOK3S_INTERRUPT_SYSCALL && !vcpu->arch.nested &&
+		if (trap == BOOK3S_INTERRUPT_SYSCALL && !nested &&
 		    kvmppc_get_gpr(vcpu, 3) == H_CEDE) {
 			kvmppc_cede(vcpu);
 			kvmppc_set_gpr(vcpu, 3, 0);
 			trap = 0;
 		}
 
-	} else {
-		struct kvm *kvm = vcpu->kvm;
+	} else if (nested) {
+		__this_cpu_write(cpu_in_guest, kvm);
+		trap = kvmhv_vcpu_entry_p9(vcpu, time_limit, lpcr, tb);
+		__this_cpu_write(cpu_in_guest, NULL);
 
+	} else {
 		kvmppc_xive_push_vcpu(vcpu);
 
 		__this_cpu_write(cpu_in_guest, kvm);
 		trap = kvmhv_vcpu_entry_p9(vcpu, time_limit, lpcr, tb);
 		__this_cpu_write(cpu_in_guest, NULL);
 
-		if (trap == BOOK3S_INTERRUPT_SYSCALL && !vcpu->arch.nested &&
+		if (trap == BOOK3S_INTERRUPT_SYSCALL &&
 		    !(vcpu->arch.shregs.msr & MSR_PR)) {
 			unsigned long req = kvmppc_get_gpr(vcpu, 3);
 
-			/* H_CEDE has to be handled now, not later */
+			/*
+			 * XIVE rearm and XICS hcalls must be handled
+			 * before xive context is pulled (is this
+			 * true?)
+			 */
 			if (req == H_CEDE) {
+				/* H_CEDE has to be handled now */
 				kvmppc_cede(vcpu);
-				kvmppc_xive_rearm_escalation(vcpu); /* may un-cede */
+				if (!kvmppc_xive_rearm_escalation(vcpu)) {
+					/*
+					 * Pending escalation so abort
+					 * the cede.
+					 */
+					vcpu->arch.ceded = 0;
+				}
 				kvmppc_set_gpr(vcpu, 3, 0);
 				trap = 0;
 
-			/* XICS hcalls must be handled before xive is pulled */
+			} else if (req == H_ENTER_NESTED) {
+				/*
+				 * L2 should not run with the L1
+				 * context so rearm and pull it.
+				 */
+				if (!kvmppc_xive_rearm_escalation(vcpu)) {
+					/*
+					 * Pending escalation so abort
+					 * H_ENTER_NESTED.
+					 */
+					kvmppc_set_gpr(vcpu, 3, 0);
+					trap = 0;
+				}
+
 			} else if (hcall_is_xics(req)) {
 				int ret;
 
@@ -4233,13 +4283,13 @@ static void kvmppc_vcore_blocked(struct kvmppc_vcore *vc)
 	start_wait = ktime_get();
 
 	vc->vcore_state = VCORE_SLEEPING;
-	trace_kvmppc_vcore_blocked(vc, 0);
+	trace_kvmppc_vcore_blocked(vc->runner, 0);
 	spin_unlock(&vc->lock);
 	schedule();
 	finish_rcuwait(&vc->wait);
 	spin_lock(&vc->lock);
 	vc->vcore_state = VCORE_INACTIVE;
-	trace_kvmppc_vcore_blocked(vc, 1);
+	trace_kvmppc_vcore_blocked(vc->runner, 1);
 	++vc->runner->stat.halt_successful_wait;
 
 	cur = ktime_get();
@@ -4519,9 +4569,14 @@ int kvmhv_run_single_vcpu(struct kvm_vcpu *vcpu, u64 time_limit,
 
 	if (!nested) {
 		kvmppc_core_prepare_to_enter(vcpu);
-		if (test_bit(BOOK3S_IRQPRIO_EXTERNAL,
-			     &vcpu->arch.pending_exceptions))
+		if (vcpu->arch.shregs.msr & MSR_EE) {
+			if (xive_interrupt_pending(vcpu))
+				kvmppc_inject_interrupt_hv(vcpu,
+						BOOK3S_INTERRUPT_EXTERNAL, 0);
+		} else if (test_bit(BOOK3S_IRQPRIO_EXTERNAL,
+			     &vcpu->arch.pending_exceptions)) {
 			lpcr |= LPCR_MER;
+		}
 	} else if (vcpu->arch.pending_exceptions ||
 		   vcpu->arch.doorbell_request ||
 		   xive_interrupt_pending(vcpu)) {
@@ -4619,9 +4674,9 @@ int kvmhv_run_single_vcpu(struct kvm_vcpu *vcpu, u64 time_limit,
 			if (kvmppc_vcpu_check_block(vcpu))
 				break;
 
-			trace_kvmppc_vcore_blocked(vc, 0);
+			trace_kvmppc_vcore_blocked(vcpu, 0);
 			schedule();
-			trace_kvmppc_vcore_blocked(vc, 1);
+			trace_kvmppc_vcore_blocked(vcpu, 1);
 		}
 		finish_rcuwait(wait);
 	}
@@ -4651,6 +4706,8 @@ static int kvmppc_vcpu_run_hv(struct kvm_vcpu *vcpu)
 	int srcu_idx;
 	struct kvm *kvm;
 	unsigned long msr;
+
+	start_timing(vcpu, &vcpu->arch.vcpu_entry);
 
 	if (!vcpu->arch.sane) {
 		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
@@ -4717,6 +4774,7 @@ static int kvmppc_vcpu_run_hv(struct kvm_vcpu *vcpu)
 	vcpu->arch.state = KVMPPC_VCPU_BUSY_IN_HOST;
 
 	do {
+		accumulate_time(vcpu, &vcpu->arch.guest_entry);
 		if (cpu_has_feature(CPU_FTR_ARCH_300))
 			r = kvmhv_run_single_vcpu(vcpu, ~(u64)0,
 						  vcpu->arch.vcore->lpcr);
@@ -4724,6 +4782,8 @@ static int kvmppc_vcpu_run_hv(struct kvm_vcpu *vcpu)
 			r = kvmppc_run_vcpu(vcpu);
 
 		if (run->exit_reason == KVM_EXIT_PAPR_HCALL) {
+			accumulate_time(vcpu, &vcpu->arch.hcall);
+
 			if (WARN_ON_ONCE(vcpu->arch.shregs.msr & MSR_PR)) {
 				/*
 				 * These should have been caught reflected
@@ -4739,6 +4799,7 @@ static int kvmppc_vcpu_run_hv(struct kvm_vcpu *vcpu)
 			trace_kvm_hcall_exit(vcpu, r);
 			kvmppc_core_prepare_to_enter(vcpu);
 		} else if (r == RESUME_PAGE_FAULT) {
+			accumulate_time(vcpu, &vcpu->arch.pg_fault);
 			srcu_idx = srcu_read_lock(&kvm->srcu);
 			r = kvmppc_book3s_hv_page_fault(vcpu,
 				vcpu->arch.fault_dar, vcpu->arch.fault_dsisr);
@@ -4750,11 +4811,14 @@ static int kvmppc_vcpu_run_hv(struct kvm_vcpu *vcpu)
 				r = kvmppc_xics_rm_complete(vcpu, 0);
 		}
 	} while (is_kvmppc_resume_guest(r));
+	accumulate_time(vcpu, &vcpu->arch.vcpu_exit);
 
 	vcpu->arch.state = KVMPPC_VCPU_NOTREADY;
 	atomic_dec(&kvm->arch.vcpus_running);
 
 	srr_regs_clobbered();
+
+	end_timing(vcpu);
 
 	return r;
 }
@@ -5283,6 +5347,10 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 		kvm->arch.host_lpcr = lpcr = mfspr(SPRN_LPCR);
 		lpcr &= LPCR_PECE | LPCR_LPES;
 	} else {
+		/*
+		 * The L2 LPES mode will be set by the L0 according to whether
+		 * or not it needs to take external interrupts in HV mode.
+		 */
 		lpcr = 0;
 	}
 	lpcr |= (4UL << LPCR_DPFD_SH) | LPCR_HDICE |
@@ -5597,7 +5665,7 @@ static int kvmppc_clr_passthru_irq(struct kvm *kvm, int host_irq, int guest_gsi)
 	else
 		kvmppc_xics_clr_mapped(kvm, guest_gsi, pimap->mapped[i].r_hwirq);
 
-	/* invalidate the entry (what do do on error from the above ?) */
+	/* invalidate the entry (what to do on error from the above ?) */
 	pimap->mapped[i].r_hwirq = 0;
 
 	/*

@@ -47,6 +47,9 @@
 #define smu_notify_memory_pool_location(smu)				smu_ppt_funcs(notify_memory_pool_location, 0, smu)
 #define smu_gfx_off_control(smu, enable)				smu_ppt_funcs(gfx_off_control, 0, smu, enable)
 #define smu_get_gfx_off_status(smu)						smu_ppt_funcs(get_gfx_off_status, 0, smu)
+#define smu_get_gfx_off_entrycount(smu, value)						smu_ppt_funcs(get_gfx_off_entrycount, 0, smu, value)
+#define smu_get_gfx_off_residency(smu, value)						smu_ppt_funcs(get_gfx_off_residency, 0, smu, value)
+#define smu_set_gfx_off_residency(smu, value)						smu_ppt_funcs(set_gfx_off_residency, 0, smu, value)
 #define smu_set_last_dcef_min_deep_sleep_clk(smu)			smu_ppt_funcs(set_last_dcef_min_deep_sleep_clk, 0, smu)
 #define smu_system_features_control(smu, en)				smu_ppt_funcs(system_features_control, 0, smu, en)
 #define smu_init_max_sustainable_clocks(smu)				smu_ppt_funcs(init_max_sustainable_clocks, 0, smu)
@@ -93,6 +96,7 @@
 #define smu_set_fine_grain_gfx_freq_parameters(smu)					smu_ppt_funcs(set_fine_grain_gfx_freq_parameters, 0, smu)
 #define smu_get_default_config_table_settings(smu, config_table)	smu_ppt_funcs(get_default_config_table_settings, -EOPNOTSUPP, smu, config_table)
 #define smu_set_config_table(smu, config_table)				smu_ppt_funcs(set_config_table, -EOPNOTSUPP, smu, config_table)
+#define smu_init_pptable_microcode(smu)					smu_ppt_funcs(init_pptable_microcode, 0, smu)
 
 #endif
 #endif

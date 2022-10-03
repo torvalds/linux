@@ -43,7 +43,9 @@ static int ssd130x_i2c_remove(struct i2c_client *client)
 {
 	struct ssd130x_device *ssd130x = i2c_get_clientdata(client);
 
-	return ssd130x_remove(ssd130x);
+	ssd130x_remove(ssd130x);
+
+	return 0;
 }
 
 static void ssd130x_i2c_shutdown(struct i2c_client *client)

@@ -23,9 +23,6 @@
  *
  */
 
-#include <linux/delay.h>
-#include <linux/slab.h>
-
 #include "dm_services.h"
 #include "basics/dc_common.h"
 #include "dc.h"
@@ -314,9 +311,7 @@ bool dc_stream_set_cursor_attributes(
 	const struct dc_cursor_attributes *attributes)
 {
 	struct dc  *dc;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool reset_idle_optimizations = false;
-#endif
 
 	if (NULL == stream) {
 		dm_error("DC: dc_stream is NULL!\n");
@@ -333,9 +328,13 @@ bool dc_stream_set_cursor_attributes(
 	}
 
 	dc = stream->ctx->dc;
+
+	if (dc->debug.allow_sw_cursor_fallback && attributes->height * attributes->width * 4 > 16384)
+		if (stream->mall_stream_config.type == SUBVP_MAIN)
+			return false;
+
 	stream->cursor_attributes = *attributes;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	dc_z10_restore(dc);
 	/* disable idle optimizations while updating cursor */
 	if (dc->idle_optimizations_allowed) {
@@ -343,15 +342,12 @@ bool dc_stream_set_cursor_attributes(
 		reset_idle_optimizations = true;
 	}
 
-#endif
 	program_cursor_attributes(dc, stream, attributes);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* re-enable idle optimizations if necessary */
 	if (reset_idle_optimizations)
 		dc_allow_idle_optimizations(dc, true);
 
-#endif
 	return true;
 }
 
@@ -395,10 +391,8 @@ bool dc_stream_set_cursor_position(
 	struct dc_stream_state *stream,
 	const struct dc_cursor_position *position)
 {
-	struct dc  *dc;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
+	struct dc  *dc = stream->ctx->dc;
 	bool reset_idle_optimizations = false;
-#endif
 
 	if (NULL == stream) {
 		dm_error("DC: dc_stream is NULL!\n");
@@ -411,25 +405,22 @@ bool dc_stream_set_cursor_position(
 	}
 
 	dc = stream->ctx->dc;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	dc_z10_restore(dc);
 
 	/* disable idle optimizations if enabling cursor */
-	if (dc->idle_optimizations_allowed && !stream->cursor_position.enable && position->enable) {
+	if (dc->idle_optimizations_allowed && (!stream->cursor_position.enable || dc->debug.exit_idle_opt_for_cursor_updates)
+			&& position->enable) {
 		dc_allow_idle_optimizations(dc, false);
 		reset_idle_optimizations = true;
 	}
 
-#endif
 	stream->cursor_position = *position;
 
 	program_cursor_position(dc, stream, position);
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* re-enable idle optimizations if necessary */
 	if (reset_idle_optimizations)
 		dc_allow_idle_optimizations(dc, true);
 
-#endif
 	return true;
 }
 

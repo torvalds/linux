@@ -1363,7 +1363,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			 * submission. If we don't cancel the timer now,
 			 * we will see that the timer has expired and
 			 * reschedule the tasklet; continually until the
-			 * next context switch or other preeemption event.
+			 * next context switch or other preemption event.
 			 *
 			 * Since we have decided to reschedule based on
 			 * consumption of this timeslice, if we submit the

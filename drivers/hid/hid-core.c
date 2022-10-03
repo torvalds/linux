@@ -1662,7 +1662,7 @@ static void hid_process_report(struct hid_device *hid,
 
 	/* first retrieve all incoming values in data */
 	for (a = 0; a < report->maxfield; a++)
-		hid_input_fetch_field(hid, field = report->field[a], data);
+		hid_input_fetch_field(hid, report->field[a], data);
 
 	if (!list_empty(&report->field_entry_list)) {
 		/* INPUT_REPORT, we have a priority list of fields */
@@ -2221,6 +2221,10 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 		break;
 	case BUS_VIRTUAL:
 		bus = "VIRTUAL";
+		break;
+	case BUS_INTEL_ISHTP:
+	case BUS_AMD_SFH:
+		bus = "SENSOR HUB";
 		break;
 	default:
 		bus = "<UNKNOWN>";

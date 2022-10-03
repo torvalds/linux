@@ -24,6 +24,7 @@
 #include <linux/of_net.h>
 #include <linux/cpu.h>
 
+#include "dev.h"
 #include "net-sysfs.h"
 
 #ifdef CONFIG_SYSFS
@@ -32,6 +33,7 @@ static const char fmt_dec[] = "%d\n";
 static const char fmt_ulong[] = "%lu\n";
 static const char fmt_u64[] = "%llu\n";
 
+/* Caller holds RTNL or dev_base_lock */
 static inline int dev_isalive(const struct net_device *dev)
 {
 	return dev->reg_state <= NETREG_REGISTERED;
@@ -745,7 +747,6 @@ static const struct attribute_group netstat_group = {
 	.attrs  = netstat_attrs,
 };
 
-#if IS_ENABLED(CONFIG_WIRELESS_EXT) || IS_ENABLED(CONFIG_CFG80211)
 static struct attribute *wireless_attrs[] = {
 	NULL
 };
@@ -754,7 +755,19 @@ static const struct attribute_group wireless_group = {
 	.name = "wireless",
 	.attrs = wireless_attrs,
 };
+
+static bool wireless_group_needed(struct net_device *ndev)
+{
+#if IS_ENABLED(CONFIG_CFG80211)
+	if (ndev->ieee80211_ptr)
+		return true;
 #endif
+#if IS_ENABLED(CONFIG_WIRELESS_EXT)
+	if (ndev->wireless_handlers)
+		return true;
+#endif
+	return false;
+}
 
 #else /* CONFIG_SYSFS */
 #define net_class_groups	NULL
@@ -1004,7 +1017,7 @@ static void rx_queue_release(struct kobject *kobj)
 #endif
 
 	memset(kobj, 0, sizeof(*kobj));
-	dev_put_track(queue->dev, &queue->dev_tracker);
+	netdev_put(queue->dev, &queue->dev_tracker);
 }
 
 static const void *rx_queue_namespace(struct kobject *kobj)
@@ -1044,7 +1057,7 @@ static int rx_queue_add_kobject(struct net_device *dev, int index)
 	/* Kobject_put later will trigger rx_queue_release call which
 	 * decreases dev refcount: Take that reference here
 	 */
-	dev_hold_track(queue->dev, &queue->dev_tracker, GFP_KERNEL);
+	netdev_hold(queue->dev, &queue->dev_tracker, GFP_KERNEL);
 
 	kobj->kset = dev->queues_kset;
 	error = kobject_init_and_add(kobj, &rx_queue_ktype, NULL,
@@ -1607,7 +1620,7 @@ static void netdev_queue_release(struct kobject *kobj)
 	struct netdev_queue *queue = to_netdev_queue(kobj);
 
 	memset(kobj, 0, sizeof(*kobj));
-	dev_put_track(queue->dev, &queue->dev_tracker);
+	netdev_put(queue->dev, &queue->dev_tracker);
 }
 
 static const void *netdev_queue_namespace(struct kobject *kobj)
@@ -1647,7 +1660,7 @@ static int netdev_queue_add_kobject(struct net_device *dev, int index)
 	/* Kobject_put later will trigger netdev_queue_release call
 	 * which decreases dev refcount: Take that reference here
 	 */
-	dev_hold_track(queue->dev, &queue->dev_tracker, GFP_KERNEL);
+	netdev_hold(queue->dev, &queue->dev_tracker, GFP_KERNEL);
 
 	kobj->kset = dev->queues_kset;
 	error = kobject_init_and_add(kobj, &netdev_queue_ktype, NULL,
@@ -1995,14 +2008,8 @@ int netdev_register_kobject(struct net_device *ndev)
 
 	*groups++ = &netstat_group;
 
-#if IS_ENABLED(CONFIG_WIRELESS_EXT) || IS_ENABLED(CONFIG_CFG80211)
-	if (ndev->ieee80211_ptr)
+	if (wireless_group_needed(ndev))
 		*groups++ = &wireless_group;
-#if IS_ENABLED(CONFIG_WIRELESS_EXT)
-	else if (ndev->wireless_handlers)
-		*groups++ = &wireless_group;
-#endif
-#endif
 #endif /* CONFIG_SYSFS */
 
 	error = device_add(dev);

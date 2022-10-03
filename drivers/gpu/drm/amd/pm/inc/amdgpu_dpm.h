@@ -45,6 +45,13 @@ enum amdgpu_int_thermal_type {
 	THERMAL_TYPE_KV,
 };
 
+enum amdgpu_runpm_mode {
+	AMDGPU_RUNPM_NONE,
+	AMDGPU_RUNPM_PX,
+	AMDGPU_RUNPM_BOCO,
+	AMDGPU_RUNPM_BACO,
+};
+
 struct amdgpu_ps {
 	u32 caps; /* vbios flags */
 	u32 class; /* vbios flags */
@@ -355,6 +362,8 @@ struct amdgpu_pm {
 	struct amdgpu_ctx       *stable_pstate_ctx;
 
 	struct config_table_setting config_table;
+	/* runtime mode */
+	enum amdgpu_runpm_mode rpm_mode;
 };
 
 int amdgpu_dpm_read_sensor(struct amdgpu_device *adev, enum amd_pp_sensors sensor,
@@ -385,6 +394,8 @@ int amdgpu_dpm_mode1_reset(struct amdgpu_device *adev);
 
 int amdgpu_dpm_set_mp1_state(struct amdgpu_device *adev,
 			     enum pp_mp1_state mp1_state);
+
+int amdgpu_dpm_set_gfx_power_up_by_imu(struct amdgpu_device *adev);
 
 int amdgpu_dpm_baco_exit(struct amdgpu_device *adev);
 
@@ -424,6 +435,9 @@ int amdgpu_dpm_set_soft_freq_range(struct amdgpu_device *adev,
 int amdgpu_dpm_write_watermarks_table(struct amdgpu_device *adev);
 int amdgpu_dpm_wait_for_event(struct amdgpu_device *adev, enum smu_event_type event,
 		       uint64_t event_arg);
+int amdgpu_dpm_get_residency_gfxoff(struct amdgpu_device *adev, u32 *value);
+int amdgpu_dpm_set_residency_gfxoff(struct amdgpu_device *adev, bool value);
+int amdgpu_dpm_get_entrycount_gfxoff(struct amdgpu_device *adev, u64 *value);
 int amdgpu_dpm_get_status_gfxoff(struct amdgpu_device *adev, uint32_t *value);
 uint64_t amdgpu_dpm_get_thermal_throttling_counter(struct amdgpu_device *adev);
 void amdgpu_dpm_gfx_state_change(struct amdgpu_device *adev,

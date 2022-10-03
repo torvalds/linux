@@ -8,7 +8,6 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <sys/sysinfo.h>
-#include <sys/resource.h>
 #include <signal.h>
 #include "bench.h"
 #include "testing_helpers.h"
@@ -78,6 +77,43 @@ void hits_drops_report_progress(int iter, struct bench_res *res, long delta_ns)
 
 	printf("hits %8.3lfM/s (%7.3lfM/prod), drops %8.3lfM/s, total operations %8.3lfM/s\n",
 	       hits_per_sec, hits_per_prod, drops_per_sec, hits_per_sec + drops_per_sec);
+}
+
+void
+grace_period_latency_basic_stats(struct bench_res res[], int res_cnt, struct basic_stats *gp_stat)
+{
+	int i;
+
+	memset(gp_stat, 0, sizeof(struct basic_stats));
+
+	for (i = 0; i < res_cnt; i++)
+		gp_stat->mean += res[i].gp_ns / 1000.0 / (double)res[i].gp_ct / (0.0 + res_cnt);
+
+#define IT_MEAN_DIFF (res[i].gp_ns / 1000.0 / (double)res[i].gp_ct - gp_stat->mean)
+	if (res_cnt > 1) {
+		for (i = 0; i < res_cnt; i++)
+			gp_stat->stddev += (IT_MEAN_DIFF * IT_MEAN_DIFF) / (res_cnt - 1.0);
+	}
+	gp_stat->stddev = sqrt(gp_stat->stddev);
+#undef IT_MEAN_DIFF
+}
+
+void
+grace_period_ticks_basic_stats(struct bench_res res[], int res_cnt, struct basic_stats *gp_stat)
+{
+	int i;
+
+	memset(gp_stat, 0, sizeof(struct basic_stats));
+	for (i = 0; i < res_cnt; i++)
+		gp_stat->mean += res[i].stime / (double)res[i].gp_ct / (0.0 + res_cnt);
+
+#define IT_MEAN_DIFF (res[i].stime / (double)res[i].gp_ct - gp_stat->mean)
+	if (res_cnt > 1) {
+		for (i = 0; i < res_cnt; i++)
+			gp_stat->stddev += (IT_MEAN_DIFF * IT_MEAN_DIFF) / (res_cnt - 1.0);
+	}
+	gp_stat->stddev = sqrt(gp_stat->stddev);
+#undef IT_MEAN_DIFF
 }
 
 void hits_drops_report_final(struct bench_res res[], int res_cnt)
@@ -151,6 +187,53 @@ void ops_report_final(struct bench_res res[], int res_cnt)
 	printf("latency %8.3lf ns/op\n", 1000.0 / hits_mean * env.producer_cnt);
 }
 
+void local_storage_report_progress(int iter, struct bench_res *res,
+				   long delta_ns)
+{
+	double important_hits_per_sec, hits_per_sec;
+	double delta_sec = delta_ns / 1000000000.0;
+
+	hits_per_sec = res->hits / 1000000.0 / delta_sec;
+	important_hits_per_sec = res->important_hits / 1000000.0 / delta_sec;
+
+	printf("Iter %3d (%7.3lfus): ", iter, (delta_ns - 1000000000) / 1000.0);
+
+	printf("hits %8.3lfM/s ", hits_per_sec);
+	printf("important_hits %8.3lfM/s\n", important_hits_per_sec);
+}
+
+void local_storage_report_final(struct bench_res res[], int res_cnt)
+{
+	double important_hits_mean = 0.0, important_hits_stddev = 0.0;
+	double hits_mean = 0.0, hits_stddev = 0.0;
+	int i;
+
+	for (i = 0; i < res_cnt; i++) {
+		hits_mean += res[i].hits / 1000000.0 / (0.0 + res_cnt);
+		important_hits_mean += res[i].important_hits / 1000000.0 / (0.0 + res_cnt);
+	}
+
+	if (res_cnt > 1)  {
+		for (i = 0; i < res_cnt; i++) {
+			hits_stddev += (hits_mean - res[i].hits / 1000000.0) *
+				       (hits_mean - res[i].hits / 1000000.0) /
+				       (res_cnt - 1.0);
+			important_hits_stddev +=
+				       (important_hits_mean - res[i].important_hits / 1000000.0) *
+				       (important_hits_mean - res[i].important_hits / 1000000.0) /
+				       (res_cnt - 1.0);
+		}
+
+		hits_stddev = sqrt(hits_stddev);
+		important_hits_stddev = sqrt(important_hits_stddev);
+	}
+	printf("Summary: hits throughput %8.3lf \u00B1 %5.3lf M ops/s, ",
+	       hits_mean, hits_stddev);
+	printf("hits latency %8.3lf ns/op, ", 1000.0 / hits_mean);
+	printf("important_hits throughput %8.3lf \u00B1 %5.3lf M ops/s\n",
+	       important_hits_mean, important_hits_stddev);
+}
+
 const char *argp_program_version = "benchmark";
 const char *argp_program_bug_address = "<bpf@vger.kernel.org>";
 const char argp_program_doc[] =
@@ -189,13 +272,18 @@ static const struct argp_option opts[] = {
 extern struct argp bench_ringbufs_argp;
 extern struct argp bench_bloom_map_argp;
 extern struct argp bench_bpf_loop_argp;
+extern struct argp bench_local_storage_argp;
+extern struct argp bench_local_storage_rcu_tasks_trace_argp;
 extern struct argp bench_strncmp_argp;
 
 static const struct argp_child bench_parsers[] = {
 	{ &bench_ringbufs_argp, 0, "Ring buffers benchmark", 0 },
 	{ &bench_bloom_map_argp, 0, "Bloom filter map benchmark", 0 },
 	{ &bench_bpf_loop_argp, 0, "bpf_loop helper benchmark", 0 },
+	{ &bench_local_storage_argp, 0, "local_storage benchmark", 0 },
 	{ &bench_strncmp_argp, 0, "bpf_strncmp helper benchmark", 0 },
+	{ &bench_local_storage_rcu_tasks_trace_argp, 0,
+		"local_storage RCU Tasks Trace slowdown benchmark", 0 },
 	{},
 };
 
@@ -397,6 +485,11 @@ extern const struct bench bench_hashmap_with_bloom;
 extern const struct bench bench_bpf_loop;
 extern const struct bench bench_strncmp_no_helper;
 extern const struct bench bench_strncmp_helper;
+extern const struct bench bench_bpf_hashmap_full_update;
+extern const struct bench bench_local_storage_cache_seq_get;
+extern const struct bench bench_local_storage_cache_interleaved_get;
+extern const struct bench bench_local_storage_cache_hashmap_control;
+extern const struct bench bench_local_storage_tasks_trace;
 
 static const struct bench *benchs[] = {
 	&bench_count_global,
@@ -431,6 +524,11 @@ static const struct bench *benchs[] = {
 	&bench_bpf_loop,
 	&bench_strncmp_no_helper,
 	&bench_strncmp_helper,
+	&bench_bpf_hashmap_full_update,
+	&bench_local_storage_cache_seq_get,
+	&bench_local_storage_cache_interleaved_get,
+	&bench_local_storage_cache_hashmap_control,
+	&bench_local_storage_tasks_trace,
 };
 
 static void setup_benchmark()

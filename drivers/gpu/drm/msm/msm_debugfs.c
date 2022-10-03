@@ -7,9 +7,11 @@
 #ifdef CONFIG_DEBUG_FS
 
 #include <linux/debugfs.h>
+#include <linux/fault-inject.h>
 
 #include <drm/drm_debugfs.h>
 #include <drm/drm_file.h>
+#include <drm/drm_framebuffer.h>
 
 #include "msm_drv.h"
 #include "msm_gpu.h"
@@ -325,6 +327,13 @@ void msm_debugfs_init(struct drm_minor *minor)
 
 	if (priv->kms && priv->kms->funcs->debugfs_init)
 		priv->kms->funcs->debugfs_init(priv->kms, minor);
+
+#ifdef CONFIG_FAULT_INJECTION
+	fault_create_debugfs_attr("fail_gem_alloc", minor->debugfs_root,
+				  &fail_gem_alloc);
+	fault_create_debugfs_attr("fail_gem_iova", minor->debugfs_root,
+				  &fail_gem_iova);
+#endif
 }
 #endif
 

@@ -46,6 +46,9 @@ struct efi __read_mostly efi = {
 #ifdef CONFIG_LOAD_UEFI_KEYS
 	.mokvar_table		= EFI_INVALID_TABLE_ADDR,
 #endif
+#ifdef CONFIG_EFI_COCO_SECRET
+	.coco_secret		= EFI_INVALID_TABLE_ADDR,
+#endif
 };
 EXPORT_SYMBOL(efi);
 
@@ -66,7 +69,7 @@ struct mm_struct efi_mm = {
 
 struct workqueue_struct *efi_rts_wq;
 
-static bool disable_runtime = IS_ENABLED(CONFIG_PREEMPT_RT);
+static bool disable_runtime = IS_ENABLED(CONFIG_EFI_DISABLE_RUNTIME);
 static int __init setup_noefi(char *arg)
 {
 	disable_runtime = true;
@@ -199,7 +202,7 @@ static void generic_ops_unregister(void)
 }
 
 #ifdef CONFIG_EFI_CUSTOM_SSDT_OVERLAYS
-#define EFIVAR_SSDT_NAME_MAX	16
+#define EFIVAR_SSDT_NAME_MAX	16UL
 static char efivar_ssdt[EFIVAR_SSDT_NAME_MAX] __initdata;
 static int __init efivar_ssdt_setup(char *str)
 {
@@ -216,83 +219,62 @@ static int __init efivar_ssdt_setup(char *str)
 }
 __setup("efivar_ssdt=", efivar_ssdt_setup);
 
-static __init int efivar_ssdt_iter(efi_char16_t *name, efi_guid_t vendor,
-				   unsigned long name_size, void *data)
-{
-	struct efivar_entry *entry;
-	struct list_head *list = data;
-	char utf8_name[EFIVAR_SSDT_NAME_MAX];
-	int limit = min_t(unsigned long, EFIVAR_SSDT_NAME_MAX, name_size);
-
-	ucs2_as_utf8(utf8_name, name, limit - 1);
-	if (strncmp(utf8_name, efivar_ssdt, limit) != 0)
-		return 0;
-
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry)
-		return 0;
-
-	memcpy(entry->var.VariableName, name, name_size);
-	memcpy(&entry->var.VendorGuid, &vendor, sizeof(efi_guid_t));
-
-	efivar_entry_add(entry, list);
-
-	return 0;
-}
-
 static __init int efivar_ssdt_load(void)
 {
-	LIST_HEAD(entries);
-	struct efivar_entry *entry, *aux;
-	unsigned long size;
-	void *data;
-	int ret;
+	unsigned long name_size = 256;
+	efi_char16_t *name = NULL;
+	efi_status_t status;
+	efi_guid_t guid;
 
 	if (!efivar_ssdt[0])
 		return 0;
 
-	ret = efivar_init(efivar_ssdt_iter, &entries, true, &entries);
+	name = kzalloc(name_size, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
 
-	list_for_each_entry_safe(entry, aux, &entries, list) {
-		pr_info("loading SSDT from variable %s-%pUl\n", efivar_ssdt,
-			&entry->var.VendorGuid);
+	for (;;) {
+		char utf8_name[EFIVAR_SSDT_NAME_MAX];
+		unsigned long data_size = 0;
+		void *data;
+		int limit;
 
-		list_del(&entry->list);
-
-		ret = efivar_entry_size(entry, &size);
-		if (ret) {
-			pr_err("failed to get var size\n");
-			goto free_entry;
+		status = efi.get_next_variable(&name_size, name, &guid);
+		if (status == EFI_NOT_FOUND) {
+			break;
+		} else if (status == EFI_BUFFER_TOO_SMALL) {
+			name = krealloc(name, name_size, GFP_KERNEL);
+			if (!name)
+				return -ENOMEM;
+			continue;
 		}
 
-		data = kmalloc(size, GFP_KERNEL);
-		if (!data) {
-			ret = -ENOMEM;
-			goto free_entry;
+		limit = min(EFIVAR_SSDT_NAME_MAX, name_size);
+		ucs2_as_utf8(utf8_name, name, limit - 1);
+		if (strncmp(utf8_name, efivar_ssdt, limit) != 0)
+			continue;
+
+		pr_info("loading SSDT from variable %s-%pUl\n", efivar_ssdt, &guid);
+
+		status = efi.get_variable(name, &guid, NULL, &data_size, NULL);
+		if (status != EFI_BUFFER_TOO_SMALL || !data_size)
+			return -EIO;
+
+		data = kmalloc(data_size, GFP_KERNEL);
+		if (!data)
+			return -ENOMEM;
+
+		status = efi.get_variable(name, &guid, NULL, &data_size, data);
+		if (status == EFI_SUCCESS) {
+			acpi_status ret = acpi_load_table(data, NULL);
+			if (ret)
+				pr_err("failed to load table: %u\n", ret);
+		} else {
+			pr_err("failed to get var data: 0x%lx\n", status);
 		}
-
-		ret = efivar_entry_get(entry, NULL, &size, data);
-		if (ret) {
-			pr_err("failed to get var data\n");
-			goto free_data;
-		}
-
-		ret = acpi_load_table(data, NULL);
-		if (ret) {
-			pr_err("failed to load table: %d\n", ret);
-			goto free_data;
-		}
-
-		goto free_entry;
-
-free_data:
 		kfree(data);
-
-free_entry:
-		kfree(entry);
 	}
-
-	return ret;
+	return 0;
 }
 #else
 static inline int efivar_ssdt_load(void) { return 0; }
@@ -422,6 +404,11 @@ static int __init efisubsys_init(void)
 	if (efi_enabled(EFI_DBG) && efi_enabled(EFI_PRESERVE_BS_REGIONS))
 		efi_debugfs_init();
 
+#ifdef CONFIG_EFI_COCO_SECRET
+	if (efi.coco_secret != EFI_INVALID_TABLE_ADDR)
+		platform_device_register_simple("efi_secret", 0, NULL, 0);
+#endif
+
 	return 0;
 
 err_remove_group:
@@ -437,6 +424,29 @@ err_put:
 }
 
 subsys_initcall(efisubsys_init);
+
+void __init efi_find_mirror(void)
+{
+	efi_memory_desc_t *md;
+	u64 mirror_size = 0, total_size = 0;
+
+	if (!efi_enabled(EFI_MEMMAP))
+		return;
+
+	for_each_efi_memory_desc(md) {
+		unsigned long long start = md->phys_addr;
+		unsigned long long size = md->num_pages << EFI_PAGE_SHIFT;
+
+		total_size += size;
+		if (md->attribute & EFI_MEMORY_MORE_RELIABLE) {
+			memblock_mark_mirror(start, size);
+			mirror_size += size;
+		}
+	}
+	if (mirror_size)
+		pr_info("Memory: %lldM/%lldM mirrored memory\n",
+			mirror_size>>20, total_size>>20);
+}
 
 /*
  * Find the efi memory descriptor for a given physical address.  Given a
@@ -528,6 +538,9 @@ static const efi_config_table_type_t common_tables[] __initconst = {
 #endif
 #ifdef CONFIG_LOAD_UEFI_KEYS
 	{LINUX_EFI_MOK_VARIABLE_TABLE_GUID,	&efi.mokvar_table,	"MOKvar"	},
+#endif
+#ifdef CONFIG_EFI_COCO_SECRET
+	{LINUX_EFI_COCO_SECRET_AREA_GUID,	&efi.coco_secret,	"CocoSecret"	},
 #endif
 	{},
 };
@@ -886,6 +899,7 @@ int efi_status_to_err(efi_status_t status)
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(efi_status_to_err);
 
 static DEFINE_SPINLOCK(efi_mem_reserve_persistent_lock);
 static struct linux_efi_memreserve *efi_memreserve_root __ro_after_init;

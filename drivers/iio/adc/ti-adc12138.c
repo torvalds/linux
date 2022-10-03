@@ -55,7 +55,7 @@ struct adc12138 {
 	 */
 	__be16 data[20] __aligned(8);
 
-	u8 tx_buf[2] ____cacheline_aligned;
+	u8 tx_buf[2] __aligned(IIO_DMA_MINALIGN);
 	u8 rx_buf[2];
 };
 

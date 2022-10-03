@@ -7,6 +7,7 @@
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <sound/pcm.h>
@@ -75,6 +76,7 @@ enum {
 struct rt9120_data {
 	struct device *dev;
 	struct regmap *regmap;
+	struct gpio_desc *pwdnn_gpio;
 	int chip_idx;
 };
 
@@ -160,12 +162,17 @@ static int rt9120_codec_probe(struct snd_soc_component *comp)
 
 	snd_soc_component_init_regmap(comp, data->regmap);
 
+	pm_runtime_get_sync(comp->dev);
+
 	/* Internal setting */
 	if (data->chip_idx == CHIP_IDX_RT9120S) {
 		snd_soc_component_write(comp, RT9120_REG_INTERCFG, 0xde);
 		snd_soc_component_write(comp, RT9120_REG_INTERNAL0, 0x66);
 	} else
 		snd_soc_component_write(comp, RT9120_REG_INTERNAL0, 0x04);
+
+	pm_runtime_mark_last_busy(comp->dev);
+	pm_runtime_put(comp->dev);
 
 	return 0;
 }
@@ -178,6 +185,7 @@ static const struct snd_soc_component_driver rt9120_component_driver = {
 	.num_dapm_widgets = ARRAY_SIZE(rt9120_dapm_widgets),
 	.dapm_routes = rt9120_dapm_routes,
 	.num_dapm_routes = ARRAY_SIZE(rt9120_dapm_routes),
+	.endianness = 1,
 };
 
 static int rt9120_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
@@ -337,11 +345,22 @@ static const struct regmap_access_table rt9120_wr_table = {
 	.n_yes_ranges = ARRAY_SIZE(rt9120_wr_yes_ranges),
 };
 
+static bool rt9120_volatile_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case 0x00 ... 0x01:
+	case 0x10:
+	case 0x30 ... 0x40:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static int rt9120_get_reg_size(unsigned int reg)
 {
 	switch (reg) {
 	case 0x00:
-	case 0x09:
 	case 0x20 ... 0x27:
 		return 2;
 	case 0x30 ... 0x3D:
@@ -372,7 +391,7 @@ static int rt9120_reg_read(void *context, unsigned int reg, unsigned int *val)
 		*val = be32_to_cpup((__be32 *)raw);
 		break;
 	case 3:
-		*val = raw[0] << 16 | raw[1] << 8 | raw[0];
+		*val = raw[0] << 16 | raw[1] << 8 | raw[2];
 		break;
 	case 2:
 		*val = be16_to_cpup((__be16 *)raw);
@@ -397,14 +416,49 @@ static int rt9120_reg_write(void *context, unsigned int reg, unsigned int val)
 	return i2c_smbus_write_i2c_block_data(i2c, reg, size, rawp + offs);
 }
 
+static const struct reg_default rt9120_reg_defaults[] = {
+	{ .reg = 0x02, .def = 0x02 },
+	{ .reg = 0x03, .def = 0xf2 },
+	{ .reg = 0x04, .def = 0x01 },
+	{ .reg = 0x05, .def = 0xc0 },
+	{ .reg = 0x06, .def = 0x28 },
+	{ .reg = 0x07, .def = 0x04 },
+	{ .reg = 0x08, .def = 0xff },
+	{ .reg = 0x09, .def = 0x01 },
+	{ .reg = 0x0a, .def = 0x01 },
+	{ .reg = 0x0b, .def = 0x00 },
+	{ .reg = 0x0c, .def = 0x04 },
+	{ .reg = 0x11, .def = 0x30 },
+	{ .reg = 0x12, .def = 0x08 },
+	{ .reg = 0x13, .def = 0x12 },
+	{ .reg = 0x14, .def = 0x09 },
+	{ .reg = 0x15, .def = 0x00 },
+	{ .reg = 0x20, .def = 0x7ff },
+	{ .reg = 0x21, .def = 0x180 },
+	{ .reg = 0x22, .def = 0x180 },
+	{ .reg = 0x23, .def = 0x00 },
+	{ .reg = 0x24, .def = 0x80 },
+	{ .reg = 0x25, .def = 0x180 },
+	{ .reg = 0x26, .def = 0x640 },
+	{ .reg = 0x27, .def = 0x180 },
+	{ .reg = 0x63, .def = 0x5e },
+	{ .reg = 0x65, .def = 0x66 },
+	{ .reg = 0x6c, .def = 0xe0 },
+	{ .reg = 0xf8, .def = 0x44 },
+};
+
 static const struct regmap_config rt9120_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 32,
 	.max_register = RT9120_REG_DIGCFG,
+	.reg_defaults = rt9120_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(rt9120_reg_defaults),
+	.cache_type = REGCACHE_RBTREE,
 
 	.reg_read = rt9120_reg_read,
 	.reg_write = rt9120_reg_write,
 
+	.volatile_reg = rt9120_volatile_reg,
 	.wr_table = &rt9120_wr_table,
 	.rd_table = &rt9120_rd_table,
 };
@@ -450,7 +504,6 @@ static int rt9120_do_register_reset(struct rt9120_data *data)
 static int rt9120_probe(struct i2c_client *i2c)
 {
 	struct rt9120_data *data;
-	struct gpio_desc *pwdnn_gpio;
 	struct regulator *dvdd_supply;
 	int dvdd_supply_volt, ret;
 
@@ -461,12 +514,12 @@ static int rt9120_probe(struct i2c_client *i2c)
 	data->dev = &i2c->dev;
 	i2c_set_clientdata(i2c, data);
 
-	pwdnn_gpio = devm_gpiod_get_optional(&i2c->dev, "pwdnn",
-					     GPIOD_OUT_HIGH);
-	if (IS_ERR(pwdnn_gpio)) {
+	data->pwdnn_gpio = devm_gpiod_get_optional(&i2c->dev, "pwdnn",
+						   GPIOD_OUT_HIGH);
+	if (IS_ERR(data->pwdnn_gpio)) {
 		dev_err(&i2c->dev, "Failed to initialize 'pwdnn' gpio\n");
-		return PTR_ERR(pwdnn_gpio);
-	} else if (pwdnn_gpio) {
+		return PTR_ERR(data->pwdnn_gpio);
+	} else if (data->pwdnn_gpio) {
 		dev_dbg(&i2c->dev, "'pwdnn' from low to high, wait chip on\n");
 		msleep(RT9120_CHIPON_WAITMS);
 	}
@@ -508,10 +561,54 @@ static int rt9120_probe(struct i2c_client *i2c)
 		}
 	}
 
+	pm_runtime_set_autosuspend_delay(&i2c->dev, 1000);
+	pm_runtime_use_autosuspend(&i2c->dev);
+	pm_runtime_set_active(&i2c->dev);
+	pm_runtime_mark_last_busy(&i2c->dev);
+	pm_runtime_enable(&i2c->dev);
+
 	return devm_snd_soc_register_component(&i2c->dev,
 					       &rt9120_component_driver,
 					       &rt9120_dai, 1);
 }
+
+static int rt9120_remove(struct i2c_client *i2c)
+{
+	pm_runtime_disable(&i2c->dev);
+	pm_runtime_set_suspended(&i2c->dev);
+	return 0;
+}
+
+static int __maybe_unused rt9120_runtime_suspend(struct device *dev)
+{
+	struct rt9120_data *data = dev_get_drvdata(dev);
+
+	if (data->pwdnn_gpio) {
+		regcache_cache_only(data->regmap, true);
+		regcache_mark_dirty(data->regmap);
+		gpiod_set_value(data->pwdnn_gpio, 0);
+	}
+
+	return 0;
+}
+
+static int __maybe_unused rt9120_runtime_resume(struct device *dev)
+{
+	struct rt9120_data *data = dev_get_drvdata(dev);
+
+	if (data->pwdnn_gpio) {
+		gpiod_set_value(data->pwdnn_gpio, 1);
+		msleep(RT9120_CHIPON_WAITMS);
+		regcache_cache_only(data->regmap, false);
+		regcache_sync(data->regmap);
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops rt9120_pm_ops = {
+	SET_RUNTIME_PM_OPS(rt9120_runtime_suspend, rt9120_runtime_resume, NULL)
+};
 
 static const struct of_device_id __maybe_unused rt9120_device_table[] = {
 	{ .compatible = "richtek,rt9120", },
@@ -523,8 +620,10 @@ static struct i2c_driver rt9120_driver = {
 	.driver = {
 		.name = "rt9120",
 		.of_match_table = rt9120_device_table,
+		.pm = &rt9120_pm_ops,
 	},
 	.probe_new = rt9120_probe,
+	.remove = rt9120_remove,
 };
 module_i2c_driver(rt9120_driver);
 

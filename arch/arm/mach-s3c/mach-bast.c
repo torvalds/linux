@@ -75,11 +75,6 @@ static struct map_desc bast_iodesc[] __initdata = {
 	  .pfn		= PA_CS2(BAST_PA_ISAIO),
 	  .length	= SZ_16M,
 	  .type		= MT_DEVICE,
-  }, {
-	  .virtual	= (u32)S3C24XX_VA_ISA_WORD,
-	  .pfn		= PA_CS3(BAST_PA_ISAIO),
-	  .length	= SZ_16M,
-	  .type		= MT_DEVICE,
   },
   /* bast CPLD control registers, and external interrupt controls */
   {
@@ -580,6 +575,7 @@ static void __init bast_init(void)
 MACHINE_START(BAST, "Simtec-BAST")
 	/* Maintainer: Ben Dooks <ben@simtec.co.uk> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= NR_IRQS_S3C2410,
 	.map_io		= bast_map_io,
 	.init_irq	= s3c2410_init_irq,
 	.init_machine	= bast_init,

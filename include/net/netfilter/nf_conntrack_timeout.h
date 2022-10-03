@@ -17,14 +17,6 @@ struct nf_ct_timeout {
 	char			data[];
 };
 
-struct ctnl_timeout {
-	struct list_head	head;
-	struct rcu_head		rcu_head;
-	refcount_t		refcnt;
-	char			name[CTNL_TIMEOUT_NAME_MAX];
-	struct nf_ct_timeout	timeout;
-};
-
 struct nf_conn_timeout {
 	struct nf_ct_timeout __rcu *timeout;
 };
@@ -113,7 +105,7 @@ struct nf_ct_timeout_hooks {
 	void (*timeout_put)(struct nf_ct_timeout *timeout);
 };
 
-extern const struct nf_ct_timeout_hooks *nf_ct_timeout_hook;
+extern const struct nf_ct_timeout_hooks __rcu *nf_ct_timeout_hook;
 #endif
 
 #endif /* _NF_CONNTRACK_TIMEOUT_H */

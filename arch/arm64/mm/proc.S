@@ -14,6 +14,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/asm_pointer_auth.h>
 #include <asm/hwcap.h>
+#include <asm/kernel-pgtable.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/cpufeature.h>
 #include <asm/alternative.h>
@@ -200,34 +201,64 @@ SYM_FUNC_END(idmap_cpu_replace_ttbr1)
 	.popsection
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
+
+#define KPTI_NG_PTE_FLAGS	(PTE_ATTRINDX(MT_NORMAL) | SWAPPER_PTE_FLAGS)
+
 	.pushsection ".idmap.text", "awx"
 
-	.macro	__idmap_kpti_get_pgtable_ent, type
-	dc	cvac, cur_\()\type\()p		// Ensure any existing dirty
-	dmb	sy				// lines are written back before
-	ldr	\type, [cur_\()\type\()p]	// loading the entry
-	tbz	\type, #0, skip_\()\type	// Skip invalid and
-	tbnz	\type, #11, skip_\()\type	// non-global entries
+	.macro	kpti_mk_tbl_ng, type, num_entries
+	add	end_\type\()p, cur_\type\()p, #\num_entries * 8
+.Ldo_\type:
+	ldr	\type, [cur_\type\()p]		// Load the entry
+	tbz	\type, #0, .Lnext_\type		// Skip invalid and
+	tbnz	\type, #11, .Lnext_\type	// non-global entries
+	orr	\type, \type, #PTE_NG		// Same bit for blocks and pages
+	str	\type, [cur_\type\()p]		// Update the entry
+	.ifnc	\type, pte
+	tbnz	\type, #1, .Lderef_\type
+	.endif
+.Lnext_\type:
+	add	cur_\type\()p, cur_\type\()p, #8
+	cmp	cur_\type\()p, end_\type\()p
+	b.ne	.Ldo_\type
 	.endm
 
-	.macro __idmap_kpti_put_pgtable_ent_ng, type
-	orr	\type, \type, #PTE_NG		// Same bit for blocks and pages
-	str	\type, [cur_\()\type\()p]	// Update the entry and ensure
-	dmb	sy				// that it is visible to all
-	dc	civac, cur_\()\type\()p		// CPUs.
+	/*
+	 * Dereference the current table entry and map it into the temporary
+	 * fixmap slot associated with the current level.
+	 */
+	.macro	kpti_map_pgtbl, type, level
+	str	xzr, [temp_pte, #8 * (\level + 1)]	// break before make
+	dsb	nshst
+	add	pte, temp_pte, #PAGE_SIZE * (\level + 1)
+	lsr	pte, pte, #12
+	tlbi	vaae1, pte
+	dsb	nsh
+	isb
+
+	phys_to_pte pte, cur_\type\()p
+	add	cur_\type\()p, temp_pte, #PAGE_SIZE * (\level + 1)
+	orr	pte, pte, pte_flags
+	str	pte, [temp_pte, #8 * (\level + 1)]
+	dsb	nshst
 	.endm
 
 /*
- * void __kpti_install_ng_mappings(int cpu, int num_cpus, phys_addr_t swapper)
+ * void __kpti_install_ng_mappings(int cpu, int num_secondaries, phys_addr_t temp_pgd,
+ *				   unsigned long temp_pte_va)
  *
  * Called exactly once from stop_machine context by each CPU found during boot.
  */
-__idmap_kpti_flag:
-	.long	1
+	.pushsection	".data", "aw", %progbits
+SYM_DATA(__idmap_kpti_flag, .long 1)
+	.popsection
+
 SYM_FUNC_START(idmap_kpti_install_ng_mappings)
 	cpu		.req	w0
+	temp_pte	.req	x0
 	num_cpus	.req	w1
-	swapper_pa	.req	x2
+	pte_flags	.req	x1
+	temp_pgd_phys	.req	x2
 	swapper_ttb	.req	x3
 	flag_ptr	.req	x4
 	cur_pgdp	.req	x5
@@ -235,17 +266,16 @@ SYM_FUNC_START(idmap_kpti_install_ng_mappings)
 	pgd		.req	x7
 	cur_pudp	.req	x8
 	end_pudp	.req	x9
-	pud		.req	x10
 	cur_pmdp	.req	x11
 	end_pmdp	.req	x12
-	pmd		.req	x13
 	cur_ptep	.req	x14
 	end_ptep	.req	x15
 	pte		.req	x16
+	valid		.req	x17
 
+	mov	x5, x3				// preserve temp_pte arg
 	mrs	swapper_ttb, ttbr1_el1
-	restore_ttbr1	swapper_ttb
-	adr	flag_ptr, __idmap_kpti_flag
+	adr_l	flag_ptr, __idmap_kpti_flag
 
 	cbnz	cpu, __idmap_kpti_secondary
 
@@ -256,98 +286,71 @@ SYM_FUNC_START(idmap_kpti_install_ng_mappings)
 	eor	w17, w17, num_cpus
 	cbnz	w17, 1b
 
-	/* We need to walk swapper, so turn off the MMU. */
-	pre_disable_mmu_workaround
-	mrs	x17, sctlr_el1
-	bic	x17, x17, #SCTLR_ELx_M
-	msr	sctlr_el1, x17
+	/* Switch to the temporary page tables on this CPU only */
+	__idmap_cpu_set_reserved_ttbr1 x8, x9
+	offset_ttbr1 temp_pgd_phys, x8
+	msr	ttbr1_el1, temp_pgd_phys
 	isb
+
+	mov	temp_pte, x5
+	mov	pte_flags, #KPTI_NG_PTE_FLAGS
 
 	/* Everybody is enjoying the idmap, so we can rewrite swapper. */
 	/* PGD */
-	mov	cur_pgdp, swapper_pa
-	add	end_pgdp, cur_pgdp, #(PTRS_PER_PGD * 8)
-do_pgd:	__idmap_kpti_get_pgtable_ent	pgd
-	tbnz	pgd, #1, walk_puds
-next_pgd:
-	__idmap_kpti_put_pgtable_ent_ng	pgd
-skip_pgd:
-	add	cur_pgdp, cur_pgdp, #8
-	cmp	cur_pgdp, end_pgdp
-	b.ne	do_pgd
+	adrp		cur_pgdp, swapper_pg_dir
+	kpti_map_pgtbl	pgd, 0
+	kpti_mk_tbl_ng	pgd, PTRS_PER_PGD
 
-	/* Publish the updated tables and nuke all the TLBs */
-	dsb	sy
-	tlbi	vmalle1is
-	dsb	ish
+	/* Ensure all the updated entries are visible to secondary CPUs */
+	dsb	ishst
+
+	/* We're done: fire up swapper_pg_dir again */
+	__idmap_cpu_set_reserved_ttbr1 x8, x9
+	msr	ttbr1_el1, swapper_ttb
 	isb
-
-	/* We're done: fire up the MMU again */
-	mrs	x17, sctlr_el1
-	orr	x17, x17, #SCTLR_ELx_M
-	set_sctlr_el1	x17
 
 	/* Set the flag to zero to indicate that we're all done */
 	str	wzr, [flag_ptr]
 	ret
 
+.Lderef_pgd:
 	/* PUD */
-walk_puds:
-	.if CONFIG_PGTABLE_LEVELS > 3
+	.if		CONFIG_PGTABLE_LEVELS > 3
+	pud		.req	x10
 	pte_to_phys	cur_pudp, pgd
-	add	end_pudp, cur_pudp, #(PTRS_PER_PUD * 8)
-do_pud:	__idmap_kpti_get_pgtable_ent	pud
-	tbnz	pud, #1, walk_pmds
-next_pud:
-	__idmap_kpti_put_pgtable_ent_ng	pud
-skip_pud:
-	add	cur_pudp, cur_pudp, 8
-	cmp	cur_pudp, end_pudp
-	b.ne	do_pud
-	b	next_pgd
-	.else /* CONFIG_PGTABLE_LEVELS <= 3 */
-	mov	pud, pgd
-	b	walk_pmds
-next_pud:
-	b	next_pgd
+	kpti_map_pgtbl	pud, 1
+	kpti_mk_tbl_ng	pud, PTRS_PER_PUD
+	b		.Lnext_pgd
+	.else		/* CONFIG_PGTABLE_LEVELS <= 3 */
+	pud		.req	pgd
+	.set		.Lnext_pud, .Lnext_pgd
 	.endif
 
+.Lderef_pud:
 	/* PMD */
-walk_pmds:
-	.if CONFIG_PGTABLE_LEVELS > 2
+	.if		CONFIG_PGTABLE_LEVELS > 2
+	pmd		.req	x13
 	pte_to_phys	cur_pmdp, pud
-	add	end_pmdp, cur_pmdp, #(PTRS_PER_PMD * 8)
-do_pmd:	__idmap_kpti_get_pgtable_ent	pmd
-	tbnz	pmd, #1, walk_ptes
-next_pmd:
-	__idmap_kpti_put_pgtable_ent_ng	pmd
-skip_pmd:
-	add	cur_pmdp, cur_pmdp, #8
-	cmp	cur_pmdp, end_pmdp
-	b.ne	do_pmd
-	b	next_pud
-	.else /* CONFIG_PGTABLE_LEVELS <= 2 */
-	mov	pmd, pud
-	b	walk_ptes
-next_pmd:
-	b	next_pud
+	kpti_map_pgtbl	pmd, 2
+	kpti_mk_tbl_ng	pmd, PTRS_PER_PMD
+	b		.Lnext_pud
+	.else		/* CONFIG_PGTABLE_LEVELS <= 2 */
+	pmd		.req	pgd
+	.set		.Lnext_pmd, .Lnext_pgd
 	.endif
 
+.Lderef_pmd:
 	/* PTE */
-walk_ptes:
 	pte_to_phys	cur_ptep, pmd
-	add	end_ptep, cur_ptep, #(PTRS_PER_PTE * 8)
-do_pte:	__idmap_kpti_get_pgtable_ent	pte
-	__idmap_kpti_put_pgtable_ent_ng	pte
-skip_pte:
-	add	cur_ptep, cur_ptep, #8
-	cmp	cur_ptep, end_ptep
-	b.ne	do_pte
-	b	next_pmd
+	kpti_map_pgtbl	pte, 3
+	kpti_mk_tbl_ng	pte, PTRS_PER_PTE
+	b		.Lnext_pmd
 
 	.unreq	cpu
+	.unreq	temp_pte
 	.unreq	num_cpus
-	.unreq	swapper_pa
+	.unreq	pte_flags
+	.unreq	temp_pgd_phys
 	.unreq	cur_pgdp
 	.unreq	end_pgdp
 	.unreq	pgd
@@ -360,6 +363,7 @@ skip_pte:
 	.unreq	cur_ptep
 	.unreq	end_ptep
 	.unreq	pte
+	.unreq	valid
 
 	/* Secondary CPUs end up here */
 __idmap_kpti_secondary:
@@ -379,7 +383,6 @@ __idmap_kpti_secondary:
 	cbnz	w16, 1b
 
 	/* All done, act like nothing happened */
-	offset_ttbr1 swapper_ttb, x16
 	msr	ttbr1_el1, swapper_ttb
 	isb
 	ret
@@ -395,6 +398,8 @@ SYM_FUNC_END(idmap_kpti_install_ng_mappings)
  *
  *	Initialise the processor for turning the MMU on.
  *
+ * Input:
+ *	x0 - actual number of VA bits (ignored unless VA_BITS > 48)
  * Output:
  *	Return in x0 the value of the SCTLR_EL1 register.
  */
@@ -464,12 +469,11 @@ SYM_FUNC_START(__cpu_setup)
 	tcr_clear_errata_bits tcr, x9, x5
 
 #ifdef CONFIG_ARM64_VA_BITS_52
-	ldr_l		x9, vabits_actual
-	sub		x9, xzr, x9
+	sub		x9, xzr, x0
 	add		x9, x9, #64
 	tcr_set_t1sz	tcr, x9
 #else
-	ldr_l		x9, idmap_t0sz
+	idmap_get_t0sz	x9
 #endif
 	tcr_set_t0sz	tcr, x9
 

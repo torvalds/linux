@@ -42,7 +42,7 @@ typedef __s64	Elf64_Sxword;
 
 
 /* ARM MTE memory tag segment type */
-#define PT_ARM_MEMTAG_MTE	(PT_LOPROC + 0x1)
+#define PT_AARCH64_MEMTAG_MTE	(PT_LOPROC + 0x2)
 
 /*
  * Extended Numbering
@@ -134,7 +134,7 @@ typedef __s64	Elf64_Sxword;
 #define STT_TLS     6
 
 #define ELF_ST_BIND(x)		((x) >> 4)
-#define ELF_ST_TYPE(x)		(((unsigned int) x) & 0xf)
+#define ELF_ST_TYPE(x)		((x) & 0xf)
 #define ELF32_ST_BIND(x)	ELF_ST_BIND(x)
 #define ELF32_ST_TYPE(x)	ELF_ST_TYPE(x)
 #define ELF64_ST_BIND(x)	ELF_ST_BIND(x)
@@ -420,6 +420,7 @@ typedef struct elf64_shdr {
 #define NT_S390_GS_CB	0x30b		/* s390 guarded storage registers */
 #define NT_S390_GS_BC	0x30c		/* s390 guarded storage broadcast control block */
 #define NT_S390_RI_CB	0x30d		/* s390 runtime instrumentation */
+#define NT_S390_PV_CPU_DATA	0x30e	/* s390 protvirt cpu dump data */
 #define NT_ARM_VFP	0x400		/* ARM VFP/NEON registers */
 #define NT_ARM_TLS	0x401		/* ARM TLS register */
 #define NT_ARM_HW_BREAK	0x402		/* ARM hardware breakpoint registers */
@@ -431,11 +432,18 @@ typedef struct elf64_shdr {
 #define NT_ARM_PACG_KEYS	0x408	/* ARM pointer authentication generic key */
 #define NT_ARM_TAGGED_ADDR_CTRL	0x409	/* arm64 tagged address control (prctl()) */
 #define NT_ARM_PAC_ENABLED_KEYS	0x40a	/* arm64 ptr auth enabled keys (prctl()) */
+#define NT_ARM_SSVE	0x40b		/* ARM Streaming SVE registers */
+#define NT_ARM_ZA	0x40c		/* ARM SME ZA registers */
 #define NT_ARC_V2	0x600		/* ARCv2 accumulator/extra registers */
 #define NT_VMCOREDD	0x700		/* Vmcore Device Dump Note */
 #define NT_MIPS_DSP	0x800		/* MIPS DSP ASE registers */
 #define NT_MIPS_FP_MODE	0x801		/* MIPS floating-point mode */
 #define NT_MIPS_MSA	0x802		/* MIPS SIMD registers */
+#define NT_LOONGARCH_CPUCFG	0xa00	/* LoongArch CPU config registers */
+#define NT_LOONGARCH_CSR	0xa01	/* LoongArch control and status registers */
+#define NT_LOONGARCH_LSX	0xa02	/* LoongArch Loongson SIMD Extension registers */
+#define NT_LOONGARCH_LASX	0xa03	/* LoongArch Loongson Advanced SIMD Extension registers */
+#define NT_LOONGARCH_LBT	0xa04	/* LoongArch Loongson Binary Translation registers */
 
 /* Note types with note name "GNU" */
 #define NT_GNU_PROPERTY_TYPE_0	5

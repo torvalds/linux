@@ -16,11 +16,11 @@
 #include <linux/file.h>
 #include <linux/quotaops.h>
 #include <linux/random.h>
-#include <linux/uuid.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/iversion.h>
 #include <linux/fileattr.h>
+#include <linux/uuid.h>
 #include "ext4_jbd2.h"
 #include "ext4.h"
 #include <linux/fsmap.h>
@@ -40,6 +40,15 @@ static void ext4_sb_setlabel(struct ext4_super_block *es, const void *arg)
 	BUILD_BUG_ON(sizeof(es->s_volume_name) < EXT4_LABEL_MAX);
 
 	memcpy(es->s_volume_name, (char *)arg, EXT4_LABEL_MAX);
+}
+
+/*
+ * Superblock modification callback function for changing file system
+ * UUID.
+ */
+static void ext4_sb_setuuid(struct ext4_super_block *es, const void *arg)
+{
+	memcpy(es->s_uuid, (__u8 *)arg, UUID_SIZE);
 }
 
 static
@@ -504,18 +513,6 @@ journal_err_out:
 	return err;
 }
 
-#ifdef CONFIG_FS_ENCRYPTION
-static int uuid_is_zero(__u8 u[16])
-{
-	int	i;
-
-	for (i = 0; i < 16; i++)
-		if (u[i])
-			return 0;
-	return 1;
-}
-#endif
-
 /*
  * If immutable is set and we are not clearing it, we're not allowed to change
  * anything else in the inode.  Don't error out if we're only trying to set
@@ -957,7 +954,9 @@ static long ext4_ioctl_group_add(struct file *file,
 	    test_opt(sb, INIT_INODE_TABLE))
 		err = ext4_register_li_request(sb, input->group);
 group_add_out:
-	ext4_resize_end(sb);
+	err2 = ext4_resize_end(sb, false);
+	if (err == 0)
+		err = err2;
 	return err;
 }
 
@@ -1044,7 +1043,6 @@ static int ext4_ioctl_checkpoint(struct file *filp, unsigned long arg)
 	__u32 flags = 0;
 	unsigned int flush_flags = 0;
 	struct super_block *sb = file_inode(filp)->i_sb;
-	struct request_queue *q;
 
 	if (copy_from_user(&flags, (__u32 __user *)arg,
 				sizeof(__u32)))
@@ -1065,10 +1063,8 @@ static int ext4_ioctl_checkpoint(struct file *filp, unsigned long arg)
 	if (flags & ~EXT4_IOC_CHECKPOINT_FLAG_VALID)
 		return -EINVAL;
 
-	q = bdev_get_queue(EXT4_SB(sb)->s_journal->j_dev);
-	if (!q)
-		return -ENXIO;
-	if ((flags & JBD2_JOURNAL_FLUSH_DISCARD) && !blk_queue_discard(q))
+	if ((flags & JBD2_JOURNAL_FLUSH_DISCARD) &&
+	    !bdev_max_discard_sectors(EXT4_SB(sb)->s_journal->j_dev))
 		return -EOPNOTSUPP;
 
 	if (flags & EXT4_IOC_CHECKPOINT_FLAG_DRY_RUN)
@@ -1145,6 +1141,73 @@ static int ext4_ioctl_getlabel(struct ext4_sb_info *sbi, char __user *user_label
 	if (copy_to_user(user_label, label, sizeof(label)))
 		return -EFAULT;
 	return 0;
+}
+
+static int ext4_ioctl_getuuid(struct ext4_sb_info *sbi,
+			struct fsuuid __user *ufsuuid)
+{
+	struct fsuuid fsuuid;
+	__u8 uuid[UUID_SIZE];
+
+	if (copy_from_user(&fsuuid, ufsuuid, sizeof(fsuuid)))
+		return -EFAULT;
+
+	if (fsuuid.fsu_len == 0) {
+		fsuuid.fsu_len = UUID_SIZE;
+		if (copy_to_user(ufsuuid, &fsuuid, sizeof(fsuuid.fsu_len)))
+			return -EFAULT;
+		return -EINVAL;
+	}
+
+	if (fsuuid.fsu_len != UUID_SIZE || fsuuid.fsu_flags != 0)
+		return -EINVAL;
+
+	lock_buffer(sbi->s_sbh);
+	memcpy(uuid, sbi->s_es->s_uuid, UUID_SIZE);
+	unlock_buffer(sbi->s_sbh);
+
+	if (copy_to_user(&ufsuuid->fsu_uuid[0], uuid, UUID_SIZE))
+		return -EFAULT;
+	return 0;
+}
+
+static int ext4_ioctl_setuuid(struct file *filp,
+			const struct fsuuid __user *ufsuuid)
+{
+	int ret = 0;
+	struct super_block *sb = file_inode(filp)->i_sb;
+	struct fsuuid fsuuid;
+	__u8 uuid[UUID_SIZE];
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	/*
+	 * If any checksums (group descriptors or metadata) are being used
+	 * then the checksum seed feature is required to change the UUID.
+	 */
+	if (((ext4_has_feature_gdt_csum(sb) || ext4_has_metadata_csum(sb))
+			&& !ext4_has_feature_csum_seed(sb))
+		|| ext4_has_feature_stable_inodes(sb))
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&fsuuid, ufsuuid, sizeof(fsuuid)))
+		return -EFAULT;
+
+	if (fsuuid.fsu_len != UUID_SIZE || fsuuid.fsu_flags != 0)
+		return -EINVAL;
+
+	if (copy_from_user(uuid, &ufsuuid->fsu_uuid[0], UUID_SIZE))
+		return -EFAULT;
+
+	ret = mnt_want_write_file(filp);
+	if (ret)
+		return ret;
+
+	ret = ext4_update_superblocks_fn(sb, ext4_sb_setuuid, &uuid);
+	mnt_drop_write_file(filp);
+
+	return ret;
 }
 
 static long __ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
@@ -1239,7 +1302,9 @@ setversion_out:
 			err = err2;
 		mnt_drop_write_file(filp);
 group_extend_out:
-		ext4_resize_end(sb);
+		err2 = ext4_resize_end(sb, false);
+		if (err == 0)
+			err = err2;
 		return err;
 	}
 
@@ -1387,20 +1452,21 @@ mext_out:
 			err = ext4_register_li_request(sb, o_group);
 
 resizefs_out:
-		ext4_resize_end(sb);
+		err2 = ext4_resize_end(sb, true);
+		if (err == 0)
+			err = err2;
 		return err;
 	}
 
 	case FITRIM:
 	{
-		struct request_queue *q = bdev_get_queue(sb->s_bdev);
 		struct fstrim_range range;
 		int ret = 0;
 
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
-		if (!blk_queue_discard(q))
+		if (!bdev_max_discard_sectors(sb->s_bdev))
 			return -EOPNOTSUPP;
 
 		/*
@@ -1432,51 +1498,9 @@ resizefs_out:
 			return -EOPNOTSUPP;
 		return fscrypt_ioctl_set_policy(filp, (const void __user *)arg);
 
-	case FS_IOC_GET_ENCRYPTION_PWSALT: {
-#ifdef CONFIG_FS_ENCRYPTION
-		int err, err2;
-		struct ext4_sb_info *sbi = EXT4_SB(sb);
-		handle_t *handle;
+	case FS_IOC_GET_ENCRYPTION_PWSALT:
+		return ext4_ioctl_get_encryption_pwsalt(filp, (void __user *)arg);
 
-		if (!ext4_has_feature_encrypt(sb))
-			return -EOPNOTSUPP;
-		if (uuid_is_zero(sbi->s_es->s_encrypt_pw_salt)) {
-			err = mnt_want_write_file(filp);
-			if (err)
-				return err;
-			handle = ext4_journal_start_sb(sb, EXT4_HT_MISC, 1);
-			if (IS_ERR(handle)) {
-				err = PTR_ERR(handle);
-				goto pwsalt_err_exit;
-			}
-			err = ext4_journal_get_write_access(handle, sb,
-							    sbi->s_sbh,
-							    EXT4_JTR_NONE);
-			if (err)
-				goto pwsalt_err_journal;
-			lock_buffer(sbi->s_sbh);
-			generate_random_uuid(sbi->s_es->s_encrypt_pw_salt);
-			ext4_superblock_csum_set(sb);
-			unlock_buffer(sbi->s_sbh);
-			err = ext4_handle_dirty_metadata(handle, NULL,
-							 sbi->s_sbh);
-		pwsalt_err_journal:
-			err2 = ext4_journal_stop(handle);
-			if (err2 && !err)
-				err = err2;
-		pwsalt_err_exit:
-			mnt_drop_write_file(filp);
-			if (err)
-				return err;
-		}
-		if (copy_to_user((void __user *) arg,
-				 sbi->s_es->s_encrypt_pw_salt, 16))
-			return -EFAULT;
-		return 0;
-#else
-		return -EOPNOTSUPP;
-#endif
-	}
 	case FS_IOC_GET_ENCRYPTION_POLICY:
 		if (!ext4_has_feature_encrypt(sb))
 			return -EOPNOTSUPP;
@@ -1568,6 +1592,10 @@ resizefs_out:
 		return ext4_ioctl_setlabel(filp,
 					   (const void __user *)arg);
 
+	case EXT4_IOC_GETFSUUID:
+		return ext4_ioctl_getuuid(EXT4_SB(sb), (void __user *)arg);
+	case EXT4_IOC_SETFSUUID:
+		return ext4_ioctl_setuuid(filp, (const void __user *)arg);
 	default:
 		return -ENOTTY;
 	}
@@ -1645,6 +1673,8 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case EXT4_IOC_CHECKPOINT:
 	case FS_IOC_GETFSLABEL:
 	case FS_IOC_SETFSLABEL:
+	case EXT4_IOC_GETFSUUID:
+	case EXT4_IOC_SETFSUUID:
 		break;
 	default:
 		return -ENOIOCTLCMD;
@@ -1652,3 +1682,21 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return ext4_ioctl(file, cmd, (unsigned long) compat_ptr(arg));
 }
 #endif
+
+static void set_overhead(struct ext4_super_block *es, const void *arg)
+{
+	es->s_overhead_clusters = cpu_to_le32(*((unsigned long *) arg));
+}
+
+int ext4_update_overhead(struct super_block *sb, bool force)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+
+	if (sb_rdonly(sb))
+		return 0;
+	if (!force &&
+	    (sbi->s_overhead == 0 ||
+	     sbi->s_overhead == le32_to_cpu(sbi->s_es->s_overhead_clusters)))
+		return 0;
+	return ext4_update_superblocks_fn(sb, set_overhead, &sbi->s_overhead);
+}

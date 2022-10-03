@@ -95,6 +95,9 @@
 #define PCIE_GLI_9763E_SCR	 0x8E0
 #define   GLI_9763E_SCR_AXI_REQ	   BIT(9)
 
+#define PCIE_GLI_9763E_CFG       0x8A0
+#define   GLI_9763E_CFG_LPSN_DIS   BIT(12)
+
 #define PCIE_GLI_9763E_CFG2      0x8A4
 #define   GLI_9763E_CFG2_L1DLY     GENMASK(28, 19)
 #define   GLI_9763E_CFG2_L1DLY_MID 0x54
@@ -141,6 +144,9 @@
 
 #define PCI_GLI_9755_MISC	    0x78
 #define   PCI_GLI_9755_MISC_SSC_OFF    BIT(26)
+
+#define PCI_GLI_9755_PM_CTRL     0xFC
+#define   PCI_GLI_9755_PM_STATE    GENMASK(1, 0)
 
 #define GLI_MAX_TUNING_LOOP 40
 
@@ -676,6 +682,13 @@ static void gl9755_hw_setting(struct sdhci_pci_slot *slot)
 			    GLI_9755_CFG2_L1DLY_VALUE);
 	pci_write_config_dword(pdev, PCI_GLI_9755_CFG2, value);
 
+	/* toggle PM state to allow GL9755 to enter ASPM L1.2 */
+	pci_read_config_dword(pdev, PCI_GLI_9755_PM_CTRL, &value);
+	value |= PCI_GLI_9755_PM_STATE;
+	pci_write_config_dword(pdev, PCI_GLI_9755_PM_CTRL, value);
+	value &= ~PCI_GLI_9755_PM_STATE;
+	pci_write_config_dword(pdev, PCI_GLI_9755_PM_CTRL, value);
+
 	gl9755_wt_off(pdev);
 }
 
@@ -953,11 +966,39 @@ static void gli_set_gl9763e(struct sdhci_pci_slot *slot)
 }
 
 #ifdef CONFIG_PM
+static void gl9763e_set_low_power_negotiation(struct sdhci_pci_slot *slot, bool enable)
+{
+	struct pci_dev *pdev = slot->chip->pdev;
+	u32 value;
+
+	pci_read_config_dword(pdev, PCIE_GLI_9763E_VHS, &value);
+	value &= ~GLI_9763E_VHS_REV;
+	value |= FIELD_PREP(GLI_9763E_VHS_REV, GLI_9763E_VHS_REV_W);
+	pci_write_config_dword(pdev, PCIE_GLI_9763E_VHS, value);
+
+	pci_read_config_dword(pdev, PCIE_GLI_9763E_CFG, &value);
+
+	if (enable)
+		value &= ~GLI_9763E_CFG_LPSN_DIS;
+	else
+		value |= GLI_9763E_CFG_LPSN_DIS;
+
+	pci_write_config_dword(pdev, PCIE_GLI_9763E_CFG, value);
+
+	pci_read_config_dword(pdev, PCIE_GLI_9763E_VHS, &value);
+	value &= ~GLI_9763E_VHS_REV;
+	value |= FIELD_PREP(GLI_9763E_VHS_REV, GLI_9763E_VHS_REV_R);
+	pci_write_config_dword(pdev, PCIE_GLI_9763E_VHS, value);
+}
+
 static int gl9763e_runtime_suspend(struct sdhci_pci_chip *chip)
 {
 	struct sdhci_pci_slot *slot = chip->slots[0];
 	struct sdhci_host *host = slot->host;
 	u16 clock;
+
+	/* Enable LPM negotiation to allow entering L1 state */
+	gl9763e_set_low_power_negotiation(slot, true);
 
 	clock = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
 	clock &= ~(SDHCI_CLOCK_PLL_EN | SDHCI_CLOCK_CARD_EN);
@@ -971,6 +1012,9 @@ static int gl9763e_runtime_resume(struct sdhci_pci_chip *chip)
 	struct sdhci_pci_slot *slot = chip->slots[0];
 	struct sdhci_host *host = slot->host;
 	u16 clock;
+
+	if (host->mmc->ios.power_mode != MMC_POWER_ON)
+		return 0;
 
 	clock = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
 
@@ -988,6 +1032,9 @@ static int gl9763e_runtime_resume(struct sdhci_pci_chip *chip)
 
 	clock |= SDHCI_CLOCK_CARD_EN;
 	sdhci_writew(host, clock, SDHCI_CLOCK_CONTROL);
+
+	/* Disable LPM negotiation to avoid entering L1 state. */
+	gl9763e_set_low_power_negotiation(slot, false);
 
 	return 0;
 }

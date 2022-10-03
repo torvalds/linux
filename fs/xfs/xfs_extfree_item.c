@@ -11,6 +11,7 @@
 #include "xfs_bit.h"
 #include "xfs_shared.h"
 #include "xfs_mount.h"
+#include "xfs_ag.h"
 #include "xfs_defer.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
@@ -58,10 +59,11 @@ xfs_efi_release(
 	struct xfs_efi_log_item	*efip)
 {
 	ASSERT(atomic_read(&efip->efi_refcount) > 0);
-	if (atomic_dec_and_test(&efip->efi_refcount)) {
-		xfs_trans_ail_delete(&efip->efi_item, SHUTDOWN_LOG_IO_ERROR);
-		xfs_efi_item_free(efip);
-	}
+	if (!atomic_dec_and_test(&efip->efi_refcount))
+		return;
+
+	xfs_trans_ail_delete(&efip->efi_item, 0);
+	xfs_efi_item_free(efip);
 }
 
 /*
@@ -186,12 +188,12 @@ xfs_efi_copy_format(xfs_log_iovec_t *buf, xfs_efi_log_format_t *dst_efi_fmt)
 {
 	xfs_efi_log_format_t *src_efi_fmt = buf->i_addr;
 	uint i;
-	uint len = sizeof(xfs_efi_log_format_t) + 
-		(src_efi_fmt->efi_nextents - 1) * sizeof(xfs_extent_t);  
-	uint len32 = sizeof(xfs_efi_log_format_32_t) + 
-		(src_efi_fmt->efi_nextents - 1) * sizeof(xfs_extent_32_t);  
-	uint len64 = sizeof(xfs_efi_log_format_64_t) + 
-		(src_efi_fmt->efi_nextents - 1) * sizeof(xfs_extent_64_t);  
+	uint len = sizeof(xfs_efi_log_format_t) +
+		(src_efi_fmt->efi_nextents - 1) * sizeof(xfs_extent_t);
+	uint len32 = sizeof(xfs_efi_log_format_32_t) +
+		(src_efi_fmt->efi_nextents - 1) * sizeof(xfs_extent_32_t);
+	uint len64 = sizeof(xfs_efi_log_format_64_t) +
+		(src_efi_fmt->efi_nextents - 1) * sizeof(xfs_extent_64_t);
 
 	if (buf->i_len == len) {
 		memcpy((char *)dst_efi_fmt, (char*)src_efi_fmt, len);
@@ -306,11 +308,20 @@ xfs_efd_item_release(
 	xfs_efd_item_free(efdp);
 }
 
+static struct xfs_log_item *
+xfs_efd_item_intent(
+	struct xfs_log_item	*lip)
+{
+	return &EFD_ITEM(lip)->efd_efip->efi_item;
+}
+
 static const struct xfs_item_ops xfs_efd_item_ops = {
-	.flags		= XFS_ITEM_RELEASE_WHEN_COMMITTED,
+	.flags		= XFS_ITEM_RELEASE_WHEN_COMMITTED |
+			  XFS_ITEM_INTENT_DONE,
 	.iop_size	= xfs_efd_item_size,
 	.iop_format	= xfs_efd_item_format,
 	.iop_release	= xfs_efd_item_release,
+	.iop_intent	= xfs_efd_item_intent,
 };
 
 /*
@@ -380,7 +391,7 @@ xfs_trans_free_extent(
 	 * 1.) releases the EFI and frees the EFD
 	 * 2.) shuts down the filesystem
 	 */
-	tp->t_flags |= XFS_TRANS_DIRTY;
+	tp->t_flags |= XFS_TRANS_DIRTY | XFS_TRANS_HAS_INTENT_DONE;
 	set_bit(XFS_LI_DIRTY, &efdp->efd_item.li_flags);
 
 	next_extent = efdp->efd_next_extent;
@@ -541,6 +552,7 @@ xfs_agfl_free_finish_item(
 	xfs_agnumber_t			agno;
 	xfs_agblock_t			agbno;
 	uint				next_extent;
+	struct xfs_perag		*pag;
 
 	free = container_of(item, struct xfs_extent_free_item, xefi_list);
 	ASSERT(free->xefi_blockcount == 1);
@@ -550,9 +562,11 @@ xfs_agfl_free_finish_item(
 
 	trace_xfs_agfl_free_deferred(mp, agno, 0, agbno, free->xefi_blockcount);
 
-	error = xfs_alloc_read_agf(mp, tp, agno, 0, &agbp);
+	pag = xfs_perag_get(mp, agno);
+	error = xfs_alloc_read_agf(pag, tp, 0, &agbp);
 	if (!error)
 		error = xfs_free_agfl_block(tp, agno, agbno, agbp, &oinfo);
+	xfs_perag_put(pag);
 
 	/*
 	 * Mark the transaction dirty, even on error. This ensures the
@@ -688,6 +702,7 @@ xfs_efi_item_relog(
 }
 
 static const struct xfs_item_ops xfs_efi_item_ops = {
+	.flags		= XFS_ITEM_INTENT,
 	.iop_size	= xfs_efi_item_size,
 	.iop_format	= xfs_efi_item_format,
 	.iop_unpin	= xfs_efi_item_unpin,

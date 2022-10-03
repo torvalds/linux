@@ -442,7 +442,7 @@ static void free_req(struct xen_blkif_ring *ring, struct pending_req *req)
  * Routines for managing virtual block devices (vbds).
  */
 static int xen_vbd_translate(struct phys_req *req, struct xen_blkif *blkif,
-			     int operation)
+			     enum req_op operation)
 {
 	struct xen_vbd *vbd = &blkif->vbd;
 	int rc = -EACCES;
@@ -970,7 +970,6 @@ static int dispatch_discard_io(struct xen_blkif_ring *ring,
 	int status = BLKIF_RSP_OKAY;
 	struct xen_blkif *blkif = ring->blkif;
 	struct block_device *bdev = blkif->vbd.bdev;
-	unsigned long secure;
 	struct phys_req preq;
 
 	xen_blkif_get(blkif);
@@ -987,13 +986,15 @@ static int dispatch_discard_io(struct xen_blkif_ring *ring,
 	}
 	ring->st_ds_req++;
 
-	secure = (blkif->vbd.discard_secure &&
-		 (req->u.discard.flag & BLKIF_DISCARD_SECURE)) ?
-		 BLKDEV_DISCARD_SECURE : 0;
+	if (blkif->vbd.discard_secure &&
+	    (req->u.discard.flag & BLKIF_DISCARD_SECURE))
+		err = blkdev_issue_secure_erase(bdev,
+				req->u.discard.sector_number,
+				req->u.discard.nr_sectors, GFP_KERNEL);
+	else
+		err = blkdev_issue_discard(bdev, req->u.discard.sector_number,
+				req->u.discard.nr_sectors, GFP_KERNEL);
 
-	err = blkdev_issue_discard(bdev, req->u.discard.sector_number,
-				   req->u.discard.nr_sectors,
-				   GFP_KERNEL, secure);
 fail_response:
 	if (err == -EOPNOTSUPP) {
 		pr_debug("discard op failed, not supported\n");
@@ -1192,8 +1193,8 @@ static int dispatch_rw_block_io(struct xen_blkif_ring *ring,
 	struct bio *bio = NULL;
 	struct bio **biolist = pending_req->biolist;
 	int i, nbio = 0;
-	int operation;
-	int operation_flags = 0;
+	enum req_op operation;
+	blk_opf_t operation_flags = 0;
 	struct blk_plug plug;
 	bool drain = false;
 	struct grant_page **pages = pending_req->segments;

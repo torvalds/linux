@@ -7,7 +7,7 @@
  * Handles communication via requests as well as enabling, disabling, and
  * relaying of events.
  *
- * Copyright (C) 2019-2021 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2019-2022 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #include <linux/acpi.h>
@@ -817,7 +817,7 @@ err_cpkg:
 err_bus:
 	return status;
 }
-module_init(ssam_core_init);
+subsys_initcall(ssam_core_init);
 
 static void __exit ssam_core_exit(void)
 {

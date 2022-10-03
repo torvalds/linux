@@ -397,7 +397,7 @@ static inline void _tlbie_pid(unsigned long pid, unsigned long ric)
 
 	/*
 	 * Workaround the fact that the "ric" argument to __tlbie_pid
-	 * must be a compile-time contraint to match the "i" constraint
+	 * must be a compile-time constraint to match the "i" constraint
 	 * in the asm statement.
 	 */
 	switch (ric) {
@@ -755,10 +755,18 @@ EXPORT_SYMBOL(radix__local_flush_tlb_page);
 static bool mm_needs_flush_escalation(struct mm_struct *mm)
 {
 	/*
-	 * P9 nest MMU has issues with the page walk cache
-	 * caching PTEs and not flushing them properly when
-	 * RIC = 0 for a PID/LPID invalidate
+	 * The P9 nest MMU has issues with the page walk cache caching PTEs
+	 * and not flushing them when RIC = 0 for a PID/LPID invalidate.
+	 *
+	 * This may have been fixed in shipping firmware (by disabling PWC
+	 * or preventing it from caching PTEs), but until that is confirmed,
+	 * this workaround is required - escalate all RIC=0 IS=1/2/3 flushes
+	 * to RIC=2.
+	 *
+	 * POWER10 (and P9P) does not have this problem.
 	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		return false;
 	if (atomic_read(&mm->context.copros) > 0)
 		return true;
 	return false;

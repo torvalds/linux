@@ -840,7 +840,7 @@ static int copy_sec_ctx(struct xfrm_sec_ctx *s, struct sk_buff *skb)
 	return 0;
 }
 
-static int copy_user_offload(struct xfrm_state_offload *xso, struct sk_buff *skb)
+static int copy_user_offload(struct xfrm_dev_offload *xso, struct sk_buff *skb)
 {
 	struct xfrm_user_offload *xuo;
 	struct nlattr *attr;
@@ -852,7 +852,8 @@ static int copy_user_offload(struct xfrm_state_offload *xso, struct sk_buff *skb
 	xuo = nla_data(attr);
 	memset(xuo, 0, sizeof(*xuo));
 	xuo->ifindex = xso->dev->ifindex;
-	xuo->flags = xso->flags;
+	if (xso->dir == XFRM_DEV_OFFLOAD_IN)
+		xuo->flags = XFRM_OFFLOAD_INBOUND;
 
 	return 0;
 }
@@ -3632,10 +3633,8 @@ static int __init xfrm_user_init(void)
 	rv = register_pernet_subsys(&xfrm_user_net_ops);
 	if (rv < 0)
 		return rv;
-	rv = xfrm_register_km(&netlink_mgr);
-	if (rv < 0)
-		unregister_pernet_subsys(&xfrm_user_net_ops);
-	return rv;
+	xfrm_register_km(&netlink_mgr);
+	return 0;
 }
 
 static void __exit xfrm_user_exit(void)

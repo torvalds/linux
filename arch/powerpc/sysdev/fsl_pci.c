@@ -22,6 +22,8 @@
 #include <linux/interrupt.h>
 #include <linux/memblock.h>
 #include <linux/log2.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
@@ -29,7 +31,6 @@
 #include <linux/uaccess.h>
 
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
 #include <asm/machdep.h>
@@ -37,6 +38,7 @@
 #include <asm/disassemble.h>
 #include <asm/ppc-opcode.h>
 #include <asm/swiotlb.h>
+#include <asm/setup.h>
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 
@@ -218,7 +220,7 @@ static void setup_pci_atmu(struct pci_controller *hose)
 		 * windows have implemented the default target value as 0xf
 		 * for CCSR space.In all Freescale legacy devices the target
 		 * of 0xf is reserved for local memory space. 9132 Rev1.0
-		 * now has local mempry space mapped to target 0x0 instead of
+		 * now has local memory space mapped to target 0x0 instead of
 		 * 0xf. Hence adding a workaround to remove the target 0xf
 		 * defined for memory space from Inbound window attributes.
 		 */
@@ -520,6 +522,7 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 	struct resource rsrc;
 	const int *bus_range;
 	u8 hdr_type, progif;
+	u32 class_code;
 	struct device_node *dev;
 	struct ccsr_pci __iomem *pci;
 	u16 temp;
@@ -593,6 +596,13 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 			PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS;
 		if (fsl_pcie_check_link(hose))
 			hose->indirect_type |= PPC_INDIRECT_TYPE_NO_PCIE_LINK;
+		/* Fix Class Code to PCI_CLASS_BRIDGE_PCI_NORMAL for pre-3.0 controller */
+		if (in_be32(&pci->block_rev1) < PCIE_IP_REV_3_0) {
+			early_read_config_dword(hose, 0, 0, PCIE_FSL_CSR_CLASSCODE, &class_code);
+			class_code &= 0xff;
+			class_code |= PCI_CLASS_BRIDGE_PCI_NORMAL << 8;
+			early_write_config_dword(hose, 0, 0, PCIE_FSL_CSR_CLASSCODE, class_code);
+		}
 	} else {
 		/*
 		 * Set PBFR(PCI Bus Function Register)[10] = 1 to

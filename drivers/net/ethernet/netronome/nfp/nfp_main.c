@@ -33,20 +33,36 @@
 static const char nfp_driver_name[] = "nfp";
 
 static const struct pci_device_id nfp_pci_device_ids[] = {
-	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NETRONOME_NFP3800,
+	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NFP3800,
 	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
 	  PCI_ANY_ID, 0, NFP_DEV_NFP3800,
 	},
-	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NETRONOME_NFP4000,
+	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NFP4000,
 	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
 	  PCI_ANY_ID, 0, NFP_DEV_NFP6000,
 	},
-	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NETRONOME_NFP5000,
+	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NFP5000,
 	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
 	  PCI_ANY_ID, 0, NFP_DEV_NFP6000,
 	},
-	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NETRONOME_NFP6000,
+	{ PCI_VENDOR_ID_NETRONOME, PCI_DEVICE_ID_NFP6000,
 	  PCI_VENDOR_ID_NETRONOME, PCI_ANY_ID,
+	  PCI_ANY_ID, 0, NFP_DEV_NFP6000,
+	},
+	{ PCI_VENDOR_ID_CORIGINE, PCI_DEVICE_ID_NFP3800,
+	  PCI_VENDOR_ID_CORIGINE, PCI_ANY_ID,
+	  PCI_ANY_ID, 0, NFP_DEV_NFP3800,
+	},
+	{ PCI_VENDOR_ID_CORIGINE, PCI_DEVICE_ID_NFP4000,
+	  PCI_VENDOR_ID_CORIGINE, PCI_ANY_ID,
+	  PCI_ANY_ID, 0, NFP_DEV_NFP6000,
+	},
+	{ PCI_VENDOR_ID_CORIGINE, PCI_DEVICE_ID_NFP5000,
+	  PCI_VENDOR_ID_CORIGINE, PCI_ANY_ID,
+	  PCI_ANY_ID, 0, NFP_DEV_NFP6000,
+	},
+	{ PCI_VENDOR_ID_CORIGINE, PCI_DEVICE_ID_NFP6000,
+	  PCI_VENDOR_ID_CORIGINE, PCI_ANY_ID,
 	  PCI_ANY_ID, 0, NFP_DEV_NFP6000,
 	},
 	{ 0, } /* Required last entry. */
@@ -376,7 +392,7 @@ nfp_net_fw_find(struct pci_dev *pdev, struct nfp_pf *pf)
 	/* First try to find a firmware image specific for this device */
 	interface = nfp_cpp_interface(pf->cpp);
 	nfp_cpp_serial(pf->cpp, &serial);
-	sprintf(fw_name, "netronome/serial-%pMF-%02hhx-%02hhx.nffw",
+	sprintf(fw_name, "netronome/serial-%pMF-%02x-%02x.nffw",
 		serial, interface >> 8, interface & 0xff);
 	fw = nfp_net_fw_request(pdev, pf, fw_name);
 	if (fw)
@@ -394,7 +410,9 @@ nfp_net_fw_find(struct pci_dev *pdev, struct nfp_pf *pf)
 		return NULL;
 	}
 
-	fw_model = nfp_hwinfo_lookup(pf->hwinfo, "assembly.partno");
+	fw_model = nfp_hwinfo_lookup(pf->hwinfo, "nffw.partno");
+	if (!fw_model)
+		fw_model = nfp_hwinfo_lookup(pf->hwinfo, "assembly.partno");
 	if (!fw_model) {
 		dev_err(&pdev->dev, "Error: can't read part number\n");
 		return NULL;
@@ -681,8 +699,10 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 	struct nfp_pf *pf;
 	int err;
 
-	if (pdev->vendor == PCI_VENDOR_ID_NETRONOME &&
-	    pdev->device == PCI_DEVICE_ID_NETRONOME_NFP6000_VF)
+	if ((pdev->vendor == PCI_VENDOR_ID_NETRONOME ||
+	     pdev->vendor == PCI_VENDOR_ID_CORIGINE) &&
+	    (pdev->device == PCI_DEVICE_ID_NFP3800_VF ||
+	     pdev->device == PCI_DEVICE_ID_NFP6000_VF))
 		dev_warn(&pdev->dev, "Binding NFP VF device to the NFP PF driver, the VF driver is called 'nfp_netvf'\n");
 
 	dev_info = &nfp_dev_info[pci_id->driver_data];
@@ -865,7 +885,9 @@ static int __init nfp_main_init(void)
 {
 	int err;
 
-	pr_info("%s: NFP PCIe Driver, Copyright (C) 2014-2017 Netronome Systems\n",
+	pr_info("%s: NFP PCIe Driver, Copyright (C) 2014-2020 Netronome Systems\n",
+		nfp_driver_name);
+	pr_info("%s: NFP PCIe Driver, Copyright (C) 2021-2022 Corigine Inc.\n",
 		nfp_driver_name);
 
 	nfp_net_debugfs_create();
@@ -909,6 +931,6 @@ MODULE_FIRMWARE("netronome/nic_AMDA0099-0001_2x10.nffw");
 MODULE_FIRMWARE("netronome/nic_AMDA0099-0001_2x25.nffw");
 MODULE_FIRMWARE("netronome/nic_AMDA0099-0001_1x10_1x25.nffw");
 
-MODULE_AUTHOR("Netronome Systems <oss-drivers@netronome.com>");
+MODULE_AUTHOR("Corigine, Inc. <oss-drivers@corigine.com>");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("The Netronome Flow Processor (NFP) driver.");
+MODULE_DESCRIPTION("The Network Flow Processor (NFP) driver.");

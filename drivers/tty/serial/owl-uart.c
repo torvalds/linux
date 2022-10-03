@@ -184,9 +184,6 @@ static void owl_uart_send_chars(struct uart_port *port)
 	struct circ_buf *xmit = &port->state->xmit;
 	unsigned int ch;
 
-	if (uart_tx_stopped(port))
-		return;
-
 	if (port->x_char) {
 		while (!(owl_uart_read(port, OWL_UART_STAT) & OWL_UART_STAT_TFFU))
 			cpu_relax();
@@ -195,13 +192,16 @@ static void owl_uart_send_chars(struct uart_port *port)
 		port->x_char = 0;
 	}
 
+	if (uart_tx_stopped(port))
+		return;
+
 	while (!(owl_uart_read(port, OWL_UART_STAT) & OWL_UART_STAT_TFFU)) {
 		if (uart_circ_empty(xmit))
 			break;
 
 		ch = xmit->buf[xmit->tail];
 		owl_uart_write(port, ch, OWL_UART_TXDAT);
-		xmit->tail = (xmit->tail + 1) & (SERIAL_XMIT_SIZE - 1);
+		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		port->icount.tx++;
 	}
 
@@ -731,6 +731,7 @@ static int owl_uart_probe(struct platform_device *pdev)
 	owl_port->port.uartclk = clk_get_rate(owl_port->clk);
 	if (owl_port->port.uartclk == 0) {
 		dev_err(&pdev->dev, "clock rate is zero\n");
+		clk_disable_unprepare(owl_port->clk);
 		return -EINVAL;
 	}
 	owl_port->port.flags = UPF_BOOT_AUTOCONF | UPF_IOREMAP | UPF_LOW_LATENCY;

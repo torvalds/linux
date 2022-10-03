@@ -943,9 +943,11 @@ int mmc_execute_tuning(struct mmc_card *card)
 	}
 
 	/* Only print error when we don't check for card removal */
-	if (!host->detect_change)
+	if (!host->detect_change) {
 		pr_err("%s: tuning execution failed: %d\n",
 			mmc_hostname(host), err);
+		mmc_debugfs_err_stats_inc(host, MMC_ERR_TUNING);
+	}
 
 	return err;
 }
@@ -1988,9 +1990,9 @@ static void mmc_hw_reset_for_init(struct mmc_host *host)
 {
 	mmc_pwrseq_reset(host);
 
-	if (!(host->caps & MMC_CAP_HW_RESET) || !host->ops->hw_reset)
+	if (!(host->caps & MMC_CAP_HW_RESET) || !host->ops->card_hw_reset)
 		return;
-	host->ops->hw_reset(host);
+	host->ops->card_hw_reset(host);
 }
 
 /**
@@ -2017,8 +2019,9 @@ int mmc_hw_reset(struct mmc_card *card)
 }
 EXPORT_SYMBOL(mmc_hw_reset);
 
-int mmc_sw_reset(struct mmc_host *host)
+int mmc_sw_reset(struct mmc_card *card)
 {
+	struct mmc_host *host = card->host;
 	int ret;
 
 	if (!host->bus_ops->sw_reset)
@@ -2243,6 +2246,12 @@ void mmc_rescan(struct work_struct *work)
 		if (freqs[i] <= host->f_min)
 			break;
 	}
+
+	/*
+	 * Ignore the command timeout errors observed during
+	 * the card init as those are excepted.
+	 */
+	host->err_stats[MMC_ERR_CMD_TIMEOUT] = 0;
 	mmc_release_host(host);
 
  out:

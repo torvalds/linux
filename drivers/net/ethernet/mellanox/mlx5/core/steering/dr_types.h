@@ -127,6 +127,7 @@ enum mlx5dr_action_type {
 	DR_ACTION_TYP_INSERT_HDR,
 	DR_ACTION_TYP_REMOVE_HDR,
 	DR_ACTION_TYP_SAMPLER,
+	DR_ACTION_TYP_ASO_FLOW_METER,
 	DR_ACTION_TYP_MAX,
 };
 
@@ -271,6 +272,13 @@ struct mlx5dr_ste_actions_attr {
 		int	count;
 		u32	headers[MLX5DR_MAX_VLANS];
 	} vlans;
+
+	struct {
+		u32 obj_id;
+		u32 offset;
+		u8 dest_reg_id;
+		u8 init_color;
+	} aso_flow_meter;
 };
 
 void mlx5dr_ste_set_actions_rx(struct mlx5dr_ste_ctx *ste_ctx,
@@ -1035,6 +1043,14 @@ struct mlx5dr_rule_action_member {
 	struct list_head list;
 };
 
+struct mlx5dr_action_aso_flow_meter {
+	struct mlx5dr_domain *dmn;
+	u32 obj_id;
+	u32 offset;
+	u8 dest_reg_id;
+	u8 init_color;
+};
+
 struct mlx5dr_action {
 	enum mlx5dr_action_type action_type;
 	refcount_t refcount;
@@ -1049,6 +1065,7 @@ struct mlx5dr_action {
 		struct mlx5dr_action_vport *vport;
 		struct mlx5dr_action_push_vlan *push_vlan;
 		struct mlx5dr_action_flow_tag *flow_tag;
+		struct mlx5dr_action_aso_flow_meter *aso;
 	};
 };
 
@@ -1200,6 +1217,7 @@ struct mlx5dr_cmd_query_flow_table_details {
 
 struct mlx5dr_cmd_create_flow_table_attr {
 	u32 table_type;
+	u16 uid;
 	u64 icm_addr_rx;
 	u64 icm_addr_tx;
 	u8 level;
@@ -1461,7 +1479,8 @@ int mlx5dr_fw_create_md_tbl(struct mlx5dr_domain *dmn,
 			    bool reformat_req,
 			    u32 *tbl_id,
 			    u32 *group_id,
-			    bool ignore_flow_level);
+			    bool ignore_flow_level,
+			    u32 flow_source);
 void mlx5dr_fw_destroy_md_tbl(struct mlx5dr_domain *dmn, u32 tbl_id,
 			      u32 group_id);
 #endif  /* _DR_TYPES_H_ */

@@ -90,10 +90,10 @@
 	cp0_sfp_eth0: sfp-eth@0 {
 		compatible = "sff,sfp";
 		i2c-bus = <&cp0_sfpp0_i2c>;
-		los-gpio = <&cp0_module_expander1 11 GPIO_ACTIVE_HIGH>;
-		mod-def0-gpio = <&cp0_module_expander1 10 GPIO_ACTIVE_LOW>;
-		tx-disable-gpio = <&cp0_module_expander1 9 GPIO_ACTIVE_HIGH>;
-		tx-fault-gpio = <&cp0_module_expander1 8 GPIO_ACTIVE_HIGH>;
+		los-gpios = <&cp0_module_expander1 11 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&cp0_module_expander1 10 GPIO_ACTIVE_LOW>;
+		tx-disable-gpios = <&cp0_module_expander1 9 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpios = <&cp0_module_expander1 8 GPIO_ACTIVE_HIGH>;
 		/*
 		 * SFP cages are unconnected on early PCBs because of an the I2C
 		 * lanes not being connected. Prevent the port for being
@@ -310,7 +310,7 @@
 	pinctrl-0 = <&cp0_spi0_pins>;
 	reg = <0x700680 0x50>;
 
-	spi-flash@0 {
+	flash@0 {
 		#address-cells = <0x1>;
 		#size-cells = <0x1>;
 		compatible = "jedec,spi-nor";
@@ -404,7 +404,7 @@
 &cp0_usb3_1 {
 	status = "okay";
 	usb-phy = <&cp0_usb3_0_phy1>;
-	phys =  <&cp0_utmi1>;
+	phys = <&cp0_utmi1>;
 	phy-names = "utmi";
 	dr_mode = "host";
 };

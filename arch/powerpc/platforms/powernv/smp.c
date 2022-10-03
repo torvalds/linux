@@ -345,7 +345,7 @@ static void __init pnv_smp_probe(void)
 	}
 }
 
-static int pnv_system_reset_exception(struct pt_regs *regs)
+noinstr static int pnv_system_reset_exception(struct pt_regs *regs)
 {
 	if (smp_handle_nmi_ipi(regs))
 		return 1;

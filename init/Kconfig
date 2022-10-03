@@ -70,12 +70,13 @@ config CC_CAN_LINK_STATIC
 	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(USERCFLAGS) $(USERLDFLAGS) $(m64-flag) -static) if 64BIT
 	default $(success,$(srctree)/scripts/cc-can-link.sh $(CC) $(CLANG_FLAGS) $(USERCFLAGS) $(USERLDFLAGS) $(m32-flag) -static)
 
-config CC_HAS_ASM_GOTO
-	def_bool $(success,$(srctree)/scripts/gcc-goto.sh $(CC))
-
 config CC_HAS_ASM_GOTO_OUTPUT
-	depends on CC_HAS_ASM_GOTO
 	def_bool $(success,echo 'int foo(int x) { asm goto ("": "=r"(x) ::: bar); return x; bar: return 0; }' | $(CC) -x c - -c -o /dev/null)
+
+config CC_HAS_ASM_GOTO_TIED_OUTPUT
+	depends on CC_HAS_ASM_GOTO_OUTPUT
+	# Detect buggy gcc and clang, fixed in gcc-11 clang-14.
+	def_bool $(success,echo 'int foo(int *x) { asm goto (".long (%l[bar]) - .\n": "+m"(*x) ::: bar); return *x; bar: return 0; }' | $CC -x c - -c -o /dev/null)
 
 config TOOLS_SUPPORT_RELR
 	def_bool $(success,env "CC=$(CC)" "LD=$(LD)" "NM=$(NM)" "OBJCOPY=$(OBJCOPY)" $(srctree)/scripts/tools-support-relr.sh)
@@ -352,23 +353,6 @@ config DEFAULT_HOSTNAME
 	  but you may wish to use a different default here to make a minimal
 	  system more usable with less configuration.
 
-#
-# For some reason microblaze and nios2 hard code SWAP=n.  Hopefully we can
-# add proper SWAP support to them, in which case this can be remove.
-#
-config ARCH_NO_SWAP
-	bool
-
-config SWAP
-	bool "Support for paging of anonymous memory (swap)"
-	depends on MMU && BLOCK && !ARCH_NO_SWAP
-	default y
-	help
-	  This option allows you to choose whether you want to have support
-	  for so called swap devices or swap files in your kernel that are
-	  used to provide more virtual memory than the actual RAM present
-	  in your computer.  If unsure say Y.
-
 config SYSVIPC
 	bool "System V IPC"
 	help
@@ -389,6 +373,10 @@ config SYSVIPC_SYSCTL
 	depends on SYSVIPC
 	depends on SYSCTL
 	default y
+
+config SYSVIPC_COMPAT
+	def_bool y
+	depends on COMPAT && SYSVIPC
 
 config POSIX_MQUEUE
 	bool "POSIX Message Queues"
@@ -422,7 +410,7 @@ config WATCH_QUEUE
 	  with watches for key/keyring change notifications and device
 	  notifications.
 
-	  See Documentation/watch_queue.rst
+	  See Documentation/core-api/watch_queue.rst
 
 config CROSS_MEMORY_ATTACH
 	bool "Enable process_vm_readv/writev syscalls"
@@ -435,8 +423,8 @@ config CROSS_MEMORY_ATTACH
 	  See the man page for more details.
 
 config USELIB
-	bool "uselib syscall"
-	def_bool ALPHA || M68K || SPARC || X86_32 || IA32_EMULATION
+	bool "uselib syscall (for libc5 and earlier)"
+	default ALPHA || M68K || SPARC
 	help
 	  This option enables the uselib syscall, a system call used in the
 	  dynamic linker from libc5 and earlier.  glibc does not use this
@@ -502,11 +490,11 @@ config VIRT_CPU_ACCOUNTING_NATIVE
 
 config VIRT_CPU_ACCOUNTING_GEN
 	bool "Full dynticks CPU time accounting"
-	depends on HAVE_CONTEXT_TRACKING
+	depends on HAVE_CONTEXT_TRACKING_USER
 	depends on HAVE_VIRT_CPU_ACCOUNTING_GEN
 	depends on GENERIC_CLOCKEVENTS
 	select VIRT_CPU_ACCOUNTING
-	select CONTEXT_TRACKING
+	select CONTEXT_TRACKING_USER
 	help
 	  Select this option to enable task and CPU time accounting on full
 	  dynticks systems. This accounting is implemented by watching every
@@ -715,8 +703,7 @@ config IKHEADERS
 
 config LOG_BUF_SHIFT
 	int "Kernel log buffer size (16 => 64KB, 17 => 128KB)"
-	range 12 25 if !H8300
-	range 12 19 if H8300
+	range 12 25
 	default 17
 	depends on PRINTK
 	help
@@ -894,6 +881,15 @@ config CC_IMPLICIT_FALLTHROUGH
 	default "-Wimplicit-fallthrough=5" if CC_IS_GCC && $(cc-option,-Wimplicit-fallthrough=5)
 	default "-Wimplicit-fallthrough" if CC_IS_CLANG && $(cc-option,-Wunreachable-code-fallthrough)
 
+# Currently, disable gcc-12 array-bounds globally.
+# We may want to target only particular configurations some day.
+config GCC12_NO_ARRAY_BOUNDS
+	def_bool y
+
+config CC_NO_ARRAY_BOUNDS
+	bool
+	default y if CC_IS_GCC && GCC_VERSION >= 120000 && GCC_VERSION < 130000 && GCC12_NO_ARRAY_BOUNDS
+
 #
 # For architectures that know their GCC __int128 support is sound
 #
@@ -944,6 +940,16 @@ if CGROUPS
 
 config PAGE_COUNTER
 	bool
+
+config CGROUP_FAVOR_DYNMODS
+        bool "Favor dynamic modification latency reduction by default"
+        help
+          This option enables the "favordynmods" mount option by default
+          which reduces the latencies of dynamic cgroup modifications such
+          as task migrations and controller on/offs at the cost of making
+          hot path operations such as forks and exits more expensive.
+
+          Say N if unsure.
 
 config MEMCG
 	bool "Memory controller"
@@ -1351,13 +1357,42 @@ endif
 
 config BOOT_CONFIG
 	bool "Boot config support"
-	select BLK_DEV_INITRD
+	select BLK_DEV_INITRD if !BOOT_CONFIG_EMBED
 	help
 	  Extra boot config allows system admin to pass a config file as
 	  complemental extension of kernel cmdline when booting.
 	  The boot config file must be attached at the end of initramfs
 	  with checksum, size and magic word.
 	  See <file:Documentation/admin-guide/bootconfig.rst> for details.
+
+	  If unsure, say Y.
+
+config BOOT_CONFIG_EMBED
+	bool "Embed bootconfig file in the kernel"
+	depends on BOOT_CONFIG
+	help
+	  Embed a bootconfig file given by BOOT_CONFIG_EMBED_FILE in the
+	  kernel. Usually, the bootconfig file is loaded with the initrd
+	  image. But if the system doesn't support initrd, this option will
+	  help you by embedding a bootconfig file while building the kernel.
+
+	  If unsure, say N.
+
+config BOOT_CONFIG_EMBED_FILE
+	string "Embedded bootconfig file path"
+	depends on BOOT_CONFIG_EMBED
+	help
+	  Specify a bootconfig file which will be embedded to the kernel.
+	  This bootconfig will be used if there is no initrd or no other
+	  bootconfig in the initrd.
+
+config INITRAMFS_PRESERVE_MTIME
+	bool "Preserve cpio archive mtimes in initramfs"
+	default y
+	help
+	  Each entry in an initramfs cpio archive carries an mtime value. When
+	  enabled, extracted cpio items take this mtime, with directory mtime
+	  setting deferred until after creation of any child entries.
 
 	  If unsure, say Y.
 
@@ -1371,13 +1406,6 @@ config CC_OPTIMIZE_FOR_PERFORMANCE
 	  This is the default optimization level for the kernel, building
 	  with the "-O2" compiler flag for best performance and most
 	  helpful compile-time warnings.
-
-config CC_OPTIMIZE_FOR_PERFORMANCE_O3
-	bool "Optimize more for performance (-O3)"
-	depends on ARC
-	help
-	  Choosing this option will pass "-O3" to your compiler to optimize
-	  the kernel yet more for performance.
 
 config CC_OPTIMIZE_FOR_SIZE
 	bool "Optimize for size (-Os)"
@@ -1452,6 +1480,7 @@ config HAVE_PCSPKR_PLATFORM
 # interpreter that classic socket filters depend on
 config BPF
 	bool
+	select CRYPTO_LIB_SHA1
 
 menuconfig EXPERT
 	bool "Configure standard kernel features (expert users)"
@@ -1667,16 +1696,6 @@ config ADVISE_SYSCALLS
 	  applications use these syscalls, you can disable this option to save
 	  space.
 
-config HAVE_ARCH_USERFAULTFD_WP
-	bool
-	help
-	  Arch has userfaultfd write protection support
-
-config HAVE_ARCH_USERFAULTFD_MINOR
-	bool
-	help
-	  Arch has userfaultfd minor fault support
-
 config MEMBARRIER
 	bool "Enable membarrier() system call" if EXPERT
 	default y
@@ -1703,16 +1722,17 @@ config KALLSYMS_ALL
 	help
 	  Normally kallsyms only contains the symbols of functions for nicer
 	  OOPS messages and backtraces (i.e., symbols from the text and inittext
-	  sections). This is sufficient for most cases. And only in very rare
-	  cases (e.g., when a debugger is used) all symbols are required (e.g.,
-	  names of variables from the data sections, etc).
+	  sections). This is sufficient for most cases. And only if you want to
+	  enable kernel live patching, or other less common use cases (e.g.,
+	  when a debugger is used) all symbols are required (i.e., names of
+	  variables from the data sections, etc).
 
 	  This option makes sure that all symbols are loaded into the kernel
 	  image (i.e., symbols from all sections) in cost of increased kernel
 	  size (depending on the kernel configuration, it may be 300KiB or
 	  something like this).
 
-	  Say N unless you really need all symbols.
+	  Say N unless you really need all symbols, or kernel live patching.
 
 config KALLSYMS_ABSOLUTE_PERCPU
 	bool
@@ -1740,13 +1760,6 @@ config KALLSYMS_BASE_RELATIVE
 # end of the "standard kernel features (expert users)" menu
 
 # syscall, maps, verifier
-
-config USERFAULTFD
-	bool "Enable userfaultfd() system call"
-	depends on MMU
-	help
-	  Enable the userfaultfd() system call that allows to intercept and
-	  handle page faults in userland.
 
 config ARCH_HAS_MEMBARRIER_CALLBACKS
 	bool
@@ -1862,165 +1875,6 @@ config DEBUG_PERF_USE_VMALLOC
 
 endmenu
 
-config VM_EVENT_COUNTERS
-	default y
-	bool "Enable VM event counters for /proc/vmstat" if EXPERT
-	help
-	  VM event counters are needed for event counts to be shown.
-	  This option allows the disabling of the VM event counters
-	  on EXPERT systems.  /proc/vmstat will only show page counts
-	  if VM event counters are disabled.
-
-config SLUB_DEBUG
-	default y
-	bool "Enable SLUB debugging support" if EXPERT
-	depends on SLUB && SYSFS
-	help
-	  SLUB has extensive debug support features. Disabling these can
-	  result in significant savings in code size. This also disables
-	  SLUB sysfs support. /sys/slab will not exist and there will be
-	  no support for cache validation etc.
-
-config COMPAT_BRK
-	bool "Disable heap randomization"
-	default y
-	help
-	  Randomizing heap placement makes heap exploits harder, but it
-	  also breaks ancient binaries (including anything libc5 based).
-	  This option changes the bootup default to heap randomization
-	  disabled, and can be overridden at runtime by setting
-	  /proc/sys/kernel/randomize_va_space to 2.
-
-	  On non-ancient distros (post-2000 ones) N is usually a safe choice.
-
-choice
-	prompt "Choose SLAB allocator"
-	default SLUB
-	help
-	   This option allows to select a slab allocator.
-
-config SLAB
-	bool "SLAB"
-	depends on !PREEMPT_RT
-	select HAVE_HARDENED_USERCOPY_ALLOCATOR
-	help
-	  The regular slab allocator that is established and known to work
-	  well in all environments. It organizes cache hot objects in
-	  per cpu and per node queues.
-
-config SLUB
-	bool "SLUB (Unqueued Allocator)"
-	select HAVE_HARDENED_USERCOPY_ALLOCATOR
-	help
-	   SLUB is a slab allocator that minimizes cache line usage
-	   instead of managing queues of cached objects (SLAB approach).
-	   Per cpu caching is realized using slabs of objects instead
-	   of queues of objects. SLUB can use memory efficiently
-	   and has enhanced diagnostics. SLUB is the default choice for
-	   a slab allocator.
-
-config SLOB
-	depends on EXPERT
-	bool "SLOB (Simple Allocator)"
-	depends on !PREEMPT_RT
-	help
-	   SLOB replaces the stock allocator with a drastically simpler
-	   allocator. SLOB is generally more space efficient but
-	   does not perform as well on large systems.
-
-endchoice
-
-config SLAB_MERGE_DEFAULT
-	bool "Allow slab caches to be merged"
-	default y
-	depends on SLAB || SLUB
-	help
-	  For reduced kernel memory fragmentation, slab caches can be
-	  merged when they share the same size and other characteristics.
-	  This carries a risk of kernel heap overflows being able to
-	  overwrite objects from merged caches (and more easily control
-	  cache layout), which makes such heap attacks easier to exploit
-	  by attackers. By keeping caches unmerged, these kinds of exploits
-	  can usually only damage objects in the same cache. To disable
-	  merging at runtime, "slab_nomerge" can be passed on the kernel
-	  command line.
-
-config SLAB_FREELIST_RANDOM
-	bool "Randomize slab freelist"
-	depends on SLAB || SLUB
-	help
-	  Randomizes the freelist order used on creating new pages. This
-	  security feature reduces the predictability of the kernel slab
-	  allocator against heap overflows.
-
-config SLAB_FREELIST_HARDENED
-	bool "Harden slab freelist metadata"
-	depends on SLAB || SLUB
-	help
-	  Many kernel heap attacks try to target slab cache metadata and
-	  other infrastructure. This options makes minor performance
-	  sacrifices to harden the kernel slab allocator against common
-	  freelist exploit methods. Some slab implementations have more
-	  sanity-checking than others. This option is most effective with
-	  CONFIG_SLUB.
-
-config SHUFFLE_PAGE_ALLOCATOR
-	bool "Page allocator randomization"
-	default SLAB_FREELIST_RANDOM && ACPI_NUMA
-	help
-	  Randomization of the page allocator improves the average
-	  utilization of a direct-mapped memory-side-cache. See section
-	  5.2.27 Heterogeneous Memory Attribute Table (HMAT) in the ACPI
-	  6.2a specification for an example of how a platform advertises
-	  the presence of a memory-side-cache. There are also incidental
-	  security benefits as it reduces the predictability of page
-	  allocations to compliment SLAB_FREELIST_RANDOM, but the
-	  default granularity of shuffling on the "MAX_ORDER - 1" i.e,
-	  10th order of pages is selected based on cache utilization
-	  benefits on x86.
-
-	  While the randomization improves cache utilization it may
-	  negatively impact workloads on platforms without a cache. For
-	  this reason, by default, the randomization is enabled only
-	  after runtime detection of a direct-mapped memory-side-cache.
-	  Otherwise, the randomization may be force enabled with the
-	  'page_alloc.shuffle' kernel command line parameter.
-
-	  Say Y if unsure.
-
-config SLUB_CPU_PARTIAL
-	default y
-	depends on SLUB && SMP
-	bool "SLUB per cpu partial cache"
-	help
-	  Per cpu partial caches accelerate objects allocation and freeing
-	  that is local to a processor at the price of more indeterminism
-	  in the latency of the free. On overflow these caches will be cleared
-	  which requires the taking of locks that may cause latency spikes.
-	  Typically one would choose no for a realtime system.
-
-config MMAP_ALLOW_UNINITIALIZED
-	bool "Allow mmapped anonymous memory to be uninitialized"
-	depends on EXPERT && !MMU
-	default n
-	help
-	  Normally, and according to the Linux spec, anonymous memory obtained
-	  from mmap() has its contents cleared before it is passed to
-	  userspace.  Enabling this config option allows you to request that
-	  mmap() skip that if it is given an MAP_UNINITIALIZED flag, thus
-	  providing a huge performance boost.  If this option is not enabled,
-	  then the flag will be ignored.
-
-	  This is taken advantage of by uClibc's malloc(), and also by
-	  ELF-FDPIC binfmt's brk and stack allocator.
-
-	  Because of the obvious security issues, this option should only be
-	  enabled on embedded devices where you control what is run in
-	  userspace.  Since that isn't generally a problem on no-MMU systems,
-	  it is normally safe to say Y here.
-
-	  See Documentation/admin-guide/mm/nommu-mmap.rst for more information.
-
 config SYSTEM_DATA_VERIFICATION
 	def_bool n
 	select SYSTEM_TRUSTED_KEYRING
@@ -2069,291 +1923,7 @@ config MODULE_SIG_FORMAT
 	def_bool n
 	select SYSTEM_DATA_VERIFICATION
 
-menuconfig MODULES
-	bool "Enable loadable module support"
-	modules
-	help
-	  Kernel modules are small pieces of compiled code which can
-	  be inserted in the running kernel, rather than being
-	  permanently built into the kernel.  You use the "modprobe"
-	  tool to add (and sometimes remove) them.  If you say Y here,
-	  many parts of the kernel can be built as modules (by
-	  answering M instead of Y where indicated): this is most
-	  useful for infrequently used options which are not required
-	  for booting.  For more information, see the man pages for
-	  modprobe, lsmod, modinfo, insmod and rmmod.
-
-	  If you say Y here, you will need to run "make
-	  modules_install" to put the modules under /lib/modules/
-	  where modprobe can find them (you may need to be root to do
-	  this).
-
-	  If unsure, say Y.
-
-if MODULES
-
-config MODULE_FORCE_LOAD
-	bool "Forced module loading"
-	default n
-	help
-	  Allow loading of modules without version information (ie. modprobe
-	  --force).  Forced module loading sets the 'F' (forced) taint flag and
-	  is usually a really bad idea.
-
-config MODULE_UNLOAD
-	bool "Module unloading"
-	help
-	  Without this option you will not be able to unload any
-	  modules (note that some modules may not be unloadable
-	  anyway), which makes your kernel smaller, faster
-	  and simpler.  If unsure, say Y.
-
-config MODULE_FORCE_UNLOAD
-	bool "Forced module unloading"
-	depends on MODULE_UNLOAD
-	help
-	  This option allows you to force a module to unload, even if the
-	  kernel believes it is unsafe: the kernel will remove the module
-	  without waiting for anyone to stop using it (using the -f option to
-	  rmmod).  This is mainly for kernel developers and desperate users.
-	  If unsure, say N.
-
-config MODVERSIONS
-	bool "Module versioning support"
-	help
-	  Usually, you have to use modules compiled with your kernel.
-	  Saying Y here makes it sometimes possible to use modules
-	  compiled for different kernels, by adding enough information
-	  to the modules to (hopefully) spot any changes which would
-	  make them incompatible with the kernel you are running.  If
-	  unsure, say N.
-
-config ASM_MODVERSIONS
-	bool
-	default HAVE_ASM_MODVERSIONS && MODVERSIONS
-	help
-	  This enables module versioning for exported symbols also from
-	  assembly. This can be enabled only when the target architecture
-	  supports it.
-
-config MODULE_REL_CRCS
-	bool
-	depends on MODVERSIONS
-
-config MODULE_SRCVERSION_ALL
-	bool "Source checksum for all modules"
-	help
-	  Modules which contain a MODULE_VERSION get an extra "srcversion"
-	  field inserted into their modinfo section, which contains a
-    	  sum of the source files which made it.  This helps maintainers
-	  see exactly which source was used to build a module (since
-	  others sometimes change the module source without updating
-	  the version).  With this option, such a "srcversion" field
-	  will be created for all modules.  If unsure, say N.
-
-config MODULE_SIG
-	bool "Module signature verification"
-	select MODULE_SIG_FORMAT
-	help
-	  Check modules for valid signatures upon load: the signature
-	  is simply appended to the module. For more information see
-	  <file:Documentation/admin-guide/module-signing.rst>.
-
-	  Note that this option adds the OpenSSL development packages as a
-	  kernel build dependency so that the signing tool can use its crypto
-	  library.
-
-	  You should enable this option if you wish to use either
-	  CONFIG_SECURITY_LOCKDOWN_LSM or lockdown functionality imposed via
-	  another LSM - otherwise unsigned modules will be loadable regardless
-	  of the lockdown policy.
-
-	  !!!WARNING!!!  If you enable this option, you MUST make sure that the
-	  module DOES NOT get stripped after being signed.  This includes the
-	  debuginfo strip done by some packagers (such as rpmbuild) and
-	  inclusion into an initramfs that wants the module size reduced.
-
-config MODULE_SIG_FORCE
-	bool "Require modules to be validly signed"
-	depends on MODULE_SIG
-	help
-	  Reject unsigned modules or signed modules for which we don't have a
-	  key.  Without this, such modules will simply taint the kernel.
-
-config MODULE_SIG_ALL
-	bool "Automatically sign all modules"
-	default y
-	depends on MODULE_SIG || IMA_APPRAISE_MODSIG
-	help
-	  Sign all modules during make modules_install. Without this option,
-	  modules must be signed manually, using the scripts/sign-file tool.
-
-comment "Do not forget to sign required modules with scripts/sign-file"
-	depends on MODULE_SIG_FORCE && !MODULE_SIG_ALL
-
-choice
-	prompt "Which hash algorithm should modules be signed with?"
-	depends on MODULE_SIG || IMA_APPRAISE_MODSIG
-	help
-	  This determines which sort of hashing algorithm will be used during
-	  signature generation.  This algorithm _must_ be built into the kernel
-	  directly so that signature verification can take place.  It is not
-	  possible to load a signed module containing the algorithm to check
-	  the signature on that module.
-
-config MODULE_SIG_SHA1
-	bool "Sign modules with SHA-1"
-	select CRYPTO_SHA1
-
-config MODULE_SIG_SHA224
-	bool "Sign modules with SHA-224"
-	select CRYPTO_SHA256
-
-config MODULE_SIG_SHA256
-	bool "Sign modules with SHA-256"
-	select CRYPTO_SHA256
-
-config MODULE_SIG_SHA384
-	bool "Sign modules with SHA-384"
-	select CRYPTO_SHA512
-
-config MODULE_SIG_SHA512
-	bool "Sign modules with SHA-512"
-	select CRYPTO_SHA512
-
-endchoice
-
-config MODULE_SIG_HASH
-	string
-	depends on MODULE_SIG || IMA_APPRAISE_MODSIG
-	default "sha1" if MODULE_SIG_SHA1
-	default "sha224" if MODULE_SIG_SHA224
-	default "sha256" if MODULE_SIG_SHA256
-	default "sha384" if MODULE_SIG_SHA384
-	default "sha512" if MODULE_SIG_SHA512
-
-choice
-	prompt "Module compression mode"
-	help
-	  This option allows you to choose the algorithm which will be used to
-	  compress modules when 'make modules_install' is run. (or, you can
-	  choose to not compress modules at all.)
-
-	  External modules will also be compressed in the same way during the
-	  installation.
-
-	  For modules inside an initrd or initramfs, it's more efficient to
-	  compress the whole initrd or initramfs instead.
-
-	  This is fully compatible with signed modules.
-
-	  Please note that the tool used to load modules needs to support the
-	  corresponding algorithm. module-init-tools MAY support gzip, and kmod
-	  MAY support gzip, xz and zstd.
-
-	  Your build system needs to provide the appropriate compression tool
-	  to compress the modules.
-
-	  If in doubt, select 'None'.
-
-config MODULE_COMPRESS_NONE
-	bool "None"
-	help
-	  Do not compress modules. The installed modules are suffixed
-	  with .ko.
-
-config MODULE_COMPRESS_GZIP
-	bool "GZIP"
-	help
-	  Compress modules with GZIP. The installed modules are suffixed
-	  with .ko.gz.
-
-config MODULE_COMPRESS_XZ
-	bool "XZ"
-	help
-	  Compress modules with XZ. The installed modules are suffixed
-	  with .ko.xz.
-
-config MODULE_COMPRESS_ZSTD
-	bool "ZSTD"
-	help
-	  Compress modules with ZSTD. The installed modules are suffixed
-	  with .ko.zst.
-
-endchoice
-
-config MODULE_DECOMPRESS
-	bool "Support in-kernel module decompression"
-	depends on MODULE_COMPRESS_GZIP || MODULE_COMPRESS_XZ
-	select ZLIB_INFLATE if MODULE_COMPRESS_GZIP
-	select XZ_DEC if MODULE_COMPRESS_XZ
-	help
-
-	  Support for decompressing kernel modules by the kernel itself
-	  instead of relying on userspace to perform this task. Useful when
-	  load pinning security policy is enabled.
-
-	  If unsure, say N.
-
-config MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS
-	bool "Allow loading of modules with missing namespace imports"
-	help
-	  Symbols exported with EXPORT_SYMBOL_NS*() are considered exported in
-	  a namespace. A module that makes use of a symbol exported with such a
-	  namespace is required to import the namespace via MODULE_IMPORT_NS().
-	  There is no technical reason to enforce correct namespace imports,
-	  but it creates consistency between symbols defining namespaces and
-	  users importing namespaces they make use of. This option relaxes this
-	  requirement and lifts the enforcement when loading a module.
-
-	  If unsure, say N.
-
-config MODPROBE_PATH
-	string "Path to modprobe binary"
-	default "/sbin/modprobe"
-	help
-	  When kernel code requests a module, it does so by calling
-	  the "modprobe" userspace utility. This option allows you to
-	  set the path where that binary is found. This can be changed
-	  at runtime via the sysctl file
-	  /proc/sys/kernel/modprobe. Setting this to the empty string
-	  removes the kernel's ability to request modules (but
-	  userspace can still load modules explicitly).
-
-config TRIM_UNUSED_KSYMS
-	bool "Trim unused exported kernel symbols" if EXPERT
-	depends on !COMPILE_TEST
-	help
-	  The kernel and some modules make many symbols available for
-	  other modules to use via EXPORT_SYMBOL() and variants. Depending
-	  on the set of modules being selected in your kernel configuration,
-	  many of those exported symbols might never be used.
-
-	  This option allows for unused exported symbols to be dropped from
-	  the build. In turn, this provides the compiler more opportunities
-	  (especially when using LTO) for optimizing the code and reducing
-	  binary size.  This might have some security advantages as well.
-
-	  If unsure, or if you need to build out-of-tree modules, say N.
-
-config UNUSED_KSYMS_WHITELIST
-	string "Whitelist of symbols to keep in ksymtab"
-	depends on TRIM_UNUSED_KSYMS
-	help
-	  By default, all unused exported symbols will be un-exported from the
-	  build when TRIM_UNUSED_KSYMS is selected.
-
-	  UNUSED_KSYMS_WHITELIST allows to whitelist symbols that must be kept
-	  exported at all times, even in absence of in-tree users. The value to
-	  set here is the path to a text file containing the list of symbols,
-	  one per line. The path can be absolute, or relative to the kernel
-	  source tree.
-
-endif # MODULES
-
-config MODULES_TREE_LOOKUP
-	def_bool y
-	depends on PERF_EVENTS || TRACING || CFI_CLANG
+source "kernel/module/Kconfig"
 
 config INIT_ALL_POSSIBLE
 	bool

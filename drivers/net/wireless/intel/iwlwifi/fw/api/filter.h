@@ -33,7 +33,7 @@ struct iwl_mcast_filter_cmd {
 	u8 pass_all;
 	u8 bssid[6];
 	u8 reserved[2];
-	u8 addr_list[0];
+	u8 addr_list[];
 } __packed; /* MCAST_FILTERING_CMD_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_filter_h__ */

@@ -16,6 +16,7 @@
  *	timing value tweaking so it looks good on every monitor in every mode
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/fb.h>
 #include <linux/init.h>
@@ -996,6 +997,9 @@ static int tridentfb_check_var(struct fb_var_screeninfo *var,
 	int ramdac = 230000; /* 230MHz for most 3D chips */
 	debug("enter\n");
 
+	if (!var->pixclock)
+		return -EINVAL;
+
 	/* check color depth */
 	if (bpp == 24)
 		bpp = var->bits_per_pixel = 32;
@@ -1466,6 +1470,10 @@ static int trident_pci_probe(struct pci_dev *dev,
 	int chip3D;
 	int chip_id;
 	bool found = false;
+
+	err = aperture_remove_conflicting_pci_devices(dev, "tridentfb");
+	if (err)
+		return err;
 
 	err = pci_enable_device(dev);
 	if (err)

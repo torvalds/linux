@@ -23,11 +23,18 @@
 #define TELEM_GUID_OFFSET	0x4
 #define TELEM_BASE_OFFSET	0x8
 #define TELEM_ACCESS(v)		((v) & GENMASK(3, 0))
+#define TELEM_TYPE(v)		(((v) & GENMASK(7, 4)) >> 4)
 /* size is in bytes */
 #define TELEM_SIZE(v)		(((v) & GENMASK(27, 12)) >> 10)
 
 /* Used by client hardware to identify a fixed telemetry entry*/
 #define TELEM_CLIENT_FIXED_BLOCK_GUID	0x10000000
+
+enum telem_type {
+	TELEM_TYPE_PUNIT = 0,
+	TELEM_TYPE_CRASHLOG,
+	TELEM_TYPE_PUNIT_FIXED,
+};
 
 struct pmt_telem_priv {
 	int				num_entries;
@@ -39,10 +46,15 @@ static bool pmt_telem_region_overlaps(struct intel_pmt_entry *entry,
 {
 	u32 guid = readl(entry->disc_table + TELEM_GUID_OFFSET);
 
-	if (guid != TELEM_CLIENT_FIXED_BLOCK_GUID)
-		return false;
+	if (intel_pmt_is_early_client_hw(dev)) {
+		u32 type = TELEM_TYPE(readl(entry->disc_table));
 
-	return intel_pmt_is_early_client_hw(dev);
+		if ((type == TELEM_TYPE_PUNIT_FIXED) ||
+		    (guid == TELEM_CLIENT_FIXED_BLOCK_GUID))
+			return true;
+	}
+
+	return false;
 }
 
 static int pmt_telem_header_decode(struct intel_pmt_entry *entry,
@@ -103,7 +115,7 @@ static int pmt_telem_probe(struct auxiliary_device *auxdev, const struct auxilia
 	auxiliary_set_drvdata(auxdev, priv);
 
 	for (i = 0; i < intel_vsec_dev->num_resources; i++) {
-		struct intel_pmt_entry *entry = &priv->entry[i];
+		struct intel_pmt_entry *entry = &priv->entry[priv->num_entries];
 
 		ret = intel_pmt_dev_create(entry, &pmt_telem_ns, intel_vsec_dev, i);
 		if (ret < 0)

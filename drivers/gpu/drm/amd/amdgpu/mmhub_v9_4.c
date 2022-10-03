@@ -295,8 +295,16 @@ static void mmhub_v9_4_disable_identity_aperture(struct amdgpu_device *adev,
 static void mmhub_v9_4_setup_vmid_config(struct amdgpu_device *adev, int hubid)
 {
 	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_MMHUB_0];
+	unsigned int num_level, block_size;
 	uint32_t tmp;
 	int i;
+
+	num_level = adev->vm_manager.num_level;
+	block_size = adev->vm_manager.block_size;
+	if (adev->gmc.translate_further)
+		num_level -= 1;
+	else
+		block_size -= 9;
 
 	for (i = 0; i <= 14; i++) {
 		tmp = RREG32_SOC15_OFFSET(MMHUB, 0, mmVML2VC0_VM_CONTEXT1_CNTL,
@@ -305,7 +313,7 @@ static void mmhub_v9_4_setup_vmid_config(struct amdgpu_device *adev, int hubid)
 				    ENABLE_CONTEXT, 1);
 		tmp = REG_SET_FIELD(tmp, VML2VC0_VM_CONTEXT1_CNTL,
 				    PAGE_TABLE_DEPTH,
-				    adev->vm_manager.num_level);
+				    num_level);
 		tmp = REG_SET_FIELD(tmp, VML2VC0_VM_CONTEXT1_CNTL,
 				    RANGE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
 		tmp = REG_SET_FIELD(tmp, VML2VC0_VM_CONTEXT1_CNTL,
@@ -323,7 +331,7 @@ static void mmhub_v9_4_setup_vmid_config(struct amdgpu_device *adev, int hubid)
 				    EXECUTE_PROTECTION_FAULT_ENABLE_DEFAULT, 1);
 		tmp = REG_SET_FIELD(tmp, VML2VC0_VM_CONTEXT1_CNTL,
 				    PAGE_TABLE_BLOCK_SIZE,
-				    adev->vm_manager.block_size - 9);
+				    block_size);
 		/* Send no-retry XNACK on fault to suppress VM fault storm. */
 		tmp = REG_SET_FIELD(tmp, VML2VC0_VM_CONTEXT1_CNTL,
 				    RETRY_PERMISSION_OR_INVALID_PAGE_FAULT,
@@ -647,7 +655,7 @@ static int mmhub_v9_4_set_clockgating(struct amdgpu_device *adev,
 	return 0;
 }
 
-static void mmhub_v9_4_get_clockgating(struct amdgpu_device *adev, u32 *flags)
+static void mmhub_v9_4_get_clockgating(struct amdgpu_device *adev, u64 *flags)
 {
 	int data, data1;
 

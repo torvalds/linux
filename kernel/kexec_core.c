@@ -591,11 +591,6 @@ static void kimage_free_extra_pages(struct kimage *image)
 
 }
 
-int __weak machine_kexec_post_load(struct kimage *image)
-{
-	return 0;
-}
-
 void kimage_terminate(struct kimage *image)
 {
 	if (*image->entry != 0)
@@ -768,7 +763,6 @@ static struct page *kimage_alloc_page(struct kimage *image,
 				kimage_free_pages(old_page);
 				continue;
 			}
-			addr = old_addr;
 			page = old_page;
 			break;
 		}
@@ -788,7 +782,6 @@ static int kimage_load_normal_segment(struct kimage *image,
 	unsigned char __user *buf = NULL;
 	unsigned char *kbuf = NULL;
 
-	result = 0;
 	if (image->file_mode)
 		kbuf = segment->kbuf;
 	else
@@ -936,6 +929,28 @@ int kimage_load_segment(struct kimage *image,
 struct kimage *kexec_image;
 struct kimage *kexec_crash_image;
 int kexec_load_disabled;
+#ifdef CONFIG_SYSCTL
+static struct ctl_table kexec_core_sysctls[] = {
+	{
+		.procname	= "kexec_load_disabled",
+		.data		= &kexec_load_disabled,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		/* only handle a transition from default "0" to "1" */
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ONE,
+		.extra2		= SYSCTL_ONE,
+	},
+	{ }
+};
+
+static int __init kexec_core_sysctl_init(void)
+{
+	register_sysctl_init("kernel", kexec_core_sysctls);
+	return 0;
+}
+late_initcall(kexec_core_sysctl_init);
+#endif
 
 /*
  * No panic_cpu check version of crash_kexec().  This function is called
@@ -998,15 +1013,6 @@ size_t crash_get_memory_size(void)
 		size = resource_size(&crashk_res);
 	mutex_unlock(&kexec_mutex);
 	return size;
-}
-
-void __weak crash_free_reserved_phys_range(unsigned long begin,
-					   unsigned long end)
-{
-	unsigned long addr;
-
-	for (addr = begin; addr < end; addr += PAGE_SIZE)
-		free_reserved_page(boot_pfn_to_page(addr >> PAGE_SHIFT));
 }
 
 int crash_shrink_memory(unsigned long new_size)
@@ -1078,7 +1084,7 @@ void crash_save_cpu(struct pt_regs *regs, int cpu)
 		return;
 	memset(&prstatus, 0, sizeof(prstatus));
 	prstatus.common.pr_pid = current->pid;
-	elf_core_copy_kernel_regs(&prstatus.pr_reg, regs);
+	elf_core_copy_regs(&prstatus.pr_reg, regs);
 	buf = append_elf_note(buf, KEXEC_CORE_NOTE_NAME, NT_PRSTATUS,
 			      &prstatus, sizeof(prstatus));
 	final_note(buf);
@@ -1205,16 +1211,3 @@ int kernel_kexec(void)
 	mutex_unlock(&kexec_mutex);
 	return error;
 }
-
-/*
- * Protection mechanism for crashkernel reserved memory after
- * the kdump kernel is loaded.
- *
- * Provide an empty default implementation here -- architecture
- * code may override this
- */
-void __weak arch_kexec_protect_crashkres(void)
-{}
-
-void __weak arch_kexec_unprotect_crashkres(void)
-{}

@@ -12,7 +12,7 @@ description:
   resides as a subnode of the SMD.  As such, the SMD-RPM regulator requires
   that the SMD and RPM nodes be present.
 
-  Please refer to Documentation/devicetree/bindings/soc/qcom/qcom,smd.txt for
+  Please refer to Documentation/devicetree/bindings/soc/qcom/qcom,smd.yaml for
   information pertaining to the SMD node.
 
   Please refer to Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.yaml
@@ -29,6 +29,9 @@ description:
   l26, l27, l28, lvs1
 
   For pm8841, s1, s2, s3, s4, s5, s6, s7, s8
+
+  For pm8909, s1, s2, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11, l12, l13,
+  l14, l15, l17, l18
 
   For pm8916, s1, s2, s3, s4, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11,
   l12, l13, l14, l15, l16, l17, l18
@@ -69,7 +72,8 @@ description:
   l12, l13, l14, l15, l16, l17, l18, l19, l20, l21, l22
 
 maintainers:
-  - Kathiravan T <kathirav@codeaurora.org>
+  - Andy Gross <agross@kernel.org>
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
 
 properties:
   compatible:
@@ -77,6 +81,7 @@ properties:
       - qcom,rpm-mp5496-regulators
       - qcom,rpm-pm8226-regulators
       - qcom,rpm-pm8841-regulators
+      - qcom,rpm-pm8909-regulators
       - qcom,rpm-pm8916-regulators
       - qcom,rpm-pm8941-regulators
       - qcom,rpm-pm8950-regulators

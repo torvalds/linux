@@ -37,10 +37,10 @@ configfs轻松配置的对象（例如：设备，触发器）。
 3. 软件触发器
 =============
 
-IIO默认configfs组之一是“触发器”组。 挂载configfs后可以自动访问它，并且可
+IIO默认configfs组之一是“触发器”组。挂载configfs后可以自动访问它，并且可
 以在/config/iio/triggers下找到。
 
-IIO软件触发器为创建多种触发器类型提供了支持。 通常在include/linux/iio
+IIO软件触发器为创建多种触发器类型提供了支持。通常在include/linux/iio
 /sw_trigger.h：中的接口下将新的触发器类型实现为单独的内核模块：
 ::
 
@@ -76,10 +76,10 @@ IIO软件触发器为创建多种触发器类型提供了支持。 通常在incl
 	.ops = &iio_trig_sample_ops,
   };
 
-module_iio_sw_trigger_driver(iio_trig_sample);
+  module_iio_sw_trigger_driver(iio_trig_sample);
 
-每种触发器类型在/config/iio/triggers下都有其自己的目录。 加载iio-trig-sample
-模块将创建“ trig-sample”触发器类型目录/config/iio/triggers/trig-sample.
+每种触发器类型在/config/iio/triggers下都有其自己的目录。加载iio-trig-sample
+模块将创建“trig-sample”触发器类型目录/config/iio/triggers/trig-sample.
 
 我们支持以下中断源（触发器类型）
 
@@ -102,3 +102,5 @@ module_iio_sw_trigger_driver(iio_trig_sample);
 ----------------------------
 
 "hrtimer”触发器类型没有来自/config dir的任何可配置属性。
+它确实引入了触发目录的sampling_frequency属性。
+该属性以Hz为单位设置轮询频率，精度为mHz。

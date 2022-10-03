@@ -68,19 +68,19 @@ uint32_t xfs_btree_magic(int crc, xfs_btnum_t btnum);
 /*
  * For logging record fields.
  */
-#define	XFS_BB_MAGIC		(1 << 0)
-#define	XFS_BB_LEVEL		(1 << 1)
-#define	XFS_BB_NUMRECS		(1 << 2)
-#define	XFS_BB_LEFTSIB		(1 << 3)
-#define	XFS_BB_RIGHTSIB		(1 << 4)
-#define	XFS_BB_BLKNO		(1 << 5)
-#define	XFS_BB_LSN		(1 << 6)
-#define	XFS_BB_UUID		(1 << 7)
-#define	XFS_BB_OWNER		(1 << 8)
+#define	XFS_BB_MAGIC		(1u << 0)
+#define	XFS_BB_LEVEL		(1u << 1)
+#define	XFS_BB_NUMRECS		(1u << 2)
+#define	XFS_BB_LEFTSIB		(1u << 3)
+#define	XFS_BB_RIGHTSIB		(1u << 4)
+#define	XFS_BB_BLKNO		(1u << 5)
+#define	XFS_BB_LSN		(1u << 6)
+#define	XFS_BB_UUID		(1u << 7)
+#define	XFS_BB_OWNER		(1u << 8)
 #define	XFS_BB_NUM_BITS		5
-#define	XFS_BB_ALL_BITS		((1 << XFS_BB_NUM_BITS) - 1)
+#define	XFS_BB_ALL_BITS		((1u << XFS_BB_NUM_BITS) - 1)
 #define	XFS_BB_NUM_BITS_CRC	9
-#define	XFS_BB_ALL_BITS_CRC	((1 << XFS_BB_NUM_BITS_CRC) - 1)
+#define	XFS_BB_ALL_BITS_CRC	((1u << XFS_BB_NUM_BITS_CRC) - 1)
 
 /*
  * Generic stats interface
@@ -345,7 +345,7 @@ xfs_btree_dup_cursor(
  */
 void
 xfs_btree_offsets(
-	int64_t			fields,	/* bitmask of fields */
+	uint32_t		fields,	/* bitmask of fields */
 	const short		*offsets,/* table of field offsets */
 	int			nbits,	/* number of bits to inspect */
 	int			*first,	/* output: first byte offset */
@@ -435,7 +435,7 @@ bool xfs_btree_sblock_verify_crc(struct xfs_buf *);
 /*
  * Internal btree helpers also used by xfs_bmap.c.
  */
-void xfs_btree_log_block(struct xfs_btree_cur *, struct xfs_buf *, int);
+void xfs_btree_log_block(struct xfs_btree_cur *, struct xfs_buf *, uint32_t);
 void xfs_btree_log_recs(struct xfs_btree_cur *, struct xfs_buf *, int, int);
 
 /*

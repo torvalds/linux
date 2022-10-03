@@ -27,8 +27,9 @@
 static int subdev_fh_init(struct v4l2_subdev_fh *fh, struct v4l2_subdev *sd)
 {
 	struct v4l2_subdev_state *state;
+	static struct lock_class_key key;
 
-	state = v4l2_subdev_alloc_state(sd);
+	state = __v4l2_subdev_state_alloc(sd, "fh->state->lock", &key);
 	if (IS_ERR(state))
 		return PTR_ERR(state);
 
@@ -39,7 +40,7 @@ static int subdev_fh_init(struct v4l2_subdev_fh *fh, struct v4l2_subdev *sd)
 
 static void subdev_fh_free(struct v4l2_subdev_fh *fh)
 {
-	v4l2_subdev_free_state(fh->state);
+	__v4l2_subdev_state_free(fh->state);
 	fh->state = NULL;
 }
 
@@ -63,7 +64,7 @@ static int subdev_open(struct file *file)
 	v4l2_fh_init(&subdev_fh->vfh, vdev);
 	v4l2_fh_add(&subdev_fh->vfh);
 	file->private_data = &subdev_fh->vfh;
-#if defined(CONFIG_MEDIA_CONTROLLER)
+
 	if (sd->v4l2_dev->mdev && sd->entity.graph_obj.mdev->dev) {
 		struct module *owner;
 
@@ -74,7 +75,6 @@ static int subdev_open(struct file *file)
 		}
 		subdev_fh->owner = owner;
 	}
-#endif
 
 	if (sd->internal_ops && sd->internal_ops->open) {
 		ret = sd->internal_ops->open(sd, subdev_fh);
@@ -318,14 +318,55 @@ static int call_get_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 	       sd->ops->pad->get_mbus_config(sd, pad, config);
 }
 
+#ifdef CONFIG_MEDIA_CONTROLLER
+/*
+ * Create state-management wrapper for pad ops dealing with subdev state. The
+ * wrapper handles the case where the caller does not provide the called
+ * subdev's state. This should be removed when all the callers are fixed.
+ */
+#define DEFINE_STATE_WRAPPER(f, arg_type)                                  \
+	static int call_##f##_state(struct v4l2_subdev *sd,                \
+				    struct v4l2_subdev_state *_state,      \
+				    arg_type *arg)                         \
+	{                                                                  \
+		struct v4l2_subdev_state *state = _state;                  \
+		int ret;                                                   \
+		if (!_state)                                               \
+			state = v4l2_subdev_lock_and_get_active_state(sd); \
+		ret = call_##f(sd, state, arg);                            \
+		if (!_state && state)                                      \
+			v4l2_subdev_unlock_state(state);                   \
+		return ret;                                                \
+	}
+
+#else /* CONFIG_MEDIA_CONTROLLER */
+
+#define DEFINE_STATE_WRAPPER(f, arg_type)                            \
+	static int call_##f##_state(struct v4l2_subdev *sd,          \
+				    struct v4l2_subdev_state *state, \
+				    arg_type *arg)                   \
+	{                                                            \
+		return call_##f(sd, state, arg);                     \
+	}
+
+#endif /* CONFIG_MEDIA_CONTROLLER */
+
+DEFINE_STATE_WRAPPER(get_fmt, struct v4l2_subdev_format);
+DEFINE_STATE_WRAPPER(set_fmt, struct v4l2_subdev_format);
+DEFINE_STATE_WRAPPER(enum_mbus_code, struct v4l2_subdev_mbus_code_enum);
+DEFINE_STATE_WRAPPER(enum_frame_size, struct v4l2_subdev_frame_size_enum);
+DEFINE_STATE_WRAPPER(enum_frame_interval, struct v4l2_subdev_frame_interval_enum);
+DEFINE_STATE_WRAPPER(get_selection, struct v4l2_subdev_selection);
+DEFINE_STATE_WRAPPER(set_selection, struct v4l2_subdev_selection);
+
 static const struct v4l2_subdev_pad_ops v4l2_subdev_call_pad_wrappers = {
-	.get_fmt		= call_get_fmt,
-	.set_fmt		= call_set_fmt,
-	.enum_mbus_code		= call_enum_mbus_code,
-	.enum_frame_size	= call_enum_frame_size,
-	.enum_frame_interval	= call_enum_frame_interval,
-	.get_selection		= call_get_selection,
-	.set_selection		= call_set_selection,
+	.get_fmt		= call_get_fmt_state,
+	.set_fmt		= call_set_fmt_state,
+	.enum_mbus_code		= call_enum_mbus_code_state,
+	.enum_frame_size	= call_enum_frame_size_state,
+	.enum_frame_interval	= call_enum_frame_interval_state,
+	.get_selection		= call_get_selection_state,
+	.set_selection		= call_set_selection_state,
 	.get_edid		= call_get_edid,
 	.set_edid		= call_set_edid,
 	.dv_timings_cap		= call_dv_timings_cap,
@@ -345,12 +386,50 @@ const struct v4l2_subdev_ops v4l2_subdev_call_wrappers = {
 EXPORT_SYMBOL(v4l2_subdev_call_wrappers);
 
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
-static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+
+static struct v4l2_subdev_state *
+subdev_ioctl_get_state(struct v4l2_subdev *sd, struct v4l2_subdev_fh *subdev_fh,
+		       unsigned int cmd, void *arg)
+{
+	u32 which;
+
+	switch (cmd) {
+	default:
+		return NULL;
+	case VIDIOC_SUBDEV_G_FMT:
+	case VIDIOC_SUBDEV_S_FMT:
+		which = ((struct v4l2_subdev_format *)arg)->which;
+		break;
+	case VIDIOC_SUBDEV_G_CROP:
+	case VIDIOC_SUBDEV_S_CROP:
+		which = ((struct v4l2_subdev_crop *)arg)->which;
+		break;
+	case VIDIOC_SUBDEV_ENUM_MBUS_CODE:
+		which = ((struct v4l2_subdev_mbus_code_enum *)arg)->which;
+		break;
+	case VIDIOC_SUBDEV_ENUM_FRAME_SIZE:
+		which = ((struct v4l2_subdev_frame_size_enum *)arg)->which;
+		break;
+	case VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL:
+		which = ((struct v4l2_subdev_frame_interval_enum *)arg)->which;
+		break;
+	case VIDIOC_SUBDEV_G_SELECTION:
+	case VIDIOC_SUBDEV_S_SELECTION:
+		which = ((struct v4l2_subdev_selection *)arg)->which;
+		break;
+	}
+
+	return which == V4L2_SUBDEV_FORMAT_TRY ?
+			     subdev_fh->state :
+			     v4l2_subdev_get_unlocked_active_state(sd);
+}
+
+static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg,
+			    struct v4l2_subdev_state *state)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
 	struct v4l2_fh *vfh = file->private_data;
-	struct v4l2_subdev_fh *subdev_fh = to_v4l2_subdev_fh(vfh);
 	bool ro_subdev = test_bit(V4L2_FL_SUBDEV_RO_DEVNODE, &vdev->flags);
 	int rval;
 
@@ -476,7 +555,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 		memset(format->reserved, 0, sizeof(format->reserved));
 		memset(format->format.reserved, 0, sizeof(format->format.reserved));
-		return v4l2_subdev_call(sd, pad, get_fmt, subdev_fh->state, format);
+		return v4l2_subdev_call(sd, pad, get_fmt, state, format);
 	}
 
 	case VIDIOC_SUBDEV_S_FMT: {
@@ -487,7 +566,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 		memset(format->reserved, 0, sizeof(format->reserved));
 		memset(format->format.reserved, 0, sizeof(format->format.reserved));
-		return v4l2_subdev_call(sd, pad, set_fmt, subdev_fh->state, format);
+		return v4l2_subdev_call(sd, pad, set_fmt, state, format);
 	}
 
 	case VIDIOC_SUBDEV_G_CROP: {
@@ -501,7 +580,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		sel.target = V4L2_SEL_TGT_CROP;
 
 		rval = v4l2_subdev_call(
-			sd, pad, get_selection, subdev_fh->state, &sel);
+			sd, pad, get_selection, state, &sel);
 
 		crop->rect = sel.r;
 
@@ -523,7 +602,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		sel.r = crop->rect;
 
 		rval = v4l2_subdev_call(
-			sd, pad, set_selection, subdev_fh->state, &sel);
+			sd, pad, set_selection, state, &sel);
 
 		crop->rect = sel.r;
 
@@ -534,7 +613,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		struct v4l2_subdev_mbus_code_enum *code = arg;
 
 		memset(code->reserved, 0, sizeof(code->reserved));
-		return v4l2_subdev_call(sd, pad, enum_mbus_code, subdev_fh->state,
+		return v4l2_subdev_call(sd, pad, enum_mbus_code, state,
 					code);
 	}
 
@@ -542,7 +621,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		struct v4l2_subdev_frame_size_enum *fse = arg;
 
 		memset(fse->reserved, 0, sizeof(fse->reserved));
-		return v4l2_subdev_call(sd, pad, enum_frame_size, subdev_fh->state,
+		return v4l2_subdev_call(sd, pad, enum_frame_size, state,
 					fse);
 	}
 
@@ -567,7 +646,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		struct v4l2_subdev_frame_interval_enum *fie = arg;
 
 		memset(fie->reserved, 0, sizeof(fie->reserved));
-		return v4l2_subdev_call(sd, pad, enum_frame_interval, subdev_fh->state,
+		return v4l2_subdev_call(sd, pad, enum_frame_interval, state,
 					fie);
 	}
 
@@ -576,7 +655,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 		memset(sel->reserved, 0, sizeof(sel->reserved));
 		return v4l2_subdev_call(
-			sd, pad, get_selection, subdev_fh->state, sel);
+			sd, pad, get_selection, state, sel);
 	}
 
 	case VIDIOC_SUBDEV_S_SELECTION: {
@@ -587,7 +666,7 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 		memset(sel->reserved, 0, sizeof(sel->reserved));
 		return v4l2_subdev_call(
-			sd, pad, set_selection, subdev_fh->state, sel);
+			sd, pad, set_selection, state, sel);
 	}
 
 	case VIDIOC_G_EDID: {
@@ -666,8 +745,24 @@ static long subdev_do_ioctl_lock(struct file *file, unsigned int cmd, void *arg)
 
 	if (lock && mutex_lock_interruptible(lock))
 		return -ERESTARTSYS;
-	if (video_is_registered(vdev))
-		ret = subdev_do_ioctl(file, cmd, arg);
+
+	if (video_is_registered(vdev)) {
+		struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
+		struct v4l2_fh *vfh = file->private_data;
+		struct v4l2_subdev_fh *subdev_fh = to_v4l2_subdev_fh(vfh);
+		struct v4l2_subdev_state *state;
+
+		state = subdev_ioctl_get_state(sd, subdev_fh, cmd, arg);
+
+		if (state)
+			v4l2_subdev_lock_state(state);
+
+		ret = subdev_do_ioctl(file, cmd, arg, state);
+
+		if (state)
+			v4l2_subdev_unlock_state(state);
+	}
+
 	if (lock)
 		mutex_unlock(lock);
 	return ret;
@@ -824,7 +919,7 @@ v4l2_subdev_link_validate_get_format(struct media_pad *pad,
 
 		fmt->which = V4L2_SUBDEV_FORMAT_ACTIVE;
 		fmt->pad = pad->index;
-		return v4l2_subdev_call(sd, pad, get_fmt, NULL, fmt);
+		return v4l2_subdev_call_state_active(sd, pad, get_fmt, fmt);
 	}
 
 	WARN(pad->entity->function != MEDIA_ENT_F_IO_V4L,
@@ -862,7 +957,9 @@ int v4l2_subdev_link_validate(struct media_link *link)
 }
 EXPORT_SYMBOL_GPL(v4l2_subdev_link_validate);
 
-struct v4l2_subdev_state *v4l2_subdev_alloc_state(struct v4l2_subdev *sd)
+struct v4l2_subdev_state *
+__v4l2_subdev_state_alloc(struct v4l2_subdev *sd, const char *lock_name,
+			  struct lock_class_key *lock_key)
 {
 	struct v4l2_subdev_state *state;
 	int ret;
@@ -871,17 +968,29 @@ struct v4l2_subdev_state *v4l2_subdev_alloc_state(struct v4l2_subdev *sd)
 	if (!state)
 		return ERR_PTR(-ENOMEM);
 
+	__mutex_init(&state->_lock, lock_name, lock_key);
+	if (sd->state_lock)
+		state->lock = sd->state_lock;
+	else
+		state->lock = &state->_lock;
+
 	if (sd->entity.num_pads) {
-		state->pads = kvmalloc_array(sd->entity.num_pads,
-					     sizeof(*state->pads),
-					     GFP_KERNEL | __GFP_ZERO);
+		state->pads = kvcalloc(sd->entity.num_pads,
+				       sizeof(*state->pads), GFP_KERNEL);
 		if (!state->pads) {
 			ret = -ENOMEM;
 			goto err;
 		}
 	}
 
+	/*
+	 * There can be no race at this point, but we lock the state anyway to
+	 * satisfy lockdep checks.
+	 */
+	v4l2_subdev_lock_state(state);
 	ret = v4l2_subdev_call(sd, pad, init_cfg, state);
+	v4l2_subdev_unlock_state(state);
+
 	if (ret < 0 && ret != -ENOIOCTLCMD)
 		goto err;
 
@@ -895,17 +1004,63 @@ err:
 
 	return ERR_PTR(ret);
 }
-EXPORT_SYMBOL_GPL(v4l2_subdev_alloc_state);
+EXPORT_SYMBOL_GPL(__v4l2_subdev_state_alloc);
 
-void v4l2_subdev_free_state(struct v4l2_subdev_state *state)
+void __v4l2_subdev_state_free(struct v4l2_subdev_state *state)
 {
 	if (!state)
 		return;
 
+	mutex_destroy(&state->_lock);
+
 	kvfree(state->pads);
 	kfree(state);
 }
-EXPORT_SYMBOL_GPL(v4l2_subdev_free_state);
+EXPORT_SYMBOL_GPL(__v4l2_subdev_state_free);
+
+int __v4l2_subdev_init_finalize(struct v4l2_subdev *sd, const char *name,
+				struct lock_class_key *key)
+{
+	struct v4l2_subdev_state *state;
+
+	state = __v4l2_subdev_state_alloc(sd, name, key);
+	if (IS_ERR(state))
+		return PTR_ERR(state);
+
+	sd->active_state = state;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__v4l2_subdev_init_finalize);
+
+void v4l2_subdev_cleanup(struct v4l2_subdev *sd)
+{
+	__v4l2_subdev_state_free(sd->active_state);
+	sd->active_state = NULL;
+}
+EXPORT_SYMBOL_GPL(v4l2_subdev_cleanup);
+
+#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
+
+int v4l2_subdev_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_state *state,
+			struct v4l2_subdev_format *format)
+{
+	struct v4l2_mbus_framefmt *fmt;
+
+	if (format->pad >= sd->entity.num_pads)
+		return -EINVAL;
+
+	fmt = v4l2_subdev_get_pad_format(sd, state, format->pad);
+	if (!fmt)
+		return -EINVAL;
+
+	format->format = *fmt;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(v4l2_subdev_get_fmt);
+
+#endif /* CONFIG_VIDEO_V4L2_SUBDEV_API */
 
 #endif /* CONFIG_MEDIA_CONTROLLER */
 

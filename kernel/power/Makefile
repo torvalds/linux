@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 
-ccflags-$(CONFIG_PM_DEBUG)	:= -DDEBUG
+ifeq ($(CONFIG_DYNAMIC_DEBUG), y)
+CFLAGS_swap.o                   := -DDEBUG
+CFLAGS_snapshot.o               := -DDEBUG
+CFLAGS_energy_model.o           := -DDEBUG
+endif
 
 KASAN_SANITIZE_snapshot.o	:= n
 

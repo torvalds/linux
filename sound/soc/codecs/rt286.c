@@ -311,7 +311,8 @@ static void rt286_jack_detect_work(struct work_struct *work)
 		SND_JACK_MICROPHONE | SND_JACK_HEADPHONE);
 }
 
-int rt286_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *jack)
+static int rt286_mic_detect(struct snd_soc_component *component,
+			    struct snd_soc_jack *jack, void *data)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	struct rt286_priv *rt286 = snd_soc_component_get_drvdata(component);
@@ -335,7 +336,6 @@ int rt286_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *j
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(rt286_mic_detect);
 
 static int is_mclk_mode(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
@@ -947,17 +947,11 @@ static int rt286_probe(struct snd_soc_component *component)
 	struct rt286_priv *rt286 = snd_soc_component_get_drvdata(component);
 
 	rt286->component = component;
+	INIT_DELAYED_WORK(&rt286->jack_detect_work, rt286_jack_detect_work);
 
-	if (rt286->i2c->irq) {
-		regmap_update_bits(rt286->regmap,
-					RT286_IRQ_CTRL, 0x2, 0x2);
-
-		INIT_DELAYED_WORK(&rt286->jack_detect_work,
-					rt286_jack_detect_work);
+	if (rt286->i2c->irq)
 		schedule_delayed_work(&rt286->jack_detect_work,
-					msecs_to_jiffies(1250));
-	}
-
+				      msecs_to_jiffies(50));
 	return 0;
 }
 
@@ -966,6 +960,7 @@ static void rt286_remove(struct snd_soc_component *component)
 	struct rt286_priv *rt286 = snd_soc_component_get_drvdata(component);
 
 	cancel_delayed_work_sync(&rt286->jack_detect_work);
+	rt286->component = NULL;
 }
 
 #ifdef CONFIG_PM
@@ -1055,6 +1050,7 @@ static const struct snd_soc_component_driver soc_component_dev_rt286 = {
 	.suspend		= rt286_suspend,
 	.resume			= rt286_resume,
 	.set_bias_level		= rt286_set_bias_level,
+	.set_jack		= rt286_mic_detect,
 	.controls		= rt286_snd_controls,
 	.num_controls		= ARRAY_SIZE(rt286_snd_controls),
 	.dapm_widgets		= rt286_dapm_widgets,
@@ -1063,7 +1059,6 @@ static const struct snd_soc_component_driver soc_component_dev_rt286 = {
 	.num_dapm_routes	= ARRAY_SIZE(rt286_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt286_regmap = {
@@ -1134,8 +1129,7 @@ static const struct dmi_system_id dmi_dell[] = {
 	{ }
 };
 
-static int rt286_i2c_probe(struct i2c_client *i2c,
-			   const struct i2c_device_id *id)
+static int rt286_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt286_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt286_priv *rt286;
@@ -1271,7 +1265,7 @@ static struct i2c_driver rt286_i2c_driver = {
 		   .name = "rt286",
 		   .acpi_match_table = ACPI_PTR(rt286_acpi_match),
 		   },
-	.probe = rt286_i2c_probe,
+	.probe_new = rt286_i2c_probe,
 	.remove = rt286_i2c_remove,
 	.id_table = rt286_i2c_id,
 };

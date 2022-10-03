@@ -581,7 +581,6 @@ static const struct snd_soc_component_driver soc_component_dev_cs42l42 = {
 	.num_controls		= ARRAY_SIZE(cs42l42_snd_controls),
 	.idle_bias_on		= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 /* Switch to SCLK. Atomic delay after the write to allow the switch to complete. */
@@ -1701,8 +1700,7 @@ static irqreturn_t cs42l42_irq_thread(int irq, void *data)
 			break;
 
 		default:
-			if (cs42l42->plug_state != CS42L42_TS_TRANS)
-				cs42l42->plug_state = CS42L42_TS_TRANS;
+			cs42l42->plug_state = CS42L42_TS_TRANS;
 		}
 	}
 
@@ -2194,8 +2192,7 @@ static int __maybe_unused cs42l42_resume(struct device *dev)
 	return 0;
 }
 
-static int cs42l42_i2c_probe(struct i2c_client *i2c_client,
-				       const struct i2c_device_id *id)
+static int cs42l42_i2c_probe(struct i2c_client *i2c_client)
 {
 	struct cs42l42_private *cs42l42;
 	int ret, i, devid;
@@ -2399,7 +2396,7 @@ static struct i2c_driver cs42l42_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(cs42l42_acpi_match),
 		},
 	.id_table = cs42l42_id,
-	.probe = cs42l42_i2c_probe,
+	.probe_new = cs42l42_i2c_probe,
 	.remove = cs42l42_i2c_remove,
 };
 

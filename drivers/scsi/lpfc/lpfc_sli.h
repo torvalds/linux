@@ -35,6 +35,12 @@ typedef enum _lpfc_ctx_cmd {
 	LPFC_CTX_HOST
 } lpfc_ctx_cmd;
 
+/* Enumeration to describe the thread lock context. */
+enum lpfc_mbox_ctx {
+	MBOX_THD_UNLOCKED,
+	MBOX_THD_LOCKED
+};
+
 union lpfc_vmid_tag {
 	uint32_t app_id;
 	uint8_t cs_ctl_vmid;
@@ -77,11 +83,15 @@ struct lpfc_iocbq {
 
 	u32 unsol_rcv_len;	/* Receive len in usol path */
 
-	uint8_t num_bdes;
-	uint8_t abort_bls;	/* ABTS by initiator or responder */
-	u8 abort_rctl;		/* ACC or RJT flag */
-	uint8_t priority;	/* OAS priority */
-	uint8_t retry;		/* retry counter for IOCB cmd - if needed */
+	/* Pack the u8's together and make them module-4. */
+	u8 num_bdes;	/* Number of BDEs */
+	u8 abort_bls;	/* ABTS by initiator or responder */
+	u8 abort_rctl;	/* ACC or RJT flag */
+	u8 priority;	/* OAS priority */
+	u8 retry;	/* retry counter for IOCB cmd - if needed */
+	u8 rsvd1;       /* Pad for u32 */
+	u8 rsvd2;       /* Pad for u32 */
+	u8 rsvd3;	/* Pad for u32 */
 
 	u32 cmd_flag;
 #define LPFC_IO_LIBDFC		1	/* libdfc iocb */
@@ -116,18 +126,22 @@ struct lpfc_iocbq {
 
 	uint32_t drvrTimeout;	/* driver timeout in seconds */
 	struct lpfc_vport *vport;/* virtual port pointer */
-	void *context1;		/* caller context information */
-	void *context2;		/* caller context information */
-	void *context3;		/* caller context information */
+	struct lpfc_dmabuf *cmd_dmabuf;
+	struct lpfc_dmabuf *rsp_dmabuf;
+	struct lpfc_dmabuf *bpl_dmabuf;
 	uint32_t event_tag;	/* LA Event tag */
 	union {
 		wait_queue_head_t    *wait_queue;
-		struct lpfc_iocbq    *rsp_iocb;
 		struct lpfcMboxq     *mbox;
-		struct lpfc_nodelist *ndlp;
 		struct lpfc_node_rrq *rrq;
+		struct nvmefc_ls_req *nvme_lsreq;
+		struct lpfc_async_xchg_ctx *axchg;
+		struct bsg_job_data *dd_data;
 	} context_un;
 
+	struct lpfc_io_buf *io_buf;
+	struct lpfc_iocbq *rsp_iocb;
+	struct lpfc_nodelist *ndlp;
 	union lpfc_vmid_tag vmid_tag;
 	void (*fabric_cmd_cmpl)(struct lpfc_hba *phba, struct lpfc_iocbq *cmd,
 				struct lpfc_iocbq *rsp);
@@ -341,7 +355,6 @@ struct lpfc_sli {
 #define LPFC_SLI_ACTIVE           0x200	/* SLI in firmware is active */
 #define LPFC_PROCESS_LA           0x400	/* Able to process link attention */
 #define LPFC_BLOCK_MGMT_IO        0x800	/* Don't allow mgmt mbx or iocb cmds */
-#define LPFC_MENLO_MAINT          0x1000 /* need for menl fw download */
 #define LPFC_SLI_ASYNC_MBX_BLK    0x2000 /* Async mailbox is blocked */
 #define LPFC_SLI_SUPPRESS_RSP     0x4000 /* Suppress RSP feature is supported */
 #define LPFC_SLI_USE_EQDR         0x8000 /* EQ Delay Register is supported */

@@ -70,7 +70,7 @@ SYSCALL_DEFINE2(clock_settime, const clockid_t, which_clock,
 	return do_sys_settimeofday64(&new_tp, NULL);
 }
 
-int do_clock_gettime(clockid_t which_clock, struct timespec64 *tp)
+static int do_clock_gettime(clockid_t which_clock, struct timespec64 *tp)
 {
 	switch (which_clock) {
 	case CLOCK_REALTIME:
@@ -90,6 +90,7 @@ int do_clock_gettime(clockid_t which_clock, struct timespec64 *tp)
 
 	return 0;
 }
+
 SYSCALL_DEFINE2(clock_gettime, const clockid_t, which_clock,
 		struct __kernel_timespec __user *, tp)
 {

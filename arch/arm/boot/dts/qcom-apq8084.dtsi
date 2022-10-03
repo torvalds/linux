@@ -95,7 +95,7 @@
 
 	firmware {
 		scm {
-			compatible = "qcom,scm";
+			compatible = "qcom,scm-apq8084", "qcom,scm";
 			clocks = <&gcc GCC_CE1_CLK> , <&gcc GCC_CE1_AXI_CLK>, <&gcc GCC_CE1_AHB_CLK>;
 			clock-names = "core", "bus", "iface";
 		};
@@ -240,10 +240,10 @@
 		};
 
 		qfprom: qfprom@fc4bc000 {
+			compatible = "qcom,apq8084-qfprom", "qcom,qfprom";
+			reg = <0xfc4bc000 0x1000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
-			compatible = "qcom,qfprom";
-			reg = <0xfc4bc000 0x1000>;
 			tsens_calib: calib@d0 {
 				reg = <0xd0 0x18>;
 			};
@@ -419,7 +419,7 @@
 			status = "disabled";
 		};
 
-		sdhci@f9824900 {
+		mmc@f9824900 {
 			compatible = "qcom,apq8084-sdhci", "qcom,sdhci-msm-v4";
 			reg = <0xf9824900 0x11c>, <0xf9824000 0x800>;
 			reg-names = "hc_mem", "core_mem";
@@ -432,7 +432,7 @@
 			status = "disabled";
 		};
 
-		sdhci@f98a4900 {
+		mmc@f98a4900 {
 			compatible = "qcom,apq8084-sdhci", "qcom,sdhci-msm-v4";
 			reg = <0xf98a4900 0x11c>, <0xf98a4000 0x800>;
 			reg-names = "hc_mem", "core_mem";
@@ -470,7 +470,7 @@
 			qcom,ipc = <&apcs 8 0>;
 			qcom,smd-edge = <15>;
 
-			rpm_requests {
+			rpm-requests {
 				compatible = "qcom,rpm-apq8084";
 				qcom,smd-channels = "rpm_requests";
 

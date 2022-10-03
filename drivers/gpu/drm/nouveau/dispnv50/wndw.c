@@ -32,6 +32,8 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_blend.h>
+#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_fourcc.h>
 
 #include "nouveau_bo.h"
@@ -558,9 +560,7 @@ nv50_wndw_prepare_fb(struct drm_plane *plane, struct drm_plane_state *state)
 			asyw->image.handle[0] = ctxdma->object.handle;
 	}
 
-	ret = dma_resv_get_singleton(nvbo->bo.base.resv,
-				     DMA_RESV_USAGE_WRITE,
-				     &asyw->state.fence);
+	ret = drm_gem_plane_helper_prepare_fb(plane, state);
 	if (ret)
 		return ret;
 
@@ -644,7 +644,6 @@ nv50_wndw_destroy(struct drm_plane *plane)
 		nv50_wndw_ctxdma_del(ctxdma);
 	}
 
-	nvif_notify_dtor(&wndw->notify);
 	nv50_dmac_destroy(&wndw->wimm);
 	nv50_dmac_destroy(&wndw->wndw);
 
@@ -687,24 +686,6 @@ nv50_wndw = {
 	.atomic_destroy_state = nv50_wndw_atomic_destroy_state,
 	.format_mod_supported = nv50_plane_format_mod_supported,
 };
-
-static int
-nv50_wndw_notify(struct nvif_notify *notify)
-{
-	return NVIF_NOTIFY_KEEP;
-}
-
-void
-nv50_wndw_fini(struct nv50_wndw *wndw)
-{
-	nvif_notify_put(&wndw->notify);
-}
-
-void
-nv50_wndw_init(struct nv50_wndw *wndw)
-{
-	nvif_notify_get(&wndw->notify);
-}
 
 static const u64 nv50_cursor_format_modifiers[] = {
 	DRM_FORMAT_MOD_LINEAR,
@@ -758,8 +739,6 @@ nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 		if (ret)
 			return ret;
 	}
-
-	wndw->notify.func = nv50_wndw_notify;
 
 	if (wndw->func->blend_set) {
 		ret = drm_plane_create_zpos_property(&wndw->plane,

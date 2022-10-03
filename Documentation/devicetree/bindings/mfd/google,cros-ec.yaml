@@ -57,7 +57,7 @@ properties:
   mediatek,rpmsg-name:
     description:
       Must be defined if the cros-ec is a rpmsg device for a Mediatek
-      ARM Cortex M4 Co-processor. Contains the name pf the rpmsg
+      ARM Cortex M4 Co-processor. Contains the name of the rpmsg
       device. Used to match the subnode to the rpmsg device announced by
       the SCP.
     $ref: "/schemas/types.yaml#/definitions/string"
@@ -89,6 +89,9 @@ properties:
 
   pwm:
     $ref: "/schemas/pwm/google,cros-ec-pwm.yaml#"
+
+  kbd-led-backlight:
+    $ref: "/schemas/chrome/google,cros-kbd-led-backlight.yaml#"
 
   keyboard-controller:
     $ref: "/schemas/input/google,cros-ec-keyb.yaml#"

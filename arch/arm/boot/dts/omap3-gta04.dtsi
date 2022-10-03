@@ -31,6 +31,8 @@
 	aliases {
 		display0 = &lcd;
 		display1 = &tv0;
+		/delete-property/ mmc2;
+		/delete-property/ mmc3;
 	};
 
 	ldo_3v3: fixedregulator {
@@ -125,7 +127,7 @@
 			spi-cpol;
 			spi-cpha;
 
-			backlight= <&backlight>;
+			backlight = <&backlight>;
 			label = "lcd";
 			port {
 				lcd_in: endpoint {

@@ -121,23 +121,24 @@ static int atmel_sha204a_remove(struct i2c_client *client)
 	struct atmel_i2c_client_priv *i2c_priv = i2c_get_clientdata(client);
 
 	if (atomic_read(&i2c_priv->tfm_count)) {
-		dev_err(&client->dev, "Device is busy\n");
-		return -EBUSY;
+		dev_emerg(&client->dev, "Device is busy, will remove it anyhow\n");
+		return 0;
 	}
 
-	if (i2c_priv->hwrng.priv)
-		kfree((void *)i2c_priv->hwrng.priv);
+	kfree((void *)i2c_priv->hwrng.priv);
 
 	return 0;
 }
 
 static const struct of_device_id atmel_sha204a_dt_ids[] = {
+	{ .compatible = "atmel,atsha204", },
 	{ .compatible = "atmel,atsha204a", },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, atmel_sha204a_dt_ids);
 
 static const struct i2c_device_id atmel_sha204a_id[] = {
+	{ "atsha204", 0 },
 	{ "atsha204a", 0 },
 	{ /* sentinel */ }
 };
@@ -159,7 +160,7 @@ static int __init atmel_sha204a_init(void)
 
 static void __exit atmel_sha204a_exit(void)
 {
-	flush_scheduled_work();
+	atmel_i2c_flush_queue();
 	i2c_del_driver(&atmel_sha204a_driver);
 }
 

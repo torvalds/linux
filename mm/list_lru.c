@@ -71,7 +71,7 @@ list_lru_from_kmem(struct list_lru *lru, int nid, void *ptr,
 	if (!list_lru_memcg_aware(lru))
 		goto out;
 
-	memcg = mem_cgroup_from_obj(ptr);
+	memcg = mem_cgroup_from_slab_obj(ptr);
 	if (!memcg)
 		goto out;
 

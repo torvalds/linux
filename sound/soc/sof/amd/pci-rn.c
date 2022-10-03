@@ -49,14 +49,23 @@ static const struct sof_amd_acp_desc renoir_chip_info = {
 
 static const struct sof_dev_desc renoir_desc = {
 	.machines		= snd_soc_acpi_amd_sof_machines,
+	.use_acpi_target_states	= true,
 	.resindex_lpe_base	= 0,
 	.resindex_pcicfg_base	= -1,
 	.resindex_imr_base	= -1,
 	.irqindex_host_ipc	= -1,
 	.chip_info		= &renoir_chip_info,
-	.default_fw_path	= "amd/sof",
-	.default_tplg_path	= "amd/sof-tplg",
-	.default_fw_filename	= "sof-rn.ri",
+	.ipc_supported_mask	= BIT(SOF_IPC),
+	.ipc_default		= SOF_IPC,
+	.default_fw_path = {
+		[SOF_IPC] = "amd/sof",
+	},
+	.default_tplg_path = {
+		[SOF_IPC] = "amd/sof-tplg",
+	},
+	.default_fw_filename	= {
+		[SOF_IPC] = "sof-rn.ri",
+	},
 	.nocodec_tplg_filename	= "sof-acp.tplg",
 	.ops			= &sof_renoir_ops,
 };
@@ -93,6 +102,7 @@ static int acp_pci_rn_probe(struct pci_dev *pci, const struct pci_device_id *pci
 	res = devm_kzalloc(&pci->dev, sizeof(struct resource) * ARRAY_SIZE(renoir_res), GFP_KERNEL);
 	if (!res) {
 		sof_pci_remove(pci);
+		platform_device_unregister(dmic_dev);
 		return -ENOMEM;
 	}
 
@@ -157,6 +167,9 @@ static struct pci_driver snd_sof_pci_amd_rn_driver = {
 	.id_table = rn_pci_ids,
 	.probe = acp_pci_rn_probe,
 	.remove = acp_pci_rn_remove,
+	.driver = {
+		.pm = &sof_pci_pm,
+	},
 };
 module_pci_driver(snd_sof_pci_amd_rn_driver);
 

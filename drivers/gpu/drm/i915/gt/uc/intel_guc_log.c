@@ -721,7 +721,7 @@ int intel_guc_log_relay_open(struct intel_guc_log *log)
 	/*
 	 * We require SSE 4.1 for fast reads from the GuC log buffer and
 	 * it should be present on the chipsets supporting GuC based
-	 * submisssions.
+	 * submissions.
 	 */
 	if (!i915_has_memcpy_from_wc()) {
 		ret = -ENXIO;

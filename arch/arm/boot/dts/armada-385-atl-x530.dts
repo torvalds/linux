@@ -168,7 +168,7 @@
 	pinctrl-0 = <&spi1_pins>;
 	status = "okay";
 
-	spi-flash@1 {
+	flash@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "jedec,spi-nor";

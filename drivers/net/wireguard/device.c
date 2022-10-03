@@ -19,6 +19,7 @@
 #include <linux/if_arp.h>
 #include <linux/icmp.h>
 #include <linux/suspend.h>
+#include <net/dst_metadata.h>
 #include <net/icmp.h>
 #include <net/rtnetlink.h>
 #include <net/ip_tunnels.h>
@@ -68,7 +69,8 @@ static int wg_pm_notification(struct notifier_block *nb, unsigned long action, v
 	 * its normal operation rather than as a somewhat rare event, then we
 	 * don't actually want to clear keys.
 	 */
-	if (IS_ENABLED(CONFIG_PM_AUTOSLEEP) || IS_ENABLED(CONFIG_ANDROID))
+	if (IS_ENABLED(CONFIG_PM_AUTOSLEEP) ||
+	    IS_ENABLED(CONFIG_PM_USERSPACE_AUTOSLEEP))
 		return 0;
 
 	if (action != PM_HIBERNATION_PREPARE && action != PM_SUSPEND_PREPARE)
@@ -167,7 +169,7 @@ static netdev_tx_t wg_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto err_peer;
 	}
 
-	mtu = skb_dst(skb) ? dst_mtu(skb_dst(skb)) : dev->mtu;
+	mtu = skb_valid_dst(skb) ? dst_mtu(skb_dst(skb)) : dev->mtu;
 
 	__skb_queue_head_init(&packets);
 	if (!skb_is_gso(skb)) {

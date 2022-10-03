@@ -390,6 +390,9 @@ static int tmio_probe(struct platform_device *dev)
 	if (data == NULL)
 		dev_warn(&dev->dev, "NULL platform data!\n");
 
+	if (!ccr || !fcr)
+		return -EINVAL;
+
 	tmio = devm_kzalloc(&dev->dev, sizeof(*tmio), GFP_KERNEL);
 	if (!tmio)
 		return -ENOMEM;

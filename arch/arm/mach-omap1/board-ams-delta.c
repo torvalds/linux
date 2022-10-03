@@ -28,6 +28,7 @@
 #include <linux/omapfb.h>
 #include <linux/io.h>
 #include <linux/platform_data/gpio-omap.h>
+#include <linux/soc/ti/omap1-mux.h>
 
 #include <asm/serial.h>
 #include <asm/mach-types.h>
@@ -35,11 +36,9 @@
 #include <asm/mach/map.h>
 
 #include <linux/platform_data/keypad-omap.h>
-#include <mach/mux.h>
 
-#include <mach/hardware.h>
-#include <mach/usb.h>
-
+#include "hardware.h"
+#include "usb.h"
 #include "ams-delta-fiq.h"
 #include "board-ams-delta.h"
 #include "iomap.h"
@@ -407,9 +406,6 @@ static struct gpio_led gpio_leds[] __initdata = {
 	[LATCH1_PIN_LED_CAMERA] = {
 		.name		 = "camera",
 		.default_state	 = LEDS_GPIO_DEFSTATE_OFF,
-#ifdef CONFIG_LEDS_TRIGGERS
-		.default_trigger = "ams_delta_camera",
-#endif
 	},
 	[LATCH1_PIN_LED_ADVERT] = {
 		.name		 = "advert",
@@ -455,10 +451,6 @@ static struct gpiod_lookup_table leds_gpio_table = {
 		{ },
 	},
 };
-
-#ifdef CONFIG_LEDS_TRIGGERS
-DEFINE_LED_TRIGGER(ams_delta_camera_led_trigger);
-#endif
 
 static struct platform_device ams_delta_audio_device = {
 	.name   = "ams-delta-audio",
@@ -672,7 +664,7 @@ static void __init ams_delta_latch2_init(void)
 {
 	u16 latch2 = 1 << LATCH2_PIN_MODEM_NRESET | 1 << LATCH2_PIN_MODEM_CODEC;
 
-	__raw_writew(latch2, LATCH2_VIRT);
+	__raw_writew(latch2, IOMEM(LATCH2_VIRT));
 }
 
 static void __init ams_delta_init(void)
@@ -705,10 +697,6 @@ static void __init ams_delta_init(void)
 	omap_register_i2c_bus(1, 100, NULL, 0);
 
 	omap1_usb_init(&ams_delta_usb_config);
-#ifdef CONFIG_LEDS_TRIGGERS
-	led_trigger_register_simple("ams_delta_camera",
-			&ams_delta_camera_led_trigger);
-#endif
 	platform_add_devices(ams_delta_devices, ARRAY_SIZE(ams_delta_devices));
 
 	/*

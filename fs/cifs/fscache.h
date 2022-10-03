@@ -52,16 +52,16 @@ void cifs_fscache_fill_coherency(struct inode *inode,
 	struct cifsInodeInfo *cifsi = CIFS_I(inode);
 
 	memset(cd, 0, sizeof(*cd));
-	cd->last_write_time_sec   = cpu_to_le64(cifsi->vfs_inode.i_mtime.tv_sec);
-	cd->last_write_time_nsec  = cpu_to_le32(cifsi->vfs_inode.i_mtime.tv_nsec);
-	cd->last_change_time_sec  = cpu_to_le64(cifsi->vfs_inode.i_ctime.tv_sec);
-	cd->last_change_time_nsec = cpu_to_le32(cifsi->vfs_inode.i_ctime.tv_nsec);
+	cd->last_write_time_sec   = cpu_to_le64(cifsi->netfs.inode.i_mtime.tv_sec);
+	cd->last_write_time_nsec  = cpu_to_le32(cifsi->netfs.inode.i_mtime.tv_nsec);
+	cd->last_change_time_sec  = cpu_to_le64(cifsi->netfs.inode.i_ctime.tv_sec);
+	cd->last_change_time_nsec = cpu_to_le32(cifsi->netfs.inode.i_ctime.tv_nsec);
 }
 
 
 static inline struct fscache_cookie *cifs_inode_cookie(struct inode *inode)
 {
-	return netfs_i_cookie(inode);
+	return netfs_i_cookie(&CIFS_I(inode)->netfs);
 }
 
 static inline void cifs_invalidate_cache(struct inode *inode, unsigned int flags)
@@ -108,17 +108,6 @@ static inline void cifs_readpage_to_fscache(struct inode *inode,
 		__cifs_readpage_to_fscache(inode, page);
 }
 
-static inline int cifs_fscache_release_page(struct page *page, gfp_t gfp)
-{
-	if (PageFsCache(page)) {
-		if (current_is_kswapd() || !(gfp & __GFP_FS))
-			return false;
-		wait_on_page_fscache(page);
-		fscache_note_page_release(cifs_inode_cookie(page->mapping->host));
-	}
-	return true;
-}
-
 #else /* CONFIG_CIFS_FSCACHE */
 static inline
 void cifs_fscache_fill_coherency(struct inode *inode,
@@ -153,11 +142,6 @@ cifs_readpage_from_fscache(struct inode *inode, struct page *page)
 
 static inline
 void cifs_readpage_to_fscache(struct inode *inode, struct page *page) {}
-
-static inline int nfs_fscache_release_page(struct page *page, gfp_t gfp)
-{
-	return true; /* May release page */
-}
 
 #endif /* CONFIG_CIFS_FSCACHE */
 

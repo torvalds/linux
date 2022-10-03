@@ -159,7 +159,7 @@ still_busy:
  *
  * Return 0 on success and -errno on error.
  *
- * Contains an adapted version of fs/buffer.c::block_read_full_page().
+ * Contains an adapted version of fs/buffer.c::block_read_full_folio().
  */
 static int ntfs_read_block(struct page *page)
 {
@@ -342,7 +342,7 @@ handle_zblock:
 		for (i = 0; i < nr; i++) {
 			tbh = arr[i];
 			if (likely(!buffer_uptodate(tbh)))
-				submit_bh(REQ_OP_READ, 0, tbh);
+				submit_bh(REQ_OP_READ, tbh);
 			else
 				ntfs_end_buffer_async_read(tbh, 1);
 		}
@@ -358,16 +358,16 @@ handle_zblock:
 }
 
 /**
- * ntfs_readpage - fill a @page of a @file with data from the device
- * @file:	open file to which the page @page belongs or NULL
- * @page:	page cache page to fill with data
+ * ntfs_read_folio - fill a @folio of a @file with data from the device
+ * @file:	open file to which the folio @folio belongs or NULL
+ * @folio:	page cache folio to fill with data
  *
- * For non-resident attributes, ntfs_readpage() fills the @page of the open
- * file @file by calling the ntfs version of the generic block_read_full_page()
+ * For non-resident attributes, ntfs_read_folio() fills the @folio of the open
+ * file @file by calling the ntfs version of the generic block_read_full_folio()
  * function, ntfs_read_block(), which in turn creates and reads in the buffers
- * associated with the page asynchronously.
+ * associated with the folio asynchronously.
  *
- * For resident attributes, OTOH, ntfs_readpage() fills @page by copying the
+ * For resident attributes, OTOH, ntfs_read_folio() fills @folio by copying the
  * data from the mft record (which at this stage is most likely in memory) and
  * fills the remainder with zeroes. Thus, in this case, I/O is synchronous, as
  * even if the mft record is not cached at this point in time, we need to wait
@@ -375,8 +375,9 @@ handle_zblock:
  *
  * Return 0 on success and -errno on error.
  */
-static int ntfs_readpage(struct file *file, struct page *page)
+static int ntfs_read_folio(struct file *file, struct folio *folio)
 {
+	struct page *page = &folio->page;
 	loff_t i_size;
 	struct inode *vi;
 	ntfs_inode *ni, *base_ni;
@@ -458,7 +459,7 @@ retry_readpage:
 	}
 	/*
 	 * If a parallel write made the attribute non-resident, drop the mft
-	 * record and retry the readpage.
+	 * record and retry the read_folio.
 	 */
 	if (unlikely(NInoNonResident(ni))) {
 		unmap_mft_record(base_ni);
@@ -637,10 +638,11 @@ static int ntfs_write_block(struct page *page, struct writeback_control *wbc)
 		if (unlikely((block >= iblock) &&
 				(initialized_size < i_size))) {
 			/*
-			 * If this page is fully outside initialized size, zero
-			 * out all pages between the current initialized size
-			 * and the current page. Just use ntfs_readpage() to do
-			 * the zeroing transparently.
+			 * If this page is fully outside initialized
+			 * size, zero out all pages between the current
+			 * initialized size and the current page. Just
+			 * use ntfs_read_folio() to do the zeroing
+			 * transparently.
 			 */
 			if (block > iblock) {
 				// TODO:
@@ -798,7 +800,7 @@ lock_retry_remap:
 	/* For the error case, need to reset bh to the beginning. */
 	bh = head;
 
-	/* Just an optimization, so ->readpage() is not called later. */
+	/* Just an optimization, so ->read_folio() is not called later. */
 	if (unlikely(!PageUptodate(page))) {
 		int uptodate = 1;
 		do {
@@ -857,7 +859,7 @@ lock_retry_remap:
 	do {
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
-			submit_bh(REQ_OP_WRITE, 0, bh);
+			submit_bh(REQ_OP_WRITE, bh);
 			need_end_writeback = false;
 		}
 		bh = next;
@@ -1185,7 +1187,7 @@ lock_retry_remap:
 		BUG_ON(!buffer_mapped(tbh));
 		get_bh(tbh);
 		tbh->b_end_io = end_buffer_write_sync;
-		submit_bh(REQ_OP_WRITE, 0, tbh);
+		submit_bh(REQ_OP_WRITE, tbh);
 	}
 	/* Synchronize the mft mirror now if not @sync. */
 	if (is_mft && !sync)
@@ -1329,7 +1331,7 @@ done:
  * vfs inode dirty code path for the inode the mft record belongs to or via the
  * vm page dirty code path for the page the mft record is in.
  *
- * Based on ntfs_readpage() and fs/buffer.c::block_write_full_page().
+ * Based on ntfs_read_folio() and fs/buffer.c::block_write_full_page().
  *
  * Return 0 on success and -errno on error.
  */
@@ -1651,13 +1653,13 @@ hole:
  * attributes.
  */
 const struct address_space_operations ntfs_normal_aops = {
-	.readpage	= ntfs_readpage,
+	.read_folio	= ntfs_read_folio,
 #ifdef NTFS_RW
 	.writepage	= ntfs_writepage,
 	.dirty_folio	= block_dirty_folio,
 #endif /* NTFS_RW */
 	.bmap		= ntfs_bmap,
-	.migratepage	= buffer_migrate_page,
+	.migrate_folio	= buffer_migrate_folio,
 	.is_partially_uptodate = block_is_partially_uptodate,
 	.error_remove_page = generic_error_remove_page,
 };
@@ -1666,12 +1668,12 @@ const struct address_space_operations ntfs_normal_aops = {
  * ntfs_compressed_aops - address space operations for compressed inodes
  */
 const struct address_space_operations ntfs_compressed_aops = {
-	.readpage	= ntfs_readpage,
+	.read_folio	= ntfs_read_folio,
 #ifdef NTFS_RW
 	.writepage	= ntfs_writepage,
 	.dirty_folio	= block_dirty_folio,
 #endif /* NTFS_RW */
-	.migratepage	= buffer_migrate_page,
+	.migrate_folio	= buffer_migrate_folio,
 	.is_partially_uptodate = block_is_partially_uptodate,
 	.error_remove_page = generic_error_remove_page,
 };
@@ -1681,12 +1683,12 @@ const struct address_space_operations ntfs_compressed_aops = {
  *		   and attributes
  */
 const struct address_space_operations ntfs_mst_aops = {
-	.readpage	= ntfs_readpage,	/* Fill page with data. */
+	.read_folio	= ntfs_read_folio,	/* Fill page with data. */
 #ifdef NTFS_RW
 	.writepage	= ntfs_writepage,	/* Write dirty page to disk. */
 	.dirty_folio	= filemap_dirty_folio,
 #endif /* NTFS_RW */
-	.migratepage	= buffer_migrate_page,
+	.migrate_folio	= buffer_migrate_folio,
 	.is_partially_uptodate	= block_is_partially_uptodate,
 	.error_remove_page = generic_error_remove_page,
 };

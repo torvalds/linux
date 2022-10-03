@@ -1,9 +1,0 @@
-Dongwoon Anatech DW9807 voice coil lens driver
-
-DW9807 is a 10-bit DAC with current sink capability. It is intended for
-controlling voice coil lenses.
-
-Mandatory properties:
-
-- compatible: "dongwoon,dw9807-vcm"
-- reg: I2C slave address

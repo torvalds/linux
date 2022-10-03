@@ -19,6 +19,7 @@
  * which is (c) 1998 Gerd Knorr <kraxel@goldbach.in-berlin.de>
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -4463,7 +4464,7 @@ static void sisfb_post_sis300(struct pci_dev *pdev)
 		SiS_SetReg(SISCR, 0x37, 0x02);
 		SiS_SetReg(SISPART2, 0x00, 0x1c);
 		v4 = 0x00; v5 = 0x00; v6 = 0x10;
-		if(ivideo->SiS_Pr.UseROM) {
+		if (ivideo->SiS_Pr.UseROM && bios) {
 			v4 = bios[0xf5];
 			v5 = bios[0xf6];
 			v6 = bios[0xf7];
@@ -5848,6 +5849,10 @@ static int sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if(sisfb_off)
 		return -ENXIO;
+
+	ret = aperture_remove_conflicting_pci_devices(pdev, "sisfb");
+	if (ret)
+		return ret;
 
 	sis_fb_info = framebuffer_alloc(sizeof(*ivideo), &pdev->dev);
 	if(!sis_fb_info)

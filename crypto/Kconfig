@@ -15,6 +15,7 @@ source "crypto/async_tx/Kconfig"
 #
 menuconfig CRYPTO
 	tristate "Cryptographic API"
+	select LIB_MEMNEQ
 	help
 	  This option provides the core Cryptographic API.
 
@@ -31,6 +32,27 @@ config CRYPTO_FIPS
 	  required if you want the system to operate in a FIPS 200
 	  certification.  You should say no unless you know what
 	  this is.
+
+config CRYPTO_FIPS_NAME
+	string "FIPS Module Name"
+	default "Linux Kernel Cryptographic API"
+	depends on CRYPTO_FIPS
+	help
+	  This option sets the FIPS Module name reported by the Crypto API via
+	  the /proc/sys/crypto/fips_name file.
+
+config CRYPTO_FIPS_CUSTOM_VERSION
+	bool "Use Custom FIPS Module Version"
+	depends on CRYPTO_FIPS
+	default n
+
+config CRYPTO_FIPS_VERSION
+	string "FIPS Module Version"
+	default "(none)"
+	depends on CRYPTO_FIPS_CUSTOM_VERSION
+	help
+	  This option provides the ability to override the FIPS Module Version.
+	  By default the KERNELRELEASE value is used.
 
 config CRYPTO_ALGAPI
 	tristate
@@ -274,7 +296,7 @@ config CRYPTO_ECRDSA
 
 config CRYPTO_SM2
 	tristate "SM2 algorithm"
-	select CRYPTO_LIB_SM3
+	select CRYPTO_SM3
 	select CRYPTO_AKCIPHER
 	select CRYPTO_MANAGER
 	select MPILIB
@@ -460,6 +482,15 @@ config CRYPTO_PCBC
 	  PCBC: Propagating Cipher Block Chaining mode
 	  This block cipher algorithm is required for RxRPC.
 
+config CRYPTO_XCTR
+	tristate
+	select CRYPTO_SKCIPHER
+	select CRYPTO_MANAGER
+	help
+	  XCTR: XOR Counter mode. This blockcipher mode is a variant of CTR mode
+	  using XORs and little-endian addition rather than big-endian arithmetic.
+	  XCTR mode is used to implement HCTR2.
+
 config CRYPTO_XTS
 	tristate "XTS support"
 	select CRYPTO_SKCIPHER
@@ -522,6 +553,17 @@ config CRYPTO_ADIANTUM
 	  security than XTS, subject to the security bound.
 
 	  If unsure, say N.
+
+config CRYPTO_HCTR2
+	tristate "HCTR2 support"
+	select CRYPTO_XCTR
+	select CRYPTO_POLYVAL
+	select CRYPTO_MANAGER
+	help
+	  HCTR2 is a length-preserving encryption mode for storage encryption that
+	  is efficient on processors with instructions to accelerate AES and
+	  carryless multiplication, e.g. x86 processors with AES-NI and CLMUL, and
+	  ARM processors with the ARMv8 crypto extensions.
 
 config CRYPTO_ESSIV
 	tristate "ESSIV support for block encryption"
@@ -665,6 +707,18 @@ config CRYPTO_CRC32_MIPS
 	  CRC32c and CRC32 CRC algorithms implemented using mips crypto
 	  instructions, when available.
 
+config CRYPTO_CRC32_S390
+	tristate "CRC-32 algorithms"
+	depends on S390
+	select CRYPTO_HASH
+	select CRC32
+	help
+	  Select this option if you want to use hardware accelerated
+	  implementations of CRC algorithms.  With this option, you
+	  can optimize the computation of CRC-32 (IEEE 802.3 Ethernet)
+	  and CRC-32C (Castagnoli).
+
+	  It is available with IBM z13 or later.
 
 config CRYPTO_XXHASH
 	tristate "xxHash hash algorithm"
@@ -691,26 +745,8 @@ config CRYPTO_BLAKE2B
 
 	  See https://blake2.net for further information.
 
-config CRYPTO_BLAKE2S
-	tristate "BLAKE2s digest algorithm"
-	select CRYPTO_LIB_BLAKE2S_GENERIC
-	select CRYPTO_HASH
-	help
-	  Implementation of cryptographic hash function BLAKE2s
-	  optimized for 8-32bit platforms and can produce digests of any size
-	  between 1 to 32.  The keyed hash is also implemented.
-
-	  This module provides the following algorithms:
-
-	  - blake2s-128
-	  - blake2s-160
-	  - blake2s-224
-	  - blake2s-256
-
-	  See https://blake2.net for further information.
-
 config CRYPTO_BLAKE2S_X86
-	tristate "BLAKE2s digest algorithm (x86 accelerated version)"
+	bool "BLAKE2s digest algorithm (x86 accelerated version)"
 	depends on X86 && 64BIT
 	select CRYPTO_LIB_BLAKE2S_GENERIC
 	select CRYPTO_ARCH_HAVE_LIB_BLAKE2S
@@ -763,6 +799,23 @@ config CRYPTO_GHASH
 	help
 	  GHASH is the hash function used in GCM (Galois/Counter Mode).
 	  It is not a general-purpose cryptographic hash function.
+
+config CRYPTO_POLYVAL
+	tristate
+	select CRYPTO_GF128MUL
+	select CRYPTO_HASH
+	help
+	  POLYVAL is the hash function used in HCTR2.  It is not a general-purpose
+	  cryptographic hash function.
+
+config CRYPTO_POLYVAL_CLMUL_NI
+	tristate "POLYVAL hash function (CLMUL-NI accelerated)"
+	depends on X86 && 64BIT
+	select CRYPTO_POLYVAL
+	help
+	  This is the x86_64 CLMUL-NI accelerated implementation of POLYVAL. It is
+	  used to efficiently implement HCTR2 on x86-64 processors that support
+	  carry-less multiplication instructions.
 
 config CRYPTO_POLY1305
 	tristate "Poly1305 authenticator algorithm"
@@ -848,7 +901,7 @@ config CRYPTO_RMD160
 
 	  RIPEMD-160 is a 160-bit cryptographic hash function. It is intended
 	  to be used as a secure replacement for the 128-bit hash functions
-	  MD4, MD5 and it's predecessor RIPEMD
+	  MD4, MD5 and its predecessor RIPEMD
 	  (not to be confused with RIPEMD-128).
 
 	  It's speed is comparable to SHA1 and there are no known attacks
@@ -860,6 +913,7 @@ config CRYPTO_RMD160
 config CRYPTO_SHA1
 	tristate "SHA1 digest algorithm"
 	select CRYPTO_HASH
+	select CRYPTO_LIB_SHA1
 	help
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
 
@@ -897,6 +951,16 @@ config CRYPTO_SHA512_SSSE3
 	  Extensions version 1 (AVX1), or Advanced Vector Extensions
 	  version 2 (AVX2) instructions, when available.
 
+config CRYPTO_SHA512_S390
+	tristate "SHA384 and SHA512 digest algorithm"
+	depends on S390
+	select CRYPTO_HASH
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  SHA512 secure hash standard.
+
+	  It is available as of z10.
+
 config CRYPTO_SHA1_OCTEON
 	tristate "SHA1 digest algorithm (OCTEON)"
 	depends on CPU_CAVIUM_OCTEON
@@ -928,6 +992,16 @@ config CRYPTO_SHA1_PPC_SPE
 	help
 	  SHA-1 secure hash standard (DFIPS 180-4) implemented
 	  using powerpc SPE SIMD instruction set.
+
+config CRYPTO_SHA1_S390
+	tristate "SHA1 digest algorithm"
+	depends on S390
+	select CRYPTO_HASH
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
+
+	  It is available as of z990.
 
 config CRYPTO_SHA256
 	tristate "SHA224 and SHA256 digest algorithm"
@@ -969,6 +1043,16 @@ config CRYPTO_SHA256_SPARC64
 	  SHA-256 secure hash standard (DFIPS 180-2) implemented
 	  using sparc64 crypto instructions, when available.
 
+config CRYPTO_SHA256_S390
+	tristate "SHA256 digest algorithm"
+	depends on S390
+	select CRYPTO_HASH
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  SHA256 secure hash standard (DFIPS 180-2).
+
+	  It is available as of z9.
+
 config CRYPTO_SHA512
 	tristate "SHA384 and SHA512 digest algorithms"
 	select CRYPTO_HASH
@@ -1009,10 +1093,33 @@ config CRYPTO_SHA3
 	  References:
 	  http://keccak.noekeon.org/
 
+config CRYPTO_SHA3_256_S390
+	tristate "SHA3_224 and SHA3_256 digest algorithm"
+	depends on S390
+	select CRYPTO_HASH
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  SHA3_256 secure hash standard.
+
+	  It is available as of z14.
+
+config CRYPTO_SHA3_512_S390
+	tristate "SHA3_384 and SHA3_512 digest algorithm"
+	depends on S390
+	select CRYPTO_HASH
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  SHA3_512 secure hash standard.
+
+	  It is available as of z14.
+
 config CRYPTO_SM3
+	tristate
+
+config CRYPTO_SM3_GENERIC
 	tristate "SM3 digest algorithm"
 	select CRYPTO_HASH
-	select CRYPTO_LIB_SM3
+	select CRYPTO_SM3
 	help
 	  SM3 secure hash function as defined by OSCCA GM/T 0004-2012 SM3).
 	  It is part of the Chinese Commercial Cryptography suite.
@@ -1025,7 +1132,7 @@ config CRYPTO_SM3_AVX_X86_64
 	tristate "SM3 digest algorithm (x86_64/AVX)"
 	depends on X86 && 64BIT
 	select CRYPTO_HASH
-	select CRYPTO_LIB_SM3
+	select CRYPTO_SM3
 	help
 	  SM3 secure hash function as defined by OSCCA GM/T 0004-2012 SM3).
 	  It is part of the Chinese Commercial Cryptography suite. This is
@@ -1065,6 +1172,16 @@ config CRYPTO_GHASH_CLMUL_NI_INTEL
 	help
 	  This is the x86_64 CLMUL-NI accelerated implementation of
 	  GHASH, the hash function used in GCM (Galois/Counter mode).
+
+config CRYPTO_GHASH_S390
+	tristate "GHASH hash function"
+	depends on S390
+	select CRYPTO_HASH
+	help
+	  This is the s390 hardware accelerated implementation of GHASH,
+	  the hash function used in GCM (Galois/Counter mode).
+
+	  It is available as of z196.
 
 comment "Ciphers"
 
@@ -1138,7 +1255,7 @@ config CRYPTO_AES_NI_INTEL
 	  In addition to AES cipher algorithm support, the acceleration
 	  for some popular block cipher mode is supported too, including
 	  ECB, CBC, LRW, XTS. The 64 bit version has additional
-	  acceleration for CTR.
+	  acceleration for CTR and XCTR.
 
 config CRYPTO_AES_SPARC64
 	tristate "AES cipher algorithms (SPARC64)"
@@ -1180,6 +1297,23 @@ config CRYPTO_AES_PPC_SPE
 	  timining attacks. Nevertheless it might be not as secure as other
 	  architecture specific assembler implementations that work on 1KB
 	  tables or 256 bytes S-boxes.
+
+config CRYPTO_AES_S390
+	tristate "AES cipher algorithms"
+	depends on S390
+	select CRYPTO_ALGAPI
+	select CRYPTO_SKCIPHER
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  AES cipher algorithms (FIPS-197).
+
+	  As of z9 the ECB and CBC modes are hardware accelerated
+	  for 128 bit keys.
+	  As of z10 the ECB and CBC modes are hardware accelerated
+	  for all AES key sizes.
+	  As of z196 the CTR mode is hardware accelerated for all AES
+	  key sizes and XTS mode is hardware accelerated for 256 and
+	  512 bit keys.
 
 config CRYPTO_ANUBIS
 	tristate "Anubis cipher algorithm"
@@ -1411,6 +1545,19 @@ config CRYPTO_DES3_EDE_X86_64
 	  algorithm are provided; regular processing one input block and
 	  one that processes three blocks parallel.
 
+config CRYPTO_DES_S390
+	tristate "DES and Triple DES cipher algorithms"
+	depends on S390
+	select CRYPTO_ALGAPI
+	select CRYPTO_SKCIPHER
+	select CRYPTO_LIB_DES
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).
+
+	  As of z990 the ECB and CBC mode are hardware accelerated.
+	  As of z196 the CTR mode is hardware accelerated.
+
 config CRYPTO_FCRYPT
 	tristate "FCrypt cipher algorithm"
 	select CRYPTO_ALGAPI
@@ -1470,6 +1617,18 @@ config CRYPTO_CHACHA_MIPS
 	select CRYPTO_SKCIPHER
 	select CRYPTO_ARCH_HAVE_LIB_CHACHA
 
+config CRYPTO_CHACHA_S390
+	tristate "ChaCha20 stream cipher"
+	depends on S390
+	select CRYPTO_SKCIPHER
+	select CRYPTO_LIB_CHACHA_GENERIC
+	select CRYPTO_ARCH_HAVE_LIB_CHACHA
+	help
+	  This is the s390 SIMD implementation of the ChaCha20 stream
+	  cipher (RFC 7539).
+
+	  It is available as of z13.
+
 config CRYPTO_SEED
 	tristate "SEED cipher algorithm"
 	depends on CRYPTO_USER_API_ENABLE_OBSOLETE
@@ -1484,6 +1643,21 @@ config CRYPTO_SEED
 
 	  See also:
 	  <http://www.kisa.or.kr/kisa/seed/jsp/seed_eng.jsp>
+
+config CRYPTO_ARIA
+	tristate "ARIA cipher algorithm"
+	select CRYPTO_ALGAPI
+	help
+	  ARIA cipher algorithm (RFC5794).
+
+	  ARIA is a standard encryption algorithm of the Republic of Korea.
+	  The ARIA specifies three key sizes and rounds.
+	  128-bit: 12 rounds.
+	  192-bit: 14 rounds.
+	  256-bit: 16 rounds.
+
+	  See also:
+	  <https://seed.kisa.or.kr/kisa/algorithm/EgovAriaInfo.do>
 
 config CRYPTO_SERPENT
 	tristate "Serpent cipher algorithm"
@@ -1572,9 +1746,12 @@ config CRYPTO_SERPENT_AVX2_X86_64
 	  <https://www.cl.cam.ac.uk/~rja14/serpent.html>
 
 config CRYPTO_SM4
+	tristate
+
+config CRYPTO_SM4_GENERIC
 	tristate "SM4 cipher algorithm"
 	select CRYPTO_ALGAPI
-	select CRYPTO_LIB_SM4
+	select CRYPTO_SM4
 	help
 	  SM4 cipher algorithms (OSCCA GB/T 32907-2016).
 
@@ -1603,7 +1780,7 @@ config CRYPTO_SM4_AESNI_AVX_X86_64
 	select CRYPTO_SKCIPHER
 	select CRYPTO_SIMD
 	select CRYPTO_ALGAPI
-	select CRYPTO_LIB_SM4
+	select CRYPTO_SM4
 	help
 	  SM4 cipher algorithms (OSCCA GB/T 32907-2016) (x86_64/AES-NI/AVX).
 
@@ -1624,7 +1801,7 @@ config CRYPTO_SM4_AESNI_AVX2_X86_64
 	select CRYPTO_SKCIPHER
 	select CRYPTO_SIMD
 	select CRYPTO_ALGAPI
-	select CRYPTO_LIB_SM4
+	select CRYPTO_SM4
 	select CRYPTO_SM4_AESNI_AVX_X86_64
 	help
 	  SM4 cipher algorithms (OSCCA GB/T 32907-2016) (x86_64/AES-NI/AVX2).

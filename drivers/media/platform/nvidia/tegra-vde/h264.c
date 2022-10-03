@@ -45,9 +45,9 @@ struct tegra_vde_h264_decoder_ctx {
 };
 
 struct h264_reflists {
-	u8 p[V4L2_H264_NUM_DPB_ENTRIES];
-	u8 b0[V4L2_H264_NUM_DPB_ENTRIES];
-	u8 b1[V4L2_H264_NUM_DPB_ENTRIES];
+	struct v4l2_h264_reference p[V4L2_H264_NUM_DPB_ENTRIES];
+	struct v4l2_h264_reference b0[V4L2_H264_NUM_DPB_ENTRIES];
+	struct v4l2_h264_reference b1[V4L2_H264_NUM_DPB_ENTRIES];
 };
 
 static int tegra_vde_wait_mbe(struct tegra_vde *vde)
@@ -659,20 +659,19 @@ static struct vb2_buffer *get_ref_buf(struct tegra_ctx *ctx,
 {
 	const struct v4l2_h264_dpb_entry *dpb = ctx->h264.decode_params->dpb;
 	struct vb2_queue *cap_q = &ctx->fh.m2m_ctx->cap_q_ctx.q;
-	int buf_idx = -1;
+	struct vb2_buffer *vb = NULL;
 
 	if (dpb[dpb_idx].flags & V4L2_H264_DPB_ENTRY_FLAG_ACTIVE)
-		buf_idx = vb2_find_timestamp(cap_q,
-					     dpb[dpb_idx].reference_ts, 0);
+		vb = vb2_find_buffer(cap_q, dpb[dpb_idx].reference_ts);
 
 	/*
 	 * If a DPB entry is unused or invalid, address of current destination
 	 * buffer is returned.
 	 */
-	if (buf_idx < 0)
+	if (!vb)
 		return &dst->vb2_buf;
 
-	return vb2_get_buffer(cap_q, buf_idx);
+	return vb;
 }
 
 static int tegra_vde_validate_vb_size(struct tegra_ctx *ctx,
@@ -765,10 +764,10 @@ static int tegra_vde_h264_setup_frames(struct tegra_ctx *ctx,
 	struct tegra_m2m_buffer *tb = vb_to_tegra_buf(&dst->vb2_buf);
 	struct tegra_ctx_h264 *h = &ctx->h264;
 	struct v4l2_h264_reflist_builder b;
+	struct v4l2_h264_reference *dpb_id;
 	struct h264_reflists reflists;
 	struct vb2_buffer *ref;
 	unsigned int i;
-	u8 *dpb_id;
 	int err;
 
 	/*
@@ -811,14 +810,16 @@ static int tegra_vde_h264_setup_frames(struct tegra_ctx *ctx,
 	}
 
 	for (i = 0; i < b.num_valid; i++) {
-		ref = get_ref_buf(ctx, dst, dpb_id[i]);
+		int dpb_idx = dpb_id[i].index;
 
-		err = tegra_vde_h264_setup_frame(ctx, h264, &b, ref, dpb_id[i],
+		ref = get_ref_buf(ctx, dst, dpb_idx);
+
+		err = tegra_vde_h264_setup_frame(ctx, h264, &b, ref, dpb_idx,
 						 h264->dpb_frames_nb++);
 		if (err)
 			return err;
 
-		if (b.refs[dpb_id[i]].pic_order_count < b.cur_pic_order_count)
+		if (b.refs[dpb_idx].top_field_order_cnt < b.cur_pic_order_count)
 			h264->dpb_ref_frames_with_earlier_poc_nb++;
 	}
 
@@ -878,6 +879,9 @@ static int tegra_vde_h264_setup_context(struct tegra_ctx *ctx,
 
 	/* CABAC unsupported by hardware, requires software preprocessing */
 	if (h->pps->flags & V4L2_H264_PPS_FLAG_ENTROPY_CODING_MODE)
+		return -EOPNOTSUPP;
+
+	if (h->decode_params->flags & V4L2_H264_DECODE_PARAM_FLAG_FIELD_PIC)
 		return -EOPNOTSUPP;
 
 	if (h->sps->profile_idc == 66)

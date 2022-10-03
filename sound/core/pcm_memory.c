@@ -350,6 +350,8 @@ EXPORT_SYMBOL(snd_pcm_lib_preallocate_pages_for_all);
  * SNDRV_DMA_TYPE_VMALLOC type.
  *
  * Upon successful buffer allocation and setup, the function returns 0.
+ *
+ * Return: zero if successful, or a negative error code
  */
 int snd_pcm_set_managed_buffer(struct snd_pcm_substream *substream, int type,
 				struct device *data, size_t size, size_t max)
@@ -369,6 +371,8 @@ EXPORT_SYMBOL(snd_pcm_set_managed_buffer);
  *
  * Do pre-allocation to all substreams of the given pcm for the specified DMA
  * type and size, and set the managed_buffer_alloc flag to each substream.
+ *
+ * Return: zero if successful, or a negative error code
  */
 int snd_pcm_set_managed_buffer_all(struct snd_pcm *pcm, int type,
 				   struct device *data,
@@ -453,7 +457,6 @@ EXPORT_SYMBOL(snd_pcm_lib_malloc_pages);
  */
 int snd_pcm_lib_free_pages(struct snd_pcm_substream *substream)
 {
-	struct snd_card *card = substream->pcm->card;
 	struct snd_pcm_runtime *runtime;
 
 	if (PCM_RUNTIME_CHECK(substream))
@@ -462,6 +465,8 @@ int snd_pcm_lib_free_pages(struct snd_pcm_substream *substream)
 	if (runtime->dma_area == NULL)
 		return 0;
 	if (runtime->dma_buffer_p != &substream->dma_buffer) {
+		struct snd_card *card = substream->pcm->card;
+
 		/* it's a newly allocated buffer.  release it now. */
 		do_free_pages(card, runtime->dma_buffer_p);
 		kfree(runtime->dma_buffer_p);

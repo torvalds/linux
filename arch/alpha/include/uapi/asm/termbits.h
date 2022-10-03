@@ -2,10 +2,8 @@
 #ifndef _ALPHA_TERMBITS_H
 #define _ALPHA_TERMBITS_H
 
-#include <linux/posix_types.h>
+#include <asm-generic/termbits-common.h>
 
-typedef unsigned char	cc_t;
-typedef unsigned int	speed_t;
 typedef unsigned int	tcflag_t;
 
 /*
@@ -53,76 +51,58 @@ struct ktermios {
 };
 
 /* c_cc characters */
-#define VEOF 0
-#define VEOL 1
-#define VEOL2 2
-#define VERASE 3
-#define VWERASE 4
-#define VKILL 5
-#define VREPRINT 6
-#define VSWTC 7
-#define VINTR 8
-#define VQUIT 9
-#define VSUSP 10
-#define VSTART 12
-#define VSTOP 13
-#define VLNEXT 14
-#define VDISCARD 15
-#define VMIN 16
-#define VTIME 17
+#define VEOF		 0
+#define VEOL		 1
+#define VEOL2		 2
+#define VERASE		 3
+#define VWERASE		 4
+#define VKILL		 5
+#define VREPRINT	 6
+#define VSWTC		 7
+#define VINTR		 8
+#define VQUIT		 9
+#define VSUSP		10
+#define VSTART		12
+#define VSTOP		13
+#define VLNEXT		14
+#define VDISCARD	15
+#define VMIN		16
+#define VTIME		17
 
 /* c_iflag bits */
-#define IGNBRK	0000001
-#define BRKINT	0000002
-#define IGNPAR	0000004
-#define PARMRK	0000010
-#define INPCK	0000020
-#define ISTRIP	0000040
-#define INLCR	0000100
-#define IGNCR	0000200
-#define ICRNL	0000400
-#define IXON	0001000
-#define IXOFF	0002000
-#define IXANY	0004000
-#define IUCLC	0010000
-#define IMAXBEL	0020000
-#define IUTF8	0040000
+#define IXON	0x0200
+#define IXOFF	0x0400
+#define IUCLC	0x1000
+#define IMAXBEL	0x2000
+#define IUTF8	0x4000
 
 /* c_oflag bits */
-#define OPOST	0000001
-#define ONLCR	0000002
-#define OLCUC	0000004
-
-#define OCRNL	0000010
-#define ONOCR	0000020
-#define ONLRET	0000040
-
-#define OFILL	00000100
-#define OFDEL	00000200
-#define NLDLY	00001400
-#define   NL0	00000000
-#define   NL1	00000400
-#define   NL2	00001000
-#define   NL3	00001400
-#define TABDLY	00006000
-#define   TAB0	00000000
-#define   TAB1	00002000
-#define   TAB2	00004000
-#define   TAB3	00006000
-#define CRDLY	00030000
-#define   CR0	00000000
-#define   CR1	00010000
-#define   CR2	00020000
-#define   CR3	00030000
-#define FFDLY	00040000
-#define   FF0	00000000
-#define   FF1	00040000
-#define BSDLY	00100000
-#define   BS0	00000000
-#define   BS1	00100000
-#define VTDLY	00200000
-#define   VT0	00000000
-#define   VT1	00200000
+#define ONLCR	0x00002
+#define OLCUC	0x00004
+#define NLDLY	0x00300
+#define   NL0	0x00000
+#define   NL1	0x00100
+#define   NL2	0x00200
+#define   NL3	0x00300
+#define TABDLY	0x00c00
+#define   TAB0	0x00000
+#define   TAB1	0x00400
+#define   TAB2	0x00800
+#define   TAB3	0x00c00
+#define CRDLY	0x03000
+#define   CR0	0x00000
+#define   CR1	0x01000
+#define   CR2	0x02000
+#define   CR3	0x03000
+#define FFDLY	0x04000
+#define   FF0	0x00000
+#define   FF1	0x04000
+#define BSDLY	0x08000
+#define   BS0	0x00000
+#define   BS1	0x08000
+#define VTDLY	0x10000
+#define   VT0	0x00000
+#define   VT1	0x10000
 /*
  * Should be equivalent to TAB3, see description of TAB3 in
  * POSIX.1-2008, Ch. 11.2.3 "Output Modes"
@@ -130,61 +110,36 @@ struct ktermios {
 #define XTABS	TAB3
 
 /* c_cflag bit meaning */
-#define CBAUD	0000037
-#define  B0	0000000		/* hang up */
-#define  B50	0000001
-#define  B75	0000002
-#define  B110	0000003
-#define  B134	0000004
-#define  B150	0000005
-#define  B200	0000006
-#define  B300	0000007
-#define  B600	0000010
-#define  B1200	0000011
-#define  B1800	0000012
-#define  B2400	0000013
-#define  B4800	0000014
-#define  B9600	0000015
-#define  B19200	0000016
-#define  B38400	0000017
-#define EXTA B19200
-#define EXTB B38400
-#define CBAUDEX 0000000
-#define  B57600   00020
-#define  B115200  00021
-#define  B230400  00022
-#define  B460800  00023
-#define  B500000  00024
-#define  B576000  00025
-#define  B921600  00026
-#define B1000000  00027
-#define B1152000  00030
-#define B1500000  00031
-#define B2000000  00032
-#define B2500000  00033
-#define B3000000  00034
-#define B3500000  00035
-#define B4000000  00036
-#define BOTHER    00037
-
-#define CSIZE	00001400
-#define   CS5	00000000
-#define   CS6	00000400
-#define   CS7	00001000
-#define   CS8	00001400
-
-#define CSTOPB	00002000
-#define CREAD	00004000
-#define PARENB	00010000
-#define PARODD	00020000
-#define HUPCL	00040000
-
-#define CLOCAL	00100000
-#define CMSPAR	  010000000000		/* mark or space (stick) parity */
-#define CRTSCTS	  020000000000		/* flow control */
-
-#define CIBAUD	07600000
-#define IBSHIFT	16
+#define CBAUD		0x0000001f
+#define CBAUDEX		0x00000000
+#define BOTHER		0x0000001f
+#define     B57600	0x00000010
+#define    B115200	0x00000011
+#define    B230400	0x00000012
+#define    B460800	0x00000013
+#define    B500000	0x00000014
+#define    B576000	0x00000015
+#define    B921600	0x00000016
+#define   B1000000	0x00000017
+#define   B1152000	0x00000018
+#define   B1500000	0x00000019
+#define   B2000000	0x0000001a
+#define   B2500000	0x0000001b
+#define   B3000000	0x0000001c
+#define   B3500000	0x0000001d
+#define   B4000000	0x0000001e
+#define CSIZE		0x00000300
+#define   CS5		0x00000000
+#define   CS6		0x00000100
+#define   CS7		0x00000200
+#define   CS8		0x00000300
+#define CSTOPB		0x00000400
+#define CREAD		0x00000800
+#define PARENB		0x00001000
+#define PARODD		0x00002000
+#define HUPCL		0x00004000
+#define CLOCAL		0x00008000
+#define CIBAUD		0x001f0000
 
 /* c_lflag bits */
 #define ISIG	0x00000080
@@ -203,17 +158,6 @@ struct ktermios {
 #define PENDIN	0x20000000
 #define IEXTEN	0x00000400
 #define EXTPROC	0x10000000
-
-/* Values for the ACTION argument to `tcflow'.  */
-#define	TCOOFF		0
-#define	TCOON		1
-#define	TCIOFF		2
-#define	TCION		3
-
-/* Values for the QUEUE_SELECTOR argument to `tcflush'.  */
-#define	TCIFLUSH	0
-#define	TCOFLUSH	1
-#define	TCIOFLUSH	2
 
 /* Values for the OPTIONAL_ACTIONS argument to `tcsetattr'.  */
 #define	TCSANOW		0

@@ -133,8 +133,8 @@ static int ice_eswitch_setup_env(struct ice_pf *pf)
 	if (ice_vsi_add_vlan_zero(uplink_vsi))
 		goto err_def_rx;
 
-	if (!ice_is_dflt_vsi_in_use(uplink_vsi->vsw)) {
-		if (ice_set_dflt_vsi(uplink_vsi->vsw, uplink_vsi))
+	if (!ice_is_dflt_vsi_in_use(uplink_vsi->port_info)) {
+		if (ice_set_dflt_vsi(uplink_vsi))
 			goto err_def_rx;
 		rule_added = true;
 	}
@@ -151,7 +151,7 @@ err_override_control:
 	ice_vsi_update_security(uplink_vsi, ice_vsi_ctx_clear_allow_override);
 err_override_uplink:
 	if (rule_added)
-		ice_clear_dflt_vsi(uplink_vsi->vsw);
+		ice_clear_dflt_vsi(uplink_vsi);
 err_def_rx:
 	ice_fltr_add_mac_and_broadcast(uplink_vsi,
 				       uplink_vsi->port_info->mac.perm_addr,
@@ -361,7 +361,8 @@ ice_eswitch_port_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	np = netdev_priv(netdev);
 	vsi = np->vsi;
 
-	if (ice_is_reset_in_progress(vsi->back->state))
+	if (ice_is_reset_in_progress(vsi->back->state) ||
+	    test_bit(ICE_VF_DIS, vsi->back->state))
 		return NETDEV_TX_BUSY;
 
 	repr = ice_netdev_to_repr(netdev);
@@ -410,7 +411,7 @@ static void ice_eswitch_release_env(struct ice_pf *pf)
 
 	ice_vsi_update_security(ctrl_vsi, ice_vsi_ctx_clear_allow_override);
 	ice_vsi_update_security(uplink_vsi, ice_vsi_ctx_clear_allow_override);
-	ice_clear_dflt_vsi(uplink_vsi->vsw);
+	ice_clear_dflt_vsi(uplink_vsi);
 	ice_fltr_add_mac_and_broadcast(uplink_vsi,
 				       uplink_vsi->port_info->mac.perm_addr,
 				       ICE_FWD_TO_VSI);

@@ -145,14 +145,14 @@ static struct afs_call *afs_alloc_call(struct afs_net *net,
 	call->type = type;
 	call->net = net;
 	call->debug_id = atomic_inc_return(&rxrpc_debug_id);
-	atomic_set(&call->usage, 1);
+	refcount_set(&call->ref, 1);
 	INIT_WORK(&call->async_work, afs_process_async_call);
 	init_waitqueue_head(&call->waitq);
 	spin_lock_init(&call->state_lock);
 	call->iter = &call->def_iter;
 
 	o = atomic_inc_return(&net->nr_outstanding_calls);
-	trace_afs_call(call, afs_call_trace_alloc, 1, o,
+	trace_afs_call(call->debug_id, afs_call_trace_alloc, 1, o,
 		       __builtin_return_address(0));
 	return call;
 }
@@ -163,14 +163,16 @@ static struct afs_call *afs_alloc_call(struct afs_net *net,
 void afs_put_call(struct afs_call *call)
 {
 	struct afs_net *net = call->net;
-	int n = atomic_dec_return(&call->usage);
-	int o = atomic_read(&net->nr_outstanding_calls);
+	unsigned int debug_id = call->debug_id;
+	bool zero;
+	int r, o;
 
-	trace_afs_call(call, afs_call_trace_put, n, o,
+	zero = __refcount_dec_and_test(&call->ref, &r);
+	o = atomic_read(&net->nr_outstanding_calls);
+	trace_afs_call(debug_id, afs_call_trace_put, r - 1, o,
 		       __builtin_return_address(0));
 
-	ASSERTCMP(n, >=, 0);
-	if (n == 0) {
+	if (zero) {
 		ASSERT(!work_pending(&call->async_work));
 		ASSERT(call->type->name != NULL);
 
@@ -185,7 +187,7 @@ void afs_put_call(struct afs_call *call)
 		afs_put_addrlist(call->alist);
 		kfree(call->request);
 
-		trace_afs_call(call, afs_call_trace_free, 0, o,
+		trace_afs_call(call->debug_id, afs_call_trace_free, 0, o,
 			       __builtin_return_address(0));
 		kfree(call);
 
@@ -198,9 +200,11 @@ void afs_put_call(struct afs_call *call)
 static struct afs_call *afs_get_call(struct afs_call *call,
 				     enum afs_call_trace why)
 {
-	int u = atomic_inc_return(&call->usage);
+	int r;
 
-	trace_afs_call(call, why, u,
+	__refcount_inc(&call->ref, &r);
+
+	trace_afs_call(call->debug_id, why, r + 1,
 		       atomic_read(&call->net->nr_outstanding_calls),
 		       __builtin_return_address(0));
 	return call;
@@ -537,6 +541,8 @@ static void afs_deliver_to_call(struct afs_call *call)
 		case -ENODATA:
 		case -EBADMSG:
 		case -EMSGSIZE:
+		case -ENOMEM:
+		case -EFAULT:
 			abort_code = RXGEN_CC_UNMARSHAL;
 			if (state != AFS_CALL_CL_AWAIT_REPLY)
 				abort_code = RXGEN_SS_UNMARSHAL;
@@ -544,7 +550,7 @@ static void afs_deliver_to_call(struct afs_call *call)
 						abort_code, ret, "KUM");
 			goto local_abort;
 		default:
-			abort_code = RX_USER_ABORT;
+			abort_code = RX_CALL_DEAD;
 			rxrpc_kernel_abort_call(call->net->socket, call->rxcall,
 						abort_code, ret, "KER");
 			goto local_abort;
@@ -666,14 +672,13 @@ static void afs_wake_up_async_call(struct sock *sk, struct rxrpc_call *rxcall,
 				   unsigned long call_user_ID)
 {
 	struct afs_call *call = (struct afs_call *)call_user_ID;
-	int u;
+	int r;
 
 	trace_afs_notify_call(rxcall, call);
 	call->need_attention = true;
 
-	u = atomic_fetch_add_unless(&call->usage, 1, 0);
-	if (u != 0) {
-		trace_afs_call(call, afs_call_trace_wake, u + 1,
+	if (__refcount_inc_not_zero(&call->ref, &r)) {
+		trace_afs_call(call->debug_id, afs_call_trace_wake, r + 1,
 			       atomic_read(&call->net->nr_outstanding_calls),
 			       __builtin_return_address(0));
 
@@ -836,7 +841,7 @@ void afs_send_empty_reply(struct afs_call *call)
 	case -ENOMEM:
 		_debug("oom");
 		rxrpc_kernel_abort_call(net->socket, call->rxcall,
-					RX_USER_ABORT, -ENOMEM, "KOO");
+					RXGEN_SS_MARSHAL, -ENOMEM, "KOO");
 		fallthrough;
 	default:
 		_leave(" [error]");
@@ -878,7 +883,7 @@ void afs_send_simple_reply(struct afs_call *call, const void *buf, size_t len)
 	if (n == -ENOMEM) {
 		_debug("oom");
 		rxrpc_kernel_abort_call(net->socket, call->rxcall,
-					RX_USER_ABORT, -ENOMEM, "KOO");
+					RXGEN_SS_MARSHAL, -ENOMEM, "KOO");
 	}
 	_leave(" [error]");
 }

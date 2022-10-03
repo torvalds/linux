@@ -502,6 +502,11 @@ Developer only needs to provide a sub feature driver with matched feature id.
 FME Partial Reconfiguration Sub Feature driver (see drivers/fpga/dfl-fme-pr.c)
 could be a reference.
 
+Please refer to below link to existing feature id table and guide for new feature
+ids application.
+https://github.com/OPAE/dfl-feature-id
+
+
 Location of DFLs on a PCI Device
 ================================
 The original method for finding a DFL on a PCI device assumed the start of the

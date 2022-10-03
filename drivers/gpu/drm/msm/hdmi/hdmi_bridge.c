@@ -6,6 +6,7 @@
 
 #include <linux/delay.h>
 #include <drm/drm_bridge_connector.h>
+#include <drm/drm_edid.h>
 
 #include "msm_kms.h"
 #include "hdmi.h"
@@ -15,6 +16,7 @@ void msm_hdmi_bridge_destroy(struct drm_bridge *bridge)
 	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
 
 	msm_hdmi_hpd_disable(hdmi_bridge);
+	drm_bridge_remove(bridge);
 }
 
 static void msm_hdmi_power_on(struct drm_bridge *bridge)
@@ -158,14 +160,6 @@ static void msm_hdmi_bridge_pre_enable(struct drm_bridge *bridge)
 		msm_hdmi_hdcp_on(hdmi->hdcp_ctrl);
 }
 
-static void msm_hdmi_bridge_enable(struct drm_bridge *bridge)
-{
-}
-
-static void msm_hdmi_bridge_disable(struct drm_bridge *bridge)
-{
-}
-
 static void msm_hdmi_bridge_post_disable(struct drm_bridge *bridge)
 {
 	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
@@ -305,8 +299,6 @@ static enum drm_mode_status msm_hdmi_bridge_mode_valid(struct drm_bridge *bridge
 
 static const struct drm_bridge_funcs msm_hdmi_bridge_funcs = {
 		.pre_enable = msm_hdmi_bridge_pre_enable,
-		.enable = msm_hdmi_bridge_enable,
-		.disable = msm_hdmi_bridge_disable,
 		.post_disable = msm_hdmi_bridge_post_disable,
 		.mode_set = msm_hdmi_bridge_mode_set,
 		.mode_valid = msm_hdmi_bridge_mode_valid,
@@ -348,6 +340,8 @@ struct drm_bridge *msm_hdmi_bridge_init(struct hdmi *hdmi)
 	bridge->ops = DRM_BRIDGE_OP_HPD |
 		DRM_BRIDGE_OP_DETECT |
 		DRM_BRIDGE_OP_EDID;
+
+	drm_bridge_add(bridge);
 
 	ret = drm_bridge_attach(hdmi->encoder, bridge, NULL, DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 	if (ret)

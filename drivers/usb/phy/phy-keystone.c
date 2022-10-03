@@ -59,7 +59,7 @@ static void keystone_usbphy_shutdown(struct usb_phy *phy)
 
 	val  = keystone_usbphy_readl(k_phy->phy_ctrl, USB_PHY_CTL_CLOCK);
 	keystone_usbphy_writel(k_phy->phy_ctrl, USB_PHY_CTL_CLOCK,
-				val &= ~PHY_REF_SSP_EN);
+				val & ~PHY_REF_SSP_EN);
 }
 
 static int keystone_usbphy_probe(struct platform_device *pdev)

@@ -20,6 +20,8 @@
 #define HWC_INIT_DATA_MAX_NUM_CQS	7
 #define HWC_INIT_DATA_PDID		8
 #define HWC_INIT_DATA_GPA_MKEY		9
+#define HWC_INIT_DATA_PF_DEST_RQ_ID	10
+#define HWC_INIT_DATA_PF_DEST_CQ_ID	11
 
 /* Structures labeled with "HW DATA" are exchanged with the hardware. All of
  * them are naturally aligned and hence don't need __packed.
@@ -177,6 +179,9 @@ struct hw_channel_context {
 
 	struct semaphore sema;
 	struct gdma_resource inflight_msg_res;
+
+	u32 pf_dest_vrq_id;
+	u32 pf_dest_vrcq_id;
 
 	struct hwc_caller_ctx *caller_ctx;
 };

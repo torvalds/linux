@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Marvell International Ltd. NCI NFC controller
 
 maintainers:
-  - Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
 
 properties:
   compatible:
@@ -58,7 +58,6 @@ properties:
 
   spi-cpha: true
   spi-cpol: true
-  spi-max-frequency: true
 
 required:
   - compatible
@@ -85,6 +84,7 @@ allOf:
           contains:
             const: marvell,nfc-spi
     then:
+      $ref: /schemas/spi/spi-peripheral-props.yaml#
       properties:
         break-control: false
         flow-control: false
@@ -108,7 +108,7 @@ allOf:
         spi-max-frequency: false
         reg: false
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

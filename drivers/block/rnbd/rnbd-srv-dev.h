@@ -15,7 +15,6 @@
 struct rnbd_dev {
 	struct block_device	*bdev;
 	fmode_t			blk_open_flags;
-	char			name[BDEVNAME_SIZE];
 };
 
 /**
@@ -44,16 +43,12 @@ static inline int rnbd_dev_get_max_hw_sects(const struct rnbd_dev *dev)
 
 static inline int rnbd_dev_get_secure_discard(const struct rnbd_dev *dev)
 {
-	return blk_queue_secure_erase(bdev_get_queue(dev->bdev));
+	return bdev_max_secure_erase_sectors(dev->bdev);
 }
 
 static inline int rnbd_dev_get_max_discard_sects(const struct rnbd_dev *dev)
 {
-	if (!blk_queue_discard(bdev_get_queue(dev->bdev)))
-		return 0;
-
-	return blk_queue_get_max_sectors(bdev_get_queue(dev->bdev),
-					 REQ_OP_DISCARD);
+	return bdev_max_discard_sectors(dev->bdev);
 }
 
 static inline int rnbd_dev_get_discard_granularity(const struct rnbd_dev *dev)
@@ -63,7 +58,7 @@ static inline int rnbd_dev_get_discard_granularity(const struct rnbd_dev *dev)
 
 static inline int rnbd_dev_get_discard_alignment(const struct rnbd_dev *dev)
 {
-	return bdev_get_queue(dev->bdev)->limits.discard_alignment;
+	return bdev_discard_alignment(dev->bdev);
 }
 
 #endif /* RNBD_SRV_DEV_H */

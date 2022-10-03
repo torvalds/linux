@@ -18,6 +18,7 @@ static int rcu_print_task_exp_stall(struct rcu_node *rnp);
 static void rcu_exp_gp_seq_start(void)
 {
 	rcu_seq_start(&rcu_state.expedited_sequence);
+	rcu_poll_gp_seq_start_unlocked(&rcu_state.gp_seq_polled_exp_snap);
 }
 
 /*
@@ -34,6 +35,7 @@ static __maybe_unused unsigned long rcu_exp_gp_seq_endval(void)
  */
 static void rcu_exp_gp_seq_end(void)
 {
+	rcu_poll_gp_seq_end_unlocked(&rcu_state.gp_seq_polled_exp_snap);
 	rcu_seq_end(&rcu_state.expedited_sequence);
 	smp_mb(); /* Ensure that consecutive grace periods serialize. */
 }
@@ -334,15 +336,13 @@ fastpath:
  * Select the CPUs within the specified rcu_node that the upcoming
  * expedited grace period needs to wait for.
  */
-static void sync_rcu_exp_select_node_cpus(struct work_struct *wp)
+static void __sync_rcu_exp_select_node_cpus(struct rcu_exp_work *rewp)
 {
 	int cpu;
 	unsigned long flags;
 	unsigned long mask_ofl_test;
 	unsigned long mask_ofl_ipi;
 	int ret;
-	struct rcu_exp_work *rewp =
-		container_of(wp, struct rcu_exp_work, rew_work);
 	struct rcu_node *rnp = container_of(rewp, struct rcu_node, rew);
 
 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
@@ -358,7 +358,7 @@ static void sync_rcu_exp_select_node_cpus(struct work_struct *wp)
 		    !(rnp->qsmaskinitnext & mask)) {
 			mask_ofl_test |= mask;
 		} else {
-			snap = rcu_dynticks_snap(rdp);
+			snap = rcu_dynticks_snap(cpu);
 			if (rcu_dynticks_in_eqs(snap))
 				mask_ofl_test |= mask;
 			else
@@ -417,13 +417,119 @@ retry_ipi:
 		rcu_report_exp_cpu_mult(rnp, mask_ofl_test, false);
 }
 
+static void rcu_exp_sel_wait_wake(unsigned long s);
+
+#ifdef CONFIG_RCU_EXP_KTHREAD
+static void sync_rcu_exp_select_node_cpus(struct kthread_work *wp)
+{
+	struct rcu_exp_work *rewp =
+		container_of(wp, struct rcu_exp_work, rew_work);
+
+	__sync_rcu_exp_select_node_cpus(rewp);
+}
+
+static inline bool rcu_gp_par_worker_started(void)
+{
+	return !!READ_ONCE(rcu_exp_par_gp_kworker);
+}
+
+static inline void sync_rcu_exp_select_cpus_queue_work(struct rcu_node *rnp)
+{
+	kthread_init_work(&rnp->rew.rew_work, sync_rcu_exp_select_node_cpus);
+	/*
+	 * Use rcu_exp_par_gp_kworker, because flushing a work item from
+	 * another work item on the same kthread worker can result in
+	 * deadlock.
+	 */
+	kthread_queue_work(rcu_exp_par_gp_kworker, &rnp->rew.rew_work);
+}
+
+static inline void sync_rcu_exp_select_cpus_flush_work(struct rcu_node *rnp)
+{
+	kthread_flush_work(&rnp->rew.rew_work);
+}
+
+/*
+ * Work-queue handler to drive an expedited grace period forward.
+ */
+static void wait_rcu_exp_gp(struct kthread_work *wp)
+{
+	struct rcu_exp_work *rewp;
+
+	rewp = container_of(wp, struct rcu_exp_work, rew_work);
+	rcu_exp_sel_wait_wake(rewp->rew_s);
+}
+
+static inline void synchronize_rcu_expedited_queue_work(struct rcu_exp_work *rew)
+{
+	kthread_init_work(&rew->rew_work, wait_rcu_exp_gp);
+	kthread_queue_work(rcu_exp_gp_kworker, &rew->rew_work);
+}
+
+static inline void synchronize_rcu_expedited_destroy_work(struct rcu_exp_work *rew)
+{
+}
+#else /* !CONFIG_RCU_EXP_KTHREAD */
+static void sync_rcu_exp_select_node_cpus(struct work_struct *wp)
+{
+	struct rcu_exp_work *rewp =
+		container_of(wp, struct rcu_exp_work, rew_work);
+
+	__sync_rcu_exp_select_node_cpus(rewp);
+}
+
+static inline bool rcu_gp_par_worker_started(void)
+{
+	return !!READ_ONCE(rcu_par_gp_wq);
+}
+
+static inline void sync_rcu_exp_select_cpus_queue_work(struct rcu_node *rnp)
+{
+	int cpu = find_next_bit(&rnp->ffmask, BITS_PER_LONG, -1);
+
+	INIT_WORK(&rnp->rew.rew_work, sync_rcu_exp_select_node_cpus);
+	/* If all offline, queue the work on an unbound CPU. */
+	if (unlikely(cpu > rnp->grphi - rnp->grplo))
+		cpu = WORK_CPU_UNBOUND;
+	else
+		cpu += rnp->grplo;
+	queue_work_on(cpu, rcu_par_gp_wq, &rnp->rew.rew_work);
+}
+
+static inline void sync_rcu_exp_select_cpus_flush_work(struct rcu_node *rnp)
+{
+	flush_work(&rnp->rew.rew_work);
+}
+
+/*
+ * Work-queue handler to drive an expedited grace period forward.
+ */
+static void wait_rcu_exp_gp(struct work_struct *wp)
+{
+	struct rcu_exp_work *rewp;
+
+	rewp = container_of(wp, struct rcu_exp_work, rew_work);
+	rcu_exp_sel_wait_wake(rewp->rew_s);
+}
+
+static inline void synchronize_rcu_expedited_queue_work(struct rcu_exp_work *rew)
+{
+	INIT_WORK_ONSTACK(&rew->rew_work, wait_rcu_exp_gp);
+	queue_work(rcu_gp_wq, &rew->rew_work);
+}
+
+static inline void synchronize_rcu_expedited_destroy_work(struct rcu_exp_work *rew)
+{
+	destroy_work_on_stack(&rew->rew_work);
+}
+#endif /* CONFIG_RCU_EXP_KTHREAD */
+
 /*
  * Select the nodes that the upcoming expedited grace period needs
  * to wait for.
  */
 static void sync_rcu_exp_select_cpus(void)
 {
-	int cpu;
 	struct rcu_node *rnp;
 
 	trace_rcu_exp_grace_period(rcu_state.name, rcu_exp_gp_seq_endval(), TPS("reset"));
@@ -435,28 +541,21 @@ static void sync_rcu_exp_select_cpus(void)
 		rnp->exp_need_flush = false;
 		if (!READ_ONCE(rnp->expmask))
 			continue; /* Avoid early boot non-existent wq. */
-		if (!READ_ONCE(rcu_par_gp_wq) ||
+		if (!rcu_gp_par_worker_started() ||
 		    rcu_scheduler_active != RCU_SCHEDULER_RUNNING ||
 		    rcu_is_last_leaf_node(rnp)) {
-			/* No workqueues yet or last leaf, do direct call. */
+			/* No worker started yet or last leaf, do direct call. */
 			sync_rcu_exp_select_node_cpus(&rnp->rew.rew_work);
 			continue;
 		}
-		INIT_WORK(&rnp->rew.rew_work, sync_rcu_exp_select_node_cpus);
-		cpu = find_next_bit(&rnp->ffmask, BITS_PER_LONG, -1);
-		/* If all offline, queue the work on an unbound CPU. */
-		if (unlikely(cpu > rnp->grphi - rnp->grplo))
-			cpu = WORK_CPU_UNBOUND;
-		else
-			cpu += rnp->grplo;
-		queue_work_on(cpu, rcu_par_gp_wq, &rnp->rew.rew_work);
+		sync_rcu_exp_select_cpus_queue_work(rnp);
 		rnp->exp_need_flush = true;
 	}
 
-	/* Wait for workqueue jobs (if any) to complete. */
+	/* Wait for jobs (if any) to complete. */
 	rcu_for_each_leaf_node(rnp)
 		if (rnp->exp_need_flush)
-			flush_work(&rnp->rew.rew_work);
+			sync_rcu_exp_select_cpus_flush_work(rnp);
 }
 
 /*
@@ -496,7 +595,7 @@ static void synchronize_rcu_expedited_wait(void)
 	struct rcu_node *rnp_root = rcu_get_root();
 
 	trace_rcu_exp_grace_period(rcu_state.name, rcu_exp_gp_seq_endval(), TPS("startwait"));
-	jiffies_stall = rcu_jiffies_till_stall_check();
+	jiffies_stall = rcu_exp_jiffies_till_stall_check();
 	jiffies_start = jiffies;
 	if (tick_nohz_full_enabled() && rcu_inkernel_boot_has_ended()) {
 		if (synchronize_rcu_expedited_wait_once(1))
@@ -524,7 +623,6 @@ static void synchronize_rcu_expedited_wait(void)
 			return;
 		if (rcu_stall_is_suppressed())
 			continue;
-		panic_on_rcu_stall();
 		trace_rcu_stall_warning(rcu_state.name, TPS("ExpeditedStall"));
 		pr_err("INFO: %s detected expedited stalls on CPUs/tasks: {",
 		       rcu_state.name);
@@ -539,10 +637,11 @@ static void synchronize_rcu_expedited_wait(void)
 					continue;
 				ndetected++;
 				rdp = per_cpu_ptr(&rcu_data, cpu);
-				pr_cont(" %d-%c%c%c", cpu,
+				pr_cont(" %d-%c%c%c%c", cpu,
 					"O."[!!cpu_online(cpu)],
 					"o."[!!(rdp->grpmask & rnp->expmaskinit)],
-					"N."[!!(rdp->grpmask & rnp->expmaskinitnext)]);
+					"N."[!!(rdp->grpmask & rnp->expmaskinitnext)],
+					"D."[!!(rdp->cpu_no_qs.b.exp)]);
 			}
 		}
 		pr_cont(" } %lu jiffies s: %lu root: %#lx/%c\n",
@@ -571,7 +670,8 @@ static void synchronize_rcu_expedited_wait(void)
 				dump_cpu_task(cpu);
 			}
 		}
-		jiffies_stall = 3 * rcu_jiffies_till_stall_check() + 3;
+		jiffies_stall = 3 * rcu_exp_jiffies_till_stall_check() + 3;
+		panic_on_rcu_stall();
 	}
 }
 
@@ -620,17 +720,6 @@ static void rcu_exp_sel_wait_wake(unsigned long s)
 
 	/* Wait and clean up, including waking everyone. */
 	rcu_exp_wait_wake(s);
-}
-
-/*
- * Work-queue handler to drive an expedited grace period forward.
- */
-static void wait_rcu_exp_gp(struct work_struct *wp)
-{
-	struct rcu_exp_work *rewp;
-
-	rewp = container_of(wp, struct rcu_exp_work, rew_work);
-	rcu_exp_sel_wait_wake(rewp->rew_s);
 }
 
 #ifdef CONFIG_PREEMPT_RCU
@@ -827,8 +916,18 @@ void synchronize_rcu_expedited(void)
 			 "Illegal synchronize_rcu_expedited() in RCU read-side critical section");
 
 	/* Is the state is such that the call is a grace period? */
-	if (rcu_blocking_is_gp())
-		return;
+	if (rcu_blocking_is_gp()) {
+		// Note well that this code runs with !PREEMPT && !SMP.
+		// In addition, all code that advances grace periods runs
+		// at process level.  Therefore, this expedited GP overlaps
+		// with other expedited GPs only by being fully nested within
+		// them, which allows reuse of ->gp_seq_polled_exp_snap.
+		rcu_poll_gp_seq_start_unlocked(&rcu_state.gp_seq_polled_exp_snap);
+		rcu_poll_gp_seq_end_unlocked(&rcu_state.gp_seq_polled_exp_snap);
+		if (rcu_init_invoked())
+			cond_resched();
+		return;  // Context allows vacuous grace periods.
+	}
 
 	/* If expedited grace periods are prohibited, fall back to normal. */
 	if (rcu_gp_is_normal()) {
@@ -848,20 +947,109 @@ void synchronize_rcu_expedited(void)
 	} else {
 		/* Marshall arguments & schedule the expedited grace period. */
 		rew.rew_s = s;
-		INIT_WORK_ONSTACK(&rew.rew_work, wait_rcu_exp_gp);
-		queue_work(rcu_gp_wq, &rew.rew_work);
+		synchronize_rcu_expedited_queue_work(&rew);
 	}
 
 	/* Wait for expedited grace period to complete. */
 	rnp = rcu_get_root();
 	wait_event(rnp->exp_wq[rcu_seq_ctr(s) & 0x3],
 		   sync_exp_work_done(s));
-	smp_mb(); /* Workqueue actions happen before return. */
+	smp_mb(); /* Work actions happen before return. */
 
 	/* Let the next expedited grace period start. */
 	mutex_unlock(&rcu_state.exp_mutex);
 
 	if (likely(!boottime))
-		destroy_work_on_stack(&rew.rew_work);
+		synchronize_rcu_expedited_destroy_work(&rew);
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
+
+/*
+ * Ensure that start_poll_synchronize_rcu_expedited() has the expedited
+ * RCU grace periods that it needs.
+ */
+static void sync_rcu_do_polled_gp(struct work_struct *wp)
+{
+	unsigned long flags;
+	int i = 0;
+	struct rcu_node *rnp = container_of(wp, struct rcu_node, exp_poll_wq);
+	unsigned long s;
+
+	raw_spin_lock_irqsave(&rnp->exp_poll_lock, flags);
+	s = rnp->exp_seq_poll_rq;
+	rnp->exp_seq_poll_rq = RCU_GET_STATE_COMPLETED;
+	raw_spin_unlock_irqrestore(&rnp->exp_poll_lock, flags);
+	if (s == RCU_GET_STATE_COMPLETED)
+		return;
+	while (!poll_state_synchronize_rcu(s)) {
+		synchronize_rcu_expedited();
+		if (i == 10 || i == 20)
+			pr_info("%s: i = %d s = %lx gp_seq_polled = %lx\n", __func__, i, s, READ_ONCE(rcu_state.gp_seq_polled));
+		i++;
+	}
+	raw_spin_lock_irqsave(&rnp->exp_poll_lock, flags);
+	s = rnp->exp_seq_poll_rq;
+	if (poll_state_synchronize_rcu(s))
+		rnp->exp_seq_poll_rq = RCU_GET_STATE_COMPLETED;
+	raw_spin_unlock_irqrestore(&rnp->exp_poll_lock, flags);
+}
+
+/**
+ * start_poll_synchronize_rcu_expedited - Snapshot current RCU state and start expedited grace period
+ *
+ * Returns a cookie to pass to a call to cond_synchronize_rcu(),
+ * cond_synchronize_rcu_expedited(), or poll_state_synchronize_rcu(),
+ * allowing them to determine whether or not any sort of grace period has
+ * elapsed in the meantime.  If the needed expedited grace period is not
+ * already slated to start, initiates that grace period.
+ */
+unsigned long start_poll_synchronize_rcu_expedited(void)
+{
+	unsigned long flags;
+	struct rcu_data *rdp;
+	struct rcu_node *rnp;
+	unsigned long s;
+
+	s = get_state_synchronize_rcu();
+	rdp = per_cpu_ptr(&rcu_data, raw_smp_processor_id());
+	rnp = rdp->mynode;
+	if (rcu_init_invoked())
+		raw_spin_lock_irqsave(&rnp->exp_poll_lock, flags);
+	if (!poll_state_synchronize_rcu(s)) {
+		rnp->exp_seq_poll_rq = s;
+		if (rcu_init_invoked())
+			queue_work(rcu_gp_wq, &rnp->exp_poll_wq);
+	}
+	if (rcu_init_invoked())
+		raw_spin_unlock_irqrestore(&rnp->exp_poll_lock, flags);
+
+	return s;
+}
+EXPORT_SYMBOL_GPL(start_poll_synchronize_rcu_expedited);
+
+/**
+ * cond_synchronize_rcu_expedited - Conditionally wait for an expedited RCU grace period
+ *
+ * @oldstate: value from get_state_synchronize_rcu(), start_poll_synchronize_rcu(), or start_poll_synchronize_rcu_expedited()
+ *
+ * If any type of full RCU grace period has elapsed since the earlier
+ * call to get_state_synchronize_rcu(), start_poll_synchronize_rcu(),
+ * or start_poll_synchronize_rcu_expedited(), just return.  Otherwise,
+ * invoke synchronize_rcu_expedited() to wait for a full grace period.
+ *
+ * Yes, this function does not take counter wrap into account.
+ * But counter wrap is harmless.  If the counter wraps, we have waited for
+ * more than 2 billion grace periods (and way more on a 64-bit system!),
+ * so waiting for a couple of additional grace periods should be just fine.
+ *
+ * This function provides the same memory-ordering guarantees that
+ * would be provided by a synchronize_rcu() that was invoked at the call
+ * to the function that provided @oldstate and that returned at the end
+ * of this function.
+ */
+void cond_synchronize_rcu_expedited(unsigned long oldstate)
+{
+	if (!poll_state_synchronize_rcu(oldstate))
+		synchronize_rcu_expedited();
+}
+EXPORT_SYMBOL_GPL(cond_synchronize_rcu_expedited);

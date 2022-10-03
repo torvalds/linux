@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// cs35l41.c -- CS35l41 HDA SPI driver
+// CS35l41 HDA SPI driver
 //
 // Copyright 2021 Cirrus Logic, Inc.
 //
 // Author: Lucas Tanure <tanureal@opensource.cirrus.com>
 
-#include <linux/acpi.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 
@@ -16,8 +16,9 @@ static int cs35l41_hda_spi_probe(struct spi_device *spi)
 {
 	const char *device_name;
 
-	/* Compare against the device name so it works for SPI, normal ACPI
-	 * and for ACPI by spi-multi-instantiate matching cases
+	/*
+	 * Compare against the device name so it works for SPI, normal ACPI
+	 * and for ACPI by serial-multi-instantiate matching cases.
 	 */
 	if (strstr(dev_name(&spi->dev), "CSC3551"))
 		device_name = "CSC3551";
@@ -38,18 +39,17 @@ static const struct spi_device_id cs35l41_hda_spi_id[] = {
 	{}
 };
 
-#ifdef CONFIG_ACPI
 static const struct acpi_device_id cs35l41_acpi_hda_match[] = {
 	{ "CSC3551", 0 },
-	{},
+	{}
 };
 MODULE_DEVICE_TABLE(acpi, cs35l41_acpi_hda_match);
-#endif
 
 static struct spi_driver cs35l41_spi_driver = {
 	.driver = {
-		.name		= "cs35l41_hda",
-		.acpi_match_table = ACPI_PTR(cs35l41_acpi_hda_match),
+		.name		= "cs35l41-hda",
+		.acpi_match_table = cs35l41_acpi_hda_match,
+		.pm		= &cs35l41_hda_pm_ops,
 	},
 	.id_table	= cs35l41_hda_spi_id,
 	.probe		= cs35l41_hda_spi_probe,

@@ -5,11 +5,8 @@
 #include "ipq8074.dtsi"
 
 / {
-	#address-cells = <0x2>;
-	#size-cells = <0x2>;
 	model = "Qualcomm Technologies, Inc. IPQ8074-HK01";
 	compatible = "qcom,ipq8074-hk01", "qcom,ipq8074";
-	interrupt-parent = <&intc>;
 
 	aliases {
 		serial0 = &blsp1_uart5;
@@ -35,7 +32,7 @@
 &blsp1_spi1 {
 	status = "okay";
 
-	m25p80@0 {
+	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "jedec,spi-nor";

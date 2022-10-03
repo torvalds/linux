@@ -493,7 +493,7 @@
 			status = "okay";
 		};
 
-		CP11X_LABEL(sdhci0): sdhci@780000 {
+		CP11X_LABEL(sdhci0): mmc@780000 {
 			compatible = "marvell,armada-cp110-sdhci";
 			reg = <0x780000 0x300>;
 			interrupts = <27 IRQ_TYPE_LEVEL_HIGH>;

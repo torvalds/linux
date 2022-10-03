@@ -248,9 +248,9 @@ static void via_do_set_mode(struct ata_port *ap, struct ata_device *adev,
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	struct ata_device *peer = ata_dev_pair(adev);
 	struct ata_timing t, p;
-	static int via_clock = 33333;	/* Bus clock in kHZ */
-	unsigned long T =  1000000000 / via_clock;
-	unsigned long UT = T;
+	const int via_clock = 33333;	/* Bus clock in kHz */
+	const int T = 1000000000 / via_clock;
+	int UT = T;
 	int ut;
 	int offset = 3 - (2*ap->port_no) - adev->devno;
 
@@ -352,7 +352,7 @@ static void via_set_dmamode(struct ata_port *ap, struct ata_device *adev)
  *	one breed of Transcend SSD. Return the updated mask.
  */
 
-static unsigned long via_mode_filter(struct ata_device *dev, unsigned long mask)
+static unsigned int via_mode_filter(struct ata_device *dev, unsigned int mask)
 {
 	struct ata_host *host = dev->link->ap->host;
 	const struct via_isa_bridge *config = host->private_data;

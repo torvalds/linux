@@ -7,6 +7,7 @@
 #include <linux/crash_dump.h>
 #include <linux/device.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/msi.h>
 
 #include <asm/rtas.h>

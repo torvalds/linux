@@ -708,7 +708,7 @@ static int snd_als300_probe(struct pci_dev *pci,
 
 	err = snd_als300_create(card, pci, chip_type);
 	if (err < 0)
-		return err;
+		goto error;
 
 	strcpy(card->driver, "ALS300");
 	if (chip->chip_type == DEVICE_ALS300_PLUS)
@@ -723,11 +723,15 @@ static int snd_als300_probe(struct pci_dev *pci,
 
 	err = snd_card_register(card);
 	if (err < 0)
-		return err;
+		goto error;
 
 	pci_set_drvdata(pci, card);
 	dev++;
 	return 0;
+
+ error:
+	snd_card_free(card);
+	return err;
 }
 
 static struct pci_driver als300_driver = {

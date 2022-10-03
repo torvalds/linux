@@ -440,11 +440,6 @@ static void enh_desc_display_ring(void *head, unsigned int size, bool rx,
 	pr_info("\n");
 }
 
-static void enh_desc_get_addr(struct dma_desc *p, unsigned int *addr)
-{
-	*addr = le32_to_cpu(p->des2);
-}
-
 static void enh_desc_set_addr(struct dma_desc *p, dma_addr_t addr)
 {
 	p->des2 = cpu_to_le32(addr);
@@ -475,7 +470,6 @@ const struct stmmac_desc_ops enh_desc_ops = {
 	.get_timestamp = enh_desc_get_timestamp,
 	.get_rx_timestamp_status = enh_desc_get_rx_timestamp_status,
 	.display_ring = enh_desc_display_ring,
-	.get_addr = enh_desc_get_addr,
 	.set_addr = enh_desc_set_addr,
 	.clear = enh_desc_clear,
 };

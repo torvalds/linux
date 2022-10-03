@@ -156,7 +156,7 @@ static inline void check_errata(void)
 		/*
 		 * Erratum "RPS May Cause Incorrect Instruction Execution"
 		 * This code only handles VPE0, any SMP/RTOS code
-		 * making use of VPE1 will be responsable for that VPE.
+		 * making use of VPE1 will be responsible for that VPE.
 		 */
 		if ((c->processor_id & PRID_REV_MASK) <= PRID_REV_34K_V1_0_2)
 			write_c0_config7(read_c0_config7() | MIPS_CONF7_RPS);
@@ -1114,46 +1114,6 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			     MIPS_CPU_WATCH | MIPS_CPU_VCE |
 			     MIPS_CPU_LLSC;
 		c->tlbsize = 48;
-		break;
-	case PRID_IMP_VR41XX:
-		set_isa(c, MIPS_CPU_ISA_III);
-		c->fpu_msk31 |= FPU_CSR_CONDX;
-		c->options = R4K_OPTS;
-		c->tlbsize = 32;
-		switch (c->processor_id & 0xf0) {
-		case PRID_REV_VR4111:
-			c->cputype = CPU_VR4111;
-			__cpu_name[cpu] = "NEC VR4111";
-			break;
-		case PRID_REV_VR4121:
-			c->cputype = CPU_VR4121;
-			__cpu_name[cpu] = "NEC VR4121";
-			break;
-		case PRID_REV_VR4122:
-			if ((c->processor_id & 0xf) < 0x3) {
-				c->cputype = CPU_VR4122;
-				__cpu_name[cpu] = "NEC VR4122";
-			} else {
-				c->cputype = CPU_VR4181A;
-				__cpu_name[cpu] = "NEC VR4181A";
-			}
-			break;
-		case PRID_REV_VR4130:
-			if ((c->processor_id & 0xf) < 0x4) {
-				c->cputype = CPU_VR4131;
-				__cpu_name[cpu] = "NEC VR4131";
-			} else {
-				c->cputype = CPU_VR4133;
-				c->options |= MIPS_CPU_LLSC;
-				__cpu_name[cpu] = "NEC VR4133";
-			}
-			break;
-		default:
-			printk(KERN_INFO "Unexpected CPU of NEC VR4100 series\n");
-			c->cputype = CPU_VR41XX;
-			__cpu_name[cpu] = "NEC Vr41xx";
-			break;
-		}
 		break;
 	case PRID_IMP_R4300:
 		c->cputype = CPU_R4300;

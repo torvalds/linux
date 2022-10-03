@@ -413,6 +413,7 @@ static int wm5110_put_dre(struct snd_kcontrol *kcontrol,
 	unsigned int rnew = (!!ucontrol->value.integer.value[1]) << mc->rshift;
 	unsigned int lold, rold;
 	unsigned int lena, rena;
+	bool change = false;
 	int ret;
 
 	snd_soc_dapm_mutex_lock(dapm);
@@ -440,8 +441,8 @@ static int wm5110_put_dre(struct snd_kcontrol *kcontrol,
 		goto err;
 	}
 
-	ret = regmap_update_bits(arizona->regmap, ARIZONA_DRE_ENABLE,
-				 mask, lnew | rnew);
+	ret = regmap_update_bits_check(arizona->regmap, ARIZONA_DRE_ENABLE,
+				       mask, lnew | rnew, &change);
 	if (ret) {
 		dev_err(arizona->dev, "Failed to set DRE: %d\n", ret);
 		goto err;
@@ -453,6 +454,9 @@ static int wm5110_put_dre(struct snd_kcontrol *kcontrol,
 
 	if (!rnew && rold)
 		wm5110_clear_pga_volume(arizona, mc->rshift);
+
+	if (change)
+		ret = 1;
 
 err:
 	snd_soc_dapm_mutex_unlock(dapm);
@@ -2381,7 +2385,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm5110 = {
 	.num_dapm_routes	= ARRAY_SIZE(wm5110_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static int wm5110_probe(struct platform_device *pdev)

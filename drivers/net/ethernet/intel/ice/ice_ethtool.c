@@ -190,19 +190,17 @@ __ice_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo,
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		 "%x.%02x 0x%x %d.%d.%d", nvm->major, nvm->minor,
 		 nvm->eetrack, orom->major, orom->build, orom->patch);
+
+	strscpy(drvinfo->bus_info, pci_name(pf->pdev),
+		sizeof(drvinfo->bus_info));
 }
 
 static void
 ice_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
-	struct ice_pf *pf = np->vsi->back;
 
 	__ice_get_drvinfo(netdev, drvinfo, np->vsi);
-
-	strscpy(drvinfo->bus_info, pci_name(pf->pdev),
-		sizeof(drvinfo->bus_info));
-
 	drvinfo->n_priv_flags = ICE_PRIV_FLAG_ARRAY_SIZE;
 }
 
@@ -660,7 +658,8 @@ static int ice_lbtest_receive_frames(struct ice_rx_ring *rx_ring)
 		rx_desc = ICE_RX_DESC(rx_ring, i);
 
 		if (!(rx_desc->wb.status_error0 &
-		    cpu_to_le16(ICE_TX_DESC_CMD_EOP | ICE_TX_DESC_CMD_RS)))
+		    (cpu_to_le16(BIT(ICE_RX_FLEX_DESC_STATUS0_DD_S)) |
+		     cpu_to_le16(BIT(ICE_RX_FLEX_DESC_STATUS0_EOF_S)))))
 			continue;
 
 		rx_buf = &rx_ring->rx_buf[i];
@@ -1294,7 +1293,7 @@ static int ice_set_priv_flags(struct net_device *netdev, u32 flags)
 	 * promiscuous mode because it's not supported
 	 */
 	if (test_bit(ICE_FLAG_VF_TRUE_PROMISC_ENA, change_flags) &&
-	    ice_is_any_vf_in_promisc(pf)) {
+	    ice_is_any_vf_in_unicast_promisc(pf)) {
 		dev_err(dev, "Changing vf-true-promisc-support flag while VF(s) are in promiscuous mode not supported\n");
 		/* toggle bit back to previous state */
 		change_bit(ICE_FLAG_VF_TRUE_PROMISC_ENA, pf->flags);
@@ -2192,6 +2191,42 @@ ice_setup_autoneg(struct ice_port_info *p, struct ethtool_link_ksettings *ks,
 }
 
 /**
+ * ice_set_phy_type_from_speed - set phy_types based on speeds
+ * and advertised modes
+ * @ks: ethtool link ksettings struct
+ * @phy_type_low: pointer to the lower part of phy_type
+ * @phy_type_high: pointer to the higher part of phy_type
+ * @adv_link_speed: targeted link speeds bitmap
+ */
+static void
+ice_set_phy_type_from_speed(const struct ethtool_link_ksettings *ks,
+			    u64 *phy_type_low, u64 *phy_type_high,
+			    u16 adv_link_speed)
+{
+	/* Handle 1000M speed in a special way because ice_update_phy_type
+	 * enables all link modes, but having mixed copper and optical
+	 * standards is not supported.
+	 */
+	adv_link_speed &= ~ICE_AQ_LINK_SPEED_1000MB;
+
+	if (ethtool_link_ksettings_test_link_mode(ks, advertising,
+						  1000baseT_Full))
+		*phy_type_low |= ICE_PHY_TYPE_LOW_1000BASE_T |
+				 ICE_PHY_TYPE_LOW_1G_SGMII;
+
+	if (ethtool_link_ksettings_test_link_mode(ks, advertising,
+						  1000baseKX_Full))
+		*phy_type_low |= ICE_PHY_TYPE_LOW_1000BASE_KX;
+
+	if (ethtool_link_ksettings_test_link_mode(ks, advertising,
+						  1000baseX_Full))
+		*phy_type_low |= ICE_PHY_TYPE_LOW_1000BASE_SX |
+				 ICE_PHY_TYPE_LOW_1000BASE_LX;
+
+	ice_update_phy_type(phy_type_low, phy_type_high, adv_link_speed);
+}
+
+/**
  * ice_set_link_ksettings - Set Speed and Duplex
  * @netdev: network interface device structure
  * @ks: ethtool ksettings
@@ -2322,7 +2357,8 @@ ice_set_link_ksettings(struct net_device *netdev,
 		adv_link_speed = curr_link_speed;
 
 	/* Convert the advertise link speeds to their corresponded PHY_TYPE */
-	ice_update_phy_type(&phy_type_low, &phy_type_high, adv_link_speed);
+	ice_set_phy_type_from_speed(ks, &phy_type_low, &phy_type_high,
+				    adv_link_speed);
 
 	if (!autoneg_changed && adv_link_speed == curr_link_speed) {
 		netdev_info(netdev, "Nothing changed, exiting without setting anything.\n");
@@ -3113,35 +3149,46 @@ static u32 ice_get_rxfh_indir_size(struct net_device *netdev)
 	return np->vsi->rss_table_size;
 }
 
-/**
- * ice_get_rxfh - get the Rx flow hash indirection table
- * @netdev: network interface device structure
- * @indir: indirection table
- * @key: hash key
- * @hfunc: hash function
- *
- * Reads the indirection table directly from the hardware.
- */
 static int
-ice_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key, u8 *hfunc)
+ice_get_rxfh_context(struct net_device *netdev, u32 *indir,
+		     u8 *key, u8 *hfunc, u32 rss_context)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
 	struct ice_pf *pf = vsi->back;
-	int err, i;
+	u16 qcount, offset;
+	int err, num_tc, i;
 	u8 *lut;
+
+	if (!test_bit(ICE_FLAG_RSS_ENA, pf->flags)) {
+		netdev_warn(netdev, "RSS is not supported on this VSI!\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (rss_context && !ice_is_adq_active(pf)) {
+		netdev_err(netdev, "RSS context cannot be non-zero when ADQ is not configured.\n");
+		return -EINVAL;
+	}
+
+	qcount = vsi->mqprio_qopt.qopt.count[rss_context];
+	offset = vsi->mqprio_qopt.qopt.offset[rss_context];
+
+	if (rss_context && ice_is_adq_active(pf)) {
+		num_tc = vsi->mqprio_qopt.qopt.num_tc;
+		if (rss_context >= num_tc) {
+			netdev_err(netdev, "RSS context:%d  > num_tc:%d\n",
+				   rss_context, num_tc);
+			return -EINVAL;
+		}
+		/* Use channel VSI of given TC */
+		vsi = vsi->tc_map_vsi[rss_context];
+	}
 
 	if (hfunc)
 		*hfunc = ETH_RSS_HASH_TOP;
 
 	if (!indir)
 		return 0;
-
-	if (!test_bit(ICE_FLAG_RSS_ENA, pf->flags)) {
-		/* RSS not supported return error here */
-		netdev_warn(netdev, "RSS is not configured on this VSI!\n");
-		return -EIO;
-	}
 
 	lut = kzalloc(vsi->rss_table_size, GFP_KERNEL);
 	if (!lut)
@@ -3155,12 +3202,33 @@ ice_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key, u8 *hfunc)
 	if (err)
 		goto out;
 
+	if (ice_is_adq_active(pf)) {
+		for (i = 0; i < vsi->rss_table_size; i++)
+			indir[i] = offset + lut[i] % qcount;
+		goto out;
+	}
+
 	for (i = 0; i < vsi->rss_table_size; i++)
-		indir[i] = (u32)(lut[i]);
+		indir[i] = lut[i];
 
 out:
 	kfree(lut);
 	return err;
+}
+
+/**
+ * ice_get_rxfh - get the Rx flow hash indirection table
+ * @netdev: network interface device structure
+ * @indir: indirection table
+ * @key: hash key
+ * @hfunc: hash function
+ *
+ * Reads the indirection table directly from the hardware.
+ */
+static int
+ice_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key, u8 *hfunc)
+{
+	return ice_get_rxfh_context(netdev, indir, key, hfunc, 0);
 }
 
 /**
@@ -3440,6 +3508,16 @@ static int ice_set_channels(struct net_device *dev, struct ethtool_channels *ch)
 	new_rx = ch->combined_count + ch->rx_count;
 	new_tx = ch->combined_count + ch->tx_count;
 
+	if (new_rx < vsi->tc_cfg.numtc) {
+		netdev_err(dev, "Cannot set less Rx channels, than Traffic Classes you have (%u)\n",
+			   vsi->tc_cfg.numtc);
+		return -EINVAL;
+	}
+	if (new_tx < vsi->tc_cfg.numtc) {
+		netdev_err(dev, "Cannot set less Tx channels, than Traffic Classes you have (%u)\n",
+			   vsi->tc_cfg.numtc);
+		return -EINVAL;
+	}
 	if (new_rx > ice_get_max_rxq(pf)) {
 		netdev_err(dev, "Maximum allowed Rx channels is %d\n",
 			   ice_get_max_rxq(pf));
@@ -4104,6 +4182,7 @@ static const struct ethtool_ops ice_ethtool_ops = {
 	.set_pauseparam		= ice_set_pauseparam,
 	.get_rxfh_key_size	= ice_get_rxfh_key_size,
 	.get_rxfh_indir_size	= ice_get_rxfh_indir_size,
+	.get_rxfh_context	= ice_get_rxfh_context,
 	.get_rxfh		= ice_get_rxfh,
 	.set_rxfh		= ice_set_rxfh,
 	.get_channels		= ice_get_channels,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HiSilicon thermal sensor driver
  *
@@ -6,15 +7,6 @@
  *
  * Xinwei Kong <kong.kongxinwei@hisilicon.com>
  * Leo Yan <leo.yan@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/cpufreq.h>
@@ -629,7 +621,6 @@ static int hisi_thermal_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int hisi_thermal_suspend(struct device *dev)
 {
 	struct hisi_thermal_data *data = dev_get_drvdata(dev);
@@ -651,15 +642,14 @@ static int hisi_thermal_resume(struct device *dev)
 
 	return ret;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(hisi_thermal_pm_ops,
+static DEFINE_SIMPLE_DEV_PM_OPS(hisi_thermal_pm_ops,
 			 hisi_thermal_suspend, hisi_thermal_resume);
 
 static struct platform_driver hisi_thermal_driver = {
 	.driver = {
 		.name		= "hisi_thermal",
-		.pm		= &hisi_thermal_pm_ops,
+		.pm		= pm_sleep_ptr(&hisi_thermal_pm_ops),
 		.of_match_table = of_hisi_thermal_match,
 	},
 	.probe	= hisi_thermal_probe,

@@ -330,8 +330,7 @@ static int fun_alloc_queue_irqs(struct net_device *dev, unsigned int ntx,
 			return PTR_ERR(irq);
 
 		fp->num_tx_irqs++;
-		netif_tx_napi_add(dev, &irq->napi, fun_txq_napi_poll,
-				  NAPI_POLL_WEIGHT);
+		netif_napi_add_tx(dev, &irq->napi, fun_txq_napi_poll);
 	}
 
 	for (i = fp->num_rx_irqs; i < nrx; i++) {
@@ -1358,7 +1357,8 @@ static const struct net_device_ops fun_netdev_ops = {
 #define GSO_ENCAP_FLAGS (NETIF_F_GSO_GRE | NETIF_F_GSO_IPXIP4 | \
 			 NETIF_F_GSO_IPXIP6 | NETIF_F_GSO_UDP_TUNNEL | \
 			 NETIF_F_GSO_UDP_TUNNEL_CSUM)
-#define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
+#define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN | \
+		   NETIF_F_GSO_UDP_L4)
 #define VLAN_FEAT (NETIF_F_SG | NETIF_F_HW_CSUM | TSO_FLAGS | \
 		   GSO_ENCAP_FLAGS | NETIF_F_HIGHDMA)
 

@@ -374,10 +374,10 @@ static int dccp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 		refcount_inc(&skb->users);
 		ireq->pktopts = skb;
 	}
-	ireq->ir_iif = sk->sk_bound_dev_if;
+	ireq->ir_iif = READ_ONCE(sk->sk_bound_dev_if);
 
 	/* So that link locals have meaning */
-	if (!sk->sk_bound_dev_if &&
+	if (!ireq->ir_iif &&
 	    ipv6_addr_type(&ireq->ir_v6_rmt_addr) & IPV6_ADDR_LINKLOCAL)
 		ireq->ir_iif = inet6_iif(skb);
 
@@ -892,7 +892,7 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 
 		SOCK_DEBUG(sk, "connect: ipv4 mapped\n");
 
-		if (__ipv6_only_sock(sk))
+		if (ipv6_only_sock(sk))
 			return -ENETUNREACH;
 
 		sin.sin_family = AF_INET;
@@ -1115,9 +1115,15 @@ static void __net_exit dccp_v6_exit_net(struct net *net)
 	inet_ctl_sock_destroy(pn->v6_ctl_sk);
 }
 
+static void __net_exit dccp_v6_exit_batch(struct list_head *net_exit_list)
+{
+	inet_twsk_purge(&dccp_hashinfo, AF_INET6);
+}
+
 static struct pernet_operations dccp_v6_ops = {
 	.init   = dccp_v6_init_net,
 	.exit   = dccp_v6_exit_net,
+	.exit_batch = dccp_v6_exit_batch,
 	.id	= &dccp_v6_pernet_id,
 	.size   = sizeof(struct dccp_v6_pernet),
 };

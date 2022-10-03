@@ -404,22 +404,21 @@ schedule a write of that region::
 And if an error occurs before that point is reached, the marks can be removed
 by calling::
 
-	void fscache_clear_page_bits(struct fscache_cookie *cookie,
-				     struct address_space *mapping,
+	void fscache_clear_page_bits(struct address_space *mapping,
 				     loff_t start, size_t len,
 				     bool caching)
 
-In both of these functions, the cookie representing the cache object to be
-written to and a pointer to the mapping to which the source pages are attached
-are passed in; start and len indicate the size of the region that's going to be
-written (it doesn't have to align to page boundaries necessarily, but it does
-have to align to DIO boundaries on the backing filesystem).  The caching
-parameter indicates if caching should be skipped, and if false, the functions
-do nothing.
+In these functions, a pointer to the mapping to which the source pages are
+attached is passed in and start and len indicate the size of the region that's
+going to be written (it doesn't have to align to page boundaries necessarily,
+but it does have to align to DIO boundaries on the backing filesystem).  The
+caching parameter indicates if caching should be skipped, and if false, the
+functions do nothing.
 
-The write function takes some additional parameters: i_size indicates the size
-of the netfs file and term_func indicates an optional completion function, to
-which term_func_priv will be passed, along with the error or amount written.
+The write function takes some additional parameters: the cookie representing
+the cache object to be written to, i_size indicates the size of the netfs file
+and term_func indicates an optional completion function, to which
+term_func_priv will be passed, along with the error or amount written.
 
 Note that the write function will always run asynchronously and will unmark all
 the pages upon completion before calling term_func.
@@ -434,11 +433,11 @@ has done a write and then the page it wrote from has been released by the VM,
 after which it *has* to look in the cache.
 
 To inform fscache that a page might now be in the cache, the following function
-should be called from the ``releasepage`` address space op::
+should be called from the ``release_folio`` address space op::
 
 	void fscache_note_page_release(struct fscache_cookie *cookie);
 
-if the page has been released (ie. releasepage returned true).
+if the page has been released (ie. release_folio returned true).
 
 Page release and page invalidation should also wait for any mark left on the
 page to say that a DIO write is underway from that page::

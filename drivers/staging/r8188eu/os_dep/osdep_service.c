@@ -42,30 +42,6 @@ Otherwise, there will be racing condition.
 Caller must check if the list is empty before calling rtw_list_delete
 */
 
-inline u32 rtw_systime_to_ms(u32 systime)
-{
-	return systime * 1000 / HZ;
-}
-
-inline u32 rtw_ms_to_systime(u32 ms)
-{
-	return ms * HZ / 1000;
-}
-
-/*  the input parameter start use the same unit as jiffies */
-inline s32 rtw_get_passing_time_ms(u32 start)
-{
-	return rtw_systime_to_ms(jiffies - start);
-}
-
-void rtw_usleep_os(int us)
-{
-	if (1 < (us / 1000))
-		msleep(1);
-	else
-		msleep((us / 1000) + 1);
-}
-
 static const struct device_type wlan_type = {
 	.name = "wlan",
 };
@@ -116,19 +92,10 @@ void rtw_free_netdev(struct net_device *netdev)
 {
 	struct rtw_netdev_priv_indicator *pnpi;
 
-	if (!netdev)
-		goto RETURN;
-
 	pnpi = netdev_priv(netdev);
-
-	if (!pnpi->priv)
-		goto RETURN;
 
 	vfree(pnpi->priv);
 	free_netdev(netdev);
-
-RETURN:
-	return;
 }
 
 int rtw_change_ifname(struct adapter *padapter, const char *ifname)
@@ -220,7 +187,7 @@ keep_ori:
  */
 inline bool rtw_cbuf_empty(struct rtw_cbuf *cbuf)
 {
-	return (cbuf->write == cbuf->read) ? true : false;
+	return cbuf->write == cbuf->read;
 }
 
 /**

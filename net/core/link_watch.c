@@ -18,6 +18,7 @@
 #include <linux/bitops.h>
 #include <linux/types.h>
 
+#include "dev.h"
 
 enum lw_bits {
 	LW_URGENT = 0,
@@ -109,7 +110,7 @@ static void linkwatch_add_event(struct net_device *dev)
 	spin_lock_irqsave(&lweventlist_lock, flags);
 	if (list_empty(&dev->link_watch_list)) {
 		list_add_tail(&dev->link_watch_list, &lweventlist);
-		dev_hold_track(dev, &dev->linkwatch_dev_tracker, GFP_ATOMIC);
+		netdev_hold(dev, &dev->linkwatch_dev_tracker, GFP_ATOMIC);
 	}
 	spin_unlock_irqrestore(&lweventlist_lock, flags);
 }

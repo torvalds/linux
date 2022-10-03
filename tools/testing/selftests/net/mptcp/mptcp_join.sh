@@ -70,6 +70,7 @@ init_partial()
 		ip netns add $netns || exit $ksft_skip
 		ip -net $netns link set lo up
 		ip netns exec $netns sysctl -q net.mptcp.enabled=1
+		ip netns exec $netns sysctl -q net.mptcp.pm_type=0
 		ip netns exec $netns sysctl -q net.ipv4.conf.all.rp_filter=0
 		ip netns exec $netns sysctl -q net.ipv4.conf.default.rp_filter=0
 		if [ $checksum -eq 1 ]; then
@@ -266,6 +267,58 @@ reset_with_allow_join_id0()
 	ip netns exec $ns2 sysctl -q net.mptcp.allow_join_initial_addr_port=$ns2_enable
 }
 
+# Modify TCP payload without corrupting the TCP packet
+#
+# This rule inverts a 8-bit word at byte offset 148 for the 2nd TCP ACK packets
+# carrying enough data.
+# Once it is done, the TCP Checksum field is updated so the packet is still
+# considered as valid at the TCP level.
+# Because the MPTCP checksum, covering the TCP options and data, has not been
+# updated, the modification will be detected and an MP_FAIL will be emitted:
+# what we want to validate here without corrupting "random" MPTCP options.
+#
+# To avoid having tc producing this pr_info() message for each TCP ACK packets
+# not carrying enough data:
+#
+#     tc action pedit offset 162 out of bounds
+#
+# Netfilter is used to mark packets with enough data.
+reset_with_fail()
+{
+	reset "${1}" || return 1
+
+	ip netns exec $ns1 sysctl -q net.mptcp.checksum_enabled=1
+	ip netns exec $ns2 sysctl -q net.mptcp.checksum_enabled=1
+
+	check_invert=1
+	validate_checksum=1
+	local i="$2"
+	local ip="${3:-4}"
+	local tables
+
+	tables="iptables"
+	if [ $ip -eq 6 ]; then
+		tables="ip6tables"
+	fi
+
+	ip netns exec $ns2 $tables \
+		-t mangle \
+		-A OUTPUT \
+		-o ns2eth$i \
+		-p tcp \
+		-m length --length 150:9999 \
+		-m statistic --mode nth --packet 1 --every 99999 \
+		-j MARK --set-mark 42 || exit 1
+
+	tc -n $ns2 qdisc add dev ns2eth$i clsact || exit 1
+	tc -n $ns2 filter add dev ns2eth$i egress \
+		protocol ip prio 1000 \
+		handle 42 fw \
+		action pedit munge offset 148 u8 invert \
+		pipe csum tcp \
+		index 100 || exit 1
+}
+
 fail_test()
 {
 	ret=1
@@ -400,6 +453,12 @@ wait_mpj()
 		[ "$cnt" = "${old_cnt}" ] || break
 		sleep 0.1
 	done
+}
+
+kill_wait()
+{
+	kill $1 > /dev/null 2>&1
+	wait $1 2>/dev/null
 }
 
 pm_nl_set_limits()
@@ -601,6 +660,11 @@ do_transfer()
 
 	local port=$((10000 + TEST_COUNT - 1))
 	local cappid
+	local userspace_pm=0
+	local evts_ns1
+	local evts_ns1_pid
+	local evts_ns2
+	local evts_ns2_pid
 
 	:> "$cout"
 	:> "$sout"
@@ -637,10 +701,29 @@ do_transfer()
 		extra_args="-r ${speed:6}"
 	fi
 
+	if [[ "${addr_nr_ns1}" = "userspace_"* ]]; then
+		userspace_pm=1
+		addr_nr_ns1=${addr_nr_ns1:10}
+	fi
+
 	if [[ "${addr_nr_ns2}" = "fastclose_"* ]]; then
 		# disconnect
 		extra_args="$extra_args -I ${addr_nr_ns2:10}"
 		addr_nr_ns2=0
+	elif [[ "${addr_nr_ns2}" = "userspace_"* ]]; then
+		userspace_pm=1
+		addr_nr_ns2=${addr_nr_ns2:10}
+	fi
+
+	if [ $userspace_pm -eq 1 ]; then
+		evts_ns1=$(mktemp)
+		evts_ns2=$(mktemp)
+		:> "$evts_ns1"
+		:> "$evts_ns2"
+		ip netns exec ${listener_ns} ./pm_nl_ctl events >> "$evts_ns1" 2>&1 &
+		evts_ns1_pid=$!
+		ip netns exec ${connector_ns} ./pm_nl_ctl events >> "$evts_ns2" 2>&1 &
+		evts_ns2_pid=$!
 	fi
 
 	local local_addr
@@ -695,6 +778,8 @@ do_transfer()
 	if [ $addr_nr_ns1 -gt 0 ]; then
 		local counter=2
 		local add_nr_ns1=${addr_nr_ns1}
+		local id=10
+		local tk
 		while [ $add_nr_ns1 -gt 0 ]; do
 			local addr
 			if is_v6 "${connect_addr}"; then
@@ -702,9 +787,18 @@ do_transfer()
 			else
 				addr="10.0.$counter.1"
 			fi
-			pm_nl_add_endpoint $ns1 $addr flags signal
+			if [ $userspace_pm -eq 0 ]; then
+				pm_nl_add_endpoint $ns1 $addr flags signal
+			else
+				tk=$(sed -n 's/.*\(token:\)\([[:digit:]]*\).*$/\2/p;q' "$evts_ns1")
+				ip netns exec ${listener_ns} ./pm_nl_ctl ann $addr token $tk id $id
+				sleep 1
+				ip netns exec ${listener_ns} ./pm_nl_ctl rem token $tk id $id
+			fi
+
 			counter=$((counter + 1))
 			add_nr_ns1=$((add_nr_ns1 - 1))
+			id=$((id + 1))
 		done
 	elif [ $addr_nr_ns1 -lt 0 ]; then
 		local rm_nr_ns1=$((-addr_nr_ns1))
@@ -751,6 +845,8 @@ do_transfer()
 	if [ $addr_nr_ns2 -gt 0 ]; then
 		local add_nr_ns2=${addr_nr_ns2}
 		local counter=3
+		local id=20
+		local tk da dp sp
 		while [ $add_nr_ns2 -gt 0 ]; do
 			local addr
 			if is_v6 "${connect_addr}"; then
@@ -758,9 +854,23 @@ do_transfer()
 			else
 				addr="10.0.$counter.2"
 			fi
-			pm_nl_add_endpoint $ns2 $addr flags $flags
+			if [ $userspace_pm -eq 0 ]; then
+				pm_nl_add_endpoint $ns2 $addr flags $flags
+			else
+				tk=$(sed -n 's/.*\(token:\)\([[:digit:]]*\).*$/\2/p;q' "$evts_ns2")
+				da=$(sed -n 's/.*\(daddr4:\)\([0-9.]*\).*$/\2/p;q' "$evts_ns2")
+				dp=$(sed -n 's/.*\(dport:\)\([[:digit:]]*\).*$/\2/p;q' "$evts_ns2")
+				ip netns exec ${connector_ns} ./pm_nl_ctl csf lip $addr lid $id \
+									rip $da rport $dp token $tk
+				sleep 1
+				sp=$(grep "type:10" "$evts_ns2" |
+				     sed -n 's/.*\(sport:\)\([[:digit:]]*\).*$/\2/p;q')
+				ip netns exec ${connector_ns} ./pm_nl_ctl dsf lip $addr lport $sp \
+									rip $da rport $dp token $tk
+			fi
 			counter=$((counter + 1))
 			add_nr_ns2=$((add_nr_ns2 - 1))
+			id=$((id + 1))
 		done
 	elif [ $addr_nr_ns2 -lt 0 ]; then
 		local rm_nr_ns2=$((-addr_nr_ns2))
@@ -835,6 +945,12 @@ do_transfer()
 	if [ $capture -eq 1 ]; then
 	    sleep 1
 	    kill $cappid
+	fi
+
+	if [ $userspace_pm -eq 1 ]; then
+		kill_wait $evts_ns1_pid
+		kill_wait $evts_ns2_pid
+		rm -rf $evts_ns1 $evts_ns2
 	fi
 
 	NSTAT_HISTORY=/tmp/${listener_ns}.nstat ip netns exec ${listener_ns} \
@@ -961,6 +1077,7 @@ chk_csum_nr()
 	local csum_ns2=${2:-0}
 	local count
 	local dump_stats
+	local extra_msg=""
 	local allow_multi_errors_ns1=0
 	local allow_multi_errors_ns2=0
 
@@ -976,6 +1093,9 @@ chk_csum_nr()
 	printf "%-${nr_blank}s %s" " " "sum"
 	count=$(ip netns exec $ns1 nstat -as | grep MPTcpExtDataCsumErr | awk '{print $2}')
 	[ -z "$count" ] && count=0
+	if [ "$count" != "$csum_ns1" ]; then
+		extra_msg="$extra_msg ns1=$count"
+	fi
 	if { [ "$count" != $csum_ns1 ] && [ $allow_multi_errors_ns1 -eq 0 ]; } ||
 	   { [ "$count" -lt $csum_ns1 ] && [ $allow_multi_errors_ns1 -eq 1 ]; }; then
 		echo "[fail] got $count data checksum error[s] expected $csum_ns1"
@@ -987,28 +1107,58 @@ chk_csum_nr()
 	echo -n " - csum  "
 	count=$(ip netns exec $ns2 nstat -as | grep MPTcpExtDataCsumErr | awk '{print $2}')
 	[ -z "$count" ] && count=0
+	if [ "$count" != "$csum_ns2" ]; then
+		extra_msg="$extra_msg ns2=$count"
+	fi
 	if { [ "$count" != $csum_ns2 ] && [ $allow_multi_errors_ns2 -eq 0 ]; } ||
 	   { [ "$count" -lt $csum_ns2 ] && [ $allow_multi_errors_ns2 -eq 1 ]; }; then
 		echo "[fail] got $count data checksum error[s] expected $csum_ns2"
 		fail_test
 		dump_stats=1
 	else
-		echo "[ ok ]"
+		echo -n "[ ok ]"
 	fi
 	[ "${dump_stats}" = 1 ] && dump_stats
+
+	echo "$extra_msg"
 }
 
 chk_fail_nr()
 {
 	local fail_tx=$1
 	local fail_rx=$2
+	local ns_invert=${3:-""}
 	local count
 	local dump_stats
+	local ns_tx=$ns1
+	local ns_rx=$ns2
+	local extra_msg=""
+	local allow_tx_lost=0
+	local allow_rx_lost=0
+
+	if [[ $ns_invert = "invert" ]]; then
+		ns_tx=$ns2
+		ns_rx=$ns1
+		extra_msg=" invert"
+	fi
+
+	if [[ "${fail_tx}" = "-"* ]]; then
+		allow_tx_lost=1
+		fail_tx=${fail_tx:1}
+	fi
+	if [[ "${fail_rx}" = "-"* ]]; then
+		allow_rx_lost=1
+		fail_rx=${fail_rx:1}
+	fi
 
 	printf "%-${nr_blank}s %s" " " "ftx"
-	count=$(ip netns exec $ns1 nstat -as | grep MPTcpExtMPFailTx | awk '{print $2}')
+	count=$(ip netns exec $ns_tx nstat -as | grep MPTcpExtMPFailTx | awk '{print $2}')
 	[ -z "$count" ] && count=0
 	if [ "$count" != "$fail_tx" ]; then
+		extra_msg="$extra_msg,tx=$count"
+	fi
+	if { [ "$count" != "$fail_tx" ] && [ $allow_tx_lost -eq 0 ]; } ||
+	   { [ "$count" -gt "$fail_tx" ] && [ $allow_tx_lost -eq 1 ]; }; then
 		echo "[fail] got $count MP_FAIL[s] TX expected $fail_tx"
 		fail_test
 		dump_stats=1
@@ -1017,17 +1167,23 @@ chk_fail_nr()
 	fi
 
 	echo -n " - failrx"
-	count=$(ip netns exec $ns2 nstat -as | grep MPTcpExtMPFailRx | awk '{print $2}')
+	count=$(ip netns exec $ns_rx nstat -as | grep MPTcpExtMPFailRx | awk '{print $2}')
 	[ -z "$count" ] && count=0
 	if [ "$count" != "$fail_rx" ]; then
+		extra_msg="$extra_msg,rx=$count"
+	fi
+	if { [ "$count" != "$fail_rx" ] && [ $allow_rx_lost -eq 0 ]; } ||
+	   { [ "$count" -gt "$fail_rx" ] && [ $allow_rx_lost -eq 1 ]; }; then
 		echo "[fail] got $count MP_FAIL[s] RX expected $fail_rx"
 		fail_test
 		dump_stats=1
 	else
-		echo "[ ok ]"
+		echo -n "[ ok ]"
 	fi
 
 	[ "${dump_stats}" = 1 ] && dump_stats
+
+	echo "$extra_msg"
 }
 
 chk_fclose_nr()
@@ -1106,6 +1262,38 @@ chk_rst_nr()
 	echo "$extra_msg"
 }
 
+chk_infi_nr()
+{
+	local infi_tx=$1
+	local infi_rx=$2
+	local count
+	local dump_stats
+
+	printf "%-${nr_blank}s %s" " " "itx"
+	count=$(ip netns exec $ns2 nstat -as | grep InfiniteMapTx | awk '{print $2}')
+	[ -z "$count" ] && count=0
+	if [ "$count" != "$infi_tx" ]; then
+		echo "[fail] got $count infinite map[s] TX expected $infi_tx"
+		fail_test
+		dump_stats=1
+	else
+		echo -n "[ ok ]"
+	fi
+
+	echo -n " - infirx"
+	count=$(ip netns exec $ns1 nstat -as | grep InfiniteMapRx | awk '{print $2}')
+	[ -z "$count" ] && count=0
+	if [ "$count" != "$infi_rx" ]; then
+		echo "[fail] got $count infinite map[s] RX expected $infi_rx"
+		fail_test
+		dump_stats=1
+	else
+		echo "[ ok ]"
+	fi
+
+	[ "${dump_stats}" = 1 ] && dump_stats
+}
+
 chk_join_nr()
 {
 	local syn_nr=$1
@@ -1115,7 +1303,8 @@ chk_join_nr()
 	local csum_ns2=${5:-0}
 	local fail_nr=${6:-0}
 	local rst_nr=${7:-0}
-	local corrupted_pkts=${8:-0}
+	local infi_nr=${8:-0}
+	local corrupted_pkts=${9:-0}
 	local count
 	local dump_stats
 	local with_cookie
@@ -1166,10 +1355,11 @@ chk_join_nr()
 		echo "[ ok ]"
 	fi
 	[ "${dump_stats}" = 1 ] && dump_stats
-	if [ $checksum -eq 1 ]; then
+	if [ $validate_checksum -eq 1 ]; then
 		chk_csum_nr $csum_ns1 $csum_ns2
 		chk_fail_nr $fail_nr $fail_nr
 		chk_rst_nr $rst_nr $rst_nr
+		chk_infi_nr $infi_nr $infi_nr
 	fi
 }
 
@@ -1444,6 +1634,33 @@ chk_prio_nr()
 	[ "${dump_stats}" = 1 ] && dump_stats
 }
 
+chk_subflow_nr()
+{
+	local need_title="$1"
+	local msg="$2"
+	local subflow_nr=$3
+	local cnt1
+	local cnt2
+
+	if [ -n "${need_title}" ]; then
+		printf "%03u %-36s %s" "${TEST_COUNT}" "${TEST_NAME}" "${msg}"
+	else
+		printf "%-${nr_blank}s %s" " " "${msg}"
+	fi
+
+	cnt1=$(ss -N $ns1 -tOni | grep -c token)
+	cnt2=$(ss -N $ns2 -tOni | grep -c token)
+	if [ "$cnt1" != "$subflow_nr" -o "$cnt2" != "$subflow_nr" ]; then
+		echo "[fail] got $cnt1:$cnt2 subflows expected $subflow_nr"
+		fail_test
+		dump_stats=1
+	else
+		echo "[ ok ]"
+	fi
+
+	[ "${dump_stats}" = 1 ] && ( ss -N $ns1 -tOni ; ss -N $ns1 -tOni | grep token; ip -n $ns1 mptcp endpoint )
+}
+
 chk_link_usage()
 {
 	local ns=$1
@@ -1483,6 +1700,13 @@ wait_attempt_fail()
 		sleep 0.1
 	done
 	return 1
+}
+
+set_userspace_pm()
+{
+	local ns=$1
+
+	ip netns exec $ns sysctl -q net.mptcp.pm_type=1
 }
 
 subflows_tests()
@@ -2204,6 +2428,36 @@ backup_tests()
 		chk_add_nr 1 1
 		chk_prio_nr 1 1
 	fi
+
+	if reset "mpc backup"; then
+		pm_nl_add_endpoint $ns2 10.0.1.2 flags subflow,backup
+		run_tests $ns1 $ns2 10.0.1.1 0 0 0 slow
+		chk_join_nr 0 0 0
+		chk_prio_nr 0 1
+	fi
+
+	if reset "mpc backup both sides"; then
+		pm_nl_add_endpoint $ns1 10.0.1.1 flags subflow,backup
+		pm_nl_add_endpoint $ns2 10.0.1.2 flags subflow,backup
+		run_tests $ns1 $ns2 10.0.1.1 0 0 0 slow
+		chk_join_nr 0 0 0
+		chk_prio_nr 1 1
+	fi
+
+	if reset "mpc switch to backup"; then
+		pm_nl_add_endpoint $ns2 10.0.1.2 flags subflow
+		run_tests $ns1 $ns2 10.0.1.1 0 0 0 slow backup
+		chk_join_nr 0 0 0
+		chk_prio_nr 0 1
+	fi
+
+	if reset "mpc switch to backup both sides"; then
+		pm_nl_add_endpoint $ns1 10.0.1.1 flags subflow
+		pm_nl_add_endpoint $ns2 10.0.1.2 flags subflow
+		run_tests $ns1 $ns2 10.0.1.1 0 0 0 slow backup
+		chk_join_nr 0 0 0
+		chk_prio_nr 1 1
+	fi
 }
 
 add_addr_ports_tests()
@@ -2556,7 +2810,121 @@ fastclose_tests()
 	fi
 }
 
-implicit_tests()
+pedit_action_pkts()
+{
+	tc -n $ns2 -j -s action show action pedit index 100 | \
+		grep "packets" | \
+		sed 's/.*"packets":\([0-9]\+\),.*/\1/'
+}
+
+fail_tests()
+{
+	# single subflow
+	if reset_with_fail "Infinite map" 1; then
+		run_tests $ns1 $ns2 10.0.1.1 128
+		chk_join_nr 0 0 0 +1 +0 1 0 1 "$(pedit_action_pkts)"
+		chk_fail_nr 1 -1 invert
+	fi
+
+	# multiple subflows
+	if reset_with_fail "MP_FAIL MP_RST" 2; then
+		tc -n $ns2 qdisc add dev ns2eth1 root netem rate 1mbit delay 5
+		pm_nl_set_limits $ns1 0 1
+		pm_nl_set_limits $ns2 0 1
+		pm_nl_add_endpoint $ns2 10.0.2.2 dev ns2eth2 flags subflow
+		run_tests $ns1 $ns2 10.0.1.1 1024
+		chk_join_nr 1 1 1 1 0 1 1 0 "$(pedit_action_pkts)"
+	fi
+}
+
+userspace_tests()
+{
+	# userspace pm type prevents add_addr
+	if reset "userspace pm type prevents add_addr"; then
+		set_userspace_pm $ns1
+		pm_nl_set_limits $ns1 0 2
+		pm_nl_set_limits $ns2 0 2
+		pm_nl_add_endpoint $ns1 10.0.2.1 flags signal
+		run_tests $ns1 $ns2 10.0.1.1
+		chk_join_nr 0 0 0
+		chk_add_nr 0 0
+	fi
+
+	# userspace pm type does not echo add_addr without daemon
+	if reset "userspace pm no echo w/o daemon"; then
+		set_userspace_pm $ns2
+		pm_nl_set_limits $ns1 0 2
+		pm_nl_set_limits $ns2 0 2
+		pm_nl_add_endpoint $ns1 10.0.2.1 flags signal
+		run_tests $ns1 $ns2 10.0.1.1
+		chk_join_nr 0 0 0
+		chk_add_nr 1 0
+	fi
+
+	# userspace pm type rejects join
+	if reset "userspace pm type rejects join"; then
+		set_userspace_pm $ns1
+		pm_nl_set_limits $ns1 1 1
+		pm_nl_set_limits $ns2 1 1
+		pm_nl_add_endpoint $ns2 10.0.3.2 flags subflow
+		run_tests $ns1 $ns2 10.0.1.1
+		chk_join_nr 1 1 0
+	fi
+
+	# userspace pm type does not send join
+	if reset "userspace pm type does not send join"; then
+		set_userspace_pm $ns2
+		pm_nl_set_limits $ns1 1 1
+		pm_nl_set_limits $ns2 1 1
+		pm_nl_add_endpoint $ns2 10.0.3.2 flags subflow
+		run_tests $ns1 $ns2 10.0.1.1
+		chk_join_nr 0 0 0
+	fi
+
+	# userspace pm type prevents mp_prio
+	if reset "userspace pm type prevents mp_prio"; then
+		set_userspace_pm $ns1
+		pm_nl_set_limits $ns1 1 1
+		pm_nl_set_limits $ns2 1 1
+		pm_nl_add_endpoint $ns2 10.0.3.2 flags subflow
+		run_tests $ns1 $ns2 10.0.1.1 0 0 0 slow backup
+		chk_join_nr 1 1 0
+		chk_prio_nr 0 0
+	fi
+
+	# userspace pm type prevents rm_addr
+	if reset "userspace pm type prevents rm_addr"; then
+		set_userspace_pm $ns1
+		set_userspace_pm $ns2
+		pm_nl_set_limits $ns1 0 1
+		pm_nl_set_limits $ns2 0 1
+		pm_nl_add_endpoint $ns2 10.0.3.2 flags subflow
+		run_tests $ns1 $ns2 10.0.1.1 0 0 -1 slow
+		chk_join_nr 0 0 0
+		chk_rm_nr 0 0
+	fi
+
+	# userspace pm add & remove address
+	if reset "userspace pm add & remove address"; then
+		set_userspace_pm $ns1
+		pm_nl_set_limits $ns2 1 1
+		run_tests $ns1 $ns2 10.0.1.1 0 userspace_1 0 slow
+		chk_join_nr 1 1 1
+		chk_add_nr 1 1
+		chk_rm_nr 1 1 invert
+	fi
+
+	# userspace pm create destroy subflow
+	if reset "userspace pm create destroy subflow"; then
+		set_userspace_pm $ns2
+		pm_nl_set_limits $ns1 0 1
+		run_tests $ns1 $ns2 10.0.1.1 0 0 userspace_1 slow
+		chk_join_nr 1 1 1
+		chk_rm_nr 0 1
+	fi
+}
+
+endpoint_tests()
 {
 	# userspace pm type prevents add_addr
 	if reset "implicit EP"; then
@@ -2576,6 +2944,23 @@ implicit_tests()
 		pm_nl_add_endpoint $ns2 10.0.2.2 flags signal
 		pm_nl_check_endpoint 0 "modif is allowed" \
 			$ns2 10.0.2.2 id 1 flags signal
+		wait
+	fi
+
+	if reset "delete and re-add"; then
+		pm_nl_set_limits $ns1 1 1
+		pm_nl_set_limits $ns2 1 1
+		pm_nl_add_endpoint $ns2 10.0.2.2 id 2 dev ns2eth2 flags subflow
+		run_tests $ns1 $ns2 10.0.1.1 4 0 0 slow &
+
+		wait_mpj $ns2
+		pm_nl_del_endpoint $ns2 2 10.0.2.2
+		sleep 0.5
+		chk_subflow_nr needtitle "after delete" 1
+
+		pm_nl_add_endpoint $ns2 10.0.2.2 dev ns2eth2 flags subflow
+		wait_mpj $ns2
+		chk_subflow_nr "" "after re-add" 2
 		wait
 	fi
 }
@@ -2624,7 +3009,9 @@ all_tests_sorted=(
 	d@deny_join_id0_tests
 	m@fullmesh_tests
 	z@fastclose_tests
-	I@implicit_tests
+	F@fail_tests
+	u@userspace_tests
+	I@endpoint_tests
 )
 
 all_tests_args=""

@@ -30,7 +30,7 @@ MODULE_DEVICE_TABLE(spi, cs35l41_id_spi);
 static int cs35l41_spi_probe(struct spi_device *spi)
 {
 	const struct regmap_config *regmap_config = &cs35l41_regmap_spi;
-	struct cs35l41_platform_data *pdata = dev_get_platdata(&spi->dev);
+	struct cs35l41_hw_cfg *hw_cfg = dev_get_platdata(&spi->dev);
 	struct cs35l41_private *cs35l41;
 	int ret;
 
@@ -52,7 +52,7 @@ static int cs35l41_spi_probe(struct spi_device *spi)
 	cs35l41->dev = &spi->dev;
 	cs35l41->irq = spi->irq;
 
-	return cs35l41_probe(cs35l41, pdata);
+	return cs35l41_probe(cs35l41, hw_cfg);
 }
 
 static void cs35l41_spi_remove(struct spi_device *spi)
@@ -74,6 +74,7 @@ MODULE_DEVICE_TABLE(of, cs35l41_of_match);
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id cs35l41_acpi_match[] = {
 	{ "CSC3541", 0 }, /* Cirrus Logic PnP ID + part ID */
+	{ "CLSA3541", 0 }, /* Cirrus Logic PnP ID + part ID */
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, cs35l41_acpi_match);

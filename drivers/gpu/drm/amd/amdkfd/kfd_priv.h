@@ -229,6 +229,8 @@ struct kfd_device_info {
 	bool needs_pci_atomics;
 	uint32_t no_atomic_fw_version;
 	unsigned int num_sdma_queues_per_engine;
+	unsigned int num_reserved_sdma_queues_per_engine;
+	uint64_t reserved_sdma_queues_bitmap;
 };
 
 unsigned int kfd_get_num_sdma_engines(struct kfd_dev *kdev);
@@ -272,6 +274,7 @@ struct kfd_dev {
 
 	struct kgd2kfd_shared_resources shared_resources;
 	struct kfd_vmid_info vm_info;
+	struct kfd_local_mem_info local_mem_info;
 
 	const struct kfd2kgd_calls *kfd2kgd;
 	struct mutex doorbell_mutex;
@@ -564,6 +567,12 @@ struct queue {
 
 	/* procfs */
 	struct kobject kobj;
+
+	void *gang_ctx_bo;
+	uint64_t gang_ctx_gpu_addr;
+	void *gang_ctx_cpu_ptr;
+
+	struct amdgpu_bo *wptr_bo;
 };
 
 enum KFD_MQD_TYPE {
@@ -706,6 +715,7 @@ struct kfd_process_device {
 	/* VM context for GPUVM allocations */
 	struct file *drm_file;
 	void *drm_priv;
+	atomic64_t tlb_seq;
 
 	/* GPUVM allocations storage */
 	struct idr alloc_idr;
@@ -778,6 +788,10 @@ struct kfd_process_device {
 	 * checkpointed node to refer to this device.
 	 */
 	uint32_t user_gpu_id;
+
+	void *proc_ctx_bo;
+	uint64_t proc_ctx_gpu_addr;
+	void *proc_ctx_cpu_ptr;
 };
 
 #define qpd_to_pdd(x) container_of(x, struct kfd_process_device, qpd)
@@ -933,7 +947,7 @@ static inline struct kfd_process_device *kfd_process_device_from_gpuidx(
 }
 
 void kfd_unref_process(struct kfd_process *p);
-int kfd_process_evict_queues(struct kfd_process *p);
+int kfd_process_evict_queues(struct kfd_process *p, uint32_t trigger);
 int kfd_process_restore_queues(struct kfd_process *p);
 void kfd_suspend_all_processes(void);
 int kfd_resume_all_processes(void);
@@ -1015,6 +1029,8 @@ void kfd_topology_shutdown(void);
 int kfd_topology_add_device(struct kfd_dev *gpu);
 int kfd_topology_remove_device(struct kfd_dev *gpu);
 struct kfd_topology_device *kfd_topology_device_by_proximity_domain(
+						uint32_t proximity_domain);
+struct kfd_topology_device *kfd_topology_device_by_proximity_domain_no_lock(
 						uint32_t proximity_domain);
 struct kfd_topology_device *kfd_topology_device_by_id(uint32_t gpu_id);
 struct kfd_dev *kfd_device_by_id(uint32_t gpu_id);
@@ -1103,7 +1119,7 @@ struct kfd_criu_queue_priv_data {
 	uint32_t priority;
 	uint32_t q_percent;
 	uint32_t doorbell_id;
-	uint32_t is_gws;
+	uint32_t gws;
 	uint32_t sdma_id;
 	uint32_t eop_ring_buffer_size;
 	uint32_t ctx_save_restore_area_size;
@@ -1167,6 +1183,8 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 		struct kfd_dev *dev);
 struct mqd_manager *mqd_manager_init_v10(enum KFD_MQD_TYPE type,
 		struct kfd_dev *dev);
+struct mqd_manager *mqd_manager_init_v11(enum KFD_MQD_TYPE type,
+		struct kfd_dev *dev);
 struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev);
 void device_queue_manager_uninit(struct device_queue_manager *dqm);
 struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
@@ -1190,6 +1208,7 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			    struct file *f,
 			    struct queue_properties *properties,
 			    unsigned int *qid,
+			    struct amdgpu_bo *wptr_bo,
 			    const struct kfd_criu_queue_priv_data *q_data,
 			    const void *restore_mqd,
 			    const void *restore_ctl_stack,
@@ -1289,15 +1308,16 @@ uint64_t kfd_get_number_elems(struct kfd_dev *kfd);
 /* Events */
 extern const struct kfd_event_interrupt_class event_interrupt_class_cik;
 extern const struct kfd_event_interrupt_class event_interrupt_class_v9;
+extern const struct kfd_event_interrupt_class event_interrupt_class_v11;
 
 extern const struct kfd_device_global_init_class device_global_init_class_cik;
 
-void kfd_event_init_process(struct kfd_process *p);
+int kfd_event_init_process(struct kfd_process *p);
 void kfd_event_free_process(struct kfd_process *p);
 int kfd_event_mmap(struct kfd_process *process, struct vm_area_struct *vma);
 int kfd_wait_on_events(struct kfd_process *p,
 		       uint32_t num_events, void __user *data,
-		       bool all, uint32_t user_timeout_ms,
+		       bool all, uint32_t *user_timeout_ms,
 		       uint32_t *wait_result);
 void kfd_signal_event_interrupt(u32 pasid, uint32_t partial_id,
 				uint32_t valid_id_bits);
@@ -1325,6 +1345,14 @@ void kfd_signal_reset_event(struct kfd_dev *dev);
 void kfd_signal_poison_consumed_event(struct kfd_dev *dev, u32 pasid);
 
 void kfd_flush_tlb(struct kfd_process_device *pdd, enum TLB_FLUSH_TYPE type);
+
+static inline bool kfd_flush_tlb_after_unmap(struct kfd_dev *dev)
+{
+	return KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2) ||
+	       (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 1) &&
+	       dev->adev->sdma.instance[0].fw_version >= 18) ||
+	       KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 0);
+}
 
 bool kfd_is_locked(void);
 

@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "util/debug.h"
 #include "util/expr.h"
+#include "util/header.h"
 #include "util/smt.h"
 #include "tests.h"
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <linux/zalloc.h>
@@ -69,6 +71,11 @@ static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_u
 	double val, num_cpus, num_cores, num_dies, num_packages;
 	int ret;
 	struct expr_parse_ctx *ctx;
+	bool is_intel = false;
+	char buf[128];
+
+	if (!get_cpuid(buf, sizeof(buf)))
+		is_intel = strstr(buf, "Intel") != NULL;
 
 	TEST_ASSERT_EQUAL("ids_union", test_ids_union(), 0);
 
@@ -97,6 +104,8 @@ static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_u
 	ret |= test(ctx, "2.2 > 2.2", 0);
 	ret |= test(ctx, "2.2 < 1.1", 0);
 	ret |= test(ctx, "1.1 > 2.2", 0);
+	ret |= test(ctx, "1.1e10 < 1.1e100", 1);
+	ret |= test(ctx, "1.1e2 > 1.1e-2", 1);
 
 	if (ret) {
 		expr__ctx_free(ctx);
@@ -172,6 +181,12 @@ static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_u
 
 	if (num_dies) // Some platforms do not have CPU die support, for example s390
 		TEST_ASSERT_VAL("#num_dies >= #num_packages", num_dies >= num_packages);
+
+	TEST_ASSERT_VAL("#system_tsc_freq", expr__parse(&val, ctx, "#system_tsc_freq") == 0);
+	if (is_intel)
+		TEST_ASSERT_VAL("#system_tsc_freq > 0", val > 0);
+	else
+		TEST_ASSERT_VAL("#system_tsc_freq == 0", fpclassify(val) == FP_ZERO);
 
 	/*
 	 * Source count returns the number of events aggregating in a leader

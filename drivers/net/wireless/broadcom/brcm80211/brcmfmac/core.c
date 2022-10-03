@@ -7,6 +7,7 @@
 #include <linux/etherdevice.h>
 #include <linux/module.h>
 #include <linux/inetdevice.h>
+#include <linux/property.h>
 #include <net/cfg80211.h>
 #include <net/rtnetlink.h>
 #include <net/addrconf.h>
@@ -232,16 +233,12 @@ static int brcmf_netdev_set_mac_address(struct net_device *ndev, void *addr)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct sockaddr *sa = (struct sockaddr *)addr;
-	struct brcmf_pub *drvr = ifp->drvr;
 	int err;
 
 	brcmf_dbg(TRACE, "Enter, bsscfgidx=%d\n", ifp->bsscfgidx);
 
-	err = brcmf_fil_iovar_data_set(ifp, "cur_etheraddr", sa->sa_data,
-				       ETH_ALEN);
-	if (err < 0) {
-		bphy_err(drvr, "Setting cur_etheraddr failed, %d\n", err);
-	} else {
+	err = brcmf_c_set_cur_etheraddr(ifp, sa->sa_data);
+	if (err >= 0) {
 		brcmf_dbg(TRACE, "updated to %pM\n", sa->sa_data);
 		memcpy(ifp->mac_addr, sa->sa_data, ETH_ALEN);
 		eth_hw_addr_set(ifp->ndev, ifp->mac_addr);
@@ -1197,7 +1194,8 @@ static int brcmf_bus_started(struct brcmf_pub *drvr, struct cfg80211_ops *ops)
 	brcmf_dbg(TRACE, "\n");
 
 	/* add primary networking interface */
-	ifp = brcmf_add_if(drvr, 0, 0, false, "wlan%d", NULL);
+	ifp = brcmf_add_if(drvr, 0, 0, false, "wlan%d",
+			   is_valid_ether_addr(drvr->settings->mac) ? drvr->settings->mac : NULL);
 	if (IS_ERR(ifp))
 		return PTR_ERR(ifp);
 

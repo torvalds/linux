@@ -127,10 +127,10 @@ BPF_XOR | BPF_K | BPF_ALU64 means::
 Byte swap instructions
 ----------------------
 
-The byte swap instructions use an instruction class of ``BFP_ALU`` and a 4-bit
+The byte swap instructions use an instruction class of ``BPF_ALU`` and a 4-bit
 code field of ``BPF_END``.
 
-The byte swap instructions instructions operate on the destination register
+The byte swap instructions operate on the destination register
 only and do not use a separate source register or immediate value.
 
 The 1-bit source operand field in the opcode is used to to select what byte
@@ -157,7 +157,7 @@ Examples:
   dst_reg = htobe64(dst_reg)
 
 ``BPF_FROM_LE`` and ``BPF_FROM_BE`` exist as aliases for ``BPF_TO_LE`` and
-``BPF_TO_LE`` respetively.
+``BPF_TO_BE`` respectively.
 
 
 Jump instructions
@@ -351,7 +351,7 @@ These instructions have seven implicit operands:
  * Register R0 is an implicit output which contains the data fetched from
    the packet.
  * Registers R1-R5 are scratch registers that are clobbered after a call to
-   ``BPF_ABS | BPF_LD`` or ``BPF_IND`` | BPF_LD instructions.
+   ``BPF_ABS | BPF_LD`` or ``BPF_IND | BPF_LD`` instructions.
 
 These instructions have an implicit program exit condition as well. When an
 eBPF program is trying to access the data beyond the packet boundary, the

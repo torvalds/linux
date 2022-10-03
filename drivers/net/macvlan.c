@@ -460,8 +460,10 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 			return RX_HANDLER_CONSUMED;
 		*pskb = skb;
 		eth = eth_hdr(skb);
-		if (macvlan_forward_source(skb, port, eth->h_source))
+		if (macvlan_forward_source(skb, port, eth->h_source)) {
+			kfree_skb(skb);
 			return RX_HANDLER_CONSUMED;
+		}
 		src = macvlan_hash_lookup(port, eth->h_source);
 		if (src && src->mode != MACVLAN_MODE_VEPA &&
 		    src->mode != MACVLAN_MODE_BRIDGE) {
@@ -480,8 +482,10 @@ static rx_handler_result_t macvlan_handle_frame(struct sk_buff **pskb)
 		return RX_HANDLER_PASS;
 	}
 
-	if (macvlan_forward_source(skb, port, eth->h_source))
+	if (macvlan_forward_source(skb, port, eth->h_source)) {
+		kfree_skb(skb);
 		return RX_HANDLER_CONSUMED;
+	}
 	if (macvlan_passthru(port))
 		vlan = list_first_or_null_rcu(&port->vlans,
 					      struct macvlan_dev, list);
@@ -571,8 +575,8 @@ static netdev_tx_t macvlan_start_xmit(struct sk_buff *skb,
 
 		pcpu_stats = this_cpu_ptr(vlan->pcpu_stats);
 		u64_stats_update_begin(&pcpu_stats->syncp);
-		pcpu_stats->tx_packets++;
-		pcpu_stats->tx_bytes += len;
+		u64_stats_inc(&pcpu_stats->tx_packets);
+		u64_stats_add(&pcpu_stats->tx_bytes, len);
 		u64_stats_update_end(&pcpu_stats->syncp);
 	} else {
 		this_cpu_inc(vlan->pcpu_stats->tx_dropped);
@@ -900,8 +904,7 @@ static int macvlan_init(struct net_device *dev)
 	dev->vlan_features	= lowerdev->vlan_features & MACVLAN_FEATURES;
 	dev->vlan_features	|= ALWAYS_ON_OFFLOADS;
 	dev->hw_enc_features    |= dev->features;
-	netif_set_gso_max_size(dev, lowerdev->gso_max_size);
-	netif_set_gso_max_segs(dev, lowerdev->gso_max_segs);
+	netif_inherit_tso_max(dev, lowerdev);
 	dev->hard_header_len	= lowerdev->hard_header_len;
 	macvlan_set_lockdep_class(dev);
 
@@ -912,7 +915,7 @@ static int macvlan_init(struct net_device *dev)
 	port->count += 1;
 
 	/* Get macvlan's reference to lowerdev */
-	dev_hold_track(lowerdev, &vlan->dev_tracker, GFP_KERNEL);
+	netdev_hold(lowerdev, &vlan->dev_tracker, GFP_KERNEL);
 
 	return 0;
 }
@@ -946,11 +949,11 @@ static void macvlan_dev_get_stats64(struct net_device *dev,
 			p = per_cpu_ptr(vlan->pcpu_stats, i);
 			do {
 				start = u64_stats_fetch_begin_irq(&p->syncp);
-				rx_packets	= p->rx_packets;
-				rx_bytes	= p->rx_bytes;
-				rx_multicast	= p->rx_multicast;
-				tx_packets	= p->tx_packets;
-				tx_bytes	= p->tx_bytes;
+				rx_packets	= u64_stats_read(&p->rx_packets);
+				rx_bytes	= u64_stats_read(&p->rx_bytes);
+				rx_multicast	= u64_stats_read(&p->rx_multicast);
+				tx_packets	= u64_stats_read(&p->tx_packets);
+				tx_bytes	= u64_stats_read(&p->tx_bytes);
 			} while (u64_stats_fetch_retry_irq(&p->syncp, start));
 
 			stats->rx_packets	+= rx_packets;
@@ -961,8 +964,8 @@ static void macvlan_dev_get_stats64(struct net_device *dev,
 			/* rx_errors & tx_dropped are u32, updated
 			 * without syncp protection.
 			 */
-			rx_errors	+= p->rx_errors;
-			tx_dropped	+= p->tx_dropped;
+			rx_errors	+= READ_ONCE(p->rx_errors);
+			tx_dropped	+= READ_ONCE(p->tx_dropped);
 		}
 		stats->rx_errors	= rx_errors;
 		stats->rx_dropped	= rx_errors;
@@ -1017,7 +1020,8 @@ static int macvlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 
 static int macvlan_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 			   struct net_device *dev,
-			   const unsigned char *addr, u16 vid)
+			   const unsigned char *addr, u16 vid,
+			   struct netlink_ext_ack *extack)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	int err = -EINVAL;
@@ -1181,7 +1185,7 @@ static void macvlan_dev_free(struct net_device *dev)
 	struct macvlan_dev *vlan = netdev_priv(dev);
 
 	/* Get rid of the macvlan's reference to lowerdev */
-	dev_put_track(vlan->lowerdev, &vlan->dev_tracker);
+	netdev_put(vlan->lowerdev, &vlan->dev_tracker);
 }
 
 void macvlan_common_setup(struct net_device *dev)
@@ -1759,8 +1763,7 @@ static int macvlan_device_event(struct notifier_block *unused,
 		break;
 	case NETDEV_FEAT_CHANGE:
 		list_for_each_entry(vlan, &port->vlans, list) {
-			netif_set_gso_max_size(vlan->dev, dev->gso_max_size);
-			netif_set_gso_max_segs(vlan->dev, dev->gso_max_segs);
+			netif_inherit_tso_max(vlan->dev, dev);
 			netdev_update_features(vlan->dev);
 		}
 		break;

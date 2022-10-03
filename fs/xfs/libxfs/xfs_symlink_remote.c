@@ -204,7 +204,7 @@ xfs_failaddr_t
 xfs_symlink_shortform_verify(
 	struct xfs_inode	*ip)
 {
-	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
+	struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, XFS_DATA_FORK);
 	char			*sfp = (char *)ifp->if_u1.if_data;
 	int			size = ifp->if_bytes;
 	char			*endp = sfp + size;
@@ -213,7 +213,7 @@ xfs_symlink_shortform_verify(
 
 	/*
 	 * Zero length symlinks should never occur in memory as they are
-	 * never alllowed to exist on disk.
+	 * never allowed to exist on disk.
 	 */
 	if (!size)
 		return __this_address;

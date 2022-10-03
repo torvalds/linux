@@ -68,7 +68,6 @@ MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 #define DEFAULT_GMAC_RXQ_ORDER		9
 #define DEFAULT_GMAC_TXQ_ORDER		8
 #define DEFAULT_RX_BUF_ORDER		11
-#define DEFAULT_NAPI_WEIGHT		64
 #define TX_MAX_FRAGS			16
 #define TX_QUEUE_NUM			1	/* max: 6 */
 #define RX_MAX_ALLOC_ORDER		2
@@ -2472,8 +2471,7 @@ static int gemini_ethernet_port_probe(struct platform_device *pdev)
 	netdev->max_mtu = 10236 - VLAN_ETH_HLEN;
 
 	port->freeq_refill = 0;
-	netif_napi_add(netdev, &port->napi, gmac_napi_poll,
-		       DEFAULT_NAPI_WEIGHT);
+	netif_napi_add(netdev, &port->napi, gmac_napi_poll, NAPI_POLL_WEIGHT);
 
 	ret = of_get_mac_address(np, mac);
 	if (!ret) {

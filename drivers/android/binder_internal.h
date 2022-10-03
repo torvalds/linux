@@ -107,41 +107,19 @@ static inline int __init init_binderfs(void)
 }
 #endif
 
-int binder_stats_show(struct seq_file *m, void *unused);
-DEFINE_SHOW_ATTRIBUTE(binder_stats);
-
-int binder_state_show(struct seq_file *m, void *unused);
-DEFINE_SHOW_ATTRIBUTE(binder_state);
-
-int binder_transactions_show(struct seq_file *m, void *unused);
-DEFINE_SHOW_ATTRIBUTE(binder_transactions);
-
-int binder_transaction_log_show(struct seq_file *m, void *unused);
-DEFINE_SHOW_ATTRIBUTE(binder_transaction_log);
-
-struct binder_transaction_log_entry {
-	int debug_id;
-	int debug_id_done;
-	int call_type;
-	int from_proc;
-	int from_thread;
-	int target_handle;
-	int to_proc;
-	int to_thread;
-	int to_node;
-	int data_size;
-	int offsets_size;
-	int return_error_line;
-	uint32_t return_error;
-	uint32_t return_error_param;
-	char context_name[BINDERFS_MAX_NAME + 1];
+struct binder_debugfs_entry {
+	const char *name;
+	umode_t mode;
+	const struct file_operations *fops;
+	void *data;
 };
 
-struct binder_transaction_log {
-	atomic_t cur;
-	bool full;
-	struct binder_transaction_log_entry entry[32];
-};
+extern const struct binder_debugfs_entry binder_debugfs_entries[];
+
+#define binder_for_each_debugfs_entry(entry)	\
+	for ((entry) = binder_debugfs_entries;	\
+	     (entry)->name;			\
+	     (entry)++)
 
 enum binder_stat_types {
 	BINDER_STAT_PROC,
@@ -480,6 +458,8 @@ struct binder_proc {
  *                        (only accessed by this thread)
  * @reply_error:          transaction errors reported by target thread
  *                        (protected by @proc->inner_lock)
+ * @ee:                   extended error information from this thread
+ *                        (protected by @proc->inner_lock)
  * @wait:                 wait queue for thread work
  * @stats:                per-thread statistics
  *                        (atomics, no lock needed)
@@ -504,6 +484,7 @@ struct binder_thread {
 	bool process_todo;
 	struct binder_error return_error;
 	struct binder_error reply_error;
+	struct binder_extended_error ee;
 	wait_queue_head_t wait;
 	struct binder_stats stats;
 	atomic_t tmp_ref;
@@ -515,6 +496,7 @@ struct binder_thread {
  * @fixup_entry:          list entry
  * @file:                 struct file to be associated with new fd
  * @offset:               offset in buffer data to this fixup
+ * @target_fd:            fd to use by the target to install @file
  *
  * List element for fd fixups in a transaction. Since file
  * descriptors need to be allocated in the context of the
@@ -525,6 +507,7 @@ struct binder_txn_fd_fixup {
 	struct list_head fixup_entry;
 	struct file *file;
 	size_t offset;
+	int target_fd;
 };
 
 struct binder_transaction {
@@ -575,6 +558,4 @@ struct binder_object {
 	};
 };
 
-extern struct binder_transaction_log binder_transaction_log;
-extern struct binder_transaction_log binder_transaction_log_failed;
 #endif /* _LINUX_BINDER_INTERNAL_H */

@@ -443,17 +443,15 @@ static void scsi_device_cls_release(struct device *class_dev)
 
 static void scsi_device_dev_release_usercontext(struct work_struct *work)
 {
-	struct scsi_device *sdev;
+	struct scsi_device *sdev = container_of(work, struct scsi_device,
+						ew.work);
+	struct scsi_target *starget = sdev->sdev_target;
 	struct device *parent;
 	struct list_head *this, *tmp;
 	struct scsi_vpd *vpd_pg80 = NULL, *vpd_pg83 = NULL;
 	struct scsi_vpd *vpd_pg0 = NULL, *vpd_pg89 = NULL;
+	struct scsi_vpd *vpd_pgb0 = NULL, *vpd_pgb1 = NULL, *vpd_pgb2 = NULL;
 	unsigned long flags;
-	struct module *mod;
-
-	sdev = container_of(work, struct scsi_device, ew.work);
-
-	mod = sdev->host->hostt->module;
 
 	scsi_dh_release_device(sdev);
 
@@ -490,6 +488,12 @@ static void scsi_device_dev_release_usercontext(struct work_struct *work)
 				       lockdep_is_held(&sdev->inquiry_mutex));
 	vpd_pg89 = rcu_replace_pointer(sdev->vpd_pg89, vpd_pg89,
 				       lockdep_is_held(&sdev->inquiry_mutex));
+	vpd_pgb0 = rcu_replace_pointer(sdev->vpd_pgb0, vpd_pgb0,
+				       lockdep_is_held(&sdev->inquiry_mutex));
+	vpd_pgb1 = rcu_replace_pointer(sdev->vpd_pgb1, vpd_pgb1,
+				       lockdep_is_held(&sdev->inquiry_mutex));
+	vpd_pgb2 = rcu_replace_pointer(sdev->vpd_pgb2, vpd_pgb2,
+				       lockdep_is_held(&sdev->inquiry_mutex));
 	mutex_unlock(&sdev->inquiry_mutex);
 
 	if (vpd_pg0)
@@ -500,22 +504,25 @@ static void scsi_device_dev_release_usercontext(struct work_struct *work)
 		kfree_rcu(vpd_pg80, rcu);
 	if (vpd_pg89)
 		kfree_rcu(vpd_pg89, rcu);
+	if (vpd_pgb0)
+		kfree_rcu(vpd_pgb0, rcu);
+	if (vpd_pgb1)
+		kfree_rcu(vpd_pgb1, rcu);
+	if (vpd_pgb2)
+		kfree_rcu(vpd_pgb2, rcu);
 	kfree(sdev->inquiry);
 	kfree(sdev);
 
+	if (starget && atomic_dec_return(&starget->sdev_count) == 0)
+		wake_up(&starget->sdev_wq);
+
 	if (parent)
 		put_device(parent);
-	module_put(mod);
 }
 
 static void scsi_device_dev_release(struct device *dev)
 {
 	struct scsi_device *sdp = to_scsi_device(dev);
-
-	/* Set module pointer as NULL in case of module unloading */
-	if (!try_module_get(sdp->host->hostt->module))
-		sdp->host->hostt->module = NULL;
-
 	execute_in_process_context(scsi_device_dev_release_usercontext,
 				   &sdp->ew);
 }
@@ -560,7 +567,6 @@ struct bus_type scsi_bus_type = {
 	.pm		= &scsi_bus_pm_ops,
 #endif
 };
-EXPORT_SYMBOL_GPL(scsi_bus_type);
 
 int scsi_sysfs_register(void)
 {
@@ -913,6 +919,9 @@ static struct bin_attribute dev_attr_vpd_##_page = {		\
 sdev_vpd_pg_attr(pg83);
 sdev_vpd_pg_attr(pg80);
 sdev_vpd_pg_attr(pg89);
+sdev_vpd_pg_attr(pgb0);
+sdev_vpd_pg_attr(pgb1);
+sdev_vpd_pg_attr(pgb2);
 sdev_vpd_pg_attr(pg0);
 
 static ssize_t show_inquiry(struct file *filep, struct kobject *kobj,
@@ -1250,6 +1259,15 @@ static umode_t scsi_sdev_bin_attr_is_visible(struct kobject *kobj,
 	if (attr == &dev_attr_vpd_pg89 && !sdev->vpd_pg89)
 		return 0;
 
+	if (attr == &dev_attr_vpd_pgb0 && !sdev->vpd_pgb0)
+		return 0;
+
+	if (attr == &dev_attr_vpd_pgb1 && !sdev->vpd_pgb1)
+		return 0;
+
+	if (attr == &dev_attr_vpd_pgb2 && !sdev->vpd_pgb2)
+		return 0;
+
 	return S_IRUGO;
 }
 
@@ -1296,6 +1314,9 @@ static struct bin_attribute *scsi_sdev_bin_attrs[] = {
 	&dev_attr_vpd_pg83,
 	&dev_attr_vpd_pg80,
 	&dev_attr_vpd_pg89,
+	&dev_attr_vpd_pgb0,
+	&dev_attr_vpd_pgb1,
+	&dev_attr_vpd_pgb2,
 	&dev_attr_inquiry,
 	NULL
 };
@@ -1448,7 +1469,7 @@ void __scsi_remove_device(struct scsi_device *sdev)
 	scsi_device_set_state(sdev, SDEV_DEL);
 	mutex_unlock(&sdev->state_mutex);
 
-	blk_cleanup_queue(sdev->request_queue);
+	blk_mq_destroy_queue(sdev->request_queue);
 	cancel_work_sync(&sdev->requeue_work);
 
 	if (sdev->host->hostt->slave_destroy)
@@ -1508,6 +1529,14 @@ static void __scsi_remove_target(struct scsi_target *starget)
 		goto restart;
 	}
 	spin_unlock_irqrestore(shost->host_lock, flags);
+
+	/*
+	 * After scsi_remove_target() returns its caller can remove resources
+	 * associated with @starget, e.g. an rport or session. Wait until all
+	 * devices associated with @starget have been removed to prevent that
+	 * a SCSI error handling callback function triggers a use-after-free.
+	 */
+	wait_event(starget->sdev_wq, atomic_read(&starget->sdev_count) == 0);
 }
 
 /**
@@ -1618,6 +1647,9 @@ void scsi_sysfs_device_initialize(struct scsi_device *sdev)
 	list_add_tail(&sdev->same_target_siblings, &starget->devices);
 	list_add_tail(&sdev->siblings, &shost->__devices);
 	spin_unlock_irqrestore(shost->host_lock, flags);
+
+	atomic_inc(&starget->sdev_count);
+
 	/*
 	 * device can now only be removed via __scsi_remove_device() so hold
 	 * the target.  Target will be held in CREATED state until something

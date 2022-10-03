@@ -142,6 +142,29 @@ xfs_log_dinode_to_disk_ts(
 	return ts;
 }
 
+static inline bool xfs_log_dinode_has_large_extent_counts(
+		const struct xfs_log_dinode *ld)
+{
+	return ld->di_version >= 3 &&
+	       (ld->di_flags2 & XFS_DIFLAG2_NREXT64);
+}
+
+static inline void
+xfs_log_dinode_to_disk_iext_counters(
+	struct xfs_log_dinode	*from,
+	struct xfs_dinode	*to)
+{
+	if (xfs_log_dinode_has_large_extent_counts(from)) {
+		to->di_big_nextents = cpu_to_be64(from->di_big_nextents);
+		to->di_big_anextents = cpu_to_be32(from->di_big_anextents);
+		to->di_nrext64_pad = cpu_to_be16(from->di_nrext64_pad);
+	} else {
+		to->di_nextents = cpu_to_be32(from->di_nextents);
+		to->di_anextents = cpu_to_be16(from->di_anextents);
+	}
+
+}
+
 STATIC void
 xfs_log_dinode_to_disk(
 	struct xfs_log_dinode	*from,
@@ -158,7 +181,6 @@ xfs_log_dinode_to_disk(
 	to->di_nlink = cpu_to_be32(from->di_nlink);
 	to->di_projid_lo = cpu_to_be16(from->di_projid_lo);
 	to->di_projid_hi = cpu_to_be16(from->di_projid_hi);
-	memcpy(to->di_pad, from->di_pad, sizeof(to->di_pad));
 
 	to->di_atime = xfs_log_dinode_to_disk_ts(from, from->di_atime);
 	to->di_mtime = xfs_log_dinode_to_disk_ts(from, from->di_mtime);
@@ -167,8 +189,6 @@ xfs_log_dinode_to_disk(
 	to->di_size = cpu_to_be64(from->di_size);
 	to->di_nblocks = cpu_to_be64(from->di_nblocks);
 	to->di_extsize = cpu_to_be32(from->di_extsize);
-	to->di_nextents = cpu_to_be32(from->di_nextents);
-	to->di_anextents = cpu_to_be16(from->di_anextents);
 	to->di_forkoff = from->di_forkoff;
 	to->di_aformat = from->di_aformat;
 	to->di_dmevmask = cpu_to_be32(from->di_dmevmask);
@@ -184,12 +204,66 @@ xfs_log_dinode_to_disk(
 		to->di_cowextsize = cpu_to_be32(from->di_cowextsize);
 		to->di_ino = cpu_to_be64(from->di_ino);
 		to->di_lsn = cpu_to_be64(lsn);
-		memcpy(to->di_pad2, from->di_pad2, sizeof(to->di_pad2));
+		memset(to->di_pad2, 0, sizeof(to->di_pad2));
 		uuid_copy(&to->di_uuid, &from->di_uuid);
-		to->di_flushiter = 0;
+		to->di_v3_pad = 0;
 	} else {
 		to->di_flushiter = cpu_to_be16(from->di_flushiter);
+		memset(to->di_v2_pad, 0, sizeof(to->di_v2_pad));
 	}
+
+	xfs_log_dinode_to_disk_iext_counters(from, to);
+}
+
+STATIC int
+xlog_dinode_verify_extent_counts(
+	struct xfs_mount	*mp,
+	struct xfs_log_dinode	*ldip)
+{
+	xfs_extnum_t		nextents;
+	xfs_aextnum_t		anextents;
+
+	if (xfs_log_dinode_has_large_extent_counts(ldip)) {
+		if (!xfs_has_large_extent_counts(mp) ||
+		    (ldip->di_nrext64_pad != 0)) {
+			XFS_CORRUPTION_ERROR(
+				"Bad log dinode large extent count format",
+				XFS_ERRLEVEL_LOW, mp, ldip, sizeof(*ldip));
+			xfs_alert(mp,
+				"Bad inode 0x%llx, large extent counts %d, padding 0x%x",
+				ldip->di_ino, xfs_has_large_extent_counts(mp),
+				ldip->di_nrext64_pad);
+			return -EFSCORRUPTED;
+		}
+
+		nextents = ldip->di_big_nextents;
+		anextents = ldip->di_big_anextents;
+	} else {
+		if (ldip->di_version == 3 && ldip->di_v3_pad != 0) {
+			XFS_CORRUPTION_ERROR(
+				"Bad log dinode di_v3_pad",
+				XFS_ERRLEVEL_LOW, mp, ldip, sizeof(*ldip));
+			xfs_alert(mp,
+				"Bad inode 0x%llx, di_v3_pad 0x%llx",
+				ldip->di_ino, ldip->di_v3_pad);
+			return -EFSCORRUPTED;
+		}
+
+		nextents = ldip->di_nextents;
+		anextents = ldip->di_anextents;
+	}
+
+	if (unlikely(nextents + anextents > ldip->di_nblocks)) {
+		XFS_CORRUPTION_ERROR("Bad log dinode extent counts",
+				XFS_ERRLEVEL_LOW, mp, ldip, sizeof(*ldip));
+		xfs_alert(mp,
+			"Bad inode 0x%llx, large extent counts %d, nextents 0x%llx, anextents 0x%x, nblocks 0x%llx",
+			ldip->di_ino, xfs_has_large_extent_counts(mp), nextents,
+			anextents, ldip->di_nblocks);
+		return -EFSCORRUPTED;
+	}
+
+	return 0;
 }
 
 STATIC int
@@ -317,13 +391,12 @@ xlog_recover_inode_commit_pass2(
 	if (unlikely(S_ISREG(ldip->di_mode))) {
 		if ((ldip->di_format != XFS_DINODE_FMT_EXTENTS) &&
 		    (ldip->di_format != XFS_DINODE_FMT_BTREE)) {
-			XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(3)",
-					 XFS_ERRLEVEL_LOW, mp, ldip,
-					 sizeof(*ldip));
+			XFS_CORRUPTION_ERROR(
+				"Bad log dinode data fork format for regular file",
+				XFS_ERRLEVEL_LOW, mp, ldip, sizeof(*ldip));
 			xfs_alert(mp,
-		"%s: Bad regular inode log record, rec ptr "PTR_FMT", "
-		"ino ptr = "PTR_FMT", ino bp = "PTR_FMT", ino %Ld",
-				__func__, item, dip, bp, in_f->ilf_ino);
+				"Bad inode 0x%llx, data fork format 0x%x",
+				in_f->ilf_ino, ldip->di_format);
 			error = -EFSCORRUPTED;
 			goto out_release;
 		}
@@ -331,49 +404,37 @@ xlog_recover_inode_commit_pass2(
 		if ((ldip->di_format != XFS_DINODE_FMT_EXTENTS) &&
 		    (ldip->di_format != XFS_DINODE_FMT_BTREE) &&
 		    (ldip->di_format != XFS_DINODE_FMT_LOCAL)) {
-			XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(4)",
-					     XFS_ERRLEVEL_LOW, mp, ldip,
-					     sizeof(*ldip));
+			XFS_CORRUPTION_ERROR(
+				"Bad log dinode data fork format for directory",
+				XFS_ERRLEVEL_LOW, mp, ldip, sizeof(*ldip));
 			xfs_alert(mp,
-		"%s: Bad dir inode log record, rec ptr "PTR_FMT", "
-		"ino ptr = "PTR_FMT", ino bp = "PTR_FMT", ino %Ld",
-				__func__, item, dip, bp, in_f->ilf_ino);
+				"Bad inode 0x%llx, data fork format 0x%x",
+				in_f->ilf_ino, ldip->di_format);
 			error = -EFSCORRUPTED;
 			goto out_release;
 		}
 	}
-	if (unlikely(ldip->di_nextents + ldip->di_anextents > ldip->di_nblocks)){
-		XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(5)",
-				     XFS_ERRLEVEL_LOW, mp, ldip,
-				     sizeof(*ldip));
-		xfs_alert(mp,
-	"%s: Bad inode log record, rec ptr "PTR_FMT", dino ptr "PTR_FMT", "
-	"dino bp "PTR_FMT", ino %Ld, total extents = %d, nblocks = %Ld",
-			__func__, item, dip, bp, in_f->ilf_ino,
-			ldip->di_nextents + ldip->di_anextents,
-			ldip->di_nblocks);
-		error = -EFSCORRUPTED;
+
+	error = xlog_dinode_verify_extent_counts(mp, ldip);
+	if (error)
 		goto out_release;
-	}
+
 	if (unlikely(ldip->di_forkoff > mp->m_sb.sb_inodesize)) {
-		XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(6)",
-				     XFS_ERRLEVEL_LOW, mp, ldip,
-				     sizeof(*ldip));
+		XFS_CORRUPTION_ERROR("Bad log dinode fork offset",
+				XFS_ERRLEVEL_LOW, mp, ldip, sizeof(*ldip));
 		xfs_alert(mp,
-	"%s: Bad inode log record, rec ptr "PTR_FMT", dino ptr "PTR_FMT", "
-	"dino bp "PTR_FMT", ino %Ld, forkoff 0x%x", __func__,
-			item, dip, bp, in_f->ilf_ino, ldip->di_forkoff);
+			"Bad inode 0x%llx, di_forkoff 0x%x",
+			in_f->ilf_ino, ldip->di_forkoff);
 		error = -EFSCORRUPTED;
 		goto out_release;
 	}
 	isize = xfs_log_dinode_size(mp);
 	if (unlikely(item->ri_buf[1].i_len > isize)) {
-		XFS_CORRUPTION_ERROR("xlog_recover_inode_pass2(7)",
-				     XFS_ERRLEVEL_LOW, mp, ldip,
-				     sizeof(*ldip));
+		XFS_CORRUPTION_ERROR("Bad log dinode size", XFS_ERRLEVEL_LOW,
+				     mp, ldip, sizeof(*ldip));
 		xfs_alert(mp,
-			"%s: Bad inode log record length %d, rec ptr "PTR_FMT,
-			__func__, item->ri_buf[1].i_len, item);
+			"Bad inode 0x%llx log dinode size 0x%x",
+			in_f->ilf_ino, item->ri_buf[1].i_len);
 		error = -EFSCORRUPTED;
 		goto out_release;
 	}
@@ -401,7 +462,7 @@ xlog_recover_inode_commit_pass2(
 	ASSERT(in_f->ilf_size <= 4);
 	ASSERT((in_f->ilf_size == 3) || (fields & XFS_ILOG_AFORK));
 	ASSERT(!(fields & XFS_ILOG_DFORK) ||
-	       (len == in_f->ilf_dsize));
+	       (len == xlog_calc_iovec_len(in_f->ilf_dsize)));
 
 	switch (fields & XFS_ILOG_DFORK) {
 	case XFS_ILOG_DDATA:
@@ -436,7 +497,7 @@ xlog_recover_inode_commit_pass2(
 		}
 		len = item->ri_buf[attr_index].i_len;
 		src = item->ri_buf[attr_index].i_addr;
-		ASSERT(len == in_f->ilf_asize);
+		ASSERT(len == xlog_calc_iovec_len(in_f->ilf_asize));
 
 		switch (in_f->ilf_fields & XFS_ILOG_AFORK) {
 		case XFS_ILOG_ADATA:

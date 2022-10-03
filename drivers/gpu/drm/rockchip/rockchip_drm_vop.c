@@ -9,6 +9,7 @@
 #include <linux/delay.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
+#include <linux/log2.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -20,12 +21,13 @@
 #include <drm/drm.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_uapi.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_flip_work.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_self_refresh_helper.h>
 #include <drm/drm_vblank.h>
@@ -65,6 +67,9 @@
 
 #define VOP_REG_SET(vop, group, name, v) \
 		    vop_reg_set(vop, &vop->data->group->name, 0, ~0, v, #name)
+
+#define VOP_HAS_REG(vop, group, name) \
+		(!!(vop->data->group->name.mask))
 
 #define VOP_INTR_SET_TYPE(vop, name, type, v) \
 	do { \
@@ -183,12 +188,6 @@ struct vop {
 	struct vop_win win[];
 };
 
-static inline void vop_writel(struct vop *vop, uint32_t offset, uint32_t v)
-{
-	writel(v, vop->regs + offset);
-	vop->regsbak[offset >> 2] = v;
-}
-
 static inline uint32_t vop_readl(struct vop *vop, uint32_t offset)
 {
 	return readl(vop->regs + offset);
@@ -262,6 +261,18 @@ static bool has_rb_swapped(uint32_t format)
 	}
 }
 
+static bool has_uv_swapped(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_NV21:
+	case DRM_FORMAT_NV61:
+	case DRM_FORMAT_NV42:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static enum vop_data_format vop_convert_format(uint32_t format)
 {
 	switch (format) {
@@ -277,10 +288,13 @@ static enum vop_data_format vop_convert_format(uint32_t format)
 	case DRM_FORMAT_BGR565:
 		return VOP_FMT_RGB565;
 	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV21:
 		return VOP_FMT_YUV420SP;
 	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_NV61:
 		return VOP_FMT_YUV422SP;
 	case DRM_FORMAT_NV24:
+	case DRM_FORMAT_NV42:
 		return VOP_FMT_YUV444SP;
 	default:
 		DRM_ERROR("unsupported format[%08x]\n", format);
@@ -792,9 +806,9 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	const struct vop_win_data *win = vop_win->data;
 	int ret;
 	int min_scale = win->phy->scl ? FRAC_16_16(1, 8) :
-					DRM_PLANE_HELPER_NO_SCALING;
+					DRM_PLANE_NO_SCALING;
 	int max_scale = win->phy->scl ? FRAC_16_16(8, 1) :
-					DRM_PLANE_HELPER_NO_SCALING;
+					DRM_PLANE_NO_SCALING;
 
 	if (!crtc || WARN_ON(!fb))
 		return 0;
@@ -899,7 +913,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	unsigned long offset;
 	dma_addr_t dma_addr;
 	uint32_t val;
-	bool rb_swap;
+	bool rb_swap, uv_swap;
 	int win_index = VOP_WIN_TO_INDEX(vop_win);
 	int format;
 	int is_yuv = fb->format->is_yuv;
@@ -988,6 +1002,9 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 							y2r_coefficients[i],
 							bt601_yuv2rgb[i]);
 		}
+
+		uv_swap = has_uv_swapped(fb->format->format);
+		VOP_WIN_SET(vop, win, uv_swap, uv_swap);
 	}
 
 	if (win->phy->scl)
@@ -1040,9 +1057,9 @@ static int vop_plane_atomic_async_check(struct drm_plane *plane,
 	struct vop_win *vop_win = to_vop_win(plane);
 	const struct vop_win_data *win = vop_win->data;
 	int min_scale = win->phy->scl ? FRAC_16_16(1, 8) :
-					DRM_PLANE_HELPER_NO_SCALING;
+					DRM_PLANE_NO_SCALING;
 	int max_scale = win->phy->scl ? FRAC_16_16(8, 1) :
-					DRM_PLANE_HELPER_NO_SCALING;
+					DRM_PLANE_NO_SCALING;
 	struct drm_crtc_state *crtc_state;
 
 	if (plane != new_plane_state->crtc->cursor)
@@ -1169,7 +1186,7 @@ static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
 	 *
 	 * Key points:
 	 *
-	 * - DRM works in in kHz.
+	 * - DRM works in kHz.
 	 * - Clock framework works in Hz.
 	 * - Rockchip's clock driver picks the clock rate that is the
 	 *   same _OR LOWER_ than the one requested.
@@ -1204,17 +1221,22 @@ static bool vop_dsp_lut_is_enabled(struct vop *vop)
 	return vop_read_reg(vop, 0, &vop->data->common->dsp_lut_en);
 }
 
+static u32 vop_lut_buffer_index(struct vop *vop)
+{
+	return vop_read_reg(vop, 0, &vop->data->common->lut_buffer_index);
+}
+
 static void vop_crtc_write_gamma_lut(struct vop *vop, struct drm_crtc *crtc)
 {
 	struct drm_color_lut *lut = crtc->state->gamma_lut->data;
-	unsigned int i;
+	unsigned int i, bpc = ilog2(vop->data->lut_size);
 
 	for (i = 0; i < crtc->gamma_size; i++) {
 		u32 word;
 
-		word = (drm_color_lut_extract(lut[i].red, 10) << 20) |
-		       (drm_color_lut_extract(lut[i].green, 10) << 10) |
-			drm_color_lut_extract(lut[i].blue, 10);
+		word = (drm_color_lut_extract(lut[i].red, bpc) << (2 * bpc)) |
+		       (drm_color_lut_extract(lut[i].green, bpc) << bpc) |
+			drm_color_lut_extract(lut[i].blue, bpc);
 		writel(word, vop->lut_regs + i * 4);
 	}
 }
@@ -1224,38 +1246,66 @@ static void vop_crtc_gamma_set(struct vop *vop, struct drm_crtc *crtc,
 {
 	struct drm_crtc_state *state = crtc->state;
 	unsigned int idle;
+	u32 lut_idx, old_idx;
 	int ret;
 
 	if (!vop->lut_regs)
 		return;
-	/*
-	 * To disable gamma (gamma_lut is null) or to write
-	 * an update to the LUT, clear dsp_lut_en.
-	 */
-	spin_lock(&vop->reg_lock);
-	VOP_REG_SET(vop, common, dsp_lut_en, 0);
-	vop_cfg_done(vop);
-	spin_unlock(&vop->reg_lock);
 
-	/*
-	 * In order to write the LUT to the internal memory,
-	 * we need to first make sure the dsp_lut_en bit is cleared.
-	 */
-	ret = readx_poll_timeout(vop_dsp_lut_is_enabled, vop,
-				 idle, !idle, 5, 30 * 1000);
-	if (ret) {
-		DRM_DEV_ERROR(vop->dev, "display LUT RAM enable timeout!\n");
-		return;
+	if (!state->gamma_lut || !VOP_HAS_REG(vop, common, update_gamma_lut)) {
+		/*
+		 * To disable gamma (gamma_lut is null) or to write
+		 * an update to the LUT, clear dsp_lut_en.
+		 */
+		spin_lock(&vop->reg_lock);
+		VOP_REG_SET(vop, common, dsp_lut_en, 0);
+		vop_cfg_done(vop);
+		spin_unlock(&vop->reg_lock);
+
+		/*
+		 * In order to write the LUT to the internal memory,
+		 * we need to first make sure the dsp_lut_en bit is cleared.
+		 */
+		ret = readx_poll_timeout(vop_dsp_lut_is_enabled, vop,
+					 idle, !idle, 5, 30 * 1000);
+		if (ret) {
+			DRM_DEV_ERROR(vop->dev, "display LUT RAM enable timeout!\n");
+			return;
+		}
+
+		if (!state->gamma_lut)
+			return;
+	} else {
+		/*
+		 * On RK3399 the gamma LUT can updated without clearing dsp_lut_en,
+		 * by setting update_gamma_lut then waiting for lut_buffer_index change
+		 */
+		old_idx = vop_lut_buffer_index(vop);
 	}
-
-	if (!state->gamma_lut)
-		return;
 
 	spin_lock(&vop->reg_lock);
 	vop_crtc_write_gamma_lut(vop, crtc);
 	VOP_REG_SET(vop, common, dsp_lut_en, 1);
+	VOP_REG_SET(vop, common, update_gamma_lut, 1);
 	vop_cfg_done(vop);
 	spin_unlock(&vop->reg_lock);
+
+	if (VOP_HAS_REG(vop, common, update_gamma_lut)) {
+		ret = readx_poll_timeout(vop_lut_buffer_index, vop,
+					 lut_idx, lut_idx != old_idx, 5, 30 * 1000);
+		if (ret) {
+			DRM_DEV_ERROR(vop->dev, "gamma LUT update timeout!\n");
+			return;
+		}
+
+		/*
+		 * update_gamma_lut is auto cleared by HW, but write 0 to clear the bit
+		 * in our backup of the regs.
+		 */
+		spin_lock(&vop->reg_lock);
+		VOP_REG_SET(vop, common, update_gamma_lut, 0);
+		spin_unlock(&vop->reg_lock);
+	}
 }
 
 static void vop_crtc_atomic_begin(struct drm_crtc *crtc,
@@ -1304,14 +1354,6 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 		rockchip_drm_set_win_enabled(crtc, true);
 		return;
 	}
-
-	/*
-	 * If we have a GAMMA LUT in the state, then let's make sure
-	 * it's updated. We might be coming out of suspend,
-	 * which means the LUT internal memory needs to be re-written.
-	 */
-	if (crtc->state->gamma_lut)
-		vop_crtc_gamma_set(vop, crtc, old_state);
 
 	mutex_lock(&vop->vop_lock);
 
@@ -1403,6 +1445,14 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	VOP_REG_SET(vop, common, standby, 0);
 	mutex_unlock(&vop->vop_lock);
+
+	/*
+	 * If we have a GAMMA LUT in the state, then let's make sure
+	 * it's updated. We might be coming out of suspend,
+	 * which means the LUT internal memory needs to be re-written.
+	 */
+	if (crtc->state->gamma_lut)
+		vop_crtc_gamma_set(vop, crtc, old_state);
 }
 
 static bool vop_fs_irq_is_pending(struct vop *vop)
@@ -1551,6 +1601,9 @@ static void vop_crtc_destroy(struct drm_crtc *crtc)
 static struct drm_crtc_state *vop_crtc_duplicate_state(struct drm_crtc *crtc)
 {
 	struct rockchip_crtc_state *rockchip_state;
+
+	if (WARN_ON(!crtc->state))
+		return NULL;
 
 	rockchip_state = kzalloc(sizeof(*rockchip_state), GFP_KERNEL);
 	if (!rockchip_state)
@@ -2118,15 +2171,15 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	vop_win_init(vop);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	vop->len = resource_size(res);
 	vop->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(vop->regs))
 		return PTR_ERR(vop->regs);
+	vop->len = resource_size(res);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (res) {
-		if (!vop_data->lut_size) {
-			DRM_DEV_ERROR(dev, "no gamma LUT size defined\n");
+		if (vop_data->lut_size != 1024 && vop_data->lut_size != 256) {
+			DRM_DEV_ERROR(dev, "unsupported gamma LUT size %d\n", vop_data->lut_size);
 			return -EINVAL;
 		}
 		vop->lut_regs = devm_ioremap_resource(dev, res);
@@ -2174,6 +2227,8 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 			goto err_disable_pm_runtime;
 		}
 	}
+
+	rockchip_drm_dma_init_device(drm_dev, dev);
 
 	return 0;
 

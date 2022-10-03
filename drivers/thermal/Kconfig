@@ -113,8 +113,10 @@ config THERMAL_DEFAULT_GOV_USER_SPACE
 	bool "user_space"
 	select THERMAL_GOV_USER_SPACE
 	help
-	  Select this if you want to let the user space manage the
-	  platform thermals.
+	  The Userspace governor allows to get trip point crossed
+	  notification from the kernel via uevents. It is recommended
+	  to use the netlink interface instead which gives richer
+	  information about the thermal framework events.
 
 config THERMAL_DEFAULT_GOV_POWER_ALLOCATOR
 	bool "power_allocator"
@@ -219,7 +221,7 @@ config THERMAL_EMULATION
 
 config THERMAL_MMIO
 	tristate "Generic Thermal MMIO driver"
-	depends on OF || COMPILE_TEST
+	depends on OF
 	depends on HAS_IOMEM
 	help
 	  This option enables the generic thermal MMIO driver that will use
@@ -494,7 +496,7 @@ config SPRD_THERMAL
 
 config KHADAS_MCU_FAN_THERMAL
 	tristate "Khadas MCU controller FAN cooling support"
-	depends on OF || COMPILE_TEST
+	depends on OF
 	depends on MFD_KHADAS_MCU
 	select MFD_CORE
 	select REGMAP

@@ -111,6 +111,11 @@
 	status = "disabled";
 };
 
+&mss_pil {
+	firmware-name = "qcom/msm8996/scorpio/mba.mbn",
+			"qcom/msm8996/scorpio/modem.mbn";
+};
+
 &q6asmdai {
 	dai@0 {
 		reg = <0>;
@@ -125,10 +130,14 @@
 	};
 };
 
+&slpi_pil {
+	firmware-name = "qcom/msm8996/scorpio/slpi.mbn";
+};
+
 &sound {
 	compatible = "qcom,apq8096-sndcard";
 	model = "scorpio";
-	audio-routing =	"RX_BIAS", "MCLK";
+	audio-routing = "RX_BIAS", "MCLK";
 
 	mm1-dai-link {
 		link-name = "MultiMedia1";

@@ -102,11 +102,11 @@ intel_dsi_get_panel_orientation(struct intel_connector *connector)
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	enum drm_panel_orientation orientation;
 
-	orientation = dev_priv->vbt.dsi.orientation;
+	orientation = connector->panel.vbt.dsi.orientation;
 	if (orientation != DRM_MODE_PANEL_ORIENTATION_UNKNOWN)
 		return orientation;
 
-	orientation = dev_priv->vbt.orientation;
+	orientation = dev_priv->display.vbt.orientation;
 	if (orientation != DRM_MODE_PANEL_ORIENTATION_UNKNOWN)
 		return orientation;
 

@@ -263,7 +263,7 @@ static int next_cpu_for_irq(struct irq_data *data)
 
 #ifdef CONFIG_SMP
 	int cpu;
-	struct cpumask *mask = irq_data_get_affinity_mask(data);
+	const struct cpumask *mask = irq_data_get_affinity_mask(data);
 	int weight = cpumask_weight(mask);
 	struct octeon_ciu_chip_data *cd = irq_data_get_irq_chip_data(data);
 
@@ -758,7 +758,7 @@ static void octeon_irq_cpu_offline_ciu(struct irq_data *data)
 {
 	int cpu = smp_processor_id();
 	cpumask_t new_affinity;
-	struct cpumask *mask = irq_data_get_affinity_mask(data);
+	const struct cpumask *mask = irq_data_get_affinity_mask(data);
 
 	if (!cpumask_test_cpu(cpu, mask))
 		return;
@@ -1405,7 +1405,7 @@ static void octeon_irq_init_ciu2_percpu(void)
 	 * completed.
 	 *
 	 * There are 9 registers and 3 IPX levels with strides 0x1000
-	 * and 0x200 respectivly.  Use loops to clear them.
+	 * and 0x200 respectively.  Use loops to clear them.
 	 */
 	for (regx = 0; regx <= 0x8000; regx += 0x1000) {
 		for (ipx = 0; ipx <= 0x400; ipx += 0x200)

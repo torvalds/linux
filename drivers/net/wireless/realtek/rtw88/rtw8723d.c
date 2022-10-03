@@ -2701,7 +2701,7 @@ static const struct rtw_reg_domain coex_info_hw_regs_8723d[] = {
 	{0x953, BIT(1), RTW_REG_DOMAIN_MAC8},
 };
 
-struct rtw_chip_info rtw8723d_hw_spec = {
+const struct rtw_chip_info rtw8723d_hw_spec = {
 	.ops = &rtw8723d_ops,
 	.id = RTW_CHIP_TYPE_8723D,
 	.fw_name = "rtw88/rtw8723d_fw.bin",
@@ -2747,6 +2747,7 @@ struct rtw_chip_info rtw8723d_hw_spec = {
 	.rx_ldpc = false,
 	.pwr_track_tbl = &rtw8723d_rtw_pwr_track_tbl,
 	.iqk_threshold = 8,
+	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16,
 
 	.coex_para_ver = 0x2007022f,
 	.bt_desired_ver = 0x2f,

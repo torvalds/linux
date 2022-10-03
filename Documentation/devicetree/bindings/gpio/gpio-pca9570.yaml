@@ -13,6 +13,7 @@ properties:
   compatible:
     enum:
       - nxp,pca9570
+      - nxp,pca9571
 
   reg:
     maxItems: 1

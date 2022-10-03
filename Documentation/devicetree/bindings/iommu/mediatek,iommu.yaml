@@ -76,7 +76,11 @@ properties:
           - mediatek,mt8167-m4u  # generation two
           - mediatek,mt8173-m4u  # generation two
           - mediatek,mt8183-m4u  # generation two
+          - mediatek,mt8186-iommu-mm         # generation two
           - mediatek,mt8192-m4u  # generation two
+          - mediatek,mt8195-iommu-vdo        # generation two
+          - mediatek,mt8195-iommu-vpp        # generation two
+          - mediatek,mt8195-iommu-infra      # generation two
 
       - description: mt7623 generation one
         items:
@@ -96,6 +100,10 @@ properties:
   clock-names:
     items:
       - const: bclk
+
+  mediatek,infracfg:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: The phandle to the mediatek infracfg syscon
 
   mediatek,larbs:
     $ref: /schemas/types.yaml#/definitions/phandle-array
@@ -119,7 +127,9 @@ properties:
       dt-binding/memory/mt8167-larb-port.h for mt8167,
       dt-binding/memory/mt8173-larb-port.h for mt8173,
       dt-binding/memory/mt8183-larb-port.h for mt8183,
+      dt-binding/memory/mt8186-memory-port.h for mt8186,
       dt-binding/memory/mt8192-larb-port.h for mt8192.
+      dt-binding/memory/mt8195-memory-port.h for mt8195.
 
   power-domains:
     maxItems: 1
@@ -128,7 +138,6 @@ required:
   - compatible
   - reg
   - interrupts
-  - mediatek,larbs
   - '#iommu-cells'
 
 allOf:
@@ -140,7 +149,10 @@ allOf:
               - mediatek,mt2701-m4u
               - mediatek,mt2712-m4u
               - mediatek,mt8173-m4u
+              - mediatek,mt8186-iommu-mm
               - mediatek,mt8192-m4u
+              - mediatek,mt8195-iommu-vdo
+              - mediatek,mt8195-iommu-vpp
 
     then:
       required:
@@ -150,11 +162,37 @@ allOf:
       properties:
         compatible:
           enum:
+            - mediatek,mt8186-iommu-mm
             - mediatek,mt8192-m4u
+            - mediatek,mt8195-iommu-vdo
+            - mediatek,mt8195-iommu-vpp
 
     then:
       required:
         - power-domains
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - mediatek,mt2712-m4u
+              - mediatek,mt8173-m4u
+
+    then:
+      required:
+        - mediatek,infracfg
+
+  - if: # The IOMMUs don't have larbs.
+      not:
+        properties:
+          compatible:
+            contains:
+              const: mediatek,mt8195-iommu-infra
+
+    then:
+      required:
+        - mediatek,larbs
 
 additionalProperties: false
 
@@ -169,17 +207,8 @@ examples:
             interrupts = <GIC_SPI 139 IRQ_TYPE_LEVEL_LOW>;
             clocks = <&infracfg CLK_INFRA_M4U>;
             clock-names = "bclk";
+            mediatek,infracfg = <&infracfg>;
             mediatek,larbs = <&larb0>, <&larb1>, <&larb2>,
                              <&larb3>, <&larb4>, <&larb5>;
             #iommu-cells = <1>;
     };
-
-  - |
-    #include <dt-bindings/memory/mt8173-larb-port.h>
-
-    /* Example for a client device */
-    display {
-           compatible = "mediatek,mt8173-disp";
-           iommus = <&iommu M4U_PORT_DISP_OVL0>,
-                    <&iommu M4U_PORT_DISP_RDMA0>;
-     };

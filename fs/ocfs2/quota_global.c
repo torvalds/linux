@@ -412,7 +412,7 @@ out_unlock:
 	goto out_err;
 }
 
-/* Write information to global quota file. Expects exlusive lock on quota
+/* Write information to global quota file. Expects exclusive lock on quota
  * file inode and quota info */
 static int __ocfs2_global_write_info(struct super_block *sb, int type)
 {

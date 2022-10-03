@@ -229,7 +229,6 @@ static const struct snd_soc_component_driver soc_component_dev_pcm1789 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 int pcm1789_common_init(struct device *dev, struct regmap *regmap)
@@ -259,13 +258,11 @@ int pcm1789_common_init(struct device *dev, struct regmap *regmap)
 }
 EXPORT_SYMBOL_GPL(pcm1789_common_init);
 
-int pcm1789_common_exit(struct device *dev)
+void pcm1789_common_exit(struct device *dev)
 {
 	struct pcm1789_private *priv = dev_get_drvdata(dev);
 
 	flush_work(&priv->work);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(pcm1789_common_exit);
 

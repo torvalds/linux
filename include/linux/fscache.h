@@ -39,6 +39,7 @@ struct fscache_cookie;
 #define FSCACHE_ADV_SINGLE_CHUNK	0x01 /* The object is a single chunk of data */
 #define FSCACHE_ADV_WRITE_CACHE		0x00 /* Do cache if written to locally */
 #define FSCACHE_ADV_WRITE_NOCACHE	0x02 /* Don't cache if written to locally */
+#define FSCACHE_ADV_WANT_CACHE_SIZE	0x04 /* Retrieve cache size at runtime */
 
 #define FSCACHE_INVAL_DIO_WRITE		0x01 /* Invalidate due to DIO write */
 
@@ -129,6 +130,7 @@ struct fscache_cookie {
 #define FSCACHE_COOKIE_DO_PREP_TO_WRITE	12		/* T if cookie needs write preparation */
 #define FSCACHE_COOKIE_HAVE_DATA	13		/* T if this cookie has data stored */
 #define FSCACHE_COOKIE_IS_HASHED	14		/* T if this cookie is hashed */
+#define FSCACHE_COOKIE_DO_INVALIDATE	15		/* T if cookie needs invalidation */
 
 	enum fscache_cookie_state	state;
 	u8				advice;		/* FSCACHE_ADV_* */
@@ -377,7 +379,7 @@ void fscache_update_cookie(struct fscache_cookie *cookie, const void *aux_data,
  *
  * Request that the size of an object be changed.
  *
- * See Documentation/filesystems/caching/netfs-api.txt for a complete
+ * See Documentation/filesystems/caching/netfs-api.rst for a complete
  * description.
  */
 static inline
@@ -573,7 +575,6 @@ int fscache_write(struct netfs_cache_resources *cres,
 
 /**
  * fscache_clear_page_bits - Clear the PG_fscache bits from a set of pages
- * @cookie: The cookie representing the cache object
  * @mapping: The netfs inode to use as the source
  * @start: The start position in @mapping
  * @len: The amount of data to unlock
@@ -582,8 +583,7 @@ int fscache_write(struct netfs_cache_resources *cres,
  * Clear the PG_fscache flag from a sequence of pages and wake up anyone who's
  * waiting.
  */
-static inline void fscache_clear_page_bits(struct fscache_cookie *cookie,
-					   struct address_space *mapping,
+static inline void fscache_clear_page_bits(struct address_space *mapping,
 					   loff_t start, size_t len,
 					   bool caching)
 {

@@ -148,7 +148,7 @@ _copy_to_user(void __user *, const void *, unsigned long);
 static __always_inline unsigned long __must_check
 copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	if (likely(check_copy_size(to, n, false)))
+	if (check_copy_size(to, n, false))
 		n = _copy_from_user(to, from, n);
 	return n;
 }
@@ -156,7 +156,7 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
 static __always_inline unsigned long __must_check
 copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	if (likely(check_copy_size(from, n, true)))
+	if (check_copy_size(from, n, true))
 		n = _copy_to_user(to, from, n);
 	return n;
 }
@@ -230,6 +230,28 @@ static inline bool pagefault_disabled(void)
  * in_atomic() will report different values based on !CONFIG_PREEMPT_COUNT.
  */
 #define faulthandler_disabled() (pagefault_disabled() || in_atomic())
+
+#ifndef CONFIG_ARCH_HAS_SUBPAGE_FAULTS
+
+/**
+ * probe_subpage_writeable: probe the user range for write faults at sub-page
+ *			    granularity (e.g. arm64 MTE)
+ * @uaddr: start of address range
+ * @size: size of address range
+ *
+ * Returns 0 on success, the number of bytes not probed on fault.
+ *
+ * It is expected that the caller checked for the write permission of each
+ * page in the range either by put_user() or GUP. The architecture port can
+ * implement a more efficient get_user() probing if the same sub-page faults
+ * are triggered by either a read or a write.
+ */
+static inline size_t probe_subpage_writeable(char __user *uaddr, size_t size)
+{
+	return 0;
+}
+
+#endif /* CONFIG_ARCH_HAS_SUBPAGE_FAULTS */
 
 #ifndef ARCH_HAS_NOCACHE_UACCESS
 

@@ -39,7 +39,7 @@ const struct regmap_config bmp180_regmap_config = {
 	.writeable_reg = bmp180_is_writeable_reg,
 	.volatile_reg = bmp180_is_volatile_reg,
 };
-EXPORT_SYMBOL(bmp180_regmap_config);
+EXPORT_SYMBOL_NS(bmp180_regmap_config, IIO_BMP280);
 
 static bool bmp280_is_writeable_reg(struct device *dev, unsigned int reg)
 {
@@ -82,4 +82,4 @@ const struct regmap_config bmp280_regmap_config = {
 	.writeable_reg = bmp280_is_writeable_reg,
 	.volatile_reg = bmp280_is_volatile_reg,
 };
-EXPORT_SYMBOL(bmp280_regmap_config);
+EXPORT_SYMBOL_NS(bmp280_regmap_config, IIO_BMP280);

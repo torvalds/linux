@@ -1922,7 +1922,6 @@ static const struct snd_soc_component_driver soc_component_dev_da7213 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config da7213_regmap_config = {
@@ -1946,8 +1945,7 @@ static const char *da7213_supply_names[DA7213_NUM_SUPPLIES] = {
 	[DA7213_SUPPLY_VDDIO] = "VDDIO",
 };
 
-static int da7213_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int da7213_i2c_probe(struct i2c_client *i2c)
 {
 	struct da7213_priv *da7213;
 	int i, ret;
@@ -2040,7 +2038,7 @@ static struct i2c_driver da7213_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(da7213_acpi_match),
 		.pm = &da7213_pm,
 	},
-	.probe		= da7213_i2c_probe,
+	.probe_new	= da7213_i2c_probe,
 	.id_table	= da7213_i2c_id,
 };
 

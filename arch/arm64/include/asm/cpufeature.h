@@ -11,7 +11,7 @@
 #include <asm/hwcap.h>
 #include <asm/sysreg.h>
 
-#define MAX_CPU_FEATURES	64
+#define MAX_CPU_FEATURES	128
 #define cpu_feature(x)		KERNEL_HWCAP_ ## x
 
 #ifndef __ASSEMBLY__
@@ -622,6 +622,13 @@ static inline bool id_aa64pfr0_sve(u64 pfr0)
 	return val > 0;
 }
 
+static inline bool id_aa64pfr1_sme(u64 pfr1)
+{
+	u32 val = cpuid_feature_extract_unsigned_field(pfr1, ID_AA64PFR1_SME_SHIFT);
+
+	return val > 0;
+}
+
 static inline bool id_aa64pfr1_mte(u64 pfr1)
 {
 	u32 val = cpuid_feature_extract_unsigned_field(pfr1, ID_AA64PFR1_MTE_SHIFT);
@@ -666,7 +673,7 @@ static inline bool supports_clearbhb(int scope)
 		isar2 = read_sanitised_ftr_reg(SYS_ID_AA64ISAR2_EL1);
 
 	return cpuid_feature_extract_unsigned_field(isar2,
-						    ID_AA64ISAR2_CLEARBHB_SHIFT);
+						    ID_AA64ISAR2_EL1_BC_SHIFT);
 }
 
 const struct cpumask *system_32bit_el0_cpumask(void);
@@ -757,6 +764,23 @@ static __always_inline bool system_supports_sve(void)
 {
 	return IS_ENABLED(CONFIG_ARM64_SVE) &&
 		cpus_have_const_cap(ARM64_SVE);
+}
+
+static __always_inline bool system_supports_sme(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_SME) &&
+		cpus_have_const_cap(ARM64_SME);
+}
+
+static __always_inline bool system_supports_fa64(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_SME) &&
+		cpus_have_const_cap(ARM64_SME_FA64);
+}
+
+static __always_inline bool system_supports_tpidr2(void)
+{
+	return system_supports_sme();
 }
 
 static __always_inline bool system_supports_cnp(void)
@@ -884,7 +908,10 @@ static inline unsigned int get_vmid_bits(u64 mmfr1)
 }
 
 extern struct arm64_ftr_override id_aa64mmfr1_override;
+extern struct arm64_ftr_override id_aa64pfr0_override;
 extern struct arm64_ftr_override id_aa64pfr1_override;
+extern struct arm64_ftr_override id_aa64zfr0_override;
+extern struct arm64_ftr_override id_aa64smfr0_override;
 extern struct arm64_ftr_override id_aa64isar1_override;
 extern struct arm64_ftr_override id_aa64isar2_override;
 

@@ -10,6 +10,7 @@
 #include <linux/jump_label.h>
 #include <linux/libfdt.h>
 #include <linux/memblock.h>
+#include <linux/of_fdt.h>
 #include <linux/printk.h>
 #include <linux/sched.h>
 #include <linux/string.h>
@@ -19,7 +20,6 @@
 #include <asm/dt_cpu_ftrs.h>
 #include <asm/mce.h>
 #include <asm/mmu.h>
-#include <asm/prom.h>
 #include <asm/setup.h>
 
 
@@ -102,7 +102,6 @@ static struct cpu_spec __initdata base_cpu_spec = {
 	.dcache_bsize		= 32, /* cache info init.             */
 	.num_pmcs		= 0,
 	.pmc_type		= PPC_PMC_DEFAULT,
-	.oprofile_cpu_type	= NULL,
 	.cpu_setup		= NULL,
 	.cpu_restore		= __restore_cpu_cpufeatures,
 	.machine_check_early	= NULL,
@@ -387,7 +386,6 @@ static int __init feat_enable_pmu_power8(struct dt_cpu_feature *f)
 
 	cur_cpu_spec->num_pmcs		= 6;
 	cur_cpu_spec->pmc_type		= PPC_PMC_IBM;
-	cur_cpu_spec->oprofile_cpu_type	= "ppc64/power8";
 
 	return 1;
 }
@@ -423,7 +421,6 @@ static int __init feat_enable_pmu_power9(struct dt_cpu_feature *f)
 
 	cur_cpu_spec->num_pmcs		= 6;
 	cur_cpu_spec->pmc_type		= PPC_PMC_IBM;
-	cur_cpu_spec->oprofile_cpu_type	= "ppc64/power9";
 
 	return 1;
 }
@@ -449,7 +446,6 @@ static int __init feat_enable_pmu_power10(struct dt_cpu_feature *f)
 
 	cur_cpu_spec->num_pmcs          = 6;
 	cur_cpu_spec->pmc_type          = PPC_PMC_IBM;
-	cur_cpu_spec->oprofile_cpu_type = "ppc64/power10";
 
 	return 1;
 }
@@ -774,10 +770,17 @@ static __init void cpufeatures_cpu_quirks(void)
 	if ((version & 0xffffefff) == 0x004e0200) {
 		/* DD2.0 has no feature flag */
 		cur_cpu_spec->cpu_features |= CPU_FTR_P9_RADIX_PREFETCH_BUG;
+		cur_cpu_spec->cpu_features &= ~(CPU_FTR_DAWR);
 	} else if ((version & 0xffffefff) == 0x004e0201) {
 		cur_cpu_spec->cpu_features |= CPU_FTR_POWER9_DD2_1;
 		cur_cpu_spec->cpu_features |= CPU_FTR_P9_RADIX_PREFETCH_BUG;
+		cur_cpu_spec->cpu_features &= ~(CPU_FTR_DAWR);
 	} else if ((version & 0xffffefff) == 0x004e0202) {
+		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TM_HV_ASSIST;
+		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TM_XER_SO_BUG;
+		cur_cpu_spec->cpu_features |= CPU_FTR_POWER9_DD2_1;
+		cur_cpu_spec->cpu_features &= ~(CPU_FTR_DAWR);
+	} else if ((version & 0xffffefff) == 0x004e0203) {
 		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TM_HV_ASSIST;
 		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TM_XER_SO_BUG;
 		cur_cpu_spec->cpu_features |= CPU_FTR_POWER9_DD2_1;
@@ -787,7 +790,6 @@ static __init void cpufeatures_cpu_quirks(void)
 	}
 
 	if ((version & 0xffff0000) == 0x004e0000) {
-		cur_cpu_spec->cpu_features &= ~(CPU_FTR_DAWR);
 		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TIDR;
 	}
 

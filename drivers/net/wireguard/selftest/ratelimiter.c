@@ -6,28 +6,29 @@
 #ifdef DEBUG
 
 #include <linux/jiffies.h>
+#include <linux/hrtimer.h>
 
 static const struct {
 	bool result;
-	unsigned int msec_to_sleep_before;
+	u64 nsec_to_sleep_before;
 } expected_results[] __initconst = {
 	[0 ... PACKETS_BURSTABLE - 1] = { true, 0 },
 	[PACKETS_BURSTABLE] = { false, 0 },
-	[PACKETS_BURSTABLE + 1] = { true, MSEC_PER_SEC / PACKETS_PER_SECOND },
+	[PACKETS_BURSTABLE + 1] = { true, NSEC_PER_SEC / PACKETS_PER_SECOND },
 	[PACKETS_BURSTABLE + 2] = { false, 0 },
-	[PACKETS_BURSTABLE + 3] = { true, (MSEC_PER_SEC / PACKETS_PER_SECOND) * 2 },
+	[PACKETS_BURSTABLE + 3] = { true, (NSEC_PER_SEC / PACKETS_PER_SECOND) * 2 },
 	[PACKETS_BURSTABLE + 4] = { true, 0 },
 	[PACKETS_BURSTABLE + 5] = { false, 0 }
 };
 
 static __init unsigned int maximum_jiffies_at_index(int index)
 {
-	unsigned int total_msecs = 2 * MSEC_PER_SEC / PACKETS_PER_SECOND / 3;
+	u64 total_nsecs = 2 * NSEC_PER_SEC / PACKETS_PER_SECOND / 3;
 	int i;
 
 	for (i = 0; i <= index; ++i)
-		total_msecs += expected_results[i].msec_to_sleep_before;
-	return msecs_to_jiffies(total_msecs);
+		total_nsecs += expected_results[i].nsec_to_sleep_before;
+	return nsecs_to_jiffies(total_nsecs);
 }
 
 static __init int timings_test(struct sk_buff *skb4, struct iphdr *hdr4,
@@ -42,8 +43,12 @@ static __init int timings_test(struct sk_buff *skb4, struct iphdr *hdr4,
 	loop_start_time = jiffies;
 
 	for (i = 0; i < ARRAY_SIZE(expected_results); ++i) {
-		if (expected_results[i].msec_to_sleep_before)
-			msleep(expected_results[i].msec_to_sleep_before);
+		if (expected_results[i].nsec_to_sleep_before) {
+			ktime_t timeout = ktime_add(ktime_add_ns(ktime_get_coarse_boottime(), TICK_NSEC * 4 / 3),
+						    ns_to_ktime(expected_results[i].nsec_to_sleep_before));
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_hrtimeout_range_clock(&timeout, 0, HRTIMER_MODE_ABS, CLOCK_BOOTTIME);
+		}
 
 		if (time_is_before_jiffies(loop_start_time +
 					   maximum_jiffies_at_index(i)))
@@ -127,7 +132,7 @@ bool __init wg_ratelimiter_selftest(void)
 	if (IS_ENABLED(CONFIG_KASAN) || IS_ENABLED(CONFIG_UBSAN))
 		return true;
 
-	BUILD_BUG_ON(MSEC_PER_SEC % PACKETS_PER_SECOND != 0);
+	BUILD_BUG_ON(NSEC_PER_SEC % PACKETS_PER_SECOND != 0);
 
 	if (wg_ratelimiter_init())
 		goto out;
@@ -176,7 +181,6 @@ bool __init wg_ratelimiter_selftest(void)
 				test += test_count;
 				goto err;
 			}
-			msleep(500);
 			continue;
 		} else if (ret < 0) {
 			test += test_count;
@@ -195,7 +199,6 @@ bool __init wg_ratelimiter_selftest(void)
 				test += test_count;
 				goto err;
 			}
-			msleep(50);
 			continue;
 		}
 		test += test_count;

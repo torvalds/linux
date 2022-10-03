@@ -2104,7 +2104,6 @@ static const struct snd_soc_component_driver soc_component_wm2200 = {
 	.dapm_routes		= wm2200_dapm_routes,
 	.num_dapm_routes	= ARRAY_SIZE(wm2200_dapm_routes),
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static irqreturn_t wm2200_irq(int irq, void *data)
@@ -2176,8 +2175,7 @@ static const unsigned int wm2200_mic_ctrl_reg[] = {
 	WM2200_IN3L_CONTROL,
 };
 
-static int wm2200_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm2200_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm2200_pdata *pdata = dev_get_platdata(&i2c->dev);
 	struct wm2200_priv *wm2200;
@@ -2489,7 +2487,7 @@ static struct i2c_driver wm2200_i2c_driver = {
 		.name = "wm2200",
 		.pm = &wm2200_pm,
 	},
-	.probe =    wm2200_i2c_probe,
+	.probe_new = wm2200_i2c_probe,
 	.remove =   wm2200_i2c_remove,
 	.id_table = wm2200_i2c_id,
 };

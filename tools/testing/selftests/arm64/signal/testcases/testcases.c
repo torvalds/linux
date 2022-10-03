@@ -75,6 +75,31 @@ bool validate_sve_context(struct sve_context *sve, char **err)
 	return true;
 }
 
+bool validate_za_context(struct za_context *za, char **err)
+{
+	/* Size will be rounded up to a multiple of 16 bytes */
+	size_t regs_size
+		= ((ZA_SIG_CONTEXT_SIZE(sve_vq_from_vl(za->vl)) + 15) / 16) * 16;
+
+	if (!za || !err)
+		return false;
+
+	/* Either a bare za_context or a za_context followed by regs data */
+	if ((za->head.size != sizeof(struct za_context)) &&
+	    (za->head.size != regs_size)) {
+		*err = "bad size for ZA context";
+		return false;
+	}
+
+	if (!sve_vl_valid(za->vl)) {
+		*err = "SME VL in ZA context invalid";
+
+		return false;
+	}
+
+	return true;
+}
+
 bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 {
 	bool terminated = false;
@@ -82,6 +107,7 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 	int flags = 0;
 	struct extra_context *extra = NULL;
 	struct sve_context *sve = NULL;
+	struct za_context *za = NULL;
 	struct _aarch64_ctx *head =
 		(struct _aarch64_ctx *)uc->uc_mcontext.__reserved;
 
@@ -119,6 +145,13 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 			/* Size is validated in validate_sve_context() */
 			sve = (struct sve_context *)head;
 			flags |= SVE_CTX;
+			break;
+		case ZA_MAGIC:
+			if (flags & ZA_CTX)
+				*err = "Multiple ZA_MAGIC";
+			/* Size is validated in validate_za_context() */
+			za = (struct za_context *)head;
+			flags |= ZA_CTX;
 			break;
 		case EXTRA_MAGIC:
 			if (flags & EXTRA_CTX)
@@ -164,6 +197,9 @@ bool validate_reserved(ucontext_t *uc, size_t resv_sz, char **err)
 				return false;
 		if (flags & SVE_CTX)
 			if (!validate_sve_context(sve, err))
+				return false;
+		if (flags & ZA_CTX)
+			if (!validate_za_context(za, err))
 				return false;
 
 		head = GET_RESV_NEXT_HEAD(head);

@@ -22,7 +22,7 @@
  * Authors: AMD
  *
  */
-#include <drm/drm_dsc.h>
+#include <drm/display/drm_dsc_helper.h>
 #include "dscc_types.h"
 #include "rc_calc.h"
 

@@ -27,6 +27,9 @@ INTERFACE_TIMEOUT=${INTERFACE_TIMEOUT:=600}
 LOW_AGEING_TIME=${LOW_AGEING_TIME:=1000}
 REQUIRE_JQ=${REQUIRE_JQ:=yes}
 REQUIRE_MZ=${REQUIRE_MZ:=yes}
+REQUIRE_MTOOLS=${REQUIRE_MTOOLS:=no}
+STABLE_MAC_ADDRS=${STABLE_MAC_ADDRS:=no}
+TCPDUMP_EXTRA_FLAGS=${TCPDUMP_EXTRA_FLAGS:=}
 
 relative_path="${BASH_SOURCE%/*}"
 if [[ "$relative_path" == "${BASH_SOURCE}" ]]; then
@@ -159,6 +162,12 @@ fi
 if [[ "$REQUIRE_MZ" = "yes" ]]; then
 	require_command $MZ
 fi
+if [[ "$REQUIRE_MTOOLS" = "yes" ]]; then
+	# https://github.com/vladimiroltean/mtools/
+	# patched for IPv6 support
+	require_command msend
+	require_command mreceive
+fi
 
 if [[ ! -v NUM_NETIFS ]]; then
 	echo "SKIP: importer does not define \"NUM_NETIFS\""
@@ -214,8 +223,39 @@ create_netif()
 	esac
 }
 
+declare -A MAC_ADDR_ORIG
+mac_addr_prepare()
+{
+	local new_addr=
+	local dev=
+
+	for ((i = 1; i <= NUM_NETIFS; ++i)); do
+		dev=${NETIFS[p$i]}
+		new_addr=$(printf "00:01:02:03:04:%02x" $i)
+
+		MAC_ADDR_ORIG["$dev"]=$(ip -j link show dev $dev | jq -e '.[].address')
+		# Strip quotes
+		MAC_ADDR_ORIG["$dev"]=${MAC_ADDR_ORIG["$dev"]//\"/}
+		ip link set dev $dev address $new_addr
+	done
+}
+
+mac_addr_restore()
+{
+	local dev=
+
+	for ((i = 1; i <= NUM_NETIFS; ++i)); do
+		dev=${NETIFS[p$i]}
+		ip link set dev $dev address ${MAC_ADDR_ORIG["$dev"]}
+	done
+}
+
 if [[ "$NETIF_CREATE" = "yes" ]]; then
 	create_netif
+fi
+
+if [[ "$STABLE_MAC_ADDRS" = "yes" ]]; then
+	mac_addr_prepare
 fi
 
 for ((i = 1; i <= NUM_NETIFS; ++i)); do
@@ -503,6 +543,10 @@ pre_cleanup()
 		echo "Pausing before cleanup, hit any key to continue"
 		read
 	fi
+
+	if [[ "$STABLE_MAC_ADDRS" = "yes" ]]; then
+		mac_addr_restore
+	fi
 }
 
 vrf_prepare()
@@ -784,6 +828,17 @@ ipv6_stats_get()
 	cat /proc/net/dev_snmp6/$dev | grep "^$stat" | cut -f2
 }
 
+hw_stats_get()
+{
+	local suite=$1; shift
+	local if_name=$1; shift
+	local dir=$1; shift
+	local stat=$1; shift
+
+	ip -j stats show dev $if_name group offload subgroup $suite |
+		jq ".[0].stats64.$dir.$stat"
+}
+
 humanize()
 {
 	local speed=$1; shift
@@ -822,6 +877,15 @@ mac_get()
 	local if_name=$1
 
 	ip -j link show dev $if_name | jq -r '.[]["address"]'
+}
+
+ipv6_lladdr_get()
+{
+	local if_name=$1
+
+	ip -j addr show dev $if_name | \
+		jq -r '.[]["addr_info"][] | select(.scope == "link").local' | \
+		head -1
 }
 
 bridge_ageing_time_get()
@@ -1176,6 +1240,7 @@ learning_test()
 	# FDB entry was installed.
 	bridge link set dev $br_port1 flood off
 
+	ip link set $host1_if promisc on
 	tc qdisc add dev $host1_if ingress
 	tc filter add dev $host1_if ingress protocol ip pref 1 handle 101 \
 		flower dst_mac $mac action drop
@@ -1186,7 +1251,7 @@ learning_test()
 	tc -j -s filter show dev $host1_if ingress \
 		| jq -e ".[] | select(.options.handle == 101) \
 		| select(.options.actions[0].stats.packets == 1)" &> /dev/null
-	check_fail $? "Packet reached second host when should not"
+	check_fail $? "Packet reached first host when should not"
 
 	$MZ $host1_if -c 1 -p 64 -a $mac -t ip -q
 	sleep 1
@@ -1225,6 +1290,7 @@ learning_test()
 
 	tc filter del dev $host1_if ingress protocol ip pref 1 handle 101 flower
 	tc qdisc del dev $host1_if ingress
+	ip link set $host1_if promisc off
 
 	bridge link set dev $br_port1 flood on
 
@@ -1242,6 +1308,7 @@ flood_test_do()
 
 	# Add an ACL on `host2_if` which will tell us whether the packet
 	# was flooded to it or not.
+	ip link set $host2_if promisc on
 	tc qdisc add dev $host2_if ingress
 	tc filter add dev $host2_if ingress protocol ip pref 1 handle 101 \
 		flower dst_mac $mac action drop
@@ -1259,6 +1326,7 @@ flood_test_do()
 
 	tc filter del dev $host2_if ingress protocol ip pref 1 handle 101 flower
 	tc qdisc del dev $host2_if ingress
+	ip link set $host2_if promisc off
 
 	return $err
 }
@@ -1322,25 +1390,40 @@ flood_test()
 
 __start_traffic()
 {
+	local pktsize=$1; shift
 	local proto=$1; shift
 	local h_in=$1; shift    # Where the traffic egresses the host
 	local sip=$1; shift
 	local dip=$1; shift
 	local dmac=$1; shift
 
-	$MZ $h_in -p 8000 -A $sip -B $dip -c 0 \
+	$MZ $h_in -p $pktsize -A $sip -B $dip -c 0 \
 		-a own -b $dmac -t "$proto" -q "$@" &
 	sleep 1
 }
 
+start_traffic_pktsize()
+{
+	local pktsize=$1; shift
+
+	__start_traffic $pktsize udp "$@"
+}
+
+start_tcp_traffic_pktsize()
+{
+	local pktsize=$1; shift
+
+	__start_traffic $pktsize tcp "$@"
+}
+
 start_traffic()
 {
-	__start_traffic udp "$@"
+	start_traffic_pktsize 8000 "$@"
 }
 
 start_tcp_traffic()
 {
-	__start_traffic tcp "$@"
+	start_tcp_traffic_pktsize 8000 "$@"
 }
 
 stop_traffic()
@@ -1349,13 +1432,17 @@ stop_traffic()
 	{ kill %% && wait %%; } 2>/dev/null
 }
 
+declare -A cappid
+declare -A capfile
+declare -A capout
+
 tcpdump_start()
 {
 	local if_name=$1; shift
 	local ns=$1; shift
 
-	capfile=$(mktemp)
-	capout=$(mktemp)
+	capfile[$if_name]=$(mktemp)
+	capout[$if_name]=$(mktemp)
 
 	if [ -z $ns ]; then
 		ns_cmd=""
@@ -1369,27 +1456,35 @@ tcpdump_start()
 		capuser="-Z $SUDO_USER"
 	fi
 
-	$ns_cmd tcpdump -e -n -Q in -i $if_name \
-		-s 65535 -B 32768 $capuser -w $capfile > "$capout" 2>&1 &
-	cappid=$!
+	$ns_cmd tcpdump $TCPDUMP_EXTRA_FLAGS -e -n -Q in -i $if_name \
+		-s 65535 -B 32768 $capuser -w ${capfile[$if_name]} \
+		> "${capout[$if_name]}" 2>&1 &
+	cappid[$if_name]=$!
 
 	sleep 1
 }
 
 tcpdump_stop()
 {
-	$ns_cmd kill $cappid
+	local if_name=$1
+	local pid=${cappid[$if_name]}
+
+	$ns_cmd kill "$pid" && wait "$pid"
 	sleep 1
 }
 
 tcpdump_cleanup()
 {
-	rm $capfile $capout
+	local if_name=$1
+
+	rm ${capfile[$if_name]} ${capout[$if_name]}
 }
 
 tcpdump_show()
 {
-	tcpdump -e -n -r $capfile 2>&1
+	local if_name=$1
+
+	tcpdump -e -n -r ${capfile[$if_name]} 2>&1
 }
 
 # return 0 if the packet wasn't seen on host2_if or 1 if it was
@@ -1497,6 +1592,37 @@ brmcast_check_sg_state()
 				 .flags[] == \"blocked\")" &>/dev/null
 		check_err_fail $should_fail $? "Entry $src has blocked flag"
 	done
+}
+
+mc_join()
+{
+	local if_name=$1
+	local group=$2
+	local vrf_name=$(master_name_get $if_name)
+
+	# We don't care about actual reception, just about joining the
+	# IP multicast group and adding the L2 address to the device's
+	# MAC filtering table
+	ip vrf exec $vrf_name \
+		mreceive -g $group -I $if_name > /dev/null 2>&1 &
+	mreceive_pid=$!
+
+	sleep 1
+}
+
+mc_leave()
+{
+	kill "$mreceive_pid" && wait "$mreceive_pid"
+}
+
+mc_send()
+{
+	local if_name=$1
+	local groups=$2
+	local vrf_name=$(master_name_get $if_name)
+
+	ip vrf exec $vrf_name \
+		msend -g $groups -I $if_name -c 1 > /dev/null 2>&1
 }
 
 start_ip_monitor()

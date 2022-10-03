@@ -406,6 +406,7 @@ static void mc_pcie_enable_msi(struct mc_pcie *port, void __iomem *base)
 static void mc_handle_msi(struct irq_desc *desc)
 {
 	struct mc_pcie *port = irq_desc_get_handler_data(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct device *dev = port->dev;
 	struct mc_msi *msi = &port->msi;
 	void __iomem *bridge_base_addr =
@@ -414,8 +415,11 @@ static void mc_handle_msi(struct irq_desc *desc)
 	u32 bit;
 	int ret;
 
+	chained_irq_enter(chip, desc);
+
 	status = readl_relaxed(bridge_base_addr + ISTATUS_LOCAL);
 	if (status & PM_MSI_INT_MSI_MASK) {
+		writel_relaxed(status & PM_MSI_INT_MSI_MASK, bridge_base_addr + ISTATUS_LOCAL);
 		status = readl_relaxed(bridge_base_addr + ISTATUS_MSI);
 		for_each_set_bit(bit, &status, msi->num_vectors) {
 			ret = generic_handle_domain_irq(msi->dev_domain, bit);
@@ -424,6 +428,8 @@ static void mc_handle_msi(struct irq_desc *desc)
 						    bit);
 		}
 	}
+
+	chained_irq_exit(chip, desc);
 }
 
 static void mc_msi_bottom_irq_ack(struct irq_data *data)
@@ -432,13 +438,8 @@ static void mc_msi_bottom_irq_ack(struct irq_data *data)
 	void __iomem *bridge_base_addr =
 		port->axi_base_addr + MC_PCIE_BRIDGE_ADDR;
 	u32 bitpos = data->hwirq;
-	unsigned long status;
 
 	writel_relaxed(BIT(bitpos), bridge_base_addr + ISTATUS_MSI);
-	status = readl_relaxed(bridge_base_addr + ISTATUS_MSI);
-	if (!status)
-		writel_relaxed(BIT(PM_MSI_INT_MSI_SHIFT),
-			       bridge_base_addr + ISTATUS_LOCAL);
 }
 
 static void mc_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
@@ -563,12 +564,15 @@ static int mc_allocate_msi_domains(struct mc_pcie *port)
 static void mc_handle_intx(struct irq_desc *desc)
 {
 	struct mc_pcie *port = irq_desc_get_handler_data(desc);
+	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct device *dev = port->dev;
 	void __iomem *bridge_base_addr =
 		port->axi_base_addr + MC_PCIE_BRIDGE_ADDR;
 	unsigned long status;
 	u32 bit;
 	int ret;
+
+	chained_irq_enter(chip, desc);
 
 	status = readl_relaxed(bridge_base_addr + ISTATUS_LOCAL);
 	if (status & PM_MSI_INT_INTX_MASK) {
@@ -581,6 +585,8 @@ static void mc_handle_intx(struct irq_desc *desc)
 						    bit);
 		}
 	}
+
+	chained_irq_exit(chip, desc);
 }
 
 static void mc_ack_intx_irq(struct irq_data *data)
@@ -898,6 +904,7 @@ static int mc_pcie_init_irq_domains(struct mc_pcie *port)
 						   &event_domain_ops, port);
 	if (!port->event_domain) {
 		dev_err(dev, "failed to get event domain\n");
+		of_node_put(pcie_intc_node);
 		return -ENOMEM;
 	}
 
@@ -907,6 +914,7 @@ static int mc_pcie_init_irq_domains(struct mc_pcie *port)
 						  &intx_domain_ops, port);
 	if (!port->intx_domain) {
 		dev_err(dev, "failed to get an INTx IRQ domain\n");
+		of_node_put(pcie_intc_node);
 		return -ENOMEM;
 	}
 
@@ -1115,7 +1123,7 @@ static const struct of_device_id mc_pcie_of_match[] = {
 	{},
 };
 
-MODULE_DEVICE_TABLE(of, mc_pcie_of_match)
+MODULE_DEVICE_TABLE(of, mc_pcie_of_match);
 
 static struct platform_driver mc_pcie_driver = {
 	.probe = pci_host_common_probe,

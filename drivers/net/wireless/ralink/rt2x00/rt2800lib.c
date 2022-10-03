@@ -1801,8 +1801,8 @@ int rt2800_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	 * do not have a choice if some connected STA is not capable to
 	 * receive the same amount of data like the others.
 	 */
-	if (sta->ht_cap.ht_supported) {
-		drv_data->ampdu_factor_cnt[sta->ht_cap.ampdu_factor & 3]++;
+	if (sta->deflink.ht_cap.ht_supported) {
+		drv_data->ampdu_factor_cnt[sta->deflink.ht_cap.ampdu_factor & 3]++;
 		rt2800_set_max_psdu_len(rt2x00dev);
 	}
 
@@ -1847,8 +1847,8 @@ int rt2800_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct rt2x00_sta *sta_priv = sta_to_rt2x00_sta(sta);
 	int wcid = sta_priv->wcid;
 
-	if (sta->ht_cap.ht_supported) {
-		drv_data->ampdu_factor_cnt[sta->ht_cap.ampdu_factor & 3]--;
+	if (sta->deflink.ht_cap.ht_supported) {
+		drv_data->ampdu_factor_cnt[sta->deflink.ht_cap.ampdu_factor & 3]--;
 		rt2800_set_max_psdu_len(rt2x00dev);
 	}
 
@@ -10395,7 +10395,8 @@ int rt2800_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 EXPORT_SYMBOL_GPL(rt2800_set_rts_threshold);
 
 int rt2800_conf_tx(struct ieee80211_hw *hw,
-		   struct ieee80211_vif *vif, u16 queue_idx,
+		   struct ieee80211_vif *vif,
+		   unsigned int link_id, u16 queue_idx,
 		   const struct ieee80211_tx_queue_params *params)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
@@ -10411,7 +10412,7 @@ int rt2800_conf_tx(struct ieee80211_hw *hw,
 	 * we are free to update the registers based on the value
 	 * in the queue parameter.
 	 */
-	retval = rt2x00mac_conf_tx(hw, vif, queue_idx, params);
+	retval = rt2x00mac_conf_tx(hw, vif, link_id, queue_idx, params);
 	if (retval)
 		return retval;
 

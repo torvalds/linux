@@ -766,6 +766,10 @@ static void init_default_table_values(struct pm8001_hba_info *pm8001_ha)
 	pm8001_ha->main_cfg_tbl.pm80xx_tbl.pcs_event_log_severity	= 0x01;
 	pm8001_ha->main_cfg_tbl.pm80xx_tbl.fatal_err_interrupt		= 0x01;
 
+	/* Enable higher IQs and OQs, 32 to 63, bit 16 */
+	if (pm8001_ha->max_q_num > 32)
+		pm8001_ha->main_cfg_tbl.pm80xx_tbl.fatal_err_interrupt |=
+							1 << 16;
 	/* Disable end to end CRC checking */
 	pm8001_ha->main_cfg_tbl.pm80xx_tbl.crc_core_dump = (0x1 << 16);
 
@@ -1026,6 +1030,13 @@ static int mpi_init_check(struct pm8001_hba_info *pm8001_ha)
 	gst_len_mpistate = gst_len_mpistate >> 16;
 	if (0x0000 != gst_len_mpistate)
 		return -EBUSY;
+
+	/*
+	 *  As per controller datasheet, after successful MPI
+	 *  initialization minimum 500ms delay is required before
+	 *  issuing commands.
+	 */
+	msleep(500);
 
 	return 0;
 }
@@ -1458,11 +1469,18 @@ static int pm80xx_chip_init(struct pm8001_hba_info *pm8001_ha)
 	} else
 		return -EBUSY;
 
+	return 0;
+}
+
+static void pm80xx_chip_post_init(struct pm8001_hba_info *pm8001_ha)
+{
 	/* send SAS protocol timer configuration page to FW */
-	ret = pm80xx_set_sas_protocol_timer_config(pm8001_ha);
+	pm80xx_set_sas_protocol_timer_config(pm8001_ha);
 
 	/* Check for encryption */
 	if (pm8001_ha->chip->encrypt) {
+		int ret;
+
 		pm8001_dbg(pm8001_ha, INIT, "Checking for encryption\n");
 		ret = pm80xx_get_encrypt_info(pm8001_ha);
 		if (ret == -1) {
@@ -1474,7 +1492,6 @@ static int pm80xx_chip_init(struct pm8001_hba_info *pm8001_ha)
 			}
 		}
 	}
-	return 0;
 }
 
 static int mpi_uninit_check(struct pm8001_hba_info *pm8001_ha)
@@ -1727,10 +1744,11 @@ static void
 pm80xx_chip_interrupt_enable(struct pm8001_hba_info *pm8001_ha, u8 vec)
 {
 #ifdef PM8001_USE_MSIX
-	u32 mask;
-	mask = (u32)(1 << vec);
-
-	pm8001_cw32(pm8001_ha, 0, MSGU_ODMR_CLR, (u32)(mask & 0xFFFFFFFF));
+	if (vec < 32)
+		pm8001_cw32(pm8001_ha, 0, MSGU_ODMR_CLR, 1U << vec);
+	else
+		pm8001_cw32(pm8001_ha, 0, MSGU_ODMR_CLR_U,
+			    1U << (vec - 32));
 	return;
 #endif
 	pm80xx_chip_intx_interrupt_enable(pm8001_ha);
@@ -1746,12 +1764,15 @@ static void
 pm80xx_chip_interrupt_disable(struct pm8001_hba_info *pm8001_ha, u8 vec)
 {
 #ifdef PM8001_USE_MSIX
-	u32 mask;
-	if (vec == 0xFF)
-		mask = 0xFFFFFFFF;
+	if (vec == 0xFF) {
+		/* disable all vectors 0-31, 32-63 */
+		pm8001_cw32(pm8001_ha, 0, MSGU_ODMR, 0xFFFFFFFF);
+		pm8001_cw32(pm8001_ha, 0, MSGU_ODMR_U, 0xFFFFFFFF);
+	} else if (vec < 32)
+		pm8001_cw32(pm8001_ha, 0, MSGU_ODMR, 1U << vec);
 	else
-		mask = (u32)(1 << vec);
-	pm8001_cw32(pm8001_ha, 0, MSGU_ODMR, (u32)(mask & 0xFFFFFFFF));
+		pm8001_cw32(pm8001_ha, 0, MSGU_ODMR_U,
+			    1U << (vec - 32));
 	return;
 #endif
 	pm80xx_chip_intx_interrupt_disable(pm8001_ha);
@@ -3708,8 +3729,12 @@ static int mpi_phy_stop_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	pm8001_dbg(pm8001_ha, MSG, "phy:0x%x status:0x%x\n",
 		   phyid, status);
 	if (status == PHY_STOP_SUCCESS ||
-		status == PHY_STOP_ERR_DEVICE_ATTACHED)
+		status == PHY_STOP_ERR_DEVICE_ATTACHED) {
 		phy->phy_state = PHY_LINK_DISABLE;
+		phy->sas_phy.phy->negotiated_linkrate = SAS_PHY_DISABLED;
+		phy->sas_phy.linkrate = SAS_PHY_DISABLED;
+	}
+
 	return 0;
 }
 
@@ -4330,6 +4355,29 @@ static int check_enc_sat_cmd(struct sas_task *task)
 	return ret;
 }
 
+static u32 pm80xx_chip_get_q_index(struct sas_task *task)
+{
+	struct scsi_cmnd *scmd = NULL;
+	u32 blk_tag;
+
+	if (task->uldd_task) {
+		struct ata_queued_cmd *qc;
+
+		if (dev_is_sata(task->dev)) {
+			qc = task->uldd_task;
+			scmd = qc->scsicmd;
+		} else {
+			scmd = task->uldd_task;
+		}
+	}
+
+	if (!scmd)
+		return 0;
+
+	blk_tag = blk_mq_unique_tag(scsi_cmd_to_rq(scmd));
+	return blk_mq_unique_tag_to_hwq(blk_tag);
+}
+
 /**
  * pm80xx_chip_ssp_io_req - send an SSP task to FW
  * @pm8001_ha: our hba card information.
@@ -4345,7 +4393,7 @@ static int pm80xx_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 	u32 tag = ccb->ccb_tag;
 	u64 phys_addr, end_addr;
 	u32 end_addr_high, end_addr_low;
-	u32 q_index, cpu_id;
+	u32 q_index;
 	u32 opc = OPC_INB_SSPINIIOSTART;
 
 	memset(&ssp_cmd, 0, sizeof(ssp_cmd));
@@ -4366,8 +4414,7 @@ static int pm80xx_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 	ssp_cmd.ssp_iu.efb_prio_attr |= (task->ssp_task.task_attr & 7);
 	memcpy(ssp_cmd.ssp_iu.cdb, task->ssp_task.cmd->cmnd,
 		       task->ssp_task.cmd->cmd_len);
-	cpu_id = smp_processor_id();
-	q_index = (u32) (cpu_id) % (pm8001_ha->max_q_num);
+	q_index = pm80xx_chip_get_q_index(task);
 
 	/* Check if encryption is set */
 	if (pm8001_ha->chip->encrypt &&
@@ -4496,8 +4543,7 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 	struct domain_device *dev = task->dev;
 	struct pm8001_device *pm8001_ha_dev = dev->lldd_dev;
 	struct ata_queued_cmd *qc = task->uldd_task;
-	u32 tag = ccb->ccb_tag;
-	u32 q_index, cpu_id;
+	u32 tag = ccb->ccb_tag, q_index;
 	struct sata_start_req sata_cmd;
 	u32 hdr_tag, ncg_tag = 0;
 	u64 phys_addr, end_addr;
@@ -4507,8 +4553,8 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 	unsigned long flags;
 	u32 opc = OPC_INB_SATA_HOST_OPSTART;
 	memset(&sata_cmd, 0, sizeof(sata_cmd));
-	cpu_id = smp_processor_id();
-	q_index = (u32) (cpu_id) % (pm8001_ha->max_q_num);
+
+	q_index = pm80xx_chip_get_q_index(task);
 
 	if (task->data_dir == DMA_NONE && !task->ata_task.use_ncq) {
 		ATAP = 0x04; /* no data*/
@@ -4992,6 +5038,7 @@ void pm8001_set_phy_profile_single(struct pm8001_hba_info *pm8001_ha,
 const struct pm8001_dispatch pm8001_80xx_dispatch = {
 	.name			= "pmc80xx",
 	.chip_init		= pm80xx_chip_init,
+	.chip_post_init		= pm80xx_chip_post_init,
 	.chip_soft_rst		= pm80xx_chip_soft_rst,
 	.chip_rst		= pm80xx_hw_chip_rst,
 	.chip_iounmap		= pm8001_chip_iounmap,

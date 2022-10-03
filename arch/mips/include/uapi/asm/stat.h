@@ -19,11 +19,11 @@
 struct stat {
 	unsigned	st_dev;
 	long		st_pad1[3];		/* Reserved for network id */
-	ino_t		st_ino;
-	mode_t		st_mode;
+	__kernel_ino_t	st_ino;
+	__kernel_mode_t	st_mode;
 	__u32		st_nlink;
-	uid_t		st_uid;
-	gid_t		st_gid;
+	__kernel_uid32_t st_uid;
+	__kernel_gid32_t st_gid;
 	unsigned	st_rdev;
 	long		st_pad2[2];
 	long		st_size;
@@ -55,11 +55,11 @@ struct stat64 {
 
 	unsigned long long	st_ino;
 
-	mode_t		st_mode;
+	__kernel_mode_t	st_mode;
 	__u32		st_nlink;
 
-	uid_t		st_uid;
-	gid_t		st_gid;
+	__kernel_uid32_t st_uid;
+	__kernel_gid32_t st_gid;
 
 	unsigned long	st_rdev;
 	unsigned long	st_pad1[3];	/* Reserved for st_rdev expansion  */
@@ -96,11 +96,11 @@ struct stat {
 
 	unsigned long		st_ino;
 
-	mode_t			st_mode;
+	__kernel_mode_t		st_mode;
 	__u32			st_nlink;
 
-	uid_t			st_uid;
-	gid_t			st_gid;
+	__kernel_uid32_t	st_uid;
+	__kernel_gid32_t	st_gid;
 
 	unsigned int		st_rdev;
 	unsigned int		st_pad1[3]; /* Reserved for st_rdev expansion */

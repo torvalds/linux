@@ -264,17 +264,6 @@ struct page *ufs_get_locked_page(struct address_space *mapping,
 			put_page(page);
 			return NULL;
 		}
-
-		if (!PageUptodate(page) || PageError(page)) {
-			unlock_page(page);
-			put_page(page);
-
-			printk(KERN_ERR "ufs_change_blocknr: "
-			       "can not read page: ino %lu, index: %lu\n",
-			       inode->i_ino, index);
-
-			return ERR_PTR(-EIO);
-		}
 	}
 	if (!page_has_buffers(page))
 		create_empty_buffers(page, 1 << inode->i_blkbits, 0);

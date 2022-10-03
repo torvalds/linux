@@ -12,6 +12,7 @@
 // Copyright (c) 2019 Martin Sperl <kernel@martin.sperl.org>
 //
 
+#include <asm/unaligned.h>
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -35,6 +36,12 @@ static const struct mcp251xfd_devtype_data mcp251xfd_devtype_data_mcp2518fd = {
 	.quirks = MCP251XFD_QUIRK_CRC_REG | MCP251XFD_QUIRK_CRC_RX |
 		MCP251XFD_QUIRK_CRC_TX | MCP251XFD_QUIRK_ECC,
 	.model = MCP251XFD_MODEL_MCP2518FD,
+};
+
+static const struct mcp251xfd_devtype_data mcp251xfd_devtype_data_mcp251863 = {
+	.quirks = MCP251XFD_QUIRK_CRC_REG | MCP251XFD_QUIRK_CRC_RX |
+		MCP251XFD_QUIRK_CRC_TX | MCP251XFD_QUIRK_ECC,
+	.model = MCP251XFD_MODEL_MCP251863,
 };
 
 /* Autodetect model, start with CRC enabled. */
@@ -75,6 +82,8 @@ static const char *__mcp251xfd_get_model_str(enum mcp251xfd_model model)
 		return "MCP2517FD";
 	case MCP251XFD_MODEL_MCP2518FD:
 		return "MCP2518FD";
+	case MCP251XFD_MODEL_MCP251863:
+		return "MCP251863";
 	case MCP251XFD_MODEL_MCP251XFD:
 		return "MCP251xFD";
 	}
@@ -916,7 +925,7 @@ static int mcp251xfd_handle_rxovif(struct mcp251xfd_priv *priv)
 	cf->can_id |= CAN_ERR_CRTL;
 	cf->data[1] = CAN_ERR_CRTL_RX_OVERFLOW;
 
-	err = can_rx_offload_queue_sorted(&priv->offload, skb, timestamp);
+	err = can_rx_offload_queue_timestamp(&priv->offload, skb, timestamp);
 	if (err)
 		stats->rx_fifo_errors++;
 
@@ -1021,7 +1030,7 @@ static int mcp251xfd_handle_ivmif(struct mcp251xfd_priv *priv)
 		return 0;
 
 	mcp251xfd_skb_set_timestamp(priv, skb, timestamp);
-	err = can_rx_offload_queue_sorted(&priv->offload, skb, timestamp);
+	err = can_rx_offload_queue_timestamp(&priv->offload, skb, timestamp);
 	if (err)
 		stats->rx_fifo_errors++;
 
@@ -1090,11 +1099,12 @@ static int mcp251xfd_handle_cerrif(struct mcp251xfd_priv *priv)
 		err = mcp251xfd_get_berr_counter(priv->ndev, &bec);
 		if (err)
 			return err;
+		cf->can_id |= CAN_ERR_CNT;
 		cf->data[6] = bec.txerr;
 		cf->data[7] = bec.rxerr;
 	}
 
-	err = can_rx_offload_queue_sorted(&priv->offload, skb, timestamp);
+	err = can_rx_offload_queue_timestamp(&priv->offload, skb, timestamp);
 	if (err)
 		stats->rx_fifo_errors++;
 
@@ -1259,7 +1269,8 @@ mcp251xfd_handle_eccif_recover(struct mcp251xfd_priv *priv, u8 nr)
 	 * - for mcp2518fd: offset not 0 or 1
 	 */
 	if (chip_tx_tail != tx_tail ||
-	    !(offset == 0 || (offset == 1 && mcp251xfd_is_2518(priv)))) {
+	    !(offset == 0 || (offset == 1 && (mcp251xfd_is_2518FD(priv) ||
+					      mcp251xfd_is_251863(priv))))) {
 		netdev_err(priv->ndev,
 			   "ECC Error information inconsistent (addr=0x%04x, nr=%d, tx_tail=0x%08x(%d), chip_tx_tail=%d, offset=%d).\n",
 			   addr, nr, tx_ring->tail, tx_tail, chip_tx_tail,
@@ -1641,6 +1652,7 @@ static int mcp251xfd_stop(struct net_device *ndev)
 	netif_stop_queue(ndev);
 	set_bit(MCP251XFD_FLAGS_DOWN, priv->flags);
 	hrtimer_cancel(&priv->rx_irq_timer);
+	hrtimer_cancel(&priv->tx_irq_timer);
 	mcp251xfd_chip_interrupts_disable(priv);
 	free_irq(ndev->irq, priv);
 	can_rx_offload_disable(&priv->offload);
@@ -1659,6 +1671,7 @@ static const struct net_device_ops mcp251xfd_netdev_ops = {
 	.ndo_open = mcp251xfd_open,
 	.ndo_stop = mcp251xfd_stop,
 	.ndo_start_xmit	= mcp251xfd_start_xmit,
+	.ndo_eth_ioctl = can_eth_ioctl_hwts,
 	.ndo_change_mtu = can_change_mtu,
 };
 
@@ -1679,8 +1692,8 @@ static int mcp251xfd_register_chip_detect(struct mcp251xfd_priv *priv)
 	u32 osc;
 	int err;
 
-	/* The OSC_LPMEN is only supported on MCP2518FD, so use it to
-	 * autodetect the model.
+	/* The OSC_LPMEN is only supported on MCP2518FD and MCP251863,
+	 * so use it to autodetect the model.
 	 */
 	err = regmap_update_bits(priv->map_reg, MCP251XFD_REG_OSC,
 				 MCP251XFD_REG_OSC_LPMEN,
@@ -1692,12 +1705,20 @@ static int mcp251xfd_register_chip_detect(struct mcp251xfd_priv *priv)
 	if (err)
 		return err;
 
-	if (osc & MCP251XFD_REG_OSC_LPMEN)
-		devtype_data = &mcp251xfd_devtype_data_mcp2518fd;
-	else
+	if (osc & MCP251XFD_REG_OSC_LPMEN) {
+		/* We cannot distinguish between MCP2518FD and
+		 * MCP251863. If firmware specifies MCP251863, keep
+		 * it, otherwise set to MCP2518FD.
+		 */
+		if (mcp251xfd_is_251863(priv))
+			devtype_data = &mcp251xfd_devtype_data_mcp251863;
+		else
+			devtype_data = &mcp251xfd_devtype_data_mcp2518fd;
+	} else {
 		devtype_data = &mcp251xfd_devtype_data_mcp2517fd;
+	}
 
-	if (!mcp251xfd_is_251X(priv) &&
+	if (!mcp251xfd_is_251XFD(priv) &&
 	    priv->devtype_data.model != devtype_data->model) {
 		netdev_info(ndev,
 			    "Detected %s, but firmware specifies a %s. Fixing up.\n",
@@ -1768,7 +1789,7 @@ mcp251xfd_register_get_dev_id(const struct mcp251xfd_priv *priv, u32 *dev_id,
 	xfer[0].len = sizeof(buf_tx->cmd);
 	xfer[0].speed_hz = priv->spi_max_speed_hz_slow;
 	xfer[1].rx_buf = buf_rx->data;
-	xfer[1].len = sizeof(dev_id);
+	xfer[1].len = sizeof(*dev_id);
 	xfer[1].speed_hz = priv->spi_max_speed_hz_fast;
 
 	mcp251xfd_spi_cmd_read_nocrc(&buf_tx->cmd, MCP251XFD_REG_DEVID);
@@ -1777,7 +1798,7 @@ mcp251xfd_register_get_dev_id(const struct mcp251xfd_priv *priv, u32 *dev_id,
 	if (err)
 		goto out_kfree_buf_tx;
 
-	*dev_id = be32_to_cpup((__be32 *)buf_rx->data);
+	*dev_id = get_unaligned_le32(buf_rx->data);
 	*effective_speed_hz_slow = xfer[0].effective_speed_hz;
 	*effective_speed_hz_fast = xfer[1].effective_speed_hz;
 
@@ -1930,6 +1951,9 @@ static const struct of_device_id mcp251xfd_of_match[] = {
 		.compatible = "microchip,mcp2518fd",
 		.data = &mcp251xfd_devtype_data_mcp2518fd,
 	}, {
+		.compatible = "microchip,mcp251863",
+		.data = &mcp251xfd_devtype_data_mcp251863,
+	}, {
 		.compatible = "microchip,mcp251xfd",
 		.data = &mcp251xfd_devtype_data_mcp251xfd,
 	}, {
@@ -1945,6 +1969,9 @@ static const struct spi_device_id mcp251xfd_id_table[] = {
 	}, {
 		.name = "mcp2518fd",
 		.driver_data = (kernel_ulong_t)&mcp251xfd_devtype_data_mcp2518fd,
+	}, {
+		.name = "mcp251863",
+		.driver_data = (kernel_ulong_t)&mcp251xfd_devtype_data_mcp251863,
 	}, {
 		.name = "mcp251xfd",
 		.driver_data = (kernel_ulong_t)&mcp251xfd_devtype_data_mcp251xfd,

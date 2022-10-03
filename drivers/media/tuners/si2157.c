@@ -77,16 +77,16 @@ err_mutex_unlock:
 }
 
 static const struct si2157_tuner_info si2157_tuners[] = {
-	{ SI2141, false, 0x60, SI2141_60_FIRMWARE, SI2141_A10_FIRMWARE },
-	{ SI2141, false, 0x61, SI2141_61_FIRMWARE, SI2141_A10_FIRMWARE },
-	{ SI2146, false, 0x11, SI2146_11_FIRMWARE, NULL },
-	{ SI2147, false, 0x50, SI2147_50_FIRMWARE, NULL },
-	{ SI2148, true,  0x32, SI2148_32_FIRMWARE, SI2158_A20_FIRMWARE },
-	{ SI2148, true,  0x33, SI2148_33_FIRMWARE, SI2158_A20_FIRMWARE },
-	{ SI2157, false, 0x50, SI2157_50_FIRMWARE, SI2157_A30_FIRMWARE },
-	{ SI2158, false, 0x50, SI2158_50_FIRMWARE, SI2158_A20_FIRMWARE },
-	{ SI2158, false, 0x51, SI2158_51_FIRMWARE, SI2158_A20_FIRMWARE },
-	{ SI2177, false, 0x50, SI2177_50_FIRMWARE, SI2157_A30_FIRMWARE },
+	{ SI2141, 0x60, false, SI2141_60_FIRMWARE, SI2141_A10_FIRMWARE },
+	{ SI2141, 0x61, false, SI2141_61_FIRMWARE, SI2141_A10_FIRMWARE },
+	{ SI2146, 0x11, false, SI2146_11_FIRMWARE, NULL },
+	{ SI2147, 0x50, false, SI2147_50_FIRMWARE, NULL },
+	{ SI2148, 0x32, true,  SI2148_32_FIRMWARE, SI2158_A20_FIRMWARE },
+	{ SI2148, 0x33, true,  SI2148_33_FIRMWARE, SI2158_A20_FIRMWARE },
+	{ SI2157, 0x50, false, SI2157_50_FIRMWARE, SI2157_A30_FIRMWARE },
+	{ SI2158, 0x50, false, SI2158_50_FIRMWARE, SI2158_A20_FIRMWARE },
+	{ SI2158, 0x51, false, SI2158_51_FIRMWARE, SI2158_A20_FIRMWARE },
+	{ SI2177, 0x50, false, SI2177_50_FIRMWARE, SI2157_A30_FIRMWARE },
 };
 
 static int si2157_load_firmware(struct dvb_frontend *fe,
@@ -178,7 +178,7 @@ static int si2157_find_and_load_firmware(struct dvb_frontend *fe)
 		}
 	}
 
-	if (!fw_name && !fw_alt_name) {
+	if (required && !fw_name && !fw_alt_name) {
 		dev_err(&client->dev,
 			"unknown chip version Si21%d-%c%c%c ROM 0x%02x\n",
 			part_id, cmd.args[1], cmd.args[3], cmd.args[4], rom_id);

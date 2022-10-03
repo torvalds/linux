@@ -340,14 +340,14 @@ static int tsnep_tx_map(struct sk_buff *skb, struct tsnep_tx *tx, int count)
 	return 0;
 }
 
-static void tsnep_tx_unmap(struct tsnep_tx *tx, int count)
+static void tsnep_tx_unmap(struct tsnep_tx *tx, int index, int count)
 {
 	struct device *dmadev = tx->adapter->dmadev;
 	struct tsnep_tx_entry *entry;
 	int i;
 
 	for (i = 0; i < count; i++) {
-		entry = &tx->entry[(tx->read + i) % TSNEP_RING_SIZE];
+		entry = &tx->entry[(index + i) % TSNEP_RING_SIZE];
 
 		if (entry->len) {
 			if (i == 0)
@@ -395,7 +395,7 @@ static netdev_tx_t tsnep_xmit_frame_ring(struct sk_buff *skb,
 
 	retval = tsnep_tx_map(skb, tx, count);
 	if (retval != 0) {
-		tsnep_tx_unmap(tx, count);
+		tsnep_tx_unmap(tx, tx->write, count);
 		dev_kfree_skb_any(entry->skb);
 		entry->skb = NULL;
 
@@ -464,14 +464,21 @@ static bool tsnep_tx_poll(struct tsnep_tx *tx, int napi_budget)
 		if (skb_shinfo(entry->skb)->nr_frags > 0)
 			count += skb_shinfo(entry->skb)->nr_frags;
 
-		tsnep_tx_unmap(tx, count);
+		tsnep_tx_unmap(tx, tx->read, count);
 
 		if ((skb_shinfo(entry->skb)->tx_flags & SKBTX_IN_PROGRESS) &&
 		    (__le32_to_cpu(entry->desc_wb->properties) &
 		     TSNEP_DESC_EXTENDED_WRITEBACK_FLAG)) {
 			struct skb_shared_hwtstamps hwtstamps;
-			u64 timestamp =
-				__le64_to_cpu(entry->desc_wb->timestamp);
+			u64 timestamp;
+
+			if (skb_shinfo(entry->skb)->tx_flags &
+			    SKBTX_HW_TSTAMP_USE_CYCLES)
+				timestamp =
+					__le64_to_cpu(entry->desc_wb->counter);
+			else
+				timestamp =
+					__le64_to_cpu(entry->desc_wb->timestamp);
 
 			memset(&hwtstamps, 0, sizeof(hwtstamps));
 			hwtstamps.hwtstamp = ns_to_ktime(timestamp);
@@ -704,11 +711,11 @@ static int tsnep_rx_poll(struct tsnep_rx *rx, struct napi_struct *napi,
 					skb_hwtstamps(skb);
 				struct tsnep_rx_inline *rx_inline =
 					(struct tsnep_rx_inline *)skb->data;
-				u64 timestamp =
-					__le64_to_cpu(rx_inline->timestamp);
 
+				skb_shinfo(skb)->tx_flags |=
+					SKBTX_HW_TSTAMP_NETDEV;
 				memset(hwtstamps, 0, sizeof(*hwtstamps));
-				hwtstamps->hwtstamp = ns_to_ktime(timestamp);
+				hwtstamps->netdev_data = rx_inline;
 			}
 			skb_pull(skb, TSNEP_RX_INLINE_METADATA_SIZE);
 			skb->protocol = eth_type_trans(skb,
@@ -1010,6 +1017,21 @@ static int tsnep_netdev_set_mac_address(struct net_device *netdev, void *addr)
 	return 0;
 }
 
+static ktime_t tsnep_netdev_get_tstamp(struct net_device *netdev,
+				       const struct skb_shared_hwtstamps *hwtstamps,
+				       bool cycles)
+{
+	struct tsnep_rx_inline *rx_inline = hwtstamps->netdev_data;
+	u64 timestamp;
+
+	if (cycles)
+		timestamp = __le64_to_cpu(rx_inline->counter);
+	else
+		timestamp = __le64_to_cpu(rx_inline->timestamp);
+
+	return ns_to_ktime(timestamp);
+}
+
 static const struct net_device_ops tsnep_netdev_ops = {
 	.ndo_open = tsnep_netdev_open,
 	.ndo_stop = tsnep_netdev_close,
@@ -1019,6 +1041,7 @@ static const struct net_device_ops tsnep_netdev_ops = {
 
 	.ndo_get_stats64 = tsnep_netdev_get_stats64,
 	.ndo_set_mac_address = tsnep_netdev_set_mac_address,
+	.ndo_get_tstamp = tsnep_netdev_get_tstamp,
 	.ndo_setup_tc = tsnep_tc_setup,
 };
 
@@ -1091,8 +1114,7 @@ static int tsnep_mdio_init(struct tsnep_adapter *adapter)
 	retval = of_mdiobus_register(adapter->mdiobus, np);
 
 out:
-	if (np)
-		of_node_put(np);
+	of_node_put(np);
 
 	return retval;
 }
@@ -1260,7 +1282,7 @@ MODULE_DEVICE_TABLE(of, tsnep_of_match);
 static struct platform_driver tsnep_driver = {
 	.driver = {
 		.name = TSNEP,
-		.of_match_table = of_match_ptr(tsnep_of_match),
+		.of_match_table = tsnep_of_match,
 	},
 	.probe = tsnep_probe,
 	.remove = tsnep_remove,

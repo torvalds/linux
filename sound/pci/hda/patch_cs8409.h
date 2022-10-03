@@ -12,6 +12,7 @@
 #include <linux/pci.h>
 #include <sound/tlv.h>
 #include <linux/workqueue.h>
+#include <sound/cs42l42.h>
 #include <sound/hda_codec.h>
 #include "hda_local.h"
 #include "hda_auto_parser.h"
@@ -222,15 +223,8 @@ enum cs8409_coefficient_index_registers {
 #define CS42L42_HP_VOL_REAL_MAX			(0)
 #define CS42L42_AMIC_VOL_REAL_MIN		(-97)
 #define CS42L42_AMIC_VOL_REAL_MAX		(12)
-#define CS42L42_REG_HS_VOL_CHA			(0x2301)
-#define CS42L42_REG_HS_VOL_CHB			(0x2303)
-#define CS42L42_REG_HS_VOL_MASK			(0x003F)
-#define CS42L42_REG_AMIC_VOL			(0x1D03)
 #define CS42L42_REG_AMIC_VOL_MASK		(0x00FF)
-#define CS42L42_HSDET_AUTO_DONE			(0x02)
 #define CS42L42_HSTYPE_MASK			(0x03)
-#define CS42L42_JACK_INSERTED			(0x0C)
-#define CS42L42_JACK_REMOVED			(0x00)
 #define CS42L42_I2C_TIMEOUT_US			(20000)
 #define CS42L42_I2C_SLEEP_US			(2000)
 #define CS42L42_PDN_TIMEOUT_US			(250000)
@@ -244,6 +238,8 @@ enum cs8409_coefficient_index_registers {
 #define CS42L42_I2C_ADDR			(0x48 << 1)
 #define CS8409_CS42L42_RESET			GENMASK(5, 5) /* CS8409_GPIO5 */
 #define CS8409_CS42L42_INT			GENMASK(4, 4) /* CS8409_GPIO4 */
+#define CS8409_CYBORG_SPEAKER_PDN		GENMASK(2, 2) /* CS8409_GPIO2 */
+#define CS8409_WARLOCK_SPEAKER_PDN		GENMASK(1, 1) /* CS8409_GPIO1 */
 #define CS8409_CS42L42_HP_PIN_NID		CS8409_PIN_ASP1_TRANSMITTER_A
 #define CS8409_CS42L42_SPK_PIN_NID		CS8409_PIN_ASP2_TRANSMITTER_A
 #define CS8409_CS42L42_AMIC_PIN_NID		CS8409_PIN_ASP1_RECEIVER_A
@@ -273,6 +269,7 @@ enum {
 	CS8409_FIXUPS,
 	CS8409_DOLPHIN,
 	CS8409_DOLPHIN_FIXUPS,
+	CS8409_ODIN,
 };
 
 enum {
@@ -310,7 +307,6 @@ struct sub_codec {
 
 	unsigned int hp_jack_in:1;
 	unsigned int mic_jack_in:1;
-	unsigned int force_status_change:1;
 	unsigned int suspended:1;
 	unsigned int paged:1;
 	unsigned int last_page;
@@ -331,6 +327,8 @@ struct cs8409_spec {
 	unsigned int gpio_mask;
 	unsigned int gpio_dir;
 	unsigned int gpio_data;
+
+	int speaker_pdn_gpio;
 
 	struct mutex i2c_mux;
 	unsigned int i2c_clck_enabled;
@@ -360,13 +358,11 @@ extern const struct snd_pci_quirk cs8409_fixup_tbl[];
 extern const struct hda_model_fixup cs8409_models[];
 extern const struct hda_fixup cs8409_fixups[];
 extern const struct hda_verb cs8409_cs42l42_init_verbs[];
-extern const struct hda_pintbl cs8409_cs42l42_pincfgs[];
 extern const struct cs8409_cir_param cs8409_cs42l42_hw_cfg[];
 extern const struct cs8409_cir_param cs8409_cs42l42_bullseye_atn[];
 extern struct sub_codec cs8409_cs42l42_codec;
 
 extern const struct hda_verb dolphin_init_verbs[];
-extern const struct hda_pintbl dolphin_pincfgs[];
 extern const struct cs8409_cir_param dolphin_hw_cfg[];
 extern struct sub_codec dolphin_cs42l42_0;
 extern struct sub_codec dolphin_cs42l42_1;

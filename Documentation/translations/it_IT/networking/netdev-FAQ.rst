@@ -1,6 +1,6 @@
 .. include:: ../disclaimer-ita.rst
 
-:Original: :ref:`Documentation/networking/netdev-FAQ.rst <netdev-FAQ>`
+:Original: :ref:`Documentation/process/maintainer-netdev.rst <netdev-FAQ>`
 
 .. _it_netdev-FAQ:
 

@@ -27,8 +27,8 @@
 #include "dc.h"
 #include "dm_helpers.h"
 #include "amdgpu_dm.h"
+#include "modules/power/power_helpers.h"
 
-#ifdef CONFIG_DRM_AMD_DC_DCN
 static bool link_supports_psrsu(struct dc_link *link)
 {
 	struct dc *dc = link->ctx->dc;
@@ -37,6 +37,9 @@ static bool link_supports_psrsu(struct dc_link *link)
 		return false;
 
 	if (dc->ctx->dce_version < DCN_VERSION_3_1)
+		return false;
+
+	if (!is_psr_su_specific_panel(link))
 		return false;
 
 	if (!link->dpcd_caps.alpm_caps.bits.AUX_WAKE_ALPM_CAP ||
@@ -49,7 +52,6 @@ static bool link_supports_psrsu(struct dc_link *link)
 
 	return true;
 }
-#endif
 
 /*
  * amdgpu_dm_set_psr_caps() - set link psr capabilities
@@ -69,17 +71,20 @@ void amdgpu_dm_set_psr_caps(struct dc_link *link)
 		link->psr_settings.psr_feature_enabled = false;
 
 	} else {
-#ifdef CONFIG_DRM_AMD_DC_DCN
 		if (link_supports_psrsu(link))
 			link->psr_settings.psr_version = DC_PSR_VERSION_SU_1;
 		else
-#endif
 			link->psr_settings.psr_version = DC_PSR_VERSION_1;
 
 		link->psr_settings.psr_feature_enabled = true;
 	}
 
-	DRM_INFO("PSR support:%d\n", link->psr_settings.psr_feature_enabled);
+	DRM_INFO("PSR support %d, DC PSR ver %d, sink PSR ver %d DPCD caps 0x%x su_y_granularity %d\n",
+		link->psr_settings.psr_feature_enabled,
+		link->psr_settings.psr_version,
+		link->dpcd_caps.psr_info.psr_version,
+		link->dpcd_caps.psr_info.psr_dpcd_caps.raw,
+		link->dpcd_caps.psr_info.psr2_su_y_granularity_cap);
 
 }
 
@@ -94,19 +99,24 @@ bool amdgpu_dm_link_setup_psr(struct dc_stream_state *stream)
 	struct dc_link *link = NULL;
 	struct psr_config psr_config = {0};
 	struct psr_context psr_context = {0};
+	struct dc *dc = NULL;
 	bool ret = false;
 
 	if (stream == NULL)
 		return false;
 
 	link = stream->link;
+	dc = link->ctx->dc;
 
 	if (link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED) {
-		psr_config.psr_version = link->psr_settings.psr_version;
-		psr_config.psr_frame_capture_indication_req = 0;
-		psr_config.psr_rfb_setup_time = 0x37;
-		psr_config.psr_sdp_transmit_line_num_deadline = 0x20;
-		psr_config.allow_smu_optimizations = 0x0;
+		mod_power_calc_psr_configs(&psr_config, link, stream);
+
+		/* linux DM specific updating for psr config fields */
+		psr_config.allow_smu_optimizations =
+			(amdgpu_dc_feature_mask & DC_PSR_ALLOW_SMU_OPT) &&
+			mod_power_only_edp(dc->current_state, stream);
+		psr_config.allow_multi_disp_optimizations =
+			(amdgpu_dc_feature_mask & DC_PSR_ALLOW_MULTI_DISP_OPT);
 
 		ret = dc_link_setup_psr(link, stream, &psr_config, &psr_context);
 

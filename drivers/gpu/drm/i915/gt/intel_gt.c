@@ -26,6 +26,7 @@
 #include "intel_gt_requests.h"
 #include "intel_migrate.h"
 #include "intel_mocs.h"
+#include "intel_pci_config.h"
 #include "intel_pm.h"
 #include "intel_rc6.h"
 #include "intel_renderstate.h"
@@ -837,7 +838,7 @@ int intel_gt_probe_all(struct drm_i915_private *i915)
 	unsigned int i;
 	int ret;
 
-	mmio_bar = GRAPHICS_VER(i915) == 2 ? 1 : 0;
+	mmio_bar = GRAPHICS_VER(i915) == 2 ? GEN2_GTTMMADR_BAR : GTTMMADR_BAR;
 	phys_addr = pci_resource_start(pdev, mmio_bar);
 
 	/*
@@ -847,7 +848,7 @@ int intel_gt_probe_all(struct drm_i915_private *i915)
 	 */
 	gt->i915 = i915;
 	gt->name = "Primary GT";
-	gt->info.engine_mask = INTEL_INFO(i915)->platform_engine_mask;
+	gt->info.engine_mask = RUNTIME_INFO(i915)->platform_engine_mask;
 
 	drm_dbg(&i915->drm, "Setting up %s\n", gt->name);
 	ret = intel_gt_tile_setup(gt, phys_addr);

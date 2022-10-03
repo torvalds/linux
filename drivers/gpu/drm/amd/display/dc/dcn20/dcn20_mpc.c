@@ -299,24 +299,24 @@ static enum dc_lut_mode mpc20_get_ogam_current(struct mpc *mpc, int mpcc_id)
 	uint32_t state_mode;
 	struct dcn20_mpc *mpc20 = TO_DCN20_MPC(mpc);
 
-	REG_GET(MPCC_OGAM_LUT_RAM_CONTROL[mpcc_id],
-			MPCC_OGAM_CONFIG_STATUS, &state_mode);
+	REG_GET(MPCC_OGAM_LUT_RAM_CONTROL[mpcc_id], MPCC_OGAM_CONFIG_STATUS, &state_mode);
 
-		switch (state_mode) {
-		case 0:
-			mode = LUT_BYPASS;
-			break;
-		case 1:
-			mode = LUT_RAM_A;
-			break;
-		case 2:
-			mode = LUT_RAM_B;
-			break;
-		default:
-			mode = LUT_BYPASS;
-			break;
-		}
-		return mode;
+	switch (state_mode) {
+	case 0:
+		mode = LUT_BYPASS;
+		break;
+	case 1:
+		mode = LUT_RAM_A;
+		break;
+	case 2:
+		mode = LUT_RAM_B;
+		break;
+	default:
+		mode = LUT_BYPASS;
+		break;
+	}
+
+	return mode;
 }
 
 static void mpc2_program_lutb(struct mpc *mpc, int mpcc_id,
@@ -531,6 +531,12 @@ static struct mpcc *mpc2_get_mpcc_for_dpp(struct mpc_tree *tree, int dpp_id)
 	while (tmp_mpcc != NULL) {
 		if (tmp_mpcc->dpp_id == 0xf || tmp_mpcc->dpp_id == dpp_id)
 			return tmp_mpcc;
+
+		/* avoid circular linked list */
+		ASSERT(tmp_mpcc != tmp_mpcc->mpcc_bot);
+		if (tmp_mpcc == tmp_mpcc->mpcc_bot)
+			break;
+
 		tmp_mpcc = tmp_mpcc->mpcc_bot;
 	}
 	return NULL;

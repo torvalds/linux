@@ -296,8 +296,7 @@ static int delay_map(struct dm_target *ti, struct bio *bio)
 	}
 	delayed->class = c;
 	bio_set_dev(bio, c->dev->bdev);
-	if (bio_sectors(bio))
-		bio->bi_iter.bi_sector = c->start + dm_target_offset(ti, bio->bi_iter.bi_sector);
+	bio->bi_iter.bi_sector = c->start + dm_target_offset(ti, bio->bi_iter.bi_sector);
 
 	return delay_bio(dc, c, bio);
 }

@@ -188,7 +188,8 @@ enum {
 
 #ifdef CONFIG_SMP
 static int
-__irq_startup_managed(struct irq_desc *desc, struct cpumask *aff, bool force)
+__irq_startup_managed(struct irq_desc *desc, const struct cpumask *aff,
+		      bool force)
 {
 	struct irq_data *d = irq_desc_get_irq_data(desc);
 
@@ -224,7 +225,8 @@ __irq_startup_managed(struct irq_desc *desc, struct cpumask *aff, bool force)
 }
 #else
 static __always_inline int
-__irq_startup_managed(struct irq_desc *desc, struct cpumask *aff, bool force)
+__irq_startup_managed(struct irq_desc *desc, const struct cpumask *aff,
+		      bool force)
 {
 	return IRQ_STARTUP_NORMAL;
 }
@@ -252,7 +254,7 @@ static int __irq_startup(struct irq_desc *desc)
 int irq_startup(struct irq_desc *desc, bool resend, bool force)
 {
 	struct irq_data *d = irq_desc_get_irq_data(desc);
-	struct cpumask *aff = irq_data_get_affinity_mask(d);
+	const struct cpumask *aff = irq_data_get_affinity_mask(d);
 	int ret = 0;
 
 	desc->depth = 0;
@@ -1006,8 +1008,10 @@ __irq_do_set_handler(struct irq_desc *desc, irq_flow_handler_t handle,
 		if (desc->irq_data.chip != &no_irq_chip)
 			mask_ack_irq(desc);
 		irq_state_set_disabled(desc);
-		if (is_chained)
+		if (is_chained) {
 			desc->action = NULL;
+			WARN_ON(irq_chip_pm_put(irq_desc_get_irq_data(desc)));
+		}
 		desc->depth = 1;
 	}
 	desc->handle_irq = handle;
@@ -1033,6 +1037,7 @@ __irq_do_set_handler(struct irq_desc *desc, irq_flow_handler_t handle,
 		irq_settings_set_norequest(desc);
 		irq_settings_set_nothread(desc);
 		desc->action = &chained_action;
+		WARN_ON(irq_chip_pm_get(irq_desc_get_irq_data(desc)));
 		irq_activate_and_startup(desc, IRQ_RESEND);
 	}
 }
@@ -1513,7 +1518,8 @@ int irq_chip_request_resources_parent(struct irq_data *data)
 	if (data->chip->irq_request_resources)
 		return data->chip->irq_request_resources(data);
 
-	return -ENOSYS;
+	/* no error on missing optional irq_chip::irq_request_resources */
+	return 0;
 }
 EXPORT_SYMBOL_GPL(irq_chip_request_resources_parent);
 
@@ -1573,17 +1579,12 @@ static struct device *irq_get_parent_device(struct irq_data *data)
 int irq_chip_pm_get(struct irq_data *data)
 {
 	struct device *dev = irq_get_parent_device(data);
-	int retval;
+	int retval = 0;
 
-	if (IS_ENABLED(CONFIG_PM) && dev) {
-		retval = pm_runtime_get_sync(dev);
-		if (retval < 0) {
-			pm_runtime_put_noidle(dev);
-			return retval;
-		}
-	}
+	if (IS_ENABLED(CONFIG_PM) && dev)
+		retval = pm_runtime_resume_and_get(dev);
 
-	return 0;
+	return retval;
 }
 
 /**

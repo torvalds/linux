@@ -184,7 +184,7 @@ static int __xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 	xsk_xdp = xsk_buff_alloc(xs->pool);
 	if (!xsk_xdp) {
 		xs->rx_dropped++;
-		return -ENOSPC;
+		return -ENOMEM;
 	}
 
 	xsk_copy_xdp(xsk_xdp, xdp, len);
@@ -217,7 +217,7 @@ static bool xsk_is_bound(struct xdp_sock *xs)
 static int xsk_rcv_check(struct xdp_sock *xs, struct xdp_buff *xdp)
 {
 	if (!xsk_is_bound(xs))
-		return -EINVAL;
+		return -ENXIO;
 
 	if (xs->dev != xdp->rxq->dev || xs->queue_id != xdp->rxq->queue_index)
 		return -EINVAL;
@@ -373,7 +373,8 @@ u32 xsk_tx_peek_release_desc_batch(struct xsk_buff_pool *pool, u32 max_entries)
 		goto out;
 	}
 
-	nb_pkts = xskq_cons_peek_desc_batch(xs->tx, pool, max_entries);
+	max_entries = xskq_cons_nb_entries(xs->tx, max_entries);
+	nb_pkts = xskq_cons_read_desc_batch(xs->tx, pool, max_entries);
 	if (!nb_pkts) {
 		xs->tx->queue_empty_descs++;
 		goto out;
@@ -389,7 +390,7 @@ u32 xsk_tx_peek_release_desc_batch(struct xsk_buff_pool *pool, u32 max_entries)
 	if (!nb_pkts)
 		goto out;
 
-	xskq_cons_release_n(xs->tx, nb_pkts);
+	xskq_cons_release_n(xs->tx, max_entries);
 	__xskq_cons_release(xs->tx);
 	xs->sk.sk_write_space(&xs->sk);
 
@@ -537,12 +538,6 @@ static int xsk_generic_xmit(struct sock *sk)
 			goto out;
 		}
 
-		skb = xsk_build_skb(xs, &desc);
-		if (IS_ERR(skb)) {
-			err = PTR_ERR(skb);
-			goto out;
-		}
-
 		/* This is the backpressure mechanism for the Tx path.
 		 * Reserve space in the completion queue and only proceed
 		 * if there is space in it. This avoids having to implement
@@ -551,10 +546,18 @@ static int xsk_generic_xmit(struct sock *sk)
 		spin_lock_irqsave(&xs->pool->cq_lock, flags);
 		if (xskq_prod_reserve(xs->pool->cq)) {
 			spin_unlock_irqrestore(&xs->pool->cq_lock, flags);
-			kfree_skb(skb);
 			goto out;
 		}
 		spin_unlock_irqrestore(&xs->pool->cq_lock, flags);
+
+		skb = xsk_build_skb(xs, &desc);
+		if (IS_ERR(skb)) {
+			err = PTR_ERR(skb);
+			spin_lock_irqsave(&xs->pool->cq_lock, flags);
+			xskq_prod_cancel(xs->pool->cq);
+			spin_unlock_irqrestore(&xs->pool->cq_lock, flags);
+			goto out;
+		}
 
 		err = __dev_direct_xmit(skb, xs->queue_id);
 		if  (err == NETDEV_TX_BUSY) {
@@ -636,10 +639,13 @@ static int __xsk_sendmsg(struct socket *sock, struct msghdr *m, size_t total_len
 	if (unlikely(need_wait))
 		return -EOPNOTSUPP;
 
-	if (sk_can_busy_loop(sk))
+	if (sk_can_busy_loop(sk)) {
+		if (xs->zc)
+			__sk_mark_napi_id_once(sk, xsk_pool_get_napi_id(xs->pool));
 		sk_busy_loop(sk, 1); /* only support non-blocking sockets */
+	}
 
-	if (xsk_no_wakeup(sk))
+	if (xs->zc && xsk_no_wakeup(sk))
 		return 0;
 
 	pool = xs->pool;
@@ -967,6 +973,19 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 
 			xp_get_pool(umem_xs->pool);
 			xs->pool = umem_xs->pool;
+
+			/* If underlying shared umem was created without Tx
+			 * ring, allocate Tx descs array that Tx batching API
+			 * utilizes
+			 */
+			if (xs->tx && !xs->pool->tx_descs) {
+				err = xp_alloc_tx_descs(xs->pool, xs);
+				if (err) {
+					xp_put_pool(xs->pool);
+					sockfd_put(sock);
+					goto out_unlock;
+				}
+			}
 		}
 
 		xdp_get_umem(umem_xs->umem);

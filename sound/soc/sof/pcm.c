@@ -82,8 +82,10 @@ void snd_sof_pcm_period_elapsed(struct snd_pcm_substream *substream)
 }
 EXPORT_SYMBOL(snd_sof_pcm_period_elapsed);
 
-int sof_pcm_setup_connected_widgets(struct snd_sof_dev *sdev, struct snd_soc_pcm_runtime *rtd,
-				    struct snd_sof_pcm *spcm, int dir)
+static int
+sof_pcm_setup_connected_widgets(struct snd_sof_dev *sdev, struct snd_soc_pcm_runtime *rtd,
+				struct snd_sof_pcm *spcm, struct snd_pcm_hw_params *params,
+				struct snd_sof_platform_stream_params *platform_params, int dir)
 {
 	struct snd_soc_dai *dai;
 	int ret, j;
@@ -102,7 +104,7 @@ int sof_pcm_setup_connected_widgets(struct snd_sof_dev *sdev, struct snd_soc_pcm
 
 		spcm->stream[dir].list = list;
 
-		ret = sof_widget_list_setup(sdev, spcm, dir);
+		ret = sof_widget_list_setup(sdev, spcm, params, platform_params, dir);
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: failed widget list set up for pcm %d dir %d\n",
 				spcm->pcm.pcm_id, dir);
@@ -150,9 +152,16 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 	dev_dbg(component->dev, "pcm: hw params stream %d dir %d\n",
 		spcm->pcm.pcm_id, substream->stream);
 
+	ret = snd_sof_pcm_platform_hw_params(sdev, substream, params, &platform_params);
+	if (ret < 0) {
+		dev_err(component->dev, "platform hw params failed\n");
+		return ret;
+	}
+
 	/* if this is a repeated hw_params without hw_free, skip setting up widgets */
 	if (!spcm->stream[substream->stream].list) {
-		ret = sof_pcm_setup_connected_widgets(sdev, rtd, spcm, substream->stream);
+		ret = sof_pcm_setup_connected_widgets(sdev, rtd, spcm, params, &platform_params,
+						      substream->stream);
 		if (ret < 0)
 			return ret;
 	}
@@ -164,12 +173,6 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 
 		if (ret < 0)
 			return ret;
-	}
-
-	ret = snd_sof_pcm_platform_hw_params(sdev, substream, params, &platform_params);
-	if (ret < 0) {
-		dev_err(component->dev, "platform hw params failed\n");
-		return ret;
 	}
 
 	if (pcm_ops->hw_params) {
@@ -347,12 +350,9 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 		snd_sof_pcm_platform_trigger(sdev, substream, cmd);
 
 	/* free PCM if reset_hw_params is set and the STOP IPC is successful */
-	if (!ret && reset_hw_params) {
+	if (!ret && reset_hw_params)
 		ret = sof_pcm_stream_free(sdev, substream, spcm, substream->stream,
 					  free_widget_list);
-		if (ret < 0)
-			return ret;
-	}
 
 	return ret;
 }
@@ -396,7 +396,7 @@ static int sof_pcm_open(struct snd_soc_component *component,
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
-	const struct snd_sof_dsp_ops *ops = sof_ops(sdev);
+	struct snd_sof_dsp_ops *ops = sof_ops(sdev);
 	struct snd_sof_pcm *spcm;
 	struct snd_soc_tplg_stream_caps *caps;
 	int ret;
@@ -604,6 +604,14 @@ static int sof_pcm_probe(struct snd_soc_component *component)
 	const char *tplg_filename;
 	int ret;
 
+	/*
+	 * make sure the device is pm_runtime_active before loading the
+	 * topology and initiating IPC or bus transactions
+	 */
+	ret = pm_runtime_resume_and_get(component->dev);
+	if (ret < 0 && ret != -EACCES)
+		return ret;
+
 	/* load the default topology */
 	sdev->component = component;
 
@@ -620,6 +628,9 @@ static int sof_pcm_probe(struct snd_soc_component *component)
 			ret);
 		return ret;
 	}
+
+	pm_runtime_mark_last_busy(component->dev);
+	pm_runtime_put_autosuspend(component->dev);
 
 	return ret;
 }
@@ -671,4 +682,6 @@ void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
 
 	 /* increment module refcount when a pcm is opened */
 	pd->module_get_upon_open = 1;
+
+	pd->legacy_dai_naming = 1;
 }

@@ -34,18 +34,11 @@
 #include "trace.h"
 
 /*
- * All of this file is extremely similar to the ARM coproc.c, but the
- * types are different. My gut feeling is that it should be pretty
- * easy to merge, but that would be an ABI breakage -- again. VFP
- * would also need to be abstracted.
- *
  * For AArch32, we only take care of what is being trapped. Anything
  * that has to do with init and userspace access has to go via the
  * 64bit interface.
  */
 
-static int reg_from_user(u64 *val, const void __user *uaddr, u64 id);
-static int reg_to_user(void __user *uaddr, const u64 *val, u64 id);
 static u64 sys_reg_to_index(const struct sys_reg_desc *reg);
 
 static bool read_from_write_only(struct kvm_vcpu *vcpu,
@@ -72,7 +65,7 @@ u64 vcpu_read_sys_reg(const struct kvm_vcpu *vcpu, int reg)
 {
 	u64 val = 0x8badf00d8badf00d;
 
-	if (vcpu->arch.sysregs_loaded_on_cpu &&
+	if (vcpu_get_flag(vcpu, SYSREGS_ON_CPU) &&
 	    __vcpu_read_sys_reg_from_cpu(reg, &val))
 		return val;
 
@@ -81,7 +74,7 @@ u64 vcpu_read_sys_reg(const struct kvm_vcpu *vcpu, int reg)
 
 void vcpu_write_sys_reg(struct kvm_vcpu *vcpu, u64 val, int reg)
 {
-	if (vcpu->arch.sysregs_loaded_on_cpu &&
+	if (vcpu_get_flag(vcpu, SYSREGS_ON_CPU) &&
 	    __vcpu_write_sys_reg_to_cpu(val, reg))
 		return;
 
@@ -321,16 +314,8 @@ static bool trap_oslsr_el1(struct kvm_vcpu *vcpu,
 }
 
 static int set_oslsr_el1(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-			 const struct kvm_one_reg *reg, void __user *uaddr)
+			 u64 val)
 {
-	u64 id = sys_reg_to_index(rd);
-	u64 val;
-	int err;
-
-	err = reg_from_user(&val, uaddr, id);
-	if (err)
-		return err;
-
 	/*
 	 * The only modifiable bit is the OSLK bit. Refuse the write if
 	 * userspace attempts to change any other bit in the register.
@@ -387,7 +372,7 @@ static bool trap_debug_regs(struct kvm_vcpu *vcpu,
 {
 	if (p->is_write) {
 		vcpu_write_sys_reg(vcpu, p->regval, r->reg);
-		vcpu->arch.flags |= KVM_ARM64_DEBUG_DIRTY;
+		vcpu_set_flag(vcpu, DEBUG_DIRTY);
 	} else {
 		p->regval = vcpu_read_sys_reg(vcpu, r->reg);
 	}
@@ -403,8 +388,8 @@ static bool trap_debug_regs(struct kvm_vcpu *vcpu,
  * A 32 bit write to a debug register leave top bits alone
  * A 32 bit read from a debug register only returns the bottom bits
  *
- * All writes will set the KVM_ARM64_DEBUG_DIRTY flag to ensure the
- * hyp.S code switches between host and guest values in future.
+ * All writes will set the DEBUG_DIRTY flag to ensure the hyp code
+ * switches between host and guest values in future.
  */
 static void reg_to_dbg(struct kvm_vcpu *vcpu,
 		       struct sys_reg_params *p,
@@ -420,7 +405,7 @@ static void reg_to_dbg(struct kvm_vcpu *vcpu,
 	val |= (p->regval & (mask >> shift)) << shift;
 	*dbg_reg = val;
 
-	vcpu->arch.flags |= KVM_ARM64_DEBUG_DIRTY;
+	vcpu_set_flag(vcpu, DEBUG_DIRTY);
 }
 
 static void dbg_to_reg(struct kvm_vcpu *vcpu,
@@ -451,22 +436,16 @@ static bool trap_bvr(struct kvm_vcpu *vcpu,
 }
 
 static int set_bvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		const struct kvm_one_reg *reg, void __user *uaddr)
+		   u64 val)
 {
-	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_bvr[rd->CRm];
-
-	if (copy_from_user(r, uaddr, KVM_REG_SIZE(reg->id)) != 0)
-		return -EFAULT;
+	vcpu->arch.vcpu_debug_state.dbg_bvr[rd->CRm] = val;
 	return 0;
 }
 
 static int get_bvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-	const struct kvm_one_reg *reg, void __user *uaddr)
+		   u64 *val)
 {
-	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_bvr[rd->CRm];
-
-	if (copy_to_user(uaddr, r, KVM_REG_SIZE(reg->id)) != 0)
-		return -EFAULT;
+	*val = vcpu->arch.vcpu_debug_state.dbg_bvr[rd->CRm];
 	return 0;
 }
 
@@ -493,23 +472,16 @@ static bool trap_bcr(struct kvm_vcpu *vcpu,
 }
 
 static int set_bcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		const struct kvm_one_reg *reg, void __user *uaddr)
+		   u64 val)
 {
-	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_bcr[rd->CRm];
-
-	if (copy_from_user(r, uaddr, KVM_REG_SIZE(reg->id)) != 0)
-		return -EFAULT;
-
+	vcpu->arch.vcpu_debug_state.dbg_bcr[rd->CRm] = val;
 	return 0;
 }
 
 static int get_bcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-	const struct kvm_one_reg *reg, void __user *uaddr)
+		   u64 *val)
 {
-	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_bcr[rd->CRm];
-
-	if (copy_to_user(uaddr, r, KVM_REG_SIZE(reg->id)) != 0)
-		return -EFAULT;
+	*val = vcpu->arch.vcpu_debug_state.dbg_bcr[rd->CRm];
 	return 0;
 }
 
@@ -537,22 +509,16 @@ static bool trap_wvr(struct kvm_vcpu *vcpu,
 }
 
 static int set_wvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		const struct kvm_one_reg *reg, void __user *uaddr)
+		   u64 val)
 {
-	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_wvr[rd->CRm];
-
-	if (copy_from_user(r, uaddr, KVM_REG_SIZE(reg->id)) != 0)
-		return -EFAULT;
+	vcpu->arch.vcpu_debug_state.dbg_wvr[rd->CRm] = val;
 	return 0;
 }
 
 static int get_wvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-	const struct kvm_one_reg *reg, void __user *uaddr)
+		   u64 *val)
 {
-	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_wvr[rd->CRm];
-
-	if (copy_to_user(uaddr, r, KVM_REG_SIZE(reg->id)) != 0)
-		return -EFAULT;
+	*val = vcpu->arch.vcpu_debug_state.dbg_wvr[rd->CRm];
 	return 0;
 }
 
@@ -579,22 +545,16 @@ static bool trap_wcr(struct kvm_vcpu *vcpu,
 }
 
 static int set_wcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		const struct kvm_one_reg *reg, void __user *uaddr)
+		   u64 val)
 {
-	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_wcr[rd->CRm];
-
-	if (copy_from_user(r, uaddr, KVM_REG_SIZE(reg->id)) != 0)
-		return -EFAULT;
+	vcpu->arch.vcpu_debug_state.dbg_wcr[rd->CRm] = val;
 	return 0;
 }
 
 static int get_wcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-	const struct kvm_one_reg *reg, void __user *uaddr)
+		   u64 *val)
 {
-	__u64 *r = &vcpu->arch.vcpu_debug_state.dbg_wcr[rd->CRm];
-
-	if (copy_to_user(uaddr, r, KVM_REG_SIZE(reg->id)) != 0)
-		return -EFAULT;
+	*val = vcpu->arch.vcpu_debug_state.dbg_wcr[rd->CRm];
 	return 0;
 }
 
@@ -692,7 +652,7 @@ static void reset_pmcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 	 */
 	val = ((pmcr & ~ARMV8_PMU_PMCR_MASK)
 	       | (ARMV8_PMU_PMCR_MASK & 0xdecafbad)) & (~ARMV8_PMU_PMCR_E);
-	if (!system_supports_32bit_el0())
+	if (!kvm_supports_32bit_el0())
 		val |= ARMV8_PMU_PMCR_LC;
 	__vcpu_sys_reg(vcpu, r->reg) = val;
 }
@@ -741,7 +701,7 @@ static bool access_pmcr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 		val = __vcpu_sys_reg(vcpu, PMCR_EL0);
 		val &= ~ARMV8_PMU_PMCR_MASK;
 		val |= p->regval & ARMV8_PMU_PMCR_MASK;
-		if (!system_supports_32bit_el0())
+		if (!kvm_supports_32bit_el0())
 			val |= ARMV8_PMU_PMCR_LC;
 		__vcpu_sys_reg(vcpu, PMCR_EL0) = val;
 		kvm_pmu_handle_pmcr(vcpu, val);
@@ -1123,8 +1083,7 @@ static u64 read_id_reg(const struct kvm_vcpu *vcpu,
 		val |= FIELD_PREP(ARM64_FEATURE_MASK(ID_AA64PFR0_CSV2), (u64)vcpu->kvm->arch.pfr0_csv2);
 		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR0_CSV3);
 		val |= FIELD_PREP(ARM64_FEATURE_MASK(ID_AA64PFR0_CSV3), (u64)vcpu->kvm->arch.pfr0_csv3);
-		if (irqchip_in_kernel(vcpu->kvm) &&
-		    vcpu->kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3) {
+		if (kvm_vgic_global_state.type == VGIC_V3) {
 			val &= ~ARM64_FEATURE_MASK(ID_AA64PFR0_GIC);
 			val |= FIELD_PREP(ARM64_FEATURE_MASK(ID_AA64PFR0_GIC), 1);
 		}
@@ -1132,18 +1091,22 @@ static u64 read_id_reg(const struct kvm_vcpu *vcpu,
 	case SYS_ID_AA64PFR1_EL1:
 		if (!kvm_has_mte(vcpu->kvm))
 			val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_MTE);
+
+		val &= ~ARM64_FEATURE_MASK(ID_AA64PFR1_SME);
 		break;
 	case SYS_ID_AA64ISAR1_EL1:
 		if (!vcpu_has_ptrauth(vcpu))
-			val &= ~(ARM64_FEATURE_MASK(ID_AA64ISAR1_APA) |
-				 ARM64_FEATURE_MASK(ID_AA64ISAR1_API) |
-				 ARM64_FEATURE_MASK(ID_AA64ISAR1_GPA) |
-				 ARM64_FEATURE_MASK(ID_AA64ISAR1_GPI));
+			val &= ~(ARM64_FEATURE_MASK(ID_AA64ISAR1_EL1_APA) |
+				 ARM64_FEATURE_MASK(ID_AA64ISAR1_EL1_API) |
+				 ARM64_FEATURE_MASK(ID_AA64ISAR1_EL1_GPA) |
+				 ARM64_FEATURE_MASK(ID_AA64ISAR1_EL1_GPI));
 		break;
 	case SYS_ID_AA64ISAR2_EL1:
 		if (!vcpu_has_ptrauth(vcpu))
-			val &= ~(ARM64_FEATURE_MASK(ID_AA64ISAR2_APA3) |
-				 ARM64_FEATURE_MASK(ID_AA64ISAR2_GPA3));
+			val &= ~(ARM64_FEATURE_MASK(ID_AA64ISAR2_EL1_APA3) |
+				 ARM64_FEATURE_MASK(ID_AA64ISAR2_EL1_GPA3));
+		if (!cpus_have_final_cap(ARM64_HAS_WFXT))
+			val &= ~ARM64_FEATURE_MASK(ID_AA64ISAR2_EL1_WFxT);
 		break;
 	case SYS_ID_AA64DFR0_EL1:
 		/* Limit debug to ARMv8.0 */
@@ -1224,16 +1187,9 @@ static unsigned int sve_visibility(const struct kvm_vcpu *vcpu,
 
 static int set_id_aa64pfr0_el1(struct kvm_vcpu *vcpu,
 			       const struct sys_reg_desc *rd,
-			       const struct kvm_one_reg *reg, void __user *uaddr)
+			       u64 val)
 {
-	const u64 id = sys_reg_to_index(rd);
 	u8 csv2, csv3;
-	int err;
-	u64 val;
-
-	err = reg_from_user(&val, uaddr, id);
-	if (err)
-		return err;
 
 	/*
 	 * Allow AA64PFR0_EL1.CSV2 to be set from userspace as long as
@@ -1259,7 +1215,7 @@ static int set_id_aa64pfr0_el1(struct kvm_vcpu *vcpu,
 		return -EINVAL;
 
 	vcpu->kvm->arch.pfr0_csv2 = csv2;
-	vcpu->kvm->arch.pfr0_csv3 = csv3 ;
+	vcpu->kvm->arch.pfr0_csv3 = csv3;
 
 	return 0;
 }
@@ -1272,27 +1228,17 @@ static int set_id_aa64pfr0_el1(struct kvm_vcpu *vcpu,
  * to be changed.
  */
 static int __get_id_reg(const struct kvm_vcpu *vcpu,
-			const struct sys_reg_desc *rd, void __user *uaddr,
+			const struct sys_reg_desc *rd, u64 *val,
 			bool raz)
 {
-	const u64 id = sys_reg_to_index(rd);
-	const u64 val = read_id_reg(vcpu, rd, raz);
-
-	return reg_to_user(uaddr, &val, id);
+	*val = read_id_reg(vcpu, rd, raz);
+	return 0;
 }
 
 static int __set_id_reg(const struct kvm_vcpu *vcpu,
-			const struct sys_reg_desc *rd, void __user *uaddr,
+			const struct sys_reg_desc *rd, u64 val,
 			bool raz)
 {
-	const u64 id = sys_reg_to_index(rd);
-	int err;
-	u64 val;
-
-	err = reg_from_user(&val, uaddr, id);
-	if (err)
-		return err;
-
 	/* This is what we mean by invariant: you can't change it. */
 	if (val != read_id_reg(vcpu, rd, raz))
 		return -EINVAL;
@@ -1301,47 +1247,37 @@ static int __set_id_reg(const struct kvm_vcpu *vcpu,
 }
 
 static int get_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		      const struct kvm_one_reg *reg, void __user *uaddr)
+		      u64 *val)
 {
 	bool raz = sysreg_visible_as_raz(vcpu, rd);
 
-	return __get_id_reg(vcpu, rd, uaddr, raz);
+	return __get_id_reg(vcpu, rd, val, raz);
 }
 
 static int set_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		      const struct kvm_one_reg *reg, void __user *uaddr)
+		      u64 val)
 {
 	bool raz = sysreg_visible_as_raz(vcpu, rd);
 
-	return __set_id_reg(vcpu, rd, uaddr, raz);
+	return __set_id_reg(vcpu, rd, val, raz);
 }
 
 static int set_raz_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-			  const struct kvm_one_reg *reg, void __user *uaddr)
+			  u64 val)
 {
-	return __set_id_reg(vcpu, rd, uaddr, true);
+	return __set_id_reg(vcpu, rd, val, true);
 }
 
 static int get_raz_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		       const struct kvm_one_reg *reg, void __user *uaddr)
+		       u64 *val)
 {
-	const u64 id = sys_reg_to_index(rd);
-	const u64 val = 0;
-
-	return reg_to_user(uaddr, &val, id);
+	*val = 0;
+	return 0;
 }
 
 static int set_wi_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		      const struct kvm_one_reg *reg, void __user *uaddr)
+		      u64 val)
 {
-	int err;
-	u64 val;
-
-	/* Perform the access even if we are going to ignore the value */
-	err = reg_from_user(&val, uaddr, sys_reg_to_index(rd));
-	if (err)
-		return err;
-
 	return 0;
 }
 
@@ -1553,7 +1489,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	ID_UNALLOCATED(4,2),
 	ID_UNALLOCATED(4,3),
 	ID_SANITISED(ID_AA64ZFR0_EL1),
-	ID_UNALLOCATED(4,5),
+	ID_HIDDEN(ID_AA64SMFR0_EL1),
 	ID_UNALLOCATED(4,6),
 	ID_UNALLOCATED(4,7),
 
@@ -1596,6 +1532,8 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 
 	{ SYS_DESC(SYS_ZCR_EL1), NULL, reset_val, ZCR_EL1, 0, .visibility = sve_visibility },
 	{ SYS_DESC(SYS_TRFCR_EL1), undef_access },
+	{ SYS_DESC(SYS_SMPRI_EL1), undef_access },
+	{ SYS_DESC(SYS_SMCR_EL1), undef_access },
 	{ SYS_DESC(SYS_TTBR0_EL1), access_vm_reg, reset_unknown, TTBR0_EL1 },
 	{ SYS_DESC(SYS_TTBR1_EL1), access_vm_reg, reset_unknown, TTBR1_EL1 },
 	{ SYS_DESC(SYS_TCR_EL1), access_vm_reg, reset_val, TCR_EL1, 0 },
@@ -1678,8 +1616,10 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 
 	{ SYS_DESC(SYS_CCSIDR_EL1), access_ccsidr },
 	{ SYS_DESC(SYS_CLIDR_EL1), access_clidr },
+	{ SYS_DESC(SYS_SMIDR_EL1), undef_access },
 	{ SYS_DESC(SYS_CSSELR_EL1), access_csselr, reset_unknown, CSSELR_EL1 },
 	{ SYS_DESC(SYS_CTR_EL0), access_ctr },
+	{ SYS_DESC(SYS_SVCR), undef_access },
 
 	{ PMU_SYS_REG(SYS_PMCR_EL0), .access = access_pmcr,
 	  .reset = reset_pmcr, .reg = PMCR_EL0 },
@@ -1719,6 +1659,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 
 	{ SYS_DESC(SYS_TPIDR_EL0), NULL, reset_unknown, TPIDR_EL0 },
 	{ SYS_DESC(SYS_TPIDRRO_EL0), NULL, reset_unknown, TPIDRRO_EL0 },
+	{ SYS_DESC(SYS_TPIDR2_EL0), undef_access },
 
 	{ SYS_DESC(SYS_SCXTNUM_EL0), undef_access },
 
@@ -2014,20 +1955,22 @@ static const struct sys_reg_desc cp14_64_regs[] = {
 	{ Op1( 0), CRm( 2), .access = trap_raz_wi },
 };
 
+#define CP15_PMU_SYS_REG(_map, _Op1, _CRn, _CRm, _Op2)			\
+	AA32(_map),							\
+	Op1(_Op1), CRn(_CRn), CRm(_CRm), Op2(_Op2),			\
+	.visibility = pmu_visibility
+
 /* Macro to expand the PMEVCNTRn register */
 #define PMU_PMEVCNTR(n)							\
-	/* PMEVCNTRn */							\
-	{ Op1(0), CRn(0b1110),						\
-	  CRm((0b1000 | (((n) >> 3) & 0x3))), Op2(((n) & 0x7)),		\
-	  access_pmu_evcntr }
+	{ CP15_PMU_SYS_REG(DIRECT, 0, 0b1110,				\
+	  (0b1000 | (((n) >> 3) & 0x3)), ((n) & 0x7)),			\
+	  .access = access_pmu_evcntr }
 
 /* Macro to expand the PMEVTYPERn register */
 #define PMU_PMEVTYPER(n)						\
-	/* PMEVTYPERn */						\
-	{ Op1(0), CRn(0b1110),						\
-	  CRm((0b1100 | (((n) >> 3) & 0x3))), Op2(((n) & 0x7)),		\
-	  access_pmu_evtyper }
-
+	{ CP15_PMU_SYS_REG(DIRECT, 0, 0b1110,				\
+	  (0b1100 | (((n) >> 3) & 0x3)), ((n) & 0x7)),			\
+	  .access = access_pmu_evtyper }
 /*
  * Trapped cp15 registers. TTBR0/TTBR1 get a double encoding,
  * depending on the way they are accessed (as a 32bit or a 64bit
@@ -2067,25 +2010,25 @@ static const struct sys_reg_desc cp15_regs[] = {
 	{ Op1( 0), CRn( 7), CRm(14), Op2( 2), access_dcsw },
 
 	/* PMU */
-	{ Op1( 0), CRn( 9), CRm(12), Op2( 0), access_pmcr },
-	{ Op1( 0), CRn( 9), CRm(12), Op2( 1), access_pmcnten },
-	{ Op1( 0), CRn( 9), CRm(12), Op2( 2), access_pmcnten },
-	{ Op1( 0), CRn( 9), CRm(12), Op2( 3), access_pmovs },
-	{ Op1( 0), CRn( 9), CRm(12), Op2( 4), access_pmswinc },
-	{ Op1( 0), CRn( 9), CRm(12), Op2( 5), access_pmselr },
-	{ AA32(LO), Op1( 0), CRn( 9), CRm(12), Op2( 6), access_pmceid },
-	{ AA32(LO), Op1( 0), CRn( 9), CRm(12), Op2( 7), access_pmceid },
-	{ Op1( 0), CRn( 9), CRm(13), Op2( 0), access_pmu_evcntr },
-	{ Op1( 0), CRn( 9), CRm(13), Op2( 1), access_pmu_evtyper },
-	{ Op1( 0), CRn( 9), CRm(13), Op2( 2), access_pmu_evcntr },
-	{ Op1( 0), CRn( 9), CRm(14), Op2( 0), access_pmuserenr },
-	{ Op1( 0), CRn( 9), CRm(14), Op2( 1), access_pminten },
-	{ Op1( 0), CRn( 9), CRm(14), Op2( 2), access_pminten },
-	{ Op1( 0), CRn( 9), CRm(14), Op2( 3), access_pmovs },
-	{ AA32(HI), Op1( 0), CRn( 9), CRm(14), Op2( 4), access_pmceid },
-	{ AA32(HI), Op1( 0), CRn( 9), CRm(14), Op2( 5), access_pmceid },
+	{ CP15_PMU_SYS_REG(DIRECT, 0, 9, 12, 0), .access = access_pmcr },
+	{ CP15_PMU_SYS_REG(DIRECT, 0, 9, 12, 1), .access = access_pmcnten },
+	{ CP15_PMU_SYS_REG(DIRECT, 0, 9, 12, 2), .access = access_pmcnten },
+	{ CP15_PMU_SYS_REG(DIRECT, 0, 9, 12, 3), .access = access_pmovs },
+	{ CP15_PMU_SYS_REG(DIRECT, 0, 9, 12, 4), .access = access_pmswinc },
+	{ CP15_PMU_SYS_REG(DIRECT, 0, 9, 12, 5), .access = access_pmselr },
+	{ CP15_PMU_SYS_REG(LO,     0, 9, 12, 6), .access = access_pmceid },
+	{ CP15_PMU_SYS_REG(LO,     0, 9, 12, 7), .access = access_pmceid },
+	{ CP15_PMU_SYS_REG(DIRECT, 0, 9, 13, 0), .access = access_pmu_evcntr },
+	{ CP15_PMU_SYS_REG(DIRECT, 0, 9, 13, 1), .access = access_pmu_evtyper },
+	{ CP15_PMU_SYS_REG(DIRECT, 0, 9, 13, 2), .access = access_pmu_evcntr },
+	{ CP15_PMU_SYS_REG(DIRECT, 0, 9, 14, 0), .access = access_pmuserenr },
+	{ CP15_PMU_SYS_REG(DIRECT, 0, 9, 14, 1), .access = access_pminten },
+	{ CP15_PMU_SYS_REG(DIRECT, 0, 9, 14, 2), .access = access_pminten },
+	{ CP15_PMU_SYS_REG(DIRECT, 0, 9, 14, 3), .access = access_pmovs },
+	{ CP15_PMU_SYS_REG(HI,     0, 9, 14, 4), .access = access_pmceid },
+	{ CP15_PMU_SYS_REG(HI,     0, 9, 14, 5), .access = access_pmceid },
 	/* PMMIR */
-	{ Op1( 0), CRn( 9), CRm(14), Op2( 6), trap_raz_wi },
+	{ CP15_PMU_SYS_REG(DIRECT, 0, 9, 14, 6), .access = trap_raz_wi },
 
 	/* PRRR/MAIR0 */
 	{ AA32(LO), Op1( 0), CRn(10), CRm( 2), Op2( 0), access_vm_reg, NULL, MAIR_EL1 },
@@ -2170,7 +2113,7 @@ static const struct sys_reg_desc cp15_regs[] = {
 	PMU_PMEVTYPER(29),
 	PMU_PMEVTYPER(30),
 	/* PMCCFILTR */
-	{ Op1(0), CRn(14), CRm(15), Op2(7), access_pmu_evtyper },
+	{ CP15_PMU_SYS_REG(DIRECT, 0, 14, 15, 7), .access = access_pmu_evtyper },
 
 	{ Op1(1), CRn( 0), CRm( 0), Op2(0), access_ccsidr },
 	{ Op1(1), CRn( 0), CRm( 0), Op2(1), access_clidr },
@@ -2179,7 +2122,7 @@ static const struct sys_reg_desc cp15_regs[] = {
 
 static const struct sys_reg_desc cp15_64_regs[] = {
 	{ Op1( 0), CRn( 0), CRm( 2), Op2( 0), access_vm_reg, NULL, TTBR0_EL1 },
-	{ Op1( 0), CRn( 0), CRm( 9), Op2( 0), access_pmu_evcntr },
+	{ CP15_PMU_SYS_REG(DIRECT, 0, 0, 9, 0), .access = access_pmu_evcntr },
 	{ Op1( 0), CRn( 0), CRm(12), Op2( 0), access_gic_sgi }, /* ICC_SGI1R */
 	{ Op1( 1), CRn( 0), CRm( 2), Op2( 0), access_vm_reg, NULL, TTBR1_EL1 },
 	{ Op1( 1), CRn( 0), CRm(12), Op2( 0), access_gic_sgi }, /* ICC_ASGI1R */
@@ -2187,25 +2130,24 @@ static const struct sys_reg_desc cp15_64_regs[] = {
 	{ SYS_DESC(SYS_AARCH32_CNTP_CVAL),    access_arch_timer },
 };
 
-static int check_sysreg_table(const struct sys_reg_desc *table, unsigned int n,
-			      bool is_32)
+static bool check_sysreg_table(const struct sys_reg_desc *table, unsigned int n,
+			       bool is_32)
 {
 	unsigned int i;
 
 	for (i = 0; i < n; i++) {
 		if (!is_32 && table[i].reg && !table[i].reset) {
-			kvm_err("sys_reg table %p entry %d has lacks reset\n",
-				table, i);
-			return 1;
+			kvm_err("sys_reg table %pS entry %d lacks reset\n", &table[i], i);
+			return false;
 		}
 
 		if (i && cmp_sys_reg(&table[i-1], &table[i]) >= 0) {
-			kvm_err("sys_reg table %p out of order (%d)\n", table, i - 1);
-			return 1;
+			kvm_err("sys_reg table %pS entry %d out of order\n", &table[i - 1], i - 1);
+			return false;
 		}
 	}
 
-	return 0;
+	return true;
 }
 
 int kvm_handle_cp14_load_store(struct kvm_vcpu *vcpu)
@@ -2246,27 +2188,27 @@ static void perform_access(struct kvm_vcpu *vcpu,
  * @table: array of trap descriptors
  * @num: size of the trap descriptor array
  *
- * Return 0 if the access has been handled, and -1 if not.
+ * Return true if the access has been handled, false if not.
  */
-static int emulate_cp(struct kvm_vcpu *vcpu,
-		      struct sys_reg_params *params,
-		      const struct sys_reg_desc *table,
-		      size_t num)
+static bool emulate_cp(struct kvm_vcpu *vcpu,
+		       struct sys_reg_params *params,
+		       const struct sys_reg_desc *table,
+		       size_t num)
 {
 	const struct sys_reg_desc *r;
 
 	if (!table)
-		return -1;	/* Not handled */
+		return false;	/* Not handled */
 
 	r = find_reg(params, table, num);
 
 	if (r) {
 		perform_access(vcpu, params, r);
-		return 0;
+		return true;
 	}
 
 	/* Not handled */
-	return -1;
+	return false;
 }
 
 static void unhandled_cp_access(struct kvm_vcpu *vcpu,
@@ -2304,7 +2246,7 @@ static int kvm_handle_cp_64(struct kvm_vcpu *vcpu,
 			    size_t nr_global)
 {
 	struct sys_reg_params params;
-	u32 esr = kvm_vcpu_get_esr(vcpu);
+	u64 esr = kvm_vcpu_get_esr(vcpu);
 	int Rt = kvm_vcpu_sys_get_rt(vcpu);
 	int Rt2 = (esr >> 10) & 0x1f;
 
@@ -2330,7 +2272,7 @@ static int kvm_handle_cp_64(struct kvm_vcpu *vcpu,
 	 * potential register operation in the case of a read and return
 	 * with success.
 	 */
-	if (!emulate_cp(vcpu, &params, global, nr_global)) {
+	if (emulate_cp(vcpu, &params, global, nr_global)) {
 		/* Split up the value between registers for the read side */
 		if (!params.is_write) {
 			vcpu_set_reg(vcpu, Rt, lower_32_bits(params.regval));
@@ -2344,34 +2286,144 @@ static int kvm_handle_cp_64(struct kvm_vcpu *vcpu,
 	return 1;
 }
 
+static bool emulate_sys_reg(struct kvm_vcpu *vcpu, struct sys_reg_params *params);
+
+/*
+ * The CP10 ID registers are architecturally mapped to AArch64 feature
+ * registers. Abuse that fact so we can rely on the AArch64 handler for accesses
+ * from AArch32.
+ */
+static bool kvm_esr_cp10_id_to_sys64(u64 esr, struct sys_reg_params *params)
+{
+	u8 reg_id = (esr >> 10) & 0xf;
+	bool valid;
+
+	params->is_write = ((esr & 1) == 0);
+	params->Op0 = 3;
+	params->Op1 = 0;
+	params->CRn = 0;
+	params->CRm = 3;
+
+	/* CP10 ID registers are read-only */
+	valid = !params->is_write;
+
+	switch (reg_id) {
+	/* MVFR0 */
+	case 0b0111:
+		params->Op2 = 0;
+		break;
+	/* MVFR1 */
+	case 0b0110:
+		params->Op2 = 1;
+		break;
+	/* MVFR2 */
+	case 0b0101:
+		params->Op2 = 2;
+		break;
+	default:
+		valid = false;
+	}
+
+	if (valid)
+		return true;
+
+	kvm_pr_unimpl("Unhandled cp10 register %s: %u\n",
+		      params->is_write ? "write" : "read", reg_id);
+	return false;
+}
+
+/**
+ * kvm_handle_cp10_id() - Handles a VMRS trap on guest access to a 'Media and
+ *			  VFP Register' from AArch32.
+ * @vcpu: The vCPU pointer
+ *
+ * MVFR{0-2} are architecturally mapped to the AArch64 MVFR{0-2}_EL1 registers.
+ * Work out the correct AArch64 system register encoding and reroute to the
+ * AArch64 system register emulation.
+ */
+int kvm_handle_cp10_id(struct kvm_vcpu *vcpu)
+{
+	int Rt = kvm_vcpu_sys_get_rt(vcpu);
+	u64 esr = kvm_vcpu_get_esr(vcpu);
+	struct sys_reg_params params;
+
+	/* UNDEF on any unhandled register access */
+	if (!kvm_esr_cp10_id_to_sys64(esr, &params)) {
+		kvm_inject_undefined(vcpu);
+		return 1;
+	}
+
+	if (emulate_sys_reg(vcpu, &params))
+		vcpu_set_reg(vcpu, Rt, params.regval);
+
+	return 1;
+}
+
+/**
+ * kvm_emulate_cp15_id_reg() - Handles an MRC trap on a guest CP15 access where
+ *			       CRn=0, which corresponds to the AArch32 feature
+ *			       registers.
+ * @vcpu: the vCPU pointer
+ * @params: the system register access parameters.
+ *
+ * Our cp15 system register tables do not enumerate the AArch32 feature
+ * registers. Conveniently, our AArch64 table does, and the AArch32 system
+ * register encoding can be trivially remapped into the AArch64 for the feature
+ * registers: Append op0=3, leaving op1, CRn, CRm, and op2 the same.
+ *
+ * According to DDI0487G.b G7.3.1, paragraph "Behavior of VMSAv8-32 32-bit
+ * System registers with (coproc=0b1111, CRn==c0)", read accesses from this
+ * range are either UNKNOWN or RES0. Rerouting remains architectural as we
+ * treat undefined registers in this range as RAZ.
+ */
+static int kvm_emulate_cp15_id_reg(struct kvm_vcpu *vcpu,
+				   struct sys_reg_params *params)
+{
+	int Rt = kvm_vcpu_sys_get_rt(vcpu);
+
+	/* Treat impossible writes to RO registers as UNDEFINED */
+	if (params->is_write) {
+		unhandled_cp_access(vcpu, params);
+		return 1;
+	}
+
+	params->Op0 = 3;
+
+	/*
+	 * All registers where CRm > 3 are known to be UNKNOWN/RAZ from AArch32.
+	 * Avoid conflicting with future expansion of AArch64 feature registers
+	 * and simply treat them as RAZ here.
+	 */
+	if (params->CRm > 3)
+		params->regval = 0;
+	else if (!emulate_sys_reg(vcpu, params))
+		return 1;
+
+	vcpu_set_reg(vcpu, Rt, params->regval);
+	return 1;
+}
+
 /**
  * kvm_handle_cp_32 -- handles a mrc/mcr trap on a guest CP14/CP15 access
  * @vcpu: The VCPU pointer
  * @run:  The kvm_run struct
  */
 static int kvm_handle_cp_32(struct kvm_vcpu *vcpu,
+			    struct sys_reg_params *params,
 			    const struct sys_reg_desc *global,
 			    size_t nr_global)
 {
-	struct sys_reg_params params;
-	u32 esr = kvm_vcpu_get_esr(vcpu);
 	int Rt  = kvm_vcpu_sys_get_rt(vcpu);
 
-	params.CRm = (esr >> 1) & 0xf;
-	params.regval = vcpu_get_reg(vcpu, Rt);
-	params.is_write = ((esr & 1) == 0);
-	params.CRn = (esr >> 10) & 0xf;
-	params.Op0 = 0;
-	params.Op1 = (esr >> 14) & 0x7;
-	params.Op2 = (esr >> 17) & 0x7;
+	params->regval = vcpu_get_reg(vcpu, Rt);
 
-	if (!emulate_cp(vcpu, &params, global, nr_global)) {
-		if (!params.is_write)
-			vcpu_set_reg(vcpu, Rt, params.regval);
+	if (emulate_cp(vcpu, params, global, nr_global)) {
+		if (!params->is_write)
+			vcpu_set_reg(vcpu, Rt, params->regval);
 		return 1;
 	}
 
-	unhandled_cp_access(vcpu, &params);
+	unhandled_cp_access(vcpu, params);
 	return 1;
 }
 
@@ -2382,7 +2434,20 @@ int kvm_handle_cp15_64(struct kvm_vcpu *vcpu)
 
 int kvm_handle_cp15_32(struct kvm_vcpu *vcpu)
 {
-	return kvm_handle_cp_32(vcpu, cp15_regs, ARRAY_SIZE(cp15_regs));
+	struct sys_reg_params params;
+
+	params = esr_cp1x_32_to_params(kvm_vcpu_get_esr(vcpu));
+
+	/*
+	 * Certain AArch32 ID registers are handled by rerouting to the AArch64
+	 * system register table. Registers in the ID range where CRm=0 are
+	 * excluded from this scheme as they do not trivially map into AArch64
+	 * system register encodings.
+	 */
+	if (params.Op1 == 0 && params.CRn == 0 && params.CRm)
+		return kvm_emulate_cp15_id_reg(vcpu, &params);
+
+	return kvm_handle_cp_32(vcpu, &params, cp15_regs, ARRAY_SIZE(cp15_regs));
 }
 
 int kvm_handle_cp14_64(struct kvm_vcpu *vcpu)
@@ -2392,7 +2457,11 @@ int kvm_handle_cp14_64(struct kvm_vcpu *vcpu)
 
 int kvm_handle_cp14_32(struct kvm_vcpu *vcpu)
 {
-	return kvm_handle_cp_32(vcpu, cp14_regs, ARRAY_SIZE(cp14_regs));
+	struct sys_reg_params params;
+
+	params = esr_cp1x_32_to_params(kvm_vcpu_get_esr(vcpu));
+
+	return kvm_handle_cp_32(vcpu, &params, cp14_regs, ARRAY_SIZE(cp14_regs));
 }
 
 static bool is_imp_def_sys_reg(struct sys_reg_params *params)
@@ -2401,7 +2470,14 @@ static bool is_imp_def_sys_reg(struct sys_reg_params *params)
 	return params->Op0 == 3 && (params->CRn & 0b1011) == 0b1011;
 }
 
-static int emulate_sys_reg(struct kvm_vcpu *vcpu,
+/**
+ * emulate_sys_reg - Emulate a guest access to an AArch64 system register
+ * @vcpu: The VCPU pointer
+ * @params: Decoded system register parameters
+ *
+ * Return: true if the system register access was successful, false otherwise.
+ */
+static bool emulate_sys_reg(struct kvm_vcpu *vcpu,
 			   struct sys_reg_params *params)
 {
 	const struct sys_reg_desc *r;
@@ -2410,7 +2486,10 @@ static int emulate_sys_reg(struct kvm_vcpu *vcpu,
 
 	if (likely(r)) {
 		perform_access(vcpu, params, r);
-	} else if (is_imp_def_sys_reg(params)) {
+		return true;
+	}
+
+	if (is_imp_def_sys_reg(params)) {
 		kvm_inject_undefined(vcpu);
 	} else {
 		print_sys_reg_msg(params,
@@ -2418,7 +2497,7 @@ static int emulate_sys_reg(struct kvm_vcpu *vcpu,
 				  *vcpu_pc(vcpu), *vcpu_cpsr(vcpu));
 		kvm_inject_undefined(vcpu);
 	}
-	return 1;
+	return false;
 }
 
 /**
@@ -2446,18 +2525,18 @@ int kvm_handle_sys_reg(struct kvm_vcpu *vcpu)
 	struct sys_reg_params params;
 	unsigned long esr = kvm_vcpu_get_esr(vcpu);
 	int Rt = kvm_vcpu_sys_get_rt(vcpu);
-	int ret;
 
 	trace_kvm_handle_sys_reg(esr);
 
 	params = esr_sys64_to_params(esr);
 	params.regval = vcpu_get_reg(vcpu, Rt);
 
-	ret = emulate_sys_reg(vcpu, &params);
+	if (!emulate_sys_reg(vcpu, &params))
+		return 1;
 
 	if (!params.is_write)
 		vcpu_set_reg(vcpu, Rt, params.regval);
-	return ret;
+	return 1;
 }
 
 /******************************************************************************
@@ -2493,35 +2572,34 @@ static bool index_to_params(u64 id, struct sys_reg_params *params)
 	}
 }
 
-const struct sys_reg_desc *find_reg_by_id(u64 id,
-					  struct sys_reg_params *params,
-					  const struct sys_reg_desc table[],
-					  unsigned int num)
+const struct sys_reg_desc *get_reg_by_id(u64 id,
+					 const struct sys_reg_desc table[],
+					 unsigned int num)
 {
-	if (!index_to_params(id, params))
+	struct sys_reg_params params;
+
+	if (!index_to_params(id, &params))
 		return NULL;
 
-	return find_reg(params, table, num);
+	return find_reg(&params, table, num);
 }
 
 /* Decode an index value, and find the sys_reg_desc entry. */
-static const struct sys_reg_desc *index_to_sys_reg_desc(struct kvm_vcpu *vcpu,
-						    u64 id)
+static const struct sys_reg_desc *
+id_to_sys_reg_desc(struct kvm_vcpu *vcpu, u64 id,
+		   const struct sys_reg_desc table[], unsigned int num)
+
 {
 	const struct sys_reg_desc *r;
-	struct sys_reg_params params;
 
 	/* We only do sys_reg for now. */
 	if ((id & KVM_REG_ARM_COPROC_MASK) != KVM_REG_ARM64_SYSREG)
 		return NULL;
 
-	if (!index_to_params(id, &params))
-		return NULL;
-
-	r = find_reg(&params, sys_reg_descs, ARRAY_SIZE(sys_reg_descs));
+	r = get_reg_by_id(id, table, num);
 
 	/* Not saved in the sys_reg array and not otherwise accessible? */
-	if (r && !(r->reg || r->get_user))
+	if (r && (!(r->reg || r->get_user) || sysreg_hidden(vcpu, r)))
 		r = NULL;
 
 	return r;
@@ -2561,48 +2639,30 @@ static struct sys_reg_desc invariant_sys_regs[] = {
 	{ SYS_DESC(SYS_CTR_EL0), NULL, get_ctr_el0 },
 };
 
-static int reg_from_user(u64 *val, const void __user *uaddr, u64 id)
+static int get_invariant_sys_reg(u64 id, u64 __user *uaddr)
 {
-	if (copy_from_user(val, uaddr, KVM_REG_SIZE(id)) != 0)
-		return -EFAULT;
-	return 0;
-}
-
-static int reg_to_user(void __user *uaddr, const u64 *val, u64 id)
-{
-	if (copy_to_user(uaddr, val, KVM_REG_SIZE(id)) != 0)
-		return -EFAULT;
-	return 0;
-}
-
-static int get_invariant_sys_reg(u64 id, void __user *uaddr)
-{
-	struct sys_reg_params params;
 	const struct sys_reg_desc *r;
 
-	r = find_reg_by_id(id, &params, invariant_sys_regs,
-			   ARRAY_SIZE(invariant_sys_regs));
+	r = get_reg_by_id(id, invariant_sys_regs,
+			  ARRAY_SIZE(invariant_sys_regs));
 	if (!r)
 		return -ENOENT;
 
-	return reg_to_user(uaddr, &r->val, id);
+	return put_user(r->val, uaddr);
 }
 
-static int set_invariant_sys_reg(u64 id, void __user *uaddr)
+static int set_invariant_sys_reg(u64 id, u64 __user *uaddr)
 {
-	struct sys_reg_params params;
 	const struct sys_reg_desc *r;
-	int err;
-	u64 val = 0; /* Make sure high bits are 0 for 32-bit regs */
+	u64 val;
 
-	r = find_reg_by_id(id, &params, invariant_sys_regs,
-			   ARRAY_SIZE(invariant_sys_regs));
+	r = get_reg_by_id(id, invariant_sys_regs,
+			  ARRAY_SIZE(invariant_sys_regs));
 	if (!r)
 		return -ENOENT;
 
-	err = reg_from_user(&val, uaddr, id);
-	if (err)
-		return err;
+	if (get_user(val, uaddr))
+		return -EFAULT;
 
 	/* This is what we mean by invariant: you can't change it. */
 	if (r->val != val)
@@ -2693,54 +2753,86 @@ static int demux_c15_set(u64 id, void __user *uaddr)
 	}
 }
 
+int kvm_sys_reg_get_user(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg,
+			 const struct sys_reg_desc table[], unsigned int num)
+{
+	u64 __user *uaddr = (u64 __user *)(unsigned long)reg->addr;
+	const struct sys_reg_desc *r;
+	u64 val;
+	int ret;
+
+	r = id_to_sys_reg_desc(vcpu, reg->id, table, num);
+	if (!r)
+		return -ENOENT;
+
+	if (r->get_user) {
+		ret = (r->get_user)(vcpu, r, &val);
+	} else {
+		val = __vcpu_sys_reg(vcpu, r->reg);
+		ret = 0;
+	}
+
+	if (!ret)
+		ret = put_user(val, uaddr);
+
+	return ret;
+}
+
 int kvm_arm_sys_reg_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 {
-	const struct sys_reg_desc *r;
 	void __user *uaddr = (void __user *)(unsigned long)reg->addr;
+	int err;
 
 	if ((reg->id & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_DEMUX)
 		return demux_c15_get(reg->id, uaddr);
 
-	if (KVM_REG_SIZE(reg->id) != sizeof(__u64))
-		return -ENOENT;
+	err = get_invariant_sys_reg(reg->id, uaddr);
+	if (err != -ENOENT)
+		return err;
 
-	r = index_to_sys_reg_desc(vcpu, reg->id);
+	return kvm_sys_reg_get_user(vcpu, reg,
+				    sys_reg_descs, ARRAY_SIZE(sys_reg_descs));
+}
+
+int kvm_sys_reg_set_user(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg,
+			 const struct sys_reg_desc table[], unsigned int num)
+{
+	u64 __user *uaddr = (u64 __user *)(unsigned long)reg->addr;
+	const struct sys_reg_desc *r;
+	u64 val;
+	int ret;
+
+	if (get_user(val, uaddr))
+		return -EFAULT;
+
+	r = id_to_sys_reg_desc(vcpu, reg->id, table, num);
 	if (!r)
-		return get_invariant_sys_reg(reg->id, uaddr);
-
-	/* Check for regs disabled by runtime config */
-	if (sysreg_hidden(vcpu, r))
 		return -ENOENT;
 
-	if (r->get_user)
-		return (r->get_user)(vcpu, r, reg, uaddr);
+	if (r->set_user) {
+		ret = (r->set_user)(vcpu, r, val);
+	} else {
+		__vcpu_sys_reg(vcpu, r->reg) = val;
+		ret = 0;
+	}
 
-	return reg_to_user(uaddr, &__vcpu_sys_reg(vcpu, r->reg), reg->id);
+	return ret;
 }
 
 int kvm_arm_sys_reg_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 {
-	const struct sys_reg_desc *r;
 	void __user *uaddr = (void __user *)(unsigned long)reg->addr;
+	int err;
 
 	if ((reg->id & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_DEMUX)
 		return demux_c15_set(reg->id, uaddr);
 
-	if (KVM_REG_SIZE(reg->id) != sizeof(__u64))
-		return -ENOENT;
+	err = set_invariant_sys_reg(reg->id, uaddr);
+	if (err != -ENOENT)
+		return err;
 
-	r = index_to_sys_reg_desc(vcpu, reg->id);
-	if (!r)
-		return set_invariant_sys_reg(reg->id, uaddr);
-
-	/* Check for regs disabled by runtime config */
-	if (sysreg_hidden(vcpu, r))
-		return -ENOENT;
-
-	if (r->set_user)
-		return (r->set_user)(vcpu, r, reg, uaddr);
-
-	return reg_from_user(&__vcpu_sys_reg(vcpu, r->reg), uaddr, reg->id);
+	return kvm_sys_reg_set_user(vcpu, reg,
+				    sys_reg_descs, ARRAY_SIZE(sys_reg_descs));
 }
 
 static unsigned int num_demux_regs(void)
@@ -2860,18 +2952,22 @@ int kvm_arm_copy_sys_reg_indices(struct kvm_vcpu *vcpu, u64 __user *uindices)
 	return write_demux_regids(uindices);
 }
 
-void kvm_sys_reg_table_init(void)
+int kvm_sys_reg_table_init(void)
 {
+	bool valid = true;
 	unsigned int i;
 	struct sys_reg_desc clidr;
 
 	/* Make sure tables are unique and in order. */
-	BUG_ON(check_sysreg_table(sys_reg_descs, ARRAY_SIZE(sys_reg_descs), false));
-	BUG_ON(check_sysreg_table(cp14_regs, ARRAY_SIZE(cp14_regs), true));
-	BUG_ON(check_sysreg_table(cp14_64_regs, ARRAY_SIZE(cp14_64_regs), true));
-	BUG_ON(check_sysreg_table(cp15_regs, ARRAY_SIZE(cp15_regs), true));
-	BUG_ON(check_sysreg_table(cp15_64_regs, ARRAY_SIZE(cp15_64_regs), true));
-	BUG_ON(check_sysreg_table(invariant_sys_regs, ARRAY_SIZE(invariant_sys_regs), false));
+	valid &= check_sysreg_table(sys_reg_descs, ARRAY_SIZE(sys_reg_descs), false);
+	valid &= check_sysreg_table(cp14_regs, ARRAY_SIZE(cp14_regs), true);
+	valid &= check_sysreg_table(cp14_64_regs, ARRAY_SIZE(cp14_64_regs), true);
+	valid &= check_sysreg_table(cp15_regs, ARRAY_SIZE(cp15_regs), true);
+	valid &= check_sysreg_table(cp15_64_regs, ARRAY_SIZE(cp15_64_regs), true);
+	valid &= check_sysreg_table(invariant_sys_regs, ARRAY_SIZE(invariant_sys_regs), false);
+
+	if (!valid)
+		return -EINVAL;
 
 	/* We abuse the reset function to overwrite the table itself. */
 	for (i = 0; i < ARRAY_SIZE(invariant_sys_regs); i++)
@@ -2894,4 +2990,6 @@ void kvm_sys_reg_table_init(void)
 			break;
 	/* Clear all higher bits. */
 	cache_levels &= (1 << (i*3))-1;
+
+	return 0;
 }

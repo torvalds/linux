@@ -877,7 +877,7 @@ int t4vf_get_sge_params(struct adapter *adapter)
 
 	/* T4 uses a single control field to specify both the PCIe Padding and
 	 * Packing Boundary.  T5 introduced the ability to specify these
-	 * separately with the Padding Boundary in SGE_CONTROL and and Packing
+	 * separately with the Padding Boundary in SGE_CONTROL and Packing
 	 * Boundary in SGE_CONTROL2.  So for T5 and later we need to grab
 	 * SGE_CONTROL in order to determine how ingress packet data will be
 	 * laid out in Packed Buffer Mode.  Unfortunately, older versions of

@@ -118,9 +118,9 @@ extern void __update_cache(pte_t pte);
 
 #if CONFIG_PGTABLE_LEVELS == 3
 #define PMD_TABLE_ORDER	1
-#define PGD_ORDER	0
+#define PGD_TABLE_ORDER	0
 #else
-#define PGD_ORDER	1
+#define PGD_TABLE_ORDER	1
 #endif
 
 /* Definitions for 3rd level (we use PLD here for Page Lower directory
@@ -144,10 +144,10 @@ extern void __update_cache(pte_t pte);
 
 /* Definitions for 1st level */
 #define PGDIR_SHIFT	(PLD_SHIFT + BITS_PER_PTE + BITS_PER_PMD)
-#if (PGDIR_SHIFT + PAGE_SHIFT + PGD_ORDER - BITS_PER_PGD_ENTRY) > BITS_PER_LONG
+#if (PGDIR_SHIFT + PAGE_SHIFT + PGD_TABLE_ORDER - BITS_PER_PGD_ENTRY) > BITS_PER_LONG
 #define BITS_PER_PGD	(BITS_PER_LONG - PGDIR_SHIFT)
 #else
-#define BITS_PER_PGD	(PAGE_SHIFT + PGD_ORDER - BITS_PER_PGD_ENTRY)
+#define BITS_PER_PGD	(PAGE_SHIFT + PGD_TABLE_ORDER - BITS_PER_PGD_ENTRY)
 #endif
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
@@ -160,7 +160,7 @@ extern void __update_cache(pte_t pte);
 #define SPACEID_SHIFT	(MAX_ADDRBITS - 32)
 #else
 #define MAX_ADDRBITS	(BITS_PER_LONG)
-#define MAX_ADDRESS	(1UL << MAX_ADDRBITS)
+#define MAX_ADDRESS	(1ULL << MAX_ADDRBITS)
 #define SPACEID_SHIFT	0
 #endif
 
@@ -271,24 +271,6 @@ extern void __update_cache(pte_t pte);
  */
 
 	 /*xwr*/
-#define __P000  PAGE_NONE
-#define __P001  PAGE_READONLY
-#define __P010  __P000 /* copy on write */
-#define __P011  __P001 /* copy on write */
-#define __P100  PAGE_EXECREAD
-#define __P101  PAGE_EXECREAD
-#define __P110  __P100 /* copy on write */
-#define __P111  __P101 /* copy on write */
-
-#define __S000  PAGE_NONE
-#define __S001  PAGE_READONLY
-#define __S010  PAGE_WRITEONLY
-#define __S011  PAGE_SHARED
-#define __S100  PAGE_EXECREAD
-#define __S101  PAGE_EXECREAD
-#define __S110  PAGE_RWX
-#define __S111  PAGE_RWX
-
 
 extern pgd_t swapper_pg_dir[]; /* declared in init_task.c */
 

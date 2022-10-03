@@ -254,6 +254,9 @@ struct amdgpu_vm {
 	bool			evicting;
 	unsigned int		saved_flags;
 
+	/* Lock to protect vm_bo add/del/move on all lists of vm */
+	spinlock_t		status_lock;
+
 	/* BOs who needs a validation */
 	struct list_head	evicted;
 
@@ -268,13 +271,16 @@ struct amdgpu_vm {
 
 	/* regular invalidated BOs, but not yet updated in the PT */
 	struct list_head	invalidated;
-	spinlock_t		invalidated_lock;
 
 	/* BO mappings freed, but not yet updated in the PT */
 	struct list_head	freed;
 
 	/* BOs which are invalidated, has been updated in the PTs */
 	struct list_head        done;
+
+	/* PT BOs scheduled to free and fill with zero if vm_resv is not hold */
+	struct list_head	pt_freed;
+	struct work_struct	pt_free_work;
 
 	/* contains the page directory */
 	struct amdgpu_vm_bo_base     root;
@@ -283,6 +289,10 @@ struct amdgpu_vm {
 	/* Scheduler entities for page table updates */
 	struct drm_sched_entity	immediate;
 	struct drm_sched_entity	delayed;
+
+	/* Last finished delayed update */
+	atomic64_t		tlb_seq;
+	struct dma_fence	*last_tlb_flush;
 
 	/* Last unlocked submission to the scheduler entities */
 	struct dma_fence	*last_unlocked;
@@ -395,18 +405,17 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 			  struct dma_fence **fence);
 int amdgpu_vm_handle_moved(struct amdgpu_device *adev,
 			   struct amdgpu_vm *vm);
-int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
-				struct amdgpu_device *bo_adev,
-				struct amdgpu_vm *vm, bool immediate,
-				bool unlocked, struct dma_resv *resv,
-				uint64_t start, uint64_t last,
-				uint64_t flags, uint64_t offset,
-				struct ttm_resource *res,
-				dma_addr_t *pages_addr,
-				struct dma_fence **fence, bool *free_table);
+void amdgpu_vm_bo_base_init(struct amdgpu_vm_bo_base *base,
+			    struct amdgpu_vm *vm, struct amdgpu_bo *bo);
+int amdgpu_vm_update_range(struct amdgpu_device *adev, struct amdgpu_vm *vm,
+			   bool immediate, bool unlocked, bool flush_tlb,
+			   struct dma_resv *resv, uint64_t start, uint64_t last,
+			   uint64_t flags, uint64_t offset, uint64_t vram_base,
+			   struct ttm_resource *res, dma_addr_t *pages_addr,
+			   struct dma_fence **fence);
 int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 			struct amdgpu_bo_va *bo_va,
-			bool clear, bool *table_freed);
+			bool clear);
 bool amdgpu_vm_evictable(struct amdgpu_bo *bo);
 void amdgpu_vm_bo_invalidate(struct amdgpu_device *adev,
 			     struct amdgpu_bo *bo, bool evicted);
@@ -455,8 +464,35 @@ void amdgpu_vm_move_to_lru_tail(struct amdgpu_device *adev,
 void amdgpu_vm_get_memory(struct amdgpu_vm *vm, uint64_t *vram_mem,
 				uint64_t *gtt_mem, uint64_t *cpu_mem);
 
+int amdgpu_vm_pt_clear(struct amdgpu_device *adev, struct amdgpu_vm *vm,
+		       struct amdgpu_bo_vm *vmbo, bool immediate);
+int amdgpu_vm_pt_create(struct amdgpu_device *adev, struct amdgpu_vm *vm,
+			int level, bool immediate, struct amdgpu_bo_vm **vmbo);
+void amdgpu_vm_pt_free_root(struct amdgpu_device *adev, struct amdgpu_vm *vm);
+bool amdgpu_vm_pt_is_root_clean(struct amdgpu_device *adev,
+				struct amdgpu_vm *vm);
+
+int amdgpu_vm_pde_update(struct amdgpu_vm_update_params *params,
+			 struct amdgpu_vm_bo_base *entry);
+int amdgpu_vm_ptes_update(struct amdgpu_vm_update_params *params,
+			  uint64_t start, uint64_t end,
+			  uint64_t dst, uint64_t flags);
+void amdgpu_vm_pt_free_work(struct work_struct *work);
+
 #if defined(CONFIG_DEBUG_FS)
 void amdgpu_debugfs_vm_bo_info(struct amdgpu_vm *vm, struct seq_file *m);
 #endif
+
+/**
+ * amdgpu_vm_tlb_seq - return tlb flush sequence number
+ * @vm: the amdgpu_vm structure to query
+ *
+ * Returns the tlb flush sequence number which indicates that the VM TLBs needs
+ * to be invalidated whenever the sequence number change.
+ */
+static inline uint64_t amdgpu_vm_tlb_seq(struct amdgpu_vm *vm)
+{
+	return atomic64_read(&vm->tlb_seq);
+}
 
 #endif

@@ -75,7 +75,7 @@ static int (*nx842_powernv_exec)(const unsigned char *in,
 /**
  * setup_indirect_dde - Setup an indirect DDE
  *
- * The DDE is setup with the the DDE count, byte count, and address of
+ * The DDE is setup with the DDE count, byte count, and address of
  * first direct DDE in the list.
  */
 static void setup_indirect_dde(struct data_descriptor_entry *dde,
@@ -827,7 +827,7 @@ static int __init vas_cfg_coproc_info(struct device_node *dn, int chip_id,
 		goto err_out;
 
 	vas_init_rx_win_attr(&rxattr, coproc->ct);
-	rxattr.rx_fifo = (void *)rx_fifo;
+	rxattr.rx_fifo = rx_fifo;
 	rxattr.rx_fifo_size = fifo_size;
 	rxattr.lnotify_lpid = lpid;
 	rxattr.lnotify_pid = pid;

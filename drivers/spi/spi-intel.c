@@ -779,10 +779,59 @@ static const char *intel_spi_get_name(struct spi_mem *mem)
 	return dev_name(ispi->dev);
 }
 
+static int intel_spi_dirmap_create(struct spi_mem_dirmap_desc *desc)
+{
+	struct intel_spi *ispi = spi_master_get_devdata(desc->mem->spi->master);
+	const struct intel_spi_mem_op *iop;
+
+	iop = intel_spi_match_mem_op(ispi, &desc->info.op_tmpl);
+	if (!iop)
+		return -EOPNOTSUPP;
+
+	desc->priv = (void *)iop;
+	return 0;
+}
+
+static ssize_t intel_spi_dirmap_read(struct spi_mem_dirmap_desc *desc, u64 offs,
+				     size_t len, void *buf)
+{
+	struct intel_spi *ispi = spi_master_get_devdata(desc->mem->spi->master);
+	const struct intel_spi_mem_op *iop = desc->priv;
+	struct spi_mem_op op = desc->info.op_tmpl;
+	int ret;
+
+	/* Fill in the gaps */
+	op.addr.val = offs;
+	op.data.nbytes = len;
+	op.data.buf.in = buf;
+
+	ret = iop->exec_op(ispi, iop, &op);
+	return ret ? ret : len;
+}
+
+static ssize_t intel_spi_dirmap_write(struct spi_mem_dirmap_desc *desc, u64 offs,
+				      size_t len, const void *buf)
+{
+	struct intel_spi *ispi = spi_master_get_devdata(desc->mem->spi->master);
+	const struct intel_spi_mem_op *iop = desc->priv;
+	struct spi_mem_op op = desc->info.op_tmpl;
+	int ret;
+
+	op.addr.val = offs;
+	op.data.nbytes = len;
+	op.data.buf.out = buf;
+
+	ret = iop->exec_op(ispi, iop, &op);
+	return ret ? ret : len;
+}
+
 static const struct spi_controller_mem_ops intel_spi_mem_ops = {
 	.supports_op = intel_spi_supports_mem_op,
 	.exec_op = intel_spi_exec_mem_op,
 	.get_name = intel_spi_get_name,
+	.dirmap_create = intel_spi_dirmap_create,
+	.dirmap_read = intel_spi_dirmap_read,
+	.dirmap_write = intel_spi_dirmap_write,
 };
 
 #define INTEL_SPI_OP_ADDR(__nbytes)					\
@@ -1187,8 +1236,8 @@ static int intel_spi_populate_chip(struct intel_spi *ispi)
 		return -ENOMEM;
 
 	pdata->nr_parts = 1;
-	pdata->parts = devm_kcalloc(ispi->dev, sizeof(*pdata->parts),
-				    pdata->nr_parts, GFP_KERNEL);
+	pdata->parts = devm_kcalloc(ispi->dev, pdata->nr_parts,
+				    sizeof(*pdata->parts), GFP_KERNEL);
 	if (!pdata->parts)
 		return -ENOMEM;
 
@@ -1205,7 +1254,7 @@ static int intel_spi_populate_chip(struct intel_spi *ispi)
  * intel_spi_probe() - Probe the Intel SPI flash controller
  * @dev: Pointer to the parent device
  * @mem: MMIO resource
- * @info: Platform spefific information
+ * @info: Platform specific information
  *
  * Probes Intel SPI flash controller and creates the flash chip device.
  * Returns %0 on success and negative errno in case of failure.

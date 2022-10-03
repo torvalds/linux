@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -731,7 +731,7 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return -EINVAL;
 
 	rcu_read_lock();
-	ctx = rcu_dereference(vif->chanctx_conf);
+	ctx = rcu_dereference(vif->bss_conf.chanctx_conf);
 	if (WARN_ON(!ctx)) {
 		rcu_read_unlock();
 		return -EINVAL;
@@ -749,7 +749,7 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	/* add back the MAC */
 	mvmvif->uploaded = false;
 
-	if (WARN_ON(!vif->bss_conf.assoc))
+	if (WARN_ON(!vif->cfg.assoc))
 		return -EINVAL;
 
 	ret = iwl_mvm_mac_ctxt_add(mvm, vif);
@@ -915,7 +915,7 @@ iwl_mvm_get_wowlan_config(struct iwl_mvm *mvm,
 	/* TODO: wowlan_config_cmd->wowlan_ba_teardown_tids */
 
 	wowlan_config_cmd->is_11n_connection =
-					ap_sta->ht_cap.ht_supported;
+					ap_sta->deflink.ht_cap.ht_supported;
 	wowlan_config_cmd->flags = ENABLE_L3_FILTERING |
 		ENABLE_NBNS_FILTERING | ENABLE_DHCP_FILTERING;
 
@@ -1956,18 +1956,18 @@ iwl_mvm_parse_wowlan_status_common_ ## _ver(struct iwl_mvm *mvm,	\
 									\
 	if (len < sizeof(*data)) {					\
 		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");	\
-		return ERR_PTR(-EIO);					\
+		return NULL;						\
 	}								\
 									\
 	data_size = ALIGN(le32_to_cpu(data->wake_packet_bufsize), 4);	\
 	if (len != sizeof(*data) + data_size) {				\
 		IWL_ERR(mvm, "Invalid WoWLAN status response!\n");	\
-		return ERR_PTR(-EIO);					\
+		return NULL;						\
 	}								\
 									\
 	status = kzalloc(sizeof(*status) + data_size, GFP_KERNEL);	\
 	if (!status)							\
-		return ERR_PTR(-ENOMEM);				\
+		return NULL;						\
 									\
 	/* copy all the common fields */				\
 	status->replay_ctr = le64_to_cpu(data->replay_ctr);		\
@@ -2097,7 +2097,7 @@ iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm, u8 sta_id)
 		struct iwl_wowlan_status_v6 *v6 = (void *)cmd.resp_pkt->data;
 
 		status = iwl_mvm_parse_wowlan_status_common_v6(mvm, v6, len);
-		if (IS_ERR(status))
+		if (!status)
 			goto out_free_resp;
 
 		BUILD_BUG_ON(sizeof(v6->gtk.decrypt_key) >
@@ -2128,7 +2128,7 @@ iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm, u8 sta_id)
 		struct iwl_wowlan_status_v7 *v7 = (void *)cmd.resp_pkt->data;
 
 		status = iwl_mvm_parse_wowlan_status_common_v7(mvm, v7, len);
-		if (IS_ERR(status))
+		if (!status)
 			goto out_free_resp;
 
 		iwl_mvm_convert_key_counters(status, &v7->gtk[0].rsc.all_tsc_rsc);
@@ -2141,7 +2141,7 @@ iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm, u8 sta_id)
 		 * difference is only in a few not used (reserved) fields.
 		 */
 		status = iwl_mvm_parse_wowlan_status_common_v9(mvm, v9, len);
-		if (IS_ERR(status))
+		if (!status)
 			goto out_free_resp;
 
 		iwl_mvm_convert_key_counters(status, &v9->gtk[0].rsc.all_tsc_rsc);
@@ -2153,7 +2153,7 @@ iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm, u8 sta_id)
 		struct iwl_wowlan_status_v12 *v12 = (void *)cmd.resp_pkt->data;
 
 		status = iwl_mvm_parse_wowlan_status_common_v12(mvm, v12, len);
-		if (IS_ERR(status))
+		if (!status)
 			goto out_free_resp;
 
 		iwl_mvm_convert_key_counters_v5(status, &v12->gtk[0].sc);
@@ -2165,7 +2165,7 @@ iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm, u8 sta_id)
 		IWL_ERR(mvm,
 			"Firmware advertises unknown WoWLAN status response %d!\n",
 			notif_ver);
-		status = ERR_PTR(-EIO);
+		status = NULL;
 	}
 
 out_free_resp:
@@ -2203,7 +2203,7 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 	struct iwl_mvm_sta *mvm_ap_sta;
 
 	status = iwl_mvm_get_wakeup_status(mvm, mvmvif->ap_sta_id);
-	if (IS_ERR(status))
+	if (!status)
 		goto out_unlock;
 
 	IWL_DEBUG_WOWLAN(mvm, "wakeup reason 0x%x\n",
@@ -2370,7 +2370,7 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 	int i, n_matches, ret;
 
 	status = iwl_mvm_get_wakeup_status(mvm, IWL_MVM_INVALID_STA);
-	if (!IS_ERR(status)) {
+	if (status) {
 		reasons = status->wakeup_reasons;
 		kfree(status);
 	}

@@ -246,9 +246,8 @@ static void omap2_mcspi_set_cs(struct spi_device *spi, bool enable)
 		enable = !enable;
 
 	if (spi->controller_state) {
-		int err = pm_runtime_get_sync(mcspi->dev);
+		int err = pm_runtime_resume_and_get(mcspi->dev);
 		if (err < 0) {
-			pm_runtime_put_noidle(mcspi->dev);
 			dev_err(mcspi->dev, "failed to get sync: %d\n", err);
 			return;
 		}
@@ -758,6 +757,8 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 				dev_vdbg(&spi->dev, "read-%d %02x\n",
 						word_len, *(rx - 1));
 			}
+			/* Add word delay between each word */
+			spi_delay_exec(&xfer->word_delay, xfer);
 		} while (c);
 	} else if (word_len <= 16) {
 		u16		*rx;
@@ -805,6 +806,8 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 				dev_vdbg(&spi->dev, "read-%d %04x\n",
 						word_len, *(rx - 1));
 			}
+			/* Add word delay between each word */
+			spi_delay_exec(&xfer->word_delay, xfer);
 		} while (c >= 2);
 	} else if (word_len <= 32) {
 		u32		*rx;
@@ -852,6 +855,8 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 				dev_vdbg(&spi->dev, "read-%d %08x\n",
 						word_len, *(rx - 1));
 			}
+			/* Add word delay between each word */
+			spi_delay_exec(&xfer->word_delay, xfer);
 		} while (c >= 4);
 	}
 
@@ -1068,9 +1073,8 @@ static int omap2_mcspi_setup(struct spi_device *spi)
 		initial_setup = true;
 	}
 
-	ret = pm_runtime_get_sync(mcspi->dev);
+	ret = pm_runtime_resume_and_get(mcspi->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(mcspi->dev);
 		if (initial_setup)
 			omap2_mcspi_cleanup(spi);
 
@@ -1317,12 +1321,9 @@ static int omap2_mcspi_controller_setup(struct omap2_mcspi *mcspi)
 	struct omap2_mcspi_regs	*ctx = &mcspi->ctx;
 	int			ret = 0;
 
-	ret = pm_runtime_get_sync(mcspi->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(mcspi->dev);
-
+	ret = pm_runtime_resume_and_get(mcspi->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	mcspi_write_reg(master, OMAP2_MCSPI_WAKEUPENABLE,
 			OMAP2_MCSPI_WAKEUPENABLE_WKEN);

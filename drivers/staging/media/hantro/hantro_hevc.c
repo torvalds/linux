@@ -25,41 +25,20 @@
 #define MAX_TILE_COLS 20
 #define MAX_TILE_ROWS 22
 
-#define UNUSED_REF	-1
-
-#define G2_ALIGN		16
-
-size_t hantro_hevc_chroma_offset(const struct v4l2_ctrl_hevc_sps *sps)
-{
-	int bytes_per_pixel = sps->bit_depth_luma_minus8 == 0 ? 1 : 2;
-
-	return sps->pic_width_in_luma_samples *
-	       sps->pic_height_in_luma_samples * bytes_per_pixel;
-}
-
-size_t hantro_hevc_motion_vectors_offset(const struct v4l2_ctrl_hevc_sps *sps)
-{
-	size_t cr_offset = hantro_hevc_chroma_offset(sps);
-
-	return ALIGN((cr_offset * 3) / 2, G2_ALIGN);
-}
-
-static void hantro_hevc_ref_init(struct hantro_ctx *ctx)
+void hantro_hevc_ref_init(struct hantro_ctx *ctx)
 {
 	struct hantro_hevc_dec_hw_ctx *hevc_dec = &ctx->hevc_dec;
-	int i;
 
-	for (i = 0;  i < NUM_REF_PICTURES; i++)
-		hevc_dec->ref_bufs_poc[i] = UNUSED_REF;
+	hevc_dec->ref_bufs_used = 0;
 }
 
 dma_addr_t hantro_hevc_get_ref_buf(struct hantro_ctx *ctx,
-				   int poc)
+				   s32 poc)
 {
 	struct hantro_hevc_dec_hw_ctx *hevc_dec = &ctx->hevc_dec;
 	int i;
 
-	/* Find the reference buffer in already know ones */
+	/* Find the reference buffer in already known ones */
 	for (i = 0;  i < NUM_REF_PICTURES; i++) {
 		if (hevc_dec->ref_bufs_poc[i] == poc) {
 			hevc_dec->ref_bufs_used |= 1 << i;
@@ -77,7 +56,7 @@ int hantro_hevc_add_ref_buf(struct hantro_ctx *ctx, int poc, dma_addr_t addr)
 
 	/* Add a new reference buffer */
 	for (i = 0; i < NUM_REF_PICTURES; i++) {
-		if (hevc_dec->ref_bufs_poc[i] == UNUSED_REF) {
+		if (!(hevc_dec->ref_bufs_used & 1 << i)) {
 			hevc_dec->ref_bufs_used |= 1 << i;
 			hevc_dec->ref_bufs_poc[i] = poc;
 			hevc_dec->ref_bufs[i].dma = addr;
@@ -86,23 +65,6 @@ int hantro_hevc_add_ref_buf(struct hantro_ctx *ctx, int poc, dma_addr_t addr)
 	}
 
 	return -EINVAL;
-}
-
-void hantro_hevc_ref_remove_unused(struct hantro_ctx *ctx)
-{
-	struct hantro_hevc_dec_hw_ctx *hevc_dec = &ctx->hevc_dec;
-	int i;
-
-	/* Just tag buffer as unused, do not free them */
-	for (i = 0;  i < NUM_REF_PICTURES; i++) {
-		if (hevc_dec->ref_bufs_poc[i] == UNUSED_REF)
-			continue;
-
-		if (hevc_dec->ref_bufs_used & (1 << i))
-			continue;
-
-		hevc_dec->ref_bufs_poc[i] = UNUSED_REF;
-	}
 }
 
 static int tile_buffer_reallocate(struct hantro_ctx *ctx)
@@ -192,6 +154,25 @@ err_free_tile_buffers:
 	return -ENOMEM;
 }
 
+static int hantro_hevc_validate_sps(struct hantro_ctx *ctx, const struct v4l2_ctrl_hevc_sps *sps)
+{
+	/*
+	 * for tile pixel format check if the width and height match
+	 * hardware constraints
+	 */
+	if (ctx->vpu_dst_fmt->fourcc == V4L2_PIX_FMT_NV12_4L4) {
+		if (ctx->dst_fmt.width !=
+		    ALIGN(sps->pic_width_in_luma_samples, ctx->vpu_dst_fmt->frmsize.step_width))
+			return -EINVAL;
+
+		if (ctx->dst_fmt.height !=
+		    ALIGN(sps->pic_height_in_luma_samples, ctx->vpu_dst_fmt->frmsize.step_height))
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 int hantro_hevc_dec_prepare_run(struct hantro_ctx *ctx)
 {
 	struct hantro_hevc_dec_hw_ctx *hevc_ctx = &ctx->hevc_dec;
@@ -201,22 +182,26 @@ int hantro_hevc_dec_prepare_run(struct hantro_ctx *ctx)
 	hantro_start_prepare_run(ctx);
 
 	ctrls->decode_params =
-		hantro_get_ctrl(ctx, V4L2_CID_MPEG_VIDEO_HEVC_DECODE_PARAMS);
+		hantro_get_ctrl(ctx, V4L2_CID_STATELESS_HEVC_DECODE_PARAMS);
 	if (WARN_ON(!ctrls->decode_params))
 		return -EINVAL;
 
 	ctrls->scaling =
-		hantro_get_ctrl(ctx, V4L2_CID_MPEG_VIDEO_HEVC_SCALING_MATRIX);
+		hantro_get_ctrl(ctx, V4L2_CID_STATELESS_HEVC_SCALING_MATRIX);
 	if (WARN_ON(!ctrls->scaling))
 		return -EINVAL;
 
 	ctrls->sps =
-		hantro_get_ctrl(ctx, V4L2_CID_MPEG_VIDEO_HEVC_SPS);
+		hantro_get_ctrl(ctx, V4L2_CID_STATELESS_HEVC_SPS);
 	if (WARN_ON(!ctrls->sps))
 		return -EINVAL;
 
+	ret = hantro_hevc_validate_sps(ctx, ctrls->sps);
+	if (ret)
+		return ret;
+
 	ctrls->pps =
-		hantro_get_ctrl(ctx, V4L2_CID_MPEG_VIDEO_HEVC_PPS);
+		hantro_get_ctrl(ctx, V4L2_CID_STATELESS_HEVC_PPS);
 	if (WARN_ON(!ctrls->pps))
 		return -EINVAL;
 

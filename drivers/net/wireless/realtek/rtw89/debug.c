@@ -635,6 +635,11 @@ static int rtw89_debug_priv_mac_reg_dump_get(struct seq_file *m, void *v)
 		start = 0x000;
 		end = 0x014;
 		break;
+	case RTW89_DBG_SEL_MAC_30:
+		seq_puts(m, "Debug selected MAC page 0x30\n");
+		start = 0x030;
+		end = 0x033;
+		break;
 	case RTW89_DBG_SEL_MAC_40:
 		seq_puts(m, "Debug selected MAC page 0x40\n");
 		start = 0x040;
@@ -724,26 +729,6 @@ rtw89_debug_priv_mac_mem_dump_select(struct file *filp,
 	return count;
 }
 
-static const u32 mac_mem_base_addr_table[RTW89_MAC_MEM_MAX] = {
-	[RTW89_MAC_MEM_AXIDMA]	        = AXIDMA_BASE_ADDR,
-	[RTW89_MAC_MEM_SHARED_BUF]	= SHARED_BUF_BASE_ADDR,
-	[RTW89_MAC_MEM_DMAC_TBL]	= DMAC_TBL_BASE_ADDR,
-	[RTW89_MAC_MEM_SHCUT_MACHDR]	= SHCUT_MACHDR_BASE_ADDR,
-	[RTW89_MAC_MEM_STA_SCHED]	= STA_SCHED_BASE_ADDR,
-	[RTW89_MAC_MEM_RXPLD_FLTR_CAM]	= RXPLD_FLTR_CAM_BASE_ADDR,
-	[RTW89_MAC_MEM_SECURITY_CAM]	= SECURITY_CAM_BASE_ADDR,
-	[RTW89_MAC_MEM_WOW_CAM]		= WOW_CAM_BASE_ADDR,
-	[RTW89_MAC_MEM_CMAC_TBL]	= CMAC_TBL_BASE_ADDR,
-	[RTW89_MAC_MEM_ADDR_CAM]	= ADDR_CAM_BASE_ADDR,
-	[RTW89_MAC_MEM_BA_CAM]		= BA_CAM_BASE_ADDR,
-	[RTW89_MAC_MEM_BCN_IE_CAM0]	= BCN_IE_CAM0_BASE_ADDR,
-	[RTW89_MAC_MEM_BCN_IE_CAM1]	= BCN_IE_CAM1_BASE_ADDR,
-	[RTW89_MAC_MEM_TXD_FIFO_0]	= TXD_FIFO_0_BASE_ADDR,
-	[RTW89_MAC_MEM_TXD_FIFO_1]	= TXD_FIFO_1_BASE_ADDR,
-	[RTW89_MAC_MEM_TXDATA_FIFO_0]	= TXDATA_FIFO_0_BASE_ADDR,
-	[RTW89_MAC_MEM_TXDATA_FIFO_1]	= TXDATA_FIFO_1_BASE_ADDR,
-};
-
 static void rtw89_debug_dump_mac_mem(struct seq_file *m,
 				     struct rtw89_dev *rtwdev,
 				     u8 sel, u32 start_addr, u32 len)
@@ -757,7 +742,7 @@ static void rtw89_debug_dump_mac_mem(struct seq_file *m,
 	pages = len / MAC_MEM_DUMP_PAGE_SIZE + 1;
 	start_page = start_addr / MAC_MEM_DUMP_PAGE_SIZE;
 	residue = start_addr % MAC_MEM_DUMP_PAGE_SIZE;
-	base_addr = mac_mem_base_addr_table[sel];
+	base_addr = rtw89_mac_mem_base_addrs[sel];
 	base_addr += start_page * MAC_MEM_DUMP_PAGE_SIZE;
 
 	for (p = 0; p < pages; p++) {
@@ -2204,6 +2189,48 @@ out:
 	return count;
 }
 
+static int
+rtw89_debug_priv_fw_crash_get(struct seq_file *m, void *v)
+{
+	struct rtw89_debugfs_priv *debugfs_priv = m->private;
+	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
+
+	seq_printf(m, "%d\n",
+		   test_bit(RTW89_FLAG_RESTART_TRIGGER, rtwdev->flags));
+	return 0;
+}
+
+static ssize_t
+rtw89_debug_priv_fw_crash_set(struct file *filp, const char __user *user_buf,
+			      size_t count, loff_t *loff)
+{
+	struct seq_file *m = (struct seq_file *)filp->private_data;
+	struct rtw89_debugfs_priv *debugfs_priv = m->private;
+	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
+	bool fw_crash;
+	int ret;
+
+	if (!RTW89_CHK_FW_FEATURE(CRASH_TRIGGER, &rtwdev->fw))
+		return -EOPNOTSUPP;
+
+	ret = kstrtobool_from_user(user_buf, count, &fw_crash);
+	if (ret)
+		return -EINVAL;
+
+	if (!fw_crash)
+		return -EINVAL;
+
+	mutex_lock(&rtwdev->mutex);
+	set_bit(RTW89_FLAG_RESTART_TRIGGER, rtwdev->flags);
+	ret = rtw89_fw_h2c_trigger_cpu_exception(rtwdev);
+	mutex_unlock(&rtwdev->mutex);
+
+	if (ret)
+		return ret;
+
+	return count;
+}
+
 static int rtw89_debug_priv_btc_info_get(struct seq_file *m, void *v)
 {
 	struct rtw89_debugfs_priv *debugfs_priv = m->private;
@@ -2349,7 +2376,8 @@ static int rtw89_debug_priv_phy_info_get(struct seq_file *m, void *v)
 	seq_printf(m, "TP TX: %u [%u] Mbps (lv: %d), RX: %u [%u] Mbps (lv: %d)\n",
 		   stats->tx_throughput, stats->tx_throughput_raw, stats->tx_tfc_lv,
 		   stats->rx_throughput, stats->rx_throughput_raw, stats->rx_tfc_lv);
-	seq_printf(m, "Beacon: %u\n", pkt_stat->beacon_nr);
+	seq_printf(m, "Beacon: %u, TF: %u\n", pkt_stat->beacon_nr,
+		   stats->rx_tf_periodic);
 	seq_printf(m, "Avg packet length: TX=%u, RX=%u\n", stats->tx_avg_len,
 		   stats->rx_avg_len);
 
@@ -2410,7 +2438,8 @@ static void rtw89_sta_ids_get_iter(void *data, struct ieee80211_sta *sta)
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 	struct seq_file *m = (struct seq_file *)data;
 
-	seq_printf(m, "STA [%d] %pM\n", rtwsta->mac_id, sta->addr);
+	seq_printf(m, "STA [%d] %pM %s\n", rtwsta->mac_id, sta->addr,
+		   sta->tdls ? "(TDLS)" : "");
 	rtw89_dump_addr_cam(m, &rtwsta->addr_cam);
 }
 
@@ -2488,6 +2517,11 @@ static struct rtw89_debugfs_priv rtw89_debug_priv_early_h2c = {
 	.cb_write = rtw89_debug_priv_early_h2c_set,
 };
 
+static struct rtw89_debugfs_priv rtw89_debug_priv_fw_crash = {
+	.cb_read = rtw89_debug_priv_fw_crash_get,
+	.cb_write = rtw89_debug_priv_fw_crash_set,
+};
+
 static struct rtw89_debugfs_priv rtw89_debug_priv_btc_info = {
 	.cb_read = rtw89_debug_priv_btc_info_get,
 };
@@ -2542,6 +2576,7 @@ void rtw89_debugfs_init(struct rtw89_dev *rtwdev)
 	rtw89_debugfs_add_rw(mac_dbg_port_dump);
 	rtw89_debugfs_add_w(send_h2c);
 	rtw89_debugfs_add_rw(early_h2c);
+	rtw89_debugfs_add_rw(fw_crash);
 	rtw89_debugfs_add_r(btc_info);
 	rtw89_debugfs_add_w(btc_manual);
 	rtw89_debugfs_add_w(fw_log_manual);

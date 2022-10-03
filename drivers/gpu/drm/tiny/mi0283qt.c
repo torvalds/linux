@@ -17,7 +17,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_atomic_helper.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_mipi_dbi.h>
 #include <drm/drm_modeset_helper.h>
@@ -141,6 +141,7 @@ out_exit:
 }
 
 static const struct drm_simple_display_pipe_funcs mi0283qt_pipe_funcs = {
+	.mode_valid = mipi_dbi_pipe_mode_valid,
 	.enable = mi0283qt_enable,
 	.disable = mipi_dbi_pipe_disable,
 	.update = mipi_dbi_pipe_update,
@@ -150,12 +151,12 @@ static const struct drm_display_mode mi0283qt_mode = {
 	DRM_SIMPLE_MODE(320, 240, 58, 43),
 };
 
-DEFINE_DRM_GEM_CMA_FOPS(mi0283qt_fops);
+DEFINE_DRM_GEM_DMA_FOPS(mi0283qt_fops);
 
 static const struct drm_driver mi0283qt_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &mi0283qt_fops,
-	DRM_GEM_CMA_DRIVER_OPS_VMAP,
+	DRM_GEM_DMA_DRIVER_OPS_VMAP,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "mi0283qt",
 	.desc			= "Multi-Inno MI0283QT",

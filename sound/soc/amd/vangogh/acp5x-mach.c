@@ -17,10 +17,8 @@
 #include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
-#include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
-#include <linux/io.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
 
@@ -61,10 +59,10 @@ static int acp5x_8821_init(struct snd_soc_pcm_runtime *rtd)
 	 * Headset buttons map to the google Reference headset.
 	 * These can be configured by userspace.
 	 */
-	ret = snd_soc_card_jack_new(card, "Headset Jack",
-				    SND_JACK_HEADSET | SND_JACK_BTN_0,
-				    &vg_headset, acp5x_nau8821_jack_pins,
-				    ARRAY_SIZE(acp5x_nau8821_jack_pins));
+	ret = snd_soc_card_jack_new_pins(card, "Headset Jack",
+					 SND_JACK_HEADSET | SND_JACK_BTN_0,
+					 &vg_headset, acp5x_nau8821_jack_pins,
+					 ARRAY_SIZE(acp5x_nau8821_jack_pins));
 	if (ret) {
 		dev_err(rtd->dev, "Headset Jack creation failed %d\n", ret);
 		return ret;
@@ -180,8 +178,7 @@ static int acp5x_cs35l41_hw_params(struct snd_pcm_substream *substream,
 	ret = 0;
 	for (i = 0; i < num_codecs; i++) {
 		codec_dai = asoc_rtd_to_codec(rtd, i);
-		if ((strcmp(codec_dai->name, "spi-VLV1776:00") == 0) ||
-		    (strcmp(codec_dai->name, "spi-VLV1776:01") == 0)) {
+		if (strcmp(codec_dai->name, "cs35l41-pcm") == 0) {
 			switch (params_rate(params)) {
 			case 48000:
 				bclk_val = 1536000;

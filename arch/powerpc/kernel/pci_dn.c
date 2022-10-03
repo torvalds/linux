@@ -12,9 +12,9 @@
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/gfp.h>
+#include <linux/of.h>
 
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
 #include <asm/firmware.h>
@@ -259,7 +259,7 @@ void remove_sriov_vf_pdns(struct pci_dev *pdev)
 			if (edev) {
 				/*
 				 * We allocate pci_dn's for the totalvfs count,
-				 * but only only the vfs that were activated
+				 * but only the vfs that were activated
 				 * have a configured PE.
 				 */
 				if (edev->pe)

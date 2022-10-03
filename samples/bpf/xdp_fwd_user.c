@@ -47,17 +47,60 @@ static int do_attach(int idx, int prog_fd, int map_fd, const char *name)
 	return err;
 }
 
-static int do_detach(int idx, const char *name)
+static int do_detach(int ifindex, const char *ifname, const char *app_name)
 {
-	int err;
+	LIBBPF_OPTS(bpf_xdp_attach_opts, opts);
+	struct bpf_prog_info prog_info = {};
+	char prog_name[BPF_OBJ_NAME_LEN];
+	__u32 info_len, curr_prog_id;
+	int prog_fd;
+	int err = 1;
 
-	err = bpf_xdp_detach(idx, xdp_flags, NULL);
+	if (bpf_xdp_query_id(ifindex, xdp_flags, &curr_prog_id)) {
+		printf("ERROR: bpf_xdp_query_id failed (%s)\n",
+		       strerror(errno));
+		return err;
+	}
+
+	if (!curr_prog_id) {
+		printf("ERROR: flags(0x%x) xdp prog is not attached to %s\n",
+		       xdp_flags, ifname);
+		return err;
+	}
+
+	info_len = sizeof(prog_info);
+	prog_fd = bpf_prog_get_fd_by_id(curr_prog_id);
+	if (prog_fd < 0) {
+		printf("ERROR: bpf_prog_get_fd_by_id failed (%s)\n",
+		       strerror(errno));
+		return prog_fd;
+	}
+
+	err = bpf_obj_get_info_by_fd(prog_fd, &prog_info, &info_len);
+	if (err) {
+		printf("ERROR: bpf_obj_get_info_by_fd failed (%s)\n",
+		       strerror(errno));
+		goto close_out;
+	}
+	snprintf(prog_name, sizeof(prog_name), "%s_prog", app_name);
+	prog_name[BPF_OBJ_NAME_LEN - 1] = '\0';
+
+	if (strcmp(prog_info.name, prog_name)) {
+		printf("ERROR: %s isn't attached to %s\n", app_name, ifname);
+		err = 1;
+		goto close_out;
+	}
+
+	opts.old_prog_fd = prog_fd;
+	err = bpf_xdp_detach(ifindex, xdp_flags, &opts);
 	if (err < 0)
-		printf("ERROR: failed to detach program from %s\n", name);
-
+		printf("ERROR: failed to detach program from %s (%s)\n",
+		       ifname, strerror(errno));
 	/* TODO: Remember to cleanup map, when adding use of shared map
 	 *  bpf_map_delete_elem((map_fd, &idx);
 	 */
+close_out:
+	close(prog_fd);
 	return err;
 }
 
@@ -169,7 +212,7 @@ int main(int argc, char **argv)
 			return 1;
 		}
 		if (!attach) {
-			err = do_detach(idx, argv[i]);
+			err = do_detach(idx, argv[i], prog_name);
 			if (err)
 				ret = err;
 		} else {

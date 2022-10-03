@@ -80,7 +80,7 @@
 #include <linux/user_namespace.h>
 #include <linux/indirect_call_wrapper.h>
 
-#include "datagram.h"
+#include "dev.h"
 #include "sock_destructor.h"
 
 struct kmem_cache *skbuff_head_cache __ro_after_init;
@@ -90,6 +90,9 @@ static struct kmem_cache *skbuff_ext_cache __ro_after_init;
 #endif
 int sysctl_max_skb_frags __read_mostly = MAX_SKB_FRAGS;
 EXPORT_SYMBOL(sysctl_max_skb_frags);
+
+/* The array 'drop_reasons' is auto-generated in dropreason_str.c */
+EXPORT_SYMBOL(drop_reasons);
 
 /**
  *	skb_panic - private function for out-of-line support
@@ -172,13 +175,14 @@ static struct sk_buff *napi_skb_cache_get(void)
 	struct napi_alloc_cache *nc = this_cpu_ptr(&napi_alloc_cache);
 	struct sk_buff *skb;
 
-	if (unlikely(!nc->skb_count))
+	if (unlikely(!nc->skb_count)) {
 		nc->skb_count = kmem_cache_alloc_bulk(skbuff_head_cache,
 						      GFP_ATOMIC,
 						      NAPI_SKB_CACHE_BULK,
 						      nc->skb_cache);
-	if (unlikely(!nc->skb_count))
-		return NULL;
+		if (unlikely(!nc->skb_count))
+			return NULL;
+	}
 
 	skb = nc->skb_cache[--nc->skb_count];
 	kasan_unpoison_object_data(skbuff_head_cache, skb);
@@ -204,7 +208,7 @@ static void __build_skb_around(struct sk_buff *skb, void *data,
 	skb_set_end_offset(skb, size);
 	skb->mac_header = (typeof(skb->mac_header))~0U;
 	skb->transport_header = (typeof(skb->transport_header))~0U;
-
+	skb->alloc_cpu = raw_smp_processor_id();
 	/* make sure we initialize shinfo sequentially */
 	shinfo = skb_shinfo(skb);
 	memset(shinfo, 0, offsetof(struct skb_shared_info, dataref));
@@ -450,8 +454,6 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 
 		skb->fclone = SKB_FCLONE_ORIG;
 		refcount_set(&fclones->fclone_ref, 1);
-
-		fclones->skb2.fclone = SKB_FCLONE_CLONE;
 	}
 
 	return skb;
@@ -557,6 +559,7 @@ struct sk_buff *__napi_alloc_skb(struct napi_struct *napi, unsigned int len,
 	struct sk_buff *skb;
 	void *data;
 
+	DEBUG_NET_WARN_ON_ONCE(!in_softirq());
 	len += NET_SKB_PAD + NET_IP_ALIGN;
 
 	/* If requested length is either too small or too big,
@@ -666,11 +669,18 @@ static void skb_release_data(struct sk_buff *skb)
 			      &shinfo->dataref))
 		goto exit;
 
-	skb_zcopy_clear(skb, true);
+	if (skb_zcopy(skb)) {
+		bool skip_unref = shinfo->flags & SKBFL_MANAGED_FRAG_REFS;
+
+		skb_zcopy_clear(skb, true);
+		if (skip_unref)
+			goto free_head;
+	}
 
 	for (i = 0; i < shinfo->nr_frags; i++)
 		__skb_frag_unref(&shinfo->frags[i], skb->pp_recycle);
 
+free_head:
 	if (shinfo->frag_list)
 		kfree_skb_list(shinfo->frag_list);
 
@@ -725,7 +735,7 @@ void skb_release_head_state(struct sk_buff *skb)
 {
 	skb_dst_drop(skb);
 	if (skb->destructor) {
-		WARN_ON(in_hardirq());
+		DEBUG_NET_WARN_ON_ONCE(in_hardirq());
 		skb->destructor(skb);
 	}
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
@@ -771,6 +781,8 @@ void kfree_skb_reason(struct sk_buff *skb, enum skb_drop_reason reason)
 {
 	if (!skb_unref(skb))
 		return;
+
+	DEBUG_NET_WARN_ON_ONCE(reason <= 0 || reason >= SKB_DROP_REASON_MAX);
 
 	trace_kfree_skb(skb, __builtin_return_address(0), reason);
 	__kfree_skb(skb);
@@ -893,7 +905,10 @@ EXPORT_SYMBOL(skb_dump);
  */
 void skb_tx_error(struct sk_buff *skb)
 {
-	skb_zcopy_clear(skb, true);
+	if (skb) {
+		skb_zcopy_downgrade_managed(skb);
+		skb_zcopy_clear(skb, true);
+	}
 }
 EXPORT_SYMBOL(skb_tx_error);
 
@@ -976,7 +991,7 @@ void napi_consume_skb(struct sk_buff *skb, int budget)
 		return;
 	}
 
-	lockdep_assert_in_softirq();
+	DEBUG_NET_WARN_ON_ONCE(!in_softirq());
 
 	if (!skb_unref(skb))
 		return;
@@ -1037,6 +1052,7 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	CHECK_SKB_FIELD(napi_id);
 #endif
+	CHECK_SKB_FIELD(alloc_cpu);
 #ifdef CONFIG_XPS
 	CHECK_SKB_FIELD(sender_cpu);
 #endif
@@ -1165,7 +1181,7 @@ void mm_unaccount_pinned_pages(struct mmpin *mmp)
 }
 EXPORT_SYMBOL_GPL(mm_unaccount_pinned_pages);
 
-struct ubuf_info *msg_zerocopy_alloc(struct sock *sk, size_t size)
+static struct ubuf_info *msg_zerocopy_alloc(struct sock *sk, size_t size)
 {
 	struct ubuf_info *uarg;
 	struct sk_buff *skb;
@@ -1190,13 +1206,12 @@ struct ubuf_info *msg_zerocopy_alloc(struct sock *sk, size_t size)
 	uarg->len = 1;
 	uarg->bytelen = size;
 	uarg->zerocopy = 1;
-	uarg->flags = SKBFL_ZEROCOPY_FRAG;
+	uarg->flags = SKBFL_ZEROCOPY_FRAG | SKBFL_DONT_ORPHAN;
 	refcount_set(&uarg->refcnt, 1);
 	sock_hold(sk);
 
 	return uarg;
 }
-EXPORT_SYMBOL_GPL(msg_zerocopy_alloc);
 
 static inline struct sk_buff *skb_from_uarg(struct ubuf_info *uarg)
 {
@@ -1209,6 +1224,10 @@ struct ubuf_info *msg_zerocopy_realloc(struct sock *sk, size_t size,
 	if (uarg) {
 		const u32 byte_limit = 1 << 19;		/* limit to a few TSO */
 		u32 bytelen, next;
+
+		/* there might be non MSG_ZEROCOPY users */
+		if (uarg->callback != msg_zerocopy_callback)
+			return NULL;
 
 		/* realloc only when socket is locked (TCP, UDP cork),
 		 * so uarg->len and sk_zckey access is serialized
@@ -1339,18 +1358,11 @@ void msg_zerocopy_put_abort(struct ubuf_info *uarg, bool have_uref)
 }
 EXPORT_SYMBOL_GPL(msg_zerocopy_put_abort);
 
-int skb_zerocopy_iter_dgram(struct sk_buff *skb, struct msghdr *msg, int len)
-{
-	return __zerocopy_sg_from_iter(skb->sk, skb, &msg->msg_iter, len);
-}
-EXPORT_SYMBOL_GPL(skb_zerocopy_iter_dgram);
-
 int skb_zerocopy_iter_stream(struct sock *sk, struct sk_buff *skb,
 			     struct msghdr *msg, int len,
 			     struct ubuf_info *uarg)
 {
 	struct ubuf_info *orig_uarg = skb_zcopy(skb);
-	struct iov_iter orig_iter = msg->msg_iter;
 	int err, orig_len = skb->len;
 
 	/* An skb can only point to one uarg. This edge case happens when
@@ -1359,12 +1371,12 @@ int skb_zerocopy_iter_stream(struct sock *sk, struct sk_buff *skb,
 	if (orig_uarg && uarg != orig_uarg)
 		return -EEXIST;
 
-	err = __zerocopy_sg_from_iter(sk, skb, &msg->msg_iter, len);
+	err = __zerocopy_sg_from_iter(msg, sk, skb, &msg->msg_iter, len);
 	if (err == -EFAULT || (err == -EMSGSIZE && skb->len == orig_len)) {
 		struct sock *save_sk = skb->sk;
 
 		/* Streams do not free skb on error. Reset to prev state. */
-		msg->msg_iter = orig_iter;
+		iov_iter_revert(&msg->msg_iter, skb->len - orig_len);
 		skb->sk = sk;
 		___pskb_trim(skb, orig_len);
 		skb->sk = save_sk;
@@ -1375,6 +1387,16 @@ int skb_zerocopy_iter_stream(struct sock *sk, struct sk_buff *skb,
 	return skb->len - orig_len;
 }
 EXPORT_SYMBOL_GPL(skb_zerocopy_iter_stream);
+
+void __skb_zcopy_downgrade_managed(struct sk_buff *skb)
+{
+	int i;
+
+	skb_shinfo(skb)->flags &= ~SKBFL_MANAGED_FRAG_REFS;
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
+		skb_frag_ref(skb, i);
+}
+EXPORT_SYMBOL_GPL(__skb_zcopy_downgrade_managed);
 
 static int skb_zerocopy_clone(struct sk_buff *nskb, struct sk_buff *orig,
 			      gfp_t gfp_mask)
@@ -1513,6 +1535,7 @@ struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 	    refcount_read(&fclones->fclone_ref) == 1) {
 		n = &fclones->skb2;
 		refcount_set(&fclones->fclone_ref, 2);
+		n->fclone = SKB_FCLONE_CLONE;
 	} else {
 		if (skb_pfmemalloc(skb))
 			gfp_mask |= __GFP_MEMALLOC;
@@ -1692,6 +1715,8 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	BUG_ON(nhead < 0);
 
 	BUG_ON(skb_shared(skb));
+
+	skb_zcopy_downgrade_managed(skb);
 
 	size = SKB_DATA_ALIGN(size);
 
@@ -3195,9 +3220,7 @@ skb_zerocopy(struct sk_buff *to, struct sk_buff *from, int len, int hlen)
 		}
 	}
 
-	to->truesize += len + plen;
-	to->len += len + plen;
-	to->data_len += len + plen;
+	skb_len_add(to, len + plen);
 
 	if (unlikely(skb_orphan_frags(from, GFP_ATOMIC))) {
 		skb_tx_error(from);
@@ -3489,6 +3512,8 @@ void skb_split(struct sk_buff *skb, struct sk_buff *skb1, const u32 len)
 	int pos = skb_headlen(skb);
 	const int zc_flags = SKBFL_SHARED_FRAG | SKBFL_PURE_ZEROCOPY;
 
+	skb_zcopy_downgrade_managed(skb);
+
 	skb_shinfo(skb1)->flags |= skb_shinfo(skb)->flags & zc_flags;
 	skb_zerocopy_clone(skb1, skb, 0);
 	if (len < pos)	/* Split line is inside header. */
@@ -3634,13 +3659,8 @@ onlymerged:
 	tgt->ip_summed = CHECKSUM_PARTIAL;
 	skb->ip_summed = CHECKSUM_PARTIAL;
 
-	/* Yak, is it really working this way? Some helper please? */
-	skb->len -= shiftlen;
-	skb->data_len -= shiftlen;
-	skb->truesize -= shiftlen;
-	tgt->len += shiftlen;
-	tgt->data_len += shiftlen;
-	tgt->truesize += shiftlen;
+	skb_len_add(skb, -shiftlen);
+	skb_len_add(tgt, shiftlen);
 
 	return shiftlen;
 }
@@ -3842,6 +3862,7 @@ int skb_append_pagefrags(struct sk_buff *skb, struct page *page,
 	if (skb_can_coalesce(skb, i, page, offset)) {
 		skb_frag_size_add(&skb_shinfo(skb)->frags[i - 1], size);
 	} else if (i < MAX_SKB_FRAGS) {
+		skb_zcopy_downgrade_managed(skb);
 		get_page(page);
 		skb_fill_page_desc(skb, i, page, offset, size);
 	} else {
@@ -3897,7 +3918,7 @@ struct sk_buff *skb_segment_list(struct sk_buff *skb,
 	unsigned int delta_len = 0;
 	struct sk_buff *tail = NULL;
 	struct sk_buff *nskb, *tmp;
-	int err;
+	int len_diff, err;
 
 	skb_push(skb, -skb_network_offset(skb) + offset);
 
@@ -3937,9 +3958,11 @@ struct sk_buff *skb_segment_list(struct sk_buff *skb,
 		skb_push(nskb, -skb_network_offset(nskb) + offset);
 
 		skb_release_head_state(nskb);
+		len_diff = skb_network_header_len(nskb) - skb_network_header_len(skb);
 		__copy_skb_header(nskb, skb);
 
 		skb_headers_offset_update(nskb, skb_headroom(nskb) - skb_headroom(skb));
+		nskb->transport_header += len_diff;
 		skb_copy_from_linear_data_offset(skb, -tnl_hlen,
 						 nskb->data - tnl_hlen,
 						 offset + tnl_hlen);
@@ -5601,7 +5624,7 @@ err_free:
 }
 EXPORT_SYMBOL(skb_vlan_untag);
 
-int skb_ensure_writable(struct sk_buff *skb, int write_len)
+int skb_ensure_writable(struct sk_buff *skb, unsigned int write_len)
 {
 	if (!pskb_may_pull(skb, write_len))
 		return -ENOMEM;
@@ -6486,3 +6509,49 @@ free_now:
 }
 EXPORT_SYMBOL(__skb_ext_put);
 #endif /* CONFIG_SKB_EXTENSIONS */
+
+/**
+ * skb_attempt_defer_free - queue skb for remote freeing
+ * @skb: buffer
+ *
+ * Put @skb in a per-cpu list, using the cpu which
+ * allocated the skb/pages to reduce false sharing
+ * and memory zone spinlock contention.
+ */
+void skb_attempt_defer_free(struct sk_buff *skb)
+{
+	int cpu = skb->alloc_cpu;
+	struct softnet_data *sd;
+	unsigned long flags;
+	unsigned int defer_max;
+	bool kick;
+
+	if (WARN_ON_ONCE(cpu >= nr_cpu_ids) ||
+	    !cpu_online(cpu) ||
+	    cpu == raw_smp_processor_id()) {
+nodefer:	__kfree_skb(skb);
+		return;
+	}
+
+	sd = &per_cpu(softnet_data, cpu);
+	defer_max = READ_ONCE(sysctl_skb_defer_max);
+	if (READ_ONCE(sd->defer_count) >= defer_max)
+		goto nodefer;
+
+	spin_lock_irqsave(&sd->defer_lock, flags);
+	/* Send an IPI every time queue reaches half capacity. */
+	kick = sd->defer_count == (defer_max >> 1);
+	/* Paired with the READ_ONCE() few lines above */
+	WRITE_ONCE(sd->defer_count, sd->defer_count + 1);
+
+	skb->next = sd->defer_list;
+	/* Paired with READ_ONCE() in skb_defer_free_flush() */
+	WRITE_ONCE(sd->defer_list, skb);
+	spin_unlock_irqrestore(&sd->defer_lock, flags);
+
+	/* Make sure to trigger NET_RX_SOFTIRQ on the remote CPU
+	 * if we are unlucky enough (this seems very unlikely).
+	 */
+	if (unlikely(kick) && !cmpxchg(&sd->defer_ipi_scheduled, 0, 1))
+		smp_call_function_single_async(cpu, &sd->defer_csd);
+}

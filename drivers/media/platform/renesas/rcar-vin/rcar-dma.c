@@ -77,6 +77,7 @@
 
 /* Register bit fields for R-Car VIN */
 /* Video n Main Control Register bits */
+#define VNMC_INF_MASK		(7 << 16)
 #define VNMC_DPINE		(1 << 27) /* Gen3 specific */
 #define VNMC_SCLE		(1 << 26) /* Gen3 specific */
 #define VNMC_FOC		(1 << 21)
@@ -88,6 +89,7 @@
 #define VNMC_INF_RAW8		(4 << 16)
 #define VNMC_INF_YUV16		(5 << 16)
 #define VNMC_INF_RGB888		(6 << 16)
+#define VNMC_INF_RGB666		(7 << 16)
 #define VNMC_VUP		(1 << 10)
 #define VNMC_IM_ODD		(0 << 3)
 #define VNMC_IM_ODD_EVEN	(1 << 3)
@@ -707,6 +709,29 @@ static int rvin_setup(struct rvin_dev *vin)
 		break;
 	}
 
+	/* Make sure input interface and input format is valid. */
+	if (vin->info->model == RCAR_GEN3) {
+		switch (vnmc & VNMC_INF_MASK) {
+		case VNMC_INF_YUV8_BT656:
+		case VNMC_INF_YUV10_BT656:
+		case VNMC_INF_YUV16:
+		case VNMC_INF_RGB666:
+			if (vin->is_csi) {
+				vin_err(vin, "Invalid setting in MIPI CSI2\n");
+				return -EINVAL;
+			}
+			break;
+		case VNMC_INF_RAW8:
+			if (!vin->is_csi) {
+				vin_err(vin, "Invalid setting in Digital Pins\n");
+				return -EINVAL;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
 	/* Enable VSYNC Field Toggle mode after one VSYNC input */
 	if (vin->info->model == RCAR_GEN3)
 		dmr2 = VNDMR2_FTEV;
@@ -1233,7 +1258,7 @@ static int rvin_set_stream(struct rvin_dev *vin, int on)
 		return ret == -ENOIOCTLCMD ? 0 : ret;
 	}
 
-	pad = media_entity_remote_pad(&vin->pad);
+	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
 		return -EPIPE;
 

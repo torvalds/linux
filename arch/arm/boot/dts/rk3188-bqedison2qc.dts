@@ -7,6 +7,7 @@
 /dts-v1/;
 #include <dt-bindings/i2c/i2c.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 #include "rk3188.dtsi"
 
 / {
@@ -36,7 +37,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwr_key &usb_int>;
 
-		power {
+		key-power {
 			gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			label = "GPIO Key Power";
@@ -45,7 +46,7 @@
 			wakeup-source;
 		};
 
-		wake_on_usb: wake-on-usb {
+		wake_on_usb: key-wake-on-usb {
 			label = "Wake-on-USB";
 			gpios = <&gpio0 RK_PA7 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_WAKEUP>;
@@ -485,7 +486,7 @@
 		reg = <1>;
 		compatible = "brcm,bcm4329-fmac";
 		interrupt-parent = <&gpio3>;
-		interrupts = <RK_PD2 GPIO_ACTIVE_HIGH>;
+		interrupts = <RK_PD2 IRQ_TYPE_NONE>;
 		interrupt-names = "host-wake";
 		brcm,drive-strength = <5>;
 		pinctrl-names = "default";

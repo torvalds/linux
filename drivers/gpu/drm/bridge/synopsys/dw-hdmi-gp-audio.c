@@ -77,7 +77,6 @@ static int audio_hw_params(struct device *dev,  void *data,
 			   struct hdmi_codec_params *params)
 {
 	struct snd_dw_hdmi *dw = dev_get_drvdata(dev);
-	int ret = 0;
 	u8 ca;
 
 	dw_hdmi_set_sample_rate(dw->data.hdmi, params->sample_rate);
@@ -91,7 +90,7 @@ static int audio_hw_params(struct device *dev,  void *data,
 				   params->iec.status[0] & IEC958_AES0_NONAUDIO);
 	dw_hdmi_set_sample_width(dw->data.hdmi, params->sample_width);
 
-	return ret;
+	return 0;
 }
 
 static void audio_shutdown(struct device *dev, void *data)
@@ -102,14 +101,13 @@ static int audio_mute_stream(struct device *dev, void *data,
 			     bool enable, int direction)
 {
 	struct snd_dw_hdmi *dw = dev_get_drvdata(dev);
-	int ret = 0;
 
 	if (!enable)
 		dw_hdmi_audio_enable(dw->data.hdmi);
 	else
 		dw_hdmi_audio_disable(dw->data.hdmi);
 
-	return ret;
+	return 0;
 }
 
 static int audio_get_eld(struct device *dev, void *data,

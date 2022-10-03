@@ -24,17 +24,18 @@
 #include <linux/syscore_ops.h>
 #include <linux/platform_data/i2c-pxa.h>
 #include <linux/platform_data/mmp_dma.h>
+#include <linux/soc/pxa/cpu.h>
+#include <linux/clk/pxa.h>
 
 #include <asm/mach/map.h>
 #include <asm/suspend.h>
-#include <mach/hardware.h>
-#include <mach/pxa3xx-regs.h>
-#include <mach/reset.h>
+#include "pxa3xx-regs.h"
+#include "reset.h"
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include "pm.h"
-#include <mach/dma.h>
-#include <mach/smemc.h>
-#include <mach/irqs.h>
+#include "addr-map.h"
+#include "smemc.h"
+#include "irqs.h"
 
 #include "generic.h"
 #include "devices.h"
@@ -50,6 +51,10 @@ extern void __init pxa_dt_irq_init(int (*fn)(struct irq_data *, unsigned int));
 #define NDCR			(*(volatile u32 __iomem*)(NAND_VIRT + 0))
 #define NDCR_ND_ARB_EN		(1 << 12)
 #define NDCR_ND_ARB_CNTL	(1 << 19)
+
+#define CKEN_BOOT  		11      /* < Boot rom clock enable */
+#define CKEN_TPM   		19      /* < TPM clock enable */
+#define CKEN_HSIO2 		41      /* < HSIO2 clock enable */
 
 #ifdef CONFIG_PM
 
@@ -463,7 +468,7 @@ static int __init pxa3xx_init(void)
 
 	if (cpu_is_pxa3xx()) {
 
-		reset_status = ARSR;
+		pxa_register_wdt(ARSR);
 
 		/*
 		 * clear RDH bit every time after reset

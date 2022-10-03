@@ -780,8 +780,8 @@ struct hclge_vf_vlan_cfg {
 	union {
 		struct {
 			u8 is_kill;
-			u16 vlan;
-			u16 proto;
+			__le16 vlan;
+			__le16 proto;
 		};
 		u8 enable;
 	};
@@ -938,8 +938,6 @@ struct hclge_dev {
 	DECLARE_KFIFO(mac_tnl_log, struct hclge_mac_tnl_stats,
 		      HCLGE_MAC_TNL_LOG_SIZE);
 
-	/* affinity mask and notify for misc interrupt */
-	cpumask_t affinity_mask;
 	struct hclge_ptp *ptp;
 	struct devlink *devlink;
 	struct hclge_comm_rss_cfg rss_cfg;

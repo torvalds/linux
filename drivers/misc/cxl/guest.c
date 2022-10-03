@@ -6,6 +6,8 @@
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
+#include <linux/irqdomain.h>
+#include <linux/platform_device.h>
 
 #include "cxl.h"
 #include "hcalls.h"
@@ -1051,7 +1053,7 @@ static void free_adapter(struct cxl *adapter)
 		if (adapter->guest->irq_avail) {
 			for (i = 0; i < adapter->guest->irq_nranges; i++) {
 				cur = &adapter->guest->irq_avail[i];
-				kfree(cur->bitmap);
+				bitmap_free(cur->bitmap);
 			}
 			kfree(adapter->guest->irq_avail);
 		}

@@ -22,6 +22,7 @@
 #include <linux/pm_runtime.h>
 #include <asm/cpuidle.h>
 #include <asm/sbi.h>
+#include <asm/smp.h>
 #include <asm/suspend.h>
 
 #include "dt_idle_states.h"
@@ -115,12 +116,12 @@ static int __sbi_enter_domain_idle_state(struct cpuidle_device *dev,
 		return -1;
 
 	/* Do runtime PM to manage a hierarchical CPU toplogy. */
-	rcu_irq_enter_irqson();
+	ct_irq_enter_irqson();
 	if (s2idle)
 		dev_pm_genpd_suspend(pd_dev);
 	else
 		pm_runtime_put_sync_suspend(pd_dev);
-	rcu_irq_exit_irqson();
+	ct_irq_exit_irqson();
 
 	if (sbi_is_domain_state_available())
 		state = sbi_get_domain_state();
@@ -129,12 +130,12 @@ static int __sbi_enter_domain_idle_state(struct cpuidle_device *dev,
 
 	ret = sbi_suspend(state) ? -1 : idx;
 
-	rcu_irq_enter_irqson();
+	ct_irq_enter_irqson();
 	if (s2idle)
 		dev_pm_genpd_resume(pd_dev);
 	else
 		pm_runtime_get_sync(pd_dev);
-	rcu_irq_exit_irqson();
+	ct_irq_exit_irqson();
 
 	cpu_pm_exit();
 
@@ -413,7 +414,7 @@ static int sbi_pd_init(struct device_node *np)
 	struct generic_pm_domain *pd;
 	struct sbi_pd_provider *pd_provider;
 	struct dev_power_governor *pd_gov;
-	int ret = -ENOMEM, state_count = 0;
+	int ret = -ENOMEM;
 
 	pd = dt_idle_pd_alloc(np, sbi_dt_parse_state_node);
 	if (!pd)
@@ -432,7 +433,7 @@ static int sbi_pd_init(struct device_node *np)
 		pd->flags |= GENPD_FLAG_ALWAYS_ON;
 
 	/* Use governor for CPU PM domains if it has some states to manage. */
-	pd_gov = state_count > 0 ? &pm_domain_cpu_gov : NULL;
+	pd_gov = pd->states ? &pm_domain_cpu_gov : NULL;
 
 	ret = pm_genpd_init(pd, pd_gov, false);
 	if (ret)

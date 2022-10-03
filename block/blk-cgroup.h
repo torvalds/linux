@@ -15,12 +15,100 @@
  */
 
 #include <linux/blk-cgroup.h>
+#include <linux/cgroup.h>
+#include <linux/kthread.h>
 #include <linux/blk-mq.h>
+
+struct blkcg_gq;
+struct blkg_policy_data;
+
 
 /* percpu_counter batch for blkg_[rw]stats, per-cpu drift doesn't matter */
 #define BLKG_STAT_CPU_BATCH	(INT_MAX / 2)
 
 #ifdef CONFIG_BLK_CGROUP
+
+enum blkg_iostat_type {
+	BLKG_IOSTAT_READ,
+	BLKG_IOSTAT_WRITE,
+	BLKG_IOSTAT_DISCARD,
+
+	BLKG_IOSTAT_NR,
+};
+
+struct blkg_iostat {
+	u64				bytes[BLKG_IOSTAT_NR];
+	u64				ios[BLKG_IOSTAT_NR];
+};
+
+struct blkg_iostat_set {
+	struct u64_stats_sync		sync;
+	struct blkg_iostat		cur;
+	struct blkg_iostat		last;
+};
+
+/* association between a blk cgroup and a request queue */
+struct blkcg_gq {
+	/* Pointer to the associated request_queue */
+	struct request_queue		*q;
+	struct list_head		q_node;
+	struct hlist_node		blkcg_node;
+	struct blkcg			*blkcg;
+
+	/* all non-root blkcg_gq's are guaranteed to have access to parent */
+	struct blkcg_gq			*parent;
+
+	/* reference count */
+	struct percpu_ref		refcnt;
+
+	/* is this blkg online? protected by both blkcg and q locks */
+	bool				online;
+
+	struct blkg_iostat_set __percpu	*iostat_cpu;
+	struct blkg_iostat_set		iostat;
+
+	struct blkg_policy_data		*pd[BLKCG_MAX_POLS];
+
+	spinlock_t			async_bio_lock;
+	struct bio_list			async_bios;
+	union {
+		struct work_struct	async_bio_work;
+		struct work_struct	free_work;
+	};
+
+	atomic_t			use_delay;
+	atomic64_t			delay_nsec;
+	atomic64_t			delay_start;
+	u64				last_delay;
+	int				last_use;
+
+	struct rcu_head			rcu_head;
+};
+
+struct blkcg {
+	struct cgroup_subsys_state	css;
+	spinlock_t			lock;
+	refcount_t			online_pin;
+
+	struct radix_tree_root		blkg_tree;
+	struct blkcg_gq	__rcu		*blkg_hint;
+	struct hlist_head		blkg_list;
+
+	struct blkcg_policy_data	*cpd[BLKCG_MAX_POLS];
+
+	struct list_head		all_blkcgs_node;
+#ifdef CONFIG_BLK_CGROUP_FC_APPID
+	char                            fc_app_id[FC_APPID_LEN];
+#endif
+#ifdef CONFIG_CGROUP_WRITEBACK
+	struct list_head		cgwb_list;
+#endif
+};
+
+static inline struct blkcg *css_to_blkcg(struct cgroup_subsys_state *css)
+{
+	return css ? container_of(css, struct blkcg, css) : NULL;
+}
 
 /*
  * A blkcg_gq (blkg) is association between a block cgroup (blkcg) and a
@@ -63,7 +151,7 @@ typedef void (blkcg_pol_online_pd_fn)(struct blkg_policy_data *pd);
 typedef void (blkcg_pol_offline_pd_fn)(struct blkg_policy_data *pd);
 typedef void (blkcg_pol_free_pd_fn)(struct blkg_policy_data *pd);
 typedef void (blkcg_pol_reset_pd_stats_fn)(struct blkg_policy_data *pd);
-typedef bool (blkcg_pol_stat_pd_fn)(struct blkg_policy_data *pd,
+typedef void (blkcg_pol_stat_pd_fn)(struct blkg_policy_data *pd,
 				struct seq_file *s);
 
 struct blkcg_policy {
@@ -123,52 +211,14 @@ int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
 void blkg_conf_finish(struct blkg_conf_ctx *ctx);
 
 /**
- * blkcg_css - find the current css
- *
- * Find the css associated with either the kthread or the current task.
- * This may return a dying css, so it is up to the caller to use tryget logic
- * to confirm it is alive and well.
- */
-static inline struct cgroup_subsys_state *blkcg_css(void)
-{
-	struct cgroup_subsys_state *css;
-
-	css = kthread_blkcg();
-	if (css)
-		return css;
-	return task_css(current, io_cgrp_id);
-}
-
-/**
- * __bio_blkcg - internal, inconsistent version to get blkcg
- *
- * DO NOT USE.
- * This function is inconsistent and consequently is dangerous to use.  The
- * first part of the function returns a blkcg where a reference is owned by the
- * bio.  This means it does not need to be rcu protected as it cannot go away
- * with the bio owning a reference to it.  However, the latter potentially gets
- * it from task_css().  This can race against task migration and the cgroup
- * dying.  It is also semantically different as it must be called rcu protected
- * and is susceptible to failure when trying to get a reference to it.
- * Therefore, it is not ok to assume that *_get() will always succeed on the
- * blkcg returned here.
- */
-static inline struct blkcg *__bio_blkcg(struct bio *bio)
-{
-	if (bio && bio->bi_blkg)
-		return bio->bi_blkg->blkcg;
-	return css_to_blkcg(blkcg_css());
-}
-
-/**
  * bio_issue_as_root_blkg - see if this bio needs to be issued as root blkg
  * @return: true if this bio needs to be submitted with the root blkg context.
  *
  * In order to avoid priority inversions we sometimes need to issue a bio as if
  * it were attached to the root blkg, and then backcharge to the actual owning
- * blkg.  The idea is we do bio_blkcg() to look up the actual context for the
- * bio and attach the appropriate blkg to the bio.  Then we call this helper and
- * if it is true run with the root blkg for that queue and then do any
+ * blkg.  The idea is we do bio_blkcg_css() to look up the actual context for
+ * the bio and attach the appropriate blkg to the bio.  Then we call this helper
+ * and if it is true run with the root blkg for that queue and then do any
  * backcharging to the originating cgroup once the io is complete.
  */
 static inline bool bio_issue_as_root_blkg(struct bio *bio)
@@ -380,12 +430,8 @@ static inline int blkcg_unuse_delay(struct blkcg_gq *blkg)
 	 * then check to see if we were the last delay so we can drop the
 	 * congestion count on the cgroup.
 	 */
-	while (old) {
-		int cur = atomic_cmpxchg(&blkg->use_delay, old, old - 1);
-		if (cur == old)
-			break;
-		old = cur;
-	}
+	while (old && !atomic_try_cmpxchg(&blkg->use_delay, &old, old - 1))
+		;
 
 	if (old == 0)
 		return 0;
@@ -408,7 +454,7 @@ static inline void blkcg_set_delay(struct blkcg_gq *blkg, u64 delay)
 	int old = atomic_read(&blkg->use_delay);
 
 	/* We only want 1 person setting the congestion count for this blkg. */
-	if (!old && atomic_cmpxchg(&blkg->use_delay, old, -1) == old)
+	if (!old && atomic_try_cmpxchg(&blkg->use_delay, &old, -1))
 		atomic_inc(&blkg->blkcg->css.cgroup->congestion_count);
 
 	atomic64_set(&blkg->delay_nsec, delay);
@@ -425,7 +471,7 @@ static inline void blkcg_clear_delay(struct blkcg_gq *blkg)
 	int old = atomic_read(&blkg->use_delay);
 
 	/* We only want 1 person clearing the congestion count for this blkg. */
-	if (old && atomic_cmpxchg(&blkg->use_delay, old, 0) == old)
+	if (old && atomic_try_cmpxchg(&blkg->use_delay, &old, 0))
 		atomic_dec(&blkg->blkcg->css.cgroup->congestion_count);
 }
 
@@ -457,7 +503,8 @@ struct blkcg_policy_data {
 struct blkcg_policy {
 };
 
-#ifdef CONFIG_BLOCK
+struct blkcg {
+};
 
 static inline struct blkcg_gq *blkg_lookup(struct blkcg *blkcg, void *key) { return NULL; }
 static inline struct blkcg_gq *blk_queue_root_blkg(struct request_queue *q)
@@ -470,8 +517,6 @@ static inline int blkcg_activate_policy(struct request_queue *q,
 					const struct blkcg_policy *pol) { return 0; }
 static inline void blkcg_deactivate_policy(struct request_queue *q,
 					   const struct blkcg_policy *pol) { }
-
-static inline struct blkcg *__bio_blkcg(struct bio *bio) { return NULL; }
 
 static inline struct blkg_policy_data *blkg_to_pd(struct blkcg_gq *blkg,
 						  struct blkcg_policy *pol) { return NULL; }
@@ -488,7 +533,6 @@ static inline bool blk_cgroup_mergeable(struct request *rq, struct bio *bio) { r
 #define blk_queue_for_each_rl(rl, q)	\
 	for ((rl) = &(q)->root_rl; (rl); (rl) = NULL)
 
-#endif	/* CONFIG_BLOCK */
 #endif	/* CONFIG_BLK_CGROUP */
 
 #endif /* _BLK_CGROUP_PRIVATE_H */

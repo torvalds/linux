@@ -301,10 +301,6 @@ struct efx_ef10_nic_data {
 int efx_ef10_tx_tso_desc(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
 			 bool *data_mapped);
 
-int efx_init_sriov(void);
-void efx_fini_sriov(void);
-
-extern const struct efx_nic_type siena_a0_nic_type;
 extern const struct efx_nic_type efx_hunt_a0_nic_type;
 extern const struct efx_nic_type efx_hunt_a0_vf_nic_type;
 

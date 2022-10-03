@@ -36,12 +36,12 @@
 #include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_vram_helper.h>
 #include <drm/drm_managed.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 
@@ -112,6 +112,9 @@ static bool ast_get_vbios_mode_info(const struct drm_format_info *format,
 		break;
 	case 1024:
 		vbios_mode->enh_table = &res_1024x768[refresh_rate_index];
+		break;
+	case 1152:
+		vbios_mode->enh_table = &res_1152x864[refresh_rate_index];
 		break;
 	case 1280:
 		if (mode->crtc_vdisplay == 800)
@@ -310,7 +313,7 @@ static void ast_set_crtc_reg(struct ast_private *ast,
 	u8 jreg05 = 0, jreg07 = 0, jreg09 = 0, jregAC = 0, jregAD = 0, jregAE = 0;
 	u16 temp, precache = 0;
 
-	if ((ast->chip == AST2500) &&
+	if ((ast->chip == AST2500 || ast->chip == AST2600) &&
 	    (vbios_mode->enh_table->flags & AST2500PreCatchCRT))
 		precache = 40;
 
@@ -350,6 +353,12 @@ static void ast_set_crtc_reg(struct ast_private *ast,
 
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xAC, 0x00, jregAC);
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xAD, 0x00, jregAD);
+
+	// Workaround for HSync Time non octave pixels (1920x1080@60Hz HSync 44 pixels);
+	if ((ast->chip == AST2600) && (mode->crtc_vdisplay == 1080))
+		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xFC, 0xFD, 0x02);
+	else
+		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xFC, 0xFD, 0x00);
 
 	/* vert timings */
 	temp = (mode->crtc_vtotal) - 2;
@@ -428,7 +437,7 @@ static void ast_set_dclk_reg(struct ast_private *ast,
 {
 	const struct ast_vbios_dclk_info *clk_info;
 
-	if (ast->chip == AST2500)
+	if ((ast->chip == AST2500) || (ast->chip == AST2600))
 		clk_info = &dclk_table_ast2500[vbios_mode->enh_table->dclk_index];
 	else
 		clk_info = &dclk_table[vbios_mode->enh_table->dclk_index];
@@ -554,8 +563,8 @@ static int ast_primary_plane_helper_atomic_check(struct drm_plane *plane,
 						   new_plane_state->crtc);
 
 	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
-						  DRM_PLANE_HELPER_NO_SCALING,
-						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
 						  false, true);
 	if (ret)
 		return ret;
@@ -778,8 +787,8 @@ static int ast_cursor_plane_helper_atomic_check(struct drm_plane *plane,
 						   new_plane_state->crtc);
 
 	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
-						  DRM_PLANE_HELPER_NO_SCALING,
-						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
 						  true, true);
 	if (ret)
 		return ret;
@@ -988,20 +997,53 @@ err_drm_gem_vram_put:
 static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct ast_private *ast = to_ast_private(crtc->dev);
+	u8 ch = AST_DPMS_VSYNC_OFF | AST_DPMS_HSYNC_OFF;
+	struct ast_crtc_state *ast_state;
+	const struct drm_format_info *format;
+	struct ast_vbios_mode_info *vbios_mode_info;
 
 	/* TODO: Maybe control display signal generation with
 	 *       Sync Enable (bit CR17.7).
 	 */
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
+		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT,  0x01, 0xdf, 0);
+		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0xfc, 0);
+		if (ast->tx_chip_types & AST_TX_DP501_BIT)
+			ast_set_dp501_video_output(crtc->dev, 1);
+
+		if (ast->tx_chip_types & AST_TX_ASTDP_BIT) {
+			ast_dp_power_on_off(crtc->dev, AST_DP_POWER_ON);
+			ast_wait_for_vretrace(ast);
+			ast_dp_set_on_off(crtc->dev, 1);
+		}
+
+		ast_state = to_ast_crtc_state(crtc->state);
+		format = ast_state->format;
+
+		if (format) {
+			vbios_mode_info = &ast_state->vbios_mode_info;
+
+			ast_set_color_reg(ast, format);
+			ast_set_vbios_color_reg(ast, format, vbios_mode_info);
+		}
+
+		ast_crtc_load_lut(ast, crtc);
+		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
-		if (ast->tx_chip_type == AST_TX_DP501)
-			ast_set_dp501_video_output(crtc->dev, 1);
-		break;
 	case DRM_MODE_DPMS_OFF:
-		if (ast->tx_chip_type == AST_TX_DP501)
+		ch = mode;
+		if (ast->tx_chip_types & AST_TX_DP501_BIT)
 			ast_set_dp501_video_output(crtc->dev, 0);
+
+		if (ast->tx_chip_types & AST_TX_ASTDP_BIT) {
+			ast_dp_set_on_off(crtc->dev, 0);
+			ast_dp_power_on_off(crtc->dev, AST_DP_POWER_OFF);
+		}
+
+		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT,  0x01, 0xdf, 0x20);
+		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xb6, 0xfc, ch);
 		break;
 	}
 }
@@ -1024,10 +1066,12 @@ ast_crtc_helper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode 
 			return MODE_OK;
 		if ((mode->hdisplay == 1600) && (mode->vdisplay == 900))
 			return MODE_OK;
+		if ((mode->hdisplay == 1152) && (mode->vdisplay == 864))
+			return MODE_OK;
 
 		if ((ast->chip == AST2100) || (ast->chip == AST2200) ||
 		    (ast->chip == AST2300) || (ast->chip == AST2400) ||
-		    (ast->chip == AST2500)) {
+		    (ast->chip == AST2500) || (ast->chip == AST2600)) {
 			if ((mode->hdisplay == 1920) && (mode->vdisplay == 1080))
 				return MODE_OK;
 
@@ -1056,6 +1100,10 @@ ast_crtc_helper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode 
 		if (mode->vdisplay == 768)
 			status = MODE_OK;
 		break;
+	case 1152:
+		if (mode->vdisplay == 864)
+			status = MODE_OK;
+		break;
 	case 1280:
 		if (mode->vdisplay == 1024)
 			status = MODE_OK;
@@ -1074,15 +1122,19 @@ ast_crtc_helper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode 
 static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 					struct drm_atomic_state *state)
 {
-	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
-									  crtc);
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	struct drm_device *dev = crtc->dev;
 	struct ast_crtc_state *ast_state;
 	const struct drm_format_info *format;
 	bool succ;
+	int ret;
+
+	ret = drm_atomic_helper_check_crtc_state(crtc_state, false);
+	if (ret)
+		return ret;
 
 	if (!crtc_state->enable)
-		return 0; /* no mode checks if CRTC is being disabled */
+		goto out;
 
 	ast_state = to_ast_crtc_state(crtc_state);
 
@@ -1096,7 +1148,22 @@ static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 	if (!succ)
 		return -EINVAL;
 
-	return 0;
+out:
+	return drm_atomic_add_affected_planes(state, crtc);
+}
+
+static void ast_crtc_helper_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_state *state)
+{
+	struct drm_device *dev = crtc->dev;
+	struct ast_private *ast = to_ast_private(dev);
+
+	/*
+	 * Concurrent operations could possibly trigger a call to
+	 * drm_connector_helper_funcs.get_modes by trying to read the
+	 * display modes. Protect access to I/O registers by acquiring
+	 * the I/O-register lock. Released in atomic_flush().
+	 */
+	mutex_lock(&ast->ioregs_lock);
 }
 
 static void
@@ -1107,9 +1174,11 @@ ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 									  crtc);
 	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state,
 									      crtc);
-	struct ast_private *ast = to_ast_private(crtc->dev);
+	struct drm_device *dev = crtc->dev;
+	struct ast_private *ast = to_ast_private(dev);
 	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
 	struct ast_crtc_state *old_ast_crtc_state = to_ast_crtc_state(old_crtc_state);
+	struct ast_vbios_mode_info *vbios_mode_info = &ast_crtc_state->vbios_mode_info;
 
 	/*
 	 * The gamma LUT has to be reloaded after changing the primary
@@ -1117,6 +1186,12 @@ ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 	 */
 	if (old_ast_crtc_state->format != ast_crtc_state->format)
 		ast_crtc_load_lut(ast, crtc);
+
+	//Set Aspeed Display-Port
+	if (ast->tx_chip_types & AST_TX_ASTDP_BIT)
+		ast_dp_set_mode(crtc, vbios_mode_info);
+
+	mutex_unlock(&ast->ioregs_lock);
 }
 
 static void
@@ -1175,6 +1250,7 @@ ast_crtc_helper_atomic_disable(struct drm_crtc *crtc,
 static const struct drm_crtc_helper_funcs ast_crtc_helper_funcs = {
 	.mode_valid = ast_crtc_helper_mode_valid,
 	.atomic_check = ast_crtc_helper_atomic_check,
+	.atomic_begin = ast_crtc_helper_atomic_begin,
 	.atomic_flush = ast_crtc_helper_atomic_flush,
 	.atomic_enable = ast_crtc_helper_atomic_enable,
 	.atomic_disable = ast_crtc_helper_atomic_disable,
@@ -1260,21 +1336,33 @@ static int ast_crtc_init(struct drm_device *dev)
 static int ast_vga_connector_helper_get_modes(struct drm_connector *connector)
 {
 	struct ast_vga_connector *ast_vga_connector = to_ast_vga_connector(connector);
+	struct drm_device *dev = connector->dev;
+	struct ast_private *ast = to_ast_private(dev);
 	struct edid *edid;
 	int count;
 
 	if (!ast_vga_connector->i2c)
 		goto err_drm_connector_update_edid_property;
 
+	/*
+	 * Protect access to I/O registers from concurrent modesetting
+	 * by acquiring the I/O-register lock.
+	 */
+	mutex_lock(&ast->ioregs_lock);
+
 	edid = drm_get_edid(connector, &ast_vga_connector->i2c->adapter);
 	if (!edid)
-		goto err_drm_connector_update_edid_property;
+		goto err_mutex_unlock;
+
+	mutex_unlock(&ast->ioregs_lock);
 
 	count = drm_add_edid_modes(connector, edid);
 	kfree(edid);
 
 	return count;
 
+err_mutex_unlock:
+	mutex_unlock(&ast->ioregs_lock);
 err_drm_connector_update_edid_property:
 	drm_connector_update_edid_property(connector, NULL);
 	return 0;
@@ -1354,21 +1442,33 @@ static int ast_vga_output_init(struct ast_private *ast)
 static int ast_sil164_connector_helper_get_modes(struct drm_connector *connector)
 {
 	struct ast_sil164_connector *ast_sil164_connector = to_ast_sil164_connector(connector);
+	struct drm_device *dev = connector->dev;
+	struct ast_private *ast = to_ast_private(dev);
 	struct edid *edid;
 	int count;
 
 	if (!ast_sil164_connector->i2c)
 		goto err_drm_connector_update_edid_property;
 
+	/*
+	 * Protect access to I/O registers from concurrent modesetting
+	 * by acquiring the I/O-register lock.
+	 */
+	mutex_lock(&ast->ioregs_lock);
+
 	edid = drm_get_edid(connector, &ast_sil164_connector->i2c->adapter);
 	if (!edid)
-		goto err_drm_connector_update_edid_property;
+		goto err_mutex_unlock;
+
+	mutex_unlock(&ast->ioregs_lock);
 
 	count = drm_add_edid_modes(connector, edid);
 	kfree(edid);
 
 	return count;
 
+err_mutex_unlock:
+	mutex_unlock(&ast->ioregs_lock);
 err_drm_connector_update_edid_property:
 	drm_connector_update_edid_property(connector, NULL);
 	return 0;
@@ -1528,6 +1628,93 @@ static int ast_dp501_output_init(struct ast_private *ast)
 }
 
 /*
+ * ASPEED Display-Port Connector
+ */
+
+static int ast_astdp_connector_helper_get_modes(struct drm_connector *connector)
+{
+	void *edid;
+
+	int succ;
+	int count;
+
+	edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
+	if (!edid)
+		goto err_drm_connector_update_edid_property;
+
+	succ = ast_astdp_read_edid(connector->dev, edid);
+	if (succ < 0)
+		goto err_kfree;
+
+	drm_connector_update_edid_property(connector, edid);
+	count = drm_add_edid_modes(connector, edid);
+	kfree(edid);
+
+	return count;
+
+err_kfree:
+	kfree(edid);
+err_drm_connector_update_edid_property:
+	drm_connector_update_edid_property(connector, NULL);
+	return 0;
+}
+
+static const struct drm_connector_helper_funcs ast_astdp_connector_helper_funcs = {
+	.get_modes = ast_astdp_connector_helper_get_modes,
+};
+
+static const struct drm_connector_funcs ast_astdp_connector_funcs = {
+	.reset = drm_atomic_helper_connector_reset,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.destroy = drm_connector_cleanup,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+};
+
+static int ast_astdp_connector_init(struct drm_device *dev, struct drm_connector *connector)
+{
+	int ret;
+
+	ret = drm_connector_init(dev, connector, &ast_astdp_connector_funcs,
+				 DRM_MODE_CONNECTOR_DisplayPort);
+	if (ret)
+		return ret;
+
+	drm_connector_helper_add(connector, &ast_astdp_connector_helper_funcs);
+
+	connector->interlace_allowed = 0;
+	connector->doublescan_allowed = 0;
+
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+
+	return 0;
+}
+
+static int ast_astdp_output_init(struct ast_private *ast)
+{
+	struct drm_device *dev = &ast->base;
+	struct drm_crtc *crtc = &ast->crtc;
+	struct drm_encoder *encoder = &ast->output.astdp.encoder;
+	struct drm_connector *connector = &ast->output.astdp.connector;
+	int ret;
+
+	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_TMDS);
+	if (ret)
+		return ret;
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
+
+	ret = ast_astdp_connector_init(dev, connector);
+	if (ret)
+		return ret;
+
+	ret = drm_connector_attach_encoder(connector, encoder);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+/*
  * Mode config
  */
 
@@ -1563,7 +1750,8 @@ int ast_mode_config_init(struct ast_private *ast)
 	    ast->chip == AST2200 ||
 	    ast->chip == AST2300 ||
 	    ast->chip == AST2400 ||
-	    ast->chip == AST2500) {
+	    ast->chip == AST2500 ||
+	    ast->chip == AST2600) {
 		dev->mode_config.max_width = 1920;
 		dev->mode_config.max_height = 2048;
 	} else {
@@ -1584,19 +1772,26 @@ int ast_mode_config_init(struct ast_private *ast)
 
 	ast_crtc_init(dev);
 
-	switch (ast->tx_chip_type) {
-	case AST_TX_NONE:
+	if (ast->tx_chip_types & AST_TX_NONE_BIT) {
 		ret = ast_vga_output_init(ast);
-		break;
-	case AST_TX_SIL164:
-		ret = ast_sil164_output_init(ast);
-		break;
-	case AST_TX_DP501:
-		ret = ast_dp501_output_init(ast);
-		break;
+		if (ret)
+			return ret;
 	}
-	if (ret)
-		return ret;
+	if (ast->tx_chip_types & AST_TX_SIL164_BIT) {
+		ret = ast_sil164_output_init(ast);
+		if (ret)
+			return ret;
+	}
+	if (ast->tx_chip_types & AST_TX_DP501_BIT) {
+		ret = ast_dp501_output_init(ast);
+		if (ret)
+			return ret;
+	}
+	if (ast->tx_chip_types & AST_TX_ASTDP_BIT) {
+		ret = ast_astdp_output_init(ast);
+		if (ret)
+			return ret;
+	}
 
 	drm_mode_config_reset(dev);
 

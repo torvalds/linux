@@ -471,6 +471,7 @@ bool amdgpu_soc15_read_bios_from_rom(struct amdgpu_device *adev,
 {
 	u32 *dw_ptr;
 	u32 i, length_dw;
+	u32 rom_offset;
 	u32 rom_index_offset;
 	u32 rom_data_offset;
 
@@ -494,8 +495,16 @@ bool amdgpu_soc15_read_bios_from_rom(struct amdgpu_device *adev,
 	rom_data_offset =
 		adev->smuio.funcs->get_rom_data_offset(adev);
 
-	/* set rom index to 0 */
-	WREG32(rom_index_offset, 0);
+	if (adev->nbio.funcs &&
+	    adev->nbio.funcs->get_rom_offset) {
+		rom_offset = adev->nbio.funcs->get_rom_offset(adev);
+		rom_offset = rom_offset << 17;
+	} else {
+		rom_offset = 0;
+	}
+
+	/* set rom index to rom_offset */
+	WREG32(rom_index_offset, rom_offset);
 	/* read out the rom data */
 	for (i = 0; i < length_dw; i++)
 		dw_ptr[i] = RREG32(rom_data_offset);

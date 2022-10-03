@@ -41,7 +41,7 @@ static int sm8250_snd_init(struct snd_soc_pcm_runtime *rtd)
 					     SND_JACK_BTN_0 | SND_JACK_BTN_1 |
 					     SND_JACK_BTN_2 | SND_JACK_BTN_3 |
 					     SND_JACK_BTN_4 | SND_JACK_BTN_5,
-					     &data->jack, NULL, 0);
+					     &data->jack);
 
 		if (rval < 0) {
 			dev_err(card->dev, "Unable to add Headphone Jack\n");
@@ -96,8 +96,8 @@ static int sm8250_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 
 static int sm8250_snd_startup(struct snd_pcm_substream *substream)
 {
-	unsigned int fmt = SND_SOC_DAIFMT_CBS_CFS;
-	unsigned int codec_dai_fmt = SND_SOC_DAIFMT_CBS_CFS;
+	unsigned int fmt = SND_SOC_DAIFMT_BP_FP;
+	unsigned int codec_dai_fmt = SND_SOC_DAIFMT_BC_FC;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);

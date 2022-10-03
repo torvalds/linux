@@ -38,7 +38,9 @@ general.
    devlink-region
    devlink-resource
    devlink-reload
+   devlink-selftests
    devlink-trap
+   devlink-linecard
 
 Driver-specific documentation
 -----------------------------

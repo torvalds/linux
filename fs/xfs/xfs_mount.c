@@ -468,6 +468,8 @@ STATIC int
 xfs_check_summary_counts(
 	struct xfs_mount	*mp)
 {
+	int			error = 0;
+
 	/*
 	 * The AG0 superblock verifier rejects in-progress filesystems,
 	 * so we should never see the flag set this far into mounting.
@@ -506,11 +508,32 @@ xfs_check_summary_counts(
 	 * superblock to be correct and we don't need to do anything here.
 	 * Otherwise, recalculate the summary counters.
 	 */
-	if ((!xfs_has_lazysbcount(mp) || xfs_is_clean(mp)) &&
-	    !xfs_fs_has_sickness(mp, XFS_SICK_FS_COUNTERS))
-		return 0;
+	if ((xfs_has_lazysbcount(mp) && !xfs_is_clean(mp)) ||
+	    xfs_fs_has_sickness(mp, XFS_SICK_FS_COUNTERS)) {
+		error = xfs_initialize_perag_data(mp, mp->m_sb.sb_agcount);
+		if (error)
+			return error;
+	}
 
-	return xfs_initialize_perag_data(mp, mp->m_sb.sb_agcount);
+	/*
+	 * Older kernels misused sb_frextents to reflect both incore
+	 * reservations made by running transactions and the actual count of
+	 * free rt extents in the ondisk metadata.  Transactions committed
+	 * during runtime can therefore contain a superblock update that
+	 * undercounts the number of free rt extents tracked in the rt bitmap.
+	 * A clean unmount record will have the correct frextents value since
+	 * there can be no other transactions running at that point.
+	 *
+	 * If we're mounting the rt volume after recovering the log, recompute
+	 * frextents from the rtbitmap file to fix the inconsistency.
+	 */
+	if (xfs_has_realtime(mp) && !xfs_is_clean(mp)) {
+		error = xfs_rtalloc_reinit_frextents(mp);
+		if (error)
+			return error;
+	}
+
+	return 0;
 }
 
 /*
@@ -755,7 +778,8 @@ xfs_mountfs(
 	/*
 	 * Allocate and initialize the per-ag data.
 	 */
-	error = xfs_initialize_perag(mp, sbp->sb_agcount, &mp->m_maxagi);
+	error = xfs_initialize_perag(mp, sbp->sb_agcount, mp->m_sb.sb_dblocks,
+			&mp->m_maxagi);
 	if (error) {
 		xfs_warn(mp, "Failed per-ag init: %d", error);
 		goto out_free_dir;
@@ -783,11 +807,6 @@ xfs_mountfs(
 		xfs_warn(mp, "log mount failed");
 		goto out_inodegc_shrinker;
 	}
-
-	/* Make sure the summary counts are ok. */
-	error = xfs_check_summary_counts(mp);
-	if (error)
-		goto out_log_dealloc;
 
 	/* Enable background inode inactivation workers. */
 	xfs_inodegc_start(mp);
@@ -843,6 +862,11 @@ xfs_mountfs(
 		xfs_warn(mp, "failed to read RT inodes");
 		goto out_rele_rip;
 	}
+
+	/* Make sure the summary counts are ok. */
+	error = xfs_check_summary_counts(mp);
+	if (error)
+		goto out_rtunmount;
 
 	/*
 	 * If this is a read-only mount defer the superblock updates until
@@ -1087,24 +1111,33 @@ xfs_fs_writable(
 	return true;
 }
 
+/* Adjust m_fdblocks or m_frextents. */
 int
-xfs_mod_fdblocks(
+xfs_mod_freecounter(
 	struct xfs_mount	*mp,
+	struct percpu_counter	*counter,
 	int64_t			delta,
 	bool			rsvd)
 {
 	int64_t			lcounter;
 	long long		res_used;
+	uint64_t		set_aside = 0;
 	s32			batch;
-	uint64_t		set_aside;
+	bool			has_resv_pool;
+
+	ASSERT(counter == &mp->m_fdblocks || counter == &mp->m_frextents);
+	has_resv_pool = (counter == &mp->m_fdblocks);
+	if (rsvd)
+		ASSERT(has_resv_pool);
 
 	if (delta > 0) {
 		/*
 		 * If the reserve pool is depleted, put blocks back into it
 		 * first. Most of the time the pool is full.
 		 */
-		if (likely(mp->m_resblks == mp->m_resblks_avail)) {
-			percpu_counter_add(&mp->m_fdblocks, delta);
+		if (likely(!has_resv_pool ||
+			   mp->m_resblks == mp->m_resblks_avail)) {
+			percpu_counter_add(counter, delta);
 			return 0;
 		}
 
@@ -1116,7 +1149,7 @@ xfs_mod_fdblocks(
 		} else {
 			delta -= res_used;
 			mp->m_resblks_avail = mp->m_resblks;
-			percpu_counter_add(&mp->m_fdblocks, delta);
+			percpu_counter_add(counter, delta);
 		}
 		spin_unlock(&mp->m_sb_lock);
 		return 0;
@@ -1130,7 +1163,7 @@ xfs_mod_fdblocks(
 	 * then make everything serialise as we are real close to
 	 * ENOSPC.
 	 */
-	if (__percpu_counter_compare(&mp->m_fdblocks, 2 * XFS_FDBLOCKS_BATCH,
+	if (__percpu_counter_compare(counter, 2 * XFS_FDBLOCKS_BATCH,
 				     XFS_FDBLOCKS_BATCH) < 0)
 		batch = 1;
 	else
@@ -1147,9 +1180,10 @@ xfs_mod_fdblocks(
 	 * problems (i.e. transaction abort, pagecache discards, etc.) than
 	 * slightly premature -ENOSPC.
 	 */
-	set_aside = xfs_fdblocks_unavailable(mp);
-	percpu_counter_add_batch(&mp->m_fdblocks, delta, batch);
-	if (__percpu_counter_compare(&mp->m_fdblocks, set_aside,
+	if (has_resv_pool)
+		set_aside = xfs_fdblocks_unavailable(mp);
+	percpu_counter_add_batch(counter, delta, batch);
+	if (__percpu_counter_compare(counter, set_aside,
 				     XFS_FDBLOCKS_BATCH) >= 0) {
 		/* we had space! */
 		return 0;
@@ -1160,8 +1194,8 @@ xfs_mod_fdblocks(
 	 * that took us to ENOSPC.
 	 */
 	spin_lock(&mp->m_sb_lock);
-	percpu_counter_add(&mp->m_fdblocks, -delta);
-	if (!rsvd)
+	percpu_counter_add(counter, -delta);
+	if (!has_resv_pool || !rsvd)
 		goto fdblocks_enospc;
 
 	lcounter = (long long)mp->m_resblks_avail + delta;
@@ -1176,24 +1210,6 @@ xfs_mod_fdblocks(
 fdblocks_enospc:
 	spin_unlock(&mp->m_sb_lock);
 	return -ENOSPC;
-}
-
-int
-xfs_mod_frextents(
-	struct xfs_mount	*mp,
-	int64_t			delta)
-{
-	int64_t			lcounter;
-	int			ret = 0;
-
-	spin_lock(&mp->m_sb_lock);
-	lcounter = mp->m_sb.sb_frextents + delta;
-	if (lcounter < 0)
-		ret = -ENOSPC;
-	else
-		mp->m_sb.sb_frextents = lcounter;
-	spin_unlock(&mp->m_sb_lock);
-	return ret;
 }
 
 /*
@@ -1341,7 +1357,6 @@ xfs_clear_incompat_log_features(
 
 	if (xfs_sb_has_incompat_log_feature(&mp->m_sb,
 				XFS_SB_FEAT_INCOMPAT_LOG_ALL)) {
-		xfs_info(mp, "Clearing log incompat feature flags.");
 		xfs_sb_remove_incompat_log_features(&mp->m_sb);
 		ret = true;
 	}

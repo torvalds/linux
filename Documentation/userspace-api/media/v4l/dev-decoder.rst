@@ -72,6 +72,12 @@ coded resolution
 coded width
    width for given coded resolution.
 
+coding tree unit
+   processing unit of the HEVC codec (corresponds to macroblock units in
+   H.264, VP8, VP9),
+   can use block structures of up to 64×64 pixels.
+   Good at sub-partitioning the picture into variable sized structures.
+
 decode order
    the order in which frames are decoded; may differ from display order if the
    coded format includes a feature of frame reordering; for decoders,
@@ -104,7 +110,8 @@ keyframe
 macroblock
    a processing unit in image and video compression formats based on linear
    block transforms (e.g. H.264, VP8, VP9); codec-specific, but for most of
-   popular codecs the size is 16x16 samples (pixels).
+   popular codecs the size is 16x16 samples (pixels). The HEVC codec uses a
+   slightly more flexible processing unit called coding tree unit (CTU).
 
 OUTPUT
    the source buffer queue; for decoders, the queue of buffers containing

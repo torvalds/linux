@@ -78,9 +78,9 @@
 		compatible = "sff,sfp";
 		i2c-bus = <&cp0_i2c1>;
 		mod-def0-gpios = <&expander0 3 GPIO_ACTIVE_LOW>;
-		los-gpio = <&expander0 15 GPIO_ACTIVE_HIGH>;
-		tx-disable-gpio = <&expander0 2 GPIO_ACTIVE_HIGH>;
-		tx-fault-gpio = <&cp0_gpio1 24 GPIO_ACTIVE_HIGH>;
+		los-gpios = <&expander0 15 GPIO_ACTIVE_HIGH>;
+		tx-disable-gpios = <&expander0 2 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpios = <&cp0_gpio1 24 GPIO_ACTIVE_HIGH>;
 		maximum-power-milliwatt = <3000>;
 		status = "okay";
 	};
@@ -175,7 +175,7 @@
 	      <0x2000000 0x1000000>;	/* CS0 */
 	status = "okay";
 
-	spi-flash@0 {
+	flash@0 {
 		#address-cells = <0x1>;
 		#size-cells = <0x1>;
 		compatible = "jedec,spi-nor";

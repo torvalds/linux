@@ -44,6 +44,7 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
+#include <dt-bindings/clock/sun6i-rtc.h>
 #include <dt-bindings/clock/sun8i-a23-a33-ccu.h>
 #include <dt-bindings/reset/sun8i-a23-a33-ccu.h>
 
@@ -329,7 +330,7 @@
 
 		ccu: clock@1c20000 {
 			reg = <0x01c20000 0x400>;
-			clocks = <&osc24M>, <&rtc 0>;
+			clocks = <&osc24M>, <&rtc CLK_OSC32K>;
 			clock-names = "hosc", "losc";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
@@ -340,7 +341,8 @@
 			reg = <0x01c20800 0x400>;
 			interrupt-parent = <&r_intc>;
 			/* interrupts get set in SoC specific dtsi file */
-			clocks = <&ccu CLK_BUS_PIO>, <&osc24M>, <&rtc 0>;
+			clocks = <&ccu CLK_BUS_PIO>, <&osc24M>,
+				 <&rtc CLK_OSC32K>;
 			clock-names = "apb", "hosc", "losc";
 			gpio-controller;
 			interrupt-controller;
@@ -810,9 +812,8 @@
 			reg = <0x01f02c00 0x400>;
 			interrupt-parent = <&r_intc>;
 			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&apb0_gates 0>, <&osc24M>, <&rtc 0>;
+			clocks = <&apb0_gates 0>, <&osc24M>, <&rtc CLK_OSC32K>;
 			clock-names = "apb", "hosc", "losc";
-			resets = <&apb0_rst 0>;
 			gpio-controller;
 			interrupt-controller;
 			#interrupt-cells = <3>;

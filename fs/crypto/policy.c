@@ -10,6 +10,7 @@
  * Modified by Eric Biggers, 2019 for v2 policy support.
  */
 
+#include <linux/fs_context.h>
 #include <linux/random.h>
 #include <linux/seq_file.h>
 #include <linux/string.h>
@@ -32,6 +33,26 @@ bool fscrypt_policies_equal(const union fscrypt_policy *policy1,
 	return !memcmp(policy1, policy2, fscrypt_policy_size(policy1));
 }
 
+int fscrypt_policy_to_key_spec(const union fscrypt_policy *policy,
+			       struct fscrypt_key_specifier *key_spec)
+{
+	switch (policy->version) {
+	case FSCRYPT_POLICY_V1:
+		key_spec->type = FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR;
+		memcpy(key_spec->u.descriptor, policy->v1.master_key_descriptor,
+		       FSCRYPT_KEY_DESCRIPTOR_SIZE);
+		return 0;
+	case FSCRYPT_POLICY_V2:
+		key_spec->type = FSCRYPT_KEY_SPEC_TYPE_IDENTIFIER;
+		memcpy(key_spec->u.identifier, policy->v2.master_key_identifier,
+		       FSCRYPT_KEY_IDENTIFIER_SIZE);
+		return 0;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+}
+
 static const union fscrypt_policy *
 fscrypt_get_dummy_policy(struct super_block *sb)
 {
@@ -40,7 +61,7 @@ fscrypt_get_dummy_policy(struct super_block *sb)
 	return sb->s_cop->get_dummy_policy(sb);
 }
 
-static bool fscrypt_valid_enc_modes(u32 contents_mode, u32 filenames_mode)
+static bool fscrypt_valid_enc_modes_v1(u32 contents_mode, u32 filenames_mode)
 {
 	if (contents_mode == FSCRYPT_MODE_AES_256_XTS &&
 	    filenames_mode == FSCRYPT_MODE_AES_256_CTS)
@@ -55,6 +76,14 @@ static bool fscrypt_valid_enc_modes(u32 contents_mode, u32 filenames_mode)
 		return true;
 
 	return false;
+}
+
+static bool fscrypt_valid_enc_modes_v2(u32 contents_mode, u32 filenames_mode)
+{
+	if (contents_mode == FSCRYPT_MODE_AES_256_XTS &&
+	    filenames_mode == FSCRYPT_MODE_AES_256_HCTR2)
+		return true;
+	return fscrypt_valid_enc_modes_v1(contents_mode, filenames_mode);
 }
 
 static bool supported_direct_key_modes(const struct inode *inode,
@@ -130,7 +159,7 @@ static bool supported_iv_ino_lblk_policy(const struct fscrypt_policy_v2 *policy,
 static bool fscrypt_supported_v1_policy(const struct fscrypt_policy_v1 *policy,
 					const struct inode *inode)
 {
-	if (!fscrypt_valid_enc_modes(policy->contents_encryption_mode,
+	if (!fscrypt_valid_enc_modes_v1(policy->contents_encryption_mode,
 				     policy->filenames_encryption_mode)) {
 		fscrypt_warn(inode,
 			     "Unsupported encryption modes (contents %d, filenames %d)",
@@ -166,7 +195,7 @@ static bool fscrypt_supported_v2_policy(const struct fscrypt_policy_v2 *policy,
 {
 	int count = 0;
 
-	if (!fscrypt_valid_enc_modes(policy->contents_encryption_mode,
+	if (!fscrypt_valid_enc_modes_v2(policy->contents_encryption_mode,
 				     policy->filenames_encryption_mode)) {
 		fscrypt_warn(inode,
 			     "Unsupported encryption modes (contents %d, filenames %d)",
@@ -665,6 +694,32 @@ const union fscrypt_policy *fscrypt_policy_to_inherit(struct inode *dir)
 }
 
 /**
+ * fscrypt_context_for_new_inode() - create an encryption context for a new inode
+ * @ctx: where context should be written
+ * @inode: inode from which to fetch policy and nonce
+ *
+ * Given an in-core "prepared" (via fscrypt_prepare_new_inode) inode,
+ * generate a new context and write it to ctx. ctx _must_ be at least
+ * FSCRYPT_SET_CONTEXT_MAX_SIZE bytes.
+ *
+ * Return: size of the resulting context or a negative error code.
+ */
+int fscrypt_context_for_new_inode(void *ctx, struct inode *inode)
+{
+	struct fscrypt_info *ci = inode->i_crypt_info;
+
+	BUILD_BUG_ON(sizeof(union fscrypt_context) !=
+			FSCRYPT_SET_CONTEXT_MAX_SIZE);
+
+	/* fscrypt_prepare_new_inode() should have set up the key already. */
+	if (WARN_ON_ONCE(!ci))
+		return -ENOKEY;
+
+	return fscrypt_new_context(ctx, &ci->ci_policy, ci->ci_nonce);
+}
+EXPORT_SYMBOL_GPL(fscrypt_context_for_new_inode);
+
+/**
  * fscrypt_set_context() - Set the fscrypt context of a new inode
  * @inode: a new inode
  * @fs_data: private data given by FS and passed to ->set_context()
@@ -680,12 +735,9 @@ int fscrypt_set_context(struct inode *inode, void *fs_data)
 	union fscrypt_context ctx;
 	int ctxsize;
 
-	/* fscrypt_prepare_new_inode() should have set up the key already. */
-	if (WARN_ON_ONCE(!ci))
-		return -ENOKEY;
-
-	BUILD_BUG_ON(sizeof(ctx) != FSCRYPT_SET_CONTEXT_MAX_SIZE);
-	ctxsize = fscrypt_new_context(&ctx, &ci->ci_policy, ci->ci_nonce);
+	ctxsize = fscrypt_context_for_new_inode(&ctx, inode);
+	if (ctxsize < 0)
+		return ctxsize;
 
 	/*
 	 * This may be the first time the inode number is available, so do any
@@ -704,73 +756,45 @@ int fscrypt_set_context(struct inode *inode, void *fs_data)
 EXPORT_SYMBOL_GPL(fscrypt_set_context);
 
 /**
- * fscrypt_set_test_dummy_encryption() - handle '-o test_dummy_encryption'
- * @sb: the filesystem on which test_dummy_encryption is being specified
- * @arg: the argument to the test_dummy_encryption option.  May be NULL.
- * @dummy_policy: the filesystem's current dummy policy (input/output, see
- *		  below)
+ * fscrypt_parse_test_dummy_encryption() - parse the test_dummy_encryption mount option
+ * @param: the mount option
+ * @dummy_policy: (input/output) the place to write the dummy policy that will
+ *	result from parsing the option.  Zero-initialize this.  If a policy is
+ *	already set here (due to test_dummy_encryption being given multiple
+ *	times), then this function will verify that the policies are the same.
  *
- * Handle the test_dummy_encryption mount option by creating a dummy encryption
- * policy, saving it in @dummy_policy, and adding the corresponding dummy
- * encryption key to the filesystem.  If the @dummy_policy is already set, then
- * instead validate that it matches @arg.  Don't support changing it via
- * remount, as that is difficult to do safely.
- *
- * Return: 0 on success (dummy policy set, or the same policy is already set);
- *         -EEXIST if a different dummy policy is already set;
- *         or another -errno value.
+ * Return: 0 on success; -EINVAL if the argument is invalid; -EEXIST if the
+ *	   argument conflicts with one already specified; or -ENOMEM.
  */
-int fscrypt_set_test_dummy_encryption(struct super_block *sb, const char *arg,
-				      struct fscrypt_dummy_policy *dummy_policy)
+int fscrypt_parse_test_dummy_encryption(const struct fs_parameter *param,
+				struct fscrypt_dummy_policy *dummy_policy)
 {
-	struct fscrypt_key_specifier key_spec = { 0 };
-	int version;
-	union fscrypt_policy *policy = NULL;
+	const char *arg = "v2";
+	union fscrypt_policy *policy;
 	int err;
 
-	if (!arg)
-		arg = "v2";
-
-	if (!strcmp(arg, "v1")) {
-		version = FSCRYPT_POLICY_V1;
-		key_spec.type = FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR;
-		memset(key_spec.u.descriptor, 0x42,
-		       FSCRYPT_KEY_DESCRIPTOR_SIZE);
-	} else if (!strcmp(arg, "v2")) {
-		version = FSCRYPT_POLICY_V2;
-		key_spec.type = FSCRYPT_KEY_SPEC_TYPE_IDENTIFIER;
-		/* key_spec.u.identifier gets filled in when adding the key */
-	} else {
-		err = -EINVAL;
-		goto out;
-	}
+	if (param->type == fs_value_is_string && *param->string)
+		arg = param->string;
 
 	policy = kzalloc(sizeof(*policy), GFP_KERNEL);
-	if (!policy) {
-		err = -ENOMEM;
-		goto out;
-	}
+	if (!policy)
+		return -ENOMEM;
 
-	err = fscrypt_add_test_dummy_key(sb, &key_spec);
-	if (err)
-		goto out;
-
-	policy->version = version;
-	switch (policy->version) {
-	case FSCRYPT_POLICY_V1:
+	if (!strcmp(arg, "v1")) {
+		policy->version = FSCRYPT_POLICY_V1;
 		policy->v1.contents_encryption_mode = FSCRYPT_MODE_AES_256_XTS;
 		policy->v1.filenames_encryption_mode = FSCRYPT_MODE_AES_256_CTS;
-		memcpy(policy->v1.master_key_descriptor, key_spec.u.descriptor,
+		memset(policy->v1.master_key_descriptor, 0x42,
 		       FSCRYPT_KEY_DESCRIPTOR_SIZE);
-		break;
-	case FSCRYPT_POLICY_V2:
+	} else if (!strcmp(arg, "v2")) {
+		policy->version = FSCRYPT_POLICY_V2;
 		policy->v2.contents_encryption_mode = FSCRYPT_MODE_AES_256_XTS;
 		policy->v2.filenames_encryption_mode = FSCRYPT_MODE_AES_256_CTS;
-		memcpy(policy->v2.master_key_identifier, key_spec.u.identifier,
-		       FSCRYPT_KEY_IDENTIFIER_SIZE);
-		break;
-	default:
-		WARN_ON(1);
+		err = fscrypt_get_test_dummy_key_identifier(
+				policy->v2.master_key_identifier);
+		if (err)
+			goto out;
+	} else {
 		err = -EINVAL;
 		goto out;
 	}
@@ -788,6 +812,37 @@ int fscrypt_set_test_dummy_encryption(struct super_block *sb, const char *arg,
 out:
 	kfree(policy);
 	return err;
+}
+EXPORT_SYMBOL_GPL(fscrypt_parse_test_dummy_encryption);
+
+/**
+ * fscrypt_dummy_policies_equal() - check whether two dummy policies are equal
+ * @p1: the first test dummy policy (may be unset)
+ * @p2: the second test dummy policy (may be unset)
+ *
+ * Return: %true if the dummy policies are both set and equal, or both unset.
+ */
+bool fscrypt_dummy_policies_equal(const struct fscrypt_dummy_policy *p1,
+				  const struct fscrypt_dummy_policy *p2)
+{
+	if (!p1->policy && !p2->policy)
+		return true;
+	if (!p1->policy || !p2->policy)
+		return false;
+	return fscrypt_policies_equal(p1->policy, p2->policy);
+}
+EXPORT_SYMBOL_GPL(fscrypt_dummy_policies_equal);
+
+/* Deprecated, do not use */
+int fscrypt_set_test_dummy_encryption(struct super_block *sb, const char *arg,
+				      struct fscrypt_dummy_policy *dummy_policy)
+{
+	struct fs_parameter param = {
+		.type = fs_value_is_string,
+		.string = arg ? (char *)arg : "",
+	};
+	return fscrypt_parse_test_dummy_encryption(&param, dummy_policy) ?:
+		fscrypt_add_test_dummy_key(sb, dummy_policy);
 }
 EXPORT_SYMBOL_GPL(fscrypt_set_test_dummy_encryption);
 

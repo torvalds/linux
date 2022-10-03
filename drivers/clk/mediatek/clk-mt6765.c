@@ -748,32 +748,32 @@ static const struct mtk_gate apmixed_clks[] = {
 			_pcw_reg, _pcw_shift, NULL)	\
 
 static const struct mtk_pll_data plls[] = {
-	PLL(CLK_APMIXED_ARMPLL_L, "armpll_l", 0x021C, 0x0228, BIT(0),
+	PLL(CLK_APMIXED_ARMPLL_L, "armpll_l", 0x021C, 0x0228, 0,
 	    PLL_AO, 22, 8, 0x0220, 24, 0, 0, 0, 0x0220, 0),
-	PLL(CLK_APMIXED_ARMPLL, "armpll", 0x020C, 0x0218, BIT(0),
+	PLL(CLK_APMIXED_ARMPLL, "armpll", 0x020C, 0x0218, 0,
 	    PLL_AO, 22, 8, 0x0210, 24, 0, 0, 0, 0x0210, 0),
-	PLL(CLK_APMIXED_CCIPLL, "ccipll", 0x022C, 0x0238, BIT(0),
+	PLL(CLK_APMIXED_CCIPLL, "ccipll", 0x022C, 0x0238, 0,
 	    PLL_AO, 22, 8, 0x0230, 24, 0, 0, 0, 0x0230, 0),
-	PLL(CLK_APMIXED_MAINPLL, "mainpll", 0x023C, 0x0248, BIT(0),
+	PLL(CLK_APMIXED_MAINPLL, "mainpll", 0x023C, 0x0248, 0,
 	    (HAVE_RST_BAR | PLL_AO), 22, 8, 0x0240, 24, 0, 0, 0, 0x0240,
 	    0),
-	PLL(CLK_APMIXED_MFGPLL, "mfgpll", 0x024C, 0x0258, BIT(0),
+	PLL(CLK_APMIXED_MFGPLL, "mfgpll", 0x024C, 0x0258, 0,
 	    0, 22, 8, 0x0250, 24, 0, 0, 0, 0x0250, 0),
-	PLL(CLK_APMIXED_MMPLL, "mmpll", 0x025C, 0x0268, BIT(0),
+	PLL(CLK_APMIXED_MMPLL, "mmpll", 0x025C, 0x0268, 0,
 	    0, 22, 8, 0x0260, 24, 0, 0, 0, 0x0260, 0),
-	PLL(CLK_APMIXED_UNIV2PLL, "univ2pll", 0x026C, 0x0278, BIT(0),
+	PLL(CLK_APMIXED_UNIV2PLL, "univ2pll", 0x026C, 0x0278, 0,
 	    HAVE_RST_BAR, 22, 8, 0x0270, 24, 0, 0, 0, 0x0270, 0),
-	PLL(CLK_APMIXED_MSDCPLL, "msdcpll", 0x027C, 0x0288, BIT(0),
+	PLL(CLK_APMIXED_MSDCPLL, "msdcpll", 0x027C, 0x0288, 0,
 	    0, 22, 8, 0x0280, 24, 0, 0, 0, 0x0280, 0),
-	PLL(CLK_APMIXED_APLL1, "apll1", 0x028C, 0x029C, BIT(0),
+	PLL(CLK_APMIXED_APLL1, "apll1", 0x028C, 0x029C, 0,
 	    0, 32, 8, 0x0290, 24, 0x0040, 0x000C, 0, 0x0294, 0),
-	PLL(CLK_APMIXED_MPLL, "mpll", 0x02A0, 0x02AC, BIT(0),
+	PLL(CLK_APMIXED_MPLL, "mpll", 0x02A0, 0x02AC, 0,
 	    PLL_AO, 22, 8, 0x02A4, 24, 0, 0, 0, 0x02A4, 0),
 };
 
 static int clk_mt6765_apmixed_probe(struct platform_device *pdev)
 {
-	struct clk_onecell_data *clk_data;
+	struct clk_hw_onecell_data *clk_data;
 	int r;
 	struct device_node *node = pdev->dev.of_node;
 	void __iomem *base;
@@ -791,7 +791,7 @@ static int clk_mt6765_apmixed_probe(struct platform_device *pdev)
 
 	mtk_clk_register_gates(node, apmixed_clks,
 			       ARRAY_SIZE(apmixed_clks), clk_data);
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 
 	if (r)
 		pr_err("%s(): could not register clock provider: %d\n",
@@ -811,7 +811,7 @@ static int clk_mt6765_top_probe(struct platform_device *pdev)
 	int r;
 	struct device_node *node = pdev->dev.of_node;
 	void __iomem *base;
-	struct clk_onecell_data *clk_data;
+	struct clk_hw_onecell_data *clk_data;
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	base = devm_ioremap_resource(&pdev->dev, res);
@@ -831,7 +831,7 @@ static int clk_mt6765_top_probe(struct platform_device *pdev)
 	mtk_clk_register_gates(node, top_clks, ARRAY_SIZE(top_clks),
 			       clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 
 	if (r)
 		pr_err("%s(): could not register clock provider: %d\n",
@@ -848,7 +848,7 @@ static int clk_mt6765_top_probe(struct platform_device *pdev)
 
 static int clk_mt6765_ifr_probe(struct platform_device *pdev)
 {
-	struct clk_onecell_data *clk_data;
+	struct clk_hw_onecell_data *clk_data;
 	int r;
 	struct device_node *node = pdev->dev.of_node;
 	void __iomem *base;
@@ -864,7 +864,7 @@ static int clk_mt6765_ifr_probe(struct platform_device *pdev)
 
 	mtk_clk_register_gates(node, ifr_clks, ARRAY_SIZE(ifr_clks),
 			       clk_data);
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 
 	if (r)
 		pr_err("%s(): could not register clock provider: %d\n",

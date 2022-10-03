@@ -546,18 +546,9 @@ static const struct of_device_id realtek_smi_of_match[] = {
 		.data = &rtl8366rb_variant,
 	},
 #endif
-	{
-		/* FIXME: add support for RTL8366S and more */
-		.compatible = "realtek,rtl8366s",
-		.data = NULL,
-	},
 #if IS_ENABLED(CONFIG_NET_DSA_REALTEK_RTL8365MB)
 	{
 		.compatible = "realtek,rtl8365mb",
-		.data = &rtl8365mb_variant,
-	},
-	{
-		.compatible = "realtek,rtl8367s",
 		.data = &rtl8365mb_variant,
 	},
 #endif

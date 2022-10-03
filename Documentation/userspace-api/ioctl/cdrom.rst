@@ -718,6 +718,9 @@ CDROMPLAYBLK
 
 
 CDROMGETSPINDOWN
+	Obsolete, was ide-cd only
+
+
 	usage::
 
 	  char spindown;
@@ -736,6 +739,9 @@ CDROMGETSPINDOWN
 
 
 CDROMSETSPINDOWN
+	Obsolete, was ide-cd only
+
+
 	usage::
 
 	  char spindown

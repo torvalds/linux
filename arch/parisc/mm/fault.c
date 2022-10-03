@@ -22,6 +22,8 @@
 
 #include <asm/traps.h>
 
+#define DEBUG_NATLB 0
+
 /* Various important other fields */
 #define bit22set(x)		(x & 0x00000200)
 #define bits23_25set(x)		(x & 0x000001c0)
@@ -36,7 +38,7 @@ int show_unhandled_signals = 1;
 /*
  * parisc_acctyp(unsigned int inst) --
  *    Given a PA-RISC memory access instruction, determine if the
- *    the instruction would perform a memory read or memory write
+ *    instruction would perform a memory read or memory write
  *    operation.
  *
  *    This function assumes that the given instruction is a memory access
@@ -309,6 +311,10 @@ good_area:
 	if (fault_signal_pending(fault, regs))
 		return;
 
+	/* The fault is fully completed (including releasing mmap lock) */
+	if (fault & VM_FAULT_COMPLETED)
+		return;
+
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		/*
 		 * We hit a shared mapping outside of the file, or some
@@ -450,8 +456,8 @@ handle_nadtlb_fault(struct pt_regs *regs)
 		fallthrough;
 	case 0x380:
 		/* PDC and FIC instructions */
-		if (printk_ratelimit()) {
-			pr_warn("BUG: nullifying cache flush/purge instruction\n");
+		if (DEBUG_NATLB && printk_ratelimit()) {
+			pr_warn("WARNING: nullifying cache flush/purge instruction\n");
 			show_regs(regs);
 		}
 		if (insn & 0x20) {

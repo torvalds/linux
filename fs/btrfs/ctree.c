@@ -16,6 +16,7 @@
 #include "volumes.h"
 #include "qgroup.h"
 #include "tree-mod-log.h"
+#include "tree-checker.h"
 
 static int split_node(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_path *path, int level);
@@ -342,7 +343,7 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 			int level = btrfs_header_level(buf);
 
 			ret = btrfs_set_disk_extent_flags(trans, buf,
-							  new_flags, level, 0);
+							  new_flags, level);
 			if (ret)
 				return ret;
 		}
@@ -1390,12 +1391,13 @@ static noinline void unlock_up(struct btrfs_path *path, int level,
 }
 
 /*
- * helper function for btrfs_search_slot.  The goal is to find a block
- * in cache without setting the path to blocking.  If we find the block
- * we return zero and the path is unchanged.
+ * Helper function for btrfs_search_slot() and other functions that do a search
+ * on a btree. The goal is to find a tree block in the cache (the radix tree at
+ * fs_info->buffer_radix), but if we can't find it, or it's not up to date, read
+ * its pages from disk.
  *
- * If we can't find the block, we set the path blocking and do some
- * reada.  -EAGAIN is returned and the search must be repeated.
+ * Returns -EAGAIN, with the path unlocked, if the caller needs to repeat the
+ * whole btree search, starting again from the current root node.
  */
 static int
 read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
@@ -1409,12 +1411,21 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 	struct btrfs_key first_key;
 	int ret;
 	int parent_level;
+	bool unlock_up;
 
+	unlock_up = ((level + 1 < BTRFS_MAX_LEVEL) && p->locks[level + 1]);
 	blocknr = btrfs_node_blockptr(*eb_ret, slot);
 	gen = btrfs_node_ptr_generation(*eb_ret, slot);
 	parent_level = btrfs_header_level(*eb_ret);
 	btrfs_node_key_to_cpu(*eb_ret, &first_key, slot);
 
+	/*
+	 * If we need to read an extent buffer from disk and we are holding locks
+	 * on upper level nodes, we unlock all the upper nodes before reading the
+	 * extent buffer, and then return -EAGAIN to the caller as it needs to
+	 * restart the search. We don't release the lock on the current level
+	 * because we need to walk this node to figure out which blocks to read.
+	 */
 	tmp = find_extent_buffer(fs_info, blocknr);
 	if (tmp) {
 		if (p->reada == READA_FORWARD_ALWAYS)
@@ -1436,30 +1447,38 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 			return 0;
 		}
 
+		if (unlock_up)
+			btrfs_unlock_up_safe(p, level + 1);
+
 		/* now we're allowed to do a blocking uptodate check */
-		ret = btrfs_read_buffer(tmp, gen, parent_level - 1, &first_key);
+		ret = btrfs_read_extent_buffer(tmp, gen, parent_level - 1, &first_key);
 		if (ret) {
 			free_extent_buffer(tmp);
 			btrfs_release_path(p);
 			return -EIO;
 		}
-		*eb_ret = tmp;
-		return 0;
+		if (btrfs_check_eb_owner(tmp, root->root_key.objectid)) {
+			free_extent_buffer(tmp);
+			btrfs_release_path(p);
+			return -EUCLEAN;
+		}
+
+		if (unlock_up)
+			ret = -EAGAIN;
+
+		goto out;
 	}
 
-	/*
-	 * reduce lock contention at high levels
-	 * of the btree by dropping locks before
-	 * we read.  Don't release the lock on the current
-	 * level because we need to walk this node to figure
-	 * out which blocks to read.
-	 */
-	btrfs_unlock_up_safe(p, level + 1);
+	if (unlock_up) {
+		btrfs_unlock_up_safe(p, level + 1);
+		ret = -EAGAIN;
+	} else {
+		ret = 0;
+	}
 
 	if (p->reada != READA_NONE)
 		reada_for_search(fs_info, p, level, slot, key->objectid);
 
-	ret = -EAGAIN;
 	tmp = read_tree_block(fs_info, blocknr, root->root_key.objectid,
 			      gen, parent_level - 1, &first_key);
 	if (IS_ERR(tmp)) {
@@ -1474,9 +1493,15 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 	 */
 	if (!extent_buffer_uptodate(tmp))
 		ret = -EIO;
-	free_extent_buffer(tmp);
 
-	btrfs_release_path(p);
+out:
+	if (ret == 0) {
+		*eb_ret = tmp;
+	} else {
+		free_extent_buffer(tmp);
+		btrfs_release_path(p);
+	}
+
 	return ret;
 }
 
@@ -2050,6 +2075,9 @@ cow_done:
 
 		if (!p->skip_locking) {
 			level = btrfs_header_level(b);
+
+			btrfs_maybe_reset_lockdep_class(root, b);
+
 			if (level <= write_lock_level) {
 				btrfs_tree_lock(b);
 				p->locks[level] = BTRFS_WRITE_LOCK;
@@ -2277,6 +2305,43 @@ int btrfs_search_backwards(struct btrfs_root *root, struct btrfs_key *key,
 		btrfs_item_key_to_cpu(path->nodes[0], key, path->slots[0]);
 
 	return ret;
+}
+
+/**
+ * Search for a valid slot for the given path.
+ *
+ * @root:	The root node of the tree.
+ * @key:	Will contain a valid item if found.
+ * @path:	The starting point to validate the slot.
+ *
+ * Return: 0  if the item is valid
+ *         1  if not found
+ *         <0 if error.
+ */
+int btrfs_get_next_valid_item(struct btrfs_root *root, struct btrfs_key *key,
+			      struct btrfs_path *path)
+{
+	while (1) {
+		int ret;
+		const int slot = path->slots[0];
+		const struct extent_buffer *leaf = path->nodes[0];
+
+		/* This is where we start walking the path. */
+		if (slot >= btrfs_header_nritems(leaf)) {
+			/*
+			 * If we've reached the last slot in this leaf we need
+			 * to go to the next leaf and reset the path.
+			 */
+			ret = btrfs_next_leaf(root, path);
+			if (ret)
+				return ret;
+			continue;
+		}
+		/* Store the found, valid item in @key. */
+		btrfs_item_key_to_cpu(leaf, key, slot);
+		break;
+	}
+	return 0;
 }
 
 /*

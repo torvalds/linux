@@ -75,7 +75,7 @@ static inline void rcu_read_unlock_trace(void)
 	nesting = READ_ONCE(t->trc_reader_nesting) - 1;
 	barrier(); // Critical section before disabling.
 	// Disable IPI-based setting of .need_qs.
-	WRITE_ONCE(t->trc_reader_nesting, INT_MIN);
+	WRITE_ONCE(t->trc_reader_nesting, INT_MIN + nesting);
 	if (likely(!READ_ONCE(t->trc_reader_special.s)) || nesting) {
 		WRITE_ONCE(t->trc_reader_nesting, nesting);
 		return;  // We assume shallow reader nesting.

@@ -369,14 +369,14 @@ void kasan_set_free_info(struct kmem_cache *cache,
 
 	kasan_set_track(&free_meta->free_track, GFP_NOWAIT);
 	/* The object was freed and has free track set. */
-	*(u8 *)kasan_mem_to_shadow(object) = KASAN_KMALLOC_FREETRACK;
+	*(u8 *)kasan_mem_to_shadow(object) = KASAN_SLAB_FREETRACK;
 }
 
 struct kasan_track *kasan_get_free_track(struct kmem_cache *cache,
 				void *object, u8 tag)
 {
-	if (*(u8 *)kasan_mem_to_shadow(object) != KASAN_KMALLOC_FREETRACK)
+	if (*(u8 *)kasan_mem_to_shadow(object) != KASAN_SLAB_FREETRACK)
 		return NULL;
-	/* Free meta must be present with KASAN_KMALLOC_FREETRACK. */
+	/* Free meta must be present with KASAN_SLAB_FREETRACK. */
 	return &kasan_get_free_meta(cache, object)->free_track;
 }

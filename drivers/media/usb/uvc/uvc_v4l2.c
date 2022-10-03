@@ -42,12 +42,12 @@ static int uvc_ioctl_ctrl_map(struct uvc_video_chain *chain,
 	map->id = xmap->id;
 	/* Non standard control id. */
 	if (v4l2_ctrl_get_name(map->id) == NULL) {
-		map->name = kmemdup(xmap->name, sizeof(xmap->name),
-				    GFP_KERNEL);
-		if (!map->name) {
-			ret = -ENOMEM;
+		if (xmap->name[0] == '\0') {
+			ret = -EINVAL;
 			goto free_map;
 		}
+		xmap->name[sizeof(xmap->name) - 1] = '\0';
+		map->name = xmap->name;
 	}
 	memcpy(map->entity, xmap->entity, sizeof(map->entity));
 	map->selector = xmap->selector;
@@ -63,7 +63,8 @@ static int uvc_ioctl_ctrl_map(struct uvc_video_chain *chain,
 		break;
 
 	case V4L2_CTRL_TYPE_MENU:
-		/* Prevent excessive memory consumption, as well as integer
+		/*
+		 * Prevent excessive memory consumption, as well as integer
 		 * overflows.
 		 */
 		if (xmap->menu_count == 0 ||
@@ -177,7 +178,8 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 		fcc[0], fcc[1], fcc[2], fcc[3],
 		fmt->fmt.pix.width, fmt->fmt.pix.height);
 
-	/* Check if the hardware supports the requested format, use the default
+	/*
+	 * Check if the hardware supports the requested format, use the default
 	 * format otherwise.
 	 */
 	for (i = 0; i < stream->nformats; ++i) {
@@ -191,7 +193,8 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 		fmt->fmt.pix.pixelformat = format->fcc;
 	}
 
-	/* Find the closest image size. The distance between image sizes is
+	/*
+	 * Find the closest image size. The distance between image sizes is
 	 * the size in pixels of the non-overlapping regions between the
 	 * requested size and the frame-specified size.
 	 */
@@ -233,7 +236,8 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 	probe->bFormatIndex = format->index;
 	probe->bFrameIndex = frame->bFrameIndex;
 	probe->dwFrameInterval = uvc_try_frame_interval(frame, interval);
-	/* Some webcams stall the probe control set request when the
+	/*
+	 * Some webcams stall the probe control set request when the
 	 * dwMaxVideoFrameSize field is set to zero. The UVC specification
 	 * clearly states that the field is read-only from the host, so this
 	 * is a webcam bug. Set dwMaxVideoFrameSize to the value reported by
@@ -254,9 +258,10 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 	ret = uvc_probe_video(stream, probe);
 	mutex_unlock(&stream->mutex);
 	if (ret < 0)
-		goto done;
+		return ret;
 
-	/* After the probe, update fmt with the values returned from
+	/*
+	 * After the probe, update fmt with the values returned from
 	 * negotiation with the device. Some devices return invalid bFormatIndex
 	 * and bFrameIndex values, in which case we can only assume they have
 	 * accepted the requested format as-is.
@@ -300,7 +305,6 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 	if (uvc_frame != NULL)
 		*uvc_frame = frame;
 
-done:
 	return ret;
 }
 
@@ -871,29 +875,31 @@ static int uvc_ioctl_enum_input(struct file *file, void *fh,
 	struct uvc_video_chain *chain = handle->chain;
 	const struct uvc_entity *selector = chain->selector;
 	struct uvc_entity *iterm = NULL;
+	struct uvc_entity *it;
 	u32 index = input->index;
-	int pin = 0;
 
 	if (selector == NULL ||
 	    (chain->dev->quirks & UVC_QUIRK_IGNORE_SELECTOR_UNIT)) {
 		if (index != 0)
 			return -EINVAL;
-		list_for_each_entry(iterm, &chain->entities, chain) {
-			if (UVC_ENTITY_IS_ITERM(iterm))
+		list_for_each_entry(it, &chain->entities, chain) {
+			if (UVC_ENTITY_IS_ITERM(it)) {
+				iterm = it;
 				break;
+			}
 		}
-		pin = iterm->id;
 	} else if (index < selector->bNrInPins) {
-		pin = selector->baSourceID[index];
-		list_for_each_entry(iterm, &chain->entities, chain) {
-			if (!UVC_ENTITY_IS_ITERM(iterm))
+		list_for_each_entry(it, &chain->entities, chain) {
+			if (!UVC_ENTITY_IS_ITERM(it))
 				continue;
-			if (iterm->id == pin)
+			if (it->id == selector->baSourceID[index]) {
+				iterm = it;
 				break;
+			}
 		}
 	}
 
-	if (iterm == NULL || iterm->id != pin)
+	if (iterm == NULL)
 		return -EINVAL;
 
 	memset(input, 0, sizeof(*input));

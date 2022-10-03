@@ -17,7 +17,7 @@
 #define MXC_JPEG_FMT_TYPE_RAW		1
 #define MXC_JPEG_DEFAULT_WIDTH		1280
 #define MXC_JPEG_DEFAULT_HEIGHT		720
-#define MXC_JPEG_DEFAULT_PFMT		V4L2_PIX_FMT_RGB24
+#define MXC_JPEG_DEFAULT_PFMT		V4L2_PIX_FMT_BGR24
 #define MXC_JPEG_MIN_WIDTH		64
 #define MXC_JPEG_MIN_HEIGHT		64
 #define MXC_JPEG_MAX_WIDTH		0x2000
@@ -49,6 +49,7 @@ enum mxc_jpeg_mode {
  * @h_align:	horizontal alignment order (align to 2^h_align)
  * @v_align:	vertical alignment order (align to 2^v_align)
  * @flags:	flags describing format applicability
+ * @precision:  jpeg sample precision
  */
 struct mxc_jpeg_fmt {
 	const char				*name;
@@ -60,6 +61,7 @@ struct mxc_jpeg_fmt {
 	int					h_align;
 	int					v_align;
 	u32					flags;
+	u8					precision;
 };
 
 struct mxc_jpeg_desc {
@@ -90,9 +92,11 @@ struct mxc_jpeg_ctx {
 	struct mxc_jpeg_q_data		cap_q;
 	struct v4l2_fh			fh;
 	enum mxc_jpeg_enc_state		enc_state;
-	unsigned int			stopping;
-	unsigned int			stopped;
 	unsigned int			slot;
+	unsigned int			source_change;
+	bool				header_parsed;
+	struct v4l2_ctrl_handler	ctrl_handler;
+	u8				jpeg_quality;
 };
 
 struct mxc_jpeg_slot_data {

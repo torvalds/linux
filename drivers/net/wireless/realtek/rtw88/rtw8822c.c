@@ -5310,7 +5310,7 @@ static const struct rtw_reg_domain coex_info_hw_regs_8822c[] = {
 	{0xc50, MASKBYTE0, RTW_REG_DOMAIN_MAC8},
 };
 
-struct rtw_chip_info rtw8822c_hw_spec = {
+const struct rtw_chip_info rtw8822c_hw_spec = {
 	.ops = &rtw8822c_ops,
 	.id = RTW_CHIP_TYPE_8822C,
 	.fw_name = "rtw88/rtw8822c_fw.bin",
@@ -5368,6 +5368,7 @@ struct rtw_chip_info rtw8822c_hw_spec = {
 	.edcca_th = rtw8822c_edcca_th,
 	.l2h_th_ini_cs = 60,
 	.l2h_th_ini_ad = 45,
+	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_2,
 
 #ifdef CONFIG_PM
 	.wow_fw_name = "rtw88/rtw8822c_wow_fw.bin",

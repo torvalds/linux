@@ -87,11 +87,11 @@ static int byt_cht_cx2072x_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	ret = snd_soc_card_jack_new(card, "Headset",
-				    SND_JACK_HEADSET | SND_JACK_BTN_0,
-				    &byt_cht_cx2072x_headset,
-				    byt_cht_cx2072x_headset_pins,
-				    ARRAY_SIZE(byt_cht_cx2072x_headset_pins));
+	ret = snd_soc_card_jack_new_pins(card, "Headset",
+					 SND_JACK_HEADSET | SND_JACK_BTN_0,
+					 &byt_cht_cx2072x_headset,
+					 byt_cht_cx2072x_headset_pins,
+					 ARRAY_SIZE(byt_cht_cx2072x_headset_pins));
 	if (ret)
 		return ret;
 
@@ -126,7 +126,7 @@ static int byt_cht_cx2072x_fixup(struct snd_soc_pcm_runtime *rtd,
 	ret = snd_soc_dai_set_fmt(asoc_rtd_to_cpu(rtd, 0),
 				SND_SOC_DAIFMT_I2S     |
 				SND_SOC_DAIFMT_NB_NF   |
-				SND_SOC_DAIFMT_CBC_CFC);
+				SND_SOC_DAIFMT_BP_FP);
 	if (ret < 0) {
 		dev_err(rtd->dev, "can't set format to I2S, err %d\n", ret);
 		return ret;

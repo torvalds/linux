@@ -1945,7 +1945,7 @@ static void igb_setup_tx_mode(struct igb_adapter *adapter)
 		 * However, when we do so, no frame from queue 2 and 3 are
 		 * transmitted.  It seems the MAX_TPKT_SIZE should not be great
 		 * or _equal_ to the buffer size programmed in TXPBS. For this
-		 * reason, we set set MAX_ TPKT_SIZE to (4kB - 1) / 64.
+		 * reason, we set MAX_ TPKT_SIZE to (4kB - 1) / 64.
 		 */
 		val = (4096 - 1) / 64;
 		wr32(E1000_I210_DTXMXPKTSZ, val);
@@ -3637,6 +3637,7 @@ static int igb_disable_sriov(struct pci_dev *pdev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
+	unsigned long flags;
 
 	/* reclaim resources allocated to VFs */
 	if (adapter->vf_data) {
@@ -3649,12 +3650,13 @@ static int igb_disable_sriov(struct pci_dev *pdev)
 			pci_disable_sriov(pdev);
 			msleep(500);
 		}
-
+		spin_lock_irqsave(&adapter->vfs_lock, flags);
 		kfree(adapter->vf_mac_list);
 		adapter->vf_mac_list = NULL;
 		kfree(adapter->vf_data);
 		adapter->vf_data = NULL;
 		adapter->vfs_allocated_count = 0;
+		spin_unlock_irqrestore(&adapter->vfs_lock, flags);
 		wr32(E1000_IOVCTL, E1000_IOVCTL_REUSE_VFQ);
 		wrfl();
 		msleep(100);
@@ -3814,7 +3816,9 @@ static void igb_remove(struct pci_dev *pdev)
 	igb_release_hw_control(adapter);
 
 #ifdef CONFIG_PCI_IOV
+	rtnl_lock();
 	igb_disable_sriov(pdev);
+	rtnl_unlock();
 #endif
 
 	unregister_netdev(netdev);
@@ -3974,6 +3978,9 @@ static int igb_sw_init(struct igb_adapter *adapter)
 
 	spin_lock_init(&adapter->nfc_lock);
 	spin_lock_init(&adapter->stats64_lock);
+
+	/* init spinlock to avoid concurrency of VF resources */
+	spin_lock_init(&adapter->vfs_lock);
 #ifdef CONFIG_PCI_IOV
 	switch (hw->mac.type) {
 	case e1000_82576:
@@ -4819,8 +4826,11 @@ static void igb_clean_tx_ring(struct igb_ring *tx_ring)
 	while (i != tx_ring->next_to_use) {
 		union e1000_adv_tx_desc *eop_desc, *tx_desc;
 
-		/* Free all the Tx ring sk_buffs */
-		dev_kfree_skb_any(tx_buffer->skb);
+		/* Free all the Tx ring sk_buffs or xdp frames */
+		if (tx_buffer->type == IGB_TYPE_SKB)
+			dev_kfree_skb_any(tx_buffer->skb);
+		else
+			xdp_return_frame(tx_buffer->xdpf);
 
 		/* unmap skb header data */
 		dma_unmap_single(tx_ring->dev,
@@ -5505,7 +5515,8 @@ static void igb_watchdog_task(struct work_struct *work)
 				break;
 			}
 
-			if (adapter->link_speed != SPEED_1000)
+			if (adapter->link_speed != SPEED_1000 ||
+			    !hw->phy.ops.read_reg)
 				goto no_wait;
 
 			/* wait for Remote receiver status OK */
@@ -6256,74 +6267,108 @@ int igb_xmit_xdp_ring(struct igb_adapter *adapter,
 		      struct igb_ring *tx_ring,
 		      struct xdp_frame *xdpf)
 {
-	union e1000_adv_tx_desc *tx_desc;
-	u32 len, cmd_type, olinfo_status;
-	struct igb_tx_buffer *tx_buffer;
-	dma_addr_t dma;
-	u16 i;
+	struct skb_shared_info *sinfo = xdp_get_shared_info_from_frame(xdpf);
+	u8 nr_frags = unlikely(xdp_frame_has_frags(xdpf)) ? sinfo->nr_frags : 0;
+	u16 count, i, index = tx_ring->next_to_use;
+	struct igb_tx_buffer *tx_head = &tx_ring->tx_buffer_info[index];
+	struct igb_tx_buffer *tx_buffer = tx_head;
+	union e1000_adv_tx_desc *tx_desc = IGB_TX_DESC(tx_ring, index);
+	u32 len = xdpf->len, cmd_type, olinfo_status;
+	void *data = xdpf->data;
 
-	len = xdpf->len;
+	count = TXD_USE_COUNT(len);
+	for (i = 0; i < nr_frags; i++)
+		count += TXD_USE_COUNT(skb_frag_size(&sinfo->frags[i]));
 
-	if (unlikely(!igb_desc_unused(tx_ring)))
+	if (igb_maybe_stop_tx(tx_ring, count + 3))
 		return IGB_XDP_CONSUMED;
 
-	dma = dma_map_single(tx_ring->dev, xdpf->data, len, DMA_TO_DEVICE);
-	if (dma_mapping_error(tx_ring->dev, dma))
-		return IGB_XDP_CONSUMED;
-
+	i = 0;
 	/* record the location of the first descriptor for this packet */
-	tx_buffer = &tx_ring->tx_buffer_info[tx_ring->next_to_use];
-	tx_buffer->bytecount = len;
-	tx_buffer->gso_segs = 1;
-	tx_buffer->protocol = 0;
+	tx_head->bytecount = xdp_get_frame_len(xdpf);
+	tx_head->type = IGB_TYPE_XDP;
+	tx_head->gso_segs = 1;
+	tx_head->xdpf = xdpf;
 
-	i = tx_ring->next_to_use;
-	tx_desc = IGB_TX_DESC(tx_ring, i);
-
-	dma_unmap_len_set(tx_buffer, len, len);
-	dma_unmap_addr_set(tx_buffer, dma, dma);
-	tx_buffer->type = IGB_TYPE_XDP;
-	tx_buffer->xdpf = xdpf;
-
-	tx_desc->read.buffer_addr = cpu_to_le64(dma);
-
-	/* put descriptor type bits */
-	cmd_type = E1000_ADVTXD_DTYP_DATA |
-		   E1000_ADVTXD_DCMD_DEXT |
-		   E1000_ADVTXD_DCMD_IFCS;
-	cmd_type |= len | IGB_TXD_DCMD;
-	tx_desc->read.cmd_type_len = cpu_to_le32(cmd_type);
-
-	olinfo_status = len << E1000_ADVTXD_PAYLEN_SHIFT;
+	olinfo_status = tx_head->bytecount << E1000_ADVTXD_PAYLEN_SHIFT;
 	/* 82575 requires a unique index per ring */
 	if (test_bit(IGB_RING_FLAG_TX_CTX_IDX, &tx_ring->flags))
 		olinfo_status |= tx_ring->reg_idx << 4;
-
 	tx_desc->read.olinfo_status = cpu_to_le32(olinfo_status);
 
-	netdev_tx_sent_queue(txring_txq(tx_ring), tx_buffer->bytecount);
+	for (;;) {
+		dma_addr_t dma;
 
+		dma = dma_map_single(tx_ring->dev, data, len, DMA_TO_DEVICE);
+		if (dma_mapping_error(tx_ring->dev, dma))
+			goto unmap;
+
+		/* record length, and DMA address */
+		dma_unmap_len_set(tx_buffer, len, len);
+		dma_unmap_addr_set(tx_buffer, dma, dma);
+
+		/* put descriptor type bits */
+		cmd_type = E1000_ADVTXD_DTYP_DATA | E1000_ADVTXD_DCMD_DEXT |
+			   E1000_ADVTXD_DCMD_IFCS | len;
+
+		tx_desc->read.cmd_type_len = cpu_to_le32(cmd_type);
+		tx_desc->read.buffer_addr = cpu_to_le64(dma);
+
+		tx_buffer->protocol = 0;
+
+		if (++index == tx_ring->count)
+			index = 0;
+
+		if (i == nr_frags)
+			break;
+
+		tx_buffer = &tx_ring->tx_buffer_info[index];
+		tx_desc = IGB_TX_DESC(tx_ring, index);
+		tx_desc->read.olinfo_status = 0;
+
+		data = skb_frag_address(&sinfo->frags[i]);
+		len = skb_frag_size(&sinfo->frags[i]);
+		i++;
+	}
+	tx_desc->read.cmd_type_len |= cpu_to_le32(IGB_TXD_DCMD);
+
+	netdev_tx_sent_queue(txring_txq(tx_ring), tx_head->bytecount);
 	/* set the timestamp */
-	tx_buffer->time_stamp = jiffies;
+	tx_head->time_stamp = jiffies;
 
 	/* Avoid any potential race with xdp_xmit and cleanup */
 	smp_wmb();
 
 	/* set next_to_watch value indicating a packet is present */
-	i++;
-	if (i == tx_ring->count)
-		i = 0;
-
-	tx_buffer->next_to_watch = tx_desc;
-	tx_ring->next_to_use = i;
+	tx_head->next_to_watch = tx_desc;
+	tx_ring->next_to_use = index;
 
 	/* Make sure there is space in the ring for the next send. */
 	igb_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
 	if (netif_xmit_stopped(txring_txq(tx_ring)) || !netdev_xmit_more())
-		writel(i, tx_ring->tail);
+		writel(index, tx_ring->tail);
 
 	return IGB_XDP_TX;
+
+unmap:
+	for (;;) {
+		tx_buffer = &tx_ring->tx_buffer_info[index];
+		if (dma_unmap_len(tx_buffer, len))
+			dma_unmap_page(tx_ring->dev,
+				       dma_unmap_addr(tx_buffer, dma),
+				       dma_unmap_len(tx_buffer, len),
+				       DMA_TO_DEVICE);
+		dma_unmap_len_set(tx_buffer, len, 0);
+		if (tx_buffer == tx_head)
+			break;
+
+		if (!index)
+			index += tx_ring->count;
+		index--;
+	}
+
+	return IGB_XDP_CONSUMED;
 }
 
 netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
@@ -7920,8 +7965,10 @@ unlock:
 static void igb_msg_task(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
+	unsigned long flags;
 	u32 vf;
 
+	spin_lock_irqsave(&adapter->vfs_lock, flags);
 	for (vf = 0; vf < adapter->vfs_allocated_count; vf++) {
 		/* process any reset requests */
 		if (!igb_check_for_rst(hw, vf))
@@ -7935,6 +7982,7 @@ static void igb_msg_task(struct igb_adapter *adapter)
 		if (!igb_check_for_ack(hw, vf))
 			igb_rcv_ack_from_vf(adapter, vf);
 	}
+	spin_unlock_irqrestore(&adapter->vfs_lock, flags);
 }
 
 /**
@@ -8814,6 +8862,7 @@ static int igb_clean_rx_irq(struct igb_q_vector *q_vector, const int budget)
 			unsigned int offset = pkt_offset + igb_rx_offset(rx_ring);
 
 			xdp_prepare_buff(&xdp, hard_start, offset, size, true);
+			xdp_buff_clear_frags_flag(&xdp);
 #if (PAGE_SIZE > 4096)
 			/* At larger PAGE_SIZE, frame_sz depend on len size */
 			xdp.frame_sz = igb_rx_frame_truesize(rx_ring, size);
@@ -9518,7 +9567,7 @@ static pci_ers_result_t igb_io_error_detected(struct pci_dev *pdev,
 		igb_down(adapter);
 	pci_disable_device(pdev);
 
-	/* Request a slot slot reset. */
+	/* Request a slot reset. */
 	return PCI_ERS_RESULT_NEED_RESET;
 }
 
@@ -9897,11 +9946,10 @@ static void igb_init_dmac(struct igb_adapter *adapter, u32 pba)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 dmac_thr;
 	u16 hwm;
+	u32 reg;
 
 	if (hw->mac.type > e1000_82580) {
 		if (adapter->flags & IGB_FLAG_DMAC) {
-			u32 reg;
-
 			/* force threshold to 0. */
 			wr32(E1000_DMCTXTH, 0);
 
@@ -9934,7 +9982,6 @@ static void igb_init_dmac(struct igb_adapter *adapter, u32 pba)
 			/* Disable BMC-to-OS Watchdog Enable */
 			if (hw->mac.type != e1000_i354)
 				reg &= ~E1000_DMACR_DC_BMC2OSW_EN;
-
 			wr32(E1000_DMACR, reg);
 
 			/* no lower threshold to disable
@@ -9951,12 +9998,12 @@ static void igb_init_dmac(struct igb_adapter *adapter, u32 pba)
 			 */
 			wr32(E1000_DMCTXTH, (IGB_MIN_TXPBSIZE -
 			     (IGB_TX_BUF_4096 + adapter->max_frame_size)) >> 6);
+		}
 
-			/* make low power state decision controlled
-			 * by DMA coal
-			 */
+		if (hw->mac.type >= e1000_i210 ||
+		    (adapter->flags & IGB_FLAG_DMAC)) {
 			reg = rd32(E1000_PCIEMISC);
-			reg &= ~E1000_PCIEMISC_LX_DECISION;
+			reg |= E1000_PCIEMISC_LX_DECISION;
 			wr32(E1000_PCIEMISC, reg);
 		} /* endif adapter->dmac is not disabled */
 	} else if (hw->mac.type == e1000_82580) {

@@ -1887,7 +1887,8 @@ out_in:
 	return err;
 }
 
-static void cmd_status_log(struct mlx5_core_dev *dev, u16 opcode, u8 status, int err)
+static void cmd_status_log(struct mlx5_core_dev *dev, u16 opcode, u8 status,
+			   u32 syndrome, int err)
 {
 	struct mlx5_cmd_stats *stats;
 
@@ -1902,6 +1903,7 @@ static void cmd_status_log(struct mlx5_core_dev *dev, u16 opcode, u8 status, int
 	if (err == -EREMOTEIO) {
 		stats->failed_mbox_status++;
 		stats->last_failed_mbox_status = status;
+		stats->last_failed_syndrome = syndrome;
 	}
 	spin_unlock_irq(&stats->lock);
 }
@@ -1909,6 +1911,7 @@ static void cmd_status_log(struct mlx5_core_dev *dev, u16 opcode, u8 status, int
 /* preserve -EREMOTEIO for outbox.status != OK, otherwise return err as is */
 static int cmd_status_err(struct mlx5_core_dev *dev, int err, u16 opcode, void *out)
 {
+	u32 syndrome = MLX5_GET(mbox_out, out, syndrome);
 	u8 status = MLX5_GET(mbox_out, out, status);
 
 	if (err == -EREMOTEIO) /* -EREMOTEIO is preserved */
@@ -1917,7 +1920,7 @@ static int cmd_status_err(struct mlx5_core_dev *dev, int err, u16 opcode, void *
 	if (!err && status != MLX5_CMD_STAT_OK)
 		err = -EREMOTEIO;
 
-	cmd_status_log(dev, opcode, status, err);
+	cmd_status_log(dev, opcode, status, syndrome, err);
 	return err;
 }
 

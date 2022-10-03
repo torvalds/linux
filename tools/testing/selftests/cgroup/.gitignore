@@ -4,3 +4,4 @@ test_core
 test_freezer
 test_kmem
 test_kill
+test_cpu

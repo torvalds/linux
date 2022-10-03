@@ -533,7 +533,7 @@ static int log_results(struct loopback_test *t)
 
 		fd = open(file_name, O_WRONLY | O_CREAT | O_APPEND, 0644);
 		if (fd < 0) {
-			fprintf(stderr, "unable to open %s for appendation\n", file_name);
+			fprintf(stderr, "unable to open %s for appending\n", file_name);
 			abort();
 		}
 

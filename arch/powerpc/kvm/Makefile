@@ -37,9 +37,6 @@ kvm-e500mc-objs := \
 	e500_emulate.o
 kvm-objs-$(CONFIG_KVM_E500MC) := $(kvm-e500mc-objs)
 
-kvm-book3s_64-builtin-objs-$(CONFIG_SPAPR_TCE_IOMMU) := \
-	book3s_64_vio_hv.o
-
 kvm-pr-y := \
 	fpu.o \
 	emulate.o \
@@ -76,7 +73,7 @@ kvm-hv-$(CONFIG_PPC_TRANSACTIONAL_MEM) += \
 	book3s_hv_tm.o
 
 kvm-book3s_64-builtin-xics-objs-$(CONFIG_KVM_XICS) := \
-	book3s_hv_rm_xics.o book3s_hv_rm_xive.o
+	book3s_hv_rm_xics.o
 
 kvm-book3s_64-builtin-tm-objs-$(CONFIG_PPC_TRANSACTIONAL_MEM) += \
 	book3s_hv_tm_builtin.o
@@ -89,6 +86,7 @@ kvm-book3s_64-builtin-objs-$(CONFIG_KVM_BOOK3S_64_HANDLER) += \
 	book3s_hv_rm_mmu.o \
 	book3s_hv_ras.o \
 	book3s_hv_builtin.o \
+	book3s_hv_p9_perf.o \
 	$(kvm-book3s_64-builtin-tm-objs-y) \
 	$(kvm-book3s_64-builtin-xics-objs-y)
 endif
@@ -134,3 +132,8 @@ obj-$(CONFIG_KVM_BOOK3S_64_PR) += kvm-pr.o
 obj-$(CONFIG_KVM_BOOK3S_64_HV) += kvm-hv.o
 
 obj-y += $(kvm-book3s_64-builtin-objs-y)
+
+# KVM does a lot in real-mode, and 64-bit Book3S KASAN doesn't support that
+ifdef CONFIG_PPC_BOOK3S_64
+KASAN_SANITIZE := n
+endif

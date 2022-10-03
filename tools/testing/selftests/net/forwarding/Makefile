@@ -2,15 +2,34 @@
 
 TEST_PROGS = bridge_igmp.sh \
 	bridge_locked_port.sh \
+	bridge_mdb.sh \
+	bridge_mdb_port_down.sh \
+	bridge_mld.sh \
 	bridge_port_isolation.sh \
 	bridge_sticky_fdb.sh \
 	bridge_vlan_aware.sh \
+	bridge_vlan_mcast.sh \
 	bridge_vlan_unaware.sh \
+	custom_multipath_hash.sh \
+	dual_vxlan_bridge.sh \
+	ethtool_extended_state.sh \
 	ethtool.sh \
+	gre_custom_multipath_hash.sh \
 	gre_inner_v4_multipath.sh \
 	gre_inner_v6_multipath.sh \
+	gre_multipath_nh_res.sh \
+	gre_multipath_nh.sh \
 	gre_multipath.sh \
+	hw_stats_l3.sh \
+	hw_stats_l3_gre.sh \
 	ip6_forward_instats_vrf.sh \
+	ip6gre_custom_multipath_hash.sh \
+	ip6gre_flat_key.sh \
+	ip6gre_flat_keys.sh \
+	ip6gre_flat.sh \
+	ip6gre_hier_key.sh \
+	ip6gre_hier_keys.sh \
+	ip6gre_hier.sh \
 	ip6gre_inner_v4_multipath.sh \
 	ip6gre_inner_v6_multipath.sh \
 	ipip_flat_gre_key.sh \
@@ -19,6 +38,7 @@ TEST_PROGS = bridge_igmp.sh \
 	ipip_hier_gre_key.sh \
 	ipip_hier_gre_keys.sh \
 	ipip_hier_gre.sh \
+	local_termination.sh \
 	loopback.sh \
 	mirror_gre_bound.sh \
 	mirror_gre_bridge_1d.sh \
@@ -34,36 +54,54 @@ TEST_PROGS = bridge_igmp.sh \
 	mirror_gre_vlan_bridge_1q.sh \
 	mirror_gre_vlan.sh \
 	mirror_vlan.sh \
+	no_forwarding.sh \
+	pedit_dsfield.sh \
+	pedit_ip.sh \
+	pedit_l4port.sh \
+	q_in_vni_ipv6.sh \
+	q_in_vni.sh \
 	router_bridge.sh \
 	router_bridge_vlan.sh \
 	router_broadcast.sh \
+	router_mpath_nh_res.sh \
 	router_mpath_nh.sh \
 	router_multicast.sh \
 	router_multipath.sh \
+	router_nh.sh \
 	router.sh \
 	router_vid_1.sh \
 	sch_ets.sh \
+	sch_red.sh \
 	sch_tbf_ets.sh \
 	sch_tbf_prio.sh \
 	sch_tbf_root.sh \
+	skbedit_priority.sh \
 	tc_actions.sh \
 	tc_chains.sh \
 	tc_flower_router.sh \
 	tc_flower.sh \
 	tc_mpls_l2vpn.sh \
+	tc_police.sh \
 	tc_shblocks.sh \
 	tc_vlan_modify.sh \
+	vxlan_asymmetric_ipv6.sh \
 	vxlan_asymmetric.sh \
+	vxlan_bridge_1d_ipv6.sh \
+	vxlan_bridge_1d_port_8472_ipv6.sh \
 	vxlan_bridge_1d_port_8472.sh \
 	vxlan_bridge_1d.sh \
+	vxlan_bridge_1q_ipv6.sh \
+	vxlan_bridge_1q_port_8472_ipv6.sh \
 	vxlan_bridge_1q_port_8472.sh \
 	vxlan_bridge_1q.sh \
+	vxlan_symmetric_ipv6.sh \
 	vxlan_symmetric.sh
 
 TEST_PROGS_EXTENDED := devlink_lib.sh \
 	ethtool_lib.sh \
 	fib_offload_lib.sh \
 	forwarding.config.sample \
+	ip6gre_lib.sh \
 	ipip_lib.sh \
 	lib.sh \
 	mirror_gre_lib.sh \

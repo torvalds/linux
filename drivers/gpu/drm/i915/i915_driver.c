@@ -61,6 +61,7 @@
 #include "display/intel_pps.h"
 #include "display/intel_sprite.h"
 #include "display/intel_vga.h"
+#include "display/skl_watermark.h"
 
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_create.h"
@@ -260,8 +261,8 @@ static int i915_workqueues_init(struct drm_i915_private *dev_priv)
 	if (dev_priv->wq == NULL)
 		goto out_err;
 
-	dev_priv->hotplug.dp_wq = alloc_ordered_workqueue("i915-dp", 0);
-	if (dev_priv->hotplug.dp_wq == NULL)
+	dev_priv->display.hotplug.dp_wq = alloc_ordered_workqueue("i915-dp", 0);
+	if (dev_priv->display.hotplug.dp_wq == NULL)
 		goto out_free_wq;
 
 	return 0;
@@ -276,7 +277,7 @@ out_err:
 
 static void i915_workqueues_cleanup(struct drm_i915_private *dev_priv)
 {
-	destroy_workqueue(dev_priv->hotplug.dp_wq);
+	destroy_workqueue(dev_priv->display.hotplug.dp_wq);
 	destroy_workqueue(dev_priv->wq);
 }
 
@@ -343,15 +344,15 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 
 	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->gpu_error.lock);
-	mutex_init(&dev_priv->backlight_lock);
+	mutex_init(&dev_priv->display.backlight.lock);
 
 	mutex_init(&dev_priv->sb_lock);
 	cpu_latency_qos_add_request(&dev_priv->sb_qos, PM_QOS_DEFAULT_VALUE);
 
-	mutex_init(&dev_priv->audio.mutex);
-	mutex_init(&dev_priv->wm.wm_mutex);
-	mutex_init(&dev_priv->pps_mutex);
-	mutex_init(&dev_priv->hdcp_comp_mutex);
+	mutex_init(&dev_priv->display.audio.mutex);
+	mutex_init(&dev_priv->display.wm.wm_mutex);
+	mutex_init(&dev_priv->display.pps.mutex);
+	mutex_init(&dev_priv->display.hdcp.comp_mutex);
 
 	i915_memcpy_init_early(dev_priv);
 	intel_runtime_pm_init_early(&dev_priv->runtime_pm);
@@ -572,6 +573,7 @@ static int i915_pcode_init(struct drm_i915_private *i915)
 static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
+	struct pci_dev *root_pdev;
 	int ret;
 
 	if (i915_inject_probe_failure(dev_priv))
@@ -683,6 +685,15 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 
 	intel_bw_init_hw(dev_priv);
 
+	/*
+	 * FIXME: Temporary hammer to avoid freezing the machine on our DGFX
+	 * This should be totally removed when we handle the pci states properly
+	 * on runtime PM and on s2idle cases.
+	 */
+	root_pdev = pcie_find_root_port(pdev);
+	if (root_pdev)
+		pci_d3cold_disable(root_pdev);
+
 	return 0;
 
 err_msi:
@@ -706,11 +717,16 @@ err_perf:
 static void i915_driver_hw_remove(struct drm_i915_private *dev_priv)
 {
 	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
+	struct pci_dev *root_pdev;
 
 	i915_perf_fini(dev_priv);
 
 	if (pdev->msi_enabled)
 		pci_disable_msi(pdev);
+
+	root_pdev = pcie_find_root_port(pdev);
+	if (root_pdev)
+		pci_d3cold_enable(root_pdev);
 }
 
 /**
@@ -810,8 +826,8 @@ static void i915_welcome_messages(struct drm_i915_private *dev_priv)
 					     INTEL_INFO(dev_priv)->platform),
 			   GRAPHICS_VER(dev_priv));
 
-		intel_device_info_print_static(INTEL_INFO(dev_priv), &p);
-		intel_device_info_print_runtime(RUNTIME_INFO(dev_priv), &p);
+		intel_device_info_print(INTEL_INFO(dev_priv),
+					RUNTIME_INFO(dev_priv), &p);
 		i915_print_iommu_status(dev_priv, &p);
 		for_each_gt(gt, dev_priv, i)
 			intel_gt_info_print(&gt->info, &p);
@@ -832,6 +848,7 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 	const struct intel_device_info *match_info =
 		(struct intel_device_info *)ent->driver_data;
 	struct intel_device_info *device_info;
+	struct intel_runtime_info *runtime;
 	struct drm_i915_private *i915;
 
 	i915 = devm_drm_dev_alloc(&pdev->dev, &i915_drm_driver,
@@ -847,7 +864,11 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Setup the write-once "constant" device info */
 	device_info = mkwrite_device_info(i915);
 	memcpy(device_info, match_info, sizeof(*device_info));
-	RUNTIME_INFO(i915)->device_id = pdev->device;
+
+	/* Initialize initial runtime info from static const data and pdev. */
+	runtime = RUNTIME_INFO(i915);
+	memcpy(runtime, &INTEL_INFO(i915)->__runtime, sizeof(*runtime));
+	runtime->device_id = pdev->device;
 
 	return i915;
 }
@@ -865,8 +886,6 @@ i915_driver_create(struct pci_dev *pdev, const struct pci_device_id *ent)
  */
 int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	const struct intel_device_info *match_info =
-		(struct intel_device_info *)ent->driver_data;
 	struct drm_i915_private *i915;
 	int ret;
 
@@ -875,7 +894,7 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return PTR_ERR(i915);
 
 	/* Disable nuclear pageflip by default on pre-ILK */
-	if (!i915->params.nuclear_pageflip && match_info->graphics.ver < 5)
+	if (!i915->params.nuclear_pageflip && DISPLAY_VER(i915) < 5)
 		i915->drm.driver_features &= ~DRIVER_ATOMIC;
 
 	ret = pci_enable_device(pdev);
@@ -968,7 +987,9 @@ out_fini:
 
 void i915_driver_remove(struct drm_i915_private *i915)
 {
-	disable_rpm_wakeref_asserts(&i915->runtime_pm);
+	intel_wakeref_t wakeref;
+
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	i915_driver_unregister(i915);
 
@@ -992,18 +1013,19 @@ void i915_driver_remove(struct drm_i915_private *i915)
 
 	i915_driver_hw_remove(i915);
 
-	enable_rpm_wakeref_asserts(&i915->runtime_pm);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 }
 
 static void i915_driver_release(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_runtime_pm *rpm = &dev_priv->runtime_pm;
+	intel_wakeref_t wakeref;
 
 	if (!dev_priv->do_release)
 		return;
 
-	disable_rpm_wakeref_asserts(rpm);
+	wakeref = intel_runtime_pm_get(rpm);
 
 	i915_gem_driver_release(dev_priv);
 
@@ -1014,7 +1036,8 @@ static void i915_driver_release(struct drm_device *dev)
 
 	i915_driver_mmio_release(dev_priv);
 
-	enable_rpm_wakeref_asserts(rpm);
+	intel_runtime_pm_put(rpm, wakeref);
+
 	intel_runtime_pm_driver_release(rpm);
 
 	i915_driver_late_release(dev_priv);
@@ -1103,8 +1126,6 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 	intel_runtime_pm_disable(&i915->runtime_pm);
 	intel_power_domains_disable(i915);
 
-	i915_gem_suspend(i915);
-
 	if (HAS_DISPLAY(i915)) {
 		drm_kms_helper_poll_disable(&i915->drm);
 
@@ -1120,6 +1141,8 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 	intel_shutdown_encoders(i915);
 
 	intel_dmc_ucode_suspend(i915);
+
+	i915_gem_suspend(i915);
 
 	/*
 	 * The only requirement is to reboot with display DC states disabled,
@@ -1204,6 +1227,8 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	enable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
+	i915_gem_drain_freed_objects(dev_priv);
+
 	return 0;
 }
 
@@ -1246,14 +1271,6 @@ static int i915_drm_suspend_late(struct drm_device *dev, bool hibernation)
 
 		goto out;
 	}
-
-	/*
-	 * FIXME: Temporary hammer to avoid freezing the machine on our DGFX
-	 * This should be totally removed when we handle the pci states properly
-	 * on runtime PM and on s2idle cases.
-	 */
-	if (suspend_to_idle(dev_priv))
-		pci_d3cold_disable(pdev);
 
 	pci_disable_device(pdev);
 	/*
@@ -1419,8 +1436,6 @@ static int i915_drm_resume_early(struct drm_device *dev)
 		return -EIO;
 
 	pci_set_master(pdev);
-
-	pci_d3cold_enable(pdev);
 
 	disable_rpm_wakeref_asserts(&dev_priv->runtime_pm);
 
@@ -1612,7 +1627,6 @@ static int intel_runtime_suspend(struct device *kdev)
 {
 	struct drm_i915_private *dev_priv = kdev_to_i915(kdev);
 	struct intel_runtime_pm *rpm = &dev_priv->runtime_pm;
-	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	struct intel_gt *gt;
 	int ret, i;
 
@@ -1662,12 +1676,6 @@ static int intel_runtime_suspend(struct device *kdev)
 		drm_err(&dev_priv->drm,
 			"Unclaimed access detected prior to suspending\n");
 
-	/*
-	 * FIXME: Temporary hammer to avoid freezing the machine on our DGFX
-	 * This should be totally removed when we handle the pci states properly
-	 * on runtime PM and on s2idle cases.
-	 */
-	pci_d3cold_disable(pdev);
 	rpm->suspended = true;
 
 	/*
@@ -1706,7 +1714,6 @@ static int intel_runtime_resume(struct device *kdev)
 {
 	struct drm_i915_private *dev_priv = kdev_to_i915(kdev);
 	struct intel_runtime_pm *rpm = &dev_priv->runtime_pm;
-	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	struct intel_gt *gt;
 	int ret, i;
 
@@ -1720,7 +1727,6 @@ static int intel_runtime_resume(struct device *kdev)
 
 	intel_opregion_notify_adapter(dev_priv, PCI_D0);
 	rpm->suspended = false;
-	pci_d3cold_enable(pdev);
 	if (intel_uncore_unclaimed_mmio(&dev_priv->uncore))
 		drm_dbg(&dev_priv->drm,
 			"Unclaimed access during suspend, bios?\n");
@@ -1751,7 +1757,7 @@ static int intel_runtime_resume(struct device *kdev)
 		intel_hpd_poll_disable(dev_priv);
 	}
 
-	intel_enable_ipc(dev_priv);
+	skl_watermark_ipc_update(dev_priv);
 
 	enable_rpm_wakeref_asserts(rpm);
 

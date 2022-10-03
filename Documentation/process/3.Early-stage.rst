@@ -154,10 +154,11 @@ that the kernel developers have added a script to ease the process:
 This script will return the current maintainer(s) for a given file or
 directory when given the "-f" option.  If passed a patch on the
 command line, it will list the maintainers who should probably receive
-copies of the patch.  There are a number of options regulating how hard
-get_maintainer.pl will search for maintainers; please be careful about
-using the more aggressive options as you may end up including developers
-who have no real interest in the code you are modifying.
+copies of the patch.  This is the preferred way (unlike "-f" option) to get the
+list of people to Cc for your patches.  There are a number of options
+regulating how hard get_maintainer.pl will search for maintainers; please be
+careful about using the more aggressive options as you may end up including
+developers who have no real interest in the code you are modifying.
 
 If all else fails, talking to Andrew Morton can be an effective way to
 track down a maintainer for a specific piece of code.

@@ -6,7 +6,10 @@ Kernel driver aquacomputer-d5next
 Supported devices:
 
 * Aquacomputer D5 Next watercooling pump
+* Aquacomputer Farbwerk RGB controller
 * Aquacomputer Farbwerk 360 RGB controller
+* Aquacomputer Octo fan controller
+* Aquacomputer Quadro fan controller
 
 Author: Aleksa Savic
 
@@ -28,7 +31,13 @@ seems to require sending it a complete configuration. That includes addressable
 RGB LEDs, for which there is no standard sysfs interface. Thus, that task is
 better suited for userspace tools.
 
-The Farbwerk 360 exposes four temperature sensors. Depending on the device,
+The Octo exposes four temperature sensors and eight PWM controllable fans, along
+with their speed (in RPM), power, voltage and current.
+
+The Quadro exposes four temperature sensors, a flow sensor and four PWM controllable
+fans, along with their speed (in RPM), power, voltage and current.
+
+The Farbwerk and Farbwerk 360 expose four temperature sensors. Depending on the device,
 not all sysfs and debugfs entries will be available.
 
 Usage notes
@@ -40,13 +49,14 @@ the kernel and supports hotswapping.
 Sysfs entries
 -------------
 
-================ =============================================
+================ ==============================================
 temp[1-4]_input  Temperature sensors (in millidegrees Celsius)
-fan[1-2]_input   Pump/fan speed (in RPM)
-power[1-2]_input Pump/fan power (in micro Watts)
-in[0-2]_input    Pump/fan voltage (in milli Volts)
-curr[1-2]_input  Pump/fan current (in milli Amperes)
-================ =============================================
+fan[1-8]_input   Pump/fan speed (in RPM) / Flow speed (in dL/h)
+power[1-8]_input Pump/fan power (in micro Watts)
+in[0-7]_input    Pump/fan voltage (in milli Volts)
+curr[1-8]_input  Pump/fan current (in milli Amperes)
+pwm[1-8]         Fan PWM (0 - 255)
+================ ==============================================
 
 Debugfs entries
 ---------------

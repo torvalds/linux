@@ -47,7 +47,7 @@
 #define	PMC_S0I2_TMR		0x88
 #define	PMC_S0I3_TMR		0x8C
 #define	PMC_S0_TMR		0x90
-/* Sleep state counter is in units of of 32us */
+/* Sleep state counter is in units of 32us */
 #define	PMC_TMR_SHIFT		5
 
 /* Power status of power islands */
@@ -144,6 +144,5 @@
 #define	SLEEP_ENABLE		0x2000
 
 extern int pmc_atom_read(int offset, u32 *value);
-extern int pmc_atom_write(int offset, u32 value);
 
 #endif /* PMC_ATOM_H */

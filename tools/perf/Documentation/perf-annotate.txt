@@ -147,6 +147,11 @@ include::itrace.txt[]
 	The period/hits keywords set the base the percentage is computed
 	on - the samples period or the number of samples (hits).
 
+--percent-limit::
+	Do not show functions which have an overhead under that percent on
+	stdio or stdio2 (Default: 0).  Note that this is about selection of
+	functions to display, not about lines within the function.
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-report[1]

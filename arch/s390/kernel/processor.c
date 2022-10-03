@@ -8,7 +8,6 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/stop_machine.h>
-#include <linux/cpufeature.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/random.h>
@@ -95,15 +94,6 @@ void cpu_init(void)
 	BUG_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);
 }
-
-/*
- * cpu_have_feature - Test CPU features on module initialization
- */
-int cpu_have_feature(unsigned int num)
-{
-	return elf_hwcap & (1UL << num);
-}
-EXPORT_SYMBOL(cpu_have_feature);
 
 static void show_facilities(struct seq_file *m)
 {
@@ -282,6 +272,10 @@ static int __init setup_elf_platform(void)
 	case 0x8561:
 	case 0x8562:
 		strcpy(elf_platform, "z15");
+		break;
+	case 0x3931:
+	case 0x3932:
+		strcpy(elf_platform, "z16");
 		break;
 	}
 	return 0;

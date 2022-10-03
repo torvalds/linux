@@ -26,6 +26,8 @@
  */
 
 #include <drm/amdgpu_drm.h>
+#include <drm/display/drm_dp_helper.h>
+
 #include "amdgpu.h"
 
 #include "atom.h"
@@ -34,7 +36,6 @@
 #include "atombios_dp.h"
 #include "amdgpu_connectors.h"
 #include "amdgpu_atombios.h"
-#include <drm/dp/drm_dp_helper.h>
 
 /* move these to drm_dp_helper.c/h */
 #define DP_LINK_CONFIGURATION_SIZE 9

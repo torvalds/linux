@@ -17,7 +17,9 @@ properties:
   compatible:
     items:
       - enum:
+          - renesas,r9a07g043-tsu # RZ/G2UL
           - renesas,r9a07g044-tsu # RZ/G2{L,LC}
+          - renesas,r9a07g054-tsu # RZ/V2L
       - const: renesas,rzg2l-tsu
 
   reg:

@@ -120,7 +120,8 @@ static int smc_pnet_remove_by_pnetid(struct net *net, char *pnet_name)
 		    smc_pnet_match(pnetelem->pnet_name, pnet_name)) {
 			list_del(&pnetelem->list);
 			if (pnetelem->type == SMC_PNET_ETH && pnetelem->ndev) {
-				dev_put_track(pnetelem->ndev, &pnetelem->dev_tracker);
+				netdev_put(pnetelem->ndev,
+					   &pnetelem->dev_tracker);
 				pr_warn_ratelimited("smc: net device %s "
 						    "erased user defined "
 						    "pnetid %.16s\n",
@@ -196,7 +197,7 @@ static int smc_pnet_add_by_ndev(struct net_device *ndev)
 	list_for_each_entry_safe(pnetelem, tmp_pe, &pnettable->pnetlist, list) {
 		if (pnetelem->type == SMC_PNET_ETH && !pnetelem->ndev &&
 		    !strncmp(pnetelem->eth_name, ndev->name, IFNAMSIZ)) {
-			dev_hold_track(ndev, &pnetelem->dev_tracker, GFP_ATOMIC);
+			netdev_hold(ndev, &pnetelem->dev_tracker, GFP_ATOMIC);
 			pnetelem->ndev = ndev;
 			rc = 0;
 			pr_warn_ratelimited("smc: adding net device %s with "
@@ -227,7 +228,7 @@ static int smc_pnet_remove_by_ndev(struct net_device *ndev)
 	mutex_lock(&pnettable->lock);
 	list_for_each_entry_safe(pnetelem, tmp_pe, &pnettable->pnetlist, list) {
 		if (pnetelem->type == SMC_PNET_ETH && pnetelem->ndev == ndev) {
-			dev_put_track(pnetelem->ndev, &pnetelem->dev_tracker);
+			netdev_put(pnetelem->ndev, &pnetelem->dev_tracker);
 			pnetelem->ndev = NULL;
 			rc = 0;
 			pr_warn_ratelimited("smc: removing net device %s with "
@@ -311,8 +312,9 @@ static struct smc_ib_device *smc_pnet_find_ib(char *ib_name)
 	list_for_each_entry(ibdev, &smc_ib_devices.list, list) {
 		if (!strncmp(ibdev->ibdev->name, ib_name,
 			     sizeof(ibdev->ibdev->name)) ||
-		    !strncmp(dev_name(ibdev->ibdev->dev.parent), ib_name,
-			     IB_DEVICE_NAME_MAX - 1)) {
+		    (ibdev->ibdev->dev.parent &&
+		     !strncmp(dev_name(ibdev->ibdev->dev.parent), ib_name,
+			     IB_DEVICE_NAME_MAX - 1))) {
 			goto out;
 		}
 	}

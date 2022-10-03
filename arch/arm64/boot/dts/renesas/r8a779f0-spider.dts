@@ -7,6 +7,7 @@
 
 /dts-v1/;
 #include "r8a779f0-spider-cpu.dtsi"
+#include "r8a779f0-spider-ethernet.dtsi"
 
 / {
 	model = "Renesas Spider CPU and Breakout boards based on r8a779f0";
@@ -14,9 +15,19 @@
 
 	aliases {
 		serial0 = &scif3;
+		serial1 = &scif0;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+};
+
+&i2c4 {
+	eeprom@51 {
+		compatible = "rohm,br24g01", "atmel,24c01";
+		label = "breakout-board";
+		reg = <0x51>;
+		pagesize = <8>;
 	};
 };

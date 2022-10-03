@@ -105,7 +105,7 @@ static int compute_score(struct sock *sk, struct net *net,
 			 const struct in6_addr *daddr, unsigned short hnum,
 			 int dif, int sdif)
 {
-	int score;
+	int bound_dev_if, score;
 	struct inet_sock *inet;
 	bool dev_match;
 
@@ -132,10 +132,11 @@ static int compute_score(struct sock *sk, struct net *net,
 		score++;
 	}
 
-	dev_match = udp_sk_bound_dev_eq(net, sk->sk_bound_dev_if, dif, sdif);
+	bound_dev_if = READ_ONCE(sk->sk_bound_dev_if);
+	dev_match = udp_sk_bound_dev_eq(net, bound_dev_if, dif, sdif);
 	if (!dev_match)
 		return -1;
-	if (sk->sk_bound_dev_if)
+	if (bound_dev_if)
 		score++;
 
 	if (READ_ONCE(sk->sk_incoming_cpu) == raw_smp_processor_id())
@@ -322,7 +323,7 @@ static int udp6_skb_len(struct sk_buff *skb)
  */
 
 int udpv6_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
-		  int noblock, int flags, int *addr_len)
+		  int flags, int *addr_len)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct inet_sock *inet = inet_sk(sk);
@@ -342,7 +343,7 @@ int udpv6_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 
 try_again:
 	off = sk_peek_offset(sk, flags);
-	skb = __skb_recv_udp(sk, flags, noblock, &off, &err);
+	skb = __skb_recv_udp(sk, flags, &off, &err);
 	if (!skb)
 		return err;
 
@@ -391,7 +392,7 @@ try_again:
 	if (!peeking)
 		SNMP_INC_STATS(mib, UDP_MIB_INDATAGRAMS);
 
-	sock_recv_ts_and_drops(msg, sk, skb);
+	sock_recv_cmsgs(msg, sk, skb);
 
 	/* Copy the address. */
 	if (msg->msg_name) {
@@ -789,7 +790,7 @@ static bool __udp_v6_is_mcast_sock(struct net *net, struct sock *sk,
 	    (inet->inet_dport && inet->inet_dport != rmt_port) ||
 	    (!ipv6_addr_any(&sk->sk_v6_daddr) &&
 		    !ipv6_addr_equal(&sk->sk_v6_daddr, rmt_addr)) ||
-	    !udp_sk_bound_dev_eq(net, sk->sk_bound_dev_if, dif, sdif) ||
+	    !udp_sk_bound_dev_eq(net, READ_ONCE(sk->sk_bound_dev_if), dif, sdif) ||
 	    (!ipv6_addr_any(&sk->sk_v6_rcv_saddr) &&
 		    !ipv6_addr_equal(&sk->sk_v6_rcv_saddr, loc_addr)))
 		return false;
@@ -1043,7 +1044,7 @@ static struct sock *__udp6_lib_demux_lookup(struct net *net,
 
 	udp_portaddr_for_each_entry_rcu(sk, &hslot2->head) {
 		if (sk->sk_state == TCP_ESTABLISHED &&
-		    INET6_MATCH(sk, net, rmt_addr, loc_addr, ports, dif, sdif))
+		    inet6_match(net, sk, rmt_addr, loc_addr, ports, dif, sdif))
 			return sk;
 		/* Only check first socket in chain */
 		break;
@@ -1051,7 +1052,7 @@ static struct sock *__udp6_lib_demux_lookup(struct net *net,
 	return NULL;
 }
 
-INDIRECT_CALLABLE_SCOPE void udp_v6_early_demux(struct sk_buff *skb)
+void udp_v6_early_demux(struct sk_buff *skb)
 {
 	struct net *net = dev_net(skb->dev);
 	const struct udphdr *uh;
@@ -1123,7 +1124,7 @@ static int udpv6_pre_connect(struct sock *sk, struct sockaddr *uaddr,
 	 * bytes that are out of the bound specified by user in addr_len.
 	 */
 	if (uaddr->sa_family == AF_INET) {
-		if (__ipv6_only_sock(sk))
+		if (ipv6_only_sock(sk))
 			return -EAFNOSUPPORT;
 		return udp_pre_connect(sk, uaddr, addr_len);
 	}
@@ -1359,7 +1360,7 @@ int udpv6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 			msg->msg_name = &sin;
 			msg->msg_namelen = sizeof(sin);
 do_udp_sendmsg:
-			if (__ipv6_only_sock(sk))
+			if (ipv6_only_sock(sk))
 				return -ENETUNREACH;
 			return udp_sendmsg(sk, msg, len);
 		}
@@ -1433,7 +1434,7 @@ do_udp_sendmsg:
 	}
 
 	if (!fl6->flowi6_oif)
-		fl6->flowi6_oif = sk->sk_bound_dev_if;
+		fl6->flowi6_oif = READ_ONCE(sk->sk_bound_dev_if);
 
 	if (!fl6->flowi6_oif)
 		fl6->flowi6_oif = np->sticky_pktinfo.ipi6_ifindex;
@@ -1659,12 +1660,7 @@ int udpv6_getsockopt(struct sock *sk, int level, int optname,
 	return ipv6_getsockopt(sk, level, optname, optval, optlen);
 }
 
-/* thinking of making this const? Don't.
- * early_demux can change based on sysctl.
- */
-static struct inet6_protocol udpv6_protocol = {
-	.early_demux	=	udp_v6_early_demux,
-	.early_demux_handler =  udp_v6_early_demux,
+static const struct inet6_protocol udpv6_protocol = {
 	.handler	=	udpv6_rcv,
 	.err_handler	=	udpv6_err,
 	.flags		=	INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
@@ -1739,7 +1735,10 @@ struct proto udpv6_prot = {
 #ifdef CONFIG_BPF_SYSCALL
 	.psock_update_sk_prot	= udp_bpf_update_proto,
 #endif
+
 	.memory_allocated	= &udp_memory_allocated,
+	.per_cpu_fw_alloc	= &udp_memory_per_cpu_fw_alloc,
+
 	.sysctl_mem		= sysctl_udp_mem,
 	.sysctl_wmem_offset     = offsetof(struct net, ipv4.sysctl_udp_wmem_min),
 	.sysctl_rmem_offset     = offsetof(struct net, ipv4.sysctl_udp_rmem_min),

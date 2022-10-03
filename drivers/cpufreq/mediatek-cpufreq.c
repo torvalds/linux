@@ -8,18 +8,22 @@
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/cpumask.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 #include <linux/regulator/consumer.h>
-#include <linux/slab.h>
-#include <linux/thermal.h>
 
-#define MIN_VOLT_SHIFT		(100000)
-#define MAX_VOLT_SHIFT		(200000)
-#define MAX_VOLT_LIMIT		(1150000)
-#define VOLT_TOL		(10000)
+struct mtk_cpufreq_platform_data {
+	int min_volt_shift;
+	int max_volt_shift;
+	int proc_max_volt;
+	int sram_min_volt;
+	int sram_max_volt;
+	bool ccifreq_supported;
+};
 
 /*
  * The struct mtk_cpu_dvfs_info holds necessary information for doing CPU DVFS
@@ -35,6 +39,7 @@
 struct mtk_cpu_dvfs_info {
 	struct cpumask cpus;
 	struct device *cpu_dev;
+	struct device *cci_dev;
 	struct regulator *proc_reg;
 	struct regulator *sram_reg;
 	struct clk *cpu_clk;
@@ -42,7 +47,19 @@ struct mtk_cpu_dvfs_info {
 	struct list_head list_head;
 	int intermediate_voltage;
 	bool need_voltage_tracking;
+	int vproc_on_boot;
+	int pre_vproc;
+	/* Avoid race condition for regulators between notify and policy */
+	struct mutex reg_lock;
+	struct notifier_block opp_nb;
+	unsigned int opp_cpu;
+	unsigned long current_freq;
+	const struct mtk_cpufreq_platform_data *soc_data;
+	int vtrack_max;
+	bool ccifreq_bound;
 };
+
+static struct platform_device *cpufreq_pdev;
 
 static LIST_HEAD(dvfs_info_list);
 
@@ -61,142 +78,123 @@ static struct mtk_cpu_dvfs_info *mtk_cpu_dvfs_info_lookup(int cpu)
 static int mtk_cpufreq_voltage_tracking(struct mtk_cpu_dvfs_info *info,
 					int new_vproc)
 {
+	const struct mtk_cpufreq_platform_data *soc_data = info->soc_data;
 	struct regulator *proc_reg = info->proc_reg;
 	struct regulator *sram_reg = info->sram_reg;
-	int old_vproc, old_vsram, new_vsram, vsram, vproc, ret;
+	int pre_vproc, pre_vsram, new_vsram, vsram, vproc, ret;
+	int retry = info->vtrack_max;
 
-	old_vproc = regulator_get_voltage(proc_reg);
-	if (old_vproc < 0) {
-		pr_err("%s: invalid Vproc value: %d\n", __func__, old_vproc);
-		return old_vproc;
+	pre_vproc = regulator_get_voltage(proc_reg);
+	if (pre_vproc < 0) {
+		dev_err(info->cpu_dev,
+			"invalid Vproc value: %d\n", pre_vproc);
+		return pre_vproc;
 	}
-	/* Vsram should not exceed the maximum allowed voltage of SoC. */
-	new_vsram = min(new_vproc + MIN_VOLT_SHIFT, MAX_VOLT_LIMIT);
 
-	if (old_vproc < new_vproc) {
-		/*
-		 * When scaling up voltages, Vsram and Vproc scale up step
-		 * by step. At each step, set Vsram to (Vproc + 200mV) first,
-		 * then set Vproc to (Vsram - 100mV).
-		 * Keep doing it until Vsram and Vproc hit target voltages.
-		 */
-		do {
-			old_vsram = regulator_get_voltage(sram_reg);
-			if (old_vsram < 0) {
-				pr_err("%s: invalid Vsram value: %d\n",
-				       __func__, old_vsram);
-				return old_vsram;
-			}
-			old_vproc = regulator_get_voltage(proc_reg);
-			if (old_vproc < 0) {
-				pr_err("%s: invalid Vproc value: %d\n",
-				       __func__, old_vproc);
-				return old_vproc;
-			}
+	pre_vsram = regulator_get_voltage(sram_reg);
+	if (pre_vsram < 0) {
+		dev_err(info->cpu_dev, "invalid Vsram value: %d\n", pre_vsram);
+		return pre_vsram;
+	}
 
-			vsram = min(new_vsram, old_vproc + MAX_VOLT_SHIFT);
+	new_vsram = clamp(new_vproc + soc_data->min_volt_shift,
+			  soc_data->sram_min_volt, soc_data->sram_max_volt);
 
-			if (vsram + VOLT_TOL >= MAX_VOLT_LIMIT) {
-				vsram = MAX_VOLT_LIMIT;
+	do {
+		if (pre_vproc <= new_vproc) {
+			vsram = clamp(pre_vproc + soc_data->max_volt_shift,
+				      soc_data->sram_min_volt, new_vsram);
+			ret = regulator_set_voltage(sram_reg, vsram,
+						    soc_data->sram_max_volt);
 
-				/*
-				 * If the target Vsram hits the maximum voltage,
-				 * try to set the exact voltage value first.
-				 */
-				ret = regulator_set_voltage(sram_reg, vsram,
-							    vsram);
-				if (ret)
-					ret = regulator_set_voltage(sram_reg,
-							vsram - VOLT_TOL,
-							vsram);
-
-				vproc = new_vproc;
-			} else {
-				ret = regulator_set_voltage(sram_reg, vsram,
-							    vsram + VOLT_TOL);
-
-				vproc = vsram - MIN_VOLT_SHIFT;
-			}
 			if (ret)
 				return ret;
 
+			if (vsram == soc_data->sram_max_volt ||
+			    new_vsram == soc_data->sram_min_volt)
+				vproc = new_vproc;
+			else
+				vproc = vsram - soc_data->min_volt_shift;
+
 			ret = regulator_set_voltage(proc_reg, vproc,
-						    vproc + VOLT_TOL);
+						    soc_data->proc_max_volt);
 			if (ret) {
-				regulator_set_voltage(sram_reg, old_vsram,
-						      old_vsram);
+				regulator_set_voltage(sram_reg, pre_vsram,
+						      soc_data->sram_max_volt);
 				return ret;
 			}
-		} while (vproc < new_vproc || vsram < new_vsram);
-	} else if (old_vproc > new_vproc) {
-		/*
-		 * When scaling down voltages, Vsram and Vproc scale down step
-		 * by step. At each step, set Vproc to (Vsram - 200mV) first,
-		 * then set Vproc to (Vproc + 100mV).
-		 * Keep doing it until Vsram and Vproc hit target voltages.
-		 */
-		do {
-			old_vproc = regulator_get_voltage(proc_reg);
-			if (old_vproc < 0) {
-				pr_err("%s: invalid Vproc value: %d\n",
-				       __func__, old_vproc);
-				return old_vproc;
-			}
-			old_vsram = regulator_get_voltage(sram_reg);
-			if (old_vsram < 0) {
-				pr_err("%s: invalid Vsram value: %d\n",
-				       __func__, old_vsram);
-				return old_vsram;
-			}
-
-			vproc = max(new_vproc, old_vsram - MAX_VOLT_SHIFT);
+		} else if (pre_vproc > new_vproc) {
+			vproc = max(new_vproc,
+				    pre_vsram - soc_data->max_volt_shift);
 			ret = regulator_set_voltage(proc_reg, vproc,
-						    vproc + VOLT_TOL);
+						    soc_data->proc_max_volt);
 			if (ret)
 				return ret;
 
 			if (vproc == new_vproc)
 				vsram = new_vsram;
 			else
-				vsram = max(new_vsram, vproc + MIN_VOLT_SHIFT);
+				vsram = max(new_vsram,
+					    vproc + soc_data->min_volt_shift);
 
-			if (vsram + VOLT_TOL >= MAX_VOLT_LIMIT) {
-				vsram = MAX_VOLT_LIMIT;
-
-				/*
-				 * If the target Vsram hits the maximum voltage,
-				 * try to set the exact voltage value first.
-				 */
-				ret = regulator_set_voltage(sram_reg, vsram,
-							    vsram);
-				if (ret)
-					ret = regulator_set_voltage(sram_reg,
-							vsram - VOLT_TOL,
-							vsram);
-			} else {
-				ret = regulator_set_voltage(sram_reg, vsram,
-							    vsram + VOLT_TOL);
-			}
-
+			ret = regulator_set_voltage(sram_reg, vsram,
+						    soc_data->sram_max_volt);
 			if (ret) {
-				regulator_set_voltage(proc_reg, old_vproc,
-						      old_vproc);
+				regulator_set_voltage(proc_reg, pre_vproc,
+						      soc_data->proc_max_volt);
 				return ret;
 			}
-		} while (vproc > new_vproc + VOLT_TOL ||
-			 vsram > new_vsram + VOLT_TOL);
-	}
+		}
+
+		pre_vproc = vproc;
+		pre_vsram = vsram;
+
+		if (--retry < 0) {
+			dev_err(info->cpu_dev,
+				"over loop count, failed to set voltage\n");
+			return -EINVAL;
+		}
+	} while (vproc != new_vproc || vsram != new_vsram);
 
 	return 0;
 }
 
 static int mtk_cpufreq_set_voltage(struct mtk_cpu_dvfs_info *info, int vproc)
 {
+	const struct mtk_cpufreq_platform_data *soc_data = info->soc_data;
+	int ret;
+
 	if (info->need_voltage_tracking)
-		return mtk_cpufreq_voltage_tracking(info, vproc);
+		ret = mtk_cpufreq_voltage_tracking(info, vproc);
 	else
-		return regulator_set_voltage(info->proc_reg, vproc,
-					     vproc + VOLT_TOL);
+		ret = regulator_set_voltage(info->proc_reg, vproc,
+					    soc_data->proc_max_volt);
+	if (!ret)
+		info->pre_vproc = vproc;
+
+	return ret;
+}
+
+static bool is_ccifreq_ready(struct mtk_cpu_dvfs_info *info)
+{
+	struct device_link *sup_link;
+
+	if (info->ccifreq_bound)
+		return true;
+
+	sup_link = device_link_add(info->cpu_dev, info->cci_dev,
+				   DL_FLAG_AUTOREMOVE_CONSUMER);
+	if (!sup_link) {
+		dev_err(info->cpu_dev, "cpu%d: sup_link is NULL\n", info->opp_cpu);
+		return false;
+	}
+
+	if (sup_link->supplier->links.status != DL_DEV_DRIVER_BOUND)
+		return false;
+
+	info->ccifreq_bound = true;
+
+	return true;
 }
 
 static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
@@ -208,209 +206,339 @@ static int mtk_cpufreq_set_target(struct cpufreq_policy *policy,
 	struct mtk_cpu_dvfs_info *info = policy->driver_data;
 	struct device *cpu_dev = info->cpu_dev;
 	struct dev_pm_opp *opp;
-	long freq_hz, old_freq_hz;
-	int vproc, old_vproc, inter_vproc, target_vproc, ret;
+	long freq_hz, pre_freq_hz;
+	int vproc, pre_vproc, inter_vproc, target_vproc, ret;
 
 	inter_vproc = info->intermediate_voltage;
 
-	old_freq_hz = clk_get_rate(cpu_clk);
-	old_vproc = regulator_get_voltage(info->proc_reg);
-	if (old_vproc < 0) {
-		pr_err("%s: invalid Vproc value: %d\n", __func__, old_vproc);
-		return old_vproc;
+	pre_freq_hz = clk_get_rate(cpu_clk);
+
+	mutex_lock(&info->reg_lock);
+
+	if (unlikely(info->pre_vproc <= 0))
+		pre_vproc = regulator_get_voltage(info->proc_reg);
+	else
+		pre_vproc = info->pre_vproc;
+
+	if (pre_vproc < 0) {
+		dev_err(cpu_dev, "invalid Vproc value: %d\n", pre_vproc);
+		ret = pre_vproc;
+		goto out;
 	}
 
 	freq_hz = freq_table[index].frequency * 1000;
 
 	opp = dev_pm_opp_find_freq_ceil(cpu_dev, &freq_hz);
 	if (IS_ERR(opp)) {
-		pr_err("cpu%d: failed to find OPP for %ld\n",
-		       policy->cpu, freq_hz);
-		return PTR_ERR(opp);
+		dev_err(cpu_dev, "cpu%d: failed to find OPP for %ld\n",
+			policy->cpu, freq_hz);
+		ret = PTR_ERR(opp);
+		goto out;
 	}
 	vproc = dev_pm_opp_get_voltage(opp);
 	dev_pm_opp_put(opp);
 
 	/*
+	 * If MediaTek cci is supported but is not ready, we will use the value
+	 * of max(target cpu voltage, booting voltage) to prevent high freqeuncy
+	 * low voltage crash.
+	 */
+	if (info->soc_data->ccifreq_supported && !is_ccifreq_ready(info))
+		vproc = max(vproc, info->vproc_on_boot);
+
+	/*
 	 * If the new voltage or the intermediate voltage is higher than the
 	 * current voltage, scale up voltage first.
 	 */
-	target_vproc = (inter_vproc > vproc) ? inter_vproc : vproc;
-	if (old_vproc < target_vproc) {
+	target_vproc = max(inter_vproc, vproc);
+	if (pre_vproc <= target_vproc) {
 		ret = mtk_cpufreq_set_voltage(info, target_vproc);
 		if (ret) {
-			pr_err("cpu%d: failed to scale up voltage!\n",
-			       policy->cpu);
-			mtk_cpufreq_set_voltage(info, old_vproc);
-			return ret;
+			dev_err(cpu_dev,
+				"cpu%d: failed to scale up voltage!\n", policy->cpu);
+			mtk_cpufreq_set_voltage(info, pre_vproc);
+			goto out;
 		}
 	}
 
 	/* Reparent the CPU clock to intermediate clock. */
 	ret = clk_set_parent(cpu_clk, info->inter_clk);
 	if (ret) {
-		pr_err("cpu%d: failed to re-parent cpu clock!\n",
-		       policy->cpu);
-		mtk_cpufreq_set_voltage(info, old_vproc);
-		WARN_ON(1);
-		return ret;
+		dev_err(cpu_dev,
+			"cpu%d: failed to re-parent cpu clock!\n", policy->cpu);
+		mtk_cpufreq_set_voltage(info, pre_vproc);
+		goto out;
 	}
 
 	/* Set the original PLL to target rate. */
 	ret = clk_set_rate(armpll, freq_hz);
 	if (ret) {
-		pr_err("cpu%d: failed to scale cpu clock rate!\n",
-		       policy->cpu);
+		dev_err(cpu_dev,
+			"cpu%d: failed to scale cpu clock rate!\n", policy->cpu);
 		clk_set_parent(cpu_clk, armpll);
-		mtk_cpufreq_set_voltage(info, old_vproc);
-		return ret;
+		mtk_cpufreq_set_voltage(info, pre_vproc);
+		goto out;
 	}
 
 	/* Set parent of CPU clock back to the original PLL. */
 	ret = clk_set_parent(cpu_clk, armpll);
 	if (ret) {
-		pr_err("cpu%d: failed to re-parent cpu clock!\n",
-		       policy->cpu);
+		dev_err(cpu_dev,
+			"cpu%d: failed to re-parent cpu clock!\n", policy->cpu);
 		mtk_cpufreq_set_voltage(info, inter_vproc);
-		WARN_ON(1);
-		return ret;
+		goto out;
 	}
 
 	/*
 	 * If the new voltage is lower than the intermediate voltage or the
 	 * original voltage, scale down to the new voltage.
 	 */
-	if (vproc < inter_vproc || vproc < old_vproc) {
+	if (vproc < inter_vproc || vproc < pre_vproc) {
 		ret = mtk_cpufreq_set_voltage(info, vproc);
 		if (ret) {
-			pr_err("cpu%d: failed to scale down voltage!\n",
-			       policy->cpu);
+			dev_err(cpu_dev,
+				"cpu%d: failed to scale down voltage!\n", policy->cpu);
 			clk_set_parent(cpu_clk, info->inter_clk);
-			clk_set_rate(armpll, old_freq_hz);
+			clk_set_rate(armpll, pre_freq_hz);
 			clk_set_parent(cpu_clk, armpll);
-			return ret;
+			goto out;
 		}
 	}
 
-	return 0;
+	info->current_freq = freq_hz;
+
+out:
+	mutex_unlock(&info->reg_lock);
+
+	return ret;
 }
 
 #define DYNAMIC_POWER "dynamic-power-coefficient"
 
+static int mtk_cpufreq_opp_notifier(struct notifier_block *nb,
+				    unsigned long event, void *data)
+{
+	struct dev_pm_opp *opp = data;
+	struct dev_pm_opp *new_opp;
+	struct mtk_cpu_dvfs_info *info;
+	unsigned long freq, volt;
+	struct cpufreq_policy *policy;
+	int ret = 0;
+
+	info = container_of(nb, struct mtk_cpu_dvfs_info, opp_nb);
+
+	if (event == OPP_EVENT_ADJUST_VOLTAGE) {
+		freq = dev_pm_opp_get_freq(opp);
+
+		mutex_lock(&info->reg_lock);
+		if (info->current_freq == freq) {
+			volt = dev_pm_opp_get_voltage(opp);
+			ret = mtk_cpufreq_set_voltage(info, volt);
+			if (ret)
+				dev_err(info->cpu_dev,
+					"failed to scale voltage: %d\n", ret);
+		}
+		mutex_unlock(&info->reg_lock);
+	} else if (event == OPP_EVENT_DISABLE) {
+		freq = dev_pm_opp_get_freq(opp);
+
+		/* case of current opp item is disabled */
+		if (info->current_freq == freq) {
+			freq = 1;
+			new_opp = dev_pm_opp_find_freq_ceil(info->cpu_dev,
+							    &freq);
+			if (IS_ERR(new_opp)) {
+				dev_err(info->cpu_dev,
+					"all opp items are disabled\n");
+				ret = PTR_ERR(new_opp);
+				return notifier_from_errno(ret);
+			}
+
+			dev_pm_opp_put(new_opp);
+			policy = cpufreq_cpu_get(info->opp_cpu);
+			if (policy) {
+				cpufreq_driver_target(policy, freq / 1000,
+						      CPUFREQ_RELATION_L);
+				cpufreq_cpu_put(policy);
+			}
+		}
+	}
+
+	return notifier_from_errno(ret);
+}
+
+static struct device *of_get_cci(struct device *cpu_dev)
+{
+	struct device_node *np;
+	struct platform_device *pdev;
+
+	np = of_parse_phandle(cpu_dev->of_node, "mediatek,cci", 0);
+	if (IS_ERR_OR_NULL(np))
+		return NULL;
+
+	pdev = of_find_device_by_node(np);
+	of_node_put(np);
+	if (IS_ERR_OR_NULL(pdev))
+		return NULL;
+
+	return &pdev->dev;
+}
+
 static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 {
 	struct device *cpu_dev;
-	struct regulator *proc_reg = ERR_PTR(-ENODEV);
-	struct regulator *sram_reg = ERR_PTR(-ENODEV);
-	struct clk *cpu_clk = ERR_PTR(-ENODEV);
-	struct clk *inter_clk = ERR_PTR(-ENODEV);
 	struct dev_pm_opp *opp;
 	unsigned long rate;
 	int ret;
 
 	cpu_dev = get_cpu_device(cpu);
 	if (!cpu_dev) {
-		pr_err("failed to get cpu%d device\n", cpu);
+		dev_err(cpu_dev, "failed to get cpu%d device\n", cpu);
 		return -ENODEV;
 	}
+	info->cpu_dev = cpu_dev;
 
-	cpu_clk = clk_get(cpu_dev, "cpu");
-	if (IS_ERR(cpu_clk)) {
-		if (PTR_ERR(cpu_clk) == -EPROBE_DEFER)
-			pr_warn("cpu clk for cpu%d not ready, retry.\n", cpu);
-		else
-			pr_err("failed to get cpu clk for cpu%d\n", cpu);
-
-		ret = PTR_ERR(cpu_clk);
-		return ret;
+	info->ccifreq_bound = false;
+	if (info->soc_data->ccifreq_supported) {
+		info->cci_dev = of_get_cci(info->cpu_dev);
+		if (IS_ERR_OR_NULL(info->cci_dev)) {
+			ret = PTR_ERR(info->cci_dev);
+			dev_err(cpu_dev, "cpu%d: failed to get cci device\n", cpu);
+			return -ENODEV;
+		}
 	}
 
-	inter_clk = clk_get(cpu_dev, "intermediate");
-	if (IS_ERR(inter_clk)) {
-		if (PTR_ERR(inter_clk) == -EPROBE_DEFER)
-			pr_warn("intermediate clk for cpu%d not ready, retry.\n",
-				cpu);
-		else
-			pr_err("failed to get intermediate clk for cpu%d\n",
-			       cpu);
+	info->cpu_clk = clk_get(cpu_dev, "cpu");
+	if (IS_ERR(info->cpu_clk)) {
+		ret = PTR_ERR(info->cpu_clk);
+		return dev_err_probe(cpu_dev, ret,
+				     "cpu%d: failed to get cpu clk\n", cpu);
+	}
 
-		ret = PTR_ERR(inter_clk);
+	info->inter_clk = clk_get(cpu_dev, "intermediate");
+	if (IS_ERR(info->inter_clk)) {
+		ret = PTR_ERR(info->inter_clk);
+		dev_err_probe(cpu_dev, ret,
+			      "cpu%d: failed to get intermediate clk\n", cpu);
 		goto out_free_resources;
 	}
 
-	proc_reg = regulator_get_optional(cpu_dev, "proc");
-	if (IS_ERR(proc_reg)) {
-		if (PTR_ERR(proc_reg) == -EPROBE_DEFER)
-			pr_warn("proc regulator for cpu%d not ready, retry.\n",
-				cpu);
-		else
-			pr_err("failed to get proc regulator for cpu%d\n",
-			       cpu);
+	info->proc_reg = regulator_get_optional(cpu_dev, "proc");
+	if (IS_ERR(info->proc_reg)) {
+		ret = PTR_ERR(info->proc_reg);
+		dev_err_probe(cpu_dev, ret,
+			      "cpu%d: failed to get proc regulator\n", cpu);
+		goto out_free_resources;
+	}
 
-		ret = PTR_ERR(proc_reg);
+	ret = regulator_enable(info->proc_reg);
+	if (ret) {
+		dev_warn(cpu_dev, "cpu%d: failed to enable vproc\n", cpu);
 		goto out_free_resources;
 	}
 
 	/* Both presence and absence of sram regulator are valid cases. */
-	sram_reg = regulator_get_exclusive(cpu_dev, "sram");
+	info->sram_reg = regulator_get_optional(cpu_dev, "sram");
+	if (IS_ERR(info->sram_reg)) {
+		ret = PTR_ERR(info->sram_reg);
+		if (ret == -EPROBE_DEFER)
+			goto out_free_resources;
+
+		info->sram_reg = NULL;
+	} else {
+		ret = regulator_enable(info->sram_reg);
+		if (ret) {
+			dev_warn(cpu_dev, "cpu%d: failed to enable vsram\n", cpu);
+			goto out_free_resources;
+		}
+	}
 
 	/* Get OPP-sharing information from "operating-points-v2" bindings */
 	ret = dev_pm_opp_of_get_sharing_cpus(cpu_dev, &info->cpus);
 	if (ret) {
-		pr_err("failed to get OPP-sharing information for cpu%d\n",
-		       cpu);
+		dev_err(cpu_dev,
+			"cpu%d: failed to get OPP-sharing information\n", cpu);
 		goto out_free_resources;
 	}
 
 	ret = dev_pm_opp_of_cpumask_add_table(&info->cpus);
 	if (ret) {
-		pr_warn("no OPP table for cpu%d\n", cpu);
+		dev_warn(cpu_dev, "cpu%d: no OPP table\n", cpu);
 		goto out_free_resources;
 	}
 
+	ret = clk_prepare_enable(info->cpu_clk);
+	if (ret)
+		goto out_free_opp_table;
+
+	ret = clk_prepare_enable(info->inter_clk);
+	if (ret)
+		goto out_disable_mux_clock;
+
+	if (info->soc_data->ccifreq_supported) {
+		info->vproc_on_boot = regulator_get_voltage(info->proc_reg);
+		if (info->vproc_on_boot < 0) {
+			ret = info->vproc_on_boot;
+			dev_err(info->cpu_dev,
+				"invalid Vproc value: %d\n", info->vproc_on_boot);
+			goto out_disable_inter_clock;
+		}
+	}
+
 	/* Search a safe voltage for intermediate frequency. */
-	rate = clk_get_rate(inter_clk);
+	rate = clk_get_rate(info->inter_clk);
 	opp = dev_pm_opp_find_freq_ceil(cpu_dev, &rate);
 	if (IS_ERR(opp)) {
-		pr_err("failed to get intermediate opp for cpu%d\n", cpu);
+		dev_err(cpu_dev, "cpu%d: failed to get intermediate opp\n", cpu);
 		ret = PTR_ERR(opp);
-		goto out_free_opp_table;
+		goto out_disable_inter_clock;
 	}
 	info->intermediate_voltage = dev_pm_opp_get_voltage(opp);
 	dev_pm_opp_put(opp);
 
-	info->cpu_dev = cpu_dev;
-	info->proc_reg = proc_reg;
-	info->sram_reg = IS_ERR(sram_reg) ? NULL : sram_reg;
-	info->cpu_clk = cpu_clk;
-	info->inter_clk = inter_clk;
+	mutex_init(&info->reg_lock);
+	info->current_freq = clk_get_rate(info->cpu_clk);
+
+	info->opp_cpu = cpu;
+	info->opp_nb.notifier_call = mtk_cpufreq_opp_notifier;
+	ret = dev_pm_opp_register_notifier(cpu_dev, &info->opp_nb);
+	if (ret) {
+		dev_err(cpu_dev, "cpu%d: failed to register opp notifier\n", cpu);
+		goto out_disable_inter_clock;
+	}
 
 	/*
 	 * If SRAM regulator is present, software "voltage tracking" is needed
 	 * for this CPU power domain.
 	 */
-	info->need_voltage_tracking = !IS_ERR(sram_reg);
+	info->need_voltage_tracking = (info->sram_reg != NULL);
+
+	/*
+	 * We assume min voltage is 0 and tracking target voltage using
+	 * min_volt_shift for each iteration.
+	 * The vtrack_max is 3 times of expeted iteration count.
+	 */
+	info->vtrack_max = 3 * DIV_ROUND_UP(max(info->soc_data->sram_max_volt,
+						info->soc_data->proc_max_volt),
+					    info->soc_data->min_volt_shift);
 
 	return 0;
+
+out_disable_inter_clock:
+	clk_disable_unprepare(info->inter_clk);
+
+out_disable_mux_clock:
+	clk_disable_unprepare(info->cpu_clk);
 
 out_free_opp_table:
 	dev_pm_opp_of_cpumask_remove_table(&info->cpus);
 
 out_free_resources:
-	if (!IS_ERR(proc_reg))
-		regulator_put(proc_reg);
-	if (!IS_ERR(sram_reg))
-		regulator_put(sram_reg);
-	if (!IS_ERR(cpu_clk))
-		clk_put(cpu_clk);
-	if (!IS_ERR(inter_clk))
-		clk_put(inter_clk);
+	if (regulator_is_enabled(info->proc_reg))
+		regulator_disable(info->proc_reg);
+	if (info->sram_reg && regulator_is_enabled(info->sram_reg))
+		regulator_disable(info->sram_reg);
 
-	return ret;
-}
-
-static void mtk_cpu_dvfs_info_release(struct mtk_cpu_dvfs_info *info)
-{
 	if (!IS_ERR(info->proc_reg))
 		regulator_put(info->proc_reg);
 	if (!IS_ERR(info->sram_reg))
@@ -420,7 +548,30 @@ static void mtk_cpu_dvfs_info_release(struct mtk_cpu_dvfs_info *info)
 	if (!IS_ERR(info->inter_clk))
 		clk_put(info->inter_clk);
 
+	return ret;
+}
+
+static void mtk_cpu_dvfs_info_release(struct mtk_cpu_dvfs_info *info)
+{
+	if (!IS_ERR(info->proc_reg)) {
+		regulator_disable(info->proc_reg);
+		regulator_put(info->proc_reg);
+	}
+	if (!IS_ERR(info->sram_reg)) {
+		regulator_disable(info->sram_reg);
+		regulator_put(info->sram_reg);
+	}
+	if (!IS_ERR(info->cpu_clk)) {
+		clk_disable_unprepare(info->cpu_clk);
+		clk_put(info->cpu_clk);
+	}
+	if (!IS_ERR(info->inter_clk)) {
+		clk_disable_unprepare(info->inter_clk);
+		clk_put(info->inter_clk);
+	}
+
 	dev_pm_opp_of_cpumask_remove_table(&info->cpus);
+	dev_pm_opp_unregister_notifier(info->cpu_dev, &info->opp_nb);
 }
 
 static int mtk_cpufreq_init(struct cpufreq_policy *policy)
@@ -432,14 +583,15 @@ static int mtk_cpufreq_init(struct cpufreq_policy *policy)
 	info = mtk_cpu_dvfs_info_lookup(policy->cpu);
 	if (!info) {
 		pr_err("dvfs info for cpu%d is not initialized.\n",
-		       policy->cpu);
+			policy->cpu);
 		return -EINVAL;
 	}
 
 	ret = dev_pm_opp_init_cpufreq_table(info->cpu_dev, &freq_table);
 	if (ret) {
-		pr_err("failed to init cpufreq table for cpu%d: %d\n",
-		       policy->cpu, ret);
+		dev_err(info->cpu_dev,
+			"failed to init cpufreq table for cpu%d: %d\n",
+			policy->cpu, ret);
 		return ret;
 	}
 
@@ -476,8 +628,16 @@ static struct cpufreq_driver mtk_cpufreq_driver = {
 
 static int mtk_cpufreq_probe(struct platform_device *pdev)
 {
+	const struct mtk_cpufreq_platform_data *data;
 	struct mtk_cpu_dvfs_info *info, *tmp;
 	int cpu, ret;
+
+	data = dev_get_platdata(&pdev->dev);
+	if (!data) {
+		dev_err(&pdev->dev,
+			"failed to get mtk cpufreq platform data\n");
+		return -ENODEV;
+	}
 
 	for_each_possible_cpu(cpu) {
 		info = mtk_cpu_dvfs_info_lookup(cpu);
@@ -490,6 +650,7 @@ static int mtk_cpufreq_probe(struct platform_device *pdev)
 			goto release_dvfs_info_list;
 		}
 
+		info->soc_data = data;
 		ret = mtk_cpu_dvfs_info_init(info, cpu);
 		if (ret) {
 			dev_err(&pdev->dev,
@@ -525,20 +686,47 @@ static struct platform_driver mtk_cpufreq_platdrv = {
 	.probe		= mtk_cpufreq_probe,
 };
 
+static const struct mtk_cpufreq_platform_data mt2701_platform_data = {
+	.min_volt_shift = 100000,
+	.max_volt_shift = 200000,
+	.proc_max_volt = 1150000,
+	.sram_min_volt = 0,
+	.sram_max_volt = 1150000,
+	.ccifreq_supported = false,
+};
+
+static const struct mtk_cpufreq_platform_data mt8183_platform_data = {
+	.min_volt_shift = 100000,
+	.max_volt_shift = 200000,
+	.proc_max_volt = 1150000,
+	.sram_min_volt = 0,
+	.sram_max_volt = 1150000,
+	.ccifreq_supported = true,
+};
+
+static const struct mtk_cpufreq_platform_data mt8186_platform_data = {
+	.min_volt_shift = 100000,
+	.max_volt_shift = 250000,
+	.proc_max_volt = 1118750,
+	.sram_min_volt = 850000,
+	.sram_max_volt = 1118750,
+	.ccifreq_supported = true,
+};
+
 /* List of machines supported by this driver */
 static const struct of_device_id mtk_cpufreq_machines[] __initconst = {
-	{ .compatible = "mediatek,mt2701", },
-	{ .compatible = "mediatek,mt2712", },
-	{ .compatible = "mediatek,mt7622", },
-	{ .compatible = "mediatek,mt7623", },
-	{ .compatible = "mediatek,mt8167", },
-	{ .compatible = "mediatek,mt817x", },
-	{ .compatible = "mediatek,mt8173", },
-	{ .compatible = "mediatek,mt8176", },
-	{ .compatible = "mediatek,mt8183", },
-	{ .compatible = "mediatek,mt8365", },
-	{ .compatible = "mediatek,mt8516", },
-
+	{ .compatible = "mediatek,mt2701", .data = &mt2701_platform_data },
+	{ .compatible = "mediatek,mt2712", .data = &mt2701_platform_data },
+	{ .compatible = "mediatek,mt7622", .data = &mt2701_platform_data },
+	{ .compatible = "mediatek,mt7623", .data = &mt2701_platform_data },
+	{ .compatible = "mediatek,mt8167", .data = &mt2701_platform_data },
+	{ .compatible = "mediatek,mt817x", .data = &mt2701_platform_data },
+	{ .compatible = "mediatek,mt8173", .data = &mt2701_platform_data },
+	{ .compatible = "mediatek,mt8176", .data = &mt2701_platform_data },
+	{ .compatible = "mediatek,mt8183", .data = &mt8183_platform_data },
+	{ .compatible = "mediatek,mt8186", .data = &mt8186_platform_data },
+	{ .compatible = "mediatek,mt8365", .data = &mt2701_platform_data },
+	{ .compatible = "mediatek,mt8516", .data = &mt2701_platform_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mtk_cpufreq_machines);
@@ -547,7 +735,7 @@ static int __init mtk_cpufreq_driver_init(void)
 {
 	struct device_node *np;
 	const struct of_device_id *match;
-	struct platform_device *pdev;
+	const struct mtk_cpufreq_platform_data *data;
 	int err;
 
 	np = of_find_node_by_path("/");
@@ -560,6 +748,7 @@ static int __init mtk_cpufreq_driver_init(void)
 		pr_debug("Machine is not compatible with mtk-cpufreq\n");
 		return -ENODEV;
 	}
+	data = match->data;
 
 	err = platform_driver_register(&mtk_cpufreq_platdrv);
 	if (err)
@@ -571,16 +760,24 @@ static int __init mtk_cpufreq_driver_init(void)
 	 * and the device registration codes are put here to handle defer
 	 * probing.
 	 */
-	pdev = platform_device_register_simple("mtk-cpufreq", -1, NULL, 0);
-	if (IS_ERR(pdev)) {
+	cpufreq_pdev = platform_device_register_data(NULL, "mtk-cpufreq", -1,
+						     data, sizeof(*data));
+	if (IS_ERR(cpufreq_pdev)) {
 		pr_err("failed to register mtk-cpufreq platform device\n");
 		platform_driver_unregister(&mtk_cpufreq_platdrv);
-		return PTR_ERR(pdev);
+		return PTR_ERR(cpufreq_pdev);
 	}
 
 	return 0;
 }
-device_initcall(mtk_cpufreq_driver_init);
+module_init(mtk_cpufreq_driver_init)
+
+static void __exit mtk_cpufreq_driver_exit(void)
+{
+	platform_device_unregister(cpufreq_pdev);
+	platform_driver_unregister(&mtk_cpufreq_platdrv);
+}
+module_exit(mtk_cpufreq_driver_exit)
 
 MODULE_DESCRIPTION("MediaTek CPUFreq driver");
 MODULE_AUTHOR("Pi-Cheng Chen <pi-cheng.chen@linaro.org>");

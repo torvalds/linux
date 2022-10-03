@@ -28,6 +28,7 @@
 #include <net/ipv6.h>
 #include "wcn36xx.h"
 #include "testmode.h"
+#include "firmware.h"
 
 unsigned int wcn36xx_dbg_mask;
 module_param_named(debug_mask, wcn36xx_dbg_mask, uint, 0644);
@@ -192,84 +193,15 @@ static inline u8 get_sta_index(struct ieee80211_vif *vif,
 	       sta_priv->sta_index;
 }
 
-static const char * const wcn36xx_caps_names[] = {
-	"MCC",				/* 0 */
-	"P2P",				/* 1 */
-	"DOT11AC",			/* 2 */
-	"SLM_SESSIONIZATION",		/* 3 */
-	"DOT11AC_OPMODE",		/* 4 */
-	"SAP32STA",			/* 5 */
-	"TDLS",				/* 6 */
-	"P2P_GO_NOA_DECOUPLE_INIT_SCAN",/* 7 */
-	"WLANACTIVE_OFFLOAD",		/* 8 */
-	"BEACON_OFFLOAD",		/* 9 */
-	"SCAN_OFFLOAD",			/* 10 */
-	"ROAM_OFFLOAD",			/* 11 */
-	"BCN_MISS_OFFLOAD",		/* 12 */
-	"STA_POWERSAVE",		/* 13 */
-	"STA_ADVANCED_PWRSAVE",		/* 14 */
-	"AP_UAPSD",			/* 15 */
-	"AP_DFS",			/* 16 */
-	"BLOCKACK",			/* 17 */
-	"PHY_ERR",			/* 18 */
-	"BCN_FILTER",			/* 19 */
-	"RTT",				/* 20 */
-	"RATECTRL",			/* 21 */
-	"WOW",				/* 22 */
-	"WLAN_ROAM_SCAN_OFFLOAD",	/* 23 */
-	"SPECULATIVE_PS_POLL",		/* 24 */
-	"SCAN_SCH",			/* 25 */
-	"IBSS_HEARTBEAT_OFFLOAD",	/* 26 */
-	"WLAN_SCAN_OFFLOAD",		/* 27 */
-	"WLAN_PERIODIC_TX_PTRN",	/* 28 */
-	"ADVANCE_TDLS",			/* 29 */
-	"BATCH_SCAN",			/* 30 */
-	"FW_IN_TX_PATH",		/* 31 */
-	"EXTENDED_NSOFFLOAD_SLOT",	/* 32 */
-	"CH_SWITCH_V1",			/* 33 */
-	"HT40_OBSS_SCAN",		/* 34 */
-	"UPDATE_CHANNEL_LIST",		/* 35 */
-	"WLAN_MCADDR_FLT",		/* 36 */
-	"WLAN_CH144",			/* 37 */
-	"NAN",				/* 38 */
-	"TDLS_SCAN_COEXISTENCE",	/* 39 */
-	"LINK_LAYER_STATS_MEAS",	/* 40 */
-	"MU_MIMO",			/* 41 */
-	"EXTENDED_SCAN",		/* 42 */
-	"DYNAMIC_WMM_PS",		/* 43 */
-	"MAC_SPOOFED_SCAN",		/* 44 */
-	"BMU_ERROR_GENERIC_RECOVERY",	/* 45 */
-	"DISA",				/* 46 */
-	"FW_STATS",			/* 47 */
-	"WPS_PRBRSP_TMPL",		/* 48 */
-	"BCN_IE_FLT_DELTA",		/* 49 */
-	"TDLS_OFF_CHANNEL",		/* 51 */
-	"RTT3",				/* 52 */
-	"MGMT_FRAME_LOGGING",		/* 53 */
-	"ENHANCED_TXBD_COMPLETION",	/* 54 */
-	"LOGGING_ENHANCEMENT",		/* 55 */
-	"EXT_SCAN_ENHANCED",		/* 56 */
-	"MEMORY_DUMP_SUPPORTED",	/* 57 */
-	"PER_PKT_STATS_SUPPORTED",	/* 58 */
-	"EXT_LL_STAT",			/* 60 */
-	"WIFI_CONFIG",			/* 61 */
-	"ANTENNA_DIVERSITY_SELECTION",	/* 62 */
-};
-
-static const char *wcn36xx_get_cap_name(enum place_holder_in_cap_bitmap x)
-{
-	if (x >= ARRAY_SIZE(wcn36xx_caps_names))
-		return "UNKNOWN";
-	return wcn36xx_caps_names[x];
-}
-
 static void wcn36xx_feat_caps_info(struct wcn36xx *wcn)
 {
 	int i;
 
 	for (i = 0; i < MAX_FEATURE_SUPPORTED; i++) {
-		if (get_feat_caps(wcn->fw_feat_caps, i))
-			wcn36xx_dbg(WCN36XX_DBG_MAC, "FW Cap %s\n", wcn36xx_get_cap_name(i));
+		if (wcn36xx_firmware_get_feat_caps(wcn->fw_feat_caps, i)) {
+			wcn36xx_dbg(WCN36XX_DBG_MAC, "FW Cap %s\n",
+				    wcn36xx_firmware_get_cap_name(i));
+		}
 	}
 }
 
@@ -381,7 +313,7 @@ static void wcn36xx_change_ps(struct wcn36xx *wcn, bool enable)
 	list_for_each_entry(tmp, &wcn->vif_list, list) {
 		vif = wcn36xx_priv_to_vif(tmp);
 		if (enable && !wcn->sw_scan) {
-			if (vif->bss_conf.ps) /* ps allowed ? */
+			if (vif->cfg.ps) /* ps allowed ? */
 				wcn36xx_pmc_enter_bmps_state(wcn, vif);
 		} else {
 			wcn36xx_pmc_exit_bmps_state(wcn, vif);
@@ -701,7 +633,7 @@ static int wcn36xx_hw_scan(struct ieee80211_hw *hw,
 {
 	struct wcn36xx *wcn = hw->priv;
 
-	if (!get_feat_caps(wcn->fw_feat_caps, SCAN_OFFLOAD)) {
+	if (!wcn36xx_firmware_get_feat_caps(wcn->fw_feat_caps, SCAN_OFFLOAD)) {
 		/* fallback to mac80211 software scan */
 		return 1;
 	}
@@ -739,7 +671,7 @@ static void wcn36xx_cancel_hw_scan(struct ieee80211_hw *hw,
 	wcn->scan_aborted = true;
 	mutex_unlock(&wcn->scan_lock);
 
-	if (get_feat_caps(wcn->fw_feat_caps, SCAN_OFFLOAD)) {
+	if (wcn36xx_firmware_get_feat_caps(wcn->fw_feat_caps, SCAN_OFFLOAD)) {
 		/* ieee80211_scan_completed will be called on FW scan
 		 * indication */
 		wcn36xx_smd_stop_hw_scan(wcn);
@@ -788,7 +720,7 @@ static void wcn36xx_update_allowed_rates(struct ieee80211_sta *sta,
 	int i, size;
 	u16 *rates_table;
 	struct wcn36xx_sta *sta_priv = wcn36xx_sta_to_priv(sta);
-	u32 rates = sta->supp_rates[band];
+	u32 rates = sta->deflink.supp_rates[band];
 
 	memset(&sta_priv->supported_rates, 0,
 		sizeof(sta_priv->supported_rates));
@@ -814,20 +746,20 @@ static void wcn36xx_update_allowed_rates(struct ieee80211_sta *sta,
 		}
 	}
 
-	if (sta->ht_cap.ht_supported) {
-		BUILD_BUG_ON(sizeof(sta->ht_cap.mcs.rx_mask) >
-			sizeof(sta_priv->supported_rates.supported_mcs_set));
+	if (sta->deflink.ht_cap.ht_supported) {
+		BUILD_BUG_ON(sizeof(sta->deflink.ht_cap.mcs.rx_mask) >
+			     sizeof(sta_priv->supported_rates.supported_mcs_set));
 		memcpy(sta_priv->supported_rates.supported_mcs_set,
-		       sta->ht_cap.mcs.rx_mask,
-		       sizeof(sta->ht_cap.mcs.rx_mask));
+		       sta->deflink.ht_cap.mcs.rx_mask,
+		       sizeof(sta->deflink.ht_cap.mcs.rx_mask));
 	}
 
-	if (sta->vht_cap.vht_supported) {
+	if (sta->deflink.vht_cap.vht_supported) {
 		sta_priv->supported_rates.op_rate_mode = STA_11ac;
 		sta_priv->supported_rates.vht_rx_mcs_map =
-				sta->vht_cap.vht_mcs.rx_mcs_map;
+				sta->deflink.vht_cap.vht_mcs.rx_mcs_map;
 		sta_priv->supported_rates.vht_tx_mcs_map =
-				sta->vht_cap.vht_mcs.tx_mcs_map;
+				sta->deflink.vht_cap.vht_mcs.tx_mcs_map;
 	}
 }
 
@@ -868,7 +800,7 @@ void wcn36xx_set_default_rates_v1(struct wcn36xx_hal_supported_rates_v1 *rates)
 static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_bss_conf *bss_conf,
-				     u32 changed)
+				     u64 changed)
 {
 	struct wcn36xx *wcn = hw->priv;
 	struct sk_buff *skb = NULL;
@@ -876,7 +808,7 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 	enum wcn36xx_hal_link_state link_state;
 	struct wcn36xx_vif *vif_priv = wcn36xx_vif_to_priv(vif);
 
-	wcn36xx_dbg(WCN36XX_DBG_MAC, "mac bss info changed vif %p changed 0x%08x\n",
+	wcn36xx_dbg(WCN36XX_DBG_MAC, "mac bss info changed vif %p changed 0x%llx\n",
 		    vif, changed);
 
 	mutex_lock(&wcn->conf_mutex);
@@ -915,17 +847,17 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 		wcn36xx_dbg(WCN36XX_DBG_MAC,
 			    "mac bss changed ssid\n");
 		wcn36xx_dbg_dump(WCN36XX_DBG_MAC, "ssid ",
-				 bss_conf->ssid, bss_conf->ssid_len);
+				 vif->cfg.ssid, vif->cfg.ssid_len);
 
-		vif_priv->ssid.length = bss_conf->ssid_len;
+		vif_priv->ssid.length = vif->cfg.ssid_len;
 		memcpy(&vif_priv->ssid.ssid,
-		       bss_conf->ssid,
-		       bss_conf->ssid_len);
+		       vif->cfg.ssid,
+		       vif->cfg.ssid_len);
 	}
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		vif_priv->is_joining = false;
-		if (bss_conf->assoc) {
+		if (vif->cfg.assoc) {
 			struct ieee80211_sta *sta;
 			struct wcn36xx_sta *sta_priv;
 
@@ -933,7 +865,7 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 				    "mac assoc bss %pM vif %pM AID=%d\n",
 				     bss_conf->bssid,
 				     vif->addr,
-				     bss_conf->aid);
+				     vif->cfg.aid);
 
 			vif_priv->sta_assoc = true;
 
@@ -959,7 +891,7 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 			wcn36xx_smd_config_bss(wcn, vif, sta,
 					       bss_conf->bssid,
 					       true);
-			sta_priv->aid = bss_conf->aid;
+			sta_priv->aid = vif->cfg.aid;
 			/*
 			 * config_sta must be called from  because this is the
 			 * place where AID is available.
@@ -973,7 +905,7 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 				    "disassociated bss %pM vif %pM AID=%d\n",
 				    bss_conf->bssid,
 				    vif->addr,
-				    bss_conf->aid);
+				    vif->cfg.aid);
 			vif_priv->sta_assoc = false;
 			wcn36xx_smd_set_link_st(wcn,
 						bss_conf->bssid,
@@ -1006,7 +938,7 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 			wcn36xx_smd_config_bss(wcn, vif, NULL,
 					       vif->addr, false);
 			skb = ieee80211_beacon_get_tim(hw, vif, &tim_off,
-						       &tim_len);
+						       &tim_len, 0);
 			if (!skb) {
 				wcn36xx_err("failed to alloc beacon skb\n");
 				goto out;
@@ -1400,6 +1332,21 @@ static int wcn36xx_get_survey(struct ieee80211_hw *hw, int idx,
 	return 0;
 }
 
+static void wcn36xx_sta_statistics(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+				   struct ieee80211_sta *sta, struct station_info *sinfo)
+{
+	struct wcn36xx *wcn;
+	u8 sta_index;
+	int status;
+
+	wcn = hw->priv;
+	sta_index = get_sta_index(vif, wcn36xx_sta_to_priv(sta));
+	status = wcn36xx_smd_get_stats(wcn, sta_index, HAL_GLOBAL_CLASS_A_STATS_INFO, sinfo);
+
+	if (status)
+		wcn36xx_err("wcn36xx_smd_get_stats failed\n");
+}
+
 static const struct ieee80211_ops wcn36xx_ops = {
 	.start			= wcn36xx_start,
 	.stop			= wcn36xx_stop,
@@ -1423,6 +1370,7 @@ static const struct ieee80211_ops wcn36xx_ops = {
 	.set_rts_threshold	= wcn36xx_set_rts_threshold,
 	.sta_add		= wcn36xx_sta_add,
 	.sta_remove		= wcn36xx_sta_remove,
+	.sta_statistics		= wcn36xx_sta_statistics,
 	.ampdu_action		= wcn36xx_ampdu_action,
 #if IS_ENABLED(CONFIG_IPV6)
 	.ipv6_addr_change	= wcn36xx_ipv6_addr_change,

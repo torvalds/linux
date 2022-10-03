@@ -17,10 +17,10 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 
+#include <drm/display/drm_dp_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_bridge_connector.h>
-#include <drm/dp/drm_dp_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
@@ -35,12 +35,6 @@
 #define DISPLAY_OUTPUT_DUAL_LVDS	2
 
 struct rockchip_lvds;
-
-#define connector_to_lvds(c) \
-		container_of(c, struct rockchip_lvds, connector)
-
-#define encoder_to_lvds(c) \
-		container_of(c, struct rockchip_lvds, encoder)
 
 /**
  * struct rockchip_lvds_soc_data - rockchip lvds Soc private data
@@ -65,9 +59,21 @@ struct rockchip_lvds {
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
 	struct drm_connector connector;
-	struct drm_encoder encoder;
+	struct rockchip_encoder encoder;
 	struct dev_pin_info *pins;
 };
+
+static inline struct rockchip_lvds *connector_to_lvds(struct drm_connector *connector)
+{
+	return container_of(connector, struct rockchip_lvds, connector);
+}
+
+static inline struct rockchip_lvds *encoder_to_lvds(struct drm_encoder *encoder)
+{
+	struct rockchip_encoder *rkencoder = to_rockchip_encoder(encoder);
+
+	return container_of(rkencoder, struct rockchip_lvds, encoder);
+}
 
 static inline void rk3288_writel(struct rockchip_lvds *lvds, u32 offset,
 				 u32 val)
@@ -599,7 +605,7 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 		goto err_put_remote;
 	}
 
-	encoder = &lvds->encoder;
+	encoder = &lvds->encoder.encoder;
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm_dev,
 							     dev->of_node);
 
@@ -674,10 +680,10 @@ static void rockchip_lvds_unbind(struct device *dev, struct device *master,
 	const struct drm_encoder_helper_funcs *encoder_funcs;
 
 	encoder_funcs = lvds->soc_data->helper_funcs;
-	encoder_funcs->disable(&lvds->encoder);
+	encoder_funcs->disable(&lvds->encoder.encoder);
 	pm_runtime_disable(dev);
 	drm_connector_cleanup(&lvds->connector);
-	drm_encoder_cleanup(&lvds->encoder);
+	drm_encoder_cleanup(&lvds->encoder.encoder);
 }
 
 static const struct component_ops rockchip_lvds_component_ops = {

@@ -52,7 +52,6 @@
 #endif
 
 #ifdef CONFIG_PPC_PMAC
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
 #endif
@@ -1089,7 +1088,7 @@ static netdev_tx_t gem_start_xmit(struct sk_buff *skb,
 		netif_stop_queue(dev);
 
 		/* netif_stop_queue() must be done before checking
-		 * checking tx index in TX_BUFFS_AVAIL() below, because
+		 * tx index in TX_BUFFS_AVAIL() below, because
 		 * in gem_tx(), we update tx_old before checking for
 		 * netif_queue_stopped().
 		 */

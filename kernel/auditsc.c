@@ -1014,10 +1014,10 @@ static void audit_reset_context(struct audit_context *ctx)
 	ctx->target_comm[0] = '\0';
 	unroll_tree_refs(ctx, NULL, 0);
 	WARN_ON(!list_empty(&ctx->killed_trees));
-	ctx->type = 0;
 	audit_free_module(ctx);
 	ctx->fds[0] = -1;
 	audit_proctitle_free(ctx);
+	ctx->type = 0; /* reset last for audit_free_*() */
 }
 
 static inline struct audit_context *audit_alloc_context(enum audit_state state)
@@ -1071,31 +1071,6 @@ int audit_alloc(struct task_struct *tsk)
 	audit_set_context(tsk, context);
 	set_task_syscall_work(tsk, SYSCALL_AUDIT);
 	return 0;
-}
-
-/**
- * audit_alloc_kernel - allocate an audit_context for a kernel task
- * @tsk: the kernel task
- *
- * Similar to the audit_alloc() function, but intended for kernel private
- * threads.  Returns zero on success, negative values on failure.
- */
-int audit_alloc_kernel(struct task_struct *tsk)
-{
-	/*
-	 * At the moment we are just going to call into audit_alloc() to
-	 * simplify the code, but there two things to keep in mind with this
-	 * approach:
-	 *
-	 * 1. Filtering internal kernel tasks is a bit laughable in almost all
-	 * cases, but there is at least one case where there is a benefit:
-	 * the '-a task,never' case allows the admin to effectively disable
-	 * task auditing at runtime.
-	 *
-	 * 2. The {set,clear}_task_syscall_work() ops likely have zero effect
-	 * on these internal kernel tasks, but they probably don't hurt either.
-	 */
-	return audit_alloc(tsk);
 }
 
 static inline void audit_free_context(struct audit_context *context)
@@ -1958,6 +1933,12 @@ void __audit_uring_entry(u8 op)
 void __audit_uring_exit(int success, long code)
 {
 	struct audit_context *ctx = audit_context();
+
+	if (ctx->dummy) {
+		if (ctx->context != AUDIT_CTX_URING)
+			return;
+		goto out;
+	}
 
 	if (ctx->context == AUDIT_CTX_SYSCALL) {
 		/*

@@ -555,11 +555,9 @@ static int am33xx_pm_probe(struct platform_device *pdev)
 #endif /* CONFIG_SUSPEND */
 
 	pm_runtime_enable(dev);
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0)
 		goto err_pm_runtime_disable;
-	}
 
 	ret = pm_ops->init(am33xx_do_sram_idle);
 	if (ret) {

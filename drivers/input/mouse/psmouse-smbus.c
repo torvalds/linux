@@ -26,6 +26,8 @@ struct psmouse_smbus_dev {
 static LIST_HEAD(psmouse_smbus_list);
 static DEFINE_MUTEX(psmouse_smbus_mutex);
 
+static struct workqueue_struct *psmouse_smbus_wq;
+
 static void psmouse_smbus_check_adapter(struct i2c_adapter *adapter)
 {
 	struct psmouse_smbus_dev *smbdev;
@@ -161,7 +163,7 @@ static void psmouse_smbus_schedule_remove(struct i2c_client *client)
 		INIT_WORK(&rwork->work, psmouse_smbus_remove_i2c_device);
 		rwork->client = client;
 
-		schedule_work(&rwork->work);
+		queue_work(psmouse_smbus_wq, &rwork->work);
 	}
 }
 
@@ -305,9 +307,14 @@ int __init psmouse_smbus_module_init(void)
 {
 	int error;
 
+	psmouse_smbus_wq = alloc_workqueue("psmouse-smbus", 0, 0);
+	if (!psmouse_smbus_wq)
+		return -ENOMEM;
+
 	error = bus_register_notifier(&i2c_bus_type, &psmouse_smbus_notifier);
 	if (error) {
 		pr_err("failed to register i2c bus notifier: %d\n", error);
+		destroy_workqueue(psmouse_smbus_wq);
 		return error;
 	}
 
@@ -317,5 +324,5 @@ int __init psmouse_smbus_module_init(void)
 void psmouse_smbus_module_exit(void)
 {
 	bus_unregister_notifier(&i2c_bus_type, &psmouse_smbus_notifier);
-	flush_scheduled_work();
+	destroy_workqueue(psmouse_smbus_wq);
 }

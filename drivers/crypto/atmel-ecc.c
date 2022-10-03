@@ -349,8 +349,16 @@ static int atmel_ecc_remove(struct i2c_client *client)
 
 	/* Return EBUSY if i2c client already allocated. */
 	if (atomic_read(&i2c_priv->tfm_count)) {
-		dev_err(&client->dev, "Device is busy\n");
-		return -EBUSY;
+		/*
+		 * After we return here, the memory backing the device is freed.
+		 * That happens no matter what the return value of this function
+		 * is because in the Linux device model there is no error
+		 * handling for unbinding a driver.
+		 * If there is still some action pending, it probably involves
+		 * accessing the freed memory.
+		 */
+		dev_emerg(&client->dev, "Device is busy, expect memory corruption.\n");
+		return 0;
 	}
 
 	crypto_unregister_kpp(&atmel_ecdh_nist_p256);
@@ -398,7 +406,7 @@ static int __init atmel_ecc_init(void)
 
 static void __exit atmel_ecc_exit(void)
 {
-	flush_scheduled_work();
+	atmel_i2c_flush_queue();
 	i2c_del_driver(&atmel_ecc_driver);
 }
 

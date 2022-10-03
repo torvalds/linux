@@ -21,7 +21,7 @@
 #define OTX2_HEAD_ROOM		OTX2_ALIGN
 
 #define	OTX2_ETH_HLEN		(VLAN_ETH_HLEN + VLAN_HLEN)
-#define	OTX2_MIN_MTU		64
+#define	OTX2_MIN_MTU		60
 
 #define OTX2_MAX_GSO_SEGS	255
 #define OTX2_MAX_FRAGS_IN_SQE	9
@@ -109,6 +109,7 @@ struct otx2_cq_poll {
 #define CINT_INVALID_CQ		255
 	u8			cint_idx;
 	u8			cq_ids[CQS_PER_CINT];
+	struct dim		dim;
 	struct napi_struct	napi;
 };
 

@@ -1734,38 +1734,7 @@ static const struct snd_soc_component_driver soc_component_dev_max98088 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
-
-static int max98088_i2c_probe(struct i2c_client *i2c,
-			      const struct i2c_device_id *id)
-{
-       struct max98088_priv *max98088;
-       int ret;
-
-       max98088 = devm_kzalloc(&i2c->dev, sizeof(struct max98088_priv),
-			       GFP_KERNEL);
-       if (max98088 == NULL)
-               return -ENOMEM;
-
-       max98088->regmap = devm_regmap_init_i2c(i2c, &max98088_regmap);
-       if (IS_ERR(max98088->regmap))
-	       return PTR_ERR(max98088->regmap);
-
-	max98088->mclk = devm_clk_get(&i2c->dev, "mclk");
-	if (IS_ERR(max98088->mclk))
-		if (PTR_ERR(max98088->mclk) == -EPROBE_DEFER)
-			return PTR_ERR(max98088->mclk);
-
-       max98088->devtype = id->driver_data;
-
-       i2c_set_clientdata(i2c, max98088);
-       max98088->pdata = i2c->dev.platform_data;
-
-       ret = devm_snd_soc_register_component(&i2c->dev,
-                       &soc_component_dev_max98088, &max98088_dai[0], 2);
-       return ret;
-}
 
 static const struct i2c_device_id max98088_i2c_id[] = {
        { "max98088", MAX98088 },
@@ -1773,6 +1742,37 @@ static const struct i2c_device_id max98088_i2c_id[] = {
        { }
 };
 MODULE_DEVICE_TABLE(i2c, max98088_i2c_id);
+
+static int max98088_i2c_probe(struct i2c_client *i2c)
+{
+	struct max98088_priv *max98088;
+	int ret;
+	const struct i2c_device_id *id;
+
+	max98088 = devm_kzalloc(&i2c->dev, sizeof(struct max98088_priv),
+				GFP_KERNEL);
+	if (max98088 == NULL)
+		return -ENOMEM;
+
+	max98088->regmap = devm_regmap_init_i2c(i2c, &max98088_regmap);
+	if (IS_ERR(max98088->regmap))
+		return PTR_ERR(max98088->regmap);
+
+	max98088->mclk = devm_clk_get(&i2c->dev, "mclk");
+	if (IS_ERR(max98088->mclk))
+		if (PTR_ERR(max98088->mclk) == -EPROBE_DEFER)
+			return PTR_ERR(max98088->mclk);
+
+	id = i2c_match_id(max98088_i2c_id, i2c);
+	max98088->devtype = id->driver_data;
+
+	i2c_set_clientdata(i2c, max98088);
+	max98088->pdata = i2c->dev.platform_data;
+
+	ret = devm_snd_soc_register_component(&i2c->dev, &soc_component_dev_max98088,
+					      &max98088_dai[0], 2);
+	return ret;
+}
 
 #if defined(CONFIG_OF)
 static const struct of_device_id max98088_of_match[] = {
@@ -1788,7 +1788,7 @@ static struct i2c_driver max98088_i2c_driver = {
 		.name = "max98088",
 		.of_match_table = of_match_ptr(max98088_of_match),
 	},
-	.probe  = max98088_i2c_probe,
+	.probe_new = max98088_i2c_probe,
 	.id_table = max98088_i2c_id,
 };
 

@@ -178,11 +178,9 @@ int wlcore_cmd_wait_for_event_or_timeout(struct wl1271 *wl,
 
 	timeout_time = jiffies + msecs_to_jiffies(WL1271_EVENT_TIMEOUT);
 
-	ret = pm_runtime_get_sync(wl->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+	ret = pm_runtime_resume_and_get(wl->dev);
+	if (ret < 0)
 		goto free_vector;
-	}
 
 	do {
 		if (time_after(jiffies, timeout_time)) {
@@ -677,8 +675,8 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		memcpy(cmd->ap.ssid, wlvif->ssid, wlvif->ssid_len);
 	} else {
 		cmd->ap.ssid_type = WL12XX_SSID_TYPE_HIDDEN;
-		cmd->ap.ssid_len = bss_conf->ssid_len;
-		memcpy(cmd->ap.ssid, bss_conf->ssid, bss_conf->ssid_len);
+		cmd->ap.ssid_len = vif->cfg.ssid_len;
+		memcpy(cmd->ap.ssid, vif->cfg.ssid, vif->cfg.ssid_len);
 	}
 
 	supported_rates = CONF_TX_ENABLED_RATES | CONF_TX_MCS_RATES |
@@ -1558,11 +1556,11 @@ int wl12xx_cmd_add_peer(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 					WL1271_PSD_LEGACY;
 
 
-	sta_rates = sta->supp_rates[wlvif->band];
-	if (sta->ht_cap.ht_supported)
+	sta_rates = sta->deflink.supp_rates[wlvif->band];
+	if (sta->deflink.ht_cap.ht_supported)
 		sta_rates |=
-			(sta->ht_cap.mcs.rx_mask[0] << HW_HT_RATES_OFFSET) |
-			(sta->ht_cap.mcs.rx_mask[1] << HW_MIMO_RATES_OFFSET);
+			(sta->deflink.ht_cap.mcs.rx_mask[0] << HW_HT_RATES_OFFSET) |
+			(sta->deflink.ht_cap.mcs.rx_mask[1] << HW_MIMO_RATES_OFFSET);
 
 	cmd->supported_rates =
 		cpu_to_le32(wl1271_tx_enabled_rates_get(wl, sta_rates,

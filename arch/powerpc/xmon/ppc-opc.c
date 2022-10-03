@@ -408,7 +408,7 @@ const struct powerpc_operand powerpc_operands[] =
 #define FXM4 FXM + 1
   { 0xff, 12, insert_fxm, extract_fxm,
     PPC_OPERAND_OPTIONAL | PPC_OPERAND_OPTIONAL_VALUE},
-  /* If the FXM4 operand is ommitted, use the sentinel value -1.  */
+  /* If the FXM4 operand is omitted, use the sentinel value -1.  */
   { -1, -1, NULL, NULL, 0},
 
   /* The IMM20 field in an LI instruction.  */

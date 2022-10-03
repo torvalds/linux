@@ -47,13 +47,9 @@ static char *fourcc_to_str(u32 fmt)
 static int cal_querycap(struct file *file, void *priv,
 			struct v4l2_capability *cap)
 {
-	struct cal_ctx *ctx = video_drvdata(file);
-
 	strscpy(cap->driver, CAL_MODULE_NAME, sizeof(cap->driver));
 	strscpy(cap->card, CAL_MODULE_NAME, sizeof(cap->card));
 
-	snprintf(cap->bus_info, sizeof(cap->bus_info),
-		 "platform:%s", dev_name(ctx->cal->dev));
 	return 0;
 }
 
@@ -689,7 +685,7 @@ static int cal_video_check_format(struct cal_ctx *ctx)
 	const struct v4l2_mbus_framefmt *format;
 	struct media_pad *remote_pad;
 
-	remote_pad = media_entity_remote_pad(&ctx->pad);
+	remote_pad = media_pad_remote_pad_first(&ctx->pad);
 	if (!remote_pad)
 		return -ENODEV;
 

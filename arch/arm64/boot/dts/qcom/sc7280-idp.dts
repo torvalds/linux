@@ -90,7 +90,7 @@
 };
 
 &usb_2_dwc3 {
-	dr_mode = "host";
+	dr_mode = "otg";
 };
 
 &usb_2_hsphy {

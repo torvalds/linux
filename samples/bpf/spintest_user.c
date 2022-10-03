@@ -3,7 +3,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <assert.h>
-#include <sys/resource.h>
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 #include "trace_helpers.h"

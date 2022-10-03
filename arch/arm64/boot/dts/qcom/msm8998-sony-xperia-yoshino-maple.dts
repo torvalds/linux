@@ -38,7 +38,7 @@
 };
 
 &pmi8998_gpio {
-	disp_dvdd_en: disp-dvdd-en-active {
+	disp_dvdd_en: disp-dvdd-en-active-state {
 		pins = "gpio10";
 		function = "normal";
 		bias-disable;

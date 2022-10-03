@@ -171,6 +171,7 @@
 			compatible = "renesas,r8a77990-wdt",
 				     "renesas,rcar-gen3-wdt";
 			reg = <0 0xe6020000 0 0x0c>;
+			interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 402>;
 			power-domains = <&sysc R8A77990_PD_ALWAYS_ON>;
 			resets = <&cpg 402>;
@@ -1051,6 +1052,7 @@
 			reg = <0 0xe66c0000 0 0x8000>;
 			interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>,
 				   <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "ch_int", "g_int";
 			clocks = <&cpg CPG_MOD 914>,
 			       <&cpg CPG_CORE R8A77990_CLK_CANFD>,
 			       <&can_clk>;
@@ -1322,7 +1324,7 @@
 
 					vin4csi40: endpoint@2 {
 						reg = <2>;
-						remote-endpoint= <&csi40vin4>;
+						remote-endpoint = <&csi40vin4>;
 					};
 				};
 			};
@@ -1350,7 +1352,7 @@
 
 					vin5csi40: endpoint@2 {
 						reg = <2>;
-						remote-endpoint= <&csi40vin5>;
+						remote-endpoint = <&csi40vin5>;
 					};
 				};
 			};
@@ -1837,6 +1839,22 @@
 			status = "disabled";
 		};
 
+		rpc: spi@ee200000 {
+			compatible = "renesas,r8a77990-rpc-if",
+				     "renesas,rcar-gen3-rpc-if";
+			reg = <0 0xee200000 0 0x200>,
+			      <0 0x08000000 0 0x04000000>,
+			      <0 0xee208000 0 0x100>;
+			reg-names = "regs", "dirmap", "wbuf";
+			interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 917>;
+			power-domains = <&sysc R8A77990_PD_ALWAYS_ON>;
+			resets = <&cpg 917>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		gic: interrupt-controller@f1010000 {
 			compatible = "arm,gic-400";
 			#interrupt-cells = <3>;
@@ -2031,8 +2049,6 @@
 
 				port@0 {
 					reg = <0>;
-					du_out_rgb: endpoint {
-					};
 				};
 
 				port@1 {
@@ -2074,8 +2090,6 @@
 
 				port@1 {
 					reg = <1>;
-					lvds0_out: endpoint {
-					};
 				};
 			};
 		};
@@ -2101,8 +2115,6 @@
 
 				port@1 {
 					reg = <1>;
-					lvds1_out: endpoint {
-					};
 				};
 			};
 		};
@@ -2117,7 +2129,7 @@
 		cpu-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <0>;
-			thermal-sensors = <&thermal 0>;
+			thermal-sensors = <&thermal>;
 			sustainable-power = <717>;
 
 			cooling-maps {

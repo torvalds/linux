@@ -319,6 +319,8 @@ unsigned char tty_get_frame_size(unsigned int cflag)
 		bits++;
 	if (cflag & PARENB)
 		bits++;
+	if (cflag & ADDRB)
+		bits++;
 
 	return bits;
 }
@@ -353,6 +355,8 @@ int tty_set_termios(struct tty_struct *tty, struct ktermios *new_termios)
 	old_termios = tty->termios;
 	tty->termios = *new_termios;
 	unset_locked_termios(tty, &old_termios);
+	/* Reset any ADDRB changes, ADDRB is changed through ->rs485_config() */
+	tty->termios.c_cflag ^= (tty->termios.c_cflag ^ old_termios.c_cflag) & ADDRB;
 
 	if (tty->ops->set_termios)
 		tty->ops->set_termios(tty, &old_termios);
@@ -562,10 +566,8 @@ static int set_sgttyb(struct tty_struct *tty, struct sgttyb __user *sgttyb)
 	termios.c_cc[VKILL] = tmp.sg_kill;
 	set_sgflags(&termios, tmp.sg_flags);
 	/* Try and encode into Bfoo format */
-#ifdef BOTHER
 	tty_termios_encode_baud_rate(&termios, termios.c_ispeed,
 						termios.c_ospeed);
-#endif
 	up_write(&tty->termios_rwsem);
 	tty_set_termios(tty, &termios);
 	return 0;

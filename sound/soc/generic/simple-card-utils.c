@@ -322,7 +322,7 @@ void asoc_simple_shutdown(struct snd_pcm_substream *substream)
 
 		if (props->mclk_fs && !dai->clk_fixed && !snd_soc_dai_active(cpu_dai))
 			snd_soc_dai_set_sysclk(cpu_dai,
-					       0, 0, SND_SOC_CLOCK_IN);
+					       0, 0, SND_SOC_CLOCK_OUT);
 
 		asoc_simple_clk_disable(dai);
 	}
@@ -364,12 +364,14 @@ static int asoc_simple_set_tdm(struct snd_soc_dai *dai,
 				struct snd_pcm_hw_params *params)
 {
 	int sample_bits = params_width(params);
-	int slot_width = simple_dai->slot_width;
-	int slot_count = simple_dai->slots;
+	int slot_width, slot_count;
 	int i, ret;
 
 	if (!simple_dai || !simple_dai->tdm_width_map)
 		return 0;
+
+	slot_width = simple_dai->slot_width;
+	slot_count = simple_dai->slots;
 
 	if (slot_width == 0)
 		slot_width = sample_bits;
@@ -511,7 +513,12 @@ static int asoc_simple_init_dai(struct snd_soc_dai *dai,
 	return 0;
 }
 
-static int asoc_simple_init_dai_link_params(struct snd_soc_pcm_runtime *rtd,
+static inline int asoc_simple_component_is_codec(struct snd_soc_component *component)
+{
+	return component->driver->endianness;
+}
+
+static int asoc_simple_init_for_codec2codec(struct snd_soc_pcm_runtime *rtd,
 					    struct simple_dai_props *dai_props)
 {
 	struct snd_soc_dai_link *dai_link = rtd->dai_link;
@@ -520,9 +527,17 @@ static int asoc_simple_init_dai_link_params(struct snd_soc_pcm_runtime *rtd,
 	struct snd_pcm_hardware hw;
 	int i, ret, stream;
 
+	/* Do nothing if it already has Codec2Codec settings */
+	if (dai_link->params)
+		return 0;
+
+	/* Do nothing if it was DPCM :: BE */
+	if (dai_link->no_pcm)
+		return 0;
+
 	/* Only Codecs */
 	for_each_rtd_components(rtd, i, component) {
-		if (!snd_soc_component_is_codec(component))
+		if (!asoc_simple_component_is_codec(component))
 			return 0;
 	}
 
@@ -573,7 +588,7 @@ int asoc_simple_dai_init(struct snd_soc_pcm_runtime *rtd)
 			return ret;
 	}
 
-	ret = asoc_simple_init_dai_link_params(rtd, props);
+	ret = asoc_simple_init_for_codec2codec(rtd, props);
 	if (ret < 0)
 		return ret;
 
@@ -607,7 +622,7 @@ void asoc_simple_canonicalize_cpu(struct snd_soc_dai_link_component *cpus,
 }
 EXPORT_SYMBOL_GPL(asoc_simple_canonicalize_cpu);
 
-int asoc_simple_clean_reference(struct snd_soc_card *card)
+void asoc_simple_clean_reference(struct snd_soc_card *card)
 {
 	struct snd_soc_dai_link *dai_link;
 	struct snd_soc_dai_link_component *cpu;
@@ -620,7 +635,6 @@ int asoc_simple_clean_reference(struct snd_soc_card *card)
 		for_each_link_codecs(dai_link, j, codec)
 			of_node_put(codec->of_node);
 	}
-	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_clean_reference);
 
@@ -719,9 +733,8 @@ int asoc_simple_init_jack(struct snd_soc_card *card,
 		sjack->gpio.invert	= !!(flags & OF_GPIO_ACTIVE_LOW);
 		sjack->gpio.debounce_time = 150;
 
-		snd_soc_card_jack_new(card, pin_name, mask,
-				      &sjack->jack,
-				      &sjack->pin, 1);
+		snd_soc_card_jack_new_pins(card, pin_name, mask, &sjack->jack,
+					   &sjack->pin, 1);
 
 		snd_soc_jack_add_gpios(&sjack->jack, 1,
 				       &sjack->gpio);
@@ -741,8 +754,7 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	struct asoc_simple_dai *dais;
 	struct snd_soc_dai_link_component *dlcs;
 	struct snd_soc_codec_conf *cconf = NULL;
-	struct snd_soc_pcm_stream *c2c_conf = NULL;
-	int i, dai_num = 0, dlc_num = 0, cnf_num = 0, c2c_num = 0;
+	int i, dai_num = 0, dlc_num = 0, cnf_num = 0;
 
 	dai_props = devm_kcalloc(dev, li->link, sizeof(*dai_props), GFP_KERNEL);
 	dai_link  = devm_kcalloc(dev, li->link, sizeof(*dai_link),  GFP_KERNEL);
@@ -761,8 +773,6 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 
 		if (!li->num[i].cpus)
 			cnf_num += li->num[i].codecs;
-
-		c2c_num += li->num[i].c2c;
 	}
 
 	dais = devm_kcalloc(dev, dai_num, sizeof(*dais), GFP_KERNEL);
@@ -773,12 +783,6 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	if (cnf_num) {
 		cconf = devm_kcalloc(dev, cnf_num, sizeof(*cconf), GFP_KERNEL);
 		if (!cconf)
-			return -ENOMEM;
-	}
-
-	if (c2c_num) {
-		c2c_conf = devm_kcalloc(dev, c2c_num, sizeof(*c2c_conf), GFP_KERNEL);
-		if (!c2c_conf)
 			return -ENOMEM;
 	}
 
@@ -795,7 +799,6 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	priv->dais		= dais;
 	priv->dlcs		= dlcs;
 	priv->codec_conf	= cconf;
-	priv->c2c_conf		= c2c_conf;
 
 	card->dai_link		= priv->dai_link;
 	card->num_links		= li->link;
@@ -813,12 +816,6 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 
 			dlcs += li->num[i].cpus;
 			dais += li->num[i].cpus;
-
-			if (li->num[i].c2c) {
-				/* Codec2Codec */
-				dai_props[i].c2c_conf = c2c_conf;
-				c2c_conf += li->num[i].c2c;
-			}
 		} else {
 			/* DPCM Be's CPU = dummy */
 			dai_props[i].cpus	=
@@ -876,7 +873,9 @@ int asoc_simple_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
-	return asoc_simple_clean_reference(card);
+	asoc_simple_clean_reference(card);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_remove);
 

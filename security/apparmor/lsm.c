@@ -354,12 +354,15 @@ static int apparmor_path_link(struct dentry *old_dentry, const struct path *new_
 }
 
 static int apparmor_path_rename(const struct path *old_dir, struct dentry *old_dentry,
-				const struct path *new_dir, struct dentry *new_dentry)
+				const struct path *new_dir, struct dentry *new_dentry,
+				const unsigned int flags)
 {
 	struct aa_label *label;
 	int error = 0;
 
 	if (!path_mediated_fs(old_dentry))
+		return 0;
+	if ((flags & RENAME_EXCHANGE) && !path_mediated_fs(new_dentry))
 		return 0;
 
 	label = begin_current_label_crit_section();
@@ -374,10 +377,27 @@ static int apparmor_path_rename(const struct path *old_dir, struct dentry *old_d
 			d_backing_inode(old_dentry)->i_mode
 		};
 
-		error = aa_path_perm(OP_RENAME_SRC, label, &old_path, 0,
-				     MAY_READ | AA_MAY_GETATTR | MAY_WRITE |
-				     AA_MAY_SETATTR | AA_MAY_DELETE,
-				     &cond);
+		if (flags & RENAME_EXCHANGE) {
+			struct path_cond cond_exchange = {
+				i_uid_into_mnt(mnt_userns, d_backing_inode(new_dentry)),
+				d_backing_inode(new_dentry)->i_mode
+			};
+
+			error = aa_path_perm(OP_RENAME_SRC, label, &new_path, 0,
+					     MAY_READ | AA_MAY_GETATTR | MAY_WRITE |
+					     AA_MAY_SETATTR | AA_MAY_DELETE,
+					     &cond_exchange);
+			if (!error)
+				error = aa_path_perm(OP_RENAME_DEST, label, &old_path,
+						     0, MAY_WRITE | AA_MAY_SETATTR |
+						     AA_MAY_CREATE, &cond_exchange);
+		}
+
+		if (!error)
+			error = aa_path_perm(OP_RENAME_SRC, label, &old_path, 0,
+					     MAY_READ | AA_MAY_GETATTR | MAY_WRITE |
+					     AA_MAY_SETATTR | AA_MAY_DELETE,
+					     &cond);
 		if (!error)
 			error = aa_path_perm(OP_RENAME_DEST, label, &new_path,
 					     0, MAY_WRITE | AA_MAY_SETATTR |
@@ -812,7 +832,7 @@ static void apparmor_sk_free_security(struct sock *sk)
 }
 
 /**
- * apparmor_clone_security - clone the sk_security field
+ * apparmor_sk_clone_security - clone the sk_security field
  */
 static void apparmor_sk_clone_security(const struct sock *sk,
 				       struct sock *newsk)
@@ -866,10 +886,7 @@ static int apparmor_socket_post_create(struct socket *sock, int family,
 	struct aa_label *label;
 
 	if (kern) {
-		struct aa_ns *ns = aa_get_current_ns();
-
-		label = aa_get_label(ns_unconfined(ns));
-		aa_put_ns(ns);
+		label = aa_get_label(kernel_t);
 	} else
 		label = aa_get_current_label();
 
@@ -917,7 +934,7 @@ static int apparmor_socket_connect(struct socket *sock,
 }
 
 /**
- * apparmor_socket_list - check perms before allowing listen
+ * apparmor_socket_listen - check perms before allowing listen
  */
 static int apparmor_socket_listen(struct socket *sock, int backlog)
 {
@@ -1021,7 +1038,7 @@ static int aa_sock_opt_perm(const char *op, u32 request, struct socket *sock,
 }
 
 /**
- * apparmor_getsockopt - check perms before getting socket options
+ * apparmor_socket_getsockopt - check perms before getting socket options
  */
 static int apparmor_socket_getsockopt(struct socket *sock, int level,
 				      int optname)
@@ -1031,7 +1048,7 @@ static int apparmor_socket_getsockopt(struct socket *sock, int level,
 }
 
 /**
- * apparmor_setsockopt - check perms before setting socket options
+ * apparmor_socket_setsockopt - check perms before setting socket options
  */
 static int apparmor_socket_setsockopt(struct socket *sock, int level,
 				      int optname)
@@ -1050,7 +1067,7 @@ static int apparmor_socket_shutdown(struct socket *sock, int how)
 
 #ifdef CONFIG_NETWORK_SECMARK
 /**
- * apparmor_socket_sock_recv_skb - check perms before associating skb to sk
+ * apparmor_socket_sock_rcv_skb - check perms before associating skb to sk
  *
  * Note: can not sleep may be called with locks held
  *
@@ -1337,6 +1354,12 @@ bool aa_g_hash_policy = IS_ENABLED(CONFIG_SECURITY_APPARMOR_HASH_DEFAULT);
 module_param_named(hash_policy, aa_g_hash_policy, aabool, S_IRUSR | S_IWUSR);
 #endif
 
+/* whether policy exactly as loaded is retained for debug and checkpointing */
+bool aa_g_export_binary = IS_ENABLED(CONFIG_SECURITY_APPARMOR_EXPORT_BINARY);
+#ifdef CONFIG_SECURITY_APPARMOR_EXPORT_BINARY
+module_param_named(export_binary, aa_g_export_binary, aabool, 0600);
+#endif
+
 /* policy loaddata compression level */
 int aa_g_rawdata_compression_level = Z_DEFAULT_COMPRESSION;
 module_param_named(rawdata_compression_level, aa_g_rawdata_compression_level,
@@ -1379,7 +1402,7 @@ module_param_named(path_max, aa_g_path_max, aauint, S_IRUSR);
  * DEPRECATED: read only as strict checking of load is always done now
  * that none root users (user namespaces) can load policy.
  */
-bool aa_g_paranoid_load = true;
+bool aa_g_paranoid_load = IS_ENABLED(CONFIG_SECURITY_APPARMOR_PARANOID_LOAD);
 module_param_named(paranoid_load, aa_g_paranoid_load, aabool, S_IRUGO);
 
 static int param_get_aaintbool(char *buffer, const struct kernel_param *kp);
@@ -1741,6 +1764,14 @@ static struct ctl_table apparmor_sysctl_table[] = {
 		.mode           = 0600,
 		.proc_handler   = apparmor_dointvec,
 	},
+	{
+		.procname       = "apparmor_display_secid_mode",
+		.data           = &apparmor_display_secid_mode,
+		.maxlen         = sizeof(int),
+		.mode           = 0600,
+		.proc_handler   = apparmor_dointvec,
+	},
+
 	{ }
 };
 
@@ -1799,11 +1830,8 @@ static const struct nf_hook_ops apparmor_nf_ops[] = {
 
 static int __net_init apparmor_nf_register(struct net *net)
 {
-	int ret;
-
-	ret = nf_register_net_hooks(net, apparmor_nf_ops,
+	return nf_register_net_hooks(net, apparmor_nf_ops,
 				    ARRAY_SIZE(apparmor_nf_ops));
-	return ret;
 }
 
 static void __net_exit apparmor_nf_unregister(struct net *net)
@@ -1836,8 +1864,6 @@ __initcall(apparmor_nf_ip_init);
 static int __init apparmor_init(void)
 {
 	int error;
-
-	aa_secids_init();
 
 	error = aa_setup_dfa_engine();
 	if (error) {

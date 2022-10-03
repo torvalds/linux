@@ -179,6 +179,7 @@ struct mipi_dsi_device_info {
  * @lp_rate: maximum lane frequency for low power mode in hertz, this should
  * be set to the real limits of the hardware, zero is only accepted for
  * legacy drivers
+ * @dsc: panel/bridge DSC pps payload to be sent
  */
 struct mipi_dsi_device {
 	struct mipi_dsi_host *host;
@@ -191,6 +192,7 @@ struct mipi_dsi_device {
 	unsigned long mode_flags;
 	unsigned long hs_rate;
 	unsigned long lp_rate;
+	struct drm_dsc_config *dsc;
 };
 
 #define MIPI_DSI_MODULE_PREFIX "mipi-dsi:"
@@ -296,6 +298,23 @@ int mipi_dsi_dcs_get_display_brightness(struct mipi_dsi_device *dsi,
 					u16 *brightness);
 
 /**
+ * mipi_dsi_dcs_write_seq - transmit a DCS command with payload
+ * @dsi: DSI peripheral device
+ * @cmd: Command
+ * @seq: buffer containing data to be transmitted
+ */
+#define mipi_dsi_dcs_write_seq(dsi, cmd, seq...) do {				\
+		static const u8 d[] = { cmd, seq };				\
+		struct device *dev = &dsi->dev;	\
+		int ret;						\
+		ret = mipi_dsi_dcs_write_buffer(dsi, d, ARRAY_SIZE(d));	\
+		if (ret < 0) {						\
+			dev_err_ratelimited(dev, "sending command %#02x failed: %d\n", cmd, ret); \
+			return ret;						\
+		}						\
+	} while (0)
+
+/**
  * struct mipi_dsi_driver - DSI driver
  * @driver: device driver model driver
  * @probe: callback for device binding
@@ -305,7 +324,7 @@ int mipi_dsi_dcs_get_display_brightness(struct mipi_dsi_device *dsi,
 struct mipi_dsi_driver {
 	struct device_driver driver;
 	int(*probe)(struct mipi_dsi_device *dsi);
-	int(*remove)(struct mipi_dsi_device *dsi);
+	void (*remove)(struct mipi_dsi_device *dsi);
 	void (*shutdown)(struct mipi_dsi_device *dsi);
 };
 

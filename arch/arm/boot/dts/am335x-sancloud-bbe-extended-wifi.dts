@@ -23,7 +23,7 @@
 		regulator-name = "wlan-en-regulator";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		startup-delay-us= <100000>;
+		startup-delay-us = <100000>;
 	};
 };
 

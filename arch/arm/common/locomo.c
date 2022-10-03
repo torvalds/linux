@@ -23,7 +23,6 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 
-#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 

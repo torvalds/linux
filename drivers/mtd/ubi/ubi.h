@@ -489,8 +489,7 @@ struct ubi_debug_info {
  * @fm_work: fastmap work queue
  * @fm_work_scheduled: non-zero if fastmap work was scheduled
  * @fast_attach: non-zero if UBI was attached by fastmap
- * @fm_anchor: The new anchor PEB used during fastmap update
- * @fm_next_anchor: An anchor PEB candidate for the next time fastmap is updated
+ * @fm_anchor: The next anchor PEB to use for fastmap
  * @fm_do_produce_anchor: If true produce an anchor PEB in wl
  *
  * @used: RB-tree of used physical eraseblocks
@@ -601,7 +600,6 @@ struct ubi_device {
 	int fm_work_scheduled;
 	int fast_attach;
 	struct ubi_wl_entry *fm_anchor;
-	struct ubi_wl_entry *fm_next_anchor;
 	int fm_do_produce_anchor;
 
 	/* Wear-leveling sub-system's stuff */

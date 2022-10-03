@@ -213,12 +213,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(mlx5_db_alloc_node);
 
-int mlx5_db_alloc(struct mlx5_core_dev *dev, struct mlx5_db *db)
-{
-	return mlx5_db_alloc_node(dev, db, dev->priv.numa_node);
-}
-EXPORT_SYMBOL_GPL(mlx5_db_alloc);
-
 void mlx5_db_free(struct mlx5_core_dev *dev, struct mlx5_db *db)
 {
 	u32 db_per_page = PAGE_SIZE / cache_line_size();

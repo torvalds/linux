@@ -504,8 +504,8 @@ void intel_gt_pm_frequency_dump(struct intel_gt *gt, struct drm_printer *p)
 		drm_puts(p, "no P-state info available\n");
 	}
 
-	drm_printf(p, "Current CD clock frequency: %d kHz\n", i915->cdclk.hw.cdclk);
-	drm_printf(p, "Max CD clock frequency: %d kHz\n", i915->max_cdclk_freq);
+	drm_printf(p, "Current CD clock frequency: %d kHz\n", i915->display.cdclk.hw.cdclk);
+	drm_printf(p, "Max CD clock frequency: %d kHz\n", i915->display.cdclk.max_cdclk_freq);
 	drm_printf(p, "Max pixel clock frequency: %d kHz\n", i915->max_dotclk_freq);
 
 	intel_runtime_pm_put(uncore->rpm, wakeref);

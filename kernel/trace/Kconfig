@@ -144,6 +144,7 @@ config TRACING
 	select BINARY_PRINTF
 	select EVENT_TRACING
 	select TRACE_CLOCK
+	select TASKS_RCU if PREEMPTION
 
 config GENERIC_TRACER
 	bool
@@ -193,7 +194,8 @@ config FUNCTION_TRACER
 	  sequence is then dynamically patched into a tracer call when
 	  tracing is enabled by the administrator. If it's runtime disabled
 	  (the bootup default), then the overhead of the instructions is very
-	  small and not measurable even in micro-benchmarks.
+	  small and not measurable even in micro-benchmarks (at least on
+	  x86, but may have impact on other architectures).
 
 config FUNCTION_GRAPH_TRACER
 	bool "Kernel Function Graph Tracer"
@@ -728,6 +730,7 @@ config FTRACE_MCOUNT_USE_OBJTOOL
 	depends on !FTRACE_MCOUNT_USE_PATCHABLE_FUNCTION_ENTRY
 	depends on !FTRACE_MCOUNT_USE_CC
 	depends on FTRACE_MCOUNT_RECORD
+	select OBJTOOL
 
 config FTRACE_MCOUNT_USE_RECORDMCOUNT
 	def_bool y
@@ -1102,5 +1105,7 @@ config HIST_TRIGGERS_DEBUG
           running histograms.
 
           If unsure, say N.
+
+source "kernel/trace/rv/Kconfig"
 
 endif # FTRACE

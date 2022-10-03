@@ -648,7 +648,7 @@ int __legitimize_mnt(struct vfsmount *bastard, unsigned seq)
 }
 
 /* call under rcu_read_lock */
-bool legitimize_mnt(struct vfsmount *bastard, unsigned seq)
+static bool legitimize_mnt(struct vfsmount *bastard, unsigned seq)
 {
 	int res = __legitimize_mnt(bastard, seq);
 	if (likely(!res))
@@ -1760,7 +1760,7 @@ out_unlock:
 /*
  * Is the caller allowed to modify his namespace?
  */
-static inline bool may_mount(void)
+bool may_mount(void)
 {
 	return ns_capable(current->nsproxy->mnt_ns->user_ns, CAP_SYS_ADMIN);
 }
@@ -4026,8 +4026,9 @@ static int can_idmap_mount(const struct mount_kattr *kattr, struct mount *mnt)
 static inline bool mnt_allow_writers(const struct mount_kattr *kattr,
 				     const struct mount *mnt)
 {
-	return !(kattr->attr_set & MNT_READONLY) ||
-	       (mnt->mnt.mnt_flags & MNT_READONLY);
+	return (!(kattr->attr_set & MNT_READONLY) ||
+		(mnt->mnt.mnt_flags & MNT_READONLY)) &&
+	       !kattr->mnt_userns;
 }
 
 static int mount_setattr_prepare(struct mount_kattr *kattr, struct mount *mnt)
@@ -4058,10 +4059,22 @@ static int mount_setattr_prepare(struct mount_kattr *kattr, struct mount *mnt)
 	if (err) {
 		struct mount *p;
 
-		for (p = mnt; p != m; p = next_mnt(p, mnt)) {
+		/*
+		 * If we had to call mnt_hold_writers() MNT_WRITE_HOLD will
+		 * be set in @mnt_flags. The loop unsets MNT_WRITE_HOLD for all
+		 * mounts and needs to take care to include the first mount.
+		 */
+		for (p = mnt; p; p = next_mnt(p, mnt)) {
 			/* If we had to hold writers unblock them. */
 			if (p->mnt.mnt_flags & MNT_WRITE_HOLD)
 				mnt_unhold_writers(p);
+
+			/*
+			 * We're done once the first mount we changed got
+			 * MNT_WRITE_HOLD unset.
+			 */
+			if (p == m)
+				break;
 		}
 	}
 	return err;

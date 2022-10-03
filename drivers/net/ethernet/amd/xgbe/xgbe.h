@@ -151,7 +151,8 @@
 #define XGBE_TX_MAX_BUF_SIZE	(0x3fff & ~(64 - 1))
 
 /* Descriptors required for maximum contiguous TSO/GSO packet */
-#define XGBE_TX_MAX_SPLIT	((GSO_MAX_SIZE / XGBE_TX_MAX_BUF_SIZE) + 1)
+#define XGBE_TX_MAX_SPLIT	\
+	((GSO_LEGACY_MAX_SIZE / XGBE_TX_MAX_BUF_SIZE) + 1)
 
 /* Maximum possible descriptors needed for an SKB:
  * - Maximum number of SKB frags
@@ -416,7 +417,7 @@ struct xgbe_rx_ring_data {
 
 /* Structure used to hold information related to the descriptor
  * and the packet associated with the descriptor (always use
- * use the XGBE_GET_DESC_DATA macro to access this data from the ring)
+ * the XGBE_GET_DESC_DATA macro to access this data from the ring)
  */
 struct xgbe_ring_data {
 	struct xgbe_ring_desc *rdesc;	/* Virtual address of descriptor */

@@ -451,11 +451,19 @@ static const struct regmap_config si544_regmap_config = {
 	.volatile_reg = si544_regmap_is_volatile,
 };
 
-static int si544_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static const struct i2c_device_id si544_id[] = {
+	{ "si544a", si544a },
+	{ "si544b", si544b },
+	{ "si544c", si544c },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, si544_id);
+
+static int si544_probe(struct i2c_client *client)
 {
 	struct clk_si544 *data;
 	struct clk_init_data init;
+	const struct i2c_device_id *id = i2c_match_id(si544_id, client);
 	int err;
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
@@ -499,14 +507,6 @@ static int si544_probe(struct i2c_client *client,
 	return 0;
 }
 
-static const struct i2c_device_id si544_id[] = {
-	{ "si544a", si544a },
-	{ "si544b", si544b },
-	{ "si544c", si544c },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, si544_id);
-
 static const struct of_device_id clk_si544_of_match[] = {
 	{ .compatible = "silabs,si544a" },
 	{ .compatible = "silabs,si544b" },
@@ -520,7 +520,7 @@ static struct i2c_driver si544_driver = {
 		.name = "si544",
 		.of_match_table = clk_si544_of_match,
 	},
-	.probe		= si544_probe,
+	.probe_new	= si544_probe,
 	.id_table	= si544_id,
 };
 module_i2c_driver(si544_driver);

@@ -556,8 +556,6 @@
 				     <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <32>;
 			clocks = <&hsls_div2_clk>;
 			clock-names = "apb_pclk";
 			iommus = <&smmu 0x6000 0x0000>;
@@ -569,7 +567,7 @@
 			reg-names = "amac_base";
 			dma-coherent;
 			interrupts = <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH>;
-			status= "disabled";
+			status = "disabled";
 		};
 
 		nand: nand@360000 {

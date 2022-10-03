@@ -86,6 +86,8 @@ struct damon_target {
  * @DAMOS_PAGEOUT:	Call ``madvise()`` for the region with MADV_PAGEOUT.
  * @DAMOS_HUGEPAGE:	Call ``madvise()`` for the region with MADV_HUGEPAGE.
  * @DAMOS_NOHUGEPAGE:	Call ``madvise()`` for the region with MADV_NOHUGEPAGE.
+ * @DAMOS_LRU_PRIO:	Prioritize the region on its LRU lists.
+ * @DAMOS_LRU_DEPRIO:	Deprioritize the region on its LRU lists.
  * @DAMOS_STAT:		Do nothing but count the stat.
  * @NR_DAMOS_ACTIONS:	Total number of DAMOS actions
  */
@@ -95,6 +97,8 @@ enum damos_action {
 	DAMOS_PAGEOUT,
 	DAMOS_HUGEPAGE,
 	DAMOS_NOHUGEPAGE,
+	DAMOS_LRU_PRIO,
+	DAMOS_LRU_DEPRIO,
 	DAMOS_STAT,		/* Do nothing but only record the stat */
 	NR_DAMOS_ACTIONS,
 };
@@ -261,10 +265,14 @@ struct damos {
  * enum damon_ops_id - Identifier for each monitoring operations implementation
  *
  * @DAMON_OPS_VADDR:	Monitoring operations for virtual address spaces
+ * @DAMON_OPS_FVADDR:	Monitoring operations for only fixed ranges of virtual
+ *			address spaces
  * @DAMON_OPS_PADDR:	Monitoring operations for the physical address space
+ * @NR_DAMON_OPS:	Number of monitoring operations implementations
  */
 enum damon_ops_id {
 	DAMON_OPS_VADDR,
+	DAMON_OPS_FVADDR,
 	DAMON_OPS_PADDR,
 	NR_DAMON_OPS,
 };
@@ -340,6 +348,7 @@ struct damon_operations {
  * struct damon_callback - Monitoring events notification callbacks.
  *
  * @before_start:	Called before starting the monitoring.
+ * @after_wmarks_check:	Called after each schemes' watermarks check.
  * @after_sampling:	Called after each sampling.
  * @after_aggregation:	Called after each aggregation.
  * @before_terminate:	Called before terminating the monitoring.
@@ -349,6 +358,11 @@ struct damon_operations {
  * @before_terminate just before starting and finishing the monitoring,
  * respectively.  Therefore, those are good places for installing and cleaning
  * @private.
+ *
+ * The monitoring thread calls @after_wmarks_check after each DAMON-based
+ * operation schemes' watermarks check.  If users need to make changes to the
+ * attributes of the monitoring context while it's deactivated due to the
+ * watermarks, this is the good place to do.
  *
  * The monitoring thread calls @after_sampling and @after_aggregation for each
  * of the sampling intervals and aggregation intervals, respectively.
@@ -362,6 +376,7 @@ struct damon_callback {
 	void *private;
 
 	int (*before_start)(struct damon_ctx *context);
+	int (*after_wmarks_check)(struct damon_ctx *context);
 	int (*after_sampling)(struct damon_ctx *context);
 	int (*after_aggregation)(struct damon_ctx *context);
 	void (*before_terminate)(struct damon_ctx *context);
@@ -386,7 +401,6 @@ struct damon_callback {
  * detail.
  *
  * @kdamond:		Kernel thread who does the monitoring.
- * @kdamond_stop:	Notifies whether kdamond should stop.
  * @kdamond_lock:	Mutex for the synchronizations with @kdamond.
  *
  * For each monitoring context, one kernel thread for the monitoring is
@@ -395,14 +409,14 @@ struct damon_callback {
  * Once started, the monitoring thread runs until explicitly required to be
  * terminated or every monitoring target is invalid.  The validity of the
  * targets is checked via the &damon_operations.target_valid of @ops.  The
- * termination can also be explicitly requested by writing non-zero to
- * @kdamond_stop.  The thread sets @kdamond to NULL when it terminates.
- * Therefore, users can know whether the monitoring is ongoing or terminated by
- * reading @kdamond.  Reads and writes to @kdamond and @kdamond_stop from
- * outside of the monitoring thread must be protected by @kdamond_lock.
+ * termination can also be explicitly requested by calling damon_stop().
+ * The thread sets @kdamond to NULL when it terminates. Therefore, users can
+ * know whether the monitoring is ongoing or terminated by reading @kdamond.
+ * Reads and writes to @kdamond from outside of the monitoring thread must
+ * be protected by @kdamond_lock.
  *
- * Note that the monitoring thread protects only @kdamond and @kdamond_stop via
- * @kdamond_lock.  Accesses to other fields must be protected by themselves.
+ * Note that the monitoring thread protects only @kdamond via @kdamond_lock.
+ * Accesses to other fields must be protected by themselves.
  *
  * @ops:	Set of monitoring operations for given use cases.
  * @callback:	Set of callbacks for monitoring events notifications.
@@ -484,6 +498,8 @@ static inline void damon_insert_region(struct damon_region *r,
 
 void damon_add_region(struct damon_region *r, struct damon_target *t);
 void damon_destroy_region(struct damon_region *r, struct damon_target *t);
+int damon_set_regions(struct damon_target *t, struct damon_addr_range *ranges,
+		unsigned int nr_ranges);
 
 struct damos *damon_new_scheme(
 		unsigned long min_sz_region, unsigned long max_sz_region,
@@ -509,8 +525,15 @@ int damon_set_attrs(struct damon_ctx *ctx, unsigned long sample_int,
 int damon_set_schemes(struct damon_ctx *ctx,
 			struct damos **schemes, ssize_t nr_schemes);
 int damon_nr_running_ctxs(void);
+bool damon_is_registered_ops(enum damon_ops_id id);
 int damon_register_ops(struct damon_operations *ops);
 int damon_select_ops(struct damon_ctx *ctx, enum damon_ops_id id);
+
+static inline bool damon_target_has_pid(const struct damon_ctx *ctx)
+{
+	return ctx->ops.id == DAMON_OPS_VADDR || ctx->ops.id == DAMON_OPS_FVADDR;
+}
+
 
 int damon_start(struct damon_ctx **ctxs, int nr_ctxs, bool exclusive);
 int damon_stop(struct damon_ctx **ctxs, int nr_ctxs);

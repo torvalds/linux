@@ -18,10 +18,12 @@
 #include "gt/intel_region_lmem.h"
 #include "i915_drv.h"
 #include "i915_gem_stolen.h"
+#include "i915_pci.h"
 #include "i915_reg.h"
 #include "i915_utils.h"
 #include "i915_vgpu.h"
 #include "intel_mchbar_regs.h"
+#include "intel_pci_config.h"
 
 /*
  * The BIOS typically reserves some of the system's memory for the exclusive
@@ -876,8 +878,11 @@ i915_gem_stolen_lmem_setup(struct drm_i915_private *i915, u16 type,
 	if (WARN_ON_ONCE(instance))
 		return ERR_PTR(-ENODEV);
 
+	if (!i915_pci_resource_valid(pdev, GEN12_LMEM_BAR))
+		return ERR_PTR(-ENXIO);
+
 	if (HAS_BAR2_SMEM_STOLEN(i915) || IS_DG1(i915)) {
-		lmem_size = pci_resource_len(pdev, 2);
+		lmem_size = pci_resource_len(pdev, GEN12_LMEM_BAR);
 	} else {
 		resource_size_t lmem_range;
 
@@ -901,7 +906,7 @@ i915_gem_stolen_lmem_setup(struct drm_i915_private *i915, u16 type,
 		dsm_base = 0;
 		dsm_size = (resource_size_t)(ret * SZ_1M);
 
-		GEM_BUG_ON(pci_resource_len(pdev, 2) != SZ_256M);
+		GEM_BUG_ON(pci_resource_len(pdev, GEN12_LMEM_BAR) != SZ_256M);
 		GEM_BUG_ON((dsm_size + SZ_8M) > lmem_size);
 	} else {
 		/* Use DSM base address instead for stolen memory */
@@ -912,13 +917,13 @@ i915_gem_stolen_lmem_setup(struct drm_i915_private *i915, u16 type,
 	}
 
 	io_size = dsm_size;
-	if (pci_resource_len(pdev, 2) < dsm_size) {
+	if (pci_resource_len(pdev, GEN12_LMEM_BAR) < dsm_size) {
 		io_start = 0;
 		io_size = 0;
 	} else if (HAS_BAR2_SMEM_STOLEN(i915)) {
-		io_start = pci_resource_start(pdev, 2) + SZ_8M;
+		io_start = pci_resource_start(pdev, GEN12_LMEM_BAR) + SZ_8M;
 	} else {
-		io_start = pci_resource_start(pdev, 2) + dsm_base;
+		io_start = pci_resource_start(pdev, GEN12_LMEM_BAR) + dsm_base;
 	}
 
 	min_page_size = HAS_64K_PAGES(i915) ? I915_GTT_PAGE_SIZE_64K :

@@ -831,6 +831,21 @@ raw3270_create_device(struct ccw_device *cdev)
 }
 
 /*
+ * This helper just validates that it is safe to activate a
+ * view in the panic() context, due to locking restrictions.
+ */
+int raw3270_view_lock_unavailable(struct raw3270_view *view)
+{
+	struct raw3270 *rp = view->dev;
+
+	if (!rp)
+		return -ENODEV;
+	if (spin_is_locked(get_ccwdev_lock(rp->cdev)))
+		return -EBUSY;
+	return 0;
+}
+
+/*
  * Activate a view.
  */
 int

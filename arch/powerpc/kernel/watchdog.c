@@ -56,7 +56,7 @@
  * solved by also having a SMP watchdog where all CPUs check all other
  * CPUs heartbeat.
  *
- * The SMP checker can detect lockups on other CPUs. A gobal "pending"
+ * The SMP checker can detect lockups on other CPUs. A global "pending"
  * cpumask is kept, containing all CPUs which enable the watchdog. Each
  * CPU clears their pending bit in their heartbeat timer. When the bitmask
  * becomes empty, the last CPU to clear its pending bit updates a global
@@ -90,6 +90,10 @@ static unsigned long __wd_nmi_output;
 static cpumask_t wd_smp_cpus_pending;
 static cpumask_t wd_smp_cpus_stuck;
 static u64 wd_smp_last_reset_tb;
+
+#ifdef CONFIG_PPC_PSERIES
+static u64 wd_timeout_pct;
+#endif
 
 /*
  * Try to take the exclusive watchdog action / NMI IPI / printing lock.
@@ -353,7 +357,7 @@ static void watchdog_timer_interrupt(int cpu)
 	if (__wd_nmi_output && xchg(&__wd_nmi_output, 0)) {
 		/*
 		 * Something has called printk from NMI context. It might be
-		 * stuck, so this this triggers a flush that will get that
+		 * stuck, so this triggers a flush that will get that
 		 * printk output to the console.
 		 *
 		 * See wd_lockup_ipi.
@@ -527,7 +531,13 @@ static int stop_watchdog_on_cpu(unsigned int cpu)
 
 static void watchdog_calc_timeouts(void)
 {
-	wd_panic_timeout_tb = watchdog_thresh * ppc_tb_freq;
+	u64 threshold = watchdog_thresh;
+
+#ifdef CONFIG_PPC_PSERIES
+	threshold += (READ_ONCE(wd_timeout_pct) * threshold) / 100;
+#endif
+
+	wd_panic_timeout_tb = threshold * ppc_tb_freq;
 
 	/* Have the SMP detector trigger a bit later */
 	wd_smp_panic_timeout_tb = wd_panic_timeout_tb * 3 / 2;
@@ -570,3 +580,12 @@ int __init watchdog_nmi_probe(void)
 	}
 	return 0;
 }
+
+#ifdef CONFIG_PPC_PSERIES
+void watchdog_nmi_set_timeout_pct(u64 pct)
+{
+	pr_info("Set the NMI watchdog timeout factor to %llu%%\n", pct);
+	WRITE_ONCE(wd_timeout_pct, pct);
+	lockup_detector_reconfigure();
+}
+#endif

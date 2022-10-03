@@ -14,6 +14,7 @@
 #include <linux/pm.h>
 #include <linux/clk.h>
 #include <linux/i2c.h>
+#include <linux/acpi.h>
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -1377,7 +1378,6 @@ static const struct snd_soc_component_driver soc_component_dev_wm8960 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm8960_regmap = {
@@ -1410,8 +1410,7 @@ static void wm8960_set_pdata_from_of(struct i2c_client *i2c,
 				   ARRAY_SIZE(pdata->hp_cfg));
 }
 
-static int wm8960_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8960_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8960_data *pdata = dev_get_platdata(&i2c->dev);
 	struct wm8960_priv *wm8960;
@@ -1498,18 +1497,30 @@ static const struct i2c_device_id wm8960_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, wm8960_i2c_id);
 
+#if defined(CONFIG_OF)
 static const struct of_device_id wm8960_of_match[] = {
        { .compatible = "wlf,wm8960", },
        { }
 };
 MODULE_DEVICE_TABLE(of, wm8960_of_match);
+#endif
+
+#if defined(CONFIG_ACPI)
+static const struct acpi_device_id wm8960_acpi_match[] = {
+	{ "1AEC8960", 0 }, /* Wolfson PCI ID + part ID */
+	{ "10138960", 0 }, /* Cirrus Logic PCI ID + part ID */
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, wm8960_acpi_match);
+#endif
 
 static struct i2c_driver wm8960_i2c_driver = {
 	.driver = {
 		.name = "wm8960",
-		.of_match_table = wm8960_of_match,
+		.of_match_table = of_match_ptr(wm8960_of_match),
+		.acpi_match_table = ACPI_PTR(wm8960_acpi_match),
 	},
-	.probe =    wm8960_i2c_probe,
+	.probe_new = wm8960_i2c_probe,
 	.remove =   wm8960_i2c_remove,
 	.id_table = wm8960_i2c_id,
 };

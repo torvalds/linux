@@ -37,18 +37,20 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_keys>;
 
-		vol-down {
+		key-vol-down {
 			label = "VOL_DOWN";
 			gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEDOWN>;
 			debounce-interval = <50>;
+			wakeup-source;
 		};
 
-		vol-up {
+		key-vol-up {
 			label = "VOL_UP";
 			gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 			debounce-interval = <50>;
+			wakeup-source;
 		};
 	};
 
@@ -323,14 +325,9 @@
 		};
 
 		partition@30000 {
-			label = "protected1";
-			reg = <0x30000 0x10000>;
+			label = "firmware";
+			reg = <0x30000 0x1d0000>;
 			read-only;
-		};
-
-		partition@40000 {
-			label = "rw";
-			reg = <0x40000 0x1C0000>;
 		};
 	};
 };
@@ -387,8 +384,6 @@
 		fsl,pins = <
 			/* CHRG_INT */
 			MX8MQ_IOMUXC_NAND_CE2_B_GPIO3_IO3	0x80
-			/* CHG_STATUS_B */
-			MX8MQ_IOMUXC_NAND_ALE_GPIO3_IO0		0x80
 		>;
 	};
 
@@ -1098,7 +1093,7 @@
 		ti,precharge-current = <130000>; /* uA */
 		ti,minimum-sys-voltage = <3700000>; /* uV */
 		ti,boost-voltage = <5000000>; /* uV */
-		ti,boost-max-current = <500000>; /* uA */
+		ti,boost-max-current = <1500000>; /* uA */
 		ti,use-vinmin-threshold = <1>; /* enable VINDPM */
 		ti,vinmin-threshold = <3900000>; /* uV */
 		monitored-battery = <&bat>;

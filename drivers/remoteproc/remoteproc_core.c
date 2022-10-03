@@ -59,6 +59,7 @@ static int rproc_release_carveout(struct rproc *rproc,
 
 /* Unique indices for remoteproc devices */
 static DEFINE_IDA(rproc_dev_index);
+static struct workqueue_struct *rproc_recovery_wq;
 
 static const char * const rproc_crash_names[] = {
 	[RPROC_MMUFAULT]	= "mmufault",
@@ -334,7 +335,7 @@ int rproc_alloc_vring(struct rproc_vdev *rvdev, int i)
 	size_t size;
 
 	/* actual size of vring (in bytes) */
-	size = PAGE_ALIGN(vring_size(rvring->len, rvring->align));
+	size = PAGE_ALIGN(vring_size(rvring->num, rvring->align));
 
 	rsc = (void *)rproc->table_ptr + rvdev->rsc_offset;
 
@@ -401,7 +402,7 @@ rproc_parse_vring(struct rproc_vdev *rvdev, struct fw_rsc_vdev *rsc, int i)
 		return -EINVAL;
 	}
 
-	rvring->len = vring->num;
+	rvring->num = vring->num;
 	rvring->align = vring->align;
 	rvring->rvdev = rvdev;
 
@@ -461,6 +462,7 @@ static void rproc_rvdev_release(struct device *dev)
 	struct rproc_vdev *rvdev = container_of(dev, struct rproc_vdev, dev);
 
 	of_reserved_mem_device_release(dev);
+	dma_release_coherent_memory(dev);
 
 	kfree(rvdev);
 }
@@ -684,10 +686,6 @@ static int rproc_handle_trace(struct rproc *rproc, void *ptr,
 
 	/* create the debugfs entry */
 	trace->tfile = rproc_create_trace_file(name, rproc, trace);
-	if (!trace->tfile) {
-		kfree(trace);
-		return -EINVAL;
-	}
 
 	list_add_tail(&trace->node, &rproc->traces);
 
@@ -974,7 +972,7 @@ static int rproc_handle_carveout(struct rproc *rproc,
 		return 0;
 	}
 
-	/* Register carveout in in list */
+	/* Register carveout in list */
 	carveout = rproc_mem_entry_init(dev, NULL, 0, rsc->len, rsc->da,
 					rproc_alloc_carveout,
 					rproc_release_carveout, rsc->name);
@@ -2075,6 +2073,12 @@ int rproc_shutdown(struct rproc *rproc)
 		return ret;
 	}
 
+	if (rproc->state != RPROC_RUNNING &&
+	    rproc->state != RPROC_ATTACHED) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	/* if the remote proc is still needed, bail out */
 	if (!atomic_dec_and_test(&rproc->power))
 		goto out;
@@ -2132,6 +2136,11 @@ int rproc_detach(struct rproc *rproc)
 	if (ret) {
 		dev_err(dev, "can't lock rproc %s: %d\n", rproc->name, ret);
 		return ret;
+	}
+
+	if (rproc->state != RPROC_ATTACHED) {
+		ret = -EINVAL;
+		goto out;
 	}
 
 	/* if the remote proc is still needed, bail out */
@@ -2427,7 +2436,7 @@ static void rproc_type_release(struct device *dev)
 	idr_destroy(&rproc->notifyids);
 
 	if (rproc->index >= 0)
-		ida_simple_remove(&rproc_dev_index, rproc->index);
+		ida_free(&rproc_dev_index, rproc->index);
 
 	kfree_const(rproc->firmware);
 	kfree_const(rproc->name);
@@ -2544,9 +2553,9 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 		goto put_device;
 
 	/* Assign a unique device index and name */
-	rproc->index = ida_simple_get(&rproc_dev_index, 0, 0, GFP_KERNEL);
+	rproc->index = ida_alloc(&rproc_dev_index, GFP_KERNEL);
 	if (rproc->index < 0) {
-		dev_err(dev, "ida_simple_get failed: %d\n", rproc->index);
+		dev_err(dev, "ida_alloc failed: %d\n", rproc->index);
 		goto put_device;
 	}
 
@@ -2755,8 +2764,7 @@ void rproc_report_crash(struct rproc *rproc, enum rproc_crash_type type)
 	dev_err(&rproc->dev, "crash detected in %s: type %s\n",
 		rproc->name, rproc_crash_to_string(type));
 
-	/* Have a worker handle the error; ensure system is not suspended */
-	queue_work(system_freezable_wq, &rproc->crash_handler);
+	queue_work(rproc_recovery_wq, &rproc->crash_handler);
 }
 EXPORT_SYMBOL(rproc_report_crash);
 
@@ -2805,6 +2813,13 @@ static void __exit rproc_exit_panic(void)
 
 static int __init remoteproc_init(void)
 {
+	rproc_recovery_wq = alloc_workqueue("rproc_recovery_wq",
+						WQ_UNBOUND | WQ_FREEZABLE, 0);
+	if (!rproc_recovery_wq) {
+		pr_err("remoteproc: creation of rproc_recovery_wq failed\n");
+		return -ENOMEM;
+	}
+
 	rproc_init_sysfs();
 	rproc_init_debugfs();
 	rproc_init_cdev();
@@ -2818,9 +2833,13 @@ static void __exit remoteproc_exit(void)
 {
 	ida_destroy(&rproc_dev_index);
 
+	if (!rproc_recovery_wq)
+		return;
+
 	rproc_exit_panic();
 	rproc_exit_debugfs();
 	rproc_exit_sysfs();
+	destroy_workqueue(rproc_recovery_wq);
 }
 module_exit(remoteproc_exit);
 

@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
+#include <linux/soc/pxa/cpu.h>
 
 #include <asm/mach-types.h>
 #include <linux/sizes.h>
@@ -23,7 +24,7 @@
 #include "colibri.h"
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <linux/platform_data/video-pxafb.h>
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 
 #include "generic.h"
 #include "devices.h"

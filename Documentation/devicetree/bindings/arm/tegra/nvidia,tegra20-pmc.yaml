@@ -14,7 +14,6 @@ properties:
   compatible:
     enum:
       - nvidia,tegra20-pmc
-      - nvidia,tegra20-pmc
       - nvidia,tegra30-pmc
       - nvidia,tegra114-pmc
       - nvidia,tegra124-pmc
@@ -209,7 +208,7 @@ properties:
       "^[a-z0-9]+$":
         type: object
 
-        patternProperties:
+        properties:
           clocks:
             minItems: 1
             maxItems: 8

@@ -398,8 +398,7 @@ int ksmbd_vfs_read(struct ksmbd_work *work, struct ksmbd_file *fp, size_t count,
 
 	nbytes = kernel_read(filp, rbuf, count, pos);
 	if (nbytes < 0) {
-		pr_err("smb read failed for (%s), err = %zd\n",
-		       fp->filename, nbytes);
+		pr_err("smb read failed, err = %zd\n", nbytes);
 		return nbytes;
 	}
 
@@ -482,12 +481,11 @@ int ksmbd_vfs_write(struct ksmbd_work *work, struct ksmbd_file *fp,
 		    char *buf, size_t count, loff_t *pos, bool sync,
 		    ssize_t *written)
 {
-	struct ksmbd_session *sess = work->sess;
 	struct file *filp;
 	loff_t	offset = *pos;
 	int err = 0;
 
-	if (sess->conn->connection_type) {
+	if (work->conn->connection_type) {
 		if (!(fp->daccess & FILE_WRITE_DATA_LE)) {
 			pr_err("no right to write(%pd)\n",
 			       fp->filp->f_path.dentry);
@@ -875,8 +873,7 @@ int ksmbd_vfs_truncate(struct ksmbd_work *work,
 
 	err = vfs_truncate(&filp->f_path, size);
 	if (err)
-		pr_err("truncate failed for filename : %s err %d\n",
-		       fp->filename, err);
+		pr_err("truncate failed, err %d\n", err);
 	return err;
 }
 
@@ -965,7 +962,7 @@ ssize_t ksmbd_vfs_getxattr(struct user_namespace *user_ns,
  */
 int ksmbd_vfs_setxattr(struct user_namespace *user_ns,
 		       struct dentry *dentry, const char *attr_name,
-		       const void *attr_value, size_t attr_size, int flags)
+		       void *attr_value, size_t attr_size, int flags)
 {
 	int err;
 
@@ -1017,7 +1014,9 @@ int ksmbd_vfs_zero_data(struct ksmbd_work *work, struct ksmbd_file *fp,
 				     FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
 				     off, len);
 
-	return vfs_fallocate(fp->filp, FALLOC_FL_ZERO_RANGE, off, len);
+	return vfs_fallocate(fp->filp,
+			     FALLOC_FL_ZERO_RANGE | FALLOC_FL_KEEP_SIZE,
+			     off, len);
 }
 
 int ksmbd_vfs_fqar_lseek(struct ksmbd_file *fp, loff_t start, loff_t length,
@@ -1048,7 +1047,7 @@ int ksmbd_vfs_fqar_lseek(struct ksmbd_file *fp, loff_t start, loff_t length,
 	*out_count = 0;
 	end = start + length;
 	while (start < end && *out_count < in_count) {
-		extent_start = f->f_op->llseek(f, start, SEEK_DATA);
+		extent_start = vfs_llseek(f, start, SEEK_DATA);
 		if (extent_start < 0) {
 			if (extent_start != -ENXIO)
 				ret = (int)extent_start;
@@ -1058,7 +1057,7 @@ int ksmbd_vfs_fqar_lseek(struct ksmbd_file *fp, loff_t start, loff_t length,
 		if (extent_start >= end)
 			break;
 
-		extent_end = f->f_op->llseek(f, extent_start, SEEK_HOLE);
+		extent_end = vfs_llseek(f, extent_start, SEEK_HOLE);
 		if (extent_end < 0) {
 			if (extent_end != -ENXIO)
 				ret = (int)extent_end;
@@ -1540,6 +1539,11 @@ int ksmbd_vfs_get_sd_xattr(struct ksmbd_conn *conn,
 	}
 
 	*pntsd = acl.sd_buf;
+	if (acl.sd_size < sizeof(struct smb_ntsd)) {
+		pr_err("sd size is invalid\n");
+		goto out_free;
+	}
+
 	(*pntsd)->osidoffset = cpu_to_le32(le32_to_cpu((*pntsd)->osidoffset) -
 					   NDR_NTSD_OFFSETOF);
 	(*pntsd)->gsidoffset = cpu_to_le32(le32_to_cpu((*pntsd)->gsidoffset) -
@@ -1779,6 +1783,10 @@ int ksmbd_vfs_copy_file_ranges(struct ksmbd_work *work,
 
 		ret = vfs_copy_file_range(src_fp->filp, src_off,
 					  dst_fp->filp, dst_off, len, 0);
+		if (ret == -EOPNOTSUPP || ret == -EXDEV)
+			ret = generic_copy_file_range(src_fp->filp, src_off,
+						      dst_fp->filp, dst_off,
+						      len, 0);
 		if (ret < 0)
 			return ret;
 

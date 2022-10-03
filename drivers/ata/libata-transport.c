@@ -9,7 +9,7 @@
  * and various sysfs attributes to expose these topologies and management
  * interfaces to user-space.
  *
- * There are 3 objects defined in in this class:
+ * There are 3 objects defined in this class:
  * - ata_port
  * - ata_link
  * - ata_device
@@ -196,7 +196,7 @@ static struct {
 	{ XFER_PIO_0,			"XFER_PIO_0" },
 	{ XFER_PIO_SLOW,		"XFER_PIO_SLOW" }
 };
-ata_bitfield_name_match(xfer,ata_xfer_names)
+ata_bitfield_name_search(xfer, ata_xfer_names)
 
 /*
  * ATA Port attributes

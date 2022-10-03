@@ -770,7 +770,7 @@ static const struct samsung_pin_bank_data fsd_pin_banks2[] __initconst = {
 	EXYNOS850_PIN_BANK_EINTN(3, 0x00, "gpq0"),
 };
 
-const struct samsung_pin_ctrl fsd_pin_ctrl[] __initconst = {
+static const struct samsung_pin_ctrl fsd_pin_ctrl[] __initconst = {
 	{
 		/* pin-controller instance 0 FSYS0 data */
 		.pin_banks	= fsd_pin_banks0,

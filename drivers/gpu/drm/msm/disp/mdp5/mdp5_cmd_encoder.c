@@ -8,6 +8,8 @@
 
 #include "mdp5_kms.h"
 
+#ifdef CONFIG_DRM_MSM_DSI
+
 static struct mdp5_kms *get_kms(struct drm_encoder *encoder)
 {
 	struct msm_drm_private *priv = encoder->dev->dev_private;
@@ -198,3 +200,4 @@ int mdp5_cmd_encoder_set_split_display(struct drm_encoder *encoder,
 
 	return 0;
 }
+#endif /* CONFIG_DRM_MSM_DSI */

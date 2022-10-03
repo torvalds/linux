@@ -22,6 +22,7 @@
 #include <asm/ultravisor.h>
 #include <asm/kvm_book3s_uvmem.h>
 #include <asm/plpar_wrappers.h>
+#include <asm/firmware.h>
 
 /*
  * Supported radix tree geometry.
@@ -168,9 +169,10 @@ int kvmppc_mmu_walk_radix_tree(struct kvm_vcpu *vcpu, gva_t eaddr,
 			return -EINVAL;
 		/* Read the entry from guest memory */
 		addr = base + (index * sizeof(rpte));
-		vcpu->srcu_idx = srcu_read_lock(&kvm->srcu);
+
+		kvm_vcpu_srcu_read_lock(vcpu);
 		ret = kvm_read_guest(kvm, addr, &rpte, sizeof(rpte));
-		srcu_read_unlock(&kvm->srcu, vcpu->srcu_idx);
+		kvm_vcpu_srcu_read_unlock(vcpu);
 		if (ret) {
 			if (pte_ret_p)
 				*pte_ret_p = addr;
@@ -246,9 +248,9 @@ int kvmppc_mmu_radix_translate_table(struct kvm_vcpu *vcpu, gva_t eaddr,
 
 	/* Read the table to find the root of the radix tree */
 	ptbl = (table & PRTB_MASK) + (table_index * sizeof(entry));
-	vcpu->srcu_idx = srcu_read_lock(&kvm->srcu);
+	kvm_vcpu_srcu_read_lock(vcpu);
 	ret = kvm_read_guest(kvm, ptbl, &entry, sizeof(entry));
-	srcu_read_unlock(&kvm->srcu, vcpu->srcu_idx);
+	kvm_vcpu_srcu_read_unlock(vcpu);
 	if (ret)
 		return ret;
 
@@ -638,7 +640,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 	/* Check if we might have been invalidated; let the guest retry if so */
 	spin_lock(&kvm->mmu_lock);
 	ret = -EAGAIN;
-	if (mmu_notifier_retry(kvm, mmu_seq))
+	if (mmu_invalidate_retry(kvm, mmu_seq))
 		goto out_unlock;
 
 	/* Now traverse again under the lock and change the tree */
@@ -828,7 +830,7 @@ int kvmppc_book3s_instantiate_page(struct kvm_vcpu *vcpu,
 	bool large_enable;
 
 	/* used to check for invalidations in progress */
-	mmu_seq = kvm->mmu_notifier_seq;
+	mmu_seq = kvm->mmu_invalidate_seq;
 	smp_rmb();
 
 	/*
@@ -1189,7 +1191,7 @@ void kvmppc_radix_flush_memslot(struct kvm *kvm,
 	 * Increase the mmu notifier sequence number to prevent any page
 	 * fault that read the memslot earlier from writing a PTE.
 	 */
-	kvm->mmu_notifier_seq++;
+	kvm->mmu_invalidate_seq++;
 	spin_unlock(&kvm->mmu_lock);
 }
 

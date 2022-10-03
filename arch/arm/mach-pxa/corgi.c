@@ -39,7 +39,6 @@
 #include <asm/setup.h>
 #include <asm/memory.h>
 #include <asm/mach-types.h>
-#include <mach/hardware.h>
 #include <asm/irq.h>
 
 #include <asm/mach/arch.h>
@@ -50,7 +49,7 @@
 #include <linux/platform_data/irda-pxaficp.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include "udc.h"
-#include <mach/corgi.h>
+#include "corgi.h"
 #include "sharpsl_pm.h"
 
 #include <asm/mach/sharpsl_param.h>
@@ -473,6 +472,25 @@ static struct platform_device corgiled_device = {
 	},
 };
 
+static struct gpiod_lookup_table corgi_audio_gpio_table = {
+	.dev_id = "corgi-audio",
+	.table = {
+		GPIO_LOOKUP("sharp-scoop",
+			    CORGI_GPIO_MUTE_L - CORGI_SCOOP_GPIO_BASE,
+			    "mute-l", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("sharp-scoop",
+			    CORGI_GPIO_MUTE_R - CORGI_SCOOP_GPIO_BASE,
+			    "mute-r", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("sharp-scoop",
+			    CORGI_GPIO_APM_ON - CORGI_SCOOP_GPIO_BASE,
+			    "apm-on", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("sharp-scoop",
+			    CORGI_GPIO_MIC_BIAS - CORGI_SCOOP_GPIO_BASE,
+			    "mic-bias", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 /*
  * Corgi Audio
  */
@@ -531,7 +549,7 @@ static struct pxa2xx_spi_controller corgi_spi_info = {
 };
 
 static struct gpiod_lookup_table corgi_spi_gpio_table = {
-	.dev_id = "pxa2xx-spi.1",
+	.dev_id = "spi1",
 	.table = {
 		GPIO_LOOKUP_IDX("gpio-pxa", CORGI_GPIO_ADS7846_CS, "cs", 0, GPIO_ACTIVE_LOW),
 		GPIO_LOOKUP_IDX("gpio-pxa", CORGI_GPIO_LCDCON_CS, "cs", 1, GPIO_ACTIVE_LOW),
@@ -745,6 +763,7 @@ static void __init corgi_init(void)
 
  	pxa_set_udc_info(&udc_info);
 	gpiod_add_lookup_table(&corgi_mci_gpio_table);
+	gpiod_add_lookup_table(&corgi_audio_gpio_table);
 	pxa_set_mci_info(&corgi_mci_platform_data);
 	pxa_set_ficp_info(&corgi_ficp_platform_data);
 	pxa_set_i2c_info(NULL);

@@ -481,6 +481,9 @@ struct hisi_sas_err_record_v3 {
 #define RX_DATA_LEN_UNDERFLOW_OFF	6
 #define RX_DATA_LEN_UNDERFLOW_MSK	(1 << RX_DATA_LEN_UNDERFLOW_OFF)
 
+#define RX_FIS_STATUS_ERR_OFF		0
+#define RX_FIS_STATUS_ERR_MSK		(1 << RX_FIS_STATUS_ERR_OFF)
+
 #define HISI_SAS_COMMAND_ENTRIES_V3_HW 4096
 #define HISI_SAS_MSI_COUNT_V3_HW 32
 
@@ -1563,9 +1566,15 @@ static irqreturn_t phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 
 	phy->port_id = port_id;
 
-	/* Call pm_runtime_put_sync() with pairs in hisi_sas_phyup_pm_work() */
+	/*
+	 * Call pm_runtime_get_noresume() which pairs with
+	 * hisi_sas_phyup_pm_work() -> pm_runtime_put_sync().
+	 * For failure call pm_runtime_put() as we are in a hardirq context.
+	 */
 	pm_runtime_get_noresume(dev);
-	hisi_sas_notify_phy_event(phy, HISI_PHYE_PHY_UP_PM);
+	res = hisi_sas_notify_phy_event(phy, HISI_PHYE_PHY_UP_PM);
+	if (!res)
+		pm_runtime_put(dev);
 
 	res = IRQ_HANDLED;
 
@@ -2155,6 +2164,7 @@ slot_err_v3_hw(struct hisi_hba *hisi_hba, struct sas_task *task,
 			hisi_sas_status_buf_addr_mem(slot);
 	u32 dma_rx_err_type = le32_to_cpu(record->dma_rx_err_type);
 	u32 trans_tx_fail_type = le32_to_cpu(record->trans_tx_fail_type);
+	u16 sipc_rx_err_type = le16_to_cpu(record->sipc_rx_err_type);
 	u32 dw3 = le32_to_cpu(complete_hdr->dw3);
 
 	switch (task->task_proto) {
@@ -2182,7 +2192,10 @@ slot_err_v3_hw(struct hisi_hba *hisi_hba, struct sas_task *task,
 	case SAS_PROTOCOL_SATA:
 	case SAS_PROTOCOL_STP:
 	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
-		if (dma_rx_err_type & RX_DATA_LEN_UNDERFLOW_MSK) {
+		if ((complete_hdr->dw0 & CMPLT_HDR_RSPNS_XFRD_MSK) &&
+		    (sipc_rx_err_type & RX_FIS_STATUS_ERR_MSK)) {
+			ts->stat = SAS_PROTO_RESPONSE;
+		} else if (dma_rx_err_type & RX_DATA_LEN_UNDERFLOW_MSK) {
 			ts->residual = trans_tx_fail_type;
 			ts->stat = SAS_DATA_UNDERRUN;
 		} else if (dw3 & CMPLT_HDR_IO_IN_TARGET_MSK) {
@@ -2305,8 +2318,6 @@ static void slot_complete_v3_hw(struct hisi_hba *hisi_hba,
 
 		ts->stat = SAS_SAM_STAT_GOOD;
 
-		dma_unmap_sg(dev, &task->smp_task.smp_req, 1,
-			     DMA_TO_DEVICE);
 		memcpy(to + sg_resp->offset,
 			hisi_sas_status_buf_addr_mem(slot) +
 		       sizeof(struct hisi_sas_err_record),
@@ -2772,15 +2783,13 @@ static DEVICE_ATTR_RW(intr_coal_count_v3_hw);
 static int slave_configure_v3_hw(struct scsi_device *sdev)
 {
 	struct Scsi_Host *shost = dev_to_shost(&sdev->sdev_gendev);
-	struct domain_device *ddev = sdev_to_domain_dev(sdev);
 	struct hisi_hba *hisi_hba = shost_priv(shost);
+	int ret = hisi_sas_slave_configure(sdev);
 	struct device *dev = hisi_hba->dev;
-	int ret = sas_slave_configure(sdev);
+	unsigned int max_sectors;
 
 	if (ret)
 		return ret;
-	if (!dev_is_sata(ddev))
-		sas_change_queue_depth(sdev, 64);
 
 	if (sdev->type == TYPE_ENCLOSURE)
 		return 0;
@@ -2792,6 +2801,12 @@ static int slave_configure_v3_hw(struct scsi_device *sdev)
 			pm_runtime_disable(dev);
 		}
 	}
+
+	/* Set according to IOMMU IOVA caching limit */
+	max_sectors = min_t(size_t, queue_max_hw_sectors(sdev->request_queue),
+			    (PAGE_SIZE * 32) >> SECTOR_SHIFT);
+
+	blk_queue_max_hw_sectors(sdev->request_queue, max_sectors);
 
 	return 0;
 }

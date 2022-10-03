@@ -307,7 +307,9 @@ enum zbc_zone_type {
 	ZBC_ZONE_TYPE_CONV		= 0x1,
 	ZBC_ZONE_TYPE_SEQWRITE_REQ	= 0x2,
 	ZBC_ZONE_TYPE_SEQWRITE_PREF	= 0x3,
-	/* 0x4 to 0xf are reserved */
+	ZBC_ZONE_TYPE_SEQ_OR_BEFORE_REQ	= 0x4,
+	ZBC_ZONE_TYPE_GAP		= 0x5,
+	/* 0x6 to 0xf are reserved */
 };
 
 /* Zone conditions of REPORT ZONES zone descriptors */
@@ -321,6 +323,11 @@ enum zbc_zone_cond {
 	ZBC_ZONE_COND_READONLY		= 0xd,
 	ZBC_ZONE_COND_FULL		= 0xe,
 	ZBC_ZONE_COND_OFFLINE		= 0xf,
+};
+
+enum zbc_zone_alignment_method {
+	ZBC_CONSTANT_ZONE_LENGTH	= 0x1,
+	ZBC_CONSTANT_ZONE_START_OFFSET	= 0x8,
 };
 
 /* Version descriptor values for INQUIRY */

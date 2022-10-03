@@ -13,7 +13,7 @@
 #include <dt-bindings/leds/common.h>
 
 / {
-	compatible = "meraki,mr32", "brcm,brcm53016", "brcm,bcm4708";
+	compatible = "meraki,mr32", "brcm,bcm53016", "brcm,bcm4708";
 	model = "Meraki MR32";
 
 	chosen {
@@ -47,10 +47,8 @@
 
 	keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		restart {
+		button-restart {
 			label = "Reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&chipcommon 21 GPIO_ACTIVE_LOW>;

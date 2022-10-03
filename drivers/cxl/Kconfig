@@ -2,6 +2,7 @@
 menuconfig CXL_BUS
 	tristate "CXL (Compute Express Link) Devices Support"
 	depends on PCI
+	select PCI_DOE
 	help
 	  CXL is a bus that is electrically compatible with PCI Express, but
 	  layers three protocols on that signalling (CXL.io, CXL.cache, and
@@ -97,5 +98,17 @@ config CXL_MEM
 config CXL_PORT
 	default CXL_BUS
 	tristate
+
+config CXL_SUSPEND
+	def_bool y
+	depends on SUSPEND && CXL_MEM
+
+config CXL_REGION
+	bool
+	default CXL_BUS
+	# For MAX_PHYSMEM_BITS
+	depends on SPARSEMEM
+	select MEMREGION
+	select GET_FREE_REGION
 
 endif

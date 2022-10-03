@@ -56,9 +56,9 @@ static int fifo_transfer(struct sun4i_hdmi *hdmi, u8 *buf, int len, bool read)
 		return -EIO;
 
 	if (read)
-		readsb(hdmi->base + hdmi->variant->ddc_fifo_reg, buf, len);
+		ioread8_rep(hdmi->base + hdmi->variant->ddc_fifo_reg, buf, len);
 	else
-		writesb(hdmi->base + hdmi->variant->ddc_fifo_reg, buf, len);
+		iowrite8_rep(hdmi->base + hdmi->variant->ddc_fifo_reg, buf, len);
 
 	/* Clear FIFO request bit by forcing a write to that bit */
 	regmap_field_force_write(hdmi->field_ddc_int_status,

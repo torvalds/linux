@@ -624,7 +624,7 @@ any symlink that might use page_follow_link_light/page_put_link() must
 have inode_nohighmem(inode) called before anything might start playing with
 its pagecache.  No highmem pages should end up in the pagecache of such
 symlinks.  That includes any preseeding that might be done during symlink
-creation.  __page_symlink() will honour the mapping gfp flags, so once
+creation.  page_symlink() will honour the mapping gfp flags, so once
 you've done inode_nohighmem() it's safe to use, but if you allocate and
 insert the page manually, make sure to use the right gfp flags.
 
@@ -914,3 +914,11 @@ Calling conventions for file_open_root() changed; now it takes struct path *
 instead of passing mount and dentry separately.  For callers that used to
 pass <mnt, mnt->mnt_root> pair (i.e. the root of given mount), a new helper
 is provided - file_open_root_mnt().  In-tree users adjusted.
+
+---
+
+**mandatory**
+
+no_llseek is gone; don't set .llseek to that - just leave it NULL instead.
+Checks for "does that file have llseek(2), or should it fail with ESPIPE"
+should be done by looking at FMODE_LSEEK in file->f_mode.

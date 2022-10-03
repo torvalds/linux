@@ -174,7 +174,6 @@ static int tcp_msg_wait_data(struct sock *sk, struct sk_psock *psock,
 static int tcp_bpf_recvmsg_parser(struct sock *sk,
 				  struct msghdr *msg,
 				  size_t len,
-				  int nonblock,
 				  int flags,
 				  int *addr_len)
 {
@@ -186,7 +185,7 @@ static int tcp_bpf_recvmsg_parser(struct sock *sk,
 
 	psock = sk_psock_get(sk);
 	if (unlikely(!psock))
-		return tcp_recvmsg(sk, msg, len, nonblock, flags, addr_len);
+		return tcp_recvmsg(sk, msg, len, flags, addr_len);
 
 	lock_sock(sk);
 msg_bytes_ready:
@@ -211,7 +210,7 @@ msg_bytes_ready:
 			goto out;
 		}
 
-		timeo = sock_rcvtimeo(sk, nonblock);
+		timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 		if (!timeo) {
 			copied = -EAGAIN;
 			goto out;
@@ -234,7 +233,7 @@ out:
 }
 
 static int tcp_bpf_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
-		    int nonblock, int flags, int *addr_len)
+			   int flags, int *addr_len)
 {
 	struct sk_psock *psock;
 	int copied, ret;
@@ -244,11 +243,11 @@ static int tcp_bpf_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 
 	psock = sk_psock_get(sk);
 	if (unlikely(!psock))
-		return tcp_recvmsg(sk, msg, len, nonblock, flags, addr_len);
+		return tcp_recvmsg(sk, msg, len, flags, addr_len);
 	if (!skb_queue_empty(&sk->sk_receive_queue) &&
 	    sk_psock_queue_empty(psock)) {
 		sk_psock_put(sk, psock);
-		return tcp_recvmsg(sk, msg, len, nonblock, flags, addr_len);
+		return tcp_recvmsg(sk, msg, len, flags, addr_len);
 	}
 	lock_sock(sk);
 msg_bytes_ready:
@@ -257,14 +256,14 @@ msg_bytes_ready:
 		long timeo;
 		int data;
 
-		timeo = sock_rcvtimeo(sk, nonblock);
+		timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 		data = tcp_msg_wait_data(sk, psock, timeo);
 		if (data) {
 			if (!sk_psock_queue_empty(psock))
 				goto msg_bytes_ready;
 			release_sock(sk);
 			sk_psock_put(sk, psock);
-			return tcp_recvmsg(sk, msg, len, nonblock, flags, addr_len);
+			return tcp_recvmsg(sk, msg, len, flags, addr_len);
 		}
 		copied = -EAGAIN;
 	}
@@ -541,6 +540,7 @@ static void tcp_bpf_rebuild_protos(struct proto prot[TCP_BPF_NUM_CFGS],
 				   struct proto *base)
 {
 	prot[TCP_BPF_BASE]			= *base;
+	prot[TCP_BPF_BASE].destroy		= sock_map_destroy;
 	prot[TCP_BPF_BASE].close		= sock_map_close;
 	prot[TCP_BPF_BASE].recvmsg		= tcp_bpf_recvmsg;
 	prot[TCP_BPF_BASE].sock_is_readable	= sk_msg_is_readable;
@@ -611,9 +611,6 @@ int tcp_bpf_update_proto(struct sock *sk, struct sk_psock *psock, bool restore)
 		}
 		return 0;
 	}
-
-	if (inet_csk_has_ulp(sk))
-		return -EINVAL;
 
 	if (sk->sk_family == AF_INET6) {
 		if (tcp_bpf_assert_proto_ops(psock->sk_proto))

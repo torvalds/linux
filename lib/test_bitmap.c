@@ -585,6 +585,36 @@ static void __init test_bitmap_arr32(void)
 	}
 }
 
+static void __init test_bitmap_arr64(void)
+{
+	unsigned int nbits, next_bit;
+	u64 arr[EXP1_IN_BITS / 64];
+	DECLARE_BITMAP(bmap2, EXP1_IN_BITS);
+
+	memset(arr, 0xa5, sizeof(arr));
+
+	for (nbits = 0; nbits < EXP1_IN_BITS; ++nbits) {
+		memset(bmap2, 0xff, sizeof(arr));
+		bitmap_to_arr64(arr, exp1, nbits);
+		bitmap_from_arr64(bmap2, arr, nbits);
+		expect_eq_bitmap(bmap2, exp1, nbits);
+
+		next_bit = find_next_bit(bmap2, round_up(nbits, BITS_PER_LONG), nbits);
+		if (next_bit < round_up(nbits, BITS_PER_LONG))
+			pr_err("bitmap_copy_arr64(nbits == %d:"
+				" tail is not safely cleared: %d\n", nbits, next_bit);
+
+		if ((nbits % 64) &&
+		    (arr[(nbits - 1) / 64] & ~GENMASK_ULL((nbits - 1) % 64, 0)))
+			pr_err("bitmap_to_arr64(nbits == %d): tail is not safely cleared: 0x%016llx (must be 0x%016llx)\n",
+			       nbits, arr[(nbits - 1) / 64],
+			       GENMASK_ULL((nbits - 1) % 64, 0));
+
+		if (nbits < EXP1_IN_BITS - 64)
+			expect_eq_uint(arr[DIV_ROUND_UP(nbits, 64)], 0xa5a5a5a5);
+	}
+}
+
 static void noinline __init test_mem_optimisations(void)
 {
 	DECLARE_BITMAP(bmap1, 1024);
@@ -845,6 +875,67 @@ static void __init test_bitmap_print_buf(void)
 	}
 }
 
+static void __init test_bitmap_const_eval(void)
+{
+	DECLARE_BITMAP(bitmap, BITS_PER_LONG);
+	unsigned long initvar = BIT(2);
+	unsigned long bitopvar = 0;
+	unsigned long var = 0;
+	int res;
+
+	/*
+	 * Compilers must be able to optimize all of those to compile-time
+	 * constants on any supported optimization level (-O2, -Os) and any
+	 * architecture. Otherwise, trigger a build bug.
+	 * The whole function gets optimized out then, there's nothing to do
+	 * in runtime.
+	 */
+
+	/*
+	 * Equals to `unsigned long bitmap[1] = { GENMASK(6, 5), }`.
+	 * Clang on s390 optimizes bitops at compile-time as intended, but at
+	 * the same time stops treating @bitmap and @bitopvar as compile-time
+	 * constants after regular test_bit() is executed, thus triggering the
+	 * build bugs below. So, call const_test_bit() there directly until
+	 * the compiler is fixed.
+	 */
+	bitmap_clear(bitmap, 0, BITS_PER_LONG);
+#if defined(__s390__) && defined(__clang__)
+	if (!const_test_bit(7, bitmap))
+#else
+	if (!test_bit(7, bitmap))
+#endif
+		bitmap_set(bitmap, 5, 2);
+
+	/* Equals to `unsigned long bitopvar = BIT(20)` */
+	__change_bit(31, &bitopvar);
+	bitmap_shift_right(&bitopvar, &bitopvar, 11, BITS_PER_LONG);
+
+	/* Equals to `unsigned long var = BIT(25)` */
+	var |= BIT(25);
+	if (var & BIT(0))
+		var ^= GENMASK(9, 6);
+
+	/* __const_hweight<32|64>(GENMASK(6, 5)) == 2 */
+	res = bitmap_weight(bitmap, 20);
+	BUILD_BUG_ON(!__builtin_constant_p(res));
+	BUILD_BUG_ON(res != 2);
+
+	/* !(BIT(31) & BIT(18)) == 1 */
+	res = !test_bit(18, &bitopvar);
+	BUILD_BUG_ON(!__builtin_constant_p(res));
+	BUILD_BUG_ON(!res);
+
+	/* BIT(2) & GENMASK(14, 8) == 0 */
+	res = initvar & GENMASK(14, 8);
+	BUILD_BUG_ON(!__builtin_constant_p(res));
+	BUILD_BUG_ON(res);
+
+	/* ~BIT(25) */
+	BUILD_BUG_ON(!__builtin_constant_p(~var));
+	BUILD_BUG_ON(~var != ~BIT(25));
+}
+
 static void __init selftest(void)
 {
 	test_zero_clear();
@@ -852,6 +943,7 @@ static void __init selftest(void)
 	test_copy();
 	test_replace();
 	test_bitmap_arr32();
+	test_bitmap_arr64();
 	test_bitmap_parse();
 	test_bitmap_parselist();
 	test_bitmap_printlist();
@@ -859,6 +951,7 @@ static void __init selftest(void)
 	test_for_each_set_clump8();
 	test_bitmap_cut();
 	test_bitmap_print_buf();
+	test_bitmap_const_eval();
 }
 
 KSTM_MODULE_LOADERS(test_bitmap);

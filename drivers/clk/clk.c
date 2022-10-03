@@ -108,17 +108,10 @@ struct clk {
 /***           runtime pm          ***/
 static int clk_pm_runtime_get(struct clk_core *core)
 {
-	int ret;
-
 	if (!core->rpm_enabled)
 		return 0;
 
-	ret = pm_runtime_get_sync(core->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(core->dev);
-		return ret;
-	}
-	return 0;
+	return pm_runtime_resume_and_get(core->dev);
 }
 
 static void clk_pm_runtime_put(struct clk_core *core)
@@ -4285,54 +4278,6 @@ int devm_clk_hw_register(struct device *dev, struct clk_hw *hw)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(devm_clk_hw_register);
-
-static int devm_clk_match(struct device *dev, void *res, void *data)
-{
-	struct clk *c = res;
-	if (WARN_ON(!c))
-		return 0;
-	return c == data;
-}
-
-static int devm_clk_hw_match(struct device *dev, void *res, void *data)
-{
-	struct clk_hw *hw = res;
-
-	if (WARN_ON(!hw))
-		return 0;
-	return hw == data;
-}
-
-/**
- * devm_clk_unregister - resource managed clk_unregister()
- * @dev: device that is unregistering the clock data
- * @clk: clock to unregister
- *
- * Deallocate a clock allocated with devm_clk_register(). Normally
- * this function will not need to be called and the resource management
- * code will ensure that the resource is freed.
- */
-void devm_clk_unregister(struct device *dev, struct clk *clk)
-{
-	WARN_ON(devres_release(dev, devm_clk_unregister_cb, devm_clk_match, clk));
-}
-EXPORT_SYMBOL_GPL(devm_clk_unregister);
-
-/**
- * devm_clk_hw_unregister - resource managed clk_hw_unregister()
- * @dev: device that is unregistering the hardware-specific clock data
- * @hw: link to hardware-specific clock data
- *
- * Unregister a clk_hw registered with devm_clk_hw_register(). Normally
- * this function will not need to be called and the resource management
- * code will ensure that the resource is freed.
- */
-void devm_clk_hw_unregister(struct device *dev, struct clk_hw *hw)
-{
-	WARN_ON(devres_release(dev, devm_clk_hw_unregister_cb, devm_clk_hw_match,
-				hw));
-}
-EXPORT_SYMBOL_GPL(devm_clk_hw_unregister);
 
 static void devm_clk_release(struct device *dev, void *res)
 {

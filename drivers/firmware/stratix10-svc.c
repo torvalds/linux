@@ -34,12 +34,13 @@
  * timeout is set to 30 seconds (30 * 1000) at Intel Stratix10 SoC.
  */
 #define SVC_NUM_DATA_IN_FIFO			32
-#define SVC_NUM_CHANNEL				2
+#define SVC_NUM_CHANNEL				3
 #define FPGA_CONFIG_DATA_CLAIM_TIMEOUT_MS	200
 #define FPGA_CONFIG_STATUS_TIMEOUT_SEC		30
 
 /* stratix10 service layer clients */
 #define STRATIX10_RSU				"stratix10-rsu"
+#define INTEL_FCS				"intel-fcs"
 
 typedef void (svc_invoke_fn)(unsigned long, unsigned long, unsigned long,
 			     unsigned long, unsigned long, unsigned long,
@@ -53,6 +54,7 @@ struct stratix10_svc_chan;
  */
 struct stratix10_svc {
 	struct platform_device *stratix10_svc_rsu;
+	struct platform_device *intel_svc_fcs;
 };
 
 /**
@@ -97,8 +99,10 @@ struct stratix10_svc_data_mem {
 /**
  * struct stratix10_svc_data - service data structure
  * @chan: service channel
- * @paddr: playload physical address
- * @size: playload size
+ * @paddr: physical address of to be processed payload
+ * @size: to be processed playload size
+ * @paddr_output: physical address of processed payload
+ * @size_output: processed payload size
  * @command: service command requested by client
  * @flag: configuration type (full or partial)
  * @arg: args to be passed via registers and not physically mapped buffers
@@ -109,6 +113,8 @@ struct stratix10_svc_data {
 	struct stratix10_svc_chan *chan;
 	phys_addr_t paddr;
 	size_t size;
+	phys_addr_t paddr_output;
+	size_t size_output;
 	u32 command;
 	u32 flag;
 	u64 arg[3];
@@ -246,6 +252,7 @@ static void svc_thread_cmd_config_status(struct stratix10_svc_controller *ctrl,
 {
 	struct arm_smccc_res res;
 	int count_in_sec;
+	unsigned long a0, a1, a2;
 
 	cb_data->kaddr1 = NULL;
 	cb_data->kaddr2 = NULL;
@@ -254,24 +261,45 @@ static void svc_thread_cmd_config_status(struct stratix10_svc_controller *ctrl,
 
 	pr_debug("%s: polling config status\n", __func__);
 
+	a0 = INTEL_SIP_SMC_FPGA_CONFIG_ISDONE;
+	a1 = (unsigned long)p_data->paddr;
+	a2 = (unsigned long)p_data->size;
+
+	if (p_data->command == COMMAND_POLL_SERVICE_STATUS)
+		a0 = INTEL_SIP_SMC_SERVICE_COMPLETED;
+
 	count_in_sec = FPGA_CONFIG_STATUS_TIMEOUT_SEC;
 	while (count_in_sec) {
-		ctrl->invoke_fn(INTEL_SIP_SMC_FPGA_CONFIG_ISDONE,
-				0, 0, 0, 0, 0, 0, 0, &res);
+		ctrl->invoke_fn(a0, a1, a2, 0, 0, 0, 0, 0, &res);
 		if ((res.a0 == INTEL_SIP_SMC_STATUS_OK) ||
-		    (res.a0 == INTEL_SIP_SMC_STATUS_ERROR))
+		    (res.a0 == INTEL_SIP_SMC_STATUS_ERROR) ||
+		    (res.a0 == INTEL_SIP_SMC_STATUS_REJECTED))
 			break;
 
 		/*
-		 * configuration is still in progress, wait one second then
+		 * request is still in progress, wait one second then
 		 * poll again
 		 */
 		msleep(1000);
 		count_in_sec--;
 	}
 
-	if (res.a0 == INTEL_SIP_SMC_STATUS_OK && count_in_sec)
+	if (!count_in_sec) {
+		pr_err("%s: poll status timeout\n", __func__);
+		cb_data->status = BIT(SVC_STATUS_BUSY);
+	} else if (res.a0 == INTEL_SIP_SMC_STATUS_OK) {
 		cb_data->status = BIT(SVC_STATUS_COMPLETED);
+		cb_data->kaddr2 = (res.a2) ?
+				  svc_pa_to_va(res.a2) : NULL;
+		cb_data->kaddr3 = (res.a3) ? &res.a3 : NULL;
+	} else {
+		pr_err("%s: poll status error\n", __func__);
+		cb_data->kaddr1 = &res.a1;
+		cb_data->kaddr2 = (res.a2) ?
+				  svc_pa_to_va(res.a2) : NULL;
+		cb_data->kaddr3 = (res.a3) ? &res.a3 : NULL;
+		cb_data->status = BIT(SVC_STATUS_ERROR);
+	}
 
 	p_data->chan->scl->receive_cb(p_data->chan->scl, cb_data);
 }
@@ -296,6 +324,10 @@ static void svc_thread_recv_status_ok(struct stratix10_svc_data *p_data,
 	case COMMAND_RECONFIG:
 	case COMMAND_RSU_UPDATE:
 	case COMMAND_RSU_NOTIFY:
+	case COMMAND_FCS_REQUEST_SERVICE:
+	case COMMAND_FCS_SEND_CERTIFICATE:
+	case COMMAND_FCS_DATA_ENCRYPTION:
+	case COMMAND_FCS_DATA_DECRYPTION:
 		cb_data->status = BIT(SVC_STATUS_OK);
 		break;
 	case COMMAND_RECONFIG_DATA_SUBMIT:
@@ -306,14 +338,28 @@ static void svc_thread_recv_status_ok(struct stratix10_svc_data *p_data,
 		break;
 	case COMMAND_RSU_RETRY:
 	case COMMAND_RSU_MAX_RETRY:
+	case COMMAND_RSU_DCMF_STATUS:
 	case COMMAND_FIRMWARE_VERSION:
 		cb_data->status = BIT(SVC_STATUS_OK);
 		cb_data->kaddr1 = &res.a1;
+		break;
+	case COMMAND_SMC_SVC_VERSION:
+		cb_data->status = BIT(SVC_STATUS_OK);
+		cb_data->kaddr1 = &res.a1;
+		cb_data->kaddr2 = &res.a2;
 		break;
 	case COMMAND_RSU_DCMF_VERSION:
 		cb_data->status = BIT(SVC_STATUS_OK);
 		cb_data->kaddr1 = &res.a1;
 		cb_data->kaddr2 = &res.a2;
+		break;
+	case COMMAND_FCS_RANDOM_NUMBER_GEN:
+	case COMMAND_FCS_GET_PROVISION_DATA:
+	case COMMAND_POLL_SERVICE_STATUS:
+		cb_data->status = BIT(SVC_STATUS_OK);
+		cb_data->kaddr1 = &res.a1;
+		cb_data->kaddr2 = svc_pa_to_va(res.a2);
+		cb_data->kaddr3 = &res.a3;
 		break;
 	default:
 		pr_warn("it shouldn't happen\n");
@@ -341,7 +387,7 @@ static int svc_normal_to_secure_thread(void *data)
 	struct stratix10_svc_data *pdata;
 	struct stratix10_svc_cb_data *cbdata;
 	struct arm_smccc_res res;
-	unsigned long a0, a1, a2;
+	unsigned long a0, a1, a2, a3, a4, a5, a6, a7;
 	int ret_fifo = 0;
 
 	pdata =  kmalloc(sizeof(*pdata), GFP_KERNEL);
@@ -358,6 +404,11 @@ static int svc_normal_to_secure_thread(void *data)
 	a0 = INTEL_SIP_SMC_FPGA_CONFIG_LOOPBACK;
 	a1 = 0;
 	a2 = 0;
+	a3 = 0;
+	a4 = 0;
+	a5 = 0;
+	a6 = 0;
+	a7 = 0;
 
 	pr_debug("smc_hvc_shm_thread is running\n");
 
@@ -428,15 +479,74 @@ static int svc_normal_to_secure_thread(void *data)
 			a1 = 0;
 			a2 = 0;
 			break;
+
+		/* for FCS */
+		case COMMAND_FCS_DATA_ENCRYPTION:
+			a0 = INTEL_SIP_SMC_FCS_CRYPTION;
+			a1 = 1;
+			a2 = (unsigned long)pdata->paddr;
+			a3 = (unsigned long)pdata->size;
+			a4 = (unsigned long)pdata->paddr_output;
+			a5 = (unsigned long)pdata->size_output;
+			break;
+		case COMMAND_FCS_DATA_DECRYPTION:
+			a0 = INTEL_SIP_SMC_FCS_CRYPTION;
+			a1 = 0;
+			a2 = (unsigned long)pdata->paddr;
+			a3 = (unsigned long)pdata->size;
+			a4 = (unsigned long)pdata->paddr_output;
+			a5 = (unsigned long)pdata->size_output;
+			break;
+		case COMMAND_FCS_RANDOM_NUMBER_GEN:
+			a0 = INTEL_SIP_SMC_FCS_RANDOM_NUMBER;
+			a1 = (unsigned long)pdata->paddr;
+			a2 = 0;
+			break;
+		case COMMAND_FCS_REQUEST_SERVICE:
+			a0 = INTEL_SIP_SMC_FCS_SERVICE_REQUEST;
+			a1 = (unsigned long)pdata->paddr;
+			a2 = (unsigned long)pdata->size;
+			break;
+		case COMMAND_FCS_SEND_CERTIFICATE:
+			a0 = INTEL_SIP_SMC_FCS_SEND_CERTIFICATE;
+			a1 = (unsigned long)pdata->paddr;
+			a2 = (unsigned long)pdata->size;
+			break;
+		case COMMAND_FCS_GET_PROVISION_DATA:
+			a0 = INTEL_SIP_SMC_FCS_GET_PROVISION_DATA;
+			a1 = (unsigned long)pdata->paddr;
+			a2 = 0;
+			break;
+
+		/* for polling */
+		case COMMAND_POLL_SERVICE_STATUS:
+			a0 = INTEL_SIP_SMC_SERVICE_COMPLETED;
+			a1 = (unsigned long)pdata->paddr;
+			a2 = (unsigned long)pdata->size;
+			break;
+		case COMMAND_RSU_DCMF_STATUS:
+			a0 = INTEL_SIP_SMC_RSU_DCMF_STATUS;
+			a1 = 0;
+			a2 = 0;
+			break;
+		case COMMAND_SMC_SVC_VERSION:
+			a0 = INTEL_SIP_SMC_SVC_VERSION;
+			a1 = 0;
+			a2 = 0;
+			break;
 		default:
 			pr_warn("it shouldn't happen\n");
 			break;
 		}
 		pr_debug("%s: before SMC call -- a0=0x%016x a1=0x%016x",
-			 __func__, (unsigned int)a0, (unsigned int)a1);
+			 __func__,
+			 (unsigned int)a0,
+			 (unsigned int)a1);
 		pr_debug(" a2=0x%016x\n", (unsigned int)a2);
-
-		ctrl->invoke_fn(a0, a1, a2, 0, 0, 0, 0, 0, &res);
+		pr_debug(" a3=0x%016x\n", (unsigned int)a3);
+		pr_debug(" a4=0x%016x\n", (unsigned int)a4);
+		pr_debug(" a5=0x%016x\n", (unsigned int)a5);
+		ctrl->invoke_fn(a0, a1, a2, a3, a4, a5, a6, a7, &res);
 
 		pr_debug("%s: after SMC call -- res.a0=0x%016x",
 			 __func__, (unsigned int)res.a0);
@@ -468,6 +578,7 @@ static int svc_normal_to_secure_thread(void *data)
 							  pdata, cbdata);
 				break;
 			case COMMAND_RECONFIG_STATUS:
+			case COMMAND_POLL_SERVICE_STATUS:
 				svc_thread_cmd_config_status(ctrl,
 							     pdata, cbdata);
 				break;
@@ -478,14 +589,31 @@ static int svc_normal_to_secure_thread(void *data)
 			break;
 		case INTEL_SIP_SMC_STATUS_REJECTED:
 			pr_debug("%s: STATUS_REJECTED\n", __func__);
+			/* for FCS */
+			switch (pdata->command) {
+			case COMMAND_FCS_REQUEST_SERVICE:
+			case COMMAND_FCS_SEND_CERTIFICATE:
+			case COMMAND_FCS_GET_PROVISION_DATA:
+			case COMMAND_FCS_DATA_ENCRYPTION:
+			case COMMAND_FCS_DATA_DECRYPTION:
+			case COMMAND_FCS_RANDOM_NUMBER_GEN:
+				cbdata->status = BIT(SVC_STATUS_INVALID_PARAM);
+				cbdata->kaddr1 = NULL;
+				cbdata->kaddr2 = NULL;
+				cbdata->kaddr3 = NULL;
+				pdata->chan->scl->receive_cb(pdata->chan->scl,
+							     cbdata);
+				break;
+			}
 			break;
 		case INTEL_SIP_SMC_STATUS_ERROR:
 		case INTEL_SIP_SMC_RSU_ERROR:
 			pr_err("%s: STATUS_ERROR\n", __func__);
 			cbdata->status = BIT(SVC_STATUS_ERROR);
 			cbdata->kaddr1 = &res.a1;
-			cbdata->kaddr2 = NULL;
-			cbdata->kaddr3 = NULL;
+			cbdata->kaddr2 = (res.a2) ?
+				svc_pa_to_va(res.a2) : NULL;
+			cbdata->kaddr3 = (res.a3) ? &res.a3 : NULL;
 			pdata->chan->scl->receive_cb(pdata->chan->scl, cbdata);
 			break;
 		default:
@@ -493,12 +621,10 @@ static int svc_normal_to_secure_thread(void *data)
 
 			/*
 			 * be compatible with older version firmware which
-			 * doesn't support RSU notify or retry
+			 * doesn't support newer RSU commands
 			 */
-			if ((pdata->command == COMMAND_RSU_RETRY) ||
-			    (pdata->command == COMMAND_RSU_MAX_RETRY) ||
-			    (pdata->command == COMMAND_RSU_NOTIFY) ||
-			    (pdata->command == COMMAND_FIRMWARE_VERSION)) {
+			if ((pdata->command != COMMAND_RSU_UPDATE) &&
+				(pdata->command != COMMAND_RSU_STATUS)) {
 				cbdata->status =
 					BIT(SVC_STATUS_NO_SUPPORT);
 				cbdata->kaddr1 = NULL;
@@ -852,8 +978,19 @@ int stratix10_svc_send(struct stratix10_svc_chan *chan, void *msg)
 		list_for_each_entry(p_mem, &svc_data_mem, node)
 			if (p_mem->vaddr == p_msg->payload) {
 				p_data->paddr = p_mem->paddr;
+				p_data->size = p_msg->payload_length;
 				break;
 			}
+		if (p_msg->payload_output) {
+			list_for_each_entry(p_mem, &svc_data_mem, node)
+				if (p_mem->vaddr == p_msg->payload_output) {
+					p_data->paddr_output =
+						p_mem->paddr;
+					p_data->size_output =
+						p_msg->payload_length_output;
+					break;
+				}
+		}
 	}
 
 	p_data->command = p_msg->command;
@@ -948,17 +1085,17 @@ EXPORT_SYMBOL_GPL(stratix10_svc_allocate_memory);
 void stratix10_svc_free_memory(struct stratix10_svc_chan *chan, void *kaddr)
 {
 	struct stratix10_svc_data_mem *pmem;
-	size_t size = 0;
 
 	list_for_each_entry(pmem, &svc_data_mem, node)
 		if (pmem->vaddr == kaddr) {
-			size = pmem->size;
-			break;
+			gen_pool_free(chan->ctrl->genpool,
+				       (unsigned long)kaddr, pmem->size);
+			pmem->vaddr = NULL;
+			list_del(&pmem->node);
+			return;
 		}
 
-	gen_pool_free(chan->ctrl->genpool, (unsigned long)kaddr, size);
-	pmem->vaddr = NULL;
-	list_del(&pmem->node);
+	list_del(&svc_data_mem);
 }
 EXPORT_SYMBOL_GPL(stratix10_svc_free_memory);
 
@@ -1036,6 +1173,11 @@ static int stratix10_svc_drv_probe(struct platform_device *pdev)
 	chans[1].name = SVC_CLIENT_RSU;
 	spin_lock_init(&chans[1].lock);
 
+	chans[2].scl = NULL;
+	chans[2].ctrl = controller;
+	chans[2].name = SVC_CLIENT_FCS;
+	spin_lock_init(&chans[2].lock);
+
 	list_add_tail(&controller->node, &svc_ctrl);
 	platform_set_drvdata(pdev, controller);
 
@@ -1054,8 +1196,22 @@ static int stratix10_svc_drv_probe(struct platform_device *pdev)
 	}
 
 	ret = platform_device_add(svc->stratix10_svc_rsu);
-	if (ret)
-		goto err_put_device;
+	if (ret) {
+		platform_device_put(svc->stratix10_svc_rsu);
+		return ret;
+	}
+
+	svc->intel_svc_fcs = platform_device_alloc(INTEL_FCS, 1);
+	if (!svc->intel_svc_fcs) {
+		dev_err(dev, "failed to allocate %s device\n", INTEL_FCS);
+		return -ENOMEM;
+	}
+
+	ret = platform_device_add(svc->intel_svc_fcs);
+	if (ret) {
+		platform_device_put(svc->intel_svc_fcs);
+		return ret;
+	}
 
 	dev_set_drvdata(dev, svc);
 
@@ -1063,8 +1219,6 @@ static int stratix10_svc_drv_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_put_device:
-	platform_device_put(svc->stratix10_svc_rsu);
 err_free_kfifo:
 	kfifo_free(&controller->svc_fifo);
 	return ret;
@@ -1075,6 +1229,7 @@ static int stratix10_svc_drv_remove(struct platform_device *pdev)
 	struct stratix10_svc *svc = dev_get_drvdata(&pdev->dev);
 	struct stratix10_svc_controller *ctrl = platform_get_drvdata(pdev);
 
+	platform_device_unregister(svc->intel_svc_fcs);
 	platform_device_unregister(svc->stratix10_svc_rsu);
 
 	kfifo_free(&ctrl->svc_fifo);

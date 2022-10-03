@@ -9,7 +9,7 @@ title: Samsung Exynos7885 SoC clock controller
 maintainers:
   - Dávid Virág <virag.david003@gmail.com>
   - Chanwoo Choi <cw00.choi@samsung.com>
-  - Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
   - Sylwester Nawrocki <s.nawrocki@samsung.com>
   - Tomasz Figa <tomasz.figa@gmail.com>
 
@@ -33,6 +33,7 @@ properties:
     enum:
       - samsung,exynos7885-cmu-top
       - samsung,exynos7885-cmu-core
+      - samsung,exynos7885-cmu-fsys
       - samsung,exynos7885-cmu-peri
 
   clocks:
@@ -87,6 +88,32 @@ allOf:
             - const: dout_core_bus
             - const: dout_core_cci
             - const: dout_core_g3d
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos7885-cmu-fsys
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: External reference clock (26 MHz)
+            - description: CMU_FSYS bus clock (from CMU_TOP)
+            - description: MMC_CARD clock (from CMU_TOP)
+            - description: MMC_EMBD clock (from CMU_TOP)
+            - description: MMC_SDIO clock (from CMU_TOP)
+            - description: USB30DRD clock (from CMU_TOP)
+
+        clock-names:
+          items:
+            - const: oscclk
+            - const: dout_fsys_bus
+            - const: dout_fsys_mmc_card
+            - const: dout_fsys_mmc_embd
+            - const: dout_fsys_mmc_sdio
+            - const: dout_fsys_usb30drd
 
   - if:
       properties:

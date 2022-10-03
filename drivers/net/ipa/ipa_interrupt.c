@@ -191,7 +191,8 @@ void ipa_interrupt_add(struct ipa_interrupt *interrupt,
 	struct ipa *ipa = interrupt->ipa;
 	u32 offset;
 
-	WARN_ON(ipa_irq >= IPA_IRQ_COUNT);
+	if (WARN_ON(ipa_irq >= IPA_IRQ_COUNT))
+		return;
 
 	interrupt->handler[ipa_irq] = handler;
 
@@ -208,7 +209,8 @@ ipa_interrupt_remove(struct ipa_interrupt *interrupt, enum ipa_irq_id ipa_irq)
 	struct ipa *ipa = interrupt->ipa;
 	u32 offset;
 
-	WARN_ON(ipa_irq >= IPA_IRQ_COUNT);
+	if (WARN_ON(ipa_irq >= IPA_IRQ_COUNT))
+		return;
 
 	/* Update the IPA interrupt mask to disable it */
 	interrupt->enabled &= ~BIT(ipa_irq);

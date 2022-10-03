@@ -86,7 +86,7 @@ struct mlx5_flow_handle *mlx5e_accel_fs_add_sk(struct mlx5e_priv *priv,
 	if (!spec)
 		return ERR_PTR(-ENOMEM);
 
-	fs_tcp = priv->fs.accel_tcp;
+	fs_tcp = priv->fs->accel_tcp;
 
 	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 
@@ -102,7 +102,7 @@ struct mlx5_flow_handle *mlx5e_accel_fs_add_sk(struct mlx5e_priv *priv,
 		break;
 #if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
-		if (!sk->sk_ipv6only &&
+		if (!ipv6_only_sock(sk) &&
 		    ipv6_addr_type(&sk->sk_v6_daddr) == IPV6_ADDR_MAPPED) {
 			accel_fs_tcp_set_ipv4_flow(spec, sk);
 			ft = &fs_tcp->tables[ACCEL_FS_IPV4_TCP];
@@ -158,10 +158,10 @@ static int accel_fs_tcp_add_default_rule(struct mlx5e_priv *priv,
 	struct mlx5_flow_handle *rule;
 	int err = 0;
 
-	fs_tcp = priv->fs.accel_tcp;
+	fs_tcp = priv->fs->accel_tcp;
 	accel_fs_t = &fs_tcp->tables[type];
 
-	dest = mlx5_ttc_get_default_dest(priv->fs.ttc, fs_accel2tt(type));
+	dest = mlx5_ttc_get_default_dest(priv->fs->ttc, fs_accel2tt(type));
 	rule = mlx5_add_flow_rules(accel_fs_t->t, NULL, &flow_act, &dest, 1);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
@@ -267,7 +267,7 @@ out:
 
 static int accel_fs_tcp_create_table(struct mlx5e_priv *priv, enum accel_fs_tcp_type type)
 {
-	struct mlx5e_flow_table *ft = &priv->fs.accel_tcp->tables[type];
+	struct mlx5e_flow_table *ft = &priv->fs->accel_tcp->tables[type];
 	struct mlx5_flow_table_attr ft_attr = {};
 	int err;
 
@@ -277,7 +277,7 @@ static int accel_fs_tcp_create_table(struct mlx5e_priv *priv, enum accel_fs_tcp_
 	ft_attr.level = MLX5E_ACCEL_FS_TCP_FT_LEVEL;
 	ft_attr.prio = MLX5E_NIC_PRIO;
 
-	ft->t = mlx5_create_flow_table(priv->fs.ns, &ft_attr);
+	ft->t = mlx5_create_flow_table(priv->fs->ns, &ft_attr);
 	if (IS_ERR(ft->t)) {
 		err = PTR_ERR(ft->t);
 		ft->t = NULL;
@@ -307,7 +307,7 @@ static int accel_fs_tcp_disable(struct mlx5e_priv *priv)
 
 	for (i = 0; i < ACCEL_FS_TCP_NUM_TYPES; i++) {
 		/* Modify ttc rules destination to point back to the indir TIRs */
-		err = mlx5_ttc_fwd_default_dest(priv->fs.ttc, fs_accel2tt(i));
+		err = mlx5_ttc_fwd_default_dest(priv->fs->ttc, fs_accel2tt(i));
 		if (err) {
 			netdev_err(priv->netdev,
 				   "%s: modify ttc[%d] default destination failed, err(%d)\n",
@@ -326,10 +326,10 @@ static int accel_fs_tcp_enable(struct mlx5e_priv *priv)
 
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	for (i = 0; i < ACCEL_FS_TCP_NUM_TYPES; i++) {
-		dest.ft = priv->fs.accel_tcp->tables[i].t;
+		dest.ft = priv->fs->accel_tcp->tables[i].t;
 
 		/* Modify ttc rules destination to point on the accel_fs FTs */
-		err = mlx5_ttc_fwd_dest(priv->fs.ttc, fs_accel2tt(i), &dest);
+		err = mlx5_ttc_fwd_dest(priv->fs->ttc, fs_accel2tt(i), &dest);
 		if (err) {
 			netdev_err(priv->netdev,
 				   "%s: modify ttc[%d] destination to accel failed, err(%d)\n",
@@ -344,7 +344,7 @@ static void accel_fs_tcp_destroy_table(struct mlx5e_priv *priv, int i)
 {
 	struct mlx5e_accel_fs_tcp *fs_tcp;
 
-	fs_tcp = priv->fs.accel_tcp;
+	fs_tcp = priv->fs->accel_tcp;
 	if (IS_ERR_OR_NULL(fs_tcp->tables[i].t))
 		return;
 
@@ -357,7 +357,7 @@ void mlx5e_accel_fs_tcp_destroy(struct mlx5e_priv *priv)
 {
 	int i;
 
-	if (!priv->fs.accel_tcp)
+	if (!priv->fs->accel_tcp)
 		return;
 
 	accel_fs_tcp_disable(priv);
@@ -365,8 +365,8 @@ void mlx5e_accel_fs_tcp_destroy(struct mlx5e_priv *priv)
 	for (i = 0; i < ACCEL_FS_TCP_NUM_TYPES; i++)
 		accel_fs_tcp_destroy_table(priv, i);
 
-	kfree(priv->fs.accel_tcp);
-	priv->fs.accel_tcp = NULL;
+	kfree(priv->fs->accel_tcp);
+	priv->fs->accel_tcp = NULL;
 }
 
 int mlx5e_accel_fs_tcp_create(struct mlx5e_priv *priv)
@@ -376,8 +376,8 @@ int mlx5e_accel_fs_tcp_create(struct mlx5e_priv *priv)
 	if (!MLX5_CAP_FLOWTABLE_NIC_RX(priv->mdev, ft_field_support.outer_ip_version))
 		return -EOPNOTSUPP;
 
-	priv->fs.accel_tcp = kzalloc(sizeof(*priv->fs.accel_tcp), GFP_KERNEL);
-	if (!priv->fs.accel_tcp)
+	priv->fs->accel_tcp = kzalloc(sizeof(*priv->fs->accel_tcp), GFP_KERNEL);
+	if (!priv->fs->accel_tcp)
 		return -ENOMEM;
 
 	for (i = 0; i < ACCEL_FS_TCP_NUM_TYPES; i++) {
@@ -396,7 +396,7 @@ err_destroy_tables:
 	while (--i >= 0)
 		accel_fs_tcp_destroy_table(priv, i);
 
-	kfree(priv->fs.accel_tcp);
-	priv->fs.accel_tcp = NULL;
+	kfree(priv->fs->accel_tcp);
+	priv->fs->accel_tcp = NULL;
 	return err;
 }

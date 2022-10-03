@@ -121,17 +121,17 @@ struct cache_detail {
 	struct net		*net;
 };
 
-
 /* this must be embedded in any request structure that
  * identifies an object that will want a callback on
  * a cache fill
  */
 struct cache_req {
 	struct cache_deferred_req *(*defer)(struct cache_req *req);
-	int thread_wait;  /* How long (jiffies) we can block the
-			   * current thread to wait for updates.
-			   */
+	unsigned long	thread_wait;	/* How long (jiffies) we can block the
+					 * current thread to wait for updates.
+					 */
 };
+
 /* this must be embedded in a deferred_request that is being
  * delayed awaiting cache-fill
  */

@@ -46,6 +46,11 @@
 
 /* Register map definition */
 
+/* CSIS version */
+#define MIPI_CSIS_VERSION			0x00
+#define MIPI_CSIS_VERSION_IMX7D			0x03030505
+#define MIPI_CSIS_VERSION_IMX8MP		0x03060301
+
 /* CSIS common control */
 #define MIPI_CSIS_CMN_CTRL			0x04
 #define MIPI_CSIS_CMN_CTRL_UPDATE_SHADOW	BIT(16)
@@ -243,12 +248,6 @@
 #define MIPI_CSI2_DATA_TYPE_RAW14		0x2d
 #define MIPI_CSI2_DATA_TYPE_USER(x)		(0x30 + (x))
 
-enum {
-	ST_POWERED	= 1,
-	ST_STREAMING	= 2,
-	ST_SUSPENDED	= 4,
-};
-
 struct mipi_csis_event {
 	bool debug;
 	u32 mask;
@@ -310,7 +309,7 @@ struct mipi_csis_info {
 	unsigned int num_clocks;
 };
 
-struct csi_state {
+struct mipi_csis_device {
 	struct device *dev;
 	void __iomem *regs;
 	struct clk_bulk_data *clks;
@@ -328,10 +327,9 @@ struct csi_state {
 	u32 hs_settle;
 	u32 clk_settle;
 
-	struct mutex lock;	/* Protect csis_fmt, format_mbus and state */
+	struct mutex lock;	/* Protect csis_fmt and format_mbus */
 	const struct csis_pix_format *csis_fmt;
 	struct v4l2_mbus_framefmt format_mbus[CSIS_PADS_NUM];
-	u32 state;
 
 	spinlock_t slock;	/* Protect events */
 	struct mipi_csis_event events[MIPI_CSIS_NUM_EVENTS];
@@ -470,6 +468,34 @@ static const struct csis_pix_format mipi_csis_formats[] = {
 		.output = MEDIA_BUS_FMT_SRGGB14_1X14,
 		.data_type = MIPI_CSI2_DATA_TYPE_RAW14,
 		.width = 14,
+	},
+	/* JPEG */
+	{
+		.code = MEDIA_BUS_FMT_JPEG_1X8,
+		.output = MEDIA_BUS_FMT_JPEG_1X8,
+		/*
+		 * Map JPEG_1X8 to the RAW8 datatype.
+		 *
+		 * The CSI-2 specification suggests in Annex A "JPEG8 Data
+		 * Format (informative)" to transmit JPEG data using one of the
+		 * Data Types aimed to represent arbitrary data, such as the
+		 * "User Defined Data Type 1" (0x30).
+		 *
+		 * However, when configured with a User Defined Data Type, the
+		 * CSIS outputs data in quad pixel mode regardless of the mode
+		 * selected in the MIPI_CSIS_ISP_CONFIG_CH register. Neither of
+		 * the IP cores connected to the CSIS in i.MX SoCs (CSI bridge
+		 * or ISI) support quad pixel mode, so this will never work in
+		 * practice.
+		 *
+		 * Some sensors (such as the OV5640) send JPEG data using the
+		 * RAW8 data type. This is usable and works, so map the JPEG
+		 * format to RAW8. If the CSIS ends up being integrated in an
+		 * SoC that can support quad pixel mode, this will have to be
+		 * revisited.
+		 */
+		.data_type = MIPI_CSI2_DATA_TYPE_RAW8,
+		.width = 8,
 	}
 };
 
@@ -487,59 +513,60 @@ static const struct csis_pix_format *find_csis_format(u32 code)
  * Hardware configuration
  */
 
-static inline u32 mipi_csis_read(struct csi_state *state, u32 reg)
+static inline u32 mipi_csis_read(struct mipi_csis_device *csis, u32 reg)
 {
-	return readl(state->regs + reg);
+	return readl(csis->regs + reg);
 }
 
-static inline void mipi_csis_write(struct csi_state *state, u32 reg, u32 val)
+static inline void mipi_csis_write(struct mipi_csis_device *csis, u32 reg,
+				   u32 val)
 {
-	writel(val, state->regs + reg);
+	writel(val, csis->regs + reg);
 }
 
-static void mipi_csis_enable_interrupts(struct csi_state *state, bool on)
+static void mipi_csis_enable_interrupts(struct mipi_csis_device *csis, bool on)
 {
-	mipi_csis_write(state, MIPI_CSIS_INT_MSK, on ? 0xffffffff : 0);
-	mipi_csis_write(state, MIPI_CSIS_DBG_INTR_MSK, on ? 0xffffffff : 0);
+	mipi_csis_write(csis, MIPI_CSIS_INT_MSK, on ? 0xffffffff : 0);
+	mipi_csis_write(csis, MIPI_CSIS_DBG_INTR_MSK, on ? 0xffffffff : 0);
 }
 
-static void mipi_csis_sw_reset(struct csi_state *state)
+static void mipi_csis_sw_reset(struct mipi_csis_device *csis)
 {
-	u32 val = mipi_csis_read(state, MIPI_CSIS_CMN_CTRL);
+	u32 val = mipi_csis_read(csis, MIPI_CSIS_CMN_CTRL);
 
-	mipi_csis_write(state, MIPI_CSIS_CMN_CTRL,
+	mipi_csis_write(csis, MIPI_CSIS_CMN_CTRL,
 			val | MIPI_CSIS_CMN_CTRL_RESET);
 	usleep_range(10, 20);
 }
 
-static void mipi_csis_system_enable(struct csi_state *state, int on)
+static void mipi_csis_system_enable(struct mipi_csis_device *csis, int on)
 {
 	u32 val, mask;
 
-	val = mipi_csis_read(state, MIPI_CSIS_CMN_CTRL);
+	val = mipi_csis_read(csis, MIPI_CSIS_CMN_CTRL);
 	if (on)
 		val |= MIPI_CSIS_CMN_CTRL_ENABLE;
 	else
 		val &= ~MIPI_CSIS_CMN_CTRL_ENABLE;
-	mipi_csis_write(state, MIPI_CSIS_CMN_CTRL, val);
+	mipi_csis_write(csis, MIPI_CSIS_CMN_CTRL, val);
 
-	val = mipi_csis_read(state, MIPI_CSIS_DPHY_CMN_CTRL);
+	val = mipi_csis_read(csis, MIPI_CSIS_DPHY_CMN_CTRL);
 	val &= ~MIPI_CSIS_DPHY_CMN_CTRL_ENABLE;
 	if (on) {
-		mask = (1 << (state->bus.num_data_lanes + 1)) - 1;
+		mask = (1 << (csis->bus.num_data_lanes + 1)) - 1;
 		val |= (mask & MIPI_CSIS_DPHY_CMN_CTRL_ENABLE);
 	}
-	mipi_csis_write(state, MIPI_CSIS_DPHY_CMN_CTRL, val);
+	mipi_csis_write(csis, MIPI_CSIS_DPHY_CMN_CTRL, val);
 }
 
-/* Called with the state.lock mutex held */
-static void __mipi_csis_set_format(struct csi_state *state)
+/* Called with the csis.lock mutex held */
+static void __mipi_csis_set_format(struct mipi_csis_device *csis)
 {
-	struct v4l2_mbus_framefmt *mf = &state->format_mbus[CSIS_PAD_SINK];
+	struct v4l2_mbus_framefmt *mf = &csis->format_mbus[CSIS_PAD_SINK];
 	u32 val;
 
 	/* Color format */
-	val = mipi_csis_read(state, MIPI_CSIS_ISP_CONFIG_CH(0));
+	val = mipi_csis_read(csis, MIPI_CSIS_ISP_CONFIG_CH(0));
 	val &= ~(MIPI_CSIS_ISPCFG_ALIGN_32BIT | MIPI_CSIS_ISPCFG_FMT_MASK
 		| MIPI_CSIS_ISPCFG_PIXEL_MASK);
 
@@ -556,28 +583,28 @@ static void __mipi_csis_set_format(struct csi_state *state)
 	 *
 	 * TODO: Verify which other formats require DUAL (or QUAD) modes.
 	 */
-	if (state->csis_fmt->data_type == MIPI_CSI2_DATA_TYPE_YUV422_8)
+	if (csis->csis_fmt->data_type == MIPI_CSI2_DATA_TYPE_YUV422_8)
 		val |= MIPI_CSIS_ISPCFG_PIXEL_MODE_DUAL;
 
-	val |= MIPI_CSIS_ISPCFG_FMT(state->csis_fmt->data_type);
-	mipi_csis_write(state, MIPI_CSIS_ISP_CONFIG_CH(0), val);
+	val |= MIPI_CSIS_ISPCFG_FMT(csis->csis_fmt->data_type);
+	mipi_csis_write(csis, MIPI_CSIS_ISP_CONFIG_CH(0), val);
 
 	/* Pixel resolution */
 	val = mf->width | (mf->height << 16);
-	mipi_csis_write(state, MIPI_CSIS_ISP_RESOL_CH(0), val);
+	mipi_csis_write(csis, MIPI_CSIS_ISP_RESOL_CH(0), val);
 }
 
-static int mipi_csis_calculate_params(struct csi_state *state)
+static int mipi_csis_calculate_params(struct mipi_csis_device *csis)
 {
 	s64 link_freq;
 	u32 lane_rate;
 
 	/* Calculate the line rate from the pixel rate. */
-	link_freq = v4l2_get_link_freq(state->src_sd->ctrl_handler,
-				       state->csis_fmt->width,
-				       state->bus.num_data_lanes * 2);
+	link_freq = v4l2_get_link_freq(csis->src_sd->ctrl_handler,
+				       csis->csis_fmt->width,
+				       csis->bus.num_data_lanes * 2);
 	if (link_freq < 0) {
-		dev_err(state->dev, "Unable to obtain link frequency: %d\n",
+		dev_err(csis->dev, "Unable to obtain link frequency: %d\n",
 			(int)link_freq);
 		return link_freq;
 	}
@@ -585,7 +612,7 @@ static int mipi_csis_calculate_params(struct csi_state *state)
 	lane_rate = link_freq * 2;
 
 	if (lane_rate < 80000000 || lane_rate > 1500000000) {
-		dev_dbg(state->dev, "Out-of-bound lane rate %u\n", lane_rate);
+		dev_dbg(csis->dev, "Out-of-bound lane rate %u\n", lane_rate);
 		return -EINVAL;
 	}
 
@@ -595,57 +622,57 @@ static int mipi_csis_calculate_params(struct csi_state *state)
 	 * (which is documented as corresponding to CSI-2 v0.87 to v1.00) until
 	 * we figure out how to compute it correctly.
 	 */
-	state->hs_settle = (lane_rate - 5000000) / 45000000;
-	state->clk_settle = 0;
+	csis->hs_settle = (lane_rate - 5000000) / 45000000;
+	csis->clk_settle = 0;
 
-	dev_dbg(state->dev, "lane rate %u, Tclk_settle %u, Ths_settle %u\n",
-		lane_rate, state->clk_settle, state->hs_settle);
+	dev_dbg(csis->dev, "lane rate %u, Tclk_settle %u, Ths_settle %u\n",
+		lane_rate, csis->clk_settle, csis->hs_settle);
 
-	if (state->debug.hs_settle < 0xff) {
-		dev_dbg(state->dev, "overriding Ths_settle with %u\n",
-			state->debug.hs_settle);
-		state->hs_settle = state->debug.hs_settle;
+	if (csis->debug.hs_settle < 0xff) {
+		dev_dbg(csis->dev, "overriding Ths_settle with %u\n",
+			csis->debug.hs_settle);
+		csis->hs_settle = csis->debug.hs_settle;
 	}
 
-	if (state->debug.clk_settle < 4) {
-		dev_dbg(state->dev, "overriding Tclk_settle with %u\n",
-			state->debug.clk_settle);
-		state->clk_settle = state->debug.clk_settle;
+	if (csis->debug.clk_settle < 4) {
+		dev_dbg(csis->dev, "overriding Tclk_settle with %u\n",
+			csis->debug.clk_settle);
+		csis->clk_settle = csis->debug.clk_settle;
 	}
 
 	return 0;
 }
 
-static void mipi_csis_set_params(struct csi_state *state)
+static void mipi_csis_set_params(struct mipi_csis_device *csis)
 {
-	int lanes = state->bus.num_data_lanes;
+	int lanes = csis->bus.num_data_lanes;
 	u32 val;
 
-	val = mipi_csis_read(state, MIPI_CSIS_CMN_CTRL);
+	val = mipi_csis_read(csis, MIPI_CSIS_CMN_CTRL);
 	val &= ~MIPI_CSIS_CMN_CTRL_LANE_NR_MASK;
 	val |= (lanes - 1) << MIPI_CSIS_CMN_CTRL_LANE_NR_OFFSET;
-	if (state->info->version == MIPI_CSIS_V3_3)
+	if (csis->info->version == MIPI_CSIS_V3_3)
 		val |= MIPI_CSIS_CMN_CTRL_INTER_MODE;
-	mipi_csis_write(state, MIPI_CSIS_CMN_CTRL, val);
+	mipi_csis_write(csis, MIPI_CSIS_CMN_CTRL, val);
 
-	__mipi_csis_set_format(state);
+	__mipi_csis_set_format(csis);
 
-	mipi_csis_write(state, MIPI_CSIS_DPHY_CMN_CTRL,
-			MIPI_CSIS_DPHY_CMN_CTRL_HSSETTLE(state->hs_settle) |
-			MIPI_CSIS_DPHY_CMN_CTRL_CLKSETTLE(state->clk_settle));
+	mipi_csis_write(csis, MIPI_CSIS_DPHY_CMN_CTRL,
+			MIPI_CSIS_DPHY_CMN_CTRL_HSSETTLE(csis->hs_settle) |
+			MIPI_CSIS_DPHY_CMN_CTRL_CLKSETTLE(csis->clk_settle));
 
 	val = (0 << MIPI_CSIS_ISP_SYNC_HSYNC_LINTV_OFFSET)
 	    | (0 << MIPI_CSIS_ISP_SYNC_VSYNC_SINTV_OFFSET)
 	    | (0 << MIPI_CSIS_ISP_SYNC_VSYNC_EINTV_OFFSET);
-	mipi_csis_write(state, MIPI_CSIS_ISP_SYNC_CH(0), val);
+	mipi_csis_write(csis, MIPI_CSIS_ISP_SYNC_CH(0), val);
 
-	val = mipi_csis_read(state, MIPI_CSIS_CLK_CTRL);
+	val = mipi_csis_read(csis, MIPI_CSIS_CLK_CTRL);
 	val |= MIPI_CSIS_CLK_CTRL_WCLK_SRC;
 	val |= MIPI_CSIS_CLK_CTRL_CLKGATE_TRAIL_CH0(15);
 	val &= ~MIPI_CSIS_CLK_CTRL_CLKGATE_EN_MSK;
-	mipi_csis_write(state, MIPI_CSIS_CLK_CTRL, val);
+	mipi_csis_write(csis, MIPI_CSIS_CLK_CTRL, val);
 
-	mipi_csis_write(state, MIPI_CSIS_DPHY_BCTRL_L,
+	mipi_csis_write(csis, MIPI_CSIS_DPHY_BCTRL_L,
 			MIPI_CSIS_DPHY_BCTRL_L_BIAS_REF_VOLT_715MV |
 			MIPI_CSIS_DPHY_BCTRL_L_BGR_CHOPPER_FREQ_3MHZ |
 			MIPI_CSIS_DPHY_BCTRL_L_REG_12P_LVL_CTL_1_2V |
@@ -653,95 +680,95 @@ static void mipi_csis_set_params(struct csi_state *state)
 			MIPI_CSIS_DPHY_BCTRL_L_LP_RX_VREF_LVL_715MV |
 			MIPI_CSIS_DPHY_BCTRL_L_LP_CD_HYS_60MV |
 			MIPI_CSIS_DPHY_BCTRL_L_B_DPHYCTRL(20000000));
-	mipi_csis_write(state, MIPI_CSIS_DPHY_BCTRL_H, 0);
+	mipi_csis_write(csis, MIPI_CSIS_DPHY_BCTRL_H, 0);
 
 	/* Update the shadow register. */
-	val = mipi_csis_read(state, MIPI_CSIS_CMN_CTRL);
-	mipi_csis_write(state, MIPI_CSIS_CMN_CTRL,
+	val = mipi_csis_read(csis, MIPI_CSIS_CMN_CTRL);
+	mipi_csis_write(csis, MIPI_CSIS_CMN_CTRL,
 			val | MIPI_CSIS_CMN_CTRL_UPDATE_SHADOW |
 			MIPI_CSIS_CMN_CTRL_UPDATE_SHADOW_CTRL);
 }
 
-static int mipi_csis_clk_enable(struct csi_state *state)
+static int mipi_csis_clk_enable(struct mipi_csis_device *csis)
 {
-	return clk_bulk_prepare_enable(state->info->num_clocks, state->clks);
+	return clk_bulk_prepare_enable(csis->info->num_clocks, csis->clks);
 }
 
-static void mipi_csis_clk_disable(struct csi_state *state)
+static void mipi_csis_clk_disable(struct mipi_csis_device *csis)
 {
-	clk_bulk_disable_unprepare(state->info->num_clocks, state->clks);
+	clk_bulk_disable_unprepare(csis->info->num_clocks, csis->clks);
 }
 
-static int mipi_csis_clk_get(struct csi_state *state)
+static int mipi_csis_clk_get(struct mipi_csis_device *csis)
 {
 	unsigned int i;
 	int ret;
 
-	state->clks = devm_kcalloc(state->dev, state->info->num_clocks,
-				   sizeof(*state->clks), GFP_KERNEL);
+	csis->clks = devm_kcalloc(csis->dev, csis->info->num_clocks,
+				  sizeof(*csis->clks), GFP_KERNEL);
 
-	if (!state->clks)
+	if (!csis->clks)
 		return -ENOMEM;
 
-	for (i = 0; i < state->info->num_clocks; i++)
-		state->clks[i].id = mipi_csis_clk_id[i];
+	for (i = 0; i < csis->info->num_clocks; i++)
+		csis->clks[i].id = mipi_csis_clk_id[i];
 
-	ret = devm_clk_bulk_get(state->dev, state->info->num_clocks,
-				state->clks);
+	ret = devm_clk_bulk_get(csis->dev, csis->info->num_clocks,
+				csis->clks);
 	if (ret < 0)
 		return ret;
 
 	/* Set clock rate */
-	ret = clk_set_rate(state->clks[MIPI_CSIS_CLK_WRAP].clk,
-			   state->clk_frequency);
+	ret = clk_set_rate(csis->clks[MIPI_CSIS_CLK_WRAP].clk,
+			   csis->clk_frequency);
 	if (ret < 0)
-		dev_err(state->dev, "set rate=%d failed: %d\n",
-			state->clk_frequency, ret);
+		dev_err(csis->dev, "set rate=%d failed: %d\n",
+			csis->clk_frequency, ret);
 
 	return ret;
 }
 
-static void mipi_csis_start_stream(struct csi_state *state)
+static void mipi_csis_start_stream(struct mipi_csis_device *csis)
 {
-	mipi_csis_sw_reset(state);
-	mipi_csis_set_params(state);
-	mipi_csis_system_enable(state, true);
-	mipi_csis_enable_interrupts(state, true);
+	mipi_csis_sw_reset(csis);
+	mipi_csis_set_params(csis);
+	mipi_csis_system_enable(csis, true);
+	mipi_csis_enable_interrupts(csis, true);
 }
 
-static void mipi_csis_stop_stream(struct csi_state *state)
+static void mipi_csis_stop_stream(struct mipi_csis_device *csis)
 {
-	mipi_csis_enable_interrupts(state, false);
-	mipi_csis_system_enable(state, false);
+	mipi_csis_enable_interrupts(csis, false);
+	mipi_csis_system_enable(csis, false);
 }
 
 static irqreturn_t mipi_csis_irq_handler(int irq, void *dev_id)
 {
-	struct csi_state *state = dev_id;
+	struct mipi_csis_device *csis = dev_id;
 	unsigned long flags;
 	unsigned int i;
 	u32 status;
 	u32 dbg_status;
 
-	status = mipi_csis_read(state, MIPI_CSIS_INT_SRC);
-	dbg_status = mipi_csis_read(state, MIPI_CSIS_DBG_INTR_SRC);
+	status = mipi_csis_read(csis, MIPI_CSIS_INT_SRC);
+	dbg_status = mipi_csis_read(csis, MIPI_CSIS_DBG_INTR_SRC);
 
-	spin_lock_irqsave(&state->slock, flags);
+	spin_lock_irqsave(&csis->slock, flags);
 
 	/* Update the event/error counters */
-	if ((status & MIPI_CSIS_INT_SRC_ERRORS) || state->debug.enable) {
+	if ((status & MIPI_CSIS_INT_SRC_ERRORS) || csis->debug.enable) {
 		for (i = 0; i < MIPI_CSIS_NUM_EVENTS; i++) {
-			struct mipi_csis_event *event = &state->events[i];
+			struct mipi_csis_event *event = &csis->events[i];
 
 			if ((!event->debug && (status & event->mask)) ||
 			    (event->debug && (dbg_status & event->mask)))
 				event->counter++;
 		}
 	}
-	spin_unlock_irqrestore(&state->slock, flags);
+	spin_unlock_irqrestore(&csis->slock, flags);
 
-	mipi_csis_write(state, MIPI_CSIS_INT_SRC, status);
-	mipi_csis_write(state, MIPI_CSIS_DBG_INTR_SRC, dbg_status);
+	mipi_csis_write(csis, MIPI_CSIS_INT_SRC, status);
+	mipi_csis_write(csis, MIPI_CSIS_DBG_INTR_SRC, dbg_status);
 
 	return IRQ_HANDLED;
 }
@@ -750,47 +777,47 @@ static irqreturn_t mipi_csis_irq_handler(int irq, void *dev_id)
  * PHY regulator and reset
  */
 
-static int mipi_csis_phy_enable(struct csi_state *state)
+static int mipi_csis_phy_enable(struct mipi_csis_device *csis)
 {
-	if (state->info->version != MIPI_CSIS_V3_3)
+	if (csis->info->version != MIPI_CSIS_V3_3)
 		return 0;
 
-	return regulator_enable(state->mipi_phy_regulator);
+	return regulator_enable(csis->mipi_phy_regulator);
 }
 
-static int mipi_csis_phy_disable(struct csi_state *state)
+static int mipi_csis_phy_disable(struct mipi_csis_device *csis)
 {
-	if (state->info->version != MIPI_CSIS_V3_3)
+	if (csis->info->version != MIPI_CSIS_V3_3)
 		return 0;
 
-	return regulator_disable(state->mipi_phy_regulator);
+	return regulator_disable(csis->mipi_phy_regulator);
 }
 
-static void mipi_csis_phy_reset(struct csi_state *state)
+static void mipi_csis_phy_reset(struct mipi_csis_device *csis)
 {
-	if (state->info->version != MIPI_CSIS_V3_3)
+	if (csis->info->version != MIPI_CSIS_V3_3)
 		return;
 
-	reset_control_assert(state->mrst);
+	reset_control_assert(csis->mrst);
 	msleep(20);
-	reset_control_deassert(state->mrst);
+	reset_control_deassert(csis->mrst);
 }
 
-static int mipi_csis_phy_init(struct csi_state *state)
+static int mipi_csis_phy_init(struct mipi_csis_device *csis)
 {
-	if (state->info->version != MIPI_CSIS_V3_3)
+	if (csis->info->version != MIPI_CSIS_V3_3)
 		return 0;
 
 	/* Get MIPI PHY reset and regulator. */
-	state->mrst = devm_reset_control_get_exclusive(state->dev, NULL);
-	if (IS_ERR(state->mrst))
-		return PTR_ERR(state->mrst);
+	csis->mrst = devm_reset_control_get_exclusive(csis->dev, NULL);
+	if (IS_ERR(csis->mrst))
+		return PTR_ERR(csis->mrst);
 
-	state->mipi_phy_regulator = devm_regulator_get(state->dev, "phy");
-	if (IS_ERR(state->mipi_phy_regulator))
-		return PTR_ERR(state->mipi_phy_regulator);
+	csis->mipi_phy_regulator = devm_regulator_get(csis->dev, "phy");
+	if (IS_ERR(csis->mipi_phy_regulator))
+		return PTR_ERR(csis->mipi_phy_regulator);
 
-	return regulator_set_voltage(state->mipi_phy_regulator, 1000000,
+	return regulator_set_voltage(csis->mipi_phy_regulator, 1000000,
 				     1000000);
 }
 
@@ -798,36 +825,36 @@ static int mipi_csis_phy_init(struct csi_state *state)
  * Debug
  */
 
-static void mipi_csis_clear_counters(struct csi_state *state)
+static void mipi_csis_clear_counters(struct mipi_csis_device *csis)
 {
 	unsigned long flags;
 	unsigned int i;
 
-	spin_lock_irqsave(&state->slock, flags);
+	spin_lock_irqsave(&csis->slock, flags);
 	for (i = 0; i < MIPI_CSIS_NUM_EVENTS; i++)
-		state->events[i].counter = 0;
-	spin_unlock_irqrestore(&state->slock, flags);
+		csis->events[i].counter = 0;
+	spin_unlock_irqrestore(&csis->slock, flags);
 }
 
-static void mipi_csis_log_counters(struct csi_state *state, bool non_errors)
+static void mipi_csis_log_counters(struct mipi_csis_device *csis, bool non_errors)
 {
 	unsigned int num_events = non_errors ? MIPI_CSIS_NUM_EVENTS
 				: MIPI_CSIS_NUM_EVENTS - 8;
 	unsigned long flags;
 	unsigned int i;
 
-	spin_lock_irqsave(&state->slock, flags);
+	spin_lock_irqsave(&csis->slock, flags);
 
 	for (i = 0; i < num_events; ++i) {
-		if (state->events[i].counter > 0 || state->debug.enable)
-			dev_info(state->dev, "%s events: %d\n",
-				 state->events[i].name,
-				 state->events[i].counter);
+		if (csis->events[i].counter > 0 || csis->debug.enable)
+			dev_info(csis->dev, "%s events: %d\n",
+				 csis->events[i].name,
+				 csis->events[i].counter);
 	}
-	spin_unlock_irqrestore(&state->slock, flags);
+	spin_unlock_irqrestore(&csis->slock, flags);
 }
 
-static int mipi_csis_dump_regs(struct csi_state *state)
+static int mipi_csis_dump_regs(struct mipi_csis_device *csis)
 {
 	static const struct {
 		u32 offset;
@@ -851,135 +878,134 @@ static int mipi_csis_dump_regs(struct csi_state *state)
 	unsigned int i;
 	u32 cfg;
 
-	dev_info(state->dev, "--- REGISTERS ---\n");
+	if (!pm_runtime_get_if_in_use(csis->dev))
+		return 0;
+
+	dev_info(csis->dev, "--- REGISTERS ---\n");
 
 	for (i = 0; i < ARRAY_SIZE(registers); i++) {
-		cfg = mipi_csis_read(state, registers[i].offset);
-		dev_info(state->dev, "%14s: 0x%08x\n", registers[i].name, cfg);
+		cfg = mipi_csis_read(csis, registers[i].offset);
+		dev_info(csis->dev, "%14s: 0x%08x\n", registers[i].name, cfg);
 	}
+
+	pm_runtime_put(csis->dev);
 
 	return 0;
 }
 
 static int mipi_csis_dump_regs_show(struct seq_file *m, void *private)
 {
-	struct csi_state *state = m->private;
+	struct mipi_csis_device *csis = m->private;
 
-	return mipi_csis_dump_regs(state);
+	return mipi_csis_dump_regs(csis);
 }
 DEFINE_SHOW_ATTRIBUTE(mipi_csis_dump_regs);
 
-static void mipi_csis_debugfs_init(struct csi_state *state)
+static void mipi_csis_debugfs_init(struct mipi_csis_device *csis)
 {
-	state->debug.hs_settle = UINT_MAX;
-	state->debug.clk_settle = UINT_MAX;
+	csis->debug.hs_settle = UINT_MAX;
+	csis->debug.clk_settle = UINT_MAX;
 
-	state->debugfs_root = debugfs_create_dir(dev_name(state->dev), NULL);
+	csis->debugfs_root = debugfs_create_dir(dev_name(csis->dev), NULL);
 
-	debugfs_create_bool("debug_enable", 0600, state->debugfs_root,
-			    &state->debug.enable);
-	debugfs_create_file("dump_regs", 0600, state->debugfs_root, state,
+	debugfs_create_bool("debug_enable", 0600, csis->debugfs_root,
+			    &csis->debug.enable);
+	debugfs_create_file("dump_regs", 0600, csis->debugfs_root, csis,
 			    &mipi_csis_dump_regs_fops);
-	debugfs_create_u32("tclk_settle", 0600, state->debugfs_root,
-			   &state->debug.clk_settle);
-	debugfs_create_u32("ths_settle", 0600, state->debugfs_root,
-			   &state->debug.hs_settle);
+	debugfs_create_u32("tclk_settle", 0600, csis->debugfs_root,
+			   &csis->debug.clk_settle);
+	debugfs_create_u32("ths_settle", 0600, csis->debugfs_root,
+			   &csis->debug.hs_settle);
 }
 
-static void mipi_csis_debugfs_exit(struct csi_state *state)
+static void mipi_csis_debugfs_exit(struct mipi_csis_device *csis)
 {
-	debugfs_remove_recursive(state->debugfs_root);
+	debugfs_remove_recursive(csis->debugfs_root);
 }
 
 /* -----------------------------------------------------------------------------
  * V4L2 subdev operations
  */
 
-static struct csi_state *mipi_sd_to_csis_state(struct v4l2_subdev *sdev)
+static struct mipi_csis_device *sd_to_mipi_csis_device(struct v4l2_subdev *sdev)
 {
-	return container_of(sdev, struct csi_state, sd);
+	return container_of(sdev, struct mipi_csis_device, sd);
 }
 
 static int mipi_csis_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	struct csi_state *state = mipi_sd_to_csis_state(sd);
+	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
 	int ret;
 
-	if (enable) {
-		ret = mipi_csis_calculate_params(state);
-		if (ret < 0)
-			return ret;
+	if (!enable) {
+		mutex_lock(&csis->lock);
 
-		mipi_csis_clear_counters(state);
+		v4l2_subdev_call(csis->src_sd, video, s_stream, 0);
 
-		ret = pm_runtime_resume_and_get(state->dev);
-		if (ret < 0)
-			return ret;
+		mipi_csis_stop_stream(csis);
+		if (csis->debug.enable)
+			mipi_csis_log_counters(csis, true);
 
-		ret = v4l2_subdev_call(state->src_sd, core, s_power, 1);
-		if (ret < 0 && ret != -ENOIOCTLCMD)
-			goto done;
+		mutex_unlock(&csis->lock);
+
+		pm_runtime_put(csis->dev);
+
+		return 0;
 	}
 
-	mutex_lock(&state->lock);
+	ret = mipi_csis_calculate_params(csis);
+	if (ret < 0)
+		return ret;
 
-	if (enable) {
-		if (state->state & ST_SUSPENDED) {
-			ret = -EBUSY;
-			goto unlock;
-		}
+	mipi_csis_clear_counters(csis);
 
-		mipi_csis_start_stream(state);
-		ret = v4l2_subdev_call(state->src_sd, video, s_stream, 1);
-		if (ret < 0)
-			goto unlock;
+	ret = pm_runtime_resume_and_get(csis->dev);
+	if (ret < 0)
+		return ret;
 
-		mipi_csis_log_counters(state, true);
+	mutex_lock(&csis->lock);
 
-		state->state |= ST_STREAMING;
-	} else {
-		v4l2_subdev_call(state->src_sd, video, s_stream, 0);
-		ret = v4l2_subdev_call(state->src_sd, core, s_power, 0);
-		if (ret == -ENOIOCTLCMD)
-			ret = 0;
-		mipi_csis_stop_stream(state);
-		state->state &= ~ST_STREAMING;
-		if (state->debug.enable)
-			mipi_csis_log_counters(state, true);
-	}
+	mipi_csis_start_stream(csis);
+	ret = v4l2_subdev_call(csis->src_sd, video, s_stream, 1);
+	if (ret < 0)
+		goto error;
 
-unlock:
-	mutex_unlock(&state->lock);
+	mipi_csis_log_counters(csis, true);
 
-done:
-	if (!enable || ret < 0)
-		pm_runtime_put(state->dev);
+	mutex_unlock(&csis->lock);
+
+	return 0;
+
+error:
+	mipi_csis_stop_stream(csis);
+	mutex_unlock(&csis->lock);
+	pm_runtime_put(csis->dev);
 
 	return ret;
 }
 
 static struct v4l2_mbus_framefmt *
-mipi_csis_get_format(struct csi_state *state,
+mipi_csis_get_format(struct mipi_csis_device *csis,
 		     struct v4l2_subdev_state *sd_state,
 		     enum v4l2_subdev_format_whence which,
 		     unsigned int pad)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&state->sd, sd_state, pad);
+		return v4l2_subdev_get_try_format(&csis->sd, sd_state, pad);
 
-	return &state->format_mbus[pad];
+	return &csis->format_mbus[pad];
 }
 
 static int mipi_csis_init_cfg(struct v4l2_subdev *sd,
 			      struct v4l2_subdev_state *sd_state)
 {
-	struct csi_state *state = mipi_sd_to_csis_state(sd);
+	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
 	struct v4l2_mbus_framefmt *fmt_sink;
 	struct v4l2_mbus_framefmt *fmt_source;
 	enum v4l2_subdev_format_whence which;
 
 	which = sd_state ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	fmt_sink = mipi_csis_get_format(state, sd_state, which, CSIS_PAD_SINK);
+	fmt_sink = mipi_csis_get_format(csis, sd_state, which, CSIS_PAD_SINK);
 
 	fmt_sink->code = MEDIA_BUS_FMT_UYVY8_1X16;
 	fmt_sink->width = MIPI_CSIS_DEF_PIX_WIDTH;
@@ -993,15 +1019,7 @@ static int mipi_csis_init_cfg(struct v4l2_subdev *sd,
 		V4L2_MAP_QUANTIZATION_DEFAULT(false, fmt_sink->colorspace,
 					      fmt_sink->ycbcr_enc);
 
-	/*
-	 * When called from mipi_csis_subdev_init() to initialize the active
-	 * configuration, cfg is NULL, which indicates there's no source pad
-	 * configuration to set.
-	 */
-	if (!sd_state)
-		return 0;
-
-	fmt_source = mipi_csis_get_format(state, sd_state, which,
+	fmt_source = mipi_csis_get_format(csis, sd_state, which,
 					  CSIS_PAD_SOURCE);
 	*fmt_source = *fmt_sink;
 
@@ -1012,15 +1030,15 @@ static int mipi_csis_get_fmt(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_format *sdformat)
 {
-	struct csi_state *state = mipi_sd_to_csis_state(sd);
+	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
 	struct v4l2_mbus_framefmt *fmt;
 
-	fmt = mipi_csis_get_format(state, sd_state, sdformat->which,
+	fmt = mipi_csis_get_format(csis, sd_state, sdformat->which,
 				   sdformat->pad);
 
-	mutex_lock(&state->lock);
+	mutex_lock(&csis->lock);
 	sdformat->format = *fmt;
-	mutex_unlock(&state->lock);
+	mutex_unlock(&csis->lock);
 
 	return 0;
 }
@@ -1029,7 +1047,7 @@ static int mipi_csis_enum_mbus_code(struct v4l2_subdev *sd,
 				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct csi_state *state = mipi_sd_to_csis_state(sd);
+	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
 
 	/*
 	 * The CSIS can't transcode in any way, the source format is identical
@@ -1041,7 +1059,7 @@ static int mipi_csis_enum_mbus_code(struct v4l2_subdev *sd,
 		if (code->index > 0)
 			return -EINVAL;
 
-		fmt = mipi_csis_get_format(state, sd_state, code->which,
+		fmt = mipi_csis_get_format(csis, sd_state, code->which,
 					   code->pad);
 		code->code = fmt->code;
 		return 0;
@@ -1062,7 +1080,7 @@ static int mipi_csis_set_fmt(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_format *sdformat)
 {
-	struct csi_state *state = mipi_sd_to_csis_state(sd);
+	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
 	struct csis_pix_format const *csis_fmt;
 	struct v4l2_mbus_framefmt *fmt;
 	unsigned int align;
@@ -1110,10 +1128,10 @@ static int mipi_csis_set_fmt(struct v4l2_subdev *sd,
 			      &sdformat->format.height, 1,
 			      CSIS_MAX_PIX_HEIGHT, 0, 0);
 
-	fmt = mipi_csis_get_format(state, sd_state, sdformat->which,
+	fmt = mipi_csis_get_format(csis, sd_state, sdformat->which,
 				   sdformat->pad);
 
-	mutex_lock(&state->lock);
+	mutex_lock(&csis->lock);
 
 	fmt->code = csis_fmt->code;
 	fmt->width = sdformat->format.width;
@@ -1126,7 +1144,7 @@ static int mipi_csis_set_fmt(struct v4l2_subdev *sd,
 	sdformat->format = *fmt;
 
 	/* Propagate the format from sink to source. */
-	fmt = mipi_csis_get_format(state, sd_state, sdformat->which,
+	fmt = mipi_csis_get_format(csis, sd_state, sdformat->which,
 				   CSIS_PAD_SOURCE);
 	*fmt = sdformat->format;
 
@@ -1135,22 +1153,46 @@ static int mipi_csis_set_fmt(struct v4l2_subdev *sd,
 
 	/* Store the CSIS format descriptor for active formats. */
 	if (sdformat->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-		state->csis_fmt = csis_fmt;
+		csis->csis_fmt = csis_fmt;
 
-	mutex_unlock(&state->lock);
+	mutex_unlock(&csis->lock);
+
+	return 0;
+}
+
+static int mipi_csis_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
+				    struct v4l2_mbus_frame_desc *fd)
+{
+	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
+	struct v4l2_mbus_frame_desc_entry *entry = &fd->entry[0];
+
+	if (pad != CSIS_PAD_SOURCE)
+		return -EINVAL;
+
+	fd->type = V4L2_MBUS_FRAME_DESC_TYPE_PARALLEL;
+	fd->num_entries = 1;
+
+	memset(entry, 0, sizeof(*entry));
+
+	mutex_lock(&csis->lock);
+
+	entry->flags = 0;
+	entry->pixelcode = csis->csis_fmt->code;
+	entry->bus.csi2.vc = 0;
+	entry->bus.csi2.dt = csis->csis_fmt->data_type;
+
+	mutex_unlock(&csis->lock);
 
 	return 0;
 }
 
 static int mipi_csis_log_status(struct v4l2_subdev *sd)
 {
-	struct csi_state *state = mipi_sd_to_csis_state(sd);
+	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
 
-	mutex_lock(&state->lock);
-	mipi_csis_log_counters(state, true);
-	if (state->debug.enable && (state->state & ST_POWERED))
-		mipi_csis_dump_regs(state);
-	mutex_unlock(&state->lock);
+	mipi_csis_log_counters(csis, true);
+	if (csis->debug.enable)
+		mipi_csis_dump_regs(csis);
 
 	return 0;
 }
@@ -1168,6 +1210,7 @@ static const struct v4l2_subdev_pad_ops mipi_csis_pad_ops = {
 	.enum_mbus_code		= mipi_csis_enum_mbus_code,
 	.get_fmt		= mipi_csis_get_fmt,
 	.set_fmt		= mipi_csis_set_fmt,
+	.get_frame_desc		= mipi_csis_get_frame_desc,
 };
 
 static const struct v4l2_subdev_ops mipi_csis_subdev_ops = {
@@ -1185,10 +1228,10 @@ static int mipi_csis_link_setup(struct media_entity *entity,
 				const struct media_pad *remote_pad, u32 flags)
 {
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
-	struct csi_state *state = mipi_sd_to_csis_state(sd);
+	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
 	struct v4l2_subdev *remote_sd;
 
-	dev_dbg(state->dev, "link setup %s -> %s", remote_pad->entity->name,
+	dev_dbg(csis->dev, "link setup %s -> %s", remote_pad->entity->name,
 		local_pad->entity->name);
 
 	/* We only care about the link to the source. */
@@ -1198,12 +1241,12 @@ static int mipi_csis_link_setup(struct media_entity *entity,
 	remote_sd = media_entity_to_v4l2_subdev(remote_pad->entity);
 
 	if (flags & MEDIA_LNK_FL_ENABLED) {
-		if (state->src_sd)
+		if (csis->src_sd)
 			return -EBUSY;
 
-		state->src_sd = remote_sd;
+		csis->src_sd = remote_sd;
 	} else {
-		state->src_sd = NULL;
+		csis->src_sd = NULL;
 	}
 
 	return 0;
@@ -1219,18 +1262,18 @@ static const struct media_entity_operations mipi_csis_entity_ops = {
  * Async subdev notifier
  */
 
-static struct csi_state *
+static struct mipi_csis_device *
 mipi_notifier_to_csis_state(struct v4l2_async_notifier *n)
 {
-	return container_of(n, struct csi_state, notifier);
+	return container_of(n, struct mipi_csis_device, notifier);
 }
 
 static int mipi_csis_notify_bound(struct v4l2_async_notifier *notifier,
 				  struct v4l2_subdev *sd,
 				  struct v4l2_async_subdev *asd)
 {
-	struct csi_state *state = mipi_notifier_to_csis_state(notifier);
-	struct media_pad *sink = &state->sd.entity.pads[CSIS_PAD_SINK];
+	struct mipi_csis_device *csis = mipi_notifier_to_csis_state(notifier);
+	struct media_pad *sink = &csis->sd.entity.pads[CSIS_PAD_SINK];
 
 	return v4l2_create_fwnode_links_to_pad(sd, sink, 0);
 }
@@ -1239,7 +1282,7 @@ static const struct v4l2_async_notifier_operations mipi_csis_notify_ops = {
 	.bound = mipi_csis_notify_bound,
 };
 
-static int mipi_csis_async_register(struct csi_state *state)
+static int mipi_csis_async_register(struct mipi_csis_device *csis)
 {
 	struct v4l2_fwnode_endpoint vep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY,
@@ -1249,9 +1292,9 @@ static int mipi_csis_async_register(struct csi_state *state)
 	unsigned int i;
 	int ret;
 
-	v4l2_async_nf_init(&state->notifier);
+	v4l2_async_nf_init(&csis->notifier);
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(state->dev), 0, 0,
+	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(csis->dev), 0, 0,
 					     FWNODE_GRAPH_ENDPOINT_NEXT);
 	if (!ep)
 		return -ENOTCONN;
@@ -1262,19 +1305,19 @@ static int mipi_csis_async_register(struct csi_state *state)
 
 	for (i = 0; i < vep.bus.mipi_csi2.num_data_lanes; ++i) {
 		if (vep.bus.mipi_csi2.data_lanes[i] != i + 1) {
-			dev_err(state->dev,
+			dev_err(csis->dev,
 				"data lanes reordering is not supported");
 			ret = -EINVAL;
 			goto err_parse;
 		}
 	}
 
-	state->bus = vep.bus.mipi_csi2;
+	csis->bus = vep.bus.mipi_csi2;
 
-	dev_dbg(state->dev, "data lanes: %d\n", state->bus.num_data_lanes);
-	dev_dbg(state->dev, "flags: 0x%08x\n", state->bus.flags);
+	dev_dbg(csis->dev, "data lanes: %d\n", csis->bus.num_data_lanes);
+	dev_dbg(csis->dev, "flags: 0x%08x\n", csis->bus.flags);
 
-	asd = v4l2_async_nf_add_fwnode_remote(&state->notifier, ep,
+	asd = v4l2_async_nf_add_fwnode_remote(&csis->notifier, ep,
 					      struct v4l2_async_subdev);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
@@ -1283,13 +1326,13 @@ static int mipi_csis_async_register(struct csi_state *state)
 
 	fwnode_handle_put(ep);
 
-	state->notifier.ops = &mipi_csis_notify_ops;
+	csis->notifier.ops = &mipi_csis_notify_ops;
 
-	ret = v4l2_async_subdev_nf_register(&state->sd, &state->notifier);
+	ret = v4l2_async_subdev_nf_register(&csis->sd, &csis->notifier);
 	if (ret)
 		return ret;
 
-	return v4l2_async_register_subdev(&state->sd);
+	return v4l2_async_register_subdev(&csis->sd);
 
 err_parse:
 	fwnode_handle_put(ep);
@@ -1301,97 +1344,63 @@ err_parse:
  * Suspend/resume
  */
 
-static int mipi_csis_pm_suspend(struct device *dev, bool runtime)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct csi_state *state = mipi_sd_to_csis_state(sd);
-	int ret = 0;
-
-	mutex_lock(&state->lock);
-	if (state->state & ST_POWERED) {
-		mipi_csis_stop_stream(state);
-		ret = mipi_csis_phy_disable(state);
-		if (ret)
-			goto unlock;
-		mipi_csis_clk_disable(state);
-		state->state &= ~ST_POWERED;
-		if (!runtime)
-			state->state |= ST_SUSPENDED;
-	}
-
-unlock:
-	mutex_unlock(&state->lock);
-
-	return ret ? -EAGAIN : 0;
-}
-
-static int mipi_csis_pm_resume(struct device *dev, bool runtime)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct csi_state *state = mipi_sd_to_csis_state(sd);
-	int ret = 0;
-
-	mutex_lock(&state->lock);
-	if (!runtime && !(state->state & ST_SUSPENDED))
-		goto unlock;
-
-	if (!(state->state & ST_POWERED)) {
-		ret = mipi_csis_phy_enable(state);
-		if (ret)
-			goto unlock;
-
-		state->state |= ST_POWERED;
-		mipi_csis_clk_enable(state);
-	}
-	if (state->state & ST_STREAMING)
-		mipi_csis_start_stream(state);
-
-	state->state &= ~ST_SUSPENDED;
-
-unlock:
-	mutex_unlock(&state->lock);
-
-	return ret ? -EAGAIN : 0;
-}
-
-static int __maybe_unused mipi_csis_suspend(struct device *dev)
-{
-	return mipi_csis_pm_suspend(dev, false);
-}
-
-static int __maybe_unused mipi_csis_resume(struct device *dev)
-{
-	return mipi_csis_pm_resume(dev, false);
-}
-
 static int __maybe_unused mipi_csis_runtime_suspend(struct device *dev)
 {
-	return mipi_csis_pm_suspend(dev, true);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
+	int ret = 0;
+
+	mutex_lock(&csis->lock);
+
+	ret = mipi_csis_phy_disable(csis);
+	if (ret)
+		goto unlock;
+
+	mipi_csis_clk_disable(csis);
+
+unlock:
+	mutex_unlock(&csis->lock);
+
+	return ret ? -EAGAIN : 0;
 }
 
 static int __maybe_unused mipi_csis_runtime_resume(struct device *dev)
 {
-	return mipi_csis_pm_resume(dev, true);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
+	int ret = 0;
+
+	mutex_lock(&csis->lock);
+
+	ret = mipi_csis_phy_enable(csis);
+	if (ret)
+		goto unlock;
+
+	mipi_csis_clk_enable(csis);
+
+unlock:
+	mutex_unlock(&csis->lock);
+
+	return ret ? -EAGAIN : 0;
 }
 
 static const struct dev_pm_ops mipi_csis_pm_ops = {
 	SET_RUNTIME_PM_OPS(mipi_csis_runtime_suspend, mipi_csis_runtime_resume,
 			   NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(mipi_csis_suspend, mipi_csis_resume)
 };
 
 /* -----------------------------------------------------------------------------
  * Probe/remove & platform driver
  */
 
-static int mipi_csis_subdev_init(struct csi_state *state)
+static int mipi_csis_subdev_init(struct mipi_csis_device *csis)
 {
-	struct v4l2_subdev *sd = &state->sd;
+	struct v4l2_subdev *sd = &csis->sd;
 
 	v4l2_subdev_init(sd, &mipi_csis_subdev_ops);
 	sd->owner = THIS_MODULE;
 	snprintf(sd->name, sizeof(sd->name), "csis-%s",
-		 dev_name(state->dev));
+		 dev_name(csis->dev));
 
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	sd->ctrl_handler = NULL;
@@ -1399,26 +1408,33 @@ static int mipi_csis_subdev_init(struct csi_state *state)
 	sd->entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	sd->entity.ops = &mipi_csis_entity_ops;
 
-	sd->dev = state->dev;
+	sd->dev = csis->dev;
 
-	state->csis_fmt = &mipi_csis_formats[0];
+	sd->fwnode = fwnode_graph_get_endpoint_by_id(dev_fwnode(csis->dev),
+						     1, 0, 0);
+	if (!sd->fwnode) {
+		dev_err(csis->dev, "Unable to retrieve endpoint for port@1\n");
+		return -ENOENT;
+	}
+
+	csis->csis_fmt = &mipi_csis_formats[0];
 	mipi_csis_init_cfg(sd, NULL);
 
-	state->pads[CSIS_PAD_SINK].flags = MEDIA_PAD_FL_SINK
+	csis->pads[CSIS_PAD_SINK].flags = MEDIA_PAD_FL_SINK
 					 | MEDIA_PAD_FL_MUST_CONNECT;
-	state->pads[CSIS_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE
+	csis->pads[CSIS_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE
 					   | MEDIA_PAD_FL_MUST_CONNECT;
 	return media_entity_pads_init(&sd->entity, CSIS_PADS_NUM,
-				      state->pads);
+				      csis->pads);
 }
 
-static int mipi_csis_parse_dt(struct csi_state *state)
+static int mipi_csis_parse_dt(struct mipi_csis_device *csis)
 {
-	struct device_node *node = state->dev->of_node;
+	struct device_node *node = csis->dev->of_node;
 
 	if (of_property_read_u32(node, "clock-frequency",
-				 &state->clk_frequency))
-		state->clk_frequency = DEFAULT_SCLK_CSIS_FREQ;
+				 &csis->clk_frequency))
+		csis->clk_frequency = DEFAULT_SCLK_CSIS_FREQ;
 
 	return 0;
 }
@@ -1426,102 +1442,103 @@ static int mipi_csis_parse_dt(struct csi_state *state)
 static int mipi_csis_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct csi_state *state;
+	struct mipi_csis_device *csis;
 	int irq;
 	int ret;
 
-	state = devm_kzalloc(dev, sizeof(*state), GFP_KERNEL);
-	if (!state)
+	csis = devm_kzalloc(dev, sizeof(*csis), GFP_KERNEL);
+	if (!csis)
 		return -ENOMEM;
 
-	mutex_init(&state->lock);
-	spin_lock_init(&state->slock);
+	mutex_init(&csis->lock);
+	spin_lock_init(&csis->slock);
 
-	state->dev = dev;
-	state->info = of_device_get_match_data(dev);
+	csis->dev = dev;
+	csis->info = of_device_get_match_data(dev);
 
-	memcpy(state->events, mipi_csis_events, sizeof(state->events));
+	memcpy(csis->events, mipi_csis_events, sizeof(csis->events));
 
 	/* Parse DT properties. */
-	ret = mipi_csis_parse_dt(state);
+	ret = mipi_csis_parse_dt(csis);
 	if (ret < 0) {
 		dev_err(dev, "Failed to parse device tree: %d\n", ret);
 		return ret;
 	}
 
 	/* Acquire resources. */
-	state->regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(state->regs))
-		return PTR_ERR(state->regs);
+	csis->regs = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(csis->regs))
+		return PTR_ERR(csis->regs);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
 
-	ret = mipi_csis_phy_init(state);
+	ret = mipi_csis_phy_init(csis);
 	if (ret < 0)
 		return ret;
 
-	ret = mipi_csis_clk_get(state);
+	ret = mipi_csis_clk_get(csis);
 	if (ret < 0)
 		return ret;
 
 	/* Reset PHY and enable the clocks. */
-	mipi_csis_phy_reset(state);
+	mipi_csis_phy_reset(csis);
 
-	ret = mipi_csis_clk_enable(state);
+	ret = mipi_csis_clk_enable(csis);
 	if (ret < 0) {
-		dev_err(state->dev, "failed to enable clocks: %d\n", ret);
+		dev_err(csis->dev, "failed to enable clocks: %d\n", ret);
 		return ret;
 	}
 
 	/* Now that the hardware is initialized, request the interrupt. */
 	ret = devm_request_irq(dev, irq, mipi_csis_irq_handler, 0,
-			       dev_name(dev), state);
+			       dev_name(dev), csis);
 	if (ret) {
 		dev_err(dev, "Interrupt request failed\n");
 		goto disable_clock;
 	}
 
 	/* Initialize and register the subdev. */
-	ret = mipi_csis_subdev_init(state);
+	ret = mipi_csis_subdev_init(csis);
 	if (ret < 0)
 		goto disable_clock;
 
-	platform_set_drvdata(pdev, &state->sd);
+	platform_set_drvdata(pdev, &csis->sd);
 
-	ret = mipi_csis_async_register(state);
+	ret = mipi_csis_async_register(csis);
 	if (ret < 0) {
 		dev_err(dev, "async register failed: %d\n", ret);
 		goto cleanup;
 	}
 
 	/* Initialize debugfs. */
-	mipi_csis_debugfs_init(state);
+	mipi_csis_debugfs_init(csis);
 
 	/* Enable runtime PM. */
 	pm_runtime_enable(dev);
 	if (!pm_runtime_enabled(dev)) {
-		ret = mipi_csis_pm_resume(dev, true);
+		ret = mipi_csis_runtime_resume(dev);
 		if (ret < 0)
 			goto unregister_all;
 	}
 
 	dev_info(dev, "lanes: %d, freq: %u\n",
-		 state->bus.num_data_lanes, state->clk_frequency);
+		 csis->bus.num_data_lanes, csis->clk_frequency);
 
 	return 0;
 
 unregister_all:
-	mipi_csis_debugfs_exit(state);
+	mipi_csis_debugfs_exit(csis);
 cleanup:
-	media_entity_cleanup(&state->sd.entity);
-	v4l2_async_nf_unregister(&state->notifier);
-	v4l2_async_nf_cleanup(&state->notifier);
-	v4l2_async_unregister_subdev(&state->sd);
+	media_entity_cleanup(&csis->sd.entity);
+	v4l2_async_nf_unregister(&csis->notifier);
+	v4l2_async_nf_cleanup(&csis->notifier);
+	v4l2_async_unregister_subdev(&csis->sd);
 disable_clock:
-	mipi_csis_clk_disable(state);
-	mutex_destroy(&state->lock);
+	mipi_csis_clk_disable(csis);
+	fwnode_handle_put(csis->sd.fwnode);
+	mutex_destroy(&csis->lock);
 
 	return ret;
 }
@@ -1529,18 +1546,19 @@ disable_clock:
 static int mipi_csis_remove(struct platform_device *pdev)
 {
 	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
-	struct csi_state *state = mipi_sd_to_csis_state(sd);
+	struct mipi_csis_device *csis = sd_to_mipi_csis_device(sd);
 
-	mipi_csis_debugfs_exit(state);
-	v4l2_async_nf_unregister(&state->notifier);
-	v4l2_async_nf_cleanup(&state->notifier);
-	v4l2_async_unregister_subdev(&state->sd);
+	mipi_csis_debugfs_exit(csis);
+	v4l2_async_nf_unregister(&csis->notifier);
+	v4l2_async_nf_cleanup(&csis->notifier);
+	v4l2_async_unregister_subdev(&csis->sd);
 
 	pm_runtime_disable(&pdev->dev);
-	mipi_csis_pm_suspend(&pdev->dev, true);
-	mipi_csis_clk_disable(state);
-	media_entity_cleanup(&state->sd.entity);
-	mutex_destroy(&state->lock);
+	mipi_csis_runtime_suspend(&pdev->dev);
+	mipi_csis_clk_disable(csis);
+	media_entity_cleanup(&csis->sd.entity);
+	fwnode_handle_put(csis->sd.fwnode);
+	mutex_destroy(&csis->lock);
 	pm_runtime_set_suspended(&pdev->dev);
 
 	return 0;

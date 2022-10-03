@@ -485,24 +485,25 @@ config FRAME_POINTER
 	  larger and slower, but it gives very useful debugging information
 	  in case of kernel bugs. (precise oopses/stacktraces/warnings)
 
+config OBJTOOL
+	bool
+
 config STACK_VALIDATION
 	bool "Compile-time stack metadata validation"
-	depends on HAVE_STACK_VALIDATION
+	depends on HAVE_STACK_VALIDATION && UNWINDER_FRAME_POINTER
+	select OBJTOOL
 	default n
 	help
-	  Add compile-time checks to validate stack metadata, including frame
-	  pointers (if CONFIG_FRAME_POINTER is enabled).  This helps ensure
-	  that runtime stack traces are more reliable.
-
-	  This is also a prerequisite for generation of ORC unwind data, which
-	  is needed for CONFIG_UNWINDER_ORC.
+	  Validate frame pointer rules at compile-time.  This helps ensure that
+	  runtime stack traces are more reliable.
 
 	  For more information, see
-	  tools/objtool/Documentation/stack-validation.txt.
+	  tools/objtool/Documentation/objtool.txt.
 
-config VMLINUX_VALIDATION
+config NOINSTR_VALIDATION
 	bool
-	depends on STACK_VALIDATION && DEBUG_ENTRY
+	depends on HAVE_NOINSTR_VALIDATION && DEBUG_ENTRY
+	select OBJTOOL
 	default y
 
 config VMLINUX_MAP
@@ -698,39 +699,13 @@ config DEBUG_OBJECTS_ENABLE_DEFAULT
 	help
 	  Debug objects boot parameter default value
 
-config DEBUG_SLAB
-	bool "Debug slab memory allocations"
-	depends on DEBUG_KERNEL && SLAB
+config SHRINKER_DEBUG
+	bool "Enable shrinker debugging support"
+	depends on DEBUG_FS
 	help
-	  Say Y here to have the kernel do limited verification on memory
-	  allocation as well as poisoning memory on free to catch use of freed
-	  memory. This can make kmalloc/kfree-intensive workloads much slower.
-
-config SLUB_DEBUG_ON
-	bool "SLUB debugging on by default"
-	depends on SLUB && SLUB_DEBUG
-	default n
-	help
-	  Boot with debugging on by default. SLUB boots by default with
-	  the runtime debug capabilities switched off. Enabling this is
-	  equivalent to specifying the "slub_debug" parameter on boot.
-	  There is no support for more fine grained debug control like
-	  possible with slub_debug=xxx. SLUB debugging may be switched
-	  off in a kernel built with CONFIG_SLUB_DEBUG_ON by specifying
-	  "slub_debug=-".
-
-config SLUB_STATS
-	default n
-	bool "Enable SLUB performance statistics"
-	depends on SLUB && SYSFS
-	help
-	  SLUB statistics are useful to debug SLUBs allocation behavior in
-	  order find ways to optimize the allocator. This should never be
-	  enabled for production use since keeping statistics slows down
-	  the allocator by a few percentage points. The slabinfo command
-	  supports the determination of the most active slabs to figure
-	  out which slabs are relevant to a particular load.
-	  Try running: slabinfo -DA
+	  Say Y to enable the shrinker debugfs interface which provides
+	  visibility into the kernel memory shrinkers subsystem.
+	  Disable it to avoid an extra memory footprint.
 
 config HAVE_DEBUG_KMEMLEAK
 	bool
@@ -1071,13 +1046,6 @@ config BOOTPARAM_SOFTLOCKUP_PANIC
 
 	  Say N if unsure.
 
-config BOOTPARAM_SOFTLOCKUP_PANIC_VALUE
-	int
-	depends on SOFTLOCKUP_DETECTOR
-	range 0 1
-	default 0 if !BOOTPARAM_SOFTLOCKUP_PANIC
-	default 1 if BOOTPARAM_SOFTLOCKUP_PANIC
-
 config HARDLOCKUP_DETECTOR_PERF
 	bool
 	select SOFTLOCKUP_DETECTOR
@@ -1118,13 +1086,6 @@ config BOOTPARAM_HARDLOCKUP_PANIC
 	  using the watchdog_thresh sysctl).
 
 	  Say N if unsure.
-
-config BOOTPARAM_HARDLOCKUP_PANIC_VALUE
-	int
-	depends on HARDLOCKUP_DETECTOR
-	range 0 1
-	default 0 if !BOOTPARAM_HARDLOCKUP_PANIC
-	default 1 if BOOTPARAM_HARDLOCKUP_PANIC
 
 config DETECT_HUNG_TASK
 	bool "Detect Hung Tasks"
@@ -1172,13 +1133,6 @@ config BOOTPARAM_HUNG_TASK_PANIC
 	  where a hung tasks must be resolved ASAP.
 
 	  Say N if unsure.
-
-config BOOTPARAM_HUNG_TASK_PANIC_VALUE
-	int
-	depends on DETECT_HUNG_TASK
-	range 0 1
-	default 0 if !BOOTPARAM_HUNG_TASK_PANIC
-	default 1 if BOOTPARAM_HUNG_TASK_PANIC
 
 config WQ_WATCHDOG
 	bool "Detect Workqueue Stalls"
@@ -1544,29 +1498,6 @@ config CSD_LOCK_WAIT_DEBUG
 	  include the IPI handler function currently executing (if any)
 	  and relevant stack traces.
 
-choice
-	prompt "Lock debugging: prove subsystem device_lock() correctness"
-	depends on PROVE_LOCKING
-	help
-	  For subsystems that have instrumented their usage of the device_lock()
-	  with nested annotations, enable lock dependency checking. The locking
-	  hierarchy 'subclass' identifiers are not compatible across
-	  sub-systems, so only one can be enabled at a time.
-
-config PROVE_NVDIMM_LOCKING
-	bool "NVDIMM"
-	depends on LIBNVDIMM
-	help
-	  Enable lockdep to validate nd_device_lock() usage.
-
-config PROVE_CXL_LOCKING
-	bool "CXL"
-	depends on CXL_BUS
-	help
-	  Enable lockdep to validate cxl_device_lock() usage.
-
-endchoice
-
 endmenu # lock debugging
 
 config TRACE_IRQFLAGS
@@ -1616,8 +1547,7 @@ config WARN_ALL_UNSEEDED_RANDOM
 	  so architecture maintainers really need to do what they can
 	  to get the CRNG seeded sooner after the system is booted.
 	  However, since users cannot do anything actionable to
-	  address this, by default the kernel will issue only a single
-	  warning for the first use of unseeded randomness.
+	  address this, by default this option is disabled.
 
 	  Say Y here if you want to receive warnings for all uses of
 	  unseeded randomness.  This will be of use primarily for
@@ -1638,7 +1568,7 @@ config DEBUG_KOBJECT_RELEASE
 	help
 	  kobjects are reference counted objects.  This means that their
 	  last reference count put is not predictable, and the kobject can
-	  live on past the point at which a driver decides to drop it's
+	  live on past the point at which a driver decides to drop its
 	  initial reference to the kobject gained on allocation.  An
 	  example of this would be a struct device which has just been
 	  unregistered.
@@ -2035,10 +1965,11 @@ config KCOV
 	bool "Code coverage for fuzzing"
 	depends on ARCH_HAS_KCOV
 	depends on CC_HAS_SANCOV_TRACE_PC || GCC_PLUGINS
-	depends on !ARCH_WANTS_NO_INSTR || STACK_VALIDATION || \
+	depends on !ARCH_WANTS_NO_INSTR || HAVE_NOINSTR_HACK || \
 		   GCC_VERSION >= 120000 || CLANG_VERSION >= 130000
 	select DEBUG_FS
 	select GCC_PLUGIN_SANCOV if !CC_HAS_SANCOV_TRACE_PC
+	select OBJTOOL if HAVE_NOINSTR_HACK
 	help
 	  KCOV exposes kernel code coverage information in a form suitable
 	  for coverage-guided fuzzing (randomized testing).
@@ -2098,6 +2029,15 @@ config LKDTM
 	Documentation on how to use the module can be found in
 	Documentation/fault-injection/provoke-crashes.rst
 
+config TEST_CPUMASK
+	tristate "cpumask tests" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Enable to turn on cpumask tests, running at boot or module load time.
+
+	  If unsure, say N.
+
 config TEST_LIST_SORT
 	tristate "Linked list sorting test" if !KUNIT_ALL_TESTS
 	depends on KUNIT
@@ -2140,10 +2080,11 @@ config TEST_DIV64
 	  If unsure, say N.
 
 config KPROBES_SANITY_TEST
-	tristate "Kprobes sanity tests"
+	tristate "Kprobes sanity tests" if !KUNIT_ALL_TESTS
 	depends on DEBUG_KERNEL
 	depends on KPROBES
 	depends on KUNIT
+	default KUNIT_ALL_TESTS
 	help
 	  This option provides for testing basic kprobes functionality on
 	  boot. Samples of kprobe and kretprobe are inserted and
@@ -2417,8 +2358,9 @@ config TEST_SYSCTL
 	  If unsure, say N.
 
 config BITFIELD_KUNIT
-	tristate "KUnit test bitfield functions at runtime"
+	tristate "KUnit test bitfield functions at runtime" if !KUNIT_ALL_TESTS
 	depends on KUNIT
+	default KUNIT_ALL_TESTS
 	help
 	  Enable this option to test the bitfield functions at boot.
 
@@ -2452,8 +2394,9 @@ config HASH_KUNIT_TEST
 	  optimized versions. If unsure, say N.
 
 config RESOURCE_KUNIT_TEST
-	tristate "KUnit test for resource API"
+	tristate "KUnit test for resource API" if !KUNIT_ALL_TESTS
 	depends on KUNIT
+	default KUNIT_ALL_TESTS
 	help
 	  This builds the resource API unit test.
 	  Tests the logic of API provided by resource.c and ioport.h.
@@ -2506,8 +2449,9 @@ config LINEAR_RANGES_TEST
 	  If unsure, say N.
 
 config CMDLINE_KUNIT_TEST
-	tristate "KUnit test for cmdline API"
+	tristate "KUnit test for cmdline API" if !KUNIT_ALL_TESTS
 	depends on KUNIT
+	default KUNIT_ALL_TESTS
 	help
 	  This builds the cmdline API unit test.
 	  Tests the logic of API provided by cmdline.c.
@@ -2517,8 +2461,9 @@ config CMDLINE_KUNIT_TEST
 	  If unsure, say N.
 
 config BITS_TEST
-	tristate "KUnit test for bits.h"
+	tristate "KUnit test for bits.h" if !KUNIT_ALL_TESTS
 	depends on KUNIT
+	default KUNIT_ALL_TESTS
 	help
 	  This builds the bits unit test.
 	  Tests the logic of macros defined in bits.h.

@@ -379,6 +379,7 @@ static int btmtksdio_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
 	struct hci_event_hdr *hdr = (void *)skb->data;
+	u8 evt = hdr->evt;
 	int err;
 
 	/* When someone waits for the WMT event, the skb is being cloned
@@ -396,7 +397,7 @@ static int btmtksdio_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
 	if (err < 0)
 		goto err_free_skb;
 
-	if (hdr->evt == HCI_EV_WMT) {
+	if (evt == HCI_EV_WMT) {
 		if (test_and_clear_bit(BTMTKSDIO_TX_WAIT_VND_EVT,
 				       &bdev->tx_state)) {
 			/* Barrier to sync with other CPUs */
@@ -863,6 +864,14 @@ static int mt79xx_setup(struct hci_dev *hdev, const char *fwname)
 		return err;
 	}
 
+	err = btmtksdio_fw_pmctrl(bdev);
+	if (err < 0)
+		return err;
+
+	err = btmtksdio_drv_pmctrl(bdev);
+	if (err < 0)
+		return err;
+
 	/* Enable Bluetooth protocol */
 	wmt_params.op = BTMTK_WMT_FUNC_CTRL;
 	wmt_params.flag = 0;
@@ -961,7 +970,7 @@ static int btmtksdio_get_codec_config_data(struct hci_dev *hdev,
 	}
 
 	*ven_data = kmalloc(sizeof(__u8), GFP_KERNEL);
-	if (!ven_data) {
+	if (!*ven_data) {
 		err = -ENOMEM;
 		goto error;
 	}
@@ -1108,14 +1117,6 @@ static int btmtksdio_setup(struct hci_dev *hdev)
 		if (err < 0)
 			return err;
 
-		err = btmtksdio_fw_pmctrl(bdev);
-		if (err < 0)
-			return err;
-
-		err = btmtksdio_drv_pmctrl(bdev);
-		if (err < 0)
-			return err;
-
 		/* Enable SCO over I2S/PCM */
 		err = btmtksdio_sco_setting(hdev);
 		if (err < 0) {
@@ -1188,6 +1189,10 @@ static int btmtksdio_shutdown(struct hci_dev *hdev)
 	 */
 	pm_runtime_get_sync(bdev->dev);
 
+	/* wmt command only works until the reset is complete */
+	if (test_bit(BTMTKSDIO_HW_RESET_ACTIVE, &bdev->tx_state))
+		goto ignore_wmt_cmd;
+
 	/* Disable the device */
 	wmt_params.op = BTMTK_WMT_FUNC_CTRL;
 	wmt_params.flag = 0;
@@ -1201,6 +1206,7 @@ static int btmtksdio_shutdown(struct hci_dev *hdev)
 		return err;
 	}
 
+ignore_wmt_cmd:
 	pm_runtime_put_noidle(bdev->dev);
 	pm_runtime_disable(bdev->dev);
 
@@ -1276,6 +1282,13 @@ err:
 	hci_reset_dev(hdev);
 }
 
+static bool btmtksdio_sdio_inband_wakeup(struct hci_dev *hdev)
+{
+	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
+
+	return device_may_wakeup(bdev->dev);
+}
+
 static bool btmtksdio_sdio_wakeup(struct hci_dev *hdev)
 {
 	struct btmtksdio_dev *bdev = hci_get_drvdata(hdev);
@@ -1343,6 +1356,14 @@ static int btmtksdio_probe(struct sdio_func *func,
 	hdev->shutdown = btmtksdio_shutdown;
 	hdev->send     = btmtksdio_send_frame;
 	hdev->wakeup   = btmtksdio_sdio_wakeup;
+	/*
+	 * If SDIO controller supports wake on Bluetooth, sending a wakeon
+	 * command is not necessary.
+	 */
+	if (device_can_wakeup(func->card->host->parent))
+		hdev->wakeup = btmtksdio_sdio_inband_wakeup;
+	else
+		hdev->wakeup = btmtksdio_sdio_wakeup;
 	hdev->set_bdaddr = btmtk_set_bdaddr;
 
 	SET_HCIDEV_DEV(hdev, &func->dev);

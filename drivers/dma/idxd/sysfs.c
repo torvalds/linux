@@ -588,7 +588,7 @@ static ssize_t wq_mode_store(struct device *dev,
 	if (sysfs_streq(buf, "dedicated")) {
 		set_bit(WQ_FLAG_DEDICATED, &wq->flags);
 		wq->threshold = 0;
-	} else if (sysfs_streq(buf, "shared") && device_swq_supported(idxd)) {
+	} else if (sysfs_streq(buf, "shared")) {
 		clear_bit(WQ_FLAG_DEDICATED, &wq->flags);
 	} else {
 		return -EINVAL;
@@ -832,6 +832,7 @@ static ssize_t wq_name_store(struct device *dev,
 			     size_t count)
 {
 	struct idxd_wq *wq = confdev_to_wq(dev);
+	char *input, *pos;
 
 	if (wq->state != IDXD_WQ_DISABLED)
 		return -EPERM;
@@ -846,9 +847,14 @@ static ssize_t wq_name_store(struct device *dev,
 	if (wq->type == IDXD_WQT_KERNEL && device_pasid_enabled(wq->idxd))
 		return -EOPNOTSUPP;
 
+	input = kstrndup(buf, count, GFP_KERNEL);
+	if (!input)
+		return -ENOMEM;
+
+	pos = strim(input);
 	memset(wq->name, 0, WQ_NAME_SIZE + 1);
-	strncpy(wq->name, buf, WQ_NAME_SIZE);
-	strreplace(wq->name, '\n', '\0');
+	sprintf(wq->name, "%s", pos);
+	kfree(input);
 	return count;
 }
 
@@ -905,6 +911,9 @@ static ssize_t wq_max_transfer_size_store(struct device *dev, struct device_attr
 	u64 xfer_size;
 	int rc;
 
+	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
+		return -EPERM;
+
 	if (wq->state != IDXD_WQ_DISABLED)
 		return -EPERM;
 
@@ -938,6 +947,9 @@ static ssize_t wq_max_batch_size_store(struct device *dev, struct device_attribu
 	struct idxd_device *idxd = wq->idxd;
 	u64 batch_size;
 	int rc;
+
+	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
+		return -EPERM;
 
 	if (wq->state != IDXD_WQ_DISABLED)
 		return -EPERM;

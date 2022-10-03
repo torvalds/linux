@@ -1863,7 +1863,7 @@ EXPORT_SYMBOL(il_send_add_sta);
 static void
 il_set_ht_add_station(struct il_priv *il, u8 idx, struct ieee80211_sta *sta)
 {
-	struct ieee80211_sta_ht_cap *sta_ht_inf = &sta->ht_cap;
+	struct ieee80211_sta_ht_cap *sta_ht_inf = &sta->deflink.ht_cap;
 	__le32 sta_flags;
 
 	if (!sta || !sta_ht_inf->ht_supported)
@@ -1900,7 +1900,7 @@ il_set_ht_add_station(struct il_priv *il, u8 idx, struct ieee80211_sta *sta)
 	    cpu_to_le32((u32) sta_ht_inf->
 			ampdu_density << STA_FLG_AGG_MPDU_DENSITY_POS);
 
-	if (il_is_ht40_tx_allowed(il, &sta->ht_cap))
+	if (il_is_ht40_tx_allowed(il, &sta->deflink.ht_cap))
 		sta_flags |= STA_FLG_HT40_EN_MSK;
 	else
 		sta_flags &= ~STA_FLG_HT40_EN_MSK;
@@ -4480,7 +4480,8 @@ il_clear_isr_stats(struct il_priv *il)
 }
 
 int
-il_mac_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
+il_mac_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+	       unsigned int link_id, u16 queue,
 	       const struct ieee80211_tx_queue_params *params)
 {
 	struct il_priv *il = hw->priv;
@@ -4816,7 +4817,7 @@ il_check_stuck_queue(struct il_priv *il, int cnt)
 #define IL_WD_TICK(timeout) ((timeout) / 4)
 
 /*
- * Watchdog timer callback, we check each tx queue for stuck, if if hung
+ * Watchdog timer callback, we check each tx queue for stuck, if hung
  * we reset the firmware. If everything is fine just rearm the timer.
  */
 void
@@ -5222,7 +5223,7 @@ il_ht_conf(struct il_priv *il, struct ieee80211_vif *vif)
 		rcu_read_lock();
 		sta = ieee80211_find_sta(vif, bss_conf->bssid);
 		if (sta) {
-			struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
+			struct ieee80211_sta_ht_cap *ht_cap = &sta->deflink.ht_cap;
 			int maxstreams;
 
 			maxstreams =
@@ -5276,7 +5277,7 @@ il_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct il_priv *il = hw->priv;
 	unsigned long flags;
 	__le64 timestamp;
-	struct sk_buff *skb = ieee80211_beacon_get(hw, vif);
+	struct sk_buff *skb = ieee80211_beacon_get(hw, vif, 0);
 
 	if (!skb)
 		return;
@@ -5311,13 +5312,13 @@ il_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 void
 il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			struct ieee80211_bss_conf *bss_conf, u32 changes)
+			struct ieee80211_bss_conf *bss_conf, u64 changes)
 {
 	struct il_priv *il = hw->priv;
 	int ret;
 
 	mutex_lock(&il->mutex);
-	D_MAC80211("enter: changes 0x%x\n", changes);
+	D_MAC80211("enter: changes 0x%llx\n", changes);
 
 	if (!il_is_alive(il)) {
 		D_MAC80211("leave - not alive\n");
@@ -5427,8 +5428,8 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	}
 
 	if (changes & BSS_CHANGED_ASSOC) {
-		D_MAC80211("ASSOC %d\n", bss_conf->assoc);
-		if (bss_conf->assoc) {
+		D_MAC80211("ASSOC %d\n", vif->cfg.assoc);
+		if (vif->cfg.assoc) {
 			il->timestamp = bss_conf->sync_tsf;
 
 			if (!il_is_rfkill(il))
@@ -5437,8 +5438,8 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			il_set_no_assoc(il, vif);
 	}
 
-	if (changes && il_is_associated(il) && bss_conf->aid) {
-		D_MAC80211("Changes (%#x) while associated\n", changes);
+	if (changes && il_is_associated(il) && vif->cfg.aid) {
+		D_MAC80211("Changes (%#llx) while associated\n", changes);
 		ret = il_send_rxon_assoc(il);
 		if (!ret) {
 			/* Sync active_rxon with latest change. */
@@ -5459,10 +5460,10 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	if (changes & BSS_CHANGED_IBSS) {
 		ret = il->ops->manage_ibss_station(il, vif,
-						   bss_conf->ibss_joined);
+						   vif->cfg.ibss_joined);
 		if (ret)
 			IL_ERR("failed to %s IBSS station %pM\n",
-			       bss_conf->ibss_joined ? "add" : "remove",
+			       vif->cfg.ibss_joined ? "add" : "remove",
 			       bss_conf->bssid);
 	}
 

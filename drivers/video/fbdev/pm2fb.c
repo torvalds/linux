@@ -27,6 +27,7 @@
  *
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -1504,9 +1505,7 @@ static const struct fb_ops pm2fb_ops = {
 
 
 /**
- * Device initialisation
- *
- * Initialise and allocate resource for PCI device.
+ * pm2fb_probe - Initialise and allocate resource for PCI device.
  *
  * @pdev:	PCI device.
  * @id:		PCI device ID.
@@ -1517,6 +1516,10 @@ static int pm2fb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct fb_info *info;
 	int err;
 	int retval = -ENXIO;
+
+	err = aperture_remove_conflicting_pci_devices(pdev, "pm2fb");
+	if (err)
+		return err;
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -1711,9 +1714,7 @@ static int pm2fb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 }
 
 /**
- * Device removal.
- *
- * Release all device resources.
+ * pm2fb_remove - Release all device resources.
  *
  * @pdev:	PCI device to clean up.
  */

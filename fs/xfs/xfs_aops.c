@@ -464,7 +464,7 @@ xfs_discard_folio(
 	int			error;
 
 	if (xfs_is_shutdown(mp))
-		goto out_invalidate;
+		return;
 
 	xfs_alert_ratelimited(mp,
 		"page discard on page "PTR_FMT", inode 0x%llx, pos %llu.",
@@ -474,8 +474,6 @@ xfs_discard_folio(
 			i_blocks_per_folio(inode, folio) - pageoff_fsb);
 	if (error && !xfs_is_shutdown(mp))
 		xfs_alert(mp, "page discard unable to remove delalloc mapping.");
-out_invalidate:
-	iomap_invalidate_folio(folio, offset, folio_size(folio) - offset);
 }
 
 static const struct iomap_writeback_ops xfs_writeback_ops = {
@@ -538,11 +536,11 @@ xfs_vm_bmap(
 }
 
 STATIC int
-xfs_vm_readpage(
+xfs_vm_read_folio(
 	struct file		*unused,
-	struct page		*page)
+	struct folio		*folio)
 {
-	return iomap_readpage(page, &xfs_read_iomap_ops);
+	return iomap_read_folio(folio, &xfs_read_iomap_ops);
 }
 
 STATIC void
@@ -564,15 +562,15 @@ xfs_iomap_swapfile_activate(
 }
 
 const struct address_space_operations xfs_address_space_operations = {
-	.readpage		= xfs_vm_readpage,
+	.read_folio		= xfs_vm_read_folio,
 	.readahead		= xfs_vm_readahead,
 	.writepages		= xfs_vm_writepages,
 	.dirty_folio		= filemap_dirty_folio,
-	.releasepage		= iomap_releasepage,
+	.release_folio		= iomap_release_folio,
 	.invalidate_folio	= iomap_invalidate_folio,
 	.bmap			= xfs_vm_bmap,
 	.direct_IO		= noop_direct_IO,
-	.migratepage		= iomap_migrate_page,
+	.migrate_folio		= filemap_migrate_folio,
 	.is_partially_uptodate  = iomap_is_partially_uptodate,
 	.error_remove_page	= generic_error_remove_page,
 	.swap_activate		= xfs_iomap_swapfile_activate,

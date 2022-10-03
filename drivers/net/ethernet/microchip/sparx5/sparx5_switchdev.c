@@ -394,7 +394,13 @@ static int sparx5_handle_port_mdb_add(struct net_device *dev,
 	struct sparx5 *spx5 = port->sparx5;
 	u16 pgid_idx, vid;
 	u32 mact_entry;
+	bool is_host;
 	int res, err;
+
+	if (!sparx5_netdevice_check(dev))
+		return -EOPNOTSUPP;
+
+	is_host = netif_is_bridge_master(v->obj.orig_dev);
 
 	/* When VLAN unaware the vlan value is not parsed and we receive vid 0.
 	 * Fall back to bridge vid 1.
@@ -411,17 +417,33 @@ static int sparx5_handle_port_mdb_add(struct net_device *dev,
 
 		/* MC_IDX starts after the port masks in the PGID table */
 		pgid_idx += SPX5_PORTS;
-		sparx5_pgid_update_mask(port, pgid_idx, true);
+
+		if (is_host)
+			spx5_rmw(ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA_SET(1),
+				 ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA, spx5,
+				 ANA_AC_PGID_MISC_CFG(pgid_idx));
+		else
+			sparx5_pgid_update_mask(port, pgid_idx, true);
+
 	} else {
 		err = sparx5_pgid_alloc_mcast(spx5, &pgid_idx);
 		if (err) {
 			netdev_warn(dev, "multicast pgid table full\n");
 			return err;
 		}
-		sparx5_pgid_update_mask(port, pgid_idx, true);
+
+		if (is_host)
+			spx5_rmw(ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA_SET(1),
+				 ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA, spx5,
+				 ANA_AC_PGID_MISC_CFG(pgid_idx));
+		else
+			sparx5_pgid_update_mask(port, pgid_idx, true);
+
 		err = sparx5_mact_learn(spx5, pgid_idx, v->addr, vid);
+
 		if (err) {
 			netdev_warn(dev, "could not learn mac address %pM\n", v->addr);
+			sparx5_pgid_free(spx5, pgid_idx);
 			sparx5_pgid_update_mask(port, pgid_idx, false);
 			return err;
 		}
@@ -458,8 +480,11 @@ static int sparx5_handle_port_mdb_del(struct net_device *dev,
 	struct sparx5_port *port = netdev_priv(dev);
 	struct sparx5 *spx5 = port->sparx5;
 	u16 pgid_idx, vid;
-	u32 mact_entry, res, pgid_entry[3];
-	int err;
+	u32 mact_entry, res, pgid_entry[3], misc_cfg;
+	bool host_ena;
+
+	if (!sparx5_netdevice_check(dev))
+		return -EOPNOTSUPP;
 
 	if (!br_vlan_enabled(spx5->hw_bridge_dev))
 		vid = 1;
@@ -473,15 +498,21 @@ static int sparx5_handle_port_mdb_del(struct net_device *dev,
 
 		/* MC_IDX starts after the port masks in the PGID table */
 		pgid_idx += SPX5_PORTS;
-		sparx5_pgid_update_mask(port, pgid_idx, false);
+
+		if (netif_is_bridge_master(v->obj.orig_dev))
+			spx5_rmw(ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA_SET(0),
+				 ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA, spx5,
+				 ANA_AC_PGID_MISC_CFG(pgid_idx));
+		else
+			sparx5_pgid_update_mask(port, pgid_idx, false);
+
+		misc_cfg = spx5_rd(spx5, ANA_AC_PGID_MISC_CFG(pgid_idx));
+		host_ena = ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA_GET(misc_cfg);
 
 		sparx5_pgid_read_mask(spx5, pgid_idx, pgid_entry);
-		if (bitmap_empty((unsigned long *)pgid_entry, SPX5_PORTS)) {
-			/* No ports are in MC group. Remove entry */
-			err = sparx5_mdb_del_entry(dev, spx5, v->addr, vid, pgid_idx);
-			if (err)
-				return err;
-		}
+		if (bitmap_empty((unsigned long *)pgid_entry, SPX5_PORTS) && !host_ena)
+			/* No ports or CPU are in MC group. Remove entry */
+			return sparx5_mdb_del_entry(dev, spx5, v->addr, vid, pgid_idx);
 	}
 
 	return 0;
@@ -500,6 +531,7 @@ static int sparx5_handle_port_obj_add(struct net_device *dev,
 						  SWITCHDEV_OBJ_PORT_VLAN(obj));
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
+	case SWITCHDEV_OBJ_ID_HOST_MDB:
 		err = sparx5_handle_port_mdb_add(dev, nb,
 						 SWITCHDEV_OBJ_PORT_MDB(obj));
 		break;
@@ -552,6 +584,7 @@ static int sparx5_handle_port_obj_del(struct net_device *dev,
 						  SWITCHDEV_OBJ_PORT_VLAN(obj)->vid);
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
+	case SWITCHDEV_OBJ_ID_HOST_MDB:
 		err = sparx5_handle_port_mdb_del(dev, nb,
 						 SWITCHDEV_OBJ_PORT_MDB(obj));
 		break;

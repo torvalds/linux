@@ -43,7 +43,6 @@ struct phylink {
 	/* private: */
 	struct net_device *netdev;
 	const struct phylink_mac_ops *mac_ops;
-	const struct phylink_pcs_ops *pcs_ops;
 	struct phylink_config *config;
 	struct phylink_pcs *pcs;
 	struct device *dev;
@@ -168,8 +167,10 @@ static void phylink_caps_to_linkmodes(unsigned long *linkmodes,
 	if (caps & MAC_10HD)
 		__set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT, linkmodes);
 
-	if (caps & MAC_10FD)
+	if (caps & MAC_10FD) {
 		__set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT, linkmodes);
+		__set_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT, linkmodes);
+	}
 
 	if (caps & MAC_100HD) {
 		__set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, linkmodes);
@@ -757,6 +758,18 @@ static void phylink_resolve_flow(struct phylink_link_state *state)
 	}
 }
 
+static void phylink_pcs_poll_stop(struct phylink *pl)
+{
+	if (pl->cfg_link_an_mode == MLO_AN_INBAND)
+		del_timer(&pl->link_poll);
+}
+
+static void phylink_pcs_poll_start(struct phylink *pl)
+{
+	if (pl->pcs && pl->pcs->poll && pl->cfg_link_an_mode == MLO_AN_INBAND)
+		mod_timer(&pl->link_poll, jiffies + HZ);
+}
+
 static void phylink_mac_config(struct phylink *pl,
 			       const struct phylink_link_state *state)
 {
@@ -777,8 +790,8 @@ static void phylink_mac_pcs_an_restart(struct phylink *pl)
 	if (pl->link_config.an_enabled &&
 	    phy_interface_mode_is_8023z(pl->link_config.interface) &&
 	    phylink_autoneg_inband(pl->cur_link_an_mode)) {
-		if (pl->pcs_ops)
-			pl->pcs_ops->pcs_an_restart(pl->pcs);
+		if (pl->pcs)
+			pl->pcs->ops->pcs_an_restart(pl->pcs);
 		else if (pl->config->legacy_pre_march2020)
 			pl->mac_ops->mac_an_restart(pl->config);
 	}
@@ -788,6 +801,7 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 				  const struct phylink_link_state *state)
 {
 	struct phylink_pcs *pcs = NULL;
+	bool pcs_changed = false;
 	int err;
 
 	phylink_dbg(pl, "major config %s\n", phy_modes(state->interface));
@@ -800,7 +814,11 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 				    pcs);
 			return;
 		}
+
+		pcs_changed = pcs && pl->pcs != pcs;
 	}
+
+	phylink_pcs_poll_stop(pl);
 
 	if (pl->mac_ops->mac_prepare) {
 		err = pl->mac_ops->mac_prepare(pl->config, pl->cur_link_an_mode,
@@ -815,27 +833,17 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 	/* If we have a new PCS, switch to the new PCS after preparing the MAC
 	 * for the change.
 	 */
-	if (pcs) {
+	if (pcs_changed)
 		pl->pcs = pcs;
-		pl->pcs_ops = pcs->ops;
-
-		if (!pl->phylink_disable_state &&
-		    pl->cfg_link_an_mode == MLO_AN_INBAND) {
-			if (pcs->poll)
-				mod_timer(&pl->link_poll, jiffies + HZ);
-			else
-				del_timer(&pl->link_poll);
-		}
-	}
 
 	phylink_mac_config(pl, state);
 
-	if (pl->pcs_ops) {
-		err = pl->pcs_ops->pcs_config(pl->pcs, pl->cur_link_an_mode,
-					      state->interface,
-					      state->advertising,
-					      !!(pl->link_config.pause &
-						 MLO_PAUSE_AN));
+	if (pl->pcs) {
+		err = pl->pcs->ops->pcs_config(pl->pcs, pl->cur_link_an_mode,
+					       state->interface,
+					       state->advertising,
+					       !!(pl->link_config.pause &
+						  MLO_PAUSE_AN));
 		if (err < 0)
 			phylink_err(pl, "pcs_config failed: %pe\n",
 				    ERR_PTR(err));
@@ -852,6 +860,8 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 			phylink_err(pl, "mac_finish failed: %pe\n",
 				    ERR_PTR(err));
 	}
+
+	phylink_pcs_poll_start(pl);
 }
 
 /*
@@ -867,7 +877,7 @@ static int phylink_change_inband_advert(struct phylink *pl)
 	if (test_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state))
 		return 0;
 
-	if (!pl->pcs_ops && pl->config->legacy_pre_march2020) {
+	if (!pl->pcs && pl->config->legacy_pre_march2020) {
 		/* Legacy method */
 		phylink_mac_config(pl, &pl->link_config);
 		phylink_mac_pcs_an_restart(pl);
@@ -884,10 +894,11 @@ static int phylink_change_inband_advert(struct phylink *pl)
 	 * restart negotiation if the pcs_config() helper indicates that
 	 * the programmed advertisement has changed.
 	 */
-	ret = pl->pcs_ops->pcs_config(pl->pcs, pl->cur_link_an_mode,
-				      pl->link_config.interface,
-				      pl->link_config.advertising,
-				      !!(pl->link_config.pause & MLO_PAUSE_AN));
+	ret = pl->pcs->ops->pcs_config(pl->pcs, pl->cur_link_an_mode,
+				       pl->link_config.interface,
+				       pl->link_config.advertising,
+				       !!(pl->link_config.pause &
+					  MLO_PAUSE_AN));
 	if (ret < 0)
 		return ret;
 
@@ -916,8 +927,8 @@ static void phylink_mac_pcs_get_state(struct phylink *pl,
 	state->an_complete = 0;
 	state->link = 1;
 
-	if (pl->pcs_ops)
-		pl->pcs_ops->pcs_get_state(pl->pcs, state);
+	if (pl->pcs)
+		pl->pcs->ops->pcs_get_state(pl->pcs, state);
 	else if (pl->mac_ops->mac_pcs_get_state &&
 		 pl->config->legacy_pre_march2020)
 		pl->mac_ops->mac_pcs_get_state(pl->config, state);
@@ -990,8 +1001,8 @@ static void phylink_link_up(struct phylink *pl,
 
 	pl->cur_interface = link_state.interface;
 
-	if (pl->pcs_ops && pl->pcs_ops->pcs_link_up)
-		pl->pcs_ops->pcs_link_up(pl->pcs, pl->cur_link_an_mode,
+	if (pl->pcs && pl->pcs->ops->pcs_link_up)
+		pl->pcs->ops->pcs_link_up(pl->pcs, pl->cur_link_an_mode,
 					 pl->cur_interface,
 					 link_state.speed, link_state.duplex);
 
@@ -1113,7 +1124,7 @@ static void phylink_resolve(struct work_struct *w)
 			}
 			phylink_major_config(pl, false, &link_state);
 			pl->link_config.interface = link_state.interface;
-		} else if (!pl->pcs_ops && pl->config->legacy_pre_march2020) {
+		} else if (!pl->pcs && pl->config->legacy_pre_march2020) {
 			/* The interface remains unchanged, only the speed,
 			 * duplex or pause settings have changed. Call the
 			 * old mac_config() method to configure the MAC/PCS
@@ -2301,8 +2312,11 @@ static int phylink_phy_read(struct phylink *pl, unsigned int phy_id,
 	if (mdio_phy_id_is_c45(phy_id)) {
 		prtad = mdio_phy_id_prtad(phy_id);
 		devad = mdio_phy_id_devad(phy_id);
-		devad = mdiobus_c45_addr(devad, reg);
-	} else if (phydev->is_c45) {
+		return mdiobus_c45_read(pl->phydev->mdio.bus, prtad, devad,
+					reg);
+	}
+
+	if (phydev->is_c45) {
 		switch (reg) {
 		case MII_BMCR:
 		case MII_BMSR:
@@ -2324,12 +2338,11 @@ static int phylink_phy_read(struct phylink *pl, unsigned int phy_id,
 			return -EINVAL;
 		}
 		prtad = phy_id;
-		devad = mdiobus_c45_addr(devad, reg);
-	} else {
-		prtad = phy_id;
-		devad = reg;
+		return mdiobus_c45_read(pl->phydev->mdio.bus, prtad, devad,
+					reg);
 	}
-	return mdiobus_read(pl->phydev->mdio.bus, prtad, devad);
+
+	return mdiobus_read(pl->phydev->mdio.bus, phy_id, reg);
 }
 
 static int phylink_phy_write(struct phylink *pl, unsigned int phy_id,
@@ -2341,8 +2354,11 @@ static int phylink_phy_write(struct phylink *pl, unsigned int phy_id,
 	if (mdio_phy_id_is_c45(phy_id)) {
 		prtad = mdio_phy_id_prtad(phy_id);
 		devad = mdio_phy_id_devad(phy_id);
-		devad = mdiobus_c45_addr(devad, reg);
-	} else if (phydev->is_c45) {
+		return mdiobus_c45_write(pl->phydev->mdio.bus, prtad, devad,
+					 reg, val);
+	}
+
+	if (phydev->is_c45) {
 		switch (reg) {
 		case MII_BMCR:
 		case MII_BMSR:
@@ -2363,14 +2379,11 @@ static int phylink_phy_write(struct phylink *pl, unsigned int phy_id,
 		default:
 			return -EINVAL;
 		}
-		prtad = phy_id;
-		devad = mdiobus_c45_addr(devad, reg);
-	} else {
-		prtad = phy_id;
-		devad = reg;
+		return mdiobus_c45_write(pl->phydev->mdio.bus, phy_id, devad,
+					 reg, val);
 	}
 
-	return mdiobus_write(phydev->mdio.bus, prtad, devad, val);
+	return mdiobus_write(phydev->mdio.bus, phy_id, reg, val);
 }
 
 static int phylink_mii_read(struct phylink *pl, unsigned int phy_id,
@@ -2778,34 +2791,6 @@ static const struct sfp_upstream_ops sfp_phylink_ops = {
 
 /* Helpers for MAC drivers */
 
-/**
- * phylink_helper_basex_speed() - 1000BaseX/2500BaseX helper
- * @state: a pointer to a &struct phylink_link_state
- *
- * Inspect the interface mode, advertising mask or forced speed and
- * decide whether to run at 2.5Gbit or 1Gbit appropriately, switching
- * the interface mode to suit.  @state->interface is appropriately
- * updated, and the advertising mask has the "other" baseX_Full flag
- * cleared.
- */
-void phylink_helper_basex_speed(struct phylink_link_state *state)
-{
-	if (phy_interface_mode_is_8023z(state->interface)) {
-		bool want_2500 = state->an_enabled ?
-			phylink_test(state->advertising, 2500baseX_Full) :
-			state->speed == SPEED_2500;
-
-		if (want_2500) {
-			phylink_clear(state->advertising, 1000baseX_Full);
-			state->interface = PHY_INTERFACE_MODE_2500BASEX;
-		} else {
-			phylink_clear(state->advertising, 2500baseX_Full);
-			state->interface = PHY_INTERFACE_MODE_1000BASEX;
-		}
-	}
-}
-EXPORT_SYMBOL_GPL(phylink_helper_basex_speed);
-
 static void phylink_decode_c37_word(struct phylink_link_state *state,
 				    uint16_t config_reg, int speed)
 {
@@ -3015,6 +3000,7 @@ int phylink_mii_c22_pcs_encode_advertisement(phy_interface_t interface,
 			adv |= ADVERTISE_1000XPSE_ASYM;
 		return adv;
 	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_QSGMII:
 		return 0x0001;
 	default:
 		/* Nothing to do for other modes */
@@ -3054,7 +3040,9 @@ int phylink_mii_c22_pcs_config(struct mdio_device *pcs, unsigned int mode,
 
 	/* Ensure ISOLATE bit is disabled */
 	if (mode == MLO_AN_INBAND &&
-	    linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, advertising))
+	    (interface == PHY_INTERFACE_MODE_SGMII ||
+	     interface == PHY_INTERFACE_MODE_QSGMII ||
+	     linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, advertising)))
 		bmcr = BMCR_ANENABLE;
 	else
 		bmcr = 0;

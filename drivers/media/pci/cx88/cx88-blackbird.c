@@ -796,7 +796,6 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	struct cx88_core *core = dev->core;
 
 	strscpy(cap->driver, "cx88_blackbird", sizeof(cap->driver));
-	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
 	return cx88_querycap(file, core, cap);
 }
 

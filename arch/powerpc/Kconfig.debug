@@ -305,7 +305,6 @@ config PPC_EARLY_DEBUG_OPAL
 	def_bool y
 	depends on PPC_EARLY_DEBUG_OPAL_RAW || PPC_EARLY_DEBUG_OPAL_HVSI
 
-
 config PPC_EARLY_DEBUG_HVSI_VTERMNO
 	hex "vterm number to use with early debug HVSI"
 	depends on PPC_EARLY_DEBUG_LPAR_HVSI
@@ -374,4 +373,6 @@ config PPC_FAST_ENDIAN_SWITCH
 config KASAN_SHADOW_OFFSET
 	hex
 	depends on KASAN
-	default 0xe0000000
+	default 0xe0000000 if PPC32
+	default 0xa80e000000000000 if PPC_BOOK3S_64
+	default 0xa8001c0000000000 if PPC_BOOK3E_64

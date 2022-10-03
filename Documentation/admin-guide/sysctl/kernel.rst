@@ -38,8 +38,8 @@ acct
 
 If BSD-style process accounting is enabled these values control
 its behaviour. If free space on filesystem where the log lives
-goes below ``lowwater``% accounting suspends. If free space gets
-above ``highwater``% accounting resumes. ``frequency`` determines
+goes below ``lowwater``\ % accounting suspends. If free space gets
+above ``highwater``\ % accounting resumes. ``frequency`` determines
 how often do we check the amount of free space (value is in
 seconds). Default:
 
@@ -592,6 +592,18 @@ to the guest kernel command line (see
 Documentation/admin-guide/kernel-parameters.rst).
 
 
+nmi_wd_lpm_factor (PPC only)
+============================
+
+Factor to apply to the NMI watchdog timeout (only when ``nmi_watchdog`` is
+set to 1). This factor represents the percentage added to
+``watchdog_thresh`` when calculating the NMI watchdog timeout during an
+LPM. The soft lockup timeout is not impacted.
+
+A value of 0 means no change. The default value is 200 meaning the NMI
+watchdog is set to 30s (based on ``watchdog_thresh`` equal to 10).
+
+
 numa_balancing
 ==============
 
@@ -783,6 +795,13 @@ is useful to define the root cause of RCU stalls using a vmcore.
 1 panic() after printing RCU stall messages.
 = ============================================================
 
+max_rcu_stall_to_panic
+======================
+
+When ``panic_on_rcu_stall`` is set to 1, this value determines the
+number of times that RCU can stall before panic() is called.
+
+When ``panic_on_rcu_stall`` is set to 0, this value is has no effect.
 
 perf_cpu_time_max_percent
 =========================
@@ -994,6 +1013,9 @@ This is a directory, with the following entries:
 * ``boot_id``: a UUID generated the first time this is retrieved, and
   unvarying after that;
 
+* ``uuid``: a UUID generated every time this is retrieved (this can
+  thus be used to generate UUIDs at will);
+
 * ``entropy_avail``: the pool's entropy count, in bits;
 
 * ``poolsize``: the entropy pool size, in bits;
@@ -1001,10 +1023,7 @@ This is a directory, with the following entries:
 * ``urandom_min_reseed_secs``: obsolete (used to determine the minimum
   number of seconds between urandom pool reseeding). This file is
   writable for compatibility purposes, but writing to it has no effect
-  on any RNG behavior.
-
-* ``uuid``: a UUID generated every time this is retrieved (this can
-  thus be used to generate UUIDs at will);
+  on any RNG behavior;
 
 * ``write_wakeup_threshold``: when the entropy count drops below this
   (as a number of bits), processes waiting to write to ``/dev/random``

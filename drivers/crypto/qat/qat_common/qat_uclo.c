@@ -519,7 +519,7 @@ qat_uclo_map_chunk(char *buf, struct icp_qat_uof_filehdr *file_hdr,
 	return NULL;
 }
 
-static unsigned int
+static int
 qat_uclo_check_image_compat(struct icp_qat_uof_encap_obj *encap_uof_obj,
 			    struct icp_qat_uof_image *image)
 {
@@ -731,6 +731,7 @@ qat_uclo_get_dev_type(struct icp_qat_fw_loader_handle *handle)
 	case PCI_DEVICE_ID_INTEL_QAT_C3XXX:
 		return ICP_QAT_AC_C3XXX_DEV_TYPE;
 	case ADF_4XXX_PCI_DEVICE_ID:
+	case ADF_401XX_PCI_DEVICE_ID:
 		return ICP_QAT_AC_4XXX_A_DEV_TYPE;
 	default:
 		pr_err("QAT: unsupported device 0x%x\n",

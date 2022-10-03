@@ -23,7 +23,7 @@ struct smb_rqst;
 extern int map_smb2_to_linux_error(char *buf, bool log_err);
 extern int smb2_check_message(char *buf, unsigned int length,
 			      struct TCP_Server_Info *server);
-extern unsigned int smb2_calc_size(void *buf, struct TCP_Server_Info *server);
+extern unsigned int smb2_calc_size(void *buf);
 extern char *smb2_get_data_area_len(int *off, int *len,
 				    struct smb2_hdr *shdr);
 extern __le16 *cifs_convert_path_to_utf16(const char *from,
@@ -54,16 +54,6 @@ extern bool smb2_is_valid_oplock_break(char *buffer,
 extern int smb3_handle_read_data(struct TCP_Server_Info *server,
 				 struct mid_q_entry *mid);
 
-extern int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
-			   const char *path,
-			   struct cifs_sb_info *cifs_sb,
-			   struct cached_fid **cfid);
-extern int open_cached_dir_by_dentry(struct cifs_tcon *tcon,
-				     struct dentry *dentry,
-				     struct cached_fid **cfid);
-extern void close_cached_dir(struct cached_fid *cfid);
-extern void close_cached_dir_lease(struct cached_fid *cfid);
-extern void close_cached_dir_lease_locked(struct cached_fid *cfid);
 extern void move_smb2_info_to_cifs(FILE_ALL_INFO *dst,
 				   struct smb2_file_all_info *src);
 extern int smb2_query_reparse_tag(const unsigned int xid, struct cifs_tcon *tcon,
@@ -147,13 +137,13 @@ extern int SMB2_open_init(struct cifs_tcon *tcon,
 extern void SMB2_open_free(struct smb_rqst *rqst);
 extern int SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon,
 		     u64 persistent_fid, u64 volatile_fid, u32 opcode,
-		     bool is_fsctl, char *in_data, u32 indatalen, u32 maxoutlen,
+		     char *in_data, u32 indatalen, u32 maxoutlen,
 		     char **out_data, u32 *plen /* returned data len */);
 extern int SMB2_ioctl_init(struct cifs_tcon *tcon,
 			   struct TCP_Server_Info *server,
 			   struct smb_rqst *rqst,
 			   u64 persistent_fid, u64 volatile_fid, u32 opcode,
-			   bool is_fsctl, char *in_data, u32 indatalen,
+			   char *in_data, u32 indatalen,
 			   __u32 max_response_size);
 extern void SMB2_ioctl_free(struct smb_rqst *rqst);
 extern int SMB2_change_notify(const unsigned int xid, struct cifs_tcon *tcon,

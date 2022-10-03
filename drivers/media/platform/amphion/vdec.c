@@ -26,8 +26,8 @@
 #include "vpu_cmds.h"
 #include "vpu_rpc.h"
 
-#define VDEC_FRAME_DEPTH		256
 #define VDEC_MIN_BUFFER_CAP		8
+#define VDEC_MIN_BUFFER_OUT		8
 
 struct vdec_fs_info {
 	char name[8];
@@ -63,8 +63,7 @@ struct vdec_t {
 	bool is_source_changed;
 	u32 source_change;
 	u32 drain;
-	u32 ts_pre_count;
-	u32 frame_depth;
+	bool aborting;
 };
 
 static const struct vpu_format vdec_formats[] = {
@@ -106,7 +105,6 @@ static const struct vpu_format vdec_formats[] = {
 		.pixfmt = V4L2_PIX_FMT_VC1_ANNEX_L,
 		.num_planes = 1,
 		.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE,
-		.flags = V4L2_FMT_FLAG_DYN_RESOLUTION
 	},
 	{
 		.pixfmt = V4L2_PIX_FMT_MPEG2,
@@ -164,6 +162,12 @@ static int vdec_ctrl_init(struct vpu_inst *inst)
 	if (ctrl)
 		ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
+	if (inst->ctrl_handler.error) {
+		ret = inst->ctrl_handler.error;
+		v4l2_ctrl_handler_free(&inst->ctrl_handler);
+		return ret;
+	}
+
 	ret = v4l2_ctrl_handler_setup(&inst->ctrl_handler);
 	if (ret) {
 		dev_err(inst->dev, "[%d] setup ctrls fail, ret = %d\n", inst->id, ret);
@@ -172,16 +176,6 @@ static int vdec_ctrl_init(struct vpu_inst *inst)
 	}
 
 	return 0;
-}
-
-static void vdec_set_last_buffer_dequeued(struct vpu_inst *inst)
-{
-	struct vdec_t *vdec = inst->priv;
-
-	if (vdec->eos_received) {
-		if (!vpu_set_last_buffer_dequeued(inst))
-			vdec->eos_received--;
-	}
 }
 
 static void vdec_handle_resolution_change(struct vpu_inst *inst)
@@ -228,6 +222,21 @@ static int vdec_update_state(struct vpu_inst *inst, enum vpu_codec_state state, 
 		vdec_handle_resolution_change(inst);
 
 	return 0;
+}
+
+static void vdec_set_last_buffer_dequeued(struct vpu_inst *inst)
+{
+	struct vdec_t *vdec = inst->priv;
+
+	if (inst->state == VPU_CODEC_STATE_DYAMIC_RESOLUTION_CHANGE)
+		return;
+
+	if (vdec->eos_received) {
+		if (!vpu_set_last_buffer_dequeued(inst)) {
+			vdec->eos_received--;
+			vdec_update_state(inst, VPU_CODEC_STATE_DRAIN, 0);
+		}
+	}
 }
 
 static int vdec_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
@@ -470,7 +479,7 @@ static int vdec_drain(struct vpu_inst *inst)
 	if (!vdec->drain)
 		return 0;
 
-	if (v4l2_m2m_num_src_bufs_ready(inst->fh.m2m_ctx))
+	if (!vpu_is_source_empty(inst))
 		return 0;
 
 	if (!vdec->params.frame_count) {
@@ -489,6 +498,8 @@ static int vdec_drain(struct vpu_inst *inst)
 
 static int vdec_cmd_start(struct vpu_inst *inst)
 {
+	struct vdec_t *vdec = inst->priv;
+
 	switch (inst->state) {
 	case VPU_CODEC_STATE_STARTED:
 	case VPU_CODEC_STATE_DRAIN:
@@ -499,6 +510,8 @@ static int vdec_cmd_start(struct vpu_inst *inst)
 		break;
 	}
 	vpu_process_capture_buffer(inst);
+	if (vdec->eos_received)
+		vdec_set_last_buffer_dequeued(inst);
 	return 0;
 }
 
@@ -589,16 +602,21 @@ static bool vdec_check_ready(struct vpu_inst *inst, unsigned int type)
 {
 	struct vdec_t *vdec = inst->priv;
 
-	if (V4L2_TYPE_IS_OUTPUT(type)) {
-		if (vdec->ts_pre_count >= vdec->frame_depth)
-			return false;
+	if (V4L2_TYPE_IS_OUTPUT(type))
 		return true;
-	}
 
 	if (vdec->req_frame_count)
 		return true;
 
 	return false;
+}
+
+static struct vb2_v4l2_buffer *vdec_get_src_buffer(struct vpu_inst *inst, u32 count)
+{
+	if (count > 1)
+		vpu_skip_frame(inst, count - 1);
+
+	return vpu_next_src_buf(inst);
 }
 
 static int vdec_frame_decoded(struct vpu_inst *inst, void *arg)
@@ -607,6 +625,7 @@ static int vdec_frame_decoded(struct vpu_inst *inst, void *arg)
 	struct vpu_dec_pic_info *info = arg;
 	struct vpu_vb2_buffer *vpu_buf;
 	struct vb2_v4l2_buffer *vbuf;
+	struct vb2_v4l2_buffer *src_buf;
 	int ret = 0;
 
 	if (!info || info->id >= ARRAY_SIZE(vdec->slots))
@@ -620,14 +639,21 @@ static int vdec_frame_decoded(struct vpu_inst *inst, void *arg)
 		goto exit;
 	}
 	vbuf = &vpu_buf->m2m_buf.vb;
+	src_buf = vdec_get_src_buffer(inst, info->consumed_count);
+	if (src_buf) {
+		v4l2_m2m_buf_copy_metadata(src_buf, vbuf, true);
+		if (info->consumed_count) {
+			v4l2_m2m_src_buf_remove(inst->fh.m2m_ctx);
+			vpu_set_buffer_state(src_buf, VPU_BUF_STATE_IDLE);
+			v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
+		} else {
+			vpu_set_buffer_state(src_buf, VPU_BUF_STATE_DECODED);
+		}
+	}
 	if (vpu_get_buffer_state(vbuf) == VPU_BUF_STATE_DECODED)
 		dev_info(inst->dev, "[%d] buf[%d] has been decoded\n", inst->id, info->id);
 	vpu_set_buffer_state(vbuf, VPU_BUF_STATE_DECODED);
 	vdec->decoded_frame_count++;
-	if (vdec->ts_pre_count >= info->consumed_count)
-		vdec->ts_pre_count -= info->consumed_count;
-	else
-		vdec->ts_pre_count = 0;
 exit:
 	vpu_inst_unlock(inst);
 
@@ -683,10 +709,9 @@ static void vdec_buf_done(struct vpu_inst *inst, struct vpu_frame_info *frame)
 	vpu_set_buffer_state(vbuf, VPU_BUF_STATE_READY);
 	vb2_set_plane_payload(&vbuf->vb2_buf, 0, inst->cap_format.sizeimage[0]);
 	vb2_set_plane_payload(&vbuf->vb2_buf, 1, inst->cap_format.sizeimage[1]);
-	vbuf->vb2_buf.timestamp = frame->timestamp;
 	vbuf->field = inst->cap_format.field;
 	vbuf->sequence = sequence;
-	dev_dbg(inst->dev, "[%d][OUTPUT TS]%32lld\n", inst->id, frame->timestamp);
+	dev_dbg(inst->dev, "[%d][OUTPUT TS]%32lld\n", inst->id, vbuf->vb2_buf.timestamp);
 
 	v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_DONE);
 	vpu_inst_lock(inst);
@@ -708,7 +733,6 @@ static void vdec_stop_done(struct vpu_inst *inst)
 	vdec->fixed_fmt = false;
 	vdec->params.end_flag = 0;
 	vdec->drain = 0;
-	vdec->ts_pre_count = 0;
 	vdec->params.frame_count = 0;
 	vdec->decoded_frame_count = 0;
 	vdec->display_frame_count = 0;
@@ -716,6 +740,7 @@ static void vdec_stop_done(struct vpu_inst *inst)
 	vdec->eos_received = 0;
 	vdec->is_source_changed = false;
 	vdec->source_change = 0;
+	inst->total_input_count = 0;
 	vpu_inst_unlock(inst);
 }
 
@@ -782,7 +807,7 @@ static void vdec_init_fmt(struct vpu_inst *inst)
 	if (vdec->codec_info.progressive)
 		inst->cap_format.field = V4L2_FIELD_NONE;
 	else
-		inst->cap_format.field = V4L2_FIELD_SEQ_BT;
+		inst->cap_format.field = V4L2_FIELD_SEQ_TB;
 	if (vdec->codec_info.color_primaries == V4L2_COLORSPACE_DEFAULT)
 		vdec->codec_info.color_primaries = V4L2_COLORSPACE_REC709;
 	if (vdec->codec_info.transfer_chars == V4L2_XFER_FUNC_DEFAULT)
@@ -924,6 +949,9 @@ static int vdec_response_frame(struct vpu_inst *inst, struct vb2_v4l2_buffer *vb
 	if (inst->state != VPU_CODEC_STATE_ACTIVE)
 		return -EINVAL;
 
+	if (vdec->aborting)
+		return -EINVAL;
+
 	if (!vdec->req_frame_count)
 		return -EINVAL;
 
@@ -1033,6 +1061,8 @@ static void vdec_clear_slots(struct vpu_inst *inst)
 		vpu_buf = vdec->slots[i];
 		vbuf = &vpu_buf->m2m_buf.vb;
 
+		vpu_trace(inst->dev, "clear slot %d\n", i);
+		vdec_response_fs_release(inst, i, vpu_buf->tag);
 		vdec_recycle_buffer(inst, vbuf);
 		vdec->slots[i]->state = VPU_BUF_STATE_IDLE;
 		vdec->slots[i] = NULL;
@@ -1188,7 +1218,6 @@ static void vdec_event_eos(struct vpu_inst *inst)
 	vdec->eos_received++;
 	vdec->fixed_fmt = false;
 	inst->min_buffer_cap = VDEC_MIN_BUFFER_CAP;
-	vdec_update_state(inst, VPU_CODEC_STATE_DRAIN, 0);
 	vdec_set_last_buffer_dequeued(inst);
 	vpu_inst_unlock(inst);
 }
@@ -1244,17 +1273,13 @@ static int vdec_process_output(struct vpu_inst *inst, struct vb2_buffer *vb)
 	if (free_space < vb2_get_plane_payload(vb, 0) + 0x40000)
 		return -ENOMEM;
 
+	vpu_set_buffer_state(vbuf, VPU_BUF_STATE_INUSE);
 	ret = vpu_iface_input_frame(inst, vb);
 	if (ret < 0)
 		return -ENOMEM;
 
 	dev_dbg(inst->dev, "[%d][INPUT  TS]%32lld\n", inst->id, vb->timestamp);
-	vdec->ts_pre_count++;
 	vdec->params.frame_count++;
-
-	v4l2_m2m_src_buf_remove_by_buf(inst->fh.m2m_ctx, vbuf);
-	vpu_set_buffer_state(vbuf, VPU_BUF_STATE_IDLE);
-	v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_DONE);
 
 	if (vdec->drain)
 		vdec_drain(inst);
@@ -1299,6 +1324,8 @@ static void vdec_abort(struct vpu_inst *inst)
 	int ret;
 
 	vpu_trace(inst->dev, "[%d] state = %d\n", inst->id, inst->state);
+
+	vdec->aborting = true;
 	vpu_iface_add_scode(inst, SCODE_PADDING_ABORT);
 	vdec->params.end_flag = 1;
 	vpu_iface_set_decode_params(inst, &vdec->params, 1);
@@ -1318,11 +1345,11 @@ static void vdec_abort(struct vpu_inst *inst)
 		  vdec->sequence);
 	vdec->params.end_flag = 0;
 	vdec->drain = 0;
-	vdec->ts_pre_count = 0;
 	vdec->params.frame_count = 0;
 	vdec->decoded_frame_count = 0;
 	vdec->display_frame_count = 0;
 	vdec->sequence = 0;
+	vdec->aborting = false;
 }
 
 static void vdec_stop(struct vpu_inst *inst, bool free)
@@ -1359,8 +1386,7 @@ static void vdec_cleanup(struct vpu_inst *inst)
 		return;
 
 	vdec = inst->priv;
-	if (vdec)
-		vfree(vdec);
+	vfree(vdec);
 	inst->priv = NULL;
 	vfree(inst);
 }
@@ -1470,10 +1496,10 @@ static int vdec_stop_session(struct vpu_inst *inst, u32 type)
 		vdec_update_state(inst, VPU_CODEC_STATE_SEEK, 0);
 		vdec->drain = 0;
 	} else {
-		if (inst->state != VPU_CODEC_STATE_DYAMIC_RESOLUTION_CHANGE)
+		if (inst->state != VPU_CODEC_STATE_DYAMIC_RESOLUTION_CHANGE) {
 			vdec_abort(inst);
-
-		vdec->eos_received = 0;
+			vdec->eos_received = 0;
+		}
 		vdec_clear_slots(inst);
 	}
 
@@ -1525,10 +1551,6 @@ static int vdec_get_debug_info(struct vpu_inst *inst, char *str, u32 size, u32 i
 				vdec->drain, vdec->eos_received, vdec->source_change);
 		break;
 	case 8:
-		num = scnprintf(str, size, "ts_pre_count = %d, frame_depth = %d\n",
-				vdec->ts_pre_count, vdec->frame_depth);
-		break;
-	case 9:
 		num = scnprintf(str, size, "fps = %d/%d\n",
 				vdec->codec_info.frame_rate.numerator,
 				vdec->codec_info.frame_rate.denominator);
@@ -1562,11 +1584,7 @@ static struct vpu_inst_ops vdec_inst_ops = {
 static void vdec_init(struct file *file)
 {
 	struct vpu_inst *inst = to_inst(file);
-	struct vdec_t *vdec;
 	struct v4l2_format f;
-
-	vdec = inst->priv;
-	vdec->frame_depth = VDEC_FRAME_DEPTH;
 
 	memset(&f, 0, sizeof(f));
 	f.type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
@@ -1612,28 +1630,10 @@ static int vdec_open(struct file *file)
 
 	vdec->fixed_fmt = false;
 	inst->min_buffer_cap = VDEC_MIN_BUFFER_CAP;
+	inst->min_buffer_out = VDEC_MIN_BUFFER_OUT;
 	vdec_init(file);
 
 	return 0;
-}
-
-static __poll_t vdec_poll(struct file *file, poll_table *wait)
-{
-	struct vpu_inst *inst = to_inst(file);
-	struct vb2_queue *src_q, *dst_q;
-	__poll_t ret;
-
-	ret = v4l2_m2m_fop_poll(file, wait);
-	src_q = v4l2_m2m_get_src_vq(inst->fh.m2m_ctx);
-	dst_q = v4l2_m2m_get_dst_vq(inst->fh.m2m_ctx);
-	if (vb2_is_streaming(src_q) && !vb2_is_streaming(dst_q))
-		ret &= (~EPOLLERR);
-	if (!src_q->error && !dst_q->error &&
-	    (vb2_is_streaming(src_q) && list_empty(&src_q->queued_list)) &&
-	    (vb2_is_streaming(dst_q) && list_empty(&dst_q->queued_list)))
-		ret &= (~EPOLLERR);
-
-	return ret;
 }
 
 static const struct v4l2_file_operations vdec_fops = {
@@ -1641,7 +1641,7 @@ static const struct v4l2_file_operations vdec_fops = {
 	.open = vdec_open,
 	.release = vpu_v4l2_close,
 	.unlocked_ioctl = video_ioctl2,
-	.poll = vdec_poll,
+	.poll = v4l2_m2m_fop_poll,
 	.mmap = v4l2_m2m_fop_mmap,
 };
 

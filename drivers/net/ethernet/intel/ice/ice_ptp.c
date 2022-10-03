@@ -500,11 +500,18 @@ ice_ptp_read_src_clk_reg(struct ice_pf *pf, struct ptp_system_timestamp *sts)
  * This function must be called periodically to ensure that the cached value
  * is never more than 2 seconds old. It must also be called whenever the PHC
  * time has been changed.
+ *
+ * Return:
+ * * 0 - OK, successfully updated
+ * * -EAGAIN - PF was busy, need to reschedule the update
  */
-static void ice_ptp_update_cached_phctime(struct ice_pf *pf)
+static int ice_ptp_update_cached_phctime(struct ice_pf *pf)
 {
 	u64 systime;
 	int i;
+
+	if (test_and_set_bit(ICE_CFG_BUSY, pf->state))
+		return -EAGAIN;
 
 	/* Read the current PHC time */
 	systime = ice_ptp_read_src_clk_reg(pf, NULL);
@@ -528,6 +535,9 @@ static void ice_ptp_update_cached_phctime(struct ice_pf *pf)
 			WRITE_ONCE(vsi->rx_rings[j]->cached_phctime, systime);
 		}
 	}
+	clear_bit(ICE_CFG_BUSY, pf->state);
+
+	return 0;
 }
 
 /**
@@ -1092,9 +1102,8 @@ static void ice_ptp_reset_phy_timestamping(struct ice_pf *pf)
 static int ice_ptp_adjfine(struct ptp_clock_info *info, long scaled_ppm)
 {
 	struct ice_pf *pf = ptp_info_to_pf(info);
-	u64 freq, divisor = 1000000ULL;
 	struct ice_hw *hw = &pf->hw;
-	s64 incval, diff;
+	u64 incval, diff;
 	int neg_adj = 0;
 	int err;
 
@@ -1105,17 +1114,8 @@ static int ice_ptp_adjfine(struct ptp_clock_info *info, long scaled_ppm)
 		scaled_ppm = -scaled_ppm;
 	}
 
-	while ((u64)scaled_ppm > div64_u64(U64_MAX, incval)) {
-		/* handle overflow by scaling down the scaled_ppm and
-		 * the divisor, losing some precision
-		 */
-		scaled_ppm >>= 2;
-		divisor >>= 2;
-	}
-
-	freq = (incval * (u64)scaled_ppm) >> 16;
-	diff = div_u64(freq, divisor);
-
+	diff = mul_u64_u64_div_u64(incval, (u64)scaled_ppm,
+				   1000000ULL << 16);
 	if (neg_adj)
 		incval -= diff;
 	else
@@ -1890,9 +1890,12 @@ ice_ptp_setup_pins_e810t(struct ice_pf *pf, struct ptp_clock_info *info)
 	}
 
 	info->n_per_out = N_PER_OUT_E810T;
-	info->n_ext_ts = N_EXT_TS_E810;
-	info->n_pins = NUM_PTP_PINS_E810T;
-	info->verify = ice_verify_pin_e810t;
+
+	if (ice_is_feature_supported(pf, ICE_F_PTP_EXTTS)) {
+		info->n_ext_ts = N_EXT_TS_E810;
+		info->n_pins = NUM_PTP_PINS_E810T;
+		info->verify = ice_verify_pin_e810t;
+	}
 
 	/* Complete setup of the SMA pins */
 	ice_ptp_setup_sma_pins_e810t(pf, info);
@@ -1900,11 +1903,16 @@ ice_ptp_setup_pins_e810t(struct ice_pf *pf, struct ptp_clock_info *info)
 
 /**
  * ice_ptp_setup_pins_e810 - Setup PTP pins in sysfs
+ * @pf: pointer to the PF instance
  * @info: PTP clock capabilities
  */
-static void ice_ptp_setup_pins_e810(struct ptp_clock_info *info)
+static void ice_ptp_setup_pins_e810(struct ice_pf *pf, struct ptp_clock_info *info)
 {
 	info->n_per_out = N_PER_OUT_E810;
+
+	if (!ice_is_feature_supported(pf, ICE_F_PTP_EXTTS))
+		return;
+
 	info->n_ext_ts = N_EXT_TS_E810;
 }
 
@@ -1946,7 +1954,7 @@ ice_ptp_set_funcs_e810(struct ice_pf *pf, struct ptp_clock_info *info)
 	if (ice_is_e810t(&pf->hw))
 		ice_ptp_setup_pins_e810t(pf, info);
 	else
-		ice_ptp_setup_pins_e810(info);
+		ice_ptp_setup_pins_e810(pf, info);
 }
 
 /**
@@ -2261,7 +2269,7 @@ static int
 ice_ptp_init_tx_e822(struct ice_pf *pf, struct ice_ptp_tx *tx, u8 port)
 {
 	tx->quad = port / ICE_PORTS_PER_QUAD;
-	tx->quad_offset = tx->quad * INDEX_PER_PORT;
+	tx->quad_offset = (port % ICE_PORTS_PER_QUAD) * INDEX_PER_PORT;
 	tx->len = INDEX_PER_PORT;
 
 	return ice_ptp_alloc_tx_tracker(tx);
@@ -2287,6 +2295,7 @@ ice_ptp_init_tx_e810(struct ice_pf *pf, struct ice_ptp_tx *tx)
 
 /**
  * ice_ptp_tx_tstamp_cleanup - Cleanup old timestamp requests that got dropped
+ * @hw: pointer to the hw struct
  * @tx: PTP Tx tracker to clean up
  *
  * Loop through the Tx timestamp requests and see if any of them have been
@@ -2295,7 +2304,7 @@ ice_ptp_init_tx_e810(struct ice_pf *pf, struct ice_ptp_tx *tx)
  * timestamp will never be captured. This might happen if the packet gets
  * discarded before it reaches the PHY timestamping block.
  */
-static void ice_ptp_tx_tstamp_cleanup(struct ice_ptp_tx *tx)
+static void ice_ptp_tx_tstamp_cleanup(struct ice_hw *hw, struct ice_ptp_tx *tx)
 {
 	u8 idx;
 
@@ -2304,10 +2313,15 @@ static void ice_ptp_tx_tstamp_cleanup(struct ice_ptp_tx *tx)
 
 	for_each_set_bit(idx, tx->in_use, tx->len) {
 		struct sk_buff *skb;
+		u64 raw_tstamp;
 
 		/* Check if this SKB has been waiting for too long */
 		if (time_is_after_jiffies(tx->tstamps[idx].start + 2 * HZ))
 			continue;
+
+		/* Read tstamp to be able to use this register again */
+		ice_read_phy_tstamp(hw, tx->quad, idx + tx->quad_offset,
+				    &raw_tstamp);
 
 		spin_lock(&tx->lock);
 		skb = tx->tstamps[idx].skb;
@@ -2324,17 +2338,18 @@ static void ice_ptp_periodic_work(struct kthread_work *work)
 {
 	struct ice_ptp *ptp = container_of(work, struct ice_ptp, work.work);
 	struct ice_pf *pf = container_of(ptp, struct ice_pf, ptp);
+	int err;
 
 	if (!test_bit(ICE_FLAG_PTP, pf->flags))
 		return;
 
-	ice_ptp_update_cached_phctime(pf);
+	err = ice_ptp_update_cached_phctime(pf);
 
-	ice_ptp_tx_tstamp_cleanup(&pf->ptp.port.tx);
+	ice_ptp_tx_tstamp_cleanup(&pf->hw, &pf->ptp.port.tx);
 
-	/* Run twice a second */
+	/* Run twice a second or reschedule if phc update failed */
 	kthread_queue_delayed_work(ptp->kworker, &ptp->work,
-				   msecs_to_jiffies(500));
+				   msecs_to_jiffies(err ? 10 : 500));
 }
 
 /**

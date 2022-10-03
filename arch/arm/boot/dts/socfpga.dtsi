@@ -46,7 +46,7 @@
 		      <0xff113000 0x1000>;
 	};
 
-	intc: intc@fffed000 {
+	intc: interrupt-controller@fffed000 {
 		compatible = "arm,cortex-a9-gic";
 		#interrupt-cells = <3>;
 		interrupt-controller;
@@ -80,8 +80,6 @@
 					     <0 110 4>,
 					     <0 111 4>;
 				#dma-cells = <1>;
-				#dma-channels = <8>;
-				#dma-requests = <32>;
 				clocks = <&l4_main_clk>;
 				clock-names = "apb_pclk";
 				resets = <&rst DMA_RESET>;
@@ -563,6 +561,12 @@
 			interrupts = <0 175 4>;
 		};
 
+		socfpga_axi_setup: stmmac-axi-config {
+			snps,wr_osr_lmt = <0xf>;
+			snps,rd_osr_lmt = <0xf>;
+			snps,blen = <0 0 0 0 16 0 0>;
+		};
+
 		gmac0: ethernet@ff700000 {
 			compatible = "altr,socfpga-stmmac", "snps,dwmac-3.70a", "snps,dwmac";
 			altr,sysmgr-syscon = <&sysmgr 0x60 0>;
@@ -578,6 +582,7 @@
 			snps,perfect-filter-entries = <128>;
 			tx-fifo-depth = <4096>;
 			rx-fifo-depth = <4096>;
+			snps,axi-config = <&socfpga_axi_setup>;
 			status = "disabled";
 		};
 
@@ -596,6 +601,7 @@
 			snps,perfect-filter-entries = <128>;
 			tx-fifo-depth = <4096>;
 			rx-fifo-depth = <4096>;
+			snps,axi-config = <&socfpga_axi_setup>;
 			status = "disabled";
 		};
 

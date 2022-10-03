@@ -33,7 +33,7 @@ static bool aggregate_result_elements;
 
 static cpumask_t hv_24x7_cpumask;
 
-static bool domain_is_valid(unsigned domain)
+static bool domain_is_valid(unsigned int domain)
 {
 	switch (domain) {
 #define DOMAIN(n, v, x, c)		\
@@ -47,7 +47,7 @@ static bool domain_is_valid(unsigned domain)
 	}
 }
 
-static bool is_physical_domain(unsigned domain)
+static bool is_physical_domain(unsigned int domain)
 {
 	switch (domain) {
 #define DOMAIN(n, v, x, c)		\
@@ -128,7 +128,7 @@ static bool domain_needs_aggregation(unsigned int domain)
 			  domain <= HV_PERF_DOMAIN_VCPU_REMOTE_NODE));
 }
 
-static const char *domain_name(unsigned domain)
+static const char *domain_name(unsigned int domain)
 {
 	if (!domain_is_valid(domain))
 		return NULL;
@@ -146,7 +146,7 @@ static const char *domain_name(unsigned domain)
 	return NULL;
 }
 
-static bool catalog_entry_domain_is_valid(unsigned domain)
+static bool catalog_entry_domain_is_valid(unsigned int domain)
 {
 	/* POWER8 doesn't support virtual domains. */
 	if (interface_version == 1)
@@ -258,7 +258,7 @@ static char *event_name(struct hv_24x7_event_data *ev, int *len)
 
 static char *event_desc(struct hv_24x7_event_data *ev, int *len)
 {
-	unsigned nl = be16_to_cpu(ev->event_name_len);
+	unsigned int nl = be16_to_cpu(ev->event_name_len);
 	__be16 *desc_len = (__be16 *)(ev->remainder + nl - 2);
 
 	*len = be16_to_cpu(*desc_len) - 2;
@@ -267,9 +267,9 @@ static char *event_desc(struct hv_24x7_event_data *ev, int *len)
 
 static char *event_long_desc(struct hv_24x7_event_data *ev, int *len)
 {
-	unsigned nl = be16_to_cpu(ev->event_name_len);
+	unsigned int nl = be16_to_cpu(ev->event_name_len);
 	__be16 *desc_len_ = (__be16 *)(ev->remainder + nl - 2);
-	unsigned desc_len = be16_to_cpu(*desc_len_);
+	unsigned int desc_len = be16_to_cpu(*desc_len_);
 	__be16 *long_desc_len = (__be16 *)(ev->remainder + nl + desc_len - 2);
 
 	*len = be16_to_cpu(*long_desc_len) - 2;
@@ -296,8 +296,8 @@ static void *event_end(struct hv_24x7_event_data *ev, void *end)
 {
 	void *start = ev;
 	__be16 *dl_, *ldl_;
-	unsigned dl, ldl;
-	unsigned nl = be16_to_cpu(ev->event_name_len);
+	unsigned int dl, ldl;
+	unsigned int nl = be16_to_cpu(ev->event_name_len);
 
 	if (nl < 2) {
 		pr_debug("%s: name length too short: %d", __func__, nl);
@@ -398,7 +398,7 @@ static long h_get_24x7_catalog_page(char page[], u64 version, u32 index)
  *		- Specifying (i.e overriding) values for other parameters
  *		  is undefined.
  */
-static char *event_fmt(struct hv_24x7_event_data *event, unsigned domain)
+static char *event_fmt(struct hv_24x7_event_data *event, unsigned int domain)
 {
 	const char *sindex;
 	const char *lpar;
@@ -529,9 +529,9 @@ out_s:
 	return NULL;
 }
 
-static struct attribute *event_to_attr(unsigned ix,
+static struct attribute *event_to_attr(unsigned int ix,
 				       struct hv_24x7_event_data *event,
-				       unsigned domain,
+				       unsigned int domain,
 				       int nonce)
 {
 	int event_name_len;
@@ -599,8 +599,8 @@ event_to_long_desc_attr(struct hv_24x7_event_data *event, int nonce)
 	return device_str_attr_create(name, nl, nonce, desc, dl);
 }
 
-static int event_data_to_attrs(unsigned ix, struct attribute **attrs,
-				   struct hv_24x7_event_data *event, int nonce)
+static int event_data_to_attrs(unsigned int ix, struct attribute **attrs,
+			       struct hv_24x7_event_data *event, int nonce)
 {
 	*attrs = event_to_attr(ix, event, event->domain, nonce);
 	if (!*attrs)
@@ -614,8 +614,8 @@ struct event_uniq {
 	struct rb_node node;
 	const char *name;
 	int nl;
-	unsigned ct;
-	unsigned domain;
+	unsigned int ct;
+	unsigned int domain;
 };
 
 static int memord(const void *d1, size_t s1, const void *d2, size_t s2)
@@ -628,8 +628,8 @@ static int memord(const void *d1, size_t s1, const void *d2, size_t s2)
 	return memcmp(d1, d2, s1);
 }
 
-static int ev_uniq_ord(const void *v1, size_t s1, unsigned d1, const void *v2,
-		       size_t s2, unsigned d2)
+static int ev_uniq_ord(const void *v1, size_t s1, unsigned int d1,
+		       const void *v2, size_t s2, unsigned int d2)
 {
 	int r = memord(v1, s1, v2, s2);
 
@@ -643,7 +643,7 @@ static int ev_uniq_ord(const void *v1, size_t s1, unsigned d1, const void *v2,
 }
 
 static int event_uniq_add(struct rb_root *root, const char *name, int nl,
-			  unsigned domain)
+			  unsigned int domain)
 {
 	struct rb_node **new = &(root->rb_node), *parent = NULL;
 	struct event_uniq *data;
@@ -1398,7 +1398,7 @@ out:
 static int h_24x7_event_init(struct perf_event *event)
 {
 	struct hv_perf_caps caps;
-	unsigned domain;
+	unsigned int domain;
 	unsigned long hret;
 	u64 ct;
 
@@ -1718,16 +1718,16 @@ static int hv_24x7_init(void)
 {
 	int r;
 	unsigned long hret;
+	unsigned int pvr = mfspr(SPRN_PVR);
 	struct hv_perf_caps caps;
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
 		pr_debug("not a virtualized system, not enabling\n");
 		return -ENODEV;
-	} else if (!cur_cpu_spec->oprofile_cpu_type)
-		return -ENODEV;
+	}
 
 	/* POWER8 only supports v1, while POWER9 only supports v2. */
-	if (!strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power8"))
+	if (PVR_VER(pvr) == PVR_POWER8)
 		interface_version = 1;
 	else {
 		interface_version = 2;

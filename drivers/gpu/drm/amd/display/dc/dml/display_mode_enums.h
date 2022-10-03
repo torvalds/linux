@@ -26,7 +26,11 @@
 #define __DISPLAY_MODE_ENUMS_H__
 
 enum output_encoder_class {
-	dm_dp = 0, dm_hdmi = 1, dm_wb = 2, dm_edp
+	dm_dp = 0,
+	dm_hdmi = 1,
+	dm_wb = 2,
+	dm_edp = 3,
+	dm_dp2p0 = 5,
 };
 enum output_format_class {
 	dm_444 = 0, dm_420 = 1, dm_n422, dm_s422
@@ -105,6 +109,10 @@ enum clock_change_support {
 	dm_dram_clock_change_uninitialized = 0,
 	dm_dram_clock_change_vactive,
 	dm_dram_clock_change_vblank,
+	dm_dram_clock_change_vactive_w_mall_full_frame,
+	dm_dram_clock_change_vactive_w_mall_sub_vp,
+	dm_dram_clock_change_vblank_w_mall_full_frame,
+	dm_dram_clock_change_vblank_w_mall_sub_vp,
 	dm_dram_clock_change_unsupported
 };
 
@@ -169,6 +177,9 @@ enum odm_combine_mode {
 	dm_odm_combine_mode_disabled,
 	dm_odm_combine_mode_2to1,
 	dm_odm_combine_mode_4to1,
+	dm_odm_split_mode_1to2,
+	dm_odm_mode_mso_1to2,
+	dm_odm_mode_mso_1to4
 };
 
 enum odm_combine_policy {
@@ -176,11 +187,15 @@ enum odm_combine_policy {
 	dm_odm_combine_policy_none,
 	dm_odm_combine_policy_2to1,
 	dm_odm_combine_policy_4to1,
+	dm_odm_split_policy_1to2,
+	dm_odm_mso_policy_1to2,
+	dm_odm_mso_policy_1to4,
 };
 
 enum immediate_flip_requirement {
 	dm_immediate_flip_not_required,
 	dm_immediate_flip_required,
+	dm_immediate_flip_opportunistic,
 };
 
 enum unbounded_requesting_policy {
@@ -189,4 +204,75 @@ enum unbounded_requesting_policy {
 	dm_unbounded_requesting_disable
 };
 
+enum dm_rotation_angle {
+	dm_rotation_0,
+	dm_rotation_90,
+	dm_rotation_180,
+	dm_rotation_270,
+	dm_rotation_0m,
+	dm_rotation_90m,
+	dm_rotation_180m,
+	dm_rotation_270m,
+};
+
+enum dm_use_mall_for_pstate_change_mode {
+	dm_use_mall_pstate_change_disable,
+	dm_use_mall_pstate_change_full_frame,
+	dm_use_mall_pstate_change_sub_viewport,
+	dm_use_mall_pstate_change_phantom_pipe
+};
+
+enum dm_use_mall_for_static_screen_mode {
+	dm_use_mall_static_screen_disable,
+	dm_use_mall_static_screen_optimize,
+	dm_use_mall_static_screen_enable,
+};
+
+enum dm_output_link_dp_rate {
+	dm_dp_rate_na,
+	dm_dp_rate_hbr,
+	dm_dp_rate_hbr2,
+	dm_dp_rate_hbr3,
+	dm_dp_rate_uhbr10,
+	dm_dp_rate_uhbr13p5,
+	dm_dp_rate_uhbr20,
+};
+
+enum dm_fclock_change_support {
+	dm_fclock_change_vactive,
+	dm_fclock_change_vblank,
+	dm_fclock_change_unsupported,
+};
+
+enum dm_prefetch_modes {
+	dm_prefetch_support_uclk_fclk_and_stutter_if_possible,
+	dm_prefetch_support_uclk_fclk_and_stutter,
+	dm_prefetch_support_fclk_and_stutter,
+	dm_prefetch_support_stutter,
+	dm_prefetch_support_none,
+};
+enum dm_output_type {
+	dm_output_type_unknown,
+	dm_output_type_dp,
+	dm_output_type_edp,
+	dm_output_type_dp2p0,
+	dm_output_type_hdmi,
+	dm_output_type_hdmifrl,
+};
+
+enum dm_output_rate {
+	dm_output_rate_unknown,
+	dm_output_rate_dp_rate_hbr,
+	dm_output_rate_dp_rate_hbr2,
+	dm_output_rate_dp_rate_hbr3,
+	dm_output_rate_dp_rate_uhbr10,
+	dm_output_rate_dp_rate_uhbr13p5,
+	dm_output_rate_dp_rate_uhbr20,
+	dm_output_rate_hdmi_rate_3x3,
+	dm_output_rate_hdmi_rate_6x3,
+	dm_output_rate_hdmi_rate_6x4,
+	dm_output_rate_hdmi_rate_8x4,
+	dm_output_rate_hdmi_rate_10x4,
+	dm_output_rate_hdmi_rate_12x4,
+};
 #endif

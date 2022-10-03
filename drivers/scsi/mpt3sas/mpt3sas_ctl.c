@@ -578,7 +578,7 @@ static int
 _ctl_set_task_mid(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command *karg,
 	Mpi2SCSITaskManagementRequest_t *tm_request)
 {
-	u8 found = 0;
+	bool found = false;
 	u16 smid;
 	u16 handle;
 	struct scsi_cmnd *scmd;
@@ -600,6 +600,7 @@ _ctl_set_task_mid(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command *karg,
 	handle = le16_to_cpu(tm_request->DevHandle);
 	for (smid = ioc->scsiio_depth; smid && !found; smid--) {
 		struct scsiio_tracker *st;
+		__le16 task_mid;
 
 		scmd = mpt3sas_scsih_scsi_lookup_get(ioc, smid);
 		if (!scmd)
@@ -618,10 +619,10 @@ _ctl_set_task_mid(struct MPT3SAS_ADAPTER *ioc, struct mpt3_ioctl_command *karg,
 		 * first outstanding smid will be picked up.  Otherwise,
 		 * targeted smid will be the one.
 		 */
-		if (!tm_request->TaskMID || tm_request->TaskMID == st->smid) {
-			tm_request->TaskMID = cpu_to_le16(st->smid);
-			found = 1;
-		}
+		task_mid = cpu_to_le16(st->smid);
+		if (!tm_request->TaskMID)
+			tm_request->TaskMID = task_mid;
+		found = tm_request->TaskMID == task_mid;
 	}
 
 	if (!found) {

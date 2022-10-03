@@ -840,7 +840,6 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l33 = {
 	.num_dapm_routes	= ARRAY_SIZE(cs35l33_audio_map),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config cs35l33_regmap = {
@@ -1116,8 +1115,7 @@ static int cs35l33_of_get_pdata(struct device *dev,
 	return 0;
 }
 
-static int cs35l33_i2c_probe(struct i2c_client *i2c_client,
-				       const struct i2c_device_id *id)
+static int cs35l33_i2c_probe(struct i2c_client *i2c_client)
 {
 	struct cs35l33_private *cs35l33;
 	struct cs35l33_pdata *pdata = dev_get_platdata(&i2c_client->dev);
@@ -1286,7 +1284,7 @@ static struct i2c_driver cs35l33_i2c_driver = {
 
 		},
 	.id_table = cs35l33_id,
-	.probe = cs35l33_i2c_probe,
+	.probe_new = cs35l33_i2c_probe,
 	.remove = cs35l33_i2c_remove,
 
 };

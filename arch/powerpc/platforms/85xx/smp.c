@@ -208,7 +208,7 @@ static int smp_85xx_start_cpu(int cpu)
 	 * The bootpage and highmem can be accessed via ioremap(), but
 	 * we need to directly access the spinloop if its in lowmem.
 	 */
-	ioremappable = *cpu_rel_addr > virt_to_phys(high_memory);
+	ioremappable = *cpu_rel_addr > virt_to_phys(high_memory - 1);
 
 	/* Map the spin table */
 	if (ioremappable)

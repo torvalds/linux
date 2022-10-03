@@ -38,10 +38,10 @@ struct ctl_table_header;
 struct ctl_dir;
 
 /* Keep the same order as in fs/proc/proc_sysctl.c */
-#define SYSCTL_NEG_ONE			((void *)&sysctl_vals[0])
-#define SYSCTL_ZERO			((void *)&sysctl_vals[1])
-#define SYSCTL_ONE			((void *)&sysctl_vals[2])
-#define SYSCTL_TWO			((void *)&sysctl_vals[3])
+#define SYSCTL_ZERO			((void *)&sysctl_vals[0])
+#define SYSCTL_ONE			((void *)&sysctl_vals[1])
+#define SYSCTL_TWO			((void *)&sysctl_vals[2])
+#define SYSCTL_THREE			((void *)&sysctl_vals[3])
 #define SYSCTL_FOUR			((void *)&sysctl_vals[4])
 #define SYSCTL_ONE_HUNDRED		((void *)&sysctl_vals[5])
 #define SYSCTL_TWO_HUNDRED		((void *)&sysctl_vals[6])
@@ -51,6 +51,7 @@ struct ctl_dir;
 
 /* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
 #define SYSCTL_MAXOLDUID		((void *)&sysctl_vals[10])
+#define SYSCTL_NEG_ONE			((void *)&sysctl_vals[11])
 
 extern const int sysctl_vals[];
 
@@ -74,6 +75,8 @@ int proc_douintvec_minmax(struct ctl_table *table, int write, void *buffer,
 int proc_dou8vec_minmax(struct ctl_table *table, int write, void *buffer,
 			size_t *lenp, loff_t *ppos);
 int proc_dointvec_jiffies(struct ctl_table *, int, void *, size_t *, loff_t *);
+int proc_dointvec_ms_jiffies_minmax(struct ctl_table *table, int write,
+		void *buffer, size_t *lenp, loff_t *ppos);
 int proc_dointvec_userhz_jiffies(struct ctl_table *, int, void *, size_t *,
 		loff_t *);
 int proc_dointvec_ms_jiffies(struct ctl_table *, int, void *, size_t *,
@@ -263,6 +266,10 @@ static inline int __register_sysctl_base(struct ctl_table *base_table)
 static inline struct ctl_table_header *register_sysctl_table(struct ctl_table * table)
 {
 	return NULL;
+}
+
+static inline void register_sysctl_init(const char *path, struct ctl_table *table)
+{
 }
 
 static inline struct ctl_table_header *register_sysctl_mount_point(const char *path)

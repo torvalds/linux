@@ -331,7 +331,7 @@ static inline slab_flags_t kmem_cache_flags(unsigned int object_size,
 			  SLAB_ACCOUNT)
 #elif defined(CONFIG_SLUB)
 #define SLAB_CACHE_FLAGS (SLAB_NOLEAKTRACE | SLAB_RECLAIM_ACCOUNT | \
-			  SLAB_TEMPORARY | SLAB_ACCOUNT)
+			  SLAB_TEMPORARY | SLAB_ACCOUNT | SLAB_NO_USER_FLAGS)
 #else
 #define SLAB_CACHE_FLAGS (SLAB_NOLEAKTRACE)
 #endif
@@ -350,7 +350,8 @@ static inline slab_flags_t kmem_cache_flags(unsigned int object_size,
 			      SLAB_NOLEAKTRACE | \
 			      SLAB_RECLAIM_ACCOUNT | \
 			      SLAB_TEMPORARY | \
-			      SLAB_ACCOUNT)
+			      SLAB_ACCOUNT | \
+			      SLAB_NO_USER_FLAGS)
 
 bool __kmem_cache_empty(struct kmem_cache *);
 int __kmem_cache_shutdown(struct kmem_cache *);
@@ -378,15 +379,6 @@ void get_slabinfo(struct kmem_cache *s, struct slabinfo *sinfo);
 void slabinfo_show_stats(struct seq_file *m, struct kmem_cache *s);
 ssize_t slabinfo_write(struct file *file, const char __user *buffer,
 		       size_t count, loff_t *ppos);
-
-/*
- * Generic implementation of bulk operations
- * These are useful for situations in which the allocator cannot
- * perform optimizations. In that case segments of the object listed
- * may be allocated or freed using these operations.
- */
-void __kmem_cache_free_bulk(struct kmem_cache *, size_t, void **);
-int __kmem_cache_alloc_bulk(struct kmem_cache *, gfp_t, size_t, void **);
 
 static inline enum node_stat_item cache_vmstat_idx(struct kmem_cache *s)
 {
@@ -546,36 +538,22 @@ static inline void memcg_slab_post_alloc_hook(struct kmem_cache *s,
 	obj_cgroup_put(objcg);
 }
 
-static inline void memcg_slab_free_hook(struct kmem_cache *s_orig,
+static inline void memcg_slab_free_hook(struct kmem_cache *s, struct slab *slab,
 					void **p, int objects)
 {
-	struct kmem_cache *s;
 	struct obj_cgroup **objcgs;
-	struct obj_cgroup *objcg;
-	struct slab *slab;
-	unsigned int off;
 	int i;
 
 	if (!memcg_kmem_enabled())
 		return;
 
+	objcgs = slab_objcgs(slab);
+	if (!objcgs)
+		return;
+
 	for (i = 0; i < objects; i++) {
-		if (unlikely(!p[i]))
-			continue;
-
-		slab = virt_to_slab(p[i]);
-		/* we could be given a kmalloc_large() object, skip those */
-		if (!slab)
-			continue;
-
-		objcgs = slab_objcgs(slab);
-		if (!objcgs)
-			continue;
-
-		if (!s_orig)
-			s = slab->slab_cache;
-		else
-			s = s_orig;
+		struct obj_cgroup *objcg;
+		unsigned int off;
 
 		off = obj_to_index(s, slab, p[i]);
 		objcg = objcgs[off];
@@ -627,7 +605,7 @@ static inline void memcg_slab_post_alloc_hook(struct kmem_cache *s,
 {
 }
 
-static inline void memcg_slab_free_hook(struct kmem_cache *s,
+static inline void memcg_slab_free_hook(struct kmem_cache *s, struct slab *slab,
 					void **p, int objects)
 {
 }
@@ -868,7 +846,7 @@ struct kmem_obj_info {
 	void *kp_stack[KS_ADDRS_COUNT];
 	void *kp_free_stack[KS_ADDRS_COUNT];
 };
-void kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct slab *slab);
+void __kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct slab *slab);
 #endif
 
 #ifdef CONFIG_HAVE_HARDENED_USERCOPY_ALLOCATOR

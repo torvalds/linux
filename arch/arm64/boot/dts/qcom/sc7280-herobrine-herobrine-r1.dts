@@ -14,6 +14,36 @@
 	compatible = "google,herobrine", "qcom,sc7280";
 };
 
+/*
+ * ADDITIONS TO FIXED REGULATORS DEFINED IN PARENT DEVICE TREE FILES
+ *
+ * Sort order matches the order in the parent files (parents before children).
+ */
+
+&pp3300_codec {
+	status = "okay";
+};
+
+&pp3300_fp_mcu {
+	status = "okay";
+};
+
+&pp2850_vcm_wf_cam {
+	status = "okay";
+};
+
+&pp2850_wf_cam {
+	status = "okay";
+};
+
+&pp1800_wf_cam {
+	status = "okay";
+};
+
+&pp1200_wf_cam {
+	status = "okay";
+};
+
 /* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
 
 &ap_spi_fp {
@@ -70,6 +100,14 @@ ts_i2c: &i2c13 {
 	};
 };
 
+&mdss_edp {
+	status = "okay";
+};
+
+&mdss_edp_phy {
+	status = "okay";
+};
+
 /* For nvme */
 &pcie1 {
 	status = "okay";
@@ -88,6 +126,17 @@ ts_i2c: &i2c13 {
 /* For SD Card */
 &sdhc_2 {
 	status = "okay";
+};
+
+/* PINCTRL - ADDITIONS TO NODES IN PARENT DEVICE TREE FILES */
+
+/*
+ * This pin goes to the display panel but then doesn't actually do anything
+ * on the panel itself (it doesn't connect to the touchscreen controller).
+ * We'll set a pullup here just to park the line.
+ */
+&ts_rst_conn {
+	bias-pull-up;
 };
 
 /* PINCTRL - BOARD-SPECIFIC */

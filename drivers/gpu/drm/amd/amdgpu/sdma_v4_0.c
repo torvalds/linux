@@ -722,7 +722,7 @@ static uint64_t sdma_v4_0_ring_get_rptr(struct amdgpu_ring *ring)
 	u64 *rptr;
 
 	/* XXX check if swapping is necessary on BE */
-	rptr = ((u64 *)&ring->adev->wb.wb[ring->rptr_offs]);
+	rptr = ((u64 *)ring->rptr_cpu_addr);
 
 	DRM_DEBUG("rptr before shift == 0x%016llx\n", *rptr);
 	return ((*rptr) >> 2);
@@ -742,7 +742,7 @@ static uint64_t sdma_v4_0_ring_get_wptr(struct amdgpu_ring *ring)
 
 	if (ring->use_doorbell) {
 		/* XXX check if swapping is necessary on BE */
-		wptr = READ_ONCE(*((u64 *)&adev->wb.wb[ring->wptr_offs]));
+		wptr = READ_ONCE(*((u64 *)ring->wptr_cpu_addr));
 		DRM_DEBUG("wptr/doorbell before shift == 0x%016llx\n", wptr);
 	} else {
 		wptr = RREG32_SDMA(ring->me, mmSDMA0_GFX_RB_WPTR_HI);
@@ -768,12 +768,12 @@ static void sdma_v4_0_ring_set_wptr(struct amdgpu_ring *ring)
 
 	DRM_DEBUG("Setting write pointer\n");
 	if (ring->use_doorbell) {
-		u64 *wb = (u64 *)&adev->wb.wb[ring->wptr_offs];
+		u64 *wb = (u64 *)ring->wptr_cpu_addr;
 
 		DRM_DEBUG("Using doorbell -- "
 				"wptr_offs == 0x%08x "
-				"lower_32_bits(ring->wptr) << 2 == 0x%08x "
-				"upper_32_bits(ring->wptr) << 2 == 0x%08x\n",
+				"lower_32_bits(ring->wptr << 2) == 0x%08x "
+				"upper_32_bits(ring->wptr << 2) == 0x%08x\n",
 				ring->wptr_offs,
 				lower_32_bits(ring->wptr << 2),
 				upper_32_bits(ring->wptr << 2));
@@ -811,7 +811,7 @@ static uint64_t sdma_v4_0_page_ring_get_wptr(struct amdgpu_ring *ring)
 
 	if (ring->use_doorbell) {
 		/* XXX check if swapping is necessary on BE */
-		wptr = READ_ONCE(*((u64 *)&adev->wb.wb[ring->wptr_offs]));
+		wptr = READ_ONCE(*((u64 *)ring->wptr_cpu_addr));
 	} else {
 		wptr = RREG32_SDMA(ring->me, mmSDMA0_PAGE_RB_WPTR_HI);
 		wptr = wptr << 32;
@@ -833,7 +833,7 @@ static void sdma_v4_0_page_ring_set_wptr(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 
 	if (ring->use_doorbell) {
-		u64 *wb = (u64 *)&adev->wb.wb[ring->wptr_offs];
+		u64 *wb = (u64 *)ring->wptr_cpu_addr;
 
 		/* XXX check if swapping is necessary on BE */
 		WRITE_ONCE(*wb, (ring->wptr << 2));
@@ -1174,12 +1174,9 @@ static void sdma_v4_0_gfx_resume(struct amdgpu_device *adev, unsigned int i)
 {
 	struct amdgpu_ring *ring = &adev->sdma.instance[i].ring;
 	u32 rb_cntl, ib_cntl, wptr_poll_cntl;
-	u32 wb_offset;
 	u32 doorbell;
 	u32 doorbell_offset;
 	u64 wptr_gpu_addr;
-
-	wb_offset = (ring->rptr_offs * 4);
 
 	rb_cntl = RREG32_SDMA(i, mmSDMA0_GFX_RB_CNTL);
 	rb_cntl = sdma_v4_0_rb_cntl(ring, rb_cntl);
@@ -1193,9 +1190,9 @@ static void sdma_v4_0_gfx_resume(struct amdgpu_device *adev, unsigned int i)
 
 	/* set the wb address whether it's enabled or not */
 	WREG32_SDMA(i, mmSDMA0_GFX_RB_RPTR_ADDR_HI,
-	       upper_32_bits(adev->wb.gpu_addr + wb_offset) & 0xFFFFFFFF);
+	       upper_32_bits(ring->rptr_gpu_addr) & 0xFFFFFFFF);
 	WREG32_SDMA(i, mmSDMA0_GFX_RB_RPTR_ADDR_LO,
-	       lower_32_bits(adev->wb.gpu_addr + wb_offset) & 0xFFFFFFFC);
+	       lower_32_bits(ring->rptr_gpu_addr) & 0xFFFFFFFC);
 
 	rb_cntl = REG_SET_FIELD(rb_cntl, SDMA0_GFX_RB_CNTL,
 				RPTR_WRITEBACK_ENABLE, 1);
@@ -1225,7 +1222,7 @@ static void sdma_v4_0_gfx_resume(struct amdgpu_device *adev, unsigned int i)
 	WREG32_SDMA(i, mmSDMA0_GFX_MINOR_PTR_UPDATE, 0);
 
 	/* setup the wptr shadow polling */
-	wptr_gpu_addr = adev->wb.gpu_addr + (ring->wptr_offs * 4);
+	wptr_gpu_addr = ring->wptr_gpu_addr;
 	WREG32_SDMA(i, mmSDMA0_GFX_RB_WPTR_POLL_ADDR_LO,
 		    lower_32_bits(wptr_gpu_addr));
 	WREG32_SDMA(i, mmSDMA0_GFX_RB_WPTR_POLL_ADDR_HI,
@@ -1264,12 +1261,9 @@ static void sdma_v4_0_page_resume(struct amdgpu_device *adev, unsigned int i)
 {
 	struct amdgpu_ring *ring = &adev->sdma.instance[i].page;
 	u32 rb_cntl, ib_cntl, wptr_poll_cntl;
-	u32 wb_offset;
 	u32 doorbell;
 	u32 doorbell_offset;
 	u64 wptr_gpu_addr;
-
-	wb_offset = (ring->rptr_offs * 4);
 
 	rb_cntl = RREG32_SDMA(i, mmSDMA0_PAGE_RB_CNTL);
 	rb_cntl = sdma_v4_0_rb_cntl(ring, rb_cntl);
@@ -1283,9 +1277,9 @@ static void sdma_v4_0_page_resume(struct amdgpu_device *adev, unsigned int i)
 
 	/* set the wb address whether it's enabled or not */
 	WREG32_SDMA(i, mmSDMA0_PAGE_RB_RPTR_ADDR_HI,
-	       upper_32_bits(adev->wb.gpu_addr + wb_offset) & 0xFFFFFFFF);
+	       upper_32_bits(ring->rptr_gpu_addr) & 0xFFFFFFFF);
 	WREG32_SDMA(i, mmSDMA0_PAGE_RB_RPTR_ADDR_LO,
-	       lower_32_bits(adev->wb.gpu_addr + wb_offset) & 0xFFFFFFFC);
+	       lower_32_bits(ring->rptr_gpu_addr) & 0xFFFFFFFC);
 
 	rb_cntl = REG_SET_FIELD(rb_cntl, SDMA0_PAGE_RB_CNTL,
 				RPTR_WRITEBACK_ENABLE, 1);
@@ -1316,7 +1310,7 @@ static void sdma_v4_0_page_resume(struct amdgpu_device *adev, unsigned int i)
 	WREG32_SDMA(i, mmSDMA0_PAGE_MINOR_PTR_UPDATE, 0);
 
 	/* setup the wptr shadow polling */
-	wptr_gpu_addr = adev->wb.gpu_addr + (ring->wptr_offs * 4);
+	wptr_gpu_addr = ring->wptr_gpu_addr;
 	WREG32_SDMA(i, mmSDMA0_PAGE_RB_WPTR_POLL_ADDR_LO,
 		    lower_32_bits(wptr_gpu_addr));
 	WREG32_SDMA(i, mmSDMA0_PAGE_RB_WPTR_POLL_ADDR_HI,
@@ -1510,6 +1504,11 @@ static int sdma_v4_0_start(struct amdgpu_device *adev)
 		WREG32_SDMA(i, mmSDMA0_CNTL, temp);
 
 		if (!amdgpu_sriov_vf(adev)) {
+			ring = &adev->sdma.instance[i].ring;
+			adev->nbio.funcs->sdma_doorbell_range(adev, i,
+				ring->use_doorbell, ring->doorbell_index,
+				adev->doorbell_index.sdma_doorbell_range);
+
 			/* unhalt engine */
 			temp = RREG32_SDMA(i, mmSDMA0_F32_CNTL);
 			temp = REG_SET_FIELD(temp, SDMA0_F32_CNTL, HALT, 0);
@@ -2008,7 +2007,6 @@ static int sdma_v4_0_sw_fini(void *handle)
 
 static int sdma_v4_0_hw_init(void *handle)
 {
-	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->flags & AMD_IS_APU)
@@ -2017,9 +2015,7 @@ static int sdma_v4_0_hw_init(void *handle)
 	if (!amdgpu_sriov_vf(adev))
 		sdma_v4_0_init_golden_registers(adev);
 
-	r = sdma_v4_0_start(adev);
-
-	return r;
+	return sdma_v4_0_start(adev);
 }
 
 static int sdma_v4_0_hw_fini(void *handle)
@@ -2372,7 +2368,7 @@ static int sdma_v4_0_set_powergating_state(void *handle,
 	return 0;
 }
 
-static void sdma_v4_0_get_clockgating_state(void *handle, u32 *flags)
+static void sdma_v4_0_get_clockgating_state(void *handle, u64 *flags)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int data;

@@ -343,7 +343,7 @@ static int aries_late_probe(struct snd_soc_card *card)
 	struct aries_wm8994_data *priv = snd_soc_card_get_drvdata(card);
 	int ret, irq;
 
-	ret = snd_soc_card_jack_new(card, "Dock", SND_JACK_LINEOUT,
+	ret = snd_soc_card_jack_new_pins(card, "Dock", SND_JACK_LINEOUT,
 			&aries_dock, dock_pins, ARRAY_SIZE(dock_pins));
 	if (ret)
 		return ret;
@@ -361,7 +361,7 @@ static int aries_late_probe(struct snd_soc_card *card)
 	else
 		snd_soc_jack_report(&aries_dock, 0, SND_JACK_LINEOUT);
 
-	ret = snd_soc_card_jack_new(card, "Headset",
+	ret = snd_soc_card_jack_new_pins(card, "Headset",
 			SND_JACK_HEADSET | SND_JACK_BTN_0,
 			&aries_headset,
 			jack_pins, ARRAY_SIZE(jack_pins));
@@ -432,7 +432,6 @@ static const struct snd_soc_component_driver aries_component = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static struct snd_soc_dai_driver aries_ext_dai[] = {
@@ -585,10 +584,10 @@ static int aries_audio_probe(struct platform_device *pdev)
 
 	extcon_np = of_parse_phandle(np, "extcon", 0);
 	priv->usb_extcon = extcon_find_edev_by_node(extcon_np);
+	of_node_put(extcon_np);
 	if (IS_ERR(priv->usb_extcon))
 		return dev_err_probe(dev, PTR_ERR(priv->usb_extcon),
 				     "Failed to get extcon device");
-	of_node_put(extcon_np);
 
 	priv->adc = devm_iio_channel_get(dev, "headset-detect");
 	if (IS_ERR(priv->adc))
@@ -628,8 +627,10 @@ static int aries_audio_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	codec = of_get_child_by_name(dev->of_node, "codec");
-	if (!codec)
-		return -EINVAL;
+	if (!codec) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	for_each_card_prelinks(card, i, dai_link) {
 		dai_link->codecs->of_node = of_parse_phandle(codec,

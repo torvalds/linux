@@ -1122,12 +1122,11 @@ atmci_prepare_data_dma(struct atmel_mci *host, struct mmc_data *data)
 	}
 
 	/* If we don't have a channel, we can't do DMA */
-	chan = host->dma.chan;
-	if (chan)
-		host->data_chan = chan;
-
-	if (!chan)
+	if (!host->dma.chan)
 		return -ENODEV;
+
+	chan = host->dma.chan;
+	host->data_chan = chan;
 
 	if (data->flags & MMC_DATA_READ) {
 		host->dma_conf.direction = slave_dirn = DMA_DEV_TO_MEM;

@@ -5094,23 +5094,11 @@ static const struct {
 static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 #define F_(x, y)	FN_##y
 #define FM(x)		FN_##x
-	{ PINMUX_CFG_REG("GPSR0", 0xe6060100, 32, 1, GROUP(
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
+	{ PINMUX_CFG_REG_VAR("GPSR0", 0xe6060100, 32,
+			     GROUP(-16, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+				   1, 1, 1, 1, 1),
+			     GROUP(
+		/* GP0_31_16 RESERVED */
 		GP_0_15_FN,	GPSR0_15,
 		GP_0_14_FN,	GPSR0_14,
 		GP_0_13_FN,	GPSR0_13,
@@ -5162,24 +5150,11 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_1_1_FN,	GPSR1_1,
 		GP_1_0_FN,	GPSR1_0, ))
 	},
-	{ PINMUX_CFG_REG("GPSR2", 0xe6060108, 32, 1, GROUP(
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
+	{ PINMUX_CFG_REG_VAR("GPSR2", 0xe6060108, 32,
+			     GROUP(-17, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+				   1, 1, 1, 1),
+			     GROUP(
+		/* GP2_31_15 RESERVED */
 		GP_2_14_FN,	GPSR2_14,
 		GP_2_13_FN,	GPSR2_13,
 		GP_2_12_FN,	GPSR2_12,
@@ -5196,23 +5171,11 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_2_1_FN,	GPSR2_1,
 		GP_2_0_FN,	GPSR2_0, ))
 	},
-	{ PINMUX_CFG_REG("GPSR3", 0xe606010c, 32, 1, GROUP(
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
+	{ PINMUX_CFG_REG_VAR("GPSR3", 0xe606010c, 32,
+			     GROUP(-16, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+				   1, 1, 1, 1, 1),
+			     GROUP(
+		/* GP3_31_16 RESERVED */
 		GP_3_15_FN,	GPSR3_15,
 		GP_3_14_FN,	GPSR3_14,
 		GP_3_13_FN,	GPSR3_13,
@@ -5230,21 +5193,11 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_3_1_FN,	GPSR3_1,
 		GP_3_0_FN,	GPSR3_0, ))
 	},
-	{ PINMUX_CFG_REG("GPSR4", 0xe6060110, 32, 1, GROUP(
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
+	{ PINMUX_CFG_REG_VAR("GPSR4", 0xe6060110, 32,
+			     GROUP(-14, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+				   1, 1, 1, 1, 1, 1, 1),
+			     GROUP(
+		/* GP4_31_18 RESERVED */
 		GP_4_17_FN,	GPSR4_17,
 		GP_4_16_FN,	GPSR4_16,
 		GP_4_15_FN,	GPSR4_15,
@@ -5332,35 +5285,10 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_6_1_FN,	GPSR6_1,
 		GP_6_0_FN,	GPSR6_0, ))
 	},
-	{ PINMUX_CFG_REG("GPSR7", 0xe606011c, 32, 1, GROUP(
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
+	{ PINMUX_CFG_REG_VAR("GPSR7", 0xe606011c, 32,
+			     GROUP(-28, 1, 1, 1, 1),
+			     GROUP(
+		/* GP7_31_4 RESERVED */
 		GP_7_3_FN, GPSR7_3,
 		GP_7_2_FN, GPSR7_2,
 		GP_7_1_FN, GPSR7_1,
@@ -5441,12 +5369,14 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		IP6_7_4
 		IP6_3_0 ))
 	},
-	{ PINMUX_CFG_REG("IPSR7", 0xe606021c, 32, 4, GROUP(
+	{ PINMUX_CFG_REG_VAR("IPSR7", 0xe606021c, 32,
+			     GROUP(4, 4, 4, 4, -4, 4, 4, 4),
+			     GROUP(
 		IP7_31_28
 		IP7_27_24
 		IP7_23_20
 		IP7_19_16
-		/* IP7_15_12 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		/* IP7_15_12 RESERVED */
 		IP7_11_8
 		IP7_7_4
 		IP7_3_0 ))
@@ -5551,13 +5481,10 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		IP17_7_4
 		IP17_3_0 ))
 	},
-	{ PINMUX_CFG_REG("IPSR18", 0xe6060248, 32, 4, GROUP(
-		/* IP18_31_28 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		/* IP18_27_24 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		/* IP18_23_20 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		/* IP18_19_16 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		/* IP18_15_12 */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		/* IP18_11_8  */ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	{ PINMUX_CFG_REG_VAR("IPSR18", 0xe6060248, 32,
+			     GROUP(-24, 4, 4),
+			     GROUP(
+		/* IP18_31_8 RESERVED */
 		IP18_7_4
 		IP18_3_0 ))
 	},
@@ -5567,8 +5494,8 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 #define F_(x, y)	x,
 #define FM(x)		FN_##x,
 	{ PINMUX_CFG_REG_VAR("MOD_SEL0", 0xe6060500, 32,
-			     GROUP(3, 2, 3, 1, 1, 1, 1, 1, 2, 1, 1, 2,
-				   1, 1, 1, 2, 2, 1, 2, 3),
+			     GROUP(3, 2, 3, 1, 1, 1, 1, 1, 2, 1, -1, 2,
+				   1, 1, 1, 2, 2, 1, 2, -3),
 			     GROUP(
 		MOD_SEL0_31_30_29
 		MOD_SEL0_28_27
@@ -5580,7 +5507,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		MOD_SEL0_19
 		MOD_SEL0_18_17
 		MOD_SEL0_16
-		0, 0, /* RESERVED 15 */
+		/* RESERVED 15 */
 		MOD_SEL0_14_13
 		MOD_SEL0_12
 		MOD_SEL0_11
@@ -5589,12 +5516,11 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		MOD_SEL0_7_6
 		MOD_SEL0_5
 		MOD_SEL0_4_3
-		/* RESERVED 2, 1, 0 */
-		0, 0, 0, 0, 0, 0, 0, 0 ))
+		/* RESERVED 2, 1, 0 */ ))
 	},
 	{ PINMUX_CFG_REG_VAR("MOD_SEL1", 0xe6060504, 32,
 			     GROUP(2, 3, 1, 2, 3, 1, 1, 2, 1, 2, 1, 1,
-				   1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1),
+				   1, 1, 1, -2, 1, 1, 1, 1, 1, 1, 1),
 			     GROUP(
 		MOD_SEL1_31_30
 		MOD_SEL1_29_28_27
@@ -5611,7 +5537,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		MOD_SEL1_11
 		MOD_SEL1_10
 		MOD_SEL1_9
-		0, 0, 0, 0, /* RESERVED 8, 7 */
+		/* RESERVED 8, 7 */
 		MOD_SEL1_6
 		MOD_SEL1_5
 		MOD_SEL1_4
@@ -5622,7 +5548,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	},
 	{ PINMUX_CFG_REG_VAR("MOD_SEL2", 0xe6060508, 32,
 			     GROUP(1, 1, 1, 2, 1, 3, 1, 1, 1, 1, 1, 1,
-				   1, 4, 4, 4, 3, 1),
+				   -16, 1),
 			     GROUP(
 		MOD_SEL2_31
 		MOD_SEL2_30
@@ -5636,19 +5562,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		MOD_SEL2_19
 		MOD_SEL2_18
 		MOD_SEL2_17
-		/* RESERVED 16 */
-		0, 0,
-		/* RESERVED 15, 14, 13, 12 */
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		/* RESERVED 11, 10, 9, 8 */
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		/* RESERVED 7, 6, 5, 4 */
-		0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0,
-		/* RESERVED 3, 2, 1 */
-		0, 0, 0, 0, 0, 0, 0, 0,
+		/* RESERVED 16-1 */
 		MOD_SEL2_0 ))
 	},
 	{ },

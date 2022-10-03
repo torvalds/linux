@@ -6,7 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 
-#include <asm/machdep.h>
+#include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/firmware.h>
 #include <asm/kexec.h>
@@ -60,4 +60,12 @@ void pseries_kexec_cpu_down(int crash_shutdown, int secondary)
 			xive_shutdown();
 	} else
 		xics_kexec_teardown_cpu(secondary);
+}
+
+void pseries_machine_kexec(struct kimage *image)
+{
+	if (firmware_has_feature(FW_FEATURE_SET_MODE))
+		pseries_disable_reloc_on_exc();
+
+	default_machine_kexec(image);
 }

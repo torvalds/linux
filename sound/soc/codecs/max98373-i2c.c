@@ -442,7 +442,6 @@ static bool max98373_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case MAX98373_R2000_SW_RESET ... MAX98373_R2009_INT_FLAG3:
-	case MAX98373_R203E_AMP_PATH_GAIN:
 	case MAX98373_R2054_MEAS_ADC_PVDD_CH_READBACK:
 	case MAX98373_R2055_MEAS_ADC_THERM_CH_READBACK:
 	case MAX98373_R20B6_BDE_CUR_STATE_READBACK:
@@ -516,8 +515,7 @@ static const struct regmap_config max98373_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int max98373_i2c_probe(struct i2c_client *i2c,
-			      const struct i2c_device_id *id)
+static int max98373_i2c_probe(struct i2c_client *i2c)
 {
 	int ret = 0;
 	int reg = 0;
@@ -622,7 +620,7 @@ static struct i2c_driver max98373_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(max98373_acpi_match),
 		.pm = &max98373_pm,
 	},
-	.probe = max98373_i2c_probe,
+	.probe_new = max98373_i2c_probe,
 	.id_table = max98373_i2c_id,
 };
 

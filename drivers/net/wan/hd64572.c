@@ -173,7 +173,8 @@ static void sca_init_port(port_t *port)
 	sca_out(DIR_EOME, DIR_TX(port->chan), card); /* enable interrupts */
 
 	sca_set_carrier(port);
-	netif_napi_add(port->netdev, &port->napi, sca_poll, NAPI_WEIGHT);
+	netif_napi_add_weight(port->netdev, &port->napi, sca_poll,
+			      NAPI_WEIGHT);
 }
 
 /* MSCI interrupt service */

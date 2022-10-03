@@ -42,7 +42,7 @@ struct mcp4725_data {
 	struct regulator *vref_reg;
 };
 
-static int __maybe_unused mcp4725_suspend(struct device *dev)
+static int mcp4725_suspend(struct device *dev)
 {
 	struct mcp4725_data *data = iio_priv(i2c_get_clientdata(
 		to_i2c_client(dev)));
@@ -55,7 +55,7 @@ static int __maybe_unused mcp4725_suspend(struct device *dev)
 	return i2c_master_send(data->client, outbuf, 2);
 }
 
-static int __maybe_unused mcp4725_resume(struct device *dev)
+static int mcp4725_resume(struct device *dev)
 {
 	struct mcp4725_data *data = iio_priv(i2c_get_clientdata(
 		to_i2c_client(dev)));
@@ -68,7 +68,8 @@ static int __maybe_unused mcp4725_resume(struct device *dev)
 
 	return i2c_master_send(data->client, outbuf, 2);
 }
-static SIMPLE_DEV_PM_OPS(mcp4725_pm_ops, mcp4725_suspend, mcp4725_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(mcp4725_pm_ops, mcp4725_suspend,
+				mcp4725_resume);
 
 static ssize_t mcp4725_store_eeprom(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
@@ -80,7 +81,7 @@ static ssize_t mcp4725_store_eeprom(struct device *dev,
 	bool state;
 	int ret;
 
-	ret = strtobool(buf, &state);
+	ret = kstrtobool(buf, &state);
 	if (ret < 0)
 		return ret;
 
@@ -178,7 +179,7 @@ static ssize_t mcp4725_write_powerdown(struct iio_dev *indio_dev,
 	bool state;
 	int ret;
 
-	ret = strtobool(buf, &state);
+	ret = kstrtobool(buf, &state);
 	if (ret)
 		return ret;
 
@@ -523,7 +524,7 @@ static struct i2c_driver mcp4725_driver = {
 	.driver = {
 		.name	= MCP4725_DRV_NAME,
 		.of_match_table = mcp4725_of_match,
-		.pm	= &mcp4725_pm_ops,
+		.pm	= pm_sleep_ptr(&mcp4725_pm_ops),
 	},
 	.probe		= mcp4725_probe,
 	.remove		= mcp4725_remove,

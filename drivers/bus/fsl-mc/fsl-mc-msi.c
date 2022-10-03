@@ -224,8 +224,12 @@ int fsl_mc_msi_domain_alloc_irqs(struct device *dev,  unsigned int irq_count)
 	if (error)
 		return error;
 
+	msi_lock_descs(dev);
 	if (msi_first_desc(dev, MSI_DESC_ALL))
-		return -EINVAL;
+		error = -EINVAL;
+	msi_unlock_descs(dev);
+	if (error)
+		return error;
 
 	/*
 	 * NOTE: Calling this function will trigger the invocation of the

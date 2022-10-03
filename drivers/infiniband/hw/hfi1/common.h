@@ -137,61 +137,6 @@
 #define HFI1_USER_SWVERSION ((HFI1_USER_SWMAJOR << HFI1_SWMAJOR_SHIFT) | \
 			     HFI1_USER_SWMINOR)
 
-#ifndef HFI1_KERN_TYPE
-#define HFI1_KERN_TYPE 0
-#endif
-
-/*
- * Similarly, this is the kernel version going back to the user.  It's
- * slightly different, in that we want to tell if the driver was built as
- * part of a Intel release, or from the driver from openfabrics.org,
- * kernel.org, or a standard distribution, for support reasons.
- * The high bit is 0 for non-Intel and 1 for Intel-built/supplied.
- *
- * It's returned by the driver to the user code during initialization in the
- * spi_sw_version field of hfi1_base_info, so the user code can in turn
- * check for compatibility with the kernel.
-*/
-#define HFI1_KERN_SWVERSION ((HFI1_KERN_TYPE << 31) | HFI1_USER_SWVERSION)
-
-/*
- * Define the driver version number.  This is something that refers only
- * to the driver itself, not the software interfaces it supports.
- */
-#ifndef HFI1_DRIVER_VERSION_BASE
-#define HFI1_DRIVER_VERSION_BASE "0.9-294"
-#endif
-
-/* create the final driver version string */
-#ifdef HFI1_IDSTR
-#define HFI1_DRIVER_VERSION HFI1_DRIVER_VERSION_BASE " " HFI1_IDSTR
-#else
-#define HFI1_DRIVER_VERSION HFI1_DRIVER_VERSION_BASE
-#endif
-
-/*
- * Diagnostics can send a packet by writing the following
- * struct to the diag packet special file.
- *
- * This allows a custom PBC qword, so that special modes and deliberate
- * changes to CRCs can be used.
- */
-#define _DIAG_PKT_VERS 1
-struct diag_pkt {
-	__u16 version;		/* structure version */
-	__u16 unit;		/* which device */
-	__u16 sw_index;		/* send sw index to use */
-	__u16 len;		/* data length, in bytes */
-	__u16 port;		/* port number */
-	__u16 unused;
-	__u32 flags;		/* call flags */
-	__u64 data;		/* user data pointer */
-	__u64 pbc;		/* PBC for the packet */
-};
-
-/* diag_pkt flags */
-#define F_DIAGPKT_WAIT 0x1	/* wait until packet is sent */
-
 /*
  * The next set of defines are for packet headers, and chip register
  * and memory bits that are visible to and/or used by user-mode software.

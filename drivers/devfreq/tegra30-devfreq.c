@@ -821,6 +821,15 @@ static int devm_tegra_devfreq_init_hw(struct device *dev,
 	return err;
 }
 
+static int tegra_devfreq_config_clks_nop(struct device *dev,
+					 struct opp_table *opp_table,
+					 struct dev_pm_opp *opp, void *data,
+					 bool scaling_down)
+{
+	/* We want to skip clk configuration via dev_pm_opp_set_opp() */
+	return 0;
+}
+
 static int tegra_devfreq_probe(struct platform_device *pdev)
 {
 	u32 hw_version = BIT(tegra_sku_info.soc_speedo_id);
@@ -830,6 +839,13 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 	unsigned int i;
 	long rate;
 	int err;
+	const char *clk_names[] = { "actmon", NULL };
+	struct dev_pm_opp_config config = {
+		.supported_hw = &hw_version,
+		.supported_hw_count = 1,
+		.clk_names = clk_names,
+		.config_clks = tegra_devfreq_config_clks_nop,
+	};
 
 	tegra = devm_kzalloc(&pdev->dev, sizeof(*tegra), GFP_KERNEL);
 	if (!tegra)
@@ -874,13 +890,13 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	err = devm_pm_opp_set_supported_hw(&pdev->dev, &hw_version, 1);
+	err = devm_pm_opp_set_config(&pdev->dev, &config);
 	if (err) {
-		dev_err(&pdev->dev, "Failed to set supported HW: %d\n", err);
+		dev_err(&pdev->dev, "Failed to set OPP config: %d\n", err);
 		return err;
 	}
 
-	err = devm_pm_opp_of_add_table_noclk(&pdev->dev, 0);
+	err = devm_pm_opp_of_add_table_indexed(&pdev->dev, 0);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to add OPP table: %d\n", err);
 		return err;
@@ -922,8 +938,10 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 
 	devfreq = devm_devfreq_add_device(&pdev->dev, &tegra_devfreq_profile,
 					  "tegra_actmon", NULL);
-	if (IS_ERR(devfreq))
+	if (IS_ERR(devfreq)) {
+		dev_err(&pdev->dev, "Failed to add device: %pe\n", devfreq);
 		return PTR_ERR(devfreq);
+	}
 
 	return 0;
 }

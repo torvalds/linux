@@ -317,12 +317,15 @@ static int alcor_pci_probe(struct pci_dev *pdev,
 	ret = mfd_add_devices(&pdev->dev, priv->id, alcor_pci_cells,
 			ARRAY_SIZE(alcor_pci_cells), NULL, 0, NULL);
 	if (ret < 0)
-		goto error_release_regions;
+		goto error_clear_drvdata;
 
 	alcor_pci_aspm_ctrl(priv, 0);
 
 	return 0;
 
+error_clear_drvdata:
+	pci_clear_master(pdev);
+	pci_set_drvdata(pdev, NULL);
 error_release_regions:
 	pci_release_regions(pdev);
 error_free_ida:
@@ -343,6 +346,7 @@ static void alcor_pci_remove(struct pci_dev *pdev)
 	ida_free(&alcor_pci_idr, priv->id);
 
 	pci_release_regions(pdev);
+	pci_clear_master(pdev);
 	pci_set_drvdata(pdev, NULL);
 }
 

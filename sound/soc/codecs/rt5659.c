@@ -3801,7 +3801,6 @@ static const struct snd_soc_component_driver soc_component_dev_rt5659 = {
 	.set_pll		= rt5659_set_component_pll,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 
@@ -4093,8 +4092,7 @@ static void rt5659_intel_hd_header_probe_setup(struct rt5659_priv *rt5659)
 		RT5659_IL_IRQ_MASK, RT5659_IL_IRQ_EN);
 }
 
-static int rt5659_i2c_probe(struct i2c_client *i2c,
-		    const struct i2c_device_id *id)
+static int rt5659_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt5659_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt5659_priv *rt5659;
@@ -4342,7 +4340,7 @@ static struct i2c_driver rt5659_i2c_driver = {
 		.of_match_table = of_match_ptr(rt5659_of_match),
 		.acpi_match_table = ACPI_PTR(rt5659_acpi_match),
 	},
-	.probe = rt5659_i2c_probe,
+	.probe_new = rt5659_i2c_probe,
 	.shutdown = rt5659_i2c_shutdown,
 	.id_table = rt5659_i2c_id,
 };

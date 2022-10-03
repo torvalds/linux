@@ -89,6 +89,11 @@ int prog2(void *ctx)
 	return 0;
 }
 
+static int empty_callback(__u32 index, void *data)
+{
+	return 0;
+}
+
 /* prog3 has the same section name as prog1 */
 SEC("raw_tp/sys_enter")
 int prog3(void *ctx)
@@ -97,6 +102,9 @@ int prog3(void *ctx)
 
 	if (!BPF_CORE_READ(t, pid) || !get_task_tgid((uintptr_t)t))
 		return 1;
+
+	/* test that ld_imm64 with BPF_PSEUDO_FUNC doesn't get blinded */
+	bpf_loop(1, empty_callback, NULL, 0);
 
 	res3 = sub3(5) + 6; /* (5 + 3 + (4 + 1)) + 6 = 19 */
 	return 0;

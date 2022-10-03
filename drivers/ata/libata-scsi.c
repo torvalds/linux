@@ -539,13 +539,13 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 	return rc;
 }
 
-static int ata_ioc32(struct ata_port *ap)
+static bool ata_ioc32(struct ata_port *ap)
 {
 	if (ap->flags & ATA_FLAG_PIO_DMA)
-		return 1;
+		return true;
 	if (ap->pflags & ATA_PFLAG_PIO32)
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
 /*
@@ -638,24 +638,48 @@ EXPORT_SYMBOL_GPL(ata_scsi_ioctl);
 static struct ata_queued_cmd *ata_scsi_qc_new(struct ata_device *dev,
 					      struct scsi_cmnd *cmd)
 {
+	struct ata_port *ap = dev->link->ap;
 	struct ata_queued_cmd *qc;
+	int tag;
 
-	qc = ata_qc_new_init(dev, scsi_cmd_to_rq(cmd)->tag);
-	if (qc) {
-		qc->scsicmd = cmd;
-		qc->scsidone = scsi_done;
+	if (unlikely(ap->pflags & ATA_PFLAG_FROZEN))
+		goto fail;
 
-		qc->sg = scsi_sglist(cmd);
-		qc->n_elem = scsi_sg_count(cmd);
-
-		if (scsi_cmd_to_rq(cmd)->rq_flags & RQF_QUIET)
-			qc->flags |= ATA_QCFLAG_QUIET;
+	if (ap->flags & ATA_FLAG_SAS_HOST) {
+		/*
+		 * SAS hosts may queue > ATA_MAX_QUEUE commands so use
+		 * unique per-device budget token as a tag.
+		 */
+		if (WARN_ON_ONCE(cmd->budget_token >= ATA_MAX_QUEUE))
+			goto fail;
+		tag = cmd->budget_token;
 	} else {
-		cmd->result = (DID_OK << 16) | SAM_STAT_TASK_SET_FULL;
-		scsi_done(cmd);
+		tag = scsi_cmd_to_rq(cmd)->tag;
 	}
 
+	qc = __ata_qc_from_tag(ap, tag);
+	qc->tag = qc->hw_tag = tag;
+	qc->ap = ap;
+	qc->dev = dev;
+
+	ata_qc_reinit(qc);
+
+	qc->scsicmd = cmd;
+	qc->scsidone = scsi_done;
+
+	qc->sg = scsi_sglist(cmd);
+	qc->n_elem = scsi_sg_count(cmd);
+
+	if (scsi_cmd_to_rq(cmd)->rq_flags & RQF_QUIET)
+		qc->flags |= ATA_QCFLAG_QUIET;
+
 	return qc;
+
+fail:
+	set_host_byte(cmd, DID_OK);
+	set_status_byte(cmd, SAM_STAT_TASK_SET_FULL);
+	scsi_done(cmd);
+	return NULL;
 }
 
 static void ata_qc_set_pc_nbytes(struct ata_queued_cmd *qc)
@@ -1036,6 +1060,7 @@ int ata_scsi_dev_config(struct scsi_device *sdev, struct ata_device *dev)
 		dev->flags |= ATA_DFLAG_NO_UNLOAD;
 
 	/* configure max sectors */
+	dev->max_sectors = min(dev->max_sectors, sdev->host->max_sectors);
 	blk_queue_max_hw_sectors(q, dev->max_sectors);
 
 	if (dev->class == ATA_DEV_ATAPI) {
@@ -2101,7 +2126,7 @@ static unsigned int ata_scsiop_inq_b9(struct ata_scsi_args *args, u8 *rbuf)
 
 	/* SCSI Concurrent Positioning Ranges VPD page: SBC-5 rev 1 or later */
 	rbuf[1] = 0xb9;
-	put_unaligned_be16(64 + (int)cpr_log->nr_cpr * 32 - 4, &rbuf[3]);
+	put_unaligned_be16(64 + (int)cpr_log->nr_cpr * 32 - 4, &rbuf[2]);
 
 	for (i = 0; i < cpr_log->nr_cpr; i++, desc += 32) {
 		desc[0] = cpr_log->cpr[i].num;

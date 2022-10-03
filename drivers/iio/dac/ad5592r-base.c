@@ -522,7 +522,7 @@ static int ad5592r_alloc_channels(struct iio_dev *iio_dev)
 		if (!ret)
 			st->channel_modes[reg] = tmp;
 
-		fwnode_property_read_u32(child, "adi,off-state", &tmp);
+		ret = fwnode_property_read_u32(child, "adi,off-state", &tmp);
 		if (!ret)
 			st->channel_offstate[reg] = tmp;
 	}
@@ -603,7 +603,7 @@ int ad5592r_probe(struct device *dev, const char *name,
 
 	st->reg = devm_regulator_get_optional(dev, "vref");
 	if (IS_ERR(st->reg)) {
-		if ((PTR_ERR(st->reg) != -ENODEV) && dev->of_node)
+		if ((PTR_ERR(st->reg) != -ENODEV) && dev_fwnode(dev))
 			return PTR_ERR(st->reg);
 
 		st->reg = NULL;

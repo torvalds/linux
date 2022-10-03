@@ -585,10 +585,10 @@ void rtw_fw_send_rssi_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }
 
-void rtw_fw_send_ra_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
+void rtw_fw_send_ra_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si,
+			 bool reset_ra_mask)
 {
 	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
-	bool no_update = si->updated;
 	bool disable_pt = true;
 
 	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_RA_INFO);
@@ -599,7 +599,7 @@ void rtw_fw_send_ra_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 	SET_RA_INFO_SGI_EN(h2c_pkt, si->sgi_enable);
 	SET_RA_INFO_BW_MODE(h2c_pkt, si->bw_mode);
 	SET_RA_INFO_LDPC(h2c_pkt, !!si->ldpc_en);
-	SET_RA_INFO_NO_UPDATE(h2c_pkt, no_update);
+	SET_RA_INFO_NO_UPDATE(h2c_pkt, !reset_ra_mask);
 	SET_RA_INFO_VHT_EN(h2c_pkt, si->vht_enable);
 	SET_RA_INFO_DIS_PT(h2c_pkt, disable_pt);
 	SET_RA_INFO_RA_MASK0(h2c_pkt, (si->ra_mask & 0xff));
@@ -608,7 +608,6 @@ void rtw_fw_send_ra_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 	SET_RA_INFO_RA_MASK3(h2c_pkt, (si->ra_mask & 0xff000000) >> 24);
 
 	si->init_ra_lv = 0;
-	si->updated = true;
 
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }
@@ -650,7 +649,7 @@ void rtw_fw_beacon_filter_config(struct rtw_dev *rtwdev, bool connect,
 	s32 threshold = bss_conf->cqm_rssi_thold + rssi_offset;
 	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
 
-	if (!rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_BCN_FILTER) || !si)
+	if (!rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_BCN_FILTER))
 		return;
 
 	if (!connect) {
@@ -660,6 +659,10 @@ void rtw_fw_beacon_filter_config(struct rtw_dev *rtwdev, bool connect,
 
 		return;
 	}
+
+	if (!si)
+		return;
+
 	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_BCN_FILTER_OFFLOAD_P0);
 	ether_addr_copy(&h2c_pkt[1], bss_conf->bssid);
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
@@ -1048,6 +1051,7 @@ static struct sk_buff *rtw_get_rsvd_page_skb(struct ieee80211_hw *hw,
 	struct rtw_vif *rtwvif;
 	struct sk_buff *skb_new;
 	struct cfg80211_ssid *ssid;
+	u16 tim_offset = 0;
 
 	if (rsvd_pkt->type == RSVD_DUMMY) {
 		skb_new = alloc_skb(1, GFP_KERNEL);
@@ -1066,7 +1070,8 @@ static struct sk_buff *rtw_get_rsvd_page_skb(struct ieee80211_hw *hw,
 
 	switch (rsvd_pkt->type) {
 	case RSVD_BEACON:
-		skb_new = ieee80211_beacon_get(hw, vif);
+		skb_new = ieee80211_beacon_get_tim(hw, vif, &tim_offset, NULL, 0);
+		rsvd_pkt->tim_offset = tim_offset;
 		break;
 	case RSVD_PS_POLL:
 		skb_new = ieee80211_pspoll_get(hw, vif);
@@ -1597,6 +1602,16 @@ free:
 	return ret;
 }
 
+void rtw_fw_update_beacon_work(struct work_struct *work)
+{
+	struct rtw_dev *rtwdev = container_of(work, struct rtw_dev,
+					      update_beacon_work);
+
+	mutex_lock(&rtwdev->mutex);
+	rtw_fw_download_rsvd_page(rtwdev);
+	mutex_unlock(&rtwdev->mutex);
+}
+
 static void rtw_fw_read_fifo_page(struct rtw_dev *rtwdev, u32 offset, u32 size,
 				  u32 *buf, u32 residue, u16 start_pg)
 {
@@ -1781,7 +1796,7 @@ void rtw_fw_adaptivity(struct rtw_dev *rtwdev)
 
 	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_ADAPTIVITY);
 	SET_ADAPTIVITY_MODE(h2c_pkt, dm_info->edcca_mode);
-	SET_ADAPTIVITY_OPTION(h2c_pkt, 2);
+	SET_ADAPTIVITY_OPTION(h2c_pkt, 1);
 	SET_ADAPTIVITY_IGI(h2c_pkt, dm_info->igi_history[0]);
 	SET_ADAPTIVITY_L2H(h2c_pkt, dm_info->l2h_th_ini);
 	SET_ADAPTIVITY_DENSITY(h2c_pkt, dm_info->scan_density);
@@ -2051,7 +2066,10 @@ void rtw_hw_scan_complete(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 	struct cfg80211_scan_info info = {
 		.aborted = aborted,
 	};
+	struct rtw_hw_scan_info *scan_info = &rtwdev->scan_info;
+	struct rtw_hal *hal = &rtwdev->hal;
 	struct rtw_vif *rtwvif;
+	u8 chan = scan_info->op_chan;
 
 	if (!vif)
 		return;
@@ -2061,10 +2079,14 @@ void rtw_hw_scan_complete(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 
 	rtw_core_scan_complete(rtwdev, vif, true);
 
+	rtwvif = (struct rtw_vif *)vif->drv_priv;
+	if (rtwvif->net_type == RTW_NET_MGD_LINKED) {
+		hal->current_channel = chan;
+		hal->current_band_type = chan > 14 ? RTW_BAND_5G : RTW_BAND_2G;
+	}
 	ieee80211_wake_queues(rtwdev->hw);
 	ieee80211_scan_completed(rtwdev->hw, &info);
 
-	rtwvif = (struct rtw_vif *)vif->drv_priv;
 	rtwvif->scan_req = NULL;
 	rtwvif->scan_ies = NULL;
 	rtwdev->scan_info.scanning_vif = NULL;
@@ -2172,6 +2194,9 @@ void rtw_hw_scan_chan_switch(struct rtw_dev *rtwdev, struct sk_buff *skb)
 	struct rtw_c2h_cmd *c2h;
 	enum rtw_scan_notify_id id;
 	u8 chan, status;
+
+	if (!test_bit(RTW_FLAG_SCANNING, rtwdev->flags))
+		return;
 
 	c2h = get_c2h_from_skb(skb);
 	chan = GET_CHAN_SWITCH_CENTRAL_CH(c2h->payload);

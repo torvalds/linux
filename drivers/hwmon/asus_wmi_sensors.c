@@ -71,7 +71,7 @@ static const struct dmi_system_id asus_wmi_dmi_table[] = {
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("PRIME X399-A"),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("PRIME X470-PRO"),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG CROSSHAIR VI EXTREME"),
-	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG CROSSHAIR VI HERO"),
+	DMI_EXACT_MATCH_ASUS_BOARD_NAME("CROSSHAIR VI HERO"),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG CROSSHAIR VI HERO (WI-FI AC)"),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG CROSSHAIR VII HERO"),
 	DMI_EXACT_MATCH_ASUS_BOARD_NAME("ROG CROSSHAIR VII HERO (WI-FI)"),
@@ -514,22 +514,20 @@ static int asus_wmi_configure_sensor_setup(struct device *dev,
 	int i, idx;
 	int err;
 
-	temp_sensor = devm_kcalloc(dev, 1, sizeof(*temp_sensor), GFP_KERNEL);
-	if (!temp_sensor)
-		return -ENOMEM;
-
 	for (i = 0; i < sensor_data->wmi.sensor_count; i++) {
-		err = asus_wmi_sensor_info(i, temp_sensor);
+		struct asus_wmi_sensor_info sensor;
+
+		err = asus_wmi_sensor_info(i, &sensor);
 		if (err)
 			return err;
 
-		switch (temp_sensor->data_type) {
+		switch (sensor.data_type) {
 		case TEMPERATURE_C:
 		case VOLTAGE:
 		case CURRENT:
 		case FAN_RPM:
 		case WATER_FLOW:
-			type = asus_data_types[temp_sensor->data_type];
+			type = asus_data_types[sensor.data_type];
 			if (!nr_count[type])
 				nr_types++;
 			nr_count[type]++;

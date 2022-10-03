@@ -414,8 +414,8 @@ static void uuid_io_unlock(struct closure *cl)
 	up(&c->uuid_write_mutex);
 }
 
-static void uuid_io(struct cache_set *c, int op, unsigned long op_flags,
-		    struct bkey *k, struct closure *parent)
+static void uuid_io(struct cache_set *c, blk_opf_t opf, struct bkey *k,
+		    struct closure *parent)
 {
 	struct closure *cl = &c->uuid_write;
 	struct uuid_entry *u;
@@ -429,22 +429,22 @@ static void uuid_io(struct cache_set *c, int op, unsigned long op_flags,
 	for (i = 0; i < KEY_PTRS(k); i++) {
 		struct bio *bio = bch_bbio_alloc(c);
 
-		bio->bi_opf = REQ_SYNC | REQ_META | op_flags;
+		bio->bi_opf = opf | REQ_SYNC | REQ_META;
 		bio->bi_iter.bi_size = KEY_SIZE(k) << 9;
 
 		bio->bi_end_io	= uuid_endio;
 		bio->bi_private = cl;
-		bio_set_op_attrs(bio, op, REQ_SYNC|REQ_META|op_flags);
 		bch_bio_map(bio, c->uuids);
 
 		bch_submit_bbio(bio, c, k, i);
 
-		if (op != REQ_OP_WRITE)
+		if ((opf & REQ_OP_MASK) != REQ_OP_WRITE)
 			break;
 	}
 
 	bch_extent_to_text(buf, sizeof(buf), k);
-	pr_debug("%s UUIDs at %s\n", op == REQ_OP_WRITE ? "wrote" : "read", buf);
+	pr_debug("%s UUIDs at %s\n", (opf & REQ_OP_MASK) == REQ_OP_WRITE ?
+		 "wrote" : "read", buf);
 
 	for (u = c->uuids; u < c->uuids + c->nr_uuids; u++)
 		if (!bch_is_zero(u->uuid, 16))
@@ -463,7 +463,7 @@ static char *uuid_read(struct cache_set *c, struct jset *j, struct closure *cl)
 		return "bad uuid pointer";
 
 	bkey_copy(&c->uuid_bucket, k);
-	uuid_io(c, REQ_OP_READ, 0, k, cl);
+	uuid_io(c, REQ_OP_READ, k, cl);
 
 	if (j->version < BCACHE_JSET_VERSION_UUIDv1) {
 		struct uuid_entry_v0	*u0 = (void *) c->uuids;
@@ -511,7 +511,7 @@ static int __uuid_write(struct cache_set *c)
 
 	size =  meta_bucket_pages(&ca->sb) * PAGE_SECTORS;
 	SET_KEY_SIZE(&k.key, size);
-	uuid_io(c, REQ_OP_WRITE, 0, &k.key, &cl);
+	uuid_io(c, REQ_OP_WRITE, &k.key, &cl);
 	closure_sync(&cl);
 
 	/* Only one bucket used for uuid write */
@@ -587,8 +587,7 @@ static void prio_endio(struct bio *bio)
 	closure_put(&ca->prio);
 }
 
-static void prio_io(struct cache *ca, uint64_t bucket, int op,
-		    unsigned long op_flags)
+static void prio_io(struct cache *ca, uint64_t bucket, blk_opf_t opf)
 {
 	struct closure *cl = &ca->prio;
 	struct bio *bio = bch_bbio_alloc(ca->set);
@@ -601,7 +600,7 @@ static void prio_io(struct cache *ca, uint64_t bucket, int op,
 
 	bio->bi_end_io	= prio_endio;
 	bio->bi_private = ca;
-	bio_set_op_attrs(bio, op, REQ_SYNC|REQ_META|op_flags);
+	bio->bi_opf = opf | REQ_SYNC | REQ_META;
 	bch_bio_map(bio, ca->disk_buckets);
 
 	closure_bio_submit(ca->set, bio, &ca->prio);
@@ -661,7 +660,7 @@ int bch_prio_write(struct cache *ca, bool wait)
 		BUG_ON(bucket == -1);
 
 		mutex_unlock(&ca->set->bucket_lock);
-		prio_io(ca, bucket, REQ_OP_WRITE, 0);
+		prio_io(ca, bucket, REQ_OP_WRITE);
 		mutex_lock(&ca->set->bucket_lock);
 
 		ca->prio_buckets[i] = bucket;
@@ -705,7 +704,7 @@ static int prio_read(struct cache *ca, uint64_t bucket)
 			ca->prio_last_buckets[bucket_nr] = bucket;
 			bucket_nr++;
 
-			prio_io(ca, bucket, REQ_OP_READ, 0);
+			prio_io(ca, bucket, REQ_OP_READ);
 
 			if (p->csum !=
 			    bch_crc64(&p->magic, meta_bucket_bytes(&ca->sb) - 8)) {
@@ -884,7 +883,7 @@ static void bcache_device_free(struct bcache_device *d)
 	if (disk) {
 		ida_simple_remove(&bcache_device_idx,
 				  first_minor_to_idx(disk->first_minor));
-		blk_cleanup_disk(disk);
+		put_disk(disk);
 	}
 
 	bioset_exit(&d->bio_split);
@@ -973,7 +972,6 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, d->disk->queue);
 	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, d->disk->queue);
-	blk_queue_flag_set(QUEUE_FLAG_DISCARD, d->disk->queue);
 
 	blk_queue_write_cache(q, true, true);
 
@@ -2128,6 +2126,7 @@ static int run_cache_set(struct cache_set *c)
 
 	flash_devs_run(c);
 
+	bch_journal_space_reserve(&c->journal);
 	set_bit(CACHE_SET_RUNNING, &c->flags);
 	return 0;
 err:
@@ -2350,7 +2349,7 @@ static int register_cache(struct cache_sb *sb, struct cache_sb_disk *sb_disk,
 	ca->bdev->bd_holder = ca;
 	ca->sb_disk = sb_disk;
 
-	if (blk_queue_discard(bdev_get_queue(bdev)))
+	if (bdev_max_discard_sectors((bdev)))
 		ca->discard = CACHE_DISCARD(&ca->sb);
 
 	ret = cache_alloc(ca);

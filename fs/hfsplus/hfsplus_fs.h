@@ -468,6 +468,8 @@ extern const struct address_space_operations hfsplus_aops;
 extern const struct address_space_operations hfsplus_btree_aops;
 extern const struct dentry_operations hfsplus_dentry_operations;
 
+int hfsplus_write_begin(struct file *file, struct address_space *mapping,
+		loff_t pos, unsigned len, struct page **pagep, void **fsdata);
 struct inode *hfsplus_new_inode(struct super_block *sb, struct inode *dir,
 				umode_t mode);
 void hfsplus_delete_inode(struct inode *inode);
@@ -523,7 +525,7 @@ int hfsplus_compare_dentry(const struct dentry *dentry, unsigned int len,
 
 /* wrapper.c */
 int hfsplus_submit_bio(struct super_block *sb, sector_t sector, void *buf,
-		       void **data, int op, int op_flags);
+		       void **data, blk_opf_t opf);
 int hfsplus_read_wrapper(struct super_block *sb);
 
 /*

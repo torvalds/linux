@@ -17,7 +17,7 @@ spi-nor-controller@10000000 {
 	reg = <0x10000000 0x1000>, <0x14000000 0x1000000>;
 	reg-names = "control", "memory";
 	clocks = <&clock HI3519_FMC_CLK>;
-	spi-nor@0 {
+	flash@0 {
 		compatible = "jedec,spi-nor";
 		reg = <0>;
 	};

@@ -766,13 +766,6 @@ static int smack_set_mnt_opts(struct super_block *sb,
 	if (sp->smk_flags & SMK_SB_INITIALIZED)
 		return 0;
 
-	if (inode->i_security == NULL) {
-		int rc = lsm_inode_alloc(inode);
-
-		if (rc)
-			return rc;
-	}
-
 	if (!smack_privileged(CAP_MAC_ADMIN)) {
 		/*
 		 * Unprivileged mounts don't get to specify Smack values.

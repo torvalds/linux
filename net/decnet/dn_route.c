@@ -159,7 +159,7 @@ static void dn_dst_ifdown(struct dst_entry *dst, struct net_device *dev, int how
 		struct neighbour *n = rt->n;
 
 		if (n && n->dev == dev) {
-			n->dev = dev_net(dev)->loopback_dev;
+			n->dev = blackhole_netdev;
 			dev_hold(n->dev);
 			dev_put(dev);
 		}
@@ -201,7 +201,7 @@ static void dn_dst_check_expire(struct timer_list *unused)
 		}
 		spin_unlock(&dn_rt_hash_table[i].lock);
 
-		if ((jiffies - now) > 0)
+		if (jiffies != now)
 			break;
 	}
 
@@ -1120,7 +1120,7 @@ source_ok:
 		/* Ok then, we assume its directly connected and move on */
 select_source:
 		if (neigh)
-			gateway = ((struct dn_neigh *)neigh)->addr;
+			gateway = container_of(neigh, struct dn_neigh, n)->addr;
 		if (gateway == 0)
 			gateway = fld.daddr;
 		if (fld.saddr == 0) {
@@ -1429,7 +1429,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 		/* Use the default router if there is one */
 		neigh = neigh_clone(dn_db->router);
 		if (neigh) {
-			gateway = ((struct dn_neigh *)neigh)->addr;
+			gateway = container_of(neigh, struct dn_neigh, n)->addr;
 			goto make_route;
 		}
 

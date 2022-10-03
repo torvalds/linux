@@ -65,7 +65,6 @@ struct tsens_sensor {
  * @disable: Function to disable the tsens device
  * @suspend: Function to suspend the tsens device
  * @resume: Function to resume the tsens device
- * @get_trend: Function to get the thermal/temp trend
  */
 struct tsens_ops {
 	/* mandatory callbacks */
@@ -77,7 +76,6 @@ struct tsens_ops {
 	void (*disable)(struct tsens_priv *priv);
 	int (*suspend)(struct tsens_priv *priv);
 	int (*resume)(struct tsens_priv *priv);
-	int (*get_trend)(struct tsens_sensor *s, enum thermal_trend *trend);
 };
 
 #define REG_FIELD_FOR_EACH_SENSOR11(_name, _offset, _startbit, _stopbit) \

@@ -654,7 +654,7 @@ static int pcc_mbox_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	pcc_mbox_ctrl = devm_kmalloc(dev, sizeof(*pcc_mbox_ctrl), GFP_KERNEL);
+	pcc_mbox_ctrl = devm_kzalloc(dev, sizeof(*pcc_mbox_ctrl), GFP_KERNEL);
 	if (!pcc_mbox_ctrl) {
 		rc = -ENOMEM;
 		goto err;

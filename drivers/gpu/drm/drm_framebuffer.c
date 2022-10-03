@@ -530,7 +530,7 @@ int drm_mode_getfb(struct drm_device *dev,
 	r->height = fb->height;
 	r->width = fb->width;
 	r->depth = fb->format->depth;
-	r->bpp = fb->format->cpp[0] * 8;
+	r->bpp = drm_format_info_bpp(fb->format, 0);
 	r->pitch = fb->pitches[0];
 
 	/* GET_FB() is an unprivileged ioctl so we must not return a
@@ -935,7 +935,7 @@ EXPORT_SYMBOL(drm_framebuffer_unregister_private);
  * the id and get back -EINVAL. Obviously no concern at driver unload time.
  *
  * Also, the framebuffer will not be removed from the lookup idr - for
- * user-created framebuffers this will happen in in the rmfb ioctl. For
+ * user-created framebuffers this will happen in the rmfb ioctl. For
  * driver-private objects (e.g. for fbdev) drivers need to explicitly call
  * drm_framebuffer_unregister_private.
  */

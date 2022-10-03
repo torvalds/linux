@@ -91,8 +91,8 @@ static void ttm_lru_bulk_move_pos_tail(struct ttm_lru_bulk_move_pos *pos,
 }
 
 /* Add the resource to a bulk_move cursor */
-void ttm_lru_bulk_move_add(struct ttm_lru_bulk_move *bulk,
-			   struct ttm_resource *res)
+static void ttm_lru_bulk_move_add(struct ttm_lru_bulk_move *bulk,
+				  struct ttm_resource *res)
 {
 	struct ttm_lru_bulk_move_pos *pos = ttm_lru_bulk_move_pos(bulk, res);
 
@@ -105,8 +105,8 @@ void ttm_lru_bulk_move_add(struct ttm_lru_bulk_move *bulk,
 }
 
 /* Remove the resource from a bulk_move range */
-void ttm_lru_bulk_move_del(struct ttm_lru_bulk_move *bulk,
-			   struct ttm_resource *res)
+static void ttm_lru_bulk_move_del(struct ttm_lru_bulk_move *bulk,
+				  struct ttm_resource *res)
 {
 	struct ttm_lru_bulk_move_pos *pos = ttm_lru_bulk_move_pos(bulk, res);
 
@@ -120,6 +120,22 @@ void ttm_lru_bulk_move_del(struct ttm_lru_bulk_move *bulk,
 	} else {
 		list_move(&res->lru, &pos->last->lru);
 	}
+}
+
+/* Add the resource to a bulk move if the BO is configured for it */
+void ttm_resource_add_bulk_move(struct ttm_resource *res,
+				struct ttm_buffer_object *bo)
+{
+	if (bo->bulk_move && !bo->pin_count)
+		ttm_lru_bulk_move_add(bo->bulk_move, res);
+}
+
+/* Remove the resource from a bulk move if the BO is configured for it */
+void ttm_resource_del_bulk_move(struct ttm_resource *res,
+				struct ttm_buffer_object *bo)
+{
+	if (bo->bulk_move && !bo->pin_count)
+		ttm_lru_bulk_move_del(bo->bulk_move, res);
 }
 
 /* Move a resource to the LRU or bulk tail */
@@ -169,15 +185,14 @@ void ttm_resource_init(struct ttm_buffer_object *bo,
 	res->bus.is_iomem = false;
 	res->bus.caching = ttm_cached;
 	res->bo = bo;
-	INIT_LIST_HEAD(&res->lru);
 
 	man = ttm_manager_type(bo->bdev, place->mem_type);
 	spin_lock(&bo->bdev->lru_lock);
-	man->usage += res->num_pages << PAGE_SHIFT;
-	if (bo->bulk_move)
-		ttm_lru_bulk_move_add(bo->bulk_move, res);
+	if (bo->pin_count)
+		list_add_tail(&res->lru, &bo->bdev->pinned);
 	else
-		ttm_resource_move_to_lru_tail(res);
+		list_add_tail(&res->lru, &man->lru[bo->priority]);
+	man->usage += res->num_pages << PAGE_SHIFT;
 	spin_unlock(&bo->bdev->lru_lock);
 }
 EXPORT_SYMBOL(ttm_resource_init);
@@ -210,8 +225,16 @@ int ttm_resource_alloc(struct ttm_buffer_object *bo,
 {
 	struct ttm_resource_manager *man =
 		ttm_manager_type(bo->bdev, place->mem_type);
+	int ret;
 
-	return man->func->alloc(man, bo, place, res_ptr);
+	ret = man->func->alloc(man, bo, place, res_ptr);
+	if (ret)
+		return ret;
+
+	spin_lock(&bo->bdev->lru_lock);
+	ttm_resource_add_bulk_move(*res_ptr, bo);
+	spin_unlock(&bo->bdev->lru_lock);
+	return 0;
 }
 
 void ttm_resource_free(struct ttm_buffer_object *bo, struct ttm_resource **res)
@@ -221,22 +244,80 @@ void ttm_resource_free(struct ttm_buffer_object *bo, struct ttm_resource **res)
 	if (!*res)
 		return;
 
-	if (bo->bulk_move) {
-		spin_lock(&bo->bdev->lru_lock);
-		ttm_lru_bulk_move_del(bo->bulk_move, *res);
-		spin_unlock(&bo->bdev->lru_lock);
-	}
-
+	spin_lock(&bo->bdev->lru_lock);
+	ttm_resource_del_bulk_move(*res, bo);
+	spin_unlock(&bo->bdev->lru_lock);
 	man = ttm_manager_type(bo->bdev, (*res)->mem_type);
 	man->func->free(man, *res);
 	*res = NULL;
 }
 EXPORT_SYMBOL(ttm_resource_free);
 
+/**
+ * ttm_resource_intersects - test for intersection
+ *
+ * @bdev: TTM device structure
+ * @res: The resource to test
+ * @place: The placement to test
+ * @size: How many bytes the new allocation needs.
+ *
+ * Test if @res intersects with @place and @size. Used for testing if evictions
+ * are valueable or not.
+ *
+ * Returns true if the res placement intersects with @place and @size.
+ */
+bool ttm_resource_intersects(struct ttm_device *bdev,
+			     struct ttm_resource *res,
+			     const struct ttm_place *place,
+			     size_t size)
+{
+	struct ttm_resource_manager *man;
+
+	if (!res)
+		return false;
+
+	man = ttm_manager_type(bdev, res->mem_type);
+	if (!place || !man->func->intersects)
+		return true;
+
+	return man->func->intersects(man, res, place, size);
+}
+
+/**
+ * ttm_resource_compatible - test for compatibility
+ *
+ * @bdev: TTM device structure
+ * @res: The resource to test
+ * @place: The placement to test
+ * @size: How many bytes the new allocation needs.
+ *
+ * Test if @res compatible with @place and @size.
+ *
+ * Returns true if the res placement compatible with @place and @size.
+ */
+bool ttm_resource_compatible(struct ttm_device *bdev,
+			     struct ttm_resource *res,
+			     const struct ttm_place *place,
+			     size_t size)
+{
+	struct ttm_resource_manager *man;
+
+	if (!res || !place)
+		return false;
+
+	man = ttm_manager_type(bdev, res->mem_type);
+	if (!man->func->compatible)
+		return true;
+
+	return man->func->compatible(man, res, place, size);
+}
+
 static bool ttm_resource_places_compat(struct ttm_resource *res,
 				       const struct ttm_place *places,
 				       unsigned num_placement)
 {
+	struct ttm_buffer_object *bo = res->bo;
+	struct ttm_device *bdev = bo->bdev;
 	unsigned i;
 
 	if (res->placement & TTM_PL_FLAG_TEMPORARY)
@@ -245,8 +326,7 @@ static bool ttm_resource_places_compat(struct ttm_resource *res,
 	for (i = 0; i < num_placement; i++) {
 		const struct ttm_place *heap = &places[i];
 
-		if (res->start < heap->fpfn || (heap->lpfn &&
-		    (res->start + res->num_pages) > heap->lpfn))
+		if (!ttm_resource_compatible(bdev, res, heap, bo->base.size))
 			continue;
 
 		if ((res->mem_type == heap->mem_type) &&

@@ -53,6 +53,7 @@
 #define FLAG_EXPECTED_FAIL	BIT(1)
 #define FLAG_SKB_FRAG		BIT(2)
 #define FLAG_VERIFIER_ZEXT	BIT(3)
+#define FLAG_LARGE_MEM		BIT(4)
 
 enum {
 	CLASSIC  = BIT(6),	/* Old BPF instructions only. */
@@ -7838,7 +7839,7 @@ static struct bpf_test tests[] = {
 	},
 	/* BPF_LDX_MEM B/H/W/DW */
 	{
-		"BPF_LDX_MEM | BPF_B",
+		"BPF_LDX_MEM | BPF_B, base",
 		.u.insns_int = {
 			BPF_LD_IMM64(R1, 0x0102030405060708ULL),
 			BPF_LD_IMM64(R2, 0x0000000000000008ULL),
@@ -7878,7 +7879,56 @@ static struct bpf_test tests[] = {
 		.stack_depth = 8,
 	},
 	{
-		"BPF_LDX_MEM | BPF_H",
+		"BPF_LDX_MEM | BPF_B, negative offset",
+		.u.insns_int = {
+			BPF_LD_IMM64(R2, 0x8182838485868788ULL),
+			BPF_LD_IMM64(R3, 0x0000000000000088ULL),
+			BPF_ALU64_IMM(BPF_ADD, R1, 512),
+			BPF_STX_MEM(BPF_B, R1, R2, -256),
+			BPF_LDX_MEM(BPF_B, R0, R1, -256),
+			BPF_JMP_REG(BPF_JNE, R0, R3, 1),
+			BPF_ALU64_IMM(BPF_MOV, R0, 0),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL | FLAG_LARGE_MEM,
+		{ },
+		{ { 512, 0 } },
+		.stack_depth = 0,
+	},
+	{
+		"BPF_LDX_MEM | BPF_B, small positive offset",
+		.u.insns_int = {
+			BPF_LD_IMM64(R2, 0x8182838485868788ULL),
+			BPF_LD_IMM64(R3, 0x0000000000000088ULL),
+			BPF_STX_MEM(BPF_B, R1, R2, 256),
+			BPF_LDX_MEM(BPF_B, R0, R1, 256),
+			BPF_JMP_REG(BPF_JNE, R0, R3, 1),
+			BPF_ALU64_IMM(BPF_MOV, R0, 0),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL | FLAG_LARGE_MEM,
+		{ },
+		{ { 512, 0 } },
+		.stack_depth = 0,
+	},
+	{
+		"BPF_LDX_MEM | BPF_B, large positive offset",
+		.u.insns_int = {
+			BPF_LD_IMM64(R2, 0x8182838485868788ULL),
+			BPF_LD_IMM64(R3, 0x0000000000000088ULL),
+			BPF_STX_MEM(BPF_B, R1, R2, 4096),
+			BPF_LDX_MEM(BPF_B, R0, R1, 4096),
+			BPF_JMP_REG(BPF_JNE, R0, R3, 1),
+			BPF_ALU64_IMM(BPF_MOV, R0, 0),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL | FLAG_LARGE_MEM,
+		{ },
+		{ { 4096 + 16, 0 } },
+		.stack_depth = 0,
+	},
+	{
+		"BPF_LDX_MEM | BPF_H, base",
 		.u.insns_int = {
 			BPF_LD_IMM64(R1, 0x0102030405060708ULL),
 			BPF_LD_IMM64(R2, 0x0000000000000708ULL),
@@ -7918,7 +7968,72 @@ static struct bpf_test tests[] = {
 		.stack_depth = 8,
 	},
 	{
-		"BPF_LDX_MEM | BPF_W",
+		"BPF_LDX_MEM | BPF_H, negative offset",
+		.u.insns_int = {
+			BPF_LD_IMM64(R2, 0x8182838485868788ULL),
+			BPF_LD_IMM64(R3, 0x0000000000008788ULL),
+			BPF_ALU64_IMM(BPF_ADD, R1, 512),
+			BPF_STX_MEM(BPF_H, R1, R2, -256),
+			BPF_LDX_MEM(BPF_H, R0, R1, -256),
+			BPF_JMP_REG(BPF_JNE, R0, R3, 1),
+			BPF_ALU64_IMM(BPF_MOV, R0, 0),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL | FLAG_LARGE_MEM,
+		{ },
+		{ { 512, 0 } },
+		.stack_depth = 0,
+	},
+	{
+		"BPF_LDX_MEM | BPF_H, small positive offset",
+		.u.insns_int = {
+			BPF_LD_IMM64(R2, 0x8182838485868788ULL),
+			BPF_LD_IMM64(R3, 0x0000000000008788ULL),
+			BPF_STX_MEM(BPF_H, R1, R2, 256),
+			BPF_LDX_MEM(BPF_H, R0, R1, 256),
+			BPF_JMP_REG(BPF_JNE, R0, R3, 1),
+			BPF_ALU64_IMM(BPF_MOV, R0, 0),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL | FLAG_LARGE_MEM,
+		{ },
+		{ { 512, 0 } },
+		.stack_depth = 0,
+	},
+	{
+		"BPF_LDX_MEM | BPF_H, large positive offset",
+		.u.insns_int = {
+			BPF_LD_IMM64(R2, 0x8182838485868788ULL),
+			BPF_LD_IMM64(R3, 0x0000000000008788ULL),
+			BPF_STX_MEM(BPF_H, R1, R2, 8192),
+			BPF_LDX_MEM(BPF_H, R0, R1, 8192),
+			BPF_JMP_REG(BPF_JNE, R0, R3, 1),
+			BPF_ALU64_IMM(BPF_MOV, R0, 0),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL | FLAG_LARGE_MEM,
+		{ },
+		{ { 8192 + 16, 0 } },
+		.stack_depth = 0,
+	},
+	{
+		"BPF_LDX_MEM | BPF_H, unaligned positive offset",
+		.u.insns_int = {
+			BPF_LD_IMM64(R2, 0x8182838485868788ULL),
+			BPF_LD_IMM64(R3, 0x0000000000008788ULL),
+			BPF_STX_MEM(BPF_H, R1, R2, 13),
+			BPF_LDX_MEM(BPF_H, R0, R1, 13),
+			BPF_JMP_REG(BPF_JNE, R0, R3, 1),
+			BPF_ALU64_IMM(BPF_MOV, R0, 0),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL | FLAG_LARGE_MEM,
+		{ },
+		{ { 32, 0 } },
+		.stack_depth = 0,
+	},
+	{
+		"BPF_LDX_MEM | BPF_W, base",
 		.u.insns_int = {
 			BPF_LD_IMM64(R1, 0x0102030405060708ULL),
 			BPF_LD_IMM64(R2, 0x0000000005060708ULL),
@@ -7956,6 +8071,162 @@ static struct bpf_test tests[] = {
 		{ },
 		{ { 0, 0 } },
 		.stack_depth = 8,
+	},
+	{
+		"BPF_LDX_MEM | BPF_W, negative offset",
+		.u.insns_int = {
+			BPF_LD_IMM64(R2, 0x8182838485868788ULL),
+			BPF_LD_IMM64(R3, 0x0000000085868788ULL),
+			BPF_ALU64_IMM(BPF_ADD, R1, 512),
+			BPF_STX_MEM(BPF_W, R1, R2, -256),
+			BPF_LDX_MEM(BPF_W, R0, R1, -256),
+			BPF_JMP_REG(BPF_JNE, R0, R3, 1),
+			BPF_ALU64_IMM(BPF_MOV, R0, 0),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL | FLAG_LARGE_MEM,
+		{ },
+		{ { 512, 0 } },
+		.stack_depth = 0,
+	},
+	{
+		"BPF_LDX_MEM | BPF_W, small positive offset",
+		.u.insns_int = {
+			BPF_LD_IMM64(R2, 0x8182838485868788ULL),
+			BPF_LD_IMM64(R3, 0x0000000085868788ULL),
+			BPF_STX_MEM(BPF_W, R1, R2, 256),
+			BPF_LDX_MEM(BPF_W, R0, R1, 256),
+			BPF_JMP_REG(BPF_JNE, R0, R3, 1),
+			BPF_ALU64_IMM(BPF_MOV, R0, 0),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL | FLAG_LARGE_MEM,
+		{ },
+		{ { 512, 0 } },
+		.stack_depth = 0,
+	},
+	{
+		"BPF_LDX_MEM | BPF_W, large positive offset",
+		.u.insns_int = {
+			BPF_LD_IMM64(R2, 0x8182838485868788ULL),
+			BPF_LD_IMM64(R3, 0x0000000085868788ULL),
+			BPF_STX_MEM(BPF_W, R1, R2, 16384),
+			BPF_LDX_MEM(BPF_W, R0, R1, 16384),
+			BPF_JMP_REG(BPF_JNE, R0, R3, 1),
+			BPF_ALU64_IMM(BPF_MOV, R0, 0),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL | FLAG_LARGE_MEM,
+		{ },
+		{ { 16384 + 16, 0 } },
+		.stack_depth = 0,
+	},
+	{
+		"BPF_LDX_MEM | BPF_W, unaligned positive offset",
+		.u.insns_int = {
+			BPF_LD_IMM64(R2, 0x8182838485868788ULL),
+			BPF_LD_IMM64(R3, 0x0000000085868788ULL),
+			BPF_STX_MEM(BPF_W, R1, R2, 13),
+			BPF_LDX_MEM(BPF_W, R0, R1, 13),
+			BPF_JMP_REG(BPF_JNE, R0, R3, 1),
+			BPF_ALU64_IMM(BPF_MOV, R0, 0),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL | FLAG_LARGE_MEM,
+		{ },
+		{ { 32, 0 } },
+		.stack_depth = 0,
+	},
+	{
+		"BPF_LDX_MEM | BPF_DW, base",
+		.u.insns_int = {
+			BPF_LD_IMM64(R1, 0x0102030405060708ULL),
+			BPF_STX_MEM(BPF_DW, R10, R1, -8),
+			BPF_LDX_MEM(BPF_DW, R0, R10, -8),
+			BPF_JMP_REG(BPF_JNE, R0, R1, 1),
+			BPF_ALU64_IMM(BPF_MOV, R0, 0),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL,
+		{ },
+		{ { 0, 0 } },
+		.stack_depth = 8,
+	},
+	{
+		"BPF_LDX_MEM | BPF_DW, MSB set",
+		.u.insns_int = {
+			BPF_LD_IMM64(R1, 0x8182838485868788ULL),
+			BPF_STX_MEM(BPF_DW, R10, R1, -8),
+			BPF_LDX_MEM(BPF_DW, R0, R10, -8),
+			BPF_JMP_REG(BPF_JNE, R0, R1, 1),
+			BPF_ALU64_IMM(BPF_MOV, R0, 0),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL,
+		{ },
+		{ { 0, 0 } },
+		.stack_depth = 8,
+	},
+	{
+		"BPF_LDX_MEM | BPF_DW, negative offset",
+		.u.insns_int = {
+			BPF_LD_IMM64(R2, 0x8182838485868788ULL),
+			BPF_ALU64_IMM(BPF_ADD, R1, 512),
+			BPF_STX_MEM(BPF_DW, R1, R2, -256),
+			BPF_LDX_MEM(BPF_DW, R0, R1, -256),
+			BPF_JMP_REG(BPF_JNE, R0, R2, 1),
+			BPF_ALU64_IMM(BPF_MOV, R0, 0),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL | FLAG_LARGE_MEM,
+		{ },
+		{ { 512, 0 } },
+		.stack_depth = 0,
+	},
+	{
+		"BPF_LDX_MEM | BPF_DW, small positive offset",
+		.u.insns_int = {
+			BPF_LD_IMM64(R2, 0x8182838485868788ULL),
+			BPF_STX_MEM(BPF_DW, R1, R2, 256),
+			BPF_LDX_MEM(BPF_DW, R0, R1, 256),
+			BPF_JMP_REG(BPF_JNE, R0, R2, 1),
+			BPF_ALU64_IMM(BPF_MOV, R0, 0),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL | FLAG_LARGE_MEM,
+		{ },
+		{ { 512, 0 } },
+		.stack_depth = 8,
+	},
+	{
+		"BPF_LDX_MEM | BPF_DW, large positive offset",
+		.u.insns_int = {
+			BPF_LD_IMM64(R2, 0x8182838485868788ULL),
+			BPF_STX_MEM(BPF_DW, R1, R2, 32760),
+			BPF_LDX_MEM(BPF_DW, R0, R1, 32760),
+			BPF_JMP_REG(BPF_JNE, R0, R2, 1),
+			BPF_ALU64_IMM(BPF_MOV, R0, 0),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL | FLAG_LARGE_MEM,
+		{ },
+		{ { 32768, 0 } },
+		.stack_depth = 0,
+	},
+	{
+		"BPF_LDX_MEM | BPF_DW, unaligned positive offset",
+		.u.insns_int = {
+			BPF_LD_IMM64(R2, 0x8182838485868788ULL),
+			BPF_STX_MEM(BPF_DW, R1, R2, 13),
+			BPF_LDX_MEM(BPF_DW, R0, R1, 13),
+			BPF_JMP_REG(BPF_JNE, R0, R2, 1),
+			BPF_ALU64_IMM(BPF_MOV, R0, 0),
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL | FLAG_LARGE_MEM,
+		{ },
+		{ { 32, 0 } },
+		.stack_depth = 0,
 	},
 	/* BPF_STX_MEM B/H/W/DW */
 	{
@@ -14094,6 +14365,9 @@ static void *generate_test_data(struct bpf_test *test, int sub)
 	if (test->aux & FLAG_NO_DATA)
 		return NULL;
 
+	if (test->aux & FLAG_LARGE_MEM)
+		return kmalloc(test->test[sub].data_size, GFP_KERNEL);
+
 	/* Test case expects an skb, so populate one. Various
 	 * subtests generate skbs of different sizes based on
 	 * the same data.
@@ -14137,7 +14411,10 @@ static void release_test_data(const struct bpf_test *test, void *data)
 	if (test->aux & FLAG_NO_DATA)
 		return;
 
-	kfree_skb(data);
+	if (test->aux & FLAG_LARGE_MEM)
+		kfree(data);
+	else
+		kfree_skb(data);
 }
 
 static int filter_length(int which)
@@ -14456,9 +14733,9 @@ static struct skb_segment_test skb_segment_tests[] __initconst = {
 		.build_skb = build_test_skb_linear_no_head_frag,
 		.features = NETIF_F_SG | NETIF_F_FRAGLIST |
 			    NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_GSO |
-			    NETIF_F_LLTX_BIT | NETIF_F_GRO |
+			    NETIF_F_LLTX | NETIF_F_GRO |
 			    NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM |
-			    NETIF_F_HW_VLAN_STAG_TX_BIT
+			    NETIF_F_HW_VLAN_STAG_TX
 	}
 };
 
@@ -14672,6 +14949,36 @@ static struct tail_call_test tail_call_tests[] = {
 			BPF_EXIT_INSN(),
 		},
 		.result = 10,
+	},
+	{
+		"Tail call load/store leaf",
+		.insns = {
+			BPF_ALU64_IMM(BPF_MOV, R1, 1),
+			BPF_ALU64_IMM(BPF_MOV, R2, 2),
+			BPF_ALU64_REG(BPF_MOV, R3, BPF_REG_FP),
+			BPF_STX_MEM(BPF_DW, R3, R1, -8),
+			BPF_STX_MEM(BPF_DW, R3, R2, -16),
+			BPF_LDX_MEM(BPF_DW, R0, BPF_REG_FP, -8),
+			BPF_JMP_REG(BPF_JNE, R0, R1, 3),
+			BPF_LDX_MEM(BPF_DW, R0, BPF_REG_FP, -16),
+			BPF_JMP_REG(BPF_JNE, R0, R2, 1),
+			BPF_ALU64_IMM(BPF_MOV, R0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.result = 0,
+		.stack_depth = 32,
+	},
+	{
+		"Tail call load/store",
+		.insns = {
+			BPF_ALU64_IMM(BPF_MOV, R0, 3),
+			BPF_STX_MEM(BPF_DW, BPF_REG_FP, R0, -8),
+			TAIL_CALL(-1),
+			BPF_ALU64_IMM(BPF_MOV, R0, -1),
+			BPF_EXIT_INSN(),
+		},
+		.result = 0,
+		.stack_depth = 16,
 	},
 	{
 		"Tail call error path, max count reached",

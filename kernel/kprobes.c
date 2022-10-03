@@ -1257,79 +1257,6 @@ void kprobe_busy_end(void)
 	preempt_enable();
 }
 
-#if !defined(CONFIG_KRETPROBE_ON_RETHOOK)
-static void free_rp_inst_rcu(struct rcu_head *head)
-{
-	struct kretprobe_instance *ri = container_of(head, struct kretprobe_instance, rcu);
-
-	if (refcount_dec_and_test(&ri->rph->ref))
-		kfree(ri->rph);
-	kfree(ri);
-}
-NOKPROBE_SYMBOL(free_rp_inst_rcu);
-
-static void recycle_rp_inst(struct kretprobe_instance *ri)
-{
-	struct kretprobe *rp = get_kretprobe(ri);
-
-	if (likely(rp))
-		freelist_add(&ri->freelist, &rp->freelist);
-	else
-		call_rcu(&ri->rcu, free_rp_inst_rcu);
-}
-NOKPROBE_SYMBOL(recycle_rp_inst);
-
-/*
- * This function is called from delayed_put_task_struct() when a task is
- * dead and cleaned up to recycle any kretprobe instances associated with
- * this task. These left over instances represent probed functions that
- * have been called but will never return.
- */
-void kprobe_flush_task(struct task_struct *tk)
-{
-	struct kretprobe_instance *ri;
-	struct llist_node *node;
-
-	/* Early boot, not yet initialized. */
-	if (unlikely(!kprobes_initialized))
-		return;
-
-	kprobe_busy_begin();
-
-	node = __llist_del_all(&tk->kretprobe_instances);
-	while (node) {
-		ri = container_of(node, struct kretprobe_instance, llist);
-		node = node->next;
-
-		recycle_rp_inst(ri);
-	}
-
-	kprobe_busy_end();
-}
-NOKPROBE_SYMBOL(kprobe_flush_task);
-
-static inline void free_rp_inst(struct kretprobe *rp)
-{
-	struct kretprobe_instance *ri;
-	struct freelist_node *node;
-	int count = 0;
-
-	node = rp->freelist.head;
-	while (node) {
-		ri = container_of(node, struct kretprobe_instance, freelist);
-		node = node->next;
-
-		kfree(ri);
-		count++;
-	}
-
-	if (refcount_sub_and_test(count, &rp->rph->ref)) {
-		kfree(rp->rph);
-		rp->rph = NULL;
-	}
-}
-#endif	/* !CONFIG_KRETPROBE_ON_RETHOOK */
-
 /* Add the new probe to 'ap->list'. */
 static int add_new_kprobe(struct kprobe *ap, struct kprobe *p)
 {
@@ -1633,7 +1560,8 @@ static int check_kprobe_address_safe(struct kprobe *p,
 	preempt_disable();
 
 	/* Ensure it is not in reserved area nor out of text */
-	if (!kernel_text_address((unsigned long) p->addr) ||
+	if (!(core_kernel_text((unsigned long) p->addr) ||
+	    is_module_text_address((unsigned long) p->addr)) ||
 	    within_kprobe_blacklist((unsigned long) p->addr) ||
 	    jump_label_text_reserved(p->addr, p->addr) ||
 	    static_call_text_reserved(p->addr, p->addr) ||
@@ -1928,6 +1856,77 @@ static struct notifier_block kprobe_exceptions_nb = {
 #ifdef CONFIG_KRETPROBES
 
 #if !defined(CONFIG_KRETPROBE_ON_RETHOOK)
+static void free_rp_inst_rcu(struct rcu_head *head)
+{
+	struct kretprobe_instance *ri = container_of(head, struct kretprobe_instance, rcu);
+
+	if (refcount_dec_and_test(&ri->rph->ref))
+		kfree(ri->rph);
+	kfree(ri);
+}
+NOKPROBE_SYMBOL(free_rp_inst_rcu);
+
+static void recycle_rp_inst(struct kretprobe_instance *ri)
+{
+	struct kretprobe *rp = get_kretprobe(ri);
+
+	if (likely(rp))
+		freelist_add(&ri->freelist, &rp->freelist);
+	else
+		call_rcu(&ri->rcu, free_rp_inst_rcu);
+}
+NOKPROBE_SYMBOL(recycle_rp_inst);
+
+/*
+ * This function is called from delayed_put_task_struct() when a task is
+ * dead and cleaned up to recycle any kretprobe instances associated with
+ * this task. These left over instances represent probed functions that
+ * have been called but will never return.
+ */
+void kprobe_flush_task(struct task_struct *tk)
+{
+	struct kretprobe_instance *ri;
+	struct llist_node *node;
+
+	/* Early boot, not yet initialized. */
+	if (unlikely(!kprobes_initialized))
+		return;
+
+	kprobe_busy_begin();
+
+	node = __llist_del_all(&tk->kretprobe_instances);
+	while (node) {
+		ri = container_of(node, struct kretprobe_instance, llist);
+		node = node->next;
+
+		recycle_rp_inst(ri);
+	}
+
+	kprobe_busy_end();
+}
+NOKPROBE_SYMBOL(kprobe_flush_task);
+
+static inline void free_rp_inst(struct kretprobe *rp)
+{
+	struct kretprobe_instance *ri;
+	struct freelist_node *node;
+	int count = 0;
+
+	node = rp->freelist.head;
+	while (node) {
+		ri = container_of(node, struct kretprobe_instance, freelist);
+		node = node->next;
+
+		kfree(ri);
+		count++;
+	}
+
+	if (refcount_sub_and_test(count, &rp->rph->ref)) {
+		kfree(rp->rph);
+		rp->rph = NULL;
+	}
+}
+
 /* This assumes the 'tsk' is the current task or the is not running. */
 static kprobe_opcode_t *__kretprobe_find_ret_addr(struct task_struct *tsk,
 						  struct llist_node **cur)
@@ -2126,7 +2125,7 @@ static void kretprobe_rethook_handler(struct rethook_node *rh, void *data,
 	struct kprobe_ctlblk *kcb;
 
 	/* The data must NOT be null. This means rethook data structure is broken. */
-	if (WARN_ON_ONCE(!data))
+	if (WARN_ON_ONCE(!data) || !rp->handler)
 		return;
 
 	__this_cpu_write(current_kprobe, &rp->kp);

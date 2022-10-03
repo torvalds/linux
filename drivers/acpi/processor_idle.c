@@ -21,7 +21,9 @@
 #include <linux/cpuidle.h>
 #include <linux/cpu.h>
 #include <linux/minmax.h>
+#include <linux/perf_event.h>
 #include <acpi/processor.h>
+#include <linux/context_tracking.h>
 
 /*
  * Include the apic definitions for x86 to have the APIC timer related defines
@@ -37,11 +39,11 @@
 #define ACPI_IDLE_STATE_START	(IS_ENABLED(CONFIG_ARCH_HAS_CPU_RELAX) ? 1 : 0)
 
 static unsigned int max_cstate __read_mostly = ACPI_PROCESSOR_MAX_POWER;
-module_param(max_cstate, uint, 0000);
-static unsigned int nocst __read_mostly;
-module_param(nocst, uint, 0000);
-static int bm_check_disable __read_mostly;
-module_param(bm_check_disable, uint, 0000);
+module_param(max_cstate, uint, 0400);
+static bool nocst __read_mostly;
+module_param(nocst, bool, 0400);
+static bool bm_check_disable __read_mostly;
+module_param(bm_check_disable, bool, 0400);
 
 static unsigned int latency_factor __read_mostly = 2;
 module_param(latency_factor, uint, 0644);
@@ -96,11 +98,6 @@ static const struct dmi_system_id processor_power_dmi_table[] = {
 	  DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
 	  DMI_MATCH(DMI_PRODUCT_NAME,"L8400B series Notebook PC")},
 	 (void *)1},
-	/* T40 can not handle C3 idle state */
-	{ set_max_cstate, "IBM ThinkPad T40", {
-	  DMI_MATCH(DMI_SYS_VENDOR, "IBM"),
-	  DMI_MATCH(DMI_PRODUCT_NAME, "23737CU")},
-	 (void *)2},
 	{},
 };
 
@@ -549,6 +546,8 @@ static void wait_for_freeze(void)
  */
 static void __cpuidle acpi_idle_do_entry(struct acpi_processor_cx *cx)
 {
+	perf_lopwr_cb(true);
+
 	if (cx->entry_method == ACPI_CSTATE_FFH) {
 		/* Call into architectural FFH based C-state */
 		acpi_processor_ffh_cstate_enter(cx);
@@ -559,6 +558,8 @@ static void __cpuidle acpi_idle_do_entry(struct acpi_processor_cx *cx)
 		inb(cx->address);
 		wait_for_freeze();
 	}
+
+	perf_lopwr_cb(false);
 }
 
 /**
@@ -607,7 +608,7 @@ static DEFINE_RAW_SPINLOCK(c3_lock);
  * @cx: Target state context
  * @index: index of target state
  */
-static int acpi_idle_enter_bm(struct cpuidle_driver *drv,
+static int __cpuidle acpi_idle_enter_bm(struct cpuidle_driver *drv,
 			       struct acpi_processor *pr,
 			       struct acpi_processor_cx *cx,
 			       int index)
@@ -647,11 +648,11 @@ static int acpi_idle_enter_bm(struct cpuidle_driver *drv,
 		raw_spin_unlock(&c3_lock);
 	}
 
-	rcu_idle_enter();
+	ct_idle_enter();
 
 	acpi_idle_do_entry(cx);
 
-	rcu_idle_exit();
+	ct_idle_exit();
 
 	/* Re-enable bus master arbitration */
 	if (dis_bm) {
@@ -664,7 +665,7 @@ static int acpi_idle_enter_bm(struct cpuidle_driver *drv,
 	return index;
 }
 
-static int acpi_idle_enter(struct cpuidle_device *dev,
+static int __cpuidle acpi_idle_enter(struct cpuidle_device *dev,
 			   struct cpuidle_driver *drv, int index)
 {
 	struct acpi_processor_cx *cx = per_cpu(acpi_cstate[index], dev->cpu);
@@ -693,7 +694,7 @@ static int acpi_idle_enter(struct cpuidle_device *dev,
 	return index;
 }
 
-static int acpi_idle_enter_s2idle(struct cpuidle_device *dev,
+static int __cpuidle acpi_idle_enter_s2idle(struct cpuidle_device *dev,
 				  struct cpuidle_driver *drv, int index)
 {
 	struct acpi_processor_cx *cx = per_cpu(acpi_cstate[index], dev->cpu);
@@ -795,7 +796,8 @@ static int acpi_processor_setup_cstates(struct acpi_processor *pr)
 		if (cx->type == ACPI_STATE_C1 || cx->type == ACPI_STATE_C2 ||
 		    cx->type == ACPI_STATE_C3) {
 			state->enter_dead = acpi_idle_play_dead;
-			drv->safe_state_index = count;
+			if (cx->type != ACPI_STATE_C3)
+				drv->safe_state_index = count;
 		}
 		/*
 		 * Halt-induced C1 is not good for ->enter_s2idle, because it

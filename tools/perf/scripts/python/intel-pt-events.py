@@ -104,7 +104,13 @@ def print_ptwrite(raw_buf):
 	flags = data[0]
 	payload = data[1]
 	exact_ip = flags & 1
-	print("IP: %u payload: %#x" % (exact_ip, payload), end=' ')
+	try:
+		s = payload.to_bytes(8, "little").decode("ascii").rstrip("\x00")
+		if not s.isprintable():
+			s = ""
+	except:
+		s = ""
+	print("IP: %u payload: %#x" % (exact_ip, payload), s, end=' ')
 
 def print_cbr(raw_buf):
 	data = struct.unpack_from("<BBBBII", raw_buf)
@@ -191,7 +197,12 @@ def common_start_str(comm, sample):
 	cpu = sample["cpu"]
 	pid = sample["pid"]
 	tid = sample["tid"]
-	return "%16s %5u/%-5u [%03u] %9u.%09u  " % (comm, pid, tid, cpu, ts / 1000000000, ts %1000000000)
+	if "machine_pid" in sample:
+		machine_pid = sample["machine_pid"]
+		vcpu = sample["vcpu"]
+		return "VM:%5d VCPU:%03d %16s %5u/%-5u [%03u] %9u.%09u  " % (machine_pid, vcpu, comm, pid, tid, cpu, ts / 1000000000, ts %1000000000)
+	else:
+		return "%16s %5u/%-5u [%03u] %9u.%09u  " % (comm, pid, tid, cpu, ts / 1000000000, ts %1000000000)
 
 def print_common_start(comm, sample, name):
 	flags_disp = get_optional_null(sample, "flags_disp")
@@ -373,9 +384,19 @@ def process_event(param_dict):
 		sys.exit(1)
 
 def auxtrace_error(typ, code, cpu, pid, tid, ip, ts, msg, cpumode, *x):
+	if len(x) >= 2 and x[0]:
+		machine_pid = x[0]
+		vcpu = x[1]
+	else:
+		machine_pid = 0
+		vcpu = -1
 	try:
-		print("%16s %5u/%-5u [%03u] %9u.%09u  error type %u code %u: %s ip 0x%16x" %
-			("Trace error", pid, tid, cpu, ts / 1000000000, ts %1000000000, typ, code, msg, ip))
+		if machine_pid:
+			print("VM:%5d VCPU:%03d %16s %5u/%-5u [%03u] %9u.%09u  error type %u code %u: %s ip 0x%16x" %
+				(machine_pid, vcpu, "Trace error", pid, tid, cpu, ts / 1000000000, ts %1000000000, typ, code, msg, ip))
+		else:
+			print("%16s %5u/%-5u [%03u] %9u.%09u  error type %u code %u: %s ip 0x%16x" %
+				("Trace error", pid, tid, cpu, ts / 1000000000, ts %1000000000, typ, code, msg, ip))
 	except broken_pipe_exception:
 		# Stop python printing broken pipe errors and traceback
 		sys.stdout = open(os.devnull, 'w')
@@ -390,14 +411,21 @@ def context_switch(ts, cpu, pid, tid, np_pid, np_tid, machine_pid, out, out_pree
 		preempt_str = "preempt"
 	else:
 		preempt_str = ""
+	if len(x) >= 2 and x[0]:
+		machine_pid = x[0]
+		vcpu = x[1]
+	else:
+		vcpu = None;
 	if machine_pid == -1:
 		machine_str = ""
-	else:
+	elif vcpu is None:
 		machine_str = "machine PID %d" % machine_pid
+	else:
+		machine_str = "machine PID %d VCPU %d" % (machine_pid, vcpu)
 	switch_str = "%16s %5d/%-5d [%03u] %9u.%09u %5d/%-5d %s %s" % \
 		(out_str, pid, tid, cpu, ts / 1000000000, ts %1000000000, np_pid, np_tid, machine_str, preempt_str)
 	if glb_args.all_switch_events:
-		print(switch_str);
+		print(switch_str)
 	else:
 		global glb_switch_str
 		glb_switch_str[cpu] = switch_str

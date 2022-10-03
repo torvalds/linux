@@ -87,14 +87,6 @@ static void
 lpfc_release_scsi_buf_s3(struct lpfc_hba *phba, struct lpfc_io_buf *psb);
 static int
 lpfc_prot_group_type(struct lpfc_hba *phba, struct scsi_cmnd *sc);
-static void
-lpfc_put_vmid_in_hashtable(struct lpfc_vport *vport, u32 hash,
-			   struct lpfc_vmid *vmp);
-static void lpfc_vmid_update_entry(struct lpfc_vport *vport, struct scsi_cmnd
-				   *cmd, struct lpfc_vmid *vmp,
-				   union lpfc_vmid_io_tag *tag);
-static void lpfc_vmid_assign_cs_ctl(struct lpfc_vport *vport,
-				    struct lpfc_vmid *vmid);
 
 /**
  * lpfc_sli4_set_rsp_sgl_last - Set the last bit in the response sge.
@@ -433,7 +425,7 @@ lpfc_new_scsi_buf_s3(struct lpfc_vport *vport, int num_to_alloc)
 		iocb->ulpClass = CLASS3;
 		psb->status = IOSTAT_SUCCESS;
 		/* Put it back into the SCSI buffer list */
-		psb->cur_iocbq.context1  = psb;
+		psb->cur_iocbq.io_buf = psb;
 		spin_lock_init(&psb->buf_lock);
 		lpfc_release_scsi_buf_s3(phba, psb);
 
@@ -3835,7 +3827,7 @@ lpfc_update_cmf_cmpl(struct lpfc_hba *phba,
 		else
 			time = div_u64(time + 500, 1000); /* round it */
 
-		cgs = this_cpu_ptr(phba->cmf_stat);
+		cgs = per_cpu_ptr(phba->cmf_stat, raw_smp_processor_id());
 		atomic64_add(size, &cgs->rcv_bytes);
 		atomic64_add(time, &cgs->rx_latency);
 		atomic_inc(&cgs->rx_io_cnt);
@@ -3879,7 +3871,7 @@ lpfc_update_cmf_cmd(struct lpfc_hba *phba, uint32_t size)
 			atomic_set(&phba->rx_max_read_cnt, size);
 	}
 
-	cgs = this_cpu_ptr(phba->cmf_stat);
+	cgs = per_cpu_ptr(phba->cmf_stat, raw_smp_processor_id());
 	atomic64_add(size, &cgs->total_bytes);
 	return 0;
 }
@@ -4082,8 +4074,7 @@ static void
 lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 			 struct lpfc_iocbq *pwqeOut)
 {
-	struct lpfc_io_buf *lpfc_cmd =
-		(struct lpfc_io_buf *)pwqeIn->context1;
+	struct lpfc_io_buf *lpfc_cmd = pwqeIn->io_buf;
 	struct lpfc_wcqe_complete *wcqe = &pwqeOut->wcqe_cmpl;
 	struct lpfc_vport *vport = pwqeIn->vport;
 	struct lpfc_rport_data *rdata;
@@ -4276,6 +4267,7 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 			break;
 		}
 		if (lpfc_cmd->result == IOERR_INVALID_RPI ||
+		    lpfc_cmd->result == IOERR_LINK_DOWN ||
 		    lpfc_cmd->result == IOERR_NO_RESOURCES ||
 		    lpfc_cmd->result == IOERR_ABORT_REQUESTED ||
 		    lpfc_cmd->result == IOERR_RPI_SUSPENDED ||
@@ -4420,7 +4412,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 			struct lpfc_iocbq *pIocbOut)
 {
 	struct lpfc_io_buf *lpfc_cmd =
-		(struct lpfc_io_buf *) pIocbIn->context1;
+		(struct lpfc_io_buf *) pIocbIn->io_buf;
 	struct lpfc_vport      *vport = pIocbIn->vport;
 	struct lpfc_rport_data *rdata = lpfc_cmd->rdata;
 	struct lpfc_nodelist *pnode = rdata->pnode;
@@ -4743,7 +4735,7 @@ static int lpfc_scsi_prep_cmnd_buf_s3(struct lpfc_vport *vport,
 		piocbq->iocb.ulpFCP2Rcvy = 0;
 
 	piocbq->iocb.ulpClass = (pnode->nlp_fcp_info & 0x0f);
-	piocbq->context1  = lpfc_cmd;
+	piocbq->io_buf  = lpfc_cmd;
 	if (!piocbq->cmd_cmpl)
 		piocbq->cmd_cmpl = lpfc_scsi_cmd_iocb_cmpl;
 	piocbq->iocb.ulpTimeout = tmo;
@@ -4855,8 +4847,7 @@ static int lpfc_scsi_prep_cmnd_buf_s4(struct lpfc_vport *vport,
 	bf_set(wqe_reqtag, &wqe->generic.wqe_com, pwqeq->iotag);
 
 	pwqeq->vport = vport;
-	pwqeq->vport = vport;
-	pwqeq->context1 = lpfc_cmd;
+	pwqeq->io_buf = lpfc_cmd;
 	pwqeq->hba_wqidx = lpfc_cmd->hdwq_no;
 	pwqeq->cmd_cmpl = lpfc_fcp_io_cmd_wqe_cmpl;
 
@@ -5097,8 +5088,7 @@ lpfc_tskmgmt_def_cmpl(struct lpfc_hba *phba,
 			struct lpfc_iocbq *cmdiocbq,
 			struct lpfc_iocbq *rspiocbq)
 {
-	struct lpfc_io_buf *lpfc_cmd =
-		(struct lpfc_io_buf *) cmdiocbq->context1;
+	struct lpfc_io_buf *lpfc_cmd = cmdiocbq->io_buf;
 	if (lpfc_cmd)
 		lpfc_release_scsi_buf(phba, lpfc_cmd);
 	return;
@@ -5273,253 +5263,6 @@ void lpfc_poll_timeout(struct timer_list *t)
 }
 
 /*
- * lpfc_get_vmid_from_hashtable - search the UUID in the hash table
- * @vport: The virtual port for which this call is being executed.
- * @hash: calculated hash value
- * @buf: uuid associated with the VE
- * Return the VMID entry associated with the UUID
- * Make sure to acquire the appropriate lock before invoking this routine.
- */
-struct lpfc_vmid *lpfc_get_vmid_from_hashtable(struct lpfc_vport *vport,
-					      u32 hash, u8 *buf)
-{
-	struct lpfc_vmid *vmp;
-
-	hash_for_each_possible(vport->hash_table, vmp, hnode, hash) {
-		if (memcmp(&vmp->host_vmid[0], buf, 16) == 0)
-			return vmp;
-	}
-	return NULL;
-}
-
-/*
- * lpfc_put_vmid_in_hashtable - put the VMID in the hash table
- * @vport: The virtual port for which this call is being executed.
- * @hash - calculated hash value
- * @vmp: Pointer to a VMID entry representing a VM sending I/O
- *
- * This routine will insert the newly acquired VMID entity in the hash table.
- * Make sure to acquire the appropriate lock before invoking this routine.
- */
-static void
-lpfc_put_vmid_in_hashtable(struct lpfc_vport *vport, u32 hash,
-			   struct lpfc_vmid *vmp)
-{
-	hash_add(vport->hash_table, &vmp->hnode, hash);
-}
-
-/*
- * lpfc_vmid_hash_fn - create a hash value of the UUID
- * @vmid: uuid associated with the VE
- * @len: length of the VMID string
- * Returns the calculated hash value
- */
-int lpfc_vmid_hash_fn(const char *vmid, int len)
-{
-	int c;
-	int hash = 0;
-
-	if (len == 0)
-		return 0;
-	while (len--) {
-		c = *vmid++;
-		if (c >= 'A' && c <= 'Z')
-			c += 'a' - 'A';
-
-		hash = (hash + (c << LPFC_VMID_HASH_SHIFT) +
-			(c >> LPFC_VMID_HASH_SHIFT)) * 19;
-	}
-
-	return hash & LPFC_VMID_HASH_MASK;
-}
-
-/*
- * lpfc_vmid_update_entry - update the vmid entry in the hash table
- * @vport: The virtual port for which this call is being executed.
- * @cmd: address of scsi cmd descriptor
- * @vmp: Pointer to a VMID entry representing a VM sending I/O
- * @tag: VMID tag
- */
-static void lpfc_vmid_update_entry(struct lpfc_vport *vport, struct scsi_cmnd
-				   *cmd, struct lpfc_vmid *vmp,
-				   union lpfc_vmid_io_tag *tag)
-{
-	u64 *lta;
-
-	if (vport->vmid_priority_tagging)
-		tag->cs_ctl_vmid = vmp->un.cs_ctl_vmid;
-	else
-		tag->app_id = vmp->un.app_id;
-
-	if (cmd->sc_data_direction == DMA_TO_DEVICE)
-		vmp->io_wr_cnt++;
-	else
-		vmp->io_rd_cnt++;
-
-	/* update the last access timestamp in the table */
-	lta = per_cpu_ptr(vmp->last_io_time, raw_smp_processor_id());
-	*lta = jiffies;
-}
-
-static void lpfc_vmid_assign_cs_ctl(struct lpfc_vport *vport,
-				    struct lpfc_vmid *vmid)
-{
-	u32 hash;
-	struct lpfc_vmid *pvmid;
-
-	if (vport->port_type == LPFC_PHYSICAL_PORT) {
-		vmid->un.cs_ctl_vmid = lpfc_vmid_get_cs_ctl(vport);
-	} else {
-		hash = lpfc_vmid_hash_fn(vmid->host_vmid, vmid->vmid_len);
-		pvmid =
-		    lpfc_get_vmid_from_hashtable(vport->phba->pport, hash,
-						vmid->host_vmid);
-		if (pvmid)
-			vmid->un.cs_ctl_vmid = pvmid->un.cs_ctl_vmid;
-		else
-			vmid->un.cs_ctl_vmid = lpfc_vmid_get_cs_ctl(vport);
-	}
-}
-
-/*
- * lpfc_vmid_get_appid - get the VMID associated with the UUID
- * @vport: The virtual port for which this call is being executed.
- * @uuid: UUID associated with the VE
- * @cmd: address of scsi_cmd descriptor
- * @tag: VMID tag
- * Returns status of the function
- */
-static int lpfc_vmid_get_appid(struct lpfc_vport *vport, char *uuid, struct
-			       scsi_cmnd * cmd, union lpfc_vmid_io_tag *tag)
-{
-	struct lpfc_vmid *vmp = NULL;
-	int hash, len, rc, i;
-
-	/* check if QFPA is complete */
-	if (lpfc_vmid_is_type_priority_tag(vport) && !(vport->vmid_flag &
-	      LPFC_VMID_QFPA_CMPL)) {
-		vport->work_port_events |= WORKER_CHECK_VMID_ISSUE_QFPA;
-		return -EAGAIN;
-	}
-
-	/* search if the UUID has already been mapped to the VMID */
-	len = strlen(uuid);
-	hash = lpfc_vmid_hash_fn(uuid, len);
-
-	/* search for the VMID in the table */
-	read_lock(&vport->vmid_lock);
-	vmp = lpfc_get_vmid_from_hashtable(vport, hash, uuid);
-
-	/* if found, check if its already registered  */
-	if (vmp  && vmp->flag & LPFC_VMID_REGISTERED) {
-		read_unlock(&vport->vmid_lock);
-		lpfc_vmid_update_entry(vport, cmd, vmp, tag);
-		rc = 0;
-	} else if (vmp && (vmp->flag & LPFC_VMID_REQ_REGISTER ||
-			   vmp->flag & LPFC_VMID_DE_REGISTER)) {
-		/* else if register or dereg request has already been sent */
-		/* Hence VMID tag will not be added for this I/O */
-		read_unlock(&vport->vmid_lock);
-		rc = -EBUSY;
-	} else {
-		/* The VMID was not found in the hashtable. At this point, */
-		/* drop the read lock first before proceeding further */
-		read_unlock(&vport->vmid_lock);
-		/* start the process to obtain one as per the */
-		/* type of the VMID indicated */
-		write_lock(&vport->vmid_lock);
-		vmp = lpfc_get_vmid_from_hashtable(vport, hash, uuid);
-
-		/* while the read lock was released, in case the entry was */
-		/* added by other context or is in process of being added */
-		if (vmp && vmp->flag & LPFC_VMID_REGISTERED) {
-			lpfc_vmid_update_entry(vport, cmd, vmp, tag);
-			write_unlock(&vport->vmid_lock);
-			return 0;
-		} else if (vmp && vmp->flag & LPFC_VMID_REQ_REGISTER) {
-			write_unlock(&vport->vmid_lock);
-			return -EBUSY;
-		}
-
-		/* else search and allocate a free slot in the hash table */
-		if (vport->cur_vmid_cnt < vport->max_vmid) {
-			for (i = 0; i < vport->max_vmid; i++) {
-				vmp = vport->vmid + i;
-				if (vmp->flag == LPFC_VMID_SLOT_FREE)
-					break;
-			}
-			if (i == vport->max_vmid)
-				vmp = NULL;
-		} else {
-			vmp = NULL;
-		}
-
-		if (!vmp) {
-			write_unlock(&vport->vmid_lock);
-			return -ENOMEM;
-		}
-
-		/* Add the vmid and register */
-		lpfc_put_vmid_in_hashtable(vport, hash, vmp);
-		vmp->vmid_len = len;
-		memcpy(vmp->host_vmid, uuid, vmp->vmid_len);
-		vmp->io_rd_cnt = 0;
-		vmp->io_wr_cnt = 0;
-		vmp->flag = LPFC_VMID_SLOT_USED;
-
-		vmp->delete_inactive =
-			vport->vmid_inactivity_timeout ? 1 : 0;
-
-		/* if type priority tag, get next available VMID */
-		if (lpfc_vmid_is_type_priority_tag(vport))
-			lpfc_vmid_assign_cs_ctl(vport, vmp);
-
-		/* allocate the per cpu variable for holding */
-		/* the last access time stamp only if VMID is enabled */
-		if (!vmp->last_io_time)
-			vmp->last_io_time = __alloc_percpu(sizeof(u64),
-							   __alignof__(struct
-							   lpfc_vmid));
-		if (!vmp->last_io_time) {
-			hash_del(&vmp->hnode);
-			vmp->flag = LPFC_VMID_SLOT_FREE;
-			write_unlock(&vport->vmid_lock);
-			return -EIO;
-		}
-
-		write_unlock(&vport->vmid_lock);
-
-		/* complete transaction with switch */
-		if (lpfc_vmid_is_type_priority_tag(vport))
-			rc = lpfc_vmid_uvem(vport, vmp, true);
-		else
-			rc = lpfc_vmid_cmd(vport, SLI_CTAS_RAPP_IDENT, vmp);
-		if (!rc) {
-			write_lock(&vport->vmid_lock);
-			vport->cur_vmid_cnt++;
-			vmp->flag |= LPFC_VMID_REQ_REGISTER;
-			write_unlock(&vport->vmid_lock);
-		} else {
-			write_lock(&vport->vmid_lock);
-			hash_del(&vmp->hnode);
-			vmp->flag = LPFC_VMID_SLOT_FREE;
-			free_percpu(vmp->last_io_time);
-			write_unlock(&vport->vmid_lock);
-			return -EIO;
-		}
-
-		/* finally, enable the idle timer once */
-		if (!(vport->phba->pport->vmid_flag & LPFC_VMID_TIMER_ENBLD)) {
-			mod_timer(&vport->phba->inactive_vmid_poll,
-				  jiffies +
-				  msecs_to_jiffies(1000 * LPFC_VMID_TIMER));
-			vport->phba->pport->vmid_flag |= LPFC_VMID_TIMER_ENBLD;
-		}
-	}
-	return rc;
-}
-
-/*
  * lpfc_is_command_vm_io - get the UUID from blk cgroup
  * @cmd: Pointer to scsi_cmnd data structure
  * Returns UUID if present, otherwise NULL
@@ -5528,7 +5271,9 @@ static char *lpfc_is_command_vm_io(struct scsi_cmnd *cmd)
 {
 	struct bio *bio = scsi_cmd_to_rq(cmd)->bio;
 
-	return bio ? blkcg_get_fc_appid(bio) : NULL;
+	if (!IS_ENABLED(CONFIG_BLK_CGROUP_FC_APPID) || !bio)
+		return NULL;
+	return blkcg_get_fc_appid(bio);
 }
 
 /**
@@ -5703,14 +5448,14 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 		uuid = lpfc_is_command_vm_io(cmnd);
 
 		if (uuid) {
-			err = lpfc_vmid_get_appid(vport, uuid, cmnd,
-				(union lpfc_vmid_io_tag *)
-					&cur_iocbq->vmid_tag);
+			err = lpfc_vmid_get_appid(vport, uuid,
+					cmnd->sc_data_direction,
+					(union lpfc_vmid_io_tag *)
+						&cur_iocbq->vmid_tag);
 			if (!err)
 				cur_iocbq->cmd_flag |= LPFC_IO_VMID;
 		}
 	}
-	atomic_inc(&ndlp->cmd_pending);
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	if (unlikely(phba->hdwqstat_on & LPFC_CHECK_SCSI_IO))
@@ -5864,25 +5609,25 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	if (!lpfc_cmd)
 		return ret;
 
-	spin_lock_irqsave(&phba->hbalock, flags);
+	/* Guard against IO completion being called at same time */
+	spin_lock_irqsave(&lpfc_cmd->buf_lock, flags);
+
+	spin_lock(&phba->hbalock);
 	/* driver queued commands are in process of being flushed */
 	if (phba->hba_flag & HBA_IOQ_FLUSH) {
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
 			"3168 SCSI Layer abort requested I/O has been "
 			"flushed by LLD.\n");
 		ret = FAILED;
-		goto out_unlock;
+		goto out_unlock_hba;
 	}
-
-	/* Guard against IO completion being called at same time */
-	spin_lock(&lpfc_cmd->buf_lock);
 
 	if (!lpfc_cmd->pCmd) {
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
 			 "2873 SCSI Layer I/O Abort Request IO CMPL Status "
 			 "x%x ID %d LUN %llu\n",
 			 SUCCESS, cmnd->device->id, cmnd->device->lun);
-		goto out_unlock_buf;
+		goto out_unlock_hba;
 	}
 
 	iocb = &lpfc_cmd->cur_iocbq;
@@ -5890,7 +5635,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 		pring_s4 = phba->sli4_hba.hdwq[iocb->hba_wqidx].io_wq->pring;
 		if (!pring_s4) {
 			ret = FAILED;
-			goto out_unlock_buf;
+			goto out_unlock_hba;
 		}
 		spin_lock(&pring_s4->ring_lock);
 	}
@@ -5915,7 +5660,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 		goto out_unlock_ring;
 	}
 
-	BUG_ON(iocb->context1 != lpfc_cmd);
+	WARN_ON(iocb->io_buf != lpfc_cmd);
 
 	/* abort issued in recovery is still in progress */
 	if (iocb->cmd_flag & LPFC_DRIVER_ABORTED) {
@@ -5923,8 +5668,8 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 			 "3389 SCSI Layer I/O Abort Request is pending\n");
 		if (phba->sli_rev == LPFC_SLI_REV4)
 			spin_unlock(&pring_s4->ring_lock);
-		spin_unlock(&lpfc_cmd->buf_lock);
-		spin_unlock_irqrestore(&phba->hbalock, flags);
+		spin_unlock(&phba->hbalock);
+		spin_unlock_irqrestore(&lpfc_cmd->buf_lock, flags);
 		goto wait_for_cmpl;
 	}
 
@@ -5945,15 +5690,13 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	if (ret_val != IOCB_SUCCESS) {
 		/* Indicate the IO is not being aborted by the driver. */
 		lpfc_cmd->waitq = NULL;
-		spin_unlock(&lpfc_cmd->buf_lock);
-		spin_unlock_irqrestore(&phba->hbalock, flags);
 		ret = FAILED;
-		goto out;
+		goto out_unlock_hba;
 	}
 
 	/* no longer need the lock after this point */
-	spin_unlock(&lpfc_cmd->buf_lock);
-	spin_unlock_irqrestore(&phba->hbalock, flags);
+	spin_unlock(&phba->hbalock);
+	spin_unlock_irqrestore(&lpfc_cmd->buf_lock, flags);
 
 	if (phba->cfg_poll & DISABLE_FCP_RING_INT)
 		lpfc_sli_handle_fast_ring_event(phba,
@@ -5988,10 +5731,9 @@ wait_for_cmpl:
 out_unlock_ring:
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		spin_unlock(&pring_s4->ring_lock);
-out_unlock_buf:
-	spin_unlock(&lpfc_cmd->buf_lock);
-out_unlock:
-	spin_unlock_irqrestore(&phba->hbalock, flags);
+out_unlock_hba:
+	spin_unlock(&phba->hbalock);
+	spin_unlock_irqrestore(&lpfc_cmd->buf_lock, flags);
 out:
 	lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
 			 "0749 SCSI Layer I/O Abort Request Status x%x ID %d "
@@ -6319,6 +6061,9 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 	int status;
 	u32 logit = LOG_FCP;
 
+	if (!rport)
+		return FAILED;
+
 	rdata = rport->dd_data;
 	if (!rdata || !rdata->pnode) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
@@ -6396,6 +6141,9 @@ lpfc_target_reset_handler(struct scsi_cmnd *cmnd)
 	u32 dev_loss_tmo = vport->cfg_devloss_tmo;
 	unsigned long flags;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(waitq);
+
+	if (!rport)
+		return FAILED;
 
 	rdata = rport->dd_data;
 	if (!rdata || !rdata->pnode) {

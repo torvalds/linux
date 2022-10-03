@@ -26,6 +26,7 @@ struct sock;
 #define ISCSI_RX_THREAD_NAME		"iscsi_trx"
 #define ISCSI_TX_THREAD_NAME		"iscsi_ttx"
 #define ISCSI_IQN_LEN			224
+#define NA_AUTHENTICATION_INHERITED	-1
 
 /* struct iscsi_node_attrib sanity values */
 #define NA_DATAOUT_TIMEOUT		3
@@ -143,7 +144,7 @@ enum tiqn_state_table {
 	TIQN_STATE_SHUTDOWN			= 2,
 };
 
-/* struct iscsi_cmd->cmd_flags */
+/* struct iscsit_cmd->cmd_flags */
 enum cmd_flags_table {
 	ICF_GOT_LAST_DATAOUT			= 0x00000001,
 	ICF_GOT_DATACK_SNACK			= 0x00000002,
@@ -157,7 +158,7 @@ enum cmd_flags_table {
 	ICF_SENDTARGETS_SINGLE			= 0x00000200,
 };
 
-/* struct iscsi_cmd->i_state */
+/* struct iscsit_cmd->i_state */
 enum cmd_i_state_table {
 	ISTATE_NO_STATE			= 0,
 	ISTATE_NEW_CMD			= 1,
@@ -297,7 +298,7 @@ struct iscsi_sess_ops {
 
 struct iscsi_queue_req {
 	int			state;
-	struct iscsi_cmd	*cmd;
+	struct iscsit_cmd	*cmd;
 	struct list_head	qr_list;
 };
 
@@ -327,7 +328,7 @@ struct iscsi_ooo_cmdsn {
 	u32			batch_count;
 	u32			cmdsn;
 	u32			exp_cmdsn;
-	struct iscsi_cmd	*cmd;
+	struct iscsit_cmd	*cmd;
 	struct list_head	ooo_list;
 } ____cacheline_aligned;
 
@@ -349,7 +350,7 @@ struct iscsi_r2t {
 	struct list_head	r2t_list;
 } ____cacheline_aligned;
 
-struct iscsi_cmd {
+struct iscsit_cmd {
 	enum iscsi_timer_flags_table dataout_timer_flags;
 	/* DataOUT timeout retries */
 	u8			dataout_timeout_retries;
@@ -405,22 +406,22 @@ struct iscsi_cmd {
 	u32			outstanding_r2ts;
 	/* Next R2T Offset when DataSequenceInOrder=Yes */
 	u32			r2t_offset;
-	/* Iovec current and orig count for iscsi_cmd->iov_data */
+	/* Iovec current and orig count for iscsit_cmd->iov_data */
 	u32			iov_data_count;
 	u32			orig_iov_data_count;
 	/* Number of miscellaneous iovecs used for IP stack calls */
 	u32			iov_misc_count;
-	/* Number of struct iscsi_pdu in struct iscsi_cmd->pdu_list */
+	/* Number of struct iscsi_pdu in struct iscsit_cmd->pdu_list */
 	u32			pdu_count;
-	/* Next struct iscsi_pdu to send in struct iscsi_cmd->pdu_list */
+	/* Next struct iscsi_pdu to send in struct iscsit_cmd->pdu_list */
 	u32			pdu_send_order;
-	/* Current struct iscsi_pdu in struct iscsi_cmd->pdu_list */
+	/* Current struct iscsi_pdu in struct iscsit_cmd->pdu_list */
 	u32			pdu_start;
-	/* Next struct iscsi_seq to send in struct iscsi_cmd->seq_list */
+	/* Next struct iscsi_seq to send in struct iscsit_cmd->seq_list */
 	u32			seq_send_order;
-	/* Number of struct iscsi_seq in struct iscsi_cmd->seq_list */
+	/* Number of struct iscsi_seq in struct iscsit_cmd->seq_list */
 	u32			seq_count;
-	/* Current struct iscsi_seq in struct iscsi_cmd->seq_list */
+	/* Current struct iscsi_seq in struct iscsit_cmd->seq_list */
 	u32			seq_no;
 	/* Lowest offset in current DataOUT sequence */
 	u32			seq_start_offset;
@@ -444,12 +445,12 @@ struct iscsi_cmd {
 	enum dma_data_direction	data_direction;
 	/* iSCSI PDU Header + CRC */
 	unsigned char		pdu[ISCSI_HDR_LEN + ISCSI_CRC_LEN];
-	/* Number of times struct iscsi_cmd is present in immediate queue */
+	/* Number of times struct iscsit_cmd is present in immediate queue */
 	atomic_t		immed_queue_count;
 	atomic_t		response_queue_count;
 	spinlock_t		datain_lock;
 	spinlock_t		dataout_timeout_lock;
-	/* spinlock for protecting struct iscsi_cmd->i_state */
+	/* spinlock for protecting struct iscsit_cmd->i_state */
 	spinlock_t		istate_lock;
 	/* spinlock for adding within command recovery entries */
 	spinlock_t		error_lock;
@@ -478,11 +479,11 @@ struct iscsi_cmd {
 	/* TMR Request when iscsi_opcode == ISCSI_OP_SCSI_TMFUNC */
 	struct iscsi_tmr_req	*tmr_req;
 	/* Connection this command is alligient to */
-	struct iscsi_conn	*conn;
+	struct iscsit_conn	*conn;
 	/* Pointer to connection recovery entry */
 	struct iscsi_conn_recovery *cr;
 	/* Session the command is part of,  used for connection recovery */
-	struct iscsi_session	*sess;
+	struct iscsit_session	*sess;
 	/* list_head for connection list */
 	struct list_head	i_conn_node;
 	/* The TCM I/O descriptor that is accessed via container_of() */
@@ -503,12 +504,12 @@ struct iscsi_cmd {
 struct iscsi_tmr_req {
 	bool			task_reassign:1;
 	u32			exp_data_sn;
-	struct iscsi_cmd	*ref_cmd;
+	struct iscsit_cmd	*ref_cmd;
 	struct iscsi_conn_recovery *conn_recovery;
 	struct se_tmr_req	*se_tmr_req;
 };
 
-struct iscsi_conn {
+struct iscsit_conn {
 	wait_queue_head_t	queues_wq;
 	/* Authentication Successful for this connection */
 	u8			auth_complete;
@@ -583,7 +584,7 @@ struct iscsi_conn {
 	cpumask_var_t		allowed_cpumask;
 	unsigned int		conn_rx_reset_cpumask:1;
 	unsigned int		conn_tx_reset_cpumask:1;
-	/* list_head of struct iscsi_cmd for this connection */
+	/* list_head of struct iscsit_cmd for this connection */
 	struct list_head	conn_cmd_list;
 	struct list_head	immed_queue_list;
 	struct list_head	response_queue_list;
@@ -598,7 +599,7 @@ struct iscsi_conn {
 	struct iscsi_portal_group *tpg;
 	struct iscsi_tpg_np	*tpg_np;
 	/* Pointer to parent session */
-	struct iscsi_session	*sess;
+	struct iscsit_session	*sess;
 	int			bitmap_id;
 	int			rx_thread_active;
 	struct task_struct	*rx_thread;
@@ -618,11 +619,11 @@ struct iscsi_conn_recovery {
 	struct list_head	conn_recovery_cmd_list;
 	spinlock_t		conn_recovery_cmd_lock;
 	struct timer_list	time2retain_timer;
-	struct iscsi_session	*sess;
+	struct iscsit_session	*sess;
 	struct list_head	cr_list;
 }  ____cacheline_aligned;
 
-struct iscsi_session {
+struct iscsit_session {
 	u8			initiator_vendor;
 	u8			isid[6];
 	enum iscsi_timer_flags_table time2retain_timer_flags;
@@ -710,11 +711,12 @@ struct iscsi_login {
 	char rsp[ISCSI_HDR_LEN];
 	char *req_buf;
 	char *rsp_buf;
-	struct iscsi_conn *conn;
+	struct iscsit_conn *conn;
 	struct iscsi_np *np;
 } ____cacheline_aligned;
 
 struct iscsi_node_attrib {
+	s32			authentication;
 	u32			dataout_timeout;
 	u32			dataout_timeout_retries;
 	u32			default_erl;
@@ -757,6 +759,12 @@ struct iscsi_node_acl {
 	struct iscsi_node_auth	node_auth;
 	struct iscsi_node_stat_grps node_stat_grps;
 };
+
+static inline struct iscsi_node_acl *
+to_iscsi_nacl(struct se_node_acl *se_nacl)
+{
+	return container_of(se_nacl, struct iscsi_node_acl, se_node_acl);
+}
 
 struct iscsi_tpg_attrib {
 	u32			authentication;
@@ -839,6 +847,12 @@ struct iscsi_portal_group {
 	struct list_head	tpg_list;
 } ____cacheline_aligned;
 
+static inline struct iscsi_portal_group *
+to_iscsi_tpg(struct se_portal_group *se_tpg)
+{
+	return container_of(se_tpg, struct iscsi_portal_group, tpg_se_tpg);
+}
+
 struct iscsi_wwn_stat_grps {
 	struct config_group	iscsi_stat_group;
 	struct config_group	iscsi_instance_group;
@@ -885,7 +899,7 @@ struct iscsit_global {
 	struct iscsi_portal_group	*discovery_tpg;
 };
 
-static inline u32 session_get_next_ttt(struct iscsi_session *session)
+static inline u32 session_get_next_ttt(struct iscsit_session *session)
 {
 	u32 ttt;
 
@@ -898,9 +912,9 @@ static inline u32 session_get_next_ttt(struct iscsi_session *session)
 	return ttt;
 }
 
-extern struct iscsi_cmd *iscsit_find_cmd_from_itt(struct iscsi_conn *, itt_t);
+extern struct iscsit_cmd *iscsit_find_cmd_from_itt(struct iscsit_conn *, itt_t);
 
-extern void iscsit_thread_check_cpumask(struct iscsi_conn *conn,
+extern void iscsit_thread_check_cpumask(struct iscsit_conn *conn,
 					struct task_struct *p,
 					int mode);
 

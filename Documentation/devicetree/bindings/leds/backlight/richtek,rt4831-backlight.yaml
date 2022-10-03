@@ -47,6 +47,11 @@ properties:
     minimum: 0
     maximum: 3
 
+  richtek,bled-ocp-microamp:
+    description: |
+      Backlight over current protection level.
+    enum: [900000, 1200000, 1500000, 1800000]
+
   richtek,channel-use:
     description: |
       Backlight LED channel to be used.

@@ -25,8 +25,10 @@ properties:
     items:
       - enum:
           - qcom,sm6350-ipcc
+          - qcom,sm6375-ipcc
           - qcom,sm8250-ipcc
           - qcom,sm8350-ipcc
+          - qcom,sm8450-ipcc
           - qcom,sc7280-ipcc
       - const: qcom,ipcc
 
@@ -61,23 +63,14 @@ additionalProperties: false
 
 examples:
   - |
-        #include <dt-bindings/interrupt-controller/arm-gic.h>
-        #include <dt-bindings/mailbox/qcom-ipcc.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/mailbox/qcom-ipcc.h>
 
-        mailbox@408000 {
-                compatible = "qcom,sm8250-ipcc", "qcom,ipcc";
-                reg = <0x408000 0x1000>;
-                interrupts = <GIC_SPI 229 IRQ_TYPE_LEVEL_HIGH>;
-                interrupt-controller;
-                #interrupt-cells = <3>;
-                #mbox-cells = <2>;
-        };
-
-        smp2p-modem {
-                compatible = "qcom,smp2p";
-                interrupts-extended = <&ipcc_mproc IPCC_CLIENT_MPSS
-                                IPCC_MPROC_SIGNAL_SMP2P IRQ_TYPE_EDGE_RISING>;
-                mboxes = <&ipcc_mproc IPCC_CLIENT_MPSS IPCC_MPROC_SIGNAL_SMP2P>;
-
-                /* Other SMP2P fields */
-        };
+    mailbox@408000 {
+        compatible = "qcom,sm8250-ipcc", "qcom,ipcc";
+        reg = <0x408000 0x1000>;
+        interrupts = <GIC_SPI 229 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-controller;
+        #interrupt-cells = <3>;
+        #mbox-cells = <2>;
+    };

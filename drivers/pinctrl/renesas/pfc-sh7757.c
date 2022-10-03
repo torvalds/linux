@@ -10,7 +10,6 @@
  *  Copyright (C) 2008  Magnus Damm
  */
 
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <cpu/sh7757.h>
 
@@ -1964,43 +1963,35 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0,
 		0, 0, ))
 	},
-	{ PINMUX_CFG_REG("PSEL1", 0xffec0072, 16, 1, GROUP(
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
+	{ PINMUX_CFG_REG_VAR("PSEL1", 0xffec0072, 16,
+			     GROUP(-5, 1, 1, 1, -5, 1, -2),
+			     GROUP(
+		/* RESERVED [5] */
 		PS1_10_FN1, PS1_10_FN2,
 		PS1_9_FN1, PS1_9_FN2,
 		PS1_8_FN1, PS1_8_FN2,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
+		/* RESERVED [5] */
 		PS1_2_FN1, PS1_2_FN2,
-		0, 0,
-		0, 0, ))
+		/* RESERVED [2] */ ))
 	},
-	{ PINMUX_CFG_REG("PSEL2", 0xffec0074, 16, 1, GROUP(
-		0, 0,
-		0, 0,
+	{ PINMUX_CFG_REG_VAR("PSEL2", 0xffec0074, 16,
+			     GROUP(-2, 1, 1, -4, 1, 1, 1, 1, -1, 1, -2),
+			     GROUP(
+		/* RESERVED [2] */
 		PS2_13_FN1, PS2_13_FN2,
 		PS2_12_FN1, PS2_12_FN2,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
+		/* RESERVED [4] */
 		PS2_7_FN1, PS2_7_FN2,
 		PS2_6_FN1, PS2_6_FN2,
 		PS2_5_FN1, PS2_5_FN2,
 		PS2_4_FN1, PS2_4_FN2,
-		0, 0,
+		/* RESERVED [1] */
 		PS2_2_FN1, PS2_2_FN2,
-		0, 0,
-		0, 0, ))
+		/* RESERVED [2] */ ))
 	},
-	{ PINMUX_CFG_REG("PSEL3", 0xffec0076, 16, 1, GROUP(
+	{ PINMUX_CFG_REG_VAR("PSEL3", 0xffec0076, 16,
+			     GROUP(1, 1, 1, 1, 1, 1, 1, 1, 1, -4, 1, 1, -1),
+			     GROUP(
 		PS3_15_FN1, PS3_15_FN2,
 		PS3_14_FN1, PS3_14_FN2,
 		PS3_13_FN1, PS3_13_FN2,
@@ -2010,38 +2001,35 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PS3_9_FN1, PS3_9_FN2,
 		PS3_8_FN1, PS3_8_FN2,
 		PS3_7_FN1, PS3_7_FN2,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
+		/* RESERVED [4] */
 		PS3_2_FN1, PS3_2_FN2,
 		PS3_1_FN1, PS3_1_FN2,
-		0, 0, ))
+		/* RESERVED [1] */ ))
 	},
 
-	{ PINMUX_CFG_REG("PSEL4", 0xffec0078, 16, 1, GROUP(
-		0, 0,
+	{ PINMUX_CFG_REG_VAR("PSEL4", 0xffec0078, 16,
+			     GROUP(-1, 1, 1, 1, -1, 1, 1, 1, -3, 1, 1, 1,
+				   1, 1),
+			     GROUP(
+		/* RESERVED [1] */
 		PS4_14_FN1, PS4_14_FN2,
 		PS4_13_FN1, PS4_13_FN2,
 		PS4_12_FN1, PS4_12_FN2,
-		0, 0,
+		/* RESERVED [1] */
 		PS4_10_FN1, PS4_10_FN2,
 		PS4_9_FN1, PS4_9_FN2,
 		PS4_8_FN1, PS4_8_FN2,
-		0, 0,
-		0, 0,
-		0, 0,
+		/* RESERVED [3] */
 		PS4_4_FN1, PS4_4_FN2,
 		PS4_3_FN1, PS4_3_FN2,
 		PS4_2_FN1, PS4_2_FN2,
 		PS4_1_FN1, PS4_1_FN2,
 		PS4_0_FN1, PS4_0_FN2, ))
 	},
-	{ PINMUX_CFG_REG("PSEL5", 0xffec007a, 16, 1, GROUP(
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
+	{ PINMUX_CFG_REG_VAR("PSEL5", 0xffec007a, 16,
+			     GROUP(-4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -2),
+			     GROUP(
+		/* RESERVED [4] */
 		PS5_11_FN1, PS5_11_FN2,
 		PS5_10_FN1, PS5_10_FN2,
 		PS5_9_FN1, PS5_9_FN2,
@@ -2052,8 +2040,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PS5_4_FN1, PS5_4_FN2,
 		PS5_3_FN1, PS5_3_FN2,
 		PS5_2_FN1, PS5_2_FN2,
-		0, 0,
-		0, 0, ))
+		/* RESERVED [2] */ ))
 	},
 	{ PINMUX_CFG_REG("PSEL6", 0xffec007c, 16, 1, GROUP(
 		PS6_15_FN1, PS6_15_FN2,
@@ -2073,7 +2060,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PS6_1_FN1, PS6_1_FN2,
 		PS6_0_FN1, PS6_0_FN2, ))
 	},
-	{ PINMUX_CFG_REG("PSEL7", 0xffec0082, 16, 1, GROUP(
+	{ PINMUX_CFG_REG_VAR("PSEL7", 0xffec0082, 16,
+			     GROUP(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -5),
+			     GROUP(
 		PS7_15_FN1, PS7_15_FN2,
 		PS7_14_FN1, PS7_14_FN2,
 		PS7_13_FN1, PS7_13_FN2,
@@ -2085,13 +2074,11 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PS7_7_FN1, PS7_7_FN2,
 		PS7_6_FN1, PS7_6_FN2,
 		PS7_5_FN1, PS7_5_FN2,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0, ))
+		/* RESERVED [5] */ ))
 	},
-	{ PINMUX_CFG_REG("PSEL8", 0xffec0084, 16, 1, GROUP(
+	{ PINMUX_CFG_REG_VAR("PSEL8", 0xffec0084, 16,
+			     GROUP(1, 1, 1, 1, 1, 1, 1, 1, -8),
+			     GROUP(
 		PS8_15_FN1, PS8_15_FN2,
 		PS8_14_FN1, PS8_14_FN2,
 		PS8_13_FN1, PS8_13_FN2,
@@ -2100,14 +2087,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PS8_10_FN1, PS8_10_FN2,
 		PS8_9_FN1, PS8_9_FN2,
 		PS8_8_FN1, PS8_8_FN2,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0, ))
+		/* RESERVED [8] */ ))
 	},
 	{}
 };

@@ -16,7 +16,7 @@
 #include <linux/io.h>
 #include <linux/mfd/tmio.h>
 #include <linux/mmc/host.h>
-#include <linux/mmc/sh_mmcif.h>
+#include <linux/platform_data/sh_mmcif.h>
 #include <linux/sh_eth.h>
 #include <linux/sh_intc.h>
 #include <linux/usb/renesas_usbhs.h>

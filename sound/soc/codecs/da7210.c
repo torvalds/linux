@@ -1173,7 +1173,6 @@ static const struct snd_soc_component_driver soc_component_dev_da7210 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 #if IS_ENABLED(CONFIG_I2C)
@@ -1206,8 +1205,7 @@ static const struct regmap_config da7210_regmap_config_i2c = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int da7210_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int da7210_i2c_probe(struct i2c_client *i2c)
 {
 	struct da7210_priv *da7210;
 	int ret;
@@ -1250,7 +1248,7 @@ static struct i2c_driver da7210_i2c_driver = {
 	.driver = {
 		.name = "da7210",
 	},
-	.probe		= da7210_i2c_probe,
+	.probe_new	= da7210_i2c_probe,
 	.id_table	= da7210_i2c_id,
 };
 #endif
@@ -1336,6 +1334,8 @@ static int __init da7210_modinit(void)
 	int ret = 0;
 #if IS_ENABLED(CONFIG_I2C)
 	ret = i2c_add_driver(&da7210_i2c_driver);
+	if (ret)
+		return ret;
 #endif
 #if defined(CONFIG_SPI_MASTER)
 	ret = spi_register_driver(&da7210_spi_driver);

@@ -272,6 +272,13 @@ static const struct ast_vbios_enhtable res_1600x1200[] = {
 	 (SyncPP | Charx8Dot), 0xFF, 1, 0x33 },
 };
 
+static const struct ast_vbios_enhtable res_1152x864[] = {
+	{1600, 1152, 64, 128,  900,  864, 1, 3, VCLK108,	/* 75Hz */
+	 (SyncPP | Charx8Dot | NewModeInfo), 75, 1, 0x3B },
+	{1600, 1152, 64, 128,  900,  864, 1, 3, VCLK108,	/* end */
+	 (SyncPP | Charx8Dot | NewModeInfo), 0xFF, 1, 0x3B },
+};
+
 /* 16:9 */
 static const struct ast_vbios_enhtable res_1360x768[] = {
 	{1792, 1360, 64, 112, 795, 768, 3, 6, VCLK85_5,		/* 60Hz */

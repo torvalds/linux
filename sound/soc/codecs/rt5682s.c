@@ -42,8 +42,8 @@ static const struct rt5682s_platform_data i2s_default_platform_data = {
 };
 
 static const char *rt5682s_supply_names[RT5682S_NUM_SUPPLIES] = {
-	"AVDD",
-	"MICVDD",
+	[RT5682S_SUPPLY_AVDD] = "AVDD",
+	[RT5682S_SUPPLY_MICVDD] = "MICVDD",
 };
 
 static const struct reg_sequence patch_list[] = {
@@ -2687,14 +2687,11 @@ static int rt5682s_bclk_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	for_each_component_dais(component, dai)
 		if (dai->id == RT5682S_AIF1)
-			break;
-	if (!dai) {
-		dev_err(component->dev, "dai %d not found in component\n",
-			RT5682S_AIF1);
-		return -ENODEV;
-	}
+			return rt5682s_set_bclk1_ratio(dai, factor);
 
-	return rt5682s_set_bclk1_ratio(dai, factor);
+	dev_err(component->dev, "dai %d not found in component\n",
+		RT5682S_AIF1);
+	return -ENODEV;
 }
 
 static const struct clk_ops rt5682s_dai_clk_ops[RT5682S_DAI_NUM_CLKS] = {
@@ -2896,7 +2893,6 @@ static const struct snd_soc_component_driver rt5682s_soc_component_dev = {
 	.set_jack = rt5682s_set_jack_detect,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static int rt5682s_parse_dt(struct rt5682s_priv *rt5682s, struct device *dev)
@@ -3025,12 +3021,21 @@ static struct snd_soc_dai_driver rt5682s_dai[] = {
 static void rt5682s_i2c_disable_regulators(void *data)
 {
 	struct rt5682s_priv *rt5682s = data;
+	struct device *dev = regmap_get_device(rt5682s->regmap);
+	int ret;
 
-	regulator_bulk_disable(ARRAY_SIZE(rt5682s->supplies), rt5682s->supplies);
+	ret = regulator_disable(rt5682s->supplies[RT5682S_SUPPLY_AVDD].consumer);
+	if (ret)
+		dev_err(dev, "Failed to disable supply AVDD: %d\n", ret);
+
+	usleep_range(1000, 1500);
+
+	ret = regulator_disable(rt5682s->supplies[RT5682S_SUPPLY_MICVDD].consumer);
+	if (ret)
+		dev_err(dev, "Failed to disable supply MICVDD: %d\n", ret);
 }
 
-static int rt5682s_i2c_probe(struct i2c_client *i2c,
-		const struct i2c_device_id *id)
+static int rt5682s_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt5682s_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt5682s_priv *rt5682s;
@@ -3071,9 +3076,16 @@ static int rt5682s_i2c_probe(struct i2c_client *i2c,
 	if (ret)
 		return ret;
 
-	ret = regulator_bulk_enable(ARRAY_SIZE(rt5682s->supplies), rt5682s->supplies);
+	ret = regulator_enable(rt5682s->supplies[RT5682S_SUPPLY_MICVDD].consumer);
 	if (ret) {
-		dev_err(&i2c->dev, "Failed to enable supplies: %d\n", ret);
+		dev_err(&i2c->dev, "Failed to enable supply MICVDD: %d\n", ret);
+		return ret;
+	}
+	usleep_range(1000, 1500);
+
+	ret = regulator_enable(rt5682s->supplies[RT5682S_SUPPLY_AVDD].consumer);
+	if (ret) {
+		dev_err(&i2c->dev, "Failed to enable supply AVDD: %d\n", ret);
 		return ret;
 	}
 
@@ -3214,7 +3226,7 @@ static struct i2c_driver rt5682s_i2c_driver = {
 		.acpi_match_table = rt5682s_acpi_match,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
-	.probe = rt5682s_i2c_probe,
+	.probe_new = rt5682s_i2c_probe,
 	.remove = rt5682s_i2c_remove,
 	.shutdown = rt5682s_i2c_shutdown,
 	.id_table = rt5682s_i2c_id,

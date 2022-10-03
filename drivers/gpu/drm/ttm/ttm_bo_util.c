@@ -137,8 +137,7 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 		ttm_manager_type(bo->bdev, dst_mem->mem_type);
 	struct ttm_tt *ttm = bo->ttm;
 	struct ttm_resource *src_mem = bo->resource;
-	struct ttm_resource_manager *src_man =
-		ttm_manager_type(bdev, src_mem->mem_type);
+	struct ttm_resource_manager *src_man;
 	union {
 		struct ttm_kmap_iter_tt tt;
 		struct ttm_kmap_iter_linear_io io;
@@ -147,6 +146,10 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	bool clear;
 	int ret = 0;
 
+	if (!src_mem)
+		return 0;
+
+	src_man = ttm_manager_type(bdev, src_mem->mem_type);
 	if (ttm && ((ttm->page_flags & TTM_TT_FLAG_SWAPPED) ||
 		    dst_man->use_tt)) {
 		ret = ttm_tt_populate(bdev, ttm, ctx);

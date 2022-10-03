@@ -274,7 +274,7 @@ static void destroy_nbp(struct net_bridge_port *p)
 
 	p->br = NULL;
 	p->dev = NULL;
-	dev_put_track(dev, &p->dev_tracker);
+	netdev_put(dev, &p->dev_tracker);
 
 	kobject_put(&p->kobj);
 }
@@ -423,7 +423,7 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 		return ERR_PTR(-ENOMEM);
 
 	p->br = br;
-	dev_hold_track(dev, &p->dev_tracker, GFP_KERNEL);
+	netdev_hold(dev, &p->dev_tracker, GFP_KERNEL);
 	p->dev = dev;
 	p->path_cost = port_cost(dev);
 	p->priority = 0x8000 >> BR_PORT_BITS;
@@ -434,7 +434,7 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	br_stp_port_timer_init(p);
 	err = br_multicast_add_port(p);
 	if (err) {
-		dev_put_track(dev, &p->dev_tracker);
+		netdev_put(dev, &p->dev_tracker);
 		kfree(p);
 		p = ERR_PTR(err);
 	}
@@ -517,16 +517,16 @@ void br_mtu_auto_adjust(struct net_bridge *br)
 
 static void br_set_gso_limits(struct net_bridge *br)
 {
-	unsigned int gso_max_size = GSO_MAX_SIZE;
-	u16 gso_max_segs = GSO_MAX_SEGS;
+	unsigned int tso_max_size = TSO_MAX_SIZE;
 	const struct net_bridge_port *p;
+	u16 tso_max_segs = TSO_MAX_SEGS;
 
 	list_for_each_entry(p, &br->port_list, list) {
-		gso_max_size = min(gso_max_size, p->dev->gso_max_size);
-		gso_max_segs = min(gso_max_segs, p->dev->gso_max_segs);
+		tso_max_size = min(tso_max_size, p->dev->tso_max_size);
+		tso_max_segs = min(tso_max_segs, p->dev->tso_max_segs);
 	}
-	netif_set_gso_max_size(br->dev, gso_max_size);
-	netif_set_gso_max_segs(br->dev, gso_max_segs);
+	netif_set_tso_max_size(br->dev, tso_max_size);
+	netif_set_tso_max_segs(br->dev, tso_max_segs);
 }
 
 /*
@@ -615,7 +615,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev,
 	err = dev_set_allmulti(dev, 1);
 	if (err) {
 		br_multicast_del_port(p);
-		dev_put_track(dev, &p->dev_tracker);
+		netdev_put(dev, &p->dev_tracker);
 		kfree(p);	/* kobject not yet init'd, manually free */
 		goto err1;
 	}
@@ -725,7 +725,7 @@ err3:
 	sysfs_remove_link(br->ifobj, p->dev->name);
 err2:
 	br_multicast_del_port(p);
-	dev_put_track(dev, &p->dev_tracker);
+	netdev_put(dev, &p->dev_tracker);
 	kobject_put(&p->kobj);
 	dev_set_allmulti(dev, -1);
 err1:

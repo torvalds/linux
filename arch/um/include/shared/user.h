@@ -16,11 +16,12 @@
  */
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
-/* This is to get size_t */
+/* This is to get size_t and NULL */
 #ifndef __UM_HOST__
 #include <linux/types.h>
 #else
 #include <stddef.h>
+#include <sys/types.h>
 #endif
 
 extern void panic(const char *fmt, ...)

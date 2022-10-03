@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2021 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -135,12 +135,14 @@ lpfc_vport_sparm(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	}
 
 	/*
-	 * Grab buffer pointer and clear context1 so we can use
-	 * lpfc_sli_issue_box_wait
+	 * Wait for the read_sparams mailbox to complete.  Driver needs
+	 * this per vport to start the FDISC.  If the mailbox fails,
+	 * just cleanup and return an error unless the failure is a
+	 * mailbox timeout.  For MBX_TIMEOUT, allow the default
+	 * mbox completion handler to take care of the cleanup.  This
+	 * is safe as the mailbox command isn't one that triggers
+	 * another mailbox.
 	 */
-	mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
-	pmb->ctx_buf = NULL;
-
 	pmb->vport = vport;
 	rc = lpfc_sli_issue_mbox_wait(phba, pmb, phba->fc_ratov * 2);
 	if (rc != MBX_SUCCESS) {
@@ -148,34 +150,29 @@ lpfc_vport_sparm(struct lpfc_hba *phba, struct lpfc_vport *vport)
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 					 "1830 Signal aborted mbxCmd x%x\n",
 					 mb->mbxCommand);
-			lpfc_mbuf_free(phba, mp->virt, mp->phys);
-			kfree(mp);
 			if (rc != MBX_TIMEOUT)
-				mempool_free(pmb, phba->mbox_mem_pool);
+				lpfc_mbox_rsrc_cleanup(phba, pmb,
+						       MBOX_THD_UNLOCKED);
 			return -EINTR;
 		} else {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 					 "1818 VPort failed init, mbxCmd x%x "
 					 "READ_SPARM mbxStatus x%x, rc = x%x\n",
 					 mb->mbxCommand, mb->mbxStatus, rc);
-			lpfc_mbuf_free(phba, mp->virt, mp->phys);
-			kfree(mp);
 			if (rc != MBX_TIMEOUT)
-				mempool_free(pmb, phba->mbox_mem_pool);
+				lpfc_mbox_rsrc_cleanup(phba, pmb,
+						       MBOX_THD_UNLOCKED);
 			return -EIO;
 		}
 	}
 
+	mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
 	memcpy(&vport->fc_sparam, mp->virt, sizeof (struct serv_parm));
 	memcpy(&vport->fc_nodename, &vport->fc_sparam.nodeName,
 	       sizeof (struct lpfc_name));
 	memcpy(&vport->fc_portname, &vport->fc_sparam.portName,
 	       sizeof (struct lpfc_name));
-
-	lpfc_mbuf_free(phba, mp->virt, mp->phys);
-	kfree(mp);
-	mempool_free(pmb, phba->mbox_mem_pool);
-
+	lpfc_mbox_rsrc_cleanup(phba, pmb, MBOX_THD_UNLOCKED);
 	return 0;
 }
 

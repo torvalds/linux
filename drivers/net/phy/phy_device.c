@@ -90,8 +90,9 @@ const int phy_10_100_features_array[4] = {
 };
 EXPORT_SYMBOL_GPL(phy_10_100_features_array);
 
-const int phy_basic_t1_features_array[2] = {
+const int phy_basic_t1_features_array[3] = {
 	ETHTOOL_LINK_MODE_TP_BIT,
+	ETHTOOL_LINK_MODE_10baseT1L_Full_BIT,
 	ETHTOOL_LINK_MODE_100baseT1_Full_BIT,
 };
 EXPORT_SYMBOL_GPL(phy_basic_t1_features_array);
@@ -277,6 +278,15 @@ static __maybe_unused int mdio_bus_phy_suspend(struct device *dev)
 	if (phydev->mac_managed_pm)
 		return 0;
 
+	/* Wakeup interrupts may occur during the system sleep transition when
+	 * the PHY is inaccessible. Set flag to postpone handling until the PHY
+	 * has resumed. Wait for concurrent interrupt handler to complete.
+	 */
+	if (phy_interrupt_is_valid(phydev)) {
+		phydev->irq_suspended = 1;
+		synchronize_irq(phydev->irq);
+	}
+
 	/* We must stop the state machine manually, otherwise it stops out of
 	 * control, possibly with the phydev->lock held. Upon resume, netdev
 	 * may call phy routines that try to grab the same lock, and that may
@@ -306,6 +316,12 @@ static __maybe_unused int mdio_bus_phy_resume(struct device *dev)
 
 	phydev->suspended_by_mdio_bus = 0;
 
+	/* If we managed to get here with the PHY state machine in a state other
+	 * than PHY_HALTED this is an indication that something went wrong and
+	 * we should most likely be using MAC managed PM and we are not.
+	 */
+	WARN_ON(phydev->state != PHY_HALTED && !phydev->mac_managed_pm);
+
 	ret = phy_init_hw(phydev);
 	if (ret < 0)
 		return ret;
@@ -314,6 +330,20 @@ static __maybe_unused int mdio_bus_phy_resume(struct device *dev)
 	if (ret < 0)
 		return ret;
 no_resume:
+	if (phy_interrupt_is_valid(phydev)) {
+		phydev->irq_suspended = 0;
+		synchronize_irq(phydev->irq);
+
+		/* Rerun interrupts which were postponed by phy_interrupt()
+		 * because they occurred during the system sleep transition.
+		 */
+		if (phydev->irq_rerun) {
+			phydev->irq_rerun = 0;
+			enable_irq(phydev->irq);
+			irq_wake_thread(phydev->irq, phydev);
+		}
+	}
+
 	if (phydev->attached_dev && phydev->adjust_link)
 		phy_start_machine(phydev);
 
@@ -599,6 +629,7 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, u32 phy_id,
 
 	dev->autoneg = AUTONEG_ENABLE;
 
+	dev->pma_extable = -ENODATA;
 	dev->is_c45 = is_c45;
 	dev->phy_id = phy_id;
 	if (c45_ids)
@@ -1449,6 +1480,8 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 
 	phydev->state = PHY_READY;
 
+	phydev->interrupts = PHY_INTERRUPT_DISABLED;
+
 	/* Port is set to PORT_TP by default and the actual PHY driver will set
 	 * it to different value depending on the PHY configuration. If we have
 	 * the generic PHY driver we can't figure it out, thus set the old
@@ -1470,10 +1503,6 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	err = phy_init_hw(phydev);
 	if (err)
 		goto error;
-
-	err = phy_disable_interrupts(phydev);
-	if (err)
-		return err;
 
 	phy_resume(phydev);
 	phy_led_triggers_register(phydev);
@@ -2001,18 +2030,12 @@ EXPORT_SYMBOL(genphy_config_eee_advert);
  */
 int genphy_setup_forced(struct phy_device *phydev)
 {
-	u16 ctl = 0;
+	u16 ctl;
 
 	phydev->pause = 0;
 	phydev->asym_pause = 0;
 
-	if (SPEED_1000 == phydev->speed)
-		ctl |= BMCR_SPEED1000;
-	else if (SPEED_100 == phydev->speed)
-		ctl |= BMCR_SPEED100;
-
-	if (DUPLEX_FULL == phydev->duplex)
-		ctl |= BMCR_FULLDPLX;
+	ctl = mii_bmcr_encode_fixed(phydev->speed, phydev->duplex);
 
 	return phy_modify(phydev, MII_BMCR,
 			  ~(BMCR_LOOPBACK | BMCR_ISOLATE | BMCR_PDOWN), ctl);
@@ -2614,13 +2637,7 @@ int genphy_loopback(struct phy_device *phydev, bool enable)
 		u16 val, ctl = BMCR_LOOPBACK;
 		int ret;
 
-		if (phydev->speed == SPEED_1000)
-			ctl |= BMCR_SPEED1000;
-		else if (phydev->speed == SPEED_100)
-			ctl |= BMCR_SPEED100;
-
-		if (phydev->duplex == DUPLEX_FULL)
-			ctl |= BMCR_FULLDPLX;
+		ctl |= mii_bmcr_encode_fixed(phydev->speed, phydev->duplex);
 
 		phy_modify(phydev, MII_BMCR, ~0, ctl);
 

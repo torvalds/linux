@@ -15,8 +15,8 @@
 
 #include <sound/hdmi-codec.h>
 
+#include <drm/display/drm_dp_helper.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/dp/drm_dp_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
@@ -26,11 +26,17 @@
 #include "cdn-dp-reg.h"
 #include "rockchip_drm_vop.h"
 
-#define connector_to_dp(c) \
-		container_of(c, struct cdn_dp_device, connector)
+static inline struct cdn_dp_device *connector_to_dp(struct drm_connector *connector)
+{
+	return container_of(connector, struct cdn_dp_device, connector);
+}
 
-#define encoder_to_dp(c) \
-		container_of(c, struct cdn_dp_device, encoder)
+static inline struct cdn_dp_device *encoder_to_dp(struct drm_encoder *encoder)
+{
+	struct rockchip_encoder *rkencoder = to_rockchip_encoder(encoder);
+
+	return container_of(rkencoder, struct cdn_dp_device, encoder);
+}
 
 #define GRF_SOC_CON9		0x6224
 #define DP_SEL_VOP_LIT		BIT(12)
@@ -48,7 +54,7 @@ struct cdn_dp_data {
 	u8 max_phy;
 };
 
-struct cdn_dp_data rk3399_cdn_dp = {
+static struct cdn_dp_data rk3399_cdn_dp = {
 	.max_phy = 2,
 };
 
@@ -1050,7 +1056,7 @@ static int cdn_dp_bind(struct device *dev, struct device *master, void *data)
 
 	INIT_WORK(&dp->event_work, cdn_dp_pd_event_work);
 
-	encoder = &dp->encoder;
+	encoder = &dp->encoder.encoder;
 
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm_dev,
 							     dev->of_node);
@@ -1115,7 +1121,7 @@ err_free_encoder:
 static void cdn_dp_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct cdn_dp_device *dp = dev_get_drvdata(dev);
-	struct drm_encoder *encoder = &dp->encoder;
+	struct drm_encoder *encoder = &dp->encoder.encoder;
 	struct drm_connector *connector = &dp->connector;
 
 	cancel_work_sync(&dp->event_work);

@@ -77,8 +77,8 @@ static int ptp_clock_settime(struct posix_clock *pc, const struct timespec64 *tp
 {
 	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
 
-	if (ptp_vclock_in_use(ptp)) {
-		pr_err("ptp: virtual clock in use\n");
+	if (ptp_clock_freerun(ptp)) {
+		pr_err("ptp: physical clock is free running\n");
 		return -EBUSY;
 	}
 
@@ -103,8 +103,8 @@ static int ptp_clock_adjtime(struct posix_clock *pc, struct __kernel_timex *tx)
 	struct ptp_clock_info *ops;
 	int err = -EOPNOTSUPP;
 
-	if (ptp_vclock_in_use(ptp)) {
-		pr_err("ptp: virtual clock in use\n");
+	if (ptp_clock_freerun(ptp)) {
+		pr_err("ptp: physical clock is free running\n");
 		return -EBUSY;
 	}
 
@@ -178,6 +178,14 @@ static void ptp_clock_release(struct device *dev)
 	kfree(ptp);
 }
 
+static int ptp_getcycles64(struct ptp_clock_info *info, struct timespec64 *ts)
+{
+	if (info->getcyclesx64)
+		return info->getcyclesx64(info, ts, NULL);
+	else
+		return info->gettime64(info, ts);
+}
+
 static void ptp_aux_kworker(struct kthread_work *work)
 {
 	struct ptp_clock *ptp = container_of(work, struct ptp_clock,
@@ -224,6 +232,21 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 	mutex_init(&ptp->pincfg_mux);
 	mutex_init(&ptp->n_vclocks_mux);
 	init_waitqueue_head(&ptp->tsev_wq);
+
+	if (ptp->info->getcycles64 || ptp->info->getcyclesx64) {
+		ptp->has_cycles = true;
+		if (!ptp->info->getcycles64 && ptp->info->getcyclesx64)
+			ptp->info->getcycles64 = ptp_getcycles64;
+	} else {
+		/* Free running cycle counter not supported, use time. */
+		ptp->info->getcycles64 = ptp_getcycles64;
+
+		if (ptp->info->gettimex64)
+			ptp->info->getcyclesx64 = ptp->info->gettimex64;
+
+		if (ptp->info->getcrosststamp)
+			ptp->info->getcrosscycles = ptp->info->getcrosststamp;
+	}
 
 	if (ptp->info->do_aux_work) {
 		kthread_init_delayed_work(&ptp->aux_work, ptp_aux_kworker);

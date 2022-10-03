@@ -632,7 +632,7 @@ top:
 		dev_dbg(udc->dev, "read %s, %d bytes%s req %p %d/%d\n",
 			ep->ep_usb.name, count, is_short ? "/S" : "", req,
 			req->usb_req.actual, req->usb_req.length);
-		bufferspace -= count;
+
 		/* Completion */
 		if ((req->usb_req.actual == req->usb_req.length) || is_short) {
 			if (udc->dma_enabled && req->usb_req.length)

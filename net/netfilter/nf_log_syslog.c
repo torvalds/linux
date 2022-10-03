@@ -40,6 +40,12 @@ struct arppayload {
 	unsigned char ip_dst[4];
 };
 
+/* Guard against containers flooding syslog. */
+static bool nf_log_allowed(const struct net *net)
+{
+	return net_eq(net, &init_net) || sysctl_nf_log_all_netns;
+}
+
 static void nf_log_dump_vlan(struct nf_log_buf *m, const struct sk_buff *skb)
 {
 	u16 vid;
@@ -61,7 +67,7 @@ dump_arp_packet(struct nf_log_buf *m,
 	unsigned int logflags;
 	struct arphdr _arph;
 
-	ah = skb_header_pointer(skb, 0, sizeof(_arph), &_arph);
+	ah = skb_header_pointer(skb, nhoff, sizeof(_arph), &_arph);
 	if (!ah) {
 		nf_log_buf_add(m, "TRUNCATED");
 		return;
@@ -90,7 +96,7 @@ dump_arp_packet(struct nf_log_buf *m,
 	    ah->ar_pln != sizeof(__be32))
 		return;
 
-	ap = skb_header_pointer(skb, sizeof(_arph), sizeof(_arpp), &_arpp);
+	ap = skb_header_pointer(skb, nhoff + sizeof(_arph), sizeof(_arpp), &_arpp);
 	if (!ap) {
 		nf_log_buf_add(m, " INCOMPLETE [%zu bytes]",
 			       skb->len - sizeof(_arph));
@@ -133,8 +139,7 @@ static void nf_log_arp_packet(struct net *net, u_int8_t pf,
 {
 	struct nf_log_buf *m;
 
-	/* FIXME: Disabled from containers until syslog ns is supported */
-	if (!net_eq(net, &init_net) && !sysctl_nf_log_all_netns)
+	if (!nf_log_allowed(net))
 		return;
 
 	m = nf_log_buf_open();
@@ -144,7 +149,7 @@ static void nf_log_arp_packet(struct net *net, u_int8_t pf,
 
 	nf_log_dump_packet_common(m, pf, hooknum, skb, in, out, loginfo,
 				  prefix);
-	dump_arp_packet(m, loginfo, skb, 0);
+	dump_arp_packet(m, loginfo, skb, skb_network_offset(skb));
 
 	nf_log_buf_close(m);
 }
@@ -766,9 +771,9 @@ dump_ipv6_packet(struct net *net, struct nf_log_buf *m,
 		nf_log_buf_add(m, "MARK=0x%x ", skb->mark);
 }
 
-static void dump_ipv4_mac_header(struct nf_log_buf *m,
-				 const struct nf_loginfo *info,
-				 const struct sk_buff *skb)
+static void dump_mac_header(struct nf_log_buf *m,
+			    const struct nf_loginfo *info,
+			    const struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 	unsigned int logflags = 0;
@@ -798,9 +803,26 @@ fallback:
 		const unsigned char *p = skb_mac_header(skb);
 		unsigned int i;
 
-		nf_log_buf_add(m, "%02x", *p++);
-		for (i = 1; i < dev->hard_header_len; i++, p++)
-			nf_log_buf_add(m, ":%02x", *p);
+		if (dev->type == ARPHRD_SIT) {
+			p -= ETH_HLEN;
+
+			if (p < skb->head)
+				p = NULL;
+		}
+
+		if (p) {
+			nf_log_buf_add(m, "%02x", *p++);
+			for (i = 1; i < dev->hard_header_len; i++)
+				nf_log_buf_add(m, ":%02x", *p++);
+		}
+
+		if (dev->type == ARPHRD_SIT) {
+			const struct iphdr *iph =
+				(struct iphdr *)skb_mac_header(skb);
+
+			nf_log_buf_add(m, " TUNNEL=%pI4->%pI4", &iph->saddr,
+				       &iph->daddr);
+		}
 	}
 	nf_log_buf_add(m, " ");
 }
@@ -814,8 +836,7 @@ static void nf_log_ip_packet(struct net *net, u_int8_t pf,
 {
 	struct nf_log_buf *m;
 
-	/* FIXME: Disabled from containers until syslog ns is supported */
-	if (!net_eq(net, &init_net) && !sysctl_nf_log_all_netns)
+	if (!nf_log_allowed(net))
 		return;
 
 	m = nf_log_buf_open();
@@ -827,9 +848,9 @@ static void nf_log_ip_packet(struct net *net, u_int8_t pf,
 				  out, loginfo, prefix);
 
 	if (in)
-		dump_ipv4_mac_header(m, loginfo, skb);
+		dump_mac_header(m, loginfo, skb);
 
-	dump_ipv4_packet(net, m, loginfo, skb, 0);
+	dump_ipv4_packet(net, m, loginfo, skb, skb_network_offset(skb));
 
 	nf_log_buf_close(m);
 }
@@ -841,64 +862,6 @@ static struct nf_logger nf_ip_logger __read_mostly = {
 	.me		= THIS_MODULE,
 };
 
-static void dump_ipv6_mac_header(struct nf_log_buf *m,
-				 const struct nf_loginfo *info,
-				 const struct sk_buff *skb)
-{
-	struct net_device *dev = skb->dev;
-	unsigned int logflags = 0;
-
-	if (info->type == NF_LOG_TYPE_LOG)
-		logflags = info->u.log.logflags;
-
-	if (!(logflags & NF_LOG_MACDECODE))
-		goto fallback;
-
-	switch (dev->type) {
-	case ARPHRD_ETHER:
-		nf_log_buf_add(m, "MACSRC=%pM MACDST=%pM ",
-			       eth_hdr(skb)->h_source, eth_hdr(skb)->h_dest);
-		nf_log_dump_vlan(m, skb);
-		nf_log_buf_add(m, "MACPROTO=%04x ",
-			       ntohs(eth_hdr(skb)->h_proto));
-		return;
-	default:
-		break;
-	}
-
-fallback:
-	nf_log_buf_add(m, "MAC=");
-	if (dev->hard_header_len &&
-	    skb->mac_header != skb->network_header) {
-		const unsigned char *p = skb_mac_header(skb);
-		unsigned int len = dev->hard_header_len;
-		unsigned int i;
-
-		if (dev->type == ARPHRD_SIT) {
-			p -= ETH_HLEN;
-
-			if (p < skb->head)
-				p = NULL;
-		}
-
-		if (p) {
-			nf_log_buf_add(m, "%02x", *p++);
-			for (i = 1; i < len; i++)
-				nf_log_buf_add(m, ":%02x", *p++);
-		}
-		nf_log_buf_add(m, " ");
-
-		if (dev->type == ARPHRD_SIT) {
-			const struct iphdr *iph =
-				(struct iphdr *)skb_mac_header(skb);
-			nf_log_buf_add(m, "TUNNEL=%pI4->%pI4 ", &iph->saddr,
-				       &iph->daddr);
-		}
-	} else {
-		nf_log_buf_add(m, " ");
-	}
-}
-
 static void nf_log_ip6_packet(struct net *net, u_int8_t pf,
 			      unsigned int hooknum, const struct sk_buff *skb,
 			      const struct net_device *in,
@@ -908,8 +871,7 @@ static void nf_log_ip6_packet(struct net *net, u_int8_t pf,
 {
 	struct nf_log_buf *m;
 
-	/* FIXME: Disabled from containers until syslog ns is supported */
-	if (!net_eq(net, &init_net) && !sysctl_nf_log_all_netns)
+	if (!nf_log_allowed(net))
 		return;
 
 	m = nf_log_buf_open();
@@ -921,7 +883,7 @@ static void nf_log_ip6_packet(struct net *net, u_int8_t pf,
 				  loginfo, prefix);
 
 	if (in)
-		dump_ipv6_mac_header(m, loginfo, skb);
+		dump_mac_header(m, loginfo, skb);
 
 	dump_ipv6_packet(net, m, loginfo, skb, skb_network_offset(skb), 1);
 
@@ -934,6 +896,32 @@ static struct nf_logger nf_ip6_logger __read_mostly = {
 	.logfn		= nf_log_ip6_packet,
 	.me		= THIS_MODULE,
 };
+
+static void nf_log_unknown_packet(struct net *net, u_int8_t pf,
+				  unsigned int hooknum,
+				  const struct sk_buff *skb,
+				  const struct net_device *in,
+				  const struct net_device *out,
+				  const struct nf_loginfo *loginfo,
+				  const char *prefix)
+{
+	struct nf_log_buf *m;
+
+	if (!nf_log_allowed(net))
+		return;
+
+	m = nf_log_buf_open();
+
+	if (!loginfo)
+		loginfo = &default_loginfo;
+
+	nf_log_dump_packet_common(m, pf, hooknum, skb, in, out, loginfo,
+				  prefix);
+
+	dump_mac_header(m, loginfo, skb);
+
+	nf_log_buf_close(m);
+}
 
 static void nf_log_netdev_packet(struct net *net, u_int8_t pf,
 				 unsigned int hooknum,
@@ -953,6 +941,10 @@ static void nf_log_netdev_packet(struct net *net, u_int8_t pf,
 	case htons(ETH_P_ARP):
 	case htons(ETH_P_RARP):
 		nf_log_arp_packet(net, pf, hooknum, skb, in, out, loginfo, prefix);
+		break;
+	default:
+		nf_log_unknown_packet(net, pf, hooknum, skb,
+				      in, out, loginfo, prefix);
 		break;
 	}
 }

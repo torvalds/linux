@@ -23,7 +23,7 @@
 	qcom,board-id = <8 32>;
 
 	aliases {
-		serial0 = &uart2;
+		serial0 = &uart9;
 	};
 
 	chosen {
@@ -48,7 +48,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_keys_pin>;
 
-		volume-up {
+		key-volume-up {
 			label = "volume_up";
 			linux,code = <KEY_VOLUMEUP>;
 			gpios = <&pm6350_gpios 2 GPIO_ACTIVE_LOW>;
@@ -296,6 +296,35 @@
 	firmware-name = "qcom/sm7225/fairphone4/cdsp.mdt";
 };
 
+&i2c10 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	haptics@5a {
+		compatible = "awinic,aw8695";
+		reg = <0x5a>;
+		interrupts-extended = <&tlmm 85 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpios = <&tlmm 90 GPIO_ACTIVE_HIGH>;
+
+		awinic,f0-preset = <2350>;
+		awinic,f0-coefficient = <260>;
+		awinic,f0-calibration-percent = <7>;
+		awinic,drive-level = <125>;
+
+		awinic,f0-detection-play-time = <5>;
+		awinic,f0-detection-wait-time = <3>;
+		awinic,f0-detection-repeat = <2>;
+		awinic,f0-detection-trace = <15>;
+
+		awinic,boost-debug = /bits/ 8 <0x30 0xeb 0xd4>;
+		awinic,tset = /bits/ 8 <0x12>;
+		awinic,r-spare = /bits/ 8 <0x68>;
+
+		awinic,bemf-upper-threshold = <4104>;
+		awinic,bemf-lower-threshold = <1016>;
+	};
+};
+
 &mpss {
 	status = "okay";
 	firmware-name = "qcom/sm7225/fairphone4/modem.mdt";
@@ -310,7 +339,7 @@
 };
 
 &pm6350_gpios {
-	gpio_keys_pin: gpio-keys-pin {
+	gpio_keys_pin: gpio-keys-state {
 		pins = "gpio2";
 		function = PMIC_GPIO_FUNC_NORMAL;
 		bias-pull-up;
@@ -332,8 +361,26 @@
 	gpio-reserved-ranges = <13 4>, <56 2>;
 };
 
-&uart2 {
+&uart9 {
 	status = "okay";
+};
+
+&ufs_mem_hc {
+	status = "okay";
+
+	reset-gpios = <&tlmm 156 GPIO_ACTIVE_LOW>;
+
+	vcc-supply = <&vreg_l7e>;
+	vcc-max-microamp = <800000>;
+	vccq2-supply = <&vreg_l12a>;
+	vccq2-max-microamp = <800000>;
+};
+
+&ufs_mem_phy {
+	status = "okay";
+
+	vdda-phy-supply = <&vreg_l18a>;
+	vdda-pll-supply = <&vreg_l22a>;
 };
 
 &usb_1 {
@@ -358,4 +405,14 @@
 
 	vdda-phy-supply = <&vreg_l22a>;
 	vdda-pll-supply = <&vreg_l16a>;
+};
+
+&wifi {
+	status = "okay";
+
+	vdd-0.8-cx-mx-supply = <&vreg_l4a>;
+	vdd-1.8-xo-supply = <&vreg_l7a>;
+	vdd-1.3-rfa-supply = <&vreg_l2e>;
+	vdd-3.3-ch0-supply = <&vreg_l10e>;
+	vdd-3.3-ch1-supply = <&vreg_l11e>;
 };

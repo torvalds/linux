@@ -18,7 +18,7 @@
 	backlight_dsi: backlight-dsi {
 		compatible = "pwm-backlight";
 		/* 200 Hz for the PAM2841 */
-		pwms = <&pwm1 0 5000000>;
+		pwms = <&pwm1 0 5000000 0>;
 		brightness-levels = <0 100>;
 		num-interpolated-steps = <100>;
 		/* Default brightness level (index into the array defined by */
@@ -36,21 +36,21 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_keys>;
 
-		btn1 {
+		button-1 {
 			label = "VOL_UP";
 			gpios = <&gpio4 21 GPIO_ACTIVE_LOW>;
 			wakeup-source;
 			linux,code = <KEY_VOLUMEUP>;
 		};
 
-		btn2 {
+		button-2 {
 			label = "VOL_DOWN";
 			gpios = <&gpio4 22 GPIO_ACTIVE_LOW>;
 			wakeup-source;
 			linux,code = <KEY_VOLUMEDOWN>;
 		};
 
-		wwan-wake {
+		button-3 {
 			label = "WWAN_WAKE";
 			gpios = <&gpio3 8 GPIO_ACTIVE_LOW>;
 			interrupt-parent = <&gpio3>;

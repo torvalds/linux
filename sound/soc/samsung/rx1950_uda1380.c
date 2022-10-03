@@ -128,7 +128,7 @@ static int rx1950_startup(struct snd_pcm_substream *substream)
 					&hw_rates);
 }
 
-struct gpio_desc *gpiod_speaker_power;
+static struct gpio_desc *gpiod_speaker_power;
 
 static int rx1950_spk_power(struct snd_soc_dapm_widget *w,
 				struct snd_kcontrol *kcontrol, int event)
@@ -201,7 +201,8 @@ static int rx1950_hw_params(struct snd_pcm_substream *substream,
 
 static int rx1950_uda1380_init(struct snd_soc_pcm_runtime *rtd)
 {
-	snd_soc_card_jack_new(rtd->card, "Headphone Jack", SND_JACK_HEADPHONE,
+	snd_soc_card_jack_new_pins(rtd->card, "Headphone Jack",
+		SND_JACK_HEADPHONE,
 		&hp_jack, hp_jack_pins, ARRAY_SIZE(hp_jack_pins));
 
 	snd_soc_jack_add_gpios(&hp_jack, ARRAY_SIZE(hp_jack_gpios),
@@ -227,7 +228,7 @@ static int rx1950_probe(struct platform_device *pdev)
 	return devm_snd_soc_register_card(dev, &rx1950_asoc);
 }
 
-struct platform_driver rx1950_audio = {
+static struct platform_driver rx1950_audio = {
 	.driver = {
 		.name = "rx1950-audio",
 		.pm = &snd_soc_pm_ops,

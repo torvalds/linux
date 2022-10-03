@@ -48,9 +48,6 @@ struct lpfc_sli2_slim;
 					   the NameServer  before giving up. */
 #define LPFC_CMD_PER_LUN	3	/* max outstanding cmds per lun */
 #define LPFC_DEFAULT_SG_SEG_CNT 64	/* sg element count per scsi cmnd */
-#define LPFC_DEFAULT_MENLO_SG_SEG_CNT 128	/* sg element count per scsi
-		cmnd for menlo needs nearly twice as for firmware
-		downloads using bsg */
 
 #define LPFC_DEFAULT_XPSGL_SIZE	256
 #define LPFC_MAX_SG_TABLESIZE	0xffff
@@ -611,6 +608,7 @@ struct lpfc_vport {
 #define FC_CT_RSNN_NN		0x4	 /* RSNN_NN accepted by switch */
 #define FC_CT_RSPN_ID		0x8	 /* RSPN_ID accepted by switch */
 #define FC_CT_RFT_ID		0x10	 /* RFT_ID accepted by switch */
+#define FC_CT_RPRT_DEFER	0x20	 /* Defer issuing FDMI RPRT */
 
 	struct list_head fc_nodes;
 
@@ -713,6 +711,7 @@ struct lpfc_vport {
 #define LPFC_VMID_QFPA_CMPL		0x4
 #define LPFC_VMID_QOS_ENABLED		0x8
 #define LPFC_VMID_TIMER_ENBLD		0x10
+#define LPFC_VMID_TYPE_PRIO		0x20
 	struct fc_qfpa_res *qfpa_res;
 
 	struct fc_vport *fc_vport;
@@ -738,9 +737,8 @@ struct lpfc_vport {
 	struct list_head rcv_buffer_list;
 	unsigned long rcv_buffer_time_stamp;
 	uint32_t vport_flag;
-#define STATIC_VPORT	1
-#define FAWWPN_SET	2
-#define FAWWPN_PARAM_CHG	4
+#define STATIC_VPORT		0x1
+#define FAWWPN_PARAM_CHG	0x2
 
 	uint16_t fdmi_num_disc;
 	uint32_t fdmi_hba_mask;
@@ -985,7 +983,8 @@ struct lpfc_hba {
 					   u8 last_seq, u8 cr_cx_cmd);
 	void (*__lpfc_sli_prep_abort_xri)(struct lpfc_iocbq *cmdiocbq,
 					  u16 ulp_context, u16 iotag,
-					  u8 ulp_class, u16 cqid, bool ia);
+					  u8 ulp_class, u16 cqid, bool ia,
+					  bool wqec);
 
 	/* expedite pool */
 	struct lpfc_epd_pool epd_pool;
@@ -1025,6 +1024,7 @@ struct lpfc_hba {
 #define LS_MDS_LINK_DOWN      0x8	/* MDS Diagnostics Link Down */
 #define LS_MDS_LOOPBACK       0x10	/* MDS Diagnostics Link Up (Loopback) */
 #define LS_CT_VEN_RPA         0x20	/* Vendor RPA sent to switch */
+#define LS_EXTERNAL_LOOPBACK  0x40	/* External loopback plug inserted */
 
 	uint32_t hba_flag;	/* hba generic flags */
 #define HBA_ERATT_HANDLED	0x1 /* This flag is set when eratt handled */
@@ -1057,6 +1057,7 @@ struct lpfc_hba {
 #define HBA_HBEAT_INP		0x4000000 /* mbox HBEAT is in progress */
 #define HBA_HBEAT_TMO		0x8000000 /* HBEAT initiated after timeout */
 #define HBA_FLOGI_OUTSTANDING	0x10000000 /* FLOGI is outstanding */
+#define HBA_RHBA_CMPL		0x20000000 /* RHBA FDMI command is successful */
 
 	struct completion *fw_dump_cmpl; /* cmpl event tracker for fw_dump */
 	uint32_t fcp_ring_in_use; /* When polling test if intr-hndlr active*/
@@ -1435,8 +1436,6 @@ struct lpfc_hba {
 	 */
 #define QUE_BUFTAG_BIT  (1<<31)
 	uint32_t buffer_tag_count;
-	int wait_4_mlo_maint_flg;
-	wait_queue_head_t wait_4_mlo_m_q;
 	/* data structure used for latency data collection */
 #define LPFC_NO_BUCKET	   0
 #define LPFC_LINEAR_BUCKET 1
@@ -1471,8 +1470,6 @@ struct lpfc_hba {
 	/* RAS Support */
 	struct lpfc_ras_fwlog ras_fwlog;
 
-	uint8_t menlo_flag;	/* menlo generic flags */
-#define HBA_MENLO_SUPPORT	0x1 /* HBA supports menlo commands */
 	uint32_t iocb_cnt;
 	uint32_t iocb_max;
 	atomic_t sdev_cnt;

@@ -11,7 +11,7 @@ config 64BIT
 
 config LIVEPATCH_64
 	def_bool PPC64
-	depends	on LIVEPATCH
+	depends on LIVEPATCH
 
 config MMU
 	bool
@@ -109,6 +109,7 @@ config PPC
 	# Please keep this list sorted alphabetically.
 	#
 	select ARCH_32BIT_OFF_T if PPC32
+	select ARCH_DISABLE_KASAN_INLINE	if PPC_RADIX_MMU
 	select ARCH_ENABLE_MEMORY_HOTPLUG
 	select ARCH_ENABLE_MEMORY_HOTREMOVE
 	select ARCH_HAS_COPY_MC			if PPC64
@@ -118,7 +119,6 @@ config PPC
 	select ARCH_HAS_DEBUG_WX		if STRICT_KERNEL_RWX
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_DMA_MAP_DIRECT 		if PPC_PSERIES
-	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_HAS_HUGEPD			if HUGETLB_PAGE
@@ -154,9 +154,12 @@ config PPC
 	select ARCH_USE_MEMTEST
 	select ARCH_USE_QUEUED_RWLOCKS		if PPC_QUEUED_SPINLOCKS
 	select ARCH_USE_QUEUED_SPINLOCKS	if PPC_QUEUED_SPINLOCKS
+	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select ARCH_WANT_IRQS_OFF_ACTIVATE_MM
 	select ARCH_WANT_LD_ORPHAN_WARN
+	select ARCH_WANTS_MODULES_DATA_IN_VMALLOC	if PPC_BOOK3S_32 || PPC_8xx
+	select ARCH_WANTS_NO_INSTR
 	select ARCH_WEAK_RELEASE_ACQUIRE
 	select BINFMT_ELF
 	select BUILDTIME_TABLE_SORT
@@ -188,8 +191,11 @@ config PPC
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_JUMP_LABEL_RELATIVE
 	select HAVE_ARCH_KASAN			if PPC32 && PPC_PAGE_SHIFT <= 14
-	select HAVE_ARCH_KASAN_VMALLOC		if PPC32 && PPC_PAGE_SHIFT <= 14
+	select HAVE_ARCH_KASAN			if PPC_RADIX_MMU
+	select HAVE_ARCH_KASAN			if PPC_BOOK3E_64
+	select HAVE_ARCH_KASAN_VMALLOC		if HAVE_ARCH_KASAN
 	select HAVE_ARCH_KFENCE			if PPC_BOOK3S_32 || PPC_8xx || 40x
+	select HAVE_ARCH_RANDOMIZE_KSTACK_OFFSET
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_MMAP_RND_BITS
 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if COMPAT
@@ -197,7 +203,7 @@ config PPC
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ASM_MODVERSIONS
-	select HAVE_CONTEXT_TRACKING		if PPC64
+	select HAVE_CONTEXT_TRACKING_USER		if PPC64
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DEBUG_STACKOVERFLOW
@@ -208,7 +214,7 @@ config PPC
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS	if !(CPU_LITTLE_ENDIAN && POWER7_CPU)
 	select HAVE_FAST_GUP
 	select HAVE_FTRACE_MCOUNT_RECORD
-	select HAVE_FUNCTION_DESCRIPTORS	if PPC64 && !CPU_LITTLE_ENDIAN
+	select HAVE_FUNCTION_DESCRIPTORS	if PPC64_ELF_ABI_V1
 	select HAVE_FUNCTION_ERROR_INJECTION
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
@@ -218,7 +224,6 @@ config PPC
 	select HAVE_HARDLOCKUP_DETECTOR_PERF	if PERF_EVENTS && HAVE_PERF_EVENTS_NMI && !HAVE_HARDLOCKUP_DETECTOR_ARCH
 	select HAVE_HW_BREAKPOINT		if PERF_EVENTS && (PPC_BOOK3S || PPC_8xx)
 	select HAVE_IOREMAP_PROT
-	select HAVE_IRQ_EXIT_ON_IRQ_STACK
 	select HAVE_IRQ_TIME_ACCOUNTING
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZMA			if DEFAULT_UIMAGE
@@ -250,8 +255,10 @@ config PPC
 	select IOMMU_HELPER			if PPC64
 	select IRQ_DOMAIN
 	select IRQ_FORCED_THREADING
+	select KASAN_VMALLOC			if KASAN && MODULES
 	select MMU_GATHER_PAGE_SIZE
 	select MMU_GATHER_RCU_TABLE_FREE
+	select MMU_GATHER_MERGE_VMAS
 	select MODULES_USE_ELF_RELA
 	select NEED_DMA_MAP_STATE		if PPC64 || NOT_COHERENT_CACHE
 	select NEED_PER_CPU_EMBED_FIRST_CHUNK	if PPC64
@@ -272,10 +279,13 @@ config PPC
 	select SYSCTL_EXCEPTION_TRACE
 	select THREAD_INFO_IN_TASK
 	select TRACE_IRQFLAGS_SUPPORT
-	select VIRT_TO_BUS			if !PPC64
 	#
 	# Please keep this list sorted alphabetically.
 	#
+
+config PPC_LONG_DOUBLE_128
+	depends on PPC64
+	def_bool $(success,test "$(shell,echo __LONG_DOUBLE_128__ | $(CC) -E -P -)" = 1)
 
 config PPC_BARRIER_NOSPEC
 	bool
@@ -297,11 +307,6 @@ config COMPAT
 	default y if !CPU_LITTLE_ENDIAN
 	select ARCH_WANT_OLD_COMPAT_IPC
 	select COMPAT_OLD_SIGACTION
-
-config SYSVIPC_COMPAT
-	bool
-	depends on COMPAT && SYSVIPC
-	default y
 
 config SCHED_OMIT_FRAME_POINTER
 	bool
@@ -359,6 +364,10 @@ config ARCH_SUSPEND_NONZERO_CPU
 	def_bool y
 	depends on PPC_POWERNV || PPC_PSERIES
 
+config ARCH_HAS_ADD_PAGES
+	def_bool y
+	depends on ARCH_ENABLE_MEMORY_HOTPLUG
+
 config PPC_DCR_NATIVE
 	bool
 
@@ -369,6 +378,17 @@ config PPC_DCR
 	bool
 	depends on PPC_DCR_NATIVE || PPC_DCR_MMIO
 	default y
+
+config PPC_PCI_BUS_NUM_DOMAIN_DEPENDENT
+	depends on PPC32
+	depends on !PPC_PMAC && !PPC_CHRP
+	bool "Assign PCI bus numbers from zero individually for each PCI domain"
+	help
+	  By default on PPC32 were PCI bus numbers unique across all PCI domains.
+	  So system could have only 256 PCI buses independently of available
+	  PCI domains. When this option is enabled then PCI bus numbers are
+	  PCI domain dependent and each PCI controller on own domain can have
+	  256 PCI buses, like it is on other Linux architectures.
 
 config PPC_OF_PLATFORM_PCI
 	bool
@@ -446,7 +466,7 @@ choice
 	default MATH_EMULATION_FULL
 	depends on MATH_EMULATION
 
-config	MATH_EMULATION_FULL
+config MATH_EMULATION_FULL
 	bool "Emulate all the floating point instructions"
 	help
 	  Select this option will enable the kernel to support to emulate
@@ -548,7 +568,6 @@ config KEXEC_FILE
 	bool "kexec file based system call"
 	select KEXEC_CORE
 	select HAVE_IMA_KEXEC if IMA
-	select BUILD_BIN2C
 	select KEXEC_ELF
 	depends on PPC64
 	depends on CRYPTO=y
@@ -566,7 +585,6 @@ config RELOCATABLE
 	bool "Build a relocatable kernel"
 	depends on PPC64 || (FLATMEM && (44x || FSL_BOOKE))
 	select NONSTATIC_KERNEL
-	select MODULE_REL_CRCS if MODVERSIONS
 	help
 	  This builds a kernel image that is capable of running at the
 	  location the kernel is loaded at. For ppc32, there is no any
@@ -759,6 +777,22 @@ config PPC_256K_PAGES
 
 endchoice
 
+config PAGE_SIZE_4KB
+	def_bool y
+	depends on PPC_4K_PAGES
+
+config PAGE_SIZE_16KB
+	def_bool y
+	depends on PPC_16K_PAGES
+
+config PAGE_SIZE_64KB
+	def_bool y
+	depends on PPC_64K_PAGES
+
+config PAGE_SIZE_256KB
+	def_bool y
+	depends on PPC_256K_PAGES
+
 config PPC_PAGE_SHIFT
 	int
 	default 18 if PPC_256K_PAGES
@@ -771,7 +805,6 @@ config THREAD_SHIFT
 	range 13 15
 	default "15" if PPC_256K_PAGES
 	default "14" if PPC64
-	default "14" if KASAN
 	default "13"
 	help
 	  Used to define the stack size. The default is almost always what you
@@ -1234,9 +1267,6 @@ config PHYSICAL_START
 	hex
 	default "0x00000000"
 endif
-
-config	ARCH_RANDOM
-	def_bool n
 
 config PPC_LIB_RHEAP
 	bool

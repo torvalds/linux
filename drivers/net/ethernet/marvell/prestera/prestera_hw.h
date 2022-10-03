@@ -107,6 +107,11 @@ enum {
 	PRESTERA_STP_FORWARD,
 };
 
+enum {
+	PRESTERA_POLICER_TYPE_INGRESS,
+	PRESTERA_POLICER_TYPE_EGRESS
+};
+
 enum prestera_hw_cpu_code_cnt_t {
 	PRESTERA_HW_CPU_CODE_CNT_TYPE_DROP = 0,
 	PRESTERA_HW_CPU_CODE_CNT_TYPE_TRAP = 1,
@@ -118,9 +123,10 @@ enum prestera_hw_vtcam_direction_t {
 };
 
 enum {
-	PRESTERA_HW_COUNTER_CLIENT_LOOKUP_0 = 0,
-	PRESTERA_HW_COUNTER_CLIENT_LOOKUP_1 = 1,
-	PRESTERA_HW_COUNTER_CLIENT_LOOKUP_2 = 2,
+	PRESTERA_HW_COUNTER_CLIENT_INGRESS_LOOKUP_0 = 0,
+	PRESTERA_HW_COUNTER_CLIENT_INGRESS_LOOKUP_1 = 1,
+	PRESTERA_HW_COUNTER_CLIENT_INGRESS_LOOKUP_2 = 2,
+	PRESTERA_HW_COUNTER_CLIENT_EGRESS_LOOKUP = 3,
 };
 
 struct prestera_switch;
@@ -138,6 +144,8 @@ struct prestera_acl_hw_action_info;
 struct prestera_acl_iface;
 struct prestera_counter_stats;
 struct prestera_iface;
+struct prestera_flood_domain;
+struct prestera_mdb_entry;
 
 /* Switch API */
 int prestera_hw_switch_init(struct prestera_switch *sw);
@@ -173,8 +181,8 @@ int prestera_hw_port_stats_get(const struct prestera_port *port,
 			       struct prestera_port_stats *stats);
 int prestera_hw_port_speed_get(const struct prestera_port *port, u32 *speed);
 int prestera_hw_port_learning_set(struct prestera_port *port, bool enable);
-int prestera_hw_port_flood_set(struct prestera_port *port, unsigned long mask,
-			       unsigned long val);
+int prestera_hw_port_uc_flood_set(const struct prestera_port *port, bool flood);
+int prestera_hw_port_mc_flood_set(const struct prestera_port *port, bool flood);
 int prestera_hw_port_accept_frm_type(struct prestera_port *port,
 				     enum prestera_accept_frm_type type);
 /* Vlan API */
@@ -287,5 +295,22 @@ int
 prestera_hw_cpu_code_counters_get(struct prestera_switch *sw, u8 code,
 				  enum prestera_hw_cpu_code_cnt_t counter_type,
 				  u64 *packet_count);
+
+/* Policer API */
+int prestera_hw_policer_create(struct prestera_switch *sw, u8 type,
+			       u32 *policer_id);
+int prestera_hw_policer_release(struct prestera_switch *sw,
+				u32 policer_id);
+int prestera_hw_policer_sr_tcm_set(struct prestera_switch *sw,
+				   u32 policer_id, u64 cir, u32 cbs);
+
+/* Flood domain / MDB API */
+int prestera_hw_flood_domain_create(struct prestera_flood_domain *domain);
+int prestera_hw_flood_domain_destroy(struct prestera_flood_domain *domain);
+int prestera_hw_flood_domain_ports_set(struct prestera_flood_domain *domain);
+int prestera_hw_flood_domain_ports_reset(struct prestera_flood_domain *domain);
+
+int prestera_hw_mdb_create(struct prestera_mdb_entry *mdb);
+int prestera_hw_mdb_destroy(struct prestera_mdb_entry *mdb);
 
 #endif /* _PRESTERA_HW_H_ */

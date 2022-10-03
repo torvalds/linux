@@ -93,7 +93,6 @@ jiffies = jiffies_64;
 
 #ifdef CONFIG_HIBERNATION
 #define HIBERNATE_TEXT					\
-	. = ALIGN(SZ_4K);				\
 	__hibernate_exit_text_start = .;		\
 	*(.hibernate_exit.text)				\
 	__hibernate_exit_text_end = .;
@@ -103,7 +102,6 @@ jiffies = jiffies_64;
 
 #ifdef CONFIG_KEXEC_CORE
 #define KEXEC_TEXT					\
-	. = ALIGN(SZ_4K);				\
 	__relocate_new_kernel_start = .;		\
 	*(.kexec_relocate.text)				\
 	__relocate_new_kernel_end = .;
@@ -117,7 +115,8 @@ jiffies = jiffies_64;
 	__entry_tramp_text_start = .;			\
 	*(.entry.tramp.text)				\
 	. = ALIGN(PAGE_SIZE);				\
-	__entry_tramp_text_end = .;
+	__entry_tramp_text_end = .;			\
+	*(.entry.tramp.rodata)
 #else
 #define TRAMP_TEXT
 #endif
@@ -170,9 +169,6 @@ SECTIONS
 			KPROBES_TEXT
 			HYPERVISOR_TEXT
 			IDMAP_TEXT
-			HIBERNATE_TEXT
-			KEXEC_TEXT
-			TRAMP_TEXT
 			*(.gnu.warning)
 		. = ALIGN(16);
 		*(.got)			/* Global offset table		*/
@@ -194,9 +190,16 @@ SECTIONS
 
 	HYPERVISOR_DATA_SECTIONS
 
+	/* code sections that are never executed via the kernel mapping */
+	.rodata.text : {
+		TRAMP_TEXT
+		HIBERNATE_TEXT
+		KEXEC_TEXT
+		. = ALIGN(PAGE_SIZE);
+	}
+
 	idmap_pg_dir = .;
-	. += IDMAP_DIR_SIZE;
-	idmap_pg_end = .;
+	. += PAGE_SIZE;
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 	tramp_pg_dir = .;
@@ -232,6 +235,10 @@ SECTIONS
 	__inittext_end = .;
 	__initdata_begin = .;
 
+	init_idmap_pg_dir = .;
+	. += INIT_IDMAP_DIR_SIZE;
+	init_idmap_pg_end = .;
+
 	.init.data : {
 		INIT_DATA
 		INIT_SETUP(16)
@@ -250,20 +257,16 @@ SECTIONS
 	HYPERVISOR_RELOC_SECTION
 
 	.rela.dyn : ALIGN(8) {
+		__rela_start = .;
 		*(.rela .rela*)
+		__rela_end = .;
 	}
 
-	__rela_offset	= ABSOLUTE(ADDR(.rela.dyn) - KIMAGE_VADDR);
-	__rela_size	= SIZEOF(.rela.dyn);
-
-#ifdef CONFIG_RELR
 	.relr.dyn : ALIGN(8) {
+		__relr_start = .;
 		*(.relr.dyn)
+		__relr_end = .;
 	}
-
-	__relr_offset	= ABSOLUTE(ADDR(.relr.dyn) - KIMAGE_VADDR);
-	__relr_size	= SIZEOF(.relr.dyn);
-#endif
 
 	. = ALIGN(SEGMENT_ALIGN);
 	__initdata_end = .;
@@ -337,8 +340,8 @@ ASSERT(__hyp_idmap_text_end - __hyp_idmap_text_start <= PAGE_SIZE,
 ASSERT(__idmap_text_end - (__idmap_text_start & ~(SZ_4K - 1)) <= SZ_4K,
 	"ID map text too big or misaligned")
 #ifdef CONFIG_HIBERNATION
-ASSERT(__hibernate_exit_text_end - (__hibernate_exit_text_start & ~(SZ_4K - 1))
-	<= SZ_4K, "Hibernate exit text too big or misaligned")
+ASSERT(__hibernate_exit_text_end - __hibernate_exit_text_start <= SZ_4K,
+       "Hibernate exit text is bigger than 4 KiB")
 #endif
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 ASSERT((__entry_tramp_text_end - __entry_tramp_text_start) <= 3*PAGE_SIZE,
@@ -362,7 +365,7 @@ ASSERT(swapper_pg_dir - tramp_pg_dir == TRAMP_SWAPPER_OFFSET,
 
 #ifdef CONFIG_KEXEC_CORE
 /* kexec relocation code should fit into one KEXEC_CONTROL_PAGE_SIZE */
-ASSERT(__relocate_new_kernel_end - (__relocate_new_kernel_start & ~(SZ_4K - 1))
-	<= SZ_4K, "kexec relocation code is too big or misaligned")
+ASSERT(__relocate_new_kernel_end - __relocate_new_kernel_start <= SZ_4K,
+       "kexec relocation code is bigger than 4 KiB")
 ASSERT(KEXEC_CONTROL_PAGE_SIZE >= SZ_4K, "KEXEC_CONTROL_PAGE_SIZE is broken")
 #endif

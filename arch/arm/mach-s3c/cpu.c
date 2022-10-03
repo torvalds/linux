@@ -10,7 +10,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 
-#include <mach/map-base.h>
+#include "map-base.h"
 #include "cpu.h"
 
 unsigned long samsung_cpu_id;
@@ -28,4 +28,5 @@ void __init s3c64xx_init_cpu(void)
 	}
 
 	pr_info("Samsung CPU ID: 0x%08lx\n", samsung_cpu_id);
+	pr_err("The platform is deprecated and scheduled for removal. Please reach to the maintainers of the platform and linux-samsung-soc@vger.kernel.org if you still use it.  Without such feedback, the platform will be removed after 2022.\n");
 }

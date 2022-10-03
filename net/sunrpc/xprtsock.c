@@ -822,17 +822,9 @@ static int xs_stream_nospace(struct rpc_rqst *req, bool vm_wait)
 	return ret;
 }
 
-static int
-xs_stream_prepare_request(struct rpc_rqst *req)
+static int xs_stream_prepare_request(struct rpc_rqst *req, struct xdr_buf *buf)
 {
-	gfp_t gfp = rpc_task_gfp_mask();
-	int ret;
-
-	ret = xdr_alloc_bvec(&req->rq_snd_buf, gfp);
-	if (ret < 0)
-		return ret;
-	xdr_free_bvec(&req->rq_rcv_buf);
-	return xdr_alloc_bvec(&req->rq_rcv_buf, gfp);
+	return xdr_alloc_bvec(buf, rpc_task_gfp_mask());
 }
 
 /*
@@ -1355,7 +1347,7 @@ static void xs_udp_data_receive(struct sock_xprt *transport)
 	if (sk == NULL)
 		goto out;
 	for (;;) {
-		skb = skb_recv_udp(sk, 0, 1, &err);
+		skb = skb_recv_udp(sk, MSG_DONTWAIT, &err);
 		if (skb == NULL)
 			break;
 		xs_udp_data_read_skb(&transport->xprt, sk, skb);
@@ -1378,7 +1370,7 @@ static void xs_udp_data_receive_workfn(struct work_struct *work)
 }
 
 /**
- * xs_data_ready - "data ready" callback for UDP sockets
+ * xs_data_ready - "data ready" callback for sockets
  * @sk: socket with data to read
  *
  */
@@ -1386,11 +1378,13 @@ static void xs_data_ready(struct sock *sk)
 {
 	struct rpc_xprt *xprt;
 
-	dprintk("RPC:       xs_data_ready...\n");
 	xprt = xprt_from_sock(sk);
 	if (xprt != NULL) {
 		struct sock_xprt *transport = container_of(xprt,
 				struct sock_xprt, xprt);
+
+		trace_xs_data_ready(xprt);
+
 		transport->old_data_ready(sk);
 		/* Any data means we had a useful conversation, so
 		 * then we don't need to delay the next reconnect
@@ -1417,6 +1411,26 @@ static size_t xs_tcp_bc_maxpayload(struct rpc_xprt *xprt)
 	return PAGE_SIZE;
 }
 #endif /* CONFIG_SUNRPC_BACKCHANNEL */
+
+/**
+ * xs_local_state_change - callback to handle AF_LOCAL socket state changes
+ * @sk: socket whose state has changed
+ *
+ */
+static void xs_local_state_change(struct sock *sk)
+{
+	struct rpc_xprt *xprt;
+	struct sock_xprt *transport;
+
+	if (!(xprt = xprt_from_sock(sk)))
+		return;
+	transport = container_of(xprt, struct sock_xprt, xprt);
+	if (sk->sk_shutdown & SHUTDOWN_MASK) {
+		clear_bit(XPRT_CONNECTED, &xprt->state);
+		/* Trigger the socket release */
+		xs_run_error_worker(transport, XPRT_SOCK_WAKE_DISCONNECT);
+	}
+}
 
 /**
  * xs_tcp_state_change - callback to handle TCP socket state changes
@@ -1866,6 +1880,7 @@ static int xs_local_finish_connecting(struct rpc_xprt *xprt,
 		sk->sk_user_data = xprt;
 		sk->sk_data_ready = xs_data_ready;
 		sk->sk_write_space = xs_udp_write_space;
+		sk->sk_state_change = xs_local_state_change;
 		sk->sk_error_report = xs_error_report;
 
 		xprt_clear_connected(xprt);
@@ -1950,6 +1965,9 @@ static void xs_local_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 	int ret;
 
+	if (transport->file)
+		goto force_disconnect;
+
 	if (RPC_IS_ASYNC(task)) {
 		/*
 		 * We want the AF_LOCAL connect to be resolved in the
@@ -1962,11 +1980,17 @@ static void xs_local_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 		 */
 		task->tk_rpc_status = -ENOTCONN;
 		rpc_exit(task, -ENOTCONN);
-		return;
+		goto out_wake;
 	}
 	ret = xs_local_setup_socket(transport);
 	if (ret && !RPC_IS_SOFTCONN(task))
 		msleep_interruptible(15000);
+	return;
+force_disconnect:
+	xprt_force_disconnect(xprt);
+out_wake:
+	xprt_clear_connecting(xprt);
+	xprt_wake_pending_tasks(xprt, -ENOTCONN);
 }
 
 #if IS_ENABLED(CONFIG_SUNRPC_SWAP)
@@ -2845,9 +2869,6 @@ static struct rpc_xprt *xs_setup_local(struct xprt_create *args)
 		}
 		xprt_set_bound(xprt);
 		xs_format_peer_addresses(xprt, "local", RPCBIND_NETID_LOCAL);
-		ret = ERR_PTR(xs_local_setup_socket(transport));
-		if (ret)
-			goto out_err;
 		break;
 	default:
 		ret = ERR_PTR(-EAFNOSUPPORT);

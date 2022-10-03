@@ -105,8 +105,9 @@ static int tusb1210_power_on(struct phy *phy)
 	msleep(TUSB1210_RESET_TIME_MS);
 
 	/* Restore the optional eye diagram optimization value */
-	return tusb1210_ulpi_write(tusb, TUSB1210_VENDOR_SPECIFIC2,
-				   tusb->vendor_specific2);
+	tusb1210_ulpi_write(tusb, TUSB1210_VENDOR_SPECIFIC2, tusb->vendor_specific2);
+
+	return 0;
 }
 
 static int tusb1210_power_off(struct phy *phy)
@@ -155,7 +156,7 @@ static int tusb1210_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 }
 
 #ifdef CONFIG_POWER_SUPPLY
-const char * const tusb1210_chg_det_states[] = {
+static const char * const tusb1210_chg_det_states[] = {
 	"CHG_DET_CONNECTING",
 	"CHG_DET_START_DET",
 	"CHG_DET_READ_DET",
@@ -537,12 +538,18 @@ static int tusb1210_probe(struct ulpi *ulpi)
 	tusb1210_probe_charger_detect(tusb);
 
 	tusb->phy = ulpi_phy_create(ulpi, &phy_ops);
-	if (IS_ERR(tusb->phy))
-		return PTR_ERR(tusb->phy);
+	if (IS_ERR(tusb->phy)) {
+		ret = PTR_ERR(tusb->phy);
+		goto err_remove_charger;
+	}
 
 	phy_set_drvdata(tusb->phy, tusb);
 	ulpi_set_drvdata(ulpi, tusb);
 	return 0;
+
+err_remove_charger:
+	tusb1210_remove_charger_detect(tusb);
+	return ret;
 }
 
 static void tusb1210_remove(struct ulpi *ulpi)

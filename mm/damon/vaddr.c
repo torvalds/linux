@@ -282,77 +282,6 @@ static void damon_va_init(struct damon_ctx *ctx)
 }
 
 /*
- * Functions for the dynamic monitoring target regions update
- */
-
-/*
- * Check whether a region is intersecting an address range
- *
- * Returns true if it is.
- */
-static bool damon_intersect(struct damon_region *r,
-		struct damon_addr_range *re)
-{
-	return !(r->ar.end <= re->start || re->end <= r->ar.start);
-}
-
-/*
- * Update damon regions for the three big regions of the given target
- *
- * t		the given target
- * bregions	the three big regions of the target
- */
-static void damon_va_apply_three_regions(struct damon_target *t,
-		struct damon_addr_range bregions[3])
-{
-	struct damon_region *r, *next;
-	unsigned int i;
-
-	/* Remove regions which are not in the three big regions now */
-	damon_for_each_region_safe(r, next, t) {
-		for (i = 0; i < 3; i++) {
-			if (damon_intersect(r, &bregions[i]))
-				break;
-		}
-		if (i == 3)
-			damon_destroy_region(r, t);
-	}
-
-	/* Adjust intersecting regions to fit with the three big regions */
-	for (i = 0; i < 3; i++) {
-		struct damon_region *first = NULL, *last;
-		struct damon_region *newr;
-		struct damon_addr_range *br;
-
-		br = &bregions[i];
-		/* Get the first and last regions which intersects with br */
-		damon_for_each_region(r, t) {
-			if (damon_intersect(r, br)) {
-				if (!first)
-					first = r;
-				last = r;
-			}
-			if (r->ar.start >= br->end)
-				break;
-		}
-		if (!first) {
-			/* no damon_region intersects with this big region */
-			newr = damon_new_region(
-					ALIGN_DOWN(br->start,
-						DAMON_MIN_REGION),
-					ALIGN(br->end, DAMON_MIN_REGION));
-			if (!newr)
-				continue;
-			damon_insert_region(newr, damon_prev_region(r), r, t);
-		} else {
-			first->ar.start = ALIGN_DOWN(br->start,
-					DAMON_MIN_REGION);
-			last->ar.end = ALIGN(br->end, DAMON_MIN_REGION);
-		}
-	}
-}
-
-/*
  * Update regions for current memory mappings
  */
 static void damon_va_update(struct damon_ctx *ctx)
@@ -363,7 +292,7 @@ static void damon_va_update(struct damon_ctx *ctx)
 	damon_for_each_target(t, ctx) {
 		if (damon_va_three_regions(t, three_regions))
 			continue;
-		damon_va_apply_three_regions(t, three_regions);
+		damon_set_regions(t, three_regions, 3);
 	}
 }
 
@@ -407,8 +336,7 @@ static void damon_hugetlb_mkold(pte_t *pte, struct mm_struct *mm,
 	if (pte_young(entry)) {
 		referenced = true;
 		entry = pte_mkold(entry);
-		huge_ptep_set_access_flags(vma, addr, pte, entry,
-					   vma->vm_flags & VM_WRITE);
+		set_huge_pte_at(mm, addr, pte, entry);
 	}
 
 #ifdef CONFIG_MMU_NOTIFIER
@@ -513,7 +441,7 @@ static int damon_young_pmd_entry(pmd_t *pmd, unsigned long addr,
 		if (pmd_young(*pmd) || !page_is_idle(page) ||
 					mmu_notifier_test_young(walk->mm,
 						addr)) {
-			*priv->page_sz = ((1UL) << HPAGE_PMD_SHIFT);
+			*priv->page_sz = HPAGE_PMD_SIZE;
 			priv->young = true;
 		}
 		put_page(page);
@@ -753,8 +681,19 @@ static int __init damon_va_initcall(void)
 		.apply_scheme = damon_va_apply_scheme,
 		.get_scheme_score = damon_va_scheme_score,
 	};
+	/* ops for fixed virtual address ranges */
+	struct damon_operations ops_fvaddr = ops;
+	int err;
 
-	return damon_register_ops(&ops);
+	/* Don't set the monitoring target regions for the entire mapping */
+	ops_fvaddr.id = DAMON_OPS_FVADDR;
+	ops_fvaddr.init = NULL;
+	ops_fvaddr.update = NULL;
+
+	err = damon_register_ops(&ops);
+	if (err)
+		return err;
+	return damon_register_ops(&ops_fvaddr);
 };
 
 subsys_initcall(damon_va_initcall);

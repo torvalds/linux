@@ -2,6 +2,7 @@
 /* Copyright (c) 2019 HiSilicon Limited. */
 #include <crypto/internal/acompress.h>
 #include <linux/bitfield.h>
+#include <linux/bitmap.h>
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
 #include "zip.h"
@@ -521,7 +522,7 @@ static int hisi_zip_start_qp(struct hisi_qp *qp, struct hisi_zip_qp_ctx *ctx,
 static void hisi_zip_release_qp(struct hisi_zip_qp_ctx *ctx)
 {
 	hisi_qm_stop_qp(ctx->qp);
-	hisi_qm_release_qp(ctx->qp);
+	hisi_qm_free_qps(&ctx->qp, 1);
 }
 
 static const struct hisi_zip_sqe_ops hisi_zip_ops_v1 = {
@@ -606,8 +607,7 @@ static int hisi_zip_create_req_q(struct hisi_zip_ctx *ctx)
 		req_q = &ctx->qp_ctx[i].req_q;
 		req_q->size = QM_Q_DEPTH;
 
-		req_q->req_bitmap = kcalloc(BITS_TO_LONGS(req_q->size),
-					    sizeof(long), GFP_KERNEL);
+		req_q->req_bitmap = bitmap_zalloc(req_q->size, GFP_KERNEL);
 		if (!req_q->req_bitmap) {
 			ret = -ENOMEM;
 			if (i == 0)
@@ -631,11 +631,11 @@ static int hisi_zip_create_req_q(struct hisi_zip_ctx *ctx)
 	return 0;
 
 err_free_loop1:
-	kfree(ctx->qp_ctx[HZIP_QPC_DECOMP].req_q.req_bitmap);
+	bitmap_free(ctx->qp_ctx[HZIP_QPC_DECOMP].req_q.req_bitmap);
 err_free_loop0:
 	kfree(ctx->qp_ctx[HZIP_QPC_COMP].req_q.q);
 err_free_bitmap:
-	kfree(ctx->qp_ctx[HZIP_QPC_COMP].req_q.req_bitmap);
+	bitmap_free(ctx->qp_ctx[HZIP_QPC_COMP].req_q.req_bitmap);
 	return ret;
 }
 
@@ -645,7 +645,7 @@ static void hisi_zip_release_req_q(struct hisi_zip_ctx *ctx)
 
 	for (i = 0; i < HZIP_CTX_Q_NUM; i++) {
 		kfree(ctx->qp_ctx[i].req_q.q);
-		kfree(ctx->qp_ctx[i].req_q.req_bitmap);
+		bitmap_free(ctx->qp_ctx[i].req_q.req_bitmap);
 	}
 }
 

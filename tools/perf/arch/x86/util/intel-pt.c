@@ -426,7 +426,7 @@ static int intel_pt_track_switches(struct evlist *evlist)
 	if (!evlist__can_select_event(evlist, sched_switch))
 		return -EPERM;
 
-	err = parse_events(evlist, sched_switch, NULL);
+	err = parse_event(evlist, sched_switch);
 	if (err) {
 		pr_debug2("%s: failed to parse %s, error %d\n",
 			  __func__, sched_switch, err);
@@ -649,6 +649,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 			evsel->core.attr.freq = 0;
 			evsel->core.attr.sample_period = 1;
 			evsel->no_aux_samples = true;
+			evsel->needs_auxtrace_mmap = true;
 			intel_pt_evsel = evsel;
 			opts->full_auxtrace = true;
 		}
@@ -810,18 +811,11 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 			if (!cpu_wide && perf_can_record_cpu_wide()) {
 				struct evsel *switch_evsel;
 
-				err = parse_events(evlist, "dummy:u", NULL);
-				if (err)
-					return err;
+				switch_evsel = evlist__add_dummy_on_all_cpus(evlist);
+				if (!switch_evsel)
+					return -ENOMEM;
 
-				switch_evsel = evlist__last(evlist);
-
-				switch_evsel->core.attr.freq = 0;
-				switch_evsel->core.attr.sample_period = 1;
 				switch_evsel->core.attr.context_switch = 1;
-
-				switch_evsel->core.system_wide = true;
-				switch_evsel->no_aux_samples = true;
 				switch_evsel->immediate = true;
 
 				evsel__set_sample_bit(switch_evsel, TID);
@@ -870,20 +864,22 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 
 	/* Add dummy event to keep tracking */
 	if (opts->full_auxtrace) {
+		bool need_system_wide_tracking;
 		struct evsel *tracking_evsel;
 
-		err = parse_events(evlist, "dummy:u", NULL);
-		if (err)
-			return err;
+		/*
+		 * User space tasks can migrate between CPUs, so when tracing
+		 * selected CPUs, sideband for all CPUs is still needed.
+		 */
+		need_system_wide_tracking = evlist->core.has_user_cpus &&
+					    !intel_pt_evsel->core.attr.exclude_user;
 
-		tracking_evsel = evlist__last(evlist);
+		tracking_evsel = evlist__add_aux_dummy(evlist, need_system_wide_tracking);
+		if (!tracking_evsel)
+			return -ENOMEM;
 
 		evlist__set_tracking_event(evlist, tracking_evsel);
 
-		tracking_evsel->core.attr.freq = 0;
-		tracking_evsel->core.attr.sample_period = 1;
-
-		tracking_evsel->no_aux_samples = true;
 		if (need_immediate)
 			tracking_evsel->immediate = true;
 

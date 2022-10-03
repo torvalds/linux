@@ -81,6 +81,24 @@ static __u8 *uclogic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	return rdesc;
 }
 
+static int uclogic_input_mapping(struct hid_device *hdev,
+				 struct hid_input *hi,
+				 struct hid_field *field,
+				 struct hid_usage *usage,
+				 unsigned long **bit,
+				 int *max)
+{
+	struct uclogic_drvdata *drvdata = hid_get_drvdata(hdev);
+	struct uclogic_params *params = &drvdata->params;
+
+	/* Discard invalid pen usages */
+	if (params->pen.usage_invalid && (field->application == HID_DG_PEN))
+		return -1;
+
+	/* Let hid-core decide what to do */
+	return 0;
+}
+
 static int uclogic_input_configured(struct hid_device *hdev,
 		struct hid_input *hi)
 {
@@ -90,6 +108,8 @@ static int uclogic_input_configured(struct hid_device *hdev,
 	const char *suffix = NULL;
 	struct hid_field *field;
 	size_t len;
+	size_t i;
+	const struct uclogic_params_frame *frame;
 
 	/* no report associated (HID_QUIRK_MULTI_INPUT not set) */
 	if (!hi->report)
@@ -104,27 +124,44 @@ static int uclogic_input_configured(struct hid_device *hdev,
 		drvdata->pen_input = hi->input;
 	}
 
-	field = hi->report->field[0];
+	/* If it's one of the frame devices */
+	for (i = 0; i < ARRAY_SIZE(params->frame_list); i++) {
+		frame = &params->frame_list[i];
+		if (hi->report->id == frame->id) {
+			/* Assign custom suffix, if any */
+			suffix = frame->suffix;
+			/*
+			 * Disable EV_MSC reports for touch ring interfaces to
+			 * make the Wacom driver pickup touch ring extents
+			 */
+			if (frame->touch_byte > 0)
+				__clear_bit(EV_MSC, hi->input->evbit);
+		}
+	}
 
-	switch (field->application) {
-	case HID_GD_KEYBOARD:
-		suffix = "Keyboard";
-		break;
-	case HID_GD_MOUSE:
-		suffix = "Mouse";
-		break;
-	case HID_GD_KEYPAD:
-		suffix = "Pad";
-		break;
-	case HID_DG_PEN:
-		suffix = "Pen";
-		break;
-	case HID_CP_CONSUMER_CONTROL:
-		suffix = "Consumer Control";
-		break;
-	case HID_GD_SYSTEM_CONTROL:
-		suffix = "System Control";
-		break;
+	if (!suffix) {
+		field = hi->report->field[0];
+
+		switch (field->application) {
+		case HID_GD_KEYBOARD:
+			suffix = "Keyboard";
+			break;
+		case HID_GD_MOUSE:
+			suffix = "Mouse";
+			break;
+		case HID_GD_KEYPAD:
+			suffix = "Pad";
+			break;
+		case HID_DG_PEN:
+			suffix = "Pen";
+			break;
+		case HID_CP_CONSUMER_CONTROL:
+			suffix = "Consumer Control";
+			break;
+		case HID_GD_SYSTEM_CONTROL:
+			suffix = "System Control";
+			break;
+		}
 	}
 
 	if (suffix) {
@@ -172,8 +209,8 @@ static int uclogic_probe(struct hid_device *hdev,
 		goto failure;
 	}
 	params_initialized = true;
-	hid_dbg(hdev, "parameters:\n" UCLOGIC_PARAMS_FMT_STR,
-		UCLOGIC_PARAMS_FMT_ARGS(&drvdata->params));
+	hid_dbg(hdev, "parameters:\n");
+	uclogic_params_hid_dbg(hdev, &drvdata->params);
 	if (drvdata->params.invalid) {
 		hid_info(hdev, "interface is invalid, ignoring\n");
 		rc = -ENODEV;
@@ -313,8 +350,15 @@ static int uclogic_raw_event_frame(
 
 	/* If need to, and can, set pad device ID for Wacom drivers */
 	if (frame->dev_id_byte > 0 && frame->dev_id_byte < size) {
-		data[frame->dev_id_byte] = 0xf;
+		/* If we also have a touch ring and the finger left it */
+		if (frame->touch_byte > 0 && frame->touch_byte < size &&
+		    data[frame->touch_byte] == 0) {
+			data[frame->dev_id_byte] = 0;
+		} else {
+			data[frame->dev_id_byte] = 0xf;
+		}
 	}
+
 	/* If need to, and can, read rotary encoder state change */
 	if (frame->re_lsb > 0 && frame->re_lsb / 8 < size) {
 		unsigned int byte = frame->re_lsb / 8;
@@ -339,6 +383,26 @@ static int uclogic_raw_event_frame(
 				(change << bit);
 		/* Remember state */
 		drvdata->re_state = state;
+	}
+
+	/* If need to, and can, transform the touch ring reports */
+	if (frame->touch_byte > 0 && frame->touch_byte < size) {
+		__s8 value = data[frame->touch_byte];
+
+		if (value != 0) {
+			if (frame->touch_flip_at != 0) {
+				value = frame->touch_flip_at - value;
+				if (value <= 0)
+					value = frame->touch_max + value;
+			}
+			data[frame->touch_byte] = value - 1;
+		}
+	}
+
+	/* If need to, and can, transform the bitmap dial reports */
+	if (frame->bitmap_dial_byte > 0 && frame->bitmap_dial_byte < size) {
+		if (data[frame->bitmap_dial_byte] == 2)
+			data[frame->bitmap_dial_byte] = -1;
 	}
 
 	return 0;
@@ -457,6 +521,10 @@ static const struct hid_device_id uclogic_devices[] = {
 				USB_DEVICE_ID_UGEE_XPPEN_TABLET_G640) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_UGEE,
 				USB_DEVICE_ID_UGEE_XPPEN_TABLET_DECO01) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_UGEE,
+				USB_DEVICE_ID_UGEE_XPPEN_TABLET_DECO_L) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_UGEE,
+				USB_DEVICE_ID_UGEE_XPPEN_TABLET_STAR06) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, uclogic_devices);
@@ -468,6 +536,7 @@ static struct hid_driver uclogic_driver = {
 	.remove = uclogic_remove,
 	.report_fixup = uclogic_report_fixup,
 	.raw_event = uclogic_raw_event,
+	.input_mapping = uclogic_input_mapping,
 	.input_configured = uclogic_input_configured,
 #ifdef CONFIG_PM
 	.resume	          = uclogic_resume,

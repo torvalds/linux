@@ -50,6 +50,7 @@ struct resource_pool *dcn20_create_resource_pool(
 		struct dc *dc);
 
 struct link_encoder *dcn20_link_encoder_create(
+	struct dc_context *ctx,
 	const struct encoder_init_data *enc_init_data);
 
 unsigned int dcn20_calc_max_scaled_time(

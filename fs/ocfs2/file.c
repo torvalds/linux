@@ -1146,7 +1146,7 @@ int ocfs2_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	if (status)
 		return status;
 
-	if (is_quota_modification(inode, attr)) {
+	if (is_quota_modification(mnt_userns, inode, attr)) {
 		status = dquot_initialize(inode);
 		if (status)
 			return status;
@@ -2526,7 +2526,7 @@ static ssize_t ocfs2_file_read_iter(struct kiocb *iocb,
 		return -EOPNOTSUPP;
 
 	/*
-	 * buffered reads protect themselves in ->readpage().  O_DIRECT reads
+	 * buffered reads protect themselves in ->read_folio().  O_DIRECT reads
 	 * need locks to protect pending reads from racing with truncate.
 	 */
 	if (direct_io) {

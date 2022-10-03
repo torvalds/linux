@@ -14,7 +14,6 @@ config SOC_SIFIVE
 	select CLK_SIFIVE
 	select CLK_SIFIVE_PRCI
 	select SIFIVE_PLIC
-	select RISCV_ERRATA_ALTERNATIVE if !XIP_KERNEL
 	select ERRATA_SIFIVE if !XIP_KERNEL
 	help
 	  This enables support for SiFive SoC platform hardware.
@@ -38,7 +37,7 @@ config SOC_VIRT
 	select SIFIVE_PLIC
 	select PM_GENERIC_DOMAINS if PM
 	select PM_GENERIC_DOMAINS_OF if PM && OF
-	select RISCV_SBI_CPUIDLE if CPU_IDLE
+	select RISCV_SBI_CPUIDLE if CPU_IDLE && RISCV_SBI
 	help
 	  This enables support for QEMU Virt Machine.
 
@@ -79,6 +78,6 @@ config SOC_CANAAN_K210_DTB_SOURCE
 	  for the DTS file that will be used to produce the DTB linked into the
 	  kernel.
 
-endif
+endif # SOC_CANAAN
 
-endmenu
+endmenu # "SoC selection"

@@ -222,7 +222,7 @@ static int vfio_default_config_write(struct vfio_pci_core_device *vdev, int pos,
 		memcpy(vdev->vconfig + pos, &virt_val, count);
 	}
 
-	/* Non-virtualzed and writable bits go to hardware */
+	/* Non-virtualized and writable bits go to hardware */
 	if (write & ~virt) {
 		struct pci_dev *pdev = vdev->pdev;
 		__le32 phys_val = 0;
@@ -402,11 +402,14 @@ bool __vfio_pci_memory_enabled(struct vfio_pci_core_device *vdev)
 	u16 cmd = le16_to_cpu(*(__le16 *)&vdev->vconfig[PCI_COMMAND]);
 
 	/*
+	 * Memory region cannot be accessed if device power state is D3.
+	 *
 	 * SR-IOV VF memory enable is handled by the MSE bit in the
 	 * PF SR-IOV capability, there's therefore no need to trigger
 	 * faults based on the virtual value.
 	 */
-	return pdev->no_command_memory || (cmd & PCI_COMMAND_MEMORY);
+	return pdev->current_state < PCI_D3hot &&
+	       (pdev->no_command_memory || (cmd & PCI_COMMAND_MEMORY));
 }
 
 /*
@@ -692,6 +695,22 @@ static int __init init_pci_cap_basic_perm(struct perm_bits *perm)
 	return 0;
 }
 
+/*
+ * It takes all the required locks to protect the access of power related
+ * variables and then invokes vfio_pci_set_power_state().
+ */
+static void vfio_lock_and_set_power_state(struct vfio_pci_core_device *vdev,
+					  pci_power_t state)
+{
+	if (state >= PCI_D3hot)
+		vfio_pci_zap_and_down_write_memory_lock(vdev);
+	else
+		down_write(&vdev->memory_lock);
+
+	vfio_pci_set_power_state(vdev, state);
+	up_write(&vdev->memory_lock);
+}
+
 static int vfio_pm_config_write(struct vfio_pci_core_device *vdev, int pos,
 				int count, struct perm_bits *perm,
 				int offset, __le32 val)
@@ -718,7 +737,7 @@ static int vfio_pm_config_write(struct vfio_pci_core_device *vdev, int pos,
 			break;
 		}
 
-		vfio_pci_set_power_state(vdev, state);
+		vfio_lock_and_set_power_state(vdev, state);
 	}
 
 	return count;
@@ -739,11 +758,28 @@ static int __init init_pci_cap_pm_perm(struct perm_bits *perm)
 	p_setb(perm, PCI_CAP_LIST_NEXT, (u8)ALL_VIRT, NO_WRITE);
 
 	/*
+	 * The guests can't process PME events. If any PME event will be
+	 * generated, then it will be mostly handled in the host and the
+	 * host will clear the PME_STATUS. So virtualize PME_Support bits.
+	 * The vconfig bits will be cleared during device capability
+	 * initialization.
+	 */
+	p_setw(perm, PCI_PM_PMC, PCI_PM_CAP_PME_MASK, NO_WRITE);
+
+	/*
 	 * Power management is defined *per function*, so we can let
 	 * the user change power state, but we trap and initiate the
 	 * change ourselves, so the state bits are read-only.
+	 *
+	 * The guest can't process PME from D3cold so virtualize PME_Status
+	 * and PME_En bits. The vconfig bits will be cleared during device
+	 * capability initialization.
 	 */
-	p_setd(perm, PCI_PM_CTRL, NO_VIRT, ~PCI_PM_CTRL_STATE_MASK);
+	p_setd(perm, PCI_PM_CTRL,
+	       PCI_PM_CTRL_PME_ENABLE | PCI_PM_CTRL_PME_STATUS,
+	       ~(PCI_PM_CTRL_PME_ENABLE | PCI_PM_CTRL_PME_STATUS |
+		 PCI_PM_CTRL_STATE_MASK));
+
 	return 0;
 }
 
@@ -1412,6 +1448,17 @@ static int vfio_ext_cap_len(struct vfio_pci_core_device *vdev, u16 ecap, u16 epo
 	return 0;
 }
 
+static void vfio_update_pm_vconfig_bytes(struct vfio_pci_core_device *vdev,
+					 int offset)
+{
+	__le16 *pmc = (__le16 *)&vdev->vconfig[offset + PCI_PM_PMC];
+	__le16 *ctrl = (__le16 *)&vdev->vconfig[offset + PCI_PM_CTRL];
+
+	/* Clear vconfig PME_Support, PME_Status, and PME_En bits */
+	*pmc &= ~cpu_to_le16(PCI_PM_CAP_PME_MASK);
+	*ctrl &= ~cpu_to_le16(PCI_PM_CTRL_PME_ENABLE | PCI_PM_CTRL_PME_STATUS);
+}
+
 static int vfio_fill_vconfig_bytes(struct vfio_pci_core_device *vdev,
 				   int offset, int size)
 {
@@ -1534,6 +1581,9 @@ static int vfio_cap_init(struct vfio_pci_core_device *vdev)
 		ret = vfio_fill_vconfig_bytes(vdev, pos, len);
 		if (ret)
 			return ret;
+
+		if (cap == PCI_CAP_ID_PM)
+			vfio_update_pm_vconfig_bytes(vdev, pos);
 
 		prev = &vdev->vconfig[pos + PCI_CAP_LIST_NEXT];
 		pos = next;
@@ -1678,7 +1728,7 @@ int vfio_config_init(struct vfio_pci_core_device *vdev)
 	/*
 	 * Config space, caps and ecaps are all dword aligned, so we could
 	 * use one byte per dword to record the type.  However, there are
-	 * no requiremenst on the length of a capability, so the gap between
+	 * no requirements on the length of a capability, so the gap between
 	 * capabilities needs byte granularity.
 	 */
 	map = kmalloc(pdev->cfg_size, GFP_KERNEL);

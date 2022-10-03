@@ -263,13 +263,13 @@ static int power_supply_check_supplies(struct power_supply *psy)
 		return 0;
 
 	/* All supplies found, allocate char ** array for filling */
-	psy->supplied_from = devm_kzalloc(&psy->dev, sizeof(psy->supplied_from),
+	psy->supplied_from = devm_kzalloc(&psy->dev, sizeof(*psy->supplied_from),
 					  GFP_KERNEL);
 	if (!psy->supplied_from)
 		return -ENOMEM;
 
 	*psy->supplied_from = devm_kcalloc(&psy->dev,
-					   cnt - 1, sizeof(char *),
+					   cnt - 1, sizeof(**psy->supplied_from),
 					   GFP_KERNEL);
 	if (!*psy->supplied_from)
 		return -ENOMEM;
@@ -604,13 +604,19 @@ int power_supply_get_battery_info(struct power_supply *psy,
 	err = samsung_sdi_battery_get_info(&psy->dev, value, &info);
 	if (!err)
 		goto out_ret_pointer;
+	else if (err == -ENODEV)
+		/*
+		 * Device does not have a static battery.
+		 * Proceed to look for a simple battery.
+		 */
+		err = 0;
 
 	if (strcmp("simple-battery", value)) {
 		err = -ENODEV;
 		goto out_put_node;
 	}
 
-	info = devm_kmalloc(&psy->dev, sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc(&psy->dev, sizeof(*info), GFP_KERNEL);
 	if (!info) {
 		err = -ENOMEM;
 		goto out_put_node;
@@ -840,17 +846,17 @@ int power_supply_temp2resist_simple(struct power_supply_resistance_temp_table *t
 {
 	int i, high, low;
 
-	/* Break loop at table_len - 1 because that is the highest index */
-	for (i = 0; i < table_len - 1; i++)
+	for (i = 0; i < table_len; i++)
 		if (temp > table[i].temp)
 			break;
 
 	/* The library function will deal with high == low */
-	if ((i == 0) || (i == (table_len - 1)))
-		high = i;
+	if (i == 0)
+		high = low = i;
+	else if (i == table_len)
+		high = low = i - 1;
 	else
-		high = i - 1;
-	low = i;
+		high = (low = i) - 1;
 
 	return fixp_linear_interpolate(table[low].temp,
 				       table[low].resistance,
@@ -952,17 +958,17 @@ int power_supply_ocv2cap_simple(struct power_supply_battery_ocv_table *table,
 {
 	int i, high, low;
 
-	/* Break loop at table_len - 1 because that is the highest index */
-	for (i = 0; i < table_len - 1; i++)
+	for (i = 0; i < table_len; i++)
 		if (ocv > table[i].ocv)
 			break;
 
 	/* The library function will deal with high == low */
-	if ((i == 0) || (i == (table_len - 1)))
-		high = i - 1;
+	if (i == 0)
+		high = low = i;
+	else if (i == table_len)
+		high = low = i - 1;
 	else
-		high = i; /* i.e. i == 0 */
-	low = i;
+		high = (low = i) - 1;
 
 	return fixp_linear_interpolate(table[low].ocv,
 				       table[low].capacity,

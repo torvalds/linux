@@ -815,6 +815,21 @@
 
 			clock-names = "xo", "sleep_clk";
 			clocks = <&xo>, <&sleep_clk>;
+
+			/*
+			 * The hypervisor typically configures the memory region where these clocks
+			 * reside as read-only for the HLOS. If the HLOS tried to enable or disable
+			 * these clocks on a device with such configuration (e.g. because they are
+			 * enabled but unused during boot-up), the device will most likely decide
+			 * to reboot.
+			 * In light of that, we are conservative here and we list all such clocks
+			 * as protected. The board dts (or a user-supplied dts) can override the
+			 * list of protected clocks if it differs from the norm, and it is in fact
+			 * desired for the HLOS to manage these clocks
+			 */
+			protected-clocks = <AGGRE2_SNOC_NORTH_AXI>,
+					   <SSC_XO>,
+					   <SSC_CNOC_AHBS_CLK>;
 		};
 
 		rpm_msg_ram: sram@778000 {
@@ -823,7 +838,7 @@
 		};
 
 		qfprom: qfprom@784000 {
-			compatible = "qcom,qfprom";
+			compatible = "qcom,msm8998-qfprom", "qcom,qfprom";
 			reg = <0x00784000 0x621c>;
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -914,7 +929,7 @@
 			interrupts = <GIC_SPI 405 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "msi";
 			interrupt-map-mask = <0 0 0 0x7>;
-			interrupt-map =	<0 0 0 1 &intc 0 0 135 IRQ_TYPE_LEVEL_HIGH>,
+			interrupt-map = <0 0 0 1 &intc 0 0 135 IRQ_TYPE_LEVEL_HIGH>,
 					<0 0 0 2 &intc 0 0 136 IRQ_TYPE_LEVEL_HIGH>,
 					<0 0 0 3 &intc 0 0 138 IRQ_TYPE_LEVEL_HIGH>,
 					<0 0 0 4 &intc 0 0 139 IRQ_TYPE_LEVEL_HIGH>;
@@ -1042,85 +1057,58 @@
 			reg = <0x03400000 0xc00000>;
 			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
-			#gpio-cells = <0x2>;
+			#gpio-cells = <2>;
 			interrupt-controller;
-			#interrupt-cells = <0x2>;
+			#interrupt-cells = <2>;
 
-			sdc2_clk_on: sdc2_clk_on {
-				config {
+			sdc2_on: sdc2-on {
+				clk {
 					pins = "sdc2_clk";
-					bias-disable;
 					drive-strength = <16>;
-				};
-			};
-
-			sdc2_clk_off: sdc2_clk_off {
-				config {
-					pins = "sdc2_clk";
 					bias-disable;
-					drive-strength = <2>;
 				};
-			};
 
-			sdc2_cmd_on: sdc2_cmd_on {
-				config {
+				cmd {
 					pins = "sdc2_cmd";
-					bias-pull-up;
 					drive-strength = <10>;
+					bias-pull-up;
+				};
+
+				data {
+					pins = "sdc2_data";
+					drive-strength = <10>;
+					bias-pull-up;
 				};
 			};
 
-			sdc2_cmd_off: sdc2_cmd_off {
-				config {
+			sdc2_off: sdc2-off {
+				clk {
+					pins = "sdc2_clk";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				cmd {
 					pins = "sdc2_cmd";
-					bias-pull-up;
 					drive-strength = <2>;
+					bias-pull-up;
 				};
-			};
 
-			sdc2_data_on: sdc2_data_on {
-				config {
+				data {
 					pins = "sdc2_data";
-					bias-pull-up;
-					drive-strength = <10>;
-				};
-			};
-
-			sdc2_data_off: sdc2_data_off {
-				config {
-					pins = "sdc2_data";
-					bias-pull-up;
 					drive-strength = <2>;
-				};
-			};
-
-			sdc2_cd_on: sdc2_cd_on {
-				mux {
-					pins = "gpio95";
-					function = "gpio";
-				};
-
-				config {
-					pins = "gpio95";
 					bias-pull-up;
-					drive-strength = <2>;
 				};
 			};
 
-			sdc2_cd_off: sdc2_cd_off {
-				mux {
-					pins = "gpio95";
-					function = "gpio";
-				};
-
-				config {
-					pins = "gpio95";
-					bias-pull-up;
-					drive-strength = <2>;
-				};
+			sdc2_cd: sdc2-cd {
+				pins = "gpio95";
+				function = "gpio";
+				bias-pull-up;
+				drive-strength = <2>;
 			};
 
-			blsp1_uart3_on: blsp1_uart3_on {
+			blsp1_uart3_on: blsp1-uart3-on {
 				tx {
 					pins = "gpio45";
 					function = "blsp_uart3_a";
@@ -1401,7 +1389,7 @@
 			status = "disabled";
 
 			gpu_opp_table: opp-table {
-				compatible  = "operating-points-v2";
+				compatible = "operating-points-v2";
 				opp-710000097 {
 					opp-hz = /bits/ 64 <710000097>;
 					opp-level = <RPM_SMD_LEVEL_TURBO>;
@@ -2008,10 +1996,13 @@
 			clocks = <&gcc GCC_CFG_NOC_USB3_AXI_CLK>,
 				 <&gcc GCC_USB30_MASTER_CLK>,
 				 <&gcc GCC_AGGRE1_USB3_AXI_CLK>,
-				 <&gcc GCC_USB30_MOCK_UTMI_CLK>,
-				 <&gcc GCC_USB30_SLEEP_CLK>;
-			clock-names = "cfg_noc", "core", "iface", "mock_utmi",
-				      "sleep";
+				 <&gcc GCC_USB30_SLEEP_CLK>,
+				 <&gcc GCC_USB30_MOCK_UTMI_CLK>;
+			clock-names = "cfg_noc",
+				      "core",
+				      "iface",
+				      "sleep",
+				      "mock_utmi";
 
 			assigned-clocks = <&gcc GCC_USB30_MOCK_UTMI_CLK>,
 					  <&gcc GCC_USB30_MASTER_CLK>;
@@ -2025,7 +2016,7 @@
 
 			resets = <&gcc GCC_USB_30_BCR>;
 
-			usb3_dwc3: dwc3@a800000 {
+			usb3_dwc3: usb@a800000 {
 				compatible = "snps,dwc3";
 				reg = <0x0a800000 0xcd00>;
 				interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
@@ -2062,7 +2053,7 @@
 				      <0xc010600 0x128>,
 				      <0xc010800 0x200>;
 				#phy-cells = <0>;
-				#clock-cells = <1>;
+				#clock-cells = <0>;
 				clocks = <&gcc GCC_USB3_PHY_PIPE_CLK>;
 				clock-names = "pipe0";
 				clock-output-names = "usb3_phy_pipe_clk_src";
@@ -2084,7 +2075,7 @@
 			nvmem-cells = <&qusb2_hstx_trim>;
 		};
 
-		sdhc2: sdhci@c0a4900 {
+		sdhc2: mmc@c0a4900 {
 			compatible = "qcom,sdhci-msm-v4";
 			reg = <0x0c0a4900 0x314>, <0x0c0a4000 0x800>;
 			reg-names = "hc_mem", "core_mem";
@@ -2397,7 +2388,6 @@
 			#reset-cells = <1>;
 			#power-domain-cells = <1>;
 			reg = <0xc8c0000 0x40000>;
-			status = "disabled";
 
 			clock-names = "xo",
 				      "gpll0",
@@ -2432,7 +2422,6 @@
 				 <&mmcc BIMC_SMMU_AXI_CLK>;
 			clock-names = "iface-mm", "iface-smmu",
 				      "bus-mm", "bus-smmu";
-			status = "disabled";
 
 			#global-interrupts = <0>;
 			interrupts =

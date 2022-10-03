@@ -40,7 +40,7 @@
 #define AMPERE_IED_HACK(disp) ((disp)->engine.subdev.device->card_type >= GA100)
 
 struct lt_state {
-	struct nvkm_dp *dp;
+	struct nvkm_outp *outp;
 
 	int repeaters;
 	int repeater;
@@ -55,7 +55,7 @@ struct lt_state {
 static int
 nvkm_dp_train_sense(struct lt_state *lt, bool pc, u32 delay)
 {
-	struct nvkm_dp *dp = lt->dp;
+	struct nvkm_outp *outp = lt->outp;
 	u32 addr;
 	int ret;
 
@@ -66,7 +66,7 @@ nvkm_dp_train_sense(struct lt_state *lt, bool pc, u32 delay)
 	else
 		addr = DPCD_LS02;
 
-	ret = nvkm_rdaux(dp->aux, addr, &lt->stat[0], 3);
+	ret = nvkm_rdaux(outp->dp.aux, addr, &lt->stat[0], 3);
 	if (ret)
 		return ret;
 
@@ -75,18 +75,18 @@ nvkm_dp_train_sense(struct lt_state *lt, bool pc, u32 delay)
 	else
 		addr = DPCD_LS06;
 
-	ret = nvkm_rdaux(dp->aux, addr, &lt->stat[4], 2);
+	ret = nvkm_rdaux(outp->dp.aux, addr, &lt->stat[4], 2);
 	if (ret)
 		return ret;
 
 	if (pc) {
-		ret = nvkm_rdaux(dp->aux, DPCD_LS0C, &lt->pc2stat, 1);
+		ret = nvkm_rdaux(outp->dp.aux, DPCD_LS0C, &lt->pc2stat, 1);
 		if (ret)
 			lt->pc2stat = 0x00;
-		OUTP_TRACE(&dp->outp, "status %6ph pc2 %02x",
-			   lt->stat, lt->pc2stat);
+
+		OUTP_TRACE(outp, "status %6ph pc2 %02x", lt->stat, lt->pc2stat);
 	} else {
-		OUTP_TRACE(&dp->outp, "status %6ph", lt->stat);
+		OUTP_TRACE(outp, "status %6ph", lt->stat);
 	}
 
 	return 0;
@@ -95,8 +95,8 @@ nvkm_dp_train_sense(struct lt_state *lt, bool pc, u32 delay)
 static int
 nvkm_dp_train_drive(struct lt_state *lt, bool pc)
 {
-	struct nvkm_dp *dp = lt->dp;
-	struct nvkm_ior *ior = dp->outp.ior;
+	struct nvkm_outp *outp = lt->outp;
+	struct nvkm_ior *ior = outp->ior;
 	struct nvkm_bios *bios = ior->disp->engine.subdev.device->bios;
 	struct nvbios_dpout info;
 	struct nvbios_dpcfg ocfg;
@@ -127,26 +127,22 @@ nvkm_dp_train_drive(struct lt_state *lt, bool pc)
 		lt->conf[i] = (lpre << 3) | lvsw;
 		lt->pc2conf[i >> 1] |= lpc2 << ((i & 1) * 4);
 
-		OUTP_TRACE(&dp->outp, "config lane %d %02x %02x",
-			   i, lt->conf[i], lpc2);
+		OUTP_TRACE(outp, "config lane %d %02x %02x", i, lt->conf[i], lpc2);
 
 		if (lt->repeater != lt->repeaters)
 			continue;
 
-		data = nvbios_dpout_match(bios, dp->outp.info.hasht,
-						dp->outp.info.hashm,
+		data = nvbios_dpout_match(bios, outp->info.hasht, outp->info.hashm,
 					  &ver, &hdr, &cnt, &len, &info);
 		if (!data)
 			continue;
 
-		data = nvbios_dpcfg_match(bios, data, lpc2 & 3, lvsw & 3,
-					  lpre & 3, &ver, &hdr, &cnt, &len,
-					  &ocfg);
+		data = nvbios_dpcfg_match(bios, data, lpc2 & 3, lvsw & 3, lpre & 3,
+					  &ver, &hdr, &cnt, &len, &ocfg);
 		if (!data)
 			continue;
 
-		ior->func->dp.drive(ior, i, ocfg.pc, ocfg.dc,
-					    ocfg.pe, ocfg.tx_pu);
+		ior->func->dp->drive(ior, i, ocfg.pc, ocfg.dc, ocfg.pe, ocfg.tx_pu);
 	}
 
 	if (lt->repeater)
@@ -154,12 +150,12 @@ nvkm_dp_train_drive(struct lt_state *lt, bool pc)
 	else
 		addr = DPCD_LC03(0);
 
-	ret = nvkm_wraux(dp->aux, addr, lt->conf, 4);
+	ret = nvkm_wraux(outp->dp.aux, addr, lt->conf, 4);
 	if (ret)
 		return ret;
 
 	if (pc) {
-		ret = nvkm_wraux(dp->aux, DPCD_LC0F, lt->pc2conf, 2);
+		ret = nvkm_wraux(outp->dp.aux, DPCD_LC0F, lt->pc2conf, 2);
 		if (ret)
 			return ret;
 	}
@@ -170,19 +166,19 @@ nvkm_dp_train_drive(struct lt_state *lt, bool pc)
 static void
 nvkm_dp_train_pattern(struct lt_state *lt, u8 pattern)
 {
-	struct nvkm_dp *dp = lt->dp;
+	struct nvkm_outp *outp = lt->outp;
 	u32 addr;
 	u8 sink_tp;
 
-	OUTP_TRACE(&dp->outp, "training pattern %d", pattern);
-	dp->outp.ior->func->dp.pattern(dp->outp.ior, pattern);
+	OUTP_TRACE(outp, "training pattern %d", pattern);
+	outp->ior->func->dp->pattern(outp->ior, pattern);
 
 	if (lt->repeater)
 		addr = DPCD_LTTPR_PATTERN_SET(lt->repeater);
 	else
 		addr = DPCD_LC02;
 
-	nvkm_rdaux(dp->aux, addr, &sink_tp, 1);
+	nvkm_rdaux(outp->dp.aux, addr, &sink_tp, 1);
 	sink_tp &= ~DPCD_LC02_TRAINING_PATTERN_SET;
 	sink_tp |= (pattern != 4) ? pattern : 7;
 
@@ -190,13 +186,13 @@ nvkm_dp_train_pattern(struct lt_state *lt, u8 pattern)
 		sink_tp |=  DPCD_LC02_SCRAMBLING_DISABLE;
 	else
 		sink_tp &= ~DPCD_LC02_SCRAMBLING_DISABLE;
-	nvkm_wraux(dp->aux, addr, &sink_tp, 1);
+	nvkm_wraux(outp->dp.aux, addr, &sink_tp, 1);
 }
 
 static int
 nvkm_dp_train_eq(struct lt_state *lt)
 {
-	struct nvkm_i2c_aux *aux = lt->dp->aux;
+	struct nvkm_i2c_aux *aux = lt->outp->dp.aux;
 	bool eq_done = false, cr_done = true;
 	int tries = 0, usec = 0, i;
 	u8 data;
@@ -207,17 +203,17 @@ nvkm_dp_train_eq(struct lt_state *lt)
 
 		nvkm_dp_train_pattern(lt, 4);
 	} else {
-		if (lt->dp->dpcd[DPCD_RC00_DPCD_REV] >= 0x14 &&
-		    lt->dp->dpcd[DPCD_RC03] & DPCD_RC03_TPS4_SUPPORTED)
+		if (lt->outp->dp.dpcd[DPCD_RC00_DPCD_REV] >= 0x14 &&
+		    lt->outp->dp.dpcd[DPCD_RC03] & DPCD_RC03_TPS4_SUPPORTED)
 			nvkm_dp_train_pattern(lt, 4);
 		else
-		if (lt->dp->dpcd[DPCD_RC00_DPCD_REV] >= 0x12 &&
-		    lt->dp->dpcd[DPCD_RC02] & DPCD_RC02_TPS3_SUPPORTED)
+		if (lt->outp->dp.dpcd[DPCD_RC00_DPCD_REV] >= 0x12 &&
+		    lt->outp->dp.dpcd[DPCD_RC02] & DPCD_RC02_TPS3_SUPPORTED)
 			nvkm_dp_train_pattern(lt, 3);
 		else
 			nvkm_dp_train_pattern(lt, 2);
 
-		usec = (lt->dp->dpcd[DPCD_RC0E] & DPCD_RC0E_AUX_RD_INTERVAL) * 4000;
+		usec = (lt->outp->dp.dpcd[DPCD_RC0E] & DPCD_RC0E_AUX_RD_INTERVAL) * 4000;
 	}
 
 	do {
@@ -227,7 +223,7 @@ nvkm_dp_train_eq(struct lt_state *lt)
 			break;
 
 		eq_done = !!(lt->stat[2] & DPCD_LS04_INTERLANE_ALIGN_DONE);
-		for (i = 0; i < lt->dp->outp.ior->dp.nr && eq_done; i++) {
+		for (i = 0; i < lt->outp->ior->dp.nr && eq_done; i++) {
 			u8 lane = (lt->stat[i >> 1] >> ((i & 1) * 4)) & 0xf;
 			if (!(lane & DPCD_LS02_LANE0_CR_DONE))
 				cr_done = false;
@@ -249,8 +245,8 @@ nvkm_dp_train_cr(struct lt_state *lt)
 
 	nvkm_dp_train_pattern(lt, 1);
 
-	if (lt->dp->dpcd[DPCD_RC00_DPCD_REV] < 0x14 && !lt->repeater)
-		usec = (lt->dp->dpcd[DPCD_RC0E] & DPCD_RC0E_AUX_RD_INTERVAL) * 4000;
+	if (lt->outp->dp.dpcd[DPCD_RC00_DPCD_REV] < 0x14 && !lt->repeater)
+		usec = (lt->outp->dp.dpcd[DPCD_RC0E] & DPCD_RC0E_AUX_RD_INTERVAL) * 4000;
 
 	do {
 		if (nvkm_dp_train_drive(lt, false) ||
@@ -258,7 +254,7 @@ nvkm_dp_train_cr(struct lt_state *lt)
 			break;
 
 		cr_done = true;
-		for (i = 0; i < lt->dp->outp.ior->dp.nr; i++) {
+		for (i = 0; i < lt->outp->ior->dp.nr; i++) {
 			u8 lane = (lt->stat[i >> 1] >> ((i & 1) * 4)) & 0xf;
 			if (!(lane & DPCD_LS02_LANE0_CR_DONE)) {
 				cr_done = false;
@@ -278,45 +274,44 @@ nvkm_dp_train_cr(struct lt_state *lt)
 }
 
 static int
-nvkm_dp_train_links(struct nvkm_dp *dp, int rate)
+nvkm_dp_train_links(struct nvkm_outp *outp, int rate)
 {
-	struct nvkm_ior *ior = dp->outp.ior;
-	struct nvkm_disp *disp = dp->outp.disp;
+	struct nvkm_ior *ior = outp->ior;
+	struct nvkm_disp *disp = outp->disp;
 	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvkm_bios *bios = subdev->device->bios;
 	struct lt_state lt = {
-		.dp = dp,
+		.outp = outp,
 	};
 	u32 lnkcmp;
 	u8 sink[2], data;
 	int ret;
 
-	OUTP_DBG(&dp->outp, "training %d x %d MB/s",
-		 ior->dp.nr, ior->dp.bw * 27);
+	OUTP_DBG(outp, "training %d x %d MB/s", ior->dp.nr, ior->dp.bw * 27);
 
 	/* Intersect misc. capabilities of the OR and sink. */
 	if (disp->engine.subdev.device->chipset < 0x110)
-		dp->dpcd[DPCD_RC03] &= ~DPCD_RC03_TPS4_SUPPORTED;
+		outp->dp.dpcd[DPCD_RC03] &= ~DPCD_RC03_TPS4_SUPPORTED;
 	if (disp->engine.subdev.device->chipset < 0xd0)
-		dp->dpcd[DPCD_RC02] &= ~DPCD_RC02_TPS3_SUPPORTED;
-	lt.pc2 = dp->dpcd[DPCD_RC02] & DPCD_RC02_TPS3_SUPPORTED;
+		outp->dp.dpcd[DPCD_RC02] &= ~DPCD_RC02_TPS3_SUPPORTED;
+	lt.pc2 = outp->dp.dpcd[DPCD_RC02] & DPCD_RC02_TPS3_SUPPORTED;
 
-	if (AMPERE_IED_HACK(disp) && (lnkcmp = lt.dp->info.script[0])) {
+	if (AMPERE_IED_HACK(disp) && (lnkcmp = lt.outp->dp.info.script[0])) {
 		/* Execute BeforeLinkTraining script from DP Info table. */
 		while (ior->dp.bw < nvbios_rd08(bios, lnkcmp))
 			lnkcmp += 3;
 		lnkcmp = nvbios_rd16(bios, lnkcmp + 1);
 
-		nvbios_init(&dp->outp.disp->engine.subdev, lnkcmp,
-			init.outp = &dp->outp.info;
+		nvbios_init(&outp->disp->engine.subdev, lnkcmp,
+			init.outp = &outp->info;
 			init.or   = ior->id;
 			init.link = ior->asy.link;
 		);
 	}
 
 	/* Set desired link configuration on the source. */
-	if ((lnkcmp = lt.dp->info.lnkcmp)) {
-		if (dp->version < 0x30) {
+	if ((lnkcmp = lt.outp->dp.info.lnkcmp)) {
+		if (outp->dp.version < 0x30) {
 			while ((ior->dp.bw * 2700) < nvbios_rd16(bios, lnkcmp))
 				lnkcmp += 4;
 			lnkcmp = nvbios_rd16(bios, lnkcmp + 2);
@@ -327,56 +322,56 @@ nvkm_dp_train_links(struct nvkm_dp *dp, int rate)
 		}
 
 		nvbios_init(subdev, lnkcmp,
-			init.outp = &dp->outp.info;
+			init.outp = &outp->info;
 			init.or   = ior->id;
 			init.link = ior->asy.link;
 		);
 	}
 
-	ret = ior->func->dp.links(ior, dp->aux);
+	ret = ior->func->dp->links(ior, outp->dp.aux);
 	if (ret) {
 		if (ret < 0) {
-			OUTP_ERR(&dp->outp, "train failed with %d", ret);
+			OUTP_ERR(outp, "train failed with %d", ret);
 			return ret;
 		}
 		return 0;
 	}
 
-	ior->func->dp.power(ior, ior->dp.nr);
+	ior->func->dp->power(ior, ior->dp.nr);
 
 	/* Select LTTPR non-transparent mode if we have a valid configuration,
 	 * use transparent mode otherwise.
 	 */
-	if (dp->lttpr[0] >= 0x14) {
+	if (outp->dp.lttpr[0] >= 0x14) {
 		data = DPCD_LTTPR_MODE_TRANSPARENT;
-		nvkm_wraux(dp->aux, DPCD_LTTPR_MODE, &data, sizeof(data));
+		nvkm_wraux(outp->dp.aux, DPCD_LTTPR_MODE, &data, sizeof(data));
 
-		if (dp->lttprs) {
+		if (outp->dp.lttprs) {
 			data = DPCD_LTTPR_MODE_NON_TRANSPARENT;
-			nvkm_wraux(dp->aux, DPCD_LTTPR_MODE, &data, sizeof(data));
-			lt.repeaters = dp->lttprs;
+			nvkm_wraux(outp->dp.aux, DPCD_LTTPR_MODE, &data, sizeof(data));
+			lt.repeaters = outp->dp.lttprs;
 		}
 	}
 
 	/* Set desired link configuration on the sink. */
-	sink[0] = (dp->rate[rate].dpcd < 0) ? ior->dp.bw : 0;
+	sink[0] = (outp->dp.rate[rate].dpcd < 0) ? ior->dp.bw : 0;
 	sink[1] = ior->dp.nr;
 	if (ior->dp.ef)
 		sink[1] |= DPCD_LC01_ENHANCED_FRAME_EN;
 
-	ret = nvkm_wraux(dp->aux, DPCD_LC00_LINK_BW_SET, sink, 2);
+	ret = nvkm_wraux(outp->dp.aux, DPCD_LC00_LINK_BW_SET, sink, 2);
 	if (ret)
 		return ret;
 
-	if (dp->rate[rate].dpcd >= 0) {
-		ret = nvkm_rdaux(dp->aux, DPCD_LC15_LINK_RATE_SET, &sink[0], sizeof(sink[0]));
+	if (outp->dp.rate[rate].dpcd >= 0) {
+		ret = nvkm_rdaux(outp->dp.aux, DPCD_LC15_LINK_RATE_SET, &sink[0], sizeof(sink[0]));
 		if (ret)
 			return ret;
 
 		sink[0] &= ~DPCD_LC15_LINK_RATE_SET_MASK;
-		sink[0] |= dp->rate[rate].dpcd;
+		sink[0] |= outp->dp.rate[rate].dpcd;
 
-		ret = nvkm_wraux(dp->aux, DPCD_LC15_LINK_RATE_SET, &sink[0], sizeof(sink[0]));
+		ret = nvkm_wraux(outp->dp.aux, DPCD_LC15_LINK_RATE_SET, &sink[0], sizeof(sink[0]));
 		if (ret)
 			return ret;
 	}
@@ -384,9 +379,9 @@ nvkm_dp_train_links(struct nvkm_dp *dp, int rate)
 	/* Attempt to train the link in this configuration. */
 	for (lt.repeater = lt.repeaters; lt.repeater >= 0; lt.repeater--) {
 		if (lt.repeater)
-			OUTP_DBG(&dp->outp, "training LTTPR%d", lt.repeater);
+			OUTP_DBG(outp, "training LTTPR%d", lt.repeater);
 		else
-			OUTP_DBG(&dp->outp, "training sink");
+			OUTP_DBG(outp, "training sink");
 
 		memset(lt.stat, 0x00, sizeof(lt.stat));
 		ret = nvkm_dp_train_cr(&lt);
@@ -399,94 +394,92 @@ nvkm_dp_train_links(struct nvkm_dp *dp, int rate)
 }
 
 static void
-nvkm_dp_train_fini(struct nvkm_dp *dp)
+nvkm_dp_train_fini(struct nvkm_outp *outp)
 {
 	/* Execute AfterLinkTraining script from DP Info table. */
-	nvbios_init(&dp->outp.disp->engine.subdev, dp->info.script[1],
-		init.outp = &dp->outp.info;
-		init.or   = dp->outp.ior->id;
-		init.link = dp->outp.ior->asy.link;
+	nvbios_init(&outp->disp->engine.subdev, outp->dp.info.script[1],
+		init.outp = &outp->info;
+		init.or   = outp->ior->id;
+		init.link = outp->ior->asy.link;
 	);
 }
 
 static void
-nvkm_dp_train_init(struct nvkm_dp *dp)
+nvkm_dp_train_init(struct nvkm_outp *outp)
 {
 	/* Execute EnableSpread/DisableSpread script from DP Info table. */
-	if (dp->dpcd[DPCD_RC03] & DPCD_RC03_MAX_DOWNSPREAD) {
-		nvbios_init(&dp->outp.disp->engine.subdev, dp->info.script[2],
-			init.outp = &dp->outp.info;
-			init.or   = dp->outp.ior->id;
-			init.link = dp->outp.ior->asy.link;
+	if (outp->dp.dpcd[DPCD_RC03] & DPCD_RC03_MAX_DOWNSPREAD) {
+		nvbios_init(&outp->disp->engine.subdev, outp->dp.info.script[2],
+			init.outp = &outp->info;
+			init.or   = outp->ior->id;
+			init.link = outp->ior->asy.link;
 		);
 	} else {
-		nvbios_init(&dp->outp.disp->engine.subdev, dp->info.script[3],
-			init.outp = &dp->outp.info;
-			init.or   = dp->outp.ior->id;
-			init.link = dp->outp.ior->asy.link;
+		nvbios_init(&outp->disp->engine.subdev, outp->dp.info.script[3],
+			init.outp = &outp->info;
+			init.or   = outp->ior->id;
+			init.link = outp->ior->asy.link;
 		);
 	}
 
-	if (!AMPERE_IED_HACK(dp->outp.disp)) {
+	if (!AMPERE_IED_HACK(outp->disp)) {
 		/* Execute BeforeLinkTraining script from DP Info table. */
-		nvbios_init(&dp->outp.disp->engine.subdev, dp->info.script[0],
-			init.outp = &dp->outp.info;
-			init.or   = dp->outp.ior->id;
-			init.link = dp->outp.ior->asy.link;
+		nvbios_init(&outp->disp->engine.subdev, outp->dp.info.script[0],
+			init.outp = &outp->info;
+			init.or   = outp->ior->id;
+			init.link = outp->ior->asy.link;
 		);
 	}
 }
 
 static int
-nvkm_dp_train(struct nvkm_dp *dp, u32 dataKBps)
+nvkm_dp_train(struct nvkm_outp *outp, u32 dataKBps)
 {
-	struct nvkm_ior *ior = dp->outp.ior;
+	struct nvkm_ior *ior = outp->ior;
 	int ret = -EINVAL, nr, rate;
 	u8  pwr;
 
 	/* Ensure sink is not in a low-power state. */
-	if (!nvkm_rdaux(dp->aux, DPCD_SC00, &pwr, 1)) {
+	if (!nvkm_rdaux(outp->dp.aux, DPCD_SC00, &pwr, 1)) {
 		if ((pwr & DPCD_SC00_SET_POWER) != DPCD_SC00_SET_POWER_D0) {
 			pwr &= ~DPCD_SC00_SET_POWER;
 			pwr |=  DPCD_SC00_SET_POWER_D0;
-			nvkm_wraux(dp->aux, DPCD_SC00, &pwr, 1);
+			nvkm_wraux(outp->dp.aux, DPCD_SC00, &pwr, 1);
 		}
 	}
 
-	ior->dp.mst = dp->lt.mst;
-	ior->dp.ef = dp->dpcd[DPCD_RC02] & DPCD_RC02_ENHANCED_FRAME_CAP;
+	ior->dp.mst = outp->dp.lt.mst;
+	ior->dp.ef = outp->dp.dpcd[DPCD_RC02] & DPCD_RC02_ENHANCED_FRAME_CAP;
 	ior->dp.nr = 0;
 
 	/* Link training. */
-	OUTP_DBG(&dp->outp, "training");
-	nvkm_dp_train_init(dp);
-	for (nr = dp->links; ret < 0 && nr; nr >>= 1) {
-		for (rate = 0; ret < 0 && rate < dp->rates; rate++) {
-			if (dp->rate[rate].rate * nr >= dataKBps || WARN_ON(!ior->dp.nr)) {
+	OUTP_DBG(outp, "training");
+	nvkm_dp_train_init(outp);
+	for (nr = outp->dp.links; ret < 0 && nr; nr >>= 1) {
+		for (rate = 0; ret < 0 && rate < outp->dp.rates; rate++) {
+			if (outp->dp.rate[rate].rate * nr >= dataKBps || WARN_ON(!ior->dp.nr)) {
 				/* Program selected link configuration. */
-				ior->dp.bw = dp->rate[rate].rate / 27000;
+				ior->dp.bw = outp->dp.rate[rate].rate / 27000;
 				ior->dp.nr = nr;
-				ret = nvkm_dp_train_links(dp, rate);
+				ret = nvkm_dp_train_links(outp, rate);
 			}
 		}
 	}
-	nvkm_dp_train_fini(dp);
+	nvkm_dp_train_fini(outp);
 	if (ret < 0)
-		OUTP_ERR(&dp->outp, "training failed");
+		OUTP_ERR(outp, "training failed");
 	else
-		OUTP_DBG(&dp->outp, "training done");
-	atomic_set(&dp->lt.done, 1);
+		OUTP_DBG(outp, "training done");
+	atomic_set(&outp->dp.lt.done, 1);
 	return ret;
 }
 
 void
 nvkm_dp_disable(struct nvkm_outp *outp, struct nvkm_ior *ior)
 {
-	struct nvkm_dp *dp = nvkm_dp(outp);
-
 	/* Execute DisableLT script from DP Info Table. */
-	nvbios_init(&ior->disp->engine.subdev, dp->info.script[4],
-		init.outp = &dp->outp.info;
+	nvbios_init(&ior->disp->engine.subdev, outp->dp.info.script[4],
+		init.outp = &outp->info;
 		init.or   = ior->id;
 		init.link = ior->arm.link;
 	);
@@ -495,18 +488,15 @@ nvkm_dp_disable(struct nvkm_outp *outp, struct nvkm_ior *ior)
 static void
 nvkm_dp_release(struct nvkm_outp *outp)
 {
-	struct nvkm_dp *dp = nvkm_dp(outp);
-
 	/* Prevent link from being retrained if sink sends an IRQ. */
-	atomic_set(&dp->lt.done, 0);
-	dp->outp.ior->dp.nr = 0;
+	atomic_set(&outp->dp.lt.done, 0);
+	outp->ior->dp.nr = 0;
 }
 
 static int
 nvkm_dp_acquire(struct nvkm_outp *outp)
 {
-	struct nvkm_dp *dp = nvkm_dp(outp);
-	struct nvkm_ior *ior = dp->outp.ior;
+	struct nvkm_ior *ior = outp->ior;
 	struct nvkm_head *head;
 	bool retrain = true;
 	u32 datakbps = 0;
@@ -515,10 +505,10 @@ nvkm_dp_acquire(struct nvkm_outp *outp)
 	u8  stat[3];
 	int ret, i;
 
-	mutex_lock(&dp->mutex);
+	mutex_lock(&outp->dp.mutex);
 
 	/* Check that link configuration meets current requirements. */
-	list_for_each_entry(head, &outp->disp->head, head) {
+	list_for_each_entry(head, &outp->disp->heads, head) {
 		if (ior->asy.head & (1 << head->id)) {
 			u32 khz = (head->asy.hz >> ior->asy.rgdiv) / 1000;
 			datakbps += khz * head->asy.or.depth;
@@ -527,18 +517,17 @@ nvkm_dp_acquire(struct nvkm_outp *outp)
 
 	linkKBps = ior->dp.bw * 27000 * ior->dp.nr;
 	dataKBps = DIV_ROUND_UP(datakbps, 8);
-	OUTP_DBG(&dp->outp, "data %d KB/s link %d KB/s mst %d->%d",
-		 dataKBps, linkKBps, ior->dp.mst, dp->lt.mst);
-	if (linkKBps < dataKBps || ior->dp.mst != dp->lt.mst) {
-		OUTP_DBG(&dp->outp, "link requirements changed");
+	OUTP_DBG(outp, "data %d KB/s link %d KB/s mst %d->%d",
+		 dataKBps, linkKBps, ior->dp.mst, outp->dp.lt.mst);
+	if (linkKBps < dataKBps || ior->dp.mst != outp->dp.lt.mst) {
+		OUTP_DBG(outp, "link requirements changed");
 		goto done;
 	}
 
 	/* Check that link is still trained. */
-	ret = nvkm_rdaux(dp->aux, DPCD_LS02, stat, 3);
+	ret = nvkm_rdaux(outp->dp.aux, DPCD_LS02, stat, 3);
 	if (ret) {
-		OUTP_DBG(&dp->outp,
-			 "failed to read link status, assuming no sink");
+		OUTP_DBG(outp, "failed to read link status, assuming no sink");
 		goto done;
 	}
 
@@ -548,125 +537,126 @@ nvkm_dp_acquire(struct nvkm_outp *outp)
 			if (!(lane & DPCD_LS02_LANE0_CR_DONE) ||
 			    !(lane & DPCD_LS02_LANE0_CHANNEL_EQ_DONE) ||
 			    !(lane & DPCD_LS02_LANE0_SYMBOL_LOCKED)) {
-				OUTP_DBG(&dp->outp,
-					 "lane %d not equalised", lane);
+				OUTP_DBG(outp, "lane %d not equalised", lane);
 				goto done;
 			}
 		}
 		retrain = false;
 	} else {
-		OUTP_DBG(&dp->outp, "no inter-lane alignment");
+		OUTP_DBG(outp, "no inter-lane alignment");
 	}
 
 done:
-	if (retrain || !atomic_read(&dp->lt.done))
-		ret = nvkm_dp_train(dp, dataKBps);
-	mutex_unlock(&dp->mutex);
+	if (retrain || !atomic_read(&outp->dp.lt.done))
+		ret = nvkm_dp_train(outp, dataKBps);
+	mutex_unlock(&outp->dp.mutex);
 	return ret;
 }
 
 static bool
-nvkm_dp_enable_supported_link_rates(struct nvkm_dp *dp)
+nvkm_dp_enable_supported_link_rates(struct nvkm_outp *outp)
 {
 	u8 sink_rates[DPCD_RC10_SUPPORTED_LINK_RATES__SIZE];
 	int i, j, k;
 
-	if (dp->outp.conn->info.type != DCB_CONNECTOR_eDP ||
-	    dp->dpcd[DPCD_RC00_DPCD_REV] < 0x13 ||
-	    nvkm_rdaux(dp->aux, DPCD_RC10_SUPPORTED_LINK_RATES(0), sink_rates, sizeof(sink_rates)))
+	if (outp->conn->info.type != DCB_CONNECTOR_eDP ||
+	    outp->dp.dpcd[DPCD_RC00_DPCD_REV] < 0x13 ||
+	    nvkm_rdaux(outp->dp.aux, DPCD_RC10_SUPPORTED_LINK_RATES(0),
+		       sink_rates, sizeof(sink_rates)))
 		return false;
 
 	for (i = 0; i < ARRAY_SIZE(sink_rates); i += 2) {
 		const u32 rate = ((sink_rates[i + 1] << 8) | sink_rates[i]) * 200 / 10;
 
-		if (!rate || WARN_ON(dp->rates == ARRAY_SIZE(dp->rate)))
+		if (!rate || WARN_ON(outp->dp.rates == ARRAY_SIZE(outp->dp.rate)))
 			break;
 
-		if (rate > dp->outp.info.dpconf.link_bw * 27000) {
-			OUTP_DBG(&dp->outp, "rate %d !outp", rate);
+		if (rate > outp->info.dpconf.link_bw * 27000) {
+			OUTP_DBG(outp, "rate %d !outp", rate);
 			continue;
 		}
 
-		for (j = 0; j < dp->rates; j++) {
-			if (rate > dp->rate[j].rate) {
-				for (k = dp->rates; k > j; k--)
-					dp->rate[k] = dp->rate[k - 1];
+		for (j = 0; j < outp->dp.rates; j++) {
+			if (rate > outp->dp.rate[j].rate) {
+				for (k = outp->dp.rates; k > j; k--)
+					outp->dp.rate[k] = outp->dp.rate[k - 1];
 				break;
 			}
 		}
 
-		dp->rate[j].dpcd = i / 2;
-		dp->rate[j].rate = rate;
-		dp->rates++;
+		outp->dp.rate[j].dpcd = i / 2;
+		outp->dp.rate[j].rate = rate;
+		outp->dp.rates++;
 	}
 
-	for (i = 0; i < dp->rates; i++)
-		OUTP_DBG(&dp->outp, "link_rate[%d] = %d", dp->rate[i].dpcd, dp->rate[i].rate);
+	for (i = 0; i < outp->dp.rates; i++)
+		OUTP_DBG(outp, "link_rate[%d] = %d", outp->dp.rate[i].dpcd, outp->dp.rate[i].rate);
 
-	return dp->rates != 0;
+	return outp->dp.rates != 0;
 }
 
 static bool
-nvkm_dp_enable(struct nvkm_dp *dp, bool enable)
+nvkm_dp_enable(struct nvkm_outp *outp, bool enable)
 {
-	struct nvkm_i2c_aux *aux = dp->aux;
+	struct nvkm_i2c_aux *aux = outp->dp.aux;
 
 	if (enable) {
-		if (!dp->present) {
-			OUTP_DBG(&dp->outp, "aux power -> always");
+		if (!outp->dp.present) {
+			OUTP_DBG(outp, "aux power -> always");
 			nvkm_i2c_aux_monitor(aux, true);
-			dp->present = true;
+			outp->dp.present = true;
 		}
 
 		/* Detect any LTTPRs before reading DPCD receiver caps. */
-		if (!nvkm_rdaux(aux, DPCD_LTTPR_REV, dp->lttpr, sizeof(dp->lttpr)) &&
-		    dp->lttpr[0] >= 0x14 && dp->lttpr[2]) {
-			switch (dp->lttpr[2]) {
-			case 0x80: dp->lttprs = 1; break;
-			case 0x40: dp->lttprs = 2; break;
-			case 0x20: dp->lttprs = 3; break;
-			case 0x10: dp->lttprs = 4; break;
-			case 0x08: dp->lttprs = 5; break;
-			case 0x04: dp->lttprs = 6; break;
-			case 0x02: dp->lttprs = 7; break;
-			case 0x01: dp->lttprs = 8; break;
+		if (!nvkm_rdaux(aux, DPCD_LTTPR_REV, outp->dp.lttpr, sizeof(outp->dp.lttpr)) &&
+		    outp->dp.lttpr[0] >= 0x14 && outp->dp.lttpr[2]) {
+			switch (outp->dp.lttpr[2]) {
+			case 0x80: outp->dp.lttprs = 1; break;
+			case 0x40: outp->dp.lttprs = 2; break;
+			case 0x20: outp->dp.lttprs = 3; break;
+			case 0x10: outp->dp.lttprs = 4; break;
+			case 0x08: outp->dp.lttprs = 5; break;
+			case 0x04: outp->dp.lttprs = 6; break;
+			case 0x02: outp->dp.lttprs = 7; break;
+			case 0x01: outp->dp.lttprs = 8; break;
 			default:
 				/* Unknown LTTPR count, we'll switch to transparent mode. */
 				WARN_ON(1);
-				dp->lttprs = 0;
+				outp->dp.lttprs = 0;
 				break;
 			}
 		} else {
 			/* No LTTPR support, or zero LTTPR count - don't touch it at all. */
-			memset(dp->lttpr, 0x00, sizeof(dp->lttpr));
+			memset(outp->dp.lttpr, 0x00, sizeof(outp->dp.lttpr));
 		}
 
-		if (!nvkm_rdaux(aux, DPCD_RC00_DPCD_REV, dp->dpcd, sizeof(dp->dpcd))) {
+		if (!nvkm_rdaux(aux, DPCD_RC00_DPCD_REV, outp->dp.dpcd, sizeof(outp->dp.dpcd))) {
 			const u8 rates[] = { 0x1e, 0x14, 0x0a, 0x06, 0 };
 			const u8 *rate;
 			int rate_max;
 
-			dp->rates = 0;
-			dp->links = dp->dpcd[DPCD_RC02] & DPCD_RC02_MAX_LANE_COUNT;
-			dp->links = min(dp->links, dp->outp.info.dpconf.link_nr);
-			if (dp->lttprs && dp->lttpr[4])
-				dp->links = min_t(int, dp->links, dp->lttpr[4]);
+			outp->dp.rates = 0;
+			outp->dp.links = outp->dp.dpcd[DPCD_RC02] & DPCD_RC02_MAX_LANE_COUNT;
+			outp->dp.links = min(outp->dp.links, outp->info.dpconf.link_nr);
+			if (outp->dp.lttprs && outp->dp.lttpr[4])
+				outp->dp.links = min_t(int, outp->dp.links, outp->dp.lttpr[4]);
 
-			rate_max = dp->dpcd[DPCD_RC01_MAX_LINK_RATE];
-			rate_max = min(rate_max, dp->outp.info.dpconf.link_bw);
-			if (dp->lttprs && dp->lttpr[1])
-				rate_max = min_t(int, rate_max, dp->lttpr[1]);
+			rate_max = outp->dp.dpcd[DPCD_RC01_MAX_LINK_RATE];
+			rate_max = min(rate_max, outp->info.dpconf.link_bw);
+			if (outp->dp.lttprs && outp->dp.lttpr[1])
+				rate_max = min_t(int, rate_max, outp->dp.lttpr[1]);
 
-			if (!nvkm_dp_enable_supported_link_rates(dp)) {
+			if (!nvkm_dp_enable_supported_link_rates(outp)) {
 				for (rate = rates; *rate; rate++) {
-					if (*rate <= rate_max) {
-						if (WARN_ON(dp->rates == ARRAY_SIZE(dp->rate)))
-							break;
+					if (*rate > rate_max)
+						continue;
 
-						dp->rate[dp->rates].dpcd = -1;
-						dp->rate[dp->rates].rate = *rate * 27000;
-						dp->rates++;
-					}
+					if (WARN_ON(outp->dp.rates == ARRAY_SIZE(outp->dp.rate)))
+						break;
+
+					outp->dp.rate[outp->dp.rates].dpcd = -1;
+					outp->dp.rate[outp->dp.rates].rate = *rate * 27000;
+					outp->dp.rates++;
 				}
 			}
 
@@ -674,13 +664,13 @@ nvkm_dp_enable(struct nvkm_dp *dp, bool enable)
 		}
 	}
 
-	if (dp->present) {
-		OUTP_DBG(&dp->outp, "aux power -> demand");
+	if (outp->dp.present) {
+		OUTP_DBG(outp, "aux power -> demand");
 		nvkm_i2c_aux_monitor(aux, false);
-		dp->present = false;
+		outp->dp.present = false;
 	}
 
-	atomic_set(&dp->lt.done, 0);
+	atomic_set(&outp->dp.lt.done, 0);
 	return false;
 }
 
@@ -688,18 +678,18 @@ static int
 nvkm_dp_hpd(struct nvkm_notify *notify)
 {
 	const struct nvkm_i2c_ntfy_rep *line = notify->data;
-	struct nvkm_dp *dp = container_of(notify, typeof(*dp), hpd);
-	struct nvkm_conn *conn = dp->outp.conn;
-	struct nvkm_disp *disp = dp->outp.disp;
+	struct nvkm_outp *outp = container_of(notify, typeof(*outp), dp.hpd);
+	struct nvkm_conn *conn = outp->conn;
+	struct nvkm_disp *disp = outp->disp;
 	struct nvif_notify_conn_rep_v0 rep = {};
 
-	OUTP_DBG(&dp->outp, "HPD: %d", line->mask);
+	OUTP_DBG(outp, "HPD: %d", line->mask);
 	if (line->mask & NVKM_I2C_IRQ) {
-		if (atomic_read(&dp->lt.done))
-			dp->outp.func->acquire(&dp->outp);
+		if (atomic_read(&outp->dp.lt.done))
+			outp->func->acquire(outp);
 		rep.mask |= NVIF_NOTIFY_CONN_V0_IRQ;
 	} else {
-		nvkm_dp_enable(dp, true);
+		nvkm_dp_enable(outp, true);
 	}
 
 	if (line->mask & NVKM_I2C_UNPLUG)
@@ -714,24 +704,22 @@ nvkm_dp_hpd(struct nvkm_notify *notify)
 static void
 nvkm_dp_fini(struct nvkm_outp *outp)
 {
-	struct nvkm_dp *dp = nvkm_dp(outp);
-	nvkm_notify_put(&dp->hpd);
-	nvkm_dp_enable(dp, false);
+	nvkm_notify_put(&outp->dp.hpd);
+	nvkm_dp_enable(outp, false);
 }
 
 static void
 nvkm_dp_init(struct nvkm_outp *outp)
 {
 	struct nvkm_gpio *gpio = outp->disp->engine.subdev.device->gpio;
-	struct nvkm_dp *dp = nvkm_dp(outp);
 
-	nvkm_notify_put(&dp->outp.conn->hpd);
+	nvkm_notify_put(&outp->conn->hpd);
 
 	/* eDP panels need powering on by us (if the VBIOS doesn't default it
 	 * to on) before doing any AUX channel transactions.  LVDS panel power
 	 * is handled by the SOR itself, and not required for LVDS DDC.
 	 */
-	if (dp->outp.conn->info.type == DCB_CONNECTOR_eDP) {
+	if (outp->conn->info.type == DCB_CONNECTOR_eDP) {
 		int power = nvkm_gpio_get(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff);
 		if (power == 0)
 			nvkm_gpio_set(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff, 1);
@@ -748,21 +736,20 @@ nvkm_dp_init(struct nvkm_outp *outp)
 		/* If the eDP panel can't be detected, we need to restore
 		 * the panel power GPIO to avoid breaking another output.
 		 */
-		if (!nvkm_dp_enable(dp, true) && power == 0)
+		if (!nvkm_dp_enable(outp, true) && power == 0)
 			nvkm_gpio_set(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff, 0);
 	} else {
-		nvkm_dp_enable(dp, true);
+		nvkm_dp_enable(outp, true);
 	}
 
-	nvkm_notify_get(&dp->hpd);
+	nvkm_notify_get(&outp->dp.hpd);
 }
 
 static void *
 nvkm_dp_dtor(struct nvkm_outp *outp)
 {
-	struct nvkm_dp *dp = nvkm_dp(outp);
-	nvkm_notify_fini(&dp->hpd);
-	return dp;
+	nvkm_notify_fini(&outp->dp.hpd);
+	return outp;
 }
 
 static const struct nvkm_outp_func
@@ -775,75 +762,57 @@ nvkm_dp_func = {
 	.disable = nvkm_dp_disable,
 };
 
-static int
-nvkm_dp_ctor(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
-	     struct nvkm_i2c_aux *aux, struct nvkm_dp *dp)
+int
+nvkm_dp_new(struct nvkm_disp *disp, int index, struct dcb_output *dcbE, struct nvkm_outp **poutp)
 {
 	struct nvkm_device *device = disp->engine.subdev.device;
 	struct nvkm_bios *bios = device->bios;
 	struct nvkm_i2c *i2c = device->i2c;
+	struct nvkm_outp *outp;
 	u8  hdr, cnt, len;
 	u32 data;
 	int ret;
 
-	ret = nvkm_outp_ctor(&nvkm_dp_func, disp, index, dcbE, &dp->outp);
+	ret = nvkm_outp_new_(&nvkm_dp_func, disp, index, dcbE, poutp);
+	outp = *poutp;
 	if (ret)
 		return ret;
 
-	dp->aux = aux;
-	if (!dp->aux) {
-		OUTP_ERR(&dp->outp, "no aux");
+	if (dcbE->location == 0)
+		outp->dp.aux = nvkm_i2c_aux_find(i2c, NVKM_I2C_AUX_CCB(dcbE->i2c_index));
+	else
+		outp->dp.aux = nvkm_i2c_aux_find(i2c, NVKM_I2C_AUX_EXT(dcbE->extdev));
+	if (!outp->dp.aux) {
+		OUTP_ERR(outp, "no aux");
 		return -EINVAL;
 	}
 
 	/* bios data is not optional */
-	data = nvbios_dpout_match(bios, dp->outp.info.hasht,
-				  dp->outp.info.hashm, &dp->version,
-				  &hdr, &cnt, &len, &dp->info);
+	data = nvbios_dpout_match(bios, outp->info.hasht, outp->info.hashm,
+				  &outp->dp.version, &hdr, &cnt, &len, &outp->dp.info);
 	if (!data) {
-		OUTP_ERR(&dp->outp, "no bios dp data");
+		OUTP_ERR(outp, "no bios dp data");
 		return -EINVAL;
 	}
 
-	OUTP_DBG(&dp->outp, "bios dp %02x %02x %02x %02x",
-		 dp->version, hdr, cnt, len);
+	OUTP_DBG(outp, "bios dp %02x %02x %02x %02x", outp->dp.version, hdr, cnt, len);
 
 	/* hotplug detect, replaces gpio-based mechanism with aux events */
 	ret = nvkm_notify_init(NULL, &i2c->event, nvkm_dp_hpd, true,
 			       &(struct nvkm_i2c_ntfy_req) {
 				.mask = NVKM_I2C_PLUG | NVKM_I2C_UNPLUG |
 					NVKM_I2C_IRQ,
-				.port = dp->aux->id,
+				.port = outp->dp.aux->id,
 			       },
 			       sizeof(struct nvkm_i2c_ntfy_req),
 			       sizeof(struct nvkm_i2c_ntfy_rep),
-			       &dp->hpd);
+			       &outp->dp.hpd);
 	if (ret) {
-		OUTP_ERR(&dp->outp, "error monitoring aux hpd: %d", ret);
+		OUTP_ERR(outp, "error monitoring aux hpd: %d", ret);
 		return ret;
 	}
 
-	mutex_init(&dp->mutex);
-	atomic_set(&dp->lt.done, 0);
+	mutex_init(&outp->dp.mutex);
+	atomic_set(&outp->dp.lt.done, 0);
 	return 0;
-}
-
-int
-nvkm_dp_new(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
-	    struct nvkm_outp **poutp)
-{
-	struct nvkm_i2c *i2c = disp->engine.subdev.device->i2c;
-	struct nvkm_i2c_aux *aux;
-	struct nvkm_dp *dp;
-
-	if (dcbE->location == 0)
-		aux = nvkm_i2c_aux_find(i2c, NVKM_I2C_AUX_CCB(dcbE->i2c_index));
-	else
-		aux = nvkm_i2c_aux_find(i2c, NVKM_I2C_AUX_EXT(dcbE->extdev));
-
-	if (!(dp = kzalloc(sizeof(*dp), GFP_KERNEL)))
-		return -ENOMEM;
-	*poutp = &dp->outp;
-
-	return nvkm_dp_ctor(disp, index, dcbE, aux, dp);
 }

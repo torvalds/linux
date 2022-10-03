@@ -67,30 +67,24 @@ bool rtw_endofpktfile(struct pkt_file *pfile)
 
 int rtw_os_xmit_resource_alloc(struct adapter *padapter, struct xmit_buf *pxmitbuf, u32 alloc_sz)
 {
-	int i;
-
 	pxmitbuf->pallocated_buf = kzalloc(alloc_sz, GFP_KERNEL);
 	if (!pxmitbuf->pallocated_buf)
 		return _FAIL;
 
-	pxmitbuf->pbuf = (u8 *)N_BYTE_ALIGMENT((size_t)(pxmitbuf->pallocated_buf), XMITBUF_ALIGN_SZ);
+	pxmitbuf->pbuf = (u8 *)ALIGN((size_t)(pxmitbuf->pallocated_buf), XMITBUF_ALIGN_SZ);
 	pxmitbuf->dma_transfer_addr = 0;
 
-	for (i = 0; i < 8; i++) {
-		pxmitbuf->pxmit_urb[i] = usb_alloc_urb(0, GFP_KERNEL);
-		if (!pxmitbuf->pxmit_urb[i])
-			return _FAIL;
-	}
+	pxmitbuf->pxmit_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!pxmitbuf->pxmit_urb)
+		return _FAIL;
+
 	return _SUCCESS;
 }
 
 void rtw_os_xmit_resource_free(struct adapter *padapter,
 			       struct xmit_buf *pxmitbuf, u32 free_sz)
 {
-	int i;
-
-	for (i = 0; i < 8; i++)
-		usb_free_urb(pxmitbuf->pxmit_urb[i]);
+	usb_free_urb(pxmitbuf->pxmit_urb);
 
 	kfree(pxmitbuf->pallocated_buf);
 }

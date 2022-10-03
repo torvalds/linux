@@ -9,9 +9,13 @@
  * the boot loader.
  *
  * The Samsung tree further talks about GT-I8160P and GT-I8160chn (China).
- * The GT-I8160 plain is knonw as the "europe" variant.
- * The GT-I8160P appears to not use the ST Microelectronics accelerometer.
+ * The GT-I8160 plain is known as the "europe" variant.
+ * The GT-I8160P is the CDMA version and it appears to not use the ST
+ * Microelectronics accelerometer and reportedly has NFC mounted.
  * The GT-I8160chn appears to be the same as the europe variant.
+ *
+ * There is also the Codina-TMO, Samsung SGH-T599, which has its own device
+ * tree.
  */
 
 /dts-v1/;
@@ -303,7 +307,22 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		/* TODO: add the NFC chip here */
+		nfc@2b {
+			/* NXP NFC circuit PN544 C1 marked NXP 44501  */
+			compatible = "nxp,pn544-i2c";
+			/* IF0, IF1 high, gives I2C address 0x2B */
+			reg = <0x2b>;
+			clock-frequency = <400000>;
+			/* NFC IRQ on GPIO32 */
+			interrupt-parent = <&gpio1>;
+			interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
+			/* GPIO 31 */
+			firmware-gpios = <&gpio0 31 GPIO_ACTIVE_HIGH>;
+			/* GPIO88 */
+			enable-gpios = <&gpio2 24 GPIO_ACTIVE_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pn544_codina_default>;
+		};
 	};
 
 	spi-gpio-0 {
@@ -461,10 +480,20 @@
 		uart@80121000 {
 			status = "okay";
 			pinctrl-names = "default", "sleep";
-			/* CTS/RTS is not used, CTS is repurposed as GPIO */
-			pinctrl-0 = <&u1rxtx_a_1_default>;
-			pinctrl-1 = <&u1rxtx_a_1_sleep>;
-			/* FIXME: add a device for the GPS here */
+			pinctrl-0 = <&u1rxtx_a_1_default &u1ctsrts_a_1_default>;
+			pinctrl-1 = <&u1rxtx_a_1_sleep &u1ctsrts_a_1_sleep>;
+
+			gnss {
+				compatible = "brcm,bcm4751";
+				/* GPS_RSTN on GPIO21 */
+				reset-gpios = <&gpio0 21 GPIO_ACTIVE_LOW>;
+				/* GPS_ON_OFF on GPIO86 */
+				enable-gpios = <&gpio2 22 GPIO_ACTIVE_HIGH>;
+				/* GPS_1V8 (VSMPS2) */
+				vddio-supply = <&db8500_vsmps2_reg>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&bcm4751_codina_default>;
+			};
 		};
 
 		/* Debugging console UART connected to TSU6111RSVR (FSA880) */
@@ -481,6 +510,10 @@
 					pinctrl-names = "default", "sleep";
 					pinctrl-0 = <&usb_a_1_default>;
 					pinctrl-1 = <&usb_a_1_sleep>;
+				};
+
+				ab8500_fg {
+					line-impedance-micro-ohms = <36000>;
 				};
 
 				regulator {
@@ -515,10 +548,9 @@
 			pinctrl-0 = <&i2c0_a_1_default>;
 			pinctrl-1 = <&i2c0_a_1_sleep>;
 
-			/* TODO: write bindings and driver for this proximity sensor */
 			proximity@39 {
-				/* Codina has the Mouser TMD2672 */
-				compatible = "mouser,tmd2672";
+				/* Codina has the Amstaos TMD2672 */
+				compatible = "amstaos,tmd2672";
 				clock-frequency = <400000>;
 				reg = <0x39>;
 
@@ -566,8 +598,8 @@
 				reg = <0x19>;
 				vdd-supply = <&ab8500_ldo_aux1_reg>; // 3V
 				vddio-supply = <&ab8500_ldo_aux2_reg>; // 1.8V
-				mount-matrix = "0", "-1", "0",
-					       "1", "0", "0",
+				mount-matrix = "0", "1", "0",
+					       "-1", "0", "0",
 					       "0", "0", "1";
 			};
 		};
@@ -844,6 +876,34 @@
 				/* GPIO95 used for IRQ */
 				pins = "GPIO95_E8";
 				ste,config = <&gpio_in_nopull>;
+			};
+		};
+	};
+	nfc {
+		pn544_codina_default: pn544_codina {
+			/* Interrupt line */
+			codina_cfg1 {
+				pins = "GPIO32_V2";
+				ste,config = <&gpio_in_nopull>;
+			};
+			/* Enable and firmware GPIOs */
+			codina_cfg2 {
+				pins = "GPIO31_V3", "GPIO88_C4";
+				ste,config = <&gpio_out_lo>;
+			};
+		};
+	};
+	bcm4751 {
+		bcm4751_codina_default: bcm4751_codina {
+			/* Reset line, start out asserted */
+			codina_cfg1 {
+				pins = "GPIO21_AB3";
+				ste,config = <&gpio_out_lo>;
+			};
+			/* GPS_ON_OFF, start out deasserted (off) */
+			codina_cfg2 {
+				pins = "GPIO86_C6";
+				ste,config = <&gpio_out_lo>;
 			};
 		};
 	};

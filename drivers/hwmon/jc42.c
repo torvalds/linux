@@ -63,6 +63,7 @@ static const unsigned short normal_i2c[] = {
 #define STM_MANID		0x104a  /* ST Microelectronics */
 #define GT_MANID		0x1c68	/* Giantec */
 #define GT_MANID2		0x132d	/* Giantec, 2nd mfg ID */
+#define SI_MANID		0x1c85	/* Seiko Instruments */
 
 /* SMBUS register */
 #define SMBUS_STMOUT		BIT(7)  /* SMBus time-out, active low */
@@ -156,6 +157,10 @@ static const unsigned short normal_i2c[] = {
 #define STTS3000_DEVID		0x0200
 #define STTS3000_DEVID_MASK	0xffff
 
+/* Seiko Instruments */
+#define S34TS04A_DEVID		0x2221
+#define S34TS04A_DEVID_MASK	0xffff
+
 static u16 jc42_hysteresis[] = { 0, 1500, 3000, 6000 };
 
 struct jc42_chips {
@@ -186,6 +191,7 @@ static struct jc42_chips jc42_chips[] = {
 	{ ONS_MANID, CAT34TS04_DEVID, CAT34TS04_DEVID_MASK },
 	{ ONS_MANID, N34TS04_DEVID, N34TS04_DEVID_MASK },
 	{ NXP_MANID, SE98_DEVID, SE98_DEVID_MASK },
+	{ SI_MANID,  S34TS04A_DEVID, S34TS04A_DEVID_MASK },
 	{ STM_MANID, STTS424_DEVID, STTS424_DEVID_MASK },
 	{ STM_MANID, STTS424E_DEVID, STTS424E_DEVID_MASK },
 	{ STM_MANID, STTS2002_DEVID, STTS2002_DEVID_MASK },
@@ -443,6 +449,8 @@ static int jc42_detect(struct i2c_client *client, struct i2c_board_info *info)
 }
 
 static const struct hwmon_channel_info *jc42_info[] = {
+	HWMON_CHANNEL_INFO(chip,
+			   HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL),
 	HWMON_CHANNEL_INFO(temp,
 			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX |
 			   HWMON_T_CRIT | HWMON_T_MAX_HYST |

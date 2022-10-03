@@ -125,8 +125,8 @@ We need many test cases covering all the unit's behaviors. It is common to have
 many similar tests. In order to reduce duplication in these closely related
 tests, most unit testing frameworks (including KUnit) provide the concept of a
 *test suite*. A test suite is a collection of test cases for a unit of code
-with a setup function that gets invoked before every test case and then a tear
-down function that gets invoked after every test case completes. For example:
+with optional setup and teardown functions that run before/after the whole
+suite and/or every test case. For example:
 
 .. code-block:: c
 
@@ -141,16 +141,19 @@ down function that gets invoked after every test case completes. For example:
 		.name = "example",
 		.init = example_test_init,
 		.exit = example_test_exit,
+		.suite_init = example_suite_init,
+		.suite_exit = example_suite_exit,
 		.test_cases = example_test_cases,
 	};
 	kunit_test_suite(example_test_suite);
 
-In the above example, the test suite ``example_test_suite`` would run the test
-cases ``example_test_foo``, ``example_test_bar``, and ``example_test_baz``. Each
-would have ``example_test_init`` called immediately before it and
-``example_test_exit`` called immediately after it.
-``kunit_test_suite(example_test_suite)`` registers the test suite with the
-KUnit test framework.
+In the above example, the test suite ``example_test_suite`` would first run
+``example_suite_init``, then run the test cases ``example_test_foo``,
+``example_test_bar``, and ``example_test_baz``. Each would have
+``example_test_init`` called immediately before it and ``example_test_exit``
+called immediately after it. Finally, ``example_suite_exit`` would be called
+after everything else. ``kunit_test_suite(example_test_suite)`` registers the
+test suite with the KUnit test framework.
 
 .. note::
    A test case will only run if it is associated with a test suite.
@@ -502,7 +505,7 @@ By reusing the same ``cases`` array from above, we can write the test as a
 		const char *str;
 		const char *sha1;
 	};
-	struct sha1_test_case cases[] = {
+	const struct sha1_test_case cases[] = {
 		{
 			.str = "hello world",
 			.sha1 = "2aae6c35c94fcfb415dbe95f408b9ce91ee846ed",

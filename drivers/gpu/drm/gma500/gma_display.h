@@ -69,8 +69,6 @@ extern int gma_crtc_page_flip(struct drm_crtc *crtc,
 			      struct drm_pending_vblank_event *event,
 			      uint32_t page_flip_flags,
 			      struct drm_modeset_acquire_ctx *ctx);
-extern int gma_crtc_set_config(struct drm_mode_set *set,
-			       struct drm_modeset_acquire_ctx *ctx);
 
 extern void gma_crtc_save(struct drm_crtc *crtc);
 extern void gma_crtc_restore(struct drm_crtc *crtc);

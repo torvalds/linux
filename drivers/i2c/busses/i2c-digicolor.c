@@ -322,7 +322,7 @@ static int dc_i2c_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	strlcpy(i2c->adap.name, "Conexant Digicolor I2C adapter",
+	strscpy(i2c->adap.name, "Conexant Digicolor I2C adapter",
 		sizeof(i2c->adap.name));
 	i2c->adap.owner = THIS_MODULE;
 	i2c->adap.algo = &dc_i2c_algorithm;

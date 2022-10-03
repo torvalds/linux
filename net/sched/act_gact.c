@@ -253,7 +253,8 @@ static size_t tcf_gact_get_fill_size(const struct tc_action *act)
 }
 
 static int tcf_gact_offload_act_setup(struct tc_action *act, void *entry_data,
-				      u32 *index_inc, bool bind)
+				      u32 *index_inc, bool bind,
+				      struct netlink_ext_ack *extack)
 {
 	if (bind) {
 		struct flow_action_entry *entry = entry_data;
@@ -267,7 +268,17 @@ static int tcf_gact_offload_act_setup(struct tc_action *act, void *entry_data,
 		} else if (is_tcf_gact_goto_chain(act)) {
 			entry->id = FLOW_ACTION_GOTO;
 			entry->chain_index = tcf_gact_goto_chain_index(act);
+		} else if (is_tcf_gact_continue(act)) {
+			NL_SET_ERR_MSG_MOD(extack, "Offload of \"continue\" action is not supported");
+			return -EOPNOTSUPP;
+		} else if (is_tcf_gact_reclassify(act)) {
+			NL_SET_ERR_MSG_MOD(extack, "Offload of \"reclassify\" action is not supported");
+			return -EOPNOTSUPP;
+		} else if (is_tcf_gact_pipe(act)) {
+			NL_SET_ERR_MSG_MOD(extack, "Offload of \"pipe\" action is not supported");
+			return -EOPNOTSUPP;
 		} else {
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported generic action offload");
 			return -EOPNOTSUPP;
 		}
 		*index_inc = 1;

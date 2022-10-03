@@ -423,6 +423,7 @@ static const struct snd_soc_component_driver mchp_pdmc_dai_component = {
 	.num_controls = ARRAY_SIZE(mchp_pdmc_snd_controls),
 	.open = &mchp_pdmc_open,
 	.close = &mchp_pdmc_close,
+	.legacy_dai_naming = 1,
 };
 
 static const unsigned int mchp_pdmc_1mic[] = {1};
@@ -492,8 +493,8 @@ static int mchp_pdmc_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	unsigned int fmt_format = fmt & SND_SOC_DAIFMT_FORMAT_MASK;
 
 	/* IP needs to be bitclock master */
-	if (fmt_master != SND_SOC_DAIFMT_CBS_CFS &&
-	    fmt_master != SND_SOC_DAIFMT_CBS_CFM)
+	if (fmt_master != SND_SOC_DAIFMT_BP_FP &&
+	    fmt_master != SND_SOC_DAIFMT_BP_FC)
 		return -EINVAL;
 
 	/* IP supports only PDM interface */
@@ -966,6 +967,7 @@ static int mchp_pdmc_process(struct snd_pcm_substream *substream,
 
 static struct snd_dmaengine_pcm_config mchp_pdmc_config = {
 	.process = mchp_pdmc_process,
+	.prepare_slave_config = snd_dmaengine_pcm_prepare_slave_config,
 };
 
 static int mchp_pdmc_probe(struct platform_device *pdev)
@@ -983,7 +985,7 @@ static int mchp_pdmc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	dd->dev = &pdev->dev;
-	ret =  mchp_pdmc_dt_init(dd);
+	ret = mchp_pdmc_dt_init(dd);
 	if (ret < 0)
 		return ret;
 

@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/irq.h>
+#include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -35,14 +36,15 @@
 #include <linux/slab.h>
 #include <linux/wait.h>
 
+#include <drm/display/drm_dp_helper.h>
+#include <drm/display/drm_hdcp_helper.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/dp/drm_dp_helper.h>
-#include <drm/drm_hdcp.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
@@ -2603,7 +2605,8 @@ static int cdns_mhdp_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	cancel_work_sync(&mhdp->modeset_retry_work);
-	flush_scheduled_work();
+	flush_work(&mhdp->hpd_work);
+	/* Ignoring mhdp->hdcp.check_work and mhdp->hdcp.prop_work here. */
 
 	clk_disable_unprepare(mhdp->clk);
 

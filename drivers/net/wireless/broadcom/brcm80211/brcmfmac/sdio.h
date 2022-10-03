@@ -346,26 +346,10 @@ int brcmf_sdiod_abort(struct brcmf_sdio_dev *sdiodev, struct sdio_func *func);
 void brcmf_sdiod_sgtable_alloc(struct brcmf_sdio_dev *sdiodev);
 void brcmf_sdiod_change_state(struct brcmf_sdio_dev *sdiodev,
 			      enum brcmf_sdiod_state state);
-#ifdef CONFIG_PM_SLEEP
 bool brcmf_sdiod_freezing(struct brcmf_sdio_dev *sdiodev);
 void brcmf_sdiod_try_freeze(struct brcmf_sdio_dev *sdiodev);
 void brcmf_sdiod_freezer_count(struct brcmf_sdio_dev *sdiodev);
 void brcmf_sdiod_freezer_uncount(struct brcmf_sdio_dev *sdiodev);
-#else
-static inline bool brcmf_sdiod_freezing(struct brcmf_sdio_dev *sdiodev)
-{
-	return false;
-}
-static inline void brcmf_sdiod_try_freeze(struct brcmf_sdio_dev *sdiodev)
-{
-}
-static inline void brcmf_sdiod_freezer_count(struct brcmf_sdio_dev *sdiodev)
-{
-}
-static inline void brcmf_sdiod_freezer_uncount(struct brcmf_sdio_dev *sdiodev)
-{
-}
-#endif /* CONFIG_PM_SLEEP */
 
 int brcmf_sdiod_probe(struct brcmf_sdio_dev *sdiodev);
 int brcmf_sdiod_remove(struct brcmf_sdio_dev *sdiodev);

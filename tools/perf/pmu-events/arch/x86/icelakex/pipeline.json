@@ -13,6 +13,18 @@
         "UMask": "0x9"
     },
     {
+        "BriefDescription": "Number of occurrences where a microcode assist is invoked by hardware.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc1",
+        "EventName": "ASSISTS.ANY",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "PublicDescription": "Counts the number of occurrences where a microcode assist is invoked by hardware Examples include AD (page Access Dirty), FP and AVX related assists.",
+        "SampleAfterValue": "100003",
+        "Speculative": "1",
+        "UMask": "0x7"
+    },
+    {
         "BriefDescription": "All branch instructions retired.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
@@ -201,6 +213,18 @@
         "PublicDescription": "Counts number of near branch instructions retired that were mispredicted and taken.",
         "SampleAfterValue": "50021",
         "UMask": "0x20"
+    },
+    {
+        "BriefDescription": "This event counts the number of mispredicted ret instructions retired. Non PEBS",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc5",
+        "EventName": "BR_MISP_RETIRED.RET",
+        "PEBS": "1",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts mispredicted return instructions retired.",
+        "SampleAfterValue": "50021",
+        "UMask": "0x8"
     },
     {
         "BriefDescription": "Cycle counts are evenly distributed between active threads in the Core.",

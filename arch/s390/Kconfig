@@ -125,6 +125,7 @@ config S390
 	select CLONE_BACKWARDS2
 	select DMA_OPS if PCI
 	select DYNAMIC_FTRACE if FUNCTION_TRACER
+	select GCC12_NO_ARRAY_BOUNDS
 	select GENERIC_ALLOCATOR
 	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_CPU_VULNERABILITIES
@@ -203,6 +204,7 @@ config S390
 	select IOMMU_SUPPORT		if PCI
 	select MMU_GATHER_NO_GATHER
 	select MMU_GATHER_RCU_TABLE_FREE
+	select MMU_GATHER_MERGE_VMAS
 	select MODULES_USE_ELF_RELA
 	select NEED_DMA_MAP_STATE	if PCI
 	select NEED_SG_DMA_LENGTH	if PCI
@@ -254,6 +256,10 @@ config HAVE_MARCH_Z14_FEATURES
 config HAVE_MARCH_Z15_FEATURES
 	def_bool n
 	select HAVE_MARCH_Z14_FEATURES
+
+config HAVE_MARCH_Z16_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z15_FEATURES
 
 choice
 	prompt "Processor type"
@@ -312,6 +318,14 @@ config MARCH_Z15
 	  and 8561 series). The kernel will be slightly faster but will not
 	  work on older machines.
 
+config MARCH_Z16
+	bool "IBM z16"
+	select HAVE_MARCH_Z16_FEATURES
+	depends on $(cc-option,-march=z16)
+	help
+	  Select this to enable optimizations for IBM z16 (3931 and
+	  3932 series).
+
 endchoice
 
 config MARCH_Z10_TUNE
@@ -331,6 +345,9 @@ config MARCH_Z14_TUNE
 
 config MARCH_Z15_TUNE
 	def_bool TUNE_Z15 || MARCH_Z15 && TUNE_DEFAULT
+
+config MARCH_Z16_TUNE
+	def_bool TUNE_Z16 || MARCH_Z16 && TUNE_DEFAULT
 
 choice
 	prompt "Tune code generation"
@@ -372,6 +389,10 @@ config TUNE_Z15
 	bool "IBM z15"
 	depends on $(cc-option,-mtune=z15)
 
+config TUNE_Z16
+	bool "IBM z16"
+	depends on $(cc-option,-mtune=z16)
+
 endchoice
 
 config 64BIT
@@ -398,9 +419,6 @@ config COMPAT
 	  handle system-calls from ELF binaries for 31 bit ESA.  This option
 	  (and some other stuff like libraries and such) is needed for
 	  executing 31 bit applications.  It is safe to say "Y".
-
-config SYSVIPC_COMPAT
-	def_bool y if COMPAT && SYSVIPC
 
 config SMP
 	def_bool y
@@ -467,7 +485,6 @@ config KEXEC
 config KEXEC_FILE
 	bool "kexec file based system call"
 	select KEXEC_CORE
-	select BUILD_BIN2C
 	depends on CRYPTO
 	depends on CRYPTO_SHA256
 	depends on CRYPTO_SHA256_S390
@@ -490,21 +507,6 @@ config KEXEC_SIG
 	  In addition to that option, you need to enable signature
 	  verification for the corresponding kernel image type being
 	  loaded in order for this to work.
-
-config ARCH_RANDOM
-	def_bool y
-	prompt "s390 architectural random number generation API"
-	help
-	  Enable the s390 architectural random number generation API
-	  to provide random data for all consumers within the Linux
-	  kernel.
-
-	  When enabled the arch_random_* functions declared in linux/random.h
-	  are implemented. The implementation is based on the s390 CPACF
-	  instruction subfunction TRNG which provides a real true random
-	  number generator.
-
-	  If unsure, say Y.
 
 config KERNEL_NOBP
 	def_bool n
@@ -567,7 +569,6 @@ endchoice
 
 config RELOCATABLE
 	bool "Build a relocatable kernel"
-	select MODULE_REL_CRCS if MODVERSIONS
 	default y
 	help
 	  This builds a kernel image that retains relocation information
@@ -717,11 +718,11 @@ config VFIO_AP
 	depends on S390_AP_IOMMU && VFIO_MDEV && KVM
 	depends on ZCRYPT
 	help
-		This driver grants access to Adjunct Processor (AP) devices
-		via the VFIO mediated device interface.
+	  This driver grants access to Adjunct Processor (AP) devices
+	  via the VFIO mediated device interface.
 
-		To compile this driver as a module, choose M here: the module
-		will be called vfio_ap.
+	  To compile this driver as a module, choose M here: the module
+	  will be called vfio_ap.
 
 endmenu
 
@@ -753,7 +754,6 @@ menu "Virtualization"
 config PROTECTED_VIRTUALIZATION_GUEST
 	def_bool n
 	prompt "Protected virtualization guest support"
-	select ARCH_HAS_RESTRICTED_VIRTIO_MEMORY_ACCESS
 	help
 	  Select this option, if you want to be able to run this
 	  kernel as a protected virtualization KVM guest.

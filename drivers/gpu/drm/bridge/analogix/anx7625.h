@@ -132,6 +132,12 @@
 #define I2S_SLAVE_MODE 0x08
 #define AUDIO_LAYOUT   0x01
 
+#define HPD_DET_TIMER_BIT0_7   0xea
+#define HPD_DET_TIMER_BIT8_15  0xeb
+#define HPD_DET_TIMER_BIT16_23 0xec
+/* HPD debounce time 2ms for 27M clock */
+#define HPD_TIME               54000
+
 #define AUDIO_CONTROL_REGISTER 0xe6
 #define TDM_TIMING_MODE 0x08
 

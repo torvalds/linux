@@ -14,6 +14,7 @@ properties:
   compatible:
     enum:
       - adi,adt75
+      - atmel,at30ts74
       - dallas,ds1775
       - dallas,ds75
       - dallas,ds7505

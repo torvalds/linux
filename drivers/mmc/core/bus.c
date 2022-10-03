@@ -85,7 +85,7 @@ mmc_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 			return retval;
 	}
 
-	if (card->type == MMC_TYPE_SDIO || card->type == MMC_TYPE_SD_COMBO) {
+	if (mmc_card_sdio(card) || mmc_card_sd_combo(card)) {
 		retval = add_uevent_var(env, "SDIO_ID=%04X:%04X",
 					card->cis.vendor, card->cis.device);
 		if (retval)
@@ -107,7 +107,7 @@ mmc_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 	 * SDIO (non-combo) cards are not handled by mmc_block driver and do not
 	 * have accessible CID register which used by mmc_card_name() function.
 	 */
-	if (card->type == MMC_TYPE_SDIO)
+	if (mmc_card_sdio(card))
 		return 0;
 
 	retval = add_uevent_var(env, "MMC_NAME=%s", mmc_card_name(card));

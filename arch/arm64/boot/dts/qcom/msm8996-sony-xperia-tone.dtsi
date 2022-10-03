@@ -8,18 +8,19 @@
 #include "msm8996.dtsi"
 #include "pm8994.dtsi"
 #include "pmi8994.dtsi"
+#include "pmi8996.dtsi"
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/pinctrl/qcom,pmic-mpp.h>
 
-/delete-node/ &slpi_region;
-/delete-node/ &venus_region;
-/delete-node/ &zap_shader_region;
+/delete-node/ &adsp_mem;
+/delete-node/ &slpi_mem;
+/delete-node/ &venus_mem;
+/delete-node/ &gpu_mem;
 
 / {
 	qcom,msm-id = <246 0x30001>; /* MSM8996 V3.1 (Final) */
-	qcom,pmic-id = <0x20009 0x2000a 0 0>; /* PM8994 + PMI8994 */
 	qcom,board-id = <8 0>;
 
 	chosen {
@@ -41,23 +42,23 @@
 			ecc-size = <16>;
 		};
 
-		cont_splash_mem: memory@83401000 {
-			reg = <0 0x83401000 0 0x23ff000>;
+		adsp_mem: adsp@8ea00000 {
+			reg = <0x0 0x8ea00000 0x0 0x1a00000>;
 			no-map;
 		};
 
-		zap_shader_region: gpu@90400000 {
+		gpu_mem: gpu@90400000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x90400000 0x0 0x2000>;
 			no-map;
 		};
 
-		slpi_region: memory@90500000 {
+		slpi_mem: memory@90500000 {
 			reg = <0 0x90500000 0 0xa00000>;
 			no-map;
 		};
 
-		venus_region: memory@90f00000 {
+		venus_mem: memory@90f00000 {
 			reg = <0 0x90f00000 0 0x500000>;
 			no-map;
 		};
@@ -241,14 +242,14 @@
 	 * probably a reason for it, and just to be on the safe side, we follow suit.
 	 */
 	pm8994_gpios_defaults: pm8994-gpios-default-state {
-		pm8994-gpio1-nc {
+		pm8994-gpio1-nc-pins {
 			pins = "gpio1";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			drive-push-pull;
 			bias-high-impedance;
 		};
 
-		vol-down-n {
+		vol-down-n-pins {
 			pins = "gpio2";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			drive-push-pull;
@@ -258,7 +259,7 @@
 			power-source = <PM8994_GPIO_S4>;
 		};
 
-		vol-up-n {
+		vol-up-n-pins {
 			pins = "gpio3";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			drive-push-pull;
@@ -267,7 +268,7 @@
 			power-source = <PM8994_GPIO_S4>;
 		};
 
-		camera-snapshot-n {
+		camera-snapshot-n-pins {
 			pins = "gpio4";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			drive-push-pull;
@@ -277,7 +278,7 @@
 			power-source = <PM8994_GPIO_S4>;
 		};
 
-		camera-focus-n {
+		camera-focus-n-pins {
 			pins = "gpio5";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			drive-push-pull;
@@ -287,7 +288,7 @@
 			power-source = <PM8994_GPIO_S4>;
 		};
 
-		pm8994-gpio6-nc {
+		pm8994-gpio6-nc-pins {
 			pins = "gpio6";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			drive-push-pull;
@@ -295,7 +296,7 @@
 			power-source = <PM8994_GPIO_VPH>;
 		};
 
-		nfc-download {
+		nfc-download-pins {
 			pins = "gpio7";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			output-low;
@@ -305,7 +306,7 @@
 			power-source = <PM8994_GPIO_S4>;
 		};
 
-		pm8994-gpio8-nc {
+		pm8994-gpio8-nc-pins {
 			pins = "gpio8";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			output-low;
@@ -315,7 +316,7 @@
 			power-source = <PM8994_GPIO_VPH>;
 		};
 
-		pm8994-gpio9-nc {
+		pm8994-gpio9-nc-pins {
 			pins = "gpio9";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			output-high;
@@ -325,7 +326,7 @@
 			power-source = <PM8994_GPIO_VPH>;
 		};
 
-		nfc-clock {
+		nfc-clock-pins {
 			pins = "gpio10";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			input-enable;
@@ -335,7 +336,7 @@
 			power-source = <PM8994_GPIO_S4>;
 		};
 
-		pm8994-gpio11-nc {
+		pm8994-gpio11-nc-pins {
 			pins = "gpio11";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			drive-push-pull;
@@ -343,7 +344,7 @@
 			power-source = <PM8994_GPIO_VPH>;
 		};
 
-		pm8994-gpio12-nc {
+		pm8994-gpio12-nc-pins {
 			pins = "gpio12";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			drive-push-pull;
@@ -351,7 +352,7 @@
 			power-source = <PM8994_GPIO_VPH>;
 		};
 
-		ear-enable {
+		ear-enable-pins {
 			pins = "gpio13";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			output-high;
@@ -361,7 +362,7 @@
 			power-source = <PM8994_GPIO_S4>;
 		};
 
-		pm8994-gpio14-nc {
+		pm8994-gpio14-nc-pins {
 			pins = "gpio14";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			drive-push-pull;
@@ -371,7 +372,7 @@
 			power-source = <PM8994_GPIO_VPH>;
 		};
 
-		pm-divclk1-gpio {
+		pm-divclk1-gpio-pins {
 			pins = "gpio15";
 			function = "func1";
 			output-high;
@@ -381,13 +382,13 @@
 			power-source = <PM8994_GPIO_VPH>;
 		};
 
-		pmi-clk-gpio {
+		pmi-clk-gpio-pins {
 			pins = "gpio16";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			drive-push-pull;
 		};
 
-		pm8994-gpio17-nc {
+		pm8994-gpio17-nc-pins {
 			pins = "gpio17";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			drive-push-pull;
@@ -395,7 +396,7 @@
 			power-source = <PM8994_GPIO_VPH>;
 		};
 
-		rome-sleep {
+		rome-sleep-pins {
 			pins = "gpio18";
 			function = PMIC_GPIO_FUNC_FUNC2;
 			output-low;
@@ -405,7 +406,7 @@
 			power-source = <PM8994_GPIO_S4>;
 		};
 
-		pm8994-gpio19-nc {
+		pm8994-gpio19-nc-pins {
 			pins = "gpio19";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			output-low;
@@ -415,7 +416,7 @@
 			power-source = <PM8994_GPIO_VPH>;
 		};
 
-		pm8994-gpio22-nc {
+		pm8994-gpio22-nc-pins {
 			pins = "gpio22";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			drive-push-pull;
@@ -440,34 +441,34 @@
 		"RF_ID";
 
 	pm8994_mpps_defaults: pm8994-mpps-default-state {
-		lcd-id_adc-mpp {
+		lcd-id_adc-mpp-pins {
 			pins = "mpp2";
 			function = "analog";
 			input-enable;
 			qcom,amux-route = <PMIC_MPP_AMUX_ROUTE_CH6>;
 		};
 
-		pm-mpp4-nc {
+		pm-mpp4-nc-pins {
 			pins = "mpp4";
 			function = "digital";
 			bias-high-impedance;
 			power-source = <PM8994_GPIO_VPH>;
 		};
 
-		flash-therm-mpp {
+		flash-therm-mpp-pins {
 			pins = "mpp5";
 			function = "analog";
 			input-enable;
 			qcom,amux-route = <PMIC_MPP_AMUX_ROUTE_CH5>;
 		};
 
-		mpp6-nc {
+		mpp6-nc-pins {
 			pins = "mpp6";
 			function = "digital";
 			bias-high-impedance;
 		};
 
-		rf-id-mpp {
+		rf-id-mpp-pins {
 			pins = "mpp8";
 			function = "analog";
 			input-enable;
@@ -498,7 +499,7 @@
 		"NC";
 
 	pmi8994_gpios_defaults: pmi8994-gpios-default-state {
-		vib-ldo-en-gpio {
+		vib-ldo-en-gpio-pins {
 			pins = "gpio1";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			drive-push-pull;
@@ -507,7 +508,7 @@
 			power-source = <PM8994_GPIO_S4>;
 		};
 
-		pmi-gpio2-nc {
+		pmi-gpio2-nc-pins {
 			pins = "gpio2";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			drive-push-pull;
@@ -517,7 +518,7 @@
 			power-source = <PM8994_GPIO_VPH>;
 		};
 
-		pmi-gpio3-nc {
+		pmi-gpio3-nc-pins {
 			pins = "gpio3";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			drive-push-pull;
@@ -527,7 +528,7 @@
 			power-source = <PM8994_GPIO_VPH>;
 		};
 
-		pmi-gpio4-nc {
+		pmi-gpio4-nc-pins {
 			pins = "gpio4";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			drive-push-pull;
@@ -536,7 +537,7 @@
 			power-source = <PM8994_GPIO_S4>;
 		};
 
-		pmi-gpio5-nc {
+		pmi-gpio5-nc-pins {
 			pins = "gpio5";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			drive-push-pull;
@@ -545,7 +546,7 @@
 			power-source = <PM8994_GPIO_S4>;
 		};
 
-		pmi-gpio6-nc {
+		pmi-gpio6-nc-pins {
 			pins = "gpio6";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			drive-push-pull;
@@ -554,7 +555,7 @@
 			power-source = <PM8994_GPIO_S4>;
 		};
 
-		pmi-gpio7-nc {
+		pmi-gpio7-nc-pins {
 			pins = "gpio7";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			drive-push-pull;
@@ -563,7 +564,7 @@
 			power-source = <PM8994_GPIO_S4>;
 		};
 
-		pmi-gpio8-nc {
+		pmi-gpio8-nc-pins {
 			pins = "gpio8";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			drive-push-pull;
@@ -572,13 +573,13 @@
 			power-source = <PM8994_GPIO_S4>;
 		};
 
-		usb-switch-sel {
+		usb-switch-sel-pins {
 			pins = "gpio9";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			drive-push-pull;
 		};
 
-		pmi-gpio10-nc {
+		pmi-gpio10-nc-pins {
 			pins = "gpio10";
 			function = PMIC_GPIO_FUNC_NORMAL;
 			output-low;

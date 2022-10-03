@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Description of Qualcomm Display DSI PHY common dt properties
 
 maintainers:
-  - Krishna Manikandan <mkrishn@codeaurora.org>
+  - Krishna Manikandan <quic_mkrishn@quicinc.com>
 
 description: |
   This defines the DSI PHY dt properties which are common for all

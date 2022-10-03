@@ -453,6 +453,8 @@ struct mlx5e_ptp_cq_stats {
 	u64 err_cqe;
 	u64 abort;
 	u64 abort_abs_diff_ns;
+	u64 resync_cqe;
+	u64 resync_event;
 };
 
 struct mlx5e_stats {
@@ -482,7 +484,6 @@ extern MLX5E_DECLARE_STATS_GRP(per_prio);
 extern MLX5E_DECLARE_STATS_GRP(pme);
 extern MLX5E_DECLARE_STATS_GRP(channels);
 extern MLX5E_DECLARE_STATS_GRP(per_port_buff_congest);
-extern MLX5E_DECLARE_STATS_GRP(ipsec_hw);
 extern MLX5E_DECLARE_STATS_GRP(ipsec_sw);
 extern MLX5E_DECLARE_STATS_GRP(ptp);
 

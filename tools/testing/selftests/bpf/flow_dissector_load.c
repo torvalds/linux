@@ -11,7 +11,6 @@
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 
-#include "bpf_rlimit.h"
 #include "flow_dissector_load.h"
 
 const char *cfg_pin_path = "/sys/fs/bpf/flow_dissector";
@@ -25,9 +24,8 @@ static void load_and_attach_program(void)
 	int prog_fd, ret;
 	struct bpf_object *obj;
 
-	ret = libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
-	if (ret)
-		error(1, 0, "failed to enable libbpf strict mode: %d", ret);
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	ret = bpf_flow_load(&obj, cfg_path_name, cfg_prog_name,
 			    cfg_map_name, NULL, &prog_fd, NULL);

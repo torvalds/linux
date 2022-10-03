@@ -22,8 +22,8 @@
  */
 
 #undef DEBUG
+#include <linux/of.h>
 #include <asm/time.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/mpc52xx.h>
 

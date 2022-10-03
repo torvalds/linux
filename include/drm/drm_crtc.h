@@ -25,37 +25,24 @@
 #ifndef __DRM_CRTC_H__
 #define __DRM_CRTC_H__
 
-#include <linux/i2c.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
-#include <linux/fb.h>
-#include <linux/hdmi.h>
-#include <linux/media-bus-format.h>
-#include <uapi/drm/drm_mode.h>
-#include <uapi/drm/drm_fourcc.h>
 #include <drm/drm_modeset_lock.h>
-#include <drm/drm_rect.h>
 #include <drm/drm_mode_object.h>
-#include <drm/drm_framebuffer.h>
 #include <drm/drm_modes.h>
-#include <drm/drm_connector.h>
 #include <drm/drm_device.h>
-#include <drm/drm_property.h>
-#include <drm/drm_edid.h>
 #include <drm/drm_plane.h>
-#include <drm/drm_blend.h>
-#include <drm/drm_color_mgmt.h>
 #include <drm/drm_debugfs_crc.h>
 #include <drm/drm_mode_config.h>
 
+struct drm_connector;
 struct drm_device;
+struct drm_framebuffer;
 struct drm_mode_set;
 struct drm_file;
-struct drm_clip_rect;
 struct drm_printer;
 struct drm_self_refresh_data;
 struct device_node;
-struct dma_fence;
 struct edid;
 
 static inline int64_t U642I64(uint64_t val)
@@ -1229,6 +1216,15 @@ int drm_crtc_init_with_planes(struct drm_device *dev,
 			      struct drm_plane *cursor,
 			      const struct drm_crtc_funcs *funcs,
 			      const char *name, ...);
+
+__printf(6, 7)
+int drmm_crtc_init_with_planes(struct drm_device *dev,
+			       struct drm_crtc *crtc,
+			       struct drm_plane *primary,
+			       struct drm_plane *cursor,
+			       const struct drm_crtc_funcs *funcs,
+			       const char *name, ...);
+
 void drm_crtc_cleanup(struct drm_crtc *crtc);
 
 __printf(7, 8)

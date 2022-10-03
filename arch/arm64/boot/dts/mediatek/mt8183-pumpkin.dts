@@ -55,7 +55,7 @@
 		};
 	};
 
-	ntc {
+	thermistor {
 		compatible = "murata,ncp03wf104";
 		pullup-uv = <1800000>;
 		pullup-ohm = <390000>;
@@ -159,7 +159,7 @@
 	vmmc-supply = <&mt6358_vmch_reg>;
 	vqmmc-supply = <&mt6358_vmc_reg>;
 	keep-power-in-suspend;
-	enable-sdio-wakeup;
+	wakeup-source;
 	non-removable;
 };
 

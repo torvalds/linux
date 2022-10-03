@@ -35,7 +35,6 @@
 #include "mlx5_core.h"
 #include "../../mlxfw/mlxfw.h"
 #include "lib/tout.h"
-#include "accel/tls.h"
 
 enum {
 	MCQS_IDENTIFIER_BOOT_IMG	= 0x1,
@@ -249,7 +248,7 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 			return err;
 	}
 
-	if (mlx5_accel_is_ktls_tx(dev) || mlx5_accel_is_ktls_rx(dev)) {
+	if (MLX5_CAP_GEN(dev, tls_tx) || MLX5_CAP_GEN(dev, tls_rx)) {
 		err = mlx5_core_get_caps(dev, MLX5_CAP_TLS);
 		if (err)
 			return err;
@@ -289,6 +288,10 @@ int mlx5_cmd_init_hca(struct mlx5_core_dev *dev, uint32_t *sw_owner_id)
 			MLX5_ARRAY_SET(init_hca_in, in, sw_owner_id, i,
 				       sw_owner_id[i]);
 	}
+
+	if (MLX5_CAP_GEN_2_MAX(dev, sw_vhca_id_valid) &&
+	    dev->priv.sw_vhca_id > 0)
+		MLX5_SET(init_hca_in, in, sw_vhca_id, dev->priv.sw_vhca_id);
 
 	return mlx5_cmd_exec_in(dev, init_hca, in);
 }

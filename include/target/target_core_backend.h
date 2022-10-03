@@ -14,7 +14,7 @@
 #define TRANSPORT_FLAG_PASSTHROUGH_ALUA		0x2
 #define TRANSPORT_FLAG_PASSTHROUGH_PGR          0x4
 
-struct request_queue;
+struct block_device;
 struct scatterlist;
 
 struct target_backend_ops {
@@ -37,6 +37,7 @@ struct target_backend_ops {
 	struct se_dev_plug *(*plug_device)(struct se_device *se_dev);
 	void (*unplug_device)(struct se_dev_plug *se_plug);
 
+	bool (*configure_unmap)(struct se_device *se_dev);
 	ssize_t (*set_configfs_dev_params)(struct se_device *,
 					   const char *, ssize_t);
 	ssize_t (*show_configfs_dev_params)(struct se_device *, char *);
@@ -117,7 +118,7 @@ sense_reason_t passthrough_parse_cdb(struct se_cmd *cmd,
 bool target_sense_desc_format(struct se_device *dev);
 sector_t target_to_linux_sector(struct se_device *dev, sector_t lb);
 bool target_configure_unmap_from_queue(struct se_dev_attrib *attrib,
-				       struct request_queue *q);
+				       struct block_device *bdev);
 
 static inline bool target_dev_configured(struct se_device *se_dev)
 {

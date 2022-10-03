@@ -268,6 +268,8 @@ struct gs_can {
 
 	struct usb_anchor tx_submitted;
 	atomic_t active_tx_urbs;
+	void *rxbuf[GS_MAX_RX_URBS];
+	dma_addr_t rxbuf_dma[GS_MAX_RX_URBS];
 };
 
 /* usb interface struct */
@@ -742,6 +744,7 @@ static int gs_can_open(struct net_device *netdev)
 		for (i = 0; i < GS_MAX_RX_URBS; i++) {
 			struct urb *urb;
 			u8 *buf;
+			dma_addr_t buf_dma;
 
 			/* alloc rx urb */
 			urb = usb_alloc_urb(0, GFP_KERNEL);
@@ -752,13 +755,15 @@ static int gs_can_open(struct net_device *netdev)
 			buf = usb_alloc_coherent(dev->udev,
 						 dev->parent->hf_size_rx,
 						 GFP_KERNEL,
-						 &urb->transfer_dma);
+						 &buf_dma);
 			if (!buf) {
 				netdev_err(netdev,
 					   "No memory left for USB buffer\n");
 				usb_free_urb(urb);
 				return -ENOMEM;
 			}
+
+			urb->transfer_dma = buf_dma;
 
 			/* fill, anchor, and submit rx urb */
 			usb_fill_bulk_urb(urb,
@@ -781,9 +786,16 @@ static int gs_can_open(struct net_device *netdev)
 					   "usb_submit failed (err=%d)\n", rc);
 
 				usb_unanchor_urb(urb);
+				usb_free_coherent(dev->udev,
+						  sizeof(struct gs_host_frame),
+						  buf,
+						  buf_dma);
 				usb_free_urb(urb);
 				break;
 			}
+
+			dev->rxbuf[i] = buf;
+			dev->rxbuf_dma[i] = buf_dma;
 
 			/* Drop reference,
 			 * USB core will take care of freeing it
@@ -842,13 +854,20 @@ static int gs_can_close(struct net_device *netdev)
 	int rc;
 	struct gs_can *dev = netdev_priv(netdev);
 	struct gs_usb *parent = dev->parent;
+	unsigned int i;
 
 	netif_stop_queue(netdev);
 
 	/* Stop polling */
 	parent->active_channels--;
-	if (!parent->active_channels)
+	if (!parent->active_channels) {
 		usb_kill_anchored_urbs(&parent->rx_submitted);
+		for (i = 0; i < GS_MAX_RX_URBS; i++)
+			usb_free_coherent(dev->udev,
+					  sizeof(struct gs_host_frame),
+					  dev->rxbuf[i],
+					  dev->rxbuf_dma[i]);
+	}
 
 	/* Stop sending URBs */
 	usb_kill_anchored_urbs(&dev->tx_submitted);
@@ -927,6 +946,7 @@ static int gs_usb_set_phys_id(struct net_device *dev,
 
 static const struct ethtool_ops gs_usb_ethtool_ops = {
 	.set_phys_id = gs_usb_set_phys_id,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 static struct gs_can *gs_make_candev(unsigned int channel,
@@ -970,11 +990,12 @@ static struct gs_can *gs_make_candev(unsigned int channel,
 	dev = netdev_priv(netdev);
 
 	netdev->netdev_ops = &gs_usb_netdev_ops;
+	netdev->ethtool_ops = &gs_usb_ethtool_ops;
 
 	netdev->flags |= IFF_ECHO; /* we support full roundtrip echo */
 
 	/* dev setup */
-	strcpy(dev->bt_const.name, "gs_usb");
+	strcpy(dev->bt_const.name, KBUILD_MODNAME);
 	dev->bt_const.tseg1_min = le32_to_cpu(bt_const->tseg1_min);
 	dev->bt_const.tseg1_max = le32_to_cpu(bt_const->tseg1_max);
 	dev->bt_const.tseg2_min = le32_to_cpu(bt_const->tseg2_min);
@@ -1081,7 +1102,7 @@ static struct gs_can *gs_make_candev(unsigned int channel,
 			return ERR_PTR(rc);
 		}
 
-		strcpy(dev->data_bt_const.name, "gs_usb");
+		strcpy(dev->data_bt_const.name, KBUILD_MODNAME);
 		dev->data_bt_const.tseg1_min = le32_to_cpu(bt_const_extended->dtseg1_min);
 		dev->data_bt_const.tseg1_max = le32_to_cpu(bt_const_extended->dtseg1_max);
 		dev->data_bt_const.tseg2_min = le32_to_cpu(bt_const_extended->dtseg2_min);
@@ -1251,7 +1272,7 @@ static const struct usb_device_id gs_usb_table[] = {
 MODULE_DEVICE_TABLE(usb, gs_usb_table);
 
 static struct usb_driver gs_usb_driver = {
-	.name = "gs_usb",
+	.name = KBUILD_MODNAME,
 	.probe = gs_usb_probe,
 	.disconnect = gs_usb_disconnect,
 	.id_table = gs_usb_table,

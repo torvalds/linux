@@ -46,6 +46,21 @@ vmw_buffer_object(struct ttm_buffer_object *bo)
 	return container_of(bo, struct vmw_buffer_object, base);
 }
 
+/**
+ * bo_is_vmw - check if the buffer object is a &vmw_buffer_object
+ * @bo: ttm buffer object to be checked
+ *
+ * Uses destroy function associated with the object to determine if this is
+ * a &vmw_buffer_object.
+ *
+ * Returns:
+ * true if the object is of &vmw_buffer_object type, false if not.
+ */
+static bool bo_is_vmw(struct ttm_buffer_object *bo)
+{
+	return bo->destroy == &vmw_bo_bo_free ||
+	       bo->destroy == &vmw_gem_destroy;
+}
 
 /**
  * vmw_bo_pin_in_placement - Validate a buffer to placement.
@@ -378,6 +393,12 @@ void vmw_bo_bo_free(struct ttm_buffer_object *bo)
 	kfree(vmw_bo);
 }
 
+/* default destructor */
+static void vmw_bo_default_destroy(struct ttm_buffer_object *bo)
+{
+	kfree(bo);
+}
+
 /**
  * vmw_bo_create_kernel - Create a pinned BO for internal kernel use.
  *
@@ -408,9 +429,9 @@ int vmw_bo_create_kernel(struct vmw_private *dev_priv, unsigned long size,
 
 	drm_gem_private_object_init(vdev, &bo->base, size);
 
-	ret = ttm_bo_init_reserved(&dev_priv->bdev, bo, size,
-				   ttm_bo_type_kernel, placement, 0,
-				   &ctx, NULL, NULL, NULL);
+	ret = ttm_bo_init_reserved(&dev_priv->bdev, bo, ttm_bo_type_kernel,
+				   placement, 0, &ctx, NULL, NULL,
+				   vmw_bo_default_destroy);
 	if (unlikely(ret))
 		goto error_free;
 
@@ -432,6 +453,8 @@ int vmw_bo_create(struct vmw_private *vmw,
 		  struct vmw_buffer_object **p_bo)
 {
 	int ret;
+
+	BUG_ON(!bo_free);
 
 	*p_bo = kmalloc(sizeof(**p_bo), GFP_KERNEL);
 	if (unlikely(!*p_bo)) {
@@ -489,10 +512,8 @@ int vmw_bo_init(struct vmw_private *dev_priv,
 	size = ALIGN(size, PAGE_SIZE);
 	drm_gem_private_object_init(vdev, &vmw_bo->base.base, size);
 
-	ret = ttm_bo_init_reserved(bdev, &vmw_bo->base, size,
-				   ttm_bo_type_device,
-				   placement,
-				   0, &ctx, NULL, NULL, bo_free);
+	ret = ttm_bo_init_reserved(bdev, &vmw_bo->base, ttm_bo_type_device,
+				   placement, 0, &ctx, NULL, NULL, bo_free);
 	if (unlikely(ret)) {
 		return ret;
 	}
@@ -615,8 +636,9 @@ int vmw_user_bo_synccpu_ioctl(struct drm_device *dev, void *data,
 
 		ret = vmw_user_bo_synccpu_grab(vbo, arg->flags);
 		vmw_bo_unreference(&vbo);
-		if (unlikely(ret != 0 && ret != -ERESTARTSYS &&
-			     ret != -EBUSY)) {
+		if (unlikely(ret != 0)) {
+			if (ret == -ERESTARTSYS || ret == -EBUSY)
+				return -EBUSY;
 			DRM_ERROR("Failed synccpu grab on handle 0x%08x.\n",
 				  (unsigned int) arg->handle);
 			return ret;
@@ -705,7 +727,7 @@ int vmw_user_bo_lookup(struct drm_file *filp,
  * Any persistent usage of the object requires a refcount to be taken using
  * ttm_bo_reference_unless_doomed(). Iff this function returns successfully it
  * needs to be paired with vmw_user_bo_noref_release() and no sleeping-
- * or scheduling functions may be called inbetween these function calls.
+ * or scheduling functions may be called in between these function calls.
  *
  * Return: A struct vmw_buffer_object pointer if successful or negative
  * error pointer on failure.
@@ -805,7 +827,7 @@ int vmw_dumb_create(struct drm_file *file_priv,
 void vmw_bo_swap_notify(struct ttm_buffer_object *bo)
 {
 	/* Is @bo embedded in a struct vmw_buffer_object? */
-	if (vmw_bo_is_vmw_bo(bo))
+	if (!bo_is_vmw(bo))
 		return;
 
 	/* Kill any cached kernel maps before swapout */
@@ -829,7 +851,7 @@ void vmw_bo_move_notify(struct ttm_buffer_object *bo,
 	struct vmw_buffer_object *vbo;
 
 	/* Make sure @bo is embedded in a struct vmw_buffer_object? */
-	if (vmw_bo_is_vmw_bo(bo))
+	if (!bo_is_vmw(bo))
 		return;
 
 	vbo = container_of(bo, struct vmw_buffer_object, base);
@@ -849,23 +871,4 @@ void vmw_bo_move_notify(struct ttm_buffer_object *bo,
 	 */
 	if (mem->mem_type != VMW_PL_MOB && bo->resource->mem_type == VMW_PL_MOB)
 		vmw_resource_unbind_list(vbo);
-}
-
-/**
- * vmw_bo_is_vmw_bo - check if the buffer object is a &vmw_buffer_object
- * @bo: buffer object to be checked
- *
- * Uses destroy function associated with the object to determine if this is
- * a &vmw_buffer_object.
- *
- * Returns:
- * true if the object is of &vmw_buffer_object type, false if not.
- */
-bool vmw_bo_is_vmw_bo(struct ttm_buffer_object *bo)
-{
-	if (bo->destroy == &vmw_bo_bo_free ||
-	    bo->destroy == &vmw_gem_destroy)
-		return true;
-
-	return false;
 }

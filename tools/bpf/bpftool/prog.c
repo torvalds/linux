@@ -36,53 +36,28 @@
 #define BPF_METADATA_PREFIX "bpf_metadata_"
 #define BPF_METADATA_PREFIX_LEN (sizeof(BPF_METADATA_PREFIX) - 1)
 
-const char * const prog_type_name[] = {
-	[BPF_PROG_TYPE_UNSPEC]			= "unspec",
-	[BPF_PROG_TYPE_SOCKET_FILTER]		= "socket_filter",
-	[BPF_PROG_TYPE_KPROBE]			= "kprobe",
-	[BPF_PROG_TYPE_SCHED_CLS]		= "sched_cls",
-	[BPF_PROG_TYPE_SCHED_ACT]		= "sched_act",
-	[BPF_PROG_TYPE_TRACEPOINT]		= "tracepoint",
-	[BPF_PROG_TYPE_XDP]			= "xdp",
-	[BPF_PROG_TYPE_PERF_EVENT]		= "perf_event",
-	[BPF_PROG_TYPE_CGROUP_SKB]		= "cgroup_skb",
-	[BPF_PROG_TYPE_CGROUP_SOCK]		= "cgroup_sock",
-	[BPF_PROG_TYPE_LWT_IN]			= "lwt_in",
-	[BPF_PROG_TYPE_LWT_OUT]			= "lwt_out",
-	[BPF_PROG_TYPE_LWT_XMIT]		= "lwt_xmit",
-	[BPF_PROG_TYPE_SOCK_OPS]		= "sock_ops",
-	[BPF_PROG_TYPE_SK_SKB]			= "sk_skb",
-	[BPF_PROG_TYPE_CGROUP_DEVICE]		= "cgroup_device",
-	[BPF_PROG_TYPE_SK_MSG]			= "sk_msg",
-	[BPF_PROG_TYPE_RAW_TRACEPOINT]		= "raw_tracepoint",
-	[BPF_PROG_TYPE_CGROUP_SOCK_ADDR]	= "cgroup_sock_addr",
-	[BPF_PROG_TYPE_LWT_SEG6LOCAL]		= "lwt_seg6local",
-	[BPF_PROG_TYPE_LIRC_MODE2]		= "lirc_mode2",
-	[BPF_PROG_TYPE_SK_REUSEPORT]		= "sk_reuseport",
-	[BPF_PROG_TYPE_FLOW_DISSECTOR]		= "flow_dissector",
-	[BPF_PROG_TYPE_CGROUP_SYSCTL]		= "cgroup_sysctl",
-	[BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE]	= "raw_tracepoint_writable",
-	[BPF_PROG_TYPE_CGROUP_SOCKOPT]		= "cgroup_sockopt",
-	[BPF_PROG_TYPE_TRACING]			= "tracing",
-	[BPF_PROG_TYPE_STRUCT_OPS]		= "struct_ops",
-	[BPF_PROG_TYPE_EXT]			= "ext",
-	[BPF_PROG_TYPE_LSM]			= "lsm",
-	[BPF_PROG_TYPE_SK_LOOKUP]		= "sk_lookup",
-};
-
-const size_t prog_type_name_size = ARRAY_SIZE(prog_type_name);
-
 enum dump_mode {
 	DUMP_JITED,
 	DUMP_XLATED,
 };
 
+static const bool attach_types[] = {
+	[BPF_SK_SKB_STREAM_PARSER] = true,
+	[BPF_SK_SKB_STREAM_VERDICT] = true,
+	[BPF_SK_SKB_VERDICT] = true,
+	[BPF_SK_MSG_VERDICT] = true,
+	[BPF_FLOW_DISSECTOR] = true,
+	[__MAX_BPF_ATTACH_TYPE] = false,
+};
+
+/* Textual representations traditionally used by the program and kept around
+ * for the sake of backwards compatibility.
+ */
 static const char * const attach_type_strings[] = {
 	[BPF_SK_SKB_STREAM_PARSER] = "stream_parser",
 	[BPF_SK_SKB_STREAM_VERDICT] = "stream_verdict",
 	[BPF_SK_SKB_VERDICT] = "skb_verdict",
 	[BPF_SK_MSG_VERDICT] = "msg_verdict",
-	[BPF_FLOW_DISSECTOR] = "flow_dissector",
 	[__MAX_BPF_ATTACH_TYPE] = NULL,
 };
 
@@ -93,6 +68,14 @@ static enum bpf_attach_type parse_attach_type(const char *str)
 	enum bpf_attach_type type;
 
 	for (type = 0; type < __MAX_BPF_ATTACH_TYPE; type++) {
+		if (attach_types[type]) {
+			const char *attach_type_str;
+
+			attach_type_str = libbpf_bpf_attach_type_str(type);
+			if (!strcmp(str, attach_type_str))
+				return type;
+		}
+
 		if (attach_type_strings[type] &&
 		    is_prefix(str, attach_type_strings[type]))
 			return type;
@@ -427,12 +410,14 @@ out_free:
 
 static void print_prog_header_json(struct bpf_prog_info *info, int fd)
 {
+	const char *prog_type_str;
 	char prog_name[MAX_PROG_FULL_NAME];
 
 	jsonw_uint_field(json_wtr, "id", info->id);
-	if (info->type < ARRAY_SIZE(prog_type_name))
-		jsonw_string_field(json_wtr, "type",
-				   prog_type_name[info->type]);
+	prog_type_str = libbpf_bpf_prog_type_str(info->type);
+
+	if (prog_type_str)
+		jsonw_string_field(json_wtr, "type", prog_type_str);
 	else
 		jsonw_uint_field(json_wtr, "type", info->type);
 
@@ -514,11 +499,13 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 
 static void print_prog_header_plain(struct bpf_prog_info *info, int fd)
 {
+	const char *prog_type_str;
 	char prog_name[MAX_PROG_FULL_NAME];
 
 	printf("%u: ", info->id);
-	if (info->type < ARRAY_SIZE(prog_type_name))
-		printf("%s  ", prog_type_name[info->type]);
+	prog_type_str = libbpf_bpf_prog_type_str(info->type);
+	if (prog_type_str)
+		printf("%s  ", prog_type_str);
 	else
 		printf("type %u  ", info->type);
 
@@ -1975,7 +1962,7 @@ static int profile_parse_metrics(int argc, char **argv)
 	int selected_cnt = 0;
 	unsigned int i;
 
-	metric_cnt = sizeof(metrics) / sizeof(struct profile_metric);
+	metric_cnt = ARRAY_SIZE(metrics);
 
 	while (argc > 0) {
 		for (i = 0; i < metric_cnt; i++) {
@@ -2376,8 +2363,8 @@ static int do_help(int argc, char **argv)
 		"                 cgroup/sendmsg6 | cgroup/recvmsg4 | cgroup/recvmsg6 |\n"
 		"                 cgroup/getsockopt | cgroup/setsockopt | cgroup/sock_release |\n"
 		"                 struct_ops | fentry | fexit | freplace | sk_lookup }\n"
-		"       ATTACH_TYPE := { msg_verdict | skb_verdict | stream_verdict |\n"
-		"                        stream_parser | flow_dissector }\n"
+		"       ATTACH_TYPE := { sk_msg_verdict | sk_skb_verdict | sk_skb_stream_verdict |\n"
+		"                        sk_skb_stream_parser | flow_dissector }\n"
 		"       METRIC := { cycles | instructions | l1d_loads | llc_misses | itlb_misses | dtlb_misses }\n"
 		"       " HELP_SPEC_OPTIONS " |\n"
 		"                    {-f|--bpffs} | {-m|--mapcompat} | {-n|--nomount} |\n"

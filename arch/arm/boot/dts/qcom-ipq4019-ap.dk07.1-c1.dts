@@ -52,11 +52,11 @@
 			status = "okay";
 			cs-gpios = <&tlmm 12 0>;
 
-			m25p80@0 {
+			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
 				reg = <0>;
-				compatible = "n25q128a11";
+				compatible = "micron,n25q128a11", "jedec,spi-nor";
 				spi-max-frequency = <24000000>;
 			};
 		};

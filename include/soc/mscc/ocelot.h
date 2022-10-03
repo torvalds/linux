@@ -330,13 +330,38 @@ enum ocelot_reg {
 	SYS_COUNT_RX_64,
 	SYS_COUNT_RX_65_127,
 	SYS_COUNT_RX_128_255,
-	SYS_COUNT_RX_256_1023,
+	SYS_COUNT_RX_256_511,
+	SYS_COUNT_RX_512_1023,
 	SYS_COUNT_RX_1024_1526,
 	SYS_COUNT_RX_1527_MAX,
 	SYS_COUNT_RX_PAUSE,
 	SYS_COUNT_RX_CONTROL,
 	SYS_COUNT_RX_LONGS,
 	SYS_COUNT_RX_CLASSIFIED_DROPS,
+	SYS_COUNT_RX_RED_PRIO_0,
+	SYS_COUNT_RX_RED_PRIO_1,
+	SYS_COUNT_RX_RED_PRIO_2,
+	SYS_COUNT_RX_RED_PRIO_3,
+	SYS_COUNT_RX_RED_PRIO_4,
+	SYS_COUNT_RX_RED_PRIO_5,
+	SYS_COUNT_RX_RED_PRIO_6,
+	SYS_COUNT_RX_RED_PRIO_7,
+	SYS_COUNT_RX_YELLOW_PRIO_0,
+	SYS_COUNT_RX_YELLOW_PRIO_1,
+	SYS_COUNT_RX_YELLOW_PRIO_2,
+	SYS_COUNT_RX_YELLOW_PRIO_3,
+	SYS_COUNT_RX_YELLOW_PRIO_4,
+	SYS_COUNT_RX_YELLOW_PRIO_5,
+	SYS_COUNT_RX_YELLOW_PRIO_6,
+	SYS_COUNT_RX_YELLOW_PRIO_7,
+	SYS_COUNT_RX_GREEN_PRIO_0,
+	SYS_COUNT_RX_GREEN_PRIO_1,
+	SYS_COUNT_RX_GREEN_PRIO_2,
+	SYS_COUNT_RX_GREEN_PRIO_3,
+	SYS_COUNT_RX_GREEN_PRIO_4,
+	SYS_COUNT_RX_GREEN_PRIO_5,
+	SYS_COUNT_RX_GREEN_PRIO_6,
+	SYS_COUNT_RX_GREEN_PRIO_7,
 	SYS_COUNT_TX_OCTETS,
 	SYS_COUNT_TX_UNICAST,
 	SYS_COUNT_TX_MULTICAST,
@@ -346,11 +371,46 @@ enum ocelot_reg {
 	SYS_COUNT_TX_PAUSE,
 	SYS_COUNT_TX_64,
 	SYS_COUNT_TX_65_127,
-	SYS_COUNT_TX_128_511,
+	SYS_COUNT_TX_128_255,
+	SYS_COUNT_TX_256_511,
 	SYS_COUNT_TX_512_1023,
 	SYS_COUNT_TX_1024_1526,
 	SYS_COUNT_TX_1527_MAX,
+	SYS_COUNT_TX_YELLOW_PRIO_0,
+	SYS_COUNT_TX_YELLOW_PRIO_1,
+	SYS_COUNT_TX_YELLOW_PRIO_2,
+	SYS_COUNT_TX_YELLOW_PRIO_3,
+	SYS_COUNT_TX_YELLOW_PRIO_4,
+	SYS_COUNT_TX_YELLOW_PRIO_5,
+	SYS_COUNT_TX_YELLOW_PRIO_6,
+	SYS_COUNT_TX_YELLOW_PRIO_7,
+	SYS_COUNT_TX_GREEN_PRIO_0,
+	SYS_COUNT_TX_GREEN_PRIO_1,
+	SYS_COUNT_TX_GREEN_PRIO_2,
+	SYS_COUNT_TX_GREEN_PRIO_3,
+	SYS_COUNT_TX_GREEN_PRIO_4,
+	SYS_COUNT_TX_GREEN_PRIO_5,
+	SYS_COUNT_TX_GREEN_PRIO_6,
+	SYS_COUNT_TX_GREEN_PRIO_7,
 	SYS_COUNT_TX_AGING,
+	SYS_COUNT_DROP_LOCAL,
+	SYS_COUNT_DROP_TAIL,
+	SYS_COUNT_DROP_YELLOW_PRIO_0,
+	SYS_COUNT_DROP_YELLOW_PRIO_1,
+	SYS_COUNT_DROP_YELLOW_PRIO_2,
+	SYS_COUNT_DROP_YELLOW_PRIO_3,
+	SYS_COUNT_DROP_YELLOW_PRIO_4,
+	SYS_COUNT_DROP_YELLOW_PRIO_5,
+	SYS_COUNT_DROP_YELLOW_PRIO_6,
+	SYS_COUNT_DROP_YELLOW_PRIO_7,
+	SYS_COUNT_DROP_GREEN_PRIO_0,
+	SYS_COUNT_DROP_GREEN_PRIO_1,
+	SYS_COUNT_DROP_GREEN_PRIO_2,
+	SYS_COUNT_DROP_GREEN_PRIO_3,
+	SYS_COUNT_DROP_GREEN_PRIO_4,
+	SYS_COUNT_DROP_GREEN_PRIO_5,
+	SYS_COUNT_DROP_GREEN_PRIO_6,
+	SYS_COUNT_DROP_GREEN_PRIO_7,
 	SYS_RESET_CFG,
 	SYS_SR_ETYPE_CFG,
 	SYS_VLAN_ETYPE_CFG,
@@ -533,14 +593,111 @@ enum ocelot_ptp_pins {
 	TOD_ACC_PIN
 };
 
+enum ocelot_stat {
+	OCELOT_STAT_RX_OCTETS,
+	OCELOT_STAT_RX_UNICAST,
+	OCELOT_STAT_RX_MULTICAST,
+	OCELOT_STAT_RX_BROADCAST,
+	OCELOT_STAT_RX_SHORTS,
+	OCELOT_STAT_RX_FRAGMENTS,
+	OCELOT_STAT_RX_JABBERS,
+	OCELOT_STAT_RX_CRC_ALIGN_ERRS,
+	OCELOT_STAT_RX_SYM_ERRS,
+	OCELOT_STAT_RX_64,
+	OCELOT_STAT_RX_65_127,
+	OCELOT_STAT_RX_128_255,
+	OCELOT_STAT_RX_256_511,
+	OCELOT_STAT_RX_512_1023,
+	OCELOT_STAT_RX_1024_1526,
+	OCELOT_STAT_RX_1527_MAX,
+	OCELOT_STAT_RX_PAUSE,
+	OCELOT_STAT_RX_CONTROL,
+	OCELOT_STAT_RX_LONGS,
+	OCELOT_STAT_RX_CLASSIFIED_DROPS,
+	OCELOT_STAT_RX_RED_PRIO_0,
+	OCELOT_STAT_RX_RED_PRIO_1,
+	OCELOT_STAT_RX_RED_PRIO_2,
+	OCELOT_STAT_RX_RED_PRIO_3,
+	OCELOT_STAT_RX_RED_PRIO_4,
+	OCELOT_STAT_RX_RED_PRIO_5,
+	OCELOT_STAT_RX_RED_PRIO_6,
+	OCELOT_STAT_RX_RED_PRIO_7,
+	OCELOT_STAT_RX_YELLOW_PRIO_0,
+	OCELOT_STAT_RX_YELLOW_PRIO_1,
+	OCELOT_STAT_RX_YELLOW_PRIO_2,
+	OCELOT_STAT_RX_YELLOW_PRIO_3,
+	OCELOT_STAT_RX_YELLOW_PRIO_4,
+	OCELOT_STAT_RX_YELLOW_PRIO_5,
+	OCELOT_STAT_RX_YELLOW_PRIO_6,
+	OCELOT_STAT_RX_YELLOW_PRIO_7,
+	OCELOT_STAT_RX_GREEN_PRIO_0,
+	OCELOT_STAT_RX_GREEN_PRIO_1,
+	OCELOT_STAT_RX_GREEN_PRIO_2,
+	OCELOT_STAT_RX_GREEN_PRIO_3,
+	OCELOT_STAT_RX_GREEN_PRIO_4,
+	OCELOT_STAT_RX_GREEN_PRIO_5,
+	OCELOT_STAT_RX_GREEN_PRIO_6,
+	OCELOT_STAT_RX_GREEN_PRIO_7,
+	OCELOT_STAT_TX_OCTETS,
+	OCELOT_STAT_TX_UNICAST,
+	OCELOT_STAT_TX_MULTICAST,
+	OCELOT_STAT_TX_BROADCAST,
+	OCELOT_STAT_TX_COLLISION,
+	OCELOT_STAT_TX_DROPS,
+	OCELOT_STAT_TX_PAUSE,
+	OCELOT_STAT_TX_64,
+	OCELOT_STAT_TX_65_127,
+	OCELOT_STAT_TX_128_255,
+	OCELOT_STAT_TX_256_511,
+	OCELOT_STAT_TX_512_1023,
+	OCELOT_STAT_TX_1024_1526,
+	OCELOT_STAT_TX_1527_MAX,
+	OCELOT_STAT_TX_YELLOW_PRIO_0,
+	OCELOT_STAT_TX_YELLOW_PRIO_1,
+	OCELOT_STAT_TX_YELLOW_PRIO_2,
+	OCELOT_STAT_TX_YELLOW_PRIO_3,
+	OCELOT_STAT_TX_YELLOW_PRIO_4,
+	OCELOT_STAT_TX_YELLOW_PRIO_5,
+	OCELOT_STAT_TX_YELLOW_PRIO_6,
+	OCELOT_STAT_TX_YELLOW_PRIO_7,
+	OCELOT_STAT_TX_GREEN_PRIO_0,
+	OCELOT_STAT_TX_GREEN_PRIO_1,
+	OCELOT_STAT_TX_GREEN_PRIO_2,
+	OCELOT_STAT_TX_GREEN_PRIO_3,
+	OCELOT_STAT_TX_GREEN_PRIO_4,
+	OCELOT_STAT_TX_GREEN_PRIO_5,
+	OCELOT_STAT_TX_GREEN_PRIO_6,
+	OCELOT_STAT_TX_GREEN_PRIO_7,
+	OCELOT_STAT_TX_AGED,
+	OCELOT_STAT_DROP_LOCAL,
+	OCELOT_STAT_DROP_TAIL,
+	OCELOT_STAT_DROP_YELLOW_PRIO_0,
+	OCELOT_STAT_DROP_YELLOW_PRIO_1,
+	OCELOT_STAT_DROP_YELLOW_PRIO_2,
+	OCELOT_STAT_DROP_YELLOW_PRIO_3,
+	OCELOT_STAT_DROP_YELLOW_PRIO_4,
+	OCELOT_STAT_DROP_YELLOW_PRIO_5,
+	OCELOT_STAT_DROP_YELLOW_PRIO_6,
+	OCELOT_STAT_DROP_YELLOW_PRIO_7,
+	OCELOT_STAT_DROP_GREEN_PRIO_0,
+	OCELOT_STAT_DROP_GREEN_PRIO_1,
+	OCELOT_STAT_DROP_GREEN_PRIO_2,
+	OCELOT_STAT_DROP_GREEN_PRIO_3,
+	OCELOT_STAT_DROP_GREEN_PRIO_4,
+	OCELOT_STAT_DROP_GREEN_PRIO_5,
+	OCELOT_STAT_DROP_GREEN_PRIO_6,
+	OCELOT_STAT_DROP_GREEN_PRIO_7,
+	OCELOT_NUM_STATS,
+};
+
 struct ocelot_stat_layout {
-	u32 offset;
+	u32 reg;
 	char name[ETH_GSTRING_LEN];
 };
 
 struct ocelot_stats_region {
 	struct list_head node;
-	u32 offset;
+	u32 base;
 	int count;
 	u32 *buf;
 };
@@ -568,6 +725,7 @@ struct ocelot_ops {
 	int (*psfp_stats_get)(struct ocelot *ocelot, struct flow_cls_offload *f,
 			      struct flow_stats *stats);
 	void (*cut_through_fwd)(struct ocelot *ocelot);
+	void (*tas_clock_adjust)(struct ocelot *ocelot);
 };
 
 struct ocelot_vcap_policer {
@@ -647,34 +805,43 @@ struct ocelot_mirror {
 	int to;
 };
 
+struct ocelot_port;
+
 struct ocelot_port {
 	struct ocelot			*ocelot;
 
 	struct regmap			*target;
 
-	bool				vlan_aware;
+	struct net_device		*bond;
+	struct net_device		*bridge;
+
+	struct ocelot_port		*dsa_8021q_cpu;
+
 	/* VLAN that untagged frames are classified to, on ingress */
 	const struct ocelot_bridge_vlan	*pvid_vlan;
 
-	unsigned int			ptp_skbs_in_flight;
-	u8				ptp_cmd;
-	struct sk_buff_head		tx_skbs;
-	u8				ts_id;
+	struct tc_taprio_qopt_offload	*taprio;
 
 	phy_interface_t			phy_mode;
 
-	u8				*xmit_template;
-	bool				is_dsa_8021q_cpu;
-	bool				learn_ena;
-
-	struct net_device		*bond;
-	bool				lag_tx_active;
+	unsigned int			ptp_skbs_in_flight;
+	struct sk_buff_head		tx_skbs;
 
 	u16				mrp_ring_id;
 
-	struct net_device		*bridge;
-	int				bridge_num;
+	u8				ptp_cmd;
+	u8				ts_id;
+
+	u8				index;
+
 	u8				stp_state;
+	bool				vlan_aware;
+	bool				is_dsa_8021q_cpu;
+	bool				learn_ena;
+
+	bool				lag_tx_active;
+
+	int				bridge_num;
 
 	int				speed;
 };
@@ -690,7 +857,6 @@ struct ocelot {
 	const u32 *const		*map;
 	const struct ocelot_stat_layout	*stats_layout;
 	struct list_head		stats_regions;
-	unsigned int			num_stats;
 
 	u32				pool_size[OCELOT_SB_NUM][OCELOT_SB_POOL_NUM];
 	int				packet_buffer_size;
@@ -733,7 +899,7 @@ struct ocelot {
 	struct ocelot_psfp_list		psfp;
 
 	/* Workqueue to check statistics for overflow with its lock */
-	struct mutex			stats_lock;
+	spinlock_t			stats_lock;
 	u64				*stats;
 	struct delayed_work		stats_work;
 	struct workqueue_struct		*stats_queue;
@@ -742,6 +908,9 @@ struct ocelot {
 	struct mutex			mact_lock;
 	/* Lock for serializing forwarding domain changes */
 	struct mutex			fwd_domain_lock;
+
+	/* Lock for serializing Time-Aware Shaper changes */
+	struct mutex			tas_lock;
 
 	struct workqueue_struct		*owq;
 
@@ -766,8 +935,8 @@ struct ocelot_policer {
 	u32 burst; /* bytes */
 };
 
-#define ocelot_bulk_read_rix(ocelot, reg, ri, buf, count) \
-	__ocelot_bulk_read_ix(ocelot, reg, reg##_RSZ * (ri), buf, count)
+#define ocelot_bulk_read(ocelot, reg, buf, count) \
+	__ocelot_bulk_read_ix(ocelot, reg, 0, buf, count)
 
 #define ocelot_read_ix(ocelot, reg, gi, ri) \
 	__ocelot_read_ix(ocelot, reg, reg##_GSZ * (gi) + reg##_RSZ * (ri))
@@ -855,8 +1024,9 @@ void ocelot_deinit(struct ocelot *ocelot);
 void ocelot_init_port(struct ocelot *ocelot, int port);
 void ocelot_deinit_port(struct ocelot *ocelot, int port);
 
-void ocelot_port_set_dsa_8021q_cpu(struct ocelot *ocelot, int port);
-void ocelot_port_unset_dsa_8021q_cpu(struct ocelot *ocelot, int port);
+void ocelot_port_assign_dsa_8021q_cpu(struct ocelot *ocelot, int port, int cpu);
+void ocelot_port_unassign_dsa_8021q_cpu(struct ocelot *ocelot, int port);
+u32 ocelot_port_assigned_dsa_8021q_cpu_mask(struct ocelot *ocelot, int port);
 
 /* DSA callbacks */
 void ocelot_get_strings(struct ocelot *ocelot, int port, u32 sset, u8 *data);
@@ -868,9 +1038,7 @@ void ocelot_set_ageing_time(struct ocelot *ocelot, unsigned int msecs);
 int ocelot_port_vlan_filtering(struct ocelot *ocelot, int port, bool enabled,
 			       struct netlink_ext_ack *extack);
 void ocelot_bridge_stp_state_set(struct ocelot *ocelot, int port, u8 state);
-u32 ocelot_get_dsa_8021q_cpu_mask(struct ocelot *ocelot);
 u32 ocelot_get_bridge_fwd_mask(struct ocelot *ocelot, int src_port);
-void ocelot_apply_bridge_fwd_mask(struct ocelot *ocelot, bool joining);
 int ocelot_port_pre_bridge_flags(struct ocelot *ocelot, int port,
 				 struct switchdev_brport_flags val);
 void ocelot_port_bridge_flags(struct ocelot *ocelot, int port,
@@ -990,6 +1158,9 @@ int ocelot_mact_learn_streamdata(struct ocelot *ocelot, int dst_idx,
 				 unsigned int vid,
 				 enum macaccess_entry_type type,
 				 int sfid, int ssid);
+
+int ocelot_migrate_mdbs(struct ocelot *ocelot, unsigned long from_mask,
+			unsigned long to_mask);
 
 int ocelot_vcap_policer_add(struct ocelot *ocelot, u32 pol_ix,
 			    struct ocelot_policer *pol);

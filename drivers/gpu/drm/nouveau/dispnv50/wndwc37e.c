@@ -23,10 +23,9 @@
 #include "atom.h"
 
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_plane_helper.h>
 #include <nouveau_bo.h>
 
-#include <nvif/clc37e.h>
+#include <nvif/if0014.h>
 #include <nvif/pushc37b.h>
 
 #include <nvhw/class/clc37e.h>
@@ -297,8 +296,8 @@ wndwc37e_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 		 struct nv50_head_atom *asyh)
 {
 	return drm_atomic_helper_check_plane_state(&asyw->state, &asyh->state,
-						   DRM_PLANE_HELPER_NO_SCALING,
-						   DRM_PLANE_HELPER_NO_SCALING,
+						   DRM_PLANE_NO_SCALING,
+						   DRM_PLANE_NO_SCALING,
 						   true, true);
 }
 
@@ -351,9 +350,8 @@ wndwc37e_new_(const struct nv50_wndw_func *func, struct nouveau_drm *drm,
 	      enum drm_plane_type type, int index, s32 oclass, u32 heads,
 	      struct nv50_wndw **pwndw)
 {
-	struct nvc37e_window_channel_dma_v0 args = {
-		.pushbuf = 0xb0007e00 | index,
-		.index = index,
+	struct nvif_disp_chan_v0 args = {
+		.id = index,
 	};
 	struct nv50_disp *disp = nv50_disp(drm->dev);
 	struct nv50_wndw *wndw;

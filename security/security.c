@@ -59,10 +59,12 @@ const char *const lockdown_reasons[LOCKDOWN_CONFIDENTIALITY_MAX+1] = {
 	[LOCKDOWN_DEBUGFS] = "debugfs access",
 	[LOCKDOWN_XMON_WR] = "xmon write access",
 	[LOCKDOWN_BPF_WRITE_USER] = "use of bpf to write user RAM",
+	[LOCKDOWN_DBG_WRITE_KERNEL] = "use of kgdb/kdb to write kernel RAM",
 	[LOCKDOWN_INTEGRITY_MAX] = "integrity",
 	[LOCKDOWN_KCORE] = "/proc/kcore access",
 	[LOCKDOWN_KPROBES] = "use of kprobes",
 	[LOCKDOWN_BPF_READ_KERNEL] = "use of bpf to read kernel RAM",
+	[LOCKDOWN_DBG_READ_KERNEL] = "use of kgdb/kdb to read kernel RAM",
 	[LOCKDOWN_PERF] = "unsafe use of perf",
 	[LOCKDOWN_TRACEFS] = "use of tracefs",
 	[LOCKDOWN_XMON_RW] = "xmon read and write access",
@@ -365,13 +367,12 @@ static void __init ordered_lsm_init(void)
 
 int __init early_security_init(void)
 {
-	int i;
-	struct hlist_head *list = (struct hlist_head *) &security_hook_heads;
 	struct lsm_info *lsm;
 
-	for (i = 0; i < sizeof(security_hook_heads) / sizeof(struct hlist_head);
-	     i++)
-		INIT_HLIST_HEAD(&list[i]);
+#define LSM_HOOK(RET, DEFAULT, NAME, ...) \
+	INIT_HLIST_HEAD(&security_hook_heads.NAME);
+#include "linux/lsm_hook_defs.h"
+#undef LSM_HOOK
 
 	for (lsm = __start_early_lsm_info; lsm < __end_early_lsm_info; lsm++) {
 		if (!lsm->enabled)
@@ -478,7 +479,7 @@ static int lsm_append(const char *new, char **result)
  * Each LSM has to register its hooks with the infrastructure.
  */
 void __init security_add_hooks(struct security_hook_list *hooks, int count,
-				char *lsm)
+				const char *lsm)
 {
 	int i;
 
@@ -1197,15 +1198,8 @@ int security_path_rename(const struct path *old_dir, struct dentry *old_dentry,
 		     (d_is_positive(new_dentry) && IS_PRIVATE(d_backing_inode(new_dentry)))))
 		return 0;
 
-	if (flags & RENAME_EXCHANGE) {
-		int err = call_int_hook(path_rename, 0, new_dir, new_dentry,
-					old_dir, old_dentry);
-		if (err)
-			return err;
-	}
-
 	return call_int_hook(path_rename, 0, old_dir, old_dentry, new_dir,
-				new_dentry);
+				new_dentry, flags);
 }
 EXPORT_SYMBOL(security_path_rename);
 
@@ -1330,7 +1324,8 @@ int security_inode_permission(struct inode *inode, int mask)
 	return call_int_hook(inode_permission, 0, inode, mask);
 }
 
-int security_inode_setattr(struct dentry *dentry, struct iattr *attr)
+int security_inode_setattr(struct user_namespace *mnt_userns,
+			   struct dentry *dentry, struct iattr *attr)
 {
 	int ret;
 
@@ -1339,7 +1334,7 @@ int security_inode_setattr(struct dentry *dentry, struct iattr *attr)
 	ret = call_int_hook(inode_setattr, 0, dentry, attr);
 	if (ret)
 		return ret;
-	return evm_inode_setattr(dentry, attr);
+	return evm_inode_setattr(mnt_userns, dentry, attr);
 }
 EXPORT_SYMBOL_GPL(security_inode_setattr);
 
@@ -1807,6 +1802,11 @@ int security_task_fix_setgid(struct cred *new, const struct cred *old,
 				 int flags)
 {
 	return call_int_hook(task_fix_setgid, 0, new, old, flags);
+}
+
+int security_task_fix_setgroups(struct cred *new, const struct cred *old)
+{
+	return call_int_hook(task_fix_setgroups, 0, new, old);
 }
 
 int security_task_setpgid(struct task_struct *p, pid_t pgid)

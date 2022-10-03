@@ -1536,7 +1536,6 @@ static const struct snd_soc_component_driver sgtl5000_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config sgtl5000_regmap = {
@@ -1579,8 +1578,7 @@ static void sgtl5000_fill_defaults(struct i2c_client *client)
 	}
 }
 
-static int sgtl5000_i2c_probe(struct i2c_client *client,
-			      const struct i2c_device_id *id)
+static int sgtl5000_i2c_probe(struct i2c_client *client)
 {
 	struct sgtl5000_priv *sgtl5000;
 	int ret, reg, rev;
@@ -1796,11 +1794,19 @@ static int sgtl5000_i2c_remove(struct i2c_client *client)
 {
 	struct sgtl5000_priv *sgtl5000 = i2c_get_clientdata(client);
 
+	regmap_write(sgtl5000->regmap, SGTL5000_CHIP_DIG_POWER, SGTL5000_DIG_POWER_DEFAULT);
+	regmap_write(sgtl5000->regmap, SGTL5000_CHIP_ANA_POWER, SGTL5000_ANA_POWER_DEFAULT);
+
 	clk_disable_unprepare(sgtl5000->mclk);
 	regulator_bulk_disable(sgtl5000->num_supplies, sgtl5000->supplies);
 	regulator_bulk_free(sgtl5000->num_supplies, sgtl5000->supplies);
 
 	return 0;
+}
+
+static void sgtl5000_i2c_shutdown(struct i2c_client *client)
+{
+	sgtl5000_i2c_remove(client);
 }
 
 static const struct i2c_device_id sgtl5000_id[] = {
@@ -1821,8 +1827,9 @@ static struct i2c_driver sgtl5000_i2c_driver = {
 		.name = "sgtl5000",
 		.of_match_table = sgtl5000_dt_ids,
 	},
-	.probe = sgtl5000_i2c_probe,
+	.probe_new = sgtl5000_i2c_probe,
 	.remove = sgtl5000_i2c_remove,
+	.shutdown = sgtl5000_i2c_shutdown,
 	.id_table = sgtl5000_id,
 };
 

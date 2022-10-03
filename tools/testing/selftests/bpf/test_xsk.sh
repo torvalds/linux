@@ -43,12 +43,11 @@
 #   ** veth<xxxx> in root namespace
 #   ** veth<yyyy> in af_xdp<xxxx> namespace
 #   ** namespace af_xdp<xxxx>
-#   * create a spec file veth.spec that includes this run-time configuration
 #   *** xxxx and yyyy are randomly generated 4 digit numbers used to avoid
 #       conflict with any existing interface
 #   * tests the veth and xsk layers of the topology
 #
-# See the source xdpxceiver.c for information on each test
+# See the source xskxceiver.c for information on each test
 #
 # Kernel configuration:
 # ---------------------
@@ -77,7 +76,7 @@
 
 . xsk_prereqs.sh
 
-while getopts "cvD" flag
+while getopts "vD" flag
 do
 	case "${flag}" in
 		v) verbose=1;;
@@ -88,7 +87,7 @@ done
 TEST_NAME="PREREQUISITES"
 
 URANDOM=/dev/urandom
-[ ! -e "${URANDOM}" ] && { echo "${URANDOM} not found. Skipping tests."; test_exit 1 1; }
+[ ! -e "${URANDOM}" ] && { echo "${URANDOM} not found. Skipping tests."; test_exit $ksft_fail; }
 
 VETH0_POSTFIX=$(cat ${URANDOM} | tr -dc '0-9' | fold -w 256 | head -n 1 | head --bytes 4)
 VETH0=ve${VETH0_POSTFIX}
@@ -97,6 +96,13 @@ VETH1=ve${VETH1_POSTFIX}
 NS0=root
 NS1=af_xdp${VETH1_POSTFIX}
 MTU=1500
+
+trap ctrl_c INT
+
+function ctrl_c() {
+        cleanup_exit ${VETH0} ${VETH1} ${NS1}
+	exit 1
+}
 
 setup_vethPairs() {
 	if [[ $verbose -eq 1 ]]; then
@@ -110,6 +116,14 @@ setup_vethPairs() {
 	if [[ $verbose -eq 1 ]]; then
 	        echo "setting up ${VETH1}: namespace: ${NS1}"
 	fi
+
+	if [[ $busy_poll -eq 1 ]]; then
+	        echo 2 > /sys/class/net/${VETH0}/napi_defer_hard_irqs
+		echo 200000 > /sys/class/net/${VETH0}/gro_flush_timeout
+		echo 2 > /sys/class/net/${VETH1}/napi_defer_hard_irqs
+		echo 200000 > /sys/class/net/${VETH1}/gro_flush_timeout
+	fi
+
 	ip link set ${VETH1} netns ${NS1}
 	ip netns exec ${NS1} ip link set ${VETH1} mtu ${MTU}
 	ip link set ${VETH0} mtu ${MTU}
@@ -130,17 +144,12 @@ if [ $retval -ne 0 ]; then
 	exit $retval
 fi
 
-echo "${VETH0}:${VETH1},${NS1}" > ${SPECFILE}
-
-validate_veth_spec_file
-
 if [[ $verbose -eq 1 ]]; then
-        echo "Spec file created: ${SPECFILE}"
-	VERBOSE_ARG="-v"
+	ARGS+="-v "
 fi
 
 if [[ $dump_pkts -eq 1 ]]; then
-	DUMP_PKTS_ARG="-D"
+	ARGS="-D "
 fi
 
 test_status $retval "${TEST_NAME}"
@@ -149,23 +158,31 @@ test_status $retval "${TEST_NAME}"
 
 statusList=()
 
-TEST_NAME="XSK KSELFTESTS"
+TEST_NAME="XSK_SELFTESTS_SOFTIRQ"
 
-execxdpxceiver
+exec_xskxceiver
 
-retval=$?
-test_status $retval "${TEST_NAME}"
-statusList+=($retval)
+cleanup_exit ${VETH0} ${VETH1} ${NS1}
+TEST_NAME="XSK_SELFTESTS_BUSY_POLL"
+busy_poll=1
+
+setup_vethPairs
+exec_xskxceiver
 
 ## END TESTS
 
 cleanup_exit ${VETH0} ${VETH1} ${NS1}
 
-for _status in "${statusList[@]}"
+failures=0
+echo -e "\nSummary:"
+for i in "${!statusList[@]}"
 do
-	if [ $_status -ne 0 ]; then
-		test_exit $ksft_fail 0
+	if [ ${statusList[$i]} -ne 0 ]; then
+	        test_status ${statusList[$i]} ${nameList[$i]}
+		failures=1
 	fi
 done
 
-test_exit $ksft_pass 0
+if [ $failures -eq 0 ]; then
+        echo "All tests successful!"
+fi

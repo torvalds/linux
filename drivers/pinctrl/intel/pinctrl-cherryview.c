@@ -627,7 +627,7 @@ static const char *chv_get_group_name(struct pinctrl_dev *pctldev,
 {
 	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
-	return pctrl->soc->groups[group].name;
+	return pctrl->soc->groups[group].grp.name;
 }
 
 static int chv_get_group_pins(struct pinctrl_dev *pctldev, unsigned int group,
@@ -635,8 +635,8 @@ static int chv_get_group_pins(struct pinctrl_dev *pctldev, unsigned int group,
 {
 	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
-	*pins = pctrl->soc->groups[group].pins;
-	*npins = pctrl->soc->groups[group].npins;
+	*pins = pctrl->soc->groups[group].grp.pins;
+	*npins = pctrl->soc->groups[group].grp.npins;
 	return 0;
 }
 
@@ -721,16 +721,16 @@ static int chv_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	raw_spin_lock_irqsave(&chv_lock, flags);
 
 	/* Check first that the pad is not locked */
-	for (i = 0; i < grp->npins; i++) {
-		if (chv_pad_locked(pctrl, grp->pins[i])) {
+	for (i = 0; i < grp->grp.npins; i++) {
+		if (chv_pad_locked(pctrl, grp->grp.pins[i])) {
 			raw_spin_unlock_irqrestore(&chv_lock, flags);
-			dev_warn(dev, "unable to set mode for locked pin %u\n", grp->pins[i]);
+			dev_warn(dev, "unable to set mode for locked pin %u\n", grp->grp.pins[i]);
 			return -EBUSY;
 		}
 	}
 
-	for (i = 0; i < grp->npins; i++) {
-		int pin = grp->pins[i];
+	for (i = 0; i < grp->grp.npins; i++) {
+		int pin = grp->grp.pins[i];
 		unsigned int mode;
 		bool invert_oe;
 		u32 value;
@@ -1242,12 +1242,12 @@ static void chv_gpio_irq_ack(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct intel_pinctrl *pctrl = gpiochip_get_data(gc);
-	int pin = irqd_to_hwirq(d);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 	u32 intr_line;
 
 	raw_spin_lock(&chv_lock);
 
-	intr_line = chv_readl(pctrl, pin, CHV_PADCTRL0);
+	intr_line = chv_readl(pctrl, hwirq, CHV_PADCTRL0);
 	intr_line &= CHV_PADCTRL0_INTSEL_MASK;
 	intr_line >>= CHV_PADCTRL0_INTSEL_SHIFT;
 	chv_pctrl_writel(pctrl, CHV_INTSTAT, BIT(intr_line));
@@ -1255,17 +1255,15 @@ static void chv_gpio_irq_ack(struct irq_data *d)
 	raw_spin_unlock(&chv_lock);
 }
 
-static void chv_gpio_irq_mask_unmask(struct irq_data *d, bool mask)
+static void chv_gpio_irq_mask_unmask(struct gpio_chip *gc, irq_hw_number_t hwirq, bool mask)
 {
-	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct intel_pinctrl *pctrl = gpiochip_get_data(gc);
-	int pin = irqd_to_hwirq(d);
 	u32 value, intr_line;
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&chv_lock, flags);
 
-	intr_line = chv_readl(pctrl, pin, CHV_PADCTRL0);
+	intr_line = chv_readl(pctrl, hwirq, CHV_PADCTRL0);
 	intr_line &= CHV_PADCTRL0_INTSEL_MASK;
 	intr_line >>= CHV_PADCTRL0_INTSEL_SHIFT;
 
@@ -1281,12 +1279,20 @@ static void chv_gpio_irq_mask_unmask(struct irq_data *d, bool mask)
 
 static void chv_gpio_irq_mask(struct irq_data *d)
 {
-	chv_gpio_irq_mask_unmask(d, true);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
+
+	chv_gpio_irq_mask_unmask(gc, hwirq, true);
+	gpiochip_disable_irq(gc, hwirq);
 }
 
 static void chv_gpio_irq_unmask(struct irq_data *d)
 {
-	chv_gpio_irq_mask_unmask(d, false);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
+
+	gpiochip_enable_irq(gc, hwirq);
+	chv_gpio_irq_mask_unmask(gc, hwirq, false);
 }
 
 static unsigned chv_gpio_irq_startup(struct irq_data *d)
@@ -1306,17 +1312,17 @@ static unsigned chv_gpio_irq_startup(struct irq_data *d)
 		struct intel_pinctrl *pctrl = gpiochip_get_data(gc);
 		struct device *dev = pctrl->dev;
 		struct intel_community_context *cctx = &pctrl->context.communities[0];
-		unsigned int pin = irqd_to_hwirq(d);
+		irq_hw_number_t hwirq = irqd_to_hwirq(d);
 		irq_flow_handler_t handler;
 		unsigned long flags;
 		u32 intsel, value;
 
 		raw_spin_lock_irqsave(&chv_lock, flags);
-		intsel = chv_readl(pctrl, pin, CHV_PADCTRL0);
+		intsel = chv_readl(pctrl, hwirq, CHV_PADCTRL0);
 		intsel &= CHV_PADCTRL0_INTSEL_MASK;
 		intsel >>= CHV_PADCTRL0_INTSEL_SHIFT;
 
-		value = chv_readl(pctrl, pin, CHV_PADCTRL1);
+		value = chv_readl(pctrl, hwirq, CHV_PADCTRL1);
 		if (value & CHV_PADCTRL1_INTWAKECFG_LEVEL)
 			handler = handle_level_irq;
 		else
@@ -1324,9 +1330,9 @@ static unsigned chv_gpio_irq_startup(struct irq_data *d)
 
 		if (cctx->intr_lines[intsel] == CHV_INVALID_HWIRQ) {
 			irq_set_handler_locked(d, handler);
-			dev_dbg(dev, "using interrupt line %u for IRQ_TYPE_NONE on pin %u\n",
-				intsel, pin);
-			cctx->intr_lines[intsel] = pin;
+			dev_dbg(dev, "using interrupt line %u for IRQ_TYPE_NONE on pin %lu\n",
+				intsel, hwirq);
+			cctx->intr_lines[intsel] = hwirq;
 		}
 		raw_spin_unlock_irqrestore(&chv_lock, flags);
 	}
@@ -1392,14 +1398,14 @@ static int chv_gpio_irq_type(struct irq_data *d, unsigned int type)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct intel_pinctrl *pctrl = gpiochip_get_data(gc);
-	unsigned int pin = irqd_to_hwirq(d);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
 	unsigned long flags;
 	u32 value;
 	int ret;
 
 	raw_spin_lock_irqsave(&chv_lock, flags);
 
-	ret = chv_gpio_set_intr_line(pctrl, pin);
+	ret = chv_gpio_set_intr_line(pctrl, hwirq);
 	if (ret)
 		goto out_unlock;
 
@@ -1416,8 +1422,8 @@ static int chv_gpio_irq_type(struct irq_data *d, unsigned int type)
 	 * 2. If the pin cfg is not locked in BIOS:
 	 *	Driver programs the IntWakeCfg bits and save the mapping.
 	 */
-	if (!chv_pad_locked(pctrl, pin)) {
-		value = chv_readl(pctrl, pin, CHV_PADCTRL1);
+	if (!chv_pad_locked(pctrl, hwirq)) {
+		value = chv_readl(pctrl, hwirq, CHV_PADCTRL1);
 		value &= ~CHV_PADCTRL1_INTWAKECFG_MASK;
 		value &= ~CHV_PADCTRL1_INVRXTX_MASK;
 
@@ -1434,7 +1440,7 @@ static int chv_gpio_irq_type(struct irq_data *d, unsigned int type)
 				value |= CHV_PADCTRL1_INVRXTX_RXDATA;
 		}
 
-		chv_writel(pctrl, pin, CHV_PADCTRL1, value);
+		chv_writel(pctrl, hwirq, CHV_PADCTRL1, value);
 	}
 
 	if (type & IRQ_TYPE_EDGE_BOTH)
@@ -1447,6 +1453,17 @@ out_unlock:
 
 	return ret;
 }
+
+static const struct irq_chip chv_gpio_irq_chip = {
+	.name		= "chv-gpio",
+	.irq_startup	= chv_gpio_irq_startup,
+	.irq_ack	= chv_gpio_irq_ack,
+	.irq_mask	= chv_gpio_irq_mask,
+	.irq_unmask	= chv_gpio_irq_unmask,
+	.irq_set_type	= chv_gpio_irq_type,
+	.flags		= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
+};
 
 static void chv_gpio_irq_handler(struct irq_desc *desc)
 {
@@ -1611,15 +1628,8 @@ static int chv_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 	chip->base = -1;
 
 	pctrl->irq = irq;
-	pctrl->irqchip.name = "chv-gpio";
-	pctrl->irqchip.irq_startup = chv_gpio_irq_startup;
-	pctrl->irqchip.irq_ack = chv_gpio_irq_ack;
-	pctrl->irqchip.irq_mask = chv_gpio_irq_mask;
-	pctrl->irqchip.irq_unmask = chv_gpio_irq_unmask;
-	pctrl->irqchip.irq_set_type = chv_gpio_irq_type;
-	pctrl->irqchip.flags = IRQCHIP_SKIP_SET_WAKE;
 
-	chip->irq.chip = &pctrl->irqchip;
+	gpio_irq_chip_set_chip(&chip->irq, &chv_gpio_irq_chip);
 	chip->irq.init_hw = chv_gpio_irq_init_hw;
 	chip->irq.parent_handler = chv_gpio_irq_handler;
 	chip->irq.num_parents = 1;

@@ -70,6 +70,24 @@ static int prestera_flower_parse_actions(struct prestera_flow_block *block,
 	if (!flow_action_has_entries(flow_action))
 		return 0;
 
+	if (!flow_action_mixed_hw_stats_check(flow_action, extack))
+		return -EOPNOTSUPP;
+
+	act = flow_action_first_entry_get(flow_action);
+	if (act->hw_stats & FLOW_ACTION_HW_STATS_DISABLED) {
+		/* Nothing to do */
+	} else if (act->hw_stats & FLOW_ACTION_HW_STATS_DELAYED) {
+		/* setup counter first */
+		rule->re_arg.count.valid = true;
+		err = prestera_acl_chain_to_client(chain_index, block->ingress,
+						   &rule->re_arg.count.client);
+		if (err)
+			return err;
+	} else {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported action HW stats type");
+		return -EOPNOTSUPP;
+	}
+
 	flow_action_for_each(i, act, flow_action) {
 		switch (act->id) {
 		case FLOW_ACTION_ACCEPT:
@@ -89,6 +107,16 @@ static int prestera_flower_parse_actions(struct prestera_flow_block *block,
 				return -EEXIST;
 
 			rule->re_arg.trap.valid = 1;
+			break;
+		case FLOW_ACTION_POLICE:
+			if (rule->re_arg.police.valid)
+				return -EEXIST;
+
+			rule->re_arg.police.valid = 1;
+			rule->re_arg.police.rate =
+				act->police.rate_bytes_ps;
+			rule->re_arg.police.burst = act->police.burst;
+			rule->re_arg.police.ingress = block->ingress;
 			break;
 		case FLOW_ACTION_GOTO:
 			err = prestera_flower_parse_goto_action(block, rule,
@@ -110,7 +138,8 @@ static int prestera_flower_parse_actions(struct prestera_flow_block *block,
 static int prestera_flower_parse_meta(struct prestera_acl_rule *rule,
 				      struct flow_cls_offload *f,
 				      struct prestera_flow_block *block)
-{	struct flow_rule *f_rule = flow_cls_offload_flow_rule(f);
+{
+	struct flow_rule *f_rule = flow_cls_offload_flow_rule(f);
 	struct prestera_acl_match *r_match = &rule->re_key.match;
 	struct prestera_port *port;
 	struct net_device *ingress_dev;
@@ -139,24 +168,24 @@ static int prestera_flower_parse_meta(struct prestera_acl_rule *rule,
 	}
 	port = netdev_priv(ingress_dev);
 
-	mask = htons(0x1FFF);
-	key = htons(port->hw_id);
+	mask = htons(0x1FFF << 3);
+	key = htons(port->hw_id << 3);
 	rule_match_set(r_match->key, SYS_PORT, key);
 	rule_match_set(r_match->mask, SYS_PORT, mask);
 
-	mask = htons(0x1FF);
+	mask = htons(0x3FF);
 	key = htons(port->dev_id);
 	rule_match_set(r_match->key, SYS_DEV, key);
 	rule_match_set(r_match->mask, SYS_DEV, mask);
 
 	return 0;
-
 }
 
 static int prestera_flower_parse(struct prestera_flow_block *block,
 				 struct prestera_acl_rule *rule,
 				 struct flow_cls_offload *f)
-{	struct flow_rule *f_rule = flow_cls_offload_flow_rule(f);
+{
+	struct flow_rule *f_rule = flow_cls_offload_flow_rule(f);
 	struct flow_dissector *dissector = f_rule->match.dissector;
 	struct prestera_acl_match *r_match = &rule->re_key.match;
 	__be16 n_proto_mask = 0;
@@ -174,6 +203,7 @@ static int prestera_flower_parse(struct prestera_flow_block *block,
 	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_ICMP) |
 	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
+	      BIT(FLOW_DISSECTOR_KEY_PORTS_RANGE) |
 	      BIT(FLOW_DISSECTOR_KEY_VLAN))) {
 		NL_SET_ERR_MSG_MOD(f->common.extack, "Unsupported key");
 		return -EOPNOTSUPP;
@@ -273,6 +303,29 @@ static int prestera_flower_parse(struct prestera_flow_block *block,
 		rule_match_set(r_match->mask, L4_PORT_DST, match.mask->dst);
 	}
 
+	if (flow_rule_match_key(f_rule, FLOW_DISSECTOR_KEY_PORTS_RANGE)) {
+		struct flow_match_ports_range match;
+		__be32 tp_key, tp_mask;
+
+		flow_rule_match_ports_range(f_rule, &match);
+
+		/* src port range (min, max) */
+		tp_key = htonl(ntohs(match.key->tp_min.src) |
+			       (ntohs(match.key->tp_max.src) << 16));
+		tp_mask = htonl(ntohs(match.mask->tp_min.src) |
+				(ntohs(match.mask->tp_max.src) << 16));
+		rule_match_set(r_match->key, L4_PORT_RANGE_SRC, tp_key);
+		rule_match_set(r_match->mask, L4_PORT_RANGE_SRC, tp_mask);
+
+		/* dst port range (min, max) */
+		tp_key = htonl(ntohs(match.key->tp_min.dst) |
+			       (ntohs(match.key->tp_max.dst) << 16));
+		tp_mask = htonl(ntohs(match.mask->tp_min.dst) |
+				(ntohs(match.mask->tp_max.dst) << 16));
+		rule_match_set(r_match->key, L4_PORT_RANGE_DST, tp_key);
+		rule_match_set(r_match->mask, L4_PORT_RANGE_DST, tp_mask);
+	}
+
 	if (flow_rule_match_key(f_rule, FLOW_DISSECTOR_KEY_VLAN)) {
 		struct flow_match_vlan match;
 
@@ -369,7 +422,6 @@ void prestera_flower_destroy(struct prestera_flow_block *block,
 		prestera_acl_rule_destroy(rule);
 	}
 	prestera_acl_ruleset_put(ruleset);
-
 }
 
 int prestera_flower_tmplt_create(struct prestera_flow_block *block,

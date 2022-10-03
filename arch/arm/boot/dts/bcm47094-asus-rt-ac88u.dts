@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
- * Copyright (C) 2021 Arınç ÜNAL <arinc.unal@arinc9.com>
+ * Copyright (C) 2021-2022 Arınç ÜNAL <arinc.unal@arinc9.com>
  */
 
 /dts-v1/;
@@ -25,6 +25,9 @@
 	nvram@1c080000 {
 		compatible = "brcm,nvram";
 		reg = <0x1c080000 0x00180000>;
+
+		et1macaddr: et1macaddr {
+		};
 	};
 
 	leds {
@@ -69,25 +72,25 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		wps {
+		button-wps {
 			label = "WPS";
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&chipcommon 20 GPIO_ACTIVE_LOW>;
 		};
 
-		reset {
+		button-reset {
 			label = "Reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&chipcommon 11 GPIO_ACTIVE_LOW>;
 		};
 
-		wifi {
+		button-wifi {
 			label = "Wi-Fi";
 			linux,code = <KEY_RFKILL>;
 			gpios = <&chipcommon 18 GPIO_ACTIVE_LOW>;
 		};
 
-		led {
+		button-led {
 			label = "Backlight";
 			linux,code = <KEY_BRIGHTNESS_ZERO>;
 			gpios = <&chipcommon 4 GPIO_ACTIVE_LOW>;
@@ -177,9 +180,6 @@
 	dsa,member = <0 0>;
 
 	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		port@0 {
 			reg = <0>;
 			label = "lan4";
@@ -208,6 +208,7 @@
 		sw0_p5: port@5 {
 			reg = <5>;
 			label = "extsw";
+			phy-mode = "rgmii";
 
 			fixed-link {
 				speed = <1000>;
@@ -231,7 +232,6 @@
 			reg = <8>;
 			ethernet = <&gmac2>;
 			label = "cpu";
-			status = "disabled";
 
 			fixed-link {
 				speed = <1000>;
@@ -239,6 +239,15 @@
 			};
 		};
 	};
+};
+
+&gmac0 {
+	status = "disabled";
+};
+
+&gmac1 {
+	nvmem-cells = <&et1macaddr>;
+	nvmem-cell-names = "mac-address";
 };
 
 &usb2 {

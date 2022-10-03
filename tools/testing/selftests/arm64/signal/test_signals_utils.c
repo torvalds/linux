@@ -27,6 +27,8 @@ static int sig_copyctx = SIGTRAP;
 static char const *const feats_names[FMAX_END] = {
 	" SSBS ",
 	" SVE ",
+	" SME ",
+	" FA64 ",
 };
 
 #define MAX_FEATS_SZ	128
@@ -268,6 +270,10 @@ int test_init(struct tdescr *td)
 			td->feats_supported |= FEAT_SSBS;
 		if (getauxval(AT_HWCAP) & HWCAP_SVE)
 			td->feats_supported |= FEAT_SVE;
+		if (getauxval(AT_HWCAP2) & HWCAP2_SME)
+			td->feats_supported |= FEAT_SME;
+		if (getauxval(AT_HWCAP2) & HWCAP2_SME_FA64)
+			td->feats_supported |= FEAT_SME_FA64;
 		if (feats_ok(td)) {
 			if (td->feats_required & td->feats_supported)
 				fprintf(stderr,

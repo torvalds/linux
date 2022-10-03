@@ -298,12 +298,6 @@ fail:
 	return ret;
 }
 
-static void armada_ovl_plane_destroy(struct drm_plane *plane)
-{
-	drm_plane_cleanup(plane);
-	kfree(plane);
-}
-
 static void armada_overlay_reset(struct drm_plane *plane)
 {
 	struct armada_overlay_state *state;
@@ -468,7 +462,7 @@ static int armada_overlay_get_property(struct drm_plane *plane,
 static const struct drm_plane_funcs armada_ovl_plane_funcs = {
 	.update_plane	= armada_overlay_plane_update,
 	.disable_plane	= drm_atomic_helper_disable_plane,
-	.destroy	= armada_ovl_plane_destroy,
+	.destroy	= drm_plane_helper_destroy,
 	.reset		= armada_overlay_reset,
 	.atomic_duplicate_state = armada_overlay_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,

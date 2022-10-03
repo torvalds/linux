@@ -473,7 +473,8 @@ enum {
  */
 
 struct disk_info {
-	struct md_rdev	*rdev, *replacement;
+	struct md_rdev	__rcu *rdev;
+	struct md_rdev  __rcu *replacement;
 	struct page	*extra_page; /* extra page to use in prexor */
 };
 
@@ -560,6 +561,16 @@ struct r5pending_data {
 	struct bio_list bios;
 };
 
+struct raid5_percpu {
+	struct page	*spare_page; /* Used when checking P/Q in raid6 */
+	void		*scribble;  /* space for constructing buffer
+				     * lists and performing address
+				     * conversions
+				     */
+	int             scribble_obj_size;
+	local_lock_t    lock;
+};
+
 struct r5conf {
 	struct hlist_head	*stripe_hashtbl;
 	/* only protect corresponding hash list and inactive_list */
@@ -635,15 +646,7 @@ struct r5conf {
 					    */
 	int			recovery_disabled;
 	/* per cpu variables */
-	struct raid5_percpu {
-		struct page	*spare_page; /* Used when checking P/Q in raid6 */
-		void		*scribble;  /* space for constructing buffer
-					     * lists and performing address
-					     * conversions
-					     */
-		int             scribble_obj_size;
-		local_lock_t    lock;
-	} __percpu *percpu;
+	struct raid5_percpu __percpu *percpu;
 	int scribble_disks;
 	int scribble_sectors;
 	struct hlist_node node;
@@ -809,7 +812,7 @@ extern sector_t raid5_compute_sector(struct r5conf *conf, sector_t r_sector,
 				     struct stripe_head *sh);
 extern struct stripe_head *
 raid5_get_active_stripe(struct r5conf *conf, sector_t sector,
-			int previous, int noblock, int noquiesce);
+			bool previous, bool noblock, bool noquiesce);
 extern int raid5_calc_degraded(struct r5conf *conf);
 extern int r5c_journal_mode_set(struct mddev *mddev, int journal_mode);
 #endif

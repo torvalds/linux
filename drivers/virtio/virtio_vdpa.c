@@ -53,16 +53,16 @@ static struct vdpa_device *vd_get_vdpa(struct virtio_device *vdev)
 	return to_virtio_vdpa_device(vdev)->vdpa;
 }
 
-static void virtio_vdpa_get(struct virtio_device *vdev, unsigned offset,
-			    void *buf, unsigned len)
+static void virtio_vdpa_get(struct virtio_device *vdev, unsigned int offset,
+			    void *buf, unsigned int len)
 {
 	struct vdpa_device *vdpa = vd_get_vdpa(vdev);
 
 	vdpa_get_config(vdpa, offset, buf, len);
 }
 
-static void virtio_vdpa_set(struct virtio_device *vdev, unsigned offset,
-			    const void *buf, unsigned len)
+static void virtio_vdpa_set(struct virtio_device *vdev, unsigned int offset,
+			    const void *buf, unsigned int len)
 {
 	struct vdpa_device *vdpa = vd_get_vdpa(vdev);
 
@@ -183,8 +183,10 @@ virtio_vdpa_setup_vq(struct virtio_device *vdev, unsigned int index,
 		goto error_new_virtqueue;
 	}
 
+	vq->num_max = max_num;
+
 	/* Setup virtqueue callback */
-	cb.callback = virtio_vdpa_virtqueue_cb;
+	cb.callback = callback ? virtio_vdpa_virtqueue_cb : NULL;
 	cb.private = info;
 	ops->set_vq_cb(vdpa, index, &cb);
 	ops->set_vq_num(vdpa, index, virtqueue_get_vring_size(vq));
@@ -263,7 +265,7 @@ static void virtio_vdpa_del_vqs(struct virtio_device *vdev)
 		virtio_vdpa_del_vq(vq);
 }
 
-static int virtio_vdpa_find_vqs(struct virtio_device *vdev, unsigned nvqs,
+static int virtio_vdpa_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 				struct virtqueue *vqs[],
 				vq_callback_t *callbacks[],
 				const char * const names[],

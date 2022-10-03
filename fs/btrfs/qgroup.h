@@ -364,19 +364,23 @@ int btrfs_qgroup_free_data(struct btrfs_inode *inode,
 int btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
 			      enum btrfs_qgroup_rsv_type type, bool enforce);
 int __btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
-				enum btrfs_qgroup_rsv_type type, bool enforce);
+				enum btrfs_qgroup_rsv_type type, bool enforce,
+				bool noflush);
 /* Reserve metadata space for pertrans and prealloc type */
 static inline int btrfs_qgroup_reserve_meta_pertrans(struct btrfs_root *root,
 				int num_bytes, bool enforce)
 {
 	return __btrfs_qgroup_reserve_meta(root, num_bytes,
-			BTRFS_QGROUP_RSV_META_PERTRANS, enforce);
+					   BTRFS_QGROUP_RSV_META_PERTRANS,
+					   enforce, false);
 }
 static inline int btrfs_qgroup_reserve_meta_prealloc(struct btrfs_root *root,
-				int num_bytes, bool enforce)
+						     int num_bytes, bool enforce,
+						     bool noflush)
 {
 	return __btrfs_qgroup_reserve_meta(root, num_bytes,
-			BTRFS_QGROUP_RSV_META_PREALLOC, enforce);
+					   BTRFS_QGROUP_RSV_META_PREALLOC,
+					   enforce, noflush);
 }
 
 void __btrfs_qgroup_free_meta(struct btrfs_root *root, int num_bytes,

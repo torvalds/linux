@@ -20,7 +20,6 @@
 #include <asm/machdep.h>
 #include <linux/time.h>
 #include <asm/mpc8260.h>
-#include <asm/prom.h>
 
 #include <sysdev/fsl_soc.h>
 #include <sysdev/cpm2_pic.h>

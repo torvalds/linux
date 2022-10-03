@@ -13,13 +13,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <linux/limits.h>
-#include <linux/magic.h>
 #include <net/if.h>
 #include <sys/mount.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/vfs.h>
+
+#include <linux/filter.h>
+#include <linux/limits.h>
+#include <linux/magic.h>
+#include <linux/unistd.h>
 
 #include <bpf/bpf.h>
 #include <bpf/hashmap.h>
@@ -31,52 +34,6 @@
 #ifndef BPF_FS_MAGIC
 #define BPF_FS_MAGIC		0xcafe4a11
 #endif
-
-const char * const attach_type_name[__MAX_BPF_ATTACH_TYPE] = {
-	[BPF_CGROUP_INET_INGRESS]	= "ingress",
-	[BPF_CGROUP_INET_EGRESS]	= "egress",
-	[BPF_CGROUP_INET_SOCK_CREATE]	= "sock_create",
-	[BPF_CGROUP_INET_SOCK_RELEASE]	= "sock_release",
-	[BPF_CGROUP_SOCK_OPS]		= "sock_ops",
-	[BPF_CGROUP_DEVICE]		= "device",
-	[BPF_CGROUP_INET4_BIND]		= "bind4",
-	[BPF_CGROUP_INET6_BIND]		= "bind6",
-	[BPF_CGROUP_INET4_CONNECT]	= "connect4",
-	[BPF_CGROUP_INET6_CONNECT]	= "connect6",
-	[BPF_CGROUP_INET4_POST_BIND]	= "post_bind4",
-	[BPF_CGROUP_INET6_POST_BIND]	= "post_bind6",
-	[BPF_CGROUP_INET4_GETPEERNAME]	= "getpeername4",
-	[BPF_CGROUP_INET6_GETPEERNAME]	= "getpeername6",
-	[BPF_CGROUP_INET4_GETSOCKNAME]	= "getsockname4",
-	[BPF_CGROUP_INET6_GETSOCKNAME]	= "getsockname6",
-	[BPF_CGROUP_UDP4_SENDMSG]	= "sendmsg4",
-	[BPF_CGROUP_UDP6_SENDMSG]	= "sendmsg6",
-	[BPF_CGROUP_SYSCTL]		= "sysctl",
-	[BPF_CGROUP_UDP4_RECVMSG]	= "recvmsg4",
-	[BPF_CGROUP_UDP6_RECVMSG]	= "recvmsg6",
-	[BPF_CGROUP_GETSOCKOPT]		= "getsockopt",
-	[BPF_CGROUP_SETSOCKOPT]		= "setsockopt",
-	[BPF_SK_SKB_STREAM_PARSER]	= "sk_skb_stream_parser",
-	[BPF_SK_SKB_STREAM_VERDICT]	= "sk_skb_stream_verdict",
-	[BPF_SK_SKB_VERDICT]		= "sk_skb_verdict",
-	[BPF_SK_MSG_VERDICT]		= "sk_msg_verdict",
-	[BPF_LIRC_MODE2]		= "lirc_mode2",
-	[BPF_FLOW_DISSECTOR]		= "flow_dissector",
-	[BPF_TRACE_RAW_TP]		= "raw_tp",
-	[BPF_TRACE_FENTRY]		= "fentry",
-	[BPF_TRACE_FEXIT]		= "fexit",
-	[BPF_MODIFY_RETURN]		= "mod_ret",
-	[BPF_LSM_MAC]			= "lsm_mac",
-	[BPF_SK_LOOKUP]			= "sk_lookup",
-	[BPF_TRACE_ITER]		= "trace_iter",
-	[BPF_XDP_DEVMAP]		= "xdp_devmap",
-	[BPF_XDP_CPUMAP]		= "xdp_cpumap",
-	[BPF_XDP]			= "xdp",
-	[BPF_SK_REUSEPORT_SELECT]	= "sk_skb_reuseport_select",
-	[BPF_SK_REUSEPORT_SELECT_OR_MIGRATE]	= "sk_skb_reuseport_select_or_migrate",
-	[BPF_PERF_EVENT]		= "perf_event",
-	[BPF_TRACE_KPROBE_MULTI]	= "trace_kprobe_multi",
-};
 
 void p_err(const char *fmt, ...)
 {
@@ -119,11 +76,73 @@ static bool is_bpffs(char *path)
 	return (unsigned long)st_fs.f_type == BPF_FS_MAGIC;
 }
 
+/* Probe whether kernel switched from memlock-based (RLIMIT_MEMLOCK) to
+ * memcg-based memory accounting for BPF maps and programs. This was done in
+ * commit 97306be45fbe ("Merge branch 'switch to memcg-based memory
+ * accounting'"), in Linux 5.11.
+ *
+ * Libbpf also offers to probe for memcg-based accounting vs rlimit, but does
+ * so by checking for the availability of a given BPF helper and this has
+ * failed on some kernels with backports in the past, see commit 6b4384ff1088
+ * ("Revert "bpftool: Use libbpf 1.0 API mode instead of RLIMIT_MEMLOCK"").
+ * Instead, we can probe by lowering the process-based rlimit to 0, trying to
+ * load a BPF object, and resetting the rlimit. If the load succeeds then
+ * memcg-based accounting is supported.
+ *
+ * This would be too dangerous to do in the library, because multithreaded
+ * applications might attempt to load items while the rlimit is at 0. Given
+ * that bpftool is single-threaded, this is fine to do here.
+ */
+static bool known_to_need_rlimit(void)
+{
+	struct rlimit rlim_init, rlim_cur_zero = {};
+	struct bpf_insn insns[] = {
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+	};
+	size_t insn_cnt = ARRAY_SIZE(insns);
+	union bpf_attr attr;
+	int prog_fd, err;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
+	attr.insns = ptr_to_u64(insns);
+	attr.insn_cnt = insn_cnt;
+	attr.license = ptr_to_u64("GPL");
+
+	if (getrlimit(RLIMIT_MEMLOCK, &rlim_init))
+		return false;
+
+	/* Drop the soft limit to zero. We maintain the hard limit to its
+	 * current value, because lowering it would be a permanent operation
+	 * for unprivileged users.
+	 */
+	rlim_cur_zero.rlim_max = rlim_init.rlim_max;
+	if (setrlimit(RLIMIT_MEMLOCK, &rlim_cur_zero))
+		return false;
+
+	/* Do not use bpf_prog_load() from libbpf here, because it calls
+	 * bump_rlimit_memlock(), interfering with the current probe.
+	 */
+	prog_fd = syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
+	err = errno;
+
+	/* reset soft rlimit to its initial value */
+	setrlimit(RLIMIT_MEMLOCK, &rlim_init);
+
+	if (prog_fd < 0)
+		return err == EPERM;
+
+	close(prog_fd);
+	return false;
+}
+
 void set_max_rlimit(void)
 {
 	struct rlimit rinf = { RLIM_INFINITY, RLIM_INFINITY };
 
-	setrlimit(RLIMIT_MEMLOCK, &rinf);
+	if (known_to_need_rlimit())
+		setrlimit(RLIMIT_MEMLOCK, &rinf);
 }
 
 static int
@@ -297,6 +316,7 @@ const char *get_fd_type_name(enum bpf_obj_type type)
 		[BPF_OBJ_UNKNOWN]	= "unknown",
 		[BPF_OBJ_PROG]		= "prog",
 		[BPF_OBJ_MAP]		= "map",
+		[BPF_OBJ_LINK]		= "link",
 	};
 
 	if (type < 0 || type >= ARRAY_SIZE(names) || !names[type])
@@ -1016,4 +1036,40 @@ size_t hash_fn_for_key_as_id(const void *key, void *ctx)
 bool equal_fn_for_key_as_id(const void *k1, const void *k2, void *ctx)
 {
 	return k1 == k2;
+}
+
+const char *bpf_attach_type_input_str(enum bpf_attach_type t)
+{
+	switch (t) {
+	case BPF_CGROUP_INET_INGRESS:		return "ingress";
+	case BPF_CGROUP_INET_EGRESS:		return "egress";
+	case BPF_CGROUP_INET_SOCK_CREATE:	return "sock_create";
+	case BPF_CGROUP_INET_SOCK_RELEASE:	return "sock_release";
+	case BPF_CGROUP_SOCK_OPS:		return "sock_ops";
+	case BPF_CGROUP_DEVICE:			return "device";
+	case BPF_CGROUP_INET4_BIND:		return "bind4";
+	case BPF_CGROUP_INET6_BIND:		return "bind6";
+	case BPF_CGROUP_INET4_CONNECT:		return "connect4";
+	case BPF_CGROUP_INET6_CONNECT:		return "connect6";
+	case BPF_CGROUP_INET4_POST_BIND:	return "post_bind4";
+	case BPF_CGROUP_INET6_POST_BIND:	return "post_bind6";
+	case BPF_CGROUP_INET4_GETPEERNAME:	return "getpeername4";
+	case BPF_CGROUP_INET6_GETPEERNAME:	return "getpeername6";
+	case BPF_CGROUP_INET4_GETSOCKNAME:	return "getsockname4";
+	case BPF_CGROUP_INET6_GETSOCKNAME:	return "getsockname6";
+	case BPF_CGROUP_UDP4_SENDMSG:		return "sendmsg4";
+	case BPF_CGROUP_UDP6_SENDMSG:		return "sendmsg6";
+	case BPF_CGROUP_SYSCTL:			return "sysctl";
+	case BPF_CGROUP_UDP4_RECVMSG:		return "recvmsg4";
+	case BPF_CGROUP_UDP6_RECVMSG:		return "recvmsg6";
+	case BPF_CGROUP_GETSOCKOPT:		return "getsockopt";
+	case BPF_CGROUP_SETSOCKOPT:		return "setsockopt";
+	case BPF_TRACE_RAW_TP:			return "raw_tp";
+	case BPF_TRACE_FENTRY:			return "fentry";
+	case BPF_TRACE_FEXIT:			return "fexit";
+	case BPF_MODIFY_RETURN:			return "mod_ret";
+	case BPF_SK_REUSEPORT_SELECT:		return "sk_skb_reuseport_select";
+	case BPF_SK_REUSEPORT_SELECT_OR_MIGRATE:	return "sk_skb_reuseport_select_or_migrate";
+	default:	return libbpf_bpf_attach_type_str(t);
+	}
 }

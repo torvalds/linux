@@ -251,6 +251,33 @@ out:
 	return status;
 }
 
+static enum mod_hdcp_status update_display_adjustments(struct mod_hdcp *hdcp,
+		struct mod_hdcp_display *display,
+		struct mod_hdcp_display_adjustment *adj)
+{
+	enum mod_hdcp_status status = MOD_HDCP_STATUS_NOT_IMPLEMENTED;
+
+	if (is_in_authenticated_states(hdcp) &&
+			is_dp_mst_hdcp(hdcp) &&
+			display->adjust.disable == true &&
+			adj->disable == false) {
+		display->adjust.disable = false;
+		if (is_hdcp1(hdcp))
+			status = mod_hdcp_hdcp1_enable_dp_stream_encryption(hdcp);
+		else if (is_hdcp2(hdcp))
+			status = mod_hdcp_hdcp2_enable_dp_stream_encryption(hdcp);
+
+		if (status != MOD_HDCP_STATUS_SUCCESS)
+			display->adjust.disable = true;
+	}
+
+	if (status == MOD_HDCP_STATUS_SUCCESS &&
+		memcmp(adj, &display->adjust,
+		sizeof(struct mod_hdcp_display_adjustment)) != 0)
+		status = MOD_HDCP_STATUS_NOT_IMPLEMENTED;
+
+	return status;
+}
 /*
  * Implementation of functions in mod_hdcp.h
  */
@@ -391,7 +418,7 @@ out:
 	return status;
 }
 
-enum mod_hdcp_status mod_hdcp_update_authentication(struct mod_hdcp *hdcp,
+enum mod_hdcp_status mod_hdcp_update_display(struct mod_hdcp *hdcp,
 		uint8_t index,
 		struct mod_hdcp_link_adjustment *link_adjust,
 		struct mod_hdcp_display_adjustment *display_adjust,
@@ -417,6 +444,15 @@ enum mod_hdcp_status mod_hdcp_update_authentication(struct mod_hdcp *hdcp,
 					sizeof(struct mod_hdcp_display_adjustment)) == 0) {
 		status = MOD_HDCP_STATUS_SUCCESS;
 		goto out;
+	}
+
+	if (memcmp(link_adjust, &hdcp->connection.link.adjust,
+			sizeof(struct mod_hdcp_link_adjustment)) == 0 &&
+			memcmp(display_adjust, &display->adjust,
+					sizeof(struct mod_hdcp_display_adjustment)) != 0) {
+		status = update_display_adjustments(hdcp, display, display_adjust);
+		if (status != MOD_HDCP_STATUS_NOT_IMPLEMENTED)
+			goto out;
 	}
 
 	/* stop current authentication */

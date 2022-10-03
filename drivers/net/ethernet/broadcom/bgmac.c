@@ -189,8 +189,8 @@ static netdev_tx_t bgmac_dma_tx_add(struct bgmac *bgmac,
 	}
 
 	slot->skb = skb;
-	ring->end += nr_frags + 1;
 	netdev_sent_queue(net_dev, skb->len);
+	ring->end += nr_frags + 1;
 
 	wmb();
 
@@ -1527,7 +1527,7 @@ int bgmac_enet_probe(struct bgmac *bgmac)
 	if (bcm47xx_nvram_getenv("et0_no_txint", NULL, 0) == 0)
 		bgmac->int_mask &= ~BGMAC_IS_TX_MASK;
 
-	netif_napi_add(net_dev, &bgmac->napi, bgmac_poll, BGMAC_WEIGHT);
+	netif_napi_add(net_dev, &bgmac->napi, bgmac_poll, NAPI_POLL_WEIGHT);
 
 	err = bgmac_phy_connect(bgmac);
 	if (err) {

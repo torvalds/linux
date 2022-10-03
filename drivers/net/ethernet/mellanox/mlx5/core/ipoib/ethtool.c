@@ -83,7 +83,7 @@ static void mlx5i_get_ringparam(struct net_device *dev,
 {
 	struct mlx5e_priv *priv = mlx5i_epriv(dev);
 
-	mlx5e_ethtool_get_ringparam(priv, param);
+	mlx5e_ethtool_get_ringparam(priv, param, kernel_param);
 }
 
 static int mlx5i_set_channels(struct net_device *dev,
@@ -221,7 +221,6 @@ static int mlx5i_get_link_ksettings(struct net_device *netdev,
 	return 0;
 }
 
-#ifdef CONFIG_MLX5_EN_RXNFC
 static u32 mlx5i_flow_type_mask(u32 flow_type)
 {
 	return flow_type & ~(FLOW_EXT | FLOW_MAC_EXT | FLOW_RSS);
@@ -243,9 +242,18 @@ static int mlx5i_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 {
 	struct mlx5e_priv *priv = mlx5i_epriv(dev);
 
+	/* ETHTOOL_GRXRINGS is needed by ethtool -x which is not part
+	 * of rxnfc. We keep this logic out of mlx5e_ethtool_get_rxnfc,
+	 * to avoid breaking "ethtool -x" when mlx5e_ethtool_get_rxnfc
+	 * is compiled out via CONFIG_MLX5_EN_RXNFC=n.
+	 */
+	if (info->cmd == ETHTOOL_GRXRINGS) {
+		info->data = priv->channels.params.num_channels;
+		return 0;
+	}
+
 	return mlx5e_ethtool_get_rxnfc(priv, info, rule_locs);
 }
-#endif
 
 const struct ethtool_ops mlx5i_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
@@ -263,10 +271,8 @@ const struct ethtool_ops mlx5i_ethtool_ops = {
 	.get_coalesce       = mlx5i_get_coalesce,
 	.set_coalesce       = mlx5i_set_coalesce,
 	.get_ts_info        = mlx5i_get_ts_info,
-#ifdef CONFIG_MLX5_EN_RXNFC
 	.get_rxnfc          = mlx5i_get_rxnfc,
 	.set_rxnfc          = mlx5i_set_rxnfc,
-#endif
 	.get_link_ksettings = mlx5i_get_link_ksettings,
 	.get_link           = ethtool_op_get_link,
 };

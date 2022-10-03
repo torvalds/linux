@@ -1440,7 +1440,7 @@ static struct snd_soc_dai_driver nau8825_dai = {
 	.capture = {
 		.stream_name	 = "Capture",
 		.channels_min	 = 1,
-		.channels_max	 = 1,
+		.channels_max	 = 2,   /* Only 1 channel of data */
 		.rates		 = NAU8825_RATES,
 		.formats	 = NAU8825_FORMATS,
 	},
@@ -2478,7 +2478,6 @@ static const struct snd_soc_component_driver nau8825_component_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static void nau8825_reset_chip(struct regmap *regmap)
@@ -2613,8 +2612,7 @@ static int nau8825_setup_irq(struct nau8825 *nau8825)
 	return 0;
 }
 
-static int nau8825_i2c_probe(struct i2c_client *i2c,
-	const struct i2c_device_id *id)
+static int nau8825_i2c_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	struct nau8825 *nau8825 = dev_get_platdata(&i2c->dev);
@@ -2703,7 +2701,7 @@ static struct i2c_driver nau8825_driver = {
 		.of_match_table = of_match_ptr(nau8825_of_ids),
 		.acpi_match_table = ACPI_PTR(nau8825_acpi_match),
 	},
-	.probe = nau8825_i2c_probe,
+	.probe_new = nau8825_i2c_probe,
 	.remove = nau8825_i2c_remove,
 	.id_table = nau8825_i2c_ids,
 };

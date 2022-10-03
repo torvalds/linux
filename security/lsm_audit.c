@@ -433,6 +433,9 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 		audit_log_format(ab, " lockdown_reason=\"%s\"",
 				 lockdown_reasons[a->u.reason]);
 		break;
+	case LSM_AUDIT_DATA_ANONINODE:
+		audit_log_format(ab, " anonclass=%s", a->u.anonclass);
+		break;
 	} /* switch (a->type) */
 }
 

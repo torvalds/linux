@@ -62,6 +62,34 @@ static int chacha20_s390(struct skcipher_request *req)
 	return rc;
 }
 
+void hchacha_block_arch(const u32 *state, u32 *stream, int nrounds)
+{
+	/* TODO: implement hchacha_block_arch() in assembly */
+	hchacha_block_generic(state, stream, nrounds);
+}
+EXPORT_SYMBOL(hchacha_block_arch);
+
+void chacha_init_arch(u32 *state, const u32 *key, const u8 *iv)
+{
+	chacha_init_generic(state, key, iv);
+}
+EXPORT_SYMBOL(chacha_init_arch);
+
+void chacha_crypt_arch(u32 *state, u8 *dst, const u8 *src,
+		       unsigned int bytes, int nrounds)
+{
+	/* s390 chacha20 implementation has 20 rounds hard-coded,
+	 * it cannot handle a block of data or less, but otherwise
+	 * it can handle data of arbitrary size
+	 */
+	if (bytes <= CHACHA_BLOCK_SIZE || nrounds != 20)
+		chacha_crypt_generic(state, dst, src, bytes, nrounds);
+	else
+		chacha20_crypt_s390(state, dst, src, bytes,
+				    &state[4], &state[12]);
+}
+EXPORT_SYMBOL(chacha_crypt_arch);
+
 static struct skcipher_alg chacha_algs[] = {
 	{
 		.base.cra_name		= "chacha20",
@@ -83,15 +111,17 @@ static struct skcipher_alg chacha_algs[] = {
 
 static int __init chacha_mod_init(void)
 {
-	return crypto_register_skciphers(chacha_algs, ARRAY_SIZE(chacha_algs));
+	return IS_REACHABLE(CONFIG_CRYPTO_SKCIPHER) ?
+		crypto_register_skciphers(chacha_algs, ARRAY_SIZE(chacha_algs)) : 0;
 }
 
 static void __exit chacha_mod_fini(void)
 {
-	crypto_unregister_skciphers(chacha_algs, ARRAY_SIZE(chacha_algs));
+	if (IS_REACHABLE(CONFIG_CRYPTO_SKCIPHER))
+		crypto_unregister_skciphers(chacha_algs, ARRAY_SIZE(chacha_algs));
 }
 
-module_cpu_feature_match(VXRS, chacha_mod_init);
+module_cpu_feature_match(S390_CPU_FEATURE_VXRS, chacha_mod_init);
 module_exit(chacha_mod_fini);
 
 MODULE_DESCRIPTION("ChaCha20 stream cipher");

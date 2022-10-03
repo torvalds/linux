@@ -167,10 +167,10 @@ inline void make_le_item_head(struct item_head *ih, const struct cpu_key *key,
  * cutting the code is fine, since it really isn't in use yet and is easy
  * to add back in.  But, Vladimir has a really good idea here.  Think
  * about what happens for reading a file.  For each page,
- * The VFS layer calls reiserfs_readpage, who searches the tree to find
+ * The VFS layer calls reiserfs_read_folio, who searches the tree to find
  * an indirect item.  This indirect item has X number of pointers, where
  * X is a big number if we've done the block allocation right.  But,
- * we only use one or two of these pointers during each call to readpage,
+ * we only use one or two of these pointers during each call to read_folio,
  * needlessly researching again later on.
  *
  * The size of the cache could be dynamic based on the size of the file.
@@ -290,7 +290,7 @@ static int _get_block_create_0(struct inode *inode, sector_t block,
 	struct buffer_head *bh;
 	struct item_head *ih, tmp_ih;
 	b_blocknr_t blocknr;
-	char *p = NULL;
+	char *p;
 	int chars;
 	int ret;
 	int result;
@@ -305,8 +305,6 @@ static int _get_block_create_0(struct inode *inode, sector_t block,
 	result = search_for_position_by_key(inode->i_sb, &key, &path);
 	if (result != POSITION_FOUND) {
 		pathrelse(&path);
-		if (p)
-			kunmap(bh_result->b_page);
 		if (result == IO_ERROR)
 			return -EIO;
 		/*
@@ -352,8 +350,6 @@ static int _get_block_create_0(struct inode *inode, sector_t block,
 		}
 
 		pathrelse(&path);
-		if (p)
-			kunmap(bh_result->b_page);
 		return ret;
 	}
 	/* requested data are in direct item(s) */
@@ -363,8 +359,6 @@ static int _get_block_create_0(struct inode *inode, sector_t block,
 		 * when it is stored in direct item(s)
 		 */
 		pathrelse(&path);
-		if (p)
-			kunmap(bh_result->b_page);
 		return -ENOENT;
 	}
 
@@ -396,9 +390,7 @@ static int _get_block_create_0(struct inode *inode, sector_t block,
 	 * sure we need to.  But, this means the item might move if
 	 * kmap schedules
 	 */
-	if (!p)
-		p = (char *)kmap(bh_result->b_page);
-
+	p = (char *)kmap(bh_result->b_page);
 	p += offset;
 	memset(p, 0, inode->i_sb->s_blocksize);
 	do {
@@ -966,7 +958,7 @@ research:
 			 * it is important the set_buffer_uptodate is done
 			 * after the direct2indirect.  The buffer might
 			 * contain valid data newer than the data on disk
-			 * (read by readpage, changed, and then sent here by
+			 * (read by read_folio, changed, and then sent here by
 			 * writepage).  direct2indirect needs to know if unbh
 			 * was already up to date, so it can decide if the
 			 * data in unbh needs to be replaced with data from
@@ -2664,7 +2656,7 @@ static int reiserfs_write_full_page(struct page *page,
 	do {
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
-			submit_bh(REQ_OP_WRITE, 0, bh);
+			submit_bh(REQ_OP_WRITE, bh);
 			nr++;
 		}
 		put_bh(bh);
@@ -2724,7 +2716,7 @@ fail:
 		struct buffer_head *next = bh->b_this_page;
 		if (buffer_async_write(bh)) {
 			clear_buffer_dirty(bh);
-			submit_bh(REQ_OP_WRITE, 0, bh);
+			submit_bh(REQ_OP_WRITE, bh);
 			nr++;
 		}
 		put_bh(bh);
@@ -2733,9 +2725,9 @@ fail:
 	goto done;
 }
 
-static int reiserfs_readpage(struct file *f, struct page *page)
+static int reiserfs_read_folio(struct file *f, struct folio *folio)
 {
-	return block_read_full_page(page, reiserfs_get_block);
+	return block_read_full_folio(folio, reiserfs_get_block);
 }
 
 static int reiserfs_writepage(struct page *page, struct writeback_control *wbc)
@@ -2753,7 +2745,7 @@ static void reiserfs_truncate_failed_write(struct inode *inode)
 
 static int reiserfs_write_begin(struct file *file,
 				struct address_space *mapping,
-				loff_t pos, unsigned len, unsigned flags,
+				loff_t pos, unsigned len,
 				struct page **pagep, void **fsdata)
 {
 	struct inode *inode;
@@ -2764,7 +2756,7 @@ static int reiserfs_write_begin(struct file *file,
 
  	inode = mapping->host;
 	index = pos >> PAGE_SHIFT;
-	page = grab_cache_page_write_begin(mapping, index, flags);
+	page = grab_cache_page_write_begin(mapping, index);
 	if (!page)
 		return -ENOMEM;
 	*pagep = page;
@@ -3202,39 +3194,39 @@ static bool reiserfs_dirty_folio(struct address_space *mapping,
 }
 
 /*
- * Returns 1 if the page's buffers were dropped.  The page is locked.
+ * Returns true if the folio's buffers were dropped.  The folio is locked.
  *
  * Takes j_dirty_buffers_lock to protect the b_assoc_buffers list_heads
- * in the buffers at page_buffers(page).
+ * in the buffers at folio_buffers(folio).
  *
  * even in -o notail mode, we can't be sure an old mount without -o notail
  * didn't create files with tails.
  */
-static int reiserfs_releasepage(struct page *page, gfp_t unused_gfp_flags)
+static bool reiserfs_release_folio(struct folio *folio, gfp_t unused_gfp_flags)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct reiserfs_journal *j = SB_JOURNAL(inode->i_sb);
 	struct buffer_head *head;
 	struct buffer_head *bh;
-	int ret = 1;
+	bool ret = true;
 
-	WARN_ON(PageChecked(page));
+	WARN_ON(folio_test_checked(folio));
 	spin_lock(&j->j_dirty_buffers_lock);
-	head = page_buffers(page);
+	head = folio_buffers(folio);
 	bh = head;
 	do {
 		if (bh->b_private) {
 			if (!buffer_dirty(bh) && !buffer_locked(bh)) {
 				reiserfs_free_jh(bh);
 			} else {
-				ret = 0;
+				ret = false;
 				break;
 			}
 		}
 		bh = bh->b_this_page;
 	} while (bh != head);
 	if (ret)
-		ret = try_to_free_buffers(page);
+		ret = try_to_free_buffers(folio);
 	spin_unlock(&j->j_dirty_buffers_lock);
 	return ret;
 }
@@ -3284,7 +3276,7 @@ int reiserfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	/* must be turned off for recursive notify_change calls */
 	ia_valid = attr->ia_valid &= ~(ATTR_KILL_SUID|ATTR_KILL_SGID);
 
-	if (is_quota_modification(inode, attr)) {
+	if (is_quota_modification(mnt_userns, inode, attr)) {
 		error = dquot_initialize(inode);
 		if (error)
 			return error;
@@ -3367,7 +3359,7 @@ int reiserfs_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		reiserfs_write_unlock(inode->i_sb);
 		if (error)
 			goto out;
-		error = dquot_transfer(inode, attr);
+		error = dquot_transfer(mnt_userns, inode, attr);
 		reiserfs_write_lock(inode->i_sb);
 		if (error) {
 			journal_end(&th);
@@ -3421,9 +3413,9 @@ out:
 
 const struct address_space_operations reiserfs_address_space_operations = {
 	.writepage = reiserfs_writepage,
-	.readpage = reiserfs_readpage,
+	.read_folio = reiserfs_read_folio,
 	.readahead = reiserfs_readahead,
-	.releasepage = reiserfs_releasepage,
+	.release_folio = reiserfs_release_folio,
 	.invalidate_folio = reiserfs_invalidate_folio,
 	.write_begin = reiserfs_write_begin,
 	.write_end = reiserfs_write_end,

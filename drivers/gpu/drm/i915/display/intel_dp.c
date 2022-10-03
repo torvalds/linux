@@ -35,9 +35,11 @@
 
 #include <asm/byteorder.h>
 
+#include <drm/display/drm_dp_helper.h>
+#include <drm/display/drm_dsc_helper.h>
+#include <drm/display/drm_hdmi_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/dp/drm_dp_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_probe_helper.h>
 
@@ -284,11 +286,22 @@ static int intel_dp_max_common_rate(struct intel_dp *intel_dp)
 	return intel_dp_common_rate(intel_dp, intel_dp->num_common_rates - 1);
 }
 
+static int intel_dp_max_source_lane_count(struct intel_digital_port *dig_port)
+{
+	int vbt_max_lanes = intel_bios_dp_max_lane_count(&dig_port->base);
+	int max_lanes = dig_port->max_lanes;
+
+	if (vbt_max_lanes)
+		max_lanes = min(max_lanes, vbt_max_lanes);
+
+	return max_lanes;
+}
+
 /* Theoretical max between source and sink */
 static int intel_dp_max_common_lane_count(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	int source_max = dig_port->max_lanes;
+	int source_max = intel_dp_max_source_lane_count(dig_port);
 	int sink_max = intel_dp->max_sink_lane_count;
 	int fia_max = intel_tc_port_fia_max_lane_count(dig_port);
 	int lttpr_max = drm_dp_lttpr_max_lane_count(intel_dp->lttpr_common_caps);
@@ -407,6 +420,26 @@ static int ehl_max_source_rate(struct intel_dp *intel_dp)
 	return 810000;
 }
 
+static int vbt_max_link_rate(struct intel_dp *intel_dp)
+{
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	int max_rate;
+
+	max_rate = intel_bios_dp_max_link_rate(encoder);
+
+	if (intel_dp_is_edp(intel_dp)) {
+		struct intel_connector *connector = intel_dp->attached_connector;
+		int edp_max_rate = connector->panel.vbt.edp.max_link_rate;
+
+		if (max_rate && edp_max_rate)
+			max_rate = min(max_rate, edp_max_rate);
+		else if (edp_max_rate)
+			max_rate = edp_max_rate;
+	}
+
+	return max_rate;
+}
+
 static void
 intel_dp_set_source_rates(struct intel_dp *intel_dp)
 {
@@ -428,7 +461,6 @@ intel_dp_set_source_rates(struct intel_dp *intel_dp)
 		162000, 270000
 	};
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct intel_encoder *encoder = &dig_port->base;
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	const int *source_rates;
 	int size, max_rate = 0, vbt_max_rate;
@@ -464,7 +496,7 @@ intel_dp_set_source_rates(struct intel_dp *intel_dp)
 		size = ARRAY_SIZE(g4x_rates);
 	}
 
-	vbt_max_rate = intel_bios_dp_max_link_rate(encoder);
+	vbt_max_rate = vbt_max_link_rate(intel_dp);
 	if (max_rate && vbt_max_rate)
 		max_rate = min(max_rate, vbt_max_rate);
 	else if (vbt_max_rate)
@@ -657,7 +689,6 @@ static u16 intel_dp_dsc_get_output_bpp(struct drm_i915_private *i915,
 	 */
 	bits_per_pixel = (link_clock * lane_count * 8) /
 			 intel_dp_mode_to_fec_clock(mode_clock);
-	drm_dbg_kms(&i915->drm, "Max link bpp: %u\n", bits_per_pixel);
 
 	/* Small Joiner Check: output bpp <= joiner RAM (bits) / Horiz. width */
 	max_bpp_small_joiner_ram = small_joiner_ram_size_bits(i915) /
@@ -665,9 +696,6 @@ static u16 intel_dp_dsc_get_output_bpp(struct drm_i915_private *i915,
 
 	if (bigjoiner)
 		max_bpp_small_joiner_ram *= 2;
-
-	drm_dbg_kms(&i915->drm, "Max small joiner bpp: %u\n",
-		    max_bpp_small_joiner_ram);
 
 	/*
 	 * Greatest allowed DSC BPP = MIN (output BPP from available Link BW
@@ -677,10 +705,9 @@ static u16 intel_dp_dsc_get_output_bpp(struct drm_i915_private *i915,
 
 	if (bigjoiner) {
 		u32 max_bpp_bigjoiner =
-			i915->max_cdclk_freq * 48 /
+			i915->display.cdclk.max_cdclk_freq * 48 /
 			intel_dp_mode_to_fec_clock(mode_clock);
 
-		drm_dbg_kms(&i915->drm, "Max big joiner bpp: %u\n", max_bpp_bigjoiner);
 		bits_per_pixel = min(bits_per_pixel, max_bpp_bigjoiner);
 	}
 
@@ -1219,11 +1246,12 @@ static int intel_dp_max_bpp(struct intel_dp *intel_dp,
 	if (intel_dp_is_edp(intel_dp)) {
 		/* Get bpp from vbt only for panels that dont have bpp in edid */
 		if (intel_connector->base.display_info.bpc == 0 &&
-		    dev_priv->vbt.edp.bpp && dev_priv->vbt.edp.bpp < bpp) {
+		    intel_connector->panel.vbt.edp.bpp &&
+		    intel_connector->panel.vbt.edp.bpp < bpp) {
 			drm_dbg_kms(&dev_priv->drm,
 				    "clamping bpp for eDP panel to BIOS-provided %i\n",
-				    dev_priv->vbt.edp.bpp);
-			bpp = dev_priv->vbt.edp.bpp;
+				    intel_connector->panel.vbt.edp.bpp);
+			bpp = intel_connector->panel.vbt.edp.bpp;
 		}
 	}
 
@@ -1269,21 +1297,45 @@ intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
 	}
 }
 
+static bool has_seamless_m_n(struct intel_connector *connector)
+{
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+
+	/*
+	 * Seamless M/N reprogramming only implemented
+	 * for BDW+ double buffered M/N registers so far.
+	 */
+	return HAS_DOUBLE_BUFFERED_M_N(i915) &&
+		intel_panel_drrs_type(connector) == DRRS_TYPE_SEAMLESS;
+}
+
+static int intel_dp_mode_clock(const struct intel_crtc_state *crtc_state,
+			       const struct drm_connector_state *conn_state)
+{
+	struct intel_connector *connector = to_intel_connector(conn_state->connector);
+	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
+
+	/* FIXME a bit of a mess wrt clock vs. crtc_clock */
+	if (has_seamless_m_n(connector))
+		return intel_panel_highest_mode(connector, adjusted_mode)->clock;
+	else
+		return adjusted_mode->crtc_clock;
+}
+
 /* Optimize link config in order: max bpp, min clock, min lanes */
 static int
 intel_dp_compute_link_config_wide(struct intel_dp *intel_dp,
 				  struct intel_crtc_state *pipe_config,
+				  const struct drm_connector_state *conn_state,
 				  const struct link_config_limits *limits)
 {
-	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
-	int bpp, i, lane_count;
+	int bpp, i, lane_count, clock = intel_dp_mode_clock(pipe_config, conn_state);
 	int mode_rate, link_rate, link_avail;
 
 	for (bpp = limits->max_bpp; bpp >= limits->min_bpp; bpp -= 2 * 3) {
 		int output_bpp = intel_dp_output_bpp(pipe_config->output_format, bpp);
 
-		mode_rate = intel_dp_link_required(adjusted_mode->crtc_clock,
-						   output_bpp);
+		mode_rate = intel_dp_link_required(clock, output_bpp);
 
 		for (i = 0; i < intel_dp->num_common_rates; i++) {
 			link_rate = intel_dp_common_rate(intel_dp, i);
@@ -1334,7 +1386,18 @@ static int intel_dp_dsc_compute_bpp(struct intel_dp *intel_dp, u8 max_req_bpc)
 	return 0;
 }
 
-#define DSC_SUPPORTED_VERSION_MIN		1
+static int intel_dp_source_dsc_version_minor(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+
+	return DISPLAY_VER(i915) >= 14 ? 2 : 1;
+}
+
+static int intel_dp_sink_dsc_version_minor(struct intel_dp *intel_dp)
+{
+	return (intel_dp->dsc_dpcd[DP_DSC_REV - DP_DSC_SUPPORT] & DP_DSC_MINOR_MASK) >>
+		DP_DSC_MINOR_SHIFT;
+}
 
 static int intel_dp_dsc_compute_params(struct intel_encoder *encoder,
 				       struct intel_crtc_state *crtc_state)
@@ -1352,6 +1415,7 @@ static int intel_dp_dsc_compute_params(struct intel_encoder *encoder,
 	 * DP_DSC_RC_BUF_SIZE for this.
 	 */
 	vdsc_cfg->rc_model_size = DSC_RC_MODEL_SIZE_CONST;
+	vdsc_cfg->pic_height = crtc_state->hw.adjusted_mode.crtc_vdisplay;
 
 	/*
 	 * Slice Height of 8 works for all currently available panels. So start
@@ -1373,9 +1437,8 @@ static int intel_dp_dsc_compute_params(struct intel_encoder *encoder,
 		(intel_dp->dsc_dpcd[DP_DSC_REV - DP_DSC_SUPPORT] &
 		 DP_DSC_MAJOR_MASK) >> DP_DSC_MAJOR_SHIFT;
 	vdsc_cfg->dsc_version_minor =
-		min(DSC_SUPPORTED_VERSION_MIN,
-		    (intel_dp->dsc_dpcd[DP_DSC_REV - DP_DSC_SUPPORT] &
-		     DP_DSC_MINOR_MASK) >> DP_DSC_MINOR_SHIFT);
+		min(intel_dp_source_dsc_version_minor(intel_dp),
+		    intel_dp_sink_dsc_version_minor(intel_dp));
 
 	vdsc_cfg->convert_rgb = intel_dp->dsc_dpcd[DP_DSC_DEC_COLOR_FORMAT_CAP - DP_DSC_SUPPORT] &
 		DP_DSC_RGB;
@@ -1420,6 +1483,11 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 		return -EINVAL;
 
 	pipe_bpp = intel_dp_dsc_compute_bpp(intel_dp, conn_state->max_requested_bpc);
+
+	if (intel_dp->force_dsc_bpc) {
+		pipe_bpp = intel_dp->force_dsc_bpc * 3;
+		drm_dbg_kms(&dev_priv->drm, "Input DSC BPP forced to %d", pipe_bpp);
+	}
 
 	/* Min Input BPC for ICL+ is 8 */
 	if (pipe_bpp < 8 * 3) {
@@ -1472,28 +1540,12 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 		pipe_config->dsc.slice_count = dsc_dp_slice_count;
 	}
 
-	/* As of today we support DSC for only RGB */
-	if (intel_dp->force_dsc_bpp) {
-		if (intel_dp->force_dsc_bpp >= 8 &&
-		    intel_dp->force_dsc_bpp < pipe_bpp) {
-			drm_dbg_kms(&dev_priv->drm,
-				    "DSC BPP forced to %d",
-				    intel_dp->force_dsc_bpp);
-			pipe_config->dsc.compressed_bpp =
-						intel_dp->force_dsc_bpp;
-		} else {
-			drm_dbg_kms(&dev_priv->drm,
-				    "Invalid DSC BPP %d",
-				    intel_dp->force_dsc_bpp);
-		}
-	}
-
 	/*
 	 * VDSC engine operates at 1 Pixel per clock, so if peak pixel rate
 	 * is greater than the maximum Cdclock and if slice count is even
 	 * then we need to use 2 VDSC instances.
 	 */
-	if (adjusted_mode->crtc_clock > dev_priv->max_cdclk_freq ||
+	if (adjusted_mode->crtc_clock > dev_priv->display.cdclk.max_cdclk_freq ||
 	    pipe_config->bigjoiner_pipes) {
 		if (pipe_config->dsc.slice_count < 2) {
 			drm_dbg_kms(&dev_priv->drm,
@@ -1583,7 +1635,7 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 	 * Optimize for slow and wide for everything, because there are some
 	 * eDP 1.3 and 1.4 panels don't work well with fast and narrow.
 	 */
-	ret = intel_dp_compute_link_config_wide(intel_dp, pipe_config, &limits);
+	ret = intel_dp_compute_link_config_wide(intel_dp, pipe_config, conn_state, &limits);
 
 	if (ret || joiner_needs_dsc || intel_dp->force_dsc_en) {
 		drm_dbg_kms(&i915->drm, "Try DSC (fallback=%s, joiner=%s, force=%s)\n",
@@ -1826,8 +1878,7 @@ intel_dp_compute_hdr_metadata_infoframe_sdp(struct intel_dp *intel_dp,
 static bool cpu_transcoder_has_drrs(struct drm_i915_private *i915,
 				    enum transcoder cpu_transcoder)
 {
-	/* M1/N1 is double buffered */
-	if (DISPLAY_VER(i915) >= 9 || IS_BROADWELL(i915))
+	if (HAS_DOUBLE_BUFFERED_M_N(i915))
 		return true;
 
 	return intel_cpu_transcoder_has_m2_n2(i915, cpu_transcoder);
@@ -1865,12 +1916,15 @@ static bool can_enable_drrs(struct intel_connector *connector,
 static void
 intel_dp_drrs_compute_config(struct intel_connector *connector,
 			     struct intel_crtc_state *pipe_config,
-			     int output_bpp, bool constant_n)
+			     int output_bpp)
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	const struct drm_display_mode *downclock_mode =
 		intel_panel_downclock_mode(connector, &pipe_config->hw.adjusted_mode);
 	int pixel_clock;
+
+	if (has_seamless_m_n(connector))
+		pipe_config->seamless_m_n = true;
 
 	if (!can_enable_drrs(connector, pipe_config, downclock_mode)) {
 		if (intel_cpu_transcoder_has_m2_n2(i915, pipe_config->cpu_transcoder))
@@ -1879,7 +1933,7 @@ intel_dp_drrs_compute_config(struct intel_connector *connector,
 	}
 
 	if (IS_IRONLAKE(i915) || IS_SANDYBRIDGE(i915) || IS_IVYBRIDGE(i915))
-		pipe_config->msa_timing_delay = i915->vbt.edp.drrs_msa_timing_delay;
+		pipe_config->msa_timing_delay = connector->panel.vbt.edp.drrs_msa_timing_delay;
 
 	pipe_config->has_drrs = true;
 
@@ -1889,7 +1943,7 @@ intel_dp_drrs_compute_config(struct intel_connector *connector,
 
 	intel_link_compute_m_n(output_bpp, pipe_config->lane_count, pixel_clock,
 			       pipe_config->port_clock, &pipe_config->dp_m2_n2,
-			       constant_n, pipe_config->fec_enable);
+			       pipe_config->fec_enable);
 
 	/* FIXME: abstract this better */
 	if (pipe_config->splitter.enable)
@@ -1964,7 +2018,6 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	const struct drm_display_mode *fixed_mode;
 	struct intel_connector *connector = intel_dp->attached_connector;
-	bool constant_n = drm_dp_has_quirk(&intel_dp->desc, DP_DPCD_QUIRK_CONSTANT_N);
 	int ret = 0, output_bpp;
 
 	if (HAS_PCH_SPLIT(dev_priv) && !HAS_DDI(dev_priv) && encoder->port != PORT_A)
@@ -2043,7 +2096,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 			       adjusted_mode->crtc_clock,
 			       pipe_config->port_clock,
 			       &pipe_config->dp_m_n,
-			       constant_n, pipe_config->fec_enable);
+			       pipe_config->fec_enable);
 
 	/* FIXME: abstract this better */
 	if (pipe_config->splitter.enable)
@@ -2054,8 +2107,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 	intel_vrr_compute_config(pipe_config, conn_state);
 	intel_psr_compute_config(intel_dp, pipe_config, conn_state);
-	intel_dp_drrs_compute_config(connector, pipe_config,
-				     output_bpp, constant_n);
+	intel_dp_drrs_compute_config(connector, pipe_config, output_bpp);
 	intel_dp_compute_vsc_sdp(intel_dp, pipe_config, conn_state);
 	intel_dp_compute_hdr_metadata_infoframe_sdp(intel_dp, pipe_config, conn_state);
 
@@ -2709,6 +2761,33 @@ static void intel_edp_mso_mode_fixup(struct intel_connector *connector,
 		    DRM_MODE_ARG(mode));
 }
 
+void intel_edp_fixup_vbt_bpp(struct intel_encoder *encoder, int pipe_bpp)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct intel_connector *connector = intel_dp->attached_connector;
+
+	if (connector->panel.vbt.edp.bpp && pipe_bpp > connector->panel.vbt.edp.bpp) {
+		/*
+		 * This is a big fat ugly hack.
+		 *
+		 * Some machines in UEFI boot mode provide us a VBT that has 18
+		 * bpp and 1.62 GHz link bandwidth for eDP, which for reasons
+		 * unknown we fail to light up. Yet the same BIOS boots up with
+		 * 24 bpp and 2.7 GHz link. Use the same bpp as the BIOS uses as
+		 * max, not what it tells us to use.
+		 *
+		 * Note: This will still be broken if the eDP panel is not lit
+		 * up by the BIOS, and thus we can't get the mode at module
+		 * load.
+		 */
+		drm_dbg_kms(&dev_priv->drm,
+			    "pipe has %d bpp for eDP panel, overriding BIOS-provided max %d bpp\n",
+			    pipe_bpp, connector->panel.vbt.edp.bpp);
+		connector->panel.vbt.edp.bpp = pipe_bpp;
+	}
+}
+
 static void intel_edp_mso_init(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
@@ -2822,9 +2901,6 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 	else
 		intel_dp_set_sink_rates(intel_dp);
 	intel_dp_set_max_sink_lane_count(intel_dp);
-
-	intel_dp_set_common_rates(intel_dp);
-	intel_dp_reset_max_link_params(intel_dp);
 
 	/* Read the eDP DSC DPCD registers */
 	if (DISPLAY_VER(dev_priv) >= 10)
@@ -4523,7 +4599,7 @@ intel_dp_set_edid(struct intel_dp *intel_dp)
 	edid = intel_dp_get_edid(intel_dp);
 	connector->detect_edid = edid;
 
-	vrr_capable = intel_vrr_is_capable(&connector->base);
+	vrr_capable = intel_vrr_is_capable(connector);
 	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] VRR capable: %s\n",
 		    connector->base.base.id, connector->base.name, str_yes_no(vrr_capable));
 	drm_connector_set_vrr_capable_property(&connector->base, vrr_capable);
@@ -4925,11 +5001,20 @@ static int intel_dp_connector_atomic_check(struct drm_connector *conn,
 {
 	struct drm_i915_private *dev_priv = to_i915(conn->dev);
 	struct intel_atomic_state *state = to_intel_atomic_state(_state);
+	struct drm_connector_state *conn_state = drm_atomic_get_new_connector_state(_state, conn);
+	struct intel_connector *intel_conn = to_intel_connector(conn);
+	struct intel_dp *intel_dp = enc_to_intel_dp(intel_conn->encoder);
 	int ret;
 
 	ret = intel_digital_connector_atomic_check(conn, &state->base);
 	if (ret)
 		return ret;
+
+	if (intel_dp_mst_source_support(intel_dp)) {
+		ret = drm_dp_mst_root_conn_atomic_check(conn_state, &intel_dp->mst_mgr);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * We don't enable port sync on BDW due to missing w/as and
@@ -4956,9 +5041,9 @@ static void intel_dp_oob_hotplug_event(struct drm_connector *connector)
 	struct drm_i915_private *i915 = to_i915(connector->dev);
 
 	spin_lock_irq(&i915->irq_lock);
-	i915->hotplug.event_bits |= BIT(encoder->hpd_pin);
+	i915->display.hotplug.event_bits |= BIT(encoder->hpd_pin);
 	spin_unlock_irq(&i915->irq_lock);
-	queue_delayed_work(system_wq, &i915->hotplug.hotplug_work, 0);
+	queue_delayed_work(system_wq, &i915->display.hotplug.hotplug_work, 0);
 }
 
 static const struct drm_connector_funcs intel_dp_connector_funcs = {
@@ -5116,7 +5201,7 @@ intel_edp_add_properties(struct intel_dp *intel_dp)
 		return;
 
 	drm_connector_set_panel_orientation_with_quirk(&connector->base,
-						       i915->vbt.orientation,
+						       i915->display.vbt.orientation,
 						       fixed_mode->hdisplay,
 						       fixed_mode->vdisplay);
 }
@@ -5128,6 +5213,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	struct drm_device *dev = &dev_priv->drm;
 	struct drm_connector *connector = &intel_connector->base;
 	struct drm_display_mode *fixed_mode;
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	bool has_dpcd;
 	enum pipe pipe = INVALID_PIPE;
 	struct edid *edid;
@@ -5184,8 +5270,12 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	}
 	intel_connector->edid = edid;
 
+	intel_bios_init_panel(dev_priv, &intel_connector->panel,
+			      encoder->devdata, IS_ERR(edid) ? NULL : edid);
+
 	intel_panel_add_edid_fixed_modes(intel_connector,
-					 dev_priv->vbt.drrs_type != DRRS_TYPE_NONE);
+					 intel_connector->panel.vbt.drrs_type != DRRS_TYPE_NONE,
+					 intel_vrr_is_capable(intel_connector));
 
 	/* MSO requires information from the EDID */
 	intel_edp_mso_init(intel_dp);
@@ -5221,11 +5311,11 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 
 	intel_panel_init(intel_connector);
 
-	if (!(dev_priv->quirks & QUIRK_NO_PPS_BACKLIGHT_POWER_HOOK))
-		intel_connector->panel.backlight.power = intel_pps_backlight_power;
 	intel_backlight_setup(intel_connector, pipe);
 
 	intel_edp_add_properties(intel_dp);
+
+	intel_pps_init_late(intel_dp);
 
 	return true;
 
@@ -5307,11 +5397,8 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 		type = DRM_MODE_CONNECTOR_DisplayPort;
 	}
 
-	intel_dp_set_source_rates(intel_dp);
 	intel_dp_set_default_sink_rates(intel_dp);
 	intel_dp_set_default_max_sink_lane_count(intel_dp);
-	intel_dp_set_common_rates(intel_dp);
-	intel_dp_reset_max_link_params(intel_dp);
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		intel_dp->pps.active_pipe = vlv_active_pipe(intel_dp);
@@ -5339,15 +5426,18 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 	else
 		intel_connector->get_hw_state = intel_connector_get_hw_state;
 
+	if (!intel_edp_init_connector(intel_dp, intel_connector)) {
+		intel_dp_aux_fini(intel_dp);
+		goto fail;
+	}
+
+	intel_dp_set_source_rates(intel_dp);
+	intel_dp_set_common_rates(intel_dp);
+	intel_dp_reset_max_link_params(intel_dp);
+
 	/* init MST on ports that can support it */
 	intel_dp_mst_encoder_init(dig_port,
 				  intel_connector->base.base.id);
-
-	if (!intel_edp_init_connector(intel_dp, intel_connector)) {
-		intel_dp_aux_fini(intel_dp);
-		intel_dp_mst_encoder_cleanup(dig_port);
-		goto fail;
-	}
 
 	intel_dp_add_properties(intel_dp, connector);
 

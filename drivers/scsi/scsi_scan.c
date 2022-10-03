@@ -406,9 +406,14 @@ static void scsi_target_destroy(struct scsi_target *starget)
 static void scsi_target_dev_release(struct device *dev)
 {
 	struct device *parent = dev->parent;
+	struct Scsi_Host *shost = dev_to_shost(parent);
 	struct scsi_target *starget = to_scsi_target(dev);
 
 	kfree(starget);
+
+	if (atomic_dec_return(&shost->target_count) == 0)
+		wake_up(&shost->targets_wq);
+
 	put_device(parent);
 }
 
@@ -521,6 +526,10 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	starget->state = STARGET_CREATED;
 	starget->scsi_level = SCSI_2;
 	starget->max_target_blocked = SCSI_DEFAULT_TARGET_BLOCKED;
+	init_waitqueue_head(&starget->sdev_wq);
+
+	atomic_inc(&shost->target_count);
+
  retry:
 	spin_lock_irqsave(shost->host_lock, flags);
 
@@ -733,7 +742,17 @@ static int scsi_probe_lun(struct scsi_device *sdev, unsigned char *inq_result,
 		if (pass == 1) {
 			if (BLIST_INQUIRY_36 & *bflags)
 				next_inquiry_len = 36;
-			else if (sdev->inquiry_len)
+			/*
+			 * LLD specified a maximum sdev->inquiry_len
+			 * but device claims it has more data. Capping
+			 * the length only makes sense for legacy
+			 * devices. If a device supports SPC-4 (2014)
+			 * or newer, assume that it is safe to ask for
+			 * as much as the device says it supports.
+			 */
+			else if (sdev->inquiry_len &&
+				 response_len > sdev->inquiry_len &&
+				 (inq_result[2] & 0x7) < 6) /* SPC-4 */
 				next_inquiry_len = sdev->inquiry_len;
 			else
 				next_inquiry_len = response_len;

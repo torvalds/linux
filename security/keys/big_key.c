@@ -20,12 +20,13 @@
 /*
  * Layout of key payload words.
  */
-enum {
-	big_key_data,
-	big_key_path,
-	big_key_path_2nd_part,
-	big_key_len,
+struct big_key_payload {
+	u8 *data;
+	struct path path;
+	size_t length;
 };
+#define to_big_key_payload(payload)			\
+	(struct big_key_payload *)((payload).data)
 
 /*
  * If the data is under this limit, there's no point creating a shm file to
@@ -55,7 +56,7 @@ struct key_type key_type_big_key = {
  */
 int big_key_preparse(struct key_preparsed_payload *prep)
 {
-	struct path *path = (struct path *)&prep->payload.data[big_key_path];
+	struct big_key_payload *payload = to_big_key_payload(prep->payload);
 	struct file *file;
 	u8 *buf, *enckey;
 	ssize_t written;
@@ -63,13 +64,15 @@ int big_key_preparse(struct key_preparsed_payload *prep)
 	size_t enclen = datalen + CHACHA20POLY1305_AUTHTAG_SIZE;
 	int ret;
 
+	BUILD_BUG_ON(sizeof(*payload) != sizeof(prep->payload.data));
+
 	if (datalen <= 0 || datalen > 1024 * 1024 || !prep->data)
 		return -EINVAL;
 
 	/* Set an arbitrary quota */
 	prep->quotalen = 16;
 
-	prep->payload.data[big_key_len] = (void *)(unsigned long)datalen;
+	payload->length = datalen;
 
 	if (datalen > BIG_KEY_FILE_THRESHOLD) {
 		/* Create a shmem file to store the data in.  This will permit the data
@@ -117,9 +120,9 @@ int big_key_preparse(struct key_preparsed_payload *prep)
 		/* Pin the mount and dentry to the key so that we can open it again
 		 * later
 		 */
-		prep->payload.data[big_key_data] = enckey;
-		*path = file->f_path;
-		path_get(path);
+		payload->data = enckey;
+		payload->path = file->f_path;
+		path_get(&payload->path);
 		fput(file);
 		kvfree_sensitive(buf, enclen);
 	} else {
@@ -129,7 +132,7 @@ int big_key_preparse(struct key_preparsed_payload *prep)
 		if (!data)
 			return -ENOMEM;
 
-		prep->payload.data[big_key_data] = data;
+		payload->data = data;
 		memcpy(data, prep->data, prep->datalen);
 	}
 	return 0;
@@ -148,12 +151,11 @@ error:
  */
 void big_key_free_preparse(struct key_preparsed_payload *prep)
 {
-	if (prep->datalen > BIG_KEY_FILE_THRESHOLD) {
-		struct path *path = (struct path *)&prep->payload.data[big_key_path];
+	struct big_key_payload *payload = to_big_key_payload(prep->payload);
 
-		path_put(path);
-	}
-	kfree_sensitive(prep->payload.data[big_key_data]);
+	if (prep->datalen > BIG_KEY_FILE_THRESHOLD)
+		path_put(&payload->path);
+	kfree_sensitive(payload->data);
 }
 
 /*
@@ -162,13 +164,12 @@ void big_key_free_preparse(struct key_preparsed_payload *prep)
  */
 void big_key_revoke(struct key *key)
 {
-	struct path *path = (struct path *)&key->payload.data[big_key_path];
+	struct big_key_payload *payload = to_big_key_payload(key->payload);
 
 	/* clear the quota */
 	key_payload_reserve(key, 0);
-	if (key_is_positive(key) &&
-	    (size_t)key->payload.data[big_key_len] > BIG_KEY_FILE_THRESHOLD)
-		vfs_truncate(path, 0);
+	if (key_is_positive(key) && payload->length > BIG_KEY_FILE_THRESHOLD)
+		vfs_truncate(&payload->path, 0);
 }
 
 /*
@@ -176,17 +177,15 @@ void big_key_revoke(struct key *key)
  */
 void big_key_destroy(struct key *key)
 {
-	size_t datalen = (size_t)key->payload.data[big_key_len];
+	struct big_key_payload *payload = to_big_key_payload(key->payload);
 
-	if (datalen > BIG_KEY_FILE_THRESHOLD) {
-		struct path *path = (struct path *)&key->payload.data[big_key_path];
-
-		path_put(path);
-		path->mnt = NULL;
-		path->dentry = NULL;
+	if (payload->length > BIG_KEY_FILE_THRESHOLD) {
+		path_put(&payload->path);
+		payload->path.mnt = NULL;
+		payload->path.dentry = NULL;
 	}
-	kfree_sensitive(key->payload.data[big_key_data]);
-	key->payload.data[big_key_data] = NULL;
+	kfree_sensitive(payload->data);
+	payload->data = NULL;
 }
 
 /*
@@ -211,14 +210,14 @@ int big_key_update(struct key *key, struct key_preparsed_payload *prep)
  */
 void big_key_describe(const struct key *key, struct seq_file *m)
 {
-	size_t datalen = (size_t)key->payload.data[big_key_len];
+	struct big_key_payload *payload = to_big_key_payload(key->payload);
 
 	seq_puts(m, key->description);
 
 	if (key_is_positive(key))
 		seq_printf(m, ": %zu [%s]",
-			   datalen,
-			   datalen > BIG_KEY_FILE_THRESHOLD ? "file" : "buff");
+			   payload->length,
+			   payload->length > BIG_KEY_FILE_THRESHOLD ? "file" : "buff");
 }
 
 /*
@@ -227,16 +226,16 @@ void big_key_describe(const struct key *key, struct seq_file *m)
  */
 long big_key_read(const struct key *key, char *buffer, size_t buflen)
 {
-	size_t datalen = (size_t)key->payload.data[big_key_len];
+	struct big_key_payload *payload = to_big_key_payload(key->payload);
+	size_t datalen = payload->length;
 	long ret;
 
 	if (!buffer || buflen < datalen)
 		return datalen;
 
 	if (datalen > BIG_KEY_FILE_THRESHOLD) {
-		struct path *path = (struct path *)&key->payload.data[big_key_path];
 		struct file *file;
-		u8 *buf, *enckey = (u8 *)key->payload.data[big_key_data];
+		u8 *buf, *enckey = payload->data;
 		size_t enclen = datalen + CHACHA20POLY1305_AUTHTAG_SIZE;
 		loff_t pos = 0;
 
@@ -244,7 +243,7 @@ long big_key_read(const struct key *key, char *buffer, size_t buflen)
 		if (!buf)
 			return -ENOMEM;
 
-		file = dentry_open(path, O_RDONLY, current_cred());
+		file = dentry_open(&payload->path, O_RDONLY, current_cred());
 		if (IS_ERR(file)) {
 			ret = PTR_ERR(file);
 			goto error;
@@ -274,7 +273,7 @@ error:
 		kvfree_sensitive(buf, enclen);
 	} else {
 		ret = datalen;
-		memcpy(buffer, key->payload.data[big_key_data], datalen);
+		memcpy(buffer, payload->data, datalen);
 	}
 
 	return ret;

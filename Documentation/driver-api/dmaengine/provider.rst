@@ -162,16 +162,6 @@ Currently, the types available are:
 
   - The device is able to do memory to memory copies
 
-- - DMA_MEMCPY_SG
-
-  - The device supports memory to memory scatter-gather transfers.
-
-  - Even though a plain memcpy can look like a particular case of a
-    scatter-gather transfer, with a single chunk to copy, it's a distinct
-    transaction type in the mem2mem transfer case. This is because some very
-    simple devices might be able to do contiguous single-chunk memory copies,
-    but have no support for more complex SG transfers.
-
   - No matter what the overall size of the combined chunks for source and
     destination is, only as many bytes as the smallest of the two will be
     transmitted. That means the number and size of the scatter-gather buffers in
@@ -205,6 +195,12 @@ Currently, the types available are:
 
   - The device is able to perform parity check using RAID6 P+Q
     algorithm against a memory buffer.
+
+- DMA_MEMSET
+
+  - The device is able to fill memory with the provided pattern
+
+  - The pattern is treated as a single byte signed value.
 
 - DMA_INTERRUPT
 
@@ -457,7 +453,7 @@ supported.
   - Should use dma_set_residue to report it
 
   - In the case of a cyclic transfer, it should only take into
-    account the current period.
+    account the total size of the cyclic buffer.
 
   - Should return DMA_OUT_OF_ORDER if the device does not support in order
     completion and is completing the operation out of order.

@@ -154,6 +154,31 @@
 	power-domains = <&scmi_devpd 8>;
 };
 
+&cti0 {
+	power-domains = <&scmi_devpd 8>;
+};
+&cti1 {
+	power-domains = <&scmi_devpd 8>;
+};
+&cti2 {
+	power-domains = <&scmi_devpd 8>;
+};
+&cti3 {
+	power-domains = <&scmi_devpd 8>;
+};
+&cti4 {
+	power-domains = <&scmi_devpd 8>;
+};
+&cti5 {
+	power-domains = <&scmi_devpd 8>;
+};
+&cti_sys0 {
+	power-domains = <&scmi_devpd 8>;
+};
+&cti_sys1 {
+	power-domains = <&scmi_devpd 8>;
+};
+
 &gpu {
 	clocks = <&scmi_dvfs 2>;
 	power-domains = <&scmi_devpd 9>;
@@ -162,7 +187,6 @@
 &mailbox {
 	compatible = "arm,mhu-doorbell", "arm,primecell";
 	#mbox-cells = <2>;
-	mbox-name = "ARM-MHU";
 };
 
 &smmu_etr {

@@ -278,6 +278,8 @@ intel_dp_aux_hdr_setup_backlight(struct intel_connector *connector, enum pipe pi
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct intel_panel *panel = &connector->panel;
+	struct drm_luminance_range_info *luminance_range =
+		&connector->base.display_info.luminance_range;
 	int ret;
 
 	if (panel->backlight.edp.intel.sdr_uses_aux) {
@@ -293,8 +295,17 @@ intel_dp_aux_hdr_setup_backlight(struct intel_connector *connector, enum pipe pi
 		}
 	}
 
-	panel->backlight.max = 512;
-	panel->backlight.min = 0;
+	if (luminance_range->max_luminance) {
+		panel->backlight.max = luminance_range->max_luminance;
+		panel->backlight.min = luminance_range->min_luminance;
+	} else {
+		panel->backlight.max = 512;
+		panel->backlight.min = 0;
+	}
+
+	drm_dbg_kms(&i915->drm, "Using backlight range %d..%d\n", panel->backlight.min,
+		    panel->backlight.max);
+
 	panel->backlight.level = intel_dp_aux_hdr_get_backlight(connector, pipe);
 	panel->backlight.enabled = panel->backlight.level != 0;
 
@@ -370,7 +381,7 @@ static int intel_dp_aux_vesa_setup_backlight(struct intel_connector *connector, 
 	int ret;
 
 	ret = drm_edp_backlight_init(&intel_dp->aux, &panel->backlight.edp.vesa.info,
-				     i915->vbt.backlight.pwm_freq_hz, intel_dp->edp_dpcd,
+				     panel->vbt.backlight.pwm_freq_hz, intel_dp->edp_dpcd,
 				     &current_level, &current_mode);
 	if (ret < 0)
 		return ret;
@@ -454,7 +465,7 @@ int intel_dp_aux_init_backlight_funcs(struct intel_connector *connector)
 	case INTEL_DP_AUX_BACKLIGHT_OFF:
 		return -ENODEV;
 	case INTEL_DP_AUX_BACKLIGHT_AUTO:
-		switch (i915->vbt.backlight.type) {
+		switch (panel->vbt.backlight.type) {
 		case INTEL_BACKLIGHT_VESA_EDP_AUX_INTERFACE:
 			try_vesa_interface = true;
 			break;
@@ -466,7 +477,7 @@ int intel_dp_aux_init_backlight_funcs(struct intel_connector *connector)
 		}
 		break;
 	case INTEL_DP_AUX_BACKLIGHT_ON:
-		if (i915->vbt.backlight.type != INTEL_BACKLIGHT_VESA_EDP_AUX_INTERFACE)
+		if (panel->vbt.backlight.type != INTEL_BACKLIGHT_VESA_EDP_AUX_INTERFACE)
 			try_intel_interface = true;
 
 		try_vesa_interface = true;

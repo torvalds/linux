@@ -92,7 +92,7 @@
 
 			spi0: spi@fffc8000 {
 				cs-gpios = <0>, <&pioC 11 0>, <0>, <0>;
-				mtd_dataflash@1 {
+				flash@1 {
 					compatible = "atmel,at45", "atmel,dataflash";
 					spi-max-frequency = <50000000>;
 					reg = <1>;
@@ -144,17 +144,17 @@
 		};
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 
-		btn3 {
+		button-3 {
 			label = "Button 3";
 			gpios = <&pioA 30 GPIO_ACTIVE_LOW>;
 			linux,code = <0x103>;
 			wakeup-source;
 		};
 
-		btn4 {
+		button-4 {
 			label = "Button 4";
 			gpios = <&pioA 31 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_PROG1>;

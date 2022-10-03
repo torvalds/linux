@@ -29,7 +29,7 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		reset {
+		key-reset {
 			label = "reset";
 			gpios = <&gpio 18 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_RESTART>;
@@ -44,7 +44,7 @@
 &spi0 {
 	status = "okay";
 
-	m25p80@0 {
+	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "jedec,spi-nor";
@@ -81,29 +81,15 @@
 	status = "okay";
 };
 
-&pinctrl {
-	pinctrl-names = "default";
-	pinctrl-0 = <&state_default>;
-
-	state_default: state-default {
-		gpio-pinmux {
-			groups = "wdt";
-			function = "gpio";
-		};
-	};
+&gmac1 {
+	status = "okay";
+	phy-handle = <&ethphy7>;
 };
 
-&ethernet {
-	gmac1: mac@1 {
-		status = "okay";
-		phy-handle = <&ethphy7>;
-	};
-
-	mdio-bus {
-		ethphy7: ethernet-phy@7 {
-			reg = <7>;
-			phy-mode = "rgmii-rxid";
-		};
+&mdio {
+	ethphy7: ethernet-phy@7 {
+		reg = <7>;
+		phy-mode = "rgmii-rxid";
 	};
 };
 

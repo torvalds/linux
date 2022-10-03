@@ -72,6 +72,11 @@ struct ipmi_recv_msg {
 	unsigned char   msg_data[IPMI_MAX_MSG_LENGTH];
 };
 
+#define INIT_IPMI_RECV_MSG(done_handler) \
+{					\
+	.done = done_handler		\
+}
+
 /* Allocate and free the receive message. */
 void ipmi_free_recv_msg(struct ipmi_recv_msg *msg);
 

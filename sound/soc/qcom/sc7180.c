@@ -57,7 +57,7 @@ static int sc7180_headset_init(struct snd_soc_pcm_runtime *rtd)
 			SND_JACK_HEADPHONE |
 			SND_JACK_BTN_0 | SND_JACK_BTN_1 |
 			SND_JACK_BTN_2 | SND_JACK_BTN_3,
-			&pdata->hs_jack, NULL, 0);
+			&pdata->hs_jack);
 
 	if (rval < 0) {
 		dev_err(card->dev, "Unable to add Headset Jack\n");
@@ -89,7 +89,7 @@ static int sc7180_hdmi_init(struct snd_soc_pcm_runtime *rtd)
 	rval = snd_soc_card_jack_new(
 			card, "HDMI Jack",
 			SND_JACK_LINEOUT,
-			&pdata->hdmi_jack, NULL, 0);
+			&pdata->hdmi_jack);
 
 	if (rval < 0) {
 		dev_err(card->dev, "Unable to add HDMI Jack\n");
@@ -155,7 +155,7 @@ static int sc7180_snd_startup(struct snd_pcm_substream *substream)
 		}
 
 		snd_soc_dai_set_fmt(codec_dai,
-				    SND_SOC_DAIFMT_CBS_CFS |
+				    SND_SOC_DAIFMT_BC_FC |
 				    SND_SOC_DAIFMT_NB_NF |
 				    SND_SOC_DAIFMT_I2S);
 

@@ -165,7 +165,7 @@ int check_tick_adj(long tickval)
 	return  0;
 }
 
-int main(int argv, char **argc)
+int main(int argc, char **argv)
 {
 	struct timespec raw;
 	long tick, max, interval, err;

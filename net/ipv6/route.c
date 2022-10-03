@@ -182,9 +182,9 @@ static void rt6_uncached_list_flush_dev(struct net_device *dev)
 
 			if (rt_dev == dev) {
 				rt->dst.dev = blackhole_netdev;
-				dev_replace_track(rt_dev, blackhole_netdev,
-						  &rt->dst.dev_tracker,
-						  GFP_ATOMIC);
+				netdev_ref_replace(rt_dev, blackhole_netdev,
+						   &rt->dst.dev_tracker,
+						   GFP_ATOMIC);
 				handled = true;
 			}
 			if (handled)
@@ -607,7 +607,7 @@ static void rt6_probe_deferred(struct work_struct *w)
 
 	addrconf_addr_solict_mult(&work->target, &mcaddr);
 	ndisc_send_ns(work->dev, &work->target, &mcaddr, NULL, 0);
-	dev_put_track(work->dev, &work->dev_tracker);
+	netdev_put(work->dev, &work->dev_tracker);
 	kfree(work);
 }
 
@@ -661,7 +661,7 @@ static void rt6_probe(struct fib6_nh *fib6_nh)
 	} else {
 		INIT_WORK(&work->work, rt6_probe_deferred);
 		work->target = *nh_gw;
-		dev_hold_track(dev, &work->dev_tracker, GFP_ATOMIC);
+		netdev_hold(dev, &work->dev_tracker, GFP_ATOMIC);
 		work->dev = dev;
 		schedule_work(&work->work);
 	}
@@ -3292,6 +3292,7 @@ static int ip6_dst_gc(struct dst_ops *ops)
 	int rt_elasticity = net->ipv6.sysctl.ip6_rt_gc_elasticity;
 	int rt_gc_timeout = net->ipv6.sysctl.ip6_rt_gc_timeout;
 	unsigned long rt_last_gc = net->ipv6.ip6_rt_last_gc;
+	unsigned int val;
 	int entries;
 
 	entries = dst_entries_get_fast(ops);
@@ -3302,13 +3303,13 @@ static int ip6_dst_gc(struct dst_ops *ops)
 	    entries <= rt_max_size)
 		goto out;
 
-	net->ipv6.ip6_rt_gc_expire++;
-	fib6_run_gc(net->ipv6.ip6_rt_gc_expire, net, true);
+	fib6_run_gc(atomic_inc_return(&net->ipv6.ip6_rt_gc_expire), net, true);
 	entries = dst_entries_get_slow(ops);
 	if (entries < ops->gc_thresh)
-		net->ipv6.ip6_rt_gc_expire = rt_gc_timeout>>1;
+		atomic_set(&net->ipv6.ip6_rt_gc_expire, rt_gc_timeout >> 1);
 out:
-	net->ipv6.ip6_rt_gc_expire -= net->ipv6.ip6_rt_gc_expire>>rt_elasticity;
+	val = atomic_read(&net->ipv6.ip6_rt_gc_expire);
+	atomic_set(&net->ipv6.ip6_rt_gc_expire, val - (val >> rt_elasticity));
 	return entries > rt_max_size;
 }
 
@@ -4482,6 +4483,7 @@ static int ip6_pkt_drop(struct sk_buff *skb, u8 code, int ipstats_mib_noroutes)
 	struct dst_entry *dst = skb_dst(skb);
 	struct net *net = dev_net(dst->dev);
 	struct inet6_dev *idev;
+	SKB_DR(reason);
 	int type;
 
 	if (netif_is_l3_master(skb->dev) ||
@@ -4494,11 +4496,14 @@ static int ip6_pkt_drop(struct sk_buff *skb, u8 code, int ipstats_mib_noroutes)
 	case IPSTATS_MIB_INNOROUTES:
 		type = ipv6_addr_type(&ipv6_hdr(skb)->daddr);
 		if (type == IPV6_ADDR_ANY) {
+			SKB_DR_SET(reason, IP_INADDRERRORS);
 			IP6_INC_STATS(net, idev, IPSTATS_MIB_INADDRERRORS);
 			break;
 		}
+		SKB_DR_SET(reason, IP_INNOROUTES);
 		fallthrough;
 	case IPSTATS_MIB_OUTNOROUTES:
+		SKB_DR_OR(reason, IP_OUTNOROUTES);
 		IP6_INC_STATS(net, idev, ipstats_mib_noroutes);
 		break;
 	}
@@ -4508,7 +4513,7 @@ static int ip6_pkt_drop(struct sk_buff *skb, u8 code, int ipstats_mib_noroutes)
 		skb_dst_drop(skb);
 
 	icmpv6_send(skb, ICMPV6_DEST_UNREACH, code, 0);
-	kfree_skb(skb);
+	kfree_skb_reason(skb, reason);
 	return 0;
 }
 
@@ -4564,8 +4569,15 @@ struct fib6_info *addrconf_f6i_alloc(struct net *net,
 	}
 
 	f6i = ip6_route_info_create(&cfg, gfp_flags, NULL);
-	if (!IS_ERR(f6i))
+	if (!IS_ERR(f6i)) {
 		f6i->dst_nocount = true;
+
+		if (!anycast &&
+		    (net->ipv6.devconf_all->disable_policy ||
+		     idev->cnf.disable_policy))
+			f6i->dst_nopolicy = true;
+	}
+
 	return f6i;
 }
 
@@ -5729,7 +5741,7 @@ static int rt6_fill_node(struct net *net, struct sk_buff *skb,
 		if (nexthop_is_blackhole(rt->nh))
 			rtm->rtm_type = RTN_BLACKHOLE;
 
-		if (net->ipv4.sysctl_nexthop_compat_mode &&
+		if (READ_ONCE(net->ipv4.sysctl_nexthop_compat_mode) &&
 		    rt6_fill_node_nexthop(skb, rt->nh, &nh_flags) < 0)
 			goto nla_put_failure;
 
@@ -5929,7 +5941,7 @@ int rt6_dump_route(struct fib6_info *rt, void *p_arg, unsigned int skip)
 		rcu_read_unlock();
 
 		if (err)
-			return count += w.count;
+			return count + w.count;
 	}
 
 	return -1;
@@ -6509,7 +6521,7 @@ static int __net_init ip6_route_net_init(struct net *net)
 	net->ipv6.sysctl.ip6_rt_min_advmss = IPV6_MIN_MTU - 20 - 40;
 	net->ipv6.sysctl.skip_notify_on_dev_down = 0;
 
-	net->ipv6.ip6_rt_gc_expire = 30*HZ;
+	atomic_set(&net->ipv6.ip6_rt_gc_expire, 30*HZ);
 
 	ret = 0;
 out:

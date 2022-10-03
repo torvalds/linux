@@ -454,7 +454,7 @@ _GLOBAL(kexec_sequence)
 	beq	1f
 
 	/* clear out hardware hash page table and tlb */
-#ifdef PPC64_ELF_ABI_v1
+#ifdef CONFIG_PPC64_ELF_ABI_V1
 	ld	r12,0(r27)		/* deref function descriptor */
 #else
 	mr	r12,r27

@@ -18,6 +18,7 @@
 #include <net/pkt_cls.h>
 #include <net/devlink.h>
 #include <linux/time64.h>
+#include <linux/dim.h>
 
 #include <mbox.h>
 #include <npc.h>
@@ -53,6 +54,11 @@ enum arua_mapped_qtypes {
 
 /* Send skid of 2000 packets required for CQ size of 4K CQEs. */
 #define SEND_CQ_SKID	2000
+
+#define OTX2_GET_RX_STATS(reg) \
+	otx2_read64(pfvf, NIX_LF_RX_STATX(reg))
+#define OTX2_GET_TX_STATS(reg) \
+	otx2_read64(pfvf, NIX_LF_TX_STATX(reg))
 
 struct otx2_lmt_info {
 	u64 lmt_addr;
@@ -189,6 +195,7 @@ struct otx2_hw {
 	u16			sqb_size;
 
 	/* NIX */
+	u8			txschq_link_cfg_lvl;
 	u16		txschq_list[NIX_TXSCH_LVL_CNT][MAX_TXSCHQ_PER_FUNC];
 	u16			matchall_ipolicer;
 	u32			dwrr_mtu;
@@ -308,8 +315,8 @@ struct otx2_flow_config {
 #define OTX2_VF_VLAN_TX_INDEX	1
 	u16			max_flows;
 	u8			dmacflt_max_flows;
-	u8			*bmap_to_dmacindex;
-	unsigned long		dmacflt_bmap;
+	u32			*bmap_to_dmacindex;
+	unsigned long		*dmacflt_bmap;
 	struct list_head	flow_list;
 };
 
@@ -351,6 +358,7 @@ struct otx2_nic {
 #define OTX2_FLAG_TC_MATCHALL_EGRESS_ENABLED	BIT_ULL(12)
 #define OTX2_FLAG_TC_MATCHALL_INGRESS_ENABLED	BIT_ULL(13)
 #define OTX2_FLAG_DMACFLTR_SUPPORT		BIT_ULL(14)
+#define OTX2_FLAG_ADPTV_INT_COAL_ENABLED BIT_ULL(16)
 	u64			flags;
 	u64			*cq_op_addr;
 
@@ -408,6 +416,9 @@ struct otx2_nic {
 	u8			pfc_en;
 	u8			*queue_to_pfc_map;
 #endif
+
+	/* napi event count. It is needed for adaptive irq coalescing. */
+	u32 napi_events;
 };
 
 static inline bool is_otx2_lbkvf(struct pci_dev *pdev)
@@ -885,9 +896,9 @@ int otx2_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 int otx2_tc_alloc_ent_bitmap(struct otx2_nic *nic);
 /* CGX/RPM DMAC filters support */
 int otx2_dmacflt_get_max_cnt(struct otx2_nic *pf);
-int otx2_dmacflt_add(struct otx2_nic *pf, const u8 *mac, u8 bit_pos);
-int otx2_dmacflt_remove(struct otx2_nic *pf, const u8 *mac, u8 bit_pos);
-int otx2_dmacflt_update(struct otx2_nic *pf, u8 *mac, u8 bit_pos);
+int otx2_dmacflt_add(struct otx2_nic *pf, const u8 *mac, u32 bit_pos);
+int otx2_dmacflt_remove(struct otx2_nic *pf, const u8 *mac, u32 bit_pos);
+int otx2_dmacflt_update(struct otx2_nic *pf, u8 *mac, u32 bit_pos);
 void otx2_dmacflt_reinstall_flows(struct otx2_nic *pf);
 void otx2_dmacflt_update_pfmac_flow(struct otx2_nic *pfvf);
 

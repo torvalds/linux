@@ -1828,8 +1828,10 @@ static int tx_macro_probe(struct platform_device *pdev)
 		return PTR_ERR(tx->pds);
 
 	base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	if (IS_ERR(base)) {
+		ret = PTR_ERR(base);
+		goto err;
+	}
 
 	/* Update defaults for lpass sc7280 */
 	if (of_device_is_compatible(np, "qcom,sc7280-lpass-tx-macro")) {
@@ -1846,8 +1848,10 @@ static int tx_macro_probe(struct platform_device *pdev)
 	}
 
 	tx->regmap = devm_regmap_init_mmio(dev, base, &tx_regmap_config);
-	if (IS_ERR(tx->regmap))
-		return PTR_ERR(tx->regmap);
+	if (IS_ERR(tx->regmap)) {
+		ret = PTR_ERR(tx->regmap);
+		goto err;
+	}
 
 	dev_set_drvdata(dev, tx);
 
@@ -1907,6 +1911,8 @@ err_mclk:
 err_dcodec:
 	clk_disable_unprepare(tx->macro);
 err:
+	lpass_macro_pds_exit(tx->pds);
+
 	return ret;
 }
 

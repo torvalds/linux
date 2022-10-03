@@ -27,13 +27,11 @@
 	/* Kitakami firmware doesn't support PSCI */
 	/delete-node/ psci;
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		autorepeat;
 
-		button@0 {
+		button-0 {
 			label = "Volume Down";
 			gpios = <&pm8994_gpios 2 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
@@ -42,7 +40,7 @@
 			debounce-interval = <15>;
 		};
 
-		button@1 {
+		button-1 {
 			label = "Volume Up";
 			gpios = <&pm8994_gpios 3 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
@@ -51,7 +49,7 @@
 			debounce-interval = <15>;
 		};
 
-		button@2 {
+		button-2 {
 			label = "Camera Snapshot";
 			gpios = <&pm8994_gpios 4 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
@@ -60,7 +58,7 @@
 			debounce-interval = <15>;
 		};
 
-		button@3 {
+		button-3 {
 			label = "Camera Focus";
 			gpios = <&pm8994_gpios 5 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
@@ -106,13 +104,6 @@
 	clock-frequency = <355000>;
 
 	/* NXP PN547 NFC */
-};
-
-&blsp1_i2c4 {
-	status = "okay";
-	clock-frequency = <355000>;
-
-	/* Empty but active */
 };
 
 &blsp1_i2c6 {
@@ -194,26 +185,38 @@
 };
 
 &rpm_requests {
+	/* PMI8994 should probe first, because pmi8994_bby supplies some of PM8994's regulators */
+	pmi8994_regulators: pmi8994-regulators {
+		compatible = "qcom,rpm-pmi8994-regulators";
+
+		vdd_s1-supply = <&vph_pwr>;
+		vdd_bst_byp-supply = <&vph_pwr>;
+
+		pmi8994_s1: s1 {
+			regulator-min-microvolt = <1025000>;
+			regulator-max-microvolt = <1025000>;
+		};
+
+		/* S2 & S3 - VDD_GFX */
+
+		pmi8994_bby: boost-bypass {
+			regulator-min-microvolt = <3150000>;
+			regulator-max-microvolt = <3600000>;
+		};
+	};
+
 	pm8994_regulators: pm8994-regulators {
 		compatible = "qcom,rpm-pm8994-regulators";
 
-		vdd_s1-supply = <&vph_pwr>;
-		vdd_s2-supply = <&vph_pwr>;
 		vdd_s3-supply = <&vph_pwr>;
 		vdd_s4-supply = <&vph_pwr>;
 		vdd_s5-supply = <&vph_pwr>;
 		vdd_s6-supply = <&vph_pwr>;
 		vdd_s7-supply = <&vph_pwr>;
-		vdd_s8-supply = <&vph_pwr>;
-		vdd_s9-supply = <&vph_pwr>;
-		vdd_s10-supply = <&vph_pwr>;
-		vdd_s11-supply = <&vph_pwr>;
-		vdd_s12-supply = <&vph_pwr>;
 		vdd_l1-supply = <&pmi8994_s1>;
 		vdd_l2_l26_l28-supply = <&pm8994_s3>;
 		vdd_l3_l11-supply = <&pm8994_s3>;
 		vdd_l4_l27_l31-supply = <&pm8994_s3>;
-		vdd_l5_l7-supply = <&pm8994_s5>;
 		vdd_l6_l12_l32-supply = <&pm8994_s5>;
 		vdd_l8_l16_l30-supply = <&vph_pwr>;
 		vdd_l9_l10_l18_l22-supply = <&pmi8994_bby>;
@@ -234,9 +237,9 @@
 		pm8994_s4: s4 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
+			regulator-system-load = <325000>;
 			regulator-allow-set-load;
 			regulator-always-on;
-			regulator-system-load = <325000>;
 		};
 
 		pm8994_s5: s5 {
@@ -262,13 +265,14 @@
 		pm8994_l2: l2 {
 			regulator-min-microvolt = <1250000>;
 			regulator-max-microvolt = <1250000>;
-			regulator-allow-set-load;
 			regulator-system-load = <10000>;
+			regulator-allow-set-load;
 		};
 
 		pm8994_l3: l3 {
 			regulator-min-microvolt = <1100000>;
 			regulator-max-microvolt = <1100000>;
+			regulator-boot-on;
 		};
 
 		pm8994_l4: l4 {
@@ -308,8 +312,8 @@
 		pm8994_l12: l12 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
-			regulator-allow-set-load;
 			regulator-system-load = <10000>;
+			regulator-allow-set-load;
 		};
 
 		pm8994_l13: l13 {
@@ -320,8 +324,9 @@
 		pm8994_l14: l14 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
-			regulator-allow-set-load;
 			regulator-system-load = <10000>;
+			regulator-allow-set-load;
+			regulator-boot-on;
 		};
 
 		pm8994_l15: l15 {
@@ -337,44 +342,47 @@
 		pm8994_l17: l17 {
 			regulator-min-microvolt = <2200000>;
 			regulator-max-microvolt = <2200000>;
+			regulator-boot-on;
 		};
 
 		pm8994_l18: l18 {
 			regulator-min-microvolt = <2850000>;
 			regulator-max-microvolt = <2850000>;
 			regulator-always-on;
+			regulator-boot-on;
 		};
 
 		pm8994_l19: l19 {
 			regulator-min-microvolt = <2850000>;
 			regulator-max-microvolt = <2850000>;
+			regulator-boot-on;
 		};
 
 		pm8994_l20: l20 {
 			regulator-min-microvolt = <2950000>;
 			regulator-max-microvolt = <2950000>;
-			regulator-always-on;
-			regulator-boot-on;
-			regulator-allow-set-load;
 			regulator-system-load = <570000>;
+			regulator-allow-set-load;
 		};
 
 		pm8994_l21: l21 {
 			regulator-min-microvolt = <2950000>;
 			regulator-max-microvolt = <2950000>;
-			regulator-always-on;
-			regulator-allow-set-load;
 			regulator-system-load = <800000>;
+			regulator-allow-set-load;
 		};
 
 		pm8994_l22: l22 {
 			regulator-min-microvolt = <3000000>;
 			regulator-max-microvolt = <3000000>;
+			regulator-boot-on;
 		};
 
 		pm8994_l23: l23 {
 			regulator-min-microvolt = <2800000>;
 			regulator-max-microvolt = <2800000>;
+			regulator-always-on;
+			regulator-boot-on;
 		};
 
 		pm8994_l24: l24 {
@@ -385,6 +393,7 @@
 		pm8994_l25: l25 {
 			regulator-min-microvolt = <1000000>;
 			regulator-max-microvolt = <1000000>;
+			regulator-boot-on;
 		};
 
 		pm8994_l26: l26 {
@@ -395,30 +404,33 @@
 		pm8994_l27: l27 {
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1200000>;
+			regulator-boot-on;
 		};
 
 		pm8994_l28: l28 {
 			regulator-min-microvolt = <1000000>;
 			regulator-max-microvolt = <1000000>;
-			regulator-allow-set-load;
 			regulator-system-load = <10000>;
+			regulator-allow-set-load;
 		};
 
 		pm8994_l29: l29 {
 			regulator-min-microvolt = <2700000>;
 			regulator-max-microvolt = <2700000>;
+			regulator-boot-on;
 		};
 
 		pm8994_l30: l30 {
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
+			regulator-boot-on;
 		};
 
 		pm8994_l31: l31 {
 			regulator-min-microvolt = <1200000>;
 			regulator-max-microvolt = <1200000>;
-			regulator-allow-set-load;
 			regulator-system-load = <10000>;
+			regulator-allow-set-load;
 		};
 
 		pm8994_l32: l32 {
@@ -426,26 +438,11 @@
 			regulator-max-microvolt = <1800000>;
 		};
 
-		pm8994_lvs1: lvs1 {};
-		pm8994_lvs2: lvs2 {};
-	};
-
-	pmi8994_regulators: pmi8994-regulators {
-		compatible = "qcom,rpm-pmi8994-regulators";
-
-		vdd_s1-supply = <&vph_pwr>;
-		vdd_bst_byp-supply = <&vph_pwr>;
-
-		pmi8994_s1: s1 {
-			regulator-min-microvolt = <1025000>;
-			regulator-max-microvolt = <1025000>;
+		pm8994_lvs1: lvs1 {
+			regulator-boot-on;
 		};
-
-		/* S2 & S3 - VDD_GFX */
-
-		pmi8994_bby: boost-bypass {
-			regulator-min-microvolt = <3150000>;
-			regulator-max-microvolt = <3600000>;
+		pm8994_lvs2: lvs2 {
+			regulator-boot-on;
 		};
 	};
 };

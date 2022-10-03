@@ -1045,7 +1045,8 @@ static void sort_secondary(struct tracing_map *map,
 /**
  * tracing_map_sort_entries - Sort the current set of tracing_map_elts in a map
  * @map: The tracing_map
- * @sort_key: The sort key to use for sorting
+ * @sort_keys: The sort key to use for sorting
+ * @n_sort_keys: hitcount, always have at least one
  * @sort_entries: outval: pointer to allocated and sorted array of entries
  *
  * tracing_map_sort_entries() sorts the current set of entries in the

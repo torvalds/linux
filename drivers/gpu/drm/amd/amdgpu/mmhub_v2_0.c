@@ -408,6 +408,8 @@ static void mmhub_v2_0_setup_vmid_config(struct amdgpu_device *adev)
 				    i * hub->ctx_addr_distance,
 				    upper_32_bits(adev->vm_manager.max_pfn - 1));
 	}
+
+	hub->vm_cntx_cntl = tmp;
 }
 
 static void mmhub_v2_0_program_invalidation(struct amdgpu_device *adev)
@@ -682,7 +684,7 @@ static int mmhub_v2_0_set_clockgating(struct amdgpu_device *adev,
 	return 0;
 }
 
-static void mmhub_v2_0_get_clockgating(struct amdgpu_device *adev, u32 *flags)
+static void mmhub_v2_0_get_clockgating(struct amdgpu_device *adev, u64 *flags)
 {
 	int data, data1;
 

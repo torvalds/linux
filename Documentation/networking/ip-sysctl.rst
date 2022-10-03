@@ -202,6 +202,12 @@ neigh/default/unres_qlen - INTEGER
 
 	Default: 101
 
+neigh/default/interval_probe_time_ms - INTEGER
+	The probe interval for neighbor entries with NTF_MANAGED flag,
+	the min value is 1.
+
+	Default: 5000
+
 mtu_expires - INTEGER
 	Time, in seconds, that cached PMTU information is kept.
 
@@ -266,6 +272,13 @@ ipfrag_max_dist - INTEGER
 	likelihood of incorrectly reassembling IP fragments that originate
 	from different IP datagrams, which could result in data corruption.
 	Default: 64
+
+bc_forwarding - INTEGER
+	bc_forwarding enables the feature described in rfc1812#section-5.3.5.2
+	and rfc2644. It allows the router to forward directed broadcast.
+	To enable this feature, the 'all' entry and the input interface entry
+	should be set to 1.
+	Default: 0
 
 INET peer storage
 =================
@@ -622,6 +635,16 @@ tcp_recovery - INTEGER
 	=========   =============================================================
 
 	Default: 0x1
+
+tcp_reflect_tos - BOOLEAN
+	For listening sockets, reuse the DSCP value of the initial SYN message
+	for outgoing packets. This allows to have both directions of a TCP
+	stream to use the same DSCP value, assuming DSCP remains unchanged for
+	the lifetime of the connection.
+
+	This options affects both IPv4 and IPv6.
+
+	Default: 0 (disabled)
 
 tcp_reordering - INTEGER
 	Initial reordering level of packets in a TCP stream.
@@ -1045,11 +1068,7 @@ udp_rmem_min - INTEGER
 	Default: 4K
 
 udp_wmem_min - INTEGER
-	Minimal size of send buffer used by UDP sockets in moderation.
-	Each UDP socket is able to use the size for sending data, even if
-	total pages of UDP sockets exceed udp_mem pressure. The unit is byte.
-
-	Default: 4K
+	UDP does not have tx memory accounting and this tunable has no effect.
 
 RAW variables
 =============
@@ -1078,7 +1097,7 @@ cipso_cache_enable - BOOLEAN
 cipso_cache_bucket_size - INTEGER
 	The CIPSO label cache consists of a fixed size hash table with each
 	hash bucket containing a number of cache entries.  This variable limits
-	the number of entries in each hash bucket; the larger the value the
+	the number of entries in each hash bucket; the larger the value is, the
 	more CIPSO label mappings that can be cached.  When the number of
 	entries in a given hash bucket reaches this limit adding new entries
 	causes the oldest entry in the bucket to be removed to make room.
@@ -1172,7 +1191,7 @@ ip_autobind_reuse - BOOLEAN
 	option should only be set by experts.
 	Default: 0
 
-ip_dynaddr - BOOLEAN
+ip_dynaddr - INTEGER
 	If set non-zero, enables support for dynamic addresses.
 	If set to a non-zero value larger than 1, a kernel log
 	message will be printed when dynamic address rewriting
@@ -1620,12 +1639,15 @@ arp_notify - BOOLEAN
 	     or hardware address changes.
 	 ==  ==========================================================
 
-arp_accept - BOOLEAN
-	Define behavior for gratuitous ARP frames who's IP is not
-	already present in the ARP table:
+arp_accept - INTEGER
+	Define behavior for accepting gratuitous ARP (garp) frames from devices
+	that are not already present in the ARP table:
 
 	- 0 - don't create new entries in the ARP table
 	- 1 - create new entries in the ARP table
+	- 2 - create new entries only if the source IP address is in the same
+	  subnet as an address configured on the interface that received the
+	  garp message.
 
 	Both replies and requests type gratuitous arp will trigger the
 	ARP table to be updated, if this setting is on.
@@ -2467,6 +2489,37 @@ drop_unsolicited_na - BOOLEAN
 
 	By default this is turned off.
 
+accept_untracked_na - INTEGER
+	Define behavior for accepting neighbor advertisements from devices that
+	are absent in the neighbor cache:
+
+	- 0 - (default) Do not accept unsolicited and untracked neighbor
+	  advertisements.
+
+	- 1 - Add a new neighbor cache entry in STALE state for routers on
+	  receiving a neighbor advertisement (either solicited or unsolicited)
+	  with target link-layer address option specified if no neighbor entry
+	  is already present for the advertised IPv6 address. Without this knob,
+	  NAs received for untracked addresses (absent in neighbor cache) are
+	  silently ignored.
+
+	  This is as per router-side behavior documented in RFC9131.
+
+	  This has lower precedence than drop_unsolicited_na.
+
+	  This will optimize the return path for the initial off-link
+	  communication that is initiated by a directly connected host, by
+	  ensuring that the first-hop router which turns on this setting doesn't
+	  have to buffer the initial return packets to do neighbor-solicitation.
+	  The prerequisite is that the host is configured to send unsolicited
+	  neighbor advertisements on interface bringup. This setting should be
+	  used in conjunction with the ndisc_notify setting on the host to
+	  satisfy this prerequisite.
+
+	- 2 - Extend option (1) to add a new neighbor cache entry only if the
+	  source IP address is in the same subnet as an address configured on
+	  the interface that received the neighbor advertisement.
+
 enhanced_dad - BOOLEAN
 	Include a nonce option in the IPv6 neighbor solicitation messages used for
 	duplicate address detection per RFC7527. A received DAD NS will only signal
@@ -2841,7 +2894,14 @@ sctp_rmem - vector of 3 INTEGERs: min, default, max
 	Default: 4K
 
 sctp_wmem  - vector of 3 INTEGERs: min, default, max
-	Currently this tunable has no effect.
+	Only the first value ("min") is used, "default" and "max" are
+	ignored.
+
+	min: Minimum size of send buffer that can be used by SCTP sockets.
+	It is guaranteed to each SCTP socket (but not association) even
+	under moderate memory pressure.
+
+	Default: 4K
 
 addr_scope_policy - INTEGER
 	Control IPv4 address scoping - draft-stewart-tsvwg-sctp-ipv4-00
@@ -2895,6 +2955,43 @@ plpmtud_probe_interval - INTEGER
         must be >= 5000.
 
 	Default: 0
+
+reconf_enable - BOOLEAN
+        Enable or disable extension of Stream Reconfiguration functionality
+        specified in RFC6525. This extension provides the ability to "reset"
+        a stream, and it includes the Parameters of "Outgoing/Incoming SSN
+        Reset", "SSN/TSN Reset" and "Add Outgoing/Incoming Streams".
+
+	- 1: Enable extension.
+	- 0: Disable extension.
+
+	Default: 0
+
+intl_enable - BOOLEAN
+        Enable or disable extension of User Message Interleaving functionality
+        specified in RFC8260. This extension allows the interleaving of user
+        messages sent on different streams. With this feature enabled, I-DATA
+        chunk will replace DATA chunk to carry user messages if also supported
+        by the peer. Note that to use this feature, one needs to set this option
+        to 1 and also needs to set socket options SCTP_FRAGMENT_INTERLEAVE to 2
+        and SCTP_INTERLEAVING_SUPPORTED to 1.
+
+	- 1: Enable extension.
+	- 0: Disable extension.
+
+	Default: 0
+
+ecn_enable - BOOLEAN
+        Control use of Explicit Congestion Notification (ECN) by SCTP.
+        Like in TCP, ECN is used only when both ends of the SCTP connection
+        indicate support for it. This feature is useful in avoiding losses
+        due to congestion by allowing supporting routers to signal congestion
+        before having to drop packets.
+
+        1: Enable ecn.
+        0: Disable ecn.
+
+        Default: 1
 
 
 ``/proc/sys/net/core/*``

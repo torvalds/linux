@@ -374,7 +374,7 @@ void dce_clock_read_ss_info(struct clk_mgr_internal *clk_mgr_dce)
 				clk_mgr_dce->dprefclk_ss_percentage =
 						info.spread_spectrum_percentage;
 			}
-			if (clk_mgr_dce->base.ctx->dc->debug.ignore_dpref_ss)
+			if (clk_mgr_dce->base.ctx->dc->config.ignore_dpref_ss)
 				clk_mgr_dce->dprefclk_ss_percentage = 0;
 		}
 	}

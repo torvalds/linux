@@ -1255,7 +1255,7 @@ exit:
 EXPORT_SYMBOL_GPL(css_general_characteristics);
 EXPORT_SYMBOL_GPL(css_chsc_characteristics);
 
-int chsc_sstpc(void *page, unsigned int op, u16 ctrl, u64 *clock_delta)
+int chsc_sstpc(void *page, unsigned int op, u16 ctrl, long *clock_delta)
 {
 	struct {
 		struct chsc_header request;
@@ -1266,7 +1266,7 @@ int chsc_sstpc(void *page, unsigned int op, u16 ctrl, u64 *clock_delta)
 		unsigned int rsvd2[5];
 		struct chsc_header response;
 		unsigned int rsvd3[3];
-		u64 clock_delta;
+		s64 clock_delta;
 		unsigned int rsvd4[2];
 	} *rr;
 	int rc;

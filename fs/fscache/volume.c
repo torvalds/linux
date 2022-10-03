@@ -143,7 +143,7 @@ static void fscache_wait_on_volume_collision(struct fscache_volume *candidate,
 {
 	wait_var_event_timeout(&candidate->flags,
 			       !fscache_is_acquire_pending(candidate), 20 * HZ);
-	if (!fscache_is_acquire_pending(candidate)) {
+	if (fscache_is_acquire_pending(candidate)) {
 		pr_notice("Potential volume collision new=%08x old=%08x",
 			  candidate->debug_id, collidee_debug_id);
 		fscache_stat(&fscache_n_volumes_collision);
@@ -182,7 +182,7 @@ static bool fscache_hash_volume(struct fscache_volume *candidate)
 	hlist_bl_add_head(&candidate->hash_link, h);
 	hlist_bl_unlock(h);
 
-	if (test_bit(FSCACHE_VOLUME_ACQUIRE_PENDING, &candidate->flags))
+	if (fscache_is_acquire_pending(candidate))
 		fscache_wait_on_volume_collision(candidate, collidee_debug_id);
 	return true;
 

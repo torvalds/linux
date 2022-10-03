@@ -104,16 +104,26 @@ static inline int evlist__add_default(struct evlist *evlist)
 	return __evlist__add_default(evlist, true);
 }
 
+int evlist__add_attrs(struct evlist *evlist, struct perf_event_attr *attrs, size_t nr_attrs);
+
 int __evlist__add_default_attrs(struct evlist *evlist,
 				     struct perf_event_attr *attrs, size_t nr_attrs);
 
-#define evlist__add_default_attrs(evlist, array) \
-	__evlist__add_default_attrs(evlist, array, ARRAY_SIZE(array))
+int arch_evlist__add_default_attrs(struct evlist *evlist,
+				   struct perf_event_attr *attrs,
+				   size_t nr_attrs);
 
-int arch_evlist__add_default_attrs(struct evlist *evlist);
+#define evlist__add_default_attrs(evlist, array) \
+	arch_evlist__add_default_attrs(evlist, array, ARRAY_SIZE(array))
+
 struct evsel *arch_evlist__leader(struct list_head *list);
 
 int evlist__add_dummy(struct evlist *evlist);
+struct evsel *evlist__add_aux_dummy(struct evlist *evlist, bool system_wide);
+static inline struct evsel *evlist__add_dummy_on_all_cpus(struct evlist *evlist)
+{
+	return evlist__add_aux_dummy(evlist, true);
+}
 
 int evlist__add_sb_event(struct evlist *evlist, struct perf_event_attr *attr,
 			 evsel__sb_cb_t cb, void *data);
@@ -195,8 +205,6 @@ void evlist__enable(struct evlist *evlist);
 void evlist__toggle_enable(struct evlist *evlist);
 void evlist__disable_evsel(struct evlist *evlist, char *evsel_name);
 void evlist__enable_evsel(struct evlist *evlist, char *evsel_name);
-
-int evlist__enable_event_idx(struct evlist *evlist, struct evsel *evsel, int idx);
 
 void evlist__set_selected(struct evlist *evlist, struct evsel *evsel);
 

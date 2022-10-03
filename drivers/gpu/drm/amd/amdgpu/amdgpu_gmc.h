@@ -100,7 +100,9 @@ struct amdgpu_vmhub {
 	uint32_t	eng_distance;
 	uint32_t	eng_addr_distance; /* include LO32/HI32 */
 
+	uint32_t        vm_cntx_cntl;
 	uint32_t	vm_cntx_cntl_vm_fault;
+	uint32_t	vm_l2_bank_select_reserved_cid2;
 
 	const struct amdgpu_vmhub_funcs *vmhub_funcs;
 };
@@ -257,6 +259,37 @@ struct amdgpu_gmc {
 	struct amdgpu_bo		*pdb0_bo;
 	/* CPU kmapped address of pdb0*/
 	void				*ptr_pdb0;
+
+	/* MALL size */
+	u64 mall_size;
+	/* number of UMC instances */
+	int num_umc;
+	/* mode2 save restore */
+	u64 VM_L2_CNTL;
+	u64 VM_L2_CNTL2;
+	u64 VM_DUMMY_PAGE_FAULT_CNTL;
+	u64 VM_DUMMY_PAGE_FAULT_ADDR_LO32;
+	u64 VM_DUMMY_PAGE_FAULT_ADDR_HI32;
+	u64 VM_L2_PROTECTION_FAULT_CNTL;
+	u64 VM_L2_PROTECTION_FAULT_CNTL2;
+	u64 VM_L2_PROTECTION_FAULT_MM_CNTL3;
+	u64 VM_L2_PROTECTION_FAULT_MM_CNTL4;
+	u64 VM_L2_PROTECTION_FAULT_ADDR_LO32;
+	u64 VM_L2_PROTECTION_FAULT_ADDR_HI32;
+	u64 VM_DEBUG;
+	u64 VM_L2_MM_GROUP_RT_CLASSES;
+	u64 VM_L2_BANK_SELECT_RESERVED_CID;
+	u64 VM_L2_BANK_SELECT_RESERVED_CID2;
+	u64 VM_L2_CACHE_PARITY_CNTL;
+	u64 VM_L2_IH_LOG_CNTL;
+	u64 VM_CONTEXT_CNTL[16];
+	u64 VM_CONTEXT_PAGE_TABLE_BASE_ADDR_LO32[16];
+	u64 VM_CONTEXT_PAGE_TABLE_BASE_ADDR_HI32[16];
+	u64 VM_CONTEXT_PAGE_TABLE_START_ADDR_LO32[16];
+	u64 VM_CONTEXT_PAGE_TABLE_START_ADDR_HI32[16];
+	u64 VM_CONTEXT_PAGE_TABLE_END_ADDR_LO32[16];
+	u64 VM_CONTEXT_PAGE_TABLE_END_ADDR_HI32[16];
+	u64 MC_VM_MX_L1_TLB_CNTL;
 };
 
 #define amdgpu_gmc_flush_gpu_tlb(adev, vmid, vmhub, type) ((adev)->gmc.gmc_funcs->flush_gpu_tlb((adev), (vmid), (vmhub), (type)))

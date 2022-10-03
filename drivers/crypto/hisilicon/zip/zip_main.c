@@ -49,14 +49,18 @@
 
 #define HZIP_QM_IDEL_STATUS		0x3040e4
 
-#define HZIP_CORE_DEBUG_COMP_0		0x302000
-#define HZIP_CORE_DEBUG_COMP_1		0x303000
-#define HZIP_CORE_DEBUG_DECOMP_0	0x304000
-#define HZIP_CORE_DEBUG_DECOMP_1	0x305000
-#define HZIP_CORE_DEBUG_DECOMP_2	0x306000
-#define HZIP_CORE_DEBUG_DECOMP_3	0x307000
-#define HZIP_CORE_DEBUG_DECOMP_4	0x308000
-#define HZIP_CORE_DEBUG_DECOMP_5	0x309000
+#define HZIP_CORE_DFX_BASE		0x301000
+#define HZIP_CLOCK_GATED_CONTL		0X301004
+#define HZIP_CORE_DFX_COMP_0		0x302000
+#define HZIP_CORE_DFX_COMP_1		0x303000
+#define HZIP_CORE_DFX_DECOMP_0		0x304000
+#define HZIP_CORE_DFX_DECOMP_1		0x305000
+#define HZIP_CORE_DFX_DECOMP_2		0x306000
+#define HZIP_CORE_DFX_DECOMP_3		0x307000
+#define HZIP_CORE_DFX_DECOMP_4		0x308000
+#define HZIP_CORE_DFX_DECOMP_5		0x309000
+#define HZIP_CORE_REGS_BASE_LEN		0xB0
+#define HZIP_CORE_REGS_DFX_LEN		0x28
 
 #define HZIP_CORE_INT_SOURCE		0x3010A0
 #define HZIP_CORE_INT_MASK_REG		0x3010A4
@@ -230,6 +234,64 @@ static const struct debugfs_reg32 hzip_dfx_regs[] = {
 	{"HZIP_DECOMP_LZ77_CURR_ST       ",  0x9cull},
 };
 
+static const struct debugfs_reg32 hzip_com_dfx_regs[] = {
+	{"HZIP_CLOCK_GATE_CTRL           ",  0x301004},
+	{"HZIP_CORE_INT_RAS_CE_ENB       ",  0x301160},
+	{"HZIP_CORE_INT_RAS_NFE_ENB      ",  0x301164},
+	{"HZIP_CORE_INT_RAS_FE_ENB       ",  0x301168},
+	{"HZIP_UNCOM_ERR_RAS_CTRL        ",  0x30116C},
+};
+
+static const struct debugfs_reg32 hzip_dump_dfx_regs[] = {
+	{"HZIP_GET_BD_NUM                ",  0x00ull},
+	{"HZIP_GET_RIGHT_BD              ",  0x04ull},
+	{"HZIP_GET_ERROR_BD              ",  0x08ull},
+	{"HZIP_DONE_BD_NUM               ",  0x0cull},
+	{"HZIP_MAX_DELAY                 ",  0x20ull},
+};
+
+/* define the ZIP's dfx regs region and region length */
+static struct dfx_diff_registers hzip_diff_regs[] = {
+	{
+		.reg_offset = HZIP_CORE_DFX_BASE,
+		.reg_len = HZIP_CORE_REGS_BASE_LEN,
+	}, {
+		.reg_offset = HZIP_CORE_DFX_COMP_0,
+		.reg_len = HZIP_CORE_REGS_DFX_LEN,
+	}, {
+		.reg_offset = HZIP_CORE_DFX_COMP_1,
+		.reg_len = HZIP_CORE_REGS_DFX_LEN,
+	}, {
+		.reg_offset = HZIP_CORE_DFX_DECOMP_0,
+		.reg_len = HZIP_CORE_REGS_DFX_LEN,
+	}, {
+		.reg_offset = HZIP_CORE_DFX_DECOMP_1,
+		.reg_len = HZIP_CORE_REGS_DFX_LEN,
+	}, {
+		.reg_offset = HZIP_CORE_DFX_DECOMP_2,
+		.reg_len = HZIP_CORE_REGS_DFX_LEN,
+	}, {
+		.reg_offset = HZIP_CORE_DFX_DECOMP_3,
+		.reg_len = HZIP_CORE_REGS_DFX_LEN,
+	}, {
+		.reg_offset = HZIP_CORE_DFX_DECOMP_4,
+		.reg_len = HZIP_CORE_REGS_DFX_LEN,
+	}, {
+		.reg_offset = HZIP_CORE_DFX_DECOMP_5,
+		.reg_len = HZIP_CORE_REGS_DFX_LEN,
+	},
+};
+
+static int hzip_diff_regs_show(struct seq_file *s, void *unused)
+{
+	struct hisi_qm *qm = s->private;
+
+	hisi_qm_acc_diff_regs_dump(qm, s, qm->debug.acc_diff_regs,
+					ARRAY_SIZE(hzip_diff_regs));
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(hzip_diff_regs);
 static const struct kernel_param_ops zip_uacce_mode_ops = {
 	.set = uacce_mode_set,
 	.get = param_get_int,
@@ -621,6 +683,7 @@ static int hisi_zip_core_debug_init(struct hisi_qm *qm)
 
 static void hisi_zip_dfx_debug_init(struct hisi_qm *qm)
 {
+	struct dfx_diff_registers *hzip_regs = qm->debug.acc_diff_regs;
 	struct hisi_zip *zip = container_of(qm, struct hisi_zip, qm);
 	struct hisi_zip_dfx *dfx = &zip->dfx;
 	struct dentry *tmp_dir;
@@ -634,6 +697,10 @@ static void hisi_zip_dfx_debug_init(struct hisi_qm *qm)
 				    0644, tmp_dir, data,
 				    &zip_atomic64_ops);
 	}
+
+	if (qm->fun_type == QM_HW_PF && hzip_regs)
+		debugfs_create_file("diff_regs", 0444, tmp_dir,
+				      qm, &hzip_diff_regs_fops);
 }
 
 static int hisi_zip_ctrl_debug_init(struct hisi_qm *qm)
@@ -666,6 +733,13 @@ static int hisi_zip_debugfs_init(struct hisi_qm *qm)
 	qm->debug.sqe_mask_offset = HZIP_SQE_MASK_OFFSET;
 	qm->debug.sqe_mask_len = HZIP_SQE_MASK_LEN;
 	qm->debug.debug_root = dev_d;
+	ret = hisi_qm_diff_regs_init(qm, hzip_diff_regs,
+				ARRAY_SIZE(hzip_diff_regs));
+	if (ret) {
+		dev_warn(dev, "Failed to init ZIP diff regs!\n");
+		goto debugfs_remove;
+	}
+
 	hisi_qm_debug_init(qm);
 
 	if (qm->fun_type == QM_HW_PF) {
@@ -679,6 +753,8 @@ static int hisi_zip_debugfs_init(struct hisi_qm *qm)
 	return 0;
 
 failed_to_create:
+	hisi_qm_diff_regs_uninit(qm, ARRAY_SIZE(hzip_diff_regs));
+debugfs_remove:
 	debugfs_remove_recursive(hzip_debugfs_root);
 	return ret;
 }
@@ -703,11 +779,94 @@ static void hisi_zip_debug_regs_clear(struct hisi_qm *qm)
 
 static void hisi_zip_debugfs_exit(struct hisi_qm *qm)
 {
+	hisi_qm_diff_regs_uninit(qm, ARRAY_SIZE(hzip_diff_regs));
+
 	debugfs_remove_recursive(qm->debug.debug_root);
 
 	if (qm->fun_type == QM_HW_PF) {
 		hisi_zip_debug_regs_clear(qm);
 		qm->debug.curr_qm_qp_num = 0;
+	}
+}
+
+static int hisi_zip_show_last_regs_init(struct hisi_qm *qm)
+{
+	int core_dfx_regs_num =  ARRAY_SIZE(hzip_dump_dfx_regs);
+	int com_dfx_regs_num = ARRAY_SIZE(hzip_com_dfx_regs);
+	struct qm_debug *debug = &qm->debug;
+	void __iomem *io_base;
+	int i, j, idx;
+
+	debug->last_words = kcalloc(core_dfx_regs_num * HZIP_CORE_NUM +
+			com_dfx_regs_num, sizeof(unsigned int), GFP_KERNEL);
+	if (!debug->last_words)
+		return -ENOMEM;
+
+	for (i = 0; i < com_dfx_regs_num; i++) {
+		io_base = qm->io_base + hzip_com_dfx_regs[i].offset;
+		debug->last_words[i] = readl_relaxed(io_base);
+	}
+
+	for (i = 0; i < HZIP_CORE_NUM; i++) {
+		io_base = qm->io_base + core_offsets[i];
+		for (j = 0; j < core_dfx_regs_num; j++) {
+			idx = com_dfx_regs_num + i * core_dfx_regs_num + j;
+			debug->last_words[idx] = readl_relaxed(
+				io_base + hzip_dump_dfx_regs[j].offset);
+		}
+	}
+
+	return 0;
+}
+
+static void hisi_zip_show_last_regs_uninit(struct hisi_qm *qm)
+{
+	struct qm_debug *debug = &qm->debug;
+
+	if (qm->fun_type == QM_HW_VF || !debug->last_words)
+		return;
+
+	kfree(debug->last_words);
+	debug->last_words = NULL;
+}
+
+static void hisi_zip_show_last_dfx_regs(struct hisi_qm *qm)
+{
+	int core_dfx_regs_num =  ARRAY_SIZE(hzip_dump_dfx_regs);
+	int com_dfx_regs_num = ARRAY_SIZE(hzip_com_dfx_regs);
+	struct qm_debug *debug = &qm->debug;
+	char buf[HZIP_BUF_SIZE];
+	void __iomem *base;
+	int i, j, idx;
+	u32 val;
+
+	if (qm->fun_type == QM_HW_VF || !debug->last_words)
+		return;
+
+	for (i = 0; i < com_dfx_regs_num; i++) {
+		val = readl_relaxed(qm->io_base + hzip_com_dfx_regs[i].offset);
+		if (debug->last_words[i] != val)
+			pci_info(qm->pdev, "com_dfx: %s \t= 0x%08x => 0x%08x\n",
+				hzip_com_dfx_regs[i].name, debug->last_words[i], val);
+	}
+
+	for (i = 0; i < HZIP_CORE_NUM; i++) {
+		if (i < HZIP_COMP_CORE_NUM)
+			scnprintf(buf, sizeof(buf), "Comp_core-%d", i);
+		else
+			scnprintf(buf, sizeof(buf), "Decomp_core-%d",
+				  i - HZIP_COMP_CORE_NUM);
+		base = qm->io_base + core_offsets[i];
+
+		pci_info(qm->pdev, "==>%s:\n", buf);
+		/* dump last word for dfx regs during control resetting */
+		for (j = 0; j < core_dfx_regs_num; j++) {
+			idx = com_dfx_regs_num + i * core_dfx_regs_num + j;
+			val = readl_relaxed(base + hzip_dump_dfx_regs[j].offset);
+			if (debug->last_words[idx] != val)
+				pci_info(qm->pdev, "%s \t= 0x%08x => 0x%08x\n",
+					hzip_dump_dfx_regs[j].name, debug->last_words[idx], val);
+		}
 	}
 }
 
@@ -798,6 +957,7 @@ static const struct hisi_qm_err_ini hisi_zip_err_ini = {
 	.close_axi_master_ooo	= hisi_zip_close_axi_master_ooo,
 	.open_sva_prefetch	= hisi_zip_open_sva_prefetch,
 	.close_sva_prefetch	= hisi_zip_close_sva_prefetch,
+	.show_last_dfx_regs	= hisi_zip_show_last_dfx_regs,
 	.err_info_init		= hisi_zip_err_info_init,
 };
 
@@ -805,6 +965,7 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 {
 	struct hisi_qm *qm = &hisi_zip->qm;
 	struct hisi_zip_ctrl *ctrl;
+	int ret;
 
 	ctrl = devm_kzalloc(&qm->pdev->dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
@@ -820,13 +981,15 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 	hisi_qm_dev_err_init(qm);
 	hisi_zip_debug_regs_clear(qm);
 
-	return 0;
+	ret = hisi_zip_show_last_regs_init(qm);
+	if (ret)
+		pci_err(qm->pdev, "Failed to init last word regs!\n");
+
+	return ret;
 }
 
 static int hisi_zip_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 {
-	int ret;
-
 	qm->pdev = pdev;
 	qm->ver = pdev->revision;
 	if (pdev->revision >= QM_HW_V3)
@@ -856,25 +1019,12 @@ static int hisi_zip_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 		qm->qp_num = HZIP_QUEUE_NUM_V1 - HZIP_PF_DEF_Q_NUM;
 	}
 
-	qm->wq = alloc_workqueue("%s", WQ_HIGHPRI | WQ_MEM_RECLAIM |
-				 WQ_UNBOUND, num_online_cpus(),
-				 pci_name(qm->pdev));
-	if (!qm->wq) {
-		pci_err(qm->pdev, "fail to alloc workqueue\n");
-		return -ENOMEM;
-	}
-
-	ret = hisi_qm_init(qm);
-	if (ret)
-		destroy_workqueue(qm->wq);
-
-	return ret;
+	return hisi_qm_init(qm);
 }
 
 static void hisi_zip_qm_uninit(struct hisi_qm *qm)
 {
 	hisi_qm_uninit(qm);
-	destroy_workqueue(qm->wq);
 }
 
 static int hisi_zip_probe_init(struct hisi_zip *hisi_zip)
@@ -964,6 +1114,7 @@ err_qm_stop:
 	hisi_qm_stop(qm, QM_NORMAL);
 
 err_dev_err_uninit:
+	hisi_zip_show_last_regs_uninit(qm);
 	hisi_qm_dev_err_uninit(qm);
 
 err_qm_uninit:
@@ -985,6 +1136,7 @@ static void hisi_zip_remove(struct pci_dev *pdev)
 
 	hisi_zip_debugfs_exit(qm);
 	hisi_qm_stop(qm, QM_NORMAL);
+	hisi_zip_show_last_regs_uninit(qm);
 	hisi_qm_dev_err_uninit(qm);
 	hisi_zip_qm_uninit(qm);
 }

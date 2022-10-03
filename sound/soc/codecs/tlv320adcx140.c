@@ -33,7 +33,6 @@ struct adcx140_priv {
 	bool micbias_vg;
 
 	unsigned int dai_fmt;
-	unsigned int tdm_delay;
 	unsigned int slot_width;
 };
 
@@ -713,16 +712,14 @@ static int adcx140_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	bool inverted_bclk = false;
 
 	/* set master/slave audio interface */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		iface_reg2 |= ADCX140_BCLK_FSYNC_MASTER;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
-	case SND_SOC_DAIFMT_CBS_CFM:
-	case SND_SOC_DAIFMT_CBM_CFS:
 	default:
-		dev_err(component->dev, "Invalid DAI master/slave interface\n");
+		dev_err(component->dev, "Invalid DAI clock provider\n");
 		return -EINVAL;
 	}
 
@@ -792,12 +789,13 @@ static int adcx140_set_dai_tdm_slot(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_component *component = codec_dai->component;
 	struct adcx140_priv *adcx140 = snd_soc_component_get_drvdata(component);
-	unsigned int lsb;
 
-	/* TDM based on DSP mode requires slots to be adjacent */
-	lsb = __ffs(tx_mask);
-	if ((lsb + 1) != __fls(tx_mask)) {
-		dev_err(component->dev, "Invalid mask, slots must be adjacent\n");
+	/*
+	 * The chip itself supports arbitrary masks, but the driver currently
+	 * only supports adjacent slots beginning at the first slot.
+	 */
+	if (tx_mask != GENMASK(__fls(tx_mask), 0)) {
+		dev_err(component->dev, "Only lower adjacent slots are supported\n");
 		return -EINVAL;
 	}
 
@@ -812,7 +810,6 @@ static int adcx140_set_dai_tdm_slot(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
-	adcx140->tdm_delay = lsb;
 	adcx140->slot_width = slot_width;
 
 	return 0;
@@ -1055,7 +1052,6 @@ static const struct snd_soc_component_driver soc_codec_driver_adcx140 = {
 	.idle_bias_on		= 0,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static struct snd_soc_dai_driver adcx140_dai_driver[] = {
@@ -1083,8 +1079,14 @@ static const struct of_device_id tlv320adcx140_of_match[] = {
 MODULE_DEVICE_TABLE(of, tlv320adcx140_of_match);
 #endif
 
-static int adcx140_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static void adcx140_disable_regulator(void *arg)
+{
+	struct adcx140_priv *adcx140 = arg;
+
+	regulator_disable(adcx140->supply_areg);
+}
+
+static int adcx140_i2c_probe(struct i2c_client *i2c)
 {
 	struct adcx140_priv *adcx140;
 	int ret;
@@ -1113,6 +1115,10 @@ static int adcx140_i2c_probe(struct i2c_client *i2c,
 			dev_err(adcx140->dev, "Failed to enable areg\n");
 			return ret;
 		}
+
+		ret = devm_add_action_or_reset(&i2c->dev, adcx140_disable_regulator, adcx140);
+		if (ret)
+			return ret;
 	}
 
 	adcx140->regmap = devm_regmap_init_i2c(i2c, &adcx140_i2c_regmap);
@@ -1143,7 +1149,7 @@ static struct i2c_driver adcx140_i2c_driver = {
 		.name	= "tlv320adcx140-codec",
 		.of_match_table = of_match_ptr(tlv320adcx140_of_match),
 	},
-	.probe		= adcx140_i2c_probe,
+	.probe_new	= adcx140_i2c_probe,
 	.id_table	= adcx140_i2c_id,
 };
 module_i2c_driver(adcx140_i2c_driver);

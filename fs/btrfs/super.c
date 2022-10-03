@@ -48,6 +48,7 @@
 #include "block-group.h"
 #include "discard.h"
 #include "qgroup.h"
+#include "raid56.h"
 #define CREATE_TRACE_POINTS
 #include <trace/events/btrfs.h>
 
@@ -72,7 +73,7 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data);
 #define STATE_STRING_BUF_LEN	(sizeof(STATE_STRING_PREFACE) + BTRFS_FS_STATE_COUNT)
 
 /*
- * Characters to print to indicate error conditions or uncommon filesystem sate.
+ * Characters to print to indicate error conditions or uncommon filesystem state.
  * RO is not an error.
  */
 static const char fs_state_chars[] = {
@@ -261,7 +262,7 @@ static struct ratelimit_state printk_limits[] = {
 	RATELIMIT_STATE_INIT(printk_limits[7], DEFAULT_RATELIMIT_INTERVAL, 100),
 };
 
-void __cold btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
+void __cold _btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
 {
 	char lvl[PRINTK_MAX_SINGLE_HEADER_LEN + 1] = "\0";
 	struct va_format vaf;
@@ -292,10 +293,10 @@ void __cold btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, .
 			char statestr[STATE_STRING_BUF_LEN];
 
 			btrfs_state_to_string(fs_info, statestr);
-			printk("%sBTRFS %s (device %s%s): %pV\n", lvl, type,
+			_printk("%sBTRFS %s (device %s%s): %pV\n", lvl, type,
 				fs_info->sb->s_id, statestr, &vaf);
 		} else {
-			printk("%sBTRFS %s: %pV\n", lvl, type, &vaf);
+			_printk("%sBTRFS %s: %pV\n", lvl, type, &vaf);
 		}
 	}
 
@@ -763,6 +764,8 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 				compress_force = false;
 				no_compress++;
 			} else {
+				btrfs_err(info, "unrecognized compression value %s",
+					  args[0].from);
 				ret = -EINVAL;
 				goto out;
 			}
@@ -821,8 +824,11 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 		case Opt_thread_pool:
 			ret = match_int(&args[0], &intarg);
 			if (ret) {
+				btrfs_err(info, "unrecognized thread_pool value %s",
+					  args[0].from);
 				goto out;
 			} else if (intarg == 0) {
+				btrfs_err(info, "invalid value 0 for thread_pool");
 				ret = -EINVAL;
 				goto out;
 			}
@@ -883,8 +889,11 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			break;
 		case Opt_ratio:
 			ret = match_int(&args[0], &intarg);
-			if (ret)
+			if (ret) {
+				btrfs_err(info, "unrecognized metadata_ratio value %s",
+					  args[0].from);
 				goto out;
+			}
 			info->metadata_ratio = intarg;
 			btrfs_info(info, "metadata ratio %u",
 				   info->metadata_ratio);
@@ -901,6 +910,8 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 				btrfs_set_and_info(info, DISCARD_ASYNC,
 						   "turning on async discard");
 			} else {
+				btrfs_err(info, "unrecognized discard mode value %s",
+					  args[0].from);
 				ret = -EINVAL;
 				goto out;
 			}
@@ -933,6 +944,8 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 				btrfs_set_and_info(info, FREE_SPACE_TREE,
 						   "enabling free space tree");
 			} else {
+				btrfs_err(info, "unrecognized space_cache value %s",
+					  args[0].from);
 				ret = -EINVAL;
 				goto out;
 			}
@@ -1014,8 +1027,12 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			break;
 		case Opt_check_integrity_print_mask:
 			ret = match_int(&args[0], &intarg);
-			if (ret)
+			if (ret) {
+				btrfs_err(info,
+				"unrecognized check_integrity_print_mask value %s",
+					args[0].from);
 				goto out;
+			}
 			info->check_integrity_print_mask = intarg;
 			btrfs_info(info, "check_integrity_print_mask 0x%x",
 				   info->check_integrity_print_mask);
@@ -1030,13 +1047,15 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			goto out;
 #endif
 		case Opt_fatal_errors:
-			if (strcmp(args[0].from, "panic") == 0)
+			if (strcmp(args[0].from, "panic") == 0) {
 				btrfs_set_opt(info->mount_opt,
 					      PANIC_ON_FATAL_ERROR);
-			else if (strcmp(args[0].from, "bug") == 0)
+			} else if (strcmp(args[0].from, "bug") == 0) {
 				btrfs_clear_opt(info->mount_opt,
 					      PANIC_ON_FATAL_ERROR);
-			else {
+			} else {
+				btrfs_err(info, "unrecognized fatal_errors value %s",
+					  args[0].from);
 				ret = -EINVAL;
 				goto out;
 			}
@@ -1044,8 +1063,12 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 		case Opt_commit_interval:
 			intarg = 0;
 			ret = match_int(&args[0], &intarg);
-			if (ret)
+			if (ret) {
+				btrfs_err(info, "unrecognized commit_interval value %s",
+					  args[0].from);
+				ret = -EINVAL;
 				goto out;
+			}
 			if (intarg == 0) {
 				btrfs_info(info,
 					   "using default commit interval %us",
@@ -1059,8 +1082,11 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			break;
 		case Opt_rescue:
 			ret = parse_rescue_options(info, args[0].from);
-			if (ret < 0)
+			if (ret < 0) {
+				btrfs_err(info, "unrecognized rescue value %s",
+					  args[0].from);
 				goto out;
+			}
 			break;
 #ifdef CONFIG_BTRFS_DEBUG
 		case Opt_fragment_all:
@@ -1790,6 +1816,8 @@ static struct dentry *btrfs_mount_root(struct file_system_type *fs_type,
 			error = -EBUSY;
 	} else {
 		snprintf(s->s_id, sizeof(s->s_id), "%pg", bdev);
+		shrinker_debugfs_rename(&s->s_shrink, "sb-%s:%s", fs_type->name,
+					s->s_id);
 		btrfs_sb(s)->bdev_holder = fs_type;
 		if (!strstr(crc32c_impl(), "generic"))
 			set_bit(BTRFS_FS_CSUM_IMPL_FAST, &fs_info->flags);
@@ -1903,17 +1931,12 @@ static void btrfs_resize_thread_pool(struct btrfs_fs_info *fs_info,
 	       old_pool_size, new_pool_size);
 
 	btrfs_workqueue_set_max(fs_info->workers, new_pool_size);
+	btrfs_workqueue_set_max(fs_info->hipri_workers, new_pool_size);
 	btrfs_workqueue_set_max(fs_info->delalloc_workers, new_pool_size);
 	btrfs_workqueue_set_max(fs_info->caching_workers, new_pool_size);
-	btrfs_workqueue_set_max(fs_info->endio_workers, new_pool_size);
-	btrfs_workqueue_set_max(fs_info->endio_meta_workers, new_pool_size);
-	btrfs_workqueue_set_max(fs_info->endio_meta_write_workers,
-				new_pool_size);
 	btrfs_workqueue_set_max(fs_info->endio_write_workers, new_pool_size);
 	btrfs_workqueue_set_max(fs_info->endio_freespace_worker, new_pool_size);
 	btrfs_workqueue_set_max(fs_info->delayed_workers, new_pool_size);
-	btrfs_workqueue_set_max(fs_info->scrub_wr_completion_workers,
-				new_pool_size);
 }
 
 static inline void btrfs_remount_begin(struct btrfs_fs_info *fs_info,
@@ -1986,6 +2009,14 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 	if (ret)
 		goto restore;
 
+	/* V1 cache is not supported for subpage mount. */
+	if (fs_info->sectorsize < PAGE_SIZE && btrfs_test_opt(fs_info, SPACE_CACHE)) {
+		btrfs_warn(fs_info,
+	"v1 space cache is not supported for page size %lu with sectorsize %u",
+			   PAGE_SIZE, fs_info->sectorsize);
+		ret = -EINVAL;
+		goto restore;
+	}
 	btrfs_remount_begin(fs_info, old_opts, *flags);
 	btrfs_resize_thread_pool(fs_info,
 		fs_info->thread_pool_size, old_thread_pool_size);
@@ -2214,12 +2245,8 @@ static inline int btrfs_calc_avail_data_space(struct btrfs_fs_info *fs_info,
 
 	if (type & BTRFS_BLOCK_GROUP_RAID0)
 		num_stripes = nr_devices;
-	else if (type & BTRFS_BLOCK_GROUP_RAID1)
-		num_stripes = 2;
-	else if (type & BTRFS_BLOCK_GROUP_RAID1C3)
-		num_stripes = 3;
-	else if (type & BTRFS_BLOCK_GROUP_RAID1C4)
-		num_stripes = 4;
+	else if (type & BTRFS_BLOCK_GROUP_RAID1_MASK)
+		num_stripes = rattr->ncopies;
 	else if (type & BTRFS_BLOCK_GROUP_RAID10)
 		num_stripes = 4;
 
@@ -2243,17 +2270,13 @@ static inline int btrfs_calc_avail_data_space(struct btrfs_fs_info *fs_info,
 		avail_space = rounddown(avail_space, BTRFS_STRIPE_LEN);
 
 		/*
-		 * In order to avoid overwriting the superblock on the drive,
-		 * btrfs starts at an offset of at least 1MB when doing chunk
-		 * allocation.
-		 *
-		 * This ensures we have at least min_stripe_size free space
-		 * after excluding 1MB.
+		 * Ensure we have at least min_stripe_size on top of the
+		 * reserved space on the device.
 		 */
-		if (avail_space <= SZ_1M + min_stripe_size)
+		if (avail_space <= BTRFS_DEVICE_RANGE_RESERVED + min_stripe_size)
 			continue;
 
-		avail_space -= SZ_1M;
+		avail_space -= BTRFS_DEVICE_RANGE_RESERVED;
 
 		devices_info[i].dev = device;
 		devices_info[i].max_avail = avail_space;
@@ -2671,13 +2694,9 @@ static int __init init_btrfs_fs(void)
 	if (err)
 		goto free_delayed_ref;
 
-	err = btrfs_end_io_wq_init();
-	if (err)
-		goto free_prelim_ref;
-
 	err = btrfs_interface_init();
 	if (err)
-		goto free_end_io_wq;
+		goto free_prelim_ref;
 
 	btrfs_print_mod_info();
 
@@ -2693,8 +2712,6 @@ static int __init init_btrfs_fs(void)
 
 unregister_ioctl:
 	btrfs_interface_exit();
-free_end_io_wq:
-	btrfs_end_io_wq_exit();
 free_prelim_ref:
 	btrfs_prelim_ref_exit();
 free_delayed_ref:
@@ -2732,7 +2749,6 @@ static void __exit exit_btrfs_fs(void)
 	extent_state_cache_exit();
 	extent_io_exit();
 	btrfs_interface_exit();
-	btrfs_end_io_wq_exit();
 	unregister_filesystem(&btrfs_fs_type);
 	btrfs_exit_sysfs();
 	btrfs_cleanup_fs_uuids();

@@ -501,36 +501,6 @@ void device_set_wakeup_capable(struct device *dev, bool capable)
 EXPORT_SYMBOL_GPL(device_set_wakeup_capable);
 
 /**
- * device_init_wakeup - Device wakeup initialization.
- * @dev: Device to handle.
- * @enable: Whether or not to enable @dev as a wakeup device.
- *
- * By default, most devices should leave wakeup disabled.  The exceptions are
- * devices that everyone expects to be wakeup sources: keyboards, power buttons,
- * possibly network interfaces, etc.  Also, devices that don't generate their
- * own wakeup requests but merely forward requests from one bus to another
- * (like PCI bridges) should have wakeup enabled by default.
- */
-int device_init_wakeup(struct device *dev, bool enable)
-{
-	int ret = 0;
-
-	if (!dev)
-		return -EINVAL;
-
-	if (enable) {
-		device_set_wakeup_capable(dev, true);
-		ret = device_wakeup_enable(dev);
-	} else {
-		device_wakeup_disable(dev);
-		device_set_wakeup_capable(dev, false);
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(device_init_wakeup);
-
-/**
  * device_set_wakeup_enable - Enable or disable a device to wake up the system.
  * @dev: Device to handle.
  * @enable: enable/disable flag
@@ -930,6 +900,7 @@ bool pm_wakeup_pending(void)
 
 	return ret || atomic_read(&pm_abort_suspend) > 0;
 }
+EXPORT_SYMBOL_GPL(pm_wakeup_pending);
 
 void pm_system_wakeup(void)
 {

@@ -449,7 +449,7 @@ struct ks_wlan_private {
 	struct sme_info sme_i;
 	u8 *rxp;
 	unsigned int rx_size;
-	struct tasklet_struct sme_task;
+	struct work_struct sme_work;
 	struct work_struct wakeup_work;
 	int scan_ind_count;
 

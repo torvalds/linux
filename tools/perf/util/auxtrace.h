@@ -344,6 +344,10 @@ struct auxtrace_mmap {
  * @idx: index of this mmap
  * @tid: tid for a per-thread mmap (also set if there is only 1 tid on a per-cpu
  *       mmap) otherwise %0
+ * @mmap_needed: set to %false for non-auxtrace events. This is needed because
+ *               auxtrace mmapping is done in the same code path as non-auxtrace
+ *               mmapping but not every evsel that needs non-auxtrace mmapping
+ *               also needs auxtrace mmapping.
  * @cpu: cpu number for a per-cpu mmap otherwise %-1
  */
 struct auxtrace_mmap_params {
@@ -353,6 +357,7 @@ struct auxtrace_mmap_params {
 	int		prot;
 	int		idx;
 	pid_t		tid;
+	bool		mmap_needed;
 	struct perf_cpu	cpu;
 };
 
@@ -490,8 +495,8 @@ void auxtrace_mmap_params__init(struct auxtrace_mmap_params *mp,
 				unsigned int auxtrace_pages,
 				bool auxtrace_overwrite);
 void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
-				   struct evlist *evlist, int idx,
-				   bool per_cpu);
+				   struct evlist *evlist,
+				   struct evsel *evsel, int idx);
 
 typedef int (*process_auxtrace_t)(struct perf_tool *tool,
 				  struct mmap *map,
@@ -590,6 +595,10 @@ int auxtrace_index__process(int fd, u64 size, struct perf_session *session,
 			    bool needs_swap);
 void auxtrace_index__free(struct list_head *head);
 
+void auxtrace_synth_guest_error(struct perf_record_auxtrace_error *auxtrace_error, int type,
+				int code, int cpu, pid_t pid, pid_t tid, u64 ip,
+				const char *msg, u64 timestamp,
+				pid_t machine_pid, int vcpu);
 void auxtrace_synth_error(struct perf_record_auxtrace_error *auxtrace_error, int type,
 			  int code, int cpu, pid_t pid, pid_t tid, u64 ip,
 			  const char *msg, u64 timestamp);
@@ -863,8 +872,8 @@ void auxtrace_mmap_params__init(struct auxtrace_mmap_params *mp,
 				unsigned int auxtrace_pages,
 				bool auxtrace_overwrite);
 void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
-				   struct evlist *evlist, int idx,
-				   bool per_cpu);
+				   struct evlist *evlist,
+				   struct evsel *evsel, int idx);
 
 #define ITRACE_HELP ""
 

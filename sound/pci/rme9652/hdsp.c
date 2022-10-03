@@ -3314,7 +3314,7 @@ static int snd_hdsp_create_controls(struct snd_card *card, struct hdsp *hdsp)
 	if (hdsp->io_type == RPM) {
 		/* RPM Bypass, Disconnect and Input switches */
 		for (idx = 0; idx < ARRAY_SIZE(snd_hdsp_rpm_controls); idx++) {
-			err = snd_ctl_add(card, kctl = snd_ctl_new1(&snd_hdsp_rpm_controls[idx], hdsp));
+			err = snd_ctl_add(card, snd_ctl_new1(&snd_hdsp_rpm_controls[idx], hdsp));
 			if (err < 0)
 				return err;
 		}
@@ -5444,17 +5444,21 @@ static int snd_hdsp_probe(struct pci_dev *pci,
 	hdsp->pci = pci;
 	err = snd_hdsp_create(card, hdsp);
 	if (err)
-		return err;
+		goto error;
 
 	strcpy(card->shortname, "Hammerfall DSP");
 	sprintf(card->longname, "%s at 0x%lx, irq %d", hdsp->card_name,
 		hdsp->port, hdsp->irq);
 	err = snd_card_register(card);
 	if (err)
-		return err;
+		goto error;
 	pci_set_drvdata(pci, card);
 	dev++;
 	return 0;
+
+ error:
+	snd_card_free(card);
+	return err;
 }
 
 static struct pci_driver hdsp_driver = {

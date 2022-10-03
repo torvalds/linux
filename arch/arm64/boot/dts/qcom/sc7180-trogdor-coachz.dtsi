@@ -5,15 +5,10 @@
  * Copyright 2020 Google LLC.
  */
 
-#include "sc7180.dtsi"
-
-ap_ec_spi: &spi6 {};
-ap_h1_spi: &spi0 {};
-
 #include "sc7180-trogdor.dtsi"
 #include "sc7180-trogdor-ti-sn65dsi86.dtsi"
 
-/* Deleted nodes from trogdor.dtsi */
+/* Deleted nodes from sc7180-trogdor.dtsi */
 
 /delete-node/ &alc5682;
 /delete-node/ &pp3300_codec;
@@ -86,6 +81,10 @@ ap_h1_spi: &spi0 {};
 };
 
 &cros_ec {
+	keyboard-controller {
+		compatible = "google,cros-ec-keyb-switches";
+	};
+
 	cros_ec_proximity: proximity {
 		compatible = "google,cros-ec-mkbp-proximity";
 		label = "proximity-wifi";
@@ -109,10 +108,6 @@ ap_ts_pen_1v8: &i2c4 {
 
 		vdd-supply = <&pp3300_ts>;
 	};
-};
-
-&i2c7 {
-	status = "disabled";
 };
 
 &i2c9 {

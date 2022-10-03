@@ -139,6 +139,9 @@
 #define UVC_GUID_FORMAT_H264 \
 	{ 'H',  '2',  '6',  '4', 0x00, 0x00, 0x10, 0x00, \
 	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
+#define UVC_GUID_FORMAT_H265 \
+	{ 'H',  '2',  '6',  '5', 0x00, 0x00, 0x10, 0x00, \
+	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
 #define UVC_GUID_FORMAT_Y8I \
 	{ 'Y',  '8',  'I',  ' ', 0x00, 0x00, 0x10, 0x00, \
 	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
@@ -222,7 +225,8 @@ struct gpio_desc;
 struct sg_table;
 struct uvc_device;
 
-/* TODO: Put the most frequently accessed fields at the beginning of
+/*
+ * TODO: Put the most frequently accessed fields at the beginning of
  * structures to maximize cache efficiency.
  */
 struct uvc_control_info {
@@ -267,8 +271,7 @@ struct uvc_control {
 	struct uvc_entity *entity;
 	struct uvc_control_info info;
 
-	u8 index;	/* Used to match the uvc_control entry with a
-			   uvc_control_info. */
+	u8 index;	/* Used to match the uvc_control entry with a uvc_control_info. */
 	u8 dirty:1,
 	   loaded:1,
 	   modified:1,
@@ -286,7 +289,8 @@ struct uvc_format_desc {
 	u32 fcc;
 };
 
-/* The term 'entity' refers to both UVC units and UVC terminals.
+/*
+ * The term 'entity' refers to both UVC units and UVC terminals.
  *
  * The type field is either the terminal type (wTerminalType in the terminal
  * descriptor), or the unit type (bDescriptorSubtype in the unit descriptor).
@@ -305,8 +309,7 @@ struct uvc_format_desc {
 
 struct uvc_entity {
 	struct list_head list;		/* Entity as part of a UVC device. */
-	struct list_head chain;		/* Entity as part of a video device
-					 * chain. */
+	struct list_head chain;		/* Entity as part of a video device chain. */
 	unsigned int flags;
 
 	/*
@@ -588,7 +591,8 @@ struct uvc_streaming {
 	struct uvc_format *cur_format;
 	struct uvc_frame *cur_frame;
 
-	/* Protect access to ctrl, cur_format, cur_frame and hardware video
+	/*
+	 * Protect access to ctrl, cur_format, cur_frame and hardware video
 	 * probe control.
 	 */
 	struct mutex mutex;
@@ -664,6 +668,7 @@ struct uvc_device_info {
 	u32	quirks;
 	u32	meta_format;
 	u16	uvc_version;
+	const struct uvc_control_mapping **mappings;
 };
 
 struct uvc_device {
@@ -911,6 +916,7 @@ void uvc_simplify_fraction(u32 *numerator, u32 *denominator,
 u32 uvc_fraction_to_interval(u32 numerator, u32 denominator);
 struct usb_host_endpoint *uvc_find_endpoint(struct usb_host_interface *alts,
 					    u8 epaddr);
+u16 uvc_endpoint_max_bpi(struct usb_device *dev, struct usb_host_endpoint *ep);
 
 /* Quirks support */
 void uvc_video_decode_isight(struct uvc_urb *uvc_urb,

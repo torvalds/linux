@@ -2167,7 +2167,7 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 		offsetof(struct brcmf_assoc_params_le, chanspec_list);
 	if (cfg->channel)
 		join_params_size += sizeof(u16);
-	ext_join_params = kzalloc(join_params_size, GFP_KERNEL);
+	ext_join_params = kzalloc(sizeof(*ext_join_params), GFP_KERNEL);
 	if (ext_join_params == NULL) {
 		err = -ENOMEM;
 		goto done;
@@ -4965,7 +4965,8 @@ exit:
 	return err;
 }
 
-static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
+static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev,
+				  unsigned int link_id)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_if *ifp = netdev_priv(ndev);
@@ -5302,6 +5303,7 @@ exit:
 
 static int brcmf_cfg80211_get_channel(struct wiphy *wiphy,
 				      struct wireless_dev *wdev,
+				      unsigned int link_id,
 				      struct cfg80211_chan_def *chandef)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
@@ -6015,8 +6017,8 @@ brcmf_bss_roaming_done(struct brcmf_cfg80211_info *cfg,
 done:
 	kfree(buf);
 
-	roam_info.channel = notify_channel;
-	roam_info.bssid = profile->bssid;
+	roam_info.links[0].channel = notify_channel;
+	roam_info.links[0].bssid = profile->bssid;
 	roam_info.req_ie = conn_info->req_ie;
 	roam_info.req_ie_len = conn_info->req_ie_len;
 	roam_info.resp_ie = conn_info->resp_ie;
@@ -6059,7 +6061,7 @@ brcmf_bss_connect_done(struct brcmf_cfg80211_info *cfg,
 		} else {
 			conn_params.status = WLAN_STATUS_AUTH_TIMEOUT;
 		}
-		conn_params.bssid = profile->bssid;
+		conn_params.links[0].bssid = profile->bssid;
 		conn_params.req_ie = conn_info->req_ie;
 		conn_params.req_ie_len = conn_info->req_ie_len;
 		conn_params.resp_ie = conn_info->resp_ie;
@@ -7479,8 +7481,12 @@ int brcmf_cfg80211_wait_vif_event(struct brcmf_cfg80211_info *cfg,
 
 static bool brmcf_use_iso3166_ccode_fallback(struct brcmf_pub *drvr)
 {
+	if (drvr->settings->trivial_ccode_map)
+		return true;
+
 	switch (drvr->bus_if->chip) {
 	case BRCM_CC_4345_CHIP_ID:
+	case BRCM_CC_43602_CHIP_ID:
 		return true;
 	default:
 		return false;

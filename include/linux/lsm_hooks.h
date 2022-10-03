@@ -358,6 +358,7 @@
  *	@old_dentry contains the dentry structure of the old link.
  *	@new_dir contains the path structure for parent of the new link.
  *	@new_dentry contains the dentry structure of the new link.
+ *	@flags may contain rename options such as RENAME_EXCHANGE.
  *	Return 0 if permission is granted.
  * @path_chmod:
  *	Check for permission to change a mode of the file @path. The new
@@ -700,6 +701,13 @@
  *	should be made to this rather than to @current->cred.
  *	@old is the set of credentials that are being replaced.
  *	@flags contains one of the LSM_SETID_* values.
+ *	Return 0 on success.
+ * @task_fix_setgroups:
+ *	Update the module's state after setting the supplementary group
+ *	identity attributes of the current process.
+ *	@new is the set of credentials that will be installed.  Modifications
+ *	should be made to this rather than to @current->cred.
+ *	@old is the set of credentials that are being replaced.
  *	Return 0 on success.
  * @task_setpgid:
  *	Check permission before setting the process group identifier of the
@@ -1595,7 +1603,7 @@ struct security_hook_list {
 	struct hlist_node		list;
 	struct hlist_head		*head;
 	union security_list_options	hook;
-	char				*lsm;
+	const char			*lsm;
 } __randomize_layout;
 
 /*
@@ -1630,7 +1638,7 @@ extern struct security_hook_heads security_hook_heads;
 extern char *lsm_names;
 
 extern void security_add_hooks(struct security_hook_list *hooks, int count,
-				char *lsm);
+				const char *lsm);
 
 #define LSM_FLAG_LEGACY_MAJOR	BIT(0)
 #define LSM_FLAG_EXCLUSIVE	BIT(1)

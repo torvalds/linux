@@ -1233,7 +1233,8 @@ static void extent_err(const struct extent_buffer *eb, int slot,
 }
 
 static int check_extent_item(struct extent_buffer *leaf,
-			     struct btrfs_key *key, int slot)
+			     struct btrfs_key *key, int slot,
+			     struct btrfs_key *prev_key)
 {
 	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	struct btrfs_extent_item *ei;
@@ -1453,6 +1454,26 @@ static int check_extent_item(struct extent_buffer *leaf,
 			   total_refs, inline_refs);
 		return -EUCLEAN;
 	}
+
+	if ((prev_key->type == BTRFS_EXTENT_ITEM_KEY) ||
+	    (prev_key->type == BTRFS_METADATA_ITEM_KEY)) {
+		u64 prev_end = prev_key->objectid;
+
+		if (prev_key->type == BTRFS_METADATA_ITEM_KEY)
+			prev_end += fs_info->nodesize;
+		else
+			prev_end += prev_key->offset;
+
+		if (unlikely(prev_end > key->objectid)) {
+			extent_err(leaf, slot,
+	"previous extent [%llu %u %llu] overlaps current extent [%llu %u %llu]",
+				   prev_key->objectid, prev_key->type,
+				   prev_key->offset, key->objectid, key->type,
+				   key->offset);
+			return -EUCLEAN;
+		}
+	}
+
 	return 0;
 }
 
@@ -1621,7 +1642,7 @@ static int check_leaf_item(struct extent_buffer *leaf,
 		break;
 	case BTRFS_EXTENT_ITEM_KEY:
 	case BTRFS_METADATA_ITEM_KEY:
-		ret = check_extent_item(leaf, key, slot);
+		ret = check_extent_item(leaf, key, slot, prev_key);
 		break;
 	case BTRFS_TREE_BLOCK_REF_KEY:
 	case BTRFS_SHARED_DATA_REF_KEY:
@@ -1855,3 +1876,58 @@ out:
 	return ret;
 }
 ALLOW_ERROR_INJECTION(btrfs_check_node, ERRNO);
+
+int btrfs_check_eb_owner(const struct extent_buffer *eb, u64 root_owner)
+{
+	const bool is_subvol = is_fstree(root_owner);
+	const u64 eb_owner = btrfs_header_owner(eb);
+
+	/*
+	 * Skip dummy fs, as selftests don't create unique ebs for each dummy
+	 * root.
+	 */
+	if (test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &eb->fs_info->fs_state))
+		return 0;
+	/*
+	 * There are several call sites (backref walking, qgroup, and data
+	 * reloc) passing 0 as @root_owner, as they are not holding the
+	 * tree root.  In that case, we can not do a reliable ownership check,
+	 * so just exit.
+	 */
+	if (root_owner == 0)
+		return 0;
+	/*
+	 * These trees use key.offset as their owner, our callers don't have
+	 * the extra capacity to pass key.offset here.  So we just skip them.
+	 */
+	if (root_owner == BTRFS_TREE_LOG_OBJECTID ||
+	    root_owner == BTRFS_TREE_RELOC_OBJECTID)
+		return 0;
+
+	if (!is_subvol) {
+		/* For non-subvolume trees, the eb owner should match root owner */
+		if (unlikely(root_owner != eb_owner)) {
+			btrfs_crit(eb->fs_info,
+"corrupted %s, root=%llu block=%llu owner mismatch, have %llu expect %llu",
+				btrfs_header_level(eb) == 0 ? "leaf" : "node",
+				root_owner, btrfs_header_bytenr(eb), eb_owner,
+				root_owner);
+			return -EUCLEAN;
+		}
+		return 0;
+	}
+
+	/*
+	 * For subvolume trees, owners can mismatch, but they should all belong
+	 * to subvolume trees.
+	 */
+	if (unlikely(is_subvol != is_fstree(eb_owner))) {
+		btrfs_crit(eb->fs_info,
+"corrupted %s, root=%llu block=%llu owner mismatch, have %llu expect [%llu, %llu]",
+			btrfs_header_level(eb) == 0 ? "leaf" : "node",
+			root_owner, btrfs_header_bytenr(eb), eb_owner,
+			BTRFS_FIRST_FREE_OBJECTID, BTRFS_LAST_FREE_OBJECTID);
+		return -EUCLEAN;
+	}
+	return 0;
+}

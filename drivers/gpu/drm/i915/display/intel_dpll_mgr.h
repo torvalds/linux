@@ -336,6 +336,9 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 			bool state);
 #define assert_shared_dpll_enabled(d, p) assert_shared_dpll(d, p, true)
 #define assert_shared_dpll_disabled(d, p) assert_shared_dpll(d, p, false)
+int intel_compute_shared_dplls(struct intel_atomic_state *state,
+			       struct intel_crtc *crtc,
+			       struct intel_encoder *encoder);
 int intel_reserve_shared_dplls(struct intel_atomic_state *state,
 			       struct intel_crtc *crtc,
 			       struct intel_encoder *encoder);
@@ -364,5 +367,10 @@ void intel_dpll_dump_hw_state(struct drm_i915_private *dev_priv,
 			      const struct intel_dpll_hw_state *hw_state);
 enum intel_dpll_id icl_tc_port_to_pll_id(enum tc_port tc_port);
 bool intel_dpll_is_combophy(enum intel_dpll_id id);
+
+void intel_shared_dpll_state_verify(struct intel_crtc *crtc,
+				    struct intel_crtc_state *old_crtc_state,
+				    struct intel_crtc_state *new_crtc_state);
+void intel_shared_dpll_verify_disabled(struct drm_i915_private *i915);
 
 #endif /* _INTEL_DPLL_MGR_H_ */

@@ -255,6 +255,7 @@ static int rvin_try_format(struct rvin_dev *vin, u32 which,
 {
 	struct v4l2_subdev *sd = vin_to_source(vin);
 	struct v4l2_subdev_state *sd_state;
+	static struct lock_class_key key;
 	struct v4l2_subdev_format format = {
 		.which = which,
 		.pad = vin->parallel.source_pad,
@@ -263,7 +264,11 @@ static int rvin_try_format(struct rvin_dev *vin, u32 which,
 	u32 width, height;
 	int ret;
 
-	sd_state = v4l2_subdev_alloc_state(sd);
+	/*
+	 * FIXME: Drop this call, drivers are not supposed to use
+	 * __v4l2_subdev_state_alloc().
+	 */
+	sd_state = __v4l2_subdev_state_alloc(sd, "rvin:state->lock", &key);
 	if (IS_ERR(sd_state))
 		return PTR_ERR(sd_state);
 
@@ -299,7 +304,7 @@ static int rvin_try_format(struct rvin_dev *vin, u32 which,
 
 	rvin_format_align(vin, pix);
 done:
-	v4l2_subdev_free_state(sd_state);
+	__v4l2_subdev_state_free(sd_state);
 
 	return ret;
 }
@@ -307,12 +312,8 @@ done:
 static int rvin_querycap(struct file *file, void *priv,
 			 struct v4l2_capability *cap)
 {
-	struct rvin_dev *vin = video_drvdata(file);
-
 	strscpy(cap->driver, KBUILD_MODNAME, sizeof(cap->driver));
 	strscpy(cap->card, "R_Car_VIN", sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
-		 dev_name(vin->dev));
 	return 0;
 }
 
@@ -1031,7 +1032,7 @@ static void rvin_notify(struct v4l2_subdev *sd,
 		if (!vin)
 			continue;
 
-		pad = media_entity_remote_pad(&vin->pad);
+		pad = media_pad_remote_pad_first(&vin->pad);
 		if (!pad)
 			continue;
 

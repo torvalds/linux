@@ -72,7 +72,8 @@ bool nbp_switchdev_allowed_egress(const struct net_bridge_port *p,
 
 /* Flags that can be offloaded to hardware */
 #define BR_PORT_FLAGS_HW_OFFLOAD (BR_LEARNING | BR_FLOOD | \
-				  BR_MCAST_FLOOD | BR_BCAST_FLOOD | BR_PORT_LOCKED)
+				  BR_MCAST_FLOOD | BR_BCAST_FLOOD | BR_PORT_LOCKED | \
+				  BR_HAIRPIN_MODE | BR_ISOLATED | BR_MULTICAST_TO_UNICAST)
 
 int br_switchdev_set_port_flag(struct net_bridge_port *p,
 			       unsigned long flags,
@@ -353,6 +354,8 @@ static int br_switchdev_vlan_attr_replay(struct net_device *br_dev,
 	attr.orig_dev = br_dev;
 
 	vg = br_vlan_group(br);
+	if (!vg)
+		return 0;
 
 	list_for_each_entry(v, &vg->vlan_list, vlist) {
 		if (v->msti) {

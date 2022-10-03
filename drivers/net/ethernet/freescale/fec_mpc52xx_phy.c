@@ -15,6 +15,7 @@
 #include <linux/phy.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
+#include <linux/of_address.h>
 #include <linux/of_mdio.h>
 #include <asm/io.h>
 #include <asm/mpc52xx.h>
@@ -99,8 +100,7 @@ static int mpc52xx_fec_mdio_probe(struct platform_device *of)
 	dev_set_drvdata(dev, bus);
 
 	/* set MII speed */
-	out_be32(&priv->regs->mii_speed,
-		((mpc5xxx_get_bus_frequency(of->dev.of_node) >> 20) / 5) << 1);
+	out_be32(&priv->regs->mii_speed, ((mpc5xxx_get_bus_frequency(dev) >> 20) / 5) << 1);
 
 	err = of_mdiobus_register(bus, np);
 	if (err)

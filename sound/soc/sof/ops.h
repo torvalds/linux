@@ -21,6 +21,20 @@
 #define sof_ops(sdev) \
 	((sdev)->pdata->desc->ops)
 
+static inline int sof_ops_init(struct snd_sof_dev *sdev)
+{
+	if (sdev->pdata->desc->ops_init)
+		return sdev->pdata->desc->ops_init(sdev);
+
+	return 0;
+}
+
+static inline void sof_ops_free(struct snd_sof_dev *sdev)
+{
+	if (sdev->pdata->desc->ops_free)
+		sdev->pdata->desc->ops_free(sdev);
+}
+
 /* Mandatory operations are verified during probing */
 
 /* init */
@@ -365,32 +379,6 @@ static inline int snd_sof_dsp_send_msg(struct snd_sof_dev *sdev,
 				       struct snd_sof_ipc_msg *msg)
 {
 	return sof_ops(sdev)->send_msg(sdev, msg);
-}
-
-/* host DMA trace */
-static inline int snd_sof_dma_trace_init(struct snd_sof_dev *sdev,
-					 struct sof_ipc_dma_trace_params_ext *dtrace_params)
-{
-	if (sof_ops(sdev)->trace_init)
-		return sof_ops(sdev)->trace_init(sdev, dtrace_params);
-
-	return 0;
-}
-
-static inline int snd_sof_dma_trace_release(struct snd_sof_dev *sdev)
-{
-	if (sof_ops(sdev)->trace_release)
-		return sof_ops(sdev)->trace_release(sdev);
-
-	return 0;
-}
-
-static inline int snd_sof_dma_trace_trigger(struct snd_sof_dev *sdev, int cmd)
-{
-	if (sof_ops(sdev)->trace_trigger)
-		return sof_ops(sdev)->trace_trigger(sdev, cmd);
-
-	return 0;
 }
 
 /* host PCM ops */

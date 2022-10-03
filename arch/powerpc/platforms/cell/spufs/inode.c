@@ -21,10 +21,10 @@
 #include <linux/namei.h>
 #include <linux/pagemap.h>
 #include <linux/poll.h>
+#include <linux/of.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 
-#include <asm/prom.h>
 #include <asm/spu.h>
 #include <asm/spu_priv1.h>
 #include <linux/uaccess.h>
@@ -660,6 +660,7 @@ spufs_init_isolated_loader(void)
 		return;
 
 	loader = of_get_property(dn, "loader", &size);
+	of_node_put(dn);
 	if (!loader)
 		return;
 

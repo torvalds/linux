@@ -55,7 +55,6 @@ examples:
         compatible = "ingenic,jz4780-dw-hdmi";
         reg = <0x10180000 0x8000>;
         reg-io-width = <4>;
-        ddc-i2c-bus = <&i2c4>;
         interrupt-parent = <&intc>;
         interrupts = <3>;
         clocks = <&cgu JZ4780_CLK_AHB0>, <&cgu JZ4780_CLK_HDMI>;

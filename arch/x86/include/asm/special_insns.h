@@ -184,14 +184,15 @@ static inline void wbinvd(void)
 	native_wbinvd();
 }
 
-#ifdef CONFIG_X86_64
 
 static inline void load_gs_index(unsigned int selector)
 {
+#ifdef CONFIG_X86_64
 	native_load_gs_index(selector);
-}
-
+#else
+	loadsegment(gs, selector);
 #endif
+}
 
 #endif /* CONFIG_PARAVIRT_XXL */
 
@@ -292,6 +293,15 @@ static inline int enqcmds(void __iomem *dst, const void *src)
 		return -EAGAIN;
 
 	return 0;
+}
+
+static inline void tile_release(void)
+{
+	/*
+	 * Instruction opcode for TILERELEASE; supported in binutils
+	 * version >= 2.36.
+	 */
+	asm volatile(".byte 0xc4, 0xe2, 0x78, 0x49, 0xc0");
 }
 
 #endif /* __KERNEL__ */

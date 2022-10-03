@@ -137,10 +137,10 @@
 };
 
 &spi0 {
-	nor_flash: n25q128a11@0 {
+	nor_flash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "Micron,n25q128a11";
+		compatible = "micron,n25q128a11", "jedec,spi-nor";
 		spi-max-frequency = <54000000>;
 		m25p,fast-read;
 		reg = <0>;

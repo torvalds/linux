@@ -522,7 +522,8 @@ static enum bp_result transmitter_control_v2(
 		 */
 		params.acConfig.ucEncoderSel = 1;
 
-	if (CONNECTOR_ID_DISPLAY_PORT == connector_id)
+	if (CONNECTOR_ID_DISPLAY_PORT == connector_id ||
+	    CONNECTOR_ID_USBC == connector_id)
 		/* Bit4: DP connector flag
 		 * =0 connector is none-DP connector
 		 * =1 connector is DP connector

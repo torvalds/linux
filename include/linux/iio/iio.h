@@ -9,13 +9,15 @@
 
 #include <linux/device.h>
 #include <linux/cdev.h>
+#include <linux/slab.h>
 #include <linux/iio/types.h>
-#include <linux/of.h>
 /* IIO TODO LIST */
 /*
  * Provide means of adjusting timer accuracy.
  * Currently assumes nano seconds.
  */
+
+struct of_phandle_args;
 
 enum iio_shared_by {
 	IIO_SEPARATE,
@@ -313,9 +315,55 @@ static inline bool iio_channel_has_available(const struct iio_chan_spec *chan,
 }
 
 s64 iio_get_time_ns(const struct iio_dev *indio_dev);
-unsigned int iio_get_time_res(const struct iio_dev *indio_dev);
 
-/* Device operating modes */
+/*
+ * Device operating modes
+ * @INDIO_DIRECT_MODE: There is an access to either:
+ * a) The last single value available for devices that do not provide
+ *    on-demand reads.
+ * b) A new value after performing an on-demand read otherwise.
+ * On most devices, this is a single-shot read. On some devices with data
+ * streams without an 'on-demand' function, this might also be the 'last value'
+ * feature. Above all, this mode internally means that we are not in any of the
+ * other modes, and sysfs reads should work.
+ * Device drivers should inform the core if they support this mode.
+ * @INDIO_BUFFER_TRIGGERED: Common mode when dealing with kfifo buffers.
+ * It indicates that an explicit trigger is required. This requests the core to
+ * attach a poll function when enabling the buffer, which is indicated by the
+ * _TRIGGERED suffix.
+ * The core will ensure this mode is set when registering a triggered buffer
+ * with iio_triggered_buffer_setup().
+ * @INDIO_BUFFER_SOFTWARE: Another kfifo buffer mode, but not event triggered.
+ * No poll function can be attached because there is no triggered infrastructure
+ * we can use to cause capture. There is a kfifo that the driver will fill, but
+ * not "only one scan at a time". Typically, hardware will have a buffer that
+ * can hold multiple scans. Software may read one or more scans at a single time
+ * and push the available data to a Kfifo. This means the core will not attach
+ * any poll function when enabling the buffer.
+ * The core will ensure this mode is set when registering a simple kfifo buffer
+ * with devm_iio_kfifo_buffer_setup().
+ * @INDIO_BUFFER_HARDWARE: For specific hardware, if unsure do not use this mode.
+ * Same as above but this time the buffer is not a kfifo where we have direct
+ * access to the data. Instead, the consumer driver must access the data through
+ * non software visible channels (or DMA when there is no demux possible in
+ * software)
+ * The core will ensure this mode is set when registering a dmaengine buffer
+ * with devm_iio_dmaengine_buffer_setup().
+ * @INDIO_EVENT_TRIGGERED: Very unusual mode.
+ * Triggers usually refer to an external event which will start data capture.
+ * Here it is kind of the opposite as, a particular state of the data might
+ * produce an event which can be considered as an event. We don't necessarily
+ * have access to the data itself, but to the event produced. For example, this
+ * can be a threshold detector. The internal path of this mode is very close to
+ * the INDIO_BUFFER_TRIGGERED mode.
+ * The core will ensure this mode is set when registering a triggered event.
+ * @INDIO_HARDWARE_TRIGGERED: Very unusual mode.
+ * Here, triggers can result in data capture and can be routed to multiple
+ * hardware components, which make them close to regular triggers in the way
+ * they must be managed by the core, but without the entire interrupts/poll
+ * functions burden. Interrupts are irrelevant as the data flow is hardware
+ * mediated and distributed.
+ */
 #define INDIO_DIRECT_MODE		0x01
 #define INDIO_BUFFER_TRIGGERED		0x02
 #define INDIO_BUFFER_SOFTWARE		0x04
@@ -488,8 +536,12 @@ struct iio_buffer_setup_ops {
 
 /**
  * struct iio_dev - industrial I/O device
- * @modes:		[DRIVER] operating modes supported by device
- * @currentmode:	[INTERN] current operating mode
+ * @modes:		[DRIVER] bitmask listing all the operating modes
+ *			supported by the IIO device. This list should be
+ *			initialized before registering the IIO device. It can
+ *			also be filed up by the IIO core, as a result of
+ *			enabling particular features in the driver
+ *			(see iio_triggered_event_setup()).
  * @dev:		[DRIVER] device structure, should be assigned a parent
  *			and owner
  * @buffer:		[DRIVER] any buffer present
@@ -516,7 +568,6 @@ struct iio_buffer_setup_ops {
  */
 struct iio_dev {
 	int				modes;
-	int				currentmode;
 	struct device			dev;
 
 	struct iio_buffer		*buffer;
@@ -543,6 +594,8 @@ struct iio_dev {
 };
 
 int iio_device_id(struct iio_dev *indio_dev);
+int iio_device_get_current_mode(struct iio_dev *indio_dev);
+bool iio_buffer_enabled(struct iio_dev *indio_dev);
 
 const struct iio_chan_spec
 *iio_find_channel_from_si(struct iio_dev *indio_dev, int si);
@@ -657,8 +710,13 @@ static inline void *iio_device_get_drvdata(const struct iio_dev *indio_dev)
 	return dev_get_drvdata(&indio_dev->dev);
 }
 
-/* Can we make this smaller? */
-#define IIO_ALIGN L1_CACHE_BYTES
+/*
+ * Used to ensure the iio_priv() structure is aligned to allow that structure
+ * to in turn include IIO_DMA_MINALIGN'd elements such as buffers which
+ * must not share  cachelines with the rest of the structure, thus making
+ * them safe for use with non-coherent DMA.
+ */
+#define IIO_DMA_MINALIGN ARCH_KMALLOC_MINALIGN
 struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv);
 
 /* The information at the returned address is guaranteed to be cacheline aligned */
@@ -669,20 +727,13 @@ static inline void *iio_priv(const struct iio_dev *indio_dev)
 
 void iio_device_free(struct iio_dev *indio_dev);
 struct iio_dev *devm_iio_device_alloc(struct device *parent, int sizeof_priv);
-__printf(2, 3)
-struct iio_trigger *devm_iio_trigger_alloc(struct device *parent,
-					   const char *fmt, ...);
-/**
- * iio_buffer_enabled() - helper function to test if the buffer is enabled
- * @indio_dev:		IIO device structure for device
- **/
-static inline bool iio_buffer_enabled(struct iio_dev *indio_dev)
-{
-	return indio_dev->currentmode
-		& (INDIO_BUFFER_TRIGGERED | INDIO_BUFFER_HARDWARE |
-		   INDIO_BUFFER_SOFTWARE);
-}
 
+#define devm_iio_trigger_alloc(parent, fmt, ...) \
+	__devm_iio_trigger_alloc((parent), THIS_MODULE, (fmt), ##__VA_ARGS__)
+__printf(3, 4)
+struct iio_trigger *__devm_iio_trigger_alloc(struct device *parent,
+					     struct module *this_mod,
+					     const char *fmt, ...);
 /**
  * iio_get_debugfs_dentry() - helper function to get the debugfs_dentry
  * @indio_dev:		IIO device structure for device

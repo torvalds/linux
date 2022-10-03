@@ -349,7 +349,7 @@
 		status = "okay";
 	};
 
-	fan: fan {
+	fan: pwm-fan {
 		compatible = "pwm-fan";
 		pwms = <&pwm4 0 45334>;
 
@@ -360,7 +360,7 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		power {
+		key-power {
 			label = "Power";
 			gpios = <&gpio_aon TEGRA186_AON_GPIO(FF, 0)
 					   GPIO_ACTIVE_LOW>;
@@ -371,7 +371,7 @@
 			wakeup-source;
 		};
 
-		volume-up {
+		key-volume-up {
 			label = "Volume Up";
 			gpios = <&gpio_aon TEGRA186_AON_GPIO(FF, 1)
 					   GPIO_ACTIVE_LOW>;
@@ -380,7 +380,7 @@
 			debounce-interval = <10>;
 		};
 
-		volume-down {
+		key-volume-down {
 			label = "Volume Down";
 			gpios = <&gpio_aon TEGRA186_AON_GPIO(FF, 2)
 					   GPIO_ACTIVE_LOW>;

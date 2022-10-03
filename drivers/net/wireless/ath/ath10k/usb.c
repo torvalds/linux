@@ -345,6 +345,12 @@ static void ath10k_usb_rx_complete(struct ath10k *ar, struct sk_buff *skb)
 	ep->ep_ops.ep_rx_complete(ar, skb);
 	/* The RX complete handler now owns the skb... */
 
+	if (test_bit(ATH10K_FLAG_CORE_REGISTERED, &ar->dev_flags)) {
+		local_bh_disable();
+		napi_schedule(&ar->napi);
+		local_bh_enable();
+	}
+
 	return;
 
 out_free_skb:
@@ -387,6 +393,7 @@ static int ath10k_usb_hif_start(struct ath10k *ar)
 	int i;
 	struct ath10k_usb *ar_usb = ath10k_usb_priv(ar);
 
+	ath10k_core_napi_enable(ar);
 	ath10k_usb_start_recv_pipes(ar);
 
 	/* set the TX resource avail threshold for each TX pipe */
@@ -462,6 +469,7 @@ err:
 static void ath10k_usb_hif_stop(struct ath10k *ar)
 {
 	ath10k_usb_flush_all(ar);
+	ath10k_core_napi_sync_disable(ar);
 }
 
 static u16 ath10k_usb_hif_get_free_queue_number(struct ath10k *ar, u8 pipe_id)
@@ -966,6 +974,20 @@ err:
 	return ret;
 }
 
+static int ath10k_usb_napi_poll(struct napi_struct *ctx, int budget)
+{
+	struct ath10k *ar = container_of(ctx, struct ath10k, napi);
+	int done;
+
+	done = ath10k_htt_rx_hl_indication(ar, budget);
+	ath10k_dbg(ar, ATH10K_DBG_USB, "napi poll: done: %d, budget:%d\n", done, budget);
+
+	if (done < budget)
+		napi_complete_done(ctx, done);
+
+	return done;
+}
+
 /* ath10k usb driver registered functions */
 static int ath10k_usb_probe(struct usb_interface *interface,
 			    const struct usb_device_id *id)
@@ -992,6 +1014,9 @@ static int ath10k_usb_probe(struct usb_interface *interface,
 		return -ENOMEM;
 	}
 
+	netif_napi_add(&ar->napi_dev, &ar->napi, ath10k_usb_napi_poll,
+		       NAPI_POLL_WEIGHT);
+
 	usb_get_dev(dev);
 	vendor_id = le16_to_cpu(dev->descriptor.idVendor);
 	product_id = le16_to_cpu(dev->descriptor.idProduct);
@@ -1013,6 +1038,7 @@ static int ath10k_usb_probe(struct usb_interface *interface,
 	bus_params.dev_type = ATH10K_DEV_TYPE_HL;
 	/* TODO: don't know yet how to get chip_id with USB */
 	bus_params.chip_id = 0;
+	bus_params.hl_msdu_ids = true;
 	ret = ath10k_core_register(ar, &bus_params);
 	if (ret) {
 		ath10k_warn(ar, "failed to register driver core: %d\n", ret);
@@ -1044,6 +1070,7 @@ static void ath10k_usb_remove(struct usb_interface *interface)
 		return;
 
 	ath10k_core_unregister(ar_usb->ar);
+	netif_napi_del(&ar_usb->ar->napi);
 	ath10k_usb_destroy(ar_usb->ar);
 	usb_put_dev(interface_to_usbdev(interface));
 	ath10k_core_destroy(ar_usb->ar);

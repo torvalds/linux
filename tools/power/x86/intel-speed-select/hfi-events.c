@@ -144,7 +144,7 @@ static int family_handler(struct nl_msg *msg, void *arg)
 			continue;
 		res->id = nla_get_u32(tb2[CTRL_ATTR_MCAST_GRP_ID]);
 		break;
-	};
+	}
 
 	return 0;
 }
@@ -190,7 +190,7 @@ static int handle_event(struct nl_msg *n, void *arg)
 	struct genlmsghdr *genlhdr = genlmsg_hdr(nlh);
 	struct nlattr *attrs[THERMAL_GENL_ATTR_MAX + 1];
 	int ret;
-	struct perf_cap perf_cap;
+	struct perf_cap perf_cap = {0};
 
 	ret = genlmsg_parse(nlh, 0, attrs, THERMAL_GENL_ATTR_MAX, NULL);
 

@@ -17,17 +17,51 @@ extern struct mutex uuid_mutex;
 
 #define BTRFS_STRIPE_LEN	SZ_64K
 
+/* Used by sanity check for btrfs_raid_types. */
+#define const_ffs(n) (__builtin_ctzll(n) + 1)
+
+/*
+ * The conversion from BTRFS_BLOCK_GROUP_* bits to btrfs_raid_type requires
+ * RAID0 always to be the lowest profile bit.
+ * Although it's part of on-disk format and should never change, do extra
+ * compile-time sanity checks.
+ */
+static_assert(const_ffs(BTRFS_BLOCK_GROUP_RAID0) <
+	      const_ffs(BTRFS_BLOCK_GROUP_PROFILE_MASK & ~BTRFS_BLOCK_GROUP_RAID0));
+static_assert(const_ilog2(BTRFS_BLOCK_GROUP_RAID0) >
+	      ilog2(BTRFS_BLOCK_GROUP_TYPE_MASK));
+
+/* ilog2() can handle both constants and variables */
+#define BTRFS_BG_FLAG_TO_INDEX(profile)					\
+	ilog2((profile) >> (ilog2(BTRFS_BLOCK_GROUP_RAID0) - 1))
+
+enum btrfs_raid_types {
+	/* SINGLE is the special one as it doesn't have on-disk bit. */
+	BTRFS_RAID_SINGLE  = 0,
+
+	BTRFS_RAID_RAID0   = BTRFS_BG_FLAG_TO_INDEX(BTRFS_BLOCK_GROUP_RAID0),
+	BTRFS_RAID_RAID1   = BTRFS_BG_FLAG_TO_INDEX(BTRFS_BLOCK_GROUP_RAID1),
+	BTRFS_RAID_DUP	   = BTRFS_BG_FLAG_TO_INDEX(BTRFS_BLOCK_GROUP_DUP),
+	BTRFS_RAID_RAID10  = BTRFS_BG_FLAG_TO_INDEX(BTRFS_BLOCK_GROUP_RAID10),
+	BTRFS_RAID_RAID5   = BTRFS_BG_FLAG_TO_INDEX(BTRFS_BLOCK_GROUP_RAID5),
+	BTRFS_RAID_RAID6   = BTRFS_BG_FLAG_TO_INDEX(BTRFS_BLOCK_GROUP_RAID6),
+	BTRFS_RAID_RAID1C3 = BTRFS_BG_FLAG_TO_INDEX(BTRFS_BLOCK_GROUP_RAID1C3),
+	BTRFS_RAID_RAID1C4 = BTRFS_BG_FLAG_TO_INDEX(BTRFS_BLOCK_GROUP_RAID1C4),
+
+	BTRFS_NR_RAID_TYPES
+};
+
 struct btrfs_io_geometry {
 	/* remaining bytes before crossing a stripe */
 	u64 len;
 	/* offset of logical address in chunk */
 	u64 offset;
 	/* length of single IO stripe */
-	u64 stripe_len;
+	u32 stripe_len;
+	/* offset of address in stripe */
+	u32 stripe_offset;
 	/* number of stripe where address falls */
 	u64 stripe_nr;
-	/* offset of address in stripe */
-	u64 stripe_offset;
 	/* offset of raid56 stripe into the chunk */
 	u64 raid56_stripe_offset;
 };
@@ -121,8 +155,8 @@ struct btrfs_device {
 	/* bytes used on the current transaction */
 	u64 commit_bytes_used;
 
-	/* for sending down flush barriers */
-	struct bio *flush_bio;
+	/* Bio used for flushing device barriers */
+	struct bio flush_bio;
 	struct completion flush_wait;
 
 	/* per-device scrub information */
@@ -321,6 +355,13 @@ struct btrfs_fs_devices {
 				/ sizeof(struct btrfs_stripe) + 1)
 
 /*
+ * Maximum number of sectors for a single bio to limit the size of the
+ * checksum array.  This matches the number of bio_vecs per bio and thus the
+ * I/O size for buffered I/O.
+ */
+#define BTRFS_MAX_BIO_SECTORS				(256)
+
+/*
  * Additional info to pass along bio.
  *
  * Mostly for btrfs specific features like csum and mirror_num.
@@ -328,11 +369,17 @@ struct btrfs_fs_devices {
 struct btrfs_bio {
 	unsigned int mirror_num;
 
+	/* for direct I/O */
+	u64 file_offset;
+
 	/* @device is for stripe IO submission. */
 	struct btrfs_device *device;
 	u8 *csum;
 	u8 csum_inline[BTRFS_BIO_INLINE_CSUM_SIZE];
 	struct bvec_iter iter;
+
+	/* For read end I/O handling */
+	struct work_struct end_io_work;
 
 	/*
 	 * This member must come last, bio_alloc_bioset will allocate enough
@@ -354,10 +401,36 @@ static inline void btrfs_bio_free_csum(struct btrfs_bio *bbio)
 	}
 }
 
+/*
+ * Iterate through a btrfs_bio (@bbio) on a per-sector basis.
+ *
+ * bvl        - struct bio_vec
+ * bbio       - struct btrfs_bio
+ * iters      - struct bvec_iter
+ * bio_offset - unsigned int
+ */
+#define btrfs_bio_for_each_sector(fs_info, bvl, bbio, iter, bio_offset)	\
+	for ((iter) = (bbio)->iter, (bio_offset) = 0;			\
+	     (iter).bi_size &&					\
+	     (((bvl) = bio_iter_iovec((&(bbio)->bio), (iter))), 1);	\
+	     (bio_offset) += fs_info->sectorsize,			\
+	     bio_advance_iter_single(&(bbio)->bio, &(iter),		\
+	     (fs_info)->sectorsize))
+
 struct btrfs_io_stripe {
 	struct btrfs_device *dev;
+	union {
+		/* Block mapping */
+		u64 physical;
+		/* For the endio handler */
+		struct btrfs_io_context *bioc;
+	};
+};
+
+struct btrfs_discard_stripe {
+	struct btrfs_device *dev;
 	u64 physical;
-	u64 length; /* only used for discard mappings */
+	u64 length;
 };
 
 /*
@@ -427,7 +500,7 @@ struct map_lookup {
 	u64 type;
 	int io_align;
 	int io_width;
-	u64 stripe_len;
+	u32 stripe_len;
 	int num_stripes;
 	int sub_stripes;
 	int verified_stripes; /* For mount time dev extent verification */
@@ -496,6 +569,9 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 int btrfs_map_sblock(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		     u64 logical, u64 *length,
 		     struct btrfs_io_context **bioc_ret);
+struct btrfs_discard_stripe *btrfs_map_discard(struct btrfs_fs_info *fs_info,
+					       u64 logical, u64 *length_ret,
+					       u32 *num_stripes);
 int btrfs_get_io_geometry(struct btrfs_fs_info *fs_info, struct extent_map *map,
 			  enum btrfs_map_op op, u64 logical,
 			  struct btrfs_io_geometry *io_geom);
@@ -504,8 +580,7 @@ int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info);
 struct btrfs_block_group *btrfs_create_chunk(struct btrfs_trans_handle *trans,
 					    u64 type);
 void btrfs_mapping_tree_free(struct extent_map_tree *tree);
-blk_status_t btrfs_map_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
-			   int mirror_num);
+void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror_num);
 int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		       fmode_t flags, void *holder);
 struct btrfs_device *btrfs_scan_one_device(const char *path,
@@ -564,6 +639,8 @@ int btrfs_is_parity_mirror(struct btrfs_fs_info *fs_info,
 			   u64 logical, u64 len);
 unsigned long btrfs_full_stripe_len(struct btrfs_fs_info *fs_info,
 				    u64 logical);
+u64 btrfs_calc_stripe_length(const struct extent_map *em);
+int btrfs_nr_parity_stripes(u64 type);
 int btrfs_chunk_alloc_add_chunk_item(struct btrfs_trans_handle *trans,
 				     struct btrfs_block_group *bg);
 int btrfs_remove_chunk(struct btrfs_trans_handle *trans, u64 chunk_offset);

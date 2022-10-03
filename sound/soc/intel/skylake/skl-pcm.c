@@ -1380,7 +1380,10 @@ static int skl_platform_soc_probe(struct snd_soc_component *component)
 	const struct skl_dsp_ops *ops;
 	int ret;
 
-	pm_runtime_get_sync(component->dev);
+	ret = pm_runtime_resume_and_get(component->dev);
+	if (ret < 0 && ret != -EACCES)
+		return ret;
+
 	if (bus->ppcap) {
 		skl->component = component;
 

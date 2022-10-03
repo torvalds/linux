@@ -2,12 +2,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 # Create an autoksyms.h header file from the list of all module's needed symbols
-# as recorded on the second line of *.mod files and the user-provided symbol
-# whitelist.
+# as recorded in *.usyms files and the user-provided symbol whitelist.
 
 set -e
-
-output_file="$1"
 
 # Use "make V=1" to debug this script.
 case "$KBUILD_VERBOSE" in
@@ -15,6 +12,15 @@ case "$KBUILD_VERBOSE" in
 	set -x
 	;;
 esac
+
+read_modorder=
+
+if [ "$1" = --modorder ]; then
+	shift
+	read_modorder=1
+fi
+
+output_file="$1"
 
 needed_symbols=
 
@@ -41,10 +47,8 @@ cat > "$output_file" << EOT
 
 EOT
 
-[ -f modules.order ] && modlist=modules.order || modlist=/dev/null
-
 {
-	sed 's/ko$/mod/' $modlist | xargs -n1 sed -n -e '2p'
+	[ -n "${read_modorder}" ] && sed 's/ko$/usyms/' modules.order | xargs cat
 	echo "$needed_symbols"
 	[ -n "$ksym_wl" ] && cat "$ksym_wl"
 } | sed -e 's/ /\n/g' | sed -n -e '/^$/!p' |
@@ -52,4 +56,7 @@ EOT
 # point addresses.
 sed -e 's/^\.//' |
 sort -u |
+# Ignore __this_module. It's not an exported symbol, and will be resolved
+# when the final .ko's are linked.
+grep -v '^__this_module$' |
 sed -e 's/\(.*\)/#define __KSYM_\1 1/' >> "$output_file"

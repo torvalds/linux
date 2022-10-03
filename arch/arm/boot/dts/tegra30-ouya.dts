@@ -4764,7 +4764,7 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		power {
+		key-power {
 			gpios = <&gpio TEGRA_GPIO(V, 0) GPIO_ACTIVE_LOW>;
 			debounce-interval = <10>;
 			linux,code = <KEY_POWER>;

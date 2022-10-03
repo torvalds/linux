@@ -42,7 +42,7 @@ static void *xterm_init(char *str, int device, const struct chan_opts *opts)
 }
 
 /* Only changed by xterm_setup, which is a setup */
-static char *terminal_emulator = "xterm";
+static char *terminal_emulator = CONFIG_XTERM_CHAN_DEFAULT_EMULATOR;
 static char *title_switch = "-T";
 static char *exec_switch = "-e";
 
@@ -79,8 +79,9 @@ __uml_setup("xterm=", xterm_setup,
 "    respectively.  The title switch must have the form '<switch> title',\n"
 "    not '<switch>=title'.  Similarly, the exec switch must have the form\n"
 "    '<switch> command arg1 arg2 ...'.\n"
-"    The default values are 'xterm=xterm,-T,-e'.  Values for gnome-terminal\n"
-"    are 'xterm=gnome-terminal,-t,-x'.\n\n"
+"    The default values are 'xterm=" CONFIG_XTERM_CHAN_DEFAULT_EMULATOR
+     ",-T,-e'.\n"
+"    Values for gnome-terminal are 'xterm=gnome-terminal,-t,-x'.\n\n"
 );
 
 static int xterm_open(int input, int output, int primary, void *d,

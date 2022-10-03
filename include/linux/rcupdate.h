@@ -29,6 +29,7 @@
 #include <linux/lockdep.h>
 #include <asm/processor.h>
 #include <linux/cpumask.h>
+#include <linux/context_tracking_irq.h>
 
 #define ULONG_CMP_GE(a, b)	(ULONG_MAX / 2 >= (a) - (b))
 #define ULONG_CMP_LT(a, b)	(ULONG_MAX / 2 < (a) - (b))
@@ -41,6 +42,7 @@ void call_rcu(struct rcu_head *head, rcu_callback_t func);
 void rcu_barrier_tasks(void);
 void rcu_barrier_tasks_rude(void);
 void synchronize_rcu(void);
+unsigned long get_completed_synchronize_rcu(void);
 
 #ifdef CONFIG_PREEMPT_RCU
 
@@ -103,13 +105,11 @@ static inline void rcu_sysrq_start(void) { }
 static inline void rcu_sysrq_end(void) { }
 #endif /* #else #ifdef CONFIG_RCU_STALL_COMMON */
 
-#ifdef CONFIG_NO_HZ_FULL
-void rcu_user_enter(void);
-void rcu_user_exit(void);
+#if defined(CONFIG_NO_HZ_FULL) && (!defined(CONFIG_GENERIC_ENTRY) || !defined(CONFIG_KVM_XFER_TO_GUEST_WORK))
+void rcu_irq_work_resched(void);
 #else
-static inline void rcu_user_enter(void) { }
-static inline void rcu_user_exit(void) { }
-#endif /* CONFIG_NO_HZ_FULL */
+static inline void rcu_irq_work_resched(void) { }
+#endif
 
 #ifdef CONFIG_RCU_NOCB_CPU
 void rcu_init_nohz(void);
@@ -128,7 +128,7 @@ static inline void rcu_nocb_flush_deferred_wakeup(void) { }
  * @a: Code that RCU needs to pay attention to.
  *
  * RCU read-side critical sections are forbidden in the inner idle loop,
- * that is, between the rcu_idle_enter() and the rcu_idle_exit() -- RCU
+ * that is, between the ct_idle_enter() and the ct_idle_exit() -- RCU
  * will happily ignore any such read-side critical sections.  However,
  * things like powertop need tracepoints in the inner idle loop.
  *
@@ -143,9 +143,9 @@ static inline void rcu_nocb_flush_deferred_wakeup(void) { }
  */
 #define RCU_NONIDLE(a) \
 	do { \
-		rcu_irq_enter_irqson(); \
+		ct_irq_enter_irqson(); \
 		do { a; } while (0); \
-		rcu_irq_exit_irqson(); \
+		ct_irq_exit_irqson(); \
 	} while (0)
 
 /*
@@ -169,13 +169,24 @@ void synchronize_rcu_tasks(void);
 # endif
 
 # ifdef CONFIG_TASKS_TRACE_RCU
-# define rcu_tasks_trace_qs(t)						\
-	do {								\
-		if (!likely(READ_ONCE((t)->trc_reader_checked)) &&	\
-		    !unlikely(READ_ONCE((t)->trc_reader_nesting))) {	\
-			smp_store_release(&(t)->trc_reader_checked, true); \
-			smp_mb(); /* Readers partitioned by store. */	\
-		}							\
+// Bits for ->trc_reader_special.b.need_qs field.
+#define TRC_NEED_QS		0x1  // Task needs a quiescent state.
+#define TRC_NEED_QS_CHECKED	0x2  // Task has been checked for needing quiescent state.
+
+u8 rcu_trc_cmpxchg_need_qs(struct task_struct *t, u8 old, u8 new);
+void rcu_tasks_trace_qs_blkd(struct task_struct *t);
+
+# define rcu_tasks_trace_qs(t)							\
+	do {									\
+		int ___rttq_nesting = READ_ONCE((t)->trc_reader_nesting);	\
+										\
+		if (likely(!READ_ONCE((t)->trc_reader_special.b.need_qs)) &&	\
+		    likely(!___rttq_nesting)) {					\
+			rcu_trc_cmpxchg_need_qs((t), 0,	TRC_NEED_QS_CHECKED);	\
+		} else if (___rttq_nesting && ___rttq_nesting != INT_MIN &&	\
+			   !READ_ONCE((t)->trc_reader_special.b.blocked)) {	\
+			rcu_tasks_trace_qs_blkd(t);				\
+		}								\
 	} while (0)
 # else
 # define rcu_tasks_trace_qs(t) do { } while (0)
@@ -184,7 +195,7 @@ void synchronize_rcu_tasks(void);
 #define rcu_tasks_qs(t, preempt)					\
 do {									\
 	rcu_tasks_classic_qs((t), (preempt));				\
-	rcu_tasks_trace_qs((t));					\
+	rcu_tasks_trace_qs(t);						\
 } while (0)
 
 # ifdef CONFIG_TASKS_RUDE_RCU
@@ -196,6 +207,7 @@ void synchronize_rcu_tasks_rude(void);
 void exit_tasks_rcu_start(void);
 void exit_tasks_rcu_finish(void);
 #else /* #ifdef CONFIG_TASKS_RCU_GENERIC */
+#define rcu_tasks_classic_qs(t, preempt) do { } while (0)
 #define rcu_tasks_qs(t, preempt) do { } while (0)
 #define rcu_note_voluntary_context_switch(t) do { } while (0)
 #define call_rcu_tasks call_rcu

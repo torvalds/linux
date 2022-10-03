@@ -14,6 +14,8 @@
 #ifndef MMAL_MSG_COMMON_H
 #define MMAL_MSG_COMMON_H
 
+#include <linux/types.h>
+
 enum mmal_msg_status {
 	MMAL_MSG_STATUS_SUCCESS = 0, /**< Success */
 	MMAL_MSG_STATUS_ENOMEM,      /**< Out of memory */
@@ -38,11 +40,6 @@ struct mmal_rect {
 	s32 y;      /**< y coordinate (from top) */
 	s32 width;  /**< width */
 	s32 height; /**< height */
-};
-
-struct mmal_rational {
-	s32 num;    /**< Numerator */
-	s32 den;    /**< Denominator */
 };
 
 #endif /* MMAL_MSG_COMMON_H */

@@ -64,6 +64,10 @@ static const struct renesas_family fam_rzg2l __initconst __maybe_unused = {
 	.name	= "RZ/G2L",
 };
 
+static const struct renesas_family fam_rzg2ul __initconst __maybe_unused = {
+	.name	= "RZ/G2UL",
+};
+
 static const struct renesas_family fam_rzv2l __initconst __maybe_unused = {
 	.name	= "RZ/V2L",
 };
@@ -148,6 +152,11 @@ static const struct renesas_soc soc_rz_g2l __initconst __maybe_unused = {
 	.id     = 0x841c447,
 };
 
+static const struct renesas_soc soc_rz_g2ul __initconst __maybe_unused = {
+	.family = &fam_rzg2ul,
+	.id     = 0x8450447,
+};
+
 static const struct renesas_soc soc_rz_v2l __initconst __maybe_unused = {
 	.family = &fam_rzv2l,
 	.id     = 0x8447447,
@@ -223,13 +232,18 @@ static const struct renesas_soc soc_rcar_d3 __initconst __maybe_unused = {
 };
 
 static const struct renesas_soc soc_rcar_v3u __initconst __maybe_unused = {
-	.family	= &fam_rcar_gen3,
+	.family	= &fam_rcar_gen4,
 	.id	= 0x59,
 };
 
 static const struct renesas_soc soc_rcar_s4 __initconst __maybe_unused = {
 	.family	= &fam_rcar_gen4,
 	.id	= 0x5a,
+};
+
+static const struct renesas_soc soc_rcar_v4h __initconst __maybe_unused = {
+	.family	= &fam_rcar_gen4,
+	.id	= 0x5c,
 };
 
 static const struct renesas_soc soc_shmobile_ag5 __initconst __maybe_unused = {
@@ -340,6 +354,12 @@ static const struct of_device_id renesas_socs[] __initconst = {
 #ifdef CONFIG_ARCH_R8A779F0
 	{ .compatible = "renesas,r8a779f0",	.data = &soc_rcar_s4 },
 #endif
+#ifdef CONFIG_ARCH_R8A779G0
+	{ .compatible = "renesas,r8a779g0",	.data = &soc_rcar_v4h },
+#endif
+#if defined(CONFIG_ARCH_R9A07G043)
+	{ .compatible = "renesas,r9a07g043",	.data = &soc_rz_g2ul },
+#endif
 #if defined(CONFIG_ARCH_R9A07G044)
 	{ .compatible = "renesas,r9a07g044",	.data = &soc_rz_g2l },
 #endif
@@ -378,6 +398,7 @@ static const struct renesas_id id_prr __initconst = {
 
 static const struct of_device_id renesas_ids[] __initconst = {
 	{ .compatible = "renesas,bsid",			.data = &id_bsid },
+	{ .compatible = "renesas,r9a07g043-sysc",	.data = &id_rzg2l },
 	{ .compatible = "renesas,r9a07g044-sysc",	.data = &id_rzg2l },
 	{ .compatible = "renesas,r9a07g054-sysc",	.data = &id_rzg2l },
 	{ .compatible = "renesas,prr",			.data = &id_prr },

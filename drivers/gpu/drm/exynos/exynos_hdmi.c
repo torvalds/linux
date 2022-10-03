@@ -893,7 +893,7 @@ static int hdmi_get_modes(struct drm_connector *connector)
 	if (!edid)
 		return -ENODEV;
 
-	hdata->dvi_mode = !drm_detect_hdmi_monitor(edid);
+	hdata->dvi_mode = !connector->display_info.is_hdmi;
 	DRM_DEV_DEBUG_KMS(hdata->dev, "%s : width[%d] x height[%d]\n",
 			  (hdata->dvi_mode ? "dvi monitor" : "hdmi monitor"),
 			  edid->width_cm, edid->height_cm);
@@ -922,8 +922,8 @@ static int hdmi_find_phy_conf(struct hdmi_context *hdata, u32 pixel_clock)
 	return -EINVAL;
 }
 
-static int hdmi_mode_valid(struct drm_connector *connector,
-			struct drm_display_mode *mode)
+static enum drm_mode_status hdmi_mode_valid(struct drm_connector *connector,
+					    struct drm_display_mode *mode)
 {
 	struct hdmi_context *hdata = connector_to_hdmi(connector);
 	int ret;
@@ -1594,12 +1594,12 @@ static int hdmi_audio_hw_params(struct device *dev, void *data,
 	struct hdmi_context *hdata = dev_get_drvdata(dev);
 
 	if (daifmt->fmt != HDMI_I2S || daifmt->bit_clk_inv ||
-	    daifmt->frame_clk_inv || daifmt->bit_clk_master ||
-	    daifmt->frame_clk_master) {
+	    daifmt->frame_clk_inv || daifmt->bit_clk_provider ||
+	    daifmt->frame_clk_provider) {
 		dev_err(dev, "%s: Bad flags %d %d %d %d\n", __func__,
 			daifmt->bit_clk_inv, daifmt->frame_clk_inv,
-			daifmt->bit_clk_master,
-			daifmt->frame_clk_master);
+			daifmt->bit_clk_provider,
+			daifmt->frame_clk_provider);
 		return -EINVAL;
 	}
 

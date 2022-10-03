@@ -157,15 +157,6 @@ Rebooting
      newer BIOS, or newer board) using this option will ignore the built-in
      quirk table, and use the generic default reboot actions.
 
-Non Executable Mappings
-=======================
-
-  noexec=on|off
-    on
-      Enable(default)
-    off
-      Disable
-
 NUMA
 ====
 
@@ -296,11 +287,13 @@ iommu options only relevant to the AMD GART hardware IOMMU:
 iommu options only relevant to the software bounce buffering (SWIOTLB) IOMMU
 implementation:
 
-    swiotlb=<pages>[,force]
-      <pages>
-        Prereserve that many 128K pages for the software IO bounce buffering.
+    swiotlb=<slots>[,force,noforce]
+      <slots>
+        Prereserve that many 2K slots for the software IO bounce buffering.
       force
         Force all IO through the software TLB.
+      noforce
+        Do not initialize the software TLB.
 
 
 Miscellaneous
@@ -310,3 +303,17 @@ Miscellaneous
     Do not use GB pages for kernel direct mappings.
   gbpages
     Use GB pages for kernel direct mappings.
+
+
+AMD SEV (Secure Encrypted Virtualization)
+=========================================
+Options relating to AMD SEV, specified via the following format:
+
+::
+
+   sev=option1[,option2]
+
+The available options are:
+
+   debug
+     Enable debug messages.

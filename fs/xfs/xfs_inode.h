@@ -33,9 +33,9 @@ typedef struct xfs_inode {
 	struct xfs_imap		i_imap;		/* location for xfs_imap() */
 
 	/* Extent information. */
-	struct xfs_ifork	*i_afp;		/* attribute fork pointer */
 	struct xfs_ifork	*i_cowfp;	/* copy on write extents */
 	struct xfs_ifork	i_df;		/* data fork */
+	struct xfs_ifork	i_af;		/* attribute fork */
 
 	/* Transaction and locking information. */
 	struct xfs_inode_log_item *i_itemp;	/* logging information */
@@ -68,6 +68,10 @@ typedef struct xfs_inode {
 	uint64_t		i_diflags2;	/* XFS_DIFLAG2_... */
 	struct timespec64	i_crtime;	/* time created */
 
+	/* unlinked list pointers */
+	xfs_agino_t		i_next_unlinked;
+	xfs_agino_t		i_prev_unlinked;
+
 	/* VFS inode */
 	struct inode		i_vnode;	/* embedded VFS inode */
 
@@ -76,6 +80,66 @@ typedef struct xfs_inode {
 	struct work_struct	i_ioend_work;
 	struct list_head	i_ioend_list;
 } xfs_inode_t;
+
+static inline bool xfs_inode_has_attr_fork(struct xfs_inode *ip)
+{
+	return ip->i_forkoff > 0;
+}
+
+static inline struct xfs_ifork *
+xfs_ifork_ptr(
+	struct xfs_inode	*ip,
+	int			whichfork)
+{
+	switch (whichfork) {
+	case XFS_DATA_FORK:
+		return &ip->i_df;
+	case XFS_ATTR_FORK:
+		if (!xfs_inode_has_attr_fork(ip))
+			return NULL;
+		return &ip->i_af;
+	case XFS_COW_FORK:
+		return ip->i_cowfp;
+	default:
+		ASSERT(0);
+		return NULL;
+	}
+}
+
+static inline unsigned int xfs_inode_fork_boff(struct xfs_inode *ip)
+{
+	return ip->i_forkoff << 3;
+}
+
+static inline unsigned int xfs_inode_data_fork_size(struct xfs_inode *ip)
+{
+	if (xfs_inode_has_attr_fork(ip))
+		return xfs_inode_fork_boff(ip);
+
+	return XFS_LITINO(ip->i_mount);
+}
+
+static inline unsigned int xfs_inode_attr_fork_size(struct xfs_inode *ip)
+{
+	if (xfs_inode_has_attr_fork(ip))
+		return XFS_LITINO(ip->i_mount) - xfs_inode_fork_boff(ip);
+	return 0;
+}
+
+static inline unsigned int
+xfs_inode_fork_size(
+	struct xfs_inode	*ip,
+	int			whichfork)
+{
+	switch (whichfork) {
+	case XFS_DATA_FORK:
+		return xfs_inode_data_fork_size(ip);
+	case XFS_ATTR_FORK:
+		return xfs_inode_attr_fork_size(ip);
+	default:
+		return 0;
+	}
+}
 
 /* Convert from vfs inode to xfs inode */
 static inline struct xfs_inode *XFS_I(struct inode *inode)
@@ -218,6 +282,11 @@ static inline bool xfs_inode_has_bigtime(struct xfs_inode *ip)
 	return ip->i_diflags2 & XFS_DIFLAG2_BIGTIME;
 }
 
+static inline bool xfs_inode_has_large_extent_counts(struct xfs_inode *ip)
+{
+	return ip->i_diflags2 & XFS_DIFLAG2_NREXT64;
+}
+
 /*
  * Return the buftarg used for data allocations on a given inode.
  */
@@ -278,12 +347,12 @@ static inline bool xfs_inode_has_bigtime(struct xfs_inode *ip)
  * Bit ranges:	1<<1  - 1<<16-1 -- iolock/ilock modes (bitfield)
  *		1<<16 - 1<<32-1 -- lockdep annotation (integers)
  */
-#define	XFS_IOLOCK_EXCL		(1<<0)
-#define	XFS_IOLOCK_SHARED	(1<<1)
-#define	XFS_ILOCK_EXCL		(1<<2)
-#define	XFS_ILOCK_SHARED	(1<<3)
-#define	XFS_MMAPLOCK_EXCL	(1<<4)
-#define	XFS_MMAPLOCK_SHARED	(1<<5)
+#define	XFS_IOLOCK_EXCL		(1u << 0)
+#define	XFS_IOLOCK_SHARED	(1u << 1)
+#define	XFS_ILOCK_EXCL		(1u << 2)
+#define	XFS_ILOCK_SHARED	(1u << 3)
+#define	XFS_MMAPLOCK_EXCL	(1u << 4)
+#define	XFS_MMAPLOCK_SHARED	(1u << 5)
 
 #define XFS_LOCK_MASK		(XFS_IOLOCK_EXCL | XFS_IOLOCK_SHARED \
 				| XFS_ILOCK_EXCL | XFS_ILOCK_SHARED \
@@ -350,19 +419,19 @@ static inline bool xfs_inode_has_bigtime(struct xfs_inode *ip)
  */
 #define XFS_IOLOCK_SHIFT		16
 #define XFS_IOLOCK_MAX_SUBCLASS		3
-#define XFS_IOLOCK_DEP_MASK		0x000f0000
+#define XFS_IOLOCK_DEP_MASK		0x000f0000u
 
 #define XFS_MMAPLOCK_SHIFT		20
 #define XFS_MMAPLOCK_NUMORDER		0
 #define XFS_MMAPLOCK_MAX_SUBCLASS	3
-#define XFS_MMAPLOCK_DEP_MASK		0x00f00000
+#define XFS_MMAPLOCK_DEP_MASK		0x00f00000u
 
 #define XFS_ILOCK_SHIFT			24
-#define XFS_ILOCK_PARENT_VAL		5
+#define XFS_ILOCK_PARENT_VAL		5u
 #define XFS_ILOCK_MAX_SUBCLASS		(XFS_ILOCK_PARENT_VAL - 1)
-#define XFS_ILOCK_RTBITMAP_VAL		6
-#define XFS_ILOCK_RTSUM_VAL		7
-#define XFS_ILOCK_DEP_MASK		0xff000000
+#define XFS_ILOCK_RTBITMAP_VAL		6u
+#define XFS_ILOCK_RTSUM_VAL		7u
+#define XFS_ILOCK_DEP_MASK		0xff000000u
 #define	XFS_ILOCK_PARENT		(XFS_ILOCK_PARENT_VAL << XFS_ILOCK_SHIFT)
 #define	XFS_ILOCK_RTBITMAP		(XFS_ILOCK_RTBITMAP_VAL << XFS_ILOCK_SHIFT)
 #define	XFS_ILOCK_RTSUM			(XFS_ILOCK_RTSUM_VAL << XFS_ILOCK_SHIFT)
@@ -462,6 +531,7 @@ xfs_itruncate_extents(
 }
 
 /* from xfs_file.c */
+int	xfs_break_dax_layouts(struct inode *inode, bool *retry);
 int	xfs_break_layouts(struct inode *inode, uint *iolock,
 		enum layout_break_reason reason);
 
@@ -499,9 +569,6 @@ extern struct kmem_cache	*xfs_inode_cache;
 #define XFS_DEFAULT_COWEXTSZ_HINT 32
 
 bool xfs_inode_needs_inactive(struct xfs_inode *ip);
-
-int xfs_iunlink_init(struct xfs_perag *pag);
-void xfs_iunlink_destroy(struct xfs_perag *pag);
 
 void xfs_end_io(struct work_struct *work);
 

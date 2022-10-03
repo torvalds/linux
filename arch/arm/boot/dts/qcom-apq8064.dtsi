@@ -105,7 +105,7 @@
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
-			thermal-sensors = <&gcc 7>;
+			thermal-sensors = <&tsens 7>;
 			coefficients = <1199 0>;
 
 			trips {
@@ -126,7 +126,7 @@
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
-			thermal-sensors = <&gcc 8>;
+			thermal-sensors = <&tsens 8>;
 			coefficients = <1132 0>;
 
 			trips {
@@ -147,7 +147,7 @@
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
-			thermal-sensors = <&gcc 9>;
+			thermal-sensors = <&tsens 9>;
 			coefficients = <1199 0>;
 
 			trips {
@@ -168,7 +168,7 @@
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
-			thermal-sensors = <&gcc 10>;
+			thermal-sensors = <&tsens 10>;
 			coefficients = <1132 0>;
 
 			trips {
@@ -227,7 +227,7 @@
 	smd {
 		compatible = "qcom,smd";
 
-		modem@0 {
+		modem-edge {
 			interrupts = <0 37 IRQ_TYPE_EDGE_RISING>;
 
 			qcom,ipc = <&l2cc 8 3>;
@@ -236,7 +236,7 @@
 			status = "disabled";
 		};
 
-		q6@1 {
+		q6-edge {
 			interrupts = <0 90 IRQ_TYPE_EDGE_RISING>;
 
 			qcom,ipc = <&l2cc 8 15>;
@@ -245,7 +245,7 @@
 			status = "disabled";
 		};
 
-		dsps@3 {
+		dsps-edge {
 			interrupts = <0 138 IRQ_TYPE_EDGE_RISING>;
 
 			qcom,ipc = <&sps_sic_non_secure 0x4080 0>;
@@ -254,7 +254,7 @@
 			status = "disabled";
 		};
 
-		riva@6 {
+		riva-edge {
 			interrupts = <0 198 IRQ_TYPE_EDGE_RISING>;
 
 			qcom,ipc = <&l2cc 8 25>;
@@ -315,7 +315,7 @@
 
 	firmware {
 		scm {
-			compatible = "qcom,scm-apq8064";
+			compatible = "qcom,scm-apq8064", "qcom,scm";
 
 			clocks = <&rpmcc RPM_DAYTONA_FABRIC_CLK>;
 			clock-names = "core";
@@ -430,8 +430,8 @@
 		};
 
 		sps_sic_non_secure: sps-sic-non-secure@12100000 {
-			compatible	= "syscon";
-			reg		= <0x12100000 0x10000>;
+			compatible = "syscon";
+			reg = <0x12100000 0x10000>;
 		};
 
 		gsbi1: gsbi@12440000 {
@@ -796,28 +796,37 @@
 		};
 
 		qfprom: qfprom@700000 {
-			compatible	= "qcom,qfprom";
-			reg		= <0x00700000 0x1000>;
-			#address-cells	= <1>;
-			#size-cells	= <1>;
+			compatible = "qcom,apq8064-qfprom", "qcom,qfprom";
+			reg = <0x00700000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 			ranges;
-			tsens_calib: calib {
+			tsens_calib: calib@404 {
 				reg = <0x404 0x10>;
 			};
-			tsens_backup: backup_calib {
+			tsens_backup: backup_calib@414 {
 				reg = <0x414 0x10>;
 			};
 		};
 
 		gcc: clock-controller@900000 {
-			compatible = "qcom,gcc-apq8064";
+			compatible = "qcom,gcc-apq8064", "syscon";
 			reg = <0x00900000 0x4000>;
-			nvmem-cells = <&tsens_calib>, <&tsens_backup>;
-			nvmem-cell-names = "calib", "calib_backup";
 			#clock-cells = <1>;
 			#power-domain-cells = <1>;
 			#reset-cells = <1>;
-			#thermal-sensor-cells = <1>;
+
+			tsens: thermal-sensor {
+				compatible = "qcom,msm8960-tsens";
+
+				nvmem-cells = <&tsens_calib>, <&tsens_backup>;
+				nvmem-cell-names = "calib", "calib_backup";
+				interrupts = <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "uplow";
+
+				#qcom,sensors = <11>;
+				#thermal-sensor-cells = <1>;
+			};
 		};
 
 		lcc: clock-controller@28000000 {
@@ -836,23 +845,25 @@
 		};
 
 		l2cc: clock-controller@2011000 {
-			compatible	= "qcom,kpss-gcc", "syscon";
-			reg		= <0x2011000 0x1000>;
+			compatible = "qcom,kpss-gcc", "syscon";
+			reg = <0x2011000 0x1000>;
 		};
 
 		rpm@108000 {
-			compatible	= "qcom,rpm-apq8064";
-			reg		= <0x108000 0x1000>;
-			qcom,ipc	= <&l2cc 0x8 2>;
+			compatible = "qcom,rpm-apq8064";
+			reg = <0x108000 0x1000>;
+			qcom,ipc = <&l2cc 0x8 2>;
 
-			interrupts	= <GIC_SPI 19 IRQ_TYPE_EDGE_RISING>,
-					  <GIC_SPI 21 IRQ_TYPE_EDGE_RISING>,
-					  <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>;
-			interrupt-names	= "ack", "err", "wakeup";
+			interrupts = <GIC_SPI 19 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 21 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "ack", "err", "wakeup";
 
 			rpmcc: clock-controller {
-				compatible	= "qcom,rpmcc-apq8064", "qcom,rpmcc";
+				compatible = "qcom,rpmcc-apq8064", "qcom,rpmcc";
 				#clock-cells = <1>;
+				clocks = <&pxo_board>, <&cxo_board>;
+				clock-names = "pxo", "cxo";
 			};
 
 			regulators {
@@ -1004,43 +1015,43 @@
 		};
 
 		sata_phy0: phy@1b400000 {
-			compatible	= "qcom,apq8064-sata-phy";
-			status		= "disabled";
-			reg		= <0x1b400000 0x200>;
-			reg-names	= "phy_mem";
-			clocks		= <&gcc SATA_PHY_CFG_CLK>;
-			clock-names	= "cfg";
-			#phy-cells	= <0>;
+			compatible = "qcom,apq8064-sata-phy";
+			status = "disabled";
+			reg = <0x1b400000 0x200>;
+			reg-names = "phy_mem";
+			clocks = <&gcc SATA_PHY_CFG_CLK>;
+			clock-names = "cfg";
+			#phy-cells = <0>;
 		};
 
 		sata0: sata@29000000 {
-			compatible		= "qcom,apq8064-ahci", "generic-ahci";
-			status			= "disabled";
-			reg			= <0x29000000 0x180>;
-			interrupts		= <GIC_SPI 209 IRQ_TYPE_LEVEL_HIGH>;
+			compatible = "qcom,apq8064-ahci", "generic-ahci";
+			status	 = "disabled";
+			reg	 = <0x29000000 0x180>;
+			interrupts = <GIC_SPI 209 IRQ_TYPE_LEVEL_HIGH>;
 
-			clocks			= <&gcc SFAB_SATA_S_H_CLK>,
-						<&gcc SATA_H_CLK>,
-						<&gcc SATA_A_CLK>,
-						<&gcc SATA_RXOOB_CLK>,
-						<&gcc SATA_PMALIVE_CLK>;
-			clock-names		= "slave_iface",
-						"iface",
-						"bus",
-						"rxoob",
-						"core_pmalive";
+			clocks = <&gcc SFAB_SATA_S_H_CLK>,
+				 <&gcc SATA_H_CLK>,
+				 <&gcc SATA_A_CLK>,
+				 <&gcc SATA_RXOOB_CLK>,
+				 <&gcc SATA_PMALIVE_CLK>;
+			clock-names = "slave_iface",
+				      "iface",
+				      "bus",
+				      "rxoob",
+				      "core_pmalive";
 
-			assigned-clocks		= <&gcc SATA_RXOOB_CLK>,
-						<&gcc SATA_PMALIVE_CLK>;
-			assigned-clock-rates	= <100000000>, <100000000>;
+			assigned-clocks = <&gcc SATA_RXOOB_CLK>,
+					  <&gcc SATA_PMALIVE_CLK>;
+			assigned-clock-rates = <100000000>, <100000000>;
 
-			phys			= <&sata_phy0>;
-			phy-names		= "sata-phy";
-			ports-implemented	= <0x1>;
+			phys = <&sata_phy0>;
+			phy-names = "sata-phy";
+			ports-implemented = <0x1>;
 		};
 
 		/* Temporary fixed regulator */
-		sdcc1bam:dma@12402000{
+		sdcc1bam: dma-controller@12402000{
 			compatible = "qcom,bam-v1.3.0";
 			reg = <0x12402000 0x8000>;
 			interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
@@ -1050,7 +1061,7 @@
 			qcom,ee = <0>;
 		};
 
-		sdcc3bam:dma@12182000{
+		sdcc3bam: dma-controller@12182000{
 			compatible = "qcom,bam-v1.3.0";
 			reg = <0x12182000 0x8000>;
 			interrupts = <0 96 IRQ_TYPE_LEVEL_HIGH>;
@@ -1060,7 +1071,7 @@
 			qcom,ee = <0>;
 		};
 
-		sdcc4bam:dma@121c2000{
+		sdcc4bam: dma-controller@121c2000{
 			compatible = "qcom,bam-v1.3.0";
 			reg = <0x121c2000 0x8000>;
 			interrupts = <0 95 IRQ_TYPE_LEVEL_HIGH>;
@@ -1076,18 +1087,18 @@
 			#size-cells = <1>;
 			ranges;
 			sdcc1: mmc@12400000 {
-				status		= "disabled";
-				compatible	= "arm,pl18x", "arm,primecell";
-				pinctrl-names	= "default";
-				pinctrl-0	= <&sdcc1_pins>;
+				status = "disabled";
+				compatible = "arm,pl18x", "arm,primecell";
+				pinctrl-names = "default";
+				pinctrl-0 = <&sdcc1_pins>;
 				arm,primecell-periphid = <0x00051180>;
-				reg		= <0x12400000 0x2000>;
-				interrupts	= <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names	= "cmd_irq";
-				clocks		= <&gcc SDC1_CLK>, <&gcc SDC1_H_CLK>;
-				clock-names	= "mclk", "apb_pclk";
-				bus-width	= <8>;
-				max-frequency	= <96000000>;
+				reg = <0x12400000 0x2000>;
+				interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "cmd_irq";
+				clocks = <&gcc SDC1_CLK>, <&gcc SDC1_H_CLK>;
+				clock-names = "mclk", "apb_pclk";
+				bus-width = <8>;
+				max-frequency = <96000000>;
 				non-removable;
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
@@ -1096,36 +1107,36 @@
 			};
 
 			sdcc3: mmc@12180000 {
-				compatible	= "arm,pl18x", "arm,primecell";
+				compatible = "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
-				status		= "disabled";
-				reg		= <0x12180000 0x2000>;
-				interrupts	= <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names	= "cmd_irq";
-				clocks		= <&gcc SDC3_CLK>, <&gcc SDC3_H_CLK>;
-				clock-names	= "mclk", "apb_pclk";
-				bus-width	= <4>;
+				status = "disabled";
+				reg = <0x12180000 0x2000>;
+				interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "cmd_irq";
+				clocks = <&gcc SDC3_CLK>, <&gcc SDC3_H_CLK>;
+				clock-names = "mclk", "apb_pclk";
+				bus-width = <4>;
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
-				max-frequency	= <192000000>;
+				max-frequency = <192000000>;
 				no-1-8-v;
 				dmas = <&sdcc3bam 2>, <&sdcc3bam 1>;
 				dma-names = "tx", "rx";
 			};
 
 			sdcc4: mmc@121c0000 {
-				compatible	= "arm,pl18x", "arm,primecell";
+				compatible = "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
-				status		= "disabled";
-				reg		= <0x121c0000 0x2000>;
-				interrupts	= <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names	= "cmd_irq";
-				clocks		= <&gcc SDC4_CLK>, <&gcc SDC4_H_CLK>;
-				clock-names	= "mclk", "apb_pclk";
-				bus-width	= <4>;
+				status = "disabled";
+				reg = <0x121c0000 0x2000>;
+				interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "cmd_irq";
+				clocks = <&gcc SDC4_CLK>, <&gcc SDC4_H_CLK>;
+				clock-names = "mclk", "apb_pclk";
+				bus-width = <4>;
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
-				max-frequency	= <48000000>;
+				max-frequency = <48000000>;
 				dmas = <&sdcc4bam 2>, <&sdcc4bam 1>;
 				dma-names = "tx", "rx";
 				pinctrl-names = "default";
@@ -1271,6 +1282,8 @@
 			syscon-sfpb = <&mmss_sfpb>;
 			phys = <&dsi0_phy>;
 			phy-names = "dsi";
+			status = "disabled";
+
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1299,9 +1312,10 @@
 				<0x04700300 0x200>,
 				<0x04700500 0x5c>;
 			reg-names = "dsi_pll", "dsi_phy", "dsi_phy_regulator";
-			clock-names = "iface_clk", "ref";
+			clock-names = "iface", "ref";
 			clocks = <&mmcc DSI_M_AHB_CLK>,
 				 <&pxo_board>;
+			status = "disabled";
 		};
 
 
@@ -1420,7 +1434,6 @@
 				      "slave_iface";
 
 			phys = <&hdmi_phy>;
-			phy-names = "hdmi-phy";
 
 			ports {
 				#address-cells = <1>;
@@ -1548,7 +1561,7 @@
 
 					qcom,mmio = <&riva>;
 
-					bt {
+					bluetooth {
 						compatible = "qcom,wcnss-bt";
 					};
 

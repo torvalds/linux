@@ -108,6 +108,12 @@ The YAML Devicetree format also makes all string values an array and scalar
 values a matrix (in order to define groupings) even when only a single value
 is present. Single entries in schemas are fixed up to match this encoding.
 
+Coding style
+------------
+
+Use YAML coding style (two-space indentation). For DTS examples in the schema,
+preferred is four-space indentation.
+
 Testing
 -------
 
@@ -127,6 +133,8 @@ installed first. On Debian/Ubuntu systems::
 
 Several executables (dt-doc-validate, dt-mk-schema, dt-validate) will be
 installed. Ensure they are in your PATH (~/.local/bin by default).
+
+Recommended is also to install yamllint (used by dtschema when present).
 
 Running checks
 ~~~~~~~~~~~~~~

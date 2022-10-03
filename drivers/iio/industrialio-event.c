@@ -274,7 +274,7 @@ static ssize_t iio_ev_state_store(struct device *dev,
 	int ret;
 	bool val;
 
-	ret = strtobool(buf, &val);
+	ret = kstrtobool(buf, &val);
 	if (ret < 0)
 		return ret;
 

@@ -319,6 +319,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 			}
 			evsel->core.attr.freq = 0;
 			evsel->core.attr.sample_period = 1;
+			evsel->needs_auxtrace_mmap = true;
 			cs_etm_evsel = evsel;
 			opts->full_auxtrace = true;
 		}
@@ -437,7 +438,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 	if (opts->full_auxtrace) {
 		struct evsel *tracking_evsel;
 
-		err = parse_events(evlist, "dummy:u", NULL);
+		err = parse_event(evlist, "dummy:u");
 		if (err)
 			goto out;
 

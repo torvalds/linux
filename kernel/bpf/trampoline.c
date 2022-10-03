@@ -11,6 +11,9 @@
 #include <linux/rcupdate_wait.h>
 #include <linux/module.h>
 #include <linux/static_call.h>
+#include <linux/bpf_verifier.h>
+#include <linux/bpf_lsm.h>
+#include <linux/delay.h>
 
 /* dummy _ops. The verifier will operate on target program's ops. */
 const struct bpf_verifier_ops bpf_extension_verifier_ops = {
@@ -27,12 +30,90 @@ static struct hlist_head trampoline_table[TRAMPOLINE_TABLE_SIZE];
 /* serializes access to trampoline_table */
 static DEFINE_MUTEX(trampoline_mutex);
 
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+static int bpf_trampoline_update(struct bpf_trampoline *tr, bool lock_direct_mutex);
+
+static int bpf_tramp_ftrace_ops_func(struct ftrace_ops *ops, enum ftrace_ops_cmd cmd)
+{
+	struct bpf_trampoline *tr = ops->private;
+	int ret = 0;
+
+	if (cmd == FTRACE_OPS_CMD_ENABLE_SHARE_IPMODIFY_SELF) {
+		/* This is called inside register_ftrace_direct_multi(), so
+		 * tr->mutex is already locked.
+		 */
+		lockdep_assert_held_once(&tr->mutex);
+
+		/* Instead of updating the trampoline here, we propagate
+		 * -EAGAIN to register_ftrace_direct_multi(). Then we can
+		 * retry register_ftrace_direct_multi() after updating the
+		 * trampoline.
+		 */
+		if ((tr->flags & BPF_TRAMP_F_CALL_ORIG) &&
+		    !(tr->flags & BPF_TRAMP_F_ORIG_STACK)) {
+			if (WARN_ON_ONCE(tr->flags & BPF_TRAMP_F_SHARE_IPMODIFY))
+				return -EBUSY;
+
+			tr->flags |= BPF_TRAMP_F_SHARE_IPMODIFY;
+			return -EAGAIN;
+		}
+
+		return 0;
+	}
+
+	/* The normal locking order is
+	 *    tr->mutex => direct_mutex (ftrace.c) => ftrace_lock (ftrace.c)
+	 *
+	 * The following two commands are called from
+	 *
+	 *   prepare_direct_functions_for_ipmodify
+	 *   cleanup_direct_functions_after_ipmodify
+	 *
+	 * In both cases, direct_mutex is already locked. Use
+	 * mutex_trylock(&tr->mutex) to avoid deadlock in race condition
+	 * (something else is making changes to this same trampoline).
+	 */
+	if (!mutex_trylock(&tr->mutex)) {
+		/* sleep 1 ms to make sure whatever holding tr->mutex makes
+		 * some progress.
+		 */
+		msleep(1);
+		return -EAGAIN;
+	}
+
+	switch (cmd) {
+	case FTRACE_OPS_CMD_ENABLE_SHARE_IPMODIFY_PEER:
+		tr->flags |= BPF_TRAMP_F_SHARE_IPMODIFY;
+
+		if ((tr->flags & BPF_TRAMP_F_CALL_ORIG) &&
+		    !(tr->flags & BPF_TRAMP_F_ORIG_STACK))
+			ret = bpf_trampoline_update(tr, false /* lock_direct_mutex */);
+		break;
+	case FTRACE_OPS_CMD_DISABLE_SHARE_IPMODIFY_PEER:
+		tr->flags &= ~BPF_TRAMP_F_SHARE_IPMODIFY;
+
+		if (tr->flags & BPF_TRAMP_F_ORIG_STACK)
+			ret = bpf_trampoline_update(tr, false /* lock_direct_mutex */);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	mutex_unlock(&tr->mutex);
+	return ret;
+}
+#endif
+
 bool bpf_prog_has_trampoline(const struct bpf_prog *prog)
 {
 	enum bpf_attach_type eatype = prog->expected_attach_type;
+	enum bpf_prog_type ptype = prog->type;
 
-	return eatype == BPF_TRACE_FENTRY || eatype == BPF_TRACE_FEXIT ||
-	       eatype == BPF_MODIFY_RETURN;
+	return (ptype == BPF_PROG_TYPE_TRACING &&
+		(eatype == BPF_TRACE_FENTRY || eatype == BPF_TRACE_FEXIT ||
+		 eatype == BPF_MODIFY_RETURN)) ||
+		(ptype == BPF_PROG_TYPE_LSM && eatype == BPF_LSM_MAC);
 }
 
 void *bpf_jit_alloc_exec_page(void)
@@ -84,6 +165,16 @@ static struct bpf_trampoline *bpf_trampoline_lookup(u64 key)
 	tr = kzalloc(sizeof(*tr), GFP_KERNEL);
 	if (!tr)
 		goto out;
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+	tr->fops = kzalloc(sizeof(struct ftrace_ops), GFP_KERNEL);
+	if (!tr->fops) {
+		kfree(tr);
+		tr = NULL;
+		goto out;
+	}
+	tr->fops->private = tr;
+	tr->fops->ops_func = bpf_tramp_ftrace_ops_func;
+#endif
 
 	tr->key = key;
 	INIT_HLIST_NODE(&tr->hlist);
@@ -123,7 +214,7 @@ static int unregister_fentry(struct bpf_trampoline *tr, void *old_addr)
 	int ret;
 
 	if (tr->func.ftrace_managed)
-		ret = unregister_ftrace_direct((long)ip, (long)old_addr);
+		ret = unregister_ftrace_direct_multi(tr->fops, (long)old_addr);
 	else
 		ret = bpf_arch_text_poke(ip, BPF_MOD_CALL, old_addr, NULL);
 
@@ -132,15 +223,20 @@ static int unregister_fentry(struct bpf_trampoline *tr, void *old_addr)
 	return ret;
 }
 
-static int modify_fentry(struct bpf_trampoline *tr, void *old_addr, void *new_addr)
+static int modify_fentry(struct bpf_trampoline *tr, void *old_addr, void *new_addr,
+			 bool lock_direct_mutex)
 {
 	void *ip = tr->func.addr;
 	int ret;
 
-	if (tr->func.ftrace_managed)
-		ret = modify_ftrace_direct((long)ip, (long)old_addr, (long)new_addr);
-	else
+	if (tr->func.ftrace_managed) {
+		if (lock_direct_mutex)
+			ret = modify_ftrace_direct_multi(tr->fops, (long)new_addr);
+		else
+			ret = modify_ftrace_direct_multi_nolock(tr->fops, (long)new_addr);
+	} else {
 		ret = bpf_arch_text_poke(ip, BPF_MOD_CALL, old_addr, new_addr);
+	}
 	return ret;
 }
 
@@ -152,46 +248,51 @@ static int register_fentry(struct bpf_trampoline *tr, void *new_addr)
 	int ret;
 
 	faddr = ftrace_location((unsigned long)ip);
-	if (faddr)
+	if (faddr) {
+		if (!tr->fops)
+			return -ENOTSUPP;
 		tr->func.ftrace_managed = true;
+	}
 
 	if (bpf_trampoline_module_get(tr))
 		return -ENOENT;
 
-	if (tr->func.ftrace_managed)
-		ret = register_ftrace_direct((long)ip, (long)new_addr);
-	else
+	if (tr->func.ftrace_managed) {
+		ftrace_set_filter_ip(tr->fops, (unsigned long)ip, 0, 1);
+		ret = register_ftrace_direct_multi(tr->fops, (long)new_addr);
+	} else {
 		ret = bpf_arch_text_poke(ip, BPF_MOD_CALL, NULL, new_addr);
+	}
 
 	if (ret)
 		bpf_trampoline_module_put(tr);
 	return ret;
 }
 
-static struct bpf_tramp_progs *
+static struct bpf_tramp_links *
 bpf_trampoline_get_progs(const struct bpf_trampoline *tr, int *total, bool *ip_arg)
 {
-	const struct bpf_prog_aux *aux;
-	struct bpf_tramp_progs *tprogs;
-	struct bpf_prog **progs;
+	struct bpf_tramp_link *link;
+	struct bpf_tramp_links *tlinks;
+	struct bpf_tramp_link **links;
 	int kind;
 
 	*total = 0;
-	tprogs = kcalloc(BPF_TRAMP_MAX, sizeof(*tprogs), GFP_KERNEL);
-	if (!tprogs)
+	tlinks = kcalloc(BPF_TRAMP_MAX, sizeof(*tlinks), GFP_KERNEL);
+	if (!tlinks)
 		return ERR_PTR(-ENOMEM);
 
 	for (kind = 0; kind < BPF_TRAMP_MAX; kind++) {
-		tprogs[kind].nr_progs = tr->progs_cnt[kind];
+		tlinks[kind].nr_links = tr->progs_cnt[kind];
 		*total += tr->progs_cnt[kind];
-		progs = tprogs[kind].progs;
+		links = tlinks[kind].links;
 
-		hlist_for_each_entry(aux, &tr->progs_hlist[kind], tramp_hlist) {
-			*ip_arg |= aux->prog->call_get_func_ip;
-			*progs++ = aux->prog;
+		hlist_for_each_entry(link, &tr->progs_hlist[kind], tramp_hlist) {
+			*ip_arg |= link->link.prog->call_get_func_ip;
+			*links++ = link;
 		}
 	}
-	return tprogs;
+	return tlinks;
 }
 
 static void __bpf_tramp_image_put_deferred(struct work_struct *work)
@@ -327,17 +428,17 @@ out:
 	return ERR_PTR(err);
 }
 
-static int bpf_trampoline_update(struct bpf_trampoline *tr)
+static int bpf_trampoline_update(struct bpf_trampoline *tr, bool lock_direct_mutex)
 {
 	struct bpf_tramp_image *im;
-	struct bpf_tramp_progs *tprogs;
-	u32 flags = BPF_TRAMP_F_RESTORE_REGS;
+	struct bpf_tramp_links *tlinks;
+	u32 orig_flags = tr->flags;
 	bool ip_arg = false;
 	int err, total;
 
-	tprogs = bpf_trampoline_get_progs(tr, &total, &ip_arg);
-	if (IS_ERR(tprogs))
-		return PTR_ERR(tprogs);
+	tlinks = bpf_trampoline_get_progs(tr, &total, &ip_arg);
+	if (IS_ERR(tlinks))
+		return PTR_ERR(tlinks);
 
 	if (total == 0) {
 		err = unregister_fentry(tr, tr->cur_image->image);
@@ -353,15 +454,31 @@ static int bpf_trampoline_update(struct bpf_trampoline *tr)
 		goto out;
 	}
 
-	if (tprogs[BPF_TRAMP_FEXIT].nr_progs ||
-	    tprogs[BPF_TRAMP_MODIFY_RETURN].nr_progs)
-		flags = BPF_TRAMP_F_CALL_ORIG | BPF_TRAMP_F_SKIP_FRAME;
+	/* clear all bits except SHARE_IPMODIFY */
+	tr->flags &= BPF_TRAMP_F_SHARE_IPMODIFY;
+
+	if (tlinks[BPF_TRAMP_FEXIT].nr_links ||
+	    tlinks[BPF_TRAMP_MODIFY_RETURN].nr_links) {
+		/* NOTE: BPF_TRAMP_F_RESTORE_REGS and BPF_TRAMP_F_SKIP_FRAME
+		 * should not be set together.
+		 */
+		tr->flags |= BPF_TRAMP_F_CALL_ORIG | BPF_TRAMP_F_SKIP_FRAME;
+	} else {
+		tr->flags |= BPF_TRAMP_F_RESTORE_REGS;
+	}
 
 	if (ip_arg)
-		flags |= BPF_TRAMP_F_IP_ARG;
+		tr->flags |= BPF_TRAMP_F_IP_ARG;
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+again:
+	if ((tr->flags & BPF_TRAMP_F_SHARE_IPMODIFY) &&
+	    (tr->flags & BPF_TRAMP_F_CALL_ORIG))
+		tr->flags |= BPF_TRAMP_F_ORIG_STACK;
+#endif
 
 	err = arch_prepare_bpf_trampoline(im, im->image, im->image + PAGE_SIZE,
-					  &tr->func.model, flags, tprogs,
+					  &tr->func.model, tr->flags, tlinks,
 					  tr->func.addr);
 	if (err < 0)
 		goto out;
@@ -370,18 +487,35 @@ static int bpf_trampoline_update(struct bpf_trampoline *tr)
 	WARN_ON(!tr->cur_image && tr->selector);
 	if (tr->cur_image)
 		/* progs already running at this address */
-		err = modify_fentry(tr, tr->cur_image->image, im->image);
+		err = modify_fentry(tr, tr->cur_image->image, im->image, lock_direct_mutex);
 	else
 		/* first time registering */
 		err = register_fentry(tr, im->image);
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+	if (err == -EAGAIN) {
+		/* -EAGAIN from bpf_tramp_ftrace_ops_func. Now
+		 * BPF_TRAMP_F_SHARE_IPMODIFY is set, we can generate the
+		 * trampoline again, and retry register.
+		 */
+		/* reset fops->func and fops->trampoline for re-register */
+		tr->fops->func = NULL;
+		tr->fops->trampoline = 0;
+		goto again;
+	}
+#endif
 	if (err)
 		goto out;
+
 	if (tr->cur_image)
 		bpf_tramp_image_put(tr->cur_image);
 	tr->cur_image = im;
 	tr->selector++;
 out:
-	kfree(tprogs);
+	/* If any error happens, restore previous flags */
+	if (err)
+		tr->flags = orig_flags;
+	kfree(tlinks);
 	return err;
 }
 
@@ -407,76 +541,263 @@ static enum bpf_tramp_prog_type bpf_attach_type_to_tramp(struct bpf_prog *prog)
 	}
 }
 
-int bpf_trampoline_link_prog(struct bpf_prog *prog, struct bpf_trampoline *tr)
+static int __bpf_trampoline_link_prog(struct bpf_tramp_link *link, struct bpf_trampoline *tr)
 {
 	enum bpf_tramp_prog_type kind;
+	struct bpf_tramp_link *link_exiting;
 	int err = 0;
-	int cnt;
+	int cnt = 0, i;
 
-	kind = bpf_attach_type_to_tramp(prog);
-	mutex_lock(&tr->mutex);
-	if (tr->extension_prog) {
+	kind = bpf_attach_type_to_tramp(link->link.prog);
+	if (tr->extension_prog)
 		/* cannot attach fentry/fexit if extension prog is attached.
 		 * cannot overwrite extension prog either.
 		 */
-		err = -EBUSY;
-		goto out;
-	}
-	cnt = tr->progs_cnt[BPF_TRAMP_FENTRY] + tr->progs_cnt[BPF_TRAMP_FEXIT];
+		return -EBUSY;
+
+	for (i = 0; i < BPF_TRAMP_MAX; i++)
+		cnt += tr->progs_cnt[i];
+
 	if (kind == BPF_TRAMP_REPLACE) {
 		/* Cannot attach extension if fentry/fexit are in use. */
-		if (cnt) {
-			err = -EBUSY;
-			goto out;
-		}
-		tr->extension_prog = prog;
-		err = bpf_arch_text_poke(tr->func.addr, BPF_MOD_JUMP, NULL,
-					 prog->bpf_func);
-		goto out;
+		if (cnt)
+			return -EBUSY;
+		tr->extension_prog = link->link.prog;
+		return bpf_arch_text_poke(tr->func.addr, BPF_MOD_JUMP, NULL,
+					  link->link.prog->bpf_func);
 	}
-	if (cnt >= BPF_MAX_TRAMP_PROGS) {
-		err = -E2BIG;
-		goto out;
-	}
-	if (!hlist_unhashed(&prog->aux->tramp_hlist)) {
+	if (cnt >= BPF_MAX_TRAMP_LINKS)
+		return -E2BIG;
+	if (!hlist_unhashed(&link->tramp_hlist))
 		/* prog already linked */
-		err = -EBUSY;
-		goto out;
+		return -EBUSY;
+	hlist_for_each_entry(link_exiting, &tr->progs_hlist[kind], tramp_hlist) {
+		if (link_exiting->link.prog != link->link.prog)
+			continue;
+		/* prog already linked */
+		return -EBUSY;
 	}
-	hlist_add_head(&prog->aux->tramp_hlist, &tr->progs_hlist[kind]);
+
+	hlist_add_head(&link->tramp_hlist, &tr->progs_hlist[kind]);
 	tr->progs_cnt[kind]++;
-	err = bpf_trampoline_update(tr);
+	err = bpf_trampoline_update(tr, true /* lock_direct_mutex */);
 	if (err) {
-		hlist_del_init(&prog->aux->tramp_hlist);
+		hlist_del_init(&link->tramp_hlist);
 		tr->progs_cnt[kind]--;
 	}
-out:
+	return err;
+}
+
+int bpf_trampoline_link_prog(struct bpf_tramp_link *link, struct bpf_trampoline *tr)
+{
+	int err;
+
+	mutex_lock(&tr->mutex);
+	err = __bpf_trampoline_link_prog(link, tr);
 	mutex_unlock(&tr->mutex);
 	return err;
 }
 
-/* bpf_trampoline_unlink_prog() should never fail. */
-int bpf_trampoline_unlink_prog(struct bpf_prog *prog, struct bpf_trampoline *tr)
+static int __bpf_trampoline_unlink_prog(struct bpf_tramp_link *link, struct bpf_trampoline *tr)
 {
 	enum bpf_tramp_prog_type kind;
 	int err;
 
-	kind = bpf_attach_type_to_tramp(prog);
-	mutex_lock(&tr->mutex);
+	kind = bpf_attach_type_to_tramp(link->link.prog);
 	if (kind == BPF_TRAMP_REPLACE) {
 		WARN_ON_ONCE(!tr->extension_prog);
 		err = bpf_arch_text_poke(tr->func.addr, BPF_MOD_JUMP,
 					 tr->extension_prog->bpf_func, NULL);
 		tr->extension_prog = NULL;
-		goto out;
+		return err;
 	}
-	hlist_del_init(&prog->aux->tramp_hlist);
+	hlist_del_init(&link->tramp_hlist);
 	tr->progs_cnt[kind]--;
-	err = bpf_trampoline_update(tr);
-out:
+	return bpf_trampoline_update(tr, true /* lock_direct_mutex */);
+}
+
+/* bpf_trampoline_unlink_prog() should never fail. */
+int bpf_trampoline_unlink_prog(struct bpf_tramp_link *link, struct bpf_trampoline *tr)
+{
+	int err;
+
+	mutex_lock(&tr->mutex);
+	err = __bpf_trampoline_unlink_prog(link, tr);
 	mutex_unlock(&tr->mutex);
 	return err;
 }
+
+#if defined(CONFIG_CGROUP_BPF) && defined(CONFIG_BPF_LSM)
+static void bpf_shim_tramp_link_release(struct bpf_link *link)
+{
+	struct bpf_shim_tramp_link *shim_link =
+		container_of(link, struct bpf_shim_tramp_link, link.link);
+
+	/* paired with 'shim_link->trampoline = tr' in bpf_trampoline_link_cgroup_shim */
+	if (!shim_link->trampoline)
+		return;
+
+	WARN_ON_ONCE(bpf_trampoline_unlink_prog(&shim_link->link, shim_link->trampoline));
+	bpf_trampoline_put(shim_link->trampoline);
+}
+
+static void bpf_shim_tramp_link_dealloc(struct bpf_link *link)
+{
+	struct bpf_shim_tramp_link *shim_link =
+		container_of(link, struct bpf_shim_tramp_link, link.link);
+
+	kfree(shim_link);
+}
+
+static const struct bpf_link_ops bpf_shim_tramp_link_lops = {
+	.release = bpf_shim_tramp_link_release,
+	.dealloc = bpf_shim_tramp_link_dealloc,
+};
+
+static struct bpf_shim_tramp_link *cgroup_shim_alloc(const struct bpf_prog *prog,
+						     bpf_func_t bpf_func,
+						     int cgroup_atype)
+{
+	struct bpf_shim_tramp_link *shim_link = NULL;
+	struct bpf_prog *p;
+
+	shim_link = kzalloc(sizeof(*shim_link), GFP_USER);
+	if (!shim_link)
+		return NULL;
+
+	p = bpf_prog_alloc(1, 0);
+	if (!p) {
+		kfree(shim_link);
+		return NULL;
+	}
+
+	p->jited = false;
+	p->bpf_func = bpf_func;
+
+	p->aux->cgroup_atype = cgroup_atype;
+	p->aux->attach_func_proto = prog->aux->attach_func_proto;
+	p->aux->attach_btf_id = prog->aux->attach_btf_id;
+	p->aux->attach_btf = prog->aux->attach_btf;
+	btf_get(p->aux->attach_btf);
+	p->type = BPF_PROG_TYPE_LSM;
+	p->expected_attach_type = BPF_LSM_MAC;
+	bpf_prog_inc(p);
+	bpf_link_init(&shim_link->link.link, BPF_LINK_TYPE_UNSPEC,
+		      &bpf_shim_tramp_link_lops, p);
+	bpf_cgroup_atype_get(p->aux->attach_btf_id, cgroup_atype);
+
+	return shim_link;
+}
+
+static struct bpf_shim_tramp_link *cgroup_shim_find(struct bpf_trampoline *tr,
+						    bpf_func_t bpf_func)
+{
+	struct bpf_tramp_link *link;
+	int kind;
+
+	for (kind = 0; kind < BPF_TRAMP_MAX; kind++) {
+		hlist_for_each_entry(link, &tr->progs_hlist[kind], tramp_hlist) {
+			struct bpf_prog *p = link->link.prog;
+
+			if (p->bpf_func == bpf_func)
+				return container_of(link, struct bpf_shim_tramp_link, link);
+		}
+	}
+
+	return NULL;
+}
+
+int bpf_trampoline_link_cgroup_shim(struct bpf_prog *prog,
+				    int cgroup_atype)
+{
+	struct bpf_shim_tramp_link *shim_link = NULL;
+	struct bpf_attach_target_info tgt_info = {};
+	struct bpf_trampoline *tr;
+	bpf_func_t bpf_func;
+	u64 key;
+	int err;
+
+	err = bpf_check_attach_target(NULL, prog, NULL,
+				      prog->aux->attach_btf_id,
+				      &tgt_info);
+	if (err)
+		return err;
+
+	key = bpf_trampoline_compute_key(NULL, prog->aux->attach_btf,
+					 prog->aux->attach_btf_id);
+
+	bpf_lsm_find_cgroup_shim(prog, &bpf_func);
+	tr = bpf_trampoline_get(key, &tgt_info);
+	if (!tr)
+		return  -ENOMEM;
+
+	mutex_lock(&tr->mutex);
+
+	shim_link = cgroup_shim_find(tr, bpf_func);
+	if (shim_link) {
+		/* Reusing existing shim attached by the other program. */
+		bpf_link_inc(&shim_link->link.link);
+
+		mutex_unlock(&tr->mutex);
+		bpf_trampoline_put(tr); /* bpf_trampoline_get above */
+		return 0;
+	}
+
+	/* Allocate and install new shim. */
+
+	shim_link = cgroup_shim_alloc(prog, bpf_func, cgroup_atype);
+	if (!shim_link) {
+		err = -ENOMEM;
+		goto err;
+	}
+
+	err = __bpf_trampoline_link_prog(&shim_link->link, tr);
+	if (err)
+		goto err;
+
+	shim_link->trampoline = tr;
+	/* note, we're still holding tr refcnt from above */
+
+	mutex_unlock(&tr->mutex);
+
+	return 0;
+err:
+	mutex_unlock(&tr->mutex);
+
+	if (shim_link)
+		bpf_link_put(&shim_link->link.link);
+
+	/* have to release tr while _not_ holding its mutex */
+	bpf_trampoline_put(tr); /* bpf_trampoline_get above */
+
+	return err;
+}
+
+void bpf_trampoline_unlink_cgroup_shim(struct bpf_prog *prog)
+{
+	struct bpf_shim_tramp_link *shim_link = NULL;
+	struct bpf_trampoline *tr;
+	bpf_func_t bpf_func;
+	u64 key;
+
+	key = bpf_trampoline_compute_key(NULL, prog->aux->attach_btf,
+					 prog->aux->attach_btf_id);
+
+	bpf_lsm_find_cgroup_shim(prog, &bpf_func);
+	tr = bpf_trampoline_lookup(key);
+	if (WARN_ON_ONCE(!tr))
+		return;
+
+	mutex_lock(&tr->mutex);
+	shim_link = cgroup_shim_find(tr, bpf_func);
+	mutex_unlock(&tr->mutex);
+
+	if (shim_link)
+		bpf_link_put(&shim_link->link.link);
+
+	bpf_trampoline_put(tr); /* bpf_trampoline_lookup above */
+}
+#endif
 
 struct bpf_trampoline *bpf_trampoline_get(u64 key,
 					  struct bpf_attach_target_info *tgt_info)
@@ -500,16 +821,19 @@ out:
 
 void bpf_trampoline_put(struct bpf_trampoline *tr)
 {
+	int i;
+
 	if (!tr)
 		return;
 	mutex_lock(&trampoline_mutex);
 	if (!refcount_dec_and_test(&tr->refcnt))
 		goto out;
 	WARN_ON_ONCE(mutex_is_locked(&tr->mutex));
-	if (WARN_ON_ONCE(!hlist_empty(&tr->progs_hlist[BPF_TRAMP_FENTRY])))
-		goto out;
-	if (WARN_ON_ONCE(!hlist_empty(&tr->progs_hlist[BPF_TRAMP_FEXIT])))
-		goto out;
+
+	for (i = 0; i < BPF_TRAMP_MAX; i++)
+		if (WARN_ON_ONCE(!hlist_empty(&tr->progs_hlist[i])))
+			goto out;
+
 	/* This code will be executed even when the last bpf_tramp_image
 	 * is alive. All progs are detached from the trampoline and the
 	 * trampoline image is patched with jmp into epilogue to skip
@@ -517,6 +841,10 @@ void bpf_trampoline_put(struct bpf_trampoline *tr)
 	 * multiple rcu callbacks.
 	 */
 	hlist_del(&tr->hlist);
+	if (tr->fops) {
+		ftrace_free_filter(tr->fops);
+		kfree(tr->fops);
+	}
 	kfree(tr);
 out:
 	mutex_unlock(&trampoline_mutex);
@@ -559,11 +887,14 @@ static void notrace inc_misses_counter(struct bpf_prog *prog)
  * [2..MAX_U64] - execute bpf prog and record execution time.
  *     This is start time.
  */
-u64 notrace __bpf_prog_enter(struct bpf_prog *prog)
+u64 notrace __bpf_prog_enter(struct bpf_prog *prog, struct bpf_tramp_run_ctx *run_ctx)
 	__acquires(RCU)
 {
 	rcu_read_lock();
 	migrate_disable();
+
+	run_ctx->saved_run_ctx = bpf_set_run_ctx(&run_ctx->run_ctx);
+
 	if (unlikely(__this_cpu_inc_return(*(prog->active)) != 1)) {
 		inc_misses_counter(prog);
 		return 0;
@@ -593,29 +924,63 @@ static void notrace update_prog_stats(struct bpf_prog *prog,
 	}
 }
 
-void notrace __bpf_prog_exit(struct bpf_prog *prog, u64 start)
+void notrace __bpf_prog_exit(struct bpf_prog *prog, u64 start, struct bpf_tramp_run_ctx *run_ctx)
 	__releases(RCU)
 {
+	bpf_reset_run_ctx(run_ctx->saved_run_ctx);
+
 	update_prog_stats(prog, start);
 	__this_cpu_dec(*(prog->active));
 	migrate_enable();
 	rcu_read_unlock();
 }
 
-u64 notrace __bpf_prog_enter_sleepable(struct bpf_prog *prog)
+u64 notrace __bpf_prog_enter_lsm_cgroup(struct bpf_prog *prog,
+					struct bpf_tramp_run_ctx *run_ctx)
+	__acquires(RCU)
+{
+	/* Runtime stats are exported via actual BPF_LSM_CGROUP
+	 * programs, not the shims.
+	 */
+	rcu_read_lock();
+	migrate_disable();
+
+	run_ctx->saved_run_ctx = bpf_set_run_ctx(&run_ctx->run_ctx);
+
+	return NO_START_TIME;
+}
+
+void notrace __bpf_prog_exit_lsm_cgroup(struct bpf_prog *prog, u64 start,
+					struct bpf_tramp_run_ctx *run_ctx)
+	__releases(RCU)
+{
+	bpf_reset_run_ctx(run_ctx->saved_run_ctx);
+
+	migrate_enable();
+	rcu_read_unlock();
+}
+
+u64 notrace __bpf_prog_enter_sleepable(struct bpf_prog *prog, struct bpf_tramp_run_ctx *run_ctx)
 {
 	rcu_read_lock_trace();
 	migrate_disable();
 	might_fault();
+
 	if (unlikely(__this_cpu_inc_return(*(prog->active)) != 1)) {
 		inc_misses_counter(prog);
 		return 0;
 	}
+
+	run_ctx->saved_run_ctx = bpf_set_run_ctx(&run_ctx->run_ctx);
+
 	return bpf_prog_start_time();
 }
 
-void notrace __bpf_prog_exit_sleepable(struct bpf_prog *prog, u64 start)
+void notrace __bpf_prog_exit_sleepable(struct bpf_prog *prog, u64 start,
+				       struct bpf_tramp_run_ctx *run_ctx)
 {
+	bpf_reset_run_ctx(run_ctx->saved_run_ctx);
+
 	update_prog_stats(prog, start);
 	__this_cpu_dec(*(prog->active));
 	migrate_enable();
@@ -635,7 +1000,7 @@ void notrace __bpf_tramp_exit(struct bpf_tramp_image *tr)
 int __weak
 arch_prepare_bpf_trampoline(struct bpf_tramp_image *tr, void *image, void *image_end,
 			    const struct btf_func_model *m, u32 flags,
-			    struct bpf_tramp_progs *tprogs,
+			    struct bpf_tramp_links *tlinks,
 			    void *orig_call)
 {
 	return -ENOTSUPP;

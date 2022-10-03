@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_MXC
 	bool "Freescale i.MX family"
-	depends on ARCH_MULTI_V4_V5 || ARCH_MULTI_V6_V7 || ARM_SINGLE_ARMV7M
-	select ARCH_SUPPORTS_BIG_ENDIAN
+	depends on (ARCH_MULTI_V4_V5 && CPU_LITTLE_ENDIAN) || \
+		ARCH_MULTI_V6_V7 || ARM_SINGLE_ARMV7M
 	select CLKSRC_IMX_GPT
 	select GENERIC_IRQ_CHIP
 	select GPIOLIB
@@ -96,7 +96,7 @@ config SOC_IMX5
 	select HAVE_IMX_SRC
 	select MXC_TZIC
 
-config	SOC_IMX50
+config SOC_IMX50
 	bool "i.MX50 support"
 	select PINCTRL_IMX50
 	select SOC_IMX5
@@ -111,7 +111,7 @@ config SOC_IMX51
 	help
 	  This enables support for Freescale i.MX51 processor
 
-config	SOC_IMX53
+config SOC_IMX53
 	bool "i.MX53 support"
 	select PINCTRL_IMX53
 	select SOC_IMX5
@@ -216,7 +216,7 @@ config SOC_IMX7D
 	select SOC_IMX7D_CM4 if ARM_SINGLE_ARMV7M
 	select ARM_ERRATA_814220 if ARCH_MULTI_V7
 	help
-		This enables support for Freescale i.MX7 Dual processor.
+	  This enables support for Freescale i.MX7 Dual processor.
 
 config SOC_IMX7ULP
 	bool "i.MX7ULP support"

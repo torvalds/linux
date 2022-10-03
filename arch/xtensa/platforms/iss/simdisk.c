@@ -211,12 +211,18 @@ static ssize_t proc_read_simdisk(struct file *file, char __user *buf,
 	struct simdisk *dev = pde_data(file_inode(file));
 	const char *s = dev->filename;
 	if (s) {
-		ssize_t n = simple_read_from_buffer(buf, size, ppos,
-							s, strlen(s));
-		if (n < 0)
-			return n;
-		buf += n;
-		size -= n;
+		ssize_t len = strlen(s);
+		char *temp = kmalloc(len + 2, GFP_KERNEL);
+
+		if (!temp)
+			return -ENOMEM;
+
+		len = scnprintf(temp, len + 2, "%s\n", s);
+		len = simple_read_from_buffer(buf, size, ppos,
+					      temp, len);
+
+		kfree(temp);
+		return len;
 	}
 	return simple_read_from_buffer(buf, size, ppos, "\n", 1);
 }
@@ -284,7 +290,7 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
 	return 0;
 
 out_cleanup_disk:
-	blk_cleanup_disk(dev->gd);
+	put_disk(dev->gd);
 out:
 	return err;
 }
@@ -338,7 +344,7 @@ static void simdisk_teardown(struct simdisk *dev, int which,
 	simdisk_detach(dev);
 	if (dev->gd) {
 		del_gendisk(dev->gd);
-		blk_cleanup_disk(dev->gd);
+		put_disk(dev->gd);
 	}
 	remove_proc_entry(tmp, procdir);
 }

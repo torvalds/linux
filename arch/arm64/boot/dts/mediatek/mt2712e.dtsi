@@ -19,7 +19,7 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
-	cluster0_opp: opp_table0 {
+	cluster0_opp: opp-table-0 {
 		compatible = "operating-points-v2";
 		opp-shared;
 		opp00 {
@@ -36,7 +36,7 @@
 		};
 	};
 
-	cluster1_opp: opp_table1 {
+	cluster1_opp: opp-table-1 {
 		compatible = "operating-points-v2";
 		opp-shared;
 		opp00 {
@@ -329,8 +329,9 @@
 		interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&infracfg CLK_INFRA_M4U>;
 		clock-names = "bclk";
-		mediatek,larbs = <&larb0 &larb1 &larb2
-				  &larb3 &larb6>;
+		mediatek,infracfg = <&infracfg>;
+		mediatek,larbs = <&larb0>, <&larb1>, <&larb2>,
+				 <&larb3>, <&larb6>;
 		#iommu-cells = <1>;
 	};
 
@@ -346,7 +347,8 @@
 		interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&infracfg CLK_INFRA_M4U>;
 		clock-names = "bclk";
-		mediatek,larbs = <&larb4 &larb5 &larb7>;
+		mediatek,infracfg = <&infracfg>;
+		mediatek,larbs = <&larb4>, <&larb5>, <&larb7>;
 		#iommu-cells = <1>;
 	};
 

@@ -68,16 +68,16 @@ static const char * const m2m_entity_name[] = {
  * struct v4l2_m2m_dev - per-device context
  * @source:		&struct media_entity pointer with the source entity
  *			Used only when the M2M device is registered via
- *			v4l2_m2m_unregister_media_controller().
+ *			v4l2_m2m_register_media_controller().
  * @source_pad:		&struct media_pad with the source pad.
  *			Used only when the M2M device is registered via
- *			v4l2_m2m_unregister_media_controller().
+ *			v4l2_m2m_register_media_controller().
  * @sink:		&struct media_entity pointer with the sink entity
  *			Used only when the M2M device is registered via
- *			v4l2_m2m_unregister_media_controller().
+ *			v4l2_m2m_register_media_controller().
  * @sink_pad:		&struct media_pad with the sink pad.
  *			Used only when the M2M device is registered via
- *			v4l2_m2m_unregister_media_controller().
+ *			v4l2_m2m_register_media_controller().
  * @proc:		&struct media_entity pointer with the M2M device itself.
  * @proc_pads:		&struct media_pad with the @proc pads.
  *			Used only when the M2M device is registered via
@@ -336,6 +336,7 @@ static void __v4l2_m2m_try_queue(struct v4l2_m2m_dev *m2m_dev,
 	if (src && dst && dst->is_held &&
 	    dst->vb2_buf.copied_timestamp &&
 	    dst->vb2_buf.timestamp != src->vb2_buf.timestamp) {
+		dprintk("Timestamp mismatch, returning held capture buffer\n");
 		dst->is_held = false;
 		v4l2_m2m_dst_buf_remove(m2m_ctx);
 		v4l2_m2m_buf_done(dst, VB2_BUF_STATE_DONE);
@@ -924,7 +925,7 @@ static __poll_t v4l2_m2m_poll_for_data(struct file *file,
 	if ((!src_q->streaming || src_q->error ||
 	     list_empty(&src_q->queued_list)) &&
 	    (!dst_q->streaming || dst_q->error ||
-	     list_empty(&dst_q->queued_list)))
+	     (list_empty(&dst_q->queued_list) && !dst_q->last_buffer_dequeued)))
 		return EPOLLERR;
 
 	spin_lock_irqsave(&src_q->done_lock, flags);

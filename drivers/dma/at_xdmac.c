@@ -649,7 +649,7 @@ static int at_xdmac_compute_chan_conf(struct dma_chan *chan,
 }
 
 /*
- * Only check that maxburst and addr width values are supported by the
+ * Only check that maxburst and addr width values are supported by
  * the controller but not that the configuration is good to perform the
  * transfer since we don't know the direction at this stage.
  */
@@ -1202,6 +1202,7 @@ static struct at_xdmac_desc *at_xdmac_memset_create_desc(struct dma_chan *chan,
 	unsigned long		flags;
 	size_t			ublen;
 	u32			dwidth;
+	char			pattern;
 	/*
 	 * WARNING: The channel configuration is set here since there is no
 	 * dmaengine_slave_config call in this case. Moreover we don't know the
@@ -1244,10 +1245,16 @@ static struct at_xdmac_desc *at_xdmac_memset_create_desc(struct dma_chan *chan,
 
 	chan_cc |= AT_XDMAC_CC_DWIDTH(dwidth);
 
+	/* Only the first byte of value is to be used according to dmaengine */
+	pattern = (char)value;
+
 	ublen = len >> dwidth;
 
 	desc->lld.mbr_da = dst_addr;
-	desc->lld.mbr_ds = value;
+	desc->lld.mbr_ds = (pattern << 24) |
+			   (pattern << 16) |
+			   (pattern << 8) |
+			   pattern;
 	desc->lld.mbr_ubc = AT_XDMAC_MBR_UBC_NDV3
 		| AT_XDMAC_MBR_UBC_NDEN
 		| AT_XDMAC_MBR_UBC_NSEN
@@ -1453,7 +1460,7 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 {
 	struct at_xdmac_chan	*atchan = to_at_xdmac_chan(chan);
 	struct at_xdmac		*atxdmac = to_at_xdmac(atchan->chan.device);
-	struct at_xdmac_desc	*desc, *_desc;
+	struct at_xdmac_desc	*desc, *_desc, *iter;
 	struct list_head	*descs_list;
 	enum dma_status		ret;
 	int			residue, retry;
@@ -1568,11 +1575,13 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	 * microblock.
 	 */
 	descs_list = &desc->descs_list;
-	list_for_each_entry_safe(desc, _desc, descs_list, desc_node) {
-		dwidth = at_xdmac_get_dwidth(desc->lld.mbr_cfg);
-		residue -= (desc->lld.mbr_ubc & 0xffffff) << dwidth;
-		if ((desc->lld.mbr_nda & 0xfffffffc) == cur_nda)
+	list_for_each_entry_safe(iter, _desc, descs_list, desc_node) {
+		dwidth = at_xdmac_get_dwidth(iter->lld.mbr_cfg);
+		residue -= (iter->lld.mbr_ubc & 0xffffff) << dwidth;
+		if ((iter->lld.mbr_nda & 0xfffffffc) == cur_nda) {
+			desc = iter;
 			break;
+		}
 	}
 	residue += cur_ubc << dwidth;
 
@@ -1891,6 +1900,11 @@ static int at_xdmac_alloc_chan_resources(struct dma_chan *chan)
 	for (i = 0; i < init_nr_desc_per_channel; i++) {
 		desc = at_xdmac_alloc_desc(chan, GFP_KERNEL);
 		if (!desc) {
+			if (i == 0) {
+				dev_warn(chan2dev(chan),
+					 "can't allocate any descriptors\n");
+				return -EIO;
+			}
 			dev_warn(chan2dev(chan),
 				"only %d descriptors have been allocated\n", i);
 			break;

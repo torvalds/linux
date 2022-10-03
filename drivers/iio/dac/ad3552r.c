@@ -656,7 +656,7 @@ static int ad3552r_reset(struct ad3552r_desc *dac)
 {
 	struct reg_addr_pool addr;
 	int ret;
-	u16 val;
+	int val;
 
 	dac->gpio_reset = devm_gpiod_get_optional(&dac->spi->dev, "reset",
 						  GPIOD_OUT_LOW);
@@ -809,10 +809,10 @@ static int ad3552r_configure_custom_gain(struct ad3552r_desc *dac,
 
 	gain_child = fwnode_get_named_child_node(child,
 						 "custom-output-range-config");
-	if (IS_ERR(gain_child)) {
+	if (!gain_child) {
 		dev_err(dev,
 			"mandatory custom-output-range-config property missing\n");
-		return PTR_ERR(gain_child);
+		return -EINVAL;
 	}
 
 	dac->ch_data[ch].range_override = 1;

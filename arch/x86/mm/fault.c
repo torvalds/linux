@@ -149,7 +149,7 @@ is_prefetch(struct pt_regs *regs, unsigned long error_code, unsigned long addr)
 		unsigned char opcode;
 
 		if (user_mode(regs)) {
-			if (get_user(opcode, instr))
+			if (get_user(opcode, (unsigned char __user *) instr))
 				break;
 		} else {
 			if (get_kernel_nofault(opcode, instr))
@@ -1408,6 +1408,10 @@ good_area:
 		return;
 	}
 
+	/* The fault is fully completed (including releasing mmap lock) */
+	if (fault & VM_FAULT_COMPLETED)
+		return;
+
 	/*
 	 * If we need to retry the mmap_lock has already been released,
 	 * and if there is a fatal signal pending there is no guarantee
@@ -1526,7 +1530,7 @@ DEFINE_IDTENTRY_RAW_ERRORCODE(exc_page_fault)
 
 	/*
 	 * Entry handling for valid #PF from kernel mode is slightly
-	 * different: RCU is already watching and rcu_irq_enter() must not
+	 * different: RCU is already watching and ct_irq_enter() must not
 	 * be invoked because a kernel fault on a user space address might
 	 * sleep.
 	 *

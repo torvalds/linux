@@ -8,7 +8,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
-#include <linux/platform_data/dma-imx.h>
+#include <linux/dma/imx-dma.h>
 #include <sound/dmaengine_pcm.h>
 #include <sound/pcm_params.h>
 
@@ -114,8 +114,8 @@ static int fsl_asrc_dma_trigger(struct snd_soc_component *component,
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		dmaengine_terminate_all(pair->dma_chan[OUT]);
-		dmaengine_terminate_all(pair->dma_chan[IN]);
+		dmaengine_terminate_async(pair->dma_chan[OUT]);
+		dmaengine_terminate_async(pair->dma_chan[IN]);
 		break;
 	default:
 		return -EINVAL;
@@ -129,6 +129,7 @@ static int fsl_asrc_dma_hw_params(struct snd_soc_component *component,
 				  struct snd_pcm_hw_params *params)
 {
 	enum dma_slave_buswidth buswidth = DMA_SLAVE_BUSWIDTH_2_BYTES;
+	enum sdma_peripheral_type be_peripheral_type = IMX_DMATYPE_SSI;
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	struct snd_dmaengine_dai_dma_data *dma_params_fe = NULL;
@@ -139,6 +140,7 @@ static int fsl_asrc_dma_hw_params(struct snd_soc_component *component,
 	struct snd_soc_component *component_be = NULL;
 	struct fsl_asrc *asrc = pair->asrc;
 	struct dma_slave_config config_fe, config_be;
+	struct sdma_peripheral_config audio_config;
 	enum asrc_pair_index index = pair->index;
 	struct device *dev = component->dev;
 	struct device_node *of_dma_node;
@@ -221,6 +223,7 @@ static int fsl_asrc_dma_hw_params(struct snd_soc_component *component,
 		/* Get DMA request of Back-End */
 		tmp_data = tmp_chan->private;
 		pair->dma_data.dma_request = tmp_data->dma_request;
+		be_peripheral_type = tmp_data->peripheral_type;
 		if (!be_chan)
 			dma_release_channel(tmp_chan);
 
@@ -267,6 +270,17 @@ static int fsl_asrc_dma_hw_params(struct snd_soc_component *component,
 	config_be.src_maxburst = dma_params_be->maxburst;
 	config_be.dst_addr_width = buswidth;
 	config_be.dst_maxburst = dma_params_be->maxburst;
+
+	memset(&audio_config, 0, sizeof(audio_config));
+	config_be.peripheral_config = &audio_config;
+	config_be.peripheral_size  = sizeof(audio_config);
+
+	if (tx && (be_peripheral_type == IMX_DMATYPE_SSI_DUAL ||
+		   be_peripheral_type == IMX_DMATYPE_SPDIF))
+		audio_config.n_fifos_dst = 2;
+	if (!tx && (be_peripheral_type == IMX_DMATYPE_SSI_DUAL ||
+		    be_peripheral_type == IMX_DMATYPE_SPDIF))
+		audio_config.n_fifos_src = 2;
 
 	if (tx) {
 		config_be.src_addr = asrc->paddr + asrc->get_fifo_addr(OUT, index);
@@ -441,5 +455,6 @@ struct snd_soc_component_driver fsl_asrc_component = {
 	.close		= fsl_asrc_dma_shutdown,
 	.pointer	= fsl_asrc_dma_pcm_pointer,
 	.pcm_construct	= fsl_asrc_dma_pcm_new,
+	.legacy_dai_naming = 1,
 };
 EXPORT_SYMBOL_GPL(fsl_asrc_component);

@@ -212,30 +212,19 @@ static inline long arch_scale_freq_capacity(int cpu)
 }
 #define arch_scale_freq_capacity arch_scale_freq_capacity
 
+extern void arch_set_max_freq_ratio(bool turbo_disabled);
+extern void freq_invariance_set_perf_ratio(u64 ratio, bool turbo_disabled);
+#else
+static inline void arch_set_max_freq_ratio(bool turbo_disabled) { }
+static inline void freq_invariance_set_perf_ratio(u64 ratio, bool turbo_disabled) { }
+#endif
+
 extern void arch_scale_freq_tick(void);
 #define arch_scale_freq_tick arch_scale_freq_tick
-
-extern void arch_set_max_freq_ratio(bool turbo_disabled);
-void init_freq_invariance(bool secondary, bool cppc_ready);
-#else
-static inline void arch_set_max_freq_ratio(bool turbo_disabled)
-{
-}
-static inline void init_freq_invariance(bool secondary, bool cppc_ready)
-{
-}
-#endif
 
 #ifdef CONFIG_ACPI_CPPC_LIB
 void init_freq_invariance_cppc(void);
 #define arch_init_invariance_cppc init_freq_invariance_cppc
-
-bool amd_set_max_freq_ratio(u64 *ratio);
-#else
-static inline bool amd_set_max_freq_ratio(u64 *ratio)
-{
-	return false;
-}
 #endif
 
 #endif /* _ASM_X86_TOPOLOGY_H */

@@ -10,7 +10,7 @@
 
 #include <drm/drm.h>
 #include <drm/drm_gem.h>
-#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_prime.h>
 #include <drm/drm_vma_manager.h>
 
@@ -279,7 +279,7 @@ static const struct drm_gem_object_funcs rockchip_gem_object_funcs = {
 	.vmap = rockchip_gem_prime_vmap,
 	.vunmap	= rockchip_gem_prime_vunmap,
 	.mmap = rockchip_drm_gem_object_mmap,
-	.vm_ops = &drm_gem_cma_vm_ops,
+	.vm_ops = &drm_gem_dma_vm_ops,
 };
 
 static struct rockchip_gem_object *

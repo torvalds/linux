@@ -27,9 +27,9 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/errno.h>
+#include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/platform_device.h>
-#include <linux/can/led.h>
 #include <linux/can/dev.h>
 #include <linux/clk.h>
 #include <linux/of.h>
@@ -1053,7 +1053,7 @@ static void rcar_canfd_error(struct net_device *ndev, u32 cerfl,
 		netdev_dbg(ndev, "Error warning interrupt\n");
 		priv->can.state = CAN_STATE_ERROR_WARNING;
 		priv->can.can_stats.error_warning++;
-		cf->can_id |= CAN_ERR_CRTL;
+		cf->can_id |= CAN_ERR_CRTL | CAN_ERR_CNT;
 		cf->data[1] = txerr > rxerr ? CAN_ERR_CRTL_TX_WARNING :
 			CAN_ERR_CRTL_RX_WARNING;
 		cf->data[6] = txerr;
@@ -1063,7 +1063,7 @@ static void rcar_canfd_error(struct net_device *ndev, u32 cerfl,
 		netdev_dbg(ndev, "Error passive interrupt\n");
 		priv->can.state = CAN_STATE_ERROR_PASSIVE;
 		priv->can.can_stats.error_passive++;
-		cf->can_id |= CAN_ERR_CRTL;
+		cf->can_id |= CAN_ERR_CRTL | CAN_ERR_CNT;
 		cf->data[1] = txerr > rxerr ? CAN_ERR_CRTL_TX_PASSIVE :
 			CAN_ERR_CRTL_RX_PASSIVE;
 		cf->data[6] = txerr;
@@ -1128,7 +1128,6 @@ static void rcar_canfd_tx_done(struct net_device *ndev)
 	/* Clear interrupt */
 	rcar_canfd_write(priv->base, RCANFD_CFSTS(gpriv, ch, RCANFD_CFFIFO_IDX),
 			 sts & ~RCANFD_CFSTS_CFTXIF);
-	can_led_event(ndev, CAN_LED_EVENT_TX);
 }
 
 static void rcar_canfd_handle_global_err(struct rcar_canfd_global *gpriv, u32 ch)
@@ -1334,7 +1333,10 @@ static void rcar_canfd_set_bittiming(struct net_device *dev)
 		cfg = (RCANFD_DCFG_DTSEG1(gpriv, tseg1) | RCANFD_DCFG_DBRP(brp) |
 		       RCANFD_DCFG_DSJW(sjw) | RCANFD_DCFG_DTSEG2(gpriv, tseg2));
 
-		rcar_canfd_write(priv->base, RCANFD_F_DCFG(ch), cfg);
+		if (is_v3u(gpriv))
+			rcar_canfd_write(priv->base, RCANFD_V3U_DCFG(ch), cfg);
+		else
+			rcar_canfd_write(priv->base, RCANFD_F_DCFG(ch), cfg);
 		netdev_dbg(priv->ndev, "drate: brp %u, sjw %u, tseg1 %u, tseg2 %u\n",
 			   brp, sjw, tseg1, tseg2);
 	} else {
@@ -1419,7 +1421,6 @@ static int rcar_canfd_open(struct net_device *ndev)
 	if (err)
 		goto out_close;
 	netif_start_queue(ndev);
-	can_led_event(ndev, CAN_LED_EVENT_OPEN);
 	return 0;
 out_close:
 	napi_disable(&priv->napi);
@@ -1469,7 +1470,6 @@ static int rcar_canfd_close(struct net_device *ndev)
 	napi_disable(&priv->napi);
 	clk_disable_unprepare(gpriv->can_clk);
 	close_candev(ndev);
-	can_led_event(ndev, CAN_LED_EVENT_STOP);
 	return 0;
 }
 
@@ -1619,8 +1619,6 @@ static void rcar_canfd_rx_pkt(struct rcar_canfd_channel *priv)
 	 */
 	rcar_canfd_write(priv->base, RCANFD_RFPCTR(gpriv, ridx), 0xff);
 
-	can_led_event(priv->ndev, CAN_LED_EVENT_RX);
-
 	if (!(cf->can_id & CAN_RTR_FLAG))
 		stats->rx_bytes += cf->len;
 	stats->rx_packets++;
@@ -1698,6 +1696,10 @@ static const struct net_device_ops rcar_canfd_netdev_ops = {
 	.ndo_change_mtu = can_change_mtu,
 };
 
+static const struct ethtool_ops rcar_canfd_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 static int rcar_canfd_channel_probe(struct rcar_canfd_global *gpriv, u32 ch,
 				    u32 fcan_freq)
 {
@@ -1714,6 +1716,7 @@ static int rcar_canfd_channel_probe(struct rcar_canfd_global *gpriv, u32 ch,
 	priv = netdev_priv(ndev);
 
 	ndev->netdev_ops = &rcar_canfd_netdev_ops;
+	ndev->ethtool_ops = &rcar_canfd_ethtool_ops;
 	ndev->flags |= IFF_ECHO;
 	priv->ndev = ndev;
 	priv->base = gpriv->base;
@@ -1789,10 +1792,9 @@ static int rcar_canfd_channel_probe(struct rcar_canfd_global *gpriv, u32 ch,
 	priv->gpriv = gpriv;
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
-	netif_napi_add(ndev, &priv->napi, rcar_canfd_rx_poll,
-		       RCANFD_NAPI_WEIGHT);
+	netif_napi_add_weight(ndev, &priv->napi, rcar_canfd_rx_poll,
+			      RCANFD_NAPI_WEIGHT);
 	spin_lock_init(&priv->tx_lock);
-	devm_can_led_init(ndev);
 	gpriv->ch[priv->channel] = priv;
 	err = register_candev(ndev);
 	if (err) {
@@ -1847,6 +1849,7 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 		of_child = of_get_child_by_name(pdev->dev.of_node, name);
 		if (of_child && of_device_is_available(of_child))
 			channels_mask |= BIT(i);
+		of_node_put(of_child);
 	}
 
 	if (chip_id != RENESAS_RZG2L) {

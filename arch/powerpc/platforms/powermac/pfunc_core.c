@@ -12,8 +12,8 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
 
-#include <asm/prom.h>
 #include <asm/pmac_pfunc.h>
 
 /* Debug */
@@ -685,7 +685,7 @@ static int pmf_add_functions(struct pmf_device *dev, void *driverdata)
 	const int plen = strlen(PP_PREFIX);
 	int count = 0;
 
-	for (pp = dev->node->properties; pp != 0; pp = pp->next) {
+	for_each_property_of_node(dev->node, pp) {
 		const char *name;
 		if (strncmp(pp->name, PP_PREFIX, plen) != 0)
 			continue;

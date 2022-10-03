@@ -15,7 +15,6 @@
 #include <linux/err.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include "libbpf_legacy.h"
 #include "relo_core.h"
 
 /* make sure libbpf doesn't use kernel-only integer typedefs */
@@ -103,6 +102,17 @@
 #define str_has_pfx(str, pfx) \
 	(strncmp(str, pfx, __builtin_constant_p(pfx) ? sizeof(pfx) - 1 : strlen(pfx)) == 0)
 
+/* suffix check */
+static inline bool str_has_sfx(const char *str, const char *sfx)
+{
+	size_t str_len = strlen(str);
+	size_t sfx_len = strlen(sfx);
+
+	if (sfx_len > str_len)
+		return false;
+	return strcmp(str + str_len - sfx_len, sfx) == 0;
+}
+
 /* Symbol versioning is different between static and shared library.
  * Properly versioned symbols are needed for shared library, but
  * only the symbol of the new version is needed for static library.
@@ -148,6 +158,15 @@ do {				\
 #ifndef __has_builtin
 #define __has_builtin(x) 0
 #endif
+
+struct bpf_link {
+	int (*detach)(struct bpf_link *link);
+	void (*dealloc)(struct bpf_link *link);
+	char *pin_path;		/* NULL, if not pinned */
+	int fd;			/* hook FD, -1 if not applicable */
+	bool disconnected;
+};
+
 /*
  * Re-implement glibc's reallocarray() for libbpf internal-only use.
  * reallocarray(), unfortunately, is not available in all versions of glibc,
@@ -329,6 +348,12 @@ enum kern_feature_id {
 	FEAT_BTF_TYPE_TAG,
 	/* memcg-based accounting for BPF maps and progs */
 	FEAT_MEMCG_ACCOUNT,
+	/* BPF cookie (bpf_get_attach_cookie() BPF helper) support */
+	FEAT_BPF_COOKIE,
+	/* BTF_KIND_ENUM64 support and BTF_KIND_ENUM kflag support */
+	FEAT_BTF_ENUM64,
+	/* Kernel uses syscall wrapper (CONFIG_ARCH_HAS_SYSCALL_WRAPPER) */
+	FEAT_SYSCALL_WRAPPER,
 	__FEAT_CNT,
 };
 
@@ -354,6 +379,13 @@ struct btf_ext_info {
 	void *info;
 	__u32 rec_size;
 	__u32 len;
+	/* optional (maintained internally by libbpf) mapping between .BTF.ext
+	 * section and corresponding ELF section. This is used to join
+	 * information like CO-RE relocation records with corresponding BPF
+	 * programs defined in ELF sections
+	 */
+	__u32 *sec_idxs;
+	int sec_cnt;
 };
 
 #define for_each_btf_ext_sec(seg, sec)					\
@@ -447,8 +479,6 @@ int btf_ext_visit_str_offs(struct btf_ext *btf_ext, str_off_visit_fn visit, void
 __s32 btf__find_by_name_kind_own(const struct btf *btf, const char *type_name,
 				 __u32 kind);
 
-extern enum libbpf_strict_mode libbpf_mode;
-
 typedef int (*kallsyms_cb_t)(unsigned long long sym_addr, char sym_type,
 			     const char *sym_name, void *ctx);
 
@@ -467,12 +497,8 @@ static inline int libbpf_err(int ret)
  */
 static inline int libbpf_err_errno(int ret)
 {
-	if (libbpf_mode & LIBBPF_STRICT_DIRECT_ERRS)
-		/* errno is already assumed to be set on error */
-		return ret < 0 ? -errno : ret;
-
-	/* legacy: on error return -1 directly and don't touch errno */
-	return ret;
+	/* errno is already assumed to be set on error */
+	return ret < 0 ? -errno : ret;
 }
 
 /* handle error for pointer-returning APIs, err is assumed to be < 0 always */
@@ -480,12 +506,7 @@ static inline void *libbpf_err_ptr(int err)
 {
 	/* set errno on error, this doesn't break anything */
 	errno = -err;
-
-	if (libbpf_mode & LIBBPF_STRICT_CLEAN_PTRS)
-		return NULL;
-
-	/* legacy: encode err as ptr */
-	return ERR_PTR(err);
+	return NULL;
 }
 
 /* handle pointer-returning APIs' error handling */
@@ -495,11 +516,7 @@ static inline void *libbpf_ptr(void *ret)
 	if (IS_ERR(ret))
 		errno = -PTR_ERR(ret);
 
-	if (libbpf_mode & LIBBPF_STRICT_CLEAN_PTRS)
-		return IS_ERR(ret) ? NULL : ret;
-
-	/* legacy: pass-through original pointer */
-	return ret;
+	return IS_ERR(ret) ? NULL : ret;
 }
 
 static inline bool str_is_empty(const char *s)
@@ -542,5 +559,18 @@ int bpf_core_add_cands(struct bpf_core_cand *local_cand,
 		       int targ_start_id,
 		       struct bpf_core_cand_list *cands);
 void bpf_core_free_cands(struct bpf_core_cand_list *cands);
+
+struct usdt_manager *usdt_manager_new(struct bpf_object *obj);
+void usdt_manager_free(struct usdt_manager *man);
+struct bpf_link * usdt_manager_attach_usdt(struct usdt_manager *man,
+					   const struct bpf_program *prog,
+					   pid_t pid, const char *path,
+					   const char *usdt_provider, const char *usdt_name,
+					   __u64 usdt_cookie);
+
+static inline bool is_pow_of_2(size_t x)
+{
+	return x && (x & (x - 1)) == 0;
+}
 
 #endif /* __LIBBPF_LIBBPF_INTERNAL_H */

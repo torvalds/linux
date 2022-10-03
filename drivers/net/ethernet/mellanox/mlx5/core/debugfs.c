@@ -166,6 +166,28 @@ static const struct file_operations stats_fops = {
 	.write	= average_write,
 };
 
+static ssize_t slots_read(struct file *filp, char __user *buf, size_t count,
+			  loff_t *pos)
+{
+	struct mlx5_cmd *cmd;
+	char tbuf[6];
+	int weight;
+	int field;
+	int ret;
+
+	cmd = filp->private_data;
+	weight = bitmap_weight(&cmd->bitmask, cmd->max_reg_cmds);
+	field = cmd->max_reg_cmds - weight;
+	ret = snprintf(tbuf, sizeof(tbuf), "%d\n", field);
+	return simple_read_from_buffer(buf, count, pos, tbuf, ret);
+}
+
+static const struct file_operations slots_fops = {
+	.owner	= THIS_MODULE,
+	.open	= simple_open,
+	.read	= slots_read,
+};
+
 void mlx5_cmdif_debugfs_init(struct mlx5_core_dev *dev)
 {
 	struct mlx5_cmd_stats *stats;
@@ -175,6 +197,8 @@ void mlx5_cmdif_debugfs_init(struct mlx5_core_dev *dev)
 
 	cmd = &dev->priv.dbg.cmdif_debugfs;
 	*cmd = debugfs_create_dir("commands", dev->priv.dbg.dbg_root);
+
+	debugfs_create_file("slots_inuse", 0400, *cmd, &dev->cmd, &slots_fops);
 
 	for (i = 0; i < MLX5_CMD_OP_MAX; i++) {
 		stats = &dev->cmd.stats[i];
@@ -192,6 +216,8 @@ void mlx5_cmdif_debugfs_init(struct mlx5_core_dev *dev)
 					   &stats->last_failed_errno);
 			debugfs_create_u8("last_failed_mbox_status", 0400, stats->root,
 					  &stats->last_failed_mbox_status);
+			debugfs_create_x32("last_failed_syndrome", 0400, stats->root,
+					   &stats->last_failed_syndrome);
 		}
 	}
 }

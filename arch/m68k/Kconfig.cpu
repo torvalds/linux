@@ -37,7 +37,7 @@ endchoice
 if M68KCLASSIC
 
 config M68000
-	bool
+	def_bool y
 	depends on !MMU
 	select CPU_HAS_NO_BITFIELDS
 	select CPU_HAS_NO_CAS
@@ -155,7 +155,7 @@ config M520x
 	select COLDFIRE_PIT_TIMER
 	select HAVE_CACHE_SPLIT
 	help
-	   Freescale Coldfire 5207/5208 processor support.
+	  Freescale Coldfire 5207/5208 processor support.
 
 config M523x
 	bool "MCF523x"
@@ -322,12 +322,11 @@ config COLDFIRE_SLTIMERS
 
 endif # COLDFIRE
 
-
 comment "Processor Specific Options"
 
 config M68KFPU_EMU
 	bool "Math emulation support"
-	depends on MMU
+	depends on M68KCLASSIC && FPU
 	help
 	  At some point in the future, this will cause floating-point math
 	  instructions to be emulated by the kernel on machines that lack a
@@ -522,7 +521,7 @@ config CACHE_BOTH
 	  Split the ColdFire CPU cache, and use half as an instruction cache
 	  and half as a data cache.
 endchoice
-endif
+endif # HAVE_CACHE_SPLIT
 
 if HAVE_CACHE_CB
 choice
@@ -539,4 +538,4 @@ config CACHE_COPYBACK
 	help
 	  The ColdFire CPU cache is set into Copy-back mode.
 endchoice
-endif
+endif # HAVE_CACHE_CB

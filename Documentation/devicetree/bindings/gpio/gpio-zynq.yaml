@@ -11,7 +11,11 @@ maintainers:
 
 properties:
   compatible:
-    const: xlnx,zynq-gpio-1.0
+    enum:
+      - xlnx,zynq-gpio-1.0
+      - xlnx,zynqmp-gpio-1.0
+      - xlnx,versal-gpio-1.0
+      - xlnx,pmc-gpio-1.0
 
   reg:
     maxItems: 1
@@ -24,6 +28,11 @@ properties:
 
   gpio-controller: true
 
+  gpio-line-names:
+    description: strings describing the names of each gpio line
+    minItems: 58
+    maxItems: 174
+
   interrupt-controller: true
 
   "#interrupt-cells":
@@ -31,6 +40,54 @@ properties:
 
   clocks:
     maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          enum:
+            - xlnx,zynqmp-gpio-1.0
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 174
+          maxItems: 174
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - xlnx,zynq-gpio-1.0
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 118
+          maxItems: 118
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - xlnx,versal-gpio-1.0
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 58
+          maxItems: 58
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - xlnx,pmc-gpio-1.0
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 116
+          maxItems: 116
 
 required:
   - compatible
