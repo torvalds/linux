@@ -117,6 +117,7 @@ static DECLARE_RWSEM(qrtr_node_lock);
 
 /* local port allocation management */
 static DEFINE_XARRAY_ALLOC(qrtr_ports);
+u32 qrtr_ports_next = QRTR_MIN_EPH_SOCKET;
 
 /**
  * struct qrtr_node - endpoint node
@@ -802,8 +803,9 @@ static int qrtr_port_assign(struct qrtr_sock *ipc, int *port)
 	int rc;
 
 	if (!*port) {
-		rc = xa_alloc(&qrtr_ports, port, ipc, QRTR_EPH_PORT_RANGE,
-				GFP_KERNEL);
+		rc = xa_alloc_cyclic(&qrtr_ports, port, ipc,
+				     QRTR_EPH_PORT_RANGE, &qrtr_ports_next,
+				     GFP_KERNEL);
 	} else if (*port < QRTR_MIN_EPH_SOCKET && !capable(CAP_NET_ADMIN)) {
 		rc = -EACCES;
 	} else if (*port == QRTR_PORT_CTRL) {
