@@ -331,12 +331,6 @@ static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
 	}
 	BUG_ON(p4d_bad(p4d));
 
-	/*
-	 * No need for locking during early boot. And it doesn't work as
-	 * expected with KASLR enabled.
-	 */
-	if (system_state != SYSTEM_BOOTING)
-		mutex_lock(&fixmap_lock);
 	pudp = pud_set_fixmap_offset(p4dp, addr);
 	do {
 		pud_t old_pud = READ_ONCE(*pudp);
@@ -368,15 +362,13 @@ static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
 	} while (pudp++, addr = next, addr != end);
 
 	pud_clear_fixmap();
-	if (system_state != SYSTEM_BOOTING)
-		mutex_unlock(&fixmap_lock);
 }
 
-static void __create_pgd_mapping(pgd_t *pgdir, phys_addr_t phys,
-				 unsigned long virt, phys_addr_t size,
-				 pgprot_t prot,
-				 phys_addr_t (*pgtable_alloc)(int),
-				 int flags)
+static void __create_pgd_mapping_locked(pgd_t *pgdir, phys_addr_t phys,
+					unsigned long virt, phys_addr_t size,
+					pgprot_t prot,
+					phys_addr_t (*pgtable_alloc)(int),
+					int flags)
 {
 	unsigned long addr, end, next;
 	pgd_t *pgdp = pgd_offset_pgd(pgdir, virt);
@@ -400,8 +392,20 @@ static void __create_pgd_mapping(pgd_t *pgdir, phys_addr_t phys,
 	} while (pgdp++, addr = next, addr != end);
 }
 
+static void __create_pgd_mapping(pgd_t *pgdir, phys_addr_t phys,
+				 unsigned long virt, phys_addr_t size,
+				 pgprot_t prot,
+				 phys_addr_t (*pgtable_alloc)(int),
+				 int flags)
+{
+	mutex_lock(&fixmap_lock);
+	__create_pgd_mapping_locked(pgdir, phys, virt, size, prot,
+				    pgtable_alloc, flags);
+	mutex_unlock(&fixmap_lock);
+}
+
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
-extern __alias(__create_pgd_mapping)
+extern __alias(__create_pgd_mapping_locked)
 void create_kpti_ng_temp_pgd(pgd_t *pgdir, phys_addr_t phys, unsigned long virt,
 			     phys_addr_t size, pgprot_t prot,
 			     phys_addr_t (*pgtable_alloc)(int), int flags);

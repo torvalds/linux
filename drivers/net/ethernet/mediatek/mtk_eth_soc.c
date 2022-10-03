@@ -1458,7 +1458,7 @@ static void mtk_update_rx_cpu_idx(struct mtk_eth *eth)
 
 static bool mtk_page_pool_enabled(struct mtk_eth *eth)
 {
-	return !eth->hwlro;
+	return MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2);
 }
 
 static struct page_pool *mtk_create_page_pool(struct mtk_eth *eth,

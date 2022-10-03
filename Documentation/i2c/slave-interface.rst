@@ -32,9 +32,9 @@ User manual
 ===========
 
 I2C slave backends behave like standard I2C clients. So, you can instantiate
-them as described in the document 'instantiating-devices'. The only difference
-is that i2c slave backends have their own address space. So, you have to add
-0x1000 to the address you would originally request. An example for
+them as described in the document instantiating-devices.rst. The only
+difference is that i2c slave backends have their own address space. So, you
+have to add 0x1000 to the address you would originally request. An example for
 instantiating the slave-eeprom driver from userspace at the 7 bit address 0x64
 on bus 1::
 
