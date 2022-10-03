@@ -254,3 +254,61 @@ out:
 	return psec;
 }
 EXPORT_SYMBOL_GPL(of_pse_control_get);
+
+/**
+ * pse_ethtool_get_status - get status of PSE control
+ * @psec: PSE control pointer
+ * @extack: extack for reporting useful error messages
+ * @status: struct to store PSE status
+ */
+int pse_ethtool_get_status(struct pse_control *psec,
+			   struct netlink_ext_ack *extack,
+			   struct pse_control_status *status)
+{
+	const struct pse_controller_ops *ops;
+	int err;
+
+	ops = psec->pcdev->ops;
+
+	if (!ops->ethtool_get_status) {
+		NL_SET_ERR_MSG(extack,
+			       "PSE driver does not support status report");
+		return -EOPNOTSUPP;
+	}
+
+	mutex_lock(&psec->pcdev->lock);
+	err = ops->ethtool_get_status(psec->pcdev, psec->id, extack, status);
+	mutex_unlock(&psec->pcdev->lock);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(pse_ethtool_get_status);
+
+/**
+ * pse_ethtool_set_config - set PSE control configuration
+ * @psec: PSE control pointer
+ * @extack: extack for reporting useful error messages
+ * @config: Configuration of the test to run
+ */
+int pse_ethtool_set_config(struct pse_control *psec,
+			   struct netlink_ext_ack *extack,
+			   const struct pse_control_config *config)
+{
+	const struct pse_controller_ops *ops;
+	int err;
+
+	ops = psec->pcdev->ops;
+
+	if (!ops->ethtool_set_config) {
+		NL_SET_ERR_MSG(extack,
+			       "PSE driver does not configuration");
+		return -EOPNOTSUPP;
+	}
+
+	mutex_lock(&psec->pcdev->lock);
+	err = ops->ethtool_set_config(psec->pcdev, psec->id, extack, config);
+	mutex_unlock(&psec->pcdev->lock);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(pse_ethtool_set_config);

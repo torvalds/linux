@@ -9,6 +9,47 @@
 #include <linux/list.h>
 #include <uapi/linux/ethtool.h>
 
+struct phy_device;
+struct pse_controller_dev;
+
+/**
+ * struct pse_control_config - PSE control/channel configuration.
+ *
+ * @admin_cotrol: set PoDL PSE admin control as described in
+ *	IEEE 802.3-2018 30.15.1.2.1 acPoDLPSEAdminControl
+ */
+struct pse_control_config {
+	enum ethtool_podl_pse_admin_state admin_cotrol;
+};
+
+/**
+ * struct pse_control_status - PSE control/channel status.
+ *
+ * @podl_admin_state: operational state of the PoDL PSE
+ *	functions. IEEE 802.3-2018 30.15.1.1.2 aPoDLPSEAdminState
+ * @podl_pw_status: power detection status of the PoDL PSE.
+ *	IEEE 802.3-2018 30.15.1.1.3 aPoDLPSEPowerDetectionStatus:
+ */
+struct pse_control_status {
+	enum ethtool_podl_pse_admin_state podl_admin_state;
+	enum ethtool_podl_pse_pw_d_status podl_pw_status;
+};
+
+/**
+ * struct pse_controller_ops - PSE controller driver callbacks
+ *
+ * @ethtool_get_status: get PSE control status for ethtool interface
+ * @ethtool_set_config: set PSE control configuration over ethtool interface
+ */
+struct pse_controller_ops {
+	int (*ethtool_get_status)(struct pse_controller_dev *pcdev,
+		unsigned long id, struct netlink_ext_ack *extack,
+		struct pse_control_status *status);
+	int (*ethtool_set_config)(struct pse_controller_dev *pcdev,
+		unsigned long id, struct netlink_ext_ack *extack,
+		const struct pse_control_config *config);
+};
+
 struct module;
 struct device_node;
 struct of_phandle_args;
@@ -51,6 +92,13 @@ int devm_pse_controller_register(struct device *dev,
 struct pse_control *of_pse_control_get(struct device_node *node);
 void pse_control_put(struct pse_control *psec);
 
+int pse_ethtool_get_status(struct pse_control *psec,
+			   struct netlink_ext_ack *extack,
+			   struct pse_control_status *status);
+int pse_ethtool_set_config(struct pse_control *psec,
+			   struct netlink_ext_ack *extack,
+			   const struct pse_control_config *config);
+
 #else
 
 static inline struct pse_control *of_pse_control_get(struct device_node *node)
@@ -60,6 +108,20 @@ static inline struct pse_control *of_pse_control_get(struct device_node *node)
 
 static inline void pse_control_put(struct pse_control *psec)
 {
+}
+
+int pse_ethtool_get_status(struct pse_control *psec,
+			   struct netlink_ext_ack *extack,
+			   struct pse_control_status *status)
+{
+	return -ENOTSUPP;
+}
+
+int pse_ethtool_set_config(struct pse_control *psec,
+			   struct netlink_ext_ack *extack,
+			   const struct pse_control_config *config)
+{
+	return -ENOTSUPP;
 }
 
 #endif
