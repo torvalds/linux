@@ -398,7 +398,7 @@ static int orangefs_dir_release(struct inode *inode, struct file *file)
 const struct file_operations orangefs_dir_operations = {
 	.llseek = orangefs_dir_llseek,
 	.read = generic_read_dir,
-	.iterate = orangefs_dir_iterate,
+	.iterate_shared = orangefs_dir_iterate,
 	.open = orangefs_dir_open,
 	.release = orangefs_dir_release
 };
