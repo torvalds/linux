@@ -1318,13 +1318,6 @@ static const struct iio_trigger_ops lis2ds12_trigger_ops = {
 #endif
 
 #ifdef CONFIG_OF
-static const struct of_device_id lis2ds12_dt_id[] = {
-	{.compatible = "st,lis2ds12",},
-	{},
-};
-
-MODULE_DEVICE_TABLE(of, lis2ds12_dt_id);
-
 static u32 lis2ds12_parse_dt(struct lis2ds12_data *cdata)
 {
 	u32 val;
