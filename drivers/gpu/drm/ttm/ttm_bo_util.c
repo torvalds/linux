@@ -402,6 +402,8 @@ int ttm_bo_vmap(struct ttm_buffer_object *bo, struct iosys_map *map)
 	struct ttm_resource *mem = bo->resource;
 	int ret;
 
+	dma_resv_assert_held(bo->base.resv);
+
 	ret = ttm_mem_io_reserve(bo->bdev, mem);
 	if (ret)
 		return ret;
@@ -459,6 +461,8 @@ EXPORT_SYMBOL(ttm_bo_vmap);
 void ttm_bo_vunmap(struct ttm_buffer_object *bo, struct iosys_map *map)
 {
 	struct ttm_resource *mem = bo->resource;
+
+	dma_resv_assert_held(bo->base.resv);
 
 	if (iosys_map_is_null(map))
 		return;
