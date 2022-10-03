@@ -11,6 +11,7 @@ enum metadata_type {
 	METADATA_IP_TUNNEL,
 	METADATA_HW_PORT_MUX,
 	METADATA_MACSEC,
+	METADATA_XFRM,
 };
 
 struct hw_port_info {
@@ -22,6 +23,11 @@ struct macsec_info {
 	sci_t sci;
 };
 
+struct xfrm_md_info {
+	u32 if_id;
+	int link;
+};
+
 struct metadata_dst {
 	struct dst_entry		dst;
 	enum metadata_type		type;
@@ -29,6 +35,7 @@ struct metadata_dst {
 		struct ip_tunnel_info	tun_info;
 		struct hw_port_info	port_info;
 		struct macsec_info	macsec_info;
+		struct xfrm_md_info	xfrm_info;
 	} u;
 };
 
@@ -56,6 +63,27 @@ skb_tunnel_info(const struct sk_buff *skb)
 	    (dst->lwtstate->type == LWTUNNEL_ENCAP_IP ||
 	     dst->lwtstate->type == LWTUNNEL_ENCAP_IP6))
 		return lwt_tun_info(dst->lwtstate);
+
+	return NULL;
+}
+
+static inline struct xfrm_md_info *lwt_xfrm_info(struct lwtunnel_state *lwt)
+{
+	return (struct xfrm_md_info *)lwt->data;
+}
+
+static inline struct xfrm_md_info *skb_xfrm_md_info(const struct sk_buff *skb)
+{
+	struct metadata_dst *md_dst = skb_metadata_dst(skb);
+	struct dst_entry *dst;
+
+	if (md_dst && md_dst->type == METADATA_XFRM)
+		return &md_dst->u.xfrm_info;
+
+	dst = skb_dst(skb);
+	if (dst && dst->lwtstate &&
+	    dst->lwtstate->type == LWTUNNEL_ENCAP_XFRM)
+		return lwt_xfrm_info(dst->lwtstate);
 
 	return NULL;
 }
@@ -92,6 +120,9 @@ static inline int skb_metadata_dst_cmp(const struct sk_buff *skb_a,
 	case METADATA_MACSEC:
 		return memcmp(&a->u.macsec_info, &b->u.macsec_info,
 			      sizeof(a->u.macsec_info));
+	case METADATA_XFRM:
+		return memcmp(&a->u.xfrm_info, &b->u.xfrm_info,
+			      sizeof(a->u.xfrm_info));
 	default:
 		return 1;
 	}
