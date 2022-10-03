@@ -2,8 +2,8 @@
 #ifndef __ASM_ALTERNATIVE_MACROS_H
 #define __ASM_ALTERNATIVE_MACROS_H
 
-#include <linux/bits.h>
 #include <linux/const.h>
+#include <vdso/bits.h>
 
 #include <asm/cpucaps.h>
 #include <asm/insn-def.h>
