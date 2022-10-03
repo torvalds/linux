@@ -30,7 +30,7 @@ static struct {
 	{"invalid_helper2", "Expected an initialized dynptr as arg #3"},
 	{"invalid_write1", "Expected an initialized dynptr as arg #1"},
 	{"invalid_write2", "Expected an initialized dynptr as arg #3"},
-	{"invalid_write3", "Expected an initialized ringbuf dynptr as arg #1"},
+	{"invalid_write3", "Expected an initialized dynptr as arg #1"},
 	{"invalid_write4", "arg 1 is an unacquired reference"},
 	{"invalid_read1", "invalid read from stack"},
 	{"invalid_read2", "cannot pass in dynptr at an offset"},

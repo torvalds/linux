@@ -15,6 +15,7 @@
 #include <linux/ctype.h>
 #include <linux/jiffies.h>
 #include <linux/pid_namespace.h>
+#include <linux/poison.h>
 #include <linux/proc_ns.h>
 #include <linux/security.h>
 #include <linux/btf_ids.h>
@@ -1376,10 +1377,9 @@ BPF_CALL_2(bpf_kptr_xchg, void *, map_value, void *, ptr)
 }
 
 /* Unlike other PTR_TO_BTF_ID helpers the btf_id in bpf_kptr_xchg()
- * helper is determined dynamically by the verifier.
+ * helper is determined dynamically by the verifier. Use BPF_PTR_POISON to
+ * denote type that verifier will determine.
  */
-#define BPF_PTR_POISON ((void *)((0xeB9FUL << 2) + POISON_POINTER_DELTA))
-
 static const struct bpf_func_proto bpf_kptr_xchg_proto = {
 	.func         = bpf_kptr_xchg,
 	.gpl_only     = false,
@@ -1408,7 +1408,7 @@ static void bpf_dynptr_set_type(struct bpf_dynptr_kern *ptr, enum bpf_dynptr_typ
 	ptr->size |= type << DYNPTR_TYPE_SHIFT;
 }
 
-static u32 bpf_dynptr_get_size(struct bpf_dynptr_kern *ptr)
+u32 bpf_dynptr_get_size(struct bpf_dynptr_kern *ptr)
 {
 	return ptr->size & DYNPTR_SIZE_MASK;
 }
@@ -1445,6 +1445,8 @@ static int bpf_dynptr_check_off_len(struct bpf_dynptr_kern *ptr, u32 offset, u32
 BPF_CALL_4(bpf_dynptr_from_mem, void *, data, u32, size, u64, flags, struct bpf_dynptr_kern *, ptr)
 {
 	int err;
+
+	BTF_TYPE_EMIT(struct bpf_dynptr);
 
 	err = bpf_dynptr_check_size(size);
 	if (err)
@@ -1659,6 +1661,8 @@ bpf_base_func_proto(enum bpf_func_id func_id)
 		return &bpf_for_each_map_elem_proto;
 	case BPF_FUNC_loop:
 		return &bpf_loop_proto;
+	case BPF_FUNC_user_ringbuf_drain:
+		return &bpf_user_ringbuf_drain_proto;
 	default:
 		break;
 	}

@@ -68,24 +68,16 @@
  * In theory the BPF locks could be converted to regular spinlocks as well,
  * but the bucket locks and percpu_freelist locks can be taken from
  * arbitrary contexts (perf, kprobes, tracepoints) which are required to be
- * atomic contexts even on RT. These mechanisms require preallocated maps,
- * so there is no need to invoke memory allocations within the lock held
- * sections.
- *
- * BPF maps which need dynamic allocation are only used from (forced)
- * thread context on RT and can therefore use regular spinlocks which in
- * turn allows to invoke memory allocations from the lock held section.
- *
- * On a non RT kernel this distinction is neither possible nor required.
- * spinlock maps to raw_spinlock and the extra code is optimized out by the
- * compiler.
+ * atomic contexts even on RT. Before the introduction of bpf_mem_alloc,
+ * it is only safe to use raw spinlock for preallocated hash map on a RT kernel,
+ * because there is no memory allocation within the lock held sections. However
+ * after hash map was fully converted to use bpf_mem_alloc, there will be
+ * non-synchronous memory allocation for non-preallocated hash map, so it is
+ * safe to always use raw spinlock for bucket lock.
  */
 struct bucket {
 	struct hlist_nulls_head head;
-	union {
-		raw_spinlock_t raw_lock;
-		spinlock_t     lock;
-	};
+	raw_spinlock_t raw_lock;
 };
 
 #define HASHTAB_MAP_LOCK_COUNT 8
@@ -141,26 +133,15 @@ static inline bool htab_is_prealloc(const struct bpf_htab *htab)
 	return !(htab->map.map_flags & BPF_F_NO_PREALLOC);
 }
 
-static inline bool htab_use_raw_lock(const struct bpf_htab *htab)
-{
-	return (!IS_ENABLED(CONFIG_PREEMPT_RT) || htab_is_prealloc(htab));
-}
-
 static void htab_init_buckets(struct bpf_htab *htab)
 {
 	unsigned int i;
 
 	for (i = 0; i < htab->n_buckets; i++) {
 		INIT_HLIST_NULLS_HEAD(&htab->buckets[i].head, i);
-		if (htab_use_raw_lock(htab)) {
-			raw_spin_lock_init(&htab->buckets[i].raw_lock);
-			lockdep_set_class(&htab->buckets[i].raw_lock,
+		raw_spin_lock_init(&htab->buckets[i].raw_lock);
+		lockdep_set_class(&htab->buckets[i].raw_lock,
 					  &htab->lockdep_key);
-		} else {
-			spin_lock_init(&htab->buckets[i].lock);
-			lockdep_set_class(&htab->buckets[i].lock,
-					  &htab->lockdep_key);
-		}
 		cond_resched();
 	}
 }
@@ -170,28 +151,17 @@ static inline int htab_lock_bucket(const struct bpf_htab *htab,
 				   unsigned long *pflags)
 {
 	unsigned long flags;
-	bool use_raw_lock;
 
 	hash = hash & HASHTAB_MAP_LOCK_MASK;
 
-	use_raw_lock = htab_use_raw_lock(htab);
-	if (use_raw_lock)
-		preempt_disable();
-	else
-		migrate_disable();
+	preempt_disable();
 	if (unlikely(__this_cpu_inc_return(*(htab->map_locked[hash])) != 1)) {
 		__this_cpu_dec(*(htab->map_locked[hash]));
-		if (use_raw_lock)
-			preempt_enable();
-		else
-			migrate_enable();
+		preempt_enable();
 		return -EBUSY;
 	}
 
-	if (use_raw_lock)
-		raw_spin_lock_irqsave(&b->raw_lock, flags);
-	else
-		spin_lock_irqsave(&b->lock, flags);
+	raw_spin_lock_irqsave(&b->raw_lock, flags);
 	*pflags = flags;
 
 	return 0;
@@ -201,18 +171,10 @@ static inline void htab_unlock_bucket(const struct bpf_htab *htab,
 				      struct bucket *b, u32 hash,
 				      unsigned long flags)
 {
-	bool use_raw_lock = htab_use_raw_lock(htab);
-
 	hash = hash & HASHTAB_MAP_LOCK_MASK;
-	if (use_raw_lock)
-		raw_spin_unlock_irqrestore(&b->raw_lock, flags);
-	else
-		spin_unlock_irqrestore(&b->lock, flags);
+	raw_spin_unlock_irqrestore(&b->raw_lock, flags);
 	__this_cpu_dec(*(htab->map_locked[hash]));
-	if (use_raw_lock)
-		preempt_enable();
-	else
-		migrate_enable();
+	preempt_enable();
 }
 
 static bool htab_lru_map_delete_node(void *arg, struct bpf_lru_node *node);
@@ -622,6 +584,8 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 free_prealloc:
 	prealloc_destroy(htab);
 free_map_locked:
+	if (htab->use_percpu_counter)
+		percpu_counter_destroy(&htab->pcount);
 	for (i = 0; i < HASHTAB_MAP_LOCK_COUNT; i++)
 		free_percpu(htab->map_locked[i]);
 	bpf_map_area_free(htab->buckets);

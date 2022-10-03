@@ -282,7 +282,7 @@ struct usdt_manager *usdt_manager_new(struct bpf_object *obj)
 	 * If this is not supported, USDTs with semaphores will not be supported.
 	 * Added in: a6ca88b241d5 ("trace_uprobe: support reference counter in fd-based uprobe")
 	 */
-	man->has_sema_refcnt = access(ref_ctr_sysfs_path, F_OK) == 0;
+	man->has_sema_refcnt = faccessat(AT_FDCWD, ref_ctr_sysfs_path, F_OK, AT_EACCESS) == 0;
 
 	return man;
 }

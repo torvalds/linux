@@ -60,6 +60,12 @@ obj-$(CONFIG_NF_NAT) += nf_nat.o
 nf_nat-$(CONFIG_NF_NAT_REDIRECT) += nf_nat_redirect.o
 nf_nat-$(CONFIG_NF_NAT_MASQUERADE) += nf_nat_masquerade.o
 
+ifeq ($(CONFIG_NF_NAT),m)
+nf_nat-$(CONFIG_DEBUG_INFO_BTF_MODULES) += nf_nat_bpf.o
+else ifeq ($(CONFIG_NF_NAT),y)
+nf_nat-$(CONFIG_DEBUG_INFO_BTF) += nf_nat_bpf.o
+endif
+
 # NAT helpers
 obj-$(CONFIG_NF_NAT_AMANDA) += nf_nat_amanda.o
 obj-$(CONFIG_NF_NAT_FTP) += nf_nat_ftp.o

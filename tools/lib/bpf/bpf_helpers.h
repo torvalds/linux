@@ -131,7 +131,7 @@
 /*
  * Helper function to perform a tail call with a constant/immediate map slot.
  */
-#if (!defined(__clang__) || __clang_major__ >= 8) && defined(__bpf__)
+#if __clang_major__ >= 8 && defined(__bpf__)
 static __always_inline void
 bpf_tail_call_static(void *ctx, const void *map, const __u32 slot)
 {
@@ -139,8 +139,8 @@ bpf_tail_call_static(void *ctx, const void *map, const __u32 slot)
 		__bpf_unreachable();
 
 	/*
-	 * Provide a hard guarantee that the compiler won't optimize setting r2
-	 * (map pointer) and r3 (constant map index) from _different paths_ ending
+	 * Provide a hard guarantee that LLVM won't optimize setting r2 (map
+	 * pointer) and r3 (constant map index) from _different paths_ ending
 	 * up at the _same_ call insn as otherwise we won't be able to use the
 	 * jmpq/nopl retpoline-free patching by the x86-64 JIT in the kernel
 	 * given they mismatch. See also d2e4c1e6c294 ("bpf: Constant map key
@@ -148,36 +148,17 @@ bpf_tail_call_static(void *ctx, const void *map, const __u32 slot)
 	 *
 	 * Note on clobber list: we need to stay in-line with BPF calling
 	 * convention, so even if we don't end up using r0, r4, r5, we need
-	 * to mark them as clobber so that the compiler doesn't end up using
-	 * them before / after the call.
+	 * to mark them as clobber so that LLVM doesn't end up using them
+	 * before / after the call.
 	 */
-	asm volatile(
-#ifdef __clang__
-		     "r1 = %[ctx]\n\t"
+	asm volatile("r1 = %[ctx]\n\t"
 		     "r2 = %[map]\n\t"
 		     "r3 = %[slot]\n\t"
-#else
-		     "mov %%r1,%[ctx]\n\t"
-		     "mov %%r2,%[map]\n\t"
-		     "mov %%r3,%[slot]\n\t"
-#endif
 		     "call 12"
 		     :: [ctx]"r"(ctx), [map]"r"(map), [slot]"i"(slot)
 		     : "r0", "r1", "r2", "r3", "r4", "r5");
 }
 #endif
-
-/*
- * Helper structure used by eBPF C program
- * to describe BPF map attributes to libbpf loader
- */
-struct bpf_map_def {
-	unsigned int type;
-	unsigned int key_size;
-	unsigned int value_size;
-	unsigned int max_entries;
-	unsigned int map_flags;
-} __attribute__((deprecated("use BTF-defined maps in .maps section")));
 
 enum libbpf_pin_type {
 	LIBBPF_PIN_NONE,

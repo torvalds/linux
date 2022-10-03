@@ -26,6 +26,8 @@ that goes into great technical depth about the BPF Architecture.
    classic_vs_extended.rst
    bpf_licensing
    test_debug
+   clang-notes
+   linux-notes
    other
 
 .. only::  subproject and html

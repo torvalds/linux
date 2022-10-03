@@ -6,6 +6,10 @@
 
 char _license[] SEC("license") = "GPL";
 
+uint32_t tid = 0;
+int num_unknown_tid = 0;
+int num_known_tid = 0;
+
 SEC("iter/task")
 int dump_task(struct bpf_iter__task *ctx)
 {
@@ -17,6 +21,11 @@ int dump_task(struct bpf_iter__task *ctx)
 		BPF_SEQ_PRINTF(seq, "%s\n", info);
 		return 0;
 	}
+
+	if (task->pid != tid)
+		num_unknown_tid++;
+	else
+		num_known_tid++;
 
 	if (ctx->meta->seq_num == 0)
 		BPF_SEQ_PRINTF(seq, "    tgid      gid\n");

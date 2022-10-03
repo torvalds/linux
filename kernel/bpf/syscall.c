@@ -598,7 +598,7 @@ void bpf_map_free_kptrs(struct bpf_map *map, void *map_value)
 		if (off_desc->type == BPF_KPTR_UNREF) {
 			u64 *p = (u64 *)btf_id_ptr;
 
-			WRITE_ONCE(p, 0);
+			WRITE_ONCE(*p, 0);
 			continue;
 		}
 		old_ptr = xchg(btf_id_ptr, 0);
@@ -1049,7 +1049,8 @@ static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 		}
 		if (map->map_type != BPF_MAP_TYPE_HASH &&
 		    map->map_type != BPF_MAP_TYPE_LRU_HASH &&
-		    map->map_type != BPF_MAP_TYPE_ARRAY) {
+		    map->map_type != BPF_MAP_TYPE_ARRAY &&
+		    map->map_type != BPF_MAP_TYPE_PERCPU_ARRAY) {
 			ret = -EOPNOTSUPP;
 			goto free_map_tab;
 		}
@@ -1416,19 +1417,14 @@ static int map_update_elem(union bpf_attr *attr, bpfptr_t uattr)
 	}
 
 	value_size = bpf_map_value_size(map);
-
-	err = -ENOMEM;
-	value = kvmalloc(value_size, GFP_USER | __GFP_NOWARN);
-	if (!value)
+	value = kvmemdup_bpfptr(uvalue, value_size);
+	if (IS_ERR(value)) {
+		err = PTR_ERR(value);
 		goto free_key;
-
-	err = -EFAULT;
-	if (copy_from_bpfptr(value, uvalue, value_size) != 0)
-		goto free_value;
+	}
 
 	err = bpf_map_update_value(map, f, key, value, attr->flags);
 
-free_value:
 	kvfree(value);
 free_key:
 	kvfree(key);
@@ -2096,6 +2092,17 @@ struct bpf_prog_kstats {
 	u64 cnt;
 	u64 misses;
 };
+
+void notrace bpf_prog_inc_misses_counter(struct bpf_prog *prog)
+{
+	struct bpf_prog_stats *stats;
+	unsigned int flags;
+
+	stats = this_cpu_ptr(prog->stats);
+	flags = u64_stats_update_begin_irqsave(&stats->syncp);
+	u64_stats_inc(&stats->misses);
+	u64_stats_update_end_irqrestore(&stats->syncp, flags);
+}
 
 static void bpf_prog_get_stats(const struct bpf_prog *prog,
 			       struct bpf_prog_kstats *stats)

@@ -18,6 +18,7 @@
  */
 
 #include <linux/atomic.h>
+#include <linux/bpf_verifier.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/mm.h>
@@ -5101,6 +5102,59 @@ static int bpf_sol_tcp_setsockopt(struct sock *sk, int optname,
 	return 0;
 }
 
+static int sol_tcp_sockopt_congestion(struct sock *sk, char *optval,
+				      int *optlen, bool getopt)
+{
+	struct tcp_sock *tp;
+	int ret;
+
+	if (*optlen < 2)
+		return -EINVAL;
+
+	if (getopt) {
+		if (!inet_csk(sk)->icsk_ca_ops)
+			return -EINVAL;
+		/* BPF expects NULL-terminated tcp-cc string */
+		optval[--(*optlen)] = '\0';
+		return do_tcp_getsockopt(sk, SOL_TCP, TCP_CONGESTION,
+					 KERNEL_SOCKPTR(optval),
+					 KERNEL_SOCKPTR(optlen));
+	}
+
+	/* "cdg" is the only cc that alloc a ptr
+	 * in inet_csk_ca area.  The bpf-tcp-cc may
+	 * overwrite this ptr after switching to cdg.
+	 */
+	if (*optlen >= sizeof("cdg") - 1 && !strncmp("cdg", optval, *optlen))
+		return -ENOTSUPP;
+
+	/* It stops this looping
+	 *
+	 * .init => bpf_setsockopt(tcp_cc) => .init =>
+	 * bpf_setsockopt(tcp_cc)" => .init => ....
+	 *
+	 * The second bpf_setsockopt(tcp_cc) is not allowed
+	 * in order to break the loop when both .init
+	 * are the same bpf prog.
+	 *
+	 * This applies even the second bpf_setsockopt(tcp_cc)
+	 * does not cause a loop.  This limits only the first
+	 * '.init' can call bpf_setsockopt(TCP_CONGESTION) to
+	 * pick a fallback cc (eg. peer does not support ECN)
+	 * and the second '.init' cannot fallback to
+	 * another.
+	 */
+	tp = tcp_sk(sk);
+	if (tp->bpf_chg_cc_inprogress)
+		return -EBUSY;
+
+	tp->bpf_chg_cc_inprogress = 1;
+	ret = do_tcp_setsockopt(sk, SOL_TCP, TCP_CONGESTION,
+				KERNEL_SOCKPTR(optval), *optlen);
+	tp->bpf_chg_cc_inprogress = 0;
+	return ret;
+}
+
 static int sol_tcp_sockopt(struct sock *sk, int optname,
 			   char *optval, int *optlen,
 			   bool getopt)
@@ -5124,9 +5178,7 @@ static int sol_tcp_sockopt(struct sock *sk, int optname,
 			return -EINVAL;
 		break;
 	case TCP_CONGESTION:
-		if (*optlen < 2)
-			return -EINVAL;
-		break;
+		return sol_tcp_sockopt_congestion(sk, optval, optlen, getopt);
 	case TCP_SAVED_SYN:
 		if (*optlen < 1)
 			return -EINVAL;
@@ -5149,13 +5201,6 @@ static int sol_tcp_sockopt(struct sock *sk, int optname,
 			 * does not know if the user space still needs it.
 			 */
 			return 0;
-		}
-
-		if (optname == TCP_CONGESTION) {
-			if (!inet_csk(sk)->icsk_ca_ops)
-				return -EINVAL;
-			/* BPF expects NULL-terminated tcp-cc string */
-			optval[--(*optlen)] = '\0';
 		}
 
 		return do_tcp_getsockopt(sk, SOL_TCP, optname,
@@ -5284,12 +5329,6 @@ static int _bpf_getsockopt(struct sock *sk, int level, int optname,
 BPF_CALL_5(bpf_sk_setsockopt, struct sock *, sk, int, level,
 	   int, optname, char *, optval, int, optlen)
 {
-	if (level == SOL_TCP && optname == TCP_CONGESTION) {
-		if (optlen >= sizeof("cdg") - 1 &&
-		    !strncmp("cdg", optval, optlen))
-			return -ENOTSUPP;
-	}
-
 	return _bpf_setsockopt(sk, level, optname, optval, optlen);
 }
 
@@ -8605,6 +8644,36 @@ static bool tc_cls_act_is_valid_access(int off, int size,
 	return bpf_skb_is_valid_access(off, size, type, prog, info);
 }
 
+DEFINE_MUTEX(nf_conn_btf_access_lock);
+EXPORT_SYMBOL_GPL(nf_conn_btf_access_lock);
+
+int (*nfct_btf_struct_access)(struct bpf_verifier_log *log, const struct btf *btf,
+			      const struct btf_type *t, int off, int size,
+			      enum bpf_access_type atype, u32 *next_btf_id,
+			      enum bpf_type_flag *flag);
+EXPORT_SYMBOL_GPL(nfct_btf_struct_access);
+
+static int tc_cls_act_btf_struct_access(struct bpf_verifier_log *log,
+					const struct btf *btf,
+					const struct btf_type *t, int off,
+					int size, enum bpf_access_type atype,
+					u32 *next_btf_id,
+					enum bpf_type_flag *flag)
+{
+	int ret = -EACCES;
+
+	if (atype == BPF_READ)
+		return btf_struct_access(log, btf, t, off, size, atype, next_btf_id,
+					 flag);
+
+	mutex_lock(&nf_conn_btf_access_lock);
+	if (nfct_btf_struct_access)
+		ret = nfct_btf_struct_access(log, btf, t, off, size, atype, next_btf_id, flag);
+	mutex_unlock(&nf_conn_btf_access_lock);
+
+	return ret;
+}
+
 static bool __is_valid_xdp_access(int off, int size)
 {
 	if (off < 0 || off >= sizeof(struct xdp_md))
@@ -8663,6 +8732,27 @@ void bpf_warn_invalid_xdp_action(struct net_device *dev, struct bpf_prog *prog, 
 		     act, prog->aux->name, prog->aux->id, dev ? dev->name : "N/A");
 }
 EXPORT_SYMBOL_GPL(bpf_warn_invalid_xdp_action);
+
+static int xdp_btf_struct_access(struct bpf_verifier_log *log,
+				 const struct btf *btf,
+				 const struct btf_type *t, int off,
+				 int size, enum bpf_access_type atype,
+				 u32 *next_btf_id,
+				 enum bpf_type_flag *flag)
+{
+	int ret = -EACCES;
+
+	if (atype == BPF_READ)
+		return btf_struct_access(log, btf, t, off, size, atype, next_btf_id,
+					 flag);
+
+	mutex_lock(&nf_conn_btf_access_lock);
+	if (nfct_btf_struct_access)
+		ret = nfct_btf_struct_access(log, btf, t, off, size, atype, next_btf_id, flag);
+	mutex_unlock(&nf_conn_btf_access_lock);
+
+	return ret;
+}
 
 static bool sock_addr_is_valid_access(int off, int size,
 				      enum bpf_access_type type,
@@ -10558,6 +10648,7 @@ const struct bpf_verifier_ops tc_cls_act_verifier_ops = {
 	.convert_ctx_access	= tc_cls_act_convert_ctx_access,
 	.gen_prologue		= tc_cls_act_prologue,
 	.gen_ld_abs		= bpf_gen_ld_abs,
+	.btf_struct_access	= tc_cls_act_btf_struct_access,
 };
 
 const struct bpf_prog_ops tc_cls_act_prog_ops = {
@@ -10569,6 +10660,7 @@ const struct bpf_verifier_ops xdp_verifier_ops = {
 	.is_valid_access	= xdp_is_valid_access,
 	.convert_ctx_access	= xdp_convert_ctx_access,
 	.gen_prologue		= bpf_noop_prologue,
+	.btf_struct_access	= xdp_btf_struct_access,
 };
 
 const struct bpf_prog_ops xdp_prog_ops = {
