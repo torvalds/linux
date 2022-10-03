@@ -1320,6 +1320,7 @@ static ssize_t _nfs42_proc_listxattrs(struct inode *inode, void *buf,
 
 	ret = nfs4_call_sync(server->client, server, &msg, &arg.seq_args,
 	    &res.seq_res, 0);
+	trace_nfs4_listxattr(inode, ret);
 
 	if (ret >= 0) {
 		ret = res.copied;

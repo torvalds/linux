@@ -2542,6 +2542,8 @@ DECLARE_EVENT_CLASS(nfs4_xattr_event,
 DEFINE_NFS4_XATTR_EVENT(nfs4_getxattr);
 DEFINE_NFS4_XATTR_EVENT(nfs4_setxattr);
 DEFINE_NFS4_XATTR_EVENT(nfs4_removexattr);
+
+DEFINE_NFS4_INODE_EVENT(nfs4_listxattr);
 #endif /* CONFIG_NFS_V4_2 */
 
 #endif /* CONFIG_NFS_V4_1 */
