@@ -304,6 +304,7 @@ dtb-$(CONFIG_ARCH_KEYSTONE) += \
 	keystone-k2g-evm.dtb \
 	keystone-k2g-ice.dtb
 dtb-$(CONFIG_MACH_KIRKWOOD) += \
+	kirkwood-4i-edge-200.dtb \
 	kirkwood-b3.dtb \
 	kirkwood-blackarmor-nas220.dtb \
 	kirkwood-c200-v1.dtb \
