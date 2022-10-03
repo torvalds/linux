@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2015, Sony Mobile Communications Inc.
  * Copyright (c) 2013, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/module.h>
 #include <linux/netlink.h>
@@ -118,6 +119,7 @@ static DEFINE_XARRAY_ALLOC(qrtr_ports);
  * @nid: node id
  * @qrtr_tx_flow: tree of qrtr_tx_flow, keyed by node << 32 | port
  * @qrtr_tx_lock: lock for qrtr_tx_flow inserts
+ * @hello_sent: hello packet sent to endpoint
  * @rx_queue: receive queue
  * @item: list item for broadcast list
  */
@@ -126,6 +128,7 @@ struct qrtr_node {
 	struct qrtr_endpoint *ep;
 	struct kref ref;
 	unsigned int nid;
+	atomic_t hello_sent;
 
 	struct radix_tree_root qrtr_tx_flow;
 	struct mutex qrtr_tx_lock; /* for qrtr_tx_flow */
@@ -343,6 +346,11 @@ static int qrtr_node_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 	size_t len = skb->len;
 	int rc, confirm_rx;
 
+	if (!atomic_read(&node->hello_sent) && type != QRTR_TYPE_HELLO) {
+		kfree_skb(skb);
+		return 0;
+	}
+
 	confirm_rx = qrtr_tx_wait(node, to->sq_node, to->sq_port, type);
 	if (confirm_rx < 0) {
 		kfree_skb(skb);
@@ -380,6 +388,8 @@ static int qrtr_node_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 	 * confirm_rx flag if we dropped this one */
 	if (rc && confirm_rx)
 		qrtr_tx_flow_failed(node, to->sq_node, to->sq_port);
+	if (!rc && type == QRTR_TYPE_HELLO)
+		atomic_inc(&node->hello_sent);
 
 	return rc;
 }
@@ -589,6 +599,7 @@ int qrtr_endpoint_register(struct qrtr_endpoint *ep, unsigned int nid)
 	skb_queue_head_init(&node->rx_queue);
 	node->nid = QRTR_EP_NID_AUTO;
 	node->ep = ep;
+	atomic_set(&node->hello_sent, 0);
 
 	INIT_RADIX_TREE(&node->qrtr_tx_flow, GFP_KERNEL);
 	mutex_init(&node->qrtr_tx_lock);
@@ -875,6 +886,8 @@ static int qrtr_bcast_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 
 	mutex_lock(&qrtr_node_lock);
 	list_for_each_entry(node, &qrtr_all_nodes, item) {
+		if (node->nid == QRTR_EP_NID_AUTO)
+			continue;
 		skbn = skb_clone(skb, GFP_KERNEL);
 		if (!skbn)
 			break;
