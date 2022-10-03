@@ -944,6 +944,8 @@ void pm_system_irq_wakeup(unsigned int irq_number)
 	else
 		irq_number = 0;
 
+	pm_pr_dbg("Triggering wakeup from IRQ %d\n", irq_number);
+
 	raw_spin_unlock_irqrestore(&wakeup_irq_lock, flags);
 
 	if (irq_number)
