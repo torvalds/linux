@@ -681,8 +681,8 @@ static struct aa_label *profile_transition(struct aa_profile *profile,
 		/* no exec permission - learning mode */
 		struct aa_profile *new_profile = NULL;
 
-		new_profile = aa_new_null_profile(profile, false, name,
-						  GFP_KERNEL);
+		new_profile = aa_new_learning_profile(profile, false, name,
+						      GFP_KERNEL);
 		if (!new_profile) {
 			error = -ENOMEM;
 			info = "could not create null profile";
@@ -1009,8 +1009,8 @@ static struct aa_label *build_change_hat(struct aa_profile *profile,
 	if (!hat) {
 		error = -ENOENT;
 		if (COMPLAIN_MODE(profile)) {
-			hat = aa_new_null_profile(profile, true, name,
-						  GFP_KERNEL);
+			hat = aa_new_learning_profile(profile, true, name,
+						      GFP_KERNEL);
 			if (!hat) {
 				info = "failed null profile create";
 				error = -ENOMEM;
@@ -1361,8 +1361,8 @@ int aa_change_profile(const char *fqname, int flags)
 		    !COMPLAIN_MODE(labels_profile(label)))
 			goto audit;
 		/* released below */
-		tprofile = aa_new_null_profile(labels_profile(label), false,
-					       fqname, GFP_KERNEL);
+		tprofile = aa_new_learning_profile(labels_profile(label), false,
+						   fqname, GFP_KERNEL);
 		if (!tprofile) {
 			info = "failed null profile create";
 			error = -ENOMEM;

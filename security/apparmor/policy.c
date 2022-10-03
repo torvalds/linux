@@ -524,8 +524,36 @@ struct aa_profile *aa_fqlookupn_profile(struct aa_label *base,
 	return profile;
 }
 
+
+struct aa_profile *aa_alloc_null(struct aa_profile *parent, const char *name,
+				 gfp_t gfp)
+{
+	struct aa_profile *profile;
+	struct aa_ruleset *rules;
+
+	profile = aa_alloc_profile(name, NULL, gfp);
+	if (!profile)
+		return NULL;
+
+	/* TODO: ideally we should inherit abi from parent */
+	profile->label.flags |= FLAG_NULL;
+	rules = list_first_entry(&profile->rules, typeof(*rules), list);
+	rules->file.dfa = aa_get_dfa(nulldfa);
+	rules->policy.dfa = aa_get_dfa(nulldfa);
+
+	if (parent) {
+		profile->path_flags = parent->path_flags;
+
+		/* released on free_profile */
+		rcu_assign_pointer(profile->parent, aa_get_profile(parent));
+		profile->ns = aa_get_ns(parent->ns);
+	}
+
+	return profile;
+}
+
 /**
- * aa_new_null_profile - create or find a null-X learning profile
+ * aa_new_learning_profile - create or find a null-X learning profile
  * @parent: profile that caused this profile to be created (NOT NULL)
  * @hat: true if the null- learning profile is a hat
  * @base: name to base the null profile off of
@@ -542,10 +570,9 @@ struct aa_profile *aa_fqlookupn_profile(struct aa_label *base,
  *
  * Returns: new refcounted profile else NULL on failure
  */
-struct aa_profile *aa_new_null_profile(struct aa_profile *parent, bool hat,
-				       const char *base, gfp_t gfp)
+struct aa_profile *aa_new_learning_profile(struct aa_profile *parent, bool hat,
+					   const char *base, gfp_t gfp)
 {
-	struct aa_ruleset *rules;
 	struct aa_profile *p, *profile;
 	const char *bname;
 	char *name = NULL;
@@ -575,22 +602,12 @@ name:
 	if (profile)
 		goto out;
 
-	profile = aa_alloc_profile(name, NULL, gfp);
+	profile = aa_alloc_null(parent, name, gfp);
 	if (!profile)
 		goto fail;
-
 	profile->mode = APPARMOR_COMPLAIN;
-	profile->label.flags |= FLAG_NULL;
 	if (hat)
 		profile->label.flags |= FLAG_HAT;
-	profile->path_flags = parent->path_flags;
-
-	/* released on free_profile */
-	rcu_assign_pointer(profile->parent, aa_get_profile(parent));
-	profile->ns = aa_get_ns(parent->ns);
-	rules = list_first_entry(&profile->rules, typeof(*rules), list);
-	rules->file.dfa = aa_get_dfa(nulldfa);
-	rules->policy.dfa = aa_get_dfa(nulldfa);
 
 	mutex_lock_nested(&profile->ns->lock, profile->ns->level);
 	p = __find_child(&parent->base.profiles, bname);
