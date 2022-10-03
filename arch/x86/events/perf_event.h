@@ -1516,6 +1516,8 @@ void intel_pmu_pebs_data_source_skl(bool pmem);
 
 void intel_pmu_pebs_data_source_adl(void);
 
+void intel_pmu_pebs_data_source_grt(void);
+
 int intel_pmu_setup_lbr_filter(struct perf_event *event);
 
 void intel_pt_interrupt(void);
