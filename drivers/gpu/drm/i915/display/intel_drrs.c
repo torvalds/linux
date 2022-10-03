@@ -301,8 +301,14 @@ void intel_crtc_drrs_init(struct intel_crtc *crtc)
 static int intel_drrs_debugfs_status_show(struct seq_file *m, void *unused)
 {
 	struct intel_crtc *crtc = m->private;
-	const struct intel_crtc_state *crtc_state =
-		to_intel_crtc_state(crtc->base.state);
+	const struct intel_crtc_state *crtc_state;
+	int ret;
+
+	ret = drm_modeset_lock_single_interruptible(&crtc->base.mutex);
+	if (ret)
+		return ret;
+
+	crtc_state = to_intel_crtc_state(crtc->base.state);
 
 	mutex_lock(&crtc->drrs.mutex);
 
@@ -320,6 +326,8 @@ static int intel_drrs_debugfs_status_show(struct seq_file *m, void *unused)
 		   crtc->drrs.busy_frontbuffer_bits);
 
 	mutex_unlock(&crtc->drrs.mutex);
+
+	drm_modeset_unlock(&crtc->base.mutex);
 
 	return 0;
 }
