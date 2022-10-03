@@ -572,8 +572,10 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 		qrtr_tx_resume(node, skb);
 	} else {
 		ipc = qrtr_port_lookup(cb->dst_port);
-		if (!ipc)
-			goto err;
+		if (!ipc) {
+			kfree_skb(skb);
+			return -ENODEV;
+		}
 
 		if (sock_queue_rcv_skb(&ipc->sk, skb)) {
 			qrtr_port_put(ipc);
