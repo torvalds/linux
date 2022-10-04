@@ -873,7 +873,7 @@ SMB2_negotiate(const unsigned int xid,
 	struct smb2_negotiate_rsp *rsp;
 	struct kvec iov[1];
 	struct kvec rsp_iov;
-	int rc = 0;
+	int rc;
 	int resp_buftype;
 	int blob_offset, blob_length;
 	char *security_blob;
