@@ -410,7 +410,7 @@ struct fwnode_handle *fwnode_graph_get_remote_port(
 struct fwnode_handle *fwnode_graph_get_remote_endpoint(
 	const struct fwnode_handle *fwnode);
 
-static inline bool fwnode_graph_is_endpoint(struct fwnode_handle *fwnode)
+static inline bool fwnode_graph_is_endpoint(const struct fwnode_handle *fwnode)
 {
 	return fwnode_property_present(fwnode, "remote-endpoint");
 }
