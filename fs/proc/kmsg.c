@@ -18,8 +18,6 @@
 #include <linux/uaccess.h>
 #include <asm/io.h>
 
-extern wait_queue_head_t log_wait;
-
 static int kmsg_open(struct inode * inode, struct file * file)
 {
 	return do_syslog(SYSLOG_ACTION_OPEN, NULL, 0, SYSLOG_FROM_PROC);
