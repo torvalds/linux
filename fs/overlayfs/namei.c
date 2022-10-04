@@ -487,7 +487,8 @@ fail:
 }
 
 /* Get upper dentry from index */
-struct dentry *ovl_index_upper(struct ovl_fs *ofs, struct dentry *index)
+struct dentry *ovl_index_upper(struct ovl_fs *ofs, struct dentry *index,
+			       bool connected)
 {
 	struct ovl_fh *fh;
 	struct dentry *upper;
@@ -499,7 +500,7 @@ struct dentry *ovl_index_upper(struct ovl_fs *ofs, struct dentry *index)
 	if (IS_ERR_OR_NULL(fh))
 		return ERR_CAST(fh);
 
-	upper = ovl_decode_real_fh(ofs, fh, ovl_upper_mnt(ofs), true);
+	upper = ovl_decode_real_fh(ofs, fh, ovl_upper_mnt(ofs), connected);
 	kfree(fh);
 
 	if (IS_ERR_OR_NULL(upper))
@@ -572,7 +573,7 @@ int ovl_verify_index(struct ovl_fs *ofs, struct dentry *index)
 	 * directly from the index dentry, but for dir index we first need to
 	 * decode the upper directory.
 	 */
-	upper = ovl_index_upper(ofs, index);
+	upper = ovl_index_upper(ofs, index, false);
 	if (IS_ERR_OR_NULL(upper)) {
 		err = PTR_ERR(upper);
 		/*
