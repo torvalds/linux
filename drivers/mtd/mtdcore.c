@@ -551,18 +551,17 @@ static void mtd_check_of_node(struct mtd_info *mtd)
 	struct device_node *partitions, *parent_dn, *mtd_dn = NULL;
 	const char *pname, *prefix = "partition-";
 	int plen, mtd_name_len, offset, prefix_len;
-	struct mtd_info *parent;
 	bool found = false;
 
 	/* Check if MTD already has a device node */
-	if (dev_of_node(&mtd->dev))
+	if (mtd_get_of_node(mtd))
 		return;
 
 	/* Check if a partitions node exist */
 	if (!mtd_is_partition(mtd))
 		return;
-	parent = mtd->parent;
-	parent_dn = of_node_get(dev_of_node(&parent->dev));
+
+	parent_dn = of_node_get(mtd_get_of_node(mtd->parent));
 	if (!parent_dn)
 		return;
 
@@ -575,15 +574,15 @@ static void mtd_check_of_node(struct mtd_info *mtd)
 
 	/* Search if a partition is defined with the same name */
 	for_each_child_of_node(partitions, mtd_dn) {
-		offset = 0;
-
 		/* Skip partition with no/wrong prefix */
-		if (!of_node_name_prefix(mtd_dn, "partition-"))
+		if (!of_node_name_prefix(mtd_dn, prefix))
 			continue;
 
 		/* Label have priority. Check that first */
-		if (of_property_read_string(mtd_dn, "label", &pname)) {
-			of_property_read_string(mtd_dn, "name", &pname);
+		if (!of_property_read_string(mtd_dn, "label", &pname)) {
+			offset = 0;
+		} else {
+			pname = mtd_dn->name;
 			offset = prefix_len;
 		}
 
