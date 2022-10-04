@@ -116,10 +116,7 @@ examples:
       #address-cells = <1>;
       #size-cells = <0>;
 
-      cs-gpios = <&gpio 17 GPIO_ACTIVE_LOW>;
-      status = "okay";
-
-      ad74413r@0 {
+      addac@0 {
         compatible = "adi,ad74413r";
         reg = <0>;
         spi-max-frequency = <1000000>;
