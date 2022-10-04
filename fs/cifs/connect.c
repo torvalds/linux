@@ -91,7 +91,8 @@ static int reconn_set_ipaddr_from_hostname(struct TCP_Server_Info *server)
 {
 	int rc;
 	int len;
-	char *unc, *ipaddr = NULL;
+	char *unc;
+	struct sockaddr_storage ss;
 	time64_t expiry, now;
 	unsigned long ttl = SMB_DNS_RESOLVE_INTERVAL_DEFAULT;
 
@@ -111,7 +112,11 @@ static int reconn_set_ipaddr_from_hostname(struct TCP_Server_Info *server)
 	}
 	scnprintf(unc, len, "\\\\%s", server->hostname);
 
-	rc = dns_resolve_server_name_to_ip(unc, &ipaddr, &expiry);
+	spin_lock(&server->srv_lock);
+	ss = server->dstaddr;
+	spin_unlock(&server->srv_lock);
+
+	rc = dns_resolve_server_name_to_ip(unc, (struct sockaddr *)&ss, &expiry);
 	kfree(unc);
 
 	if (rc < 0) {
@@ -121,22 +126,13 @@ static int reconn_set_ipaddr_from_hostname(struct TCP_Server_Info *server)
 	}
 
 	spin_lock(&server->srv_lock);
-	rc = cifs_convert_address((struct sockaddr *)&server->dstaddr, ipaddr,
-				  strlen(ipaddr));
+	memcpy(&server->dstaddr, &ss, sizeof(server->dstaddr));
 	spin_unlock(&server->srv_lock);
-	kfree(ipaddr);
 
-	/* rc == 1 means success here */
-	if (rc) {
-		now = ktime_get_real_seconds();
-		if (expiry && expiry > now)
-			/*
-			 * To make sure we don't use the cached entry, retry 1s
-			 * after expiry.
-			 */
-			ttl = max_t(unsigned long, expiry - now, SMB_DNS_RESOLVE_INTERVAL_MIN) + 1;
-	}
-	rc = !rc ? -1 : 0;
+	now = ktime_get_real_seconds();
+	if (expiry && expiry > now)
+		/* To make sure we don't use the cached entry, retry 1s */
+		ttl = max_t(unsigned long, expiry - now, SMB_DNS_RESOLVE_INTERVAL_MIN) + 1;
 
 requeue_resolve:
 	cifs_dbg(FYI, "%s: next dns resolution scheduled for %lu seconds in the future\n",

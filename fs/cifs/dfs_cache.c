@@ -1314,8 +1314,7 @@ static bool target_share_equal(struct TCP_Server_Info *server, const char *s1, c
 	char unc[sizeof("\\\\") + SERVER_NAME_LENGTH] = {0};
 	const char *host;
 	size_t hostlen;
-	char *ip = NULL;
-	struct sockaddr sa;
+	struct sockaddr_storage ss;
 	bool match;
 	int rc;
 
@@ -1330,23 +1329,17 @@ static bool target_share_equal(struct TCP_Server_Info *server, const char *s1, c
 	extract_unc_hostname(s1, &host, &hostlen);
 	scnprintf(unc, sizeof(unc), "\\\\%.*s", (int)hostlen, host);
 
-	rc = dns_resolve_server_name_to_ip(unc, &ip, NULL);
+	rc = dns_resolve_server_name_to_ip(unc, (struct sockaddr *)&ss, NULL);
 	if (rc < 0) {
 		cifs_dbg(FYI, "%s: could not resolve %.*s. assuming server address matches.\n",
 			 __func__, (int)hostlen, host);
 		return true;
 	}
 
-	if (!cifs_convert_address(&sa, ip, strlen(ip))) {
-		cifs_dbg(VFS, "%s: failed to convert address \'%s\'. skip address matching.\n",
-			 __func__, ip);
-	} else {
-		cifs_server_lock(server);
-		match = cifs_match_ipaddr((struct sockaddr *)&server->dstaddr, &sa);
-		cifs_server_unlock(server);
-	}
+	cifs_server_lock(server);
+	match = cifs_match_ipaddr((struct sockaddr *)&server->dstaddr, (struct sockaddr *)&ss);
+	cifs_server_unlock(server);
 
-	kfree(ip);
 	return match;
 }
 
