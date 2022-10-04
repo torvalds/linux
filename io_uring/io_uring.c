@@ -2625,7 +2625,6 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	}
 #endif
 	WARN_ON_ONCE(!list_empty(&ctx->ltimeout_list));
-	WARN_ON_ONCE(ctx->notif_slots || ctx->nr_notif_slots);
 
 	if (ctx->mm_account) {
 		mmdrop(ctx->mm_account);
