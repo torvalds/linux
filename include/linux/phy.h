@@ -597,6 +597,7 @@ struct macsec_ops;
  * @master_slave_get: Current master/slave advertisement
  * @master_slave_state: Current master/slave configuration
  * @mii_ts: Pointer to time stamper callbacks
+ * @psec: Pointer to Power Sourcing Equipment control struct
  * @lock:  Mutex for serialization access to PHY
  * @state_queue: Work queue for state machine
  * @shared: Pointer to private data shared by phys in one package
@@ -715,6 +716,7 @@ struct phy_device {
 	struct phylink *phylink;
 	struct net_device *attached_dev;
 	struct mii_timestamper *mii_ts;
+	struct pse_control *psec;
 
 	u8 mdix;
 	u8 mdix_ctrl;
