@@ -110,16 +110,16 @@ static inline void pse_control_put(struct pse_control *psec)
 {
 }
 
-int pse_ethtool_get_status(struct pse_control *psec,
-			   struct netlink_ext_ack *extack,
-			   struct pse_control_status *status)
+static inline int pse_ethtool_get_status(struct pse_control *psec,
+					 struct netlink_ext_ack *extack,
+					 struct pse_control_status *status)
 {
 	return -ENOTSUPP;
 }
 
-int pse_ethtool_set_config(struct pse_control *psec,
-			   struct netlink_ext_ack *extack,
-			   const struct pse_control_config *config)
+static inline int pse_ethtool_set_config(struct pse_control *psec,
+					 struct netlink_ext_ack *extack,
+					 const struct pse_control_config *config)
 {
 	return -ENOTSUPP;
 }
