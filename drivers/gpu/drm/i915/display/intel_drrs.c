@@ -284,14 +284,14 @@ void intel_drrs_flush(struct drm_i915_private *dev_priv,
 }
 
 /**
- * intel_crtc_drrs_init - Init DRRS for CRTC
+ * intel_drrs_crtc_init - Init DRRS for CRTC
  * @crtc: crtc
  *
  * This function is called only once at driver load to initialize basic
  * DRRS stuff.
  *
  */
-void intel_crtc_drrs_init(struct intel_crtc *crtc)
+void intel_drrs_crtc_init(struct intel_crtc *crtc)
 {
 	INIT_DELAYED_WORK(&crtc->drrs.work, intel_drrs_downclock_work);
 	mutex_init(&crtc->drrs.mutex);

@@ -2209,7 +2209,7 @@ static const struct intel_color_funcs ilk_color_funcs = {
 	.read_luts = ilk_read_luts,
 };
 
-void intel_crtc_color_init(struct intel_crtc *crtc)
+void intel_color_crtc_init(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	bool has_ctm = INTEL_INFO(dev_priv)->display.color.degamma_lut_size != 0;

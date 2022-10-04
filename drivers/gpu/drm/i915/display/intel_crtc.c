@@ -365,8 +365,8 @@ int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 						BIT(DRM_SCALING_FILTER_DEFAULT) |
 						BIT(DRM_SCALING_FILTER_NEAREST_NEIGHBOR));
 
-	intel_crtc_color_init(crtc);
-	intel_crtc_drrs_init(crtc);
+	intel_color_crtc_init(crtc);
+	intel_drrs_crtc_init(crtc);
 	intel_crtc_crc_init(crtc);
 
 	cpu_latency_qos_add_request(&crtc->vblank_pm_qos, PM_QOS_DEFAULT_VALUE);
