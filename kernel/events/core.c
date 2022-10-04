@@ -2226,16 +2226,22 @@ static inline int __pmu_filter_match(struct perf_event *event)
 static inline int pmu_filter_match(struct perf_event *event)
 {
 	struct perf_event *sibling;
+	unsigned long flags;
+	int ret = 1;
 
 	if (!__pmu_filter_match(event))
 		return 0;
 
+	local_irq_save(flags);
 	for_each_sibling_event(sibling, event) {
-		if (!__pmu_filter_match(sibling))
-			return 0;
+		if (!__pmu_filter_match(sibling)) {
+			ret = 0;
+			break;
+		}
 	}
+	local_irq_restore(flags);
 
-	return 1;
+	return ret;
 }
 
 static inline int
