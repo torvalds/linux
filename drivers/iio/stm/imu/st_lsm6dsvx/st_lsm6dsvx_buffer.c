@@ -41,6 +41,7 @@ enum {
 
 #define ST_LSM6DSVX_EWMA_LEVEL			120
 #define ST_LSM6DSVX_EWMA_DIV			128
+
 static inline s64 st_lsm6dsvx_ewma(s64 old, s64 new, int weight)
 {
 	s64 diff, incr;
@@ -62,8 +63,7 @@ static inline int st_lsm6dsvx_reset_hwts(struct st_lsm6dsvx_hw *hw)
 	hw->hw_ts_high = 0;
 	hw->tsample = 0ull;
 
-	return st_lsm6dsvx_write_locked(hw,
-					ST_LSM6DSVX_REG_TIMESTAMP2_ADDR,
+	return st_lsm6dsvx_write_locked(hw, ST_LSM6DSVX_REG_TIMESTAMP2_ADDR,
 					data);
 }
 
@@ -72,10 +72,9 @@ int st_lsm6dsvx_set_fifo_mode(struct st_lsm6dsvx_hw *hw,
 {
 	int err;
 
-	err = st_lsm6dsvx_write_with_mask(hw,
-					ST_LSM6DSVX_REG_FIFO_CTRL4_ADDR,
-					ST_LSM6DSVX_FIFO_MODE_MASK,
-					fifo_mode);
+	err = st_lsm6dsvx_write_with_mask(hw, ST_LSM6DSVX_REG_FIFO_CTRL4_ADDR,
+					  ST_LSM6DSVX_FIFO_MODE_MASK,
+					  fifo_mode);
 	if (err < 0)
 		return err;
 
@@ -103,12 +102,14 @@ __st_lsm6dsvx_set_sensor_batching_odr(struct st_lsm6dsvx_sensor *sensor,
 		st_lsm6dsvx_set_page_access(hw,
 			       ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK, 1);
 		err = __st_lsm6dsvx_write_with_mask(hw, sensor->batch_reg.addr,
-						    sensor->batch_reg.mask, data);
+						    sensor->batch_reg.mask,
+						    data);
 		st_lsm6dsvx_set_page_access(hw,
-			       ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK, 0);
+				       ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK, 0);
 	} else {
 		err = __st_lsm6dsvx_write_with_mask(hw, sensor->batch_reg.addr,
-						    sensor->batch_reg.mask, data);
+						    sensor->batch_reg.mask,
+						    data);
 	}
 
 	return err;
@@ -129,8 +130,7 @@ st_lsm6dsvx_set_sensor_batching_odr(struct st_lsm6dsvx_sensor *sensor,
 }
 
 static int
-st_lsm6dsvx_update_watermark(struct st_lsm6dsvx_sensor *sensor,
-			     u16 watermark)
+st_lsm6dsvx_update_watermark(struct st_lsm6dsvx_sensor *sensor, u16 watermark)
 {
 	u16 fifo_watermark = ST_LSM6DSVX_MAX_FIFO_DEPTH;
 	struct st_lsm6dsvx_hw *hw = sensor->hw;
@@ -152,10 +152,9 @@ st_lsm6dsvx_update_watermark(struct st_lsm6dsvx_sensor *sensor,
 			continue;
 
 		cur_watermark = (cur_sensor == sensor) ? watermark
-						: cur_sensor->watermark;
+						       : cur_sensor->watermark;
 
-		fifo_watermark = min_t(u16, fifo_watermark,
-				       cur_watermark);
+		fifo_watermark = min_t(u16, fifo_watermark, cur_watermark);
 	}
 
 	fifo_watermark = max_t(u16, fifo_watermark, 2);
@@ -163,16 +162,14 @@ st_lsm6dsvx_update_watermark(struct st_lsm6dsvx_sensor *sensor,
 	mutex_lock(&hw->page_lock);
 
 	err = regmap_read(hw->regmap,
-			  ST_LSM6DSVX_REG_FIFO_CTRL1_ADDR + 1,
-			  &data);
+			  ST_LSM6DSVX_REG_FIFO_CTRL1_ADDR + 1, &data);
 	if (err < 0)
 		goto out;
 
 	fifo_watermark = ((data << 8) & ~ST_LSM6DSVX_WTM_MASK) |
 			 (fifo_watermark & ST_LSM6DSVX_WTM_MASK);
 	wdata = cpu_to_le16(fifo_watermark);
-	err = regmap_bulk_write(hw->regmap,
-				ST_LSM6DSVX_REG_FIFO_CTRL1_ADDR,
+	err = regmap_bulk_write(hw->regmap, ST_LSM6DSVX_REG_FIFO_CTRL1_ADDR,
 				&wdata, sizeof(wdata));
 out:
 	mutex_unlock(&hw->page_lock);
@@ -180,13 +177,12 @@ out:
 	return err < 0 ? err : 0;
 }
 
-static inline void st_lsm6dsvx_sync_hw_ts(struct st_lsm6dsvx_hw *hw,
-					  s64 ts)
+static inline void st_lsm6dsvx_sync_hw_ts(struct st_lsm6dsvx_hw *hw, s64 ts)
 {
 	s64 delta = ts - hw->hw_ts;
 
 	hw->ts_offset = st_lsm6dsvx_ewma(hw->ts_offset, delta,
-					ST_LSM6DSVX_EWMA_LEVEL);
+					 ST_LSM6DSVX_EWMA_LEVEL);
 }
 
 static struct iio_dev *
@@ -284,8 +280,8 @@ static int st_lsm6dsvx_read_fifo(struct st_lsm6dsvx_hw *hw)
 					     ((s64)hw->hw_ts_high << 32)) *
 					     hw->ts_delta_ns;
 				hw->ts_offset = st_lsm6dsvx_ewma(hw->ts_offset,
-						ts_irq - hw->hw_ts,
-						ST_LSM6DSVX_EWMA_LEVEL);
+							ts_irq - hw->hw_ts,
+							ST_LSM6DSVX_EWMA_LEVEL);
 
 				if (!test_bit(ST_LSM6DSVX_HW_FLUSH, &hw->state))
 					/* sync ap timestamp and sensor one */
@@ -302,7 +298,8 @@ static int st_lsm6dsvx_read_fifo(struct st_lsm6dsvx_hw *hw)
 						      hw_ts_old;
 				}
 			} else {
-				iio_dev = st_lsm6dsvx_get_iiodev_from_tag(hw, tag);
+				iio_dev = st_lsm6dsvx_get_iiodev_from_tag(hw,
+									  tag);
 				if (!iio_dev)
 					continue;
 
@@ -314,8 +311,7 @@ static int st_lsm6dsvx_read_fifo(struct st_lsm6dsvx_hw *hw)
 					if (id_f != ST_LSM6DSVX_QVAR_FILTER_X)
 						continue;
 
-					memcpy(iio_buf,
-					       ptr,
+					memcpy(iio_buf, ptr,
 					       ST_LSM6DSVX_QVAR_SAMPLE_SIZE);
 					iio_push_to_buffers_with_timestamp(iio_dev,
 						iio_buf,
@@ -326,12 +322,13 @@ static int st_lsm6dsvx_read_fifo(struct st_lsm6dsvx_hw *hw)
 					if (unlikely(drdymask >= ST_LSM6DSVX_SAMPLE_DISCHARD))
 						continue;
 
-					memcpy(iio_buf, ptr, ST_LSM6DSVX_SAMPLE_SIZE);
+					memcpy(iio_buf, ptr,
+					       ST_LSM6DSVX_SAMPLE_SIZE);
 
 					/* avoid samples in the future */
 					hw->tsample = min_t(s64,
-							    iio_get_time_ns(iio_dev),
-							    hw->tsample);
+						       iio_get_time_ns(iio_dev),
+						       hw->tsample);
 
 					sensor = iio_priv(iio_dev);
 
@@ -340,8 +337,8 @@ static int st_lsm6dsvx_read_fifo(struct st_lsm6dsvx_hw *hw)
 						sensor->dec_counter--;
 					} else {
 						iio_push_to_buffers_with_timestamp(iio_dev,
-							   iio_buf,
-							   hw->tsample);
+								   iio_buf,
+								   hw->tsample);
 						hw->last_fifo_timestamp = hw->tsample;
 						sensor->dec_counter = sensor->decimator;
 					}
@@ -474,8 +471,7 @@ int st_lsm6dsvx_update_fifo(struct iio_dev *iio_dev, bool enable)
 
 #ifdef CONFIG_IIO_ST_LSM6DSVX_QVAR_IN_FIFO
 	case ST_LSM6DSVX_ID_QVAR:
-		err = st_lsm6dsvx_qvar_sensor_set_enable(sensor,
-							 enable);
+		err = st_lsm6dsvx_qvar_sensor_set_enable(sensor, enable);
 		if (err < 0)
 			goto out;
 		break;
@@ -558,11 +554,9 @@ int st_lsm6dsvx_update_fifo(struct iio_dev *iio_dev, bool enable)
 
 	if (enable && hw->fifo_mode == ST_LSM6DSVX_FIFO_BYPASS) {
 		st_lsm6dsvx_reset_hwts(hw);
-		err = st_lsm6dsvx_set_fifo_mode(hw,
-						ST_LSM6DSVX_FIFO_CONT);
+		err = st_lsm6dsvx_set_fifo_mode(hw, ST_LSM6DSVX_FIFO_CONT);
 	} else if (!hw->enable_mask) {
-		err = st_lsm6dsvx_set_fifo_mode(hw,
-					       ST_LSM6DSVX_FIFO_BYPASS);
+		err = st_lsm6dsvx_set_fifo_mode(hw, ST_LSM6DSVX_FIFO_BYPASS);
 	}
 
 out:
@@ -615,8 +609,8 @@ static const struct iio_buffer_setup_ops st_lsm6dsvx_fifo_ops = {
 static int st_lsm6dsvx_fifo_init(struct st_lsm6dsvx_hw *hw)
 {
 	return st_lsm6dsvx_write_with_mask(hw,
-				      ST_LSM6DSVX_REG_FIFO_CTRL4_ADDR,
-				      ST_LSM6DSVX_DEC_TS_BATCH_MASK, 1);
+					   ST_LSM6DSVX_REG_FIFO_CTRL4_ADDR,
+					   ST_LSM6DSVX_DEC_TS_BATCH_MASK, 1);
 }
 
 static const struct iio_trigger_ops st_lsm6dsvx_trigger_ops = {
@@ -651,8 +645,7 @@ int st_lsm6dsvx_buffers_setup(struct st_lsm6dsvx_hw *hw)
 		return -EINVAL;
 	}
 
-	err = st_lsm6dsvx_write_with_mask(hw,
-					  ST_LSM6DSVX_REG_IF_CFG_ADDR,
+	err = st_lsm6dsvx_write_with_mask(hw, ST_LSM6DSVX_REG_IF_CFG_ADDR,
 					  ST_LSM6DSVX_H_LACTIVE_MASK,
 					  irq_active_low);
 	if (err < 0)
@@ -660,9 +653,8 @@ int st_lsm6dsvx_buffers_setup(struct st_lsm6dsvx_hw *hw)
 
 	if (np && of_property_read_bool(np, "drive-open-drain")) {
 		err = st_lsm6dsvx_write_with_mask(hw,
-					    ST_LSM6DSVX_REG_IF_CFG_ADDR,
-					    ST_LSM6DSVX_PP_OD_MASK,
-					    1);
+						  ST_LSM6DSVX_REG_IF_CFG_ADDR,
+						  ST_LSM6DSVX_PP_OD_MASK, 1);
 		if (err < 0)
 			return err;
 

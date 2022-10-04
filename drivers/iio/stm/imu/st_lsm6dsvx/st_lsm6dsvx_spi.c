@@ -43,12 +43,12 @@ static int st_lsm6dsvx_spi_remove(struct spi_device *spi)
 
 static const struct of_device_id st_lsm6dsvx_spi_of_match[] = {
 	{
-		.compatible = "st," ST_LSM6DSV16X_DEV_NAME,
-		.data = (void *)ST_LSM6DSVX_ID,
-	},
-	{
 		.compatible = "st," ST_LSM6DSV_DEV_NAME,
 		.data = (void *)ST_LSM6DSV_ID,
+	},
+	{
+		.compatible = "st," ST_LSM6DSV16X_DEV_NAME,
+		.data = (void *)ST_LSM6DSVX_ID,
 	},
 	{},
 };

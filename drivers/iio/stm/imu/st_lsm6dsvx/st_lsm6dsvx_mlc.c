@@ -114,8 +114,7 @@ st_lsm6dsvx_update_page_bits_locked(struct st_lsm6dsvx_hw *hw,
 }
 
 static int
-st_lsm6dsvx_mlc_enable_sensor(struct st_lsm6dsvx_sensor *sensor,
-			      bool enable)
+st_lsm6dsvx_mlc_enable_sensor(struct st_lsm6dsvx_sensor *sensor, bool enable)
 {
 	struct st_lsm6dsvx_hw *hw = sensor->hw;
 	int i, id, err = 0;
@@ -130,8 +129,8 @@ st_lsm6dsvx_mlc_enable_sensor(struct st_lsm6dsvx_sensor *sensor,
 
 		value = enable ? hw->mlc_config->mlc_int_mask : 0;
 		err = st_lsm6dsvx_write_page_locked(hw,
-					hw->mlc_config->mlc_int_addr,
-					&value, 1);
+						hw->mlc_config->mlc_int_addr,
+						&value, 1);
 		if (err < 0)
 			return err;
 
@@ -155,8 +154,8 @@ st_lsm6dsvx_mlc_enable_sensor(struct st_lsm6dsvx_sensor *sensor,
 
 		value = enable ? hw->mlc_config->fsm_int_mask : 0;
 		err = st_lsm6dsvx_write_page_locked(hw,
-					hw->mlc_config->fsm_int_addr,
-					&value, 1);
+						hw->mlc_config->fsm_int_addr,
+						&value, 1);
 		if (err < 0)
 			return err;
 
@@ -200,8 +199,7 @@ static int
 st_lsm6dsvx_mlc_write_event_config(struct iio_dev *iio_dev,
 				   const struct iio_chan_spec *chan,
 				   enum iio_event_type type,
-				   enum iio_event_direction dir,
-				   int state)
+				   enum iio_event_direction dir, int state)
 {
 	struct st_lsm6dsvx_sensor *sensor = iio_priv(iio_dev);
 
@@ -230,16 +228,18 @@ static int st_lsm6dsvx_verify_mlc_fsm_support(const struct firmware *fw,
 					      struct st_lsm6dsvx_hw *hw)
 {
 	bool stmc_page = false;
-	uint8_t reg, val;
+	u8 reg, val;
 	int i = 0;
 
 	while (i < fw->size) {
 		reg = fw->data[i++];
 		val = fw->data[i++];
 
-		if (reg == 0x01 && val == 0x80) {
+		if (reg == ST_LSM6DSVX_REG_FUNC_CFG_ACCESS_ADDR &&
+		    (val & ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK)) {
 			stmc_page = true;
-		} else if (reg == 0x01 && val == 0x00) {
+		} else if (reg == ST_LSM6DSVX_REG_FUNC_CFG_ACCESS_ADDR &&
+			   (val & ~ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK)) {
 			stmc_page = false;
 		} else if (stmc_page) {
 			switch (reg) {
@@ -275,9 +275,11 @@ static int st_lsm6dsvx_program_mlc(const struct firmware *fw,
 		reg = fw->data[i++];
 		val = fw->data[i++];
 
-		if (reg == 0x01 && val == 0x80) {
+		if (reg == ST_LSM6DSVX_REG_FUNC_CFG_ACCESS_ADDR &&
+		    (val & ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK)) {
 			stmc_page = true;
-		} else if (reg == 0x01 && val == 0x00) {
+		} else if (reg == ST_LSM6DSVX_REG_FUNC_CFG_ACCESS_ADDR &&
+			   (val & ~ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK)) {
 			stmc_page = false;
 		} else if (stmc_page) {
 			switch (reg) {
@@ -349,8 +351,7 @@ static int st_lsm6dsvx_program_mlc(const struct firmware *fw,
 	return fsm_num + mlc_num;
 }
 
-static void st_lsm6dsvx_mlc_update(const struct firmware *fw,
-				   void *context)
+static void st_lsm6dsvx_mlc_update(const struct firmware *fw, void *context)
 {
 	struct st_lsm6dsvx_hw *hw = context;
 	enum st_lsm6dsvx_sensor_id id;
@@ -358,12 +359,14 @@ static void st_lsm6dsvx_mlc_update(const struct firmware *fw,
 
 	if (!fw) {
 		dev_err(hw->dev, "could not get binary firmware\n");
+
 		return;
 	}
 
 	ret = st_lsm6dsvx_verify_mlc_fsm_support(fw, hw);
 	if (ret) {
 		dev_err(hw->dev, "invalid file format for device\n");
+
 		return;
 	}
 
@@ -455,8 +458,7 @@ static int st_lsm6dsvx_mlc_flush_all(struct st_lsm6dsvx_hw *hw)
 }
 
 static ssize_t st_lsm6dsvx_mlc_info(struct device *dev,
-				    struct device_attribute *attr,
-				    char *buf)
+				    struct device_attribute *attr, char *buf)
 {
 	struct st_lsm6dsvx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
 	struct st_lsm6dsvx_hw *hw = sensor->hw;
@@ -517,16 +519,13 @@ static ssize_t st_lsm6dsvx_mlc_odr(struct device *dev,
 			 hw->mlc_config->requested_odr);
 }
 
-static IIO_DEVICE_ATTR(config_info, 0444,
-		       st_lsm6dsvx_mlc_info, NULL, 0);
-static IIO_DEVICE_ATTR(flush_config, 0200,
-		       NULL, st_lsm6dsvx_mlc_flush, 0);
+static IIO_DEVICE_ATTR(config_info, 0444, st_lsm6dsvx_mlc_info, NULL, 0);
+static IIO_DEVICE_ATTR(flush_config, 0200, NULL, st_lsm6dsvx_mlc_flush, 0);
 static IIO_DEVICE_ATTR(loader_version, 0444,
 		       st_lsm6dsvx_mlc_get_version, NULL, 0);
 static IIO_DEVICE_ATTR(load_mlc, 0200,
 		       NULL, st_lsm6dsvx_mlc_upload_firmware, 0);
-static IIO_DEVICE_ATTR(odr, 0444,
-		       st_lsm6dsvx_mlc_odr, NULL, 0);
+static IIO_DEVICE_ATTR(odr, 0444, st_lsm6dsvx_mlc_odr, NULL, 0);
 
 static struct attribute *st_lsm6dsvx_mlc_event_attributes[] = {
 	&iio_dev_attr_config_info.dev_attr.attr,
@@ -549,8 +548,7 @@ static const struct iio_info st_lsm6dsvx_mlc_event_info = {
 };
 
 static ssize_t st_lsm6dsvx_mlc_x_odr(struct device *dev,
-				     struct device_attribute *attr,
-				     char *buf)
+				     struct device_attribute *attr, char *buf)
 {
 	struct st_lsm6dsvx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
 
@@ -558,8 +556,7 @@ static ssize_t st_lsm6dsvx_mlc_x_odr(struct device *dev,
 			 sensor->odr, sensor->uodr);
 }
 
-static IIO_DEVICE_ATTR(odr_x, 0444,
-		       st_lsm6dsvx_mlc_x_odr, NULL, 0);
+static IIO_DEVICE_ATTR(odr_x, 0444, st_lsm6dsvx_mlc_x_odr, NULL, 0);
 
 static struct attribute *st_lsm6dsvx_mlc_x_event_attributes[] = {
 	&iio_dev_attr_odr_x.dev_attr.attr,
@@ -586,8 +583,7 @@ st_lsm6dsvx_mlc_alloc_iio_dev(struct st_lsm6dsvx_hw *hw,
 
 	/* devm management only for ST_LSM6DSVX_ID_MLC */
 	if (id == ST_LSM6DSVX_ID_MLC) {
-		iio_dev = devm_iio_device_alloc(hw->dev,
-						sizeof(*sensor));
+		iio_dev = devm_iio_device_alloc(hw->dev, sizeof(*sensor));
 	} else {
 #if KERNEL_VERSION(5, 9, 0) <= LINUX_VERSION_CODE
 		iio_dev = iio_device_alloc(NULL, sizeof(*sensor));
@@ -638,8 +634,7 @@ st_lsm6dsvx_mlc_alloc_iio_dev(struct st_lsm6dsvx_hw *hw,
 			ST_LSM6DSVX_EVENT_CHANNEL(IIO_ACTIVITY, thr),
 		};
 
-		channels = kzalloc(sizeof(st_lsm6dsvx_mlc_x_ch),
-				   GFP_KERNEL);
+		channels = kzalloc(sizeof(st_lsm6dsvx_mlc_x_ch), GFP_KERNEL);
 		if (!channels)
 			return NULL;
 
@@ -674,8 +669,7 @@ st_lsm6dsvx_mlc_alloc_iio_dev(struct st_lsm6dsvx_hw *hw,
 			ST_LSM6DSVX_EVENT_CHANNEL(IIO_ACTIVITY, thr),
 		};
 
-		channels = kzalloc(sizeof(st_lsm6dsvx_fsm_x_ch),
-				   GFP_KERNEL);
+		channels = kzalloc(sizeof(st_lsm6dsvx_fsm_x_ch), GFP_KERNEL);
 		if (!channels)
 			return NULL;
 
@@ -718,14 +712,13 @@ int st_lsm6dsvx_mlc_check_status(struct st_lsm6dsvx_hw *hw)
 
 	if (hw->mlc_config->status & ST_LSM6DSVX_MLC_ENABLED) {
 		err = st_lsm6dsvx_read_locked(hw,
-			       ST_LSM6DSVX_REG_MLC_STATUS_MAINPAGE_ADDR,
-			       (void *)&mlc_status, 1);
+				       ST_LSM6DSVX_REG_MLC_STATUS_MAINPAGE_ADDR,
+				       (void *)&mlc_status, 1);
 		if (err)
 			return err;
 
 		if (mlc_status) {
-			for (i = 0; i < ST_LSM6DSVX_MLC_MAX_NUMBER;
-			     i++) {
+			for (i = 0; i < ST_LSM6DSVX_MLC_MAX_NUMBER; i++) {
 				id = st_lsm6dsvx_mlc_sensor_list[i];
 				if (!(hw->enable_mask & BIT(id)))
 					continue;
@@ -740,8 +733,8 @@ int st_lsm6dsvx_mlc_check_status(struct st_lsm6dsvx_hw *hw)
 
 					sensor = iio_priv(iio_dev);
 					err = st_lsm6dsvx_read_page_locked(hw,
-						sensor->outreg_addr,
-						(void *)&event[i], 1);
+							  sensor->outreg_addr,
+							  (void *)&event[i], 1);
 					if (err)
 						return err;
 
@@ -764,8 +757,7 @@ int st_lsm6dsvx_mlc_check_status(struct st_lsm6dsvx_hw *hw)
 			return err;
 
 		if (fsm_status) {
-			for (i = 0; i < ST_LSM6DSVX_FSM_MAX_NUMBER;
-			     i++) {
+			for (i = 0; i < ST_LSM6DSVX_FSM_MAX_NUMBER; i++) {
 				id = st_lsm6dsvx_fsm_sensor_list[i];
 				if (!(hw->enable_mask & BIT(id)))
 					continue;
@@ -780,8 +772,8 @@ int st_lsm6dsvx_mlc_check_status(struct st_lsm6dsvx_hw *hw)
 
 					sensor = iio_priv(iio_dev);
 					err = st_lsm6dsvx_read_page_locked(hw,
-						sensor->outreg_addr,
-						(void *)&event[i], 1);
+							  sensor->outreg_addr,
+							  (void *)&event[i], 1);
 					if (err)
 						return err;
 

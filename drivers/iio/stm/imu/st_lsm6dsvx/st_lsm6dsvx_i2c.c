@@ -34,8 +34,7 @@ static int st_lsm6dsvx_i2c_probe(struct i2c_client *client,
 		return PTR_ERR(regmap);
 	}
 
-	return st_lsm6dsvx_probe(&client->dev, client->irq,
-			       hw_id, regmap);
+	return st_lsm6dsvx_probe(&client->dev, client->irq, hw_id, regmap);
 }
 
 static int st_lsm6dsvx_i2c_remove(struct i2c_client *client)

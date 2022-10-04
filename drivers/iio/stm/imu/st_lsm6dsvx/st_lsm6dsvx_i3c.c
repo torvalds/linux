@@ -36,11 +36,11 @@ static int st_lsm6dsvx_i3c_probe(struct i3c_device *i3cdev)
 		dev_err(&i3cdev->dev,
 			"Failed to register i3c regmap %d\n",
 			(int)PTR_ERR(regmap));
+
 		return PTR_ERR(regmap);
 	}
 
-	return st_lsm6dsvx_probe(&i3cdev->dev, 0, (uintptr_t)id->data,
-				 regmap);
+	return st_lsm6dsvx_probe(&i3cdev->dev, 0, (uintptr_t)id->data, regmap);
 }
 
 static struct i3c_driver st_lsm6dsvx_driver = {

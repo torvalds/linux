@@ -110,12 +110,12 @@ st_lsm6dsvx_odr_table[] = {
 	},
 	[ST_LSM6DSVX_ID_6X_GAME] = {
 		.size = 6,
-		.odr_avl[0] = {  15, 0, 0, 0x00 },
-		.odr_avl[1] = {  30, 0, 0, 0x01 },
-		.odr_avl[2] = {  60, 0, 0, 0x02 },
-		.odr_avl[3] = { 120, 0, 0, 0x03 },
-		.odr_avl[4] = { 240, 0, 0, 0x04 },
-		.odr_avl[5] = { 480, 0, 0, 0x05 },
+		.odr_avl[0] = {  15, 0, 0x00, 0x00 },
+		.odr_avl[1] = {  30, 0, 0x00, 0x01 },
+		.odr_avl[2] = {  60, 0, 0x00, 0x02 },
+		.odr_avl[3] = { 120, 0, 0x00, 0x03 },
+		.odr_avl[4] = { 240, 0, 0x00, 0x04 },
+		.odr_avl[5] = { 480, 0, 0x00, 0x05 },
 	},
 };
 
@@ -315,11 +315,13 @@ static int st_lsm6dsvx_check_whoami(struct st_lsm6dsvx_hw *hw, int id)
 	err = regmap_read(hw->regmap, ST_LSM6DSVX_REG_WHOAMI_ADDR, &data);
 	if (err < 0) {
 		dev_err(hw->dev, "failed to read whoami register\n");
+
 		return err;
 	}
 
 	if (data != ST_LSM6DSVX_WHOAMI_VAL) {
 		dev_err(hw->dev, "unsupported whoami [%02x]\n", data);
+
 		return -ENODEV;
 	}
 
@@ -339,6 +341,7 @@ static int st_lsm6dsvx_get_odr_calibration(struct st_lsm6dsvx_hw *hw)
 	if (err < 0) {
 		dev_err(hw->dev, "failed to read %d register\n",
 			ST_LSM6DSVX_REG_INTERNAL_FREQ_FINE);
+
 		return err;
 	}
 
@@ -351,8 +354,8 @@ static int st_lsm6dsvx_get_odr_calibration(struct st_lsm6dsvx_hw *hw)
 	return 0;
 }
 
-static int st_lsm6dsvx_set_full_scale(struct st_lsm6dsvx_sensor *sensor,
-				      u32 gain)
+static int
+st_lsm6dsvx_set_full_scale(struct st_lsm6dsvx_sensor *sensor, u32 gain)
 {
 	enum st_lsm6dsvx_sensor_id id = sensor->id;
 	int i, err;
@@ -388,8 +391,8 @@ static int st_lsm6dsvx_get_odr_val(enum st_lsm6dsvx_sensor_id id,
 
 	for (i = 0; i < st_lsm6dsvx_odr_table[id].size; i++) {
 		sensor_odr = ST_LSM6DSVX_ODR_EXPAND(
-					st_lsm6dsvx_odr_table[id].odr_avl[i].hz,
-					st_lsm6dsvx_odr_table[id].odr_avl[i].uhz);
+				      st_lsm6dsvx_odr_table[id].odr_avl[i].hz,
+				      st_lsm6dsvx_odr_table[id].odr_avl[i].uhz);
 		if (sensor_odr >= required_odr)
 			break;
 	}
@@ -417,8 +420,8 @@ int st_lsm6dsvx_get_batch_val(struct st_lsm6dsvx_sensor *sensor,
 
 	for (i = 0; i < st_lsm6dsvx_odr_table[id].size; i++) {
 		sensor_odr = ST_LSM6DSVX_ODR_EXPAND(
-				st_lsm6dsvx_odr_table[id].odr_avl[i].hz,
-				st_lsm6dsvx_odr_table[id].odr_avl[i].uhz);
+				      st_lsm6dsvx_odr_table[id].odr_avl[i].hz,
+				      st_lsm6dsvx_odr_table[id].odr_avl[i].uhz);
 		if (sensor_odr >= required_odr)
 			break;
 	}
@@ -441,23 +444,21 @@ st_lsm6dsvx_set_hw_sensor_odr(struct st_lsm6dsvx_hw *hw,
 
 	if (ST_LSM6DSVX_ODR_EXPAND(req_odr, req_uodr) > 0) {
 		err = st_lsm6dsvx_get_odr_val(id, req_odr, req_uodr,
-					      &req_odr, &req_uodr,
-					      &val);
+					      &req_odr, &req_uodr, &val);
 		if (err < 0)
 			return err;
 	}
 
 	err = st_lsm6dsvx_write_with_mask(hw,
-				     st_lsm6dsvx_odr_table[id].reg.addr,
-				     st_lsm6dsvx_odr_table[id].reg.mask,
-				     val);
+					  st_lsm6dsvx_odr_table[id].reg.addr,
+					  st_lsm6dsvx_odr_table[id].reg.mask,
+					  val);
 
 	return err < 0 ? err : 0;
 }
 
 static u16
-st_lsm6dsvx_check_odr_dependency(struct st_lsm6dsvx_hw *hw, int odr,
-				 int uodr,
+st_lsm6dsvx_check_odr_dependency(struct st_lsm6dsvx_hw *hw, int odr, int uodr,
 				 enum st_lsm6dsvx_sensor_id ref_id)
 {
 	struct st_lsm6dsvx_sensor *ref = iio_priv(hw->iio_devs[ref_id]);
@@ -555,46 +556,38 @@ static int st_lsm6dsvx_set_odr(struct st_lsm6dsvx_sensor *sensor,
 	case ST_LSM6DSVX_ID_MLC_3:
 	case ST_LSM6DSVX_ID_TEMP:
 	case ST_LSM6DSVX_ID_ACC:
-		odr = st_lsm6dsvx_check_acc_odr_dependency(sensor,
-							   req_odr,
+		odr = st_lsm6dsvx_check_acc_odr_dependency(sensor, req_odr,
 							   req_uodr);
 		if (odr != req_odr)
 			return 0;
 
-		return st_lsm6dsvx_set_hw_sensor_odr(hw,
-						     ST_LSM6DSVX_ID_ACC,
+		return st_lsm6dsvx_set_hw_sensor_odr(hw, ST_LSM6DSVX_ID_ACC,
 						     req_odr, req_uodr);
 	case ST_LSM6DSVX_ID_6X_GAME:
-		odr = st_lsm6dsvx_check_acc_odr_dependency(sensor,
-							   req_odr,
+		odr = st_lsm6dsvx_check_acc_odr_dependency(sensor, req_odr,
 							   req_uodr);
 		if (odr != req_odr)
 			return 0;
 
-		err = st_lsm6dsvx_set_hw_sensor_odr(hw,
-						     ST_LSM6DSVX_ID_ACC,
-						     req_odr, req_uodr);
+		err = st_lsm6dsvx_set_hw_sensor_odr(hw, ST_LSM6DSVX_ID_ACC,
+						    req_odr, req_uodr);
 		if (err < 0)
 			return err;
 
-		odr = st_lsm6dsvx_check_gyro_odr_dependency(sensor,
-							    req_odr,
+		odr = st_lsm6dsvx_check_gyro_odr_dependency(sensor, req_odr,
 							    req_uodr);
 		if (odr != req_odr)
 			return 0;
 
-		return st_lsm6dsvx_set_hw_sensor_odr(hw,
-						    ST_LSM6DSVX_ID_GYRO,
-						    req_odr, req_uodr);
+		return st_lsm6dsvx_set_hw_sensor_odr(hw, ST_LSM6DSVX_ID_GYRO,
+						     req_odr, req_uodr);
 	case ST_LSM6DSVX_ID_GYRO:
-		odr = st_lsm6dsvx_check_gyro_odr_dependency(sensor,
-							    req_odr,
+		odr = st_lsm6dsvx_check_gyro_odr_dependency(sensor, req_odr,
 							    req_uodr);
 		if (odr != req_odr)
 			return 0;
 
-		return st_lsm6dsvx_set_hw_sensor_odr(hw,
-						     ST_LSM6DSVX_ID_GYRO,
+		return st_lsm6dsvx_set_hw_sensor_odr(hw, ST_LSM6DSVX_ID_GYRO,
 						     req_odr, req_uodr);
 	default:
 		break;
@@ -603,8 +596,8 @@ static int st_lsm6dsvx_set_odr(struct st_lsm6dsvx_sensor *sensor,
 	return 0;
 }
 
-int st_lsm6dsvx_sensor_set_enable(struct st_lsm6dsvx_sensor *sensor,
-				  bool enable)
+int
+st_lsm6dsvx_sensor_set_enable(struct st_lsm6dsvx_sensor *sensor, bool enable)
 {
 	int uodr = enable ? sensor->uodr : 0;
 	int odr = enable ? sensor->odr : 0;
@@ -622,23 +615,22 @@ int st_lsm6dsvx_sensor_set_enable(struct st_lsm6dsvx_sensor *sensor,
 	return 0;
 }
 
-int st_lsm6dsvx_sflp_set_enable(struct st_lsm6dsvx_sensor *sensor,
-				bool enable)
+int st_lsm6dsvx_sflp_set_enable(struct st_lsm6dsvx_sensor *sensor, bool enable)
 {
 	struct st_lsm6dsvx_hw *hw = sensor->hw;
 	u8 mask, fifo_mask;
 	int err;
 
-	if (sensor->id == ST_LSM6DSVX_ID_6X_GAME) {
-		fifo_mask = ST_LSM6DSVX_SFLP_GAME_FIFO_EN;
-		mask = ST_LSM6DSVX_SFLP_GAME_EN_MASK;
-	} else {
+	if (sensor->id != ST_LSM6DSVX_ID_6X_GAME)
 		return -EINVAL;
-	}
+
+	fifo_mask = ST_LSM6DSVX_SFLP_GAME_FIFO_EN;
+	mask = ST_LSM6DSVX_SFLP_GAME_EN_MASK;
 
 	mutex_lock(&hw->page_lock);
 	err = st_lsm6dsvx_set_page_access(hw,
-			       ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK, 1);
+					  ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK,
+					  1);
 	if (err < 0)
 		goto unlock;
 
@@ -657,16 +649,16 @@ int st_lsm6dsvx_sflp_set_enable(struct st_lsm6dsvx_sensor *sensor,
 	err = __st_lsm6dsvx_set_sensor_batching_odr(sensor, enable);
 
 reset_page:
-	st_lsm6dsvx_set_page_access(hw,
-				    ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK, 0);
+	st_lsm6dsvx_set_page_access(hw, ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK,
+				    0);
 unlock:
 	mutex_unlock(&hw->page_lock);
 
 	return st_lsm6dsvx_sensor_set_enable(sensor, enable);
 }
 
-static int st_lsm6dsvx_read_oneshot(struct st_lsm6dsvx_sensor *sensor,
-				    u8 addr, int *val)
+static int
+st_lsm6dsvx_read_oneshot(struct st_lsm6dsvx_sensor *sensor, u8 addr, int *val)
 {
 	int err, delay;
 	__le16 data;
@@ -678,8 +670,8 @@ static int st_lsm6dsvx_read_oneshot(struct st_lsm6dsvx_sensor *sensor,
 	delay = 1000000 / sensor->odr;
 	usleep_range(delay, 2 * delay);
 
-	err = st_lsm6dsvx_read_locked(sensor->hw, addr, (u8 *)&data,
-				      sizeof(data));
+	err = st_lsm6dsvx_read_locked(sensor->hw, addr,
+				      (u8 *)&data, sizeof(data));
 	if (err < 0)
 		return err;
 
@@ -725,8 +717,7 @@ static int st_lsm6dsvx_read_raw(struct iio_dev *iio_dev,
 		if (ret)
 			return ret;
 
-		ret = st_lsm6dsvx_read_oneshot(sensor, ch->address,
-					       val);
+		ret = st_lsm6dsvx_read_oneshot(sensor, ch->address, val);
 		iio_device_release_direct_mode(iio_dev);
 		break;
 	case IIO_CHAN_INFO_SAMP_FREQ:
@@ -839,8 +830,8 @@ st_lsm6dsvx_sysfs_sampling_frequency_avail(struct device *dev,
 			continue;
 
 		len += scnprintf(buf + len, PAGE_SIZE - len, "%d.%06d ",
-			      st_lsm6dsvx_odr_table[id].odr_avl[i].hz,
-			      st_lsm6dsvx_odr_table[id].odr_avl[i].uhz);
+				 st_lsm6dsvx_odr_table[id].odr_avl[i].hz,
+				 st_lsm6dsvx_odr_table[id].odr_avl[i].uhz);
 	}
 
 	buf[len - 1] = '\n';
@@ -849,8 +840,7 @@ st_lsm6dsvx_sysfs_sampling_frequency_avail(struct device *dev,
 }
 
 static ssize_t
-st_lsm6dsvx_sysfs_scale_avail(struct device *dev,
-			      struct device_attribute *attr,
+st_lsm6dsvx_sysfs_scale_avail(struct device *dev, struct device_attribute *attr,
 			      char *buf)
 {
 	struct st_lsm6dsvx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
@@ -866,8 +856,9 @@ st_lsm6dsvx_sysfs_scale_avail(struct device *dev,
 }
 
 static __maybe_unused int st_lsm6dsvx_reg_access(struct iio_dev *iio_dev,
-				 unsigned int reg, unsigned int writeval,
-				 unsigned int *readval)
+						 unsigned int reg,
+						 unsigned int writeval,
+						 unsigned int *readval)
 {
 	struct st_lsm6dsvx_sensor *sensor = iio_priv(iio_dev);
 	int ret;
@@ -1132,7 +1123,8 @@ selftest_failure:
 }
 
 static ssize_t st_lsm6dsvx_sysfs_start_selftest(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t size)
+						struct device_attribute *attr,
+						const char *buf, size_t size)
 {
 	struct iio_dev *iio_dev = dev_get_drvdata(dev);
 	struct st_lsm6dsvx_sensor *sensor = iio_priv(iio_dev);
@@ -1324,8 +1316,7 @@ static int st_lsm6dsvx_reset_device(struct st_lsm6dsvx_hw *hw)
 	int err;
 
 	/* sw reset */
-	err = st_lsm6dsvx_write_with_mask(hw,
-					  ST_LSM6DSVX_REG_CTRL3_ADDR,
+	err = st_lsm6dsvx_write_with_mask(hw, ST_LSM6DSVX_REG_CTRL3_ADDR,
 					  ST_LSM6DSVX_SW_RESET_MASK,
 					  1);
 	if (err < 0)
@@ -1334,8 +1325,7 @@ static int st_lsm6dsvx_reset_device(struct st_lsm6dsvx_hw *hw)
 	msleep(10);
 
 	/* boot */
-	err = st_lsm6dsvx_write_with_mask(hw,
-					  ST_LSM6DSVX_REG_CTRL3_ADDR,
+	err = st_lsm6dsvx_write_with_mask(hw, ST_LSM6DSVX_REG_CTRL3_ADDR,
 					  ST_LSM6DSVX_BOOT_MASK, 1);
 
 	msleep(50);
@@ -1349,23 +1339,21 @@ static int st_lsm6dsvx_init_device(struct st_lsm6dsvx_hw *hw)
 	int err;
 
 	/* latch interrupts */
-	err = st_lsm6dsvx_write_with_mask(hw,
-					  ST_LSM6DSVX_REG_TAP_CFG0_ADDR,
+	err = st_lsm6dsvx_write_with_mask(hw, ST_LSM6DSVX_REG_TAP_CFG0_ADDR,
 					  ST_LSM6DSVX_LIR_MASK, 1);
 	if (err < 0)
 		return err;
 
 	/* enable Block Data Update */
-	err = st_lsm6dsvx_write_with_mask(hw,
-					  ST_LSM6DSVX_REG_CTRL3_ADDR,
+	err = st_lsm6dsvx_write_with_mask(hw, ST_LSM6DSVX_REG_CTRL3_ADDR,
 					  ST_LSM6DSVX_BDU_MASK, 1);
 	if (err < 0)
 		return err;
 
 	/* init timestamp engine */
 	err = st_lsm6dsvx_write_with_mask(hw,
-				  ST_LSM6DSVX_REG_FUNCTIONS_ENABLE_ADDR,
-				  ST_LSM6DSVX_TIMESTAMP_EN_MASK, 1);
+					  ST_LSM6DSVX_REG_FUNCTIONS_ENABLE_ADDR,
+					  ST_LSM6DSVX_TIMESTAMP_EN_MASK, 1);
 	if (err < 0)
 		return err;
 
@@ -1374,16 +1362,14 @@ static int st_lsm6dsvx_init_device(struct st_lsm6dsvx_hw *hw)
 		return err;
 
 	/* enable DRDY MASK for filters settling time */
-	err = st_lsm6dsvx_write_with_mask(hw,
-					  ST_LSM6DSVX_REG_CTRL4_ADDR,
+	err = st_lsm6dsvx_write_with_mask(hw, ST_LSM6DSVX_REG_CTRL4_ADDR,
 					  ST_LSM6DSVX_DRDY_MASK, 1);
 	if (err < 0)
 		return err;
 
 	/* enable FIFO watermak interrupt */
 	return st_lsm6dsvx_write_with_mask(hw, drdy_reg,
-					   ST_LSM6DSVX_INT_FIFO_TH_MASK,
-					   1);
+					   ST_LSM6DSVX_INT_FIFO_TH_MASK, 1);
 }
 
 static struct iio_dev *
@@ -1500,8 +1486,7 @@ static int st_lsm6dsvx_power_enable(struct st_lsm6dsvx_hw *hw)
 	hw->vdd_supply = devm_regulator_get(hw->dev, "vdd");
 	if (IS_ERR(hw->vdd_supply)) {
 		if (PTR_ERR(hw->vdd_supply) != -EPROBE_DEFER)
-			dev_err(hw->dev,
-				"Failed to get vdd regulator %d\n",
+			dev_err(hw->dev, "Failed to get vdd regulator %d\n",
 				(int)PTR_ERR(hw->vdd_supply));
 
 		return PTR_ERR(hw->vdd_supply);
@@ -1510,8 +1495,7 @@ static int st_lsm6dsvx_power_enable(struct st_lsm6dsvx_hw *hw)
 	hw->vddio_supply = devm_regulator_get(hw->dev, "vddio");
 	if (IS_ERR(hw->vddio_supply)) {
 		if (PTR_ERR(hw->vddio_supply) != -EPROBE_DEFER)
-			dev_err(hw->dev,
-				"Failed to get vddio regulator %d\n",
+			dev_err(hw->dev, "Failed to get vddio regulator %d\n",
 				(int)PTR_ERR(hw->vddio_supply));
 
 		return PTR_ERR(hw->vddio_supply);
@@ -1519,14 +1503,15 @@ static int st_lsm6dsvx_power_enable(struct st_lsm6dsvx_hw *hw)
 
 	err = regulator_enable(hw->vdd_supply);
 	if (err) {
-		dev_err(hw->dev,
-			"Failed to enable vdd regulator: %d\n", err);
+		dev_err(hw->dev, "Failed to enable vdd regulator: %d\n", err);
+
 		return err;
 	}
 
 	err = regulator_enable(hw->vddio_supply);
 	if (err) {
 		regulator_disable(hw->vdd_supply);
+
 		return err;
 	}
 
@@ -1535,8 +1520,8 @@ static int st_lsm6dsvx_power_enable(struct st_lsm6dsvx_hw *hw)
 				       hw);
 	if (err) {
 		dev_err(hw->dev,
-			"Failed to setup regulator cleanup action %d\n",
-			err);
+			"Failed to setup regulator cleanup action %d\n", err);
+
 		return err;
 	}
 
@@ -1569,9 +1554,8 @@ int st_lsm6dsvx_probe(struct device *dev, int irq, int hw_id,
 
 	/* select register bank zero */
 	err = st_lsm6dsvx_set_page_access(hw,
-				  ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK |
-				  ST_LSM6DSVX_SHUB_REG_ACCESS_MASK,
-				  0);
+					  ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK |
+					  ST_LSM6DSVX_SHUB_REG_ACCESS_MASK, 0);
 	if (err < 0)
 		return err;
 
@@ -1730,8 +1714,7 @@ static int __maybe_unused st_lsm6dsvx_resume(struct device *dev)
 		if (!(hw->enable_mask & BIT(sensor->id)))
 			continue;
 
-		err = st_lsm6dsvx_set_odr(sensor, sensor->odr,
-					  sensor->uodr);
+		err = st_lsm6dsvx_set_odr(sensor, sensor->odr, sensor->uodr);
 		if (err < 0)
 			return err;
 	}

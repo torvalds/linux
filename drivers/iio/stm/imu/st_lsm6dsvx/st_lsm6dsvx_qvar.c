@@ -71,16 +71,13 @@ static int st_lsm6dsvx_qvar_init(struct st_lsm6dsvx_hw *hw)
 	int err;
 
 	mutex_lock(&hw->page_lock);
-	st_lsm6dsvx_set_page_access(hw,
-				   ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK,
-				   1);
+	st_lsm6dsvx_set_page_access(hw, ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK, 1);
 	for (i = 0; i < ARRAY_SIZE(qvar_fifo_config); i++) {
 		err = regmap_write(hw->regmap, qvar_fifo_config[i][0],
 				   qvar_fifo_config[i][1]);
 		if (err < 0) {
 			st_lsm6dsvx_set_page_access(hw,
-				   ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK,
-				   0);
+				   ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK, 0);
 			mutex_unlock(&hw->page_lock);
 			dev_err(hw->dev, "failed to configure qvar\n");
 
@@ -88,16 +85,14 @@ static int st_lsm6dsvx_qvar_init(struct st_lsm6dsvx_hw *hw)
 		}
 	}
 	st_lsm6dsvx_set_page_access(hw,
-				   ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK,
-				   0);
+				   ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK, 0);
 	mutex_unlock(&hw->page_lock);
 #endif /* CONFIG_IIO_ST_LSM6DSVX_QVAR_IN_FIFO */
 
 	/* impedance selection */
 	return st_lsm6dsvx_write_with_mask(hw,
 					   ST_LSM6DSVX_REG_CTRL7_ADDR,
-					   ST_LSM6DSVX_AH_QVAR_C_ZIN_MASK,
-					   3);
+					   ST_LSM6DSVX_AH_QVAR_C_ZIN_MASK, 3);
 }
 
 static ssize_t
@@ -113,8 +108,8 @@ st_lsm6dsvx_sysfs_qvar_sampling_freq_avail(struct device *dev,
 			continue;
 
 		len += scnprintf(buf + len, PAGE_SIZE - len, "%d.%06d ",
-			     st_lsm6dsvx_qvar_odr_table.odr_avl[i].hz,
-			     st_lsm6dsvx_qvar_odr_table.odr_avl[i].uhz);
+				 st_lsm6dsvx_qvar_odr_table.odr_avl[i].hz,
+				 st_lsm6dsvx_qvar_odr_table.odr_avl[i].uhz);
 	}
 
 	buf[len - 1] = '\n';
@@ -201,7 +196,7 @@ static int st_lsm6dsvx_allocate_workqueue(struct st_lsm6dsvx_hw *hw)
 {
 	if (!hw->qvar_workqueue)
 		hw->qvar_workqueue =
-		       create_workqueue(hw->iio_devs[ST_LSM6DSVX_ID_QVAR]->name);
+		      create_workqueue(hw->iio_devs[ST_LSM6DSVX_ID_QVAR]->name);
 
 	if (!hw->qvar_workqueue)
 		return -ENOMEM;
@@ -240,8 +235,7 @@ st_lsm6dsvx_get_qvar_poll_data(struct st_lsm6dsvx_sensor *sensor,
 			       u8 *data)
 {
 	return st_lsm6dsvx_read_locked(sensor->hw,
-				       ST_LSM6DSVX_REG_OUT_QVAR_ADDR,
-				       data, 2);
+				       ST_LSM6DSVX_REG_OUT_QVAR_ADDR, data, 2);
 }
 
 static void
@@ -254,8 +248,7 @@ st_lsm6dsvx_qvar_poll_function_work(struct work_struct *iio_work)
 	sensor = container_of((struct work_struct *)iio_work,
 			      struct st_lsm6dsvx_sensor, iio_work);
 
-	hrtimer_start(&sensor->hr_timer, sensor->oldktime,
-		      HRTIMER_MODE_REL);
+	hrtimer_start(&sensor->hr_timer, sensor->oldktime, HRTIMER_MODE_REL);
 	err = st_lsm6dsvx_get_qvar_poll_data(sensor, data);
 	if (err < 0)
 		return;
@@ -290,8 +283,7 @@ static int st_lsm6dsvx_qvar_buffer(struct st_lsm6dsvx_hw *hw)
 	if (!buffer)
 		return -ENOMEM;
 
-	iio_device_attach_buffer(hw->iio_devs[ST_LSM6DSVX_ID_QVAR],
-				 buffer);
+	iio_device_attach_buffer(hw->iio_devs[ST_LSM6DSVX_ID_QVAR], buffer);
 	hw->iio_devs[ST_LSM6DSVX_ID_QVAR]->modes |= INDIO_BUFFER_SOFTWARE;
 	hw->iio_devs[ST_LSM6DSVX_ID_QVAR]->setup_ops = &st_lsm6dsvx_qvar_ops;
 
@@ -331,13 +323,11 @@ st_lsm6dsvx_alloc_qvar_iiodev(struct st_lsm6dsvx_hw *hw)
 
 #ifndef CONFIG_IIO_ST_LSM6DSVX_QVAR_IN_FIFO
 	/* configure hrtimer */
-	hrtimer_init(&sensor->hr_timer, CLOCK_MONOTONIC,
-		     HRTIMER_MODE_REL);
+	hrtimer_init(&sensor->hr_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	sensor->hr_timer.function = &st_lsm6dsvx_qvar_poll_function_read;
 
 	sensor->oldktime = ktime_set(0, 1000000000 / sensor->odr);
-	INIT_WORK(&sensor->iio_work,
-		  st_lsm6dsvx_qvar_poll_function_work);
+	INIT_WORK(&sensor->iio_work, st_lsm6dsvx_qvar_poll_function_work);
 #endif /* CONFIG_IIO_ST_LSM6DSVX_QVAR_IN_FIFO */
 
 	return iio_dev;

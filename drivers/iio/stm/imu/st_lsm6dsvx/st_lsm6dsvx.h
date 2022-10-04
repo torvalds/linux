@@ -30,25 +30,25 @@
 
 /* register map */
 #define ST_LSM6DSVX_REG_FUNC_CFG_ACCESS_ADDR	0x01
-#define ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK	BIT(7)
 #define ST_LSM6DSVX_SHUB_REG_ACCESS_MASK	BIT(6)
+#define ST_LSM6DSVX_EMB_FUNC_REG_ACCESS_MASK	BIT(7)
 
 #define ST_LSM6DSVX_REG_IF_CFG_ADDR		0x03
-#define ST_LSM6DSVX_SHUB_PU_EN_MASK		BIT(6)
-#define ST_LSM6DSVX_H_LACTIVE_MASK		BIT(4)
 #define ST_LSM6DSVX_PP_OD_MASK			BIT(3)
+#define ST_LSM6DSVX_H_LACTIVE_MASK		BIT(4)
+#define ST_LSM6DSVX_SHUB_PU_EN_MASK		BIT(6)
 
 #define ST_LSM6DSVX_REG_FIFO_CTRL1_ADDR		0x07
 #define ST_LSM6DSVX_WTM_MASK			GENMASK(7, 0)
 
 #define ST_LSM6DSVX_REG_FIFO_CTRL3_ADDR		0x09
-#define ST_LSM6DSVX_BDR_GY_MASK			GENMASK(7, 4)
 #define ST_LSM6DSVX_BDR_XL_MASK			GENMASK(3, 0)
+#define ST_LSM6DSVX_BDR_GY_MASK			GENMASK(7, 4)
 
 #define ST_LSM6DSVX_REG_FIFO_CTRL4_ADDR		0x0a
-#define ST_LSM6DSVX_DEC_TS_BATCH_MASK		GENMASK(7, 6)
-#define ST_LSM6DSVX_ODR_T_BATCH_MASK		GENMASK(5, 4)
 #define ST_LSM6DSVX_FIFO_MODE_MASK		GENMASK(2, 0)
+#define ST_LSM6DSVX_ODR_T_BATCH_MASK		GENMASK(5, 4)
+#define ST_LSM6DSVX_DEC_TS_BATCH_MASK		GENMASK(7, 6)
 
 #define ST_LSM6DSVX_REG_INT1_CTRL_ADDR		0x0d
 #define ST_LSM6DSVX_REG_INT2_CTRL_ADDR		0x0e
@@ -61,9 +61,9 @@
 #define ST_LSM6DSVX_REG_CTRL2_ADDR		0x11
 
 #define ST_LSM6DSVX_REG_CTRL3_ADDR		0x12
-#define ST_LSM6DSVX_BOOT_MASK			BIT(7)
-#define ST_LSM6DSVX_BDU_MASK			BIT(6)
 #define ST_LSM6DSVX_SW_RESET_MASK		BIT(0)
+#define ST_LSM6DSVX_BDU_MASK			BIT(6)
+#define ST_LSM6DSVX_BOOT_MASK			BIT(7)
 
 #define ST_LSM6DSVX_REG_CTRL4_ADDR		0x13
 #define ST_LSM6DSVX_DRDY_MASK			BIT(3)
@@ -71,22 +71,22 @@
 #define ST_LSM6DSVX_REG_CTRL6_ADDR		0x15
 
 #define ST_LSM6DSVX_REG_CTRL7_ADDR		0x16
-#define ST_LSM6DSVX_AH_QVAR_EN_MASK		BIT(7)
 #define ST_LSM6DSVX_AH_QVAR_C_ZIN_MASK		GENMASK(5, 4)
+#define ST_LSM6DSVX_AH_QVAR_EN_MASK		BIT(7)
 
 #define ST_LSM6DSVX_REG_CTRL8_ADDR		0x17
 
 #define ST_LSM6DSVX_REG_CTRL10_ADDR		0x19
-#define ST_LSM6DSVX_ST_G_MASK			GENMASK(3, 2)
 #define ST_LSM6DSVX_ST_XL_MASK			GENMASK(1, 0)
+#define ST_LSM6DSVX_ST_G_MASK			GENMASK(3, 2)
 
 #define ST_LSM6DSVX_REG_FIFO_STATUS1_ADDR	0x1b
 #define ST_LSM6DSVX_FIFO_DIFF_MASK		GENMASK(8, 0)
 
 #define ST_LSM6DSVX_REG_STATUS_REG_ADDR		0x1e
-#define ST_LSM6DSVX_TDA_MASK			BIT(2)
-#define ST_LSM6DSVX_GDA_MASK			BIT(1)
 #define ST_LSM6DSVX_XLDA_MASK			BIT(0)
+#define ST_LSM6DSVX_GDA_MASK			BIT(1)
+#define ST_LSM6DSVX_TDA_MASK			BIT(2)
 
 #define ST_LSM6DSVX_REG_OUT_TEMP_L_ADDR		0x20
 
@@ -99,6 +99,8 @@
 
 #define ST_LSM6DSVX_REG_OUT_QVAR_ADDR		0x3a
 
+#define ST_LSM6DSVX_REG_TIMESTAMP2_ADDR		0x42
+
 #define ST_LSM6DSVX_REG_FSM_STATUS_MAINPAGE_ADDR	0x4a
 #define ST_LSM6DSVX_REG_MLC_STATUS_MAINPAGE_ADDR	0x4b
 
@@ -110,8 +112,6 @@
 #define ST_LSM6DSVX_REG_TAP_CFG0_ADDR		0x56
 #define ST_LSM6DSVX_LIR_MASK			BIT(0)
 
-#define ST_LSM6DSVX_REG_TIMESTAMP2_ADDR		0x42
-
 #define ST_LSM6DSVX_REG_FIFO_DATA_OUT_TAG_ADDR	0x78
 
 /* embedded function registers */
@@ -121,8 +121,8 @@
 #define ST_LSM6DSVX_SFLP_GAME_EN_MASK		BIT(1)
 
 #define ST_LSM6DSVX_REG_EMB_FUNC_EN_B_ADDR	0x05
-#define ST_LSM6DSVX_MLC_EN_MASK			BIT(4)
 #define ST_LSM6DSVX_FSM_EN_MASK			BIT(0)
+#define ST_LSM6DSVX_MLC_EN_MASK			BIT(4)
 
 #define ST_LSM6DSVX_REG_PAGE_ADDRESS_ADDR	0x08
 #define ST_LSM6DSVX_REG_PAGE_VALUE_ADDR		0x09
@@ -138,9 +138,9 @@
 #define ST_LSM6DSVX_REG_PAGE_RW_ADDR		0x17
 
 #define ST_LSM6DSVX_REG_EMB_FUNC_FIFO_EN_A_ADDR	0x44
-#define ST_LSM6DSVX_SFLP_GBIAS_FIFO_EN_MASK	BIT(5)
-#define ST_LSM6DSVX_SFLP_GRAVITY_FIFO_EN	BIT(4)
 #define ST_LSM6DSVX_SFLP_GAME_FIFO_EN		BIT(1)
+#define ST_LSM6DSVX_SFLP_GRAVITY_FIFO_EN	BIT(4)
+#define ST_LSM6DSVX_SFLP_GBIAS_FIFO_EN_MASK	BIT(5)
 
 #define ST_LSM6DSVX_REG_FSM_ENABLE_ADDR		0x46
 
@@ -159,8 +159,8 @@
 #define ST_LSM6DSVX_SFLP_GAME_INIT_MASK		BIT(1)
 
 #define ST_LSM6DSVX_REG_EMB_FUNC_INIT_B_ADDR	0x67
-#define ST_LSM6DSVX_MLC_INIT_MASK		BIT(4)
 #define ST_LSM6DSVX_FSM_INIT_MASK		BIT(0)
+#define ST_LSM6DSVX_MLC_INIT_MASK		BIT(4)
 
 #define ST_LSM6DSVX_REG_MLC1_SRC_ADDR		0x70
 
@@ -168,14 +168,14 @@
 #define ST_LSM6DSVX_REG_SENSOR_HUB_1_ADDR	0x02
 
 #define ST_LSM6DSVX_REG_MASTER_CONFIG_ADDR	0x14
-#define ST_LSM6DSVX_WRITE_ONCE_MASK		BIT(6)
 #define ST_LSM6DSVX_MASTER_ON_MASK		BIT(2)
+#define ST_LSM6DSVX_WRITE_ONCE_MASK		BIT(6)
 
 #define ST_LSM6DSVX_REG_SLV0_ADDR		0x15
 
 #define ST_LSM6DSVX_REG_SLV0_CONFIG_ADDR	0x17
-#define ST_LSM6DSVX_SHUB_ODR_MASK		GENMASK(7, 5)
 #define ST_LSM6DSVX_REG_SHUB_ODR_120HZ_VAL	0x04
+#define ST_LSM6DSVX_SHUB_ODR_MASK		GENMASK(7, 5)
 #define ST_LSM6DSVX_REG_BATCH_EXT_SENS_EN_MASK	BIT(3)
 
 #define ST_LSM6DSVX_REG_SLV1_ADDR		0x18
@@ -394,93 +394,87 @@ enum st_lsm6dsvx_sensor_id {
 	ST_LSM6DSVX_ID_MAX,
 };
 
-static const enum st_lsm6dsvx_sensor_id
-st_lsm6dsvx_main_sensor_list[] = {
+static const enum st_lsm6dsvx_sensor_id st_lsm6dsvx_main_sensor_list[] = {
 	[0] = ST_LSM6DSVX_ID_GYRO,
 	[1] = ST_LSM6DSVX_ID_ACC,
 	[2] = ST_LSM6DSVX_ID_6X_GAME,
 	[3] = ST_LSM6DSVX_ID_TEMP,
 };
 
-static const enum st_lsm6dsvx_sensor_id
-st_lsm6dsvx_gyro_dep_sensor_list[] = {
-	 [0] = ST_LSM6DSVX_ID_GYRO,
-	 [1] = ST_LSM6DSVX_ID_6X_GAME,
-	 [2] = ST_LSM6DSVX_ID_EXT0,
-	 [3] = ST_LSM6DSVX_ID_EXT1,
-	 [4] = ST_LSM6DSVX_ID_MLC,
-	 [5] = ST_LSM6DSVX_ID_MLC_0,
-	 [6] = ST_LSM6DSVX_ID_MLC_1,
-	 [7] = ST_LSM6DSVX_ID_MLC_2,
-	 [8] = ST_LSM6DSVX_ID_MLC_3,
-	 [9] = ST_LSM6DSVX_ID_FSM_0,
-	 [10] = ST_LSM6DSVX_ID_FSM_1,
-	 [11] = ST_LSM6DSVX_ID_FSM_2,
-	 [12] = ST_LSM6DSVX_ID_FSM_3,
-	 [13] = ST_LSM6DSVX_ID_FSM_4,
-	 [14] = ST_LSM6DSVX_ID_FSM_5,
-	 [15] = ST_LSM6DSVX_ID_FSM_6,
-	 [16] = ST_LSM6DSVX_ID_FSM_7,
+static const enum st_lsm6dsvx_sensor_id st_lsm6dsvx_gyro_dep_sensor_list[] = {
+	[0] = ST_LSM6DSVX_ID_GYRO,
+	[1] = ST_LSM6DSVX_ID_6X_GAME,
+	[2] = ST_LSM6DSVX_ID_EXT0,
+	[3] = ST_LSM6DSVX_ID_EXT1,
+	[4] = ST_LSM6DSVX_ID_MLC,
+	[5] = ST_LSM6DSVX_ID_MLC_0,
+	[6] = ST_LSM6DSVX_ID_MLC_1,
+	[7] = ST_LSM6DSVX_ID_MLC_2,
+	[8] = ST_LSM6DSVX_ID_MLC_3,
+	[9] = ST_LSM6DSVX_ID_FSM_0,
+	[10] = ST_LSM6DSVX_ID_FSM_1,
+	[11] = ST_LSM6DSVX_ID_FSM_2,
+	[12] = ST_LSM6DSVX_ID_FSM_3,
+	[13] = ST_LSM6DSVX_ID_FSM_4,
+	[14] = ST_LSM6DSVX_ID_FSM_5,
+	[15] = ST_LSM6DSVX_ID_FSM_6,
+	[16] = ST_LSM6DSVX_ID_FSM_7,
 };
 
-static const enum st_lsm6dsvx_sensor_id
-st_lsm6dsvx_acc_dep_sensor_list[] = {
-	 [0] = ST_LSM6DSVX_ID_ACC,
-	 [1] = ST_LSM6DSVX_ID_TEMP,
-	 [2] = ST_LSM6DSVX_ID_6X_GAME,
-	 [3] = ST_LSM6DSVX_ID_QVAR,
-	 [4] = ST_LSM6DSVX_ID_EXT0,
-	 [5] = ST_LSM6DSVX_ID_EXT1,
-	 [6] = ST_LSM6DSVX_ID_MLC,
-	 [7] = ST_LSM6DSVX_ID_MLC_0,
-	 [8] = ST_LSM6DSVX_ID_MLC_1,
-	 [9] = ST_LSM6DSVX_ID_MLC_2,
-	 [10] = ST_LSM6DSVX_ID_MLC_3,
-	 [11] = ST_LSM6DSVX_ID_FSM_0,
-	 [12] = ST_LSM6DSVX_ID_FSM_1,
-	 [13] = ST_LSM6DSVX_ID_FSM_2,
-	 [14] = ST_LSM6DSVX_ID_FSM_3,
-	 [15] = ST_LSM6DSVX_ID_FSM_4,
-	 [16] = ST_LSM6DSVX_ID_FSM_5,
-	 [17] = ST_LSM6DSVX_ID_FSM_6,
-	 [18] = ST_LSM6DSVX_ID_FSM_7,
+static const enum st_lsm6dsvx_sensor_id st_lsm6dsvx_acc_dep_sensor_list[] = {
+	[0] = ST_LSM6DSVX_ID_ACC,
+	[1] = ST_LSM6DSVX_ID_TEMP,
+	[2] = ST_LSM6DSVX_ID_6X_GAME,
+	[3] = ST_LSM6DSVX_ID_QVAR,
+	[4] = ST_LSM6DSVX_ID_EXT0,
+	[5] = ST_LSM6DSVX_ID_EXT1,
+	[6] = ST_LSM6DSVX_ID_MLC,
+	[7] = ST_LSM6DSVX_ID_MLC_0,
+	[8] = ST_LSM6DSVX_ID_MLC_1,
+	[9] = ST_LSM6DSVX_ID_MLC_2,
+	[10] = ST_LSM6DSVX_ID_MLC_3,
+	[11] = ST_LSM6DSVX_ID_FSM_0,
+	[12] = ST_LSM6DSVX_ID_FSM_1,
+	[13] = ST_LSM6DSVX_ID_FSM_2,
+	[14] = ST_LSM6DSVX_ID_FSM_3,
+	[15] = ST_LSM6DSVX_ID_FSM_4,
+	[16] = ST_LSM6DSVX_ID_FSM_5,
+	[17] = ST_LSM6DSVX_ID_FSM_6,
+	[18] = ST_LSM6DSVX_ID_FSM_7,
 };
 
-static const enum st_lsm6dsvx_sensor_id
-st_lsm6dsvx_buffered_sensor_list[] = {
-	 [0] = ST_LSM6DSVX_ID_GYRO,
-	 [1] = ST_LSM6DSVX_ID_ACC,
-	 [2] = ST_LSM6DSVX_ID_TEMP,
-	 [3] = ST_LSM6DSVX_ID_6X_GAME,
-	 [4] = ST_LSM6DSVX_ID_QVAR,
-	 [5] = ST_LSM6DSVX_ID_EXT0,
-	 [6] = ST_LSM6DSVX_ID_EXT1,
+static const enum st_lsm6dsvx_sensor_id st_lsm6dsvx_buffered_sensor_list[] = {
+	[0] = ST_LSM6DSVX_ID_GYRO,
+	[1] = ST_LSM6DSVX_ID_ACC,
+	[2] = ST_LSM6DSVX_ID_TEMP,
+	[3] = ST_LSM6DSVX_ID_6X_GAME,
+	[4] = ST_LSM6DSVX_ID_QVAR,
+	[5] = ST_LSM6DSVX_ID_EXT0,
+	[6] = ST_LSM6DSVX_ID_EXT1,
 };
 
 /**
  * The mlc only sensor list used by mlc loader
  */
-static const enum st_lsm6dsvx_sensor_id
-st_lsm6dsvx_mlc_sensor_list[] = {
-	 [0] = ST_LSM6DSVX_ID_MLC_0,
-	 [1] = ST_LSM6DSVX_ID_MLC_1,
-	 [2] = ST_LSM6DSVX_ID_MLC_2,
-	 [3] = ST_LSM6DSVX_ID_MLC_3,
+static const enum st_lsm6dsvx_sensor_id st_lsm6dsvx_mlc_sensor_list[] = {
+	[0] = ST_LSM6DSVX_ID_MLC_0,
+	[1] = ST_LSM6DSVX_ID_MLC_1,
+	[2] = ST_LSM6DSVX_ID_MLC_2,
+	[3] = ST_LSM6DSVX_ID_MLC_3,
 };
 
 /**
  * The fsm only sensor list used by mlc loader
  */
-static const enum st_lsm6dsvx_sensor_id
-st_lsm6dsvx_fsm_sensor_list[] = {
-	 [0] = ST_LSM6DSVX_ID_FSM_0,
-	 [1] = ST_LSM6DSVX_ID_FSM_1,
-	 [2] = ST_LSM6DSVX_ID_FSM_2,
-	 [3] = ST_LSM6DSVX_ID_FSM_3,
-	 [4] = ST_LSM6DSVX_ID_FSM_4,
-	 [5] = ST_LSM6DSVX_ID_FSM_5,
-	 [6] = ST_LSM6DSVX_ID_FSM_6,
-	 [7] = ST_LSM6DSVX_ID_FSM_7,
+static const enum st_lsm6dsvx_sensor_id st_lsm6dsvx_fsm_sensor_list[] = {
+	[0] = ST_LSM6DSVX_ID_FSM_0,
+	[1] = ST_LSM6DSVX_ID_FSM_1,
+	[2] = ST_LSM6DSVX_ID_FSM_2,
+	[3] = ST_LSM6DSVX_ID_FSM_3,
+	[4] = ST_LSM6DSVX_ID_FSM_4,
+	[5] = ST_LSM6DSVX_ID_FSM_5,
+	[6] = ST_LSM6DSVX_ID_FSM_6,
+	[7] = ST_LSM6DSVX_ID_FSM_7,
 };
 
 #define ST_LSM6DSVX_ID_ALL_FSM_MLC (BIT(ST_LSM6DSVX_ID_MLC_0)  | \
@@ -727,11 +721,11 @@ static inline bool st_lsm6dsvx_run_mlc_task(struct st_lsm6dsvx_hw *hw)
 static inline bool
 st_lsm6dsvx_is_fifo_enabled(struct st_lsm6dsvx_hw *hw)
 {
-	return hw->enable_mask & (BIT(ST_LSM6DSVX_ID_GYRO)
-				| BIT(ST_LSM6DSVX_ID_ACC)
-				| BIT(ST_LSM6DSVX_ID_EXT0)
-				| BIT(ST_LSM6DSVX_ID_EXT1)
-				| BIT(ST_LSM6DSVX_ID_QVAR));
+	return hw->enable_mask & (BIT(ST_LSM6DSVX_ID_GYRO) |
+				  BIT(ST_LSM6DSVX_ID_ACC)  |
+				  BIT(ST_LSM6DSVX_ID_EXT0) |
+				  BIT(ST_LSM6DSVX_ID_EXT1) |
+				  BIT(ST_LSM6DSVX_ID_QVAR));
 }
 
 int st_lsm6dsvx_probe(struct device *dev, int irq, int hw_id,
