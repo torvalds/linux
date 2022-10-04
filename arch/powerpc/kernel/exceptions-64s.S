@@ -590,7 +590,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_CFAR)
 	std	r9,_TRAP(r1)		/* set trap number		*/
 	li	r10,0
 	LOAD_REG_IMMEDIATE(r11, STACK_FRAME_REGS_MARKER)
-	rldimi	r11, r11, 32, 0
 	std	r10,RESULT(r1)		/* clear regs->result		*/
 	std	r11,STACK_FRAME_OVERHEAD-16(r1) /* mark the frame	*/
 .endm
