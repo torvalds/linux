@@ -46,6 +46,7 @@
 #include "smbdirect.h"
 #include "dns_resolve.h"
 #ifdef CONFIG_CIFS_DFS_UPCALL
+#include "dfs.h"
 #include "dfs_cache.h"
 #endif
 #include "fs_context.h"
@@ -3397,94 +3398,7 @@ build_unc_path_to_root(const struct smb3_fs_context *ctx,
 	cifs_dbg(FYI, "%s: full_path=%s\n", __func__, full_path);
 	return full_path;
 }
-
-/*
- * expand_dfs_referral - Update cifs_sb from dfs referral path
- *
- * cifs_sb->ctx->mount_options will be (re-)allocated to a string containing updated options for the
- * submount.  Otherwise it will be left untouched.
- */
-static int expand_dfs_referral(struct mount_ctx *mnt_ctx, const char *full_path,
-			       struct dfs_info3_param *referral)
-{
-	int rc;
-	struct cifs_sb_info *cifs_sb = mnt_ctx->cifs_sb;
-	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
-	char *fake_devname = NULL, *mdata = NULL;
-
-	mdata = cifs_compose_mount_options(cifs_sb->ctx->mount_options, full_path + 1, referral,
-					   &fake_devname);
-	if (IS_ERR(mdata)) {
-		rc = PTR_ERR(mdata);
-		mdata = NULL;
-	} else {
-		/*
-		 * We can not clear out the whole structure since we no longer have an explicit
-		 * function to parse a mount-string. Instead we need to clear out the individual
-		 * fields that are no longer valid.
-		 */
-		kfree(ctx->prepath);
-		ctx->prepath = NULL;
-		rc = cifs_setup_volume_info(ctx, mdata, fake_devname);
-	}
-	kfree(fake_devname);
-	kfree(cifs_sb->ctx->mount_options);
-	cifs_sb->ctx->mount_options = mdata;
-
-	return rc;
-}
 #endif
-
-/* TODO: all callers to this are broken. We are not parsing mount_options here
- * we should pass a clone of the original context?
- */
-int
-cifs_setup_volume_info(struct smb3_fs_context *ctx, const char *mntopts, const char *devname)
-{
-	int rc;
-
-	if (devname) {
-		cifs_dbg(FYI, "%s: devname=%s\n", __func__, devname);
-		rc = smb3_parse_devname(devname, ctx);
-		if (rc) {
-			cifs_dbg(VFS, "%s: failed to parse %s: %d\n", __func__, devname, rc);
-			return rc;
-		}
-	}
-
-	if (mntopts) {
-		char *ip;
-
-		rc = smb3_parse_opt(mntopts, "ip", &ip);
-		if (rc) {
-			cifs_dbg(VFS, "%s: failed to parse ip options: %d\n", __func__, rc);
-			return rc;
-		}
-
-		rc = cifs_convert_address((struct sockaddr *)&ctx->dstaddr, ip, strlen(ip));
-		kfree(ip);
-		if (!rc) {
-			cifs_dbg(VFS, "%s: failed to convert ip address\n", __func__);
-			return -EINVAL;
-		}
-	}
-
-	if (ctx->nullauth) {
-		cifs_dbg(FYI, "Anonymous login\n");
-		kfree(ctx->username);
-		ctx->username = NULL;
-	} else if (ctx->username) {
-		/* BB fixme parse for domain name here */
-		cifs_dbg(FYI, "Username: %s\n", ctx->username);
-	} else {
-		cifs_dbg(VFS, "No username specified\n");
-	/* In userspace mount helper we can get user name from alternate
-	   locations such as env variables and files on disk */
-		return -EINVAL;
-	}
-
-	return 0;
-}
 
 static int
 cifs_are_all_path_components_accessible(struct TCP_Server_Info *server,
@@ -3630,7 +3544,6 @@ static int connect_dfs_target(struct mount_ctx *mnt_ctx, const char *full_path,
 	int rc;
 	struct dfs_info3_param ref = {};
 	struct cifs_sb_info *cifs_sb = mnt_ctx->cifs_sb;
-	char *oldmnt = cifs_sb->ctx->mount_options;
 
 	cifs_dbg(FYI, "%s: full_path=%s ref_path=%s target=%s\n", __func__, full_path, ref_path,
 		 dfs_cache_get_tgt_name(tit));
@@ -3639,15 +3552,14 @@ static int connect_dfs_target(struct mount_ctx *mnt_ctx, const char *full_path,
 	if (rc)
 		goto out;
 
-	rc = expand_dfs_referral(mnt_ctx, full_path, &ref);
+	rc = dfs_parse_target_referral(full_path + 1, &ref, mnt_ctx->fs_ctx);
 	if (rc)
 		goto out;
 
-	/* Connect to new target only if we were redirected (e.g. mount options changed) */
-	if (oldmnt != cifs_sb->ctx->mount_options) {
-		mount_put_conns(mnt_ctx);
-		rc = mount_get_dfs_conns(mnt_ctx);
-	}
+	/* XXX: maybe check if we were actually redirected and avoid reconnecting? */
+	mount_put_conns(mnt_ctx);
+	rc = mount_get_dfs_conns(mnt_ctx);
+
 	if (!rc) {
 		if (cifs_is_referral_server(mnt_ctx->tcon, &ref))
 			set_root_ses(mnt_ctx);

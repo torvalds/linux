@@ -75,9 +75,7 @@ extern char *cifs_build_path_to_root(struct smb3_fs_context *ctx,
 				     struct cifs_tcon *tcon,
 				     int add_treename);
 extern char *build_wildcard_path_from_dentry(struct dentry *direntry);
-extern char *cifs_compose_mount_options(const char *sb_mountdata,
-		const char *fullpath, const struct dfs_info3_param *ref,
-		char **devname);
+char *cifs_build_devname(char *nodename, const char *prepath);
 extern void delete_mid(struct mid_q_entry *mid);
 extern void release_mid(struct mid_q_entry *mid);
 extern void cifs_wake_up_task(struct mid_q_entry *mid);
@@ -560,9 +558,6 @@ extern int check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 			      const unsigned char *path);
 extern int E_md4hash(const unsigned char *passwd, unsigned char *p16,
 			const struct nls_table *codepage);
-
-extern int
-cifs_setup_volume_info(struct smb3_fs_context *ctx, const char *mntopts, const char *devname);
 
 extern struct TCP_Server_Info *
 cifs_find_tcp_session(struct smb3_fs_context *ctx);
