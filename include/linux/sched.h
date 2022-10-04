@@ -302,6 +302,8 @@ extern int __must_check io_schedule_prepare(void);
 extern void io_schedule_finish(int token);
 extern long io_schedule_timeout(long timeout);
 extern void io_schedule(void);
+extern struct task_struct *pick_migrate_task(struct rq *rq);
+extern int select_fallback_rq(int cpu, struct task_struct *p);
 
 /**
  * struct prev_cputime - snapshot of system and user cputime

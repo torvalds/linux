@@ -561,6 +561,11 @@ config IRQ_LOONGARCH_CPU
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
+	select LOONGSON_LIOINTC
+	select LOONGSON_EIOINTC
+	select LOONGSON_PCH_PIC
+	select LOONGSON_PCH_MSI
+	select LOONGSON_PCH_LPC
 	help
 	  Support for the LoongArch CPU Interrupt Controller. For details of
 	  irq chip hierarchy on LoongArch platforms please read the document
@@ -623,8 +628,9 @@ config LOONGSON_PCH_MSI
 
 config LOONGSON_PCH_LPC
 	bool "Loongson PCH LPC Controller"
+	depends on LOONGARCH
 	depends on MACH_LOONGSON64
-	default (MACH_LOONGSON64 && LOONGARCH)
+	default MACH_LOONGSON64
 	select IRQ_DOMAIN_HIERARCHY
 	help
 	  Support for the Loongson PCH LPC Controller.

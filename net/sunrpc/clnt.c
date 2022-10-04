@@ -2873,6 +2873,9 @@ int rpc_clnt_test_and_add_xprt(struct rpc_clnt *clnt,
 
 	task = rpc_call_null_helper(clnt, xprt, NULL, RPC_TASK_ASYNC,
 			&rpc_cb_add_xprt_call_ops, data);
+	if (IS_ERR(task))
+		return PTR_ERR(task);
+
 	data->xps->xps_nunique_destaddr_xprts++;
 	rpc_put_task(task);
 success:

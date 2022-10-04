@@ -47,7 +47,6 @@ define_db845c(
         "crypto/michael_mic.ko",
         "drivers/base/regmap/regmap-sdw.ko",
         "drivers/base/regmap/regmap-slimbus.ko",
-        "drivers/base/regmap/regmap-spmi.ko",
         "drivers/bus/mhi/host/mhi.ko",
         "drivers/clk/qcom/clk-qcom.ko",
         "drivers/clk/qcom/clk-rpmh.ko",

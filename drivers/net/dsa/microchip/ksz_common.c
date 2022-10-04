@@ -170,6 +170,13 @@ static const struct ksz_dev_ops ksz8_dev_ops = {
 	.exit = ksz8_switch_exit,
 };
 
+static void ksz9477_phylink_mac_link_up(struct ksz_device *dev, int port,
+					unsigned int mode,
+					phy_interface_t interface,
+					struct phy_device *phydev, int speed,
+					int duplex, bool tx_pause,
+					bool rx_pause);
+
 static const struct ksz_dev_ops ksz9477_dev_ops = {
 	.setup = ksz9477_setup,
 	.get_port_addr = ksz9477_get_port_addr,
@@ -196,6 +203,7 @@ static const struct ksz_dev_ops ksz9477_dev_ops = {
 	.mdb_del = ksz9477_mdb_del,
 	.change_mtu = ksz9477_change_mtu,
 	.max_mtu = ksz9477_max_mtu,
+	.phylink_mac_link_up = ksz9477_phylink_mac_link_up,
 	.config_cpu_port = ksz9477_config_cpu_port,
 	.enable_stp_addr = ksz9477_enable_stp_addr,
 	.reset = ksz9477_reset_switch,
@@ -230,6 +238,7 @@ static const struct ksz_dev_ops lan937x_dev_ops = {
 	.mdb_del = ksz9477_mdb_del,
 	.change_mtu = lan937x_change_mtu,
 	.max_mtu = ksz9477_max_mtu,
+	.phylink_mac_link_up = ksz9477_phylink_mac_link_up,
 	.config_cpu_port = lan937x_config_cpu_port,
 	.enable_stp_addr = ksz9477_enable_stp_addr,
 	.reset = lan937x_reset_switch,
@@ -1656,13 +1665,13 @@ static void ksz_duplex_flowctrl(struct ksz_device *dev, int port, int duplex,
 	ksz_prmw8(dev, port, regs[P_XMII_CTRL_0], mask, val);
 }
 
-static void ksz_phylink_mac_link_up(struct dsa_switch *ds, int port,
-				    unsigned int mode,
-				    phy_interface_t interface,
-				    struct phy_device *phydev, int speed,
-				    int duplex, bool tx_pause, bool rx_pause)
+static void ksz9477_phylink_mac_link_up(struct ksz_device *dev, int port,
+					unsigned int mode,
+					phy_interface_t interface,
+					struct phy_device *phydev, int speed,
+					int duplex, bool tx_pause,
+					bool rx_pause)
 {
-	struct ksz_device *dev = ds->priv;
 	struct ksz_port *p;
 
 	p = &dev->ports[port];
@@ -1676,6 +1685,15 @@ static void ksz_phylink_mac_link_up(struct dsa_switch *ds, int port,
 	ksz_port_set_xmii_speed(dev, port, speed);
 
 	ksz_duplex_flowctrl(dev, port, duplex, tx_pause, rx_pause);
+}
+
+static void ksz_phylink_mac_link_up(struct dsa_switch *ds, int port,
+				    unsigned int mode,
+				    phy_interface_t interface,
+				    struct phy_device *phydev, int speed,
+				    int duplex, bool tx_pause, bool rx_pause)
+{
+	struct ksz_device *dev = ds->priv;
 
 	if (dev->dev_ops->phylink_mac_link_up)
 		dev->dev_ops->phylink_mac_link_up(dev, port, mode, interface,

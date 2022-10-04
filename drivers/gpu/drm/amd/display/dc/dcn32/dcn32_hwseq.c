@@ -741,7 +741,29 @@ void dcn32_update_mall_sel(struct dc *dc, struct dc_state *context)
 		struct hubp *hubp = pipe->plane_res.hubp;
 
 		if (pipe->stream && pipe->plane_state && hubp && hubp->funcs->hubp_update_mall_sel) {
-			if (hubp->curs_attr.width * hubp->curs_attr.height * 4 > 16384)
+			//Round cursor width up to next multiple of 64
+			int cursor_width = ((hubp->curs_attr.width + 63) / 64) * 64;
+			int cursor_height = hubp->curs_attr.height;
+			int cursor_size = cursor_width * cursor_height;
+
+			switch (hubp->curs_attr.color_format) {
+			case CURSOR_MODE_MONO:
+				cursor_size /= 2;
+				break;
+			case CURSOR_MODE_COLOR_1BIT_AND:
+			case CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA:
+			case CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA:
+				cursor_size *= 4;
+				break;
+
+			case CURSOR_MODE_COLOR_64BIT_FP_PRE_MULTIPLIED:
+			case CURSOR_MODE_COLOR_64BIT_FP_UN_PRE_MULTIPLIED:
+			default:
+				cursor_size *= 8;
+				break;
+			}
+
+			if (cursor_size > 16384)
 				cache_cursor = true;
 
 			if (pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
