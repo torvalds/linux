@@ -14,6 +14,8 @@ static const char * const hclge_mac_state_str[] = {
 	"TO_ADD", "TO_DEL", "ACTIVE"
 };
 
+static const char * const tc_map_mode_str[] = { "PRIO", "DSCP" };
+
 static const struct hclge_dbg_reg_type_info hclge_dbg_reg_info[] = {
 	{ .cmd = HNAE3_DBG_CMD_REG_BIOS_COMMON,
 	  .dfx_msg = &hclge_dbg_bios_common_reg[0],
@@ -1115,10 +1117,11 @@ static int hclge_dbg_dump_qos_pause_cfg(struct hclge_dev *hdev, char *buf,
 	return 0;
 }
 
+#define HCLGE_DBG_TC_MASK		0x0F
+
 static int hclge_dbg_dump_qos_pri_map(struct hclge_dev *hdev, char *buf,
 				      int len)
 {
-#define HCLGE_DBG_TC_MASK		0x0F
 #define HCLGE_DBG_TC_BIT_WIDTH		4
 
 	struct hclge_qos_pri_map_cmd *pri_map;
@@ -1147,6 +1150,58 @@ static int hclge_dbg_dump_qos_pri_map(struct hclge_dev *hdev, char *buf,
 		tc = pri_tc[i >> 1] >> ((i & 1) * HCLGE_DBG_TC_BIT_WIDTH);
 		tc &= HCLGE_DBG_TC_MASK;
 		pos += scnprintf(buf + pos, len - pos, "%u     %u\n", i, tc);
+	}
+
+	return 0;
+}
+
+static int hclge_dbg_dump_qos_dscp_map(struct hclge_dev *hdev, char *buf,
+				       int len)
+{
+	struct hnae3_knic_private_info *kinfo = &hdev->vport[0].nic.kinfo;
+	struct hclge_desc desc[HCLGE_DSCP_MAP_TC_BD_NUM];
+	u8 *req0 = (u8 *)desc[0].data;
+	u8 *req1 = (u8 *)desc[1].data;
+	u8 dscp_tc[HNAE3_MAX_DSCP];
+	int pos, ret;
+	u8 i, j;
+
+	pos = scnprintf(buf, len, "tc map mode: %s\n",
+			tc_map_mode_str[kinfo->tc_map_mode]);
+
+	if (kinfo->tc_map_mode != HNAE3_TC_MAP_MODE_DSCP)
+		return 0;
+
+	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_QOS_MAP, true);
+	desc[0].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
+	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_OPC_QOS_MAP, true);
+	ret = hclge_cmd_send(&hdev->hw, desc, HCLGE_DSCP_MAP_TC_BD_NUM);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"failed to dump qos dscp map, ret = %d\n", ret);
+		return ret;
+	}
+
+	pos += scnprintf(buf + pos, len - pos, "\nDSCP  PRIO  TC\n");
+
+	/* The low 32 dscp setting use bd0, high 32 dscp setting use bd1 */
+	for (i = 0; i < HNAE3_MAX_DSCP / HCLGE_DSCP_MAP_TC_BD_NUM; i++) {
+		j = i + HNAE3_MAX_DSCP / HCLGE_DSCP_MAP_TC_BD_NUM;
+		/* Each dscp setting has 4 bits, so each byte saves two dscp
+		 * setting
+		 */
+		dscp_tc[i] = req0[i >> 1] >> HCLGE_DSCP_TC_SHIFT(i);
+		dscp_tc[j] = req1[i >> 1] >> HCLGE_DSCP_TC_SHIFT(i);
+		dscp_tc[i] &= HCLGE_DBG_TC_MASK;
+		dscp_tc[j] &= HCLGE_DBG_TC_MASK;
+	}
+
+	for (i = 0; i < HNAE3_MAX_DSCP; i++) {
+		if (kinfo->dscp_prio[i] == HNAE3_PRIO_ID_INVALID)
+			continue;
+
+		pos += scnprintf(buf + pos, len - pos, " %2u    %u    %u\n",
+				 i, kinfo->dscp_prio[i], dscp_tc[i]);
 	}
 
 	return 0;
@@ -1517,7 +1572,7 @@ static int hclge_dbg_dump_fd_tcam(struct hclge_dev *hdev, char *buf, int len)
 	char *tcam_buf;
 	int pos = 0;
 
-	if (!hnae3_dev_fd_supported(hdev)) {
+	if (!hnae3_ae_dev_fd_supported(hdev->ae_dev)) {
 		dev_err(&hdev->pdev->dev,
 			"Only FD-supported dev supports dump fd tcam\n");
 		return -EOPNOTSUPP;
@@ -1584,6 +1639,9 @@ static int hclge_dbg_dump_fd_counter(struct hclge_dev *hdev, char *buf, int len)
 	int ret;
 	u64 cnt;
 	u8 i;
+
+	if (!hnae3_ae_dev_fd_supported(hdev->ae_dev))
+		return -EOPNOTSUPP;
 
 	pos += scnprintf(buf + pos, len - pos,
 			 "func_id\thit_times\n");
@@ -2372,6 +2430,10 @@ static const struct hclge_dbg_func hclge_dbg_cmd_func[] = {
 	{
 		.cmd = HNAE3_DBG_CMD_QOS_PRI_MAP,
 		.dbg_dump = hclge_dbg_dump_qos_pri_map,
+	},
+	{
+		.cmd = HNAE3_DBG_CMD_QOS_DSCP_MAP,
+		.dbg_dump = hclge_dbg_dump_qos_dscp_map,
 	},
 	{
 		.cmd = HNAE3_DBG_CMD_QOS_BUF_CFG,

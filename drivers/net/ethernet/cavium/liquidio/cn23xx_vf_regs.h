@@ -36,8 +36,8 @@
 #define     CN23XX_CONFIG_PCIE_FLTMSK              0x720
 
 /* The input jabber is used to determine the TSO max size.
- * Due to H/W limitation, this need to be reduced to 60000
- * in order to to H/W TSO and avoid the WQE malfarmation
+ * Due to H/W limitation, this needs to be reduced to 60000
+ * in order to use H/W TSO and avoid the WQE malformation
  * PKO_BUG_24989_WQE_LEN
  */
 #define    CN23XX_DEFAULT_INPUT_JABBER             0xEA60 /*60000*/

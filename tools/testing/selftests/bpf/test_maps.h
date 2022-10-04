@@ -14,4 +14,6 @@
 	}								\
 })
 
+extern int skips;
+
 #endif

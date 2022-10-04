@@ -3368,7 +3368,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 		goto out_release;
 	}
 
-	netif_napi_add(ndev, &mdp->napi, sh_eth_poll, 64);
+	netif_napi_add(ndev, &mdp->napi, sh_eth_poll);
 
 	/* network device register */
 	ret = register_netdev(ndev);

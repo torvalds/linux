@@ -16,7 +16,7 @@
 #include "cgroup_helpers.h"
 #include "testing_helpers.h"
 
-#define DEV_CGROUP_PROG "./dev_cgroup.o"
+#define DEV_CGROUP_PROG "./dev_cgroup.bpf.o"
 
 #define TEST_CGROUP "/test-bpf-based-device-cgroup/"
 
