@@ -2401,7 +2401,13 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 		return err;
 
 	err = -ENODEV;
-	chip_type = force_id ? force_id : superio_inw(sioaddr, DEVID);
+	chip_type = superio_inw(sioaddr, DEVID);
+	/* check first for a valid chip before forcing chip id */
+	if (chip_type == 0xffff)
+		goto exit;
+
+	if (force_id)
+		chip_type = force_id;
 
 	switch (chip_type) {
 	case IT8705F_DEVID:
