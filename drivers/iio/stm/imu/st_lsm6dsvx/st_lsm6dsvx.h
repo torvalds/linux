@@ -74,8 +74,17 @@
 
 #define ST_LSM6DSVX_REG_CTRL8_ADDR		0x17
 
+#define ST_LSM6DSVX_REG_CTRL10_ADDR		0x19
+#define ST_LSM6DSVX_ST_G_MASK			GENMASK(3, 2)
+#define ST_LSM6DSVX_ST_XL_MASK			GENMASK(1, 0)
+
 #define ST_LSM6DSVX_REG_FIFO_STATUS1_ADDR	0x1b
 #define ST_LSM6DSVX_FIFO_DIFF_MASK		GENMASK(8, 0)
+
+#define ST_LSM6DSVX_REG_STATUS_REG_ADDR		0x1e
+#define ST_LSM6DSVX_TDA_MASK			BIT(2)
+#define ST_LSM6DSVX_GDA_MASK			BIT(1)
+#define ST_LSM6DSVX_XLDA_MASK			BIT(0)
 
 #define ST_LSM6DSVX_REG_OUTX_L_G_ADDR		0x22
 #define ST_LSM6DSVX_REG_OUTY_L_G_ADDR		0x24
@@ -173,6 +182,16 @@
 #define ST_LSM6DSVX_REG_SLAVE_NUMOP_MASK	GENMASK(2, 0)
 
 #define ST_LSM6DSVX_TS_DELTA_NS			21700ULL
+
+/* self test values */
+#define ST_LSM6DSVX_SELFTEST_ACCEL_MIN		410
+#define ST_LSM6DSVX_SELFTEST_ACCEL_MAX		13935
+#define ST_LSM6DSVX_SELFTEST_GYRO_MIN		2143
+#define ST_LSM6DSVX_SELFTEST_GYRO_MAX		10000
+
+#define ST_LSM6DSVX_SELF_TEST_NORMAL_MODE_VAL	0
+#define ST_LSM6DSVX_SELF_TEST_POS_SIGN_VAL	1
+#define ST_LSM6DSVX_SELF_TEST_NEG_SIGN_VAL	2
 
 #define ST_LSM6DSVX_DATA_CHANNEL(chan_type, addr, mod, ch2, scan_idx, \
 				 rb, sb, sg, ext_inf)		      \
@@ -497,6 +516,9 @@ enum {
  * @dec_counter: Samples decimate value.
  * @max_watermark: Max supported watermark level.
  * @watermark: Sensor watermark level.
+ * @selftest_status: Report last self test status.
+ * @min_st: Min self test raw data value.
+ * @max_st: Max self test raw data value.
  * @batch_reg: Batching register info (addr + mask).
  * @status_reg: MLC/FSM IIO event sensor status register.
  * @outreg_addr: MLC/FSM IIO event sensor output register.
@@ -532,6 +554,11 @@ struct st_lsm6dsvx_sensor {
 
 			u16 max_watermark;
 			u16 watermark;
+
+			/* self test */
+			int8_t selftest_status;
+			int min_st;
+			int max_st;
 
 			struct st_lsm6dsvx_reg batch_reg;
 		};
