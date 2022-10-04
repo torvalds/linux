@@ -1071,14 +1071,10 @@ static int ovl_workdir_cleanup_recurse(struct ovl_fs *ofs, const struct path *pa
 	int err;
 	struct inode *dir = path->dentry->d_inode;
 	LIST_HEAD(list);
-	struct rb_root root = RB_ROOT;
 	struct ovl_cache_entry *p;
 	struct ovl_readdir_data rdd = {
-		.ctx.actor = ovl_fill_merge,
-		.dentry = NULL,
+		.ctx.actor = ovl_fill_plain,
 		.list = &list,
-		.root = &root,
-		.is_lowest = false,
 	};
 	bool incompat = false;
 
@@ -1159,14 +1155,10 @@ int ovl_indexdir_cleanup(struct ovl_fs *ofs)
 	struct inode *dir = indexdir->d_inode;
 	struct path path = { .mnt = ovl_upper_mnt(ofs), .dentry = indexdir };
 	LIST_HEAD(list);
-	struct rb_root root = RB_ROOT;
 	struct ovl_cache_entry *p;
 	struct ovl_readdir_data rdd = {
-		.ctx.actor = ovl_fill_merge,
-		.dentry = NULL,
+		.ctx.actor = ovl_fill_plain,
 		.list = &list,
-		.root = &root,
-		.is_lowest = false,
 	};
 
 	err = ovl_dir_read(&path, &rdd);
