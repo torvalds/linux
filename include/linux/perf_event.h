@@ -644,7 +644,7 @@ struct pmu_event_list {
 #ifdef CONFIG_PROVE_LOCKING
 #define lockdep_assert_event_ctx(event)				\
 	WARN_ON_ONCE(__lockdep_enabled &&			\
-		     (this_cpu_read(hardirqs_enabled) ||	\
+		     (this_cpu_read(hardirqs_enabled) &&	\
 		      lockdep_is_held(&(event)->ctx->mutex) != LOCK_STATE_HELD))
 #else
 #define lockdep_assert_event_ctx(event)
