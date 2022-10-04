@@ -734,14 +734,18 @@ static int unpack_pdb(struct aa_ext *e, struct aa_policydb *policy,
 {
 	void *pos = e->pos;
 	int i, flags, error = -EPROTO;
+	ssize_t size;
 
-	policy->size = unpack_perms_table(e, &policy->perms);
-	if (policy->size < 0) {
-		error = policy->size;
+	size = unpack_perms_table(e, &policy->perms);
+	if (size < 0) {
+		error = size;
 		policy->perms = NULL;
 		*info = "failed to unpack - perms";
 		goto fail;
-	} else if (policy->perms) {
+	}
+	policy->size = size;
+
+	if (policy->perms) {
 		/* perms table present accept is index */
 		flags = TO_ACCEPT1_FLAG(YYTD_DATA32);
 	} else {
