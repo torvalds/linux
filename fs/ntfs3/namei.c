@@ -431,10 +431,8 @@ static int ntfs_d_compare(const struct dentry *dentry, unsigned int len1,
 
 	/* First try fast implementation. */
 	for (;;) {
-		if (!lm--) {
-			ret = len1 == len2 ? 0 : 1;
-			goto out;
-		}
+		if (!lm--)
+			return len1 == len2 ? 0 : 1;
 
 		if ((c1 = *n1++) == (c2 = *n2++))
 			continue;
@@ -442,10 +440,8 @@ static int ntfs_d_compare(const struct dentry *dentry, unsigned int len1,
 		if (c1 >= 0x80 || c2 >= 0x80)
 			break;
 
-		if (toupper(c1) != toupper(c2)) {
-			ret = 1;
-			goto out;
-		}
+		if (toupper(c1) != toupper(c2))
+			return 1;
 	}
 
 	/*
