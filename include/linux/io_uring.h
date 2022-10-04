@@ -62,7 +62,7 @@ static inline void io_uring_free(struct task_struct *tsk)
 		__io_uring_free(tsk);
 }
 #else
-static int io_uring_cmd_import_fixed(u64 ubuf, unsigned long len, int rw,
+static inline int io_uring_cmd_import_fixed(u64 ubuf, unsigned long len, int rw,
 			      struct iov_iter *iter, void *ioucmd)
 {
 	return -EOPNOTSUPP;
