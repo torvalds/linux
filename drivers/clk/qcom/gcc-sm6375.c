@@ -54,7 +54,7 @@ static struct pll_vco lucid_vco[] = {
 };
 
 static struct pll_vco zonda_vco[] = {
-	{ 595200000, 3600000000, 0 },
+	{ 595200000, 3600000000UL, 0 },
 };
 
 static struct clk_alpha_pll gpll0 = {
