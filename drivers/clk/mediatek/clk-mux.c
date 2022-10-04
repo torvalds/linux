@@ -4,6 +4,7 @@
  * Author: Owen Chen <owen.chen@mediatek.com>
  */
 
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/compiler_types.h>
 #include <linux/container_of.h>
@@ -258,5 +259,42 @@ void mtk_clk_unregister_muxes(const struct mtk_mux *muxes, int num,
 	}
 }
 EXPORT_SYMBOL_GPL(mtk_clk_unregister_muxes);
+
+/*
+ * This clock notifier is called when the frequency of the parent
+ * PLL clock is to be changed. The idea is to switch the parent to a
+ * stable clock, such as the main oscillator, while the PLL frequency
+ * stabilizes.
+ */
+static int mtk_clk_mux_notifier_cb(struct notifier_block *nb,
+				   unsigned long event, void *_data)
+{
+	struct clk_notifier_data *data = _data;
+	struct clk_hw *hw = __clk_get_hw(data->clk);
+	struct mtk_mux_nb *mux_nb = to_mtk_mux_nb(nb);
+	int ret = 0;
+
+	switch (event) {
+	case PRE_RATE_CHANGE:
+		mux_nb->original_index = mux_nb->ops->get_parent(hw);
+		ret = mux_nb->ops->set_parent(hw, mux_nb->bypass_index);
+		break;
+	case POST_RATE_CHANGE:
+	case ABORT_RATE_CHANGE:
+		ret = mux_nb->ops->set_parent(hw, mux_nb->original_index);
+		break;
+	}
+
+	return notifier_from_errno(ret);
+}
+
+int devm_mtk_clk_mux_notifier_register(struct device *dev, struct clk *clk,
+				       struct mtk_mux_nb *mux_nb)
+{
+	mux_nb->nb.notifier_call = mtk_clk_mux_notifier_cb;
+
+	return devm_clk_notifier_register(dev, clk, &mux_nb->nb);
+}
+EXPORT_SYMBOL_GPL(devm_mtk_clk_mux_notifier_register);
 
 MODULE_LICENSE("GPL");
