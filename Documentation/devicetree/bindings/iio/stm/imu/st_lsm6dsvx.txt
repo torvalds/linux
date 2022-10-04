@@ -1,7 +1,9 @@
 * st_lsm6dsvx driver for imu MEMS sensors
 
 Required properties for all bus drivers:
-- compatible: must be "st,lsm6dsv16x"
+- compatible:       must be one of:
+                    "st,lsm6dsv16x"
+                    "st,lsm6dsv"
 
 Required properties for the i2c bindings:
 - reg:               i2c slave address

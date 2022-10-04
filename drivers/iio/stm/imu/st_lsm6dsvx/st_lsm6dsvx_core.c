@@ -51,6 +51,13 @@ static struct st_lsm6dsvx_selftest_table_t {
 static const struct st_lsm6dsvx_settings st_lsm6dsvx_sensor_settings[] = {
 	{
 		.id = {
+			.hw_id = ST_LSM6DSV_ID,
+			.name = ST_LSM6DSV_DEV_NAME,
+		},
+		.st_fsm_probe = true,
+	},
+	{
+		.id = {
 			.hw_id = ST_LSM6DSVX_ID,
 			.name = ST_LSM6DSV16X_DEV_NAME,
 		},

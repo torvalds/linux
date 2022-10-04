@@ -19,6 +19,7 @@
 #define ST_LSM6DSVX_ODR_EXPAND(odr, uodr)	((odr * 1000000) + uodr)
 
 #define ST_LSM6DSV16X_DEV_NAME			"lsm6dsv16x"
+#define ST_LSM6DSV_DEV_NAME			"lsm6dsv"
 
 #define ST_LSM6DSVX_SAMPLE_SIZE			6
 #define ST_LSM6DSVX_TS_SAMPLE_SIZE		4
@@ -306,6 +307,7 @@ struct st_lsm6dsvx_ext_dev_info {
  *                          lsm6dsvx driver
  */
 enum st_lsm6dsvx_hw_id {
+	ST_LSM6DSV_ID,
 	ST_LSM6DSVX_ID,
 	ST_LSM6DSVX_MAX_ID,
 };
