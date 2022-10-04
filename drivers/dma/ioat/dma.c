@@ -33,7 +33,7 @@ MODULE_PARM_DESC(completion_timeout,
 static int idle_timeout = 2000;
 module_param(idle_timeout, int, 0644);
 MODULE_PARM_DESC(idle_timeout,
-		"set ioat idel timeout [msec] (default 2000 [msec])");
+		"set ioat idle timeout [msec] (default 2000 [msec])");
 
 #define IDLE_TIMEOUT msecs_to_jiffies(idle_timeout)
 #define COMPLETION_TIMEOUT msecs_to_jiffies(completion_timeout)
