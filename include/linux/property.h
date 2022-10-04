@@ -442,21 +442,21 @@ unsigned int fwnode_graph_get_endpoint_count(struct fwnode_handle *fwnode,
 int fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
 				struct fwnode_endpoint *endpoint);
 
-typedef void *(*devcon_match_fn_t)(struct fwnode_handle *fwnode, const char *id,
+typedef void *(*devcon_match_fn_t)(const struct fwnode_handle *fwnode, const char *id,
 				   void *data);
 
-void *fwnode_connection_find_match(struct fwnode_handle *fwnode,
+void *fwnode_connection_find_match(const struct fwnode_handle *fwnode,
 				   const char *con_id, void *data,
 				   devcon_match_fn_t match);
 
-static inline void *device_connection_find_match(struct device *dev,
+static inline void *device_connection_find_match(const struct device *dev,
 						 const char *con_id, void *data,
 						 devcon_match_fn_t match)
 {
 	return fwnode_connection_find_match(dev_fwnode(dev), con_id, data, match);
 }
 
-int fwnode_connection_find_matches(struct fwnode_handle *fwnode,
+int fwnode_connection_find_matches(const struct fwnode_handle *fwnode,
 				   const char *con_id, void *data,
 				   devcon_match_fn_t match,
 				   void **matches, unsigned int matches_len);

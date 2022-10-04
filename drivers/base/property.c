@@ -1213,7 +1213,7 @@ const void *device_get_match_data(const struct device *dev)
 }
 EXPORT_SYMBOL_GPL(device_get_match_data);
 
-static unsigned int fwnode_graph_devcon_matches(struct fwnode_handle *fwnode,
+static unsigned int fwnode_graph_devcon_matches(const struct fwnode_handle *fwnode,
 						const char *con_id, void *data,
 						devcon_match_fn_t match,
 						void **matches,
@@ -1247,7 +1247,7 @@ static unsigned int fwnode_graph_devcon_matches(struct fwnode_handle *fwnode,
 	return count;
 }
 
-static unsigned int fwnode_devcon_matches(struct fwnode_handle *fwnode,
+static unsigned int fwnode_devcon_matches(const struct fwnode_handle *fwnode,
 					  const char *con_id, void *data,
 					  devcon_match_fn_t match,
 					  void **matches,
@@ -1289,7 +1289,7 @@ static unsigned int fwnode_devcon_matches(struct fwnode_handle *fwnode,
  * device node. @match will be used to convert the connection description to
  * data the caller is expecting to be returned.
  */
-void *fwnode_connection_find_match(struct fwnode_handle *fwnode,
+void *fwnode_connection_find_match(const struct fwnode_handle *fwnode,
 				   const char *con_id, void *data,
 				   devcon_match_fn_t match)
 {
@@ -1326,7 +1326,7 @@ EXPORT_SYMBOL_GPL(fwnode_connection_find_match);
  *
  * Return: Number of matches resolved, or negative errno.
  */
-int fwnode_connection_find_matches(struct fwnode_handle *fwnode,
+int fwnode_connection_find_matches(const struct fwnode_handle *fwnode,
 				   const char *con_id, void *data,
 				   devcon_match_fn_t match,
 				   void **matches, unsigned int matches_len)
