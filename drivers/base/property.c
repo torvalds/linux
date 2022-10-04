@@ -763,7 +763,7 @@ EXPORT_SYMBOL_GPL(fwnode_get_next_available_child_node);
  * @dev: Device to find the next child node for.
  * @child: Handle to one of the device's child nodes or a null handle.
  */
-struct fwnode_handle *device_get_next_child_node(struct device *dev,
+struct fwnode_handle *device_get_next_child_node(const struct device *dev,
 						 struct fwnode_handle *child)
 {
 	const struct fwnode_handle *fwnode = dev_fwnode(dev);
@@ -800,7 +800,7 @@ EXPORT_SYMBOL_GPL(fwnode_get_named_child_node);
  * @dev: Device to find the named child node for.
  * @childname: String to match child node name against.
  */
-struct fwnode_handle *device_get_named_child_node(struct device *dev,
+struct fwnode_handle *device_get_named_child_node(const struct device *dev,
 						  const char *childname)
 {
 	return fwnode_get_named_child_node(dev_fwnode(dev), childname);
@@ -859,7 +859,7 @@ EXPORT_SYMBOL_GPL(fwnode_device_is_available);
  * device_get_child_node_count - return the number of child nodes for device
  * @dev: Device to cound the child nodes for
  */
-unsigned int device_get_child_node_count(struct device *dev)
+unsigned int device_get_child_node_count(const struct device *dev)
 {
 	struct fwnode_handle *child;
 	unsigned int count = 0;
