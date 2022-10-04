@@ -292,7 +292,7 @@ static const struct imx_mu_dcfg imx_mu_cfg_imx8ulp = {
 	.xSR    = {
 			[IMX_MU_SR]  = 0xC,
 			[IMX_MU_GSR] = 0x118,
-			[IMX_MU_GSR] = 0x124,
+			[IMX_MU_TSR] = 0x124,
 			[IMX_MU_RSR] = 0x12C,
 		  },
 	.xCR    = {
