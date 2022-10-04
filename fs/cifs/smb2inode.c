@@ -415,6 +415,7 @@ static int smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 						tcon->tid);
 		break;
 	case SMB2_OP_POSIX_QUERY_INFO:
+		idata = ptr;
 		if (rc == 0 && cfile && cfile->symlink_target) {
 			idata->symlink_target = kstrdup(cfile->symlink_target, GFP_KERNEL);
 			if (!idata->symlink_target)
