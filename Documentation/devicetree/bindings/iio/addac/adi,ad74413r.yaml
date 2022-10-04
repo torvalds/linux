@@ -58,8 +58,6 @@ required:
   - spi-cpol
   - refin-supply
 
-additionalProperties: false
-
 patternProperties:
   "^channel@[0-3]$":
     type: object
@@ -102,6 +100,11 @@ patternProperties:
 
     required:
       - reg
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |
