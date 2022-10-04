@@ -551,13 +551,11 @@ static void mtd_check_of_node(struct mtd_info *mtd)
 	struct device_node *partitions, *parent_dn, *mtd_dn = NULL;
 	const char *pname, *prefix = "partition-";
 	int plen, mtd_name_len, offset, prefix_len;
-	bool found = false;
 
 	/* Check if MTD already has a device node */
 	if (mtd_get_of_node(mtd))
 		return;
 
-	/* Check if a partitions node exist */
 	if (!mtd_is_partition(mtd))
 		return;
 
@@ -565,7 +563,10 @@ static void mtd_check_of_node(struct mtd_info *mtd)
 	if (!parent_dn)
 		return;
 
-	partitions = of_get_child_by_name(parent_dn, "partitions");
+	if (mtd_is_partition(mtd->parent))
+		partitions = of_node_get(parent_dn);
+	else
+		partitions = of_get_child_by_name(parent_dn, "partitions");
 	if (!partitions)
 		goto exit_parent;
 
@@ -589,19 +590,11 @@ static void mtd_check_of_node(struct mtd_info *mtd)
 		plen = strlen(pname) - offset;
 		if (plen == mtd_name_len &&
 		    !strncmp(mtd->name, pname + offset, plen)) {
-			found = true;
+			mtd_set_of_node(mtd, mtd_dn);
 			break;
 		}
 	}
 
-	if (!found)
-		goto exit_partitions;
-
-	/* Set of_node only for nvmem */
-	if (of_device_is_compatible(mtd_dn, "nvmem-cells"))
-		mtd_set_of_node(mtd, mtd_dn);
-
-exit_partitions:
 	of_node_put(partitions);
 exit_parent:
 	of_node_put(parent_dn);
