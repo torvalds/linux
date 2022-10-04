@@ -326,7 +326,7 @@ static int acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 
 	/* Passive (optional) */
 	if (((flag & ACPI_TRIPS_PASSIVE) && tz->trips.passive.flags.valid) ||
-	    (flag == ACPI_TRIPS_INIT)) {
+	    flag == ACPI_TRIPS_INIT) {
 		valid = tz->trips.passive.flags.valid;
 		if (psv == -1) {
 			status = AE_SUPPORT;
@@ -399,7 +399,7 @@ static int acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 		if (act == -1)
 			break; /* disable all active trip points */
 
-		if ((flag == ACPI_TRIPS_INIT) || ((flag & ACPI_TRIPS_ACTIVE) &&
+		if (flag == ACPI_TRIPS_INIT || ((flag & ACPI_TRIPS_ACTIVE) &&
 		    tz->trips.active[i].flags.valid)) {
 			status = acpi_evaluate_integer(tz->device->handle,
 						       name, NULL, &tmp);
@@ -654,8 +654,8 @@ static int thermal_get_trend(struct thermal_zone_device *thermal,
 	 * tz->temperature has already been updated by generic thermal layer,
 	 * before this callback being invoked
 	 */
-	i = (tz->trips.passive.tc1 * (tz->temperature - tz->last_temperature)) +
-	    (tz->trips.passive.tc2 * (tz->temperature - tz->trips.passive.temperature));
+	i = tz->trips.passive.tc1 * (tz->temperature - tz->last_temperature) +
+	    tz->trips.passive.tc2 * (tz->temperature - tz->trips.passive.temperature);
 
 	if (i > 0)
 		*trend = THERMAL_TREND_RAISING;
