@@ -2051,9 +2051,7 @@ static int f2fs_ioc_start_atomic_write(struct file *filp)
 	}
 	f2fs_i_size_write(fi->cow_inode, i_size_read(inode));
 
-	spin_lock(&sbi->inode_lock[ATOMIC_FILE]);
-	sbi->atomic_files++;
-	spin_unlock(&sbi->inode_lock[ATOMIC_FILE]);
+	stat_inc_atomic_inode(inode);
 
 	set_inode_flag(inode, FI_ATOMIC_FILE);
 	set_inode_flag(fi->cow_inode, FI_COW_FILE);
