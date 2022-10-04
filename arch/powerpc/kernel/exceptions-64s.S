@@ -2823,12 +2823,16 @@ masked_interrupt:
 #ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
 	/*
 	 * Ensure there was no previous MUST_HARD_MASK interrupt or
-	 * HARD_DIS setting.
+	 * HARD_DIS setting. If this does fire, the interrupt is still
+	 * masked and MSR[EE] will be cleared on return, so no need to
+	 * panic, but somebody probably enabled MSR[EE] under
+	 * PACA_IRQ_HARD_DIS, mtmsr(mfmsr() | MSR_x) being a common
+	 * cause.
 	 */
 	lbz	r9,PACAIRQHAPPENED(r13)
 	andi.	r9,r9,(PACA_IRQ_MUST_HARD_MASK|PACA_IRQ_HARD_DIS)
 0:	tdnei	r9,0
-	EMIT_BUG_ENTRY 0b,__FILE__,__LINE__,0
+	EMIT_WARN_ENTRY 0b,__FILE__,__LINE__,(BUGFLAG_WARNING | BUGFLAG_ONCE)
 #endif
 	lbz	r9,PACAIRQHAPPENED(r13)
 	or	r9,r9,r10
