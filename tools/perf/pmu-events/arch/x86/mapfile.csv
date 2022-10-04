@@ -13,7 +13,7 @@ GenuineIntel-6-3F,v26,haswellx,core
 GenuineIntel-6-(7D|7E|A7),v1.15,icelake,core
 GenuineIntel-6-6[AC],v1.16,icelakex,core
 GenuineIntel-6-3A,v22,ivybridge,core
-GenuineIntel-6-3E,v21,ivytown,core
+GenuineIntel-6-3E,v22,ivytown,core
 GenuineIntel-6-2D,v21,jaketown,core
 GenuineIntel-6-(57|85),v9,knightslanding,core
 GenuineIntel-6-AA,v1.00,meteorlake,core
