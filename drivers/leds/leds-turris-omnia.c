@@ -239,9 +239,6 @@ static int omnia_leds_probe(struct i2c_client *client,
 		led += ret;
 	}
 
-	if (devm_device_add_groups(dev, omnia_led_controller_groups))
-		dev_warn(dev, "Could not add attribute group!\n");
-
 	return 0;
 }
 
@@ -283,6 +280,7 @@ static struct i2c_driver omnia_leds_driver = {
 	.driver		= {
 		.name	= "leds-turris-omnia",
 		.of_match_table = of_omnia_leds_match,
+		.dev_groups = omnia_led_controller_groups,
 	},
 };
 

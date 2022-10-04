@@ -1202,14 +1202,3 @@ void tipc_dest_list_purge(struct list_head *l)
 		kfree(dst);
 	}
 }
-
-int tipc_dest_list_len(struct list_head *l)
-{
-	struct tipc_dest *dst;
-	int i = 0;
-
-	list_for_each_entry(dst, l, list) {
-		i++;
-	}
-	return i;
-}

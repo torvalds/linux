@@ -22,51 +22,50 @@
 #include <linux/wait.h>
 
 static unsigned int test_buf_size = 16384;
-module_param(test_buf_size, uint, S_IRUGO | S_IWUSR);
+module_param(test_buf_size, uint, 0644);
 MODULE_PARM_DESC(test_buf_size, "Size of the memcpy test buffer");
 
 static char test_device[32];
-module_param_string(device, test_device, sizeof(test_device),
-		S_IRUGO | S_IWUSR);
+module_param_string(device, test_device, sizeof(test_device), 0644);
 MODULE_PARM_DESC(device, "Bus ID of the DMA Engine to test (default: any)");
 
 static unsigned int threads_per_chan = 1;
-module_param(threads_per_chan, uint, S_IRUGO | S_IWUSR);
+module_param(threads_per_chan, uint, 0644);
 MODULE_PARM_DESC(threads_per_chan,
 		"Number of threads to start per channel (default: 1)");
 
 static unsigned int max_channels;
-module_param(max_channels, uint, S_IRUGO | S_IWUSR);
+module_param(max_channels, uint, 0644);
 MODULE_PARM_DESC(max_channels,
 		"Maximum number of channels to use (default: all)");
 
 static unsigned int iterations;
-module_param(iterations, uint, S_IRUGO | S_IWUSR);
+module_param(iterations, uint, 0644);
 MODULE_PARM_DESC(iterations,
 		"Iterations before stopping test (default: infinite)");
 
 static unsigned int dmatest;
-module_param(dmatest, uint, S_IRUGO | S_IWUSR);
+module_param(dmatest, uint, 0644);
 MODULE_PARM_DESC(dmatest,
 		"dmatest 0-memcpy 1-memset (default: 0)");
 
 static unsigned int xor_sources = 3;
-module_param(xor_sources, uint, S_IRUGO | S_IWUSR);
+module_param(xor_sources, uint, 0644);
 MODULE_PARM_DESC(xor_sources,
 		"Number of xor source buffers (default: 3)");
 
 static unsigned int pq_sources = 3;
-module_param(pq_sources, uint, S_IRUGO | S_IWUSR);
+module_param(pq_sources, uint, 0644);
 MODULE_PARM_DESC(pq_sources,
 		"Number of p+q source buffers (default: 3)");
 
 static int timeout = 3000;
-module_param(timeout, int, S_IRUGO | S_IWUSR);
+module_param(timeout, int, 0644);
 MODULE_PARM_DESC(timeout, "Transfer Timeout in msec (default: 3000), "
 		 "Pass -1 for infinite timeout");
 
 static bool noverify;
-module_param(noverify, bool, S_IRUGO | S_IWUSR);
+module_param(noverify, bool, 0644);
 MODULE_PARM_DESC(noverify, "Disable data verification (default: verify)");
 
 static bool norandom;
@@ -74,7 +73,7 @@ module_param(norandom, bool, 0644);
 MODULE_PARM_DESC(norandom, "Disable random offset setup (default: random)");
 
 static bool verbose;
-module_param(verbose, bool, S_IRUGO | S_IWUSR);
+module_param(verbose, bool, 0644);
 MODULE_PARM_DESC(verbose, "Enable \"success\" result messages (default: off)");
 
 static int alignment = -1;
@@ -86,7 +85,7 @@ module_param(transfer_size, uint, 0644);
 MODULE_PARM_DESC(transfer_size, "Optional custom transfer size in bytes (default: not used (0))");
 
 static bool polled;
-module_param(polled, bool, S_IRUGO | S_IWUSR);
+module_param(polled, bool, 0644);
 MODULE_PARM_DESC(polled, "Use polling for completion instead of interrupts");
 
 /**
@@ -154,7 +153,7 @@ static const struct kernel_param_ops run_ops = {
 	.get = dmatest_run_get,
 };
 static bool dmatest_run;
-module_param_cb(run, &run_ops, &dmatest_run, S_IRUGO | S_IWUSR);
+module_param_cb(run, &run_ops, &dmatest_run, 0644);
 MODULE_PARM_DESC(run, "Run the test (default: false)");
 
 static int dmatest_chan_set(const char *val, const struct kernel_param *kp);
@@ -290,7 +289,7 @@ static const struct kernel_param_ops wait_ops = {
 	.get = dmatest_wait_get,
 	.set = param_set_bool,
 };
-module_param_cb(wait, &wait_ops, &wait, S_IRUGO);
+module_param_cb(wait, &wait_ops, &wait, 0444);
 MODULE_PARM_DESC(wait, "Wait for tests to complete (default: false)");
 
 static bool dmatest_match_channel(struct dmatest_params *params,
@@ -579,10 +578,10 @@ static int dmatest_func(void *data)
 	unsigned int		total_tests = 0;
 	dma_cookie_t		cookie;
 	enum dma_status		status;
-	enum dma_ctrl_flags 	flags;
+	enum dma_ctrl_flags	flags;
 	u8			*pq_coefs = NULL;
 	int			ret;
-	unsigned int 		buf_size;
+	unsigned int		buf_size;
 	struct dmatest_data	*src;
 	struct dmatest_data	*dst;
 	int			i;
@@ -1095,8 +1094,8 @@ static void add_threaded_test(struct dmatest_info *info)
 
 	/* Copy test parameters */
 	params->buf_size = test_buf_size;
-	strlcpy(params->channel, strim(test_channel), sizeof(params->channel));
-	strlcpy(params->device, strim(test_device), sizeof(params->device));
+	strscpy(params->channel, strim(test_channel), sizeof(params->channel));
+	strscpy(params->device, strim(test_device), sizeof(params->device));
 	params->threads_per_chan = threads_per_chan;
 	params->max_channels = max_channels;
 	params->iterations = iterations;
@@ -1240,7 +1239,7 @@ static int dmatest_chan_set(const char *val, const struct kernel_param *kp)
 				dtc = list_last_entry(&info->channels,
 						      struct dmatest_chan,
 						      node);
-				strlcpy(chan_reset_val,
+				strscpy(chan_reset_val,
 					dma_chan_name(dtc->chan),
 					sizeof(chan_reset_val));
 				ret = -EBUSY;
@@ -1263,14 +1262,14 @@ static int dmatest_chan_set(const char *val, const struct kernel_param *kp)
 		if ((strcmp(dma_chan_name(dtc->chan), strim(test_channel)) != 0)
 		    && (strcmp("", strim(test_channel)) != 0)) {
 			ret = -EINVAL;
-			strlcpy(chan_reset_val, dma_chan_name(dtc->chan),
+			strscpy(chan_reset_val, dma_chan_name(dtc->chan),
 				sizeof(chan_reset_val));
 			goto add_chan_err;
 		}
 
 	} else {
 		/* Clear test_channel if no channels were added successfully */
-		strlcpy(chan_reset_val, "", sizeof(chan_reset_val));
+		strscpy(chan_reset_val, "", sizeof(chan_reset_val));
 		ret = -EBUSY;
 		goto add_chan_err;
 	}
@@ -1295,7 +1294,7 @@ static int dmatest_chan_get(char *val, const struct kernel_param *kp)
 	mutex_lock(&info->lock);
 	if (!is_threaded_test_run(info) && !is_threaded_test_pending(info)) {
 		stop_threaded_test(info);
-		strlcpy(test_channel, "", sizeof(test_channel));
+		strscpy(test_channel, "", sizeof(test_channel));
 	}
 	mutex_unlock(&info->lock);
 

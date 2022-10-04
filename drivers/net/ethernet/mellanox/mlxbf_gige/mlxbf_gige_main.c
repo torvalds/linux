@@ -19,8 +19,6 @@
 #include "mlxbf_gige.h"
 #include "mlxbf_gige_regs.h"
 
-#define DRV_NAME    "mlxbf_gige"
-
 /* Allocate SKB whose payload pointer aligns with the Bluefield
  * hardware DMA limitation, i.e. DMA operation can't cross
  * a 4KB boundary.  A maximum packet size of 2KB is assumed in the
@@ -427,7 +425,7 @@ static struct platform_driver mlxbf_gige_driver = {
 	.remove = mlxbf_gige_remove,
 	.shutdown = mlxbf_gige_shutdown,
 	.driver = {
-		.name = DRV_NAME,
+		.name = KBUILD_MODNAME,
 		.acpi_match_table = ACPI_PTR(mlxbf_gige_acpi_match),
 	},
 };

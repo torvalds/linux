@@ -28,7 +28,7 @@ static void hsw_ips_enable(const struct intel_crtc_state *crtc_state)
 
 	if (IS_BROADWELL(i915)) {
 		drm_WARN_ON(&i915->drm,
-			    snb_pcode_write(i915, DISPLAY_IPS_CONTROL,
+			    snb_pcode_write(&i915->uncore, DISPLAY_IPS_CONTROL,
 					    IPS_ENABLE | IPS_PCODE_CONTROL));
 		/*
 		 * Quoting Art Runyan: "its not safe to expect any particular
@@ -62,7 +62,7 @@ bool hsw_ips_disable(const struct intel_crtc_state *crtc_state)
 
 	if (IS_BROADWELL(i915)) {
 		drm_WARN_ON(&i915->drm,
-			    snb_pcode_write(i915, DISPLAY_IPS_CONTROL, 0));
+			    snb_pcode_write(&i915->uncore, DISPLAY_IPS_CONTROL, 0));
 		/*
 		 * Wait for PCODE to finish disabling IPS. The BSpec specified
 		 * 42ms timeout value leads to occasional timeouts so use 100ms

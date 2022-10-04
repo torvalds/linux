@@ -581,7 +581,6 @@ static const struct snd_soc_component_driver soc_component_dev_cs42l42 = {
 	.num_controls		= ARRAY_SIZE(cs42l42_snd_controls),
 	.idle_bias_on		= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 /* Switch to SCLK. Atomic delay after the write to allow the switch to complete. */
@@ -1701,8 +1700,7 @@ static irqreturn_t cs42l42_irq_thread(int irq, void *data)
 			break;
 
 		default:
-			if (cs42l42->plug_state != CS42L42_TS_TRANS)
-				cs42l42->plug_state = CS42L42_TS_TRANS;
+			cs42l42->plug_state = CS42L42_TS_TRANS;
 		}
 	}
 

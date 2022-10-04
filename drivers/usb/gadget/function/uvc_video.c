@@ -261,7 +261,7 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 		break;
 
 	default:
-		uvcg_info(&video->uvc->func,
+		uvcg_warn(&video->uvc->func,
 			  "VS request completed with status %d.\n",
 			  req->status);
 		uvcg_queue_cancel(queue, 0);
@@ -378,7 +378,8 @@ static void uvcg_video_pump(struct work_struct *work)
 	int ret;
 
 	while (video->ep->enabled) {
-		/* Retrieve the first available USB request, protected by the
+		/*
+		 * Retrieve the first available USB request, protected by the
 		 * request lock.
 		 */
 		spin_lock_irqsave(&video->req_lock, flags);
@@ -391,7 +392,8 @@ static void uvcg_video_pump(struct work_struct *work)
 		list_del(&req->list);
 		spin_unlock_irqrestore(&video->req_lock, flags);
 
-		/* Retrieve the first available video buffer and fill the
+		/*
+		 * Retrieve the first available video buffer and fill the
 		 * request, protected by the video queue irqlock.
 		 */
 		spin_lock_irqsave(&queue->irqlock, flags);
@@ -403,9 +405,11 @@ static void uvcg_video_pump(struct work_struct *work)
 
 		video->encode(req, video, buf);
 
-		/* With usb3 we have more requests. This will decrease the
+		/*
+		 * With usb3 we have more requests. This will decrease the
 		 * interrupt load to a quarter but also catches the corner
-		 * cases, which needs to be handled */
+		 * cases, which needs to be handled.
+		 */
 		if (list_empty(&video->req_free) ||
 		    buf->state == UVC_BUF_STATE_DONE ||
 		    !(video->req_int_count %

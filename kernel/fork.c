@@ -1976,6 +1976,18 @@ static void copy_oom_score_adj(u64 clone_flags, struct task_struct *tsk)
 	mutex_unlock(&oom_adj_mutex);
 }
 
+#ifdef CONFIG_RV
+static void rv_task_fork(struct task_struct *p)
+{
+	int i;
+
+	for (i = 0; i < RV_PER_TASK_MONITORS; i++)
+		p->rv[i].da_mon.monitoring = false;
+}
+#else
+#define rv_task_fork(p) do {} while (0)
+#endif
+
 /*
  * This creates a new process as a copy of the old one,
  * but does not actually start it yet.
@@ -2415,6 +2427,8 @@ static __latent_entropy struct task_struct *copy_process(
 	 * before holding sighand lock.
 	 */
 	copy_seccomp(p);
+
+	rv_task_fork(p);
 
 	rseq_fork(p, clone_flags);
 

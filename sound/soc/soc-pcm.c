@@ -1209,8 +1209,7 @@ static int dpcm_be_connect(struct snd_soc_pcm_runtime *fe,
 		return -EINVAL;
 	}
 	if (fe_substream->pcm->nonatomic && !be_substream->pcm->nonatomic) {
-		dev_warn(be->dev, "%s: FE is nonatomic but BE is not, forcing BE as nonatomic\n",
-			 __func__);
+		dev_dbg(be->dev, "FE is nonatomic but BE is not, forcing BE as nonatomic\n");
 		be_substream->pcm->nonatomic = 1;
 	}
 
@@ -1316,6 +1315,9 @@ static struct snd_soc_pcm_runtime *dpcm_get_be(struct snd_soc_card *card,
 	for_each_card_rtds(card, be) {
 
 		if (!be->dai_link->no_pcm)
+			continue;
+
+		if (!snd_soc_dpcm_get_substream(be, stream))
 			continue;
 
 		for_each_rtd_dais(be, i, dai) {

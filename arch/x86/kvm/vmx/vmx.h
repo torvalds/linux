@@ -6,6 +6,7 @@
 
 #include <asm/kvm.h>
 #include <asm/intel_pt.h>
+#include <asm/perf_event.h>
 
 #include "capabilities.h"
 #include "../kvm_cache_regs.h"
@@ -92,14 +93,17 @@ union vmx_exit_reason {
 	u32 full;
 };
 
-#define vcpu_to_lbr_desc(vcpu) (&to_vmx(vcpu)->lbr_desc)
-#define vcpu_to_lbr_records(vcpu) (&to_vmx(vcpu)->lbr_desc.records)
-
-bool intel_pmu_lbr_is_compatible(struct kvm_vcpu *vcpu);
-bool intel_pmu_lbr_is_enabled(struct kvm_vcpu *vcpu);
-
-int intel_pmu_create_guest_lbr_event(struct kvm_vcpu *vcpu);
-void vmx_passthrough_lbr_msrs(struct kvm_vcpu *vcpu);
+static inline bool intel_pmu_has_perf_global_ctrl(struct kvm_pmu *pmu)
+{
+	/*
+	 * Architecturally, Intel's SDM states that IA32_PERF_GLOBAL_CTRL is
+	 * supported if "CPUID.0AH: EAX[7:0] > 0", i.e. if the PMU version is
+	 * greater than zero.  However, KVM only exposes and emulates the MSR
+	 * to/for the guest if the guest PMU supports at least "Architectural
+	 * Performance Monitoring Version 2".
+	 */
+	return pmu->version > 1;
+}
 
 struct lbr_desc {
 	/* Basic info about guest LBR records. */
@@ -205,7 +209,7 @@ struct nested_vmx {
 	 * Guest pages referred to in the vmcs02 with host-physical
 	 * pointers, so we must keep them pinned while L2 runs.
 	 */
-	struct page *apic_access_page;
+	struct kvm_host_map apic_access_page_map;
 	struct kvm_host_map virtual_apic_map;
 	struct kvm_host_map pi_desc_map;
 
@@ -220,9 +224,18 @@ struct nested_vmx {
 	bool has_preemption_timer_deadline;
 	bool preemption_timer_expired;
 
-	/* to migrate it to L2 if VM_ENTRY_LOAD_DEBUG_CONTROLS is off */
-	u64 vmcs01_debugctl;
-	u64 vmcs01_guest_bndcfgs;
+	/*
+	 * Used to snapshot MSRs that are conditionally loaded on VM-Enter in
+	 * order to propagate the guest's pre-VM-Enter value into vmcs02.  For
+	 * emulation of VMLAUNCH/VMRESUME, the snapshot will be of L1's value.
+	 * For KVM_SET_NESTED_STATE, the snapshot is of L2's value, _if_
+	 * userspace restores MSRs before nested state.  If userspace restores
+	 * MSRs after nested state, the snapshot holds garbage, but KVM can't
+	 * detect that, and the garbage value in vmcs02 will be overwritten by
+	 * MSR restoration in any case.
+	 */
+	u64 pre_vmenter_debugctl;
+	u64 pre_vmenter_bndcfgs;
 
 	/* to migrate it to L1 if L2 writes to L1's CR8 directly */
 	int l1_tpr_threshold;
@@ -369,6 +382,8 @@ struct kvm_vmx {
 	unsigned int tss_addr;
 	bool ept_identity_pagetable_done;
 	gpa_t ept_identity_map_addr;
+	/* Posted Interrupt Descriptor (PID) table for IPI virtualization */
+	u64 *pid_table;
 };
 
 bool nested_vmx_allowed(struct kvm_vcpu *vcpu);
@@ -462,35 +477,36 @@ static inline u8 vmx_get_rvi(void)
 	return vmcs_read16(GUEST_INTR_STATUS) & 0xff;
 }
 
-#define BUILD_CONTROLS_SHADOW(lname, uname)				    \
-static inline void lname##_controls_set(struct vcpu_vmx *vmx, u32 val)	    \
-{									    \
-	if (vmx->loaded_vmcs->controls_shadow.lname != val) {		    \
-		vmcs_write32(uname, val);				    \
-		vmx->loaded_vmcs->controls_shadow.lname = val;		    \
-	}								    \
-}									    \
-static inline u32 __##lname##_controls_get(struct loaded_vmcs *vmcs)	    \
-{									    \
-	return vmcs->controls_shadow.lname;				    \
-}									    \
-static inline u32 lname##_controls_get(struct vcpu_vmx *vmx)		    \
-{									    \
-	return __##lname##_controls_get(vmx->loaded_vmcs);		    \
-}									    \
-static inline void lname##_controls_setbit(struct vcpu_vmx *vmx, u32 val)   \
-{									    \
-	lname##_controls_set(vmx, lname##_controls_get(vmx) | val);	    \
-}									    \
-static inline void lname##_controls_clearbit(struct vcpu_vmx *vmx, u32 val) \
-{									    \
-	lname##_controls_set(vmx, lname##_controls_get(vmx) & ~val);	    \
+#define BUILD_CONTROLS_SHADOW(lname, uname, bits)				\
+static inline void lname##_controls_set(struct vcpu_vmx *vmx, u##bits val)	\
+{										\
+	if (vmx->loaded_vmcs->controls_shadow.lname != val) {			\
+		vmcs_write##bits(uname, val);					\
+		vmx->loaded_vmcs->controls_shadow.lname = val;			\
+	}									\
+}										\
+static inline u##bits __##lname##_controls_get(struct loaded_vmcs *vmcs)	\
+{										\
+	return vmcs->controls_shadow.lname;					\
+}										\
+static inline u##bits lname##_controls_get(struct vcpu_vmx *vmx)		\
+{										\
+	return __##lname##_controls_get(vmx->loaded_vmcs);			\
+}										\
+static inline void lname##_controls_setbit(struct vcpu_vmx *vmx, u##bits val)	\
+{										\
+	lname##_controls_set(vmx, lname##_controls_get(vmx) | val);		\
+}										\
+static inline void lname##_controls_clearbit(struct vcpu_vmx *vmx, u##bits val)	\
+{										\
+	lname##_controls_set(vmx, lname##_controls_get(vmx) & ~val);		\
 }
-BUILD_CONTROLS_SHADOW(vm_entry, VM_ENTRY_CONTROLS)
-BUILD_CONTROLS_SHADOW(vm_exit, VM_EXIT_CONTROLS)
-BUILD_CONTROLS_SHADOW(pin, PIN_BASED_VM_EXEC_CONTROL)
-BUILD_CONTROLS_SHADOW(exec, CPU_BASED_VM_EXEC_CONTROL)
-BUILD_CONTROLS_SHADOW(secondary_exec, SECONDARY_VM_EXEC_CONTROL)
+BUILD_CONTROLS_SHADOW(vm_entry, VM_ENTRY_CONTROLS, 32)
+BUILD_CONTROLS_SHADOW(vm_exit, VM_EXIT_CONTROLS, 32)
+BUILD_CONTROLS_SHADOW(pin, PIN_BASED_VM_EXEC_CONTROL, 32)
+BUILD_CONTROLS_SHADOW(exec, CPU_BASED_VM_EXEC_CONTROL, 32)
+BUILD_CONTROLS_SHADOW(secondary_exec, SECONDARY_VM_EXEC_CONTROL, 32)
+BUILD_CONTROLS_SHADOW(tertiary_exec, TERTIARY_VM_EXEC_CONTROL, 64)
 
 /*
  * VMX_REGS_LAZY_LOAD_SET - The set of registers that will be updated in the
@@ -517,6 +533,25 @@ static inline struct vcpu_vmx *to_vmx(struct kvm_vcpu *vcpu)
 {
 	return container_of(vcpu, struct vcpu_vmx, vcpu);
 }
+
+static inline struct lbr_desc *vcpu_to_lbr_desc(struct kvm_vcpu *vcpu)
+{
+	return &to_vmx(vcpu)->lbr_desc;
+}
+
+static inline struct x86_pmu_lbr *vcpu_to_lbr_records(struct kvm_vcpu *vcpu)
+{
+	return &vcpu_to_lbr_desc(vcpu)->records;
+}
+
+static inline bool intel_pmu_lbr_is_enabled(struct kvm_vcpu *vcpu)
+{
+	return !!vcpu_to_lbr_records(vcpu)->nr;
+}
+
+void intel_pmu_cross_mapped_check(struct kvm_pmu *pmu);
+int intel_pmu_create_guest_lbr_event(struct kvm_vcpu *vcpu);
+void vmx_passthrough_lbr_msrs(struct kvm_vcpu *vcpu);
 
 static inline unsigned long vmx_get_exit_qual(struct kvm_vcpu *vcpu)
 {
@@ -584,6 +619,11 @@ void dump_vmcs(struct kvm_vcpu *vcpu);
 static inline int vmx_get_instr_info_reg2(u32 vmx_instr_info)
 {
 	return (vmx_instr_info >> 28) & 0xf;
+}
+
+static inline bool vmx_can_use_ipiv(struct kvm_vcpu *vcpu)
+{
+	return  lapic_in_kernel(vcpu) && enable_ipiv;
 }
 
 #endif /* __KVM_X86_VMX_H */

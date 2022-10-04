@@ -808,7 +808,7 @@ static int opt3001_remove(struct i2c_client *client)
 	if (ret < 0) {
 		dev_err(opt->dev, "failed to read register %02x\n",
 				OPT3001_CONFIGURATION);
-		return ret;
+		return 0;
 	}
 
 	reg = ret;
@@ -819,7 +819,6 @@ static int opt3001_remove(struct i2c_client *client)
 	if (ret < 0) {
 		dev_err(opt->dev, "failed to write register %02x\n",
 				OPT3001_CONFIGURATION);
-		return ret;
 	}
 
 	return 0;

@@ -99,7 +99,7 @@ out_put:
  * power on all host managed cores and only unstall/run the boot core to boot the
  * DSP then turn off all non boot cores (if any) is powered on.
  */
-static int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot)
+int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
@@ -369,9 +369,15 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 
 static int hda_dsp_boot_imr(struct snd_sof_dev *sdev)
 {
+	const struct sof_intel_dsp_desc *chip_info;
 	int ret;
 
-	ret = cl_dsp_init(sdev, 0, true);
+	chip_info = get_chip_info(sdev->pdata);
+	if (chip_info->cl_init)
+		ret = chip_info->cl_init(sdev, 0, true);
+	else
+		ret = -EINVAL;
+
 	if (!ret)
 		hda_sdw_process_wakeen(sdev);
 
@@ -389,8 +395,7 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	struct snd_dma_buffer dmab;
 	int ret, ret1, i;
 
-	if (sdev->system_suspend_target < SOF_SUSPEND_S4 &&
-	    hda->imrboot_supported && !sdev->first_boot) {
+	if (hda->imrboot_supported && !sdev->first_boot && !hda->skip_imr_boot) {
 		dev_dbg(sdev->dev, "IMR restore supported, booting from IMR directly\n");
 		hda->boot_iteration = 0;
 		ret = hda_dsp_boot_imr(sdev);
@@ -431,7 +436,10 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 			"Attempting iteration %d of Core En/ROM load...\n", i);
 
 		hda->boot_iteration = i + 1;
-		ret = cl_dsp_init(sdev, hext_stream->hstream.stream_tag, false);
+		if (chip_info->cl_init)
+			ret = chip_info->cl_init(sdev, hext_stream->hstream.stream_tag, false);
+		else
+			ret = -EINVAL;
 
 		/* don't retry anymore if successful */
 		if (!ret)
@@ -471,11 +479,14 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	 */
 	hda->boot_iteration = HDA_FW_BOOT_ATTEMPTS;
 	ret = hda_cl_copy_fw(sdev, hext_stream);
-	if (!ret)
+	if (!ret) {
 		dev_dbg(sdev->dev, "Firmware download successful, booting...\n");
-	else
+		hda->skip_imr_boot = false;
+	} else {
 		snd_sof_dsp_dbg_dump(sdev, "Firmware download failed",
 				     SOF_DBG_DUMP_PCI | SOF_DBG_DUMP_MBOX);
+		hda->skip_imr_boot = true;
+	}
 
 cleanup:
 	/*
@@ -530,7 +541,8 @@ int hda_dsp_post_fw_run(struct snd_sof_dev *sdev)
 
 		/* Check if IMR boot is usable */
 		if (!sof_debug_check_flag(SOF_DBG_IGNORE_D3_PERSISTENT) &&
-		    sdev->fw_ready.flags & SOF_IPC_INFO_D3_PERSISTENT)
+		    (sdev->fw_ready.flags & SOF_IPC_INFO_D3_PERSISTENT ||
+		     sdev->pdata->ipc_type == SOF_INTEL_IPC4))
 			hdev->imrboot_supported = true;
 	}
 

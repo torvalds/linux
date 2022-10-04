@@ -607,6 +607,7 @@ struct Scsi_Host {
 	short unsigned int sg_tablesize;
 	short unsigned int sg_prot_tablesize;
 	unsigned int max_sectors;
+	unsigned int opt_sectors;
 	unsigned int max_segment_size;
 	unsigned long dma_boundary;
 	unsigned long virt_boundary_mask;
@@ -688,6 +689,9 @@ struct Scsi_Host {
 
 	/* ldm bits */
 	struct device		shost_gendev, shost_dev;
+
+	atomic_t		target_count;
+	wait_queue_head_t	targets_wq;
 
 	/*
 	 * Points to the transport data (if any) which is allocated

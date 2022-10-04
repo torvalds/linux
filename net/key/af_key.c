@@ -1697,9 +1697,12 @@ static int pfkey_register(struct sock *sk, struct sk_buff *skb, const struct sad
 		pfk->registered |= (1<<hdr->sadb_msg_satype);
 	}
 
+	mutex_lock(&pfkey_mutex);
 	xfrm_probe_algs();
 
 	supp_skb = compose_sadb_supported(hdr, GFP_KERNEL | __GFP_ZERO);
+	mutex_unlock(&pfkey_mutex);
+
 	if (!supp_skb) {
 		if (hdr->sadb_msg_satype != SADB_SATYPE_UNSPEC)
 			pfk->registered &= ~(1<<hdr->sadb_msg_satype);
@@ -3894,14 +3897,10 @@ static int __init ipsec_pfkey_init(void)
 	err = sock_register(&pfkey_family_ops);
 	if (err != 0)
 		goto out_unregister_pernet;
-	err = xfrm_register_km(&pfkeyv2_mgr);
-	if (err != 0)
-		goto out_sock_unregister;
+	xfrm_register_km(&pfkeyv2_mgr);
 out:
 	return err;
 
-out_sock_unregister:
-	sock_unregister(PF_KEY);
 out_unregister_pernet:
 	unregister_pernet_subsys(&pfkey_net_ops);
 out_unregister_key_proto:

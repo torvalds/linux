@@ -89,7 +89,7 @@ EXPORT_SYMBOL_GPL(xen_front_pgdir_shbuf_get_dir_start);
  * shared by the frontend itself) or map the provided granted
  * references onto the backing storage (buf->pages).
  *
- * \param buf shared buffer which grants to be maped.
+ * \param buf shared buffer which grants to be mapped.
  * \return zero on success or a negative number on failure.
  */
 int xen_front_pgdir_shbuf_map(struct xen_front_pgdir_shbuf *buf)
@@ -110,7 +110,7 @@ EXPORT_SYMBOL_GPL(xen_front_pgdir_shbuf_map);
  * shared by the frontend itself) or unmap the provided granted
  * references.
  *
- * \param buf shared buffer which grants to be unmaped.
+ * \param buf shared buffer which grants to be unmapped.
  * \return zero on success or a negative number on failure.
  */
 int xen_front_pgdir_shbuf_unmap(struct xen_front_pgdir_shbuf *buf)

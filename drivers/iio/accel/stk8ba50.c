@@ -501,7 +501,9 @@ static int stk8ba50_remove(struct i2c_client *client)
 	if (data->dready_trig)
 		iio_trigger_unregister(data->dready_trig);
 
-	return stk8ba50_set_power(data, STK8BA50_MODE_SUSPEND);
+	stk8ba50_set_power(data, STK8BA50_MODE_SUSPEND);
+
+	return 0;
 }
 
 static int stk8ba50_suspend(struct device *dev)

@@ -84,6 +84,13 @@ lc_wait_until_port_count_is()
 	busywait "$timeout" until_lc_port_count_is "$port_count" lc_port_count_get "$lc"
 }
 
+lc_nested_devlink_dev_get()
+{
+	local lc=$1
+
+	devlink lc show $DEVLINK_DEV lc $lc -j | jq -e -r ".[][][].nested_devlink"
+}
+
 PROV_UNPROV_TIMEOUT=8000 # ms
 POST_PROV_ACT_TIMEOUT=2000 # ms
 PROV_PORTS_INSTANTIATION_TIMEOUT=15000 # ms
@@ -191,12 +198,30 @@ ports_check()
 	check_err $? "Unexpected port count linecard $lc (got $port_count, expected $expected_port_count)"
 }
 
+lc_dev_info_provisioned_check()
+{
+	local lc=$1
+	local nested_devlink_dev=$2
+	local fixed_hw_revision
+	local running_ini_version
+
+	fixed_hw_revision=$(devlink dev info $nested_devlink_dev -j | \
+			    jq -e -r '.[][].versions.fixed."hw.revision"')
+	check_err $? "Failed to get linecard $lc fixed.hw.revision"
+	log_info "Linecard $lc fixed.hw.revision: \"$fixed_hw_revision\""
+	running_ini_version=$(devlink dev info $nested_devlink_dev -j | \
+			      jq -e -r '.[][].versions.running."ini.version"')
+	check_err $? "Failed to get linecard $lc running.ini.version"
+	log_info "Linecard $lc running.ini.version: \"$running_ini_version\""
+}
+
 provision_test()
 {
 	RET=0
 	local lc
 	local type
 	local state
+	local nested_devlink_dev
 
 	lc=$LC_SLOT
 	supported_types_check $lc
@@ -207,6 +232,11 @@ provision_test()
 	fi
 	provision_one $lc $LC_16X100G_TYPE
 	ports_check $lc $LC_16X100G_PORT_COUNT
+
+	nested_devlink_dev=$(lc_nested_devlink_dev_get $lc)
+	check_err $? "Failed to get nested devlink handle of linecard $lc"
+	lc_dev_info_provisioned_check $lc $nested_devlink_dev
+
 	log_test "Provision"
 }
 
@@ -220,12 +250,32 @@ interface_check()
 	setup_wait
 }
 
+lc_dev_info_active_check()
+{
+	local lc=$1
+	local nested_devlink_dev=$2
+	local fixed_device_fw_psid
+	local running_device_fw
+
+	fixed_device_fw_psid=$(devlink dev info $nested_devlink_dev -j | \
+			       jq -e -r ".[][].versions.fixed" | \
+			       jq -e -r '."fw.psid"')
+	check_err $? "Failed to get linecard $lc fixed fw PSID"
+	log_info "Linecard $lc fixed.fw.psid: \"$fixed_device_fw_psid\""
+
+	running_device_fw=$(devlink dev info $nested_devlink_dev -j | \
+			    jq -e -r ".[][].versions.running.fw")
+	check_err $? "Failed to get linecard $lc running.fw.version"
+	log_info "Linecard $lc running.fw: \"$running_device_fw\""
+}
+
 activation_16x100G_test()
 {
 	RET=0
 	local lc
 	local type
 	local state
+	local nested_devlink_dev
 
 	lc=$LC_SLOT
 	type=$LC_16X100G_TYPE
@@ -237,6 +287,10 @@ activation_16x100G_test()
 	check_err $? "Failed to get linecard $lc activated (timeout)"
 
 	interface_check
+
+	nested_devlink_dev=$(lc_nested_devlink_dev_get $lc)
+	check_err $? "Failed to get nested devlink handle of linecard $lc"
+	lc_dev_info_active_check $lc $nested_devlink_dev
 
 	log_test "Activation 16x100G"
 }

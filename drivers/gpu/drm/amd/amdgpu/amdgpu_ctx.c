@@ -110,7 +110,7 @@ static int amdgpu_ctx_priority_permit(struct drm_file *filp,
 	return -EACCES;
 }
 
-static enum amdgpu_gfx_pipe_priority amdgpu_ctx_prio_to_compute_prio(int32_t prio)
+static enum amdgpu_gfx_pipe_priority amdgpu_ctx_prio_to_gfx_pipe_prio(int32_t prio)
 {
 	switch (prio) {
 	case AMDGPU_CTX_PRIORITY_HIGH:
@@ -143,8 +143,9 @@ static unsigned int amdgpu_ctx_get_hw_prio(struct amdgpu_ctx *ctx, u32 hw_ip)
 			ctx->init_priority : ctx->override_priority;
 
 	switch (hw_ip) {
+	case AMDGPU_HW_IP_GFX:
 	case AMDGPU_HW_IP_COMPUTE:
-		hw_prio = amdgpu_ctx_prio_to_compute_prio(ctx_prio);
+		hw_prio = amdgpu_ctx_prio_to_gfx_pipe_prio(ctx_prio);
 		break;
 	case AMDGPU_HW_IP_VCE:
 	case AMDGPU_HW_IP_VCN_ENC:
@@ -271,32 +272,6 @@ static ktime_t amdgpu_ctx_fini_entity(struct amdgpu_ctx_entity *entity)
 	return res;
 }
 
-static int amdgpu_ctx_init(struct amdgpu_ctx_mgr *mgr, int32_t priority,
-			   struct drm_file *filp, struct amdgpu_ctx *ctx)
-{
-	int r;
-
-	r = amdgpu_ctx_priority_permit(filp, priority);
-	if (r)
-		return r;
-
-	memset(ctx, 0, sizeof(*ctx));
-
-	kref_init(&ctx->refcount);
-	ctx->mgr = mgr;
-	spin_lock_init(&ctx->ring_lock);
-	mutex_init(&ctx->lock);
-
-	ctx->reset_counter = atomic_read(&mgr->adev->gpu_reset_counter);
-	ctx->reset_counter_query = ctx->reset_counter;
-	ctx->vram_lost_counter = atomic_read(&mgr->adev->vram_lost_counter);
-	ctx->init_priority = priority;
-	ctx->override_priority = AMDGPU_CTX_PRIORITY_UNSET;
-	ctx->stable_pstate = AMDGPU_CTX_STABLE_PSTATE_NONE;
-
-	return 0;
-}
-
 static int amdgpu_ctx_get_stable_pstate(struct amdgpu_ctx *ctx,
 					u32 *stable_pstate)
 {
@@ -322,6 +297,38 @@ static int amdgpu_ctx_get_stable_pstate(struct amdgpu_ctx *ctx,
 		*stable_pstate = AMDGPU_CTX_STABLE_PSTATE_NONE;
 		break;
 	}
+	return 0;
+}
+
+static int amdgpu_ctx_init(struct amdgpu_ctx_mgr *mgr, int32_t priority,
+			   struct drm_file *filp, struct amdgpu_ctx *ctx)
+{
+	u32 current_stable_pstate;
+	int r;
+
+	r = amdgpu_ctx_priority_permit(filp, priority);
+	if (r)
+		return r;
+
+	memset(ctx, 0, sizeof(*ctx));
+
+	kref_init(&ctx->refcount);
+	ctx->mgr = mgr;
+	spin_lock_init(&ctx->ring_lock);
+	mutex_init(&ctx->lock);
+
+	ctx->reset_counter = atomic_read(&mgr->adev->gpu_reset_counter);
+	ctx->reset_counter_query = ctx->reset_counter;
+	ctx->vram_lost_counter = atomic_read(&mgr->adev->vram_lost_counter);
+	ctx->init_priority = priority;
+	ctx->override_priority = AMDGPU_CTX_PRIORITY_UNSET;
+
+	r = amdgpu_ctx_get_stable_pstate(ctx, &current_stable_pstate);
+	if (r)
+		return r;
+
+	ctx->stable_pstate = current_stable_pstate;
+
 	return 0;
 }
 
@@ -396,7 +403,7 @@ static void amdgpu_ctx_fini(struct kref *ref)
 	}
 
 	if (drm_dev_enter(&adev->ddev, &idx)) {
-		amdgpu_ctx_set_stable_pstate(ctx, AMDGPU_CTX_STABLE_PSTATE_NONE);
+		amdgpu_ctx_set_stable_pstate(ctx, ctx->stable_pstate);
 		drm_dev_exit(idx);
 	}
 
@@ -779,7 +786,7 @@ static void amdgpu_ctx_set_entity_priority(struct amdgpu_ctx *ctx,
 				      amdgpu_ctx_to_drm_sched_prio(priority));
 
 	/* set hw priority */
-	if (hw_ip == AMDGPU_HW_IP_COMPUTE) {
+	if (hw_ip == AMDGPU_HW_IP_COMPUTE || hw_ip == AMDGPU_HW_IP_GFX) {
 		hw_prio = amdgpu_ctx_get_hw_prio(ctx, hw_ip);
 		hw_prio = array_index_nospec(hw_prio, AMDGPU_RING_PRIO_MAX);
 		scheds = adev->gpu_sched[hw_ip][hw_prio].sched;

@@ -65,6 +65,11 @@ static const struct cros_feature_to_name cros_mcu_devices[] = {
 		.desc	= "System Control Processor",
 	},
 	{
+		.id	= EC_FEATURE_SCP_C1,
+		.name	= CROS_EC_DEV_SCP_C1_NAME,
+		.desc	= "System Control Processor 2nd Core",
+	},
+	{
 		.id	= EC_FEATURE_TOUCHPAD,
 		.name	= CROS_EC_DEV_TP_NAME,
 		.desc	= "Touchpad",
@@ -250,8 +255,8 @@ static int ec_device_probe(struct platform_device *pdev)
 	 * The PCHG device cannot be detected by sending EC_FEATURE_GET_CMD, but
 	 * it can be detected by querying the number of peripheral chargers.
 	 */
-	retval = cros_ec_command(ec->ec_dev, 0, EC_CMD_PCHG_COUNT, NULL, 0,
-				 &pchg_count, sizeof(pchg_count));
+	retval = cros_ec_cmd(ec->ec_dev, 0, EC_CMD_PCHG_COUNT, NULL, 0,
+			     &pchg_count, sizeof(pchg_count));
 	if (retval >= 0 && pchg_count.port_count) {
 		retval = mfd_add_hotplug_devices(ec->dev,
 					cros_ec_pchg_cells,

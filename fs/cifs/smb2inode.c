@@ -23,6 +23,7 @@
 #include "smb2glob.h"
 #include "smb2pdu.h"
 #include "smb2proto.h"
+#include "cached_dir.h"
 
 static void
 free_set_inf_compound(struct smb_rqst *rqst)
@@ -515,16 +516,16 @@ smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 	if (strcmp(full_path, ""))
 		rc = -ENOENT;
 	else
-		rc = open_cached_dir(xid, tcon, full_path, cifs_sb, &cfid);
+		rc = open_cached_dir(xid, tcon, full_path, cifs_sb, false, &cfid);
 	/* If it is a root and its handle is cached then use it */
 	if (!rc) {
-		if (tcon->crfid.file_all_info_is_valid) {
+		if (cfid->file_all_info_is_valid) {
 			move_smb2_info_to_cifs(data,
-					       &tcon->crfid.file_all_info);
+					       &cfid->file_all_info);
 		} else {
 			rc = SMB2_query_info(xid, tcon,
-					     cfid->fid->persistent_fid,
-					     cfid->fid->volatile_fid, smb2_data);
+					     cfid->fid.persistent_fid,
+					     cfid->fid.volatile_fid, smb2_data);
 			if (!rc)
 				move_smb2_info_to_cifs(data, smb2_data);
 		}

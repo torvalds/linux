@@ -5,6 +5,8 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
+#include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 
 #include "msm_drv.h"
 #include "mdp_kms.h"

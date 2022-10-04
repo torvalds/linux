@@ -1407,7 +1407,7 @@ static void _rtl92se_power_domain_init(struct ieee80211_hw *hw)
 	tmpu1b = rtl_read_byte(rtlpriv, REG_SYS_FUNC_EN + 1);
 
 	/* If IPS we need to turn LED on. So we not
-	 * not disable BIT 3/7 of reg3. */
+	 * disable BIT 3/7 of reg3. */
 	if (rtlpriv->psc.rfoff_reason & (RF_CHANGE_BY_IPS | RF_CHANGE_BY_HW))
 		tmpu1b &= 0xFB;
 	else

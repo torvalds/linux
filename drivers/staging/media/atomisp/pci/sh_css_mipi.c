@@ -431,8 +431,7 @@ allocate_mipi_frames(struct ia_css_pipe *pipe,
 				/* allocate new frame */
 				err = ia_css_frame_allocate_with_buffer_size(
 					  &my_css.mipi_frames[port][i],
-					  my_css.mipi_frame_size[port] * HIVE_ISP_DDR_WORD_BYTES,
-					  false);
+					  my_css.mipi_frame_size[port] * HIVE_ISP_DDR_WORD_BYTES);
 				if (err) {
 					for (j = 0; j < i; j++) {
 						if (my_css.mipi_frames[port][j]) {

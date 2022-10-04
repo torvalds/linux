@@ -107,6 +107,13 @@ config MTK_EFUSE
 	  This driver can also be built as a module. If so, the module
 	  will be called efuse-mtk.
 
+config MICROCHIP_OTPC
+	tristate "Microchip OTPC support"
+	depends on ARCH_AT91 || COMPILE_TEST
+	help
+	  This driver enable the OTP controller available on Microchip SAMA7G5
+	  SoCs. It controlls the access to the OTP memory connected to it.
+
 config NVMEM_NINTENDO_OTP
 	tristate "Nintendo Wii and Wii U OTP Support"
 	depends on WII || COMPILE_TEST

@@ -9,25 +9,35 @@
 #include "intel_display_types.h"
 #include "intel_vrr.h"
 
-bool intel_vrr_is_capable(struct drm_connector *connector)
+bool intel_vrr_is_capable(struct intel_connector *connector)
 {
+	const struct drm_display_info *info = &connector->base.display_info;
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct intel_dp *intel_dp;
-	const struct drm_display_info *info = &connector->display_info;
-	struct drm_i915_private *i915 = to_i915(connector->dev);
 
-	if (connector->connector_type != DRM_MODE_CONNECTOR_eDP &&
-	    connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort)
-		return false;
-
-	intel_dp = intel_attached_dp(to_intel_connector(connector));
 	/*
 	 * DP Sink is capable of VRR video timings if
 	 * Ignore MSA bit is set in DPCD.
 	 * EDID monitor range also should be atleast 10 for reasonable
 	 * Adaptive Sync or Variable Refresh Rate end user experience.
 	 */
+	switch (connector->base.connector_type) {
+	case DRM_MODE_CONNECTOR_eDP:
+		if (!connector->panel.vbt.vrr)
+			return false;
+		fallthrough;
+	case DRM_MODE_CONNECTOR_DisplayPort:
+		intel_dp = intel_attached_dp(connector);
+
+		if (!drm_dp_sink_can_do_video_without_timing_msa(intel_dp->dpcd))
+			return false;
+
+		break;
+	default:
+		return false;
+	}
+
 	return HAS_VRR(i915) &&
-		drm_dp_sink_can_do_video_without_timing_msa(intel_dp->dpcd) &&
 		info->monitor_range.max_vfreq - info->monitor_range.min_vfreq > 10;
 }
 
@@ -97,7 +107,7 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 	const struct drm_display_info *info = &connector->base.display_info;
 	int vmin, vmax;
 
-	if (!intel_vrr_is_capable(&connector->base))
+	if (!intel_vrr_is_capable(connector))
 		return;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)

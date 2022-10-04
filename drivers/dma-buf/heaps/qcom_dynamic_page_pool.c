@@ -323,7 +323,7 @@ int dynamic_page_pool_init_shrinker(void)
 	if (registered)
 		return 0;
 
-	ret = register_shrinker(&pool_shrinker);
+	ret = register_shrinker(&pool_shrinker, "dynamic_page_pool");
 	if (ret)
 		return ret;
 

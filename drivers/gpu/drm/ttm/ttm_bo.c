@@ -44,12 +44,6 @@
 
 #include "ttm_module.h"
 
-/* default destructor */
-static void ttm_bo_default_destroy(struct ttm_buffer_object *bo)
-{
-	kfree(bo);
-}
-
 static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,
 					struct ttm_placement *placement)
 {
@@ -918,7 +912,7 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 	/*
 	 * We might need to add a TTM.
 	 */
-	if (bo->resource->mem_type == TTM_PL_SYSTEM) {
+	if (!bo->resource || bo->resource->mem_type == TTM_PL_SYSTEM) {
 		ret = ttm_tt_create(bo, true);
 		if (ret)
 			return ret;
@@ -942,8 +936,7 @@ int ttm_bo_init_reserved(struct ttm_device *bdev,
 	bool locked;
 	int ret;
 
-	bo->destroy = destroy ? destroy : ttm_bo_default_destroy;
-
+	bo->destroy = destroy;
 	kref_init(&bo->kref);
 	INIT_LIST_HEAD(&bo->ddestroy);
 	bo->bdev = bdev;

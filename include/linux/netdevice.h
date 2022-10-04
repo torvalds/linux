@@ -640,9 +640,23 @@ extern int sysctl_devconf_inherit_init_net;
  */
 static inline bool net_has_fallback_tunnels(const struct net *net)
 {
-	return !IS_ENABLED(CONFIG_SYSCTL) ||
-	       !sysctl_fb_tunnels_only_for_init_net ||
-	       (net == &init_net && sysctl_fb_tunnels_only_for_init_net == 1);
+#if IS_ENABLED(CONFIG_SYSCTL)
+	int fb_tunnels_only_for_init_net = READ_ONCE(sysctl_fb_tunnels_only_for_init_net);
+
+	return !fb_tunnels_only_for_init_net ||
+		(net_eq(net, &init_net) && fb_tunnels_only_for_init_net == 1);
+#else
+	return true;
+#endif
+}
+
+static inline int net_inherit_devconf(void)
+{
+#if IS_ENABLED(CONFIG_SYSCTL)
+	return READ_ONCE(sysctl_devconf_inherit_init_net);
+#else
+	return 0;
+#endif
 }
 
 static inline int netdev_queue_numa_node_read(const struct netdev_queue *q)
@@ -2636,10 +2650,10 @@ struct packet_offload {
 
 /* often modified stats are per-CPU, other are shared (netdev->stats) */
 struct pcpu_sw_netstats {
-	u64     rx_packets;
-	u64     rx_bytes;
-	u64     tx_packets;
-	u64     tx_bytes;
+	u64_stats_t		rx_packets;
+	u64_stats_t		rx_bytes;
+	u64_stats_t		tx_packets;
+	u64_stats_t		tx_bytes;
 	struct u64_stats_sync   syncp;
 } __aligned(4 * sizeof(u64));
 
@@ -2656,8 +2670,8 @@ static inline void dev_sw_netstats_rx_add(struct net_device *dev, unsigned int l
 	struct pcpu_sw_netstats *tstats = this_cpu_ptr(dev->tstats);
 
 	u64_stats_update_begin(&tstats->syncp);
-	tstats->rx_bytes += len;
-	tstats->rx_packets++;
+	u64_stats_add(&tstats->rx_bytes, len);
+	u64_stats_inc(&tstats->rx_packets);
 	u64_stats_update_end(&tstats->syncp);
 }
 
@@ -2668,8 +2682,8 @@ static inline void dev_sw_netstats_tx_add(struct net_device *dev,
 	struct pcpu_sw_netstats *tstats = this_cpu_ptr(dev->tstats);
 
 	u64_stats_update_begin(&tstats->syncp);
-	tstats->tx_bytes += len;
-	tstats->tx_packets += packets;
+	u64_stats_add(&tstats->tx_bytes, len);
+	u64_stats_add(&tstats->tx_packets, packets);
 	u64_stats_update_end(&tstats->syncp);
 }
 
@@ -3981,8 +3995,8 @@ static inline void netdev_tracker_free(struct net_device *dev,
 #endif
 }
 
-static inline void dev_hold_track(struct net_device *dev,
-				  netdevice_tracker *tracker, gfp_t gfp)
+static inline void netdev_hold(struct net_device *dev,
+			       netdevice_tracker *tracker, gfp_t gfp)
 {
 	if (dev) {
 		__dev_hold(dev);
@@ -3990,8 +4004,8 @@ static inline void dev_hold_track(struct net_device *dev,
 	}
 }
 
-static inline void dev_put_track(struct net_device *dev,
-				 netdevice_tracker *tracker)
+static inline void netdev_put(struct net_device *dev,
+			      netdevice_tracker *tracker)
 {
 	if (dev) {
 		netdev_tracker_free(dev, tracker);
@@ -4004,11 +4018,11 @@ static inline void dev_put_track(struct net_device *dev,
  *	@dev: network device
  *
  * Hold reference to device to keep it from being freed.
- * Try using dev_hold_track() instead.
+ * Try using netdev_hold() instead.
  */
 static inline void dev_hold(struct net_device *dev)
 {
-	dev_hold_track(dev, NULL, GFP_ATOMIC);
+	netdev_hold(dev, NULL, GFP_ATOMIC);
 }
 
 /**
@@ -4016,17 +4030,17 @@ static inline void dev_hold(struct net_device *dev)
  *	@dev: network device
  *
  * Release reference to device to allow it to be freed.
- * Try using dev_put_track() instead.
+ * Try using netdev_put() instead.
  */
 static inline void dev_put(struct net_device *dev)
 {
-	dev_put_track(dev, NULL);
+	netdev_put(dev, NULL);
 }
 
-static inline void dev_replace_track(struct net_device *odev,
-				     struct net_device *ndev,
-				     netdevice_tracker *tracker,
-				     gfp_t gfp)
+static inline void netdev_ref_replace(struct net_device *odev,
+				      struct net_device *ndev,
+				      netdevice_tracker *tracker,
+				      gfp_t gfp)
 {
 	if (odev)
 		netdev_tracker_free(odev, tracker);

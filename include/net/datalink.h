@@ -2,6 +2,13 @@
 #ifndef _NET_INET_DATALINK_H_
 #define _NET_INET_DATALINK_H_
 
+#include <linux/list.h>
+
+struct llc_sap;
+struct net_device;
+struct packet_type;
+struct sk_buff;
+
 struct datalink_proto {
         unsigned char   type[8];
 

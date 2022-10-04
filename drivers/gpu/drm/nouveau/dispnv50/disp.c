@@ -48,8 +48,8 @@
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
 #include <nvif/cl5070.h>
-#include <nvif/cl507d.h>
 #include <nvif/event.h>
+#include <nvif/if0014.h>
 #include <nvif/timer.h>
 
 #include <nvhw/class/cl507c.h>
@@ -231,7 +231,7 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 		 struct nv50_dmac *dmac)
 {
 	struct nouveau_cli *cli = (void *)device->object.client;
-	struct nv50_disp_core_channel_dma_v0 *args = data;
+	struct nvif_disp_chan_v0 *args = data;
 	u8 type = NVIF_MEM_COHERENT;
 	int ret;
 
@@ -529,24 +529,15 @@ static enum drm_connector_status
 nv50_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nv50_disp *disp = nv50_disp(encoder->dev);
-	struct {
-		struct nv50_disp_mthd_v1 base;
-		struct nv50_disp_dac_load_v0 load;
-	} args = {
-		.base.version = 1,
-		.base.method = NV50_DISP_MTHD_V1_DAC_LOAD,
-		.base.hasht  = nv_encoder->dcb->hasht,
-		.base.hashm  = nv_encoder->dcb->hashm,
-	};
+	u32 loadval;
 	int ret;
 
-	args.load.data = nouveau_drm(encoder->dev)->vbios.dactestval;
-	if (args.load.data == 0)
-		args.load.data = 340;
+	loadval = nouveau_drm(encoder->dev)->vbios.dactestval;
+	if (loadval == 0)
+		loadval = 340;
 
-	ret = nvif_mthd(&disp->disp->object, 0, &args, sizeof(args));
-	if (ret || !args.load.load)
+	ret = nvif_outp_load_detect(&nv_encoder->outp, loadval);
+	if (ret <= 0)
 		return connector_status_disconnected;
 
 	return connector_status_connected;
@@ -563,6 +554,10 @@ nv50_dac_help = {
 static void
 nv50_dac_destroy(struct drm_encoder *encoder)
 {
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+
+	nvif_outp_dtor(&nv_encoder->outp);
+
 	drm_encoder_cleanup(encoder);
 	kfree(encoder);
 }
@@ -576,6 +571,7 @@ static int
 nv50_dac_create(struct drm_connector *connector, struct dcb_output *dcbe)
 {
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
+	struct nv50_disp *disp = nv50_disp(connector->dev);
 	struct nvkm_i2c *i2c = nvxx_i2c(&drm->client.device);
 	struct nvkm_i2c_bus *bus;
 	struct nouveau_encoder *nv_encoder;
@@ -599,7 +595,7 @@ nv50_dac_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	drm_encoder_helper_add(encoder, &nv50_dac_help);
 
 	drm_connector_attach_encoder(connector, encoder);
-	return 0;
+	return nvif_outp_ctor(disp->disp, nv_encoder->base.base.name, dcbe->id, &nv_encoder->outp);
 }
 
 /*
@@ -1822,6 +1818,9 @@ static void
 nv50_sor_destroy(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+
+	nvif_outp_dtor(&nv_encoder->outp);
+
 	nv50_mstm_del(&nv_encoder->dp.mstm);
 	drm_encoder_cleanup(encoder);
 
@@ -1918,7 +1917,7 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *dcbe)
 			nv_encoder->i2c = &bus->i2c;
 	}
 
-	return 0;
+	return nvif_outp_ctor(disp->disp, nv_encoder->base.base.name, dcbe->id, &nv_encoder->outp);
 }
 
 /******************************************************************************
@@ -1999,6 +1998,10 @@ nv50_pior_help = {
 static void
 nv50_pior_destroy(struct drm_encoder *encoder)
 {
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+
+	nvif_outp_dtor(&nv_encoder->outp);
+
 	drm_encoder_cleanup(encoder);
 	kfree(encoder);
 }
@@ -2056,7 +2059,7 @@ nv50_pior_create(struct drm_connector *connector, struct dcb_output *dcbe)
 	disp->core->func->pior->get_caps(disp, nv_encoder, ffs(dcbe->or) - 1);
 	nv50_outp_dump_caps(drm, nv_encoder);
 
-	return 0;
+	return nvif_outp_ctor(disp->disp, nv_encoder->base.base.name, dcbe->id, &nv_encoder->outp);
 }
 
 /******************************************************************************
@@ -2623,14 +2626,6 @@ nv50_display_fini(struct drm_device *dev, bool runtime, bool suspend)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_encoder *encoder;
-	struct drm_plane *plane;
-
-	drm_for_each_plane(plane, dev) {
-		struct nv50_wndw *wndw = nv50_wndw(plane);
-		if (plane->funcs != &nv50_wndw)
-			continue;
-		nv50_wndw_fini(wndw);
-	}
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		if (encoder->encoder_type != DRM_MODE_ENCODER_DPMST)
@@ -2646,7 +2641,6 @@ nv50_display_init(struct drm_device *dev, bool resume, bool runtime)
 {
 	struct nv50_core *core = nv50_disp(dev)->core;
 	struct drm_encoder *encoder;
-	struct drm_plane *plane;
 
 	if (resume || runtime)
 		core->func->init(core);
@@ -2657,13 +2651,6 @@ nv50_display_init(struct drm_device *dev, bool resume, bool runtime)
 				nouveau_encoder(encoder);
 			nv50_mstm_init(nv_encoder, runtime);
 		}
-	}
-
-	drm_for_each_plane(plane, dev) {
-		struct nv50_wndw *wndw = nv50_wndw(plane);
-		if (plane->funcs != &nv50_wndw)
-			continue;
-		nv50_wndw_init(wndw);
 	}
 
 	return 0;

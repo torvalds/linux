@@ -1834,7 +1834,7 @@ static void qcom_glink_rx_close(struct qcom_glink *glink, unsigned int rcid)
 	kthread_cancel_work_sync(&channel->intent_work);
 
 	if (channel->rpdev) {
-		strncpy(chinfo.name, channel->name, sizeof(chinfo.name));
+		strscpy_pad(chinfo.name, channel->name, sizeof(chinfo.name));
 		chinfo.src = RPMSG_ADDR_ANY;
 		chinfo.dst = RPMSG_ADDR_ANY;
 
@@ -1986,7 +1986,7 @@ static ssize_t rpmsg_name_show(struct device *dev,
 	if (ret < 0)
 		name = dev->of_node->name;
 
-	return snprintf(buf, RPMSG_NAME_SIZE, "%s\n", name);
+	return sysfs_emit(buf, "%s\n", name);
 }
 static DEVICE_ATTR_RO(rpmsg_name);
 
@@ -2082,10 +2082,6 @@ struct qcom_glink *qcom_glink_native_probe(struct device *dev,
 	ret = device_add_groups(dev, qcom_glink_groups);
 	if (ret)
 		dev_err(dev, "failed to add groups\n");
-
-	ret = of_property_read_string(dev->of_node, "label", &glink->name);
-	if (ret < 0)
-		glink->name = dev->of_node->name;
 
 	glink->mbox_client.dev = dev;
 	glink->mbox_client.knows_txdone = true;

@@ -149,7 +149,9 @@ arch/arm64/include/asm/spinlock.h
 arch/arm64/include/asm/spinlock_types.h
 arch/arm64/include/asm/stack_pointer.h
 arch/arm64/include/asm/stackprotector.h
+arch/arm64/include/asm/stacktrace/common.h
 arch/arm64/include/asm/stacktrace.h
+arch/arm64/include/asm/stacktrace/nvhe.h
 arch/arm64/include/asm/stage2_pgtable.h
 arch/arm64/include/asm/stat.h
 arch/arm64/include/asm/string.h
@@ -330,6 +332,7 @@ arch/arm64/kvm/hyp/nvhe/page_alloc.c
 arch/arm64/kvm/hyp/nvhe/pkvm.c
 arch/arm64/kvm/hyp/nvhe/psci-relay.c
 arch/arm64/kvm/hyp/nvhe/setup.c
+arch/arm64/kvm/hyp/nvhe/stacktrace.c
 arch/arm64/kvm/hyp/nvhe/switch.c
 arch/arm64/kvm/hyp/nvhe/sys_regs.c
 arch/arm64/kvm/hyp/nvhe/sysreg-sr.c
@@ -353,6 +356,7 @@ arch/arm64/kvm/pmu-emul.c
 arch/arm64/kvm/psci.c
 arch/arm64/kvm/pvtime.c
 arch/arm64/kvm/reset.c
+arch/arm64/kvm/stacktrace.c
 arch/arm64/kvm/sys_regs.c
 arch/arm64/kvm/sys_regs.h
 arch/arm64/kvm/trace_arm.h
@@ -762,6 +766,7 @@ drivers/dma-buf/dma-buf-sysfs-stats.h
 drivers/dma-buf/dma-fence-array.c
 drivers/dma-buf/dma-fence.c
 drivers/dma-buf/dma-fence-chain.c
+drivers/dma-buf/dma-fence-unwrap.c
 drivers/dma-buf/dma-heap.c
 drivers/dma-buf/dma-resv.c
 drivers/dma-buf/sync_file.c
@@ -1027,6 +1032,7 @@ drivers/input/ff-memless.c
 drivers/input/input.c
 drivers/input/input-compat.c
 drivers/input/input-compat.h
+drivers/input/input-core-private.h
 drivers/input/input-leds.c
 drivers/input/input-mt.c
 drivers/input/input-poller.c
@@ -1224,10 +1230,10 @@ drivers/mmc/host/sdhci.h
 drivers/mmc/host/sdhci-pltfm.c
 drivers/mmc/host/sdhci-pltfm.h
 drivers/net/can/dev/bittiming.c
+drivers/net/can/dev/calc_bittiming.c
 drivers/net/can/dev/dev.c
 drivers/net/can/dev/length.c
 drivers/net/can/dev/netlink.c
-drivers/net/can/dev/rx-offload.c
 drivers/net/can/dev/skb.c
 drivers/net/dummy.c
 drivers/net/ifb.c
@@ -1272,6 +1278,7 @@ drivers/net/usb/cdc_eem.c
 drivers/net/usb/cdc_ether.c
 drivers/net/usb/cdc_ncm.c
 drivers/net/usb/r8152.c
+drivers/net/usb/r8153_ecm.c
 drivers/net/usb/rtl8150.c
 drivers/net/usb/usbnet.c
 drivers/net/veth.c
@@ -1747,8 +1754,11 @@ drivers/usb/typec/class.c
 drivers/usb/typec/class.h
 drivers/usb/typec/mux.c
 drivers/usb/typec/mux.h
+drivers/usb/typec/pd.c
+drivers/usb/typec/pd.h
+drivers/usb/typec/retimer.c
+drivers/usb/typec/retimer.h
 drivers/usb/typec/tcpm/tcpci.c
-drivers/usb/typec/tcpm/tcpci.h
 drivers/usb/typec/tcpm/tcpm.c
 drivers/usb/typec/ucsi/psy.c
 drivers/usb/typec/ucsi/trace.c
@@ -1766,6 +1776,7 @@ drivers/video/hdmi.c
 drivers/video/of_display_timing.c
 drivers/video/of_videomode.c
 drivers/video/videomode.c
+drivers/virtio/virtio_anchor.c
 drivers/virtio/virtio.c
 drivers/virtio/virtio_ring.c
 drivers/watchdog/watchdog_core.c
@@ -2205,12 +2216,14 @@ include/asm-generic/bitops/const_hweight.h
 include/asm-generic/bitops/ext2-atomic-setbit.h
 include/asm-generic/bitops/ffz.h
 include/asm-generic/bitops/fls64.h
+include/asm-generic/bitops/generic-non-atomic.h
 include/asm-generic/bitops/hweight.h
 include/asm-generic/bitops/instrumented-atomic.h
 include/asm-generic/bitops/instrumented-lock.h
 include/asm-generic/bitops/le.h
 include/asm-generic/bitops/lock.h
 include/asm-generic/bitops/non-atomic.h
+include/asm-generic/bitops/non-instrumented-non-atomic.h
 include/asm-generic/bitops/sched.h
 include/asm-generic/bitsperlong.h
 include/asm-generic/bug.h
@@ -2258,7 +2271,6 @@ include/asm-generic/pgalloc.h
 include/asm-generic/pgtable-nop4d.h
 include/asm-generic/pgtable-nopud.h
 include/asm-generic/pgtable_uffd.h
-include/asm-generic/platform-feature.h
 include/asm-generic/qrwlock.h
 include/asm-generic/qrwlock_types.h
 include/asm-generic/qspinlock.h
@@ -2477,6 +2489,7 @@ include/linux/amba/bus.h
 include/linux/amba/serial.h
 include/linux/android_vendor.h
 include/linux/anon_inodes.h
+include/linux/aperture.h
 include/linux/arch_topology.h
 include/linux/arm_sdei.h
 include/linux/arm-smccc.h
@@ -2500,6 +2513,7 @@ include/linux/backing-dev.h
 include/linux/backlight.h
 include/linux/badblocks.h
 include/linux/balloon_compaction.h
+include/linux/base64.h
 include/linux/bcd.h
 include/linux/binfmts.h
 include/linux/bio.h
@@ -2558,7 +2572,6 @@ include/linux/can/can-ml.h
 include/linux/can/core.h
 include/linux/can/dev.h
 include/linux/can/length.h
-include/linux/can/rx-offload.h
 include/linux/can/skb.h
 include/linux/capability.h
 include/linux/cc_platform.h
@@ -2762,6 +2775,7 @@ include/linux/generic-radix-tree.h
 include/linux/genetlink.h
 include/linux/getcpu.h
 include/linux/gfp.h
+include/linux/gfp_types.h
 include/linux/glob.h
 include/linux/gnss.h
 include/linux/gpio/consumer.h
@@ -3211,7 +3225,6 @@ include/linux/platform_data/pinctrl-single.h
 include/linux/platform_data/syscon.h
 include/linux/platform_data/x86/apple.h
 include/linux/platform_device.h
-include/linux/platform-feature.h
 include/linux/plist.h
 include/linux/pm_clock.h
 include/linux/pm_domain.h
@@ -3328,6 +3341,7 @@ include/linux/rslib.h
 include/linux/rtc.h
 include/linux/rtmutex.h
 include/linux/rtnetlink.h
+include/linux/rv.h
 include/linux/rwlock_api_smp.h
 include/linux/rwlock.h
 include/linux/rwlock_types.h
@@ -3567,6 +3581,7 @@ include/linux/usb.h
 include/linux/usb/hcd.h
 include/linux/usb/input.h
 include/linux/usb/of.h
+include/linux/usb/onboard_hub.h
 include/linux/usb/otg.h
 include/linux/usb/pd_ado.h
 include/linux/usb/pd_bdo.h
@@ -3578,11 +3593,13 @@ include/linux/usb/quirks.h
 include/linux/usb/r8152.h
 include/linux/usb/role.h
 include/linux/usb/storage.h
+include/linux/usb/tcpci.h
 include/linux/usb/tcpm.h
 include/linux/usb/typec_altmode.h
 include/linux/usb/typec_dp.h
 include/linux/usb/typec.h
 include/linux/usb/typec_mux.h
+include/linux/usb/typec_retimer.h
 include/linux/usb/uas.h
 include/linux/usb/usbnet.h
 include/linux/usb_usual.h
@@ -3602,6 +3619,7 @@ include/linux/vgaarb.h
 include/linux/vga_switcheroo.h
 include/linux/vhost_iotlb.h
 include/linux/videodev2.h
+include/linux/virtio_anchor.h
 include/linux/virtio_byteorder.h
 include/linux/virtio_config.h
 include/linux/virtio.h
@@ -3645,7 +3663,6 @@ include/media/cec.h
 include/media/cec-notifier.h
 include/media/cec-pin.h
 include/media/frame_vector.h
-include/media/hevc-ctrls.h
 include/media/i2c/ir-kbd-i2c.h
 include/media/media-dev-allocator.h
 include/media/media-device.h
@@ -3689,6 +3706,7 @@ include/net/bluetooth/hci.h
 include/net/bluetooth/hci_mon.h
 include/net/bluetooth/hci_sock.h
 include/net/bluetooth/hci_sync.h
+include/net/bluetooth/iso.h
 include/net/bluetooth/l2cap.h
 include/net/bluetooth/mgmt.h
 include/net/bluetooth/rfcomm.h
@@ -3951,6 +3969,7 @@ include/sound/compress_driver.h
 include/sound/control.h
 include/sound/core.h
 include/sound/dmaengine_pcm.h
+include/sound/hda_verbs.h
 include/sound/hwdep.h
 include/sound/info.h
 include/sound/initval.h
@@ -4791,6 +4810,7 @@ kernel/irq/spurious.c
 kernel/irq_work.c
 kernel/jump_label.c
 kernel/kallsyms.c
+kernel/kallsyms_internal.h
 kernel/kcmp.c
 kernel/kheaders.c
 kernel/kmod.c
@@ -4829,7 +4849,6 @@ kernel/nsproxy.c
 kernel/panic.c
 kernel/params.c
 kernel/pid.c
-kernel/platform-feature.c
 kernel/power/energy_model.c
 kernel/power/main.c
 kernel/power/power.h
@@ -5004,6 +5023,7 @@ lib/argv_split.c
 lib/asn1_decoder.c
 lib/assoc_array.c
 lib/audit.c
+lib/base64.c
 lib/bcd.c
 lib/bitmap.c
 lib/bitrev.c
@@ -5151,7 +5171,6 @@ lib/mpi/mpiutil.c
 lib/net_utils.c
 lib/nlattr.c
 lib/nmi_backtrace.c
-lib/nodemask.c
 lib/oid_registry.c
 lib/once.c
 lib/parser.c
@@ -5405,6 +5424,7 @@ net/bluetooth/hci_sysfs.c
 net/bluetooth/hidp/core.c
 net/bluetooth/hidp/hidp.h
 net/bluetooth/hidp/sock.c
+net/bluetooth/iso.c
 net/bluetooth/l2cap_core.c
 net/bluetooth/l2cap_sock.c
 net/bluetooth/leds.h

@@ -171,7 +171,7 @@ static int ds4424_verify_chip(struct iio_dev *indio_dev)
 	return ret;
 }
 
-static int __maybe_unused ds4424_suspend(struct device *dev)
+static int ds4424_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
@@ -189,7 +189,7 @@ static int __maybe_unused ds4424_suspend(struct device *dev)
 	return ret;
 }
 
-static int __maybe_unused ds4424_resume(struct device *dev)
+static int ds4424_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
@@ -206,7 +206,7 @@ static int __maybe_unused ds4424_resume(struct device *dev)
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(ds4424_pm_ops, ds4424_suspend, ds4424_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(ds4424_pm_ops, ds4424_suspend, ds4424_resume);
 
 static const struct iio_info ds4424_info = {
 	.read_raw = ds4424_read_raw,
@@ -312,7 +312,7 @@ static struct i2c_driver ds4424_driver = {
 	.driver = {
 		.name	= "ds4424",
 		.of_match_table = ds4424_of_match,
-		.pm     = &ds4424_pm_ops,
+		.pm     = pm_sleep_ptr(&ds4424_pm_ops),
 	},
 	.probe		= ds4424_probe,
 	.remove		= ds4424_remove,

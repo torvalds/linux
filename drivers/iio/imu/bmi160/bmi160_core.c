@@ -143,7 +143,7 @@ const struct regmap_config bmi160_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 };
-EXPORT_SYMBOL(bmi160_regmap_config);
+EXPORT_SYMBOL_NS(bmi160_regmap_config, IIO_BMI160);
 
 struct bmi160_regs {
 	u8 data; /* LSB byte register for X-axis */
@@ -633,7 +633,7 @@ int bmi160_enable_irq(struct regmap *regmap, bool enable)
 				     BMI160_DRDY_INT_EN, enable_bit,
 				     BMI160_NORMAL_WRITE_USLEEP);
 }
-EXPORT_SYMBOL(bmi160_enable_irq);
+EXPORT_SYMBOL_NS(bmi160_enable_irq, IIO_BMI160);
 
 static int bmi160_get_irq(struct fwnode_handle *fwnode, enum bmi160_int_pin *pin)
 {
@@ -884,7 +884,7 @@ int bmi160_core_probe(struct device *dev, struct regmap *regmap,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_GPL(bmi160_core_probe);
+EXPORT_SYMBOL_NS_GPL(bmi160_core_probe, IIO_BMI160);
 
 MODULE_AUTHOR("Daniel Baluta <daniel.baluta@intel.com>");
 MODULE_DESCRIPTION("Bosch BMI160 driver");

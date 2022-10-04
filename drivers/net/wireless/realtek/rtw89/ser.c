@@ -300,18 +300,21 @@ static void ser_reset_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 
 static void ser_sta_deinit_addr_cam_iter(void *data, struct ieee80211_sta *sta)
 {
-	struct rtw89_dev *rtwdev = (struct rtw89_dev *)data;
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)data;
+	struct rtw89_dev *rtwdev = rtwvif->rtwdev;
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 
-	rtw89_cam_deinit_addr_cam(rtwdev, &rtwsta->addr_cam);
+	if (rtwvif->net_type == RTW89_NET_TYPE_AP_MODE || sta->tdls)
+		rtw89_cam_deinit_addr_cam(rtwdev, &rtwsta->addr_cam);
+	if (sta->tdls)
+		rtw89_cam_deinit_bssid_cam(rtwdev, &rtwsta->bssid_cam);
 }
 
 static void ser_deinit_cam(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
-	if (rtwvif->net_type == RTW89_NET_TYPE_AP_MODE)
-		ieee80211_iterate_stations_atomic(rtwdev->hw,
-						  ser_sta_deinit_addr_cam_iter,
-						  rtwdev);
+	ieee80211_iterate_stations_atomic(rtwdev->hw,
+					  ser_sta_deinit_addr_cam_iter,
+					  rtwvif);
 
 	rtw89_cam_deinit(rtwdev, rtwvif);
 }

@@ -158,7 +158,7 @@ MODULE_PARM_DESC(full_duplex, "DP8381x full duplex setting(s) (1)");
 I. Board Compatibility
 
 This driver is designed for National Semiconductor DP83815 PCI Ethernet NIC.
-It also works with other chips in in the DP83810 series.
+It also works with other chips in the DP83810 series.
 
 II. Board-specific settings
 

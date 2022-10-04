@@ -13,10 +13,6 @@
 #include "svm_util.h"
 #include "apic.h"
 
-#define VCPU_ID		0
-
-static struct kvm_vm *vm;
-
 bool vintr_irq_called;
 bool intr_irq_called;
 
@@ -88,33 +84,36 @@ static void l1_guest_code(struct svm_test_data *svm)
 
 int main(int argc, char *argv[])
 {
+	struct kvm_vcpu *vcpu;
+	struct kvm_run *run;
 	vm_vaddr_t svm_gva;
+	struct kvm_vm *vm;
+	struct ucall uc;
 
-	nested_svm_check_supported();
+	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_SVM));
 
-	vm = vm_create_default(VCPU_ID, 0, (void *) l1_guest_code);
+	vm = vm_create_with_one_vcpu(&vcpu, l1_guest_code);
 
 	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vm, VCPU_ID);
+	vcpu_init_descriptor_tables(vcpu);
 
 	vm_install_exception_handler(vm, VINTR_IRQ_NUMBER, vintr_irq_handler);
 	vm_install_exception_handler(vm, INTR_IRQ_NUMBER, intr_irq_handler);
 
 	vcpu_alloc_svm(vm, &svm_gva);
-	vcpu_args_set(vm, VCPU_ID, 1, svm_gva);
+	vcpu_args_set(vcpu, 1, svm_gva);
 
-	struct kvm_run *run = vcpu_state(vm, VCPU_ID);
-	struct ucall uc;
+	run = vcpu->run;
 
-	vcpu_run(vm, VCPU_ID);
+	vcpu_run(vcpu);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 		    "Got exit_reason other than KVM_EXIT_IO: %u (%s)\n",
 		    run->exit_reason,
 		    exit_reason_str(run->exit_reason));
 
-	switch (get_ucall(vm, VCPU_ID, &uc)) {
+	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_ABORT:
-		TEST_FAIL("%s", (const char *)uc.args[0]);
+		REPORT_GUEST_ASSERT(uc);
 		break;
 		/* NOT REACHED */
 	case UCALL_DONE:

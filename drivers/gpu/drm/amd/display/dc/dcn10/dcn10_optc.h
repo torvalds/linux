@@ -521,13 +521,17 @@ struct dcn_optc_registers {
 	type OTG_CRC_DATA_FORMAT;\
 	type OTG_V_TOTAL_LAST_USED_BY_DRR;
 
+#define TG_REG_FIELD_LIST_DCN3_2(type) \
+	type OTG_H_TIMING_DIV_MODE_MANUAL;
 
 struct dcn_optc_shift {
 	TG_REG_FIELD_LIST(uint8_t)
+	TG_REG_FIELD_LIST_DCN3_2(uint8_t)
 };
 
 struct dcn_optc_mask {
 	TG_REG_FIELD_LIST(uint32_t)
+	TG_REG_FIELD_LIST_DCN3_2(uint32_t)
 };
 
 struct optc {
@@ -553,6 +557,7 @@ struct optc {
 	int vupdate_offset;
 	int vupdate_width;
 	int vready_offset;
+	struct dc_crtc_timing orginal_patched_timing;
 	enum signal_type signal;
 };
 

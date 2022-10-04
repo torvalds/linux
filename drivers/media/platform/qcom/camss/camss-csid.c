@@ -245,7 +245,7 @@ static int csid_set_stream(struct v4l2_subdev *sd, int enable)
 		}
 
 		if (!csid->testgen.enabled &&
-		    !media_entity_remote_pad(&csid->pads[MSM_CSID_PAD_SINK]))
+		    !media_pad_remote_pad_first(&csid->pads[MSM_CSID_PAD_SINK]))
 			return -ENOLINK;
 	}
 
@@ -518,7 +518,7 @@ static int csid_set_test_pattern(struct csid_device *csid, s32 value)
 	struct csid_testgen_config *tg = &csid->testgen;
 
 	/* If CSID is linked to CSIPHY, do not allow to enable test generator */
-	if (value && media_entity_remote_pad(&csid->pads[MSM_CSID_PAD_SINK]))
+	if (value && media_pad_remote_pad_first(&csid->pads[MSM_CSID_PAD_SINK]))
 		return -EBUSY;
 
 	tg->enabled = !!value;
@@ -666,7 +666,7 @@ int msm_csid_subdev_init(struct camss *camss, struct csid_device *csid,
 	if (csid->num_supplies) {
 		csid->supplies = devm_kmalloc_array(camss->dev,
 						    csid->num_supplies,
-						    sizeof(csid->supplies),
+						    sizeof(*csid->supplies),
 						    GFP_KERNEL);
 		if (!csid->supplies)
 			return -ENOMEM;
@@ -729,7 +729,7 @@ static int csid_link_setup(struct media_entity *entity,
 			   const struct media_pad *remote, u32 flags)
 {
 	if (flags & MEDIA_LNK_FL_ENABLED)
-		if (media_entity_remote_pad(local))
+		if (media_pad_remote_pad_first(local))
 			return -EBUSY;
 
 	if ((local->flags & MEDIA_PAD_FL_SINK) &&

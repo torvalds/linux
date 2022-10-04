@@ -23,26 +23,6 @@
 #define USB_RT_ACM		(USB_TYPE_CLASS | USB_RECIP_INTERFACE)
 
 /*
- * Output control lines.
- */
-
-#define ACM_CTRL_DTR		0x01
-#define ACM_CTRL_RTS		0x02
-
-/*
- * Input control lines and line errors.
- */
-
-#define ACM_CTRL_DCD		0x01
-#define ACM_CTRL_DSR		0x02
-#define ACM_CTRL_BRK		0x04
-#define ACM_CTRL_RI		0x08
-
-#define ACM_CTRL_FRAMING	0x10
-#define ACM_CTRL_PARITY		0x20
-#define ACM_CTRL_OVERRUN	0x40
-
-/*
  * Internal driver structures.
  */
 

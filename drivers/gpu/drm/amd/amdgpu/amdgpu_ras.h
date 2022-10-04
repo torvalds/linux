@@ -328,10 +328,16 @@ struct ecc_info_per_ch {
 	uint16_t ce_count_hi_chip;
 	uint64_t mca_umc_status;
 	uint64_t mca_umc_addr;
+	uint64_t mca_ceumc_addr;
 };
 
 struct umc_ecc_info {
 	struct ecc_info_per_ch ecc[MAX_UMC_CHANNEL_NUM];
+
+	/* Determine smu ecctable whether support
+	 * record correctable error address
+	 */
+	int record_ce_addr_supported;
 };
 
 struct amdgpu_ras {

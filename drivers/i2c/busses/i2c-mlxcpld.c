@@ -560,6 +560,10 @@ static int mlxcpld_i2c_probe(struct platform_device *pdev)
 	if (err)
 		goto mlxcpld_i2_probe_failed;
 
+	/* Notify caller when adapter is added. */
+	if (pdata && pdata->completion_notify)
+		pdata->completion_notify(pdata->handle, mlxcpld_i2c_adapter.nr);
+
 	return 0;
 
 mlxcpld_i2_probe_failed:

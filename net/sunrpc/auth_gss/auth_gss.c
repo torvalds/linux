@@ -1340,14 +1340,11 @@ gss_hash_cred(struct auth_cred *acred, unsigned int hashbits)
 /*
  * Lookup RPCSEC_GSS cred for the current process
  */
-static struct rpc_cred *
-gss_lookup_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags)
+static struct rpc_cred *gss_lookup_cred(struct rpc_auth *auth,
+					struct auth_cred *acred, int flags)
 {
-	gfp_t gfp = GFP_KERNEL;
-
-	if (flags & RPCAUTH_LOOKUP_ASYNC)
-		gfp = GFP_NOWAIT | __GFP_NOWARN;
-	return rpcauth_lookup_credcache(auth, acred, flags, gfp);
+	return rpcauth_lookup_credcache(auth, acred, flags,
+					rpc_task_gfp_mask());
 }
 
 static struct rpc_cred *

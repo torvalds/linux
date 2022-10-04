@@ -135,7 +135,7 @@ static struct ath_buf *ath9k_beacon_generate(struct ieee80211_hw *hw,
 		bf->bf_mpdu = NULL;
 	}
 
-	skb = ieee80211_beacon_get(hw, vif);
+	skb = ieee80211_beacon_get(hw, vif, 0);
 	if (skb == NULL)
 		return NULL;
 
@@ -362,7 +362,7 @@ static void ath9k_set_tsfadjust(struct ath_softc *sc,
 
 bool ath9k_csa_is_finished(struct ath_softc *sc, struct ieee80211_vif *vif)
 {
-	if (!vif || !vif->csa_active)
+	if (!vif || !vif->bss_conf.csa_active)
 		return false;
 
 	if (!ieee80211_beacon_cntdwn_is_complete(vif))
@@ -585,8 +585,9 @@ static void ath9k_beacon_config_adhoc(struct ath_softc *sc,
 
 static void ath9k_cache_beacon_config(struct ath_softc *sc,
 				      struct ath_chanctx *ctx,
-				      struct ieee80211_bss_conf *bss_conf)
+				      struct ieee80211_vif *vif)
 {
+	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_beacon_config *cur_conf = &ctx->beacon;
 
@@ -596,7 +597,7 @@ static void ath9k_cache_beacon_config(struct ath_softc *sc,
 	cur_conf->beacon_interval = bss_conf->beacon_int;
 	cur_conf->dtim_period = bss_conf->dtim_period;
 	cur_conf->dtim_count = 1;
-	cur_conf->ibss_creator = bss_conf->ibss_creator;
+	cur_conf->ibss_creator = vif->cfg.ibss_creator;
 
 	/*
 	 * It looks like mac80211 may end up using beacon interval of zero in
@@ -649,7 +650,7 @@ void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *main_vif,
 	cur_conf->enable_beacon = beacons;
 
 	if (sc->sc_ah->opmode == NL80211_IFTYPE_STATION) {
-		ath9k_cache_beacon_config(sc, ctx, &main_vif->bss_conf);
+		ath9k_cache_beacon_config(sc, ctx, main_vif);
 
 		ath9k_set_beacon(sc);
 		set_bit(ATH_OP_BEACONS, &common->op_flags);
@@ -657,7 +658,7 @@ void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *main_vif,
 	}
 
 	/* Update the beacon configuration. */
-	ath9k_cache_beacon_config(sc, ctx, &main_vif->bss_conf);
+	ath9k_cache_beacon_config(sc, ctx, main_vif);
 
 	/*
 	 * Configure the HW beacon registers only when we have a valid
@@ -670,7 +671,7 @@ void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *main_vif,
 		 * IBSS interface.
 		 */
 		if (sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC &&
-		    !enabled && beacons && !main_vif->bss_conf.ibss_creator) {
+		    !enabled && beacons && !main_vif->cfg.ibss_creator) {
 			spin_lock_irqsave(&sc->sc_pm_lock, flags);
 			sc->ps_flags |= PS_BEACON_SYNC | PS_WAIT_FOR_BEACON;
 			spin_unlock_irqrestore(&sc->sc_pm_lock, flags);

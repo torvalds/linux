@@ -18,8 +18,8 @@
 #include "mt8186-clk.h"
 
 static const char *adsp_clks[ADSP_CLK_MAX] = {
-	[CLK_TOP_AUDIODSP] = "audiodsp_sel",
-	[CLK_TOP_ADSP_BUS] = "adsp_bus_sel",
+	[CLK_TOP_AUDIODSP] = "audiodsp",
+	[CLK_TOP_ADSP_BUS] = "adsp_bus",
 };
 
 int mt8186_adsp_init_clock(struct snd_sof_dev *sdev)

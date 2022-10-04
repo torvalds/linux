@@ -20,6 +20,7 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/ethtool.h>
 #include <linux/freezer.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -667,8 +668,6 @@ static irqreturn_t hi3110_can_ist(int irq, void *dev_id)
 
 			txerr = hi3110_read(spi, HI3110_READ_TEC);
 			rxerr = hi3110_read(spi, HI3110_READ_REC);
-			cf->data[6] = txerr;
-			cf->data[7] = rxerr;
 			tx_state = txerr >= rxerr ? new_state : 0;
 			rx_state = txerr <= rxerr ? new_state : 0;
 			can_change_state(net, cf, tx_state, rx_state);
@@ -681,6 +680,10 @@ static irqreturn_t hi3110_can_ist(int irq, void *dev_id)
 					hi3110_hw_sleep(spi);
 					break;
 				}
+			} else {
+				cf->can_id |= CAN_ERR_CNT;
+				cf->data[6] = txerr;
+				cf->data[7] = rxerr;
 			}
 		}
 
@@ -800,6 +803,10 @@ static const struct net_device_ops hi3110_netdev_ops = {
 	.ndo_start_xmit = hi3110_hard_start_xmit,
 };
 
+static const struct ethtool_ops hi3110_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 static const struct of_device_id hi3110_of_match[] = {
 	{
 		.compatible	= "holt,hi3110",
@@ -854,6 +861,7 @@ static int hi3110_can_probe(struct spi_device *spi)
 		goto out_free;
 
 	net->netdev_ops = &hi3110_netdev_ops;
+	net->ethtool_ops = &hi3110_ethtool_ops;
 	net->flags |= IFF_ECHO;
 
 	priv = netdev_priv(net);

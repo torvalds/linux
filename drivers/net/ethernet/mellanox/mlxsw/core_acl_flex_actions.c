@@ -1164,7 +1164,7 @@ EXPORT_SYMBOL(mlxsw_afa_block_append_vlan_modify);
  * trap control. In addition, the Trap / Discard action enables activating
  * SPAN (port mirroring).
  *
- * The Trap with userdef action action has the same functionality as
+ * The Trap with userdef action has the same functionality as
  * the Trap action with addition of user defined value that can be set
  * and used by higher layer applications.
  */

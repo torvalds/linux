@@ -7,6 +7,7 @@
  * Copyright 2022, Pratik Rajesh Sampat, IBM Corp.
  */
 
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <dirent.h>
@@ -32,7 +33,7 @@ enum type {
 	NUM_VAL
 };
 
-int value_type(int id)
+static int value_type(int id)
 {
 	int val_type;
 
@@ -54,15 +55,21 @@ int value_type(int id)
 	return val_type;
 }
 
-int verify_energy_info(void)
+static int verify_energy_info(void)
 {
 	const char *path = "/sys/firmware/papr/energy_scale_info";
 	struct dirent *entry;
 	struct stat s;
 	DIR *dirp;
 
-	if (stat(path, &s) || !S_ISDIR(s.st_mode))
-		return -1;
+	errno = 0;
+	if (stat(path, &s)) {
+		SKIP_IF(errno == ENOENT);
+		FAIL_IF(errno);
+	}
+
+	FAIL_IF(!S_ISDIR(s.st_mode));
+
 	dirp = opendir(path);
 
 	while ((entry = readdir(dirp)) != NULL) {
@@ -76,25 +83,24 @@ int verify_energy_info(void)
 
 		id = atoi(entry->d_name);
 		attr_type = value_type(id);
-		if (attr_type == INVALID)
-			return -1;
+		FAIL_IF(attr_type == INVALID);
 
 		/* Check if the files exist and have data in them */
 		sprintf(file_name, "%s/%d/desc", path, id);
 		f = fopen(file_name, "r");
-		if (!f || fgetc(f) == EOF)
-			return -1;
+		FAIL_IF(!f);
+		FAIL_IF(fgetc(f) == EOF);
 
 		sprintf(file_name, "%s/%d/value", path, id);
 		f = fopen(file_name, "r");
-		if (!f || fgetc(f) == EOF)
-			return -1;
+		FAIL_IF(!f);
+		FAIL_IF(fgetc(f) == EOF);
 
 		if (attr_type == STR_VAL) {
 			sprintf(file_name, "%s/%d/value_desc", path, id);
 			f = fopen(file_name, "r");
-			if (!f || fgetc(f) == EOF)
-				return -1;
+			FAIL_IF(!f);
+			FAIL_IF(fgetc(f) == EOF);
 		}
 	}
 

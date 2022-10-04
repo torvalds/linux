@@ -23,8 +23,6 @@
  *
  */
 
-#include <linux/slab.h>
-
 #include "dm_services.h"
 
 /*
@@ -53,23 +51,13 @@
 #include "dcn21/hw_factory_dcn21.h"
 #include "dcn30/hw_factory_dcn30.h"
 #include "dcn315/hw_factory_dcn315.h"
-
-#include "diagnostics/hw_factory_diag.h"
-
-/*
- * This unit
- */
+#include "dcn32/hw_factory_dcn32.h"
 
 bool dal_hw_factory_init(
 	struct hw_factory *factory,
 	enum dce_version dce_version,
 	enum dce_environment dce_environment)
 {
-	if (IS_FPGA_MAXIMUS_DC(dce_environment)) {
-		dal_hw_factory_diag_fpga_init(factory);
-		return true;
-	}
-
 	switch (dce_version) {
 #if defined(CONFIG_DRM_AMD_DC_SI)
 	case DCE_VERSION_6_0:
@@ -112,11 +100,16 @@ bool dal_hw_factory_init(
 	case DCN_VERSION_3_02:
 	case DCN_VERSION_3_03:
 	case DCN_VERSION_3_1:
+	case DCN_VERSION_3_14:
 	case DCN_VERSION_3_16:
 		dal_hw_factory_dcn30_init(factory);
 		return true;
 	case DCN_VERSION_3_15:
 		dal_hw_factory_dcn315_init(factory);
+		return true;
+	case DCN_VERSION_3_2:
+	case DCN_VERSION_3_21:
+		dal_hw_factory_dcn32_init(factory);
 		return true;
 	default:
 		ASSERT_CRITICAL(false);

@@ -469,7 +469,7 @@ static u64 gaudi_rr_hbw_mask_high_ar_regs[GAUDI_NUMBER_OF_HBW_RR_REGS] = {
 };
 
 /**
- * gaudi_set_block_as_protected - set the given block as protected
+ * gaudi_pb_set_block - set the given block as protected
  *
  * @hdev: pointer to hl_device structure
  * @base: block base address

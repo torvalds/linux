@@ -312,11 +312,16 @@ static inline int vpu_iface_input_frame(struct vpu_inst *inst,
 					struct vb2_buffer *vb)
 {
 	struct vpu_iface_ops *ops = vpu_core_get_iface(inst->core);
+	int ret;
 
 	if (!ops || !ops->input_frame)
 		return -EINVAL;
 
-	return ops->input_frame(inst->core->iface, inst, vb);
+	ret = ops->input_frame(inst->core->iface, inst, vb);
+	if (ret < 0)
+		return ret;
+	inst->total_input_count++;
+	return ret;
 }
 
 static inline int vpu_iface_config_memory_resource(struct vpu_inst *inst,

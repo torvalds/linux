@@ -329,7 +329,7 @@ struct e1000_adapter {
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_info;
 	struct pm_qos_request pm_qos_req;
-	s32 ptp_delta;
+	long ptp_delta;
 
 	u16 eee_advert;
 };

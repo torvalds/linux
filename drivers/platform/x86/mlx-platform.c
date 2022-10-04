@@ -34,6 +34,7 @@
 #define MLXPLAT_CPLD_LPC_REG_CPLD3_PN1_OFFSET	0x09
 #define MLXPLAT_CPLD_LPC_REG_CPLD4_PN_OFFSET	0x0a
 #define MLXPLAT_CPLD_LPC_REG_CPLD4_PN1_OFFSET	0x0b
+#define MLXPLAT_CPLD_LPC_REG_RESET_GP2_OFFSET	0x19
 #define MLXPLAT_CPLD_LPC_REG_RESET_GP4_OFFSET	0x1c
 #define MLXPLAT_CPLD_LPC_REG_RESET_CAUSE_OFFSET	0x1d
 #define MLXPLAT_CPLD_LPC_REG_RST_CAUSE1_OFFSET	0x1e
@@ -66,9 +67,15 @@
 #define MLXPLAT_CPLD_LPC_REG_AGGRCO_MASK_OFFSET	0x43
 #define MLXPLAT_CPLD_LPC_REG_AGGRCX_OFFSET	0x44
 #define MLXPLAT_CPLD_LPC_REG_AGGRCX_MASK_OFFSET 0x45
+#define MLXPLAT_CPLD_LPC_REG_GWP_OFFSET		0x4a
+#define MLXPLAT_CPLD_LPC_REG_GWP_EVENT_OFFSET	0x4b
+#define MLXPLAT_CPLD_LPC_REG_GWP_MASK_OFFSET	0x4c
 #define MLXPLAT_CPLD_LPC_REG_ASIC_HEALTH_OFFSET 0x50
 #define MLXPLAT_CPLD_LPC_REG_ASIC_EVENT_OFFSET	0x51
 #define MLXPLAT_CPLD_LPC_REG_ASIC_MASK_OFFSET	0x52
+#define MLXPLAT_CPLD_LPC_REG_ASIC2_HEALTH_OFFSET 0x53
+#define MLXPLAT_CPLD_LPC_REG_ASIC2_EVENT_OFFSET	0x54
+#define MLXPLAT_CPLD_LPC_REG_ASIC2_MASK_OFFSET	0x55
 #define MLXPLAT_CPLD_LPC_REG_AGGRLC_OFFSET	0x56
 #define MLXPLAT_CPLD_LPC_REG_AGGRLC_MASK_OFFSET	0x57
 #define MLXPLAT_CPLD_LPC_REG_PSU_OFFSET		0x58
@@ -143,6 +150,7 @@
 #define MLXPLAT_CPLD_LPC_REG_SLOT_QTY_OFFSET	0xfa
 #define MLXPLAT_CPLD_LPC_REG_CONFIG1_OFFSET	0xfb
 #define MLXPLAT_CPLD_LPC_REG_CONFIG2_OFFSET	0xfc
+#define MLXPLAT_CPLD_LPC_REG_CONFIG3_OFFSET	0xfd
 #define MLXPLAT_CPLD_LPC_IO_RANGE		0x100
 #define MLXPLAT_CPLD_LPC_I2C_CH1_OFF		0xdb
 #define MLXPLAT_CPLD_LPC_I2C_CH2_OFF		0xda
@@ -193,6 +201,7 @@
 					 MLXPLAT_CPLD_AGGR_MASK_LC_ACT | \
 					 MLXPLAT_CPLD_AGGR_MASK_LC_SDWN)
 #define MLXPLAT_CPLD_LOW_AGGR_MASK_LOW	0xc1
+#define MLXPLAT_CPLD_LOW_AGGR_MASK_ASIC2	BIT(2)
 #define MLXPLAT_CPLD_LOW_AGGR_MASK_I2C	BIT(6)
 #define MLXPLAT_CPLD_PSU_MASK		GENMASK(1, 0)
 #define MLXPLAT_CPLD_PWR_MASK		GENMASK(1, 0)
@@ -204,6 +213,7 @@
 #define MLXPLAT_CPLD_LED_LO_NIBBLE_MASK	GENMASK(7, 4)
 #define MLXPLAT_CPLD_LED_HI_NIBBLE_MASK	GENMASK(3, 0)
 #define MLXPLAT_CPLD_VOLTREG_UPD_MASK	GENMASK(5, 4)
+#define MLXPLAT_CPLD_GWP_MASK		GENMASK(0, 0)
 #define MLXPLAT_CPLD_I2C_CAP_BIT	0x04
 #define MLXPLAT_CPLD_I2C_CAP_MASK	GENMASK(5, MLXPLAT_CPLD_I2C_CAP_BIT)
 
@@ -583,6 +593,15 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_asic_items_data[] = {
 	{
 		.label = "asic1",
 		.reg = MLXPLAT_CPLD_LPC_REG_ASIC_HEALTH_OFFSET,
+		.mask = MLXPLAT_CPLD_ASIC_MASK,
+		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+	},
+};
+
+static struct mlxreg_core_data mlxplat_mlxcpld_default_asic2_items_data[] = {
+	{
+		.label = "asic2",
+		.reg = MLXPLAT_CPLD_LPC_REG_ASIC2_HEALTH_OFFSET,
 		.mask = MLXPLAT_CPLD_ASIC_MASK,
 		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
 	},
@@ -1151,6 +1170,15 @@ static struct mlxreg_core_item mlxplat_mlxcpld_ext_items[] = {
 		.inversed = 0,
 		.health = true,
 	},
+	{
+		.data = mlxplat_mlxcpld_default_asic2_items_data,
+		.aggr_mask = MLXPLAT_CPLD_AGGR_MASK_NG_DEF,
+		.reg = MLXPLAT_CPLD_LPC_REG_ASIC2_HEALTH_OFFSET,
+		.mask = MLXPLAT_CPLD_ASIC_MASK,
+		.count = ARRAY_SIZE(mlxplat_mlxcpld_default_asic2_items_data),
+		.inversed = 0,
+		.health = true,
+	}
 };
 
 static
@@ -1160,7 +1188,7 @@ struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_ext_data = {
 	.cell = MLXPLAT_CPLD_LPC_REG_AGGR_OFFSET,
 	.mask = MLXPLAT_CPLD_AGGR_MASK_NG_DEF | MLXPLAT_CPLD_AGGR_MASK_COMEX,
 	.cell_low = MLXPLAT_CPLD_LPC_REG_AGGRLO_OFFSET,
-	.mask_low = MLXPLAT_CPLD_LOW_AGGR_MASK_LOW,
+	.mask_low = MLXPLAT_CPLD_LOW_AGGR_MASK_LOW | MLXPLAT_CPLD_LOW_AGGR_MASK_ASIC2,
 };
 
 static struct mlxreg_core_data mlxplat_mlxcpld_modular_pwr_items_data[] = {
@@ -2004,6 +2032,38 @@ struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_modular_data = {
 	.mask_low = MLXPLAT_CPLD_LOW_AGGR_MASK_LOW,
 };
 
+/* Platform hotplug for NVLink blade systems family data  */
+static struct mlxreg_core_data mlxplat_mlxcpld_global_wp_items_data[] = {
+	{
+		.label = "global_wp_grant",
+		.reg = MLXPLAT_CPLD_LPC_REG_GWP_OFFSET,
+		.mask = MLXPLAT_CPLD_GWP_MASK,
+		.hpdev.nr = MLXPLAT_CPLD_NR_NONE,
+	},
+};
+
+static struct mlxreg_core_item mlxplat_mlxcpld_nvlink_blade_items[] = {
+	{
+		.data = mlxplat_mlxcpld_global_wp_items_data,
+		.aggr_mask = MLXPLAT_CPLD_AGGR_MASK_NG_DEF,
+		.reg = MLXPLAT_CPLD_LPC_REG_GWP_OFFSET,
+		.mask = MLXPLAT_CPLD_GWP_MASK,
+		.count = ARRAY_SIZE(mlxplat_mlxcpld_global_wp_items_data),
+		.inversed = 0,
+		.health = false,
+	},
+};
+
+static
+struct mlxreg_core_hotplug_platform_data mlxplat_mlxcpld_nvlink_blade_data = {
+	.items = mlxplat_mlxcpld_nvlink_blade_items,
+	.counter = ARRAY_SIZE(mlxplat_mlxcpld_nvlink_blade_items),
+	.cell = MLXPLAT_CPLD_LPC_REG_AGGR_OFFSET,
+	.mask = MLXPLAT_CPLD_AGGR_MASK_COMEX,
+	.cell_low = MLXPLAT_CPLD_LPC_REG_AGGRLO_OFFSET,
+	.mask_low = MLXPLAT_CPLD_LOW_AGGR_MASK_LOW,
+};
+
 /* Platform led default data */
 static struct mlxreg_core_data mlxplat_mlxcpld_default_led_data[] = {
 	{
@@ -2100,6 +2160,25 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_led_wc_data[] = {
 static struct mlxreg_core_platform_data mlxplat_default_led_wc_data = {
 		.data = mlxplat_mlxcpld_default_led_wc_data,
 		.counter = ARRAY_SIZE(mlxplat_mlxcpld_default_led_wc_data),
+};
+
+/* Platform led default data for water cooling Ethernet switch blade */
+static struct mlxreg_core_data mlxplat_mlxcpld_default_led_eth_wc_blade_data[] = {
+	{
+		.label = "status:green",
+		.reg = MLXPLAT_CPLD_LPC_REG_LED1_OFFSET,
+		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
+	},
+	{
+		.label = "status:red",
+		.reg = MLXPLAT_CPLD_LPC_REG_LED1_OFFSET,
+		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK
+	},
+};
+
+static struct mlxreg_core_platform_data mlxplat_default_led_eth_wc_blade_data = {
+	.data = mlxplat_mlxcpld_default_led_eth_wc_blade_data,
+	.counter = ARRAY_SIZE(mlxplat_mlxcpld_default_led_eth_wc_blade_data),
 };
 
 /* Platform led MSN21xx system family data */
@@ -2857,6 +2936,18 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_regs_io_data[] = {
 		.mode = 0444,
 	},
 	{
+		.label = "asic_reset",
+		.reg = MLXPLAT_CPLD_LPC_REG_RESET_GP2_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(3),
+		.mode = 0200,
+	},
+	{
+		.label = "asic2_reset",
+		.reg = MLXPLAT_CPLD_LPC_REG_RESET_GP2_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(2),
+		.mode = 0200,
+	},
+	{
 		.label = "reset_long_pb",
 		.reg = MLXPLAT_CPLD_LPC_REG_RESET_CAUSE_OFFSET,
 		.mask = GENMASK(7, 0) & ~BIT(0),
@@ -2996,6 +3087,13 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_regs_io_data[] = {
 		.mode = 0444,
 	},
 	{
+		.label = "asic2_health",
+		.reg = MLXPLAT_CPLD_LPC_REG_ASIC2_HEALTH_OFFSET,
+		.mask = MLXPLAT_CPLD_ASIC_MASK,
+		.bit = 1,
+		.mode = 0444,
+	},
+	{
 		.label = "fan_dir",
 		.reg = MLXPLAT_CPLD_LPC_REG_FAN_DIRECTION,
 		.bit = GENMASK(7, 0),
@@ -3053,6 +3151,12 @@ static struct mlxreg_core_data mlxplat_mlxcpld_default_ng_regs_io_data[] = {
 	{
 		.label = "config2",
 		.reg = MLXPLAT_CPLD_LPC_REG_CONFIG2_OFFSET,
+		.bit = GENMASK(7, 0),
+		.mode = 0444,
+	},
+	{
+		.label = "config3",
+		.reg = MLXPLAT_CPLD_LPC_REG_CONFIG3_OFFSET,
 		.bit = GENMASK(7, 0),
 		.mode = 0444,
 	},
@@ -3535,6 +3639,12 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_regs_io_data[] = {
 		.mode = 0444,
 	},
 	{
+		.label = "config3",
+		.reg = MLXPLAT_CPLD_LPC_REG_CONFIG3_OFFSET,
+		.bit = GENMASK(7, 0),
+		.mode = 0444,
+	},
+	{
 		.label = "ufm_version",
 		.reg = MLXPLAT_CPLD_LPC_REG_UFM_VERSION_OFFSET,
 		.bit = GENMASK(7, 0),
@@ -3545,6 +3655,209 @@ static struct mlxreg_core_data mlxplat_mlxcpld_modular_regs_io_data[] = {
 static struct mlxreg_core_platform_data mlxplat_modular_regs_io_data = {
 		.data = mlxplat_mlxcpld_modular_regs_io_data,
 		.counter = ARRAY_SIZE(mlxplat_mlxcpld_modular_regs_io_data),
+};
+
+/* Platform register access for NVLink blade systems family data  */
+static struct mlxreg_core_data mlxplat_mlxcpld_nvlink_blade_regs_io_data[] = {
+	{
+		.label = "cpld1_version",
+		.reg = MLXPLAT_CPLD_LPC_REG_CPLD1_VER_OFFSET,
+		.bit = GENMASK(7, 0),
+		.mode = 0444,
+	},
+	{
+		.label = "cpld1_pn",
+		.reg = MLXPLAT_CPLD_LPC_REG_CPLD1_PN_OFFSET,
+		.bit = GENMASK(15, 0),
+		.mode = 0444,
+		.regnum = 2,
+	},
+	{
+		.label = "cpld1_version_min",
+		.reg = MLXPLAT_CPLD_LPC_REG_CPLD1_MVER_OFFSET,
+		.bit = GENMASK(7, 0),
+		.mode = 0444,
+	},
+	{
+		.label = "reset_aux_pwr_or_ref",
+		.reg = MLXPLAT_CPLD_LPC_REG_RESET_CAUSE_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(2),
+		.mode = 0444,
+	},
+	{
+		.label = "reset_from_comex",
+		.reg = MLXPLAT_CPLD_LPC_REG_RESET_CAUSE_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(4),
+		.mode = 0444,
+	},
+	{
+		.label = "reset_comex_pwr_fail",
+		.reg = MLXPLAT_CPLD_LPC_REG_RST_CAUSE1_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(3),
+		.mode = 0444,
+	},
+	{
+		.label = "reset_platform",
+		.reg = MLXPLAT_CPLD_LPC_REG_RST_CAUSE1_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(4),
+		.mode = 0444,
+	},
+	{
+		.label = "reset_soc",
+		.reg = MLXPLAT_CPLD_LPC_REG_RST_CAUSE1_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(5),
+		.mode = 0444,
+	},
+	{
+		.label = "reset_comex_wd",
+		.reg = MLXPLAT_CPLD_LPC_REG_RST_CAUSE1_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(6),
+		.mode = 0444,
+	},
+	{
+		.label = "reset_voltmon_upgrade_fail",
+		.reg = MLXPLAT_CPLD_LPC_REG_RST_CAUSE2_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(0),
+		.mode = 0444,
+	},
+	{
+		.label = "reset_system",
+		.reg = MLXPLAT_CPLD_LPC_REG_RST_CAUSE2_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(1),
+		.mode = 0444,
+	},
+	{
+		.label = "reset_sw_pwr_off",
+		.reg = MLXPLAT_CPLD_LPC_REG_RST_CAUSE2_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(2),
+		.mode = 0444,
+	},
+	{
+		.label = "reset_comex_thermal",
+		.reg = MLXPLAT_CPLD_LPC_REG_RST_CAUSE2_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(3),
+		.mode = 0444,
+	},
+	{
+		.label = "reset_reload_bios",
+		.reg = MLXPLAT_CPLD_LPC_REG_RST_CAUSE2_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(5),
+		.mode = 0444,
+	},
+	{
+		.label = "reset_ac_pwr_fail",
+		.reg = MLXPLAT_CPLD_LPC_REG_RST_CAUSE2_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(6),
+		.mode = 0444,
+	},
+	{
+		.label = "pwr_cycle",
+		.reg = MLXPLAT_CPLD_LPC_REG_GP1_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(2),
+		.mode = 0200,
+	},
+	{
+		.label = "pwr_down",
+		.reg = MLXPLAT_CPLD_LPC_REG_GP1_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(3),
+		.mode = 0200,
+	},
+	{
+		.label = "global_wp_request",
+		.reg = MLXPLAT_CPLD_LPC_REG_GP2_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(0),
+		.mode = 0644,
+	},
+	{
+		.label = "jtag_enable",
+		.reg = MLXPLAT_CPLD_LPC_REG_GP2_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(4),
+		.mode = 0644,
+	},
+	{
+		.label = "comm_chnl_ready",
+		.reg = MLXPLAT_CPLD_LPC_REG_GP2_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(6),
+		.mode = 0200,
+	},
+	{
+		.label = "bios_safe_mode",
+		.reg = MLXPLAT_CPLD_LPC_REG_GPCOM0_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(4),
+		.mode = 0444,
+	},
+	{
+		.label = "bios_active_image",
+		.reg = MLXPLAT_CPLD_LPC_REG_GPCOM0_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(5),
+		.mode = 0444,
+	},
+	{
+		.label = "bios_auth_fail",
+		.reg = MLXPLAT_CPLD_LPC_REG_GPCOM0_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(6),
+		.mode = 0444,
+	},
+	{
+		.label = "bios_upgrade_fail",
+		.reg = MLXPLAT_CPLD_LPC_REG_GPCOM0_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(7),
+		.mode = 0444,
+	},
+	{
+		.label = "voltreg_update_status",
+		.reg = MLXPLAT_CPLD_LPC_REG_GP0_RO_OFFSET,
+		.mask = MLXPLAT_CPLD_VOLTREG_UPD_MASK,
+		.bit = 5,
+		.mode = 0444,
+	},
+	{
+		.label = "vpd_wp",
+		.reg = MLXPLAT_CPLD_LPC_REG_GP0_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(3),
+		.mode = 0644,
+	},
+	{
+		.label = "pcie_asic_reset_dis",
+		.reg = MLXPLAT_CPLD_LPC_REG_GP0_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(4),
+		.mode = 0644,
+	},
+	{
+		.label = "global_wp_response",
+		.reg = MLXPLAT_CPLD_LPC_REG_GWP_OFFSET,
+		.mask = GENMASK(7, 0) & ~BIT(0),
+		.mode = 0444,
+	},
+	{
+		.label = "config1",
+		.reg = MLXPLAT_CPLD_LPC_REG_CONFIG1_OFFSET,
+		.bit = GENMASK(7, 0),
+		.mode = 0444,
+	},
+	{
+		.label = "config2",
+		.reg = MLXPLAT_CPLD_LPC_REG_CONFIG2_OFFSET,
+		.bit = GENMASK(7, 0),
+		.mode = 0444,
+	},
+	{
+		.label = "config3",
+		.reg = MLXPLAT_CPLD_LPC_REG_CONFIG3_OFFSET,
+		.bit = GENMASK(7, 0),
+		.mode = 0444,
+	},
+	{
+		.label = "ufm_version",
+		.reg = MLXPLAT_CPLD_LPC_REG_UFM_VERSION_OFFSET,
+		.bit = GENMASK(7, 0),
+		.mode = 0444,
+	},
+};
+
+static struct mlxreg_core_platform_data mlxplat_nvlink_blade_regs_io_data = {
+		.data = mlxplat_mlxcpld_nvlink_blade_regs_io_data,
+		.counter = ARRAY_SIZE(mlxplat_mlxcpld_nvlink_blade_regs_io_data),
 };
 
 /* Platform FAN default */
@@ -3932,8 +4245,12 @@ static bool mlxplat_mlxcpld_writeable_reg(struct device *dev, unsigned int reg)
 	case MLXPLAT_CPLD_LPC_REG_AGGRLO_MASK_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_AGGRCO_MASK_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_AGGRCX_MASK_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_GWP_EVENT_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_GWP_MASK_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_ASIC_EVENT_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_ASIC_MASK_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_ASIC2_EVENT_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_ASIC2_MASK_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PSU_EVENT_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PSU_MASK_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PWR_EVENT_OFFSET:
@@ -4023,9 +4340,15 @@ static bool mlxplat_mlxcpld_readable_reg(struct device *dev, unsigned int reg)
 	case MLXPLAT_CPLD_LPC_REG_AGGRCO_MASK_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_AGGRCX_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_AGGRCX_MASK_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_GWP_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_GWP_EVENT_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_GWP_MASK_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_ASIC_HEALTH_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_ASIC_EVENT_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_ASIC_MASK_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_ASIC2_HEALTH_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_ASIC2_EVENT_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_ASIC2_MASK_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PSU_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PSU_EVENT_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PSU_MASK_OFFSET:
@@ -4100,6 +4423,7 @@ static bool mlxplat_mlxcpld_readable_reg(struct device *dev, unsigned int reg)
 	case MLXPLAT_CPLD_LPC_REG_SLOT_QTY_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_CONFIG1_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_CONFIG2_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_CONFIG3_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_UFM_VERSION_OFFSET:
 		return true;
 	}
@@ -4150,9 +4474,15 @@ static bool mlxplat_mlxcpld_volatile_reg(struct device *dev, unsigned int reg)
 	case MLXPLAT_CPLD_LPC_REG_AGGRCO_MASK_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_AGGRCX_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_AGGRCX_MASK_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_GWP_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_GWP_EVENT_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_GWP_MASK_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_ASIC_HEALTH_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_ASIC_EVENT_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_ASIC_MASK_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_ASIC2_HEALTH_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_ASIC2_EVENT_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_ASIC2_MASK_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PSU_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PSU_EVENT_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_PSU_MASK_OFFSET:
@@ -4221,6 +4551,7 @@ static bool mlxplat_mlxcpld_volatile_reg(struct device *dev, unsigned int reg)
 	case MLXPLAT_CPLD_LPC_REG_SLOT_QTY_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_CONFIG1_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_CONFIG2_OFFSET:
+	case MLXPLAT_CPLD_LPC_REG_CONFIG3_OFFSET:
 	case MLXPLAT_CPLD_LPC_REG_UFM_VERSION_OFFSET:
 		return true;
 	}
@@ -4417,6 +4748,31 @@ static int __init mlxplat_dmi_default_wc_matched(const struct dmi_system_id *dmi
 	return 1;
 }
 
+static int __init mlxplat_dmi_default_eth_wc_blade_matched(const struct dmi_system_id *dmi)
+{
+	int i;
+
+	mlxplat_max_adap_num = MLXPLAT_CPLD_MAX_PHYS_ADAPTER_NUM;
+	mlxplat_mux_num = ARRAY_SIZE(mlxplat_default_mux_data);
+	mlxplat_mux_data = mlxplat_default_mux_data;
+	for (i = 0; i < mlxplat_mux_num; i++) {
+		mlxplat_mux_data[i].values = mlxplat_msn21xx_channels;
+		mlxplat_mux_data[i].n_values =
+				ARRAY_SIZE(mlxplat_msn21xx_channels);
+	}
+	mlxplat_hotplug = &mlxplat_mlxcpld_default_wc_data;
+	mlxplat_hotplug->deferred_nr =
+		mlxplat_msn21xx_channels[MLXPLAT_CPLD_GRP_CHNL_NUM - 1];
+	mlxplat_led = &mlxplat_default_led_eth_wc_blade_data;
+	mlxplat_regs_io = &mlxplat_default_ng_regs_io_data;
+	for (i = 0; i < ARRAY_SIZE(mlxplat_mlxcpld_wd_set_type2); i++)
+		mlxplat_wd_data[i] = &mlxplat_mlxcpld_wd_set_type2[i];
+	mlxplat_i2c = &mlxplat_mlxcpld_i2c_ng_data;
+	mlxplat_regmap_config = &mlxplat_mlxcpld_regmap_config_ng;
+
+	return 1;
+}
+
 static int __init mlxplat_dmi_msn21xx_matched(const struct dmi_system_id *dmi)
 {
 	int i;
@@ -4579,6 +4935,28 @@ static int __init mlxplat_dmi_modular_matched(const struct dmi_system_id *dmi)
 	return 1;
 }
 
+static int __init mlxplat_dmi_nvlink_blade_matched(const struct dmi_system_id *dmi)
+{
+	int i;
+
+	mlxplat_max_adap_num = MLXPLAT_CPLD_MAX_PHYS_ADAPTER_NUM;
+	mlxplat_mux_num = ARRAY_SIZE(mlxplat_default_mux_data);
+	mlxplat_mux_data = mlxplat_default_mux_data;
+	mlxplat_hotplug = &mlxplat_mlxcpld_nvlink_blade_data;
+	mlxplat_hotplug->deferred_nr =
+		mlxplat_msn21xx_channels[MLXPLAT_CPLD_GRP_CHNL_NUM - 1];
+	for (i = 0; i < mlxplat_mux_num; i++) {
+		mlxplat_mux_data[i].values = mlxplat_msn21xx_channels;
+		mlxplat_mux_data[i].n_values =
+				ARRAY_SIZE(mlxplat_msn21xx_channels);
+	}
+	mlxplat_regs_io = &mlxplat_nvlink_blade_regs_io_data;
+	mlxplat_i2c = &mlxplat_mlxcpld_i2c_ng_data;
+	mlxplat_regmap_config = &mlxplat_mlxcpld_regmap_config_ng400;
+
+	return 1;
+}
+
 static const struct dmi_system_id mlxplat_dmi_table[] __initconst = {
 	{
 		.callback = mlxplat_dmi_default_wc_matched,
@@ -4612,6 +4990,13 @@ static const struct dmi_system_id mlxplat_dmi_table[] __initconst = {
 		},
 	},
 	{
+		.callback = mlxplat_dmi_default_eth_wc_blade_matched,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "VMOD0005"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "HI139"),
+		},
+	},
+	{
 		.callback = mlxplat_dmi_qmb7xx_matched,
 		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "VMOD0005"),
@@ -4639,6 +5024,12 @@ static const struct dmi_system_id mlxplat_dmi_table[] __initconst = {
 		.callback = mlxplat_dmi_modular_matched,
 		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "VMOD0011"),
+		},
+	},
+	{
+		.callback = mlxplat_dmi_nvlink_blade_matched,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "VMOD0015"),
 		},
 	},
 	{
@@ -4830,22 +5221,20 @@ static int __init mlxplat_init(void)
 	nr = (nr == mlxplat_max_adap_num) ? -1 : nr;
 	if (mlxplat_i2c)
 		mlxplat_i2c->regmap = priv->regmap;
-	priv->pdev_i2c = platform_device_register_resndata(
-					&mlxplat_dev->dev, "i2c_mlxcpld",
-					nr, mlxplat_mlxcpld_resources,
-					ARRAY_SIZE(mlxplat_mlxcpld_resources),
-					mlxplat_i2c, sizeof(*mlxplat_i2c));
+	priv->pdev_i2c = platform_device_register_resndata(&mlxplat_dev->dev, "i2c_mlxcpld",
+							   nr, mlxplat_mlxcpld_resources,
+							   ARRAY_SIZE(mlxplat_mlxcpld_resources),
+							   mlxplat_i2c, sizeof(*mlxplat_i2c));
 	if (IS_ERR(priv->pdev_i2c)) {
 		err = PTR_ERR(priv->pdev_i2c);
 		goto fail_alloc;
 	}
 
 	for (i = 0; i < mlxplat_mux_num; i++) {
-		priv->pdev_mux[i] = platform_device_register_resndata(
-						&priv->pdev_i2c->dev,
-						"i2c-mux-reg", i, NULL,
-						0, &mlxplat_mux_data[i],
-						sizeof(mlxplat_mux_data[i]));
+		priv->pdev_mux[i] = platform_device_register_resndata(&priv->pdev_i2c->dev,
+								      "i2c-mux-reg", i, NULL, 0,
+								      &mlxplat_mux_data[i],
+								      sizeof(mlxplat_mux_data[i]));
 		if (IS_ERR(priv->pdev_mux[i])) {
 			err = PTR_ERR(priv->pdev_mux[i]);
 			goto fail_platform_mux_register;
@@ -4853,16 +5242,18 @@ static int __init mlxplat_init(void)
 	}
 
 	/* Add hotplug driver */
-	mlxplat_hotplug->regmap = priv->regmap;
-	priv->pdev_hotplug = platform_device_register_resndata(
-				&mlxplat_dev->dev, "mlxreg-hotplug",
-				PLATFORM_DEVID_NONE,
-				mlxplat_mlxcpld_resources,
-				ARRAY_SIZE(mlxplat_mlxcpld_resources),
-				mlxplat_hotplug, sizeof(*mlxplat_hotplug));
-	if (IS_ERR(priv->pdev_hotplug)) {
-		err = PTR_ERR(priv->pdev_hotplug);
-		goto fail_platform_mux_register;
+	if (mlxplat_hotplug) {
+		mlxplat_hotplug->regmap = priv->regmap;
+		priv->pdev_hotplug =
+		platform_device_register_resndata(&mlxplat_dev->dev,
+						  "mlxreg-hotplug", PLATFORM_DEVID_NONE,
+						  mlxplat_mlxcpld_resources,
+						  ARRAY_SIZE(mlxplat_mlxcpld_resources),
+						  mlxplat_hotplug, sizeof(*mlxplat_hotplug));
+		if (IS_ERR(priv->pdev_hotplug)) {
+			err = PTR_ERR(priv->pdev_hotplug);
+			goto fail_platform_mux_register;
+		}
 	}
 
 	/* Set default registers. */
@@ -4875,24 +5266,26 @@ static int __init mlxplat_init(void)
 	}
 
 	/* Add LED driver. */
-	mlxplat_led->regmap = priv->regmap;
-	priv->pdev_led = platform_device_register_resndata(
-				&mlxplat_dev->dev, "leds-mlxreg",
-				PLATFORM_DEVID_NONE, NULL, 0,
-				mlxplat_led, sizeof(*mlxplat_led));
-	if (IS_ERR(priv->pdev_led)) {
-		err = PTR_ERR(priv->pdev_led);
-		goto fail_platform_hotplug_register;
+	if (mlxplat_led) {
+		mlxplat_led->regmap = priv->regmap;
+		priv->pdev_led =
+		platform_device_register_resndata(&mlxplat_dev->dev, "leds-mlxreg",
+						  PLATFORM_DEVID_NONE, NULL, 0, mlxplat_led,
+						  sizeof(*mlxplat_led));
+		if (IS_ERR(priv->pdev_led)) {
+			err = PTR_ERR(priv->pdev_led);
+			goto fail_platform_hotplug_register;
+		}
 	}
 
 	/* Add registers io access driver. */
 	if (mlxplat_regs_io) {
 		mlxplat_regs_io->regmap = priv->regmap;
-		priv->pdev_io_regs = platform_device_register_resndata(
-					&mlxplat_dev->dev, "mlxreg-io",
-					PLATFORM_DEVID_NONE, NULL, 0,
-					mlxplat_regs_io,
-					sizeof(*mlxplat_regs_io));
+		priv->pdev_io_regs = platform_device_register_resndata(&mlxplat_dev->dev,
+								       "mlxreg-io",
+								       PLATFORM_DEVID_NONE, NULL,
+								       0, mlxplat_regs_io,
+								       sizeof(*mlxplat_regs_io));
 		if (IS_ERR(priv->pdev_io_regs)) {
 			err = PTR_ERR(priv->pdev_io_regs);
 			goto fail_platform_led_register;
@@ -4902,11 +5295,10 @@ static int __init mlxplat_init(void)
 	/* Add FAN driver. */
 	if (mlxplat_fan) {
 		mlxplat_fan->regmap = priv->regmap;
-		priv->pdev_fan = platform_device_register_resndata(
-					&mlxplat_dev->dev, "mlxreg-fan",
-					PLATFORM_DEVID_NONE, NULL, 0,
-					mlxplat_fan,
-					sizeof(*mlxplat_fan));
+		priv->pdev_fan = platform_device_register_resndata(&mlxplat_dev->dev, "mlxreg-fan",
+								   PLATFORM_DEVID_NONE, NULL, 0,
+								   mlxplat_fan,
+								   sizeof(*mlxplat_fan));
 		if (IS_ERR(priv->pdev_fan)) {
 			err = PTR_ERR(priv->pdev_fan);
 			goto fail_platform_io_regs_register;
@@ -4920,11 +5312,10 @@ static int __init mlxplat_init(void)
 	for (j = 0; j < MLXPLAT_CPLD_WD_MAX_DEVS; j++) {
 		if (mlxplat_wd_data[j]) {
 			mlxplat_wd_data[j]->regmap = priv->regmap;
-			priv->pdev_wd[j] = platform_device_register_resndata(
-						&mlxplat_dev->dev, "mlx-wdt",
-						j, NULL, 0,
-						mlxplat_wd_data[j],
-						sizeof(*mlxplat_wd_data[j]));
+			priv->pdev_wd[j] =
+				platform_device_register_resndata(&mlxplat_dev->dev, "mlx-wdt", j,
+								  NULL, 0, mlxplat_wd_data[j],
+								  sizeof(*mlxplat_wd_data[j]));
 			if (IS_ERR(priv->pdev_wd[j])) {
 				err = PTR_ERR(priv->pdev_wd[j]);
 				goto fail_platform_wd_register;
@@ -4949,9 +5340,11 @@ fail_platform_io_regs_register:
 	if (mlxplat_regs_io)
 		platform_device_unregister(priv->pdev_io_regs);
 fail_platform_led_register:
-	platform_device_unregister(priv->pdev_led);
+	if (mlxplat_led)
+		platform_device_unregister(priv->pdev_led);
 fail_platform_hotplug_register:
-	platform_device_unregister(priv->pdev_hotplug);
+	if (mlxplat_hotplug)
+		platform_device_unregister(priv->pdev_hotplug);
 fail_platform_mux_register:
 	while (--i >= 0)
 		platform_device_unregister(priv->pdev_mux[i]);
@@ -4974,8 +5367,10 @@ static void __exit mlxplat_exit(void)
 		platform_device_unregister(priv->pdev_fan);
 	if (priv->pdev_io_regs)
 		platform_device_unregister(priv->pdev_io_regs);
-	platform_device_unregister(priv->pdev_led);
-	platform_device_unregister(priv->pdev_hotplug);
+	if (priv->pdev_led)
+		platform_device_unregister(priv->pdev_led);
+	if (priv->pdev_hotplug)
+		platform_device_unregister(priv->pdev_hotplug);
 
 	for (i = mlxplat_mux_num - 1; i >= 0 ; i--)
 		platform_device_unregister(priv->pdev_mux[i]);

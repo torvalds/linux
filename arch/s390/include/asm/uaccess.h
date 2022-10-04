@@ -285,7 +285,6 @@ static inline unsigned long __must_check clear_user(void __user *to, unsigned lo
 	return __clear_user(to, n);
 }
 
-int copy_to_user_real(void __user *dest, unsigned long src, unsigned long count);
 void *s390_kernel_write(void *dst, const void *src, size_t size);
 
 int __noreturn __put_kernel_bad(void);

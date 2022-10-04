@@ -22,19 +22,6 @@
 	le32_to_cpu((*(__le32 *)(__rxstatusdesc + 16))
 #define GET_TX_RPT2_DESC_MACID_VALID_2_88E(__rxstatusdesc)	\
 	le32_to_cpu((*(__le32 *)(__rxstatusdesc + 20))
-
-#define GET_TX_REPORT_TYPE1_RERTY_0(__paddr)			\
-	le16_get_bits(*(__le16 *)__paddr, GENMASK(15, 0))
-#define GET_TX_REPORT_TYPE1_RERTY_1(__paddr)			\
-	LE_BITS_TO_1BYTE(__paddr + 2, 0, 8)
-#define GET_TX_REPORT_TYPE1_RERTY_2(__paddr)			\
-	LE_BITS_TO_1BYTE(__paddr + 3, 0, 8)
-#define GET_TX_REPORT_TYPE1_RERTY_3(__paddr)			\
-	LE_BITS_TO_1BYTE(__paddr + 4, 0, 8)
-#define GET_TX_REPORT_TYPE1_RERTY_4(__paddr)			\
-	LE_BITS_TO_1BYTE(__paddr + 5, 0, 8)
-#define GET_TX_REPORT_TYPE1_DROP_0(__paddr)			\
-	LE_BITS_TO_1BYTE(__paddr + 6, 0, 8)
 /*  End rate adaptive define */
 
 int ODM_RAInfo_Init_all(struct odm_dm_struct *dm_odm);

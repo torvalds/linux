@@ -37,10 +37,10 @@
 	cp1_sfp_eth1: sfp-eth1 {
 		compatible = "sff,sfp";
 		i2c-bus = <&cp1_i2c0>;
-		los-gpio = <&cp1_gpio1 11 GPIO_ACTIVE_HIGH>;
-		mod-def0-gpio = <&cp1_gpio1 10 GPIO_ACTIVE_LOW>;
-		tx-disable-gpio = <&cp1_gpio1 9 GPIO_ACTIVE_HIGH>;
-		tx-fault-gpio = <&cp1_gpio1 8 GPIO_ACTIVE_HIGH>;
+		los-gpios = <&cp1_gpio1 11 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&cp1_gpio1 10 GPIO_ACTIVE_LOW>;
+		tx-disable-gpios = <&cp1_gpio1 9 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpios = <&cp1_gpio1 8 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cp1_sfp_pins>;
 		/*

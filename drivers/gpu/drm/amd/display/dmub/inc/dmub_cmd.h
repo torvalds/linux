@@ -92,6 +92,9 @@
  */
 #define NUM_BL_CURVE_SEGS               16
 
+/* Maximum number of SubVP streams */
+#define DMUB_MAX_SUBVP_STREAMS 2
+
 /* Maximum number of streams on any ASIC. */
 #define DMUB_MAX_STREAMS 6
 
@@ -100,6 +103,11 @@
 
 /* Trace buffer offset for entry */
 #define TRACE_BUFFER_ENTRY_OFFSET  16
+
+/**
+ * Maximum number of dirty rects supported by FW.
+ */
+#define DMUB_MAX_DIRTY_RECTS 3
 
 /**
  *
@@ -166,6 +174,31 @@ union dmub_addr {
 };
 
 /**
+ * Dirty rect definition.
+ */
+struct dmub_rect {
+	/**
+	 * Dirty rect x offset.
+	 */
+	uint32_t x;
+
+	/**
+	 * Dirty rect y offset.
+	 */
+	uint32_t y;
+
+	/**
+	 * Dirty rect width.
+	 */
+	uint32_t width;
+
+	/**
+	 * Dirty rect height.
+	 */
+	uint32_t height;
+};
+
+/**
  * Flags that can be set by driver to change some PSR behaviour.
  */
 union dmub_psr_debug_flags {
@@ -177,6 +210,12 @@ union dmub_psr_debug_flags {
 		 * Enable visual confirm in FW.
 		 */
 		uint32_t visual_confirm : 1;
+
+		/**
+		 * Force all selective updates to bw full frame updates.
+		 */
+		uint32_t force_full_frame_update : 1;
+
 		/**
 		 * Use HW Lock Mgr object to do HW locking in FW.
 		 */
@@ -203,7 +242,8 @@ struct dmub_feature_caps {
 	 * Max PSR version supported by FW.
 	 */
 	uint8_t psr;
-	uint8_t reserved[7];
+	uint8_t fw_assisted_mclk_switch;
+	uint8_t reserved[6];
 };
 
 #if defined(__cplusplus)
@@ -617,6 +657,14 @@ enum dmub_cmd_type {
 	 */
 	DMUB_CMD__ABM = 66,
 	/**
+	 * Command type used to update dirty rects in FW.
+	 */
+	DMUB_CMD__UPDATE_DIRTY_RECT = 67,
+	/**
+	 * Command type used to update cursor info in FW.
+	 */
+	DMUB_CMD__UPDATE_CURSOR_INFO = 68,
+	/**
 	 * Command type used for HW locking in FW.
 	 */
 	DMUB_CMD__HW_LOCK = 69,
@@ -641,6 +689,12 @@ enum dmub_cmd_type {
 	 * Command type used for all panel control commands.
 	 */
 	DMUB_CMD__PANEL_CNTL = 74,
+	/**
+	 * Command type used for <TODO:description>
+	 */
+	DMUB_CMD__CAB_FOR_SS = 75,
+
+	DMUB_CMD__FW_ASSISTED_MCLK_SWITCH = 76,
 
 	/**
 	 * Command type used for interfacing with DPIA.
@@ -876,6 +930,98 @@ struct dmub_rb_cmd_mall {
 
 	uint8_t reserved1; /**< Reserved bits */
 	uint8_t reserved2; /**< Reserved bits */
+};
+
+/**
+ * enum dmub_cmd_cab_type - TODO:
+ */
+enum dmub_cmd_cab_type {
+	DMUB_CMD__CAB_NO_IDLE_OPTIMIZATION = 0,
+	DMUB_CMD__CAB_NO_DCN_REQ = 1,
+	DMUB_CMD__CAB_DCN_SS_FIT_IN_CAB = 2,
+};
+
+/**
+ * struct dmub_rb_cmd_cab_for_ss - TODO:
+ */
+struct dmub_rb_cmd_cab_for_ss {
+	struct dmub_cmd_header header;
+	uint8_t cab_alloc_ways; /* total number of ways */
+	uint8_t debug_bits;     /* debug bits */
+};
+
+enum mclk_switch_mode {
+	NONE = 0,
+	FPO = 1,
+	SUBVP = 2,
+	VBLANK = 3,
+};
+
+/* Per pipe struct which stores the MCLK switch mode
+ * data to be sent to DMUB.
+ * Named "v2" for now -- once FPO and SUBVP are fully merged
+ * the type name can be updated
+ */
+struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 {
+	union {
+		struct {
+			uint32_t pix_clk_100hz;
+			uint16_t main_vblank_start;
+			uint16_t main_vblank_end;
+			uint16_t mall_region_lines;
+			uint16_t prefetch_lines;
+			uint16_t prefetch_to_mall_start_lines;
+			uint16_t processing_delay_lines;
+			uint16_t htotal; // required to calculate line time for multi-display cases
+			uint16_t vtotal;
+			uint8_t main_pipe_index;
+			uint8_t phantom_pipe_index;
+			uint8_t is_drr;
+			uint8_t padding;
+		} subvp_data;
+
+		struct {
+			uint32_t pix_clk_100hz;
+			uint16_t vblank_start;
+			uint16_t vblank_end;
+			uint16_t vstartup_start;
+			uint16_t vtotal;
+			uint16_t htotal;
+			uint8_t vblank_pipe_index;
+			uint8_t padding[2];
+			struct {
+				uint8_t drr_in_use;
+				uint8_t drr_window_size_ms;	// Indicates largest VMIN/VMAX adjustment per frame
+				uint16_t min_vtotal_supported;	// Min VTOTAL that supports switching in VBLANK
+				uint16_t max_vtotal_supported;	// Max VTOTAL that can support SubVP static scheduling
+				uint8_t use_ramping;		// Use ramping or not
+			} drr_info;				// DRR considered as part of SubVP + VBLANK case
+		} vblank_data;
+	} pipe_config;
+
+	enum mclk_switch_mode mode;
+};
+
+/**
+ * Config data for Sub-VP and FPO
+ * Named "v2" for now -- once FPO and SUBVP are fully merged
+ * the type name can be updated
+ */
+struct dmub_cmd_fw_assisted_mclk_switch_config_v2 {
+	uint16_t watermark_a_cache;
+	uint8_t vertical_int_margin_us;
+	uint8_t pstate_allow_width_us;
+	struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 pipe_data[DMUB_MAX_SUBVP_STREAMS];
+};
+
+/**
+ * DMUB rb command definition for Sub-VP and FPO
+ * Named "v2" for now -- once FPO and SUBVP are fully merged
+ * the type name can be updated
+ */
+struct dmub_rb_cmd_fw_assisted_mclk_switch_v2 {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_fw_assisted_mclk_switch_config_v2 config_data;
 };
 
 /**
@@ -1363,6 +1509,7 @@ struct dmub_rb_cmd_dp_set_config_reply {
 struct dmub_cmd_hpd_state_query_data {
 	uint8_t instance; /**< HPD instance or DPIA instance */
 	uint8_t result; /**< For returning HPD state */
+	uint16_t pad; /** < Alignment */
 	enum aux_channel_type ch_type; /**< enum aux_channel_type */
 	enum aux_return_code_type status; /**< for returning the status of command */
 };
@@ -1420,9 +1567,25 @@ enum dmub_cmd_psr_type {
 	 */
 	DMUB_CMD__PSR_FORCE_STATIC		= 5,
 	/**
+	 * Set vtotal in psr active for FreeSync PSR.
+	 */
+	DMUB_CMD__SET_SINK_VTOTAL_IN_PSR_ACTIVE = 6,
+	/**
 	 * Set PSR power option
 	 */
 	DMUB_CMD__SET_PSR_POWER_OPT = 7,
+};
+
+enum dmub_cmd_fams_type {
+	DMUB_CMD__FAMS_SETUP_FW_CTRL	= 0,
+	DMUB_CMD__FAMS_DRR_UPDATE		= 1,
+	DMUB_CMD__HANDLE_SUBVP_CMD	= 2, // specifically for SubVP cmd
+	/**
+	 * For SubVP set manual trigger in FW because it
+	 * triggers DRR_UPDATE_PENDING which SubVP relies
+	 * on (for any SubVP cases that use a DRR display)
+	 */
+	DMUB_CMD__FAMS_SET_MANUAL_TRIGGER = 3,
 };
 
 /**
@@ -1433,6 +1596,10 @@ enum psr_version {
 	 * PSR version 1.
 	 */
 	PSR_VERSION_1				= 0,
+	/**
+	 * Freesync PSR SU.
+	 */
+	PSR_VERSION_SU_1			= 1,
 	/**
 	 * PSR not supported.
 	 */
@@ -1600,9 +1767,15 @@ struct dmub_cmd_psr_copy_settings_data {
 	 */
 	uint8_t frame_cap_ind;
 	/**
-	 * Explicit padding to 4 byte boundary.
+	 * Granularity of Y offset supported by sink.
 	 */
-	uint8_t pad[2];
+	uint8_t su_y_granularity;
+	/**
+	 * Indicates whether sink should start capturing
+	 * immediately following active scan line,
+	 * or starting with the 2nd active scan line.
+	 */
+	uint8_t line_capture_indication;
 	/**
 	 * Multi-display optimizations are implemented on certain ASICs.
 	 */
@@ -1613,9 +1786,13 @@ struct dmub_cmd_psr_copy_settings_data {
 	 */
 	uint16_t init_sdp_deadline;
 	/**
-	 * Explicit padding to 4 byte boundary.
+	 * @ rate_control_caps : Indicate FreeSync PSR Sink Capabilities
 	 */
-	uint16_t pad2;
+	uint8_t rate_control_caps ;
+	/*
+	 * Force PSRSU always doing full frame update
+	 */
+	uint8_t force_ffu_mode;
 	/**
 	 * Length of each horizontal line in us.
 	 */
@@ -1808,6 +1985,164 @@ struct dmub_rb_cmd_psr_force_static {
 };
 
 /**
+ * PSR SU debug flags.
+ */
+union dmub_psr_su_debug_flags {
+	/**
+	 * PSR SU debug flags.
+	 */
+	struct {
+		/**
+		 * Update dirty rect in SW only.
+		 */
+		uint8_t update_dirty_rect_only : 1;
+		/**
+		 * Reset the cursor/plane state before processing the call.
+		 */
+		uint8_t reset_state : 1;
+	} bitfields;
+
+	/**
+	 * Union for debug flags.
+	 */
+	uint32_t u32All;
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__UPDATE_DIRTY_RECT command.
+ * This triggers a selective update for PSR SU.
+ */
+struct dmub_cmd_update_dirty_rect_data {
+	/**
+	 * Dirty rects from OS.
+	 */
+	struct dmub_rect src_dirty_rects[DMUB_MAX_DIRTY_RECTS];
+	/**
+	 * PSR SU debug flags.
+	 */
+	union dmub_psr_su_debug_flags debug_flags;
+	/**
+	 * OTG HW instance.
+	 */
+	uint8_t pipe_idx;
+	/**
+	 * Number of dirty rects.
+	 */
+	uint8_t dirty_rect_count;
+	/**
+	 * PSR control version.
+	 */
+	uint8_t cmd_version;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+};
+
+/**
+ * Definition of a DMUB_CMD__UPDATE_DIRTY_RECT command.
+ */
+struct dmub_rb_cmd_update_dirty_rect {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__UPDATE_DIRTY_RECT command.
+	 */
+	struct dmub_cmd_update_dirty_rect_data update_dirty_rect_data;
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__UPDATE_CURSOR_INFO command.
+ */
+struct dmub_cmd_update_cursor_info_data {
+	/**
+	 * Cursor dirty rects.
+	 */
+	struct dmub_rect cursor_rect;
+	/**
+	 * PSR SU debug flags.
+	 */
+	union dmub_psr_su_debug_flags debug_flags;
+	/**
+	 * Cursor enable/disable.
+	 */
+	uint8_t enable;
+	/**
+	 * OTG HW instance.
+	 */
+	uint8_t pipe_idx;
+	/**
+	 * PSR control version.
+	 */
+	uint8_t cmd_version;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+};
+/**
+ * Definition of a DMUB_CMD__UPDATE_CURSOR_INFO command.
+ */
+struct dmub_rb_cmd_update_cursor_info {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__UPDATE_CURSOR_INFO command.
+	 */
+	struct dmub_cmd_update_cursor_info_data update_cursor_info_data;
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__SET_SINK_VTOTAL_IN_PSR_ACTIVE command.
+ */
+struct dmub_cmd_psr_set_vtotal_data {
+	/**
+	 * 16-bit value dicated by driver that indicates the vtotal in PSR active requirement when screen idle..
+	 */
+	uint16_t psr_vtotal_idle;
+	/**
+	 * PSR control version.
+	 */
+	uint8_t cmd_version;
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which psr_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/*
+	 * 16-bit value dicated by driver that indicates the vtotal in PSR active requirement when doing SU/FFU.
+	 */
+	uint16_t psr_vtotal_su;
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad2[2];
+};
+
+/**
+ * Definition of a DMUB_CMD__SET_SINK_VTOTAL_IN_PSR_ACTIVE command.
+ */
+struct dmub_rb_cmd_psr_set_vtotal {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Definition of a DMUB_CMD__SET_SINK_VTOTAL_IN_PSR_ACTIVE command.
+	 */
+	struct dmub_cmd_psr_set_vtotal_data psr_set_vtotal_data;
+};
+
+/**
  * Data passed from driver to FW in a DMUB_CMD__SET_PSR_POWER_OPT command.
  */
 struct dmub_cmd_psr_set_power_opt_data {
@@ -1917,6 +2252,10 @@ enum hw_lock_client {
 	 * Driver is the client of HW Lock Manager.
 	 */
 	HW_LOCK_CLIENT_DRIVER = 0,
+	/**
+	 * PSR SU is the client of HW Lock Manager.
+	 */
+	HW_LOCK_CLIENT_PSR_SU		= 1,
 	/**
 	 * Invalid client.
 	 */
@@ -2442,6 +2781,26 @@ struct dmub_rb_cmd_drr_update {
 		struct dmub_optc_state dmub_optc_state_req;
 };
 
+struct dmub_cmd_fw_assisted_mclk_switch_pipe_data {
+	uint32_t pix_clk_100hz;
+	uint8_t max_ramp_step;
+	uint8_t pipes;
+	uint8_t min_refresh_in_hz;
+	uint8_t padding[1];
+};
+
+struct dmub_cmd_fw_assisted_mclk_switch_config {
+	uint8_t fams_enabled;
+	uint8_t visual_confirm_enabled;
+	uint8_t padding[2];
+	struct dmub_cmd_fw_assisted_mclk_switch_pipe_data pipe_data[DMUB_MAX_STREAMS];
+};
+
+struct dmub_rb_cmd_fw_assisted_mclk_switch {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_fw_assisted_mclk_switch_config config_data;
+};
+
 /**
  * enum dmub_cmd_panel_cntl_type - Panel control command.
  */
@@ -2620,7 +2979,6 @@ struct dmub_rb_cmd_get_usbc_cable_id {
  * union dmub_rb_cmd - DMUB inbox command.
  */
 union dmub_rb_cmd {
-	struct dmub_rb_cmd_lock_hw lock_hw;
 	/**
 	 * Elements shared with all commands.
 	 */
@@ -2682,6 +3040,23 @@ union dmub_rb_cmd {
 	 */
 	struct dmub_rb_cmd_psr_force_static psr_force_static;
 	/**
+	 * Definition of a DMUB_CMD__UPDATE_DIRTY_RECT command.
+	 */
+	struct dmub_rb_cmd_update_dirty_rect update_dirty_rect;
+	/**
+	 * Definition of a DMUB_CMD__UPDATE_CURSOR_INFO command.
+	 */
+	struct dmub_rb_cmd_update_cursor_info update_cursor_info;
+	/**
+	 * Definition of a DMUB_CMD__HW_LOCK command.
+	 * Command is used by driver and FW.
+	 */
+	struct dmub_rb_cmd_lock_hw lock_hw;
+	/**
+	 * Definition of a DMUB_CMD__SET_SINK_VTOTAL_IN_PSR_ACTIVE command.
+	 */
+	struct dmub_rb_cmd_psr_set_vtotal psr_set_vtotal;
+	/**
 	 * Definition of a DMUB_CMD__SET_PSR_POWER_OPT command.
 	 */
 	struct dmub_rb_cmd_psr_set_power_opt psr_set_power_opt;
@@ -2693,6 +3068,13 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__MALL command.
 	 */
 	struct dmub_rb_cmd_mall mall;
+	/**
+	 * Definition of a DMUB_CMD__CAB command.
+	 */
+	struct dmub_rb_cmd_cab_for_ss cab;
+
+	struct dmub_rb_cmd_fw_assisted_mclk_switch_v2 fw_assisted_mclk_switch_v2;
+
 	/**
 	 * Definition of a DMUB_CMD__IDLE_OPT_DCN_RESTORE command.
 	 */
@@ -2757,6 +3139,8 @@ union dmub_rb_cmd {
 	 */
 	struct dmub_rb_cmd_query_feature_caps query_feature_caps;
 	struct dmub_rb_cmd_drr_update drr_update;
+	struct dmub_rb_cmd_fw_assisted_mclk_switch fw_assisted_mclk_switch;
+
 	/**
 	 * Definition of a DMUB_CMD__VBIOS_LVTMA_CONTROL command.
 	 */

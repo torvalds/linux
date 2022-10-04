@@ -171,7 +171,7 @@ nvbios_shadow(struct nvkm_bios *bios)
 	struct shadow mthds[] = {
 		{ 0, &nvbios_of },
 		{ 0, &nvbios_ramin },
-		{ 0, &nvbios_rom },
+		{ 0, &nvbios_prom },
 		{ 0, &nvbios_acpi_fast },
 		{ 4, &nvbios_acpi_slow },
 		{ 1, &nvbios_pcirom },

@@ -211,8 +211,6 @@
   cpu_latency_qos_request_active
   cpu_latency_qos_update_request
   cpumask_any_and_distribute
-  cpumask_next
-  cpumask_next_and
   cpu_number
   __cpu_online_mask
   cpu_pm_register_notifier
@@ -394,9 +392,7 @@
   dev_pm_opp_of_register_em
   dev_pm_opp_of_remove_table
   dev_pm_opp_put
-  dev_pm_opp_put_clkname
   dev_pm_opp_remove_all_dynamic
-  dev_pm_opp_set_clkname
   dev_pm_opp_set_opp
   dev_pm_opp_set_rate
   dev_pm_opp_set_sharing_cpus
@@ -544,6 +540,7 @@
   flush_work
   __flush_workqueue
   __folio_lock
+  __folio_put
   folio_wait_bit
   fortify_panic
   fput
@@ -569,7 +566,6 @@
   generic_file_llseek
   generic_handle_domain_irq
   generic_handle_irq
-  generic_iommu_put_resv_regions
   geni_icc_disable
   geni_icc_enable
   geni_icc_get
@@ -781,6 +777,7 @@
   iommu_map
   iommu_map_sg
   iommu_present
+  iommu_put_resv_regions
   iommu_unmap
   __ioread32_copy
   ioremap_prot
@@ -1051,6 +1048,7 @@
   of_get_next_available_child
   of_get_next_child
   of_get_next_parent
+  of_get_parent
   of_get_property
   of_get_regulator_init_data
   of_get_required_opp_performance_state
@@ -1306,7 +1304,6 @@
   put_device
   put_disk
   put_iova_domain
-  __put_page
   __put_task_struct
   put_unused_fd
   put_user_ifreq
@@ -1627,6 +1624,7 @@
   spmi_controller_add
   spmi_controller_alloc
   spmi_controller_remove
+  spmi_device_from_of
   __spmi_driver_register
   spmi_ext_register_read
   spmi_ext_register_readl

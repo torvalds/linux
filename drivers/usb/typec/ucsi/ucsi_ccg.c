@@ -627,6 +627,16 @@ err_clear_irq:
 	return IRQ_HANDLED;
 }
 
+static int ccg_request_irq(struct ucsi_ccg *uc)
+{
+	unsigned long flags = IRQF_ONESHOT;
+
+	if (!has_acpi_companion(uc->dev))
+		flags |= IRQF_TRIGGER_HIGH;
+
+	return request_threaded_irq(uc->irq, NULL, ccg_irq_handler, flags, dev_name(uc->dev), uc);
+}
+
 static void ccg_pm_workaround_work(struct work_struct *pm_work)
 {
 	ccg_irq_handler(0, container_of(pm_work, struct ucsi_ccg, pm_work));
@@ -1250,9 +1260,7 @@ static int ccg_restart(struct ucsi_ccg *uc)
 		return status;
 	}
 
-	status = request_threaded_irq(uc->irq, NULL, ccg_irq_handler,
-				      IRQF_ONESHOT | IRQF_TRIGGER_HIGH,
-				      dev_name(dev), uc);
+	status = ccg_request_irq(uc);
 	if (status < 0) {
 		dev_err(dev, "request_threaded_irq failed - %d\n", status);
 		return status;
@@ -1331,6 +1339,7 @@ static int ucsi_ccg_probe(struct i2c_client *client,
 
 	uc->dev = dev;
 	uc->client = client;
+	uc->irq = client->irq;
 	mutex_init(&uc->lock);
 	init_completion(&uc->complete);
 	INIT_WORK(&uc->work, ccg_update_firmware);
@@ -1366,15 +1375,11 @@ static int ucsi_ccg_probe(struct i2c_client *client,
 
 	ucsi_set_drvdata(uc->ucsi, uc);
 
-	status = request_threaded_irq(client->irq, NULL, ccg_irq_handler,
-				      IRQF_ONESHOT | IRQF_TRIGGER_HIGH,
-				      dev_name(dev), uc);
+	status = ccg_request_irq(uc);
 	if (status < 0) {
 		dev_err(uc->dev, "request_threaded_irq failed - %d\n", status);
 		goto out_ucsi_destroy;
 	}
-
-	uc->irq = client->irq;
 
 	status = ucsi_register(uc->ucsi);
 	if (status)
@@ -1418,6 +1423,12 @@ static const struct i2c_device_id ucsi_ccg_device_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ucsi_ccg_device_id);
 
+static const struct acpi_device_id amd_i2c_ucsi_match[] = {
+	{"AMDI0042"},
+	{}
+};
+MODULE_DEVICE_TABLE(acpi, amd_i2c_ucsi_match);
+
 static int ucsi_ccg_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -1459,6 +1470,7 @@ static struct i2c_driver ucsi_ccg_driver = {
 		.name = "ucsi_ccg",
 		.pm = &ucsi_ccg_pm,
 		.dev_groups = ucsi_ccg_groups,
+		.acpi_match_table = amd_i2c_ucsi_match,
 	},
 	.probe = ucsi_ccg_probe,
 	.remove = ucsi_ccg_remove,

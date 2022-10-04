@@ -335,4 +335,15 @@ struct bp_soc_bb_info {
 	uint32_t dram_sr_enter_exit_latency_100ns;
 };
 
+struct bp_connector_speed_cap_info {
+	uint32_t DP_HBR2_EN:1;
+	uint32_t DP_HBR3_EN:1;
+	uint32_t HDMI_6GB_EN:1;
+	uint32_t DP_UHBR10_EN:1;
+	uint32_t DP_UHBR13_5_EN:1;
+	uint32_t DP_UHBR20_EN:1;
+	uint32_t DP_IS_USB_C:1;
+	uint32_t RESERVED:28;
+};
+
 #endif /*__DAL_BIOS_PARSER_TYPES_H__ */

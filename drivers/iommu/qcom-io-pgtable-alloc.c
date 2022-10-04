@@ -305,7 +305,7 @@ static struct shrinker io_pgtable_alloc_shrinker = {
 
 int qcom_io_pgtable_alloc_init(void)
 {
-	return register_shrinker(&io_pgtable_alloc_shrinker);
+	return register_shrinker(&io_pgtable_alloc_shrinker, "io_pgtable_alloc");
 }
 
 void qcom_io_pgtable_alloc_exit(void)

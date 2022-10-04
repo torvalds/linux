@@ -141,12 +141,13 @@ switch_create()
 	ip link set dev $swp4 up
 
 	ip link add name br1 type bridge vlan_filtering 1
-	ip link set dev br1 up
-	__addr_add_del br1 add 192.0.2.129/32
-	ip -4 route add 192.0.2.130/32 dev br1
 
 	team_create lag loadbalance $swp3 $swp4
 	ip link set dev lag master br1
+
+	ip link set dev br1 up
+	__addr_add_del br1 add 192.0.2.129/32
+	ip -4 route add 192.0.2.130/32 dev br1
 }
 
 switch_destroy()

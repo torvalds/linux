@@ -642,24 +642,6 @@ static void __init map_kernel_segment(pgd_t *pgdp, void *va_start, void *va_end,
 	vm_area_add_early(vma);
 }
 
-static int __init parse_rodata(char *arg)
-{
-	int ret = strtobool(arg, &rodata_enabled);
-	if (!ret) {
-		rodata_full = false;
-		return 0;
-	}
-
-	/* permit 'full' in addition to boolean options */
-	if (strcmp(arg, "full"))
-		return -EINVAL;
-
-	rodata_enabled = true;
-	rodata_full = true;
-	return 0;
-}
-early_param("rodata", parse_rodata);
-
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 static int __init map_entry_trampoline(void)
 {

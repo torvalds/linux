@@ -125,7 +125,7 @@ processor. Each bank is referred to as a `node` and for each node Linux
 constructs an independent memory management subsystem. A node has its
 own set of zones, lists of free and used pages and various statistics
 counters. You can find more details about NUMA in
-:ref:`Documentation/vm/numa.rst <numa>` and in
+:ref:`Documentation/mm/numa.rst <numa>` and in
 :ref:`Documentation/admin-guide/mm/numa_memory_policy.rst <numa_memory_policy>`.
 
 Page cache

@@ -134,7 +134,7 @@ static void __exit sha256_s390_fini(void)
 	crypto_unregister_shash(&sha256_alg);
 }
 
-module_cpu_feature_match(MSA, sha256_s390_init);
+module_cpu_feature_match(S390_CPU_FEATURE_MSA, sha256_s390_init);
 module_exit(sha256_s390_fini);
 
 MODULE_ALIAS_CRYPTO("sha256");

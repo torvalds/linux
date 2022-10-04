@@ -665,7 +665,8 @@ static void gsi_evt_ring_doorbell(struct gsi *gsi, u32 evt_ring_id, u32 index)
 static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 {
 	struct gsi_evt_ring *evt_ring = &gsi->evt_ring[evt_ring_id];
-	size_t size = evt_ring->ring.count * GSI_RING_ELEMENT_SIZE;
+	struct gsi_ring *ring = &evt_ring->ring;
+	size_t size;
 	u32 val;
 
 	/* We program all event rings as GPI type/protocol */
@@ -674,6 +675,7 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 	val |= u32_encode_bits(GSI_RING_ELEMENT_SIZE, EV_ELEMENT_SIZE_FMASK);
 	iowrite32(val, gsi->virt + GSI_EV_CH_E_CNTXT_0_OFFSET(evt_ring_id));
 
+	size = ring->count * GSI_RING_ELEMENT_SIZE;
 	val = ev_r_length_encoded(gsi->version, size);
 	iowrite32(val, gsi->virt + GSI_EV_CH_E_CNTXT_1_OFFSET(evt_ring_id));
 
@@ -681,9 +683,9 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 	 * high-order 32 bits of the address of the event ring,
 	 * respectively.
 	 */
-	val = lower_32_bits(evt_ring->ring.addr);
+	val = lower_32_bits(ring->addr);
 	iowrite32(val, gsi->virt + GSI_EV_CH_E_CNTXT_2_OFFSET(evt_ring_id));
-	val = upper_32_bits(evt_ring->ring.addr);
+	val = upper_32_bits(ring->addr);
 	iowrite32(val, gsi->virt + GSI_EV_CH_E_CNTXT_3_OFFSET(evt_ring_id));
 
 	/* Enable interrupt moderation by setting the moderation delay */
@@ -700,8 +702,8 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 	iowrite32(0, gsi->virt + GSI_EV_CH_E_CNTXT_12_OFFSET(evt_ring_id));
 	iowrite32(0, gsi->virt + GSI_EV_CH_E_CNTXT_13_OFFSET(evt_ring_id));
 
-	/* Finally, tell the hardware we've completed event 0 (arbitrary) */
-	gsi_evt_ring_doorbell(gsi, evt_ring_id, 0);
+	/* Finally, tell the hardware our "last processed" event (arbitrary) */
+	gsi_evt_ring_doorbell(gsi, evt_ring_id, ring->index);
 }
 
 /* Find the transaction whose completion indicates a channel is quiesced */
@@ -718,6 +720,9 @@ static struct gsi_trans *gsi_channel_trans_last(struct gsi_channel *channel)
 	 */
 	if (channel->toward_ipa) {
 		list = &trans_info->alloc;
+		if (!list_empty(list))
+			goto done;
+		list = &trans_info->committed;
 		if (!list_empty(list))
 			goto done;
 		list = &trans_info->pending;
@@ -770,9 +775,6 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 	u32 wrr_weight = 0;
 	u32 val;
 
-	/* Arbitrarily pick TRE 0 as the first channel element to use */
-	channel->tre_ring.index = 0;
-
 	/* We program all channels as GPI type/protocol */
 	val = chtype_protocol_encoded(gsi->version, GSI_CHANNEL_TYPE_GPI);
 	if (channel->toward_ipa)
@@ -823,7 +825,7 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 
 	/* Now update the scratch registers for GPI protocol */
 	gpi = &scr.gpi;
-	gpi->max_outstanding_tre = gsi_channel_trans_tre_max(gsi, channel_id) *
+	gpi->max_outstanding_tre = channel->trans_tre_max *
 					GSI_RING_ELEMENT_SIZE;
 	gpi->outstanding_threshold = 2 * GSI_RING_ELEMENT_SIZE;
 
@@ -949,6 +951,8 @@ void gsi_channel_reset(struct gsi *gsi, u32 channel_id, bool doorbell)
 	if (gsi->version < IPA_VERSION_4_0 && !channel->toward_ipa)
 		gsi_channel_reset_command(channel);
 
+	/* Hardware assumes this is 0 following reset */
+	channel->tre_ring.index = 0;
 	gsi_channel_program(channel, doorbell);
 	gsi_channel_trans_cancel_pending(channel);
 
@@ -991,75 +995,66 @@ void gsi_resume(struct gsi *gsi)
 	enable_irq(gsi->irq);
 }
 
-/**
- * gsi_channel_tx_queued() - Report queued TX transfers for a channel
- * @channel:	Channel for which to report
- *
- * Report to the network stack the number of bytes and transactions that
- * have been queued to hardware since last call.  This and the next function
- * supply information used by the network stack for throttling.
- *
- * For each channel we track the number of transactions used and bytes of
- * data those transactions represent.  We also track what those values are
- * each time this function is called.  Subtracting the two tells us
- * the number of bytes and transactions that have been added between
- * successive calls.
- *
- * Calling this each time we ring the channel doorbell allows us to
- * provide accurate information to the network stack about how much
- * work we've given the hardware at any point in time.
- */
-void gsi_channel_tx_queued(struct gsi_channel *channel)
+void gsi_trans_tx_committed(struct gsi_trans *trans)
 {
+	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
+
+	channel->trans_count++;
+	channel->byte_count += trans->len;
+
+	trans->trans_count = channel->trans_count;
+	trans->byte_count = channel->byte_count;
+}
+
+void gsi_trans_tx_queued(struct gsi_trans *trans)
+{
+	u32 channel_id = trans->channel_id;
+	struct gsi *gsi = trans->gsi;
+	struct gsi_channel *channel;
 	u32 trans_count;
 	u32 byte_count;
+
+	channel = &gsi->channel[channel_id];
 
 	byte_count = channel->byte_count - channel->queued_byte_count;
 	trans_count = channel->trans_count - channel->queued_trans_count;
 	channel->queued_byte_count = channel->byte_count;
 	channel->queued_trans_count = channel->trans_count;
 
-	ipa_gsi_channel_tx_queued(channel->gsi, gsi_channel_id(channel),
-				  trans_count, byte_count);
+	ipa_gsi_channel_tx_queued(gsi, channel_id, trans_count, byte_count);
 }
 
 /**
- * gsi_channel_tx_update() - Report completed TX transfers
- * @channel:	Channel that has completed transmitting packets
- * @trans:	Last transation known to be complete
+ * gsi_trans_tx_completed() - Report completed TX transactions
+ * @trans:	TX channel transaction that has completed
  *
- * Compute the number of transactions and bytes that have been transferred
- * over a TX channel since the given transaction was committed.  Report this
- * information to the network stack.
+ * Report that a transaction on a TX channel has completed.  At the time a
+ * transaction is committed, we record *in the transaction* its channel's
+ * committed transaction and byte counts.  Transactions are completed in
+ * order, and the difference between the channel's byte/transaction count
+ * when the transaction was committed and when it completes tells us
+ * exactly how much data has been transferred while the transaction was
+ * pending.
  *
- * At the time a transaction is committed, we record its channel's
- * committed transaction and byte counts *in the transaction*.
- * Completions are signaled by the hardware with an interrupt, and
- * we can determine the latest completed transaction at that time.
- *
- * The difference between the byte/transaction count recorded in
- * the transaction and the count last time we recorded a completion
- * tells us exactly how much data has been transferred between
- * completions.
- *
- * Calling this each time we learn of a newly-completed transaction
- * allows us to provide accurate information to the network stack
- * about how much work has been completed by the hardware at a given
- * point in time.
+ * We report this information to the network stack, which uses it to manage
+ * the rate at which data is sent to hardware.
  */
-static void
-gsi_channel_tx_update(struct gsi_channel *channel, struct gsi_trans *trans)
+static void gsi_trans_tx_completed(struct gsi_trans *trans)
 {
-	u64 byte_count = trans->byte_count + trans->len;
-	u64 trans_count = trans->trans_count + 1;
+	u32 channel_id = trans->channel_id;
+	struct gsi *gsi = trans->gsi;
+	struct gsi_channel *channel;
+	u32 trans_count;
+	u32 byte_count;
 
-	byte_count -= channel->compl_byte_count;
-	channel->compl_byte_count += byte_count;
-	trans_count -= channel->compl_trans_count;
+	channel = &gsi->channel[channel_id];
+	trans_count = trans->trans_count - channel->compl_trans_count;
+	byte_count = trans->byte_count - channel->compl_byte_count;
+
 	channel->compl_trans_count += trans_count;
+	channel->compl_byte_count += byte_count;
 
-	ipa_gsi_channel_tx_completed(channel->gsi, gsi_channel_id(channel),
-				     trans_count, byte_count);
+	ipa_gsi_channel_tx_completed(gsi, channel_id, trans_count, byte_count);
 }
 
 /* Channel control interrupt handler */
@@ -1327,27 +1322,44 @@ static int gsi_irq_init(struct gsi *gsi, struct platform_device *pdev)
 }
 
 /* Return the transaction associated with a transfer completion event */
-static struct gsi_trans *gsi_event_trans(struct gsi_channel *channel,
-					 struct gsi_event *event)
+static struct gsi_trans *
+gsi_event_trans(struct gsi *gsi, struct gsi_event *event)
 {
+	u32 channel_id = event->chid;
+	struct gsi_channel *channel;
+	struct gsi_trans *trans;
 	u32 tre_offset;
 	u32 tre_index;
+
+	channel = &gsi->channel[channel_id];
+	if (WARN(!channel->gsi, "event has bad channel %u\n", channel_id))
+		return NULL;
 
 	/* Event xfer_ptr records the TRE it's associated with */
 	tre_offset = lower_32_bits(le64_to_cpu(event->xfer_ptr));
 	tre_index = gsi_ring_index(&channel->tre_ring, tre_offset);
 
-	return gsi_channel_trans_mapped(channel, tre_index);
+	trans = gsi_channel_trans_mapped(channel, tre_index);
+
+	if (WARN(!trans, "channel %u event with no transaction\n", channel_id))
+		return NULL;
+
+	return trans;
 }
 
 /**
- * gsi_evt_ring_rx_update() - Record lengths of received data
- * @evt_ring:	Event ring associated with channel that received packets
- * @index:	Event index in ring reported by hardware
+ * gsi_evt_ring_update() - Update transaction state from hardware
+ * @gsi:		GSI pointer
+ * @evt_ring_id:	Event ring ID
+ * @index:		Event index in ring reported by hardware
  *
  * Events for RX channels contain the actual number of bytes received into
  * the buffer.  Every event has a transaction associated with it, and here
  * we update transactions to record their actual received lengths.
+ *
+ * When an event for a TX channel arrives we use information in the
+ * transaction to report the number of requests and bytes have been
+ * transferred.
  *
  * This function is called whenever we learn that the GSI hardware has filled
  * new events since the last time we checked.  The ring's index field tells
@@ -1355,33 +1367,28 @@ static struct gsi_trans *gsi_event_trans(struct gsi_channel *channel,
  * first *unfilled* event in the ring (following the last filled one).
  *
  * Events are sequential within the event ring, and transactions are
- * sequential within the transaction pool.
+ * sequential within the transaction array.
  *
  * Note that @index always refers to an element *within* the event ring.
  */
-static void gsi_evt_ring_rx_update(struct gsi_evt_ring *evt_ring, u32 index)
+static void gsi_evt_ring_update(struct gsi *gsi, u32 evt_ring_id, u32 index)
 {
-	struct gsi_channel *channel = evt_ring->channel;
+	struct gsi_evt_ring *evt_ring = &gsi->evt_ring[evt_ring_id];
 	struct gsi_ring *ring = &evt_ring->ring;
-	struct gsi_trans_info *trans_info;
 	struct gsi_event *event_done;
 	struct gsi_event *event;
-	struct gsi_trans *trans;
-	u32 trans_count = 0;
-	u32 byte_count = 0;
 	u32 event_avail;
 	u32 old_index;
 
-	trans_info = &channel->trans_info;
-
-	/* We'll start with the oldest un-processed event.  RX channels
-	 * replenish receive buffers in single-TRE transactions, so we
-	 * can just map that event to its transaction.  Transactions
-	 * associated with completion events are consecutive.
+	/* Starting with the oldest un-processed event, determine which
+	 * transaction (and which channel) is associated with the event.
+	 * For RX channels, update each completed transaction with the
+	 * number of bytes that were actually received.  For TX channels
+	 * associated with a network device, report to the network stack
+	 * the number of transfers and bytes this completion represents.
 	 */
 	old_index = ring->index;
 	event = gsi_ring_virt(ring, old_index);
-	trans = gsi_event_trans(channel, event);
 
 	/* Compute the number of events to process before we wrap,
 	 * and determine when we'll be done processing events.
@@ -1389,21 +1396,28 @@ static void gsi_evt_ring_rx_update(struct gsi_evt_ring *evt_ring, u32 index)
 	event_avail = ring->count - old_index % ring->count;
 	event_done = gsi_ring_virt(ring, index);
 	do {
-		trans->len = __le16_to_cpu(event->len);
-		byte_count += trans->len;
-		trans_count++;
+		struct gsi_trans *trans;
+
+		trans = gsi_event_trans(gsi, event);
+		if (!trans)
+			return;
+
+		if (trans->direction == DMA_FROM_DEVICE)
+			trans->len = __le16_to_cpu(event->len);
+		else
+			gsi_trans_tx_completed(trans);
+
+		gsi_trans_move_complete(trans);
 
 		/* Move on to the next event and transaction */
 		if (--event_avail)
 			event++;
 		else
 			event = gsi_ring_virt(ring, 0);
-		trans = gsi_trans_pool_next(&trans_info->pool, trans);
 	} while (event != event_done);
 
-	/* We record RX bytes when they are received */
-	channel->byte_count += byte_count;
-	channel->trans_count += trans_count;
+	/* Tell the hardware we've handled these events */
+	gsi_evt_ring_doorbell(gsi, evt_ring_id, index);
 }
 
 /* Initialize a ring, including allocating DMA memory for its entries */
@@ -1423,6 +1437,7 @@ static int gsi_ring_alloc(struct gsi *gsi, struct gsi_ring *ring, u32 count)
 
 	ring->addr = addr;
 	ring->count = count;
+	ring->index = 0;
 
 	return 0;
 }
@@ -1493,22 +1508,16 @@ static struct gsi_trans *gsi_channel_update(struct gsi_channel *channel)
 		return NULL;
 
 	/* Get the transaction for the latest completed event. */
-	trans = gsi_event_trans(channel, gsi_ring_virt(ring, index - 1));
+	trans = gsi_event_trans(gsi, gsi_ring_virt(ring, index - 1));
+	if (!trans)
+		return NULL;
 
 	/* For RX channels, update each completed transaction with the number
 	 * of bytes that were actually received.  For TX channels, report
 	 * the number of transactions and bytes this completion represents
 	 * up the network stack.
 	 */
-	if (channel->toward_ipa)
-		gsi_channel_tx_update(channel, trans);
-	else
-		gsi_evt_ring_rx_update(evt_ring, index);
-
-	gsi_trans_move_complete(trans);
-
-	/* Tell the hardware we've handled these events */
-	gsi_evt_ring_doorbell(gsi, evt_ring_id, index);
+	gsi_evt_ring_update(gsi, evt_ring_id, index);
 
 	return gsi_channel_trans_complete(channel);
 }
@@ -2001,9 +2010,10 @@ static void gsi_channel_evt_ring_exit(struct gsi_channel *channel)
 	gsi_evt_ring_id_free(gsi, evt_ring_id);
 }
 
-static bool gsi_channel_data_valid(struct gsi *gsi,
+static bool gsi_channel_data_valid(struct gsi *gsi, bool command,
 				   const struct ipa_gsi_endpoint_data *data)
 {
+	const struct gsi_channel_data *channel_data;
 	u32 channel_id = data->channel_id;
 	struct device *dev = gsi->dev;
 
@@ -2019,10 +2029,24 @@ static bool gsi_channel_data_valid(struct gsi *gsi,
 		return false;
 	}
 
-	if (!data->channel.tlv_count ||
-	    data->channel.tlv_count > GSI_TLV_MAX) {
+	if (command && !data->toward_ipa) {
+		dev_err(dev, "command channel %u is not TX\n", channel_id);
+		return false;
+	}
+
+	channel_data = &data->channel;
+
+	if (!channel_data->tlv_count ||
+	    channel_data->tlv_count > GSI_TLV_MAX) {
 		dev_err(dev, "channel %u bad tlv_count %u; must be 1..%u\n",
-			channel_id, data->channel.tlv_count, GSI_TLV_MAX);
+			channel_id, channel_data->tlv_count, GSI_TLV_MAX);
+		return false;
+	}
+
+	if (command && IPA_COMMAND_TRANS_TRE_MAX > channel_data->tlv_count) {
+		dev_err(dev, "command TRE max too big for channel %u (%u > %u)\n",
+			channel_id, IPA_COMMAND_TRANS_TRE_MAX,
+			channel_data->tlv_count);
 		return false;
 	}
 
@@ -2031,22 +2055,22 @@ static bool gsi_channel_data_valid(struct gsi *gsi,
 	 * gsi_channel_tre_max() is computed, tre_count has to be almost
 	 * twice the TLV FIFO size to satisfy this requirement.
 	 */
-	if (data->channel.tre_count < 2 * data->channel.tlv_count - 1) {
+	if (channel_data->tre_count < 2 * channel_data->tlv_count - 1) {
 		dev_err(dev, "channel %u TLV count %u exceeds TRE count %u\n",
-			channel_id, data->channel.tlv_count,
-			data->channel.tre_count);
+			channel_id, channel_data->tlv_count,
+			channel_data->tre_count);
 		return false;
 	}
 
-	if (!is_power_of_2(data->channel.tre_count)) {
+	if (!is_power_of_2(channel_data->tre_count)) {
 		dev_err(dev, "channel %u bad tre_count %u; not power of 2\n",
-			channel_id, data->channel.tre_count);
+			channel_id, channel_data->tre_count);
 		return false;
 	}
 
-	if (!is_power_of_2(data->channel.event_count)) {
+	if (!is_power_of_2(channel_data->event_count)) {
 		dev_err(dev, "channel %u bad event_count %u; not power of 2\n",
-			channel_id, data->channel.event_count);
+			channel_id, channel_data->event_count);
 		return false;
 	}
 
@@ -2062,7 +2086,7 @@ static int gsi_channel_init_one(struct gsi *gsi,
 	u32 tre_count;
 	int ret;
 
-	if (!gsi_channel_data_valid(gsi, data))
+	if (!gsi_channel_data_valid(gsi, command, data))
 		return -EINVAL;
 
 	/* Worst case we need an event for every outstanding TRE */
@@ -2080,7 +2104,7 @@ static int gsi_channel_init_one(struct gsi *gsi,
 	channel->gsi = gsi;
 	channel->toward_ipa = data->toward_ipa;
 	channel->command = command;
-	channel->tlv_count = data->channel.tlv_count;
+	channel->trans_tre_max = data->channel.tlv_count;
 	channel->tre_count = tre_count;
 	channel->event_count = data->channel.event_count;
 
@@ -2295,13 +2319,5 @@ u32 gsi_channel_tre_max(struct gsi *gsi, u32 channel_id)
 	struct gsi_channel *channel = &gsi->channel[channel_id];
 
 	/* Hardware limit is channel->tre_count - 1 */
-	return channel->tre_count - (channel->tlv_count - 1);
-}
-
-/* Returns the maximum number of TREs in a single transaction for a channel */
-u32 gsi_channel_trans_tre_max(struct gsi *gsi, u32 channel_id)
-{
-	struct gsi_channel *channel = &gsi->channel[channel_id];
-
-	return channel->tlv_count;
+	return channel->tre_count - (channel->trans_tre_max - 1);
 }

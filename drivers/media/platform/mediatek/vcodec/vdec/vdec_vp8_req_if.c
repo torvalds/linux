@@ -237,7 +237,7 @@ static int vdec_vp8_slice_get_decode_parameters(struct vdec_vp8_slice_inst *inst
 	struct vb2_queue *vq;
 	struct vb2_buffer *vb;
 	u64 referenct_ts;
-	int index, vb2_index;
+	int index;
 
 	frame_header = vdec_vp8_slice_get_ctrl_ptr(inst->ctx, V4L2_CID_STATELESS_VP8_FRAME);
 	if (IS_ERR(frame_header))
@@ -246,8 +246,8 @@ static int vdec_vp8_slice_get_decode_parameters(struct vdec_vp8_slice_inst *inst
 	vq = v4l2_m2m_get_vq(ctx->m2m_ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
 	for (index = 0; index < 3; index++) {
 		referenct_ts = vdec_vp8_slice_get_ref_by_ts(frame_header, index);
-		vb2_index = vb2_find_timestamp(vq, referenct_ts, 0);
-		if (vb2_index < 0) {
+		vb = vb2_find_buffer(vq, referenct_ts);
+		if (!vb) {
 			if (!V4L2_VP8_FRAME_IS_KEY_FRAME(frame_header))
 				mtk_vcodec_err(inst, "reference invalid: index(%d) ts(%lld)",
 					       index, referenct_ts);
@@ -256,7 +256,6 @@ static int vdec_vp8_slice_get_decode_parameters(struct vdec_vp8_slice_inst *inst
 		}
 		inst->vsi->vp8_dpb_info[index].reference_flag = 1;
 
-		vb = vq->bufs[vb2_index];
 		inst->vsi->vp8_dpb_info[index].y_dma_addr =
 			vb2_dma_contig_plane_dma_addr(vb, 0);
 		if (ctx->q_data[MTK_Q_DATA_DST].fmt->num_planes == 2)

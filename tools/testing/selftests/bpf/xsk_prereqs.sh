@@ -8,7 +8,7 @@ ksft_xfail=2
 ksft_xpass=3
 ksft_skip=4
 
-XSKOBJ=xdpxceiver
+XSKOBJ=xskxceiver
 
 validate_root_exec()
 {
@@ -77,7 +77,7 @@ validate_ip_utility()
 	[ ! $(type -P ip) ] && { echo "'ip' not found. Skipping tests."; test_exit $ksft_skip; }
 }
 
-execxdpxceiver()
+exec_xskxceiver()
 {
         if [[ $busy_poll -eq 1 ]]; then
 	        ARGS+="-b "

@@ -29,7 +29,6 @@ struct kvm_kpit_state {
 	bool is_periodic;
 	s64 period; 				/* unit: ns */
 	struct hrtimer timer;
-	u32    speaker_data_on;
 
 	struct mutex lock;
 	atomic_t reinject;

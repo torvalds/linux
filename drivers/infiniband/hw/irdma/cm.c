@@ -1477,12 +1477,13 @@ irdma_find_listener(struct irdma_cm_core *cm_core, u32 *dst_addr, u16 dst_port,
 	list_for_each_entry (listen_node, &cm_core->listen_list, list) {
 		memcpy(listen_addr, listen_node->loc_addr, sizeof(listen_addr));
 		listen_port = listen_node->loc_port;
+		if (listen_port != dst_port ||
+		    !(listener_state & listen_node->listener_state))
+			continue;
 		/* compare node pair, return node handle if a match */
-		if ((!memcmp(listen_addr, dst_addr, sizeof(listen_addr)) ||
-		     !memcmp(listen_addr, ip_zero, sizeof(listen_addr))) &&
-		    listen_port == dst_port &&
-		    vlan_id == listen_node->vlan_id &&
-		    (listener_state & listen_node->listener_state)) {
+		if (!memcmp(listen_addr, ip_zero, sizeof(listen_addr)) ||
+		    (!memcmp(listen_addr, dst_addr, sizeof(listen_addr)) &&
+		     vlan_id == listen_node->vlan_id)) {
 			refcount_inc(&listen_node->refcnt);
 			spin_unlock_irqrestore(&cm_core->listen_list_lock,
 					       flags);

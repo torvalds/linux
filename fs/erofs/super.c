@@ -255,7 +255,8 @@ static int erofs_init_device(struct erofs_buf *buf, struct super_block *sb,
 		if (IS_ERR(bdev))
 			return PTR_ERR(bdev);
 		dif->bdev = bdev;
-		dif->dax_dev = fs_dax_get_by_bdev(bdev, &dif->dax_part_off);
+		dif->dax_dev = fs_dax_get_by_bdev(bdev, &dif->dax_part_off,
+						  NULL, NULL);
 	}
 
 	dif->blocks = le32_to_cpu(dis->blocks);
@@ -720,7 +721,8 @@ static int erofs_fc_fill_super(struct super_block *sb, struct fs_context *fc)
 		}
 
 		sbi->dax_dev = fs_dax_get_by_bdev(sb->s_bdev,
-						  &sbi->dax_part_off);
+						  &sbi->dax_part_off,
+						  NULL, NULL);
 	}
 
 	err = erofs_read_superblock(sb);
@@ -812,7 +814,7 @@ static int erofs_release_device_info(int id, void *ptr, void *data)
 {
 	struct erofs_device_info *dif = ptr;
 
-	fs_put_dax(dif->dax_dev);
+	fs_put_dax(dif->dax_dev, NULL);
 	if (dif->bdev)
 		blkdev_put(dif->bdev, FMODE_READ | FMODE_EXCL);
 	erofs_fscache_unregister_cookie(&dif->fscache);
@@ -886,7 +888,7 @@ static void erofs_kill_sb(struct super_block *sb)
 		return;
 
 	erofs_free_dev_context(sbi->devs);
-	fs_put_dax(sbi->dax_dev);
+	fs_put_dax(sbi->dax_dev, NULL);
 	erofs_fscache_unregister_cookie(&sbi->s_fscache);
 	erofs_fscache_unregister_fs(sb);
 	kfree(sbi->opt.fsid);

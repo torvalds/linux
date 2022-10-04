@@ -17,6 +17,88 @@ static int usb_port_block_power_off;
 
 static const struct attribute_group *port_dev_group[];
 
+static ssize_t disable_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct usb_port *port_dev = to_usb_port(dev);
+	struct usb_device *hdev = to_usb_device(dev->parent->parent);
+	struct usb_hub *hub = usb_hub_to_struct_hub(hdev);
+	struct usb_interface *intf = to_usb_interface(hub->intfdev);
+	int port1 = port_dev->portnum;
+	u16 portstatus, unused;
+	bool disabled;
+	int rc;
+
+	rc = usb_autopm_get_interface(intf);
+	if (rc < 0)
+		return rc;
+
+	usb_lock_device(hdev);
+	if (hub->disconnected) {
+		rc = -ENODEV;
+		goto out_hdev_lock;
+	}
+
+	usb_hub_port_status(hub, port1, &portstatus, &unused);
+	disabled = !usb_port_is_power_on(hub, portstatus);
+
+out_hdev_lock:
+	usb_unlock_device(hdev);
+	usb_autopm_put_interface(intf);
+
+	if (rc)
+		return rc;
+
+	return sysfs_emit(buf, "%s\n", disabled ? "1" : "0");
+}
+
+static ssize_t disable_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	struct usb_port *port_dev = to_usb_port(dev);
+	struct usb_device *hdev = to_usb_device(dev->parent->parent);
+	struct usb_hub *hub = usb_hub_to_struct_hub(hdev);
+	struct usb_interface *intf = to_usb_interface(hub->intfdev);
+	int port1 = port_dev->portnum;
+	bool disabled;
+	int rc;
+
+	rc = strtobool(buf, &disabled);
+	if (rc)
+		return rc;
+
+	rc = usb_autopm_get_interface(intf);
+	if (rc < 0)
+		return rc;
+
+	usb_lock_device(hdev);
+	if (hub->disconnected) {
+		rc = -ENODEV;
+		goto out_hdev_lock;
+	}
+
+	if (disabled && port_dev->child)
+		usb_disconnect(&port_dev->child);
+
+	rc = usb_hub_set_port_power(hdev, hub, port1, !disabled);
+
+	if (disabled) {
+		usb_clear_port_feature(hdev, port1, USB_PORT_FEAT_C_CONNECTION);
+		if (!port_dev->is_superspeed)
+			usb_clear_port_feature(hdev, port1, USB_PORT_FEAT_C_ENABLE);
+	}
+
+	if (!rc)
+		rc = count;
+
+out_hdev_lock:
+	usb_unlock_device(hdev);
+	usb_autopm_put_interface(intf);
+
+	return rc;
+}
+static DEVICE_ATTR_RW(disable);
+
 static ssize_t location_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
@@ -153,6 +235,7 @@ static struct attribute *port_dev_attrs[] = {
 	&dev_attr_location.attr,
 	&dev_attr_quirks.attr,
 	&dev_attr_over_current_count.attr,
+	&dev_attr_disable.attr,
 	NULL,
 };
 

@@ -94,6 +94,15 @@ enum ta_dtm_encoder_type {
 	TA_DTM_ENCODER_TYPE__DIG        = 0x10
 };
 
+/* @enum ta_dtm_dio_output_type
+ * This enum defines software value for dio_output_type
+ */
+typedef enum {
+    TA_DTM_DIO_OUTPUT_TYPE__INVALID,
+    TA_DTM_DIO_OUTPUT_TYPE__DIRECT,
+    TA_DTM_DIO_OUTPUT_TYPE__DPIA
+} ta_dtm_dio_output_type;
+
 struct ta_dtm_topology_update_input_v3 {
 	/* display handle is unique across the driver and is used to identify a display */
 	/* for all security interfaces which reference displays such as HDCP */
@@ -111,6 +120,8 @@ struct ta_dtm_topology_update_input_v3 {
 	enum ta_dtm_encoder_type encoder_type;
 	uint32_t phy_id;
 	uint32_t link_hdcp_cap;
+	ta_dtm_dio_output_type dio_output_type;
+	uint32_t dio_output_id;
 };
 
 struct ta_dtm_topology_assr_enable {

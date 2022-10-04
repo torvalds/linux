@@ -1127,7 +1127,7 @@ static void sc16is7xx_set_termios(struct uart_port *port,
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
-static int sc16is7xx_config_rs485(struct uart_port *port,
+static int sc16is7xx_config_rs485(struct uart_port *port, struct ktermios *termios,
 				  struct serial_rs485 *rs485)
 {
 	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
@@ -1143,7 +1143,6 @@ static int sc16is7xx_config_rs485(struct uart_port *port,
 			return -EINVAL;
 	}
 
-	port->rs485 = *rs485;
 	one->config.flags |= SC16IS7XX_RECONF_RS485;
 	kthread_queue_work(&s->kworker, &one->reg_work);
 
@@ -1354,6 +1353,12 @@ static int sc16is7xx_gpio_direction_output(struct gpio_chip *chip,
 }
 #endif
 
+static const struct serial_rs485 sc16is7xx_rs485_supported = {
+	.flags = SER_RS485_ENABLED | SER_RS485_RTS_AFTER_SEND,
+	.delay_rts_before_send = 1,
+	.delay_rts_after_send = 1,	/* Not supported but keep returning -EINVAL */
+};
+
 static int sc16is7xx_probe(struct device *dev,
 			   const struct sc16is7xx_devtype *devtype,
 			   struct regmap *regmap, int irq)
@@ -1456,6 +1461,7 @@ static int sc16is7xx_probe(struct device *dev,
 		s->p[i].port.iotype	= UPIO_PORT;
 		s->p[i].port.uartclk	= freq;
 		s->p[i].port.rs485_config = sc16is7xx_config_rs485;
+		s->p[i].port.rs485_supported = sc16is7xx_rs485_supported;
 		s->p[i].port.ops	= &sc16is7xx_ops;
 		s->p[i].old_mctrl	= 0;
 		s->p[i].port.line	= sc16is7xx_alloc_line();

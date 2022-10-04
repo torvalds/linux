@@ -190,44 +190,42 @@ EXPORT_SYMBOL_GPL(genphy_c45_pma_setup_forced);
  */
 static int genphy_c45_baset1_an_config_aneg(struct phy_device *phydev)
 {
+	u16 adv_l_mask, adv_l = 0;
+	u16 adv_m_mask, adv_m = 0;
 	int changed = 0;
-	u16 adv_l = 0;
-	u16 adv_m = 0;
 	int ret;
+
+	adv_l_mask = MDIO_AN_T1_ADV_L_FORCE_MS | MDIO_AN_T1_ADV_L_PAUSE_CAP |
+		MDIO_AN_T1_ADV_L_PAUSE_ASYM;
+	adv_m_mask = MDIO_AN_T1_ADV_M_MST | MDIO_AN_T1_ADV_M_B10L;
 
 	switch (phydev->master_slave_set) {
 	case MASTER_SLAVE_CFG_MASTER_FORCE:
+		adv_m |= MDIO_AN_T1_ADV_M_MST;
+		fallthrough;
 	case MASTER_SLAVE_CFG_SLAVE_FORCE:
 		adv_l |= MDIO_AN_T1_ADV_L_FORCE_MS;
 		break;
 	case MASTER_SLAVE_CFG_MASTER_PREFERRED:
+		adv_m |= MDIO_AN_T1_ADV_M_MST;
+		fallthrough;
 	case MASTER_SLAVE_CFG_SLAVE_PREFERRED:
 		break;
 	case MASTER_SLAVE_CFG_UNKNOWN:
 	case MASTER_SLAVE_CFG_UNSUPPORTED:
-		return 0;
+		/* if master/slave role is not specified, do not overwrite it */
+		adv_l_mask &= ~MDIO_AN_T1_ADV_L_FORCE_MS;
+		adv_m_mask &= ~MDIO_AN_T1_ADV_M_MST;
+		break;
 	default:
 		phydev_warn(phydev, "Unsupported Master/Slave mode\n");
 		return -EOPNOTSUPP;
 	}
 
-	switch (phydev->master_slave_set) {
-	case MASTER_SLAVE_CFG_MASTER_FORCE:
-	case MASTER_SLAVE_CFG_MASTER_PREFERRED:
-		adv_m |= MDIO_AN_T1_ADV_M_MST;
-		break;
-	case MASTER_SLAVE_CFG_SLAVE_FORCE:
-	case MASTER_SLAVE_CFG_SLAVE_PREFERRED:
-		break;
-	default:
-		break;
-	}
-
 	adv_l |= linkmode_adv_to_mii_t1_adv_l_t(phydev->advertising);
 
 	ret = phy_modify_mmd_changed(phydev, MDIO_MMD_AN, MDIO_AN_T1_ADV_L,
-				     (MDIO_AN_T1_ADV_L_FORCE_MS | MDIO_AN_T1_ADV_L_PAUSE_CAP
-				     | MDIO_AN_T1_ADV_L_PAUSE_ASYM), adv_l);
+				     adv_l_mask, adv_l);
 	if (ret < 0)
 		return ret;
 	if (ret > 0)
@@ -236,7 +234,7 @@ static int genphy_c45_baset1_an_config_aneg(struct phy_device *phydev)
 	adv_m |= linkmode_adv_to_mii_t1_adv_m_t(phydev->advertising);
 
 	ret = phy_modify_mmd_changed(phydev, MDIO_MMD_AN, MDIO_AN_T1_ADV_M,
-				     MDIO_AN_T1_ADV_M_MST | MDIO_AN_T1_ADV_M_B10L, adv_m);
+				     adv_m_mask, adv_m);
 	if (ret < 0)
 		return ret;
 	if (ret > 0)

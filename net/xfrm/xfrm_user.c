@@ -2878,7 +2878,7 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -EPERM;
 
 	/* Use the 64-bit / untranslated format on Android, even for compat */
-	if (!IS_ENABLED(CONFIG_ANDROID) || IS_ENABLED(CONFIG_XFRM_USER_COMPAT)) {
+	if (!IS_ENABLED(CONFIG_GKI_HACKS_TO_FIX) || IS_ENABLED(CONFIG_XFRM_USER_COMPAT)) {
 		if (in_compat_syscall()) {
 			struct xfrm_translator *xtr = xfrm_get_translator();
 
@@ -3636,10 +3636,8 @@ static int __init xfrm_user_init(void)
 	rv = register_pernet_subsys(&xfrm_user_net_ops);
 	if (rv < 0)
 		return rv;
-	rv = xfrm_register_km(&netlink_mgr);
-	if (rv < 0)
-		unregister_pernet_subsys(&xfrm_user_net_ops);
-	return rv;
+	xfrm_register_km(&netlink_mgr);
+	return 0;
 }
 
 static void __exit xfrm_user_exit(void)

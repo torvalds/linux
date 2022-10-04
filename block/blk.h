@@ -97,23 +97,23 @@ static inline bool biovec_phys_mergeable(struct request_queue *q,
 	return true;
 }
 
-static inline bool __bvec_gap_to_prev(struct request_queue *q,
+static inline bool __bvec_gap_to_prev(struct queue_limits *lim,
 		struct bio_vec *bprv, unsigned int offset)
 {
-	return (offset & queue_virt_boundary(q)) ||
-		((bprv->bv_offset + bprv->bv_len) & queue_virt_boundary(q));
+	return (offset & lim->virt_boundary_mask) ||
+		((bprv->bv_offset + bprv->bv_len) & lim->virt_boundary_mask);
 }
 
 /*
  * Check if adding a bio_vec after bprv with offset would create a gap in
  * the SG list. Most drivers don't care about this, but some do.
  */
-static inline bool bvec_gap_to_prev(struct request_queue *q,
+static inline bool bvec_gap_to_prev(struct queue_limits *lim,
 		struct bio_vec *bprv, unsigned int offset)
 {
-	if (!queue_virt_boundary(q))
+	if (!lim->virt_boundary_mask)
 		return false;
-	return __bvec_gap_to_prev(q, bprv, offset);
+	return __bvec_gap_to_prev(lim, bprv, offset);
 }
 
 static inline bool rq_mergeable(struct request *rq)
@@ -189,7 +189,8 @@ static inline bool integrity_req_gap_back_merge(struct request *req,
 	struct bio_integrity_payload *bip = bio_integrity(req->bio);
 	struct bio_integrity_payload *bip_next = bio_integrity(next);
 
-	return bvec_gap_to_prev(req->q, &bip->bip_vec[bip->bip_vcnt - 1],
+	return bvec_gap_to_prev(&req->q->limits,
+				&bip->bip_vec[bip->bip_vcnt - 1],
 				bip_next->bip_vec[0].bv_offset);
 }
 
@@ -199,7 +200,8 @@ static inline bool integrity_req_gap_front_merge(struct request *req,
 	struct bio_integrity_payload *bip = bio_integrity(bio);
 	struct bio_integrity_payload *bip_next = bio_integrity(req->bio);
 
-	return bvec_gap_to_prev(req->q, &bip->bip_vec[bip->bip_vcnt - 1],
+	return bvec_gap_to_prev(&req->q->limits,
+				&bip->bip_vec[bip->bip_vcnt - 1],
 				bip_next->bip_vec[0].bv_offset);
 }
 
@@ -288,7 +290,8 @@ ssize_t part_timeout_show(struct device *, struct device_attribute *, char *);
 ssize_t part_timeout_store(struct device *, struct device_attribute *,
 				const char *, size_t);
 
-static inline bool blk_may_split(struct request_queue *q, struct bio *bio)
+static inline bool bio_may_exceed_limits(struct bio *bio,
+		struct queue_limits *lim)
 {
 	switch (bio_op(bio)) {
 	case REQ_OP_DISCARD:
@@ -307,12 +310,12 @@ static inline bool blk_may_split(struct request_queue *q, struct bio *bio)
 	 * to the performance impact of cloned bios themselves the loop below
 	 * doesn't matter anyway.
 	 */
-	return q->limits.chunk_sectors || bio->bi_vcnt != 1 ||
+	return lim->chunk_sectors || bio->bi_vcnt != 1 ||
 		bio->bi_io_vec->bv_len + bio->bi_io_vec->bv_offset > PAGE_SIZE;
 }
 
-void __blk_queue_split(struct request_queue *q, struct bio **bio,
-			unsigned int *nr_segs);
+struct bio *__bio_split_to_limits(struct bio *bio, struct queue_limits *lim,
+		       unsigned int *nr_segs);
 int ll_back_merge_fn(struct request *req, struct bio *bio,
 		unsigned int nr_segs);
 bool blk_attempt_req_merge(struct request_queue *q, struct request *rq,
@@ -345,16 +348,6 @@ static inline void req_set_nomerge(struct request_queue *q, struct request *req)
 }
 
 /*
- * The max size one bio can handle is UINT_MAX becasue bvec_iter.bi_size
- * is defined as 'unsigned int', meantime it has to aligned to with logical
- * block size which is the minimum accepted unit by hardware.
- */
-static inline unsigned int bio_allowed_max_sectors(struct request_queue *q)
-{
-	return round_down(UINT_MAX, queue_logical_block_size(q)) >> 9;
-}
-
-/*
  * Internal io_context interface
  */
 struct io_cq *ioc_find_get_icq(struct request_queue *q);
@@ -378,7 +371,7 @@ static inline void blk_throtl_bio_endio(struct bio *bio) { }
 static inline void blk_throtl_stat_add(struct request *rq, u64 time) { }
 #endif
 
-void __blk_queue_bounce(struct request_queue *q, struct bio **bio);
+struct bio *__blk_queue_bounce(struct bio *bio, struct request_queue *q);
 
 static inline bool blk_queue_may_bounce(struct request_queue *q)
 {
@@ -387,10 +380,12 @@ static inline bool blk_queue_may_bounce(struct request_queue *q)
 		max_low_pfn >= max_pfn;
 }
 
-static inline void blk_queue_bounce(struct request_queue *q, struct bio **bio)
+static inline struct bio *blk_queue_bounce(struct bio *bio,
+		struct request_queue *q)
 {
-	if (unlikely(blk_queue_may_bounce(q) && bio_has_data(*bio)))
-		__blk_queue_bounce(q, bio);	
+	if (unlikely(blk_queue_may_bounce(q) && bio_has_data(bio)))
+		return __blk_queue_bounce(bio, q);
+	return bio;
 }
 
 #ifdef CONFIG_BLK_CGROUP_IOLATENCY

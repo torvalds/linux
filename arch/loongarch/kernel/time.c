@@ -135,7 +135,7 @@ static int get_timer_irq(void)
 
 int constant_clockevent_init(void)
 {
-	unsigned int irq;
+	int irq;
 	unsigned int cpu = smp_processor_id();
 	unsigned long min_delta = 0x600;
 	unsigned long max_delta = (1UL << 48) - 1;

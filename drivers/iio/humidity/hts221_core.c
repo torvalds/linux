@@ -668,9 +668,9 @@ int hts221_probe(struct device *dev, int irq, const char *name,
 
 	return devm_iio_device_register(hw->dev, iio_dev);
 }
-EXPORT_SYMBOL(hts221_probe);
+EXPORT_SYMBOL_NS(hts221_probe, IIO_HTS221);
 
-static int __maybe_unused hts221_suspend(struct device *dev)
+static int hts221_suspend(struct device *dev)
 {
 	struct iio_dev *iio_dev = dev_get_drvdata(dev);
 	struct hts221_hw *hw = iio_priv(iio_dev);
@@ -680,7 +680,7 @@ static int __maybe_unused hts221_suspend(struct device *dev)
 				  FIELD_PREP(HTS221_ENABLE_MASK, false));
 }
 
-static int __maybe_unused hts221_resume(struct device *dev)
+static int hts221_resume(struct device *dev)
 {
 	struct iio_dev *iio_dev = dev_get_drvdata(dev);
 	struct hts221_hw *hw = iio_priv(iio_dev);
@@ -694,10 +694,8 @@ static int __maybe_unused hts221_resume(struct device *dev)
 	return err;
 }
 
-const struct dev_pm_ops hts221_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(hts221_suspend, hts221_resume)
-};
-EXPORT_SYMBOL(hts221_pm_ops);
+EXPORT_NS_SIMPLE_DEV_PM_OPS(hts221_pm_ops, hts221_suspend, hts221_resume,
+			    IIO_HTS221);
 
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics hts221 sensor driver");

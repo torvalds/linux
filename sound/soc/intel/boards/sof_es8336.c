@@ -28,6 +28,24 @@
 #define SOF_ES8336_SSP_CODEC_MASK		(GENMASK(3, 0))
 
 #define SOF_ES8336_SPEAKERS_EN_GPIO1_QUIRK	BIT(4)
+
+/* HDMI capture*/
+#define SOF_SSP_HDMI_CAPTURE_PRESENT		BIT(14)
+#define SOF_NO_OF_HDMI_CAPTURE_SSP_SHIFT		15
+#define SOF_NO_OF_HDMI_CAPTURE_SSP_MASK		(GENMASK(16, 15))
+#define SOF_NO_OF_HDMI_CAPTURE_SSP(quirk)	\
+	(((quirk) << SOF_NO_OF_HDMI_CAPTURE_SSP_SHIFT) & SOF_NO_OF_HDMI_CAPTURE_SSP_MASK)
+
+#define SOF_HDMI_CAPTURE_1_SSP_SHIFT		7
+#define SOF_HDMI_CAPTURE_1_SSP_MASK		(GENMASK(9, 7))
+#define SOF_HDMI_CAPTURE_1_SSP(quirk)	\
+	(((quirk) << SOF_HDMI_CAPTURE_1_SSP_SHIFT) & SOF_HDMI_CAPTURE_1_SSP_MASK)
+
+#define SOF_HDMI_CAPTURE_2_SSP_SHIFT		10
+#define SOF_HDMI_CAPTURE_2_SSP_MASK		(GENMASK(12, 10))
+#define SOF_HDMI_CAPTURE_2_SSP(quirk)	\
+	(((quirk) << SOF_HDMI_CAPTURE_2_SSP_SHIFT) & SOF_HDMI_CAPTURE_2_SSP_MASK)
+
 #define SOF_ES8336_ENABLE_DMIC			BIT(5)
 #define SOF_ES8336_JD_INVERTED			BIT(6)
 #define SOF_ES8336_HEADPHONE_GPIO		BIT(7)
@@ -57,27 +75,25 @@ static const struct acpi_gpio_params enable_gpio0 = { 0, 0, true };
 static const struct acpi_gpio_params enable_gpio1 = { 1, 0, true };
 
 static const struct acpi_gpio_mapping acpi_speakers_enable_gpio0[] = {
-	{ "speakers-enable-gpios", &enable_gpio0, 1 },
+	{ "speakers-enable-gpios", &enable_gpio0, 1, ACPI_GPIO_QUIRK_ONLY_GPIOIO },
 	{ }
 };
 
 static const struct acpi_gpio_mapping acpi_speakers_enable_gpio1[] = {
-	{ "speakers-enable-gpios", &enable_gpio1, 1 },
+	{ "speakers-enable-gpios", &enable_gpio1, 1, ACPI_GPIO_QUIRK_ONLY_GPIOIO },
 };
 
 static const struct acpi_gpio_mapping acpi_enable_both_gpios[] = {
-	{ "speakers-enable-gpios", &enable_gpio0, 1 },
-	{ "headphone-enable-gpios", &enable_gpio1, 1 },
+	{ "speakers-enable-gpios", &enable_gpio0, 1, ACPI_GPIO_QUIRK_ONLY_GPIOIO },
+	{ "headphone-enable-gpios", &enable_gpio1, 1, ACPI_GPIO_QUIRK_ONLY_GPIOIO },
 	{ }
 };
 
 static const struct acpi_gpio_mapping acpi_enable_both_gpios_rev_order[] = {
-	{ "speakers-enable-gpios", &enable_gpio1, 1 },
-	{ "headphone-enable-gpios", &enable_gpio0, 1 },
+	{ "speakers-enable-gpios", &enable_gpio1, 1, ACPI_GPIO_QUIRK_ONLY_GPIOIO },
+	{ "headphone-enable-gpios", &enable_gpio0, 1, ACPI_GPIO_QUIRK_ONLY_GPIOIO },
 	{ }
 };
-
-static const struct acpi_gpio_mapping *gpio_mapping = acpi_speakers_enable_gpio0;
 
 static void log_quirks(struct device *dev)
 {
@@ -272,15 +288,6 @@ static int sof_es8336_quirk_cb(const struct dmi_system_id *id)
 {
 	quirk = (unsigned long)id->driver_data;
 
-	if (quirk & SOF_ES8336_HEADPHONE_GPIO) {
-		if (quirk & SOF_ES8336_SPEAKERS_EN_GPIO1_QUIRK)
-			gpio_mapping = acpi_enable_both_gpios;
-		else
-			gpio_mapping = acpi_enable_both_gpios_rev_order;
-	} else if (quirk & SOF_ES8336_SPEAKERS_EN_GPIO1_QUIRK) {
-		gpio_mapping = acpi_speakers_enable_gpio1;
-	}
-
 	return 1;
 }
 
@@ -353,6 +360,13 @@ static struct snd_soc_dai_link_component dmic_component[] = {
 	{
 		.name = "dmic-codec",
 		.dai_name = "dmic-hifi",
+	}
+};
+
+static struct snd_soc_dai_link_component dummy_component[] = {
+	{
+		.name = "snd-soc-dummy",
+		.dai_name = "snd-soc-dummy-dai",
 	}
 };
 
@@ -507,6 +521,37 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		id++;
 	}
 
+	/* HDMI-In SSP */
+	if (quirk & SOF_SSP_HDMI_CAPTURE_PRESENT) {
+		int num_of_hdmi_ssp = (quirk & SOF_NO_OF_HDMI_CAPTURE_SSP_MASK) >>
+				SOF_NO_OF_HDMI_CAPTURE_SSP_SHIFT;
+
+		for (i = 1; i <= num_of_hdmi_ssp; i++) {
+			int port = (i == 1 ? (quirk & SOF_HDMI_CAPTURE_1_SSP_MASK) >>
+						SOF_HDMI_CAPTURE_1_SSP_SHIFT :
+						(quirk & SOF_HDMI_CAPTURE_2_SSP_MASK) >>
+						SOF_HDMI_CAPTURE_2_SSP_SHIFT);
+
+			links[id].cpus = &cpus[id];
+			links[id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
+								  "SSP%d Pin", port);
+			if (!links[id].cpus->dai_name)
+				return NULL;
+			links[id].name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-HDMI", port);
+			if (!links[id].name)
+				return NULL;
+			links[id].id = id + hdmi_id_offset;
+			links[id].codecs = dummy_component;
+			links[id].num_codecs = ARRAY_SIZE(dummy_component);
+			links[id].platforms = platform_component;
+			links[id].num_platforms = ARRAY_SIZE(platform_component);
+			links[id].dpcm_capture = 1;
+			links[id].no_pcm = 1;
+			links[id].num_cpus = 1;
+			id++;
+		}
+	}
+
 	return links;
 
 devm_err:
@@ -529,6 +574,7 @@ static int sof_es8336_probe(struct platform_device *pdev)
 	struct acpi_device *adev;
 	struct snd_soc_dai_link *dai_links;
 	struct device *codec_dev;
+	const struct acpi_gpio_mapping *gpio_mapping;
 	unsigned int cnt = 0;
 	int dmic_be_num = 0;
 	int hdmi_num = 3;
@@ -541,29 +587,34 @@ static int sof_es8336_probe(struct platform_device *pdev)
 	card = &sof_es8336_card;
 	card->dev = dev;
 
+	if (pdev->id_entry && pdev->id_entry->driver_data)
+		quirk = (unsigned long)pdev->id_entry->driver_data;
+
 	/* check GPIO DMI quirks */
 	dmi_check_system(sof_es8336_quirk_table);
 
-	if (!mach->mach_params.i2s_link_mask) {
-		dev_warn(dev, "No I2S link information provided, using SSP0. This may need to be modified with the quirk module parameter\n");
-	} else {
-		/*
-		 * Set configuration based on platform NHLT.
-		 * In this machine driver, we can only support one SSP for the
-		 * ES8336 link, the else-if below are intentional.
-		 * In some cases multiple SSPs can be reported by NHLT, starting MSB-first
-		 * seems to pick the right connection.
-		 */
-		unsigned long ssp = 0;
+	/* Use NHLT configuration only for Non-HDMI capture use case.
+	 * Because more than one SSP will be enabled for HDMI capture hence wrong codec
+	 * SSP will be set.
+	 */
+	if (mach->tplg_quirk_mask & SND_SOC_ACPI_TPLG_INTEL_SSP_NUMBER) {
+		if (!mach->mach_params.i2s_link_mask) {
+			dev_warn(dev, "No I2S link information provided, using SSP0. This may need to be modified with the quirk module parameter\n");
+		} else {
+			/*
+			 * Set configuration based on platform NHLT.
+			 * In this machine driver, we can only support one SSP for the
+			 * ES8336 link.
+			 * In some cases multiple SSPs can be reported by NHLT, starting MSB-first
+			 * seems to pick the right connection.
+			 */
+			unsigned long ssp;
 
-		if (mach->mach_params.i2s_link_mask & BIT(2))
-			ssp = SOF_ES8336_SSP_CODEC(2);
-		else if (mach->mach_params.i2s_link_mask & BIT(1))
-			ssp = SOF_ES8336_SSP_CODEC(1);
-		else  if (mach->mach_params.i2s_link_mask & BIT(0))
-			ssp = SOF_ES8336_SSP_CODEC(0);
+			/* fls returns 1-based results, SSPs indices are 0-based */
+			ssp = fls(mach->mach_params.i2s_link_mask) - 1;
 
-		quirk |= ssp;
+			quirk |= ssp;
+		}
 	}
 
 	if (mach->mach_params.dmic_num)
@@ -579,7 +630,13 @@ static int sof_es8336_probe(struct platform_device *pdev)
 	if (quirk & SOF_ES8336_ENABLE_DMIC)
 		dmic_be_num = 2;
 
-	sof_es8336_card.num_links += dmic_be_num + hdmi_num;
+	/* compute number of dai links */
+	sof_es8336_card.num_links = 1 + dmic_be_num + hdmi_num;
+
+	if (quirk & SOF_SSP_HDMI_CAPTURE_PRESENT)
+		sof_es8336_card.num_links += (quirk & SOF_NO_OF_HDMI_CAPTURE_SSP_MASK) >>
+				SOF_NO_OF_HDMI_CAPTURE_SSP_SHIFT;
+
 	dai_links = sof_card_dai_links_create(dev,
 					      SOF_ES8336_SSP_CODEC(quirk),
 					      dmic_be_num, hdmi_num);
@@ -635,6 +692,17 @@ static int sof_es8336_probe(struct platform_device *pdev)
 	}
 
 	/* get speaker enable GPIO */
+	if (quirk & SOF_ES8336_HEADPHONE_GPIO) {
+		if (quirk & SOF_ES8336_SPEAKERS_EN_GPIO1_QUIRK)
+			gpio_mapping = acpi_enable_both_gpios;
+		else
+			gpio_mapping = acpi_enable_both_gpios_rev_order;
+	} else if (quirk & SOF_ES8336_SPEAKERS_EN_GPIO1_QUIRK) {
+		gpio_mapping = acpi_speakers_enable_gpio1;
+	} else {
+		gpio_mapping = acpi_speakers_enable_gpio0;
+	}
+
 	ret = devm_acpi_dev_add_driver_gpios(codec_dev, gpio_mapping);
 	if (ret)
 		dev_warn(codec_dev, "unable to add GPIO mapping table\n");
@@ -690,6 +758,24 @@ static int sof_es8336_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id board_ids[] = {
+	{
+		.name = "sof-essx8336", /* default quirk == 0 */
+	},
+	{
+		.name = "adl_es83x6_c1_h02",
+		.driver_data = (kernel_ulong_t)(SOF_ES8336_SSP_CODEC(1) |
+					SOF_NO_OF_HDMI_CAPTURE_SSP(2) |
+					SOF_HDMI_CAPTURE_1_SSP(0) |
+					SOF_HDMI_CAPTURE_2_SSP(2) |
+					SOF_SSP_HDMI_CAPTURE_PRESENT |
+					SOF_ES8336_SPEAKERS_EN_GPIO1_QUIRK |
+					SOF_ES8336_JD_INVERTED),
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(platform, board_ids);
+
 static struct platform_driver sof_es8336_driver = {
 	.driver = {
 		.name = "sof-essx8336",
@@ -697,10 +783,10 @@ static struct platform_driver sof_es8336_driver = {
 	},
 	.probe = sof_es8336_probe,
 	.remove = sof_es8336_remove,
+	.id_table = board_ids,
 };
 module_platform_driver(sof_es8336_driver);
 
 MODULE_DESCRIPTION("ASoC Intel(R) SOF + ES8336 Machine driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:sof-essx8336");
 MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);

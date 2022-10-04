@@ -590,12 +590,12 @@ static int ath10k_qmi_cap_send_sync_msg(struct ath10k_qmi *qmi)
 
 	if (resp->fw_version_info_valid) {
 		qmi->fw_version = resp->fw_version_info.fw_version;
-		strlcpy(qmi->fw_build_timestamp, resp->fw_version_info.fw_build_timestamp,
+		strscpy(qmi->fw_build_timestamp, resp->fw_version_info.fw_build_timestamp,
 			sizeof(qmi->fw_build_timestamp));
 	}
 
 	if (resp->fw_build_id_valid)
-		strlcpy(qmi->fw_build_id, resp->fw_build_id,
+		strscpy(qmi->fw_build_id, resp->fw_build_id,
 			MAX_BUILD_ID_LEN + 1);
 
 	if (!test_bit(ATH10K_SNOC_FLAG_REGISTERED, &ar_snoc->flags)) {

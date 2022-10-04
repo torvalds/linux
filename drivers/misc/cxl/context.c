@@ -331,7 +331,7 @@ static void reclaim_ctx(struct rcu_head *rcu)
 		__free_page(ctx->ff_page);
 	ctx->sstp = NULL;
 
-	kfree(ctx->irq_bitmap);
+	bitmap_free(ctx->irq_bitmap);
 
 	/* Drop ref to the afu device taken during cxl_context_init */
 	cxl_afu_put(ctx->afu);

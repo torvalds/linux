@@ -2,7 +2,6 @@
 #ifndef __NVKM_CLK_H__
 #define __NVKM_CLK_H__
 #include <core/subdev.h>
-#include <core/notify.h>
 #include <subdev/pci.h>
 struct nvbios_pll;
 struct nvkm_pll_vals;
@@ -94,7 +93,6 @@ struct nvkm_clk {
 	wait_queue_head_t wait;
 	atomic_t waiting;
 
-	struct nvkm_notify pwrsrc_ntfy;
 	int pwrsrc;
 	int pstate; /* current */
 	int ustate_ac; /* user-requested (-1 disabled, -2 perfmon) */
@@ -124,6 +122,7 @@ int nvkm_clk_ustate(struct nvkm_clk *, int req, int pwr);
 int nvkm_clk_astate(struct nvkm_clk *, int req, int rel, bool wait);
 int nvkm_clk_dstate(struct nvkm_clk *, int req, int rel);
 int nvkm_clk_tstate(struct nvkm_clk *, u8 temperature);
+int nvkm_clk_pwrsrc(struct nvkm_device *);
 
 int nv04_clk_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_clk **);
 int nv40_clk_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_clk **);

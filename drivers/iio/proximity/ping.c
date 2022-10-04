@@ -173,7 +173,7 @@ static int ping_read(struct iio_dev *indio_dev)
 
 	/*
 	 * read error code of laser ping sensor and give users chance to
-	 * figure out error by using dynamic debuggging
+	 * figure out error by using dynamic debugging
 	 */
 	if (data->cfg->laserping_error) {
 		if ((time_ns > 12500000) && (time_ns <= 13500000)) {

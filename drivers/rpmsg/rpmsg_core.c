@@ -604,7 +604,7 @@ int rpmsg_register_device_override(struct rpmsg_device *rpdev,
 	int ret;
 
 	if (driver_override)
-		strcpy(rpdev->id.name, driver_override);
+		strscpy_pad(rpdev->id.name, driver_override, RPMSG_NAME_SIZE);
 
 	dev_set_name(dev, "%s.%s.%d.%d", dev_name(dev->parent),
 		     rpdev->id.name, rpdev->src, rpdev->dst);
@@ -618,6 +618,7 @@ int rpmsg_register_device_override(struct rpmsg_device *rpdev,
 					  strlen(driver_override));
 		if (ret) {
 			dev_err(dev, "device_set_override failed: %d\n", ret);
+			put_device(dev);
 			return ret;
 		}
 	}

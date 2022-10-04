@@ -29,7 +29,6 @@ config PINCTRL_SUN6I_A31
 config PINCTRL_SUN6I_A31_R
 	bool "Support for the Allwinner A31 R-PIO"
 	default MACH_SUN6I
-	depends on RESET_CONTROLLER
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN8I_A23
@@ -55,7 +54,6 @@ config PINCTRL_SUN8I_A83T_R
 config PINCTRL_SUN8I_A23_R
 	bool "Support for the Allwinner A23 and A33 R-PIO"
 	default MACH_SUN8I
-	depends on RESET_CONTROLLER
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN8I_H3
@@ -81,7 +79,11 @@ config PINCTRL_SUN9I_A80
 config PINCTRL_SUN9I_A80_R
 	bool "Support for the Allwinner A80 R-PIO"
 	default MACH_SUN9I
-	depends on RESET_CONTROLLER
+	select PINCTRL_SUNXI
+
+config PINCTRL_SUN20I_D1
+	bool "Support for the Allwinner D1 PIO"
+	default MACH_SUN8I || (RISCV && ARCH_SUNXI)
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN50I_A64

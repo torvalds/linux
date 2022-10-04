@@ -199,7 +199,7 @@ static int p9_virtio_cancel(struct p9_client *client, struct p9_req_t *req)
 /* Reply won't come, so drop req ref */
 static int p9_virtio_cancelled(struct p9_client *client, struct p9_req_t *req)
 {
-	p9_req_put(req);
+	p9_req_put(client, req);
 	return 0;
 }
 
@@ -331,7 +331,7 @@ static int p9_get_mapped_pages(struct virtio_chan *chan,
 			if (err == -ERESTARTSYS)
 				return err;
 		}
-		n = iov_iter_get_pages_alloc(data, pages, count, offs);
+		n = iov_iter_get_pages_alloc2(data, pages, count, offs);
 		if (n < 0)
 			return n;
 		*need_drop = 1;
@@ -373,6 +373,7 @@ static int p9_get_mapped_pages(struct virtio_chan *chan,
 				(*pages)[index] = kmap_to_page(p);
 			p += PAGE_SIZE;
 		}
+		iov_iter_advance(data, len);
 		return len;
 	}
 }
@@ -557,7 +558,7 @@ err_out:
 	kvfree(out_pages);
 	if (!kicked) {
 		/* reply won't come */
-		p9_req_put(req);
+		p9_req_put(client, req);
 	}
 	return err;
 }

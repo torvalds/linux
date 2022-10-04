@@ -53,8 +53,9 @@ PROG COMMANDS
 |		**cgroup/getsockopt** | **cgroup/setsockopt** | **cgroup/sock_release** |
 |		**struct_ops** | **fentry** | **fexit** | **freplace** | **sk_lookup**
 |	}
-|       *ATTACH_TYPE* := {
-|		**msg_verdict** | **skb_verdict** | **stream_verdict** | **stream_parser** | **flow_dissector**
+|	*ATTACH_TYPE* := {
+|		**sk_msg_verdict** | **sk_skb_verdict** | **sk_skb_stream_verdict** |
+|		**sk_skb_stream_parser** | **flow_dissector**
 |	}
 |	*METRICs* := {
 |		**cycles** | **instructions** | **l1d_loads** | **llc_misses** |

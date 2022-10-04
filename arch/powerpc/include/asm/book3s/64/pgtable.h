@@ -1273,7 +1273,7 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
  * should return true.
  * We should not call this on a hugetlb entry. We should check for HugeTLB
  * entry using vma->vm_flags
- * The page table walk rule is explained in Documentation/vm/transhuge.rst
+ * The page table walk rule is explained in Documentation/mm/transhuge.rst
  */
 static inline int pmd_trans_huge(pmd_t pmd)
 {

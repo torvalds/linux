@@ -8,6 +8,15 @@ config PHY_FSL_IMX8MQ_USB
 	select GENERIC_PHY
 	default ARCH_MXC && ARM64
 
+config PHY_MIXEL_LVDS_PHY
+	tristate "Mixel LVDS PHY support"
+	depends on OF
+	select GENERIC_PHY
+	select REGMAP_MMIO
+	help
+	  Enable this to add support for the Mixel LVDS PHY as found
+	  on NXP's i.MX8qm SoC.
+
 config PHY_MIXEL_MIPI_DPHY
 	tristate "Mixel MIPI DSI PHY support"
 	depends on OF && HAS_IOMEM

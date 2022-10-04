@@ -807,7 +807,7 @@ void ath6kl_cfg80211_connect_event(struct ath6kl_vif *vif, u16 channel,
 		cfg80211_put_bss(ar->wiphy, bss);
 	} else if (vif->sme_state == SME_CONNECTED) {
 		struct cfg80211_roam_info roam_info = {
-			.bss = bss,
+			.links[0].bss = bss,
 			.req_ie = assoc_req_ie,
 			.req_ie_len = assoc_req_len,
 			.resp_ie = assoc_resp_ie,
@@ -1119,7 +1119,7 @@ void ath6kl_cfg80211_ch_switch_notify(struct ath6kl_vif *vif, int freq,
 					NL80211_CHAN_HT20 : NL80211_CHAN_NO_HT);
 
 	mutex_lock(&vif->wdev.mtx);
-	cfg80211_ch_switch_notify(vif->ndev, &chandef);
+	cfg80211_ch_switch_notify(vif->ndev, &chandef, 0);
 	mutex_unlock(&vif->wdev.mtx);
 }
 
@@ -2967,7 +2967,8 @@ static int ath6kl_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 	return ath6kl_set_ies(vif, beacon);
 }
 
-static int ath6kl_stop_ap(struct wiphy *wiphy, struct net_device *dev)
+static int ath6kl_stop_ap(struct wiphy *wiphy, struct net_device *dev,
+			  unsigned int link_id)
 {
 	struct ath6kl *ar = ath6kl_priv(dev);
 	struct ath6kl_vif *vif = netdev_priv(dev);
@@ -3368,6 +3369,7 @@ static int ath6kl_cfg80211_sscan_stop(struct wiphy *wiphy,
 
 static int ath6kl_cfg80211_set_bitrate(struct wiphy *wiphy,
 				       struct net_device *dev,
+				       unsigned int link_id,
 				       const u8 *addr,
 				       const struct cfg80211_bitrate_mask *mask)
 {

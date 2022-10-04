@@ -56,4 +56,17 @@ config NVHE_EL2_DEBUG
 
 	  If unsure, say N.
 
+config PROTECTED_NVHE_STACKTRACE
+	bool "Protected KVM hypervisor stacktraces"
+	depends on NVHE_EL2_DEBUG
+	default n
+	help
+	  Say Y here to enable pKVM hypervisor stacktraces on hyp_panic()
+
+	  If using protected nVHE mode, but cannot afford the associated
+	  memory cost (less than 0.75 page per CPU) of pKVM stacktraces,
+	  say N.
+
+	  If unsure, or not using protected nVHE (pKVM), say N.
+
 endif # VIRTUALIZATION

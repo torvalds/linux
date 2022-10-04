@@ -1,8 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 menu "Android"
 
-if ANDROID
-
 config ASHMEM
 	bool "Enable the Anonymous Shared Memory Subsystem"
 	depends on SHMEM
@@ -13,7 +11,5 @@ config ASHMEM
 
 	  It is, in theory, a good memory allocator for low-memory devices,
 	  because it can discard shared memory units when under memory pressure.
-
-endif # if ANDROID
 
 endmenu

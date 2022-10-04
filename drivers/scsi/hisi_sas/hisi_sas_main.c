@@ -219,10 +219,15 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 		task->lldd_task = NULL;
 
 		if (!sas_protocol_ata(task->task_proto)) {
-			if (slot->n_elem)
-				dma_unmap_sg(dev, task->scatter,
-					     task->num_scatter,
-					     task->data_dir);
+			if (slot->n_elem) {
+				if (task->task_proto & SAS_PROTOCOL_SSP)
+					dma_unmap_sg(dev, task->scatter,
+						     task->num_scatter,
+						     task->data_dir);
+				else
+					dma_unmap_sg(dev, &task->smp_task.smp_req,
+						     1, DMA_TO_DEVICE);
+			}
 			if (slot->n_elem_dif) {
 				struct sas_ssp_task *ssp_task = &task->ssp_task;
 				struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
@@ -269,28 +274,23 @@ static void hisi_sas_task_prep_abort(struct hisi_hba *hisi_hba,
 }
 
 static void hisi_sas_dma_unmap(struct hisi_hba *hisi_hba,
-			       struct sas_task *task, int n_elem,
-			       int n_elem_req)
+			       struct sas_task *task, int n_elem)
 {
 	struct device *dev = hisi_hba->dev;
 
-	if (!sas_protocol_ata(task->task_proto)) {
+	if (!sas_protocol_ata(task->task_proto) && n_elem) {
 		if (task->num_scatter) {
-			if (n_elem)
-				dma_unmap_sg(dev, task->scatter,
-					     task->num_scatter,
-					     task->data_dir);
+			dma_unmap_sg(dev, task->scatter, task->num_scatter,
+				     task->data_dir);
 		} else if (task->task_proto & SAS_PROTOCOL_SMP) {
-			if (n_elem_req)
-				dma_unmap_sg(dev, &task->smp_task.smp_req,
-					     1, DMA_TO_DEVICE);
+			dma_unmap_sg(dev, &task->smp_task.smp_req,
+				     1, DMA_TO_DEVICE);
 		}
 	}
 }
 
 static int hisi_sas_dma_map(struct hisi_hba *hisi_hba,
-			    struct sas_task *task, int *n_elem,
-			    int *n_elem_req)
+			    struct sas_task *task, int *n_elem)
 {
 	struct device *dev = hisi_hba->dev;
 	int rc;
@@ -308,9 +308,9 @@ static int hisi_sas_dma_map(struct hisi_hba *hisi_hba,
 				goto prep_out;
 			}
 		} else if (task->task_proto & SAS_PROTOCOL_SMP) {
-			*n_elem_req = dma_map_sg(dev, &task->smp_task.smp_req,
-						 1, DMA_TO_DEVICE);
-			if (!*n_elem_req) {
+			*n_elem = dma_map_sg(dev, &task->smp_task.smp_req,
+					     1, DMA_TO_DEVICE);
+			if (!*n_elem) {
 				rc = -ENOMEM;
 				goto prep_out;
 			}
@@ -332,8 +332,7 @@ static int hisi_sas_dma_map(struct hisi_hba *hisi_hba,
 
 err_out_dma_unmap:
 	/* It would be better to call dma_unmap_sg() here, but it's messy */
-	hisi_sas_dma_unmap(hisi_hba, task, *n_elem,
-			   *n_elem_req);
+	hisi_sas_dma_unmap(hisi_hba, task, *n_elem);
 prep_out:
 	return rc;
 }
@@ -457,7 +456,7 @@ void hisi_sas_task_deliver(struct hisi_hba *hisi_hba,
 
 static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 {
-	int n_elem = 0, n_elem_dif = 0, n_elem_req = 0;
+	int n_elem = 0, n_elem_dif = 0;
 	struct domain_device *device = task->dev;
 	struct asd_sas_port *sas_port = device->port;
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
@@ -568,8 +567,7 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 		return -EINVAL;
 	}
 
-	rc = hisi_sas_dma_map(hisi_hba, task, &n_elem,
-			      &n_elem_req);
+	rc = hisi_sas_dma_map(hisi_hba, task, &n_elem);
 	if (rc < 0)
 		goto prep_out;
 
@@ -605,8 +603,7 @@ err_out_dif_dma_unmap:
 	if (!sas_protocol_ata(task->task_proto))
 		hisi_sas_dif_dma_unmap(hisi_hba, task, n_elem_dif);
 err_out_dma_unmap:
-	hisi_sas_dma_unmap(hisi_hba, task, n_elem,
-				   n_elem_req);
+	hisi_sas_dma_unmap(hisi_hba, task, n_elem);
 prep_out:
 	dev_err(dev, "task exec: failed[%d]!\n", rc);
 	return rc;

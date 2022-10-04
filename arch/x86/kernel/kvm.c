@@ -236,8 +236,7 @@ again:
 	raw_spin_unlock(&b->lock);
 
 	/* A dummy token might be allocated and ultimately not used.  */
-	if (dummy)
-		kfree(dummy);
+	kfree(dummy);
 }
 EXPORT_SYMBOL_GPL(kvm_async_pf_task_wake);
 

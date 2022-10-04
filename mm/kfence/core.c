@@ -546,7 +546,7 @@ static unsigned long kfence_init_pool(void)
 	if (!arch_kfence_init_pool())
 		return addr;
 
-	pages = virt_to_page(addr);
+	pages = virt_to_page(__kfence_pool);
 
 	/*
 	 * Set up object pages: they must have PG_slab set, to avoid freeing
@@ -660,7 +660,7 @@ static bool kfence_init_pool_late(void)
 	/* Same as above. */
 	free_size = KFENCE_POOL_SIZE - (addr - (unsigned long)__kfence_pool);
 #ifdef CONFIG_CONTIG_ALLOC
-	free_contig_range(page_to_pfn(virt_to_page(addr)), free_size / PAGE_SIZE);
+	free_contig_range(page_to_pfn(virt_to_page((void *)addr)), free_size / PAGE_SIZE);
 #else
 	free_pages_exact((void *)addr, free_size);
 #endif

@@ -922,25 +922,6 @@ lpfc_programtype_show(struct device *dev, struct device_attribute *attr,
 }
 
 /**
- * lpfc_mlomgmt_show - Return the Menlo Maintenance sli flag
- * @dev: class converted to a Scsi_host structure.
- * @attr: device attribute, not used.
- * @buf: on return contains the Menlo Maintenance sli flag.
- *
- * Returns: size of formatted string.
- **/
-static ssize_t
-lpfc_mlomgmt_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct Scsi_Host  *shost = class_to_shost(dev);
-	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-
-	return scnprintf(buf, PAGE_SIZE, "%d\n",
-		(phba->sli.sli_flag & LPFC_MENLO_MAINT));
-}
-
-/**
  * lpfc_vportnum_show - Return the port number in ascii of the hba
  * @dev: class converted to a Scsi_host structure.
  * @attr: device attribute, not used.
@@ -1109,10 +1090,7 @@ lpfc_link_state_show(struct device *dev, struct device_attribute *attr,
 					"Unknown\n");
 			break;
 		}
-		if (phba->sli.sli_flag & LPFC_MENLO_MAINT)
-			len += scnprintf(buf + len, PAGE_SIZE-len,
-					"   Menlo Maint Mode\n");
-		else if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
+		if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 			if (vport->fc_flag & FC_PUBLIC_LOOP)
 				len += scnprintf(buf + len, PAGE_SIZE-len,
 						"   Public Loop\n");
@@ -2827,7 +2805,6 @@ static DEVICE_ATTR(option_rom_version, S_IRUGO,
 		   lpfc_option_rom_version_show, NULL);
 static DEVICE_ATTR(num_discovered_ports, S_IRUGO,
 		   lpfc_num_discovered_ports_show, NULL);
-static DEVICE_ATTR(menlo_mgmt_mode, S_IRUGO, lpfc_mlomgmt_show, NULL);
 static DEVICE_ATTR(nport_evt_cnt, S_IRUGO, lpfc_nport_evt_cnt_show, NULL);
 static DEVICE_ATTR_RO(lpfc_drvr_version);
 static DEVICE_ATTR_RO(lpfc_enable_fip);
@@ -6220,7 +6197,6 @@ static struct attribute *lpfc_hba_attrs[] = {
 	&dev_attr_option_rom_version.attr,
 	&dev_attr_link_state.attr,
 	&dev_attr_num_discovered_ports.attr,
-	&dev_attr_menlo_mgmt_mode.attr,
 	&dev_attr_lpfc_drvr_version.attr,
 	&dev_attr_lpfc_enable_fip.attr,
 	&dev_attr_lpfc_temp_sensor.attr,
@@ -7396,7 +7372,6 @@ lpfc_get_hba_function_mode(struct lpfc_hba *phba)
 	case PCI_DEVICE_ID_LANCER_FCOE:
 	case PCI_DEVICE_ID_LANCER_FCOE_VF:
 	case PCI_DEVICE_ID_ZEPHYR_DCSP:
-	case PCI_DEVICE_ID_HORNET:
 	case PCI_DEVICE_ID_TIGERSHARK:
 	case PCI_DEVICE_ID_TOMCAT:
 		phba->hba_flag |= HBA_FCOE_MODE;

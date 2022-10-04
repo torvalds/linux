@@ -98,7 +98,7 @@ u64 etm4x_sysreg_read(u32 offset, bool _relaxed, bool _64bit)
 	}
 
 	if (!_relaxed)
-		__iormb(res);	/* Imitate the !relaxed I/O helpers */
+		__io_ar(res);	/* Imitate the !relaxed I/O helpers */
 
 	return res;
 }
@@ -106,7 +106,7 @@ u64 etm4x_sysreg_read(u32 offset, bool _relaxed, bool _64bit)
 void etm4x_sysreg_write(u64 val, u32 offset, bool _relaxed, bool _64bit)
 {
 	if (!_relaxed)
-		__iowmb();	/* Imitate the !relaxed I/O helpers */
+		__io_bw();	/* Imitate the !relaxed I/O helpers */
 	if (!_64bit)
 		val &= GENMASK(31, 0);
 
@@ -130,7 +130,7 @@ static u64 ete_sysreg_read(u32 offset, bool _relaxed, bool _64bit)
 	}
 
 	if (!_relaxed)
-		__iormb(res);	/* Imitate the !relaxed I/O helpers */
+		__io_ar(res);	/* Imitate the !relaxed I/O helpers */
 
 	return res;
 }
@@ -138,7 +138,7 @@ static u64 ete_sysreg_read(u32 offset, bool _relaxed, bool _64bit)
 static void ete_sysreg_write(u64 val, u32 offset, bool _relaxed, bool _64bit)
 {
 	if (!_relaxed)
-		__iowmb();	/* Imitate the !relaxed I/O helpers */
+		__io_bw();	/* Imitate the !relaxed I/O helpers */
 	if (!_64bit)
 		val &= GENMASK(31, 0);
 
@@ -694,6 +694,20 @@ static int etm4_parse_event_config(struct coresight_device *csdev,
 		cfg_hash = (u32)(attr->config2 >> 32);
 		preset = attr->config & 0xF;
 		ret = cscfg_csdev_enable_active_config(csdev, cfg_hash, preset);
+	}
+
+	/* branch broadcast - enable if selected and supported */
+	if (attr->config & BIT(ETM_OPT_BRANCH_BROADCAST)) {
+		if (!drvdata->trcbb) {
+			/*
+			 * Missing BB support could cause silent decode errors
+			 * so fail to open if it's not supported.
+			 */
+			ret = -EINVAL;
+			goto out;
+		} else {
+			config->cfg |= BIT(ETM4_CFG_BIT_BB);
+		}
 	}
 
 out:

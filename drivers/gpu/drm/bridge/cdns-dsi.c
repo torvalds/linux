@@ -462,6 +462,7 @@ struct cdns_dsi {
 	struct reset_control *dsi_p_rst;
 	struct clk *dsi_sys_clk;
 	bool link_initialized;
+	bool phy_initialized;
 	struct phy *dphy;
 };
 
@@ -711,11 +712,21 @@ static void cdns_dsi_bridge_disable(struct drm_bridge *bridge)
 	pm_runtime_put(dsi->base.dev);
 }
 
+static void cdns_dsi_bridge_post_disable(struct drm_bridge *bridge)
+{
+	struct cdns_dsi_input *input = bridge_to_cdns_dsi_input(bridge);
+	struct cdns_dsi *dsi = input_to_dsi(input);
+
+	pm_runtime_put(dsi->base.dev);
+}
+
 static void cdns_dsi_hs_init(struct cdns_dsi *dsi)
 {
 	struct cdns_dsi_output *output = &dsi->output;
 	u32 status;
 
+	if (dsi->phy_initialized)
+		return;
 	/*
 	 * Power all internal DPHY blocks down and maintain their reset line
 	 * asserted before changing the DPHY config.
@@ -739,6 +750,7 @@ static void cdns_dsi_hs_init(struct cdns_dsi *dsi)
 	writel(DPHY_CMN_PSO | DPHY_ALL_D_PDN | DPHY_C_PDN | DPHY_CMN_PDN |
 	       DPHY_D_RSTB(output->dev->lanes) | DPHY_C_RSTB,
 	       dsi->regs + MCTL_DPHY_CFG0);
+	dsi->phy_initialized = true;
 }
 
 static void cdns_dsi_init_link(struct cdns_dsi *dsi)
@@ -914,11 +926,25 @@ static void cdns_dsi_bridge_enable(struct drm_bridge *bridge)
 	writel(tmp, dsi->regs + MCTL_MAIN_EN);
 }
 
+static void cdns_dsi_bridge_pre_enable(struct drm_bridge *bridge)
+{
+	struct cdns_dsi_input *input = bridge_to_cdns_dsi_input(bridge);
+	struct cdns_dsi *dsi = input_to_dsi(input);
+
+	if (WARN_ON(pm_runtime_get_sync(dsi->base.dev) < 0))
+		return;
+
+	cdns_dsi_init_link(dsi);
+	cdns_dsi_hs_init(dsi);
+}
+
 static const struct drm_bridge_funcs cdns_dsi_bridge_funcs = {
 	.attach = cdns_dsi_bridge_attach,
 	.mode_valid = cdns_dsi_bridge_mode_valid,
 	.disable = cdns_dsi_bridge_disable,
+	.pre_enable = cdns_dsi_bridge_pre_enable,
 	.enable = cdns_dsi_bridge_enable,
+	.post_disable = cdns_dsi_bridge_post_disable,
 };
 
 static int cdns_dsi_attach(struct mipi_dsi_host *host,

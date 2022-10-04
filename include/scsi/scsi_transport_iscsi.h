@@ -162,7 +162,7 @@ struct iscsi_transport {
  * transport registration upcalls
  */
 extern struct scsi_transport_template *iscsi_register_transport(struct iscsi_transport *tt);
-extern int iscsi_unregister_transport(struct iscsi_transport *tt);
+extern void iscsi_unregister_transport(struct iscsi_transport *tt);
 
 /*
  * control plane upcalls
@@ -442,6 +442,7 @@ extern struct iscsi_cls_session *iscsi_create_session(struct Scsi_Host *shost,
 						struct iscsi_transport *t,
 						int dd_size,
 						unsigned int target_id);
+extern void iscsi_force_destroy_session(struct iscsi_cls_session *session);
 extern void iscsi_remove_session(struct iscsi_cls_session *session);
 extern void iscsi_free_session(struct iscsi_cls_session *session);
 extern struct iscsi_cls_conn *iscsi_alloc_conn(struct iscsi_cls_session *sess,

@@ -86,8 +86,7 @@ config RCU_EXP_CPU_STALL_TIMEOUT
 	int "Expedited RCU CPU stall timeout in milliseconds"
 	depends on RCU_STALL_COMMON
 	range 0 21000
-	default 20 if ANDROID
-	default 0 if !ANDROID
+	default 0
 	help
 	  If a given expedited RCU grace period extends more than the
 	  specified number of milliseconds, a CPU stall warning is printed.

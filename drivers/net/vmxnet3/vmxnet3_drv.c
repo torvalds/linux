@@ -1550,6 +1550,7 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 					     hash_type);
 			}
 #endif
+			skb_record_rx_queue(ctx->skb, rq->qid);
 			skb_put(ctx->skb, rcd->len);
 
 			if (VMXNET3_VERSION_GE_2(adapter) &&
@@ -2074,17 +2075,8 @@ vmxnet3_poll_rx_only(struct napi_struct *napi, int budget)
 	rxd_done = vmxnet3_rq_rx_complete(rq, adapter, budget);
 
 	if (rxd_done < budget) {
-		struct Vmxnet3_RxCompDesc *rcd;
-#ifdef __BIG_ENDIAN_BITFIELD
-		struct Vmxnet3_RxCompDesc rxComp;
-#endif
 		napi_complete_done(napi, rxd_done);
 		vmxnet3_enable_intr(adapter, rq->comp_ring.intr_idx);
-		/* after unmasking the interrupt, check if any descriptors were completed */
-		vmxnet3_getRxComp(rcd, &rq->comp_ring.base[rq->comp_ring.next2proc].rcd,
-				  &rxComp);
-		if (rcd->gen == rq->comp_ring.gen && napi_reschedule(napi))
-			vmxnet3_disable_intr(adapter, rq->comp_ring.intr_idx);
 	}
 	return rxd_done;
 }
@@ -3365,10 +3357,17 @@ vmxnet3_declare_features(struct vmxnet3_adapter *adapter)
 		adapter->dev_caps[0] = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_CMD);
 		spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 
+		if (!(adapter->dev_caps[0] & (1UL << VMXNET3_CAP_GENEVE_CHECKSUM_OFFLOAD)) &&
+		    !(adapter->dev_caps[0] & (1UL << VMXNET3_CAP_VXLAN_CHECKSUM_OFFLOAD)) &&
+		    !(adapter->dev_caps[0] & (1UL << VMXNET3_CAP_GENEVE_TSO)) &&
+		    !(adapter->dev_caps[0] & (1UL << VMXNET3_CAP_VXLAN_TSO))) {
+			netdev->hw_enc_features &= ~NETIF_F_GSO_UDP_TUNNEL;
+			netdev->hw_features &= ~NETIF_F_GSO_UDP_TUNNEL;
+		}
 		if (!(adapter->dev_caps[0] & (1UL << VMXNET3_CAP_GENEVE_OUTER_CHECKSUM_OFFLOAD)) &&
 		    !(adapter->dev_caps[0] & (1UL << VMXNET3_CAP_VXLAN_OUTER_CHECKSUM_OFFLOAD))) {
 			netdev->hw_enc_features &= ~NETIF_F_GSO_UDP_TUNNEL_CSUM;
-			netdev->features &= ~NETIF_F_GSO_UDP_TUNNEL_CSUM;
+			netdev->hw_features &= ~NETIF_F_GSO_UDP_TUNNEL_CSUM;
 		}
 	}
 

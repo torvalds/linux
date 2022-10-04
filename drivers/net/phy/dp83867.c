@@ -14,6 +14,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/bitfield.h>
+#include <linux/nvmem-consumer.h>
 
 #include <dt-bindings/net/ti-dp83867.h>
 
@@ -522,6 +523,51 @@ static int dp83867_verify_rgmii_cfg(struct phy_device *phydev)
 }
 
 #if IS_ENABLED(CONFIG_OF_MDIO)
+static int dp83867_of_init_io_impedance(struct phy_device *phydev)
+{
+	struct dp83867_private *dp83867 = phydev->priv;
+	struct device *dev = &phydev->mdio.dev;
+	struct device_node *of_node = dev->of_node;
+	struct nvmem_cell *cell;
+	u8 *buf, val;
+	int ret;
+
+	cell = of_nvmem_cell_get(of_node, "io_impedance_ctrl");
+	if (IS_ERR(cell)) {
+		ret = PTR_ERR(cell);
+		if (ret != -ENOENT && ret != -EOPNOTSUPP)
+			return phydev_err_probe(phydev, ret,
+						"failed to get nvmem cell io_impedance_ctrl\n");
+
+		/* If no nvmem cell, check for the boolean properties. */
+		if (of_property_read_bool(of_node, "ti,max-output-impedance"))
+			dp83867->io_impedance = DP83867_IO_MUX_CFG_IO_IMPEDANCE_MAX;
+		else if (of_property_read_bool(of_node, "ti,min-output-impedance"))
+			dp83867->io_impedance = DP83867_IO_MUX_CFG_IO_IMPEDANCE_MIN;
+		else
+			dp83867->io_impedance = -1; /* leave at default */
+
+		return 0;
+	}
+
+	buf = nvmem_cell_read(cell, NULL);
+	nvmem_cell_put(cell);
+
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
+	val = *buf;
+	kfree(buf);
+
+	if ((val & DP83867_IO_MUX_CFG_IO_IMPEDANCE_MASK) != val) {
+		phydev_err(phydev, "nvmem cell 'io_impedance_ctrl' contents out of range\n");
+		return -ERANGE;
+	}
+	dp83867->io_impedance = val;
+
+	return 0;
+}
+
 static int dp83867_of_init(struct phy_device *phydev)
 {
 	struct dp83867_private *dp83867 = phydev->priv;
@@ -549,12 +595,9 @@ static int dp83867_of_init(struct phy_device *phydev)
 		}
 	}
 
-	if (of_property_read_bool(of_node, "ti,max-output-impedance"))
-		dp83867->io_impedance = DP83867_IO_MUX_CFG_IO_IMPEDANCE_MAX;
-	else if (of_property_read_bool(of_node, "ti,min-output-impedance"))
-		dp83867->io_impedance = DP83867_IO_MUX_CFG_IO_IMPEDANCE_MIN;
-	else
-		dp83867->io_impedance = -1; /* leave at default */
+	ret = dp83867_of_init_io_impedance(phydev);
+	if (ret)
+		return ret;
 
 	dp83867->rxctrl_strap_quirk = of_property_read_bool(of_node,
 							    "ti,dp83867-rxctrl-strap-quirk");

@@ -359,7 +359,7 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			flow_rule_match_enc_opts(rule, &enc_op);
 
 		if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS)) {
-			/* check if GRE, which has no enc_ports */
+			/* Check if GRE, which has no enc_ports */
 			if (!netif_is_gretap(netdev) && !netif_is_ip6gretap(netdev)) {
 				NL_SET_ERR_MSG_MOD(extack, "unsupported offload: an exact match on L4 destination port is required for non-GRE tunnels");
 				return -EOPNOTSUPP;
@@ -1016,7 +1016,7 @@ int nfp_flower_merge_offloaded_flows(struct nfp_app *app,
 	    nfp_flower_is_merge_flow(sub_flow2))
 		return -EINVAL;
 
-	/* check if the two flows are already merged */
+	/* Check if the two flows are already merged */
 	parent_ctx = (u64)(be32_to_cpu(sub_flow1->meta.host_ctx_id)) << 32;
 	parent_ctx |= (u64)(be32_to_cpu(sub_flow2->meta.host_ctx_id));
 	if (rhashtable_lookup_fast(&priv->merge_table,

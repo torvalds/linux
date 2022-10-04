@@ -48,7 +48,7 @@
  * the MAC address to obtain the relevant bits and compare the result with
  * (frame's BSSID & mask) to see if they match.
  *
- * Simple example: on your card you have have two BSSes you have created with
+ * Simple example: on your card you have two BSSes you have created with
  * BSSID-01 and BSSID-02. Lets assume BSSID-01 will not use the MAC address.
  * There is another BSSID-03 but you are not part of it. For simplicity's sake,
  * assuming only 4 bits for a mac address and for BSSIDs you can then have:

@@ -43,6 +43,7 @@
 #define ADV7180_INPUT_CONTROL_INSEL_MASK		0x0f
 
 #define ADV7182_REG_INPUT_VIDSEL			0x0002
+#define ADV7182_REG_INPUT_RESERVED			BIT(2)
 
 #define ADV7180_REG_OUTPUT_CONTROL			0x0003
 #define ADV7180_REG_EXTENDED_OUTPUT_CONTROL		0x0004
@@ -1060,7 +1061,9 @@ static int adv7182_init(struct adv7180_state *state)
 
 static int adv7182_set_std(struct adv7180_state *state, unsigned int std)
 {
-	return adv7180_write(state, ADV7182_REG_INPUT_VIDSEL, std << 4);
+	/* Failing to set the reserved bit can result in increased video noise */
+	return adv7180_write(state, ADV7182_REG_INPUT_VIDSEL,
+			     (std << 4) | ADV7182_REG_INPUT_RESERVED);
 }
 
 enum adv7182_input_type {

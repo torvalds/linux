@@ -261,6 +261,13 @@ struct vmbus_connection {
 	struct workqueue_struct *work_queue;
 	struct workqueue_struct *handle_primary_chan_wq;
 	struct workqueue_struct *handle_sub_chan_wq;
+	struct workqueue_struct *rescind_work_queue;
+
+	/*
+	 * On suspension of the vmbus, the accumulated offer messages
+	 * must be dropped.
+	 */
+	bool ignore_any_offer_msg;
 
 	/*
 	 * The number of sub-channels and hv_sock channels that should be
