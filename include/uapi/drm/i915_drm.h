@@ -3509,27 +3509,13 @@ struct drm_i915_gem_create_ext {
 	 *
 	 * The (page-aligned) allocated size for the object will be returned.
 	 *
-	 * DG2 64K min page size implications:
+	 * On platforms like DG2/ATS the kernel will always use 64K or larger
+	 * pages for I915_MEMORY_CLASS_DEVICE. The kernel also requires a
+	 * minimum of 64K GTT alignment for such objects.
 	 *
-	 * On discrete platforms, starting from DG2, we have to contend with GTT
-	 * page size restrictions when dealing with I915_MEMORY_CLASS_DEVICE
-	 * objects.  Specifically the hardware only supports 64K or larger GTT
-	 * page sizes for such memory. The kernel will already ensure that all
-	 * I915_MEMORY_CLASS_DEVICE memory is allocated using 64K or larger page
-	 * sizes underneath.
-	 *
-	 * Note that the returned size here will always reflect any required
-	 * rounding up done by the kernel, i.e 4K will now become 64K on devices
-	 * such as DG2. The kernel will always select the largest minimum
-	 * page-size for the set of possible placements as the value to use when
-	 * rounding up the @size.
-	 *
-	 * Special DG2 GTT address alignment requirement:
-	 *
-	 * The GTT alignment will also need to be at least 2M for such objects.
-	 *
-	 * Note that due to how the hardware implements 64K GTT page support, we
-	 * have some further complications:
+	 * NOTE: Previously the ABI here required a minimum GTT alignment of 2M
+	 * on DG2/ATS, due to how the hardware implemented 64K GTT page support,
+	 * where we had the following complications:
 	 *
 	 *   1) The entire PDE (which covers a 2MB virtual address range), must
 	 *   contain only 64K PTEs, i.e mixing 4K and 64K PTEs in the same
@@ -3538,12 +3524,10 @@ struct drm_i915_gem_create_ext {
 	 *   2) We still need to support 4K PTEs for I915_MEMORY_CLASS_SYSTEM
 	 *   objects.
 	 *
-	 * To keep things simple for userland, we mandate that any GTT mappings
-	 * must be aligned to and rounded up to 2MB. The kernel will internally
-	 * pad them out to the next 2MB boundary. As this only wastes virtual
-	 * address space and avoids userland having to copy any needlessly
-	 * complicated PDE sharing scheme (coloring) and only affects DG2, this
-	 * is deemed to be a good compromise.
+	 * However on actual production HW this was completely changed to now
+	 * allow setting a TLB hint at the PTE level (see PS64), which is a lot
+	 * more flexible than the above. With this the 2M restriction was
+	 * dropped where we now only require 64K.
 	 */
 	__u64 size;
 

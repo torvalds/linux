@@ -905,13 +905,6 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
  */
 #define HAS_64K_PAGES(dev_priv) (INTEL_INFO(dev_priv)->has_64k_pages)
 
-/*
- * Set this flag when platform doesn't allow both 64k pages and 4k pages in
- * the same PT. this flag means we need to support compact PT layout for the
- * ppGTT when using the 64K GTT pages.
- */
-#define NEEDS_COMPACT_PT(dev_priv) (INTEL_INFO(dev_priv)->needs_compact_pt)
-
 #define HAS_IPC(dev_priv)		 (INTEL_INFO(dev_priv)->display.has_ipc)
 
 #define HAS_REGION(i915, i) (RUNTIME_INFO(i915)->memory_regions & (i))
