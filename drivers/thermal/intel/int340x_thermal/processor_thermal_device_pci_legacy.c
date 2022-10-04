@@ -151,18 +151,7 @@ static struct pci_driver proc_thermal_pci_driver = {
 	.driver.pm	= &proc_thermal_pci_pm,
 };
 
-static int __init proc_thermal_init(void)
-{
-	return pci_register_driver(&proc_thermal_pci_driver);
-}
-
-static void __exit proc_thermal_exit(void)
-{
-	pci_unregister_driver(&proc_thermal_pci_driver);
-}
-
-module_init(proc_thermal_init);
-module_exit(proc_thermal_exit);
+module_pci_driver(proc_thermal_pci_driver);
 
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
 MODULE_DESCRIPTION("Processor Thermal Reporting Device Driver");

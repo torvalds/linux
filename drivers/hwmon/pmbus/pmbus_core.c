@@ -1270,9 +1270,9 @@ struct pmbus_thermal_data {
 	struct pmbus_sensor *sensor;
 };
 
-static int pmbus_thermal_get_temp(void *data, int *temp)
+static int pmbus_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct pmbus_thermal_data *tdata = data;
+	struct pmbus_thermal_data *tdata = tz->devdata;
 	struct pmbus_sensor *sensor = tdata->sensor;
 	struct pmbus_data *pmbus_data = tdata->pmbus_data;
 	struct i2c_client *client = to_i2c_client(pmbus_data->dev);
@@ -1296,7 +1296,7 @@ static int pmbus_thermal_get_temp(void *data, int *temp)
 	return ret;
 }
 
-static const struct thermal_zone_of_device_ops pmbus_thermal_ops = {
+static const struct thermal_zone_device_ops pmbus_thermal_ops = {
 	.get_temp = pmbus_thermal_get_temp,
 };
 
@@ -1314,8 +1314,8 @@ static int pmbus_thermal_add_sensor(struct pmbus_data *pmbus_data,
 	tdata->sensor = sensor;
 	tdata->pmbus_data = pmbus_data;
 
-	tzd = devm_thermal_zone_of_sensor_register(dev, index, tdata,
-						   &pmbus_thermal_ops);
+	tzd = devm_thermal_of_zone_register(dev, index, tdata,
+					    &pmbus_thermal_ops);
 	/*
 	 * If CONFIG_THERMAL_OF is disabled, this returns -ENODEV,
 	 * so ignore that error but forward any other error.
