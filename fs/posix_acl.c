@@ -710,9 +710,9 @@ EXPORT_SYMBOL(posix_acl_update_mode);
 /*
  * Fix up the uids and gids in posix acl extended attributes in place.
  */
-static int posix_acl_fix_xattr_common(void *value, size_t size)
+static int posix_acl_fix_xattr_common(const void *value, size_t size)
 {
-	struct posix_acl_xattr_header *header = value;
+	const struct posix_acl_xattr_header *header = value;
 	int count;
 
 	if (!header)
@@ -720,13 +720,13 @@ static int posix_acl_fix_xattr_common(void *value, size_t size)
 	if (size < sizeof(struct posix_acl_xattr_header))
 		return -EINVAL;
 	if (header->a_version != cpu_to_le32(POSIX_ACL_XATTR_VERSION))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	count = posix_acl_xattr_count(size);
 	if (count < 0)
 		return -EINVAL;
 	if (count == 0)
-		return -EINVAL;
+		return 0;
 
 	return count;
 }
@@ -748,7 +748,7 @@ void posix_acl_getxattr_idmapped_mnt(struct user_namespace *mnt_userns,
 		return;
 
 	count = posix_acl_fix_xattr_common(value, size);
-	if (count < 0)
+	if (count <= 0)
 		return;
 
 	for (end = entry + count; entry != end; entry++) {
@@ -771,46 +771,6 @@ void posix_acl_getxattr_idmapped_mnt(struct user_namespace *mnt_userns,
 	}
 }
 
-void posix_acl_setxattr_idmapped_mnt(struct user_namespace *mnt_userns,
-				     const struct inode *inode,
-				     void *value, size_t size)
-{
-	struct posix_acl_xattr_header *header = value;
-	struct posix_acl_xattr_entry *entry = (void *)(header + 1), *end;
-	struct user_namespace *fs_userns = i_user_ns(inode);
-	int count;
-	vfsuid_t vfsuid;
-	vfsgid_t vfsgid;
-	kuid_t uid;
-	kgid_t gid;
-
-	if (no_idmapping(mnt_userns, i_user_ns(inode)))
-		return;
-
-	count = posix_acl_fix_xattr_common(value, size);
-	if (count < 0)
-		return;
-
-	for (end = entry + count; entry != end; entry++) {
-		switch (le16_to_cpu(entry->e_tag)) {
-		case ACL_USER:
-			uid = make_kuid(&init_user_ns, le32_to_cpu(entry->e_id));
-			vfsuid = VFSUIDT_INIT(uid);
-			uid = from_vfsuid(mnt_userns, fs_userns, vfsuid);
-			entry->e_id = cpu_to_le32(from_kuid(&init_user_ns, uid));
-			break;
-		case ACL_GROUP:
-			gid = make_kgid(&init_user_ns, le32_to_cpu(entry->e_id));
-			vfsgid = VFSGIDT_INIT(gid);
-			gid = from_vfsgid(mnt_userns, fs_userns, vfsgid);
-			entry->e_id = cpu_to_le32(from_kgid(&init_user_ns, gid));
-			break;
-		default:
-			break;
-		}
-	}
-}
-
 static void posix_acl_fix_xattr_userns(
 	struct user_namespace *to, struct user_namespace *from,
 	void *value, size_t size)
@@ -822,7 +782,7 @@ static void posix_acl_fix_xattr_userns(
 	kgid_t gid;
 
 	count = posix_acl_fix_xattr_common(value, size);
-	if (count < 0)
+	if (count <= 0)
 		return;
 
 	for (end = entry + count; entry != end; entry++) {
@@ -857,12 +817,32 @@ void posix_acl_fix_xattr_to_user(void *value, size_t size)
 	posix_acl_fix_xattr_userns(user_ns, &init_user_ns, value, size);
 }
 
-/*
- * Convert from extended attribute to in-memory representation.
+/**
+ * make_posix_acl - convert POSIX ACLs from uapi to VFS format using the
+ *                  provided callbacks to map ACL_{GROUP,USER} entries into the
+ *                  appropriate format
+ * @mnt_userns: the mount's idmapping
+ * @fs_userns: the filesystem's idmapping
+ * @value: the uapi representation of POSIX ACLs
+ * @size: the size of @void
+ * @uid_cb: callback to use for mapping the uid stored in ACL_USER entries
+ * @gid_cb: callback to use for mapping the gid stored in ACL_GROUP entries
+ *
+ * The make_posix_acl() helper is an abstraction to translate from uapi format
+ * into the VFS format allowing the caller to specific callbacks to map
+ * ACL_{GROUP,USER} entries into the expected format. This is used in
+ * posix_acl_from_xattr() and vfs_set_acl_prepare() and avoids pointless code
+ * duplication.
+ *
+ * Return: Allocated struct posix_acl on success, NULL for a valid header but
+ *         without actual POSIX ACL entries, or ERR_PTR() encoded error code.
  */
-struct posix_acl *
-posix_acl_from_xattr(struct user_namespace *user_ns,
-		     const void *value, size_t size)
+static struct posix_acl *make_posix_acl(struct user_namespace *mnt_userns,
+	struct user_namespace *fs_userns, const void *value, size_t size,
+	kuid_t (*uid_cb)(struct user_namespace *, struct user_namespace *,
+			 const struct posix_acl_xattr_entry *),
+	kgid_t (*gid_cb)(struct user_namespace *, struct user_namespace *,
+			 const struct posix_acl_xattr_entry *))
 {
 	const struct posix_acl_xattr_header *header = value;
 	const struct posix_acl_xattr_entry *entry = (const void *)(header + 1), *end;
@@ -870,16 +850,9 @@ posix_acl_from_xattr(struct user_namespace *user_ns,
 	struct posix_acl *acl;
 	struct posix_acl_entry *acl_e;
 
-	if (!value)
-		return NULL;
-	if (size < sizeof(struct posix_acl_xattr_header))
-		 return ERR_PTR(-EINVAL);
-	if (header->a_version != cpu_to_le32(POSIX_ACL_XATTR_VERSION))
-		return ERR_PTR(-EOPNOTSUPP);
-
-	count = posix_acl_xattr_count(size);
+	count = posix_acl_fix_xattr_common(value, size);
 	if (count < 0)
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(count);
 	if (count == 0)
 		return NULL;
 	
@@ -900,16 +873,12 @@ posix_acl_from_xattr(struct user_namespace *user_ns,
 				break;
 
 			case ACL_USER:
-				acl_e->e_uid =
-					make_kuid(user_ns,
-						  le32_to_cpu(entry->e_id));
+				acl_e->e_uid = uid_cb(mnt_userns, fs_userns, entry);
 				if (!uid_valid(acl_e->e_uid))
 					goto fail;
 				break;
 			case ACL_GROUP:
-				acl_e->e_gid =
-					make_kgid(user_ns,
-						  le32_to_cpu(entry->e_id));
+				acl_e->e_gid = gid_cb(mnt_userns, fs_userns, entry);
 				if (!gid_valid(acl_e->e_gid))
 					goto fail;
 				break;
@@ -923,6 +892,181 @@ posix_acl_from_xattr(struct user_namespace *user_ns,
 fail:
 	posix_acl_release(acl);
 	return ERR_PTR(-EINVAL);
+}
+
+/**
+ * vfs_set_acl_prepare_kuid - map ACL_USER uid according to mount- and
+ *                            filesystem idmapping
+ * @mnt_userns: the mount's idmapping
+ * @fs_userns: the filesystem's idmapping
+ * @e: a ACL_USER entry in POSIX ACL uapi format
+ *
+ * The uid stored as ACL_USER entry in @e is a kuid_t stored as a raw {g,u}id
+ * value. The vfs_set_acl_prepare_kuid() will recover the kuid_t through
+ * KUIDT_INIT() and then map it according to the idmapped mount. The resulting
+ * kuid_t is the value which the filesystem can map up into a raw backing store
+ * id in the filesystem's idmapping.
+ *
+ * This is used in vfs_set_acl_prepare() to generate the proper VFS
+ * representation of POSIX ACLs with ACL_USER entries during setxattr().
+ *
+ * Return: A kuid in @fs_userns for the uid stored in @e.
+ */
+static inline kuid_t
+vfs_set_acl_prepare_kuid(struct user_namespace *mnt_userns,
+			 struct user_namespace *fs_userns,
+			 const struct posix_acl_xattr_entry *e)
+{
+	kuid_t kuid = KUIDT_INIT(le32_to_cpu(e->e_id));
+	return from_vfsuid(mnt_userns, fs_userns, VFSUIDT_INIT(kuid));
+}
+
+/**
+ * vfs_set_acl_prepare_kgid - map ACL_GROUP gid according to mount- and
+ *                            filesystem idmapping
+ * @mnt_userns: the mount's idmapping
+ * @fs_userns: the filesystem's idmapping
+ * @e: a ACL_GROUP entry in POSIX ACL uapi format
+ *
+ * The gid stored as ACL_GROUP entry in @e is a kgid_t stored as a raw {g,u}id
+ * value. The vfs_set_acl_prepare_kgid() will recover the kgid_t through
+ * KGIDT_INIT() and then map it according to the idmapped mount. The resulting
+ * kgid_t is the value which the filesystem can map up into a raw backing store
+ * id in the filesystem's idmapping.
+ *
+ * This is used in vfs_set_acl_prepare() to generate the proper VFS
+ * representation of POSIX ACLs with ACL_GROUP entries during setxattr().
+ *
+ * Return: A kgid in @fs_userns for the gid stored in @e.
+ */
+static inline kgid_t
+vfs_set_acl_prepare_kgid(struct user_namespace *mnt_userns,
+			 struct user_namespace *fs_userns,
+			 const struct posix_acl_xattr_entry *e)
+{
+	kgid_t kgid = KGIDT_INIT(le32_to_cpu(e->e_id));
+	return from_vfsgid(mnt_userns, fs_userns, VFSGIDT_INIT(kgid));
+}
+
+/**
+ * vfs_set_acl_prepare - convert POSIX ACLs from uapi to VFS format taking
+ *                       mount and filesystem idmappings into account
+ * @mnt_userns: the mount's idmapping
+ * @fs_userns: the filesystem's idmapping
+ * @value: the uapi representation of POSIX ACLs
+ * @size: the size of @void
+ *
+ * When setting POSIX ACLs with ACL_{GROUP,USER} entries they need to be
+ * mapped according to the relevant mount- and filesystem idmapping. It is
+ * important that the ACL_{GROUP,USER} entries in struct posix_acl will be
+ * mapped into k{g,u}id_t that are supposed to be mapped up in the filesystem
+ * idmapping. This is crucial since the resulting struct posix_acl might be
+ * cached filesystem wide. The vfs_set_acl_prepare() function will take care to
+ * perform all necessary idmappings.
+ *
+ * Note, that since basically forever the {g,u}id values encoded as
+ * ACL_{GROUP,USER} entries in the uapi POSIX ACLs passed via @value contain
+ * values that have been mapped according to the caller's idmapping. In other
+ * words, POSIX ACLs passed in uapi format as @value during setxattr() contain
+ * {g,u}id values in their ACL_{GROUP,USER} entries that should actually have
+ * been stored as k{g,u}id_t.
+ *
+ * This means, vfs_set_acl_prepare() needs to first recover the k{g,u}id_t by
+ * calling K{G,U}IDT_INIT(). Afterwards they can be interpreted as vfs{g,u}id_t
+ * through from_vfs{g,u}id() to account for any idmapped mounts. The
+ * vfs_set_acl_prepare_k{g,u}id() helpers will take care to generate the
+ * correct k{g,u}id_t.
+ *
+ * The filesystem will then receive the POSIX ACLs ready to be cached
+ * filesystem wide and ready to be written to the backing store taking the
+ * filesystem's idmapping into account.
+ *
+ * Return: Allocated struct posix_acl on success, NULL for a valid header but
+ *         without actual POSIX ACL entries, or ERR_PTR() encoded error code.
+ */
+struct posix_acl *vfs_set_acl_prepare(struct user_namespace *mnt_userns,
+				      struct user_namespace *fs_userns,
+				      const void *value, size_t size)
+{
+	return make_posix_acl(mnt_userns, fs_userns, value, size,
+			      vfs_set_acl_prepare_kuid,
+			      vfs_set_acl_prepare_kgid);
+}
+EXPORT_SYMBOL(vfs_set_acl_prepare);
+
+/**
+ * posix_acl_from_xattr_kuid - map ACL_USER uid into filesystem idmapping
+ * @mnt_userns: unused
+ * @fs_userns: the filesystem's idmapping
+ * @e: a ACL_USER entry in POSIX ACL uapi format
+ *
+ * Map the uid stored as ACL_USER entry in @e into the filesystem's idmapping.
+ * This is used in posix_acl_from_xattr() to generate the proper VFS
+ * representation of POSIX ACLs with ACL_USER entries.
+ *
+ * Return: A kuid in @fs_userns for the uid stored in @e.
+ */
+static inline kuid_t
+posix_acl_from_xattr_kuid(struct user_namespace *mnt_userns,
+			  struct user_namespace *fs_userns,
+			  const struct posix_acl_xattr_entry *e)
+{
+	return make_kuid(fs_userns, le32_to_cpu(e->e_id));
+}
+
+/**
+ * posix_acl_from_xattr_kgid - map ACL_GROUP gid into filesystem idmapping
+ * @mnt_userns: unused
+ * @fs_userns: the filesystem's idmapping
+ * @e: a ACL_GROUP entry in POSIX ACL uapi format
+ *
+ * Map the gid stored as ACL_GROUP entry in @e into the filesystem's idmapping.
+ * This is used in posix_acl_from_xattr() to generate the proper VFS
+ * representation of POSIX ACLs with ACL_GROUP entries.
+ *
+ * Return: A kgid in @fs_userns for the gid stored in @e.
+ */
+static inline kgid_t
+posix_acl_from_xattr_kgid(struct user_namespace *mnt_userns,
+			  struct user_namespace *fs_userns,
+			  const struct posix_acl_xattr_entry *e)
+{
+	return make_kgid(fs_userns, le32_to_cpu(e->e_id));
+}
+
+/**
+ * posix_acl_from_xattr - convert POSIX ACLs from backing store to VFS format
+ * @fs_userns: the filesystem's idmapping
+ * @value: the uapi representation of POSIX ACLs
+ * @size: the size of @void
+ *
+ * Filesystems that store POSIX ACLs in the unaltered uapi format should use
+ * posix_acl_from_xattr() when reading them from the backing store and
+ * converting them into the struct posix_acl VFS format. The helper is
+ * specifically intended to be called from the ->get_acl() inode operation.
+ *
+ * The posix_acl_from_xattr() function will map the raw {g,u}id values stored
+ * in ACL_{GROUP,USER} entries into the filesystem idmapping in @fs_userns. The
+ * posix_acl_from_xattr_k{g,u}id() helpers will take care to generate the
+ * correct k{g,u}id_t. The returned struct posix_acl can be cached.
+ *
+ * Note that posix_acl_from_xattr() does not take idmapped mounts into account.
+ * If it did it calling is from the ->get_acl() inode operation would return
+ * POSIX ACLs mapped according to an idmapped mount which would mean that the
+ * value couldn't be cached for the filesystem. Idmapped mounts are taken into
+ * account on the fly during permission checking or right at the VFS -
+ * userspace boundary before reporting them to the user.
+ *
+ * Return: Allocated struct posix_acl on success, NULL for a valid header but
+ *         without actual POSIX ACL entries, or ERR_PTR() encoded error code.
+ */
+struct posix_acl *
+posix_acl_from_xattr(struct user_namespace *fs_userns,
+		     const void *value, size_t size)
+{
+	return make_posix_acl(&init_user_ns, fs_userns, value, size,
+			      posix_acl_from_xattr_kuid,
+			      posix_acl_from_xattr_kgid);
 }
 EXPORT_SYMBOL (posix_acl_from_xattr);
 
@@ -1027,7 +1171,17 @@ posix_acl_xattr_set(const struct xattr_handler *handler,
 	int ret;
 
 	if (value) {
-		acl = posix_acl_from_xattr(&init_user_ns, value, size);
+		/*
+		 * By the time we end up here the {g,u}ids stored in
+		 * ACL_{GROUP,USER} have already been mapped according to the
+		 * caller's idmapping. The vfs_set_acl_prepare() helper will
+		 * recover them and take idmapped mounts into account. The
+		 * filesystem will receive the POSIX ACLs in the correct
+		 * format ready to be cached or written to the backing store
+		 * taking the filesystem idmapping into account.
+		 */
+		acl = vfs_set_acl_prepare(mnt_userns, i_user_ns(inode),
+					  value, size);
 		if (IS_ERR(acl))
 			return PTR_ERR(acl);
 	}
