@@ -5,6 +5,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -68,6 +69,8 @@ struct rockchip_saradc {
 	struct clk		*clk;
 	struct completion	completion;
 	struct regulator	*vref;
+	/* lock to protect against multiple access to the device */
+	struct mutex		lock;
 	int			uv_vref;
 	struct reset_control	*reset;
 	const struct rockchip_saradc_data *data;
@@ -189,22 +192,22 @@ static int rockchip_saradc_read_raw(struct iio_dev *indio_dev,
 #endif
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(&info->lock);
 
 		if (info->suspended) {
-			mutex_unlock(&indio_dev->mlock);
+			mutex_unlock(&info->lock);
 			return -EBUSY;
 		}
 
 		ret = rockchip_saradc_conversion(info, chan);
 		if (ret) {
 			rockchip_saradc_power_down(info);
-			mutex_unlock(&indio_dev->mlock);
+			mutex_unlock(&info->lock);
 			return ret;
 		}
 
 		*val = info->last_val;
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&info->lock);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		/* It is a dummy regulator */
@@ -476,7 +479,7 @@ static irqreturn_t rockchip_saradc_trigger_handler(int irq, void *p)
 	int ret;
 	int i, j = 0;
 
-	mutex_lock(&i_dev->mlock);
+	mutex_lock(&info->lock);
 
 	for_each_set_bit(i, i_dev->active_scan_mask, i_dev->masklength) {
 		const struct iio_chan_spec *chan = &i_dev->channels[i];
@@ -493,7 +496,7 @@ static irqreturn_t rockchip_saradc_trigger_handler(int irq, void *p)
 
 	iio_push_to_buffers_with_timestamp(i_dev, &data, iio_get_time_ns(i_dev));
 out:
-	mutex_unlock(&i_dev->mlock);
+	mutex_unlock(&info->lock);
 
 	iio_trigger_notify_done(i_dev->trig);
 
@@ -784,6 +787,8 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 		return ret;
 	}
 #endif
+	mutex_init(&info->lock);
+
 	return devm_iio_device_register(&pdev->dev, indio_dev);
 }
 
@@ -794,14 +799,14 @@ static int rockchip_saradc_suspend(struct device *dev)
 	struct rockchip_saradc *info = iio_priv(indio_dev);
 
 	/* Avoid reading saradc when suspending */
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&info->lock);
 
 	clk_disable_unprepare(info->clk);
 	clk_disable_unprepare(info->pclk);
 	regulator_disable(info->vref);
 
 	info->suspended = true;
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&info->lock);
 
 	return 0;
 }
