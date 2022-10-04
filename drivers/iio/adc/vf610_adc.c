@@ -7,6 +7,7 @@
 
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/property.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
@@ -155,6 +156,9 @@ struct vf610_adc {
 	struct device *dev;
 	void __iomem *regs;
 	struct clk *clk;
+
+	/* lock to protect against multiple access to the device */
+	struct mutex lock;
 
 	u32 vref_uv;
 	u32 value;
@@ -467,11 +471,11 @@ static int vf610_set_conversion_mode(struct iio_dev *indio_dev,
 {
 	struct vf610_adc *info = iio_priv(indio_dev);
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&info->lock);
 	info->adc_feature.conv_mode = mode;
 	vf610_adc_calculate_rates(info);
 	vf610_adc_hw_init(info);
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&info->lock);
 
 	return 0;
 }
@@ -629,12 +633,11 @@ static int vf610_read_sample(struct iio_dev *indio_dev,
 	unsigned int hc_cfg;
 	int ret;
 
-	mutex_lock(&indio_dev->mlock);
-	if (iio_buffer_enabled(indio_dev)) {
-		ret = -EBUSY;
-		goto out_unlock;
-	}
+	ret = iio_device_claim_direct_mode(indio_dev);
+	if (ret)
+		return ret;
 
+	mutex_lock(&info->lock);
 	reinit_completion(&info->completion);
 	hc_cfg = VF610_ADC_ADCHC(chan->channel);
 	hc_cfg |= VF610_ADC_AIEN;
@@ -669,7 +672,8 @@ static int vf610_read_sample(struct iio_dev *indio_dev,
 	}
 
 out_unlock:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&info->lock);
+	iio_device_release_direct_mode(indio_dev);
 
 	return ret;
 }
@@ -891,6 +895,8 @@ static int vf610_adc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Couldn't initialise the buffer\n");
 		goto error_iio_device_register;
 	}
+
+	mutex_init(&info->lock);
 
 	ret = iio_device_register(indio_dev);
 	if (ret) {
