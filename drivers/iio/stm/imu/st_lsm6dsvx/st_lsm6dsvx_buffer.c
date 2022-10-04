@@ -29,6 +29,7 @@
 enum {
 	ST_LSM6DSVX_GYRO_TAG = 0x01,
 	ST_LSM6DSVX_ACC_TAG = 0x02,
+	ST_LSM6DSVX_TEMP_TAG = 0x03,
 	ST_LSM6DSVX_TS_TAG = 0x04,
 	ST_LSM6DSVX_EXT0_TAG = 0x0f,
 	ST_LSM6DSVX_EXT1_TAG = 0x10,
@@ -208,6 +209,9 @@ st_lsm6dsvx_get_iiodev_from_tag(struct st_lsm6dsvx_hw *hw, u8 tag)
 		break;
 	case ST_LSM6DSVX_EXT1_TAG:
 		iio_dev = hw->iio_devs[ST_LSM6DSVX_ID_EXT1];
+		break;
+	case ST_LSM6DSVX_TEMP_TAG:
+		iio_dev = hw->iio_devs[ST_LSM6DSVX_ID_TEMP];
 		break;
 
 #ifdef CONFIG_IIO_ST_LSM6DSVX_QVAR_IN_FIFO
@@ -488,6 +492,54 @@ int st_lsm6dsvx_update_fifo(struct iio_dev *iio_dev, bool enable)
 		if (err < 0)
 			goto out;
 		break;
+	case ST_LSM6DSVX_ID_TEMP: {
+		u8 data = 0;
+		/*
+		 * this is an auxiliary sensor, it need to get batched
+		 * toghether at least with a primary sensor (Acc/Gyro).
+		 */
+		if (!(hw->enable_mask & (BIT(ST_LSM6DSVX_ID_ACC) |
+					 BIT(ST_LSM6DSVX_ID_GYRO)))) {
+			struct st_lsm6dsvx_sensor *acc_sensor;
+
+			acc_sensor = iio_priv(hw->iio_devs[ST_LSM6DSVX_ID_ACC]);
+			if (enable) {
+				err = st_lsm6dsvx_get_batch_val(acc_sensor,
+								sensor->odr,
+								sensor->uodr,
+								&data);
+				if (err < 0)
+					goto out;
+			}
+
+			/* batch main sensor */
+			err = st_lsm6dsvx_write_with_mask(hw,
+						     acc_sensor->batch_reg.addr,
+						     acc_sensor->batch_reg.mask,
+						     data);
+			if (err < 0)
+				goto out;
+		}
+
+		if (enable) {
+			err = st_lsm6dsvx_get_batch_val(sensor, sensor->odr,
+							sensor->uodr, &data);
+			if (err < 0)
+				goto out;
+		}
+
+		/* batch temperature sensor */
+		err = st_lsm6dsvx_write_with_mask(hw, sensor->batch_reg.addr,
+						  sensor->batch_reg.mask,
+						  data);
+		if (err < 0)
+			goto out;
+
+		err = st_lsm6dsvx_sensor_set_enable(sensor, enable);
+		if (err < 0)
+			goto out;
+		}
+		break;
 	default:
 		err = st_lsm6dsvx_sensor_set_enable(sensor, enable);
 		if (err < 0)
@@ -628,8 +680,11 @@ int st_lsm6dsvx_buffers_setup(struct st_lsm6dsvx_hw *hw)
 		return err;
 	}
 
-	for (i = ST_LSM6DSVX_ID_GYRO; i < ST_LSM6DSVX_ID_MAX; i++) {
-		if (!hw->iio_devs[i])
+	for (i = 0; i < ARRAY_SIZE(st_lsm6dsvx_buffered_sensor_list); i++) {
+		enum st_lsm6dsvx_sensor_id id =
+					    st_lsm6dsvx_buffered_sensor_list[i];
+
+		if (!hw->iio_devs[id])
 			continue;
 
 #if KERNEL_VERSION(5, 13, 0) <= LINUX_VERSION_CODE
@@ -644,10 +699,10 @@ int st_lsm6dsvx_buffers_setup(struct st_lsm6dsvx_hw *hw)
 			return -ENOMEM;
 
 		/* check if already allocated (maybe qvar) */
-		if (!hw->iio_devs[i]->buffer) {
-			iio_device_attach_buffer(hw->iio_devs[i], buffer);
-			hw->iio_devs[i]->modes |= INDIO_BUFFER_SOFTWARE;
-			hw->iio_devs[i]->setup_ops = &st_lsm6dsvx_fifo_ops;
+		if (!hw->iio_devs[id]->buffer) {
+			iio_device_attach_buffer(hw->iio_devs[id], buffer);
+			hw->iio_devs[id]->modes |= INDIO_BUFFER_SOFTWARE;
+			hw->iio_devs[id]->setup_ops = &st_lsm6dsvx_fifo_ops;
 		}
 #endif /* LINUX_VERSION_CODE */
 	}

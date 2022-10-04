@@ -47,6 +47,7 @@
 
 #define ST_LSM6DSVX_REG_FIFO_CTRL4_ADDR		0x0a
 #define ST_LSM6DSVX_DEC_TS_BATCH_MASK		GENMASK(7, 6)
+#define ST_LSM6DSVX_ODR_T_BATCH_MASK		GENMASK(5, 4)
 #define ST_LSM6DSVX_FIFO_MODE_MASK		GENMASK(2, 0)
 
 #define ST_LSM6DSVX_REG_INT1_CTRL_ADDR		0x0d
@@ -86,6 +87,8 @@
 #define ST_LSM6DSVX_TDA_MASK			BIT(2)
 #define ST_LSM6DSVX_GDA_MASK			BIT(1)
 #define ST_LSM6DSVX_XLDA_MASK			BIT(0)
+
+#define ST_LSM6DSVX_REG_OUT_TEMP_L_ADDR		0x20
 
 #define ST_LSM6DSVX_REG_OUTX_L_G_ADDR		0x22
 #define ST_LSM6DSVX_REG_OUTY_L_G_ADDR		0x24
@@ -183,6 +186,10 @@
 #define ST_LSM6DSVX_REG_SLAVE_NUMOP_MASK	GENMASK(2, 0)
 
 #define ST_LSM6DSVX_TS_DELTA_NS			21700ULL
+
+/* temperature in uC */
+#define ST_LSM6DSVX_TEMP_GAIN			256
+#define ST_LSM6DSVX_TEMP_OFFSET			6400
 
 /* self test values */
 #define ST_LSM6DSVX_SELFTEST_ACCEL_MIN		410
@@ -285,17 +292,17 @@ struct st_lsm6dsvx_fs_table_entry {
 	struct st_lsm6dsvx_fs fs_avl[ST_LSM6DSVX_FS_LIST_SIZE];
 };
 
-#define ST_LSM6DSVX_ACC_FS_2G_GAIN	IIO_G_TO_M_S_2(61)
-#define ST_LSM6DSVX_ACC_FS_4G_GAIN	IIO_G_TO_M_S_2(122)
-#define ST_LSM6DSVX_ACC_FS_8G_GAIN	IIO_G_TO_M_S_2(244)
-#define ST_LSM6DSVX_ACC_FS_16G_GAIN	IIO_G_TO_M_S_2(488)
+#define ST_LSM6DSVX_ACC_FS_2G_GAIN	IIO_G_TO_M_S_2(61000)
+#define ST_LSM6DSVX_ACC_FS_4G_GAIN	IIO_G_TO_M_S_2(122000)
+#define ST_LSM6DSVX_ACC_FS_8G_GAIN	IIO_G_TO_M_S_2(244000)
+#define ST_LSM6DSVX_ACC_FS_16G_GAIN	IIO_G_TO_M_S_2(488000)
 
-#define ST_LSM6DSVX_GYRO_FS_125_GAIN	IIO_DEGREE_TO_RAD(4375)
-#define ST_LSM6DSVX_GYRO_FS_250_GAIN	IIO_DEGREE_TO_RAD(8750)
-#define ST_LSM6DSVX_GYRO_FS_500_GAIN	IIO_DEGREE_TO_RAD(17500)
-#define ST_LSM6DSVX_GYRO_FS_1000_GAIN	IIO_DEGREE_TO_RAD(35000)
-#define ST_LSM6DSVX_GYRO_FS_2000_GAIN	IIO_DEGREE_TO_RAD(70000)
-#define ST_LSM6DSVX_GYRO_FS_4000_GAIN	IIO_DEGREE_TO_RAD(140000)
+#define ST_LSM6DSVX_GYRO_FS_125_GAIN	IIO_DEGREE_TO_RAD(4375000)
+#define ST_LSM6DSVX_GYRO_FS_250_GAIN	IIO_DEGREE_TO_RAD(8750000)
+#define ST_LSM6DSVX_GYRO_FS_500_GAIN	IIO_DEGREE_TO_RAD(17500000)
+#define ST_LSM6DSVX_GYRO_FS_1000_GAIN	IIO_DEGREE_TO_RAD(35000000)
+#define ST_LSM6DSVX_GYRO_FS_2000_GAIN	IIO_DEGREE_TO_RAD(70000000)
+#define ST_LSM6DSVX_GYRO_FS_4000_GAIN	IIO_DEGREE_TO_RAD(140000000)
 
 struct st_lsm6dsvx_ext_dev_info {
 	const struct st_lsm6dsvx_ext_dev_settings *ext_dev_settings;
@@ -366,6 +373,7 @@ struct st_lsm6dsvx_settings {
 enum st_lsm6dsvx_sensor_id {
 	ST_LSM6DSVX_ID_GYRO,
 	ST_LSM6DSVX_ID_ACC,
+	ST_LSM6DSVX_ID_TEMP,
 	ST_LSM6DSVX_ID_6X_GAME,
 	ST_LSM6DSVX_ID_QVAR,
 	ST_LSM6DSVX_ID_EXT0,
@@ -391,6 +399,7 @@ st_lsm6dsvx_main_sensor_list[] = {
 	[0] = ST_LSM6DSVX_ID_GYRO,
 	[1] = ST_LSM6DSVX_ID_ACC,
 	[2] = ST_LSM6DSVX_ID_6X_GAME,
+	[3] = ST_LSM6DSVX_ID_TEMP,
 };
 
 static const enum st_lsm6dsvx_sensor_id
@@ -417,33 +426,35 @@ st_lsm6dsvx_gyro_dep_sensor_list[] = {
 static const enum st_lsm6dsvx_sensor_id
 st_lsm6dsvx_acc_dep_sensor_list[] = {
 	 [0] = ST_LSM6DSVX_ID_ACC,
-	 [1] = ST_LSM6DSVX_ID_6X_GAME,
-	 [2] = ST_LSM6DSVX_ID_QVAR,
-	 [3] = ST_LSM6DSVX_ID_EXT0,
-	 [4] = ST_LSM6DSVX_ID_EXT1,
-	 [5] = ST_LSM6DSVX_ID_MLC,
-	 [6] = ST_LSM6DSVX_ID_MLC_0,
-	 [7] = ST_LSM6DSVX_ID_MLC_1,
-	 [8] = ST_LSM6DSVX_ID_MLC_2,
-	 [9] = ST_LSM6DSVX_ID_MLC_3,
-	 [10] = ST_LSM6DSVX_ID_FSM_0,
-	 [11] = ST_LSM6DSVX_ID_FSM_1,
-	 [12] = ST_LSM6DSVX_ID_FSM_2,
-	 [13] = ST_LSM6DSVX_ID_FSM_3,
-	 [14] = ST_LSM6DSVX_ID_FSM_4,
-	 [15] = ST_LSM6DSVX_ID_FSM_5,
-	 [16] = ST_LSM6DSVX_ID_FSM_6,
-	 [17] = ST_LSM6DSVX_ID_FSM_7,
+	 [1] = ST_LSM6DSVX_ID_TEMP,
+	 [2] = ST_LSM6DSVX_ID_6X_GAME,
+	 [3] = ST_LSM6DSVX_ID_QVAR,
+	 [4] = ST_LSM6DSVX_ID_EXT0,
+	 [5] = ST_LSM6DSVX_ID_EXT1,
+	 [6] = ST_LSM6DSVX_ID_MLC,
+	 [7] = ST_LSM6DSVX_ID_MLC_0,
+	 [8] = ST_LSM6DSVX_ID_MLC_1,
+	 [9] = ST_LSM6DSVX_ID_MLC_2,
+	 [10] = ST_LSM6DSVX_ID_MLC_3,
+	 [11] = ST_LSM6DSVX_ID_FSM_0,
+	 [12] = ST_LSM6DSVX_ID_FSM_1,
+	 [13] = ST_LSM6DSVX_ID_FSM_2,
+	 [14] = ST_LSM6DSVX_ID_FSM_3,
+	 [15] = ST_LSM6DSVX_ID_FSM_4,
+	 [16] = ST_LSM6DSVX_ID_FSM_5,
+	 [17] = ST_LSM6DSVX_ID_FSM_6,
+	 [18] = ST_LSM6DSVX_ID_FSM_7,
 };
 
 static const enum st_lsm6dsvx_sensor_id
 st_lsm6dsvx_buffered_sensor_list[] = {
 	 [0] = ST_LSM6DSVX_ID_GYRO,
 	 [1] = ST_LSM6DSVX_ID_ACC,
-	 [2] = ST_LSM6DSVX_ID_6X_GAME,
-	 [3] = ST_LSM6DSVX_ID_QVAR,
-	 [4] = ST_LSM6DSVX_ID_EXT0,
-	 [5] = ST_LSM6DSVX_ID_EXT1,
+	 [2] = ST_LSM6DSVX_ID_TEMP,
+	 [3] = ST_LSM6DSVX_ID_6X_GAME,
+	 [4] = ST_LSM6DSVX_ID_QVAR,
+	 [5] = ST_LSM6DSVX_ID_EXT0,
+	 [6] = ST_LSM6DSVX_ID_EXT1,
 };
 
 /**
@@ -508,6 +519,7 @@ enum {
  * @odr: Output data rate of the sensor [Hz].
  * @uodr: Output data rate of the sensor [uHz].
  * @gain: Configured sensor sensitivity.
+ * @offset: Sensor data offset.
  * @hr_timer: hr timer for qvar.
  * @iio_work: iio work for qvar.
  * @oldktime: hr timeout for qvar.
@@ -540,6 +552,7 @@ struct st_lsm6dsvx_sensor {
 		struct {
 			/* data sensors */
 			u32 gain;
+			u32 offset;
 
 #ifndef CONFIG_IIO_ST_LSM6DSVX_QVAR_IN_FIFO
 			struct hrtimer hr_timer;

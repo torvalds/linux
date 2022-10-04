@@ -102,6 +102,12 @@ st_lsm6dsvx_odr_table[] = {
 		.odr_avl[7] = { 480, 0, 0x08, 0x08 },
 		.odr_avl[8] = { 960, 0, 0x09, 0x09 },
 	},
+	[ST_LSM6DSVX_ID_TEMP] = {
+		.size = 3,
+		.odr_avl[0] = {  1, 875000, 0x00, 0x01 },
+		.odr_avl[1] = { 15,      0, 0x00, 0x02 },
+		.odr_avl[2] = { 60,      0, 0x00, 0x03 },
+	},
 	[ST_LSM6DSVX_ID_6X_GAME] = {
 		.size = 6,
 		.odr_avl[0] = {  15, 0, 0, 0x00 },
@@ -199,7 +205,15 @@ static const struct st_lsm6dsvx_fs_table_entry st_lsm6dsvx_fs_table[] = {
 			.gain = ST_LSM6DSVX_GYRO_FS_4000_GAIN,
 			.val = 0x6,
 		},
-	}
+	},
+	[ST_LSM6DSVX_ID_TEMP] = {
+		.size = 1,
+		.fs_avl[0] = {
+			.reg = { 0 },
+			.gain = (1000000 / ST_LSM6DSVX_TEMP_GAIN),
+			.val = 0x0
+		},
+	},
 };
 
 static const struct iio_mount_matrix *
@@ -249,6 +263,26 @@ static const struct iio_chan_spec st_lsm6dsvx_gyro_channels[] = {
 				 st_lsm6dsvx_chan_spec_ext_info),
 	ST_LSM6DSVX_EVENT_CHANNEL(IIO_ANGL_VEL, flush),
 	IIO_CHAN_SOFT_TIMESTAMP(3),
+};
+
+static const struct iio_chan_spec st_lsm6dsvx_temp_channels[] = {
+	{
+		.type = IIO_TEMP,
+		.address = ST_LSM6DSVX_REG_OUT_TEMP_L_ADDR,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW)
+				| BIT(IIO_CHAN_INFO_OFFSET)
+				| BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),
+		.scan_index = 0,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 16,
+			.storagebits = 16,
+			.endianness = IIO_LE,
+		}
+	},
+	ST_LSM6DSVX_EVENT_CHANNEL(IIO_TEMP, flush),
+	IIO_CHAN_SOFT_TIMESTAMP(1),
 };
 
 static const struct iio_chan_spec st_lsm6dsvx_sflp_channels[] = {
@@ -519,6 +553,7 @@ static int st_lsm6dsvx_set_odr(struct st_lsm6dsvx_sensor *sensor,
 	case ST_LSM6DSVX_ID_MLC_1:
 	case ST_LSM6DSVX_ID_MLC_2:
 	case ST_LSM6DSVX_ID_MLC_3:
+	case ST_LSM6DSVX_ID_TEMP:
 	case ST_LSM6DSVX_ID_ACC:
 		odr = st_lsm6dsvx_check_acc_odr_dependency(sensor,
 							   req_odr,
@@ -655,6 +690,28 @@ static int st_lsm6dsvx_read_oneshot(struct st_lsm6dsvx_sensor *sensor,
 	return IIO_VAL_INT;
 }
 
+static int st_lsm6dsvx_write_raw_get_fmt(struct iio_dev *indio_dev,
+					 struct iio_chan_spec const *chan,
+					 long mask)
+{
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
+		switch (chan->type) {
+		case IIO_ANGL_VEL:
+		case IIO_ACCEL:
+			return IIO_VAL_INT_PLUS_NANO;
+		case IIO_TEMP:
+			return IIO_VAL_FRACTIONAL;
+		default:
+			return IIO_VAL_INT_PLUS_MICRO;
+		}
+	default:
+		return IIO_VAL_INT_PLUS_MICRO;
+	}
+
+	return -EINVAL;
+}
+
 static int st_lsm6dsvx_read_raw(struct iio_dev *iio_dev,
 				struct iio_chan_spec const *ch,
 				int *val, int *val2, long mask)
@@ -678,9 +735,31 @@ static int st_lsm6dsvx_read_raw(struct iio_dev *iio_dev,
 		ret = IIO_VAL_INT_PLUS_MICRO;
 		break;
 	case IIO_CHAN_INFO_SCALE:
-		*val = 0;
-		*val2 = sensor->gain;
-		ret = IIO_VAL_INT_PLUS_MICRO;
+		switch (ch->type) {
+		case IIO_TEMP:
+			*val = 1000;
+			*val2 = ST_LSM6DSVX_TEMP_GAIN;
+			ret = IIO_VAL_FRACTIONAL;
+			break;
+		case IIO_ACCEL:
+		case IIO_ANGL_VEL:
+			*val = 0;
+			*val2 = sensor->gain;
+			ret = IIO_VAL_INT_PLUS_NANO;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+	case IIO_CHAN_INFO_OFFSET:
+		switch (ch->type) {
+		case IIO_TEMP:
+			*val = sensor->offset;
+			ret = IIO_VAL_INT;
+			break;
+		default:
+			return -EINVAL;
+		}
 		break;
 	default:
 		ret = -EINVAL;
@@ -779,7 +858,7 @@ st_lsm6dsvx_sysfs_scale_avail(struct device *dev,
 	int i, len = 0;
 
 	for (i = 0; i < st_lsm6dsvx_fs_table[id].size; i++)
-		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%06u ",
+		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%09u ",
 				 st_lsm6dsvx_fs_table[id].fs_avl[i].gain);
 	buf[len - 1] = '\n';
 
@@ -1133,6 +1212,8 @@ static IIO_DEVICE_ATTR(in_accel_scale_available, 0444,
 		       st_lsm6dsvx_sysfs_scale_avail, NULL, 0);
 static IIO_DEVICE_ATTR(in_anglvel_scale_available, 0444,
 		       st_lsm6dsvx_sysfs_scale_avail, NULL, 0);
+static IIO_DEVICE_ATTR(in_temp_scale_available, 0444,
+		       st_lsm6dsvx_sysfs_scale_avail, NULL, 0);
 static IIO_DEVICE_ATTR(hwfifo_watermark_max, 0444,
 		       st_lsm6dsvx_get_max_watermark, NULL, 0);
 static IIO_DEVICE_ATTR(hwfifo_flush, 0200, NULL,
@@ -1165,6 +1246,7 @@ static const struct attribute_group st_lsm6dsvx_acc_attribute_group = {
 static const struct iio_info st_lsm6dsvx_acc_info = {
 	.attrs = &st_lsm6dsvx_acc_attribute_group,
 	.read_raw = st_lsm6dsvx_read_raw,
+	.write_raw_get_fmt = st_lsm6dsvx_write_raw_get_fmt,
 	.write_raw = st_lsm6dsvx_write_raw,
 	.debugfs_reg_access = st_lsm6dsvx_reg_access,
 };
@@ -1187,6 +1269,27 @@ static const struct attribute_group st_lsm6dsvx_gyro_attribute_group = {
 static const struct iio_info st_lsm6dsvx_gyro_info = {
 	.attrs = &st_lsm6dsvx_gyro_attribute_group,
 	.read_raw = st_lsm6dsvx_read_raw,
+	.write_raw_get_fmt = st_lsm6dsvx_write_raw_get_fmt,
+	.write_raw = st_lsm6dsvx_write_raw,
+};
+
+static struct attribute *st_lsm6dsvx_temp_attributes[] = {
+	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
+	&iio_dev_attr_in_temp_scale_available.dev_attr.attr,
+	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
+	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
+	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group st_lsm6dsvx_temp_attribute_group = {
+	.attrs = st_lsm6dsvx_temp_attributes,
+};
+
+static const struct iio_info st_lsm6dsvx_temp_info = {
+	.attrs = &st_lsm6dsvx_temp_attribute_group,
+	.read_raw = st_lsm6dsvx_read_raw,
+	.write_raw_get_fmt = st_lsm6dsvx_write_raw_get_fmt,
 	.write_raw = st_lsm6dsvx_write_raw,
 };
 
@@ -1210,6 +1313,10 @@ static const struct iio_info st_lsm6dsvx_sflp_info = {
 
 static const unsigned long st_lsm6dsvx_available_scan_masks[] = {
 	GENMASK(2, 0), 0x0
+};
+
+static const unsigned long st_lsm6dsvx_temp_available_scan_masks[] = {
+	BIT(0), 0x0
 };
 
 static int st_lsm6dsvx_reset_device(struct st_lsm6dsvx_hw *hw)
@@ -1335,6 +1442,23 @@ st_lsm6dsvx_alloc_iiodev(struct st_lsm6dsvx_hw *hw,
 		sensor->gain = st_lsm6dsvx_fs_table[id].fs_avl[1].gain;
 		sensor->min_st = ST_LSM6DSVX_SELFTEST_GYRO_MIN;
 		sensor->max_st = ST_LSM6DSVX_SELFTEST_GYRO_MAX;
+		break;
+	case ST_LSM6DSVX_ID_TEMP:
+		iio_dev->channels = st_lsm6dsvx_temp_channels;
+		iio_dev->num_channels = ARRAY_SIZE(st_lsm6dsvx_temp_channels);
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_temp", hw->settings->id.name);
+		iio_dev->info = &st_lsm6dsvx_temp_info;
+		iio_dev->available_scan_masks =
+					  st_lsm6dsvx_temp_available_scan_masks;
+
+		sensor->batch_reg.addr = ST_LSM6DSVX_REG_FIFO_CTRL4_ADDR;
+		sensor->batch_reg.mask = ST_LSM6DSVX_ODR_T_BATCH_MASK;
+		sensor->max_watermark = ST_LSM6DSVX_MAX_FIFO_DEPTH;
+		sensor->odr = st_lsm6dsvx_odr_table[id].odr_avl[1].hz;
+		sensor->uodr = st_lsm6dsvx_odr_table[id].odr_avl[1].uhz;
+		sensor->gain = st_lsm6dsvx_fs_table[id].fs_avl[1].gain;
+		sensor->offset = ST_LSM6DSVX_TEMP_OFFSET;
 		break;
 	case ST_LSM6DSVX_ID_6X_GAME:
 		iio_dev->channels = st_lsm6dsvx_sflp_channels;
