@@ -478,8 +478,8 @@ static void pdr_notify_lookup_failure(struct pdr_handle *pdr,
 				      struct pdr_service *pds,
 				      int err)
 {
-	pr_err("PDR: service lookup for %s failed: %d\n",
-	       pds->service_name, err);
+	pr_err("PDR: service lookup for %s:%s failed: %d\n",
+		pds->service_path, pds->service_name, err);
 
 	if (err == -ENXIO)
 		return;
