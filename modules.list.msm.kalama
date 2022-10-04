@@ -12,6 +12,7 @@ proxy-consumer.ko
 rpmh-regulator.ko
 qcom_dma_heaps.ko
 qcom_hwspinlock.ko
+interconnect_qcom.ko
 clk-dummy.ko
 clk-qcom.ko
 cmd-db.ko

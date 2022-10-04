@@ -41,6 +41,7 @@ debug-regulator.ko
 phy-qcom-ufs.ko
 phy-qcom-ufs-qrbtc-sdm845.ko
 ufs_qcom.ko
+interconnect_qcom.ko
 icc-bcm-voter.ko
 icc-rpmh.ko
 qnoc-qos.ko
