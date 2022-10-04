@@ -210,6 +210,23 @@ static const struct rpmhpd_desc sa8540p_desc = {
 	.num_pds = ARRAY_SIZE(sa8540p_rpmhpds),
 };
 
+/* SDM670 RPMH powerdomains */
+static struct rpmhpd *sdm670_rpmhpds[] = {
+	[SDM670_CX] = &cx_w_mx_parent,
+	[SDM670_CX_AO] = &cx_ao_w_mx_parent,
+	[SDM670_GFX] = &gfx,
+	[SDM670_LCX] = &lcx,
+	[SDM670_LMX] = &lmx,
+	[SDM670_MSS] = &mss,
+	[SDM670_MX] = &mx,
+	[SDM670_MX_AO] = &mx_ao,
+};
+
+static const struct rpmhpd_desc sdm670_desc = {
+	.rpmhpds = sdm670_rpmhpds,
+	.num_pds = ARRAY_SIZE(sdm670_rpmhpds),
+};
+
 /* SDM845 RPMH powerdomains */
 static struct rpmhpd *sdm845_rpmhpds[] = {
 	[SDM845_CX] = &cx_w_mx_parent,
@@ -435,6 +452,7 @@ static const struct of_device_id rpmhpd_match_table[] = {
 	{ .compatible = "qcom,sc7280-rpmhpd", .data = &sc7280_desc },
 	{ .compatible = "qcom,sc8180x-rpmhpd", .data = &sc8180x_desc },
 	{ .compatible = "qcom,sc8280xp-rpmhpd", .data = &sc8280xp_desc },
+	{ .compatible = "qcom,sdm670-rpmhpd", .data = &sdm670_desc },
 	{ .compatible = "qcom,sdm845-rpmhpd", .data = &sdm845_desc },
 	{ .compatible = "qcom,sdx55-rpmhpd", .data = &sdx55_desc},
 	{ .compatible = "qcom,sdx65-rpmhpd", .data = &sdx65_desc},
