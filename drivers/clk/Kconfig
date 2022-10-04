@@ -249,7 +249,7 @@ config COMMON_CLK_GEMINI
 	  platform, also known as SL3516 or CS3516.
 
 config COMMON_CLK_LAN966X
-	bool "Generic Clock Controller driver for LAN966X SoC"
+	tristate "Generic Clock Controller driver for LAN966X SoC"
 	depends on HAS_IOMEM
 	depends on OF
 	depends on SOC_LAN966 || COMPILE_TEST

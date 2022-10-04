@@ -261,7 +261,7 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clk/lochnagar.h>
+    #include <dt-bindings/clock/lochnagar.h>
     #include <dt-bindings/pinctrl/lochnagar.h>
     i2c@e0004000 {
         #address-cells = <1>;

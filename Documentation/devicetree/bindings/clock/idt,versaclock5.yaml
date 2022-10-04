@@ -108,7 +108,7 @@ patternProperties:
     properties:
       idt,mode:
         description:
-          The output drive mode. Values defined in dt-bindings/clk/versaclock.h
+          The output drive mode. Values defined in dt-bindings/clock/versaclock.h
         $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 6
@@ -151,7 +151,7 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clk/versaclock.h>
+    #include <dt-bindings/clock/versaclock.h>
 
     /* 25MHz reference crystal */
     ref25: ref25m {
