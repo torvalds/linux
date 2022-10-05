@@ -1255,6 +1255,9 @@ static int rtw89_core_rx_parse_phy_sts(struct rtw89_dev *rtwdev,
 	if (phy_ppdu->ie < RTW89_CCK_PKT)
 		return -EINVAL;
 
+	if (!phy_ppdu->to_self)
+		return 0;
+
 	pos = (u8 *)phy_ppdu->buf + PHY_STS_HDR_LEN;
 	end = (u8 *)phy_ppdu->buf + phy_ppdu->len;
 	while (pos < end) {
