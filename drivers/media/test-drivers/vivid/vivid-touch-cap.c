@@ -221,7 +221,7 @@ static void vivid_fill_buff_noise(__s16 *tch_buf, int size)
 
 static inline int get_random_pressure(void)
 {
-	return get_random_int() % VIVID_PRESSURE_LIMIT;
+	return prandom_u32_max(VIVID_PRESSURE_LIMIT);
 }
 
 static void vivid_tch_buf_set(struct v4l2_pix_format *f,

@@ -855,9 +855,9 @@ static int prepare_keybuf(const u8 *key, unsigned int ksize,
 /* Generate a random length in range [0, max_len], but prefer smaller values */
 static unsigned int generate_random_length(unsigned int max_len)
 {
-	unsigned int len = prandom_u32() % (max_len + 1);
+	unsigned int len = prandom_u32_max(max_len + 1);
 
-	switch (prandom_u32() % 4) {
+	switch (prandom_u32_max(4)) {
 	case 0:
 		return len % 64;
 	case 1:
@@ -874,14 +874,14 @@ static void flip_random_bit(u8 *buf, size_t size)
 {
 	size_t bitpos;
 
-	bitpos = prandom_u32() % (size * 8);
+	bitpos = prandom_u32_max(size * 8);
 	buf[bitpos / 8] ^= 1 << (bitpos % 8);
 }
 
 /* Flip a random byte in the given nonempty data buffer */
 static void flip_random_byte(u8 *buf, size_t size)
 {
-	buf[prandom_u32() % size] ^= 0xff;
+	buf[prandom_u32_max(size)] ^= 0xff;
 }
 
 /* Sometimes make some random changes to the given nonempty data buffer */
@@ -891,15 +891,15 @@ static void mutate_buffer(u8 *buf, size_t size)
 	size_t i;
 
 	/* Sometimes flip some bits */
-	if (prandom_u32() % 4 == 0) {
-		num_flips = min_t(size_t, 1 << (prandom_u32() % 8), size * 8);
+	if (prandom_u32_max(4) == 0) {
+		num_flips = min_t(size_t, 1 << prandom_u32_max(8), size * 8);
 		for (i = 0; i < num_flips; i++)
 			flip_random_bit(buf, size);
 	}
 
 	/* Sometimes flip some bytes */
-	if (prandom_u32() % 4 == 0) {
-		num_flips = min_t(size_t, 1 << (prandom_u32() % 8), size);
+	if (prandom_u32_max(4) == 0) {
+		num_flips = min_t(size_t, 1 << prandom_u32_max(8), size);
 		for (i = 0; i < num_flips; i++)
 			flip_random_byte(buf, size);
 	}
@@ -915,11 +915,11 @@ static void generate_random_bytes(u8 *buf, size_t count)
 	if (count == 0)
 		return;
 
-	switch (prandom_u32() % 8) { /* Choose a generation strategy */
+	switch (prandom_u32_max(8)) { /* Choose a generation strategy */
 	case 0:
 	case 1:
 		/* All the same byte, plus optional mutations */
-		switch (prandom_u32() % 4) {
+		switch (prandom_u32_max(4)) {
 		case 0:
 			b = 0x00;
 			break;
@@ -959,24 +959,24 @@ static char *generate_random_sgl_divisions(struct test_sg_division *divs,
 		unsigned int this_len;
 		const char *flushtype_str;
 
-		if (div == &divs[max_divs - 1] || prandom_u32() % 2 == 0)
+		if (div == &divs[max_divs - 1] || prandom_u32_max(2) == 0)
 			this_len = remaining;
 		else
-			this_len = 1 + (prandom_u32() % remaining);
+			this_len = 1 + prandom_u32_max(remaining);
 		div->proportion_of_total = this_len;
 
-		if (prandom_u32() % 4 == 0)
-			div->offset = (PAGE_SIZE - 128) + (prandom_u32() % 128);
-		else if (prandom_u32() % 2 == 0)
-			div->offset = prandom_u32() % 32;
+		if (prandom_u32_max(4) == 0)
+			div->offset = (PAGE_SIZE - 128) + prandom_u32_max(128);
+		else if (prandom_u32_max(2) == 0)
+			div->offset = prandom_u32_max(32);
 		else
-			div->offset = prandom_u32() % PAGE_SIZE;
-		if (prandom_u32() % 8 == 0)
+			div->offset = prandom_u32_max(PAGE_SIZE);
+		if (prandom_u32_max(8) == 0)
 			div->offset_relative_to_alignmask = true;
 
 		div->flush_type = FLUSH_TYPE_NONE;
 		if (gen_flushes) {
-			switch (prandom_u32() % 4) {
+			switch (prandom_u32_max(4)) {
 			case 0:
 				div->flush_type = FLUSH_TYPE_REIMPORT;
 				break;
@@ -988,7 +988,7 @@ static char *generate_random_sgl_divisions(struct test_sg_division *divs,
 
 		if (div->flush_type != FLUSH_TYPE_NONE &&
 		    !(req_flags & CRYPTO_TFM_REQ_MAY_SLEEP) &&
-		    prandom_u32() % 2 == 0)
+		    prandom_u32_max(2) == 0)
 			div->nosimd = true;
 
 		switch (div->flush_type) {
@@ -1035,7 +1035,7 @@ static void generate_random_testvec_config(struct testvec_config *cfg,
 
 	p += scnprintf(p, end - p, "random:");
 
-	switch (prandom_u32() % 4) {
+	switch (prandom_u32_max(4)) {
 	case 0:
 	case 1:
 		cfg->inplace_mode = OUT_OF_PLACE;
@@ -1050,12 +1050,12 @@ static void generate_random_testvec_config(struct testvec_config *cfg,
 		break;
 	}
 
-	if (prandom_u32() % 2 == 0) {
+	if (prandom_u32_max(2) == 0) {
 		cfg->req_flags |= CRYPTO_TFM_REQ_MAY_SLEEP;
 		p += scnprintf(p, end - p, " may_sleep");
 	}
 
-	switch (prandom_u32() % 4) {
+	switch (prandom_u32_max(4)) {
 	case 0:
 		cfg->finalization_type = FINALIZATION_TYPE_FINAL;
 		p += scnprintf(p, end - p, " use_final");
@@ -1071,7 +1071,7 @@ static void generate_random_testvec_config(struct testvec_config *cfg,
 	}
 
 	if (!(cfg->req_flags & CRYPTO_TFM_REQ_MAY_SLEEP) &&
-	    prandom_u32() % 2 == 0) {
+	    prandom_u32_max(2) == 0) {
 		cfg->nosimd = true;
 		p += scnprintf(p, end - p, " nosimd");
 	}
@@ -1084,7 +1084,7 @@ static void generate_random_testvec_config(struct testvec_config *cfg,
 					  cfg->req_flags);
 	p += scnprintf(p, end - p, "]");
 
-	if (cfg->inplace_mode == OUT_OF_PLACE && prandom_u32() % 2 == 0) {
+	if (cfg->inplace_mode == OUT_OF_PLACE && prandom_u32_max(2) == 0) {
 		p += scnprintf(p, end - p, " dst_divs=[");
 		p = generate_random_sgl_divisions(cfg->dst_divs,
 						  ARRAY_SIZE(cfg->dst_divs),
@@ -1093,13 +1093,13 @@ static void generate_random_testvec_config(struct testvec_config *cfg,
 		p += scnprintf(p, end - p, "]");
 	}
 
-	if (prandom_u32() % 2 == 0) {
-		cfg->iv_offset = 1 + (prandom_u32() % MAX_ALGAPI_ALIGNMASK);
+	if (prandom_u32_max(2) == 0) {
+		cfg->iv_offset = 1 + prandom_u32_max(MAX_ALGAPI_ALIGNMASK);
 		p += scnprintf(p, end - p, " iv_offset=%u", cfg->iv_offset);
 	}
 
-	if (prandom_u32() % 2 == 0) {
-		cfg->key_offset = 1 + (prandom_u32() % MAX_ALGAPI_ALIGNMASK);
+	if (prandom_u32_max(2) == 0) {
+		cfg->key_offset = 1 + prandom_u32_max(MAX_ALGAPI_ALIGNMASK);
 		p += scnprintf(p, end - p, " key_offset=%u", cfg->key_offset);
 	}
 
@@ -1652,8 +1652,8 @@ static void generate_random_hash_testvec(struct shash_desc *desc,
 	vec->ksize = 0;
 	if (maxkeysize) {
 		vec->ksize = maxkeysize;
-		if (prandom_u32() % 4 == 0)
-			vec->ksize = 1 + (prandom_u32() % maxkeysize);
+		if (prandom_u32_max(4) == 0)
+			vec->ksize = 1 + prandom_u32_max(maxkeysize);
 		generate_random_bytes((u8 *)vec->key, vec->ksize);
 
 		vec->setkey_error = crypto_shash_setkey(desc->tfm, vec->key,
@@ -2218,13 +2218,13 @@ static void mutate_aead_message(struct aead_testvec *vec, bool aad_iv,
 	const unsigned int aad_tail_size = aad_iv ? ivsize : 0;
 	const unsigned int authsize = vec->clen - vec->plen;
 
-	if (prandom_u32() % 2 == 0 && vec->alen > aad_tail_size) {
+	if (prandom_u32_max(2) == 0 && vec->alen > aad_tail_size) {
 		 /* Mutate the AAD */
 		flip_random_bit((u8 *)vec->assoc, vec->alen - aad_tail_size);
-		if (prandom_u32() % 2 == 0)
+		if (prandom_u32_max(2) == 0)
 			return;
 	}
-	if (prandom_u32() % 2 == 0) {
+	if (prandom_u32_max(2) == 0) {
 		/* Mutate auth tag (assuming it's at the end of ciphertext) */
 		flip_random_bit((u8 *)vec->ctext + vec->plen, authsize);
 	} else {
@@ -2249,7 +2249,7 @@ static void generate_aead_message(struct aead_request *req,
 	const unsigned int ivsize = crypto_aead_ivsize(tfm);
 	const unsigned int authsize = vec->clen - vec->plen;
 	const bool inauthentic = (authsize >= MIN_COLLISION_FREE_AUTHSIZE) &&
-				 (prefer_inauthentic || prandom_u32() % 4 == 0);
+				 (prefer_inauthentic || prandom_u32_max(4) == 0);
 
 	/* Generate the AAD. */
 	generate_random_bytes((u8 *)vec->assoc, vec->alen);
@@ -2257,7 +2257,7 @@ static void generate_aead_message(struct aead_request *req,
 		/* Avoid implementation-defined behavior. */
 		memcpy((u8 *)vec->assoc + vec->alen - ivsize, vec->iv, ivsize);
 
-	if (inauthentic && prandom_u32() % 2 == 0) {
+	if (inauthentic && prandom_u32_max(2) == 0) {
 		/* Generate a random ciphertext. */
 		generate_random_bytes((u8 *)vec->ctext, vec->clen);
 	} else {
@@ -2321,8 +2321,8 @@ static void generate_random_aead_testvec(struct aead_request *req,
 
 	/* Key: length in [0, maxkeysize], but usually choose maxkeysize */
 	vec->klen = maxkeysize;
-	if (prandom_u32() % 4 == 0)
-		vec->klen = prandom_u32() % (maxkeysize + 1);
+	if (prandom_u32_max(4) == 0)
+		vec->klen = prandom_u32_max(maxkeysize + 1);
 	generate_random_bytes((u8 *)vec->key, vec->klen);
 	vec->setkey_error = crypto_aead_setkey(tfm, vec->key, vec->klen);
 
@@ -2331,8 +2331,8 @@ static void generate_random_aead_testvec(struct aead_request *req,
 
 	/* Tag length: in [0, maxauthsize], but usually choose maxauthsize */
 	authsize = maxauthsize;
-	if (prandom_u32() % 4 == 0)
-		authsize = prandom_u32() % (maxauthsize + 1);
+	if (prandom_u32_max(4) == 0)
+		authsize = prandom_u32_max(maxauthsize + 1);
 	if (prefer_inauthentic && authsize < MIN_COLLISION_FREE_AUTHSIZE)
 		authsize = MIN_COLLISION_FREE_AUTHSIZE;
 	if (WARN_ON(authsize > maxdatasize))
@@ -2342,7 +2342,7 @@ static void generate_random_aead_testvec(struct aead_request *req,
 
 	/* AAD, plaintext, and ciphertext lengths */
 	total_len = generate_random_length(maxdatasize);
-	if (prandom_u32() % 4 == 0)
+	if (prandom_u32_max(4) == 0)
 		vec->alen = 0;
 	else
 		vec->alen = generate_random_length(total_len);
@@ -2958,8 +2958,8 @@ static void generate_random_cipher_testvec(struct skcipher_request *req,
 
 	/* Key: length in [0, maxkeysize], but usually choose maxkeysize */
 	vec->klen = maxkeysize;
-	if (prandom_u32() % 4 == 0)
-		vec->klen = prandom_u32() % (maxkeysize + 1);
+	if (prandom_u32_max(4) == 0)
+		vec->klen = prandom_u32_max(maxkeysize + 1);
 	generate_random_bytes((u8 *)vec->key, vec->klen);
 	vec->setkey_error = crypto_skcipher_setkey(tfm, vec->key, vec->klen);
 

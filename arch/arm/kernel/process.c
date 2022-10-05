@@ -375,7 +375,7 @@ static unsigned long sigpage_addr(const struct mm_struct *mm,
 
 	slots = ((last - first) >> PAGE_SHIFT) + 1;
 
-	offset = get_random_int() % slots;
+	offset = prandom_u32_max(slots);
 
 	addr = first + (offset << PAGE_SHIFT);
 

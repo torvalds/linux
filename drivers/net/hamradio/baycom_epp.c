@@ -438,7 +438,7 @@ static int transmit(struct baycom_state *bc, int cnt, unsigned char stat)
 			if ((--bc->hdlctx.slotcnt) > 0)
 				return 0;
 			bc->hdlctx.slotcnt = bc->ch_params.slottime;
-			if ((prandom_u32() % 256) > bc->ch_params.ppersist)
+			if (prandom_u32_max(256) > bc->ch_params.ppersist)
 				return 0;
 		}
 	}

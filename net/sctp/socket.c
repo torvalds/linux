@@ -8319,7 +8319,7 @@ static int sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 
 		inet_get_local_port_range(net, &low, &high);
 		remaining = (high - low) + 1;
-		rover = prandom_u32() % remaining + low;
+		rover = prandom_u32_max(remaining) + low;
 
 		do {
 			rover++;

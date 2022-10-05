@@ -362,7 +362,7 @@ static int ceph_fill_fragtree(struct inode *inode,
 	if (nsplits != ci->i_fragtree_nsplits) {
 		update = true;
 	} else if (nsplits) {
-		i = prandom_u32() % nsplits;
+		i = prandom_u32_max(nsplits);
 		id = le32_to_cpu(fragtree->splits[i].frag);
 		if (!__ceph_find_frag(ci, id))
 			update = true;
