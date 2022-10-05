@@ -195,10 +195,10 @@ static void usb_init_common(struct brcm_usb_init_params *params)
 	if (USB_CTRL_MASK(USB_DEVICE_CTL1, PORT_MODE)) {
 		reg = brcm_usb_readl(USB_CTRL_REG(ctrl, USB_DEVICE_CTL1));
 		reg &= ~USB_CTRL_MASK(USB_DEVICE_CTL1, PORT_MODE);
-		reg |= params->mode;
+		reg |= params->port_mode;
 		brcm_usb_writel(reg, USB_CTRL_REG(ctrl, USB_DEVICE_CTL1));
 	}
-	switch (params->mode) {
+	switch (params->supported_port_modes) {
 	case USB_CTLR_MODE_HOST:
 		USB_CTRL_UNSET(ctrl, USB_PM, BDC_SOFT_RESETB);
 		break;
@@ -276,7 +276,7 @@ static void usb_init_common_7211b0(struct brcm_usb_init_params *params)
 	/* Set the PHY_MODE */
 	reg = brcm_usb_readl(usb_phy + USB_PHY_UTMI_CTL_1);
 	reg &= ~USB_PHY_UTMI_CTL_1_PHY_MODE_MASK;
-	reg |= params->mode << USB_PHY_UTMI_CTL_1_PHY_MODE_SHIFT;
+	reg |= params->supported_port_modes << USB_PHY_UTMI_CTL_1_PHY_MODE_SHIFT;
 	brcm_usb_writel(reg, usb_phy + USB_PHY_UTMI_CTL_1);
 
 	usb_init_common(params);
@@ -286,7 +286,7 @@ static void usb_init_common_7211b0(struct brcm_usb_init_params *params)
 	 * the default "Read Transaction Size" of 6 (1024 bytes).
 	 * Set it to 4 (256 bytes).
 	 */
-	if ((params->mode != USB_CTLR_MODE_HOST) && bdc_ec) {
+	if ((params->supported_port_modes != USB_CTLR_MODE_HOST) && bdc_ec) {
 		reg = brcm_usb_readl(bdc_ec + BDC_EC_AXIRDA);
 		reg &= ~BDC_EC_AXIRDA_RTS_MASK;
 		reg |= (0x4 << BDC_EC_AXIRDA_RTS_SHIFT);
@@ -385,7 +385,7 @@ static int usb_get_dual_select(struct brcm_usb_init_params *params)
 	return reg;
 }
 
-static void usb_set_dual_select(struct brcm_usb_init_params *params, int mode)
+static void usb_set_dual_select(struct brcm_usb_init_params *params)
 {
 	void __iomem *ctrl = params->regs[BRCM_REGS_CTRL];
 	u32 reg;
@@ -394,7 +394,7 @@ static void usb_set_dual_select(struct brcm_usb_init_params *params, int mode)
 
 	reg = brcm_usb_readl(USB_CTRL_REG(ctrl, USB_DEVICE_CTL1));
 	reg &= ~USB_CTRL_MASK(USB_DEVICE_CTL1, PORT_MODE);
-	reg |= mode;
+	reg |= params->port_mode;
 	brcm_usb_writel(reg, USB_CTRL_REG(ctrl, USB_DEVICE_CTL1));
 }
 

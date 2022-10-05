@@ -876,11 +876,11 @@ static void usb_init_common(struct brcm_usb_init_params *params)
 		reg = brcm_usb_readl(USB_CTRL_REG(ctrl, USB_DEVICE_CTL1));
 		reg &= ~USB_CTRL_MASK_FAMILY(params, USB_DEVICE_CTL1,
 					PORT_MODE);
-		reg |= params->mode;
+		reg |= params->port_mode;
 		brcm_usb_writel(reg, USB_CTRL_REG(ctrl, USB_DEVICE_CTL1));
 	}
 	if (USB_CTRL_MASK_FAMILY(params, USB_PM, BDC_SOFT_RESETB)) {
-		switch (params->mode) {
+		switch (params->supported_port_modes) {
 		case USB_CTLR_MODE_HOST:
 			USB_CTRL_UNSET_FAMILY(params, USB_PM, BDC_SOFT_RESETB);
 			break;
@@ -891,7 +891,7 @@ static void usb_init_common(struct brcm_usb_init_params *params)
 		}
 	}
 	if (USB_CTRL_MASK_FAMILY(params, SETUP, CC_DRD_MODE_ENABLE)) {
-		if (params->mode == USB_CTLR_MODE_TYPEC_PD)
+		if (params->supported_port_modes == USB_CTLR_MODE_TYPEC_PD)
 			USB_CTRL_SET_FAMILY(params, SETUP, CC_DRD_MODE_ENABLE);
 		else
 			USB_CTRL_UNSET_FAMILY(params, SETUP,
@@ -1000,7 +1000,7 @@ static int usb_get_dual_select(struct brcm_usb_init_params *params)
 	return reg;
 }
 
-static void usb_set_dual_select(struct brcm_usb_init_params *params, int mode)
+static void usb_set_dual_select(struct brcm_usb_init_params *params)
 {
 	void __iomem *ctrl = params->regs[BRCM_REGS_CTRL];
 	u32 reg;
@@ -1011,7 +1011,7 @@ static void usb_set_dual_select(struct brcm_usb_init_params *params, int mode)
 		reg = brcm_usb_readl(USB_CTRL_REG(ctrl, USB_DEVICE_CTL1));
 		reg &= ~USB_CTRL_MASK_FAMILY(params, USB_DEVICE_CTL1,
 					PORT_MODE);
-		reg |= mode;
+		reg |= params->port_mode;
 		brcm_usb_writel(reg, USB_CTRL_REG(ctrl, USB_DEVICE_CTL1));
 	}
 }
