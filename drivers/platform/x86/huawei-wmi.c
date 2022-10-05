@@ -323,12 +323,12 @@ static int huawei_wmi_battery_get(int *start, int *end)
 	u8 ret[0x100];
 	int err, i;
 
-	err = huawei_wmi_cmd(BATTERY_THRESH_GET, ret, 0x100);
+	err = huawei_wmi_cmd(BATTERY_THRESH_GET, ret, sizeof(ret));
 	if (err)
 		return err;
 
 	/* Find the last two non-zero values. Return status is ignored. */
-	i = 0xff;
+	i = ARRAY_SIZE(ret) - 1;
 	do {
 		if (start)
 			*start = ret[i-1];
