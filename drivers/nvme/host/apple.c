@@ -845,11 +845,8 @@ static void apple_nvme_disable(struct apple_nvme *anv, bool shutdown)
 	apple_nvme_handle_cq(&anv->adminq, true);
 	spin_unlock_irqrestore(&anv->lock, flags);
 
-	blk_mq_tagset_busy_iter(&anv->tagset, nvme_cancel_request, &anv->ctrl);
-	blk_mq_tagset_busy_iter(&anv->admin_tagset, nvme_cancel_request,
-				&anv->ctrl);
-	blk_mq_tagset_wait_completed_request(&anv->tagset);
-	blk_mq_tagset_wait_completed_request(&anv->admin_tagset);
+	nvme_cancel_tagset(&anv->ctrl);
+	nvme_cancel_admin_tagset(&anv->ctrl);
 
 	/*
 	 * The driver will not be starting up queues again if shutting down so
@@ -1222,6 +1219,11 @@ static void apple_nvme_async_probe(void *data, async_cookie_t cookie)
 	nvme_put_ctrl(&anv->ctrl);
 }
 
+static void devm_apple_nvme_put_tag_set(void *data)
+{
+	blk_mq_free_tag_set(data);
+}
+
 static int apple_nvme_alloc_tagsets(struct apple_nvme *anv)
 {
 	int ret;
@@ -1238,8 +1240,7 @@ static int apple_nvme_alloc_tagsets(struct apple_nvme *anv)
 	ret = blk_mq_alloc_tag_set(&anv->admin_tagset);
 	if (ret)
 		return ret;
-	ret = devm_add_action_or_reset(anv->dev,
-				       (void (*)(void *))blk_mq_free_tag_set,
+	ret = devm_add_action_or_reset(anv->dev, devm_apple_nvme_put_tag_set,
 				       &anv->admin_tagset);
 	if (ret)
 		return ret;
@@ -1263,8 +1264,8 @@ static int apple_nvme_alloc_tagsets(struct apple_nvme *anv)
 	ret = blk_mq_alloc_tag_set(&anv->tagset);
 	if (ret)
 		return ret;
-	ret = devm_add_action_or_reset(
-		anv->dev, (void (*)(void *))blk_mq_free_tag_set, &anv->tagset);
+	ret = devm_add_action_or_reset(anv->dev, devm_apple_nvme_put_tag_set,
+					&anv->tagset);
 	if (ret)
 		return ret;
 
@@ -1365,6 +1366,11 @@ static int apple_nvme_attach_genpd(struct apple_nvme *anv)
 	return 0;
 }
 
+static void devm_apple_nvme_mempool_destroy(void *data)
+{
+	mempool_destroy(data);
+}
+
 static int apple_nvme_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1462,8 +1468,8 @@ static int apple_nvme_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto put_dev;
 	}
-	ret = devm_add_action_or_reset(
-		anv->dev, (void (*)(void *))mempool_destroy, anv->iod_mempool);
+	ret = devm_add_action_or_reset(anv->dev,
+			devm_apple_nvme_mempool_destroy, anv->iod_mempool);
 	if (ret)
 		goto put_dev;
 

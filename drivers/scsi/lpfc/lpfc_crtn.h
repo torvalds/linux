@@ -370,7 +370,7 @@ void lpfc_sli_prep_xmit_seq64(struct lpfc_hba *phba,
 			      u8 cr_cx_cmd);
 void lpfc_sli_prep_abort_xri(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocbq,
 			     u16 ulp_context, u16 iotag, u8 ulp_class, u16 cqid,
-			     bool ia);
+			     bool ia, bool wqec);
 struct lpfc_sglq *__lpfc_clear_active_sglq(struct lpfc_hba *phba, uint16_t xri);
 struct lpfc_sglq *__lpfc_sli_get_nvmet_sglq(struct lpfc_hba *phba,
 					    struct lpfc_iocbq *piocbq);

@@ -614,8 +614,7 @@ static void x1205_sysfs_unregister(struct device *dev)
 }
 
 
-static int x1205_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int x1205_probe(struct i2c_client *client)
 {
 	int err = 0;
 	unsigned char sr;
@@ -681,7 +680,7 @@ static struct i2c_driver x1205_driver = {
 		.name	= "rtc-x1205",
 		.of_match_table = x1205_dt_ids,
 	},
-	.probe		= x1205_probe,
+	.probe_new	= x1205_probe,
 	.remove		= x1205_remove,
 	.id_table	= x1205_id,
 };

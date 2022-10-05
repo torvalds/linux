@@ -590,7 +590,19 @@ static struct sdw_slave_ops rt1316_slave_ops = {
 	.update_status = rt1316_update_status,
 };
 
+static int rt1316_sdw_component_probe(struct snd_soc_component *component)
+{
+	int ret;
+
+	ret = pm_runtime_resume(component->dev);
+	if (ret < 0 && ret != -EACCES)
+		return ret;
+
+	return 0;
+}
+
 static const struct snd_soc_component_driver soc_component_sdw_rt1316 = {
+	.probe = rt1316_sdw_component_probe,
 	.controls = rt1316_snd_controls,
 	.num_controls = ARRAY_SIZE(rt1316_snd_controls),
 	.dapm_widgets = rt1316_dapm_widgets,

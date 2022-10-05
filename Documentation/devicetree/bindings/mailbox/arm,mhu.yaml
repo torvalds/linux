@@ -57,6 +57,7 @@ properties:
     maxItems: 1
 
   interrupts:
+    minItems: 2
     items:
       - description: low-priority non-secure
       - description: high-priority non-secure

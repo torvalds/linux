@@ -440,15 +440,14 @@ static int sdhci_st_remove(struct platform_device *pdev)
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct st_mmc_platform_data *pdata = sdhci_pltfm_priv(pltfm_host);
 	struct reset_control *rstc = pdata->rstc;
-	int ret;
 
-	ret = sdhci_pltfm_unregister(pdev);
+	sdhci_pltfm_unregister(pdev);
 
 	clk_disable_unprepare(pdata->icnclk);
 
 	reset_control_assert(rstc);
 
-	return ret;
+	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

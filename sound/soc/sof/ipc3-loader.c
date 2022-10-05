@@ -75,13 +75,12 @@ static int ipc3_fw_ext_man_get_config_data(struct snd_sof_dev *sdev,
 	elems_size = config->hdr.size - sizeof(struct sof_ext_man_elem_header);
 	elems_counter = elems_size / sizeof(struct sof_config_elem);
 
-	dev_dbg(sdev->dev, "%s can hold up to %d config elements\n",
-		__func__, elems_counter);
+	dev_dbg(sdev->dev, "manifest can hold up to %d config elements\n", elems_counter);
 
 	for (i = 0; i < elems_counter; ++i) {
 		elem = &config->elems[i];
-		dev_dbg(sdev->dev, "%s get index %d token %d val %d\n",
-			__func__, i, elem->token, elem->value);
+		dev_dbg(sdev->dev, "get index %d token %d val %d\n",
+			i, elem->token, elem->value);
 		switch (elem->token) {
 		case SOF_EXT_MAN_CONFIG_EMPTY:
 			/* unused memory space is zero filled - mapped to EMPTY elements */
@@ -110,7 +109,7 @@ static int ipc3_fw_ext_man_get_config_data(struct snd_sof_dev *sdev,
 	return 0;
 }
 
-static ssize_t ipc3_fw_ext_man_size(const struct firmware *fw)
+static ssize_t ipc3_fw_ext_man_size(struct snd_sof_dev *sdev, const struct firmware *fw)
 {
 	const struct sof_ext_man_header *head;
 
@@ -132,6 +131,8 @@ static ssize_t ipc3_fw_ext_man_size(const struct firmware *fw)
 		return head->full_size;
 
 	/* otherwise given fw don't have an extended manifest */
+	dev_dbg(sdev->dev, "Unexpected extended manifest magic number: %#x\n",
+		head->magic);
 	return 0;
 }
 
@@ -148,7 +149,7 @@ static size_t sof_ipc3_fw_parse_ext_man(struct snd_sof_dev *sdev)
 
 	head = (struct sof_ext_man_header *)fw->data;
 	remaining = head->full_size - head->header_size;
-	ext_man_size = ipc3_fw_ext_man_size(fw);
+	ext_man_size = ipc3_fw_ext_man_size(sdev, fw);
 
 	/* Assert firmware starts with extended manifest */
 	if (ext_man_size <= 0)
@@ -323,10 +324,10 @@ static int sof_ipc3_load_fw_to_dsp(struct snd_sof_dev *sdev)
 	header = (struct snd_sof_fw_header *)(fw->data + plat_data->fw_offset);
 	load_module = sof_ops(sdev)->load_module;
 	if (!load_module) {
-		dev_dbg(sdev->dev, "%s: Using generic module loading\n", __func__);
+		dev_dbg(sdev->dev, "Using generic module loading\n");
 		load_module = sof_ipc3_parse_module_memcpy;
 	} else {
-		dev_dbg(sdev->dev, "%s: Using custom module loading\n", __func__);
+		dev_dbg(sdev->dev, "Using custom module loading\n");
 	}
 
 	/* parse each module */

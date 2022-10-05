@@ -344,6 +344,7 @@ enum dc_detect_reason {
 	DETECT_REASON_HPDRX,
 	DETECT_REASON_FALLBACK,
 	DETECT_REASON_RETRAIN,
+	DETECT_REASON_TDR,
 };
 
 bool dc_link_detect(struct dc_link *dc_link, enum dc_detect_reason reason);

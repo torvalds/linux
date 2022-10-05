@@ -324,14 +324,13 @@ int sk_msg_zerocopy_from_iter(struct sock *sk, struct iov_iter *from,
 			goto out;
 		}
 
-		copied = iov_iter_get_pages(from, pages, bytes, maxpages,
+		copied = iov_iter_get_pages2(from, pages, bytes, maxpages,
 					    &offset);
 		if (copied <= 0) {
 			ret = -EFAULT;
 			goto out;
 		}
 
-		iov_iter_advance(from, copied);
 		bytes -= copied;
 		msg->sg.size += copied;
 
@@ -739,7 +738,9 @@ struct sk_psock *sk_psock_init(struct sock *sk, int node)
 	sk_psock_set_state(psock, SK_PSOCK_TX_ENABLED);
 	refcount_set(&psock->refcnt, 1);
 
-	rcu_assign_sk_user_data_nocopy(sk, psock);
+	__rcu_assign_sk_user_data_with_flags(sk, psock,
+					     SK_USER_DATA_NOCOPY |
+					     SK_USER_DATA_PSOCK);
 	sock_hold(sk);
 
 out:
@@ -1193,8 +1194,9 @@ static int sk_psock_verdict_recv(struct sock *sk, struct sk_buff *skb)
 		ret = bpf_prog_run_pin_on_cpu(prog, skb);
 		ret = sk_psock_map_verd(ret, skb_bpf_redirect_fetch(skb));
 	}
-	if (sk_psock_verdict_apply(psock, skb, ret) < 0)
-		len = 0;
+	ret = sk_psock_verdict_apply(psock, skb, ret);
+	if (ret < 0)
+		len = ret;
 out:
 	rcu_read_unlock();
 	return len;

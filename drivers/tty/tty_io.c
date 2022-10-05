@@ -1663,7 +1663,7 @@ void tty_kclose(struct tty_struct *tty)
 	 */
 	tty_ldisc_release(tty);
 
-	/* Wait for pending work before tty destruction commmences */
+	/* Wait for pending work before tty destruction commences */
 	tty_flush_works(tty);
 
 	tty_debug_hangup(tty, "freeing structure\n");

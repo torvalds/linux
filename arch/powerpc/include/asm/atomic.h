@@ -140,9 +140,10 @@ static __always_inline bool
 arch_atomic_try_cmpxchg_lock(atomic_t *v, int *old, int new)
 {
 	int r, o = *old;
+	unsigned int eh = IS_ENABLED(CONFIG_PPC64);
 
 	__asm__ __volatile__ (
-"1:	lwarx	%0,0,%2,%5	# atomic_try_cmpxchg_acquire		\n"
+"1:	lwarx	%0,0,%2,%[eh]	# atomic_try_cmpxchg_acquire		\n"
 "	cmpw	0,%0,%3							\n"
 "	bne-	2f							\n"
 "	stwcx.	%4,0,%2							\n"
@@ -150,7 +151,7 @@ arch_atomic_try_cmpxchg_lock(atomic_t *v, int *old, int new)
 "\t"	PPC_ACQUIRE_BARRIER "						\n"
 "2:									\n"
 	: "=&r" (r), "+m" (v->counter)
-	: "r" (&v->counter), "r" (o), "r" (new), "i" (IS_ENABLED(CONFIG_PPC64) ? 1 : 0)
+	: "r" (&v->counter), "r" (o), "r" (new), [eh] "n" (eh)
 	: "cr0", "memory");
 
 	if (unlikely(r != o))

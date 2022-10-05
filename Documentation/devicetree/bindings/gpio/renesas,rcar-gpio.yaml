@@ -49,10 +49,8 @@ properties:
           - const: renesas,rcar-gen3-gpio # R-Car Gen3 or RZ/G2
 
       - items:
-          - const: renesas,gpio-r8a779a0  # R-Car V3U
-
-      - items:
           - enum:
+              - renesas,gpio-r8a779a0     # R-Car V3U
               - renesas,gpio-r8a779f0     # R-Car S4-8
           - const: renesas,rcar-gen4-gpio # R-Car Gen4
 

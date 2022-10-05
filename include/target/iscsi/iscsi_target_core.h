@@ -26,6 +26,7 @@ struct sock;
 #define ISCSI_RX_THREAD_NAME		"iscsi_trx"
 #define ISCSI_TX_THREAD_NAME		"iscsi_ttx"
 #define ISCSI_IQN_LEN			224
+#define NA_AUTHENTICATION_INHERITED	-1
 
 /* struct iscsi_node_attrib sanity values */
 #define NA_DATAOUT_TIMEOUT		3
@@ -715,6 +716,7 @@ struct iscsi_login {
 } ____cacheline_aligned;
 
 struct iscsi_node_attrib {
+	s32			authentication;
 	u32			dataout_timeout;
 	u32			dataout_timeout_retries;
 	u32			default_erl;
@@ -757,6 +759,12 @@ struct iscsi_node_acl {
 	struct iscsi_node_auth	node_auth;
 	struct iscsi_node_stat_grps node_stat_grps;
 };
+
+static inline struct iscsi_node_acl *
+to_iscsi_nacl(struct se_node_acl *se_nacl)
+{
+	return container_of(se_nacl, struct iscsi_node_acl, se_node_acl);
+}
 
 struct iscsi_tpg_attrib {
 	u32			authentication;
@@ -838,6 +846,12 @@ struct iscsi_portal_group {
 	struct list_head	tpg_gnp_list;
 	struct list_head	tpg_list;
 } ____cacheline_aligned;
+
+static inline struct iscsi_portal_group *
+to_iscsi_tpg(struct se_portal_group *se_tpg)
+{
+	return container_of(se_tpg, struct iscsi_portal_group, tpg_se_tpg);
+}
 
 struct iscsi_wwn_stat_grps {
 	struct config_group	iscsi_stat_group;

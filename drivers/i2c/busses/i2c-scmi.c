@@ -30,7 +30,7 @@ struct acpi_smbus_cmi {
 	u8 cap_info:1;
 	u8 cap_read:1;
 	u8 cap_write:1;
-	const struct smbus_methods_t *methods;
+	struct smbus_methods_t *methods;
 };
 
 static const struct smbus_methods_t smbus_methods = {
@@ -361,6 +361,7 @@ static acpi_status acpi_smbus_cmi_query_methods(acpi_handle handle, u32 level,
 static int acpi_smbus_cmi_add(struct acpi_device *device)
 {
 	struct acpi_smbus_cmi *smbus_cmi;
+	const struct acpi_device_id *id;
 	int ret;
 
 	smbus_cmi = kzalloc(sizeof(struct acpi_smbus_cmi), GFP_KERNEL);
@@ -368,13 +369,17 @@ static int acpi_smbus_cmi_add(struct acpi_device *device)
 		return -ENOMEM;
 
 	smbus_cmi->handle = device->handle;
-	smbus_cmi->methods = device_get_match_data(&device->dev);
 	strcpy(acpi_device_name(device), ACPI_SMBUS_HC_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_SMBUS_HC_CLASS);
 	device->driver_data = smbus_cmi;
 	smbus_cmi->cap_info = 0;
 	smbus_cmi->cap_read = 0;
 	smbus_cmi->cap_write = 0;
+
+	for (id = acpi_smbus_cmi_ids; id->id[0]; id++)
+		if (!strcmp(id->id, acpi_device_hid(device)))
+			smbus_cmi->methods =
+				(struct smbus_methods_t *) id->driver_data;
 
 	acpi_walk_namespace(ACPI_TYPE_METHOD, smbus_cmi->handle, 1,
 			    acpi_smbus_cmi_query_methods, NULL, smbus_cmi, NULL);

@@ -381,6 +381,15 @@ static inline bool defer_reserve_crashkernel(void)
 # define INIT_MEMBLOCK_RESERVED_REGIONS	(INIT_MEMBLOCK_REGIONS + NR_CPUS + 1)
 #endif
 
+/*
+ * memory regions which marked with flag MEMBLOCK_NOMAP(for example, the memory
+ * of the EFI_UNUSABLE_MEMORY type) may divide a continuous memory block into
+ * multiple parts. As a result, the number of memory regions is large.
+ */
+#ifdef CONFIG_EFI
+#define INIT_MEMBLOCK_MEMORY_REGIONS	(INIT_MEMBLOCK_REGIONS * 8)
+#endif
+
 #include <asm-generic/memory_model.h>
 
 #endif /* __ASM_MEMORY_H */

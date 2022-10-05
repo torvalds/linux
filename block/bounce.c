@@ -199,24 +199,24 @@ err_put:
 	return NULL;
 }
 
-void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig)
+struct bio *__blk_queue_bounce(struct bio *bio_orig, struct request_queue *q)
 {
 	struct bio *bio;
-	int rw = bio_data_dir(*bio_orig);
+	int rw = bio_data_dir(bio_orig);
 	struct bio_vec *to, from;
 	struct bvec_iter iter;
 	unsigned i = 0, bytes = 0;
 	bool bounce = false;
 	int sectors;
 
-	bio_for_each_segment(from, *bio_orig, iter) {
+	bio_for_each_segment(from, bio_orig, iter) {
 		if (i++ < BIO_MAX_VECS)
 			bytes += from.bv_len;
 		if (PageHighMem(from.bv_page))
 			bounce = true;
 	}
 	if (!bounce)
-		return;
+		return bio_orig;
 
 	/*
 	 * Individual bvecs might not be logical block aligned. Round down
@@ -225,13 +225,13 @@ void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig)
 	 */
 	sectors = ALIGN_DOWN(bytes, queue_logical_block_size(q)) >>
 			SECTOR_SHIFT;
-	if (sectors < bio_sectors(*bio_orig)) {
-		bio = bio_split(*bio_orig, sectors, GFP_NOIO, &bounce_bio_split);
-		bio_chain(bio, *bio_orig);
-		submit_bio_noacct(*bio_orig);
-		*bio_orig = bio;
+	if (sectors < bio_sectors(bio_orig)) {
+		bio = bio_split(bio_orig, sectors, GFP_NOIO, &bounce_bio_split);
+		bio_chain(bio, bio_orig);
+		submit_bio_noacct(bio_orig);
+		bio_orig = bio;
 	}
-	bio = bounce_clone_bio(*bio_orig);
+	bio = bounce_clone_bio(bio_orig);
 
 	/*
 	 * Bvec table can't be updated by bio_for_each_segment_all(),
@@ -254,7 +254,7 @@ void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig)
 		to->bv_page = bounce_page;
 	}
 
-	trace_block_bio_bounce(*bio_orig);
+	trace_block_bio_bounce(bio_orig);
 
 	bio->bi_flags |= (1 << BIO_BOUNCED);
 
@@ -263,6 +263,6 @@ void __blk_queue_bounce(struct request_queue *q, struct bio **bio_orig)
 	else
 		bio->bi_end_io = bounce_end_io_write;
 
-	bio->bi_private = *bio_orig;
-	*bio_orig = bio;
+	bio->bi_private = bio_orig;
+	return bio;
 }

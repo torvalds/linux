@@ -207,7 +207,7 @@ static int e3d_set_fbinfo(struct e3d_info *ep)
 	info->pseudo_palette = ep->pseudo_palette;
 
 	/* Fill fix common fields */
-	strlcpy(info->fix.id, "e3d", sizeof(info->fix.id));
+	strscpy(info->fix.id, "e3d", sizeof(info->fix.id));
         info->fix.smem_start = ep->fb_base_phys;
         info->fix.smem_len = ep->fb_size;
         info->fix.type = FB_TYPE_PACKED_PIXELS;

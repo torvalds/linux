@@ -74,7 +74,7 @@ static void histb_pcie_writel(struct histb_pcie *histb_pcie, u32 reg, u32 val)
 	writel(val, histb_pcie->ctrl + reg);
 }
 
-static void histb_pcie_dbi_w_mode(struct pcie_port *pp, bool enable)
+static void histb_pcie_dbi_w_mode(struct dw_pcie_rp *pp, bool enable)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct histb_pcie *hipcie = to_histb_pcie(pci);
@@ -88,7 +88,7 @@ static void histb_pcie_dbi_w_mode(struct pcie_port *pp, bool enable)
 	histb_pcie_writel(hipcie, PCIE_SYS_CTRL0, val);
 }
 
-static void histb_pcie_dbi_r_mode(struct pcie_port *pp, bool enable)
+static void histb_pcie_dbi_r_mode(struct dw_pcie_rp *pp, bool enable)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct histb_pcie *hipcie = to_histb_pcie(pci);
@@ -180,7 +180,7 @@ static int histb_pcie_start_link(struct dw_pcie *pci)
 	return 0;
 }
 
-static int histb_pcie_host_init(struct pcie_port *pp)
+static int histb_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct histb_pcie *hipcie = to_histb_pcie(pci);
@@ -219,7 +219,7 @@ static void histb_pcie_host_disable(struct histb_pcie *hipcie)
 		regulator_disable(hipcie->vpcie);
 }
 
-static int histb_pcie_host_enable(struct pcie_port *pp)
+static int histb_pcie_host_enable(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct histb_pcie *hipcie = to_histb_pcie(pci);
@@ -297,7 +297,7 @@ static int histb_pcie_probe(struct platform_device *pdev)
 {
 	struct histb_pcie *hipcie;
 	struct dw_pcie *pci;
-	struct pcie_port *pp;
+	struct dw_pcie_rp *pp;
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	enum of_gpio_flags of_flags;

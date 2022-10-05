@@ -3,6 +3,7 @@
 #include <linux/errno.h>
 #include <linux/file.h>
 #include <linux/io_uring.h>
+#include <linux/security.h>
 
 #include <uapi/linux/io_uring.h>
 
@@ -11,7 +12,7 @@
 
 static void io_uring_cmd_work(struct io_kiocb *req, bool *locked)
 {
-	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req);
+	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
 
 	ioucmd->task_work_cb(ioucmd);
 }
@@ -46,7 +47,7 @@ void io_uring_cmd_done(struct io_uring_cmd *ioucmd, ssize_t ret, ssize_t res2)
 	if (ret < 0)
 		req_set_fail(req);
 
-	io_req_set_res(req, 0, ret);
+	io_req_set_res(req, ret, 0);
 	if (req->ctx->flags & IORING_SETUP_CQE32)
 		io_req_set_cqe32_extra(req, res2, 0);
 	__io_req_complete(req, 0);
@@ -55,8 +56,11 @@ EXPORT_SYMBOL_GPL(io_uring_cmd_done);
 
 int io_uring_cmd_prep_async(struct io_kiocb *req)
 {
-	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req);
+	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
 	size_t cmd_size;
+
+	BUILD_BUG_ON(uring_cmd_pdu_size(0) != 16);
+	BUILD_BUG_ON(uring_cmd_pdu_size(1) != 80);
 
 	cmd_size = uring_cmd_pdu_size(req->ctx->flags & IORING_SETUP_SQE128);
 
@@ -66,7 +70,7 @@ int io_uring_cmd_prep_async(struct io_kiocb *req)
 
 int io_uring_cmd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req);
+	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
 
 	if (sqe->rw_flags || sqe->__pad1)
 		return -EINVAL;
@@ -77,13 +81,17 @@ int io_uring_cmd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req);
+	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
 	struct io_ring_ctx *ctx = req->ctx;
 	struct file *file = req->file;
 	int ret;
 
 	if (!req->file->f_op->uring_cmd)
 		return -EOPNOTSUPP;
+
+	ret = security_uring_cmd(ioucmd);
+	if (ret)
+		return ret;
 
 	if (ctx->flags & IORING_SETUP_SQE128)
 		issue_flags |= IO_URING_F_SQE128;
@@ -106,8 +114,10 @@ int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 	}
 
 	if (ret != -EIOCBQUEUED) {
-		io_uring_cmd_done(ioucmd, ret, 0);
-		return IOU_OK;
+		if (ret < 0)
+			req_set_fail(req);
+		io_req_set_res(req, ret, 0);
+		return ret;
 	}
 
 	return IOU_ISSUE_SKIP_COMPLETE;

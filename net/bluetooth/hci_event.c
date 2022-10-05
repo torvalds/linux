@@ -328,14 +328,17 @@ static u8 hci_cc_delete_stored_link_key(struct hci_dev *hdev, void *data,
 					struct sk_buff *skb)
 {
 	struct hci_rp_delete_stored_link_key *rp = data;
+	u16 num_keys;
 
 	bt_dev_dbg(hdev, "status 0x%2.2x", rp->status);
 
 	if (rp->status)
 		return rp->status;
 
-	if (rp->num_keys <= hdev->stored_num_keys)
-		hdev->stored_num_keys -= le16_to_cpu(rp->num_keys);
+	num_keys = le16_to_cpu(rp->num_keys);
+
+	if (num_keys <= hdev->stored_num_keys)
+		hdev->stored_num_keys -= num_keys;
 	else
 		hdev->stored_num_keys = 0;
 

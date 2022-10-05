@@ -85,7 +85,7 @@ static struct io_poll *io_poll_get_double(struct io_kiocb *req)
 static struct io_poll *io_poll_get_single(struct io_kiocb *req)
 {
 	if (req->opcode == IORING_OP_POLL_ADD)
-		return io_kiocb_to_cmd(req);
+		return io_kiocb_to_cmd(req, struct io_poll);
 	return &req->apoll->poll;
 }
 
@@ -274,7 +274,7 @@ static void io_poll_task_func(struct io_kiocb *req, bool *locked)
 		return;
 
 	if (ret == IOU_POLL_DONE) {
-		struct io_poll *poll = io_kiocb_to_cmd(req);
+		struct io_poll *poll = io_kiocb_to_cmd(req, struct io_poll);
 		req->cqe.res = mangle_poll(req->cqe.res & poll->events);
 	} else if (ret != IOU_POLL_REMOVE_POLL_USE_RES) {
 		req->cqe.res = ret;
@@ -475,7 +475,7 @@ static void io_poll_queue_proc(struct file *file, struct wait_queue_head *head,
 			       struct poll_table_struct *p)
 {
 	struct io_poll_table *pt = container_of(p, struct io_poll_table, pt);
-	struct io_poll *poll = io_kiocb_to_cmd(pt->req);
+	struct io_poll *poll = io_kiocb_to_cmd(pt->req, struct io_poll);
 
 	__io_queue_proc(poll, pt, head,
 			(struct io_poll **) &pt->req->async_data);
@@ -821,7 +821,7 @@ static __poll_t io_poll_parse_events(const struct io_uring_sqe *sqe,
 
 int io_poll_remove_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	struct io_poll_update *upd = io_kiocb_to_cmd(req);
+	struct io_poll_update *upd = io_kiocb_to_cmd(req, struct io_poll_update);
 	u32 flags;
 
 	if (sqe->buf_index || sqe->splice_fd_in)
@@ -851,7 +851,7 @@ int io_poll_remove_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 int io_poll_add_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	struct io_poll *poll = io_kiocb_to_cmd(req);
+	struct io_poll *poll = io_kiocb_to_cmd(req, struct io_poll);
 	u32 flags;
 
 	if (sqe->buf_index || sqe->off || sqe->addr)
@@ -868,7 +868,7 @@ int io_poll_add_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 int io_poll_add(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_poll *poll = io_kiocb_to_cmd(req);
+	struct io_poll *poll = io_kiocb_to_cmd(req, struct io_poll);
 	struct io_poll_table ipt;
 	int ret;
 
@@ -891,7 +891,7 @@ int io_poll_add(struct io_kiocb *req, unsigned int issue_flags)
 
 int io_poll_remove(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_poll_update *poll_update = io_kiocb_to_cmd(req);
+	struct io_poll_update *poll_update = io_kiocb_to_cmd(req, struct io_poll_update);
 	struct io_cancel_data cd = { .data = poll_update->old_user_data, };
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_hash_bucket *bucket;
@@ -930,7 +930,7 @@ found:
 	if (poll_update->update_events || poll_update->update_user_data) {
 		/* only mask one event flags, keep behavior flags */
 		if (poll_update->update_events) {
-			struct io_poll *poll = io_kiocb_to_cmd(preq);
+			struct io_poll *poll = io_kiocb_to_cmd(preq, struct io_poll);
 
 			poll->events &= ~0xffff;
 			poll->events |= poll_update->events & 0xffff;

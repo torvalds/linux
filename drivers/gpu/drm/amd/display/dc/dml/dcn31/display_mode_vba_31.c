@@ -26,7 +26,7 @@
 #include "dc.h"
 #include "dc_link.h"
 #include "../display_mode_lib.h"
-#include "dml/dcn30/display_mode_vba_30.h"
+#include "../dcn30/display_mode_vba_30.h"
 #include "display_mode_vba_31.h"
 #include "../dml_inline_defs.h"
 

@@ -5,7 +5,6 @@
 
 menuconfig X86_PLATFORM_DRIVERS_DELL
 	bool "Dell X86 Platform Specific Device Drivers"
-	depends on X86_PLATFORM_DEVICES
 	help
 	  Say Y here to get to see options for device drivers for various
 	  Dell x86 platforms, including vendor-specific laptop extension drivers.

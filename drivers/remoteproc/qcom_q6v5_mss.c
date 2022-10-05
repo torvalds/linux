@@ -10,6 +10,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/devcoredump.h>
+#include <linux/dma-map-ops.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -932,27 +933,52 @@ static void q6v5proc_halt_axi_port(struct q6v5 *qproc,
 static int q6v5_mpss_init_image(struct q6v5 *qproc, const struct firmware *fw,
 				const char *fw_name)
 {
-	unsigned long dma_attrs = DMA_ATTR_FORCE_CONTIGUOUS;
+	unsigned long dma_attrs = DMA_ATTR_FORCE_CONTIGUOUS | DMA_ATTR_NO_KERNEL_MAPPING;
+	unsigned long flags = VM_DMA_COHERENT | VM_FLUSH_RESET_PERMS;
+	struct page **pages;
+	struct page *page;
 	dma_addr_t phys;
 	void *metadata;
 	int mdata_perm;
 	int xferop_ret;
 	size_t size;
-	void *ptr;
+	void *vaddr;
+	int count;
 	int ret;
+	int i;
 
 	metadata = qcom_mdt_read_metadata(fw, &size, fw_name, qproc->dev);
 	if (IS_ERR(metadata))
 		return PTR_ERR(metadata);
 
-	ptr = dma_alloc_attrs(qproc->dev, size, &phys, GFP_KERNEL, dma_attrs);
-	if (!ptr) {
+	page = dma_alloc_attrs(qproc->dev, size, &phys, GFP_KERNEL, dma_attrs);
+	if (!page) {
 		kfree(metadata);
 		dev_err(qproc->dev, "failed to allocate mdt buffer\n");
 		return -ENOMEM;
 	}
 
-	memcpy(ptr, metadata, size);
+	count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+	pages = kmalloc_array(count, sizeof(struct page *), GFP_KERNEL);
+	if (!pages) {
+		ret = -ENOMEM;
+		goto free_dma_attrs;
+	}
+
+	for (i = 0; i < count; i++)
+		pages[i] = nth_page(page, i);
+
+	vaddr = vmap(pages, count, flags, pgprot_dmacoherent(PAGE_KERNEL));
+	kfree(pages);
+	if (!vaddr) {
+		dev_err(qproc->dev, "unable to map memory region: %pa+%zx\n", &phys, size);
+		ret = -EBUSY;
+		goto free_dma_attrs;
+	}
+
+	memcpy(vaddr, metadata, size);
+
+	vunmap(vaddr);
 
 	/* Hypervisor mapping to access metadata by modem */
 	mdata_perm = BIT(QCOM_SCM_VMID_HLOS);
@@ -982,7 +1008,7 @@ static int q6v5_mpss_init_image(struct q6v5 *qproc, const struct firmware *fw,
 			 "mdt buffer not reclaimed system may become unstable\n");
 
 free_dma_attrs:
-	dma_free_attrs(qproc->dev, size, ptr, phys, dma_attrs);
+	dma_free_attrs(qproc->dev, size, page, phys, dma_attrs);
 	kfree(metadata);
 
 	return ret < 0 ? ret : 0;
@@ -1101,6 +1127,9 @@ static int q6v5_mba_load(struct q6v5 *qproc)
 	ret = q6v5proc_reset(qproc);
 	if (ret)
 		goto reclaim_mba;
+
+	if (qproc->has_mba_logs)
+		qcom_pil_info_store("mba", qproc->mba_phys, MBA_LOG_SIZE);
 
 	ret = q6v5_rmb_mba_wait(qproc, 0, 5000);
 	if (ret == -ETIMEDOUT) {
@@ -1594,11 +1623,19 @@ static int qcom_q6v5_register_dump_segments(struct rproc *rproc,
 	return ret;
 }
 
+static unsigned long q6v5_panic(struct rproc *rproc)
+{
+	struct q6v5 *qproc = (struct q6v5 *)rproc->priv;
+
+	return qcom_q6v5_panic(&qproc->q6v5);
+}
+
 static const struct rproc_ops q6v5_ops = {
 	.start = q6v5_start,
 	.stop = q6v5_stop,
 	.parse_fw = qcom_q6v5_register_dump_segments,
 	.load = q6v5_load,
+	.panic = q6v5_panic,
 };
 
 static void qcom_msa_handover(struct qcom_q6v5 *q6v5)
@@ -2186,6 +2223,11 @@ static const struct rproc_hexagon_res msm8996_mss = {
 			"gpll0_mss",
 			"snoc_axi",
 			"mnoc_axi",
+			NULL
+	},
+	.proxy_pd_names = (char*[]){
+			"mx",
+			"cx",
 			NULL
 	},
 	.need_mem_protection = true,

@@ -1352,15 +1352,13 @@ static int tls_setup_from_iter(struct iov_iter *from,
 			rc = -EFAULT;
 			goto out;
 		}
-		copied = iov_iter_get_pages(from, pages,
+		copied = iov_iter_get_pages2(from, pages,
 					    length,
 					    maxpages, &offset);
 		if (copied <= 0) {
 			rc = -EFAULT;
 			goto out;
 		}
-
-		iov_iter_advance(from, copied);
 
 		length -= copied;
 		size += copied;
@@ -2704,7 +2702,9 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 			crypto_info->version != TLS_1_3_VERSION &&
 			!!(tfm->__crt_alg->cra_flags & CRYPTO_ALG_ASYNC);
 
-		tls_strp_init(&sw_ctx_rx->strp, sk);
+		rc = tls_strp_init(&sw_ctx_rx->strp, sk);
+		if (rc)
+			goto free_aead;
 	}
 
 	goto out;

@@ -572,6 +572,7 @@ config LPC_ICH
 	tristate "Intel ICH LPC"
 	depends on PCI
 	select MFD_CORE
+	select P2SB if X86
 	help
 	  The LPC bridge function of the Intel ICH provides support for
 	  many functional units. This driver provides needed support for
@@ -1357,12 +1358,13 @@ config MFD_STA2X11
 	select REGMAP_MMIO
 
 config MFD_SUN6I_PRCM
-	bool "Allwinner A31 PRCM controller"
+	bool "Allwinner A31/A23/A33 PRCM controller"
 	depends on ARCH_SUNXI || COMPILE_TEST
 	select MFD_CORE
 	help
 	  Support for the PRCM (Power/Reset/Clock Management) unit available
-	  in A31 SoC.
+	  in the A31, A23, and A33 SoCs. Other Allwinner SoCs contain similar
+	  hardware, but they do not use this driver.
 
 config MFD_SYSCON
 	bool "System Controller Register R/W Based on Regmap"

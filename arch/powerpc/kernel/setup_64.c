@@ -113,7 +113,6 @@ void __init setup_tlb_core_data(void)
 		 * Should we panic instead?
 		 */
 		WARN_ONCE(smt_enabled_at_boot >= 2 &&
-			  !mmu_has_feature(MMU_FTR_USE_TLBRSRV) &&
 			  book3e_htw_mode != PPC_HTW_E6500,
 			  "%s: unsupported MMU configuration\n", __func__);
 	}

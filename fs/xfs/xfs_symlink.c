@@ -256,7 +256,7 @@ xfs_symlink(
 	/*
 	 * If the symlink will fit into the inode, write it inline.
 	 */
-	if (pathlen <= XFS_IFORK_DSIZE(ip)) {
+	if (pathlen <= xfs_inode_data_fork_size(ip)) {
 		xfs_init_local_fork(ip, XFS_DATA_FORK, target_path, pathlen);
 
 		ip->i_disk_size = pathlen;

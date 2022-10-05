@@ -66,7 +66,11 @@ static int pm8001_find_tag(struct sas_task *task, u32 *tag)
 void pm8001_tag_free(struct pm8001_hba_info *pm8001_ha, u32 tag)
 {
 	void *bitmap = pm8001_ha->tags;
-	clear_bit(tag, bitmap);
+	unsigned long flags;
+
+	spin_lock_irqsave(&pm8001_ha->bitmap_lock, flags);
+	__clear_bit(tag, bitmap);
+	spin_unlock_irqrestore(&pm8001_ha->bitmap_lock, flags);
 }
 
 /**
@@ -76,9 +80,9 @@ void pm8001_tag_free(struct pm8001_hba_info *pm8001_ha, u32 tag)
   */
 int pm8001_tag_alloc(struct pm8001_hba_info *pm8001_ha, u32 *tag_out)
 {
-	unsigned int tag;
 	void *bitmap = pm8001_ha->tags;
 	unsigned long flags;
+	unsigned int tag;
 
 	spin_lock_irqsave(&pm8001_ha->bitmap_lock, flags);
 	tag = find_first_zero_bit(bitmap, pm8001_ha->tags_num);
@@ -86,7 +90,7 @@ int pm8001_tag_alloc(struct pm8001_hba_info *pm8001_ha, u32 *tag_out)
 		spin_unlock_irqrestore(&pm8001_ha->bitmap_lock, flags);
 		return -SAS_QUEUE_FULL;
 	}
-	set_bit(tag, bitmap);
+	__set_bit(tag, bitmap);
 	spin_unlock_irqrestore(&pm8001_ha->bitmap_lock, flags);
 	*tag_out = tag;
 	return 0;

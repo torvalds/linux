@@ -21,51 +21,13 @@ properties:
 
 patternProperties:
   "^.*-edge|rpm$":
-    type: object
+    $ref: /schemas/remoteproc/qcom,smd-edge.yaml#
     description:
       Each subnode of the SMD node represents a remote subsystem or a remote
       processor of some sort - or in SMD language an "edge". The name of the
       edges are not important.
 
     properties:
-      interrupts:
-        maxItems: 1
-
-      label:
-        $ref: /schemas/types.yaml#/definitions/string
-        description:
-          Name of the edge, used for debugging and identification purposes. The
-          node name will be used if this is not present.
-
-      mboxes:
-        maxItems: 1
-        description:
-          Reference to the mailbox representing the outgoing doorbell in APCS for
-          this client.
-
-      qcom,ipc:
-        $ref: /schemas/types.yaml#/definitions/phandle-array
-        items:
-          - items:
-              - description: phandle to a syscon node representing the APCS registers
-              - description: u32 representing offset to the register within the syscon
-              - description: u32 representing the ipc bit within the register
-        description:
-          Three entries specifying the outgoing ipc bit used for signaling the
-          remote processor.
-
-      qcom,smd-edge:
-        $ref: /schemas/types.yaml#/definitions/uint32
-        description:
-          The identifier of the remote processor in the smd channel allocation
-          table.
-
-      qcom,remote-pid:
-        $ref: /schemas/types.yaml#/definitions/uint32
-        description:
-          The identifier for the remote processor as known by the rest of the
-          system.
-
       rpm-requests:
         type: object
         description:
@@ -89,17 +51,7 @@ patternProperties:
 
         additionalProperties: true
 
-    required:
-      - interrupts
-      - qcom,smd-edge
-
-    oneOf:
-      - required:
-          - mboxes
-      - required:
-          - qcom,ipc
-
-    additionalProperties: false
+    unevaluatedProperties: false
 
 required:
   - compatible

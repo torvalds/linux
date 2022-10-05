@@ -2484,7 +2484,7 @@ static int dsa_slave_changeupper(struct net_device *dev,
 			if (!err)
 				dsa_bridge_mtu_normalization(dp);
 			if (err == -EOPNOTSUPP) {
-				if (!extack->_msg)
+				if (extack && !extack->_msg)
 					NL_SET_ERR_MSG_MOD(extack,
 							   "Offloading not supported");
 				err = 0;

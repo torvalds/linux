@@ -610,6 +610,9 @@ static int felix_change_tag_protocol(struct dsa_switch *ds,
 
 	old_proto_ops = felix->tag_proto_ops;
 
+	if (proto_ops == old_proto_ops)
+		return 0;
+
 	err = proto_ops->setup(ds);
 	if (err)
 		goto setup_failed;

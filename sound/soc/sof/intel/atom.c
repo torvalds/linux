@@ -274,22 +274,22 @@ static const char *fixup_tplg_name(struct snd_sof_dev *sdev,
 				   const char *ssp_str)
 {
 	const char *tplg_filename = NULL;
-	char *filename;
-	char *split_ext;
+	const char *split_ext;
+	char *filename, *tmp;
 
-	filename = devm_kstrdup(sdev->dev, sof_tplg_filename, GFP_KERNEL);
+	filename = kstrdup(sof_tplg_filename, GFP_KERNEL);
 	if (!filename)
 		return NULL;
 
 	/* this assumes a .tplg extension */
-	split_ext = strsep(&filename, ".");
-	if (split_ext) {
+	tmp = filename;
+	split_ext = strsep(&tmp, ".");
+	if (split_ext)
 		tplg_filename = devm_kasprintf(sdev->dev, GFP_KERNEL,
 					       "%s-%s.tplg",
 					       split_ext, ssp_str);
-		if (!tplg_filename)
-			return NULL;
-	}
+	kfree(filename);
+
 	return tplg_filename;
 }
 

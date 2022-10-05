@@ -13,7 +13,7 @@ description:
   This binding describes the hardware component responsible for side channel
   requests to the always-on subsystem (AOSS), used for certain power management
   requests that is not handled by the standard RPMh interface. Each client in the
-  SoC has it's own block of message RAM and IRQ for communication with the AOSS.
+  SoC has its own block of message RAM and IRQ for communication with the AOSS.
   The protocol used to communicate in the message RAM is known as Qualcomm
   Messaging Protocol (QMP)
 

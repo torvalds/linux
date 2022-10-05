@@ -699,6 +699,10 @@ static int pm8001_chip_init(struct pm8001_hba_info *pm8001_ha)
 	return 0;
 }
 
+static void pm8001_chip_post_init(struct pm8001_hba_info *pm8001_ha)
+{
+}
+
 static int mpi_uninit_check(struct pm8001_hba_info *pm8001_ha)
 {
 	u32 max_wait_count;
@@ -3134,7 +3138,7 @@ int pm8001_mpi_local_phy_ctl(struct pm8001_hba_info *pm8001_ha, void *piomb)
  *
  * when HBA driver received the identify done event or initiate FIS received
  * event(for SATA), it will invoke this function to notify the sas layer that
- * the sas toplogy has formed, please discover the the whole sas domain,
+ * the sas toplogy has formed, please discover the whole sas domain,
  * while receive a broadcast(change) primitive just tell the sas
  * layer to discover the changed domain rather than the whole domain.
  */
@@ -4934,6 +4938,7 @@ pm8001_chip_sas_re_initialization(struct pm8001_hba_info *pm8001_ha)
 const struct pm8001_dispatch pm8001_8001_dispatch = {
 	.name			= "pmc8001",
 	.chip_init		= pm8001_chip_init,
+	.chip_post_init		= pm8001_chip_post_init,
 	.chip_soft_rst		= pm8001_chip_soft_rst,
 	.chip_rst		= pm8001_hw_chip_rst,
 	.chip_iounmap		= pm8001_chip_iounmap,

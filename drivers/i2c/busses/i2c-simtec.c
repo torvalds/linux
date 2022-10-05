@@ -99,7 +99,7 @@ static int simtec_i2c_probe(struct platform_device *dev)
 	pd->adap.algo_data = &pd->bit;
 	pd->adap.dev.parent = &dev->dev;
 
-	strlcpy(pd->adap.name, "Simtec I2C", sizeof(pd->adap.name));
+	strscpy(pd->adap.name, "Simtec I2C", sizeof(pd->adap.name));
 
 	pd->bit.data = pd;
 	pd->bit.setsda = simtec_i2c_setsda;

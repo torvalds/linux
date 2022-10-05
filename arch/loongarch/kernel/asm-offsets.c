@@ -103,6 +103,8 @@ void output_thread_defines(void)
 	OFFSET(THREAD_REG29, task_struct, thread.reg29);
 	OFFSET(THREAD_REG30, task_struct, thread.reg30);
 	OFFSET(THREAD_REG31, task_struct, thread.reg31);
+	OFFSET(THREAD_SCHED_RA, task_struct, thread.sched_ra);
+	OFFSET(THREAD_SCHED_CFA, task_struct, thread.sched_cfa);
 	OFFSET(THREAD_CSRCRMD, task_struct,
 	       thread.csr_crmd);
 	OFFSET(THREAD_CSRPRMD, task_struct,
@@ -188,12 +190,6 @@ void output_mm_defines(void)
 	DEFINE(_PMD_T_LOG2, PMD_T_LOG2);
 #endif
 	DEFINE(_PTE_T_LOG2, PTE_T_LOG2);
-	BLANK();
-	DEFINE(_PGD_ORDER, PGD_ORDER);
-#ifndef __PAGETABLE_PMD_FOLDED
-	DEFINE(_PMD_ORDER, PMD_ORDER);
-#endif
-	DEFINE(_PTE_ORDER, PTE_ORDER);
 	BLANK();
 	DEFINE(_PMD_SHIFT, PMD_SHIFT);
 	DEFINE(_PGDIR_SHIFT, PGDIR_SHIFT);

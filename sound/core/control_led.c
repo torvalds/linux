@@ -405,7 +405,7 @@ static ssize_t mode_show(struct device *dev,
 	case MODE_ON:		str = "on"; break;
 	case MODE_OFF:		str = "off"; break;
 	}
-	return sprintf(buf, "%s\n", str);
+	return sysfs_emit(buf, "%s\n", str);
 }
 
 static ssize_t mode_store(struct device *dev,
@@ -443,7 +443,7 @@ static ssize_t brightness_show(struct device *dev,
 {
 	struct snd_ctl_led *led = container_of(dev, struct snd_ctl_led, dev);
 
-	return sprintf(buf, "%u\n", ledtrig_audio_get(led->trigger_type));
+	return sysfs_emit(buf, "%u\n", ledtrig_audio_get(led->trigger_type));
 }
 
 static DEVICE_ATTR_RW(mode);
@@ -618,8 +618,7 @@ static ssize_t list_show(struct device *dev,
 	struct snd_ctl_led_card *led_card = container_of(dev, struct snd_ctl_led_card, dev);
 	struct snd_card *card;
 	struct snd_ctl_led_ctl *lctl;
-	char *buf2 = buf;
-	size_t l;
+	size_t l = 0;
 
 	card = snd_card_ref(led_card->number);
 	if (!card)
@@ -627,23 +626,19 @@ static ssize_t list_show(struct device *dev,
 	down_read(&card->controls_rwsem);
 	mutex_lock(&snd_ctl_led_mutex);
 	if (snd_ctl_led_card_valid[led_card->number]) {
-		list_for_each_entry(lctl, &led_card->led->controls, list)
-			if (lctl->card == card) {
-				if (buf2 - buf > PAGE_SIZE - 16)
-					break;
-				if (buf2 != buf)
-					*buf2++ = ' ';
-				l = scnprintf(buf2, 15, "%u",
-						lctl->kctl->id.numid +
-							lctl->index_offset);
-				buf2[l] = '\0';
-				buf2 += l + 1;
-			}
+		list_for_each_entry(lctl, &led_card->led->controls, list) {
+			if (lctl->card != card)
+				continue;
+			if (l)
+				l += sysfs_emit_at(buf, l, " ");
+			l += sysfs_emit_at(buf, l, "%u",
+					   lctl->kctl->id.numid + lctl->index_offset);
+		}
 	}
 	mutex_unlock(&snd_ctl_led_mutex);
 	up_read(&card->controls_rwsem);
 	snd_card_unref(card);
-	return buf2 - buf;
+	return l;
 }
 
 static DEVICE_ATTR_WO(attach);

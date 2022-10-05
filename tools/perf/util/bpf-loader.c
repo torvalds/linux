@@ -1879,7 +1879,7 @@ struct evsel *bpf__setup_output_event(struct evlist *evlist, const char *name)
 		if (asprintf(&event_definition, "bpf-output/no-inherit=1,name=%s/", name) < 0)
 			return ERR_PTR(-ENOMEM);
 
-		err = parse_events(evlist, event_definition, NULL);
+		err = parse_event(evlist, event_definition);
 		free(event_definition);
 
 		if (err) {

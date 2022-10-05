@@ -383,16 +383,6 @@ static struct iommu_device *sprd_iommu_probe_device(struct device *dev)
 	return &sdev->iommu;
 }
 
-static void sprd_iommu_release_device(struct device *dev)
-{
-	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
-
-	if (!fwspec || fwspec->ops != &sprd_iommu_ops)
-		return;
-
-	iommu_fwspec_free(dev);
-}
-
 static struct iommu_group *sprd_iommu_device_group(struct device *dev)
 {
 	struct sprd_iommu_device *sdev = dev_iommu_priv_get(dev);
@@ -417,7 +407,6 @@ static int sprd_iommu_of_xlate(struct device *dev, struct of_phandle_args *args)
 static const struct iommu_ops sprd_iommu_ops = {
 	.domain_alloc	= sprd_iommu_domain_alloc,
 	.probe_device	= sprd_iommu_probe_device,
-	.release_device	= sprd_iommu_release_device,
 	.device_group	= sprd_iommu_device_group,
 	.of_xlate	= sprd_iommu_of_xlate,
 	.pgsize_bitmap	= ~0UL << SPRD_IOMMU_PAGE_SHIFT,

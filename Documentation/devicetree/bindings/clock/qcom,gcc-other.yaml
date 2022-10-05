@@ -44,7 +44,6 @@ properties:
       - qcom,gcc-msm8916
       - qcom,gcc-msm8939
       - qcom,gcc-msm8953
-      - qcom,gcc-msm8960
       - qcom,gcc-msm8974
       - qcom,gcc-msm8974pro
       - qcom,gcc-msm8974pro-ac
@@ -58,10 +57,10 @@ required:
 unevaluatedProperties: false
 
 examples:
-  # Example for GCC for MSM8960:
+  # Example for GCC for MSM8974:
   - |
     clock-controller@900000 {
-      compatible = "qcom,gcc-msm8960";
+      compatible = "qcom,gcc-msm8974";
       reg = <0x900000 0x4000>;
       #clock-cells = <1>;
       #reset-cells = <1>;

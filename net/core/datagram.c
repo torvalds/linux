@@ -632,12 +632,11 @@ int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
 		if (frag == MAX_SKB_FRAGS)
 			return -EMSGSIZE;
 
-		copied = iov_iter_get_pages(from, pages, length,
+		copied = iov_iter_get_pages2(from, pages, length,
 					    MAX_SKB_FRAGS - frag, &start);
 		if (copied < 0)
 			return -EFAULT;
 
-		iov_iter_advance(from, copied);
 		length -= copied;
 
 		truesize = PAGE_ALIGN(copied + start);

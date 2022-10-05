@@ -4,6 +4,8 @@
 #include "fu740-c000.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/leds/common.h>
+#include <dt-bindings/pwm/pwm.h>
 
 /* Clock frequency (in Hz) of the PCB crystal for rtcclk */
 #define RTCCLK_FREQ		1000000
@@ -43,6 +45,46 @@
 	gpio-poweroff {
 		compatible = "gpio-poweroff";
 		gpios = <&gpio 2 GPIO_ACTIVE_LOW>;
+	};
+
+	led-controller-1 {
+		compatible = "pwm-leds";
+
+		led-d12 {
+			pwms = <&pwm0 0 7812500 PWM_POLARITY_INVERTED>;
+			active-low;
+			color = <LED_COLOR_ID_GREEN>;
+			max-brightness = <255>;
+			label = "d12";
+		};
+	};
+
+	led-controller-2 {
+		compatible = "pwm-leds-multicolor";
+
+		multi-led {
+			color = <LED_COLOR_ID_RGB>;
+			max-brightness = <255>;
+			label = "d2";
+
+			led-red {
+				pwms = <&pwm0 2 7812500 PWM_POLARITY_INVERTED>;
+				active-low;
+				color = <LED_COLOR_ID_RED>;
+			};
+
+			led-green {
+				pwms = <&pwm0 1 7812500 PWM_POLARITY_INVERTED>;
+				active-low;
+				color = <LED_COLOR_ID_GREEN>;
+			};
+
+			led-blue {
+				pwms = <&pwm0 3 7812500 PWM_POLARITY_INVERTED>;
+				active-low;
+				color = <LED_COLOR_ID_BLUE>;
+			};
+		};
 	};
 };
 
@@ -90,7 +132,7 @@
 			compatible = "dlg,da9063-rtc";
 		};
 
-		wdt {
+		watchdog {
 			compatible = "dlg,da9063-watchdog";
 		};
 

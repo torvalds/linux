@@ -615,21 +615,24 @@ static int mtdchar_write_ioctl(struct mtd_info *mtd,
 	if (!usr_oob)
 		req.ooblen = 0;
 
+	req.len &= 0xffffffff;
+	req.ooblen &= 0xffffffff;
+
 	if (req.start + req.len > mtd->size)
 		return -EINVAL;
 
 	datbuf_len = min_t(size_t, req.len, mtd->erasesize);
 	if (datbuf_len > 0) {
-		datbuf = kmalloc(datbuf_len, GFP_KERNEL);
+		datbuf = kvmalloc(datbuf_len, GFP_KERNEL);
 		if (!datbuf)
 			return -ENOMEM;
 	}
 
 	oobbuf_len = min_t(size_t, req.ooblen, mtd->erasesize);
 	if (oobbuf_len > 0) {
-		oobbuf = kmalloc(oobbuf_len, GFP_KERNEL);
+		oobbuf = kvmalloc(oobbuf_len, GFP_KERNEL);
 		if (!oobbuf) {
-			kfree(datbuf);
+			kvfree(datbuf);
 			return -ENOMEM;
 		}
 	}
@@ -679,8 +682,8 @@ static int mtdchar_write_ioctl(struct mtd_info *mtd,
 		usr_oob += ops.oobretlen;
 	}
 
-	kfree(datbuf);
-	kfree(oobbuf);
+	kvfree(datbuf);
+	kvfree(oobbuf);
 
 	return ret;
 }
