@@ -2219,7 +2219,7 @@ u32 intel_rps_get_rpn_frequency(struct intel_rps *rps)
 		return intel_gpu_freq(rps, rps->min_freq);
 }
 
-void gen6_rps_frequency_dump(struct intel_rps *rps, struct drm_printer *p)
+static void rps_frequency_dump(struct intel_rps *rps, struct drm_printer *p)
 {
 	struct intel_gt *gt = rps_to_gt(rps);
 	struct drm_i915_private *i915 = gt->i915;
@@ -2380,6 +2380,50 @@ void gen6_rps_frequency_dump(struct intel_rps *rps, struct drm_printer *p)
 	drm_printf(p,
 		   "efficient (RPe) frequency: %d MHz\n",
 		   intel_gpu_freq(rps, rps->efficient_freq));
+}
+
+static void slpc_frequency_dump(struct intel_rps *rps, struct drm_printer *p)
+{
+	struct intel_gt *gt = rps_to_gt(rps);
+	struct intel_uncore *uncore = gt->uncore;
+	struct intel_rps_freq_caps caps;
+	u32 pm_mask;
+
+	gen6_rps_get_freq_caps(rps, &caps);
+	pm_mask = intel_uncore_read(uncore, GEN6_PMINTRMSK);
+
+	drm_printf(p, "PM MASK=0x%08x\n", pm_mask);
+	drm_printf(p, "pm_intrmsk_mbz: 0x%08x\n",
+		   rps->pm_intrmsk_mbz);
+	drm_printf(p, "RPSTAT1: 0x%08x\n", intel_uncore_read(uncore, GEN6_RPSTAT1));
+	drm_printf(p, "RPNSWREQ: %dMHz\n", intel_rps_get_requested_frequency(rps));
+	drm_printf(p, "Lowest (RPN) frequency: %dMHz\n",
+		   intel_gpu_freq(rps, caps.min_freq));
+	drm_printf(p, "Nominal (RP1) frequency: %dMHz\n",
+		   intel_gpu_freq(rps, caps.rp1_freq));
+	drm_printf(p, "Max non-overclocked (RP0) frequency: %dMHz\n",
+		   intel_gpu_freq(rps, caps.rp0_freq));
+	drm_printf(p, "Current freq: %d MHz\n",
+		   intel_rps_get_requested_frequency(rps));
+	drm_printf(p, "Actual freq: %d MHz\n",
+		   intel_rps_read_actual_frequency(rps));
+	drm_printf(p, "Min freq: %d MHz\n",
+		   intel_rps_get_min_frequency(rps));
+	drm_printf(p, "Boost freq: %d MHz\n",
+		   intel_rps_get_boost_frequency(rps));
+	drm_printf(p, "Max freq: %d MHz\n",
+		   intel_rps_get_max_frequency(rps));
+	drm_printf(p,
+		   "efficient (RPe) frequency: %d MHz\n",
+		   intel_gpu_freq(rps, caps.rp1_freq));
+}
+
+void gen6_rps_frequency_dump(struct intel_rps *rps, struct drm_printer *p)
+{
+	if (rps_uses_slpc(rps))
+		return slpc_frequency_dump(rps, p);
+	else
+		return rps_frequency_dump(rps, p);
 }
 
 static int set_max_freq(struct intel_rps *rps, u32 val)
