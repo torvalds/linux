@@ -15,7 +15,15 @@
 		     "fsl,imx6ull";
 };
 
+&ad7879_ts {
+	status = "okay";
+};
+
 &atmel_mxt_ts {
+	status = "okay";
+};
+
+&backlight {
 	status = "okay";
 };
 
@@ -62,4 +70,20 @@
 		line-name = "LVDS_COLOR_MAP";
 		output-low;
 	};
+};
+
+&i2c2 {
+	status = "okay";
+};
+
+&lcdif {
+	status = "okay";
+};
+
+&panel_dpi {
+	status = "okay";
+};
+
+&pwm4 {
+	status = "okay";
 };
