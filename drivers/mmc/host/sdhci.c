@@ -526,7 +526,6 @@ static inline bool sdhci_has_requests(struct sdhci_host *host)
 
 static void sdhci_read_block_pio(struct sdhci_host *host)
 {
-	unsigned long flags;
 	size_t blksize, len, chunk;
 	u32 scratch;
 	u8 *buf;
@@ -535,8 +534,6 @@ static void sdhci_read_block_pio(struct sdhci_host *host)
 
 	blksize = host->data->blksz;
 	chunk = 0;
-
-	local_irq_save(flags);
 
 	while (blksize) {
 		BUG_ON(!sg_miter_next(&host->sg_miter));
@@ -564,13 +561,10 @@ static void sdhci_read_block_pio(struct sdhci_host *host)
 	}
 
 	sg_miter_stop(&host->sg_miter);
-
-	local_irq_restore(flags);
 }
 
 static void sdhci_write_block_pio(struct sdhci_host *host)
 {
-	unsigned long flags;
 	size_t blksize, len, chunk;
 	u32 scratch;
 	u8 *buf;
@@ -580,8 +574,6 @@ static void sdhci_write_block_pio(struct sdhci_host *host)
 	blksize = host->data->blksz;
 	chunk = 0;
 	scratch = 0;
-
-	local_irq_save(flags);
 
 	while (blksize) {
 		BUG_ON(!sg_miter_next(&host->sg_miter));
@@ -609,8 +601,6 @@ static void sdhci_write_block_pio(struct sdhci_host *host)
 	}
 
 	sg_miter_stop(&host->sg_miter);
-
-	local_irq_restore(flags);
 }
 
 static void sdhci_transfer_pio(struct sdhci_host *host)
