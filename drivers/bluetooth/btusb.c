@@ -977,6 +977,34 @@ static int btusb_recv_bulk(struct btusb_data *data, void *buffer, int count)
 	return err;
 }
 
+static bool btusb_validate_sco_handle(struct hci_dev *hdev,
+				      struct hci_sco_hdr *hdr)
+{
+	__u16 handle;
+
+	if (hci_dev_test_flag(hdev, HCI_USER_CHANNEL))
+		// Can't validate, userspace controls everything.
+		return true;
+
+	/*
+	 * USB isochronous transfers are not designed to be reliable and may
+	 * lose fragments.  When this happens, the next first fragment
+	 * encountered might actually be a continuation fragment.
+	 * Validate the handle to detect it and drop it, or else the upper
+	 * layer will get garbage for a while.
+	 */
+
+	handle = hci_handle(__le16_to_cpu(hdr->handle));
+
+	switch (hci_conn_lookup_type(hdev, handle)) {
+	case SCO_LINK:
+	case ESCO_LINK:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static int btusb_recv_isoc(struct btusb_data *data, void *buffer, int count)
 {
 	struct sk_buff *skb;
@@ -1009,9 +1037,12 @@ static int btusb_recv_isoc(struct btusb_data *data, void *buffer, int count)
 
 		if (skb->len == HCI_SCO_HDR_SIZE) {
 			/* Complete SCO header */
-			hci_skb_expect(skb) = hci_sco_hdr(skb)->dlen;
+			struct hci_sco_hdr *hdr = hci_sco_hdr(skb);
 
-			if (skb_tailroom(skb) < hci_skb_expect(skb)) {
+			hci_skb_expect(skb) = hdr->dlen;
+
+			if (skb_tailroom(skb) < hci_skb_expect(skb) ||
+			    !btusb_validate_sco_handle(data->hdev, hdr)) {
 				kfree_skb(skb);
 				skb = NULL;
 
