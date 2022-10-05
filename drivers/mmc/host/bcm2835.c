@@ -1070,7 +1070,7 @@ static void bcm2835_dma_complete_work(struct work_struct *work)
 			host->drain_page += host->drain_offset >> PAGE_SHIFT;
 			host->drain_offset &= ~PAGE_MASK;
 		}
-		page = kmap_atomic(host->drain_page);
+		page = kmap_local_page(host->drain_page);
 		buf = page + host->drain_offset;
 
 		while (host->drain_words) {
@@ -1081,7 +1081,7 @@ static void bcm2835_dma_complete_work(struct work_struct *work)
 			host->drain_words--;
 		}
 
-		kunmap_atomic(page);
+		kunmap_local(page);
 	}
 
 	bcm2835_finish_data(host);
