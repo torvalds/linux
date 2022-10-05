@@ -1279,7 +1279,7 @@ got:
 					EXT4_GROUP_INFO_IBITMAP_CORRUPT);
 		goto out;
 	}
-	inode->i_generation = prandom_u32();
+	inode->i_generation = get_random_u32();
 
 	/* Precompute checksum seed for inode metadata */
 	if (ext4_has_metadata_csum(sb)) {

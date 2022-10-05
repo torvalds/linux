@@ -1063,7 +1063,7 @@ static void chtls_pass_accept_rpl(struct sk_buff *skb,
 	opt2 |= WND_SCALE_EN_V(WSCALE_OK(tp));
 	rpl5->opt0 = cpu_to_be64(opt0);
 	rpl5->opt2 = cpu_to_be32(opt2);
-	rpl5->iss = cpu_to_be32((prandom_u32() & ~7UL) - 1);
+	rpl5->iss = cpu_to_be32((get_random_u32() & ~7UL) - 1);
 	set_wr_txq(skb, CPL_PRIORITY_SETUP, csk->port_id);
 	t4_set_arp_err_handler(skb, sk, chtls_accept_rpl_arp_failure);
 	cxgb4_l2t_send(csk->egress_dev, skb, csk->l2t_entry);

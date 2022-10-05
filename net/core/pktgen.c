@@ -2464,7 +2464,7 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 		for (i = 0; i < pkt_dev->nr_labels; i++)
 			if (pkt_dev->labels[i] & MPLS_STACK_BOTTOM)
 				pkt_dev->labels[i] = MPLS_STACK_BOTTOM |
-					     ((__force __be32)prandom_u32() &
+					     ((__force __be32)get_random_u32() &
 						      htonl(0x000fffff));
 	}
 
@@ -2568,7 +2568,7 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 
 			for (i = 0; i < 4; i++) {
 				pkt_dev->cur_in6_daddr.s6_addr32[i] =
-				    (((__force __be32)prandom_u32() |
+				    (((__force __be32)get_random_u32() |
 				      pkt_dev->min_in6_daddr.s6_addr32[i]) &
 				     pkt_dev->max_in6_daddr.s6_addr32[i]);
 			}

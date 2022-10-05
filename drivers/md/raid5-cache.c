@@ -2994,7 +2994,7 @@ static int r5l_load_log(struct r5l_log *log)
 	}
 create:
 	if (create_super) {
-		log->last_cp_seq = prandom_u32();
+		log->last_cp_seq = get_random_u32();
 		cp = 0;
 		r5l_log_write_empty_meta_block(log, cp, log->last_cp_seq);
 		/*

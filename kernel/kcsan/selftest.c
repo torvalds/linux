@@ -26,7 +26,7 @@
 static bool __init test_requires(void)
 {
 	/* random should be initialized for the below tests */
-	return prandom_u32() + prandom_u32() != 0;
+	return get_random_u32() + get_random_u32() != 0;
 }
 
 /*

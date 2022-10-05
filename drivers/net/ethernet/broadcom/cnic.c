@@ -4164,7 +4164,7 @@ static int cnic_cm_init_bnx2_hw(struct cnic_dev *dev)
 {
 	u32 seed;
 
-	seed = prandom_u32();
+	seed = get_random_u32();
 	cnic_ctx_wr(dev, 45, 0, seed);
 	return 0;
 }

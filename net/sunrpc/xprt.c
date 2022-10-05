@@ -1868,7 +1868,7 @@ xprt_alloc_xid(struct rpc_xprt *xprt)
 static void
 xprt_init_xid(struct rpc_xprt *xprt)
 {
-	xprt->xid = prandom_u32();
+	xprt->xid = get_random_u32();
 }
 
 static void

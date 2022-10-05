@@ -210,7 +210,7 @@ static void vivid_fill_buff_noise(__s16 *tch_buf, int size)
 
 	/* Fill 10% of the values within range -3 and 3, zero the others */
 	for (i = 0; i < size; i++) {
-		unsigned int rand = get_random_int();
+		unsigned int rand = get_random_u32();
 
 		if (rand % 10)
 			tch_buf[i] = 0;
@@ -272,7 +272,7 @@ void vivid_fillbuff_tch(struct vivid_dev *dev, struct vivid_buffer *buf)
 		return;
 
 	if (test_pat_idx == 0)
-		dev->tch_pat_random = get_random_int();
+		dev->tch_pat_random = get_random_u32();
 	rand = dev->tch_pat_random;
 
 	switch (test_pattern) {

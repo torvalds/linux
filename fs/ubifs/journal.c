@@ -503,7 +503,7 @@ static void mark_inode_clean(struct ubifs_info *c, struct ubifs_inode *ui)
 static void set_dent_cookie(struct ubifs_info *c, struct ubifs_dent_node *dent)
 {
 	if (c->double_hash)
-		dent->cookie = (__force __le32) prandom_u32();
+		dent->cookie = (__force __le32) get_random_u32();
 	else
 		dent->cookie = 0;
 }

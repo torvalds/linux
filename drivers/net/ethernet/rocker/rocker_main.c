@@ -129,7 +129,7 @@ static int rocker_reg_test(const struct rocker *rocker)
 	u64 test_reg;
 	u64 rnd;
 
-	rnd = prandom_u32();
+	rnd = get_random_u32();
 	rnd >>= 1;
 	rocker_write32(rocker, TEST_REG, rnd);
 	test_reg = rocker_read32(rocker, TEST_REG);
@@ -139,9 +139,9 @@ static int rocker_reg_test(const struct rocker *rocker)
 		return -EIO;
 	}
 
-	rnd = prandom_u32();
+	rnd = get_random_u32();
 	rnd <<= 31;
-	rnd |= prandom_u32();
+	rnd |= get_random_u32();
 	rocker_write64(rocker, TEST_REG64, rnd);
 	test_reg = rocker_read64(rocker, TEST_REG64);
 	if (test_reg != rnd * 2) {

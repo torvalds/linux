@@ -47,7 +47,7 @@
  *	@state: pointer to state structure holding seeded state.
  *
  *	This is used for pseudo-randomness with no outside seeding.
- *	For more random results, use prandom_u32().
+ *	For more random results, use get_random_u32().
  */
 u32 prandom_u32_state(struct rnd_state *state)
 {

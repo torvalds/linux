@@ -1216,7 +1216,7 @@ static int bpf_jit_blind_insn(const struct bpf_insn *from,
 			      bool emit_zext)
 {
 	struct bpf_insn *to = to_buff;
-	u32 imm_rnd = get_random_int();
+	u32 imm_rnd = get_random_u32();
 	s16 off;
 
 	BUILD_BUG_ON(BPF_REG_AX  + 1 != MAX_BPF_JIT_REG);

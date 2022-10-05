@@ -2380,7 +2380,7 @@ static bool freelist_state_initialize(union freelist_init_state *state,
 	unsigned int rand;
 
 	/* Use best entropy available to define a random shift */
-	rand = get_random_int();
+	rand = get_random_u32();
 
 	/* Use a random state if the pre-computed list is not available */
 	if (!cachep->random_seq) {
