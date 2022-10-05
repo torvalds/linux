@@ -5,7 +5,6 @@ config ARCH_MICROCHIP_POLARFIRE
 
 config SOC_MICROCHIP_POLARFIRE
 	bool "Microchip PolarFire SoCs"
-	select MCHP_CLK_MPFS
 	help
 	  This enables support for Microchip PolarFire SoC platforms.
 
