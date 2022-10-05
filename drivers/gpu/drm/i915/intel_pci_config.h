@@ -13,6 +13,14 @@
 #define GTT_APERTURE_BAR			GFXMEM_BAR
 #define GEN12_LMEM_BAR				GFXMEM_BAR
 
+static inline int intel_mmio_bar(int graphics_ver)
+{
+	switch (graphics_ver) {
+	case 2: return GEN2_GTTMMADR_BAR;
+	default: return GTTMMADR_BAR;
+	}
+}
+
 /* BSM in include/drm/i915_drm.h */
 
 #define MCHBAR_I915				0x44
