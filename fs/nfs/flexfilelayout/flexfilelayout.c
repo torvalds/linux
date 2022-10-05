@@ -1379,6 +1379,11 @@ static int ff_layout_read_prepare_common(struct rpc_task *task,
 		return -EIO;
 	}
 
+	if (!pnfs_is_valid_lseg(hdr->lseg)) {
+		rpc_exit(task, -EAGAIN);
+		return -EAGAIN;
+	}
+
 	ff_layout_read_record_layoutstats_start(task, hdr);
 	return 0;
 }
@@ -1559,6 +1564,11 @@ static int ff_layout_write_prepare_common(struct rpc_task *task,
 		return -EIO;
 	}
 
+	if (!pnfs_is_valid_lseg(hdr->lseg)) {
+		rpc_exit(task, -EAGAIN);
+		return -EAGAIN;
+	}
+
 	ff_layout_write_record_layoutstats_start(task, hdr);
 	return 0;
 }
@@ -1651,15 +1661,23 @@ static void ff_layout_commit_record_layoutstats_done(struct rpc_task *task,
 	set_bit(NFS_LSEG_LAYOUTRETURN, &cdata->lseg->pls_flags);
 }
 
-static void ff_layout_commit_prepare_common(struct rpc_task *task,
-		struct nfs_commit_data *cdata)
+static int ff_layout_commit_prepare_common(struct rpc_task *task,
+					   struct nfs_commit_data *cdata)
 {
+	if (!pnfs_is_valid_lseg(cdata->lseg)) {
+		rpc_exit(task, -EAGAIN);
+		return -EAGAIN;
+	}
+
 	ff_layout_commit_record_layoutstats_start(task, cdata);
+	return 0;
 }
 
 static void ff_layout_commit_prepare_v3(struct rpc_task *task, void *data)
 {
-	ff_layout_commit_prepare_common(task, data);
+	if (ff_layout_commit_prepare_common(task, data))
+		return;
+
 	rpc_call_start(task);
 }
 
@@ -1953,6 +1971,65 @@ ff_layout_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 {
 	return pnfs_generic_commit_pagelist(inode, mds_pages, how, cinfo,
 					    ff_layout_initiate_commit);
+}
+
+static bool ff_layout_match_rw(const struct rpc_task *task,
+			       const struct nfs_pgio_header *hdr,
+			       const struct pnfs_layout_segment *lseg)
+{
+	return hdr->lseg == lseg;
+}
+
+static bool ff_layout_match_commit(const struct rpc_task *task,
+				   const struct nfs_commit_data *cdata,
+				   const struct pnfs_layout_segment *lseg)
+{
+	return cdata->lseg == lseg;
+}
+
+static bool ff_layout_match_io(const struct rpc_task *task, const void *data)
+{
+	const struct rpc_call_ops *ops = task->tk_ops;
+
+	if (ops == &ff_layout_read_call_ops_v3 ||
+	    ops == &ff_layout_read_call_ops_v4 ||
+	    ops == &ff_layout_write_call_ops_v3 ||
+	    ops == &ff_layout_write_call_ops_v4)
+		return ff_layout_match_rw(task, task->tk_calldata, data);
+	if (ops == &ff_layout_commit_call_ops_v3 ||
+	    ops == &ff_layout_commit_call_ops_v4)
+		return ff_layout_match_commit(task, task->tk_calldata, data);
+	return false;
+}
+
+static void ff_layout_cancel_io(struct pnfs_layout_segment *lseg)
+{
+	struct nfs4_ff_layout_segment *flseg = FF_LAYOUT_LSEG(lseg);
+	struct nfs4_ff_layout_mirror *mirror;
+	struct nfs4_ff_layout_ds *mirror_ds;
+	struct nfs4_pnfs_ds *ds;
+	struct nfs_client *ds_clp;
+	struct rpc_clnt *clnt;
+	u32 idx;
+
+	for (idx = 0; idx < flseg->mirror_array_cnt; idx++) {
+		mirror = flseg->mirror_array[idx];
+		mirror_ds = mirror->mirror_ds;
+		if (!mirror_ds)
+			continue;
+		ds = mirror->mirror_ds->ds;
+		if (!ds)
+			continue;
+		ds_clp = ds->ds_clp;
+		if (!ds_clp)
+			continue;
+		clnt = ds_clp->cl_rpcclient;
+		if (!clnt)
+			continue;
+		if (!rpc_cancel_tasks(clnt, -EAGAIN, ff_layout_match_io, lseg))
+			continue;
+		rpc_clnt_disconnect(clnt);
+	}
 }
 
 static struct pnfs_ds_commit_info *
@@ -2512,6 +2589,7 @@ static struct pnfs_layoutdriver_type flexfilelayout_type = {
 	.prepare_layoutreturn   = ff_layout_prepare_layoutreturn,
 	.sync			= pnfs_nfs_generic_sync,
 	.prepare_layoutstats	= ff_layout_prepare_layoutstats,
+	.cancel_io		= ff_layout_cancel_io,
 };
 
 static int __init nfs4flexfilelayout_init(void)
