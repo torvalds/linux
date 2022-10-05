@@ -25,7 +25,7 @@ struct xen_grant_dma_data {
 	bool broken;
 };
 
-static DEFINE_XARRAY(xen_grant_dma_devices);
+static DEFINE_XARRAY_FLAGS(xen_grant_dma_devices, XA_FLAGS_LOCK_IRQ);
 
 #define XEN_GRANT_DMA_ADDR_OFF	(1ULL << 63)
 
@@ -42,12 +42,27 @@ static inline grant_ref_t dma_to_grant(dma_addr_t dma)
 static struct xen_grant_dma_data *find_xen_grant_dma_data(struct device *dev)
 {
 	struct xen_grant_dma_data *data;
+	unsigned long flags;
 
-	xa_lock(&xen_grant_dma_devices);
+	xa_lock_irqsave(&xen_grant_dma_devices, flags);
 	data = xa_load(&xen_grant_dma_devices, (unsigned long)dev);
-	xa_unlock(&xen_grant_dma_devices);
+	xa_unlock_irqrestore(&xen_grant_dma_devices, flags);
 
 	return data;
+}
+
+static int store_xen_grant_dma_data(struct device *dev,
+				    struct xen_grant_dma_data *data)
+{
+	unsigned long flags;
+	int ret;
+
+	xa_lock_irqsave(&xen_grant_dma_devices, flags);
+	ret = xa_err(__xa_store(&xen_grant_dma_devices, (unsigned long)dev, data,
+			GFP_ATOMIC));
+	xa_unlock_irqrestore(&xen_grant_dma_devices, flags);
+
+	return ret;
 }
 
 /*
@@ -338,8 +353,7 @@ void xen_grant_setup_dma_ops(struct device *dev)
 	 */
 	data->backend_domid = iommu_spec.args[0];
 
-	if (xa_err(xa_store(&xen_grant_dma_devices, (unsigned long)dev, data,
-			GFP_KERNEL))) {
+	if (store_xen_grant_dma_data(dev, data)) {
 		dev_err(dev, "Cannot store Xen grant DMA data\n");
 		goto err;
 	}
