@@ -2363,7 +2363,6 @@ struct rtw89_chip_ops {
 	void (*btc_set_wl_pri)(struct rtw89_dev *rtwdev, u8 map, bool state);
 	void (*btc_set_wl_txpwr_ctrl)(struct rtw89_dev *rtwdev, u32 txpwr_val);
 	s8 (*btc_get_bt_rssi)(struct rtw89_dev *rtwdev, s8 val);
-	void (*btc_bt_aci_imp)(struct rtw89_dev *rtwdev);
 	void (*btc_update_bt_cnt)(struct rtw89_dev *rtwdev);
 	void (*btc_wl_s1_standby)(struct rtw89_dev *rtwdev, bool state);
 	void (*btc_set_policy)(struct rtw89_dev *rtwdev, u16 policy_type);

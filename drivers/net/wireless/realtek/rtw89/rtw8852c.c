@@ -2685,19 +2685,6 @@ static const struct rtw89_btc_fbtc_mreg rtw89_btc_8852c_mon_reg[] = {
 };
 
 static
-void rtw8852c_btc_bt_aci_imp(struct rtw89_dev *rtwdev)
-{
-	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_dm *dm = &btc->dm;
-	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
-	struct rtw89_btc_bt_link_info *b = &bt->link_info;
-
-	/* fix LNA2 = level-5 for BT ACI issue at BTG */
-	if (btc->dm.wl_btg_rx && b->profile_cnt.now != 0)
-		dm->trx_para_level = 1;
-}
-
-static
 void rtw8852c_btc_update_bt_cnt(struct rtw89_dev *rtwdev)
 {
 	/* Feature move to firmware */
@@ -2893,7 +2880,6 @@ static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 	.btc_set_wl_pri		= rtw8852c_btc_set_wl_pri,
 	.btc_set_wl_txpwr_ctrl	= rtw8852c_btc_set_wl_txpwr_ctrl,
 	.btc_get_bt_rssi	= rtw8852c_btc_get_bt_rssi,
-	.btc_bt_aci_imp		= rtw8852c_btc_bt_aci_imp,
 	.btc_update_bt_cnt	= rtw8852c_btc_update_bt_cnt,
 	.btc_wl_s1_standby	= rtw8852c_btc_wl_s1_standby,
 	.btc_set_wl_rx_gain	= rtw8852c_btc_set_wl_rx_gain,
