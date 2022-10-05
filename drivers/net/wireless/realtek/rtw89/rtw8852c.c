@@ -788,40 +788,12 @@ static const struct rtw8852c_bb_gain_op1db bb_gain_op1db_a = {
 	.mask_tia0_lna6 = 0xff000000,
 };
 
-static enum rtw89_phy_bb_gain_band
-rtw8852c_mapping_gain_band(enum rtw89_subband subband)
-{
-	switch (subband) {
-	default:
-	case RTW89_CH_2G:
-		return RTW89_BB_GAIN_BAND_2G;
-	case RTW89_CH_5G_BAND_1:
-		return RTW89_BB_GAIN_BAND_5G_L;
-	case RTW89_CH_5G_BAND_3:
-		return RTW89_BB_GAIN_BAND_5G_M;
-	case RTW89_CH_5G_BAND_4:
-		return RTW89_BB_GAIN_BAND_5G_H;
-	case RTW89_CH_6G_BAND_IDX0:
-	case RTW89_CH_6G_BAND_IDX1:
-		return RTW89_BB_GAIN_BAND_6G_L;
-	case RTW89_CH_6G_BAND_IDX2:
-	case RTW89_CH_6G_BAND_IDX3:
-		return RTW89_BB_GAIN_BAND_6G_M;
-	case RTW89_CH_6G_BAND_IDX4:
-	case RTW89_CH_6G_BAND_IDX5:
-		return RTW89_BB_GAIN_BAND_6G_H;
-	case RTW89_CH_6G_BAND_IDX6:
-	case RTW89_CH_6G_BAND_IDX7:
-		return RTW89_BB_GAIN_BAND_6G_UH;
-	}
-}
-
 static void rtw8852c_set_gain_error(struct rtw89_dev *rtwdev,
 				    enum rtw89_subband subband,
 				    enum rtw89_rf_path path)
 {
 	const struct rtw89_phy_bb_gain_info *gain = &rtwdev->bb_gain;
-	u8 gain_band = rtw8852c_mapping_gain_band(subband);
+	u8 gain_band = rtw89_subband_to_bb_gain_band(subband);
 	s32 val;
 	u32 reg;
 	u32 mask;
@@ -979,21 +951,7 @@ static void rtw8852c_set_gain_offset(struct rtw89_dev *rtwdev,
 		rtw89_phy_write32_mask(rtwdev, R_RPL_OFST, B_RPL_OFST_MASK, tmp & 0x7f);
 	}
 
-	switch (chan->subband_type) {
-	default:
-	case RTW89_CH_2G:
-		gain_band = RTW89_GAIN_OFFSET_2G_OFDM;
-		break;
-	case RTW89_CH_5G_BAND_1:
-		gain_band = RTW89_GAIN_OFFSET_5G_LOW;
-		break;
-	case RTW89_CH_5G_BAND_3:
-		gain_band = RTW89_GAIN_OFFSET_5G_MID;
-		break;
-	case RTW89_CH_5G_BAND_4:
-		gain_band = RTW89_GAIN_OFFSET_5G_HIGH;
-		break;
-	}
+	gain_band = rtw89_subband_to_gain_offset_band_of_ofdm(chan->subband_type);
 
 	offset_q0 = -efuse_gain->offset[path][gain_band];
 	offset_base_q4 = efuse_gain->offset_base[phy_idx];
