@@ -412,7 +412,6 @@ static void tmio_mmc_pio_irq(struct tmio_mmc_host *host)
 	void *sg_virt;
 	unsigned short *buf;
 	unsigned int count;
-	unsigned long flags;
 
 	if (host->dma_on) {
 		pr_err("PIO IRQ in DMA mode!\n");
@@ -422,7 +421,7 @@ static void tmio_mmc_pio_irq(struct tmio_mmc_host *host)
 		return;
 	}
 
-	sg_virt = tmio_mmc_kmap_atomic(host->sg_ptr, &flags);
+	sg_virt = tmio_mmc_kmap_atomic(host->sg_ptr);
 	buf = (unsigned short *)(sg_virt + host->sg_off);
 
 	count = host->sg_ptr->length - host->sg_off;
@@ -437,7 +436,7 @@ static void tmio_mmc_pio_irq(struct tmio_mmc_host *host)
 
 	host->sg_off += count;
 
-	tmio_mmc_kunmap_atomic(host->sg_ptr, &flags, sg_virt);
+	tmio_mmc_kunmap_atomic(host->sg_ptr, sg_virt);
 
 	if (host->sg_off == host->sg_ptr->length)
 		tmio_mmc_next_sg(host);
@@ -446,11 +445,10 @@ static void tmio_mmc_pio_irq(struct tmio_mmc_host *host)
 static void tmio_mmc_check_bounce_buffer(struct tmio_mmc_host *host)
 {
 	if (host->sg_ptr == &host->bounce_sg) {
-		unsigned long flags;
-		void *sg_vaddr = tmio_mmc_kmap_atomic(host->sg_orig, &flags);
+		void *sg_vaddr = tmio_mmc_kmap_atomic(host->sg_orig);
 
 		memcpy(sg_vaddr, host->bounce_buf, host->bounce_sg.length);
-		tmio_mmc_kunmap_atomic(host->sg_orig, &flags, sg_vaddr);
+		tmio_mmc_kunmap_atomic(host->sg_orig, sg_vaddr);
 	}
 }
 
