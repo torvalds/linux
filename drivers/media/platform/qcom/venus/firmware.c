@@ -68,9 +68,11 @@ int venus_set_hw_state(struct venus_core *core, bool resume)
 		venus_reset_cpu(core);
 	} else {
 		if (IS_V6(core))
-			writel(1, core->wrapper_tz_base + WRAPPER_TZ_XTSS_SW_RESET);
+			writel(WRAPPER_XTSS_SW_RESET_BIT,
+			       core->wrapper_tz_base + WRAPPER_TZ_XTSS_SW_RESET);
 		else
-			writel(1, core->wrapper_base + WRAPPER_A9SS_SW_RESET);
+			writel(WRAPPER_A9SS_SW_RESET_BIT,
+			       core->wrapper_base + WRAPPER_A9SS_SW_RESET);
 	}
 
 	return 0;
