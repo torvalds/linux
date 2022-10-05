@@ -17,6 +17,7 @@
 #include "intel_dp.h"
 #include "intel_dp_hdcp.h"
 #include "intel_hdcp.h"
+#include "intel_hdcp_regs.h"
 
 static unsigned int transcoder_to_stream_enc_status(enum transcoder cpu_transcoder)
 {

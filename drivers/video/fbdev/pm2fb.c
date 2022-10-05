@@ -27,6 +27,7 @@
  *
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -1520,6 +1521,10 @@ static int pm2fb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct fb_info *info;
 	int err;
 	int retval = -ENXIO;
+
+	err = aperture_remove_conflicting_pci_devices(pdev, "pm2fb");
+	if (err)
+		return err;
 
 	err = pci_enable_device(pdev);
 	if (err) {
