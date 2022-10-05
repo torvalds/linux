@@ -233,6 +233,7 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 	u8 remove_pad, amsdu_info;
 	u8 mode = 0, qos_ctl = 0;
 	struct mt7915_sta *msta = NULL;
+	u32 csum_status = *(u32 *)skb->cb;
 	bool hdr_trans;
 	u16 hdr_gap;
 	u16 seq_ctrl = 0;
@@ -288,7 +289,8 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 	if (!sband->channels)
 		return -EINVAL;
 
-	if ((rxd0 & csum_mask) == csum_mask)
+	if ((rxd0 & csum_mask) == csum_mask &&
+	    !(csum_status & (BIT(0) | BIT(2) | BIT(3))))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	if (rxd1 & MT_RXD1_NORMAL_FCS_ERR)
