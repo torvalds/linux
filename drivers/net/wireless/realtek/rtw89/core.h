@@ -3429,6 +3429,7 @@ struct rtw89_phy_efuse_gain {
 	bool comp_valid;
 	s8 offset[RF_PATH_MAX][RTW89_GAIN_OFFSET_NR]; /* S(8, 0) */
 	s8 offset_base[RTW89_PHY_MAX]; /* S(8, 4) */
+	s8 rssi_base[RTW89_PHY_MAX]; /* S(8, 4) */
 	s8 comp[RF_PATH_MAX][RTW89_SUBBAND_NR]; /* S(8, 0) */
 };
 

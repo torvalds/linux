@@ -1427,6 +1427,15 @@ void rtw89_phy_write32_idx(struct rtw89_dev *rtwdev, u32 addr, u32 mask,
 }
 EXPORT_SYMBOL(rtw89_phy_write32_idx);
 
+u32 rtw89_phy_read32_idx(struct rtw89_dev *rtwdev, u32 addr, u32 mask,
+			 enum rtw89_phy_idx phy_idx)
+{
+	if (rtwdev->dbcc_en && phy_idx == RTW89_PHY_1)
+		addr += rtw89_phy0_phy1_offset(rtwdev, addr);
+	return rtw89_phy_read32_mask(rtwdev, addr, mask);
+}
+EXPORT_SYMBOL(rtw89_phy_read32_idx);
+
 void rtw89_phy_set_phy_regs(struct rtw89_dev *rtwdev, u32 addr, u32 mask,
 			    u32 val)
 {
