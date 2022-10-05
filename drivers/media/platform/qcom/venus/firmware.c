@@ -181,17 +181,15 @@ static int venus_shutdown_no_tz(struct venus_core *core)
 
 	if (IS_V6(core)) {
 		/* Assert the reset to XTSS */
-		reg = readl_relaxed(wrapper_tz_base + WRAPPER_TZ_XTSS_SW_RESET);
+		reg = readl(wrapper_tz_base + WRAPPER_TZ_XTSS_SW_RESET);
 		reg |= WRAPPER_XTSS_SW_RESET_BIT;
-		writel_relaxed(reg, wrapper_tz_base + WRAPPER_TZ_XTSS_SW_RESET);
+		writel(reg, wrapper_tz_base + WRAPPER_TZ_XTSS_SW_RESET);
 	} else {
 		/* Assert the reset to ARM9 */
-		reg = readl_relaxed(wrapper_base + WRAPPER_A9SS_SW_RESET);
+		reg = readl(wrapper_base + WRAPPER_A9SS_SW_RESET);
 		reg |= WRAPPER_A9SS_SW_RESET_BIT;
-		writel_relaxed(reg, wrapper_base + WRAPPER_A9SS_SW_RESET);
+		writel(reg, wrapper_base + WRAPPER_A9SS_SW_RESET);
 	}
-	/* Make sure reset is asserted before the mapping is removed */
-	mb();
 
 	iommu = core->fw.iommu_domain;
 
