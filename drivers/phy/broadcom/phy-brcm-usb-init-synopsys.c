@@ -62,6 +62,7 @@
 
 /* Register definitions for the USB_PHY block in 7211b0 */
 #define USB_PHY_PLL_CTL			0x00
+#define   USB_PHY_PLL_CTL_PLL_SUSPEND_MASK		BIT(27)
 #define   USB_PHY_PLL_CTL_PLL_RESETB_MASK		BIT(30)
 #define USB_PHY_PLL_LDO_CTL		0x08
 #define   USB_PHY_PLL_LDO_CTL_AFE_BG_PWRDWNB_MASK	BIT(0)
@@ -258,6 +259,11 @@ static void usb_init_common_7211b0(struct brcm_usb_init_params *params)
 		reg |= USB_PHY_UTMI_CTL_1_POWER_UP_FSM_EN_MASK;
 		brcm_usb_writel(reg, usb_phy + USB_PHY_UTMI_CTL_1);
 	}
+
+	/* Disable PLL auto suspend */
+	reg = brcm_usb_readl(usb_phy + USB_PHY_PLL_CTL);
+	reg |= USB_PHY_PLL_CTL_PLL_SUSPEND_MASK;
+	brcm_usb_writel(reg, usb_phy + USB_PHY_PLL_CTL);
 
 	/* Init the PHY */
 	reg = USB_PHY_PLL_LDO_CTL_AFE_CORERDY_MASK |
