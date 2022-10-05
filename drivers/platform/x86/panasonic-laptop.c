@@ -1034,7 +1034,7 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 	/* optical drive initialization */
 	if (ACPI_SUCCESS(check_optd_present())) {
 		pcc->platform = platform_device_register_simple("panasonic",
-			-1, NULL, 0);
+			PLATFORM_DEVID_NONE, NULL, 0);
 		if (IS_ERR(pcc->platform)) {
 			result = PTR_ERR(pcc->platform);
 			goto out_backlight;
