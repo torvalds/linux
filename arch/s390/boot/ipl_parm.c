@@ -77,6 +77,9 @@ bool is_ipl_block_dump(void)
 	if (ipl_block.pb0_hdr.pbt == IPL_PBT_NVME &&
 	    ipl_block.nvme.opt == IPL_PB0_NVME_OPT_DUMP)
 		return true;
+	if (ipl_block.pb0_hdr.pbt == IPL_PBT_ECKD &&
+	    ipl_block.eckd.opt == IPL_PB0_ECKD_OPT_DUMP)
+		return true;
 	return false;
 }
 

@@ -41,6 +41,7 @@
 #define IPL_UNKNOWN_STR		"unknown"
 #define IPL_CCW_STR		"ccw"
 #define IPL_ECKD_STR		"eckd"
+#define IPL_ECKD_DUMP_STR	"eckd_dump"
 #define IPL_FCP_STR		"fcp"
 #define IPL_FCP_DUMP_STR	"fcp_dump"
 #define IPL_NVME_STR		"nvme"
@@ -48,6 +49,7 @@
 #define IPL_NSS_STR		"nss"
 
 #define DUMP_CCW_STR		"ccw"
+#define DUMP_ECKD_STR		"eckd"
 #define DUMP_FCP_STR		"fcp"
 #define DUMP_NVME_STR		"nvme"
 #define DUMP_NONE_STR		"none"
@@ -96,6 +98,8 @@ static char *ipl_type_str(enum ipl_type type)
 		return IPL_CCW_STR;
 	case IPL_TYPE_ECKD:
 		return IPL_ECKD_STR;
+	case IPL_TYPE_ECKD_DUMP:
+		return IPL_ECKD_DUMP_STR;
 	case IPL_TYPE_FCP:
 		return IPL_FCP_STR;
 	case IPL_TYPE_FCP_DUMP:
@@ -117,6 +121,7 @@ enum dump_type {
 	DUMP_TYPE_CCW	= 2,
 	DUMP_TYPE_FCP	= 4,
 	DUMP_TYPE_NVME	= 8,
+	DUMP_TYPE_ECKD	= 16,
 };
 
 static char *dump_type_str(enum dump_type type)
@@ -126,6 +131,8 @@ static char *dump_type_str(enum dump_type type)
 		return DUMP_NONE_STR;
 	case DUMP_TYPE_CCW:
 		return DUMP_CCW_STR;
+	case DUMP_TYPE_ECKD:
+		return DUMP_ECKD_STR;
 	case DUMP_TYPE_FCP:
 		return DUMP_FCP_STR;
 	case DUMP_TYPE_NVME:
@@ -160,6 +167,7 @@ static enum dump_type dump_type = DUMP_TYPE_NONE;
 static struct ipl_parameter_block *dump_block_fcp;
 static struct ipl_parameter_block *dump_block_nvme;
 static struct ipl_parameter_block *dump_block_ccw;
+static struct ipl_parameter_block *dump_block_eckd;
 
 static struct sclp_ipl_info sclp_ipl_info;
 
@@ -288,7 +296,10 @@ static __init enum ipl_type get_ipl_type(void)
 		else
 			return IPL_TYPE_NVME;
 	case IPL_PBT_ECKD:
-		return IPL_TYPE_ECKD;
+		if (ipl_block.eckd.opt == IPL_PB0_ECKD_OPT_DUMP)
+			return IPL_TYPE_ECKD_DUMP;
+		else
+			return IPL_TYPE_ECKD;
 	}
 	return IPL_TYPE_UNKNOWN;
 }
@@ -343,6 +354,7 @@ static ssize_t sys_ipl_device_show(struct kobject *kobj,
 		return sprintf(page, "0.%x.%04x\n", ipl_block.ccw.ssid,
 			       ipl_block.ccw.devno);
 	case IPL_TYPE_ECKD:
+	case IPL_TYPE_ECKD_DUMP:
 		return sprintf(page, "0.%x.%04x\n", ipl_block.eckd.ssid,
 			       ipl_block.eckd.devno);
 	case IPL_TYPE_FCP:
@@ -1368,6 +1380,7 @@ static void __reipl_run(void *unused)
 		break;
 	case IPL_TYPE_FCP_DUMP:
 	case IPL_TYPE_NVME_DUMP:
+	case IPL_TYPE_ECKD_DUMP:
 		break;
 	}
 	disabled_wait();
@@ -1736,6 +1749,31 @@ static struct attribute_group dump_nvme_attr_group = {
 	.attrs = dump_nvme_attrs,
 };
 
+/* ECKD dump device attributes */
+DEFINE_IPL_CCW_ATTR_RW(dump_eckd, device, dump_block_eckd->eckd);
+DEFINE_IPL_ATTR_RW(dump_eckd, bootprog, "%lld\n", "%llx\n",
+		   dump_block_eckd->eckd.bootprog);
+
+IPL_ATTR_BR_CHR_SHOW_FN(dump, dump_block_eckd->eckd);
+IPL_ATTR_BR_CHR_STORE_FN(dump, dump_block_eckd->eckd);
+
+static struct kobj_attribute sys_dump_eckd_br_chr_attr =
+	__ATTR(br_chr, (S_IRUGO | S_IWUSR),
+	       eckd_dump_br_chr_show,
+	       eckd_dump_br_chr_store);
+
+static struct attribute *dump_eckd_attrs[] = {
+	&sys_dump_eckd_device_attr.attr,
+	&sys_dump_eckd_bootprog_attr.attr,
+	&sys_dump_eckd_br_chr_attr.attr,
+	NULL,
+};
+
+static struct attribute_group dump_eckd_attr_group = {
+	.name  = IPL_ECKD_STR,
+	.attrs = dump_eckd_attrs,
+};
+
 /* CCW dump device attributes */
 DEFINE_IPL_CCW_ATTR_RW(dump_ccw, device, dump_block_ccw->ccw);
 
@@ -1775,6 +1813,8 @@ static ssize_t dump_type_store(struct kobject *kobj,
 		rc = dump_set_type(DUMP_TYPE_NONE);
 	else if (strncmp(buf, DUMP_CCW_STR, strlen(DUMP_CCW_STR)) == 0)
 		rc = dump_set_type(DUMP_TYPE_CCW);
+	else if (strncmp(buf, DUMP_ECKD_STR, strlen(DUMP_ECKD_STR)) == 0)
+		rc = dump_set_type(DUMP_TYPE_ECKD);
 	else if (strncmp(buf, DUMP_FCP_STR, strlen(DUMP_FCP_STR)) == 0)
 		rc = dump_set_type(DUMP_TYPE_FCP);
 	else if (strncmp(buf, DUMP_NVME_STR, strlen(DUMP_NVME_STR)) == 0)
@@ -1802,6 +1842,9 @@ static void __dump_run(void *unused)
 	switch (dump_type) {
 	case DUMP_TYPE_CCW:
 		diag308_dump(dump_block_ccw);
+		break;
+	case DUMP_TYPE_ECKD:
+		diag308_dump(dump_block_eckd);
 		break;
 	case DUMP_TYPE_FCP:
 		diag308_dump(dump_block_fcp);
@@ -1888,6 +1931,29 @@ static int __init dump_nvme_init(void)
 	return 0;
 }
 
+static int __init dump_eckd_init(void)
+{
+	int rc;
+
+	if (!sclp_ipl_info.has_dump || !sclp.has_sipl_eckd)
+		return 0; /* LDIPL DUMP is not installed */
+	dump_block_eckd = (void *)get_zeroed_page(GFP_KERNEL);
+	if (!dump_block_eckd)
+		return -ENOMEM;
+	rc = sysfs_create_group(&dump_kset->kobj, &dump_eckd_attr_group);
+	if (rc) {
+		free_page((unsigned long)dump_block_eckd);
+		return rc;
+	}
+	dump_block_eckd->hdr.len = IPL_BP_ECKD_LEN;
+	dump_block_eckd->hdr.version = IPL_PARM_BLOCK_VERSION;
+	dump_block_eckd->eckd.len = IPL_BP0_ECKD_LEN;
+	dump_block_eckd->eckd.pbt = IPL_PBT_ECKD;
+	dump_block_eckd->eckd.opt = IPL_PB0_ECKD_OPT_DUMP;
+	dump_capabilities |= DUMP_TYPE_ECKD;
+	return 0;
+}
+
 static int __init dump_init(void)
 {
 	int rc;
@@ -1901,6 +1967,9 @@ static int __init dump_init(void)
 		return rc;
 	}
 	rc = dump_ccw_init();
+	if (rc)
+		return rc;
+	rc = dump_eckd_init();
 	if (rc)
 		return rc;
 	rc = dump_fcp_init();
@@ -2337,6 +2406,7 @@ void __init setup_ipl(void)
 		ipl_info.data.ccw.dev_id.devno = ipl_block.ccw.devno;
 		break;
 	case IPL_TYPE_ECKD:
+	case IPL_TYPE_ECKD_DUMP:
 		ipl_info.data.eckd.dev_id.ssid = ipl_block.eckd.ssid;
 		ipl_info.data.eckd.dev_id.devno = ipl_block.eckd.devno;
 		break;

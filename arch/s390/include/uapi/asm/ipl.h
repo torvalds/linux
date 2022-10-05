@@ -138,6 +138,7 @@ struct ipl_pb0_eckd {
 } __packed;
 
 #define IPL_PB0_ECKD_OPT_IPL	0x10
+#define IPL_PB0_ECKD_OPT_DUMP	0x20
 
 #define IPL_PB0_CCW_VM_FLAG_NSS		0x80
 #define IPL_PB0_CCW_VM_FLAG_VP		0x40
