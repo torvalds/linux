@@ -108,6 +108,11 @@ static size_t ipl_block_get_ascii_scpdata(char *dest, size_t size,
 		scp_data_len = ipb->nvme.scp_data_len;
 		scp_data = ipb->nvme.scp_data;
 		break;
+	case IPL_PBT_ECKD:
+		scp_data_len = ipb->eckd.scp_data_len;
+		scp_data = ipb->eckd.scp_data;
+		break;
+
 	default:
 		goto out;
 	}
@@ -153,6 +158,7 @@ static void append_ipl_block_parm(void)
 		break;
 	case IPL_PBT_FCP:
 	case IPL_PBT_NVME:
+	case IPL_PBT_ECKD:
 		rc = ipl_block_get_ascii_scpdata(
 			parm, COMMAND_LINE_SIZE - len - 1, &ipl_block);
 		break;
