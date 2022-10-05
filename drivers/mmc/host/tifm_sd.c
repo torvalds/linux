@@ -264,16 +264,13 @@ static int tifm_sd_set_dma_data(struct tifm_sd *host, struct mmc_data *r_data)
 	unsigned int t_size = TIFM_DMA_TSIZE * r_data->blksz;
 	unsigned int dma_len, dma_blk_cnt, dma_off;
 	struct scatterlist *sg = NULL;
-	unsigned long flags;
 
 	if (host->sg_pos == host->sg_len)
 		return 1;
 
 	if (host->cmd_flags & DATA_CARRY) {
 		host->cmd_flags &= ~DATA_CARRY;
-		local_irq_save(flags);
 		tifm_sd_bounce_block(host, r_data);
-		local_irq_restore(flags);
 		if (host->sg_pos == host->sg_len)
 			return 1;
 	}
@@ -300,11 +297,9 @@ static int tifm_sd_set_dma_data(struct tifm_sd *host, struct mmc_data *r_data)
 	if (dma_blk_cnt)
 		sg = &r_data->sg[host->sg_pos];
 	else if (dma_len) {
-		if (r_data->flags & MMC_DATA_WRITE) {
-			local_irq_save(flags);
+		if (r_data->flags & MMC_DATA_WRITE)
 			tifm_sd_bounce_block(host, r_data);
-			local_irq_restore(flags);
-		} else
+		else
 			host->cmd_flags |= DATA_CARRY;
 
 		sg = &host->bounce_buf;
