@@ -931,7 +931,7 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	unsigned int size;
 	u16 snb_gmch_ctl;
 
-	if (!HAS_LMEM(i915) && !HAS_BAR2_SMEM_STOLEN(i915)) {
+	if (!HAS_LMEM(i915) && !HAS_LMEMBAR_SMEM_STOLEN(i915)) {
 		if (!i915_pci_resource_valid(pdev, GEN4_GMADR_BAR))
 			return -ENXIO;
 
