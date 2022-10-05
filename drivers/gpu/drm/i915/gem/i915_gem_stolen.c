@@ -917,11 +917,11 @@ i915_gem_stolen_lmem_setup(struct drm_i915_private *i915, u16 type,
 	}
 
 	io_size = dsm_size;
-	if (pci_resource_len(pdev, GEN12_LMEM_BAR) < dsm_size) {
+	if (HAS_BAR2_SMEM_STOLEN(i915)) {
+		io_start = pci_resource_start(pdev, GEN12_LMEM_BAR) + SZ_8M;
+	} else if (pci_resource_len(pdev, GEN12_LMEM_BAR) < lmem_size) {
 		io_start = 0;
 		io_size = 0;
-	} else if (HAS_BAR2_SMEM_STOLEN(i915)) {
-		io_start = pci_resource_start(pdev, GEN12_LMEM_BAR) + SZ_8M;
 	} else {
 		io_start = pci_resource_start(pdev, GEN12_LMEM_BAR) + dsm_base;
 	}
