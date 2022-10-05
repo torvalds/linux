@@ -2151,22 +2151,30 @@ void ieee80211_sta_register_airtime(struct ieee80211_sta *pubsta, u8 tid,
 }
 EXPORT_SYMBOL(ieee80211_sta_register_airtime);
 
-void ieee80211_sta_recalc_aggregates(struct ieee80211_sta *pubsta)
+void __ieee80211_sta_recalc_aggregates(struct sta_info *sta, u16 active_links)
 {
-	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
-	struct ieee80211_link_sta *link_sta;
-	int link_id, i;
 	bool first = true;
+	int link_id;
 
-	if (!pubsta->valid_links || !pubsta->mlo) {
-		pubsta->cur = &pubsta->deflink.agg;
+	if (!sta->sta.valid_links || !sta->sta.mlo) {
+		sta->sta.cur = &sta->sta.deflink.agg;
 		return;
 	}
 
 	rcu_read_lock();
-	for_each_sta_active_link(&sta->sdata->vif, pubsta, link_sta, link_id) {
+	for (link_id = 0; link_id < ARRAY_SIZE((sta)->link); link_id++) {
+		struct ieee80211_link_sta *link_sta;
+		int i;
+
+		if (!(active_links & BIT(link_id)))
+			continue;
+
+		link_sta = rcu_dereference(sta->sta.link[link_id]);
+		if (!link_sta)
+			continue;
+
 		if (first) {
-			sta->cur = pubsta->deflink.agg;
+			sta->cur = sta->sta.deflink.agg;
 			first = false;
 			continue;
 		}
@@ -2185,7 +2193,14 @@ void ieee80211_sta_recalc_aggregates(struct ieee80211_sta *pubsta)
 	}
 	rcu_read_unlock();
 
-	pubsta->cur = &sta->cur;
+	sta->sta.cur = &sta->cur;
+}
+
+void ieee80211_sta_recalc_aggregates(struct ieee80211_sta *pubsta)
+{
+	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
+
+	__ieee80211_sta_recalc_aggregates(sta, sta->sdata->vif.active_links);
 }
 EXPORT_SYMBOL(ieee80211_sta_recalc_aggregates);
 
