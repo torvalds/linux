@@ -1252,6 +1252,21 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	prev_beacon_int = link_conf->beacon_int;
 	link_conf->beacon_int = params->beacon_interval;
 
+	if (params->vht_cap) {
+		link_conf->vht_su_beamformer =
+			params->vht_cap->vht_cap_info &
+				cpu_to_le32(IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE);
+		link_conf->vht_su_beamformee =
+			params->vht_cap->vht_cap_info &
+				cpu_to_le32(IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE);
+		link_conf->vht_mu_beamformer =
+			params->vht_cap->vht_cap_info &
+				cpu_to_le32(IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE);
+		link_conf->vht_mu_beamformee =
+			params->vht_cap->vht_cap_info &
+				cpu_to_le32(IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE);
+	}
+
 	if (params->he_cap && params->he_oper) {
 		link_conf->he_support = true;
 		link_conf->htc_trig_based_pkt_ext =

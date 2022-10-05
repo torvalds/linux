@@ -653,6 +653,14 @@ struct ieee80211_fils_discovery {
  *	write-protected by sdata_lock and local->mtx so holding either is fine
  *	for read access.
  * @color_change_color: the bss color that will be used after the change.
+ * @vht_su_beamformer: in AP mode, does this BSS support operation as an VHT SU
+ *	beamformer
+ * @vht_su_beamformee: in AP mode, does this BSS support operation as an VHT SU
+ *	beamformee
+ * @vht_mu_beamformer: in AP mode, does this BSS support operation as an VHT MU
+ *	beamformer
+ * @vht_mu_beamformee: in AP mode, does this BSS support operation as an VHT MU
+ *	beamformee
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -726,6 +734,11 @@ struct ieee80211_bss_conf {
 
 	bool color_change_active;
 	u8 color_change_color;
+
+	bool vht_su_beamformer;
+	bool vht_su_beamformee;
+	bool vht_mu_beamformer;
+	bool vht_mu_beamformee;
 };
 
 /**
