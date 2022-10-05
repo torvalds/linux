@@ -706,16 +706,14 @@ static int sdhci_pre_dma_transfer(struct sdhci_host *host,
 	return sg_count;
 }
 
-static char *sdhci_kmap_atomic(struct scatterlist *sg, unsigned long *flags)
+static char *sdhci_kmap_atomic(struct scatterlist *sg)
 {
-	local_irq_save(*flags);
 	return kmap_atomic(sg_page(sg)) + sg->offset;
 }
 
-static void sdhci_kunmap_atomic(void *buffer, unsigned long *flags)
+static void sdhci_kunmap_atomic(void *buffer)
 {
 	kunmap_atomic(buffer);
-	local_irq_restore(*flags);
 }
 
 void sdhci_adma_write_desc(struct sdhci_host *host, void **desc,
@@ -757,7 +755,6 @@ static void sdhci_adma_table_pre(struct sdhci_host *host,
 	struct mmc_data *data, int sg_count)
 {
 	struct scatterlist *sg;
-	unsigned long flags;
 	dma_addr_t addr, align_addr;
 	void *desc, *align;
 	char *buffer;
@@ -789,9 +786,9 @@ static void sdhci_adma_table_pre(struct sdhci_host *host,
 			 SDHCI_ADMA2_MASK;
 		if (offset) {
 			if (data->flags & MMC_DATA_WRITE) {
-				buffer = sdhci_kmap_atomic(sg, &flags);
+				buffer = sdhci_kmap_atomic(sg);
 				memcpy(align, buffer, offset);
-				sdhci_kunmap_atomic(buffer, &flags);
+				sdhci_kunmap_atomic(buffer);
 			}
 
 			/* tran, valid */
@@ -852,7 +849,6 @@ static void sdhci_adma_table_post(struct sdhci_host *host,
 	int i, size;
 	void *align;
 	char *buffer;
-	unsigned long flags;
 
 	if (data->flags & MMC_DATA_READ) {
 		bool has_unaligned = false;
@@ -875,9 +871,9 @@ static void sdhci_adma_table_post(struct sdhci_host *host,
 					size = SDHCI_ADMA2_ALIGN -
 					       (sg_dma_address(sg) & SDHCI_ADMA2_MASK);
 
-					buffer = sdhci_kmap_atomic(sg, &flags);
+					buffer = sdhci_kmap_atomic(sg);
 					memcpy(buffer, align, size);
-					sdhci_kunmap_atomic(buffer, &flags);
+					sdhci_kunmap_atomic(buffer);
 
 					align += SDHCI_ADMA2_ALIGN;
 				}
