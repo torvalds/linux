@@ -505,6 +505,8 @@ struct ath11k_sta {
 	u64 ps_start_jiffies;
 	u64 ps_total_duration;
 	bool peer_current_ps_valid;
+
+	u32 bw_prev;
 };
 
 #define ATH11K_MIN_5G_FREQ 4150
