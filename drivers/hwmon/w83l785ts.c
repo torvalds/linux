@@ -157,7 +157,7 @@ static int w83l785ts_detect(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	strlcpy(info->type, "w83l785ts", I2C_NAME_SIZE);
+	strscpy(info->type, "w83l785ts", I2C_NAME_SIZE);
 
 	return 0;
 }

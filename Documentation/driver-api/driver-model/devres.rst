@@ -404,7 +404,6 @@ POWER
 
 PWM
   devm_pwm_get()
-  devm_of_pwm_get()
   devm_fwnode_pwm_get()
 
 REGULATOR

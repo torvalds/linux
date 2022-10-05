@@ -769,7 +769,7 @@ static int asb100_detect(struct i2c_client *client,
 	if (val1 != 0x31 || val2 != 0x06)
 		return -ENODEV;
 
-	strlcpy(info->type, "asb100", I2C_NAME_SIZE);
+	strscpy(info->type, "asb100", I2C_NAME_SIZE);
 
 	return 0;
 }
