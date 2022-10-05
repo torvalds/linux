@@ -1104,17 +1104,21 @@ static void output_comp_stats(const struct verif_stats *base, const struct verif
 			else
 				snprintf(diff_buf, sizeof(diff_buf), "%s", "MISMATCH");
 		} else {
+			double p = 0.0;
+
 			snprintf(base_buf, sizeof(base_buf), "%ld", base_val);
 			snprintf(comp_buf, sizeof(comp_buf), "%ld", comp_val);
 
 			diff_val = comp_val - base_val;
 			if (base == &fallback_stats || comp == &fallback_stats || base_val == 0) {
-				snprintf(diff_buf, sizeof(diff_buf), "%+ld (%+.2lf%%)",
-					 diff_val, comp_val < base_val ? -100.0 : 100.0);
+				if (comp_val == base_val)
+					p = 0.0; /* avoid +0 (+100%) case */
+				else
+					p = comp_val < base_val ? -100.0 : 100.0;
 			} else {
-				snprintf(diff_buf, sizeof(diff_buf), "%+ld (%+.2lf%%)",
-					 diff_val, diff_val * 100.0 / base_val);
+				 p = diff_val * 100.0 / base_val;
 			}
+			snprintf(diff_buf, sizeof(diff_buf), "%+ld (%+.2lf%%)", diff_val, p);
 		}
 
 		switch (fmt) {
