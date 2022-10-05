@@ -872,6 +872,17 @@ void rpc_signal_task(struct rpc_task *task)
 		rpc_wake_up_queued_task(queue, task);
 }
 
+void rpc_task_try_cancel(struct rpc_task *task, int error)
+{
+	struct rpc_wait_queue *queue;
+
+	if (!rpc_task_set_rpc_status(task, error))
+		return;
+	queue = READ_ONCE(task->tk_waitqueue);
+	if (queue)
+		rpc_wake_up_queued_task(queue, task);
+}
+
 void rpc_exit(struct rpc_task *task, int status)
 {
 	task->tk_status = status;
