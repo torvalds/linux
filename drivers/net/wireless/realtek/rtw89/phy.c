@@ -1368,13 +1368,15 @@ static void rtw89_phy_init_rf_nctl(struct rtw89_dev *rtwdev)
 	int ret;
 
 	/* IQK/DPK clock & reset */
-	rtw89_phy_write32_set(rtwdev, 0x0c60, 0x3);
-	rtw89_phy_write32_set(rtwdev, 0x0c6c, 0x1);
-	rtw89_phy_write32_set(rtwdev, 0x58ac, 0x8000000);
-	rtw89_phy_write32_set(rtwdev, 0x78ac, 0x8000000);
+	rtw89_phy_write32_set(rtwdev, R_IOQ_IQK_DPK, 0x3);
+	rtw89_phy_write32_set(rtwdev, R_GNT_BT_WGT_EN, 0x1);
+	rtw89_phy_write32_set(rtwdev, R_P0_PATH_RST, 0x8000000);
+	rtw89_phy_write32_set(rtwdev, R_P1_PATH_RST, 0x8000000);
+	if (chip->chip_id == RTL8852B)
+		rtw89_phy_write32_set(rtwdev, R_IOQ_IQK_DPK, 0x2);
 
 	/* check 0x8080 */
-	rtw89_phy_write32(rtwdev, 0x8000, 0x8);
+	rtw89_phy_write32(rtwdev, R_NCTL_CFG, 0x8);
 
 	ret = read_poll_timeout(rtw89_phy_nctl_poll, val, val == 0x4, 10,
 				1000, false, rtwdev);
