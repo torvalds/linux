@@ -131,7 +131,8 @@ static inline uint32_t get_fam15h_addr(u32 addr)
 
 static inline bool is_amd_pmu_msr(unsigned int msr)
 {
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD &&
+	    boot_cpu_data.x86_vendor != X86_VENDOR_HYGON)
 		return false;
 
 	if ((msr >= MSR_F15H_PERF_CTL &&
@@ -143,11 +144,13 @@ static inline bool is_amd_pmu_msr(unsigned int msr)
 	return false;
 }
 
-static int is_intel_pmu_msr(u32 msr_index, int *type, int *index)
+static bool is_intel_pmu_msr(u32 msr_index, int *type, int *index)
 {
 	u32 msr_index_pmc;
 
-	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL &&
+	    boot_cpu_data.x86_vendor != X86_VENDOR_CENTAUR &&
+	    boot_cpu_data.x86_vendor != X86_VENDOR_ZHAOXIN)
 		return false;
 
 	switch (msr_index) {
