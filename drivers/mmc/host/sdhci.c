@@ -698,12 +698,12 @@ static int sdhci_pre_dma_transfer(struct sdhci_host *host,
 
 static char *sdhci_kmap_atomic(struct scatterlist *sg)
 {
-	return kmap_atomic(sg_page(sg)) + sg->offset;
+	return kmap_local_page(sg_page(sg)) + sg->offset;
 }
 
 static void sdhci_kunmap_atomic(void *buffer)
 {
-	kunmap_atomic(buffer);
+	kunmap_local(buffer);
 }
 
 void sdhci_adma_write_desc(struct sdhci_host *host, void **desc,
