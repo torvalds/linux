@@ -43,7 +43,10 @@ properties:
           - const: rockchip,rk3066-usb
           - const: snps,dwc2
       - const: lantiq,arx100-usb
+      - const: lantiq,ase-usb
+      - const: lantiq,danube-usb
       - const: lantiq,xrx200-usb
+      - const: lantiq,xrx300-usb
       - items:
           - enum:
               - amlogic,meson8-usb
