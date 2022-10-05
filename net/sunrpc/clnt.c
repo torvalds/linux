@@ -1642,7 +1642,7 @@ static void
 __rpc_call_rpcerror(struct rpc_task *task, int tk_status, int rpc_status)
 {
 	trace_rpc_call_rpcerror(task, tk_status, rpc_status);
-	task->tk_rpc_status = rpc_status;
+	rpc_task_set_rpc_status(task, rpc_status);
 	rpc_exit(task, tk_status);
 }
 
@@ -2435,10 +2435,8 @@ rpc_check_timeout(struct rpc_task *task)
 {
 	struct rpc_clnt	*clnt = task->tk_client;
 
-	if (RPC_SIGNALLED(task)) {
-		rpc_call_rpcerror(task, -ERESTARTSYS);
+	if (RPC_SIGNALLED(task))
 		return;
-	}
 
 	if (xprt_adjust_timeout(task->tk_rqstp) == 0)
 		return;
