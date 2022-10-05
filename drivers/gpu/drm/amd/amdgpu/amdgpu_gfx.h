@@ -304,6 +304,10 @@ struct amdgpu_gfx {
 	uint32_t			rlc_srlg_feature_version;
 	uint32_t			rlc_srls_fw_version;
 	uint32_t			rlc_srls_feature_version;
+	uint32_t			rlcp_ucode_version;
+	uint32_t			rlcp_ucode_feature_version;
+	uint32_t			rlcv_ucode_version;
+	uint32_t			rlcv_ucode_feature_version;
 	uint32_t			mec_feature_version;
 	uint32_t			mec2_feature_version;
 	bool				mec_fw_write_wait;

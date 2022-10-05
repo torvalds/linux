@@ -301,6 +301,7 @@ IO region
   devm_release_region()
   devm_release_resource()
   devm_request_mem_region()
+  devm_request_free_mem_region()
   devm_request_region()
   devm_request_resource()
 
@@ -334,7 +335,7 @@ IRQ
   devm_irq_alloc_descs_from()
   devm_irq_alloc_generic_chip()
   devm_irq_setup_generic_chip()
-  devm_irq_sim_init()
+  devm_irq_domain_create_sim()
 
 LED
   devm_led_classdev_register()
@@ -392,7 +393,9 @@ PHY
 PINCTRL
   devm_pinctrl_get()
   devm_pinctrl_put()
+  devm_pinctrl_get_select()
   devm_pinctrl_register()
+  devm_pinctrl_register_and_init()
   devm_pinctrl_unregister()
 
 POWER
@@ -427,6 +430,8 @@ SLAVE DMA ENGINE
   devm_acpi_dma_controller_register()
 
 SPI
+  devm_spi_alloc_master()
+  devm_spi_alloc_slave()
   devm_spi_register_master()
 
 WATCHDOG
