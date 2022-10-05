@@ -4612,7 +4612,14 @@ static void hugetlb_vm_op_open(struct vm_area_struct *vma)
 		kref_get(&resv->refs);
 	}
 
-	hugetlb_vma_lock_alloc(vma);
+	/*
+	 * vma_lock structure for sharable mappings is vma specific.
+	 * Clear old pointer (if copied via vm_area_dup) and create new.
+	 */
+	if (vma->vm_flags & VM_MAYSHARE) {
+		vma->vm_private_data = NULL;
+		hugetlb_vma_lock_alloc(vma);
+	}
 }
 
 static void hugetlb_vm_op_close(struct vm_area_struct *vma)
@@ -5168,19 +5175,23 @@ void __unmap_hugepage_range_final(struct mmu_gather *tlb,
 			  unsigned long end, struct page *ref_page,
 			  zap_flags_t zap_flags)
 {
+	hugetlb_vma_lock_write(vma);
+	i_mmap_lock_write(vma->vm_file->f_mapping);
+
 	__unmap_hugepage_range(tlb, vma, start, end, ref_page, zap_flags);
 
 	/*
-	 * Clear this flag so that x86's huge_pmd_share page_table_shareable
-	 * test will fail on a vma being torn down, and not grab a page table
-	 * on its way out.  We're lucky that the flag has such an appropriate
-	 * name, and can in fact be safely cleared here. We could clear it
-	 * before the __unmap_hugepage_range above, but all that's necessary
-	 * is to clear it before releasing the i_mmap_rwsem. This works
-	 * because in the context this is called, the VMA is about to be
-	 * destroyed and the i_mmap_rwsem is held.
+	 * Unlock and free the vma lock before releasing i_mmap_rwsem.  When
+	 * the vma_lock is freed, this makes the vma ineligible for pmd
+	 * sharing.  And, i_mmap_rwsem is required to set up pmd sharing.
+	 * This is important as page tables for this unmapped range will
+	 * be asynchrously deleted.  If the page tables are shared, there
+	 * will be issues when accessed by someone else.
 	 */
-	vma->vm_flags &= ~VM_MAYSHARE;
+	hugetlb_vma_unlock_write(vma);
+	hugetlb_vma_lock_free(vma);
+
+	i_mmap_unlock_write(vma->vm_file->f_mapping);
 }
 
 void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
@@ -6664,10 +6675,13 @@ static unsigned long page_table_shareable(struct vm_area_struct *svma,
 	/*
 	 * match the virtual addresses, permission and the alignment of the
 	 * page table page.
+	 *
+	 * Also, vma_lock (vm_private_data) is required for sharing.
 	 */
 	if (pmd_index(addr) != pmd_index(saddr) ||
 	    vm_flags != svm_flags ||
-	    !range_in_vma(svma, sbase, s_end))
+	    !range_in_vma(svma, sbase, s_end) ||
+	    !svma->vm_private_data)
 		return 0;
 
 	return saddr;
@@ -6817,12 +6831,9 @@ void hugetlb_vma_lock_release(struct kref *kref)
 static void hugetlb_vma_lock_free(struct vm_area_struct *vma)
 {
 	/*
-	 * Only present in sharable vmas.  See comment in
-	 * __unmap_hugepage_range_final about how VM_SHARED could
-	 * be set without VM_MAYSHARE.  As a result, we need to
-	 * check if either is set in the free path.
+	 * Only present in sharable vmas.
 	 */
-	if (!vma || !(vma->vm_flags & (VM_MAYSHARE | VM_SHARED)))
+	if (!vma || !__vma_shareable_flags_pmd(vma))
 		return;
 
 	if (vma->vm_private_data) {
