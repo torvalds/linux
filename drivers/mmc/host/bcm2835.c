@@ -327,15 +327,12 @@ static void bcm2835_dma_complete(void *param)
 
 static void bcm2835_transfer_block_pio(struct bcm2835_host *host, bool is_read)
 {
-	unsigned long flags;
 	size_t blksize;
 	unsigned long wait_max;
 
 	blksize = host->data->blksz;
 
 	wait_max = jiffies + msecs_to_jiffies(500);
-
-	local_irq_save(flags);
 
 	while (blksize) {
 		int copy_words;
@@ -421,8 +418,6 @@ static void bcm2835_transfer_block_pio(struct bcm2835_host *host, bool is_read)
 	}
 
 	sg_miter_stop(&host->sg_miter);
-
-	local_irq_restore(flags);
 }
 
 static void bcm2835_transfer_pio(struct bcm2835_host *host)
