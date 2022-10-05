@@ -407,15 +407,13 @@ static int max96712_probe(struct i2c_client *client)
 	return max96712_v4l2_register(priv);
 }
 
-static int max96712_remove(struct i2c_client *client)
+static void max96712_remove(struct i2c_client *client)
 {
 	struct max96712_priv *priv = i2c_get_clientdata(client);
 
 	v4l2_async_unregister_subdev(&priv->sd);
 
 	gpiod_set_value_cansleep(priv->gpiod_pwdn, 0);
-
-	return 0;
 }
 
 static const struct of_device_id max96712_of_table[] = {

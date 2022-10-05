@@ -559,7 +559,7 @@ static int tcs3472_powerdown(struct tcs3472_data *data)
 	return ret;
 }
 
-static int tcs3472_remove(struct i2c_client *client)
+static void tcs3472_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
@@ -568,8 +568,6 @@ static int tcs3472_remove(struct i2c_client *client)
 		free_irq(client->irq, indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	tcs3472_powerdown(iio_priv(indio_dev));
-
-	return 0;
 }
 
 static int tcs3472_suspend(struct device *dev)

@@ -530,7 +530,7 @@ static int ds1374_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int ds1374_remove(struct i2c_client *client)
+static void ds1374_remove(struct i2c_client *client)
 {
 	struct ds1374 *ds1374 = i2c_get_clientdata(client);
 
@@ -542,8 +542,6 @@ static int ds1374_remove(struct i2c_client *client)
 		devm_free_irq(&client->dev, client->irq, client);
 		cancel_work_sync(&ds1374->work);
 	}
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

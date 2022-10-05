@@ -592,12 +592,11 @@ static int adp5588_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int adp5588_remove(struct i2c_client *client)
+static void adp5588_remove(struct i2c_client *client)
 {
 	adp5588_write(client, CFG, 0);
 
 	/* all resources will be freed by devm */
-	return 0;
 }
 
 static int __maybe_unused adp5588_suspend(struct device *dev)

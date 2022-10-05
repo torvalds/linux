@@ -3284,7 +3284,7 @@ err_disable_regulators:
 	return error;
 }
 
-static int mxt_remove(struct i2c_client *client)
+static void mxt_remove(struct i2c_client *client)
 {
 	struct mxt_data *data = i2c_get_clientdata(client);
 
@@ -3294,8 +3294,6 @@ static int mxt_remove(struct i2c_client *client)
 	mxt_free_object_table(data);
 	regulator_bulk_disable(ARRAY_SIZE(data->regulators),
 			       data->regulators);
-
-	return 0;
 }
 
 static int __maybe_unused mxt_suspend(struct device *dev)

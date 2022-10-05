@@ -1536,7 +1536,7 @@ err_gpio:
 	return ret;
 }
 
-static int dac33_i2c_remove(struct i2c_client *client)
+static void dac33_i2c_remove(struct i2c_client *client)
 {
 	struct tlv320dac33_priv *dac33 = i2c_get_clientdata(client);
 
@@ -1545,8 +1545,6 @@ static int dac33_i2c_remove(struct i2c_client *client)
 
 	if (dac33->power_gpio >= 0)
 		gpio_free(dac33->power_gpio);
-
-	return 0;
 }
 
 static const struct i2c_device_id tlv320dac33_i2c_id[] = {

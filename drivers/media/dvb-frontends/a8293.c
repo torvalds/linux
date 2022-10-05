@@ -98,14 +98,13 @@ err:
 	return ret;
 }
 
-static int a8293_remove(struct i2c_client *client)
+static void a8293_remove(struct i2c_client *client)
 {
 	struct a8293_dev *dev = i2c_get_clientdata(client);
 
 	dev_dbg(&client->dev, "\n");
 
 	kfree(dev);
-	return 0;
 }
 
 static const struct i2c_device_id a8293_id_table[] = {
