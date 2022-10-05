@@ -506,7 +506,6 @@ static void tifm_sd_card_event(struct tifm_dev *sock)
 	unsigned int host_status = 0;
 	int cmd_error = 0;
 	struct mmc_command *cmd = NULL;
-	unsigned long flags;
 
 	spin_lock(&sock->lock);
 	host = mmc_priv((struct mmc_host*)tifm_get_drvdata(sock));
@@ -570,9 +569,7 @@ static void tifm_sd_card_event(struct tifm_dev *sock)
 
 			if (host_status & (TIFM_MMCSD_AE | TIFM_MMCSD_AF
 					   | TIFM_MMCSD_BRS)) {
-				local_irq_save(flags);
 				tifm_sd_transfer_data(host);
-				local_irq_restore(flags);
 				host_status &= ~TIFM_MMCSD_AE;
 			}
 		}
