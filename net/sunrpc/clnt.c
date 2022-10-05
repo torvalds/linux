@@ -910,6 +910,20 @@ unsigned long rpc_cancel_tasks(struct rpc_clnt *clnt, int error,
 }
 EXPORT_SYMBOL_GPL(rpc_cancel_tasks);
 
+static int rpc_clnt_disconnect_xprt(struct rpc_clnt *clnt,
+				    struct rpc_xprt *xprt, void *dummy)
+{
+	if (xprt_connected(xprt))
+		xprt_force_disconnect(xprt);
+	return 0;
+}
+
+void rpc_clnt_disconnect(struct rpc_clnt *clnt)
+{
+	rpc_clnt_iterate_for_each_xprt(clnt, rpc_clnt_disconnect_xprt, NULL);
+}
+EXPORT_SYMBOL_GPL(rpc_clnt_disconnect);
+
 /*
  * Properly shut down an RPC client, terminating all outstanding
  * requests.
