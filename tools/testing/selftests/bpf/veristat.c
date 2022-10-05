@@ -509,6 +509,28 @@ static int parse_verif_log(char * const buf, size_t buf_sz, struct verif_stats *
 	return 0;
 }
 
+static void fixup_obj(struct bpf_object *obj)
+{
+	struct bpf_map *map;
+
+	bpf_object__for_each_map(map, obj) {
+		/* disable pinning */
+		bpf_map__set_pin_path(map, NULL);
+
+		/* fix up map size, if necessary */
+		switch (bpf_map__type(map)) {
+		case BPF_MAP_TYPE_SK_STORAGE:
+		case BPF_MAP_TYPE_TASK_STORAGE:
+		case BPF_MAP_TYPE_INODE_STORAGE:
+		case BPF_MAP_TYPE_CGROUP_STORAGE:
+			break;
+		default:
+			if (bpf_map__max_entries(map) == 0)
+				bpf_map__set_max_entries(map, 1);
+		}
+	}
+}
+
 static int process_prog(const char *filename, struct bpf_object *obj, struct bpf_program *prog)
 {
 	const char *prog_name = bpf_program__name(prog);
@@ -542,6 +564,9 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 		bpf_program__set_log_level(prog, 4); /* only verifier stats */
 	}
 	verif_log_buf[0] = '\0';
+
+	/* increase chances of successful BPF object loading */
+	fixup_obj(obj);
 
 	err = bpf_object__load(obj);
 	env.progs_processed++;
