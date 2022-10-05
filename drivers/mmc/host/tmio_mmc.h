@@ -206,13 +206,13 @@ irqreturn_t tmio_mmc_irq(int irq, void *devid);
 
 static inline char *tmio_mmc_kmap_atomic(struct scatterlist *sg)
 {
-	return kmap_atomic(sg_page(sg)) + sg->offset;
+	return kmap_local_page(sg_page(sg)) + sg->offset;
 }
 
 static inline void tmio_mmc_kunmap_atomic(struct scatterlist *sg,
 					  void *virt)
 {
-	kunmap_atomic(virt - sg->offset);
+	kunmap_local(virt - sg->offset);
 }
 
 #ifdef CONFIG_PM
