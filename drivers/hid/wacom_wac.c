@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * drivers/input/tablet/wacom_wac.c
- *
  *  USB Wacom tablet support - Wacom specific code
- */
-
-/*
  */
 
 #include "wacom_wac.h"
