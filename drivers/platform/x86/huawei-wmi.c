@@ -63,7 +63,6 @@ struct huawei_wmi {
 	bool fn_lock_available;
 
 	struct huawei_wmi_debug debug;
-	struct input_dev *idev[2];
 	struct led_classdev cdev;
 	struct device *dev;
 
@@ -756,31 +755,30 @@ static void huawei_wmi_input_notify(u32 value, void *context)
 	kfree(response.pointer);
 }
 
-static int huawei_wmi_input_setup(struct device *dev,
-		const char *guid,
-		struct input_dev **idev)
+static int huawei_wmi_input_setup(struct device *dev, const char *guid)
 {
+	struct input_dev *idev;
 	acpi_status status;
 	int err;
 
-	*idev = devm_input_allocate_device(dev);
-	if (!*idev)
+	idev = devm_input_allocate_device(dev);
+	if (!idev)
 		return -ENOMEM;
 
-	(*idev)->name = "Huawei WMI hotkeys";
-	(*idev)->phys = "wmi/input0";
-	(*idev)->id.bustype = BUS_HOST;
-	(*idev)->dev.parent = dev;
+	idev->name = "Huawei WMI hotkeys";
+	idev->phys = "wmi/input0";
+	idev->id.bustype = BUS_HOST;
+	idev->dev.parent = dev;
 
-	err = sparse_keymap_setup(*idev, huawei_wmi_keymap, NULL);
+	err = sparse_keymap_setup(idev, huawei_wmi_keymap, NULL);
 	if (err)
 		return err;
 
-	err = input_register_device(*idev);
+	err = input_register_device(idev);
 	if (err)
 		return err;
 
-	status = wmi_install_notify_handler(guid, huawei_wmi_input_notify, *idev);
+	status = wmi_install_notify_handler(guid, huawei_wmi_input_notify, idev);
 	if (ACPI_FAILURE(status))
 		return -EIO;
 
@@ -809,17 +807,14 @@ static int huawei_wmi_probe(struct platform_device *pdev)
 	huawei_wmi->dev = &pdev->dev;
 
 	while (*guid->guid_string) {
-		struct input_dev *idev = *huawei_wmi->idev;
-
 		if (wmi_has_guid(guid->guid_string)) {
-			err = huawei_wmi_input_setup(&pdev->dev, guid->guid_string, &idev);
+			err = huawei_wmi_input_setup(&pdev->dev, guid->guid_string);
 			if (err) {
 				dev_err(&pdev->dev, "Failed to setup input on %s\n", guid->guid_string);
 				return err;
 			}
 		}
 
-		idev++;
 		guid++;
 	}
 
