@@ -1081,6 +1081,7 @@ static int advk_sw_pci_bridge_init(struct advk_pcie *pcie)
 	bridge->subsystem_vendor_id = advk_readl(pcie, PCIE_CORE_SSDEV_ID_REG) & 0xffff;
 	bridge->subsystem_id = advk_readl(pcie, PCIE_CORE_SSDEV_ID_REG) >> 16;
 	bridge->has_pcie = true;
+	bridge->pcie_start = PCIE_CORE_PCIEXP_CAP;
 	bridge->data = pcie;
 	bridge->ops = &advk_pci_bridge_emul_ops;
 
