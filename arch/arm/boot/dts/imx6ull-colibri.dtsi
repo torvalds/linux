@@ -21,7 +21,7 @@
 		pinctrl-0 = <&pinctrl_gpio_bl_on>;
 		power-supply = <&reg_3v3>;
 		pwms = <&pwm4 0 5000000 1>;
-		status = "okay";
+		status = "disabled";
 	};
 
 	gpio-keys {
@@ -42,7 +42,7 @@
 		compatible = "edt,et057090dhu";
 		backlight = <&backlight>;
 		power-supply = <&reg_3v3>;
-		status = "okay";
+		status = "disabled";
 
 		port {
 			lcd_panel_in: endpoint {
@@ -159,7 +159,7 @@
 	pinctrl-1 = <&pinctrl_i2c1_gpio>;
 	sda-gpios = <&gpio1 29 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	scl-gpios = <&gpio1 28 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
-	status = "okay";
+	status = "disabled";
 
 	/* Atmel maxtouch controller */
 	atmel_mxt_ts: touchscreen@4a {
@@ -202,6 +202,7 @@
 		adi,median-filter-size = /bits/ 8 <2>;
 		adi,averaging = /bits/ 8 <1>;
 		adi,conversion-interval = /bits/ 8 <255>;
+		status = "disabled";
 	};
 };
 
@@ -209,6 +210,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lcdif_dat
 		     &pinctrl_lcdif_ctrl>;
+	status = "disabled";
 
 	port {
 		lcdif_out: endpoint {
