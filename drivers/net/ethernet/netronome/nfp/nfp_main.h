@@ -161,6 +161,7 @@ bool nfp_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb);
 
 int nfp_pf_rtsym_read_optional(struct nfp_pf *pf, const char *format,
 			       unsigned int default_val);
+int nfp_net_pf_get_app_id(struct nfp_pf *pf);
 u8 __iomem *
 nfp_pf_map_rtsym(struct nfp_pf *pf, const char *name, const char *sym_fmt,
 		 unsigned int min_size, struct nfp_cpp_area **area);
@@ -190,4 +191,7 @@ int nfp_shared_buf_pool_set(struct nfp_pf *pf, unsigned int sb,
 
 int nfp_devlink_params_register(struct nfp_pf *pf);
 void nfp_devlink_params_unregister(struct nfp_pf *pf);
+
+unsigned int nfp_net_lr2speed(unsigned int linkrate);
+unsigned int nfp_net_speed2lr(unsigned int speed);
 #endif /* NFP_MAIN_H */

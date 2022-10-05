@@ -413,7 +413,8 @@ static int ks8851_probe_spi(struct spi_device *spi)
 
 	spi->bits_per_word = 8;
 
-	ks = netdev_priv(netdev);
+	kss = netdev_priv(netdev);
+	ks = &kss->ks8851;
 
 	ks->lock = ks8851_lock_spi;
 	ks->unlock = ks8851_unlock_spi;
@@ -432,8 +433,6 @@ static int ks8851_probe_spi(struct spi_device *spi)
 		 IRQ_TXPSI |	/* TX process stop */	\
 		 IRQ_RXPSI)	/* RX process stop */
 	ks->rc_ier = STD_IRQ;
-
-	kss = to_ks8851_spi(ks);
 
 	kss->spidev = spi;
 	mutex_init(&kss->lock);

@@ -1153,7 +1153,7 @@ static int asc7621_detect(struct i2c_client *client,
 
 		if (company == asc7621_chips[chip_index].company_id &&
 		    verstep == asc7621_chips[chip_index].verstep_id) {
-			strlcpy(info->type, asc7621_chips[chip_index].name,
+			strscpy(info->type, asc7621_chips[chip_index].name,
 				I2C_NAME_SIZE);
 
 			dev_info(&adapter->dev, "Matched %s at 0x%02x\n",
@@ -1165,7 +1165,7 @@ static int asc7621_detect(struct i2c_client *client,
 	return -ENODEV;
 }
 
-static int asc7621_remove(struct i2c_client *client)
+static void asc7621_remove(struct i2c_client *client)
 {
 	struct asc7621_data *data = i2c_get_clientdata(client);
 	int i;
@@ -1176,8 +1176,6 @@ static int asc7621_remove(struct i2c_client *client)
 		device_remove_file(&client->dev,
 				   &(asc7621_params[i].sda.dev_attr));
 	}
-
-	return 0;
 }
 
 static const struct i2c_device_id asc7621_id[] = {

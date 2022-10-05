@@ -1022,7 +1022,20 @@ ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
 
 	/* Check that everything is OK before copy-up */
 	if (value) {
-		acl = posix_acl_from_xattr(&init_user_ns, value, size);
+		/* The above comment can be understood in two ways:
+		 *
+		 * 1. We just want to check whether the basic POSIX ACL format
+		 *    is ok. For example, if the header is correct and the size
+		 *    is sane.
+		 * 2. We want to know whether the ACL_{GROUP,USER} entries can
+		 *    be mapped according to the underlying filesystem.
+		 *
+		 * Currently, we only check 1. If we wanted to check 2. we
+		 * would need to pass the mnt_userns and the fs_userns of the
+		 * underlying filesystem. But frankly, I think checking 1. is
+		 * enough to start the copy-up.
+		 */
+		acl = vfs_set_acl_prepare(&init_user_ns, &init_user_ns, value, size);
 		if (IS_ERR(acl))
 			return PTR_ERR(acl);
 	}

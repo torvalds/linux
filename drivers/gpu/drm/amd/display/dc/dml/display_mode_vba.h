@@ -651,10 +651,10 @@ struct vba_vars_st {
 
 	unsigned int OutputTypeAndRatePerState[DC__VOLTAGE_STATES][DC__NUM_DPP__MAX];
 	double RequiredDISPCLKPerSurface[DC__VOLTAGE_STATES][2][DC__NUM_DPP__MAX];
-	unsigned int MicroTileHeightY[DC__NUM_DPP__MAX];
-	unsigned int MicroTileHeightC[DC__NUM_DPP__MAX];
-	unsigned int MicroTileWidthY[DC__NUM_DPP__MAX];
-	unsigned int MicroTileWidthC[DC__NUM_DPP__MAX];
+	unsigned int MacroTileHeightY[DC__NUM_DPP__MAX];
+	unsigned int MacroTileHeightC[DC__NUM_DPP__MAX];
+	unsigned int MacroTileWidthY[DC__NUM_DPP__MAX];
+	unsigned int MacroTileWidthC[DC__NUM_DPP__MAX];
 	bool ImmediateFlipRequiredFinal;
 	bool DCCProgrammingAssumesScanDirectionUnknownFinal;
 	bool EnoughWritebackUnits;
@@ -800,8 +800,6 @@ struct vba_vars_st {
 	double PSCL_FACTOR[DC__NUM_DPP__MAX];
 	double PSCL_FACTOR_CHROMA[DC__NUM_DPP__MAX];
 	double MaximumVStartup[DC__VOLTAGE_STATES][2][DC__NUM_DPP__MAX];
-	unsigned int MacroTileWidthY[DC__NUM_DPP__MAX];
-	unsigned int MacroTileWidthC[DC__NUM_DPP__MAX];
 	double AlignedDCCMetaPitch[DC__NUM_DPP__MAX];
 	double AlignedYPitch[DC__NUM_DPP__MAX];
 	double AlignedCPitch[DC__NUM_DPP__MAX];

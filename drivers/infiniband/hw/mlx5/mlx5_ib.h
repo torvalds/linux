@@ -708,6 +708,7 @@ struct mlx5_ib_umr_context {
 };
 
 enum {
+	MLX5_UMR_STATE_UNINIT,
 	MLX5_UMR_STATE_ACTIVE,
 	MLX5_UMR_STATE_RECOVER,
 	MLX5_UMR_STATE_ERR,
@@ -1540,6 +1541,18 @@ int mlx5_ib_test_wc(struct mlx5_ib_dev *dev);
 
 static inline bool mlx5_ib_lag_should_assign_affinity(struct mlx5_ib_dev *dev)
 {
+	/*
+	 * If the driver is in hash mode and the port_select_flow_table_bypass cap
+	 * is supported, it means that the driver no longer needs to assign the port
+	 * affinity by default. If a user wants to set the port affinity explicitly,
+	 * the user has a dedicated API to do that, so there is no need to assign
+	 * the port affinity by default.
+	 */
+	if (dev->lag_active &&
+	    mlx5_lag_mode_is_hash(dev->mdev) &&
+	    MLX5_CAP_PORT_SELECTION(dev->mdev, port_select_flow_table_bypass))
+		return 0;
+
 	return dev->lag_active ||
 		(MLX5_CAP_GEN(dev->mdev, num_lag_ports) > 1 &&
 		 MLX5_CAP_GEN(dev->mdev, lag_tx_port_affinity));

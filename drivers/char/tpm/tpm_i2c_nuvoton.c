@@ -622,12 +622,11 @@ static int i2c_nuvoton_probe(struct i2c_client *client,
 	return tpm_chip_register(chip);
 }
 
-static int i2c_nuvoton_remove(struct i2c_client *client)
+static void i2c_nuvoton_remove(struct i2c_client *client)
 {
 	struct tpm_chip *chip = i2c_get_clientdata(client);
 
 	tpm_chip_unregister(chip);
-	return 0;
 }
 
 static const struct i2c_device_id i2c_nuvoton_id[] = {

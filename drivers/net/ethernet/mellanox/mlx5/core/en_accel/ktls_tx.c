@@ -93,7 +93,7 @@ struct mlx5e_ktls_offload_context_tx {
 	bool ctx_post_pending;
 	/* control / resync */
 	struct list_head list_node; /* member of the pool */
-	struct tls12_crypto_info_aes_gcm_128 crypto_info;
+	union mlx5e_crypto_info crypto_info;
 	struct tls_offload_context_tx *tx_ctx;
 	struct mlx5_core_dev *mdev;
 	struct mlx5e_tls_sw_stats *sw_stats;
@@ -485,8 +485,20 @@ int mlx5e_ktls_add_tx(struct net_device *netdev, struct sock *sk,
 		goto err_create_key;
 
 	priv_tx->expected_seq = start_offload_tcp_sn;
-	priv_tx->crypto_info  =
-		*(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
+	switch (crypto_info->cipher_type) {
+	case TLS_CIPHER_AES_GCM_128:
+		priv_tx->crypto_info.crypto_info_128 =
+			*(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
+		break;
+	case TLS_CIPHER_AES_GCM_256:
+		priv_tx->crypto_info.crypto_info_256 =
+			*(struct tls12_crypto_info_aes_gcm_256 *)crypto_info;
+		break;
+	default:
+		WARN_ONCE(1, "Unsupported cipher type %u\n",
+			  crypto_info->cipher_type);
+		return -EOPNOTSUPP;
+	}
 	priv_tx->tx_ctx = tls_offload_ctx_tx(tls_ctx);
 
 	mlx5e_set_ktls_tx_priv_ctx(tls_ctx, priv_tx);
@@ -671,14 +683,31 @@ tx_post_resync_params(struct mlx5e_txqsq *sq,
 		      struct mlx5e_ktls_offload_context_tx *priv_tx,
 		      u64 rcd_sn)
 {
-	struct tls12_crypto_info_aes_gcm_128 *info = &priv_tx->crypto_info;
 	__be64 rn_be = cpu_to_be64(rcd_sn);
 	bool skip_static_post;
 	u16 rec_seq_sz;
 	char *rec_seq;
 
-	rec_seq = info->rec_seq;
-	rec_seq_sz = sizeof(info->rec_seq);
+	switch (priv_tx->crypto_info.crypto_info.cipher_type) {
+	case TLS_CIPHER_AES_GCM_128: {
+		struct tls12_crypto_info_aes_gcm_128 *info = &priv_tx->crypto_info.crypto_info_128;
+
+		rec_seq = info->rec_seq;
+		rec_seq_sz = sizeof(info->rec_seq);
+		break;
+	}
+	case TLS_CIPHER_AES_GCM_256: {
+		struct tls12_crypto_info_aes_gcm_256 *info = &priv_tx->crypto_info.crypto_info_256;
+
+		rec_seq = info->rec_seq;
+		rec_seq_sz = sizeof(info->rec_seq);
+		break;
+	}
+	default:
+		WARN_ONCE(1, "Unsupported cipher type %u\n",
+			  priv_tx->crypto_info.crypto_info.cipher_type);
+		return;
+	}
 
 	skip_static_post = !memcmp(rec_seq, &rn_be, rec_seq_sz);
 	if (!skip_static_post)

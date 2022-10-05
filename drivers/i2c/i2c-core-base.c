@@ -599,13 +599,9 @@ static void i2c_device_remove(struct device *dev)
 
 	driver = to_i2c_driver(dev->driver);
 	if (driver->remove) {
-		int status;
-
 		dev_dbg(dev, "remove\n");
 
-		status = driver->remove(client);
-		if (status)
-			dev_warn(dev, "remove failed (%pe), will be ignored\n", ERR_PTR(status));
+		driver->remove(client);
 	}
 
 	devres_release_group(&client->dev, client->devres_group_id);

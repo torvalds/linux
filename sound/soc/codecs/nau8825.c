@@ -2675,10 +2675,8 @@ static int nau8825_i2c_probe(struct i2c_client *i2c)
 		&nau8825_dai, 1);
 }
 
-static int nau8825_i2c_remove(struct i2c_client *client)
-{
-	return 0;
-}
+static void nau8825_i2c_remove(struct i2c_client *client)
+{}
 
 static const struct i2c_device_id nau8825_i2c_ids[] = {
 	{ "nau8825", 0 },

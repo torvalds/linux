@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2010-2013 Felix Fietkau <nbd@openwrt.org>
- * Copyright (C) 2019-2021 Intel Corporation
+ * Copyright (C) 2019-2022 Intel Corporation
  */
 #include <linux/netdevice.h>
 #include <linux/types.h>
@@ -10,6 +10,7 @@
 #include <linux/random.h>
 #include <linux/moduleparam.h>
 #include <linux/ieee80211.h>
+#include <linux/minmax.h>
 #include <net/mac80211.h>
 #include "rate.h"
 #include "sta_info.h"
@@ -1478,7 +1479,7 @@ minstrel_ht_set_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 	 *  - for fallback rates, to increase chances of getting through
 	 */
 	if (offset > 0 ||
-	    (mi->sta->smps_mode == IEEE80211_SMPS_DYNAMIC &&
+	    (mi->sta->deflink.smps_mode == IEEE80211_SMPS_DYNAMIC &&
 	     group->streams > 1)) {
 		ratetbl->rate[offset].count = ratetbl->rate[offset].count_rts;
 		flags |= IEEE80211_TX_RC_USE_RTS_CTS;
@@ -1550,6 +1551,7 @@ minstrel_ht_update_rates(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 {
 	struct ieee80211_sta_rates *rates;
 	int i = 0;
+	int max_rates = min_t(int, mp->hw->max_rates, IEEE80211_TX_RATE_TABLE_SIZE);
 
 	rates = kzalloc(sizeof(*rates), GFP_ATOMIC);
 	if (!rates)
@@ -1559,16 +1561,17 @@ minstrel_ht_update_rates(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	minstrel_ht_set_rate(mp, mi, rates, i++, mi->max_tp_rate[0]);
 
 	/* Fill up remaining, keep one entry for max_probe_rate */
-	for (; i < (mp->hw->max_rates - 1); i++)
+	for (; i < (max_rates - 1); i++)
 		minstrel_ht_set_rate(mp, mi, rates, i, mi->max_tp_rate[i]);
 
-	if (i < mp->hw->max_rates)
+	if (i < max_rates)
 		minstrel_ht_set_rate(mp, mi, rates, i++, mi->max_prob_rate);
 
 	if (i < IEEE80211_TX_RATE_TABLE_SIZE)
 		rates->rate[i].idx = -1;
 
-	mi->sta->max_rc_amsdu_len = minstrel_ht_get_max_amsdu_len(mi);
+	mi->sta->deflink.agg.max_rc_amsdu_len = minstrel_ht_get_max_amsdu_len(mi);
+	ieee80211_sta_recalc_aggregates(mi->sta);
 	rate_control_set_rates(mp->hw, mi->sta, rates);
 }
 
@@ -1779,7 +1782,7 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 		nss = minstrel_mcs_groups[i].streams;
 
 		/* Mark MCS > 7 as unsupported if STA is in static SMPS mode */
-		if (sta->smps_mode == IEEE80211_SMPS_STATIC && nss > 1)
+		if (sta->deflink.smps_mode == IEEE80211_SMPS_STATIC && nss > 1)
 			continue;
 
 		/* HT rate */

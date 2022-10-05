@@ -375,11 +375,10 @@ static void dm355evm_power_off(void)
 	dm355evm_command(MSP_COMMAND_POWEROFF);
 }
 
-static int dm355evm_msp_remove(struct i2c_client *client)
+static void dm355evm_msp_remove(struct i2c_client *client)
 {
 	pm_power_off = NULL;
 	msp430 = NULL;
-	return 0;
 }
 
 static int

@@ -2550,8 +2550,8 @@ static void shrink_active_list(unsigned long nr_to_scan,
 		}
 
 		if (unlikely(buffer_heads_over_limit)) {
-			if (folio_get_private(folio) && folio_trylock(folio)) {
-				if (folio_get_private(folio))
+			if (folio_test_private(folio) && folio_trylock(folio)) {
+				if (folio_test_private(folio))
 					filemap_release_folio(folio, 0);
 				folio_unlock(folio);
 			}

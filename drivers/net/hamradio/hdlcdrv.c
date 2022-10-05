@@ -600,7 +600,7 @@ static int hdlcdrv_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
 
 	case HDLCDRVCTL_DRIVERNAME:
 		if (s->ops && s->ops->drvname) {
-			strlcpy(bi.data.drivername, s->ops->drvname,
+			strscpy(bi.data.drivername, s->ops->drvname,
 				sizeof(bi.data.drivername));
 			break;
 		}

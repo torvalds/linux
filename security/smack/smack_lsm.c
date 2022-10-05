@@ -497,13 +497,11 @@ static int smack_ptrace_access_check(struct task_struct *ctp, unsigned int mode)
  */
 static int smack_ptrace_traceme(struct task_struct *ptp)
 {
-	int rc;
 	struct smack_known *skp;
 
 	skp = smk_of_task(smack_cred(current_cred()));
 
-	rc = smk_ptrace_rule_check(ptp, skp, PTRACE_MODE_ATTACH, __func__);
-	return rc;
+	return smk_ptrace_rule_check(ptp, skp, PTRACE_MODE_ATTACH, __func__);
 }
 
 /**
@@ -2277,6 +2275,21 @@ static void smack_sk_free_security(struct sock *sk)
 	}
 #endif
 	kfree(sk->sk_security);
+}
+
+/**
+ * smack_sk_clone_security - Copy security context
+ * @sk: the old socket
+ * @newsk: the new socket
+ *
+ * Copy the security context of the old socket pointer to the cloned
+ */
+static void smack_sk_clone_security(const struct sock *sk, struct sock *newsk)
+{
+	struct socket_smack *ssp_old = sk->sk_security;
+	struct socket_smack *ssp_new = newsk->sk_security;
+
+	*ssp_new = *ssp_old;
 }
 
 /**
@@ -4882,6 +4895,7 @@ static struct security_hook_list smack_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(socket_getpeersec_dgram, smack_socket_getpeersec_dgram),
 	LSM_HOOK_INIT(sk_alloc_security, smack_sk_alloc_security),
 	LSM_HOOK_INIT(sk_free_security, smack_sk_free_security),
+	LSM_HOOK_INIT(sk_clone_security, smack_sk_clone_security),
 	LSM_HOOK_INIT(sock_graft, smack_sock_graft),
 	LSM_HOOK_INIT(inet_conn_request, smack_inet_conn_request),
 	LSM_HOOK_INIT(inet_csk_clone, smack_inet_csk_clone),

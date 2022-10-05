@@ -75,15 +75,17 @@ static int acpi_dev_pm_explicit_get(struct acpi_device *device, int *state)
 int acpi_device_get_power(struct acpi_device *device, int *state)
 {
 	int result = ACPI_STATE_UNKNOWN;
+	struct acpi_device *parent;
 	int error;
 
 	if (!device || !state)
 		return -EINVAL;
 
+	parent = acpi_dev_parent(device);
+
 	if (!device->flags.power_manageable) {
 		/* TBD: Non-recursive algorithm for walking up hierarchy. */
-		*state = device->parent ?
-			device->parent->power.state : ACPI_STATE_D0;
+		*state = parent ? parent->power.state : ACPI_STATE_D0;
 		goto out;
 	}
 
@@ -122,10 +124,10 @@ int acpi_device_get_power(struct acpi_device *device, int *state)
 	 * point, the fact that the device is in D0 implies that the parent has
 	 * to be in D0 too, except if ignore_parent is set.
 	 */
-	if (!device->power.flags.ignore_parent && device->parent
-	    && device->parent->power.state == ACPI_STATE_UNKNOWN
-	    && result == ACPI_STATE_D0)
-		device->parent->power.state = ACPI_STATE_D0;
+	if (!device->power.flags.ignore_parent && parent &&
+	    parent->power.state == ACPI_STATE_UNKNOWN &&
+	    result == ACPI_STATE_D0)
+		parent->power.state = ACPI_STATE_D0;
 
 	*state = result;
 
@@ -191,13 +193,17 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 		return -ENODEV;
 	}
 
-	if (!device->power.flags.ignore_parent && device->parent &&
-	    state < device->parent->power.state) {
-		acpi_handle_debug(device->handle,
-				  "Cannot transition to %s for parent in %s\n",
-				  acpi_power_state_string(state),
-				  acpi_power_state_string(device->parent->power.state));
-		return -ENODEV;
+	if (!device->power.flags.ignore_parent) {
+		struct acpi_device *parent;
+
+		parent = acpi_dev_parent(device);
+		if (parent && state < parent->power.state) {
+			acpi_handle_debug(device->handle,
+					  "Cannot transition to %s for parent in %s\n",
+					  acpi_power_state_string(state),
+					  acpi_power_state_string(parent->power.state));
+			return -ENODEV;
+		}
 	}
 
 	/*
@@ -497,7 +503,7 @@ static void acpi_pm_notify_handler(acpi_handle handle, u32 val, void *not_used)
 
 	acpi_handle_debug(handle, "Wake notify\n");
 
-	adev = acpi_bus_get_acpi_device(handle);
+	adev = acpi_get_acpi_dev(handle);
 	if (!adev)
 		return;
 
@@ -515,7 +521,7 @@ static void acpi_pm_notify_handler(acpi_handle handle, u32 val, void *not_used)
 
 	mutex_unlock(&acpi_pm_notifier_lock);
 
-	acpi_bus_put_acpi_device(adev);
+	acpi_put_acpi_dev(adev);
 }
 
 /**
@@ -1460,7 +1466,7 @@ EXPORT_SYMBOL_GPL(acpi_storage_d3);
  * not valid to ask for the ACPI power state of the device in that time frame.
  *
  * This function is intended to be used in a driver's probe or remove
- * function. See Documentation/firmware-guide/acpi/low-power-probe.rst for
+ * function. See Documentation/firmware-guide/acpi/non-d0-probe.rst for
  * more information.
  */
 bool acpi_dev_state_d0(struct device *dev)
