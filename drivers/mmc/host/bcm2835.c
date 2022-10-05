@@ -1068,7 +1068,6 @@ static void bcm2835_dma_complete_work(struct work_struct *work)
 	}
 
 	if (host->drain_words) {
-		unsigned long flags;
 		void *page;
 		u32 *buf;
 
@@ -1076,7 +1075,6 @@ static void bcm2835_dma_complete_work(struct work_struct *work)
 			host->drain_page += host->drain_offset >> PAGE_SHIFT;
 			host->drain_offset &= ~PAGE_MASK;
 		}
-		local_irq_save(flags);
 		page = kmap_atomic(host->drain_page);
 		buf = page + host->drain_offset;
 
@@ -1089,7 +1087,6 @@ static void bcm2835_dma_complete_work(struct work_struct *work)
 		}
 
 		kunmap_atomic(page);
-		local_irq_restore(flags);
 	}
 
 	bcm2835_finish_data(host);
