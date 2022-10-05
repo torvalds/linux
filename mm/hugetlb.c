@@ -6687,10 +6687,11 @@ static unsigned long page_table_shareable(struct vm_area_struct *svma,
 	return saddr;
 }
 
-static bool __vma_aligned_range_pmd_shareable(struct vm_area_struct *vma,
-				unsigned long start, unsigned long end,
-				bool check_vma_lock)
+bool want_pmd_share(struct vm_area_struct *vma, unsigned long addr)
 {
+	unsigned long start = addr & PUD_MASK;
+	unsigned long end = start + PUD_SIZE;
+
 #ifdef CONFIG_USERFAULTFD
 	if (uffd_disable_huge_pmd_share(vma))
 		return false;
@@ -6700,36 +6701,11 @@ static bool __vma_aligned_range_pmd_shareable(struct vm_area_struct *vma,
 	 */
 	if (!(vma->vm_flags & VM_MAYSHARE))
 		return false;
-	if (check_vma_lock && !vma->vm_private_data)
+	if (!vma->vm_private_data)	/* vma lock required for sharing */
 		return false;
 	if (!range_in_vma(vma, start, end))
 		return false;
 	return true;
-}
-
-static bool vma_pmd_shareable(struct vm_area_struct *vma)
-{
-	unsigned long start = ALIGN(vma->vm_start, PUD_SIZE),
-		      end = ALIGN_DOWN(vma->vm_end, PUD_SIZE);
-
-	if (start >= end)
-		return false;
-
-	return __vma_aligned_range_pmd_shareable(vma, start, end, false);
-}
-
-static bool vma_addr_pmd_shareable(struct vm_area_struct *vma,
-						unsigned long addr)
-{
-	unsigned long start = addr & PUD_MASK;
-	unsigned long end = start + PUD_SIZE;
-
-	return __vma_aligned_range_pmd_shareable(vma, start, end, true);
-}
-
-bool want_pmd_share(struct vm_area_struct *vma, unsigned long addr)
-{
-	return vma_addr_pmd_shareable(vma, addr);
 }
 
 /*
@@ -6880,17 +6856,21 @@ static void hugetlb_vma_lock_alloc(struct vm_area_struct *vma)
 	if (vma->vm_private_data)
 		return;
 
-	/* Check size/alignment for pmd sharing possible */
-	if (!vma_pmd_shareable(vma))
-		return;
-
 	vma_lock = kmalloc(sizeof(*vma_lock), GFP_KERNEL);
-	if (!vma_lock)
+	if (!vma_lock) {
 		/*
 		 * If we can not allocate structure, then vma can not
-		 * participate in pmd sharing.
+		 * participate in pmd sharing.  This is only a possible
+		 * performance enhancement and memory saving issue.
+		 * However, the lock is also used to synchronize page
+		 * faults with truncation.  If the lock is not present,
+		 * unlikely races could leave pages in a file past i_size
+		 * until the file is removed.  Warn in the unlikely case of
+		 * allocation failure.
 		 */
+		pr_warn_once("HugeTLB: unable to allocate vma specific lock\n");
 		return;
+	}
 
 	kref_init(&vma_lock->refs);
 	init_rwsem(&vma_lock->rw_sema);
