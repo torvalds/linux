@@ -171,8 +171,8 @@ struct cifs_secmech {
 	struct sdesc *sdeschmacsha256;  /* ctxt to generate smb2 signature */
 	struct sdesc *sdesccmacaes;  /* ctxt to generate smb3 signature */
 	struct sdesc *sdescsha512; /* ctxt to generate smb3.11 signing key */
-	struct crypto_aead *ccmaesencrypt; /* smb3 encryption aead */
-	struct crypto_aead *ccmaesdecrypt; /* smb3 decryption aead */
+	struct crypto_aead *enc; /* smb3 AEAD encryption TFM (AES-CCM and AES-GCM) */
+	struct crypto_aead *dec; /* smb3 AEAD decryption TFM (AES-CCM and AES-GCM) */
 };
 
 /* per smb session structure/fields */

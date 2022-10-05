@@ -743,14 +743,14 @@ cifs_crypto_secmech_release(struct TCP_Server_Info *server)
 		server->secmech.hmacmd5 = NULL;
 	}
 
-	if (server->secmech.ccmaesencrypt) {
-		crypto_free_aead(server->secmech.ccmaesencrypt);
-		server->secmech.ccmaesencrypt = NULL;
+	if (server->secmech.enc) {
+		crypto_free_aead(server->secmech.enc);
+		server->secmech.enc = NULL;
 	}
 
-	if (server->secmech.ccmaesdecrypt) {
-		crypto_free_aead(server->secmech.ccmaesdecrypt);
-		server->secmech.ccmaesdecrypt = NULL;
+	if (server->secmech.dec) {
+		crypto_free_aead(server->secmech.dec);
+		server->secmech.dec = NULL;
 	}
 
 	kfree_sensitive(server->secmech.sdesccmacaes);
