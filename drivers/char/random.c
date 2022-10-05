@@ -96,8 +96,8 @@ MODULE_PARM_DESC(ratelimit_disable, "Disable random ratelimit suppression");
 /*
  * Returns whether or not the input pool has been seeded and thus guaranteed
  * to supply cryptographically secure random numbers. This applies to: the
- * /dev/urandom device, the get_random_bytes function, and the get_random_{u32,
- * ,u64,int,long} family of functions.
+ * /dev/urandom device, the get_random_bytes function, and the get_random_{u8,
+ * u16,u32,u64,int,long} family of functions.
  *
  * Returns: true if the input pool has been seeded.
  *          false if the input pool has not been seeded.
@@ -119,9 +119,9 @@ static void try_to_generate_entropy(void);
 /*
  * Wait for the input pool to be seeded and thus guaranteed to supply
  * cryptographically secure random numbers. This applies to: the /dev/urandom
- * device, the get_random_bytes function, and the get_random_{u32,u64,int,long}
- * family of functions. Using any of these functions without first calling
- * this function forfeits the guarantee of security.
+ * device, the get_random_bytes function, and the get_random_{u8,u16,u32,u64,
+ * int,long} family of functions. Using any of these functions without first
+ * calling this function forfeits the guarantee of security.
  *
  * Returns: 0 if the input pool has been seeded.
  *          -ERESTARTSYS if the function was interrupted by a signal.
@@ -157,6 +157,8 @@ EXPORT_SYMBOL(wait_for_random_bytes);
  * There are a few exported interfaces for use by other drivers:
  *
  *	void get_random_bytes(void *buf, size_t len)
+ *	u8 get_random_u8()
+ *	u16 get_random_u16()
  *	u32 get_random_u32()
  *	u64 get_random_u64()
  *	unsigned int get_random_int()
@@ -164,10 +166,10 @@ EXPORT_SYMBOL(wait_for_random_bytes);
  *
  * These interfaces will return the requested number of random bytes
  * into the given buffer or as a return value. This is equivalent to
- * a read from /dev/urandom. The u32, u64, int, and long family of
- * functions may be higher performance for one-off random integers,
- * because they do a bit of buffering and do not invoke reseeding
- * until the buffer is emptied.
+ * a read from /dev/urandom. The u8, u16, u32, u64, int, and long
+ * family of functions may be higher performance for one-off random
+ * integers, because they do a bit of buffering and do not invoke
+ * reseeding until the buffer is emptied.
  *
  *********************************************************************/
 
@@ -504,10 +506,10 @@ type get_random_ ##type(void)							\
 }										\
 EXPORT_SYMBOL(get_random_ ##type);
 
-DEFINE_BATCHED_ENTROPY(u64)
-DEFINE_BATCHED_ENTROPY(u32)
-DEFINE_BATCHED_ENTROPY(u16)
 DEFINE_BATCHED_ENTROPY(u8)
+DEFINE_BATCHED_ENTROPY(u16)
+DEFINE_BATCHED_ENTROPY(u32)
+DEFINE_BATCHED_ENTROPY(u64)
 
 #ifdef CONFIG_SMP
 /*
@@ -522,6 +524,8 @@ int __cold random_prepare_cpu(unsigned int cpu)
 	 * randomness.
 	 */
 	per_cpu_ptr(&crngs, cpu)->generation = ULONG_MAX;
+	per_cpu_ptr(&batched_entropy_u8, cpu)->position = UINT_MAX;
+	per_cpu_ptr(&batched_entropy_u16, cpu)->position = UINT_MAX;
 	per_cpu_ptr(&batched_entropy_u32, cpu)->position = UINT_MAX;
 	per_cpu_ptr(&batched_entropy_u64, cpu)->position = UINT_MAX;
 	return 0;

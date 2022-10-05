@@ -96,6 +96,8 @@ static inline int get_random_bytes_wait(void *buf, size_t nbytes)
 		*out = get_random_ ## name(); \
 		return 0; \
 	}
+declare_get_random_var_wait(u8, u8)
+declare_get_random_var_wait(u16, u16)
 declare_get_random_var_wait(u32, u32)
 declare_get_random_var_wait(u64, u32)
 declare_get_random_var_wait(int, unsigned int)
