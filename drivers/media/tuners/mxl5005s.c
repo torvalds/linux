@@ -3637,7 +3637,7 @@ static u16 MXL_GetCHRegister_ZeroIF(struct dvb_frontend *fe, u8 *RegNum,
 	u16 status = 0;
 	int i;
 
-	u8 RegAddr[] = {43, 136};
+	static const u8 RegAddr[] = {43, 136};
 
 	*count = ARRAY_SIZE(RegAddr);
 
