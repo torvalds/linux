@@ -1262,6 +1262,7 @@ static struct sdw_master_ops sdw_intel_ops = {
 	.set_bus_conf = cdns_bus_conf,
 	.pre_bank_switch = intel_pre_bank_switch,
 	.post_bank_switch = intel_post_bank_switch,
+	.read_ping_status = cdns_read_ping_status,
 };
 
 static int intel_init(struct sdw_intel *sdw)

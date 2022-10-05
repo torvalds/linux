@@ -27,8 +27,8 @@ static ssize_t fw_version_show(struct device *dev,
 	if (ret)
 		return CATPT_IPC_ERROR(ret);
 
-	return sprintf(buf, "%d.%d.%d.%d\n", version.type, version.major,
-		       version.minor, version.build);
+	return sysfs_emit(buf, "%d.%d.%d.%d\n", version.type, version.major,
+			  version.minor, version.build);
 }
 static DEVICE_ATTR_RO(fw_version);
 
@@ -37,7 +37,7 @@ static ssize_t fw_info_show(struct device *dev,
 {
 	struct catpt_dev *cdev = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%s\n", cdev->ipc.config.fw_info);
+	return sysfs_emit(buf, "%s\n", cdev->ipc.config.fw_info);
 }
 static DEVICE_ATTR_RO(fw_info);
 
