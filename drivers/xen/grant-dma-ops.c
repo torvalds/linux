@@ -153,7 +153,7 @@ static dma_addr_t xen_grant_dma_map_page(struct device *dev, struct page *page,
 					 unsigned long attrs)
 {
 	struct xen_grant_dma_data *data;
-	unsigned int i, n_pages = PFN_UP(size);
+	unsigned int i, n_pages = PFN_UP(offset + size);
 	grant_ref_t grant;
 	dma_addr_t dma_handle;
 
@@ -185,7 +185,8 @@ static void xen_grant_dma_unmap_page(struct device *dev, dma_addr_t dma_handle,
 				     unsigned long attrs)
 {
 	struct xen_grant_dma_data *data;
-	unsigned int i, n_pages = PFN_UP(size);
+	unsigned long offset = dma_handle & (PAGE_SIZE - 1);
+	unsigned int i, n_pages = PFN_UP(offset + size);
 	grant_ref_t grant;
 
 	if (WARN_ON(dir == DMA_NONE))
