@@ -825,7 +825,6 @@ void ntfs_update_mftmirr(struct ntfs_sb_info *sbi, int wait)
 	if (!(sbi->flags & NTFS_FLAGS_MFTMIRR))
 		return;
 
-	err = 0;
 	bytes = sbi->mft.recs_mirr << sbi->record_bits;
 	block1 = sbi->mft.lbo >> sb->s_blocksize_bits;
 	block2 = sbi->mft.lbo2 >> sb->s_blocksize_bits;
@@ -855,8 +854,7 @@ void ntfs_update_mftmirr(struct ntfs_sb_info *sbi, int wait)
 		put_bh(bh1);
 		bh1 = NULL;
 
-		if (wait)
-			err = sync_dirty_buffer(bh2);
+		err = wait ? sync_dirty_buffer(bh2) : 0;
 
 		put_bh(bh2);
 		if (err)
