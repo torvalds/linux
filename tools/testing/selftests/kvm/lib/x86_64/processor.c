@@ -247,9 +247,7 @@ void virt_map_level(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 
 uint64_t *vm_get_page_table_entry(struct kvm_vm *vm, uint64_t vaddr)
 {
-	uint16_t index[4];
 	uint64_t *pml4e, *pdpe, *pde;
-	uint64_t *pte;
 
 	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
 		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
@@ -264,32 +262,17 @@ uint64_t *vm_get_page_table_entry(struct kvm_vm *vm, uint64_t vaddr)
 	TEST_ASSERT(vaddr == (((int64_t)vaddr << 16) >> 16),
 		"Canonical check failed.  The virtual address is invalid.");
 
-	index[0] = (vaddr >> 12) & 0x1ffu;
-	index[1] = (vaddr >> 21) & 0x1ffu;
-	index[2] = (vaddr >> 30) & 0x1ffu;
-	index[3] = (vaddr >> 39) & 0x1ffu;
+	pml4e = virt_get_pte(vm, &vm->pgd, vaddr, PG_LEVEL_512G);
 
-	pml4e = addr_gpa2hva(vm, vm->pgd);
-	TEST_ASSERT(pml4e[index[3]] & PTE_PRESENT_MASK,
-		"Expected pml4e to be present for gva: 0x%08lx", vaddr);
-
-	pdpe = addr_gpa2hva(vm, PTE_GET_PFN(pml4e[index[3]]) * vm->page_size);
-	TEST_ASSERT(pdpe[index[2]] & PTE_PRESENT_MASK,
-		"Expected pdpe to be present for gva: 0x%08lx", vaddr);
-	TEST_ASSERT(!(pdpe[index[2]] & PTE_LARGE_MASK),
+	pdpe = virt_get_pte(vm, pml4e, vaddr, PG_LEVEL_1G);
+	TEST_ASSERT(!(*pdpe & PTE_LARGE_MASK),
 		"Expected pdpe to map a pde not a 1-GByte page.");
 
-	pde = addr_gpa2hva(vm, PTE_GET_PFN(pdpe[index[2]]) * vm->page_size);
-	TEST_ASSERT(pde[index[1]] & PTE_PRESENT_MASK,
-		"Expected pde to be present for gva: 0x%08lx", vaddr);
-	TEST_ASSERT(!(pde[index[1]] & PTE_LARGE_MASK),
+	pde = virt_get_pte(vm, pdpe, vaddr, PG_LEVEL_2M);
+	TEST_ASSERT(!(*pde & PTE_LARGE_MASK),
 		"Expected pde to map a pte not a 2-MByte page.");
 
-	pte = addr_gpa2hva(vm, PTE_GET_PFN(pde[index[1]]) * vm->page_size);
-	TEST_ASSERT(pte[index[0]] & PTE_PRESENT_MASK,
-		"Expected pte to be present for gva: 0x%08lx", vaddr);
-
-	return &pte[index[0]];
+	return virt_get_pte(vm, pde, vaddr, PG_LEVEL_4K);
 }
 
 void virt_arch_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
