@@ -1359,7 +1359,7 @@ static void show_instructions(struct pt_regs *regs)
 	unsigned long nip = regs->nip;
 	unsigned long pc = regs->nip - (NR_INSN_TO_PRINT * 3 / 4 * sizeof(int));
 
-	printk("Instruction dump:");
+	printk("Code:");
 
 	/*
 	 * If we were executing with the MMU off for instructions, adjust pc
