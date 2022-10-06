@@ -346,35 +346,6 @@ out:
 }
 
 /*
- * ntfs_query_def
- *
- * Return: Current ATTR_DEF_ENTRY for given attribute type.
- */
-const struct ATTR_DEF_ENTRY *ntfs_query_def(struct ntfs_sb_info *sbi,
-					    enum ATTR_TYPE type)
-{
-	int type_in = le32_to_cpu(type);
-	size_t min_idx = 0;
-	size_t max_idx = sbi->def_entries - 1;
-
-	while (min_idx <= max_idx) {
-		size_t i = min_idx + ((max_idx - min_idx) >> 1);
-		const struct ATTR_DEF_ENTRY *entry = sbi->def_table + i;
-		int diff = le32_to_cpu(entry->type) - type_in;
-
-		if (!diff)
-			return entry;
-		if (diff < 0)
-			min_idx = i + 1;
-		else if (i)
-			max_idx = i - 1;
-		else
-			return NULL;
-	}
-	return NULL;
-}
-
-/*
  * ntfs_look_for_free_space - Look for a free space in bitmap.
  */
 int ntfs_look_for_free_space(struct ntfs_sb_info *sbi, CLST lcn, CLST len,

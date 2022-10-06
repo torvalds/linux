@@ -585,8 +585,6 @@ int ntfs_fix_post_read(struct NTFS_RECORD_HEADER *rhdr, size_t bytes,
 		       bool simple);
 int ntfs_extend_init(struct ntfs_sb_info *sbi);
 int ntfs_loadlog_and_replay(struct ntfs_inode *ni, struct ntfs_sb_info *sbi);
-const struct ATTR_DEF_ENTRY *ntfs_query_def(struct ntfs_sb_info *sbi,
-					    enum ATTR_TYPE Type);
 int ntfs_look_for_free_space(struct ntfs_sb_info *sbi, CLST lcn, CLST len,
 			     CLST *new_lcn, CLST *new_len,
 			     enum ALLOCATE_OPT opt);
