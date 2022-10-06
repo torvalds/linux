@@ -779,7 +779,7 @@ static int fsl_pamu_probe(struct platform_device *pdev)
 	of_get_address(dev->of_node, 0, &size, NULL);
 
 	irq = irq_of_parse_and_map(dev->of_node, 0);
-	if (irq == NO_IRQ) {
+	if (!irq) {
 		dev_warn(dev, "no interrupts listed in PAMU node\n");
 		goto error;
 	}
@@ -903,7 +903,7 @@ static int fsl_pamu_probe(struct platform_device *pdev)
 	return 0;
 
 error:
-	if (irq != NO_IRQ)
+	if (irq)
 		free_irq(irq, data);
 
 	kfree_sensitive(data);
