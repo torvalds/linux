@@ -18,6 +18,7 @@
 #include <nvhe/ffa.h>
 #include <nvhe/iommu.h>
 #include <nvhe/mem_protect.h>
+#include <nvhe/modules.h>
 #include <nvhe/mm.h>
 #include <nvhe/pkvm.h>
 #include <nvhe/trap_handler.h>
@@ -1154,6 +1155,37 @@ static void handle___pkvm_iommu_finalize(struct kvm_cpu_context *host_ctxt)
 	cpu_reg(host_ctxt, 1) = __pkvm_iommu_finalize();
 }
 
+static void handle___pkvm_alloc_module_va(struct kvm_cpu_context *host_ctxt)
+{
+	DECLARE_REG(u64, nr_pages, host_ctxt, 1);
+
+	cpu_reg(host_ctxt, 1) = (u64)__pkvm_alloc_module_va(nr_pages);
+}
+
+static void handle___pkvm_map_module_page(struct kvm_cpu_context *host_ctxt)
+{
+	DECLARE_REG(u64, pfn, host_ctxt, 1);
+	DECLARE_REG(void *, va, host_ctxt, 2);
+	DECLARE_REG(enum kvm_pgtable_prot, prot, host_ctxt, 3);
+
+	cpu_reg(host_ctxt, 1) = (u64)__pkvm_map_module_page(pfn, va, prot);
+}
+
+static void handle___pkvm_unmap_module_page(struct kvm_cpu_context *host_ctxt)
+{
+	DECLARE_REG(u64, pfn, host_ctxt, 1);
+	DECLARE_REG(void *, va, host_ctxt, 2);
+
+	__pkvm_unmap_module_page(pfn, va);
+}
+
+static void handle___pkvm_init_module(struct kvm_cpu_context *host_ctxt)
+{
+	DECLARE_REG(void *, ptr, host_ctxt, 1);
+
+	cpu_reg(host_ctxt, 1) = __pkvm_init_module(ptr);
+}
+
 typedef void (*hcall_t)(struct kvm_cpu_context *);
 
 #define HANDLE_FUNC(x)	[__KVM_HOST_SMCCC_FUNC_##x] = (hcall_t)handle_##x
@@ -1192,6 +1224,10 @@ static const hcall_t host_hcall[] = {
 	HANDLE_FUNC(__pkvm_iommu_register),
 	HANDLE_FUNC(__pkvm_iommu_pm_notify),
 	HANDLE_FUNC(__pkvm_iommu_finalize),
+	HANDLE_FUNC(__pkvm_alloc_module_va),
+	HANDLE_FUNC(__pkvm_map_module_page),
+	HANDLE_FUNC(__pkvm_unmap_module_page),
+	HANDLE_FUNC(__pkvm_init_module),
 };
 
 static void handle_host_hcall(struct kvm_cpu_context *host_ctxt)

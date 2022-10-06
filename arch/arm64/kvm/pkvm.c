@@ -13,7 +13,9 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/sort.h>
 
+#include <asm/kvm_mmu.h>
 #include <asm/kvm_pkvm.h>
+#include <asm/kvm_pkvm_module.h>
 
 #include "hyp_constants.h"
 
@@ -412,3 +414,140 @@ int pkvm_vm_ioctl_enable_cap(struct kvm *kvm, struct kvm_enable_cap *cap)
 
 	return 0;
 }
+
+struct pkvm_mod_sec_mapping {
+	struct pkvm_module_section *sec;
+	enum kvm_pgtable_prot prot;
+};
+
+static void pkvm_unmap_module_pages(void *kern_va, void *hyp_va, size_t size)
+{
+	size_t offset;
+	u64 pfn;
+
+	for (offset = 0; offset < size; offset += PAGE_SIZE) {
+		pfn = vmalloc_to_pfn(kern_va + offset);
+		kvm_call_hyp_nvhe(__pkvm_unmap_module_page, pfn,
+				  hyp_va + offset);
+	}
+}
+
+static void pkvm_unmap_module_sections(struct pkvm_mod_sec_mapping *secs_map, void *hyp_va_base, int nr_secs)
+{
+	size_t offset, size;
+	void *start;
+	int i;
+
+	for (i = 0; i < nr_secs; i++) {
+		start = secs_map[i].sec->start;
+		size = secs_map[i].sec->end - start;
+		offset = start - secs_map[0].sec->start;
+		pkvm_unmap_module_pages(start, hyp_va_base + offset, size);
+	}
+}
+
+static int pkvm_map_module_section(struct pkvm_mod_sec_mapping *sec_map, void *hyp_va)
+{
+	size_t offset, size = sec_map->sec->end - sec_map->sec->start;
+	int ret;
+	u64 pfn;
+
+	for (offset = 0; offset < size; offset += PAGE_SIZE) {
+		pfn = vmalloc_to_pfn(sec_map->sec->start + offset);
+		ret = kvm_call_hyp_nvhe(__pkvm_map_module_page, pfn,
+					hyp_va + offset, sec_map->prot);
+		if (ret) {
+			pkvm_unmap_module_pages(sec_map->sec->start, hyp_va, offset);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int pkvm_map_module_sections(struct pkvm_mod_sec_mapping *secs_map, void *hyp_va_base, int nr_secs)
+{
+	size_t offset;
+	int i, ret;
+
+	for (i = 0; i < nr_secs; i++) {
+		offset = secs_map[i].sec->start - secs_map[0].sec->start;
+		ret = pkvm_map_module_section(&secs_map[i], hyp_va_base + offset);
+		if (ret) {
+			pkvm_unmap_module_sections(secs_map, hyp_va_base, i);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int __pkvm_cmp_mod_sec(const void *p1, const void *p2)
+{
+	struct pkvm_mod_sec_mapping const *s1 = p1;
+	struct pkvm_mod_sec_mapping const *s2 = p2;
+
+	return s1->sec->start < s2->sec->start ? -1 : s1->sec->start > s2->sec->start;
+}
+
+int __pkvm_load_el2_module(struct pkvm_el2_module *mod, struct module *this)
+{
+	struct pkvm_mod_sec_mapping secs_map[] = {
+		{ &mod->text, KVM_PGTABLE_PROT_R | KVM_PGTABLE_PROT_X },
+		{ &mod->bss, KVM_PGTABLE_PROT_R | KVM_PGTABLE_PROT_W },
+		{ &mod->rodata, KVM_PGTABLE_PROT_R },
+		{ &mod->data, KVM_PGTABLE_PROT_R | KVM_PGTABLE_PROT_W },
+	};
+	void *start, *end, *hyp_va;
+	kvm_nvhe_reloc_t *endrel;
+	size_t offset, size;
+	int ret, i;
+
+	if (!is_protected_kvm_enabled())
+		return -EOPNOTSUPP;
+
+	for (i = 0; i < ARRAY_SIZE(secs_map); i++) {
+		if (!PAGE_ALIGNED(secs_map[i].sec->start)) {
+			kvm_err("EL2 sections are not page-aligned\n");
+			return -EINVAL;
+		}
+	}
+
+	if (!try_module_get(this)) {
+		kvm_err("Kernel module has been unloaded\n");
+		return -ENODEV;
+	}
+
+	sort(secs_map, ARRAY_SIZE(secs_map), sizeof(secs_map[0]), __pkvm_cmp_mod_sec, NULL);
+	start = secs_map[0].sec->start;
+	end = secs_map[ARRAY_SIZE(secs_map) - 1].sec->end;
+	size = PAGE_ALIGN(end - start);
+
+	hyp_va = (void *)kvm_call_hyp_nvhe(__pkvm_alloc_module_va, size >> PAGE_SHIFT);
+	if (!hyp_va) {
+		kvm_err("Failed to allocate hypervisor VA space for EL2 module\n");
+		module_put(this);
+		return -ENOMEM;
+	}
+	endrel = (void *)mod->relocs + mod->nr_relocs * sizeof(*endrel);
+	kvm_apply_hyp_module_relocations(start, hyp_va, mod->relocs, endrel);
+
+	ret = pkvm_map_module_sections(secs_map, hyp_va, ARRAY_SIZE(secs_map));
+	if (ret) {
+		kvm_err("Failed to map EL2 module page: %d\n", ret);
+		module_put(this);
+		return ret;
+	}
+
+	offset = (size_t)((void *)mod->init - start);
+	ret = kvm_call_hyp_nvhe(__pkvm_init_module, hyp_va + offset);
+	if (ret) {
+		kvm_err("Failed to init EL2 module: %d\n", ret);
+		pkvm_unmap_module_sections(secs_map, hyp_va, ARRAY_SIZE(secs_map));
+		module_put(this);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__pkvm_load_el2_module);

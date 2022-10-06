@@ -12,6 +12,7 @@
 #include <asm/insn.h>
 #include <asm/kvm_mmu.h>
 #include <asm/memory.h>
+#include <asm/patching.h>
 
 /*
  * The LSB of the HYP VA tag
@@ -106,6 +107,29 @@ __init void kvm_apply_hyp_relocations(void)
 
 		/* Convert to hyp VA and store back to the relocation address. */
 		*ptr = __early_kern_hyp_va((uintptr_t)lm_alias(kimg_va));
+	}
+}
+
+void kvm_apply_hyp_module_relocations(void *mod_start, void *hyp_va,
+				      kvm_nvhe_reloc_t *begin,
+				      kvm_nvhe_reloc_t *end)
+{
+	kvm_nvhe_reloc_t *rel;
+
+	for (rel = begin; rel < end; ++rel) {
+		u32 **ptr, *va;
+
+		/*
+		 * Each entry contains a 32-bit relative offset from itself
+		 * to a VA position in the module area.
+		 */
+		ptr = (u32 **)((char *)rel + *rel);
+
+		/* Read the module VA value at the relocation address. */
+		va = *ptr;
+
+		/* Convert the module VA of the reloc to a hyp VA */
+		WARN_ON(aarch64_addr_write(ptr, (u64)(((void *)va - mod_start) + hyp_va)));
 	}
 }
 

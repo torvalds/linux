@@ -116,11 +116,15 @@ alternative_cb_end
 #include <asm/cacheflush.h>
 #include <asm/mmu_context.h>
 #include <asm/kvm_host.h>
+#include <asm/kvm_pkvm_module.h>
 
 void kvm_update_va_mask(struct alt_instr *alt,
 			__le32 *origptr, __le32 *updptr, int nr_inst);
 void kvm_compute_layout(void);
 void kvm_apply_hyp_relocations(void);
+void kvm_apply_hyp_module_relocations(void *mod_start, void *hyp_va,
+				      kvm_nvhe_reloc_t *begin,
+				      kvm_nvhe_reloc_t *end);
 
 #define __hyp_pa(x) (((phys_addr_t)(x)) + hyp_physvirt_offset)
 
