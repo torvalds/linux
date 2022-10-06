@@ -8411,6 +8411,19 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/fujitsu-tablet.c
 
+FUNCTION HOOKS (FTRACE)
+M:	Steven Rostedt <rostedt@goodmis.org>
+M:	Masami Hiramatsu <mhiramat@kernel.org>
+R:	Mark Rutland <mark.rutland@arm.com>
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/trace/linux-trace.git
+F:	Documentation/trace/ftrace*
+F:	kernel/trace/ftrace*
+F:	kernel/trace/fgraph.c
+F:	arch/*/*/*/*ftrace*
+F:	arch/*/*/*ftrace*
+F:	include/*/ftrace.h
+
 FUNGIBLE ETHERNET DRIVERS
 M:	Dimitris Michailidis <dmichail@fungible.com>
 L:	netdev@vger.kernel.org
@@ -20615,14 +20628,10 @@ F:	drivers/char/tpm/
 TRACING
 M:	Steven Rostedt <rostedt@goodmis.org>
 M:	Masami Hiramatsu <mhiramat@kernel.org>
-R:	Mark Rutland <mark.rutland@arm.com>
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/trace/linux-trace.git
-F:	Documentation/trace/ftrace.rst
-F:	arch/*/*/*/*ftrace*
-F:	arch/*/*/*ftrace*
+F:	Documentation/trace/*
 F:	fs/tracefs/
-F:	include/*/ftrace.h
 F:	include/linux/trace*.h
 F:	include/trace/
 F:	kernel/trace/
