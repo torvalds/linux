@@ -137,7 +137,8 @@ static void migrate_tasks(struct rq *dead_rq, struct rq_flags *rf)
 		 */
 		rq_unlock(rq, rf);
 		raw_spin_lock(&next->pi_lock);
-		rq_relock(rq, rf);
+		raw_spin_rq_lock(rq);
+		rq_repin_lock(rq, rf);
 
 		/*
 		 * Since we're inside stop-machine, _nothing_ should have
@@ -160,7 +161,8 @@ static void migrate_tasks(struct rq *dead_rq, struct rq_flags *rf)
 				rq_unlock(rq, rf);
 				rq = dead_rq;
 				*rf = orf;
-				rq_relock(rq, rf);
+				raw_spin_rq_lock(rq);
+				rq_repin_lock(rq, rf);
 			}
 		} else {
 			detach_one_task_core(next, rq, &percpu_kthreads);

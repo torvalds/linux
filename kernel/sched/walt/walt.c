@@ -17,7 +17,6 @@
 
 #include <trace/hooks/sched.h>
 #include <trace/hooks/cpufreq.h>
-#include <trace/hooks/topology.h>
 #include <trace/events/power.h>
 #include "walt.h"
 #include "trace.h"
@@ -197,7 +196,7 @@ void walt_task_dump(struct task_struct *p)
 
 	printk_deferred("Task: %.16s-%d\n", p->comm, p->pid);
 	SCHED_PRINT(READ_ONCE(p->__state));
-	SCHED_PRINT(p->cpu);
+	SCHED_PRINT(task_thread_info(p)->cpu);
 	SCHED_PRINT(p->policy);
 	SCHED_PRINT(p->prio);
 	SCHED_PRINT(wts->mark_start);
@@ -4090,31 +4089,8 @@ static void android_rvh_new_task_stats(void *unused, struct task_struct *p)
 	mark_task_starting(p);
 }
 
-static void android_rvh_account_irq_start(void *unused, struct task_struct *curr, int cpu,
-					s64 delta)
-{
-	struct rq *rq;
-	struct walt_rq *wrq;
-
-	if (unlikely(walt_disabled))
-		return;
-
-	if (!is_idle_task(curr))
-		return;
-
-	rq = cpu_rq(cpu);
-	wrq = (struct walt_rq *) rq->android_vendor_data1;
-
-	if (!wrq->window_start)
-		return;
-
-	/* We're here without rq->lock held, IRQ disabled */
-	raw_spin_lock(&rq->__lock);
-	update_task_cpu_cycles(curr, cpu, walt_sched_clock());
-	raw_spin_unlock(&rq->__lock);
-}
-
-static void android_rvh_account_irq_end(void *unused, struct task_struct *curr, int cpu, s64 delta)
+static void android_rvh_account_irq(void *unused, struct task_struct *curr, int cpu,
+					s64 delta, bool start)
 {
 	struct rq *rq;
 	unsigned long flags;
@@ -4127,13 +4103,23 @@ static void android_rvh_account_irq_end(void *unused, struct task_struct *curr, 
 		return;
 
 	rq = cpu_rq(cpu);
-	wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	wrq = (struct walt_rq *) rq->android_vendor_data1;
 
-	raw_spin_lock_irqsave(&rq->__lock, flags);
-	walt_update_task_ravg(curr, rq, IRQ_UPDATE, walt_sched_clock(), delta);
-	raw_spin_unlock_irqrestore(&rq->__lock, flags);
+	if (start) {
+		if (!wrq->window_start)
+			return;
 
-	wrq->last_irq_window = wrq->window_start;
+		/* We're here without rq->lock held, IRQ disabled */
+		raw_spin_lock(&rq->__lock);
+		update_task_cpu_cycles(curr, cpu, walt_sched_clock());
+		raw_spin_unlock(&rq->__lock);
+	} else {
+		raw_spin_lock_irqsave(&rq->__lock, flags);
+		walt_update_task_ravg(curr, rq, IRQ_UPDATE, walt_sched_clock(), delta);
+		raw_spin_unlock_irqrestore(&rq->__lock, flags);
+
+		wrq->last_irq_window = wrq->window_start;
+	}
 }
 
 static void android_rvh_flush_task(void *unused, struct task_struct *p)
@@ -4143,7 +4129,8 @@ static void android_rvh_flush_task(void *unused, struct task_struct *p)
 	walt_task_dead(p);
 }
 
-static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_struct *p)
+static void android_rvh_enqueue_task(void *unused, struct rq *rq,
+		struct task_struct *p, int flags)
 {
 	u64 wallclock;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
@@ -4158,9 +4145,9 @@ static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_st
 	if (!is_per_cpu_kthread(p))
 		wrq->enqueue_counter++;
 
-	if (p->cpu != cpu_of(rq))
+	if (task_thread_info(p)->cpu != cpu_of(rq))
 		WALT_BUG(WALT_BUG_UPSTREAM, p, "enqueuing on rq %d when task->cpu is %d\n",
-				cpu_of(rq), p->cpu);
+				cpu_of(rq), task_thread_info(p)->cpu);
 
 	/* catch double enqueue */
 	if (wts->prev_on_rq == 1) {
@@ -4198,7 +4185,8 @@ static void android_rvh_enqueue_task(void *unused, struct rq *rq, struct task_st
 	trace_sched_enq_deq_task(p, 1, cpumask_bits(p->cpus_ptr)[0], is_mvp(wts));
 }
 
-static void android_rvh_dequeue_task(void *unused, struct rq *rq, struct task_struct *p)
+static void android_rvh_dequeue_task(void *unused, struct rq *rq,
+		struct task_struct *p, int flags)
 {
 	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
@@ -4476,8 +4464,7 @@ static void register_walt_hooks(void)
 	register_trace_android_rvh_sched_cpu_dying(android_rvh_sched_cpu_dying, NULL);
 	register_trace_android_rvh_set_task_cpu(android_rvh_set_task_cpu, NULL);
 	register_trace_android_rvh_new_task_stats(android_rvh_new_task_stats, NULL);
-	register_trace_android_rvh_account_irq_start(android_rvh_account_irq_start, NULL);
-	register_trace_android_rvh_account_irq_end(android_rvh_account_irq_end, NULL);
+	register_trace_android_rvh_account_irq(android_rvh_account_irq, NULL);
 	register_trace_android_rvh_flush_task(android_rvh_flush_task, NULL);
 	register_trace_android_rvh_update_misfit_status(android_rvh_update_misfit_status, NULL);
 	register_trace_android_rvh_after_enqueue_task(android_rvh_enqueue_task, NULL);
