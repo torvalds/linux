@@ -1021,7 +1021,7 @@ static void walt_find_busiest_queue(void *unused, int dst_cpu,
 				    struct cpumask *env_cpus,
 				    struct rq **busiest, int *done)
 {
-	int fsrc_cpu = group_first_cpu(group);
+	int fsrc_cpu = cpumask_first(sched_group_span(group));
 	int busiest_cpu = -1;
 	struct cpumask src_mask;
 	int has_misfit;

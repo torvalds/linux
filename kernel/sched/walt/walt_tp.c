@@ -50,7 +50,8 @@ static void setup_prev_cnts(u32 cpu, u32 cnten_val)
 }
 
 void tracectr_notifier(void *ignore, bool preempt,
-			struct task_struct *prev, struct task_struct *next)
+			struct task_struct *prev, struct task_struct *next,
+			unsigned int prev_state)
 {
 	u32 cnten_val;
 	int current_pid;
@@ -103,6 +104,15 @@ static void unregister_sched_switch_ctrs(void)
 {
 	unregister_trace_sched_switch(tracectr_notifier, NULL);
 	cpuhp_remove_state_nocalls(USE_CPUHP_STATE);
+}
+
+const struct cpumask *sched_trace_rd_span(struct root_domain *rd)
+{
+#ifdef CONFIG_SMP
+	return rd ? rd->span : NULL;
+#else
+	return NULL;
+#endif
 }
 
 static void sched_overutilized(void *data, struct root_domain *rd,
