@@ -172,11 +172,16 @@ struct kvm_x86_cpu_feature {
 #define PTE_GLOBAL_MASK         BIT_ULL(8)
 #define PTE_NX_MASK             BIT_ULL(63)
 
+#define PHYSICAL_PAGE_MASK      GENMASK_ULL(51, 12)
+
 #define PAGE_SHIFT		12
 #define PAGE_SIZE		(1ULL << PAGE_SHIFT)
-#define PAGE_MASK		(~(PAGE_SIZE-1))
+#define PAGE_MASK		(~(PAGE_SIZE-1) & PHYSICAL_PAGE_MASK)
 
-#define PHYSICAL_PAGE_MASK      GENMASK_ULL(51, 12)
+#define HUGEPAGE_SHIFT(x)	(PAGE_SHIFT + (((x) - 1) * 9))
+#define HUGEPAGE_SIZE(x)	(1UL << HUGEPAGE_SHIFT(x))
+#define HUGEPAGE_MASK(x)	(~(HUGEPAGE_SIZE(x) - 1) & PHYSICAL_PAGE_MASK)
+
 #define PTE_GET_PA(pte)		((pte) & PHYSICAL_PAGE_MASK)
 #define PTE_GET_PFN(pte)        (PTE_GET_PA(pte) >> PAGE_SHIFT)
 
@@ -828,6 +833,8 @@ static inline uint8_t wrmsr_safe(uint32_t msr, uint64_t val)
 
 bool kvm_is_tdp_enabled(void);
 
+uint64_t *__vm_get_page_table_entry(struct kvm_vm *vm, uint64_t vaddr,
+				    int *level);
 uint64_t *vm_get_page_table_entry(struct kvm_vm *vm, uint64_t vaddr);
 
 uint64_t kvm_hypercall(uint64_t nr, uint64_t a0, uint64_t a1, uint64_t a2,

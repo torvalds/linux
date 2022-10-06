@@ -245,9 +245,25 @@ void virt_map_level(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 	}
 }
 
-uint64_t *vm_get_page_table_entry(struct kvm_vm *vm, uint64_t vaddr)
+static bool vm_is_target_pte(uint64_t *pte, int *level, int current_level)
+{
+	if (*pte & PTE_LARGE_MASK) {
+		TEST_ASSERT(*level == PG_LEVEL_NONE ||
+			    *level == current_level,
+			    "Unexpected hugepage at level %d\n", current_level);
+		*level = current_level;
+	}
+
+	return *level == current_level;
+}
+
+uint64_t *__vm_get_page_table_entry(struct kvm_vm *vm, uint64_t vaddr,
+				    int *level)
 {
 	uint64_t *pml4e, *pdpe, *pde;
+
+	TEST_ASSERT(*level >= PG_LEVEL_NONE && *level < PG_LEVEL_NUM,
+		    "Invalid PG_LEVEL_* '%d'", *level);
 
 	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
 		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
@@ -263,16 +279,25 @@ uint64_t *vm_get_page_table_entry(struct kvm_vm *vm, uint64_t vaddr)
 		"Canonical check failed.  The virtual address is invalid.");
 
 	pml4e = virt_get_pte(vm, &vm->pgd, vaddr, PG_LEVEL_512G);
+	if (vm_is_target_pte(pml4e, level, PG_LEVEL_512G))
+		return pml4e;
 
 	pdpe = virt_get_pte(vm, pml4e, vaddr, PG_LEVEL_1G);
-	TEST_ASSERT(!(*pdpe & PTE_LARGE_MASK),
-		"Expected pdpe to map a pde not a 1-GByte page.");
+	if (vm_is_target_pte(pdpe, level, PG_LEVEL_1G))
+		return pdpe;
 
 	pde = virt_get_pte(vm, pdpe, vaddr, PG_LEVEL_2M);
-	TEST_ASSERT(!(*pde & PTE_LARGE_MASK),
-		"Expected pde to map a pte not a 2-MByte page.");
+	if (vm_is_target_pte(pde, level, PG_LEVEL_2M))
+		return pde;
 
 	return virt_get_pte(vm, pde, vaddr, PG_LEVEL_4K);
+}
+
+uint64_t *vm_get_page_table_entry(struct kvm_vm *vm, uint64_t vaddr)
+{
+	int level = PG_LEVEL_4K;
+
+	return __vm_get_page_table_entry(vm, vaddr, &level);
 }
 
 void virt_arch_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
@@ -458,11 +483,17 @@ static void kvm_seg_set_kernel_data_64bit(struct kvm_vm *vm, uint16_t selector,
 
 vm_paddr_t addr_arch_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 {
-	uint64_t *pte = vm_get_page_table_entry(vm, gva);
+	int level = PG_LEVEL_NONE;
+	uint64_t *pte = __vm_get_page_table_entry(vm, gva, &level);
 
 	TEST_ASSERT(*pte & PTE_PRESENT_MASK,
 		    "Leaf PTE not PRESENT for gva: 0x%08lx", gva);
-	return PTE_GET_PA(*pte) | (gva & ~PAGE_MASK);
+
+	/*
+	 * No need for a hugepage mask on the PTE, x86-64 requires the "unused"
+	 * address bits to be zero.
+	 */
+	return PTE_GET_PA(*pte) | (gva & ~HUGEPAGE_MASK(level));
 }
 
 static void kvm_setup_gdt(struct kvm_vm *vm, struct kvm_dtable *dt)
