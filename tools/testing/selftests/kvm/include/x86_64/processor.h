@@ -201,6 +201,8 @@ struct kvm_x86_cpu_property {
 
 #define X86_PROPERTY_MAX_BASIC_LEAF		KVM_X86_CPU_PROPERTY(0, 0, EAX, 0, 31)
 #define X86_PROPERTY_PMU_VERSION		KVM_X86_CPU_PROPERTY(0xa, 0, EAX, 0, 7)
+#define X86_PROPERTY_PMU_NR_GP_COUNTERS		KVM_X86_CPU_PROPERTY(0xa, 0, EAX, 8, 15)
+#define X86_PROPERTY_PMU_EBX_BIT_VECTOR_LENGTH	KVM_X86_CPU_PROPERTY(0xa, 0, EAX, 24, 31)
 
 #define X86_PROPERTY_XSTATE_MAX_SIZE_XCR0	KVM_X86_CPU_PROPERTY(0xd,  0, EBX,  0, 31)
 #define X86_PROPERTY_XSTATE_MAX_SIZE		KVM_X86_CPU_PROPERTY(0xd,  0, ECX,  0, 31)
@@ -221,6 +223,29 @@ struct kvm_x86_cpu_property {
 
 #define X86_PROPERTY_MAX_CENTAUR_LEAF		KVM_X86_CPU_PROPERTY(0xC0000000, 0, EAX, 0, 31)
 
+/*
+ * Intel's architectural PMU events are bizarre.  They have a "feature" bit
+ * that indicates the feature is _not_ supported, and a property that states
+ * the length of the bit mask of unsupported features.  A feature is supported
+ * if the size of the bit mask is larger than the "unavailable" bit, and said
+ * bit is not set.
+ *
+ * Wrap the "unavailable" feature to simplify checking whether or not a given
+ * architectural event is supported.
+ */
+struct kvm_x86_pmu_feature {
+	struct kvm_x86_cpu_feature anti_feature;
+};
+#define	KVM_X86_PMU_FEATURE(name, __bit)					\
+({										\
+	struct kvm_x86_pmu_feature feature = {					\
+		.anti_feature = KVM_X86_CPU_FEATURE(0xa, 0, EBX, __bit),	\
+	};									\
+										\
+	feature;								\
+})
+
+#define X86_PMU_FEATURE_BRANCH_INSNS_RETIRED	KVM_X86_PMU_FEATURE(BRANCH_INSNS_RETIRED, 5)
 
 /* Page table bitfield declarations */
 #define PTE_PRESENT_MASK        BIT_ULL(0)
@@ -535,6 +560,14 @@ static __always_inline bool this_cpu_has_p(struct kvm_x86_cpu_property property)
 	return max_leaf >= property.function;
 }
 
+static inline bool this_pmu_has(struct kvm_x86_pmu_feature feature)
+{
+	uint32_t nr_bits = this_cpu_property(X86_PROPERTY_PMU_EBX_BIT_VECTOR_LENGTH);
+
+	return nr_bits > feature.anti_feature.bit &&
+	       !this_cpu_has(feature.anti_feature);
+}
+
 #define SET_XMM(__var, __xmm) \
 	asm volatile("movq %0, %%"#__xmm : : "r"(__var) : #__xmm)
 
@@ -741,6 +774,14 @@ static __always_inline bool kvm_cpu_has_p(struct kvm_x86_cpu_property property)
 		max_leaf = kvm_cpu_property(X86_PROPERTY_MAX_CENTAUR_LEAF);
 	}
 	return max_leaf >= property.function;
+}
+
+static inline bool kvm_pmu_has(struct kvm_x86_pmu_feature feature)
+{
+	uint32_t nr_bits = kvm_cpu_property(X86_PROPERTY_PMU_EBX_BIT_VECTOR_LENGTH);
+
+	return nr_bits > feature.anti_feature.bit &&
+	       !kvm_cpu_has(feature.anti_feature);
 }
 
 static inline size_t kvm_cpuid2_size(int nr_entries)

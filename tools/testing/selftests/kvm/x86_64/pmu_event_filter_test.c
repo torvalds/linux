@@ -21,29 +21,6 @@
 #define ARCH_PERFMON_EVENTSEL_OS			(1ULL << 17)
 #define ARCH_PERFMON_EVENTSEL_ENABLE			(1ULL << 22)
 
-union cpuid10_eax {
-	struct {
-		unsigned int version_id:8;
-		unsigned int num_counters:8;
-		unsigned int bit_width:8;
-		unsigned int mask_length:8;
-	} split;
-	unsigned int full;
-};
-
-union cpuid10_ebx {
-	struct {
-		unsigned int no_unhalted_core_cycles:1;
-		unsigned int no_instructions_retired:1;
-		unsigned int no_unhalted_reference_cycles:1;
-		unsigned int no_llc_reference:1;
-		unsigned int no_llc_misses:1;
-		unsigned int no_branch_instruction_retired:1;
-		unsigned int no_branch_misses_retired:1;
-	} split;
-	unsigned int full;
-};
-
 /* End of stuff taken from perf_event.h. */
 
 /* Oddly, this isn't in perf_event.h. */
@@ -380,30 +357,16 @@ static void test_pmu_config_disable(void (*guest_code)(void))
 }
 
 /*
- * Check for a non-zero PMU version, at least one general-purpose
- * counter per logical processor, an EBX bit vector of length greater
- * than 5, and EBX[5] clear.
- */
-static bool check_intel_pmu_leaf(const struct kvm_cpuid_entry2 *entry)
-{
-	union cpuid10_eax eax = { .full = entry->eax };
-	union cpuid10_ebx ebx = { .full = entry->ebx };
-
-	return eax.split.version_id && eax.split.num_counters > 0 &&
-		eax.split.mask_length > ARCH_PERFMON_BRANCHES_RETIRED &&
-		!ebx.split.no_branch_instruction_retired;
-}
-
-/*
- * Note that CPUID leaf 0xa is Intel-specific. This leaf should be
- * clear on AMD hardware.
+ * On Intel, check for a non-zero PMU version, at least one general-purpose
+ * counter per logical processor, and support for counting the number of branch
+ * instructions retired.
  */
 static bool use_intel_pmu(void)
 {
-	const struct kvm_cpuid_entry2 *entry;
-
-	entry = kvm_get_supported_cpuid_entry(0xa);
-	return is_intel_cpu() && check_intel_pmu_leaf(entry);
+	return is_intel_cpu() &&
+	       kvm_cpu_property(X86_PROPERTY_PMU_VERSION) &&
+	       kvm_cpu_property(X86_PROPERTY_PMU_NR_GP_COUNTERS) &&
+	       kvm_pmu_has(X86_PMU_FEATURE_BRANCH_INSNS_RETIRED);
 }
 
 static bool is_zen1(uint32_t eax)
