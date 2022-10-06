@@ -238,15 +238,9 @@ static int udl_handle_damage(struct drm_framebuffer *fb,
 		return ret;
 	log_bpp = ret;
 
-	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
-	if (ret)
-		return ret;
-
 	urb = udl_get_urb(dev);
-	if (!urb) {
-		ret = -ENOMEM;
-		goto out_drm_gem_fb_end_cpu_access;
-	}
+	if (!urb)
+		return -ENOMEM;
 	cmd = urb->transfer_buffer;
 
 	for (i = clip->y1; i < clip->y2; i++) {
@@ -258,7 +252,7 @@ static int udl_handle_damage(struct drm_framebuffer *fb,
 				       &cmd, byte_offset, dev_byte_offset,
 				       byte_width);
 		if (ret)
-			goto out_drm_gem_fb_end_cpu_access;
+			return ret;
 	}
 
 	if (cmd > (char *)urb->transfer_buffer) {
@@ -272,11 +266,7 @@ static int udl_handle_damage(struct drm_framebuffer *fb,
 		udl_urb_completion(urb);
 	}
 
-	ret = 0;
-
-out_drm_gem_fb_end_cpu_access:
-	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
-	return ret;
+	return 0;
 }
 
 /*
@@ -301,19 +291,29 @@ static void udl_primary_plane_helper_atomic_update(struct drm_plane *plane,
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
-	struct drm_rect rect;
-	int idx;
-
-	if (!drm_dev_enter(dev, &idx))
-		return;
+	struct drm_atomic_helper_damage_iter iter;
+	struct drm_rect damage;
+	int ret, idx;
 
 	if (!fb)
 		return; /* no framebuffer; plane is disabled */
 
-	if (drm_atomic_helper_damage_merged(old_plane_state, plane_state, &rect))
-		udl_handle_damage(fb, &shadow_plane_state->data[0], &rect);
+	ret = drm_gem_fb_begin_cpu_access(fb, DMA_FROM_DEVICE);
+	if (ret)
+		return;
+
+	if (!drm_dev_enter(dev, &idx))
+		goto out_drm_gem_fb_end_cpu_access;
+
+	drm_atomic_helper_damage_iter_init(&iter, old_plane_state, plane_state);
+	drm_atomic_for_each_plane_damage(&iter, &damage) {
+		udl_handle_damage(fb, &shadow_plane_state->data[0], &damage);
+	}
 
 	drm_dev_exit(idx);
+
+out_drm_gem_fb_end_cpu_access:
+	drm_gem_fb_end_cpu_access(fb, DMA_FROM_DEVICE);
 }
 
 static const struct drm_plane_helper_funcs udl_primary_plane_helper_funcs = {
