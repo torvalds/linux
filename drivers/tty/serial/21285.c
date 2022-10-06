@@ -461,9 +461,6 @@ static int __init serial21285_console_setup(struct console *co, char *options)
 	int parity = 'n';
 	int flow = 'n';
 
-	if (machine_is_personal_server())
-		baud = 57600;
-
 	/*
 	 * Check whether an invalid uart number has been specified, and
 	 * if so, search for the first available port that does have

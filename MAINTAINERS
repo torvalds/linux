@@ -3971,6 +3971,7 @@ M:	William Zhang <william.zhang@broadcom.com>
 M:	Anand Gore <anand.gore@broadcom.com>
 M:	Kursad Oney <kursad.oney@broadcom.com>
 M:	Florian Fainelli <f.fainelli@gmail.com>
+M:	Rafał Miłecki <rafal@milecki.pl>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained

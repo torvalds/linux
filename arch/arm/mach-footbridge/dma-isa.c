@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/arch/arm/kernel/dma-isa.c
- *
  *  Copyright (C) 1999-2000 Russell King
  *
  *  ISA DMA primitives
@@ -13,6 +11,7 @@
  *   arch/arm/kernel/dma-ebsa285.c
  *   Copyright (C) 1998 Phil Blundell
  */
+#include <linux/dma-map-ops.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
@@ -20,6 +19,7 @@
 
 #include <asm/dma.h>
 #include <asm/mach/dma.h>
+#include <asm/hardware/dec21285.h>
 
 #define ISA_DMA_MASK		0
 #define ISA_DMA_MODE		1
@@ -157,7 +157,7 @@ static dma_t isa_dma[8];
 /*
  * ISA DMA always starts at channel 0
  */
-void __init isa_init_dma(void)
+static int __init isa_dma_init(void)
 {
 	/*
 	 * Try to autodetect presence of an ISA DMA controller.
@@ -222,4 +222,9 @@ void __init isa_init_dma(void)
 
 		request_dma(DMA_ISA_CASCADE, "cascade");
 	}
+
+	dma_direct_set_offset(&isa_dma_dev, PHYS_OFFSET, BUS_OFFSET, SZ_256M);
+
+	return 0;
 }
+core_initcall(isa_dma_init);
