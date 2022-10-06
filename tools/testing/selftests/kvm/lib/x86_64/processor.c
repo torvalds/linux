@@ -1239,7 +1239,6 @@ unsigned long vm_compute_max_gfn(struct kvm_vm *vm)
 {
 	const unsigned long num_ht_pages = 12 << (30 - vm->page_shift); /* 12 GiB */
 	unsigned long ht_gfn, max_gfn, max_pfn;
-	uint32_t eax, ebx, ecx, edx;
 	uint8_t maxphyaddr;
 
 	max_gfn = (1ULL << (vm->pa_bits - vm->page_shift)) - 1;
@@ -1254,8 +1253,7 @@ unsigned long vm_compute_max_gfn(struct kvm_vm *vm)
 
 	/* Before family 17h, the HyperTransport area is just below 1T.  */
 	ht_gfn = (1 << 28) - num_ht_pages;
-	cpuid(1, &eax, &ebx, &ecx, &edx);
-	if (x86_family(eax) < 0x17)
+	if (this_cpu_family() < 0x17)
 		goto done;
 
 	/*

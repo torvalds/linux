@@ -247,6 +247,23 @@ struct kvm_x86_pmu_feature {
 
 #define X86_PMU_FEATURE_BRANCH_INSNS_RETIRED	KVM_X86_PMU_FEATURE(BRANCH_INSNS_RETIRED, 5)
 
+static inline unsigned int x86_family(unsigned int eax)
+{
+	unsigned int x86;
+
+	x86 = (eax >> 8) & 0xf;
+
+	if (x86 == 0xf)
+		x86 += (eax >> 20) & 0xff;
+
+	return x86;
+}
+
+static inline unsigned int x86_model(unsigned int eax)
+{
+	return ((eax >> 12) & 0xf0) | ((eax >> 4) & 0x0f);
+}
+
 /* Page table bitfield declarations */
 #define PTE_PRESENT_MASK        BIT_ULL(0)
 #define PTE_WRITABLE_MASK       BIT_ULL(1)
@@ -516,6 +533,24 @@ static inline void cpuid(uint32_t function,
 	return __cpuid(function, 0, eax, ebx, ecx, edx);
 }
 
+static inline uint32_t this_cpu_fms(void)
+{
+	uint32_t eax, ebx, ecx, edx;
+
+	cpuid(1, &eax, &ebx, &ecx, &edx);
+	return eax;
+}
+
+static inline uint32_t this_cpu_family(void)
+{
+	return x86_family(this_cpu_fms());
+}
+
+static inline uint32_t this_cpu_model(void)
+{
+	return x86_model(this_cpu_fms());
+}
+
 static inline uint32_t __this_cpu_has(uint32_t function, uint32_t index,
 				      uint8_t reg, uint8_t lo, uint8_t hi)
 {
@@ -657,23 +692,6 @@ static inline void cpu_relax(void)
 
 bool is_intel_cpu(void);
 bool is_amd_cpu(void);
-
-static inline unsigned int x86_family(unsigned int eax)
-{
-	unsigned int x86;
-
-	x86 = (eax >> 8) & 0xf;
-
-	if (x86 == 0xf)
-		x86 += (eax >> 20) & 0xff;
-
-	return x86;
-}
-
-static inline unsigned int x86_model(unsigned int eax)
-{
-	return ((eax >> 12) & 0xf0) | ((eax >> 4) & 0x0f);
-}
 
 struct kvm_x86_state *vcpu_save_state(struct kvm_vcpu *vcpu);
 void vcpu_load_state(struct kvm_vcpu *vcpu, struct kvm_x86_state *state);
