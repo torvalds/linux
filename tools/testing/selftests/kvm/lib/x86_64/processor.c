@@ -652,8 +652,9 @@ const struct kvm_cpuid2 *kvm_get_supported_cpuid(void)
 	return cpuid;
 }
 
-bool kvm_cpuid_has(const struct kvm_cpuid2 *cpuid,
-		   struct kvm_x86_cpu_feature feature)
+static uint32_t __kvm_cpu_has(const struct kvm_cpuid2 *cpuid,
+			      uint32_t function, uint32_t index,
+			      uint8_t reg, uint8_t lo, uint8_t hi)
 {
 	const struct kvm_cpuid_entry2 *entry;
 	int i;
@@ -666,12 +667,18 @@ bool kvm_cpuid_has(const struct kvm_cpuid2 *cpuid,
 		 * order, but kvm_x86_cpu_feature matches that mess, so yay
 		 * pointer shenanigans!
 		 */
-		if (entry->function == feature.function &&
-		    entry->index == feature.index)
-			return (&entry->eax)[feature.reg] & BIT(feature.bit);
+		if (entry->function == function && entry->index == index)
+			return ((&entry->eax)[reg] & GENMASK(hi, lo)) >> lo;
 	}
 
-	return false;
+	return 0;
+}
+
+bool kvm_cpuid_has(const struct kvm_cpuid2 *cpuid,
+		   struct kvm_x86_cpu_feature feature)
+{
+	return __kvm_cpu_has(cpuid, feature.function, feature.index,
+			     feature.reg, feature.bit, feature.bit);
 }
 
 uint64_t kvm_get_feature_msr(uint64_t msr_index)
