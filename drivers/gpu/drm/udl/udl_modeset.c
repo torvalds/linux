@@ -41,12 +41,12 @@ static char *udl_set_register(char *buf, u8 reg, u8 val)
 
 static char *udl_vidreg_lock(char *buf)
 {
-	return udl_set_register(buf, 0xFF, 0x00);
+	return udl_set_register(buf, UDL_REG_VIDREG, UDL_VIDREG_LOCK);
 }
 
 static char *udl_vidreg_unlock(char *buf)
 {
-	return udl_set_register(buf, 0xFF, 0xFF);
+	return udl_set_register(buf, UDL_REG_VIDREG, UDL_VIDREG_UNLOCK);
 }
 
 static char *udl_set_blank_mode(char *buf, u8 mode)

@@ -31,4 +31,9 @@
 #define UDL_BLANKMODE_HSYNC_OFF		0x05 /* hsync off, blanked */
 #define UDL_BLANKMODE_POWERDOWN		0x07 /* powered off; requires modeset */
 
+/* Lock/unlock video registers */
+#define UDL_REG_VIDREG			0xff
+#define UDL_VIDREG_LOCK			0x00
+#define UDL_VIDREG_UNLOCK		0xff
+
 #endif
