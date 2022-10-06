@@ -128,6 +128,7 @@ struct tmio_mmc_dma_ops {
 
 	/* optional */
 	void (*end)(struct tmio_mmc_host *host);	/* held host->lock */
+	bool (*dma_irq)(struct tmio_mmc_host *host);
 };
 
 struct tmio_mmc_host {

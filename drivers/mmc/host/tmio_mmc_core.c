@@ -668,6 +668,9 @@ static bool __tmio_mmc_sdcard_irq(struct tmio_mmc_host *host, int ireg,
 		return true;
 	}
 
+	if (host->dma_ops && host->dma_ops->dma_irq && host->dma_ops->dma_irq(host))
+		return true;
+
 	return false;
 }
 
