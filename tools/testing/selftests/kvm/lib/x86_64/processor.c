@@ -241,29 +241,11 @@ void virt_map_level(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 	}
 }
 
-uint64_t *vm_get_page_table_entry(struct kvm_vm *vm, struct kvm_vcpu *vcpu,
-				  uint64_t vaddr)
+uint64_t *vm_get_page_table_entry(struct kvm_vm *vm, uint64_t vaddr)
 {
 	uint16_t index[4];
 	uint64_t *pml4e, *pdpe, *pde;
 	uint64_t *pte;
-	struct kvm_sregs sregs;
-	uint64_t rsvd_mask = 0;
-
-	/* Set the high bits in the reserved mask. */
-	if (vm->pa_bits < 52)
-		rsvd_mask = GENMASK_ULL(51, vm->pa_bits);
-
-	/*
-	 * SDM vol 3, fig 4-11 "Formats of CR3 and Paging-Structure Entries
-	 * with 4-Level Paging and 5-Level Paging".
-	 * If IA32_EFER.NXE = 0 and the P flag of a paging-structure entry is 1,
-	 * the XD flag (bit 63) is reserved.
-	 */
-	vcpu_sregs_get(vcpu, &sregs);
-	if ((sregs.efer & EFER_NX) == 0) {
-		rsvd_mask |= PTE_NX_MASK;
-	}
 
 	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
 		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
@@ -286,24 +268,18 @@ uint64_t *vm_get_page_table_entry(struct kvm_vm *vm, struct kvm_vcpu *vcpu,
 	pml4e = addr_gpa2hva(vm, vm->pgd);
 	TEST_ASSERT(pml4e[index[3]] & PTE_PRESENT_MASK,
 		"Expected pml4e to be present for gva: 0x%08lx", vaddr);
-	TEST_ASSERT((pml4e[index[3]] & (rsvd_mask | PTE_LARGE_MASK)) == 0,
-		"Unexpected reserved bits set.");
 
 	pdpe = addr_gpa2hva(vm, PTE_GET_PFN(pml4e[index[3]]) * vm->page_size);
 	TEST_ASSERT(pdpe[index[2]] & PTE_PRESENT_MASK,
 		"Expected pdpe to be present for gva: 0x%08lx", vaddr);
 	TEST_ASSERT(!(pdpe[index[2]] & PTE_LARGE_MASK),
 		"Expected pdpe to map a pde not a 1-GByte page.");
-	TEST_ASSERT((pdpe[index[2]] & rsvd_mask) == 0,
-		"Unexpected reserved bits set.");
 
 	pde = addr_gpa2hva(vm, PTE_GET_PFN(pdpe[index[2]]) * vm->page_size);
 	TEST_ASSERT(pde[index[1]] & PTE_PRESENT_MASK,
 		"Expected pde to be present for gva: 0x%08lx", vaddr);
 	TEST_ASSERT(!(pde[index[1]] & PTE_LARGE_MASK),
 		"Expected pde to map a pte not a 2-MByte page.");
-	TEST_ASSERT((pde[index[1]] & rsvd_mask) == 0,
-		"Unexpected reserved bits set.");
 
 	pte = addr_gpa2hva(vm, PTE_GET_PFN(pde[index[1]]) * vm->page_size);
 	TEST_ASSERT(pte[index[0]] & PTE_PRESENT_MASK,
