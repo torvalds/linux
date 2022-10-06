@@ -97,6 +97,7 @@ class HeaderParser(object):
         self.desc_unique_helpers = set()
         self.define_unique_helpers = []
         self.helper_enum_vals = {}
+        self.helper_enum_pos = {}
         self.desc_syscalls = []
         self.enum_syscalls = []
 
@@ -264,42 +265,60 @@ class HeaderParser(object):
         # Searches for one FN(\w+) define or a backslash for newline
         p = re.compile('\s*FN\((\w+), (\d+), ##ctx\)|\\\\')
         fn_defines_str = ''
+        i = 0
         while True:
             capture = p.match(self.line)
             if capture:
                 fn_defines_str += self.line
-                self.helper_enum_vals[capture.expand(r'bpf_\1')] = int(capture[2])
+                helper_name = capture.expand(r'bpf_\1')
+                self.helper_enum_vals[helper_name] = int(capture[2])
+                self.helper_enum_pos[helper_name] = i
+                i += 1
             else:
                 break
             self.line = self.reader.readline()
         # Find the number of occurences of FN(\w+)
         self.define_unique_helpers = re.findall('FN\(\w+, \d+, ##ctx\)', fn_defines_str)
 
-    def assign_helper_values(self):
+    def validate_helpers(self):
+        last_helper = ''
         seen_helpers = set()
+        seen_enum_vals = set()
+        i = 0
         for helper in self.helpers:
             proto = helper.proto_break_down()
             name = proto['name']
             try:
                 enum_val = self.helper_enum_vals[name]
+                enum_pos = self.helper_enum_pos[name]
             except KeyError:
                 raise Exception("Helper %s is missing from enum bpf_func_id" % name)
 
+            if name in seen_helpers:
+                if last_helper != name:
+                    raise Exception("Helper %s has multiple descriptions which are not grouped together" % name)
+                continue
+
             # Enforce current practice of having the descriptions ordered
             # by enum value.
+            if enum_pos != i:
+                raise Exception("Helper %s (ID %d) comment order (#%d) must be aligned with its position (#%d) in enum bpf_func_id" % (name, enum_val, i + 1, enum_pos + 1))
+            if enum_val in seen_enum_vals:
+                raise Exception("Helper %s has duplicated value %d" % (name, enum_val))
+
             seen_helpers.add(name)
-            desc_val = len(seen_helpers)
-            if desc_val != enum_val:
-                raise Exception("Helper %s comment order (#%d) must be aligned with its position (#%d) in enum bpf_func_id" % (name, desc_val, enum_val))
+            last_helper = name
+            seen_enum_vals.add(enum_val)
 
             helper.enum_val = enum_val
+            i += 1
 
     def run(self):
         self.parse_desc_syscall()
         self.parse_enum_syscall()
         self.parse_desc_helpers()
         self.parse_define_helpers()
-        self.assign_helper_values()
+        self.validate_helpers()
         self.reader.close()
 
 ###############################################################################
