@@ -133,7 +133,7 @@ static int cn10k_mcs_alloc_rsrc(struct otx2_nic *pfvf, enum mcs_direction dir,
 	default:
 		ret = -EINVAL;
 		goto fail;
-	};
+	}
 
 	mutex_unlock(&mbox->lock);
 
