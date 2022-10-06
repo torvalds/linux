@@ -89,6 +89,11 @@ static char *compress =
 module_param(compress, charp, 0444);
 MODULE_PARM_DESC(compress, "compression to use");
 
+/* How much of the kernel log to snapshot */
+unsigned long kmsg_bytes = CONFIG_PSTORE_DEFAULT_KMSG_BYTES;
+module_param(kmsg_bytes, ulong, 0444);
+MODULE_PARM_DESC(kmsg_bytes, "amount of kernel log to snapshot (in bytes)");
+
 /* Compression parameters */
 static struct crypto_comp *tfm;
 
@@ -99,9 +104,6 @@ struct pstore_zbackend {
 
 static char *big_oops_buf;
 static size_t big_oops_buf_sz;
-
-/* How much of the console log to snapshot */
-unsigned long kmsg_bytes = CONFIG_PSTORE_DEFAULT_KMSG_BYTES;
 
 void pstore_set_kmsg_bytes(int bytes)
 {
