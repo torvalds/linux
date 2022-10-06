@@ -56,7 +56,7 @@ static char *udl_set_blank_mode(char *buf, u8 mode)
 
 static char *udl_set_color_depth(char *buf, u8 selection)
 {
-	return udl_set_register(buf, 0x00, selection);
+	return udl_set_register(buf, UDL_REG_COLORDEPTH, selection);
 }
 
 static char *udl_set_base16bpp(char *wrptr, u32 base)

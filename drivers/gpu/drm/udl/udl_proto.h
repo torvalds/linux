@@ -3,7 +3,10 @@
 #ifndef UDL_PROTO_H
 #define UDL_PROTO_H
 
+/* Color depth */
+#define UDL_REG_COLORDEPTH		0x00
 #define UDL_COLORDEPTH_16BPP		0
+#define UDL_COLORDEPTH_24BPP		1
 
 /* Display-mode settings */
 #define UDL_REG_XDISPLAYSTART		0x01
