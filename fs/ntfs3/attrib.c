@@ -2308,7 +2308,8 @@ int attr_insert_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 
 		if (!attr_b->non_res) {
 			/* Still resident. */
-			char *data = Add2Ptr(attr_b, attr_b->res.data_off);
+			char *data = Add2Ptr(attr_b,
+					     le16_to_cpu(attr_b->res.data_off));
 
 			memmove(data + bytes, data, bytes);
 			memset(data, 0, bytes);
@@ -2400,8 +2401,8 @@ int attr_insert_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 	if (vbo <= ni->i_valid)
 		ni->i_valid += bytes;
 
-	attr_b->nres.data_size = le64_to_cpu(data_size + bytes);
-	attr_b->nres.alloc_size = le64_to_cpu(alloc_size + bytes);
+	attr_b->nres.data_size = cpu_to_le64(data_size + bytes);
+	attr_b->nres.alloc_size = cpu_to_le64(alloc_size + bytes);
 
 	/* ni->valid may be not equal valid_size (temporary). */
 	if (ni->i_valid > data_size + bytes)

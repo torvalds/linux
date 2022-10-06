@@ -427,7 +427,8 @@ static int ntfs_d_compare(const struct dentry *dentry, unsigned int len1,
 	unsigned int len2 = name->len;
 	unsigned int lm = min(len1, len2);
 	unsigned char c1, c2;
-	struct cpu_str *uni1, *uni2;
+	struct cpu_str *uni1;
+	struct le_str *uni2;
 
 	/* First try fast implementation. */
 	for (;;) {
@@ -464,8 +465,9 @@ static int ntfs_d_compare(const struct dentry *dentry, unsigned int len1,
 
 	uni2 = Add2Ptr(uni1, 2048);
 
-	ret = ntfs_nls_to_utf16(sbi, name->name, name->len, uni2, NTFS_NAME_LEN,
-				UTF16_HOST_ENDIAN);
+	ret = ntfs_nls_to_utf16(sbi, name->name, name->len,
+				(struct cpu_str *)uni2, NTFS_NAME_LEN,
+				UTF16_LITTLE_ENDIAN);
 	if (ret < 0)
 		goto out;
 
@@ -474,10 +476,7 @@ static int ntfs_d_compare(const struct dentry *dentry, unsigned int len1,
 		goto out;
 	}
 
-	ret = !ntfs_cmp_names(uni1->name, uni1->len, uni2->name, uni2->len,
-			      sbi->upcase, false)
-		      ? 0
-		      : 1;
+	ret = !ntfs_cmp_names_cpu(uni1, uni2, sbi->upcase, false) ? 0 : 1;
 
 out:
 	__putname(uni1);

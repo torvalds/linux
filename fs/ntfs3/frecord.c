@@ -1670,8 +1670,7 @@ next:
 		goto next;
 
 	fns = (struct le_str *)&fname->name_len;
-	if (ntfs_cmp_names(uni->name, uni->len, fns->name, fns->len, NULL,
-			       false))
+	if (ntfs_cmp_names_cpu(uni, fns, NULL, false))
 		goto next;
 
 	return fname;
