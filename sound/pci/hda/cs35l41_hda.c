@@ -1163,6 +1163,11 @@ static int cs35l41_no_acpi_dsd(struct cs35l41_hda *cs35l41, struct device *physd
 		hw_cfg->gpio1.func = CS35l41_VSPK_SWITCH;
 		hw_cfg->gpio1.valid = true;
 	} else {
+		/*
+		 * Note: CLSA010(0/1) are special cases which use a slightly different design.
+		 * All other HIDs e.g. CSC3551 require valid ACPI _DSD properties to be supported.
+		 */
+		dev_err(cs35l41->dev, "Error: ACPI _DSD Properties are missing for HID %s.\n", hid);
 		hw_cfg->valid = false;
 		hw_cfg->gpio1.valid = false;
 		hw_cfg->gpio2.valid = false;

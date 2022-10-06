@@ -460,9 +460,12 @@ ssize_t ovl_listxattr(struct dentry *dentry, char *list, size_t size)
  * of the POSIX ACLs retrieved from the lower layer to this function to not
  * alter the POSIX ACLs for the underlying filesystem.
  */
-static void ovl_idmap_posix_acl(struct user_namespace *mnt_userns,
+static void ovl_idmap_posix_acl(struct inode *realinode,
+				struct user_namespace *mnt_userns,
 				struct posix_acl *acl)
 {
+	struct user_namespace *fs_userns = i_user_ns(realinode);
+
 	for (unsigned int i = 0; i < acl->a_count; i++) {
 		vfsuid_t vfsuid;
 		vfsgid_t vfsgid;
@@ -470,11 +473,11 @@ static void ovl_idmap_posix_acl(struct user_namespace *mnt_userns,
 		struct posix_acl_entry *e = &acl->a_entries[i];
 		switch (e->e_tag) {
 		case ACL_USER:
-			vfsuid = make_vfsuid(mnt_userns, &init_user_ns, e->e_uid);
+			vfsuid = make_vfsuid(mnt_userns, fs_userns, e->e_uid);
 			e->e_uid = vfsuid_into_kuid(vfsuid);
 			break;
 		case ACL_GROUP:
-			vfsgid = make_vfsgid(mnt_userns, &init_user_ns, e->e_gid);
+			vfsgid = make_vfsgid(mnt_userns, fs_userns, e->e_gid);
 			e->e_gid = vfsgid_into_kgid(vfsgid);
 			break;
 		}
@@ -536,7 +539,7 @@ struct posix_acl *ovl_get_acl(struct inode *inode, int type, bool rcu)
 	if (!clone)
 		clone = ERR_PTR(-ENOMEM);
 	else
-		ovl_idmap_posix_acl(mnt_user_ns(realpath.mnt), clone);
+		ovl_idmap_posix_acl(realinode, mnt_user_ns(realpath.mnt), clone);
 	/*
 	 * Since we're not in RCU path walk we always need to release the
 	 * original ACLs.

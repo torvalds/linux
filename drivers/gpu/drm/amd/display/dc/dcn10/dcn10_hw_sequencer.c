@@ -110,6 +110,7 @@ void dcn10_lock_all_pipes(struct dc *dc,
 		 */
 		if (pipe_ctx->top_pipe ||
 		    !pipe_ctx->stream ||
+		    !pipe_ctx->plane_state ||
 		    !tg->funcs->is_tg_enabled(tg))
 			continue;
 

@@ -1191,7 +1191,8 @@ void i915_gem_driver_release(struct drm_i915_private *dev_priv)
 
 	intel_uc_cleanup_firmwares(&to_gt(dev_priv)->uc);
 
-	i915_gem_drain_freed_objects(dev_priv);
+	/* Flush any outstanding work, including i915_gem_context.release_work. */
+	i915_gem_drain_workqueue(dev_priv);
 
 	drm_WARN_ON(&dev_priv->drm, !list_empty(&dev_priv->gem.contexts.list));
 }

@@ -716,6 +716,8 @@ int chown_common(const struct path *path, uid_t user, gid_t group)
 	fs_userns = i_user_ns(inode);
 
 retry_deleg:
+	newattrs.ia_vfsuid = INVALID_VFSUID;
+	newattrs.ia_vfsgid = INVALID_VFSGID;
 	newattrs.ia_valid =  ATTR_CTIME;
 	if ((user != (uid_t)-1) && !setattr_vfsuid(&newattrs, uid))
 		return -EINVAL;

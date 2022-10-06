@@ -25,6 +25,9 @@
 
 #include "resource.h"
 #include "clk_mgr.h"
+#include "dcn31/dcn31_resource.h"
+#include "dcn315/dcn315_resource.h"
+#include "dcn316/dcn316_resource.h"
 
 #include "dml/dcn20/dcn20_fpu.h"
 #include "dcn31_fpu.h"
@@ -114,7 +117,7 @@ struct _vcs_dpi_ip_params_st dcn3_1_ip = {
 	.dcc_supported = true,
 };
 
-struct _vcs_dpi_soc_bounding_box_st dcn3_1_soc = {
+static struct _vcs_dpi_soc_bounding_box_st dcn3_1_soc = {
 		/*TODO: correct dispclk/dppclk voltage level determination*/
 	.clock_limits = {
 		{
@@ -259,7 +262,7 @@ struct _vcs_dpi_ip_params_st dcn3_15_ip = {
 	.dcc_supported = true,
 };
 
-struct _vcs_dpi_soc_bounding_box_st dcn3_15_soc = {
+static struct _vcs_dpi_soc_bounding_box_st dcn3_15_soc = {
 	.sr_exit_time_us = 9.0,
 	.sr_enter_plus_exit_time_us = 11.0,
 	.sr_exit_z8_time_us = 50.0,
@@ -288,6 +291,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_15_soc = {
 	.do_urgent_latency_adjustment = false,
 	.urgent_latency_adjustment_fabric_clock_component_us = 0,
 	.urgent_latency_adjustment_fabric_clock_reference_mhz = 0,
+	.num_chans = 4,
 };
 
 struct _vcs_dpi_ip_params_st dcn3_16_ip = {
@@ -355,7 +359,7 @@ struct _vcs_dpi_ip_params_st dcn3_16_ip = {
 	.dcc_supported = true,
 };
 
-struct _vcs_dpi_soc_bounding_box_st dcn3_16_soc = {
+static struct _vcs_dpi_soc_bounding_box_st dcn3_16_soc = {
 		/*TODO: correct dispclk/dppclk voltage level determination*/
 	.clock_limits = {
 		{
@@ -677,7 +681,11 @@ void dcn315_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 
 	dcn3_15_ip.max_num_otg = dc->res_pool->res_cap->num_timing_generator;
 	dcn3_15_ip.max_num_dpp = dc->res_pool->pipe_count;
-	dcn3_15_soc.num_chans = bw_params->num_channels;
+
+	if (bw_params->num_channels > 0)
+		dcn3_15_soc.num_chans = bw_params->num_channels;
+	if (bw_params->dram_channel_width_bytes > 0)
+		dcn3_15_soc.dram_channel_width_bytes = bw_params->dram_channel_width_bytes;
 
 	ASSERT(clk_table->num_entries);
 

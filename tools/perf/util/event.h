@@ -65,7 +65,8 @@ struct stack_dump {
 
 struct sample_read_value {
 	u64 value;
-	u64 id;
+	u64 id;   /* only if PERF_FORMAT_ID */
+	u64 lost; /* only if PERF_FORMAT_LOST */
 };
 
 struct sample_read {
@@ -79,6 +80,24 @@ struct sample_read {
 		struct sample_read_value one;
 	};
 };
+
+static inline size_t sample_read_value_size(u64 read_format)
+{
+	/* PERF_FORMAT_ID is forced for PERF_SAMPLE_READ */
+	if (read_format & PERF_FORMAT_LOST)
+		return sizeof(struct sample_read_value);
+	else
+		return offsetof(struct sample_read_value, lost);
+}
+
+static inline struct sample_read_value *
+next_sample_read_value(struct sample_read_value *v, u64 read_format)
+{
+	return (void *)v + sample_read_value_size(read_format);
+}
+
+#define sample_read_group__for_each(v, nr, rf)		\
+	for (int __i = 0; __i < (int)nr; v = next_sample_read_value(v, rf), __i++)
 
 struct ip_callchain {
 	u64 nr;
@@ -462,10 +481,6 @@ size_t perf_event__fprintf(union perf_event *event, struct machine *machine, FIL
 
 int kallsyms__get_function_start(const char *kallsyms_filename,
 				 const char *symbol_name, u64 *addr);
-
-void *cpu_map_data__alloc(struct perf_cpu_map *map, size_t *size, u16 *type, int *max);
-void  cpu_map_data__synthesize(struct perf_record_cpu_map_data *data, struct perf_cpu_map *map,
-			       u16 type, int max);
 
 void event_attr_init(struct perf_event_attr *attr);
 

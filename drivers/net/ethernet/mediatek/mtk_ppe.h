@@ -293,6 +293,9 @@ mtk_ppe_check_skb(struct mtk_ppe *ppe, struct sk_buff *skb, u16 hash)
 	if (!ppe)
 		return;
 
+	if (hash > MTK_PPE_HASH_MASK)
+		return;
+
 	now = (u16)jiffies;
 	diff = now - ppe->foe_check_time[hash];
 	if (diff < HZ / 10)

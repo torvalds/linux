@@ -1889,9 +1889,9 @@ qca8k_sw_probe(struct mdio_device *mdiodev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->info = of_device_get_match_data(priv->dev);
 	priv->bus = mdiodev->bus;
 	priv->dev = &mdiodev->dev;
+	priv->info = of_device_get_match_data(priv->dev);
 
 	priv->reset_gpio = devm_gpiod_get_optional(priv->dev, "reset",
 						   GPIOD_ASIS);

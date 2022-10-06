@@ -169,7 +169,7 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 		if (ASICREV_IS_GC_11_0_2(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_3_21;
 		break;
-	case AMDGPU_FAMILY_GC_11_0_2:
+	case AMDGPU_FAMILY_GC_11_0_1:
 		dc_version = DCN_VERSION_3_14;
 		break;
 	default:
@@ -3581,6 +3581,23 @@ void check_syncd_pipes_for_disabled_master_pipe(struct dc *dc,
 			IS_PIPE_SYNCD_VALID(pipe_ctx_check) && (i != disabled_master_pipe_idx))
 			DC_ERR("DC: Failure: pipe_idx[%d] syncd with disabled master pipe_idx[%d]\n",
 				i, disabled_master_pipe_idx);
+	}
+}
+
+void reset_sync_context_for_pipe(const struct dc *dc,
+	struct dc_state *context,
+	uint8_t pipe_idx)
+{
+	int i;
+	struct pipe_ctx *pipe_ctx_reset;
+
+	/* reset the otg sync context for the pipe and its slave pipes if any */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		pipe_ctx_reset = &context->res_ctx.pipe_ctx[i];
+
+		if (((GET_PIPE_SYNCD_FROM_PIPE(pipe_ctx_reset) == pipe_idx) &&
+			IS_PIPE_SYNCD_VALID(pipe_ctx_reset)) || (i == pipe_idx))
+			SET_PIPE_SYNCD_TO_PIPE(pipe_ctx_reset, i);
 	}
 }
 

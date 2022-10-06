@@ -555,7 +555,7 @@ static inline struct ublk_uring_cmd_pdu *ublk_get_uring_cmd_pdu(
 	return (struct ublk_uring_cmd_pdu *)&ioucmd->pdu;
 }
 
-static bool ubq_daemon_is_dying(struct ublk_queue *ubq)
+static inline bool ubq_daemon_is_dying(struct ublk_queue *ubq)
 {
 	return ubq->ubq_daemon->flags & PF_EXITING;
 }
@@ -605,8 +605,9 @@ static void ublk_complete_rq(struct request *req)
 }
 
 /*
- * __ublk_fail_req() may be called from abort context or ->ubq_daemon
- * context during exiting, so lock is required.
+ * Since __ublk_rq_task_work always fails requests immediately during
+ * exiting, __ublk_fail_req() is only called from abort context during
+ * exiting. So lock is unnecessary.
  *
  * Also aborting may not be started yet, keep in mind that one failed
  * request may be issued by block layer again.
@@ -644,8 +645,7 @@ static inline void __ublk_rq_task_work(struct request *req)
 	struct ublk_device *ub = ubq->dev;
 	int tag = req->tag;
 	struct ublk_io *io = &ubq->ios[tag];
-	bool task_exiting = current != ubq->ubq_daemon ||
-		(current->flags & PF_EXITING);
+	bool task_exiting = current != ubq->ubq_daemon || ubq_daemon_is_dying(ubq);
 	unsigned int mapped_bytes;
 
 	pr_devel("%s: complete: op %d, qid %d tag %d io_flags %x addr %llx\n",
@@ -680,6 +680,11 @@ static inline void __ublk_rq_task_work(struct request *req)
 		 * do the copy work.
 		 */
 		io->flags &= ~UBLK_IO_FLAG_NEED_GET_DATA;
+		/* update iod->addr because ublksrv may have passed a new io buffer */
+		ublk_get_iod(ubq, req->tag)->addr = io->addr;
+		pr_devel("%s: update iod->addr: op %d, qid %d tag %d io_flags %x addr %llx\n",
+				__func__, io->cmd->cmd_op, ubq->q_id, req->tag, io->flags,
+				ublk_get_iod(ubq, req->tag)->addr);
 	}
 
 	mapped_bytes = ublk_map_io(ubq, req, io);
@@ -751,8 +756,24 @@ static blk_status_t ublk_queue_rq(struct blk_mq_hw_ctx *hctx,
 		if (task_work_add(ubq->ubq_daemon, &data->work, notify_mode))
 			goto fail;
 	} else {
-		struct io_uring_cmd *cmd = ubq->ios[rq->tag].cmd;
+		struct ublk_io *io = &ubq->ios[rq->tag];
+		struct io_uring_cmd *cmd = io->cmd;
 		struct ublk_uring_cmd_pdu *pdu = ublk_get_uring_cmd_pdu(cmd);
+
+		/*
+		 * If the check pass, we know that this is a re-issued request aborted
+		 * previously in monitor_work because the ubq_daemon(cmd's task) is
+		 * PF_EXITING. We cannot call io_uring_cmd_complete_in_task() anymore
+		 * because this ioucmd's io_uring context may be freed now if no inflight
+		 * ioucmd exists. Otherwise we may cause null-deref in ctx->fallback_work.
+		 *
+		 * Note: monitor_work sets UBLK_IO_FLAG_ABORTED and ends this request(releasing
+		 * the tag). Then the request is re-started(allocating the tag) and we are here.
+		 * Since releasing/allocating a tag implies smp_mb(), finding UBLK_IO_FLAG_ABORTED
+		 * guarantees that here is a re-issued request aborted previously.
+		 */
+		if ((io->flags & UBLK_IO_FLAG_ABORTED))
+			goto fail;
 
 		pdu->req = rq;
 		io_uring_cmd_complete_in_task(cmd, ublk_rq_task_work_cb);

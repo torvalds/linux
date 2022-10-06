@@ -867,10 +867,11 @@ static const struct dc_debug_options debug_defaults_drv = {
 		}
 	},
 	.use_max_lb = true,
-	.force_disable_subvp = true,
+	.force_disable_subvp = false,
 	.exit_idle_opt_for_cursor_updates = true,
 	.enable_single_display_2to1_odm_policy = true,
 	.enable_dp_dig_pixel_rate_div_policy = 1,
+	.allow_sw_cursor_fallback = false,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -2039,7 +2040,8 @@ static bool dcn32_resource_construct(
 	dc->caps.max_downscale_ratio = 600;
 	dc->caps.i2c_speed_in_khz = 100;
 	dc->caps.i2c_speed_in_khz_hdcp = 100; /*1.4 w/a applied by default*/
-	dc->caps.max_cursor_size = 256;
+	/* TODO: Bring max_cursor_size back to 256 after subvp cursor corruption is fixed*/
+	dc->caps.max_cursor_size = 64;
 	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dmdata_alloc_size = 2048;
 	dc->caps.mall_size_per_mem_channel = 0;
@@ -2051,6 +2053,7 @@ static bool dcn32_resource_construct(
 	dc->caps.max_cab_allocation_bytes = 67108864; // 64MB = 1024 * 1024 * 64
 	dc->caps.subvp_fw_processing_delay_us = 15;
 	dc->caps.subvp_prefetch_end_to_mall_start_us = 15;
+	dc->caps.subvp_swath_height_margin_lines = 16;
 	dc->caps.subvp_pstate_allow_width_us = 20;
 	dc->caps.subvp_vertical_int_margin_us = 30;
 

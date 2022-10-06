@@ -1999,7 +1999,7 @@ static int cirrusfb_set_fbinfo(struct fb_info *info)
 	}
 
 	/* Fill fix common fields */
-	strlcpy(info->fix.id, cirrusfb_board_info[cinfo->btype].name,
+	strscpy(info->fix.id, cirrusfb_board_info[cinfo->btype].name,
 		sizeof(info->fix.id));
 
 	/* monochrome: only 1 memory plane */

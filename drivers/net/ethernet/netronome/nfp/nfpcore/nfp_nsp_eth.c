@@ -507,6 +507,7 @@ int nfp_eth_set_idmode(struct nfp_cpp *cpp, unsigned int idx, bool state)
 	if (nfp_nsp_get_abi_ver_minor(nsp) < 32) {
 		nfp_err(nfp_nsp_cpp(nsp),
 			"set id mode operation not supported, please update flash\n");
+		nfp_eth_config_cleanup_end(nsp);
 		return -EOPNOTSUPP;
 	}
 

@@ -3825,8 +3825,11 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
 	adev_to_drm(adev)->mode_config.max_height = 16384;
 
 	adev_to_drm(adev)->mode_config.preferred_depth = 24;
-	/* disable prefer shadow for now due to hibernation issues */
-	adev_to_drm(adev)->mode_config.prefer_shadow = 0;
+	if (adev->asic_type == CHIP_HAWAII)
+		/* disable prefer shadow for now due to hibernation issues */
+		adev_to_drm(adev)->mode_config.prefer_shadow = 0;
+	else
+		adev_to_drm(adev)->mode_config.prefer_shadow = 1;
 	/* indicates support for immediate flip */
 	adev_to_drm(adev)->mode_config.async_page_flip = true;
 
@@ -4135,6 +4138,7 @@ static void register_backlight_device(struct amdgpu_display_manager *dm,
 	}
 }
 
+static void amdgpu_set_panel_orientation(struct drm_connector *connector);
 
 /*
  * In this architecture, the association
@@ -4326,6 +4330,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 					adev_to_drm(adev)->vblank_disable_immediate = false;
 			}
 		}
+		amdgpu_set_panel_orientation(&aconnector->base);
 	}
 
 	/* Software is initialized. Now we can register interrupt handlers. */
@@ -4754,7 +4759,7 @@ fill_dc_plane_info_and_addr(struct amdgpu_device *adev,
 	plane_info->visible = true;
 	plane_info->stereo_format = PLANE_STEREO_FORMAT_NONE;
 
-	plane_info->layer_index = 0;
+	plane_info->layer_index = plane_state->normalized_zpos;
 
 	ret = fill_plane_color_attributes(plane_state, plane_info->format,
 					  &plane_info->color_space);
@@ -4822,7 +4827,7 @@ static int fill_dc_plane_attributes(struct amdgpu_device *adev,
 	dc_plane_state->global_alpha = plane_info.global_alpha;
 	dc_plane_state->global_alpha_value = plane_info.global_alpha_value;
 	dc_plane_state->dcc = plane_info.dcc;
-	dc_plane_state->layer_index = plane_info.layer_index; // Always returns 0
+	dc_plane_state->layer_index = plane_info.layer_index;
 	dc_plane_state->flip_int_enabled = true;
 
 	/*
@@ -6684,6 +6689,10 @@ static void amdgpu_set_panel_orientation(struct drm_connector *connector)
 	    connector->connector_type != DRM_MODE_CONNECTOR_LVDS)
 		return;
 
+	mutex_lock(&connector->dev->mode_config.mutex);
+	amdgpu_dm_connector_get_modes(connector);
+	mutex_unlock(&connector->dev->mode_config.mutex);
+
 	encoder = amdgpu_dm_connector_to_encoder(connector);
 	if (!encoder)
 		return;
@@ -6728,8 +6737,6 @@ static void amdgpu_dm_connector_ddc_get_modes(struct drm_connector *connector,
 		 * restored here.
 		 */
 		amdgpu_dm_update_freesync_caps(connector, edid);
-
-		amdgpu_set_panel_orientation(connector);
 	} else {
 		amdgpu_dm_connector->num_modes = 0;
 	}
@@ -9477,6 +9484,14 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 			}
 		}
 	}
+
+	/*
+	 * DC consults the zpos (layer_index in DC terminology) to determine the
+	 * hw plane on which to enable the hw cursor (see
+	 * `dcn10_can_pipe_disable_cursor`). By now, all modified planes are in
+	 * atomic state, so call drm helper to normalize zpos.
+	 */
+	drm_atomic_normalize_zpos(dev, state);
 
 	/* Remove exiting planes if they are modified */
 	for_each_oldnew_plane_in_state_reverse(state, plane, old_plane_state, new_plane_state, i) {

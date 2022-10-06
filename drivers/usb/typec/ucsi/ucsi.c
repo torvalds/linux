@@ -588,8 +588,6 @@ static int ucsi_get_pdos(struct ucsi_connector *con, int is_partner,
 				num_pdos * sizeof(u32));
 	if (ret < 0 && ret != -ETIMEDOUT)
 		dev_err(ucsi->dev, "UCSI_GET_PDOS failed (%d)\n", ret);
-	if (ret == 0 && offset == 0)
-		dev_warn(ucsi->dev, "UCSI_GET_PDOS returned 0 bytes\n");
 
 	return ret;
 }
@@ -1200,32 +1198,6 @@ out_unlock:
 	return ret;
 }
 
-static void ucsi_unregister_connectors(struct ucsi *ucsi)
-{
-	struct ucsi_connector *con;
-	int i;
-
-	if (!ucsi->connector)
-		return;
-
-	for (i = 0; i < ucsi->cap.num_connectors; i++) {
-		con = &ucsi->connector[i];
-
-		if (!con->wq)
-			break;
-
-		cancel_work_sync(&con->work);
-		ucsi_unregister_partner(con);
-		ucsi_unregister_altmodes(con, UCSI_RECIPIENT_CON);
-		ucsi_unregister_port_psy(con);
-		destroy_workqueue(con->wq);
-		typec_unregister_port(con->port);
-	}
-
-	kfree(ucsi->connector);
-	ucsi->connector = NULL;
-}
-
 /**
  * ucsi_init - Initialize UCSI interface
  * @ucsi: UCSI to be initialized
@@ -1234,6 +1206,7 @@ static void ucsi_unregister_connectors(struct ucsi *ucsi)
  */
 static int ucsi_init(struct ucsi *ucsi)
 {
+	struct ucsi_connector *con;
 	u64 command;
 	int ret;
 	int i;
@@ -1264,7 +1237,7 @@ static int ucsi_init(struct ucsi *ucsi)
 	}
 
 	/* Allocate the connectors. Released in ucsi_unregister() */
-	ucsi->connector = kcalloc(ucsi->cap.num_connectors,
+	ucsi->connector = kcalloc(ucsi->cap.num_connectors + 1,
 				  sizeof(*ucsi->connector), GFP_KERNEL);
 	if (!ucsi->connector) {
 		ret = -ENOMEM;
@@ -1288,7 +1261,15 @@ static int ucsi_init(struct ucsi *ucsi)
 	return 0;
 
 err_unregister:
-	ucsi_unregister_connectors(ucsi);
+	for (con = ucsi->connector; con->port; con++) {
+		ucsi_unregister_partner(con);
+		ucsi_unregister_altmodes(con, UCSI_RECIPIENT_CON);
+		ucsi_unregister_port_psy(con);
+		if (con->wq)
+			destroy_workqueue(con->wq);
+		typec_unregister_port(con->port);
+		con->port = NULL;
+	}
 
 err_reset:
 	memset(&ucsi->cap, 0, sizeof(ucsi->cap));
@@ -1402,6 +1383,7 @@ EXPORT_SYMBOL_GPL(ucsi_register);
 void ucsi_unregister(struct ucsi *ucsi)
 {
 	u64 cmd = UCSI_SET_NOTIFICATION_ENABLE;
+	int i;
 
 	/* Make sure that we are not in the middle of driver initialization */
 	cancel_delayed_work_sync(&ucsi->work);
@@ -1409,7 +1391,18 @@ void ucsi_unregister(struct ucsi *ucsi)
 	/* Disable notifications */
 	ucsi->ops->async_write(ucsi, UCSI_CONTROL, &cmd, sizeof(cmd));
 
-	ucsi_unregister_connectors(ucsi);
+	for (i = 0; i < ucsi->cap.num_connectors; i++) {
+		cancel_work_sync(&ucsi->connector[i].work);
+		ucsi_unregister_partner(&ucsi->connector[i]);
+		ucsi_unregister_altmodes(&ucsi->connector[i],
+					 UCSI_RECIPIENT_CON);
+		ucsi_unregister_port_psy(&ucsi->connector[i]);
+		if (ucsi->connector[i].wq)
+			destroy_workqueue(ucsi->connector[i].wq);
+		typec_unregister_port(ucsi->connector[i].port);
+	}
+
+	kfree(ucsi->connector);
 }
 EXPORT_SYMBOL_GPL(ucsi_unregister);
 

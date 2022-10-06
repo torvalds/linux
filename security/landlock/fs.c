@@ -150,6 +150,16 @@ retry:
 /* clang-format on */
 
 /*
+ * All access rights that are denied by default whether they are handled or not
+ * by a ruleset/layer.  This must be ORed with all ruleset->fs_access_masks[]
+ * entries when we need to get the absolute handled access masks.
+ */
+/* clang-format off */
+#define ACCESS_INITIALLY_DENIED ( \
+	LANDLOCK_ACCESS_FS_REFER)
+/* clang-format on */
+
+/*
  * @path: Should have been checked by get_path_from_fd().
  */
 int landlock_append_fs_rule(struct landlock_ruleset *const ruleset,
@@ -167,7 +177,9 @@ int landlock_append_fs_rule(struct landlock_ruleset *const ruleset,
 		return -EINVAL;
 
 	/* Transforms relative access rights to absolute ones. */
-	access_rights |= LANDLOCK_MASK_ACCESS_FS & ~ruleset->fs_access_masks[0];
+	access_rights |=
+		LANDLOCK_MASK_ACCESS_FS &
+		~(ruleset->fs_access_masks[0] | ACCESS_INITIALLY_DENIED);
 	object = get_inode_object(d_backing_inode(path->dentry));
 	if (IS_ERR(object))
 		return PTR_ERR(object);
@@ -277,23 +289,12 @@ static inline bool is_nouser_or_private(const struct dentry *dentry)
 static inline access_mask_t
 get_handled_accesses(const struct landlock_ruleset *const domain)
 {
-	access_mask_t access_dom = 0;
-	unsigned long access_bit;
+	access_mask_t access_dom = ACCESS_INITIALLY_DENIED;
+	size_t layer_level;
 
-	for (access_bit = 0; access_bit < LANDLOCK_NUM_ACCESS_FS;
-	     access_bit++) {
-		size_t layer_level;
-
-		for (layer_level = 0; layer_level < domain->num_layers;
-		     layer_level++) {
-			if (domain->fs_access_masks[layer_level] &
-			    BIT_ULL(access_bit)) {
-				access_dom |= BIT_ULL(access_bit);
-				break;
-			}
-		}
-	}
-	return access_dom;
+	for (layer_level = 0; layer_level < domain->num_layers; layer_level++)
+		access_dom |= domain->fs_access_masks[layer_level];
+	return access_dom & LANDLOCK_MASK_ACCESS_FS;
 }
 
 static inline access_mask_t
@@ -316,8 +317,13 @@ init_layer_masks(const struct landlock_ruleset *const domain,
 
 		for_each_set_bit(access_bit, &access_req,
 				 ARRAY_SIZE(*layer_masks)) {
-			if (domain->fs_access_masks[layer_level] &
-			    BIT_ULL(access_bit)) {
+			/*
+			 * Artificially handles all initially denied by default
+			 * access rights.
+			 */
+			if (BIT_ULL(access_bit) &
+			    (domain->fs_access_masks[layer_level] |
+			     ACCESS_INITIALLY_DENIED)) {
 				(*layer_masks)[access_bit] |=
 					BIT_ULL(layer_level);
 				handled_accesses |= BIT_ULL(access_bit);
@@ -856,10 +862,6 @@ static int current_check_refer_path(struct dentry *const old_dentry,
 					      &layer_masks_parent1, NULL, 0,
 					      NULL, NULL);
 	}
-
-	/* Backward compatibility: no reparenting support. */
-	if (!(get_handled_accesses(dom) & LANDLOCK_ACCESS_FS_REFER))
-		return -EXDEV;
 
 	access_request_parent1 |= LANDLOCK_ACCESS_FS_REFER;
 	access_request_parent2 |= LANDLOCK_ACCESS_FS_REFER;

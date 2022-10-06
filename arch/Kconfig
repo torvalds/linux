@@ -53,7 +53,6 @@ config KPROBES
 config JUMP_LABEL
 	bool "Optimize very unlikely/likely branches"
 	depends on HAVE_ARCH_JUMP_LABEL
-	depends on CC_HAS_ASM_GOTO
 	select OBJTOOL if HAVE_JUMP_LABEL_HACK
 	help
 	 This option enables a transparent branch optimization that
@@ -924,6 +923,9 @@ config HAVE_SOFTIRQ_ON_OWN_STACK
 	  Architecture provides a function to run __do_softirq() on a
 	  separate stack.
 
+config SOFTIRQ_ON_OWN_STACK
+	def_bool HAVE_SOFTIRQ_ON_OWN_STACK && !PREEMPT_RT
+
 config ALTERNATE_USER_ADDRESS_SPACE
 	bool
 	help
@@ -1361,7 +1363,7 @@ config HAVE_PREEMPT_DYNAMIC_CALL
 
 config HAVE_PREEMPT_DYNAMIC_KEY
 	bool
-	depends on HAVE_ARCH_JUMP_LABEL && CC_HAS_ASM_GOTO
+	depends on HAVE_ARCH_JUMP_LABEL
 	select HAVE_PREEMPT_DYNAMIC
 	help
 	   An architecture should select this if it can handle the preemption

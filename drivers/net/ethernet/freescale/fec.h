@@ -16,6 +16,7 @@
 
 #include <linux/clocksource.h>
 #include <linux/net_tstamp.h>
+#include <linux/pm_qos.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/timecounter.h>
 
@@ -498,6 +499,9 @@ struct bufdesc_ex {
 /* i.MX8MQ SoC integration mix wakeup interrupt signal into "int2" interrupt line. */
 #define FEC_QUIRK_WAKEUP_FROM_INT2	(1 << 22)
 
+/* i.MX6Q adds pm_qos support */
+#define FEC_QUIRK_HAS_PMQOS			BIT(23)
+
 struct bufdesc_prop {
 	int qid;
 	/* Address of Rx and Tx buffers */
@@ -608,6 +612,7 @@ struct fec_enet_private {
 	struct delayed_work time_keep;
 	struct regulator *reg_phy;
 	struct fec_stop_mode_gpr stop_gpr;
+	struct pm_qos_request pm_qos_req;
 
 	unsigned int tx_align;
 	unsigned int rx_align;

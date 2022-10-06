@@ -51,11 +51,6 @@ void ntfs3_exit_bitmap(void)
 	kmem_cache_destroy(ntfs_enode_cachep);
 }
 
-static inline u32 wnd_bits(const struct wnd_bitmap *wnd, size_t i)
-{
-	return i + 1 == wnd->nwnd ? wnd->bits_last : wnd->sb->s_blocksize * 8;
-}
-
 /*
  * wnd_scan
  *
@@ -1333,9 +1328,7 @@ int wnd_extend(struct wnd_bitmap *wnd, size_t new_bits)
 		if (!new_free)
 			return -ENOMEM;
 
-		if (new_free != wnd->free_bits)
-			memcpy(new_free, wnd->free_bits,
-			       wnd->nwnd * sizeof(short));
+		memcpy(new_free, wnd->free_bits, wnd->nwnd * sizeof(short));
 		memset(new_free + wnd->nwnd, 0,
 		       (new_wnd - wnd->nwnd) * sizeof(short));
 		kfree(wnd->free_bits);
@@ -1395,9 +1388,8 @@ int wnd_extend(struct wnd_bitmap *wnd, size_t new_bits)
 
 void wnd_zone_set(struct wnd_bitmap *wnd, size_t lcn, size_t len)
 {
-	size_t zlen;
+	size_t zlen = wnd->zone_end - wnd->zone_bit;
 
-	zlen = wnd->zone_end - wnd->zone_bit;
 	if (zlen)
 		wnd_add_free_ext(wnd, wnd->zone_bit, zlen, false);
 
