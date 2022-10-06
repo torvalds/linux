@@ -710,6 +710,15 @@ config SPI_ORION
 	  This enables using the SPI master controller on the Orion
 	  and MVEBU chips.
 
+config SPI_PCI1XXXX
+	tristate "PCI1XXXX SPI Bus support"
+	depends on PCI
+	help
+	  Say "yes" to Enable the SPI Bus support for the PCI1xxxx card
+	  This is a PCI to SPI Bus driver
+	  This driver can be built as module. If so, the module will be
+	  called as spi-pci1xxxx.
+
 config SPI_PIC32
 	tristate "Microchip PIC32 series SPI"
 	depends on MACH_PIC32 || COMPILE_TEST
