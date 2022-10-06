@@ -1,7 +1,0 @@
-These are one of the few drivers still not using the vb2
-framework, so these drivers are now deprecated with the intent of
-removing them altogether by the beginning of 2023.
-
-In order to keep these drivers they have to be converted to vb2.
-If someone is interested in doing this work, then contact the
-linux-media mailinglist (https://linuxtv.org/lists.php).
