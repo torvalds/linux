@@ -3485,7 +3485,7 @@ smb2_validate_and_copy_iov(unsigned int offset, unsigned int buffer_length,
 	if (rc)
 		return rc;
 
-	memcpy(data, begin_of_buf, buffer_length);
+	memcpy(data, begin_of_buf, minbufsize);
 
 	return 0;
 }
@@ -3609,7 +3609,7 @@ query_info(const unsigned int xid, struct cifs_tcon *tcon,
 
 	rc = smb2_validate_and_copy_iov(le16_to_cpu(rsp->OutputBufferOffset),
 					le32_to_cpu(rsp->OutputBufferLength),
-					&rsp_iov, min_len, *data);
+					&rsp_iov, dlen ? *dlen : min_len, *data);
 	if (rc && allocated) {
 		kfree(*data);
 		*data = NULL;
