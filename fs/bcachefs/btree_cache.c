@@ -173,7 +173,7 @@ int bch2_btree_node_hash_insert(struct btree_cache *bc, struct btree *b,
 	mutex_lock(&bc->lock);
 	ret = __bch2_btree_node_hash_insert(bc, b);
 	if (!ret)
-		list_add(&b->list, &bc->live);
+		list_add_tail(&b->list, &bc->live);
 	mutex_unlock(&bc->lock);
 
 	return ret;
