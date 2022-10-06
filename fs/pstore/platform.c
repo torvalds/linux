@@ -665,6 +665,8 @@ void pstore_unregister(struct pstore_info *psi)
 	psinfo = NULL;
 	kfree(backend);
 	backend = NULL;
+
+	pr_info("Unregistered %s as persistent store backend\n", psi->name);
 	mutex_unlock(&psinfo_lock);
 }
 EXPORT_SYMBOL_GPL(pstore_unregister);
