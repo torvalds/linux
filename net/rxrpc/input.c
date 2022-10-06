@@ -338,7 +338,8 @@ static void rxrpc_input_queue_data(struct rxrpc_call *call, struct sk_buff *skb,
 /*
  * Process a DATA packet.
  */
-static void rxrpc_input_data_one(struct rxrpc_call *call, struct sk_buff *skb)
+static void rxrpc_input_data_one(struct rxrpc_call *call, struct sk_buff *skb,
+				 bool *_notify)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct sk_buff *oos;
@@ -361,7 +362,7 @@ static void rxrpc_input_data_one(struct rxrpc_call *call, struct sk_buff *skb)
 		if (test_and_set_bit(RXRPC_CALL_RX_LAST, &call->flags) &&
 		    seq + 1 != wtop) {
 			rxrpc_proto_abort("LSN", call, seq);
-			goto err_free;
+			return;
 		}
 	} else {
 		if (test_bit(RXRPC_CALL_RX_LAST, &call->flags) &&
@@ -369,7 +370,7 @@ static void rxrpc_input_data_one(struct rxrpc_call *call, struct sk_buff *skb)
 			pr_warn("Packet beyond last: c=%x q=%x window=%x-%x wlimit=%x\n",
 				call->debug_id, seq, window, wtop, wlimit);
 			rxrpc_proto_abort("LSA", call, seq);
-			goto err_free;
+			return;
 		}
 	}
 
@@ -402,9 +403,11 @@ static void rxrpc_input_data_one(struct rxrpc_call *call, struct sk_buff *skb)
 		if (after(window, wtop))
 			wtop = window;
 
+		rxrpc_get_skb(skb, rxrpc_skb_get_to_recvmsg);
+
 		spin_lock(&call->recvmsg_queue.lock);
 		rxrpc_input_queue_data(call, skb, window, wtop, rxrpc_receive_queue);
-		skb = NULL;
+		*_notify = true;
 
 		while ((oos = skb_peek(&call->rx_oos_queue))) {
 			struct rxrpc_skb_priv *osp = rxrpc_skb(oos);
@@ -456,16 +459,17 @@ static void rxrpc_input_data_one(struct rxrpc_call *call, struct sk_buff *skb)
 			struct rxrpc_skb_priv *osp = rxrpc_skb(oos);
 
 			if (after(osp->hdr.seq, seq)) {
+				rxrpc_get_skb(skb, rxrpc_skb_get_to_recvmsg_oos);
 				__skb_queue_before(&call->rx_oos_queue, oos, skb);
 				goto oos_queued;
 			}
 		}
 
+		rxrpc_get_skb(skb, rxrpc_skb_get_to_recvmsg_oos);
 		__skb_queue_tail(&call->rx_oos_queue, skb);
 	oos_queued:
 		trace_rxrpc_receive(call, last ? rxrpc_receive_oos_last : rxrpc_receive_oos,
 				    sp->hdr.serial, sp->hdr.seq);
-		skb = NULL;
 	}
 
 send_ack:
@@ -483,9 +487,6 @@ send_ack:
 	else
 		rxrpc_propose_delay_ACK(call, serial,
 					rxrpc_propose_ack_input_data);
-
-err_free:
-	rxrpc_free_skb(skb, rxrpc_skb_put_input);
 }
 
 /*
@@ -498,6 +499,7 @@ static bool rxrpc_input_split_jumbo(struct rxrpc_call *call, struct sk_buff *skb
 	struct sk_buff *jskb;
 	unsigned int offset = sizeof(struct rxrpc_wire_header);
 	unsigned int len = skb->len - offset;
+	bool notify = false;
 
 	while (sp->hdr.flags & RXRPC_JUMBO_PACKET) {
 		if (len < RXRPC_JUMBO_SUBPKTLEN)
@@ -517,7 +519,8 @@ static bool rxrpc_input_split_jumbo(struct rxrpc_call *call, struct sk_buff *skb
 		jsp = rxrpc_skb(jskb);
 		jsp->offset = offset;
 		jsp->len = RXRPC_JUMBO_DATALEN;
-		rxrpc_input_data_one(call, jskb);
+		rxrpc_input_data_one(call, jskb, &notify);
+		rxrpc_free_skb(jskb, rxrpc_skb_put_jumbo_subpacket);
 
 		sp->hdr.flags = jhdr.flags;
 		sp->hdr._rsvd = ntohs(jhdr._rsvd);
@@ -529,7 +532,11 @@ static bool rxrpc_input_split_jumbo(struct rxrpc_call *call, struct sk_buff *skb
 
 	sp->offset = offset;
 	sp->len    = len;
-	rxrpc_input_data_one(call, skb);
+	rxrpc_input_data_one(call, skb, &notify);
+	if (notify) {
+		trace_rxrpc_notify_socket(call->debug_id, sp->hdr.serial);
+		rxrpc_notify_socket(call);
+	}
 	return true;
 
 protocol_error:
@@ -552,10 +559,8 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 	       skb->len, seq0);
 
 	state = READ_ONCE(call->state);
-	if (state >= RXRPC_CALL_COMPLETE) {
-		rxrpc_free_skb(skb, rxrpc_skb_put_input);
+	if (state >= RXRPC_CALL_COMPLETE)
 		return;
-	}
 
 	/* Unshare the packet so that it can be modified for in-place
 	 * decryption.
@@ -605,7 +610,6 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 out:
 	trace_rxrpc_notify_socket(call->debug_id, serial);
 	rxrpc_notify_socket(call);
-	rxrpc_free_skb(skb, rxrpc_skb_put_input);
 	_leave(" [queued]");
 }
 
@@ -797,7 +801,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	struct rxrpc_ackpacket ack;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct rxrpc_ackinfo info;
-	struct sk_buff *skb_old = NULL, *skb_put = skb;
+	struct sk_buff *skb_old = NULL;
 	rxrpc_serial_t ack_serial, acked_serial;
 	rxrpc_seq_t first_soft_ack, hard_ack, prev_pkt;
 	int nr_acks, offset, ioffset;
@@ -963,6 +967,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 			goto out;
 		}
 
+		rxrpc_get_skb(skb, rxrpc_skb_get_ack);
 		spin_lock(&call->acks_ack_lock);
 		skb_old = call->acks_soft_tbl;
 		call->acks_soft_tbl = skb;
@@ -970,7 +975,6 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 
 		rxrpc_input_soft_acks(call, skb->data + offset, first_soft_ack,
 				      nr_acks, &summary);
-		skb_put = NULL;
 	} else if (call->acks_soft_tbl) {
 		spin_lock(&call->acks_ack_lock);
 		skb_old = call->acks_soft_tbl;
@@ -986,7 +990,6 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 
 	rxrpc_congestion_management(call, skb, &summary, acked_serial);
 out:
-	rxrpc_free_skb(skb_put, rxrpc_skb_put_input);
 	rxrpc_free_skb(skb_old, rxrpc_skb_put_ack);
 }
 
@@ -1037,11 +1040,11 @@ void rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 	switch (sp->hdr.type) {
 	case RXRPC_PACKET_TYPE_DATA:
 		rxrpc_input_data(call, skb);
-		goto no_free;
+		break;
 
 	case RXRPC_PACKET_TYPE_ACK:
 		rxrpc_input_ack(call, skb);
-		goto no_free;
+		break;
 
 	case RXRPC_PACKET_TYPE_BUSY:
 		/* Just ignore BUSY packets from the server; the retry and
@@ -1061,10 +1064,6 @@ void rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 	default:
 		break;
 	}
-
-	rxrpc_free_skb(skb, rxrpc_skb_put_input);
-no_free:
-	_leave("");
 }
 
 /*

@@ -72,6 +72,7 @@ static void rxrpc_post_packet_to_conn(struct rxrpc_connection *conn,
 {
 	_enter("%p,%p", conn, skb);
 
+	rxrpc_get_skb(skb, rxrpc_skb_get_conn_work);
 	skb_queue_tail(&conn->rx_queue, skb);
 	rxrpc_queue_conn(conn, rxrpc_conn_queue_rx_work);
 }
@@ -86,10 +87,9 @@ static void rxrpc_post_packet_to_local(struct rxrpc_local *local,
 	_enter("%p,%p", local, skb);
 
 	if (rxrpc_get_local_maybe(local, rxrpc_local_get_queue)) {
+		rxrpc_get_skb(skb, rxrpc_skb_get_local_work);
 		skb_queue_tail(&local->event_queue, skb);
 		rxrpc_queue_local(local);
-	} else {
-		rxrpc_free_skb(skb, rxrpc_skb_put_input);
 	}
 }
 
@@ -99,10 +99,9 @@ static void rxrpc_post_packet_to_local(struct rxrpc_local *local,
 static void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb)
 {
 	if (rxrpc_get_local_maybe(local, rxrpc_local_get_queue)) {
+		rxrpc_get_skb(skb, rxrpc_skb_get_reject_work);
 		skb_queue_tail(&local->reject_queue, skb);
 		rxrpc_queue_local(local);
-	} else {
-		rxrpc_free_skb(skb, rxrpc_skb_put_input);
 	}
 }
 
@@ -153,7 +152,7 @@ static bool rxrpc_extract_abort(struct sk_buff *skb)
 /*
  * Process packets received on the local endpoint
  */
-static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff *skb)
+static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff **_skb)
 {
 	struct rxrpc_connection *conn;
 	struct rxrpc_channel *chan;
@@ -161,6 +160,7 @@ static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff *skb)
 	struct rxrpc_skb_priv *sp;
 	struct rxrpc_peer *peer = NULL;
 	struct rxrpc_sock *rx = NULL;
+	struct sk_buff *skb = *_skb;
 	unsigned int channel;
 
 	if (skb->tstamp == 0)
@@ -181,7 +181,6 @@ static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff *skb)
 		static int lose;
 		if ((lose++ & 7) == 7) {
 			trace_rxrpc_rx_lose(sp);
-			rxrpc_free_skb(skb, rxrpc_skb_put_lose);
 			return 0;
 		}
 	}
@@ -193,13 +192,13 @@ static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff *skb)
 	switch (sp->hdr.type) {
 	case RXRPC_PACKET_TYPE_VERSION:
 		if (rxrpc_to_client(sp))
-			goto discard;
+			return 0;
 		rxrpc_post_packet_to_local(local, skb);
-		goto out;
+		return 0;
 
 	case RXRPC_PACKET_TYPE_BUSY:
 		if (rxrpc_to_server(sp))
-			goto discard;
+			return 0;
 		fallthrough;
 	case RXRPC_PACKET_TYPE_ACK:
 	case RXRPC_PACKET_TYPE_ACKALL:
@@ -208,7 +207,7 @@ static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff *skb)
 		break;
 	case RXRPC_PACKET_TYPE_ABORT:
 		if (!rxrpc_extract_abort(skb))
-			return true; /* Just discard if malformed */
+			return 0; /* Just discard if malformed */
 		break;
 
 	case RXRPC_PACKET_TYPE_DATA:
@@ -220,15 +219,16 @@ static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff *skb)
 		 * decryption.
 		 */
 		if (sp->hdr.securityIndex != 0) {
-			struct sk_buff *nskb = skb_unshare(skb, GFP_ATOMIC);
-			if (!nskb) {
-				rxrpc_eaten_skb(skb, rxrpc_skb_eaten_by_unshare_nomem);
-				goto out;
+			skb = skb_unshare(skb, GFP_ATOMIC);
+			if (!skb) {
+				rxrpc_eaten_skb(*_skb, rxrpc_skb_eaten_by_unshare_nomem);
+				*_skb = NULL;
+				return 0;
 			}
 
-			if (nskb != skb) {
-				rxrpc_eaten_skb(skb, rxrpc_skb_eaten_by_unshare);
-				skb = nskb;
+			if (skb != *_skb) {
+				rxrpc_eaten_skb(*_skb, rxrpc_skb_eaten_by_unshare);
+				*_skb = skb;
 				rxrpc_new_skb(skb, rxrpc_skb_new_unshared);
 				sp = rxrpc_skb(skb);
 			}
@@ -237,18 +237,18 @@ static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff *skb)
 
 	case RXRPC_PACKET_TYPE_CHALLENGE:
 		if (rxrpc_to_server(sp))
-			goto discard;
+			return 0;
 		break;
 	case RXRPC_PACKET_TYPE_RESPONSE:
 		if (rxrpc_to_client(sp))
-			goto discard;
+			return 0;
 		break;
 
 		/* Packet types 9-11 should just be ignored. */
 	case RXRPC_PACKET_TYPE_PARAMS:
 	case RXRPC_PACKET_TYPE_10:
 	case RXRPC_PACKET_TYPE_11:
-		goto discard;
+		return 0;
 
 	default:
 		goto bad_message;
@@ -268,7 +268,7 @@ static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff *skb)
 			if (sp->hdr.type == RXRPC_PACKET_TYPE_DATA &&
 			    sp->hdr.seq == 1)
 				goto unsupported_service;
-			goto discard;
+			return 0;
 		}
 	}
 
@@ -294,7 +294,7 @@ static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff *skb)
 			/* Connection-level packet */
 			_debug("CONN %p {%d}", conn, conn->debug_id);
 			rxrpc_post_packet_to_conn(conn, skb);
-			goto out;
+			return 0;
 		}
 
 		if ((int)sp->hdr.serial - (int)conn->hi_serial > 0)
@@ -306,19 +306,19 @@ static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff *skb)
 
 		/* Ignore really old calls */
 		if (sp->hdr.callNumber < chan->last_call)
-			goto discard;
+			return 0;
 
 		if (sp->hdr.callNumber == chan->last_call) {
 			if (chan->call ||
 			    sp->hdr.type == RXRPC_PACKET_TYPE_ABORT)
-				goto discard;
+				return 0;
 
 			/* For the previous service call, if completed
 			 * successfully, we discard all further packets.
 			 */
 			if (rxrpc_conn_is_service(conn) &&
 			    chan->last_type == RXRPC_PACKET_TYPE_ACK)
-				goto discard;
+				return 0;
 
 			/* But otherwise we need to retransmit the final packet
 			 * from data cached in the connection record.
@@ -329,7 +329,7 @@ static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff *skb)
 						    sp->hdr.serial,
 						    sp->hdr.flags);
 			rxrpc_post_packet_to_conn(conn, skb);
-			goto out;
+			return 0;
 		}
 
 		call = rcu_dereference(chan->call);
@@ -357,21 +357,14 @@ static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff *skb)
 		    sp->hdr.type != RXRPC_PACKET_TYPE_DATA)
 			goto bad_message;
 		if (sp->hdr.seq != 1)
-			goto discard;
+			return 0;
 		call = rxrpc_new_incoming_call(local, rx, skb);
 		if (!call)
 			goto reject_packet;
 	}
 
-	/* Process a call packet; this either discards or passes on the ref
-	 * elsewhere.
-	 */
+	/* Process a call packet. */
 	rxrpc_input_call_event(call, skb);
-	goto out;
-
-discard:
-	rxrpc_free_skb(skb, rxrpc_skb_put_input);
-out:
 	trace_rxrpc_rx_done(0, 0);
 	return 0;
 
@@ -400,9 +393,7 @@ protocol_error:
 post_abort:
 	skb->mark = RXRPC_SKB_MARK_REJECT_ABORT;
 reject_packet:
-	trace_rxrpc_rx_done(skb->mark, skb->priority);
 	rxrpc_reject_packet(local, skb);
-	_leave(" [badmsg]");
 	return 0;
 }
 
@@ -441,9 +432,12 @@ int rxrpc_io_thread(void *data)
 		if ((skb = __skb_dequeue(&rx_queue))) {
 			switch (skb->mark) {
 			case RXRPC_SKB_MARK_PACKET:
+				skb->priority = 0;
 				rcu_read_lock();
-				rxrpc_input_packet(local, skb);
+				rxrpc_input_packet(local, &skb);
 				rcu_read_unlock();
+				trace_rxrpc_rx_done(skb->mark, skb->priority);
+				rxrpc_free_skb(skb, rxrpc_skb_put_input);
 				break;
 			case RXRPC_SKB_MARK_ERROR:
 				rxrpc_input_error(local, skb);
