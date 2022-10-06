@@ -801,7 +801,7 @@ smb2_is_path_accessible(const unsigned int xid, struct cifs_tcon *tcon,
 
 	rc = open_cached_dir(xid, tcon, full_path, cifs_sb, true, &cfid);
 	if (!rc) {
-		if (cfid->is_valid) {
+		if (cfid->has_lease) {
 			close_cached_dir(cfid);
 			return 0;
 		}
