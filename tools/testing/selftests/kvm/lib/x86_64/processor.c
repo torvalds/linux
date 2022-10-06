@@ -1012,12 +1012,10 @@ bool is_amd_cpu(void)
 void kvm_get_cpu_address_width(unsigned int *pa_bits, unsigned int *va_bits)
 {
 	const struct kvm_cpuid_entry2 *entry;
-	bool pae;
 
 	/* SDM 4.1.4 */
 	if (kvm_get_cpuid_max_extended() < 0x80000008) {
-		pae = kvm_get_supported_cpuid_entry(1)->edx & (1 << 6);
-		*pa_bits = pae ? 36 : 32;
+		*pa_bits == kvm_cpu_has(X86_FEATURE_PAE) ? 36 : 32;
 		*va_bits = 32;
 	} else {
 		entry = kvm_get_supported_cpuid_entry(0x80000008);
