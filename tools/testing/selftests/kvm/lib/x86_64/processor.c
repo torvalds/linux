@@ -1229,7 +1229,8 @@ unsigned long vm_compute_max_gfn(struct kvm_vm *vm)
 {
 	const unsigned long num_ht_pages = 12 << (30 - vm->page_shift); /* 12 GiB */
 	unsigned long ht_gfn, max_gfn, max_pfn;
-	uint32_t eax, ebx, ecx, edx, max_ext_leaf;
+	uint32_t eax, ebx, ecx, edx;
+	uint8_t maxphyaddr;
 
 	max_gfn = (1ULL << (vm->pa_bits - vm->page_shift)) - 1;
 
@@ -1252,17 +1253,14 @@ unsigned long vm_compute_max_gfn(struct kvm_vm *vm)
 	 * reduced due to SME by bits 11:6 of CPUID[0x8000001f].EBX.  Use
 	 * the old conservative value if MAXPHYADDR is not enumerated.
 	 */
-	cpuid(0x80000000, &eax, &ebx, &ecx, &edx);
-	max_ext_leaf = eax;
-	if (max_ext_leaf < 0x80000008)
+	if (!this_cpu_has_p(X86_PROPERTY_MAX_PHY_ADDR))
 		goto done;
 
-	cpuid(0x80000008, &eax, &ebx, &ecx, &edx);
-	max_pfn = (1ULL << ((eax & 0xff) - vm->page_shift)) - 1;
-	if (max_ext_leaf >= 0x8000001f) {
-		cpuid(0x8000001f, &eax, &ebx, &ecx, &edx);
-		max_pfn >>= (ebx >> 6) & 0x3f;
-	}
+	maxphyaddr = this_cpu_property(X86_PROPERTY_MAX_PHY_ADDR);
+	max_pfn = (1ULL << (maxphyaddr - vm->page_shift)) - 1;
+
+	if (this_cpu_has_p(X86_PROPERTY_PHYS_ADDR_REDUCTION))
+		max_pfn >>= this_cpu_property(X86_PROPERTY_PHYS_ADDR_REDUCTION);
 
 	ht_gfn = max_pfn - num_ht_pages;
 done:
