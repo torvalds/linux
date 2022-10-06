@@ -142,15 +142,20 @@
 };
 
 &emac {
-	pinctrl-names = "default";
-	pinctrl-0 = <&emac_xfer>, <&emac_mdio>, <&rmii_rst>;
 	phy = <&phy0>;
 	phy-supply = <&vcc_rmii>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&emac_xfer>, <&emac_mdio>, <&rmii_rst>;
 	status = "okay";
 
-	phy0: ethernet-phy@0 {
-		reg = <0>;
-		reset-gpios = <&gpio1 RK_PD6 GPIO_ACTIVE_LOW>;
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy0: ethernet-phy@0 {
+			reg = <0>;
+			reset-gpios = <&gpio1 RK_PD6 GPIO_ACTIVE_LOW>;
+		};
 	};
 };
 

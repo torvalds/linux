@@ -105,6 +105,33 @@
 		 */
 		status = "disabled";
 	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "SPDIF";
+		simple-audio-card,format = "i2s";
+
+		simple-audio-card,cpu {
+			sound-dai = <&audio_controller 1>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&spdif_out>;
+		};
+	};
+
+	spdif_out: spdif-out {
+		#sound-dai-cells = <0>;
+		compatible = "linux,spdif-dit";
+	};
+};
+
+&audio_controller {
+	/* Pin header U16, GPIO51 in SPDIFO mode */
+	pinctrl-0 = <&spdif_pins>;
+	pinctrl-names = "default";
+	spdif-mode;
+	status = "okay";
 };
 
 &bm {
@@ -166,6 +193,7 @@
 	buffer-manager = <&bm>;
 	bm,pool-long = <2>;
 	bm,pool-short = <3>;
+	label = "wan";
 };
 
 &i2c0 {
@@ -476,7 +504,7 @@
 		marvell,function = "spi0";
 	};
 
-	spi0cs1_pins: spi0cs1-pins {
+	spi0cs2_pins: spi0cs2-pins {
 		marvell,pins = "mpp26";
 		marvell,function = "spi0";
 	};
@@ -511,7 +539,7 @@
 		};
 	};
 
-	/* MISO, MOSI, SCLK and CS1 are routed to pin header CN11 */
+	/* MISO, MOSI, SCLK and CS2 are routed to pin header CN11 */
 };
 
 &uart0 {

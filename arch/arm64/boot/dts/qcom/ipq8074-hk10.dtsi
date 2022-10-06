@@ -39,12 +39,12 @@
 
 &pcie0 {
 	status = "ok";
-	perst-gpio = <&tlmm 58 0x1>;
+	perst-gpios = <&tlmm 58 0x1>;
 };
 
 &pcie1 {
 	status = "ok";
-	perst-gpio = <&tlmm 61 0x1>;
+	perst-gpios = <&tlmm 61 0x1>;
 };
 
 &pcie_phy0 {
