@@ -3281,6 +3281,7 @@ static int perf_c2c__record(int argc, const char **argv)
 		 */
 		if (e->tag) {
 			e->record = true;
+			rec_argv[i++] = "-W";
 		} else {
 			e = perf_mem_events__ptr(PERF_MEM_EVENTS__LOAD);
 			e->record = true;
