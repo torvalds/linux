@@ -102,14 +102,4 @@ int udl_render_hline(struct drm_device *dev, int log_bpp, struct urb **urb_ptr,
 int udl_drop_usb(struct drm_device *dev);
 int udl_select_std_channel(struct udl_device *udl);
 
-#define CMD_WRITE_RAW8   "\xAF\x60" /**< 8 bit raw write command. */
-#define CMD_WRITE_RL8    "\xAF\x61" /**< 8 bit run length command. */
-#define CMD_WRITE_COPY8  "\xAF\x62" /**< 8 bit copy command. */
-#define CMD_WRITE_RLX8   "\xAF\x63" /**< 8 bit extended run length command. */
-
-#define CMD_WRITE_RAW16  "\xAF\x68" /**< 16 bit raw write command. */
-#define CMD_WRITE_RL16   "\xAF\x69" /**< 16 bit run length command. */
-#define CMD_WRITE_COPY16 "\xAF\x6A" /**< 16 bit copy command. */
-#define CMD_WRITE_RLX16  "\xAF\x6B" /**< 16 bit extended run length command. */
-
 #endif

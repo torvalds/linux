@@ -29,15 +29,17 @@
 #include "udl_proto.h"
 
 /*
- * All DisplayLink bulk operations start with 0xAF, followed by specific code
- * All operations are written to buffers which then later get sent to device
+ * All DisplayLink bulk operations start with 0xaf (UDL_MSG_BULK), followed by
+ * a specific command code. All operations are written to a command buffer, which
+ * the driver sends to the device.
  */
 static char *udl_set_register(char *buf, u8 reg, u8 val)
 {
-	*buf++ = 0xAF;
-	*buf++ = 0x20;
+	*buf++ = UDL_MSG_BULK;
+	*buf++ = UDL_CMD_WRITEREG;
 	*buf++ = reg;
 	*buf++ = val;
+
 	return buf;
 }
 
@@ -179,8 +181,8 @@ static char *udl_set_display_mode(char *buf, struct drm_display_mode *mode)
 
 static char *udl_dummy_render(char *wrptr)
 {
-	*wrptr++ = 0xAF;
-	*wrptr++ = 0x6A; /* copy */
+	*wrptr++ = UDL_MSG_BULK;
+	*wrptr++ = UDL_CMD_WRITECOPY16;
 	*wrptr++ = 0x00; /* from addr */
 	*wrptr++ = 0x00;
 	*wrptr++ = 0x00;
@@ -235,7 +237,7 @@ static int udl_handle_damage(struct drm_framebuffer *fb,
 		/* Send partial buffer remaining before exiting */
 		int len;
 		if (cmd < (char *)urb->transfer_buffer + urb->transfer_buffer_length)
-			*cmd++ = 0xAF;
+			*cmd++ = UDL_MSG_BULK;
 		len = cmd - (char *)urb->transfer_buffer;
 		ret = udl_submit_urb(dev, urb, len);
 	} else {

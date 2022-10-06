@@ -5,6 +5,21 @@
 
 #include <linux/bits.h>
 
+#define UDL_MSG_BULK		0xaf
+
+/* Register access */
+#define UDL_CMD_WRITEREG	0x20 /* See register constants below */
+
+/* Framebuffer access */
+#define UDL_CMD_WRITERAW8	0x60 /* 8 bit raw write command. */
+#define UDL_CMD_WRITERL8	0x61 /* 8 bit run length command. */
+#define UDL_CMD_WRITECOPY8	0x62 /* 8 bit copy command. */
+#define UDL_CMD_WRITERLX8	0x63 /* 8 bit extended run length command. */
+#define UDL_CMD_WRITERAW16	0x68 /* 16 bit raw write command. */
+#define UDL_CMD_WRITERL16	0x69 /* 16 bit run length command. */
+#define UDL_CMD_WRITECOPY16	0x6a /* 16 bit copy command. */
+#define UDL_CMD_WRITERLX16	0x6b /* 16 bit extended run length command. */
+
 /* Color depth */
 #define UDL_REG_COLORDEPTH		0x00
 #define UDL_COLORDEPTH_16BPP		0
