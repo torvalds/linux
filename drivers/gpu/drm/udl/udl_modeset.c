@@ -12,6 +12,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_damage_helper.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_atomic_helper.h>
@@ -295,17 +296,24 @@ static const uint64_t udl_primary_plane_fmtmods[] = {
 static void udl_primary_plane_helper_atomic_update(struct drm_plane *plane,
 						   struct drm_atomic_state *state)
 {
+	struct drm_device *dev = plane->dev;
 	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
 	struct drm_rect rect;
+	int idx;
+
+	if (!drm_dev_enter(dev, &idx))
+		return;
 
 	if (!fb)
 		return; /* no framebuffer; plane is disabled */
 
 	if (drm_atomic_helper_damage_merged(old_plane_state, plane_state, &rect))
 		udl_handle_damage(fb, &shadow_plane_state->data[0], &rect);
+
+	drm_dev_exit(idx);
 }
 
 static const struct drm_plane_helper_funcs udl_primary_plane_helper_funcs = {
@@ -339,10 +347,14 @@ static void udl_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atom
 	struct drm_display_mode *mode = &crtc_state->mode;
 	struct urb *urb;
 	char *buf;
+	int idx;
+
+	if (!drm_dev_enter(dev, &idx))
+		return;
 
 	urb = udl_get_urb(dev);
 	if (!urb)
-		return;
+		goto out;
 
 	buf = (char *)urb->transfer_buffer;
 	buf = udl_vidreg_lock(buf);
@@ -357,6 +369,9 @@ static void udl_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atom
 	buf = udl_dummy_render(buf);
 
 	udl_submit_urb(dev, urb, buf - (char *)urb->transfer_buffer);
+
+out:
+	drm_dev_exit(idx);
 }
 
 static void udl_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_state *state)
@@ -364,10 +379,14 @@ static void udl_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_ato
 	struct drm_device *dev = crtc->dev;
 	struct urb *urb;
 	char *buf;
+	int idx;
+
+	if (!drm_dev_enter(dev, &idx))
+		return;
 
 	urb = udl_get_urb(dev);
 	if (!urb)
-		return;
+		goto out;
 
 	buf = (char *)urb->transfer_buffer;
 	buf = udl_vidreg_lock(buf);
@@ -376,6 +395,9 @@ static void udl_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_ato
 	buf = udl_dummy_render(buf);
 
 	udl_submit_urb(dev, urb, buf - (char *)urb->transfer_buffer);
+
+out:
+	drm_dev_exit(idx);
 }
 
 static const struct drm_crtc_helper_funcs udl_crtc_helper_funcs = {
@@ -462,17 +484,26 @@ err_kfree:
 
 static enum drm_connector_status udl_connector_detect(struct drm_connector *connector, bool force)
 {
-	struct udl_device *udl = to_udl(connector->dev);
+	struct drm_device *dev = connector->dev;
+	struct udl_device *udl = to_udl(dev);
 	struct udl_connector *udl_connector = to_udl_connector(connector);
+	enum drm_connector_status status = connector_status_disconnected;
+	int idx;
 
 	/* cleanup previous EDID */
 	kfree(udl_connector->edid);
+	udl_connector->edid = NULL;
 
-	udl_connector->edid = drm_do_get_edid(connector, udl_get_edid_block, udl);
-	if (!udl_connector->edid)
+	if (!drm_dev_enter(dev, &idx))
 		return connector_status_disconnected;
 
-	return connector_status_connected;
+	udl_connector->edid = drm_do_get_edid(connector, udl_get_edid_block, udl);
+	if (udl_connector->edid)
+		status = connector_status_connected;
+
+	drm_dev_exit(idx);
+
+	return status;
 }
 
 static void udl_connector_destroy(struct drm_connector *connector)
