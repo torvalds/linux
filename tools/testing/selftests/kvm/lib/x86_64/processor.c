@@ -458,41 +458,11 @@ static void kvm_seg_set_kernel_data_64bit(struct kvm_vm *vm, uint16_t selector,
 
 vm_paddr_t addr_arch_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 {
-	uint16_t index[4];
-	uint64_t *pml4e, *pdpe, *pde;
-	uint64_t *pte;
+	uint64_t *pte = vm_get_page_table_entry(vm, gva);
 
-	TEST_ASSERT(vm->mode == VM_MODE_PXXV48_4K, "Attempt to use "
-		"unknown or unsupported guest mode, mode: 0x%x", vm->mode);
-
-	index[0] = (gva >> 12) & 0x1ffu;
-	index[1] = (gva >> 21) & 0x1ffu;
-	index[2] = (gva >> 30) & 0x1ffu;
-	index[3] = (gva >> 39) & 0x1ffu;
-
-	if (!vm->pgd_created)
-		goto unmapped_gva;
-	pml4e = addr_gpa2hva(vm, vm->pgd);
-	if (!(pml4e[index[3]] & PTE_PRESENT_MASK))
-		goto unmapped_gva;
-
-	pdpe = addr_gpa2hva(vm, PTE_GET_PFN(pml4e[index[3]]) * vm->page_size);
-	if (!(pdpe[index[2]] & PTE_PRESENT_MASK))
-		goto unmapped_gva;
-
-	pde = addr_gpa2hva(vm, PTE_GET_PFN(pdpe[index[2]]) * vm->page_size);
-	if (!(pde[index[1]] & PTE_PRESENT_MASK))
-		goto unmapped_gva;
-
-	pte = addr_gpa2hva(vm, PTE_GET_PFN(pde[index[1]]) * vm->page_size);
-	if (!(pte[index[0]] & PTE_PRESENT_MASK))
-		goto unmapped_gva;
-
-	return (PTE_GET_PFN(pte[index[0]]) * vm->page_size) + (gva & ~PAGE_MASK);
-
-unmapped_gva:
-	TEST_FAIL("No mapping for vm virtual address, gva: 0x%lx", gva);
-	exit(EXIT_FAILURE);
+	TEST_ASSERT(*pte & PTE_PRESENT_MASK,
+		    "Leaf PTE not PRESENT for gva: 0x%08lx", gva);
+	return PTE_GET_PA(*pte) | (gva & ~PAGE_MASK);
 }
 
 static void kvm_setup_gdt(struct kvm_vm *vm, struct kvm_dtable *dt)
