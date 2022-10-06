@@ -275,6 +275,13 @@ static inline int io_run_task_work_ctx(struct io_ring_ctx *ctx)
 	return ret;
 }
 
+static inline int io_run_local_work_locked(struct io_ring_ctx *ctx)
+{
+	if (llist_empty(&ctx->work_llist))
+		return 0;
+	return __io_run_local_work(ctx, true);
+}
+
 static inline void io_tw_lock(struct io_ring_ctx *ctx, bool *locked)
 {
 	if (!*locked) {

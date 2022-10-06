@@ -3227,8 +3227,16 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 			mutex_unlock(&ctx->uring_lock);
 			goto out;
 		}
-		if ((flags & IORING_ENTER_GETEVENTS) && ctx->syscall_iopoll)
-			goto iopoll_locked;
+		if (flags & IORING_ENTER_GETEVENTS) {
+			if (ctx->syscall_iopoll)
+				goto iopoll_locked;
+			/*
+			 * Ignore errors, we'll soon call io_cqring_wait() and
+			 * it should handle ownership problems if any.
+			 */
+			if (ctx->flags & IORING_SETUP_DEFER_TASKRUN)
+				(void)io_run_local_work_locked(ctx);
+		}
 		mutex_unlock(&ctx->uring_lock);
 	}
 
