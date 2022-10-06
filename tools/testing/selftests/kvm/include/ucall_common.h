@@ -25,7 +25,6 @@ struct ucall {
 };
 
 void ucall_arch_init(struct kvm_vm *vm, vm_paddr_t mmio_gpa);
-void ucall_arch_uninit(struct kvm_vm *vm);
 void ucall_arch_do_ucall(vm_vaddr_t uc);
 void *ucall_arch_get_ucall(struct kvm_vcpu *vcpu);
 
@@ -35,11 +34,6 @@ uint64_t get_ucall(struct kvm_vcpu *vcpu, struct ucall *uc);
 static inline void ucall_init(struct kvm_vm *vm, vm_paddr_t mmio_gpa)
 {
 	ucall_arch_init(vm, mmio_gpa);
-}
-
-static inline void ucall_uninit(struct kvm_vm *vm)
-{
-	ucall_arch_uninit(vm);
 }
 
 #define GUEST_SYNC_ARGS(stage, arg1, arg2, arg3, arg4)	\
