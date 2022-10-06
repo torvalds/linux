@@ -203,15 +203,22 @@ static inline void io_commit_cqring(struct io_ring_ctx *ctx)
 	smp_store_release(&ctx->rings->cq.tail, ctx->cached_cq_tail);
 }
 
-static inline void io_cqring_wake(struct io_ring_ctx *ctx)
+/* requires smb_mb() prior, see wq_has_sleeper() */
+static inline void __io_cqring_wake(struct io_ring_ctx *ctx)
 {
 	/*
 	 * wake_up_all() may seem excessive, but io_wake_function() and
 	 * io_should_wake() handle the termination of the loop and only
 	 * wake as many waiters as we need to.
 	 */
-	if (wq_has_sleeper(&ctx->cq_wait))
+	if (waitqueue_active(&ctx->cq_wait))
 		wake_up_all(&ctx->cq_wait);
+}
+
+static inline void io_cqring_wake(struct io_ring_ctx *ctx)
+{
+	smp_mb();
+	__io_cqring_wake(ctx);
 }
 
 static inline bool io_sqring_full(struct io_ring_ctx *ctx)
