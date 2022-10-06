@@ -1357,11 +1357,18 @@ static int sdma_v5_2_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (amdgpu_sriov_vf(adev))
-		return 0;
-
+	/*
+	 * Under SRIOV, the VF cannot single-mindedly stop SDMA engine
+	 * However, we still need to clean up the DRM entity
+	 * Therefore, we will re-enable SDMA afterwards.
+	 */
 	sdma_v5_2_ctx_switch_enable(adev, false);
 	sdma_v5_2_enable(adev, false);
+
+	if (amdgpu_sriov_vf(adev)) {
+		sdma_v5_2_enable(adev, true);
+		sdma_v5_2_ctx_switch_enable(adev, true);
+	}
 
 	return 0;
 }
