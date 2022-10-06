@@ -254,6 +254,7 @@ static void do_test_ ## n(struct kunit *test, const struct test_ ## n *p) \
 	check_one_op(t, fmt, mul, "*", p->b, p->a, p->prod, p->p_of);	\
 }									\
 									\
+__maybe_unused								\
 static void n ## _overflow_test(struct kunit *test) {			\
 	unsigned i;							\
 									\
@@ -720,8 +721,14 @@ static struct kunit_case overflow_test_cases[] = {
 	KUNIT_CASE(u64_u64__u64_overflow_test),
 	KUNIT_CASE(s64_s64__s64_overflow_test),
 #endif
-	KUNIT_CASE(u32_u32__u8_overflow_test),
+/*
+ * Clang 11 and earlier generate unwanted libcalls for signed output, unsigned
+ * input.
+ */
+#if !(defined(CONFIG_CC_IS_CLANG) && __clang_major__ <= 11)
 	KUNIT_CASE(u32_u32__int_overflow_test),
+#endif
+	KUNIT_CASE(u32_u32__u8_overflow_test),
 	KUNIT_CASE(u8_u8__int_overflow_test),
 	KUNIT_CASE(int_int__u8_overflow_test),
 	KUNIT_CASE(shift_sane_test),
