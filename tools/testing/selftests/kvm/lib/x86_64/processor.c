@@ -131,23 +131,28 @@ void virt_arch_pgd_alloc(struct kvm_vm *vm)
 	}
 }
 
-static void *virt_get_pte(struct kvm_vm *vm, uint64_t pt_gpa, uint64_t vaddr,
-			  int level)
+static void *virt_get_pte(struct kvm_vm *vm, uint64_t *parent_pte,
+			  uint64_t vaddr, int level)
 {
+	uint64_t pt_gpa = PTE_GET_PA(*parent_pte);
 	uint64_t *page_table = addr_gpa2hva(vm, pt_gpa);
 	int index = (vaddr >> PG_LEVEL_SHIFT(level)) & 0x1ffu;
+
+	TEST_ASSERT((*parent_pte & PTE_PRESENT_MASK) || parent_pte == &vm->pgd,
+		    "Parent PTE (level %d) not PRESENT for gva: 0x%08lx",
+		    level + 1, vaddr);
 
 	return &page_table[index];
 }
 
 static uint64_t *virt_create_upper_pte(struct kvm_vm *vm,
-				       uint64_t pt_gpa,
+				       uint64_t *parent_pte,
 				       uint64_t vaddr,
 				       uint64_t paddr,
 				       int current_level,
 				       int target_level)
 {
-	uint64_t *pte = virt_get_pte(vm, pt_gpa, vaddr, current_level);
+	uint64_t *pte = virt_get_pte(vm, parent_pte, vaddr, current_level);
 
 	if (!(*pte & PTE_PRESENT_MASK)) {
 		*pte = PTE_PRESENT_MASK | PTE_WRITABLE_MASK;
@@ -197,20 +202,20 @@ void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr, int level)
 	 * Allocate upper level page tables, if not already present.  Return
 	 * early if a hugepage was created.
 	 */
-	pml4e = virt_create_upper_pte(vm, vm->pgd, vaddr, paddr, PG_LEVEL_512G, level);
+	pml4e = virt_create_upper_pte(vm, &vm->pgd, vaddr, paddr, PG_LEVEL_512G, level);
 	if (*pml4e & PTE_LARGE_MASK)
 		return;
 
-	pdpe = virt_create_upper_pte(vm, PTE_GET_PA(*pml4e), vaddr, paddr, PG_LEVEL_1G, level);
+	pdpe = virt_create_upper_pte(vm, pml4e, vaddr, paddr, PG_LEVEL_1G, level);
 	if (*pdpe & PTE_LARGE_MASK)
 		return;
 
-	pde = virt_create_upper_pte(vm, PTE_GET_PA(*pdpe), vaddr, paddr, PG_LEVEL_2M, level);
+	pde = virt_create_upper_pte(vm, pdpe, vaddr, paddr, PG_LEVEL_2M, level);
 	if (*pde & PTE_LARGE_MASK)
 		return;
 
 	/* Fill in page table entry. */
-	pte = virt_get_pte(vm, PTE_GET_PA(*pde), vaddr, PG_LEVEL_4K);
+	pte = virt_get_pte(vm, pde, vaddr, PG_LEVEL_4K);
 	TEST_ASSERT(!(*pte & PTE_PRESENT_MASK),
 		    "PTE already present for 4k page at vaddr: 0x%lx\n", vaddr);
 	*pte = PTE_PRESENT_MASK | PTE_WRITABLE_MASK | (paddr & PHYSICAL_PAGE_MASK);
