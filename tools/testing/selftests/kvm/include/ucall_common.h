@@ -24,7 +24,7 @@ struct ucall {
 	uint64_t args[UCALL_MAX_ARGS];
 };
 
-void ucall_arch_init(struct kvm_vm *vm, void *arg);
+void ucall_arch_init(struct kvm_vm *vm, vm_paddr_t mmio_gpa);
 void ucall_arch_uninit(struct kvm_vm *vm);
 void ucall_arch_do_ucall(vm_vaddr_t uc);
 void *ucall_arch_get_ucall(struct kvm_vcpu *vcpu);
@@ -32,9 +32,9 @@ void *ucall_arch_get_ucall(struct kvm_vcpu *vcpu);
 void ucall(uint64_t cmd, int nargs, ...);
 uint64_t get_ucall(struct kvm_vcpu *vcpu, struct ucall *uc);
 
-static inline void ucall_init(struct kvm_vm *vm, void *arg)
+static inline void ucall_init(struct kvm_vm *vm, vm_paddr_t mmio_gpa)
 {
-	ucall_arch_init(vm, arg);
+	ucall_arch_init(vm, mmio_gpa);
 }
 
 static inline void ucall_uninit(struct kvm_vm *vm)

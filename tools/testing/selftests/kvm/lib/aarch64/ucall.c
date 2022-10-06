@@ -8,60 +8,12 @@
 
 static vm_vaddr_t *ucall_exit_mmio_addr;
 
-static bool ucall_mmio_init(struct kvm_vm *vm, vm_paddr_t gpa)
+void ucall_arch_init(struct kvm_vm *vm, vm_paddr_t mmio_gpa)
 {
-	if (kvm_userspace_memory_region_find(vm, gpa, gpa + 1))
-		return false;
+	virt_pg_map(vm, mmio_gpa, mmio_gpa);
 
-	virt_pg_map(vm, gpa, gpa);
-
-	ucall_exit_mmio_addr = (vm_vaddr_t *)gpa;
+	ucall_exit_mmio_addr = (vm_vaddr_t *)mmio_gpa;
 	sync_global_to_guest(vm, ucall_exit_mmio_addr);
-
-	return true;
-}
-
-void ucall_arch_init(struct kvm_vm *vm, void *arg)
-{
-	vm_paddr_t gpa, start, end, step, offset;
-	unsigned int bits;
-	bool ret;
-
-	if (arg) {
-		gpa = (vm_paddr_t)arg;
-		ret = ucall_mmio_init(vm, gpa);
-		TEST_ASSERT(ret, "Can't set ucall mmio address to %lx", gpa);
-		return;
-	}
-
-	/*
-	 * Find an address within the allowed physical and virtual address
-	 * spaces, that does _not_ have a KVM memory region associated with
-	 * it. Identity mapping an address like this allows the guest to
-	 * access it, but as KVM doesn't know what to do with it, it
-	 * will assume it's something userspace handles and exit with
-	 * KVM_EXIT_MMIO. Well, at least that's how it works for AArch64.
-	 * Here we start with a guess that the addresses around 5/8th
-	 * of the allowed space are unmapped and then work both down and
-	 * up from there in 1/16th allowed space sized steps.
-	 *
-	 * Note, we need to use VA-bits - 1 when calculating the allowed
-	 * virtual address space for an identity mapping because the upper
-	 * half of the virtual address space is the two's complement of the
-	 * lower and won't match physical addresses.
-	 */
-	bits = vm->va_bits - 1;
-	bits = min(vm->pa_bits, bits);
-	end = 1ul << bits;
-	start = end * 5 / 8;
-	step = end / 16;
-	for (offset = 0; offset < end - start; offset += step) {
-		if (ucall_mmio_init(vm, start - offset))
-			return;
-		if (ucall_mmio_init(vm, start + offset))
-			return;
-	}
-	TEST_FAIL("Can't find a ucall mmio address");
 }
 
 void ucall_arch_uninit(struct kvm_vm *vm)

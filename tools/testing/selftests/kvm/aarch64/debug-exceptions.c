@@ -292,7 +292,6 @@ static void test_guest_debug_exceptions(void)
 	int stage;
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
-	ucall_init(vm, NULL);
 
 	vm_init_descriptor_tables(vm);
 	vcpu_init_descriptor_tables(vcpu);
@@ -343,7 +342,6 @@ void test_single_step_from_userspace(int test_cnt)
 	struct kvm_guest_debug debug = {};
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code_ss);
-	ucall_init(vm, NULL);
 	run = vcpu->run;
 	vcpu_args_set(vcpu, 1, test_cnt);
 

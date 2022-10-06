@@ -158,8 +158,6 @@ int main(void)
 
 	TEST_REQUIRE(vcpu_aarch64_only(vcpu));
 
-	ucall_init(vm, NULL);
-
 	test_user_raz_wi(vcpu);
 	test_user_raz_invariant(vcpu);
 	test_guest_raz(vcpu);
