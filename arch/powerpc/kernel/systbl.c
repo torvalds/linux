@@ -20,8 +20,7 @@
 
 #undef __SYSCALL
 #ifdef CONFIG_ARCH_HAS_SYSCALL_WRAPPER
-#define __SYSCALL(nr, entry) [nr] = __powerpc_##entry,
-#define __powerpc_sys_ni_syscall	sys_ni_syscall
+#define __SYSCALL(nr, entry) [nr] = entry,
 #else
 /*
  * Coerce syscall handlers with arbitrary parameters to common type

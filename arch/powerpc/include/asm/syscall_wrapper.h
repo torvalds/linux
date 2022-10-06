@@ -16,11 +16,11 @@ struct pt_regs;
 	      ,,regs->gpr[6],,regs->gpr[7],,regs->gpr[8])
 
 #define __SYSCALL_DEFINEx(x, name, ...)						\
-	long __powerpc_sys##name(const struct pt_regs *regs);			\
-	ALLOW_ERROR_INJECTION(__powerpc_sys##name, ERRNO);			\
+	long sys##name(const struct pt_regs *regs);			\
+	ALLOW_ERROR_INJECTION(sys##name, ERRNO);			\
 	static long __se_sys##name(__MAP(x,__SC_LONG,__VA_ARGS__));		\
 	static inline long __do_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));	\
-	long __powerpc_sys##name(const struct pt_regs *regs)			\
+	long sys##name(const struct pt_regs *regs)			\
 	{									\
 		return __se_sys##name(SC_POWERPC_REGS_TO_ARGS(x,__VA_ARGS__));	\
 	}									\
@@ -35,17 +35,15 @@ struct pt_regs;
 
 #define SYSCALL_DEFINE0(sname)							\
 	SYSCALL_METADATA(_##sname, 0);						\
-	long __powerpc_sys_##sname(const struct pt_regs *__unused);		\
-	ALLOW_ERROR_INJECTION(__powerpc_sys_##sname, ERRNO);			\
-	long __powerpc_sys_##sname(const struct pt_regs *__unused)
+	long sys_##sname(const struct pt_regs *__unused);		\
+	ALLOW_ERROR_INJECTION(sys_##sname, ERRNO);			\
+	long sys_##sname(const struct pt_regs *__unused)
 
 #define COND_SYSCALL(name)							\
-	long __powerpc_sys_##name(const struct pt_regs *regs);			\
-	long __weak __powerpc_sys_##name(const struct pt_regs *regs)		\
+	long sys_##name(const struct pt_regs *regs);			\
+	long __weak sys_##name(const struct pt_regs *regs)		\
 	{									\
 		return sys_ni_syscall();					\
 	}
-
-#define SYS_NI(name) SYSCALL_ALIAS(__powerpc_sys_##name, sys_ni_posix_timers);
 
 #endif // __ASM_POWERPC_SYSCALL_WRAPPER_H

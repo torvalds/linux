@@ -124,7 +124,7 @@ long sys_ppc_fadvise64_64(int fd, int advice,
 
 #define __SYSCALL_WITH_COMPAT(nr, native, compat)	__SYSCALL(nr, native)
 #define __SYSCALL(nr, entry) \
-	long __powerpc_##entry(const struct pt_regs *regs);
+	long entry(const struct pt_regs *regs);
 
 #ifdef CONFIG_PPC64
 #include <asm/syscall_table_64.h>
