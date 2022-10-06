@@ -8,6 +8,7 @@
  * Copyright (C) 2009 Bernie Thompson <bernie@plugable.com>
  */
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_damage_helper.h>
@@ -17,6 +18,7 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
@@ -302,61 +304,96 @@ out_drm_gem_fb_end_cpu_access:
 }
 
 /*
- * Simple display pipeline
+ * Primary plane
  */
 
-static const uint32_t udl_simple_display_pipe_formats[] = {
+static const uint32_t udl_primary_plane_formats[] = {
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
 };
 
-static void
-udl_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
-			       struct drm_crtc_state *crtc_state,
-			       struct drm_plane_state *plane_state)
+static const uint64_t udl_primary_plane_fmtmods[] = {
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID
+};
+
+static void udl_primary_plane_helper_atomic_update(struct drm_plane *plane,
+						   struct drm_atomic_state *state)
 {
-	struct drm_crtc *crtc = &pipe->crtc;
-	struct drm_device *dev = crtc->dev;
-	struct drm_framebuffer *fb = plane_state->fb;
-	struct udl_device *udl = to_udl(dev);
-	struct drm_display_mode *mode = &crtc_state->mode;
+	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
-	struct drm_rect clip = DRM_RECT_INIT(0, 0, fb->width, fb->height);
+	struct drm_framebuffer *fb = plane_state->fb;
+	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
+	struct drm_rect rect;
+
+	if (!fb)
+		return; /* no framebuffer; plane is disabled */
+
+	if (drm_atomic_helper_damage_merged(old_plane_state, plane_state, &rect))
+		udl_handle_damage(fb, &shadow_plane_state->data[0], &rect);
+}
+
+static const struct drm_plane_helper_funcs udl_primary_plane_helper_funcs = {
+	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
+	.atomic_check = drm_plane_helper_atomic_check,
+	.atomic_update = udl_primary_plane_helper_atomic_update,
+};
+
+static const struct drm_plane_funcs udl_primary_plane_funcs = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = drm_plane_cleanup,
+	DRM_GEM_SHADOW_PLANE_FUNCS,
+};
+
+/*
+ * CRTC
+ */
+
+static int udl_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *new_crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+
+	return drm_atomic_helper_check_crtc_state(new_crtc_state, false);
+}
+
+static void udl_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *state)
+{
+	struct drm_device *dev = crtc->dev;
+	struct udl_device *udl = to_udl(dev);
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	struct drm_display_mode *mode = &crtc_state->mode;
 	char *buf;
 	char *wrptr;
 	int color_depth = UDL_COLOR_DEPTH_16BPP;
 
 	buf = (char *)udl->mode_buf;
 
-	/* This first section has to do with setting the base address on the
-	 * controller associated with the display. There are 2 base
-	 * pointers, currently, we only use the 16 bpp segment.
+	/*
+	 * This first section has to do with setting the base address on
+	 * the controller associated with the display. There are 2 base
+	 * pointers. Currently, we only use the 16 bpp segment.
 	 */
+
 	wrptr = udl_vidreg_lock(buf);
 	wrptr = udl_set_color_depth(wrptr, color_depth);
 	/* set base for 16bpp segment to 0 */
 	wrptr = udl_set_base16bpp(wrptr, 0);
 	/* set base for 8bpp segment to end of fb */
 	wrptr = udl_set_base8bpp(wrptr, 2 * mode->vdisplay * mode->hdisplay);
-
 	wrptr = udl_set_vid_cmds(wrptr, mode);
 	wrptr = udl_set_blank_mode(wrptr, UDL_BLANK_MODE_ON);
 	wrptr = udl_vidreg_unlock(wrptr);
-
 	wrptr = udl_dummy_render(wrptr);
 
 	udl->mode_buf_len = wrptr - buf;
-
-	udl_handle_damage(fb, &shadow_plane_state->data[0], &clip);
 
 	/* enable display */
 	udl_crtc_write_mode_to_hw(crtc);
 }
 
-static void
-udl_simple_display_pipe_disable(struct drm_simple_display_pipe *pipe)
+static void udl_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
-	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_device *dev = crtc->dev;
 	struct urb *urb;
 	char *buf;
@@ -374,27 +411,27 @@ udl_simple_display_pipe_disable(struct drm_simple_display_pipe *pipe)
 	udl_submit_urb(dev, urb, buf - (char *)urb->transfer_buffer);
 }
 
-static void
-udl_simple_display_pipe_update(struct drm_simple_display_pipe *pipe,
-			       struct drm_plane_state *old_plane_state)
-{
-	struct drm_plane_state *state = pipe->plane.state;
-	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(state);
-	struct drm_framebuffer *fb = state->fb;
-	struct drm_rect rect;
+static const struct drm_crtc_helper_funcs udl_crtc_helper_funcs = {
+	.atomic_check = udl_crtc_helper_atomic_check,
+	.atomic_enable = udl_crtc_helper_atomic_enable,
+	.atomic_disable = udl_crtc_helper_atomic_disable,
+};
 
-	if (!fb)
-		return;
+static const struct drm_crtc_funcs udl_crtc_funcs = {
+	.reset = drm_atomic_helper_crtc_reset,
+	.destroy = drm_crtc_cleanup,
+	.set_config = drm_atomic_helper_set_config,
+	.page_flip = drm_atomic_helper_page_flip,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+};
 
-	if (drm_atomic_helper_damage_merged(old_plane_state, state, &rect))
-		udl_handle_damage(fb, &shadow_plane_state->data[0], &rect);
-}
+/*
+ * Encoder
+ */
 
-static const struct drm_simple_display_pipe_funcs udl_simple_display_pipe_funcs = {
-	.enable = udl_simple_display_pipe_enable,
-	.disable = udl_simple_display_pipe_disable,
-	.update = udl_simple_display_pipe_update,
-	DRM_GEM_SIMPLE_DISPLAY_PIPE_SHADOW_PLANE_FUNCS,
+static const struct drm_encoder_funcs udl_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
 };
 
 /*
@@ -534,7 +571,7 @@ static enum drm_mode_status udl_mode_config_mode_valid(struct drm_device *dev,
 	return MODE_OK;
 }
 
-static const struct drm_mode_config_funcs udl_mode_funcs = {
+static const struct drm_mode_config_funcs udl_mode_config_funcs = {
 	.fb_create = drm_gem_fb_create_with_dirty,
 	.mode_valid = udl_mode_config_mode_valid,
 	.atomic_check  = drm_atomic_helper_check,
@@ -543,8 +580,10 @@ static const struct drm_mode_config_funcs udl_mode_funcs = {
 
 int udl_modeset_init(struct drm_device *dev)
 {
-	size_t format_count = ARRAY_SIZE(udl_simple_display_pipe_formats);
 	struct udl_device *udl = to_udl(dev);
+	struct drm_plane *primary_plane;
+	struct drm_crtc *crtc;
+	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 	int ret;
 
@@ -554,28 +593,42 @@ int udl_modeset_init(struct drm_device *dev)
 
 	dev->mode_config.min_width = 640;
 	dev->mode_config.min_height = 480;
-
 	dev->mode_config.max_width = 2048;
 	dev->mode_config.max_height = 2048;
-
-	dev->mode_config.prefer_shadow = 0;
 	dev->mode_config.preferred_depth = 16;
+	dev->mode_config.funcs = &udl_mode_config_funcs;
 
-	dev->mode_config.funcs = &udl_mode_funcs;
+	primary_plane = &udl->primary_plane;
+	ret = drm_universal_plane_init(dev, primary_plane, 0,
+				       &udl_primary_plane_funcs,
+				       udl_primary_plane_formats,
+				       ARRAY_SIZE(udl_primary_plane_formats),
+				       udl_primary_plane_fmtmods,
+				       DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (ret)
+		return ret;
+	drm_plane_helper_add(primary_plane, &udl_primary_plane_helper_funcs);
+	drm_plane_enable_fb_damage_clips(primary_plane);
+
+	crtc = &udl->crtc;
+	ret = drm_crtc_init_with_planes(dev, crtc, primary_plane, NULL,
+					&udl_crtc_funcs, NULL);
+	if (ret)
+		return ret;
+	drm_crtc_helper_add(crtc, &udl_crtc_helper_funcs);
+
+	encoder = &udl->encoder;
+	ret = drm_encoder_init(dev, encoder, &udl_encoder_funcs, DRM_MODE_ENCODER_DAC, NULL);
+	if (ret)
+		return ret;
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
 
 	connector = udl_connector_init(dev);
 	if (IS_ERR(connector))
 		return PTR_ERR(connector);
-
-	format_count = ARRAY_SIZE(udl_simple_display_pipe_formats);
-
-	ret = drm_simple_display_pipe_init(dev, &udl->display_pipe,
-					   &udl_simple_display_pipe_funcs,
-					   udl_simple_display_pipe_formats,
-					   format_count, NULL, connector);
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret)
 		return ret;
-	drm_plane_enable_fb_damage_clips(&udl->display_pipe.plane);
 
 	drm_mode_config_reset(dev);
 

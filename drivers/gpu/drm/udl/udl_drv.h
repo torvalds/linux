@@ -14,10 +14,13 @@
 #include <linux/mm_types.h>
 #include <linux/usb.h>
 
+#include <drm/drm_connector.h>
+#include <drm/drm_crtc.h>
 #include <drm/drm_device.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem.h>
-#include <drm/drm_simple_kms_helper.h>
+#include <drm/drm_plane.h>
 
 struct drm_mode_create_dumb;
 
@@ -62,7 +65,9 @@ struct udl_device {
 	struct device *dev;
 	struct device *dmadev;
 
-	struct drm_simple_display_pipe display_pipe;
+	struct drm_plane primary_plane;
+	struct drm_crtc crtc;
+	struct drm_encoder encoder;
 
 	struct mutex gem_lock;
 
