@@ -72,6 +72,7 @@ define_db845c(
         "drivers/cpufreq/qcom-cpufreq-hw.ko",
         "drivers/dma-buf/heaps/system_heap.ko",
         "drivers/dma/qcom/bam_dma.ko",
+        "drivers/dma/qcom/gpi.ko",
         "drivers/extcon/extcon-usb-gpio.ko",
         "drivers/firmware/qcom-scm.ko",
         "drivers/gpio/gpio-wcd934x.ko",
