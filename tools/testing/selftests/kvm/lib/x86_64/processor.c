@@ -681,6 +681,13 @@ bool kvm_cpuid_has(const struct kvm_cpuid2 *cpuid,
 			     feature.reg, feature.bit, feature.bit);
 }
 
+uint32_t kvm_cpuid_property(const struct kvm_cpuid2 *cpuid,
+			    struct kvm_x86_cpu_property property)
+{
+	return __kvm_cpu_has(cpuid, property.function, property.index,
+			     property.reg, property.lo_bit, property.hi_bit);
+}
+
 uint64_t kvm_get_feature_msr(uint64_t msr_index)
 {
 	struct {
@@ -1018,16 +1025,12 @@ bool is_amd_cpu(void)
 
 void kvm_get_cpu_address_width(unsigned int *pa_bits, unsigned int *va_bits)
 {
-	const struct kvm_cpuid_entry2 *entry;
-
-	/* SDM 4.1.4 */
-	if (kvm_get_cpuid_max_extended() < 0x80000008) {
+	if (!kvm_cpu_has_p(X86_PROPERTY_MAX_PHY_ADDR)) {
 		*pa_bits == kvm_cpu_has(X86_FEATURE_PAE) ? 36 : 32;
 		*va_bits = 32;
 	} else {
-		entry = kvm_get_supported_cpuid_entry(0x80000008);
-		*pa_bits = entry->eax & 0xff;
-		*va_bits = (entry->eax >> 8) & 0xff;
+		*pa_bits = kvm_cpu_property(X86_PROPERTY_MAX_PHY_ADDR);
+		*va_bits = kvm_cpu_property(X86_PROPERTY_MAX_VIRT_ADDR);
 	}
 }
 
