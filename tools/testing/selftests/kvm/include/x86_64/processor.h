@@ -754,9 +754,26 @@ static inline void vcpu_xcrs_set(struct kvm_vcpu *vcpu, struct kvm_xcrs *xcrs)
 	vcpu_ioctl(vcpu, KVM_SET_XCRS, xcrs);
 }
 
+const struct kvm_cpuid_entry2 *get_cpuid_entry(const struct kvm_cpuid2 *cpuid,
+					       uint32_t function, uint32_t index);
 const struct kvm_cpuid2 *kvm_get_supported_cpuid(void);
 const struct kvm_cpuid2 *kvm_get_supported_hv_cpuid(void);
 const struct kvm_cpuid2 *vcpu_get_supported_hv_cpuid(struct kvm_vcpu *vcpu);
+
+static inline uint32_t kvm_cpu_fms(void)
+{
+	return get_cpuid_entry(kvm_get_supported_cpuid(), 0x1, 0)->eax;
+}
+
+static inline uint32_t kvm_cpu_family(void)
+{
+	return x86_family(kvm_cpu_fms());
+}
+
+static inline uint32_t kvm_cpu_model(void)
+{
+	return x86_model(kvm_cpu_fms());
+}
 
 bool kvm_cpuid_has(const struct kvm_cpuid2 *cpuid,
 		   struct kvm_x86_cpu_feature feature);
@@ -825,8 +842,6 @@ static inline struct kvm_cpuid2 *allocate_kvm_cpuid2(int nr_entries)
 	return cpuid;
 }
 
-const struct kvm_cpuid_entry2 *get_cpuid_entry(const struct kvm_cpuid2 *cpuid,
-					       uint32_t function, uint32_t index);
 void vcpu_init_cpuid(struct kvm_vcpu *vcpu, const struct kvm_cpuid2 *cpuid);
 void vcpu_set_hv_cpuid(struct kvm_vcpu *vcpu);
 

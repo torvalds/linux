@@ -369,20 +369,19 @@ static bool use_intel_pmu(void)
 	       kvm_pmu_has(X86_PMU_FEATURE_BRANCH_INSNS_RETIRED);
 }
 
-static bool is_zen1(uint32_t eax)
+static bool is_zen1(uint32_t family, uint32_t model)
 {
-	return x86_family(eax) == 0x17 && x86_model(eax) <= 0x0f;
+	return family == 0x17 && model <= 0x0f;
 }
 
-static bool is_zen2(uint32_t eax)
+static bool is_zen2(uint32_t family, uint32_t model)
 {
-	return x86_family(eax) == 0x17 &&
-		x86_model(eax) >= 0x30 && x86_model(eax) <= 0x3f;
+	return family == 0x17 && model >= 0x30 && model <= 0x3f;
 }
 
-static bool is_zen3(uint32_t eax)
+static bool is_zen3(uint32_t family, uint32_t model)
 {
-	return x86_family(eax) == 0x19 && x86_model(eax) <= 0x0f;
+	return family == 0x19 && model <= 0x0f;
 }
 
 /*
@@ -395,13 +394,13 @@ static bool is_zen3(uint32_t eax)
  */
 static bool use_amd_pmu(void)
 {
-	const struct kvm_cpuid_entry2 *entry;
+	uint32_t family = kvm_cpu_family();
+	uint32_t model = kvm_cpu_model();
 
-	entry = kvm_get_supported_cpuid_entry(1);
 	return is_amd_cpu() &&
-		(is_zen1(entry->eax) ||
-		 is_zen2(entry->eax) ||
-		 is_zen3(entry->eax));
+		(is_zen1(family, model) ||
+		 is_zen2(family, model) ||
+		 is_zen3(family, model));
 }
 
 int main(int argc, char *argv[])
