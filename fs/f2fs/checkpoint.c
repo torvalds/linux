@@ -171,6 +171,11 @@ static bool __is_bitmap_valid(struct f2fs_sb_info *sbi, block_t blkaddr,
 bool f2fs_is_valid_blkaddr(struct f2fs_sb_info *sbi,
 					block_t blkaddr, int type)
 {
+	if (time_to_inject(sbi, FAULT_BLKADDR)) {
+		f2fs_show_injection_info(sbi, FAULT_BLKADDR);
+		return false;
+	}
+
 	switch (type) {
 	case META_NAT:
 		break;
