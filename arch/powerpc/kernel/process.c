@@ -1359,7 +1359,7 @@ static void show_instructions(struct pt_regs *regs)
 	unsigned long nip = regs->nip;
 	unsigned long pc = regs->nip - (NR_INSN_TO_PRINT * 3 / 4 * sizeof(int));
 
-	printk("Code:");
+	printk("Code: ");
 
 	/*
 	 * If we were executing with the MMU off for instructions, adjust pc
@@ -1372,9 +1372,6 @@ static void show_instructions(struct pt_regs *regs)
 
 	for (i = 0; i < NR_INSN_TO_PRINT; i++) {
 		int instr;
-
-		if (!(i % 8))
-			pr_cont("\n");
 
 		if (!__kernel_text_address(pc) ||
 		    get_kernel_nofault(instr, (const void *)pc)) {
