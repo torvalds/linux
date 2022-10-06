@@ -177,7 +177,8 @@ struct kvm_x86_cpu_feature {
 #define PAGE_MASK		(~(PAGE_SIZE-1))
 
 #define PHYSICAL_PAGE_MASK      GENMASK_ULL(51, 12)
-#define PTE_GET_PFN(pte)        (((pte) & PHYSICAL_PAGE_MASK) >> PAGE_SHIFT)
+#define PTE_GET_PA(pte)		((pte) & PHYSICAL_PAGE_MASK)
+#define PTE_GET_PFN(pte)        (PTE_GET_PA(pte) >> PAGE_SHIFT)
 
 /* General Registers in 64-Bit Mode */
 struct gpr64_regs {
