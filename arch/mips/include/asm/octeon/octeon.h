@@ -43,7 +43,6 @@ extern int octeon_get_southbridge_interrupt(void);
 extern int octeon_get_boot_coremask(void);
 extern int octeon_get_boot_num_arguments(void);
 extern const char *octeon_get_boot_argument(int arg);
-extern void octeon_hal_setup_reserved32(void);
 extern void octeon_user_io_init(void);
 
 extern void octeon_init_cvmcount(void);

@@ -156,12 +156,14 @@ void dcn32_init_clocks(struct clk_mgr *clk_mgr_base)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	unsigned int num_levels;
+	unsigned int num_dcfclk_levels, num_dtbclk_levels, num_dispclk_levels;
 
 	memset(&(clk_mgr_base->clks), 0, sizeof(struct dc_clocks));
 	clk_mgr_base->clks.p_state_change_support = true;
 	clk_mgr_base->clks.prev_p_state_change_support = true;
 	clk_mgr_base->clks.fclk_prev_p_state_change_support = true;
 	clk_mgr->smu_present = false;
+	clk_mgr->dpm_present = false;
 
 	if (!clk_mgr_base->bw_params)
 		return;
@@ -179,6 +181,7 @@ void dcn32_init_clocks(struct clk_mgr *clk_mgr_base)
 	dcn32_init_single_clock(clk_mgr, PPCLK_DCFCLK,
 			&clk_mgr_base->bw_params->clk_table.entries[0].dcfclk_mhz,
 			&num_levels);
+	num_dcfclk_levels = num_levels;
 
 	/* SOCCLK */
 	dcn32_init_single_clock(clk_mgr, PPCLK_SOCCLK,
@@ -189,11 +192,16 @@ void dcn32_init_clocks(struct clk_mgr *clk_mgr_base)
 		dcn32_init_single_clock(clk_mgr, PPCLK_DTBCLK,
 				&clk_mgr_base->bw_params->clk_table.entries[0].dtbclk_mhz,
 				&num_levels);
+	num_dtbclk_levels = num_levels;
 
 	/* DISPCLK */
 	dcn32_init_single_clock(clk_mgr, PPCLK_DISPCLK,
 			&clk_mgr_base->bw_params->clk_table.entries[0].dispclk_mhz,
 			&num_levels);
+	num_dispclk_levels = num_levels;
+
+	if (num_dcfclk_levels && num_dtbclk_levels && num_dispclk_levels)
+		clk_mgr->dpm_present = true;
 
 	if (clk_mgr_base->ctx->dc->debug.min_disp_clk_khz) {
 		unsigned int i;
@@ -657,6 +665,12 @@ static void dcn32_get_memclk_states_from_smu(struct clk_mgr *clk_mgr_base)
 			&clk_mgr_base->bw_params->clk_table.entries[0].memclk_mhz,
 			&num_levels);
 	clk_mgr_base->bw_params->clk_table.num_entries = num_levels ? num_levels : 1;
+
+	if (clk_mgr->dpm_present && !num_levels)
+		clk_mgr->dpm_present = false;
+
+	if (!clk_mgr->dpm_present)
+		dcn32_patch_dpm_table(clk_mgr_base->bw_params);
 
 	DC_FP_START();
 	/* Refresh bounding box */

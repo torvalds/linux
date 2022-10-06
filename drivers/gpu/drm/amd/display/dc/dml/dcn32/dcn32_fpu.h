@@ -77,4 +77,6 @@ int dcn32_find_dummy_latency_index_for_fw_based_mclk_switch(struct dc *dc,
 							    int pipe_cnt,
 							    int vlevel);
 
+void dcn32_patch_dpm_table(struct clk_bw_params *bw_params);
+
 #endif
