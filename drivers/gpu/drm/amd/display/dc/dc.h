@@ -1360,10 +1360,6 @@ enum dc_status dc_commit_streams(struct dc *dc,
 				 struct dc_stream_state *streams[],
 				 uint8_t stream_count);
 
-/* TODO: When the transition to the new commit sequence is done, remove this
- * function in favor of dc_commit_streams. */
-bool dc_commit_state(struct dc *dc, struct dc_state *context);
-
 struct dc_state *dc_create_state(struct dc *dc);
 struct dc_state *dc_copy_state(struct dc_state *src_ctx);
 void dc_retain_state(struct dc_state *context);
