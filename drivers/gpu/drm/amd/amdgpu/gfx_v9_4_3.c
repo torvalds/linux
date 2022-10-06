@@ -1891,6 +1891,11 @@ static int gfx_v9_4_3_cp_resume(struct amdgpu_device *adev)
 				return r;
 		}
 
+		if (adev->gfx.partition_mode ==
+		    AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE)
+			gfx_v9_4_3_switch_compute_partition(
+				adev, amdgpu_user_partt_mode);
+
 		/* set the virtual and physical id based on partition_mode */
 		gfx_v9_4_3_program_xcc_id(adev, i);
 
@@ -2112,28 +2117,7 @@ static int gfx_v9_4_3_early_init(void *handle)
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 
-	adev->gfx.partition_mode = amdgpu_user_partt_mode;
-	/* calculate the num_xcc_in_xcp for the partition mode*/
-	switch (amdgpu_user_partt_mode) {
-	case AMDGPU_SPX_PARTITION_MODE:
-		adev->gfx.num_xcc_per_xcp = num_xcc;
-		break;
-	case AMDGPU_DPX_PARTITION_MODE:
-		adev->gfx.num_xcc_per_xcp = num_xcc / 2;
-		break;
-	case AMDGPU_TPX_PARTITION_MODE:
-		adev->gfx.num_xcc_per_xcp = num_xcc / 3;
-		break;
-	case AMDGPU_QPX_PARTITION_MODE:
-		adev->gfx.num_xcc_per_xcp = num_xcc / 4;
-		break;
-	case AMDGPU_CPX_PARTITION_MODE:
-		adev->gfx.num_xcc_per_xcp = 1;
-		break;
-	default:
-		adev->gfx.num_xcc_per_xcp = num_xcc;
-		break;
-	}
+	adev->gfx.partition_mode = AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE;
 
 	adev->gfx.num_compute_rings = min(amdgpu_gfx_get_num_kcq(adev),
 					  AMDGPU_MAX_COMPUTE_RINGS);
