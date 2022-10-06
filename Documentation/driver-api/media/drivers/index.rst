@@ -16,7 +16,6 @@ Video4Linux (V4L) drivers
 	cpia2_devel
 	cx2341x-devel
 	cx88-devel
-	davinci-vpbe-devel
 	fimc-devel
 	pvrusb2
 	pxa_camera

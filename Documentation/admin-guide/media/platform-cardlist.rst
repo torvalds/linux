@@ -73,7 +73,6 @@ via-camera         VIAFB camera controller
 video-mux          Video Multiplexer
 vpif_display       TI DaVinci VPIF V4L2-Display
 vpif_capture       TI DaVinci VPIF video capture
-vpss               TI DaVinci VPBE V4L2-Display
 vsp1               Renesas VSP1 Video Processing Engine
 xilinx-tpg         Xilinx Video Test Pattern Generator
 xilinx-video       Xilinx Video IP (EXPERIMENTAL)
