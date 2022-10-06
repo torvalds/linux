@@ -36,7 +36,7 @@ void arch_dma_prep_coherent(struct page *page, size_t size)
 {
 	unsigned long start = (unsigned long)page_address(page);
 
-	dcache_clean_inval_poc(start, start + size);
+	dcache_clean_poc(start, start + size);
 }
 
 #ifdef CONFIG_IOMMU_DMA

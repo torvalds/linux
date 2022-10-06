@@ -149,6 +149,7 @@ config ARM64
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_BITREVERSE
 	select HAVE_ARCH_COMPILER_H
+	select HAVE_ARCH_HUGE_VMALLOC
 	select HAVE_ARCH_HUGE_VMAP
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_JUMP_LABEL_RELATIVE
@@ -230,6 +231,7 @@ config ARM64
 	select HAVE_ARCH_USERFAULTFD_MINOR if USERFAULTFD
 	select TRACE_IRQFLAGS_SUPPORT
 	select TRACE_IRQFLAGS_NMI_SUPPORT
+	select HAVE_SOFTIRQ_ON_OWN_STACK
 	help
 	  ARM 64-bit (AArch64) Linux support.
 
@@ -730,6 +732,19 @@ config ARM64_ERRATUM_2077057
 
 	  When these conditions occur, the SPSR_EL2 value is unchanged from the
 	  previous guest entry, and can be restored from the in-memory copy.
+
+	  If unsure, say Y.
+
+config ARM64_ERRATUM_2658417
+	bool "Cortex-A510: 2658417: remove BF16 support due to incorrect result"
+	default y
+	help
+	  This option adds the workaround for ARM Cortex-A510 erratum 2658417.
+	  Affected Cortex-A510 (r0p0 to r1p1) may produce the wrong result for
+	  BFMMLA or VMMLA instructions in rare circumstances when a pair of
+	  A510 CPUs are using shared neon hardware. As the sharing is not
+	  discoverable by the kernel, hide the BF16 HWCAP to indicate that
+	  user-space should not be using these instructions.
 
 	  If unsure, say Y.
 
@@ -1561,6 +1576,9 @@ config THUMB2_COMPAT_VDSO
 	help
 	  Compile the compat vDSO with '-mthumb -fomit-frame-pointer' if y,
 	  otherwise with '-marm'.
+
+config COMPAT_ALIGNMENT_FIXUPS
+	bool "Fix up misaligned multi-word loads and stores in user space"
 
 menuconfig ARMV8_DEPRECATED
 	bool "Emulate deprecated/obsolete ARMv8 instructions"
