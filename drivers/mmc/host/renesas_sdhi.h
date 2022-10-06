@@ -53,12 +53,12 @@ struct renesas_sdhi_of_data_with_quirks {
 	const struct renesas_sdhi_quirks *quirks;
 };
 
-struct tmio_mmc_dma {
+struct renesas_sdhi_dma {
 	enum dma_slave_buswidth dma_buswidth;
 	bool (*filter)(struct dma_chan *chan, void *arg);
 	void (*enable)(struct tmio_mmc_host *host, bool enable);
-	struct completion	dma_dataend;
-	struct tasklet_struct	dma_complete;
+	struct completion dma_dataend;
+	struct tasklet_struct dma_complete;
 };
 
 struct renesas_sdhi {
@@ -66,7 +66,7 @@ struct renesas_sdhi {
 	struct clk *clkh;
 	struct clk *clk_cd;
 	struct tmio_mmc_data mmc_data;
-	struct tmio_mmc_dma dma_priv;
+	struct renesas_sdhi_dma dma_priv;
 	const struct renesas_sdhi_quirks *quirks;
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *pins_default, *pins_uhs;
