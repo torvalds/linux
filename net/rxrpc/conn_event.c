@@ -47,7 +47,7 @@ static bool rxrpc_set_conn_aborted(struct rxrpc_connection *conn, struct sk_buff
  * Mark a socket buffer to indicate that the connection it's on should be aborted.
  */
 int rxrpc_abort_conn(struct rxrpc_connection *conn, struct sk_buff *skb,
-		     s32 abort_code, int err, const char *why)
+		     s32 abort_code, int err, enum rxrpc_abort_reason why)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 
@@ -288,8 +288,7 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 		return 0;
 
 	default:
-		trace_rxrpc_rx_eproto(NULL, sp->hdr.serial,
-				      tracepoint_string("bad_conn_pkt"));
+		WARN_ON_ONCE(1);
 		return -EPROTO;
 	}
 }
@@ -300,7 +299,8 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 static void rxrpc_secure_connection(struct rxrpc_connection *conn)
 {
 	if (conn->security->issue_challenge(conn) < 0)
-		rxrpc_abort_conn(conn, NULL, RX_CALL_DEAD, -ENOMEM, "OOM");
+		rxrpc_abort_conn(conn, NULL, RX_CALL_DEAD, -ENOMEM,
+				 rxrpc_abort_nomem);
 }
 
 /*
@@ -405,14 +405,14 @@ static void rxrpc_post_packet_to_conn(struct rxrpc_connection *conn,
 /*
  * Input a connection-level packet.
  */
-int rxrpc_input_conn_packet(struct rxrpc_connection *conn, struct sk_buff *skb)
+bool rxrpc_input_conn_packet(struct rxrpc_connection *conn, struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 
 	switch (sp->hdr.type) {
 	case RXRPC_PACKET_TYPE_BUSY:
 		/* Just ignore BUSY packets for now. */
-		return 0;
+		return true;
 
 	case RXRPC_PACKET_TYPE_ABORT:
 		if (rxrpc_is_conn_aborted(conn))
@@ -429,12 +429,11 @@ int rxrpc_input_conn_packet(struct rxrpc_connection *conn, struct sk_buff *skb)
 			return true;
 		}
 		rxrpc_post_packet_to_conn(conn, skb);
-		return 0;
+		return true;
 
 	default:
-		trace_rxrpc_rx_eproto(NULL, sp->hdr.serial,
-				      tracepoint_string("bad_conn_pkt"));
-		return -EPROTO;
+		WARN_ON_ONCE(1);
+		return true;
 	}
 }
 

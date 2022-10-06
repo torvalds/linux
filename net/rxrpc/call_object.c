@@ -581,7 +581,8 @@ void rxrpc_release_calls_on_socket(struct rxrpc_sock *rx)
 		call = list_entry(rx->to_be_accepted.next,
 				  struct rxrpc_call, accept_link);
 		list_del(&call->accept_link);
-		rxrpc_propose_abort(call, RX_CALL_DEAD, -ECONNRESET, "SKR");
+		rxrpc_propose_abort(call, RX_CALL_DEAD, -ECONNRESET,
+				    rxrpc_abort_call_sock_release_tba);
 		rxrpc_put_call(call, rxrpc_call_put_release_sock_tba);
 	}
 
@@ -589,7 +590,8 @@ void rxrpc_release_calls_on_socket(struct rxrpc_sock *rx)
 		call = list_entry(rx->sock_calls.next,
 				  struct rxrpc_call, sock_link);
 		rxrpc_get_call(call, rxrpc_call_get_release_sock);
-		rxrpc_propose_abort(call, RX_CALL_DEAD, -ECONNRESET, "SKT");
+		rxrpc_propose_abort(call, RX_CALL_DEAD, -ECONNRESET,
+				    rxrpc_abort_call_sock_release);
 		rxrpc_release_call(rx, call);
 		rxrpc_put_call(call, rxrpc_call_put_release_sock);
 	}

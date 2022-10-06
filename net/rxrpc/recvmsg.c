@@ -117,8 +117,8 @@ bool rxrpc_call_completed(struct rxrpc_call *call)
 /*
  * Record that a call is locally aborted.
  */
-bool __rxrpc_abort_call(const char *why, struct rxrpc_call *call,
-			rxrpc_seq_t seq, u32 abort_code, int error)
+bool __rxrpc_abort_call(struct rxrpc_call *call, rxrpc_seq_t seq,
+			u32 abort_code, int error, enum rxrpc_abort_reason why)
 {
 	trace_rxrpc_abort(call->debug_id, why, call->cid, call->call_id, seq,
 			  abort_code, error);
@@ -126,13 +126,13 @@ bool __rxrpc_abort_call(const char *why, struct rxrpc_call *call,
 					   abort_code, error);
 }
 
-bool rxrpc_abort_call(const char *why, struct rxrpc_call *call,
-		      rxrpc_seq_t seq, u32 abort_code, int error)
+bool rxrpc_abort_call(struct rxrpc_call *call, rxrpc_seq_t seq,
+		      u32 abort_code, int error, enum rxrpc_abort_reason why)
 {
 	bool ret;
 
 	write_lock(&call->state_lock);
-	ret = __rxrpc_abort_call(why, call, seq, abort_code, error);
+	ret = __rxrpc_abort_call(call, seq, abort_code, error, why);
 	write_unlock(&call->state_lock);
 	if (ret && test_bit(RXRPC_CALL_EXPOSED, &call->flags))
 		rxrpc_send_abort_packet(call);
@@ -642,11 +642,15 @@ out:
 	return ret;
 
 short_data:
-	trace_rxrpc_rx_eproto(call, 0, tracepoint_string("short_data"));
+	trace_rxrpc_abort(call->debug_id, rxrpc_recvmsg_short_data,
+			  call->cid, call->call_id, call->rx_consumed,
+			  0, -EBADMSG);
 	ret = -EBADMSG;
 	goto out;
 excess_data:
-	trace_rxrpc_rx_eproto(call, 0, tracepoint_string("excess_data"));
+	trace_rxrpc_abort(call->debug_id, rxrpc_recvmsg_excess_data,
+			  call->cid, call->call_id, call->rx_consumed,
+			  0, -EMSGSIZE);
 	ret = -EMSGSIZE;
 	goto out;
 call_complete:

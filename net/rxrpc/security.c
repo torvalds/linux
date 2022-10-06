@@ -144,21 +144,15 @@ const struct rxrpc_security *rxrpc_get_incoming_security(struct rxrpc_sock *rx,
 
 	sec = rxrpc_security_lookup(sp->hdr.securityIndex);
 	if (!sec) {
-		trace_rxrpc_abort(0, "SVS",
-				  sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
-				  RX_INVALID_OPERATION, EKEYREJECTED);
-		skb->mark = RXRPC_SKB_MARK_REJECT_ABORT;
-		skb->priority = RX_INVALID_OPERATION;
+		rxrpc_direct_abort(skb, rxrpc_abort_unsupported_security,
+				   RX_INVALID_OPERATION, -EKEYREJECTED);
 		return NULL;
 	}
 
 	if (sp->hdr.securityIndex != RXRPC_SECURITY_NONE &&
 	    !rx->securities) {
-		trace_rxrpc_abort(0, "SVR",
-				  sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
-				  RX_INVALID_OPERATION, EKEYREJECTED);
-		skb->mark = RXRPC_SKB_MARK_REJECT_ABORT;
-		skb->priority = sec->no_key_abort;
+		rxrpc_direct_abort(skb, rxrpc_abort_no_service_key,
+				   sec->no_key_abort, -EKEYREJECTED);
 		return NULL;
 	}
 

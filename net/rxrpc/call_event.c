@@ -333,7 +333,7 @@ static void rxrpc_send_initial_ping(struct rxrpc_call *call)
 /*
  * Handle retransmission and deferred ACK/abort generation.
  */
-void rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
+bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 {
 	unsigned long now, next, t;
 	rxrpc_serial_t ackr_serial;
@@ -352,8 +352,8 @@ void rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 	/* Handle abort request locklessly, vs rxrpc_propose_abort(). */
 	abort_code = smp_load_acquire(&call->send_abort);
 	if (abort_code) {
-		rxrpc_abort_call(call->send_abort_why, call, 0, call->send_abort,
-				 call->send_abort_err);
+		rxrpc_abort_call(call, 0, call->send_abort, call->send_abort_err,
+				 call->send_abort_why);
 		goto out;
 	}
 
@@ -440,9 +440,11 @@ void rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 		if (test_bit(RXRPC_CALL_RX_HEARD, &call->flags) &&
 		    (int)call->conn->hi_serial - (int)call->rx_serial > 0) {
 			trace_rxrpc_call_reset(call);
-			rxrpc_abort_call("EXP", call, 0, RX_CALL_DEAD, -ECONNRESET);
+			rxrpc_abort_call(call, 0, RX_CALL_DEAD, -ECONNRESET,
+					 rxrpc_abort_call_reset);
 		} else {
-			rxrpc_abort_call("EXP", call, 0, RX_CALL_TIMEOUT, -ETIME);
+			rxrpc_abort_call(call, 0, RX_CALL_TIMEOUT, -ETIME,
+					 rxrpc_abort_call_timeout);
 		}
 		goto out;
 	}
@@ -494,4 +496,5 @@ out:
 	if (call->acks_hard_ack != call->tx_bottom)
 		rxrpc_shrink_call_tx_buffer(call);
 	_leave("");
+	return true;
 }
