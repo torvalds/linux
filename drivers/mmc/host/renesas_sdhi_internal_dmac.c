@@ -280,13 +280,6 @@ static const struct of_device_id renesas_sdhi_internal_dmac_of_match[] = {
 MODULE_DEVICE_TABLE(of, renesas_sdhi_internal_dmac_of_match);
 
 static void
-renesas_sdhi_internal_dmac_dm_write(struct tmio_mmc_host *host,
-				    int addr, u64 val)
-{
-	writeq(val, host->ctl + addr);
-}
-
-static void
 renesas_sdhi_internal_dmac_enable_dma(struct tmio_mmc_host *host, bool enable)
 {
 	struct renesas_sdhi *priv = host_to_priv(host);
@@ -295,8 +288,7 @@ renesas_sdhi_internal_dmac_enable_dma(struct tmio_mmc_host *host, bool enable)
 		return;
 
 	if (!enable)
-		renesas_sdhi_internal_dmac_dm_write(host, DM_CM_INFO1,
-						    INFO1_CLEAR);
+		writel(INFO1_CLEAR, host->ctl + DM_CM_INFO1);
 
 	if (priv->dma_priv.enable)
 		priv->dma_priv.enable(host, enable);
@@ -309,10 +301,8 @@ renesas_sdhi_internal_dmac_abort_dma(struct tmio_mmc_host *host)
 
 	renesas_sdhi_internal_dmac_enable_dma(host, false);
 
-	renesas_sdhi_internal_dmac_dm_write(host, DM_CM_RST,
-					    RST_RESERVED_BITS & ~val);
-	renesas_sdhi_internal_dmac_dm_write(host, DM_CM_RST,
-					    RST_RESERVED_BITS | val);
+	writel(RST_RESERVED_BITS & ~val, host->ctl + DM_CM_RST);
+	writel(RST_RESERVED_BITS | val, host->ctl + DM_CM_RST);
 
 	clear_bit(SDHI_INTERNAL_DMAC_RX_IN_USE, &global_flags);
 
@@ -397,10 +387,8 @@ renesas_sdhi_internal_dmac_start_dma(struct tmio_mmc_host *host,
 	renesas_sdhi_internal_dmac_enable_dma(host, true);
 
 	/* set dma parameters */
-	renesas_sdhi_internal_dmac_dm_write(host, DM_CM_DTRAN_MODE,
-					    dtran_mode);
-	renesas_sdhi_internal_dmac_dm_write(host, DM_DTRAN_ADDR,
-					    sg_dma_address(sg));
+	writel(dtran_mode, host->ctl + DM_CM_DTRAN_MODE);
+	writel(sg_dma_address(sg), host->ctl + DM_DTRAN_ADDR);
 
 	host->dma_on = true;
 
@@ -420,8 +408,7 @@ static void renesas_sdhi_internal_dmac_issue_tasklet_fn(unsigned long arg)
 	tmio_mmc_enable_mmc_irqs(host, TMIO_STAT_DATAEND);
 
 	/* start the DMAC */
-	renesas_sdhi_internal_dmac_dm_write(host, DM_CM_DTRAN_CTRL,
-					    DTRAN_CTRL_DM_START);
+	writel(DTRAN_CTRL_DM_START, host->ctl + DM_CM_DTRAN_CTRL);
 }
 
 static bool renesas_sdhi_internal_dmac_complete(struct tmio_mmc_host *host)
@@ -502,10 +489,8 @@ renesas_sdhi_internal_dmac_request_dma(struct tmio_mmc_host *host,
 	struct renesas_sdhi *priv = host_to_priv(host);
 
 	/* Disable DMAC interrupts, we don't use them */
-	renesas_sdhi_internal_dmac_dm_write(host, DM_CM_INFO1_MASK,
-					    INFO1_MASK_CLEAR);
-	renesas_sdhi_internal_dmac_dm_write(host, DM_CM_INFO2_MASK,
-					    INFO2_MASK_CLEAR);
+	writel(INFO1_MASK_CLEAR, host->ctl + DM_CM_INFO1_MASK);
+	writel(INFO2_MASK_CLEAR, host->ctl + DM_CM_INFO2_MASK);
 
 	/* Each value is set to non-zero to assume "enabling" each DMA */
 	host->chan_rx = host->chan_tx = (void *)0xdeadbeaf;
