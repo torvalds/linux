@@ -310,13 +310,6 @@ static const uint32_t udl_simple_display_pipe_formats[] = {
 	DRM_FORMAT_XRGB8888,
 };
 
-static enum drm_mode_status
-udl_simple_display_pipe_mode_valid(struct drm_simple_display_pipe *pipe,
-				   const struct drm_display_mode *mode)
-{
-	return MODE_OK;
-}
-
 static void
 udl_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 			       struct drm_crtc_state *crtc_state,
@@ -398,7 +391,6 @@ udl_simple_display_pipe_update(struct drm_simple_display_pipe *pipe,
 }
 
 static const struct drm_simple_display_pipe_funcs udl_simple_display_pipe_funcs = {
-	.mode_valid = udl_simple_display_pipe_mode_valid,
 	.enable = udl_simple_display_pipe_enable,
 	.disable = udl_simple_display_pipe_disable,
 	.update = udl_simple_display_pipe_update,
