@@ -1940,8 +1940,11 @@ static int sdma_v4_0_hw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int i;
 
-	if (amdgpu_sriov_vf(adev))
+	if (amdgpu_sriov_vf(adev)) {
+		/* disable the scheduler for SDMA */
+		amdgpu_sdma_unset_buffer_funcs_helper(adev);
 		return 0;
+	}
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		amdgpu_irq_put(adev, &adev->sdma.ecc_irq,
