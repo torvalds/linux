@@ -28,15 +28,6 @@ config POWER_SUPPLY_HWMON
 	  Say 'Y' here if you want power supplies to
 	  have hwmon sysfs interface too.
 
-
-config PDA_POWER
-	tristate "Generic PDA/phone power driver"
-	depends on !S390
-	help
-	  Say Y here to enable generic power driver for PDAs and phones with
-	  one or two external power supplies (AC/USB) connected to main and
-	  backup batteries, and optional builtin charger.
-
 config APM_POWER
 	tristate "APM emulation for class batteries"
 	depends on APM_EMULATION
