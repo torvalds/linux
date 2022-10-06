@@ -63,16 +63,21 @@ struct kvm_x86_cpu_feature {
 	u8	reg;
 	u8	bit;
 };
-#define	KVM_X86_CPU_FEATURE(fn, idx, gpr, __bit)	\
-({							\
-	struct kvm_x86_cpu_feature feature = {		\
-		.function = fn,				\
-		.index = idx,				\
-		.reg = KVM_CPUID_##gpr,			\
-		.bit = __bit,				\
-	};						\
-							\
-	feature;					\
+#define	KVM_X86_CPU_FEATURE(fn, idx, gpr, __bit)				\
+({										\
+	struct kvm_x86_cpu_feature feature = {					\
+		.function = fn,							\
+		.index = idx,							\
+		.reg = KVM_CPUID_##gpr,						\
+		.bit = __bit,							\
+	};									\
+										\
+	static_assert((fn & 0xc0000000) == 0 ||					\
+		      (fn & 0xc0000000) == 0x40000000 ||			\
+		      (fn & 0xc0000000) == 0x80000000 ||			\
+		      (fn & 0xc0000000) == 0xc0000000);				\
+	static_assert(idx < BIT(sizeof(feature.index) * BITS_PER_BYTE));	\
+	feature;								\
 })
 
 /*
@@ -432,15 +437,22 @@ static inline void cpuid(uint32_t function,
 	return __cpuid(function, 0, eax, ebx, ecx, edx);
 }
 
-static inline bool this_cpu_has(struct kvm_x86_cpu_feature feature)
+static inline uint32_t __this_cpu_has(uint32_t function, uint32_t index,
+				      uint8_t reg, uint8_t lo, uint8_t hi)
 {
 	uint32_t gprs[4];
 
-	__cpuid(feature.function, feature.index,
+	__cpuid(function, index,
 		&gprs[KVM_CPUID_EAX], &gprs[KVM_CPUID_EBX],
 		&gprs[KVM_CPUID_ECX], &gprs[KVM_CPUID_EDX]);
 
-	return gprs[feature.reg] & BIT(feature.bit);
+	return (gprs[reg] & GENMASK(hi, lo)) >> lo;
+}
+
+static inline bool this_cpu_has(struct kvm_x86_cpu_feature feature)
+{
+	return __this_cpu_has(feature.function, feature.index,
+			      feature.reg, feature.bit, feature.bit);
 }
 
 #define SET_XMM(__var, __xmm) \
