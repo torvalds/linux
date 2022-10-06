@@ -407,7 +407,8 @@ static inline u64 vmx_get_perf_capabilities(void)
 	if (boot_cpu_has(X86_FEATURE_PDCM))
 		rdmsrl(MSR_IA32_PERF_CAPABILITIES, host_perf_cap);
 
-	if (x86_perf_get_lbr(&lbr) >= 0 && lbr.nr)
+	x86_perf_get_lbr(&lbr);
+	if (lbr.nr)
 		perf_cap |= host_perf_cap & PMU_CAP_LBR_FMT;
 
 	if (vmx_pebs_supported()) {
