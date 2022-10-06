@@ -4384,7 +4384,6 @@ void intel_hpd_irq_setup(struct drm_i915_private *i915)
  */
 void intel_irq_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	int i;
 
 	INIT_WORK(&dev_priv->l3_parity.error_work, ivb_parity_work);
@@ -4402,7 +4401,7 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 
 	intel_hpd_init_early(dev_priv);
 
-	dev->vblank_disable_immediate = true;
+	dev_priv->drm.vblank_disable_immediate = true;
 
 	/* Most platforms treat the display irq block as an always-on
 	 * power domain. vlv/chv can disable it at runtime and need

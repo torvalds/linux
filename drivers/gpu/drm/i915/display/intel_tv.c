@@ -1925,7 +1925,6 @@ static void intel_tv_add_properties(struct drm_connector *connector)
 void
 intel_tv_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	struct drm_connector *connector;
 	struct intel_tv *intel_tv;
 	struct intel_encoder *intel_encoder;
@@ -1989,10 +1988,10 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 	 */
 	intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 
-	drm_connector_init(dev, connector, &intel_tv_connector_funcs,
+	drm_connector_init(&dev_priv->drm, connector, &intel_tv_connector_funcs,
 			   DRM_MODE_CONNECTOR_SVIDEO);
 
-	drm_encoder_init(dev, &intel_encoder->base, &intel_tv_enc_funcs,
+	drm_encoder_init(&dev_priv->drm, &intel_encoder->base, &intel_tv_enc_funcs,
 			 DRM_MODE_ENCODER_TVDAC, "TV");
 
 	intel_encoder->compute_config = intel_tv_compute_config;

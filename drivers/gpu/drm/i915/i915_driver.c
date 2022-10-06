@@ -716,15 +716,13 @@ static void i915_driver_hw_remove(struct drm_i915_private *dev_priv)
  */
 static void i915_driver_register(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
-
 	i915_gem_driver_register(dev_priv);
 	i915_pmu_register(dev_priv);
 
 	intel_vgpu_register(dev_priv);
 
 	/* Reveal our presence to userspace */
-	if (drm_dev_register(dev, 0)) {
+	if (drm_dev_register(&dev_priv->drm, 0)) {
 		drm_err(&dev_priv->drm,
 			"Failed to register driver for userspace access!\n");
 		return;
@@ -1056,32 +1054,30 @@ static void i915_driver_postclose(struct drm_device *dev, struct drm_file *file)
 
 static void intel_suspend_encoders(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	struct intel_encoder *encoder;
 
 	if (!HAS_DISPLAY(dev_priv))
 		return;
 
-	drm_modeset_lock_all(dev);
-	for_each_intel_encoder(dev, encoder)
+	drm_modeset_lock_all(&dev_priv->drm);
+	for_each_intel_encoder(&dev_priv->drm, encoder)
 		if (encoder->suspend)
 			encoder->suspend(encoder);
-	drm_modeset_unlock_all(dev);
+	drm_modeset_unlock_all(&dev_priv->drm);
 }
 
 static void intel_shutdown_encoders(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	struct intel_encoder *encoder;
 
 	if (!HAS_DISPLAY(dev_priv))
 		return;
 
-	drm_modeset_lock_all(dev);
-	for_each_intel_encoder(dev, encoder)
+	drm_modeset_lock_all(&dev_priv->drm);
+	for_each_intel_encoder(&dev_priv->drm, encoder)
 		if (encoder->shutdown)
 			encoder->shutdown(encoder);
-	drm_modeset_unlock_all(dev);
+	drm_modeset_unlock_all(&dev_priv->drm);
 }
 
 void i915_driver_shutdown(struct drm_i915_private *i915)

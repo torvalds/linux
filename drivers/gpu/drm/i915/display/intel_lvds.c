@@ -828,7 +828,6 @@ static void intel_lvds_add_properties(struct drm_connector *connector)
  */
 void intel_lvds_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	struct intel_lvds_encoder *lvds_encoder;
 	struct intel_encoder *intel_encoder;
 	struct intel_connector *intel_connector;
@@ -841,7 +840,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 
 	/* Skip init on machines we know falsely report LVDS */
 	if (dmi_check_system(intel_no_lvds)) {
-		drm_WARN(dev, !dev_priv->display.vbt.int_lvds_support,
+		drm_WARN(&dev_priv->drm, !dev_priv->display.vbt.int_lvds_support,
 			 "Useless DMI match. Internal LVDS support disabled by VBT\n");
 		return;
 	}
@@ -890,10 +889,10 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	intel_encoder = &lvds_encoder->base;
 	encoder = &intel_encoder->base;
 	connector = &intel_connector->base;
-	drm_connector_init(dev, &intel_connector->base, &intel_lvds_connector_funcs,
+	drm_connector_init(&dev_priv->drm, &intel_connector->base, &intel_lvds_connector_funcs,
 			   DRM_MODE_CONNECTOR_LVDS);
 
-	drm_encoder_init(dev, &intel_encoder->base, &intel_lvds_enc_funcs,
+	drm_encoder_init(&dev_priv->drm, &intel_encoder->base, &intel_lvds_enc_funcs,
 			 DRM_MODE_ENCODER_LVDS, "LVDS");
 
 	intel_encoder->enable = intel_enable_lvds;
@@ -944,7 +943,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	 * Attempt to get the fixed panel mode from DDC.  Assume that the
 	 * preferred mode is the right one.
 	 */
-	mutex_lock(&dev->mode_config.mutex);
+	mutex_lock(&dev_priv->drm.mode_config.mutex);
 	if (vga_switcheroo_handler_flags() & VGA_SWITCHEROO_CAN_SWITCH_DDC)
 		edid = drm_get_edid_switcheroo(connector,
 				    intel_gmbus_get_adapter(dev_priv, pin));
@@ -982,7 +981,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	if (!intel_panel_preferred_fixed_mode(intel_connector))
 		intel_panel_add_encoder_fixed_mode(intel_connector, intel_encoder);
 
-	mutex_unlock(&dev->mode_config.mutex);
+	mutex_unlock(&dev_priv->drm.mode_config.mutex);
 
 	/* If we still don't have a mode after all that, give up. */
 	if (!intel_panel_preferred_fixed_mode(intel_connector))

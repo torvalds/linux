@@ -2063,13 +2063,12 @@ static bool __psr_wait_for_idle_locked(struct intel_dp *intel_dp)
 static int intel_psr_fastset_force(struct drm_i915_private *dev_priv)
 {
 	struct drm_connector_list_iter conn_iter;
-	struct drm_device *dev = &dev_priv->drm;
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_atomic_state *state;
 	struct drm_connector *conn;
 	int err = 0;
 
-	state = drm_atomic_state_alloc(dev);
+	state = drm_atomic_state_alloc(&dev_priv->drm);
 	if (!state)
 		return -ENOMEM;
 
@@ -2078,7 +2077,7 @@ static int intel_psr_fastset_force(struct drm_i915_private *dev_priv)
 
 retry:
 
-	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
 	drm_for_each_connector_iter(conn, &conn_iter) {
 		struct drm_connector_state *conn_state;
 		struct drm_crtc_state *crtc_state;

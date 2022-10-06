@@ -463,7 +463,6 @@ static u32 asle_set_backlight(struct drm_i915_private *dev_priv, u32 bclp)
 	struct intel_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	struct opregion_asle *asle = dev_priv->display.opregion.asle;
-	struct drm_device *dev = &dev_priv->drm;
 
 	drm_dbg(&dev_priv->drm, "bclp = 0x%08x\n", bclp);
 
@@ -480,7 +479,7 @@ static u32 asle_set_backlight(struct drm_i915_private *dev_priv, u32 bclp)
 	if (bclp > 255)
 		return ASLC_BACKLIGHT_FAILED;
 
-	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+	drm_modeset_lock(&dev_priv->drm.mode_config.connection_mutex, NULL);
 
 	/*
 	 * Update backlight on all connectors that support backlight (usually
@@ -488,13 +487,13 @@ static u32 asle_set_backlight(struct drm_i915_private *dev_priv, u32 bclp)
 	 */
 	drm_dbg_kms(&dev_priv->drm, "updating opregion backlight %d/255\n",
 		    bclp);
-	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter)
 		intel_backlight_set_acpi(connector->base.state, bclp, 255);
 	drm_connector_list_iter_end(&conn_iter);
 	asle->cblv = DIV_ROUND_UP(bclp * 100, 255) | ASLE_CBLV_VALID;
 
-	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+	drm_modeset_unlock(&dev_priv->drm.mode_config.connection_mutex);
 
 
 	return 0;

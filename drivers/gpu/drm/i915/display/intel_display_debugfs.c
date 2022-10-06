@@ -128,7 +128,6 @@ static int i915_vbt(struct seq_file *m, void *unused)
 static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
 	struct intel_framebuffer *fbdev_fb = NULL;
 	struct drm_framebuffer *drm_fb;
 
@@ -147,8 +146,8 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 	}
 #endif
 
-	mutex_lock(&dev->mode_config.fb_lock);
-	drm_for_each_fb(drm_fb, dev) {
+	mutex_lock(&dev_priv->drm.mode_config.fb_lock);
+	drm_for_each_fb(drm_fb, &dev_priv->drm) {
 		struct intel_framebuffer *fb = to_intel_framebuffer(drm_fb);
 		if (fb == fbdev_fb)
 			continue;
@@ -163,7 +162,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 		i915_debugfs_describe_obj(m, intel_fb_obj(&fb->base));
 		seq_putc(m, '\n');
 	}
-	mutex_unlock(&dev->mode_config.fb_lock);
+	mutex_unlock(&dev_priv->drm.mode_config.fb_lock);
 
 	return 0;
 }
@@ -898,7 +897,6 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 static int i915_display_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
 	struct intel_crtc *crtc;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
@@ -906,22 +904,22 @@ static int i915_display_info(struct seq_file *m, void *unused)
 
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
-	drm_modeset_lock_all(dev);
+	drm_modeset_lock_all(&dev_priv->drm);
 
 	seq_printf(m, "CRTC info\n");
 	seq_printf(m, "---------\n");
-	for_each_intel_crtc(dev, crtc)
+	for_each_intel_crtc(&dev_priv->drm, crtc)
 		intel_crtc_info(m, crtc);
 
 	seq_printf(m, "\n");
 	seq_printf(m, "Connector info\n");
 	seq_printf(m, "--------------\n");
-	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter)
 		intel_connector_info(m, connector);
 	drm_connector_list_iter_end(&conn_iter);
 
-	drm_modeset_unlock_all(dev);
+	drm_modeset_unlock_all(&dev_priv->drm);
 
 	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 
@@ -931,10 +929,9 @@ static int i915_display_info(struct seq_file *m, void *unused)
 static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
 	int i;
 
-	drm_modeset_lock_all(dev);
+	drm_modeset_lock_all(&dev_priv->drm);
 
 	seq_printf(m, "PLL refclks: non-SSC: %d kHz, SSC: %d kHz\n",
 		   dev_priv->display.dpll.ref_clks.nssc,
@@ -979,7 +976,7 @@ static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 		seq_printf(m, " mg_pll_tdc_coldst_bias: 0x%08x\n",
 			   pll->state.hw_state.mg_pll_tdc_coldst_bias);
 	}
-	drm_modeset_unlock_all(dev);
+	drm_modeset_unlock_all(&dev_priv->drm);
 
 	return 0;
 }
@@ -987,14 +984,13 @@ static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 static int i915_ddb_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
 	struct skl_ddb_entry *entry;
 	struct intel_crtc *crtc;
 
 	if (DISPLAY_VER(dev_priv) < 9)
 		return -ENODEV;
 
-	drm_modeset_lock_all(dev);
+	drm_modeset_lock_all(&dev_priv->drm);
 
 	seq_printf(m, "%-15s%8s%8s%8s\n", "", "Start", "End", "Size");
 
@@ -1018,7 +1014,7 @@ static int i915_ddb_info(struct seq_file *m, void *unused)
 			   entry->end, skl_ddb_entry_size(entry));
 	}
 
-	drm_modeset_unlock_all(dev);
+	drm_modeset_unlock_all(&dev_priv->drm);
 
 	return 0;
 }
@@ -1062,13 +1058,12 @@ static int i915_lpsp_status(struct seq_file *m, void *unused)
 static int i915_dp_mst_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
 	struct intel_encoder *intel_encoder;
 	struct intel_digital_port *dig_port;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 
-	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort)
 			continue;
@@ -1155,12 +1150,11 @@ static ssize_t i915_displayport_test_active_write(struct file *file,
 static int i915_displayport_test_active_show(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = m->private;
-	struct drm_device *dev = &dev_priv->drm;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	struct intel_dp *intel_dp;
 
-	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		struct intel_encoder *encoder;
 
@@ -1205,12 +1199,11 @@ static const struct file_operations i915_displayport_test_active_fops = {
 static int i915_displayport_test_data_show(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = m->private;
-	struct drm_device *dev = &dev_priv->drm;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	struct intel_dp *intel_dp;
 
-	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		struct intel_encoder *encoder;
 
@@ -1259,12 +1252,11 @@ DEFINE_SHOW_ATTRIBUTE(i915_displayport_test_data);
 static int i915_displayport_test_type_show(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = m->private;
-	struct drm_device *dev = &dev_priv->drm;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	struct intel_dp *intel_dp;
 
-	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		struct intel_encoder *encoder;
 
@@ -1291,7 +1283,6 @@ DEFINE_SHOW_ATTRIBUTE(i915_displayport_test_type);
 static void wm_latency_show(struct seq_file *m, const u16 wm[8])
 {
 	struct drm_i915_private *dev_priv = m->private;
-	struct drm_device *dev = &dev_priv->drm;
 	int level;
 	int num_levels;
 
@@ -1304,7 +1295,7 @@ static void wm_latency_show(struct seq_file *m, const u16 wm[8])
 	else
 		num_levels = ilk_wm_max_level(dev_priv) + 1;
 
-	drm_modeset_lock_all(dev);
+	drm_modeset_lock_all(&dev_priv->drm);
 
 	for (level = 0; level < num_levels; level++) {
 		unsigned int latency = wm[level];
@@ -1325,7 +1316,7 @@ static void wm_latency_show(struct seq_file *m, const u16 wm[8])
 			   level, wm[level], latency / 10, latency % 10);
 	}
 
-	drm_modeset_unlock_all(dev);
+	drm_modeset_unlock_all(&dev_priv->drm);
 }
 
 static int pri_wm_latency_show(struct seq_file *m, void *data)
@@ -1408,7 +1399,6 @@ static ssize_t wm_latency_write(struct file *file, const char __user *ubuf,
 {
 	struct seq_file *m = file->private_data;
 	struct drm_i915_private *dev_priv = m->private;
-	struct drm_device *dev = &dev_priv->drm;
 	u16 new[8] = { 0 };
 	int num_levels;
 	int level;
@@ -1438,12 +1428,12 @@ static ssize_t wm_latency_write(struct file *file, const char __user *ubuf,
 	if (ret != num_levels)
 		return -EINVAL;
 
-	drm_modeset_lock_all(dev);
+	drm_modeset_lock_all(&dev_priv->drm);
 
 	for (level = 0; level < num_levels; level++)
 		wm[level] = new[level];
 
-	drm_modeset_unlock_all(dev);
+	drm_modeset_unlock_all(&dev_priv->drm);
 
 	return len;
 }
@@ -1528,7 +1518,6 @@ i915_fifo_underrun_reset_write(struct file *filp,
 {
 	struct drm_i915_private *dev_priv = filp->private_data;
 	struct intel_crtc *crtc;
-	struct drm_device *dev = &dev_priv->drm;
 	int ret;
 	bool reset;
 
@@ -1539,7 +1528,7 @@ i915_fifo_underrun_reset_write(struct file *filp,
 	if (!reset)
 		return cnt;
 
-	for_each_intel_crtc(dev, crtc) {
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		struct drm_crtc_commit *commit;
 		struct intel_crtc_state *crtc_state;
 

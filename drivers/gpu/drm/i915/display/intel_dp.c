@@ -5229,7 +5229,6 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 				     struct intel_connector *intel_connector)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	struct drm_device *dev = &dev_priv->drm;
 	struct drm_connector *connector = &intel_connector->base;
 	struct drm_display_mode *fixed_mode;
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
@@ -5246,7 +5245,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	 * with an already powered-on LVDS power sequencer.
 	 */
 	if (intel_get_lvds_encoder(dev_priv)) {
-		drm_WARN_ON(dev,
+		drm_WARN_ON(&dev_priv->drm,
 			    !(HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv)));
 		drm_info(&dev_priv->drm,
 			 "LVDS was detected, not registering eDP\n");
@@ -5267,7 +5266,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 		goto out_vdd_off;
 	}
 
-	mutex_lock(&dev->mode_config.mutex);
+	mutex_lock(&dev_priv->drm.mode_config.mutex);
 	edid = drm_get_edid(connector, &intel_dp->aux.ddc);
 	if (!edid) {
 		/* Fallback to EDID from ACPI OpRegion, if any */
@@ -5305,7 +5304,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	if (!intel_panel_preferred_fixed_mode(intel_connector))
 		intel_panel_add_vbt_lfp_fixed_mode(intel_connector);
 
-	mutex_unlock(&dev->mode_config.mutex);
+	mutex_unlock(&dev_priv->drm.mode_config.mutex);
 
 	if (!intel_panel_preferred_fixed_mode(intel_connector)) {
 		drm_info(&dev_priv->drm,

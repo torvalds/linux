@@ -80,8 +80,7 @@
 static struct platform_device *
 lpe_audio_platdev_create(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
+	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 	struct platform_device_info pinfo = {};
 	struct resource *rsc;
 	struct platform_device *platdev;
@@ -108,7 +107,7 @@ lpe_audio_platdev_create(struct drm_i915_private *dev_priv)
 	rsc[1].flags    = IORESOURCE_MEM;
 	rsc[1].name     = "hdmi-lpe-audio-mmio";
 
-	pinfo.parent = dev->dev;
+	pinfo.parent = dev_priv->drm.dev;
 	pinfo.name = "hdmi-lpe-audio";
 	pinfo.id = -1;
 	pinfo.res = rsc;
