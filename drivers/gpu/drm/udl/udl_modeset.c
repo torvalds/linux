@@ -214,31 +214,6 @@ static char *udl_dummy_render(char *wrptr)
 	return wrptr;
 }
 
-static int udl_crtc_write_mode_to_hw(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct udl_device *udl = to_udl(dev);
-	struct urb *urb;
-	char *buf;
-	int retval;
-
-	if (udl->mode_buf_len == 0) {
-		DRM_ERROR("No mode set\n");
-		return -EINVAL;
-	}
-
-	urb = udl_get_urb(dev);
-	if (!urb)
-		return -ENOMEM;
-
-	buf = (char *)urb->transfer_buffer;
-
-	memcpy(buf, udl->mode_buf, udl->mode_buf_len);
-	retval = udl_submit_urb(dev, urb, udl->mode_buf_len);
-	DRM_DEBUG("write mode info %d\n", udl->mode_buf_len);
-	return retval;
-}
-
 static long udl_log_cpp(unsigned int cpp)
 {
 	if (WARN_ON(!is_power_of_2(cpp)))
@@ -360,36 +335,28 @@ static int udl_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic
 static void udl_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
 	struct drm_device *dev = crtc->dev;
-	struct udl_device *udl = to_udl(dev);
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	struct drm_display_mode *mode = &crtc_state->mode;
+	struct urb *urb;
 	char *buf;
-	char *wrptr;
-	int color_depth = UDL_COLOR_DEPTH_16BPP;
 
-	buf = (char *)udl->mode_buf;
+	urb = udl_get_urb(dev);
+	if (!urb)
+		return;
 
-	/*
-	 * This first section has to do with setting the base address on
-	 * the controller associated with the display. There are 2 base
-	 * pointers. Currently, we only use the 16 bpp segment.
-	 */
-
-	wrptr = udl_vidreg_lock(buf);
-	wrptr = udl_set_color_depth(wrptr, color_depth);
+	buf = (char *)urb->transfer_buffer;
+	buf = udl_vidreg_lock(buf);
+	buf = udl_set_color_depth(buf, UDL_COLOR_DEPTH_16BPP);
 	/* set base for 16bpp segment to 0 */
-	wrptr = udl_set_base16bpp(wrptr, 0);
+	buf = udl_set_base16bpp(buf, 0);
 	/* set base for 8bpp segment to end of fb */
-	wrptr = udl_set_base8bpp(wrptr, 2 * mode->vdisplay * mode->hdisplay);
-	wrptr = udl_set_vid_cmds(wrptr, mode);
-	wrptr = udl_set_blank_mode(wrptr, UDL_BLANK_MODE_ON);
-	wrptr = udl_vidreg_unlock(wrptr);
-	wrptr = udl_dummy_render(wrptr);
+	buf = udl_set_base8bpp(buf, 2 * mode->vdisplay * mode->hdisplay);
+	buf = udl_set_vid_cmds(buf, mode);
+	buf = udl_set_blank_mode(buf, UDL_BLANK_MODE_ON);
+	buf = udl_vidreg_unlock(buf);
+	buf = udl_dummy_render(buf);
 
-	udl->mode_buf_len = wrptr - buf;
-
-	/* enable display */
-	udl_crtc_write_mode_to_hw(crtc);
+	udl_submit_urb(dev, urb, buf - (char *)urb->transfer_buffer);
 }
 
 static void udl_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_state *state)

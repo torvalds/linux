@@ -74,9 +74,6 @@ struct udl_device {
 	int sku_pixel_limit;
 
 	struct urb_list urbs;
-
-	char mode_buf[1024];
-	uint32_t mode_buf_len;
 };
 
 #define to_udl(x) container_of(x, struct udl_device, drm)
