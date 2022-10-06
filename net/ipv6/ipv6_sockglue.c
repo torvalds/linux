@@ -419,6 +419,12 @@ int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		rtnl_lock();
 	sockopt_lock_sock(sk);
 
+	/* Another thread has converted the socket into IPv4 with
+	 * IPV6_ADDRFORM concurrently.
+	 */
+	if (unlikely(sk->sk_family != AF_INET6))
+		goto unlock;
+
 	switch (optname) {
 
 	case IPV6_ADDRFORM:
@@ -994,6 +1000,7 @@ done:
 		break;
 	}
 
+unlock:
 	sockopt_release_sock(sk);
 	if (needs_rtnl)
 		rtnl_unlock();
