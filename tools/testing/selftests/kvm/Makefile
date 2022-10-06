@@ -47,6 +47,7 @@ LIBKVM += lib/memstress.c
 LIBKVM += lib/rbtree.c
 LIBKVM += lib/sparsebit.c
 LIBKVM += lib/test_util.c
+LIBKVM += lib/ucall_common.c
 
 LIBKVM_STRING += lib/string_override.c
 
