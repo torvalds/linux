@@ -46,10 +46,7 @@ static int udl_get_edid_block(void *data, u8 *buf, unsigned int block,
 
 static int udl_get_modes(struct drm_connector *connector)
 {
-	struct udl_drm_connector *udl_connector =
-					container_of(connector,
-					struct udl_drm_connector,
-					connector);
+	struct udl_connector *udl_connector = to_udl_connector(connector);
 
 	drm_connector_update_edid_property(connector, udl_connector->edid);
 	if (udl_connector->edid)
@@ -74,10 +71,7 @@ static enum drm_connector_status
 udl_detect(struct drm_connector *connector, bool force)
 {
 	struct udl_device *udl = to_udl(connector->dev);
-	struct udl_drm_connector *udl_connector =
-					container_of(connector,
-					struct udl_drm_connector,
-					connector);
+	struct udl_connector *udl_connector = to_udl_connector(connector);
 
 	/* cleanup previous edid */
 	if (udl_connector->edid != NULL) {
@@ -94,10 +88,7 @@ udl_detect(struct drm_connector *connector, bool force)
 
 static void udl_connector_destroy(struct drm_connector *connector)
 {
-	struct udl_drm_connector *udl_connector =
-					container_of(connector,
-					struct udl_drm_connector,
-					connector);
+	struct udl_connector *udl_connector = to_udl_connector(connector);
 
 	drm_connector_cleanup(connector);
 	kfree(udl_connector->edid);
@@ -120,10 +111,10 @@ static const struct drm_connector_funcs udl_connector_funcs = {
 
 struct drm_connector *udl_connector_init(struct drm_device *dev)
 {
-	struct udl_drm_connector *udl_connector;
+	struct udl_connector *udl_connector;
 	struct drm_connector *connector;
 
-	udl_connector = kzalloc(sizeof(struct udl_drm_connector), GFP_KERNEL);
+	udl_connector = kzalloc(sizeof(*udl_connector), GFP_KERNEL);
 	if (!udl_connector)
 		return ERR_PTR(-ENOMEM);
 
