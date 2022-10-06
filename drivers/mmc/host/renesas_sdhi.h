@@ -54,7 +54,12 @@ struct renesas_sdhi_of_data_with_quirks {
 	const struct renesas_sdhi_quirks *quirks;
 };
 
+/* We want both end_flags to be set before we mark DMA as finished */
+#define SDHI_DMA_END_FLAG_DMA		BIT(0)
+#define SDHI_DMA_END_FLAG_ACCESS	BIT(1)
+
 struct renesas_sdhi_dma {
+	unsigned long end_flags;
 	enum dma_slave_buswidth dma_buswidth;
 	bool (*filter)(struct dma_chan *chan, void *arg);
 	void (*enable)(struct tmio_mmc_host *host, bool enable);
