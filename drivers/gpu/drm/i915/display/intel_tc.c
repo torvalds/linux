@@ -408,14 +408,9 @@ static bool adl_tc_phy_take_ownership(struct intel_digital_port *dig_port,
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	struct intel_uncore *uncore = &i915->uncore;
 	enum port port = dig_port->base.port;
-	u32 val;
 
-	val = intel_uncore_read(uncore, DDI_BUF_CTL(port));
-	if (take)
-		val |= DDI_BUF_CTL_TC_PHY_OWNERSHIP;
-	else
-		val &= ~DDI_BUF_CTL_TC_PHY_OWNERSHIP;
-	intel_uncore_write(uncore, DDI_BUF_CTL(port), val);
+	intel_uncore_rmw(uncore, DDI_BUF_CTL(port), DDI_BUF_CTL_TC_PHY_OWNERSHIP,
+			 take ? DDI_BUF_CTL_TC_PHY_OWNERSHIP : 0);
 
 	return true;
 }
