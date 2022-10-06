@@ -54,19 +54,6 @@ static int udl_get_modes(struct drm_connector *connector)
 	return 0;
 }
 
-static enum drm_mode_status udl_mode_valid(struct drm_connector *connector,
-			  struct drm_display_mode *mode)
-{
-	struct udl_device *udl = to_udl(connector->dev);
-	if (!udl->sku_pixel_limit)
-		return 0;
-
-	if (mode->vdisplay * mode->hdisplay > udl->sku_pixel_limit)
-		return MODE_VIRTUAL_Y;
-
-	return 0;
-}
-
 static enum drm_connector_status
 udl_detect(struct drm_connector *connector, bool force)
 {
@@ -97,7 +84,6 @@ static void udl_connector_destroy(struct drm_connector *connector)
 
 static const struct drm_connector_helper_funcs udl_connector_helper_funcs = {
 	.get_modes = udl_get_modes,
-	.mode_valid = udl_mode_valid,
 };
 
 static const struct drm_connector_funcs udl_connector_funcs = {
