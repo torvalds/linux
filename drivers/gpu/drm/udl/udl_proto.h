@@ -3,6 +3,8 @@
 #ifndef UDL_PROTO_H
 #define UDL_PROTO_H
 
+#include <linux/bits.h>
+
 /* Color depth */
 #define UDL_REG_COLORDEPTH		0x00
 #define UDL_COLORDEPTH_16BPP		0
@@ -30,6 +32,18 @@
 #define UDL_BLANKMODE_VSYNC_OFF		0x03 /* vsync off, blanked */
 #define UDL_BLANKMODE_HSYNC_OFF		0x05 /* hsync off, blanked */
 #define UDL_BLANKMODE_POWERDOWN		0x07 /* powered off; requires modeset */
+
+/* Framebuffer address */
+#define UDL_REG_BASE16BPP_ADDR2		0x20
+#define UDL_REG_BASE16BPP_ADDR1		0x21
+#define UDL_REG_BASE16BPP_ADDR0		0x22
+#define UDL_REG_BASE8BPP_ADDR2		0x26
+#define UDL_REG_BASE8BPP_ADDR1		0x27
+#define UDL_REG_BASE8BPP_ADDR0		0x28
+
+#define UDL_BASE_ADDR0_MASK		GENMASK(7, 0)
+#define UDL_BASE_ADDR1_MASK		GENMASK(15, 8)
+#define UDL_BASE_ADDR2_MASK		GENMASK(23, 16)
 
 /* Lock/unlock video registers */
 #define UDL_REG_VIDREG			0xff

@@ -8,6 +8,8 @@
  * Copyright (C) 2009 Bernie Thompson <bernie@plugable.com>
  */
 
+#include <linux/bitfield.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
@@ -59,23 +61,36 @@ static char *udl_set_color_depth(char *buf, u8 selection)
 	return udl_set_register(buf, UDL_REG_COLORDEPTH, selection);
 }
 
-static char *udl_set_base16bpp(char *wrptr, u32 base)
+static char *udl_set_base16bpp(char *buf, u32 base)
 {
-	/* the base pointer is 16 bits wide, 0x20 is hi byte. */
-	wrptr = udl_set_register(wrptr, 0x20, base >> 16);
-	wrptr = udl_set_register(wrptr, 0x21, base >> 8);
-	return udl_set_register(wrptr, 0x22, base);
+	/* the base pointer is 24 bits wide, 0x20 is hi byte. */
+	u8 reg20 = FIELD_GET(UDL_BASE_ADDR2_MASK, base);
+	u8 reg21 = FIELD_GET(UDL_BASE_ADDR1_MASK, base);
+	u8 reg22 = FIELD_GET(UDL_BASE_ADDR0_MASK, base);
+
+	buf = udl_set_register(buf, UDL_REG_BASE16BPP_ADDR2, reg20);
+	buf = udl_set_register(buf, UDL_REG_BASE16BPP_ADDR1, reg21);
+	buf = udl_set_register(buf, UDL_REG_BASE16BPP_ADDR0, reg22);
+
+	return buf;
 }
 
 /*
  * DisplayLink HW has separate 16bpp and 8bpp framebuffers.
  * In 24bpp modes, the low 323 RGB bits go in the 8bpp framebuffer
  */
-static char *udl_set_base8bpp(char *wrptr, u32 base)
+static char *udl_set_base8bpp(char *buf, u32 base)
 {
-	wrptr = udl_set_register(wrptr, 0x26, base >> 16);
-	wrptr = udl_set_register(wrptr, 0x27, base >> 8);
-	return udl_set_register(wrptr, 0x28, base);
+	/* the base pointer is 24 bits wide, 0x26 is hi byte. */
+	u8 reg26 = FIELD_GET(UDL_BASE_ADDR2_MASK, base);
+	u8 reg27 = FIELD_GET(UDL_BASE_ADDR1_MASK, base);
+	u8 reg28 = FIELD_GET(UDL_BASE_ADDR0_MASK, base);
+
+	buf = udl_set_register(buf, UDL_REG_BASE8BPP_ADDR2, reg26);
+	buf = udl_set_register(buf, UDL_REG_BASE8BPP_ADDR1, reg27);
+	buf = udl_set_register(buf, UDL_REG_BASE8BPP_ADDR0, reg28);
+
+	return buf;
 }
 
 static char *udl_set_register_16(char *wrptr, u8 reg, u16 value)
