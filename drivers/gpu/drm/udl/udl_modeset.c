@@ -24,8 +24,7 @@
 #include <drm/drm_vblank.h>
 
 #include "udl_drv.h"
-
-#define UDL_COLOR_DEPTH_16BPP	0
+#include "udl_proto.h"
 
 /*
  * All DisplayLink bulk operations start with 0xAF, followed by specific code
@@ -52,7 +51,7 @@ static char *udl_vidreg_unlock(char *buf)
 
 static char *udl_set_blank_mode(char *buf, u8 mode)
 {
-	return udl_set_register(buf, UDL_REG_BLANK_MODE, mode);
+	return udl_set_register(buf, UDL_REG_BLANKMODE, mode);
 }
 
 static char *udl_set_color_depth(char *buf, u8 selection)
@@ -358,13 +357,13 @@ static void udl_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atom
 
 	buf = (char *)urb->transfer_buffer;
 	buf = udl_vidreg_lock(buf);
-	buf = udl_set_color_depth(buf, UDL_COLOR_DEPTH_16BPP);
+	buf = udl_set_color_depth(buf, UDL_COLORDEPTH_16BPP);
 	/* set base for 16bpp segment to 0 */
 	buf = udl_set_base16bpp(buf, 0);
 	/* set base for 8bpp segment to end of fb */
 	buf = udl_set_base8bpp(buf, 2 * mode->vdisplay * mode->hdisplay);
 	buf = udl_set_vid_cmds(buf, mode);
-	buf = udl_set_blank_mode(buf, UDL_BLANK_MODE_ON);
+	buf = udl_set_blank_mode(buf, UDL_BLANKMODE_ON);
 	buf = udl_vidreg_unlock(buf);
 	buf = udl_dummy_render(buf);
 
@@ -390,7 +389,7 @@ static void udl_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_ato
 
 	buf = (char *)urb->transfer_buffer;
 	buf = udl_vidreg_lock(buf);
-	buf = udl_set_blank_mode(buf, UDL_BLANK_MODE_POWERDOWN);
+	buf = udl_set_blank_mode(buf, UDL_BLANKMODE_POWERDOWN);
 	buf = udl_vidreg_unlock(buf);
 	buf = udl_dummy_render(buf);
 

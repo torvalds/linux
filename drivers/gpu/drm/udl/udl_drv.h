@@ -112,13 +112,4 @@ int udl_select_std_channel(struct udl_device *udl);
 #define CMD_WRITE_COPY16 "\xAF\x6A" /**< 16 bit copy command. */
 #define CMD_WRITE_RLX16  "\xAF\x6B" /**< 16 bit extended run length command. */
 
-/* On/Off for driving the DisplayLink framebuffer to the display */
-#define UDL_REG_BLANK_MODE		0x1f
-
-#define UDL_BLANK_MODE_ON		0x00 /* hsync and vsync on, visible */
-#define UDL_BLANK_MODE_BLANKED		0x01 /* hsync and vsync on, blanked */
-#define UDL_BLANK_MODE_VSYNC_OFF	0x03 /* vsync off, blanked */
-#define UDL_BLANK_MODE_HSYNC_OFF	0x05 /* hsync off, blanked */
-#define UDL_BLANK_MODE_POWERDOWN	0x07 /* powered off; requires modeset */
-
 #endif
