@@ -370,25 +370,6 @@ static inline void decr_context_blocked(struct intel_context *ce)
 	ce->guc_state.sched_state -= SCHED_STATE_BLOCKED;
 }
 
-static inline bool context_has_committed_requests(struct intel_context *ce)
-{
-	return !!ce->guc_state.number_committed_requests;
-}
-
-static inline void incr_context_committed_requests(struct intel_context *ce)
-{
-	lockdep_assert_held(&ce->guc_state.lock);
-	++ce->guc_state.number_committed_requests;
-	GEM_BUG_ON(ce->guc_state.number_committed_requests < 0);
-}
-
-static inline void decr_context_committed_requests(struct intel_context *ce)
-{
-	lockdep_assert_held(&ce->guc_state.lock);
-	--ce->guc_state.number_committed_requests;
-	GEM_BUG_ON(ce->guc_state.number_committed_requests < 0);
-}
-
 static struct intel_context *
 request_to_scheduling_context(struct i915_request *rq)
 {
@@ -3180,7 +3161,6 @@ static void __guc_context_destroy(struct intel_context *ce)
 		   ce->guc_state.prio_count[GUC_CLIENT_PRIORITY_HIGH] ||
 		   ce->guc_state.prio_count[GUC_CLIENT_PRIORITY_KMD_NORMAL] ||
 		   ce->guc_state.prio_count[GUC_CLIENT_PRIORITY_NORMAL]);
-	GEM_BUG_ON(ce->guc_state.number_committed_requests);
 
 	lrc_fini(ce);
 	intel_context_fini(ce);
@@ -3449,8 +3429,6 @@ static void remove_from_context(struct i915_request *rq)
 
 	guc_prio_fini(rq, ce);
 
-	decr_context_committed_requests(ce);
-
 	spin_unlock_irq(&ce->guc_state.lock);
 
 	atomic_dec(&ce->guc_id.ref);
@@ -3659,7 +3637,6 @@ out:
 
 		list_add_tail(&rq->guc_fence_link, &ce->guc_state.fences);
 	}
-	incr_context_committed_requests(ce);
 	spin_unlock_irqrestore(&ce->guc_state.lock, flags);
 
 	return 0;

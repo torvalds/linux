@@ -199,8 +199,6 @@ struct intel_context {
 		 * context's submissions is complete.
 		 */
 		struct i915_sw_fence blocked;
-		/** @number_committed_requests: number of committed requests */
-		int number_committed_requests;
 		/** @requests: list of active requests on this context */
 		struct list_head requests;
 		/** @prio: the context's current guc priority */
