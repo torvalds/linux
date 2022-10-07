@@ -37,6 +37,7 @@ properties:
               - mediatek,mt7622-wdt
               - mediatek,mt7623-wdt
               - mediatek,mt7629-wdt
+              - mediatek,mt8173-wdt
               - mediatek,mt8516-wdt
           - const: mediatek,mt6589-wdt
 
