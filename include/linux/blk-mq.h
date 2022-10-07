@@ -14,7 +14,12 @@ struct blk_flush_queue;
 #define BLKDEV_MIN_RQ	4
 #define BLKDEV_DEFAULT_RQ	128
 
-typedef void (rq_end_io_fn)(struct request *, blk_status_t);
+enum rq_end_io_ret {
+	RQ_END_IO_NONE,
+	RQ_END_IO_FREE,
+};
+
+typedef enum rq_end_io_ret (rq_end_io_fn)(struct request *, blk_status_t);
 
 /*
  * request flags */
@@ -848,8 +853,9 @@ static inline bool blk_mq_add_to_batch(struct request *req,
 				       struct io_comp_batch *iob, int ioerror,
 				       void (*complete)(struct io_comp_batch *))
 {
-	if (!iob || (req->rq_flags & RQF_ELV) || req->end_io || ioerror)
+	if (!iob || (req->rq_flags & RQF_ELV) || ioerror)
 		return false;
+
 	if (!iob->complete)
 		iob->complete = complete;
 	else if (iob->complete != complete)
@@ -979,6 +985,8 @@ struct rq_map_data {
 
 int blk_rq_map_user(struct request_queue *, struct request *,
 		struct rq_map_data *, void __user *, unsigned long, gfp_t);
+int blk_rq_map_user_io(struct request *, struct rq_map_data *,
+		void __user *, unsigned long, gfp_t, bool, int, bool, int);
 int blk_rq_map_user_iov(struct request_queue *, struct request *,
 		struct rq_map_data *, const struct iov_iter *, gfp_t);
 int blk_rq_unmap_user(struct bio *);
