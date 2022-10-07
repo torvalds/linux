@@ -656,7 +656,6 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 	size_t start_offset = *offset;
 	unsigned long flags;
 	u32 head, tail;
-	u32 taken;
 	int ret = 0;
 
 	if (drm_WARN_ON(&uncore->i915->drm, !stream->enabled))
@@ -692,7 +691,7 @@ static int gen8_append_oa_reports(struct i915_perf_stream *stream,
 
 
 	for (/* none */;
-	     (taken = OA_TAKEN(tail, head));
+	     OA_TAKEN(tail, head);
 	     head = (head + report_size) & mask) {
 		u8 *report = oa_buf_base + head;
 		u32 *report32 = (void *)report;
@@ -950,7 +949,6 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 	size_t start_offset = *offset;
 	unsigned long flags;
 	u32 head, tail;
-	u32 taken;
 	int ret = 0;
 
 	if (drm_WARN_ON(&uncore->i915->drm, !stream->enabled))
@@ -984,7 +982,7 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 
 
 	for (/* none */;
-	     (taken = OA_TAKEN(tail, head));
+	     OA_TAKEN(tail, head);
 	     head = (head + report_size) & mask) {
 		u8 *report = oa_buf_base + head;
 		u32 *report32 = (void *)report;
