@@ -2120,7 +2120,7 @@ void ahci_error_handler(struct ata_port *ap)
 {
 	struct ahci_host_priv *hpriv = ap->host->private_data;
 
-	if (!(ap->pflags & ATA_PFLAG_FROZEN)) {
+	if (!ata_port_is_frozen(ap)) {
 		/* restart engine */
 		hpriv->stop_engine(ap);
 		hpriv->start_engine(ap);
@@ -2311,7 +2311,7 @@ static void ahci_pmp_attach(struct ata_port *ap)
 	 * Note that during initialization, the port is marked as
 	 * frozen since the irq handler is not yet registered.
 	 */
-	if (!(ap->pflags & ATA_PFLAG_FROZEN))
+	if (!ata_port_is_frozen(ap))
 		writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
 }
 
@@ -2330,7 +2330,7 @@ static void ahci_pmp_detach(struct ata_port *ap)
 	pp->intr_mask &= ~PORT_IRQ_BAD_PMP;
 
 	/* see comment above in ahci_pmp_attach() */
-	if (!(ap->pflags & ATA_PFLAG_FROZEN))
+	if (!ata_port_is_frozen(ap))
 		writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
 }
 

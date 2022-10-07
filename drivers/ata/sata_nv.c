@@ -2185,7 +2185,7 @@ static void nv_swncq_host_interrupt(struct ata_port *ap, u16 fis)
 	if (!fis)
 		return;
 
-	if (ap->pflags & ATA_PFLAG_FROZEN)
+	if (ata_port_is_frozen(ap))
 		return;
 
 	if (fis & NV_SWNCQ_IRQ_HOTPLUG) {

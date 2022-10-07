@@ -1420,7 +1420,7 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 	int tag, rc;
 
 	/* if frozen, we can't do much */
-	if (ap->pflags & ATA_PFLAG_FROZEN)
+	if (ata_port_is_frozen(ap))
 		return;
 
 	/* is it NCQ device error? */

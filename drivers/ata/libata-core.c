@@ -1489,7 +1489,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 	spin_lock_irqsave(ap->lock, flags);
 
 	/* no internal command while frozen */
-	if (ap->pflags & ATA_PFLAG_FROZEN) {
+	if (ata_port_is_frozen(ap)) {
 		spin_unlock_irqrestore(ap->lock, flags);
 		return AC_ERR_SYSTEM;
 	}
@@ -4721,7 +4721,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 			return;
 		}
 
-		WARN_ON_ONCE(ap->pflags & ATA_PFLAG_FROZEN);
+		WARN_ON_ONCE(ata_port_is_frozen(ap));
 
 		/* read result TF if requested */
 		if (qc->flags & ATA_QCFLAG_RESULT_TF)

@@ -658,7 +658,7 @@ static struct ata_queued_cmd *ata_scsi_qc_new(struct ata_device *dev,
 	struct ata_queued_cmd *qc;
 	int tag;
 
-	if (unlikely(ap->pflags & ATA_PFLAG_FROZEN))
+	if (unlikely(ata_port_is_frozen(ap)))
 		goto fail;
 
 	if (ap->flags & ATA_FLAG_SAS_HOST) {
