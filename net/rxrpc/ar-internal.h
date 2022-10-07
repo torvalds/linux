@@ -195,19 +195,14 @@ struct rxrpc_host_header {
  * - max 48 bytes (struct sk_buff::cb)
  */
 struct rxrpc_skb_priv {
-	atomic_t	nr_ring_pins;		/* Number of rxtx ring pins */
-	u8		nr_subpackets;		/* Number of subpackets */
-	u8		rx_flags;		/* Received packet flags */
-#define RXRPC_SKB_INCL_LAST	0x01		/* - Includes last packet */
-	union {
-		int		remain;		/* amount of space remaining for next write */
+	u16		remain;
+	u16		offset;		/* Offset of data */
+	u16		len;		/* Length of data */
+	u8		rx_flags;	/* Received packet flags */
+	u8		flags;
+#define RXRPC_RX_VERIFIED	0x01
 
-		/* List of requested ACKs on subpackets */
-		unsigned long	rx_req_ack[(RXRPC_MAX_NR_JUMBO + BITS_PER_LONG - 1) /
-					   BITS_PER_LONG];
-	};
-
-	struct rxrpc_host_header hdr;		/* RxRPC packet header from this packet */
+	struct rxrpc_host_header hdr;	/* RxRPC packet header from this packet */
 };
 
 #define rxrpc_skb(__skb) ((struct rxrpc_skb_priv *) &(__skb)->cb)
@@ -252,15 +247,10 @@ struct rxrpc_security {
 	int (*secure_packet)(struct rxrpc_call *, struct sk_buff *, size_t);
 
 	/* verify the security on a received packet */
-	int (*verify_packet)(struct rxrpc_call *, struct sk_buff *,
-			     unsigned int, unsigned int, rxrpc_seq_t, u16);
+	int (*verify_packet)(struct rxrpc_call *, struct sk_buff *);
 
 	/* Free crypto request on a call */
 	void (*free_call_crypto)(struct rxrpc_call *);
-
-	/* Locate the data in a received packet that has been verified. */
-	void (*locate_data)(struct rxrpc_call *, struct sk_buff *,
-			    unsigned int *, unsigned int *);
 
 	/* issue a challenge */
 	int (*issue_challenge)(struct rxrpc_connection *);
@@ -628,7 +618,6 @@ struct rxrpc_call {
 	int			debug_id;	/* debug ID for printks */
 	unsigned short		rx_pkt_offset;	/* Current recvmsg packet offset */
 	unsigned short		rx_pkt_len;	/* Current recvmsg packet len */
-	bool			rx_pkt_last;	/* Current recvmsg packet is last */
 
 	/* Rx/Tx circular buffer, depending on phase.
 	 *
@@ -652,8 +641,6 @@ struct rxrpc_call {
 #define RXRPC_TX_ANNO_LAST	0x04
 #define RXRPC_TX_ANNO_RESENT	0x08
 
-#define RXRPC_RX_ANNO_SUBPACKET	0x3f		/* Subpacket number in jumbogram */
-#define RXRPC_RX_ANNO_VERIFIED	0x80		/* Set if verified and decrypted */
 	rxrpc_seq_t		tx_hard_ack;	/* Dead slot in buffer; the first transmitted but
 						 * not hard-ACK'd packet follows this.
 						 */
@@ -681,7 +668,6 @@ struct rxrpc_call {
 	rxrpc_serial_t		rx_serial;	/* Highest serial received for this call */
 	u8			rx_winsize;	/* Size of Rx window */
 	u8			tx_winsize;	/* Maximum size of Tx window */
-	u8			nr_jumbo_bad;	/* Number of jumbo dups/exceeds-windows */
 
 	spinlock_t		input_lock;	/* Lock for packet input to this call */
 

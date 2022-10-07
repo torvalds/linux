@@ -84,7 +84,7 @@ struct rxrpc_jumbo_header {
 		__be16	_rsvd;		/* reserved */
 		__be16	cksum;		/* kerberos security checksum */
 	};
-};
+} __packed;
 
 #define RXRPC_JUMBO_DATALEN	1412	/* non-terminal jumbo packet data length */
 #define RXRPC_JUMBO_SUBPKTLEN	(RXRPC_JUMBO_DATALEN + sizeof(struct rxrpc_jumbo_header))

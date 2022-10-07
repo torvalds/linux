@@ -222,7 +222,6 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 	rxrpc_serial_t serial;
 	rxrpc_seq_t hard_ack, top;
 	bool last = false;
-	u8 subpacket;
 	int ix;
 
 	_enter("%d", call->debug_id);
@@ -237,11 +236,9 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 	rxrpc_see_skb(skb, rxrpc_skb_rotated);
 	sp = rxrpc_skb(skb);
 
-	subpacket = call->rxtx_annotations[ix] & RXRPC_RX_ANNO_SUBPACKET;
-	serial = sp->hdr.serial + subpacket;
+	serial = sp->hdr.serial;
 
-	if (subpacket == sp->nr_subpackets - 1 &&
-	    sp->rx_flags & RXRPC_SKB_INCL_LAST)
+	if (sp->hdr.flags & RXRPC_LAST_PACKET)
 		last = true;
 
 	call->rxtx_buffer[ix] = NULL;
@@ -266,80 +263,15 @@ static void rxrpc_rotate_rx_window(struct rxrpc_call *call)
 }
 
 /*
- * Decrypt and verify a (sub)packet.  The packet's length may be changed due to
- * padding, but if this is the case, the packet length will be resident in the
- * socket buffer.  Note that we can't modify the master skb info as the skb may
- * be the home to multiple subpackets.
+ * Decrypt and verify a DATA packet.
  */
-static int rxrpc_verify_packet(struct rxrpc_call *call, struct sk_buff *skb,
-			       u8 annotation,
-			       unsigned int offset, unsigned int len)
+static int rxrpc_verify_data(struct rxrpc_call *call, struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	rxrpc_seq_t seq = sp->hdr.seq;
-	u16 cksum = sp->hdr.cksum;
-	u8 subpacket = annotation & RXRPC_RX_ANNO_SUBPACKET;
 
-	_enter("");
-
-	/* For all but the head jumbo subpacket, the security checksum is in a
-	 * jumbo header immediately prior to the data.
-	 */
-	if (subpacket > 0) {
-		__be16 tmp;
-		if (skb_copy_bits(skb, offset - 2, &tmp, 2) < 0)
-			BUG();
-		cksum = ntohs(tmp);
-		seq += subpacket;
-	}
-
-	return call->security->verify_packet(call, skb, offset, len,
-					     seq, cksum);
-}
-
-/*
- * Locate the data within a packet.  This is complicated by:
- *
- * (1) An skb may contain a jumbo packet - so we have to find the appropriate
- *     subpacket.
- *
- * (2) The (sub)packets may be encrypted and, if so, the encrypted portion
- *     contains an extra header which includes the true length of the data,
- *     excluding any encrypted padding.
- */
-static int rxrpc_locate_data(struct rxrpc_call *call, struct sk_buff *skb,
-			     u8 *_annotation,
-			     unsigned int *_offset, unsigned int *_len,
-			     bool *_last)
-{
-	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	unsigned int offset = sizeof(struct rxrpc_wire_header);
-	unsigned int len;
-	bool last = false;
-	int ret;
-	u8 annotation = *_annotation;
-	u8 subpacket = annotation & RXRPC_RX_ANNO_SUBPACKET;
-
-	/* Locate the subpacket */
-	offset += subpacket * RXRPC_JUMBO_SUBPKTLEN;
-	len = skb->len - offset;
-	if (subpacket < sp->nr_subpackets - 1)
-		len = RXRPC_JUMBO_DATALEN;
-	else if (sp->rx_flags & RXRPC_SKB_INCL_LAST)
-		last = true;
-
-	if (!(annotation & RXRPC_RX_ANNO_VERIFIED)) {
-		ret = rxrpc_verify_packet(call, skb, annotation, offset, len);
-		if (ret < 0)
-			return ret;
-		*_annotation |= RXRPC_RX_ANNO_VERIFIED;
-	}
-
-	*_offset = offset;
-	*_len = len;
-	*_last = last;
-	call->security->locate_data(call, skb, _offset, _len);
-	return 0;
+	if (sp->flags & RXRPC_RX_VERIFIED)
+		return 0;
+	return call->security->verify_packet(call, skb);
 }
 
 /*
@@ -356,13 +288,11 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 	rxrpc_serial_t serial;
 	rxrpc_seq_t hard_ack, top, seq;
 	size_t remain;
-	bool rx_pkt_last;
 	unsigned int rx_pkt_offset, rx_pkt_len;
 	int ix, copy, ret = -EAGAIN, ret2;
 
 	rx_pkt_offset = call->rx_pkt_offset;
 	rx_pkt_len = call->rx_pkt_len;
-	rx_pkt_last = call->rx_pkt_last;
 
 	if (call->state >= RXRPC_CALL_SERVER_ACK_REQUEST) {
 		seq = call->rx_hard_ack;
@@ -391,7 +321,6 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 
 		if (!(flags & MSG_PEEK)) {
 			serial = sp->hdr.serial;
-			serial += call->rxtx_annotations[ix] & RXRPC_RX_ANNO_SUBPACKET;
 			trace_rxrpc_receive(call, rxrpc_receive_front,
 					    serial, seq);
 		}
@@ -400,10 +329,9 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 			sock_recv_timestamp(msg, sock->sk, skb);
 
 		if (rx_pkt_offset == 0) {
-			ret2 = rxrpc_locate_data(call, skb,
-						 &call->rxtx_annotations[ix],
-						 &rx_pkt_offset, &rx_pkt_len,
-						 &rx_pkt_last);
+			ret2 = rxrpc_verify_data(call, skb);
+			rx_pkt_offset = sp->offset;
+			rx_pkt_len = sp->len;
 			trace_rxrpc_recvdata(call, rxrpc_recvmsg_next, seq,
 					     rx_pkt_offset, rx_pkt_len, ret2);
 			if (ret2 < 0) {
@@ -443,16 +371,13 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 		}
 
 		/* The whole packet has been transferred. */
-		if (!(flags & MSG_PEEK))
-			rxrpc_rotate_rx_window(call);
+		if (sp->hdr.flags & RXRPC_LAST_PACKET)
+			ret = 1;
 		rx_pkt_offset = 0;
 		rx_pkt_len = 0;
 
-		if (rx_pkt_last) {
-			ASSERTCMP(seq, ==, READ_ONCE(call->rx_top));
-			ret = 1;
-			goto out;
-		}
+		if (!(flags & MSG_PEEK))
+			rxrpc_rotate_rx_window(call);
 
 		seq++;
 	}
@@ -461,7 +386,6 @@ out:
 	if (!(flags & MSG_PEEK)) {
 		call->rx_pkt_offset = rx_pkt_offset;
 		call->rx_pkt_len = rx_pkt_len;
-		call->rx_pkt_last = rx_pkt_last;
 	}
 done:
 	trace_rxrpc_recvdata(call, rxrpc_recvmsg_data_return, seq,

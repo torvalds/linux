@@ -121,7 +121,7 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_connection *conn,
 
 	mtu = conn->params.peer->if_mtu;
 	mtu -= conn->params.peer->hdrsize;
-	jmax = (call->nr_jumbo_bad > 3) ? 1 : rxrpc_rx_jumbo_max;
+	jmax = rxrpc_rx_jumbo_max;
 	ackinfo.rxMTU		= htonl(rxrpc_rx_mtu);
 	ackinfo.maxMTU		= htonl(mtu);
 	ackinfo.rwind		= htonl(call->rx_winsize);

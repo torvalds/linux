@@ -18,6 +18,7 @@
  */
 #define rxrpc_skb_traces \
 	EM(rxrpc_skb_cleaned,			"CLN") \
+	EM(rxrpc_skb_cloned_jumbo,		"CLJ") \
 	EM(rxrpc_skb_freed,			"FRE") \
 	EM(rxrpc_skb_got,			"GOT") \
 	EM(rxrpc_skb_lost,			"*L*") \
@@ -630,16 +631,15 @@ TRACE_EVENT(rxrpc_transmit,
 
 TRACE_EVENT(rxrpc_rx_data,
 	    TP_PROTO(unsigned int call, rxrpc_seq_t seq,
-		     rxrpc_serial_t serial, u8 flags, u8 anno),
+		     rxrpc_serial_t serial, u8 flags),
 
-	    TP_ARGS(call, seq, serial, flags, anno),
+	    TP_ARGS(call, seq, serial, flags),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		call		)
 		    __field(rxrpc_seq_t,		seq		)
 		    __field(rxrpc_serial_t,		serial		)
 		    __field(u8,				flags		)
-		    __field(u8,				anno		)
 			     ),
 
 	    TP_fast_assign(
@@ -647,15 +647,13 @@ TRACE_EVENT(rxrpc_rx_data,
 		    __entry->seq = seq;
 		    __entry->serial = serial;
 		    __entry->flags = flags;
-		    __entry->anno = anno;
 			   ),
 
-	    TP_printk("c=%08x DATA %08x q=%08x fl=%02x a=%02x",
+	    TP_printk("c=%08x DATA %08x q=%08x fl=%02x",
 		      __entry->call,
 		      __entry->serial,
 		      __entry->seq,
-		      __entry->flags,
-		      __entry->anno)
+		      __entry->flags)
 	    );
 
 TRACE_EVENT(rxrpc_rx_ack,
