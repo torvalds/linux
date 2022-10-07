@@ -128,25 +128,9 @@ static int ntfs_extend_initialized_size(struct file *file,
 				goto out;
 
 			if (lcn == SPARSE_LCN) {
-				loff_t vbo = (loff_t)vcn << bits;
-				loff_t to = vbo + ((loff_t)clen << bits);
-
-				if (to <= new_valid) {
-					ni->i_valid = to;
-					pos = to;
-					goto next;
-				}
-
-				if (vbo < pos) {
-					pos = vbo;
-				} else {
-					to = (new_valid >> bits) << bits;
-					if (pos < to) {
-						ni->i_valid = to;
-						pos = to;
-						goto next;
-					}
-				}
+				pos = ((loff_t)clen + vcn) << bits;
+				ni->i_valid = pos;
+				goto next;
 			}
 		}
 
@@ -279,8 +263,9 @@ void ntfs_sparse_cluster(struct inode *inode, struct page *page0, CLST vcn,
 {
 	struct address_space *mapping = inode->i_mapping;
 	struct ntfs_sb_info *sbi = inode->i_sb->s_fs_info;
-	u64 vbo = (u64)vcn << sbi->cluster_bits;
-	u64 bytes = (u64)len << sbi->cluster_bits;
+	u8 cluster_bits = sbi->cluster_bits;
+	u64 vbo = (u64)vcn << cluster_bits;
+	u64 bytes = (u64)len << cluster_bits;
 	u32 blocksize = 1 << inode->i_blkbits;
 	pgoff_t idx0 = page0 ? page0->index : -1;
 	loff_t vbo_clst = vbo & sbi->cluster_mask_inv;
@@ -329,11 +314,10 @@ void ntfs_sparse_cluster(struct inode *inode, struct page *page0, CLST vcn,
 
 		zero_user_segment(page, from, to);
 
-		if (!partial) {
-			if (!PageUptodate(page))
-				SetPageUptodate(page);
-			set_page_dirty(page);
-		}
+		if (!partial)
+			SetPageUptodate(page);
+		flush_dcache_page(page);
+		set_page_dirty(page);
 
 		if (idx != idx0) {
 			unlock_page(page);
@@ -341,7 +325,6 @@ void ntfs_sparse_cluster(struct inode *inode, struct page *page0, CLST vcn,
 		}
 		cond_resched();
 	}
-	mark_inode_dirty(inode);
 }
 
 /*
@@ -588,11 +571,7 @@ static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 		u32 frame_size;
 		loff_t mask, vbo_a, end_a, tmp;
 
-		err = filemap_write_and_wait_range(mapping, vbo, end - 1);
-		if (err)
-			goto out;
-
-		err = filemap_write_and_wait_range(mapping, end, LLONG_MAX);
+		err = filemap_write_and_wait_range(mapping, vbo, LLONG_MAX);
 		if (err)
 			goto out;
 
@@ -693,7 +672,7 @@ static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 			goto out;
 
 		if (is_supported_holes) {
-			CLST vcn_v = ni->i_valid >> sbi->cluster_bits;
+			CLST vcn_v = bytes_to_cluster(sbi, ni->i_valid);
 			CLST vcn = vbo >> sbi->cluster_bits;
 			CLST cend = bytes_to_cluster(sbi, end);
 			CLST lcn, clen;
