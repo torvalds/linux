@@ -10,6 +10,7 @@
 #include <linux/termios.h>	/* For TIOCINQ/OUTQ */
 #include <linux/spinlock.h>
 #include <linux/wait.h>
+#include <linux/rwsem.h>
 
 #include <net/sock.h>
 
@@ -112,10 +113,11 @@ static DEFINE_SPINLOCK(qrtr_nodes_lock);
 /* broadcast list */
 static LIST_HEAD(qrtr_all_nodes);
 /* lock for qrtr_all_nodes and node reference */
-static DEFINE_MUTEX(qrtr_node_lock);
+static DECLARE_RWSEM(qrtr_node_lock);
 
 /* local port allocation management */
 static DEFINE_XARRAY_ALLOC(qrtr_ports);
+u32 qrtr_ports_next = QRTR_MIN_EPH_SOCKET;
 
 /**
  * struct qrtr_node - endpoint node
@@ -167,6 +169,32 @@ static int qrtr_bcast_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 static struct qrtr_sock *qrtr_port_lookup(int port);
 static void qrtr_port_put(struct qrtr_sock *ipc);
 
+static bool refcount_dec_and_rwsem_lock(refcount_t *r,
+					struct rw_semaphore *sem)
+{
+	if (refcount_dec_not_one(r))
+		return false;
+
+	down_write(sem);
+	if (!refcount_dec_and_test(r)) {
+		up_write(sem);
+		return false;
+	}
+
+	return true;
+}
+
+static inline int kref_put_rwsem_lock(struct kref *kref,
+				      void (*release)(struct kref *kref),
+				      struct rw_semaphore *sem)
+{
+	if (refcount_dec_and_rwsem_lock(&kref->refcount, sem)) {
+		release(kref);
+		return 1;
+	}
+	return 0;
+}
+
 /* Release node resources and free the node.
  *
  * Do not call directly, use qrtr_node_release.  To be used with
@@ -191,7 +219,7 @@ static void __qrtr_node_release(struct kref *kref)
 	spin_unlock_irqrestore(&qrtr_nodes_lock, flags);
 
 	list_del(&node->item);
-	mutex_unlock(&qrtr_node_lock);
+	up_write(&qrtr_node_lock);
 
 	skb_queue_purge(&node->rx_queue);
 
@@ -217,7 +245,7 @@ static void qrtr_node_release(struct qrtr_node *node)
 {
 	if (!node)
 		return;
-	kref_put_mutex(&node->ref, __qrtr_node_release, &qrtr_node_lock);
+	kref_put_rwsem_lock(&node->ref, __qrtr_node_release, &qrtr_node_lock);
 }
 
 /**
@@ -227,12 +255,15 @@ static void qrtr_node_release(struct qrtr_node *node)
  */
 static void qrtr_tx_resume(struct qrtr_node *node, struct sk_buff *skb)
 {
-	struct qrtr_ctrl_pkt *pkt = (struct qrtr_ctrl_pkt *)skb->data;
-	u64 remote_node = le32_to_cpu(pkt->client.node);
-	u32 remote_port = le32_to_cpu(pkt->client.port);
+	struct qrtr_ctrl_pkt pkt = {0,};
 	struct qrtr_tx_flow *flow;
 	unsigned long key;
+	u64 remote_node;
+	u32 remote_port;
 
+	skb_copy_bits(skb, 0, &pkt, sizeof(pkt));
+	remote_node = le32_to_cpu(pkt.client.node);
+	remote_port = le32_to_cpu(pkt.client.port);
 	key = remote_node << 32 | remote_port;
 
 	rcu_read_lock();
@@ -426,11 +457,13 @@ static void qrtr_node_assign(struct qrtr_node *node, unsigned int nid)
 {
 	unsigned long flags;
 
-	if (nid == QRTR_EP_NID_AUTO)
+	if (nid == node->nid || nid == QRTR_EP_NID_AUTO)
 		return;
 
 	spin_lock_irqsave(&qrtr_nodes_lock, flags);
-	radix_tree_insert(&qrtr_nodes, nid, node);
+	if (!radix_tree_lookup(&qrtr_nodes, nid))
+		radix_tree_insert(&qrtr_nodes, nid, node);
+
 	if (node->nid == QRTR_EP_NID_AUTO)
 		node->nid = nid;
 	spin_unlock_irqrestore(&qrtr_nodes_lock, flags);
@@ -455,14 +488,16 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 	size_t size;
 	unsigned int ver;
 	size_t hdrlen;
+	int errcode;
 
 	if (len == 0 || len & 3)
 		return -EINVAL;
 
-	skb = __netdev_alloc_skb(NULL, len, GFP_ATOMIC | __GFP_NOWARN);
+	skb = alloc_skb_with_frags(sizeof(*v1), len, 0, &errcode, GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
 
+	skb_reserve(skb, sizeof(*v1));
 	cb = (struct qrtr_cb *)skb->cb;
 
 	/* Version field in v1 is little endian, so this works for both cases */
@@ -516,7 +551,9 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 	    cb->type != QRTR_TYPE_RESUME_TX)
 		goto err;
 
-	skb_put_data(skb, data + hdrlen, size);
+	skb->data_len = size;
+	skb->len = size;
+	skb_store_bits(skb, 0, data + hdrlen, size);
 
 	qrtr_node_assign(node, cb->src_node);
 
@@ -612,9 +649,9 @@ int qrtr_endpoint_register(struct qrtr_endpoint *ep, unsigned int nid)
 
 	qrtr_node_assign(node, nid);
 
-	mutex_lock(&qrtr_node_lock);
+	down_write(&qrtr_node_lock);
 	list_add(&node->item, &qrtr_all_nodes);
-	mutex_unlock(&qrtr_node_lock);
+	up_write(&qrtr_node_lock);
 	ep->node = node;
 
 	return 0;
@@ -775,8 +812,9 @@ static int qrtr_port_assign(struct qrtr_sock *ipc, int *port)
 	int rc;
 
 	if (!*port) {
-		rc = xa_alloc(&qrtr_ports, port, ipc, QRTR_EPH_PORT_RANGE,
-				GFP_KERNEL);
+		rc = xa_alloc_cyclic(&qrtr_ports, port, ipc,
+				     QRTR_EPH_PORT_RANGE, &qrtr_ports_next,
+				     GFP_KERNEL);
 	} else if (*port < QRTR_MIN_EPH_SOCKET && !capable(CAP_NET_ADMIN)) {
 		rc = -EACCES;
 	} else if (*port == QRTR_PORT_CTRL) {
@@ -890,6 +928,7 @@ static int qrtr_local_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 {
 	struct qrtr_sock *ipc;
 	struct qrtr_cb *cb;
+	struct sock *sk = skb->sk;
 
 	ipc = qrtr_port_lookup(to->sq_port);
 	if (!ipc || &ipc->sk == skb->sk) { /* do not send to self */
@@ -897,6 +936,15 @@ static int qrtr_local_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 			qrtr_port_put(ipc);
 		kfree_skb(skb);
 		return -ENODEV;
+	}
+
+	/* Keep resetting NETRESET until socket is closed */
+	if (sk && sk->sk_err == ENETRESET) {
+		sk->sk_err = ENETRESET;
+		sk_error_report(sk);
+		qrtr_port_put(ipc);
+		kfree_skb(skb);
+		return 0;
 	}
 
 	cb = (struct qrtr_cb *)skb->cb;
@@ -921,7 +969,7 @@ static int qrtr_bcast_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 {
 	struct sk_buff *skbn;
 
-	mutex_lock(&qrtr_node_lock);
+	down_read(&qrtr_node_lock);
 	list_for_each_entry(node, &qrtr_all_nodes, item) {
 		if (node->nid == QRTR_EP_NID_AUTO)
 			continue;
@@ -931,7 +979,7 @@ static int qrtr_bcast_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 		skb_set_owner_w(skbn, skb->sk);
 		qrtr_node_enqueue(node, skbn, type, from, to);
 	}
-	mutex_unlock(&qrtr_node_lock);
+	up_read(&qrtr_node_lock);
 
 	qrtr_local_enqueue(NULL, skb, type, from, to);
 
