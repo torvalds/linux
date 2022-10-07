@@ -149,6 +149,8 @@ static int tegra_fuse_probe(struct platform_device *pdev)
 	nvmem.owner = THIS_MODULE;
 	nvmem.cells = fuse->soc->cells;
 	nvmem.ncells = fuse->soc->num_cells;
+	nvmem.keepout = fuse->soc->keepouts;
+	nvmem.nkeepout = fuse->soc->num_keepouts;
 	nvmem.type = NVMEM_TYPE_OTP;
 	nvmem.read_only = true;
 	nvmem.root_only = true;

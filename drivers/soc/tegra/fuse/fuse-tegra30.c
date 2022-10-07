@@ -9,6 +9,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/nvmem-consumer.h>
+#include <linux/nvmem-provider.h>
 #include <linux/of_device.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
@@ -494,6 +495,14 @@ static const struct nvmem_cell_lookup tegra186_fuse_lookups[] = {
 	},
 };
 
+static const struct nvmem_keepout tegra186_fuse_keepouts[] = {
+	{ .start = 0x01c, .end = 0x0f0 },
+	{ .start = 0x138, .end = 0x198 },
+	{ .start = 0x1d8, .end = 0x250 },
+	{ .start = 0x280, .end = 0x290 },
+	{ .start = 0x340, .end = 0x344 }
+};
+
 static const struct tegra_fuse_info tegra186_fuse_info = {
 	.read = tegra30_fuse_read,
 	.size = 0x478,
@@ -507,6 +516,8 @@ const struct tegra_fuse_soc tegra186_fuse_soc = {
 	.num_lookups = ARRAY_SIZE(tegra186_fuse_lookups),
 	.cells = tegra186_fuse_cells,
 	.num_cells = ARRAY_SIZE(tegra186_fuse_cells),
+	.keepouts = tegra186_fuse_keepouts,
+	.num_keepouts = ARRAY_SIZE(tegra186_fuse_keepouts),
 	.soc_attr_group = &tegra_soc_attr_group,
 	.clk_suspend_on = false,
 };
@@ -576,6 +587,15 @@ static const struct nvmem_cell_lookup tegra194_fuse_lookups[] = {
 	},
 };
 
+static const struct nvmem_keepout tegra194_fuse_keepouts[] = {
+	{ .start = 0x01c, .end = 0x0b8 },
+	{ .start = 0x12c, .end = 0x198 },
+	{ .start = 0x1a0, .end = 0x1bc },
+	{ .start = 0x1d8, .end = 0x250 },
+	{ .start = 0x270, .end = 0x290 },
+	{ .start = 0x310, .end = 0x45c }
+};
+
 static const struct tegra_fuse_info tegra194_fuse_info = {
 	.read = tegra30_fuse_read,
 	.size = 0x650,
@@ -589,6 +609,8 @@ const struct tegra_fuse_soc tegra194_fuse_soc = {
 	.num_lookups = ARRAY_SIZE(tegra194_fuse_lookups),
 	.cells = tegra194_fuse_cells,
 	.num_cells = ARRAY_SIZE(tegra194_fuse_cells),
+	.keepouts = tegra194_fuse_keepouts,
+	.num_keepouts = ARRAY_SIZE(tegra194_fuse_keepouts),
 	.soc_attr_group = &tegra194_soc_attr_group,
 	.clk_suspend_on = false,
 };
@@ -625,6 +647,20 @@ static const struct nvmem_cell_lookup tegra234_fuse_lookups[] = {
 	},
 };
 
+static const struct nvmem_keepout tegra234_fuse_keepouts[] = {
+	{ .start = 0x01c, .end = 0x0c8 },
+	{ .start = 0x12c, .end = 0x184 },
+	{ .start = 0x190, .end = 0x198 },
+	{ .start = 0x1a0, .end = 0x204 },
+	{ .start = 0x21c, .end = 0x250 },
+	{ .start = 0x25c, .end = 0x2f0 },
+	{ .start = 0x310, .end = 0x3d8 },
+	{ .start = 0x400, .end = 0x4f0 },
+	{ .start = 0x4f8, .end = 0x7e8 },
+	{ .start = 0x8d0, .end = 0x8d8 },
+	{ .start = 0xacc, .end = 0xf00 }
+};
+
 static const struct tegra_fuse_info tegra234_fuse_info = {
 	.read = tegra30_fuse_read,
 	.size = 0x98c,
@@ -638,6 +674,8 @@ const struct tegra_fuse_soc tegra234_fuse_soc = {
 	.num_lookups = ARRAY_SIZE(tegra234_fuse_lookups),
 	.cells = tegra234_fuse_cells,
 	.num_cells = ARRAY_SIZE(tegra234_fuse_cells),
+	.keepouts = tegra234_fuse_keepouts,
+	.num_keepouts = ARRAY_SIZE(tegra234_fuse_keepouts),
 	.soc_attr_group = &tegra194_soc_attr_group,
 	.clk_suspend_on = false,
 };
