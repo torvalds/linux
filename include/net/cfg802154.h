@@ -223,6 +223,11 @@ struct wpan_phy {
 	atomic_t hold_txs;
 	wait_queue_head_t sync_txq;
 
+	/* Current filtering level on reception.
+	 * Only allowed to be changed if phy is not operational.
+	 */
+	enum ieee802154_filtering_level filtering;
+
 	char priv[] __aligned(NETDEV_ALIGN);
 };
 
@@ -373,8 +378,6 @@ struct wpan_dev {
 	s8 frame_retries;
 
 	bool lbt;
-
-	bool promiscuous_mode;
 
 	/* fallback for acknowledgment bit setting */
 	bool ackreq;

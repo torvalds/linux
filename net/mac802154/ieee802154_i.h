@@ -26,6 +26,8 @@ struct ieee802154_local {
 	struct ieee802154_hw hw;
 	const struct ieee802154_ops *ops;
 
+	/* hardware address filter */
+	struct ieee802154_hw_addr_filt addr_filt;
 	/* ieee802154 phy */
 	struct wpan_phy *phy;
 
@@ -81,6 +83,16 @@ struct ieee802154_sub_if_data {
 
 	struct ieee802154_local *local;
 	struct net_device *dev;
+
+	/* Each interface starts and works in nominal state at a given filtering
+	 * level given by iface_default_filtering, which is set once for all at
+	 * the interface creation and should not evolve over time. For some MAC
+	 * operations however, the filtering level may change temporarily, as
+	 * reflected in the required_filtering field. The actual filtering at
+	 * the PHY level may be different and is shown in struct wpan_phy.
+	 */
+	enum ieee802154_filtering_level iface_default_filtering;
+	enum ieee802154_filtering_level required_filtering;
 
 	unsigned long state;
 	char name[IFNAMSIZ];

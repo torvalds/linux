@@ -129,11 +129,80 @@ drv_set_promiscuous_mode(struct ieee802154_local *local, bool on)
 	return ret;
 }
 
-static inline int drv_start(struct ieee802154_local *local)
+static inline int drv_start(struct ieee802154_local *local,
+			    enum ieee802154_filtering_level level,
+			    const struct ieee802154_hw_addr_filt *addr_filt)
 {
 	int ret;
 
 	might_sleep();
+
+	/* setup receive mode parameters e.g. address mode */
+	if (local->hw.flags & IEEE802154_HW_AFILT) {
+		ret = drv_set_pan_id(local, addr_filt->pan_id);
+		if (ret < 0)
+			return ret;
+
+		ret = drv_set_short_addr(local, addr_filt->short_addr);
+		if (ret < 0)
+			return ret;
+
+		ret = drv_set_extended_addr(local, addr_filt->ieee_addr);
+		if (ret < 0)
+			return ret;
+	}
+
+	switch (level) {
+	case IEEE802154_FILTERING_NONE:
+		fallthrough;
+	case IEEE802154_FILTERING_1_FCS:
+		fallthrough;
+	case IEEE802154_FILTERING_2_PROMISCUOUS:
+		/* TODO: Requires a different receive mode setup e.g.
+		 * at86rf233 hardware.
+		 */
+		fallthrough;
+	case IEEE802154_FILTERING_3_SCAN:
+		if (local->hw.flags & IEEE802154_HW_PROMISCUOUS) {
+			ret = drv_set_promiscuous_mode(local, true);
+			if (ret < 0)
+				return ret;
+		} else {
+			return -EOPNOTSUPP;
+		}
+
+		/* In practice other filtering levels can be requested, but as
+		 * for now most hardware/drivers only support
+		 * IEEE802154_FILTERING_NONE, we fallback to this actual
+		 * filtering level in hardware and make our own additional
+		 * filtering in mac802154 receive path.
+		 *
+		 * TODO: Move this logic to the device drivers as hardware may
+		 * support more higher level filters. Hardware may also require
+		 * a different order how register are set, which could currently
+		 * be buggy, so all received parameters need to be moved to the
+		 * start() callback and let the driver go into the mode before
+		 * it will turn on receive handling.
+		 */
+		local->phy->filtering = IEEE802154_FILTERING_NONE;
+		break;
+	case IEEE802154_FILTERING_4_FRAME_FIELDS:
+		/* Do not error out if IEEE802154_HW_PROMISCUOUS because we
+		 * expect the hardware to operate at the level
+		 * IEEE802154_FILTERING_4_FRAME_FIELDS anyway.
+		 */
+		if (local->hw.flags & IEEE802154_HW_PROMISCUOUS) {
+			ret = drv_set_promiscuous_mode(local, false);
+			if (ret < 0)
+				return ret;
+		}
+
+		local->phy->filtering = IEEE802154_FILTERING_4_FRAME_FIELDS;
+		break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
 
 	trace_802154_drv_start(local);
 	local->started = true;

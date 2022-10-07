@@ -147,25 +147,12 @@ static int ieee802154_setup_hw(struct ieee802154_sub_if_data *sdata)
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 	int ret;
 
-	if (local->hw.flags & IEEE802154_HW_PROMISCUOUS) {
-		ret = drv_set_promiscuous_mode(local,
-					       wpan_dev->promiscuous_mode);
-		if (ret < 0)
-			return ret;
-	}
+	sdata->required_filtering = sdata->iface_default_filtering;
 
 	if (local->hw.flags & IEEE802154_HW_AFILT) {
-		ret = drv_set_pan_id(local, wpan_dev->pan_id);
-		if (ret < 0)
-			return ret;
-
-		ret = drv_set_extended_addr(local, wpan_dev->extended_addr);
-		if (ret < 0)
-			return ret;
-
-		ret = drv_set_short_addr(local, wpan_dev->short_addr);
-		if (ret < 0)
-			return ret;
+		local->addr_filt.pan_id = wpan_dev->pan_id;
+		local->addr_filt.ieee_addr = wpan_dev->extended_addr;
+		local->addr_filt.short_addr = wpan_dev->short_addr;
 	}
 
 	if (local->hw.flags & IEEE802154_HW_LBT) {
@@ -206,7 +193,8 @@ static int mac802154_slave_open(struct net_device *dev)
 		if (res)
 			goto err;
 
-		res = drv_start(local);
+		res = drv_start(local, sdata->required_filtering,
+				&local->addr_filt);
 		if (res)
 			goto err;
 	}
@@ -223,15 +211,16 @@ err:
 
 static int
 ieee802154_check_mac_settings(struct ieee802154_local *local,
-			      struct wpan_dev *wpan_dev,
-			      struct wpan_dev *nwpan_dev)
+			      struct ieee802154_sub_if_data *sdata,
+			      struct ieee802154_sub_if_data *nsdata)
 {
+	struct wpan_dev *nwpan_dev = &nsdata->wpan_dev;
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+
 	ASSERT_RTNL();
 
-	if (local->hw.flags & IEEE802154_HW_PROMISCUOUS) {
-		if (wpan_dev->promiscuous_mode != nwpan_dev->promiscuous_mode)
-			return -EBUSY;
-	}
+	if (sdata->iface_default_filtering != nsdata->iface_default_filtering)
+		return -EBUSY;
 
 	if (local->hw.flags & IEEE802154_HW_AFILT) {
 		if (wpan_dev->pan_id != nwpan_dev->pan_id ||
@@ -285,8 +274,7 @@ ieee802154_check_concurrent_iface(struct ieee802154_sub_if_data *sdata,
 			/* check all phy mac sublayer settings are the same.
 			 * We have only one phy, different values makes trouble.
 			 */
-			ret = ieee802154_check_mac_settings(local, wpan_dev,
-							    &nsdata->wpan_dev);
+			ret = ieee802154_check_mac_settings(local, sdata, nsdata);
 			if (ret < 0)
 				return ret;
 		}
@@ -586,7 +574,7 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 		sdata->dev->priv_destructor = mac802154_wpan_free;
 		sdata->dev->netdev_ops = &mac802154_wpan_ops;
 		sdata->dev->ml_priv = &mac802154_mlme_wpan;
-		wpan_dev->promiscuous_mode = false;
+		sdata->iface_default_filtering = IEEE802154_FILTERING_4_FRAME_FIELDS;
 		wpan_dev->header_ops = &ieee802154_header_ops;
 
 		mutex_init(&sdata->sec_mtx);
@@ -600,7 +588,7 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 	case NL802154_IFTYPE_MONITOR:
 		sdata->dev->needs_free_netdev = true;
 		sdata->dev->netdev_ops = &mac802154_monitor_ops;
-		wpan_dev->promiscuous_mode = true;
+		sdata->iface_default_filtering = IEEE802154_FILTERING_NONE;
 		break;
 	default:
 		BUG();

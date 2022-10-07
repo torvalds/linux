@@ -67,7 +67,7 @@ static int ieee802154_resume(struct wpan_phy *wpan_phy)
 		goto wake_up;
 
 	/* restart hardware */
-	ret = drv_start(local);
+	ret = drv_start(local, local->phy->filtering, &local->addr_filt);
 	if (ret)
 		return ret;
 

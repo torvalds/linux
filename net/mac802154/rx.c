@@ -268,10 +268,20 @@ void ieee802154_rx(struct ieee802154_local *local, struct sk_buff *skb)
 
 	ieee802154_monitors_rx(local, skb);
 
+	/* TODO: Avoid delivering frames received at the level
+	 * IEEE802154_FILTERING_NONE on interfaces not expecting it because of
+	 * the missing auto ACK handling feature.
+	 */
+
+	/* TODO: Handle upcomming receive path where the PHY is at the
+	 * IEEE802154_FILTERING_NONE level during a scan.
+	 */
+
 	/* Check if transceiver doesn't validate the checksum.
 	 * If not we validate the checksum here.
 	 */
-	if (local->hw.flags & IEEE802154_HW_RX_DROP_BAD_CKSUM) {
+	if (local->hw.flags & IEEE802154_HW_RX_DROP_BAD_CKSUM ||
+	    local->phy->filtering == IEEE802154_FILTERING_NONE) {
 		crc = crc_ccitt(0, skb->data, skb->len);
 		if (crc) {
 			rcu_read_unlock();
