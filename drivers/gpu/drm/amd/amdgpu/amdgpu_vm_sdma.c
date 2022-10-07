@@ -115,8 +115,15 @@ static int amdgpu_vm_sdma_commit(struct amdgpu_vm_update_params *p,
 		amdgpu_bo_fence(p->vm->root.bo, f, true);
 	}
 
-	if (fence && !p->immediate)
+	if (fence && !p->immediate) {
+		/*
+		 * Most hw generations now have a separate queue for page table
+		 * updates, but when the queue is shared with userspace we need
+		 * the extra CPU round trip to correctly flush the TLB.
+		 */
+		set_bit(DRM_SCHED_FENCE_DONT_PIPELINE, &f->flags);
 		swap(*fence, f);
+	}
 	dma_fence_put(f);
 	return 0;
 
