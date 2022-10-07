@@ -1002,6 +1002,8 @@ static inline bool tb_switch_tmu_is_enabled(const struct tb_switch *sw)
 	       sw->tmu.unidirectional == sw->tmu.unidirectional_request;
 }
 
+bool tb_port_clx_is_enabled(struct tb_port *port, unsigned int clx_mask);
+
 static inline const char *tb_switch_clx_name(enum tb_clx clx)
 {
 	switch (clx) {
@@ -1013,36 +1015,34 @@ static inline const char *tb_switch_clx_name(enum tb_clx clx)
 	}
 }
 
-int tb_switch_enable_clx(struct tb_switch *sw, enum tb_clx clx);
-int tb_switch_disable_clx(struct tb_switch *sw, enum tb_clx clx);
+int tb_switch_clx_enable(struct tb_switch *sw, enum tb_clx clx);
+int tb_switch_clx_disable(struct tb_switch *sw, enum tb_clx clx);
 
 /**
- * tb_switch_is_clx_enabled() - Checks if the CLx is enabled
+ * tb_switch_clx_is_enabled() - Checks if the CLx is enabled
  * @sw: Router to check for the CLx
  * @clx: The CLx state to check for
  *
  * Checks if the specified CLx is enabled on the router upstream link.
  * Not applicable for a host router.
  */
-static inline bool tb_switch_is_clx_enabled(const struct tb_switch *sw,
+static inline bool tb_switch_clx_is_enabled(const struct tb_switch *sw,
 					    enum tb_clx clx)
 {
 	return sw->clx == clx;
 }
 
 /**
- * tb_switch_is_clx_supported() - Is CLx supported on this type of router
+ * tb_switch_clx_is_supported() - Is CLx supported on this type of router
  * @sw: The router to check CLx support for
  */
-static inline bool tb_switch_is_clx_supported(const struct tb_switch *sw)
+static inline bool tb_switch_clx_is_supported(const struct tb_switch *sw)
 {
 	if (sw->quirks & QUIRK_NO_CLX)
 		return false;
 
 	return tb_switch_is_usb4(sw) || tb_switch_is_titan_ridge(sw);
 }
-
-int tb_switch_mask_clx_objections(struct tb_switch *sw);
 
 int tb_switch_pcie_l1_enable(struct tb_switch *sw);
 
@@ -1089,7 +1089,6 @@ void tb_port_lane_bonding_disable(struct tb_port *port);
 int tb_port_wait_for_link_width(struct tb_port *port, int width,
 				int timeout_msec);
 int tb_port_update_credits(struct tb_port *port);
-bool tb_port_is_clx_enabled(struct tb_port *port, unsigned int clx);
 
 int tb_switch_find_vse_cap(struct tb_switch *sw, enum tb_switch_vse_cap vsec);
 int tb_switch_find_cap(struct tb_switch *sw, enum tb_switch_cap cap);

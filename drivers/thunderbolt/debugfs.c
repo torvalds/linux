@@ -570,7 +570,7 @@ static int margining_run_write(void *data, u64 val)
 	 * CL states may interfere with lane margining so inform the user know
 	 * and bail out.
 	 */
-	if (tb_port_is_clx_enabled(port, TB_CL1 | TB_CL2)) {
+	if (tb_port_clx_is_enabled(port, TB_CL1 | TB_CL2)) {
 		tb_port_warn(port,
 			     "CL states are enabled, Disable them with clx=0 and re-connect\n");
 		ret = -EINVAL;
