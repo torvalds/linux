@@ -240,6 +240,38 @@ static void tb_discover_dp_resources(struct tb *tb)
 	}
 }
 
+static int tb_increase_switch_tmu_accuracy(struct device *dev, void *data)
+{
+	struct tb_switch *sw;
+
+	sw = tb_to_switch(dev);
+	if (sw) {
+		tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_HIFI,
+					tb_switch_is_clx_enabled(sw, TB_CL1));
+		if (tb_switch_tmu_enable(sw))
+			tb_sw_warn(sw, "failed to increase TMU rate\n");
+	}
+
+	return 0;
+}
+
+static void tb_increase_tmu_accuracy(struct tb_tunnel *tunnel)
+{
+	struct tb_switch *sw;
+
+	if (!tunnel)
+		return;
+
+	/*
+	 * Once first DP tunnel is established we change the TMU
+	 * accuracy of first depth child routers (and the host router)
+	 * to the highest. This is needed for the DP tunneling to work
+	 * but also allows CL0s.
+	 */
+	sw = tunnel->tb->root_switch;
+	device_for_each_child(&sw->dev, NULL, tb_increase_switch_tmu_accuracy);
+}
+
 static void tb_switch_discover_tunnels(struct tb_switch *sw,
 				       struct list_head *list,
 				       bool alloc_hopids)
@@ -253,13 +285,7 @@ static void tb_switch_discover_tunnels(struct tb_switch *sw,
 		switch (port->config.type) {
 		case TB_TYPE_DP_HDMI_IN:
 			tunnel = tb_tunnel_discover_dp(tb, port, alloc_hopids);
-			/*
-			 * In case of DP tunnel exists, change host router's
-			 * 1st children TMU mode to HiFi for CL0s to work.
-			 */
-			if (tunnel)
-				tb_switch_enable_tmu_1st_child(tb->root_switch,
-						TB_SWITCH_TMU_RATE_HIFI);
+			tb_increase_tmu_accuracy(tunnel);
 			break;
 
 		case TB_TYPE_PCIE_DOWN:
@@ -1263,8 +1289,7 @@ static void tb_tunnel_dp(struct tb *tb)
 	 * In case of DP tunnel exists, change host router's 1st children
 	 * TMU mode to HiFi for CL0s to work.
 	 */
-	tb_switch_enable_tmu_1st_child(tb->root_switch, TB_SWITCH_TMU_RATE_HIFI);
-
+	tb_increase_tmu_accuracy(tunnel);
 	return;
 
 err_free:
