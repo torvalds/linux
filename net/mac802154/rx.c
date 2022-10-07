@@ -277,11 +277,8 @@ void ieee802154_rx(struct ieee802154_local *local, struct sk_buff *skb)
 	 * IEEE802154_FILTERING_NONE level during a scan.
 	 */
 
-	/* Check if transceiver doesn't validate the checksum.
-	 * If not we validate the checksum here.
-	 */
-	if (local->hw.flags & IEEE802154_HW_RX_DROP_BAD_CKSUM ||
-	    local->phy->filtering == IEEE802154_FILTERING_NONE) {
+	/* Level 1 filtering: Check the FCS by software when relevant */
+	if (local->hw.phy->filtering == IEEE802154_FILTERING_NONE) {
 		crc = crc_ccitt(0, skb->data, skb->len);
 		if (crc) {
 			rcu_read_unlock();
