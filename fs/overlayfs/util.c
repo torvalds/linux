@@ -463,7 +463,7 @@ static void ovl_dir_version_inc(struct dentry *dentry, bool impurity)
 	 * which have been copied up and have origins), so only need to note
 	 * changes to impure entries.
 	 */
-	if (!ovl_dir_is_real(dentry) || impurity)
+	if (!ovl_dir_is_real(inode) || impurity)
 		OVL_I(inode)->version++;
 }
 
@@ -475,10 +475,8 @@ void ovl_dir_modified(struct dentry *dentry, bool impurity)
 	ovl_dir_version_inc(dentry, impurity);
 }
 
-u64 ovl_dentry_version_get(struct dentry *dentry)
+u64 ovl_inode_version_get(struct inode *inode)
 {
-	struct inode *inode = d_inode(dentry);
-
 	WARN_ON(!inode_is_locked(inode));
 	return OVL_I(inode)->version;
 }

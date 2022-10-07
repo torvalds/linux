@@ -401,7 +401,7 @@ const char *ovl_dentry_get_redirect(struct dentry *dentry);
 void ovl_dentry_set_redirect(struct dentry *dentry, const char *redirect);
 void ovl_inode_update(struct inode *inode, struct dentry *upperdentry);
 void ovl_dir_modified(struct dentry *dentry, bool impurity);
-u64 ovl_dentry_version_get(struct dentry *dentry);
+u64 ovl_inode_version_get(struct inode *inode);
 bool ovl_is_whiteout(struct dentry *dentry);
 struct file *ovl_path_open(const struct path *path, int flags);
 int ovl_copy_up_start(struct dentry *dentry, int flags);
@@ -571,9 +571,9 @@ int ovl_indexdir_cleanup(struct ovl_fs *ofs);
  * lower dir was removed under it and possibly before it was rotated from upper
  * to lower layer.
  */
-static inline bool ovl_dir_is_real(struct dentry *dir)
+static inline bool ovl_dir_is_real(struct inode *dir)
 {
-	return !ovl_test_flag(OVL_WHITEOUTS, d_inode(dir));
+	return !ovl_test_flag(OVL_WHITEOUTS, dir);
 }
 
 /* inode.c */
