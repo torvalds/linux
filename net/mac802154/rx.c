@@ -209,6 +209,13 @@ __ieee802154_rx_handle_packet(struct ieee802154_local *local,
 		if (!ieee802154_sdata_running(sdata))
 			continue;
 
+		/* Do not deliver packets received on interfaces expecting
+		 * AACK=1 if the address filters where disabled.
+		 */
+		if (local->hw.phy->filtering < IEEE802154_FILTERING_4_FRAME_FIELDS &&
+		    sdata->required_filtering == IEEE802154_FILTERING_4_FRAME_FIELDS)
+			continue;
+
 		ieee802154_subif_frame(sdata, skb, &hdr);
 		skb = NULL;
 		break;
@@ -267,11 +274,6 @@ void ieee802154_rx(struct ieee802154_local *local, struct sk_buff *skb)
 	rcu_read_lock();
 
 	ieee802154_monitors_rx(local, skb);
-
-	/* TODO: Avoid delivering frames received at the level
-	 * IEEE802154_FILTERING_NONE on interfaces not expecting it because of
-	 * the missing auto ACK handling feature.
-	 */
 
 	/* TODO: Handle upcomming receive path where the PHY is at the
 	 * IEEE802154_FILTERING_NONE level during a scan.
