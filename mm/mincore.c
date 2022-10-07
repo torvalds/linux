@@ -190,8 +190,8 @@ static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *v
 	unsigned long end;
 	int err;
 
-	vma = find_vma(current->mm, addr);
-	if (!vma || addr < vma->vm_start)
+	vma = vma_lookup(current->mm, addr);
+	if (!vma)
 		return -ENOMEM;
 	end = min(vma->vm_end, addr + (pages << PAGE_SHIFT));
 	if (!can_do_mincore(vma)) {
