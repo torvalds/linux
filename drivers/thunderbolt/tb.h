@@ -995,16 +995,14 @@ void tb_switch_enable_tmu_1st_child(struct tb_switch *sw,
 /**
  * tb_switch_tmu_is_enabled() - Checks if the specified TMU mode is enabled
  * @sw: Router whose TMU mode to check
- * @unidirectional: If uni-directional (bi-directional otherwise)
  *
- * Return true if hardware TMU configuration matches the one passed in
- * as parameter. That is HiFi/Normal and either uni-directional or bi-directional.
+ * Return true if hardware TMU configuration matches the requested
+ * configuration.
  */
-static inline bool tb_switch_tmu_is_enabled(const struct tb_switch *sw,
-					    bool unidirectional)
+static inline bool tb_switch_tmu_is_enabled(const struct tb_switch *sw)
 {
 	return sw->tmu.rate == sw->tmu.rate_request &&
-	       sw->tmu.unidirectional == unidirectional;
+	       sw->tmu.unidirectional == sw->tmu.unidirectional_request;
 }
 
 static inline const char *tb_switch_clx_name(enum tb_clx clx)

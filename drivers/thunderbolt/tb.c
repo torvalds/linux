@@ -362,7 +362,7 @@ static int tb_enable_tmu(struct tb_switch *sw)
 	int ret;
 
 	/* If it is already enabled in correct mode, don't touch it */
-	if (tb_switch_tmu_is_enabled(sw, sw->tmu.unidirectional_request))
+	if (tb_switch_tmu_is_enabled(sw))
 		return 0;
 
 	ret = tb_switch_tmu_disable(sw);

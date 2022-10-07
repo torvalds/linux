@@ -639,12 +639,9 @@ out:
  * tb_switch_tmu_enable() - Enable TMU on a router
  * @sw: Router whose TMU to enable
  *
- * Enables TMU of a router to be in uni-directional Normal/HiFi
- * or bi-directional HiFi mode. Calling tb_switch_tmu_configure() is required
- * before calling this function, to select the mode Normal/HiFi and
- * directionality (uni-directional/bi-directional).
- * In HiFi mode all tunneling should work. In Normal mode, DP tunneling can't
- * work. Uni-directional mode is required for CLx (Link Low-Power) to work.
+ * Enables TMU of a router to be in uni-directional Normal/HiFi or
+ * bi-directional HiFi mode. Calling tb_switch_tmu_configure() is
+ * required before calling this function.
  */
 int tb_switch_tmu_enable(struct tb_switch *sw)
 {
@@ -662,7 +659,7 @@ int tb_switch_tmu_enable(struct tb_switch *sw)
 	if (!tb_switch_is_clx_supported(sw))
 		return 0;
 
-	if (tb_switch_tmu_is_enabled(sw, sw->tmu.unidirectional_request))
+	if (tb_switch_tmu_is_enabled(sw))
 		return 0;
 
 	if (tb_switch_is_titan_ridge(sw) && unidirectional) {
