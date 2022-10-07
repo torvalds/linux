@@ -891,6 +891,65 @@ static void emit_nops(u8 **pprog, int len)
 	*pprog = prog;
 }
 
+/* emit the 3-byte VEX prefix
+ *
+ * r: same as rex.r, extra bit for ModRM reg field
+ * x: same as rex.x, extra bit for SIB index field
+ * b: same as rex.b, extra bit for ModRM r/m, or SIB base
+ * m: opcode map select, encoding escape bytes e.g. 0x0f38
+ * w: same as rex.w (32 bit or 64 bit) or opcode specific
+ * src_reg2: additional source reg (encoded as BPF reg)
+ * l: vector length (128 bit or 256 bit) or reserved
+ * pp: opcode prefix (none, 0x66, 0xf2 or 0xf3)
+ */
+static void emit_3vex(u8 **pprog, bool r, bool x, bool b, u8 m,
+		      bool w, u8 src_reg2, bool l, u8 pp)
+{
+	u8 *prog = *pprog;
+	const u8 b0 = 0xc4; /* first byte of 3-byte VEX prefix */
+	u8 b1, b2;
+	u8 vvvv = reg2hex[src_reg2];
+
+	/* reg2hex gives only the lower 3 bit of vvvv */
+	if (is_ereg(src_reg2))
+		vvvv |= 1 << 3;
+
+	/*
+	 * 2nd byte of 3-byte VEX prefix
+	 * ~ means bit inverted encoding
+	 *
+	 *    7                           0
+	 *  +---+---+---+---+---+---+---+---+
+	 *  |~R |~X |~B |         m         |
+	 *  +---+---+---+---+---+---+---+---+
+	 */
+	b1 = (!r << 7) | (!x << 6) | (!b << 5) | (m & 0x1f);
+	/*
+	 * 3rd byte of 3-byte VEX prefix
+	 *
+	 *    7                           0
+	 *  +---+---+---+---+---+---+---+---+
+	 *  | W |     ~vvvv     | L |   pp  |
+	 *  +---+---+---+---+---+---+---+---+
+	 */
+	b2 = (w << 7) | ((~vvvv & 0xf) << 3) | (l << 2) | (pp & 3);
+
+	EMIT3(b0, b1, b2);
+	*pprog = prog;
+}
+
+/* emit BMI2 shift instruction */
+static void emit_shiftx(u8 **pprog, u32 dst_reg, u8 src_reg, bool is64, u8 op)
+{
+	u8 *prog = *pprog;
+	bool r = is_ereg(dst_reg);
+	u8 m = 2; /* escape code 0f38 */
+
+	emit_3vex(&prog, r, false, r, m, is64, src_reg, false, op);
+	EMIT2(0xf7, add_2reg(0xC0, dst_reg, dst_reg));
+	*pprog = prog;
+}
+
 #define INSN_SZ_DIFF (((addrs[i] - addrs[i - 1]) - (prog - temp)))
 
 static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image, u8 *rw_image,
@@ -1137,6 +1196,28 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image, u8 *rw_image
 		case BPF_ALU64 | BPF_LSH | BPF_X:
 		case BPF_ALU64 | BPF_RSH | BPF_X:
 		case BPF_ALU64 | BPF_ARSH | BPF_X:
+			/* BMI2 shifts aren't better when shift count is already in rcx */
+			if (boot_cpu_has(X86_FEATURE_BMI2) && src_reg != BPF_REG_4) {
+				/* shrx/sarx/shlx dst_reg, dst_reg, src_reg */
+				bool w = (BPF_CLASS(insn->code) == BPF_ALU64);
+				u8 op;
+
+				switch (BPF_OP(insn->code)) {
+				case BPF_LSH:
+					op = 1; /* prefix 0x66 */
+					break;
+				case BPF_RSH:
+					op = 3; /* prefix 0xf2 */
+					break;
+				case BPF_ARSH:
+					op = 2; /* prefix 0xf3 */
+					break;
+				}
+
+				emit_shiftx(&prog, dst_reg, src_reg, w, op);
+
+				break;
+			}
 
 			if (src_reg != BPF_REG_4) { /* common case */
 				/* Check for bad case when dst_reg == rcx */
