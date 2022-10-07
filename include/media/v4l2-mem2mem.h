@@ -486,10 +486,10 @@ __poll_t v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
  * @vma: pointer to struct &vm_area_struct
  *
  * Call from driver's mmap() function. Will handle mmap() for both queues
- * seamlessly for videobuffer, which will receive normal per-queue offsets and
- * proper videobuf queue pointers. The differentiation is made outside videobuf
- * by adding a predefined offset to buffers from one of the queues and
- * subtracting it before passing it back to videobuf. Only drivers (and
+ * seamlessly for the video buffer, which will receive normal per-queue offsets
+ * and proper vb2 queue pointers. The differentiation is made outside
+ * vb2 by adding a predefined offset to buffers from one of the queues
+ * and subtracting it before passing it back to vb2. Only drivers (and
  * thus applications) receive modified offsets.
  */
 int v4l2_m2m_mmap(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
@@ -544,7 +544,7 @@ void v4l2_m2m_release(struct v4l2_m2m_dev *m2m_dev);
  * @m2m_dev: opaque pointer to the internal data to handle M2M context
  * @drv_priv: driver's instance private data
  * @queue_init: a callback for queue type-specific initialization function
- *	to be used for initializing videobuf_queues
+ *	to be used for initializing vb2_queues
  *
  * Usually called from driver's ``open()`` function.
  */
@@ -579,7 +579,7 @@ void v4l2_m2m_ctx_release(struct v4l2_m2m_ctx *m2m_ctx);
  * @m2m_ctx: m2m context assigned to the instance given by struct &v4l2_m2m_ctx
  * @vbuf: pointer to struct &vb2_v4l2_buffer
  *
- * Call from videobuf_queue_ops->ops->buf_queue, videobuf_queue_ops callback.
+ * Call from vb2_queue_ops->ops->buf_queue, vb2_queue_ops callback.
  */
 void v4l2_m2m_buf_queue(struct v4l2_m2m_ctx *m2m_ctx,
 			struct vb2_v4l2_buffer *vbuf);

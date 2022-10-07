@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Memory-to-memory device framework for Video for Linux 2 and videobuf.
+ * Memory-to-memory device framework for Video for Linux 2 and vb2.
  *
- * Helper functions for devices that use videobuf buffers for both their
+ * Helper functions for devices that use vb2 buffers for both their
  * source and destination.
  *
  * Copyright (c) 2009-2010 Samsung Electronics Co., Ltd.
@@ -21,7 +21,7 @@
 #include <media/v4l2-fh.h>
 #include <media/v4l2-event.h>
 
-MODULE_DESCRIPTION("Mem to mem device framework for videobuf");
+MODULE_DESCRIPTION("Mem to mem device framework for vb2");
 MODULE_AUTHOR("Pawel Osciak, <pawel@osciak.com>");
 MODULE_LICENSE("GPL");
 
