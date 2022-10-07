@@ -640,21 +640,6 @@ void atomisp_clear_css_buffer_counters(struct atomisp_sub_device *asd)
 	asd->video_out_video_capture.buffers_in_css = 0;
 }
 
-/* ISP2400 */
-bool atomisp_buffers_queued(struct atomisp_sub_device *asd)
-{
-	return asd->video_out_capture.buffers_in_css ||
-	       asd->video_out_vf.buffers_in_css ||
-	       asd->video_out_preview.buffers_in_css ||
-	       asd->video_out_video_capture.buffers_in_css;
-}
-
-/* ISP2401 */
-bool atomisp_buffers_queued_pipe(struct atomisp_video_pipe *pipe)
-{
-	return pipe->buffers_in_css ? true : false;
-}
-
 /* 0x100000 is the start of dmem inside SP */
 #define SP_DMEM_BASE	0x100000
 
