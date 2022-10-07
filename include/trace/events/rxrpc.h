@@ -886,6 +886,30 @@ TRACE_EVENT(rxrpc_receive,
 
 TRACE_EVENT(rxrpc_recvmsg,
 	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_recvmsg_trace why,
+		     int ret),
+
+	    TP_ARGS(call, why, ret),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		call		)
+		    __field(enum rxrpc_recvmsg_trace,	why		)
+		    __field(int,			ret		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call ? call->debug_id : 0;
+		    __entry->why = why;
+		    __entry->ret = ret;
+			   ),
+
+	    TP_printk("c=%08x %s ret=%d",
+		      __entry->call,
+		      __print_symbolic(__entry->why, rxrpc_recvmsg_traces),
+		      __entry->ret)
+	    );
+
+TRACE_EVENT(rxrpc_recvdata,
+	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_recvmsg_trace why,
 		     rxrpc_seq_t seq, unsigned int offset, unsigned int len,
 		     int ret),
 

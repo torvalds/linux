@@ -173,8 +173,8 @@ static int rxrpc_recvmsg_term(struct rxrpc_call *call, struct msghdr *msg)
 		break;
 	}
 
-	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_terminal, call->rx_hard_ack,
-			    call->rx_pkt_offset, call->rx_pkt_len, ret);
+	trace_rxrpc_recvdata(call, rxrpc_recvmsg_terminal, call->rx_hard_ack,
+			     call->rx_pkt_offset, call->rx_pkt_len, ret);
 	return ret;
 }
 
@@ -380,8 +380,8 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 		ix = seq & RXRPC_RXTX_BUFF_MASK;
 		skb = call->rxtx_buffer[ix];
 		if (!skb) {
-			trace_rxrpc_recvmsg(call, rxrpc_recvmsg_hole, seq,
-					    rx_pkt_offset, rx_pkt_len, 0);
+			trace_rxrpc_recvdata(call, rxrpc_recvmsg_hole, seq,
+					     rx_pkt_offset, rx_pkt_len, 0);
 			rxrpc_transmit_ack_packets(call->peer->local);
 			break;
 		}
@@ -404,15 +404,15 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 						 &call->rxtx_annotations[ix],
 						 &rx_pkt_offset, &rx_pkt_len,
 						 &rx_pkt_last);
-			trace_rxrpc_recvmsg(call, rxrpc_recvmsg_next, seq,
-					    rx_pkt_offset, rx_pkt_len, ret2);
+			trace_rxrpc_recvdata(call, rxrpc_recvmsg_next, seq,
+					     rx_pkt_offset, rx_pkt_len, ret2);
 			if (ret2 < 0) {
 				ret = ret2;
 				goto out;
 			}
 		} else {
-			trace_rxrpc_recvmsg(call, rxrpc_recvmsg_cont, seq,
-					    rx_pkt_offset, rx_pkt_len, 0);
+			trace_rxrpc_recvdata(call, rxrpc_recvmsg_cont, seq,
+					     rx_pkt_offset, rx_pkt_len, 0);
 		}
 
 		/* We have to handle short, empty and used-up DATA packets. */
@@ -435,8 +435,8 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 		}
 
 		if (rx_pkt_len > 0) {
-			trace_rxrpc_recvmsg(call, rxrpc_recvmsg_full, seq,
-					    rx_pkt_offset, rx_pkt_len, 0);
+			trace_rxrpc_recvdata(call, rxrpc_recvmsg_full, seq,
+					     rx_pkt_offset, rx_pkt_len, 0);
 			ASSERTCMP(*_offset, ==, len);
 			ret = 0;
 			break;
@@ -464,8 +464,8 @@ out:
 		call->rx_pkt_last = rx_pkt_last;
 	}
 done:
-	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_data_return, seq,
-			    rx_pkt_offset, rx_pkt_len, ret);
+	trace_rxrpc_recvdata(call, rxrpc_recvmsg_data_return, seq,
+			     rx_pkt_offset, rx_pkt_len, ret);
 	if (ret == -EAGAIN)
 		set_bit(RXRPC_CALL_RX_UNDERRUN, &call->flags);
 	return ret;
@@ -488,7 +488,7 @@ int rxrpc_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 
 	DEFINE_WAIT(wait);
 
-	trace_rxrpc_recvmsg(NULL, rxrpc_recvmsg_enter, 0, 0, 0, 0);
+	trace_rxrpc_recvmsg(NULL, rxrpc_recvmsg_enter, 0);
 
 	if (flags & (MSG_OOB | MSG_TRUNC))
 		return -EOPNOTSUPP;
@@ -525,8 +525,7 @@ try_again:
 		if (list_empty(&rx->recvmsg_q)) {
 			if (signal_pending(current))
 				goto wait_interrupted;
-			trace_rxrpc_recvmsg(NULL, rxrpc_recvmsg_wait,
-					    0, 0, 0, 0);
+			trace_rxrpc_recvmsg(NULL, rxrpc_recvmsg_wait, 0);
 			timeo = schedule_timeout(timeo);
 		}
 		finish_wait(sk_sleep(&rx->sk), &wait);
@@ -545,7 +544,7 @@ try_again:
 		rxrpc_get_call(call, rxrpc_call_got);
 	write_unlock_bh(&rx->recvmsg_lock);
 
-	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_dequeue, 0, 0, 0, 0);
+	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_dequeue, 0);
 
 	/* We're going to drop the socket lock, so we need to lock the call
 	 * against interference by sendmsg.
@@ -630,7 +629,7 @@ try_again:
 error_unlock_call:
 	mutex_unlock(&call->user_mutex);
 	rxrpc_put_call(call, rxrpc_call_put);
-	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_return, 0, 0, 0, ret);
+	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_return, ret);
 	return ret;
 
 error_requeue_call:
@@ -638,14 +637,14 @@ error_requeue_call:
 		write_lock_bh(&rx->recvmsg_lock);
 		list_add(&call->recvmsg_link, &rx->recvmsg_q);
 		write_unlock_bh(&rx->recvmsg_lock);
-		trace_rxrpc_recvmsg(call, rxrpc_recvmsg_requeue, 0, 0, 0, 0);
+		trace_rxrpc_recvmsg(call, rxrpc_recvmsg_requeue, 0);
 	} else {
 		rxrpc_put_call(call, rxrpc_call_put);
 	}
 error_no_call:
 	release_sock(&rx->sk);
 error_trace:
-	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_return, 0, 0, 0, ret);
+	trace_rxrpc_recvmsg(call, rxrpc_recvmsg_return, ret);
 	return ret;
 
 wait_interrupted:
