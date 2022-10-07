@@ -395,7 +395,6 @@ int tb_switch_tmu_disable(struct tb_switch *sw)
 	if (sw->tmu.rate == TB_SWITCH_TMU_RATE_OFF)
 		return 0;
 
-
 	if (tb_route(sw)) {
 		bool unidirectional = sw->tmu.unidirectional;
 		struct tb_port *down, *up;
@@ -439,7 +438,7 @@ int tb_switch_tmu_disable(struct tb_switch *sw)
 	return 0;
 }
 
-static void __tb_switch_tmu_off(struct tb_switch *sw, bool unidirectional)
+static void tb_switch_tmu_off(struct tb_switch *sw, bool unidirectional)
 {
 	struct tb_port *down, *up;
 
@@ -469,7 +468,7 @@ static void __tb_switch_tmu_off(struct tb_switch *sw, bool unidirectional)
  * This function is called when the previous TMU mode was
  * TB_SWITCH_TMU_RATE_OFF.
  */
-static int __tb_switch_tmu_enable_bidirectional(struct tb_switch *sw)
+static int tb_switch_tmu_enable_bidirectional(struct tb_switch *sw)
 {
 	struct tb_port *up, *down;
 	int ret;
@@ -500,7 +499,7 @@ static int __tb_switch_tmu_enable_bidirectional(struct tb_switch *sw)
 	return 0;
 
 out:
-	__tb_switch_tmu_off(sw, false);
+	tb_switch_tmu_off(sw, false);
 	return ret;
 }
 
@@ -533,7 +532,7 @@ static int tb_switch_tmu_unidirectional_enable(struct tb_switch *sw)
  * This function is called when the previous TMU mode was
  * TB_SWITCH_TMU_RATE_OFF.
  */
-static int __tb_switch_tmu_enable_unidirectional(struct tb_switch *sw)
+static int tb_switch_tmu_enable_unidirectional(struct tb_switch *sw)
 {
 	struct tb_port *up, *down;
 	int ret;
@@ -568,11 +567,11 @@ static int __tb_switch_tmu_enable_unidirectional(struct tb_switch *sw)
 	return 0;
 
 out:
-	__tb_switch_tmu_off(sw, true);
+	tb_switch_tmu_off(sw, true);
 	return ret;
 }
 
-static void __tb_switch_tmu_change_mode_prev(struct tb_switch *sw)
+static void tb_switch_tmu_change_mode_prev(struct tb_switch *sw)
 {
 	struct tb_port *down, *up;
 
@@ -594,7 +593,7 @@ static void __tb_switch_tmu_change_mode_prev(struct tb_switch *sw)
 	tb_port_tmu_set_unidirectional(up, sw->tmu.unidirectional);
 }
 
-static int __tb_switch_tmu_change_mode(struct tb_switch *sw)
+static int tb_switch_tmu_change_mode(struct tb_switch *sw)
 {
 	struct tb_port *up, *down;
 	int ret;
@@ -632,7 +631,7 @@ static int __tb_switch_tmu_change_mode(struct tb_switch *sw)
 	return 0;
 
 out:
-	__tb_switch_tmu_change_mode_prev(sw);
+	tb_switch_tmu_change_mode_prev(sw);
 	return ret;
 }
 
@@ -695,13 +694,13 @@ int tb_switch_tmu_enable(struct tb_switch *sw)
 		 */
 		if (sw->tmu.rate == TB_SWITCH_TMU_RATE_OFF) {
 			if (unidirectional)
-				ret = __tb_switch_tmu_enable_unidirectional(sw);
+				ret = tb_switch_tmu_enable_unidirectional(sw);
 			else
-				ret = __tb_switch_tmu_enable_bidirectional(sw);
+				ret = tb_switch_tmu_enable_bidirectional(sw);
 			if (ret)
 				return ret;
 		} else if (sw->tmu.rate == TB_SWITCH_TMU_RATE_NORMAL) {
-			ret = __tb_switch_tmu_change_mode(sw);
+			ret = tb_switch_tmu_change_mode(sw);
 			if (ret)
 				return ret;
 		}
