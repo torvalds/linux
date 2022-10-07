@@ -315,7 +315,10 @@ static int udl_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic
 {
 	struct drm_crtc_state *new_crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 
-	return drm_atomic_helper_check_crtc_state(new_crtc_state, false);
+	if (!new_crtc_state->enable)
+		return 0;
+
+	return drm_atomic_helper_check_crtc_primary_plane(new_crtc_state);
 }
 
 static void udl_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *state)

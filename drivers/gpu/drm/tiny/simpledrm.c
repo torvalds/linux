@@ -551,10 +551,14 @@ static int simpledrm_crtc_helper_atomic_check(struct drm_crtc *crtc,
 	struct drm_crtc_state *new_crtc_state = drm_atomic_get_new_crtc_state(new_state, crtc);
 	int ret;
 
-	ret = drm_atomic_helper_check_crtc_state(new_crtc_state, false);
+	if (!new_crtc_state->enable)
+		goto out;
+
+	ret = drm_atomic_helper_check_crtc_primary_plane(new_crtc_state);
 	if (ret)
 		return ret;
 
+out:
 	return drm_atomic_add_affected_planes(new_state, crtc);
 }
 

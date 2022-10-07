@@ -1161,12 +1161,12 @@ static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 	bool succ;
 	int ret;
 
-	ret = drm_atomic_helper_check_crtc_state(crtc_state, false);
-	if (ret)
-		return ret;
-
 	if (!crtc_state->enable)
 		goto out;
+
+	ret = drm_atomic_helper_check_crtc_primary_plane(crtc_state);
+	if (ret)
+		return ret;
 
 	ast_state = to_ast_crtc_state(crtc_state);
 
