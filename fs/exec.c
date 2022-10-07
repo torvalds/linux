@@ -1587,7 +1587,7 @@ static void bprm_fill_uid(struct linux_binprm *bprm, struct file *file)
 {
 	/* Handle suid and sgid on files */
 	struct user_namespace *mnt_userns;
-	struct inode *inode;
+	struct inode *inode = file_inode(file);
 	unsigned int mode;
 	kuid_t uid;
 	kgid_t gid;
@@ -1598,7 +1598,6 @@ static void bprm_fill_uid(struct linux_binprm *bprm, struct file *file)
 	if (task_no_new_privs(current))
 		return;
 
-	inode = file->f_path.dentry->d_inode;
 	mode = READ_ONCE(inode->i_mode);
 	if (!(mode & (S_ISUID|S_ISGID)))
 		return;

@@ -417,9 +417,7 @@ static int orangefs_file_release(struct inode *inode, struct file *file)
 	 * readahead cache (if any); this forces an expensive refresh of
 	 * data for the next caller of mmap (or 'get_block' accesses)
 	 */
-	if (file_inode(file) &&
-	    file_inode(file)->i_mapping &&
-	    mapping_nrpages(&file_inode(file)->i_data)) {
+	if (mapping_nrpages(file->f_mapping)) {
 		if (orangefs_features & ORANGEFS_FEATURE_READAHEAD) {
 			gossip_debug(GOSSIP_INODE_DEBUG,
 			    "calling flush_racache on %pU\n",

@@ -341,7 +341,7 @@ static ssize_t _nfs42_proc_copy(struct file *src,
 			return status;
 		}
 	}
-	status = nfs_filemap_write_and_wait_range(file_inode(src)->i_mapping,
+	status = nfs_filemap_write_and_wait_range(src->f_mapping,
 			pos_src, pos_src + (loff_t)count - 1);
 	if (status)
 		return status;
