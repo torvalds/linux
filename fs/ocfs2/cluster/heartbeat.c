@@ -335,7 +335,7 @@ static void o2hb_arm_timeout(struct o2hb_region *reg)
 	/* negotiate timeout must be less than write timeout. */
 	schedule_delayed_work(&reg->hr_nego_timeout_work,
 			      msecs_to_jiffies(O2HB_NEGO_TIMEOUT_MS));
-	memset(reg->hr_nego_node_bitmap, 0, sizeof(reg->hr_nego_node_bitmap));
+	bitmap_zero(reg->hr_nego_node_bitmap, O2NM_MAX_NODES);
 }
 
 static void o2hb_disarm_timeout(struct o2hb_region *reg)
@@ -386,8 +386,8 @@ static void o2hb_nego_timeout(struct work_struct *work)
 				config_item_name(&reg->hr_item), reg->hr_bdev);
 			set_bit(master_node, reg->hr_nego_node_bitmap);
 		}
-		if (memcmp(reg->hr_nego_node_bitmap, live_node_bitmap,
-				sizeof(reg->hr_nego_node_bitmap))) {
+		if (!bitmap_equal(reg->hr_nego_node_bitmap, live_node_bitmap,
+				  O2NM_MAX_NODES)) {
 			/* check negotiate bitmap every second to do timeout
 			 * approve decision.
 			 */
@@ -856,8 +856,8 @@ static void o2hb_set_quorum_device(struct o2hb_region *reg)
 	 * live nodes heartbeat on it. In other words, the region has been
 	 * added to all nodes.
 	 */
-	if (memcmp(reg->hr_live_node_bitmap, o2hb_live_node_bitmap,
-		   sizeof(o2hb_live_node_bitmap)))
+	if (!bitmap_equal(reg->hr_live_node_bitmap, o2hb_live_node_bitmap,
+			  O2NM_MAX_NODES))
 		goto unlock;
 
 	printk(KERN_NOTICE "o2hb: Region %s (%pg) is now a quorum device\n",
@@ -1437,11 +1437,11 @@ void o2hb_init(void)
 	for (i = 0; i < ARRAY_SIZE(o2hb_live_slots); i++)
 		INIT_LIST_HEAD(&o2hb_live_slots[i]);
 
-	memset(o2hb_live_node_bitmap, 0, sizeof(o2hb_live_node_bitmap));
-	memset(o2hb_region_bitmap, 0, sizeof(o2hb_region_bitmap));
-	memset(o2hb_live_region_bitmap, 0, sizeof(o2hb_live_region_bitmap));
-	memset(o2hb_quorum_region_bitmap, 0, sizeof(o2hb_quorum_region_bitmap));
-	memset(o2hb_failed_region_bitmap, 0, sizeof(o2hb_failed_region_bitmap));
+	bitmap_zero(o2hb_live_node_bitmap, O2NM_MAX_NODES);
+	bitmap_zero(o2hb_region_bitmap, O2NM_MAX_REGIONS);
+	bitmap_zero(o2hb_live_region_bitmap, O2NM_MAX_REGIONS);
+	bitmap_zero(o2hb_quorum_region_bitmap, O2NM_MAX_REGIONS);
+	bitmap_zero(o2hb_failed_region_bitmap, O2NM_MAX_REGIONS);
 
 	o2hb_dependent_users = 0;
 
