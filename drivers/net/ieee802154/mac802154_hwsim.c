@@ -18,6 +18,7 @@
 #include <linux/netdevice.h>
 #include <linux/device.h>
 #include <linux/spinlock.h>
+#include <net/ieee802154_netdev.h>
 #include <net/mac802154.h>
 #include <net/cfg802154.h>
 #include <net/genetlink.h>
@@ -139,6 +140,112 @@ static int hwsim_hw_addr_filt(struct ieee802154_hw *hw,
 	return 0;
 }
 
+static void hwsim_hw_receive(struct ieee802154_hw *hw, struct sk_buff *skb,
+			     u8 lqi)
+{
+	struct ieee802154_hdr hdr;
+	struct hwsim_phy *phy = hw->priv;
+	struct hwsim_pib *pib;
+
+	rcu_read_lock();
+	pib = rcu_dereference(phy->pib);
+
+	if (!pskb_may_pull(skb, 3)) {
+		dev_dbg(hw->parent, "invalid frame\n");
+		goto drop;
+	}
+
+	memcpy(&hdr, skb->data, 3);
+
+	/* Level 4 filtering: Frame fields validity */
+	if (hw->phy->filtering == IEEE802154_FILTERING_4_FRAME_FIELDS) {
+		/* a) Drop reserved frame types */
+		switch (mac_cb(skb)->type) {
+		case IEEE802154_FC_TYPE_BEACON:
+		case IEEE802154_FC_TYPE_DATA:
+		case IEEE802154_FC_TYPE_ACK:
+		case IEEE802154_FC_TYPE_MAC_CMD:
+			break;
+		default:
+			dev_dbg(hw->parent, "unrecognized frame type 0x%x\n",
+				mac_cb(skb)->type);
+			goto drop;
+		}
+
+		/* b) Drop reserved frame versions */
+		switch (hdr.fc.version) {
+		case IEEE802154_2003_STD:
+		case IEEE802154_2006_STD:
+		case IEEE802154_STD:
+			break;
+		default:
+			dev_dbg(hw->parent,
+				"unrecognized frame version 0x%x\n",
+				hdr.fc.version);
+			goto drop;
+		}
+
+		/* c) PAN ID constraints */
+		if ((mac_cb(skb)->dest.mode == IEEE802154_ADDR_LONG ||
+		     mac_cb(skb)->dest.mode == IEEE802154_ADDR_SHORT) &&
+		    mac_cb(skb)->dest.pan_id != pib->filt.pan_id &&
+		    mac_cb(skb)->dest.pan_id != cpu_to_le16(IEEE802154_PANID_BROADCAST)) {
+			dev_dbg(hw->parent,
+				"unrecognized PAN ID %04x\n",
+				le16_to_cpu(mac_cb(skb)->dest.pan_id));
+			goto drop;
+		}
+
+		/* d1) Short address constraints */
+		if (mac_cb(skb)->dest.mode == IEEE802154_ADDR_SHORT &&
+		    mac_cb(skb)->dest.short_addr != pib->filt.short_addr &&
+		    mac_cb(skb)->dest.short_addr != cpu_to_le16(IEEE802154_ADDR_BROADCAST)) {
+			dev_dbg(hw->parent,
+				"unrecognized short address %04x\n",
+				le16_to_cpu(mac_cb(skb)->dest.short_addr));
+			goto drop;
+		}
+
+		/* d2) Extended address constraints */
+		if (mac_cb(skb)->dest.mode == IEEE802154_ADDR_LONG &&
+		    mac_cb(skb)->dest.extended_addr != pib->filt.ieee_addr) {
+			dev_dbg(hw->parent,
+				"unrecognized long address 0x%016llx\n",
+				mac_cb(skb)->dest.extended_addr);
+			goto drop;
+		}
+
+		/* d4) Specific PAN coordinator case (no parent) */
+		if ((mac_cb(skb)->type == IEEE802154_FC_TYPE_DATA ||
+		     mac_cb(skb)->type == IEEE802154_FC_TYPE_MAC_CMD) &&
+		    mac_cb(skb)->dest.mode == IEEE802154_ADDR_NONE) {
+			dev_dbg(hw->parent,
+				"relaying is not supported\n");
+			goto drop;
+		}
+
+		/* e) Beacon frames follow specific PAN ID rules */
+		if (mac_cb(skb)->type == IEEE802154_FC_TYPE_BEACON &&
+		    pib->filt.pan_id != cpu_to_le16(IEEE802154_PANID_BROADCAST) &&
+		    mac_cb(skb)->dest.pan_id != pib->filt.pan_id) {
+			dev_dbg(hw->parent,
+				"invalid beacon PAN ID %04x\n",
+				le16_to_cpu(mac_cb(skb)->dest.pan_id));
+			goto drop;
+		}
+	}
+
+	rcu_read_unlock();
+
+	ieee802154_rx_irqsafe(hw, skb, lqi);
+
+	return;
+
+drop:
+	rcu_read_unlock();
+	kfree_skb(skb);
+}
+
 static int hwsim_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	struct hwsim_phy *current_phy = hw->priv;
@@ -166,8 +273,7 @@ static int hwsim_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 
 			einfo = rcu_dereference(e->info);
 			if (newskb)
-				ieee802154_rx_irqsafe(e->endpoint->hw, newskb,
-						      einfo->lqi);
+				hwsim_hw_receive(e->endpoint->hw, newskb, einfo->lqi);
 		}
 	}
 	rcu_read_unlock();
