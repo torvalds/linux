@@ -1043,6 +1043,11 @@ static inline int ata_port_is_dummy(struct ata_port *ap)
 	return ap->ops == &ata_dummy_port_ops;
 }
 
+static inline bool ata_port_is_frozen(const struct ata_port *ap)
+{
+	return ap->pflags & ATA_PFLAG_FROZEN;
+}
+
 extern int ata_std_prereset(struct ata_link *link, unsigned long deadline);
 extern int ata_wait_after_reset(struct ata_link *link, unsigned long deadline,
 				int (*check_ready)(struct ata_link *link));
