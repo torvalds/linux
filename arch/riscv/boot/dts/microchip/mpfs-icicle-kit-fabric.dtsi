@@ -9,7 +9,7 @@
 		compatible = "microchip,corepwm-rtl-v4";
 		reg = <0x0 0x40000000 0x0 0xF0>;
 		microchip,sync-update-mask = /bits/ 32 <0>;
-		#pwm-cells = <2>;
+		#pwm-cells = <3>;
 		clocks = <&ccc_nw CLK_CCC_PLL0_OUT3>;
 		status = "disabled";
 	};
