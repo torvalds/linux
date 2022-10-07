@@ -4101,6 +4101,7 @@ N:	bcm7038
 N:	bcm7120
 
 BROADCOM BDC DRIVER
+M:	Justin Chen <justinpopo6@gmail.com>
 M:	Al Cooper <alcooperx@gmail.com>
 L:	linux-usb@vger.kernel.org
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
@@ -4207,6 +4208,7 @@ F:	Documentation/devicetree/bindings/serial/brcm,bcm7271-uart.yaml
 F:	drivers/tty/serial/8250/8250_bcm7271.c
 
 BROADCOM BRCMSTB USB EHCI DRIVER
+M:	Justin Chen <justinpopo6@gmail.com>
 M:	Al Cooper <alcooperx@gmail.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-usb@vger.kernel.org
@@ -4223,6 +4225,7 @@ F:	Documentation/devicetree/bindings/usb/brcm,usb-pinmap.yaml
 F:	drivers/usb/misc/brcmstb-usb-pinmap.c
 
 BROADCOM BRCMSTB USB2 and USB3 PHY DRIVER
+M:	Justin Chen <justinpopo6@gmail.com>
 M:	Al Cooper <alcooperx@gmail.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-kernel@vger.kernel.org
