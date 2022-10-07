@@ -133,6 +133,82 @@ const struct tegra_fuse_soc tegra114_fuse_soc = {
 #endif
 
 #if defined(CONFIG_ARCH_TEGRA_124_SOC) || defined(CONFIG_ARCH_TEGRA_132_SOC)
+static const struct nvmem_cell_info tegra124_fuse_cells[] = {
+	{
+		.name = "tsensor-cpu1",
+		.offset = 0x084,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "tsensor-cpu2",
+		.offset = 0x088,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "tsensor-cpu0",
+		.offset = 0x098,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "xusb-pad-calibration",
+		.offset = 0x0f0,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "tsensor-cpu3",
+		.offset = 0x12c,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "sata-calibration",
+		.offset = 0x124,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "tsensor-gpu",
+		.offset = 0x154,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "tsensor-mem0",
+		.offset = 0x158,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "tsensor-mem1",
+		.offset = 0x15c,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "tsensor-pllx",
+		.offset = 0x160,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "tsensor-common",
+		.offset = 0x180,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "tsensor-realignment",
+		.offset = 0x1fc,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	},
+};
+
 static const struct nvmem_cell_lookup tegra124_fuse_lookups[] = {
 	{
 		.nvmem_name = "fuse",
@@ -209,12 +285,96 @@ const struct tegra_fuse_soc tegra124_fuse_soc = {
 	.info = &tegra124_fuse_info,
 	.lookups = tegra124_fuse_lookups,
 	.num_lookups = ARRAY_SIZE(tegra124_fuse_lookups),
+	.cells = tegra124_fuse_cells,
+	.num_cells = ARRAY_SIZE(tegra124_fuse_cells),
 	.soc_attr_group = &tegra_soc_attr_group,
 	.clk_suspend_on = true,
 };
 #endif
 
 #if defined(CONFIG_ARCH_TEGRA_210_SOC)
+static const struct nvmem_cell_info tegra210_fuse_cells[] = {
+	{
+		.name = "tsensor-cpu1",
+		.offset = 0x084,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "tsensor-cpu2",
+		.offset = 0x088,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "tsensor-cpu0",
+		.offset = 0x098,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "xusb-pad-calibration",
+		.offset = 0x0f0,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "tsensor-cpu3",
+		.offset = 0x12c,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "sata-calibration",
+		.offset = 0x124,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "tsensor-gpu",
+		.offset = 0x154,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "tsensor-mem0",
+		.offset = 0x158,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "tsensor-mem1",
+		.offset = 0x15c,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "tsensor-pllx",
+		.offset = 0x160,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "tsensor-common",
+		.offset = 0x180,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "gpu-calibration",
+		.offset = 0x204,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "xusb-pad-calibration-ext",
+		.offset = 0x250,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	},
+};
+
 static const struct nvmem_cell_lookup tegra210_fuse_lookups[] = {
 	{
 		.nvmem_name = "fuse",
@@ -295,6 +455,8 @@ const struct tegra_fuse_soc tegra210_fuse_soc = {
 	.speedo_init = tegra210_init_speedo_data,
 	.info = &tegra210_fuse_info,
 	.lookups = tegra210_fuse_lookups,
+	.cells = tegra210_fuse_cells,
+	.num_cells = ARRAY_SIZE(tegra210_fuse_cells),
 	.num_lookups = ARRAY_SIZE(tegra210_fuse_lookups),
 	.soc_attr_group = &tegra_soc_attr_group,
 	.clk_suspend_on = false,
@@ -302,6 +464,22 @@ const struct tegra_fuse_soc tegra210_fuse_soc = {
 #endif
 
 #if defined(CONFIG_ARCH_TEGRA_186_SOC)
+static const struct nvmem_cell_info tegra186_fuse_cells[] = {
+	{
+		.name = "xusb-pad-calibration",
+		.offset = 0x0f0,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "xusb-pad-calibration-ext",
+		.offset = 0x250,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	},
+};
+
 static const struct nvmem_cell_lookup tegra186_fuse_lookups[] = {
 	{
 		.nvmem_name = "fuse",
@@ -318,7 +496,7 @@ static const struct nvmem_cell_lookup tegra186_fuse_lookups[] = {
 
 static const struct tegra_fuse_info tegra186_fuse_info = {
 	.read = tegra30_fuse_read,
-	.size = 0x300,
+	.size = 0x478,
 	.spare = 0x280,
 };
 
@@ -327,12 +505,48 @@ const struct tegra_fuse_soc tegra186_fuse_soc = {
 	.info = &tegra186_fuse_info,
 	.lookups = tegra186_fuse_lookups,
 	.num_lookups = ARRAY_SIZE(tegra186_fuse_lookups),
+	.cells = tegra186_fuse_cells,
+	.num_cells = ARRAY_SIZE(tegra186_fuse_cells),
 	.soc_attr_group = &tegra_soc_attr_group,
 	.clk_suspend_on = false,
 };
 #endif
 
 #if defined(CONFIG_ARCH_TEGRA_194_SOC)
+static const struct nvmem_cell_info tegra194_fuse_cells[] = {
+	{
+		.name = "xusb-pad-calibration",
+		.offset = 0x0f0,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "gpu-gcplex-config-fuse",
+		.offset = 0x1c8,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "xusb-pad-calibration-ext",
+		.offset = 0x250,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "gpu-pdi0",
+		.offset = 0x300,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "gpu-pdi1",
+		.offset = 0x304,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	},
+};
+
 static const struct nvmem_cell_lookup tegra194_fuse_lookups[] = {
 	{
 		.nvmem_name = "fuse",
@@ -364,7 +578,7 @@ static const struct nvmem_cell_lookup tegra194_fuse_lookups[] = {
 
 static const struct tegra_fuse_info tegra194_fuse_info = {
 	.read = tegra30_fuse_read,
-	.size = 0x300,
+	.size = 0x650,
 	.spare = 0x280,
 };
 
@@ -373,12 +587,30 @@ const struct tegra_fuse_soc tegra194_fuse_soc = {
 	.info = &tegra194_fuse_info,
 	.lookups = tegra194_fuse_lookups,
 	.num_lookups = ARRAY_SIZE(tegra194_fuse_lookups),
+	.cells = tegra194_fuse_cells,
+	.num_cells = ARRAY_SIZE(tegra194_fuse_cells),
 	.soc_attr_group = &tegra194_soc_attr_group,
 	.clk_suspend_on = false,
 };
 #endif
 
 #if defined(CONFIG_ARCH_TEGRA_234_SOC)
+static const struct nvmem_cell_info tegra234_fuse_cells[] = {
+	{
+		.name = "xusb-pad-calibration",
+		.offset = 0x0f0,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	}, {
+		.name = "xusb-pad-calibration-ext",
+		.offset = 0x250,
+		.bytes = 4,
+		.bit_offset = 0,
+		.nbits = 32,
+	},
+};
+
 static const struct nvmem_cell_lookup tegra234_fuse_lookups[] = {
 	{
 		.nvmem_name = "fuse",
@@ -395,7 +627,7 @@ static const struct nvmem_cell_lookup tegra234_fuse_lookups[] = {
 
 static const struct tegra_fuse_info tegra234_fuse_info = {
 	.read = tegra30_fuse_read,
-	.size = 0x300,
+	.size = 0x98c,
 	.spare = 0x280,
 };
 
@@ -404,6 +636,8 @@ const struct tegra_fuse_soc tegra234_fuse_soc = {
 	.info = &tegra234_fuse_info,
 	.lookups = tegra234_fuse_lookups,
 	.num_lookups = ARRAY_SIZE(tegra234_fuse_lookups),
+	.cells = tegra234_fuse_cells,
+	.num_cells = ARRAY_SIZE(tegra234_fuse_cells),
 	.soc_attr_group = &tegra194_soc_attr_group,
 	.clk_suspend_on = false,
 };
