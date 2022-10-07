@@ -141,8 +141,13 @@ int __init sysfs_pseries_vas_init(struct vas_all_caps *vas_caps);
 
 #ifdef CONFIG_PPC_VAS
 int vas_migration_handler(int action);
+int pseries_vas_dlpar_cpu(void);
 #else
 static inline int vas_migration_handler(int action)
+{
+	return 0;
+}
+static inline int pseries_vas_dlpar_cpu(void)
 {
 	return 0;
 }

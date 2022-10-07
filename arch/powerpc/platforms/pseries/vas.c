@@ -852,6 +852,25 @@ int vas_reconfig_capabilties(u8 type, int new_nr_creds)
 	mutex_unlock(&vas_pseries_mutex);
 	return rc;
 }
+
+int pseries_vas_dlpar_cpu(void)
+{
+	int new_nr_creds, rc;
+
+	rc = h_query_vas_capabilities(H_QUERY_VAS_CAPABILITIES,
+				      vascaps[VAS_GZIP_DEF_FEAT_TYPE].feat,
+				      (u64)virt_to_phys(&hv_cop_caps));
+	if (!rc) {
+		new_nr_creds = be16_to_cpu(hv_cop_caps.target_lpar_creds);
+		rc = vas_reconfig_capabilties(VAS_GZIP_DEF_FEAT_TYPE, new_nr_creds);
+	}
+
+	if (rc)
+		pr_err("Failed reconfig VAS capabilities with DLPAR\n");
+
+	return rc;
+}
+
 /*
  * Total number of default credits available (target_credits)
  * in LPAR depends on number of cores configured. It varies based on
@@ -866,7 +885,15 @@ static int pseries_vas_notifier(struct notifier_block *nb,
 	struct of_reconfig_data *rd = data;
 	struct device_node *dn = rd->dn;
 	const __be32 *intserv = NULL;
-	int new_nr_creds, len, rc = 0;
+	int len;
+
+	/*
+	 * For shared CPU partition, the hypervisor assigns total credits
+	 * based on entitled core capacity. So updating VAS windows will
+	 * be called from lparcfg_write().
+	 */
+	if (is_shared_processor())
+		return NOTIFY_OK;
 
 	if ((action == OF_RECONFIG_ATTACH_NODE) ||
 		(action == OF_RECONFIG_DETACH_NODE))
@@ -878,19 +905,7 @@ static int pseries_vas_notifier(struct notifier_block *nb,
 	if (!intserv)
 		return NOTIFY_OK;
 
-	rc = h_query_vas_capabilities(H_QUERY_VAS_CAPABILITIES,
-					vascaps[VAS_GZIP_DEF_FEAT_TYPE].feat,
-					(u64)virt_to_phys(&hv_cop_caps));
-	if (!rc) {
-		new_nr_creds = be16_to_cpu(hv_cop_caps.target_lpar_creds);
-		rc = vas_reconfig_capabilties(VAS_GZIP_DEF_FEAT_TYPE,
-						new_nr_creds);
-	}
-
-	if (rc)
-		pr_err("Failed reconfig VAS capabilities with DLPAR\n");
-
-	return rc;
+	return pseries_vas_dlpar_cpu();
 }
 
 static struct notifier_block pseries_vas_nb = {
