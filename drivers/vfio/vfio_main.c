@@ -1553,16 +1553,30 @@ static const struct file_operations vfio_device_fops = {
  * @file: VFIO group file
  *
  * The returned iommu_group is valid as long as a ref is held on the file.
+ * This function is deprecated, only the SPAPR path in kvm should call it.
  */
 struct iommu_group *vfio_file_iommu_group(struct file *file)
 {
 	struct vfio_group *group = file->private_data;
 
-	if (file->f_op != &vfio_group_fops)
+	if (!IS_ENABLED(CONFIG_SPAPR_TCE_IOMMU))
+		return NULL;
+
+	if (!vfio_file_is_group(file))
 		return NULL;
 	return group->iommu_group;
 }
 EXPORT_SYMBOL_GPL(vfio_file_iommu_group);
+
+/**
+ * vfio_file_is_group - True if the file is usable with VFIO aPIS
+ * @file: VFIO group file
+ */
+bool vfio_file_is_group(struct file *file)
+{
+	return file->f_op == &vfio_group_fops;
+}
+EXPORT_SYMBOL_GPL(vfio_file_is_group);
 
 /**
  * vfio_file_enforced_coherent - True if the DMA associated with the VFIO file

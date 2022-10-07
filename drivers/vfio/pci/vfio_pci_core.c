@@ -1313,7 +1313,7 @@ static int vfio_pci_ioctl_pci_hot_reset(struct vfio_pci_core_device *vdev,
 		}
 
 		/* Ensure the FD is a vfio group FD.*/
-		if (!vfio_file_iommu_group(file)) {
+		if (!vfio_file_is_group(file)) {
 			fput(file);
 			ret = -EINVAL;
 			break;

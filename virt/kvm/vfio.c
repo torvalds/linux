@@ -61,6 +61,23 @@ static bool kvm_vfio_file_enforced_coherent(struct file *file)
 	return ret;
 }
 
+static bool kvm_vfio_file_is_group(struct file *file)
+{
+	bool (*fn)(struct file *file);
+	bool ret;
+
+	fn = symbol_get(vfio_file_is_group);
+	if (!fn)
+		return false;
+
+	ret = fn(file);
+
+	symbol_put(vfio_file_is_group);
+
+	return ret;
+}
+
+#ifdef CONFIG_SPAPR_TCE_IOMMU
 static struct iommu_group *kvm_vfio_file_iommu_group(struct file *file)
 {
 	struct iommu_group *(*fn)(struct file *file);
@@ -77,7 +94,6 @@ static struct iommu_group *kvm_vfio_file_iommu_group(struct file *file)
 	return ret;
 }
 
-#ifdef CONFIG_SPAPR_TCE_IOMMU
 static void kvm_spapr_tce_release_vfio_group(struct kvm *kvm,
 					     struct kvm_vfio_group *kvg)
 {
@@ -136,7 +152,7 @@ static int kvm_vfio_group_add(struct kvm_device *dev, unsigned int fd)
 		return -EBADF;
 
 	/* Ensure the FD is a vfio group FD.*/
-	if (!kvm_vfio_file_iommu_group(filp)) {
+	if (!kvm_vfio_file_is_group(filp)) {
 		ret = -EINVAL;
 		goto err_fput;
 	}
