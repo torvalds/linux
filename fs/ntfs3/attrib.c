@@ -414,6 +414,7 @@ int attr_set_size(struct ntfs_inode *ni, enum ATTR_TYPE type,
 	CLST alen, vcn, lcn, new_alen, old_alen, svcn, evcn;
 	CLST next_svcn, pre_alloc = -1, done = 0;
 	bool is_ext, is_bad = false;
+	bool dirty = false;
 	u32 align;
 	struct MFT_REC *rec;
 
@@ -434,8 +435,10 @@ again:
 			return err;
 
 		/* Return if file is still resident. */
-		if (!attr_b->non_res)
+		if (!attr_b->non_res) {
+			dirty = true;
 			goto ok1;
+		}
 
 		/* Layout of records may be changed, so do a full search. */
 		goto again;
@@ -458,7 +461,7 @@ again_1:
 
 	if (keep_prealloc && new_size < old_size) {
 		attr_b->nres.data_size = cpu_to_le64(new_size);
-		mi_b->dirty = true;
+		mi_b->dirty = dirty = true;
 		goto ok;
 	}
 
@@ -504,7 +507,7 @@ next_le:
 
 		if (new_alloc <= old_alloc) {
 			attr_b->nres.data_size = cpu_to_le64(new_size);
-			mi_b->dirty = true;
+			mi_b->dirty = dirty = true;
 			goto ok;
 		}
 
@@ -595,7 +598,7 @@ pack_runs:
 		next_svcn = le64_to_cpu(attr->nres.evcn) + 1;
 		new_alloc_tmp = (u64)next_svcn << cluster_bits;
 		attr_b->nres.alloc_size = cpu_to_le64(new_alloc_tmp);
-		mi_b->dirty = true;
+		mi_b->dirty = dirty = true;
 
 		if (next_svcn >= vcn && !to_allocate) {
 			/* Normal way. Update attribute and exit. */
@@ -681,7 +684,7 @@ pack_runs:
 		old_valid = old_size = old_alloc = (u64)vcn << cluster_bits;
 		attr_b->nres.valid_size = attr_b->nres.data_size =
 			attr_b->nres.alloc_size = cpu_to_le64(old_size);
-		mi_b->dirty = true;
+		mi_b->dirty = dirty = true;
 		goto again_1;
 	}
 
@@ -743,7 +746,7 @@ pack_runs:
 				attr_b->nres.valid_size =
 					attr_b->nres.alloc_size;
 		}
-		mi_b->dirty = true;
+		mi_b->dirty = dirty = true;
 
 		err = run_deallocate_ex(sbi, run, vcn, evcn - vcn + 1, &dlen,
 					true);
@@ -804,16 +807,9 @@ ok1:
 	if (ret)
 		*ret = attr_b;
 
-	/* Update inode_set_bytes. */
 	if (((type == ATTR_DATA && !name_len) ||
 	     (type == ATTR_ALLOC && name == I30_NAME))) {
-		bool dirty = false;
-
-		if (ni->vfs_inode.i_size != new_size) {
-			ni->vfs_inode.i_size = new_size;
-			dirty = true;
-		}
-
+		/* Update inode_set_bytes. */
 		if (attr_b->non_res) {
 			new_alloc = le64_to_cpu(attr_b->nres.alloc_size);
 			if (inode_get_bytes(&ni->vfs_inode) != new_alloc) {
@@ -822,6 +818,7 @@ ok1:
 			}
 		}
 
+		/* Don't forget to update duplicate information in parent. */
 		if (dirty) {
 			ni->ni_flags |= NI_FLAG_UPDATE_PARENT;
 			mark_inode_dirty(&ni->vfs_inode);

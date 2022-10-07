@@ -551,17 +551,6 @@ static noinline int ntfs_get_block_vbo(struct inode *inode, u64 vbo,
 	clear_buffer_new(bh);
 	clear_buffer_uptodate(bh);
 
-	/* Direct write uses 'create=0'. */
-	if (!create && vbo >= ni->i_valid) {
-		/* Out of valid. */
-		return 0;
-	}
-
-	if (vbo >= inode->i_size) {
-		/* Out of size. */
-		return 0;
-	}
-
 	if (is_resident(ni)) {
 		ni_lock(ni);
 		err = attr_data_read_resident(ni, page);
@@ -625,7 +614,6 @@ static noinline int ntfs_get_block_vbo(struct inode *inode, u64 vbo,
 		}
 	} else if (vbo >= valid) {
 		/* Read out of valid data. */
-		/* Should never be here 'cause already checked. */
 		clear_buffer_mapped(bh);
 	} else if (vbo + bytes <= valid) {
 		/* Normal read. */
@@ -972,6 +960,11 @@ int ntfs_write_end(struct file *file, struct address_space *mapping,
 
 		if (valid != ni->i_valid) {
 			/* ni->i_valid is changed in ntfs_get_block_vbo. */
+			dirty = true;
+		}
+
+		if (pos + err > inode->i_size) {
+			inode->i_size = pos + err;
 			dirty = true;
 		}
 

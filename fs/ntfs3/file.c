@@ -337,7 +337,6 @@ static int ntfs_extend(struct inode *inode, loff_t pos, size_t count,
 		err = ntfs_set_size(inode, end);
 		if (err)
 			goto out;
-		inode->i_size = end;
 	}
 
 	if (extend_init && !is_compressed(ni)) {
@@ -588,12 +587,14 @@ static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 		if (err)
 			goto out;
 
-		/*
-		 * Allocate clusters, do not change 'valid' size.
-		 */
-		err = ntfs_set_size(inode, new_size);
-		if (err)
-			goto out;
+		if (new_size > i_size) {
+			/*
+			 * Allocate clusters, do not change 'valid' size.
+			 */
+			err = ntfs_set_size(inode, new_size);
+			if (err)
+				goto out;
+		}
 
 		if (is_supported_holes) {
 			CLST vcn = vbo >> sbi->cluster_bits;
@@ -635,6 +636,8 @@ static long ntfs_fallocate(struct file *file, int mode, loff_t vbo, loff_t len)
 					    &ni->file.run, i_size, &ni->i_valid,
 					    true, NULL);
 			ni_unlock(ni);
+		} else if (new_size > i_size) {
+			inode->i_size = new_size;
 		}
 	}
 
@@ -678,7 +681,7 @@ int ntfs3_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		goto out;
 
 	if (ia_valid & ATTR_SIZE) {
-		loff_t oldsize = inode->i_size;
+		loff_t newsize, oldsize;
 
 		if (WARN_ON(ni->ni_flags & NI_FLAG_COMPRESSED_MASK)) {
 			/* Should never be here, see ntfs_file_open(). */
@@ -686,16 +689,19 @@ int ntfs3_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 			goto out;
 		}
 		inode_dio_wait(inode);
+		oldsize = inode->i_size;
+		newsize = attr->ia_size;
 
-		if (attr->ia_size <= oldsize)
-			err = ntfs_truncate(inode, attr->ia_size);
-		else if (attr->ia_size > oldsize)
-			err = ntfs_extend(inode, attr->ia_size, 0, NULL);
+		if (newsize <= oldsize)
+			err = ntfs_truncate(inode, newsize);
+		else
+			err = ntfs_extend(inode, newsize, 0, NULL);
 
 		if (err)
 			goto out;
 
 		ni->ni_flags |= NI_FLAG_UPDATE_PARENT;
+		inode->i_size = newsize;
 	}
 
 	setattr_copy(mnt_userns, inode, attr);
