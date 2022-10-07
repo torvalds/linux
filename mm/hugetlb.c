@@ -6804,7 +6804,7 @@ void hugetlb_vma_lock_release(struct kref *kref)
 	kfree(vma_lock);
 }
 
-void __hugetlb_vma_unlock_write_put(struct hugetlb_vma_lock *vma_lock)
+static void __hugetlb_vma_unlock_write_put(struct hugetlb_vma_lock *vma_lock)
 {
 	struct vm_area_struct *vma = vma_lock->vma;
 
