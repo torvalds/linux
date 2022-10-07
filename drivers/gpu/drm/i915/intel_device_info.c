@@ -507,6 +507,10 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		runtime->has_dmc = false;
 		runtime->has_dsc = false;
 	}
+
+	/* Disable nuclear pageflip by default on pre-ILK */
+	if (!dev_priv->params.nuclear_pageflip && DISPLAY_VER(dev_priv) < 5)
+		dev_priv->drm.driver_features &= ~DRIVER_ATOMIC;
 }
 
 void intel_driver_caps_print(const struct intel_driver_caps *caps,
