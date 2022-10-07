@@ -775,6 +775,8 @@ static int atmel_conf_pin_config_group_get(struct pinctrl_dev *pctldev,
 			return -EINVAL;
 		arg = (res & ATMEL_PIO_DRVSTR_MASK) >> ATMEL_PIO_DRVSTR_OFFSET;
 		break;
+	case PIN_CONFIG_PERSIST_STATE:
+		return -ENOTSUPP;
 	default:
 		return -ENOTSUPP;
 	}
@@ -883,6 +885,8 @@ static int atmel_conf_pin_config_group_set(struct pinctrl_dev *pctldev,
 				dev_warn(pctldev->dev, "drive strength not updated (incorrect value)\n");
 			}
 			break;
+		case PIN_CONFIG_PERSIST_STATE:
+			return -ENOTSUPP;
 		default:
 			dev_warn(pctldev->dev,
 				 "unsupported configuration parameter: %u\n",
