@@ -1,7 +1,10 @@
 config RDMA_SIW
 	tristate "Software RDMA over TCP/IP (iWARP) driver"
-	depends on INET && INFINIBAND && LIBCRC32C
+	depends on INET && INFINIBAND
 	depends on INFINIBAND_VIRT_DMA
+	select LIBCRC32C
+	select CRYPTO
+	select CRYPTO_CRC32C
 	help
 	This driver implements the iWARP RDMA transport over
 	the Linux TCP/IP network stack. It enables a system with a
