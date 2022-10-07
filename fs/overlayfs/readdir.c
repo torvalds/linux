@@ -264,7 +264,7 @@ static bool ovl_fill_merge(struct dir_context *ctx, const char *name,
 		return ovl_fill_lowest(rdd, name, namelen, offset, ino, d_type);
 }
 
-static int ovl_check_whiteouts(struct path *path, struct ovl_readdir_data *rdd)
+static int ovl_check_whiteouts(const struct path *path, struct ovl_readdir_data *rdd)
 {
 	int err;
 	struct ovl_cache_entry *p;
@@ -291,7 +291,7 @@ static int ovl_check_whiteouts(struct path *path, struct ovl_readdir_data *rdd)
 	return err;
 }
 
-static inline int ovl_dir_read(struct path *realpath,
+static inline int ovl_dir_read(const struct path *realpath,
 			       struct ovl_readdir_data *rdd)
 {
 	struct file *realfile;
@@ -455,7 +455,7 @@ static u64 ovl_remap_lower_ino(u64 ino, int xinobits, int fsid,
  * copy up origin, call vfs_getattr() on the overlay entry to make
  * sure that d_ino will be consistent with st_ino from stat(2).
  */
-static int ovl_cache_update_ino(struct path *path, struct ovl_cache_entry *p)
+static int ovl_cache_update_ino(const struct path *path, struct ovl_cache_entry *p)
 
 {
 	struct dentry *dir = path->dentry;
@@ -547,7 +547,7 @@ static bool ovl_fill_plain(struct dir_context *ctx, const char *name,
 	return true;
 }
 
-static int ovl_dir_read_impure(struct path *path,  struct list_head *list,
+static int ovl_dir_read_impure(const struct path *path,  struct list_head *list,
 			       struct rb_root *root)
 {
 	int err;
@@ -592,7 +592,7 @@ static int ovl_dir_read_impure(struct path *path,  struct list_head *list,
 	return 0;
 }
 
-static struct ovl_dir_cache *ovl_cache_get_impure(struct path *path)
+static struct ovl_dir_cache *ovl_cache_get_impure(const struct path *path)
 {
 	int res;
 	struct dentry *dentry = path->dentry;
@@ -834,7 +834,7 @@ out_unlock:
 }
 
 static struct file *ovl_dir_open_realfile(const struct file *file,
-					  struct path *realpath)
+					  const struct path *realpath)
 {
 	struct file *res;
 	const struct cred *old_cred;
@@ -1048,7 +1048,7 @@ static bool ovl_check_d_type(struct dir_context *ctx, const char *name,
  * Returns 1 if d_type is supported, 0 not supported/unknown. Negative values
  * if error is encountered.
  */
-int ovl_check_d_type_supported(struct path *realpath)
+int ovl_check_d_type_supported(const struct path *realpath)
 {
 	int err;
 	struct ovl_readdir_data rdd = {
@@ -1065,7 +1065,7 @@ int ovl_check_d_type_supported(struct path *realpath)
 
 #define OVL_INCOMPATDIR_NAME "incompat"
 
-static int ovl_workdir_cleanup_recurse(struct ovl_fs *ofs, struct path *path,
+static int ovl_workdir_cleanup_recurse(struct ovl_fs *ofs, const struct path *path,
 				       int level)
 {
 	int err;

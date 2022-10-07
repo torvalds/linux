@@ -3493,7 +3493,7 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
  *
  * Returns the length of the smack label or an error code
  */
-static int smack_getprocattr(struct task_struct *p, char *name, char **value)
+static int smack_getprocattr(struct task_struct *p, const char *name, char **value)
 {
 	struct smack_known *skp = smk_of_task_struct_obj(p);
 	char *cp;

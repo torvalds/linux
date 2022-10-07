@@ -1761,7 +1761,7 @@ out:
 	return ERR_PTR(error);
 }
 
-static int do_proc_readlink(struct path *path, char __user *buffer, int buflen)
+static int do_proc_readlink(const struct path *path, char __user *buffer, int buflen)
 {
 	char *tmp = kmalloc(PATH_MAX, GFP_KERNEL);
 	char *pathname;
@@ -2728,7 +2728,7 @@ static ssize_t proc_pid_attr_read(struct file * file, char __user * buf,
 		return -ESRCH;
 
 	length = security_getprocattr(task, PROC_I(inode)->op.lsm,
-				      (char*)file->f_path.dentry->d_name.name,
+				      file->f_path.dentry->d_name.name,
 				      &p);
 	put_task_struct(task);
 	if (length > 0)
