@@ -270,7 +270,7 @@ menuconfig HAVE_TCM
 	bool "Tightly-Coupled/Sram Memory"
 	depends on !COMPILE_TEST
 	help
-	  The implementation are not only used by TCM (Tightly-Coupled Meory)
+	  The implementation are not only used by TCM (Tightly-Coupled Memory)
 	  but also used by sram on SOC bus. It follow existed linux tcm
 	  software interface, so that old tcm application codes could be
 	  re-used directly.
