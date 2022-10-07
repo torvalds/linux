@@ -1184,6 +1184,18 @@ out:
 	return ERR_PTR(err);
 }
 
+/*
+ * ntfs_create_inode
+ *
+ * Helper function for:
+ * - ntfs_create
+ * - ntfs_mknod
+ * - ntfs_symlink
+ * - ntfs_mkdir
+ * - ntfs_atomic_open
+ * 
+ * NOTE: if fnd != NULL (ntfs_atomic_open) then @dir is locked
+ */
 struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 				struct inode *dir, struct dentry *dentry,
 				const struct cpu_str *uni, umode_t mode,
@@ -1213,7 +1225,8 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 	struct REPARSE_DATA_BUFFER *rp = NULL;
 	bool rp_inserted = false;
 
-	ni_lock_dir(dir_ni);
+	if (!fnd)
+		ni_lock_dir(dir_ni);
 
 	dir_root = indx_get_root(&dir_ni->dir, dir_ni, NULL, NULL);
 	if (!dir_root) {
@@ -1583,7 +1596,8 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 		goto out6;
 
 	/* Unlock parent directory before ntfs_init_acl. */
-	ni_unlock(dir_ni);
+	if (!fnd)
+		ni_unlock(dir_ni);
 
 	inode->i_generation = le16_to_cpu(rec->seq);
 
@@ -1643,7 +1657,8 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 out7:
 
 	/* Undo 'indx_insert_entry'. */
-	ni_lock_dir(dir_ni);
+	if (!fnd)
+		ni_lock_dir(dir_ni);
 	indx_delete_entry(&dir_ni->dir, dir_ni, new_de + 1,
 			  le16_to_cpu(new_de->key_size), sbi);
 	/* ni_unlock(dir_ni); will be called later. */
@@ -1671,7 +1686,8 @@ out2:
 
 out1:
 	if (err) {
-		ni_unlock(dir_ni);
+		if (!fnd)
+			ni_unlock(dir_ni);
 		return ERR_PTR(err);
 	}
 
