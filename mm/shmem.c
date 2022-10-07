@@ -1826,7 +1826,7 @@ static int shmem_get_folio_gfp(struct inode *inode, pgoff_t index,
 	struct shmem_sb_info *sbinfo;
 	struct mm_struct *charge_mm;
 	struct folio *folio;
-	pgoff_t hindex = index;
+	pgoff_t hindex;
 	gfp_t huge_gfp;
 	int error;
 	int once = 0;
@@ -1864,7 +1864,6 @@ repeat:
 	}
 
 	if (folio) {
-		hindex = folio->index;
 		if (sgp == SGP_WRITE)
 			folio_mark_accessed(folio);
 		if (folio_test_uptodate(folio))
