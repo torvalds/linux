@@ -24,6 +24,111 @@ drv_xmit_sync(struct ieee802154_local *local, struct sk_buff *skb)
 	return local->ops->xmit_sync(&local->hw, skb);
 }
 
+static inline int drv_set_pan_id(struct ieee802154_local *local, __le16 pan_id)
+{
+	struct ieee802154_hw_addr_filt filt;
+	int ret;
+
+	might_sleep();
+
+	if (!local->ops->set_hw_addr_filt) {
+		WARN_ON(1);
+		return -EOPNOTSUPP;
+	}
+
+	filt.pan_id = pan_id;
+
+	trace_802154_drv_set_pan_id(local, pan_id);
+	ret = local->ops->set_hw_addr_filt(&local->hw, &filt,
+					    IEEE802154_AFILT_PANID_CHANGED);
+	trace_802154_drv_return_int(local, ret);
+	return ret;
+}
+
+static inline int
+drv_set_extended_addr(struct ieee802154_local *local, __le64 extended_addr)
+{
+	struct ieee802154_hw_addr_filt filt;
+	int ret;
+
+	might_sleep();
+
+	if (!local->ops->set_hw_addr_filt) {
+		WARN_ON(1);
+		return -EOPNOTSUPP;
+	}
+
+	filt.ieee_addr = extended_addr;
+
+	trace_802154_drv_set_extended_addr(local, extended_addr);
+	ret = local->ops->set_hw_addr_filt(&local->hw, &filt,
+					    IEEE802154_AFILT_IEEEADDR_CHANGED);
+	trace_802154_drv_return_int(local, ret);
+	return ret;
+}
+
+static inline int
+drv_set_short_addr(struct ieee802154_local *local, __le16 short_addr)
+{
+	struct ieee802154_hw_addr_filt filt;
+	int ret;
+
+	might_sleep();
+
+	if (!local->ops->set_hw_addr_filt) {
+		WARN_ON(1);
+		return -EOPNOTSUPP;
+	}
+
+	filt.short_addr = short_addr;
+
+	trace_802154_drv_set_short_addr(local, short_addr);
+	ret = local->ops->set_hw_addr_filt(&local->hw, &filt,
+					    IEEE802154_AFILT_SADDR_CHANGED);
+	trace_802154_drv_return_int(local, ret);
+	return ret;
+}
+
+static inline int
+drv_set_pan_coord(struct ieee802154_local *local, bool is_coord)
+{
+	struct ieee802154_hw_addr_filt filt;
+	int ret;
+
+	might_sleep();
+
+	if (!local->ops->set_hw_addr_filt) {
+		WARN_ON(1);
+		return -EOPNOTSUPP;
+	}
+
+	filt.pan_coord = is_coord;
+
+	trace_802154_drv_set_pan_coord(local, is_coord);
+	ret = local->ops->set_hw_addr_filt(&local->hw, &filt,
+					    IEEE802154_AFILT_PANC_CHANGED);
+	trace_802154_drv_return_int(local, ret);
+	return ret;
+}
+
+static inline int
+drv_set_promiscuous_mode(struct ieee802154_local *local, bool on)
+{
+	int ret;
+
+	might_sleep();
+
+	if (!local->ops->set_promiscuous_mode) {
+		WARN_ON(1);
+		return -EOPNOTSUPP;
+	}
+
+	trace_802154_drv_set_promiscuous_mode(local, on);
+	ret = local->ops->set_promiscuous_mode(&local->hw, on);
+	trace_802154_drv_return_int(local, ret);
+	return ret;
+}
+
 static inline int drv_start(struct ieee802154_local *local)
 {
 	int ret;
@@ -138,93 +243,6 @@ drv_set_cca_ed_level(struct ieee802154_local *local, s32 mbm)
 	return ret;
 }
 
-static inline int drv_set_pan_id(struct ieee802154_local *local, __le16 pan_id)
-{
-	struct ieee802154_hw_addr_filt filt;
-	int ret;
-
-	might_sleep();
-
-	if (!local->ops->set_hw_addr_filt) {
-		WARN_ON(1);
-		return -EOPNOTSUPP;
-	}
-
-	filt.pan_id = pan_id;
-
-	trace_802154_drv_set_pan_id(local, pan_id);
-	ret = local->ops->set_hw_addr_filt(&local->hw, &filt,
-					    IEEE802154_AFILT_PANID_CHANGED);
-	trace_802154_drv_return_int(local, ret);
-	return ret;
-}
-
-static inline int
-drv_set_extended_addr(struct ieee802154_local *local, __le64 extended_addr)
-{
-	struct ieee802154_hw_addr_filt filt;
-	int ret;
-
-	might_sleep();
-
-	if (!local->ops->set_hw_addr_filt) {
-		WARN_ON(1);
-		return -EOPNOTSUPP;
-	}
-
-	filt.ieee_addr = extended_addr;
-
-	trace_802154_drv_set_extended_addr(local, extended_addr);
-	ret = local->ops->set_hw_addr_filt(&local->hw, &filt,
-					    IEEE802154_AFILT_IEEEADDR_CHANGED);
-	trace_802154_drv_return_int(local, ret);
-	return ret;
-}
-
-static inline int
-drv_set_short_addr(struct ieee802154_local *local, __le16 short_addr)
-{
-	struct ieee802154_hw_addr_filt filt;
-	int ret;
-
-	might_sleep();
-
-	if (!local->ops->set_hw_addr_filt) {
-		WARN_ON(1);
-		return -EOPNOTSUPP;
-	}
-
-	filt.short_addr = short_addr;
-
-	trace_802154_drv_set_short_addr(local, short_addr);
-	ret = local->ops->set_hw_addr_filt(&local->hw, &filt,
-					    IEEE802154_AFILT_SADDR_CHANGED);
-	trace_802154_drv_return_int(local, ret);
-	return ret;
-}
-
-static inline int
-drv_set_pan_coord(struct ieee802154_local *local, bool is_coord)
-{
-	struct ieee802154_hw_addr_filt filt;
-	int ret;
-
-	might_sleep();
-
-	if (!local->ops->set_hw_addr_filt) {
-		WARN_ON(1);
-		return -EOPNOTSUPP;
-	}
-
-	filt.pan_coord = is_coord;
-
-	trace_802154_drv_set_pan_coord(local, is_coord);
-	ret = local->ops->set_hw_addr_filt(&local->hw, &filt,
-					    IEEE802154_AFILT_PANC_CHANGED);
-	trace_802154_drv_return_int(local, ret);
-	return ret;
-}
-
 static inline int
 drv_set_csma_params(struct ieee802154_local *local, u8 min_be, u8 max_be,
 		    u8 max_csma_backoffs)
@@ -260,24 +278,6 @@ drv_set_max_frame_retries(struct ieee802154_local *local, s8 max_frame_retries)
 
 	trace_802154_drv_set_max_frame_retries(local, max_frame_retries);
 	ret = local->ops->set_frame_retries(&local->hw, max_frame_retries);
-	trace_802154_drv_return_int(local, ret);
-	return ret;
-}
-
-static inline int
-drv_set_promiscuous_mode(struct ieee802154_local *local, bool on)
-{
-	int ret;
-
-	might_sleep();
-
-	if (!local->ops->set_promiscuous_mode) {
-		WARN_ON(1);
-		return -EOPNOTSUPP;
-	}
-
-	trace_802154_drv_set_promiscuous_mode(local, on);
-	ret = local->ops->set_promiscuous_mode(&local->hw, on);
 	trace_802154_drv_return_int(local, ret);
 	return ret;
 }
