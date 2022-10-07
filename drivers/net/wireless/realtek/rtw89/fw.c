@@ -2773,6 +2773,7 @@ void rtw89_hw_scan_complete(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 
 	if (rtwvif->net_type != RTW89_NET_TYPE_NO_LINK)
 		rtw89_store_op_chan(rtwdev, false);
+	rtw89_set_channel(rtwdev);
 }
 
 void rtw89_hw_scan_abort(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif)
