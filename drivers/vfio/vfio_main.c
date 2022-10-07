@@ -133,6 +133,10 @@ __vfio_group_get_from_iommu(struct iommu_group *iommu_group)
 {
 	struct vfio_group *group;
 
+	/*
+	 * group->iommu_group from the vfio.group_list cannot be NULL
+	 * under the vfio.group_lock.
+	 */
 	list_for_each_entry(group, &vfio.group_list, vfio_next) {
 		if (group->iommu_group == iommu_group) {
 			refcount_inc(&group->drivers);
@@ -159,7 +163,7 @@ static void vfio_group_release(struct device *dev)
 
 	mutex_destroy(&group->device_lock);
 	mutex_destroy(&group->group_lock);
-	iommu_group_put(group->iommu_group);
+	WARN_ON(group->iommu_group);
 	ida_free(&vfio.group_ida, MINOR(group->dev.devt));
 	kfree(group);
 }
@@ -189,7 +193,6 @@ static struct vfio_group *vfio_group_alloc(struct iommu_group *iommu_group,
 
 	refcount_set(&group->drivers, 1);
 	mutex_init(&group->group_lock);
-	init_swait_queue_head(&group->opened_file_wait);
 	INIT_LIST_HEAD(&group->device_list);
 	mutex_init(&group->device_lock);
 	group->iommu_group = iommu_group;
@@ -248,6 +251,7 @@ err_put:
 static void vfio_device_remove_group(struct vfio_device *device)
 {
 	struct vfio_group *group = device->group;
+	struct iommu_group *iommu_group;
 
 	if (group->type == VFIO_NO_IOMMU || group->type == VFIO_EMULATED_IOMMU)
 		iommu_group_remove_device(device->dev);
@@ -265,31 +269,29 @@ static void vfio_device_remove_group(struct vfio_device *device)
 	 */
 	cdev_device_del(&group->cdev, &group->dev);
 
-	/*
-	 * Before we allow the last driver in the group to be unplugged the
-	 * group must be sanitized so nothing else is or can reference it. This
-	 * is because the group->iommu_group pointer should only be used so long
-	 * as a device driver is attached to a device in the group.
-	 */
-	while (group->opened_file) {
-		mutex_unlock(&vfio.group_lock);
-		swait_event_idle_exclusive(group->opened_file_wait,
-					   !group->opened_file);
-		mutex_lock(&vfio.group_lock);
-	}
-	mutex_unlock(&vfio.group_lock);
-
+	mutex_lock(&group->group_lock);
 	/*
 	 * These data structures all have paired operations that can only be
-	 * undone when the caller holds a live reference on the group. Since all
-	 * pairs must be undone these WARN_ON's indicate some caller did not
+	 * undone when the caller holds a live reference on the device. Since
+	 * all pairs must be undone these WARN_ON's indicate some caller did not
 	 * properly hold the group reference.
 	 */
 	WARN_ON(!list_empty(&group->device_list));
-	WARN_ON(group->container || group->container_users);
 	WARN_ON(group->notifier.head);
-	group->iommu_group = NULL;
 
+	/*
+	 * Revoke all users of group->iommu_group. At this point we know there
+	 * are no devices active because we are unplugging the last one. Setting
+	 * iommu_group to NULL blocks all new users.
+	 */
+	if (group->container)
+		vfio_group_detach_container(group);
+	iommu_group = group->iommu_group;
+	group->iommu_group = NULL;
+	mutex_unlock(&group->group_lock);
+	mutex_unlock(&vfio.group_lock);
+
+	iommu_group_put(iommu_group);
 	put_device(&group->dev);
 }
 
@@ -531,6 +533,10 @@ static int __vfio_register_dev(struct vfio_device *device,
 
 	existing_device = vfio_group_get_device(group, device->dev);
 	if (existing_device) {
+		/*
+		 * group->iommu_group is non-NULL because we hold the drivers
+		 * refcount.
+		 */
 		dev_WARN(device->dev, "Device already exists on group %d\n",
 			 iommu_group_id(group->iommu_group));
 		vfio_device_put_registration(existing_device);
@@ -702,6 +708,11 @@ static int vfio_group_ioctl_set_container(struct vfio_group *group,
 		ret = -EINVAL;
 		goto out_unlock;
 	}
+	if (!group->iommu_group) {
+		ret = -ENODEV;
+		goto out_unlock;
+	}
+
 	container = vfio_container_from_file(f.file);
 	ret = -EINVAL;
 	if (container) {
@@ -862,6 +873,11 @@ static int vfio_group_ioctl_get_status(struct vfio_group *group,
 	status.flags = 0;
 
 	mutex_lock(&group->group_lock);
+	if (!group->iommu_group) {
+		mutex_unlock(&group->group_lock);
+		return -ENODEV;
+	}
+
 	if (group->container)
 		status.flags |= VFIO_GROUP_FLAGS_CONTAINER_SET |
 				VFIO_GROUP_FLAGS_VIABLE;
@@ -947,8 +963,6 @@ static int vfio_group_fops_release(struct inode *inode, struct file *filep)
 		vfio_group_detach_container(group);
 	group->opened_file = NULL;
 	mutex_unlock(&group->group_lock);
-	swake_up_one(&group->opened_file_wait);
-
 	return 0;
 }
 
@@ -1559,14 +1573,21 @@ static const struct file_operations vfio_device_fops = {
 struct iommu_group *vfio_file_iommu_group(struct file *file)
 {
 	struct vfio_group *group = file->private_data;
+	struct iommu_group *iommu_group = NULL;
 
 	if (!IS_ENABLED(CONFIG_SPAPR_TCE_IOMMU))
 		return NULL;
 
 	if (!vfio_file_is_group(file))
 		return NULL;
-	iommu_group_ref_get(group->iommu_group);
-	return group->iommu_group;
+
+	mutex_lock(&group->group_lock);
+	if (group->iommu_group) {
+		iommu_group = group->iommu_group;
+		iommu_group_ref_get(iommu_group);
+	}
+	mutex_unlock(&group->group_lock);
+	return iommu_group;
 }
 EXPORT_SYMBOL_GPL(vfio_file_iommu_group);
 

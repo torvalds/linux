@@ -59,7 +59,6 @@ struct vfio_group {
 	struct mutex			group_lock;
 	struct kvm			*kvm;
 	struct file			*opened_file;
-	struct swait_queue_head		opened_file_wait;
 	struct blocking_notifier_head	notifier;
 };
 
