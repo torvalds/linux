@@ -3776,7 +3776,7 @@ static int reserve_populate_dentry(struct ksmbd_dir_info *d_info,
 	return 0;
 }
 
-static int __query_dir(struct dir_context *ctx, const char *name, int namlen,
+static bool __query_dir(struct dir_context *ctx, const char *name, int namlen,
 		       loff_t offset, u64 ino, unsigned int d_type)
 {
 	struct ksmbd_readdir_data	*buf;
@@ -3790,22 +3790,20 @@ static int __query_dir(struct dir_context *ctx, const char *name, int namlen,
 
 	/* dot and dotdot entries are already reserved */
 	if (!strcmp(".", name) || !strcmp("..", name))
-		return 0;
+		return true;
 	if (ksmbd_share_veto_filename(priv->work->tcon->share_conf, name))
-		return 0;
+		return true;
 	if (!match_pattern(name, namlen, priv->search_pattern))
-		return 0;
+		return true;
 
 	d_info->name		= name;
 	d_info->name_len	= namlen;
 	rc = reserve_populate_dentry(d_info, priv->info_level);
 	if (rc)
-		return rc;
-	if (d_info->flags & SMB2_RETURN_SINGLE_ENTRY) {
+		return false;
+	if (d_info->flags & SMB2_RETURN_SINGLE_ENTRY)
 		d_info->out_buf_len = 0;
-		return 0;
-	}
-	return 0;
+	return true;
 }
 
 static void restart_ctx(struct dir_context *ctx)
