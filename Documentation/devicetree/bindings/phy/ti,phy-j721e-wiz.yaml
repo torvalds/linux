@@ -16,19 +16,23 @@ properties:
       - ti,j721e-wiz-16g
       - ti,j721e-wiz-10g
       - ti,am64-wiz-10g
+      - ti,j7200-wiz-10g
 
   power-domains:
     maxItems: 1
 
   clocks:
-    maxItems: 3
+    minItems: 3
+    maxItems: 4
     description: clock-specifier to represent input to the WIZ
 
   clock-names:
+    minItems: 3
     items:
       - const: fck
       - const: core_ref_clk
       - const: ext_ref_clk
+      - const: core_ref1_clk
 
   num-lanes:
     minimum: 1
@@ -79,10 +83,12 @@ properties:
 
   refclk-dig:
     type: object
+    additionalProperties: false
     description: |
       WIZ node should have subnode for refclk_dig to select the reference
       clock source for the reference clock used in the PHY and PMA digital
       logic.
+    deprecated: true
     properties:
       clocks:
         minItems: 2
@@ -105,12 +111,19 @@ properties:
       - assigned-clocks
       - assigned-clock-parents
 
+  ti,scm:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: |
+      phandle to System Control Module for syscon regmap access.
+
 patternProperties:
   "^pll[0|1]-refclk$":
     type: object
+    additionalProperties: false
     description: |
       WIZ node should have subnodes for each of the PLLs present in
       the SERDES.
+    deprecated: true
     properties:
       clocks:
         maxItems: 2
@@ -133,9 +146,11 @@ patternProperties:
 
   "^cmn-refclk1?-dig-div$":
     type: object
+    additionalProperties: false
     description:
       WIZ node should have subnodes for each of the PMA common refclock
       provided by the SERDES.
+    deprecated: true
     properties:
       clocks:
         maxItems: 1
@@ -169,6 +184,16 @@ required:
   - "#size-cells"
   - "#reset-cells"
   - ranges
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,j7200-wiz-10g
+    then:
+      required:
+        - ti,scm
 
 additionalProperties: false
 
