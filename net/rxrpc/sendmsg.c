@@ -363,7 +363,6 @@ reload:
 				goto maybe_error;
 
 			sp = rxrpc_skb(skb);
-			sp->rx_flags |= RXRPC_SKB_TX_BUFFER;
 			rxrpc_new_skb(skb, rxrpc_skb_new);
 
 			_debug("ALLOC SEND %p", skb);
