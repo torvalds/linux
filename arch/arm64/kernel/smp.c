@@ -882,7 +882,7 @@ static void do_handle_IPI(int ipinr)
 		break;
 
 	case IPI_CPU_STOP:
-		trace_android_vh_ipi_stop_rcuidle(get_irq_regs());
+		trace_android_vh_ipi_stop(get_irq_regs());
 		local_cpu_stop();
 		break;
 
