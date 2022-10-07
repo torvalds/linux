@@ -20,8 +20,12 @@ enum io_uring_cmd_flags {
 struct io_uring_cmd {
 	struct file	*file;
 	const void	*cmd;
-	/* callback to defer completions to task context */
-	void (*task_work_cb)(struct io_uring_cmd *cmd);
+	union {
+		/* callback to defer completions to task context */
+		void (*task_work_cb)(struct io_uring_cmd *cmd);
+		/* used for polled completion */
+		void *cookie;
+	};
 	u32		cmd_op;
 	u32		pad;
 	u8		pdu[32]; /* available inline for free use */

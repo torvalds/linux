@@ -50,7 +50,11 @@ void io_uring_cmd_done(struct io_uring_cmd *ioucmd, ssize_t ret, ssize_t res2)
 	io_req_set_res(req, ret, 0);
 	if (req->ctx->flags & IORING_SETUP_CQE32)
 		io_req_set_cqe32_extra(req, res2, 0);
-	__io_req_complete(req, 0);
+	if (req->ctx->flags & IORING_SETUP_IOPOLL)
+		/* order with io_iopoll_req_issued() checking ->iopoll_complete */
+		smp_store_release(&req->iopoll_completed, 1);
+	else
+		__io_req_complete(req, 0);
 }
 EXPORT_SYMBOL_GPL(io_uring_cmd_done);
 
@@ -97,8 +101,11 @@ int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 		issue_flags |= IO_URING_F_SQE128;
 	if (ctx->flags & IORING_SETUP_CQE32)
 		issue_flags |= IO_URING_F_CQE32;
-	if (ctx->flags & IORING_SETUP_IOPOLL)
+	if (ctx->flags & IORING_SETUP_IOPOLL) {
 		issue_flags |= IO_URING_F_IOPOLL;
+		req->iopoll_completed = 0;
+		WRITE_ONCE(ioucmd->cookie, NULL);
+	}
 
 	if (req_has_async_data(req))
 		ioucmd->cmd = req->async_data;
