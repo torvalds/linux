@@ -305,6 +305,8 @@ static int ntfs_rename(struct user_namespace *mnt_userns, struct inode *dir,
 
 	ni_lock_dir(dir_ni);
 	ni_lock(ni);
+	if (dir_ni != new_dir_ni)
+		ni_lock_dir2(new_dir_ni);
 
 	is_bad = false;
 	err = ni_rename(dir_ni, new_dir_ni, ni, de, new_de, &is_bad);
@@ -328,6 +330,8 @@ static int ntfs_rename(struct user_namespace *mnt_userns, struct inode *dir,
 			ntfs_sync_inode(inode);
 	}
 
+	if (dir_ni != new_dir_ni)
+		ni_unlock(new_dir_ni);
 	ni_unlock(ni);
 	ni_unlock(dir_ni);
 out:

@@ -334,6 +334,7 @@ enum ntfs_inode_mutex_lock_class {
 	NTFS_INODE_MUTEX_REPARSE,
 	NTFS_INODE_MUTEX_NORMAL,
 	NTFS_INODE_MUTEX_PARENT,
+	NTFS_INODE_MUTEX_PARENT2,
 };
 
 /*
@@ -1119,6 +1120,11 @@ static inline void ni_lock(struct ntfs_inode *ni)
 static inline void ni_lock_dir(struct ntfs_inode *ni)
 {
 	mutex_lock_nested(&ni->ni_lock, NTFS_INODE_MUTEX_PARENT);
+}
+
+static inline void ni_lock_dir2(struct ntfs_inode *ni)
+{
+	mutex_lock_nested(&ni->ni_lock, NTFS_INODE_MUTEX_PARENT2);
 }
 
 static inline void ni_unlock(struct ntfs_inode *ni)
