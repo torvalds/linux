@@ -10,13 +10,15 @@
 
 #include <linux/bitops.h>
 #include <linux/clk.h>
-#include <linux/io.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+
+#include <linux/pinctrl/pinconf-generic.h>
+#include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
-#include <linux/pinctrl/pinconf-generic.h>
 
 #include "core.h"
 #include "pinctrl-utils.h"
