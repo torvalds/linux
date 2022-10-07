@@ -1552,8 +1552,9 @@ static const struct file_operations vfio_device_fops = {
  * vfio_file_iommu_group - Return the struct iommu_group for the vfio group file
  * @file: VFIO group file
  *
- * The returned iommu_group is valid as long as a ref is held on the file.
- * This function is deprecated, only the SPAPR path in kvm should call it.
+ * The returned iommu_group is valid as long as a ref is held on the file. This
+ * returns a reference on the group. This function is deprecated, only the SPAPR
+ * path in kvm should call it.
  */
 struct iommu_group *vfio_file_iommu_group(struct file *file)
 {
@@ -1564,6 +1565,7 @@ struct iommu_group *vfio_file_iommu_group(struct file *file)
 
 	if (!vfio_file_is_group(file))
 		return NULL;
+	iommu_group_ref_get(group->iommu_group);
 	return group->iommu_group;
 }
 EXPORT_SYMBOL_GPL(vfio_file_iommu_group);
