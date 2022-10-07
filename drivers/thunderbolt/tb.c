@@ -272,6 +272,35 @@ static void tb_increase_tmu_accuracy(struct tb_tunnel *tunnel)
 	device_for_each_child(&sw->dev, NULL, tb_increase_switch_tmu_accuracy);
 }
 
+static int tb_enable_tmu(struct tb_switch *sw)
+{
+	int ret;
+
+	/*
+	 * If CL1 is enabled then we need to configure the TMU accuracy
+	 * level to normal. Otherwise we keep the TMU running at the
+	 * highest accuracy.
+	 */
+	if (tb_switch_is_clx_enabled(sw, TB_CL1))
+		tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_NORMAL, true);
+	else
+		tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_HIFI, false);
+
+	/* If it is already enabled in correct mode, don't touch it */
+	if (tb_switch_tmu_is_enabled(sw))
+		return 0;
+
+	ret = tb_switch_tmu_disable(sw);
+	if (ret)
+		return ret;
+
+	ret = tb_switch_tmu_post_time(sw);
+	if (ret)
+		return ret;
+
+	return tb_switch_tmu_enable(sw);
+}
+
 static void tb_switch_discover_tunnels(struct tb_switch *sw,
 				       struct list_head *list,
 				       bool alloc_hopids)
@@ -381,35 +410,6 @@ static void tb_scan_xdomain(struct tb_port *port)
 		tb_port_configure_xdomain(port, xd);
 		tb_xdomain_add(xd);
 	}
-}
-
-static int tb_enable_tmu(struct tb_switch *sw)
-{
-	int ret;
-
-	/*
-	 * If CL1 is enabled then we need to configure the TMU accuracy
-	 * level to normal. Otherwise we keep the TMU running at the
-	 * highest accuracy.
-	 */
-	if (tb_switch_is_clx_enabled(sw, TB_CL1))
-		tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_NORMAL, true);
-	else
-		tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_HIFI, false);
-
-	/* If it is already enabled in correct mode, don't touch it */
-	if (tb_switch_tmu_is_enabled(sw))
-		return 0;
-
-	ret = tb_switch_tmu_disable(sw);
-	if (ret)
-		return ret;
-
-	ret = tb_switch_tmu_post_time(sw);
-	if (ret)
-		return ret;
-
-	return tb_switch_tmu_enable(sw);
 }
 
 /**
