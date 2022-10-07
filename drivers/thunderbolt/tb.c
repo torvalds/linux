@@ -387,6 +387,16 @@ static int tb_enable_tmu(struct tb_switch *sw)
 {
 	int ret;
 
+	/*
+	 * If CL1 is enabled then we need to configure the TMU accuracy
+	 * level to normal. Otherwise we keep the TMU running at the
+	 * highest accuracy.
+	 */
+	if (tb_switch_is_clx_enabled(sw, TB_CL1))
+		tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_NORMAL, true);
+	else
+		tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_HIFI, false);
+
 	/* If it is already enabled in correct mode, don't touch it */
 	if (tb_switch_tmu_is_enabled(sw))
 		return 0;
@@ -872,16 +882,6 @@ static void tb_scan_port(struct tb_port *port)
 			tb_sw_warn(sw, "failed to enable %s on upstream port\n",
 				   tb_switch_clx_name(TB_CL1));
 	}
-
-	if (tb_switch_is_clx_enabled(sw, TB_CL1))
-		/*
-		 * To support highest CLx state, we set router's TMU to
-		 * Normal-Uni mode.
-		 */
-		tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_NORMAL, true);
-	else
-		/* If CLx disabled, configure router's TMU to HiFi-Bidir mode*/
-		tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_HIFI, false);
 
 	if (tb_enable_tmu(sw))
 		tb_sw_warn(sw, "failed to enable TMU\n");
@@ -2034,16 +2034,6 @@ static void tb_restore_children(struct tb_switch *sw)
 	if (ret && ret != -EOPNOTSUPP)
 		tb_sw_warn(sw, "failed to re-enable %s on upstream port\n",
 			   tb_switch_clx_name(TB_CL1));
-
-	if (tb_switch_is_clx_enabled(sw, TB_CL1))
-		/*
-		 * To support highest CLx state, we set router's TMU to
-		 * Normal-Uni mode.
-		 */
-		tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_NORMAL, true);
-	else
-		/* If CLx disabled, configure router's TMU to HiFi-Bidir mode*/
-		tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_HIFI, false);
 
 	if (tb_enable_tmu(sw))
 		tb_sw_warn(sw, "failed to restore TMU configuration\n");
