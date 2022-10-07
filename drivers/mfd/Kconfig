@@ -541,15 +541,6 @@ config MFD_HI655X_PMIC
 	help
 	  Select this option to enable Hisilicon hi655x series pmic driver.
 
-config HTC_PASIC3
-	tristate "HTC PASIC3 LED/DS1WM chip support"
-	select MFD_CORE
-	help
-	  This core driver provides register access for the LED/DS1WM
-	  chips labeled "AIC2" and "AIC3", found on HTC Blueangel and
-	  HTC Magician devices, respectively. Actual functionality is
-	  handled by the leds-pasic3 and ds1wm drivers.
-
 config MFD_INTEL_QUARK_I2C_GPIO
 	tristate "Intel Quark MFD I2C GPIO"
 	depends on PCI
