@@ -10,6 +10,8 @@
 #include <linux/mfd/stmfx.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/seq_file.h>
+
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinmux.h>
 
