@@ -456,7 +456,7 @@ bool ntfs_check_for_free_space(struct ntfs_sb_info *sbi, CLST clen, CLST mlen)
 	wnd = &sbi->used.bitmap;
 	down_read_nested(&wnd->rw_lock, BITMAP_MUTEX_CLUSTERS);
 	free = wnd_zeroes(wnd);
-	zlen = wnd_zone_len(wnd);
+	zlen = min_t(size_t, NTFS_MIN_MFT_ZONE, wnd_zone_len(wnd));
 	up_read(&wnd->rw_lock);
 
 	if (free < zlen + clen)
