@@ -444,6 +444,39 @@ up_write:
 }
 
 /*
+ * ntfs_check_for_free_space
+ *
+ * Check if it is possible to allocate 'clen' clusters and 'mlen' Mft records
+ */
+bool ntfs_check_for_free_space(struct ntfs_sb_info *sbi, CLST clen, CLST mlen)
+{
+	size_t free, zlen, avail;
+	struct wnd_bitmap *wnd;
+
+	wnd = &sbi->used.bitmap;
+	down_read_nested(&wnd->rw_lock, BITMAP_MUTEX_CLUSTERS);
+	free = wnd_zeroes(wnd);
+	zlen = wnd_zone_len(wnd);
+	up_read(&wnd->rw_lock);
+
+	if (free < zlen + clen)
+		return false;
+
+	avail = free - (zlen + clen);
+
+	wnd = &sbi->mft.bitmap;
+	down_read_nested(&wnd->rw_lock, BITMAP_MUTEX_MFT);
+	free = wnd_zeroes(wnd);
+	zlen = wnd_zone_len(wnd);
+	up_read(&wnd->rw_lock);
+
+	if (free >= zlen + mlen)
+		return true;
+
+	return avail >= bytes_to_cluster(sbi, mlen << sbi->record_bits);
+}
+
+/*
  * ntfs_extend_mft - Allocate additional MFT records.
  *
  * sbi->mft.bitmap is locked for write.
