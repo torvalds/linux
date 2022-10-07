@@ -1197,7 +1197,7 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 	if (IS_ERR(leaf)) {
 		ret = PTR_ERR(leaf);
 		leaf = NULL;
-		goto fail_unlock;
+		goto fail;
 	}
 
 	root->node = leaf;
@@ -1232,9 +1232,6 @@ struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 
 	return root;
 
-fail_unlock:
-	if (leaf)
-		btrfs_tree_unlock(leaf);
 fail:
 	btrfs_put_root(root);
 
