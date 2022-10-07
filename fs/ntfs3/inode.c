@@ -1818,11 +1818,12 @@ static int ntfs_translate_junction(const struct super_block *sb,
 
 	/* Make translated path a relative path to mount point */
 	strcpy(translated, "./");
-	++link_path;	/* Skip leading / */
+	++link_path; /* Skip leading / */
 	for (tl_len = sizeof("./") - 1; *link_path; ++link_path) {
 		if (*link_path == '/') {
 			if (PATH_MAX - tl_len < sizeof("../")) {
-				ntfs_err(sb, "Link path %s has too many components",
+				ntfs_err(sb,
+					 "Link path %s has too many components",
 					 link_path);
 				err = -EINVAL;
 				goto out;
@@ -1838,7 +1839,8 @@ static int ntfs_translate_junction(const struct super_block *sb,
 		++target_start;
 
 	if (!*target_start) {
-		ntfs_err(sb, "Link target (%s) missing drive separator", target);
+		ntfs_err(sb, "Link target (%s) missing drive separator",
+			 target);
 		err = -EINVAL;
 		goto out;
 	}

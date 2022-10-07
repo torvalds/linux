@@ -625,9 +625,8 @@ void fnd_clear(struct ntfs_fnd *fnd)
 static int fnd_push(struct ntfs_fnd *fnd, struct indx_node *n,
 		    struct NTFS_DE *e)
 {
-	int i;
+	int i = fnd->level;
 
-	i = fnd->level;
 	if (i < 0 || i >= ARRAY_SIZE(fnd->nodes))
 		return -EINVAL;
 	fnd->nodes[i] = n;
@@ -2121,9 +2120,10 @@ static int indx_get_entry_to_replace(struct ntfs_index *indx,
 	fnd->de[level] = e;
 	indx_write(indx, ni, n, 0);
 
-	/* Check to see if this action created an empty leaf. */
-	if (ib_is_leaf(ib) && ib_is_empty(ib))
+	if (ib_is_leaf(ib) && ib_is_empty(ib)) {
+		/* An empty leaf. */
 		return 0;
+	}
 
 out:
 	fnd_clear(fnd);

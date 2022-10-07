@@ -4824,8 +4824,7 @@ next_dirty_page_vcn:
 		goto out;
 	}
 	attr = oa->attr;
-	t64 = le64_to_cpu(attr->nres.alloc_size);
-	if (size > t64) {
+	if (size > le64_to_cpu(attr->nres.alloc_size)) {
 		attr->nres.valid_size = attr->nres.data_size =
 			attr->nres.alloc_size = cpu_to_le64(size);
 	}
