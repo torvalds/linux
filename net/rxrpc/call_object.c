@@ -206,7 +206,6 @@ static struct rxrpc_call *rxrpc_alloc_client_call(struct rxrpc_sock *rx,
 		return ERR_PTR(-ENOMEM);
 	call->state = RXRPC_CALL_CLIENT_AWAIT_CONN;
 	call->service_id = srx->srx_service;
-	call->tx_phase = true;
 	now = ktime_get_real();
 	call->acks_latest_ts = now;
 	call->cong_tstamp = now;

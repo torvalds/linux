@@ -309,10 +309,7 @@ static bool rxrpc_receiving_reply(struct rxrpc_call *call)
 			return false;
 		}
 	}
-	if (!rxrpc_end_tx_phase(call, true, "ETD"))
-		return false;
-	call->tx_phase = false;
-	return true;
+	return rxrpc_end_tx_phase(call, true, "ETD");
 }
 
 /*
