@@ -60,7 +60,6 @@ Linux 魔术数
 PG_MAGIC              'P'              pg_{read,write}_hdr      ``include/linux/pg.h``
 CMAGIC                0x0111           user                     ``include/linux/a.out.h``
 MKISS_DRIVER_MAGIC    0x04bf           mkiss_channel            ``drivers/net/mkiss.h``
-HDLC_MAGIC            0x239e           n_hdlc                   ``drivers/char/n_hdlc.c``
 APM_BIOS_MAGIC        0x4101           apm_user                 ``arch/x86/kernel/apm_32.c``
 DB_MAGIC              0x4442           fc_info                  ``drivers/net/iph5526_novram.c``
 DL_MAGIC              0x444d           fc_info                  ``drivers/net/iph5526_novram.c``
@@ -73,9 +72,6 @@ SLIP_MAGIC            0x5302           slip                     ``drivers/net/sl
 STRIP_MAGIC           0x5303           strip                    ``drivers/net/strip.c``
 SIXPACK_MAGIC         0x5304           sixpack                  ``drivers/net/hamradio/6pack.h``
 AX25_MAGIC            0x5316           ax_disp                  ``drivers/net/mkiss.h``
-TTY_MAGIC             0x5401           tty_struct               ``include/linux/tty.h``
-MGSL_MAGIC            0x5401           mgsl_info                ``drivers/char/synclink.c``
-TTY_DRIVER_MAGIC      0x5402           tty_driver               ``include/linux/tty_driver.h``
 MGSLPC_MAGIC          0x5402           mgslpc_info              ``drivers/char/pcmcia/synclink_cs.c``
 USB_SERIAL_MAGIC      0x6702           usb_serial               ``drivers/usb/serial/usb-serial.h``
 FULL_DUPLEX_MAGIC     0x6969                                    ``drivers/net/ethernet/dec/tulip/de2104x.c``

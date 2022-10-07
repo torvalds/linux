@@ -106,7 +106,7 @@ struct ch341_private {
 
 static void ch341_set_termios(struct tty_struct *tty,
 			      struct usb_serial_port *port,
-			      struct ktermios *old_termios);
+			      const struct ktermios *old_termios);
 
 static int ch341_control_out(struct usb_device *dev, u8 request,
 			     u16 value, u16 index)
@@ -482,7 +482,8 @@ err_kill_interrupt_urb:
  * tty->termios contains the new setting to be used.
  */
 static void ch341_set_termios(struct tty_struct *tty,
-		struct usb_serial_port *port, struct ktermios *old_termios)
+			      struct usb_serial_port *port,
+			      const struct ktermios *old_termios)
 {
 	struct ch341_private *priv = usb_get_serial_port_data(port);
 	unsigned baud_rate;

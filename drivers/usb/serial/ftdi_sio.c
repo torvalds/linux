@@ -1089,7 +1089,8 @@ static void ftdi_process_read_urb(struct urb *urb);
 static int ftdi_prepare_write_buffer(struct usb_serial_port *port,
 						void *dest, size_t size);
 static void ftdi_set_termios(struct tty_struct *tty,
-			struct usb_serial_port *port, struct ktermios *old);
+			     struct usb_serial_port *port,
+			     const struct ktermios *old_termios);
 static int  ftdi_tiocmget(struct tty_struct *tty);
 static int  ftdi_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
@@ -2640,7 +2641,8 @@ static bool ftdi_tx_empty(struct usb_serial_port *port)
  * WARNING: set_termios calls this with old_termios in kernel space
  */
 static void ftdi_set_termios(struct tty_struct *tty,
-		struct usb_serial_port *port, struct ktermios *old_termios)
+		             struct usb_serial_port *port,
+		             const struct ktermios *old_termios)
 {
 	struct usb_device *dev = port->serial->dev;
 	struct device *ddev = &port->dev;
