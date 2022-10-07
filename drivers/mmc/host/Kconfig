@@ -655,14 +655,6 @@ config MMC_SDHCI_SPRD
 config MMC_TMIO_CORE
 	tristate
 
-config MMC_TMIO
-	tristate "Toshiba Mobile IO Controller (TMIO) MMC/SD function support"
-	depends on MFD_TMIO || MFD_ASIC3 || COMPILE_TEST
-	select MMC_TMIO_CORE
-	help
-	  This provides support for the SD/MMC cell found in TC6393XB,
-	  T7L66XB and also HTC ASIC3
-
 config MMC_SDHI
 	tristate "Renesas SDHI SD/SDIO controller support"
 	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
