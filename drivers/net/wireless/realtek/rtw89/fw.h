@@ -197,6 +197,7 @@ struct rtw89_h2creg_sch_tx_en {
 
 #define RTW89_H2C_MAX_SIZE 2048
 #define RTW89_CHANNEL_TIME 45
+#define RTW89_CHANNEL_TIME_6G 20
 #define RTW89_DFS_CHAN_TIME 105
 #define RTW89_OFF_CHAN_TIME 100
 #define RTW89_DWELL_TIME 20
