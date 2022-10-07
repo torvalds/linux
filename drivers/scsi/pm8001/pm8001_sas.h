@@ -534,7 +534,6 @@ struct pm8001_hba_info {
 	bool			controller_fatal_error;
 	const struct firmware 	*fw_image;
 	struct isr_param irq_vector[PM8001_MAX_MSIX_VEC];
-	u32			reset_in_progress;
 	u32			non_fatal_count;
 	u32			non_fatal_read_length;
 	u32 max_q_num;

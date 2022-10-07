@@ -3440,10 +3440,6 @@ static int mpi_hw_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	case HW_EVENT_PHY_DOWN:
 		pm8001_dbg(pm8001_ha, MSG, "HW_EVENT_PHY_DOWN\n");
 		hw_event_phy_down(pm8001_ha, piomb);
-		if (pm8001_ha->reset_in_progress) {
-			pm8001_dbg(pm8001_ha, MSG, "Reset in progress\n");
-			return 0;
-		}
 		phy->phy_attached = 0;
 		phy->phy_state = PHY_LINK_DISABLE;
 		break;
