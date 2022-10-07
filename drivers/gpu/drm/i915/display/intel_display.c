@@ -831,13 +831,27 @@ intel_plane_fence_y_offset(const struct intel_plane_state *plane_state)
 }
 
 static int
+intel_display_commit_duplicated_state(struct intel_atomic_state *state,
+				      struct drm_modeset_acquire_ctx *ctx)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	int ret;
+
+	ret = drm_atomic_helper_commit_duplicated_state(&state->base, ctx);
+
+	drm_WARN_ON(&i915->drm, ret == -EDEADLK);
+
+	return ret;
+}
+
+static int
 __intel_display_resume(struct drm_i915_private *i915,
 		       struct drm_atomic_state *state,
 		       struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_crtc_state *crtc_state;
 	struct drm_crtc *crtc;
-	int i, ret;
+	int i;
 
 	intel_modeset_setup_hw_state(i915, ctx);
 	intel_vga_redisable(i915);
@@ -863,11 +877,7 @@ __intel_display_resume(struct drm_i915_private *i915,
 	if (!HAS_GMCH(i915))
 		to_intel_atomic_state(state)->skip_intermediate_wm = true;
 
-	ret = drm_atomic_helper_commit_duplicated_state(state, ctx);
-
-	drm_WARN_ON(&i915->drm, ret == -EDEADLK);
-
-	return ret;
+	return intel_display_commit_duplicated_state(to_intel_atomic_state(state), ctx);
 }
 
 static bool gpu_reset_clobbers_display(struct drm_i915_private *dev_priv)
@@ -958,7 +968,7 @@ void intel_display_finish_reset(struct drm_i915_private *i915)
 	/* reset doesn't touch the display */
 	if (!gpu_reset_clobbers_display(i915)) {
 		/* for testing only restore the display */
-		ret = __intel_display_resume(i915, state, ctx);
+		ret = intel_display_commit_duplicated_state(to_intel_atomic_state(state), ctx);
 		if (ret)
 			drm_err(&i915->drm,
 				"Restoring old state failed with %i\n", ret);
