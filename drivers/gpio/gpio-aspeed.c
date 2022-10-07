@@ -5,10 +5,9 @@
  * Joel Stanley <joel@jms.id.au>
  */
 
-#include <asm/div64.h>
 #include <linux/clk.h>
-#include <linux/gpio/driver.h>
 #include <linux/gpio/aspeed.h>
+#include <linux/gpio/driver.h>
 #include <linux/hashtable.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -18,6 +17,8 @@
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
+
+#include <asm/div64.h>
 
 /*
  * These two headers aren't meant to be used by GPIO drivers. We need
