@@ -186,10 +186,12 @@ struct rk_pcie {
 	u16				aspm;
 	u32				l1ss_ctl1;
 	struct dentry			*debugfs;
+	u32				msi_vector_num;
 };
 
 struct rk_pcie_of_data {
 	enum rk_pcie_device_mode	mode;
+	u32 msi_vector_num;
 };
 
 #define to_rk_pcie(x)	dev_get_drvdata((x)->dev)
@@ -1101,6 +1103,14 @@ static int rk_pcie_msi_host_init(struct pcie_port *pp)
 	return 0;
 }
 
+static void rk_pcie_msi_set_num_vectors(struct pcie_port *pp)
+{
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct rk_pcie *rk_pcie = to_rk_pcie(pci);
+
+	pp->num_vectors = rk_pcie->msi_vector_num;
+}
+
 static int rk_pcie_host_init(struct pcie_port *pp)
 {
 	int ret;
@@ -1133,6 +1143,9 @@ static int rk_add_pcie_port(struct rk_pcie *rk_pcie, struct platform_device *pde
 		if (pp->msi_irq < 0) {
 			dev_info(dev, "use outband MSI support");
 			rk_pcie_host_ops.msi_host_init = rk_pcie_msi_host_init;
+		} else {
+			dev_info(dev, "max MSI vector is %d\n", rk_pcie->msi_vector_num);
+			rk_pcie_host_ops.set_num_vectors = rk_pcie_msi_set_num_vectors;
 		}
 	}
 
@@ -1511,6 +1524,11 @@ static const struct rk_pcie_of_data rk_pcie_ep_of_data = {
 	.mode = RK_PCIE_EP_TYPE,
 };
 
+static const struct rk_pcie_of_data rk3528_pcie_rc_of_data = {
+	.mode = RK_PCIE_RC_TYPE,
+	.msi_vector_num = 8,
+};
+
 static const struct of_device_id rk_pcie_of_match[] = {
 	{
 		.compatible = "rockchip,rk1808-pcie",
@@ -1519,6 +1537,10 @@ static const struct of_device_id rk_pcie_of_match[] = {
 	{
 		.compatible = "rockchip,rk1808-pcie-ep",
 		.data = &rk_pcie_ep_of_data,
+	},
+	{
+		.compatible = "rockchip,rk3528-pcie",
+		.data = &rk3528_pcie_rc_of_data,
 	},
 	{
 		.compatible = "rockchip,rk3568-pcie",
@@ -1939,6 +1961,7 @@ static int rk_pcie_really_probe(void *p)
 	pci->ops = &dw_pcie_ops;
 
 	rk_pcie->mode = mode;
+	rk_pcie->msi_vector_num = data->msi_vector_num;
 	rk_pcie->pci = pci;
 
 	if (of_device_is_compatible(np, "rockchip,rk1808-pcie") ||
