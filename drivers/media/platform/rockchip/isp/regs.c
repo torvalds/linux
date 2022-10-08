@@ -233,24 +233,35 @@ static void set_scale(struct rkisp_stream *stream, struct v4l2_rect *in_y,
 			ISP3X_MAIN_RESIZE_IN_CROP_OFFSET : ISP3X_SELF_RESIZE_IN_CROP_OFFSET;
 		u32 isp_in_w = in_y->width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
 		u32 scl_w = out_y->width / 2;
-		u32 left_y = DIV_ROUND_UP(scl_w * 65536, scale_hy);
-		u32 left_c = DIV_ROUND_UP(scl_w * 65536 / 2, scale_hc);
+		u32 left_y = scale_hy == 1 ? scl_w : DIV_ROUND_UP(scl_w * 65536, scale_hy);
+		u32 left_c = scale_hc == 1 ? scl_w / 2 : DIV_ROUND_UP(scl_w * 65536 / 2, scale_hc);
 		u32 phase_src_y = left_y * scale_hy;
 		u32 phase_dst_y = scl_w * 65536;
-		u32 phase_left_y = scale_hy - (phase_src_y - phase_dst_y);
+		u32 phase_left_y = scale_hy == 1 ? 0 : scale_hy - (phase_src_y - phase_dst_y);
 		u32 phase_src_c = left_c * scale_hc;
 		u32 phase_dst_c = scl_w * 65536 / 2;
-		u32 phase_left_c = scale_hc - (phase_src_c - phase_dst_c);
-		u32 right_y = phase_left_y ?
-				in_y->width - (left_y - 1) :
-				in_y->width - left_y;
-		u32 right_c = phase_left_c ?
-				in_y->width - (left_c - 1) * 2 :
-				in_y->width - left_c * 2;
+		u32 phase_left_c = scale_hc == 1 ? 0 : scale_hc - (phase_src_c - phase_dst_c);
+		u32 right_y = phase_left_y ? in_y->width - (left_y - 1) : in_y->width - left_y;
+		u32 right_c = phase_left_c ? in_y->width - (left_c - 1) * 2 : in_y->width - left_c * 2;
 		u32 right_crop_y = isp_in_w - right_y;
 		u32 right_crop_c = isp_in_w - right_c;
-		u32 right_scl_in_y = right_crop_y - RKMOUDLE_UNITE_EXTEND_PIXEL;
-		u32 right_scl_in_c = right_crop_c - RKMOUDLE_UNITE_EXTEND_PIXEL;
+		u32 extend = RKMOUDLE_UNITE_EXTEND_PIXEL;
+		u32 right_scl_in_y;
+		u32 right_scl_in_c;
+
+		if (right_crop_y < RKMOUDLE_UNITE_EXTEND_PIXEL) {
+			u32 reg;
+
+			extend = right_crop_y & ~0x1;
+			reg = stream->config->dual_crop.h_offset;
+			rkisp_next_write(dev, reg, extend, false);
+			reg = stream->config->dual_crop.h_size;
+			rkisp_next_write(dev, reg, isp_in_w - extend, false);
+			reg = stream->config->dual_crop.ctrl;
+			rkisp_next_write(dev, reg, rkisp_next_read_reg_cache(dev, reg), false);
+		}
+		right_scl_in_y = right_crop_y - extend;
+		right_scl_in_c = right_crop_c - extend;
 
 		/* left isp */
 		rkisp_write(dev, hy_size_reg, scl_w, false);
