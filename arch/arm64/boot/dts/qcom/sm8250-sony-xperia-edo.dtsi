@@ -434,7 +434,16 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
-	/* NXP PN553 NFC @ 28 */
+	nfc@28 {
+		compatible = "nxp,nxp-nci-i2c";
+		reg = <0x28>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <111 IRQ_TYPE_EDGE_RISING>;
+
+		enable-gpios = <&tlmm 6 GPIO_ACTIVE_HIGH>;
+		firmware-gpios = <&tlmm 110 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &i2c2 {
