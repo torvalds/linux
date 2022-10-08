@@ -70,6 +70,9 @@ struct atomisp_video_pipe {
 	enum v4l2_buf_type type;
 	struct media_pad pad;
 	struct videobuf_queue capq;
+	/* List of video-buffers handed over to the CSS  */
+	struct list_head buffers_in_css;
+	/* List of video-buffers handed over to the driver, but not yet to the CSS */
 	struct list_head activeq;
 	/*
 	 * the buffers waiting for per-frame parameters, this is only valid
@@ -83,7 +86,6 @@ struct atomisp_video_pipe {
 	unsigned int default_run_mode;
 	/* Set from streamoff to disallow queuing further buffers in CSS */
 	bool stopping;
-	unsigned int buffers_in_css;
 
 	/*
 	 * irq_lock is used to protect video buffer state change operations and

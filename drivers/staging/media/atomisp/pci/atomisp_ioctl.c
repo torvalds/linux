@@ -1762,7 +1762,7 @@ int atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	mutex_unlock(&isp->mutex);
 	/* wait max 1 second */
 	ret = wait_event_interruptible_timeout(pipe->capq.wait,
-					       pipe->buffers_in_css == 0, HZ);
+					       atomisp_buffers_in_css(pipe) == 0, HZ);
 	mutex_lock(&isp->mutex);
 	pipe->stopping = false;
 	if (ret <= 0)

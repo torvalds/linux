@@ -217,7 +217,9 @@ static int atomisp_q_video_buffers_to_css(struct atomisp_sub_device *asd,
 	struct ia_css_dvs_grid_info *dvs_grid =
 	    atomisp_css_get_dvs_grid_info(&asd->params.curr_grid_info);
 	unsigned long irqflags;
-	int err = 0;
+	int space, err = 0;
+
+	lockdep_assert_held(&asd->isp->mutex);
 
 	if (WARN_ON(css_pipe_id >= IA_CSS_PIPE_ID_NUM))
 		return -EINVAL;
@@ -225,19 +227,20 @@ static int atomisp_q_video_buffers_to_css(struct atomisp_sub_device *asd,
 	if (pipe->stopping)
 		return -EINVAL;
 
-	while (pipe->buffers_in_css < ATOMISP_CSS_Q_DEPTH) {
+	space = ATOMISP_CSS_Q_DEPTH - atomisp_buffers_in_css(pipe);
+	while (space--) {
 		struct videobuf_buffer *vb;
 
 		spin_lock_irqsave(&pipe->irq_lock, irqflags);
-		if (list_empty(&pipe->activeq)) {
-			spin_unlock_irqrestore(&pipe->irq_lock, irqflags);
-			return -EINVAL;
+		vb = list_first_entry_or_null(&pipe->activeq, struct videobuf_buffer, queue);
+		if (vb) {
+			list_move_tail(&vb->queue, &pipe->buffers_in_css);
+			vb->state = VIDEOBUF_ACTIVE;
 		}
-		vb = list_entry(pipe->activeq.next,
-				struct videobuf_buffer, queue);
-		list_del_init(&vb->queue);
-		vb->state = VIDEOBUF_ACTIVE;
 		spin_unlock_irqrestore(&pipe->irq_lock, irqflags);
+
+		if (!vb)
+			return -EINVAL;
 
 		/*
 		 * If there is a per_frame setting to apply on the buffer,
@@ -291,14 +294,13 @@ static int atomisp_q_video_buffers_to_css(struct atomisp_sub_device *asd,
 						    css_buf_type, css_pipe_id);
 		if (err) {
 			spin_lock_irqsave(&pipe->irq_lock, irqflags);
-			list_add_tail(&vb->queue, &pipe->activeq);
+			list_move_tail(&vb->queue, &pipe->activeq);
 			vb->state = VIDEOBUF_QUEUED;
 			spin_unlock_irqrestore(&pipe->irq_lock, irqflags);
 			dev_err(asd->isp->dev, "%s, css q fails: %d\n",
 				__func__, err);
 			return -EINVAL;
 		}
-		pipe->buffers_in_css++;
 
 		/* enqueue 3A/DIS/metadata buffers */
 		if (asd->params.curr_grid_info.s3a_grid.enable &&

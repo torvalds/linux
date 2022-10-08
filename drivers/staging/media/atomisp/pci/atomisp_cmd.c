@@ -634,10 +634,6 @@ void atomisp_clear_css_buffer_counters(struct atomisp_sub_device *asd)
 		memset(asd->metadata_bufs_in_css[i], 0,
 		       sizeof(asd->metadata_bufs_in_css[i]));
 	asd->dis_bufs_in_css = 0;
-	asd->video_out_capture.buffers_in_css = 0;
-	asd->video_out_vf.buffers_in_css = 0;
-	asd->video_out_preview.buffers_in_css = 0;
-	asd->video_out_video_capture.buffers_in_css = 0;
 }
 
 /* 0x100000 is the start of dmem inside SP */
@@ -683,40 +679,65 @@ static struct videobuf_buffer *atomisp_css_frame_to_vbuf(
 	return NULL;
 }
 
-static void atomisp_flush_video_pipe(struct atomisp_sub_device *asd,
-				     struct atomisp_video_pipe *pipe)
+int atomisp_buffers_in_css(struct atomisp_video_pipe *pipe)
 {
 	unsigned long irqflags;
-	int i;
+	struct list_head *pos;
+	int buffers_in_css = 0;
 
-	if (!pipe->users)
-		return;
+	spin_lock_irqsave(&pipe->irq_lock, irqflags);
 
-	for (i = 0; pipe->capq.bufs[i]; i++) {
-		spin_lock_irqsave(&pipe->irq_lock, irqflags);
-		if (pipe->capq.bufs[i]->state == VIDEOBUF_ACTIVE ||
-		    pipe->capq.bufs[i]->state == VIDEOBUF_QUEUED) {
-			pipe->capq.bufs[i]->ts = ktime_get_ns();
-			pipe->capq.bufs[i]->field_count =
-			    atomic_read(&asd->sequence) << 1;
-			dev_dbg(asd->isp->dev, "release buffers on device %s\n",
-				pipe->vdev.name);
-			if (pipe->capq.bufs[i]->state == VIDEOBUF_QUEUED)
-				list_del_init(&pipe->capq.bufs[i]->queue);
-			pipe->capq.bufs[i]->state = VIDEOBUF_ERROR;
-			wake_up(&pipe->capq.bufs[i]->done);
-		}
-		spin_unlock_irqrestore(&pipe->irq_lock, irqflags);
+	list_for_each(pos, &pipe->buffers_in_css)
+		buffers_in_css++;
+
+	spin_unlock_irqrestore(&pipe->irq_lock, irqflags);
+
+	return buffers_in_css;
+}
+
+void atomisp_buffer_done(struct atomisp_video_pipe *pipe, struct videobuf_buffer *vb,
+			 int state)
+{
+	lockdep_assert_held(&pipe->irq_lock);
+
+	vb->ts = ktime_get_ns();
+	vb->field_count = atomic_read(&pipe->asd->sequence) << 1;
+	vb->state = state;
+	list_del(&vb->queue);
+	wake_up(&vb->done);
+}
+
+void atomisp_flush_video_pipe(struct atomisp_video_pipe *pipe, bool warn_on_css_frames)
+{
+	struct videobuf_buffer *_vb, *vb;
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&pipe->irq_lock, irqflags);
+
+	list_for_each_entry_safe(vb, _vb, &pipe->buffers_in_css, queue) {
+		if (warn_on_css_frames)
+			dev_warn(pipe->isp->dev, "Warning: CSS frames queued on flush\n");
+		atomisp_buffer_done(pipe, vb, VIDEOBUF_ERROR);
 	}
+
+	list_for_each_entry_safe(vb, _vb, &pipe->activeq, queue)
+		atomisp_buffer_done(pipe, vb, VIDEOBUF_ERROR);
+
+	list_for_each_entry_safe(vb, _vb, &pipe->buffers_waiting_for_param, queue) {
+		pipe->frame_request_config_id[vb->i] = 0;
+		atomisp_buffer_done(pipe, vb, VIDEOBUF_ERROR);
+	}
+
+	spin_unlock_irqrestore(&pipe->irq_lock, irqflags);
 }
 
 /* Returns queued buffers back to video-core */
 void atomisp_flush_bufs_and_wakeup(struct atomisp_sub_device *asd)
 {
-	atomisp_flush_video_pipe(asd, &asd->video_out_capture);
-	atomisp_flush_video_pipe(asd, &asd->video_out_vf);
-	atomisp_flush_video_pipe(asd, &asd->video_out_preview);
-	atomisp_flush_video_pipe(asd, &asd->video_out_video_capture);
+	atomisp_flush_video_pipe(&asd->video_out_capture, false);
+	atomisp_flush_video_pipe(&asd->video_out_vf, false);
+	atomisp_flush_video_pipe(&asd->video_out_preview, false);
+	atomisp_flush_video_pipe(&asd->video_out_video_capture, false);
 }
 
 /* clean out the parameters that did not apply */
@@ -974,7 +995,6 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 		break;
 	case IA_CSS_BUFFER_TYPE_VF_OUTPUT_FRAME:
 	case IA_CSS_BUFFER_TYPE_SEC_VF_OUTPUT_FRAME:
-		pipe->buffers_in_css--;
 		frame = buffer.css_buffer.data.frame;
 		if (!frame) {
 			WARN_ON(1);
@@ -1026,7 +1046,6 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 		break;
 	case IA_CSS_BUFFER_TYPE_OUTPUT_FRAME:
 	case IA_CSS_BUFFER_TYPE_SEC_OUTPUT_FRAME:
-		pipe->buffers_in_css--;
 		frame = buffer.css_buffer.data.frame;
 		if (!frame) {
 			WARN_ON(1);
@@ -1179,19 +1198,9 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 		break;
 	}
 	if (vb) {
-		vb->ts = ktime_get_ns();
-		vb->field_count = atomic_read(&asd->sequence) << 1;
-		/*mark videobuffer done for dequeue*/
 		spin_lock_irqsave(&pipe->irq_lock, irqflags);
-		vb->state = !error ? VIDEOBUF_DONE : VIDEOBUF_ERROR;
+		atomisp_buffer_done(pipe, vb, error ? VIDEOBUF_ERROR : VIDEOBUF_DONE);
 		spin_unlock_irqrestore(&pipe->irq_lock, irqflags);
-
-		/*
-		 * Frame capture done, wake up any process block on
-		 * current active buffer
-		 * possibly hold by videobuf_dqbuf()
-		 */
-		wake_up(&vb->done);
 	}
 
 	/*
