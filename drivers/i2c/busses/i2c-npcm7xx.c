@@ -106,7 +106,7 @@ enum i2c_addr {
 #define NPCM_I2CCST3			0x19
 #define I2C_VER				0x1F
 
-/*BANK0 regs*/
+/* BANK 0 regs */
 #define NPCM_I2CADDR3			0x10
 #define NPCM_I2CADDR7			0x11
 #define NPCM_I2CADDR4			0x12
@@ -115,6 +115,20 @@ enum i2c_addr {
 #define NPCM_I2CADDR9			0x15
 #define NPCM_I2CADDR6			0x16
 #define NPCM_I2CADDR10			0x17
+#define NPCM_I2CCTL4			0x1A
+#define NPCM_I2CCTL5			0x1B
+#define NPCM_I2CSCLLT			0x1C /* SCL Low Time */
+#define NPCM_I2CFIF_CTL			0x1D /* FIFO Control */
+#define NPCM_I2CSCLHT			0x1E /* SCL High Time */
+
+/* BANK 1 regs */
+#define NPCM_I2CFIF_CTS			0x10 /* Both FIFOs Control and Status */
+#define NPCM_I2CTXF_CTL			0x12 /* Tx-FIFO Control */
+#define NPCM_I2CT_OUT			0x14 /* Bus T.O. */
+#define NPCM_I2CPEC			0x16 /* PEC Data */
+#define NPCM_I2CTXF_STS			0x1A /* Tx-FIFO Status */
+#define NPCM_I2CRXF_STS			0x1C /* Rx-FIFO Status */
+#define NPCM_I2CRXF_CTL			0x1E /* Rx-FIFO Control */
 
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
 /*
@@ -130,21 +144,6 @@ static const int npcm_i2caddr[I2C_NUM_OWN_ADDR] = {
 	NPCM_I2CADDR1, NPCM_I2CADDR2,
 };
 #endif
-
-#define NPCM_I2CCTL4			0x1A
-#define NPCM_I2CCTL5			0x1B
-#define NPCM_I2CSCLLT			0x1C /* SCL Low Time */
-#define NPCM_I2CFIF_CTL			0x1D /* FIFO Control */
-#define NPCM_I2CSCLHT			0x1E /* SCL High Time */
-
-/* BANK 1 regs */
-#define NPCM_I2CFIF_CTS			0x10 /* Both FIFOs Control and Status */
-#define NPCM_I2CTXF_CTL			0x12 /* Tx-FIFO Control */
-#define NPCM_I2CT_OUT			0x14 /* Bus T.O. */
-#define NPCM_I2CPEC			0x16 /* PEC Data */
-#define NPCM_I2CTXF_STS			0x1A /* Tx-FIFO Status */
-#define NPCM_I2CRXF_STS			0x1C /* Rx-FIFO Status */
-#define NPCM_I2CRXF_CTL			0x1E /* Rx-FIFO Control */
 
 /* NPCM_I2CST reg fields */
 #define NPCM_I2CST_XMIT			BIT(0)
