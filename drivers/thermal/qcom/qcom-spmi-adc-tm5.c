@@ -829,7 +829,8 @@ static int adc_tm5_get_dt_channel_data(struct adc_tm5_chip *adc_tm,
 	}
 	channel->adc_channel = args.args[0];
 
-	channel->iio = devm_of_iio_channel_get_by_name(adc_tm->dev, node, NULL);
+	channel->iio = devm_fwnode_iio_channel_get_by_name(adc_tm->dev,
+							   of_fwnode_handle(node), NULL);
 	if (IS_ERR(channel->iio)) {
 		ret = PTR_ERR(channel->iio);
 		if (ret != -EPROBE_DEFER)
