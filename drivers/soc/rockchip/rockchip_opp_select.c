@@ -1728,6 +1728,48 @@ out:
 }
 EXPORT_SYMBOL(rockchip_init_opp_table);
 
+int rockchip_opp_dump_cur_state(struct device *dev)
+{
+	struct clk *clk;
+	struct opp_table *opp_table;
+	int volt_vdd, volt_mem;
+
+	if (!dev)
+		return -ENODEV;
+
+	opp_table = dev_pm_opp_get_opp_table(dev);
+	if (IS_ERR(opp_table)) {
+		dev_err(dev, "%s: device opp doesn't exist\n", __func__);
+		return PTR_ERR(opp_table);
+	}
+
+	clk = opp_table->clk;
+	if (IS_ERR(clk)) {
+		dev_err(dev, "%s: No clock available for the device\n",
+			__func__);
+		dev_pm_opp_put_opp_table(opp_table);
+		return PTR_ERR(clk);
+	}
+
+	if (opp_table->regulator_count == 1) {
+		volt_vdd = regulator_get_voltage(opp_table->regulators[0]);
+		dev_info(dev, "cur_freq: %lu Hz, volt: %d uV\n",
+			 clk_get_rate(clk), volt_vdd);
+	}
+
+	if (opp_table->regulator_count == 2) {
+		volt_vdd = regulator_get_voltage(opp_table->regulators[0]);
+		volt_mem = regulator_get_voltage(opp_table->regulators[1]);
+		dev_info(dev, "cur_freq: %lu Hz, volt_vdd: %d uV, volt_mem: %d uV\n",
+			 clk_get_rate(clk), volt_vdd, volt_mem);
+	}
+
+	dev_pm_opp_put_opp_table(opp_table);
+
+	return 0;
+}
+EXPORT_SYMBOL(rockchip_opp_dump_cur_state);
+
 MODULE_DESCRIPTION("ROCKCHIP OPP Select");
 MODULE_AUTHOR("Finley Xiao <finley.xiao@rock-chips.com>, Liang Chen <cl@rock-chips.com>");
 MODULE_LICENSE("GPL");

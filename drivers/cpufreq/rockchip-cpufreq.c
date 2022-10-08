@@ -899,6 +899,22 @@ static struct notifier_block rockchip_cpufreq_transition_notifier_block = {
 	.notifier_call = rockchip_cpufreq_transition_notifier,
 };
 
+static int rockchip_cpufreq_panic_notifier(struct notifier_block *nb,
+					   unsigned long v, void *p)
+{
+	struct cluster_info *ci;
+
+	list_for_each_entry(ci, &cluster_info_list, list_head) {
+		rockchip_opp_dump_cur_state(ci->opp_info.dev);
+	}
+
+	return 0;
+}
+
+static struct notifier_block rockchip_cpufreq_panic_notifier_block = {
+	.notifier_call = rockchip_cpufreq_panic_notifier,
+};
+
 static int __init rockchip_cpufreq_driver_init(void)
 {
 	struct cluster_info *cluster, *pos;
@@ -947,6 +963,11 @@ static int __init rockchip_cpufreq_driver_init(void)
 		cpu_latency_qos_add_request(&idle_pm_qos, PM_QOS_DEFAULT_VALUE);
 #endif
 	}
+
+	ret = atomic_notifier_chain_register(&panic_notifier_list,
+					     &rockchip_cpufreq_panic_notifier_block);
+	if (ret)
+		pr_err("failed to register cpufreq panic notifier\n");
 
 	return PTR_ERR_OR_ZERO(platform_device_register_data(NULL, "cpufreq-dt",
 			       -1, (void *)&pdata,

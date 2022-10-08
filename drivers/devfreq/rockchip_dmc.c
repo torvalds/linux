@@ -118,6 +118,7 @@ struct rockchip_dmcfreq {
 	struct regulator *vdd_center;
 	struct regulator *mem_reg;
 	struct notifier_block status_nb;
+	struct notifier_block panic_nb;
 	struct list_head video_info_list;
 	struct freq_map_table *cpu_bw_tbl;
 	struct work_struct boost_work;
@@ -2576,6 +2577,17 @@ next:
 	return NOTIFY_OK;
 }
 
+static int rockchip_dmcfreq_panic_notifier(struct notifier_block *nb,
+					   unsigned long v, void *p)
+{
+	struct rockchip_dmcfreq *dmcfreq =
+		container_of(nb, struct rockchip_dmcfreq, panic_nb);
+
+	rockchip_opp_dump_cur_state(dmcfreq->dev);
+
+	return 0;
+}
+
 static ssize_t rockchip_dmcfreq_status_show(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
@@ -3128,6 +3140,12 @@ static void rockchip_dmcfreq_register_notifier(struct rockchip_dmcfreq *dmcfreq)
 	ret = rockchip_register_system_status_notifier(&dmcfreq->status_nb);
 	if (ret)
 		dev_err(dmcfreq->dev, "failed to register system_status nb\n");
+
+	dmcfreq->panic_nb.notifier_call = rockchip_dmcfreq_panic_notifier;
+	ret = atomic_notifier_chain_register(&panic_notifier_list,
+					     &dmcfreq->panic_nb);
+	if (ret)
+		dev_err(dmcfreq->dev, "failed to register panic nb\n");
 
 	dmc_mdevp.data = dmcfreq->info.devfreq;
 	dmcfreq->mdev_info = rockchip_system_monitor_register(dmcfreq->dev,
