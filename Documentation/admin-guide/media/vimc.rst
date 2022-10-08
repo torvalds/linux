@@ -35,11 +35,11 @@ of commands fits for the default topology:
 
         media-ctl -d platform:vimc -V '"Sensor A":0[fmt:SBGGR8_1X8/640x480]'
         media-ctl -d platform:vimc -V '"Debayer A":0[fmt:SBGGR8_1X8/640x480]'
-        media-ctl -d platform:vimc -V '"Sensor B":0[fmt:SBGGR8_1X8/640x480]'
-        media-ctl -d platform:vimc -V '"Debayer B":0[fmt:SBGGR8_1X8/640x480]'
-        v4l2-ctl -z platform:vimc -d "RGB/YUV Capture" -v width=1920,height=1440
+        media-ctl -d platform:vimc -V '"Scaler":0[fmt:RGB888_1X24/640x480]'
+        media-ctl -d platform:vimc -V '"Scaler":0[crop:(100,50)/400x150]'
+        media-ctl -d platform:vimc -V '"Scaler":1[fmt:RGB888_1X24/300x700]'
+        v4l2-ctl -z platform:vimc -d "RGB/YUV Capture" -v width=300,height=700
         v4l2-ctl -z platform:vimc -d "Raw Capture 0" -v pixelformat=BA81
-        v4l2-ctl -z platform:vimc -d "Raw Capture 1" -v pixelformat=BA81
 
 Subdevices
 ----------
