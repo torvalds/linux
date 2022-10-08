@@ -325,3 +325,29 @@ const struct rga_hw_data rga2e_1106_data = {
 			RGA_MODE_CSC_BT709,
 	.mmu = RGA_NONE_MMU,
 };
+
+const struct rga_hw_data rga2e_iommu_data = {
+	.version = 0,
+	.input_range = {{2, 2}, {8192, 8192}},
+	.output_range = {{2, 2}, {4096, 4096}},
+
+	.win = rga2e_win_data,
+	.win_size = ARRAY_SIZE(rga2e_win_data),
+	/* 1 << factor mean real factor */
+	.max_upscale_factor = 4,
+	.max_downscale_factor = 4,
+
+	.byte_stride_align = 4,
+	.max_byte_stride = WORD_TO_BYTE(8192),
+
+	.feature = RGA_COLOR_FILL | RGA_COLOR_PALETTE |
+		   RGA_COLOR_KEY | RGA_ROP_CALCULATE |
+		   RGA_NN_QUANTIZE | RGA_DITHER | RGA_MOSAIC |
+		   RGA_YIN_YOUT | RGA_YUV_HDS | RGA_YUV_VDS |
+		   RGA_OSD | RGA_PRE_INTR,
+	.csc_r2y_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F |
+			RGA_MODE_CSC_BT709,
+	.csc_y2r_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F |
+			RGA_MODE_CSC_BT709,
+	.mmu = RGA_IOMMU,
+};

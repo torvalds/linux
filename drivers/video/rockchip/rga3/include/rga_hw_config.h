@@ -67,6 +67,7 @@ struct rga_hw_data {
 extern const struct rga_hw_data rga3_data;
 extern const struct rga_hw_data rga2e_data;
 extern const struct rga_hw_data rga2e_1106_data;
+extern const struct rga_hw_data rga2e_iommu_data;
 
 /* Returns false if in range, true otherwise */
 static inline bool rga_hw_out_of_range(const struct rga_rect_range *range, int width, int height)

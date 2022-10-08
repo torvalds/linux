@@ -2064,6 +2064,10 @@ void rga2_soft_reset(struct rga_scheduler_t *scheduler)
 {
 	u32 i;
 	u32 reg;
+	u32 iommu_dte_addr;
+
+	if (scheduler->data->mmu == RGA_IOMMU)
+		iommu_dte_addr = rga_read(0xf00, scheduler);
 
 	rga_write((1 << 3) | (1 << 4) | (1 << 6), RGA2_SYS_CTRL, scheduler);
 
@@ -2075,6 +2079,12 @@ void rga2_soft_reset(struct rga_scheduler_t *scheduler)
 			break;
 
 		udelay(1);
+	}
+
+	if (scheduler->data->mmu == RGA_IOMMU) {
+		rga_write(iommu_dte_addr, 0xf00, scheduler);
+		/* enable iommu */
+		rga_write(0, 0xf08, scheduler);
 	}
 
 	if (i == RGA_RESET_TIMEOUT)
