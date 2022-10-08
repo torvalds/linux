@@ -19,6 +19,7 @@
 #include <linux/compiler.h>
 #include <linux/dmi.h>
 #include <linux/slab.h>
+#include <linux/string_helpers.h>
 
 #include <linux/acpi.h>
 #include <linux/io.h>
@@ -135,8 +136,8 @@ static int set_boost(struct cpufreq_policy *policy, int val)
 {
 	on_each_cpu_mask(policy->cpus, boost_set_msr_each,
 			 (void *)(long)val, 1);
-	pr_debug("CPU %*pbl: Core Boosting %sabled.\n",
-		 cpumask_pr_args(policy->cpus), val ? "en" : "dis");
+	pr_debug("CPU %*pbl: Core Boosting %s.\n",
+		 cpumask_pr_args(policy->cpus), str_enabled_disabled(val));
 
 	return 0;
 }
