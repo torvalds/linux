@@ -757,7 +757,7 @@ static ssize_t force_static_address_write(struct file *file,
 	bool enable;
 	int err;
 
-	if (test_bit(HCI_UP, &hdev->flags))
+	if (hdev_is_powered(hdev))
 		return -EBUSY;
 
 	err = kstrtobool_from_user(user_buf, count, &enable);
