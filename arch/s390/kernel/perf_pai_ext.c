@@ -471,7 +471,7 @@ static int paiext_push_sample(void)
 /* Called on schedule-in and schedule-out. No access to event structure,
  * but for sampling only event NNPA_ALL is allowed.
  */
-static void paiext_sched_task(struct perf_event_context *ctx, bool sched_in)
+static void paiext_sched_task(struct perf_event_pmu_context *pmu_ctx, bool sched_in)
 {
 	/* We started with a clean page on event installation. So read out
 	 * results on schedule_out and if page was dirty, clear values.

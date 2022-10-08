@@ -550,15 +550,14 @@ static void armpmu_disable(struct pmu *pmu)
  * microarchitecture, and aren't suitable for another. Thus, only match CPUs of
  * the same microarchitecture.
  */
-static int armpmu_filter_match(struct perf_event *event)
+static bool armpmu_filter(struct pmu *pmu, int cpu)
 {
-	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
-	unsigned int cpu = smp_processor_id();
-	int ret;
+	struct arm_pmu *armpmu = to_arm_pmu(pmu);
+	bool ret;
 
 	ret = cpumask_test_cpu(cpu, &armpmu->supported_cpus);
-	if (ret && armpmu->filter_match)
-		return armpmu->filter_match(event);
+	if (ret && armpmu->filter)
+		return armpmu->filter(pmu, cpu);
 
 	return ret;
 }
@@ -885,14 +884,13 @@ static struct arm_pmu *__armpmu_alloc(gfp_t flags)
 		.start		= armpmu_start,
 		.stop		= armpmu_stop,
 		.read		= armpmu_read,
-		.filter_match	= armpmu_filter_match,
+		.filter		= armpmu_filter,
 		.attr_groups	= pmu->attr_groups,
 		/*
 		 * This is a CPU PMU potentially in a heterogeneous
 		 * configuration (e.g. big.LITTLE). This is not an uncore PMU,
 		 * and we have taken ctx sharing into account (e.g. with our
-		 * pmu::filter_match callback and pmu::event_init group
-		 * validation).
+		 * pmu::filter callback and pmu::event_init group validation).
 		 */
 		.capabilities	= PERF_PMU_CAP_HETEROGENEOUS_CPUS | PERF_PMU_CAP_EXTENDED_REGS,
 	};
