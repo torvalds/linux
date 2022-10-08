@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/prandom.h>
+#include <linux/string_helpers.h>
 #include <linux/utsname.h>
 #include <linux/uuid.h>
 #include <linux/workqueue.h>
@@ -1344,7 +1345,7 @@ static int tb_xdomain_bond_lanes_uuid_high(struct tb_xdomain *xd)
 	tb_port_update_credits(port);
 	tb_xdomain_update_link_attributes(xd);
 
-	dev_dbg(&xd->dev, "lane bonding %sabled\n", width == 2 ? "en" : "dis");
+	dev_dbg(&xd->dev, "lane bonding %s\n", str_enabled_disabled(width == 2));
 	return 0;
 }
 
