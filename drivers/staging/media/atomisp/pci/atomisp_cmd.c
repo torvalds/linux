@@ -878,7 +878,6 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 	struct atomisp_video_pipe *pipe = NULL;
 	struct atomisp_css_buffer buffer;
 	bool requeue = false;
-	int err;
 	unsigned long irqflags;
 	struct ia_css_frame *frame = NULL;
 	struct atomisp_s3a_buf *s3a_buf = NULL, *_s3a_buf_tmp, *s3a_iter;
@@ -887,6 +886,7 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 	enum atomisp_metadata_type md_type;
 	struct atomisp_device *isp = asd->isp;
 	struct v4l2_control ctrl;
+	int i, err;
 
 	lockdep_assert_held(&isp->mutex);
 
@@ -1072,66 +1072,52 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 			break;
 		}
 
+		i = vb->i;
+
 		/* free the parameters */
-		if (pipe->frame_params[vb->i]) {
-			if (asd->params.dvs_6axis ==
-			    pipe->frame_params[vb->i]->params.dvs_6axis)
+		if (pipe->frame_params[i]) {
+			if (asd->params.dvs_6axis == pipe->frame_params[i]->params.dvs_6axis)
 				asd->params.dvs_6axis = NULL;
-			atomisp_free_css_parameters(
-			    &pipe->frame_params[vb->i]->params);
-			kvfree(pipe->frame_params[vb->i]);
-			pipe->frame_params[vb->i] = NULL;
+			atomisp_free_css_parameters(&pipe->frame_params[i]->params);
+			kvfree(pipe->frame_params[i]);
+			pipe->frame_params[i] = NULL;
 		}
 
-		pipe->frame_config_id[vb->i] = frame->isp_config_id;
+		pipe->frame_config_id[i] = frame->isp_config_id;
 		ctrl.id = V4L2_CID_FLASH_MODE;
 		if (asd->params.flash_state == ATOMISP_FLASH_ONGOING) {
-			if (frame->flash_state
-			    == IA_CSS_FRAME_FLASH_STATE_PARTIAL) {
-				asd->frame_status[vb->i] =
-				    ATOMISP_FRAME_STATUS_FLASH_PARTIAL;
-				dev_dbg(isp->dev, "%s partially flashed\n",
-					__func__);
-			} else if (frame->flash_state
-				   == IA_CSS_FRAME_FLASH_STATE_FULL) {
-				asd->frame_status[vb->i] =
-				    ATOMISP_FRAME_STATUS_FLASH_EXPOSED;
+			if (frame->flash_state == IA_CSS_FRAME_FLASH_STATE_PARTIAL) {
+				asd->frame_status[i] = ATOMISP_FRAME_STATUS_FLASH_PARTIAL;
+				dev_dbg(isp->dev, "%s partially flashed\n", __func__);
+			} else if (frame->flash_state == IA_CSS_FRAME_FLASH_STATE_FULL) {
+				asd->frame_status[i] = ATOMISP_FRAME_STATUS_FLASH_EXPOSED;
 				asd->params.num_flash_frames--;
-				dev_dbg(isp->dev, "%s completely flashed\n",
-					__func__);
+				dev_dbg(isp->dev, "%s completely flashed\n", __func__);
 			} else {
-				asd->frame_status[vb->i] =
-				    ATOMISP_FRAME_STATUS_OK;
-				dev_dbg(isp->dev,
-					"%s no flash in this frame\n",
-					__func__);
+				asd->frame_status[i] = ATOMISP_FRAME_STATUS_OK;
+				dev_dbg(isp->dev, "%s no flash in this frame\n", __func__);
 			}
 
 			/* Check if flashing sequence is done */
-			if (asd->frame_status[vb->i] ==
-			    ATOMISP_FRAME_STATUS_FLASH_EXPOSED)
+			if (asd->frame_status[i] == ATOMISP_FRAME_STATUS_FLASH_EXPOSED)
 				asd->params.flash_state = ATOMISP_FLASH_DONE;
 		} else if (isp->flash) {
-			if (v4l2_g_ctrl(isp->flash->ctrl_handler, &ctrl) ==
-			    0 && ctrl.value == ATOMISP_FLASH_MODE_TORCH) {
+			if (v4l2_g_ctrl(isp->flash->ctrl_handler, &ctrl) == 0 &&
+			    ctrl.value == ATOMISP_FLASH_MODE_TORCH) {
 				ctrl.id = V4L2_CID_FLASH_TORCH_INTENSITY;
-				if (v4l2_g_ctrl(isp->flash->ctrl_handler, &ctrl)
-				    == 0 && ctrl.value > 0) {
-					asd->frame_status[vb->i] =
-					    ATOMISP_FRAME_STATUS_FLASH_EXPOSED;
-				} else {
-					asd->frame_status[vb->i] =
-					    ATOMISP_FRAME_STATUS_OK;
-				}
+				if (v4l2_g_ctrl(isp->flash->ctrl_handler, &ctrl) == 0 &&
+				    ctrl.value > 0)
+					asd->frame_status[i] = ATOMISP_FRAME_STATUS_FLASH_EXPOSED;
+				else
+					asd->frame_status[i] = ATOMISP_FRAME_STATUS_OK;
 			} else {
-				asd->frame_status[vb->i] =
-				    ATOMISP_FRAME_STATUS_OK;
+				asd->frame_status[i] = ATOMISP_FRAME_STATUS_OK;
 			}
 		} else {
-			asd->frame_status[vb->i] = ATOMISP_FRAME_STATUS_OK;
+			asd->frame_status[i] = ATOMISP_FRAME_STATUS_OK;
 		}
 
-		asd->params.last_frame_status = asd->frame_status[vb->i];
+		asd->params.last_frame_status = asd->frame_status[i];
 
 		if (asd->continuous_mode->val) {
 			if (css_pipe_id == IA_CSS_PIPE_ID_PREVIEW ||
