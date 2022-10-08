@@ -336,13 +336,13 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
  * If this is for a kernel service, when we allocate the call, it will have
  * three refs on it: (1) the kernel service, (2) the user_call_ID tree, (3) the
  * retainer ref obtained from the backlog buffer.  Prealloc calls for userspace
- * services only have the ref from the backlog buffer.  We want to pass this
- * ref to non-BH context to dispose of.
+ * services only have the ref from the backlog buffer.  We pass this ref to the
+ * caller.
  *
  * If we want to report an error, we mark the skb with the packet type and
  * abort code and return NULL.
  *
- * The call is returned with the user access mutex held.
+ * The call is returned with the user access mutex held and a ref on it.
  */
 struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 					   struct rxrpc_sock *rx,
@@ -425,13 +425,6 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 	spin_unlock(&rx->incoming_lock);
 
 	rxrpc_send_ping(call, skb);
-
-	/* We have to discard the prealloc queue's ref here and rely on a
-	 * combination of the RCU read lock and refs held either by the socket
-	 * (recvmsg queue, to-be-accepted queue or user ID tree) or the kernel
-	 * service to prevent the call from being deallocated too early.
-	 */
-	rxrpc_put_call(call, rxrpc_call_put_discard_prealloc);
 
 	if (hlist_unhashed(&call->error_link)) {
 		spin_lock(&call->peer->lock);

@@ -257,6 +257,8 @@ static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff **_skb)
 	if (sp->hdr.serviceId == 0)
 		goto bad_message;
 
+	rcu_read_lock();
+
 	if (rxrpc_to_server(sp)) {
 		/* Weed out packets to services we're not offering.  Packets
 		 * that would begin a call are explicitly rejected and the rest
@@ -264,7 +266,9 @@ static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff **_skb)
 		 */
 		rx = rcu_dereference(local->service);
 		if (!rx || (sp->hdr.serviceId != rx->srx.srx_service &&
-			    sp->hdr.serviceId != rx->second_service)) {
+			    sp->hdr.serviceId != rx->second_service)
+		    ) {
+			rcu_read_unlock();
 			if (sp->hdr.type == RXRPC_PACKET_TYPE_DATA &&
 			    sp->hdr.seq == 1)
 				goto unsupported_service;
@@ -293,7 +297,12 @@ static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff **_skb)
 		if (sp->hdr.callNumber == 0) {
 			/* Connection-level packet */
 			_debug("CONN %p {%d}", conn, conn->debug_id);
-			rxrpc_post_packet_to_conn(conn, skb);
+			conn = rxrpc_get_connection_maybe(conn, rxrpc_conn_get_conn_input);
+			rcu_read_unlock();
+			if (conn) {
+				rxrpc_post_packet_to_conn(conn, skb);
+				rxrpc_put_connection(conn, rxrpc_conn_put_conn_input);
+			}
 			return 0;
 		}
 
@@ -305,20 +314,26 @@ static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff **_skb)
 		chan = &conn->channels[channel];
 
 		/* Ignore really old calls */
-		if (sp->hdr.callNumber < chan->last_call)
+		if (sp->hdr.callNumber < chan->last_call) {
+			rcu_read_unlock();
 			return 0;
+		}
 
 		if (sp->hdr.callNumber == chan->last_call) {
 			if (chan->call ||
-			    sp->hdr.type == RXRPC_PACKET_TYPE_ABORT)
+			    sp->hdr.type == RXRPC_PACKET_TYPE_ABORT) {
+				rcu_read_unlock();
 				return 0;
+			}
 
 			/* For the previous service call, if completed
 			 * successfully, we discard all further packets.
 			 */
 			if (rxrpc_conn_is_service(conn) &&
-			    chan->last_type == RXRPC_PACKET_TYPE_ACK)
+			    chan->last_type == RXRPC_PACKET_TYPE_ACK) {
+				rcu_read_unlock();
 				return 0;
+			}
 
 			/* But otherwise we need to retransmit the final packet
 			 * from data cached in the connection record.
@@ -328,19 +343,31 @@ static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff **_skb)
 						    sp->hdr.seq,
 						    sp->hdr.serial,
 						    sp->hdr.flags);
-			rxrpc_post_packet_to_conn(conn, skb);
+			conn = rxrpc_get_connection_maybe(conn, rxrpc_conn_get_call_input);
+			rcu_read_unlock();
+			if (conn) {
+				rxrpc_post_packet_to_conn(conn, skb);
+				rxrpc_put_connection(conn, rxrpc_conn_put_call_input);
+			}
 			return 0;
 		}
 
 		call = rcu_dereference(chan->call);
 
 		if (sp->hdr.callNumber > chan->call_id) {
-			if (rxrpc_to_client(sp))
+			if (rxrpc_to_client(sp)) {
+				rcu_read_unlock();
 				goto reject_packet;
-			if (call)
-				rxrpc_input_implicit_end_call(rx, conn, call);
-			call = NULL;
+			}
+			if (call) {
+				rxrpc_input_implicit_end_call(conn, call);
+				chan->call = NULL;
+				call = NULL;
+			}
 		}
+
+		if (call && !rxrpc_try_get_call(call, rxrpc_call_get_input))
+			call = NULL;
 
 		if (call) {
 			if (sp->hdr.serviceId != call->dest_srx.srx_service)
@@ -352,23 +379,33 @@ static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff **_skb)
 		}
 	}
 
-	if (!call || refcount_read(&call->ref) == 0) {
+	if (!call) {
 		if (rxrpc_to_client(sp) ||
-		    sp->hdr.type != RXRPC_PACKET_TYPE_DATA)
+		    sp->hdr.type != RXRPC_PACKET_TYPE_DATA) {
+			rcu_read_unlock();
 			goto bad_message;
-		if (sp->hdr.seq != 1)
+		}
+		if (sp->hdr.seq != 1) {
+			rcu_read_unlock();
 			return 0;
+		}
 		call = rxrpc_new_incoming_call(local, rx, skb);
-		if (!call)
+		if (!call) {
+			rcu_read_unlock();
 			goto reject_packet;
+		}
 	}
+
+	rcu_read_unlock();
 
 	/* Process a call packet. */
 	rxrpc_input_call_event(call, skb);
+	rxrpc_put_call(call, rxrpc_call_put_input);
 	trace_rxrpc_rx_done(0, 0);
 	return 0;
 
 wrong_security:
+	rcu_read_unlock();
 	trace_rxrpc_abort(0, "SEC", sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
 			  RXKADINCONSISTENCY, EBADMSG);
 	skb->priority = RXKADINCONSISTENCY;
@@ -381,6 +418,7 @@ unsupported_service:
 	goto post_abort;
 
 reupgrade:
+	rcu_read_unlock();
 	trace_rxrpc_abort(0, "UPG", sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
 			  RX_PROTOCOL_ERROR, EBADMSG);
 	goto protocol_error;
@@ -433,9 +471,7 @@ int rxrpc_io_thread(void *data)
 			switch (skb->mark) {
 			case RXRPC_SKB_MARK_PACKET:
 				skb->priority = 0;
-				rcu_read_lock();
 				rxrpc_input_packet(local, &skb);
-				rcu_read_unlock();
 				trace_rxrpc_rx_done(skb->mark, skb->priority);
 				rxrpc_free_skb(skb, rxrpc_skb_put_input);
 				break;

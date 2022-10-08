@@ -961,8 +961,7 @@ void rxrpc_unpublish_service_conn(struct rxrpc_connection *);
  * input.c
  */
 void rxrpc_input_call_event(struct rxrpc_call *, struct sk_buff *);
-void rxrpc_input_implicit_end_call(struct rxrpc_sock *, struct rxrpc_connection *,
-				   struct rxrpc_call *);
+void rxrpc_input_implicit_end_call(struct rxrpc_connection *, struct rxrpc_call *);
 
 /*
  * io_thread.c

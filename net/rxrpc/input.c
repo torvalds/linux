@@ -1072,8 +1072,7 @@ void rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
  *
  * TODO: If callNumber > call_id + 1, renegotiate security.
  */
-void rxrpc_input_implicit_end_call(struct rxrpc_sock *rx,
-				   struct rxrpc_connection *conn,
+void rxrpc_input_implicit_end_call(struct rxrpc_connection *conn,
 				   struct rxrpc_call *call)
 {
 	switch (READ_ONCE(call->state)) {
@@ -1091,7 +1090,7 @@ void rxrpc_input_implicit_end_call(struct rxrpc_sock *rx,
 		break;
 	}
 
-	spin_lock(&rx->incoming_lock);
+	spin_lock(&conn->bundle->channel_lock);
 	__rxrpc_disconnect_call(conn, call);
-	spin_unlock(&rx->incoming_lock);
+	spin_unlock(&conn->bundle->channel_lock);
 }
