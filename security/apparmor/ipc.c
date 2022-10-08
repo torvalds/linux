@@ -45,7 +45,7 @@ static const char *audit_signal_mask(u32 mask)
 }
 
 /**
- * audit_cb - call back for signal specific audit fields
+ * audit_signal_cb() - call back for signal specific audit fields
  * @ab: audit_buffer  (NOT NULL)
  * @va: audit struct to audit values of  (NOT NULL)
  */
