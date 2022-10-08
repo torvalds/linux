@@ -29,13 +29,6 @@ unsigned int atomisp_sub_dev_users(struct atomisp_sub_device *asd);
  * Memory help functions for image frame and private parameters
  */
 
-int atomisp_videobuf_mmap_mapper(struct videobuf_queue *q,
-				 struct vm_area_struct *vma);
-
-int atomisp_qbuf_to_css(struct atomisp_device *isp,
-			struct atomisp_video_pipe *pipe,
-			struct videobuf_buffer *vb);
-
 int atomisp_qbuffers_to_css(struct atomisp_sub_device *asd);
 
 extern const struct v4l2_file_operations atomisp_fops;

@@ -20,6 +20,7 @@
  * This file contains structs to describe various frame-formats supported by the ISP.
  */
 
+#include <media/videobuf2-v4l2.h>
 #include <type_support.h>
 #include "ia_css_err.h"
 #include "ia_css_types.h"
@@ -146,6 +147,17 @@ enum ia_css_frame_flash_state {
  *  This is the main structure used for all input and output images.
  */
 struct ia_css_frame {
+	/*
+	 * The videobuf2 core will allocate buffers including room for private
+	 * data (the rest of struct ia_css_frame). The vb2_v4l2_buffer must
+	 * be the first member for this to work!
+	 * Note the atomisp code also uses ia_css_frame-s which are not used
+	 * as v4l2-buffers in some places. In this case the vb2 member will
+	 * be unused.
+	 */
+	struct vb2_v4l2_buffer vb;
+	/* List-head for linking into the activeq or buffers_waiting_for_param list */
+	struct list_head queue;
 	struct ia_css_frame_info frame_info; /** info struct describing the frame */
 	ia_css_ptr   data;	       /** pointer to start of image data */
 	unsigned int data_bytes;       /** size of image data in bytes */
@@ -182,6 +194,9 @@ struct ia_css_frame {
 	} planes; /** frame planes, select the right one based on
 		       info.format */
 };
+
+#define vb_to_frame(vb2) \
+	container_of(to_vb2_v4l2_buffer(vb2), struct ia_css_frame, vb)
 
 #define DEFAULT_FRAME { \
 	.frame_info		= IA_CSS_BINARY_DEFAULT_FRAME_INFO, \

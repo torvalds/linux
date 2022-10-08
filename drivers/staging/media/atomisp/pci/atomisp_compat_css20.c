@@ -996,7 +996,7 @@ void atomisp_css_init_struct(struct atomisp_sub_device *asd)
 }
 
 int atomisp_q_video_buffer_to_css(struct atomisp_sub_device *asd,
-				  struct videobuf_vmalloc_memory *vm_mem,
+				  struct ia_css_frame *frame,
 				  enum atomisp_input_stream_id stream_id,
 				  enum ia_css_buffer_type css_buf_type,
 				  enum ia_css_pipe_id css_pipe_id)
@@ -1006,7 +1006,7 @@ int atomisp_q_video_buffer_to_css(struct atomisp_sub_device *asd,
 	int err;
 
 	css_buf.type = css_buf_type;
-	css_buf.data.frame = vm_mem->vaddr;
+	css_buf.data.frame = frame;
 
 	err = ia_css_pipe_enqueue_buffer(
 		  stream_env->pipes[css_pipe_id], &css_buf);

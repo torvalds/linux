@@ -21,8 +21,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
-#include <media/videobuf-core.h>
-
+#include <media/videobuf2-v4l2.h>
 #include "atomisp_common.h"
 #include "atomisp_compat.h"
 #include "atomisp_v4l2.h"
@@ -69,7 +68,9 @@ struct atomisp_video_pipe {
 	struct video_device vdev;
 	enum v4l2_buf_type type;
 	struct media_pad pad;
-	struct videobuf_queue capq;
+	struct vb2_queue vb_queue;
+	/* Lock for vb_queue, when also taking isp->mutex this must be taken first! */
+	struct mutex vb_queue_mutex;
 	/* List of video-buffers handed over to the CSS  */
 	struct list_head buffers_in_css;
 	/* List of video-buffers handed over to the driver, but not yet to the CSS */
@@ -81,6 +82,9 @@ struct atomisp_video_pipe {
 	struct list_head buffers_waiting_for_param;
 	/* the link list to store per_frame parameters */
 	struct list_head per_frame_params;
+
+	/* Filled through atomisp_get_css_frame_info() on queue setup */
+	struct ia_css_frame_info frame_info;
 
 	/* Store here the initial run mode */
 	unsigned int default_run_mode;
@@ -112,6 +116,11 @@ struct atomisp_video_pipe {
 	unsigned int frame_request_config_id[VIDEO_MAX_FRAME];
 	struct atomisp_css_params_with_list *frame_params[VIDEO_MAX_FRAME];
 };
+
+#define vq_to_pipe(queue) \
+	container_of(queue, struct atomisp_video_pipe, vb_queue)
+
+#define vb_to_pipe(vb) vq_to_pipe((vb)->vb2_queue)
 
 struct atomisp_pad_format {
 	struct v4l2_mbus_framefmt fmt;

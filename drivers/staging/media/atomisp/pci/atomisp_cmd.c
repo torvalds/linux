@@ -30,7 +30,6 @@
 #include <asm/iosf_mbi.h>
 
 #include <media/v4l2-event.h>
-#include <media/videobuf-vmalloc.h>
 
 #define CREATE_TRACE_POINTS
 #include "atomisp_trace_event.h"
@@ -662,23 +661,6 @@ void dump_sp_dmem(struct atomisp_device *isp, unsigned int addr,
 	} while (--size32);
 }
 
-static struct videobuf_buffer *atomisp_css_frame_to_vbuf(
-    struct atomisp_video_pipe *pipe, struct ia_css_frame *frame)
-{
-	struct videobuf_vmalloc_memory *vm_mem;
-	struct ia_css_frame *handle;
-	int i;
-
-	for (i = 0; pipe->capq.bufs[i]; i++) {
-		vm_mem = pipe->capq.bufs[i]->priv;
-		handle = vm_mem->vaddr;
-		if (handle && handle->data == frame->data)
-			return pipe->capq.bufs[i];
-	}
-
-	return NULL;
-}
-
 int atomisp_buffers_in_css(struct atomisp_video_pipe *pipe)
 {
 	unsigned long irqflags;
@@ -695,37 +677,40 @@ int atomisp_buffers_in_css(struct atomisp_video_pipe *pipe)
 	return buffers_in_css;
 }
 
-void atomisp_buffer_done(struct atomisp_video_pipe *pipe, struct videobuf_buffer *vb,
-			 int state)
+void atomisp_buffer_done(struct ia_css_frame *frame, enum vb2_buffer_state state)
 {
+	struct atomisp_video_pipe *pipe = vb_to_pipe(&frame->vb.vb2_buf);
+
 	lockdep_assert_held(&pipe->irq_lock);
 
-	vb->ts = ktime_get_ns();
-	vb->field_count = atomic_read(&pipe->asd->sequence) << 1;
-	vb->state = state;
-	list_del(&vb->queue);
-	wake_up(&vb->done);
+	frame->vb.vb2_buf.timestamp = ktime_get_ns();
+	frame->vb.field = pipe->pix.field;
+	frame->vb.sequence = atomic_read(&pipe->asd->sequence);
+	list_del(&frame->queue);
+	if (state == VB2_BUF_STATE_DONE)
+		vb2_set_plane_payload(&frame->vb.vb2_buf, 0, pipe->pix.sizeimage);
+	vb2_buffer_done(&frame->vb.vb2_buf, state);
 }
 
 void atomisp_flush_video_pipe(struct atomisp_video_pipe *pipe, bool warn_on_css_frames)
 {
-	struct videobuf_buffer *_vb, *vb;
+	struct ia_css_frame *frame, *_frame;
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&pipe->irq_lock, irqflags);
 
-	list_for_each_entry_safe(vb, _vb, &pipe->buffers_in_css, queue) {
+	list_for_each_entry_safe(frame, _frame, &pipe->buffers_in_css, queue) {
 		if (warn_on_css_frames)
 			dev_warn(pipe->isp->dev, "Warning: CSS frames queued on flush\n");
-		atomisp_buffer_done(pipe, vb, VIDEOBUF_ERROR);
+		atomisp_buffer_done(frame, VB2_BUF_STATE_ERROR);
 	}
 
-	list_for_each_entry_safe(vb, _vb, &pipe->activeq, queue)
-		atomisp_buffer_done(pipe, vb, VIDEOBUF_ERROR);
+	list_for_each_entry_safe(frame, _frame, &pipe->activeq, queue)
+		atomisp_buffer_done(frame, VB2_BUF_STATE_ERROR);
 
-	list_for_each_entry_safe(vb, _vb, &pipe->buffers_waiting_for_param, queue) {
-		pipe->frame_request_config_id[vb->i] = 0;
-		atomisp_buffer_done(pipe, vb, VIDEOBUF_ERROR);
+	list_for_each_entry_safe(frame, _frame, &pipe->buffers_waiting_for_param, queue) {
+		pipe->frame_request_config_id[frame->vb.vb2_buf.index] = 0;
+		atomisp_buffer_done(frame, VB2_BUF_STATE_ERROR);
 	}
 
 	spin_unlock_irqrestore(&pipe->irq_lock, irqflags);
@@ -874,7 +859,6 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 		      enum ia_css_pipe_id css_pipe_id,
 		      bool q_buffers, enum atomisp_input_stream_id stream_id)
 {
-	struct videobuf_buffer *vb = NULL;
 	struct atomisp_video_pipe *pipe = NULL;
 	struct atomisp_css_buffer buffer;
 	bool requeue = false;
@@ -1027,10 +1011,7 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 				dev_dbg(isp->dev, "%s thumb no flash in this frame\n",
 					__func__);
 		}
-		vb = atomisp_css_frame_to_vbuf(pipe, frame);
-		WARN_ON(!vb);
-		if (vb)
-			pipe->frame_config_id[vb->i] = frame->isp_config_id;
+		pipe->frame_config_id[frame->vb.vb2_buf.index] = frame->isp_config_id;
 		if (css_pipe_id == IA_CSS_PIPE_ID_CAPTURE &&
 		    asd->pending_capture_request > 0) {
 			err = atomisp_css_offline_capture_configure(asd,
@@ -1066,13 +1047,8 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 
 		dev_dbg(isp->dev, "%s: main frame with exp_id %d is ready\n",
 			__func__, frame->exp_id);
-		vb = atomisp_css_frame_to_vbuf(pipe, frame);
-		if (!vb) {
-			WARN_ON(1);
-			break;
-		}
 
-		i = vb->i;
+		i = frame->vb.vb2_buf.index;
 
 		/* free the parameters */
 		if (pipe->frame_params[i]) {
@@ -1183,9 +1159,9 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 	default:
 		break;
 	}
-	if (vb) {
+	if (frame) {
 		spin_lock_irqsave(&pipe->irq_lock, irqflags);
-		atomisp_buffer_done(pipe, vb, error ? VIDEOBUF_ERROR : VIDEOBUF_DONE);
+		atomisp_buffer_done(frame, error ? VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
 		spin_unlock_irqrestore(&pipe->irq_lock, irqflags);
 	}
 
@@ -3656,6 +3632,18 @@ void atomisp_free_css_parameters(struct atomisp_css_params *css_param)
 	}
 }
 
+static void atomisp_move_frame_to_activeq(struct ia_css_frame *frame,
+					  struct atomisp_css_params_with_list *param)
+{
+	struct atomisp_video_pipe *pipe = vb_to_pipe(&frame->vb.vb2_buf);
+	unsigned long irqflags;
+
+	pipe->frame_params[frame->vb.vb2_buf.index] = param;
+	spin_lock_irqsave(&pipe->irq_lock, irqflags);
+	list_move_tail(&frame->queue, &pipe->activeq);
+	spin_unlock_irqrestore(&pipe->irq_lock, irqflags);
+}
+
 /*
  * Check parameter queue list and buffer queue list to find out if matched items
  * and then set parameter to CSS and enqueue buffer to CSS.
@@ -3666,11 +3654,10 @@ void atomisp_free_css_parameters(struct atomisp_css_params *css_param)
 void atomisp_handle_parameter_and_buffer(struct atomisp_video_pipe *pipe)
 {
 	struct atomisp_sub_device *asd = pipe->asd;
-	struct videobuf_buffer *vb = NULL, *vb_tmp;
+	struct ia_css_frame *frame = NULL, *frame_tmp;
 	struct atomisp_css_params_with_list *param = NULL, *param_tmp;
-	struct videobuf_vmalloc_memory *vm_mem = NULL;
-	unsigned long irqflags;
 	bool need_to_enqueue_buffer = false;
+	int i;
 
 	if (!asd) {
 		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
@@ -3694,44 +3681,32 @@ void atomisp_handle_parameter_and_buffer(struct atomisp_video_pipe *pipe)
 	    list_empty(&pipe->buffers_waiting_for_param))
 		return;
 
-	list_for_each_entry_safe(vb, vb_tmp,
+	list_for_each_entry_safe(frame, frame_tmp,
 				 &pipe->buffers_waiting_for_param, queue) {
-		if (pipe->frame_request_config_id[vb->i]) {
+		i = frame->vb.vb2_buf.index;
+		if (pipe->frame_request_config_id[i]) {
 			list_for_each_entry_safe(param, param_tmp,
 						 &pipe->per_frame_params, list) {
-				if (pipe->frame_request_config_id[vb->i] !=
-				    param->params.isp_config_id)
+				if (pipe->frame_request_config_id[i] != param->params.isp_config_id)
 					continue;
 
 				list_del(&param->list);
-				list_del(&vb->queue);
+
 				/*
 				 * clear the request config id as the buffer
 				 * will be handled and enqueued into CSS soon
 				 */
-				pipe->frame_request_config_id[vb->i] = 0;
-				pipe->frame_params[vb->i] = param;
-				vm_mem = vb->priv;
-				BUG_ON(!vm_mem);
+				pipe->frame_request_config_id[i] = 0;
+				atomisp_move_frame_to_activeq(frame, param);
+				need_to_enqueue_buffer = true;
 				break;
 			}
 
-			if (vm_mem) {
-				spin_lock_irqsave(&pipe->irq_lock, irqflags);
-				list_add_tail(&vb->queue, &pipe->activeq);
-				spin_unlock_irqrestore(&pipe->irq_lock, irqflags);
-				vm_mem = NULL;
-				need_to_enqueue_buffer = true;
-			} else {
-				/* The is the end, stop further loop */
+			/* If this is the end, stop further loop */
+			if (list_entry_is_head(param, &pipe->per_frame_params, list))
 				break;
-			}
 		} else {
-			list_del(&vb->queue);
-			pipe->frame_params[vb->i] = NULL;
-			spin_lock_irqsave(&pipe->irq_lock, irqflags);
-			list_add_tail(&vb->queue, &pipe->activeq);
-			spin_unlock_irqrestore(&pipe->irq_lock, irqflags);
+			atomisp_move_frame_to_activeq(frame, NULL);
 			need_to_enqueue_buffer = true;
 		}
 	}
@@ -5537,8 +5512,6 @@ done:
 	f->fmt.pix = pipe->pix;
 	f->fmt.pix.priv = PAGE_ALIGN(pipe->pix.width *
 				     pipe->pix.height * 2);
-
-	pipe->capq.field = f->fmt.pix.field;
 
 	/*
 	 * If in video 480P case, no GFX throttle
