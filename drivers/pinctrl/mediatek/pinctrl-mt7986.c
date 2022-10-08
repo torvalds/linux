@@ -675,11 +675,17 @@ static int mt7986_uart1_1_funcs[] = { 4, 4, 4, 4, };
 static int mt7986_spi1_2_pins[] = { 29, 30, 31, 32, };
 static int mt7986_spi1_2_funcs[] = { 1, 1, 1, 1, };
 
-static int mt7986_uart1_2_pins[] = { 29, 30, 31, 32, };
-static int mt7986_uart1_2_funcs[] = { 3, 3, 3, 3, };
+static int mt7986_uart1_2_rx_tx_pins[] = { 29, 30, };
+static int mt7986_uart1_2_rx_tx_funcs[] = { 3, 3, };
 
-static int mt7986_uart2_0_pins[] = { 29, 30, 31, 32, };
-static int mt7986_uart2_0_funcs[] = { 4, 4, 4, 4, };
+static int mt7986_uart1_2_cts_rts_pins[] = { 31, 32, };
+static int mt7986_uart1_2_cts_rts_funcs[] = { 3, 3, };
+
+static int mt7986_uart2_0_rx_tx_pins[] = { 29, 30, };
+static int mt7986_uart2_0_rx_tx_funcs[] = { 4, 4, };
+
+static int mt7986_uart2_0_cts_rts_pins[] = { 31, 32, };
+static int mt7986_uart2_0_cts_rts_funcs[] = { 4, 4, };
 
 static int mt7986_spi0_pins[] = { 33, 34, 35, 36, };
 static int mt7986_spi0_funcs[] = { 1, 1, 1, 1, };
@@ -707,6 +713,12 @@ static int mt7986_pcie_reset_funcs[] = { 1, };
 
 static int mt7986_uart1_pins[] = { 42, 43, 44, 45, };
 static int mt7986_uart1_funcs[] = { 1, 1, 1, 1, };
+
+static int mt7986_uart1_rx_tx_pins[] = { 42, 43, };
+static int mt7986_uart1_rx_tx_funcs[] = { 1, 1, };
+
+static int mt7986_uart1_cts_rts_pins[] = { 44, 45, };
+static int mt7986_uart1_cts_rts_funcs[] = { 1, 1, };
 
 static int mt7986_uart2_pins[] = { 46, 47, 48, 49, };
 static int mt7986_uart2_funcs[] = { 1, 1, 1, 1, };
@@ -749,6 +761,8 @@ static const struct group_desc mt7986_groups[] = {
 	PINCTRL_PIN_GROUP("wifi_led", mt7986_wifi_led),
 	PINCTRL_PIN_GROUP("i2c", mt7986_i2c),
 	PINCTRL_PIN_GROUP("uart1_0", mt7986_uart1_0),
+	PINCTRL_PIN_GROUP("uart1_rx_tx", mt7986_uart1_rx_tx),
+	PINCTRL_PIN_GROUP("uart1_cts_rts", mt7986_uart1_cts_rts),
 	PINCTRL_PIN_GROUP("pcie_clk", mt7986_pcie_clk),
 	PINCTRL_PIN_GROUP("pcie_wake", mt7986_pcie_wake),
 	PINCTRL_PIN_GROUP("spi1_0", mt7986_spi1_0),
@@ -760,8 +774,10 @@ static const struct group_desc mt7986_groups[] = {
 	PINCTRL_PIN_GROUP("spi1_1", mt7986_spi1_1),
 	PINCTRL_PIN_GROUP("uart1_1", mt7986_uart1_1),
 	PINCTRL_PIN_GROUP("spi1_2", mt7986_spi1_2),
-	PINCTRL_PIN_GROUP("uart1_2", mt7986_uart1_2),
-	PINCTRL_PIN_GROUP("uart2_0", mt7986_uart2_0),
+	PINCTRL_PIN_GROUP("uart1_2_rx_tx", mt7986_uart1_2_rx_tx),
+	PINCTRL_PIN_GROUP("uart1_2_cts_rts", mt7986_uart1_2_cts_rts),
+	PINCTRL_PIN_GROUP("uart2_0_rx_tx", mt7986_uart2_0_rx_tx),
+	PINCTRL_PIN_GROUP("uart2_0_cts_rts", mt7986_uart2_0_cts_rts),
 	PINCTRL_PIN_GROUP("spi0", mt7986_spi0),
 	PINCTRL_PIN_GROUP("spi0_wp_hold", mt7986_spi0_wp_hold),
 	PINCTRL_PIN_GROUP("uart2_1", mt7986_uart2_1),
@@ -800,7 +816,9 @@ static const char *mt7986_pwm_groups[] = { "pwm0", "pwm1_0", "pwm1_1", };
 static const char *mt7986_spi_groups[] = {
 	"spi0", "spi0_wp_hold", "spi1_0", "spi1_1", "spi1_2", "spi1_3", };
 static const char *mt7986_uart_groups[] = {
-	"uart1_0", "uart1_1", "uart1_2", "uart1_3_rx_tx", "uart1_3_cts_rts",
+	"uart1_0", "uart1_1", "uart1_rx_tx", "uart1_cts_rts",
+	"uart1_2_rx_tx", "uart1_2_cts_rts",
+	"uart1_3_rx_tx", "uart1_3_cts_rts", "uart2_0_rx_tx", "uart2_0_cts_rts",
 	"uart2_0", "uart2_1", "uart0", "uart1", "uart2",
 };
 static const char *mt7986_wdt_groups[] = { "watchdog", };
