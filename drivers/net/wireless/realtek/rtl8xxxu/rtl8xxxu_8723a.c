@@ -54,7 +54,7 @@ static struct rtl8xxxu_power_base rtl8723a_power_base = {
 	.reg_0868 = 0x02040608,
 };
 
-static struct rtl8xxxu_rfregval rtl8723au_radioa_1t_init_table[] = {
+static const struct rtl8xxxu_rfregval rtl8723au_radioa_1t_init_table[] = {
 	{0x00, 0x00030159}, {0x01, 0x00031284},
 	{0x02, 0x00098000}, {0x03, 0x00039c63},
 	{0x04, 0x000210e7}, {0x09, 0x0002044f},

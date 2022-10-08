@@ -30,7 +30,7 @@
 #include "rtl8xxxu.h"
 #include "rtl8xxxu_regs.h"
 
-static struct rtl8xxxu_reg8val rtl8188f_mac_init_table[] = {
+static const struct rtl8xxxu_reg8val rtl8188f_mac_init_table[] = {
 	{0x024, 0xDF}, {0x025, 0x07}, {0x02B, 0x1C}, {0x283, 0x20},
 	{0x421, 0x0F}, {0x428, 0x0A}, {0x429, 0x10}, {0x430, 0x00},
 	{0x431, 0x00}, {0x432, 0x00}, {0x433, 0x01}, {0x434, 0x04},
@@ -60,7 +60,7 @@ static struct rtl8xxxu_reg8val rtl8188f_mac_init_table[] = {
 	{0xffff, 0xff},
 };
 
-static struct rtl8xxxu_reg32val rtl8188fu_phy_init_table[] = {
+static const struct rtl8xxxu_reg32val rtl8188fu_phy_init_table[] = {
 	{0x800, 0x80045700}, {0x804, 0x00000001},
 	{0x808, 0x0000FC00}, {0x80C, 0x0000000A},
 	{0x810, 0x10001331}, {0x814, 0x020C3D10},
@@ -168,7 +168,7 @@ static struct rtl8xxxu_reg32val rtl8188fu_phy_init_table[] = {
 	{0xffff, 0xffffffff},
 };
 
-static struct rtl8xxxu_reg32val rtl8188f_agc_table[] = {
+static const struct rtl8xxxu_reg32val rtl8188f_agc_table[] = {
 	{0xC78, 0xFC000001}, {0xC78, 0xFB010001},
 	{0xC78, 0xFA020001}, {0xC78, 0xF9030001},
 	{0xC78, 0xF8040001}, {0xC78, 0xF7050001},
@@ -205,7 +205,7 @@ static struct rtl8xxxu_reg32val rtl8188f_agc_table[] = {
 	{0xffff, 0xffffffff}
 };
 
-static struct rtl8xxxu_rfregval rtl8188fu_radioa_init_table[] = {
+static const struct rtl8xxxu_rfregval rtl8188fu_radioa_init_table[] = {
 	{0x00, 0x00030000}, {0x08, 0x00008400},
 	{0x18, 0x00000407}, {0x19, 0x00000012},
 	{0x1B, 0x00001C6C},
@@ -263,7 +263,7 @@ static struct rtl8xxxu_rfregval rtl8188fu_radioa_init_table[] = {
 	{0xff, 0xffffffff}
 };
 
-static struct rtl8xxxu_rfregval rtl8188fu_cut_b_radioa_init_table[] = {
+static const struct rtl8xxxu_rfregval rtl8188fu_cut_b_radioa_init_table[] = {
 	{0x00, 0x00030000}, {0x08, 0x00008400},
 	{0x18, 0x00000407}, {0x19, 0x00000012},
 	{0x1B, 0x00001C6C},

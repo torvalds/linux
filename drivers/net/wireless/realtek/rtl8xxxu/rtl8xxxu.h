@@ -1500,7 +1500,7 @@ struct rtl8xxxu_fileops {
 	u16 trxff_boundary;
 	u8 pbp_rx;
 	u8 pbp_tx;
-	struct rtl8xxxu_reg8val *mactable;
+	const struct rtl8xxxu_reg8val *mactable;
 	u8 total_page_num;
 	u8 page_num_hi;
 	u8 page_num_lo;
@@ -1509,7 +1509,7 @@ struct rtl8xxxu_fileops {
 
 extern int rtl8xxxu_debug;
 
-extern struct rtl8xxxu_reg8val rtl8xxxu_gen1_mac_init_table[];
+extern const struct rtl8xxxu_reg8val rtl8xxxu_gen1_mac_init_table[];
 extern const u32 rtl8xxxu_iqk_phy_iq_bb_reg[];
 u8 rtl8xxxu_read8(struct rtl8xxxu_priv *priv, u16 addr);
 u16 rtl8xxxu_read16(struct rtl8xxxu_priv *priv, u16 addr);
@@ -1538,10 +1538,10 @@ void rtl8xxxu_fill_iqk_matrix_a(struct rtl8xxxu_priv *priv, bool iqk_ok,
 void rtl8xxxu_fill_iqk_matrix_b(struct rtl8xxxu_priv *priv, bool iqk_ok,
 				int result[][8], int candidate, bool tx_only);
 int rtl8xxxu_init_phy_rf(struct rtl8xxxu_priv *priv,
-			 struct rtl8xxxu_rfregval *table,
+			 const struct rtl8xxxu_rfregval *table,
 			 enum rtl8xxxu_rfpath path);
 int rtl8xxxu_init_phy_regs(struct rtl8xxxu_priv *priv,
-			   struct rtl8xxxu_reg32val *array);
+			   const struct rtl8xxxu_reg32val *array);
 int rtl8xxxu_load_firmware(struct rtl8xxxu_priv *priv, char *fw_name);
 void rtl8xxxu_firmware_self_reset(struct rtl8xxxu_priv *priv);
 void rtl8xxxu_power_off(struct rtl8xxxu_priv *priv);
