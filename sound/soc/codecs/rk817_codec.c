@@ -699,8 +699,11 @@ static int rk817_capture_path_config(struct snd_soc_component *component,
 
 	switch (rk817->capture_path) {
 	case MIC_OFF:
-		if (pre_path != MIC_OFF)
+		if (pre_path != MIC_OFF) {
 			rk817_codec_power_down(component, RK817_CODEC_CAPTURE);
+			if (rk817->playback_path == OFF)
+				rk817_codec_power_down(component, RK817_CODEC_ALL);
+		}
 		break;
 	case MAIN_MIC:
 		if (pre_path == MIC_OFF)
