@@ -15,6 +15,11 @@
 	model = "Supermicro X9SCi-LN4F BMC";
 	compatible = "supermicro,x9sci-ln4f-bmc", "nuvoton,wpcm450";
 
+	aliases {
+		serial0 = &serial0;
+		serial1 = &serial1;
+	};
+
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
