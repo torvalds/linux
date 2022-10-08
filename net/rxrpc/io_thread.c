@@ -358,7 +358,7 @@ static int rxrpc_input_packet_on_conn(struct rxrpc_connection *conn,
 					    sp->hdr.seq,
 					    sp->hdr.serial,
 					    sp->hdr.flags);
-		rxrpc_input_conn_packet(conn, skb);
+		rxrpc_conn_retransmit_call(conn, skb, channel);
 		return 0;
 	}
 

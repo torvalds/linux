@@ -19,9 +19,9 @@
 /*
  * Retransmit terminal ACK or ABORT of the previous call.
  */
-static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
-				       struct sk_buff *skb,
-				       unsigned int channel)
+void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
+				struct sk_buff *skb,
+				unsigned int channel)
 {
 	struct rxrpc_skb_priv *sp = skb ? rxrpc_skb(skb) : NULL;
 	struct rxrpc_channel *chan;
@@ -292,24 +292,6 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 	_enter("{%d},{%u,%%%u},", conn->debug_id, sp->hdr.type, sp->hdr.serial);
 
 	switch (sp->hdr.type) {
-	case RXRPC_PACKET_TYPE_DATA:
-	case RXRPC_PACKET_TYPE_ACK:
-		rxrpc_conn_retransmit_call(conn, skb,
-					   sp->hdr.cid & RXRPC_CHANNELMASK);
-		return 0;
-
-	case RXRPC_PACKET_TYPE_BUSY:
-		/* Just ignore BUSY packets for now. */
-		return 0;
-
-	case RXRPC_PACKET_TYPE_ABORT:
-		conn->error = -ECONNABORTED;
-		conn->abort_code = skb->priority;
-		conn->state = RXRPC_CONN_REMOTELY_ABORTED;
-		set_bit(RXRPC_CONN_DONT_REUSE, &conn->flags);
-		rxrpc_abort_calls(conn, RXRPC_CALL_REMOTELY_ABORTED, sp->hdr.serial);
-		return -ECONNABORTED;
-
 	case RXRPC_PACKET_TYPE_CHALLENGE:
 		return conn->security->respond_to_challenge(conn, skb,
 							    _abort_code);
@@ -504,18 +486,12 @@ int rxrpc_input_conn_packet(struct rxrpc_connection *conn, struct sk_buff *skb)
 
 	if (conn->state >= RXRPC_CONN_REMOTELY_ABORTED) {
 		_leave(" = -ECONNABORTED [%u]", conn->state);
-		return -ECONNABORTED;
+		return 0;
 	}
 
 	_enter("{%d},{%u,%%%u},", conn->debug_id, sp->hdr.type, sp->hdr.serial);
 
 	switch (sp->hdr.type) {
-	case RXRPC_PACKET_TYPE_DATA:
-	case RXRPC_PACKET_TYPE_ACK:
-		rxrpc_conn_retransmit_call(conn, skb,
-					   sp->hdr.cid & RXRPC_CHANNELMASK);
-		return 0;
-
 	case RXRPC_PACKET_TYPE_BUSY:
 		/* Just ignore BUSY packets for now. */
 		return 0;
@@ -526,7 +502,7 @@ int rxrpc_input_conn_packet(struct rxrpc_connection *conn, struct sk_buff *skb)
 		conn->state = RXRPC_CONN_REMOTELY_ABORTED;
 		set_bit(RXRPC_CONN_DONT_REUSE, &conn->flags);
 		rxrpc_abort_calls(conn, RXRPC_CALL_REMOTELY_ABORTED, sp->hdr.serial);
-		return -ECONNABORTED;
+		return 0;
 
 	case RXRPC_PACKET_TYPE_CHALLENGE:
 	case RXRPC_PACKET_TYPE_RESPONSE:
