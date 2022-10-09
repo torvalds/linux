@@ -1131,6 +1131,7 @@
 				 <&rstgen RSTN_U0_CAN_CTRL_CORE>,
 				 <&rstgen RSTN_U0_CAN_CTRL_TIMER>;
 			reset-names = "rst_apb", "rst_core", "rst_timer";
+			frequency = <40000000>;
 			starfive,sys-syscon = <&sys_syscon 0x10 0x3 0x8>;
 			syscon,can_or_canfd = <0>;
 			status = "disabled";
@@ -1148,6 +1149,7 @@
 				 <&rstgen RSTN_U1_CAN_CTRL_CORE>,
 				 <&rstgen RSTN_U1_CAN_CTRL_TIMER>;
 			reset-names = "rst_apb", "rst_core", "rst_timer";
+			frequency = <40000000>;
 			starfive,sys-syscon = <&sys_syscon 0x88 0x12 0x40000>;
 			syscon,can_or_canfd = <1>;
 			status = "disabled";

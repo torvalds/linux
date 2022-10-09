@@ -698,7 +698,7 @@
 		can1-pins0 {
 			starfive,pins = <PAD_GPIO29>;
 			starfive,pinmux = <PAD_GPIO29_FUNC_SEL 0>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1)| GPIO_DS(3))>;
 			starfive,pin-gpio-dout = <GPO_CAN1_CTRL_TXD>;
 			starfive,pin-gpio-doen = <OEN_LOW>;
 		};
@@ -706,7 +706,7 @@
 		can1-pins1 {
 			starfive,pins = <PAD_GPIO27>;
 			starfive,pinmux = <PAD_GPIO27_FUNC_SEL 0>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1)| GPIO_DS(3))>;
 			starfive,pin-gpio-doen = <OEN_HIGH>;
 			starfive,pin-gpio-din =  <GPI_CAN1_CTRL_RXD>;
 		};
