@@ -56,9 +56,9 @@ static inline bool same_leaf_as_next(struct btree_trans *trans,
 		insert_l(&i[0])->b == insert_l(&i[1])->b;
 }
 
-static inline void bch2_btree_node_prep_for_write(struct btree_trans *trans,
-						  struct btree_path *path,
-						  struct btree *b)
+inline void bch2_btree_node_prep_for_write(struct btree_trans *trans,
+					   struct btree_path *path,
+					   struct btree *b)
 {
 	struct bch_fs *c = trans->c;
 
@@ -75,14 +75,6 @@ static inline void bch2_btree_node_prep_for_write(struct btree_trans *trans,
 	 */
 	if (want_new_bset(c, b))
 		bch2_btree_init_next(trans, b);
-}
-
-void bch2_btree_node_lock_for_insert(struct btree_trans *trans,
-				     struct btree_path *path,
-				     struct btree *b)
-{
-	bch2_btree_node_lock_write_nofail(trans, path, &b->c);
-	bch2_btree_node_prep_for_write(trans, path, b);
 }
 
 /* Inserting into a given leaf node (last stage of insert): */

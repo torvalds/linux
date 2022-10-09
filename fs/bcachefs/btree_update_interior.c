@@ -1695,6 +1695,7 @@ static int bch2_btree_insert_node(struct btree_update *as, struct btree_trans *t
 	int old_u64s = le16_to_cpu(btree_bset_last(b)->u64s);
 	int old_live_u64s = b->nr.live_u64s;
 	int live_u64s_added, u64s_added;
+	int ret;
 
 	lockdep_assert_held(&c->gc_lock);
 	BUG_ON(!btree_node_intent_locked(path, btree_node_root(c, b)->c.level));
@@ -1705,7 +1706,11 @@ static int bch2_btree_insert_node(struct btree_update *as, struct btree_trans *t
 	if (!(local_clock() & 63))
 		return btree_trans_restart(trans, BCH_ERR_transaction_restart_split_race);
 
-	bch2_btree_node_lock_for_insert(trans, path, b);
+	ret = bch2_btree_node_lock_write(trans, path, &b->c);
+	if (ret)
+		return ret;
+
+	bch2_btree_node_prep_for_write(trans, path, b);
 
 	if (!bch2_btree_node_insert_fits(c, b, bch2_keylist_u64s(keys))) {
 		bch2_btree_node_unlock_write(trans, path, b);
