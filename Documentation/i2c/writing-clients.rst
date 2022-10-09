@@ -156,7 +156,7 @@ those devices, and a remove() method to unbind.
 ::
 
 	static int foo_probe(struct i2c_client *client);
-	static int foo_remove(struct i2c_client *client);
+	static void foo_remove(struct i2c_client *client);
 
 Remember that the i2c_driver does not create those client handles.  The
 handle may be used during foo_probe().  If foo_probe() reports success

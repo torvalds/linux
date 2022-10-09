@@ -1336,7 +1336,7 @@ uninit_regulators:
 	return ret;
 }
 
-static int adv7511_remove(struct i2c_client *i2c)
+static void adv7511_remove(struct i2c_client *i2c)
 {
 	struct adv7511 *adv7511 = i2c_get_clientdata(i2c);
 
@@ -1353,8 +1353,6 @@ static int adv7511_remove(struct i2c_client *i2c)
 
 	i2c_unregister_device(adv7511->i2c_packet);
 	i2c_unregister_device(adv7511->i2c_edid);
-
-	return 0;
 }
 
 static const struct i2c_device_id adv7511_i2c_ids[] = {

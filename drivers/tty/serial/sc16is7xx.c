@@ -1689,11 +1689,9 @@ static int sc16is7xx_i2c_probe(struct i2c_client *i2c,
 	return sc16is7xx_probe(&i2c->dev, devtype, regmap, i2c->irq);
 }
 
-static int sc16is7xx_i2c_remove(struct i2c_client *client)
+static void sc16is7xx_i2c_remove(struct i2c_client *client)
 {
 	sc16is7xx_remove(&client->dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id sc16is7xx_i2c_id_table[] = {

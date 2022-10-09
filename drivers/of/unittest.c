@@ -2524,13 +2524,12 @@ static int unittest_i2c_dev_probe(struct i2c_client *client,
 	return 0;
 };
 
-static int unittest_i2c_dev_remove(struct i2c_client *client)
+static void unittest_i2c_dev_remove(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *np = client->dev.of_node;
 
 	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
-	return 0;
 }
 
 static const struct i2c_device_id unittest_i2c_dev_id[] = {
@@ -2601,7 +2600,7 @@ static int unittest_i2c_mux_probe(struct i2c_client *client,
 	return 0;
 };
 
-static int unittest_i2c_mux_remove(struct i2c_client *client)
+static void unittest_i2c_mux_remove(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device_node *np = client->dev.of_node;
@@ -2609,7 +2608,6 @@ static int unittest_i2c_mux_remove(struct i2c_client *client)
 
 	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
 	i2c_mux_del_adapters(muxc);
-	return 0;
 }
 
 static const struct i2c_device_id unittest_i2c_mux_id[] = {

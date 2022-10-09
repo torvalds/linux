@@ -325,12 +325,11 @@ static int pca9541_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int pca9541_remove(struct i2c_client *client)
+static void pca9541_remove(struct i2c_client *client)
 {
 	struct i2c_mux_core *muxc = i2c_get_clientdata(client);
 
 	i2c_mux_del_adapters(muxc);
-	return 0;
 }
 
 static struct i2c_driver pca9541_driver = {

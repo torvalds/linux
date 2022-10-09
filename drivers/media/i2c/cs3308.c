@@ -99,13 +99,12 @@ static int cs3308_probe(struct i2c_client *client,
 
 /* ----------------------------------------------------------------------- */
 
-static int cs3308_remove(struct i2c_client *client)
+static void cs3308_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
 	v4l2_device_unregister_subdev(sd);
 	kfree(sd);
-	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

@@ -563,7 +563,7 @@ static int probe_thermostat(struct i2c_client *client,
 	return 0;
 }
 
-static int remove_thermostat(struct i2c_client *client)
+static void remove_thermostat(struct i2c_client *client)
 {
 	struct thermostat *th = i2c_get_clientdata(client);
 	int i;
@@ -585,8 +585,6 @@ static int remove_thermostat(struct i2c_client *client)
 	write_both_fan_speed(th, -1);
 
 	kfree(th);
-
-	return 0;
 }
 
 static const struct i2c_device_id therm_adt746x_id[] = {

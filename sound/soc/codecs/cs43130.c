@@ -2583,7 +2583,7 @@ err_supplies:
 	return ret;
 }
 
-static int cs43130_i2c_remove(struct i2c_client *client)
+static void cs43130_i2c_remove(struct i2c_client *client)
 {
 	struct cs43130_private *cs43130 = i2c_get_clientdata(client);
 
@@ -2610,8 +2610,6 @@ static int cs43130_i2c_remove(struct i2c_client *client)
 
 	pm_runtime_disable(&client->dev);
 	regulator_bulk_disable(CS43130_NUM_SUPPLIES, cs43130->supplies);
-
-	return 0;
 }
 
 static int __maybe_unused cs43130_runtime_suspend(struct device *dev)
