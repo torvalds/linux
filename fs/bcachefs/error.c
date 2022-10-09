@@ -104,7 +104,7 @@ int bch2_fsck_err(struct bch_fs *c, unsigned flags, const char *fmt, ...)
 {
 	struct fsck_err_state *s = NULL;
 	va_list args;
-	bool print = true, suppressing = false;
+	bool print = true, suppressing = false, inconsistent = false;
 	struct printbuf buf = PRINTBUF, *out = &buf;
 	int ret = -BCH_ERR_fsck_ignore;
 
@@ -136,7 +136,7 @@ int bch2_fsck_err(struct bch_fs *c, unsigned flags, const char *fmt, ...)
 		if (c->opts.errors != BCH_ON_ERROR_continue ||
 		    !(flags & (FSCK_CAN_FIX|FSCK_CAN_IGNORE))) {
 			prt_str(out, ", shutting down");
-			bch2_inconsistent_error(c);
+			inconsistent = true;
 			ret = -BCH_ERR_fsck_errors_not_fixed;
 		} else if (flags & FSCK_CAN_FIX) {
 			prt_str(out, ", fixing");
@@ -188,6 +188,9 @@ int bch2_fsck_err(struct bch_fs *c, unsigned flags, const char *fmt, ...)
 	mutex_unlock(&c->fsck_error_lock);
 
 	printbuf_exit(&buf);
+
+	if (inconsistent)
+		bch2_inconsistent_error(c);
 
 	if (ret == -BCH_ERR_fsck_fix) {
 		set_bit(BCH_FS_ERRORS_FIXED, &c->flags);
