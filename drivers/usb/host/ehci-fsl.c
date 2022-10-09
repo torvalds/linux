@@ -722,8 +722,6 @@ static int __init ehci_fsl_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	pr_info(DRV_NAME ": " DRIVER_DESC "\n");
-
 	ehci_init_driver(&fsl_ehci_hc_driver, &ehci_fsl_overrides);
 
 	fsl_ehci_hc_driver.product_desc =

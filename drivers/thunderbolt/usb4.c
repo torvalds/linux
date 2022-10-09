@@ -1046,6 +1046,26 @@ int usb4_port_unlock(struct tb_port *port)
 	return tb_port_write(port, &val, TB_CFG_PORT, ADP_CS_4, 1);
 }
 
+/**
+ * usb4_port_hotplug_enable() - Enables hotplug for a port
+ * @port: USB4 port to operate on
+ *
+ * Enables hot plug events on a given port. This is only intended
+ * to be used on lane, DP-IN, and DP-OUT adapters.
+ */
+int usb4_port_hotplug_enable(struct tb_port *port)
+{
+	int ret;
+	u32 val;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT, ADP_CS_5, 1);
+	if (ret)
+		return ret;
+
+	val &= ~ADP_CS_5_DHP;
+	return tb_port_write(port, &val, TB_CFG_PORT, ADP_CS_5, 1);
+}
+
 static int usb4_port_set_configured(struct tb_port *port, bool configured)
 {
 	int ret;
@@ -1384,6 +1404,126 @@ bool usb4_port_clx_supported(struct tb_port *port)
 		return false;
 
 	return !!(val & PORT_CS_18_CPS);
+}
+
+/**
+ * usb4_port_margining_caps() - Read USB4 port marginig capabilities
+ * @port: USB4 port
+ * @caps: Array with at least two elements to hold the results
+ *
+ * Reads the USB4 port lane margining capabilities into @caps.
+ */
+int usb4_port_margining_caps(struct tb_port *port, u32 *caps)
+{
+	int ret;
+
+	ret = usb4_port_sb_op(port, USB4_SB_TARGET_ROUTER, 0,
+			      USB4_SB_OPCODE_READ_LANE_MARGINING_CAP, 500);
+	if (ret)
+		return ret;
+
+	return usb4_port_sb_read(port, USB4_SB_TARGET_ROUTER, 0,
+				 USB4_SB_DATA, caps, sizeof(*caps) * 2);
+}
+
+/**
+ * usb4_port_hw_margin() - Run hardware lane margining on port
+ * @port: USB4 port
+ * @lanes: Which lanes to run (must match the port capabilities). Can be
+ *	   %0, %1 or %7.
+ * @ber_level: BER level contour value
+ * @timing: Perform timing margining instead of voltage
+ * @right_high: Use Right/high margin instead of left/low
+ * @results: Array with at least two elements to hold the results
+ *
+ * Runs hardware lane margining on USB4 port and returns the result in
+ * @results.
+ */
+int usb4_port_hw_margin(struct tb_port *port, unsigned int lanes,
+			unsigned int ber_level, bool timing, bool right_high,
+			u32 *results)
+{
+	u32 val;
+	int ret;
+
+	val = lanes;
+	if (timing)
+		val |= USB4_MARGIN_HW_TIME;
+	if (right_high)
+		val |= USB4_MARGIN_HW_RH;
+	if (ber_level)
+		val |= (ber_level << USB4_MARGIN_HW_BER_SHIFT) &
+			USB4_MARGIN_HW_BER_MASK;
+
+	ret = usb4_port_sb_write(port, USB4_SB_TARGET_ROUTER, 0,
+				 USB4_SB_METADATA, &val, sizeof(val));
+	if (ret)
+		return ret;
+
+	ret = usb4_port_sb_op(port, USB4_SB_TARGET_ROUTER, 0,
+			      USB4_SB_OPCODE_RUN_HW_LANE_MARGINING, 2500);
+	if (ret)
+		return ret;
+
+	return usb4_port_sb_read(port, USB4_SB_TARGET_ROUTER, 0,
+				 USB4_SB_DATA, results, sizeof(*results) * 2);
+}
+
+/**
+ * usb4_port_sw_margin() - Run software lane margining on port
+ * @port: USB4 port
+ * @lanes: Which lanes to run (must match the port capabilities). Can be
+ *	   %0, %1 or %7.
+ * @timing: Perform timing margining instead of voltage
+ * @right_high: Use Right/high margin instead of left/low
+ * @counter: What to do with the error counter
+ *
+ * Runs software lane margining on USB4 port. Read back the error
+ * counters by calling usb4_port_sw_margin_errors(). Returns %0 in
+ * success and negative errno otherwise.
+ */
+int usb4_port_sw_margin(struct tb_port *port, unsigned int lanes, bool timing,
+			bool right_high, u32 counter)
+{
+	u32 val;
+	int ret;
+
+	val = lanes;
+	if (timing)
+		val |= USB4_MARGIN_SW_TIME;
+	if (right_high)
+		val |= USB4_MARGIN_SW_RH;
+	val |= (counter << USB4_MARGIN_SW_COUNTER_SHIFT) &
+		USB4_MARGIN_SW_COUNTER_MASK;
+
+	ret = usb4_port_sb_write(port, USB4_SB_TARGET_ROUTER, 0,
+				 USB4_SB_METADATA, &val, sizeof(val));
+	if (ret)
+		return ret;
+
+	return usb4_port_sb_op(port, USB4_SB_TARGET_ROUTER, 0,
+			       USB4_SB_OPCODE_RUN_SW_LANE_MARGINING, 2500);
+}
+
+/**
+ * usb4_port_sw_margin_errors() - Read the software margining error counters
+ * @port: USB4 port
+ * @errors: Error metadata is copied here.
+ *
+ * This reads back the software margining error counters from the port.
+ * Returns %0 in success and negative errno otherwise.
+ */
+int usb4_port_sw_margin_errors(struct tb_port *port, u32 *errors)
+{
+	int ret;
+
+	ret = usb4_port_sb_op(port, USB4_SB_TARGET_ROUTER, 0,
+			      USB4_SB_OPCODE_READ_SW_MARGIN_ERR, 150);
+	if (ret)
+		return ret;
+
+	return usb4_port_sb_read(port, USB4_SB_TARGET_ROUTER, 0,
+				 USB4_SB_METADATA, errors, sizeof(*errors));
 }
 
 static inline int usb4_port_retimer_op(struct tb_port *port, u8 index,
