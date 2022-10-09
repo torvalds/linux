@@ -96,25 +96,26 @@ static noinline void print_chain(struct printbuf *out, struct lock_graph *g)
 
 static int abort_lock(struct lock_graph *g, struct trans_waiting_for_lock *i)
 {
-	int ret;
-
 	if (i == g->g) {
 		trace_and_count(i->trans->c, trans_restart_would_deadlock, i->trans, _RET_IP_);
-		ret = btree_trans_restart(i->trans, BCH_ERR_transaction_restart_would_deadlock);
+		return btree_trans_restart(i->trans, BCH_ERR_transaction_restart_would_deadlock);
 	} else {
 		i->trans->lock_must_abort = true;
-		ret = 0;
-	}
-
-	for (i = g->g + 1; i < g->g + g->nr; i++)
 		wake_up_process(i->trans->locking_wait.task);
-	return ret;
+		return 0;
+	}
 }
 
 static noinline int break_cycle(struct lock_graph *g)
 {
 	struct trans_waiting_for_lock *i;
 
+	/*
+	 * We'd like to prioritize aborting transactions that have done less
+	 * work - but it appears breaking cycles by telling other transactions
+	 * to abort may still be buggy:
+	 */
+#if 0
 	for (i = g->g; i < g->g + g->nr; i++) {
 		if (i->trans->lock_may_not_fail ||
 		    i->trans->locking_wait.lock_want == SIX_LOCK_write)
@@ -130,7 +131,7 @@ static noinline int break_cycle(struct lock_graph *g)
 
 		return abort_lock(g, i);
 	}
-
+#endif
 	for (i = g->g; i < g->g + g->nr; i++) {
 		if (i->trans->lock_may_not_fail)
 			continue;
