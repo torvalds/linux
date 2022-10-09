@@ -142,6 +142,7 @@ struct video_info {
 	u32 lane_map[4];
 
 	bool video_bist_enable;
+	bool force_stream_valid;
 };
 
 struct link_train {

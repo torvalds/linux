@@ -790,9 +790,11 @@ void analogix_dp_init_video(struct analogix_dp_device *dp)
 	reg = CHA_CRI(4) | CHA_CTRL;
 	analogix_dp_write(dp, ANALOGIX_DP_SYS_CTL_2, reg);
 
-	reg = analogix_dp_read(dp, ANALOGIX_DP_SYS_CTL_3);
-	reg |= VALID_CTRL | F_VALID;
-	analogix_dp_write(dp, ANALOGIX_DP_SYS_CTL_3, reg);
+	if (dp->video_info.force_stream_valid) {
+		reg = analogix_dp_read(dp, ANALOGIX_DP_SYS_CTL_3);
+		reg |= VALID_CTRL | F_VALID;
+		analogix_dp_write(dp, ANALOGIX_DP_SYS_CTL_3, reg);
+	}
 
 	reg = VID_HRES_TH(2) | VID_VRES_TH(0);
 	analogix_dp_write(dp, ANALOGIX_DP_VIDEO_CTL_8, reg);
