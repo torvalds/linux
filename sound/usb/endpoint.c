@@ -1337,10 +1337,11 @@ int snd_usb_endpoint_set_params(struct snd_usb_audio *chip,
 	const struct audioformat *fmt = ep->cur_audiofmt;
 	int err;
 
+	mutex_lock(&chip->mutex);
 	/* release old buffers, if any */
 	err = release_urbs(ep, false);
 	if (err < 0)
-		return err;
+		goto unlock;
 
 	ep->datainterval = fmt->datainterval;
 	ep->maxpacksize = fmt->maxpacksize;
@@ -1378,13 +1379,16 @@ int snd_usb_endpoint_set_params(struct snd_usb_audio *chip,
 	usb_audio_dbg(chip, "Set up %d URBS, ret=%d\n", ep->nurbs, err);
 
 	if (err < 0)
-		return err;
+		goto unlock;
 
 	/* some unit conversions in runtime */
 	ep->maxframesize = ep->maxpacksize / ep->cur_frame_bytes;
 	ep->curframesize = ep->curpacksize / ep->cur_frame_bytes;
 
-	return update_clock_ref_rate(chip, ep);
+	err = update_clock_ref_rate(chip, ep);
+ unlock:
+	mutex_unlock(&chip->mutex);
+	return err;
 }
 
 static int init_sample_rate(struct snd_usb_audio *chip,
