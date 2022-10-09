@@ -1386,10 +1386,8 @@ static int __bch2_ec_stripe_head_reuse(struct bch_fs *c,
 	int ret;
 
 	idx = get_existing_stripe(c, h);
-	if (idx < 0) {
-		bch_err(c, "failed to find an existing stripe");
+	if (idx < 0)
 		return -BCH_ERR_ENOSPC_stripe_reuse;
-	}
 
 	h->s->have_existing_stripe = true;
 	ret = get_stripe_key(c, idx, &h->s->existing_stripe);
@@ -1427,21 +1425,9 @@ static int __bch2_ec_stripe_head_reuse(struct bch_fs *c,
 static int __bch2_ec_stripe_head_reserve(struct bch_fs *c,
 							struct ec_stripe_head *h)
 {
-	int ret;
-
-	ret = bch2_disk_reservation_get(c, &h->s->res,
-			h->blocksize,
-			h->s->nr_parity, 0);
-
-	if (ret) {
-		/*
-		 * This means we need to wait for copygc to
-		 * empty out buckets from existing stripes:
-		 */
-		bch_err(c, "failed to reserve stripe");
-	}
-
-	return ret;
+	return bch2_disk_reservation_get(c, &h->s->res,
+					 h->blocksize,
+					 h->s->nr_parity, 0);
 }
 
 struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *c,
@@ -1483,8 +1469,10 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *c,
 		ret = __bch2_ec_stripe_head_reserve(c, h);
 	if (ret && needs_stripe_new)
 		ret = __bch2_ec_stripe_head_reuse(c, h);
-	if (ret)
+	if (ret) {
+		bch_err_ratelimited(c, "failed to get stripe: %s", bch2_err_str(ret));
 		goto err;
+	}
 
 	if (!h->s->allocated) {
 		ret = new_stripe_alloc_buckets(c, h, cl);
