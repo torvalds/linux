@@ -767,6 +767,7 @@ static struct genl_family netlbl_cipsov4_gnl_family __ro_after_init = {
 	.module = THIS_MODULE,
 	.small_ops = netlbl_cipsov4_ops,
 	.n_small_ops = ARRAY_SIZE(netlbl_cipsov4_ops),
+	.resv_start_op = NLBL_CIPSOV4_C_LISTALL + 1,
 };
 
 /*

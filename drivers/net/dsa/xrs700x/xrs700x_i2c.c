@@ -114,8 +114,6 @@ static int xrs700x_i2c_remove(struct i2c_client *i2c)
 
 	xrs700x_switch_remove(priv);
 
-	i2c_set_clientdata(i2c, NULL);
-
 	return 0;
 }
 

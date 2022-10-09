@@ -1957,8 +1957,6 @@ qca8k_sw_remove(struct mdio_device *mdiodev)
 		qca8k_port_set_status(priv, i, 0);
 
 	dsa_unregister_switch(priv->ds);
-
-	dev_set_drvdata(&mdiodev->dev, NULL);
 }
 
 static void qca8k_sw_shutdown(struct mdio_device *mdiodev)

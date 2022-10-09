@@ -23,7 +23,7 @@ EXPORT_SYMBOL(check_hw_ready);
 
 bool ltecoex_read_reg(struct rtw_dev *rtwdev, u16 offset, u32 *val)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	const struct rtw_ltecoex_addr *ltecoex = chip->ltecoex_addr;
 
 	if (!check_hw_ready(rtwdev, ltecoex->ctrl, LTECOEX_READY, 1))
@@ -37,7 +37,7 @@ bool ltecoex_read_reg(struct rtw_dev *rtwdev, u16 offset, u32 *val)
 
 bool ltecoex_reg_write(struct rtw_dev *rtwdev, u16 offset, u32 value)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	const struct rtw_ltecoex_addr *ltecoex = chip->ltecoex_addr;
 
 	if (!check_hw_ready(rtwdev, ltecoex->ctrl, LTECOEX_READY, 1))

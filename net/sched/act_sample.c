@@ -23,7 +23,6 @@
 
 #include <linux/if_arp.h>
 
-static unsigned int sample_net_id;
 static struct tc_action_ops act_sample_ops;
 
 static const struct nla_policy sample_policy[TCA_SAMPLE_MAX + 1] = {
@@ -38,7 +37,7 @@ static int tcf_sample_init(struct net *net, struct nlattr *nla,
 			   struct tcf_proto *tp,
 			   u32 flags, struct netlink_ext_ack *extack)
 {
-	struct tc_action_net *tn = net_generic(net, sample_net_id);
+	struct tc_action_net *tn = net_generic(net, act_sample_ops.net_id);
 	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct nlattr *tb[TCA_SAMPLE_MAX + 1];
 	struct psample_group *psample_group;
@@ -241,23 +240,6 @@ nla_put_failure:
 	return -1;
 }
 
-static int tcf_sample_walker(struct net *net, struct sk_buff *skb,
-			     struct netlink_callback *cb, int type,
-			     const struct tc_action_ops *ops,
-			     struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, sample_net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
-static int tcf_sample_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, sample_net_id);
-
-	return tcf_idr_search(tn, a, index);
-}
-
 static void tcf_psample_group_put(void *priv)
 {
 	struct psample_group *group = priv;
@@ -321,8 +303,6 @@ static struct tc_action_ops act_sample_ops = {
 	.dump	  = tcf_sample_dump,
 	.init	  = tcf_sample_init,
 	.cleanup  = tcf_sample_cleanup,
-	.walk	  = tcf_sample_walker,
-	.lookup	  = tcf_sample_search,
 	.get_psample_group = tcf_sample_get_group,
 	.offload_act_setup    = tcf_sample_offload_act_setup,
 	.size	  = sizeof(struct tcf_sample),
@@ -330,20 +310,20 @@ static struct tc_action_ops act_sample_ops = {
 
 static __net_init int sample_init_net(struct net *net)
 {
-	struct tc_action_net *tn = net_generic(net, sample_net_id);
+	struct tc_action_net *tn = net_generic(net, act_sample_ops.net_id);
 
 	return tc_action_net_init(net, tn, &act_sample_ops);
 }
 
 static void __net_exit sample_exit_net(struct list_head *net_list)
 {
-	tc_action_net_exit(net_list, sample_net_id);
+	tc_action_net_exit(net_list, act_sample_ops.net_id);
 }
 
 static struct pernet_operations sample_net_ops = {
 	.init = sample_init_net,
 	.exit_batch = sample_exit_net,
-	.id   = &sample_net_id,
+	.id   = &act_sample_ops.net_id,
 	.size = sizeof(struct tc_action_net),
 };
 

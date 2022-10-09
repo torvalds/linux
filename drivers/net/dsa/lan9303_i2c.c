@@ -74,8 +74,6 @@ static int lan9303_i2c_remove(struct i2c_client *client)
 
 	lan9303_remove(&sw_dev->chip);
 
-	i2c_set_clientdata(client, NULL);
-
 	return 0;
 }
 

@@ -7,7 +7,7 @@ $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 title: The Vertexcom MSE102x (SPI) Device Tree Bindings
 
 maintainers:
-  - Stefan Wahren <stefan.wahren@in-tech.com>
+  - Stefan Wahren <stefan.wahren@chargebyte.com>
 
 description:
   Vertexcom's MSE102x are a family of HomePlug GreenPHY chips.

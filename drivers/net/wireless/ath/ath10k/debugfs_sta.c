@@ -498,7 +498,7 @@ static char *get_num_ampdu_subfrm_str(enum ath10k_ampdu_subfrm_num i)
 {
 	switch (i) {
 	case ATH10K_AMPDU_SUBFRM_NUM_10:
-		return "upto 10";
+		return "up to 10";
 	case ATH10K_AMPDU_SUBFRM_NUM_20:
 		return "11-20";
 	case ATH10K_AMPDU_SUBFRM_NUM_30:
