@@ -23,24 +23,10 @@ void prandom_seed_full_state(struct rnd_state __percpu *pcpu_state);
 #define prandom_init_once(pcpu_state)			\
 	DO_ONCE(prandom_seed_full_state, (pcpu_state))
 
-/**
- * prandom_u32_max - returns a pseudo-random number in interval [0, ep_ro)
- * @ep_ro: right open interval endpoint
- *
- * Returns a pseudo-random number that is in interval [0, ep_ro). This is
- * useful when requesting a random index of an array containing ep_ro elements,
- * for example. The result is somewhat biased when ep_ro is not a power of 2,
- * so do not use this for cryptographic purposes.
- *
- * Returns: pseudo-random number in interval [0, ep_ro)
- */
+/* Deprecated: use get_random_u32_below() instead. */
 static inline u32 prandom_u32_max(u32 ep_ro)
 {
-	if (__builtin_constant_p(ep_ro <= 1U << 8) && ep_ro <= 1U << 8)
-		return (get_random_u8() * ep_ro) >> 8;
-	if (__builtin_constant_p(ep_ro <= 1U << 16) && ep_ro <= 1U << 16)
-		return (get_random_u16() * ep_ro) >> 16;
-	return ((u64)get_random_u32() * ep_ro) >> 32;
+	return get_random_u32_below(ep_ro);
 }
 
 /*
