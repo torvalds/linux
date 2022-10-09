@@ -1634,7 +1634,7 @@ static int w83793_detect(struct i2c_client *client,
 	if (chip_id != 0x7b)
 		return -ENODEV;
 
-	strlcpy(info->type, "w83793", I2C_NAME_SIZE);
+	strscpy(info->type, "w83793", I2C_NAME_SIZE);
 
 	return 0;
 }
