@@ -1180,6 +1180,7 @@ static const struct rvin_info rcar_info_r8a7795 = {
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a7795_routes,
+	.scaler = rvin_scaler_gen3,
 };
 
 static const struct rvin_group_route rcar_info_r8a7795es1_routes[] = {
@@ -1215,6 +1216,7 @@ static const struct rvin_info rcar_info_r8a7796 = {
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a7796_routes,
+	.scaler = rvin_scaler_gen3,
 };
 
 static const struct rvin_group_route rcar_info_r8a77965_routes[] = {
@@ -1232,6 +1234,7 @@ static const struct rvin_info rcar_info_r8a77965 = {
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a77965_routes,
+	.scaler = rvin_scaler_gen3,
 };
 
 static const struct rvin_group_route rcar_info_r8a77970_routes[] = {
@@ -1274,6 +1277,7 @@ static const struct rvin_info rcar_info_r8a77990 = {
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a77990_routes,
+	.scaler = rvin_scaler_gen3,
 };
 
 static const struct rvin_group_route rcar_info_r8a77995_routes[] = {
@@ -1287,6 +1291,7 @@ static const struct rvin_info rcar_info_r8a77995 = {
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a77995_routes,
+	.scaler = rvin_scaler_gen3,
 };
 
 static const struct rvin_info rcar_info_r8a779a0 = {
@@ -1415,6 +1420,10 @@ static int rcar_vin_probe(struct platform_device *pdev)
 		ret = rvin_isp_init(vin);
 	} else if (vin->info->use_mc) {
 		ret = rvin_csi2_init(vin);
+
+		if (vin->info->scaler &&
+		    rvin_group_id_to_master(vin->id) == vin->id)
+			vin->scaler = vin->info->scaler;
 	} else {
 		ret = rvin_parallel_init(vin);
 
