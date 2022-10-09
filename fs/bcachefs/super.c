@@ -1346,18 +1346,10 @@ static bool bch2_fs_may_start(struct bch_fs *c)
 static void __bch2_dev_read_only(struct bch_fs *c, struct bch_dev *ca)
 {
 	/*
-	 * Device going read only means the copygc reserve get smaller, so we
-	 * don't want that happening while copygc is in progress:
-	 */
-	bch2_copygc_stop(c);
-
-	/*
 	 * The allocator thread itself allocates btree nodes, so stop it first:
 	 */
 	bch2_dev_allocator_remove(c, ca);
 	bch2_dev_journal_stop(&c->journal, ca);
-
-	bch2_copygc_start(c);
 }
 
 static void __bch2_dev_read_write(struct bch_fs *c, struct bch_dev *ca)
