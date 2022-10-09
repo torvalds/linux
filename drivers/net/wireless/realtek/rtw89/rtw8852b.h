@@ -87,4 +87,7 @@ struct rtw8852b_efuse {
 
 extern const struct rtw89_chip_info rtw8852b_chip_info;
 
+void rtw8852b_bb_ctrl_rx_path(struct rtw89_dev *rtwdev,
+			      enum rtw89_rf_path_bit rx_path);
+
 #endif
