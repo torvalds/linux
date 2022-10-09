@@ -616,11 +616,12 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 		rkisp_update_regs(dev, CTRL_VI_ISP_PATH, SUPER_IMP_COLOR_CR);
 		rkisp_update_regs(dev, DUAL_CROP_M_H_OFFS, DUAL_CROP_S_V_SIZE);
 		rkisp_update_regs(dev, ISP_ACQ_PROP, DUAL_CROP_CTRL);
-		rkisp_update_regs(dev, MAIN_RESIZE_SCALE_HY, MI_WR_CTRL);
-		rkisp_update_regs(dev, SELF_RESIZE_SCALE_HY, MAIN_RESIZE_CTRL);
-		rkisp_update_regs(dev, ISP_GAMMA_OUT_CTRL, SELF_RESIZE_CTRL);
+		rkisp_update_regs(dev, SELF_RESIZE_SCALE_HY, MI_WR_CTRL);
+		rkisp_update_regs(dev, ISP32_BP_RESIZE_SCALE_HY, SELF_RESIZE_CTRL);
+		rkisp_update_regs(dev, MAIN_RESIZE_SCALE_HY, ISP32_BP_RESIZE_CTRL);
+		rkisp_update_regs(dev, ISP_GAMMA_OUT_CTRL, MAIN_RESIZE_CTRL);
 		rkisp_update_regs(dev, MI_RD_CTRL2, ISP_LSC_CTRL);
-		rkisp_update_regs(dev, MI_MP_WR_Y_BASE, MI_MP_WR_Y_LLENGTH);
+		rkisp_update_regs(dev, MI_MP_WR_Y_BASE, MI_WR_CTRL2 - 4);
 		rkisp_update_regs(dev, ISP_LSC_XGRAD_01, ISP_RAWAWB_RAM_DATA);
 		if (dev->isp_ver == ISP_V20 &&
 		    (rkisp_read(dev, ISP_DHAZ_CTRL, false) & ISP_DHAZ_ENMUX ||
