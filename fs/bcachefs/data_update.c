@@ -331,8 +331,9 @@ int bch2_data_update_init(struct bch_fs *c, struct data_update *m,
 
 	i = 0;
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
-		if (p.ptr.cached)
-			m->data_opts.rewrite_ptrs &= ~(1U << i);
+		if (((1U << i) & m->data_opts.rewrite_ptrs) &&
+		    p.ptr.cached)
+			BUG();
 
 		if (!((1U << i) & m->data_opts.rewrite_ptrs))
 			bch2_dev_list_add_dev(&m->op.devs_have, p.ptr.dev);
@@ -368,5 +369,23 @@ int bch2_data_update_init(struct bch_fs *c, struct data_update *m,
 
 	m->op.nr_replicas = m->op.nr_replicas_required =
 		hweight32(m->data_opts.rewrite_ptrs) + m->data_opts.extra_replicas;
+
+	BUG_ON(!m->op.nr_replicas);
 	return 0;
+}
+
+void bch2_data_update_opts_normalize(struct bkey_s_c k, struct data_update_opts *opts)
+{
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	const struct bch_extent_ptr *ptr;
+	unsigned i = 0;
+
+	bkey_for_each_ptr(ptrs, ptr) {
+		if ((opts->rewrite_ptrs & (1U << i)) && ptr->cached) {
+			opts->kill_ptrs |= 1U << i;
+			opts->rewrite_ptrs ^= 1U << i;
+		}
+
+		i++;
+	}
 }

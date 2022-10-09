@@ -183,7 +183,52 @@ void bch_move_stats_init(struct bch_move_stats *stats, char *name)
 	scnprintf(stats->name, sizeof(stats->name), "%s", name);
 }
 
+static int bch2_extent_drop_ptrs(struct btree_trans *trans,
+				 struct btree_iter *iter,
+				 struct bkey_s_c k,
+				 struct data_update_opts data_opts)
+{
+	struct bch_fs *c = trans->c;
+	struct bkey_i *n;
+	int ret;
+
+	n = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
+	ret = PTR_ERR_OR_ZERO(n);
+	if (ret)
+		return ret;
+
+	bkey_reassemble(n, k);
+
+	while (data_opts.kill_ptrs) {
+		unsigned i = 0, drop = __fls(data_opts.kill_ptrs);
+		struct bch_extent_ptr *ptr;
+
+		bch2_bkey_drop_ptrs(bkey_i_to_s(n), ptr, i++ == drop);
+		data_opts.kill_ptrs ^= 1U << drop;
+	}
+
+	/*
+	 * If the new extent no longer has any pointers, bch2_extent_normalize()
+	 * will do the appropriate thing with it (turning it into a
+	 * KEY_TYPE_error key, or just a discard if it was a cached extent)
+	 */
+	bch2_extent_normalize(c, bkey_i_to_s(n));
+
+	/*
+	 * Since we're not inserting through an extent iterator
+	 * (BTREE_ITER_ALL_SNAPSHOTS iterators aren't extent iterators),
+	 * we aren't using the extent overwrite path to delete, we're
+	 * just using the normal key deletion path:
+	 */
+	if (bkey_deleted(&n->k))
+		n->k.size = 0;
+
+	return bch2_trans_update(trans, iter, n, BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
+		bch2_trans_commit(trans, NULL, NULL, BTREE_INSERT_NOFAIL);
+}
+
 static int bch2_move_extent(struct btree_trans *trans,
+			    struct btree_iter *iter,
 			    struct moving_context *ctxt,
 			    struct bch_io_opts io_opts,
 			    enum btree_id btree_id,
@@ -197,6 +242,15 @@ static int bch2_move_extent(struct btree_trans *trans,
 	struct extent_ptr_decoded p;
 	unsigned sectors = k.k->size, pages;
 	int ret = -ENOMEM;
+
+	bch2_data_update_opts_normalize(k, &data_opts);
+
+	if (!data_opts.rewrite_ptrs &&
+	    !data_opts.extra_replicas) {
+		if (data_opts.kill_ptrs)
+			return bch2_extent_drop_ptrs(trans, iter, k, data_opts);
+		return 0;
+	}
 
 	if (!percpu_ref_tryget_live(&c->writes))
 		return -EROFS;
@@ -429,7 +483,7 @@ static int __bch2_move_data(struct moving_context *ctxt,
 		bch2_bkey_buf_reassemble(&sk, c, k);
 		k = bkey_i_to_s_c(sk.k);
 
-		ret2 = bch2_move_extent(&trans, ctxt, io_opts,
+		ret2 = bch2_move_extent(&trans, &iter, ctxt, io_opts,
 					btree_id, k, data_opts);
 		if (ret2) {
 			if (bch2_err_matches(ret2, BCH_ERR_transaction_restart))

@@ -10,6 +10,7 @@ struct moving_context;
 
 struct data_update_opts {
 	unsigned	rewrite_ptrs;
+	unsigned	kill_ptrs;
 	u16		target;
 	u8		extra_replicas;
 	unsigned	btree_insert_flags;
@@ -35,5 +36,6 @@ int bch2_data_update_init(struct bch_fs *, struct data_update *,
 			  struct write_point_specifier,
 			  struct bch_io_opts, struct data_update_opts,
 			  enum btree_id, struct bkey_s_c);
+void bch2_data_update_opts_normalize(struct bkey_s_c, struct data_update_opts *);
 
 #endif /* _BCACHEFS_DATA_UPDATE_H */
