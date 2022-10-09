@@ -4248,11 +4248,10 @@ static int st_probe(struct device *dev)
 	struct st_partstat *STps;
 	struct st_buffer *buffer;
 	int i, error;
-	char *stp;
 
 	if (SDp->type != TYPE_TAPE)
 		return -ENODEV;
-	if ((stp = st_incompatible(SDp))) {
+	if (st_incompatible(SDp)) {
 		sdev_printk(KERN_INFO, SDp,
 			    "OnStream tapes are no longer supported;\n");
 		sdev_printk(KERN_INFO, SDp,
