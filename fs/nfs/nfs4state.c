@@ -1619,7 +1619,8 @@ static int __nfs4_reclaim_open_state(struct nfs4_state_owner *sp, struct nfs4_st
 		spin_lock(&state->state_lock);
 		list_for_each_entry(lock, &state->lock_states, ls_locks) {
 			trace_nfs4_state_lock_reclaim(state, lock);
-			if (!test_bit(NFS_LOCK_INITIALIZED, &lock->ls_flags))
+			if (!test_bit(NFS_LOCK_INITIALIZED, &lock->ls_flags) &&
+			    !test_bit(NFS_LOCK_UNLOCKING, &lock->ls_flags))
 				*lost_locks += 1;
 		}
 		spin_unlock(&state->state_lock);

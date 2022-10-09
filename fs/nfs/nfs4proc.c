@@ -7023,12 +7023,13 @@ static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *
 		mutex_unlock(&sp->so_delegreturn_mutex);
 		goto out;
 	}
+	lsp = request->fl_u.nfs4_fl.owner;
+	set_bit(NFS_LOCK_UNLOCKING, &lsp->ls_flags);
 	up_read(&nfsi->rwsem);
 	mutex_unlock(&sp->so_delegreturn_mutex);
 	if (status != 0)
 		goto out;
 	/* Is this a delegated lock? */
-	lsp = request->fl_u.nfs4_fl.owner;
 	if (test_bit(NFS_LOCK_INITIALIZED, &lsp->ls_flags) == 0)
 		goto out;
 	alloc_seqid = NFS_SERVER(inode)->nfs_client->cl_mvops->alloc_seqid;
