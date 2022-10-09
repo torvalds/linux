@@ -1386,6 +1386,8 @@ int snd_usb_endpoint_set_params(struct snd_usb_audio *chip,
 	ep->curframesize = ep->curpacksize / ep->cur_frame_bytes;
 
 	err = update_clock_ref_rate(chip, ep);
+	if (err >= 0)
+		err = 0;
  unlock:
 	mutex_unlock(&chip->mutex);
 	return err;
