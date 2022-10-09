@@ -41,7 +41,7 @@ Devices supporting the raw VBI capturing or output API set the
 in the ``capabilities`` field of struct
 :c:type:`v4l2_capability` returned by the
 :ref:`VIDIOC_QUERYCAP` ioctl. At least one of the
-read/write, streaming or asynchronous I/O methods must be supported. VBI
+read/write or streaming I/O methods must be supported. VBI
 devices may or may not have a tuner or modulator.
 
 Supplemental Functions

@@ -1757,7 +1757,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         steering_format_version[0x4];
 	u8         create_qp_start_hint[0x18];
 
-	u8         reserved_at_460[0x3];
+	u8         reserved_at_460[0x1];
+	u8         ats[0x1];
+	u8         reserved_at_462[0x1];
 	u8         log_max_uctx[0x5];
 	u8         reserved_at_468[0x2];
 	u8         ipsec_offload[0x1];
@@ -3939,7 +3941,9 @@ struct mlx5_ifc_mkc_bits {
 	u8         lw[0x1];
 	u8         lr[0x1];
 	u8         access_mode_1_0[0x2];
-	u8         reserved_at_18[0x8];
+	u8         reserved_at_18[0x2];
+	u8         ma_translation_mode[0x2];
+	u8         reserved_at_1c[0x4];
 
 	u8         qpn[0x18];
 	u8         mkey_7_0[0x8];
@@ -11214,7 +11218,8 @@ struct mlx5_ifc_dealloc_memic_out_bits {
 struct mlx5_ifc_umem_bits {
 	u8         reserved_at_0[0x80];
 
-	u8         reserved_at_80[0x1b];
+	u8         ats[0x1];
+	u8         reserved_at_81[0x1a];
 	u8         log_page_size[0x5];
 
 	u8         page_offset[0x20];

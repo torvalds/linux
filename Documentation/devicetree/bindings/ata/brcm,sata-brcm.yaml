@@ -14,7 +14,7 @@ maintainers:
   - Florian Fainelli <f.fainelli@gmail.com>
 
 allOf:
-  - $ref: sata-common.yaml#
+  - $ref: ahci-common.yaml#
 
 properties:
   compatible:
@@ -40,8 +40,6 @@ properties:
 
   interrupts:
     maxItems: 1
-
-  dma-coherent: true
 
 if:
   properties:
