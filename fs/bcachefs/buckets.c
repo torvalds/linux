@@ -687,6 +687,10 @@ static int check_bucket_ref(struct bch_fs *c,
 	if (bucket_data_type == BCH_DATA_cached)
 		bucket_data_type = BCH_DATA_user;
 
+	if ((bucket_data_type == BCH_DATA_stripe && ptr_data_type == BCH_DATA_user) ||
+	    (bucket_data_type == BCH_DATA_user   && ptr_data_type == BCH_DATA_stripe))
+		bucket_data_type = ptr_data_type = BCH_DATA_stripe;
+
 	if (gen_after(ptr->gen, b_gen)) {
 		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
 			"bucket %u:%zu gen %u data type %s: ptr gen %u newer than bucket gen\n"
