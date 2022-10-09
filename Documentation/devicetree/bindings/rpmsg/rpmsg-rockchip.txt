@@ -1,0 +1,46 @@
+* Rockchip RPMsg Platform Driver
+
+The Rockchip RPMsg Platform Driver is used for Remote Processors Messaging.
+
+Required Properties:
+
+- compatible: should be one of the following.
+    "rockchip,rk3568-rpmsg" for rk3568 SoCs.
+- mbox-names: mailbox name for "rpmsg-rx" or "rpmsg-tx".
+- mboxes: mailbox channel for rpmsg.
+- rockchip,vdev-nums: number of rpmsg instance.
+- rockchip,link-id: link_id of rpmsg instance. 4bit for master cpu_id and 4bit
+    for remote cpu_id.
+
+Optional Properties:
+
+Example:
+
+	rpmsg: rpmsg {
+		compatible = "rockchip,rk3568-rpmsg";
+		mbox-names = "rpmsg-rx", "rpmsg-tx";
+		mboxes = <&mailbox 0 &mailbox 3>;
+		rockchip,vdev-nums = <1>;
+		rockchip,link-id = <0x03>;
+		reg = <0x0 0x7c00000 0x0 0x20000>;
+		memory-region = <&rpmsg_dma_reserved>;
+
+		status = "okay";
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		rpmsg_reserved: rpmsg@7c00000 {
+			reg = <0x0 0x7c00000 0x0 0x400000>;
+			no-map;
+		};
+
+		rpmsg_dma_reserved: rpmsg-dma@8000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x8000000 0x0 0x100000>;
+			no-map;
+		};
+	};
