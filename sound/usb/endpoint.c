@@ -32,6 +32,7 @@ struct snd_usb_iface_ref {
 	unsigned char iface;
 	bool need_setup;
 	int opened;
+	int altset;
 	struct list_head list;
 };
 
@@ -899,6 +900,9 @@ static int endpoint_set_interface(struct snd_usb_audio *chip,
 	int altset = set ? ep->altsetting : 0;
 	int err;
 
+	if (ep->iface_ref->altset == altset)
+		return 0;
+
 	usb_audio_dbg(chip, "Setting usb interface %d:%d for EP 0x%x\n",
 		      ep->iface, altset, ep->ep_num);
 	err = usb_set_interface(chip->dev, ep->iface, altset);
@@ -910,6 +914,7 @@ static int endpoint_set_interface(struct snd_usb_audio *chip,
 
 	if (chip->quirk_flags & QUIRK_FLAG_IFACE_DELAY)
 		msleep(50);
+	ep->iface_ref->altset = altset;
 	return 0;
 }
 
