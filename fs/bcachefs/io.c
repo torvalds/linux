@@ -472,7 +472,6 @@ static int bch2_write_index_default(struct bch_write_op *op)
 {
 	struct bch_fs *c = op->c;
 	struct bkey_buf sk;
-	struct open_bucket *ec_ob = ec_open_bucket(c, &op->open_buckets);
 	struct keylist *keys = &op->insert_keys;
 	struct bkey_i *k = bch2_keylist_front(keys);
 	struct btree_trans trans;
@@ -515,9 +514,6 @@ static int bch2_write_index_default(struct bch_write_op *op)
 			continue;
 		if (ret)
 			break;
-
-		if (ec_ob)
-			bch2_ob_add_backpointer(c, ec_ob, &sk.k->k);
 
 		if (bkey_ge(iter.pos, k->k.p))
 			bch2_keylist_pop_front(&op->insert_keys);

@@ -103,7 +103,6 @@ int bch2_data_update_index_update(struct bch_write_op *op)
 	struct btree_iter iter;
 	struct data_update *m =
 		container_of(op, struct data_update, op);
-	struct open_bucket *ec_ob = ec_open_bucket(c, &op->open_buckets);
 	struct keylist *keys = &op->insert_keys;
 	struct bkey_buf _new, _insert;
 	int ret = 0;
@@ -241,9 +240,6 @@ int bch2_data_update_index_update(struct bch_write_op *op)
 				m->data_opts.btree_insert_flags);
 		if (!ret) {
 			bch2_btree_iter_set_pos(&iter, next_pos);
-
-			if (ec_ob)
-				bch2_ob_add_backpointer(c, ec_ob, &insert->k);
 
 			this_cpu_add(c->counters[BCH_COUNTER_move_extent_finish], new->k.size);
 			trace_move_extent_finish(&new->k);

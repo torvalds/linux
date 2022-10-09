@@ -5,7 +5,6 @@
 #include "ec_types.h"
 #include "buckets_types.h"
 #include "extents_types.h"
-#include "keylist_types.h"
 
 int bch2_stripe_invalid(const struct bch_fs *, struct bkey_s_c,
 			int rw, struct printbuf *);
@@ -167,9 +166,6 @@ struct ec_stripe_new {
 	open_bucket_idx_t	blocks[BCH_BKEY_PTRS_MAX];
 	struct disk_reservation	res;
 
-	struct keylist		keys;
-	u64			inline_keys[BKEY_U64s * 8];
-
 	struct ec_stripe_buf	new_stripe;
 	struct ec_stripe_buf	existing_stripe;
 };
@@ -197,8 +193,6 @@ struct ec_stripe_head {
 int bch2_ec_read_extent(struct bch_fs *, struct bch_read_bio *);
 
 void *bch2_writepoint_ec_buf(struct bch_fs *, struct write_point *);
-void bch2_ob_add_backpointer(struct bch_fs *, struct open_bucket *,
-			     struct bkey *);
 
 void bch2_ec_bucket_written(struct bch_fs *, struct open_bucket *);
 void bch2_ec_bucket_cancel(struct bch_fs *, struct open_bucket *);

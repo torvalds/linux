@@ -1035,8 +1035,6 @@ err:
 			}
 		}
 
-	bch2_keylist_free(&s->keys, s->inline_keys);
-
 	ec_stripe_buf_exit(&s->existing_stripe);
 	ec_stripe_buf_exit(&s->new_stripe);
 	closure_debug_destroy(&s->iodone);
@@ -1117,30 +1115,6 @@ void *bch2_writepoint_ec_buf(struct bch_fs *c, struct write_point *wp)
 	offset	= ca->mi.bucket_size - ob->sectors_free;
 
 	return ob->ec->new_stripe.data[ob->ec_idx] + (offset << 9);
-}
-
-void bch2_ob_add_backpointer(struct bch_fs *c, struct open_bucket *ob,
-			     struct bkey *k)
-{
-	struct ec_stripe_new *ec = ob->ec;
-
-	if (!ec)
-		return;
-
-	mutex_lock(&ec->lock);
-
-	if (bch2_keylist_realloc(&ec->keys, ec->inline_keys,
-				 ARRAY_SIZE(ec->inline_keys),
-				 BKEY_U64s)) {
-		BUG();
-	}
-
-	bkey_init(&ec->keys.top->k);
-	ec->keys.top->k.p	= k->p;
-	ec->keys.top->k.size	= k->size;
-	bch2_keylist_push(&ec->keys);
-
-	mutex_unlock(&ec->lock);
 }
 
 static int unsigned_cmp(const void *_l, const void *_r)
@@ -1234,8 +1208,6 @@ static int ec_new_stripe_alloc(struct bch_fs *c, struct ec_stripe_head *h)
 	s->nr_data	= min_t(unsigned, h->nr_active_devs,
 				BCH_BKEY_PTRS_MAX) - h->redundancy;
 	s->nr_parity	= h->redundancy;
-
-	bch2_keylist_init(&s->keys, s->inline_keys);
 
 	ec_stripe_key_init(c, &s->new_stripe.key, s->nr_data,
 			   s->nr_parity, h->blocksize);
