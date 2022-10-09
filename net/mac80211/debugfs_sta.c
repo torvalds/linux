@@ -1072,10 +1072,8 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	/* FIXME: Kept here as the statistics are only done on the deflink */
 	DEBUGFS_ADD_COUNTER(tx_filtered, deflink.status_stats.filtered);
 
-	if (local->ops->wake_tx_queue) {
-		DEBUGFS_ADD(aqm);
-		DEBUGFS_ADD(airtime);
-	}
+	DEBUGFS_ADD(aqm);
+	DEBUGFS_ADD(airtime);
 
 	if (wiphy_ext_feature_isset(local->hw.wiphy,
 				    NL80211_EXT_FEATURE_AQL))
