@@ -476,24 +476,36 @@ static int swiotlb_late_init_with_tbl(char *tlb, unsigned long nslabs)
 {
 	struct io_tlb_mem *mem = &io_tlb_default_mem;
 	unsigned long bytes = nslabs << IO_TLB_SHIFT;
+	unsigned int area_order;
 
 	/* protect against double initialization */
 	if (WARN_ON_ONCE(mem->nslabs))
 		return -ENOMEM;
 
+	if (!default_nareas)
+		swiotlb_adjust_nareas(num_possible_cpus());
+
+	area_order = get_order(array_size(sizeof(*mem->areas),
+		default_nareas));
+	mem->areas = (struct io_tlb_area *)
+		__get_free_pages(GFP_KERNEL | __GFP_ZERO, area_order);
+	if (!mem->areas)
+		return -ENOMEM;
+
 	mem->slots = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 		get_order(array_size(sizeof(*mem->slots), nslabs)));
 	if (!mem->slots)
-		return -ENOMEM;
-
-	if (!default_nareas)
-		swiotlb_adjust_nareas(num_possible_cpus());
+		goto error_slots;
 
 	set_memory_decrypted((unsigned long)tlb, bytes >> PAGE_SHIFT);
 	swiotlb_init_io_tlb_mem(mem, io_tlb_start, nslabs, 0, true, default_nareas);
 
 	swiotlb_print_info();
 	return 0;
+
+error_slots:
+	free_pages((unsigned long)mem->areas, area_order);
+	return -ENOMEM;
 }
 
 int swiotlb_late_init_with_tblpaddr(char *tlb,
