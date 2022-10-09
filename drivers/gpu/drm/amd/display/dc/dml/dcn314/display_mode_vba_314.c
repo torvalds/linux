@@ -5371,8 +5371,8 @@ void dml314_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_
 					v->TotImmediateFlipBytes = 0.0;
 					for (k = 0; k < v->NumberOfActivePlanes; k++) {
 						v->TotImmediateFlipBytes = v->TotImmediateFlipBytes
-								+ v->NoOfDPP[i][j][k] * v->PDEAndMetaPTEBytesPerFrame[i][j][k] + v->MetaRowBytes[i][j][k]
-								+ v->DPTEBytesPerRow[i][j][k];
+								+ v->NoOfDPP[i][j][k] * (v->PDEAndMetaPTEBytesPerFrame[i][j][k] + v->MetaRowBytes[i][j][k]
+								+ v->DPTEBytesPerRow[i][j][k]);
 					}
 
 					for (k = 0; k < v->NumberOfActivePlanes; k++) {
