@@ -348,6 +348,8 @@ static int __init create_opalcore(void)
 	if (!dn || ret)
 		pr_warn("WARNING: Failed to read OPAL base & entry values\n");
 
+	of_node_put(dn);
+
 	/* Use count to keep track of the program headers */
 	count = 0;
 

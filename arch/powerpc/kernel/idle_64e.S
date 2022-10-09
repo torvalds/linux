@@ -2,7 +2,7 @@
 /*
  * Copyright 2010 IBM Corp, Benjamin Herrenschmidt <benh@kernel.crashing.org>
  *
- * Generic idle routine for Book3E processors
+ * Generic idle routine for 64 bits e500 processors
  */
 
 #include <linux/threads.h>
@@ -16,8 +16,6 @@
 #include <asm/hw_irq.h>
 
 /* 64-bit version only for now */
-#ifdef CONFIG_PPC64
-
 .macro BOOK3E_IDLE name loop
 _GLOBAL(\name)
 	/* Save LR for later */
@@ -77,7 +75,7 @@ _GLOBAL(\name)
 
 .macro BOOK3E_IDLE_LOOP
 1:
-	PPC_WAIT(0)
+	PPC_WAIT_v203
 	b	1b
 .endm
 
@@ -98,6 +96,4 @@ epapr_ev_idle_start:
 
 BOOK3E_IDLE epapr_ev_idle EPAPR_EV_IDLE_LOOP
 
-BOOK3E_IDLE book3e_idle BOOK3E_IDLE_LOOP
-
-#endif /* CONFIG_PPC64 */
+BOOK3E_IDLE e500_idle BOOK3E_IDLE_LOOP

@@ -12,7 +12,7 @@
 #include <asm/processor.h>
 #include <asm/cputable.h>
 #include <asm/ppc_asm.h>
-#include <asm/nohash/mmu-book3e.h>
+#include <asm/nohash/mmu-e500.h>
 #include <asm/asm-offsets.h>
 #include <asm/mpc85xx.h>
 
@@ -108,7 +108,7 @@ _GLOBAL(__setup_cpu_e6500)
 #endif /* CONFIG_PPC_E500MC */
 
 #ifdef CONFIG_PPC32
-#ifdef CONFIG_E500
+#ifdef CONFIG_PPC_E500
 #ifndef CONFIG_PPC_E500MC
 _GLOBAL(__setup_cpu_e500v1)
 _GLOBAL(__setup_cpu_e500v2)
@@ -156,7 +156,7 @@ _GLOBAL(__setup_cpu_e5500)
 	mtlr	r5
 	blr
 #endif /* CONFIG_PPC_E500MC */
-#endif /* CONFIG_E500 */
+#endif /* CONFIG_PPC_E500 */
 #endif /* CONFIG_PPC32 */
 
 #ifdef CONFIG_PPC_BOOK3E_64

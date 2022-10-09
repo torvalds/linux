@@ -221,7 +221,7 @@ void __flush_hash_table_range(unsigned long start, unsigned long end)
 	local_irq_restore(flags);
 }
 
-void flush_tlb_pmd_range(struct mm_struct *mm, pmd_t *pmd, unsigned long addr)
+void flush_hash_table_pmd_range(struct mm_struct *mm, pmd_t *pmd, unsigned long addr)
 {
 	pte_t *pte;
 	pte_t *start_pte;
