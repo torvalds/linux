@@ -1645,7 +1645,7 @@ static int cqspi_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0)
-		return ret;
+		goto probe_pm_failed;
 
 	ret = clk_prepare_enable(cqspi->clk);
 	if (ret) {
@@ -1740,6 +1740,7 @@ probe_reset_failed:
 	clk_disable_unprepare(cqspi->clk);
 probe_clk_failed:
 	pm_runtime_put_sync(dev);
+probe_pm_failed:
 	pm_runtime_disable(dev);
 	return ret;
 }
