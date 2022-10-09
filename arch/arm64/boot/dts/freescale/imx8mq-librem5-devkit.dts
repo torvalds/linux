@@ -7,6 +7,7 @@
 
 #include "dt-bindings/input/input.h"
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/leds/common.h>
 #include "dt-bindings/pwm/pwm.h"
 #include "dt-bindings/usb/pd.h"
 #include "imx8mq.dtsi"
@@ -64,7 +65,8 @@
 		compatible = "pwm-leds";
 
 		led1 {
-			label = "LED 1";
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_RED>;
 			max-brightness = <248>;
 			pwms = <&pwm2 0 50000 0>;
 		};
