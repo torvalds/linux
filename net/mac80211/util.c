@@ -288,6 +288,52 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(ieee80211_ctstoself_duration);
 
+static void wake_tx_push_queue(struct ieee80211_local *local,
+			       struct ieee80211_sub_if_data *sdata,
+			       struct ieee80211_txq *queue)
+{
+	int q = sdata->vif.hw_queue[queue->ac];
+	struct ieee80211_tx_control control = {
+		.sta = queue->sta,
+	};
+	struct sk_buff *skb;
+	unsigned long flags;
+	bool q_stopped;
+
+	while (1) {
+		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
+		q_stopped = local->queue_stop_reasons[q];
+		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
+
+		if (q_stopped)
+			break;
+
+		skb = ieee80211_tx_dequeue(&local->hw, queue);
+		if (!skb)
+			break;
+
+		drv_tx(local, &control, skb);
+	}
+}
+
+/* wake_tx_queue handler for driver not implementing a custom one*/
+void ieee80211_handle_wake_tx_queue(struct ieee80211_hw *hw,
+				    struct ieee80211_txq *txq)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(txq->vif);
+	struct ieee80211_txq *queue;
+
+	/* Use ieee80211_next_txq() for airtime fairness accounting */
+	ieee80211_txq_schedule_start(hw, txq->ac);
+	while ((queue = ieee80211_next_txq(hw, txq->ac))) {
+		wake_tx_push_queue(local, sdata, queue);
+		ieee80211_return_txq(hw, queue, false);
+	}
+	ieee80211_txq_schedule_end(hw, txq->ac);
+}
+EXPORT_SYMBOL(ieee80211_handle_wake_tx_queue);
+
 static void __ieee80211_wake_txqs(struct ieee80211_sub_if_data *sdata, int ac)
 {
 	struct ieee80211_local *local = sdata->local;
