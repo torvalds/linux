@@ -56,6 +56,44 @@ static const struct rtw89_dle_mem rtw8852b_dle_mem_pcie[] = {
 			       NULL},
 };
 
+static const struct rtw89_reg3_def rtw8852b_btc_preagc_en_defs[] = {
+	{0x46D0, GENMASK(1, 0), 0x3},
+	{0x4790, GENMASK(1, 0), 0x3},
+	{0x4AD4, GENMASK(31, 0), 0xf},
+	{0x4AE0, GENMASK(31, 0), 0xf},
+	{0x4688, GENMASK(31, 24), 0x80},
+	{0x476C, GENMASK(31, 24), 0x80},
+	{0x4694, GENMASK(7, 0), 0x80},
+	{0x4694, GENMASK(15, 8), 0x80},
+	{0x4778, GENMASK(7, 0), 0x80},
+	{0x4778, GENMASK(15, 8), 0x80},
+	{0x4AE4, GENMASK(23, 0), 0x780D1E},
+	{0x4AEC, GENMASK(23, 0), 0x780D1E},
+	{0x469C, GENMASK(31, 26), 0x34},
+	{0x49F0, GENMASK(31, 26), 0x34},
+};
+
+static DECLARE_PHY_REG3_TBL(rtw8852b_btc_preagc_en_defs);
+
+static const struct rtw89_reg3_def rtw8852b_btc_preagc_dis_defs[] = {
+	{0x46D0, GENMASK(1, 0), 0x0},
+	{0x4790, GENMASK(1, 0), 0x0},
+	{0x4AD4, GENMASK(31, 0), 0x60},
+	{0x4AE0, GENMASK(31, 0), 0x60},
+	{0x4688, GENMASK(31, 24), 0x1a},
+	{0x476C, GENMASK(31, 24), 0x1a},
+	{0x4694, GENMASK(7, 0), 0x2a},
+	{0x4694, GENMASK(15, 8), 0x2a},
+	{0x4778, GENMASK(7, 0), 0x2a},
+	{0x4778, GENMASK(15, 8), 0x2a},
+	{0x4AE4, GENMASK(23, 0), 0x79E99E},
+	{0x4AEC, GENMASK(23, 0), 0x79E99E},
+	{0x469C, GENMASK(31, 26), 0x26},
+	{0x49F0, GENMASK(31, 26), 0x26},
+};
+
+static DECLARE_PHY_REG3_TBL(rtw8852b_btc_preagc_dis_defs);
+
 static int rtw8852b_pwr_on_func(struct rtw89_dev *rtwdev)
 {
 	u32 val32;
@@ -1397,6 +1435,55 @@ rtw8852b_init_txpwr_unit(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
 	return 0;
 }
 
+static void rtw8852b_bb_ctrl_btc_preagc(struct rtw89_dev *rtwdev, bool bt_en)
+{
+	rtw89_phy_write_reg3_tbl(rtwdev, bt_en ? &rtw8852b_btc_preagc_en_defs_tbl :
+						 &rtw8852b_btc_preagc_dis_defs_tbl);
+}
+
+static void rtw8852b_ctrl_btg(struct rtw89_dev *rtwdev, bool btg)
+{
+	if (btg) {
+		rtw89_phy_write32_mask(rtwdev, R_PATH0_BT_SHARE_V1,
+				       B_PATH0_BT_SHARE_V1, 0x1);
+		rtw89_phy_write32_mask(rtwdev, R_PATH0_BTG_PATH_V1,
+				       B_PATH0_BTG_PATH_V1, 0x0);
+		rtw89_phy_write32_mask(rtwdev, R_PATH1_G_LNA6_OP1DB_V1,
+				       B_PATH1_G_LNA6_OP1DB_V1, 0x20);
+		rtw89_phy_write32_mask(rtwdev, R_PATH1_G_TIA0_LNA6_OP1DB_V1,
+				       B_PATH1_G_TIA0_LNA6_OP1DB_V1, 0x30);
+		rtw89_phy_write32_mask(rtwdev, R_PATH1_BT_SHARE_V1,
+				       B_PATH1_BT_SHARE_V1, 0x1);
+		rtw89_phy_write32_mask(rtwdev, R_PATH1_BTG_PATH_V1,
+				       B_PATH1_BTG_PATH_V1, 0x1);
+		rtw89_phy_write32_mask(rtwdev, R_PMAC_GNT, B_PMAC_GNT_P1, 0x0);
+		rtw89_phy_write32_mask(rtwdev, R_CHBW_MOD_V1, B_BT_SHARE, 0x1);
+		rtw89_phy_write32_mask(rtwdev, R_FC0_BW_V1, B_ANT_RX_BT_SEG0, 0x2);
+		rtw89_phy_write32_mask(rtwdev, R_BT_DYN_DC_EST_EN_V1,
+				       B_BT_DYN_DC_EST_EN_MSK, 0x1);
+		rtw89_phy_write32_mask(rtwdev, R_GNT_BT_WGT_EN, B_GNT_BT_WGT_EN, 0x1);
+	} else {
+		rtw89_phy_write32_mask(rtwdev, R_PATH0_BT_SHARE_V1,
+				       B_PATH0_BT_SHARE_V1, 0x0);
+		rtw89_phy_write32_mask(rtwdev, R_PATH0_BTG_PATH_V1,
+				       B_PATH0_BTG_PATH_V1, 0x0);
+		rtw89_phy_write32_mask(rtwdev, R_PATH1_G_LNA6_OP1DB_V1,
+				       B_PATH1_G_LNA6_OP1DB_V1, 0x1a);
+		rtw89_phy_write32_mask(rtwdev, R_PATH1_G_TIA0_LNA6_OP1DB_V1,
+				       B_PATH1_G_TIA0_LNA6_OP1DB_V1, 0x2a);
+		rtw89_phy_write32_mask(rtwdev, R_PATH1_BT_SHARE_V1,
+				       B_PATH1_BT_SHARE_V1, 0x0);
+		rtw89_phy_write32_mask(rtwdev, R_PATH1_BTG_PATH_V1,
+				       B_PATH1_BTG_PATH_V1, 0x0);
+		rtw89_phy_write32_mask(rtwdev, R_PMAC_GNT, B_PMAC_GNT_P1, 0xc);
+		rtw89_phy_write32_mask(rtwdev, R_CHBW_MOD_V1, B_BT_SHARE, 0x0);
+		rtw89_phy_write32_mask(rtwdev, R_FC0_BW_V1, B_ANT_RX_BT_SEG0, 0x0);
+		rtw89_phy_write32_mask(rtwdev, R_BT_DYN_DC_EST_EN_V1,
+				       B_BT_DYN_DC_EST_EN_MSK, 0x1);
+		rtw89_phy_write32_mask(rtwdev, R_GNT_BT_WGT_EN, B_GNT_BT_WGT_EN, 0x0);
+	}
+}
+
 static u8 rtw8852b_get_thermal(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path)
 {
 	if (rtwdev->is_tssi_mode[rf_path]) {
@@ -1412,6 +1499,212 @@ static u8 rtw8852b_get_thermal(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_p
 	fsleep(200);
 
 	return rtw89_read_rf(rtwdev, rf_path, RR_TM, RR_TM_VAL);
+}
+
+static void rtw8852b_btc_set_rfe(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_module *module = &btc->mdinfo;
+
+	module->rfe_type = rtwdev->efuse.rfe_type;
+	module->cv = rtwdev->hal.cv;
+	module->bt_solo = 0;
+	module->switch_type = BTC_SWITCH_INTERNAL;
+
+	if (module->rfe_type > 0)
+		module->ant.num = module->rfe_type % 2 ? 2 : 3;
+	else
+		module->ant.num = 2;
+
+	module->ant.diversity = 0;
+	module->ant.isolation = 10;
+
+	if (module->ant.num == 3) {
+		module->ant.type = BTC_ANT_DEDICATED;
+		module->bt_pos = BTC_BT_ALONE;
+	} else {
+		module->ant.type = BTC_ANT_SHARED;
+		module->bt_pos = BTC_BT_BTG;
+	}
+}
+
+static
+void rtw8852b_set_trx_mask(struct rtw89_dev *rtwdev, u8 path, u8 group, u32 val)
+{
+	rtw89_write_rf(rtwdev, path, RR_LUTWE, RFREG_MASK, 0x20000);
+	rtw89_write_rf(rtwdev, path, RR_LUTWA, RFREG_MASK, group);
+	rtw89_write_rf(rtwdev, path, RR_LUTWD0, RFREG_MASK, val);
+	rtw89_write_rf(rtwdev, path, RR_LUTWE, RFREG_MASK, 0x0);
+}
+
+static void rtw8852b_btc_init_cfg(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_module *module = &btc->mdinfo;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_mac_ax_coex coex_params = {
+		.pta_mode = RTW89_MAC_AX_COEX_RTK_MODE,
+		.direction = RTW89_MAC_AX_COEX_INNER,
+	};
+
+	/* PTA init  */
+	rtw89_mac_coex_init(rtwdev, &coex_params);
+
+	/* set WL Tx response = Hi-Pri */
+	chip->ops->btc_set_wl_pri(rtwdev, BTC_PRI_MASK_TX_RESP, true);
+	chip->ops->btc_set_wl_pri(rtwdev, BTC_PRI_MASK_BEACON, true);
+
+	/* set rf gnt debug off */
+	rtw89_write_rf(rtwdev, RF_PATH_A, RR_WLSEL, RFREG_MASK, 0x0);
+	rtw89_write_rf(rtwdev, RF_PATH_B, RR_WLSEL, RFREG_MASK, 0x0);
+
+	/* set WL Tx thru in TRX mask table if GNT_WL = 0 && BT_S1 = ss group */
+	if (module->ant.type == BTC_ANT_SHARED) {
+		rtw8852b_set_trx_mask(rtwdev, RF_PATH_A, BTC_BT_SS_GROUP, 0x5ff);
+		rtw8852b_set_trx_mask(rtwdev, RF_PATH_B, BTC_BT_SS_GROUP, 0x5ff);
+		/* set path-A(S0) Tx/Rx no-mask if GNT_WL=0 && BT_S1=tx group */
+		rtw8852b_set_trx_mask(rtwdev, RF_PATH_A, BTC_BT_TX_GROUP, 0x5ff);
+		rtw8852b_set_trx_mask(rtwdev, RF_PATH_B, BTC_BT_TX_GROUP, 0x55f);
+	} else { /* set WL Tx stb if GNT_WL = 0 && BT_S1 = ss group for 3-ant */
+		rtw8852b_set_trx_mask(rtwdev, RF_PATH_A, BTC_BT_SS_GROUP, 0x5df);
+		rtw8852b_set_trx_mask(rtwdev, RF_PATH_B, BTC_BT_SS_GROUP, 0x5df);
+		rtw8852b_set_trx_mask(rtwdev, RF_PATH_A, BTC_BT_TX_GROUP, 0x5ff);
+		rtw8852b_set_trx_mask(rtwdev, RF_PATH_B, BTC_BT_TX_GROUP, 0x5ff);
+	}
+
+	/* set PTA break table */
+	rtw89_write32(rtwdev, R_BTC_BREAK_TABLE, BTC_BREAK_PARAM);
+
+	 /* enable BT counter 0xda40[16,2] = 2b'11 */
+	rtw89_write32_set(rtwdev, R_AX_CSR_MODE, B_AX_BT_CNT_RST | B_AX_STATIS_BT_EN);
+	btc->cx.wl.status.map.init_ok = true;
+}
+
+static
+void rtw8852b_btc_set_wl_pri(struct rtw89_dev *rtwdev, u8 map, bool state)
+{
+	u32 bitmap;
+	u32 reg;
+
+	switch (map) {
+	case BTC_PRI_MASK_TX_RESP:
+		reg = R_BTC_BT_COEX_MSK_TABLE;
+		bitmap = B_BTC_PRI_MASK_TX_RESP_V1;
+		break;
+	case BTC_PRI_MASK_BEACON:
+		reg = R_AX_WL_PRI_MSK;
+		bitmap = B_AX_PTA_WL_PRI_MASK_BCNQ;
+		break;
+	case BTC_PRI_MASK_RX_CCK:
+		reg = R_BTC_BT_COEX_MSK_TABLE;
+		bitmap = B_BTC_PRI_MASK_RXCCK_V1;
+		break;
+	default:
+		return;
+	}
+
+	if (state)
+		rtw89_write32_set(rtwdev, reg, bitmap);
+	else
+		rtw89_write32_clr(rtwdev, reg, bitmap);
+}
+
+union rtw8852b_btc_wl_txpwr_ctrl {
+	u32 txpwr_val;
+	struct {
+		union {
+			u16 ctrl_all_time;
+			struct {
+				s16 data:9;
+				u16 rsvd:6;
+				u16 flag:1;
+			} all_time;
+		};
+		union {
+			u16 ctrl_gnt_bt;
+			struct {
+				s16 data:9;
+				u16 rsvd:7;
+			} gnt_bt;
+		};
+	};
+} __packed;
+
+static void
+rtw8852b_btc_set_wl_txpwr_ctrl(struct rtw89_dev *rtwdev, u32 txpwr_val)
+{
+	union rtw8852b_btc_wl_txpwr_ctrl arg = { .txpwr_val = txpwr_val };
+	s32 val;
+
+#define __write_ctrl(_reg, _msk, _val, _en, _cond)		\
+do {								\
+	u32 _wrt = FIELD_PREP(_msk, _val);			\
+	BUILD_BUG_ON(!!(_msk & _en));				\
+	if (_cond)						\
+		_wrt |= _en;					\
+	else							\
+		_wrt &= ~_en;					\
+	rtw89_mac_txpwr_write32_mask(rtwdev, RTW89_PHY_0, _reg,	\
+				     _msk | _en, _wrt);		\
+} while (0)
+
+	switch (arg.ctrl_all_time) {
+	case 0xffff:
+		val = 0;
+		break;
+	default:
+		val = arg.all_time.data;
+		break;
+	}
+
+	__write_ctrl(R_AX_PWR_RATE_CTRL, B_AX_FORCE_PWR_BY_RATE_VALUE_MASK,
+		     val, B_AX_FORCE_PWR_BY_RATE_EN,
+		     arg.ctrl_all_time != 0xffff);
+
+	switch (arg.ctrl_gnt_bt) {
+	case 0xffff:
+		val = 0;
+		break;
+	default:
+		val = arg.gnt_bt.data;
+		break;
+	}
+
+	__write_ctrl(R_AX_PWR_COEXT_CTRL, B_AX_TXAGC_BT_MASK, val,
+		     B_AX_TXAGC_BT_EN, arg.ctrl_gnt_bt != 0xffff);
+
+#undef __write_ctrl
+}
+
+static
+s8 rtw8852b_btc_get_bt_rssi(struct rtw89_dev *rtwdev, s8 val)
+{
+	return clamp_t(s8, val, -100, 0) + 100;
+}
+
+static
+void rtw8852b_btc_update_bt_cnt(struct rtw89_dev *rtwdev)
+{
+	/* Feature move to firmware */
+}
+
+static void rtw8852b_btc_wl_s1_standby(struct rtw89_dev *rtwdev, bool state)
+{
+	rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWE, RFREG_MASK, 0x80000);
+	rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWA, RFREG_MASK, 0x1);
+	rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD1, RFREG_MASK, 0x31);
+
+	/* set WL standby = Rx for GNT_BT_Tx = 1->0 settle issue */
+	if (state)
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD0, RFREG_MASK, 0x579);
+	else
+		rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWD0, RFREG_MASK, 0x20);
+
+	rtw89_write_rf(rtwdev, RF_PATH_B, RR_LUTWE, RFREG_MASK, 0x0);
+}
+
+static void rtw8852b_btc_set_wl_rx_gain(struct rtw89_dev *rtwdev, u32 level)
+{
 }
 
 static int rtw8852b_mac_enable_bb_rf(struct rtw89_dev *rtwdev)
@@ -1481,8 +1774,20 @@ static const struct rtw89_chip_ops rtw8852b_chip_ops = {
 	.set_txpwr_ctrl		= rtw8852b_set_txpwr_ctrl,
 	.init_txpwr_unit	= rtw8852b_init_txpwr_unit,
 	.get_thermal		= rtw8852b_get_thermal,
+	.ctrl_btg		= rtw8852b_ctrl_btg,
+	.bb_ctrl_btc_preagc	= rtw8852b_bb_ctrl_btc_preagc,
 	.pwr_on_func		= rtw8852b_pwr_on_func,
 	.pwr_off_func		= rtw8852b_pwr_off_func,
+
+	.btc_set_rfe		= rtw8852b_btc_set_rfe,
+	.btc_init_cfg		= rtw8852b_btc_init_cfg,
+	.btc_set_wl_pri		= rtw8852b_btc_set_wl_pri,
+	.btc_set_wl_txpwr_ctrl	= rtw8852b_btc_set_wl_txpwr_ctrl,
+	.btc_get_bt_rssi	= rtw8852b_btc_get_bt_rssi,
+	.btc_update_bt_cnt	= rtw8852b_btc_update_bt_cnt,
+	.btc_wl_s1_standby	= rtw8852b_btc_wl_s1_standby,
+	.btc_set_wl_rx_gain	= rtw8852b_btc_set_wl_rx_gain,
+	.btc_set_policy		= rtw89_btc_set_policy,
 };
 
 const struct rtw89_chip_info rtw8852b_chip_info = {
