@@ -501,26 +501,6 @@ static const struct file_operations cached_btree_nodes_ops = {
 };
 
 #ifdef CONFIG_BCACHEFS_DEBUG_TRANSACTIONS
-static int prt_backtrace(struct printbuf *out, struct task_struct *task)
-{
-	unsigned long entries[32];
-	unsigned i, nr_entries;
-	int ret;
-
-	ret = down_read_killable(&task->signal->exec_update_lock);
-	if (ret)
-		return ret;
-
-	nr_entries = stack_trace_save_tsk(task, entries, ARRAY_SIZE(entries), 0);
-	for (i = 0; i < nr_entries; i++) {
-		prt_printf(out, "[<0>] %pB", (void *)entries[i]);
-		prt_newline(out);
-	}
-
-	up_read(&task->signal->exec_update_lock);
-	return 0;
-}
-
 static ssize_t bch2_btree_transactions_read(struct file *file, char __user *buf,
 					    size_t size, loff_t *ppos)
 {
@@ -547,7 +527,7 @@ static ssize_t bch2_btree_transactions_read(struct file *file, char __user *buf,
 		prt_printf(&i->buf, "backtrace:");
 		prt_newline(&i->buf);
 		printbuf_indent_add(&i->buf, 2);
-		prt_backtrace(&i->buf, trans->locking_wait.task);
+		bch2_prt_backtrace(&i->buf, trans->locking_wait.task);
 		printbuf_indent_sub(&i->buf, 2);
 		prt_newline(&i->buf);
 

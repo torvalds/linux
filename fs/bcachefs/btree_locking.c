@@ -138,7 +138,29 @@ static noinline int break_cycle(struct lock_graph *g)
 		return abort_lock(g, i);
 	}
 
-	BUG();
+	{
+		struct bch_fs *c = g->g->trans->c;
+		struct printbuf buf = PRINTBUF;
+
+		bch_err(c, "cycle of nofail locks");
+
+		for (i = g->g; i < g->g + g->nr; i++) {
+			struct btree_trans *trans = i->trans;
+
+			bch2_btree_trans_to_text(&buf, trans);
+
+			prt_printf(&buf, "backtrace:");
+			prt_newline(&buf);
+			printbuf_indent_add(&buf, 2);
+			bch2_prt_backtrace(&buf, trans->locking_wait.task);
+			printbuf_indent_sub(&buf, 2);
+			prt_newline(&buf);
+		}
+
+		bch2_print_string_as_lines(KERN_ERR, buf.buf);
+		printbuf_exit(&buf);
+		BUG();
+	}
 }
 
 static void lock_graph_pop(struct lock_graph *g)

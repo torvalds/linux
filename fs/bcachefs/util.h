@@ -383,6 +383,7 @@ u64 bch2_read_flag_list(char *, const char * const[]);
 void bch2_prt_u64_binary(struct printbuf *, u64, unsigned);
 
 void bch2_print_string_as_lines(const char *prefix, const char *lines);
+int bch2_prt_backtrace(struct printbuf *, struct task_struct *);
 
 #define NR_QUANTILES	15
 #define QUANTILE_IDX(i)	inorder_to_eytzinger0(i, NR_QUANTILES)

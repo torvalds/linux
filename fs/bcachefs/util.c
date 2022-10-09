@@ -265,6 +265,26 @@ void bch2_print_string_as_lines(const char *prefix, const char *lines)
 	console_unlock();
 }
 
+int bch2_prt_backtrace(struct printbuf *out, struct task_struct *task)
+{
+	unsigned long entries[32];
+	unsigned i, nr_entries;
+	int ret;
+
+	ret = down_read_killable(&task->signal->exec_update_lock);
+	if (ret)
+		return ret;
+
+	nr_entries = stack_trace_save_tsk(task, entries, ARRAY_SIZE(entries), 0);
+	for (i = 0; i < nr_entries; i++) {
+		prt_printf(out, "[<0>] %pB", (void *)entries[i]);
+		prt_newline(out);
+	}
+
+	up_read(&task->signal->exec_update_lock);
+	return 0;
+}
+
 /* time stats: */
 
 #ifndef CONFIG_BCACHEFS_NO_LATENCY_ACCT
