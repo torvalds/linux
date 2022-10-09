@@ -598,6 +598,10 @@ struct amdgpu_dm_connector {
 	 * The 'current' sink is in dc_link->sink. */
 	struct dc_sink *dc_sink;
 	struct dc_link *dc_link;
+
+	/**
+	 * @dc_em_sink: Reference to the emulated (virtual) sink.
+	 */
 	struct dc_sink *dc_em_sink;
 
 	/* DM only */
@@ -610,7 +614,16 @@ struct amdgpu_dm_connector {
 	struct amdgpu_i2c_adapter *i2c;
 
 	/* Monitor range limits */
-	int min_vfreq ;
+	/**
+	 * @min_vfreq: Minimal frequency supported by the display in Hz. This
+	 * value is set to zero when there is no FreeSync support.
+	 */
+	int min_vfreq;
+
+	/**
+	 * @max_vfreq: Maximum frequency supported by the display in Hz. This
+	 * value is set to zero when there is no FreeSync support.
+	 */
 	int max_vfreq ;
 	int pixel_clock_mhz;
 
@@ -668,7 +681,6 @@ struct dm_crtc_state {
 
 	int crc_skip_count;
 
-	bool freesync_timing_changed;
 	bool freesync_vrr_info_changed;
 
 	bool dsc_force_changed;
@@ -705,11 +717,34 @@ struct dm_connector_state {
 	uint64_t pbn;
 };
 
+/**
+ * struct amdgpu_hdmi_vsdb_info - Keep track of the VSDB info
+ *
+ * AMDGPU supports FreeSync over HDMI by using the VSDB section, and this
+ * struct is useful to keep track of the display-specific information about
+ * FreeSync.
+ */
 struct amdgpu_hdmi_vsdb_info {
-	unsigned int amd_vsdb_version;		/* VSDB version, should be used to determine which VSIF to send */
-	bool freesync_supported;		/* FreeSync Supported */
-	unsigned int min_refresh_rate_hz;	/* FreeSync Minimum Refresh Rate in Hz */
-	unsigned int max_refresh_rate_hz;	/* FreeSync Maximum Refresh Rate in Hz */
+	/**
+	 * @amd_vsdb_version: Vendor Specific Data Block Version, should be
+	 * used to determine which Vendor Specific InfoFrame (VSIF) to send.
+	 */
+	unsigned int amd_vsdb_version;
+
+	/**
+	 * @freesync_supported: FreeSync Supported.
+	 */
+	bool freesync_supported;
+
+	/**
+	 * @min_refresh_rate_hz: FreeSync Minimum Refresh Rate in Hz.
+	 */
+	unsigned int min_refresh_rate_hz;
+
+	/**
+	 * @max_refresh_rate_hz: FreeSync Maximum Refresh Rate in Hz
+	 */
+	unsigned int max_refresh_rate_hz;
 };
 
 

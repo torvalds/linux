@@ -24,10 +24,23 @@
 #define EMIF_STAT_CLEAR_BUSY_SFT	16
 #define EMIF_CTRL			0x10
 #define EMIF_CTRL_CLEAR_EN_SFT		0
-#define EMIF_CTRL_CLEAR_EN_MSK		GENMASK_ULL(3, 0)
+#define EMIF_CTRL_CLEAR_EN_MSK		GENMASK_ULL(7, 0)
 
 #define EMIF_POLL_INVL			10000 /* us */
 #define EMIF_POLL_TIMEOUT		5000000 /* us */
+
+/*
+ * The Capability Register replaces the Control Register (at the same
+ * offset) for EMIF feature revisions > 0. The bitmask that indicates
+ * the presence of memory channels exists in both the Capability Register
+ * and Control Register definitions. These can be thought of as a C union.
+ * The Capability Register definitions are used to check for the existence
+ * of a memory channel, and the Control Register definitions are used for
+ * managing the memory-clear functionality in revision 0.
+ */
+#define EMIF_CAPABILITY_BASE		0x10
+#define EMIF_CAPABILITY_CHN_MSK_V0	GENMASK_ULL(3, 0)
+#define EMIF_CAPABILITY_CHN_MSK		GENMASK_ULL(7, 0)
 
 struct dfl_emif {
 	struct device *dev;
@@ -106,16 +119,30 @@ emif_state_attr(init_done, EMIF_STAT_INIT_DONE_SFT, 0);
 emif_state_attr(init_done, EMIF_STAT_INIT_DONE_SFT, 1);
 emif_state_attr(init_done, EMIF_STAT_INIT_DONE_SFT, 2);
 emif_state_attr(init_done, EMIF_STAT_INIT_DONE_SFT, 3);
+emif_state_attr(init_done, EMIF_STAT_INIT_DONE_SFT, 4);
+emif_state_attr(init_done, EMIF_STAT_INIT_DONE_SFT, 5);
+emif_state_attr(init_done, EMIF_STAT_INIT_DONE_SFT, 6);
+emif_state_attr(init_done, EMIF_STAT_INIT_DONE_SFT, 7);
 
 emif_state_attr(cal_fail, EMIF_STAT_CALC_FAIL_SFT, 0);
 emif_state_attr(cal_fail, EMIF_STAT_CALC_FAIL_SFT, 1);
 emif_state_attr(cal_fail, EMIF_STAT_CALC_FAIL_SFT, 2);
 emif_state_attr(cal_fail, EMIF_STAT_CALC_FAIL_SFT, 3);
+emif_state_attr(cal_fail, EMIF_STAT_CALC_FAIL_SFT, 4);
+emif_state_attr(cal_fail, EMIF_STAT_CALC_FAIL_SFT, 5);
+emif_state_attr(cal_fail, EMIF_STAT_CALC_FAIL_SFT, 6);
+emif_state_attr(cal_fail, EMIF_STAT_CALC_FAIL_SFT, 7);
+
 
 emif_clear_attr(0);
 emif_clear_attr(1);
 emif_clear_attr(2);
 emif_clear_attr(3);
+emif_clear_attr(4);
+emif_clear_attr(5);
+emif_clear_attr(6);
+emif_clear_attr(7);
+
 
 static struct attribute *dfl_emif_attrs[] = {
 	&emif_attr_inf0_init_done.attr.attr,
@@ -134,6 +161,22 @@ static struct attribute *dfl_emif_attrs[] = {
 	&emif_attr_inf3_cal_fail.attr.attr,
 	&emif_attr_inf3_clear.attr.attr,
 
+	&emif_attr_inf4_init_done.attr.attr,
+	&emif_attr_inf4_cal_fail.attr.attr,
+	&emif_attr_inf4_clear.attr.attr,
+
+	&emif_attr_inf5_init_done.attr.attr,
+	&emif_attr_inf5_cal_fail.attr.attr,
+	&emif_attr_inf5_clear.attr.attr,
+
+	&emif_attr_inf6_init_done.attr.attr,
+	&emif_attr_inf6_cal_fail.attr.attr,
+	&emif_attr_inf6_clear.attr.attr,
+
+	&emif_attr_inf7_init_done.attr.attr,
+	&emif_attr_inf7_cal_fail.attr.attr,
+	&emif_attr_inf7_clear.attr.attr,
+
 	NULL,
 };
 
@@ -143,15 +186,24 @@ static umode_t dfl_emif_visible(struct kobject *kobj,
 	struct dfl_emif *de = dev_get_drvdata(kobj_to_dev(kobj));
 	struct emif_attr *eattr = container_of(attr, struct emif_attr,
 					       attr.attr);
+	struct dfl_device *ddev = to_dfl_dev(de->dev);
 	u64 val;
 
 	/*
-	 * This device supports upto 4 memory interfaces, but not all
+	 * This device supports up to 8 memory interfaces, but not all
 	 * interfaces are used on different platforms. The read out value of
-	 * CLEAN_EN field (which is a bitmap) could tell how many interfaces
-	 * are available.
+	 * CAPABILITY_CHN_MSK field (which is a bitmap) indicates which
+	 * interfaces are available.
 	 */
-	val = FIELD_GET(EMIF_CTRL_CLEAR_EN_MSK, readq(de->base + EMIF_CTRL));
+	if (ddev->revision > 0 && strstr(attr->name, "_clear"))
+		return 0;
+
+	if (ddev->revision == 0)
+		val = FIELD_GET(EMIF_CAPABILITY_CHN_MSK_V0,
+				readq(de->base + EMIF_CAPABILITY_BASE));
+	else
+		val = FIELD_GET(EMIF_CAPABILITY_CHN_MSK,
+				readq(de->base + EMIF_CAPABILITY_BASE));
 
 	return (val & BIT_ULL(eattr->index)) ? attr->mode : 0;
 }

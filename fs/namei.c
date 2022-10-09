@@ -986,7 +986,7 @@ static int nd_jump_root(struct nameidata *nd)
  * Helper to directly jump to a known parsed path from ->get_link,
  * caller must have taken a reference to path beforehand.
  */
-int nd_jump_link(struct path *path)
+int nd_jump_link(const struct path *path)
 {
 	int error = -ELOOP;
 	struct nameidata *nd = current->nameidata;
@@ -1178,7 +1178,7 @@ static bool safe_hardlink_source(struct user_namespace *mnt_userns,
  *
  * Returns 0 if successful, -ve on error.
  */
-int may_linkat(struct user_namespace *mnt_userns, struct path *link)
+int may_linkat(struct user_namespace *mnt_userns, const struct path *link)
 {
 	struct inode *inode = link->dentry->d_inode;
 

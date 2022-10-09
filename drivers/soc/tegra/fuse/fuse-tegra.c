@@ -568,6 +568,7 @@ static int __init tegra_init_fuse(void)
 	np = of_find_matching_node(NULL, car_match);
 	if (np) {
 		void __iomem *base = of_iomap(np, 0);
+		of_node_put(np);
 		if (base) {
 			tegra_enable_fuse_clk(base);
 			iounmap(base);

@@ -228,4 +228,6 @@ uint8_t resource_transmitter_to_phy_idx(const struct dc *dc, enum transmitter tr
 const struct link_hwss *get_link_hwss(const struct dc_link *link,
 		const struct link_resource *link_res);
 
+bool is_h_timing_divisible_by_2(struct dc_stream_state *stream);
+
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

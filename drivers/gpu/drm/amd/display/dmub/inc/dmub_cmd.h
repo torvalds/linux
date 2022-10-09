@@ -234,8 +234,7 @@ union dmub_psr_debug_flags {
 };
 
 /**
- * DMUB feature capabilities.
- * After DMUB init, driver will query FW capabilities prior to enabling certain features.
+ * DMUB visual confirm color
  */
 struct dmub_feature_caps {
 	/**
@@ -244,6 +243,16 @@ struct dmub_feature_caps {
 	uint8_t psr;
 	uint8_t fw_assisted_mclk_switch;
 	uint8_t reserved[6];
+};
+
+struct dmub_visual_confirm_color {
+	/**
+	 * Maximum 10 bits color value
+	 */
+	uint16_t color_r_cr;
+	uint16_t color_g_y;
+	uint16_t color_b_cb;
+	uint16_t panel_inst;
 };
 
 #if defined(__cplusplus)
@@ -645,6 +654,10 @@ enum dmub_cmd_type {
 	 */
 	DMUB_CMD__QUERY_FEATURE_CAPS = 6,
 	/**
+	 * Command type used to get visual confirm color.
+	 */
+	DMUB_CMD__GET_VISUAL_CONFIRM_COLOR = 8,
+	/**
 	 * Command type used for all PSR commands.
 	 */
 	DMUB_CMD__PSR = 64,
@@ -745,6 +758,11 @@ enum dmub_cmd_dpia_type {
 	DMUB_CMD__DPIA_DIG1_DPIA_CONTROL = 0,
 	DMUB_CMD__DPIA_SET_CONFIG_ACCESS = 1,
 	DMUB_CMD__DPIA_MST_ALLOC_SLOTS = 2,
+};
+
+enum dmub_cmd_header_sub_type {
+	DMUB_CMD__SUB_TYPE_GENERAL         = 0,
+	DMUB_CMD__SUB_TYPE_CURSOR_POSITION = 1
 };
 
 #pragma pack(push, 1)
@@ -976,8 +994,17 @@ struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 {
 			uint16_t vtotal;
 			uint8_t main_pipe_index;
 			uint8_t phantom_pipe_index;
+			/* Since the microschedule is calculated in terms of OTG lines,
+			 * include any scaling factors to make sure when we get accurate
+			 * conversion when programming MALL_START_LINE (which is in terms
+			 * of HUBP lines). If 4K is being downscaled to 1080p, scale factor
+			 * is 1/2 (numerator = 1, denominator = 2).
+			 */
+			uint8_t scale_factor_numerator;
+			uint8_t scale_factor_denominator;
 			uint8_t is_drr;
-			uint8_t padding;
+			uint8_t main_split_pipe_index;
+			uint8_t phantom_split_pipe_index;
 		} subvp_data;
 
 		struct {
@@ -999,7 +1026,11 @@ struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 {
 		} vblank_data;
 	} pipe_config;
 
-	enum mclk_switch_mode mode;
+	/* - subvp_data in the union (pipe_config) takes up 27 bytes.
+	 * - Make the "mode" field a uint8_t instead of enum so we only use 1 byte (only
+	 *   for the DMCUB command, cast to enum once we populate the DMCUB subvp state).
+	 */
+	uint8_t mode; // enum mclk_switch_mode
 };
 
 /**
@@ -2766,6 +2797,31 @@ struct dmub_rb_cmd_query_feature_caps {
 	struct dmub_cmd_query_feature_caps_data query_feature_caps_data;
 };
 
+/**
+ * Data passed from driver to FW in a DMUB_CMD__GET_VISUAL_CONFIRM_COLOR command.
+ */
+struct dmub_cmd_visual_confirm_color_data {
+	/**
+	 * DMUB feature capabilities.
+	 * After DMUB init, driver will query FW capabilities prior to enabling certain features.
+	 */
+struct dmub_visual_confirm_color visual_confirm_color;
+};
+
+/**
+ * Definition of a DMUB_CMD__GET_VISUAL_CONFIRM_COLOR command.
+ */
+struct dmub_rb_cmd_get_visual_confirm_color {
+ /**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Data passed from driver to FW in a DMUB_CMD__GET_VISUAL_CONFIRM_COLOR command.
+	 */
+	struct dmub_cmd_visual_confirm_color_data visual_confirm_color_data;
+};
+
 struct dmub_optc_state {
 	uint32_t v_total_max;
 	uint32_t v_total_min;
@@ -3138,6 +3194,11 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__QUERY_FEATURE_CAPS command.
 	 */
 	struct dmub_rb_cmd_query_feature_caps query_feature_caps;
+
+	/**
+	 * Definition of a DMUB_CMD__GET_VISUAL_CONFIRM_COLOR command.
+	 */
+	struct dmub_rb_cmd_get_visual_confirm_color visual_confirm_color;
 	struct dmub_rb_cmd_drr_update drr_update;
 	struct dmub_rb_cmd_fw_assisted_mclk_switch fw_assisted_mclk_switch;
 

@@ -46,13 +46,15 @@ struct alpha_machine_vector
 	void (*mv_pci_tbi)(struct pci_controller *hose,
 			   dma_addr_t start, dma_addr_t end);
 
-	unsigned int (*mv_ioread8)(const void __iomem *);
-	unsigned int (*mv_ioread16)(const void __iomem *);
-	unsigned int (*mv_ioread32)(const void __iomem *);
+	u8 (*mv_ioread8)(const void __iomem *);
+	u16 (*mv_ioread16)(const void __iomem *);
+	u32 (*mv_ioread32)(const void __iomem *);
+	u64 (*mv_ioread64)(const void __iomem *);
 
 	void (*mv_iowrite8)(u8, void __iomem *);
 	void (*mv_iowrite16)(u16, void __iomem *);
 	void (*mv_iowrite32)(u32, void __iomem *);
+	void (*mv_iowrite64)(u64, void __iomem *);
 
 	u8 (*mv_readb)(const volatile void __iomem *);
 	u16 (*mv_readw)(const volatile void __iomem *);

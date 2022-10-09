@@ -99,7 +99,7 @@ out:
  * we check the inode number to make sure it's sane, then we check that
  * we can look up this filename.  Finally, we check the ftype.
  */
-STATIC int
+STATIC bool
 xchk_dir_actor(
 	struct dir_context	*dir_iter,
 	const char		*name,
@@ -124,7 +124,7 @@ xchk_dir_actor(
 			xfs_dir2_dataptr_to_db(mp->m_dir_geo, pos));
 
 	if (xchk_should_terminate(sdc->sc, &error))
-		return error;
+		return !error;
 
 	/* Does this inode number make sense? */
 	if (!xfs_verify_dir_ino(mp, ino)) {
@@ -191,8 +191,8 @@ out:
 	 * and return zero to xchk_directory.
 	 */
 	if (error == 0 && sdc->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
-		return -EFSCORRUPTED;
-	return error;
+		return false;
+	return !error;
 }
 
 /* Scrub a directory btree record. */

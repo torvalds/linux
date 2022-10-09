@@ -2386,11 +2386,10 @@ int snd_soc_dapm_mixer_update_power(struct snd_soc_dapm_context *dapm,
 EXPORT_SYMBOL_GPL(snd_soc_dapm_mixer_update_power);
 
 static ssize_t dapm_widget_show_component(struct snd_soc_component *cmpnt,
-	char *buf)
+					  char *buf, int count)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(cmpnt);
 	struct snd_soc_dapm_widget *w;
-	int count = 0;
 	char *state = "not set";
 
 	/* card won't be set for the dummy component, as a spot fix
@@ -2423,7 +2422,7 @@ static ssize_t dapm_widget_show_component(struct snd_soc_component *cmpnt,
 		case snd_soc_dapm_pinctrl:
 		case snd_soc_dapm_clock_supply:
 			if (w->name)
-				count += sprintf(buf + count, "%s: %s\n",
+				count += sysfs_emit_at(buf, count, "%s: %s\n",
 					w->name, w->power ? "On":"Off");
 		break;
 		default:
@@ -2445,7 +2444,7 @@ static ssize_t dapm_widget_show_component(struct snd_soc_component *cmpnt,
 		state = "Off";
 		break;
 	}
-	count += sprintf(buf + count, "PM State: %s\n", state);
+	count += sysfs_emit_at(buf, count, "PM State: %s\n", state);
 
 	return count;
 }
@@ -2463,7 +2462,7 @@ static ssize_t dapm_widget_show(struct device *dev,
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
 		struct snd_soc_component *cmpnt = codec_dai->component;
 
-		count += dapm_widget_show_component(cmpnt, buf + count);
+		count = dapm_widget_show_component(cmpnt, buf, count);
 	}
 
 	mutex_unlock(&rtd->card->dapm_mutex);
@@ -3631,10 +3630,18 @@ snd_soc_dapm_new_control_unlocked(struct snd_soc_dapm_context *dapm,
 	enum snd_soc_dapm_direction dir;
 	struct snd_soc_dapm_widget *w;
 	const char *prefix;
-	int ret;
+	int ret = -ENOMEM;
 
 	if ((w = dapm_cnew_widget(widget)) == NULL)
-		return ERR_PTR(-ENOMEM);
+		goto cnew_failed;
+
+	prefix = soc_dapm_prefix(dapm);
+	if (prefix)
+		w->name = kasprintf(GFP_KERNEL, "%s %s", prefix, widget->name);
+	else
+		w->name = kstrdup_const(widget->name, GFP_KERNEL);
+	if (!w->name)
+		goto name_failed;
 
 	switch (w->id) {
 	case snd_soc_dapm_regulator_supply:
@@ -3671,17 +3678,6 @@ snd_soc_dapm_new_control_unlocked(struct snd_soc_dapm_context *dapm,
 		break;
 	default:
 		break;
-	}
-
-	prefix = soc_dapm_prefix(dapm);
-	if (prefix)
-		w->name = kasprintf(GFP_KERNEL, "%s %s", prefix, widget->name);
-	else
-		w->name = kstrdup_const(widget->name, GFP_KERNEL);
-	if (w->name == NULL) {
-		kfree_const(w->sname);
-		kfree(w);
-		return ERR_PTR(-ENOMEM);
 	}
 
 	switch (w->id) {
@@ -3768,12 +3764,13 @@ snd_soc_dapm_new_control_unlocked(struct snd_soc_dapm_context *dapm,
 	return w;
 
 request_failed:
-	if (ret != -EPROBE_DEFER)
-		dev_err(dapm->dev, "ASoC: Failed to request %s: %d\n",
-			w->name, ret);
-
+	dev_err_probe(dapm->dev, ret, "ASoC: Failed to request %s\n",
+		      w->name);
+	kfree_const(w->name);
+name_failed:
 	kfree_const(w->sname);
 	kfree(w);
+cnew_failed:
 	return ERR_PTR(ret);
 }
 
@@ -3844,6 +3841,15 @@ snd_soc_dai_link_event_pre_pmu(struct snd_soc_dapm_widget *w,
 	unsigned int fmt;
 	int ret = 0;
 
+	/*
+	 * NOTE
+	 *
+	 * snd_pcm_hw_params is quite large (608 bytes on arm64) and is
+	 * starting to get a bit excessive for allocation on the stack,
+	 * especially when you're building with some of the KASAN type
+	 * stuff that increases stack usage.
+	 * So, we use kzalloc()/kfree() for params in this function.
+	 */
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (!params)
 		return -ENOMEM;
@@ -3886,22 +3892,21 @@ snd_soc_dai_link_event_pre_pmu(struct snd_soc_dapm_widget *w,
 	 * necessary
 	 */
 	config = rtd->dai_link->params + rtd->params_select;
-	if (WARN_ON(!config)) {
+	if (!config) {
 		dev_err(w->dapm->dev, "ASoC: link config missing\n");
 		ret = -EINVAL;
 		goto out;
 	}
 
 	/* Be a little careful as we don't want to overflow the mask array */
-	if (config->formats) {
-		fmt = ffs(config->formats) - 1;
-	} else {
-		dev_warn(w->dapm->dev, "ASoC: Invalid format %llx specified\n",
-			 config->formats);
+	if (!config->formats) {
+		dev_warn(w->dapm->dev, "ASoC: Invalid format was specified\n");
 
 		ret = -EINVAL;
 		goto out;
 	}
+
+	fmt = ffs(config->formats) - 1;
 
 	snd_mask_set(hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT), fmt);
 	hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE)->min =
@@ -3941,7 +3946,9 @@ snd_soc_dai_link_event_pre_pmu(struct snd_soc_dapm_widget *w,
 	runtime->rate = params_rate(params);
 
 out:
+	/* see above NOTE */
 	kfree(params);
+
 	return ret;
 }
 
@@ -4354,6 +4361,7 @@ static void dapm_connect_dai_pair(struct snd_soc_card *card,
 	struct snd_soc_dapm_widget *dai, *codec, *playback_cpu, *capture_cpu;
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_str *streams = rtd->pcm->streams;
+	int stream;
 
 	if (dai_link->params) {
 		playback_cpu = cpu_dai->capture_widget;
@@ -4364,37 +4372,39 @@ static void dapm_connect_dai_pair(struct snd_soc_card *card,
 	}
 
 	/* connect BE DAI playback if widgets are valid */
+	stream = SNDRV_PCM_STREAM_PLAYBACK;
 	codec = codec_dai->playback_widget;
 
 	if (playback_cpu && codec) {
-		if (dai_link->params && !rtd->playback_widget) {
-			substream = streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
+		if (dai_link->params && !rtd->c2c_widget[stream]) {
+			substream = streams[stream].substream;
 			dai = snd_soc_dapm_new_dai(card, substream, "playback");
 			if (IS_ERR(dai))
 				goto capture;
-			rtd->playback_widget = dai;
+			rtd->c2c_widget[stream] = dai;
 		}
 
 		dapm_connect_dai_routes(&card->dapm, cpu_dai, playback_cpu,
-					rtd->playback_widget,
+					rtd->c2c_widget[stream],
 					codec_dai, codec);
 	}
 
 capture:
 	/* connect BE DAI capture if widgets are valid */
+	stream = SNDRV_PCM_STREAM_CAPTURE;
 	codec = codec_dai->capture_widget;
 
 	if (codec && capture_cpu) {
-		if (dai_link->params && !rtd->capture_widget) {
-			substream = streams[SNDRV_PCM_STREAM_CAPTURE].substream;
+		if (dai_link->params && !rtd->c2c_widget[stream]) {
+			substream = streams[stream].substream;
 			dai = snd_soc_dapm_new_dai(card, substream, "capture");
 			if (IS_ERR(dai))
 				return;
-			rtd->capture_widget = dai;
+			rtd->c2c_widget[stream] = dai;
 		}
 
 		dapm_connect_dai_routes(&card->dapm, codec_dai, codec,
-					rtd->capture_widget,
+					rtd->c2c_widget[stream],
 					cpu_dai, capture_cpu);
 	}
 }
@@ -4452,11 +4462,11 @@ void snd_soc_dapm_connect_dai_link_widgets(struct snd_soc_card *card)
 		if (rtd->dai_link->dynamic)
 			continue;
 
-		if (rtd->num_cpus == 1) {
+		if (rtd->dai_link->num_cpus == 1) {
 			for_each_rtd_codec_dais(rtd, i, codec_dai)
 				dapm_connect_dai_pair(card, rtd, codec_dai,
 						      asoc_rtd_to_cpu(rtd, 0));
-		} else if (rtd->num_codecs == rtd->num_cpus) {
+		} else if (rtd->dai_link->num_codecs == rtd->dai_link->num_cpus) {
 			for_each_rtd_codec_dais(rtd, i, codec_dai)
 				dapm_connect_dai_pair(card, rtd, codec_dai,
 						      asoc_rtd_to_cpu(rtd, i));

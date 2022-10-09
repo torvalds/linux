@@ -168,7 +168,7 @@ static enum mitigation_state spectre_v2_get_cpu_hw_mitigation_state(void)
 
 	/* If the CPU has CSV2 set, we're safe */
 	pfr0 = read_cpuid(ID_AA64PFR0_EL1);
-	if (cpuid_feature_extract_unsigned_field(pfr0, ID_AA64PFR0_CSV2_SHIFT))
+	if (cpuid_feature_extract_unsigned_field(pfr0, ID_AA64PFR0_EL1_CSV2_SHIFT))
 		return SPECTRE_UNAFFECTED;
 
 	/* Alternatively, we have a list of unaffected CPUs */
@@ -586,7 +586,7 @@ void __init spectre_v4_patch_fw_mitigation_enable(struct alt_instr *alt,
 	if (spectre_v4_mitigations_off())
 		return;
 
-	if (cpus_have_final_cap(ARM64_SSBS))
+	if (cpus_have_cap(ARM64_SSBS))
 		return;
 
 	if (spectre_v4_mitigations_dynamic())
@@ -945,7 +945,7 @@ static bool supports_ecbhb(int scope)
 		mmfr1 = read_sanitised_ftr_reg(SYS_ID_AA64MMFR1_EL1);
 
 	return cpuid_feature_extract_unsigned_field(mmfr1,
-						    ID_AA64MMFR1_ECBHB_SHIFT);
+						    ID_AA64MMFR1_EL1_ECBHB_SHIFT);
 }
 
 bool is_spectre_bhb_affected(const struct arm64_cpu_capabilities *entry,
@@ -988,6 +988,14 @@ static void this_cpu_set_vectors(enum arm64_bp_harden_el1_vectors slot)
 	isb();
 }
 
+static bool __read_mostly __nospectre_bhb;
+static int __init parse_spectre_bhb_param(char *str)
+{
+	__nospectre_bhb = true;
+	return 0;
+}
+early_param("nospectre_bhb", parse_spectre_bhb_param);
+
 void spectre_bhb_enable_mitigation(const struct arm64_cpu_capabilities *entry)
 {
 	bp_hardening_cb_t cpu_cb;
@@ -1001,7 +1009,7 @@ void spectre_bhb_enable_mitigation(const struct arm64_cpu_capabilities *entry)
 		/* No point mitigating Spectre-BHB alone. */
 	} else if (!IS_ENABLED(CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY)) {
 		pr_info_once("spectre-bhb mitigation disabled by compile time option\n");
-	} else if (cpu_mitigations_off()) {
+	} else if (cpu_mitigations_off() || __nospectre_bhb) {
 		pr_info_once("spectre-bhb mitigation disabled by command line option\n");
 	} else if (supports_ecbhb(SCOPE_LOCAL_CPU)) {
 		state = SPECTRE_MITIGATED;

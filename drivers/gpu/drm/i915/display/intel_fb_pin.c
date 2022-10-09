@@ -18,7 +18,7 @@
 
 static struct i915_vma *
 intel_pin_fb_obj_dpt(struct drm_framebuffer *fb,
-		     const struct i915_ggtt_view *view,
+		     const struct i915_gtt_view *view,
 		     bool uses_fence,
 		     unsigned long *out_flags,
 		     struct i915_address_space *vm)
@@ -79,7 +79,7 @@ err:
 struct i915_vma *
 intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 			   bool phys_cursor,
-			   const struct i915_ggtt_view *view,
+			   const struct i915_gtt_view *view,
 			   bool uses_fence,
 			   unsigned long *out_flags)
 {

@@ -118,7 +118,7 @@ void dcn32_link_encoder_enable_dp_output(
 	}
 }
 
-bool dcn32_link_encoder_is_in_alt_mode(struct link_encoder *enc)
+static bool dcn32_link_encoder_is_in_alt_mode(struct link_encoder *enc)
 {
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
 	uint32_t dp_alt_mode_disable = 0;
@@ -133,7 +133,7 @@ bool dcn32_link_encoder_is_in_alt_mode(struct link_encoder *enc)
 	return is_usb_c_alt_mode;
 }
 
-void dcn32_link_encoder_get_max_link_cap(struct link_encoder *enc,
+static void dcn32_link_encoder_get_max_link_cap(struct link_encoder *enc,
 	struct dc_link_settings *link_settings)
 {
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);

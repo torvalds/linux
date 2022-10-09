@@ -6330,7 +6330,7 @@ static void selinux_d_instantiate(struct dentry *dentry, struct inode *inode)
 }
 
 static int selinux_getprocattr(struct task_struct *p,
-			       char *name, char **value)
+			       const char *name, char **value)
 {
 	const struct task_security_struct *__tsec;
 	u32 sid;

@@ -312,6 +312,20 @@ void optc1_program_timing(
 	}
 }
 
+/**
+ * optc1_set_vtg_params - Set Vertical Timing Generator (VTG) parameters
+ *
+ * @optc: timing_generator struct used to extract the optc parameters
+ * @dc_crtc_timing: Timing parameters configured
+ * @program_fp2: Boolean value indicating if FP2 will be programmed or not
+ *
+ * OTG is responsible for generating the global sync signals, including
+ * vertical timing information for each HUBP in the dcfclk domain. Each VTG is
+ * associated with one OTG that provides HUBP with vertical timing information
+ * (i.e., there is 1:1 correspondence between OTG and VTG). This function is
+ * responsible for setting the OTG parameters to the VTG during the pipe
+ * programming.
+ */
 void optc1_set_vtg_params(struct timing_generator *optc,
 		const struct dc_crtc_timing *dc_crtc_timing, bool program_fp2)
 {
@@ -1072,7 +1086,7 @@ static void optc1_set_test_pattern(
 				src_color[index] >> (src_bpc - dst_bpc);
 		/* CRTC_TEST_PATTERN_DATA has 16 bits,
 		 * lowest 6 are hardwired to ZERO
-		 * color bits should be left aligned aligned to MSB
+		 * color bits should be left aligned to MSB
 		 * XXXXXXXXXX000000 for 10 bit,
 		 * XXXXXXXX00000000 for 8 bit and XXXXXX0000000000 for 6
 		 */
@@ -1379,6 +1393,12 @@ void optc1_read_otg_state(struct optc *optc1,
 	REG_GET(OPTC_INPUT_GLOBAL_CONTROL,
 			OPTC_UNDERFLOW_OCCURRED_STATUS, &s->underflow_occurred_status);
 
+	REG_GET(OTG_VERTICAL_INTERRUPT1_CONTROL,
+			OTG_VERTICAL_INTERRUPT1_INT_ENABLE, &s->vertical_interrupt1_en);
+
+	REG_GET(OTG_VERTICAL_INTERRUPT1_POSITION,
+				OTG_VERTICAL_INTERRUPT1_LINE_START, &s->vertical_interrupt1_line);
+
 	REG_GET(OTG_VERTICAL_INTERRUPT2_CONTROL,
 			OTG_VERTICAL_INTERRUPT2_INT_ENABLE, &s->vertical_interrupt2_en);
 
@@ -1498,8 +1518,23 @@ bool optc1_configure_crc(struct timing_generator *optc,
 	return true;
 }
 
+/**
+ * optc1_get_crc - Capture CRC result per component
+ *
+ * @optc: timing_generator instance.
+ * @r_cr: 16-bit primary CRC signature for red data.
+ * @g_y: 16-bit primary CRC signature for green data.
+ * @b_cb: 16-bit primary CRC signature for blue data.
+ *
+ * This function reads the CRC signature from the OPTC registers. Notice that
+ * we have three registers to keep the CRC result per color component (RGB).
+ *
+ * Returns:
+ * If CRC is disabled, return false; otherwise, return true, and the CRC
+ * results in the parameters.
+ */
 bool optc1_get_crc(struct timing_generator *optc,
-		    uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb)
+		   uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb)
 {
 	uint32_t field = 0;
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
@@ -1510,12 +1545,14 @@ bool optc1_get_crc(struct timing_generator *optc,
 	if (!field)
 		return false;
 
+	/* OTG_CRC0_DATA_RG has the CRC16 results for the red and green component */
 	REG_GET_2(OTG_CRC0_DATA_RG,
-			CRC0_R_CR, r_cr,
-			CRC0_G_Y, g_y);
+		  CRC0_R_CR, r_cr,
+		  CRC0_G_Y, g_y);
 
+	/* OTG_CRC0_DATA_B has the CRC16 results for the blue component */
 	REG_GET(OTG_CRC0_DATA_B,
-			CRC0_B_CB, b_cb);
+		CRC0_B_CB, b_cb);
 
 	return true;
 }

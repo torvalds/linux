@@ -38,7 +38,7 @@ struct xchk_parent_ctx {
 };
 
 /* Look for a single entry in a directory pointing to an inode. */
-STATIC int
+STATIC bool
 xchk_parent_actor(
 	struct dir_context	*dc,
 	const char		*name,
@@ -62,7 +62,7 @@ xchk_parent_actor(
 	if (xchk_should_terminate(spc->sc, &error))
 		spc->cancelled = true;
 
-	return error;
+	return !error;
 }
 
 /* Count the number of dentries in the parent dir that point to this inode. */

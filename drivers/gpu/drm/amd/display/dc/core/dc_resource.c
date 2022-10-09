@@ -1904,9 +1904,6 @@ bool dc_is_stream_unchanged(
 	if (memcmp(&old_stream->audio_info, &stream->audio_info, sizeof(stream->audio_info)) != 0)
 		return false;
 
-	if (old_stream->odm_2to1_policy_applied != stream->odm_2to1_policy_applied)
-		return false;
-
 	return true;
 }
 
@@ -3664,4 +3661,26 @@ const struct link_hwss *get_link_hwss(const struct dc_link *link,
 		return get_dio_link_hwss();
 	else
 		return get_virtual_link_hwss();
+}
+
+bool is_h_timing_divisible_by_2(struct dc_stream_state *stream)
+{
+	bool divisible = false;
+	uint16_t h_blank_start = 0;
+	uint16_t h_blank_end = 0;
+
+	if (stream) {
+		h_blank_start = stream->timing.h_total - stream->timing.h_front_porch;
+		h_blank_end = h_blank_start - stream->timing.h_addressable;
+
+		/* HTOTAL, Hblank start/end, and Hsync start/end all must be
+		 * divisible by 2 in order for the horizontal timing params
+		 * to be considered divisible by 2. Hsync start is always 0.
+		 */
+		divisible = (stream->timing.h_total % 2 == 0) &&
+				(h_blank_start % 2 == 0) &&
+				(h_blank_end % 2 == 0) &&
+				(stream->timing.h_sync_width % 2 == 0);
+	}
+	return divisible;
 }

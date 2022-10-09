@@ -6,7 +6,19 @@
  */
 
 /dts-v1/;
+
+/*
+ * DIP-Switch SW1 setting
+ * 1 : High; 0: Low
+ * SW1-2 : SW_SD0_DEV_SEL	(0: uSD; 1: eMMC)
+ * SW1-3 : SW_ET0_EN_N		(0: ETHER0; 1: CAN0, CAN1, SSI1, RSPI1)
+ * Please change below macros according to SW1 setting on the SoM
+ */
+#define SW_SW0_DEV_SEL	1
+#define SW_ET0_EN_N	1
+
 #include "r9a07g043.dtsi"
+#include "rzg2ul-smarc-som.dtsi"
 #include "rzg2ul-smarc.dtsi"
 
 / {

@@ -912,8 +912,7 @@ const cpumask_t *sgx_encl_cpumask(struct sgx_encl *encl)
 static struct page *sgx_encl_get_backing_page(struct sgx_encl *encl,
 					      pgoff_t index)
 {
-	struct inode *inode = encl->backing->f_path.dentry->d_inode;
-	struct address_space *mapping = inode->i_mapping;
+	struct address_space *mapping = encl->backing->f_mapping;
 	gfp_t gfpmask = mapping_gfp_mask(mapping);
 
 	return shmem_read_mapping_page_gfp(mapping, index, gfpmask);

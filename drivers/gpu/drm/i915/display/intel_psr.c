@@ -706,7 +706,7 @@ tgl_dc3co_exitline_compute_config(struct intel_dp *intel_dp,
 	if (crtc_state->enable_psr2_sel_fetch)
 		return;
 
-	if (!(dev_priv->dmc.allowed_dc_mask & DC_STATE_EN_DC3CO))
+	if (!(dev_priv->display.dmc.allowed_dc_mask & DC_STATE_EN_DC3CO))
 		return;
 
 	if (!dc3co_is_pipe_port_compatible(intel_dp, crtc_state))
@@ -805,13 +805,14 @@ static bool _compute_psr2_sdp_prior_scanline_indication(struct intel_dp *intel_d
 	hblank_total = adjusted_mode->crtc_hblank_end - adjusted_mode->crtc_hblank_start;
 	hblank_ns = div_u64(1000000ULL * hblank_total, adjusted_mode->crtc_clock);
 
-	/* From spec: (72 / number of lanes) * 1000 / symbol clock frequency MHz */
-	req_ns = (72 / crtc_state->lane_count) * 1000 / (crtc_state->port_clock / 1000);
+	/* From spec: ((60 / number of lanes) + 11) * 1000 / symbol clock frequency MHz */
+	req_ns = ((60 / crtc_state->lane_count) + 11) * 1000 / (crtc_state->port_clock / 1000);
 
 	if ((hblank_ns - req_ns) > 100)
 		return true;
 
-	if (DISPLAY_VER(dev_priv) < 13 || intel_dp->edp_dpcd[0] < DP_EDP_14b)
+	/* Not supported <13 / Wa_22012279113:adl-p */
+	if (DISPLAY_VER(dev_priv) <= 13 || intel_dp->edp_dpcd[0] < DP_EDP_14b)
 		return false;
 
 	crtc_state->req_psr2_sdp_prior_scanline = true;
@@ -1721,8 +1722,6 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 					     new_plane_state, i) {
 		struct drm_rect src, damaged_area = { .x1 = 0, .y1 = -1,
 						      .x2 = INT_MAX };
-		struct drm_atomic_helper_damage_iter iter;
-		struct drm_rect clip;
 
 		if (new_plane_state->uapi.crtc != crtc_state->uapi.crtc)
 			continue;
@@ -1767,22 +1766,18 @@ int intel_psr2_sel_fetch_update(struct intel_atomic_state *state,
 			continue;
 		}
 
-		drm_rect_fp_to_int(&src, &new_plane_state->uapi.src);
+		src = drm_plane_state_src(&new_plane_state->uapi);
+		drm_rect_fp_to_int(&src, &src);
 
-		drm_atomic_helper_damage_iter_init(&iter,
-						   &old_plane_state->uapi,
-						   &new_plane_state->uapi);
-		drm_atomic_for_each_plane_damage(&iter, &clip) {
-			if (drm_rect_intersect(&clip, &src))
-				clip_area_update(&damaged_area, &clip,
-						 &crtc_state->pipe_src);
-		}
-
-		if (damaged_area.y1 == -1)
+		if (!drm_atomic_helper_damage_merged(&old_plane_state->uapi,
+						     &new_plane_state->uapi, &damaged_area))
 			continue;
 
 		damaged_area.y1 += new_plane_state->uapi.dst.y1 - src.y1;
 		damaged_area.y2 += new_plane_state->uapi.dst.y1 - src.y1;
+		damaged_area.x1 += new_plane_state->uapi.dst.x1 - src.x1;
+		damaged_area.x2 += new_plane_state->uapi.dst.x1 - src.x1;
+
 		clip_area_update(&pipe_clip, &damaged_area, &crtc_state->pipe_src);
 	}
 
@@ -1863,7 +1858,9 @@ void intel_psr_pre_plane_update(struct intel_atomic_state *state,
 				struct intel_crtc *crtc)
 {
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
-	const struct intel_crtc_state *crtc_state =
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 	struct intel_encoder *encoder;
 
@@ -1871,7 +1868,7 @@ void intel_psr_pre_plane_update(struct intel_atomic_state *state,
 		return;
 
 	for_each_intel_encoder_mask_with_psr(state->base.dev, encoder,
-					     crtc_state->uapi.encoder_mask) {
+					     old_crtc_state->uapi.encoder_mask) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 		struct intel_psr *psr = &intel_dp->psr;
 		bool needs_to_disable = false;
@@ -1884,10 +1881,10 @@ void intel_psr_pre_plane_update(struct intel_atomic_state *state,
 		 * - All planes will go inactive
 		 * - Changing between PSR versions
 		 */
-		needs_to_disable |= intel_crtc_needs_modeset(crtc_state);
-		needs_to_disable |= !crtc_state->has_psr;
-		needs_to_disable |= !crtc_state->active_planes;
-		needs_to_disable |= crtc_state->has_psr2 != psr->psr2_enabled;
+		needs_to_disable |= intel_crtc_needs_modeset(new_crtc_state);
+		needs_to_disable |= !new_crtc_state->has_psr;
+		needs_to_disable |= !new_crtc_state->active_planes;
+		needs_to_disable |= new_crtc_state->has_psr2 != psr->psr2_enabled;
 
 		if (psr->enabled && needs_to_disable)
 			intel_psr_disable_locked(intel_dp);

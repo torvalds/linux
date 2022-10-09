@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-// ff-protocol-latter - a part of driver for RME Fireface series
+// ff-protocol-latter.c - a part of driver for RME Fireface series
 //
 // Copyright (c) 2019 Takashi Sakamoto
-//
-// Licensed under the terms of the GNU General Public License, version 2.
 
 #include <linux/delay.h>
 
