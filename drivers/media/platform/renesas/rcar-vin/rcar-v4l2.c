@@ -477,6 +477,9 @@ static int rvin_g_selection(struct file *file, void *fh,
 	struct rvin_dev *vin = video_drvdata(file);
 	int ret;
 
+	if (!vin->scaler)
+		return -ENOIOCTLCMD;
+
 	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
@@ -519,6 +522,9 @@ static int rvin_s_selection(struct file *file, void *fh,
 		.height = 2,
 	};
 	int ret;
+
+	if (!vin->scaler)
+		return -ENOIOCTLCMD;
 
 	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;

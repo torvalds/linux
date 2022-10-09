@@ -160,8 +160,16 @@ static u32 rvin_read(struct rvin_dev *vin, u32 offset)
 }
 
 /* -----------------------------------------------------------------------------
- * Crop and Scaling Gen2
+ * Crop and Scaling
  */
+
+static bool rvin_scaler_needed(const struct rvin_dev *vin)
+{
+	return !(vin->crop.width == vin->format.width &&
+		 vin->compose.width == vin->format.width &&
+		 vin->crop.height == vin->format.height &&
+		 vin->compose.height == vin->format.height);
+}
 
 struct vin_coeff {
 	unsigned short xs_value;
@@ -535,7 +543,7 @@ static void rvin_set_coeff(struct rvin_dev *vin, unsigned short xs)
 	rvin_write(vin, p_set->coeff_set[23], VNC8C_REG);
 }
 
-static void rvin_crop_scale_comp_gen2(struct rvin_dev *vin)
+void rvin_scaler_gen2(struct rvin_dev *vin)
 {
 	unsigned int crop_height;
 	u32 xs, ys;
@@ -594,9 +602,8 @@ void rvin_crop_scale_comp(struct rvin_dev *vin)
 	rvin_write(vin, vin->crop.top, VNSLPRC_REG);
 	rvin_write(vin, vin->crop.top + vin->crop.height - 1, VNELPRC_REG);
 
-	/* TODO: Add support for the UDS scaler. */
-	if (vin->info->model != RCAR_GEN3)
-		rvin_crop_scale_comp_gen2(vin);
+	if (vin->scaler)
+		vin->scaler(vin);
 
 	fmt = rvin_format_from_pixel(vin, vin->format.pixelformat);
 	stride = vin->format.bytesperline / fmt->bpp;
@@ -984,11 +991,11 @@ static int rvin_capture_start(struct rvin_dev *vin)
 	for (slot = 0; slot < HW_BUFFER_NUM; slot++)
 		rvin_fill_hw_slot(vin, slot);
 
-	rvin_crop_scale_comp(vin);
-
 	ret = rvin_setup(vin);
 	if (ret)
 		return ret;
+
+	rvin_crop_scale_comp(vin);
 
 	vin_dbg(vin, "Starting to capture\n");
 
@@ -1234,9 +1241,16 @@ static int rvin_mc_validate_format(struct rvin_dev *vin, struct v4l2_subdev *sd,
 		return -EPIPE;
 	}
 
-	if (fmt.format.width != vin->format.width ||
-	    fmt.format.height != vin->format.height ||
-	    fmt.format.code != vin->mbus_code)
+	if (rvin_scaler_needed(vin)) {
+		if (!vin->scaler)
+			return -EPIPE;
+	} else {
+		if (fmt.format.width != vin->format.width ||
+		    fmt.format.height != vin->format.height)
+			return -EPIPE;
+	}
+
+	if (fmt.format.code != vin->mbus_code)
 		return -EPIPE;
 
 	return 0;
