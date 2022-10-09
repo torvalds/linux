@@ -298,7 +298,7 @@ static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c
 	bch2_trans_init(&trans, c, 0, 0);
 
 	for (id = 0; id < BTREE_ID_NR; id++) {
-		if (!((1U << id) & BTREE_ID_HAS_PTRS))
+		if (!btree_type_has_ptrs(id))
 			continue;
 
 		for_each_btree_key(&trans, iter, id, POS_MIN,

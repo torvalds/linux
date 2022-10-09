@@ -1963,7 +1963,7 @@ int bch2_gc_gens(struct bch_fs *c)
 	}
 
 	for (i = 0; i < BTREE_ID_NR; i++)
-		if ((1 << i) & BTREE_ID_HAS_PTRS) {
+		if (btree_type_has_ptrs(i)) {
 			struct btree_iter iter;
 			struct bkey_s_c k;
 
