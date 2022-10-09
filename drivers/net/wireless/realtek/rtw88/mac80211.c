@@ -896,6 +896,7 @@ static void rtw_ops_sta_rc_update(struct ieee80211_hw *hw,
 
 const struct ieee80211_ops rtw_ops = {
 	.tx			= rtw_ops_tx,
+	.wake_tx_queue		= ieee80211_handle_wake_tx_queue,
 	.wake_tx_queue		= rtw_ops_wake_tx_queue,
 	.start			= rtw_ops_start,
 	.stop			= rtw_ops_stop,
