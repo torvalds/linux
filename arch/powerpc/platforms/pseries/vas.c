@@ -200,14 +200,39 @@ static irqreturn_t pseries_vas_fault_thread_fn(int irq, void *data)
 	struct vas_user_win_ref *tsk_ref;
 	int rc;
 
-	rc = h_get_nx_fault(txwin->vas_win.winid, (u64)virt_to_phys(&crb));
-	if (!rc) {
-		tsk_ref = &txwin->vas_win.task_ref;
-		vas_dump_crb(&crb);
-		vas_update_csb(&crb, tsk_ref);
+	while (atomic_read(&txwin->pending_faults)) {
+		rc = h_get_nx_fault(txwin->vas_win.winid, (u64)virt_to_phys(&crb));
+		if (!rc) {
+			tsk_ref = &txwin->vas_win.task_ref;
+			vas_dump_crb(&crb);
+			vas_update_csb(&crb, tsk_ref);
+		}
+		atomic_dec(&txwin->pending_faults);
 	}
 
 	return IRQ_HANDLED;
+}
+
+/*
+ * irq_default_primary_handler() can be used only with IRQF_ONESHOT
+ * which disables IRQ before executing the thread handler and enables
+ * it after. But this disabling interrupt sets the VAS IRQ OFF
+ * state in the hypervisor. If the NX generates fault interrupt
+ * during this window, the hypervisor will not deliver this
+ * interrupt to the LPAR. So use VAS specific IRQ handler instead
+ * of calling the default primary handler.
+ */
+static irqreturn_t pseries_vas_irq_handler(int irq, void *data)
+{
+	struct pseries_vas_window *txwin = data;
+
+	/*
+	 * The thread hanlder will process this interrupt if it is
+	 * already running.
+	 */
+	atomic_inc(&txwin->pending_faults);
+
+	return IRQ_WAKE_THREAD;
 }
 
 /*
@@ -240,8 +265,9 @@ static int allocate_setup_window(struct pseries_vas_window *txwin,
 		goto out_irq;
 	}
 
-	rc = request_threaded_irq(txwin->fault_virq, NULL,
-				  pseries_vas_fault_thread_fn, IRQF_ONESHOT,
+	rc = request_threaded_irq(txwin->fault_virq,
+				  pseries_vas_irq_handler,
+				  pseries_vas_fault_thread_fn, 0,
 				  txwin->name, txwin);
 	if (rc) {
 		pr_err("VAS-Window[%d]: Request IRQ(%u) failed with %d\n",
