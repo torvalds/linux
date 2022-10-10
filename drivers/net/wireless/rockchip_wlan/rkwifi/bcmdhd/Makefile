@@ -31,6 +31,7 @@ CONFIG_MACH_PLATFORM := y
 
 DHDCFLAGS = -Wall -Wstrict-prototypes -Wno-date-time                      \
 	-Wno-implicit-fallthrough -Wno-declaration-after-statement            \
+	-Wno-vla -Wno-vla-extension                                           \
 	-Dlinux -DLINUX -DBCMDRIVER                                           \
 	-DBCMDONGLEHOST -DBCMDMA32 -DBCMFILEIMAGE                             \
 	-DDHDTHREAD -DDHD_DEBUG -DSHOW_EVENTS -DGET_OTP_MAC_ENABLE            \
@@ -41,7 +42,7 @@ DHDCFLAGS = -Wall -Wstrict-prototypes -Wno-date-time                      \
 	-DPOWERUP_MAX_RETRY=0 -DIFACE_HANG_FORCE_DEV_CLOSE -DWAIT_DEQUEUE     \
 	-DUSE_NEW_RSPEC_DEFS -DBCM_USE_PLATFORM_STRLCPY                       \
 	-DWL_EXT_IAPSTA -DWL_ESCAN -DCCODE_LIST -DSUSPEND_EVENT               \
-	-DEAPOL_RESEND -DEAPOL_DYNAMATIC_RESEND                               \
+	-DEAPOL_RESEND -DEAPOL_DYNAMATIC_RESEND -DWL_SCHED_SCAN               \
 	-DENABLE_INSMOD_NO_FW_LOAD -Wframe-larger-than=2048
 
 DHDOFILES = aiutils.o siutils.o sbutils.o bcmutils.o bcmwifi_channels.o   \
