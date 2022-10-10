@@ -6195,6 +6195,9 @@ int msm_pcie_deenumerate(u32 rc_idx)
 	pci_stop_root_bus(bridge->bus);
 	pci_remove_root_bus(bridge->bus);
 
+	/* Mask all the interrupts */
+	msm_pcie_write_reg(dev->parf, PCIE20_PARF_INT_ALL_MASK, 0);
+
 	msm_pcie_disable(dev);
 
 	dev->enumerated = false;
