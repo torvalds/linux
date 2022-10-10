@@ -73,7 +73,7 @@ static int st_ism330dlc_spi_write(struct ism330dlc_data *cdata,
 		.len = len + 1,
 	};
 
-	if (len >= ST_ISM330DLC_RX_MAX_LENGTH)
+	if (len >= ST_ISM330DLC_TX_MAX_LENGTH)
 		return -ENOMEM;
 
 	if (b_lock)
