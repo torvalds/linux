@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/net/allwinner,sun4i-a10-emac.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A10 EMAC Ethernet Controller Device Tree Bindings
+title: Allwinner A10 EMAC Ethernet Controller
 
 allOf:
   - $ref: "ethernet-controller.yaml#"

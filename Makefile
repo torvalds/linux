@@ -1490,6 +1490,10 @@ PHONY += dt_binding_check
 dt_binding_check: scripts_dtc
 	$(Q)$(MAKE) $(build)=Documentation/devicetree/bindings
 
+PHONY += dt_compatible_check
+dt_compatible_check: dt_binding_check
+	$(Q)$(MAKE) $(build)=Documentation/devicetree/bindings $@
+
 # ---------------------------------------------------------------------------
 # Modules
 

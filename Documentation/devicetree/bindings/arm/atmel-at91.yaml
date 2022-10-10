@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/atmel-at91.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Atmel AT91 device tree bindings.
+title: Atmel AT91.
 
 maintainers:
   - Alexandre Belloni <alexandre.belloni@bootlin.com>

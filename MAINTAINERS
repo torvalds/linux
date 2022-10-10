@@ -12949,7 +12949,7 @@ MEDIATEK MT7621/28/88 I2C DRIVER
 M:	Stefan Roese <sr@denx.de>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/i2c/i2c-mt7621.txt
+F:	Documentation/devicetree/bindings/i2c/mediatek,mt7621-i2c.yaml
 F:	drivers/i2c/busses/i2c-mt7621.c
 
 MEDIATEK MT7621 PCIE CONTROLLER DRIVER
@@ -16994,7 +16994,7 @@ M:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 M:	Amol Maheshwari <amahesh@qti.qualcomm.com>
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/misc/qcom,fastrpc.txt
+F:	Documentation/devicetree/bindings/misc/qcom,fastrpc.yaml
 F:	drivers/misc/fastrpc.c
 F:	include/uapi/misc/fastrpc.h
 

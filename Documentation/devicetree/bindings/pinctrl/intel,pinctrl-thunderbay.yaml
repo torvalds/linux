@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/pinctrl/intel,pinctrl-thunderbay.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Intel Thunder Bay pin controller Device Tree Bindings
+title: Intel Thunder Bay pin controller
 
 maintainers:
   - Lakshmi Sowjanya D <lakshmi.sowjanya.d@intel.com>

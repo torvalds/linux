@@ -25,7 +25,6 @@ properties:
     const: ldb
 
   reg:
-    minItems: 2
     maxItems: 2
 
   reg-names:

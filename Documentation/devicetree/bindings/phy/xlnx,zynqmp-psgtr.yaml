@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/phy/xlnx,zynqmp-psgtr.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Xilinx ZynqMP Gigabit Transceiver PHY Device Tree Bindings
+title: Xilinx ZynqMP Gigabit Transceiver PHY
 
 maintainers:
   - Laurent Pinchart <laurent.pinchart@ideasonboard.com>

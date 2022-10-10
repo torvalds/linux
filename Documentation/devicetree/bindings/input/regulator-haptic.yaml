@@ -4,7 +4,7 @@
 $id: "http://devicetree.org/schemas/input/regulator-haptic.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
-title: Regulator Haptic Device Tree Bindings
+title: Regulator Haptic
 
 maintainers:
   - Jaewon Kim <jaewon02.kim@samsung.com>
