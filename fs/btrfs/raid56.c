@@ -176,8 +176,16 @@ static void cache_rbio_pages(struct btrfs_raid_bio *rbio)
 
 	for (i = 0; i < rbio->nr_sectors; i++) {
 		/* Some range not covered by bio (partial write), skip it */
-		if (!rbio->bio_sectors[i].page)
+		if (!rbio->bio_sectors[i].page) {
+			/*
+			 * Even if the sector is not covered by bio, if it is
+			 * a data sector it should still be uptodate as it is
+			 * read from disk.
+			 */
+			if (i < rbio->nr_data * rbio->stripe_nsectors)
+				ASSERT(rbio->stripe_sectors[i].uptodate);
 			continue;
+		}
 
 		ASSERT(rbio->stripe_sectors[i].page);
 		memcpy_page(rbio->stripe_sectors[i].page,
@@ -264,6 +272,21 @@ static void steal_rbio_page(struct btrfs_raid_bio *src,
 		dest->stripe_sectors[i].uptodate = true;
 }
 
+static bool is_data_stripe_page(struct btrfs_raid_bio *rbio, int page_nr)
+{
+	const int sector_nr = (page_nr << PAGE_SHIFT) >>
+			      rbio->bioc->fs_info->sectorsize_bits;
+
+	/*
+	 * We have ensured PAGE_SIZE is aligned with sectorsize, thus
+	 * we won't have a page which is half data half parity.
+	 *
+	 * Thus if the first sector of the page belongs to data stripes, then
+	 * the full page belongs to data stripes.
+	 */
+	return (sector_nr < rbio->nr_data * rbio->stripe_nsectors);
+}
+
 /*
  * Stealing an rbio means taking all the uptodate pages from the stripe array
  * in the source rbio and putting them into the destination rbio.
@@ -274,16 +297,26 @@ static void steal_rbio_page(struct btrfs_raid_bio *src,
 static void steal_rbio(struct btrfs_raid_bio *src, struct btrfs_raid_bio *dest)
 {
 	int i;
-	struct page *s;
 
 	if (!test_bit(RBIO_CACHE_READY_BIT, &src->flags))
 		return;
 
 	for (i = 0; i < dest->nr_pages; i++) {
-		s = src->stripe_pages[i];
-		if (!s || !full_page_sectors_uptodate(src, i))
+		struct page *p = src->stripe_pages[i];
+
+		/*
+		 * We don't need to steal P/Q pages as they will always be
+		 * regenerated for RMW or full write anyway.
+		 */
+		if (!is_data_stripe_page(src, i))
 			continue;
 
+		/*
+		 * If @src already has RBIO_CACHE_READY_BIT, it should have
+		 * all data stripe pages present and uptodate.
+		 */
+		ASSERT(p);
+		ASSERT(full_page_sectors_uptodate(src, i));
 		steal_rbio_page(src, dest, i);
 	}
 	index_stripe_sectors(dest);
@@ -2003,22 +2036,21 @@ pstripe:
 			/* xor in the rest */
 			run_xor(pointers, rbio->nr_data - 1, sectorsize);
 		}
-		/* if we're doing this rebuild as part of an rmw, go through
-		 * and set all of our private rbio pages in the
-		 * failed stripes as uptodate.  This way finish_rmw will
-		 * know they can be trusted.  If this was a read reconstruction,
-		 * other endio functions will fiddle the uptodate bits
+
+		/*
+		 * No matter if this is a RMW or recovery, we should have all
+		 * failed sectors repaired, thus they are now uptodate.
+		 * Especially if we determine to cache the rbio, we need to
+		 * have at least all data sectors uptodate.
 		 */
-		if (rbio->operation == BTRFS_RBIO_WRITE) {
-			for (i = 0;  i < rbio->stripe_nsectors; i++) {
-				if (faila != -1) {
-					sector = rbio_stripe_sector(rbio, faila, i);
-					sector->uptodate = 1;
-				}
-				if (failb != -1) {
-					sector = rbio_stripe_sector(rbio, failb, i);
-					sector->uptodate = 1;
-				}
+		for (i = 0;  i < rbio->stripe_nsectors; i++) {
+			if (faila != -1) {
+				sector = rbio_stripe_sector(rbio, faila, i);
+				sector->uptodate = 1;
+			}
+			if (failb != -1) {
+				sector = rbio_stripe_sector(rbio, failb, i);
+				sector->uptodate = 1;
 			}
 		}
 		for (stripe = rbio->real_stripes - 1; stripe >= 0; stripe--)
