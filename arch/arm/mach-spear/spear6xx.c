@@ -12,6 +12,7 @@
 
 #include <linux/amba/pl08x.h>
 #include <linux/clk.h>
+#include <linux/clk/spear.h>
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
