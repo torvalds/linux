@@ -7,7 +7,7 @@
 #include <linux/gfp.h>
 #include <linux/cache.h>
 #include <linux/dma-map-ops.h>
-#include <linux/dma-iommu.h>
+#include <linux/iommu.h>
 #include <xen/xen.h>
 
 #include <asm/cacheflush.h>
