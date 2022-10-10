@@ -133,12 +133,14 @@ static int apl_coredump(struct avs_dev *adev, union avs_notify_msg *msg)
 	buf = apl_log_payload_addr(addr);
 	memcpy_fromio(&layout, addr, sizeof(layout));
 	if (!apl_is_entry_stackdump(buf + layout.read_ptr)) {
+		union avs_notify_msg lbs_msg = AVS_NOTIFICATION(LOG_BUFFER_STATUS);
+
 		/*
 		 * DSP awaits the remaining logs to be
 		 * gathered before dumping stack
 		 */
-		msg->log.core = msg->ext.coredump.core_id;
-		avs_dsp_op(adev, log_buffer_status, msg);
+		lbs_msg.log.core = msg->ext.coredump.core_id;
+		avs_dsp_op(adev, log_buffer_status, &lbs_msg);
 	}
 
 	pos = dump + AVS_FW_REGS_SIZE;
