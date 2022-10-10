@@ -1124,9 +1124,7 @@ static int cy8c95x0_get_function_groups(struct pinctrl_dev *pctldev, unsigned in
 	return 0;
 }
 
-static int cy8c95x0_pinmux_cfg(struct cy8c95x0_pinctrl *chip,
-			       unsigned int val,
-			       unsigned long off)
+static int cy8c95x0_set_mode(struct cy8c95x0_pinctrl *chip, unsigned int off, bool mode)
 {
 	u8 port = cypress_get_port(chip, off);
 	u8 bit = cypress_get_pin_mask(chip, off);
@@ -1137,7 +1135,20 @@ static int cy8c95x0_pinmux_cfg(struct cy8c95x0_pinctrl *chip,
 	if (ret < 0)
 		return ret;
 
-	ret = regmap_write_bits(chip->regmap, CY8C95X0_PWMSEL, bit, val ? bit : 0);
+	return regmap_write_bits(chip->regmap, CY8C95X0_PWMSEL, bit, mode ? bit : 0);
+}
+
+static int cy8c95x0_pinmux_mode(struct cy8c95x0_pinctrl *chip,
+				unsigned int selector, unsigned int group)
+{
+	u8 port = cypress_get_port(chip, group);
+	u8 bit = cypress_get_pin_mask(chip, group);
+	int ret;
+
+	if (selector == 0)
+		return cy8c95x0_set_mode(chip, group, false);
+
+	ret = cy8c95x0_set_mode(chip, group, true);
 	if (ret < 0)
 		return ret;
 
@@ -1156,7 +1167,7 @@ static int cy8c95x0_set_mux(struct pinctrl_dev *pctldev, unsigned int selector,
 	int ret;
 
 	mutex_lock(&chip->i2c_lock);
-	ret = cy8c95x0_pinmux_cfg(chip, selector, group);
+	ret = cy8c95x0_pinmux_mode(chip, selector, group);
 	mutex_unlock(&chip->i2c_lock);
 
 	return ret;
