@@ -75,6 +75,14 @@ this table marked with no it means default is without **no**.
      - Files with the Windows-specific SYSTEM (FILE_ATTRIBUTE_SYSTEM) attribute
        will be marked as system immutable files.
 
+   * - windows_names
+     - Prevents the creation of files and directories with a name not allowed
+       by Windows, either because it contains some not allowed character (which
+       are the characters " * / : < > ? \\ | and those whose code is less than
+       0x20), because the name (with or without extension) is a reserved file
+       name (CON, AUX, NUL, PRN, LPT1-9, COM1-9) or because the last character
+       is a space or a dot. Existing such files can still be read and renamed.
+
    * - discard
      - Enable support of the TRIM command for improved performance on delete
        operations, which is recommended for use with the solid-state drives
