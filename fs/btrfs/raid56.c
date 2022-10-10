@@ -76,6 +76,14 @@ static noinline void finish_parity_scrub(struct btrfs_raid_bio *rbio,
 					 int need_check);
 static void scrub_parity_work(struct work_struct *work);
 
+static void free_raid_bio_pointers(struct btrfs_raid_bio *rbio)
+{
+	kfree(rbio->stripe_pages);
+	kfree(rbio->bio_sectors);
+	kfree(rbio->stripe_sectors);
+	kfree(rbio->finish_pointers);
+}
+
 static void free_raid_bio(struct btrfs_raid_bio *rbio)
 {
 	int i;
@@ -95,6 +103,7 @@ static void free_raid_bio(struct btrfs_raid_bio *rbio)
 	}
 
 	btrfs_put_bioc(rbio->bioc);
+	free_raid_bio_pointers(rbio);
 	kfree(rbio);
 }
 
@@ -918,7 +927,6 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 		BTRFS_STRIPE_LEN >> fs_info->sectorsize_bits;
 	const unsigned int num_sectors = stripe_nsectors * real_stripes;
 	struct btrfs_raid_bio *rbio;
-	void *p;
 
 	/* PAGE_SIZE must also be aligned to sectorsize for subpage support */
 	ASSERT(IS_ALIGNED(PAGE_SIZE, fs_info->sectorsize));
@@ -928,14 +936,23 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 	 */
 	ASSERT(stripe_nsectors <= BITS_PER_LONG);
 
-	rbio = kzalloc(sizeof(*rbio) +
-		       sizeof(*rbio->stripe_pages) * num_pages +
-		       sizeof(*rbio->bio_sectors) * num_sectors +
-		       sizeof(*rbio->stripe_sectors) * num_sectors +
-		       sizeof(*rbio->finish_pointers) * real_stripes,
-		       GFP_NOFS);
+	rbio = kzalloc(sizeof(*rbio), GFP_NOFS);
 	if (!rbio)
 		return ERR_PTR(-ENOMEM);
+	rbio->stripe_pages = kcalloc(num_pages, sizeof(struct page *),
+				     GFP_NOFS);
+	rbio->bio_sectors = kcalloc(num_sectors, sizeof(struct sector_ptr),
+				    GFP_NOFS);
+	rbio->stripe_sectors = kcalloc(num_sectors, sizeof(struct sector_ptr),
+				       GFP_NOFS);
+	rbio->finish_pointers = kcalloc(real_stripes, sizeof(void *), GFP_NOFS);
+
+	if (!rbio->stripe_pages || !rbio->bio_sectors || !rbio->stripe_sectors ||
+	    !rbio->finish_pointers) {
+		free_raid_bio_pointers(rbio);
+		kfree(rbio);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	bio_list_init(&rbio->bio_list);
 	INIT_LIST_HEAD(&rbio->plug_list);
@@ -954,21 +971,6 @@ static struct btrfs_raid_bio *alloc_rbio(struct btrfs_fs_info *fs_info,
 	refcount_set(&rbio->refs, 1);
 	atomic_set(&rbio->error, 0);
 	atomic_set(&rbio->stripes_pending, 0);
-
-	/*
-	 * The stripe_pages, bio_sectors, etc arrays point to the extra memory
-	 * we allocated past the end of the rbio.
-	 */
-	p = rbio + 1;
-#define CONSUME_ALLOC(ptr, count)	do {				\
-		ptr = p;						\
-		p = (unsigned char *)p + sizeof(*(ptr)) * (count);	\
-	} while (0)
-	CONSUME_ALLOC(rbio->stripe_pages, num_pages);
-	CONSUME_ALLOC(rbio->bio_sectors, num_sectors);
-	CONSUME_ALLOC(rbio->stripe_sectors, num_sectors);
-	CONSUME_ALLOC(rbio->finish_pointers, real_stripes);
-#undef  CONSUME_ALLOC
 
 	ASSERT(btrfs_nr_parity_stripes(bioc->map_type));
 	rbio->nr_data = real_stripes - btrfs_nr_parity_stripes(bioc->map_type);
