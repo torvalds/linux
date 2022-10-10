@@ -110,8 +110,6 @@ else
 KBUILD_IMAGE	:= $(boot)/Image.gz
 endif
 
-head-y := arch/riscv/kernel/head.o
-
 libs-y += arch/riscv/lib/
 libs-$(CONFIG_EFI_STUB) += $(objtree)/drivers/firmware/efi/libstub/lib.a
 

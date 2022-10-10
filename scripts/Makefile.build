@@ -5,8 +5,8 @@
 
 src := $(obj)
 
-PHONY := __build
-__build:
+PHONY := $(obj)/
+$(obj)/:
 
 # Init all relevant variables used in kbuild files so
 # 1) they have correct type
@@ -383,7 +383,7 @@ $(obj)/%.o: $(src)/%.S FORCE
 
 targets += $(filter-out $(subdir-builtin), $(real-obj-y))
 targets += $(filter-out $(subdir-modorder), $(real-obj-m))
-targets += $(real-dtb-y) $(lib-y) $(always-y) $(MAKECMDGOALS)
+targets += $(real-dtb-y) $(lib-y) $(always-y)
 
 # Linker scripts preprocessor (.lds.S -> .lds)
 # ---------------------------------------------------------------------------
@@ -434,7 +434,7 @@ $(obj)/built-in.a: $(real-obj-y) FORCE
 
 cmd_modules_order = { $(foreach m, $(real-prereqs), \
 	$(if $(filter %/modules.order, $m), cat $m, echo $(patsubst %.o,%.ko,$m));) :; } \
-	| $(AWK) '!x[$$0]++' - > $@
+	> $@
 
 $(obj)/modules.order: $(obj-m) FORCE
 	$(call if_changed,modules_order)
@@ -460,8 +460,6 @@ $(multi-obj-m): %.o: %.mod FORCE
 	$(call if_changed_rule,ld_multi_m)
 $(call multi_depend, $(multi-obj-m), .o, -objs -y -m)
 
-targets := $(filter-out $(PHONY), $(targets))
-
 # Add intermediate targets:
 # When building objects with specific suffix patterns, add intermediate
 # targets that the final targets are derived from.
@@ -480,42 +478,19 @@ targets += $(call intermediate_targets, .asn1.o, .asn1.c .asn1.h) \
 # Build
 # ---------------------------------------------------------------------------
 
-ifdef single-build
-
-KBUILD_SINGLE_TARGETS := $(filter $(obj)/%, $(KBUILD_SINGLE_TARGETS))
-
-curdir-single := $(sort $(foreach x, $(KBUILD_SINGLE_TARGETS), \
-			$(if $(filter $(x) $(basename $(x)).o, $(targets)), $(x))))
-
-# Handle single targets without any rule: show "Nothing to be done for ..." or
-# "No rule to make target ..." depending on whether the target exists.
-unknown-single := $(filter-out $(addsuffix /%, $(subdir-ym)), \
-			$(filter-out $(curdir-single), $(KBUILD_SINGLE_TARGETS)))
-
-single-subdirs := $(foreach d, $(subdir-ym), \
-			$(if $(filter $(d)/%, $(KBUILD_SINGLE_TARGETS)), $(d)))
-
-__build: $(curdir-single) $(single-subdirs)
-ifneq ($(unknown-single),)
-	$(Q)$(MAKE) -f /dev/null $(unknown-single)
-endif
-	@:
-
-ifeq ($(curdir-single),)
-# Nothing to do in this directory. Do not include any .*.cmd file for speed-up
-targets :=
-else
-targets += $(curdir-single)
-endif
-
-else
-
-__build: $(if $(KBUILD_BUILTIN), $(targets-for-builtin)) \
+$(obj)/: $(if $(KBUILD_BUILTIN), $(targets-for-builtin)) \
 	 $(if $(KBUILD_MODULES), $(targets-for-modules)) \
 	 $(subdir-ym) $(always-y)
 	@:
 
-endif
+# Single targets
+# ---------------------------------------------------------------------------
+
+single-subdirs := $(foreach d, $(subdir-ym), $(if $(filter $d/%, $(MAKECMDGOALS)), $d))
+single-subdir-goals := $(filter $(addsuffix /%, $(single-subdirs)), $(MAKECMDGOALS))
+
+$(single-subdir-goals): $(single-subdirs)
+	@:
 
 # Descending
 # ---------------------------------------------------------------------------
@@ -523,9 +498,9 @@ endif
 PHONY += $(subdir-ym)
 $(subdir-ym):
 	$(Q)$(MAKE) $(build)=$@ \
-	$(if $(filter $@/, $(KBUILD_SINGLE_TARGETS)),single-build=) \
 	need-builtin=$(if $(filter $@/built-in.a, $(subdir-builtin)),1) \
-	need-modorder=$(if $(filter $@/modules.order, $(subdir-modorder)),1)
+	need-modorder=$(if $(filter $@/modules.order, $(subdir-modorder)),1) \
+	$(filter $@/%, $(single-subdir-goals))
 
 # Add FORCE to the prequisites of a target to force it to be always rebuilt.
 # ---------------------------------------------------------------------------
@@ -533,6 +508,9 @@ $(subdir-ym):
 PHONY += FORCE
 
 FORCE:
+
+targets += $(filter-out $(single-subdir-goals), $(MAKECMDGOALS))
+targets := $(filter-out $(PHONY), $(targets))
 
 # Read all saved command lines and dependencies for the $(targets) we
 # may be building above, using $(if_changed{,_dep}). As an

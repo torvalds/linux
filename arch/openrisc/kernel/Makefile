@@ -3,9 +3,9 @@
 # Makefile for the linux kernel.
 #
 
-extra-y	:= head.o vmlinux.lds
+extra-y	:= vmlinux.lds
 
-obj-y	:= setup.o or32_ksyms.o process.o dma.o \
+obj-y	:= head.o setup.o or32_ksyms.o process.o dma.o \
 	   traps.o time.o irq.o entry.o ptrace.o signal.o \
 	   sys_call_table.o unwinder.o
 
