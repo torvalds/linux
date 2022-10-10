@@ -246,7 +246,7 @@ st_asm330lhhx_fsm_enable_sensor(struct st_asm330lhhx_sensor *sensor,
 			return err;
 	}
 
-	return err < 0 ? err : 0;
+	return 0;
 }
 
 static int
@@ -564,7 +564,7 @@ static int st_asm330lhhx_mlc_flush_all(struct st_asm330lhhx_hw *hw)
 	struct iio_dev *iio_dev;
 	int ret = 0, id, i;
 
-	for (i = 0; i < sizeof(st_asm330lhhx_mlc_sensor_list); i++) {
+	for (i = 0; i < ARRAY_SIZE(st_asm330lhhx_mlc_sensor_list); i++) {
 		id = st_asm330lhhx_mlc_sensor_list[i];
 		iio_dev = hw->iio_devs[id];
 		if (!iio_dev)
@@ -581,7 +581,7 @@ static int st_asm330lhhx_mlc_flush_all(struct st_asm330lhhx_hw *hw)
 		hw->iio_devs[id] = NULL;
 	}
 
-	for (i = 0; i < sizeof(st_asm330lhhx_fsm_sensor_list); i++) {
+	for (i = 0; i < ARRAY_SIZE(st_asm330lhhx_fsm_sensor_list); i++) {
 		id = st_asm330lhhx_fsm_sensor_list[i];
 		iio_dev = hw->iio_devs[id];
 		if (!iio_dev)
@@ -887,7 +887,7 @@ int st_asm330lhhx_mlc_check_status(struct st_asm330lhhx_hw *hw)
 
 					dev_info(hw->dev,
 						 "FSM %d Status %x FSM EVENT %llx\n",
-						 id, mlc_status,
+						 id, fsm_status,
 						 (u64)fsm_event[i]);
 
 					notify |= BIT(i + ST_ASM330LHHX_MLC_NUMBER);
