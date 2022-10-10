@@ -2317,12 +2317,7 @@ static int st_lsm6dsx_suspend(struct device *dev)
 			continue;
 		}
 
-		if (sensor->id == ST_LSM6DSX_ID_EXT0 ||
-		    sensor->id == ST_LSM6DSX_ID_EXT1 ||
-		    sensor->id == ST_LSM6DSX_ID_EXT2)
-			err = st_lsm6dsx_shub_set_enable(sensor, false);
-		else
-			err = st_lsm6dsx_sensor_set_enable(sensor, false);
+		err = st_lsm6dsx_device_set_enable(sensor, false);
 		if (err < 0)
 			return err;
 
@@ -2353,12 +2348,7 @@ static int st_lsm6dsx_resume(struct device *dev)
 		if (!(hw->suspend_mask & BIT(sensor->id)))
 			continue;
 
-		if (sensor->id == ST_LSM6DSX_ID_EXT0 ||
-		    sensor->id == ST_LSM6DSX_ID_EXT1 ||
-		    sensor->id == ST_LSM6DSX_ID_EXT2)
-			err = st_lsm6dsx_shub_set_enable(sensor, true);
-		else
-			err = st_lsm6dsx_sensor_set_enable(sensor, true);
+		err = st_lsm6dsx_device_set_enable(sensor, true);
 		if (err < 0)
 			return err;
 

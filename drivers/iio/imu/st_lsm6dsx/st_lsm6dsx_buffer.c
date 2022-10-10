@@ -673,17 +673,9 @@ int st_lsm6dsx_update_fifo(struct st_lsm6dsx_sensor *sensor, bool enable)
 			goto out;
 	}
 
-	if (sensor->id == ST_LSM6DSX_ID_EXT0 ||
-	    sensor->id == ST_LSM6DSX_ID_EXT1 ||
-	    sensor->id == ST_LSM6DSX_ID_EXT2) {
-		err = st_lsm6dsx_shub_set_enable(sensor, enable);
-		if (err < 0)
-			goto out;
-	} else {
-		err = st_lsm6dsx_sensor_set_enable(sensor, enable);
-		if (err < 0)
-			goto out;
-	}
+	err = st_lsm6dsx_device_set_enable(sensor, enable);
+	if (err < 0)
+		goto out;
 
 	err = st_lsm6dsx_set_fifo_odr(sensor, enable);
 	if (err < 0)
