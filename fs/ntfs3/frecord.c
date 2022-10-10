@@ -3023,6 +3023,15 @@ int ni_add_name(struct ntfs_inode *dir_ni, struct ntfs_inode *ni,
 	    !valid_windows_name(sbi, (struct le_str *)&de_name->name_len))
 		return -EINVAL;
 
+	/* If option "hidedotfiles" then set hidden attribute for dot files. */
+	if (ni->mi.sbi->options->hide_dot_files) {
+		if (de_name->name_len > 0 &&
+		    le16_to_cpu(de_name->name[0]) == '.')
+			ni->std_fa |= FILE_ATTRIBUTE_HIDDEN;
+		else
+			ni->std_fa &= ~FILE_ATTRIBUTE_HIDDEN;
+	}
+
 	mi_get_ref(&ni->mi, &de->ref);
 	mi_get_ref(&dir_ni->mi, &de_name->home);
 
