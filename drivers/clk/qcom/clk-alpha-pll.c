@@ -3055,7 +3055,7 @@ int clk_lucid_evo_pll_configure(struct clk_alpha_pll *pll,
 
 	if (config->user_ctl_val)
 		ret |= regmap_write(regmap, PLL_USER_CTL(pll),
-				config->user_ctl_val);
+				config->user_ctl_val | PLL_OUT_MASK);
 
 	if (config->user_ctl_hi_val)
 		ret |= regmap_write(regmap, PLL_USER_CTL_U(pll),
