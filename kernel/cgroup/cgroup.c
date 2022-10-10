@@ -1392,6 +1392,9 @@ static void cgroup_destroy_root(struct cgroup_root *root)
 	cgroup_free_root(root);
 }
 
+/*
+ * Returned cgroup is without refcount but it's valid as long as cset pins it.
+ */
 static inline struct cgroup *__cset_cgroup_from_root(struct css_set *cset,
 					    struct cgroup_root *root)
 {
@@ -1403,6 +1406,7 @@ static inline struct cgroup *__cset_cgroup_from_root(struct css_set *cset,
 		res_cgroup = cset->dfl_cgrp;
 	} else {
 		struct cgrp_cset_link *link;
+		lockdep_assert_held(&css_set_lock);
 
 		list_for_each_entry(link, &cset->cgrp_links, cgrp_link) {
 			struct cgroup *c = link->cgrp;
@@ -1414,6 +1418,7 @@ static inline struct cgroup *__cset_cgroup_from_root(struct css_set *cset,
 		}
 	}
 
+	BUG_ON(!res_cgroup);
 	return res_cgroup;
 }
 
@@ -1436,23 +1441,36 @@ current_cgns_cgroup_from_root(struct cgroup_root *root)
 
 	rcu_read_unlock();
 
-	BUG_ON(!res);
 	return res;
+}
+
+/*
+ * Look up cgroup associated with current task's cgroup namespace on the default
+ * hierarchy.
+ *
+ * Unlike current_cgns_cgroup_from_root(), this doesn't need locks:
+ * - Internal rcu_read_lock is unnecessary because we don't dereference any rcu
+ *   pointers.
+ * - css_set_lock is not needed because we just read cset->dfl_cgrp.
+ * - As a bonus returned cgrp is pinned with the current because it cannot
+ *   switch cgroup_ns asynchronously.
+ */
+static struct cgroup *current_cgns_cgroup_dfl(void)
+{
+	struct css_set *cset;
+
+	cset = current->nsproxy->cgroup_ns->root_cset;
+	return __cset_cgroup_from_root(cset, &cgrp_dfl_root);
 }
 
 /* look up cgroup associated with given css_set on the specified hierarchy */
 static struct cgroup *cset_cgroup_from_root(struct css_set *cset,
 					    struct cgroup_root *root)
 {
-	struct cgroup *res = NULL;
-
 	lockdep_assert_held(&cgroup_mutex);
 	lockdep_assert_held(&css_set_lock);
 
-	res = __cset_cgroup_from_root(cset, root);
-
-	BUG_ON(!res);
-	return res;
+	return __cset_cgroup_from_root(cset, root);
 }
 
 /*
@@ -6105,9 +6123,7 @@ struct cgroup *cgroup_get_from_id(u64 id)
 	if (!cgrp)
 		return ERR_PTR(-ENOENT);
 
-	spin_lock_irq(&css_set_lock);
-	root_cgrp = current_cgns_cgroup_from_root(&cgrp_dfl_root);
-	spin_unlock_irq(&css_set_lock);
+	root_cgrp = current_cgns_cgroup_dfl();
 	if (!cgroup_is_descendant(cgrp, root_cgrp)) {
 		cgroup_put(cgrp);
 		return ERR_PTR(-ENOENT);
@@ -6686,10 +6702,8 @@ struct cgroup *cgroup_get_from_path(const char *path)
 	struct cgroup *cgrp = ERR_PTR(-ENOENT);
 	struct cgroup *root_cgrp;
 
-	spin_lock_irq(&css_set_lock);
-	root_cgrp = current_cgns_cgroup_from_root(&cgrp_dfl_root);
+	root_cgrp = current_cgns_cgroup_dfl();
 	kn = kernfs_walk_and_get(root_cgrp->kn, path);
-	spin_unlock_irq(&css_set_lock);
 	if (!kn)
 		goto out;
 
