@@ -57,6 +57,7 @@
 
 #define MCP3911_REG_READ(reg, id)	((((reg) << 1) | ((id) << 6) | (1 << 0)) & 0xff)
 #define MCP3911_REG_WRITE(reg, id)	((((reg) << 1) | ((id) << 6) | (0 << 0)) & 0xff)
+#define MCP3911_REG_MASK		GENMASK(4, 1)
 
 #define MCP3911_NUM_CHANNELS		2
 
@@ -89,8 +90,8 @@ static int mcp3911_read(struct mcp3911 *adc, u8 reg, u32 *val, u8 len)
 
 	be32_to_cpus(val);
 	*val >>= ((4 - len) * 8);
-	dev_dbg(&adc->spi->dev, "reading 0x%x from register 0x%x\n", *val,
-		reg >> 1);
+	dev_dbg(&adc->spi->dev, "reading 0x%x from register 0x%lx\n", *val,
+		FIELD_GET(MCP3911_REG_MASK, reg));
 	return ret;
 }
 
