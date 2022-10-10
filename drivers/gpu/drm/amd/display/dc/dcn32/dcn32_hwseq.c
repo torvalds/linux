@@ -1400,7 +1400,7 @@ bool dcn32_dsc_pg_status(
 		break;
 	}
 
-	return pwr_status == 0 ? true : false;
+	return pwr_status == 0;
 }
 
 void dcn32_update_dsc_pg(struct dc *dc,
