@@ -3111,13 +3111,8 @@ void tb_switch_suspend(struct tb_switch *sw, bool runtime)
 	/*
 	 * Actually only needed for Titan Ridge but for simplicity can be
 	 * done for USB4 device too as CLx is re-enabled at resume.
-	 * CL0s and CL1 are enabled and supported together.
 	 */
-	if (tb_switch_clx_is_enabled(sw, TB_CL1)) {
-		if (tb_switch_clx_disable(sw, TB_CL1))
-			tb_sw_warn(sw, "failed to disable %s on upstream port\n",
-				   tb_switch_clx_name(TB_CL1));
-	}
+	tb_switch_clx_disable(sw);
 
 	err = tb_plug_events_active(sw, false);
 	if (err)

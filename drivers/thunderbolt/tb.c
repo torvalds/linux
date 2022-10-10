@@ -248,7 +248,7 @@ static int tb_enable_clx(struct tb_switch *sw)
 	 * CL0s and CL1 are enabled and supported together.
 	 * Silently ignore CLx enabling in case CLx is not supported.
 	 */
-	ret = tb_switch_clx_enable(sw, TB_CL1);
+	ret = tb_switch_clx_enable(sw, TB_CL0S | TB_CL1);
 	return ret == -EOPNOTSUPP ? 0 : ret;
 }
 

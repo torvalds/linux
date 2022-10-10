@@ -117,13 +117,6 @@ struct tb_switch_tmu {
 	enum tb_switch_tmu_rate rate_request;
 };
 
-enum tb_clx {
-	TB_CLX_DISABLE,
-	/* CL0s and CL1 are enabled and supported together */
-	TB_CL1 = BIT(0),
-	TB_CL2 = BIT(1),
-};
-
 /**
  * struct tb_switch - a thunderbolt switch
  * @dev: Device for the switch
@@ -174,7 +167,7 @@ enum tb_clx {
  * @min_dp_main_credits: Router preferred minimum number of buffers for DP MAIN
  * @max_pcie_credits: Router preferred number of buffers for PCIe
  * @max_dma_credits: Router preferred number of buffers for DMA/P2P
- * @clx: CLx state on the upstream link of the router
+ * @clx: CLx states on the upstream link of the router
  *
  * When the switch is being added or removed to the domain (other
  * switches) you need to have domain lock held.
@@ -225,7 +218,7 @@ struct tb_switch {
 	unsigned int min_dp_main_credits;
 	unsigned int max_pcie_credits;
 	unsigned int max_dma_credits;
-	enum tb_clx clx;
+	unsigned int clx;
 };
 
 /**
@@ -454,6 +447,11 @@ struct tb_path {
 #define TB_WAKE_ON_USB3		BIT(3)
 #define TB_WAKE_ON_PCIE		BIT(4)
 #define TB_WAKE_ON_DP		BIT(5)
+
+/* CL states */
+#define TB_CL0S			BIT(0)
+#define TB_CL1			BIT(1)
+#define TB_CL2			BIT(2)
 
 /**
  * struct tb_cm_ops - Connection manager specific operations vector
@@ -1002,46 +1000,26 @@ static inline bool tb_switch_tmu_is_enabled(const struct tb_switch *sw)
 	       sw->tmu.unidirectional == sw->tmu.unidirectional_request;
 }
 
-bool tb_port_clx_is_enabled(struct tb_port *port, unsigned int clx_mask);
+bool tb_port_clx_is_enabled(struct tb_port *port, unsigned int clx);
 
-static inline const char *tb_switch_clx_name(enum tb_clx clx)
-{
-	switch (clx) {
-	/* CL0s and CL1 are enabled and supported together */
-	case TB_CL1:
-		return "CL0s/CL1";
-	default:
-		return "unknown";
-	}
-}
-
-int tb_switch_clx_enable(struct tb_switch *sw, enum tb_clx clx);
-int tb_switch_clx_disable(struct tb_switch *sw, enum tb_clx clx);
+bool tb_switch_clx_is_supported(const struct tb_switch *sw);
+int tb_switch_clx_enable(struct tb_switch *sw, unsigned int clx);
+int tb_switch_clx_disable(struct tb_switch *sw);
 
 /**
  * tb_switch_clx_is_enabled() - Checks if the CLx is enabled
  * @sw: Router to check for the CLx
- * @clx: The CLx state to check for
+ * @clx: The CLx states to check for
  *
  * Checks if the specified CLx is enabled on the router upstream link.
+ * Returns true if any of the given states is enabled.
+ *
  * Not applicable for a host router.
  */
 static inline bool tb_switch_clx_is_enabled(const struct tb_switch *sw,
-					    enum tb_clx clx)
+					    unsigned int clx)
 {
-	return sw->clx == clx;
-}
-
-/**
- * tb_switch_clx_is_supported() - Is CLx supported on this type of router
- * @sw: The router to check CLx support for
- */
-static inline bool tb_switch_clx_is_supported(const struct tb_switch *sw)
-{
-	if (sw->quirks & QUIRK_NO_CLX)
-		return false;
-
-	return tb_switch_is_usb4(sw) || tb_switch_is_titan_ridge(sw);
+	return sw->clx & clx;
 }
 
 int tb_switch_pcie_l1_enable(struct tb_switch *sw);

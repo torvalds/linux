@@ -45,7 +45,7 @@ static int tb_port_pm_secondary_disable(struct tb_port *port)
 }
 
 /* Called for USB4 or Titan Ridge routers only */
-static bool tb_port_clx_supported(struct tb_port *port, unsigned int clx_mask)
+static bool tb_port_clx_supported(struct tb_port *port, unsigned int clx)
 {
 	u32 val, mask = 0;
 	bool ret;
@@ -65,11 +65,11 @@ static bool tb_port_clx_supported(struct tb_port *port, unsigned int clx_mask)
 		return false;
 	}
 
-	if (clx_mask & TB_CL1) {
-		/* CL0s and CL1 are enabled and supported together */
-		mask |= LANE_ADP_CS_0_CL0S_SUPPORT | LANE_ADP_CS_0_CL1_SUPPORT;
-	}
-	if (clx_mask & TB_CL2)
+	if (clx & TB_CL0S)
+		mask |= LANE_ADP_CS_0_CL0S_SUPPORT;
+	if (clx & TB_CL1)
+		mask |= LANE_ADP_CS_0_CL1_SUPPORT;
+	if (clx & TB_CL2)
 		mask |= LANE_ADP_CS_0_CL2_SUPPORT;
 
 	ret = tb_port_read(port, &val, TB_CFG_PORT,
@@ -80,16 +80,17 @@ static bool tb_port_clx_supported(struct tb_port *port, unsigned int clx_mask)
 	return !!(val & mask);
 }
 
-static int tb_port_clx_set(struct tb_port *port, enum tb_clx clx, bool enable)
+static int tb_port_clx_set(struct tb_port *port, unsigned int clx, bool enable)
 {
-	u32 phy, mask;
+	u32 phy, mask = 0;
 	int ret;
 
-	/* CL0s and CL1 are enabled and supported together */
-	if (clx == TB_CL1)
-		mask = LANE_ADP_CS_1_CL0S_ENABLE | LANE_ADP_CS_1_CL1_ENABLE;
-	else
-		/* For now we support only CL0s and CL1. Not CL2 */
+	if (clx & TB_CL0S)
+		mask |= LANE_ADP_CS_1_CL0S_ENABLE;
+	if (clx & TB_CL1)
+		mask |= LANE_ADP_CS_1_CL1_ENABLE;
+
+	if (!mask)
 		return -EOPNOTSUPP;
 
 	ret = tb_port_read(port, &phy, TB_CFG_PORT,
@@ -106,12 +107,12 @@ static int tb_port_clx_set(struct tb_port *port, enum tb_clx clx, bool enable)
 			     port->cap_phy + LANE_ADP_CS_1, 1);
 }
 
-static int tb_port_clx_disable(struct tb_port *port, enum tb_clx clx)
+static int tb_port_clx_disable(struct tb_port *port, unsigned int clx)
 {
 	return tb_port_clx_set(port, clx, false);
 }
 
-static int tb_port_clx_enable(struct tb_port *port, enum tb_clx clx)
+static int tb_port_clx_enable(struct tb_port *port, unsigned int clx)
 {
 	return tb_port_clx_set(port, clx, true);
 }
@@ -119,21 +120,23 @@ static int tb_port_clx_enable(struct tb_port *port, enum tb_clx clx)
 /**
  * tb_port_clx_is_enabled() - Is given CL state enabled
  * @port: USB4 port to check
- * @clx_mask: Mask of CL states to check
+ * @clx: Mask of CL states to check
  *
  * Returns true if any of the given CL states is enabled for @port.
  */
-bool tb_port_clx_is_enabled(struct tb_port *port, unsigned int clx_mask)
+bool tb_port_clx_is_enabled(struct tb_port *port, unsigned int clx)
 {
 	u32 val, mask = 0;
 	int ret;
 
-	if (!tb_port_clx_supported(port, clx_mask))
+	if (!tb_port_clx_supported(port, clx))
 		return false;
 
-	if (clx_mask & TB_CL1)
-		mask |= LANE_ADP_CS_1_CL0S_ENABLE | LANE_ADP_CS_1_CL1_ENABLE;
-	if (clx_mask & TB_CL2)
+	if (clx & TB_CL0S)
+		mask |= LANE_ADP_CS_1_CL0S_ENABLE;
+	if (clx & TB_CL1)
+		mask |= LANE_ADP_CS_1_CL1_ENABLE;
+	if (clx & TB_CL2)
 		mask |= LANE_ADP_CS_1_CL2_ENABLE;
 
 	ret = tb_port_read(port, &val, TB_CFG_PORT,
@@ -206,6 +209,50 @@ static int tb_switch_mask_clx_objections(struct tb_switch *sw)
 }
 
 /**
+ * tb_switch_clx_is_supported() - Is CLx supported on this type of router
+ * @sw: The router to check CLx support for
+ */
+bool tb_switch_clx_is_supported(const struct tb_switch *sw)
+{
+	if (!clx_enabled)
+		return false;
+
+	if (sw->quirks & QUIRK_NO_CLX)
+		return false;
+
+	/*
+	 * CLx is not enabled and validated on Intel USB4 platforms
+	 * before Alder Lake.
+	 */
+	if (tb_switch_is_tiger_lake(sw))
+		return false;
+
+	return tb_switch_is_usb4(sw) || tb_switch_is_titan_ridge(sw);
+}
+
+static bool validate_mask(unsigned int clx)
+{
+	/* Previous states need to be enabled */
+	if (clx & TB_CL2)
+		return (clx & (TB_CL0S | TB_CL1)) == (TB_CL0S | TB_CL1);
+	if (clx & TB_CL1)
+		return (clx & TB_CL0S) == TB_CL0S;
+	return true;
+}
+
+static const char *clx_name(unsigned int clx)
+{
+	if (clx & TB_CL2)
+		return "CL0s/CL1/CL2";
+	if (clx & TB_CL1)
+		return "CL0s/CL1";
+	if (clx & TB_CL0S)
+		return "CL0s";
+
+	return "unknown";
+}
+
+/**
  * tb_switch_clx_enable() - Enable CLx on upstream port of specified router
  * @sw: Router to enable CLx for
  * @clx: The CLx state to enable
@@ -219,45 +266,31 @@ static int tb_switch_mask_clx_objections(struct tb_switch *sw)
  *
  * Return: Returns 0 on success or an error code on failure.
  */
-int tb_switch_clx_enable(struct tb_switch *sw, enum tb_clx clx)
+int tb_switch_clx_enable(struct tb_switch *sw, unsigned int clx)
 {
-	struct tb_switch *root_sw = sw->tb->root_switch;
 	bool up_clx_support, down_clx_support;
+	struct tb_switch *parent_sw;
 	struct tb_port *up, *down;
 	int ret;
 
-	if (!clx_enabled)
+	if (!validate_mask(clx))
+		return -EINVAL;
+
+	parent_sw = tb_switch_parent(sw);
+	if (!parent_sw)
 		return 0;
 
-	/*
-	 * CLx is not enabled and validated on Intel USB4 platforms before
-	 * Alder Lake.
-	 */
-	if (root_sw->generation < 4 || tb_switch_is_tiger_lake(root_sw))
-		return 0;
-
-	switch (clx) {
-	case TB_CL1:
-		/* CL0s and CL1 are enabled and supported together */
-		break;
-
-	default:
-		return -EOPNOTSUPP;
-	}
-
-	if (!tb_switch_clx_is_supported(sw))
-		return 0;
-
-	/*
-	 * Enable CLx for host router's downstream port as part of the
-	 * downstream router enabling procedure.
-	 */
-	if (!tb_route(sw))
+	if (!tb_switch_clx_is_supported(parent_sw) ||
+	    !tb_switch_clx_is_supported(sw))
 		return 0;
 
 	/* Enable CLx only for first hop router (depth = 1) */
 	if (tb_route(tb_switch_parent(sw)))
 		return 0;
+
+	/* CL2 is not yet supported */
+	if (clx & TB_CL2)
+		return -EOPNOTSUPP;
 
 	ret = tb_switch_pm_secondary_resolve(sw);
 	if (ret)
@@ -269,9 +302,9 @@ int tb_switch_clx_enable(struct tb_switch *sw, enum tb_clx clx)
 	up_clx_support = tb_port_clx_supported(up, clx);
 	down_clx_support = tb_port_clx_supported(down, clx);
 
-	tb_port_dbg(up, "%s %ssupported\n", tb_switch_clx_name(clx),
+	tb_port_dbg(up, "%s %ssupported\n", clx_name(clx),
 		    up_clx_support ? "" : "not ");
-	tb_port_dbg(down, "%s %ssupported\n", tb_switch_clx_name(clx),
+	tb_port_dbg(down, "%s %ssupported\n", clx_name(clx),
 		    down_clx_support ? "" : "not ");
 
 	if (!up_clx_support || !down_clx_support)
@@ -294,52 +327,40 @@ int tb_switch_clx_enable(struct tb_switch *sw, enum tb_clx clx)
 		return ret;
 	}
 
-	sw->clx = clx;
+	sw->clx |= clx;
 
-	tb_port_dbg(up, "%s enabled\n", tb_switch_clx_name(clx));
+	tb_port_dbg(up, "%s enabled\n", clx_name(clx));
 	return 0;
 }
 
 /**
  * tb_switch_clx_disable() - Disable CLx on upstream port of specified router
  * @sw: Router to disable CLx for
- * @clx: The CLx state to disable
+ *
+ * Disables all CL states of the given router. Can be called on any
+ * router and if the states were not enabled already does nothing.
  *
  * Return: Returns 0 on success or an error code on failure.
  */
-int tb_switch_clx_disable(struct tb_switch *sw, enum tb_clx clx)
+int tb_switch_clx_disable(struct tb_switch *sw)
 {
+	unsigned int clx = sw->clx;
 	struct tb_port *up, *down;
 	int ret;
 
-	if (!clx_enabled)
-		return 0;
-
-	switch (clx) {
-	case TB_CL1:
-		/* CL0s and CL1 are enabled and supported together */
-		break;
-
-	default:
-		return -EOPNOTSUPP;
-	}
-
 	if (!tb_switch_clx_is_supported(sw))
-		return 0;
-
-	/*
-	 * Disable CLx for host router's downstream port as part of the
-	 * downstream router enabling procedure.
-	 */
-	if (!tb_route(sw))
 		return 0;
 
 	/* Disable CLx only for first hop router (depth = 1) */
 	if (tb_route(tb_switch_parent(sw)))
 		return 0;
 
+	if (!clx)
+		return 0;
+
 	up = tb_upstream_port(sw);
 	down = tb_switch_downstream_port(sw);
+
 	ret = tb_port_clx_disable(up, clx);
 	if (ret)
 		return ret;
@@ -348,8 +369,8 @@ int tb_switch_clx_disable(struct tb_switch *sw, enum tb_clx clx)
 	if (ret)
 		return ret;
 
-	sw->clx = TB_CLX_DISABLE;
+	sw->clx = 0;
 
-	tb_port_dbg(up, "%s disabled\n", tb_switch_clx_name(clx));
+	tb_port_dbg(up, "%s disabled\n", clx_name(clx));
 	return 0;
 }
