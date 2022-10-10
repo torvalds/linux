@@ -111,7 +111,7 @@ static int st_lsm6dsrx_mlc_enable_sensor(struct st_lsm6dsrx_sensor *sensor,
 					 bool enable)
 {
 	struct st_lsm6dsrx_hw *hw = sensor->hw;
-	int i, id, err = 0;
+	int i, id, err;
 
 	/* enable acc sensor as trigger */
 	err = st_lsm6dsrx_sensor_set_enable(sensor, enable);
@@ -187,7 +187,7 @@ static int st_lsm6dsrx_mlc_enable_sensor(struct st_lsm6dsrx_sensor *sensor,
 	else
 		hw->enable_mask &= ~BIT_ULL(sensor->id);
 
-	return err < 0 ? err : 0;
+	return 0;
 }
 
 static int st_lsm6dsrx_mlc_write_event_config(struct iio_dev *iio_dev,
