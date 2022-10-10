@@ -151,7 +151,7 @@ static int random_size_alloc_test(void)
 	int i;
 
 	for (i = 0; i < test_loop_count; i++) {
-		n = get_random_u32_below(100) + 1;
+		n = get_random_u32_inclusive(1, 100);
 		p = vmalloc(n * PAGE_SIZE);
 
 		if (!p)
@@ -291,12 +291,12 @@ pcpu_alloc_test(void)
 		return -1;
 
 	for (i = 0; i < 35000; i++) {
-		size = get_random_u32_below(PAGE_SIZE / 4) + 1;
+		size = get_random_u32_inclusive(1, PAGE_SIZE / 4);
 
 		/*
 		 * Maximum PAGE_SIZE
 		 */
-		align = 1 << (get_random_u32_below(11) + 1);
+		align = 1 << get_random_u32_inclusive(1, 11);
 
 		pcpu[i] = __alloc_percpu(size, align);
 		if (!pcpu[i])

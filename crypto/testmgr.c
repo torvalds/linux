@@ -962,11 +962,11 @@ static char *generate_random_sgl_divisions(struct test_sg_division *divs,
 		if (div == &divs[max_divs - 1] || get_random_u32_below(2) == 0)
 			this_len = remaining;
 		else
-			this_len = 1 + get_random_u32_below(remaining);
+			this_len = get_random_u32_inclusive(1, remaining);
 		div->proportion_of_total = this_len;
 
 		if (get_random_u32_below(4) == 0)
-			div->offset = (PAGE_SIZE - 128) + get_random_u32_below(128);
+			div->offset = get_random_u32_inclusive(PAGE_SIZE - 128, PAGE_SIZE - 1);
 		else if (get_random_u32_below(2) == 0)
 			div->offset = get_random_u32_below(32);
 		else
@@ -1094,12 +1094,12 @@ static void generate_random_testvec_config(struct testvec_config *cfg,
 	}
 
 	if (get_random_u32_below(2) == 0) {
-		cfg->iv_offset = 1 + get_random_u32_below(MAX_ALGAPI_ALIGNMASK);
+		cfg->iv_offset = get_random_u32_inclusive(1, MAX_ALGAPI_ALIGNMASK);
 		p += scnprintf(p, end - p, " iv_offset=%u", cfg->iv_offset);
 	}
 
 	if (get_random_u32_below(2) == 0) {
-		cfg->key_offset = 1 + get_random_u32_below(MAX_ALGAPI_ALIGNMASK);
+		cfg->key_offset = get_random_u32_inclusive(1, MAX_ALGAPI_ALIGNMASK);
 		p += scnprintf(p, end - p, " key_offset=%u", cfg->key_offset);
 	}
 
@@ -1653,7 +1653,7 @@ static void generate_random_hash_testvec(struct shash_desc *desc,
 	if (maxkeysize) {
 		vec->ksize = maxkeysize;
 		if (get_random_u32_below(4) == 0)
-			vec->ksize = 1 + get_random_u32_below(maxkeysize);
+			vec->ksize = get_random_u32_inclusive(1, maxkeysize);
 		generate_random_bytes((u8 *)vec->key, vec->ksize);
 
 		vec->setkey_error = crypto_shash_setkey(desc->tfm, vec->key,

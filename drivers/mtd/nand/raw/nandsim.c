@@ -1405,7 +1405,7 @@ static void ns_do_bit_flips(struct nandsim *ns, int num)
 	if (bitflips && get_random_u16() < (1 << 6)) {
 		int flips = 1;
 		if (bitflips > 1)
-			flips = get_random_u32_below(bitflips) + 1;
+			flips = get_random_u32_inclusive(1, bitflips);
 		while (flips--) {
 			int pos = get_random_u32_below(num * 8);
 			ns->buf.byte[pos / 8] ^= (1 << (pos % 8));

@@ -2380,9 +2380,8 @@ static void set_cur_queue_map(struct pktgen_dev *pkt_dev)
 	else if (pkt_dev->queue_map_min <= pkt_dev->queue_map_max) {
 		__u16 t;
 		if (pkt_dev->flags & F_QUEUE_MAP_RND) {
-			t = get_random_u32_below(pkt_dev->queue_map_max -
-						 pkt_dev->queue_map_min + 1) +
-			    pkt_dev->queue_map_min;
+			t = get_random_u32_inclusive(pkt_dev->queue_map_min,
+						     pkt_dev->queue_map_max);
 		} else {
 			t = pkt_dev->cur_queue_map + 1;
 			if (t > pkt_dev->queue_map_max)
@@ -2478,9 +2477,8 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 
 	if (pkt_dev->udp_src_min < pkt_dev->udp_src_max) {
 		if (pkt_dev->flags & F_UDPSRC_RND)
-			pkt_dev->cur_udp_src = get_random_u32_below(
-				pkt_dev->udp_src_max - pkt_dev->udp_src_min) +
-				pkt_dev->udp_src_min;
+			pkt_dev->cur_udp_src = get_random_u32_inclusive(pkt_dev->udp_src_min,
+									pkt_dev->udp_src_max - 1);
 
 		else {
 			pkt_dev->cur_udp_src++;
@@ -2491,9 +2489,8 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 
 	if (pkt_dev->udp_dst_min < pkt_dev->udp_dst_max) {
 		if (pkt_dev->flags & F_UDPDST_RND) {
-			pkt_dev->cur_udp_dst = get_random_u32_below(
-				pkt_dev->udp_dst_max - pkt_dev->udp_dst_min) +
-				pkt_dev->udp_dst_min;
+			pkt_dev->cur_udp_dst = get_random_u32_inclusive(pkt_dev->udp_dst_min,
+									pkt_dev->udp_dst_max - 1);
 		} else {
 			pkt_dev->cur_udp_dst++;
 			if (pkt_dev->cur_udp_dst >= pkt_dev->udp_dst_max)
@@ -2508,7 +2505,7 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 		if (imn < imx) {
 			__u32 t;
 			if (pkt_dev->flags & F_IPSRC_RND)
-				t = get_random_u32_below(imx - imn) + imn;
+				t = get_random_u32_inclusive(imn, imx - 1);
 			else {
 				t = ntohl(pkt_dev->cur_saddr);
 				t++;
@@ -2530,8 +2527,7 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 				if (pkt_dev->flags & F_IPDST_RND) {
 
 					do {
-						t = get_random_u32_below(imx - imn) +
-						    imn;
+						t = get_random_u32_inclusive(imn, imx - 1);
 						s = htonl(t);
 					} while (ipv4_is_loopback(s) ||
 						ipv4_is_multicast(s) ||
@@ -2578,9 +2574,8 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 	if (pkt_dev->min_pkt_size < pkt_dev->max_pkt_size) {
 		__u32 t;
 		if (pkt_dev->flags & F_TXSIZE_RND) {
-			t = get_random_u32_below(pkt_dev->max_pkt_size -
-						 pkt_dev->min_pkt_size) +
-			    pkt_dev->min_pkt_size;
+			t = get_random_u32_inclusive(pkt_dev->min_pkt_size,
+						     pkt_dev->max_pkt_size - 1);
 		} else {
 			t = pkt_dev->cur_pkt_size + 1;
 			if (t > pkt_dev->max_pkt_size)

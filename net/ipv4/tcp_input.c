@@ -3647,7 +3647,7 @@ static void tcp_send_challenge_ack(struct sock *sk)
 
 		WRITE_ONCE(net->ipv4.tcp_challenge_timestamp, now);
 		WRITE_ONCE(net->ipv4.tcp_challenge_count,
-			   half + get_random_u32_below(ack_limit));
+			   get_random_u32_inclusive(half, ack_limit + half - 1));
 	}
 	count = READ_ONCE(net->ipv4.tcp_challenge_count);
 	if (count > 0) {

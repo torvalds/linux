@@ -285,7 +285,7 @@ static __init bool randomized_test(void)
 
 	for (i = 0; i < NUM_RAND_ROUTES; ++i) {
 		get_random_bytes(ip, 4);
-		cidr = get_random_u32_below(32) + 1;
+		cidr = get_random_u32_inclusive(1, 32);
 		peer = peers[get_random_u32_below(NUM_PEERS)];
 		if (wg_allowedips_insert_v4(&t, (struct in_addr *)ip, cidr,
 					    peer, &mutex) < 0) {
@@ -311,7 +311,7 @@ static __init bool randomized_test(void)
 				mutated[k] = (mutated[k] & mutate_mask[k]) |
 					     (~mutate_mask[k] &
 					      get_random_u8());
-			cidr = get_random_u32_below(32) + 1;
+			cidr = get_random_u32_inclusive(1, 32);
 			peer = peers[get_random_u32_below(NUM_PEERS)];
 			if (wg_allowedips_insert_v4(&t,
 						    (struct in_addr *)mutated,
@@ -329,7 +329,7 @@ static __init bool randomized_test(void)
 
 	for (i = 0; i < NUM_RAND_ROUTES; ++i) {
 		get_random_bytes(ip, 16);
-		cidr = get_random_u32_below(128) + 1;
+		cidr = get_random_u32_inclusive(1, 128);
 		peer = peers[get_random_u32_below(NUM_PEERS)];
 		if (wg_allowedips_insert_v6(&t, (struct in6_addr *)ip, cidr,
 					    peer, &mutex) < 0) {
@@ -355,7 +355,7 @@ static __init bool randomized_test(void)
 				mutated[k] = (mutated[k] & mutate_mask[k]) |
 					     (~mutate_mask[k] &
 					      get_random_u8());
-			cidr = get_random_u32_below(128) + 1;
+			cidr = get_random_u32_inclusive(1, 128);
 			peer = peers[get_random_u32_below(NUM_PEERS)];
 			if (wg_allowedips_insert_v6(&t,
 						    (struct in6_addr *)mutated,

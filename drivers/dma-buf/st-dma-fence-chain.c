@@ -400,7 +400,7 @@ static int __find_race(void *arg)
 		struct dma_fence *fence = dma_fence_get(data->fc.tail);
 		int seqno;
 
-		seqno = get_random_u32_below(data->fc.chain_length) + 1;
+		seqno = get_random_u32_inclusive(1, data->fc.chain_length);
 
 		err = dma_fence_chain_find_seqno(&fence, seqno);
 		if (err) {

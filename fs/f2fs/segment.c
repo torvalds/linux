@@ -2588,7 +2588,7 @@ static void new_curseg(struct f2fs_sb_info *sbi, int type, bool new_sec)
 	curseg->alloc_type = LFS;
 	if (F2FS_OPTION(sbi).fs_mode == FS_MODE_FRAGMENT_BLK)
 		curseg->fragment_remained_chunk =
-				get_random_u32_below(sbi->max_fragment_chunk) + 1;
+				get_random_u32_inclusive(1, sbi->max_fragment_chunk);
 }
 
 static int __next_free_blkoff(struct f2fs_sb_info *sbi,
@@ -2625,9 +2625,9 @@ static void __refresh_next_blkoff(struct f2fs_sb_info *sbi,
 			/* To allocate block chunks in different sizes, use random number */
 			if (--seg->fragment_remained_chunk <= 0) {
 				seg->fragment_remained_chunk =
-				   get_random_u32_below(sbi->max_fragment_chunk) + 1;
+				   get_random_u32_inclusive(1, sbi->max_fragment_chunk);
 				seg->next_blkoff +=
-				   get_random_u32_below(sbi->max_fragment_hole) + 1;
+				   get_random_u32_inclusive(1, sbi->max_fragment_hole);
 			}
 		}
 	}
