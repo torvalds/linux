@@ -568,6 +568,8 @@ static int ntfs_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",nohidden");
 	if (opts->windows_names)
 		seq_puts(m, ",windows_names");
+	if (opts->hide_dot_files)
+		seq_puts(m, ",hidedotfiles");
 	if (opts->force)
 		seq_puts(m, ",force");
 	if (opts->noacsrules)
