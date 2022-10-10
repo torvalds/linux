@@ -56,6 +56,8 @@
 #define CMD_RX_EXT_MESSAGE		14
 #define CMD_TX_EXT_MESSAGE		15
 #define CMD_SET_BUS_PARAMS		16
+#define CMD_GET_BUS_PARAMS		17
+#define CMD_GET_BUS_PARAMS_REPLY	18
 #define CMD_GET_CHIP_STATE		19
 #define CMD_CHIP_STATE_EVENT		20
 #define CMD_SET_CTRL_MODE		21
@@ -375,6 +377,7 @@ static const u8 kvaser_usb_leaf_cmd_sizes_leaf[] = {
 	[CMD_CHIP_STATE_EVENT]		= kvaser_fsize(u.leaf.chip_state_event),
 	[CMD_CAN_ERROR_EVENT]		= kvaser_fsize(u.leaf.can_error_event),
 	[CMD_GET_CAPABILITIES_RESP]	= kvaser_fsize(u.leaf.cap_res),
+	[CMD_GET_BUS_PARAMS_REPLY]	= kvaser_fsize(u.busparams),
 	[CMD_ERROR_EVENT]		= kvaser_fsize(u.leaf.error_event),
 	/* ignored events: */
 	[CMD_FLUSH_QUEUE_REPLY]		= CMD_SIZE_ANY,
@@ -1467,6 +1470,25 @@ static void kvaser_usb_leaf_stop_chip_reply(const struct kvaser_usb *dev,
 	complete(&priv->stop_comp);
 }
 
+static void kvaser_usb_leaf_get_busparams_reply(const struct kvaser_usb *dev,
+						const struct kvaser_cmd *cmd)
+{
+	struct kvaser_usb_net_priv *priv;
+	u8 channel = cmd->u.busparams.channel;
+
+	if (channel >= dev->nchannels) {
+		dev_err(&dev->intf->dev,
+			"Invalid channel number (%d)\n", channel);
+		return;
+	}
+
+	priv = dev->nets[channel];
+	memcpy(&priv->busparams_nominal, &cmd->u.busparams.busparams,
+	       sizeof(priv->busparams_nominal));
+
+	complete(&priv->get_busparams_comp);
+}
+
 static void kvaser_usb_leaf_handle_command(const struct kvaser_usb *dev,
 					   const struct kvaser_cmd *cmd)
 {
@@ -1507,6 +1529,10 @@ static void kvaser_usb_leaf_handle_command(const struct kvaser_usb *dev,
 
 	case CMD_ERROR_EVENT:
 		kvaser_usb_leaf_error_event(dev, cmd);
+		break;
+
+	case CMD_GET_BUS_PARAMS_REPLY:
+		kvaser_usb_leaf_get_busparams_reply(dev, cmd);
 		break;
 
 	/* Ignored commands */
@@ -1683,10 +1709,10 @@ static void kvaser_usb_leaf_remove_channel(struct kvaser_usb_net_priv *priv)
 		cancel_delayed_work_sync(&leaf->chip_state_req_work);
 }
 
-static int kvaser_usb_leaf_set_bittiming(struct net_device *netdev)
+static int kvaser_usb_leaf_set_bittiming(const struct net_device *netdev,
+					 const struct kvaser_usb_busparams *busparams)
 {
 	struct kvaser_usb_net_priv *priv = netdev_priv(netdev);
-	struct can_bittiming *bt = &priv->can.bittiming;
 	struct kvaser_usb *dev = priv->dev;
 	struct kvaser_cmd *cmd;
 	int rc;
@@ -1699,20 +1725,34 @@ static int kvaser_usb_leaf_set_bittiming(struct net_device *netdev)
 	cmd->len = CMD_HEADER_LEN + sizeof(struct kvaser_cmd_busparams);
 	cmd->u.busparams.channel = priv->channel;
 	cmd->u.busparams.tid = 0xff;
-	cmd->u.busparams.busparams.bitrate = cpu_to_le32(bt->bitrate);
-	cmd->u.busparams.busparams.sjw = bt->sjw;
-	cmd->u.busparams.busparams.tseg1 = bt->prop_seg + bt->phase_seg1;
-	cmd->u.busparams.busparams.tseg2 = bt->phase_seg2;
-
-	if (priv->can.ctrlmode & CAN_CTRLMODE_3_SAMPLES)
-		cmd->u.busparams.busparams.nsamples = 3;
-	else
-		cmd->u.busparams.busparams.nsamples = 1;
+	memcpy(&cmd->u.busparams.busparams, busparams,
+	       sizeof(cmd->u.busparams.busparams));
 
 	rc = kvaser_usb_send_cmd(dev, cmd, cmd->len);
 
 	kfree(cmd);
 	return rc;
+}
+
+static int kvaser_usb_leaf_get_busparams(struct kvaser_usb_net_priv *priv)
+{
+	int err;
+
+	if (priv->dev->driver_info->family == KVASER_USBCAN)
+		return -EOPNOTSUPP;
+
+	reinit_completion(&priv->get_busparams_comp);
+
+	err = kvaser_usb_leaf_send_simple_cmd(priv->dev, CMD_GET_BUS_PARAMS,
+					      priv->channel);
+	if (err)
+		return err;
+
+	if (!wait_for_completion_timeout(&priv->get_busparams_comp,
+					 msecs_to_jiffies(KVASER_USB_TIMEOUT)))
+		return -ETIMEDOUT;
+
+	return 0;
 }
 
 static int kvaser_usb_leaf_set_mode(struct net_device *netdev,
@@ -1776,7 +1816,9 @@ static int kvaser_usb_leaf_setup_endpoints(struct kvaser_usb *dev)
 const struct kvaser_usb_dev_ops kvaser_usb_leaf_dev_ops = {
 	.dev_set_mode = kvaser_usb_leaf_set_mode,
 	.dev_set_bittiming = kvaser_usb_leaf_set_bittiming,
+	.dev_get_busparams = kvaser_usb_leaf_get_busparams,
 	.dev_set_data_bittiming = NULL,
+	.dev_get_data_busparams = NULL,
 	.dev_get_berr_counter = kvaser_usb_leaf_get_berr_counter,
 	.dev_setup_endpoints = kvaser_usb_leaf_setup_endpoints,
 	.dev_init_card = kvaser_usb_leaf_init_card,
