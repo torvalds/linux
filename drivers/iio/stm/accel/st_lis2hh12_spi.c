@@ -67,7 +67,7 @@ static int lis2hh12_spi_write(struct lis2hh12_data *cdata,
 		.len = len + 1,
 	};
 
-	if (len >= LIS2HH12_RX_MAX_LENGTH)
+	if (len >= LIS2HH12_TX_MAX_LENGTH)
 		return -ENOMEM;
 
 	mutex_lock(&cdata->tb.buf_lock);
