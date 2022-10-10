@@ -189,7 +189,7 @@ activate_next:
 		int time_ms = 0;
 
 		if (err)
-			time_ms = 10 + prandom_u32_max(16);
+			time_ms = 10 + get_random_u32_below(16);
 
 		j1939_tp_schedule_txtimer(first, time_ms);
 	}

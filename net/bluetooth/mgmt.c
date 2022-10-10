@@ -7374,8 +7374,8 @@ static int get_conn_info(struct sock *sk, struct hci_dev *hdev, void *data,
 	 * calculate conn info age as random value between min/max set in hdev.
 	 */
 	conn_info_age = hdev->conn_info_min_age +
-			prandom_u32_max(hdev->conn_info_max_age -
-					hdev->conn_info_min_age);
+			get_random_u32_below(hdev->conn_info_max_age -
+					     hdev->conn_info_min_age);
 
 	/* Query controller to refresh cached values if they are too old or were
 	 * never read.

@@ -3689,7 +3689,7 @@ static void virtual_engine_initial_hint(struct virtual_engine *ve)
 	 * NB This does not force us to execute on this engine, it will just
 	 * typically be the first we inspect for submission.
 	 */
-	swp = prandom_u32_max(ve->num_siblings);
+	swp = get_random_u32_below(ve->num_siblings);
 	if (swp)
 		swap(ve->siblings[swp], ve->siblings[0]);
 }

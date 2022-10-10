@@ -513,8 +513,8 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			goto finish_segs;
 		}
 
-		skb->data[prandom_u32_max(skb_headlen(skb))] ^=
-			1<<prandom_u32_max(8);
+		skb->data[get_random_u32_below(skb_headlen(skb))] ^=
+			1<<get_random_u32_below(8);
 	}
 
 	if (unlikely(sch->q.qlen >= sch->limit)) {

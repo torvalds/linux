@@ -31,8 +31,8 @@ static bool __init test_encode_decode(void)
 	int i;
 
 	for (i = 0; i < ITERS_PER_TEST; ++i) {
-		size_t size = prandom_u32_max(MAX_ENCODABLE_SIZE) + 1;
-		bool is_write = !!prandom_u32_max(2);
+		size_t size = get_random_u32_below(MAX_ENCODABLE_SIZE) + 1;
+		bool is_write = !!get_random_u32_below(2);
 		unsigned long verif_masked_addr;
 		long encoded_watchpoint;
 		bool verif_is_write;

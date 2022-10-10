@@ -3778,7 +3778,7 @@ cont_thread:
 			}
 			if (!progress) {
 				elr->lr_next_sched = jiffies +
-					prandom_u32_max(EXT4_DEF_LI_MAX_START_DELAY * HZ);
+					get_random_u32_below(EXT4_DEF_LI_MAX_START_DELAY * HZ);
 			}
 			if (time_before(elr->lr_next_sched, next_wakeup))
 				next_wakeup = elr->lr_next_sched;
@@ -3925,8 +3925,7 @@ static struct ext4_li_request *ext4_li_request_new(struct super_block *sb,
 	 * spread the inode table initialization requests
 	 * better.
 	 */
-	elr->lr_next_sched = jiffies + prandom_u32_max(
-				EXT4_DEF_LI_MAX_START_DELAY * HZ);
+	elr->lr_next_sched = jiffies + get_random_u32_below(EXT4_DEF_LI_MAX_START_DELAY * HZ);
 	return elr;
 }
 

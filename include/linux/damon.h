@@ -21,7 +21,7 @@
 /* Get a random number in [l, r) */
 static inline unsigned long damon_rand(unsigned long l, unsigned long r)
 {
-	return l + prandom_u32_max(r - l);
+	return l + get_random_u32_below(r - l);
 }
 
 /**

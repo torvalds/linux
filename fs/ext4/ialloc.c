@@ -465,7 +465,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 			ext4fs_dirhash(parent, qstr->name, qstr->len, &hinfo);
 			parent_group = hinfo.hash % ngroups;
 		} else
-			parent_group = prandom_u32_max(ngroups);
+			parent_group = get_random_u32_below(ngroups);
 		for (i = 0; i < ngroups; i++) {
 			g = (parent_group + i) % ngroups;
 			get_orlov_stats(sb, g, flex_size, &stats);

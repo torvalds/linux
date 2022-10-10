@@ -919,8 +919,8 @@ static int csk_wait_memory(struct chtls_dev *cdev,
 	current_timeo = *timeo_p;
 	noblock = (*timeo_p ? false : true);
 	if (csk_mem_free(cdev, sk)) {
-		current_timeo = prandom_u32_max(HZ / 5) + 2;
-		vm_wait = prandom_u32_max(HZ / 5) + 2;
+		current_timeo = get_random_u32_below(HZ / 5) + 2;
+		vm_wait = get_random_u32_below(HZ / 5) + 2;
 	}
 
 	add_wait_queue(sk_sleep(sk), &wait);

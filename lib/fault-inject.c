@@ -139,7 +139,7 @@ bool should_fail(struct fault_attr *attr, ssize_t size)
 			return false;
 	}
 
-	if (attr->probability <= prandom_u32_max(100))
+	if (attr->probability <= get_random_u32_below(100))
 		return false;
 
 	if (!fail_stacktrace(attr))

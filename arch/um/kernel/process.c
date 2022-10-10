@@ -356,7 +356,7 @@ int singlestepping(void * t)
 unsigned long arch_align_stack(unsigned long sp)
 {
 	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
-		sp -= prandom_u32_max(8192);
+		sp -= get_random_u32_below(8192);
 	return sp & ~0xf;
 }
 #endif

@@ -1619,7 +1619,7 @@ static int xs_get_random_port(void)
 	if (max < min)
 		return -EADDRINUSE;
 	range = max - min + 1;
-	rand = prandom_u32_max(range);
+	rand = get_random_u32_below(range);
 	return rand + min;
 }
 

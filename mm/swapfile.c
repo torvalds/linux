@@ -773,7 +773,7 @@ static void set_cluster_next(struct swap_info_struct *si, unsigned long next)
 		if (si->highest_bit <= si->lowest_bit)
 			return;
 		next = si->lowest_bit +
-			prandom_u32_max(si->highest_bit - si->lowest_bit + 1);
+			get_random_u32_below(si->highest_bit - si->lowest_bit + 1);
 		next = ALIGN_DOWN(next, SWAP_ADDRESS_SPACE_PAGES);
 		next = max_t(unsigned int, next, si->lowest_bit);
 	}
@@ -3089,7 +3089,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 		 */
 		for_each_possible_cpu(cpu) {
 			per_cpu(*p->cluster_next_cpu, cpu) =
-				1 + prandom_u32_max(p->highest_bit);
+				1 + get_random_u32_below(p->highest_bit);
 		}
 		nr_cluster = DIV_ROUND_UP(maxpages, SWAPFILE_CLUSTER);
 
