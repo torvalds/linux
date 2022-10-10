@@ -156,6 +156,11 @@ static inline bool kvm_mmu_page_ad_need_write_protect(struct kvm_mmu_page *sp)
 	return kvm_x86_ops.cpu_dirty_log_size && sp->role.guest_mode;
 }
 
+static inline gfn_t gfn_round_for_level(gfn_t gfn, int level)
+{
+	return gfn & -KVM_PAGES_PER_HPAGE(level);
+}
+
 int mmu_try_to_unsync_pages(struct kvm *kvm, const struct kvm_memory_slot *slot,
 			    gfn_t gfn, bool can_unsync, bool prefetch);
 
