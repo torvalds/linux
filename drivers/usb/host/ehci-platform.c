@@ -422,6 +422,7 @@ static int ehci_platform_probe(struct platform_device *dev)
 		if (companion_dev) {
 			link = device_link_add(companion_dev, hcd->self.controller,
 					       DL_FLAG_STATELESS);
+			put_device(companion_dev);
 			if (!link) {
 				dev_err(&dev->dev, "Unable to link %s\n",
 					dev_name(companion_dev));
@@ -473,8 +474,10 @@ static int ehci_platform_remove(struct platform_device *dev)
 	if (of_device_is_compatible(dev->dev.of_node,
 				    "rockchip,rk3588-ehci")) {
 		companion_dev = usb_of_get_companion_dev(hcd->self.controller);
-		if (companion_dev)
+		if (companion_dev) {
 			device_link_remove(companion_dev, hcd->self.controller);
+			put_device(companion_dev);
+		}
 	}
 
 	usb_remove_hcd(hcd);
@@ -535,8 +538,9 @@ static int __maybe_unused ehci_platform_resume(struct device *dev)
 	}
 
 	companion_dev = usb_of_get_companion_dev(hcd->self.controller);
-	if (companion_dev && !device_is_dependent(hcd->self.controller, companion_dev)) {
-		device_pm_wait_for_dev(hcd->self.controller, companion_dev);
+	if (companion_dev) {
+		if (!device_is_dependent(hcd->self.controller, companion_dev))
+			device_pm_wait_for_dev(hcd->self.controller, companion_dev);
 		put_device(companion_dev);
 	}
 
