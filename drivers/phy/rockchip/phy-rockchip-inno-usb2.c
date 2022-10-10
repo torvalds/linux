@@ -853,9 +853,12 @@ static int rockchip_usb2phy_power_on(struct phy *phy)
 	 * please keep the common_on_n 1'b0 to set these blocks
 	 * remain powered.
 	 */
-	ret = rockchip_usb2phy_reset(rphy);
-	if (ret)
-		goto unlock;
+	if (rport->port_id == USB2PHY_PORT_OTG &&
+	    of_device_is_compatible(rphy->dev->of_node, "rockchip,rk3588-usb2phy")) {
+		ret = rockchip_usb2phy_reset(rphy);
+		if (ret)
+			goto unlock;
+	}
 
 	/* waiting for the utmi_clk to become stable */
 	usleep_range(1500, 2000);
@@ -3665,7 +3668,7 @@ static const struct rockchip_usb2phy_cfg rk3588_phy_cfgs[] = {
 		.reg = 0x8000,
 		.num_ports	= 1,
 		.phy_tuning	= rk3588_usb2phy_tuning,
-		.clkout_ctl	= { 0x0000, 0, 0, 1, 0 },
+		.clkout_ctl	= { 0x0000, 0, 0, 0, 0 },
 		.ls_filter_con	= { 0x0040, 19, 0, 0x30100, 0x00020 },
 		.port_cfgs	= {
 			[USB2PHY_PORT_HOST] = {
@@ -3687,7 +3690,7 @@ static const struct rockchip_usb2phy_cfg rk3588_phy_cfgs[] = {
 		.reg = 0xc000,
 		.num_ports	= 1,
 		.phy_tuning	= rk3588_usb2phy_tuning,
-		.clkout_ctl	= { 0x0000, 0, 0, 1, 0 },
+		.clkout_ctl	= { 0x0000, 0, 0, 0, 0 },
 		.ls_filter_con	= { 0x0040, 19, 0, 0x30100, 0x00020 },
 		.port_cfgs	= {
 			[USB2PHY_PORT_HOST] = {
