@@ -1296,7 +1296,7 @@ static int st_asm330lhhx_set_odr(struct st_asm330lhhx_sensor *sensor,
 			return err;
 	}
 
-	delay = 4000000 / req_odr;
+	delay = req_odr > 0 ? 4000000 / req_odr : 0;
 
 	return st_asm330lhhx_update_odr_fsm(hw, id, id_req, val, delay);
 }
