@@ -1760,6 +1760,7 @@ static unsigned long clk_recalc(struct clk_core *core,
 /**
  * __clk_recalc_rates
  * @core: first clk in the subtree
+ * @update_req: Whether req_rate should be updated with the new rate
  * @msg: notification type (see include/linux/clk.h)
  *
  * Walks the subtree of clks starting with clk and recalculates rates as it
@@ -1769,7 +1770,8 @@ static unsigned long clk_recalc(struct clk_core *core,
  * clk_recalc_rates also propagates the POST_RATE_CHANGE notification,
  * if necessary.
  */
-static void __clk_recalc_rates(struct clk_core *core, unsigned long msg)
+static void __clk_recalc_rates(struct clk_core *core, bool update_req,
+			       unsigned long msg)
 {
 	unsigned long old_rate;
 	unsigned long parent_rate = 0;
@@ -1783,6 +1785,8 @@ static void __clk_recalc_rates(struct clk_core *core, unsigned long msg)
 		parent_rate = core->parent->rate;
 
 	core->rate = clk_recalc(core, parent_rate);
+	if (update_req)
+		core->req_rate = core->rate;
 
 	/*
 	 * ignore NOTIFY_STOP and NOTIFY_BAD return values for POST_RATE_CHANGE
@@ -1792,13 +1796,13 @@ static void __clk_recalc_rates(struct clk_core *core, unsigned long msg)
 		__clk_notify(core, msg, old_rate, core->rate);
 
 	hlist_for_each_entry(child, &core->children, child_node)
-		__clk_recalc_rates(child, msg);
+		__clk_recalc_rates(child, update_req, msg);
 }
 
 static unsigned long clk_core_get_rate_recalc(struct clk_core *core)
 {
 	if (core && (core->flags & CLK_GET_RATE_NOCACHE))
-		__clk_recalc_rates(core, 0);
+		__clk_recalc_rates(core, false, 0);
 
 	return clk_core_get_rate_nolock(core);
 }
@@ -1901,23 +1905,6 @@ static void clk_core_update_orphan_status(struct clk_core *core, bool is_orphan)
 		clk_core_update_orphan_status(child, is_orphan);
 }
 
-/*
- * Update the orphan rate and req_rate of @core and all its children.
- */
-static void clk_core_update_orphan_child_rates(struct clk_core *core)
-{
-	struct clk_core *child;
-	unsigned long parent_rate = 0;
-
-	if (core->parent)
-		parent_rate = core->parent->rate;
-
-	core->rate = core->req_rate = clk_recalc(core, parent_rate);
-
-	hlist_for_each_entry(child, &core->children, child_node)
-		clk_core_update_orphan_child_rates(child);
-}
-
 static void clk_reparent(struct clk_core *core, struct clk_core *new_parent)
 {
 	bool was_orphan = core->orphan;
@@ -1987,8 +1974,6 @@ static struct clk_core *__clk_set_parent_before(struct clk_core *core,
 	clk_reparent(core, parent);
 	clk_enable_unlock(flags);
 
-	clk_core_update_orphan_child_rates(core);
-
 	return old_parent;
 }
 
@@ -2034,7 +2019,6 @@ static int __clk_set_parent(struct clk_core *core, struct clk_core *parent,
 		clk_reparent(core, old_parent);
 		clk_enable_unlock(flags);
 
-		clk_core_update_orphan_child_rates(core);
 		__clk_set_parent_after(core, old_parent, parent);
 
 		return ret;
@@ -2658,9 +2642,8 @@ static void clk_core_reparent(struct clk_core *core,
 				  struct clk_core *new_parent)
 {
 	clk_reparent(core, new_parent);
-	clk_core_update_orphan_child_rates(core);
 	__clk_recalc_accuracies(core);
-	__clk_recalc_rates(core, POST_RATE_CHANGE);
+	__clk_recalc_rates(core, true, POST_RATE_CHANGE);
 }
 
 void clk_hw_reparent(struct clk_hw *hw, struct clk_hw *new_parent)
@@ -2744,9 +2727,9 @@ static int clk_core_set_parent_nolock(struct clk_core *core,
 
 	/* propagate rate an accuracy recalculation accordingly */
 	if (ret) {
-		__clk_recalc_rates(core, ABORT_RATE_CHANGE);
+		__clk_recalc_rates(core, true, ABORT_RATE_CHANGE);
 	} else {
-		__clk_recalc_rates(core, POST_RATE_CHANGE);
+		__clk_recalc_rates(core, true, POST_RATE_CHANGE);
 		__clk_recalc_accuracies(core);
 	}
 
@@ -3643,7 +3626,7 @@ static void clk_core_reparent_orphans_nolock(void)
 			__clk_set_parent_before(orphan, parent);
 			__clk_set_parent_after(orphan, parent, NULL);
 			__clk_recalc_accuracies(orphan);
-			__clk_recalc_rates(orphan, 0);
+			__clk_recalc_rates(orphan, true, 0);
 
 			/*
 			 * __clk_init_parent() will set the initial req_rate to
