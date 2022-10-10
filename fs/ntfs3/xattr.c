@@ -15,9 +15,10 @@
 #include "ntfs_fs.h"
 
 // clang-format off
-#define SYSTEM_DOS_ATTRIB    "system.dos_attrib"
-#define SYSTEM_NTFS_ATTRIB   "system.ntfs_attrib"
-#define SYSTEM_NTFS_SECURITY "system.ntfs_security"
+#define SYSTEM_DOS_ATTRIB     "system.dos_attrib"
+#define SYSTEM_NTFS_ATTRIB    "system.ntfs_attrib"
+#define SYSTEM_NTFS_ATTRIB_BE "system.ntfs_attrib_be"
+#define SYSTEM_NTFS_SECURITY  "system.ntfs_security"
 // clang-format on
 
 static inline size_t unpacked_ea_size(const struct EA_FULL *ea)
@@ -796,7 +797,8 @@ static int ntfs_getxattr(const struct xattr_handler *handler, struct dentry *de,
 		goto out;
 	}
 
-	if (!strcmp(name, SYSTEM_NTFS_ATTRIB)) {
+	if (!strcmp(name, SYSTEM_NTFS_ATTRIB) ||
+	    !strcmp(name, SYSTEM_NTFS_ATTRIB_BE)) {
 		/* system.ntfs_attrib */
 		if (!buffer) {
 			err = sizeof(u32);
@@ -805,6 +807,8 @@ static int ntfs_getxattr(const struct xattr_handler *handler, struct dentry *de,
 		} else {
 			err = sizeof(u32);
 			*(u32 *)buffer = le32_to_cpu(ni->std_fa);
+			if (!strcmp(name, SYSTEM_NTFS_ATTRIB_BE))
+				*(u32 *)buffer = cpu_to_be32(*(u32 *)buffer);
 		}
 		goto out;
 	}
@@ -889,10 +893,14 @@ static noinline int ntfs_setxattr(const struct xattr_handler *handler,
 		goto set_new_fa;
 	}
 
-	if (!strcmp(name, SYSTEM_NTFS_ATTRIB)) {
+	if (!strcmp(name, SYSTEM_NTFS_ATTRIB) ||
+	    !strcmp(name, SYSTEM_NTFS_ATTRIB_BE)) {
 		if (size != sizeof(u32))
 			goto out;
-		new_fa = cpu_to_le32(*(u32 *)value);
+		if (!strcmp(name, SYSTEM_NTFS_ATTRIB_BE))
+			new_fa = cpu_to_le32(be32_to_cpu(*(u32 *)value));
+		else
+			new_fa = cpu_to_le32(*(u32 *)value);
 
 		if (S_ISREG(inode->i_mode)) {
 			/* Process compressed/sparsed in special way. */
