@@ -108,8 +108,8 @@ xfs_refcount_btrec_to_irec(
 	uint32_t			start;
 
 	start = be32_to_cpu(rec->refc.rc_startblock);
-	if (start & XFS_REFC_COW_START) {
-		start &= ~XFS_REFC_COW_START;
+	if (start & XFS_REFC_COWFLAG) {
+		start &= ~XFS_REFC_COWFLAG;
 		irec->rc_domain = XFS_REFC_DOMAIN_COW;
 	} else {
 		irec->rc_domain = XFS_REFC_DOMAIN_SHARED;
@@ -1799,7 +1799,7 @@ xfs_refcount_recover_cow_leftovers(
 	int				error;
 
 	/* reflink filesystems mustn't have AGs larger than 2^31-1 blocks */
-	BUILD_BUG_ON(XFS_MAX_CRC_AG_BLOCKS >= XFS_REFC_COW_START);
+	BUILD_BUG_ON(XFS_MAX_CRC_AG_BLOCKS >= XFS_REFC_COWFLAG);
 	if (mp->m_sb.sb_agblocks > XFS_MAX_CRC_AG_BLOCKS)
 		return -EOPNOTSUPP;
 
