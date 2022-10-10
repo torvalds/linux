@@ -1862,10 +1862,12 @@ static struct bkey_s_c __bch2_btree_iter_peek(struct btree_iter *iter, struct bp
 	struct bkey_s_c k, k2;
 	int ret;
 
-	EBUG_ON(iter->path->cached || iter->path->level);
+	EBUG_ON(iter->path->cached);
 	bch2_btree_iter_verify(iter);
 
 	while (1) {
+		struct btree_path_level *l;
+
 		iter->path = bch2_btree_path_set_pos(trans, iter->path, search_key,
 					iter->flags & BTREE_ITER_INTENT);
 
@@ -1877,9 +1879,18 @@ static struct bkey_s_c __bch2_btree_iter_peek(struct btree_iter *iter, struct bp
 			goto out;
 		}
 
+		l = path_l(iter->path);
+
+		if (unlikely(!l->b)) {
+			/* No btree nodes at requested level: */
+			bch2_btree_iter_set_pos(iter, SPOS_MAX);
+			k = bkey_s_c_null;
+			goto out;
+		}
+
 		btree_path_set_should_be_locked(iter->path);
 
-		k = btree_path_level_peek_all(trans->c, &iter->path->l[0], &iter->k);
+		k = btree_path_level_peek_all(trans->c, l, &iter->k);
 
 		if (unlikely(iter->flags & BTREE_ITER_WITH_KEY_CACHE) &&
 		    k.k &&
@@ -1899,7 +1910,7 @@ static struct bkey_s_c __bch2_btree_iter_peek(struct btree_iter *iter, struct bp
 
 		if (next_update &&
 		    bpos_cmp(next_update->k.p,
-			     k.k ? k.k->p : iter->path->l[0].b->key.k.p) <= 0) {
+			     k.k ? k.k->p : l->b->key.k.p) <= 0) {
 			iter->k = next_update->k;
 			k = bkey_i_to_s_c(next_update);
 		}
@@ -1920,9 +1931,9 @@ static struct bkey_s_c __bch2_btree_iter_peek(struct btree_iter *iter, struct bp
 
 		if (likely(k.k)) {
 			break;
-		} else if (likely(bpos_cmp(iter->path->l[0].b->key.k.p, SPOS_MAX))) {
+		} else if (likely(bpos_cmp(l->b->key.k.p, SPOS_MAX))) {
 			/* Advance to next leaf node: */
-			search_key = bpos_successor(iter->path->l[0].b->key.k.p);
+			search_key = bpos_successor(l->b->key.k.p);
 		} else {
 			/* End of btree: */
 			bch2_btree_iter_set_pos(iter, SPOS_MAX);
