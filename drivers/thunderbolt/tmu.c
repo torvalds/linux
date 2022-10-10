@@ -648,9 +648,6 @@ int tb_switch_tmu_enable(struct tb_switch *sw)
 	bool unidirectional = sw->tmu.unidirectional_request;
 	int ret;
 
-	if (unidirectional && !sw->tmu.has_ucap)
-		return -EOPNOTSUPP;
-
 	/*
 	 * No need to enable TMU on devices that don't support CLx since on
 	 * these devices e.g. Alpine Ridge and earlier, the TMU mode HiFi
@@ -724,10 +721,16 @@ int tb_switch_tmu_enable(struct tb_switch *sw)
  *
  * Selects the rate of the TMU and directionality (uni-directional or
  * bi-directional). Must be called before tb_switch_tmu_enable().
+ *
+ * Returns %0 in success and negative errno otherwise.
  */
-void tb_switch_tmu_configure(struct tb_switch *sw,
-			     enum tb_switch_tmu_rate rate, bool unidirectional)
+int tb_switch_tmu_configure(struct tb_switch *sw, enum tb_switch_tmu_rate rate,
+			    bool unidirectional)
 {
+	if (unidirectional && !sw->tmu.has_ucap)
+		return -EINVAL;
+
 	sw->tmu.unidirectional_request = unidirectional;
 	sw->tmu.rate_request = rate;
+	return 0;
 }

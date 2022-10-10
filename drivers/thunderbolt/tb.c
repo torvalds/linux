@@ -282,9 +282,11 @@ static int tb_enable_tmu(struct tb_switch *sw)
 	 * highest accuracy.
 	 */
 	if (tb_switch_is_clx_enabled(sw, TB_CL1))
-		tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_NORMAL, true);
+		ret = tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_NORMAL, true);
 	else
-		tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_HIFI, false);
+		ret = tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_HIFI, false);
+	if (ret)
+		return ret;
 
 	/* If it is already enabled in correct mode, don't touch it */
 	if (tb_switch_tmu_is_enabled(sw))
