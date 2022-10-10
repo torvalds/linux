@@ -25,6 +25,11 @@ versions up to 3.1. File system type to use on mount is *ntfs3*.
 	  Note: Applied to empty files, this allows to switch type between
 	  sparse(0x200), compressed(0x800) and normal.
 
+	- *system.ntfs_attrib_be* gets/sets ntfs file/dir attributes.
+
+	  Same value as system.ntfs_attrib but always represent as big-endian
+	  (endianness of system.ntfs_attrib is the same as of the CPU).
+
 Mount Options
 =============
 
