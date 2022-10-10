@@ -916,7 +916,7 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 			goto copy_iov;
 
 		if (ret2 != req->cqe.res && ret2 >= 0 && need_complete_io(req)) {
-			struct io_async_rw *rw;
+			struct io_async_rw *io;
 
 			trace_io_uring_short_write(req->ctx, kiocb->ki_pos - ret2,
 						req->cqe.res, ret2);
@@ -929,9 +929,9 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 			iov_iter_save_state(&s->iter, &s->iter_state);
 			ret = io_setup_async_rw(req, iovec, s, true);
 
-			rw = req->async_data;
-			if (rw)
-				rw->bytes_done += ret2;
+			io = req->async_data;
+			if (io)
+				io->bytes_done += ret2;
 
 			if (kiocb->ki_flags & IOCB_WRITE)
 				kiocb_end_write(req);
