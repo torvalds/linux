@@ -918,7 +918,6 @@ static int rtw89_ops_set_tid_config(struct ieee80211_hw *hw,
 
 const struct ieee80211_ops rtw89_ops = {
 	.tx			= rtw89_ops_tx,
-	.wake_tx_queue		= ieee80211_handle_wake_tx_queue,
 	.wake_tx_queue		= rtw89_ops_wake_tx_queue,
 	.start			= rtw89_ops_start,
 	.stop			= rtw89_ops_stop,
