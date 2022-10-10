@@ -36,6 +36,7 @@ struct rxrpc_txbuf;
  * to pass supplementary information.
  */
 enum rxrpc_skb_mark {
+	RXRPC_SKB_MARK_PACKET,		/* Received packet */
 	RXRPC_SKB_MARK_REJECT_BUSY,	/* Reject with BUSY */
 	RXRPC_SKB_MARK_REJECT_ABORT,	/* Reject with ABORT (code in skb->priority) */
 };
@@ -957,7 +958,7 @@ void rxrpc_input_implicit_end_call(struct rxrpc_sock *, struct rxrpc_connection 
 /*
  * io_thread.c
  */
-int rxrpc_input_packet(struct sock *, struct sk_buff *);
+int rxrpc_encap_rcv(struct sock *, struct sk_buff *);
 int rxrpc_io_thread(void *data);
 static inline void rxrpc_wake_up_io_thread(struct rxrpc_local *local)
 {

@@ -10,6 +10,34 @@
 #include "ar-internal.h"
 
 /*
+ * handle data received on the local endpoint
+ * - may be called in interrupt context
+ *
+ * [!] Note that as this is called from the encap_rcv hook, the socket is not
+ * held locked by the caller and nothing prevents sk_user_data on the UDP from
+ * being cleared in the middle of processing this function.
+ *
+ * Called with the RCU read lock held from the IP layer via UDP.
+ */
+int rxrpc_encap_rcv(struct sock *udp_sk, struct sk_buff *skb)
+{
+	struct rxrpc_local *local = rcu_dereference_sk_user_data(udp_sk);
+
+	if (unlikely(!local)) {
+		kfree_skb(skb);
+		return 0;
+	}
+	if (skb->tstamp == 0)
+		skb->tstamp = ktime_get_real();
+
+	skb->mark = RXRPC_SKB_MARK_PACKET;
+	rxrpc_new_skb(skb, rxrpc_skb_new_encap_rcv);
+	skb_queue_tail(&local->rx_queue, skb);
+	rxrpc_wake_up_io_thread(local);
+	return 0;
+}
+
+/*
  * post connection-level events to the connection
  * - this includes challenges, responses, some aborts and call terminal packet
  *   retransmission.
@@ -98,18 +126,10 @@ static bool rxrpc_extract_abort(struct sk_buff *skb)
 }
 
 /*
- * handle data received on the local endpoint
- * - may be called in interrupt context
- *
- * [!] Note that as this is called from the encap_rcv hook, the socket is not
- * held locked by the caller and nothing prevents sk_user_data on the UDP from
- * being cleared in the middle of processing this function.
- *
- * Called with the RCU read lock held from the IP layer via UDP.
+ * Process packets received on the local endpoint
  */
-int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
+static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff *skb)
 {
-	struct rxrpc_local *local = rcu_dereference_sk_user_data(udp_sk);
 	struct rxrpc_connection *conn;
 	struct rxrpc_channel *chan;
 	struct rxrpc_call *call = NULL;
@@ -118,16 +138,8 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 	struct rxrpc_sock *rx = NULL;
 	unsigned int channel;
 
-	_enter("%p", udp_sk);
-
-	if (unlikely(!local)) {
-		kfree_skb(skb);
-		return 0;
-	}
 	if (skb->tstamp == 0)
 		skb->tstamp = ktime_get_real();
-
-	rxrpc_new_skb(skb, rxrpc_skb_new_encap_rcv);
 
 	skb_pull(skb, sizeof(struct udphdr));
 
@@ -387,8 +399,17 @@ int rxrpc_io_thread(void *data)
 
 		/* Process received packets and errors. */
 		if ((skb = __skb_dequeue(&rx_queue))) {
-			// TODO: Input packet
-			rxrpc_free_skb(skb, rxrpc_skb_put_input);
+			switch (skb->mark) {
+			case RXRPC_SKB_MARK_PACKET:
+				rcu_read_lock();
+				rxrpc_input_packet(local, skb);
+				rcu_read_unlock();
+				break;
+			default:
+				WARN_ON_ONCE(1);
+				rxrpc_free_skb(skb, rxrpc_skb_put_unknown);
+				break;
+			}
 			continue;
 		}
 

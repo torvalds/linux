@@ -632,7 +632,7 @@ void rxrpc_cleanup_call(struct rxrpc_call *call)
 	del_timer_sync(&call->timer);
 	cancel_work(&call->processor);
 
-	if (in_softirq() || work_busy(&call->processor))
+	if (rcu_read_lock_held() || work_busy(&call->processor))
 		/* Can't use the rxrpc workqueue as we need to cancel/flush
 		 * something that may be running/waiting there.
 		 */

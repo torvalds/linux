@@ -83,7 +83,7 @@ void rxrpc_send_ACK(struct rxrpc_call *call, u8 ack_reason,
 	rxrpc_inc_stat(call->rxnet, stat_tx_acks[ack_reason]);
 
 	txb = rxrpc_alloc_txbuf(call, RXRPC_PACKET_TYPE_ACK,
-				in_softirq() ? GFP_ATOMIC | __GFP_NOWARN : GFP_NOFS);
+				rcu_read_lock_held() ? GFP_ATOMIC | __GFP_NOWARN : GFP_NOFS);
 	if (!txb) {
 		kleave(" = -ENOMEM");
 		return;
@@ -111,7 +111,7 @@ void rxrpc_send_ACK(struct rxrpc_call *call, u8 ack_reason,
 	spin_unlock_bh(&local->ack_tx_lock);
 	trace_rxrpc_send_ack(call, why, ack_reason, serial);
 
-	if (in_task()) {
+	if (!rcu_read_lock_held()) {
 		rxrpc_transmit_ack_packets(call->peer->local);
 	} else {
 		rxrpc_get_local(local, rxrpc_local_get_queue);
