@@ -383,14 +383,6 @@ out:
  */
 int tb_switch_tmu_disable(struct tb_switch *sw)
 {
-	/*
-	 * No need to disable TMU on devices that don't support CLx since
-	 * on these devices e.g. Alpine Ridge and earlier, the TMU mode
-	 * HiFi bi-directional is enabled by default and we don't change it.
-	 */
-	if (!tb_switch_clx_is_supported(sw))
-		return 0;
-
 	/* Already disabled? */
 	if (sw->tmu.rate == TB_SWITCH_TMU_RATE_OFF)
 		return 0;
@@ -648,25 +640,10 @@ int tb_switch_tmu_enable(struct tb_switch *sw)
 	bool unidirectional = sw->tmu.unidirectional_request;
 	int ret;
 
-	/*
-	 * No need to enable TMU on devices that don't support CLx since on
-	 * these devices e.g. Alpine Ridge and earlier, the TMU mode HiFi
-	 * bi-directional is enabled by default.
-	 */
-	if (!tb_switch_clx_is_supported(sw))
-		return 0;
-
 	if (tb_switch_tmu_is_enabled(sw))
 		return 0;
 
 	if (tb_switch_is_titan_ridge(sw) && unidirectional) {
-		/*
-		 * Titan Ridge supports CL0s and CL1 only. CL0s and CL1 are
-		 * enabled and supported together.
-		 */
-		if (!tb_switch_clx_is_enabled(sw, TB_CL1))
-			return -EOPNOTSUPP;
-
 		ret = tb_switch_tmu_disable_objections(sw);
 		if (ret)
 			return ret;
