@@ -851,6 +851,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		*ns_name = kstrndup(tmpns, ns_len, GFP_KERNEL);
 		if (!*ns_name) {
 			info = "out of memory";
+			error = -ENOMEM;
 			goto fail;
 		}
 		name = tmpname;
@@ -882,7 +883,8 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		}
 		profile->attach.xmatch_len = tmp;
 		profile->attach.xmatch.start[AA_CLASS_XMATCH] = DFA_START;
-		if (aa_compat_map_xmatch(&profile->attach.xmatch)) {
+		error = aa_compat_map_xmatch(&profile->attach.xmatch);
+		if (error) {
 			info = "failed to convert xmatch permission table";
 			goto fail;
 		}
@@ -1004,7 +1006,8 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 				      AA_CLASS_FILE);
 		if (!unpack_nameX(e, AA_STRUCTEND, NULL))
 			goto fail;
-		if (aa_compat_map_policy(&rules->policy, e->version)) {
+		error = aa_compat_map_policy(&rules->policy, e->version);
+		if (error) {
 			info = "failed to remap policydb permission table";
 			goto fail;
 		}
@@ -1016,7 +1019,8 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	if (error) {
 		goto fail;
 	} else if (rules->file.dfa) {
-		if (aa_compat_map_file(&rules->file)) {
+		error = aa_compat_map_file(&rules->file);
+		if (error) {
 			info = "failed to remap file permission table";
 			goto fail;
 		}
@@ -1027,12 +1031,14 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	} else
 		rules->file.dfa = aa_get_dfa(nulldfa);
 
+	error = -EPROTO;
 	if (unpack_nameX(e, AA_STRUCT, "data")) {
 		info = "out of memory";
 		profile->data = kzalloc(sizeof(*profile->data), GFP_KERNEL);
-		if (!profile->data)
+		if (!profile->data) {
+			error = -ENOMEM;
 			goto fail;
-
+		}
 		params.nelem_hint = 3;
 		params.key_len = sizeof(void *);
 		params.key_offset = offsetof(struct aa_data, key);
@@ -1049,6 +1055,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 			data = kzalloc(sizeof(*data), GFP_KERNEL);
 			if (!data) {
 				kfree_sensitive(key);
+				error = -ENOMEM;
 				goto fail;
 			}
 
@@ -1058,6 +1065,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 			if (data->size && !data->data) {
 				kfree_sensitive(data->key);
 				kfree_sensitive(data);
+				error = -ENOMEM;
 				goto fail;
 			}
 
@@ -1079,6 +1087,9 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	return profile;
 
 fail:
+	if (error == 0)
+		/* default error covers most cases */
+		error = -EPROTO;
 	if (profile)
 		name = NULL;
 	else if (!name)
