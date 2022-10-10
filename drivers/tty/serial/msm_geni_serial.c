@@ -2285,6 +2285,10 @@ static void start_rx_sequencer(struct uart_port *uport)
 		if (msm_geni_uart_gsi_xfer_rx(uport))
 			IPC_LOG_MSG(port->ipc_log_misc,
 				    "%s: RX xfer is failed\n", __func__);
+		geni_status = geni_read_reg(uport->membase, SE_GENI_STATUS);
+		UART_LOG_DBG(port->ipc_log_misc, uport->dev,
+			     "%s: xfer_rx done. geni_status:0x%x\n",
+				__func__, geni_status);
 		return;
 	}
 	if (geni_status & S_GENI_CMD_ACTIVE) {
@@ -3242,6 +3246,9 @@ static void msm_geni_serial_shutdown(struct uart_port *uport)
 			 * stop_rx_sequencer() hence wait for completion
 			 * of Rx channel reset
 			 */
+			UART_LOG_DBG(msm_port->ipc_log_misc, uport->dev,
+					"%s: Stop Rx Engine\n", __func__);
+			dmaengine_terminate_all(msm_port->gsi->rx_c);
 			timeout = wait_for_completion_timeout
 				(&msm_port->xfer,
 				msecs_to_jiffies(POLL_WAIT_TIMEOUT_MSEC));
