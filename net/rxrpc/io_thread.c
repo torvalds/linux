@@ -366,7 +366,7 @@ static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff *skb)
 	/* Process a call packet; this either discards or passes on the ref
 	 * elsewhere.
 	 */
-	rxrpc_input_call_packet(call, skb);
+	rxrpc_input_call_event(call, skb);
 	goto out;
 
 discard:
@@ -413,6 +413,7 @@ int rxrpc_io_thread(void *data)
 {
 	struct sk_buff_head rx_queue;
 	struct rxrpc_local *local = data;
+	struct rxrpc_call *call;
 	struct sk_buff *skb;
 
 	skb_queue_head_init(&rx_queue);
@@ -421,6 +422,20 @@ int rxrpc_io_thread(void *data)
 
 	for (;;) {
 		rxrpc_inc_stat(local->rxnet, stat_io_loop);
+
+		/* Deal with calls that want immediate attention. */
+		if ((call = list_first_entry_or_null(&local->call_attend_q,
+						     struct rxrpc_call,
+						     attend_link))) {
+			spin_lock_bh(&local->lock);
+			list_del_init(&call->attend_link);
+			spin_unlock_bh(&local->lock);
+
+			trace_rxrpc_call_poked(call);
+			rxrpc_input_call_event(call, NULL);
+			rxrpc_put_call(call, rxrpc_call_put_poke);
+			continue;
+		}
 
 		/* Process received packets and errors. */
 		if ((skb = __skb_dequeue(&rx_queue))) {
@@ -450,7 +465,8 @@ int rxrpc_io_thread(void *data)
 		}
 
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (!skb_queue_empty(&local->rx_queue)) {
+		if (!skb_queue_empty(&local->rx_queue) ||
+		    !list_empty(&local->call_attend_q)) {
 			__set_current_state(TASK_RUNNING);
 			continue;
 		}
