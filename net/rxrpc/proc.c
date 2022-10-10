@@ -342,7 +342,7 @@ static int rxrpc_local_seq_show(struct seq_file *seq, void *v)
 	if (v == SEQ_START_TOKEN) {
 		seq_puts(seq,
 			 "Proto Local                                          "
-			 " Use Act\n");
+			 " Use Act RxQ\n");
 		return 0;
 	}
 
@@ -351,10 +351,11 @@ static int rxrpc_local_seq_show(struct seq_file *seq, void *v)
 	sprintf(lbuff, "%pISpc", &local->srx.transport);
 
 	seq_printf(seq,
-		   "UDP   %-47.47s %3u %3u\n",
+		   "UDP   %-47.47s %3u %3u %3u\n",
 		   lbuff,
 		   refcount_read(&local->ref),
-		   atomic_read(&local->active_users));
+		   atomic_read(&local->active_users),
+		   local->rx_queue.qlen);
 
 	return 0;
 }
@@ -463,6 +464,9 @@ int rxrpc_stats_show(struct seq_file *seq, void *v)
 		   "Buffers  : txb=%u rxb=%u\n",
 		   atomic_read(&rxrpc_nr_txbuf),
 		   atomic_read(&rxrpc_n_rx_skbs));
+	seq_printf(seq,
+		   "IO-thread: loops=%u\n",
+		   atomic_read(&rxnet->stat_io_loop));
 	return 0;
 }
 
@@ -492,5 +496,7 @@ int rxrpc_stats_clear(struct file *file, char *buf, size_t size)
 	memset(&rxnet->stat_rx_acks, 0, sizeof(rxnet->stat_rx_acks));
 
 	memset(&rxnet->stat_why_req_ack, 0, sizeof(rxnet->stat_why_req_ack));
+
+	atomic_set(&rxnet->stat_io_loop, 0);
 	return size;
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* RxRPC packet reception
  *
- * Copyright (C) 2007, 2016 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2007, 2016, 2022 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  */
 
@@ -366,5 +366,54 @@ reject_packet:
 	trace_rxrpc_rx_done(skb->mark, skb->priority);
 	rxrpc_reject_packet(local, skb);
 	_leave(" [badmsg]");
+	return 0;
+}
+
+/*
+ * I/O and event handling thread.
+ */
+int rxrpc_io_thread(void *data)
+{
+	struct sk_buff_head rx_queue;
+	struct rxrpc_local *local = data;
+	struct sk_buff *skb;
+
+	skb_queue_head_init(&rx_queue);
+
+	set_user_nice(current, MIN_NICE);
+
+	for (;;) {
+		rxrpc_inc_stat(local->rxnet, stat_io_loop);
+
+		/* Process received packets and errors. */
+		if ((skb = __skb_dequeue(&rx_queue))) {
+			// TODO: Input packet
+			rxrpc_free_skb(skb, rxrpc_skb_put_input);
+			continue;
+		}
+
+		if (!skb_queue_empty(&local->rx_queue)) {
+			spin_lock_irq(&local->rx_queue.lock);
+			skb_queue_splice_tail_init(&local->rx_queue, &rx_queue);
+			spin_unlock_irq(&local->rx_queue.lock);
+			continue;
+		}
+
+		set_current_state(TASK_INTERRUPTIBLE);
+		if (!skb_queue_empty(&local->rx_queue)) {
+			__set_current_state(TASK_RUNNING);
+			continue;
+		}
+
+		if (kthread_should_stop())
+			break;
+		schedule();
+	}
+
+	__set_current_state(TASK_RUNNING);
+	rxrpc_see_local(local, rxrpc_local_stop);
+	rxrpc_destroy_local(local);
+	local->io_thread = NULL;
+	rxrpc_see_local(local, rxrpc_local_stopped);
 	return 0;
 }
