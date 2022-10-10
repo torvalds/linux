@@ -10,6 +10,7 @@
 #include <linux/printk.h>
 #include <linux/slab.h>
 #include <linux/list.h>
+#include <linux/debugfs.h>
 #include <linux/rculist.h>
 #include "internal.h"
 
@@ -59,3 +60,70 @@ void print_unloaded_tainted_modules(void)
 		}
 	}
 }
+
+#ifdef CONFIG_DEBUG_FS
+static void *unloaded_tainted_modules_seq_start(struct seq_file *m, loff_t *pos)
+	__acquires(rcu)
+{
+	rcu_read_lock();
+	return seq_list_start_rcu(&unloaded_tainted_modules, *pos);
+}
+
+static void *unloaded_tainted_modules_seq_next(struct seq_file *m, void *p, loff_t *pos)
+{
+	return seq_list_next_rcu(p, &unloaded_tainted_modules, pos);
+}
+
+static void unloaded_tainted_modules_seq_stop(struct seq_file *m, void *p)
+	__releases(rcu)
+{
+	rcu_read_unlock();
+}
+
+static int unloaded_tainted_modules_seq_show(struct seq_file *m, void *p)
+{
+	struct mod_unload_taint *mod_taint;
+	char buf[MODULE_FLAGS_BUF_SIZE];
+	size_t l;
+
+	mod_taint = list_entry(p, struct mod_unload_taint, list);
+	l = module_flags_taint(mod_taint->taints, buf);
+	buf[l++] = '\0';
+
+	seq_printf(m, "%s (%s) %llu", mod_taint->name, buf, mod_taint->count);
+	seq_puts(m, "\n");
+
+	return 0;
+}
+
+static const struct seq_operations unloaded_tainted_modules_seq_ops = {
+	.start = unloaded_tainted_modules_seq_start,
+	.next  = unloaded_tainted_modules_seq_next,
+	.stop  = unloaded_tainted_modules_seq_stop,
+	.show  = unloaded_tainted_modules_seq_show,
+};
+
+static int unloaded_tainted_modules_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &unloaded_tainted_modules_seq_ops);
+}
+
+static const struct file_operations unloaded_tainted_modules_fops = {
+	.open = unloaded_tainted_modules_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = seq_release,
+};
+
+static int __init unloaded_tainted_modules_init(void)
+{
+	struct dentry *dir;
+
+	dir = debugfs_create_dir("modules", NULL);
+	debugfs_create_file("unloaded_tainted", 0444, dir, NULL,
+			    &unloaded_tainted_modules_fops);
+
+	return 0;
+}
+module_init(unloaded_tainted_modules_init);
+#endif /* CONFIG_DEBUG_FS */
