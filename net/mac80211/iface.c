@@ -2178,6 +2178,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		ndev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 		ndev->hw_features |= ndev->features &
 					MAC80211_SUPPORTED_FEATURES_TX;
+		sdata->vif.netdev_features = local->hw.netdev_features;
 
 		netdev_set_default_ethtool_ops(ndev, &ieee80211_ethtool_ops);
 
