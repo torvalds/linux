@@ -53,6 +53,7 @@ MODULE_DEVICE_TABLE(i2c, mpl115_i2c_id);
 static struct i2c_driver mpl115_i2c_driver = {
 	.driver = {
 		.name	= "mpl115",
+		.pm = pm_ptr(&mpl115_dev_pm_ops),
 	},
 	.probe = mpl115_i2c_probe,
 	.id_table = mpl115_i2c_id,
