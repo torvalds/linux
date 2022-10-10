@@ -1138,8 +1138,8 @@ static void _rtl92e_dm_dig_init(struct net_device *dev)
 
 	dm_digtable.dig_state		= DM_STA_DIG_MAX;
 	dm_digtable.dig_highpwr_state	= DM_STA_DIG_MAX;
-	dm_digtable.CurSTAConnectState = DIG_STA_DISCONNECT;
-	dm_digtable.PreSTAConnectState = DIG_STA_DISCONNECT;
+	dm_digtable.cur_sta_connect_state = DIG_STA_DISCONNECT;
+	dm_digtable.pre_sta_connect_state = DIG_STA_DISCONNECT;
 
 	dm_digtable.rssi_low_thresh	= DM_DIG_THRESH_LOW;
 	dm_digtable.rssi_high_thresh	= DM_DIG_THRESH_HIGH;
@@ -1207,9 +1207,9 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_driver(struct net_device *dev)
 	}
 
 	if (priv->rtllib->state == RTLLIB_LINKED)
-		dm_digtable.CurSTAConnectState = DIG_STA_CONNECT;
+		dm_digtable.cur_sta_connect_state = DIG_STA_CONNECT;
 	else
-		dm_digtable.CurSTAConnectState = DIG_STA_DISCONNECT;
+		dm_digtable.cur_sta_connect_state = DIG_STA_DISCONNECT;
 
 
 	dm_digtable.rssi_val = priv->undecorated_smoothed_pwdb;
@@ -1218,7 +1218,7 @@ static void _rtl92e_dm_ctrl_initgain_byrssi_driver(struct net_device *dev)
 	_rtl92e_dm_cs_ratio(dev);
 	if (dm_digtable.dig_algorithm_switch)
 		dm_digtable.dig_algorithm_switch = 0;
-	dm_digtable.PreSTAConnectState = dm_digtable.CurSTAConnectState;
+	dm_digtable.pre_sta_connect_state = dm_digtable.cur_sta_connect_state;
 
 }
 
@@ -1368,8 +1368,8 @@ static void _rtl92e_dm_initial_gain(struct net_device *dev)
 		return;
 	}
 
-	if (dm_digtable.PreSTAConnectState == dm_digtable.CurSTAConnectState) {
-		if (dm_digtable.CurSTAConnectState == DIG_STA_CONNECT) {
+	if (dm_digtable.pre_sta_connect_state == dm_digtable.cur_sta_connect_state) {
+		if (dm_digtable.cur_sta_connect_state == DIG_STA_CONNECT) {
 			long gain_range = dm_digtable.rssi_val + 10 -
 					  dm_digtable.backoff_val;
 			gain_range = clamp_t(long, gain_range,
@@ -1419,8 +1419,8 @@ static void _rtl92e_dm_pd_th(struct net_device *dev)
 		reset_cnt = 0;
 	}
 
-	if (dm_digtable.PreSTAConnectState == dm_digtable.CurSTAConnectState) {
-		if (dm_digtable.CurSTAConnectState == DIG_STA_CONNECT) {
+	if (dm_digtable.pre_sta_connect_state == dm_digtable.cur_sta_connect_state) {
+		if (dm_digtable.cur_sta_connect_state == DIG_STA_CONNECT) {
 			if (dm_digtable.rssi_val >=
 			    dm_digtable.rssi_high_power_highthresh)
 				dm_digtable.curpd_thstate =
@@ -1487,8 +1487,8 @@ static void _rtl92e_dm_cs_ratio(struct net_device *dev)
 		reset_cnt = 0;
 	}
 
-	if (dm_digtable.PreSTAConnectState == dm_digtable.CurSTAConnectState) {
-		if (dm_digtable.CurSTAConnectState == DIG_STA_CONNECT) {
+	if (dm_digtable.pre_sta_connect_state == dm_digtable.cur_sta_connect_state) {
+		if (dm_digtable.cur_sta_connect_state == DIG_STA_CONNECT) {
 			if (dm_digtable.rssi_val <= dm_digtable.rssi_low_thresh)
 				dm_digtable.curcs_ratio_state = DIG_CS_RATIO_LOWER;
 			else if (dm_digtable.rssi_val >= dm_digtable.rssi_high_thresh)
