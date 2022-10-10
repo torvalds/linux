@@ -38,6 +38,31 @@ int rxrpc_encap_rcv(struct sock *udp_sk, struct sk_buff *skb)
 }
 
 /*
+ * Handle an error received on the local endpoint.
+ */
+void rxrpc_error_report(struct sock *sk)
+{
+	struct rxrpc_local *local;
+	struct sk_buff *skb;
+
+	rcu_read_lock();
+	local = rcu_dereference_sk_user_data(sk);
+	if (unlikely(!local)) {
+		rcu_read_unlock();
+		return;
+	}
+
+	while ((skb = skb_dequeue(&sk->sk_error_queue))) {
+		skb->mark = RXRPC_SKB_MARK_ERROR;
+		rxrpc_new_skb(skb, rxrpc_skb_new_error_report);
+		skb_queue_tail(&local->rx_queue, skb);
+	}
+
+	rxrpc_wake_up_io_thread(local);
+	rcu_read_unlock();
+}
+
+/*
  * post connection-level events to the connection
  * - this includes challenges, responses, some aborts and call terminal packet
  *   retransmission.
@@ -404,6 +429,10 @@ int rxrpc_io_thread(void *data)
 				rcu_read_lock();
 				rxrpc_input_packet(local, skb);
 				rcu_read_unlock();
+				break;
+			case RXRPC_SKB_MARK_ERROR:
+				rxrpc_input_error(local, skb);
+				rxrpc_free_skb(skb, rxrpc_skb_put_error_report);
 				break;
 			default:
 				WARN_ON_ONCE(1);

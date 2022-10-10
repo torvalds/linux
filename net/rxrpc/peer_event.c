@@ -131,51 +131,26 @@ static void rxrpc_adjust_mtu(struct rxrpc_peer *peer, unsigned int mtu)
 /*
  * Handle an error received on the local endpoint.
  */
-void rxrpc_error_report(struct sock *sk)
+void rxrpc_input_error(struct rxrpc_local *local, struct sk_buff *skb)
 {
-	struct sock_exterr_skb *serr;
+	struct sock_exterr_skb *serr = SKB_EXT_ERR(skb);
 	struct sockaddr_rxrpc srx;
-	struct rxrpc_local *local;
 	struct rxrpc_peer *peer = NULL;
-	struct sk_buff *skb;
 
-	rcu_read_lock();
-	local = rcu_dereference_sk_user_data(sk);
-	if (unlikely(!local)) {
-		rcu_read_unlock();
-		return;
-	}
-	_enter("%p{%d}", sk, local->debug_id);
+	_enter("L=%x", local->debug_id);
 
-	/* Clear the outstanding error value on the socket so that it doesn't
-	 * cause kernel_sendmsg() to return it later.
-	 */
-	sock_error(sk);
-
-	skb = sock_dequeue_err_skb(sk);
-	if (!skb) {
-		rcu_read_unlock();
-		_leave("UDP socket errqueue empty");
-		return;
-	}
-	rxrpc_new_skb(skb, rxrpc_skb_new_error_report);
-	serr = SKB_EXT_ERR(skb);
 	if (!skb->len && serr->ee.ee_origin == SO_EE_ORIGIN_TIMESTAMPING) {
 		_leave("UDP empty message");
-		rcu_read_unlock();
-		rxrpc_free_skb(skb, rxrpc_skb_put_error_report);
 		return;
 	}
 
+	rcu_read_lock();
 	peer = rxrpc_lookup_peer_local_rcu(local, skb, &srx);
 	if (peer && !rxrpc_get_peer_maybe(peer, rxrpc_peer_get_input_error))
 		peer = NULL;
-	if (!peer) {
-		rcu_read_unlock();
-		rxrpc_free_skb(skb, rxrpc_skb_put_error_report);
-		_leave(" [no peer]");
+	rcu_read_unlock();
+	if (!peer)
 		return;
-	}
 
 	trace_rxrpc_rx_icmp(peer, &serr->ee, &srx);
 
@@ -188,11 +163,7 @@ void rxrpc_error_report(struct sock *sk)
 
 	rxrpc_store_error(peer, serr);
 out:
-	rcu_read_unlock();
-	rxrpc_free_skb(skb, rxrpc_skb_put_error_report);
 	rxrpc_put_peer(peer, rxrpc_peer_put_input_error);
-
-	_leave("");
 }
 
 /*
