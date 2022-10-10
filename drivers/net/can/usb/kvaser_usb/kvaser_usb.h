@@ -76,6 +76,14 @@ struct kvaser_usb_tx_urb_context {
 	int dlc;
 };
 
+struct kvaser_usb_busparams {
+	__le32 bitrate;
+	u8 tseg1;
+	u8 tseg2;
+	u8 sjw;
+	u8 nsamples;
+} __packed;
+
 struct kvaser_usb {
 	struct usb_device *udev;
 	struct usb_interface *intf;
