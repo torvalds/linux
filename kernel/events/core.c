@@ -9944,6 +9944,44 @@ static struct pmu perf_swevent = {
 
 #ifdef CONFIG_EVENT_TRACING
 
+static void tp_perf_event_destroy(struct perf_event *event)
+{
+	perf_trace_destroy(event);
+}
+
+static int perf_tp_event_init(struct perf_event *event)
+{
+	int err;
+
+	if (event->attr.type != PERF_TYPE_TRACEPOINT)
+		return -ENOENT;
+
+	/*
+	 * no branch sampling for tracepoint events
+	 */
+	if (has_branch_stack(event))
+		return -EOPNOTSUPP;
+
+	err = perf_trace_init(event);
+	if (err)
+		return err;
+
+	event->destroy = tp_perf_event_destroy;
+
+	return 0;
+}
+
+static struct pmu perf_tracepoint = {
+	.task_ctx_nr	= perf_sw_context,
+
+	.event_init	= perf_tp_event_init,
+	.add		= perf_trace_add,
+	.del		= perf_trace_del,
+	.start		= perf_swevent_start,
+	.stop		= perf_swevent_stop,
+	.read		= perf_swevent_read,
+};
+
 static int perf_tp_filter_match(struct perf_event *event,
 				struct perf_sample_data *data)
 {
@@ -9993,6 +10031,44 @@ void perf_trace_run_bpf_submit(void *raw_data, int size, int rctx,
 }
 EXPORT_SYMBOL_GPL(perf_trace_run_bpf_submit);
 
+static void __perf_tp_event_target_task(u64 count, void *record,
+					struct pt_regs *regs,
+					struct perf_sample_data *data,
+					struct perf_event *event)
+{
+	struct trace_entry *entry = record;
+
+	if (event->attr.config != entry->type)
+		return;
+	/* Cannot deliver synchronous signal to other task. */
+	if (event->attr.sigtrap)
+		return;
+	if (perf_tp_event_match(event, data, regs))
+		perf_swevent_event(event, count, data, regs);
+}
+
+static void perf_tp_event_target_task(u64 count, void *record,
+				      struct pt_regs *regs,
+				      struct perf_sample_data *data,
+				      struct perf_event_context *ctx)
+{
+	unsigned int cpu = smp_processor_id();
+	struct pmu *pmu = &perf_tracepoint;
+	struct perf_event *event, *sibling;
+
+	perf_event_groups_for_cpu_pmu(event, &ctx->pinned_groups, cpu, pmu) {
+		__perf_tp_event_target_task(count, record, regs, data, event);
+		for_each_sibling_event(sibling, event)
+			__perf_tp_event_target_task(count, record, regs, data, sibling);
+	}
+
+	perf_event_groups_for_cpu_pmu(event, &ctx->flexible_groups, cpu, pmu) {
+		__perf_tp_event_target_task(count, record, regs, data, event);
+		for_each_sibling_event(sibling, event)
+			__perf_tp_event_target_task(count, record, regs, data, sibling);
+	}
+}
+
 void perf_tp_event(u16 event_type, u64 count, void *record, int entry_size,
 		   struct pt_regs *regs, struct hlist_head *head, int rctx,
 		   struct task_struct *task)
@@ -10023,29 +10099,15 @@ void perf_tp_event(u16 event_type, u64 count, void *record, int entry_size,
 	 */
 	if (task && task != current) {
 		struct perf_event_context *ctx;
-		struct trace_entry *entry = record;
 
 		rcu_read_lock();
 		ctx = rcu_dereference(task->perf_event_ctxp);
 		if (!ctx)
 			goto unlock;
 
-		// XXX iterate groups instead, we should be able to
-		// find the subtree for the perf_tracepoint pmu and CPU.
-
-		list_for_each_entry_rcu(event, &ctx->event_list, event_entry) {
-			if (event->cpu != smp_processor_id())
-				continue;
-			if (event->attr.type != PERF_TYPE_TRACEPOINT)
-				continue;
-			if (event->attr.config != entry->type)
-				continue;
-			/* Cannot deliver synchronous signal to other task. */
-			if (event->attr.sigtrap)
-				continue;
-			if (perf_tp_event_match(event, &data, regs))
-				perf_swevent_event(event, count, &data, regs);
-		}
+		raw_spin_lock(&ctx->lock);
+		perf_tp_event_target_task(count, record, regs, &data, ctx);
+		raw_spin_unlock(&ctx->lock);
 unlock:
 		rcu_read_unlock();
 	}
@@ -10053,44 +10115,6 @@ unlock:
 	perf_swevent_put_recursion_context(rctx);
 }
 EXPORT_SYMBOL_GPL(perf_tp_event);
-
-static void tp_perf_event_destroy(struct perf_event *event)
-{
-	perf_trace_destroy(event);
-}
-
-static int perf_tp_event_init(struct perf_event *event)
-{
-	int err;
-
-	if (event->attr.type != PERF_TYPE_TRACEPOINT)
-		return -ENOENT;
-
-	/*
-	 * no branch sampling for tracepoint events
-	 */
-	if (has_branch_stack(event))
-		return -EOPNOTSUPP;
-
-	err = perf_trace_init(event);
-	if (err)
-		return err;
-
-	event->destroy = tp_perf_event_destroy;
-
-	return 0;
-}
-
-static struct pmu perf_tracepoint = {
-	.task_ctx_nr	= perf_sw_context,
-
-	.event_init	= perf_tp_event_init,
-	.add		= perf_trace_add,
-	.del		= perf_trace_del,
-	.start		= perf_swevent_start,
-	.stop		= perf_swevent_stop,
-	.read		= perf_swevent_read,
-};
 
 #if defined(CONFIG_KPROBE_EVENTS) || defined(CONFIG_UPROBE_EVENTS)
 /*
