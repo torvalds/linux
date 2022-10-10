@@ -71,31 +71,13 @@ int ghes_register_vendor_record_notifier(struct notifier_block *nb);
  * @nb: pointer to the notifier_block structure of the vendor record handler.
  */
 void ghes_unregister_vendor_record_notifier(struct notifier_block *nb);
+
+struct list_head *ghes_get_devices(void);
+#else
+static inline struct list_head *ghes_get_devices(void) { return NULL; }
 #endif
 
 int ghes_estatus_pool_init(int num_ghes);
-
-/* From drivers/edac/ghes_edac.c */
-
-#ifdef CONFIG_EDAC_GHES
-int ghes_edac_register(struct ghes *ghes, struct device *dev);
-
-void ghes_edac_unregister(struct ghes *ghes);
-
-struct list_head *ghes_get_devices(void);
-
-#else
-static inline int ghes_edac_register(struct ghes *ghes, struct device *dev)
-{
-	return -ENODEV;
-}
-
-static inline void ghes_edac_unregister(struct ghes *ghes)
-{
-}
-
-static inline struct list_head *ghes_get_devices(void) { return NULL; }
-#endif
 
 static inline int acpi_hest_get_version(struct acpi_hest_generic_data *gdata)
 {
