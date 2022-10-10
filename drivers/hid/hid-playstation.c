@@ -108,6 +108,9 @@ struct ps_led_info {
 #define DS_STATUS_CHARGING		GENMASK(7, 4)
 #define DS_STATUS_CHARGING_SHIFT	4
 
+/* Feature version from DualSense Firmware Info report. */
+#define DS_FEATURE_VERSION(major, minor) ((major & 0xff) << 8 | (minor & 0xff))
+
 /*
  * Status of a DualSense touch point contact.
  * Contact IDs, with highest bit set are 'inactive'
@@ -126,6 +129,7 @@ struct ps_led_info {
 #define DS_OUTPUT_VALID_FLAG1_RELEASE_LEDS BIT(3)
 #define DS_OUTPUT_VALID_FLAG1_PLAYER_INDICATOR_CONTROL_ENABLE BIT(4)
 #define DS_OUTPUT_VALID_FLAG2_LIGHTBAR_SETUP_CONTROL_ENABLE BIT(1)
+#define DS_OUTPUT_VALID_FLAG2_COMPATIBLE_VIBRATION2 BIT(2)
 #define DS_OUTPUT_POWER_SAVE_CONTROL_MIC_MUTE BIT(4)
 #define DS_OUTPUT_LIGHTBAR_SETUP_LIGHT_OUT BIT(1)
 
@@ -143,6 +147,9 @@ struct dualsense {
 	struct input_dev *sensors;
 	struct input_dev *touchpad;
 
+	/* Update version is used as a feature/capability version. */
+	uint16_t update_version;
+
 	/* Calibration data for accelerometer and gyroscope. */
 	struct ps_calibration_data accel_calib_data[3];
 	struct ps_calibration_data gyro_calib_data[3];
@@ -153,6 +160,7 @@ struct dualsense {
 	uint32_t sensor_timestamp_us;
 
 	/* Compatible rumble state */
+	bool use_vibration_v2;
 	bool update_rumble;
 	uint8_t motor_left;
 	uint8_t motor_right;
@@ -812,6 +820,15 @@ static int dualsense_get_firmware_info(struct dualsense *ds)
 	ds->base.hw_version = get_unaligned_le32(&buf[24]);
 	ds->base.fw_version = get_unaligned_le32(&buf[28]);
 
+	/* Update version is some kind of feature version. It is distinct from
+	 * the firmware version as there can be many different variations of a
+	 * controller over time with the same physical shell, but with different
+	 * PCBs and other internal changes. The update version (internal name) is
+	 * used as a means to detect what features are available and change behavior.
+	 * Note: the version is different between DualSense and DualSense Edge.
+	 */
+	ds->update_version = get_unaligned_le16(&buf[44]);
+
 err_free:
 	kfree(buf);
 	return ret;
@@ -974,7 +991,10 @@ static void dualsense_output_worker(struct work_struct *work)
 	if (ds->update_rumble) {
 		/* Select classic rumble style haptics and enable it. */
 		common->valid_flag0 |= DS_OUTPUT_VALID_FLAG0_HAPTICS_SELECT;
-		common->valid_flag0 |= DS_OUTPUT_VALID_FLAG0_COMPATIBLE_VIBRATION;
+		if (ds->use_vibration_v2)
+			common->valid_flag2 |= DS_OUTPUT_VALID_FLAG2_COMPATIBLE_VIBRATION2;
+		else
+			common->valid_flag0 |= DS_OUTPUT_VALID_FLAG0_COMPATIBLE_VIBRATION;
 		common->motor_left = ds->motor_left;
 		common->motor_right = ds->motor_right;
 		ds->update_rumble = false;
@@ -1346,6 +1366,21 @@ static struct ps_device *dualsense_create(struct hid_device *hdev)
 	if (ret) {
 		hid_err(hdev, "Failed to get firmware info from DualSense\n");
 		return ERR_PTR(ret);
+	}
+
+	/* Original DualSense firmware simulated classic controller rumble through
+	 * its new haptics hardware. It felt different from classic rumble users
+	 * were used to. Since then new firmwares were introduced to change behavior
+	 * and make this new 'v2' behavior default on PlayStation and other platforms.
+	 * The original DualSense requires a new enough firmware as bundled with PS5
+	 * software released in 2021. DualSense edge supports it out of the box.
+	 * Both devices also support the old mode, but it is not really used.
+	 */
+	if (hdev->product == USB_DEVICE_ID_SONY_PS5_CONTROLLER) {
+		/* Feature version 2.21 introduced new vibration method. */
+		ds->use_vibration_v2 = ds->update_version >= DS_FEATURE_VERSION(2, 21);
+	} else if (hdev->product == USB_DEVICE_ID_SONY_PS5_CONTROLLER_2) {
+		ds->use_vibration_v2 = true;
 	}
 
 	ret = ps_devices_list_add(ps_dev);
