@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "bcachefs.h"
+#include "bbpos.h"
 #include "alloc_background.h"
 #include "backpointers.h"
 #include "btree_cache.h"
 #include "btree_update.h"
 #include "error.h"
+
+#include <linux/mm.h>
 
 static bool extent_matches_bp(struct bch_fs *c,
 			      enum btree_id btree_id, unsigned level,
@@ -693,6 +696,71 @@ err:
 	return ret;
 }
 
+static inline struct bbpos bp_to_bbpos(struct bch_backpointer bp)
+{
+	return (struct bbpos) {
+		.btree	= bp.btree_id,
+		.pos	= bp.pos,
+	};
+}
+
+static size_t btree_nodes_fit_in_ram(struct bch_fs *c)
+{
+	struct sysinfo i;
+	u64 mem_bytes;
+
+	si_meminfo(&i);
+	mem_bytes = i.totalram * i.mem_unit;
+	return (mem_bytes >> 1) / btree_bytes(c);
+}
+
+int bch2_get_btree_in_memory_pos(struct btree_trans *trans,
+				 unsigned btree_leaf_mask,
+				 unsigned btree_interior_mask,
+				 struct bbpos start, struct bbpos *end)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	size_t btree_nodes = btree_nodes_fit_in_ram(trans->c);
+	enum btree_id btree;
+	int ret = 0;
+
+	for (btree = start.btree; btree < BTREE_ID_NR && !ret; btree++) {
+		unsigned depth = ((1U << btree) & btree_leaf_mask) ? 1 : 2;
+
+		if (!((1U << btree) & btree_leaf_mask) &&
+		    !((1U << btree) & btree_interior_mask))
+			continue;
+
+		bch2_trans_node_iter_init(trans, &iter, btree,
+					  btree == start.btree ? start.pos : POS_MIN,
+					  0, depth, 0);
+		/*
+		 * for_each_btree_key_contineu() doesn't check the return value
+		 * from bch2_btree_iter_advance(), which is needed when
+		 * iterating over interior nodes where we'll see keys at
+		 * SPOS_MAX:
+		 */
+		do {
+			k = __bch2_btree_iter_peek_and_restart(trans, &iter, 0);
+			ret = bkey_err(k);
+			if (!k.k || ret)
+				break;
+
+			--btree_nodes;
+			if (!btree_nodes) {
+				*end = BBPOS(btree, k.k->p);
+				bch2_trans_iter_exit(trans, &iter);
+				return 0;
+			}
+		} while (bch2_btree_iter_advance(&iter));
+		bch2_trans_iter_exit(trans, &iter);
+	}
+
+	*end = BBPOS_MAX;
+	return ret;
+}
+
 int bch2_check_extents_to_backpointers(struct bch_fs *c)
 {
 	struct btree_trans trans;
@@ -736,18 +804,25 @@ int bch2_check_extents_to_backpointers(struct bch_fs *c)
 
 static int check_one_backpointer(struct btree_trans *trans,
 				 struct bpos bucket,
-				 u64 *bp_offset)
+				 u64 *bp_offset,
+				 struct bbpos start,
+				 struct bbpos end)
 {
 	struct btree_iter iter;
 	struct bch_backpointer bp;
+	struct bbpos pos;
 	struct bkey_s_c k;
 	struct printbuf buf = PRINTBUF;
 	int ret;
 
-	ret = bch2_get_next_backpointer(trans, bucket, -1,
-					bp_offset, &bp);
+	ret = bch2_get_next_backpointer(trans, bucket, -1, bp_offset, &bp);
 	if (ret || *bp_offset == U64_MAX)
 		return ret;
+
+	pos = bp_to_bbpos(bp);
+	if (bbpos_cmp(pos, start) < 0 ||
+	    bbpos_cmp(pos, end) > 0)
+		return 0;
 
 	k = bch2_backpointer_get_key(trans, &iter, bucket, *bp_offset, bp);
 	ret = bkey_err(k);
@@ -771,29 +846,73 @@ fsck_err:
 	return ret;
 }
 
-int bch2_check_backpointers_to_extents(struct bch_fs *c)
+static int bch2_check_backpointers_to_extents_pass(struct btree_trans *trans,
+						   struct bbpos start,
+						   struct bbpos end)
 {
-	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret = 0;
 
-	bch2_trans_init(&trans, c, 0, 0);
-	for_each_btree_key(&trans, iter, BTREE_ID_alloc, POS_MIN,
+	for_each_btree_key(trans, iter, BTREE_ID_alloc, POS_MIN,
 			   BTREE_ITER_PREFETCH, k, ret) {
 		u64 bp_offset = 0;
 
-		while (!(ret = commit_do(&trans, NULL, NULL,
-					       BTREE_INSERT_LAZY_RW|
-					       BTREE_INSERT_NOFAIL,
-				check_one_backpointer(&trans, iter.pos, &bp_offset))) &&
+		while (!(ret = commit_do(trans, NULL, NULL,
+					 BTREE_INSERT_LAZY_RW|
+					 BTREE_INSERT_NOFAIL,
+				check_one_backpointer(trans, iter.pos, &bp_offset, start, end))) &&
 		       bp_offset < U64_MAX)
 			bp_offset++;
 
 		if (ret)
 			break;
 	}
-	bch2_trans_iter_exit(&trans, &iter);
-	bch2_trans_exit(&trans);
+	bch2_trans_iter_exit(trans, &iter);
 	return ret < 0 ? ret : 0;
+}
+
+int bch2_check_backpointers_to_extents(struct bch_fs *c)
+{
+	struct btree_trans trans;
+	struct bbpos start = (struct bbpos) { .btree = 0, .pos = POS_MIN, }, end;
+	int ret;
+
+	bch2_trans_init(&trans, c, 0, 0);
+	while (1) {
+		ret = bch2_get_btree_in_memory_pos(&trans,
+						   (1U << BTREE_ID_extents)|
+						   (1U << BTREE_ID_reflink),
+						   ~0,
+						   start, &end);
+		if (ret)
+			break;
+
+		if (!bbpos_cmp(start, BBPOS_MIN) &&
+		    bbpos_cmp(end, BBPOS_MAX))
+			bch_verbose(c, "%s(): extents do not fit in ram, running in multiple passes with %zu nodes per pass",
+				    __func__, btree_nodes_fit_in_ram(c));
+
+		if (bbpos_cmp(start, BBPOS_MIN) ||
+		    bbpos_cmp(end, BBPOS_MAX)) {
+			struct printbuf buf = PRINTBUF;
+
+			prt_str(&buf, "check_backpointers_to_extents(): ");
+			bch2_bbpos_to_text(&buf, start);
+			prt_str(&buf, "-");
+			bch2_bbpos_to_text(&buf, end);
+
+			bch_verbose(c, "%s", buf.buf);
+			printbuf_exit(&buf);
+		}
+
+		ret = bch2_check_backpointers_to_extents_pass(&trans, start, end);
+		if (ret || !bbpos_cmp(end, BBPOS_MAX))
+			break;
+
+		start = bbpos_successor(end);
+	}
+	bch2_trans_exit(&trans);
+
+	return ret;
 }
