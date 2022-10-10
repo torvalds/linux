@@ -98,6 +98,30 @@ const __le16 WOF_NAME[17] = {
 };
 #endif
 
+static const __le16 CON_NAME[3] = {
+	cpu_to_le16('C'), cpu_to_le16('O'), cpu_to_le16('N'),
+};
+
+static const __le16 NUL_NAME[3] = {
+	cpu_to_le16('N'), cpu_to_le16('U'), cpu_to_le16('L'),
+};
+
+static const __le16 AUX_NAME[3] = {
+	cpu_to_le16('A'), cpu_to_le16('U'), cpu_to_le16('X'),
+};
+
+static const __le16 PRN_NAME[3] = {
+	cpu_to_le16('P'), cpu_to_le16('R'), cpu_to_le16('N'),
+};
+
+static const __le16 COM_NAME[3] = {
+	cpu_to_le16('C'), cpu_to_le16('O'), cpu_to_le16('M'),
+};
+
+static const __le16 LPT_NAME[3] = {
+	cpu_to_le16('L'), cpu_to_le16('P'), cpu_to_le16('T'),
+};
+
 // clang-format on
 
 /*
@@ -2503,4 +2527,84 @@ int run_deallocate(struct ntfs_sb_info *sbi, struct runs_tree *run, bool trim)
 	}
 
 	return 0;
+}
+
+static inline bool name_has_forbidden_chars(const struct le_str *fname)
+{
+	int i, ch;
+
+	/* check for forbidden chars */
+	for (i = 0; i < fname->len; ++i) {
+		ch = le16_to_cpu(fname->name[i]);
+
+		/* control chars */
+		if (ch < 0x20)
+			return true;
+
+		switch (ch) {
+		/* disallowed by Windows */
+		case '\\':
+		case '/':
+		case ':':
+		case '*':
+		case '?':
+		case '<':
+		case '>':
+		case '|':
+		case '\"':
+			return true;
+
+		default:
+			/* allowed char */
+			break;
+		}
+	}
+
+	/* file names cannot end with space or . */
+	if (fname->len > 0) {
+		ch = le16_to_cpu(fname->name[fname->len - 1]);
+		if (ch == ' ' || ch == '.')
+			return true;
+	}
+
+	return false;
+}
+
+static inline bool is_reserved_name(struct ntfs_sb_info *sbi,
+				    const struct le_str *fname)
+{
+	int port_digit;
+	const __le16 *name = fname->name;
+	int len = fname->len;
+	u16 *upcase = sbi->upcase;
+
+	/* check for 3 chars reserved names (device names) */
+	/* name by itself or with any extension is forbidden */
+	if (len == 3 || (len > 3 && le16_to_cpu(name[3]) == '.'))
+		if (!ntfs_cmp_names(name, 3, CON_NAME, 3, upcase, false) ||
+		    !ntfs_cmp_names(name, 3, NUL_NAME, 3, upcase, false) ||
+		    !ntfs_cmp_names(name, 3, AUX_NAME, 3, upcase, false) ||
+		    !ntfs_cmp_names(name, 3, PRN_NAME, 3, upcase, false))
+			return true;
+
+	/* check for 4 chars reserved names (port name followed by 1..9) */
+	/* name by itself or with any extension is forbidden */
+	if (len == 4 || (len > 4 && le16_to_cpu(name[4]) == '.')) {
+		port_digit = le16_to_cpu(name[3]);
+		if (port_digit >= '1' && port_digit <= '9')
+			if (!ntfs_cmp_names(name, 3, COM_NAME, 3, upcase, false) ||
+			    !ntfs_cmp_names(name, 3, LPT_NAME, 3, upcase, false))
+				return true;
+	}
+
+	return false;
+}
+
+/*
+ * valid_windows_name - Check if a file name is valid in Windows.
+ */
+bool valid_windows_name(struct ntfs_sb_info *sbi, const struct le_str *fname)
+{
+	return !name_has_forbidden_chars(fname) &&
+	       !is_reserved_name(sbi, fname);
 }

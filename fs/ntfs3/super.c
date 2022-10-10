@@ -248,6 +248,7 @@ enum Opt {
 	Opt_sparse,
 	Opt_nohidden,
 	Opt_hide_dot_files,
+	Opt_windows_names,
 	Opt_showmeta,
 	Opt_acl,
 	Opt_iocharset,
@@ -269,6 +270,7 @@ static const struct fs_parameter_spec ntfs_fs_parameters[] = {
 	fsparam_flag_no("sparse",		Opt_sparse),
 	fsparam_flag_no("hidden",		Opt_nohidden),
 	fsparam_flag_no("hidedotfiles",		Opt_hide_dot_files),
+	fsparam_flag_no("windows_names",	Opt_windows_names),
 	fsparam_flag_no("acl",			Opt_acl),
 	fsparam_flag_no("showmeta",		Opt_showmeta),
 	fsparam_flag_no("prealloc",		Opt_prealloc),
@@ -360,6 +362,9 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 		break;
 	case Opt_hide_dot_files:
 		opts->hide_dot_files = result.negated ? 1 : 0;
+		break;
+	case Opt_windows_names:
+		opts->windows_names = result.negated ? 0 : 1;
 		break;
 	case Opt_acl:
 		if (!result.negated)
@@ -561,6 +566,8 @@ static int ntfs_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",showmeta");
 	if (opts->nohidden)
 		seq_puts(m, ",nohidden");
+	if (opts->windows_names)
+		seq_puts(m, ",windows_names");
 	if (opts->force)
 		seq_puts(m, ",force");
 	if (opts->noacsrules)

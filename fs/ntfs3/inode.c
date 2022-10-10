@@ -1368,6 +1368,13 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 	mi_get_ref(&ni->mi, &new_de->ref);
 
 	fname = (struct ATTR_FILE_NAME *)(new_de + 1);
+
+	if (sbi->options->windows_names &&
+	    !valid_windows_name(sbi, (struct le_str *)&fname->name_len)) {
+		err = -EINVAL;
+		goto out4;
+	}
+
 	mi_get_ref(&dir_ni->mi, &fname->home);
 	fname->dup.cr_time = fname->dup.m_time = fname->dup.c_time =
 		fname->dup.a_time = std5->cr_time;
