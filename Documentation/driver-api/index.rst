@@ -106,6 +106,7 @@ available subsections can be seen below.
    vfio-mediated-device
    vfio
    vfio-pci-device-specific-driver-acceptance
+   virtio/index
    xilinx/index
    xillybus
    zorro
