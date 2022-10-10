@@ -72,7 +72,7 @@ static int ism303dac_spi_write(struct ism303dac_data *cdata,
 		.len = len + 1,
 	};
 
-	if (len >= ISM303DAC_RX_MAX_LENGTH)
+	if (len >= ISM303DAC_TX_MAX_LENGTH)
 		return -ENOMEM;
 
 	if (b_lock)
