@@ -205,11 +205,45 @@ static int tb_switch_mask_clx_objections(struct tb_switch *sw)
 			   sw->cap_lp + offset, ARRAY_SIZE(val));
 }
 
-static int __tb_switch_enable_clx(struct tb_switch *sw, enum tb_clx clx)
+/**
+ * tb_switch_clx_enable() - Enable CLx on upstream port of specified router
+ * @sw: Router to enable CLx for
+ * @clx: The CLx state to enable
+ *
+ * Enable CLx state only for first hop router. That is the most common
+ * use-case, that is intended for better thermal management, and so helps
+ * to improve performance. CLx is enabled only if both sides of the link
+ * support CLx, and if both sides of the link are not configured as two
+ * single lane links and only if the link is not inter-domain link. The
+ * complete set of conditions is described in CM Guide 1.0 section 8.1.
+ *
+ * Return: Returns 0 on success or an error code on failure.
+ */
+int tb_switch_clx_enable(struct tb_switch *sw, enum tb_clx clx)
 {
+	struct tb_switch *root_sw = sw->tb->root_switch;
 	bool up_clx_support, down_clx_support;
 	struct tb_port *up, *down;
 	int ret;
+
+	if (!clx_enabled)
+		return 0;
+
+	/*
+	 * CLx is not enabled and validated on Intel USB4 platforms before
+	 * Alder Lake.
+	 */
+	if (root_sw->generation < 4 || tb_switch_is_tiger_lake(root_sw))
+		return 0;
+
+	switch (clx) {
+	case TB_CL1:
+		/* CL0s and CL1 are enabled and supported together */
+		break;
+
+	default:
+		return -EOPNOTSUPP;
+	}
 
 	if (!tb_switch_clx_is_supported(sw))
 		return 0;
@@ -267,47 +301,28 @@ static int __tb_switch_enable_clx(struct tb_switch *sw, enum tb_clx clx)
 }
 
 /**
- * tb_switch_clx_enable() - Enable CLx on upstream port of specified router
- * @sw: Router to enable CLx for
- * @clx: The CLx state to enable
- *
- * Enable CLx state only for first hop router. That is the most common
- * use-case, that is intended for better thermal management, and so helps
- * to improve performance. CLx is enabled only if both sides of the link
- * support CLx, and if both sides of the link are not configured as two
- * single lane links and only if the link is not inter-domain link. The
- * complete set of conditions is described in CM Guide 1.0 section 8.1.
+ * tb_switch_clx_disable() - Disable CLx on upstream port of specified router
+ * @sw: Router to disable CLx for
+ * @clx: The CLx state to disable
  *
  * Return: Returns 0 on success or an error code on failure.
  */
-int tb_switch_clx_enable(struct tb_switch *sw, enum tb_clx clx)
+int tb_switch_clx_disable(struct tb_switch *sw, enum tb_clx clx)
 {
-	struct tb_switch *root_sw = sw->tb->root_switch;
+	struct tb_port *up, *down;
+	int ret;
 
 	if (!clx_enabled)
-		return 0;
-
-	/*
-	 * CLx is not enabled and validated on Intel USB4 platforms before
-	 * Alder Lake.
-	 */
-	if (root_sw->generation < 4 || tb_switch_is_tiger_lake(root_sw))
 		return 0;
 
 	switch (clx) {
 	case TB_CL1:
 		/* CL0s and CL1 are enabled and supported together */
-		return __tb_switch_enable_clx(sw, clx);
+		break;
 
 	default:
 		return -EOPNOTSUPP;
 	}
-}
-
-static int __tb_switch_disable_clx(struct tb_switch *sw, enum tb_clx clx)
-{
-	struct tb_port *up, *down;
-	int ret;
 
 	if (!tb_switch_clx_is_supported(sw))
 		return 0;
@@ -337,26 +352,4 @@ static int __tb_switch_disable_clx(struct tb_switch *sw, enum tb_clx clx)
 
 	tb_port_dbg(up, "%s disabled\n", tb_switch_clx_name(clx));
 	return 0;
-}
-
-/**
- * tb_switch_cls_disable() - Disable CLx on upstream port of specified router
- * @sw: Router to disable CLx for
- * @clx: The CLx state to disable
- *
- * Return: Returns 0 on success or an error code on failure.
- */
-int tb_switch_clx_disable(struct tb_switch *sw, enum tb_clx clx)
-{
-	if (!clx_enabled)
-		return 0;
-
-	switch (clx) {
-	case TB_CL1:
-		/* CL0s and CL1 are enabled and supported together */
-		return __tb_switch_disable_clx(sw, clx);
-
-	default:
-		return -EOPNOTSUPP;
-	}
 }
