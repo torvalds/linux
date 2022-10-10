@@ -402,9 +402,8 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
 	if (core_waiters > 0) {
 		struct core_thread *ptr;
 
-		freezer_do_not_count();
-		wait_for_completion(&core_state->startup);
-		freezer_count();
+		wait_for_completion_state(&core_state->startup,
+					  TASK_UNINTERRUPTIBLE|TASK_FREEZABLE);
 		/*
 		 * Wait for all the threads to become inactive, so that
 		 * all the thread context (extended register state, like
@@ -412,7 +411,7 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
 		 */
 		ptr = core_state->dumper.next;
 		while (ptr != NULL) {
-			wait_task_inactive(ptr->task, 0);
+			wait_task_inactive(ptr->task, TASK_ANY);
 			ptr = ptr->next;
 		}
 	}
