@@ -202,7 +202,7 @@ struct command_protocol_tp_info {
 };
 
 /**
- * struct touchpad_info - touchpad info response.
+ * struct touchpad_info_protocol - touchpad info response.
  * message.type = 0x1020, message.length = 0x006e
  *
  * @unknown1:		unknown
@@ -311,7 +311,7 @@ struct message {
 		struct command_protocol_mt_init	init_mt_command;
 		struct command_protocol_capsl	capsl_command;
 		struct command_protocol_bl	bl_command;
-		u8				data[0];
+		DECLARE_FLEX_ARRAY(u8, 		data);
 	};
 };
 
@@ -1597,52 +1597,38 @@ static u32 applespi_notify(acpi_handle gpe_device, u32 gpe, void *context)
 
 static int applespi_get_saved_bl_level(struct applespi_data *applespi)
 {
-	struct efivar_entry *efivar_entry;
+	efi_status_t sts = EFI_NOT_FOUND;
 	u16 efi_data = 0;
-	unsigned long efi_data_len;
-	int sts;
+	unsigned long efi_data_len = sizeof(efi_data);
 
-	efivar_entry = kmalloc(sizeof(*efivar_entry), GFP_KERNEL);
-	if (!efivar_entry)
-		return -ENOMEM;
-
-	memcpy(efivar_entry->var.VariableName, EFI_BL_LEVEL_NAME,
-	       sizeof(EFI_BL_LEVEL_NAME));
-	efivar_entry->var.VendorGuid = EFI_BL_LEVEL_GUID;
-	efi_data_len = sizeof(efi_data);
-
-	sts = efivar_entry_get(efivar_entry, NULL, &efi_data_len, &efi_data);
-	if (sts && sts != -ENOENT)
+	if (efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE))
+		sts = efi.get_variable(EFI_BL_LEVEL_NAME, &EFI_BL_LEVEL_GUID,
+				       NULL, &efi_data_len, &efi_data);
+	if (sts != EFI_SUCCESS && sts != EFI_NOT_FOUND)
 		dev_warn(&applespi->spi->dev,
-			 "Error getting backlight level from EFI vars: %d\n",
+			 "Error getting backlight level from EFI vars: 0x%lx\n",
 			 sts);
 
-	kfree(efivar_entry);
-
-	return sts ? sts : efi_data;
+	return sts != EFI_SUCCESS ? -ENODEV : efi_data;
 }
 
 static void applespi_save_bl_level(struct applespi_data *applespi,
 				   unsigned int level)
 {
-	efi_guid_t efi_guid;
+	efi_status_t sts = EFI_UNSUPPORTED;
 	u32 efi_attr;
-	unsigned long efi_data_len;
 	u16 efi_data;
-	int sts;
 
-	/* Save keyboard backlight level */
-	efi_guid = EFI_BL_LEVEL_GUID;
 	efi_data = (u16)level;
-	efi_data_len = sizeof(efi_data);
 	efi_attr = EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS |
 		   EFI_VARIABLE_RUNTIME_ACCESS;
 
-	sts = efivar_entry_set_safe((efi_char16_t *)EFI_BL_LEVEL_NAME, efi_guid,
-				    efi_attr, true, efi_data_len, &efi_data);
-	if (sts)
+	if (efi_rt_services_supported(EFI_RT_SUPPORTED_SET_VARIABLE))
+		sts = efi.set_variable(EFI_BL_LEVEL_NAME, &EFI_BL_LEVEL_GUID,
+				       efi_attr, sizeof(efi_data), &efi_data);
+	if (sts != EFI_SUCCESS)
 		dev_warn(&applespi->spi->dev,
-			 "Error saving backlight level to EFI vars: %d\n", sts);
+			 "Error saving backlight level to EFI vars: 0x%lx\n", sts);
 }
 
 static int applespi_probe(struct spi_device *spi)

@@ -14,8 +14,7 @@
 int efx_init_io(struct efx_nic *efx, int bar, dma_addr_t dma_mask,
 		unsigned int mem_map_size);
 void efx_fini_io(struct efx_nic *efx);
-int efx_init_struct(struct efx_nic *efx, struct pci_dev *pci_dev,
-		    struct net_device *net_dev);
+int efx_init_struct(struct efx_nic *efx, struct pci_dev *pci_dev);
 void efx_fini_struct(struct efx_nic *efx);
 
 #define EFX_MAX_DMAQ_SIZE 4096UL
@@ -43,12 +42,11 @@ void efx_start_monitor(struct efx_nic *efx);
 int __efx_reconfigure_port(struct efx_nic *efx);
 int efx_reconfigure_port(struct efx_nic *efx);
 
-#define EFX_ASSERT_RESET_SERIALISED(efx)		\
-	do {						\
-		if ((efx->state == STATE_READY) ||	\
-		    (efx->state == STATE_RECOVERY) ||	\
-		    (efx->state == STATE_DISABLED))	\
-			ASSERT_RTNL();			\
+#define EFX_ASSERT_RESET_SERIALISED(efx)				\
+	do {								\
+		if ((efx)->state != STATE_UNINIT &&			\
+		    (efx)->state != STATE_PROBED)			\
+			ASSERT_RTNL();					\
 	} while (0)
 
 int efx_try_recovery(struct efx_nic *efx);
@@ -64,7 +62,7 @@ void efx_port_dummy_op_void(struct efx_nic *efx);
 
 static inline int efx_check_disabled(struct efx_nic *efx)
 {
-	if (efx->state == STATE_DISABLED || efx->state == STATE_RECOVERY) {
+	if (efx->state == STATE_DISABLED || efx_recovering(efx->state)) {
 		netif_err(efx, drv, efx->net_dev,
 			  "device is disabled due to earlier errors\n");
 		return -EIO;
@@ -113,4 +111,7 @@ int efx_get_phys_port_id(struct net_device *net_dev,
 
 int efx_get_phys_port_name(struct net_device *net_dev,
 			   char *name, size_t len);
+
+void efx_detach_reps(struct efx_nic *efx);
+void efx_attach_reps(struct efx_nic *efx);
 #endif

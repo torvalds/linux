@@ -599,13 +599,9 @@ static void i2c_device_remove(struct device *dev)
 
 	driver = to_i2c_driver(dev->driver);
 	if (driver->remove) {
-		int status;
-
 		dev_dbg(dev, "remove\n");
 
-		status = driver->remove(client);
-		if (status)
-			dev_warn(dev, "remove failed (%pe), will be ignored\n", ERR_PTR(status));
+		driver->remove(client);
 	}
 
 	devres_release_group(&client->dev, client->devres_group_id);
@@ -933,7 +929,7 @@ i2c_new_client_device(struct i2c_adapter *adap, struct i2c_board_info const *inf
 		client->init_irq = i2c_dev_irq_from_resources(info->resources,
 							 info->num_resources);
 
-	strlcpy(client->name, info->type, sizeof(client->name));
+	strscpy(client->name, info->type, sizeof(client->name));
 
 	status = i2c_check_addr_validity(client->addr, client->flags);
 	if (status) {
@@ -1023,15 +1019,9 @@ static int dummy_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int dummy_remove(struct i2c_client *client)
-{
-	return 0;
-}
-
 static struct i2c_driver dummy_driver = {
 	.driver.name	= "dummy",
 	.probe		= dummy_probe,
-	.remove		= dummy_remove,
 	.id_table	= dummy_id,
 };
 
@@ -2467,8 +2457,9 @@ void i2c_put_adapter(struct i2c_adapter *adap)
 	if (!adap)
 		return;
 
-	put_device(&adap->dev);
 	module_put(adap->owner);
+	/* Should be last, otherwise we risk use-after-free with 'adap' */
+	put_device(&adap->dev);
 }
 EXPORT_SYMBOL(i2c_put_adapter);
 

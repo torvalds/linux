@@ -356,7 +356,7 @@ struct vring_rx_mac {
  * bit     10 : cmd_dma_it:1 immediate interrupt
  * bit 11..15 : reserved:5
  * bit 16..29 : phy_info_length:14 It is valid when the PII is set.
- *		When the FFM bit is set bits 29-27 are used for for
+ *		When the FFM bit is set bits 29-27 are used for
  *		Flex Filter Match. Matching Index to one of the L2
  *		EtherType Flex Filter
  * bit 30..31 : l4_type:2 valid if the L4I bit is set in the status field

@@ -10,8 +10,7 @@ of conventions and procedures which are used in the posting of patches;
 following them will make life much easier for everybody involved.  This
 document will attempt to cover these expectations in reasonable detail;
 more information can also be found in the files
-:ref:`Documentation/process/submitting-patches.rst <submittingpatches>`,
-:ref:`Documentation/process/submitting-drivers.rst  <submittingdrivers>`
+:ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
 and :ref:`Documentation/process/submit-checklist.rst <submitchecklist>`.
 
 

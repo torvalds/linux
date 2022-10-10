@@ -1728,7 +1728,6 @@ struct lpfc_fdmi_reg_portattr {
 #define PCI_DEVICE_ID_HELIOS_SCSP   0xfd11
 #define PCI_DEVICE_ID_HELIOS_DCSP   0xfd12
 #define PCI_DEVICE_ID_ZEPHYR        0xfe00
-#define PCI_DEVICE_ID_HORNET        0xfe05
 #define PCI_DEVICE_ID_ZEPHYR_SCSP   0xfe11
 #define PCI_DEVICE_ID_ZEPHYR_DCSP   0xfe12
 #define PCI_VENDOR_ID_SERVERENGINE  0x19a2
@@ -1773,7 +1772,6 @@ struct lpfc_fdmi_reg_portattr {
 #define ZEPHYR_JEDEC_ID             0x0577
 #define VIPER_JEDEC_ID              0x4838
 #define SATURN_JEDEC_ID             0x1004
-#define HORNET_JDEC_ID              0x2057706D
 
 #define JEDEC_ID_MASK               0x0FFFF000
 #define JEDEC_ID_SHIFT              12
@@ -3074,7 +3072,6 @@ struct lpfc_mbx_read_top {
 #define lpfc_mbx_read_top_topology_WORD		word3
 #define LPFC_TOPOLOGY_PT_PT 0x01	/* Topology is pt-pt / pt-fabric */
 #define LPFC_TOPOLOGY_LOOP  0x02	/* Topology is FC-AL */
-#define LPFC_TOPOLOGY_MM    0x05	/* maint mode zephtr to menlo */
 	/* store the LILP AL_PA position map into */
 	struct ulp_bde64 lilpBde64;
 #define LPFC_ALPA_MAP_SIZE	128
@@ -4422,12 +4419,5 @@ lpfc_error_lost_link(u32 ulp_status, u32 ulp_word4)
 		 ulp_word4 == IOERR_LINK_DOWN ||
 		 ulp_word4 == IOERR_SLI_DOWN));
 }
-
-#define MENLO_TRANSPORT_TYPE 0xfe
-#define MENLO_CONTEXT 0
-#define MENLO_PU 3
-#define MENLO_TIMEOUT 30
-#define SETVAR_MLOMNT 0x103107
-#define SETVAR_MLORST 0x103007
 
 #define BPL_ALIGN_SZ 8 /* 8 byte alignment for bpl and mbufs */

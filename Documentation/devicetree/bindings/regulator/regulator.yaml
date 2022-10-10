@@ -23,6 +23,7 @@ properties:
 
   regulator-microvolt-offset:
     description: Offset applied to voltages to compensate for voltage drops
+    $ref: "/schemas/types.yaml#/definitions/uint32"
 
   regulator-min-microamp:
     description: smallest current consumers may set

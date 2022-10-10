@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm Atheros ath9k wireless devices Generic Binding
 
 maintainers:
-  - Kalle Valo <kvalo@codeaurora.org>
+  - Toke Høiland-Jørgensen <toke@toke.dk>
 
 description: |
   This node provides properties for configuring the ath9k wireless device.

@@ -848,7 +848,7 @@ struct media_link *media_entity_find_link(struct media_pad *source,
 		struct media_pad *sink);
 
 /**
- * media_entity_remote_pad - Find the pad at the remote end of a link
+ * media_pad_remote_pad_first - Find the first pad at the remote end of a link
  * @pad: Pad at the local end of the link
  *
  * Search for a remote pad connected to the given pad by iterating over all
@@ -857,7 +857,71 @@ struct media_link *media_entity_find_link(struct media_pad *source,
  * Return: returns a pointer to the pad at the remote end of the first found
  * enabled link, or %NULL if no enabled link has been found.
  */
-struct media_pad *media_entity_remote_pad(const struct media_pad *pad);
+struct media_pad *media_pad_remote_pad_first(const struct media_pad *pad);
+
+/**
+ * media_pad_remote_pad_unique - Find a remote pad connected to a pad
+ * @pad: The pad
+ *
+ * Search for and return a remote pad connected to @pad through an enabled
+ * link. If multiple (or no) remote pads are found, an error is returned.
+ *
+ * The uniqueness constraint makes this helper function suitable for entities
+ * that support a single active source at a time on a given pad.
+ *
+ * Return: A pointer to the remote pad, or one of the following error pointers
+ * if an error occurs:
+ *
+ * * -ENOTUNIQ - Multiple links are enabled
+ * * -ENOLINK - No connected pad found
+ */
+struct media_pad *media_pad_remote_pad_unique(const struct media_pad *pad);
+
+/**
+ * media_entity_remote_pad_unique - Find a remote pad connected to an entity
+ * @entity: The entity
+ * @type: The type of pad to find (MEDIA_PAD_FL_SINK or MEDIA_PAD_FL_SOURCE)
+ *
+ * Search for and return a remote pad of @type connected to @entity through an
+ * enabled link. If multiple (or no) remote pads match these criteria, an error
+ * is returned.
+ *
+ * The uniqueness constraint makes this helper function suitable for entities
+ * that support a single active source or sink at a time.
+ *
+ * Return: A pointer to the remote pad, or one of the following error pointers
+ * if an error occurs:
+ *
+ * * -ENOTUNIQ - Multiple links are enabled
+ * * -ENOLINK - No connected pad found
+ */
+struct media_pad *
+media_entity_remote_pad_unique(const struct media_entity *entity,
+			       unsigned int type);
+
+/**
+ * media_entity_remote_source_pad_unique - Find a remote source pad connected to
+ *	an entity
+ * @entity: The entity
+ *
+ * Search for and return a remote source pad connected to @entity through an
+ * enabled link. If multiple (or no) remote pads match these criteria, an error
+ * is returned.
+ *
+ * The uniqueness constraint makes this helper function suitable for entities
+ * that support a single active source at a time.
+ *
+ * Return: A pointer to the remote pad, or one of the following error pointers
+ * if an error occurs:
+ *
+ * * -ENOTUNIQ - Multiple links are enabled
+ * * -ENOLINK - No connected pad found
+ */
+static inline struct media_pad *
+media_entity_remote_source_pad_unique(const struct media_entity *entity)
+{
+	return media_entity_remote_pad_unique(entity, MEDIA_PAD_FL_SOURCE);
+}
 
 /**
  * media_entity_is_streaming - Test if an entity is part of a streaming pipeline
@@ -1139,5 +1203,35 @@ void media_remove_intf_links(struct media_interface *intf);
 struct media_link *
 media_create_ancillary_link(struct media_entity *primary,
 			    struct media_entity *ancillary);
+
+/**
+ * __media_entity_next_link() - Iterate through a &media_entity's links
+ *
+ * @entity:	pointer to the &media_entity
+ * @link:	pointer to a &media_link to hold the iterated values
+ * @link_type:	one of the MEDIA_LNK_FL_LINK_TYPE flags
+ *
+ * Return the next link against an entity matching a specific link type. This
+ * allows iteration through an entity's links whilst guaranteeing all of the
+ * returned links are of the given type.
+ */
+struct media_link *__media_entity_next_link(struct media_entity *entity,
+					    struct media_link *link,
+					    unsigned long link_type);
+
+/**
+ * for_each_media_entity_data_link() - Iterate through an entity's data links
+ *
+ * @entity:	pointer to the &media_entity
+ * @link:	pointer to a &media_link to hold the iterated values
+ *
+ * Iterate over a &media_entity's data links
+ */
+#define for_each_media_entity_data_link(entity, link)			\
+	for (link = __media_entity_next_link(entity, NULL,		\
+					     MEDIA_LNK_FL_DATA_LINK);	\
+	     link;							\
+	     link = __media_entity_next_link(entity, link,		\
+					     MEDIA_LNK_FL_DATA_LINK))
 
 #endif

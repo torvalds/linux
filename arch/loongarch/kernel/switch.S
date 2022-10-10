@@ -21,11 +21,13 @@ SYM_FUNC_START(__switch_to)
 
 	cpu_save_nonscratch a0
 	stptr.d	ra, a0, THREAD_REG01
+	stptr.d a3, a0, THREAD_SCHED_RA
+	stptr.d a4, a0, THREAD_SCHED_CFA
 	move	tp, a2
 	cpu_restore_nonscratch a1
 
-	li.w	t0, _THREAD_SIZE - 32
-	PTR_ADD	t0, t0, tp
+	li.w		t0, _THREAD_SIZE - 32
+	PTR_ADD		t0, t0, tp
 	set_saved_sp	t0, t1, t2
 
 	ldptr.d	t1, a1, THREAD_CSRPRMD

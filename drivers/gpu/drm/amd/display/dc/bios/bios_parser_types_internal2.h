@@ -40,6 +40,7 @@ struct object_info_table {
 	struct atom_data_revision revision;
 	union {
 		struct display_object_info_table_v1_4 *v1_4;
+		struct display_object_info_table_v1_5 *v1_5;
 	};
 };
 

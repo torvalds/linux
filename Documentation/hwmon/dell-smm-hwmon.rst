@@ -46,6 +46,9 @@ temp[1-10]_input                RO      Temperature reading in milli-degrees
 temp[1-10]_label                RO      Temperature sensor label.
 =============================== ======= =======================================
 
+Due to the nature of the SMM interface, each pwmX attribute controls
+fan number X.
+
 Disabling automatic BIOS fan control
 ------------------------------------
 

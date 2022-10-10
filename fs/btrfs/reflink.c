@@ -5,6 +5,7 @@
 #include "compression.h"
 #include "ctree.h"
 #include "delalloc-space.h"
+#include "disk-io.h"
 #include "reflink.h"
 #include "transaction.h"
 #include "subpage.h"
@@ -22,8 +23,10 @@ static int clone_finish_inode_update(struct btrfs_trans_handle *trans,
 	int ret;
 
 	inode_inc_iversion(inode);
-	if (!no_time_update)
-		inode->i_mtime = inode->i_ctime = current_time(inode);
+	if (!no_time_update) {
+		inode->i_mtime = current_time(inode);
+		inode->i_ctime = inode->i_mtime;
+	}
 	/*
 	 * We round up to the block size at eof when determining which
 	 * extents to clone above, but shouldn't round up the file size.
@@ -110,7 +113,6 @@ static int copy_inline_to_page(struct btrfs_inode *inode,
 	if (comp_type == BTRFS_COMPRESS_NONE) {
 		memcpy_to_page(page, offset_in_page(file_offset), data_start,
 			       datal);
-		flush_dcache_page(page);
 	} else {
 		ret = btrfs_decompress(comp_type, data_start, page,
 				       offset_in_page(file_offset),
@@ -132,10 +134,8 @@ static int copy_inline_to_page(struct btrfs_inode *inode,
 	 *
 	 * So what's in the range [500, 4095] corresponds to zeroes.
 	 */
-	if (datal < block_size) {
+	if (datal < block_size)
 		memzero_page(page, datal, block_size - datal);
-		flush_dcache_page(page);
-	}
 
 	btrfs_page_set_uptodate(fs_info, page, file_offset, block_size);
 	btrfs_page_clear_checked(fs_info, page, file_offset, block_size);
@@ -658,7 +658,8 @@ static void btrfs_double_mmap_unlock(struct inode *inode1, struct inode *inode2)
 static int btrfs_extent_same_range(struct inode *src, u64 loff, u64 len,
 				   struct inode *dst, u64 dst_loff)
 {
-	const u64 bs = BTRFS_I(src)->root->fs_info->sb->s_blocksize;
+	struct btrfs_fs_info *fs_info = BTRFS_I(src)->root->fs_info;
+	const u64 bs = fs_info->sb->s_blocksize;
 	int ret;
 
 	/*
@@ -668,6 +669,8 @@ static int btrfs_extent_same_range(struct inode *src, u64 loff, u64 len,
 	btrfs_double_extent_lock(src, loff, dst, dst_loff, len);
 	ret = btrfs_clone(src, dst, loff, len, ALIGN(len, bs), dst_loff, 1);
 	btrfs_double_extent_unlock(src, loff, dst, dst_loff, len);
+
+	btrfs_btree_balance_dirty(fs_info);
 
 	return ret;
 }
@@ -777,6 +780,8 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 	truncate_inode_pages_range(&inode->i_data,
 				round_down(destoff, PAGE_SIZE),
 				round_up(destoff + len, PAGE_SIZE) - 1);
+
+	btrfs_btree_balance_dirty(fs_info);
 
 	return ret;
 }

@@ -174,7 +174,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_interrupt_fpga>;
 			interrupt-parent = <&gpio2>;
-			interrupts= <9 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <9 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-controller;
 			#interrupt-cells = <1>;
 		};

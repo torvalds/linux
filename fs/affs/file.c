@@ -526,7 +526,6 @@ affs_do_readpage_ofs(struct page *page, unsigned to, int create)
 	struct inode *inode = page->mapping->host;
 	struct super_block *sb = inode->i_sb;
 	struct buffer_head *bh;
-	char *data;
 	unsigned pos = 0;
 	u32 bidx, boff, bsize;
 	u32 tmp;
@@ -545,15 +544,12 @@ affs_do_readpage_ofs(struct page *page, unsigned to, int create)
 			return PTR_ERR(bh);
 		tmp = min(bsize - boff, to - pos);
 		BUG_ON(pos + tmp > to || tmp > bsize);
-		data = kmap_atomic(page);
-		memcpy(data + pos, AFFS_DATA(bh) + boff, tmp);
-		kunmap_atomic(data);
+		memcpy_to_page(page, pos, AFFS_DATA(bh) + boff, tmp);
 		affs_brelse(bh);
 		bidx++;
 		pos += tmp;
 		boff = 0;
 	}
-	flush_dcache_page(page);
 	return 0;
 }
 

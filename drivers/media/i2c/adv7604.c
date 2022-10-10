@@ -2505,9 +2505,8 @@ static void adv76xx_log_infoframes(struct v4l2_subdev *sd)
 		union hdmi_infoframe frame;
 		struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-		if (adv76xx_read_infoframe(sd, i, &frame))
-			return;
-		hdmi_infoframe_log(KERN_INFO, &client->dev, &frame);
+		if (!adv76xx_read_infoframe(sd, i, &frame))
+			hdmi_infoframe_log(KERN_INFO, &client->dev, &frame);
 	}
 }
 
@@ -3661,7 +3660,7 @@ err_hdl:
 
 /* ----------------------------------------------------------------------- */
 
-static int adv76xx_remove(struct i2c_client *client)
+static void adv76xx_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct adv76xx_state *state = to_state(sd);
@@ -3678,7 +3677,6 @@ static int adv76xx_remove(struct i2c_client *client)
 	media_entity_cleanup(&sd->entity);
 	adv76xx_unregister_clients(to_state(sd));
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

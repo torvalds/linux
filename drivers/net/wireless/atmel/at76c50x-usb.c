@@ -2033,7 +2033,7 @@ static int at76_config(struct ieee80211_hw *hw, u32 changed)
 static void at76_bss_info_changed(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif,
 				  struct ieee80211_bss_conf *conf,
-				  u32 changed)
+				  u64 changed)
 {
 	struct at76_priv *priv = hw->priv;
 

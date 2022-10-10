@@ -61,7 +61,7 @@ def get_optional(perf_dict, field):
 
 def get_offset(perf_dict, field):
 	if field in perf_dict:
-		return f"+0x{perf_dict[field]:x}"
+		return "+%#x" % perf_dict[field]
 	return ""
 
 def get_dso_file_path(dso_name, dso_build_id):
@@ -76,7 +76,7 @@ def get_dso_file_path(dso_name, dso_build_id):
 	else:
 		append = "/elf"
 
-	dso_path = f"{os.environ['PERF_BUILDID_DIR']}/{dso_name}/{dso_build_id}{append}"
+	dso_path = os.environ['PERF_BUILDID_DIR'] + "/" + dso_name + "/" + dso_build_id + append;
 	# Replace duplicate slash chars to single slash char
 	dso_path = dso_path.replace('//', '/', 1)
 	return dso_path
@@ -94,8 +94,8 @@ def read_disam(dso_fname, dso_start, start_addr, stop_addr):
 		start_addr = start_addr - dso_start;
 		stop_addr = stop_addr - dso_start;
 		disasm = [ options.objdump_name, "-d", "-z",
-			   f"--start-address=0x{start_addr:x}",
-			   f"--stop-address=0x{stop_addr:x}" ]
+			   "--start-address="+format(start_addr,"#x"),
+			   "--stop-address="+format(stop_addr,"#x") ]
 		disasm += [ dso_fname ]
 		disasm_output = check_output(disasm).decode('utf-8').split('\n')
 		disasm_cache[addr_range] = disasm_output
@@ -109,12 +109,14 @@ def print_disam(dso_fname, dso_start, start_addr, stop_addr):
 			m = disasm_re.search(line)
 			if m is None:
 				continue
-		print(f"\t{line}")
+		print("\t" + line)
 
 def print_sample(sample):
-	print(f"Sample = {{ cpu: {sample['cpu']:04} addr: 0x{sample['addr']:016x} " \
-	      f"phys_addr: 0x{sample['phys_addr']:016x} ip: 0x{sample['ip']:016x} " \
-	      f"pid: {sample['pid']} tid: {sample['tid']} period: {sample['period']} time: {sample['time']} }}")
+	print("Sample = { cpu: %04d addr: 0x%016x phys_addr: 0x%016x ip: 0x%016x " \
+	      "pid: %d tid: %d period: %d time: %d }" % \
+	      (sample['cpu'], sample['addr'], sample['phys_addr'], \
+	       sample['ip'], sample['pid'], sample['tid'], \
+	       sample['period'], sample['time']))
 
 def trace_begin():
 	print('ARM CoreSight Trace Data Assembler Dump')
@@ -131,7 +133,7 @@ def common_start_str(comm, sample):
 	cpu = sample["cpu"]
 	pid = sample["pid"]
 	tid = sample["tid"]
-	return f"{comm:>16} {pid:>5}/{tid:<5} [{cpu:04}] {sec:9}.{ns:09}  "
+	return "%16s %5u/%-5u [%04u] %9u.%09u  " % (comm, pid, tid, cpu, sec, ns)
 
 # This code is copied from intel-pt-events.py for printing source code
 # line and symbols.
@@ -171,7 +173,7 @@ def print_srccode(comm, param_dict, sample, symbol, dso):
 	glb_line_number = line_number
 	glb_source_file_name = source_file_name
 
-	print(f"{start_str}{src_str}")
+	print(start_str, src_str)
 
 def process_event(param_dict):
 	global cache_size
@@ -188,7 +190,7 @@ def process_event(param_dict):
 	symbol = get_optional(param_dict, "symbol")
 
 	if (options.verbose == True):
-		print(f"Event type: {name}")
+		print("Event type: %s" % name)
 		print_sample(sample)
 
 	# If cannot find dso so cannot dump assembler, bail out
@@ -197,7 +199,7 @@ def process_event(param_dict):
 
 	# Validate dso start and end addresses
 	if ((dso_start == '[unknown]') or (dso_end == '[unknown]')):
-		print(f"Failed to find valid dso map for dso {dso}")
+		print("Failed to find valid dso map for dso %s" % dso)
 		return
 
 	if (name[0:12] == "instructions"):
@@ -244,15 +246,15 @@ def process_event(param_dict):
 
 	# Handle CS_ETM_TRACE_ON packet if start_addr=0 and stop_addr=4
 	if (start_addr == 0 and stop_addr == 4):
-		print(f"CPU{cpu}: CS_ETM_TRACE_ON packet is inserted")
+		print("CPU%d: CS_ETM_TRACE_ON packet is inserted" % cpu)
 		return
 
 	if (start_addr < int(dso_start) or start_addr > int(dso_end)):
-		print(f"Start address 0x{start_addr:x} is out of range [ 0x{dso_start:x} .. 0x{dso_end:x} ] for dso {dso}")
+		print("Start address 0x%x is out of range [ 0x%x .. 0x%x ] for dso %s" % (start_addr, int(dso_start), int(dso_end), dso))
 		return
 
 	if (stop_addr < int(dso_start) or stop_addr > int(dso_end)):
-		print(f"Stop address 0x{stop_addr:x} is out of range [ 0x{dso_start:x} .. 0x{dso_end:x} ] for dso {dso}")
+		print("Stop address 0x%x is out of range [ 0x%x .. 0x%x ] for dso %s" % (stop_addr, int(dso_start), int(dso_end), dso))
 		return
 
 	if (options.objdump_name != None):
@@ -267,6 +269,6 @@ def process_event(param_dict):
 		if path.exists(dso_fname):
 			print_disam(dso_fname, dso_vm_start, start_addr, stop_addr)
 		else:
-			print(f"Failed to find dso {dso} for address range [ 0x{start_addr:x} .. 0x{stop_addr:x} ]")
+			print("Failed to find dso %s for address range [ 0x%x .. 0x%x ]" % (dso, start_addr, stop_addr))
 
 	print_srccode(comm, param_dict, sample, symbol, dso)

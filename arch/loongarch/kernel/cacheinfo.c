@@ -4,8 +4,9 @@
  *
  * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
  */
-#include <asm/cpu-info.h>
 #include <linux/cacheinfo.h>
+#include <asm/bootinfo.h>
+#include <asm/cpu-info.h>
 
 /* Populates leaf and increments to next leaf */
 #define populate_cache(cache, leaf, c_level, c_type)		\
@@ -17,6 +18,8 @@ do {								\
 	leaf->ways_of_associativity = c->cache.ways;		\
 	leaf->size = c->cache.linesz * c->cache.sets *		\
 		c->cache.ways;					\
+	if (leaf->level > 2)					\
+		leaf->size *= nodes_per_package;		\
 	leaf++;							\
 } while (0)
 
@@ -95,10 +98,14 @@ static void cache_cpumap_setup(unsigned int cpu)
 
 int populate_cache_leaves(unsigned int cpu)
 {
-	int level = 1;
+	int level = 1, nodes_per_package = 1;
 	struct cpuinfo_loongarch *c = &current_cpu_data;
 	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(cpu);
 	struct cacheinfo *this_leaf = this_cpu_ci->info_list;
+
+	if (loongson_sysconf.nr_nodes > 1)
+		nodes_per_package = loongson_sysconf.cores_per_package
+					/ loongson_sysconf.cores_per_node;
 
 	if (c->icache.waysize) {
 		populate_cache(dcache, this_leaf, level, CACHE_TYPE_DATA);

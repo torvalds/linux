@@ -74,6 +74,7 @@ struct intel_uc_fw {
 		const enum intel_uc_fw_status status;
 		enum intel_uc_fw_status __status; /* no accidental overwrites */
 	};
+	const char *wanted_path;
 	const char *path;
 	bool user_overridden;
 	size_t size;
@@ -98,10 +99,18 @@ struct intel_uc_fw {
 	u16 major_ver_found;
 	u16 minor_ver_found;
 
+	struct {
+		const char *path;
+		u16 major_ver;
+		u16 minor_ver;
+	} fallback;
+
 	u32 rsa_size;
 	u32 ucode_size;
 
 	u32 private_data_size;
+
+	bool loaded_via_gsc;
 };
 
 #ifdef CONFIG_DRM_I915_DEBUG_GUC

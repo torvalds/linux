@@ -868,6 +868,8 @@ EXPORT_SYMBOL(snd_info_register);
  *
  * This proc file entry will be registered via snd_card_register() call, and
  * it will be removed automatically at the card removal, too.
+ *
+ * Return: zero if successful, or a negative error code
  */
 int snd_card_rw_proc_new(struct snd_card *card, const char *name,
 			 void *private_data,

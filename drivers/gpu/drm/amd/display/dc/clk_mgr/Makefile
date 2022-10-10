@@ -107,12 +107,6 @@ AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN201)
 ###############################################################################
 CLK_MGR_DCN21 = rn_clk_mgr.o rn_clk_mgr_vbios_smu.o
 
-# prevent build errors regarding soft-float vs hard-float FP ABI tags
-# this code is currently unused on ppc64, as it applies to Renoir APUs only
-ifdef CONFIG_PPC64
-CFLAGS_$(AMDDALPATH)/dc/clk_mgr/dcn21/rn_clk_mgr.o := $(call cc-option,-mno-gnu-attribute)
-endif
-
 AMD_DAL_CLK_MGR_DCN21 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn21/,$(CLK_MGR_DCN21))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN21)
@@ -121,12 +115,6 @@ AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN21)
 ###############################################################################
 CLK_MGR_DCN30 = dcn30_clk_mgr.o dcn30_clk_mgr_smu_msg.o
 
-# prevent build errors regarding soft-float vs hard-float FP ABI tags
-# this code is currently unused on ppc64, as it applies to VanGogh APUs only
-ifdef CONFIG_PPC64
-CFLAGS_$(AMDDALPATH)/dc/clk_mgr/dcn30/dcn30_clk_mgr.o := $(call cc-option,-mno-gnu-attribute)
-endif
-
 AMD_DAL_CLK_MGR_DCN30 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn30/,$(CLK_MGR_DCN30))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN30)
@@ -134,12 +122,6 @@ AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN30)
 # DCN301
 ###############################################################################
 CLK_MGR_DCN301 = vg_clk_mgr.o dcn301_smu.o
-
-# prevent build errors regarding soft-float vs hard-float FP ABI tags
-# this code is currently unused on ppc64, as it applies to VanGogh APUs only
-ifdef CONFIG_PPC64
-CFLAGS_$(AMDDALPATH)/dc/clk_mgr/dcn301/vg_clk_mgr.o := $(call cc-option,-mno-gnu-attribute)
-endif
 
 AMD_DAL_CLK_MGR_DCN301 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn301/,$(CLK_MGR_DCN301))
 
@@ -153,6 +135,15 @@ CLK_MGR_DCN31 = dcn31_smu.o dcn31_clk_mgr.o
 AMD_DAL_CLK_MGR_DCN31 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn31/,$(CLK_MGR_DCN31))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN31)
+
+###############################################################################
+# DCN314
+###############################################################################
+CLK_MGR_DCN314 = dcn314_smu.o dcn314_clk_mgr.o
+
+AMD_DAL_CLK_MGR_DCN314 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn314/,$(CLK_MGR_DCN314))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN314)
 
 ###############################################################################
 # DCN315
@@ -171,5 +162,14 @@ CLK_MGR_DCN316 = dcn316_smu.o dcn316_clk_mgr.o
 AMD_DAL_CLK_MGR_DCN316 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn316/,$(CLK_MGR_DCN316))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN316)
+
+###############################################################################
+# DCN32
+###############################################################################
+CLK_MGR_DCN32 = dcn32_clk_mgr.o dcn32_clk_mgr_smu_msg.o
+
+AMD_DAL_CLK_MGR_DCN32 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn32/,$(CLK_MGR_DCN32))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN32)
 
 endif

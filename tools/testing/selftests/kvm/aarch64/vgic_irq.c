@@ -22,7 +22,6 @@
 
 #define GICD_BASE_GPA		0x08000000ULL
 #define GICR_BASE_GPA		0x080A0000ULL
-#define VCPU_ID			0
 
 /*
  * Stores the user specified args; it's passed to the guest and to every test
@@ -589,7 +588,8 @@ static void kvm_set_gsi_routing_irqchip_check(struct kvm_vm *vm,
 }
 
 static void kvm_irq_write_ispendr_check(int gic_fd, uint32_t intid,
-			uint32_t vcpu, bool expect_failure)
+					struct kvm_vcpu *vcpu,
+					bool expect_failure)
 {
 	/*
 	 * Ignore this when expecting failure as invalid intids will lead to
@@ -630,8 +630,7 @@ static void kvm_routing_and_irqfd_check(struct kvm_vm *vm,
 
 	for (f = 0, i = intid; i < (uint64_t)intid + num; i++, f++) {
 		fd[f] = eventfd(0, 0);
-		TEST_ASSERT(fd[f] != -1,
-			"eventfd failed, errno: %i\n", errno);
+		TEST_ASSERT(fd[f] != -1, __KVM_SYSCALL_ERROR("eventfd()", fd[f]));
 	}
 
 	for (f = 0, i = intid; i < (uint64_t)intid + num; i++, f++) {
@@ -647,7 +646,7 @@ static void kvm_routing_and_irqfd_check(struct kvm_vm *vm,
 		val = 1;
 		ret = write(fd[f], &val, sizeof(uint64_t));
 		TEST_ASSERT(ret == sizeof(uint64_t),
-			"Write to KVM_IRQFD failed with ret: %d\n", ret);
+			    __KVM_SYSCALL_ERROR("write()", ret));
 	}
 
 	for (f = 0, i = intid; i < (uint64_t)intid + num; i++, f++)
@@ -660,15 +659,16 @@ static void kvm_routing_and_irqfd_check(struct kvm_vm *vm,
 		(tmp) < (uint64_t)(first) + (uint64_t)(num);			\
 		(tmp)++, (i)++)
 
-static void run_guest_cmd(struct kvm_vm *vm, int gic_fd,
-		struct kvm_inject_args *inject_args,
-		struct test_args *test_args)
+static void run_guest_cmd(struct kvm_vcpu *vcpu, int gic_fd,
+			  struct kvm_inject_args *inject_args,
+			  struct test_args *test_args)
 {
 	kvm_inject_cmd cmd = inject_args->cmd;
 	uint32_t intid = inject_args->first_intid;
 	uint32_t num = inject_args->num;
 	int level = inject_args->level;
 	bool expect_failure = inject_args->expect_failure;
+	struct kvm_vm *vm = vcpu->vm;
 	uint64_t tmp;
 	uint32_t i;
 
@@ -706,12 +706,12 @@ static void run_guest_cmd(struct kvm_vm *vm, int gic_fd,
 		break;
 	case KVM_WRITE_ISPENDR:
 		for (i = intid; i < intid + num; i++)
-			kvm_irq_write_ispendr_check(gic_fd, i,
-					VCPU_ID, expect_failure);
+			kvm_irq_write_ispendr_check(gic_fd, i, vcpu,
+						    expect_failure);
 		break;
 	case KVM_WRITE_ISACTIVER:
 		for (i = intid; i < intid + num; i++)
-			kvm_irq_write_isactiver(gic_fd, i, VCPU_ID);
+			kvm_irq_write_isactiver(gic_fd, i, vcpu);
 		break;
 	default:
 		break;
@@ -740,6 +740,7 @@ static void test_vgic(uint32_t nr_irqs, bool level_sensitive, bool eoi_split)
 {
 	struct ucall uc;
 	int gic_fd;
+	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	struct kvm_inject_args inject_args;
 	vm_vaddr_t args_gva;
@@ -754,39 +755,34 @@ static void test_vgic(uint32_t nr_irqs, bool level_sensitive, bool eoi_split)
 
 	print_args(&args);
 
-	vm = vm_create_default(VCPU_ID, 0, guest_code);
+	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 	ucall_init(vm, NULL);
 
 	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vm, VCPU_ID);
+	vcpu_init_descriptor_tables(vcpu);
 
 	/* Setup the guest args page (so it gets the args). */
 	args_gva = vm_vaddr_alloc_page(vm);
 	memcpy(addr_gva2hva(vm, args_gva), &args, sizeof(args));
-	vcpu_args_set(vm, 0, 1, args_gva);
+	vcpu_args_set(vcpu, 1, args_gva);
 
 	gic_fd = vgic_v3_setup(vm, 1, nr_irqs,
 			GICD_BASE_GPA, GICR_BASE_GPA);
-	if (gic_fd < 0) {
-		print_skip("Failed to create vgic-v3, skipping");
-		exit(KSFT_SKIP);
-	}
+	__TEST_REQUIRE(gic_fd >= 0, "Failed to create vgic-v3, skipping");
 
 	vm_install_exception_handler(vm, VECTOR_IRQ_CURRENT,
 		guest_irq_handlers[args.eoi_split][args.level_sensitive]);
 
 	while (1) {
-		vcpu_run(vm, VCPU_ID);
+		vcpu_run(vcpu);
 
-		switch (get_ucall(vm, VCPU_ID, &uc)) {
+		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_SYNC:
 			kvm_inject_get_call(vm, &uc, &inject_args);
-			run_guest_cmd(vm, gic_fd, &inject_args, &args);
+			run_guest_cmd(vcpu, gic_fd, &inject_args, &args);
 			break;
 		case UCALL_ABORT:
-			TEST_FAIL("%s at %s:%ld\n\tvalues: %#lx, %#lx",
-					(const char *)uc.args[0],
-					__FILE__, uc.args[1], uc.args[2], uc.args[3]);
+			REPORT_GUEST_ASSERT_2(uc, "values: %#lx, %#lx");
 			break;
 		case UCALL_DONE:
 			goto done;

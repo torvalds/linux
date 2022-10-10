@@ -349,7 +349,7 @@ int arch_kexec_apply_relocations_add(struct purgatory_info *pi,
 {
 	const char *strtab, *name, *shstrtab;
 	const Elf_Shdr *sechdrs;
-	Elf_Rela *relas;
+	Elf64_Rela *relas;
 	int i, r_type;
 
 	/* String & section header string table */

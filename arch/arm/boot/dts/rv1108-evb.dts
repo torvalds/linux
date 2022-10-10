@@ -96,7 +96,7 @@
 
 		regulators {
 			vdd_core: DCDC_REG1 {
-				regulator-name= "vdd_core";
+				regulator-name = "vdd_core";
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
@@ -108,7 +108,7 @@
 			};
 
 			vdd_cam: DCDC_REG2 {
-				regulator-name= "vdd_cam";
+				regulator-name = "vdd_cam";
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <2000000>;
 				regulator-state-mem {
@@ -117,7 +117,7 @@
 			};
 
 			vcc_ddr: DCDC_REG3 {
-				regulator-name= "vcc_ddr";
+				regulator-name = "vcc_ddr";
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-state-mem {
@@ -126,7 +126,7 @@
 			};
 
 			vcc_io: DCDC_REG4 {
-				regulator-name= "vcc_io";
+				regulator-name = "vcc_io";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
@@ -138,7 +138,7 @@
 			};
 
 			vdd_10: LDO_REG1 {
-				regulator-name= "vdd_10";
+				regulator-name = "vdd_10";
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-always-on;
@@ -149,7 +149,7 @@
 			};
 
 			vcc_18: LDO_REG2 {
-				regulator-name= "vcc_18";
+				regulator-name = "vcc_18";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
@@ -160,7 +160,7 @@
 			};
 
 			vdd10_pmu: LDO_REG3 {
-				regulator-name= "vdd10_pmu";
+				regulator-name = "vdd10_pmu";
 				regulator-min-microvolt = <1000000>;
 				regulator-max-microvolt = <1000000>;
 				regulator-always-on;

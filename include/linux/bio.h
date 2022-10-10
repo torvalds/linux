@@ -405,7 +405,7 @@ extern void bioset_exit(struct bio_set *);
 extern int biovec_init_pool(mempool_t *pool, int pool_entries);
 
 struct bio *bio_alloc_bioset(struct block_device *bdev, unsigned short nr_vecs,
-			     unsigned int opf, gfp_t gfp_mask,
+			     blk_opf_t opf, gfp_t gfp_mask,
 			     struct bio_set *bs);
 struct bio *bio_kmalloc(unsigned short nr_vecs, gfp_t gfp_mask);
 extern void bio_put(struct bio *);
@@ -418,7 +418,7 @@ int bio_init_clone(struct block_device *bdev, struct bio *bio,
 extern struct bio_set fs_bio_set;
 
 static inline struct bio *bio_alloc(struct block_device *bdev,
-		unsigned short nr_vecs, unsigned int opf, gfp_t gfp_mask)
+		unsigned short nr_vecs, blk_opf_t opf, gfp_t gfp_mask)
 {
 	return bio_alloc_bioset(bdev, nr_vecs, opf, gfp_mask, &fs_bio_set);
 }
@@ -456,9 +456,9 @@ struct request_queue;
 
 extern int submit_bio_wait(struct bio *bio);
 void bio_init(struct bio *bio, struct block_device *bdev, struct bio_vec *table,
-	      unsigned short max_vecs, unsigned int opf);
+	      unsigned short max_vecs, blk_opf_t opf);
 extern void bio_uninit(struct bio *);
-void bio_reset(struct bio *bio, struct block_device *bdev, unsigned int opf);
+void bio_reset(struct bio *bio, struct block_device *bdev, blk_opf_t opf);
 void bio_chain(struct bio *, struct bio *);
 
 int bio_add_page(struct bio *, struct page *, unsigned len, unsigned off);
@@ -789,6 +789,6 @@ static inline void bio_clear_polled(struct bio *bio)
 }
 
 struct bio *blk_next_bio(struct bio *bio, struct block_device *bdev,
-		unsigned int nr_pages, unsigned int opf, gfp_t gfp);
+		unsigned int nr_pages, blk_opf_t opf, gfp_t gfp);
 
 #endif /* __LINUX_BIO_H */

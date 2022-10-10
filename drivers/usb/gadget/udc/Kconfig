@@ -59,8 +59,8 @@ config USB_ATMEL_USBA
 	tristate "Atmel USBA"
 	depends on ARCH_AT91
 	help
-	  USBA is the integrated high-speed USB Device controller on
-	  the AT32AP700x, some AT91SAM9 and AT91CAP9 processors from Atmel.
+	  USBA is the integrated high-speed USB Device controller on some
+	  AT91SAM9 and AT91CAP9 processors from Atmel.
 
 	  The fifo_mode parameter is used to select endpoint allocation mode.
 	  fifo_mode = 0 is used to let the driver autoconfigure the endpoints.
@@ -311,7 +311,7 @@ source "drivers/usb/gadget/udc/bdc/Kconfig"
 
 config USB_AMD5536UDC
 	tristate "AMD5536 UDC"
-	depends on USB_PCI
+	depends on USB_PCI && HAS_DMA
 	select USB_SNP_CORE
 	help
 	   The AMD5536 UDC is part of the AMD Geode CS5536, an x86 southbridge.
@@ -462,6 +462,19 @@ config USB_TEGRA_XUDC
 	 Say "y" to link the driver statically, or "m" to build a
 	 dynamically linked module called "tegra_xudc" and force all
 	 gadget drivers to also be dynamically linked.
+
+config USB_ASPEED_UDC
+	tristate "Aspeed UDC driver support"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	depends on USB_LIBCOMPOSITE
+	help
+	  Enables Aspeed USB2.0 Device Controller driver for AST260x
+	  family SoCs. The controller supports 1 control endpoint and
+	  4 programmable endpoints.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "aspeed_udc" and force all
+	  gadget drivers to also be dynamically linked.
 
 source "drivers/usb/gadget/udc/aspeed-vhub/Kconfig"
 

@@ -112,13 +112,13 @@ struct ip_auth_hdr {
 	__be16 reserved;
 	__be32 spi;
 	__be32 seq_no;		/* Sequence number */
-	__u8  auth_data[0];	/* Variable len but >=4. Mind the 64 bit alignment! */
+	__u8  auth_data[];	/* Variable len but >=4. Mind the 64 bit alignment! */
 };
 
 struct ip_esp_hdr {
 	__be32 spi;
 	__be32 seq_no;		/* Sequence number */
-	__u8  enc_data[0];	/* Variable len but >=8. Mind the 64 bit alignment! */
+	__u8  enc_data[];	/* Variable len but >=8. Mind the 64 bit alignment! */
 };
 
 struct ip_comp_hdr {

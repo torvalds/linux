@@ -358,13 +358,11 @@ extern const struct snd_pci_quirk cs8409_fixup_tbl[];
 extern const struct hda_model_fixup cs8409_models[];
 extern const struct hda_fixup cs8409_fixups[];
 extern const struct hda_verb cs8409_cs42l42_init_verbs[];
-extern const struct hda_pintbl cs8409_cs42l42_pincfgs[];
 extern const struct cs8409_cir_param cs8409_cs42l42_hw_cfg[];
 extern const struct cs8409_cir_param cs8409_cs42l42_bullseye_atn[];
 extern struct sub_codec cs8409_cs42l42_codec;
 
 extern const struct hda_verb dolphin_init_verbs[];
-extern const struct hda_pintbl dolphin_pincfgs[];
 extern const struct cs8409_cir_param dolphin_hw_cfg[];
 extern struct sub_codec dolphin_cs42l42_0;
 extern struct sub_codec dolphin_cs42l42_1;

@@ -31,6 +31,8 @@ SoC-specific documents
 .. toctree::
    :maxdepth: 1
 
+   google/chromebook-boot-flow
+
    ixp4xx
 
    marvell

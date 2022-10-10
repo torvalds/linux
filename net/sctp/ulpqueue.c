@@ -1100,11 +1100,7 @@ void sctp_ulpq_renege(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 		else if (retval == 1)
 			sctp_ulpq_reasm_drain(ulpq);
 	}
-
-	sk_mem_reclaim(asoc->base.sk);
 }
-
-
 
 /* Notify the application if an association is aborted and in
  * partial delivery mode.  Send up any pending received messages.

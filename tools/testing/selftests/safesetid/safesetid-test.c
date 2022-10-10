@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <pwd.h>
+#include <grp.h>
 #include <string.h>
 #include <syscall.h>
 #include <sys/capability.h>
@@ -16,17 +17,28 @@
 #include <stdbool.h>
 #include <stdarg.h>
 
+/*
+ * NOTES about this test:
+ * - requries libcap-dev to be installed on test system
+ * - requires securityfs to me mounted at /sys/kernel/security, e.g.:
+ * mount -n -t securityfs -o nodev,noexec,nosuid securityfs /sys/kernel/security
+ * - needs CONFIG_SECURITYFS and CONFIG_SAFESETID to be enabled
+ */
+
 #ifndef CLONE_NEWUSER
 # define CLONE_NEWUSER 0x10000000
 #endif
 
-#define ROOT_USER 0
-#define RESTRICTED_PARENT 1
-#define ALLOWED_CHILD1 2
-#define ALLOWED_CHILD2 3
-#define NO_POLICY_USER 4
+#define ROOT_UGID 0
+#define RESTRICTED_PARENT_UGID 1
+#define ALLOWED_CHILD1_UGID 2
+#define ALLOWED_CHILD2_UGID 3
+#define NO_POLICY_UGID 4
 
-char* add_whitelist_policy_file = "/sys/kernel/security/safesetid/add_whitelist_policy";
+#define UGID_POLICY_STRING "1:2\n1:3\n2:2\n3:3\n"
+
+char* add_uid_whitelist_policy_file = "/sys/kernel/security/safesetid/uid_allowlist_policy";
+char* add_gid_whitelist_policy_file = "/sys/kernel/security/safesetid/gid_allowlist_policy";
 
 static void die(char *fmt, ...)
 {
@@ -106,9 +118,10 @@ static void ensure_user_exists(uid_t uid)
 			die("couldn't open file\n");
 		if (fseek(fd, 0, SEEK_END))
 			die("couldn't fseek\n");
-		snprintf(name_str, 10, "%d", uid);
+		snprintf(name_str, 10, "user %d", uid);
 		p.pw_name=name_str;
 		p.pw_uid=uid;
+		p.pw_gid=uid;
 		p.pw_gecos="Test account";
 		p.pw_dir="/dev/null";
 		p.pw_shell="/bin/false";
@@ -120,9 +133,36 @@ static void ensure_user_exists(uid_t uid)
 	}
 }
 
+static void ensure_group_exists(gid_t gid)
+{
+	struct group g;
+
+	FILE *fd;
+	char name_str[10];
+
+	if (getgrgid(gid) == NULL) {
+		memset(&g,0x00,sizeof(g));
+		fd=fopen("/etc/group","a");
+		if (fd == NULL)
+			die("couldn't open group file\n");
+		if (fseek(fd, 0, SEEK_END))
+			die("couldn't fseek group file\n");
+		snprintf(name_str, 10, "group %d", gid);
+		g.gr_name=name_str;
+		g.gr_gid=gid;
+		g.gr_passwd=NULL;
+		g.gr_mem=NULL;
+		int value = putgrent(&g,fd);
+		if (value != 0)
+			die("putgrent failed\n");
+		if (fclose(fd))
+			die("fclose failed\n");
+	}
+}
+
 static void ensure_securityfs_mounted(void)
 {
-	int fd = open(add_whitelist_policy_file, O_WRONLY);
+	int fd = open(add_uid_whitelist_policy_file, O_WRONLY);
 	if (fd < 0) {
 		if (errno == ENOENT) {
 			// Need to mount securityfs
@@ -135,38 +175,59 @@ static void ensure_securityfs_mounted(void)
 	} else {
 		if (close(fd) != 0) {
 			die("close of %s failed: %s\n",
-				add_whitelist_policy_file, strerror(errno));
+				add_uid_whitelist_policy_file, strerror(errno));
 		}
 	}
 }
 
-static void write_policies(void)
+static void write_uid_policies()
 {
-	static char *policy_str =
-		"1:2\n"
-		"1:3\n"
-		"2:2\n"
-		"3:3\n";
+	static char *policy_str = UGID_POLICY_STRING;
 	ssize_t written;
 	int fd;
 
-	fd = open(add_whitelist_policy_file, O_WRONLY);
+	fd = open(add_uid_whitelist_policy_file, O_WRONLY);
 	if (fd < 0)
-		die("can't open add_whitelist_policy file\n");
+		die("can't open add_uid_whitelist_policy file\n");
 	written = write(fd, policy_str, strlen(policy_str));
 	if (written != strlen(policy_str)) {
 		if (written >= 0) {
-			die("short write to %s\n", add_whitelist_policy_file);
+			die("short write to %s\n", add_uid_whitelist_policy_file);
 		} else {
 			die("write to %s failed: %s\n",
-				add_whitelist_policy_file, strerror(errno));
+				add_uid_whitelist_policy_file, strerror(errno));
 		}
 	}
 	if (close(fd) != 0) {
 		die("close of %s failed: %s\n",
-			add_whitelist_policy_file, strerror(errno));
+			add_uid_whitelist_policy_file, strerror(errno));
 	}
 }
+
+static void write_gid_policies()
+{
+	static char *policy_str = UGID_POLICY_STRING;
+	ssize_t written;
+	int fd;
+
+	fd = open(add_gid_whitelist_policy_file, O_WRONLY);
+	if (fd < 0)
+		die("can't open add_gid_whitelist_policy file\n");
+	written = write(fd, policy_str, strlen(policy_str));
+	if (written != strlen(policy_str)) {
+		if (written >= 0) {
+			die("short write to %s\n", add_gid_whitelist_policy_file);
+		} else {
+			die("write to %s failed: %s\n",
+				add_gid_whitelist_policy_file, strerror(errno));
+		}
+	}
+	if (close(fd) != 0) {
+		die("close of %s failed: %s\n",
+			add_gid_whitelist_policy_file, strerror(errno));
+	}
+}
+
 
 static bool test_userns(bool expect_success)
 {
@@ -194,7 +255,7 @@ static bool test_userns(bool expect_success)
 			printf("preparing file name string failed");
 			return false;
 		}
-		success = write_file(map_file_name, "0 0 1", uid);
+		success = write_file(map_file_name, "0 %d 1", uid);
 		return success == expect_success;
 	}
 
@@ -258,13 +319,144 @@ static void test_setuid(uid_t child_uid, bool expect_success)
 	die("should not reach here\n");
 }
 
+static void test_setgid(gid_t child_gid, bool expect_success)
+{
+	pid_t cpid, w;
+	int wstatus;
+
+	cpid = fork();
+	if (cpid == -1) {
+		die("fork\n");
+	}
+
+	if (cpid == 0) {	    /* Code executed by child */
+		if (setgid(child_gid) < 0)
+			exit(EXIT_FAILURE);
+		if (getgid() == child_gid)
+			exit(EXIT_SUCCESS);
+		else
+			exit(EXIT_FAILURE);
+	} else {		 /* Code executed by parent */
+		do {
+			w = waitpid(cpid, &wstatus, WUNTRACED | WCONTINUED);
+			if (w == -1) {
+				die("waitpid\n");
+			}
+
+			if (WIFEXITED(wstatus)) {
+				if (WEXITSTATUS(wstatus) == EXIT_SUCCESS) {
+					if (expect_success) {
+						return;
+					} else {
+						die("unexpected success\n");
+					}
+				} else {
+					if (expect_success) {
+						die("unexpected failure\n");
+					} else {
+						return;
+					}
+				}
+			} else if (WIFSIGNALED(wstatus)) {
+				if (WTERMSIG(wstatus) == 9) {
+					if (expect_success)
+						die("killed unexpectedly\n");
+					else
+						return;
+				} else {
+					die("unexpected signal: %d\n", wstatus);
+				}
+			} else {
+				die("unexpected status: %d\n", wstatus);
+			}
+		} while (!WIFEXITED(wstatus) && !WIFSIGNALED(wstatus));
+	}
+
+	die("should not reach here\n");
+}
+
+static void test_setgroups(gid_t* child_groups, size_t len, bool expect_success)
+{
+	pid_t cpid, w;
+	int wstatus;
+	gid_t groupset[len];
+	int i, j;
+
+	cpid = fork();
+	if (cpid == -1) {
+		die("fork\n");
+	}
+
+	if (cpid == 0) {	    /* Code executed by child */
+		if (setgroups(len, child_groups) != 0)
+			exit(EXIT_FAILURE);
+		if (getgroups(len, groupset) != len)
+			exit(EXIT_FAILURE);
+		for (i = 0; i < len; i++) {
+			for (j = 0; j < len; j++) {
+				if (child_groups[i] == groupset[j])
+					break;
+				if (j == len - 1)
+					exit(EXIT_FAILURE);
+			}
+		}
+		exit(EXIT_SUCCESS);
+	} else {		 /* Code executed by parent */
+		do {
+			w = waitpid(cpid, &wstatus, WUNTRACED | WCONTINUED);
+			if (w == -1) {
+				die("waitpid\n");
+			}
+
+			if (WIFEXITED(wstatus)) {
+				if (WEXITSTATUS(wstatus) == EXIT_SUCCESS) {
+					if (expect_success) {
+						return;
+					} else {
+						die("unexpected success\n");
+					}
+				} else {
+					if (expect_success) {
+						die("unexpected failure\n");
+					} else {
+						return;
+					}
+				}
+			} else if (WIFSIGNALED(wstatus)) {
+				if (WTERMSIG(wstatus) == 9) {
+					if (expect_success)
+						die("killed unexpectedly\n");
+					else
+						return;
+				} else {
+					die("unexpected signal: %d\n", wstatus);
+				}
+			} else {
+				die("unexpected status: %d\n", wstatus);
+			}
+		} while (!WIFEXITED(wstatus) && !WIFSIGNALED(wstatus));
+	}
+
+	die("should not reach here\n");
+}
+
+
 static void ensure_users_exist(void)
 {
-	ensure_user_exists(ROOT_USER);
-	ensure_user_exists(RESTRICTED_PARENT);
-	ensure_user_exists(ALLOWED_CHILD1);
-	ensure_user_exists(ALLOWED_CHILD2);
-	ensure_user_exists(NO_POLICY_USER);
+	ensure_user_exists(ROOT_UGID);
+	ensure_user_exists(RESTRICTED_PARENT_UGID);
+	ensure_user_exists(ALLOWED_CHILD1_UGID);
+	ensure_user_exists(ALLOWED_CHILD2_UGID);
+	ensure_user_exists(NO_POLICY_UGID);
+}
+
+static void ensure_groups_exist(void)
+{
+	ensure_group_exists(ROOT_UGID);
+	ensure_group_exists(RESTRICTED_PARENT_UGID);
+	ensure_group_exists(ALLOWED_CHILD1_UGID);
+	ensure_group_exists(ALLOWED_CHILD2_UGID);
+	ensure_group_exists(NO_POLICY_UGID);
 }
 
 static void drop_caps(bool setid_retained)
@@ -283,41 +475,52 @@ static void drop_caps(bool setid_retained)
 
 int main(int argc, char **argv)
 {
+	ensure_groups_exist();
 	ensure_users_exist();
 	ensure_securityfs_mounted();
-	write_policies();
+	write_uid_policies();
+	write_gid_policies();
 
 	if (prctl(PR_SET_KEEPCAPS, 1L))
 		die("Error with set keepcaps\n");
 
-	// First test to make sure we can write userns mappings from a user
-	// that doesn't have any restrictions (as long as it has CAP_SETUID);
-	if (setuid(NO_POLICY_USER) < 0)
-		die("Error with set uid(%d)\n", NO_POLICY_USER);
-	if (setgid(NO_POLICY_USER) < 0)
-		die("Error with set gid(%d)\n", NO_POLICY_USER);
-
+	// First test to make sure we can write userns mappings from a non-root
+	// user that doesn't have any restrictions (as long as it has
+	// CAP_SETUID);
+	if (setgid(NO_POLICY_UGID) < 0)
+		die("Error with set gid(%d)\n", NO_POLICY_UGID);
+	if (setuid(NO_POLICY_UGID) < 0)
+		die("Error with set uid(%d)\n", NO_POLICY_UGID);
 	// Take away all but setid caps
 	drop_caps(true);
-
 	// Need PR_SET_DUMPABLE flag set so we can write /proc/[pid]/uid_map
 	// from non-root parent process.
 	if (prctl(PR_SET_DUMPABLE, 1, 0, 0, 0))
 		die("Error with set dumpable\n");
-
 	if (!test_userns(true)) {
 		die("test_userns failed when it should work\n");
 	}
 
-	if (setuid(RESTRICTED_PARENT) < 0)
-		die("Error with set uid(%d)\n", RESTRICTED_PARENT);
-	if (setgid(RESTRICTED_PARENT) < 0)
-		die("Error with set gid(%d)\n", RESTRICTED_PARENT);
+	// Now switch to a user/group with restrictions
+	if (setgid(RESTRICTED_PARENT_UGID) < 0)
+		die("Error with set gid(%d)\n", RESTRICTED_PARENT_UGID);
+	if (setuid(RESTRICTED_PARENT_UGID) < 0)
+		die("Error with set uid(%d)\n", RESTRICTED_PARENT_UGID);
 
-	test_setuid(ROOT_USER, false);
-	test_setuid(ALLOWED_CHILD1, true);
-	test_setuid(ALLOWED_CHILD2, true);
-	test_setuid(NO_POLICY_USER, false);
+	test_setuid(ROOT_UGID, false);
+	test_setuid(ALLOWED_CHILD1_UGID, true);
+	test_setuid(ALLOWED_CHILD2_UGID, true);
+	test_setuid(NO_POLICY_UGID, false);
+
+	test_setgid(ROOT_UGID, false);
+	test_setgid(ALLOWED_CHILD1_UGID, true);
+	test_setgid(ALLOWED_CHILD2_UGID, true);
+	test_setgid(NO_POLICY_UGID, false);
+
+	gid_t allowed_supp_groups[2] = {ALLOWED_CHILD1_UGID, ALLOWED_CHILD2_UGID};
+	gid_t disallowed_supp_groups[2] = {ROOT_UGID, NO_POLICY_UGID};
+	test_setgroups(allowed_supp_groups, 2, true);
+	test_setgroups(disallowed_supp_groups, 2, false);
 
 	if (!test_userns(false)) {
 		die("test_userns worked when it should fail\n");
@@ -328,8 +531,12 @@ int main(int argc, char **argv)
 	test_setuid(2, false);
 	test_setuid(3, false);
 	test_setuid(4, false);
+	test_setgid(2, false);
+	test_setgid(3, false);
+	test_setgid(4, false);
 
 	// NOTE: this test doesn't clean up users that were created in
 	// /etc/passwd or flush policies that were added to the LSM.
+	printf("test successful!\n");
 	return EXIT_SUCCESS;
 }

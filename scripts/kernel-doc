@@ -427,6 +427,13 @@ sub print_lineno {
         print ".. LINENO " . $lineno . "\n";
     }
 }
+
+sub emit_warning {
+    my $location = shift;
+    my $msg = shift;
+    print STDERR "$location: warning: $msg";
+    ++$warnings;
+}
 ##
 # dumps section contents to arrays/hashes intended for that purpose.
 #
@@ -451,8 +458,7 @@ sub dump_section {
 	if (defined($sections{$name}) && ($sections{$name} ne "")) {
 	    # Only warn on user specified duplicate section names.
 	    if ($name ne $section_default) {
-		print STDERR "${file}:$.: warning: duplicate section name '$name'\n";
-		++$warnings;
+		emit_warning("${file}:$.", "duplicate section name '$name'\n");
 	    }
 	    $sections{$name} .= $contents;
 	} else {
@@ -1094,7 +1100,7 @@ sub dump_struct($$) {
 
     if ($members) {
 	if ($identifier ne $declaration_name) {
-	    print STDERR "${file}:$.: warning: expecting prototype for $decl_type $identifier. Prototype was for $decl_type $declaration_name instead\n";
+	    emit_warning("${file}:$.", "expecting prototype for $decl_type $identifier. Prototype was for $decl_type $declaration_name instead\n");
 	    return;
 	}
 
@@ -1298,9 +1304,9 @@ sub dump_enum($$) {
     if ($members) {
 	if ($identifier ne $declaration_name) {
 	    if ($identifier eq "") {
-		print STDERR "${file}:$.: warning: wrong kernel-doc identifier on line:\n";
+		emit_warning("${file}:$.", "wrong kernel-doc identifier on line:\n");
 	    } else {
-		print STDERR "${file}:$.: warning: expecting prototype for enum $identifier. Prototype was for enum $declaration_name instead\n";
+		emit_warning("${file}:$.", "expecting prototype for enum $identifier. Prototype was for enum $declaration_name instead\n");
 	    }
 	    return;
 	}
@@ -1316,7 +1322,7 @@ sub dump_enum($$) {
 	    if (!$parameterdescs{$arg}) {
 		$parameterdescs{$arg} = $undescribed;
 	        if (show_warnings("enum", $declaration_name)) {
-			print STDERR "${file}:$.: warning: Enum value '$arg' not described in enum '$declaration_name'\n";
+			emit_warning("${file}:$.", "Enum value '$arg' not described in enum '$declaration_name'\n");
 		}
 	    }
 	    $_members{$arg} = 1;
@@ -1325,7 +1331,7 @@ sub dump_enum($$) {
 	while (my ($k, $v) = each %parameterdescs) {
 	    if (!exists($_members{$k})) {
 	        if (show_warnings("enum", $declaration_name)) {
-		     print STDERR "${file}:$.: warning: Excess enum value '$k' description in '$declaration_name'\n";
+		     emit_warning("${file}:$.", "Excess enum value '$k' description in '$declaration_name'\n");
 		}
 	    }
         }
@@ -1367,7 +1373,7 @@ sub dump_typedef($$) {
 	$return_type =~ s/^\s+//;
 
 	if ($identifier ne $declaration_name) {
-	    print STDERR "${file}:$.: warning: expecting prototype for typedef $identifier. Prototype was for typedef $declaration_name instead\n";
+	    emit_warning("${file}:$.", "expecting prototype for typedef $identifier. Prototype was for typedef $declaration_name instead\n");
 	    return;
 	}
 
@@ -1398,7 +1404,7 @@ sub dump_typedef($$) {
 	$declaration_name = $1;
 
 	if ($identifier ne $declaration_name) {
-	    print STDERR "${file}:$.: warning: expecting prototype for typedef $identifier. Prototype was for typedef $declaration_name instead\n";
+	    emit_warning("${file}:$.", "expecting prototype for typedef $identifier. Prototype was for typedef $declaration_name instead\n");
 	    return;
 	}
 
@@ -1554,9 +1560,7 @@ sub push_parameter($$$$$) {
 		$parameterdescs{$param} = $undescribed;
 
 	        if (show_warnings($type, $declaration_name) && $param !~ /\./) {
-			print STDERR
-			      "${file}:$.: warning: Function parameter or member '$param' not described in '$declaration_name'\n";
-			++$warnings;
+			emit_warning("${file}:$.", "Function parameter or member '$param' not described in '$declaration_name'\n");
 		}
 	}
 
@@ -1604,11 +1608,10 @@ sub check_sections($$$$$) {
 		}
 		if ($err) {
 			if ($decl_type eq "function") {
-				print STDERR "${file}:$.: warning: " .
+				emit_warning("${file}:$.",
 					"Excess function parameter " .
 					"'$sects[$sx]' " .
-					"description in '$decl_name'\n";
-				++$warnings;
+					"description in '$decl_name'\n");
 			}
 		}
 	}
@@ -1629,10 +1632,9 @@ sub check_return_section {
 
         if (!defined($sections{$section_return}) ||
             $sections{$section_return} eq "") {
-                print STDERR "${file}:$.: warning: " .
+                emit_warning("${file}:$.",
                         "No description found for return value of " .
-                        "'$declaration_name'\n";
-                ++$warnings;
+                        "'$declaration_name'\n");
         }
 }
 
@@ -1714,12 +1716,12 @@ sub dump_function($$) {
 
 	create_parameterlist($args, ',', $file, $declaration_name);
     } else {
-	print STDERR "${file}:$.: warning: cannot understand function prototype: '$prototype'\n";
+	emit_warning("${file}:$.", "cannot understand function prototype: '$prototype'\n");
 	return;
     }
 
     if ($identifier ne $declaration_name) {
-	print STDERR "${file}:$.: warning: expecting prototype for $identifier(). Prototype was for $declaration_name() instead\n";
+	emit_warning("${file}:$.", "expecting prototype for $identifier(). Prototype was for $declaration_name() instead\n");
 	return;
     }
 
@@ -1801,8 +1803,8 @@ sub tracepoint_munge($) {
 		$tracepointargs = $1;
 	}
 	if (($tracepointname eq 0) || ($tracepointargs eq 0)) {
-		print STDERR "${file}:$.: warning: Unrecognized tracepoint format: \n".
-			     "$prototype\n";
+		emit_warning("${file}:$.", "Unrecognized tracepoint format: \n".
+			     "$prototype\n");
 	} else {
 		$prototype = "static inline void trace_$tracepointname($tracepointargs)";
 		$identifier = "trace_$identifier";
@@ -2027,22 +2029,16 @@ sub process_name($$) {
 	}
 
 	if (!$is_kernel_comment) {
-	    print STDERR "${file}:$.: warning: This comment starts with '/**', but isn't a kernel-doc comment. Refer Documentation/doc-guide/kernel-doc.rst\n";
-	    print STDERR $_;
-	    ++$warnings;
+	    emit_warning("${file}:$.", "This comment starts with '/**', but isn't a kernel-doc comment. Refer Documentation/doc-guide/kernel-doc.rst\n$_");
 	    $state = STATE_NORMAL;
 	}
 
 	if (($declaration_purpose eq "") && $verbose) {
-	    print STDERR "${file}:$.: warning: missing initial short description on line:\n";
-	    print STDERR $_;
-	    ++$warnings;
+	    emit_warning("${file}:$.", "missing initial short description on line:\n$_");
 	}
 
 	if ($identifier eq "" && $decl_type ne "enum") {
-	    print STDERR "${file}:$.: warning: wrong kernel-doc identifier on line:\n";
-	    print STDERR $_;
-	    ++$warnings;
+	    emit_warning("${file}:$.", "wrong kernel-doc identifier on line:\n$_");
 	    $state = STATE_NORMAL;
 	}
 
@@ -2050,9 +2046,7 @@ sub process_name($$) {
 	    print STDERR "${file}:$.: info: Scanning doc for $decl_type $identifier\n";
 	}
     } else {
-	print STDERR "${file}:$.: warning: Cannot understand $_ on line $.",
-	    " - I thought it was a doc line\n";
-	++$warnings;
+	emit_warning("${file}:$.", "Cannot understand $_ on line $. - I thought it was a doc line\n");
 	$state = STATE_NORMAL;
     }
 }
@@ -2071,8 +2065,7 @@ sub process_body($$) {
 	$section =~ s/\.\.\.$//;
 
 	if ($verbose) {
-	    print STDERR "${file}:$.: warning: Variable macro arguments should be documented without dots\n";
-	    ++$warnings;
+	    emit_warning("${file}:$.", "Variable macro arguments should be documented without dots\n");
 	}
     }
 
@@ -2101,8 +2094,7 @@ sub process_body($$) {
 
 	if (($contents ne "") && ($contents ne "\n")) {
 	    if (!$in_doc_sect && $verbose) {
-		print STDERR "${file}:$.: warning: contents before sections\n";
-		++$warnings;
+		emit_warning("${file}:$.", "contents before sections\n");
 	    }
 	    dump_section($file, $section, $contents);
 	    $section = $section_default;
@@ -2128,8 +2120,7 @@ sub process_body($$) {
 	}
 	# look for doc_com + <text> + doc_end:
 	if ($_ =~ m'\s*\*\s*[a-zA-Z_0-9:\.]+\*/') {
-	    print STDERR "${file}:$.: warning: suspicious ending line: $_";
-	    ++$warnings;
+	    emit_warning("${file}:$.", "suspicious ending line: $_");
 	}
 
 	$prototype = "";
@@ -2173,8 +2164,7 @@ sub process_body($$) {
 	}
     } else {
 	# i dont know - bad line?  ignore.
-	print STDERR "${file}:$.: warning: bad line: $_";
-	++$warnings;
+	emit_warning("${file}:$.", "bad line: $_");
     }
 }
 
@@ -2268,9 +2258,7 @@ sub process_inline($$) {
 	    }
 	} elsif ($inline_doc_state == STATE_INLINE_NAME) {
 	    $inline_doc_state = STATE_INLINE_ERROR;
-	    print STDERR "${file}:$.: warning: ";
-	    print STDERR "Incorrect use of kernel-doc format: $_";
-	    ++$warnings;
+	    emit_warning("${file}:$.", "Incorrect use of kernel-doc format: $_");
 	}
     }
 }
@@ -2319,11 +2307,11 @@ sub process_file($) {
     if ($initial_section_counter == $section_counter && $
 	output_mode ne "none") {
 	if ($output_selection == OUTPUT_INCLUDE) {
-	    print STDERR "${file}:1: warning: '$_' not found\n"
+	    emit_warning("${file}:1", "'$_' not found\n")
 		for keys %function_table;
 	}
 	else {
-	    print STDERR "${file}:1: warning: no structured comments found\n";
+	    emit_warning("${file}:1", "no structured comments found\n");
 	}
     }
     close IN_FILE;

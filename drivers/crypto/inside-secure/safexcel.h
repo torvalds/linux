@@ -497,15 +497,15 @@ struct result_data_desc {
 	u32 packet_length:17;
 	u32 error_code:15;
 
-	u8 bypass_length:4;
-	u8 e15:1;
-	u16 rsvd0;
-	u8 hash_bytes:1;
-	u8 hash_length:6;
-	u8 generic_bytes:1;
-	u8 checksum:1;
-	u8 next_header:1;
-	u8 length:1;
+	u32 bypass_length:4;
+	u32 e15:1;
+	u32 rsvd0:16;
+	u32 hash_bytes:1;
+	u32 hash_length:6;
+	u32 generic_bytes:1;
+	u32 checksum:1;
+	u32 next_header:1;
+	u32 length:1;
 
 	u16 application_id;
 	u16 rsvd1;

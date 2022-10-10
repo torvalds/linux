@@ -27,7 +27,7 @@ static void flush_context(struct asid_info *info)
 	u64 asid;
 
 	/* Update the list of reserved ASIDs and the ASID bitmap. */
-	bitmap_clear(info->map, 0, NUM_CTXT_ASIDS(info));
+	bitmap_zero(info->map, NUM_CTXT_ASIDS(info));
 
 	for_each_possible_cpu(i) {
 		asid = atomic64_xchg_relaxed(&active_asid(info, i), 0);
@@ -178,8 +178,7 @@ int asid_allocator_init(struct asid_info *info,
 	 */
 	WARN_ON(NUM_CTXT_ASIDS(info) - 1 <= num_possible_cpus());
 	atomic64_set(&info->generation, ASID_FIRST_VERSION(info));
-	info->map = kcalloc(BITS_TO_LONGS(NUM_CTXT_ASIDS(info)),
-			    sizeof(*info->map), GFP_KERNEL);
+	info->map = bitmap_zalloc(NUM_CTXT_ASIDS(info), GFP_KERNEL);
 	if (!info->map)
 		return -ENOMEM;
 

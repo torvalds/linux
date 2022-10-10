@@ -108,8 +108,8 @@ static ssize_t vchiq_ioc_copy_element_data(void *context, void *dest,
 }
 
 static int
-vchiq_ioc_queue_message(unsigned int handle, struct vchiq_element *elements,
-			unsigned long count)
+vchiq_ioc_queue_message(struct vchiq_instance *instance, unsigned int handle,
+			struct vchiq_element *elements, unsigned long count)
 {
 	struct vchiq_io_copy_callback_context context;
 	enum vchiq_status status = VCHIQ_SUCCESS;
@@ -127,7 +127,7 @@ vchiq_ioc_queue_message(unsigned int handle, struct vchiq_element *elements,
 		total_size += elements[i].size;
 	}
 
-	status = vchiq_queue_message(handle, vchiq_ioc_copy_element_data,
+	status = vchiq_queue_message(instance, handle, vchiq_ioc_copy_element_data,
 				     &context, total_size);
 
 	if (status == VCHIQ_ERROR)
@@ -191,7 +191,7 @@ static int vchiq_ioc_create_service(struct vchiq_instance *instance,
 	if (args->is_open) {
 		status = vchiq_open_service_internal(service, instance->pid);
 		if (status != VCHIQ_SUCCESS) {
-			vchiq_remove_service(service->handle);
+			vchiq_remove_service(instance, service->handle);
 			return (status == VCHIQ_RETRY) ?
 				-EINTR : -EIO;
 		}
@@ -266,7 +266,7 @@ static int vchiq_ioc_dequeue_message(struct vchiq_instance *instance,
 		/* Copy to user space if msgbuf is not NULL */
 		if (!args->buf || (copy_to_user(args->buf, header->data, header->size) == 0)) {
 			ret = header->size;
-			vchiq_release_message(service->handle, header);
+			vchiq_release_message(instance, service->handle, header);
 		} else {
 			ret = -EFAULT;
 		}
@@ -330,7 +330,7 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 		userdata = args->userdata;
 	}
 
-	status = vchiq_bulk_transfer(args->handle, NULL, args->data, args->size,
+	status = vchiq_bulk_transfer(instance, args->handle, NULL, args->data, args->size,
 				     userdata, args->mode, dir);
 
 	if (!waiter) {
@@ -529,7 +529,7 @@ static int vchiq_ioc_await_completion(struct vchiq_instance *instance,
 			}
 
 			/* Now it has been copied, the message can be released. */
-			vchiq_release_message(service->handle, header);
+			vchiq_release_message(instance, service->handle, header);
 
 			/* The completion must point to the msgbuf. */
 			user_completion.header = msgbuf;
@@ -596,7 +596,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		i = 0;
 		while ((service = next_service_by_instance(instance->state,
 							   instance, &i))) {
-			status = vchiq_remove_service(service->handle);
+			status = vchiq_remove_service(instance, service->handle);
 			vchiq_service_put(service);
 			if (status != VCHIQ_SUCCESS)
 				break;
@@ -649,7 +649,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 
 		if (put_user(args.handle, &argp->handle)) {
-			vchiq_remove_service(args.handle);
+			vchiq_remove_service(instance, args.handle);
 			ret = -EFAULT;
 		}
 	} break;
@@ -673,8 +673,8 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		 */
 		if (!user_service->close_pending) {
 			status = (cmd == VCHIQ_IOC_CLOSE_SERVICE) ?
-				 vchiq_close_service(service->handle) :
-				 vchiq_remove_service(service->handle);
+				 vchiq_close_service(instance, service->handle) :
+				 vchiq_remove_service(instance, service->handle);
 			if (status != VCHIQ_SUCCESS)
 				break;
 		}
@@ -731,7 +731,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 			if (copy_from_user(elements, args.elements,
 					   args.count * sizeof(struct vchiq_element)) == 0)
-				ret = vchiq_ioc_queue_message(args.handle, elements,
+				ret = vchiq_ioc_queue_message(instance, args.handle, elements,
 							      args.count);
 			else
 				ret = -EFAULT;
@@ -788,7 +788,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case VCHIQ_IOC_GET_CLIENT_ID: {
 		unsigned int handle = (unsigned int)arg;
 
-		ret = vchiq_get_client_id(handle);
+		ret = vchiq_get_client_id(instance, handle);
 	} break;
 
 	case VCHIQ_IOC_GET_CONFIG: {
@@ -827,7 +827,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
-		ret = vchiq_set_service_option(args.handle, args.option,
+		ret = vchiq_set_service_option(instance, args.handle, args.option,
 					       args.value);
 	} break;
 
@@ -908,6 +908,7 @@ vchiq_compat_ioctl_create_service(struct file *file, unsigned int cmd,
 {
 	struct vchiq_create_service args;
 	struct vchiq_create_service32 args32;
+	struct vchiq_instance *instance = file->private_data;
 	long ret;
 
 	if (copy_from_user(&args32, ptrargs32, sizeof(args32)))
@@ -926,12 +927,12 @@ vchiq_compat_ioctl_create_service(struct file *file, unsigned int cmd,
 		.handle  = args32.handle,
 	};
 
-	ret = vchiq_ioc_create_service(file->private_data, &args);
+	ret = vchiq_ioc_create_service(instance, &args);
 	if (ret < 0)
 		return ret;
 
 	if (put_user(args.handle, &ptrargs32->handle)) {
-		vchiq_remove_service(args.handle);
+		vchiq_remove_service(instance, args.handle);
 		return -EFAULT;
 	}
 
@@ -960,6 +961,7 @@ vchiq_compat_ioctl_queue_message(struct file *file,
 	struct vchiq_queue_message args;
 	struct vchiq_queue_message32 args32;
 	struct vchiq_service *service;
+	struct vchiq_instance *instance = file->private_data;
 	int ret;
 
 	if (copy_from_user(&args32, arg, sizeof(args32)))
@@ -974,7 +976,7 @@ vchiq_compat_ioctl_queue_message(struct file *file,
 	if (args32.count > MAX_ELEMENTS)
 		return -EINVAL;
 
-	service = find_service_for_instance(file->private_data, args.handle);
+	service = find_service_for_instance(instance, args.handle);
 	if (!service)
 		return -EINVAL;
 
@@ -994,7 +996,7 @@ vchiq_compat_ioctl_queue_message(struct file *file,
 				compat_ptr(element32[count].data);
 			elements[count].size = element32[count].size;
 		}
-		ret = vchiq_ioc_queue_message(args.handle, elements,
+		ret = vchiq_ioc_queue_message(instance, args.handle, elements,
 					      args.count);
 	} else {
 		ret = -EINVAL;
@@ -1261,7 +1263,7 @@ static int vchiq_release(struct inode *inode, struct file *file)
 			spin_unlock(&msg_queue_spinlock);
 
 			if (header)
-				vchiq_release_message(service->handle, header);
+				vchiq_release_message(instance, service->handle, header);
 			spin_lock(&msg_queue_spinlock);
 		}
 

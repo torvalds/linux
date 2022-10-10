@@ -48,7 +48,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_keys_pin>;
 
-		volume-up {
+		key-volume-up {
 			label = "volume_up";
 			linux,code = <KEY_VOLUMEUP>;
 			gpios = <&pm6350_gpios 2 GPIO_ACTIVE_LOW>;
@@ -339,7 +339,7 @@
 };
 
 &pm6350_gpios {
-	gpio_keys_pin: gpio-keys-pin {
+	gpio_keys_pin: gpio-keys-state {
 		pins = "gpio2";
 		function = PMIC_GPIO_FUNC_NORMAL;
 		bias-pull-up;

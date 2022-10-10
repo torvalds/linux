@@ -14,7 +14,7 @@ Linux内核源文件可以包含kernel-doc格式的结构化文档注释，用�
           实际有着明显的不同。内核源包含成千上万个kernel-doc注释。请坚持遵循
           此处描述的风格。
 
-.. note:: kernel-doc无法包含Rust代码：请参考 Documentation/rust/docs.rst 。
+.. note:: kernel-doc无法包含Rust代码：请参考 Documentation/rust/general-information.rst 。
 
 从注释中提取kernel-doc结构，并从中生成适当的 `Sphinx C 域`_ 函数和带有锚点的
 类型描述。这些注释将被过滤以生成特殊kernel-doc高亮和交叉引用。详见下文。

@@ -295,7 +295,7 @@ static inline cfi_check_fn find_check_fn(unsigned long ptr)
 	rcu_idle = !rcu_is_watching();
 	if (rcu_idle) {
 		local_irq_save(flags);
-		rcu_irq_enter();
+		ct_irq_enter();
 	}
 
 	if (IS_ENABLED(CONFIG_CFI_CLANG_SHADOW))
@@ -304,7 +304,7 @@ static inline cfi_check_fn find_check_fn(unsigned long ptr)
 		fn = find_module_check_fn(ptr);
 
 	if (rcu_idle) {
-		rcu_irq_exit();
+		ct_irq_exit();
 		local_irq_restore(flags);
 	}
 

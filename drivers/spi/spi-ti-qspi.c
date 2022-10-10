@@ -57,7 +57,6 @@ struct ti_qspi {
 	void			*rx_bb_addr;
 	struct dma_chan		*rx_chan;
 
-	u32 spi_max_frequency;
 	u32 cmd;
 	u32 dc;
 
@@ -140,55 +139,25 @@ static inline void ti_qspi_write(struct ti_qspi *qspi,
 static int ti_qspi_setup(struct spi_device *spi)
 {
 	struct ti_qspi	*qspi = spi_master_get_devdata(spi->master);
-	struct ti_qspi_regs *ctx_reg = &qspi->ctx_reg;
-	int clk_div = 0, ret;
-	u32 clk_ctrl_reg, clk_rate, clk_mask;
+	int ret;
 
 	if (spi->master->busy) {
 		dev_dbg(qspi->dev, "master busy doing other transfers\n");
 		return -EBUSY;
 	}
 
-	if (!qspi->spi_max_frequency) {
+	if (!qspi->master->max_speed_hz) {
 		dev_err(qspi->dev, "spi max frequency not defined\n");
 		return -EINVAL;
 	}
 
-	clk_rate = clk_get_rate(qspi->fclk);
-
-	clk_div = DIV_ROUND_UP(clk_rate, qspi->spi_max_frequency) - 1;
-
-	if (clk_div < 0) {
-		dev_dbg(qspi->dev, "clock divider < 0, using /1 divider\n");
-		return -EINVAL;
-	}
-
-	if (clk_div > QSPI_CLK_DIV_MAX) {
-		dev_dbg(qspi->dev, "clock divider >%d , using /%d divider\n",
-				QSPI_CLK_DIV_MAX, QSPI_CLK_DIV_MAX + 1);
-		return -EINVAL;
-	}
-
-	dev_dbg(qspi->dev, "hz: %d, clock divider %d\n",
-			qspi->spi_max_frequency, clk_div);
+	spi->max_speed_hz = min(spi->max_speed_hz, qspi->master->max_speed_hz);
 
 	ret = pm_runtime_resume_and_get(qspi->dev);
 	if (ret < 0) {
 		dev_err(qspi->dev, "pm_runtime_get_sync() failed\n");
 		return ret;
 	}
-
-	clk_ctrl_reg = ti_qspi_read(qspi, QSPI_SPI_CLOCK_CNTRL_REG);
-
-	clk_ctrl_reg &= ~QSPI_CLK_EN;
-
-	/* disable SCLK */
-	ti_qspi_write(qspi, clk_ctrl_reg, QSPI_SPI_CLOCK_CNTRL_REG);
-
-	/* enable SCLK */
-	clk_mask = QSPI_CLK_EN | clk_div;
-	ti_qspi_write(qspi, clk_mask, QSPI_SPI_CLOCK_CNTRL_REG);
-	ctx_reg->clkctrl = clk_mask;
 
 	pm_runtime_mark_last_busy(qspi->dev);
 	ret = pm_runtime_put_autosuspend(qspi->dev);
@@ -198,6 +167,37 @@ static int ti_qspi_setup(struct spi_device *spi)
 	}
 
 	return 0;
+}
+
+static void ti_qspi_setup_clk(struct ti_qspi *qspi, u32 speed_hz)
+{
+	struct ti_qspi_regs *ctx_reg = &qspi->ctx_reg;
+	int clk_div;
+	u32 clk_ctrl_reg, clk_rate, clk_ctrl_new;
+
+	clk_rate = clk_get_rate(qspi->fclk);
+	clk_div = DIV_ROUND_UP(clk_rate, speed_hz) - 1;
+	clk_div = clamp(clk_div, 0, QSPI_CLK_DIV_MAX);
+	dev_dbg(qspi->dev, "hz: %d, clock divider %d\n", speed_hz, clk_div);
+
+	pm_runtime_resume_and_get(qspi->dev);
+
+	clk_ctrl_new = QSPI_CLK_EN | clk_div;
+	if (ctx_reg->clkctrl != clk_ctrl_new) {
+		clk_ctrl_reg = ti_qspi_read(qspi, QSPI_SPI_CLOCK_CNTRL_REG);
+
+		clk_ctrl_reg &= ~QSPI_CLK_EN;
+
+		/* disable SCLK */
+		ti_qspi_write(qspi, clk_ctrl_reg, QSPI_SPI_CLOCK_CNTRL_REG);
+
+		/* enable SCLK */
+		ti_qspi_write(qspi, clk_ctrl_new, QSPI_SPI_CLOCK_CNTRL_REG);
+		ctx_reg->clkctrl = clk_ctrl_new;
+	}
+
+	pm_runtime_mark_last_busy(qspi->dev);
+	pm_runtime_put_autosuspend(qspi->dev);
 }
 
 static void ti_qspi_restore_ctx(struct ti_qspi *qspi)
@@ -623,8 +623,10 @@ static int ti_qspi_exec_mem_op(struct spi_mem *mem,
 
 	mutex_lock(&qspi->list_lock);
 
-	if (!qspi->mmap_enabled || qspi->current_cs != mem->spi->chip_select)
+	if (!qspi->mmap_enabled || qspi->current_cs != mem->spi->chip_select) {
+		ti_qspi_setup_clk(qspi, mem->spi->max_speed_hz);
 		ti_qspi_enable_memory_map(mem->spi);
+	}
 	ti_qspi_setup_mmap_read(mem->spi, op->cmd.opcode, op->data.buswidth,
 				op->addr.nbytes, op->dummy.nbytes);
 
@@ -701,6 +703,7 @@ static int ti_qspi_start_transfer_one(struct spi_master *master,
 		wlen = t->bits_per_word >> 3;
 		transfer_len_words = min(t->len / wlen, frame_len_words);
 
+		ti_qspi_setup_clk(qspi, t->speed_hz);
 		ret = qspi_transfer_msg(qspi, t, transfer_len_words * wlen);
 		if (ret) {
 			dev_dbg(qspi->dev, "transfer message failed\n");
@@ -851,7 +854,7 @@ static int ti_qspi_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 
 	if (!of_property_read_u32(np, "spi-max-frequency", &max_freq))
-		qspi->spi_max_frequency = max_freq;
+		master->max_speed_hz = max_freq;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_MEMCPY, mask);

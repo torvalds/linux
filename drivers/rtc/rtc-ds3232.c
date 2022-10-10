@@ -566,8 +566,7 @@ static const struct dev_pm_ops ds3232_pm_ops = {
 
 #if IS_ENABLED(CONFIG_I2C)
 
-static int ds3232_i2c_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int ds3232_i2c_probe(struct i2c_client *client)
 {
 	struct regmap *regmap;
 	static const struct regmap_config config = {
@@ -604,7 +603,7 @@ static struct i2c_driver ds3232_driver = {
 		.of_match_table = of_match_ptr(ds3232_of_match),
 		.pm	= &ds3232_pm_ops,
 	},
-	.probe = ds3232_i2c_probe,
+	.probe_new = ds3232_i2c_probe,
 	.id_table = ds3232_id,
 };
 

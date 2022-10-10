@@ -134,7 +134,7 @@
 			};
 
 			sdio3: sdio@50430000 {
-				compatible  = "sprd,sdhci-r11";
+				compatible = "sprd,sdhci-r11";
 				reg = <0 0x50430000 0 0x1000>;
 				interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
 

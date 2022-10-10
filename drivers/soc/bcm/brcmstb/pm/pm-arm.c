@@ -721,7 +721,7 @@ static int brcmstb_pm_probe(struct platform_device *pdev)
 	ctrl.phy_a_standby_ctrl_offs = ddr_phy_data->phy_a_standby_ctrl_offs;
 	ctrl.phy_b_standby_ctrl_offs = ddr_phy_data->phy_b_standby_ctrl_offs;
 	/*
-	 * Slightly grosss to use the phy ver to get a memc,
+	 * Slightly gross to use the phy ver to get a memc,
 	 * offset but that is the only versioned things so far
 	 * we can test for.
 	 */

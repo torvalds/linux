@@ -98,6 +98,6 @@ References
 
 See [sev-api-spec]_ for more info regarding SEV ``LAUNCH_SECRET`` operation.
 
-.. [sev] Documentation/virt/kvm/amd-memory-encryption.rst
+.. [sev] Documentation/virt/kvm/x86/amd-memory-encryption.rst
 .. [secrets-coco-abi] Documentation/ABI/testing/securityfs-secrets-coco
 .. [sev-api-spec] https://www.amd.com/system/files/TechDocs/55766_SEV-KM_API_Specification.pdf

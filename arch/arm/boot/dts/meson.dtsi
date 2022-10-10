@@ -214,14 +214,14 @@
 			ranges = <0x0 0xc8100000 0x100000>;
 
 			ao_arc_rproc: remoteproc@1c {
-				compatible= "amlogic,meson-mx-ao-arc";
+				compatible = "amlogic,meson-mx-ao-arc";
 				reg = <0x1c 0x8>, <0x38 0x8>;
 				reg-names = "remap", "cpu";
 				status = "disabled";
 			};
 
 			ir_receiver: ir-receiver@480 {
-				compatible= "amlogic,meson6-ir";
+				compatible = "amlogic,meson6-ir";
 				reg = <0x480 0x20>;
 				interrupts = <GIC_SPI 15 IRQ_TYPE_EDGE_RISING>;
 				status = "disabled";

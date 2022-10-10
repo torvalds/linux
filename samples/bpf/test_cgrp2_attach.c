@@ -31,6 +31,7 @@
 #include <bpf/bpf.h>
 
 #include "bpf_insn.h"
+#include "bpf_util.h"
 
 enum {
 	MAP_KEY_PACKETS,
@@ -70,7 +71,7 @@ static int prog_load(int map_fd, int verdict)
 		BPF_MOV64_IMM(BPF_REG_0, verdict), /* r0 = verdict */
 		BPF_EXIT_INSN(),
 	};
-	size_t insns_cnt = sizeof(prog) / sizeof(struct bpf_insn);
+	size_t insns_cnt = ARRAY_SIZE(prog);
 	LIBBPF_OPTS(bpf_prog_load_opts, opts,
 		.log_buf = bpf_log_buf,
 		.log_size = BPF_LOG_BUF_SIZE,

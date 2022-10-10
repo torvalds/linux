@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config INFINIBAND_HFI1
 	tristate "Cornelis OPX Gen1 support"
-	depends on X86_64 && INFINIBAND_RDMAVT && I2C
+	depends on X86_64 && INFINIBAND_RDMAVT && I2C && !UML
 	select MMU_NOTIFIER
 	select CRC32
 	select I2C_ALGOBIT

@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ID and revision information for mvebu SoCs
  *
  * Copyright (C) 2014 Marvell
  *
  * Gregory CLEMENT <gregory.clement@free-electrons.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  *
  * All the mvebu SoCs have information related to their variant and
  * revision that can be read from the PCI control register. This is

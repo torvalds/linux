@@ -693,7 +693,7 @@ static int csiphy_link_setup(struct media_entity *entity,
 		struct csiphy_device *csiphy;
 		struct csid_device *csid;
 
-		if (media_entity_remote_pad(local))
+		if (media_pad_remote_pad_first(local))
 			return -EBUSY;
 
 		sd = media_entity_to_v4l2_subdev(entity);

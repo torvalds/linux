@@ -15,7 +15,7 @@ description: |
 
 properties:
   compatible:
-    const: "xlnx,zynqmp-power"
+    const: xlnx,zynqmp-power
 
   interrupts:
     maxItems: 1

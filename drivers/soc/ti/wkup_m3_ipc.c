@@ -688,7 +688,7 @@ static int wkup_m3_ipc_probe(struct platform_device *pdev)
 				      &m3_ipc->sd_fw_name);
 	if (ret) {
 		dev_dbg(dev, "Voltage scaling data blob not provided from DT.\n");
-	};
+	}
 
 	/*
 	 * Wait for firmware loading completion in a thread so we

@@ -20,7 +20,7 @@ struct cpu_manufacturer_info_t {
 	unsigned long vendor_id;
 	unsigned long arch_id;
 	unsigned long imp_id;
-	void (*vendor_patch_func)(struct alt_entry *begin, struct alt_entry *end,
+	void (*patch_func)(struct alt_entry *begin, struct alt_entry *end,
 				  unsigned long archid, unsigned long impid,
 				  unsigned int stage);
 };
@@ -40,16 +40,16 @@ static void __init_or_module riscv_fill_cpu_mfr_info(struct cpu_manufacturer_inf
 	switch (cpu_mfr_info->vendor_id) {
 #ifdef CONFIG_ERRATA_SIFIVE
 	case SIFIVE_VENDOR_ID:
-		cpu_mfr_info->vendor_patch_func = sifive_errata_patch_func;
+		cpu_mfr_info->patch_func = sifive_errata_patch_func;
 		break;
 #endif
 #ifdef CONFIG_ERRATA_THEAD
 	case THEAD_VENDOR_ID:
-		cpu_mfr_info->vendor_patch_func = thead_errata_patch_func;
+		cpu_mfr_info->patch_func = thead_errata_patch_func;
 		break;
 #endif
 	default:
-		cpu_mfr_info->vendor_patch_func = NULL;
+		cpu_mfr_info->patch_func = NULL;
 	}
 }
 
@@ -68,13 +68,13 @@ static void __init_or_module _apply_alternatives(struct alt_entry *begin,
 
 	riscv_cpufeature_patch_func(begin, end, stage);
 
-	if (!cpu_mfr_info.vendor_patch_func)
+	if (!cpu_mfr_info.patch_func)
 		return;
 
-	cpu_mfr_info.vendor_patch_func(begin, end,
-				   cpu_mfr_info.arch_id,
-				   cpu_mfr_info.imp_id,
-				   stage);
+	cpu_mfr_info.patch_func(begin, end,
+				cpu_mfr_info.arch_id,
+				cpu_mfr_info.imp_id,
+				stage);
 }
 
 void __init apply_boot_alternatives(void)

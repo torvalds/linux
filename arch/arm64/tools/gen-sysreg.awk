@@ -88,7 +88,7 @@ END {
 
 # skip blank lines and comment lines
 /^$/ { next }
-/^#/ { next }
+/^[\t ]*#/ { next }
 
 /^SysregFields/ {
 	change_block("SysregFields", "None", "SysregFields")

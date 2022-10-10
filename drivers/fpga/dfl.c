@@ -342,7 +342,7 @@ static void release_dfl_dev(struct device *dev)
 	if (ddev->mmio_res.parent)
 		release_resource(&ddev->mmio_res);
 
-	ida_simple_remove(&dfl_device_ida, ddev->id);
+	ida_free(&dfl_device_ida, ddev->id);
 	kfree(ddev->irqs);
 	kfree(ddev);
 }
@@ -360,7 +360,7 @@ dfl_dev_add(struct dfl_feature_platform_data *pdata,
 	if (!ddev)
 		return ERR_PTR(-ENOMEM);
 
-	id = ida_simple_get(&dfl_device_ida, 0, 0, GFP_KERNEL);
+	id = ida_alloc(&dfl_device_ida, GFP_KERNEL);
 	if (id < 0) {
 		dev_err(&pdev->dev, "unable to get id\n");
 		kfree(ddev);

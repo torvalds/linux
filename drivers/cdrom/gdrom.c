@@ -817,7 +817,7 @@ probe_fail_free_irqs:
 	free_irq(HW_EVENT_GDROM_DMA, &gd);
 	free_irq(HW_EVENT_GDROM_CMD, &gd);
 probe_fail_cleanup_disk:
-	blk_cleanup_disk(gd.disk);
+	put_disk(gd.disk);
 probe_fail_free_tag_set:
 	blk_mq_free_tag_set(&gd.tag_set);
 probe_fail_free_cd_info:
@@ -831,7 +831,6 @@ probe_fail_no_mem:
 
 static int remove_gdrom(struct platform_device *devptr)
 {
-	blk_cleanup_queue(gd.gdrom_rq);
 	blk_mq_free_tag_set(&gd.tag_set);
 	free_irq(HW_EVENT_GDROM_CMD, &gd);
 	free_irq(HW_EVENT_GDROM_DMA, &gd);

@@ -30,7 +30,7 @@ struct ipv6_sr_hdr {
 	__u8	flags;
 	__u16	tag;
 
-	struct in6_addr segments[0];
+	struct in6_addr segments[];
 };
 
 #define SR6_FLAG1_PROTECTED	(1 << 6)
@@ -49,7 +49,7 @@ struct ipv6_sr_hdr {
 struct sr6_tlv {
 	__u8 type;
 	__u8 len;
-	__u8 data[0];
+	__u8 data[];
 };
 
 #endif

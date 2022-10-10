@@ -149,10 +149,8 @@ static void iguanair_rx(struct urb *urb)
 		return;
 
 	ir = urb->context;
-	if (!ir) {
-		usb_unlink_urb(urb);
+	if (!ir)
 		return;
-	}
 
 	switch (urb->status) {
 	case 0:
@@ -161,7 +159,6 @@ static void iguanair_rx(struct urb *urb)
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
-		usb_unlink_urb(urb);
 		return;
 	case -EPIPE:
 	default:

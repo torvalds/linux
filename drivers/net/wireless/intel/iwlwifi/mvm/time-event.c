@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2017 Intel Deutschland GmbH
  */
@@ -123,7 +123,7 @@ static void iwl_mvm_csa_noa_start(struct iwl_mvm *mvm)
 	rcu_read_lock();
 
 	csa_vif = rcu_dereference(mvm->csa_vif);
-	if (!csa_vif || !csa_vif->csa_active)
+	if (!csa_vif || !csa_vif->bss_conf.csa_active)
 		goto out_unlock;
 
 	IWL_DEBUG_TE(mvm, "CSA NOA started\n");
@@ -160,7 +160,7 @@ static bool iwl_mvm_te_check_disconnect(struct iwl_mvm *mvm,
 	if (vif->type != NL80211_IFTYPE_STATION)
 		return false;
 
-	if (!mvmvif->csa_bcn_pending && vif->bss_conf.assoc &&
+	if (!mvmvif->csa_bcn_pending && vif->cfg.assoc &&
 	    vif->bss_conf.dtim_period)
 		return false;
 	if (errmsg)
@@ -176,7 +176,7 @@ static bool iwl_mvm_te_check_disconnect(struct iwl_mvm *mvm,
 		rcu_read_unlock();
 	}
 
-	if (vif->bss_conf.assoc) {
+	if (vif->cfg.assoc) {
 		/*
 		 * When not associated, this will be called from
 		 * iwl_mvm_event_mlme_callback_ini()
@@ -346,7 +346,7 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 			 * and know the dtim period.
 			 */
 			iwl_mvm_te_check_disconnect(mvm, te_data->vif,
-				!te_data->vif->bss_conf.assoc ?
+				!te_data->vif->cfg.assoc ?
 				"Not associated and the time event is over already..." :
 				"No beacon heard and the time event is over already...");
 			break;
@@ -859,7 +859,7 @@ void iwl_mvm_rx_session_protect_notif(struct iwl_mvm *mvm,
 			 * and know the dtim period.
 			 */
 			iwl_mvm_te_check_disconnect(mvm, vif,
-						    !vif->bss_conf.assoc ?
+						    !vif->cfg.assoc ?
 						    "Not associated and the session protection is over already..." :
 						    "No beacon heard and the session protection is over already...");
 			spin_lock_bh(&mvm->time_event_lock);

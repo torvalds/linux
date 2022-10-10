@@ -31,7 +31,7 @@ static int guc_action_flush_log_complete(struct intel_guc *guc)
 		GUC_DEBUG_LOG_BUFFER
 	};
 
-	return intel_guc_send(guc, action, ARRAY_SIZE(action));
+	return intel_guc_send_nb(guc, action, ARRAY_SIZE(action), 0);
 }
 
 static int guc_action_flush_log(struct intel_guc *guc)
@@ -588,7 +588,7 @@ int intel_guc_log_relay_open(struct intel_guc_log *log)
 	/*
 	 * We require SSE 4.1 for fast reads from the GuC log buffer and
 	 * it should be present on the chipsets supporting GuC based
-	 * submisssions.
+	 * submissions.
 	 */
 	if (!i915_has_memcpy_from_wc()) {
 		ret = -ENXIO;

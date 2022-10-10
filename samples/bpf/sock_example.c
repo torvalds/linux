@@ -29,6 +29,7 @@
 #include <bpf/bpf.h>
 #include "bpf_insn.h"
 #include "sock_example.h"
+#include "bpf_util.h"
 
 char bpf_log_buf[BPF_LOG_BUF_SIZE];
 
@@ -58,7 +59,7 @@ static int test_sock(void)
 		BPF_MOV64_IMM(BPF_REG_0, 0), /* r0 = 0 */
 		BPF_EXIT_INSN(),
 	};
-	size_t insns_cnt = sizeof(prog) / sizeof(struct bpf_insn);
+	size_t insns_cnt = ARRAY_SIZE(prog);
 	LIBBPF_OPTS(bpf_prog_load_opts, opts,
 		.log_buf = bpf_log_buf,
 		.log_size = BPF_LOG_BUF_SIZE,

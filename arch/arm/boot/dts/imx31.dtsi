@@ -48,7 +48,7 @@
 		reg = <0x68000000 0x100000>;
 	};
 
-	soc {
+	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
@@ -63,7 +63,7 @@
 			ranges = <0 0x1fffc000 0x4000>;
 		};
 
-		bus@43f00000 { /* AIPS1 */
+		aips1: bus@43f00000 { /* AIPS1 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;

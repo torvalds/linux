@@ -131,7 +131,7 @@ void dm_cache_dump(struct dm_cache_metadata *cmd);
  * hints will be lost.
  *
  * The hints are indexed by the cblock, but many policies will not
- * neccessarily have a fast way of accessing efficiently via cblock.  So
+ * necessarily have a fast way of accessing efficiently via cblock.  So
  * rather than querying the policy for each cblock, we let it walk its data
  * structures and fill in the hints in whatever order it wishes.
  */

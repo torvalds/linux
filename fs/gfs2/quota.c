@@ -746,7 +746,7 @@ static int gfs2_write_buf_to_page(struct gfs2_inode *ip, unsigned long index,
 		if (PageUptodate(page))
 			set_buffer_uptodate(bh);
 		if (!buffer_uptodate(bh)) {
-			ll_rw_block(REQ_OP_READ, REQ_META | REQ_PRIO, 1, &bh);
+			ll_rw_block(REQ_OP_READ | REQ_META | REQ_PRIO, 1, &bh);
 			wait_on_buffer(bh);
 			if (!buffer_uptodate(bh))
 				goto unlock_out;
@@ -1517,25 +1517,6 @@ static void quotad_check_timeo(struct gfs2_sbd *sdp, const char *msg,
 	}
 }
 
-static void quotad_check_trunc_list(struct gfs2_sbd *sdp)
-{
-	struct gfs2_inode *ip;
-
-	while(1) {
-		ip = NULL;
-		spin_lock(&sdp->sd_trunc_lock);
-		if (!list_empty(&sdp->sd_trunc_list)) {
-			ip = list_first_entry(&sdp->sd_trunc_list,
-					struct gfs2_inode, i_trunc_list);
-			list_del_init(&ip->i_trunc_list);
-		}
-		spin_unlock(&sdp->sd_trunc_lock);
-		if (ip == NULL)
-			return;
-		gfs2_glock_finish_truncate(ip);
-	}
-}
-
 void gfs2_wake_up_statfs(struct gfs2_sbd *sdp) {
 	if (!sdp->sd_statfs_force_sync) {
 		sdp->sd_statfs_force_sync = 1;
@@ -1558,7 +1539,6 @@ int gfs2_quotad(void *data)
 	unsigned long quotad_timeo = 0;
 	unsigned long t = 0;
 	DEFINE_WAIT(wait);
-	int empty;
 
 	while (!kthread_should_stop()) {
 
@@ -1579,19 +1559,13 @@ int gfs2_quotad(void *data)
 		quotad_check_timeo(sdp, "sync", gfs2_quota_sync, t,
 				   &quotad_timeo, &tune->gt_quota_quantum);
 
-		/* Check for & recover partially truncated inodes */
-		quotad_check_trunc_list(sdp);
-
 		try_to_freeze();
 
 bypass:
 		t = min(quotad_timeo, statfs_timeo);
 
 		prepare_to_wait(&sdp->sd_quota_wait, &wait, TASK_INTERRUPTIBLE);
-		spin_lock(&sdp->sd_trunc_lock);
-		empty = list_empty(&sdp->sd_trunc_list);
-		spin_unlock(&sdp->sd_trunc_lock);
-		if (empty && !sdp->sd_statfs_force_sync)
+		if (!sdp->sd_statfs_force_sync)
 			t -= schedule_timeout(t);
 		else
 			t = 0;

@@ -451,7 +451,6 @@ out_put:
 
 static int igt_mock_max_segment(void *arg)
 {
-	const unsigned int max_segment = rounddown(UINT_MAX, PAGE_SIZE);
 	struct intel_memory_region *mem = arg;
 	struct drm_i915_private *i915 = mem->i915;
 	struct i915_ttm_buddy_resource *res;
@@ -460,7 +459,10 @@ static int igt_mock_max_segment(void *arg)
 	struct drm_buddy *mm;
 	struct list_head *blocks;
 	struct scatterlist *sg;
+	I915_RND_STATE(prng);
 	LIST_HEAD(objects);
+	unsigned int max_segment;
+	unsigned int ps;
 	u64 size;
 	int err = 0;
 
@@ -472,7 +474,13 @@ static int igt_mock_max_segment(void *arg)
 	 */
 
 	size = SZ_8G;
-	mem = mock_region_create(i915, 0, size, PAGE_SIZE, 0, 0);
+	ps = PAGE_SIZE;
+	if (i915_prandom_u64_state(&prng) & 1)
+		ps = SZ_64K; /* For something like DG2 */
+
+	max_segment = round_down(UINT_MAX, ps);
+
+	mem = mock_region_create(i915, 0, size, ps, 0, 0);
 	if (IS_ERR(mem))
 		return PTR_ERR(mem);
 
@@ -498,9 +506,18 @@ static int igt_mock_max_segment(void *arg)
 	}
 
 	for (sg = obj->mm.pages->sgl; sg; sg = sg_next(sg)) {
+		dma_addr_t daddr = sg_dma_address(sg);
+
 		if (sg->length > max_segment) {
 			pr_err("%s: Created an oversized scatterlist entry, %u > %u\n",
 			       __func__, sg->length, max_segment);
+			err = -EINVAL;
+			goto out_close;
+		}
+
+		if (!IS_ALIGNED(daddr, ps)) {
+			pr_err("%s: Created an unaligned scatterlist entry, addr=%pa, ps=%u\n",
+			       __func__,  &daddr, ps);
 			err = -EINVAL;
 			goto out_close;
 		}

@@ -45,7 +45,7 @@
 		status = "disabled";
 	};
 
-	sdhci_1: sdhci@4ac00000 {
+	sdhci_1: mmc@4ac00000 {
 		compatible = "samsung,s3c6410-sdhci";
 		reg = <0x4AC00000 0x100>;
 		interrupts = <0 0 21 3>;
@@ -56,7 +56,7 @@
 		status = "disabled";
 	};
 
-	sdhci_0: sdhci@4a800000 {
+	sdhci_0: mmc@4a800000 {
 		compatible = "samsung,s3c6410-sdhci";
 		reg = <0x4A800000 0x100>;
 		interrupts = <0 0 20 3>;

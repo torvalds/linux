@@ -1,0 +1,120 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/serial/mediatek,uart.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MediaTek Universal Asynchronous Receiver/Transmitter (UART)
+
+maintainers:
+  - Matthias Brugger <matthias.bgg@gmail.com>
+
+allOf:
+  - $ref: serial.yaml#
+
+description: |
+  The MediaTek UART is based on the basic 8250 UART and compatible
+  with 16550A, with enhancements for high speed baud rates and
+  support for DMA.
+
+properties:
+  compatible:
+    oneOf:
+      - const: mediatek,mt6577-uart
+      - items:
+          - enum:
+              - mediatek,mt2701-uart
+              - mediatek,mt2712-uart
+              - mediatek,mt6580-uart
+              - mediatek,mt6582-uart
+              - mediatek,mt6589-uart
+              - mediatek,mt6755-uart
+              - mediatek,mt6765-uart
+              - mediatek,mt6779-uart
+              - mediatek,mt6795-uart
+              - mediatek,mt6797-uart
+              - mediatek,mt7622-uart
+              - mediatek,mt7623-uart
+              - mediatek,mt7629-uart
+              - mediatek,mt7986-uart
+              - mediatek,mt8127-uart
+              - mediatek,mt8135-uart
+              - mediatek,mt8173-uart
+              - mediatek,mt8183-uart
+              - mediatek,mt8186-uart
+              - mediatek,mt8192-uart
+              - mediatek,mt8195-uart
+              - mediatek,mt8516-uart
+          - const: mediatek,mt6577-uart
+
+  reg:
+    description: The base address of the UART register bank
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    items:
+      - description: The clock the baudrate is derived from
+      - description: The bus clock for register accesses
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: baud
+      - const: bus
+
+  dmas:
+    items:
+      - description: phandle to TX DMA
+      - description: phandle to RX DMA
+
+  dma-names:
+    items:
+      - const: tx
+      - const: rx
+
+  interrupts:
+    minItems: 1
+    maxItems: 2
+
+  interrupt-names:
+    description:
+      The UART interrupt and optionally the RX in-band wakeup interrupt.
+    minItems: 1
+    items:
+      - const: uart
+      - const: wakeup
+
+  pinctrl-0: true
+  pinctrl-1: true
+
+  pinctrl-names:
+    minItems: 1
+    items:
+      - const: default
+      - const: sleep
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    serial@11006000 {
+        compatible = "mediatek,mt6589-uart", "mediatek,mt6577-uart";
+        reg = <0x11006000 0x400>;
+        interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_LOW>,
+                     <GIC_SPI 52 IRQ_TYPE_EDGE_FALLING>;
+        interrupt-names = "uart", "wakeup";
+        clocks = <&uart_clk>, <&bus_clk>;
+        clock-names = "baud", "bus";
+        pinctrl-0 = <&uart_pin>;
+        pinctrl-1 = <&uart_pin_sleep>;
+        pinctrl-names = "default", "sleep";
+    };

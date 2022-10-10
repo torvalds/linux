@@ -204,6 +204,7 @@ config S390
 	select IOMMU_SUPPORT		if PCI
 	select MMU_GATHER_NO_GATHER
 	select MMU_GATHER_RCU_TABLE_FREE
+	select MMU_GATHER_MERGE_VMAS
 	select MODULES_USE_ELF_RELA
 	select NEED_DMA_MAP_STATE	if PCI
 	select NEED_SG_DMA_LENGTH	if PCI
@@ -506,21 +507,6 @@ config KEXEC_SIG
 	  In addition to that option, you need to enable signature
 	  verification for the corresponding kernel image type being
 	  loaded in order for this to work.
-
-config ARCH_RANDOM
-	def_bool y
-	prompt "s390 architectural random number generation API"
-	help
-	  Enable the s390 architectural random number generation API
-	  to provide random data for all consumers within the Linux
-	  kernel.
-
-	  When enabled the arch_random_* functions declared in linux/random.h
-	  are implemented. The implementation is based on the s390 CPACF
-	  instruction subfunction TRNG which provides a real true random
-	  number generator.
-
-	  If unsure, say Y.
 
 config KERNEL_NOBP
 	def_bool n

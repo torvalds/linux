@@ -147,6 +147,8 @@
 			macb0: ethernet@f8008000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_macb0_default &pinctrl_macb0_phy_irq>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				phy-mode = "rmii";
 				status = "okay";
 
@@ -205,10 +207,10 @@
 
 							regulator-state-mem {
 								regulator-on-in-suspend;
-								regulator-suspend-min-microvolt=<1400000>;
-								regulator-suspend-max-microvolt=<1400000>;
+								regulator-suspend-min-microvolt = <1400000>;
+								regulator-suspend-max-microvolt = <1400000>;
 								regulator-changeable-in-suspend;
-								regulator-mode=<ACT8945A_REGULATOR_MODE_LOWPOWER>;
+								regulator-mode = <ACT8945A_REGULATOR_MODE_LOWPOWER>;
 							};
 						};
 
@@ -703,13 +705,13 @@
 		};
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_key_gpio_default>;
 
-		bp1 {
+		button {
 			label = "PB_USER";
 			gpios = <&pioA PIN_PB9 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_PROG1>;

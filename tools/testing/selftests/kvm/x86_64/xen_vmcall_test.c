@@ -11,12 +11,8 @@
 #include "kvm_util.h"
 #include "processor.h"
 
-#define VCPU_ID		5
-
 #define HCALL_REGION_GPA	0xc0000000ULL
 #define HCALL_REGION_SLOT	10
-
-static struct kvm_vm *vm;
 
 #define INPUTVALUE 17
 #define ARGVALUE(x) (0xdeadbeef5a5a0000UL + x)
@@ -84,14 +80,15 @@ static void guest_code(void)
 
 int main(int argc, char *argv[])
 {
-	if (!(kvm_check_cap(KVM_CAP_XEN_HVM) &
-	      KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL) ) {
-		print_skip("KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL not available");
-		exit(KSFT_SKIP);
-	}
+	unsigned int xen_caps;
+	struct kvm_vcpu *vcpu;
+	struct kvm_vm *vm;
 
-	vm = vm_create_default(VCPU_ID, 0, (void *) guest_code);
-	vcpu_set_hv_cpuid(vm, VCPU_ID);
+	xen_caps = kvm_check_cap(KVM_CAP_XEN_HVM);
+	TEST_REQUIRE(xen_caps & KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL);
+
+	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
+	vcpu_set_hv_cpuid(vcpu);
 
 	struct kvm_xen_hvm_config hvmc = {
 		.flags = KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL,
@@ -105,10 +102,10 @@ int main(int argc, char *argv[])
 	virt_map(vm, HCALL_REGION_GPA, HCALL_REGION_GPA, 2);
 
 	for (;;) {
-		volatile struct kvm_run *run = vcpu_state(vm, VCPU_ID);
+		volatile struct kvm_run *run = vcpu->run;
 		struct ucall uc;
 
-		vcpu_run(vm, VCPU_ID);
+		vcpu_run(vcpu);
 
 		if (run->exit_reason == KVM_EXIT_XEN) {
 			ASSERT_EQ(run->xen.type, KVM_EXIT_XEN_HCALL);
@@ -130,9 +127,9 @@ int main(int argc, char *argv[])
 			    run->exit_reason,
 			    exit_reason_str(run->exit_reason));
 
-		switch (get_ucall(vm, VCPU_ID, &uc)) {
+		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
-			TEST_FAIL("%s", (const char *)uc.args[0]);
+			REPORT_GUEST_ASSERT(uc);
 			/* NOT REACHED */
 		case UCALL_SYNC:
 			break;

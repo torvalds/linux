@@ -2,7 +2,6 @@
 config PPC32
 	bool
 	default y if !PPC64
-	select KASAN_VMALLOC if KASAN && MODULES
 
 config PPC64
 	bool "64-bit kernel"
@@ -127,18 +126,18 @@ choice
 
 config GENERIC_CPU
 	bool "Generic (POWER4 and above)"
-	depends on PPC64 && !CPU_LITTLE_ENDIAN
-	select PPC_64S_HASH_MMU if PPC_BOOK3S_64
-
-config GENERIC_CPU
-	bool "Generic (POWER8 and above)"
-	depends on PPC64 && CPU_LITTLE_ENDIAN
-	select ARCH_HAS_FAST_MULTIPLIER
+	depends on PPC_BOOK3S_64 && !CPU_LITTLE_ENDIAN
 	select PPC_64S_HASH_MMU
 
 config GENERIC_CPU
+	bool "Generic (POWER8 and above)"
+	depends on PPC_BOOK3S_64 && CPU_LITTLE_ENDIAN
+	select ARCH_HAS_FAST_MULTIPLIER
+	select PPC_64S_HASH_MMU
+
+config POWERPC_CPU
 	bool "Generic 32 bits powerpc"
-	depends on PPC32 && !PPC_8xx
+	depends on PPC_BOOK3S_32
 
 config CELL_CPU
 	bool "Cell Broadband Engine"
@@ -174,11 +173,27 @@ config POWER9_CPU
 
 config E5500_CPU
 	bool "Freescale e5500"
-	depends on E500
+	depends on PPC64 && E500
 
 config E6500_CPU
 	bool "Freescale e6500"
-	depends on E500
+	depends on PPC64 && E500
+
+config 405_CPU
+	bool "40x family"
+	depends on 40x
+
+config 440_CPU
+	bool "440 (44x family)"
+	depends on 44x
+
+config 464_CPU
+	bool "464 (44x family)"
+	depends on 44x
+
+config 476_CPU
+	bool "476 (47x family)"
+	depends on PPC_47x
 
 config 860_CPU
 	bool "8xx family"
@@ -197,11 +212,23 @@ config G4_CPU
 	depends on PPC_BOOK3S_32
 	select ALTIVEC
 
+config E500_CPU
+	bool "e500 (8540)"
+	depends on PPC_85xx && !PPC_E500MC
+
+config E500MC_CPU
+	bool "e500mc"
+	depends on PPC_85xx && PPC_E500MC
+
+config TOOLCHAIN_DEFAULT_CPU
+	bool "Rely on the toolchain's implicit default CPU"
+	depends on PPC32
+
 endchoice
 
 config TARGET_CPU_BOOL
 	bool
-	default !GENERIC_CPU
+	default !GENERIC_CPU && !TOOLCHAIN_DEFAULT_CPU
 
 config TARGET_CPU
 	string
@@ -212,10 +239,17 @@ config TARGET_CPU
 	default "power7" if POWER7_CPU
 	default "power8" if POWER8_CPU
 	default "power9" if POWER9_CPU
+	default "405" if 405_CPU
+	default "440" if 440_CPU
+	default "464" if 464_CPU
+	default "476" if 476_CPU
 	default "860" if 860_CPU
 	default "e300c2" if E300C2_CPU
 	default "e300c3" if E300C3_CPU
 	default "G4" if G4_CPU
+	default "8540" if E500_CPU
+	default "e500mc" if E500MC_CPU
+	default "powerpc" if POWERPC_CPU
 
 config PPC_BOOK3S
 	def_bool y
@@ -324,7 +358,7 @@ config PHYS_64BIT
 
 config ALTIVEC
 	bool "AltiVec Support"
-	depends on PPC_BOOK3S_32 || PPC_BOOK3S_64 || (PPC_E500MC && PPC64)
+	depends on PPC_BOOK3S || (PPC_E500MC && PPC64 && !E5500_CPU)
 	select PPC_FPU
 	help
 	  This option enables kernel support for the Altivec extensions to the

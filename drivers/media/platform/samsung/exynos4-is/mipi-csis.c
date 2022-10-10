@@ -124,7 +124,7 @@ static char *csi_clock_name[] = {
 #define DEFAULT_SCLK_CSIS_FREQ	166000000UL
 
 static const char * const csis_supply_name[] = {
-	"vddcore",  /* CSIS Core (1.0V, 1.1V or 1.2V) suppply */
+	"vddcore",  /* CSIS Core (1.0V, 1.1V or 1.2V) supply */
 	"vddio",    /* CSIS I/O and PLL (1.8V) supply */
 };
 #define CSIS_NUM_SUPPLIES ARRAY_SIZE(csis_supply_name)

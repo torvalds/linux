@@ -126,6 +126,7 @@ struct msr_counter bic[] = {
 	{ 0x0, "GFXAMHz", "", 0, 0, 0, NULL, 0 },
 	{ 0x0, "IPC", "", 0, 0, 0, NULL, 0 },
 	{ 0x0, "CoreThr", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "UncMHz", "", 0, 0, 0, NULL, 0 },
 };
 
 #define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
@@ -183,10 +184,11 @@ struct msr_counter bic[] = {
 #define	BIC_GFXACTMHz	(1ULL << 51)
 #define	BIC_IPC		(1ULL << 52)
 #define	BIC_CORE_THROT_CNT	(1ULL << 53)
+#define	BIC_UNCORE_MHZ		(1ULL << 54)
 
 #define BIC_TOPOLOGY (BIC_Package | BIC_Node | BIC_CoreCnt | BIC_PkgCnt | BIC_Core | BIC_CPU | BIC_Die )
 #define BIC_THERMAL_PWR ( BIC_CoreTmp | BIC_PkgTmp | BIC_PkgWatt | BIC_CorWatt | BIC_GFXWatt | BIC_RAMWatt | BIC_PKG__ | BIC_RAM__)
-#define BIC_FREQUENCY ( BIC_Avg_MHz | BIC_Busy | BIC_Bzy_MHz | BIC_TSC_MHz | BIC_GFXMHz | BIC_GFXACTMHz )
+#define BIC_FREQUENCY ( BIC_Avg_MHz | BIC_Busy | BIC_Bzy_MHz | BIC_TSC_MHz | BIC_GFXMHz | BIC_GFXACTMHz | BIC_UNCORE_MHZ)
 #define BIC_IDLE ( BIC_sysfs | BIC_CPU_c1 | BIC_CPU_c3 | BIC_CPU_c6 | BIC_CPU_c7 | BIC_GFX_rc6 | BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_CPU_LPI | BIC_SYS_LPI | BIC_Mod_c6 | BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX)
 #define BIC_OTHER ( BIC_IRQ | BIC_SMI | BIC_ThreadC | BIC_CoreTmp | BIC_IPC)
 
@@ -228,6 +230,7 @@ unsigned int do_slm_cstates;
 unsigned int use_c1_residency_msr;
 unsigned int has_aperf;
 unsigned int has_epb;
+unsigned int is_hybrid;
 unsigned int do_irtl_snb;
 unsigned int do_irtl_hsw;
 unsigned int units = 1000000;	/* MHz etc */
@@ -393,6 +396,7 @@ struct pkg_data {
 	unsigned long long rapl_pkg_perf_status;	/* MSR_PKG_PERF_STATUS */
 	unsigned long long rapl_dram_perf_status;	/* MSR_DRAM_PERF_STATUS */
 	unsigned int pkg_temp_c;
+	unsigned int uncore_mhz;
 	unsigned long long counter[MAX_ADDED_COUNTERS];
 } *package_even, *package_odd;
 
@@ -988,6 +992,9 @@ void print_header(char *delim)
 		if (DO_BIC(BIC_RAM__))
 			outp += sprintf(outp, "%sRAM_%%", (printed++ ? delim : ""));
 	}
+	if (DO_BIC(BIC_UNCORE_MHZ))
+		outp += sprintf(outp, "%sUncMHz", (printed++ ? delim : ""));
+
 	for (mp = sys.pp; mp; mp = mp->next) {
 		if (mp->format == FORMAT_RAW) {
 			if (mp->width == 64)
@@ -1370,6 +1377,9 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 		outp +=
 		    sprintf(outp, fmt8, (printed++ ? delim : ""),
 			    100.0 * p->rapl_dram_perf_status * rapl_time_units / interval_float);
+	/* UncMHz */
+	if (DO_BIC(BIC_UNCORE_MHZ))
+		outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), p->uncore_mhz);
 
 	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW) {
@@ -1471,6 +1481,7 @@ int delta_package(struct pkg_data *new, struct pkg_data *old)
 	else
 		old->gfx_rc6_ms = new->gfx_rc6_ms - old->gfx_rc6_ms;
 
+	old->uncore_mhz = new->uncore_mhz;
 	old->gfx_mhz = new->gfx_mhz;
 	old->gfx_act_mhz = new->gfx_act_mhz;
 
@@ -1689,6 +1700,7 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	p->pkg_temp_c = 0;
 
 	p->gfx_rc6_ms = 0;
+	p->uncore_mhz = 0;
 	p->gfx_mhz = 0;
 	p->gfx_act_mhz = 0;
 	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next)
@@ -1788,6 +1800,7 @@ int sum_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	average.packages.energy_gfx += p->energy_gfx;
 
 	average.packages.gfx_rc6_ms = p->gfx_rc6_ms;
+	average.packages.uncore_mhz = p->uncore_mhz;
 	average.packages.gfx_mhz = p->gfx_mhz;
 	average.packages.gfx_act_mhz = p->gfx_act_mhz;
 
@@ -1948,6 +1961,16 @@ int get_mp(int cpu, struct msr_counter *mp, unsigned long long *counterp)
 	return 0;
 }
 
+unsigned long long get_uncore_mhz(int package, int die)
+{
+	char path[128];
+
+	sprintf(path, "/sys/devices/system/cpu/intel_uncore_frequency/package_0%d_die_0%d/current_freq_khz", package,
+		die);
+
+	return (snapshot_sysfs_counter(path) / 1000);
+}
+
 int get_epb(int cpu)
 {
 	char path[128 + PATH_BYTES];
@@ -2035,9 +2058,9 @@ int get_core_throt_cnt(int cpu, unsigned long long *cnt)
 	if (!fp)
 		return -1;
 	ret = fscanf(fp, "%lld", &tmp);
+	fclose(fp);
 	if (ret != 1)
 		return -1;
-	fclose(fp);
 	*cnt = tmp;
 
 	return 0;
@@ -2297,6 +2320,10 @@ retry:
 	if (DO_BIC(BIC_GFX_rc6))
 		p->gfx_rc6_ms = gfx_cur_rc6_ms;
 
+	/* n.b. assume die0 uncore frequency applies to whole package */
+	if (DO_BIC(BIC_UNCORE_MHZ))
+		p->uncore_mhz = get_uncore_mhz(p->package_id, 0);
+
 	if (DO_BIC(BIC_GFXMHz))
 		p->gfx_mhz = gfx_cur_mhz;
 
@@ -2494,6 +2521,7 @@ int has_turbo_ratio_group_limits(int family, int model)
 	case INTEL_FAM6_ATOM_GOLDMONT:
 	case INTEL_FAM6_SKYLAKE_X:
 	case INTEL_FAM6_ICELAKE_X:
+	case INTEL_FAM6_SAPPHIRERAPIDS_X:
 	case INTEL_FAM6_ATOM_GOLDMONT_D:
 	case INTEL_FAM6_ATOM_TREMONT_D:
 		return 1;
@@ -2502,13 +2530,14 @@ int has_turbo_ratio_group_limits(int family, int model)
 	}
 }
 
-static void dump_turbo_ratio_limits(int family, int model)
+static void dump_turbo_ratio_limits(int trl_msr_offset, int family, int model)
 {
 	unsigned long long msr, core_counts;
-	unsigned int ratio, group_size;
+	int shift;
 
-	get_msr(base_cpu, MSR_TURBO_RATIO_LIMIT, &msr);
-	fprintf(outf, "cpu%d: MSR_TURBO_RATIO_LIMIT: 0x%08llx\n", base_cpu, msr);
+	get_msr(base_cpu, trl_msr_offset, &msr);
+	fprintf(outf, "cpu%d: MSR_%sTURBO_RATIO_LIMIT: 0x%08llx\n",
+		base_cpu, trl_msr_offset == MSR_SECONDARY_TURBO_RATIO_LIMIT ? "SECONDARY" : "", msr);
 
 	if (has_turbo_ratio_group_limits(family, model)) {
 		get_msr(base_cpu, MSR_TURBO_RATIO_LIMIT1, &core_counts);
@@ -2517,53 +2546,16 @@ static void dump_turbo_ratio_limits(int family, int model)
 		core_counts = 0x0807060504030201;
 	}
 
-	ratio = (msr >> 56) & 0xFF;
-	group_size = (core_counts >> 56) & 0xFF;
-	if (ratio)
-		fprintf(outf, "%d * %.1f = %.1f MHz max turbo %d active cores\n",
-			ratio, bclk, ratio * bclk, group_size);
+	for (shift = 56; shift >= 0; shift -= 8) {
+		unsigned int ratio, group_size;
 
-	ratio = (msr >> 48) & 0xFF;
-	group_size = (core_counts >> 48) & 0xFF;
-	if (ratio)
-		fprintf(outf, "%d * %.1f = %.1f MHz max turbo %d active cores\n",
-			ratio, bclk, ratio * bclk, group_size);
+		ratio = (msr >> shift) & 0xFF;
+		group_size = (core_counts >> shift) & 0xFF;
+		if (ratio)
+			fprintf(outf, "%d * %.1f = %.1f MHz max turbo %d active cores\n",
+				ratio, bclk, ratio * bclk, group_size);
+	}
 
-	ratio = (msr >> 40) & 0xFF;
-	group_size = (core_counts >> 40) & 0xFF;
-	if (ratio)
-		fprintf(outf, "%d * %.1f = %.1f MHz max turbo %d active cores\n",
-			ratio, bclk, ratio * bclk, group_size);
-
-	ratio = (msr >> 32) & 0xFF;
-	group_size = (core_counts >> 32) & 0xFF;
-	if (ratio)
-		fprintf(outf, "%d * %.1f = %.1f MHz max turbo %d active cores\n",
-			ratio, bclk, ratio * bclk, group_size);
-
-	ratio = (msr >> 24) & 0xFF;
-	group_size = (core_counts >> 24) & 0xFF;
-	if (ratio)
-		fprintf(outf, "%d * %.1f = %.1f MHz max turbo %d active cores\n",
-			ratio, bclk, ratio * bclk, group_size);
-
-	ratio = (msr >> 16) & 0xFF;
-	group_size = (core_counts >> 16) & 0xFF;
-	if (ratio)
-		fprintf(outf, "%d * %.1f = %.1f MHz max turbo %d active cores\n",
-			ratio, bclk, ratio * bclk, group_size);
-
-	ratio = (msr >> 8) & 0xFF;
-	group_size = (core_counts >> 8) & 0xFF;
-	if (ratio)
-		fprintf(outf, "%d * %.1f = %.1f MHz max turbo %d active cores\n",
-			ratio, bclk, ratio * bclk, group_size);
-
-	ratio = (msr >> 0) & 0xFF;
-	group_size = (core_counts >> 0) & 0xFF;
-	if (ratio)
-		fprintf(outf, "%d * %.1f = %.1f MHz max turbo %d active cores\n",
-			ratio, bclk, ratio * bclk, group_size);
 	return;
 }
 
@@ -2976,7 +2968,7 @@ int get_thread_siblings(struct cpu_topology *thiscpu)
 				}
 			}
 		}
-	} while (!strncmp(&character, ",", 1));
+	} while (character == ',');
 	fclose(filep);
 
 	return CPU_COUNT_S(size, thiscpu->put_ids);
@@ -3742,6 +3734,7 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 		has_misc_feature_control = 1;
 		break;
 	case INTEL_FAM6_SKYLAKE_X:	/* SKX */
+	case INTEL_FAM6_SAPPHIRERAPIDS_X:	/* SPR */
 		pkg_cstate_limits = skx_pkg_cstate_limits;
 		has_misc_feature_control = 1;
 		break;
@@ -3871,6 +3864,22 @@ int is_icx(unsigned int family, unsigned int model)
 	return 0;
 }
 
+int is_spr(unsigned int family, unsigned int model)
+{
+
+	if (!genuine_intel)
+		return 0;
+
+	if (family != 6)
+		return 0;
+
+	switch (model) {
+	case INTEL_FAM6_SAPPHIRERAPIDS_X:
+		return 1;
+	}
+	return 0;
+}
+
 int is_ehl(unsigned int family, unsigned int model)
 {
 	if (!genuine_intel)
@@ -3988,6 +3997,7 @@ int has_glm_turbo_ratio_limit(unsigned int family, unsigned int model)
 	case INTEL_FAM6_ATOM_GOLDMONT:
 	case INTEL_FAM6_SKYLAKE_X:
 	case INTEL_FAM6_ICELAKE_X:
+	case INTEL_FAM6_SAPPHIRERAPIDS_X:
 		return 1;
 	default:
 		return 0;
@@ -4015,7 +4025,7 @@ int has_config_tdp(unsigned int family, unsigned int model)
 	case INTEL_FAM6_CANNONLAKE_L:	/* CNL */
 	case INTEL_FAM6_SKYLAKE_X:	/* SKX */
 	case INTEL_FAM6_ICELAKE_X:	/* ICX */
-
+	case INTEL_FAM6_SAPPHIRERAPIDS_X:	/* SPR */
 	case INTEL_FAM6_XEON_PHI_KNL:	/* Knights Landing */
 		return 1;
 	default:
@@ -4083,8 +4093,12 @@ static void dump_cstate_pstate_config_info(unsigned int family, unsigned int mod
 	if (has_ivt_turbo_ratio_limit(family, model))
 		dump_ivt_turbo_ratio_limits();
 
-	if (has_turbo_ratio_limit(family, model))
-		dump_turbo_ratio_limits(family, model);
+	if (has_turbo_ratio_limit(family, model)) {
+		dump_turbo_ratio_limits(MSR_TURBO_RATIO_LIMIT, family, model);
+
+		if (is_hybrid)
+			dump_turbo_ratio_limits(MSR_SECONDARY_TURBO_RATIO_LIMIT, family, model);
+	}
 
 	if (has_atom_turbo_ratio_limit(family, model))
 		dump_atom_turbo_ratio_limits();
@@ -4096,6 +4110,24 @@ static void dump_cstate_pstate_config_info(unsigned int family, unsigned int mod
 		dump_config_tdp();
 
 	dump_nhm_cst_cfg();
+}
+
+static int read_sysfs_int(char *path)
+{
+	FILE *input;
+	int retval = -1;
+
+	input = fopen(path, "r");
+	if (input == NULL) {
+		if (debug)
+			fprintf(outf, "NSFOD %s\n", path);
+		return (-1);
+	}
+	if (fscanf(input, "%d", &retval) != 1)
+		err(1, "%s: failed to read int from file", path);
+	fclose(input);
+
+	return (retval);
 }
 
 static void dump_sysfs_file(char *path)
@@ -4114,6 +4146,48 @@ static void dump_sysfs_file(char *path)
 	fclose(input);
 
 	fprintf(outf, "%s: %s", strrchr(path, '/') + 1, cpuidle_buf);
+}
+
+static void intel_uncore_frequency_probe(void)
+{
+	int i, j;
+	char path[128];
+
+	if (!genuine_intel)
+		return;
+
+	if (access("/sys/devices/system/cpu/intel_uncore_frequency/package_00_die_00", R_OK))
+		return;
+
+	if (!access("/sys/devices/system/cpu/intel_uncore_frequency/package_00_die_00/current_freq_khz", R_OK))
+		BIC_PRESENT(BIC_UNCORE_MHZ);
+
+	if (quiet)
+		return;
+
+	for (i = 0; i < topo.num_packages; ++i) {
+		for (j = 0; j < topo.num_die; ++j) {
+			int k, l;
+
+			sprintf(path, "/sys/devices/system/cpu/intel_uncore_frequency/package_0%d_die_0%d/min_freq_khz",
+				i, j);
+			k = read_sysfs_int(path);
+			sprintf(path, "/sys/devices/system/cpu/intel_uncore_frequency/package_0%d_die_0%d/max_freq_khz",
+				i, j);
+			l = read_sysfs_int(path);
+			fprintf(outf, "Uncore Frequency pkg%d die%d: %d - %d MHz ", i, j, k / 1000, l / 1000);
+
+			sprintf(path,
+				"/sys/devices/system/cpu/intel_uncore_frequency/package_0%d_die_0%d/initial_min_freq_khz",
+				i, j);
+			k = read_sysfs_int(path);
+			sprintf(path,
+				"/sys/devices/system/cpu/intel_uncore_frequency/package_0%d_die_0%d/initial_max_freq_khz",
+				i, j);
+			l = read_sysfs_int(path);
+			fprintf(outf, "(%d - %d MHz)\n", k / 1000, l / 1000);
+		}
+	}
 }
 
 static void dump_sysfs_cstate_config(void)
@@ -4486,6 +4560,7 @@ static double rapl_dram_energy_units_probe(int model, double rapl_energy_units)
 	case INTEL_FAM6_SKYLAKE_X:	/* SKX */
 	case INTEL_FAM6_XEON_PHI_KNL:	/* KNL */
 	case INTEL_FAM6_ICELAKE_X:	/* ICX */
+	case INTEL_FAM6_SAPPHIRERAPIDS_X:	/* SPR */
 		return (rapl_dram_energy_units = 15.3 / 1000000);
 	default:
 		return (rapl_energy_units);
@@ -4575,6 +4650,7 @@ void rapl_probe_intel(unsigned int family, unsigned int model)
 	case INTEL_FAM6_BROADWELL_X:	/* BDX */
 	case INTEL_FAM6_SKYLAKE_X:	/* SKX */
 	case INTEL_FAM6_ICELAKE_X:	/* ICX */
+	case INTEL_FAM6_SAPPHIRERAPIDS_X:	/* SPR */
 	case INTEL_FAM6_XEON_PHI_KNL:	/* KNL */
 		do_rapl =
 		    RAPL_PKG | RAPL_DRAM | RAPL_DRAM_POWER_INFO | RAPL_DRAM_PERF_STATUS | RAPL_PKG_PERF_STATUS |
@@ -4740,13 +4816,19 @@ void perf_limit_reasons_probe(unsigned int family, unsigned int model)
 
 void automatic_cstate_conversion_probe(unsigned int family, unsigned int model)
 {
-	if (is_skx(family, model) || is_bdx(family, model) || is_icx(family, model))
+	if (family != 6)
+		return;
+
+	switch (model) {
+	case INTEL_FAM6_BROADWELL_X:
+	case INTEL_FAM6_SKYLAKE_X:
 		has_automatic_cstate_conversion = 1;
+	}
 }
 
 void prewake_cstate_probe(unsigned int family, unsigned int model)
 {
-	if (is_icx(family, model))
+	if (is_icx(family, model) || is_spr(family, model))
 		dis_cstate_prewake = 1;
 }
 
@@ -4975,6 +5057,7 @@ int has_snb_msrs(unsigned int family, unsigned int model)
 	case INTEL_FAM6_CANNONLAKE_L:	/* CNL */
 	case INTEL_FAM6_SKYLAKE_X:	/* SKX */
 	case INTEL_FAM6_ICELAKE_X:	/* ICX */
+	case INTEL_FAM6_SAPPHIRERAPIDS_X:	/* SPR */
 	case INTEL_FAM6_ATOM_GOLDMONT:	/* BXT */
 	case INTEL_FAM6_ATOM_GOLDMONT_PLUS:
 	case INTEL_FAM6_ATOM_GOLDMONT_D:	/* DNV */
@@ -5361,13 +5444,15 @@ unsigned int intel_model_duplicates(unsigned int model)
 	case INTEL_FAM6_LAKEFIELD:
 	case INTEL_FAM6_ALDERLAKE:
 	case INTEL_FAM6_ALDERLAKE_L:
+	case INTEL_FAM6_ALDERLAKE_N:
+	case INTEL_FAM6_RAPTORLAKE:
+	case INTEL_FAM6_RAPTORLAKE_P:
 		return INTEL_FAM6_CANNONLAKE_L;
 
 	case INTEL_FAM6_ATOM_TREMONT_L:
 		return INTEL_FAM6_ATOM_TREMONT;
 
 	case INTEL_FAM6_ICELAKE_D:
-	case INTEL_FAM6_SAPPHIRERAPIDS_X:
 		return INTEL_FAM6_ICELAKE_X;
 	}
 	return model;
@@ -5398,7 +5483,7 @@ void print_dev_latency(void)
 }
 
 /*
- * Linux-perf manages the the HW instructions-retired counter
+ * Linux-perf manages the HW instructions-retired counter
  * by enabling when requested, and hiding rollover
  */
 void linux_perf_init(void)
@@ -5543,7 +5628,10 @@ void process_cpuid()
 		__cpuid_count(0x7, 0, eax, ebx, ecx, edx);
 
 		has_sgx = ebx & (1 << 2);
-		fprintf(outf, "CPUID(7): %sSGX\n", has_sgx ? "" : "No-");
+
+		is_hybrid = edx & (1 << 15);
+
+		fprintf(outf, "CPUID(7): %sSGX %sHybrid\n", has_sgx ? "" : "No-", is_hybrid ? "" : "No-");
 
 		if (has_sgx)
 			decode_feature_control_msr();
@@ -5654,7 +5742,7 @@ void process_cpuid()
 		BIC_NOT_PRESENT(BIC_Pkgpc7);
 		use_c1_residency_msr = 1;
 	}
-	if (is_skx(family, model) || is_icx(family, model)) {
+	if (is_skx(family, model) || is_icx(family, model) || is_spr(family, model)) {
 		BIC_NOT_PRESENT(BIC_CPU_c3);
 		BIC_NOT_PRESENT(BIC_Pkgpc3);
 		BIC_NOT_PRESENT(BIC_CPU_c7);
@@ -5699,6 +5787,7 @@ void process_cpuid()
 
 	if (!quiet)
 		dump_cstate_pstate_config_info(family, model);
+	intel_uncore_frequency_probe();
 
 	if (!quiet)
 		print_dev_latency();
@@ -6128,7 +6217,30 @@ int get_and_dump_counters(void)
 
 void print_version()
 {
-	fprintf(outf, "turbostat version 2022.04.16 - Len Brown <lenb@kernel.org>\n");
+	fprintf(outf, "turbostat version 2022.07.28 - Len Brown <lenb@kernel.org>\n");
+}
+
+#define COMMAND_LINE_SIZE 2048
+
+void print_bootcmd(void)
+{
+	char bootcmd[COMMAND_LINE_SIZE];
+	FILE *fp;
+	int ret;
+
+	memset(bootcmd, 0, COMMAND_LINE_SIZE);
+	fp = fopen("/proc/cmdline", "r");
+	if (!fp)
+		return;
+
+	ret = fread(bootcmd, sizeof(char), COMMAND_LINE_SIZE - 1, fp);
+	if (ret) {
+		bootcmd[ret] = '\0';
+		/* the last character is already '\n' */
+		fprintf(outf, "Kernel command line: %s", bootcmd);
+	}
+
+	fclose(fp);
 }
 
 int add_counter(unsigned int msr_num, char *path, char *name,
@@ -6602,8 +6714,10 @@ int main(int argc, char **argv)
 	outf = stderr;
 	cmdline(argc, argv);
 
-	if (!quiet)
+	if (!quiet) {
 		print_version();
+		print_bootcmd();
+	}
 
 	probe_sysfs();
 

@@ -204,43 +204,6 @@ int mpc52xx_set_psc_clkdiv(int psc_id, int clkdiv)
 EXPORT_SYMBOL(mpc52xx_set_psc_clkdiv);
 
 /**
- * mpc52xx_get_xtal_freq - Get SYS_XTAL_IN frequency for a device
- *
- * @node: device node
- *
- * Returns the frequency of the external oscillator clock connected
- * to the SYS_XTAL_IN pin, or 0 if it cannot be determined.
- */
-unsigned int mpc52xx_get_xtal_freq(struct device_node *node)
-{
-	u32 val;
-	unsigned int freq;
-
-	if (!mpc52xx_cdm)
-		return 0;
-
-	freq = mpc5xxx_get_bus_frequency(node);
-	if (!freq)
-		return 0;
-
-	if (in_8(&mpc52xx_cdm->ipb_clk_sel) & 0x1)
-		freq *= 2;
-
-	val  = in_be32(&mpc52xx_cdm->rstcfg);
-	if (val & (1 << 5))
-		freq *= 8;
-	else
-		freq *= 4;
-	if (val & (1 << 6))
-		freq /= 12;
-	else
-		freq /= 16;
-
-	return freq;
-}
-EXPORT_SYMBOL(mpc52xx_get_xtal_freq);
-
-/**
  * mpc52xx_restart: ppc_md->restart hook for mpc5200 using the watchdog timer
  */
 void __noreturn mpc52xx_restart(char *cmd)

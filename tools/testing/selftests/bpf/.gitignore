@@ -41,5 +41,6 @@ test_cpp
 /bench
 *.ko
 *.tmp
-xdpxceiver
+xskxceiver
 xdp_redirect_multi
+xdp_synproxy

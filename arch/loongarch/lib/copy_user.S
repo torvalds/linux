@@ -35,7 +35,7 @@ SYM_FUNC_START(__copy_user)
 	addi.d	a0, a0, 1
 	addi.d	a1, a1, 1
 	addi.d	a2, a2, -1
-	bgt	a2, zero, 1b
+	bgtz	a2, 1b
 
 3:	move	a0, a2
 	jr	ra

@@ -23,6 +23,7 @@
 #include <linux/objtool.h>
 #include <asm/page_types.h>
 #include <asm/segment.h>
+#include <asm/nospec-branch.h>
 
 	.text
 	.code64
@@ -75,7 +76,9 @@ STACK_FRAME_NON_STANDARD __efi64_thunk
 1:	movq	0x20(%rsp), %rsp
 	pop	%rbx
 	pop	%rbp
-	RET
+	ANNOTATE_UNRET_SAFE
+	ret
+	int3
 
 	.code32
 2:	pushl	$__KERNEL_CS

@@ -246,10 +246,6 @@ static struct iommu_device *gart_iommu_probe_device(struct device *dev)
 	return &gart_handle->iommu;
 }
 
-static void gart_iommu_release_device(struct device *dev)
-{
-}
-
 static int gart_iommu_of_xlate(struct device *dev,
 			       struct of_phandle_args *args)
 {
@@ -273,7 +269,6 @@ static void gart_iommu_sync(struct iommu_domain *domain,
 static const struct iommu_ops gart_iommu_ops = {
 	.domain_alloc	= gart_iommu_domain_alloc,
 	.probe_device	= gart_iommu_probe_device,
-	.release_device	= gart_iommu_release_device,
 	.device_group	= generic_device_group,
 	.pgsize_bitmap	= GART_IOMMU_PGSIZES,
 	.of_xlate	= gart_iommu_of_xlate,

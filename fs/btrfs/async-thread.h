@@ -13,7 +13,6 @@ struct btrfs_fs_info;
 struct btrfs_workqueue;
 struct btrfs_work;
 typedef void (*btrfs_func_t)(struct btrfs_work *arg);
-typedef void (*btrfs_work_func_t)(struct work_struct *arg);
 
 struct btrfs_work {
 	btrfs_func_t func;

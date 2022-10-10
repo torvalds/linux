@@ -116,7 +116,7 @@ enum fimc_is_error {
 	ERROR_COMMON_PARAMETER		= 2,	/* Invalid parameter */
 	/* setfile is not loaded before adjusting */
 	ERROR_COMMON_SETFILE_LOAD	= 3,
-	/* setfile is not Adjusted before runnng. */
+	/* setfile is not Adjusted before running. */
 	ERROR_COMMON_SETFILE_ADJUST	= 4,
 	/* Index of setfile is not valid (0~MAX_SETFILE_NUM-1) */
 	ERROR_COMMON_SETFILE_INDEX	= 5,

@@ -1,169 +1,79 @@
-// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
- * Copyright 2017-2020 Toradex AG
- *
+ * Copyright 2017-2022 Toradex
  */
 
-
-#include <dt-bindings/input/input.h>
-#include <dt-bindings/pwm/pwm.h>
-
-/ {
-	chosen {
-		stdout-path = "serial0:115200n8";
-	};
-
-	gpio-keys {
-		compatible = "gpio-keys";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_gpiokeys>;
-
-		power {
-			label = "Wake-Up";
-			gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
-			linux,code = <KEY_WAKEUP>;
-			debounce-interval = <10>;
-			wakeup-source;
-		};
-	};
-
-	panel: panel {
-		compatible = "edt,et057090dhu";
-		backlight = <&bl>;
-		power-supply = <&reg_3v3>;
-
-		port {
-			panel_in: endpoint {
-				remote-endpoint = <&lcdif_out>;
-			};
-		};
-	};
-
-	reg_3v3: regulator-3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "3.3V";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
-	reg_5v0: regulator-5v0 {
-		compatible = "regulator-fixed";
-		regulator-name = "5V";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-	};
-
-	reg_usbh_vbus: regulator-usbh-vbus {
-		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_usbh_reg>;
-		regulator-name = "VCC_USB[1-4]";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		gpio = <&gpio4 7 GPIO_ACTIVE_LOW>;
-		vin-supply = <&reg_5v0>;
-	};
-};
-
+/* Colibri AD0 to AD3 */
 &adc1 {
 	status = "okay";
 };
 
-/*
- * ADC2 is not available on the Aster board and
- * conflicts with AD7879 resistive touchscreen.
- */
-&adc2 {
-	status = "disabled";
-};
-
-&bl {
-	brightness-levels = <0 4 8 16 32 64 128 255>;
-	default-brightness-level = <6>;
-	power-supply = <&reg_3v3>;
+/* Colibri SSP */
+&ecspi3 {
+	cs-gpios = <
+		&gpio4 11 GPIO_ACTIVE_LOW /* SODIMM 86 / regular SSPFRM as UNO_SPI_CS or  */
+		&gpio4 23 GPIO_ACTIVE_LOW /* SODIMM 65 / already muxed pinctrl_gpio2 as SPI_CE0_N */
+		&gpio4 22 GPIO_ACTIVE_LOW /* SODIMM 85 / already muxed pinctrl_gpio2 as SPI_CE1_N */
+	>;
 	status = "okay";
 };
 
+/* Colibri Fast Ethernet */
 &fec1 {
 	status = "okay";
 };
 
+/* Colibri I2C: I2C3_SDA/SCL on SODIMM 194/196 */
 &i2c4 {
 	status = "okay";
-
-	/* Microchip/Atmel maxtouch controller */
-	touchscreen@4a {
-		compatible = "atmel,maxtouch";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_gpiotouch>;
-		reg = <0x4a>;
-		interrupt-parent = <&gpio2>;
-		interrupts = <15 IRQ_TYPE_EDGE_FALLING>;	/* SODIMM 107 */
-		reset-gpios = <&gpio2 28 GPIO_ACTIVE_LOW>;	/* SODIMM 106 */
-	};
-
-	/* M41T0M6 real time clock on carrier board */
-	rtc: rtc@68 {
-		compatible = "st,m41t0";
-		reg = <0x68>;
-	};
 };
 
-&iomuxc {
-	pinctrl_gpiotouch: touchgpios {
-		fsl,pins = <
-			MX7D_PAD_EPDC_DATA15__GPIO2_IO15        0x74
-			MX7D_PAD_EPDC_BDR0__GPIO2_IO28          0x14
-		>;
-	};
-};
-
-&lcdif {
-	status = "okay";
-
-	port {
-		lcdif_out: endpoint {
-			remote-endpoint = <&panel_in>;
-		};
-	};
-};
-
+/* Colibri PWM<A> */
 &pwm1 {
 	status = "okay";
 };
 
+/* Colibri PWM<B> */
 &pwm2 {
 	status = "okay";
 };
 
+/* Colibri PWM<C> */
 &pwm3 {
 	status = "okay";
 };
 
+/* Colibri PWM<D> */
 &pwm4 {
 	status = "okay";
 };
 
+/* M41T0M6 real time clock */
+&rtc {
+	status = "okay";
+};
+
+/* Colibri UART_A */
 &uart1 {
 	status = "okay";
 };
 
+/* Colibri UART_B */
 &uart2 {
 	status = "okay";
 };
 
+/* Colibri UART_C */
 &uart3 {
 	status = "okay";
 };
 
+/* Colibri USBC */
 &usbotg1 {
 	status = "okay";
 };
 
+/* Colibri MMC/SD */
 &usdhc1 {
-	keep-power-in-suspend;
-	no-1-8-v;
-	wakeup-source;
-	vmmc-supply = <&reg_3v3>;
 	status = "okay";
 };

@@ -3,6 +3,14 @@ Kernel driver lm90
 
 Supported chips:
 
+  * National Semiconductor LM84
+
+    Prefix: 'lm84'
+
+    Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
+
+    Datasheet: Publicly available at the National Semiconductor website
+
   * National Semiconductor LM90
 
     Prefix: 'lm90'
@@ -43,6 +51,30 @@ Supported chips:
 
 	       http://www.national.com/mpf/LM/LM86.html
 
+  * Analog Devices ADM1020
+
+    Prefix: 'adm1020'
+
+    Addresses scanned: I2C 0x4c - 0x4e
+
+    Datasheet: Publicly available at the Analog Devices website
+
+  * Analog Devices ADM1021
+
+    Prefix: 'adm1021'
+
+    Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
+
+    Datasheet: Publicly available at the Analog Devices website
+
+  * Analog Devices ADM1021A/ADM1023
+
+    Prefix: 'adm1023'
+
+    Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
+
+    Datasheet: Publicly available at the Analog Devices website
+
   * Analog Devices ADM1032
 
     Prefix: 'adm1032'
@@ -73,6 +105,36 @@ Supported chips:
 
 	       https://www.onsemi.com/PowerSolutions/product.do?id=ADT7461A
 
+  * Analog Devices ADT7481
+
+    Prefix: 'adt7481'
+
+    Addresses scanned: I2C 0x4b and 0x4c
+
+    Datasheet: Publicly available at the ON Semiconductor website
+
+	       https://www.onsemi.com/PowerSolutions/product.do?id=ADT7481
+
+  * Analog Devices ADT7482
+
+    Prefix: 'adt7482'
+
+    Addresses scanned: I2C 0x4c
+
+    Datasheet: Publicly available at the ON Semiconductor website
+
+	       https://www.onsemi.com/PowerSolutions/product.do?id=ADT7482
+
+  * Analog Devices ADT7483A
+
+    Prefix: 'adt7483a'
+
+    Addresses scanned: I2C 0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x4c, 0x4d, 0x4e
+
+    Datasheet: Publicly available at the ON Semiconductor website
+
+	       https://www.onsemi.com/PowerSolutions/product.do?id=ADT7483A
+
   * ON Semiconductor NCT1008
 
     Prefix: 'nct1008'
@@ -82,6 +144,72 @@ Supported chips:
     Datasheet: Publicly available at the ON Semiconductor website
 
 	       https://www.onsemi.com/PowerSolutions/product.do?id=NCT1008
+
+  * ON Semiconductor NCT210
+
+    Prefix: 'adm1021'
+
+    Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
+
+    Datasheet: Publicly available at the ON Semiconductor website
+
+	       https://www.onsemi.com/PowerSolutions/product.do?id=NCT210
+
+  * ON Semiconductor NCT214
+
+    Prefix: 'nct214'
+
+    Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
+
+    Datasheet: Publicly available at the ON Semiconductor website
+
+	       https://www.onsemi.com/PowerSolutions/product.do?id=NCT214
+
+  * ON Semiconductor NCT218
+
+    Prefix: 'nct218'
+
+    Addresses scanned: I2C 0x4c - 0x4d
+
+    Datasheet: Publicly available at the ON Semiconductor website
+
+	       https://www.onsemi.com/PowerSolutions/product.do?id=NCT218
+
+  * ON Semiconductor NCT72
+
+    Prefix: 'nct72'
+
+    Addresses scanned: I2C 0x4c - 0x4d
+
+    Datasheet: Publicly available at the ON Semiconductor website
+
+	       https://www.onsemi.com/PowerSolutions/product.do?id=NCT72
+
+  * Maxim MAX1617
+
+    Prefix: 'max1617'
+
+    Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
+
+    Datasheet: Publicly available at the Maxim website
+
+  * Maxim MAX1617A
+
+    Prefix: 'max1617a'
+
+    Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
+
+    Datasheet: Publicly available at the Maxim website
+
+  * Maxim MAX6642
+
+    Prefix: 'max6642'
+
+    Addresses scanned: I2C 0x48-0x4f
+
+    Datasheet: Publicly available at the Maxim website
+
+	       http://datasheets.maxim-ic.com/en/ds/MAX6642.pdf
 
   * Maxim MAX6646
 
@@ -105,7 +233,7 @@ Supported chips:
 
   * Maxim MAX6648
 
-    Prefix: 'max6646'
+    Prefix: 'max6648'
 
     Addresses scanned: I2C 0x4c
 
@@ -191,7 +319,7 @@ Supported chips:
 
   * Maxim MAX6692
 
-    Prefix: 'max6646'
+    Prefix: 'max6648'
 
     Addresses scanned: I2C 0x4c
 
@@ -275,6 +403,46 @@ Supported chips:
 
 	       https://www.ti.com/lit/gpn/tmp461
 
+  * Philips NE1617, NE1617A
+
+    Prefix: 'max1617' (probably detected as a max1617)
+
+    Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
+
+    Datasheets: Publicly available at the Philips website
+
+  * Philips NE1618
+
+    Prefix: 'ne1618'
+
+    Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
+
+    Datasheets: Publicly available at the Philips website
+
+  * Genesys Logic GL523SM
+
+    Prefix: 'gl523sm'
+
+    Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
+
+    Datasheet:
+
+  * TI THMC10
+
+    Prefix: 'thmc10'
+
+    Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
+
+    Datasheet: Publicly available at the TI website
+
+  * Onsemi MC1066
+
+    Prefix: 'mc1066'
+
+    Addresses scanned: I2C 0x18 - 0x1a, 0x29 - 0x2b, 0x4c - 0x4e
+
+    Datasheet: Publicly available at the Onsemi website
+
 Author: Jean Delvare <jdelvare@suse.de>
 
 
@@ -285,6 +453,12 @@ The LM90 is a digital temperature sensor. It senses its own temperature as
 well as the temperature of up to one external diode. It is compatible
 with many other devices, many of which are supported by this driver.
 
+The family of chips supported by this driver is derived from MAX1617.
+This chip as well as various compatible chips support a local and a remote
+temperature sensor with 8 bit accuracy. Later chips provide improved accuracy
+and other additional features such as hysteresis and temperature offset
+registers.
+
 Note that there is no easy way to differentiate between the MAX6657,
 MAX6658 and MAX6659 variants. The extra features of the MAX6659 are only
 supported by this driver if the chip is located at address 0x4d or 0x4e,
@@ -292,15 +466,31 @@ or if the chip type is explicitly selected as max6659.
 The MAX6680 and MAX6681 only differ in their pinout, therefore they obviously
 can't (and don't need to) be distinguished.
 
-The specificity of this family of chipsets over the ADM1021/LM84
-family is that it features critical limits with hysteresis, and an
-increased resolution of the remote temperature measurement.
-
 The different chipsets of the family are not strictly identical, although
 very similar. For reference, here comes a non-exhaustive list of specific
 features:
 
+LM84:
+  * 8 bit sensor resolution
+
+ADM1020, ADM1021, GL523SM, MAX1617, NE1617, NE1617A, THMC10:
+  * 8 bit sensor resolution
+  * Low temperature limits
+
+NCT210, NE1618:
+  * 11 bit sensor resolution for remote temperature sensor
+  * Low temperature limits
+
+ADM1021A, ADM1023:
+  * Temperature offset register for remote temperature sensor
+  * 11 bit resolution for remote temperature sensor
+  * Low temperature limits
+
 LM90:
+  * 11 bit resolution for remote temperature sensor
+  * Temperature offset register for remote temperature sensor
+  * Low and critical temperature limits
+  * Configurable conversion rate
   * Filter and alert configuration register at 0xBF.
   * ALERT is triggered by temperatures over critical limits.
 
@@ -322,8 +512,31 @@ ADM1032:
 ADT7461, ADT7461A, NCT1008:
   * Extended temperature range (breaks compatibility)
   * Lower resolution for remote temperature
+  * SMBus PEC support for Write Byte and Receive Byte transactions.
+  * 10 bit temperature resolution
 
-MAX6654:
+ADT7481, ADT7482, ADT7483:
+  * Temperature offset register
+  * SMBus PEC support
+  * 10 bit temperature resolution for external sensors
+  * Two remote sensors
+  * Selectable address (ADT7483)
+
+MAX6642:
+  * No critical limit register
+  * Conversion rate not configurable
+  * Better local resolution (10 bit)
+  * 10 bit external sensor resolution
+
+MAX6646, MAX6647, MAX6649:
+  * Better local resolution
+  * Extended range unsigned external temperature
+
+MAX6648, MAX6692:
+  * Better local resolution
+  * Unsigned temperature
+
+MAX6654, MAX6690:
   * Better local resolution
   * Selectable address
   * Remote sensor type selection
@@ -423,6 +636,6 @@ two transactions will typically mean twice as much delay waiting for
 transaction completion, effectively doubling the register cache refresh time.
 I guess reliability comes at a price, but it's quite expensive this time.
 
-So, as not everyone might enjoy the slowdown, PEC can be disabled through
-sysfs. Just write 0 to the "pec" file and PEC will be disabled. Write 1
-to that file to enable PEC again.
+So, as not everyone might enjoy the slowdown, PEC is disabled by default and
+can be enabled through sysfs. Just write 1 to the "pec" file and PEC will be
+enabled. Write 0 to that file to disable PEC again.

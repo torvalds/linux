@@ -100,91 +100,91 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		shutdown_ack {
+		event-shutdown-ack {
 			label = "SHUTDOWN_ACK";
 			gpios = <&gpio ASPEED_GPIO(G, 2) GPIO_ACTIVE_LOW>;
 			linux,code = <ASPEED_GPIO(G, 2)>;
 		};
 
-		reboot_ack {
+		event-reboot-ack {
 			label = "REBOOT_ACK";
 			gpios = <&gpio ASPEED_GPIO(J, 3) GPIO_ACTIVE_LOW>;
 			linux,code = <ASPEED_GPIO(J, 3)>;
 		};
 
-		S0_overtemp {
+		event-s0-overtemp {
 			label = "S0_OVERTEMP";
 			gpios = <&gpio ASPEED_GPIO(G, 3) GPIO_ACTIVE_LOW>;
 			linux,code = <ASPEED_GPIO(G, 3)>;
 		};
 
-		S0_hightemp {
+		event-s0-hightemp {
 			label = "S0_HIGHTEMP";
 			gpios = <&gpio ASPEED_GPIO(J, 0) GPIO_ACTIVE_LOW>;
 			linux,code = <ASPEED_GPIO(J, 0)>;
 		};
 
-		S0_cpu_fault {
+		event-s0-cpu-fault {
 			label = "S0_CPU_FAULT";
 			gpios = <&gpio ASPEED_GPIO(J, 1) GPIO_ACTIVE_HIGH>;
 			linux,code = <ASPEED_GPIO(J, 1)>;
 		};
 
-		S0_scp_auth_fail {
+		event-s0-scp-auth-fail {
 			label = "S0_SCP_AUTH_FAIL";
 			gpios = <&gpio ASPEED_GPIO(J, 2) GPIO_ACTIVE_LOW>;
 			linux,code = <ASPEED_GPIO(J, 2)>;
 		};
 
-		S1_scp_auth_fail {
+		event-s1-scp-auth-fail {
 			label = "S1_SCP_AUTH_FAIL";
 			gpios = <&gpio ASPEED_GPIO(Z, 5) GPIO_ACTIVE_LOW>;
 			linux,code = <ASPEED_GPIO(Z, 5)>;
 		};
 
-		S1_overtemp {
+		event-s1-overtemp {
 			label = "S1_OVERTEMP";
 			gpios = <&gpio ASPEED_GPIO(Z, 6) GPIO_ACTIVE_LOW>;
 			linux,code = <ASPEED_GPIO(Z, 6)>;
 		};
 
-		S1_hightemp {
+		event-s1-hightemp {
 			label = "S1_HIGHTEMP";
 			gpios = <&gpio ASPEED_GPIO(AB, 0) GPIO_ACTIVE_LOW>;
 			linux,code = <ASPEED_GPIO(AB, 0)>;
 		};
 
-		S1_cpu_fault {
+		event-s1-cpu-fault {
 			label = "S1_CPU_FAULT";
 			gpios = <&gpio ASPEED_GPIO(Z, 1) GPIO_ACTIVE_HIGH>;
 			linux,code = <ASPEED_GPIO(Z, 1)>;
 		};
 
-		id_button {
+		event-id {
 			label = "ID_BUTTON";
 			gpios = <&gpio ASPEED_GPIO(Q, 5) GPIO_ACTIVE_LOW>;
 			linux,code = <ASPEED_GPIO(Q, 5)>;
 		};
 
-		psu1_vin_good {
+		event-psu1-vin-good {
 			label = "PSU1_VIN_GOOD";
 			gpios = <&gpio ASPEED_GPIO(H, 4) GPIO_ACTIVE_LOW>;
 			linux,code = <ASPEED_GPIO(H, 4)>;
 		};
 
-		psu2_vin_good {
+		event-psu2-vin-good {
 			label = "PSU2_VIN_GOOD";
 			gpios = <&gpio ASPEED_GPIO(H, 5) GPIO_ACTIVE_LOW>;
 			linux,code = <ASPEED_GPIO(H, 5)>;
 		};
 
-		psu1_present {
+		event-psu1-present {
 			label = "PSU1_PRESENT";
 			gpios = <&gpio ASPEED_GPIO(I, 0) GPIO_ACTIVE_LOW>;
 			linux,code = <ASPEED_GPIO(I, 0)>;
 		};
 
-		psu2_present {
+		event-psu2-present {
 			label = "PSU2_PRESENT";
 			gpios = <&gpio ASPEED_GPIO(I, 1) GPIO_ACTIVE_LOW>;
 			linux,code = <ASPEED_GPIO(I, 1)>;

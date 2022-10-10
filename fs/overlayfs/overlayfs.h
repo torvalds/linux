@@ -139,17 +139,7 @@ static inline int ovl_do_notify_change(struct ovl_fs *ofs,
 				       struct dentry *upperdentry,
 				       struct iattr *attr)
 {
-	struct user_namespace *upper_mnt_userns = ovl_upper_mnt_userns(ofs);
-	struct user_namespace *fs_userns = i_user_ns(d_inode(upperdentry));
-
-	if (attr->ia_valid & ATTR_UID)
-		attr->ia_uid = mapped_kuid_user(upper_mnt_userns,
-						fs_userns, attr->ia_uid);
-	if (attr->ia_valid & ATTR_GID)
-		attr->ia_gid = mapped_kgid_user(upper_mnt_userns,
-						fs_userns, attr->ia_gid);
-
-	return notify_change(upper_mnt_userns, upperdentry, attr, NULL);
+	return notify_change(ovl_upper_mnt_userns(ofs), upperdentry, attr, NULL);
 }
 
 static inline int ovl_do_rmdir(struct ovl_fs *ofs,
@@ -259,7 +249,8 @@ static inline int ovl_do_setxattr(struct ovl_fs *ofs, struct dentry *dentry,
 				  const char *name, const void *value,
 				  size_t size, int flags)
 {
-	int err = vfs_setxattr(ovl_upper_mnt_userns(ofs), dentry, name, value, size, flags);
+	int err = vfs_setxattr(ovl_upper_mnt_userns(ofs), dentry, name,
+			       (void *)value, size, flags);
 
 	pr_debug("setxattr(%pd2, \"%s\", \"%*pE\", %zu, %d) = %i\n",
 		 dentry, name, min((int)size, 48), value, size, flags, err);
@@ -599,7 +590,13 @@ int ovl_xattr_set(struct dentry *dentry, struct inode *inode, const char *name,
 int ovl_xattr_get(struct dentry *dentry, struct inode *inode, const char *name,
 		  void *value, size_t size);
 ssize_t ovl_listxattr(struct dentry *dentry, char *list, size_t size);
+
+#ifdef CONFIG_FS_POSIX_ACL
 struct posix_acl *ovl_get_acl(struct inode *inode, int type, bool rcu);
+#else
+#define ovl_get_acl	NULL
+#endif
+
 int ovl_update_time(struct inode *inode, struct timespec64 *ts, int flags);
 bool ovl_is_private_xattr(struct super_block *sb, const char *name);
 

@@ -999,7 +999,7 @@ static int page_vma_mkclean_one(struct page_vma_mapped_walk *pvmw)
 		 * downgrading page table protection not changing it to point
 		 * to a new page.
 		 *
-		 * See Documentation/vm/mmu_notifier.rst
+		 * See Documentation/mm/mmu_notifier.rst
 		 */
 		if (ret)
 			cleaned++;
@@ -1537,6 +1537,8 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 				 PageAnonExclusive(subpage);
 
 		if (folio_test_hugetlb(folio)) {
+			bool anon = folio_test_anon(folio);
+
 			/*
 			 * The try_to_unmap() is only passed a hugetlb page
 			 * in the case where the hugetlb page is poisoned.
@@ -1551,31 +1553,28 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 			 */
 			flush_cache_range(vma, range.start, range.end);
 
-			if (!folio_test_anon(folio)) {
+			/*
+			 * To call huge_pmd_unshare, i_mmap_rwsem must be
+			 * held in write mode.  Caller needs to explicitly
+			 * do this outside rmap routines.
+			 */
+			VM_BUG_ON(!anon && !(flags & TTU_RMAP_LOCKED));
+			if (!anon && huge_pmd_unshare(mm, vma, address, pvmw.pte)) {
+				flush_tlb_range(vma, range.start, range.end);
+				mmu_notifier_invalidate_range(mm, range.start,
+							      range.end);
+
 				/*
-				 * To call huge_pmd_unshare, i_mmap_rwsem must be
-				 * held in write mode.  Caller needs to explicitly
-				 * do this outside rmap routines.
+				 * The ref count of the PMD page was dropped
+				 * which is part of the way map counting
+				 * is done for shared PMDs.  Return 'true'
+				 * here.  When there is no other sharing,
+				 * huge_pmd_unshare returns false and we will
+				 * unmap the actual page and drop map count
+				 * to zero.
 				 */
-				VM_BUG_ON(!(flags & TTU_RMAP_LOCKED));
-
-				if (huge_pmd_unshare(mm, vma, &address, pvmw.pte)) {
-					flush_tlb_range(vma, range.start, range.end);
-					mmu_notifier_invalidate_range(mm, range.start,
-								      range.end);
-
-					/*
-					 * The ref count of the PMD page was dropped
-					 * which is part of the way map counting
-					 * is done for shared PMDs.  Return 'true'
-					 * here.  When there is no other sharing,
-					 * huge_pmd_unshare returns false and we will
-					 * unmap the actual page and drop map count
-					 * to zero.
-					 */
-					page_vma_mapped_walk_done(&pvmw);
-					break;
-				}
+				page_vma_mapped_walk_done(&pvmw);
+				break;
 			}
 			pteval = huge_ptep_clear_flush(vma, address, pvmw.pte);
 		} else {
@@ -1619,9 +1618,7 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 			pteval = swp_entry_to_pte(make_hwpoison_entry(subpage));
 			if (folio_test_hugetlb(folio)) {
 				hugetlb_count_sub(folio_nr_pages(folio), mm);
-				set_huge_swap_pte_at(mm, address,
-						     pvmw.pte, pteval,
-						     vma_mmu_pagesize(vma));
+				set_huge_pte_at(mm, address, pvmw.pte, pteval);
 			} else {
 				dec_mm_counter(mm, mm_counter(&folio->page));
 				set_pte_at(mm, address, pvmw.pte, pteval);
@@ -1765,7 +1762,7 @@ static bool try_to_unmap_one(struct folio *folio, struct vm_area_struct *vma,
 			 * to point at a new folio while a device is
 			 * still using this folio.
 			 *
-			 * See Documentation/vm/mmu_notifier.rst
+			 * See Documentation/mm/mmu_notifier.rst
 			 */
 			dec_mm_counter(mm, mm_counter_file(&folio->page));
 		}
@@ -1775,7 +1772,7 @@ discard:
 		 * done above for all cases requiring it to happen under page
 		 * table lock before mmu_notifier_invalidate_range_end()
 		 *
-		 * See Documentation/vm/mmu_notifier.rst
+		 * See Documentation/mm/mmu_notifier.rst
 		 */
 		page_remove_rmap(subpage, vma, folio_test_hugetlb(folio));
 		if (vma->vm_flags & VM_LOCKED)
@@ -1899,13 +1896,30 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 		/* Unexpected PMD-mapped THP? */
 		VM_BUG_ON_FOLIO(!pvmw.pte, folio);
 
-		subpage = folio_page(folio,
-				pte_pfn(*pvmw.pte) - folio_pfn(folio));
+		if (folio_is_zone_device(folio)) {
+			/*
+			 * Our PTE is a non-present device exclusive entry and
+			 * calculating the subpage as for the common case would
+			 * result in an invalid pointer.
+			 *
+			 * Since only PAGE_SIZE pages can currently be
+			 * migrated, just set it to page. This will need to be
+			 * changed when hugepage migrations to device private
+			 * memory are supported.
+			 */
+			VM_BUG_ON_FOLIO(folio_nr_pages(folio) > 1, folio);
+			subpage = &folio->page;
+		} else {
+			subpage = folio_page(folio,
+					pte_pfn(*pvmw.pte) - folio_pfn(folio));
+		}
 		address = pvmw.address;
 		anon_exclusive = folio_test_anon(folio) &&
 				 PageAnonExclusive(subpage);
 
 		if (folio_test_hugetlb(folio)) {
+			bool anon = folio_test_anon(folio);
+
 			/*
 			 * huge_pmd_unshare may unmap an entire PMD page.
 			 * There is no way of knowing exactly which PMDs may
@@ -1915,31 +1929,28 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 			 */
 			flush_cache_range(vma, range.start, range.end);
 
-			if (!folio_test_anon(folio)) {
+			/*
+			 * To call huge_pmd_unshare, i_mmap_rwsem must be
+			 * held in write mode.  Caller needs to explicitly
+			 * do this outside rmap routines.
+			 */
+			VM_BUG_ON(!anon && !(flags & TTU_RMAP_LOCKED));
+			if (!anon && huge_pmd_unshare(mm, vma, address, pvmw.pte)) {
+				flush_tlb_range(vma, range.start, range.end);
+				mmu_notifier_invalidate_range(mm, range.start,
+							      range.end);
+
 				/*
-				 * To call huge_pmd_unshare, i_mmap_rwsem must be
-				 * held in write mode.  Caller needs to explicitly
-				 * do this outside rmap routines.
+				 * The ref count of the PMD page was dropped
+				 * which is part of the way map counting
+				 * is done for shared PMDs.  Return 'true'
+				 * here.  When there is no other sharing,
+				 * huge_pmd_unshare returns false and we will
+				 * unmap the actual page and drop map count
+				 * to zero.
 				 */
-				VM_BUG_ON(!(flags & TTU_RMAP_LOCKED));
-
-				if (huge_pmd_unshare(mm, vma, &address, pvmw.pte)) {
-					flush_tlb_range(vma, range.start, range.end);
-					mmu_notifier_invalidate_range(mm, range.start,
-								      range.end);
-
-					/*
-					 * The ref count of the PMD page was dropped
-					 * which is part of the way map counting
-					 * is done for shared PMDs.  Return 'true'
-					 * here.  When there is no other sharing,
-					 * huge_pmd_unshare returns false and we will
-					 * unmap the actual page and drop map count
-					 * to zero.
-					 */
-					page_vma_mapped_walk_done(&pvmw);
-					break;
-				}
+				page_vma_mapped_walk_done(&pvmw);
+				break;
 			}
 
 			/* Nuke the hugetlb page table entry */
@@ -1957,7 +1968,7 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 		/* Update high watermark before we lower rss */
 		update_hiwater_rss(mm);
 
-		if (folio_is_zone_device(folio)) {
+		if (folio_is_device_private(folio)) {
 			unsigned long pfn = folio_pfn(folio);
 			swp_entry_t entry;
 			pte_t swp_pte;
@@ -1993,22 +2004,12 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 			/*
 			 * No need to invalidate here it will synchronize on
 			 * against the special swap migration pte.
-			 *
-			 * The assignment to subpage above was computed from a
-			 * swap PTE which results in an invalid pointer.
-			 * Since only PAGE_SIZE pages can currently be
-			 * migrated, just set it to page. This will need to be
-			 * changed when hugepage migrations to device private
-			 * memory are supported.
 			 */
-			subpage = &folio->page;
 		} else if (PageHWPoison(subpage)) {
 			pteval = swp_entry_to_pte(make_hwpoison_entry(subpage));
 			if (folio_test_hugetlb(folio)) {
 				hugetlb_count_sub(folio_nr_pages(folio), mm);
-				set_huge_swap_pte_at(mm, address,
-						     pvmw.pte, pteval,
-						     vma_mmu_pagesize(vma));
+				set_huge_pte_at(mm, address, pvmw.pte, pteval);
 			} else {
 				dec_mm_counter(mm, mm_counter(&folio->page));
 				set_pte_at(mm, address, pvmw.pte, pteval);
@@ -2076,8 +2077,7 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 			if (pte_uffd_wp(pteval))
 				swp_pte = pte_swp_mkuffd_wp(swp_pte);
 			if (folio_test_hugetlb(folio))
-				set_huge_swap_pte_at(mm, address, pvmw.pte,
-						     swp_pte, vma_mmu_pagesize(vma));
+				set_huge_pte_at(mm, address, pvmw.pte, swp_pte);
 			else
 				set_pte_at(mm, address, pvmw.pte, swp_pte);
 			trace_set_migration_pte(address, pte_val(swp_pte),
@@ -2093,7 +2093,7 @@ static bool try_to_migrate_one(struct folio *folio, struct vm_area_struct *vma,
 		 * done above for all cases requiring it to happen under page
 		 * table lock before mmu_notifier_invalidate_range_end()
 		 *
-		 * See Documentation/vm/mmu_notifier.rst
+		 * See Documentation/mm/mmu_notifier.rst
 		 */
 		page_remove_rmap(subpage, vma, folio_test_hugetlb(folio));
 		if (vma->vm_flags & VM_LOCKED)
@@ -2131,7 +2131,8 @@ void try_to_migrate(struct folio *folio, enum ttu_flags flags)
 					TTU_SYNC)))
 		return;
 
-	if (folio_is_zone_device(folio) && !folio_is_device_private(folio))
+	if (folio_is_zone_device(folio) &&
+	    (!folio_is_device_private(folio) && !folio_is_device_coherent(folio)))
 		return;
 
 	/*

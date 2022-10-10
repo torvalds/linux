@@ -158,6 +158,14 @@ static void mana_hwc_init_event_handler(void *ctx, struct gdma_queue *q_self,
 			hwc->rxq->msg_buf->gpa_mkey = val;
 			hwc->txq->msg_buf->gpa_mkey = val;
 			break;
+
+		case HWC_INIT_DATA_PF_DEST_RQ_ID:
+			hwc->pf_dest_vrq_id = val;
+			break;
+
+		case HWC_INIT_DATA_PF_DEST_CQ_ID:
+			hwc->pf_dest_vrcq_id = val;
+			break;
 		}
 
 		break;
@@ -773,10 +781,13 @@ void mana_hwc_destroy_channel(struct gdma_context *gc)
 int mana_hwc_send_request(struct hw_channel_context *hwc, u32 req_len,
 			  const void *req, u32 resp_len, void *resp)
 {
+	struct gdma_context *gc = hwc->gdma_dev->gdma_context;
 	struct hwc_work_request *tx_wr;
 	struct hwc_wq *txq = hwc->txq;
 	struct gdma_req_hdr *req_msg;
 	struct hwc_caller_ctx *ctx;
+	u32 dest_vrcq = 0;
+	u32 dest_vrq = 0;
 	u16 msg_id;
 	int err;
 
@@ -803,7 +814,12 @@ int mana_hwc_send_request(struct hw_channel_context *hwc, u32 req_len,
 
 	tx_wr->msg_size = req_len;
 
-	err = mana_hwc_post_tx_wqe(txq, tx_wr, 0, 0, false);
+	if (gc->is_pf) {
+		dest_vrq = hwc->pf_dest_vrq_id;
+		dest_vrcq = hwc->pf_dest_vrcq_id;
+	}
+
+	err = mana_hwc_post_tx_wqe(txq, tx_wr, dest_vrq, dest_vrcq, false);
 	if (err) {
 		dev_err(hwc->dev, "HWC: Failed to post send WQE: %d\n", err);
 		goto out;

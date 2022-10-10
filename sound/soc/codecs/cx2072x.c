@@ -710,22 +710,19 @@ static int cx2072x_config_i2spcm(struct cx2072x_priv *cx2072x)
 
 	regdbt2.ulval = 0xac;
 
-	/* set master/slave */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		reg2.r.tx_master = 1;
 		reg3.r.rx_master = 1;
-		dev_dbg(dev, "Sets Master mode\n");
 		break;
 
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		reg2.r.tx_master = 0;
 		reg3.r.rx_master = 0;
-		dev_dbg(dev, "Sets Slave mode\n");
 		break;
 
 	default:
-		dev_err(dev, "Unsupported DAI master mode\n");
+		dev_err(dev, "Unsupported DAI clocking mode\n");
 		return -EINVAL;
 	}
 
@@ -1009,9 +1006,9 @@ static int cx2072x_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	dev_dbg(dev, "set_dai_fmt- %08x\n", fmt);
 	/* set master/slave */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
 
 	default:
@@ -1676,10 +1673,9 @@ static int cx2072x_i2c_probe(struct i2c_client *i2c)
 	return 0;
 }
 
-static int cx2072x_i2c_remove(struct i2c_client *i2c)
+static void cx2072x_i2c_remove(struct i2c_client *i2c)
 {
 	pm_runtime_disable(&i2c->dev);
-	return 0;
 }
 
 static const struct i2c_device_id cx2072x_i2c_id[] = {

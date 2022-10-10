@@ -1258,7 +1258,7 @@ static int rvin_set_stream(struct rvin_dev *vin, int on)
 		return ret == -ENOIOCTLCMD ? 0 : ret;
 	}
 
-	pad = media_entity_remote_pad(&vin->pad);
+	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
 		return -EPIPE;
 

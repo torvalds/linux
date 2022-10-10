@@ -1480,7 +1480,7 @@ static int nct6775_update_pwm_limits(struct device *dev)
 	return 0;
 }
 
-static struct nct6775_data *nct6775_update_device(struct device *dev)
+struct nct6775_data *nct6775_update_device(struct device *dev)
 {
 	struct nct6775_data *data = dev_get_drvdata(dev);
 	int i, j, err = 0;
@@ -1615,6 +1615,7 @@ out:
 	mutex_unlock(&data->update_lock);
 	return err ? ERR_PTR(err) : data;
 }
+EXPORT_SYMBOL_GPL(nct6775_update_device);
 
 /*
  * Sysfs callback functions

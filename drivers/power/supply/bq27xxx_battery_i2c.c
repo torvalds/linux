@@ -205,7 +205,7 @@ err_failed:
 	return ret;
 }
 
-static int bq27xxx_battery_i2c_remove(struct i2c_client *client)
+static void bq27xxx_battery_i2c_remove(struct i2c_client *client)
 {
 	struct bq27xxx_device_info *di = i2c_get_clientdata(client);
 
@@ -214,8 +214,6 @@ static int bq27xxx_battery_i2c_remove(struct i2c_client *client)
 	mutex_lock(&battery_mutex);
 	idr_remove(&battery_id, di->id);
 	mutex_unlock(&battery_mutex);
-
-	return 0;
 }
 
 static const struct i2c_device_id bq27xxx_i2c_id_table[] = {

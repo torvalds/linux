@@ -8,7 +8,8 @@ set -e
 
 function commachecker()
 {
-	local -i cnt=0 exp=0
+	local -i cnt=0
+	local exp=0
 
 	case "$1"
 	in "--no-args")		exp=6
@@ -17,7 +18,7 @@ function commachecker()
 	;; "--interval")	exp=7
 	;; "--per-thread")	exp=7
 	;; "--system-wide-no-aggr")	exp=7
-				[ $(uname -m) = "s390x" ] && exp=6
+				[ $(uname -m) = "s390x" ] && exp='^[6-7]$'
 	;; "--per-core")	exp=8
 	;; "--per-socket")	exp=8
 	;; "--per-node")	exp=8
@@ -34,7 +35,7 @@ function commachecker()
 		x=$(echo $line | tr -d -c ',')
 		cnt="${#x}"
 		# echo $line $cnt
-		[ "$cnt" -ne "$exp" ] && {
+		[[ ! "$cnt" =~ $exp ]] && {
 			echo "wrong number of fields. expected $exp in $line" 1>&2
 			exit 1;
 		}

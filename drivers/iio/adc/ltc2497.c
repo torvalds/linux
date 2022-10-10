@@ -20,10 +20,10 @@ struct ltc2497_driverdata {
 	struct ltc2497core_driverdata common_ddata;
 	struct i2c_client *client;
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
+	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
 	 */
-	__be32 buf ____cacheline_aligned;
+	__be32 buf __aligned(IIO_DMA_MINALIGN);
 };
 
 static int ltc2497_result_and_measure(struct ltc2497core_driverdata *ddata,
@@ -74,13 +74,11 @@ static int ltc2497_probe(struct i2c_client *client,
 	return ltc2497core_probe(dev, indio_dev);
 }
 
-static int ltc2497_remove(struct i2c_client *client)
+static void ltc2497_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
 	ltc2497core_remove(indio_dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id ltc2497_id[] = {

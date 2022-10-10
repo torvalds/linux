@@ -17,7 +17,7 @@ description: |
   and access the registers directly.
 
 maintainers:
-  - Lee Jones <lee.jones@linaro.org>
+  - Lee Jones <lee@kernel.org>
 
 select:
   properties:

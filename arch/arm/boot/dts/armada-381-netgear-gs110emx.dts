@@ -24,7 +24,7 @@
 		pinctrl-0 = <&front_button_pins>;
 		pinctrl-names = "default";
 
-		factory_default {
+		key-factory-default {
 			label = "Factory Default";
 			gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_RESTART>;

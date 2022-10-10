@@ -678,13 +678,11 @@ err_req_pclr:
 	return rc;
 }
 
-static int tosa_tc6393xb_disable(struct platform_device *dev)
+static void tosa_tc6393xb_disable(struct platform_device *dev)
 {
 	gpio_free(TOSA_GPIO_TC6393XB_L3V_ON);
 	gpio_free(TOSA_GPIO_TC6393XB_SUSPEND);
 	gpio_free(TOSA_GPIO_TC6393XB_REST_IN);
-
-	return 0;
 }
 
 static int tosa_tc6393xb_resume(struct platform_device *dev)

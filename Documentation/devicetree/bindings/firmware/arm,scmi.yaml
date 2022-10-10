@@ -183,6 +183,12 @@ properties:
             required:
               - reg
 
+  protocol@18:
+    type: object
+    properties:
+      reg:
+        const: 0x18
+
 additionalProperties: false
 
 patternProperties:
@@ -322,6 +328,10 @@ examples:
                         regulator-max-microvolt = <4200000>;
                     };
                 };
+            };
+
+            scmi_powercap: protocol@18 {
+                reg = <0x18>;
             };
         };
     };

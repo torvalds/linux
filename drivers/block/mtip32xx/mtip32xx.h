@@ -149,7 +149,6 @@ enum {
 	MTIP_DDF_RESUME_BIT         = 6,
 	MTIP_DDF_INIT_DONE_BIT      = 7,
 	MTIP_DDF_REBUILD_FAILED_BIT = 8,
-	MTIP_DDF_REMOVAL_BIT	    = 9,
 
 	MTIP_DDF_STOP_IO      = ((1 << MTIP_DDF_REMOVE_PENDING_BIT) |
 				(1 << MTIP_DDF_SEC_LOCK_BIT) |
@@ -461,10 +460,6 @@ struct driver_data {
 	struct mtip_work work[MTIP_MAX_SLOT_GROUPS];
 
 	int isr_binding;
-
-	struct list_head online_list; /* linkage for online list */
-
-	struct list_head remove_list; /* linkage for removing list */
 
 	int unal_qdepth; /* qdepth of unaligned IO queue */
 };

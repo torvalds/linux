@@ -144,6 +144,7 @@ properties:
     description: If present then the reset sequence using the GPIO
       specified in the "reset-gpio" property is reversed (H=reset state,
       L=operation state) (optional required).
+    type: boolean
 
   vpcie-supply:
     description: Should specify the regulator in charge of PCIe port power.

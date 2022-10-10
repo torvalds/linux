@@ -239,6 +239,7 @@ static const struct pinctrl_pin_desc imx93_pinctrl_pads[] = {
 static const struct imx_pinctrl_soc_info imx93_pinctrl_info = {
 	.pins = imx93_pinctrl_pads,
 	.npins = ARRAY_SIZE(imx93_pinctrl_pads),
+	.flags = ZERO_OFFSET_VALID,
 	.gpr_compatible = "fsl,imx93-iomuxc-gpr",
 };
 
@@ -246,6 +247,7 @@ static const struct of_device_id imx93_pinctrl_of_match[] = {
 	{ .compatible = "fsl,imx93-iomuxc", },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, imx93_pinctrl_of_match);
 
 static int imx93_pinctrl_probe(struct platform_device *pdev)
 {

@@ -123,16 +123,28 @@ void sync_counter(void)
 	csr_write64(-init_timeval, LOONGARCH_CSR_CNTC);
 }
 
+static int get_timer_irq(void)
+{
+	struct irq_domain *d = irq_find_matching_fwnode(cpuintc_handle, DOMAIN_BUS_ANY);
+
+	if (d)
+		return irq_create_mapping(d, EXCCODE_TIMER - EXCCODE_INT_START);
+
+	return -EINVAL;
+}
+
 int constant_clockevent_init(void)
 {
-	unsigned int irq;
+	int irq;
 	unsigned int cpu = smp_processor_id();
 	unsigned long min_delta = 0x600;
 	unsigned long max_delta = (1UL << 48) - 1;
 	struct clock_event_device *cd;
 	static int timer_irq_installed = 0;
 
-	irq = EXCCODE_TIMER - EXCCODE_INT_START;
+	irq = get_timer_irq();
+	if (irq < 0)
+		pr_err("Failed to map irq %d (timer)\n", irq);
 
 	cd = &per_cpu(constant_clockevent_device, cpu);
 

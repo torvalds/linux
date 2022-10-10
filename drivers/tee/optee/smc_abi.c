@@ -884,8 +884,8 @@ static int optee_smc_do_call_with_arg(struct tee_context *ctx,
 
 		rpc_arg_offs = OPTEE_MSG_GET_ARG_SIZE(arg->num_params);
 		rpc_arg = tee_shm_get_va(shm, offs + rpc_arg_offs);
-		if (IS_ERR(arg))
-			return PTR_ERR(arg);
+		if (IS_ERR(rpc_arg))
+			return PTR_ERR(rpc_arg);
 	}
 
 	if  (rpc_arg && tee_shm_is_dynamic(shm)) {

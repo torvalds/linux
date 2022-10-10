@@ -19,8 +19,7 @@
 内核开发社区已经发展出一套用于发布补丁的约定和过程；遵循这些约定和过程将使
 参与其中的每个人的生活更加轻松。本文档试图描述这些约定的部分细节；更多信息
 也可在以下文档中找到
-:ref:`Documentation/translations/zh_CN/process/submitting-patches.rst <cn_submittingpatches>`，
-:ref:`Documentation/translations/zh_CN/process/submitting-drivers.rst <cn_submittingdrivers>`
+:ref:`Documentation/translations/zh_CN/process/submitting-patches.rst <cn_submittingpatches>`
 和 :ref:`Documentation/translations/zh_CN/process/submit-checklist.rst <cn_submitchecklist>`。
 
 何时寄送

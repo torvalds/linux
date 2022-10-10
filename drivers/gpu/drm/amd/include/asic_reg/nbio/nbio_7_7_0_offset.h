@@ -4005,6 +4005,8 @@
 #define regGDC0_BIF_VCN0_DOORBELL_RANGE_BASE_IDX                                                        3
 #define regGDC0_BIF_RLC_DOORBELL_RANGE                                                                  0x4f0af5
 #define regGDC0_BIF_RLC_DOORBELL_RANGE_BASE_IDX                                                         3
+#define regGDC0_BIF_CSDMA_DOORBELL_RANGE                                                                0x4f0afb
+#define regGDC0_BIF_CSDMA_DOORBELL_RANGE_BASE_IDX                                                       3
 #define regGDC0_ATDMA_MISC_CNTL                                                                         0x4f0afd
 #define regGDC0_ATDMA_MISC_CNTL_BASE_IDX                                                                3
 #define regGDC0_BIF_DOORBELL_FENCE_CNTL                                                                 0x4f0afe
@@ -21535,6 +21537,8 @@
 #define regGDC1_BIF_SDMA4_DOORBELL_RANGE_BASE_IDX                                                       5
 #define regGDC1_BIF_SDMA5_DOORBELL_RANGE                                                                0x2ffc0efa
 #define regGDC1_BIF_SDMA5_DOORBELL_RANGE_BASE_IDX                                                       5
+#define regGDC1_BIF_CSDMA_DOORBELL_RANGE                                                                0x2ffc0efb
+#define regGDC1_BIF_CSDMA_DOORBELL_RANGE_BASE_IDX                                                       5
 #define regGDC1_ATDMA_MISC_CNTL                                                                         0x2ffc0efd
 #define regGDC1_ATDMA_MISC_CNTL_BASE_IDX                                                                5
 #define regGDC1_BIF_DOORBELL_FENCE_CNTL                                                                 0x2ffc0efe

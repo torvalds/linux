@@ -126,7 +126,7 @@ static void __init parse_bios_table(const struct dmi_header *dm)
 	char *dmi_data = (char *)dm;
 
 	bios_extern = *(dmi_data + SMBIOS_BIOSEXTERN_OFFSET);
-	b_info.bios_size = *(dmi_data + SMBIOS_BIOSSIZE_OFFSET);
+	b_info.bios_size = (*(dmi_data + SMBIOS_BIOSSIZE_OFFSET) + 1) << 6;
 
 	if (bios_extern & LOONGSON_EFI_ENABLE)
 		set_bit(EFI_BOOT, &efi.flags);

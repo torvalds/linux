@@ -123,6 +123,12 @@
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
+		vreg_l17b_1p8: ldo17 {
+			regulator-min-microvolt = <1700000>;
+			regulator-max-microvolt = <1900000>;
+			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+		};
+
 		vdd_px_wcd9385:
 		vdd_txrx:
 		vddpx_0:
@@ -305,9 +311,6 @@
 
 /* NOTE: Not all Qcards have eDP connector stuffed */
 &mdss_edp {
-	vdda-0p9-supply = <&vdd_a_edp_0_0p9>;
-	vdda-1p2-supply = <&vdd_a_edp_0_1p2>;
-
 	aux-bus {
 		edp_panel: panel {
 			compatible = "edp-panel";
@@ -517,7 +520,7 @@ mos_bt_uart: &uart7 {
  */
 
 &pm8350c_gpios {
-	pmic_edp_bl_en: pmic-edp-bl-en {
+	pmic_edp_bl_en: pmic-edp-bl-en-state {
 		pins = "gpio7";
 		function = "normal";
 		bias-disable;
@@ -527,7 +530,7 @@ mos_bt_uart: &uart7 {
 		output-low;
 	};
 
-	pmic_edp_bl_pwm: pmic-edp-bl-pwm {
+	pmic_edp_bl_pwm: pmic-edp-bl-pwm-state {
 		pins = "gpio8";
 		function = "func1";
 		bias-disable;
@@ -604,7 +607,6 @@ mos_bt_uart: &uart7 {
 	ts_rst_conn: ts-rst-conn {
 		pins = "gpio54";
 		function = "gpio";
-		bias-pull-up;
 		drive-strength = <2>;
 	};
 };

@@ -51,11 +51,47 @@ static const struct devlink_param otx2_cpt_dl_params[] = {
 			     NULL),
 };
 
-static int otx2_cpt_devlink_info_get(struct devlink *devlink,
+static int otx2_cpt_dl_info_firmware_version_put(struct devlink_info_req *req,
+						 struct otx2_cpt_eng_grp_info grp[],
+						 const char *ver_name, int eng_type)
+{
+	struct otx2_cpt_engs_rsvd *eng;
+	int i;
+
+	for (i = 0; i < OTX2_CPT_MAX_ENGINE_GROUPS; i++) {
+		eng = find_engines_by_type(&grp[i], eng_type);
+		if (eng)
+			return devlink_info_version_running_put(req, ver_name,
+								eng->ucode->ver_str);
+	}
+
+	return 0;
+}
+
+static int otx2_cpt_devlink_info_get(struct devlink *dl,
 				     struct devlink_info_req *req,
 				     struct netlink_ext_ack *extack)
 {
-	return devlink_info_driver_name_put(req, "rvu_cptpf");
+	struct otx2_cpt_devlink *cpt_dl = devlink_priv(dl);
+	struct otx2_cptpf_dev *cptpf = cpt_dl->cptpf;
+	int err;
+
+	err = devlink_info_driver_name_put(req, "rvu_cptpf");
+	if (err)
+		return err;
+
+	err = otx2_cpt_dl_info_firmware_version_put(req, cptpf->eng_grps.grp,
+						    "fw.ae", OTX2_CPT_AE_TYPES);
+	if (err)
+		return err;
+
+	err = otx2_cpt_dl_info_firmware_version_put(req, cptpf->eng_grps.grp,
+						    "fw.se", OTX2_CPT_SE_TYPES);
+	if (err)
+		return err;
+
+	return otx2_cpt_dl_info_firmware_version_put(req, cptpf->eng_grps.grp,
+						    "fw.ie", OTX2_CPT_IE_TYPES);
 }
 
 static const struct devlink_ops otx2_cpt_devlink_ops = {

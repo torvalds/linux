@@ -7,6 +7,22 @@
  *
  * This driver is a complete rewrite of the former pwm-twl6030.c authorded by:
  * Hemanth V <hemanthv@ti.com>
+ *
+ * Reference manual for the twl6030 is available at:
+ * https://www.ti.com/lit/ds/symlink/twl6030.pdf
+ *
+ * Limitations:
+ * - The twl6030 hardware only supports two period lengths (128 clock ticks and
+ *   64 clock ticks), the driver only uses 128 ticks
+ * - The hardware doesn't support ON = 0, so the active part of a period doesn't
+ *   start at its beginning.
+ * - The hardware could support inverted polarity (with a similar limitation as
+ *   for normal: the last clock tick is always inactive).
+ * - The hardware emits a constant low output when disabled.
+ * - A request for .duty_cycle = 0 results in an output wave with one active
+ *   clock tick per period. This should better use the disabled state.
+ * - The driver only implements setting the relative duty cycle.
+ * - The driver doesn't implement .get_state().
  */
 
 #include <linux/module.h>

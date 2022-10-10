@@ -51,15 +51,9 @@ vxfs_get_page(struct address_space *mapping, u_long n)
 		kmap(pp);
 		/** if (!PageChecked(pp)) **/
 			/** vxfs_check_page(pp); **/
-		if (PageError(pp))
-			goto fail;
 	}
 	
 	return (pp);
-		 
-fail:
-	vxfs_put_page(pp);
-	return ERR_PTR(-EIO);
 }
 
 /**

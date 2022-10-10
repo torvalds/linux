@@ -335,7 +335,7 @@ static int vsw_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	port->tsolen = 0;
 
 	/* Mark the port as belonging to ldmvsw which directs the
-	 * the common code to use the net_device in the vnet_port
+	 * common code to use the net_device in the vnet_port
 	 * rather than the net_device in the vnet (which is used
 	 * by sunvnet). This bit is used by the VNET_PORT_TO_NET_DEVICE
 	 * macro.

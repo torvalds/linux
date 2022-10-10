@@ -35,7 +35,7 @@
 		pinctrl-0 = <&rear_button_pins>;
 		pinctrl-names = "default";
 
-		button_0 {
+		button-0 {
 			/* The rear SW3 button */
 			label = "Rear Button";
 			gpios = <&gpio1 2 GPIO_ACTIVE_LOW>;

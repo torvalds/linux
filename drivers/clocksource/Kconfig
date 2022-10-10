@@ -22,7 +22,7 @@ config CLKEVT_I8253
 config I8253_LOCK
 	bool
 
-config OMAP_DM_TIMER
+config OMAP_DM_SYSTIMER
 	bool
 	select TIMER_OF
 
@@ -55,6 +55,13 @@ config DIGICOLOR_TIMER
 	depends on HAS_IOMEM
 	help
 	  Enables the support for the digicolor timer driver.
+
+config OMAP_DM_TIMER
+	bool "OMAP dual-mode timer driver" if ARCH_K3 || COMPILE_TEST
+	default y if ARCH_K3
+	select TIMER_OF
+	help
+	  Enables the support for the TI dual-mode timer driver.
 
 config DW_APB_TIMER
 	bool "DW APB timer driver" if COMPILE_TEST
@@ -149,6 +156,14 @@ config TEGRA_TIMER
 	depends on ARCH_TEGRA || COMPILE_TEST
 	help
 	  Enables support for the Tegra driver.
+
+config TEGRA186_TIMER
+	bool "NVIDIA Tegra186 timer driver"
+	depends on ARCH_TEGRA || COMPILE_TEST
+	depends on WATCHDOG && WATCHDOG_CORE
+	help
+	  Enables support for the timers and watchdogs found on NVIDIA
+	  Tegra186 and later SoCs.
 
 config VT8500_TIMER
 	bool "VT8500 timer driver" if COMPILE_TEST
@@ -367,7 +382,7 @@ config ARM_GT_INITIAL_PRESCALER_VAL
 	depends on ARM_GLOBAL_TIMER
 	help
 	  When the ARM global timer initializes, its current rate is declared
-	  to the kernel and maintained forever. Should it's parent clock
+	  to the kernel and maintained forever. Should its parent clock
 	  change, the driver tries to fix the timer's internal prescaler.
 	  On some machs (i.e. Zynq) the initial prescaler value thus poses
 	  bounds about how much the parent clock is allowed to decrease or

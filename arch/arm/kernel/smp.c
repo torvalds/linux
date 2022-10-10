@@ -787,14 +787,6 @@ void panic_smp_self_stop(void)
 		cpu_relax();
 }
 
-/*
- * not supported here
- */
-int setup_profiling_timer(unsigned int multiplier)
-{
-	return -EINVAL;
-}
-
 #ifdef CONFIG_CPU_FREQ
 
 static DEFINE_PER_CPU(unsigned long, l_p_j_ref);

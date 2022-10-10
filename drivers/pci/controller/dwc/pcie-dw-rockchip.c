@@ -186,7 +186,7 @@ static int rockchip_pcie_start_link(struct dw_pcie *pci)
 	return 0;
 }
 
-static int rockchip_pcie_host_init(struct pcie_port *pp)
+static int rockchip_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct rockchip_pcie *rockchip = to_rockchip_pcie(pci);
@@ -288,7 +288,7 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rockchip_pcie *rockchip;
-	struct pcie_port *pp;
+	struct dw_pcie_rp *pp;
 	int ret;
 
 	rockchip = devm_kzalloc(dev, sizeof(*rockchip), GFP_KERNEL);

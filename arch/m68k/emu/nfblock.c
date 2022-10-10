@@ -138,7 +138,7 @@ static int __init nfhd_init_one(int id, u32 blocks, u32 bsize)
 	return 0;
 
 out_cleanup_disk:
-	blk_cleanup_disk(dev->disk);
+	put_disk(dev->disk);
 free_dev:
 	kfree(dev);
 out:
@@ -180,7 +180,7 @@ static void __exit nfhd_exit(void)
 	list_for_each_entry_safe(dev, next, &nfhd_list, list) {
 		list_del(&dev->list);
 		del_gendisk(dev->disk);
-		blk_cleanup_disk(dev->disk);
+		put_disk(dev->disk);
 		kfree(dev);
 	}
 	unregister_blkdev(major_num, "nfhd");

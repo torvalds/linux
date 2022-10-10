@@ -26,6 +26,7 @@ static const struct sdio_device_id wilc_sdio_ids[] = {
 struct wilc_sdio {
 	bool irq_gpio;
 	u32 block_size;
+	bool isinit;
 	int has_thrpt_enh3;
 };
 
@@ -191,6 +192,13 @@ static int wilc_sdio_reset(struct wilc *wilc)
 		return ret;
 	}
 	return 0;
+}
+
+static bool wilc_sdio_is_init(struct wilc *wilc)
+{
+	struct wilc_sdio *sdio_priv = wilc->bus_data;
+
+	return sdio_priv->isinit;
 }
 
 static int wilc_sdio_suspend(struct device *dev)
@@ -581,6 +589,9 @@ static int wilc_sdio_read(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 
 static int wilc_sdio_deinit(struct wilc *wilc)
 {
+	struct wilc_sdio *sdio_priv = wilc->bus_data;
+
+	sdio_priv->isinit = false;
 	return 0;
 }
 
@@ -700,6 +711,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 			 sdio_priv->has_thrpt_enh3);
 	}
 
+	sdio_priv->isinit = true;
 	return 0;
 }
 
@@ -981,6 +993,7 @@ static const struct wilc_hif_func wilc_hif_sdio = {
 	.enable_interrupt = wilc_sdio_enable_interrupt,
 	.disable_interrupt = wilc_sdio_disable_interrupt,
 	.hif_reset = wilc_sdio_reset,
+	.hif_is_init = wilc_sdio_is_init,
 };
 
 static int wilc_sdio_resume(struct device *dev)

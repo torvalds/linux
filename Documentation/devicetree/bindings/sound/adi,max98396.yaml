@@ -24,6 +24,21 @@ properties:
     maxItems: 1
     description: I2C address of the device.
 
+  avdd-supply:
+    description: A 1.8V supply that powers up the AVDD pin.
+
+  dvdd-supply:
+    description: A 1.2V supply that powers up the DVDD pin.
+
+  dvddio-supply:
+    description: A 1.2V or 1.8V supply that powers up the VDDIO pin.
+
+  pvdd-supply:
+    description: A 3.0V to 20V supply that powers up the PVDD pin.
+
+  vbat-supply:
+    description: A 3.3V to 5.5V supply that powers up the VBAT pin.
+
   adi,vmon-slot-no:
     description: slot number of the voltage sense monitor
     $ref: "/schemas/types.yaml#/definitions/uint32"
@@ -36,10 +51,19 @@ properties:
     $ref: "/schemas/types.yaml#/definitions/uint32"
     minimum: 0
     maximum: 15
-    default: 0
+    default: 1
 
   adi,spkfb-slot-no:
     description: slot number of speaker DSP monitor
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 15
+    default: 2
+
+  adi,bypass-slot-no:
+    description:
+      Selects the PCM data input channel that is routed to the speaker
+      audio processing bypass path.
     $ref: "/schemas/types.yaml#/definitions/uint32"
     minimum: 0
     maximum: 15
@@ -72,6 +96,10 @@ examples:
         max98396: amplifier@39 {
             compatible = "adi,max98396";
             reg = <0x39>;
+            dvdd-supply = <&regulator_1v2>;
+            dvddio-supply = <&regulator_1v8>;
+            avdd-supply = <&regulator_1v8>;
+            pvdd-supply = <&regulator_pvdd>;
             adi,vmon-slot-no = <0>;
             adi,imon-slot-no = <1>;
             reset-gpios = <&gpio 4 GPIO_ACTIVE_LOW>;

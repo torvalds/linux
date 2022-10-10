@@ -27,5 +27,5 @@
     |       sparc: | TODO |
     |          um: |  ok  |
     |         x86: |  ok  |
-    |      xtensa: | TODO |
+    |      xtensa: |  ok  |
     -----------------------

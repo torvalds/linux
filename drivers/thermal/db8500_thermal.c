@@ -53,7 +53,6 @@ static const unsigned long db8500_thermal_points[] = {
 
 struct db8500_thermal_zone {
 	struct thermal_zone_device *tz;
-	enum thermal_trend trend;
 	unsigned long interpolated_temp;
 	unsigned int cur_index;
 };
@@ -73,24 +72,12 @@ static int db8500_thermal_get_temp(void *data, int *temp)
 	return 0;
 }
 
-/* Callback to get temperature changing trend */
-static int db8500_thermal_get_trend(void *data, int trip, enum thermal_trend *trend)
-{
-	struct db8500_thermal_zone *th = data;
-
-	*trend = th->trend;
-
-	return 0;
-}
-
 static struct thermal_zone_of_device_ops thdev_ops = {
 	.get_temp = db8500_thermal_get_temp,
-	.get_trend = db8500_thermal_get_trend,
 };
 
 static void db8500_thermal_update_config(struct db8500_thermal_zone *th,
 					 unsigned int idx,
-					 enum thermal_trend trend,
 					 unsigned long next_low,
 					 unsigned long next_high)
 {
@@ -98,7 +85,6 @@ static void db8500_thermal_update_config(struct db8500_thermal_zone *th,
 
 	th->cur_index = idx;
 	th->interpolated_temp = (next_low + next_high)/2;
-	th->trend = trend;
 
 	/*
 	 * The PRCMU accept absolute temperatures in celsius so divide
@@ -127,8 +113,7 @@ static irqreturn_t prcmu_low_irq_handler(int irq, void *irq_data)
 	}
 	idx -= 1;
 
-	db8500_thermal_update_config(th, idx, THERMAL_TREND_DROPPING,
-				     next_low, next_high);
+	db8500_thermal_update_config(th, idx, next_low, next_high);
 	dev_dbg(&th->tz->device,
 		"PRCMU set max %ld, min %ld\n", next_high, next_low);
 
@@ -149,8 +134,7 @@ static irqreturn_t prcmu_high_irq_handler(int irq, void *irq_data)
 		next_low = db8500_thermal_points[idx];
 		idx += 1;
 
-		db8500_thermal_update_config(th, idx, THERMAL_TREND_RAISING,
-					     next_low, next_high);
+		db8500_thermal_update_config(th, idx, next_low, next_high);
 
 		dev_dbg(&th->tz->device,
 			"PRCMU set max %ld, min %ld\n", next_high, next_low);
@@ -174,10 +158,8 @@ static int db8500_thermal_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	low_irq = platform_get_irq_byname(pdev, "IRQ_HOTMON_LOW");
-	if (low_irq < 0) {
-		dev_err(dev, "Get IRQ_HOTMON_LOW failed\n");
+	if (low_irq < 0)
 		return low_irq;
-	}
 
 	ret = devm_request_threaded_irq(dev, low_irq, NULL,
 		prcmu_low_irq_handler, IRQF_NO_SUSPEND | IRQF_ONESHOT,
@@ -188,10 +170,8 @@ static int db8500_thermal_probe(struct platform_device *pdev)
 	}
 
 	high_irq = platform_get_irq_byname(pdev, "IRQ_HOTMON_HIGH");
-	if (high_irq < 0) {
-		dev_err(dev, "Get IRQ_HOTMON_HIGH failed\n");
+	if (high_irq < 0)
 		return high_irq;
-	}
 
 	ret = devm_request_threaded_irq(dev, high_irq, NULL,
 		prcmu_high_irq_handler, IRQF_NO_SUSPEND | IRQF_ONESHOT,
@@ -210,8 +190,7 @@ static int db8500_thermal_probe(struct platform_device *pdev)
 	dev_info(dev, "thermal zone sensor registered\n");
 
 	/* Start measuring at the lowest point */
-	db8500_thermal_update_config(th, 0, THERMAL_TREND_STABLE,
-				     PRCMU_DEFAULT_LOW_TEMP,
+	db8500_thermal_update_config(th, 0, PRCMU_DEFAULT_LOW_TEMP,
 				     db8500_thermal_points[0]);
 
 	platform_set_drvdata(pdev, th);
@@ -232,8 +211,7 @@ static int db8500_thermal_resume(struct platform_device *pdev)
 	struct db8500_thermal_zone *th = platform_get_drvdata(pdev);
 
 	/* Resume and start measuring at the lowest point */
-	db8500_thermal_update_config(th, 0, THERMAL_TREND_STABLE,
-				     PRCMU_DEFAULT_LOW_TEMP,
+	db8500_thermal_update_config(th, 0, PRCMU_DEFAULT_LOW_TEMP,
 				     db8500_thermal_points[0]);
 
 	return 0;

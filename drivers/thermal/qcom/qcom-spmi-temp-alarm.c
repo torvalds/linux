@@ -16,6 +16,7 @@
 #include <linux/thermal.h>
 
 #include "../thermal_core.h"
+#include "../thermal_hwmon.h"
 
 #define QPNP_TM_REG_DIG_MAJOR		0x01
 #define QPNP_TM_REG_TYPE		0x04
@@ -457,6 +458,10 @@ static int qpnp_tm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "init failed\n");
 		return ret;
 	}
+
+	if (devm_thermal_add_hwmon_sysfs(chip->tz_dev))
+		dev_warn(&pdev->dev,
+			 "Failed to add hwmon sysfs attributes\n");
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL, qpnp_tm_isr,
 					IRQF_ONESHOT, node->name, chip);

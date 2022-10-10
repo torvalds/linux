@@ -11,6 +11,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/sound/samsung-i2s.h>
 #include "exynos4412-itop-scp-core.dtsi"
@@ -28,7 +29,8 @@
 		compatible = "gpio-leds";
 
 		led2 {
-			label = "red:system";
+			function = LED_FUNCTION_HEARTBEAT;
+			color = <LED_COLOR_ID_RED>;
 			gpios = <&gpx1 0 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 			linux,default-trigger = "heartbeat";
@@ -36,6 +38,7 @@
 
 		led3 {
 			label = "red:user";
+			color = <LED_COLOR_ID_RED>;
 			gpios = <&gpk1 1 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
@@ -44,31 +47,31 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		home {
+		key-home {
 			label = "GPIO Key Home";
 			linux,code = <KEY_HOME>;
 			gpios = <&gpx1 1 GPIO_ACTIVE_LOW>;
 		};
 
-		back {
+		key-back {
 			label = "GPIO Key Back";
 			linux,code = <KEY_BACK>;
 			gpios = <&gpx1 2 GPIO_ACTIVE_LOW>;
 		};
 
-		sleep {
+		key-sleep {
 			label = "GPIO Key Sleep";
 			linux,code = <KEY_POWER>;
 			gpios = <&gpx3 3 GPIO_ACTIVE_LOW>;
 		};
 
-		vol-up {
+		key-vol-up {
 			label = "GPIO Key Vol+";
 			linux,code = <KEY_UP>;
 			gpios = <&gpx2 1 GPIO_ACTIVE_LOW>;
 		};
 
-		vol-down {
+		key-vol-down {
 			label = "GPIO Key Vol-";
 			linux,code = <KEY_DOWN>;
 			gpios = <&gpx2 0 GPIO_ACTIVE_LOW>;

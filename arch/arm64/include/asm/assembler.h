@@ -360,6 +360,20 @@ alternative_cb_end
 	.endm
 
 /*
+ * idmap_get_t0sz - get the T0SZ value needed to cover the ID map
+ *
+ * Calculate the maximum allowed value for TCR_EL1.T0SZ so that the
+ * entire ID map region can be mapped. As T0SZ == (64 - #bits used),
+ * this number conveniently equals the number of leading zeroes in
+ * the physical address of _end.
+ */
+	.macro	idmap_get_t0sz, reg
+	adrp	\reg, _end
+	orr	\reg, \reg, #(1 << VA_BITS_MIN) - 1
+	clz	\reg, \reg
+	.endm
+
+/*
  * tcr_compute_pa_size - set TCR.(I)PS to the highest supported
  * ID_AA64MMFR0_EL1.PARange value
  *
@@ -423,7 +437,7 @@ alternative_endif
 	b.lo	.Ldcache_op\@
 	dsb	\domain
 
-	_cond_extable .Ldcache_op\@, \fixup
+	_cond_uaccess_extable .Ldcache_op\@, \fixup
 	.endm
 
 /*
@@ -462,7 +476,19 @@ alternative_endif
 	dsb	ish
 	isb
 
-	_cond_extable .Licache_op\@, \fixup
+	_cond_uaccess_extable .Licache_op\@, \fixup
+	.endm
+
+/*
+ * load_ttbr1 - install @pgtbl as a TTBR1 page table
+ * pgtbl preserved
+ * tmp1/tmp2 clobbered, either may overlap with pgtbl
+ */
+	.macro		load_ttbr1, pgtbl, tmp1, tmp2
+	phys_to_ttbr	\tmp1, \pgtbl
+	offset_ttbr1 	\tmp1, \tmp2
+	msr		ttbr1_el1, \tmp1
+	isb
 	.endm
 
 /*
@@ -478,10 +504,7 @@ alternative_endif
 	isb
 	tlbi	vmalle1
 	dsb	nsh
-	phys_to_ttbr \tmp, \page_table
-	offset_ttbr1 \tmp, \tmp2
-	msr	ttbr1_el1, \tmp
-	isb
+	load_ttbr1 \page_table, \tmp, \tmp2
 	.endm
 
 /*

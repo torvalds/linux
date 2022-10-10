@@ -34,20 +34,20 @@
 	sfp_eth0: sfp-eth0 {
 		compatible = "sff,sfp";
 		i2c-bus = <&cp0_i2c1>;
-		los-gpio = <&sfp_gpio 3 GPIO_ACTIVE_HIGH>;
-		mod-def0-gpio = <&sfp_gpio 2 GPIO_ACTIVE_LOW>;
-		tx-disable-gpio = <&sfp_gpio 1 GPIO_ACTIVE_HIGH>;
-		tx-fault-gpio  = <&sfp_gpio 0 GPIO_ACTIVE_HIGH>;
+		los-gpios = <&sfp_gpio 3 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&sfp_gpio 2 GPIO_ACTIVE_LOW>;
+		tx-disable-gpios = <&sfp_gpio 1 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpios = <&sfp_gpio 0 GPIO_ACTIVE_HIGH>;
 	};
 
 	/* SFP 1G */
 	sfp_eth2: sfp-eth2 {
 		compatible = "sff,sfp";
 		i2c-bus = <&cp0_i2c0>;
-		los-gpio = <&sfp_gpio 7 GPIO_ACTIVE_HIGH>;
-		mod-def0-gpio = <&sfp_gpio 6 GPIO_ACTIVE_LOW>;
-		tx-disable-gpio = <&sfp_gpio 5 GPIO_ACTIVE_HIGH>;
-		tx-fault-gpio  = <&sfp_gpio 4 GPIO_ACTIVE_HIGH>;
+		los-gpios = <&sfp_gpio 7 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&sfp_gpio 6 GPIO_ACTIVE_LOW>;
+		tx-disable-gpios = <&sfp_gpio 5 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpios = <&sfp_gpio 4 GPIO_ACTIVE_HIGH>;
 	};
 };
 

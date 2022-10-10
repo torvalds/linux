@@ -254,7 +254,7 @@ struct ip_vs_get_dests {
 	unsigned int		num_dests;
 
 	/* the real servers */
-	struct ip_vs_dest_entry	entrytable[0];
+	struct ip_vs_dest_entry	entrytable[];
 };
 
 
@@ -264,7 +264,7 @@ struct ip_vs_get_services {
 	unsigned int		num_services;
 
 	/* service table */
-	struct ip_vs_service_entry entrytable[0];
+	struct ip_vs_service_entry entrytable[];
 };
 
 

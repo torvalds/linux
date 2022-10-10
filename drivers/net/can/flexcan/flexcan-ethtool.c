@@ -100,15 +100,11 @@ static int flexcan_get_sset_count(struct net_device *netdev, int sset)
 	}
 }
 
-static const struct ethtool_ops flexcan_ethtool_ops = {
+const struct ethtool_ops flexcan_ethtool_ops = {
 	.get_ringparam = flexcan_get_ringparam,
 	.get_strings = flexcan_get_strings,
 	.get_priv_flags = flexcan_get_priv_flags,
 	.set_priv_flags = flexcan_set_priv_flags,
 	.get_sset_count = flexcan_get_sset_count,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
-
-void flexcan_set_ethtool_ops(struct net_device *netdev)
-{
-	netdev->ethtool_ops = &flexcan_ethtool_ops;
-}
