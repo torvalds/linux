@@ -69,13 +69,34 @@ static void rmw_work(struct work_struct *work);
 static void read_rebuild_work(struct work_struct *work);
 static int fail_bio_stripe(struct btrfs_raid_bio *rbio, struct bio *bio);
 static int fail_rbio_index(struct btrfs_raid_bio *rbio, int failed);
-static void __free_raid_bio(struct btrfs_raid_bio *rbio);
 static void index_rbio_pages(struct btrfs_raid_bio *rbio);
 static int alloc_rbio_pages(struct btrfs_raid_bio *rbio);
 
 static noinline void finish_parity_scrub(struct btrfs_raid_bio *rbio,
 					 int need_check);
 static void scrub_parity_work(struct work_struct *work);
+
+static void free_raid_bio(struct btrfs_raid_bio *rbio)
+{
+	int i;
+
+	if (!refcount_dec_and_test(&rbio->refs))
+		return;
+
+	WARN_ON(!list_empty(&rbio->stripe_cache));
+	WARN_ON(!list_empty(&rbio->hash_list));
+	WARN_ON(!bio_list_empty(&rbio->bio_list));
+
+	for (i = 0; i < rbio->nr_pages; i++) {
+		if (rbio->stripe_pages[i]) {
+			__free_page(rbio->stripe_pages[i]);
+			rbio->stripe_pages[i] = NULL;
+		}
+	}
+
+	btrfs_put_bioc(rbio->bioc);
+	kfree(rbio);
+}
 
 static void start_async_work(struct btrfs_raid_bio *rbio, work_func_t work_func)
 {
@@ -336,7 +357,7 @@ static void __remove_rbio_from_cache(struct btrfs_raid_bio *rbio)
 	spin_unlock(&h->lock);
 
 	if (freeit)
-		__free_raid_bio(rbio);
+		free_raid_bio(rbio);
 }
 
 /*
@@ -684,7 +705,7 @@ out:
 	if (cache_drop)
 		remove_rbio_from_cache(cache_drop);
 	if (freeit)
-		__free_raid_bio(freeit);
+		free_raid_bio(freeit);
 	return ret;
 }
 
@@ -769,28 +790,6 @@ done_nolock:
 		remove_rbio_from_cache(rbio);
 }
 
-static void __free_raid_bio(struct btrfs_raid_bio *rbio)
-{
-	int i;
-
-	if (!refcount_dec_and_test(&rbio->refs))
-		return;
-
-	WARN_ON(!list_empty(&rbio->stripe_cache));
-	WARN_ON(!list_empty(&rbio->hash_list));
-	WARN_ON(!bio_list_empty(&rbio->bio_list));
-
-	for (i = 0; i < rbio->nr_pages; i++) {
-		if (rbio->stripe_pages[i]) {
-			__free_page(rbio->stripe_pages[i]);
-			rbio->stripe_pages[i] = NULL;
-		}
-	}
-
-	btrfs_put_bioc(rbio->bioc);
-	kfree(rbio);
-}
-
 static void rbio_endio_bio_list(struct bio *cur, blk_status_t err)
 {
 	struct bio *next;
@@ -830,7 +829,7 @@ static void rbio_orig_end_io(struct btrfs_raid_bio *rbio, blk_status_t err)
 	 */
 	unlock_stripe(rbio);
 	extra = bio_list_get(&rbio->bio_list);
-	__free_raid_bio(rbio);
+	free_raid_bio(rbio);
 
 	rbio_endio_bio_list(cur, err);
 	if (extra)
@@ -1731,7 +1730,7 @@ static void run_plug(struct btrfs_plug_cb *plug)
 		if (last) {
 			if (rbio_can_merge(last, cur)) {
 				merge_rbio(last, cur);
-				__free_raid_bio(cur);
+				free_raid_bio(cur);
 				continue;
 
 			}
@@ -1822,7 +1821,7 @@ void raid56_parity_write(struct bio *bio, struct btrfs_io_context *bioc)
 	if (rbio_is_full(rbio)) {
 		ret = full_stripe_write(rbio);
 		if (ret) {
-			__free_raid_bio(rbio);
+			free_raid_bio(rbio);
 			goto fail;
 		}
 		return;
@@ -1839,7 +1838,7 @@ void raid56_parity_write(struct bio *bio, struct btrfs_io_context *bioc)
 	} else {
 		ret = __raid56_parity_write(rbio);
 		if (ret) {
-			__free_raid_bio(rbio);
+			free_raid_bio(rbio);
 			goto fail;
 		}
 	}
@@ -2214,7 +2213,7 @@ void raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
 "%s could not find the bad stripe in raid56 so that we cannot recover any more (bio has logical %llu len %llu, bioc has map_type %llu)",
 			   __func__, bio->bi_iter.bi_sector << 9,
 			   (u64)bio->bi_iter.bi_size, bioc->map_type);
-		__free_raid_bio(rbio);
+		free_raid_bio(rbio);
 		bio->bi_status = BLK_STS_IOERR;
 		goto out_end_bio;
 	}
@@ -2747,7 +2746,7 @@ raid56_alloc_missing_rbio(struct bio *bio, struct btrfs_io_context *bioc)
 		btrfs_warn_rl(fs_info,
 	"can not determine the failed stripe number for full stripe %llu",
 			      bioc->raid_map[0]);
-		__free_raid_bio(rbio);
+		free_raid_bio(rbio);
 		return NULL;
 	}
 
