@@ -623,23 +623,25 @@ static int vin_set_stream(struct v4l2_subdev *sd, int enable)
 	}
 	mutex_unlock(&dummy_buffer->stream_lock);
 
-	if (line->id == VIN_LINE_WR) {
-		mutex_lock(&line->stream_lock);
-		if (enable) {
-			if (line->stream_count == 0) {
+	mutex_lock(&line->stream_lock);
+	if (enable) {
+		if (line->stream_count == 0) {
+			if (line->id == VIN_LINE_WR) {
 				vin_dev->hw_ops->vin_wr_irq_enable(vin_dev, 1);
 				vin_dev->hw_ops->vin_wr_stream_set(vin_dev, 1);
 			}
-			line->stream_count++;
-		} else {
-			if (line->stream_count == 1) {
+		}
+		line->stream_count++;
+	} else {
+		if (line->stream_count == 1) {
+			if (line->id == VIN_LINE_WR) {
 				vin_dev->hw_ops->vin_wr_irq_enable(vin_dev, 0);
 				vin_dev->hw_ops->vin_wr_stream_set(vin_dev, 0);
 			}
-			line->stream_count--;
 		}
-		mutex_unlock(&line->stream_lock);
+		line->stream_count--;
 	}
+	mutex_unlock(&line->stream_lock);
 
 	if (enable)
 		vin_enable_output(line);
