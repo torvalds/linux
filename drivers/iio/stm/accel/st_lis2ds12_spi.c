@@ -73,7 +73,7 @@ static int lis2ds12_spi_write(struct lis2ds12_data *cdata,
 		.len = len + 1,
 	};
 
-	if (len >= LIS2DS12_RX_MAX_LENGTH)
+	if (len >= LIS2DS12_TX_MAX_LENGTH)
 		return -ENOMEM;
 
 	if (b_lock)
