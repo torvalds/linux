@@ -2239,10 +2239,166 @@ static struct kunit_suite clk_leaf_mux_set_rate_parent_test_suite = {
 	.test_cases = clk_leaf_mux_set_rate_parent_test_cases,
 };
 
+struct clk_mux_notifier_rate_change {
+	bool done;
+	unsigned long old_rate;
+	unsigned long new_rate;
+	wait_queue_head_t wq;
+};
+
+struct clk_mux_notifier_ctx {
+	struct clk_multiple_parent_ctx mux_ctx;
+	struct clk *clk;
+	struct notifier_block clk_nb;
+	struct clk_mux_notifier_rate_change pre_rate_change;
+	struct clk_mux_notifier_rate_change post_rate_change;
+};
+
+#define NOTIFIER_TIMEOUT_MS 100
+
+static int clk_mux_notifier_callback(struct notifier_block *nb,
+				     unsigned long action, void *data)
+{
+	struct clk_notifier_data *clk_data = data;
+	struct clk_mux_notifier_ctx *ctx = container_of(nb,
+							struct clk_mux_notifier_ctx,
+							clk_nb);
+
+	if (action & PRE_RATE_CHANGE) {
+		ctx->pre_rate_change.old_rate = clk_data->old_rate;
+		ctx->pre_rate_change.new_rate = clk_data->new_rate;
+		ctx->pre_rate_change.done = true;
+		wake_up_interruptible(&ctx->pre_rate_change.wq);
+	}
+
+	if (action & POST_RATE_CHANGE) {
+		ctx->post_rate_change.old_rate = clk_data->old_rate;
+		ctx->post_rate_change.new_rate = clk_data->new_rate;
+		ctx->post_rate_change.done = true;
+		wake_up_interruptible(&ctx->post_rate_change.wq);
+	}
+
+	return 0;
+}
+
+static int clk_mux_notifier_test_init(struct kunit *test)
+{
+	struct clk_mux_notifier_ctx *ctx;
+	const char *top_parents[2] = { "parent-0", "parent-1" };
+	int ret;
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+	test->priv = ctx;
+	ctx->clk_nb.notifier_call = clk_mux_notifier_callback;
+	init_waitqueue_head(&ctx->pre_rate_change.wq);
+	init_waitqueue_head(&ctx->post_rate_change.wq);
+
+	ctx->mux_ctx.parents_ctx[0].hw.init = CLK_HW_INIT_NO_PARENT("parent-0",
+								    &clk_dummy_rate_ops,
+								    0);
+	ctx->mux_ctx.parents_ctx[0].rate = DUMMY_CLOCK_RATE_1;
+	ret = clk_hw_register(NULL, &ctx->mux_ctx.parents_ctx[0].hw);
+	if (ret)
+		return ret;
+
+	ctx->mux_ctx.parents_ctx[1].hw.init = CLK_HW_INIT_NO_PARENT("parent-1",
+								    &clk_dummy_rate_ops,
+								    0);
+	ctx->mux_ctx.parents_ctx[1].rate = DUMMY_CLOCK_RATE_2;
+	ret = clk_hw_register(NULL, &ctx->mux_ctx.parents_ctx[1].hw);
+	if (ret)
+		return ret;
+
+	ctx->mux_ctx.current_parent = 0;
+	ctx->mux_ctx.hw.init = CLK_HW_INIT_PARENTS("test-mux", top_parents,
+						   &clk_multiple_parents_mux_ops,
+						   0);
+	ret = clk_hw_register(NULL, &ctx->mux_ctx.hw);
+	if (ret)
+		return ret;
+
+	ctx->clk = clk_hw_get_clk(&ctx->mux_ctx.hw, NULL);
+	ret = clk_notifier_register(ctx->clk, &ctx->clk_nb);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static void clk_mux_notifier_test_exit(struct kunit *test)
+{
+	struct clk_mux_notifier_ctx *ctx = test->priv;
+	struct clk *clk = ctx->clk;
+
+	clk_notifier_unregister(clk, &ctx->clk_nb);
+	clk_put(clk);
+
+	clk_hw_unregister(&ctx->mux_ctx.hw);
+	clk_hw_unregister(&ctx->mux_ctx.parents_ctx[0].hw);
+	clk_hw_unregister(&ctx->mux_ctx.parents_ctx[1].hw);
+}
+
+/*
+ * Test that if the we have a notifier registered on a mux, the core
+ * will notify us when we switch to another parent, and with the proper
+ * old and new rates.
+ */
+static void clk_mux_notifier_set_parent_test(struct kunit *test)
+{
+	struct clk_mux_notifier_ctx *ctx = test->priv;
+	struct clk_hw *hw = &ctx->mux_ctx.hw;
+	struct clk *clk = clk_hw_get_clk(hw, NULL);
+	struct clk *new_parent = clk_hw_get_clk(&ctx->mux_ctx.parents_ctx[1].hw, NULL);
+	int ret;
+
+	ret = clk_set_parent(clk, new_parent);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	ret = wait_event_interruptible_timeout(ctx->pre_rate_change.wq,
+					       ctx->pre_rate_change.done,
+					       msecs_to_jiffies(NOTIFIER_TIMEOUT_MS));
+	KUNIT_ASSERT_GT(test, ret, 0);
+
+	KUNIT_EXPECT_EQ(test, ctx->pre_rate_change.old_rate, DUMMY_CLOCK_RATE_1);
+	KUNIT_EXPECT_EQ(test, ctx->pre_rate_change.new_rate, DUMMY_CLOCK_RATE_2);
+
+	ret = wait_event_interruptible_timeout(ctx->post_rate_change.wq,
+					       ctx->post_rate_change.done,
+					       msecs_to_jiffies(NOTIFIER_TIMEOUT_MS));
+	KUNIT_ASSERT_GT(test, ret, 0);
+
+	KUNIT_EXPECT_EQ(test, ctx->post_rate_change.old_rate, DUMMY_CLOCK_RATE_1);
+	KUNIT_EXPECT_EQ(test, ctx->post_rate_change.new_rate, DUMMY_CLOCK_RATE_2);
+
+	clk_put(new_parent);
+	clk_put(clk);
+}
+
+static struct kunit_case clk_mux_notifier_test_cases[] = {
+	KUNIT_CASE(clk_mux_notifier_set_parent_test),
+	{}
+};
+
+/*
+ * Test suite for a mux with multiple parents, and a notifier registered
+ * on the mux.
+ *
+ * These tests exercise the behaviour of notifiers.
+ */
+static struct kunit_suite clk_mux_notifier_test_suite = {
+	.name = "clk-mux-notifier",
+	.init = clk_mux_notifier_test_init,
+	.exit = clk_mux_notifier_test_exit,
+	.test_cases = clk_mux_notifier_test_cases,
+};
+
 kunit_test_suites(
 	&clk_leaf_mux_set_rate_parent_test_suite,
 	&clk_test_suite,
 	&clk_multiple_parents_mux_test_suite,
+	&clk_mux_notifier_test_suite,
 	&clk_orphan_transparent_multiple_parent_mux_test_suite,
 	&clk_orphan_transparent_single_parent_test_suite,
 	&clk_orphan_two_level_root_last_test_suite,
