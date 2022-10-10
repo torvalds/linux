@@ -27,6 +27,8 @@ struct ghes {
 		struct timer_list timer;
 		unsigned int irq;
 	};
+	struct device *dev;
+	struct list_head elist;
 };
 
 struct ghes_estatus_node {
@@ -80,6 +82,8 @@ int ghes_edac_register(struct ghes *ghes, struct device *dev);
 
 void ghes_edac_unregister(struct ghes *ghes);
 
+struct list_head *ghes_get_devices(void);
+
 #else
 static inline int ghes_edac_register(struct ghes *ghes, struct device *dev)
 {
@@ -89,6 +93,8 @@ static inline int ghes_edac_register(struct ghes *ghes, struct device *dev)
 static inline void ghes_edac_unregister(struct ghes *ghes)
 {
 }
+
+static inline struct list_head *ghes_get_devices(void) { return NULL; }
 #endif
 
 static inline int acpi_hest_get_version(struct acpi_hest_generic_data *gdata)
