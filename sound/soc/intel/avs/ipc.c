@@ -74,7 +74,7 @@ int avs_dsp_disable_d0ix(struct avs_dev *adev)
 	struct avs_ipc *ipc = adev->ipc;
 
 	/* Prevent PG only on the first disable. */
-	if (atomic_add_return(1, &ipc->d0ix_disable_depth) == 1) {
+	if (atomic_inc_return(&ipc->d0ix_disable_depth) == 1) {
 		cancel_delayed_work_sync(&ipc->d0ix_work);
 		return avs_dsp_set_d0ix(adev, false);
 	}
