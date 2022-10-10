@@ -161,6 +161,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RK3228
 	imply SND_SOC_RK3308
 	imply SND_SOC_RK3328
+	imply SND_SOC_RK3528
 	imply SND_SOC_RK730
 	imply SND_SOC_RK817
 	imply SND_SOC_RT274
@@ -1100,6 +1101,10 @@ config SND_SOC_RK3308
 
 config SND_SOC_RK3328
 	tristate "Rockchip RK3328 audio CODEC"
+	select REGMAP_MMIO
+
+config SND_SOC_RK3528
+	tristate "Rockchip RK3528 audio CODEC"
 	select REGMAP_MMIO
 
 config SND_SOC_RK730
