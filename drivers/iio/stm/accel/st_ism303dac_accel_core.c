@@ -676,8 +676,6 @@ ssize_t ism303dac_set_sampling_frequency(struct device * dev,
 	mutex_unlock(&indio_dev->mlock);
 
 	err = ism303dac_write_max_odr(sdata);
-	if (err < 0)
-		return err;
 
 	return (err < 0) ? err : count;
 }
