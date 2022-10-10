@@ -858,8 +858,6 @@ ssize_t lis2ds12_set_sampling_frequency(struct device * dev,
 	mutex_unlock(&indio_dev->mlock);
 
 	err = lis2ds12_write_max_odr(sdata);
-	if (err < 0)
-		return err;
 
 	return (err < 0) ? err : count;
 }
