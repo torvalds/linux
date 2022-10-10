@@ -69,6 +69,12 @@ config RPMSG_ROCKCHIP
 	  Say y here to enable support for The Remote Processors Messasing
 	  in Rockchip Platform.
 
+config RPMSG_ROCKCHIP_TEST
+	tristate "Rockchip RPMsg Test"
+	depends on RPMSG_ROCKCHIP
+	help
+	  Say y here to enable Rockchip RPMsg Test.
+
 config RPMSG_VIRTIO
 	tristate "Virtio RPMSG bus driver"
 	depends on HAS_DMA
