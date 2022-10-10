@@ -1797,7 +1797,7 @@ int rkvdec2_ccu_iommu_fault_handle(struct iommu_domain *iommu,
 
 	atomic_inc(&mpp->queue->reset_request);
 	for (i = 0; i < mpp->queue->core_count; i++)
-		rk_iommu_mask_irq(mpp->queue->cores[i]->dev);
+		rockchip_iommu_mask_irq(mpp->queue->cores[i]->dev);
 
 	kthread_queue_work(&mpp->queue->worker, &mpp->work);
 
