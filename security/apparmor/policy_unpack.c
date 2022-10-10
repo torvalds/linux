@@ -477,7 +477,7 @@ static struct aa_dfa *unpack_dfa(struct aa_ext *e, int flags)
 static bool unpack_trans_table(struct aa_ext *e, struct aa_str_table *strs)
 {
 	void *saved_pos = e->pos;
-	char **table;
+	char **table = NULL;
 
 	/* exec table is optional */
 	if (unpack_nameX(e, AA_STRUCT, "xtable")) {
