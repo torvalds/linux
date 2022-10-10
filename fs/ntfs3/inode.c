@@ -1279,7 +1279,7 @@ struct inode *ntfs_create_inode(struct user_namespace *mnt_userns,
 		fa = FILE_ATTRIBUTE_ARCHIVE;
 	}
 
-	/* If option "hidedotfiles" then set hidden attribute for dot files. */
+	/* If option "hide_dot_files" then set hidden attribute for dot files. */
 	if (sbi->options->hide_dot_files && name->name[0] == '.')
 		fa |= FILE_ATTRIBUTE_HIDDEN;
 

@@ -75,7 +75,7 @@ this table marked with no it means default is without **no**.
      - Files with the Windows-specific SYSTEM (FILE_ATTRIBUTE_SYSTEM) attribute
        will be marked as system immutable files.
 
-   * - hidedotfiles
+   * - hide_dot_files
      - Updates the Windows-specific HIDDEN (FILE_ATTRIBUTE_HIDDEN) attribute
        when creating and moving or renaming files. Files whose names start
        with a dot will have the HIDDEN attribute set and files whose names

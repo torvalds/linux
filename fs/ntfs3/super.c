@@ -269,7 +269,7 @@ static const struct fs_parameter_spec ntfs_fs_parameters[] = {
 	fsparam_flag_no("force",		Opt_force),
 	fsparam_flag_no("sparse",		Opt_sparse),
 	fsparam_flag_no("hidden",		Opt_nohidden),
-	fsparam_flag_no("hidedotfiles",		Opt_hide_dot_files),
+	fsparam_flag_no("hide_dot_files",	Opt_hide_dot_files),
 	fsparam_flag_no("windows_names",	Opt_windows_names),
 	fsparam_flag_no("acl",			Opt_acl),
 	fsparam_flag_no("showmeta",		Opt_showmeta),
@@ -569,7 +569,7 @@ static int ntfs_show_options(struct seq_file *m, struct dentry *root)
 	if (opts->windows_names)
 		seq_puts(m, ",windows_names");
 	if (opts->hide_dot_files)
-		seq_puts(m, ",hidedotfiles");
+		seq_puts(m, ",hide_dot_files");
 	if (opts->force)
 		seq_puts(m, ",force");
 	if (opts->noacsrules)
