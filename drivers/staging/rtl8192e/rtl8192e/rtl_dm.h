@@ -152,9 +152,9 @@ enum dm_cck_rx_path_method {
 
 
 struct dcmd_txcmd {
-	u32	Op;
-	u32	Length;
-	u32	Value;
+	u32	op;
+	u32	length;
+	u32	value;
 };
 /*------------------------------Define structure----------------------------*/
 
