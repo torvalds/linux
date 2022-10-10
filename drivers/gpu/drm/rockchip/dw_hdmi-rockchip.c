@@ -184,7 +184,6 @@ struct rockchip_hdmi {
 	unsigned long enc_out_encoding;
 	int color_changed;
 	int hpd_irq;
-	int vp_id;
 
 	struct drm_property *color_depth_property;
 	struct drm_property *hdmi_output_property;
@@ -2006,7 +2005,6 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 secondary:
 	drm_mode_copy(&mode, &crtc_state->mode);
 
-	hdmi->vp_id = s->vp_id;
 	if (hdmi->plat_data->split_mode)
 		drm_mode_convert_to_origin_mode(&mode);
 
@@ -2216,14 +2214,23 @@ struct dw_hdmi_link_config *dw_hdmi_rockchip_get_link_cfg(void *data)
 	return &hdmi->link_cfg;
 }
 
-static int dw_hdmi_dclk_set(void *data, bool enable)
+static int dw_hdmi_rockchip_get_vp_id(struct drm_crtc_state *crtc_state)
+{
+	struct rockchip_crtc_state *s;
+
+	s = to_rockchip_crtc_state(crtc_state);
+
+	return s->vp_id;
+}
+
+static int dw_hdmi_dclk_set(void *data, bool enable, int vp_id)
 {
 	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
 	char clk_name[16];
 	struct clk *dclk;
 	int ret;
 
-	snprintf(clk_name, sizeof(clk_name), "dclk_vp%d", hdmi->vp_id);
+	snprintf(clk_name, sizeof(clk_name), "dclk_vp%d", vp_id);
 
 	dclk = devm_clk_get(hdmi->dev, clk_name);
 	if (IS_ERR(dclk)) {
@@ -2235,7 +2242,7 @@ static int dw_hdmi_dclk_set(void *data, bool enable)
 		ret = clk_prepare_enable(dclk);
 		if (ret < 0)
 			DRM_DEV_ERROR(hdmi->dev, "failed to enable dclk for video port%d - %d\n",
-				      hdmi->vp_id, ret);
+				      vp_id, ret);
 	} else {
 		clk_disable_unprepare(dclk);
 	}
@@ -3147,6 +3154,7 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 	plat_data->convert_to_origin_mode = drm_mode_convert_to_origin_mode;
 	plat_data->dclk_set = dw_hdmi_dclk_set;
 	plat_data->link_clk_set = dw_hdmi_link_clk_set;
+	plat_data->get_vp_id = dw_hdmi_rockchip_get_vp_id;
 
 	plat_data->property_ops = &dw_hdmi_rockchip_property_ops;
 

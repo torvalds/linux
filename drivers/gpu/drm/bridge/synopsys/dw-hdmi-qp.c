@@ -255,6 +255,8 @@ struct dw_hdmi_qp {
 	bool allm_enable;
 	bool support_hdmi;
 	int force_output;
+	int vp_id;
+	int old_vp_id;
 
 	struct mutex mutex;		/* for state below and previous_mode */
 	struct drm_connector *curr_conn;/* current connector (only valid when !disabled) */
@@ -2262,12 +2264,22 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 	struct drm_connector_state *new_state =
 		drm_atomic_get_new_connector_state(state, connector);
 	struct drm_crtc *crtc = new_state->crtc;
-	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *old_crtc = old_state->crtc;
+	struct drm_crtc_state *crtc_state, *old_crtc_state;
 	struct dw_hdmi_qp *hdmi =
 		container_of(connector, struct dw_hdmi_qp, connector);
 	struct drm_display_mode *mode = NULL;
 	void *data = hdmi->plat_data->phy_data;
 	struct hdmi_vmode_qp *vmode = &hdmi->hdmi_data.video_mode;
+
+	if (old_crtc) {
+		old_crtc_state = drm_atomic_get_crtc_state(state, old_crtc);
+		if (IS_ERR(old_crtc_state))
+			return PTR_ERR(old_crtc_state);
+
+		if (hdmi->plat_data->get_vp_id)
+			hdmi->old_vp_id = hdmi->plat_data->get_vp_id(old_crtc_state);
+	}
 
 	if (!crtc)
 		return 0;
@@ -2275,6 +2287,9 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
+
+	if (hdmi->plat_data->get_vp_id)
+		hdmi->vp_id = hdmi->plat_data->get_vp_id(crtc_state);
 
 	mode = &crtc_state->mode;
 	/*
@@ -2319,7 +2334,7 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 		if (hdmi->initialized && !hdmi->dclk_en) {
 			mutex_lock(&hdmi->audio_mutex);
 			if (hdmi->plat_data->dclk_set)
-				hdmi->plat_data->dclk_set(data, true);
+				hdmi->plat_data->dclk_set(data, true, hdmi->vp_id);
 			hdmi->dclk_en = true;
 			mutex_unlock(&hdmi->audio_mutex);
 			hdmi->curr_conn = connector;
@@ -2500,7 +2515,7 @@ static void dw_hdmi_qp_bridge_atomic_disable(struct drm_bridge *bridge,
 	if (hdmi->dclk_en) {
 		mutex_lock(&hdmi->audio_mutex);
 		if (hdmi->plat_data->dclk_set)
-			hdmi->plat_data->dclk_set(data, false);
+			hdmi->plat_data->dclk_set(data, false, hdmi->old_vp_id);
 		hdmi->dclk_en = false;
 		mutex_unlock(&hdmi->audio_mutex);
 	};
@@ -2542,7 +2557,7 @@ static void dw_hdmi_qp_bridge_atomic_enable(struct drm_bridge *bridge,
 	if (!hdmi->dclk_en) {
 		mutex_lock(&hdmi->audio_mutex);
 		if (hdmi->plat_data->dclk_set)
-			hdmi->plat_data->dclk_set(data, true);
+			hdmi->plat_data->dclk_set(data, true, hdmi->vp_id);
 		hdmi->dclk_en = true;
 		mutex_unlock(&hdmi->audio_mutex);
 	}

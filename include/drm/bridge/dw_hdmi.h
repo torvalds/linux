@@ -7,6 +7,7 @@
 #define __DW_HDMI__
 
 #include <drm/drm_property.h>
+#include <drm/drm_crtc.h>
 #include <sound/hdmi-codec.h>
 #include <media/cec.h>
 
@@ -248,8 +249,9 @@ struct dw_hdmi_plat_data {
 	u64 (*get_grf_color_fmt)(void *data);
 	void (*convert_to_split_mode)(struct drm_display_mode *mode);
 	void (*convert_to_origin_mode)(struct drm_display_mode *mode);
-	int (*dclk_set)(void *data, bool enable);
+	int (*dclk_set)(void *data, bool enable, int vp_id);
 	int (*link_clk_set)(void *data, bool enable);
+	int (*get_vp_id)(struct drm_crtc_state *crtc_state);
 
 	/* Vendor Property support */
 	const struct dw_hdmi_property_ops *property_ops;
