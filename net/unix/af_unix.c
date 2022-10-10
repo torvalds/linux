@@ -569,12 +569,6 @@ static void unix_sock_destructor(struct sock *sk)
 
 	skb_queue_purge(&sk->sk_receive_queue);
 
-#if IS_ENABLED(CONFIG_AF_UNIX_OOB)
-	if (u->oob_skb) {
-		kfree_skb(u->oob_skb);
-		u->oob_skb = NULL;
-	}
-#endif
 	DEBUG_NET_WARN_ON_ONCE(refcount_read(&sk->sk_wmem_alloc));
 	DEBUG_NET_WARN_ON_ONCE(!sk_unhashed(sk));
 	DEBUG_NET_WARN_ON_ONCE(sk->sk_socket);
@@ -619,6 +613,13 @@ static void unix_release_sock(struct sock *sk, int embrion)
 	unix_peer(sk) = NULL;
 
 	unix_state_unlock(sk);
+
+#if IS_ENABLED(CONFIG_AF_UNIX_OOB)
+	if (u->oob_skb) {
+		kfree_skb(u->oob_skb);
+		u->oob_skb = NULL;
+	}
+#endif
 
 	wake_up_interruptible_all(&u->peer_wait);
 

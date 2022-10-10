@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2021 Linaro Ltd.
+ * Copyright (C) 2019-2022 Linaro Ltd.
  */
 
 #include <linux/types.h>
@@ -22,8 +22,6 @@
 #include "ipa_table.h"
 #include "ipa_gsi.h"
 #include "ipa_power.h"
-
-#define atomic_dec_not_zero(v)	atomic_add_unless((v), -1, 0)
 
 /* Hardware is told about receive buffers once a "batch" has been queued */
 #define IPA_REPLENISH_BATCH	16		/* Must be non-zero */

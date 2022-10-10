@@ -416,12 +416,7 @@ static void fw_bind_class(void *fh, u32 classid, unsigned long cl, void *q,
 {
 	struct fw_filter *f = fh;
 
-	if (f && f->res.classid == classid) {
-		if (cl)
-			__tcf_bind_filter(q, &f->res, base);
-		else
-			__tcf_unbind_filter(q, &f->res);
-	}
+	tc_cls_bind_class(classid, cl, q, &f->res, base);
 }
 
 static struct tcf_proto_ops cls_fw_ops __read_mostly = {

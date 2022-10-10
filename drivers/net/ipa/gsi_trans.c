@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2020 Linaro Ltd.
+ * Copyright (C) 2019-2022 Linaro Ltd.
  */
 
 #include <linux/types.h>
@@ -22,37 +22,36 @@
  * DOC: GSI Transactions
  *
  * A GSI transaction abstracts the behavior of a GSI channel by representing
- * everything about a related group of IPA commands in a single structure.
- * (A "command" in this sense is either a data transfer or an IPA immediate
+ * everything about a related group of IPA operations in a single structure.
+ * (A "operation" in this sense is either a data transfer or an IPA immediate
  * command.)  Most details of interaction with the GSI hardware are managed
- * by the GSI transaction core, allowing users to simply describe commands
+ * by the GSI transaction core, allowing users to simply describe operations
  * to be performed.  When a transaction has completed a callback function
  * (dependent on the type of endpoint associated with the channel) allows
  * cleanup of resources associated with the transaction.
  *
- * To perform a command (or set of them), a user of the GSI transaction
+ * To perform an operation (or set of them), a user of the GSI transaction
  * interface allocates a transaction, indicating the number of TREs required
- * (one per command).  If sufficient TREs are available, they are reserved
+ * (one per operation).  If sufficient TREs are available, they are reserved
  * for use in the transaction and the allocation succeeds.  This way
- * exhaustion of the available TREs in a channel ring is detected
- * as early as possible.  All resources required to complete a transaction
- * are allocated at transaction allocation time.
+ * exhaustion of the available TREs in a channel ring is detected as early
+ * as possible.  Any other resources that might be needed to complete a
+ * transaction are also allocated when the transaction is allocated.
  *
- * Commands performed as part of a transaction are represented in an array
- * of Linux scatterlist structures.  This array is allocated with the
- * transaction, and its entries are initialized using standard scatterlist
- * functions (such as sg_set_buf() or skb_to_sgvec()).
+ * Operations performed as part of a transaction are represented in an array
+ * of Linux scatterlist structures, allocated with the transaction.  These
+ * scatterlist structures are initialized by "adding" operations to the
+ * transaction.  If a buffer in an operation must be mapped for DMA, this is
+ * done at the time it is added to the transaction.  It is possible for a
+ * mapping error to occur when an operation is added.  In this case the
+ * transaction should simply be freed; this correctly releases resources
+ * associated with the transaction.
  *
- * Once a transaction's scatterlist structures have been initialized, the
- * transaction is committed.  The caller is responsible for mapping buffers
- * for DMA if necessary, and this should be done *before* allocating
- * the transaction.  Between a successful allocation and commit of a
- * transaction no errors should occur.
- *
- * Committing transfers ownership of the entire transaction to the GSI
- * transaction core.  The GSI transaction code formats the content of
- * the scatterlist array into the channel ring buffer and informs the
- * hardware that new TREs are available to process.
+ * Once all operations have been successfully added to a transaction, the
+ * transaction is committed.  Committing transfers ownership of the entire
+ * transaction to the GSI transaction core.  The GSI transaction code
+ * formats the content of the scatterlist array into the channel ring
+ * buffer and informs the hardware that new TREs are available to process.
  *
  * The last TRE in each transaction is marked to interrupt the AP when the
  * GSI hardware has completed it.  Because transfers described by TREs are
@@ -125,11 +124,10 @@ void gsi_trans_pool_exit(struct gsi_trans_pool *pool)
 	memset(pool, 0, sizeof(*pool));
 }
 
-/* Allocate the requested number of (zeroed) entries from the pool */
-/* Home-grown DMA pool.  This way we can preallocate and use the tre_count
- * to guarantee allocations will succeed.  Even though we specify max_alloc
- * (and it can be more than one), we only allow allocation of a single
- * element from a DMA pool.
+/* Home-grown DMA pool.  This way we can preallocate the pool, and guarantee
+ * allocations will succeed.  The immediate commands in a transaction can
+ * require up to max_alloc elements from the pool.  But we only allow
+ * allocation of a single element from a DMA pool at a time.
  */
 int gsi_trans_pool_init_dma(struct device *dev, struct gsi_trans_pool *pool,
 			    size_t size, u32 count, u32 max_alloc)
@@ -537,8 +535,8 @@ static void gsi_trans_tre_fill(struct gsi_tre *dest_tre, dma_addr_t addr,
  *
  * Formats channel ring TRE entries based on the content of the scatterlist.
  * Maps a transaction pointer to the last ring entry used for the transaction,
- * so it can be recovered when it completes.  Moves the transaction to the
- * pending list.  Finally, updates the channel ring pointer and optionally
+ * so it can be recovered when it completes.  Moves the transaction to
+ * pending state.  Finally, updates the channel ring pointer and optionally
  * rings the doorbell.
  */
 static void __gsi_trans_commit(struct gsi_trans *trans, bool ring_db)

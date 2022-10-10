@@ -486,6 +486,8 @@ static inline struct btf_enum *btf_enum(const struct btf_type *t)
 	return (struct btf_enum *)(t + 1);
 }
 
+struct btf_enum64;
+
 static inline struct btf_enum64 *btf_enum64(const struct btf_type *t)
 {
 	return (struct btf_enum64 *)(t + 1);
@@ -493,7 +495,28 @@ static inline struct btf_enum64 *btf_enum64(const struct btf_type *t)
 
 static inline __u64 btf_enum64_value(const struct btf_enum64 *e)
 {
-	return ((__u64)e->val_hi32 << 32) | e->val_lo32;
+	/* struct btf_enum64 is introduced in Linux 6.0, which is very
+	 * bleeding-edge. Here we are avoiding relying on struct btf_enum64
+	 * definition coming from kernel UAPI headers to support wider range
+	 * of system-wide kernel headers.
+	 *
+	 * Given this header can be also included from C++ applications, that
+	 * further restricts C tricks we can use (like using compatible
+	 * anonymous struct). So just treat struct btf_enum64 as
+	 * a three-element array of u32 and access second (lo32) and third
+	 * (hi32) elements directly.
+	 *
+	 * For reference, here is a struct btf_enum64 definition:
+	 *
+	 * const struct btf_enum64 {
+	 *	__u32	name_off;
+	 *	__u32	val_lo32;
+	 *	__u32	val_hi32;
+	 * };
+	 */
+	const __u32 *e64 = (const __u32 *)e;
+
+	return ((__u64)e64[2] << 32) | e64[1];
 }
 
 static inline struct btf_member *btf_members(const struct btf_type *t)

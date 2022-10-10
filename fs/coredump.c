@@ -832,6 +832,39 @@ static int __dump_skip(struct coredump_params *cprm, size_t nr)
 	}
 }
 
+static int dump_emit_page(struct coredump_params *cprm, struct page *page)
+{
+	struct bio_vec bvec = {
+		.bv_page	= page,
+		.bv_offset	= 0,
+		.bv_len		= PAGE_SIZE,
+	};
+	struct iov_iter iter;
+	struct file *file = cprm->file;
+	loff_t pos;
+	ssize_t n;
+
+	if (cprm->to_skip) {
+		if (!__dump_skip(cprm, cprm->to_skip))
+			return 0;
+		cprm->to_skip = 0;
+	}
+	if (cprm->written + PAGE_SIZE > cprm->limit)
+		return 0;
+	if (dump_interrupted())
+		return 0;
+	pos = file->f_pos;
+	iov_iter_bvec(&iter, WRITE, &bvec, 1, PAGE_SIZE);
+	n = __kernel_write_iter(cprm->file, &iter, &pos);
+	if (n != PAGE_SIZE)
+		return 0;
+	file->f_pos = pos;
+	cprm->written += PAGE_SIZE;
+	cprm->pos += PAGE_SIZE;
+
+	return 1;
+}
+
 int dump_emit(struct coredump_params *cprm, const void *addr, int nr)
 {
 	if (cprm->to_skip) {
@@ -863,7 +896,6 @@ int dump_user_range(struct coredump_params *cprm, unsigned long start,
 
 	for (addr = start; addr < start + len; addr += PAGE_SIZE) {
 		struct page *page;
-		int stop;
 
 		/*
 		 * To avoid having to allocate page tables for virtual address
@@ -874,10 +906,7 @@ int dump_user_range(struct coredump_params *cprm, unsigned long start,
 		 */
 		page = get_dump_page(addr);
 		if (page) {
-			void *kaddr = kmap_local_page(page);
-
-			stop = !dump_emit(cprm, kaddr, PAGE_SIZE);
-			kunmap_local(kaddr);
+			int stop = !dump_emit_page(cprm, page);
 			put_page(page);
 			if (stop)
 				return 0;

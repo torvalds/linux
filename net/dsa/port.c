@@ -1661,6 +1661,7 @@ int dsa_port_phylink_create(struct dsa_port *dp)
 {
 	struct dsa_switch *ds = dp->ds;
 	phy_interface_t mode;
+	struct phylink *pl;
 	int err;
 
 	err = of_get_phy_mode(dp->dn, &mode);
@@ -1677,14 +1678,22 @@ int dsa_port_phylink_create(struct dsa_port *dp)
 	if (ds->ops->phylink_get_caps)
 		ds->ops->phylink_get_caps(ds, dp->index, &dp->pl_config);
 
-	dp->pl = phylink_create(&dp->pl_config, of_fwnode_handle(dp->dn),
-				mode, &dsa_port_phylink_mac_ops);
-	if (IS_ERR(dp->pl)) {
+	pl = phylink_create(&dp->pl_config, of_fwnode_handle(dp->dn),
+			    mode, &dsa_port_phylink_mac_ops);
+	if (IS_ERR(pl)) {
 		pr_err("error creating PHYLINK: %ld\n", PTR_ERR(dp->pl));
-		return PTR_ERR(dp->pl);
+		return PTR_ERR(pl);
 	}
 
+	dp->pl = pl;
+
 	return 0;
+}
+
+void dsa_port_phylink_destroy(struct dsa_port *dp)
+{
+	phylink_destroy(dp->pl);
+	dp->pl = NULL;
 }
 
 static int dsa_shared_port_setup_phy_of(struct dsa_port *dp, bool enable)
@@ -1781,7 +1790,7 @@ static int dsa_shared_port_phylink_register(struct dsa_port *dp)
 	return 0;
 
 err_phy_connect:
-	phylink_destroy(dp->pl);
+	dsa_port_phylink_destroy(dp);
 	return err;
 }
 
@@ -1983,8 +1992,7 @@ void dsa_shared_port_link_unregister_of(struct dsa_port *dp)
 		rtnl_lock();
 		phylink_disconnect_phy(dp->pl);
 		rtnl_unlock();
-		phylink_destroy(dp->pl);
-		dp->pl = NULL;
+		dsa_port_phylink_destroy(dp);
 		return;
 	}
 

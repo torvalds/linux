@@ -53,48 +53,26 @@ struct mlx5e_create_sq_param {
 	u8                          min_inline_mode;
 };
 
-static inline bool mlx5e_qid_get_ch_if_in_group(struct mlx5e_params *params,
-						u16 qid,
-						enum mlx5e_rq_group group,
-						u16 *ix)
-{
-	int nch = params->num_channels;
-	int ch = qid - nch * group;
-
-	if (ch < 0 || ch >= nch)
-		return false;
-
-	*ix = ch;
-	return true;
-}
-
-static inline void mlx5e_qid_get_ch_and_group(struct mlx5e_params *params,
-					      u16 qid,
-					      u16 *ix,
-					      enum mlx5e_rq_group *group)
-{
-	u16 nch = params->num_channels;
-
-	*ix = qid % nch;
-	*group = qid / nch;
-}
-
-static inline bool mlx5e_qid_validate(const struct mlx5e_profile *profile,
-				      struct mlx5e_params *params, u64 qid)
-{
-	return qid < params->num_channels * profile->rq_groups;
-}
-
 /* Striding RQ dynamic parameters */
 
 u8 mlx5e_mpwrq_page_shift(struct mlx5_core_dev *mdev, struct mlx5e_xsk_param *xsk);
-u8 mlx5e_mpwrq_log_wqe_sz(struct mlx5_core_dev *mdev, u8 page_shift, bool unaligned);
-u8 mlx5e_mpwrq_pages_per_wqe(struct mlx5_core_dev *mdev, u8 page_shift, bool unaligned);
-u16 mlx5e_mpwrq_umr_wqe_sz(struct mlx5_core_dev *mdev, u8 page_shift, bool unaligned);
-u8 mlx5e_mpwrq_umr_wqebbs(struct mlx5_core_dev *mdev, u8 page_shift, bool unaligned);
-u8 mlx5e_mpwrq_mtts_per_wqe(struct mlx5_core_dev *mdev, u8 page_shift, bool unaligned);
-u32 mlx5e_mpwrq_max_num_entries(struct mlx5_core_dev *mdev, bool unaligned);
-u8 mlx5e_mpwrq_max_log_rq_pkts(struct mlx5_core_dev *mdev, u8 page_shift, bool unaligned);
+enum mlx5e_mpwrq_umr_mode
+mlx5e_mpwrq_umr_mode(struct mlx5_core_dev *mdev, struct mlx5e_xsk_param *xsk);
+u8 mlx5e_mpwrq_umr_entry_size(enum mlx5e_mpwrq_umr_mode mode);
+u8 mlx5e_mpwrq_log_wqe_sz(struct mlx5_core_dev *mdev, u8 page_shift,
+			  enum mlx5e_mpwrq_umr_mode umr_mode);
+u8 mlx5e_mpwrq_pages_per_wqe(struct mlx5_core_dev *mdev, u8 page_shift,
+			     enum mlx5e_mpwrq_umr_mode umr_mode);
+u16 mlx5e_mpwrq_umr_wqe_sz(struct mlx5_core_dev *mdev, u8 page_shift,
+			   enum mlx5e_mpwrq_umr_mode umr_mode);
+u8 mlx5e_mpwrq_umr_wqebbs(struct mlx5_core_dev *mdev, u8 page_shift,
+			  enum mlx5e_mpwrq_umr_mode umr_mode);
+u8 mlx5e_mpwrq_mtts_per_wqe(struct mlx5_core_dev *mdev, u8 page_shift,
+			    enum mlx5e_mpwrq_umr_mode umr_mode);
+u32 mlx5e_mpwrq_max_num_entries(struct mlx5_core_dev *mdev,
+				enum mlx5e_mpwrq_umr_mode umr_mode);
+u8 mlx5e_mpwrq_max_log_rq_pkts(struct mlx5_core_dev *mdev, u8 page_shift,
+			       enum mlx5e_mpwrq_umr_mode umr_mode);
 
 /* Parameter calculations */
 

@@ -102,6 +102,9 @@ Values:
 	- 1 - enable JIT hardening for unprivileged users only
 	- 2 - enable JIT hardening for all users
 
+where "privileged user" in this context means a process having
+CAP_BPF or CAP_SYS_ADMIN in the root user name space.
+
 bpf_jit_kallsyms
 ----------------
 

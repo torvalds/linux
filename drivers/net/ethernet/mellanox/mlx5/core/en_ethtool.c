@@ -314,7 +314,9 @@ void mlx5e_ethtool_get_ringparam(struct mlx5e_priv *priv,
 	/* Limitation for regular RQ. XSK RQ may clamp the queue length in
 	 * mlx5e_mpwqe_get_log_rq_size.
 	 */
-	u8 max_log_mpwrq_pkts = mlx5e_mpwrq_max_log_rq_pkts(priv->mdev, PAGE_SHIFT, false);
+	u8 max_log_mpwrq_pkts = mlx5e_mpwrq_max_log_rq_pkts(priv->mdev,
+							    PAGE_SHIFT,
+							    MLX5E_MPWRQ_UMR_MODE_ALIGNED);
 
 	param->rx_max_pending = 1 << min_t(u8, MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE,
 					   max_log_mpwrq_pkts);

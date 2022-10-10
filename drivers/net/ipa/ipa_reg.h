@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2021 Linaro Ltd.
+ * Copyright (C) 2018-2022 Linaro Ltd.
  */
 #ifndef _IPA_REG_H_
 #define _IPA_REG_H_
@@ -17,53 +17,38 @@ struct ipa;
  * DOC: IPA Registers
  *
  * IPA registers are located within the "ipa-reg" address space defined by
- * Device Tree.  The offset of each register within that space is specified
- * by symbols defined below.  The address space is mapped to virtual memory
- * space in ipa_mem_init().  All IPA registers are 32 bits wide.
+ * Device Tree.  Each register has a specified offset within that space,
+ * which is mapped into virtual memory space in ipa_mem_init().  Each
+ * has a unique identifer, taken from the ipa_reg_id enumerated type.
+ * All IPA registers are 32 bits wide.
  *
- * Certain register types are duplicated for a number of instances of
- * something.  For example, each IPA endpoint has an set of registers
- * defining its configuration.  The offset to an endpoint's set of registers
- * is computed based on an "base" offset, plus an endpoint's ID multiplied
- * and a "stride" value for the register.  For such registers, the offset is
- * computed by a function-like macro that takes a parameter used in the
- * computation.
+ * Certain "parameterized" register types are duplicated for a number of
+ * instances of something.  For example, each IPA endpoint has an set of
+ * registers defining its configuration.  The offset to an endpoint's set
+ * of registers is computed based on an "base" offset, plus an endpoint's
+ * ID multiplied and a "stride" value for the register.  Similarly, some
+ * registers have an offset that depends on execution environment.  In
+ * this case, the stride is multiplied by a member of the gsi_ee_id
+ * enumerated type.
  *
- * Some register offsets depend on execution environment.  For these an "ee"
- * parameter is supplied to the offset macro.  The "ee" value is a member of
- * the gsi_ee enumerated type.
+ * Each version of IPA implements an array of ipa_reg structures indexed
+ * by register ID.  Each entry in the array specifies the base offset and
+ * (for parameterized registers) a non-zero stride value.  Not all versions
+ * of IPA define all registers.  The offset for a register is returned by
+ * ipa_reg_offset() when the register's ipa_reg structure is supplied;
+ * zero is returned for an undefined register (this should never happen).
  *
- * The offset of a register dependent on endpoint ID is computed by a macro
- * that is supplied a parameter "ep", "txep", or "rxep".  A register with an
- * "ep" parameter is valid for any endpoint; a register with a "txep" or
- * "rxep" parameter is valid only for TX or RX endpoints, respectively.  The
- * "*ep" value is assumed to be less than the maximum valid endpoint ID
- * for the current hardware, and that will not exceed IPA_ENDPOINT_MAX.
- *
- * The offset of registers related to filter and route tables is computed
- * by a macro that is supplied a parameter "er".  The "er" represents an
- * endpoint ID for filters, or a route ID for routes.  For filters, the
- * endpoint ID must be less than IPA_ENDPOINT_MAX, but is further restricted
- * because not all endpoints support filtering.  For routes, the route ID
- * must be less than IPA_ROUTE_MAX.
- *
- * The offset of registers related to resource types is computed by a macro
- * that is supplied a parameter "rt".  The "rt" represents a resource type,
- * which is a member of the ipa_resource_type_src enumerated type for
- * source endpoint resources or the ipa_resource_type_dst enumerated type
- * for destination endpoint resources.
- *
- * Some registers encode multiple fields within them.  For these, each field
- * has a symbol below defining a field mask that encodes both the position
- * and width of the field within its register.
- *
- * In some cases, different versions of IPA hardware use different offset or
- * field mask values.  In such cases an inline_function(ipa) is used rather
- * than a MACRO to define the offset or field mask to use.
- *
- * Finally, some registers hold bitmasks representing endpoints.  In such
- * cases the @available field in the @ipa structure defines the "full" set
- * of valid bits for the register.
+ * Some registers encode multiple fields within them.  Each field in
+ * such a register has a unique identifier (from an enumerated type).
+ * The position and width of the fields in a register are defined by
+ * an array of field masks, indexed by field ID.  Two functions are
+ * used to access register fields; both take an ipa_reg structure as
+ * argument.  To encode a value to be represented in a register field,
+ * the value and field ID are passed to ipa_reg_encode().  To extract
+ * a value encoded in a register field, the field ID is passed to
+ * ipa_reg_decode().  In addition, for single-bit fields, ipa_reg_bit()
+ * can be used to either encode the bit value, or to generate a mask
+ * used to extract the bit value.
  */
 
 /* enum ipa_reg_id - IPA register IDs */

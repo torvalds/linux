@@ -66,7 +66,7 @@ static int mlx5e_init_xsk_rq(struct mlx5e_channel *c,
 	rq->xsk_pool     = pool;
 	rq->stats        = &c->priv->channel_stats[c->ix]->xskrq;
 	rq->ptp_cyc2time = mlx5_rq_ts_translator(mdev);
-	rq_xdp_ix        = c->ix + params->num_channels * MLX5E_RQ_GROUP_XSK;
+	rq_xdp_ix        = c->ix;
 	err = mlx5e_rq_set_handlers(rq, params, xsk);
 	if (err)
 		return err;
@@ -154,7 +154,7 @@ err_free_cparam:
 void mlx5e_close_xsk(struct mlx5e_channel *c)
 {
 	clear_bit(MLX5E_CHANNEL_STATE_XSK, c->state);
-	synchronize_net(); /* Sync with the XSK wakeup and with NAPI. */
+	synchronize_net(); /* Sync with NAPI. */
 
 	mlx5e_close_rq(&c->xskrq);
 	mlx5e_close_cq(&c->xskrq.cq);

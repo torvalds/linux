@@ -33,4 +33,9 @@ config SECURITY_LOADPIN_VERITY
 	  on the LoadPin securityfs entry 'dm-verity'. The ioctl
 	  expects a file descriptor of a file with verity digests as
 	  parameter. The file must be located on the pinned root and
-	  contain a comma separated list of digests.
+	  start with the line:
+
+	  # LOADPIN_TRUSTED_VERITY_ROOT_DIGESTS
+
+	  This is followed by the verity digests, with one digest per
+	  line.

@@ -294,8 +294,6 @@ struct dsa_port {
 
 	u8			lag_tx_enabled:1;
 
-	u8			devlink_port_setup:1;
-
 	/* Master state bits, valid only on CPU ports */
 	u8			master_admin_up:1;
 	u8			master_oper_up:1;

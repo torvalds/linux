@@ -2304,7 +2304,7 @@ static int dsa_slave_phy_setup(struct net_device *slave_dev)
 	if (ret) {
 		netdev_err(slave_dev, "failed to connect to PHY: %pe\n",
 			   ERR_PTR(ret));
-		phylink_destroy(dp->pl);
+		dsa_port_phylink_destroy(dp);
 	}
 
 	return ret;
@@ -2476,7 +2476,7 @@ out_phy:
 	rtnl_lock();
 	phylink_disconnect_phy(p->dp->pl);
 	rtnl_unlock();
-	phylink_destroy(p->dp->pl);
+	dsa_port_phylink_destroy(p->dp);
 out_gcells:
 	gro_cells_destroy(&p->gcells);
 out_free:
@@ -2499,7 +2499,7 @@ void dsa_slave_destroy(struct net_device *slave_dev)
 	phylink_disconnect_phy(dp->pl);
 	rtnl_unlock();
 
-	phylink_destroy(dp->pl);
+	dsa_port_phylink_destroy(dp);
 	gro_cells_destroy(&p->gcells);
 	free_percpu(slave_dev->tstats);
 	free_netdev(slave_dev);

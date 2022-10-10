@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2021 Linaro Ltd.
+ * Copyright (C) 2018-2022 Linaro Ltd.
  */
 
 #include <linux/types.h>
@@ -56,9 +56,9 @@
  * element can also contain an immediate command, requesting the IPA perform
  * actions other than data transfer.
  *
- * Each TRE refers to a block of data--also located DRAM.  After writing one
- * or more TREs to a channel, the writer (either the IPA or an EE) writes a
- * doorbell register to inform the receiving side how many elements have
+ * Each TRE refers to a block of data--also located in DRAM.  After writing
+ * one or more TREs to a channel, the writer (either the IPA or an EE) writes
+ * a doorbell register to inform the receiving side how many elements have
  * been written.
  *
  * Each channel has a GSI "event ring" associated with it.  An event ring
@@ -1347,8 +1347,8 @@ gsi_event_trans(struct gsi *gsi, struct gsi_event *event)
  * we update transactions to record their actual received lengths.
  *
  * When an event for a TX channel arrives we use information in the
- * transaction to report the number of requests and bytes have been
- * transferred.
+ * transaction to report the number of requests and bytes that have
+ * been transferred.
  *
  * This function is called whenever we learn that the GSI hardware has filled
  * new events since the last time we checked.  The ring's index field tells
@@ -1474,7 +1474,7 @@ void gsi_channel_doorbell(struct gsi_channel *channel)
 	iowrite32(val, gsi->virt + GSI_CH_C_DOORBELL_0_OFFSET(channel_id));
 }
 
-/* Consult hardware, move any newly completed transactions to completed list */
+/* Consult hardware, move newly completed transactions to completed state */
 void gsi_channel_update(struct gsi_channel *channel)
 {
 	u32 evt_ring_id = channel->evt_ring_id;
@@ -1515,17 +1515,17 @@ void gsi_channel_update(struct gsi_channel *channel)
  *
  * Return:	Transaction pointer, or null if none are available
  *
- * This function returns the first entry on a channel's completed transaction
- * list.  If that list is empty, the hardware is consulted to determine
- * whether any new transactions have completed.  If so, they're moved to the
- * completed list and the new first entry is returned.  If there are no more
- * completed transactions, a null pointer is returned.
+ * This function returns the first of a channel's completed transactions.
+ * If no transactions are in completed state, the hardware is consulted to
+ * determine whether any new transactions have completed.  If so, they're
+ * moved to completed state and the first such transaction is returned.
+ * If there are no more completed transactions, a null pointer is returned.
  */
 static struct gsi_trans *gsi_channel_poll_one(struct gsi_channel *channel)
 {
 	struct gsi_trans *trans;
 
-	/* Get the first transaction from the completed list */
+	/* Get the first completed transaction */
 	trans = gsi_channel_trans_complete(channel);
 	if (trans)
 		gsi_trans_move_polled(trans);
