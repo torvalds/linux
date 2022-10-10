@@ -361,7 +361,7 @@ static int ntfs_fs_parse_param(struct fs_context *fc,
 		opts->nohidden = result.negated ? 1 : 0;
 		break;
 	case Opt_hide_dot_files:
-		opts->hide_dot_files = result.negated ? 1 : 0;
+		opts->hide_dot_files = result.negated ? 0 : 1;
 		break;
 	case Opt_windows_names:
 		opts->windows_names = result.negated ? 0 : 1;
