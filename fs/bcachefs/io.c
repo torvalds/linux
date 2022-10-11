@@ -419,11 +419,12 @@ int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
 
 		bch2_btree_iter_set_snapshot(iter, snapshot);
 
-		k = bch2_btree_iter_peek(iter);
-		if (bkey_ge(iter->pos, end_pos)) {
-			bch2_btree_iter_set_pos(iter, end_pos);
+		/*
+		 * peek_upto() doesn't have ideal semantics for extents:
+		 */
+		k = bch2_btree_iter_peek_upto(iter, end_pos);
+		if (!k.k)
 			break;
-		}
 
 		ret = bkey_err(k);
 		if (ret)

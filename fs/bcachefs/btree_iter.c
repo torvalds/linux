@@ -2042,6 +2042,7 @@ struct bkey_s_c bch2_btree_iter_peek_upto(struct btree_iter *iter, struct bpos e
 	int ret;
 
 	EBUG_ON(iter->flags & BTREE_ITER_ALL_LEVELS);
+	EBUG_ON((iter->flags & BTREE_ITER_FILTER_SNAPSHOTS) && bkey_eq(end, POS_MAX));
 
 	if (iter->update_path) {
 		bch2_path_put_nokeep(trans, iter->update_path,
@@ -2053,7 +2054,9 @@ struct bkey_s_c bch2_btree_iter_peek_upto(struct btree_iter *iter, struct bpos e
 
 	while (1) {
 		k = __bch2_btree_iter_peek(iter, search_key);
-		if (!k.k || bkey_err(k))
+		if (unlikely(!k.k))
+			goto end;
+		if (unlikely(bkey_err(k)))
 			goto out_no_locked;
 
 		/*
@@ -2066,11 +2069,10 @@ struct bkey_s_c bch2_btree_iter_peek_upto(struct btree_iter *iter, struct bpos e
 		else
 			iter_pos = bkey_max(iter->pos, bkey_start_pos(k.k));
 
-		if (bkey_gt(iter_pos, end)) {
-			bch2_btree_iter_set_pos(iter, end);
-			k = bkey_s_c_null;
-			goto out_no_locked;
-		}
+		if (unlikely(!(iter->flags & BTREE_ITER_IS_EXTENTS)
+			     ? bkey_gt(iter_pos, end)
+			     : bkey_ge(iter_pos, end)))
+			goto end;
 
 		if (iter->update_path &&
 		    !bkey_eq(iter->update_path->pos, k.k->p)) {
@@ -2159,6 +2161,10 @@ out_no_locked:
 	bch2_btree_iter_verify_entry_exit(iter);
 
 	return k;
+end:
+	bch2_btree_iter_set_pos(iter, end);
+	k = bkey_s_c_null;
+	goto out_no_locked;
 }
 
 /**
@@ -2463,15 +2469,15 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 			goto out_no_locked;
 	} else {
 		struct bpos next;
+		struct bpos end = iter->pos;
+
+		if (iter->flags & BTREE_ITER_IS_EXTENTS)
+			end.offset = U64_MAX;
 
 		EBUG_ON(iter->path->level);
 
 		if (iter->flags & BTREE_ITER_INTENT) {
 			struct btree_iter iter2;
-			struct bpos end = iter->pos;
-
-			if (iter->flags & BTREE_ITER_IS_EXTENTS)
-				end.offset = U64_MAX;
 
 			bch2_trans_copy_iter(&iter2, iter);
 			k = bch2_btree_iter_peek_upto(&iter2, end);
@@ -2484,7 +2490,7 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 		} else {
 			struct bpos pos = iter->pos;
 
-			k = bch2_btree_iter_peek(iter);
+			k = bch2_btree_iter_peek_upto(iter, end);
 			if (unlikely(bkey_err(k)))
 				bch2_btree_iter_set_pos(iter, pos);
 			else

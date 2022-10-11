@@ -251,13 +251,9 @@ static struct bkey_s_c get_next_src(struct btree_iter *iter, struct bpos end)
 	struct bkey_s_c k;
 	int ret;
 
-	for_each_btree_key_continue_norestart(*iter, 0, k, ret) {
-		if (bkey_ge(iter->pos, end))
-			break;
-
+	for_each_btree_key_upto_continue_norestart(*iter, end, 0, k, ret)
 		if (bkey_extent_is_data(k.k))
 			return k;
-	}
 
 	if (bkey_ge(iter->pos, end))
 		bch2_btree_iter_set_pos(iter, end);

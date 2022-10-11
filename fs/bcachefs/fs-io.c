@@ -2542,15 +2542,11 @@ retry:
 	if (ret)
 		goto err;
 
-	for_each_btree_key_norestart(&trans, iter, BTREE_ID_extents, start, 0, k, ret) {
-		if (bkey_ge(bkey_start_pos(k.k), end))
-			break;
-
+	for_each_btree_key_upto_norestart(&trans, iter, BTREE_ID_extents, start, end, 0, k, ret)
 		if (bkey_extent_is_data(k.k)) {
 			ret = 1;
 			break;
 		}
-	}
 	start = iter.pos;
 	bch2_trans_iter_exit(&trans, &iter);
 err:
@@ -2590,8 +2586,8 @@ static int __bch2_truncate_page(struct bch_inode_info *inode,
 		 * page
 		 */
 		ret = range_has_data(c, inode->ei_subvol,
-				POS(inode->v.i_ino, index << PAGE_SECTORS_SHIFT),
-				POS(inode->v.i_ino, (index + 1) << PAGE_SECTORS_SHIFT));
+				POS(inode->v.i_ino, (index << PAGE_SECTORS_SHIFT)),
+				POS(inode->v.i_ino, (index << PAGE_SECTORS_SHIFT) + PAGE_SECTORS));
 		if (ret <= 0)
 			return ret;
 
@@ -2973,7 +2969,7 @@ static long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
 
 		k = insert
 			? bch2_btree_iter_peek_prev(&src)
-			: bch2_btree_iter_peek(&src);
+			: bch2_btree_iter_peek_upto(&src, POS(inode->v.i_ino, U64_MAX));
 		if ((ret = bkey_err(k)))
 			continue;
 
@@ -3264,6 +3260,10 @@ err:
 	return bch2_err_class(ret);
 }
 
+/*
+ * Take a quota reservation for unallocated blocks in a given file range
+ * Does not check pagecache
+ */
 static int quota_reserve_range(struct bch_inode_info *inode,
 			       struct quota_res *res,
 			       u64 start, u64 end)
@@ -3477,11 +3477,11 @@ retry:
 	if (ret)
 		goto err;
 
-	for_each_btree_key_norestart(&trans, iter, BTREE_ID_extents,
-			   SPOS(inode->v.i_ino, offset >> 9, snapshot), 0, k, ret) {
-		if (k.k->p.inode != inode->v.i_ino) {
-			break;
-		} else if (bkey_extent_is_data(k.k)) {
+	for_each_btree_key_upto_norestart(&trans, iter, BTREE_ID_extents,
+			   SPOS(inode->v.i_ino, offset >> 9, snapshot),
+			   POS(inode->v.i_ino, U64_MAX),
+			   0, k, ret) {
+		if (bkey_extent_is_data(k.k)) {
 			next_data = max(offset, bkey_start_offset(k.k) << 9);
 			break;
 		} else if (k.k->p.offset >> 9 > isize)

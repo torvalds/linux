@@ -128,11 +128,8 @@ int bch2_extent_atomic_end(struct btree_trans *trans,
 
 	bch2_trans_copy_iter(&copy, iter);
 
-	for_each_btree_key_continue_norestart(copy, 0, k, ret) {
+	for_each_btree_key_upto_continue_norestart(copy, insert->k.p, 0, k, ret) {
 		unsigned offset = 0;
-
-		if (bkey_ge(bkey_start_pos(k.k), *end))
-			break;
 
 		if (bkey_gt(bkey_start_pos(&insert->k), bkey_start_pos(k.k)))
 			offset = bkey_start_offset(&insert->k) -
