@@ -10,8 +10,11 @@
 #include <linux/printk.h>
 #include <../selftests/kselftest.h>
 
-#define MEM_SIZE		SZ_16K
+#define MEM_SIZE		SZ_32K
 #define NUMA_NODES		8
+
+#define INIT_MEMBLOCK_REGIONS			128
+#define INIT_MEMBLOCK_RESERVED_REGIONS		INIT_MEMBLOCK_REGIONS
 
 enum test_flags {
 	/* No special request. */
@@ -124,6 +127,7 @@ void setup_memblock(void);
 void setup_numa_memblock(const unsigned int node_fracs[]);
 void dummy_physical_memory_init(void);
 void dummy_physical_memory_cleanup(void);
+phys_addr_t dummy_physical_memory_base(void);
 void parse_args(int argc, char **argv);
 
 void test_fail(void);
