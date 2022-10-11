@@ -4299,7 +4299,6 @@ struct extent_buffer *btrfs_clone_extent_buffer(const struct extent_buffer *src)
 	 */
 	set_bit(EXTENT_BUFFER_UNMAPPED, &new->bflags);
 
-	memset(new->pages, 0, sizeof(*new->pages) * num_pages);
 	ret = btrfs_alloc_page_array(num_pages, new->pages);
 	if (ret) {
 		btrfs_release_extent_buffer(new);
