@@ -23,13 +23,13 @@ struct btrfs_backref_shared_cache_entry {
 	bool is_shared;
 };
 
-struct btrfs_backref_shared_cache {
+struct btrfs_backref_share_check_ctx {
 	/*
 	 * A path from a root to a leaf that has a file extent item pointing to
 	 * a given data extent should never exceed the maximum b+tree height.
 	 */
-	struct btrfs_backref_shared_cache_entry entries[BTRFS_MAX_LEVEL];
-	bool use_cache;
+	struct btrfs_backref_shared_cache_entry path_cache_entries[BTRFS_MAX_LEVEL];
+	bool use_path_cache;
 };
 
 typedef int (iterate_extent_inodes_t)(u64 inum, u64 offset, u64 root,
@@ -80,7 +80,7 @@ int btrfs_find_one_extref(struct btrfs_root *root, u64 inode_objectid,
 int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
 				u64 extent_gen,
 				struct ulist *roots, struct ulist *tmp,
-				struct btrfs_backref_shared_cache *cache);
+				struct btrfs_backref_share_check_ctx *ctx);
 
 int __init btrfs_prelim_ref_init(void);
 void __cold btrfs_prelim_ref_exit(void);
