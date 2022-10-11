@@ -24,6 +24,9 @@ struct btrfs_backref_shared_cache_entry {
 };
 
 struct btrfs_backref_share_check_ctx {
+	/* Ulists used during backref walking. */
+	struct ulist refs;
+	struct ulist roots;
 	/*
 	 * A path from a root to a leaf that has a file extent item pointing to
 	 * a given data extent should never exceed the maximum b+tree height.
@@ -34,6 +37,9 @@ struct btrfs_backref_share_check_ctx {
 
 typedef int (iterate_extent_inodes_t)(u64 inum, u64 offset, u64 root,
 		void *ctx);
+
+struct btrfs_backref_share_check_ctx *btrfs_alloc_backref_share_check_ctx(void);
+void btrfs_free_backref_share_ctx(struct btrfs_backref_share_check_ctx *ctx);
 
 int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
 			struct btrfs_path *path, struct btrfs_key *found_key,
@@ -79,7 +85,6 @@ int btrfs_find_one_extref(struct btrfs_root *root, u64 inode_objectid,
 			  u64 *found_off);
 int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
 				u64 extent_gen,
-				struct ulist *roots, struct ulist *tmp,
 				struct btrfs_backref_share_check_ctx *ctx);
 
 int __init btrfs_prelim_ref_init(void);

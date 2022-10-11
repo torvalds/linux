@@ -3708,7 +3708,6 @@ static int fiemap_process_hole(struct btrfs_inode *inode,
 			       struct btrfs_backref_share_check_ctx *backref_ctx,
 			       u64 disk_bytenr, u64 extent_offset,
 			       u64 extent_gen,
-			       struct ulist *roots, struct ulist *tmp_ulist,
 			       u64 start, u64 end)
 {
 	const u64 i_size = i_size_read(&inode->vfs_inode);
@@ -3752,10 +3751,9 @@ static int fiemap_process_hole(struct btrfs_inode *inode,
 		if (prealloc_len > 0) {
 			if (!checked_extent_shared && fieinfo->fi_extents_max) {
 				ret = btrfs_is_data_extent_shared(inode,
-							  disk_bytenr,
-							  extent_gen, roots,
-							  tmp_ulist,
-							  backref_ctx);
+								  disk_bytenr,
+								  extent_gen,
+								  backref_ctx);
 				if (ret < 0)
 					return ret;
 				else if (ret > 0)
@@ -3803,8 +3801,7 @@ static int fiemap_process_hole(struct btrfs_inode *inode,
 		if (!checked_extent_shared && fieinfo->fi_extents_max) {
 			ret = btrfs_is_data_extent_shared(inode,
 							  disk_bytenr,
-							  extent_gen, roots,
-							  tmp_ulist,
+							  extent_gen,
 							  backref_ctx);
 			if (ret < 0)
 				return ret;
@@ -3905,8 +3902,6 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 	struct btrfs_path *path;
 	struct fiemap_cache cache = { 0 };
 	struct btrfs_backref_share_check_ctx *backref_ctx;
-	struct ulist *roots;
-	struct ulist *tmp_ulist;
 	u64 last_extent_end;
 	u64 prev_extent_end;
 	u64 lockstart;
@@ -3914,11 +3909,9 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 	bool stopped = false;
 	int ret;
 
-	backref_ctx = kzalloc(sizeof(*backref_ctx), GFP_KERNEL);
+	backref_ctx = btrfs_alloc_backref_share_check_ctx();
 	path = btrfs_alloc_path();
-	roots = ulist_alloc(GFP_KERNEL);
-	tmp_ulist = ulist_alloc(GFP_KERNEL);
-	if (!backref_ctx || !path || !roots || !tmp_ulist) {
+	if (!backref_ctx || !path) {
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -3979,7 +3972,6 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 
 			ret = fiemap_process_hole(inode, fieinfo, &cache,
 						  backref_ctx, 0, 0, 0,
-						  roots, tmp_ulist,
 						  prev_extent_end, range_end);
 			if (ret < 0) {
 				goto out_unlock;
@@ -4021,13 +4013,12 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 			ret = fiemap_process_hole(inode, fieinfo, &cache,
 						  backref_ctx,
 						  disk_bytenr, extent_offset,
-						  extent_gen, roots, tmp_ulist,
-						  key.offset, extent_end - 1);
+						  extent_gen, key.offset,
+						  extent_end - 1);
 		} else if (disk_bytenr == 0) {
 			/* We have an explicit hole. */
 			ret = fiemap_process_hole(inode, fieinfo, &cache,
 						  backref_ctx, 0, 0, 0,
-						  roots, tmp_ulist,
 						  key.offset, extent_end - 1);
 		} else {
 			/* We have a regular extent. */
@@ -4035,8 +4026,6 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 				ret = btrfs_is_data_extent_shared(inode,
 								  disk_bytenr,
 								  extent_gen,
-								  roots,
-								  tmp_ulist,
 								  backref_ctx);
 				if (ret < 0)
 					goto out_unlock;
@@ -4087,8 +4076,7 @@ check_eof_delalloc:
 
 	if (!stopped && prev_extent_end < lockend) {
 		ret = fiemap_process_hole(inode, fieinfo, &cache, backref_ctx,
-					  0, 0, 0, roots, tmp_ulist,
-					  prev_extent_end, lockend - 1);
+					  0, 0, 0, prev_extent_end, lockend - 1);
 		if (ret < 0)
 			goto out_unlock;
 		prev_extent_end = lockend;
@@ -4119,10 +4107,8 @@ check_eof_delalloc:
 out_unlock:
 	unlock_extent(&inode->io_tree, lockstart, lockend, &cached_state);
 out:
-	kfree(backref_ctx);
+	btrfs_free_backref_share_ctx(backref_ctx);
 	btrfs_free_path(path);
-	ulist_free(roots);
-	ulist_free(tmp_ulist);
 	return ret;
 }
 
