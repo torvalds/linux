@@ -12,7 +12,6 @@
 #include "../include/drv_types.h"
 #include "../include/rtw_br_ext.h"
 #include "../include/usb_osintf.h"
-#include "../include/recv_osdep.h"
 
 #ifndef csum_ipv6_magic
 #include "../include/net/ip6_checksum.h"
