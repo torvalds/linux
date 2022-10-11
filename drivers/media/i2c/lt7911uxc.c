@@ -1278,16 +1278,6 @@ static const struct v4l2_ctrl_config lt7911uxc_ctrl_audio_present = {
 	.flags = V4L2_CTRL_FLAG_READ_ONLY,
 };
 
-static void lt7911uxc_reset(struct lt7911uxc *lt7911uxc)
-{
-	gpiod_set_value(lt7911uxc->reset_gpio, 0);
-	usleep_range(2000, 2100);
-	gpiod_set_value(lt7911uxc->reset_gpio, 1);
-	usleep_range(120*1000, 121*1000);
-	gpiod_set_value(lt7911uxc->reset_gpio, 0);
-	usleep_range(300*1000, 310*1000);
-}
-
 static int lt7911uxc_init_v4l2_ctrls(struct lt7911uxc *lt7911uxc)
 {
 	const struct lt7911uxc_mode *mode;
@@ -1419,7 +1409,9 @@ static int lt7911uxc_probe_of(struct lt7911uxc *lt7911uxc)
 	lt7911uxc->enable_hdcp = false;
 
 	gpiod_set_value(lt7911uxc->power_gpio, 1);
-	lt7911uxc_reset(lt7911uxc);
+	//delay 2~3ms before reset
+	usleep_range(2000, 3000);
+	gpiod_set_value(lt7911uxc->reset_gpio, 0);
 
 	ret = 0;
 
