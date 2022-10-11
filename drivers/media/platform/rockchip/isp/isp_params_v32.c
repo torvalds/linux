@@ -4064,6 +4064,8 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 
 	priv_val->buf_3dlut_idx = 0;
 	for (i = 0; i < ISP32_3DLUT_BUF_NUM; i++) {
+		if (priv_val->buf_3dlut[i].mem_priv)
+			continue;
 		priv_val->buf_3dlut[i].is_need_vaddr = true;
 		priv_val->buf_3dlut[i].size = ISP32_3DLUT_BUF_SIZE;
 		ret = rkisp_alloc_buffer(dev, &priv_val->buf_3dlut[i]);
@@ -4084,6 +4086,7 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 		u32 h = ALIGN(isp_sdev->in_crop.height, 16);
 		u32 val, wrap_line, wsize, div;
 		dma_addr_t dma_addr;
+		bool is_alloc;
 
 		priv_val->is_lo8x8 = (!new_params->others.bay3d_cfg.lo4x8_en &&
 				      !new_params->others.bay3d_cfg.lo4x4_en);
@@ -4102,11 +4105,20 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 		wsize *= 2;
 		div = is_bwopt_dis ? 1 : 2;
 		val = ALIGN(wsize * h / div, 16);
-		priv_val->buf_3dnr_iir.size = val;
-		ret = rkisp_alloc_buffer(dev, &priv_val->buf_3dnr_iir);
-		if (ret) {
-			dev_err(dev->dev, "alloc bay3d iir buf fail:%d\n", ret);
-			goto err_3dnr;
+		is_alloc = true;
+		if (priv_val->buf_3dnr_iir.mem_priv) {
+			if (val > priv_val->buf_3dnr_iir.size)
+				rkisp_free_buffer(dev, &priv_val->buf_3dnr_iir);
+			else
+				is_alloc = false;
+		}
+		if (is_alloc) {
+			priv_val->buf_3dnr_iir.size = val;
+			ret = rkisp_alloc_buffer(dev, &priv_val->buf_3dnr_iir);
+			if (ret) {
+				dev_err(dev->dev, "alloc bay3d iir buf fail:%d\n", ret);
+				goto err_3dnr;
+			}
 		}
 		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_IIR_WR_SIZE);
 		val = priv_val->buf_3dnr_iir.dma_addr;
@@ -4117,12 +4129,21 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 		val = w * h / div;
 		/* pixel to Byte and align */
 		val = ALIGN(val * 2, 16);
-		priv_val->buf_3dnr_ds.size = val;
-		ret = rkisp_alloc_buffer(dev, &priv_val->buf_3dnr_ds);
-		if (ret) {
-			rkisp_free_buffer(dev, &priv_val->buf_3dnr_iir);
-			dev_err(dev->dev, "alloc bay3d ds buf fail:%d\n", ret);
-			goto err_3dnr;
+		is_alloc = true;
+		if (priv_val->buf_3dnr_ds.mem_priv) {
+			if (val > priv_val->buf_3dnr_ds.size)
+				rkisp_free_buffer(dev, &priv_val->buf_3dnr_ds);
+			else
+				is_alloc = false;
+		}
+		if (is_alloc) {
+			priv_val->buf_3dnr_ds.size = val;
+			ret = rkisp_alloc_buffer(dev, &priv_val->buf_3dnr_ds);
+			if (ret) {
+				rkisp_free_buffer(dev, &priv_val->buf_3dnr_iir);
+				dev_err(dev->dev, "alloc bay3d ds buf fail:%d\n", ret);
+				goto err_3dnr;
+			}
 		}
 		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_DS_WR_SIZE);
 		val = priv_val->buf_3dnr_ds.dma_addr;
@@ -4139,8 +4160,16 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 		wsize = ALIGN(wsize * 2, 16);
 		div = is_bwopt_dis ? 1 : 2;
 		val = ALIGN(wsize * wrap_line / div, 16);
-		priv_val->buf_3dnr_cur.size = val;
-		if (val > dev->hw_dev->sram.size) {
+		is_alloc = true;
+		if (priv_val->buf_3dnr_cur.mem_priv) {
+			if (val > priv_val->buf_3dnr_cur.size ||
+			    val < dev->hw_dev->sram.size)
+				rkisp_free_buffer(dev, &priv_val->buf_3dnr_cur);
+			else
+				is_alloc = false;
+		}
+		if (val > dev->hw_dev->sram.size && is_alloc) {
+			priv_val->buf_3dnr_cur.size = val;
 			ret = rkisp_alloc_buffer(dev, &priv_val->buf_3dnr_cur);
 			if (ret) {
 				rkisp_free_buffer(dev, &priv_val->buf_3dnr_iir);
@@ -4150,9 +4179,11 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 			}
 			dma_addr = priv_val->buf_3dnr_cur.dma_addr;
 			priv_val->is_sram = false;
-		} else {
+		} else if (val <= dev->hw_dev->sram.size) {
 			dma_addr = dev->hw_dev->sram.dma_addr;
 			priv_val->is_sram = true;
+		} else {
+			dma_addr = priv_val->buf_3dnr_cur.dma_addr;
 		}
 		isp3_param_write(params_vdev, val, ISP3X_MI_BAY3D_CUR_WR_SIZE);
 		isp3_param_write(params_vdev, val, ISP32_MI_BAY3D_CUR_RD_SIZE);
@@ -4443,6 +4474,7 @@ static int rkisp_init_mesh_buf(struct rkisp_isp_params_vdev *params_vdev,
 	u32 mesh_h = meshsize->meas_height;
 	u32 mesh_size, buf_size;
 	int i, ret, buf_cnt = meshsize->buf_cnt;
+	bool is_alloc;
 
 	priv_val = params_vdev->priv_val;
 	if (!priv_val) {
@@ -4475,16 +4507,28 @@ static int rkisp_init_mesh_buf(struct rkisp_isp_params_vdev *params_vdev,
 		buf->is_need_vaddr = true;
 		buf->is_need_dbuf = true;
 		buf->is_need_dmafd = true;
-		buf->size = buf_size;
-		ret = rkisp_alloc_buffer(params_vdev->dev, buf);
-		if (ret) {
-			dev_err(dev, "%s failed\n", __func__);
-			goto err;
+		is_alloc = true;
+		if (buf->mem_priv) {
+			if (buf_size > buf->size) {
+				rkisp_free_buffer(params_vdev->dev, buf);
+			} else {
+				is_alloc = false;
+				buf->dma_fd = dma_buf_fd(buf->dbuf, O_CLOEXEC);
+				if (buf->dma_fd < 0)
+					goto err;
+			}
 		}
-
-		mesh_head = (struct isp2x_mesh_head *)buf->vaddr;
-		mesh_head->stat = MESH_BUF_INIT;
-		mesh_head->data_oft = ALIGN(sizeof(struct isp2x_mesh_head), 16);
+		if (is_alloc) {
+			buf->size = buf_size;
+			ret = rkisp_alloc_buffer(params_vdev->dev, buf);
+			if (ret) {
+				dev_err(dev, "%s failed\n", __func__);
+				goto err;
+			}
+			mesh_head = (struct isp2x_mesh_head *)buf->vaddr;
+			mesh_head->stat = MESH_BUF_INIT;
+			mesh_head->data_oft = ALIGN(sizeof(struct isp2x_mesh_head), 16);
+		}
 		buf++;
 	}
 
@@ -4541,7 +4585,6 @@ rkisp_params_set_meshbuf_size_v32(struct rkisp_isp_params_vdev *params_vdev,
 {
 	struct rkisp_meshbuf_size *meshsize = size;
 
-	rkisp_deinit_mesh_buf(params_vdev, meshsize->module_id);
 	rkisp_init_mesh_buf(params_vdev, meshsize);
 }
 
