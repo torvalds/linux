@@ -5665,6 +5665,12 @@ Q:	http://patchwork.linuxtv.org/project/linux-media/list/
 T:	git git://linuxtv.org/anttip/media_tree.git
 F:	drivers/media/common/cypress_firmware*
 
+CYPRESS CY8C95X0 PINCTRL DRIVER
+M:	Patrick Rudolph <patrick.rudolph@9elements.com>
+L:	linux-gpio@vger.kernel.org
+S:	Maintained
+F:	drivers/pinctrl/pinctrl-cy8c95x0.c
+
 CYPRESS CY8CTMA140 TOUCHSCREEN DRIVER
 M:	Linus Walleij <linus.walleij@linaro.org>
 L:	linux-input@vger.kernel.org
@@ -19606,8 +19612,8 @@ M:	Emil Renner Berthing <kernel@esmil.dk>
 L:	linux-gpio@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/pinctrl/starfive,jh7100-pinctrl.yaml
-F:	drivers/pinctrl/pinctrl-starfive.c
-F:	include/dt-bindings/pinctrl/pinctrl-starfive.h
+F:	drivers/pinctrl/starfive/
+F:	include/dt-bindings/pinctrl/pinctrl-starfive-jh7100.h
 
 STARFIVE JH7100 RESET CONTROLLER DRIVER
 M:	Emil Renner Berthing <kernel@esmil.dk>

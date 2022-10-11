@@ -3,8 +3,8 @@
  * Copyright (C) 2021 Emil Renner Berthing <kernel@esmil.dk>
  */
 
-#ifndef __DT_BINDINGS_PINCTRL_STARFIVE_H__
-#define __DT_BINDINGS_PINCTRL_STARFIVE_H__
+#ifndef __DT_BINDINGS_PINCTRL_STARFIVE_JH7100_H__
+#define __DT_BINDINGS_PINCTRL_STARFIVE_JH7100_H__
 
 #define PAD_GPIO_OFFSET		0
 #define PAD_FUNC_SHARE_OFFSET	64
@@ -272,4 +272,4 @@
 
 #define GPI_NONE				0xff
 
-#endif /* __DT_BINDINGS_PINCTRL_STARFIVE_H__ */
+#endif /* __DT_BINDINGS_PINCTRL_STARFIVE_JH7100_H__ */

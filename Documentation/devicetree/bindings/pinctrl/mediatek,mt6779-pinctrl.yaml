@@ -76,6 +76,8 @@ required:
 patternProperties:
   '-[0-9]*$':
     type: object
+    additionalProperties: false
+
     patternProperties:
       '-pins*$':
         type: object

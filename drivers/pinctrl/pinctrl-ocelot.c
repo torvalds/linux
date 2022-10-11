@@ -2129,4 +2129,6 @@ static struct platform_driver ocelot_pinctrl_driver = {
 	.remove = ocelot_pinctrl_remove,
 };
 module_platform_driver(ocelot_pinctrl_driver);
+
+MODULE_DESCRIPTION("Ocelot Chip Pinctrl Driver");
 MODULE_LICENSE("Dual MIT/GPL");
