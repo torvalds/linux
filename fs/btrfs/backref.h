@@ -23,6 +23,8 @@ struct btrfs_backref_shared_cache_entry {
 	bool is_shared;
 };
 
+#define BTRFS_BACKREF_CTX_PREV_EXTENTS_SIZE 8
+
 struct btrfs_backref_share_check_ctx {
 	/* Ulists used during backref walking. */
 	struct ulist refs;
@@ -32,6 +34,31 @@ struct btrfs_backref_share_check_ctx {
 	 */
 	struct btrfs_backref_shared_cache_entry path_cache_entries[BTRFS_MAX_LEVEL];
 	bool use_path_cache;
+	/*
+	 * Cache the sharedness result for the last few extents we have found,
+	 * but only for extents for which we have multiple file extent items
+	 * that point to them.
+	 * It's very common to have several file extent items that point to the
+	 * same extent (bytenr) but with different offsets and lengths. This
+	 * typically happens for COW writes, partial writes into prealloc
+	 * extents, NOCOW writes after snapshoting a root, hole punching or
+	 * reflinking within the same file (less common perhaps).
+	 * So keep a small cache with the lookup results for the extent pointed
+	 * by the last few file extent items. This cache is checked, with a
+	 * linear scan, whenever btrfs_is_data_extent_shared() is called, so
+	 * it must be small so that it does not negatively affect performance in
+	 * case we don't have multiple file extent items that point to the same
+	 * data extent.
+	 */
+	struct {
+		u64 bytenr;
+		bool is_shared;
+	} prev_extents_cache[BTRFS_BACKREF_CTX_PREV_EXTENTS_SIZE];
+	/*
+	 * The slot in the prev_extents_cache array that will be used for
+	 * storing the sharedness result of a new data extent.
+	 */
+	int prev_extents_cache_slot;
 };
 
 typedef int (iterate_extent_inodes_t)(u64 inum, u64 offset, u64 root,

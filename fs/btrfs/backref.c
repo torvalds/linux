@@ -137,7 +137,25 @@ struct preftrees {
 struct share_check {
 	u64 root_objectid;
 	u64 inum;
+	u64 data_bytenr;
+	/*
+	 * Counts number of inodes that refer to an extent (different inodes in
+	 * the same root or different roots) that we could find. The sharedness
+	 * check typically stops once this counter gets greater than 1, so it
+	 * may not reflect the total number of inodes.
+	 */
 	int share_count;
+	/*
+	 * The number of times we found our inode refers to the data extent we
+	 * are determining the sharedness. In other words, how many file extent
+	 * items we could find for our inode that point to our target data
+	 * extent. The value we get here after finishing the extent sharedness
+	 * check may be smaller than reality, but if it ends up being greater
+	 * than 1, then we know for sure the inode has multiple file extent
+	 * items that point to our inode, and we can safely assume it's useful
+	 * to cache the sharedness check result.
+	 */
+	int self_ref_count;
 	bool have_delayed_delete_refs;
 };
 
@@ -207,7 +225,7 @@ static int prelim_ref_compare(struct prelim_ref *ref1,
 }
 
 static void update_share_count(struct share_check *sc, int oldcount,
-			       int newcount)
+			       int newcount, struct prelim_ref *newref)
 {
 	if ((!sc) || (oldcount == 0 && newcount < 1))
 		return;
@@ -216,6 +234,11 @@ static void update_share_count(struct share_check *sc, int oldcount,
 		sc->share_count--;
 	else if (oldcount < 1 && newcount > 0)
 		sc->share_count++;
+
+	if (newref->root_id == sc->root_objectid &&
+	    newref->wanted_disk_byte == sc->data_bytenr &&
+	    newref->key_for_search.objectid == sc->inum)
+		sc->self_ref_count += newref->count;
 }
 
 /*
@@ -266,14 +289,14 @@ static void prelim_ref_insert(const struct btrfs_fs_info *fs_info,
 			 * BTRFS_[ADD|DROP]_DELAYED_REF actions.
 			 */
 			update_share_count(sc, ref->count,
-					   ref->count + newref->count);
+					   ref->count + newref->count, newref);
 			ref->count += newref->count;
 			free_pref(newref);
 			return;
 		}
 	}
 
-	update_share_count(sc, 0, newref->count);
+	update_share_count(sc, 0, newref->count, newref);
 	preftree->count++;
 	trace_btrfs_prelim_ref_insert(fs_info, newref, NULL, preftree->count);
 	rb_link_node(&newref->rbnode, parent, p);
@@ -1724,10 +1747,17 @@ int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
 	struct share_check shared = {
 		.root_objectid = root->root_key.objectid,
 		.inum = btrfs_ino(inode),
+		.data_bytenr = bytenr,
 		.share_count = 0,
+		.self_ref_count = 0,
 		.have_delayed_delete_refs = false,
 	};
 	int level;
+
+	for (int i = 0; i < BTRFS_BACKREF_CTX_PREV_EXTENTS_SIZE; i++) {
+		if (ctx->prev_extents_cache[i].bytenr == bytenr)
+			return ctx->prev_extents_cache[i].is_shared;
+	}
 
 	ulist_init(&ctx->refs);
 
@@ -1811,6 +1841,20 @@ int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
 		shared.share_count = 0;
 		shared.have_delayed_delete_refs = false;
 		cond_resched();
+	}
+
+	/*
+	 * Cache the sharedness result for the data extent if we know our inode
+	 * has more than 1 file extent item that refers to the data extent.
+	 */
+	if (ret >= 0 && shared.self_ref_count > 1) {
+		int slot = ctx->prev_extents_cache_slot;
+
+		ctx->prev_extents_cache[slot].bytenr = shared.data_bytenr;
+		ctx->prev_extents_cache[slot].is_shared = (ret == 1);
+
+		slot = (slot + 1) % BTRFS_BACKREF_CTX_PREV_EXTENTS_SIZE;
+		ctx->prev_extents_cache_slot = slot;
 	}
 
 	if (trans) {
