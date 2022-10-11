@@ -601,7 +601,7 @@ int mgag200_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_st
 		}
 	}
 
-	return drm_atomic_add_affected_planes(new_state, crtc);
+	return 0;
 }
 
 void mgag200_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_state *old_state)
