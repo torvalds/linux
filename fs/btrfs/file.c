@@ -3537,15 +3537,27 @@ static bool find_delalloc_subrange(struct btrfs_inode *inode, u64 start, u64 end
 	struct extent_map *em;
 	u64 em_end;
 	u64 delalloc_len;
+	unsigned int outstanding_extents;
 
 	/*
 	 * Search the io tree first for EXTENT_DELALLOC. If we find any, it
 	 * means we have delalloc (dirty pages) for which writeback has not
 	 * started yet.
 	 */
-	*delalloc_start_ret = start;
-	delalloc_len = count_range_bits(&inode->io_tree, delalloc_start_ret, end,
-					len, EXTENT_DELALLOC, 1);
+	spin_lock(&inode->lock);
+	outstanding_extents = inode->outstanding_extents;
+
+	if (inode->delalloc_bytes > 0) {
+		spin_unlock(&inode->lock);
+		*delalloc_start_ret = start;
+		delalloc_len = count_range_bits(&inode->io_tree,
+						delalloc_start_ret, end,
+						len, EXTENT_DELALLOC, 1);
+	} else {
+		spin_unlock(&inode->lock);
+		delalloc_len = 0;
+	}
+
 	/*
 	 * If delalloc was found then *delalloc_start_ret has a sector size
 	 * aligned value (rounded down).
@@ -3553,17 +3565,12 @@ static bool find_delalloc_subrange(struct btrfs_inode *inode, u64 start, u64 end
 	if (delalloc_len > 0)
 		*delalloc_end_ret = *delalloc_start_ret + delalloc_len - 1;
 
-	spin_lock(&inode->lock);
-	if (inode->outstanding_extents == 0) {
-		/*
-		 * No outstanding extents means we don't have any delalloc that
-		 * is flushing, so return the unflushed range found in the io
-		 * tree (if any).
-		 */
-		spin_unlock(&inode->lock);
+	/*
+	 * No outstanding extents means we don't have any delalloc that is
+	 * flushing, so return the unflushed range found in the io tree (if any).
+	 */
+	if (outstanding_extents == 0)
 		return (delalloc_len > 0);
-	}
-	spin_unlock(&inode->lock);
 
 	/*
 	 * Now also check if there's any extent map in the range that does not
