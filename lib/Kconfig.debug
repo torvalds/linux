@@ -817,13 +817,12 @@ config DEBUG_VM
 
 	  If unsure, say N.
 
-config DEBUG_VM_VMACACHE
-	bool "Debug VMA caching"
+config DEBUG_VM_MAPLE_TREE
+	bool "Debug VM maple trees"
 	depends on DEBUG_VM
+	select DEBUG_MAPLE_TREE
 	help
-	  Enable this to turn on VMA caching debug information. Doing so
-	  can cause significant overhead, so only enable it in non-production
-	  environments.
+	  Enable VM maple tree debugging information and extra validations.
 
 	  If unsure, say N.
 
@@ -976,6 +975,7 @@ config DEBUG_STACKOVERFLOW
 
 source "lib/Kconfig.kasan"
 source "lib/Kconfig.kfence"
+source "lib/Kconfig.kmsan"
 
 endmenu # "Memory Debugging"
 
@@ -1637,6 +1637,14 @@ config BUG_ON_DATA_CORRUPTION
 	  Select this option if the kernel should BUG when it encounters
 	  data corruption in kernel memory structures when they get checked
 	  for validity.
+
+	  If unsure, say N.
+
+config DEBUG_MAPLE_TREE
+	bool "Debug maple trees"
+	depends on DEBUG_KERNEL
+	help
+	  Enable maple tree debugging information and extra validations.
 
 	  If unsure, say N.
 

@@ -377,7 +377,7 @@ config NODES_SHIFT
 	default "6"
 	depends on NUMA
 
-config FORCE_MAX_ZONEORDER
+config ARCH_FORCE_MAX_ORDER
 	int "Maximum zone order"
 	range 14 64 if PAGE_SIZE_64KB
 	default "14" if PAGE_SIZE_64KB

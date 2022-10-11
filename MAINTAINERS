@@ -11004,7 +11004,6 @@ F:	arch/*/include/asm/*kasan.h
 F:	arch/*/mm/kasan_init*
 F:	include/linux/kasan*.h
 F:	lib/Kconfig.kasan
-F:	lib/test_kasan*.c
 F:	mm/kasan/
 F:	scripts/Makefile.kasan
 
@@ -11437,6 +11436,20 @@ F:	include/linux/kmod.h
 F:	kernel/kmod.c
 F:	lib/test_kmod.c
 F:	tools/testing/selftests/kmod/
+
+KMSAN
+M:	Alexander Potapenko <glider@google.com>
+R:	Marco Elver <elver@google.com>
+R:	Dmitry Vyukov <dvyukov@google.com>
+L:	kasan-dev@googlegroups.com
+S:	Maintained
+F:	Documentation/dev-tools/kmsan.rst
+F:	arch/*/include/asm/kmsan.h
+F:	arch/*/mm/kmsan_*
+F:	include/linux/kmsan*.h
+F:	lib/Kconfig.kmsan
+F:	mm/kmsan/
+F:	scripts/Makefile.kmsan
 
 KPROBES
 M:	Naveen N. Rao <naveen.n.rao@linux.ibm.com>
@@ -12167,6 +12180,18 @@ M:	Michael Kerrisk <mtk.manpages@gmail.com>
 L:	linux-man@vger.kernel.org
 S:	Maintained
 W:	http://www.kernel.org/doc/man-pages
+
+MAPLE TREE
+M:	Liam R. Howlett <Liam.Howlett@oracle.com>
+L:	linux-mm@kvack.org
+S:	Supported
+F:	Documentation/core-api/maple_tree.rst
+F:	include/linux/maple_tree.h
+F:	include/trace/events/maple_tree.h
+F:	lib/maple_tree.c
+F:	lib/test_maple_tree.c
+F:	tools/testing/radix-tree/linux/maple_tree.h
+F:	tools/testing/radix-tree/maple.c
 
 MARDUK (CREATOR CI40) DEVICE TREE SUPPORT
 M:	Rahul Bedarkar <rahulbedarkar89@gmail.com>

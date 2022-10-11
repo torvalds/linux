@@ -969,11 +969,6 @@ config MEMCG
 	help
 	  Provides control over the memory footprint of tasks in a cgroup.
 
-config MEMCG_SWAP
-	bool
-	depends on MEMCG && SWAP
-	default y
-
 config MEMCG_KMEM
 	bool
 	depends on MEMCG && !SLOB

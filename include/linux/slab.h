@@ -108,7 +108,7 @@
 # define SLAB_ACCOUNT		0
 #endif
 
-#ifdef CONFIG_KASAN
+#ifdef CONFIG_KASAN_GENERIC
 #define SLAB_KASAN		((slab_flags_t __force)0x08000000U)
 #else
 #define SLAB_KASAN		0
@@ -120,6 +120,12 @@
  * specified in the code and other flags are ignored.
  */
 #define SLAB_NO_USER_FLAGS	((slab_flags_t __force)0x10000000U)
+
+#ifdef CONFIG_KFENCE
+#define SLAB_SKIP_KFENCE	((slab_flags_t __force)0x20000000U)
+#else
+#define SLAB_SKIP_KFENCE	0
+#endif
 
 /* The following flags affect the page allocator grouping pages by mobility */
 /* Objects are reclaimable */

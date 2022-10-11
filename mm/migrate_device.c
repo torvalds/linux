@@ -186,9 +186,16 @@ again:
 		get_page(page);
 
 		/*
-		 * Optimize for the common case where page is only mapped once
-		 * in one process. If we can lock the page, then we can safely
-		 * set up a special migration page table entry now.
+		 * We rely on trylock_page() to avoid deadlock between
+		 * concurrent migrations where each is waiting on the others
+		 * page lock. If we can't immediately lock the page we fail this
+		 * migration as it is only best effort anyway.
+		 *
+		 * If we can lock the page it's safe to set up a migration entry
+		 * now. In the common case where the page is mapped once in a
+		 * single process setting up the migration entry now is an
+		 * optimisation to avoid walking the rmap later with
+		 * try_to_migrate().
 		 */
 		if (trylock_page(page)) {
 			bool anon_exclusive;
@@ -226,6 +233,12 @@ again:
 			else
 				entry = make_readable_migration_entry(
 							page_to_pfn(page));
+			if (pte_present(pte)) {
+				if (pte_young(pte))
+					entry = make_migration_entry_young(entry);
+				if (pte_dirty(pte))
+					entry = make_migration_entry_dirty(entry);
+			}
 			swp_pte = swp_entry_to_pte(entry);
 			if (pte_present(pte)) {
 				if (pte_soft_dirty(pte))

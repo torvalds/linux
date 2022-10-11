@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
-#include "../mm/kasan/kasan.h"
+#include "kasan.h"
 
 static noinline void __init copy_user_test(void)
 {

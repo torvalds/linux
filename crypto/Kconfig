@@ -1391,6 +1391,7 @@ endmenu
 config CRYPTO_HASH_INFO
 	bool
 
+if !KMSAN # avoid false positives from assembly
 if ARM
 source "arch/arm/crypto/Kconfig"
 endif
@@ -1411,6 +1412,7 @@ source "arch/sparc/crypto/Kconfig"
 endif
 if X86
 source "arch/x86/crypto/Kconfig"
+endif
 endif
 
 source "drivers/crypto/Kconfig"

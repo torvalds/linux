@@ -94,6 +94,11 @@ Usage
 	Page allocated via order XXX, ...
 	PFN XXX ...
 	// Detailed stack
+    By default, it will do full pfn dump, to start with a given pfn,
+    page_owner supports fseek.
+
+    FILE *fp = fopen("/sys/kernel/debug/page_owner", "r");
+    fseek(fp, pfn_start, SEEK_SET);
 
    The ``page_owner_sort`` tool ignores ``PFN`` rows, puts the remaining rows
    in buf, uses regexp to extract the page order value, counts the times
