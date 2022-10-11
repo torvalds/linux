@@ -913,7 +913,7 @@ cifs_set_fattr_ino(int xid,
 		} else {
 			/* make an ino by hashing the UNC */
 			fattr->cf_flags |= CIFS_FATTR_FAKE_ROOT_INO;
-			fattr->cf_uniqueid = simple_hashstr(tcon->treeName);
+			fattr->cf_uniqueid = simple_hashstr(tcon->tree_name);
 		}
 	}
 }

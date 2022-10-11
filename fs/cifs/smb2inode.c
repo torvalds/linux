@@ -379,7 +379,7 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 
 	SMB2_open_free(&rqst[0]);
 	if (rc == -EREMCHG) {
-		pr_warn_once("server share %s deleted\n", tcon->treeName);
+		pr_warn_once("server share %s deleted\n", tcon->tree_name);
 		tcon->need_reconnect = true;
 	}
 
