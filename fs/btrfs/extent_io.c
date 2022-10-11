@@ -3966,6 +3966,8 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 		if (extent_end <= lockstart)
 			goto next_item;
 
+		backref_ctx->curr_leaf_bytenr = leaf->start;
+
 		/* We have in implicit hole (NO_HOLES feature enabled). */
 		if (prev_extent_end < key.offset) {
 			const u64 range_end = min(key.offset, lockend) - 1;

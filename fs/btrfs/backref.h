@@ -29,6 +29,19 @@ struct btrfs_backref_share_check_ctx {
 	/* Ulists used during backref walking. */
 	struct ulist refs;
 	/*
+	 * The current leaf the caller of btrfs_is_data_extent_shared() is at.
+	 * Typically the caller (at the moment only fiemap) tries to determine
+	 * the sharedness of data extents point by file extent items from entire
+	 * leaves.
+	 */
+	u64 curr_leaf_bytenr;
+	/*
+	 * The previous leaf the caller was at in the previous call to
+	 * btrfs_is_data_extent_shared(). This may be the same as the current
+	 * leaf. On the first call it must be 0.
+	 */
+	u64 prev_leaf_bytenr;
+	/*
 	 * A path from a root to a leaf that has a file extent item pointing to
 	 * a given data extent should never exceed the maximum b+tree height.
 	 */

@@ -16,8 +16,9 @@
 #include "misc.h"
 #include "tree-mod-log.h"
 
-/* Just an arbitrary number so we can be sure this happened */
-#define BACKREF_FOUND_SHARED 6
+/* Just arbitrary numbers so we can be sure one of these happened. */
+#define BACKREF_FOUND_SHARED     6
+#define BACKREF_FOUND_NOT_SHARED 7
 
 struct extent_inode_elem {
 	u64 inum;
@@ -135,7 +136,8 @@ struct preftrees {
  *  - decremented when a ref->count transitions to <1
  */
 struct share_check {
-	u64 root_objectid;
+	struct btrfs_backref_share_check_ctx *ctx;
+	struct btrfs_root *root;
 	u64 inum;
 	u64 data_bytenr;
 	/*
@@ -235,7 +237,7 @@ static void update_share_count(struct share_check *sc, int oldcount,
 	else if (oldcount < 1 && newcount > 0)
 		sc->share_count++;
 
-	if (newref->root_id == sc->root_objectid &&
+	if (newref->root_id == sc->root->root_key.objectid &&
 	    newref->wanted_disk_byte == sc->data_bytenr &&
 	    newref->key_for_search.objectid == sc->inum)
 		sc->self_ref_count += newref->count;
@@ -742,7 +744,7 @@ static int resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 			continue;
 		}
 
-		if (sc && ref->root_id != sc->root_objectid) {
+		if (sc && ref->root_id != sc->root->root_key.objectid) {
 			free_pref(ref);
 			ret = BACKREF_FOUND_SHARED;
 			goto out;
@@ -1469,6 +1471,44 @@ again:
 	 */
 	ASSERT(extent_is_shared(sc) == 0);
 
+	/*
+	 * If we are here for a data extent and we have a share_check structure
+	 * it means the data extent is not directly shared (does not have
+	 * multiple reference items), so we have to check if a path in the fs
+	 * tree (going from the root node down to the leaf that has the file
+	 * extent item pointing to the data extent) is shared, that is, if any
+	 * of the extent buffers in the path is referenced by other trees.
+	 */
+	if (sc && bytenr == sc->data_bytenr) {
+		/*
+		 * If we are only determining if a data extent is shared or not
+		 * and the corresponding file extent item is located in the same
+		 * leaf as the previous file extent item, we can skip resolving
+		 * indirect references for a data extent, since the fs tree path
+		 * is the same (same leaf, so same path). We skip as long as the
+		 * cached result for the leaf is valid and only if there's only
+		 * one file extent item pointing to the data extent, because in
+		 * the case of multiple file extent items, they may be located
+		 * in different leaves and therefore we have multiple paths.
+		 */
+		if (sc->ctx->curr_leaf_bytenr == sc->ctx->prev_leaf_bytenr &&
+		    sc->self_ref_count == 1) {
+			bool cached;
+			bool is_shared;
+
+			cached = lookup_backref_shared_cache(sc->ctx, sc->root,
+						     sc->ctx->curr_leaf_bytenr,
+						     0, &is_shared);
+			if (cached) {
+				if (is_shared)
+					ret = BACKREF_FOUND_SHARED;
+				else
+					ret = BACKREF_FOUND_NOT_SHARED;
+				goto out;
+			}
+		}
+	}
+
 	btrfs_release_path(path);
 
 	ret = add_missing_keys(fs_info, &preftrees, path->skip_locking == 0);
@@ -1745,7 +1785,8 @@ int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
 	struct btrfs_seq_list elem = BTRFS_SEQ_LIST_INIT(elem);
 	int ret = 0;
 	struct share_check shared = {
-		.root_objectid = root->root_key.objectid,
+		.ctx = ctx,
+		.root = root,
 		.inum = btrfs_ino(inode),
 		.data_bytenr = bytenr,
 		.share_count = 0,
@@ -1783,12 +1824,13 @@ int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
 
 		ret = find_parent_nodes(trans, fs_info, bytenr, elem.seq, &ctx->refs,
 					NULL, NULL, &shared, false);
-		if (ret == BACKREF_FOUND_SHARED) {
-			/* this is the only condition under which we return 1 */
-			ret = 1;
+		if (ret == BACKREF_FOUND_SHARED ||
+		    ret == BACKREF_FOUND_NOT_SHARED) {
+			/* If shared must return 1, otherwise return 0. */
+			ret = (ret == BACKREF_FOUND_SHARED) ? 1 : 0;
 			if (level >= 0)
 				store_backref_shared_cache(ctx, root, bytenr,
-							   level, true);
+							   level, ret == 1);
 			break;
 		}
 		if (ret < 0 && ret != -ENOENT)
@@ -1865,6 +1907,8 @@ int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
 	}
 out:
 	ulist_release(&ctx->refs);
+	ctx->prev_leaf_bytenr = ctx->curr_leaf_bytenr;
+
 	return ret;
 }
 
