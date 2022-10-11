@@ -1307,7 +1307,7 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	unsigned long lock_flags = 0;
 	int ret = 0;
-	bool is_wait = true;
+	bool is_wait = dev->hw_dev->is_shutdown ? false : true;
 
 	stream->stopping = true;
 	stream->is_pause = false;
@@ -1562,9 +1562,10 @@ static void rkisp_stop_streaming(struct vb2_queue *queue)
 
 	if (stream->id == RKISP_STREAM_LUMA) {
 		stream->stopping = true;
-		wait_event_timeout(stream->done,
-				   stream->frame_end,
-				   msecs_to_jiffies(500));
+		if (!dev->hw_dev->is_shutdown)
+			wait_event_timeout(stream->done,
+					   stream->frame_end,
+					   msecs_to_jiffies(500));
 		stream->streaming = false;
 		stream->stopping = false;
 		destroy_buf_queue(stream, VB2_BUF_STATE_ERROR);

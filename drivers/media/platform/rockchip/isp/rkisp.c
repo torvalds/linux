@@ -1838,7 +1838,7 @@ static void rkisp_stop_3a_run(struct rkisp_device *dev)
 	int ret = 1000;
 
 	if (!rkisp_is_need_3a(dev) || dev->isp_ver == ISP_V20 ||
-	    !params_vdev->is_subs_evt)
+	    !params_vdev->is_subs_evt || dev->hw_dev->is_shutdown)
 		return;
 
 	v4l2_event_queue(vdev, &ev);

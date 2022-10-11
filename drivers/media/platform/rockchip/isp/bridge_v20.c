@@ -609,11 +609,13 @@ static int bridge_stop(struct rkisp_bridge_device *dev)
 	dev->ops->disable(dev);
 	rkisp_stop_spstream(sp_stream);
 	hdr_stop_dmatx(dev->ispdev);
-	ret = wait_event_timeout(dev->done, !dev->en,
-				 msecs_to_jiffies(1000));
-	if (!ret)
-		v4l2_warn(&dev->sd,
-			  "%s timeout ret:%d\n", __func__, ret);
+	if (!dev->ispdev->hw_dev->is_shutdown) {
+		ret = wait_event_timeout(dev->done, !dev->en,
+					 msecs_to_jiffies(1000));
+		if (!ret)
+			v4l2_warn(&dev->sd,
+				  "%s timeout ret:%d\n", __func__, ret);
+	}
 	crop_off(dev);
 	dev->stopping = false;
 	dev->en = false;

@@ -1518,7 +1518,8 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 	stream->stopping = true;
 	stream->ops->stop_mi(stream);
 	if ((dev->isp_state & ISP_START) &&
-	    dev->isp_inp != INP_DMARX_ISP) {
+	    dev->isp_inp != INP_DMARX_ISP &&
+	    !dev->hw_dev->is_shutdown) {
 		ret = wait_event_timeout(stream->done,
 					 !stream->streaming,
 					 msecs_to_jiffies(1000));

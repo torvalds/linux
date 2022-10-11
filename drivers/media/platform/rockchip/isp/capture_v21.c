@@ -1331,7 +1331,7 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	unsigned long lock_flags = 0;
 	int ret = 0;
-	bool is_wait = true;
+	bool is_wait = dev->hw_dev->is_shutdown ? false : true;
 
 	if (!dev->dmarx_dev.trigger &&
 	    (is_rdbk_stream(stream) || is_hdr_stream(stream))) {
