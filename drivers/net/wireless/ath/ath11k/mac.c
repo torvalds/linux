@@ -6232,6 +6232,40 @@ void ath11k_mac_11d_scan_stop_all(struct ath11k_base *ab)
 	}
 }
 
+static int ath11k_mac_vdev_delete(struct ath11k *ar, struct ath11k_vif *arvif)
+{
+	unsigned long time_left;
+	struct ieee80211_vif *vif = arvif->vif;
+	int ret = 0;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	reinit_completion(&ar->vdev_delete_done);
+
+	ret = ath11k_wmi_vdev_delete(ar, arvif->vdev_id);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to delete WMI vdev %d: %d\n",
+			    arvif->vdev_id, ret);
+		return ret;
+	}
+
+	time_left = wait_for_completion_timeout(&ar->vdev_delete_done,
+						ATH11K_VDEV_DELETE_TIMEOUT_HZ);
+	if (time_left == 0) {
+		ath11k_warn(ar->ab, "Timeout in receiving vdev delete response\n");
+		return -ETIMEDOUT;
+	}
+
+	ar->ab->free_vdev_map |= 1LL << (arvif->vdev_id);
+	ar->allocated_vdev_map &= ~(1LL << arvif->vdev_id);
+	ar->num_created_vdevs--;
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_MAC, "vdev %pM deleted, vdev_id %d\n",
+		   vif->addr, arvif->vdev_id);
+
+	return ret;
+}
+
 static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif)
 {
@@ -6467,10 +6501,7 @@ err_peer_del:
 	}
 
 err_vdev_del:
-	ath11k_wmi_vdev_delete(ar, arvif->vdev_id);
-	ar->num_created_vdevs--;
-	ar->allocated_vdev_map &= ~(1LL << arvif->vdev_id);
-	ab->free_vdev_map |= 1LL << arvif->vdev_id;
+	ath11k_mac_vdev_delete(ar, arvif);
 	spin_lock_bh(&ar->data_lock);
 	list_del(&arvif->list);
 	spin_unlock_bh(&ar->data_lock);
@@ -6498,7 +6529,6 @@ static void ath11k_mac_op_remove_interface(struct ieee80211_hw *hw,
 	struct ath11k *ar = hw->priv;
 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
 	struct ath11k_base *ab = ar->ab;
-	unsigned long time_left;
 	int ret;
 	int i;
 
@@ -6519,28 +6549,12 @@ static void ath11k_mac_op_remove_interface(struct ieee80211_hw *hw,
 				    arvif->vdev_id, ret);
 	}
 
-	reinit_completion(&ar->vdev_delete_done);
-
-	ret = ath11k_wmi_vdev_delete(ar, arvif->vdev_id);
+	ret = ath11k_mac_vdev_delete(ar, arvif);
 	if (ret) {
-		ath11k_warn(ab, "failed to delete WMI vdev %d: %d\n",
+		ath11k_warn(ab, "failed to delete vdev %d: %d\n",
 			    arvif->vdev_id, ret);
 		goto err_vdev_del;
 	}
-
-	time_left = wait_for_completion_timeout(&ar->vdev_delete_done,
-						ATH11K_VDEV_DELETE_TIMEOUT_HZ);
-	if (time_left == 0) {
-		ath11k_warn(ab, "Timeout in receiving vdev delete response\n");
-		goto err_vdev_del;
-	}
-
-	ab->free_vdev_map |= 1LL << (arvif->vdev_id);
-	ar->allocated_vdev_map &= ~(1LL << arvif->vdev_id);
-	ar->num_created_vdevs--;
-
-	ath11k_dbg(ab, ATH11K_DBG_MAC, "vdev %pM deleted, vdev_id %d\n",
-		   vif->addr, arvif->vdev_id);
 
 	if (arvif->vdev_type == WMI_VDEV_TYPE_MONITOR) {
 		clear_bit(ATH11K_FLAG_MONITOR_VDEV_CREATED, &ar->monitor_flags);
