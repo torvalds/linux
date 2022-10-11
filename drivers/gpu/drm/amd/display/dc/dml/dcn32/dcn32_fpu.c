@@ -1372,7 +1372,7 @@ static struct pipe_ctx *dcn32_find_split_pipe(
 	return pipe;
 }
 
-bool dcn32_split_stream_for_mpc_or_odm(
+static bool dcn32_split_stream_for_mpc_or_odm(
 		const struct dc *dc,
 		struct resource_context *res_ctx,
 		struct pipe_ctx *pri_pipe,
