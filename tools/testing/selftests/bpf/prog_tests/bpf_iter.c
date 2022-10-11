@@ -3,6 +3,7 @@
 #include <test_progs.h>
 #include <unistd.h>
 #include <sys/syscall.h>
+#include <task_local_storage_helpers.h>
 #include "bpf_iter_ipv6_route.skel.h"
 #include "bpf_iter_netlink.skel.h"
 #include "bpf_iter_bpf_map.skel.h"
@@ -175,11 +176,6 @@ static void test_bpf_map(void)
 	bpf_iter_bpf_map__destroy(skel);
 }
 
-static int pidfd_open(pid_t pid, unsigned int flags)
-{
-	return syscall(SYS_pidfd_open, pid, flags);
-}
-
 static void check_bpf_link_info(const struct bpf_program *prog)
 {
 	LIBBPF_OPTS(bpf_iter_attach_opts, opts);
@@ -295,8 +291,8 @@ static void test_task_pidfd(void)
 	union bpf_iter_link_info linfo;
 	int pidfd;
 
-	pidfd = pidfd_open(getpid(), 0);
-	if (!ASSERT_GT(pidfd, 0, "pidfd_open"))
+	pidfd = sys_pidfd_open(getpid(), 0);
+	if (!ASSERT_GT(pidfd, 0, "sys_pidfd_open"))
 		return;
 
 	memset(&linfo, 0, sizeof(linfo));
