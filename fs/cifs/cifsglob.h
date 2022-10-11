@@ -1760,6 +1760,20 @@ struct file_list {
 	struct cifsFileInfo *cfile;
 };
 
+struct cifs_mount_ctx {
+	struct cifs_sb_info *cifs_sb;
+	struct smb3_fs_context *fs_ctx;
+	unsigned int xid;
+	struct TCP_Server_Info *server;
+	struct cifs_ses *ses;
+	struct cifs_tcon *tcon;
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	struct cifs_ses *root_ses;
+	uuid_t mount_id;
+	char *origin_fullpath, *leaf_fullpath;
+#endif
+};
+
 static inline void free_dfs_info_param(struct dfs_info3_param *param)
 {
 	if (param) {
