@@ -48,6 +48,7 @@
 #define GQSPI_QSPIDMA_DST_I_MASK_OFST	0x00000820
 #define GQSPI_QSPIDMA_DST_ADDR_OFST	0x00000800
 #define GQSPI_QSPIDMA_DST_ADDR_MSB_OFST 0x00000828
+#define GQSPI_DATA_DLY_ADJ_OFST         0x000001F8
 
 /* GQSPI register bit masks */
 #define GQSPI_SEL_MASK				0x00000001
@@ -135,6 +136,16 @@
 #define GQSPI_DEFAULT_NUM_CS	1	/* Default number of chip selects */
 
 #define GQSPI_MAX_NUM_CS	2	/* Maximum number of chip selects */
+
+#define GQSPI_USE_DATA_DLY		0x1
+#define GQSPI_USE_DATA_DLY_SHIFT	31
+#define GQSPI_DATA_DLY_ADJ_VALUE	0x2
+#define GQSPI_DATA_DLY_ADJ_SHIFT	28
+
+#define GQSPI_FREQ_37_5MHZ	37500000
+#define GQSPI_FREQ_40MHZ	40000000
+#define GQSPI_FREQ_100MHZ	100000000
+#define GQSPI_FREQ_150MHZ	150000000
 
 #define SPI_AUTOSUSPEND_TIMEOUT		3000
 enum mode_type {GQSPI_MODE_IO, GQSPI_MODE_DMA};
@@ -254,6 +265,37 @@ static void zynqmp_gqspi_selectslave(struct zynqmp_qspi *instanceptr,
 }
 
 /**
+ * zynqmp_qspi_set_tapdelay:   To configure qspi tap delays
+ * @xqspi:             Pointer to the zynqmp_qspi structure
+ * @baudrateval:       Buadrate to configure
+ */
+static void zynqmp_qspi_set_tapdelay(struct zynqmp_qspi *xqspi, u32 baudrateval)
+{
+	u32 lpbkdlyadj = 0, datadlyadj = 0, clk_rate;
+	u32 reqhz = 0;
+
+	clk_rate = clk_get_rate(xqspi->refclk);
+	reqhz = (clk_rate / (GQSPI_BAUD_DIV_SHIFT << baudrateval));
+
+	if (reqhz <= GQSPI_FREQ_40MHZ) {
+		zynqmp_pm_set_tapdelay_bypass(PM_TAPDELAY_QSPI,
+					      PM_TAPDELAY_BYPASS_ENABLE);
+	} else if (reqhz <= GQSPI_FREQ_100MHZ) {
+		zynqmp_pm_set_tapdelay_bypass(PM_TAPDELAY_QSPI,
+					      PM_TAPDELAY_BYPASS_ENABLE);
+		lpbkdlyadj |= (GQSPI_LPBK_DLY_ADJ_USE_LPBK_MASK);
+		datadlyadj |= ((GQSPI_USE_DATA_DLY <<
+				GQSPI_USE_DATA_DLY_SHIFT) |
+			       (GQSPI_DATA_DLY_ADJ_VALUE <<
+				GQSPI_DATA_DLY_ADJ_SHIFT));
+	} else if (reqhz <= GQSPI_FREQ_150MHZ) {
+		lpbkdlyadj |= GQSPI_LPBK_DLY_ADJ_USE_LPBK_MASK;
+	}
+	zynqmp_gqspi_write(xqspi, GQSPI_LPBK_DLY_ADJ_OFST, lpbkdlyadj);
+	zynqmp_gqspi_write(xqspi, GQSPI_DATA_DLY_ADJ_OFST, datadlyadj);
+}
+
+/**
  * zynqmp_qspi_init_hw - Initialize the hardware
  * @xqspi:	Pointer to the zynqmp_qspi structure
  *
@@ -333,15 +375,14 @@ static void zynqmp_qspi_init_hw(struct zynqmp_qspi *xqspi)
 
 	zynqmp_gqspi_write(xqspi, GQSPI_CONFIG_OFST, config_reg);
 
+	/* Set the tapdelay for clock frequency */
+	zynqmp_qspi_set_tapdelay(xqspi, baud_rate_val);
+
 	/* Clear the TX and RX FIFO */
 	zynqmp_gqspi_write(xqspi, GQSPI_FIFO_CTRL_OFST,
 			   GQSPI_FIFO_CTRL_RST_RX_FIFO_MASK |
 			   GQSPI_FIFO_CTRL_RST_TX_FIFO_MASK |
 			   GQSPI_FIFO_CTRL_RST_GEN_FIFO_MASK);
-	/* Set by default to allow for high frequencies */
-	zynqmp_gqspi_write(xqspi, GQSPI_LPBK_DLY_ADJ_OFST,
-			   zynqmp_gqspi_read(xqspi, GQSPI_LPBK_DLY_ADJ_OFST) |
-			   GQSPI_LPBK_DLY_ADJ_USE_LPBK_MASK);
 	/* Reset thresholds */
 	zynqmp_gqspi_write(xqspi, GQSPI_TX_THRESHOLD_OFST,
 			   GQSPI_TX_FIFO_THRESHOLD_RESET_VAL);
@@ -501,6 +542,7 @@ static int zynqmp_qspi_config_op(struct zynqmp_qspi *xqspi,
 		config_reg &= ~GQSPI_CFG_BAUD_RATE_DIV_MASK;
 		config_reg |= (baud_rate_val << GQSPI_CFG_BAUD_RATE_DIV_SHIFT);
 		zynqmp_gqspi_write(xqspi, GQSPI_CONFIG_OFST, config_reg);
+		zynqmp_qspi_set_tapdelay(xqspi, baud_rate_val);
 	}
 	return 0;
 }
