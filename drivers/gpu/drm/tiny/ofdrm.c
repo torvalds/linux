@@ -94,7 +94,7 @@ static int display_get_validated_int0(struct drm_device *dev, const char *name, 
 }
 
 static const struct drm_format_info *display_get_validated_format(struct drm_device *dev,
-								  u32 depth)
+								  u32 depth, bool big_endian)
 {
 	const struct drm_format_info *info;
 	u32 format;
@@ -115,6 +115,29 @@ static const struct drm_format_info *display_get_validated_format(struct drm_dev
 		return ERR_PTR(-EINVAL);
 	}
 
+	/*
+	 * DRM formats assume little-endian byte order. Update the format
+	 * if the scanout buffer uses big-endian ordering.
+	 */
+	if (big_endian) {
+		switch (format) {
+		case DRM_FORMAT_XRGB8888:
+			format = DRM_FORMAT_BGRX8888;
+			break;
+		case DRM_FORMAT_ARGB8888:
+			format = DRM_FORMAT_BGRA8888;
+			break;
+		case DRM_FORMAT_RGB565:
+			format = DRM_FORMAT_RGB565 | DRM_FORMAT_BIG_ENDIAN;
+			break;
+		case DRM_FORMAT_XRGB1555:
+			format = DRM_FORMAT_XRGB1555 | DRM_FORMAT_BIG_ENDIAN;
+			break;
+		default:
+			break;
+		}
+	}
+
 	info = drm_format_info(format);
 	if (!info) {
 		drm_err(dev, "cannot find framebuffer format for depth %u\n", depth);
@@ -132,6 +155,23 @@ static int display_read_u32_of(struct drm_device *dev, struct device_node *of_no
 	if (ret)
 		drm_err(dev, "cannot parse framebuffer %s: error %d\n", name, ret);
 	return ret;
+}
+
+static bool display_get_big_endian_of(struct drm_device *dev, struct device_node *of_node)
+{
+	bool big_endian;
+
+#ifdef __BIG_ENDIAN
+	big_endian = true;
+	if (of_get_property(of_node, "little-endian", NULL))
+		big_endian = false;
+#else
+	big_endian = false;
+	if (of_get_property(of_node, "big-endian", NULL))
+		big_endian = true;
+#endif
+
+	return big_endian;
 }
 
 static int display_get_width_of(struct drm_device *dev, struct device_node *of_node)
@@ -613,6 +653,7 @@ static void ofdrm_device_set_gamma_linear(struct ofdrm_device *odev,
 
 	switch (format->format) {
 	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_RGB565 | DRM_FORMAT_BIG_ENDIAN:
 		/* Use better interpolation, to take 32 values from 0 to 255 */
 		for (i = 0; i < OFDRM_GAMMA_LUT_SIZE / 8; i++) {
 			unsigned char r = i * 8 + i / 4;
@@ -631,6 +672,7 @@ static void ofdrm_device_set_gamma_linear(struct ofdrm_device *odev,
 		}
 		break;
 	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_BGRX8888:
 		for (i = 0; i < OFDRM_GAMMA_LUT_SIZE; i++)
 			odev->funcs->cmap_write(odev, i, i, i, i);
 		break;
@@ -650,6 +692,7 @@ static void ofdrm_device_set_gamma(struct ofdrm_device *odev,
 
 	switch (format->format) {
 	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_RGB565 | DRM_FORMAT_BIG_ENDIAN:
 		/* Use better interpolation, to take 32 values from lut[0] to lut[255] */
 		for (i = 0; i < OFDRM_GAMMA_LUT_SIZE / 8; i++) {
 			unsigned char r = lut[i * 8 + i / 4].red >> 8;
@@ -668,6 +711,7 @@ static void ofdrm_device_set_gamma(struct ofdrm_device *odev,
 		}
 		break;
 	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_BGRX8888:
 		for (i = 0; i < OFDRM_GAMMA_LUT_SIZE; i++) {
 			unsigned char r = lut[i].red >> 8;
 			unsigned char g = lut[i].green >> 8;
@@ -718,6 +762,9 @@ static const uint32_t ofdrm_primary_plane_formats[] = {
 	DRM_FORMAT_RGB565,
 	//DRM_FORMAT_XRGB1555,
 	//DRM_FORMAT_C8,
+	/* Big-endian formats below */
+	DRM_FORMAT_BGRX8888,
+	DRM_FORMAT_RGB565 | DRM_FORMAT_BIG_ENDIAN,
 };
 
 static const uint64_t ofdrm_primary_plane_format_modifiers[] = {
@@ -1051,6 +1098,7 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 	struct ofdrm_device *odev;
 	struct drm_device *dev;
 	enum ofdrm_model model;
+	bool big_endian;
 	int width, height, depth, linebytes;
 	const struct drm_format_info *format;
 	u64 address;
@@ -1112,6 +1160,8 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 		break;
 	}
 
+	big_endian = display_get_big_endian_of(dev, of_node);
+
 	width = display_get_width_of(dev, of_node);
 	if (width < 0)
 		return ERR_PTR(width);
@@ -1125,7 +1175,7 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 	if (linebytes < 0)
 		return ERR_PTR(linebytes);
 
-	format = display_get_validated_format(dev, depth);
+	format = display_get_validated_format(dev, depth, big_endian);
 	if (IS_ERR(format))
 		return ERR_CAST(format);
 	if (!linebytes) {
@@ -1237,6 +1287,7 @@ static struct ofdrm_device *ofdrm_device_create(struct drm_driver *drv,
 		dev->mode_config.preferred_depth = depth;
 		break;
 	}
+	dev->mode_config.quirk_addfb_prefer_host_byte_order = true;
 
 	/* Primary plane */
 
