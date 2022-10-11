@@ -578,7 +578,7 @@ int bch2_mark_alloc(struct btree_trans *trans,
 	if ((flags & BTREE_TRIGGER_BUCKET_INVALIDATE) &&
 	    old_a.cached_sectors) {
 		ret = update_cached_sectors(c, new, ca->dev_idx,
-					    -old_a.cached_sectors,
+					    -((s64) old_a.cached_sectors),
 					    journal_seq, gc);
 		if (ret) {
 			bch2_fs_fatal_error(c, "bch2_mark_alloc(): no replicas entry while updating cached sectors");
