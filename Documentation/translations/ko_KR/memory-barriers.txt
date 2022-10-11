@@ -1863,6 +1863,7 @@ Mandatory 배리어들은 SMP 시스템에서도 UP 시스템에서도 SMP 효�
 
  (*) dma_wmb();
  (*) dma_rmb();
+ (*) dma_mb();
 
      이것들은 CPU 와 DMA 가능한 디바이스에서 모두 액세스 가능한 공유 메모리의
      읽기, 쓰기 작업들의 순서를 보장하기 위해 consistent memory 에서 사용하기
@@ -1893,12 +1894,13 @@ Mandatory 배리어들은 SMP 시스템에서도 UP 시스템에서도 SMP 효�
 
      dma_rmb() 는 디스크립터로부터 데이터를 읽어오기 전에 디바이스가 소유권을
      내려놓았을 것을 보장하고, dma_wmb() 는 디바이스가 자신이 소유권을 다시
-     가졌음을 보기 전에 디스크립터에 데이터가 쓰였을 것을 보장합니다.  참고로,
-     writel() 을 사용하면 캐시 일관성이 있는 메모리 (cache coherent memory)
-     쓰기가 MMIO 영역에의 쓰기 전에 완료되었을 것을 보장하므로 writel() 앞에
-     wmb() 를 실행할 필요가 없음을 알아두시기 바랍니다.  writel() 보다 비용이
-     저렴한 writel_relaxed() 는 이런 보장을 제공하지 않으므로 여기선 사용되지
-     않아야 합니다.
+     가졌음을 보기 전에 디스크립터에 데이터가 쓰였을 것을 보장합니다.  dma_mb()
+     는 dma_rmb() 와 dma_wmb() 를 모두 내포합니다.  참고로, writel() 을
+     사용하면 캐시 일관성이 있는 메모리 (cache coherent memory) 쓰기가 MMIO
+     영역에의 쓰기 전에 완료되었을 것을 보장하므로 writel() 앞에 wmb() 를
+     실행할 필요가 없음을 알아두시기 바랍니다.  writel() 보다 비용이 저렴한
+     writel_relaxed() 는 이런 보장을 제공하지 않으므로 여기선 사용되지 않아야
+     합니다.
 
      writel_relaxed() 와 같은 완화된 I/O 접근자들에 대한 자세한 내용을 위해서는
      "커널 I/O 배리어의 효과" 섹션을, consistent memory 에 대한 자세한 내용을
