@@ -47,15 +47,6 @@ static void error(char *x)
 	log(L"error() called from decompressor library\n");
 }
 
-// Local version to avoid pulling in memcmp()
-static bool guids_eq(const efi_guid_t *a, const efi_guid_t *b)
-{
-	const u32 *l = (u32 *)a;
-	const u32 *r = (u32 *)b;
-
-	return l[0] == r[0] && l[1] == r[1] && l[2] == r[2] && l[3] == r[3];
-}
-
 static efi_status_t __efiapi
 load_file(efi_load_file_protocol_t *this, efi_device_path_protocol_t *rem,
 	  bool boot_policy, unsigned long *bufsize, void *buffer)
@@ -76,7 +67,7 @@ load_file(efi_load_file_protocol_t *this, efi_device_path_protocol_t *rem,
 	if (rem->type == EFI_DEV_MEDIA &&
 	    rem->sub_type == EFI_DEV_MEDIA_VENDOR) {
 		vendor_dp = container_of(rem, struct efi_vendor_dev_path, header);
-		if (!guids_eq(&vendor_dp->vendorguid, &LINUX_EFI_ZBOOT_MEDIA_GUID))
+		if (efi_guidcmp(vendor_dp->vendorguid, LINUX_EFI_ZBOOT_MEDIA_GUID))
 			return EFI_NOT_FOUND;
 
 		decompress = true;
