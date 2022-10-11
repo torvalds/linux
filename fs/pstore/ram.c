@@ -785,6 +785,11 @@ static int ramoops_probe(struct platform_device *pdev)
 	if (err)
 		goto fail_init;
 
+	err = ramoops_init_prz("pmsg", dev, cxt, &cxt->mprz, &paddr,
+				cxt->pmsg_size, 0);
+	if (err)
+		goto fail_init;
+
 	cxt->max_ftrace_cnt = (cxt->flags & RAMOOPS_FLAG_FTRACE_PER_CPU)
 				? nr_cpu_ids
 				: 1;
@@ -793,11 +798,6 @@ static int ramoops_probe(struct platform_device *pdev)
 				&cxt->max_ftrace_cnt, LINUX_VERSION_CODE,
 				(cxt->flags & RAMOOPS_FLAG_FTRACE_PER_CPU)
 					? PRZ_FLAG_NO_LOCK : 0);
-	if (err)
-		goto fail_init;
-
-	err = ramoops_init_prz("pmsg", dev, cxt, &cxt->mprz, &paddr,
-				cxt->pmsg_size, 0);
 	if (err)
 		goto fail_init;
 
