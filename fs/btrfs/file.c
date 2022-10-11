@@ -3553,6 +3553,18 @@ static bool find_delalloc_subrange(struct btrfs_inode *inode, u64 start, u64 end
 	if (delalloc_len > 0)
 		*delalloc_end_ret = *delalloc_start_ret + delalloc_len - 1;
 
+	spin_lock(&inode->lock);
+	if (inode->outstanding_extents == 0) {
+		/*
+		 * No outstanding extents means we don't have any delalloc that
+		 * is flushing, so return the unflushed range found in the io
+		 * tree (if any).
+		 */
+		spin_unlock(&inode->lock);
+		return (delalloc_len > 0);
+	}
+	spin_unlock(&inode->lock);
+
 	/*
 	 * Now also check if there's any extent map in the range that does not
 	 * map to a hole or prealloc extent. We do this because:
