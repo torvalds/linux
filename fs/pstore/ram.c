@@ -451,6 +451,12 @@ static void ramoops_free_przs(struct ramoops_context *cxt)
 {
 	int i;
 
+	/* Free pmsg PRZ */
+	persistent_ram_free(cxt->mprz);
+
+	/* Free console PRZ */
+	persistent_ram_free(cxt->cprz);
+
 	/* Free dump PRZs */
 	if (cxt->dprzs) {
 		for (i = 0; i < cxt->max_dump_cnt; i++)
@@ -772,12 +778,12 @@ static int ramoops_probe(struct platform_device *pdev)
 				dump_mem_sz, cxt->record_size,
 				&cxt->max_dump_cnt, 0, 0);
 	if (err)
-		goto fail_out;
+		goto fail_init;
 
 	err = ramoops_init_prz("console", dev, cxt, &cxt->cprz, &paddr,
 			       cxt->console_size, 0);
 	if (err)
-		goto fail_init_cprz;
+		goto fail_init;
 
 	cxt->max_ftrace_cnt = (cxt->flags & RAMOOPS_FLAG_FTRACE_PER_CPU)
 				? nr_cpu_ids
@@ -788,12 +794,12 @@ static int ramoops_probe(struct platform_device *pdev)
 				(cxt->flags & RAMOOPS_FLAG_FTRACE_PER_CPU)
 					? PRZ_FLAG_NO_LOCK : 0);
 	if (err)
-		goto fail_init_fprz;
+		goto fail_init;
 
 	err = ramoops_init_prz("pmsg", dev, cxt, &cxt->mprz, &paddr,
 				cxt->pmsg_size, 0);
 	if (err)
-		goto fail_init_mprz;
+		goto fail_init;
 
 	cxt->pstore.data = cxt;
 	/*
@@ -857,11 +863,7 @@ fail_buf:
 	kfree(cxt->pstore.buf);
 fail_clear:
 	cxt->pstore.bufsize = 0;
-	persistent_ram_free(cxt->mprz);
-fail_init_mprz:
-fail_init_fprz:
-	persistent_ram_free(cxt->cprz);
-fail_init_cprz:
+fail_init:
 	ramoops_free_przs(cxt);
 fail_out:
 	return err;
@@ -876,8 +878,6 @@ static int ramoops_remove(struct platform_device *pdev)
 	kfree(cxt->pstore.buf);
 	cxt->pstore.bufsize = 0;
 
-	persistent_ram_free(cxt->mprz);
-	persistent_ram_free(cxt->cprz);
 	ramoops_free_przs(cxt);
 
 	return 0;
