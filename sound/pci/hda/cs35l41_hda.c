@@ -91,20 +91,18 @@ static const struct reg_sequence cs35l41_hda_mute[] = {
 	{ CS35L41_AMP_DIG_VOL_CTRL,	0x0000A678 }, // AMP_VOL_PCM Mute
 };
 
-static int cs35l41_control_add(struct cs_dsp_coeff_ctl *cs_ctl)
+static void cs35l41_add_controls(struct cs35l41_hda *cs35l41)
 {
-	struct cs35l41_hda *cs35l41 = container_of(cs_ctl->dsp, struct cs35l41_hda, cs_dsp);
 	struct hda_cs_dsp_ctl_info info;
 
 	info.device_name = cs35l41->amp_name;
 	info.fw_type = cs35l41->firmware_type;
 	info.card = cs35l41->codec->card;
 
-	return hda_cs_dsp_control_add(cs_ctl, &info);
+	hda_cs_dsp_add_controls(&cs35l41->cs_dsp, &info);
 }
 
 static const struct cs_dsp_client_ops client_ops = {
-	.control_add = cs35l41_control_add,
 	.control_remove = hda_cs_dsp_control_remove,
 };
 
@@ -434,6 +432,8 @@ static int cs35l41_init_dsp(struct cs35l41_hda *cs35l41)
 			      hda_cs_dsp_fw_ids[cs35l41->firmware_type]);
 	if (ret)
 		goto err_release;
+
+	cs35l41_add_controls(cs35l41);
 
 	ret = cs35l41_save_calibration(cs35l41);
 
