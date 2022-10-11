@@ -708,7 +708,7 @@ static void pci1xxxx_i2c_init(struct pci1xxxx_i2c *i2c)
 	void __iomem *p2 = i2c->i2c_base + SMBUS_STATUS_REG_OFF;
 	void __iomem *p1 = i2c->i2c_base + SMB_GPR_REG;
 	u8 regval;
-	u8 ret;
+	int ret;
 
 	ret = set_sys_lock(i2c);
 	if (ret == -EPERM) {
