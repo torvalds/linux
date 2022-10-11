@@ -1,0 +1,20 @@
+&sound {
+	/* i2s + hdmi */
+	simple-audio-card,dai-link@2 {
+		reg = <0>;
+		format = "i2s";
+		bitclock-master = <&sndi2s0>;
+		frame-master = <&sndi2s0>;
+		mclk-fs = <256>;
+		status = "okay";
+
+		sndi2s0: cpu {
+			sound-dai = <&i2stx_4ch0>;
+		};
+
+		sndhdmi0: codec {
+			sound-dai = <&hdmi>;
+		};
+	};
+};
+

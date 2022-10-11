@@ -1745,9 +1745,10 @@
 				 <&clkvout JH7110_U0_HDMI_TX_CLK_MCLK>,
 				 <&clkvout JH7110_U0_HDMI_TX_CLK_BCLK>,
 				 <&hdmitx0_pixelclk>;
-			clock-names = "sysclk", "mclk","bclk","pclk";
+			clock-names = "sysclk", "mclk", "bclk", "pclk";
 			resets = <&rstgen RSTN_U0_HDMI_TX_HDMI>;
 			reset-names = "hdmi_tx";
+			#sound-dai-cells = <0>;
 		};
 
 		sound: snd-card {
