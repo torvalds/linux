@@ -2690,7 +2690,6 @@ void intel_dp_configure_protocol_converter(struct intel_dp *intel_dp,
 			   str_enable_disable(tmp));
 }
 
-
 bool intel_dp_get_colorimetry_status(struct intel_dp *intel_dp)
 {
 	u8 dprx = 0;
