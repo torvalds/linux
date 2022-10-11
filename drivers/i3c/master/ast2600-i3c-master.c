@@ -2441,9 +2441,11 @@ static int aspeed_i3c_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_assert_rst;
 
-	ret = aspeed_i3c_master_enable_hj(master);
-	if (ret)
-		goto err_master_register;
+	if (!master->secondary) {
+		ret = aspeed_i3c_master_enable_hj(master);
+		if (ret)
+			goto err_master_register;
+	}
 
 	return 0;
 
