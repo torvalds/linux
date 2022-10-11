@@ -461,9 +461,12 @@ static void cs35l41_remove_dsp(struct cs35l41_hda *cs35l41)
 	struct cs_dsp *dsp = &cs35l41->cs_dsp;
 
 	cancel_work_sync(&cs35l41->fw_load_work);
+
+	mutex_lock(&cs35l41->fw_mutex);
 	cs35l41_shutdown_dsp(cs35l41);
 	cs_dsp_remove(dsp);
 	cs35l41->halo_initialized = false;
+	mutex_unlock(&cs35l41->fw_mutex);
 }
 
 /* Protection release cycle to get the speaker out of Safe-Mode */
@@ -570,45 +573,148 @@ static int cs35l41_hda_channel_map(struct device *dev, unsigned int tx_num, unsi
 				    rx_slot);
 }
 
+static void cs35l41_ready_for_reset(struct cs35l41_hda *cs35l41)
+{
+	mutex_lock(&cs35l41->fw_mutex);
+	if (cs35l41->firmware_running) {
+
+		regcache_cache_only(cs35l41->regmap, false);
+
+		cs35l41_exit_hibernate(cs35l41->dev, cs35l41->regmap);
+		cs35l41_shutdown_dsp(cs35l41);
+		cs35l41_safe_reset(cs35l41->regmap, cs35l41->hw_cfg.bst_type);
+
+		regcache_cache_only(cs35l41->regmap, true);
+		regcache_mark_dirty(cs35l41->regmap);
+	}
+	mutex_unlock(&cs35l41->fw_mutex);
+}
+
+static int cs35l41_system_suspend(struct device *dev)
+{
+	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
+	int ret;
+
+	dev_dbg(cs35l41->dev, "System Suspend\n");
+
+	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST_NO_VSPK_SWITCH) {
+		dev_err(cs35l41->dev, "System Suspend not supported\n");
+		return -EINVAL;
+	}
+
+	ret = pm_runtime_force_suspend(dev);
+	if (ret)
+		return ret;
+
+	/* Shutdown DSP before system suspend */
+	cs35l41_ready_for_reset(cs35l41);
+
+	/*
+	 * Reset GPIO may be shared, so cannot reset here.
+	 * However beyond this point, amps may be powered down.
+	 */
+	return 0;
+}
+
+static int cs35l41_system_resume(struct device *dev)
+{
+	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
+	int ret;
+
+	dev_dbg(cs35l41->dev, "System Resume\n");
+
+	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST_NO_VSPK_SWITCH) {
+		dev_err(cs35l41->dev, "System Resume not supported\n");
+		return -EINVAL;
+	}
+
+	if (cs35l41->reset_gpio) {
+		usleep_range(2000, 2100);
+		gpiod_set_value_cansleep(cs35l41->reset_gpio, 1);
+	}
+
+	usleep_range(2000, 2100);
+
+	ret = pm_runtime_force_resume(dev);
+
+	mutex_lock(&cs35l41->fw_mutex);
+	if (!ret && cs35l41->request_fw_load && !cs35l41->fw_request_ongoing) {
+		cs35l41->fw_request_ongoing = true;
+		schedule_work(&cs35l41->fw_load_work);
+	}
+	mutex_unlock(&cs35l41->fw_mutex);
+
+	return ret;
+}
+
 static int cs35l41_runtime_suspend(struct device *dev)
 {
 	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
+	int ret = 0;
 
-	dev_dbg(cs35l41->dev, "Suspend\n");
+	dev_dbg(cs35l41->dev, "Runtime Suspend\n");
 
-	if (!cs35l41->firmware_running)
+	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST_NO_VSPK_SWITCH) {
+		dev_dbg(cs35l41->dev, "Runtime Suspend not supported\n");
 		return 0;
+	}
 
-	if (cs35l41_enter_hibernate(cs35l41->dev, cs35l41->regmap, cs35l41->hw_cfg.bst_type) < 0)
-		return 0;
+	mutex_lock(&cs35l41->fw_mutex);
+
+	if (cs35l41->playback_started) {
+		regmap_multi_reg_write(cs35l41->regmap, cs35l41_hda_mute,
+				       ARRAY_SIZE(cs35l41_hda_mute));
+		cs35l41_global_enable(cs35l41->regmap, cs35l41->hw_cfg.bst_type, 0);
+		regmap_update_bits(cs35l41->regmap, CS35L41_PWR_CTRL2,
+				   CS35L41_AMP_EN_MASK, 0 << CS35L41_AMP_EN_SHIFT);
+		if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST)
+			regmap_write(cs35l41->regmap, CS35L41_GPIO1_CTRL1, 0x00000001);
+		regmap_update_bits(cs35l41->regmap, CS35L41_PWR_CTRL2,
+				   CS35L41_VMON_EN_MASK | CS35L41_IMON_EN_MASK,
+				   0 << CS35L41_VMON_EN_SHIFT | 0 << CS35L41_IMON_EN_SHIFT);
+		cs35l41->playback_started = false;
+	}
+
+	if (cs35l41->firmware_running) {
+		ret = cs35l41_enter_hibernate(cs35l41->dev, cs35l41->regmap,
+					      cs35l41->hw_cfg.bst_type);
+		if (ret)
+			goto err;
+	} else {
+		cs35l41_safe_reset(cs35l41->regmap, cs35l41->hw_cfg.bst_type);
+	}
 
 	regcache_cache_only(cs35l41->regmap, true);
 	regcache_mark_dirty(cs35l41->regmap);
 
-	return 0;
+err:
+	mutex_unlock(&cs35l41->fw_mutex);
+
+	return ret;
 }
 
 static int cs35l41_runtime_resume(struct device *dev)
 {
 	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
-	int ret;
+	int ret = 0;
 
-	dev_dbg(cs35l41->dev, "Resume.\n");
+	dev_dbg(cs35l41->dev, "Runtime Resume\n");
 
 	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST_NO_VSPK_SWITCH) {
-		dev_dbg(cs35l41->dev, "System does not support Resume\n");
+		dev_dbg(cs35l41->dev, "Runtime Resume not supported\n");
 		return 0;
 	}
 
-	if (!cs35l41->firmware_running)
-		return 0;
+	mutex_lock(&cs35l41->fw_mutex);
 
 	regcache_cache_only(cs35l41->regmap, false);
 
-	ret = cs35l41_exit_hibernate(cs35l41->dev, cs35l41->regmap);
-	if (ret) {
-		regcache_cache_only(cs35l41->regmap, true);
-		return ret;
+	if (cs35l41->firmware_running)	{
+		ret = cs35l41_exit_hibernate(cs35l41->dev, cs35l41->regmap);
+		if (ret) {
+			dev_warn(cs35l41->dev, "Unable to exit Hibernate.");
+			goto err;
+		}
 	}
 
 	/* Test key needs to be unlocked to allow the OTP settings to re-apply */
@@ -617,13 +723,16 @@ static int cs35l41_runtime_resume(struct device *dev)
 	cs35l41_test_key_lock(cs35l41->dev, cs35l41->regmap);
 	if (ret) {
 		dev_err(cs35l41->dev, "Failed to restore register cache: %d\n", ret);
-		return ret;
+		goto err;
 	}
 
 	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST)
 		cs35l41_init_boost(cs35l41->dev, cs35l41->regmap, &cs35l41->hw_cfg);
 
-	return 0;
+err:
+	mutex_unlock(&cs35l41->fw_mutex);
+
+	return ret;
 }
 
 static int cs35l41_smart_amp(struct cs35l41_hda *cs35l41)
@@ -673,8 +782,6 @@ clean_dsp:
 
 static void cs35l41_load_firmware(struct cs35l41_hda *cs35l41, bool load)
 {
-	pm_runtime_get_sync(cs35l41->dev);
-
 	if (cs35l41->firmware_running && !load) {
 		dev_dbg(cs35l41->dev, "Unloading Firmware\n");
 		cs35l41_shutdown_dsp(cs35l41);
@@ -684,9 +791,6 @@ static void cs35l41_load_firmware(struct cs35l41_hda *cs35l41, bool load)
 	} else {
 		dev_dbg(cs35l41->dev, "Unable to Load firmware.\n");
 	}
-
-	pm_runtime_mark_last_busy(cs35l41->dev);
-	pm_runtime_put_autosuspend(cs35l41->dev);
 }
 
 static int cs35l41_fw_load_ctl_get(struct snd_kcontrol *kcontrol,
@@ -702,16 +806,21 @@ static void cs35l41_fw_load_work(struct work_struct *work)
 {
 	struct cs35l41_hda *cs35l41 = container_of(work, struct cs35l41_hda, fw_load_work);
 
+	pm_runtime_get_sync(cs35l41->dev);
+
 	mutex_lock(&cs35l41->fw_mutex);
 
 	/* Recheck if playback is ongoing, mutex will block playback during firmware loading */
 	if (cs35l41->playback_started)
-		dev_err(cs35l41->dev, "Cannot Load/Unload firmware during Playback\n");
+		dev_err(cs35l41->dev, "Cannot Load/Unload firmware during Playback. Retrying...\n");
 	else
 		cs35l41_load_firmware(cs35l41, cs35l41->request_fw_load);
 
 	cs35l41->fw_request_ongoing = false;
 	mutex_unlock(&cs35l41->fw_mutex);
+
+	pm_runtime_mark_last_busy(cs35l41->dev);
+	pm_runtime_put_autosuspend(cs35l41->dev);
 }
 
 static int cs35l41_fw_load_ctl_put(struct snd_kcontrol *kcontrol,
@@ -835,6 +944,8 @@ static int cs35l41_hda_bind(struct device *dev, struct device *master, void *mas
 
 	pm_runtime_get_sync(dev);
 
+	mutex_lock(&cs35l41->fw_mutex);
+
 	comps->dev = dev;
 	if (!cs35l41->acpi_subsystem_id)
 		cs35l41->acpi_subsystem_id = kasprintf(GFP_KERNEL, "%.8x",
@@ -847,10 +958,8 @@ static int cs35l41_hda_bind(struct device *dev, struct device *master, void *mas
 	if (firmware_autostart) {
 		dev_dbg(cs35l41->dev, "Firmware Autostart.\n");
 		cs35l41->request_fw_load = true;
-		mutex_lock(&cs35l41->fw_mutex);
 		if (cs35l41_smart_amp(cs35l41) < 0)
 			dev_warn(cs35l41->dev, "Cannot Run Firmware, reverting to dsp bypass...\n");
-		mutex_unlock(&cs35l41->fw_mutex);
 	} else {
 		dev_dbg(cs35l41->dev, "Firmware Autostart is disabled.\n");
 	}
@@ -858,6 +967,8 @@ static int cs35l41_hda_bind(struct device *dev, struct device *master, void *mas
 	ret = cs35l41_create_controls(cs35l41);
 
 	comps->playback_hook = cs35l41_hda_playback_hook;
+
+	mutex_unlock(&cs35l41->fw_mutex);
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
@@ -1426,6 +1537,7 @@ EXPORT_SYMBOL_NS_GPL(cs35l41_hda_remove, SND_HDA_SCODEC_CS35L41);
 
 const struct dev_pm_ops cs35l41_hda_pm_ops = {
 	RUNTIME_PM_OPS(cs35l41_runtime_suspend, cs35l41_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(cs35l41_system_suspend, cs35l41_system_resume)
 };
 EXPORT_SYMBOL_NS_GPL(cs35l41_hda_pm_ops, SND_HDA_SCODEC_CS35L41);
 
