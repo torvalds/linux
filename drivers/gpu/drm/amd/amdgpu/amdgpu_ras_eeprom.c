@@ -38,7 +38,7 @@
 #define EEPROM_I2C_MADDR_ARCTURUS_D342  0x0
 #define EEPROM_I2C_MADDR_SIENNA_CICHLID 0x0
 #define EEPROM_I2C_MADDR_ALDEBARAN      0x0
-#define EEPROM_I2C_MADDR_SMU_13_0_0     (0x54UL << 16)
+#define EEPROM_I2C_MADDR_54H            (0x54UL << 16)
 
 /*
  * The 2 macros bellow represent the actual size in bytes that
@@ -124,6 +124,19 @@ static bool __get_eeprom_i2c_addr_arct(struct amdgpu_device *adev,
 	return true;
 }
 
+static bool __get_eeprom_i2c_addr_ip_discovery(struct amdgpu_device *adev,
+				       struct amdgpu_ras_eeprom_control *control)
+{
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(13, 0, 0):
+	case IP_VERSION(13, 0, 10):
+		control->i2c_address = EEPROM_I2C_MADDR_54H;
+		return true;
+	default:
+		return false;
+	}
+}
+
 static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 				  struct amdgpu_ras_eeprom_control *control)
 {
@@ -163,13 +176,16 @@ static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 		control->i2c_address = EEPROM_I2C_MADDR_ALDEBARAN;
 		break;
 
+	case CHIP_IP_DISCOVERY:
+		return __get_eeprom_i2c_addr_ip_discovery(adev, control);
+
 	default:
 		return false;
 	}
 
 	switch (adev->ip_versions[MP1_HWIP][0]) {
 	case IP_VERSION(13, 0, 0):
-		control->i2c_address = EEPROM_I2C_MADDR_SMU_13_0_0;
+		control->i2c_address = EEPROM_I2C_MADDR_54H;
 		break;
 
 	default:
