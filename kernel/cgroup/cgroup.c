@@ -6246,6 +6246,7 @@ static struct cgroup *cgroup_v1v2_get_from_file(struct file *f)
 /**
  * cgroup_get_from_file - same as cgroup_v1v2_get_from_file, but only supports
  * cgroup2.
+ * @f: file corresponding to cgroup2_dir
  */
 static struct cgroup *cgroup_get_from_file(struct file *f)
 {
@@ -6753,7 +6754,7 @@ out:
 EXPORT_SYMBOL_GPL(cgroup_get_from_path);
 
 /**
- * cgroup_get_from_fd - get a cgroup pointer from a fd
+ * cgroup_v1v2_get_from_fd - get a cgroup pointer from a fd
  * @fd: fd obtained by open(cgroup_dir)
  *
  * Find the cgroup from a fd which should be obtained
@@ -6778,6 +6779,7 @@ struct cgroup *cgroup_v1v2_get_from_fd(int fd)
 /**
  * cgroup_get_from_fd - same as cgroup_v1v2_get_from_fd, but only supports
  * cgroup2.
+ * @fd: fd obtained by open(cgroup2_dir)
  */
 struct cgroup *cgroup_get_from_fd(int fd)
 {
