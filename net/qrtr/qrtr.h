@@ -33,4 +33,5 @@ int qrtr_ns_init(void);
 
 void qrtr_ns_remove(void);
 
+int qrtr_peek_pkt_size(const void *data);
 #endif
