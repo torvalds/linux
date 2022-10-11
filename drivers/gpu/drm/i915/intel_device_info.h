@@ -194,7 +194,7 @@ enum intel_ppgtt_type {
 	func(overlay_needs_physical); \
 	func(supports_tv);
 
-struct ip_version {
+struct intel_ip_version {
 	u8 ver;
 	u8 rel;
 	u8 step;
@@ -206,13 +206,13 @@ struct intel_runtime_info {
 	 * render, compute and copy behavior.
 	 */
 	struct {
-		struct ip_version ip;
+		struct intel_ip_version ip;
 	} graphics;
 	struct {
-		struct ip_version ip;
+		struct intel_ip_version ip;
 	} media;
 	struct {
-		struct ip_version ip;
+		struct intel_ip_version ip;
 	} display;
 
 	/*

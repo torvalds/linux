@@ -289,7 +289,7 @@ static void intel_device_info_subplatform_init(struct drm_i915_private *i915)
 	RUNTIME_INFO(i915)->platform_mask[pi] |= mask;
 }
 
-static void ip_ver_read(struct drm_i915_private *i915, u32 offset, struct ip_version *ip)
+static void ip_ver_read(struct drm_i915_private *i915, u32 offset, struct intel_ip_version *ip)
 {
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	void __iomem *addr;

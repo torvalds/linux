@@ -136,7 +136,7 @@ static const struct intel_step_info adlp_n_revids[] = {
 };
 
 static u8 gmd_to_intel_step(struct drm_i915_private *i915,
-			    struct ip_version *gmd)
+			    struct intel_ip_version *gmd)
 {
 	u8 step = gmd->step + STEP_A0;
 
