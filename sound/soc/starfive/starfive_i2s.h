@@ -105,7 +105,10 @@ struct dw_i2s_dev {
 	u32 ccr;
 	u32 xfer_resolution;
 	u32 fifo_th;
+	u32 syscon_offset_18;
+	u32 syscon_offset_34;
 
+	struct clk *clk_apb0;
 	struct clk *clk_i2s_apb;
 	struct clk *clk_i2s_bclk_mst;
 	struct clk *clk_i2s_lrck_mst;

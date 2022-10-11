@@ -21,26 +21,19 @@ config SND_SOC_STARFIVE_PWMDAC_PCM
 	 Say Y or N if you want to add a custom ALSA extension that registers
 	 a PCM and uses PIO to transfer data.
 	 
-config SND_SOC_STARFIVE_I2S_MASTER
-	tristate "Starfive I2S_Rx Master module"
-	depends on HAVE_CLK && SND_SOC_STARFIVE
-	select SND_SOC_GENERIC_DMAENGINE_PCM
-	help
-	  Say 'Y' or 'M' here if you are building for StarFive SoCs
-	  platforms that contain i2srx_3ch controller core.
-
 config SND_SOC_STARFIVE_I2S
 	tristate "Starfive I2S module"
 	depends on HAVE_CLK && SND_SOC_STARFIVE
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 	help
 	  Say 'Y' or 'M' here if you are building for StarFive SoCs
-	  platforms that contain i2s controller core like i2stx_4ch0.
+	  platforms that contain i2s controller core like i2stx_4ch0
+	  and i2srx_master.
 
 config SND_SOC_STARFIVE_PDM
 	tristate "Starfive PDM module"
 	depends on HAVE_CLK && SND_SOC_STARFIVE
-	select SND_SOC_STARFIVE_I2S_MASTER
+	select SND_SOC_STARFIVE_I2S
 	select REGMAP_MMIO
 	help
 	 Say Y or M if you want to add support for sf pdm driver.
