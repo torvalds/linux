@@ -133,6 +133,8 @@ static int alloc_swap_slot_cache(unsigned int cpu)
 	 * as kvzalloc could trigger reclaim and get_swap_page,
 	 * which can lock swap_slots_cache_mutex.
 	 */
+	trace_android_rvh_alloc_swap_slot_cache(&per_cpu(swp_slots, cpu),
+		&ret, &skip);
 	trace_android_vh_alloc_swap_slot_cache(&per_cpu(swp_slots, cpu),
 		&ret, &skip);
 	if (skip)
@@ -190,6 +192,8 @@ static void drain_slots_cache_cpu(unsigned int cpu, unsigned int type,
 	bool skip = false;
 
 	cache = &per_cpu(swp_slots, cpu);
+	trace_android_rvh_drain_slots_cache_cpu(cache, type,
+		free_slots, &skip);
 	trace_android_vh_drain_slots_cache_cpu(cache, type,
 		free_slots, &skip);
 	if (skip)
@@ -298,6 +302,7 @@ int free_swap_slot(swp_entry_t entry)
 	bool skip = false;
 
 	cache = raw_cpu_ptr(&swp_slots);
+	trace_android_rvh_free_swap_slot(entry, cache, &skip);
 	trace_android_vh_free_swap_slot(entry, cache, &skip);
 	if (skip)
 		return 0;
@@ -335,6 +340,7 @@ swp_entry_t get_swap_page(struct page *page)
 	bool found = false;
 	entry.val = 0;
 
+	trace_android_rvh_get_swap_page(page, &entry, raw_cpu_ptr(&swp_slots), &found);
 	trace_android_vh_get_swap_page(page, &entry, raw_cpu_ptr(&swp_slots), &found);
 	if (found)
 		goto out;

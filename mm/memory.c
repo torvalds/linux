@@ -4777,6 +4777,7 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
 		if (vmf->flags & FAULT_FLAG_WRITE)
 			flush_tlb_fix_spurious_fault(vmf->vma, vmf->address);
 	}
+	trace_android_rvh_handle_pte_fault_end(vmf, highest_memmap_pfn);
 	trace_android_vh_handle_pte_fault_end(vmf, highest_memmap_pfn);
 unlock:
 	pte_unmap_unlock(vmf->pte, vmf->ptl);
