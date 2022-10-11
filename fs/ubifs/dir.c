@@ -1566,6 +1566,15 @@ static int ubifs_xrename(struct inode *old_dir, struct dentry *old_dentry,
 
 	ubifs_assert(c, fst_inode && snd_inode);
 
+	/*
+	 * Budget request settings: changing two direntries, changing the two
+	 * parent directory inodes.
+	 */
+
+	dbg_gen("dent '%pd' ino %lu in dir ino %lu exchange dent '%pd' ino %lu in dir ino %lu",
+		old_dentry, fst_inode->i_ino, old_dir->i_ino,
+		new_dentry, snd_inode->i_ino, new_dir->i_ino);
+
 	err = fscrypt_setup_filename(old_dir, &old_dentry->d_name, 0, &fst_nm);
 	if (err)
 		return err;
