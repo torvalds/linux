@@ -91,6 +91,7 @@ enum {
 #define GL_ASYNC		0x0040
 #define GL_EXACT		0x0080
 #define GL_SKIP			0x0100
+#define GL_NOPID		0x0200
 #define GL_NOCACHE		0x0400
   
 /*

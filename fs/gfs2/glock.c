@@ -33,6 +33,9 @@
 #include <linux/list_sort.h>
 #include <linux/lockref.h>
 #include <linux/rhashtable.h>
+#include <linux/pid_namespace.h>
+#include <linux/fdtable.h>
+#include <linux/file.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -1456,6 +1459,15 @@ void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...)
 	va_end(args);
 }
 
+static inline bool pid_is_meaningful(const struct gfs2_holder *gh)
+{
+        if (!(gh->gh_flags & GL_NOPID))
+                return true;
+        if (gh->gh_state == LM_ST_UNLOCKED)
+                return true;
+        return false;
+}
+
 /**
  * add_to_queue - Add a holder to the wait queue (but look for recursion)
  * @gh: the holder structure to add
@@ -1492,10 +1504,17 @@ __acquires(&gl->gl_lockref.lock)
 	}
 
 	list_for_each_entry(gh2, &gl->gl_holders, gh_list) {
-		if (unlikely(gh2->gh_owner_pid == gh->gh_owner_pid &&
-		    (gh->gh_gl->gl_ops->go_type != LM_TYPE_FLOCK) &&
-		    !test_bit(HIF_MAY_DEMOTE, &gh2->gh_iflags)))
-			goto trap_recursive;
+		if (likely(gh2->gh_owner_pid != gh->gh_owner_pid))
+			continue;
+		if (gh->gh_gl->gl_ops->go_type == LM_TYPE_FLOCK)
+			continue;
+		if (test_bit(HIF_MAY_DEMOTE, &gh2->gh_iflags))
+			continue;
+		if (!pid_is_meaningful(gh2))
+			continue;
+		goto trap_recursive;
+	}
+	list_for_each_entry(gh2, &gl->gl_holders, gh_list) {
 		if (try_futile &&
 		    !(gh2->gh_flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB))) {
 fail:
@@ -2306,19 +2325,24 @@ static const char *hflags2str(char *buf, u16 flags, unsigned long iflags)
 static void dump_holder(struct seq_file *seq, const struct gfs2_holder *gh,
 			const char *fs_id_buf)
 {
-	struct task_struct *gh_owner = NULL;
+	const char *comm = "(none)";
+	pid_t owner_pid = 0;
 	char flags_buf[32];
 
 	rcu_read_lock();
-	if (gh->gh_owner_pid)
+	if (pid_is_meaningful(gh)) {
+		struct task_struct *gh_owner;
+
+		comm = "(ended)";
+		owner_pid = pid_nr(gh->gh_owner_pid);
 		gh_owner = pid_task(gh->gh_owner_pid, PIDTYPE_PID);
+		if (gh_owner)
+			comm = gh_owner->comm;
+	}
 	gfs2_print_dbg(seq, "%s H: s:%s f:%s e:%d p:%ld [%s] %pS\n",
 		       fs_id_buf, state2str(gh->gh_state),
 		       hflags2str(flags_buf, gh->gh_flags, gh->gh_iflags),
-		       gh->gh_error,
-		       gh->gh_owner_pid ? (long)pid_nr(gh->gh_owner_pid) : -1,
-		       gh_owner ? gh_owner->comm : "(ended)",
-		       (void *)gh->gh_ip);
+		       gh->gh_error, (long)owner_pid, comm, (void *)gh->gh_ip);
 	rcu_read_unlock();
 }
 
@@ -2733,6 +2757,172 @@ static const struct file_operations gfs2_glstats_fops = {
 	.release = gfs2_glocks_release,
 };
 
+struct gfs2_glockfd_iter {
+	struct super_block *sb;
+	unsigned int tgid;
+	struct task_struct *task;
+	unsigned int fd;
+	struct file *file;
+};
+
+static struct task_struct *gfs2_glockfd_next_task(struct gfs2_glockfd_iter *i)
+{
+	struct pid_namespace *ns = task_active_pid_ns(current);
+	struct pid *pid;
+
+	if (i->task)
+		put_task_struct(i->task);
+
+	rcu_read_lock();
+retry:
+	i->task = NULL;
+	pid = find_ge_pid(i->tgid, ns);
+	if (pid) {
+		i->tgid = pid_nr_ns(pid, ns);
+		i->task = pid_task(pid, PIDTYPE_TGID);
+		if (!i->task) {
+			i->tgid++;
+			goto retry;
+		}
+		get_task_struct(i->task);
+	}
+	rcu_read_unlock();
+	return i->task;
+}
+
+static struct file *gfs2_glockfd_next_file(struct gfs2_glockfd_iter *i)
+{
+	if (i->file) {
+		fput(i->file);
+		i->file = NULL;
+	}
+
+	rcu_read_lock();
+	for(;; i->fd++) {
+		struct inode *inode;
+
+		i->file = task_lookup_next_fd_rcu(i->task, &i->fd);
+		if (!i->file) {
+			i->fd = 0;
+			break;
+		}
+		inode = file_inode(i->file);
+		if (inode->i_sb != i->sb)
+			continue;
+		if (get_file_rcu(i->file))
+			break;
+	}
+	rcu_read_unlock();
+	return i->file;
+}
+
+static void *gfs2_glockfd_seq_start(struct seq_file *seq, loff_t *pos)
+{
+	struct gfs2_glockfd_iter *i = seq->private;
+
+	if (*pos)
+		return NULL;
+	while (gfs2_glockfd_next_task(i)) {
+		if (gfs2_glockfd_next_file(i))
+			return i;
+		i->tgid++;
+	}
+	return NULL;
+}
+
+static void *gfs2_glockfd_seq_next(struct seq_file *seq, void *iter_ptr,
+				   loff_t *pos)
+{
+	struct gfs2_glockfd_iter *i = seq->private;
+
+	(*pos)++;
+	i->fd++;
+	do {
+		if (gfs2_glockfd_next_file(i))
+			return i;
+		i->tgid++;
+	} while (gfs2_glockfd_next_task(i));
+	return NULL;
+}
+
+static void gfs2_glockfd_seq_stop(struct seq_file *seq, void *iter_ptr)
+{
+	struct gfs2_glockfd_iter *i = seq->private;
+
+	if (i->file)
+		fput(i->file);
+	if (i->task)
+		put_task_struct(i->task);
+}
+
+static void gfs2_glockfd_seq_show_flock(struct seq_file *seq,
+					struct gfs2_glockfd_iter *i)
+{
+	struct gfs2_file *fp = i->file->private_data;
+	struct gfs2_holder *fl_gh = &fp->f_fl_gh;
+	struct lm_lockname gl_name = { .ln_type = LM_TYPE_RESERVED };
+
+	if (!READ_ONCE(fl_gh->gh_gl))
+		return;
+
+	spin_lock(&i->file->f_lock);
+	if (gfs2_holder_initialized(fl_gh))
+		gl_name = fl_gh->gh_gl->gl_name;
+	spin_unlock(&i->file->f_lock);
+
+	if (gl_name.ln_type != LM_TYPE_RESERVED) {
+		seq_printf(seq, "%d %u %u/%llx\n",
+			   i->tgid, i->fd, gl_name.ln_type,
+			   (unsigned long long)gl_name.ln_number);
+	}
+}
+
+static int gfs2_glockfd_seq_show(struct seq_file *seq, void *iter_ptr)
+{
+	struct gfs2_glockfd_iter *i = seq->private;
+	struct inode *inode = file_inode(i->file);
+	struct gfs2_glock *gl;
+
+	inode_lock_shared(inode);
+	gl = GFS2_I(inode)->i_iopen_gh.gh_gl;
+	if (gl) {
+		seq_printf(seq, "%d %u %u/%llx\n",
+			   i->tgid, i->fd, gl->gl_name.ln_type,
+			   (unsigned long long)gl->gl_name.ln_number);
+	}
+	gfs2_glockfd_seq_show_flock(seq, i);
+	inode_unlock_shared(inode);
+	return 0;
+}
+
+static const struct seq_operations gfs2_glockfd_seq_ops = {
+	.start = gfs2_glockfd_seq_start,
+	.next  = gfs2_glockfd_seq_next,
+	.stop  = gfs2_glockfd_seq_stop,
+	.show  = gfs2_glockfd_seq_show,
+};
+
+static int gfs2_glockfd_open(struct inode *inode, struct file *file)
+{
+	struct gfs2_glockfd_iter *i;
+	struct gfs2_sbd *sdp = inode->i_private;
+
+	i = __seq_open_private(file, &gfs2_glockfd_seq_ops,
+			       sizeof(struct gfs2_glockfd_iter));
+	if (!i)
+		return -ENOMEM;
+	i->sb = sdp->sd_vfs;
+	return 0;
+}
+
+static const struct file_operations gfs2_glockfd_fops = {
+	.owner   = THIS_MODULE,
+	.open    = gfs2_glockfd_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release_private,
+};
+
 DEFINE_SEQ_ATTRIBUTE(gfs2_sbstats);
 
 void gfs2_create_debugfs_file(struct gfs2_sbd *sdp)
@@ -2741,6 +2931,9 @@ void gfs2_create_debugfs_file(struct gfs2_sbd *sdp)
 
 	debugfs_create_file("glocks", S_IFREG | S_IRUGO, sdp->debugfs_dir, sdp,
 			    &gfs2_glocks_fops);
+
+	debugfs_create_file("glockfd", S_IFREG | S_IRUGO, sdp->debugfs_dir, sdp,
+			    &gfs2_glockfd_fops);
 
 	debugfs_create_file("glstats", S_IFREG | S_IRUGO, sdp->debugfs_dir, sdp,
 			    &gfs2_glstats_fops);
