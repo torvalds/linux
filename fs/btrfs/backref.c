@@ -1219,6 +1219,10 @@ static int find_parent_nodes(struct btrfs_trans_handle *trans,
 		.indirect_missing_keys = PREFTREE_INIT
 	};
 
+	/* Roots ulist is not needed when using a sharedness check context. */
+	if (sc)
+		ASSERT(roots == NULL);
+
 	key.objectid = bytenr;
 	key.offset = (u64)-1;
 	if (btrfs_fs_incompat(fs_info, SKINNY_METADATA))
@@ -1310,6 +1314,20 @@ again:
 		}
 	}
 
+	/*
+	 * If we have a share context and we reached here, it means the extent
+	 * is not directly shared (no multiple reference items for it),
+	 * otherwise we would have exited earlier with a return value of
+	 * BACKREF_FOUND_SHARED after processing delayed references or while
+	 * processing inline or keyed references from the extent tree.
+	 * The extent may however be indirectly shared through shared subtrees
+	 * as a result from creating snapshots, so we determine below what is
+	 * its parent node, in case we are dealing with a metadata extent, or
+	 * what's the leaf (or leaves), from a fs tree, that has a file extent
+	 * item pointing to it in case we are dealing with a data extent.
+	 */
+	ASSERT(extent_is_shared(sc) == 0);
+
 	btrfs_release_path(path);
 
 	ret = add_missing_keys(fs_info, &preftrees, path->skip_locking == 0);
@@ -1347,11 +1365,6 @@ again:
 		 * and would retain their original ref->count < 0.
 		 */
 		if (roots && ref->count && ref->root_id && ref->parent == 0) {
-			if (sc && ref->root_id != sc->root_objectid) {
-				ret = BACKREF_FOUND_SHARED;
-				goto out;
-			}
-
 			/* no parent == root of tree */
 			ret = ulist_add(roots, ref->root_id, 0, GFP_NOFS);
 			if (ret < 0)
