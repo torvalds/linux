@@ -23,8 +23,9 @@ static struct {
 	struct socket *sock;
 	struct sockaddr_qrtr bcast_sq;
 	struct list_head lookups;
-	struct workqueue_struct *workqueue;
-	struct work_struct work;
+	struct kthread_worker kworker;
+	struct kthread_work work;
+	struct task_struct *task;
 	int local_node;
 } qrtr_ns;
 
@@ -574,7 +575,7 @@ static void ctrl_cmd_del_lookup(struct sockaddr_qrtr *from,
 	}
 }
 
-static void qrtr_ns_worker(struct work_struct *work)
+static void qrtr_ns_worker(struct kthread_work *work)
 {
 	const struct qrtr_ctrl_pkt *pkt;
 	size_t recv_buf_size = 4096;
@@ -668,7 +669,7 @@ static void qrtr_ns_worker(struct work_struct *work)
 
 static void qrtr_ns_data_ready(struct sock *sk)
 {
-	queue_work(qrtr_ns.workqueue, &qrtr_ns.work);
+	kthread_queue_work(&qrtr_ns.kworker, &qrtr_ns.work);
 }
 
 int qrtr_ns_init(void)
@@ -677,7 +678,8 @@ int qrtr_ns_init(void)
 	int ret;
 
 	INIT_LIST_HEAD(&qrtr_ns.lookups);
-	INIT_WORK(&qrtr_ns.work, qrtr_ns_worker);
+	kthread_init_worker(&qrtr_ns.kworker);
+	kthread_init_work(&qrtr_ns.work, qrtr_ns_worker);
 
 	ret = sock_create_kern(&init_net, AF_QIPCRTR, SOCK_DGRAM,
 			       PF_QIPCRTR, &qrtr_ns.sock);
@@ -690,9 +692,11 @@ int qrtr_ns_init(void)
 		goto err_sock;
 	}
 
-	qrtr_ns.workqueue = alloc_workqueue("qrtr_ns_handler", WQ_UNBOUND, 1);
-	if (!qrtr_ns.workqueue) {
-		ret = -ENOMEM;
+	qrtr_ns.task = kthread_run(kthread_worker_fn, &qrtr_ns.kworker,
+				   "qrtr_ns");
+	if (IS_ERR(qrtr_ns.task)) {
+		pr_err("failed to spawn worker thread %ld\n",
+		       PTR_ERR(qrtr_ns.task));
 		goto err_sock;
 	}
 
@@ -718,7 +722,7 @@ int qrtr_ns_init(void)
 	return 0;
 
 err_wq:
-	destroy_workqueue(qrtr_ns.workqueue);
+	kthread_stop(qrtr_ns.task);
 err_sock:
 	sock_release(qrtr_ns.sock);
 	return ret;
@@ -727,8 +731,8 @@ EXPORT_SYMBOL_GPL(qrtr_ns_init);
 
 void qrtr_ns_remove(void)
 {
-	cancel_work_sync(&qrtr_ns.work);
-	destroy_workqueue(qrtr_ns.workqueue);
+	kthread_flush_worker(&qrtr_ns.kworker);
+	kthread_stop(qrtr_ns.task);
 	sock_release(qrtr_ns.sock);
 }
 EXPORT_SYMBOL_GPL(qrtr_ns_remove);
