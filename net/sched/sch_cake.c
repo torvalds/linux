@@ -2569,9 +2569,6 @@ static int cake_change(struct Qdisc *sch, struct nlattr *opt,
 	struct nlattr *tb[TCA_CAKE_MAX + 1];
 	int err;
 
-	if (!opt)
-		return -EINVAL;
-
 	err = nla_parse_nested_deprecated(tb, TCA_CAKE_MAX, opt, cake_policy,
 					  extack);
 	if (err < 0)
@@ -3064,16 +3061,13 @@ static void cake_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 		struct cake_tin_data *b = &q->tins[q->tin_order[i]];
 
 		for (j = 0; j < CAKE_QUEUES; j++) {
-			if (list_empty(&b->flows[j].flowchain) ||
-			    arg->count < arg->skip) {
+			if (list_empty(&b->flows[j].flowchain)) {
 				arg->count++;
 				continue;
 			}
-			if (arg->fn(sch, i * CAKE_QUEUES + j + 1, arg) < 0) {
-				arg->stop = 1;
+			if (!tc_qdisc_stats_dump(sch, i * CAKE_QUEUES + j + 1,
+						 arg))
 				break;
-			}
-			arg->count++;
 		}
 	}
 }

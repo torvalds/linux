@@ -55,6 +55,7 @@ properties:
   compatible:
     enum:
       - ti,am654-cpsw-nuss
+      - ti,j7200-cpswxg-nuss
       - ti,j721e-cpsw-nuss
       - ti,am642-cpsw-nuss
 
@@ -110,16 +111,17 @@ properties:
         const: 0
 
     patternProperties:
-      port@[1-2]:
+      "^port@[1-4]$":
         type: object
         description: CPSWxG NUSS external ports
 
         $ref: ethernet-controller.yaml#
+        unevaluatedProperties: false
 
         properties:
           reg:
             minimum: 1
-            maximum: 2
+            maximum: 4
             description: CPSW port number
 
           phys:
@@ -177,6 +179,19 @@ required:
   - dma-names
   - '#address-cells'
   - '#size-cells'
+
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: ti,j7200-cpswxg-nuss
+    then:
+      properties:
+        ethernet-ports:
+          patternProperties:
+            "^port@[3-4]$": false
 
 additionalProperties: false
 

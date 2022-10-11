@@ -131,7 +131,7 @@ static void test_global_data_rdonly(struct bpf_object *obj, __u32 duration)
 
 void test_global_data(void)
 {
-	const char *file = "./test_global_data.o";
+	const char *file = "./test_global_data.bpf.o";
 	struct bpf_object *obj;
 	int err, prog_fd;
 	LIBBPF_OPTS(bpf_test_run_opts, topts,

@@ -96,7 +96,6 @@ switch@e108000 {
 
 		port@6 {
 			reg = <0x6>;
-			label = "cpu";
 			ethernet = <&eth0>;
 		};
 	};

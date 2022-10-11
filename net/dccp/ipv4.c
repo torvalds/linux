@@ -45,10 +45,11 @@ static unsigned int dccp_v4_pernet_id __read_mostly;
 int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
 	const struct sockaddr_in *usin = (struct sockaddr_in *)uaddr;
+	struct inet_bind_hashbucket *prev_addr_hashbucket = NULL;
+	__be32 daddr, nexthop, prev_sk_rcv_saddr;
 	struct inet_sock *inet = inet_sk(sk);
 	struct dccp_sock *dp = dccp_sk(sk);
 	__be16 orig_sport, orig_dport;
-	__be32 daddr, nexthop;
 	struct flowi4 *fl4;
 	struct rtable *rt;
 	int err;
@@ -89,9 +90,29 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	if (inet_opt == NULL || !inet_opt->opt.srr)
 		daddr = fl4->daddr;
 
-	if (inet->inet_saddr == 0)
+	if (inet->inet_saddr == 0) {
+		if (inet_csk(sk)->icsk_bind2_hash) {
+			prev_addr_hashbucket =
+				inet_bhashfn_portaddr(&dccp_hashinfo, sk,
+						      sock_net(sk),
+						      inet->inet_num);
+			prev_sk_rcv_saddr = sk->sk_rcv_saddr;
+		}
 		inet->inet_saddr = fl4->saddr;
+	}
+
 	sk_rcv_saddr_set(sk, inet->inet_saddr);
+
+	if (prev_addr_hashbucket) {
+		err = inet_bhash2_update_saddr(prev_addr_hashbucket, sk);
+		if (err) {
+			inet->inet_saddr = 0;
+			sk_rcv_saddr_set(sk, prev_sk_rcv_saddr);
+			ip_rt_put(rt);
+			return err;
+		}
+	}
+
 	inet->inet_dport = usin->sin_port;
 	sk_daddr_set(sk, daddr);
 

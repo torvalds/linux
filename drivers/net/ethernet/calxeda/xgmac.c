@@ -1792,7 +1792,7 @@ static int xgmac_probe(struct platform_device *pdev)
 		netdev_warn(ndev, "MAC address %pM not valid",
 			 ndev->dev_addr);
 
-	netif_napi_add(ndev, &priv->napi, xgmac_poll, 64);
+	netif_napi_add(ndev, &priv->napi, xgmac_poll);
 	ret = register_netdev(ndev);
 	if (ret)
 		goto err_reg;

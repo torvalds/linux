@@ -116,7 +116,7 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		break;
 	}
 
-	switch (sta->smps_mode) {
+	switch (sta->deflink.smps_mode) {
 	case IEEE80211_SMPS_AUTOMATIC:
 	case IEEE80211_SMPS_NUM_MODES:
 		WARN_ON(1);

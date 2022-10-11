@@ -742,7 +742,7 @@ __printf(2, 3) int nft_request_module(struct net *net, const char *fmt,
 		return -ENOMEM;
 
 	req->done = false;
-	strlcpy(req->module, module_name, MODULE_NAME_LEN);
+	strscpy(req->module, module_name, MODULE_NAME_LEN);
 	list_add_tail(&req->list, &nft_net->module_list);
 
 	return -EAGAIN;

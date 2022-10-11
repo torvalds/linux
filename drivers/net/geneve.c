@@ -503,12 +503,9 @@ static struct sk_buff *geneve_gro_receive(struct sock *sk,
 
 	off_gnv = skb_gro_offset(skb);
 	hlen = off_gnv + sizeof(*gh);
-	gh = skb_gro_header_fast(skb, off_gnv);
-	if (skb_gro_header_hard(skb, hlen)) {
-		gh = skb_gro_header_slow(skb, hlen, off_gnv);
-		if (unlikely(!gh))
-			goto out;
-	}
+	gh = skb_gro_header(skb, hlen, off_gnv);
+	if (unlikely(!gh))
+		goto out;
 
 	if (gh->ver != GENEVE_VER || gh->oam)
 		goto out;
@@ -1200,8 +1197,8 @@ static const struct net_device_ops geneve_netdev_ops = {
 static void geneve_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *drvinfo)
 {
-	strlcpy(drvinfo->version, GENEVE_NETDEV_VER, sizeof(drvinfo->version));
-	strlcpy(drvinfo->driver, "geneve", sizeof(drvinfo->driver));
+	strscpy(drvinfo->version, GENEVE_NETDEV_VER, sizeof(drvinfo->version));
+	strscpy(drvinfo->driver, "geneve", sizeof(drvinfo->driver));
 }
 
 static const struct ethtool_ops geneve_ethtool_ops = {

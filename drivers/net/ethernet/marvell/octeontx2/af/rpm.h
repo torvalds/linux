@@ -16,6 +16,7 @@
 /* Registers */
 #define RPMX_CMRX_CFG			0x00
 #define RPMX_RX_TS_PREPEND              BIT_ULL(22)
+#define RPMX_TX_PTP_1S_SUPPORT          BIT_ULL(17)
 #define RPMX_CMRX_SW_INT                0x180
 #define RPMX_CMRX_SW_INT_W1S            0x188
 #define RPMX_CMRX_SW_INT_ENA_W1S        0x198
@@ -71,6 +72,10 @@
 #define RPMX_MTI_MAC100X_CL01_PAUSE_QUANTA              0x80A8
 #define RPMX_MTI_MAC100X_CL89_PAUSE_QUANTA		0x8108
 #define RPM_DEFAULT_PAUSE_TIME                          0x7FF
+
+#define RPMX_MTI_MAC100X_XIF_MODE		        0x8100
+#define RPMX_ONESTEP_ENABLE				BIT_ULL(5)
+#define RPMX_TS_BINARY_MODE				BIT_ULL(11)
 
 /* Function Declarations */
 int rpm_get_nr_lmacs(void *rpmd);

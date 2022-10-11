@@ -371,4 +371,11 @@
  */
 #define __weak                          __attribute__((__weak__))
 
+/*
+ * Used by functions that use '__builtin_return_address'. These function
+ * don't want to be splited or made inline, which can make
+ * the '__builtin_return_address' get unexpected address.
+ */
+#define __fix_address noinline __noclone
+
 #endif /* __LINUX_COMPILER_ATTRIBUTES_H */

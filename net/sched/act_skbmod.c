@@ -19,7 +19,6 @@
 #include <linux/tc_act/tc_skbmod.h>
 #include <net/tc_act/tc_skbmod.h>
 
-static unsigned int skbmod_net_id;
 static struct tc_action_ops act_skbmod_ops;
 
 static int tcf_skbmod_act(struct sk_buff *skb, const struct tc_action *a,
@@ -103,7 +102,7 @@ static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 			   struct tcf_proto *tp, u32 flags,
 			   struct netlink_ext_ack *extack)
 {
-	struct tc_action_net *tn = net_generic(net, skbmod_net_id);
+	struct tc_action_net *tn = net_generic(net, act_skbmod_ops.net_id);
 	bool ovr = flags & TCA_ACT_FLAGS_REPLACE;
 	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct nlattr *tb[TCA_SKBMOD_MAX + 1];
@@ -276,23 +275,6 @@ nla_put_failure:
 	return -1;
 }
 
-static int tcf_skbmod_walker(struct net *net, struct sk_buff *skb,
-			     struct netlink_callback *cb, int type,
-			     const struct tc_action_ops *ops,
-			     struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, skbmod_net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
-static int tcf_skbmod_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, skbmod_net_id);
-
-	return tcf_idr_search(tn, a, index);
-}
-
 static struct tc_action_ops act_skbmod_ops = {
 	.kind		=	"skbmod",
 	.id		=	TCA_ACT_SKBMOD,
@@ -301,27 +283,25 @@ static struct tc_action_ops act_skbmod_ops = {
 	.dump		=	tcf_skbmod_dump,
 	.init		=	tcf_skbmod_init,
 	.cleanup	=	tcf_skbmod_cleanup,
-	.walk		=	tcf_skbmod_walker,
-	.lookup		=	tcf_skbmod_search,
 	.size		=	sizeof(struct tcf_skbmod),
 };
 
 static __net_init int skbmod_init_net(struct net *net)
 {
-	struct tc_action_net *tn = net_generic(net, skbmod_net_id);
+	struct tc_action_net *tn = net_generic(net, act_skbmod_ops.net_id);
 
 	return tc_action_net_init(net, tn, &act_skbmod_ops);
 }
 
 static void __net_exit skbmod_exit_net(struct list_head *net_list)
 {
-	tc_action_net_exit(net_list, skbmod_net_id);
+	tc_action_net_exit(net_list, act_skbmod_ops.net_id);
 }
 
 static struct pernet_operations skbmod_net_ops = {
 	.init = skbmod_init_net,
 	.exit_batch = skbmod_exit_net,
-	.id   = &skbmod_net_id,
+	.id   = &act_skbmod_ops.net_id,
 	.size = sizeof(struct tc_action_net),
 };
 

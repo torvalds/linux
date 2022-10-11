@@ -329,12 +329,9 @@ MODULE_DEVICE_TABLE(pci, kvaser_pciefd_id_table);
 static int kvaser_pciefd_spi_wait_loop(struct kvaser_pciefd *pcie, int msk)
 {
 	u32 res;
-	int ret;
 
-	ret = readl_poll_timeout(pcie->reg_base + KVASER_PCIEFD_SPI_STATUS_REG,
-				 res, res & msk, 0, 10);
-
-	return ret;
+	return readl_poll_timeout(pcie->reg_base + KVASER_PCIEFD_SPI_STATUS_REG,
+			res, res & msk, 0, 10);
 }
 
 static int kvaser_pciefd_spi_cmd(struct kvaser_pciefd *pcie, const u8 *tx,

@@ -739,6 +739,36 @@ out:
 	return err;
 }
 
+static int genl_header_check(const struct genl_family *family,
+			     struct nlmsghdr *nlh, struct genlmsghdr *hdr,
+			     struct netlink_ext_ack *extack)
+{
+	u16 flags;
+
+	/* Only for commands added after we started validating */
+	if (hdr->cmd < family->resv_start_op)
+		return 0;
+
+	if (hdr->reserved) {
+		NL_SET_ERR_MSG(extack, "genlmsghdr.reserved field is not 0");
+		return -EINVAL;
+	}
+
+	/* Old netlink flags have pretty loose semantics, allow only the flags
+	 * consumed by the core where we can enforce the meaning.
+	 */
+	flags = nlh->nlmsg_flags;
+	if ((flags & NLM_F_DUMP) == NLM_F_DUMP) /* DUMP is 2 bits */
+		flags &= ~NLM_F_DUMP;
+	if (flags & ~(NLM_F_REQUEST | NLM_F_ACK | NLM_F_ECHO)) {
+		NL_SET_ERR_MSG(extack,
+			       "ambiguous or reserved bits set in nlmsg_flags");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int genl_family_rcv_msg(const struct genl_family *family,
 			       struct sk_buff *skb,
 			       struct nlmsghdr *nlh,
@@ -755,6 +785,9 @@ static int genl_family_rcv_msg(const struct genl_family *family,
 
 	hdrlen = GENL_HDRLEN + family->hdrsize;
 	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen))
+		return -EINVAL;
+
+	if (genl_header_check(family, nlh, hdr, extack))
 		return -EINVAL;
 
 	if (genl_get_cmd(hdr->cmd, family, &op))
@@ -1348,6 +1381,7 @@ static struct genl_family genl_ctrl __ro_after_init = {
 	.module = THIS_MODULE,
 	.ops = genl_ctrl_ops,
 	.n_ops = ARRAY_SIZE(genl_ctrl_ops),
+	.resv_start_op = CTRL_CMD_GETPOLICY + 1,
 	.mcgrps = genl_ctrl_groups,
 	.n_mcgrps = ARRAY_SIZE(genl_ctrl_groups),
 	.id = GENL_ID_CTRL,
@@ -1362,7 +1396,7 @@ static int genl_bind(struct net *net, int group)
 	unsigned int id;
 	int ret = 0;
 
-	genl_lock_all();
+	down_read(&cb_lock);
 
 	idr_for_each_entry(&genl_fam_idr, family, id) {
 		const struct genl_multicast_group *grp;
@@ -1383,7 +1417,7 @@ static int genl_bind(struct net *net, int group)
 		break;
 	}
 
-	genl_unlock_all();
+	up_read(&cb_lock);
 	return ret;
 }
 

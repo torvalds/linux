@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2020 Linaro Ltd.
+ * Copyright (C) 2019-2022 Linaro Ltd.
  */
 
 #include <linux/types.h>
@@ -22,37 +22,36 @@
  * DOC: GSI Transactions
  *
  * A GSI transaction abstracts the behavior of a GSI channel by representing
- * everything about a related group of IPA commands in a single structure.
- * (A "command" in this sense is either a data transfer or an IPA immediate
+ * everything about a related group of IPA operations in a single structure.
+ * (A "operation" in this sense is either a data transfer or an IPA immediate
  * command.)  Most details of interaction with the GSI hardware are managed
- * by the GSI transaction core, allowing users to simply describe commands
+ * by the GSI transaction core, allowing users to simply describe operations
  * to be performed.  When a transaction has completed a callback function
  * (dependent on the type of endpoint associated with the channel) allows
  * cleanup of resources associated with the transaction.
  *
- * To perform a command (or set of them), a user of the GSI transaction
+ * To perform an operation (or set of them), a user of the GSI transaction
  * interface allocates a transaction, indicating the number of TREs required
- * (one per command).  If sufficient TREs are available, they are reserved
+ * (one per operation).  If sufficient TREs are available, they are reserved
  * for use in the transaction and the allocation succeeds.  This way
- * exhaustion of the available TREs in a channel ring is detected
- * as early as possible.  All resources required to complete a transaction
- * are allocated at transaction allocation time.
+ * exhaustion of the available TREs in a channel ring is detected as early
+ * as possible.  Any other resources that might be needed to complete a
+ * transaction are also allocated when the transaction is allocated.
  *
- * Commands performed as part of a transaction are represented in an array
- * of Linux scatterlist structures.  This array is allocated with the
- * transaction, and its entries are initialized using standard scatterlist
- * functions (such as sg_set_buf() or skb_to_sgvec()).
+ * Operations performed as part of a transaction are represented in an array
+ * of Linux scatterlist structures, allocated with the transaction.  These
+ * scatterlist structures are initialized by "adding" operations to the
+ * transaction.  If a buffer in an operation must be mapped for DMA, this is
+ * done at the time it is added to the transaction.  It is possible for a
+ * mapping error to occur when an operation is added.  In this case the
+ * transaction should simply be freed; this correctly releases resources
+ * associated with the transaction.
  *
- * Once a transaction's scatterlist structures have been initialized, the
- * transaction is committed.  The caller is responsible for mapping buffers
- * for DMA if necessary, and this should be done *before* allocating
- * the transaction.  Between a successful allocation and commit of a
- * transaction no errors should occur.
- *
- * Committing transfers ownership of the entire transaction to the GSI
- * transaction core.  The GSI transaction code formats the content of
- * the scatterlist array into the channel ring buffer and informs the
- * hardware that new TREs are available to process.
+ * Once all operations have been successfully added to a transaction, the
+ * transaction is committed.  Committing transfers ownership of the entire
+ * transaction to the GSI transaction core.  The GSI transaction code
+ * formats the content of the scatterlist array into the channel ring
+ * buffer and informs the hardware that new TREs are available to process.
  *
  * The last TRE in each transaction is marked to interrupt the AP when the
  * GSI hardware has completed it.  Because transfers described by TREs are
@@ -125,11 +124,10 @@ void gsi_trans_pool_exit(struct gsi_trans_pool *pool)
 	memset(pool, 0, sizeof(*pool));
 }
 
-/* Allocate the requested number of (zeroed) entries from the pool */
-/* Home-grown DMA pool.  This way we can preallocate and use the tre_count
- * to guarantee allocations will succeed.  Even though we specify max_alloc
- * (and it can be more than one), we only allow allocation of a single
- * element from a DMA pool.
+/* Home-grown DMA pool.  This way we can preallocate the pool, and guarantee
+ * allocations will succeed.  The immediate commands in a transaction can
+ * require up to max_alloc elements from the pool.  But we only allow
+ * allocation of a single element from a DMA pool at a time.
  */
 int gsi_trans_pool_init_dma(struct device *dev, struct gsi_trans_pool *pool,
 			    size_t size, u32 count, u32 max_alloc)
@@ -237,68 +235,63 @@ gsi_channel_trans_mapped(struct gsi_channel *channel, u32 index)
 /* Return the oldest completed transaction for a channel (or null) */
 struct gsi_trans *gsi_channel_trans_complete(struct gsi_channel *channel)
 {
-	return list_first_entry_or_null(&channel->trans_info.complete,
-					struct gsi_trans, links);
+	struct gsi_trans_info *trans_info = &channel->trans_info;
+	u16 trans_id = trans_info->completed_id;
+
+	if (trans_id == trans_info->pending_id) {
+		gsi_channel_update(channel);
+		if (trans_id == trans_info->pending_id)
+			return NULL;
+	}
+
+	return &trans_info->trans[trans_id %= channel->tre_count];
 }
 
-/* Move a transaction from the allocated list to the committed list */
+/* Move a transaction from allocated to committed state */
 static void gsi_trans_move_committed(struct gsi_trans *trans)
 {
 	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
 	struct gsi_trans_info *trans_info = &channel->trans_info;
 
-	spin_lock_bh(&trans_info->spinlock);
-
-	list_move_tail(&trans->links, &trans_info->committed);
-
-	spin_unlock_bh(&trans_info->spinlock);
+	/* This allocated transaction is now committed */
+	trans_info->allocated_id++;
 }
 
-/* Move transactions from the committed list to the pending list */
+/* Move committed transactions to pending state */
 static void gsi_trans_move_pending(struct gsi_trans *trans)
 {
 	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
 	struct gsi_trans_info *trans_info = &channel->trans_info;
-	struct list_head list;
+	u16 trans_index = trans - &trans_info->trans[0];
+	u16 delta;
 
-	spin_lock_bh(&trans_info->spinlock);
-
-	/* Move this transaction and all predecessors to the pending list */
-	list_cut_position(&list, &trans_info->committed, &trans->links);
-	list_splice_tail(&list, &trans_info->pending);
-
-	spin_unlock_bh(&trans_info->spinlock);
+	/* These committed transactions are now pending */
+	delta = trans_index - trans_info->committed_id + 1;
+	trans_info->committed_id += delta % channel->tre_count;
 }
 
-/* Move a transaction and all of its predecessors from the pending list
- * to the completed list.
- */
+/* Move pending transactions to completed state */
 void gsi_trans_move_complete(struct gsi_trans *trans)
 {
 	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
 	struct gsi_trans_info *trans_info = &channel->trans_info;
-	struct list_head list;
+	u16 trans_index = trans - trans_info->trans;
+	u16 delta;
 
-	spin_lock_bh(&trans_info->spinlock);
-
-	/* Move this transaction and all predecessors to completed list */
-	list_cut_position(&list, &trans_info->pending, &trans->links);
-	list_splice_tail(&list, &trans_info->complete);
-
-	spin_unlock_bh(&trans_info->spinlock);
+	/* These pending transactions are now completed */
+	delta = trans_index - trans_info->pending_id + 1;
+	delta %= channel->tre_count;
+	trans_info->pending_id += delta;
 }
 
-/* Move a transaction from the completed list to the polled list */
+/* Move a transaction from completed to polled state */
 void gsi_trans_move_polled(struct gsi_trans *trans)
 {
 	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
 	struct gsi_trans_info *trans_info = &channel->trans_info;
 
-	spin_lock_bh(&trans_info->spinlock);
-
-	list_move_tail(&trans->links, &trans_info->polled);
-
-	spin_unlock_bh(&trans_info->spinlock);
+	/* This completed transaction is now polled */
+	trans_info->completed_id++;
 }
 
 /* Reserve some number of TREs on a channel.  Returns true if successful */
@@ -343,20 +336,22 @@ struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
 	struct gsi_channel *channel = &gsi->channel[channel_id];
 	struct gsi_trans_info *trans_info;
 	struct gsi_trans *trans;
+	u16 trans_index;
 
 	if (WARN_ON(tre_count > channel->trans_tre_max))
 		return NULL;
 
 	trans_info = &channel->trans_info;
 
-	/* We reserve the TREs now, but consume them at commit time.
-	 * If there aren't enough available, we're done.
-	 */
+	/* If we can't reserve the TREs for the transaction, we're done */
 	if (!gsi_trans_tre_reserve(trans_info, tre_count))
 		return NULL;
 
-	/* Allocate and initialize non-zero fields in the transaction */
-	trans = gsi_trans_pool_alloc(&trans_info->pool, 1);
+	trans_index = trans_info->free_id % channel->tre_count;
+	trans = &trans_info->trans[trans_index];
+	memset(trans, 0, sizeof(*trans));
+
+	/* Initialize non-zero fields in the transaction */
 	trans->gsi = gsi;
 	trans->channel_id = channel_id;
 	trans->rsvd_count = tre_count;
@@ -367,14 +362,10 @@ struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
 	sg_init_marker(trans->sgl, tre_count);
 
 	trans->direction = direction;
-
-	spin_lock_bh(&trans_info->spinlock);
-
-	list_add_tail(&trans->links, &trans_info->alloc);
-
-	spin_unlock_bh(&trans_info->spinlock);
-
 	refcount_set(&trans->refcount, 1);
+
+	/* This free transaction is now allocated */
+	trans_info->free_id++;
 
 	return trans;
 }
@@ -382,30 +373,26 @@ struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
 /* Free a previously-allocated transaction */
 void gsi_trans_free(struct gsi_trans *trans)
 {
-	refcount_t *refcount = &trans->refcount;
 	struct gsi_trans_info *trans_info;
-	bool last;
 
-	/* We must hold the lock to release the last reference */
-	if (refcount_dec_not_one(refcount))
+	if (!refcount_dec_and_test(&trans->refcount))
 		return;
 
+	/* Unused transactions are allocated but never committed, pending,
+	 * completed, or polled.
+	 */
 	trans_info = &trans->gsi->channel[trans->channel_id].trans_info;
-
-	spin_lock_bh(&trans_info->spinlock);
-
-	/* Reference might have been added before we got the lock */
-	last = refcount_dec_and_test(refcount);
-	if (last)
-		list_del(&trans->links);
-
-	spin_unlock_bh(&trans_info->spinlock);
-
-	if (!last)
-		return;
-
-	if (trans->used_count)
+	if (!trans->used_count) {
+		trans_info->allocated_id++;
+		trans_info->committed_id++;
+		trans_info->pending_id++;
+		trans_info->completed_id++;
+	} else {
 		ipa_gsi_trans_release(trans);
+	}
+
+	/* This transaction is now free */
+	trans_info->polled_id++;
 
 	/* Releasing the reserved TREs implicitly frees the sgl[] and
 	 * (if present) info[] arrays, plus the transaction itself.
@@ -548,8 +535,8 @@ static void gsi_trans_tre_fill(struct gsi_tre *dest_tre, dma_addr_t addr,
  *
  * Formats channel ring TRE entries based on the content of the scatterlist.
  * Maps a transaction pointer to the last ring entry used for the transaction,
- * so it can be recovered when it completes.  Moves the transaction to the
- * pending list.  Finally, updates the channel ring pointer and optionally
+ * so it can be recovered when it completes.  Moves the transaction to
+ * pending state.  Finally, updates the channel ring pointer and optionally
  * rings the doorbell.
  */
 static void __gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
@@ -654,23 +641,27 @@ void gsi_trans_complete(struct gsi_trans *trans)
 void gsi_channel_trans_cancel_pending(struct gsi_channel *channel)
 {
 	struct gsi_trans_info *trans_info = &channel->trans_info;
-	struct gsi_trans *trans;
-	bool cancelled;
+	u16 trans_id = trans_info->pending_id;
 
 	/* channel->gsi->mutex is held by caller */
-	spin_lock_bh(&trans_info->spinlock);
 
-	cancelled = !list_empty(&trans_info->pending);
-	list_for_each_entry(trans, &trans_info->pending, links)
+	/* If there are no pending transactions, we're done */
+	if (trans_id == trans_info->committed_id)
+		return;
+
+	/* Mark all pending transactions cancelled */
+	do {
+		struct gsi_trans *trans;
+
+		trans = &trans_info->trans[trans_id % channel->tre_count];
 		trans->cancelled = true;
+	} while (++trans_id != trans_info->committed_id);
 
-	list_splice_tail_init(&trans_info->pending, &trans_info->complete);
-
-	spin_unlock_bh(&trans_info->spinlock);
+	/* All pending transactions are now completed */
+	trans_info->pending_id = trans_info->committed_id;
 
 	/* Schedule NAPI polling to complete the cancelled transactions */
-	if (cancelled)
-		napi_schedule(&channel->napi);
+	napi_schedule(&channel->napi);
 }
 
 /* Issue a command to read a single byte from a channel */
@@ -736,10 +727,16 @@ int gsi_channel_trans_init(struct gsi *gsi, u32 channel_id)
 	 * modulo that number to determine the next one that's free.
 	 * Transactions are allocated one at a time.
 	 */
-	ret = gsi_trans_pool_init(&trans_info->pool, sizeof(struct gsi_trans),
-				  tre_max, 1);
-	if (ret)
+	trans_info->trans = kcalloc(tre_count, sizeof(*trans_info->trans),
+				    GFP_KERNEL);
+	if (!trans_info->trans)
 		return -ENOMEM;
+	trans_info->free_id = 0;	/* all modulo channel->tre_count */
+	trans_info->allocated_id = 0;
+	trans_info->committed_id = 0;
+	trans_info->pending_id = 0;
+	trans_info->completed_id = 0;
+	trans_info->polled_id = 0;
 
 	/* A completion event contains a pointer to the TRE that caused
 	 * the event (which will be the last one used by the transaction).
@@ -765,19 +762,13 @@ int gsi_channel_trans_init(struct gsi *gsi, u32 channel_id)
 	if (ret)
 		goto err_map_free;
 
-	spin_lock_init(&trans_info->spinlock);
-	INIT_LIST_HEAD(&trans_info->alloc);
-	INIT_LIST_HEAD(&trans_info->committed);
-	INIT_LIST_HEAD(&trans_info->pending);
-	INIT_LIST_HEAD(&trans_info->complete);
-	INIT_LIST_HEAD(&trans_info->polled);
 
 	return 0;
 
 err_map_free:
 	kfree(trans_info->map);
 err_trans_free:
-	gsi_trans_pool_exit(&trans_info->pool);
+	kfree(trans_info->trans);
 
 	dev_err(gsi->dev, "error %d initializing channel %u transactions\n",
 		ret, channel_id);
@@ -791,6 +782,6 @@ void gsi_channel_trans_exit(struct gsi_channel *channel)
 	struct gsi_trans_info *trans_info = &channel->trans_info;
 
 	gsi_trans_pool_exit(&trans_info->sg_pool);
-	gsi_trans_pool_exit(&trans_info->pool);
+	kfree(trans_info->trans);
 	kfree(trans_info->map);
 }
