@@ -1293,19 +1293,23 @@
 		};
 
 		i2stx_4ch0: i2stx_4ch0@120b0000 {
-			compatible = "snps,designware-i2stx-4ch0";
+			compatible = "starfive,jh7110-i2stx-4ch0", "snps,designware-i2s";
 			reg = <0x0 0x120b0000 0x0 0x1000>;
 			clocks = <&clkgen JH7110_MCLK_INNER>,
 				 <&clkgen JH7110_I2STX_4CH0_BCLK_MST>,
 				 <&clkgen JH7110_I2STX_4CH0_LRCK_MST>,
 				 <&clkgen JH7110_MCLK>,
 				 <&clkgen JH7110_I2STX0_4CHBCLK>,
-				 <&clkgen JH7110_I2STX0_4CHLRCK>;
+				 <&clkgen JH7110_I2STX0_4CHLRCK>,
+				 <&clkgen JH7110_I2STX0_4CHCLK_APB>,
+				 <&mclk_ext>;
 			clock-names = "inner", "bclk-mst",
 					"lrck-mst", "mclk",
-					"bclk0", "lrck0";
+					"bclk0", "lrck0",
+					"i2s_apb", "mclk_ext";
 			resets = <&rstgen RSTN_U0_I2STX_4CH_APB>,
 				 <&rstgen RSTN_U0_I2STX_4CH_BCLK>;
+			reset-names = "rst_apb", "rst_bclk";
 			dmas = <&dma 47 1>;
 			dma-names = "tx";
 			#sound-dai-cells = <0>;
