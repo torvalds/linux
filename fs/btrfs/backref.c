@@ -1664,7 +1664,6 @@ struct btrfs_backref_share_check_ctx *btrfs_alloc_backref_share_check_ctx(void)
 		return NULL;
 
 	ulist_init(&ctx->refs);
-	ulist_init(&ctx->roots);
 
 	return ctx;
 }
@@ -1675,7 +1674,6 @@ void btrfs_free_backref_share_ctx(struct btrfs_backref_share_check_ctx *ctx)
 		return;
 
 	ulist_release(&ctx->refs);
-	ulist_release(&ctx->roots);
 	kfree(ctx);
 }
 
@@ -1718,7 +1716,6 @@ int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
 	};
 	int level;
 
-	ulist_init(&ctx->roots);
 	ulist_init(&ctx->refs);
 
 	trans = btrfs_join_transaction_nostart(root);
@@ -1742,7 +1739,7 @@ int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
 		bool cached;
 
 		ret = find_parent_nodes(trans, fs_info, bytenr, elem.seq, &ctx->refs,
-					&ctx->roots, NULL, &shared, false);
+					NULL, NULL, &shared, false);
 		if (ret == BACKREF_FOUND_SHARED) {
 			/* this is the only condition under which we return 1 */
 			ret = 1;
@@ -1810,7 +1807,6 @@ int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
 		up_read(&fs_info->commit_root_sem);
 	}
 out:
-	ulist_release(&ctx->roots);
 	ulist_release(&ctx->refs);
 	return ret;
 }
