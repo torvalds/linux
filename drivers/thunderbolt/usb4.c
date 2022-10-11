@@ -232,6 +232,9 @@ static bool link_is_usb4(struct tb_port *port)
  * is not available for some reason (like that there is Thunderbolt 3
  * switch upstream) then the internal xHCI controller is enabled
  * instead.
+ *
+ * This does not set the configuration valid bit of the router. To do
+ * that call usb4_switch_configuration_valid().
  */
 int usb4_switch_setup(struct tb_switch *sw)
 {
@@ -288,7 +291,33 @@ int usb4_switch_setup(struct tb_switch *sw)
 
 	/* TBT3 supported by the CM */
 	val |= ROUTER_CS_5_C3S;
-	/* Tunneling configuration is ready now */
+
+	return tb_sw_write(sw, &val, TB_CFG_SWITCH, ROUTER_CS_5, 1);
+}
+
+/**
+ * usb4_switch_configuration_valid() - Set tunneling configuration to be valid
+ * @sw: USB4 router
+ *
+ * Sets configuration valid bit for the router. Must be called before
+ * any tunnels can be set through the router and after
+ * usb4_switch_setup() has been called. Can be called to host and device
+ * routers (does nothing for the latter).
+ *
+ * Returns %0 in success and negative errno otherwise.
+ */
+int usb4_switch_configuration_valid(struct tb_switch *sw)
+{
+	u32 val;
+	int ret;
+
+	if (!tb_route(sw))
+		return 0;
+
+	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH, ROUTER_CS_5, 1);
+	if (ret)
+		return ret;
+
 	val |= ROUTER_CS_5_CV;
 
 	ret = tb_sw_write(sw, &val, TB_CFG_SWITCH, ROUTER_CS_5, 1);

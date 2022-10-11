@@ -2466,6 +2466,22 @@ int tb_switch_configure(struct tb_switch *sw)
 	return tb_plug_events_active(sw, true);
 }
 
+/**
+ * tb_switch_configuration_valid() - Set the tunneling configuration to be valid
+ * @sw: Router to configure
+ *
+ * Needs to be called before any tunnels can be setup through the
+ * router. Can be called to any router.
+ *
+ * Returns %0 in success and negative errno otherwise.
+ */
+int tb_switch_configuration_valid(struct tb_switch *sw)
+{
+	if (tb_switch_is_usb4(sw))
+		return usb4_switch_configuration_valid(sw);
+	return 0;
+}
+
 static int tb_switch_set_uuid(struct tb_switch *sw)
 {
 	bool uid = false;

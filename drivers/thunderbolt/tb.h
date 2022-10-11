@@ -73,44 +73,37 @@ enum tb_nvm_write_ops {
 #define USB4_SWITCH_MAX_DEPTH		5
 
 /**
- * enum tb_switch_tmu_rate - TMU refresh rate
- * @TB_SWITCH_TMU_RATE_OFF: %0 (Disable Time Sync handshake)
- * @TB_SWITCH_TMU_RATE_HIFI: %16 us time interval between successive
- *			     transmission of the Delay Request TSNOS
- *			     (Time Sync Notification Ordered Set) on a Link
- * @TB_SWITCH_TMU_RATE_NORMAL: %1 ms time interval between successive
- *			       transmission of the Delay Request TSNOS on
- *			       a Link
+ * enum tb_switch_tmu_mode - TMU mode
+ * @TB_SWITCH_TMU_MODE_OFF: TMU is off
+ * @TB_SWITCH_TMU_MODE_LOWRES: Uni-directional, normal mode
+ * @TB_SWITCH_TMU_MODE_HIFI_UNI: Uni-directional, HiFi mode
+ * @TB_SWITCH_TMU_MODE_HIFI_BI: Bi-directional, HiFi mode
+ * @TB_SWITCH_TMU_MODE_MEDRES_ENHANCED_UNI: Enhanced Uni-directional, MedRes mode
+ *
+ * Ordering is based on TMU accuracy level (highest last).
  */
-enum tb_switch_tmu_rate {
-	TB_SWITCH_TMU_RATE_OFF = 0,
-	TB_SWITCH_TMU_RATE_HIFI = 16,
-	TB_SWITCH_TMU_RATE_NORMAL = 1000,
+enum tb_switch_tmu_mode {
+	TB_SWITCH_TMU_MODE_OFF,
+	TB_SWITCH_TMU_MODE_LOWRES,
+	TB_SWITCH_TMU_MODE_HIFI_UNI,
+	TB_SWITCH_TMU_MODE_HIFI_BI,
+	TB_SWITCH_TMU_MODE_MEDRES_ENHANCED_UNI,
 };
 
 /**
- * struct tb_switch_tmu - Structure holding switch TMU configuration
+ * struct tb_switch_tmu - Structure holding router TMU configuration
  * @cap: Offset to the TMU capability (%0 if not found)
  * @has_ucap: Does the switch support uni-directional mode
- * @rate: TMU refresh rate related to upstream switch. In case of root
- *	  switch this holds the domain rate. Reflects the HW setting.
- * @unidirectional: Is the TMU in uni-directional or bi-directional mode
- *		    related to upstream switch. Don't care for root switch.
- *		    Reflects the HW setting.
- * @unidirectional_request: Is the new TMU mode: uni-directional or bi-directional
- *			    that is requested to be set. Related to upstream switch.
- *			    Don't care for root switch.
- * @rate_request: TMU new refresh rate related to upstream switch that is
- *		  requested to be set. In case of root switch, this holds
- *		  the new domain rate that is requested to be set.
+ * @mode: TMU mode related to the upstream router. Reflects the HW
+ *	  setting. Don't care for host router.
+ * @mode_request: TMU mode requested to set. Related to upstream router.
+ *		   Don't care for host router.
  */
 struct tb_switch_tmu {
 	int cap;
 	bool has_ucap;
-	enum tb_switch_tmu_rate rate;
-	bool unidirectional;
-	bool unidirectional_request;
-	enum tb_switch_tmu_rate rate_request;
+	enum tb_switch_tmu_mode mode;
+	enum tb_switch_tmu_mode mode_request;
 };
 
 /**
@@ -801,6 +794,7 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 struct tb_switch *tb_switch_alloc_safe_mode(struct tb *tb,
 			struct device *parent, u64 route);
 int tb_switch_configure(struct tb_switch *sw);
+int tb_switch_configuration_valid(struct tb_switch *sw);
 int tb_switch_add(struct tb_switch *sw);
 void tb_switch_remove(struct tb_switch *sw);
 void tb_switch_suspend(struct tb_switch *sw, bool runtime);
@@ -975,19 +969,33 @@ int tb_switch_tmu_init(struct tb_switch *sw);
 int tb_switch_tmu_post_time(struct tb_switch *sw);
 int tb_switch_tmu_disable(struct tb_switch *sw);
 int tb_switch_tmu_enable(struct tb_switch *sw);
-int tb_switch_tmu_configure(struct tb_switch *sw, enum tb_switch_tmu_rate rate,
-			    bool unidirectional);
+int tb_switch_tmu_configure(struct tb_switch *sw, enum tb_switch_tmu_mode mode);
+
+/**
+ * tb_switch_tmu_is_configured() - Is given TMU mode configured
+ * @sw: Router whose mode to check
+ * @mode: Mode to check
+ *
+ * Checks if given router TMU mode is configured to @mode. Note the
+ * router TMU might not be enabled to this mode.
+ */
+static inline bool tb_switch_tmu_is_configured(const struct tb_switch *sw,
+					       enum tb_switch_tmu_mode mode)
+{
+	return sw->tmu.mode_request == mode;
+}
+
 /**
  * tb_switch_tmu_is_enabled() - Checks if the specified TMU mode is enabled
  * @sw: Router whose TMU mode to check
  *
  * Return true if hardware TMU configuration matches the requested
- * configuration.
+ * configuration (and is not %TB_SWITCH_TMU_MODE_OFF).
  */
 static inline bool tb_switch_tmu_is_enabled(const struct tb_switch *sw)
 {
-	return sw->tmu.rate == sw->tmu.rate_request &&
-	       sw->tmu.unidirectional == sw->tmu.unidirectional_request;
+	return sw->tmu.mode != TB_SWITCH_TMU_MODE_OFF &&
+	       sw->tmu.mode == sw->tmu.mode_request;
 }
 
 bool tb_port_clx_is_enabled(struct tb_port *port, unsigned int clx);
@@ -1211,6 +1219,7 @@ static inline bool tb_switch_is_usb4(const struct tb_switch *sw)
 }
 
 int usb4_switch_setup(struct tb_switch *sw);
+int usb4_switch_configuration_valid(struct tb_switch *sw);
 int usb4_switch_read_uid(struct tb_switch *sw, u64 *uid);
 int usb4_switch_drom_read(struct tb_switch *sw, unsigned int address, void *buf,
 			  size_t size);
