@@ -1037,8 +1037,15 @@ static int brcm_pcie_start_link(struct brcm_pcie *pcie)
 	pcie->perst_set(pcie, 0);
 
 	/*
-	 * Give the RC/EP time to wake up, before trying to configure RC.
-	 * Intermittently check status for link-up, up to a total of 100ms.
+	 * Wait for 100ms after PERST# deassertion; see PCIe CEM specification
+	 * sections 2.2, PCIe r5.0, 6.6.1.
+	 */
+	msleep(100);
+
+	/*
+	 * Give the RC/EP even more time to wake up, before trying to
+	 * configure RC.  Intermittently check status for link-up, up to a
+	 * total of 100ms.
 	 */
 	for (i = 0; i < 100 && !brcm_pcie_link_up(pcie); i += 5)
 		msleep(5);
