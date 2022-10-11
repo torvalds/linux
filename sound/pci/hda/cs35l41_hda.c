@@ -487,10 +487,10 @@ static void cs35l41_hda_playback_hook(struct device *dev, int action)
 	struct regmap *reg = cs35l41->regmap;
 	int ret = 0;
 
-	mutex_lock(&cs35l41->fw_mutex);
-
 	switch (action) {
 	case HDA_GEN_PCM_ACT_OPEN:
+		pm_runtime_get_sync(dev);
+		mutex_lock(&cs35l41->fw_mutex);
 		cs35l41->playback_started = true;
 		if (cs35l41->firmware_running) {
 			regmap_multi_reg_write(reg, cs35l41_hda_config_dsp,
@@ -508,15 +508,21 @@ static void cs35l41_hda_playback_hook(struct device *dev, int action)
 					 CS35L41_AMP_EN_MASK, 1 << CS35L41_AMP_EN_SHIFT);
 		if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST)
 			regmap_write(reg, CS35L41_GPIO1_CTRL1, 0x00008001);
+		mutex_unlock(&cs35l41->fw_mutex);
 		break;
 	case HDA_GEN_PCM_ACT_PREPARE:
+		mutex_lock(&cs35l41->fw_mutex);
 		ret = cs35l41_global_enable(reg, cs35l41->hw_cfg.bst_type, 1);
+		mutex_unlock(&cs35l41->fw_mutex);
 		break;
 	case HDA_GEN_PCM_ACT_CLEANUP:
+		mutex_lock(&cs35l41->fw_mutex);
 		regmap_multi_reg_write(reg, cs35l41_hda_mute, ARRAY_SIZE(cs35l41_hda_mute));
 		ret = cs35l41_global_enable(reg, cs35l41->hw_cfg.bst_type, 0);
+		mutex_unlock(&cs35l41->fw_mutex);
 		break;
 	case HDA_GEN_PCM_ACT_CLOSE:
+		mutex_lock(&cs35l41->fw_mutex);
 		ret = regmap_update_bits(reg, CS35L41_PWR_CTRL2,
 					 CS35L41_AMP_EN_MASK, 0 << CS35L41_AMP_EN_SHIFT);
 		if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST)
@@ -530,13 +536,15 @@ static void cs35l41_hda_playback_hook(struct device *dev, int action)
 		}
 		cs35l41_irq_release(cs35l41);
 		cs35l41->playback_started = false;
+		mutex_unlock(&cs35l41->fw_mutex);
+
+		pm_runtime_mark_last_busy(dev);
+		pm_runtime_put_autosuspend(dev);
 		break;
 	default:
 		dev_warn(cs35l41->dev, "Playback action not supported: %d\n", action);
 		break;
 	}
-
-	mutex_unlock(&cs35l41->fw_mutex);
 
 	if (ret)
 		dev_err(cs35l41->dev, "Regmap access fail: %d\n", ret);
@@ -616,19 +624,6 @@ static int cs35l41_runtime_resume(struct device *dev)
 		cs35l41_init_boost(cs35l41->dev, cs35l41->regmap, &cs35l41->hw_cfg);
 
 	return 0;
-}
-
-static int cs35l41_hda_suspend_hook(struct device *dev)
-{
-	dev_dbg(dev, "Request Suspend\n");
-	pm_runtime_mark_last_busy(dev);
-	return pm_runtime_put_autosuspend(dev);
-}
-
-static int cs35l41_hda_resume_hook(struct device *dev)
-{
-	dev_dbg(dev, "Request Resume\n");
-	return pm_runtime_get_sync(dev);
 }
 
 static int cs35l41_smart_amp(struct cs35l41_hda *cs35l41)
@@ -863,8 +858,6 @@ static int cs35l41_hda_bind(struct device *dev, struct device *master, void *mas
 	ret = cs35l41_create_controls(cs35l41);
 
 	comps->playback_hook = cs35l41_hda_playback_hook;
-	comps->suspend_hook = cs35l41_hda_suspend_hook;
-	comps->resume_hook = cs35l41_hda_resume_hook;
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
