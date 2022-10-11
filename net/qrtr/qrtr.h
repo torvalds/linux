@@ -8,6 +8,7 @@ struct sk_buff;
 
 /* endpoint node id auto assignment */
 #define QRTR_EP_NID_AUTO (-1)
+#define QRTR_EP_NET_ID_AUTO (1)
 
 /**
  * struct qrtr_endpoint - endpoint handle
@@ -23,7 +24,7 @@ struct qrtr_endpoint {
 	struct qrtr_node *node;
 };
 
-int qrtr_endpoint_register(struct qrtr_endpoint *ep, unsigned int nid);
+int qrtr_endpoint_register(struct qrtr_endpoint *ep, unsigned int net_id);
 
 void qrtr_endpoint_unregister(struct qrtr_endpoint *ep);
 

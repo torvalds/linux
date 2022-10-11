@@ -44,7 +44,7 @@ static int qrtr_tun_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = tun;
 
-	ret = qrtr_endpoint_register(&tun->ep, QRTR_EP_NID_AUTO);
+	ret = qrtr_endpoint_register(&tun->ep, QRTR_EP_NET_ID_AUTO);
 	if (ret)
 		goto out;
 

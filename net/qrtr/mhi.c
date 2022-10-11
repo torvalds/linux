@@ -7,7 +7,10 @@
 #include <linux/mhi.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/pci.h>
+#include <linux/platform_device.h>
 #include <linux/skbuff.h>
+#include <linux/of.h>
 #include <net/sock.h>
 
 #include "qrtr.h"
@@ -78,10 +81,38 @@ free_skb:
 	return rc;
 }
 
+static void qrtr_mhi_of_parse(struct mhi_device *mhi_dev,
+			      u32 *net_id)
+{
+	struct mhi_controller *mhi_cntrl = mhi_dev->mhi_cntrl;
+	struct device_node *np = NULL;
+	struct pci_dev *pci_device;
+	u32 dev_id, nid;
+	int rc;
+
+	*net_id = QRTR_EP_NET_ID_AUTO;
+
+	np = of_find_compatible_node(np, NULL, "qcom,qrtr-mhi");
+	if (!np)
+		return;
+
+	rc = of_property_read_u32(np, "qcom,dev-id", &dev_id);
+	if (!rc) {
+		pci_device = to_pci_dev(mhi_cntrl->cntrl_dev);
+		if (pci_device->device == dev_id) {
+			rc = of_property_read_u32(np, "qcom,net-id", &nid);
+			if (!rc)
+				*net_id = nid;
+		}
+	}
+	of_node_put(np);
+}
+
 static int qcom_mhi_qrtr_probe(struct mhi_device *mhi_dev,
 			       const struct mhi_device_id *id)
 {
 	struct qrtr_mhi_dev *qdev;
+	u32 net_id;
 	int rc;
 
 	qdev = devm_kzalloc(&mhi_dev->dev, sizeof(*qdev), GFP_KERNEL);
@@ -94,7 +125,10 @@ static int qcom_mhi_qrtr_probe(struct mhi_device *mhi_dev,
 	init_completion(&qdev->prepared);
 
 	dev_set_drvdata(&mhi_dev->dev, qdev);
-	rc = qrtr_endpoint_register(&qdev->ep, QRTR_EP_NID_AUTO);
+
+	qrtr_mhi_of_parse(mhi_dev, &net_id);
+
+	rc = qrtr_endpoint_register(&qdev->ep, net_id);
 	if (rc)
 		return rc;
 
