@@ -150,7 +150,7 @@ static void bch2_quota_reservation_put(struct bch_fs *c,
 static int bch2_quota_reservation_add(struct bch_fs *c,
 				      struct bch_inode_info *inode,
 				      struct quota_res *res,
-				      unsigned sectors,
+				      u64 sectors,
 				      bool check_enospc)
 {
 	int ret;
@@ -3132,6 +3132,55 @@ long bch2_fallocate_dispatch(struct file *file, int mode,
 	return bch2_err_class(ret);
 }
 
+static int quota_reserve_range(struct bch_inode_info *inode,
+			       struct quota_res *res,
+			       u64 start, u64 end)
+{
+	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	struct btree_trans trans;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	u32 snapshot;
+	u64 sectors = end - start;
+	u64 pos = start;
+	int ret;
+
+	bch2_trans_init(&trans, c, 0, 0);
+retry:
+	bch2_trans_begin(&trans);
+
+	ret = bch2_subvolume_get_snapshot(&trans, inode->ei_subvol, &snapshot);
+	if (ret)
+		goto err;
+
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_extents,
+			     SPOS(inode->v.i_ino, pos, snapshot), 0);
+
+	while (!(ret = btree_trans_too_many_iters(&trans)) &&
+	       (k = bch2_btree_iter_peek_upto(&iter, POS(inode->v.i_ino, end - 1))).k &&
+	       !(ret = bkey_err(k))) {
+		if (bkey_extent_is_allocation(k.k)) {
+			u64 s = min(end, k.k->p.offset) -
+				max(start, bkey_start_offset(k.k));
+			BUG_ON(s > sectors);
+			sectors -= s;
+		}
+		bch2_btree_iter_advance(&iter);
+	}
+	pos = iter.pos.offset;
+	bch2_trans_iter_exit(&trans, &iter);
+err:
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+		goto retry;
+
+	bch2_trans_exit(&trans);
+
+	if (ret)
+		return ret;
+
+	return bch2_quota_reservation_add(c, inode, res, sectors, true);
+}
+
 loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 			     struct file *file_dst, loff_t pos_dst,
 			     loff_t len, unsigned remap_flags)
@@ -3139,6 +3188,7 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 	struct bch_inode_info *src = file_bch_inode(file_src);
 	struct bch_inode_info *dst = file_bch_inode(file_dst);
 	struct bch_fs *c = src->v.i_sb->s_fs_info;
+	struct quota_res quota_res = { 0 };
 	s64 i_sectors_delta = 0;
 	u64 aligned_len;
 	loff_t ret = 0;
@@ -3159,8 +3209,6 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 
 	bch2_lock_inodes(INODE_LOCK|INODE_PAGECACHE_BLOCK, src, dst);
 
-	file_update_time(file_dst);
-
 	inode_dio_wait(&src->v);
 	inode_dio_wait(&dst->v);
 
@@ -3176,6 +3224,13 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 				pos_dst, pos_dst + len - 1);
 	if (ret)
 		goto err;
+
+	ret = quota_reserve_range(dst, &quota_res, pos_dst >> 9,
+				  (pos_dst + aligned_len) >> 9);
+	if (ret)
+		goto err;
+
+	file_update_time(file_dst);
 
 	mark_pagecache_unallocated(src, pos_src >> 9,
 				   (pos_src + aligned_len) >> 9);
@@ -3193,8 +3248,7 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 	 */
 	ret = min((u64) ret << 9, (u64) len);
 
-	/* XXX get a quota reservation */
-	i_sectors_acct(c, dst, NULL, i_sectors_delta);
+	i_sectors_acct(c, dst, &quota_res, i_sectors_delta);
 
 	spin_lock(&dst->v.i_lock);
 	if (pos_dst + ret > dst->v.i_size)
@@ -3205,6 +3259,7 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 	    IS_SYNC(file_inode(file_dst)))
 		ret = bch2_flush_inode(c, inode_inum(dst));
 err:
+	bch2_quota_reservation_put(c, dst, &quota_res);
 	bch2_unlock_inodes(INODE_LOCK|INODE_PAGECACHE_BLOCK, src, dst);
 
 	return bch2_err_class(ret);
