@@ -536,21 +536,21 @@ static void gfx_v9_4_3_select_se_sh(struct amdgpu_device *adev,
 	WREG32_SOC15_RLC_SHADOW_EX(reg, GC, GET_INST(GC, xcc_id), regGRBM_GFX_INDEX, data);
 }
 
-static uint32_t wave_read_ind(struct amdgpu_device *adev, uint32_t simd, uint32_t wave, uint32_t address)
+static uint32_t wave_read_ind(struct amdgpu_device *adev, uint32_t xcc_id, uint32_t simd, uint32_t wave, uint32_t address)
 {
-	WREG32_SOC15_RLC(GC, GET_INST(GC, 0), regSQ_IND_INDEX,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regSQ_IND_INDEX,
 		(wave << SQ_IND_INDEX__WAVE_ID__SHIFT) |
 		(simd << SQ_IND_INDEX__SIMD_ID__SHIFT) |
 		(address << SQ_IND_INDEX__INDEX__SHIFT) |
 		(SQ_IND_INDEX__FORCE_READ_MASK));
-	return RREG32_SOC15(GC, GET_INST(GC, 0), regSQ_IND_DATA);
+	return RREG32_SOC15(GC, GET_INST(GC, xcc_id), regSQ_IND_DATA);
 }
 
-static void wave_read_regs(struct amdgpu_device *adev, uint32_t simd,
+static void wave_read_regs(struct amdgpu_device *adev, uint32_t xcc_id, uint32_t simd,
 			   uint32_t wave, uint32_t thread,
 			   uint32_t regno, uint32_t num, uint32_t *out)
 {
-	WREG32_SOC15_RLC(GC, GET_INST(GC, 0), regSQ_IND_INDEX,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regSQ_IND_INDEX,
 		(wave << SQ_IND_INDEX__WAVE_ID__SHIFT) |
 		(simd << SQ_IND_INDEX__SIMD_ID__SHIFT) |
 		(regno << SQ_IND_INDEX__INDEX__SHIFT) |
@@ -558,53 +558,53 @@ static void wave_read_regs(struct amdgpu_device *adev, uint32_t simd,
 		(SQ_IND_INDEX__FORCE_READ_MASK) |
 		(SQ_IND_INDEX__AUTO_INCR_MASK));
 	while (num--)
-		*(out++) = RREG32_SOC15(GC, GET_INST(GC, 0), regSQ_IND_DATA);
+		*(out++) = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regSQ_IND_DATA);
 }
 
 static void gfx_v9_4_3_read_wave_data(struct amdgpu_device *adev,
-				      uint32_t simd, uint32_t wave,
+				      uint32_t xcc_id, uint32_t simd, uint32_t wave,
 				      uint32_t *dst, int *no_fields)
 {
 	/* type 1 wave data */
 	dst[(*no_fields)++] = 1;
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_STATUS);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_PC_LO);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_PC_HI);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_EXEC_LO);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_EXEC_HI);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_HW_ID);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_INST_DW0);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_INST_DW1);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_GPR_ALLOC);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_LDS_ALLOC);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TRAPSTS);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_IB_STS);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_IB_DBG0);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_M0);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_MODE);
+	dst[(*no_fields)++] = wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_STATUS);
+	dst[(*no_fields)++] = wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_PC_LO);
+	dst[(*no_fields)++] = wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_PC_HI);
+	dst[(*no_fields)++] = wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_EXEC_LO);
+	dst[(*no_fields)++] = wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_EXEC_HI);
+	dst[(*no_fields)++] = wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_HW_ID);
+	dst[(*no_fields)++] = wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_INST_DW0);
+	dst[(*no_fields)++] = wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_INST_DW1);
+	dst[(*no_fields)++] = wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_GPR_ALLOC);
+	dst[(*no_fields)++] = wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_LDS_ALLOC);
+	dst[(*no_fields)++] = wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_TRAPSTS);
+	dst[(*no_fields)++] = wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_IB_STS);
+	dst[(*no_fields)++] = wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_IB_DBG0);
+	dst[(*no_fields)++] = wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_M0);
+	dst[(*no_fields)++] = wave_read_ind(adev, xcc_id, simd, wave, ixSQ_WAVE_MODE);
 }
 
-static void gfx_v9_4_3_read_wave_sgprs(struct amdgpu_device *adev, uint32_t simd,
+static void gfx_v9_4_3_read_wave_sgprs(struct amdgpu_device *adev, uint32_t xcc_id, uint32_t simd,
 				       uint32_t wave, uint32_t start,
 				       uint32_t size, uint32_t *dst)
 {
-	wave_read_regs(adev, simd, wave, 0,
+	wave_read_regs(adev, xcc_id, simd, wave, 0,
 		       start + SQIND_WAVE_SGPRS_OFFSET, size, dst);
 }
 
-static void gfx_v9_4_3_read_wave_vgprs(struct amdgpu_device *adev, uint32_t simd,
+static void gfx_v9_4_3_read_wave_vgprs(struct amdgpu_device *adev, uint32_t xcc_id, uint32_t simd,
 				       uint32_t wave, uint32_t thread,
 				       uint32_t start, uint32_t size,
 				       uint32_t *dst)
 {
-	wave_read_regs(adev, simd, wave, thread,
+	wave_read_regs(adev, xcc_id, simd, wave, thread,
 		       start + SQIND_WAVE_VGPRS_OFFSET, size, dst);
 }
 
 static void gfx_v9_4_3_select_me_pipe_q(struct amdgpu_device *adev,
-					u32 me, u32 pipe, u32 q, u32 vm)
+					u32 me, u32 pipe, u32 q, u32 vm, u32 xcc_id)
 {
-	soc15_grbm_select(adev, me, pipe, q, vm, GET_INST(GC, 0));
+	soc15_grbm_select(adev, me, pipe, q, vm, GET_INST(GC, xcc_id));
 }
 
 static enum amdgpu_gfx_partition
