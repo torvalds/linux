@@ -5,6 +5,7 @@
 
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pinctrl/pinctrl.h>
 
@@ -2420,11 +2421,18 @@ static const struct msm_pinctrl_soc_data pineapple_vm_pinctrl = {
 
 static int pineapple_pinctrl_probe(struct platform_device *pdev)
 {
-	return msm_pinctrl_probe(pdev, &pineapple_pinctrl);
+	const struct msm_pinctrl_soc_data *pinctrl_data;
+	struct device *dev = &pdev->dev;
+
+	pinctrl_data = of_device_get_match_data(dev);
+	if (!pinctrl_data)
+		return -EINVAL;
+
+	return msm_pinctrl_probe(pdev, pinctrl_data);
 }
 
 static const struct of_device_id pineapple_pinctrl_of_match[] = {
-	{ .compatible = "qcom,pineapple-pinctrl", },
+	{ .compatible = "qcom,pineapple-pinctrl", .data = &pineapple_pinctrl},
 	{ .compatible = "qcom,pineapple-vm-pinctrl", .data = &pineapple_vm_pinctrl},
 	{ },
 };
@@ -2453,3 +2461,4 @@ module_exit(pineapple_pinctrl_exit);
 MODULE_DESCRIPTION("QTI pineapple pinctrl driver");
 MODULE_LICENSE("GPL v2");
 MODULE_DEVICE_TABLE(of, pineapple_pinctrl_of_match);
+MODULE_SOFTDEP("pre: qcom_tlmm_vm_irqchip");
