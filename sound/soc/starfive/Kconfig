@@ -29,6 +29,14 @@ config SND_SOC_STARFIVE_I2S_MASTER
 	  Say 'Y' or 'M' here if you are building for StarFive SoCs
 	  platforms that contain i2srx_3ch controller core.
 
+config SND_SOC_STARFIVE_I2S
+	tristate "Starfive I2S module"
+	depends on HAVE_CLK && SND_SOC_STARFIVE
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say 'Y' or 'M' here if you are building for StarFive SoCs
+	  platforms that contain i2s controller core like i2stx_4ch0.
+
 config SND_SOC_STARFIVE_PDM
 	tristate "Starfive PDM module"
 	depends on HAVE_CLK && SND_SOC_STARFIVE
