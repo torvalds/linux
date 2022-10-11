@@ -329,8 +329,16 @@ static void intel_ipver_early_init(struct drm_i915_private *i915)
 {
 	struct intel_runtime_info *runtime = RUNTIME_INFO(i915);
 
-	if (!HAS_GMD_ID(i915))
+	if (!HAS_GMD_ID(i915)) {
+		drm_WARN_ON(&i915->drm, RUNTIME_INFO(i915)->graphics.ip.ver > 12);
+		/*
+		 * On older platforms, graphics and media share the same ip
+		 * version and release.
+		 */
+		RUNTIME_INFO(i915)->media.ip =
+			RUNTIME_INFO(i915)->graphics.ip;
 		return;
+	}
 
 	ip_ver_read(i915, i915_mmio_reg_offset(GMD_ID_GRAPHICS),
 		    &runtime->graphics.ip);
