@@ -97,6 +97,8 @@ TODOList:
 * 用户空间工具 <tools/index>
 * userspace-api/index
 
+也可参考独立于内核文档的 `Linux 手册页 <https://www.kernel.org/doc/man-pages/>`_ 。
+
 固件相关文档
 ------------
 
