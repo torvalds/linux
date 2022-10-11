@@ -126,7 +126,6 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	unsigned long reserve_addr = 0;
 	unsigned long reserve_size = 0;
 	struct screen_info *si;
-	efi_properties_table_t *prop_tbl;
 
 	efi_system_table = sys_table_arg;
 
@@ -204,18 +203,6 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 			NULL);
 
 	efi_random_get_seed();
-
-	/*
-	 * If the NX PE data feature is enabled in the properties table, we
-	 * should take care not to create a virtual mapping that changes the
-	 * relative placement of runtime services code and data regions, as
-	 * they may belong to the same PE/COFF executable image in memory.
-	 * The easiest way to achieve that is to simply use a 1:1 mapping.
-	 */
-	prop_tbl = get_efi_config_table(EFI_PROPERTIES_TABLE_GUID);
-	flat_va_mapping |= prop_tbl &&
-			   (prop_tbl->memory_protection_attribute &
-			   EFI_PROPERTIES_RUNTIME_MEMORY_PROTECTION_NON_EXECUTABLE_PE_DATA);
 
 	/* force efi_novamap if SetVirtualAddressMap() is unsupported */
 	efi_novamap |= !(get_supported_rt_services() &
