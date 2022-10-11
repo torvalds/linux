@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-#ifndef _I8042_X86IA64IO_H
-#define _I8042_X86IA64IO_H
+#ifndef _I8042_ACPIPNPIO_H
+#define _I8042_ACPIPNPIO_H
 
+#include <linux/acpi.h>
 
 #ifdef CONFIG_X86
 #include <asm/x86_init.h>
@@ -1300,7 +1301,7 @@ static char i8042_pnp_aux_name[32];
 
 static void i8042_pnp_id_to_string(struct pnp_id *id, char *dst, int dst_size)
 {
-	strlcpy(dst, "PNP:", dst_size);
+	strscpy(dst, "PNP:", dst_size);
 
 	while (id) {
 		strlcat(dst, " ", dst_size);
@@ -1320,7 +1321,7 @@ static int i8042_pnp_kbd_probe(struct pnp_dev *dev, const struct pnp_device_id *
 	if (pnp_irq_valid(dev,0))
 		i8042_pnp_kbd_irq = pnp_irq(dev, 0);
 
-	strlcpy(i8042_pnp_kbd_name, did->id, sizeof(i8042_pnp_kbd_name));
+	strscpy(i8042_pnp_kbd_name, did->id, sizeof(i8042_pnp_kbd_name));
 	if (strlen(pnp_dev_name(dev))) {
 		strlcat(i8042_pnp_kbd_name, ":", sizeof(i8042_pnp_kbd_name));
 		strlcat(i8042_pnp_kbd_name, pnp_dev_name(dev), sizeof(i8042_pnp_kbd_name));
@@ -1347,7 +1348,7 @@ static int i8042_pnp_aux_probe(struct pnp_dev *dev, const struct pnp_device_id *
 	if (pnp_irq_valid(dev, 0))
 		i8042_pnp_aux_irq = pnp_irq(dev, 0);
 
-	strlcpy(i8042_pnp_aux_name, did->id, sizeof(i8042_pnp_aux_name));
+	strscpy(i8042_pnp_aux_name, did->id, sizeof(i8042_pnp_aux_name));
 	if (strlen(pnp_dev_name(dev))) {
 		strlcat(i8042_pnp_aux_name, ":", sizeof(i8042_pnp_aux_name));
 		strlcat(i8042_pnp_aux_name, pnp_dev_name(dev), sizeof(i8042_pnp_aux_name));
@@ -1453,9 +1454,14 @@ static int __init i8042_pnp_init(void)
 		return -ENODEV;
 #else
 		pr_info("PNP: No PS/2 controller found.\n");
+#if defined(__loongarch__)
+		if (acpi_disabled == 0)
+			return -ENODEV;
+#else
 		if (x86_platform.legacy.i8042 !=
 				X86_LEGACY_I8042_EXPECTED_PRESENT)
 			return -ENODEV;
+#endif
 		pr_info("Probing ports directly.\n");
 		return 0;
 #endif
@@ -1665,4 +1671,4 @@ static inline void i8042_platform_exit(void)
 	i8042_pnp_exit();
 }
 
-#endif /* _I8042_X86IA64IO_H */
+#endif /* _I8042_ACPIPNPIO_H */
