@@ -192,7 +192,7 @@ static int topstar_platform_init(struct topstar_laptop *topstar)
 {
 	int err;
 
-	topstar->platform = platform_device_alloc(TOPSTAR_LAPTOP_CLASS, -1);
+	topstar->platform = platform_device_alloc(TOPSTAR_LAPTOP_CLASS, PLATFORM_DEVID_NONE);
 	if (!topstar->platform)
 		return -ENOMEM;
 

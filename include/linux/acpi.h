@@ -1083,6 +1083,7 @@ acpi_status acpi_os_prepare_extended_sleep(u8 sleep_state,
 struct acpi_s2idle_dev_ops {
 	struct list_head list_node;
 	void (*prepare)(void);
+	void (*check)(void);
 	void (*restore)(void);
 };
 int acpi_register_lps0_dev(struct acpi_s2idle_dev_ops *arg);
