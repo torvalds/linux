@@ -1536,6 +1536,9 @@ static bool lookup_backref_shared_cache(struct btrfs_backref_shared_cache *cache
 {
 	struct btrfs_backref_shared_cache_entry *entry;
 
+	if (!cache->use_cache)
+		return false;
+
 	if (WARN_ON_ONCE(level >= BTRFS_MAX_LEVEL))
 		return false;
 
@@ -1599,6 +1602,9 @@ static void store_backref_shared_cache(struct btrfs_backref_shared_cache *cache,
 {
 	struct btrfs_backref_shared_cache_entry *entry;
 	u64 gen;
+
+	if (!cache->use_cache)
+		return;
 
 	if (WARN_ON_ONCE(level >= BTRFS_MAX_LEVEL))
 		return;
@@ -1697,6 +1703,7 @@ int btrfs_is_data_extent_shared(struct btrfs_root *root, u64 inum, u64 bytenr,
 	/* -1 means we are in the bytenr of the data extent. */
 	level = -1;
 	ULIST_ITER_INIT(&uiter);
+	cache->use_cache = true;
 	while (1) {
 		bool is_shared;
 		bool cached;
@@ -1725,6 +1732,24 @@ int btrfs_is_data_extent_shared(struct btrfs_root *root, u64 inum, u64 bytenr,
 		if (level == -1 &&
 		    extent_gen > btrfs_root_last_snapshot(&root->root_item))
 			break;
+
+		/*
+		 * If our data extent was not directly shared (without multiple
+		 * reference items), than it might have a single reference item
+		 * with a count > 1 for the same offset, which means there are 2
+		 * (or more) file extent items that point to the data extent -
+		 * this happens when a file extent item needs to be split and
+		 * then one item gets moved to another leaf due to a b+tree leaf
+		 * split when inserting some item. In this case the file extent
+		 * items may be located in different leaves and therefore some
+		 * of the leaves may be referenced through shared subtrees while
+		 * others are not. Since our extent buffer cache only works for
+		 * a single path (by far the most common case and simpler to
+		 * deal with), we can not use it if we have multiple leaves
+		 * (which implies multiple paths).
+		 */
+		if (level == -1 && tmp->nnodes > 1)
+			cache->use_cache = false;
 
 		if (level >= 0)
 			store_backref_shared_cache(cache, root, bytenr,
