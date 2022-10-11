@@ -1,0 +1,329 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1103.dtsi"
+#include "rv1106-evb.dtsi"
+#include "rv1106-thunder-boot-spi-nor.dtsi"
+
+/ {
+	model = "Rockchip RV1103G Battery IPC V11 Board";
+	compatible = "rockchip,rv1103g-battery-ipc-v11", "rockchip,rv1103";
+
+	aliases {
+		/delete-property/ csi2dphy1;
+		/delete-property/ csi2dphy2;
+		/delete-property/ ethernet0;
+		/delete-property/ i2c0;
+		/delete-property/ i2c1;
+		/delete-property/ i2c2;
+		/delete-property/ i2c3;
+		/delete-property/ mmc0;
+		/delete-property/ mmc1;
+		/delete-property/ pwm0;
+		/delete-property/ pwm1;
+		/delete-property/ pwm2;
+		/delete-property/ pwm3;
+		/delete-property/ pwm4;
+		/delete-property/ pwm5;
+		/delete-property/ pwm6;
+		/delete-property/ pwm7;
+		/delete-property/ pwm8;
+		/delete-property/ pwm9;
+		/delete-property/ rkcif_mipi_lvds1;
+		/delete-property/ serial0;
+		/delete-property/ serial1;
+		/delete-property/ serial3;
+		/delete-property/ serial4;
+		/delete-property/ serial5;
+		/delete-property/ spi0;
+		/delete-property/ spi1;
+	};
+
+	chosen {
+		bootargs = "loglevel=0 rootfstype=erofs rootflags=dax console=ttyFIQ0 root=/dev/rd0 snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=0 driver_async_probe=dwmmc_rockchip storagemedia=mtd androidboot.storagemedia=mtd androidboot.mode=normal";
+	};
+
+	acodec_sound: acodec-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rv1103-acodec";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,cpu {
+			sound-dai = <&i2s0_8ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&acodec>;
+		};
+	};
+
+	vcc_1v8: vcc-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_1v8";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+};
+
+/delete-node/ &dsm;
+/delete-node/ &i2c0;
+/delete-node/ &i2c1;
+/delete-node/ &i2c2;
+/delete-node/ &i2c3;
+/delete-node/ &emmc;
+/delete-node/ &gmac;
+/delete-node/ &pwm0;
+/delete-node/ &pwm1;
+/delete-node/ &pwm2;
+/delete-node/ &pwm3;
+/delete-node/ &pwm4;
+/delete-node/ &pwm5;
+/delete-node/ &pwm6;
+/delete-node/ &pwm7;
+/delete-node/ &pwm8;
+/delete-node/ &pwm9;
+/delete-node/ &rkcif_dvp;
+/delete-node/ &rkcif_dvp_sditf;
+/delete-node/ &rkcif_mipi_lvds1;
+/delete-node/ &rkcif_mipi_lvds1_sditf;
+/delete-node/ &sdmmc;
+/delete-node/ &spi0;
+/delete-node/ &spi1;
+/delete-node/ &uart0;
+/delete-node/ &uart1;
+/delete-node/ &uart3;
+/delete-node/ &uart4;
+/delete-node/ &uart5;
+
+&acodec {
+	#sound-dai-cells = <0>;
+	pa-ctl-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&csi2_dphy_hw {
+	status = "okay";
+};
+
+&csi2_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csi_dphy_input0: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&sc3338_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csi_dphy_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi_csi2_input>;
+			};
+		};
+	};
+};
+
+&fiq_debugger {
+	rockchip,baudrate = <1500000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2m1_xfer>;
+};
+
+&i2c4 {
+	rockchip,amp-shared;
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4m2_xfer>;
+	status = "okay";
+
+	sc3338: sc3338@30 {
+		compatible = "smartsens,sc3338";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru MCLK_REF_MIPI0>;
+		clock-names = "xvclk";
+		pwdn-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipi_refclk_out0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "FKO1";
+		rockchip,camera-module-lens-name = "30IRC-F16";
+		port {
+			sc3338_out: endpoint {
+				remote-endpoint = <&csi_dphy_input0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&i2s0_8ch {
+	#sound-dai-cells = <0>;
+	status = "okay";
+};
+
+&mailbox {
+	status = "okay";
+};
+
+&memory {
+	reg = <0x00000000 0x04000000>;
+};
+
+&mipi0_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csi_dphy_output>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi_in>;
+			};
+		};
+	};
+};
+
+&pwm10 {
+	status = "okay";
+};
+
+&pwm11 {
+	status = "okay";
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+
+	memory-region-thunderboot = <&rkisp_thunderboot>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mipi_pins>;
+	port {
+		/* MIPI CSI-2 endpoint */
+		cif_mipi_in: endpoint {
+			remote-endpoint = <&mipi_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds_sditf {
+	status = "okay";
+
+	port {
+		/* MIPI CSI-2 endpoint */
+		mipi_lvds_sditf: endpoint {
+			remote-endpoint = <&isp_in>;
+		};
+	};
+};
+
+&rkisp {
+	status = "okay";
+};
+
+&rkisp_vir0 {
+	status = "okay";
+
+	port@0 {
+		isp_in: endpoint {
+			remote-endpoint = <&mipi_lvds_sditf>;
+		};
+	};
+};
+
+&saradc {
+	status = "okay";
+	vref-supply = <&vcc_1v8>;
+};
+
+&sdio {
+	max-frequency = <30000000>;
+	no-sd;
+	no-mmc;
+	bus-width = <4>;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	keep-power-in-suspend;
+	non-removable;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc1m1_cmd &sdmmc1m1_clk &sdmmc1m1_bus4>;
+	no-prescan-powerup;
+	post-power-on-delay-ms = <0>;
+	status = "okay";
+};
+
+&sfc {
+	assigned-clocks = <&cru SCLK_SFC>;
+	assigned-clock-rates = <125000000>;
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <125000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+	};
+};
+
+&thunder_boot_service {
+	status = "okay";
+};
+
+&rkisp_thunderboot {
+	/* reg's offset MUST match with RTOS */
+	/*
+	 * vicap, capture raw10, ceil(w*10/8/256)*256*h *4(buf num)
+	 * e.g. 2304x1296: 0xf30000
+	 */
+	reg = <0x00860000 0xf30000>;
+};
+
+&ramdisk_r {
+	reg = <0x1790000 (10 * 0x00100000)>;
+};
+
+&ramdisk_c {
+	reg = <0x2190000 (5 * 0x00100000)>;
+};
