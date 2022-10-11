@@ -795,6 +795,16 @@ config VIDEO_SR030PC30
 	help
 	  This driver supports SR030PC30 VGA camera from Siliconfile
 
+config VIDEO_ST_VGXY61
+	tristate "ST VGXY61 sensor support"
+	depends on OF && GPIOLIB && VIDEO_DEV && I2C
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the ST VGXY61
+	  camera sensor.
+
 config VIDEO_VS6624
 	tristate "ST VS6624 sensor support"
 	depends on VIDEO_DEV && I2C
