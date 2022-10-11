@@ -85,6 +85,7 @@ static DEFINE_SPINLOCK(state_lock);
 static void apply_need(struct cluster_data *state);
 static void wake_up_core_ctl_thread(void);
 static bool initialized;
+static bool assist_params_initialized;
 
 ATOMIC_NOTIFIER_HEAD(core_ctl_notifier);
 static unsigned int last_nr_big;
@@ -1167,6 +1168,31 @@ static void core_ctl_call_notifier(void)
 	atomic_notifier_call_chain(&core_ctl_notifier, 0, &ndata);
 }
 
+/**
+ * core_ctl_check_masks_set
+ *
+ * return true if all clusters have updated values for their appropriate
+ * masks.
+ */
+static bool core_ctl_check_masks_set(void)
+{
+	int index = 0;
+	struct cluster_data *cluster;
+	int possible_cpus = cpumask_weight(cpu_possible_mask);
+	int all_masks_set = true;
+
+	for_each_cluster(cluster, index) {
+		if (cpumask_weight(&cluster->nrrun_cpu_mask) > possible_cpus ||
+		    cpumask_weight(&cluster->nrrun_cpu_misfit_mask) > possible_cpus ||
+		    cpumask_weight(&cluster->assist_cpu_mask) > possible_cpus ||
+		    cpumask_weight(&cluster->assist_cpu_misfit_mask) > possible_cpus) {
+			all_masks_set = false;
+			break;
+		}
+	}
+
+	return all_masks_set;
+}
 /*
  * sched_get_nr_running_avg will wipe out previous statistics and
  * update it to the values computed since the last call.
@@ -1186,6 +1212,11 @@ void core_ctl_check(u64 window_start)
 
 	if (unlikely(!initialized))
 		return;
+
+	if (unlikely(!assist_params_initialized)) {
+		assist_params_initialized = core_ctl_check_masks_set();
+		return;
+	}
 
 	if (window_start == core_ctl_check_timestamp)
 		return;
@@ -1523,6 +1554,17 @@ static int cluster_init(const struct cpumask *mask)
 	cluster->enable = false;
 	cluster->nr_not_preferred_cpus = 0;
 	cluster->strict_nrrun = 0;
+
+	/*
+	 * set all cpus in the cluster.  this is an invalid state
+	 * and core control will not be considered initialized until
+	 * this state is no longer true (all masks must be written).
+	 */
+	cpumask_setall(&cluster->nrrun_cpu_mask);
+	cpumask_setall(&cluster->nrrun_cpu_misfit_mask);
+	cpumask_setall(&cluster->assist_cpu_mask);
+	cpumask_setall(&cluster->assist_cpu_misfit_mask);
+
 	INIT_LIST_HEAD(&cluster->lru);
 
 	for_each_cpu(cpu, mask) {
