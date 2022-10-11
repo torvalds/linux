@@ -140,6 +140,7 @@ struct share_check {
 	struct btrfs_root *root;
 	u64 inum;
 	u64 data_bytenr;
+	u64 data_extent_gen;
 	/*
 	 * Counts number of inodes that refer to an extent (different inodes in
 	 * the same root or different roots) that we could find. The sharedness
@@ -1481,6 +1482,21 @@ again:
 	 */
 	if (sc && bytenr == sc->data_bytenr) {
 		/*
+		 * If our data extent is from a generation more recent than the
+		 * last generation used to snapshot the root, then we know that
+		 * it can not be shared through subtrees, so we can skip
+		 * resolving indirect references, there's no point in
+		 * determining the extent buffers for the path from the fs tree
+		 * root node down to the leaf that has the file extent item that
+		 * points to the data extent.
+		 */
+		if (sc->data_extent_gen >
+		    btrfs_root_last_snapshot(&sc->root->root_item)) {
+			ret = BACKREF_FOUND_NOT_SHARED;
+			goto out;
+		}
+
+		/*
 		 * If we are only determining if a data extent is shared or not
 		 * and the corresponding file extent item is located in the same
 		 * leaf as the previous file extent item, we can skip resolving
@@ -1789,6 +1805,7 @@ int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
 		.root = root,
 		.inum = btrfs_ino(inode),
 		.data_bytenr = bytenr,
+		.data_extent_gen = extent_gen,
 		.share_count = 0,
 		.self_ref_count = 0,
 		.have_delayed_delete_refs = false,
@@ -1836,17 +1853,6 @@ int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
 		if (ret < 0 && ret != -ENOENT)
 			break;
 		ret = 0;
-		/*
-		 * If our data extent is not shared through reflinks and it was
-		 * created in a generation after the last one used to create a
-		 * snapshot of the inode's root, then it can not be shared
-		 * indirectly through subtrees, as that can only happen with
-		 * snapshots. In this case bail out, no need to check for the
-		 * sharedness of extent buffers.
-		 */
-		if (level == -1 &&
-		    extent_gen > btrfs_root_last_snapshot(&root->root_item))
-			break;
 
 		/*
 		 * If our data extent was not directly shared (without multiple
