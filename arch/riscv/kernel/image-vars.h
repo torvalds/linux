@@ -28,7 +28,6 @@ __efistub_memchr		= memchr;
 __efistub_strlen		= strlen;
 __efistub_strnlen		= strnlen;
 __efistub_strcmp		= strcmp;
-__efistub_strncmp		= strncmp;
 __efistub_strrchr		= strrchr;
 
 __efistub__start		= _start;

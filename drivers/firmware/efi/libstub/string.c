@@ -35,7 +35,6 @@ char *strstr(const char *s1, const char *s2)
 }
 #endif
 
-#ifndef __HAVE_ARCH_STRNCMP
 /**
  * strncmp - Compare two length-limited strings
  * @cs: One string
@@ -57,7 +56,6 @@ int strncmp(const char *cs, const char *ct, size_t count)
 	}
 	return 0;
 }
-#endif
 
 /* Works only for digits and letters, but small and fast */
 #define TOLOWER(x) ((x) | 0x20)
