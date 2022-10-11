@@ -1658,8 +1658,7 @@ static void store_backref_shared_cache(struct btrfs_backref_shared_cache *cache,
 /*
  * Check if a data extent is shared or not.
  *
- * @root:        The root the inode belongs to.
- * @inum:        Number of the inode whose extent we are checking.
+ * @inode:       The inode whose extent we are checking.
  * @bytenr:      Logical bytenr of the extent we are checking.
  * @extent_gen:  Generation of the extent (file extent item) or 0 if it is
  *               not known.
@@ -1678,11 +1677,12 @@ static void store_backref_shared_cache(struct btrfs_backref_shared_cache *cache,
  *
  * Return: 0 if extent is not shared, 1 if it is shared, < 0 on error.
  */
-int btrfs_is_data_extent_shared(struct btrfs_root *root, u64 inum, u64 bytenr,
+int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
 				u64 extent_gen,
 				struct ulist *roots, struct ulist *tmp,
 				struct btrfs_backref_shared_cache *cache)
 {
+	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_trans_handle *trans;
 	struct ulist_iterator uiter;
@@ -1691,7 +1691,7 @@ int btrfs_is_data_extent_shared(struct btrfs_root *root, u64 inum, u64 bytenr,
 	int ret = 0;
 	struct share_check shared = {
 		.root_objectid = root->root_key.objectid,
-		.inum = inum,
+		.inum = btrfs_ino(inode),
 		.share_count = 0,
 		.have_delayed_delete_refs = false,
 	};

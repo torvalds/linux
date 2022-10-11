@@ -3712,7 +3712,6 @@ static int fiemap_process_hole(struct btrfs_inode *inode,
 			       u64 start, u64 end)
 {
 	const u64 i_size = i_size_read(&inode->vfs_inode);
-	const u64 ino = btrfs_ino(inode);
 	u64 cur_offset = start;
 	u64 last_delalloc_end = 0;
 	u32 prealloc_flags = FIEMAP_EXTENT_UNWRITTEN;
@@ -3752,8 +3751,8 @@ static int fiemap_process_hole(struct btrfs_inode *inode,
 
 		if (prealloc_len > 0) {
 			if (!checked_extent_shared && fieinfo->fi_extents_max) {
-				ret = btrfs_is_data_extent_shared(inode->root,
-							  ino, disk_bytenr,
+				ret = btrfs_is_data_extent_shared(inode,
+							  disk_bytenr,
 							  extent_gen, roots,
 							  tmp_ulist,
 							  backref_cache);
@@ -3802,8 +3801,8 @@ static int fiemap_process_hole(struct btrfs_inode *inode,
 		}
 
 		if (!checked_extent_shared && fieinfo->fi_extents_max) {
-			ret = btrfs_is_data_extent_shared(inode->root,
-							  ino, disk_bytenr,
+			ret = btrfs_is_data_extent_shared(inode,
+							  disk_bytenr,
 							  extent_gen, roots,
 							  tmp_ulist,
 							  backref_cache);
@@ -3904,7 +3903,6 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 	const u64 ino = btrfs_ino(inode);
 	struct extent_state *cached_state = NULL;
 	struct btrfs_path *path;
-	struct btrfs_root *root = inode->root;
 	struct fiemap_cache cache = { 0 };
 	struct btrfs_backref_shared_cache *backref_cache;
 	struct ulist *roots;
@@ -3925,8 +3923,8 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 		goto out;
 	}
 
-	lockstart = round_down(start, root->fs_info->sectorsize);
-	lockend = round_up(start + len, root->fs_info->sectorsize);
+	lockstart = round_down(start, inode->root->fs_info->sectorsize);
+	lockend = round_up(start + len, inode->root->fs_info->sectorsize);
 	prev_extent_end = lockstart;
 
 	lock_extent(&inode->io_tree, lockstart, lockend, &cached_state);
@@ -4034,7 +4032,7 @@ int extent_fiemap(struct btrfs_inode *inode, struct fiemap_extent_info *fieinfo,
 		} else {
 			/* We have a regular extent. */
 			if (fieinfo->fi_extents_max) {
-				ret = btrfs_is_data_extent_shared(root, ino,
+				ret = btrfs_is_data_extent_shared(inode,
 								  disk_bytenr,
 								  extent_gen,
 								  roots,
