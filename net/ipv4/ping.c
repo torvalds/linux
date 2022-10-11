@@ -639,7 +639,7 @@ int ping_getfrag(void *from, char *to,
 	 * wcheck, it will be finalized in ping_v4_push_pending_frames.
 	 */
 	if (pfh->family == AF_INET6) {
-		skb->csum = pfh->wcheck;
+		skb->csum = csum_block_add(skb->csum, pfh->wcheck, odd);
 		skb->ip_summed = CHECKSUM_NONE;
 		pfh->wcheck = 0;
 	}
