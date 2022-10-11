@@ -84,12 +84,6 @@ static inline unsigned long efi_get_max_initrd_addr(unsigned long image_addr)
 	return (image_addr & ~(SZ_1G - 1UL)) + (1UL << (VA_BITS_MIN - 1));
 }
 
-#define alloc_screen_info(x...)		&screen_info
-
-static inline void free_screen_info(struct screen_info *si)
-{
-}
-
 #define EFI_ALLOC_ALIGN		SZ_64K
 
 /*

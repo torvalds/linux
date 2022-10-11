@@ -975,4 +975,7 @@ efi_enable_reset_attack_mitigation(void) { }
 
 void efi_retrieve_tpm2_eventlog(void);
 
+struct screen_info *alloc_screen_info(void);
+void free_screen_info(struct screen_info *si);
+
 #endif

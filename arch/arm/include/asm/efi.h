@@ -43,9 +43,6 @@ void efi_virtmap_unload(void);
 
 /* arch specific definitions used by the stub code */
 
-struct screen_info *alloc_screen_info(void);
-void free_screen_info(struct screen_info *si);
-
 /*
  * A reasonable upper bound for the uncompressed kernel size is 32 MBytes,
  * so we will reserve that amount of memory. We have no easy way to tell what

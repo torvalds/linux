@@ -19,15 +19,6 @@ void efifb_setup_from_dmi(struct screen_info *si, const char *opt);
 #define EFI_ALLOC_ALIGN		SZ_64K
 #define EFI_RT_VIRTUAL_OFFSET	CSR_DMW0_BASE
 
-static inline struct screen_info *alloc_screen_info(void)
-{
-	return &screen_info;
-}
-
-static inline void free_screen_info(struct screen_info *si)
-{
-}
-
 static inline unsigned long efi_get_max_initrd_addr(unsigned long image_addr)
 {
 	return ULONG_MAX;

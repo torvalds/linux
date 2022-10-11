@@ -31,12 +31,6 @@ static inline unsigned long efi_get_max_initrd_addr(unsigned long image_addr)
 	return ULONG_MAX;
 }
 
-#define alloc_screen_info(x...)		(&screen_info)
-
-static inline void free_screen_info(struct screen_info *si)
-{
-}
-
 void efi_virtmap_load(void);
 void efi_virtmap_unload(void);
 
