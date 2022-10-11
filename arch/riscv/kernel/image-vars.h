@@ -23,9 +23,7 @@
  * linked at. The routines below are all implemented in assembler in a
  * position independent manner
  */
-__efistub_memchr		= memchr;
 __efistub_strcmp		= strcmp;
-__efistub_strrchr		= strrchr;
 
 __efistub__start		= _start;
 __efistub__start_kernel		= _start_kernel;
