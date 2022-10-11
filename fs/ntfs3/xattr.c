@@ -638,10 +638,9 @@ static noinline int ntfs_set_acl_ex(struct user_namespace *mnt_userns,
 		err = 0; /* Removing non existed xattr. */
 	if (!err) {
 		set_cached_acl(inode, type, acl);
-		if (inode->i_mode != mode) {
-			inode->i_mode = mode;
-			mark_inode_dirty(inode);
-		}
+		inode->i_mode = mode;
+		inode->i_ctime = current_time(inode);
+		mark_inode_dirty(inode);
 	}
 
 out:
