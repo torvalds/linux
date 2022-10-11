@@ -6,6 +6,8 @@
  * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#define pr_fmt(fmt) "qrtr: %s(): " fmt, __func__
+
 #include <linux/module.h>
 #include <linux/qrtr.h>
 #include <linux/workqueue.h>
