@@ -1074,8 +1074,7 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 	saved_iter = dst->bi_iter;
 
 	do {
-		struct bch_extent_crc_unpacked crc =
-			(struct bch_extent_crc_unpacked) { 0 };
+		struct bch_extent_crc_unpacked crc = { 0 };
 		struct bversion version = op->version;
 		size_t dst_len, src_len;
 
@@ -1127,6 +1126,8 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 		    !crc_is_compressed(crc) &&
 		    bch2_csum_type_is_encryption(op->crc.csum_type) ==
 		    bch2_csum_type_is_encryption(op->csum_type)) {
+			u8 compression_type = crc.compression_type;
+			u16 nonce = crc.nonce;
 			/*
 			 * Note: when we're using rechecksum(), we need to be
 			 * checksumming @src because it has all the data our
@@ -1145,6 +1146,13 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 					bio_sectors(src) - (src_len >> 9),
 					op->csum_type))
 				goto csum_err;
+			/*
+			 * rchecksum_bio sets compression_type on crc from op->crc,
+			 * this isn't always correct as sometimes we're changing
+			 * an extent from uncompressed to incompressible.
+			 */
+			crc.compression_type = compression_type;
+			crc.nonce = nonce;
 		} else {
 			if ((op->flags & BCH_WRITE_DATA_ENCODED) &&
 			    bch2_rechecksum_bio(c, src, version, op->crc,
