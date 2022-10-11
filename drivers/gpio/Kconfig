@@ -341,6 +341,10 @@ config GPIO_ICH
 
 	  If unsure, say N.
 
+config GPIO_IMX_SCU
+       def_bool y
+       depends on IMX_SCU
+
 config GPIO_IOP
 	tristate "Intel IOP GPIO"
 	depends on ARCH_IOP32X || COMPILE_TEST

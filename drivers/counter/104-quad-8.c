@@ -28,7 +28,8 @@ module_param_hw_array(base, uint, ioport, &num_quad8, 0);
 MODULE_PARM_DESC(base, "ACCES 104-QUAD-8 base addresses");
 
 static unsigned int irq[max_num_isa_dev(QUAD8_EXTENT)];
-module_param_hw_array(irq, uint, irq, NULL, 0);
+static unsigned int num_irq;
+module_param_hw_array(irq, uint, irq, &num_irq, 0);
 MODULE_PARM_DESC(irq, "ACCES 104-QUAD-8 interrupt line numbers");
 
 #define QUAD8_NUM_COUNTERS 8
@@ -1271,7 +1272,7 @@ static struct isa_driver quad8_driver = {
 	}
 };
 
-module_isa_driver(quad8_driver, num_quad8);
+module_isa_driver_with_irq(quad8_driver, num_quad8, num_irq);
 
 MODULE_AUTHOR("William Breathitt Gray <vilhelm.gray@gmail.com>");
 MODULE_DESCRIPTION("ACCES 104-QUAD-8 driver");
