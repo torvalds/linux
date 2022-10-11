@@ -453,25 +453,27 @@ static void ramoops_free_przs(struct ramoops_context *cxt)
 	int i;
 
 	/* Free pmsg PRZ */
-	persistent_ram_free(cxt->mprz);
+	persistent_ram_free(&cxt->mprz);
 
 	/* Free console PRZ */
-	persistent_ram_free(cxt->cprz);
+	persistent_ram_free(&cxt->cprz);
 
 	/* Free dump PRZs */
 	if (cxt->dprzs) {
 		for (i = 0; i < cxt->max_dump_cnt; i++)
-			persistent_ram_free(cxt->dprzs[i]);
+			persistent_ram_free(&cxt->dprzs[i]);
 
 		kfree(cxt->dprzs);
+		cxt->dprzs = NULL;
 		cxt->max_dump_cnt = 0;
 	}
 
 	/* Free ftrace PRZs */
 	if (cxt->fprzs) {
 		for (i = 0; i < cxt->max_ftrace_cnt; i++)
-			persistent_ram_free(cxt->fprzs[i]);
+			persistent_ram_free(&cxt->fprzs[i]);
 		kfree(cxt->fprzs);
+		cxt->fprzs = NULL;
 		cxt->max_ftrace_cnt = 0;
 	}
 }
@@ -555,9 +557,10 @@ static int ramoops_init_przs(const char *name,
 
 			while (i > 0) {
 				i--;
-				persistent_ram_free(prz_ar[i]);
+				persistent_ram_free(&prz_ar[i]);
 			}
 			kfree(prz_ar);
+			prz_ar = NULL;
 			goto fail;
 		}
 		*paddr += zone_sz;
