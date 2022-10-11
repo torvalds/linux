@@ -13,12 +13,13 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/memblock.h>
-#include <linux/pstore_ram.h>
 #include <linux/rslib.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <asm/page.h>
+
+#include "ram_internal.h"
 
 /**
  * struct persistent_ram_buffer - persistent circular RAM buffer

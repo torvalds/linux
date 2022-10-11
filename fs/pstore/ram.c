@@ -18,10 +18,11 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/compiler.h>
-#include <linux/pstore_ram.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+
 #include "internal.h"
+#include "ram_internal.h"
 
 #define RAMOOPS_KERNMSG_HDR "===="
 #define MIN_MEM_SIZE 4096UL
