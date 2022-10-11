@@ -59,6 +59,8 @@ typedef void (*glock_examiner) (struct gfs2_glock * gl);
 
 static void do_xmote(struct gfs2_glock *gl, struct gfs2_holder *gh, unsigned int target);
 static void __gfs2_glock_dq(struct gfs2_holder *gh);
+static void handle_callback(struct gfs2_glock *gl, unsigned int state,
+			    unsigned long delay, bool remote);
 
 static struct dentry *gfs2_root;
 static struct workqueue_struct *glock_workqueue;
@@ -730,7 +732,8 @@ static bool is_system_glock(struct gfs2_glock *gl)
  *
  */
 
-static void do_xmote(struct gfs2_glock *gl, struct gfs2_holder *gh, unsigned int target)
+static void do_xmote(struct gfs2_glock *gl, struct gfs2_holder *gh,
+					 unsigned int target)
 __releases(&gl->gl_lockref.lock)
 __acquires(&gl->gl_lockref.lock)
 {
@@ -741,7 +744,8 @@ __acquires(&gl->gl_lockref.lock)
 
 	if (target != LM_ST_UNLOCKED && glock_blocked_by_withdraw(gl) &&
 	    gh && !(gh->gh_flags & LM_FLAG_NOEXP))
-		return;
+		goto skip_inval;
+
 	lck_flags &= (LM_FLAG_TRY | LM_FLAG_TRY_1CB | LM_FLAG_NOEXP |
 		      LM_FLAG_PRIORITY);
 	GLOCK_BUG_ON(gl, gl->gl_state == target);
@@ -826,6 +830,20 @@ skip_inval:
 	    (target != LM_ST_UNLOCKED ||
 	     test_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags))) {
 		if (!is_system_glock(gl)) {
+			handle_callback(gl, LM_ST_UNLOCKED, 0, false); /* sets demote */
+			/*
+			 * Ordinarily, we would call dlm and its callback would call
+			 * finish_xmote, which would call state_change() to the new state.
+			 * Since we withdrew, we won't call dlm, so call state_change
+			 * manually, but to the UNLOCKED state we desire.
+			 */
+			state_change(gl, LM_ST_UNLOCKED);
+			/*
+			 * We skip telling dlm to do the locking, so we won't get a
+			 * reply that would otherwise clear GLF_LOCK. So we clear it here.
+			 */
+			clear_bit(GLF_LOCK, &gl->gl_flags);
+			clear_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags);
 			gfs2_glock_queue_work(gl, GL_GLOCK_DFT_HOLD);
 			goto out;
 		} else {
@@ -1018,16 +1036,18 @@ static void delete_work_func(struct work_struct *work)
 			if (gfs2_queue_delete_work(gl, 5 * HZ))
 				return;
 		}
-		goto out;
 	}
 
 	inode = gfs2_lookup_by_inum(sdp, no_addr, gl->gl_no_formal_ino,
 				    GFS2_BLKST_UNLINKED);
-	if (!IS_ERR_OR_NULL(inode)) {
+	if (IS_ERR(inode)) {
+		if (PTR_ERR(inode) == -EAGAIN &&
+			(gfs2_queue_delete_work(gl, 5 * HZ)))
+				return;
+	} else {
 		d_prune_aliases(inode);
 		iput(inode);
 	}
-out:
 	gfs2_glock_put(gl);
 }
 
@@ -2192,6 +2212,20 @@ static void dump_glock(struct seq_file *seq, struct gfs2_glock *gl, bool fsid)
 static void dump_glock_func(struct gfs2_glock *gl)
 {
 	dump_glock(NULL, gl, true);
+}
+
+static void withdraw_dq(struct gfs2_glock *gl)
+{
+	spin_lock(&gl->gl_lockref.lock);
+	if (!__lockref_is_dead(&gl->gl_lockref) &&
+	    glock_blocked_by_withdraw(gl))
+		do_error(gl, LM_OUT_ERROR); /* remove pending waiters */
+	spin_unlock(&gl->gl_lockref.lock);
+}
+
+void gfs2_gl_dq_holders(struct gfs2_sbd *sdp)
+{
+	glock_hash_walk(withdraw_dq, sdp);
 }
 
 /**
