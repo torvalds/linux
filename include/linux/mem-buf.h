@@ -120,7 +120,7 @@ static inline struct gh_sgl_desc *mem_buf_get_sgl(void *membuf)
 }
 static inline int mem_buf_current_vmid(void)
 {
-	return ERR_PTR(-EINVAL);
+	return -EINVAL;
 }
 #endif /* CONFIG_QCOM_MEM_BUF */
 
