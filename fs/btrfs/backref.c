@@ -719,8 +719,7 @@ static int resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 			continue;
 		}
 
-		if (sc && sc->root_objectid &&
-		    ref->root_id != sc->root_objectid) {
+		if (sc && ref->root_id != sc->root_objectid) {
 			free_pref(ref);
 			ret = BACKREF_FOUND_SHARED;
 			goto out;
@@ -1348,8 +1347,7 @@ again:
 		 * and would retain their original ref->count < 0.
 		 */
 		if (roots && ref->count && ref->root_id && ref->parent == 0) {
-			if (sc && sc->root_objectid &&
-			    ref->root_id != sc->root_objectid) {
+			if (sc && ref->root_id != sc->root_objectid) {
 				ret = BACKREF_FOUND_SHARED;
 				goto out;
 			}
