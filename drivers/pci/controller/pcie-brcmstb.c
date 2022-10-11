@@ -9,6 +9,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/ioport.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
@@ -302,42 +303,34 @@ static u32 brcm_pcie_mdio_form_pkt(int port, int regad, int cmd)
 /* negative return value indicates error */
 static int brcm_pcie_mdio_read(void __iomem *base, u8 port, u8 regad, u32 *val)
 {
-	int tries;
 	u32 data;
+	int err;
 
 	writel(brcm_pcie_mdio_form_pkt(port, regad, MDIO_CMD_READ),
 		   base + PCIE_RC_DL_MDIO_ADDR);
 	readl(base + PCIE_RC_DL_MDIO_ADDR);
-
-	data = readl(base + PCIE_RC_DL_MDIO_RD_DATA);
-	for (tries = 0; !MDIO_RD_DONE(data) && tries < 10; tries++) {
-		udelay(10);
-		data = readl(base + PCIE_RC_DL_MDIO_RD_DATA);
-	}
-
+	err = readl_poll_timeout_atomic(base + PCIE_RC_DL_MDIO_RD_DATA, data,
+					MDIO_RD_DONE(data), 10, 100);
 	*val = FIELD_GET(MDIO_DATA_MASK, data);
-	return MDIO_RD_DONE(data) ? 0 : -EIO;
+
+	return err;
 }
 
 /* negative return value indicates error */
 static int brcm_pcie_mdio_write(void __iomem *base, u8 port,
 				u8 regad, u16 wrdata)
 {
-	int tries;
 	u32 data;
+	int err;
 
 	writel(brcm_pcie_mdio_form_pkt(port, regad, MDIO_CMD_WRITE),
 		   base + PCIE_RC_DL_MDIO_ADDR);
 	readl(base + PCIE_RC_DL_MDIO_ADDR);
 	writel(MDIO_DATA_DONE_MASK | wrdata, base + PCIE_RC_DL_MDIO_WR_DATA);
 
-	data = readl(base + PCIE_RC_DL_MDIO_WR_DATA);
-	for (tries = 0; !MDIO_WT_DONE(data) && tries < 10; tries++) {
-		udelay(10);
-		data = readl(base + PCIE_RC_DL_MDIO_WR_DATA);
-	}
-
-	return MDIO_WT_DONE(data) ? 0 : -EIO;
+	err = readw_poll_timeout_atomic(base + PCIE_RC_DL_MDIO_WR_DATA, data,
+					MDIO_WT_DONE(data), 10, 100);
+	return err;
 }
 
 /*
