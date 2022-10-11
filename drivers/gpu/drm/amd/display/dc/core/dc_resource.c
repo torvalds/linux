@@ -3721,12 +3721,16 @@ bool dc_resource_acquire_secondary_pipe_for_mpc_odm(
 		else
 			sec_pipe->stream_res.opp = sec_pipe->top_pipe->stream_res.opp;
 		if (sec_pipe->stream->timing.flags.DSC == 1) {
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 			dcn20_acquire_dsc(dc, &state->res_ctx, &sec_pipe->stream_res.dsc, pipe_idx);
+#endif
 			ASSERT(sec_pipe->stream_res.dsc);
 			if (sec_pipe->stream_res.dsc == NULL)
 				return false;
 		}
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 		dcn20_build_mapped_resource(dc, state, sec_pipe->stream);
+#endif
 	}
 
 	return true;
