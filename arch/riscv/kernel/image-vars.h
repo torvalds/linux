@@ -24,8 +24,6 @@
  * position independent manner
  */
 __efistub_memchr		= memchr;
-__efistub_strlen		= strlen;
-__efistub_strnlen		= strnlen;
 __efistub_strcmp		= strcmp;
 __efistub_strrchr		= strrchr;
 

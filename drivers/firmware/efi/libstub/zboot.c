@@ -32,19 +32,9 @@ static unsigned long free_mem_ptr, free_mem_end_ptr;
 extern char efi_zboot_header[];
 extern char _gzdata_start[], _gzdata_end[];
 
-static void log(efi_char16_t str[])
-{
-	efi_call_proto(efi_table_attr(efi_system_table, con_out),
-		       output_string, L"EFI decompressor: ");
-	efi_call_proto(efi_table_attr(efi_system_table, con_out),
-		       output_string, str);
-	efi_call_proto(efi_table_attr(efi_system_table, con_out),
-		       output_string, L"\n");
-}
-
 static void error(char *x)
 {
-	log(L"error() called from decompressor library\n");
+	efi_err("EFI decompressor: %s\n", x);
 }
 
 static efi_status_t __efiapi
@@ -91,7 +81,7 @@ load_file(efi_load_file_protocol_t *this, efi_device_path_protocol_t *rem,
 		ret = __decompress(_gzdata_start, compressed_size, NULL, NULL,
 				   buffer, size, NULL, error);
 		if (ret	< 0) {
-			log(L"Decompression failed");
+			error("Decompression failed");
 			return EFI_DEVICE_ERROR;
 		}
 	} else {
@@ -180,7 +170,7 @@ efi_zboot_entry(efi_handle_t handle, efi_system_table_t *systab)
 	status = efi_bs_call(handle_protocol, handle,
 			     &LOADED_IMAGE_PROTOCOL_GUID, (void **)&parent);
 	if (status != EFI_SUCCESS) {
-		log(L"Failed to locate parent's loaded image protocol");
+		error("Failed to locate parent's loaded image protocol");
 		return status;
 	}
 
@@ -207,7 +197,7 @@ efi_zboot_entry(efi_handle_t handle, efi_system_table_t *systab)
 			     sizeof(struct efi_vendor_dev_path),
 			     (void **)&dp_alloc);
 	if (status != EFI_SUCCESS) {
-		log(L"Failed to allocate device path pool memory");
+		error("Failed to allocate device path pool memory");
 		return status;
 	}
 
@@ -236,21 +226,21 @@ efi_zboot_entry(efi_handle_t handle, efi_system_table_t *systab)
 			     &EFI_LOAD_FILE2_PROTOCOL_GUID, &zboot_load_file2,
 			     NULL);
 	if (status != EFI_SUCCESS) {
-		log(L"Failed to install LoadFile2 protocol and device path");
+		error("Failed to install LoadFile2 protocol and device path");
 		goto free_dpalloc;
 	}
 
 	status = efi_bs_call(load_image, false, handle, li_dp, NULL, 0,
 			     &child_handle);
 	if (status != EFI_SUCCESS) {
-		log(L"Failed to load image");
+		error("Failed to load image");
 		goto uninstall_lf2;
 	}
 
 	status = efi_bs_call(handle_protocol, child_handle,
 			     &LOADED_IMAGE_PROTOCOL_GUID, (void **)&child);
 	if (status != EFI_SUCCESS) {
-		log(L"Failed to locate child's loaded image protocol");
+		error("Failed to locate child's loaded image protocol");
 		goto unload_image;
 	}
 
@@ -261,9 +251,9 @@ efi_zboot_entry(efi_handle_t handle, efi_system_table_t *systab)
 	status = efi_bs_call(start_image, child_handle, &exit_data_size,
 			     &exit_data);
 	if (status != EFI_SUCCESS) {
-		log(L"StartImage() returned with error");
+		error("StartImage() returned with error:");
 		if (exit_data_size > 0)
-			log(exit_data);
+			efi_err("%ls\n", exit_data);
 
 		// If StartImage() returns EFI_SECURITY_VIOLATION, the image is
 		// not unloaded so we need to do it by hand.
@@ -286,7 +276,7 @@ free_dpalloc:
 
 	// Free ExitData in case Exit() returned with a failure code,
 	// but return the original status code.
-	log(L"Exit() returned with failure code");
+	error("Exit() returned with failure code");
 	if (exit_data != NULL)
 		efi_bs_call(free_pool, exit_data);
 	return status;
