@@ -84,7 +84,6 @@ typedef u32 CLST;
 
 #define COMPRESSION_UNIT     4
 #define COMPRESS_MAX_CLUSTER 0x1000
-#define MFT_INCREASE_CHUNK   1024
 
 enum RECORD_NUM {
 	MFT_REC_MFT		= 0,
