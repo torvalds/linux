@@ -24,7 +24,8 @@ struct qrtr_endpoint {
 	struct qrtr_node *node;
 };
 
-int qrtr_endpoint_register(struct qrtr_endpoint *ep, unsigned int net_id);
+int qrtr_endpoint_register(struct qrtr_endpoint *ep, unsigned int net_id,
+			   bool rt);
 
 void qrtr_endpoint_unregister(struct qrtr_endpoint *ep);
 
