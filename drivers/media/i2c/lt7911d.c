@@ -1035,16 +1035,6 @@ static const struct v4l2_ctrl_config lt7911d_ctrl_audio_present = {
 	.flags = V4L2_CTRL_FLAG_READ_ONLY,
 };
 
-static void lt7911d_reset(struct lt7911d_state *lt7911d)
-{
-	gpiod_set_value(lt7911d->reset_gpio, 0);
-	usleep_range(2000, 2100);
-	gpiod_set_value(lt7911d->reset_gpio, 1);
-	usleep_range(120*1000, 121*1000);
-	gpiod_set_value(lt7911d->reset_gpio, 0);
-	usleep_range(300*1000, 310*1000);
-}
-
 static int lt7911d_init_v4l2_ctrls(struct lt7911d_state *lt7911d)
 {
 	struct v4l2_subdev *sd;
@@ -1175,7 +1165,8 @@ static int lt7911d_probe_of(struct lt7911d_state *lt7911d)
 	lt7911d->enable_hdcp = false;
 
 	gpiod_set_value(lt7911d->power_gpio, 1);
-	lt7911d_reset(lt7911d);
+	usleep_range(2000, 3000);
+	gpiod_set_value(lt7911d->reset_gpio, 0);
 
 	ret = 0;
 
@@ -1247,8 +1238,6 @@ static int lt7911d_probe(struct i2c_client *client,
 	err = lt7911d_check_chip_id(lt7911d);
 	if (err < 0)
 		return err;
-
-	lt7911d_reset(lt7911d);
 
 	mutex_init(&lt7911d->confctl_mutex);
 	err = lt7911d_init_v4l2_ctrls(lt7911d);
