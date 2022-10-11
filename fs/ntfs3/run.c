@@ -1096,25 +1096,8 @@ int run_unpack_ex(struct runs_tree *run, struct ntfs_sb_info *sbi, CLST ino,
 
 		if (down_write_trylock(&wnd->rw_lock)) {
 			/* Mark all zero bits as used in range [lcn, lcn+len). */
-			CLST i, lcn_f = 0, len_f = 0;
-
-			err = 0;
-			for (i = 0; i < len; i++) {
-				if (wnd_is_free(wnd, lcn + i, 1)) {
-					if (!len_f)
-						lcn_f = lcn + i;
-					len_f += 1;
-				} else if (len_f) {
-					err = wnd_set_used(wnd, lcn_f, len_f);
-					len_f = 0;
-					if (err)
-						break;
-				}
-			}
-
-			if (len_f)
-				err = wnd_set_used(wnd, lcn_f, len_f);
-
+			size_t done;
+			err = wnd_set_used_safe(wnd, lcn, len, &done);
 			up_write(&wnd->rw_lock);
 			if (err)
 				return err;

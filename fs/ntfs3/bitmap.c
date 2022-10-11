@@ -801,6 +801,44 @@ int wnd_set_used(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 }
 
 /*
+ * wnd_set_used_safe - Mark the bits range from bit to bit + bits as used.
+ *
+ * Unlikely wnd_set_used/wnd_set_free this function is not full trusted.
+ * It scans every bit in bitmap and marks free bit as used.
+ * @done - how many bits were marked as used.
+ *
+ * NOTE: normally *done should be 0.
+ */
+int wnd_set_used_safe(struct wnd_bitmap *wnd, size_t bit, size_t bits,
+		      size_t *done)
+{
+	size_t i, from = 0, len = 0;
+	int err = 0;
+
+	*done = 0;
+	for (i = 0; i < bits; i++) {
+		if (wnd_is_free(wnd, bit + i, 1)) {
+			if (!len)
+				from = bit + i;
+			len += 1;
+		} else if (len) {
+			err = wnd_set_used(wnd, from, len);
+			*done += len;
+			len = 0;
+			if (err)
+				break;
+		}
+	}
+
+	if (len) {
+		/* last fragment. */
+		err = wnd_set_used(wnd, from, len);
+		*done += len;
+	}
+	return err;
+}
+
+/*
  * wnd_is_free_hlp
  *
  * Return: True if all clusters [bit, bit+bits) are free (bitmap only).

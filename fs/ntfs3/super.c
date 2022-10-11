@@ -930,7 +930,7 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	struct block_device *bdev = sb->s_bdev;
 	struct inode *inode;
 	struct ntfs_inode *ni;
-	size_t i, tt;
+	size_t i, tt, bad_len, bad_frags;
 	CLST vcn, lcn, len;
 	struct ATTRIB *attr;
 	const struct VOLUME_INFO *info;
@@ -1100,30 +1100,6 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	sbi->mft.ni = ni;
 
-	/* Load $BadClus. */
-	ref.low = cpu_to_le32(MFT_REC_BADCLUST);
-	ref.seq = cpu_to_le16(MFT_REC_BADCLUST);
-	inode = ntfs_iget5(sb, &ref, &NAME_BADCLUS);
-	if (IS_ERR(inode)) {
-		ntfs_err(sb, "Failed to load $BadClus.");
-		err = PTR_ERR(inode);
-		goto out;
-	}
-
-	ni = ntfs_i(inode);
-
-	for (i = 0; run_get_entry(&ni->file.run, i, &vcn, &lcn, &len); i++) {
-		if (lcn == SPARSE_LCN)
-			continue;
-
-		if (!sbi->bad_clusters)
-			ntfs_notice(sb, "Volume contains bad blocks");
-
-		sbi->bad_clusters += len;
-	}
-
-	iput(inode);
-
 	/* Load $Bitmap. */
 	ref.low = cpu_to_le32(MFT_REC_BITMAP);
 	ref.seq = cpu_to_le16(MFT_REC_BITMAP);
@@ -1160,6 +1136,44 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	err = ntfs_refresh_zone(sbi);
 	if (err)
 		goto out;
+
+	/* Load $BadClus. */
+	ref.low = cpu_to_le32(MFT_REC_BADCLUST);
+	ref.seq = cpu_to_le16(MFT_REC_BADCLUST);
+	inode = ntfs_iget5(sb, &ref, &NAME_BADCLUS);
+	if (IS_ERR(inode)) {
+		err = PTR_ERR(inode);
+		ntfs_err(sb, "Failed to load $BadClus (%d).", err);
+		goto out;
+	}
+
+	ni = ntfs_i(inode);
+	bad_len = bad_frags = 0;
+	for (i = 0; run_get_entry(&ni->file.run, i, &vcn, &lcn, &len); i++) {
+		if (lcn == SPARSE_LCN)
+			continue;
+
+		bad_len += len;
+		bad_frags += 1;
+		if (sb_rdonly(sb))
+			continue;
+
+		if (wnd_set_used_safe(&sbi->used.bitmap, lcn, len, &tt) || tt) {
+			/* Bad blocks marked as free in bitmap. */
+			ntfs_set_state(sbi, NTFS_DIRTY_ERROR);
+		}
+	}
+	if (bad_len) {
+		/*
+		 * Notice about bad blocks.
+		 * In normal cases these blocks are marked as used in bitmap.
+		 * And we never allocate space in it.
+		 */
+		ntfs_notice(sb,
+			    "Volume contains %zu bad blocks in %zu fragments.",
+			    bad_len, bad_frags);
+	}
+	iput(inode);
 
 	/* Load $AttrDef. */
 	ref.low = cpu_to_le32(MFT_REC_ATTR);

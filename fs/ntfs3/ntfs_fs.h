@@ -828,6 +828,8 @@ static inline size_t wnd_zeroes(const struct wnd_bitmap *wnd)
 int wnd_init(struct wnd_bitmap *wnd, struct super_block *sb, size_t nbits);
 int wnd_set_free(struct wnd_bitmap *wnd, size_t bit, size_t bits);
 int wnd_set_used(struct wnd_bitmap *wnd, size_t bit, size_t bits);
+int wnd_set_used_safe(struct wnd_bitmap *wnd, size_t bit, size_t bits,
+		      size_t *done);
 bool wnd_is_free(struct wnd_bitmap *wnd, size_t bit, size_t bits);
 bool wnd_is_used(struct wnd_bitmap *wnd, size_t bit, size_t bits);
 
