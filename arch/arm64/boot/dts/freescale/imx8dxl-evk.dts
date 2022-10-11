@@ -90,6 +90,16 @@
 		enable-active-high;
 		off-on-delay-us = <3480>;
 	};
+
+	mii_select: regulator-4 {
+		compatible = "regulator-fixed";
+		regulator-name = "mii-select";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&scu_gpio 6 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-always-on;
+	};
 };
 
 &eqos {
