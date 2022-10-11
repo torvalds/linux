@@ -235,6 +235,11 @@ config GKI_HIDDEN_DMA_CONFIGS
 	  Dummy config option used to enable the hidden DMA configs,
 	  required by various SoC platforms.
 
+config GKI_NET_XFRM_HACKS
+	bool "XFRM changes required by Android"
+	help
+	  Android Networking tests fail without this.
+
 # Atrocities needed for
 # a) building GKI modules in separate tree, or
 # b) building drivers that are not modularizable
@@ -244,6 +249,7 @@ config GKI_HIDDEN_DMA_CONFIGS
 #
 config GKI_HACKS_TO_FIX
 	bool "GKI Dummy config options"
+	select GKI_NET_XFRM_HACKS
 	select GKI_HIDDEN_CRYPTO_CONFIGS
 	select GKI_HIDDEN_DRM_CONFIGS
 	select GKI_HIDDEN_MCP251XFD_CONFIGS
