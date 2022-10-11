@@ -590,13 +590,11 @@ static int tps23861_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int tps23861_remove(struct i2c_client *client)
+static void tps23861_remove(struct i2c_client *client)
 {
 	struct tps23861_data *data = i2c_get_clientdata(client);
 
 	debugfs_remove_recursive(data->debugfs_dir);
-
-	return 0;
 }
 
 static const struct of_device_id __maybe_unused tps23861_of_match[] = {

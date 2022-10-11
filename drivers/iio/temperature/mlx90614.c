@@ -571,7 +571,7 @@ static int mlx90614_probe(struct i2c_client *client,
 	return iio_device_register(indio_dev);
 }
 
-static int mlx90614_remove(struct i2c_client *client)
+static void mlx90614_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct mlx90614_data *data = iio_priv(indio_dev);
@@ -584,8 +584,6 @@ static int mlx90614_remove(struct i2c_client *client)
 			mlx90614_sleep(data);
 		pm_runtime_set_suspended(&client->dev);
 	}
-
-	return 0;
 }
 
 static const struct i2c_device_id mlx90614_id[] = {

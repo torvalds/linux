@@ -930,7 +930,7 @@ check_hwcfg_error:
 	return ret;
 }
 
-static int ov9734_remove(struct i2c_client *client)
+static void ov9734_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov9734 *ov9734 = to_ov9734(sd);
@@ -940,8 +940,6 @@ static int ov9734_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 	pm_runtime_disable(&client->dev);
 	mutex_destroy(&ov9734->mutex);
-
-	return 0;
 }
 
 static int ov9734_probe(struct i2c_client *client)

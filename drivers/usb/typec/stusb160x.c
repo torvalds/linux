@@ -801,7 +801,7 @@ fwnode_put:
 	return ret;
 }
 
-static int stusb160x_remove(struct i2c_client *client)
+static void stusb160x_remove(struct i2c_client *client)
 {
 	struct stusb160x *chip = i2c_get_clientdata(client);
 
@@ -823,8 +823,6 @@ static int stusb160x_remove(struct i2c_client *client)
 
 	if (chip->main_supply)
 		regulator_disable(chip->main_supply);
-
-	return 0;
 }
 
 static int __maybe_unused stusb160x_suspend(struct device *dev)

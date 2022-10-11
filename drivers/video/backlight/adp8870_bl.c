@@ -925,7 +925,7 @@ out:
 	return ret;
 }
 
-static int adp8870_remove(struct i2c_client *client)
+static void adp8870_remove(struct i2c_client *client)
 {
 	struct adp8870_bl *data = i2c_get_clientdata(client);
 
@@ -937,8 +937,6 @@ static int adp8870_remove(struct i2c_client *client)
 	if (data->pdata->en_ambl_sens)
 		sysfs_remove_group(&data->bl->dev.kobj,
 			&adp8870_bl_attr_group);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

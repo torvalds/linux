@@ -23,6 +23,7 @@ properties:
               - fsl,imx8dxl-lpi2c
               - fsl,imx8qm-lpi2c
               - fsl,imx8ulp-lpi2c
+              - fsl,imx93-lpi2c
           - const: fsl,imx7ulp-lpi2c
 
   reg:
@@ -37,10 +38,22 @@ properties:
   clock-frequency: true
 
   clock-names:
-    maxItems: 1
+    items:
+      - const: per
+      - const: ipg
 
   clocks:
-    maxItems: 1
+    maxItems: 2
+
+  dmas:
+    items:
+      - description: DMA controller phandle and request line for TX
+      - description: DMA controller phandle and request line for RX
+
+  dma-names:
+    items:
+      - const: tx
+      - const: rx
 
   power-domains:
     maxItems: 1
@@ -63,5 +76,6 @@ examples:
         reg = <0x40A50000 0x10000>;
         interrupt-parent = <&intc>;
         interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
-        clocks = <&clks IMX7ULP_CLK_LPI2C7>;
+        clocks = <&clks IMX7ULP_CLK_LPI2C7>,
+                 <&clks IMX7ULP_CLK_NIC1_BUS_DIV>;
     };

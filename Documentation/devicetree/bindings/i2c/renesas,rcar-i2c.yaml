@@ -52,6 +52,7 @@ properties:
           - enum:
               - renesas,i2c-r8a779a0     # R-Car V3U
               - renesas,i2c-r8a779f0     # R-Car S4-8
+              - renesas,i2c-r8a779g0     # R-Car V4H
           - const: renesas,rcar-gen4-i2c # R-Car Gen4
 
   reg:

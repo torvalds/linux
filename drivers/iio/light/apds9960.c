@@ -1067,7 +1067,7 @@ error_power_down:
 	return ret;
 }
 
-static int apds9960_remove(struct i2c_client *client)
+static void apds9960_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct apds9960_data *data = iio_priv(indio_dev);
@@ -1076,8 +1076,6 @@ static int apds9960_remove(struct i2c_client *client)
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
 	apds9960_set_powermode(data, 0);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

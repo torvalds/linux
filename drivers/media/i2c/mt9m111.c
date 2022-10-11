@@ -1359,15 +1359,13 @@ out_hdlfree:
 	return ret;
 }
 
-static int mt9m111_remove(struct i2c_client *client)
+static void mt9m111_remove(struct i2c_client *client)
 {
 	struct mt9m111 *mt9m111 = to_mt9m111(client);
 
 	v4l2_async_unregister_subdev(&mt9m111->subdev);
 	media_entity_cleanup(&mt9m111->subdev.entity);
 	v4l2_ctrl_handler_free(&mt9m111->hdl);
-
-	return 0;
 }
 static const struct of_device_id mt9m111_of_match[] = {
 	{ .compatible = "micron,mt9m111", },

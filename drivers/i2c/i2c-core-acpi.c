@@ -26,7 +26,7 @@ struct gsb_buffer {
 	union {
 		u16	wdata;
 		u8	bdata;
-		u8	data[0];
+		DECLARE_FLEX_ARRAY(u8, data);
 	};
 } __packed;
 

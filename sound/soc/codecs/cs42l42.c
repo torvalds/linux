@@ -2341,7 +2341,7 @@ err_disable_noreset:
 	return ret;
 }
 
-static int cs42l42_i2c_remove(struct i2c_client *i2c_client)
+static void cs42l42_i2c_remove(struct i2c_client *i2c_client)
 {
 	struct cs42l42_private *cs42l42 = i2c_get_clientdata(i2c_client);
 
@@ -2358,8 +2358,6 @@ static int cs42l42_i2c_remove(struct i2c_client *i2c_client)
 
 	gpiod_set_value_cansleep(cs42l42->reset_gpio, 0);
 	regulator_bulk_disable(ARRAY_SIZE(cs42l42->supplies), cs42l42->supplies);
-
-	return 0;
 }
 
 static const struct dev_pm_ops cs42l42_pm_ops = {

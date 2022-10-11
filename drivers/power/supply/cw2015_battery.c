@@ -725,13 +725,12 @@ static int __maybe_unused cw_bat_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(cw_bat_pm_ops, cw_bat_suspend, cw_bat_resume);
 
-static int cw_bat_remove(struct i2c_client *client)
+static void cw_bat_remove(struct i2c_client *client)
 {
 	struct cw_battery *cw_bat = i2c_get_clientdata(client);
 
 	cancel_delayed_work_sync(&cw_bat->battery_delay_work);
 	power_supply_put_battery_info(cw_bat->rk_bat, cw_bat->battery);
-	return 0;
 }
 
 static const struct i2c_device_id cw_bat_id_table[] = {

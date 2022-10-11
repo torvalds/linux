@@ -524,7 +524,7 @@ static int jc42_probe(struct i2c_client *client)
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
-static int jc42_remove(struct i2c_client *client)
+static void jc42_remove(struct i2c_client *client)
 {
 	struct jc42_data *data = i2c_get_clientdata(client);
 
@@ -537,7 +537,6 @@ static int jc42_remove(struct i2c_client *client)
 		  | (data->config & JC42_CFG_HYST_MASK);
 		i2c_smbus_write_word_swapped(client, JC42_REG_CONFIG, config);
 	}
-	return 0;
 }
 
 #ifdef CONFIG_PM

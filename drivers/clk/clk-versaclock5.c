@@ -1138,7 +1138,7 @@ err_clk:
 	return ret;
 }
 
-static int vc5_remove(struct i2c_client *client)
+static void vc5_remove(struct i2c_client *client)
 {
 	struct vc5_driver_data *vc5 = i2c_get_clientdata(client);
 
@@ -1146,8 +1146,6 @@ static int vc5_remove(struct i2c_client *client)
 
 	if (vc5->chip_info->flags & VC5_HAS_INTERNAL_XTAL)
 		clk_unregister_fixed_rate(vc5->pin_xin);
-
-	return 0;
 }
 
 static int __maybe_unused vc5_suspend(struct device *dev)
