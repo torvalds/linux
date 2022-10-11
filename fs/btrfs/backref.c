@@ -1199,6 +1199,124 @@ static int add_keyed_refs(struct btrfs_root *extent_root,
 }
 
 /*
+ * The caller has joined a transaction or is holding a read lock on the
+ * fs_info->commit_root_sem semaphore, so no need to worry about the root's last
+ * snapshot field changing while updating or checking the cache.
+ */
+static bool lookup_backref_shared_cache(struct btrfs_backref_share_check_ctx *ctx,
+					struct btrfs_root *root,
+					u64 bytenr, int level, bool *is_shared)
+{
+	struct btrfs_backref_shared_cache_entry *entry;
+
+	if (!ctx->use_path_cache)
+		return false;
+
+	if (WARN_ON_ONCE(level >= BTRFS_MAX_LEVEL))
+		return false;
+
+	/*
+	 * Level -1 is used for the data extent, which is not reliable to cache
+	 * because its reference count can increase or decrease without us
+	 * realizing. We cache results only for extent buffers that lead from
+	 * the root node down to the leaf with the file extent item.
+	 */
+	ASSERT(level >= 0);
+
+	entry = &ctx->path_cache_entries[level];
+
+	/* Unused cache entry or being used for some other extent buffer. */
+	if (entry->bytenr != bytenr)
+		return false;
+
+	/*
+	 * We cached a false result, but the last snapshot generation of the
+	 * root changed, so we now have a snapshot. Don't trust the result.
+	 */
+	if (!entry->is_shared &&
+	    entry->gen != btrfs_root_last_snapshot(&root->root_item))
+		return false;
+
+	/*
+	 * If we cached a true result and the last generation used for dropping
+	 * a root changed, we can not trust the result, because the dropped root
+	 * could be a snapshot sharing this extent buffer.
+	 */
+	if (entry->is_shared &&
+	    entry->gen != btrfs_get_last_root_drop_gen(root->fs_info))
+		return false;
+
+	*is_shared = entry->is_shared;
+	/*
+	 * If the node at this level is shared, than all nodes below are also
+	 * shared. Currently some of the nodes below may be marked as not shared
+	 * because we have just switched from one leaf to another, and switched
+	 * also other nodes above the leaf and below the current level, so mark
+	 * them as shared.
+	 */
+	if (*is_shared) {
+		for (int i = 0; i < level; i++) {
+			ctx->path_cache_entries[i].is_shared = true;
+			ctx->path_cache_entries[i].gen = entry->gen;
+		}
+	}
+
+	return true;
+}
+
+/*
+ * The caller has joined a transaction or is holding a read lock on the
+ * fs_info->commit_root_sem semaphore, so no need to worry about the root's last
+ * snapshot field changing while updating or checking the cache.
+ */
+static void store_backref_shared_cache(struct btrfs_backref_share_check_ctx *ctx,
+				       struct btrfs_root *root,
+				       u64 bytenr, int level, bool is_shared)
+{
+	struct btrfs_backref_shared_cache_entry *entry;
+	u64 gen;
+
+	if (!ctx->use_path_cache)
+		return;
+
+	if (WARN_ON_ONCE(level >= BTRFS_MAX_LEVEL))
+		return;
+
+	/*
+	 * Level -1 is used for the data extent, which is not reliable to cache
+	 * because its reference count can increase or decrease without us
+	 * realizing. We cache results only for extent buffers that lead from
+	 * the root node down to the leaf with the file extent item.
+	 */
+	ASSERT(level >= 0);
+
+	if (is_shared)
+		gen = btrfs_get_last_root_drop_gen(root->fs_info);
+	else
+		gen = btrfs_root_last_snapshot(&root->root_item);
+
+	entry = &ctx->path_cache_entries[level];
+	entry->bytenr = bytenr;
+	entry->is_shared = is_shared;
+	entry->gen = gen;
+
+	/*
+	 * If we found an extent buffer is shared, set the cache result for all
+	 * extent buffers below it to true. As nodes in the path are COWed,
+	 * their sharedness is moved to their children, and if a leaf is COWed,
+	 * then the sharedness of a data extent becomes direct, the refcount of
+	 * data extent is increased in the extent item at the extent tree.
+	 */
+	if (is_shared) {
+		for (int i = 0; i < level; i++) {
+			entry = &ctx->path_cache_entries[i];
+			entry->is_shared = is_shared;
+			entry->gen = gen;
+		}
+	}
+}
+
+/*
  * this adds all existing backrefs (inline backrefs, backrefs and delayed
  * refs) for the given bytenr to the refs list, merges duplicates and resolves
  * indirect refs to their parent bytenr.
@@ -1571,124 +1689,6 @@ int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
 	if (!trans && !skip_commit_root_sem)
 		up_read(&fs_info->commit_root_sem);
 	return ret;
-}
-
-/*
- * The caller has joined a transaction or is holding a read lock on the
- * fs_info->commit_root_sem semaphore, so no need to worry about the root's last
- * snapshot field changing while updating or checking the cache.
- */
-static bool lookup_backref_shared_cache(struct btrfs_backref_share_check_ctx *ctx,
-					struct btrfs_root *root,
-					u64 bytenr, int level, bool *is_shared)
-{
-	struct btrfs_backref_shared_cache_entry *entry;
-
-	if (!ctx->use_path_cache)
-		return false;
-
-	if (WARN_ON_ONCE(level >= BTRFS_MAX_LEVEL))
-		return false;
-
-	/*
-	 * Level -1 is used for the data extent, which is not reliable to cache
-	 * because its reference count can increase or decrease without us
-	 * realizing. We cache results only for extent buffers that lead from
-	 * the root node down to the leaf with the file extent item.
-	 */
-	ASSERT(level >= 0);
-
-	entry = &ctx->path_cache_entries[level];
-
-	/* Unused cache entry or being used for some other extent buffer. */
-	if (entry->bytenr != bytenr)
-		return false;
-
-	/*
-	 * We cached a false result, but the last snapshot generation of the
-	 * root changed, so we now have a snapshot. Don't trust the result.
-	 */
-	if (!entry->is_shared &&
-	    entry->gen != btrfs_root_last_snapshot(&root->root_item))
-		return false;
-
-	/*
-	 * If we cached a true result and the last generation used for dropping
-	 * a root changed, we can not trust the result, because the dropped root
-	 * could be a snapshot sharing this extent buffer.
-	 */
-	if (entry->is_shared &&
-	    entry->gen != btrfs_get_last_root_drop_gen(root->fs_info))
-		return false;
-
-	*is_shared = entry->is_shared;
-	/*
-	 * If the node at this level is shared, than all nodes below are also
-	 * shared. Currently some of the nodes below may be marked as not shared
-	 * because we have just switched from one leaf to another, and switched
-	 * also other nodes above the leaf and below the current level, so mark
-	 * them as shared.
-	 */
-	if (*is_shared) {
-		for (int i = 0; i < level; i++) {
-			ctx->path_cache_entries[i].is_shared = true;
-			ctx->path_cache_entries[i].gen = entry->gen;
-		}
-	}
-
-	return true;
-}
-
-/*
- * The caller has joined a transaction or is holding a read lock on the
- * fs_info->commit_root_sem semaphore, so no need to worry about the root's last
- * snapshot field changing while updating or checking the cache.
- */
-static void store_backref_shared_cache(struct btrfs_backref_share_check_ctx *ctx,
-				       struct btrfs_root *root,
-				       u64 bytenr, int level, bool is_shared)
-{
-	struct btrfs_backref_shared_cache_entry *entry;
-	u64 gen;
-
-	if (!ctx->use_path_cache)
-		return;
-
-	if (WARN_ON_ONCE(level >= BTRFS_MAX_LEVEL))
-		return;
-
-	/*
-	 * Level -1 is used for the data extent, which is not reliable to cache
-	 * because its reference count can increase or decrease without us
-	 * realizing. We cache results only for extent buffers that lead from
-	 * the root node down to the leaf with the file extent item.
-	 */
-	ASSERT(level >= 0);
-
-	if (is_shared)
-		gen = btrfs_get_last_root_drop_gen(root->fs_info);
-	else
-		gen = btrfs_root_last_snapshot(&root->root_item);
-
-	entry = &ctx->path_cache_entries[level];
-	entry->bytenr = bytenr;
-	entry->is_shared = is_shared;
-	entry->gen = gen;
-
-	/*
-	 * If we found an extent buffer is shared, set the cache result for all
-	 * extent buffers below it to true. As nodes in the path are COWed,
-	 * their sharedness is moved to their children, and if a leaf is COWed,
-	 * then the sharedness of a data extent becomes direct, the refcount of
-	 * data extent is increased in the extent item at the extent tree.
-	 */
-	if (is_shared) {
-		for (int i = 0; i < level; i++) {
-			entry = &ctx->path_cache_entries[i];
-			entry->is_shared = is_shared;
-			entry->gen = gen;
-		}
-	}
 }
 
 struct btrfs_backref_share_check_ctx *btrfs_alloc_backref_share_check_ctx(void)
