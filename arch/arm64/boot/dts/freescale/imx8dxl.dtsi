@@ -133,6 +133,12 @@
 			clock-names = "xtal_32KHz", "xtal_24Mhz";
 		};
 
+		scu_gpio: gpio {
+			compatible = "fsl,imx8qxp-sc-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
 		iomuxc: pinctrl {
 			compatible = "fsl,imx8dxl-iomuxc";
 		};
