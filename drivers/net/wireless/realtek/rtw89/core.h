@@ -3164,6 +3164,14 @@ struct rtw89_cfo_tracking_info {
 	u8 lock_cnt;
 };
 
+enum rtw89_tssi_alimk_band {
+	TSSI_ALIMK_2G = 0,
+	TSSI_ALIMK_5GL,
+	TSSI_ALIMK_5GM,
+	TSSI_ALIMK_5GH,
+	TSSI_ALIMK_MAX
+};
+
 /* 2GL, 2GH, 5GL1, 5GH1, 5GM1, 5GM2, 5GH1, 5GH2 */
 #define TSSI_TRIM_CH_GROUP_NUM 8
 #define TSSI_TRIM_CH_GROUP_NUM_6G 16
@@ -3174,6 +3182,8 @@ struct rtw89_cfo_tracking_info {
 #define TSSI_MCS_6G_CH_GROUP_NUM 32
 #define TSSI_MCS_CH_GROUP_NUM \
 	(TSSI_MCS_2G_CH_GROUP_NUM + TSSI_MCS_5G_CH_GROUP_NUM)
+#define TSSI_MAX_CH_NUM 67
+#define TSSI_ALIMK_VALUE_NUM 8
 
 struct rtw89_tssi_info {
 	u8 thermal[RF_PATH_MAX];
@@ -3186,6 +3196,11 @@ struct rtw89_tssi_info {
 	bool tssi_tracking_check[RF_PATH_MAX];
 	u8 default_txagc_offset[RF_PATH_MAX];
 	u32 base_thermal[RF_PATH_MAX];
+	bool check_backup_aligmk[RF_PATH_MAX][TSSI_MAX_CH_NUM];
+	u32 alignment_backup_by_ch[RF_PATH_MAX][TSSI_MAX_CH_NUM][TSSI_ALIMK_VALUE_NUM];
+	u32 alignment_value[RF_PATH_MAX][TSSI_ALIMK_MAX][TSSI_ALIMK_VALUE_NUM];
+	bool alignment_done[RF_PATH_MAX][TSSI_ALIMK_MAX];
+	u32 tssi_alimk_time;
 };
 
 struct rtw89_power_trim_info {
