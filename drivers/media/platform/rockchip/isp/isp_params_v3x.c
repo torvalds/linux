@@ -4104,6 +4104,10 @@ void __isp_config_hdrshd(struct rkisp_isp_params_vdev *params_vdev)
 	struct rkisp_isp_params_val_v3x *priv_val =
 		(struct rkisp_isp_params_val_v3x *)params_vdev->priv_val;
 
+	if (params_vdev->dev->hw_dev->is_unite) {
+		ops->hdrmge_config(params_vdev, &priv_val->last_hdrmge, RKISP_PARAMS_SHD, 1);
+		ops->hdrdrc_config(params_vdev, &priv_val->last_hdrdrc, RKISP_PARAMS_SHD, 1);
+	}
 	ops->hdrmge_config(params_vdev, &priv_val->last_hdrmge, RKISP_PARAMS_SHD, 0);
 	ops->hdrdrc_config(params_vdev, &priv_val->last_hdrdrc, RKISP_PARAMS_SHD, 0);
 }
