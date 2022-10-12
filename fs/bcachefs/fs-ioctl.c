@@ -26,6 +26,9 @@ struct flags_set {
 	unsigned		flags;
 
 	unsigned		projid;
+
+	bool			set_projinherit;
+	bool			projinherit;
 };
 
 static int bch2_inode_flags_set(struct bch_inode_info *inode,
@@ -49,6 +52,11 @@ static int bch2_inode_flags_set(struct bch_inode_info *inode,
 	    !S_ISDIR(bi->bi_mode) &&
 	    (newflags & (BCH_INODE_NODUMP|BCH_INODE_NOATIME)) != newflags)
 		return -EINVAL;
+
+	if (s->set_projinherit) {
+		bi->bi_fields_set &= ~(1 << Inode_opt_project);
+		bi->bi_fields_set |= ((int) s->projinherit << Inode_opt_project);
+	}
 
 	bi->bi_flags &= ~s->mask;
 	bi->bi_flags |= newflags;
@@ -107,6 +115,10 @@ static int bch2_ioc_fsgetxattr(struct bch_inode_info *inode,
 	struct fsxattr fa = { 0 };
 
 	fa.fsx_xflags = map_flags(bch_flags_to_xflags, inode->ei_inode.bi_flags);
+
+	if (inode->ei_inode.bi_fields_set & (1 << Inode_opt_project))
+		fa.fsx_xflags |= FS_XFLAG_PROJINHERIT;
+
 	fa.fsx_projid = inode->ei_qid.q[QTYP_PRJ];
 
 	return copy_to_user(arg, &fa, sizeof(fa));
@@ -137,6 +149,10 @@ static int bch2_ioc_fssetxattr(struct bch_fs *c,
 
 	if (copy_from_user(&fa, arg, sizeof(fa)))
 		return -EFAULT;
+
+	s.set_projinherit = true;
+	s.projinherit = (fa.fsx_xflags & FS_XFLAG_PROJINHERIT) != 0;
+	fa.fsx_xflags &= ~FS_XFLAG_PROJINHERIT;
 
 	s.flags = map_flags_rev(bch_flags_to_xflags, fa.fsx_xflags);
 	if (fa.fsx_xflags)
