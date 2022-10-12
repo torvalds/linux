@@ -94,6 +94,37 @@ static noinline void print_chain(struct printbuf *out, struct lock_graph *g)
 	prt_newline(out);
 }
 
+static void lock_graph_up(struct lock_graph *g)
+{
+	closure_put(&g->g[--g->nr].trans->ref);
+}
+
+static void lock_graph_down(struct lock_graph *g, struct btree_trans *trans)
+{
+	closure_get(&trans->ref);
+
+	g->g[g->nr++] = (struct trans_waiting_for_lock) {
+		.trans		= trans,
+		.node_want	= trans->locking,
+		.lock_want	= trans->locking_wait.lock_want,
+	};
+}
+
+static bool lock_graph_remove_non_waiters(struct lock_graph *g)
+{
+	struct trans_waiting_for_lock *i;
+
+	for (i = g->g + 1; i < g->g + g->nr; i++)
+		if (i->trans->locking != i->node_want ||
+		    i->trans->locking_wait.start_time != i[-1].lock_start_time) {
+			while (g->g + g->nr > i)
+				lock_graph_up(g);
+			return true;
+		}
+
+	return false;
+}
+
 static int abort_lock(struct lock_graph *g, struct trans_waiting_for_lock *i)
 {
 	if (i == g->g) {
@@ -106,40 +137,42 @@ static int abort_lock(struct lock_graph *g, struct trans_waiting_for_lock *i)
 	}
 }
 
-static noinline int break_cycle(struct lock_graph *g)
+static int btree_trans_abort_preference(struct btree_trans *trans)
 {
-	struct trans_waiting_for_lock *i;
+	if (trans->lock_may_not_fail)
+		return 0;
+	if (trans->locking_wait.lock_want == SIX_LOCK_write)
+		return 1;
+	if (!trans->in_traverse_all)
+		return 2;
+	return 3;
+}
 
-	/*
-	 * We'd like to prioritize aborting transactions that have done less
-	 * work - but it appears breaking cycles by telling other transactions
-	 * to abort may still be buggy:
-	 */
-#if 0
-	for (i = g->g; i < g->g + g->nr; i++) {
-		if (i->trans->lock_may_not_fail ||
-		    i->trans->locking_wait.lock_want == SIX_LOCK_write)
-			continue;
+static noinline int break_cycle(struct lock_graph *g, struct printbuf *cycle)
+{
+	struct trans_waiting_for_lock *i, *abort = NULL;
+	unsigned best = 0, pref;
+	int ret;
 
-		return abort_lock(g, i);
+	if (lock_graph_remove_non_waiters(g))
+		return 0;
+
+	/* Only checking, for debugfs: */
+	if (cycle) {
+		print_cycle(cycle, g);
+		ret = -1;
+		goto out;
 	}
 
 	for (i = g->g; i < g->g + g->nr; i++) {
-		if (i->trans->lock_may_not_fail ||
-		    !i->trans->in_traverse_all)
-			continue;
-
-		return abort_lock(g, i);
-	}
-#endif
-	for (i = g->g; i < g->g + g->nr; i++) {
-		if (i->trans->lock_may_not_fail)
-			continue;
-
-		return abort_lock(g, i);
+		pref = btree_trans_abort_preference(i->trans);
+		if (pref > best) {
+			abort = i;
+			best = pref;
+		}
 	}
 
-	{
+	if (unlikely(!best)) {
 		struct bch_fs *c = g->g->trans->c;
 		struct printbuf buf = PRINTBUF;
 
@@ -162,21 +195,13 @@ static noinline int break_cycle(struct lock_graph *g)
 		printbuf_exit(&buf);
 		BUG();
 	}
-}
 
-static void lock_graph_pop(struct lock_graph *g)
-{
-	closure_put(&g->g[--g->nr].trans->ref);
-}
-
-static void lock_graph_pop_above(struct lock_graph *g, struct trans_waiting_for_lock *above,
-				 struct printbuf *cycle)
-{
-	if (g->nr > 1 && cycle)
-		print_chain(cycle, g);
-
-	while (g->g + g->nr > above)
-		lock_graph_pop(g);
+	ret = abort_lock(g, abort);
+out:
+	if (ret)
+		while (g->nr)
+			lock_graph_up(g);
+	return ret;
 }
 
 static int lock_graph_descend(struct lock_graph *g, struct btree_trans *trans,
@@ -184,67 +209,23 @@ static int lock_graph_descend(struct lock_graph *g, struct btree_trans *trans,
 {
 	struct btree_trans *orig_trans = g->g->trans;
 	struct trans_waiting_for_lock *i;
-	int ret = 0;
 
-	for (i = g->g; i < g->g + g->nr; i++) {
-		if (i->trans->locking != i->node_want) {
-			lock_graph_pop_above(g, i - 1, cycle);
-			return 0;
-		}
-
-		if (i->trans == trans) {
-			if (cycle) {
-				/* Only checking: */
-				print_cycle(cycle, g);
-				ret = -1;
-			} else {
-				ret = break_cycle(g);
-			}
-
-			if (ret)
-				goto deadlock;
-			/*
-			 * If we didn't abort (instead telling another
-			 * transaction to abort), keep checking:
-			 */
-		}
-	}
+	for (i = g->g; i < g->g + g->nr; i++)
+		if (i->trans == trans)
+			return break_cycle(g, cycle);
 
 	if (g->nr == ARRAY_SIZE(g->g)) {
 		if (orig_trans->lock_may_not_fail)
 			return 0;
 
+		while (g->nr)
+			lock_graph_up(g);
 		trace_and_count(trans->c, trans_restart_would_deadlock_recursion_limit, trans, _RET_IP_);
-		ret = btree_trans_restart(orig_trans, BCH_ERR_transaction_restart_deadlock_recursion_limit);
-		goto deadlock;
+		return btree_trans_restart(orig_trans, BCH_ERR_transaction_restart_deadlock_recursion_limit);
 	}
 
-	closure_get(&trans->ref);
-
-	g->g[g->nr++] = (struct trans_waiting_for_lock) {
-		.trans		= trans,
-		.node_want	= trans->locking,
-		.lock_want	= trans->locking_wait.lock_want,
-	};
-
+	lock_graph_down(g, trans);
 	return 0;
-deadlock:
-	lock_graph_pop_above(g, g->g, cycle);
-	return ret;
-}
-
-static noinline void lock_graph_remove_non_waiters(struct lock_graph *g,
-						   struct printbuf *cycle)
-{
-	struct trans_waiting_for_lock *i;
-
-	for (i = g->g + 1; i < g->g + g->nr; i++)
-		if (i->trans->locking != i->node_want ||
-		    i->trans->locking_wait.start_time != i[-1].lock_start_time) {
-			lock_graph_pop_above(g, i - 1, cycle);
-			return;
-		}
-	BUG();
 }
 
 static bool lock_type_conflicts(enum six_lock_type t1, enum six_lock_type t2)
@@ -266,8 +247,7 @@ int bch2_check_for_deadlock(struct btree_trans *trans, struct printbuf *cycle)
 	}
 
 	g.nr = 0;
-	ret = lock_graph_descend(&g, trans, cycle);
-	BUG_ON(ret);
+	lock_graph_down(&g, trans);
 next:
 	if (!g.nr)
 		return 0;
@@ -295,7 +275,7 @@ next:
 			b = &READ_ONCE(path->l[top->level].b)->c;
 
 			if (unlikely(IS_ERR_OR_NULL(b))) {
-				lock_graph_remove_non_waiters(&g, cycle);
+				BUG_ON(!lock_graph_remove_non_waiters(&g));
 				goto next;
 			}
 
@@ -321,7 +301,7 @@ next:
 				raw_spin_unlock(&b->lock.wait_lock);
 
 				if (ret)
-					return ret < 0 ? ret : 0;
+					return ret;
 				goto next;
 
 			}
@@ -331,7 +311,7 @@ next:
 
 	if (g.nr > 1 && cycle)
 		print_chain(cycle, &g);
-	lock_graph_pop(&g);
+	lock_graph_up(&g);
 	goto next;
 }
 
