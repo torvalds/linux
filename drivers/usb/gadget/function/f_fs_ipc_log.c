@@ -297,14 +297,19 @@ static int entry_ffs_data_put(struct kretprobe_instance *ri,
 				struct pt_regs *regs)
 {
 	struct ffs_data *ffs = (struct ffs_data *)regs->regs[0];
-	void *context = get_ipc_context(ffs);
+	int idx = ipc_inst_exists(ffs);
+	void *context;
 	unsigned int refcount = refcount_read(&ffs->ref);
 
+	if (idx < 0)
+		return 0;
+
+	context = ipc_log_s[idx].context;
 	kprobe_log(context, "ref %u", refcount);
 
 	if (refcount == 1) {
+		ipc_log_s[idx].context = NULL;
 		ipc_log_context_destroy(context);
-		context = NULL;
 	}
 	return 0;
 }
