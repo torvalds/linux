@@ -433,6 +433,7 @@ void ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 	}
 	kfree_skb(skb);
 }
+EXPORT_SYMBOL_GPL(ip_icmp_error);
 
 void ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 port, u32 info)
 {

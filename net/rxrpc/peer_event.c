@@ -29,20 +29,16 @@ static void rxrpc_distribute_error(struct rxrpc_peer *, int,
  */
 static struct rxrpc_peer *rxrpc_lookup_peer_icmp_rcu(struct rxrpc_local *local,
 						     struct sk_buff *skb,
-						     unsigned int udp_offset,
-						     unsigned int *info,
+						     __be16 udp_port,
 						     struct sockaddr_rxrpc *srx)
 {
 	struct iphdr *ip, *ip0 = ip_hdr(skb);
 	struct icmphdr *icmp = icmp_hdr(skb);
-	struct udphdr *udp = (struct udphdr *)(skb->data + udp_offset);
 
 	_enter("%u,%u,%u", ip0->protocol, icmp->type, icmp->code);
 
 	switch (icmp->type) {
 	case ICMP_DEST_UNREACH:
-		*info = ntohs(icmp->un.frag.mtu);
-		fallthrough;
 	case ICMP_TIME_EXCEEDED:
 	case ICMP_PARAMETERPROB:
 		ip = (struct iphdr *)((void *)icmp + 8);
@@ -63,7 +59,7 @@ static struct rxrpc_peer *rxrpc_lookup_peer_icmp_rcu(struct rxrpc_local *local,
 	case AF_INET:
 		srx->transport_len = sizeof(srx->transport.sin);
 		srx->transport.family = AF_INET;
-		srx->transport.sin.sin_port = udp->dest;
+		srx->transport.sin.sin_port = udp_port;
 		memcpy(&srx->transport.sin.sin_addr, &ip->daddr,
 		       sizeof(struct in_addr));
 		break;
@@ -72,7 +68,7 @@ static struct rxrpc_peer *rxrpc_lookup_peer_icmp_rcu(struct rxrpc_local *local,
 	case AF_INET6:
 		srx->transport_len = sizeof(srx->transport.sin);
 		srx->transport.family = AF_INET;
-		srx->transport.sin.sin_port = udp->dest;
+		srx->transport.sin.sin_port = udp_port;
 		memcpy(&srx->transport.sin.sin_addr, &ip->daddr,
 		       sizeof(struct in_addr));
 		break;
@@ -93,20 +89,16 @@ static struct rxrpc_peer *rxrpc_lookup_peer_icmp_rcu(struct rxrpc_local *local,
  */
 static struct rxrpc_peer *rxrpc_lookup_peer_icmp6_rcu(struct rxrpc_local *local,
 						      struct sk_buff *skb,
-						      unsigned int udp_offset,
-						      unsigned int *info,
+						      __be16 udp_port,
 						      struct sockaddr_rxrpc *srx)
 {
 	struct icmp6hdr *icmp = icmp6_hdr(skb);
 	struct ipv6hdr *ip, *ip0 = ipv6_hdr(skb);
-	struct udphdr *udp = (struct udphdr *)(skb->data + udp_offset);
 
 	_enter("%u,%u,%u", ip0->nexthdr, icmp->icmp6_type, icmp->icmp6_code);
 
 	switch (icmp->icmp6_type) {
 	case ICMPV6_DEST_UNREACH:
-		*info = ntohl(icmp->icmp6_mtu);
-		fallthrough;
 	case ICMPV6_PKT_TOOBIG:
 	case ICMPV6_TIME_EXCEED:
 	case ICMPV6_PARAMPROB:
@@ -129,13 +121,13 @@ static struct rxrpc_peer *rxrpc_lookup_peer_icmp6_rcu(struct rxrpc_local *local,
 		_net("Rx ICMP6 on v4 sock");
 		srx->transport_len = sizeof(srx->transport.sin);
 		srx->transport.family = AF_INET;
-		srx->transport.sin.sin_port = udp->dest;
+		srx->transport.sin.sin_port = udp_port;
 		memcpy(&srx->transport.sin.sin_addr,
 		       &ip->daddr.s6_addr32[3], sizeof(struct in_addr));
 		break;
 	case AF_INET6:
 		_net("Rx ICMP6");
-		srx->transport.sin.sin_port = udp->dest;
+		srx->transport.sin.sin_port = udp_port;
 		memcpy(&srx->transport.sin6.sin6_addr, &ip->daddr,
 		       sizeof(struct in6_addr));
 		break;
@@ -152,15 +144,13 @@ static struct rxrpc_peer *rxrpc_lookup_peer_icmp6_rcu(struct rxrpc_local *local,
 /*
  * Handle an error received on the local endpoint as a tunnel.
  */
-void rxrpc_encap_err_rcv(struct sock *sk, struct sk_buff *skb,
-			 unsigned int udp_offset)
+void rxrpc_encap_err_rcv(struct sock *sk, struct sk_buff *skb, int err,
+			 __be16 port, u32 info, u8 *payload)
 {
 	struct sock_extended_err ee;
 	struct sockaddr_rxrpc srx;
 	struct rxrpc_local *local;
 	struct rxrpc_peer *peer;
-	unsigned int info = 0;
-	int err;
 	u8 version = ip_hdr(skb)->version;
 	u8 type = icmp_hdr(skb)->type;
 	u8 code = icmp_hdr(skb)->code;
@@ -176,13 +166,11 @@ void rxrpc_encap_err_rcv(struct sock *sk, struct sk_buff *skb,
 
 	switch (ip_hdr(skb)->version) {
 	case IPVERSION:
-		peer = rxrpc_lookup_peer_icmp_rcu(local, skb, udp_offset,
-						  &info, &srx);
+		peer = rxrpc_lookup_peer_icmp_rcu(local, skb, port, &srx);
 		break;
 #ifdef CONFIG_AF_RXRPC_IPV6
 	case 6:
-		peer = rxrpc_lookup_peer_icmp6_rcu(local, skb, udp_offset,
-						   &info, &srx);
+		peer = rxrpc_lookup_peer_icmp6_rcu(local, skb, port, &srx);
 		break;
 #endif
 	default:
@@ -201,34 +189,12 @@ void rxrpc_encap_err_rcv(struct sock *sk, struct sk_buff *skb,
 
 	switch (version) {
 	case IPVERSION:
-		switch (type) {
-		case ICMP_DEST_UNREACH:
-			switch (code) {
-			case ICMP_FRAG_NEEDED:
-				rxrpc_adjust_mtu(peer, info);
-				rcu_read_unlock();
-				rxrpc_put_peer(peer);
-				return;
-			default:
-				break;
-			}
-
-			err = EHOSTUNREACH;
-			if (code <= NR_ICMP_UNREACH) {
-				/* Might want to do something different with
-				 * non-fatal errors
-				 */
-				//harderr = icmp_err_convert[code].fatal;
-				err = icmp_err_convert[code].errno;
-			}
-			break;
-
-		case ICMP_TIME_EXCEEDED:
-			err = EHOSTUNREACH;
-			break;
-		default:
-			err = EPROTO;
-			break;
+		if (type == ICMP_DEST_UNREACH &&
+		    code == ICMP_FRAG_NEEDED) {
+			rxrpc_adjust_mtu(peer, info);
+			rcu_read_unlock();
+			rxrpc_put_peer(peer);
+			return;
 		}
 
 		ee.ee_origin = SO_EE_ORIGIN_ICMP;
@@ -239,15 +205,12 @@ void rxrpc_encap_err_rcv(struct sock *sk, struct sk_buff *skb,
 
 #ifdef CONFIG_AF_RXRPC_IPV6
 	case 6:
-		switch (type) {
-		case ICMPV6_PKT_TOOBIG:
+		if (type == ICMPV6_PKT_TOOBIG) {
 			rxrpc_adjust_mtu(peer, info);
 			rcu_read_unlock();
 			rxrpc_put_peer(peer);
 			return;
 		}
-
-		icmpv6_err_convert(type, code, &err);
 
 		if (err == EACCES)
 			err = EHOSTUNREACH;
