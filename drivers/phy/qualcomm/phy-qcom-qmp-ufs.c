@@ -1210,8 +1210,7 @@ static int qmp_ufs_probe(struct platform_device *pdev)
 
 	ret = qmp_ufs_vreg_init(dev, cfg);
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "failed to get regulator supplies\n");
+		return ret;
 
 	num = of_get_available_child_count(dev->of_node);
 	/* do we have a rogue child node ? */
