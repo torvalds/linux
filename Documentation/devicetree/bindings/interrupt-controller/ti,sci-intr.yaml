@@ -58,6 +58,9 @@ properties:
         1 = If intr supports edge triggered interrupts.
         4 = If intr supports level triggered interrupts.
 
+  reg:
+    maxItems: 1
+
   interrupt-controller: true
 
   '#interrupt-cells':
