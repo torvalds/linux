@@ -688,6 +688,16 @@
 	connect = <&vp3_out_dsi1>;
 };
 
+&route_hdmi0 {
+	status = "okay";
+	connect = <&vp0_out_hdmi0>;
+};
+
+&route_hdmi1 {
+	status = "okay";
+	connect = <&vp1_out_hdmi1>;
+};
+
 &sata0 {
 	status = "okay";
 };
