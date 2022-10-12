@@ -24,6 +24,12 @@ SYM_CODE_START(relocate_new_kernel)
 	 */
 	move		s0, a4
 
+	/*
+	 * In case of a kdump/crash kernel, the indirection page is not
+	 * populated as the kernel is directly copied to a reserved location
+	 */
+	beqz		s0, done
+
 process_entry:
 	PTR_L		s1, s0, 0
 	PTR_ADDI	s0, s0, SZREG

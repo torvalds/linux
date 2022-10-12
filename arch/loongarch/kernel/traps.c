@@ -10,6 +10,7 @@
 #include <linux/entry-common.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/kexec.h>
 #include <linux/module.h>
 #include <linux/extable.h>
 #include <linux/mm.h>
@@ -245,6 +246,9 @@ void __noreturn die(const char *str, struct pt_regs *regs)
 	raw_spin_unlock_irq(&die_lock);
 
 	oops_exit();
+
+	if (regs && kexec_should_crash(current))
+		crash_kexec(regs);
 
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");

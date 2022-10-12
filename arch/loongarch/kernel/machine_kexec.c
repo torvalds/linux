@@ -7,10 +7,15 @@
 #include <linux/compiler.h>
 #include <linux/cpu.h>
 #include <linux/kexec.h>
-#include <linux/mm.h>
+#include <linux/crash_dump.h>
 #include <linux/delay.h>
+#include <linux/irq.h>
 #include <linux/libfdt.h>
+#include <linux/mm.h>
 #include <linux/of_fdt.h>
+#include <linux/reboot.h>
+#include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 
 #include <asm/bootinfo.h>
 #include <asm/cacheflush.h>
@@ -21,6 +26,7 @@
 #define KEXEC_CMDLINE_ADDR	TO_CACHE(0x108000UL)
 
 static unsigned long reboot_code_buffer;
+static cpumask_t cpus_in_crash = CPU_MASK_NONE;
 
 #ifdef CONFIG_SMP
 static void (*relocated_kexec_smp_wait)(void *);
@@ -78,7 +84,7 @@ int machine_kexec_prepare(struct kimage *kimage)
 		return -EINVAL;
 	}
 
-	/* kexec need a safe page to save reboot_code_buffer */
+	/* kexec/kdump need a safe page to save reboot_code_buffer */
 	kimage->control_code_page = virt_to_page((void *)KEXEC_CONTROL_CODE);
 
 	reboot_code_buffer = (unsigned long)page_address(kimage->control_code_page);
@@ -102,7 +108,8 @@ void kexec_reboot(void)
 
 	/*
 	 * We know we were online, and there will be no incoming IPIs at
-	 * this point.
+	 * this point. Mark online again before rebooting so that the crash
+	 * analysis tool will see us correctly.
 	 */
 	set_cpu_online(smp_processor_id(), true);
 
@@ -147,7 +154,74 @@ static void kexec_shutdown_secondary(void *regs)
 
 	kexec_reboot();
 }
-#endif
+
+static void crash_shutdown_secondary(void *passed_regs)
+{
+	int cpu = smp_processor_id();
+	struct pt_regs *regs = passed_regs;
+
+	/*
+	 * If we are passed registers, use those. Otherwise get the
+	 * regs from the last interrupt, which should be correct, as
+	 * we are in an interrupt. But if the regs are not there,
+	 * pull them from the top of the stack. They are probably
+	 * wrong, but we need something to keep from crashing again.
+	 */
+	if (!regs)
+		regs = get_irq_regs();
+	if (!regs)
+		regs = task_pt_regs(current);
+
+	if (!cpu_online(cpu))
+		return;
+
+	/* We won't be sent IPIs any more. */
+	set_cpu_online(cpu, false);
+
+	local_irq_disable();
+	if (!cpumask_test_cpu(cpu, &cpus_in_crash))
+		crash_save_cpu(regs, cpu);
+	cpumask_set_cpu(cpu, &cpus_in_crash);
+
+	while (!atomic_read(&kexec_ready_to_reboot))
+		cpu_relax();
+
+	kexec_reboot();
+}
+
+void crash_smp_send_stop(void)
+{
+	unsigned int ncpus;
+	unsigned long timeout;
+	static int cpus_stopped;
+
+	/*
+	 * This function can be called twice in panic path, but obviously
+	 * we should execute this only once.
+	 */
+	if (cpus_stopped)
+		return;
+
+	cpus_stopped = 1;
+
+	 /* Excluding the panic cpu */
+	ncpus = num_online_cpus() - 1;
+
+	smp_call_function(crash_shutdown_secondary, NULL, 0);
+	smp_wmb();
+
+	/*
+	 * The crash CPU sends an IPI and wait for other CPUs to
+	 * respond. Delay of at least 10 seconds.
+	 */
+	timeout = MSEC_PER_SEC * 10;
+	pr_emerg("Sending IPI to other cpus...\n");
+	while ((cpumask_weight(&cpus_in_crash) < ncpus) && timeout--) {
+		mdelay(1);
+		cpu_relax();
+	}
+}
+#endif /* defined(CONFIG_SMP) */
 
 void machine_shutdown(void)
 {
@@ -165,6 +239,19 @@ void machine_shutdown(void)
 
 void machine_crash_shutdown(struct pt_regs *regs)
 {
+	int crashing_cpu;
+
+	local_irq_disable();
+
+	crashing_cpu = smp_processor_id();
+	crash_save_cpu(regs, crashing_cpu);
+
+#ifdef CONFIG_SMP
+	crash_smp_send_stop();
+#endif
+	cpumask_set_cpu(crashing_cpu, &cpus_in_crash);
+
+	pr_info("Starting crashdump kernel...\n");
 }
 
 void machine_kexec(struct kimage *image)
@@ -178,7 +265,8 @@ void machine_kexec(struct kimage *image)
 
 	start_addr = (unsigned long)phys_to_virt(image->start);
 
-	first_ind_entry = (unsigned long)phys_to_virt(image->head & PAGE_MASK);
+	first_ind_entry = (image->type == KEXEC_TYPE_DEFAULT) ?
+		(unsigned long)phys_to_virt(image->head & PAGE_MASK) : 0;
 
 	/*
 	 * The generic kexec code builds a page list with physical
