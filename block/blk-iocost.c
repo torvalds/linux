@@ -2203,8 +2203,8 @@ static void ioc_timer_fn(struct timer_list *timer)
 	LIST_HEAD(surpluses);
 	int nr_debtors, nr_shortages = 0, nr_lagging = 0;
 	u64 usage_us_sum = 0;
-	u32 ppm_rthr = MILLION - ioc->params.qos[QOS_RPPM];
-	u32 ppm_wthr = MILLION - ioc->params.qos[QOS_WPPM];
+	u32 ppm_rthr;
+	u32 ppm_wthr;
 	u32 missed_ppm[2], rq_wait_pct;
 	u64 period_vtime;
 	int prev_busy_level;
@@ -2215,6 +2215,8 @@ static void ioc_timer_fn(struct timer_list *timer)
 	/* take care of active iocgs */
 	spin_lock_irq(&ioc->lock);
 
+	ppm_rthr = MILLION - ioc->params.qos[QOS_RPPM];
+	ppm_wthr = MILLION - ioc->params.qos[QOS_WPPM];
 	ioc_now(ioc, &now);
 
 	period_vtime = now.vnow - ioc->period_at_vtime;
