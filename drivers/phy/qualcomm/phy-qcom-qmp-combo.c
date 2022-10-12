@@ -2052,7 +2052,7 @@ static int qmp_combo_power_on(struct phy *phy)
 		qphy_setbits(pcs, cfg->regs[QPHY_START_CTRL], cfg->start_ctrl);
 
 		status = pcs + cfg->regs[QPHY_PCS_STATUS];
-		ret = readl_poll_timeout(status, val, !(val & PHYSTATUS), 10,
+		ret = readl_poll_timeout(status, val, !(val & PHYSTATUS), 200,
 					 PHY_INIT_COMPLETE_TIMEOUT);
 		if (ret) {
 			dev_err(qmp->dev, "phy initialization timed-out\n");
