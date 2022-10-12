@@ -7,6 +7,7 @@
 
 #include "core.h"
 
+void rtw8852b_dack(struct rtw89_dev *rtwdev);
 void rtw8852b_set_channel_rf(struct rtw89_dev *rtwdev,
 			     const struct rtw89_chan *chan,
 			     enum rtw89_phy_idx phy_idx);
