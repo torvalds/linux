@@ -1544,14 +1544,17 @@ struct btree_path *bch2_path_get(struct btree_trans *trans,
 inline struct bkey_s_c bch2_btree_path_peek_slot(struct btree_path *path, struct bkey *u)
 {
 
+	struct btree_path_level *l = path_l(path);
+	struct bkey_packed *_k;
 	struct bkey_s_c k;
 
+	if (unlikely(!l->b))
+		return bkey_s_c_null;
+
+	EBUG_ON(path->uptodate != BTREE_ITER_UPTODATE);
+	EBUG_ON(!btree_node_locked(path, path->level));
+
 	if (!path->cached) {
-		struct btree_path_level *l = path_l(path);
-		struct bkey_packed *_k;
-
-		EBUG_ON(path->uptodate != BTREE_ITER_UPTODATE);
-
 		_k = bch2_btree_node_iter_peek_all(&l->iter, l->b);
 		k = _k ? bkey_disassemble(l->b, _k, u) : bkey_s_c_null;
 
@@ -1566,7 +1569,6 @@ inline struct bkey_s_c bch2_btree_path_peek_slot(struct btree_path *path, struct
 			(path->btree_id != ck->key.btree_id ||
 			 bkey_cmp(path->pos, ck->key.pos)));
 		EBUG_ON(!ck || !ck->valid);
-		EBUG_ON(path->uptodate != BTREE_ITER_UPTODATE);
 
 		*u = ck->k->k;
 		k = bkey_i_to_s_c(ck->k);
@@ -2381,6 +2383,8 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 		}
 
 		k = bch2_btree_path_peek_slot(iter->path, &iter->k);
+		if (unlikely(!k.k))
+			goto out_no_locked;
 	} else {
 		struct bpos next;
 
@@ -2412,7 +2416,7 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 		}
 
 		if (unlikely(bkey_err(k)))
-			return k;
+			goto out_no_locked;
 
 		next = k.k ? bkey_start_pos(k.k) : POS_MAX;
 
