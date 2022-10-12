@@ -180,11 +180,10 @@ static void rtllib_send_ADDBAReq(struct rtllib_device *ieee, u8 *dst,
 
 	skb = rtllib_ADDBA(ieee, dst, pBA, 0, ACT_ADDBAREQ);
 
-	if (skb) {
+	if (skb)
 		softmac_mgmt_xmit(skb, ieee);
-	} else {
+	else
 		netdev_dbg(ieee->dev, "Failed to generate ADDBAReq packet.\n");
-	}
 }
 
 static void rtllib_send_ADDBARsp(struct rtllib_device *ieee, u8 *dst,
