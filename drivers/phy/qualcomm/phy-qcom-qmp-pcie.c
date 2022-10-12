@@ -2347,6 +2347,9 @@ static int qmp_pcie_probe(struct platform_device *pdev)
 	if (!cfg)
 		return -EINVAL;
 
+	WARN_ON_ONCE(!cfg->pwrdn_ctrl);
+	WARN_ON_ONCE(!cfg->phy_status);
+
 	serdes = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(serdes))
 		return PTR_ERR(serdes);
