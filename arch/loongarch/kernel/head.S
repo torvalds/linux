@@ -21,7 +21,11 @@
 
 _head:
 	.word	MZ_MAGIC		/* "MZ", MS-DOS header */
-	.org	0x3c			/* 0x04 ~ 0x3b reserved */
+	.org	0x8
+	.dword	kernel_entry		/* Kernel entry point */
+	.dword	_end - _text		/* Kernel image effective size */
+	.quad	0			/* Kernel image load offset from start of RAM */
+	.org	0x3c			/* 0x20 ~ 0x3b reserved */
 	.long	pe_header - _head	/* Offset to the PE header */
 
 pe_header:
