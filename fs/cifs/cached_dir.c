@@ -5,6 +5,7 @@
  *  Copyright (c) 2022, Ronnie Sahlberg <lsahlber@redhat.com>
  */
 
+#include <linux/namei.h>
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "cifs_debug.h"
@@ -59,6 +60,44 @@ static struct cached_fid *find_or_create_cached_dir(struct cached_fids *cfids,
 	return cfid;
 }
 
+static struct dentry *
+path_to_dentry(struct cifs_sb_info *cifs_sb, const char *path)
+{
+	struct dentry *dentry;
+	const char *s, *p;
+	char sep;
+
+	sep = CIFS_DIR_SEP(cifs_sb);
+	dentry = dget(cifs_sb->root);
+	s = path;
+
+	do {
+		struct inode *dir = d_inode(dentry);
+		struct dentry *child;
+
+		if (!S_ISDIR(dir->i_mode)) {
+			dput(dentry);
+			dentry = ERR_PTR(-ENOTDIR);
+			break;
+		}
+
+		/* skip separators */
+		while (*s == sep)
+			s++;
+		if (!*s)
+			break;
+		p = s++;
+		/* next separator */
+		while (*s && *s != sep)
+			s++;
+
+		child = lookup_positive_unlocked(p, dentry, s - p);
+		dput(dentry);
+		dentry = child;
+	} while (!IS_ERR(dentry));
+	return dentry;
+}
+
 /*
  * Open the and cache a directory handle.
  * If error then *cfid is not initialized.
@@ -86,7 +125,6 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	struct cached_fid *cfid;
 	struct cached_fids *cfids;
 
-
 	if (tcon == NULL || tcon->cfids == NULL || tcon->nohandlecache ||
 	    is_smb1_server(tcon->ses->server))
 		return -EOPNOTSUPP;
@@ -100,13 +138,6 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 
 	if (cifs_sb->root == NULL)
 		return -ENOENT;
-
-	/*
-	 * TODO: for better caching we need to find and use the dentry also
-	 * for non-root directories.
-	 */
-	if (!path[0])
-		dentry = cifs_sb->root;
 
 	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
 	if (!utf16_path)
@@ -199,12 +230,6 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	oparms.fid->mid = le64_to_cpu(o_rsp->hdr.MessageId);
 #endif /* CIFS_DEBUG2 */
 
-	cfid->tcon = tcon;
-	if (dentry) {
-		cfid->dentry = dentry;
-		dget(dentry);
-	}
-	/* BB TBD check to see if oplock level check can be removed below */
 	if (o_rsp->OplockLevel != SMB2_OPLOCK_LEVEL_LEASE)
 		goto oshr_free;
 
@@ -223,6 +248,16 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 				&rsp_iov[1], sizeof(struct smb2_file_all_info),
 				(char *)&cfid->file_all_info))
 		cfid->file_all_info_is_valid = true;
+
+	if (!path[0])
+		dentry = dget(cifs_sb->root);
+	else {
+		dentry = path_to_dentry(cifs_sb, path);
+		if (IS_ERR(dentry))
+			goto oshr_free;
+	}
+	cfid->dentry = dentry;
+	cfid->tcon = tcon;
 	cfid->time = jiffies;
 	cfid->is_open = true;
 	cfid->has_lease = true;
