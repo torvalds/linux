@@ -620,9 +620,6 @@ asmlinkage void noinstr do_vint(struct pt_regs *regs, unsigned long sp)
 	irqentry_exit(regs, state);
 }
 
-extern void tlb_init(int cpu);
-extern void cache_error_setup(void);
-
 unsigned long eentry;
 unsigned long tlbrentry;
 
