@@ -433,6 +433,12 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 	 */
 	rxrpc_put_call(call, rxrpc_call_put_discard_prealloc);
 
+	if (hlist_unhashed(&call->error_link)) {
+		spin_lock(&call->peer->lock);
+		hlist_add_head(&call->error_link, &call->peer->error_targets);
+		spin_unlock(&call->peer->lock);
+	}
+
 	_leave(" = %p{%d}", call, call->debug_id);
 	return call;
 

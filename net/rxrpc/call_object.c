@@ -442,7 +442,7 @@ void rxrpc_incoming_call(struct rxrpc_sock *rx,
 	rcu_assign_pointer(conn->channels[chan].call, call);
 
 	spin_lock(&conn->peer->lock);
-	hlist_add_head_rcu(&call->error_link, &conn->peer->error_targets);
+	hlist_add_head(&call->error_link, &conn->peer->error_targets);
 	spin_unlock(&conn->peer->lock);
 
 	rxrpc_start_call_timer(call);

@@ -215,9 +215,9 @@ void rxrpc_disconnect_call(struct rxrpc_call *call)
 	call->peer->cong_ssthresh = call->cong_ssthresh;
 
 	if (!hlist_unhashed(&call->error_link)) {
-		spin_lock_bh(&call->peer->lock);
-		hlist_del_rcu(&call->error_link);
-		spin_unlock_bh(&call->peer->lock);
+		spin_lock(&call->peer->lock);
+		hlist_del_init(&call->error_link);
+		spin_unlock(&call->peer->lock);
 	}
 
 	if (rxrpc_is_client_call(call))

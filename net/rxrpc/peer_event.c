@@ -207,11 +207,24 @@ static void rxrpc_distribute_error(struct rxrpc_peer *peer, int error,
 				   enum rxrpc_call_completion compl)
 {
 	struct rxrpc_call *call;
+	HLIST_HEAD(error_targets);
 
-	hlist_for_each_entry_rcu(call, &peer->error_targets, error_link) {
+	spin_lock(&peer->lock);
+	hlist_move_list(&peer->error_targets, &error_targets);
+
+	while (!hlist_empty(&error_targets)) {
+		call = hlist_entry(error_targets.first,
+				   struct rxrpc_call, error_link);
+		hlist_del_init(&call->error_link);
+		spin_unlock(&peer->lock);
+
 		rxrpc_see_call(call, rxrpc_call_see_distribute_error);
 		rxrpc_set_call_completion(call, compl, 0, -error);
+
+		spin_lock(&peer->lock);
 	}
+
+	spin_unlock(&peer->lock);
 }
 
 /*
