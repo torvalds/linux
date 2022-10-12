@@ -571,9 +571,8 @@ int rtllib_wx_set_power(struct rtllib_device *ieee,
 		ieee->ps = RTLLIB_PS_DISABLED;
 		goto exit;
 	}
-	if (wrqu->power.flags & IW_POWER_TIMEOUT) {
+	if (wrqu->power.flags & IW_POWER_TIMEOUT)
 		ieee->ps_timeout = wrqu->power.value / 1000;
-	}
 
 	if (wrqu->power.flags & IW_POWER_PERIOD)
 		ieee->ps_period = wrqu->power.value / 1000;

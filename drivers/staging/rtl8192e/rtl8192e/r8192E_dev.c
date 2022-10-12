@@ -1106,9 +1106,8 @@ void  rtl92e_fill_tx_desc(struct net_device *dev, struct tx_desc *pdesc,
 	if (cb_desc->bHwSec) {
 		static u8 tmp;
 
-		if (!tmp) {
+		if (!tmp)
 			tmp = 1;
-		}
 		switch (priv->rtllib->pairwise_key_type) {
 		case KEY_TYPE_WEP40:
 		case KEY_TYPE_WEP104:
