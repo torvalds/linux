@@ -353,13 +353,14 @@ void tcp_twsk_purge(struct list_head *net_exit_list, int family)
 	struct net *net;
 
 	list_for_each_entry(net, net_exit_list, exit_list) {
-		/* The last refcount is decremented in tcp_sk_exit_batch() */
-		if (refcount_read(&net->ipv4.tcp_death_row.tw_refcount) == 1)
-			continue;
-
 		if (net->ipv4.tcp_death_row.hashinfo->pernet) {
+			/* Even if tw_refcount == 1, we must clean up kernel reqsk */
 			inet_twsk_purge(net->ipv4.tcp_death_row.hashinfo, family);
 		} else if (!purged_once) {
+			/* The last refcount is decremented in tcp_sk_exit_batch() */
+			if (refcount_read(&net->ipv4.tcp_death_row.tw_refcount) == 1)
+				continue;
+
 			inet_twsk_purge(&tcp_hashinfo, family);
 			purged_once = true;
 		}
