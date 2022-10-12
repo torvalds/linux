@@ -269,16 +269,6 @@
 		};
 	};
 
-	pcie0_vbus_default: pcie0_vbus_default {
-		drive-vbus-pin {
-			starfive,pins = <PAD_GPIO25>;
-			starfive,pinmux = <PAD_GPIO25_FUNC_SEL 0>;
-			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
-			starfive,pin-gpio-dout = <GPO_HIGH>;
-			starfive,pin-gpio-doen = <OEN_LOW>;
-		};
-	};
-
 	pcie1_perst_default: pcie1_perst_default {
 		perst-pins {
 			starfive,pins = <PAD_GPIO28>;
@@ -649,8 +639,7 @@
 &pcie0 {
 	pinctrl-names = "default", "perst-default", "perst-active";
 	pinctrl-0 = <&pcie0_wake_default>,
-		    <&pcie0_clkreq_default>,
-		    <&pcie0_vbus_default>;
+		    <&pcie0_clkreq_default>;
 	pinctrl-1 = <&pcie0_perst_default>;
 	pinctrl-2 = <&pcie0_perst_active>;
 	status = "okay";
