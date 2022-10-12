@@ -550,7 +550,8 @@ parse_server_interfaces(struct network_interface_info_ioctl_rsp *buf,
 		/* avoid spamming logs every 10 minutes, so log only in mount */
 		if ((ses->chan_max > 1) && in_mount)
 			cifs_dbg(VFS,
-				 "empty network interface list returned by server %s\n",
+				 "multichannel not available\n"
+				 "Empty network interface list returned by server %s\n",
 				 ses->server->hostname);
 		rc = -EINVAL;
 		goto out;
