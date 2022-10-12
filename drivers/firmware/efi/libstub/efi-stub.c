@@ -115,61 +115,21 @@ static u32 get_supported_rt_services(void)
 	return supported;
 }
 
-/*
- * EFI entry point for the arm/arm64 EFI stubs.  This is the entrypoint
- * that is described in the PE/COFF header.  Most of the code is the same
- * for both archictectures, with the arch-specific code provided in the
- * handle_kernel_image() function.
- */
-efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
-				   efi_system_table_t *sys_table_arg)
+efi_status_t efi_handle_cmdline(efi_loaded_image_t *image, char **cmdline_ptr)
 {
-	efi_loaded_image_t *image;
-	efi_status_t status;
-	unsigned long image_addr;
-	unsigned long image_size = 0;
-	/* addr/point and size pairs for memory management*/
-	char *cmdline_ptr = NULL;
 	int cmdline_size = 0;
-	efi_guid_t loaded_image_proto = LOADED_IMAGE_PROTOCOL_GUID;
-	unsigned long reserve_addr = 0;
-	unsigned long reserve_size = 0;
-	struct screen_info *si;
-
-	efi_system_table = sys_table_arg;
-
-	/* Check if we were booted by the EFI firmware */
-	if (efi_system_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE) {
-		status = EFI_INVALID_PARAMETER;
-		goto fail;
-	}
-
-	status = check_platform_features();
-	if (status != EFI_SUCCESS)
-		goto fail;
-
-	/*
-	 * Get a handle to the loaded image protocol.  This is used to get
-	 * information about the running image, such as size and the command
-	 * line.
-	 */
-	status = efi_bs_call(handle_protocol, handle, &loaded_image_proto,
-			     (void *)&image);
-	if (status != EFI_SUCCESS) {
-		efi_err("Failed to get loaded image protocol\n");
-		goto fail;
-	}
+	efi_status_t status;
+	char *cmdline;
 
 	/*
 	 * Get the command line from EFI, using the LOADED_IMAGE
 	 * protocol. We are going to copy the command line into the
 	 * device tree, so this can be allocated anywhere.
 	 */
-	cmdline_ptr = efi_convert_cmdline(image, &cmdline_size);
-	if (!cmdline_ptr) {
+	cmdline = efi_convert_cmdline(image, &cmdline_size);
+	if (!cmdline) {
 		efi_err("getting command line via LOADED_IMAGE_PROTOCOL\n");
-		status = EFI_OUT_OF_RESOURCES;
-		goto fail;
+		return EFI_OUT_OF_RESOURCES;
 	}
 
 	if (IS_ENABLED(CONFIG_CMDLINE_EXTEND) ||
@@ -183,25 +143,34 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	}
 
 	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE) && cmdline_size > 0) {
-		status = efi_parse_options(cmdline_ptr);
+		status = efi_parse_options(cmdline);
 		if (status != EFI_SUCCESS) {
 			efi_err("Failed to parse options\n");
 			goto fail_free_cmdline;
 		}
 	}
 
-	efi_info("Booting Linux Kernel...\n");
+	*cmdline_ptr = cmdline;
+	return EFI_SUCCESS;
+
+fail_free_cmdline:
+	efi_bs_call(free_pool, cmdline_ptr);
+	return status;
+}
+
+efi_status_t efi_stub_common(efi_handle_t handle,
+			     efi_loaded_image_t *image,
+			     unsigned long image_addr,
+			     char *cmdline_ptr)
+{
+	struct screen_info *si;
+	efi_status_t status;
+
+	status = check_platform_features();
+	if (status != EFI_SUCCESS)
+		return status;
 
 	si = setup_graphics();
-
-	status = handle_kernel_image(&image_addr, &image_size,
-				     &reserve_addr,
-				     &reserve_size,
-				     image, handle);
-	if (status != EFI_SUCCESS) {
-		efi_err("Failed to relocate kernel\n");
-		goto fail_free_screeninfo;
-	}
 
 	efi_retrieve_tpm2_eventlog();
 
@@ -221,13 +190,7 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 
 	status = efi_boot_kernel(handle, image, image_addr, cmdline_ptr);
 
-	efi_free(image_size, image_addr);
-	efi_free(reserve_size, reserve_addr);
-fail_free_screeninfo:
 	free_screen_info(si);
-fail_free_cmdline:
-	efi_bs_call(free_pool, cmdline_ptr);
-fail:
 	return status;
 }
 

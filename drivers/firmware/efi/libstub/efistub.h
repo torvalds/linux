@@ -958,6 +958,14 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 				 efi_loaded_image_t *image,
 				 efi_handle_t image_handle);
 
+/* shared entrypoint between the normal stub and the zboot stub */
+efi_status_t efi_stub_common(efi_handle_t handle,
+			     efi_loaded_image_t *image,
+			     unsigned long image_addr,
+			     char *cmdline_ptr);
+
+efi_status_t efi_handle_cmdline(efi_loaded_image_t *image, char **cmdline_ptr);
+
 asmlinkage void __noreturn efi_enter_kernel(unsigned long entrypoint,
 					    unsigned long fdt_addr,
 					    unsigned long fdt_size);
