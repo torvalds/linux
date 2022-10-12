@@ -2013,10 +2013,6 @@
 			lanes-per-direction = <1>;
 			#reset-cells = <1>;
 			status = "disabled";
-
-			ufs_variant {
-				compatible = "qcom,ufs_variant";
-			};
 		};
 
 		ufsphy: phy@627000 {
