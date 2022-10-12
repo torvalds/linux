@@ -1549,9 +1549,9 @@ enum of_overlay_notify_action {
 	OF_OVERLAY_POST_REMOVE,
 };
 
-static inline char *of_overlay_action_name(enum of_overlay_notify_action action)
+static inline const char *of_overlay_action_name(enum of_overlay_notify_action action)
 {
-	static char *of_overlay_action_name[] = {
+	static const char *const of_overlay_action_name[] = {
 		"init",
 		"pre-apply",
 		"post-apply",
