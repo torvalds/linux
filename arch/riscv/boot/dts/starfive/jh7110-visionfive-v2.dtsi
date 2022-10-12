@@ -581,7 +581,10 @@
 	phy0: ethernet-phy@0 {
 		rxc_dly_en = <1>;
 		tx_delay_sel_fe = <5>;
-		tx_delay_sel = <9>;
+		tx_delay_sel = <0xb>;
+		tx_inverted_10 = <0x1>;
+		tx_inverted_100 = <0x1>;
+		tx_inverted_1000 = <0x1>;
 	};
 };
 
@@ -591,8 +594,11 @@
 	status = "okay";
 	phy1: ethernet-phy@1 {
 		tx_delay_sel_fe = <5>;
-		tx_delay_sel = <9>;
+		tx_delay_sel = <0>;
 		rxc_dly_en = <0>;
+		tx_inverted_10 = <0x1>;
+		tx_inverted_100 = <0x1>;
+		tx_inverted_1000 = <0x0>;
 	};
 };
 
