@@ -4,7 +4,7 @@ obj-y	+= ptdump.o
 
 obj-$(CONFIG_4xx)		+= shared.o
 obj-$(CONFIG_PPC_8xx)		+= 8xx.o
-obj-$(CONFIG_PPC_BOOK3E_MMU)	+= shared.o
+obj-$(CONFIG_PPC_E500)		+= shared.o
 obj-$(CONFIG_PPC_BOOK3S_32)	+= shared.o
 obj-$(CONFIG_PPC_BOOK3S_64)	+= book3s64.o
 

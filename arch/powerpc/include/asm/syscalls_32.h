@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
-#ifndef _PPC64_PPC32_H
-#define _PPC64_PPC32_H
+#ifndef _ASM_POWERPC_SYSCALLS_32_H
+#define _ASM_POWERPC_SYSCALLS_32_H
 
 #include <linux/compat.h>
 #include <asm/siginfo.h>
@@ -57,4 +57,4 @@ struct ucontext32 {
 	struct mcontext32	uc_mcontext;
 };
 
-#endif  /* _PPC64_PPC32_H */
+#endif  // _ASM_POWERPC_SYSCALLS_32_H

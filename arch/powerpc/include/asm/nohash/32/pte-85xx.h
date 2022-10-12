@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_POWERPC_NOHASH_32_PTE_FSL_BOOKE_H
-#define _ASM_POWERPC_NOHASH_32_PTE_FSL_BOOKE_H
+#ifndef _ASM_POWERPC_NOHASH_32_PTE_85xx_H
+#define _ASM_POWERPC_NOHASH_32_PTE_85xx_H
 #ifdef __KERNEL__
 
 /* PTE bit definitions for Freescale BookE SW loaded TLB MMU based
@@ -71,4 +71,4 @@
 #define PAGE_READONLY_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_EXEC)
 
 #endif /* __KERNEL__ */
-#endif /*  _ASM_POWERPC_NOHASH_32_PTE_FSL_BOOKE_H */
+#endif /*  _ASM_POWERPC_NOHASH_32_PTE_FSL_85xx_H */

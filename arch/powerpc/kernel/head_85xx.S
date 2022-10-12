@@ -129,7 +129,7 @@ _GLOBAL(_start);
 
 	/*
 	 * For the second relocation, we already set the right tlb entries
-	 * for the kernel space, so skip the code in fsl_booke_entry_mapping.S
+	 * for the kernel space, so skip the code in 85xx_entry_mapping.S
 	*/
 	cmpwi	r19,1
 	beq	set_ivor
@@ -159,7 +159,7 @@ _GLOBAL(__early_start)
 	lwz     r20,0(r20)
 
 #define ENTRY_MAPPING_BOOT_SETUP
-#include "fsl_booke_entry_mapping.S"
+#include "85xx_entry_mapping.S"
 #undef ENTRY_MAPPING_BOOT_SETUP
 
 set_ivor:
@@ -912,7 +912,7 @@ get_phys_addr:
  * Global functions
  */
 
-#ifdef CONFIG_E500
+#ifdef CONFIG_PPC_E500
 #ifndef CONFIG_PPC_E500MC
 /* Adjust or setup IVORs for e500v1/v2 */
 _GLOBAL(__setup_e500_ivors)
@@ -955,7 +955,7 @@ _GLOBAL(__setup_ehv_ivors)
 	sync
 	blr
 #endif /* CONFIG_PPC_E500MC */
-#endif /* CONFIG_E500 */
+#endif /* CONFIG_PPC_E500 */
 
 #ifdef CONFIG_SPE
 /*
