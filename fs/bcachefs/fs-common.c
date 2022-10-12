@@ -212,6 +212,11 @@ int bch2_link_trans(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
+	if (bch2_reinherit_attrs(inode_u, dir_u)) {
+		ret = -EXDEV;
+		goto err;
+	}
+
 	dir_u->bi_mtime = dir_u->bi_ctime = now;
 
 	dir_hash = bch2_hash_info_init(c, dir_u);
