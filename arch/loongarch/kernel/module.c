@@ -348,6 +348,29 @@ static int apply_r_larch_pcala(struct module *mod, u32 *location, Elf_Addr v,
 	return 0;
 }
 
+static int apply_r_larch_got_pc(struct module *mod, u32 *location, Elf_Addr v,
+			s64 *rela_stack, size_t *rela_stack_top, unsigned int type)
+{
+	Elf_Addr got = module_emit_got_entry(mod, v);
+
+	if (!got)
+		return -EINVAL;
+
+	switch (type) {
+	case R_LARCH_GOT_PC_LO12:
+		type = R_LARCH_PCALA_LO12;
+		break;
+	case R_LARCH_GOT_PC_HI20:
+		type = R_LARCH_PCALA_HI20;
+		break;
+	default:
+		pr_err("%s: Unsupport relocation type %u\n", mod->name, type);
+		return -EINVAL;
+	}
+
+	return apply_r_larch_pcala(mod, location, got, rela_stack, rela_stack_top, type);
+}
+
 /*
  * reloc_handlers_rela() - Apply a particular relocation to a module
  * @mod: the module to apply the reloc to
@@ -379,6 +402,7 @@ static reloc_rela_handler reloc_rela_handlers[] = {
 	[R_LARCH_ADD32 ... R_LARCH_SUB64]		     = apply_r_larch_add_sub,
 	[R_LARCH_B26]					     = apply_r_larch_b26,
 	[R_LARCH_PCALA_HI20...R_LARCH_PCALA64_HI12]	     = apply_r_larch_pcala,
+	[R_LARCH_GOT_PC_HI20...R_LARCH_GOT_PC_LO12]	     = apply_r_larch_got_pc,
 };
 
 int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
