@@ -45,4 +45,6 @@ static inline unsigned long efi_get_kimg_min_align(void)
 void efi_virtmap_load(void);
 void efi_virtmap_unload(void);
 
+unsigned long stext_offset(void);
+
 #endif /* _ASM_EFI_H */
