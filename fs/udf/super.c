@@ -162,7 +162,7 @@ static void udf_free_in_core_inode(struct inode *inode)
 
 static void init_once(void *foo)
 {
-	struct udf_inode_info *ei = (struct udf_inode_info *)foo;
+	struct udf_inode_info *ei = foo;
 
 	ei->i_data = NULL;
 	inode_init_once(&ei->vfs_inode);
@@ -820,7 +820,7 @@ static int udf_find_fileset(struct super_block *sb,
 			    struct kernel_lb_addr *fileset,
 			    struct kernel_lb_addr *root)
 {
-	struct buffer_head *bh = NULL;
+	struct buffer_head *bh;
 	uint16_t ident;
 	int ret;
 
