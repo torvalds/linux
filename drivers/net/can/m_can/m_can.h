@@ -38,7 +38,7 @@ enum m_can_lec_type {
 	LEC_BIT1_ERROR,
 	LEC_BIT0_ERROR,
 	LEC_CRC_ERROR,
-	LEC_UNUSED,
+	LEC_NO_CHANGE,
 };
 
 enum m_can_mram_cfg {
