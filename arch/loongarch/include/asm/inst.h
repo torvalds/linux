@@ -345,4 +345,225 @@ static inline bool unsigned_imm_check(unsigned long val, unsigned int bit)
 	return val < (1UL << bit);
 }
 
+#define DEF_EMIT_REG0I26_FORMAT(NAME, OP)				\
+static inline void emit_##NAME(union loongarch_instruction *insn,	\
+			       int offset)				\
+{									\
+	unsigned int immediate_l, immediate_h;				\
+									\
+	immediate_l = offset & 0xffff;					\
+	offset >>= 16;							\
+	immediate_h = offset & 0x3ff;					\
+									\
+	insn->reg0i26_format.opcode = OP;				\
+	insn->reg0i26_format.immediate_l = immediate_l;			\
+	insn->reg0i26_format.immediate_h = immediate_h;			\
+}
+
+DEF_EMIT_REG0I26_FORMAT(b, b_op)
+
+#define DEF_EMIT_REG1I20_FORMAT(NAME, OP)				\
+static inline void emit_##NAME(union loongarch_instruction *insn,	\
+			       enum loongarch_gpr rd, int imm)		\
+{									\
+	insn->reg1i20_format.opcode = OP;				\
+	insn->reg1i20_format.immediate = imm;				\
+	insn->reg1i20_format.rd = rd;					\
+}
+
+DEF_EMIT_REG1I20_FORMAT(lu12iw, lu12iw_op)
+DEF_EMIT_REG1I20_FORMAT(lu32id, lu32id_op)
+DEF_EMIT_REG1I20_FORMAT(pcaddu18i, pcaddu18i_op)
+
+#define DEF_EMIT_REG2_FORMAT(NAME, OP)					\
+static inline void emit_##NAME(union loongarch_instruction *insn,	\
+			       enum loongarch_gpr rd,			\
+			       enum loongarch_gpr rj)			\
+{									\
+	insn->reg2_format.opcode = OP;					\
+	insn->reg2_format.rd = rd;					\
+	insn->reg2_format.rj = rj;					\
+}
+
+DEF_EMIT_REG2_FORMAT(revb2h, revb2h_op)
+DEF_EMIT_REG2_FORMAT(revb2w, revb2w_op)
+DEF_EMIT_REG2_FORMAT(revbd, revbd_op)
+
+#define DEF_EMIT_REG2I5_FORMAT(NAME, OP)				\
+static inline void emit_##NAME(union loongarch_instruction *insn,	\
+			       enum loongarch_gpr rd,			\
+			       enum loongarch_gpr rj,			\
+			       int imm)					\
+{									\
+	insn->reg2i5_format.opcode = OP;				\
+	insn->reg2i5_format.immediate = imm;				\
+	insn->reg2i5_format.rd = rd;					\
+	insn->reg2i5_format.rj = rj;					\
+}
+
+DEF_EMIT_REG2I5_FORMAT(slliw, slliw_op)
+DEF_EMIT_REG2I5_FORMAT(srliw, srliw_op)
+DEF_EMIT_REG2I5_FORMAT(sraiw, sraiw_op)
+
+#define DEF_EMIT_REG2I6_FORMAT(NAME, OP)				\
+static inline void emit_##NAME(union loongarch_instruction *insn,	\
+			       enum loongarch_gpr rd,			\
+			       enum loongarch_gpr rj,			\
+			       int imm)					\
+{									\
+	insn->reg2i6_format.opcode = OP;				\
+	insn->reg2i6_format.immediate = imm;				\
+	insn->reg2i6_format.rd = rd;					\
+	insn->reg2i6_format.rj = rj;					\
+}
+
+DEF_EMIT_REG2I6_FORMAT(sllid, sllid_op)
+DEF_EMIT_REG2I6_FORMAT(srlid, srlid_op)
+DEF_EMIT_REG2I6_FORMAT(sraid, sraid_op)
+
+#define DEF_EMIT_REG2I12_FORMAT(NAME, OP)				\
+static inline void emit_##NAME(union loongarch_instruction *insn,	\
+			       enum loongarch_gpr rd,			\
+			       enum loongarch_gpr rj,			\
+			       int imm)					\
+{									\
+	insn->reg2i12_format.opcode = OP;				\
+	insn->reg2i12_format.immediate = imm;				\
+	insn->reg2i12_format.rd = rd;					\
+	insn->reg2i12_format.rj = rj;					\
+}
+
+DEF_EMIT_REG2I12_FORMAT(addiw, addiw_op)
+DEF_EMIT_REG2I12_FORMAT(addid, addid_op)
+DEF_EMIT_REG2I12_FORMAT(lu52id, lu52id_op)
+DEF_EMIT_REG2I12_FORMAT(andi, andi_op)
+DEF_EMIT_REG2I12_FORMAT(ori, ori_op)
+DEF_EMIT_REG2I12_FORMAT(xori, xori_op)
+DEF_EMIT_REG2I12_FORMAT(ldbu, ldbu_op)
+DEF_EMIT_REG2I12_FORMAT(ldhu, ldhu_op)
+DEF_EMIT_REG2I12_FORMAT(ldwu, ldwu_op)
+DEF_EMIT_REG2I12_FORMAT(ldd, ldd_op)
+DEF_EMIT_REG2I12_FORMAT(stb, stb_op)
+DEF_EMIT_REG2I12_FORMAT(sth, sth_op)
+DEF_EMIT_REG2I12_FORMAT(stw, stw_op)
+DEF_EMIT_REG2I12_FORMAT(std, std_op)
+
+#define DEF_EMIT_REG2I14_FORMAT(NAME, OP)				\
+static inline void emit_##NAME(union loongarch_instruction *insn,	\
+			       enum loongarch_gpr rd,			\
+			       enum loongarch_gpr rj,			\
+			       int imm)					\
+{									\
+	insn->reg2i14_format.opcode = OP;				\
+	insn->reg2i14_format.immediate = imm;				\
+	insn->reg2i14_format.rd = rd;					\
+	insn->reg2i14_format.rj = rj;					\
+}
+
+DEF_EMIT_REG2I14_FORMAT(llw, llw_op)
+DEF_EMIT_REG2I14_FORMAT(scw, scw_op)
+DEF_EMIT_REG2I14_FORMAT(lld, lld_op)
+DEF_EMIT_REG2I14_FORMAT(scd, scd_op)
+DEF_EMIT_REG2I14_FORMAT(ldptrw, ldptrw_op)
+DEF_EMIT_REG2I14_FORMAT(stptrw, stptrw_op)
+DEF_EMIT_REG2I14_FORMAT(ldptrd, ldptrd_op)
+DEF_EMIT_REG2I14_FORMAT(stptrd, stptrd_op)
+
+#define DEF_EMIT_REG2I16_FORMAT(NAME, OP)				\
+static inline void emit_##NAME(union loongarch_instruction *insn,	\
+			       enum loongarch_gpr rj,			\
+			       enum loongarch_gpr rd,			\
+			       int offset)				\
+{									\
+	insn->reg2i16_format.opcode = OP;				\
+	insn->reg2i16_format.immediate = offset;			\
+	insn->reg2i16_format.rj = rj;					\
+	insn->reg2i16_format.rd = rd;					\
+}
+
+DEF_EMIT_REG2I16_FORMAT(beq, beq_op)
+DEF_EMIT_REG2I16_FORMAT(bne, bne_op)
+DEF_EMIT_REG2I16_FORMAT(blt, blt_op)
+DEF_EMIT_REG2I16_FORMAT(bge, bge_op)
+DEF_EMIT_REG2I16_FORMAT(bltu, bltu_op)
+DEF_EMIT_REG2I16_FORMAT(bgeu, bgeu_op)
+DEF_EMIT_REG2I16_FORMAT(jirl, jirl_op)
+
+#define DEF_EMIT_REG2BSTRD_FORMAT(NAME, OP)				\
+static inline void emit_##NAME(union loongarch_instruction *insn,	\
+			       enum loongarch_gpr rd,			\
+			       enum loongarch_gpr rj,			\
+			       int msbd,				\
+			       int lsbd)				\
+{									\
+	insn->reg2bstrd_format.opcode = OP;				\
+	insn->reg2bstrd_format.msbd = msbd;				\
+	insn->reg2bstrd_format.lsbd = lsbd;				\
+	insn->reg2bstrd_format.rj = rj;					\
+	insn->reg2bstrd_format.rd = rd;					\
+}
+
+DEF_EMIT_REG2BSTRD_FORMAT(bstrpickd, bstrpickd_op)
+
+#define DEF_EMIT_REG3_FORMAT(NAME, OP)					\
+static inline void emit_##NAME(union loongarch_instruction *insn,	\
+			       enum loongarch_gpr rd,			\
+			       enum loongarch_gpr rj,			\
+			       enum loongarch_gpr rk)			\
+{									\
+	insn->reg3_format.opcode = OP;					\
+	insn->reg3_format.rd = rd;					\
+	insn->reg3_format.rj = rj;					\
+	insn->reg3_format.rk = rk;					\
+}
+
+DEF_EMIT_REG3_FORMAT(addd, addd_op)
+DEF_EMIT_REG3_FORMAT(subd, subd_op)
+DEF_EMIT_REG3_FORMAT(muld, muld_op)
+DEF_EMIT_REG3_FORMAT(divdu, divdu_op)
+DEF_EMIT_REG3_FORMAT(moddu, moddu_op)
+DEF_EMIT_REG3_FORMAT(and, and_op)
+DEF_EMIT_REG3_FORMAT(or, or_op)
+DEF_EMIT_REG3_FORMAT(xor, xor_op)
+DEF_EMIT_REG3_FORMAT(sllw, sllw_op)
+DEF_EMIT_REG3_FORMAT(slld, slld_op)
+DEF_EMIT_REG3_FORMAT(srlw, srlw_op)
+DEF_EMIT_REG3_FORMAT(srld, srld_op)
+DEF_EMIT_REG3_FORMAT(sraw, sraw_op)
+DEF_EMIT_REG3_FORMAT(srad, srad_op)
+DEF_EMIT_REG3_FORMAT(ldxbu, ldxbu_op)
+DEF_EMIT_REG3_FORMAT(ldxhu, ldxhu_op)
+DEF_EMIT_REG3_FORMAT(ldxwu, ldxwu_op)
+DEF_EMIT_REG3_FORMAT(ldxd, ldxd_op)
+DEF_EMIT_REG3_FORMAT(stxb, stxb_op)
+DEF_EMIT_REG3_FORMAT(stxh, stxh_op)
+DEF_EMIT_REG3_FORMAT(stxw, stxw_op)
+DEF_EMIT_REG3_FORMAT(stxd, stxd_op)
+DEF_EMIT_REG3_FORMAT(amaddw, amaddw_op)
+DEF_EMIT_REG3_FORMAT(amaddd, amaddd_op)
+DEF_EMIT_REG3_FORMAT(amandw, amandw_op)
+DEF_EMIT_REG3_FORMAT(amandd, amandd_op)
+DEF_EMIT_REG3_FORMAT(amorw, amorw_op)
+DEF_EMIT_REG3_FORMAT(amord, amord_op)
+DEF_EMIT_REG3_FORMAT(amxorw, amxorw_op)
+DEF_EMIT_REG3_FORMAT(amxord, amxord_op)
+DEF_EMIT_REG3_FORMAT(amswapw, amswapw_op)
+DEF_EMIT_REG3_FORMAT(amswapd, amswapd_op)
+
+#define DEF_EMIT_REG3SA2_FORMAT(NAME, OP)				\
+static inline void emit_##NAME(union loongarch_instruction *insn,	\
+			       enum loongarch_gpr rd,			\
+			       enum loongarch_gpr rj,			\
+			       enum loongarch_gpr rk,			\
+			       int imm)					\
+{									\
+	insn->reg3sa2_format.opcode = OP;				\
+	insn->reg3sa2_format.immediate = imm;				\
+	insn->reg3sa2_format.rd = rd;					\
+	insn->reg3sa2_format.rj = rj;					\
+	insn->reg3sa2_format.rk = rk;					\
+}
+
+DEF_EMIT_REG3SA2_FORMAT(alsld, alsld_op)
+
 #endif /* _ASM_INST_H */
