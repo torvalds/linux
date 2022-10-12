@@ -2004,7 +2004,7 @@ static int qmp_pcie_power_on(struct phy *phy)
 
 	status = pcs + cfg->regs[QPHY_PCS_STATUS];
 	mask = cfg->phy_status;
-	ret = readl_poll_timeout(status, val, !(val & mask), 10,
+	ret = readl_poll_timeout(status, val, !(val & mask), 200,
 				 PHY_INIT_COMPLETE_TIMEOUT);
 	if (ret) {
 		dev_err(qmp->dev, "phy initialization timed-out\n");
