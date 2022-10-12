@@ -429,7 +429,6 @@ static struct btree *__btree_root_alloc(struct btree_update *as,
 
 	btree_node_set_format(b, b->data->format);
 	bch2_btree_build_aux_trees(b);
-	six_unlock_write(&b->c.lock);
 
 	return b;
 }
@@ -1528,6 +1527,9 @@ static int btree_split(struct btree_update *as, struct btree_trans *trans,
 
 		bch2_btree_build_aux_trees(n2);
 		bch2_btree_build_aux_trees(n1);
+
+		bch2_btree_update_add_new_node(as, n1);
+		bch2_btree_update_add_new_node(as, n2);
 		six_unlock_write(&n2->c.lock);
 		six_unlock_write(&n1->c.lock);
 
@@ -1541,9 +1543,6 @@ static int btree_split(struct btree_update *as, struct btree_trans *trans,
 		mark_btree_node_locked(trans, path2, n2->c.level, SIX_LOCK_intent);
 		bch2_btree_path_level_init(trans, path2, n2);
 
-		bch2_btree_update_add_new_node(as, n1);
-		bch2_btree_update_add_new_node(as, n2);
-
 		/*
 		 * Note that on recursive parent_keys == keys, so we
 		 * can't start adding new keys to parent_keys before emptying it
@@ -1556,6 +1555,9 @@ static int btree_split(struct btree_update *as, struct btree_trans *trans,
 			/* Depth increases, make a new root */
 			n3 = __btree_root_alloc(as, trans, b->c.level + 1);
 
+			bch2_btree_update_add_new_node(as, n3);
+			six_unlock_write(&n3->c.lock);
+
 			path2->locks_want++;
 			BUG_ON(btree_node_locked(path2, n3->c.level));
 			six_lock_increment(&n3->c.lock, SIX_LOCK_intent);
@@ -1565,22 +1567,19 @@ static int btree_split(struct btree_update *as, struct btree_trans *trans,
 			n3->sib_u64s[0] = U16_MAX;
 			n3->sib_u64s[1] = U16_MAX;
 
-			bch2_btree_update_add_new_node(as, n3);
-
 			btree_split_insert_keys(as, trans, path, n3, &as->parent_keys);
 		}
 	} else {
 		trace_and_count(c, btree_node_compact, c, b);
 
 		bch2_btree_build_aux_trees(n1);
+		bch2_btree_update_add_new_node(as, n1);
 		six_unlock_write(&n1->c.lock);
 
 		path1 = get_unlocked_mut_path(trans, path->btree_id, n1->c.level, n1->key.k.p);
 		six_lock_increment(&n1->c.lock, SIX_LOCK_intent);
 		mark_btree_node_locked(trans, path1, n1->c.level, SIX_LOCK_intent);
 		bch2_btree_path_level_init(trans, path1, n1);
-
-		bch2_btree_update_add_new_node(as, n1);
 
 		if (parent)
 			bch2_keylist_add(&as->parent_keys, &n1->key);
@@ -1904,9 +1903,8 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 	bch2_btree_sort_into(c, n, next);
 
 	bch2_btree_build_aux_trees(n);
-	six_unlock_write(&n->c.lock);
-
 	bch2_btree_update_add_new_node(as, n);
+	six_unlock_write(&n->c.lock);
 
 	new_path = get_unlocked_mut_path(trans, path->btree_id, n->c.level, n->key.k.p);
 	six_lock_increment(&n->c.lock, SIX_LOCK_intent);
@@ -1980,9 +1978,9 @@ int bch2_btree_node_rewrite(struct btree_trans *trans,
 	bch2_btree_interior_update_will_free_node(as, b);
 
 	n = bch2_btree_node_alloc_replacement(as, trans, b);
-	bch2_btree_update_add_new_node(as, n);
 
 	bch2_btree_build_aux_trees(n);
+	bch2_btree_update_add_new_node(as, n);
 	six_unlock_write(&n->c.lock);
 
 	new_path = get_unlocked_mut_path(trans, iter->btree_id, n->c.level, n->key.k.p);
