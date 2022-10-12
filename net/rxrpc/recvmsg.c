@@ -201,6 +201,7 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
 	case RXRPC_CALL_CLIENT_RECV_REPLY:
 		__rxrpc_call_completed(call);
 		write_unlock(&call->state_lock);
+		rxrpc_poke_call(call, rxrpc_call_poke_complete);
 		break;
 
 	case RXRPC_CALL_SERVER_RECV_REQUEST:

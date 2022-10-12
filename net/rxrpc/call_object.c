@@ -50,7 +50,7 @@ void rxrpc_poke_call(struct rxrpc_call *call, enum rxrpc_call_poke_trace what)
 	struct rxrpc_local *local = call->local;
 	bool busy;
 
-	if (call->state < RXRPC_CALL_COMPLETE) {
+	if (!test_bit(RXRPC_CALL_DISCONNECTED, &call->flags)) {
 		spin_lock_bh(&local->lock);
 		busy = !list_empty(&call->attend_link);
 		trace_rxrpc_poke_call(call, busy, what);
@@ -533,13 +533,10 @@ void rxrpc_release_call(struct rxrpc_sock *rx, struct rxrpc_call *call)
 	trace_rxrpc_call(call->debug_id, refcount_read(&call->ref),
 			 call->flags, rxrpc_call_see_release);
 
-	ASSERTCMP(call->state, ==, RXRPC_CALL_COMPLETE);
-
 	if (test_and_set_bit(RXRPC_CALL_RELEASED, &call->flags))
 		BUG();
 
 	rxrpc_put_call_slot(call);
-	del_timer_sync(&call->timer);
 
 	/* Make sure we don't get any more notifications */
 	write_lock(&rx->recvmsg_lock);
@@ -572,10 +569,6 @@ void rxrpc_release_call(struct rxrpc_sock *rx, struct rxrpc_call *call)
 
 	_debug("RELEASE CALL %p (%d CONN %p)", call, call->debug_id, conn);
 
-	if (conn && !test_bit(RXRPC_CALL_DISCONNECTED, &call->flags))
-		rxrpc_disconnect_call(call);
-	if (call->security)
-		call->security->free_call_crypto(call);
 	_leave("");
 }
 
