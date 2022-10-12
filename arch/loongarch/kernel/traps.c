@@ -374,6 +374,29 @@ asmlinkage void noinstr do_ale(struct pt_regs *regs)
 	irqentry_exit(regs, state);
 }
 
+#ifdef CONFIG_GENERIC_BUG
+int is_valid_bugaddr(unsigned long addr)
+{
+	return 1;
+}
+#endif /* CONFIG_GENERIC_BUG */
+
+static void bug_handler(struct pt_regs *regs)
+{
+	switch (report_bug(regs->csr_era, regs)) {
+	case BUG_TRAP_TYPE_BUG:
+	case BUG_TRAP_TYPE_NONE:
+		die_if_kernel("Oops - BUG", regs);
+		force_sig(SIGTRAP);
+		break;
+
+	case BUG_TRAP_TYPE_WARN:
+		/* Skip the BUG instruction and continue */
+		regs->csr_era += LOONGARCH_INSN_SIZE;
+		break;
+	}
+}
+
 asmlinkage void noinstr do_bp(struct pt_regs *regs)
 {
 	bool user = user_mode(regs);
@@ -427,8 +450,7 @@ asmlinkage void noinstr do_bp(struct pt_regs *regs)
 
 	switch (bcode) {
 	case BRK_BUG:
-		die_if_kernel("Kernel bug detected", regs);
-		force_sig(SIGTRAP);
+		bug_handler(regs);
 		break;
 	case BRK_DIVZERO:
 		die_if_kernel("Break instruction in kernel code", regs);

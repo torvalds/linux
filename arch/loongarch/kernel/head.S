@@ -8,6 +8,7 @@
 #include <asm/addrspace.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
+#include <asm/bug.h>
 #include <asm/regdef.h>
 #include <asm/loongarch.h>
 #include <asm/stackframe.h>
@@ -85,6 +86,7 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	PTR_ADDI	sp, sp, -4 * SZREG	# init stack pointer
 
 	bl		start_kernel
+	ASM_BUG()
 
 SYM_CODE_END(kernel_entry)
 
@@ -116,6 +118,8 @@ SYM_CODE_START(smpboot_entry)
 	ld.d		tp, t0, CPU_BOOT_TINFO
 
 	bl		start_secondary
+	ASM_BUG()
+
 SYM_CODE_END(smpboot_entry)
 
 #endif /* CONFIG_SMP */
