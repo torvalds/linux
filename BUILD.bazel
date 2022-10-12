@@ -18,6 +18,7 @@ package(
 )
 
 load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels", "define_db845c")
+load("//build/kernel/kleaf:kernel.bzl", "ddk_headers")
 
 _common_gki_modules_list = [
     # keep sorted
@@ -244,4 +245,50 @@ define_db845c(
         "sound/soc/qcom/snd-soc-sdm845.ko",
         "sound/soc/qcom/snd-soc-sm8250.ko",
     ],
+)
+
+# DDK Headers
+# All headers. This is the public target for DDK modules to use.
+ddk_headers(
+    name = "all_headers",
+    hdrs = [":all_headers_allowlist"] + select({
+        "//build/kernel/kleaf:allow_ddk_unsafe_headers_set": [":all_headers_unsafe"],
+        "//conditions:default": [],
+    }),
+    visibility = ["//visibility:public"],
+)
+
+# DDK headers allowlist. This is the list of all headers and include
+# directories that are safe to use in DDK modules.
+ddk_headers(
+    name = "all_headers_allowlist",
+    hdrs = [],
+    # The list of include directories where source files can #include headers
+    # from. In other words, these are the `-I` option to the C compiler.
+    includes = [],
+    visibility = ["//visibility:private"],
+)
+
+# List of DDK headers allowlist that are glob()-ed to avoid changes of BUILD
+# file when the list of files changes. All headers in these directories
+# are safe to use.
+filegroup(
+    name = "all_headers_allowlist_globs",
+    srcs = [],
+    visibility = ["//visibility:private"],
+)
+
+# DDK headers unsafe list. This is the list of all headers and include
+# directories that may be used during migration from kernel_module's, but
+# should be avoided in general.
+# Use with caution; items may:
+# - be removed without notice
+# - be moved into all_headers
+ddk_headers(
+    name = "all_headers_unsafe",
+    hdrs = [],
+    # The list of include directories where source files can #include headers
+    # from. In other words, these are the `-I` option to the C compiler.
+    includes = [],
+    visibility = ["//visibility:private"],
 )
