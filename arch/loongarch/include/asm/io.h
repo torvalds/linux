@@ -107,4 +107,8 @@ extern void __memcpy_fromio(void *to, const volatile void __iomem *from, size_t 
 
 #include <asm-generic/io.h>
 
+#define ARCH_HAS_VALID_PHYS_ADDR_RANGE
+extern int valid_phys_addr_range(phys_addr_t addr, size_t size);
+extern int valid_mmap_phys_addr_range(unsigned long pfn, size_t size);
+
 #endif /* _ASM_IO_H */
