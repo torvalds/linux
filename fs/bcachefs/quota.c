@@ -95,6 +95,113 @@ void bch2_quota_to_text(struct printbuf *out, struct bch_fs *c,
 #include <linux/fs.h>
 #include <linux/quota.h>
 
+static void qc_info_to_text(struct printbuf *out, struct qc_info *i)
+{
+	printbuf_tabstops_reset(out);
+	printbuf_tabstop_push(out, 20);
+
+	prt_str(out, "i_fieldmask");
+	prt_tab(out);
+	prt_printf(out, "%x", i->i_fieldmask);
+	prt_newline(out);
+
+	prt_str(out, "i_flags");
+	prt_tab(out);
+	prt_printf(out, "%u", i->i_flags);
+	prt_newline(out);
+
+	prt_str(out, "i_spc_timelimit");
+	prt_tab(out);
+	prt_printf(out, "%u", i->i_spc_timelimit);
+	prt_newline(out);
+
+	prt_str(out, "i_ino_timelimit");
+	prt_tab(out);
+	prt_printf(out, "%u", i->i_ino_timelimit);
+	prt_newline(out);
+
+	prt_str(out, "i_rt_spc_timelimit");
+	prt_tab(out);
+	prt_printf(out, "%u", i->i_rt_spc_timelimit);
+	prt_newline(out);
+
+	prt_str(out, "i_spc_warnlimit");
+	prt_tab(out);
+	prt_printf(out, "%u", i->i_spc_warnlimit);
+	prt_newline(out);
+
+	prt_str(out, "i_ino_warnlimit");
+	prt_tab(out);
+	prt_printf(out, "%u", i->i_ino_warnlimit);
+	prt_newline(out);
+
+	prt_str(out, "i_rt_spc_warnlimit");
+	prt_tab(out);
+	prt_printf(out, "%u", i->i_rt_spc_warnlimit);
+	prt_newline(out);
+}
+
+static void qc_dqblk_to_text(struct printbuf *out, struct qc_dqblk *q)
+{
+	printbuf_tabstops_reset(out);
+	printbuf_tabstop_push(out, 20);
+
+	prt_str(out, "d_fieldmask");
+	prt_tab(out);
+	prt_printf(out, "%x", q->d_fieldmask);
+	prt_newline(out);
+
+	prt_str(out, "d_spc_hardlimit");
+	prt_tab(out);
+	prt_printf(out, "%llu", q->d_spc_hardlimit);
+	prt_newline(out);
+
+	prt_str(out, "d_spc_softlimit");
+	prt_tab(out);
+	prt_printf(out, "%llu", q->d_spc_softlimit);
+	prt_newline(out);
+
+	prt_str(out, "d_ino_hardlimit");
+	prt_tab(out);
+	prt_printf(out, "%llu", q->d_ino_hardlimit);
+	prt_newline(out);
+
+	prt_str(out, "d_ino_softlimit");
+	prt_tab(out);
+	prt_printf(out, "%llu", q->d_ino_softlimit);
+	prt_newline(out);
+
+	prt_str(out, "d_space");
+	prt_tab(out);
+	prt_printf(out, "%llu", q->d_space);
+	prt_newline(out);
+
+	prt_str(out, "d_ino_count");
+	prt_tab(out);
+	prt_printf(out, "%llu", q->d_ino_count);
+	prt_newline(out);
+
+	prt_str(out, "d_ino_timer");
+	prt_tab(out);
+	prt_printf(out, "%llu", q->d_ino_timer);
+	prt_newline(out);
+
+	prt_str(out, "d_spc_timer");
+	prt_tab(out);
+	prt_printf(out, "%llu", q->d_spc_timer);
+	prt_newline(out);
+
+	prt_str(out, "d_ino_warns");
+	prt_tab(out);
+	prt_printf(out, "%i", q->d_ino_warns);
+	prt_newline(out);
+
+	prt_str(out, "d_spc_warns");
+	prt_tab(out);
+	prt_printf(out, "%i", q->d_spc_warns);
+	prt_newline(out);
+}
+
 static inline unsigned __next_qtype(unsigned i, unsigned qtypes)
 {
 	qtypes >>= i;
@@ -413,6 +520,26 @@ void bch2_fs_quota_init(struct bch_fs *c)
 		mutex_init(&c->quotas[i].lock);
 }
 
+static struct bch_sb_field_quota *bch2_sb_get_or_create_quota(struct bch_sb_handle *sb)
+{
+	struct bch_sb_field_quota *sb_quota = bch2_sb_get_quota(sb->sb);
+
+	if (sb_quota)
+		return sb_quota;
+
+	sb_quota = bch2_sb_resize_quota(sb, sizeof(*sb_quota) / sizeof(u64));
+	if (sb_quota) {
+		unsigned qtype, qc;
+
+		for (qtype = 0; qtype < QTYP_NR; qtype++)
+			for (qc = 0; qc < Q_COUNTERS; qc++)
+				sb_quota->q[qtype].c[qc].timelimit =
+					cpu_to_le32(7 * 24 * 60 * 60);
+	}
+
+	return sb_quota;
+}
+
 static void bch2_sb_quota_read(struct bch_fs *c)
 {
 	struct bch_sb_field_quota *sb_quota;
@@ -471,12 +598,19 @@ advance:
 
 int bch2_fs_quota_read(struct bch_fs *c)
 {
+	struct bch_sb_field_quota *sb_quota;
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret;
 
 	mutex_lock(&c->sb_lock);
+	sb_quota = bch2_sb_get_or_create_quota(&c->disk_sb);
+	if (!sb_quota) {
+		mutex_unlock(&c->sb_lock);
+		return -BCH_ERR_ENOSPC_sb_quota;
+	}
+
 	bch2_sb_quota_read(c);
 	mutex_unlock(&c->sb_lock);
 
@@ -500,6 +634,8 @@ int bch2_fs_quota_read(struct bch_fs *c)
 static int bch2_quota_enable(struct super_block	*sb, unsigned uflags)
 {
 	struct bch_fs *c = sb->s_fs_info;
+	struct bch_sb_field_quota *sb_quota;
+	int ret = 0;
 
 	if (sb->s_flags & SB_RDONLY)
 		return -EROFS;
@@ -519,6 +655,12 @@ static int bch2_quota_enable(struct super_block	*sb, unsigned uflags)
 		return -EINVAL;
 
 	mutex_lock(&c->sb_lock);
+	sb_quota = bch2_sb_get_or_create_quota(&c->disk_sb);
+	if (!sb_quota) {
+		ret = -BCH_ERR_ENOSPC_sb_quota;
+		goto unlock;
+	}
+
 	if (uflags & FS_QUOTA_UDQ_ENFD)
 		SET_BCH_SB_USRQUOTA(c->disk_sb.sb, true);
 
@@ -529,9 +671,10 @@ static int bch2_quota_enable(struct super_block	*sb, unsigned uflags)
 		SET_BCH_SB_PRJQUOTA(c->disk_sb.sb, true);
 
 	bch2_write_super(c);
+unlock:
 	mutex_unlock(&c->sb_lock);
 
-	return 0;
+	return bch2_err_class(ret);
 }
 
 static int bch2_quota_disable(struct super_block *sb, unsigned uflags)
@@ -643,6 +786,15 @@ static int bch2_quota_set_info(struct super_block *sb, int type,
 	struct bch_fs *c = sb->s_fs_info;
 	struct bch_sb_field_quota *sb_quota;
 	struct bch_memquota_type *q;
+	int ret = 0;
+
+	if (0) {
+		struct printbuf buf = PRINTBUF;
+
+		qc_info_to_text(&buf, info);
+		pr_info("setting:\n%s", buf.buf);
+		printbuf_exit(&buf);
+	}
 
 	if (sb->s_flags & SB_RDONLY)
 		return -EROFS;
@@ -660,12 +812,10 @@ static int bch2_quota_set_info(struct super_block *sb, int type,
 	q = &c->quotas[type];
 
 	mutex_lock(&c->sb_lock);
-	sb_quota = bch2_sb_get_quota(c->disk_sb.sb);
+	sb_quota = bch2_sb_get_or_create_quota(&c->disk_sb);
 	if (!sb_quota) {
-		sb_quota = bch2_sb_resize_quota(&c->disk_sb,
-					sizeof(*sb_quota) / sizeof(u64));
-		if (!sb_quota)
-			return -BCH_ERR_ENOSPC_sb_quota;
+		ret = -BCH_ERR_ENOSPC_sb_quota;
+		goto unlock;
 	}
 
 	if (info->i_fieldmask & QC_SPC_TIMER)
@@ -687,9 +837,10 @@ static int bch2_quota_set_info(struct super_block *sb, int type,
 	bch2_sb_quota_read(c);
 
 	bch2_write_super(c);
+unlock:
 	mutex_unlock(&c->sb_lock);
 
-	return 0;
+	return bch2_err_class(ret);
 }
 
 /* Get/set individual quotas: */
@@ -793,6 +944,14 @@ static int bch2_set_quota(struct super_block *sb, struct kqid qid,
 	struct bch_fs *c = sb->s_fs_info;
 	struct bkey_i_quota new_quota;
 	int ret;
+
+	if (0) {
+		struct printbuf buf = PRINTBUF;
+
+		qc_dqblk_to_text(&buf, qdq);
+		pr_info("setting:\n%s", buf.buf);
+		printbuf_exit(&buf);
+	}
 
 	if (sb->s_flags & SB_RDONLY)
 		return -EROFS;
