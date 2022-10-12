@@ -1948,7 +1948,7 @@ static int __init __maybe_unused rk_cam_fps_setup(char *str)
 __setup("rk_cam_hdr=", rk_cam_hdr_setup);
 __setup("rk_cam_w=", rk_cam_w_setup);
 __setup("rk_cam_h=", rk_cam_h_setup);
-__setup("rk_cam_fps", rk_cam_fps_setup);
+__setup("rk_cam_fps=", rk_cam_fps_setup);
 
 static void find_terminal_resolution(struct sc200ai *sc200ai)
 {
