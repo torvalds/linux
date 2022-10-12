@@ -4352,6 +4352,7 @@ void ieee80211_check_fast_rx(struct sta_info *sta)
 		.vif_type = sdata->vif.type,
 		.control_port_protocol = sdata->control_port_protocol,
 	}, *old, *new = NULL;
+	u32 offload_flags;
 	bool set_offload = false;
 	bool assign = false;
 	bool offload;
@@ -4467,10 +4468,10 @@ void ieee80211_check_fast_rx(struct sta_info *sta)
 	if (assign)
 		new = kmemdup(&fastrx, sizeof(fastrx), GFP_KERNEL);
 
-	offload = assign &&
-		  (sdata->vif.offload_flags & IEEE80211_OFFLOAD_DECAP_ENABLED);
+	offload_flags = get_bss_sdata(sdata)->vif.offload_flags;
+	offload = offload_flags & IEEE80211_OFFLOAD_DECAP_ENABLED;
 
-	if (offload)
+	if (assign && offload)
 		set_offload = !test_and_set_sta_flag(sta, WLAN_STA_DECAP_OFFLOAD);
 	else
 		set_offload = test_and_clear_sta_flag(sta, WLAN_STA_DECAP_OFFLOAD);
@@ -4708,7 +4709,7 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 
 	if (!(status->rx_flags & IEEE80211_RX_AMSDU)) {
 		if (!pskb_may_pull(skb, snap_offs + sizeof(*payload)))
-			goto drop;
+			return false;
 
 		payload = (void *)(skb->data + snap_offs);
 
