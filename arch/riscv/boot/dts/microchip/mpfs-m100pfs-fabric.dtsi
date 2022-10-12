@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
-/* Copyright (c) 2020-2022 Microchip Technology Inc */
+/* Copyright (c) 2022 Microchip Technology Inc */
 
 / {
 	fabric_clk3: fabric-clk3 {

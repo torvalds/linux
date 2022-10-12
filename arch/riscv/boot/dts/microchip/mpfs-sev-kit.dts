@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
-/* Copyright (c) 2020-2021 Microchip Technology Inc */
+/* Copyright (c) 2022 Microchip Technology Inc */
 
 /dts-v1/;
 
 #include "mpfs.dtsi"
-#include "mpfs-icicle-kit-fabric.dtsi"
+#include "mpfs-sev-kit-fabric.dtsi"
 
 /* Clock frequency (in Hz) of the rtcclk */
-#define RTCCLK_FREQ		1000000
+#define MTIMER_FREQ		1000000
 
 / {
-	model = "Microchip PolarFire-SoC Icicle Kit";
-	compatible = "microchip,mpfs-icicle-reference-rtlv2210", "microchip,mpfs-icicle-kit",
-		     "microchip,mpfs";
+	#address-cells = <2>;
+	#size-cells = <2>;
+	model = "Microchip PolarFire-SoC SEV Kit";
+	compatible = "microchip,mpfs-sev-kit", "microchip,mpfs";
 
 	aliases {
 		ethernet0 = &mac1;
@@ -28,19 +29,7 @@
 	};
 
 	cpus {
-		timebase-frequency = <RTCCLK_FREQ>;
-	};
-
-	ddrc_cache_lo: memory@80000000 {
-		device_type = "memory";
-		reg = <0x0 0x80000000 0x0 0x40000000>;
-		status = "okay";
-	};
-
-	ddrc_cache_hi: memory@1000000000 {
-		device_type = "memory";
-		reg = <0x10 0x40000000 0x0 0x40000000>;
-		status = "okay";
+		timebase-frequency = <MTIMER_FREQ>;
 	};
 
 	reserved-memory {
@@ -48,14 +37,29 @@
 		#size-cells = <2>;
 		ranges;
 
-		hss_payload: region@BFC00000 {
-			reg = <0x0 0xBFC00000 0x0 0x400000>;
-			no-map;
+		fabricbuf0ddrc: buffer@80000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x80000000 0x0 0x2000000>;
 		};
+
+		fabricbuf1ddrnc: buffer@c4000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0xc4000000 0x0 0x4000000>;
+		};
+
+		fabricbuf2ddrncwcb: buffer@d4000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0xd4000000 0x0 0x4000000>;
+		};
+	};
+
+	ddrc_cache: memory@1000000000 {
+		device_type = "memory";
+		reg = <0x10 0x0 0x0 0x76000000>;
 	};
 };
 
-&core_pwm0 {
+&i2c0 {
 	status = "okay";
 };
 
@@ -71,36 +75,22 @@
 	status = "okay";
 };
 
-&i2c0 {
-	status = "okay";
-};
-
-&i2c1 {
-	status = "okay";
-};
-
-&i2c2 {
-	status = "okay";
-};
-
 &mac0 {
+	status = "okay";
 	phy-mode = "sgmii";
 	phy-handle = <&phy0>;
-	status = "okay";
-};
-
-&mac1 {
-	phy-mode = "sgmii";
-	phy-handle = <&phy1>;
-	status = "okay";
-
 	phy1: ethernet-phy@9 {
 		reg = <9>;
 	};
-
 	phy0: ethernet-phy@8 {
 		reg = <8>;
 	};
+};
+
+&mac1 {
+	status = "okay";
+	phy-mode = "sgmii";
+	phy-handle = <&phy1>;
 };
 
 &mbox {
@@ -108,6 +98,7 @@
 };
 
 &mmc {
+	status = "okay";
 	bus-width = <4>;
 	disable-wp;
 	cap-sd-highspeed;
@@ -118,7 +109,6 @@
 	sd-uhs-sdr25;
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
-	status = "okay";
 };
 
 &mmuart1 {
@@ -137,27 +127,11 @@
 	status = "okay";
 };
 
-&pcie {
-	status = "okay";
-};
-
-&qspi {
-	status = "okay";
-};
-
 &refclk {
 	clock-frequency = <125000000>;
 };
 
 &rtc {
-	status = "okay";
-};
-
-&spi0 {
-	status = "okay";
-};
-
-&spi1 {
 	status = "okay";
 };
 
@@ -167,5 +141,5 @@
 
 &usb {
 	status = "okay";
-	dr_mode = "host";
+	dr_mode = "otg";
 };
