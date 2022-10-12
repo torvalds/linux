@@ -23,7 +23,14 @@ obj-$(CONFIG_SMP)		+= smp.o
 
 obj-$(CONFIG_NUMA)		+= numa.o
 
+obj-$(CONFIG_MAGIC_SYSRQ)	+= sysrq.o
+
+obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel.o
+obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
+
 obj-$(CONFIG_UNWINDER_GUESS)	+= unwind_guess.o
 obj-$(CONFIG_UNWINDER_PROLOGUE) += unwind_prologue.o
+
+obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o perf_regs.o
 
 CPPFLAGS_vmlinux.lds		:= $(KBUILD_CFLAGS)
