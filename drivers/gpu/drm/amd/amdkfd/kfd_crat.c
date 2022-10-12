@@ -1522,6 +1522,7 @@ int kfd_get_gpu_cache_info(struct kfd_dev *kdev, struct kfd_gpu_cache_info **pca
 		case IP_VERSION(11, 0, 1):
 		case IP_VERSION(11, 0, 2):
 		case IP_VERSION(11, 0, 3):
+		case IP_VERSION(11, 0, 4):
 			num_of_cache_types =
 				kfd_fill_gpu_cache_info_from_gfx_config(kdev, *pcache_info);
 			break;
