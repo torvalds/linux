@@ -3191,7 +3191,6 @@ static ssize_t ioc_qos_write(struct kernfs_open_file *of, char *input,
 	memcpy(qos, ioc->params.qos, sizeof(qos));
 	enable = ioc->enabled;
 	user = ioc->user_qos_params;
-	spin_unlock_irq(&ioc->lock);
 
 	while ((p = strsep(&input, " \t\n"))) {
 		substring_t args[MAX_OPT_ARGS];
@@ -3258,8 +3257,6 @@ static ssize_t ioc_qos_write(struct kernfs_open_file *of, char *input,
 	if (qos[QOS_MIN] > qos[QOS_MAX])
 		goto einval;
 
-	spin_lock_irq(&ioc->lock);
-
 	if (enable) {
 		blk_stat_enable_accounting(disk->queue);
 		blk_queue_flag_set(QUEUE_FLAG_RQ_ALLOC_TIME, disk->queue);
@@ -3284,6 +3281,7 @@ static ssize_t ioc_qos_write(struct kernfs_open_file *of, char *input,
 	blkdev_put_no_open(bdev);
 	return nbytes;
 einval:
+	spin_unlock_irq(&ioc->lock);
 	ret = -EINVAL;
 err:
 	blkdev_put_no_open(bdev);
@@ -3359,7 +3357,6 @@ static ssize_t ioc_cost_model_write(struct kernfs_open_file *of, char *input,
 	spin_lock_irq(&ioc->lock);
 	memcpy(u, ioc->params.i_lcoefs, sizeof(u));
 	user = ioc->user_cost_model;
-	spin_unlock_irq(&ioc->lock);
 
 	while ((p = strsep(&input, " \t\n"))) {
 		substring_t args[MAX_OPT_ARGS];
@@ -3396,7 +3393,6 @@ static ssize_t ioc_cost_model_write(struct kernfs_open_file *of, char *input,
 		user = true;
 	}
 
-	spin_lock_irq(&ioc->lock);
 	if (user) {
 		memcpy(ioc->params.i_lcoefs, u, sizeof(u));
 		ioc->user_cost_model = true;
@@ -3410,6 +3406,7 @@ static ssize_t ioc_cost_model_write(struct kernfs_open_file *of, char *input,
 	return nbytes;
 
 einval:
+	spin_unlock_irq(&ioc->lock);
 	ret = -EINVAL;
 err:
 	blkdev_put_no_open(bdev);
