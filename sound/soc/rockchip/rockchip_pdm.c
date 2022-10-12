@@ -28,6 +28,7 @@
 #define PDM_START_DELAY_MS_MAX		(1000)
 #define PDM_FILTER_DELAY_MS_MIN		(20)
 #define PDM_FILTER_DELAY_MS_MAX		(1000)
+#define PDM_CLK_SHIFT_PPM_MAX		(1000000) /* 1 ppm */
 
 enum rk_pdm_version {
 	RK_PDM_RK3229,
@@ -89,7 +90,7 @@ static unsigned int get_pdm_clk(struct rk_pdm_dev *pdm, unsigned int sr,
 				unsigned int *clk_src, unsigned int *clk_out,
 				unsigned int signoff)
 {
-	unsigned int i, count, clk, div, rate;
+	unsigned int i, count, clk, div, rate, delta;
 
 	clk = 0;
 	if (!sr)
@@ -103,7 +104,9 @@ static unsigned int get_pdm_clk(struct rk_pdm_dev *pdm, unsigned int sr,
 		if ((div & (div - 1)) == 0) {
 			*clk_out = clkref[i].clk_out;
 			rate = clk_round_rate(pdm->clk, clkref[i].clk);
-			if (rate != clkref[i].clk)
+			delta = clkref[i].clk / PDM_CLK_SHIFT_PPM_MAX;
+			if (rate < clkref[i].clk - delta ||
+			    rate > clkref[i].clk + delta)
 				continue;
 			clk = clkref[i].clk;
 			*clk_src = clkref[i].clk;
