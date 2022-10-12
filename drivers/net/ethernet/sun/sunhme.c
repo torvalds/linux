@@ -2896,8 +2896,8 @@ static int happy_meal_pci_probe(struct pci_dev *pdev,
 
 	hpreg_res = devm_request_region(&pdev->dev, pci_resource_start(pdev, 0),
 					pci_resource_len(pdev, 0), DRV_NAME);
-	if (IS_ERR(hpreg_res)) {
-		err = PTR_ERR(hpreg_res);
+	if (!hpreg_res) {
+		err = -EBUSY;
 		dev_err(&pdev->dev, "Cannot obtain PCI resources, aborting.\n");
 		goto err_out_clear_quattro;
 	}
