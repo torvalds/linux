@@ -10465,9 +10465,6 @@ static int cpu_cgroup_can_attach(struct cgroup_taskset *tset)
 		if (ret)
 			break;
 	}
-
-	trace_android_rvh_cpu_cgroup_can_attach(tset, &ret);
-
 	return ret;
 }
 

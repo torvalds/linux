@@ -28,10 +28,6 @@ DECLARE_RESTRICTED_HOOK(android_rvh_cpu_cgroup_attach,
 	TP_PROTO(struct cgroup_taskset *tset),
 	TP_ARGS(tset), 1);
 
-DECLARE_RESTRICTED_HOOK(android_rvh_cpu_cgroup_can_attach,
-	TP_PROTO(struct cgroup_taskset *tset, int *retval),
-	TP_ARGS(tset, retval), 1);
-
 DECLARE_RESTRICTED_HOOK(android_rvh_cpu_cgroup_online,
 	TP_PROTO(struct cgroup_subsys_state *css),
 	TP_ARGS(css), 1);
