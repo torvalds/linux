@@ -43,11 +43,6 @@ struct qmp_phy_init_tbl {
 	unsigned int offset;
 	unsigned int val;
 	/*
-	 * register part of layout ?
-	 * if yes, then offset gives index in the reg-layout
-	 */
-	bool in_layout;
-	/*
 	 * mask of lanes for which this register is written
 	 * for cases when second lane needs different values
 	 */
@@ -58,14 +53,6 @@ struct qmp_phy_init_tbl {
 	{				\
 		.offset = o,		\
 		.val = v,		\
-		.lane_mask = 0xff,	\
-	}
-
-#define QMP_PHY_INIT_CFG_L(o, v)	\
-	{				\
-		.offset = o,		\
-		.val = v,		\
-		.in_layout = true,	\
 		.lane_mask = 0xff,	\
 	}
 
@@ -388,8 +375,6 @@ static const struct qmp_phy_init_tbl ipq8074_pcie_pcs_tbl[] = {
 	QMP_PHY_INIT_CFG(QPHY_V2_PCS_RX_SIGDET_LVL, 0x99),
 	QMP_PHY_INIT_CFG(QPHY_V2_PCS_TXDEEMPH_M6DB_V0, 0x15),
 	QMP_PHY_INIT_CFG(QPHY_V2_PCS_TXDEEMPH_M3P5DB_V0, 0xe),
-	QMP_PHY_INIT_CFG_L(QPHY_SW_RESET, 0x0),
-	QMP_PHY_INIT_CFG_L(QPHY_START_CTRL, 0x3),
 };
 
 static const struct qmp_phy_init_tbl ipq8074_pcie_gen3_serdes_tbl[] = {
@@ -1896,7 +1881,6 @@ static const struct qmp_phy_cfg sm8450_qmp_gen4x2_pciephy_cfg = {
 };
 
 static void qmp_pcie_configure_lane(void __iomem *base,
-					const unsigned int *regs,
 					const struct qmp_phy_init_tbl tbl[],
 					int num,
 					u8 lane_mask)
@@ -1911,30 +1895,25 @@ static void qmp_pcie_configure_lane(void __iomem *base,
 		if (!(t->lane_mask & lane_mask))
 			continue;
 
-		if (t->in_layout)
-			writel(t->val, base + regs[t->offset]);
-		else
-			writel(t->val, base + t->offset);
+		writel(t->val, base + t->offset);
 	}
 }
 
 static void qmp_pcie_configure(void __iomem *base,
-					const unsigned int *regs,
 					const struct qmp_phy_init_tbl tbl[],
 					int num)
 {
-	qmp_pcie_configure_lane(base, regs, tbl, num, 0xff);
+	qmp_pcie_configure_lane(base, tbl, num, 0xff);
 }
 
 static void qmp_pcie_serdes_init(struct qmp_phy *qphy, const struct qmp_phy_cfg_tables *tables)
 {
-	const struct qmp_phy_cfg *cfg = qphy->cfg;
 	void __iomem *serdes = qphy->serdes;
 
 	if (!tables)
 		return;
 
-	qmp_pcie_configure(serdes, cfg->regs, tables->serdes, tables->serdes_num);
+	qmp_pcie_configure(serdes, tables->serdes, tables->serdes_num);
 }
 
 static void qmp_pcie_lanes_init(struct qmp_phy *qphy, const struct qmp_phy_cfg_tables *tables)
@@ -1946,29 +1925,26 @@ static void qmp_pcie_lanes_init(struct qmp_phy *qphy, const struct qmp_phy_cfg_t
 	if (!tables)
 		return;
 
-	qmp_pcie_configure_lane(tx, cfg->regs, tables->tx, tables->tx_num, 1);
+	qmp_pcie_configure_lane(tx, tables->tx, tables->tx_num, 1);
 
 	if (cfg->lanes >= 2)
-		qmp_pcie_configure_lane(qphy->tx2, cfg->regs, tables->tx, tables->tx_num, 2);
+		qmp_pcie_configure_lane(qphy->tx2, tables->tx, tables->tx_num, 2);
 
-	qmp_pcie_configure_lane(rx, cfg->regs, tables->rx, tables->rx_num, 1);
+	qmp_pcie_configure_lane(rx, tables->rx, tables->rx_num, 1);
 	if (cfg->lanes >= 2)
-		qmp_pcie_configure_lane(qphy->rx2, cfg->regs, tables->rx, tables->rx_num, 2);
+		qmp_pcie_configure_lane(qphy->rx2, tables->rx, tables->rx_num, 2);
 }
 
 static void qmp_pcie_pcs_init(struct qmp_phy *qphy, const struct qmp_phy_cfg_tables *tables)
 {
-	const struct qmp_phy_cfg *cfg = qphy->cfg;
 	void __iomem *pcs = qphy->pcs;
 	void __iomem *pcs_misc = qphy->pcs_misc;
 
 	if (!tables)
 		return;
 
-	qmp_pcie_configure(pcs, cfg->regs,
-			   tables->pcs, tables->pcs_num);
-	qmp_pcie_configure(pcs_misc, cfg->regs,
-			   tables->pcs_misc, tables->pcs_misc_num);
+	qmp_pcie_configure(pcs, tables->pcs, tables->pcs_num);
+	qmp_pcie_configure(pcs_misc, tables->pcs_misc, tables->pcs_misc_num);
 }
 
 static int qmp_pcie_init(struct phy *phy)
