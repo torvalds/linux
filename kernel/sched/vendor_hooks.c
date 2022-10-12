@@ -3,6 +3,7 @@
  *
  * Copyright 2022 Google LLC
  */
+#include <linux/sched/cputime.h>
 #include "sched.h"
 #include "pelt.h"
 #include "smp.h"
