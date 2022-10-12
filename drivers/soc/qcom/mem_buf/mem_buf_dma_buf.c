@@ -452,6 +452,11 @@ static int mem_buf_lend_internal(struct dma_buf *dmabuf,
 	if (!arg->nr_acl_entries || !arg->vmids || !arg->perms)
 		return -EINVAL;
 
+	if (!mem_buf_dev) {
+		pr_err("%s: mem-buf driver not probed!\n", __func__);
+		return -ENODEV;
+	}
+
 	vmperm = to_mem_buf_vmperm(dmabuf);
 	if (IS_ERR(vmperm)) {
 		pr_err_ratelimited("dmabuf ops %ps are not a mem_buf_dma_buf_ops\n",
