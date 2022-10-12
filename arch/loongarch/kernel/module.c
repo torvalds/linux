@@ -18,16 +18,6 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 
-static inline bool signed_imm_check(long val, unsigned int bit)
-{
-	return -(1L << (bit - 1)) <= val && val < (1L << (bit - 1));
-}
-
-static inline bool unsigned_imm_check(unsigned long val, unsigned int bit)
-{
-	return val < (1UL << bit);
-}
-
 static int rela_stack_push(s64 stack_value, s64 *rela_stack, size_t *rela_stack_top)
 {
 	if (*rela_stack_top >= RELA_STACK_DEPTH)

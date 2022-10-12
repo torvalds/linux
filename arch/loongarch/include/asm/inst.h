@@ -166,4 +166,14 @@ u32 larch_insn_gen_lu32id(enum loongarch_gpr rd, int imm);
 u32 larch_insn_gen_lu52id(enum loongarch_gpr rd, enum loongarch_gpr rj, int imm);
 u32 larch_insn_gen_jirl(enum loongarch_gpr rd, enum loongarch_gpr rj, unsigned long pc, unsigned long dest);
 
+static inline bool signed_imm_check(long val, unsigned int bit)
+{
+	return -(1L << (bit - 1)) <= val && val < (1L << (bit - 1));
+}
+
+static inline bool unsigned_imm_check(unsigned long val, unsigned int bit)
+{
+	return val < (1UL << bit);
+}
+
 #endif /* _ASM_INST_H */
