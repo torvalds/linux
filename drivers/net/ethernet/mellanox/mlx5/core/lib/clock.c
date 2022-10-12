@@ -326,6 +326,14 @@ static int mlx5_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	return 0;
 }
 
+static int mlx5_ptp_adjphase(struct ptp_clock_info *ptp, s32 delta)
+{
+	if (delta < S16_MIN || delta > S16_MAX)
+		return -ERANGE;
+
+	return mlx5_ptp_adjtime(ptp, delta);
+}
+
 static int mlx5_ptp_adjfreq_real_time(struct mlx5_core_dev *mdev, s32 freq)
 {
 	u32 in[MLX5_ST_SZ_DW(mtutc_reg)] = {};
@@ -688,6 +696,7 @@ static const struct ptp_clock_info mlx5_ptp_clock_info = {
 	.n_pins		= 0,
 	.pps		= 0,
 	.adjfine	= mlx5_ptp_adjfine,
+	.adjphase	= mlx5_ptp_adjphase,
 	.adjtime	= mlx5_ptp_adjtime,
 	.gettimex64	= mlx5_ptp_gettimex,
 	.settime64	= mlx5_ptp_settime,
