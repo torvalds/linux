@@ -158,7 +158,7 @@ config STACKTRACE_SUPPORT
 	bool
 	default y
 
-# MACH_LOONGSON32 and MACH_LOONGSON64 are delibrately carried over from the
+# MACH_LOONGSON32 and MACH_LOONGSON64 are deliberately carried over from the
 # MIPS Loongson code, to preserve Loongson-specific code paths in drivers that
 # are shared between architectures, and specifically expecting the symbols.
 config MACH_LOONGSON32
