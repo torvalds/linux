@@ -42,7 +42,7 @@ static uint64_t guest_percpu_mem_size = DEFAULT_PER_VCPU_MEM_SIZE;
 static size_t demand_paging_size;
 static char *guest_data_prototype;
 
-static void vcpu_worker(struct perf_test_vcpu_args *vcpu_args)
+static void vcpu_worker(struct memstress_vcpu_args *vcpu_args)
 {
 	struct kvm_vcpu *vcpu = vcpu_args->vcpu;
 	int vcpu_idx = vcpu_args->vcpu_idx;
@@ -285,7 +285,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	struct kvm_vm *vm;
 	int r, i;
 
-	vm = perf_test_create_vm(mode, nr_vcpus, guest_percpu_mem_size, 1,
+	vm = memstress_create_vm(mode, nr_vcpus, guest_percpu_mem_size, 1,
 				 p->src_type, p->partition_vcpu_memory_access);
 
 	demand_paging_size = get_backing_src_pagesz(p->src_type);
@@ -307,11 +307,11 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		TEST_ASSERT(pipefds, "Unable to allocate memory for pipefd");
 
 		for (i = 0; i < nr_vcpus; i++) {
-			struct perf_test_vcpu_args *vcpu_args;
+			struct memstress_vcpu_args *vcpu_args;
 			void *vcpu_hva;
 			void *vcpu_alias;
 
-			vcpu_args = &perf_test_args.vcpu_args[i];
+			vcpu_args = &memstress_args.vcpu_args[i];
 
 			/* Cache the host addresses of the region */
 			vcpu_hva = addr_gpa2hva(vm, vcpu_args->gpa);
@@ -329,17 +329,17 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 					    pipefds[i * 2], p->uffd_mode,
 					    p->uffd_delay, &uffd_args[i],
 					    vcpu_hva, vcpu_alias,
-					    vcpu_args->pages * perf_test_args.guest_page_size);
+					    vcpu_args->pages * memstress_args.guest_page_size);
 		}
 	}
 
 	pr_info("Finished creating vCPUs and starting uffd threads\n");
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	perf_test_start_vcpu_threads(nr_vcpus, vcpu_worker);
+	memstress_start_vcpu_threads(nr_vcpus, vcpu_worker);
 	pr_info("Started all vCPUs\n");
 
-	perf_test_join_vcpu_threads(nr_vcpus);
+	memstress_join_vcpu_threads(nr_vcpus);
 	ts_diff = timespec_elapsed(start);
 	pr_info("All vCPU threads joined\n");
 
@@ -358,10 +358,10 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	pr_info("Total guest execution time: %ld.%.9lds\n",
 		ts_diff.tv_sec, ts_diff.tv_nsec);
 	pr_info("Overall demand paging rate: %f pgs/sec\n",
-		perf_test_args.vcpu_args[0].pages * nr_vcpus /
+		memstress_args.vcpu_args[0].pages * nr_vcpus /
 		((double)ts_diff.tv_sec + (double)ts_diff.tv_nsec / 100000000.0));
 
-	perf_test_destroy_vm(vm);
+	memstress_destroy_vm(vm);
 
 	free(guest_data_prototype);
 	if (p->uffd_mode) {

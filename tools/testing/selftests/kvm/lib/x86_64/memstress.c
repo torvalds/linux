@@ -15,21 +15,21 @@
 #include "processor.h"
 #include "vmx.h"
 
-void perf_test_l2_guest_code(uint64_t vcpu_id)
+void memstress_l2_guest_code(uint64_t vcpu_id)
 {
-	perf_test_guest_code(vcpu_id);
+	memstress_guest_code(vcpu_id);
 	vmcall();
 }
 
-extern char perf_test_l2_guest_entry[];
+extern char memstress_l2_guest_entry[];
 __asm__(
-"perf_test_l2_guest_entry:"
+"memstress_l2_guest_entry:"
 "	mov (%rsp), %rdi;"
-"	call perf_test_l2_guest_code;"
+"	call memstress_l2_guest_code;"
 "	ud2;"
 );
 
-static void perf_test_l1_guest_code(struct vmx_pages *vmx, uint64_t vcpu_id)
+static void memstress_l1_guest_code(struct vmx_pages *vmx, uint64_t vcpu_id)
 {
 #define L2_GUEST_STACK_SIZE 64
 	unsigned long l2_guest_stack[L2_GUEST_STACK_SIZE];
@@ -42,14 +42,14 @@ static void perf_test_l1_guest_code(struct vmx_pages *vmx, uint64_t vcpu_id)
 
 	rsp = &l2_guest_stack[L2_GUEST_STACK_SIZE - 1];
 	*rsp = vcpu_id;
-	prepare_vmcs(vmx, perf_test_l2_guest_entry, rsp);
+	prepare_vmcs(vmx, memstress_l2_guest_entry, rsp);
 
 	GUEST_ASSERT(!vmlaunch());
 	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
 	GUEST_DONE();
 }
 
-uint64_t perf_test_nested_pages(int nr_vcpus)
+uint64_t memstress_nested_pages(int nr_vcpus)
 {
 	/*
 	 * 513 page tables is enough to identity-map 256 TiB of L2 with 1G
@@ -59,7 +59,7 @@ uint64_t perf_test_nested_pages(int nr_vcpus)
 	return 513 + 10 * nr_vcpus;
 }
 
-void perf_test_setup_ept(struct vmx_pages *vmx, struct kvm_vm *vm)
+void memstress_setup_ept(struct vmx_pages *vmx, struct kvm_vm *vm)
 {
 	uint64_t start, end;
 
@@ -72,12 +72,12 @@ void perf_test_setup_ept(struct vmx_pages *vmx, struct kvm_vm *vm)
 	 */
 	nested_identity_map_1g(vmx, vm, 0, 0x100000000ULL);
 
-	start = align_down(perf_test_args.gpa, PG_SIZE_1G);
-	end = align_up(perf_test_args.gpa + perf_test_args.size, PG_SIZE_1G);
+	start = align_down(memstress_args.gpa, PG_SIZE_1G);
+	end = align_up(memstress_args.gpa + memstress_args.size, PG_SIZE_1G);
 	nested_identity_map_1g(vmx, vm, start, end - start);
 }
 
-void perf_test_setup_nested(struct kvm_vm *vm, int nr_vcpus, struct kvm_vcpu *vcpus[])
+void memstress_setup_nested(struct kvm_vm *vm, int nr_vcpus, struct kvm_vcpu *vcpus[])
 {
 	struct vmx_pages *vmx, *vmx0 = NULL;
 	struct kvm_regs regs;
@@ -90,7 +90,7 @@ void perf_test_setup_nested(struct kvm_vm *vm, int nr_vcpus, struct kvm_vcpu *vc
 		vmx = vcpu_alloc_vmx(vm, &vmx_gva);
 
 		if (vcpu_id == 0) {
-			perf_test_setup_ept(vmx, vm);
+			memstress_setup_ept(vmx, vm);
 			vmx0 = vmx;
 		} else {
 			/* Share the same EPT table across all vCPUs. */
@@ -100,11 +100,11 @@ void perf_test_setup_nested(struct kvm_vm *vm, int nr_vcpus, struct kvm_vcpu *vc
 		}
 
 		/*
-		 * Override the vCPU to run perf_test_l1_guest_code() which will
-		 * bounce it into L2 before calling perf_test_guest_code().
+		 * Override the vCPU to run memstress_l1_guest_code() which will
+		 * bounce it into L2 before calling memstress_guest_code().
 		 */
 		vcpu_regs_get(vcpus[vcpu_id], &regs);
-		regs.rip = (unsigned long) perf_test_l1_guest_code;
+		regs.rip = (unsigned long) memstress_l1_guest_code;
 		vcpu_regs_set(vcpus[vcpu_id], &regs);
 		vcpu_args_set(vcpus[vcpu_id], 2, vmx_gva, vcpu_id);
 	}

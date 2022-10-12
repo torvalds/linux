@@ -17,9 +17,9 @@
 
 #define DEFAULT_PER_VCPU_MEM_SIZE	(1 << 30) /* 1G */
 
-#define PERF_TEST_MEM_SLOT_INDEX	1
+#define MEMSTRESS_MEM_SLOT_INDEX	1
 
-struct perf_test_vcpu_args {
+struct memstress_vcpu_args {
 	uint64_t gpa;
 	uint64_t gva;
 	uint64_t pages;
@@ -29,7 +29,7 @@ struct perf_test_vcpu_args {
 	int vcpu_idx;
 };
 
-struct perf_test_args {
+struct memstress_args {
 	struct kvm_vm *vm;
 	/* The starting address and size of the guest test region. */
 	uint64_t gpa;
@@ -47,26 +47,26 @@ struct perf_test_args {
 	/* The vCPU=>pCPU pinning map. Only valid if pin_vcpus is true. */
 	uint32_t vcpu_to_pcpu[KVM_MAX_VCPUS];
 
-	struct perf_test_vcpu_args vcpu_args[KVM_MAX_VCPUS];
+	struct memstress_vcpu_args vcpu_args[KVM_MAX_VCPUS];
 };
 
-extern struct perf_test_args perf_test_args;
+extern struct memstress_args memstress_args;
 
-struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int nr_vcpus,
+struct kvm_vm *memstress_create_vm(enum vm_guest_mode mode, int nr_vcpus,
 				   uint64_t vcpu_memory_bytes, int slots,
 				   enum vm_mem_backing_src_type backing_src,
 				   bool partition_vcpu_memory_access);
-void perf_test_destroy_vm(struct kvm_vm *vm);
+void memstress_destroy_vm(struct kvm_vm *vm);
 
-void perf_test_set_write_percent(struct kvm_vm *vm, uint32_t write_percent);
-void perf_test_set_random_seed(struct kvm_vm *vm, uint32_t random_seed);
-void perf_test_set_random_access(struct kvm_vm *vm, bool random_access);
+void memstress_set_write_percent(struct kvm_vm *vm, uint32_t write_percent);
+void memstress_set_random_seed(struct kvm_vm *vm, uint32_t random_seed);
+void memstress_set_random_access(struct kvm_vm *vm, bool random_access);
 
-void perf_test_start_vcpu_threads(int vcpus, void (*vcpu_fn)(struct perf_test_vcpu_args *));
-void perf_test_join_vcpu_threads(int vcpus);
-void perf_test_guest_code(uint32_t vcpu_id);
+void memstress_start_vcpu_threads(int vcpus, void (*vcpu_fn)(struct memstress_vcpu_args *));
+void memstress_join_vcpu_threads(int vcpus);
+void memstress_guest_code(uint32_t vcpu_id);
 
-uint64_t perf_test_nested_pages(int nr_vcpus);
-void perf_test_setup_nested(struct kvm_vm *vm, int nr_vcpus, struct kvm_vcpu *vcpus[]);
+uint64_t memstress_nested_pages(int nr_vcpus);
+void memstress_setup_nested(struct kvm_vm *vm, int nr_vcpus, struct kvm_vcpu *vcpus[]);
 
 #endif /* SELFTEST_KVM_MEMSTRESS_H */

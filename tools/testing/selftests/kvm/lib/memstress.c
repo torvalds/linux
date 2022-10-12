@@ -10,7 +10,7 @@
 #include "memstress.h"
 #include "processor.h"
 
-struct perf_test_args perf_test_args;
+struct memstress_args memstress_args;
 
 /*
  * Guest virtual memory offset of the testing memory slot.
@@ -33,7 +33,7 @@ struct vcpu_thread {
 static struct vcpu_thread vcpu_threads[KVM_MAX_VCPUS];
 
 /* The function run by each vCPU thread, as provided by the test. */
-static void (*vcpu_thread_fn)(struct perf_test_vcpu_args *);
+static void (*vcpu_thread_fn)(struct memstress_vcpu_args *);
 
 /* Set to true once all vCPU threads are up and running. */
 static bool all_vcpu_threads_running;
@@ -44,10 +44,10 @@ static struct kvm_vcpu *vcpus[KVM_MAX_VCPUS];
  * Continuously write to the first 8 bytes of each page in the
  * specified region.
  */
-void perf_test_guest_code(uint32_t vcpu_idx)
+void memstress_guest_code(uint32_t vcpu_idx)
 {
-	struct perf_test_args *args = &perf_test_args;
-	struct perf_test_vcpu_args *vcpu_args = &args->vcpu_args[vcpu_idx];
+	struct memstress_args *args = &memstress_args;
+	struct memstress_vcpu_args *vcpu_args = &args->vcpu_args[vcpu_idx];
 	struct guest_random_state rand_state;
 	uint64_t gva;
 	uint64_t pages;
@@ -82,13 +82,13 @@ void perf_test_guest_code(uint32_t vcpu_idx)
 	}
 }
 
-void perf_test_setup_vcpus(struct kvm_vm *vm, int nr_vcpus,
+void memstress_setup_vcpus(struct kvm_vm *vm, int nr_vcpus,
 			   struct kvm_vcpu *vcpus[],
 			   uint64_t vcpu_memory_bytes,
 			   bool partition_vcpu_memory_access)
 {
-	struct perf_test_args *args = &perf_test_args;
-	struct perf_test_vcpu_args *vcpu_args;
+	struct memstress_args *args = &memstress_args;
+	struct memstress_vcpu_args *vcpu_args;
 	int i;
 
 	for (i = 0; i < nr_vcpus; i++) {
@@ -118,12 +118,12 @@ void perf_test_setup_vcpus(struct kvm_vm *vm, int nr_vcpus,
 	}
 }
 
-struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int nr_vcpus,
+struct kvm_vm *memstress_create_vm(enum vm_guest_mode mode, int nr_vcpus,
 				   uint64_t vcpu_memory_bytes, int slots,
 				   enum vm_mem_backing_src_type backing_src,
 				   bool partition_vcpu_memory_access)
 {
-	struct perf_test_args *args = &perf_test_args;
+	struct memstress_args *args = &memstress_args;
 	struct kvm_vm *vm;
 	uint64_t guest_num_pages, slot0_pages = 0;
 	uint64_t backing_src_pagesz = get_backing_src_pagesz(backing_src);
@@ -157,7 +157,7 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int nr_vcpus,
 	 * in-memory data structures.
 	 */
 	if (args->nested)
-		slot0_pages += perf_test_nested_pages(nr_vcpus);
+		slot0_pages += memstress_nested_pages(nr_vcpus);
 
 	/*
 	 * Pass guest_num_pages to populate the page tables for test memory.
@@ -165,7 +165,7 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int nr_vcpus,
 	 * effect as KVM allows aliasing HVAs in meslots.
 	 */
 	vm = __vm_create_with_vcpus(mode, nr_vcpus, slot0_pages + guest_num_pages,
-				    perf_test_guest_code, vcpus);
+				    memstress_guest_code, vcpus);
 
 	args->vm = vm;
 
@@ -206,59 +206,59 @@ struct kvm_vm *perf_test_create_vm(enum vm_guest_mode mode, int nr_vcpus,
 		vm_paddr_t region_start = args->gpa + region_pages * args->guest_page_size * i;
 
 		vm_userspace_mem_region_add(vm, backing_src, region_start,
-					    PERF_TEST_MEM_SLOT_INDEX + i,
+					    MEMSTRESS_MEM_SLOT_INDEX + i,
 					    region_pages, 0);
 	}
 
 	/* Do mapping for the demand paging memory slot */
 	virt_map(vm, guest_test_virt_mem, args->gpa, guest_num_pages);
 
-	perf_test_setup_vcpus(vm, nr_vcpus, vcpus, vcpu_memory_bytes,
+	memstress_setup_vcpus(vm, nr_vcpus, vcpus, vcpu_memory_bytes,
 			      partition_vcpu_memory_access);
 
 	if (args->nested) {
 		pr_info("Configuring vCPUs to run in L2 (nested).\n");
-		perf_test_setup_nested(vm, nr_vcpus, vcpus);
+		memstress_setup_nested(vm, nr_vcpus, vcpus);
 	}
 
 	ucall_init(vm, NULL);
 
 	/* Export the shared variables to the guest. */
-	sync_global_to_guest(vm, perf_test_args);
+	sync_global_to_guest(vm, memstress_args);
 
 	return vm;
 }
 
-void perf_test_destroy_vm(struct kvm_vm *vm)
+void memstress_destroy_vm(struct kvm_vm *vm)
 {
 	ucall_uninit(vm);
 	kvm_vm_free(vm);
 }
 
-void perf_test_set_write_percent(struct kvm_vm *vm, uint32_t write_percent)
+void memstress_set_write_percent(struct kvm_vm *vm, uint32_t write_percent)
 {
-	perf_test_args.write_percent = write_percent;
-	sync_global_to_guest(vm, perf_test_args.write_percent);
+	memstress_args.write_percent = write_percent;
+	sync_global_to_guest(vm, memstress_args.write_percent);
 }
 
-void perf_test_set_random_seed(struct kvm_vm *vm, uint32_t random_seed)
+void memstress_set_random_seed(struct kvm_vm *vm, uint32_t random_seed)
 {
-	perf_test_args.random_seed = random_seed;
-	sync_global_to_guest(vm, perf_test_args.random_seed);
+	memstress_args.random_seed = random_seed;
+	sync_global_to_guest(vm, memstress_args.random_seed);
 }
 
-void perf_test_set_random_access(struct kvm_vm *vm, bool random_access)
+void memstress_set_random_access(struct kvm_vm *vm, bool random_access)
 {
-	perf_test_args.random_access = random_access;
-	sync_global_to_guest(vm, perf_test_args.random_access);
+	memstress_args.random_access = random_access;
+	sync_global_to_guest(vm, memstress_args.random_access);
 }
 
-uint64_t __weak perf_test_nested_pages(int nr_vcpus)
+uint64_t __weak memstress_nested_pages(int nr_vcpus)
 {
 	return 0;
 }
 
-void __weak perf_test_setup_nested(struct kvm_vm *vm, int nr_vcpus, struct kvm_vcpu **vcpus)
+void __weak memstress_setup_nested(struct kvm_vm *vm, int nr_vcpus, struct kvm_vcpu **vcpus)
 {
 	pr_info("%s() not support on this architecture, skipping.\n", __func__);
 	exit(KSFT_SKIP);
@@ -269,8 +269,8 @@ static void *vcpu_thread_main(void *data)
 	struct vcpu_thread *vcpu = data;
 	int vcpu_idx = vcpu->vcpu_idx;
 
-	if (perf_test_args.pin_vcpus)
-		kvm_pin_this_task_to_pcpu(perf_test_args.vcpu_to_pcpu[vcpu_idx]);
+	if (memstress_args.pin_vcpus)
+		kvm_pin_this_task_to_pcpu(memstress_args.vcpu_to_pcpu[vcpu_idx]);
 
 	WRITE_ONCE(vcpu->running, true);
 
@@ -283,13 +283,13 @@ static void *vcpu_thread_main(void *data)
 	while (!READ_ONCE(all_vcpu_threads_running))
 		;
 
-	vcpu_thread_fn(&perf_test_args.vcpu_args[vcpu_idx]);
+	vcpu_thread_fn(&memstress_args.vcpu_args[vcpu_idx]);
 
 	return NULL;
 }
 
-void perf_test_start_vcpu_threads(int nr_vcpus,
-				  void (*vcpu_fn)(struct perf_test_vcpu_args *))
+void memstress_start_vcpu_threads(int nr_vcpus,
+				  void (*vcpu_fn)(struct memstress_vcpu_args *))
 {
 	int i;
 
@@ -313,7 +313,7 @@ void perf_test_start_vcpu_threads(int nr_vcpus,
 	WRITE_ONCE(all_vcpu_threads_running, true);
 }
 
-void perf_test_join_vcpu_threads(int nr_vcpus)
+void memstress_join_vcpu_threads(int nr_vcpus)
 {
 	int i;
 

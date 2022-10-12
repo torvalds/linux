@@ -126,7 +126,7 @@ static void mark_page_idle(int page_idle_fd, uint64_t pfn)
 }
 
 static void mark_vcpu_memory_idle(struct kvm_vm *vm,
-				  struct perf_test_vcpu_args *vcpu_args)
+				  struct memstress_vcpu_args *vcpu_args)
 {
 	int vcpu_idx = vcpu_args->vcpu_idx;
 	uint64_t base_gva = vcpu_args->gva;
@@ -148,7 +148,7 @@ static void mark_vcpu_memory_idle(struct kvm_vm *vm,
 	TEST_ASSERT(pagemap_fd > 0, "Failed to open pagemap.");
 
 	for (page = 0; page < pages; page++) {
-		uint64_t gva = base_gva + page * perf_test_args.guest_page_size;
+		uint64_t gva = base_gva + page * memstress_args.guest_page_size;
 		uint64_t pfn = lookup_pfn(pagemap_fd, vm, gva);
 
 		if (!pfn) {
@@ -220,10 +220,10 @@ static bool spin_wait_for_next_iteration(int *current_iteration)
 	return true;
 }
 
-static void vcpu_thread_main(struct perf_test_vcpu_args *vcpu_args)
+static void vcpu_thread_main(struct memstress_vcpu_args *vcpu_args)
 {
 	struct kvm_vcpu *vcpu = vcpu_args->vcpu;
-	struct kvm_vm *vm = perf_test_args.vm;
+	struct kvm_vm *vm = memstress_args.vm;
 	int vcpu_idx = vcpu_args->vcpu_idx;
 	int current_iteration = 0;
 
@@ -279,7 +279,7 @@ static void run_iteration(struct kvm_vm *vm, int nr_vcpus, const char *descripti
 static void access_memory(struct kvm_vm *vm, int nr_vcpus,
 			  enum access_type access, const char *description)
 {
-	perf_test_set_write_percent(vm, (access == ACCESS_READ) ? 0 : 100);
+	memstress_set_write_percent(vm, (access == ACCESS_READ) ? 0 : 100);
 	iteration_work = ITERATION_ACCESS_MEMORY;
 	run_iteration(vm, nr_vcpus, description);
 }
@@ -303,10 +303,10 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	struct kvm_vm *vm;
 	int nr_vcpus = params->nr_vcpus;
 
-	vm = perf_test_create_vm(mode, nr_vcpus, params->vcpu_memory_bytes, 1,
+	vm = memstress_create_vm(mode, nr_vcpus, params->vcpu_memory_bytes, 1,
 				 params->backing_src, !overlap_memory_access);
 
-	perf_test_start_vcpu_threads(nr_vcpus, vcpu_thread_main);
+	memstress_start_vcpu_threads(nr_vcpus, vcpu_thread_main);
 
 	pr_info("\n");
 	access_memory(vm, nr_vcpus, ACCESS_WRITE, "Populating memory");
@@ -324,8 +324,8 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	/* Set done to signal the vCPU threads to exit */
 	done = true;
 
-	perf_test_join_vcpu_threads(nr_vcpus);
-	perf_test_destroy_vm(vm);
+	memstress_join_vcpu_threads(nr_vcpus);
+	memstress_destroy_vm(vm);
 }
 
 static void help(char *name)

@@ -67,7 +67,7 @@ static bool host_quit;
 static int iteration;
 static int vcpu_last_completed_iteration[KVM_MAX_VCPUS];
 
-static void vcpu_worker(struct perf_test_vcpu_args *vcpu_args)
+static void vcpu_worker(struct memstress_vcpu_args *vcpu_args)
 {
 	struct kvm_vcpu *vcpu = vcpu_args->vcpu;
 	int vcpu_idx = vcpu_args->vcpu_idx;
@@ -141,7 +141,7 @@ static void toggle_dirty_logging(struct kvm_vm *vm, int slots, bool enable)
 	int i;
 
 	for (i = 0; i < slots; i++) {
-		int slot = PERF_TEST_MEM_SLOT_INDEX + i;
+		int slot = MEMSTRESS_MEM_SLOT_INDEX + i;
 		int flags = enable ? KVM_MEM_LOG_DIRTY_PAGES : 0;
 
 		vm_mem_region_set_flags(vm, slot, flags);
@@ -163,7 +163,7 @@ static void get_dirty_log(struct kvm_vm *vm, unsigned long *bitmaps[], int slots
 	int i;
 
 	for (i = 0; i < slots; i++) {
-		int slot = PERF_TEST_MEM_SLOT_INDEX + i;
+		int slot = MEMSTRESS_MEM_SLOT_INDEX + i;
 
 		kvm_vm_get_dirty_log(vm, slot, bitmaps[i]);
 	}
@@ -175,7 +175,7 @@ static void clear_dirty_log(struct kvm_vm *vm, unsigned long *bitmaps[],
 	int i;
 
 	for (i = 0; i < slots; i++) {
-		int slot = PERF_TEST_MEM_SLOT_INDEX + i;
+		int slot = MEMSTRESS_MEM_SLOT_INDEX + i;
 
 		kvm_vm_clear_dirty_log(vm, slot, bitmaps[i], 0, pages_per_slot);
 	}
@@ -223,13 +223,13 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	struct timespec clear_dirty_log_total = (struct timespec){0};
 	int i;
 
-	vm = perf_test_create_vm(mode, nr_vcpus, guest_percpu_mem_size,
+	vm = memstress_create_vm(mode, nr_vcpus, guest_percpu_mem_size,
 				 p->slots, p->backing_src,
 				 p->partition_vcpu_memory_access);
 
 	pr_info("Random seed: %u\n", p->random_seed);
-	perf_test_set_random_seed(vm, p->random_seed);
-	perf_test_set_write_percent(vm, p->write_percent);
+	memstress_set_random_seed(vm, p->random_seed);
+	memstress_set_write_percent(vm, p->write_percent);
 
 	guest_num_pages = (nr_vcpus * guest_percpu_mem_size) >> vm->page_shift;
 	guest_num_pages = vm_adjust_num_guest_pages(mode, guest_num_pages);
@@ -259,9 +259,9 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	 * occurring during the dirty memory iterations below, which
 	 * would pollute the performance results.
 	 */
-	perf_test_set_write_percent(vm, 100);
-	perf_test_set_random_access(vm, false);
-	perf_test_start_vcpu_threads(nr_vcpus, vcpu_worker);
+	memstress_set_write_percent(vm, 100);
+	memstress_set_random_access(vm, false);
+	memstress_start_vcpu_threads(nr_vcpus, vcpu_worker);
 
 	/* Allow the vCPUs to populate memory */
 	pr_debug("Starting iteration %d - Populating\n", iteration);
@@ -282,8 +282,8 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	pr_info("Enabling dirty logging time: %ld.%.9lds\n\n",
 		ts_diff.tv_sec, ts_diff.tv_nsec);
 
-	perf_test_set_write_percent(vm, p->write_percent);
-	perf_test_set_random_access(vm, p->random_access);
+	memstress_set_write_percent(vm, p->write_percent);
+	memstress_set_random_access(vm, p->random_access);
 
 	while (iteration < p->iterations) {
 		/*
@@ -345,7 +345,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	 * wait for them to exit.
 	 */
 	host_quit = true;
-	perf_test_join_vcpu_threads(nr_vcpus);
+	memstress_join_vcpu_threads(nr_vcpus);
 
 	avg = timespec_div(get_dirty_log_total, p->iterations);
 	pr_info("Get dirty log over %lu iterations took %ld.%.9lds. (Avg %ld.%.9lds/iteration)\n",
@@ -361,7 +361,7 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 	free_bitmaps(bitmaps, p->slots);
 	arch_cleanup_vm(vm);
-	perf_test_destroy_vm(vm);
+	memstress_destroy_vm(vm);
 }
 
 static void help(char *name)
@@ -466,7 +466,7 @@ int main(int argc, char *argv[])
 			guest_modes_cmdline(optarg);
 			break;
 		case 'n':
-			perf_test_args.nested = true;
+			memstress_args.nested = true;
 			break;
 		case 'o':
 			p.partition_vcpu_memory_access = false;
@@ -500,9 +500,9 @@ int main(int argc, char *argv[])
 	}
 
 	if (pcpu_list) {
-		kvm_parse_vcpu_pinning(pcpu_list, perf_test_args.vcpu_to_pcpu,
+		kvm_parse_vcpu_pinning(pcpu_list, memstress_args.vcpu_to_pcpu,
 				       nr_vcpus);
-		perf_test_args.pin_vcpus = true;
+		memstress_args.pin_vcpus = true;
 	}
 
 	TEST_ASSERT(p.iterations >= 2, "The test should have at least two iterations");
