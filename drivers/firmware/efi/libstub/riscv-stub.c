@@ -12,16 +12,6 @@
 
 #include "efistub.h"
 
-/*
- * RISC-V requires the kernel image to placed 2 MB aligned base for 64 bit and
- * 4MB for 32 bit.
- */
-#ifdef CONFIG_64BIT
-#define MIN_KIMG_ALIGN		SZ_2M
-#else
-#define MIN_KIMG_ALIGN		SZ_4M
-#endif
-
 typedef void __noreturn (*jump_kernel_func)(unsigned long, unsigned long);
 
 static unsigned long hartid;
@@ -125,9 +115,10 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 	 * lowest possible memory region as long as the address and size meets
 	 * the alignment constraints.
 	 */
-	preferred_addr = MIN_KIMG_ALIGN;
+	preferred_addr = EFI_KIMG_PREFERRED_ADDRESS;
 	status = efi_relocate_kernel(image_addr, kernel_size, *image_size,
-				     preferred_addr, MIN_KIMG_ALIGN, 0x0);
+				     preferred_addr, efi_get_kimg_min_align(),
+				     0x0);
 
 	if (status != EFI_SUCCESS) {
 		efi_err("Failed to relocate kernel\n");

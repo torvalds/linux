@@ -24,4 +24,11 @@ static inline unsigned long efi_get_max_initrd_addr(unsigned long image_addr)
 	return ULONG_MAX;
 }
 
+static inline unsigned long efi_get_kimg_min_align(void)
+{
+	return SZ_2M;
+}
+
+#define EFI_KIMG_PREFERRED_ADDRESS	PHYSADDR(VMLINUX_LOAD_ADDRESS)
+
 #endif /* _ASM_LOONGARCH_EFI_H */

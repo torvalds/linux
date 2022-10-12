@@ -35,7 +35,8 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 	kernel_addr = (unsigned long)&kernel_offset - kernel_offset;
 
 	status = efi_relocate_kernel(&kernel_addr, kernel_fsize, kernel_asize,
-				     PHYSADDR(VMLINUX_LOAD_ADDRESS), SZ_2M, 0x0);
+				     EFI_KIMG_PREFERRED_ADDRESS,
+				     efi_get_kimg_min_align(), 0x0);
 
 	*image_addr = kernel_addr;
 	*image_size = kernel_asize;
