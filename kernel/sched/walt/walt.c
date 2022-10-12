@@ -2582,16 +2582,39 @@ static void update_all_clusters_stats(void)
 static bool walt_clusters_parsed;
 cpumask_t __read_mostly **cpu_array;
 
+u8 cpu_arrays_init_x11[1][1] = {
+	{0}, /* S */
+};
+
+u8 cpu_arrays_init_x22[2][2] = {
+	{0, 1}, /* S G */
+	{1, 0}, /* G S */
+};
+
+u8 cpu_arrays_init_x33[3][3] = {
+	{0, 1, 2}, /* S G P */
+	{1, 2, 0}, /* G P S */
+	{2, 1, 0}, /* P G S */
+};
+
+u8 cpu_arrays_init_x44[4][4] = {
+	{0, 2, 1, 3}, /* S T G P */
+	{1, 2, 3, 0}, /* G T P S */
+	{2, 3, 1, 0}, /* T P G S */
+	{3, 1, 2, 0}, /* P G T S */
+};
+
 static void init_cpu_array(void)
 {
 	int i;
+	int rows = num_sched_clusters;
 
-	cpu_array = kcalloc(num_sched_clusters, sizeof(cpumask_t *),
+	cpu_array = kcalloc(rows, sizeof(cpumask_t *),
 			GFP_ATOMIC | __GFP_NOFAIL);
 	if (!cpu_array)
 		WALT_PANIC(1);
 
-	for (i = 0; i < num_sched_clusters; i++) {
+	for (i = 0; i < rows; i++) {
 		cpu_array[i] = kcalloc(num_sched_clusters, sizeof(cpumask_t),
 			GFP_ATOMIC | __GFP_NOFAIL);
 		if (!cpu_array[i])
@@ -2601,35 +2624,35 @@ static void init_cpu_array(void)
 
 static void build_cpu_array(void)
 {
-	int i;
+	u8 *select_init_list;
+	u8 id;
+	int i, j;
 
 	if (!cpu_array)
 		WALT_PANIC(1);
-	/* Construct cpu_array row by row */
+
+	switch (num_sched_clusters) {
+	case 1:
+		select_init_list = (u8 *)cpu_arrays_init_x11;
+		break;
+	case 2:
+		select_init_list = (u8 *)cpu_arrays_init_x22;
+		break;
+	case 3:
+		select_init_list = (u8 *)cpu_arrays_init_x33;
+		break;
+	case 4:
+		select_init_list = (u8 *)cpu_arrays_init_x44;
+		break;
+	default:
+		pr_err("unsupported num clusters=%d\n", num_sched_clusters);
+		WALT_PANIC(1);
+	}
+
 	for (i = 0; i < num_sched_clusters; i++) {
-		int j, k = 1;
-
-		/* Fill out first column with appropriate cpu arrays */
-		cpumask_copy(&cpu_array[i][0], &sched_cluster[i]->cpus);
-		/*
-		 * k starts from column 1 because 0 is filled
-		 * Fill clusters for the rest of the row,
-		 * above i in ascending order
-		 */
-		for (j = i + 1; j < num_sched_clusters; j++) {
-			cpumask_copy(&cpu_array[i][k],
-					&sched_cluster[j]->cpus);
-			k++;
-		}
-
-		/*
-		 * k starts from where we left off above.
-		 * Fill clusters below i in descending order.
-		 */
-		for (j = i - 1; j >= 0; j--) {
-			cpumask_copy(&cpu_array[i][k],
-					&sched_cluster[j]->cpus);
-			k++;
+		for (j = 0; j < num_sched_clusters; j++) {
+			id = select_init_list[i * num_sched_clusters + j];
+			cpumask_copy(&cpu_array[i][j], &sched_cluster[id]->cpus);
 		}
 	}
 }
