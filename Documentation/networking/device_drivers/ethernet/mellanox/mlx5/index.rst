@@ -16,6 +16,7 @@ Contents:
    devlink
    switchdev
    tracepoints
+   counters
 
 .. only::  subproject and html
 
