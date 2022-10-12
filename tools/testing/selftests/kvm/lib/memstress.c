@@ -7,7 +7,7 @@
 #include <inttypes.h>
 
 #include "kvm_util.h"
-#include "perf_test_util.h"
+#include "memstress.h"
 #include "processor.h"
 
 struct perf_test_args perf_test_args;

@@ -20,7 +20,7 @@
 
 #include "kvm_util.h"
 #include "test_util.h"
-#include "perf_test_util.h"
+#include "memstress.h"
 #include "guest_modes.h"
 
 #ifdef __NR_userfaultfd

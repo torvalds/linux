@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * tools/testing/selftests/kvm/include/perf_test_util.h
+ * tools/testing/selftests/kvm/include/memstress.h
  *
  * Copyright (C) 2020, Google LLC.
  */
 
-#ifndef SELFTEST_KVM_PERF_TEST_UTIL_H
-#define SELFTEST_KVM_PERF_TEST_UTIL_H
+#ifndef SELFTEST_KVM_MEMSTRESS_H
+#define SELFTEST_KVM_MEMSTRESS_H
 
 #include <pthread.h>
 
@@ -69,4 +69,4 @@ void perf_test_guest_code(uint32_t vcpu_id);
 uint64_t perf_test_nested_pages(int nr_vcpus);
 void perf_test_setup_nested(struct kvm_vm *vm, int nr_vcpus, struct kvm_vcpu *vcpus[]);
 
-#endif /* SELFTEST_KVM_PERF_TEST_UTIL_H */
+#endif /* SELFTEST_KVM_MEMSTRESS_H */

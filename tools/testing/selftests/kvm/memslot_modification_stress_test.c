@@ -21,7 +21,7 @@
 #include <linux/bitops.h>
 #include <linux/userfaultfd.h>
 
-#include "perf_test_util.h"
+#include "memstress.h"
 #include "processor.h"
 #include "test_util.h"
 #include "guest_modes.h"
@@ -72,7 +72,7 @@ static void add_remove_memslot(struct kvm_vm *vm, useconds_t delay,
 	int i;
 
 	/*
-	 * Add the dummy memslot just below the perf_test_util memslot, which is
+	 * Add the dummy memslot just below the memstress memslot, which is
 	 * at the top of the guest physical address space.
 	 */
 	gpa = perf_test_args.gpa - pages * vm->page_size;

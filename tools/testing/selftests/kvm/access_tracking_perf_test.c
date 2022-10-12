@@ -44,7 +44,7 @@
 
 #include "kvm_util.h"
 #include "test_util.h"
-#include "perf_test_util.h"
+#include "memstress.h"
 #include "guest_modes.h"
 
 /* Global variable used to synchronize all of the vCPU threads. */

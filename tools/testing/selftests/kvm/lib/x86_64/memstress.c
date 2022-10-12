@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * x86_64-specific extensions to perf_test_util.c.
+ * x86_64-specific extensions to memstress.c.
  *
  * Copyright (C) 2022, Google, Inc.
  */
@@ -11,7 +11,7 @@
 
 #include "test_util.h"
 #include "kvm_util.h"
-#include "perf_test_util.h"
+#include "memstress.h"
 #include "processor.h"
 #include "vmx.h"
 
