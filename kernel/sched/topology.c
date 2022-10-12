@@ -384,7 +384,6 @@ static bool build_perf_domains(const struct cpumask *cpu_map)
 	 * EAS is enabled for asymmetric CPU capacity topologies.
 	 * Allow vendor to override if desired.
 	 */
-	trace_android_rvh_build_perf_domains(&eas_check);
 	if (!per_cpu(sd_asym_cpucapacity, cpu) && !eas_check) {
 		if (sched_debug()) {
 			pr_info("rd %*pbl: CPUs do not have asymmetric capacities\n",
