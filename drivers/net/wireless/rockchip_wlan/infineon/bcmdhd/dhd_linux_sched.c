@@ -31,34 +31,40 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
-#include <linux/sched.h>
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
 #include <uapi/linux/sched/types.h>
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0) */
+#else
+#include <linux/sched.h>
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0) */
 #include <typedefs.h>
 #include <linuxver.h>
 
 int setScheduler(struct task_struct *p, int policy, struct sched_param *param)
 {
 	int rc = 0;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 9, 0))
-	rc = sched_setscheduler(p, policy, param);
-#else
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0))
 	switch (policy) {
 		case SCHED_FIFO:
-			if (param->sched_priority > 1)
-				/* If the priority is 2 or higher, it is considered 
-				 * as high priority. priority is set basically MAX_RT_PRIO/2
+			if (param->sched_priority >= MAX_RT_PRIO/2)
+				/* If the priority is MAX_RT_PRIO/2 or higher,
+				 * it is considered as high priority.
+				 * sched_priority of FIFO task dosen't
+				 * exceed MAX_RT_PRIO/2.
 				 */
 				sched_set_fifo(p);
 			else
+				/* For when you don't much care about FIFO,
+				 * but want to be above SCHED_NORMAL.
+				 */
 				sched_set_fifo_low(p);
 			break;
 		case SCHED_NORMAL:
 			sched_set_normal(p, PRIO_TO_NICE(p->static_prio));
 			break;
 	}
-#endif
+#else
+	rc = sched_setscheduler(p, policy, param);
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0) */
 	return rc;
 }
 

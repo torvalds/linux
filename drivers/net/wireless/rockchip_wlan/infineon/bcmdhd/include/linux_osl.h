@@ -34,18 +34,6 @@
 
 #include <typedefs.h>
 #define DECLSPEC_ALIGN(x)	__attribute__ ((aligned(x)))
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 1))
-#include <linux/time64.h>
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
-void do_gettimeofday(struct timeval *tv);
-#else
-struct timeval {
-        time64_t        tv_sec;
-        long            tv_usec;
-};
-struct timeval do_gettimeofday(void);
-#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)  */
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 1) */
 /* Linux Kernel: File Operations: start */
 extern void * osl_os_open_image(char * filename);
 extern int osl_os_get_image_block(char * buf, int len, void * image);
@@ -458,11 +446,11 @@ extern uint64 osl_systztime_us(void);
 
 /* map/unmap physical to virtual I/O */
 #if !defined(CONFIG_MMC_MSM7X00A)
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0))
 #define	REG_MAP(pa, size)	ioremap_nocache((unsigned long)(pa), (unsigned long)(size))
 #else
 #define REG_MAP(pa, size)	ioremap((unsigned long)(pa), (unsigned long)(size))
-#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0) */
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0) */
 #else
 #define REG_MAP(pa, size)       (void *)(0)
 #endif /* !defined(CONFIG_MMC_MSM7X00A */

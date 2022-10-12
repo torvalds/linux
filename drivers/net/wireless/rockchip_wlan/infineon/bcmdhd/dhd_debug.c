@@ -1380,13 +1380,9 @@ __dhd_dbg_pkt_hash(uintptr_t pkt, uint32 pktid)
 uint32
 __dhd_dbg_driver_ts_usec(void)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0))
 	struct timespec64 ts;
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39))
-	struct timespec ts;
-#endif /* LINUX_VER >= 2.6.39 */
 
-	get_monotonic_boottime(&ts);
+	ts = ktime_to_timespec64(ktime_get_boottime());
 	return ((uint32)(__TIMESPEC_TO_US(ts)));
 }
 

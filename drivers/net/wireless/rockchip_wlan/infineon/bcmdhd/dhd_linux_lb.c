@@ -300,14 +300,17 @@ dhd_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 
 int dhd_register_cpuhp_callback(dhd_info_t *dhd)
 {
-	int cpuhp_ret = 0;
+	dhd->cpuhp_setup_state = 0;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0))
-	cpuhp_ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "dhd",
+	dhd->cpuhp_setup_state = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "dhd",
 		dhd_cpu_startup_callback, dhd_cpu_teardown_callback);
 
-	if (cpuhp_ret < 0) {
+	if (dhd->cpuhp_setup_state < 0) {
 		DHD_ERROR(("%s(): cpuhp_setup_state failed %d RX LB won't happen \r\n",
-			__FUNCTION__, cpuhp_ret));
+			__FUNCTION__, dhd->cpuhp_setup_state));
+	} else {
+		DHD_INFO(("%s(): cpuhp_setup_state returned %d\n",
+			__FUNCTION__, dhd->cpuhp_setup_state));
 	}
 #else
 	/*
@@ -318,15 +321,20 @@ int dhd_register_cpuhp_callback(dhd_info_t *dhd)
 	dhd->cpu_notifier.notifier_call = dhd_cpu_callback;
 	register_hotcpu_notifier(&dhd->cpu_notifier); /* Register a callback */
 #endif /* LINUX_VERSION_CODE < 4.10.0 */
-	return cpuhp_ret;
+	return dhd->cpuhp_setup_state;
 }
 
 int dhd_unregister_cpuhp_callback(dhd_info_t *dhd)
 {
 	int ret = 0;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0))
-	/* Don't want to call tear down while unregistering */
-	cpuhp_remove_state_nocalls(CPUHP_AP_ONLINE_DYN);
+	DHD_INFO(("%s(): cpuhp_setup_state %d\n",
+		__FUNCTION__, dhd->cpuhp_setup_state));
+
+	if (dhd->cpuhp_setup_state >= 0) {
+		/* Don't want to call tear down while unregistering */
+		cpuhp_remove_state_nocalls(dhd->cpuhp_setup_state);
+	}
 #else
 	if (dhd->cpu_notifier.notifier_call != NULL) {
 		unregister_cpu_notifier(&dhd->cpu_notifier);

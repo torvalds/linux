@@ -243,6 +243,7 @@ typedef struct dhd_console {
 #endif /* DHD_UCODE_DOWNLOAD */
 
 #if defined(BT_OVER_SDIO)
+#define BTMEM_OFFSET_MASK		0xFF000000
 #define BTMEM_OFFSET			0x19000000
 /* BIT0 => WLAN Power UP and BIT1=> WLAN Wake */
 #define BT2WLAN_PWRUP_WAKE		0x03
@@ -589,7 +590,11 @@ static const uint max_roundup = 512;
 /* Try doing readahead */
 static bool dhd_readahead;
 
-#define TXCTL_CREDITS   2
+#ifdef AUTOMOTIVE_FEATURE
+#define TXCTL_CREDITS 1
+#else
+#define TXCTL_CREDITS 2
+#endif /* AUTOMOTIVE_FEATURE */
 
 /* To check if there's window offered */
 #define DATAOK(bus) \
@@ -3054,6 +3059,9 @@ enum {
 	IOV_WATERMARK,
 	IOV_MESBUSYCTRL,
 #endif /* USE_SDIOFIFO_IOVAR */
+#if defined(BT_OVER_SDIO)
+	IOV_SDF3,
+#endif /* defined (BT_OVER_SDIO) */
 #ifdef SDTEST
 	IOV_PKTGEN,
 	IOV_EXTLOOP,
@@ -3127,6 +3135,9 @@ const bcm_iovar_t dhdsdio_iovars[] = {
 	{"watermark",	IOV_WATERMARK,	0, 0,	IOVT_UINT32,	0 },
 	{"mesbusyctrl",	IOV_MESBUSYCTRL,	0, 0,	IOVT_UINT32,	0 },
 #endif /* USE_SDIOFIFO_IOVAR */
+#if defined(BT_OVER_SDIO)
+	{"sdf3",        IOV_SDF3,       0, 0,   IOVT_UINT32,    0 },
+#endif /* defined (BT_OVER_SDIO) */
 	{"devcap", IOV_DEVCAP,	0, 0,	IOVT_UINT32,	0 },
 	{"dngl_isolation", IOV_DONGLEISOLATION,	0, 0,	IOVT_UINT32,	0 },
 	{"kso",	IOV_KSO,	0, 0,	IOVT_UINT32,	0 },
@@ -4185,7 +4196,13 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, uint32 actionid, const ch
 
 		DHD_INFO(("%s: Request to %s %d bytes at address 0x%08x\n", __FUNCTION__,
 		          (set ? "write" : "read"), size, address));
-
+#if defined(BT_OVER_SDIO)
+		/* Check if address is within BT range */
+		if ((address & BTMEM_OFFSET_MASK) == BTMEM_OFFSET) {
+			DHD_INFO(("%s: Access BTMEM, bypass check\n", __FUNCTION__));
+		}
+		else
+#endif // endif
 		/* check if CR4 */
 		if (si_setcore(bus->sih, ARMCR4_CORE_ID, 0)) {
 			/*
@@ -4506,6 +4523,33 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, uint32 actionid, const ch
 		break;
 #endif // endif
 
+#if defined(BT_OVER_SDIO)
+	case IOV_GVAL(IOV_SDF3):
+	case IOV_SVAL(IOV_SDF3):
+	{
+		uint8 *buf;
+		int ret = BCME_OK;
+		uint size;
+		bool set = (actionid == IOV_SVAL(IOV_SDF3));
+		ASSERT(plen >= sizeof(int));
+
+		size = (uint)int_val;
+		/* Generate the actual data pointer */
+		buf = set ? (uint8*)params + sizeof(int): (uint8*)arg;
+
+		if (actionid == IOV_SVAL(IOV_SDF3)) {
+			ret = dhd_bcmsdh_send_buf(bus, 0, SDIO_FUNC_3,
+				F2SYNC, buf, size, NULL, NULL, NULL, 1);
+		} else {
+			ret = dhd_bcmsdh_recv_buf(bus, 0, SDIO_FUNC_3,
+				F2SYNC, buf, size, NULL, NULL, NULL);
+		}
+		if (ret != BCME_OK) {
+			bcmerror = BCME_SDIO_ERROR;
+		}
+		break;
+	}
+#endif /* defined (BT_OVER_SDIO) */
 	case IOV_GVAL(IOV_DONGLEISOLATION):
 		int_val = bus->dhd->dongle_isolation;
 		bcopy(&int_val, arg, val_size);
@@ -10430,6 +10474,60 @@ void dhd_bus_cfg_write(void *h, uint fun_num, uint32 addr, uint8 val, int *err)
 	dhd_os_sdunlock(bus->dhd);
 
 } EXPORT_SYMBOL(dhd_bus_cfg_write);
+
+int dhd_bus_recv_buf(void *h, uint32 addr, uint fn, uint8 *buf, uint nbytes)
+{
+	int ret;
+	dhd_pub_t *dhdp = (dhd_pub_t *)h;
+	dhd_bus_t *bus = (dhd_bus_t *)dhdp->bus;
+	dhd_os_sdlock(bus->dhd);
+
+	ret = dhd_bcmsdh_recv_buf(bus, 0, fn,
+			F2SYNC, buf, nbytes, NULL, NULL, NULL);
+
+	dhd_os_sdunlock(bus->dhd);
+	DHD_ERROR(("\nEntering %s function is %d and no of bytes received %d\n",
+		__func__, fn, nbytes));
+
+	return ret;
+} EXPORT_SYMBOL(dhd_bus_recv_buf);
+
+int dhd_bus_send_buf(void *h, uint32 addr, uint fn, uint8 *buf, uint nbytes)
+{
+	int ret;
+	dhd_pub_t *dhdp = (dhd_pub_t *)h;
+	dhd_bus_t *bus = (dhd_bus_t *)dhdp->bus;
+	DHD_ERROR(("\nEntering %s function is %d and no of bytes sent is %d\n",
+		__func__, fn, nbytes));
+
+	dhd_os_sdlock(bus->dhd);
+
+	ret = dhd_bcmsdh_send_buf(bus, 0, fn,
+			F2SYNC, buf, nbytes, NULL, NULL, NULL, 1);
+
+	dhd_os_sdunlock(bus->dhd);
+
+	return ret;
+} EXPORT_SYMBOL(dhd_bus_send_buf);
+
+int dhd_bus_set_blocksize(void *h, unsigned int fun_num, unsigned int block_size)
+{
+	int bcmerr;
+	int func_blk_size = fun_num;
+	dhd_pub_t *dhd = (dhd_pub_t *)h;
+	dhd_bus_t *bus = (dhd_bus_t *)dhd->bus;
+
+#ifdef USE_DYNAMIC_F2_BLKSIZE
+	func_blk_size = fun_num << 16 | block_size;
+	bcmerr = bcmsdh_iovar_op(bus->sdh, "sd_blocksize", NULL, 0, &func_blk_size,
+			sizeof(func_blk_size), TRUE);
+	if (bcmerr != BCME_OK) {
+		DHD_ERROR(("%s: Set F%d Block size error\n", __FUNCTION__, fun_num));
+		return BCME_ERROR;
+	}
+#endif // endif
+	return bcmerr;
+} EXPORT_SYMBOL(dhd_bus_set_blocksize);
 
 static int
 extract_hex_field(char * line, uint16 start_pos, uint16 num_chars, uint16 * value)

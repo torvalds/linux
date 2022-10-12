@@ -2610,11 +2610,7 @@ _dhd_pno_get_gscan_batch_from_fw(dhd_pub_t *dhd)
 			goto exit_mutex_unlock;
 		}
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0))
-		ktime_get_boottime_ts64(&tm_spec);
-#else 
 		get_monotonic_boottime(&tm_spec);
-#endif
 		if (plbestnet_v1->version == PFN_LBEST_SCAN_RESULT_VERSION_V1) {
 			fwstatus = plbestnet_v1->status;
 			fwcount = plbestnet_v1->count;
@@ -3452,11 +3448,11 @@ exit:
 	}
 	mutex_unlock(&_pno_state->pno_mutex);
 exit_no_unlock:
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
-	if (waitqueue_active(&_pno_state->get_batch_done.wait))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
+	if (swait_active(&_pno_state->get_batch_done.wait))
 #else
-	if (!try_wait_for_completion(&_pno_state->get_batch_done))
-#endif
+	if (waitqueue_active(&_pno_state->get_batch_done.wait))
+#endif/* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0) */
 		complete(&_pno_state->get_batch_done);
 	return err;
 }
@@ -4015,11 +4011,7 @@ dhd_process_full_gscan_result(dhd_pub_t *dhd, const void *data, uint32 len, int 
 	result->fixed.rssi = (int32) bi->RSSI;
 	result->fixed.rtt = 0;
 	result->fixed.rtt_sd = 0;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0))
-	ktime_get_boottime_ts64(&ts);
-#else
 	get_monotonic_boottime(&ts);
-#endif
 	result->fixed.ts = (uint64) TIMESPEC_TO_US(ts);
 	result->fixed.beacon_period = dtoh16(bi->beacon_period);
 	result->fixed.capability = dtoh16(bi->capability);
@@ -4157,9 +4149,9 @@ dhd_handle_hotlist_scan_evt(dhd_pub_t *dhd, const void *event_data,
 	gscan_results_cache_t *gscan_hotlist_cache;
 	u32 malloc_size = 0, i, total = 0;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0))
-        struct timespec64 tm_spec;
+	struct timespec64 tm_spec;
 #else
-        struct timespec tm_spec;
+	struct timespec tm_spec;
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0)) */
 	uint16 fwstatus;
 	uint16 fwcount;
@@ -4183,11 +4175,8 @@ dhd_handle_hotlist_scan_evt(dhd_pub_t *dhd, const void *event_data,
 			*send_evt_bytes = 0;
 			return ptr;
 		}
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0))
-		ktime_get_boottime_ts64(&tm_spec);
-#else
+
 		get_monotonic_boottime(&tm_spec);
-#endif
 		malloc_size = sizeof(gscan_results_cache_t) +
 			((fwcount - 1) * sizeof(wifi_gscan_result_t));
 		gscan_hotlist_cache = (gscan_results_cache_t *)MALLOC(dhd->osh, malloc_size);
@@ -4250,11 +4239,8 @@ dhd_handle_hotlist_scan_evt(dhd_pub_t *dhd, const void *event_data,
 			*send_evt_bytes = 0;
 			return ptr;
 		}
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0))
-		ktime_get_boottime_ts64(&tm_spec);
-#else
+
 		get_monotonic_boottime(&tm_spec);
-#endif
 		malloc_size = sizeof(gscan_results_cache_t) +
 			((fwcount - 1) * sizeof(wifi_gscan_result_t));
 		gscan_hotlist_cache =
@@ -4352,11 +4338,11 @@ dhd_pno_event_handler(dhd_pub_t *dhd, wl_event_msg_t *event, void *event_data)
 	{
 		struct dhd_pno_batch_params *params_batch;
 		params_batch = &_pno_state->pno_params_arr[INDEX_OF_BATCH_PARAMS].params_batch;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
-		if (!waitqueue_active(&_pno_state->get_batch_done.wait)) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
+		if (!swait_active(&_pno_state->get_batch_done.wait))
 #else
-		if (!try_wait_for_completion(&_pno_state->get_batch_done)) {
-#endif
+		if (!waitqueue_active(&_pno_state->get_batch_done.wait)) {
+#endif/* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0) */
 			DHD_PNO(("%s : WLC_E_PFN_BEST_BATCHING\n", __FUNCTION__));
 			params_batch->get_batch.buf = NULL;
 			params_batch->get_batch.bufsize = 0;

@@ -875,9 +875,11 @@ static void dhd_net_if_unlock_local(dhd_info_t *dhd);
 static void dhd_suspend_lock(dhd_pub_t *dhdp);
 static void dhd_suspend_unlock(dhd_pub_t *dhdp);
 
+#ifdef DHD_MONITOR_INTERFACE
 /* Monitor interface */
 int dhd_monitor_init(void *dhd_pub);
 int dhd_monitor_uninit(void);
+#endif /* DHD_MONITOR_INTERFACE */
 
 #ifdef DHD_PM_CONTROL_FROM_FILE
 bool g_pm_control;
@@ -3097,9 +3099,6 @@ dhd_set_mac_address(struct net_device *dev, void *addr)
 	int ret = 0;
 
 	dhd_info_t *dhd = DHD_DEV_INFO(dev);
-#if defined(SUPPORT_RANDOM_MAC_SCAN)
-	struct bcm_cfg80211 *cfg = wl_get_cfg(dev);
-#endif // endif
 	struct sockaddr *sa = (struct sockaddr *)addr;
 	int ifidx;
 	dhd_if_t *dhdif;
@@ -3109,15 +3108,6 @@ dhd_set_mac_address(struct net_device *dev, void *addr)
 		return -1;
 
 	dhdif = dhd->iflist[ifidx];
-
-	if ((dhdif != NULL) &&
-#if defined(SUPPORT_RANDOM_MAC_SCAN)
-	(!(cfg->random_mac_enabled)) &&
-#endif // endif
-	(dhdif->idx > 0)) {
-		DHD_ERROR(("%s: Intf[%s] Blocking MAC Overwrite \n", __FUNCTION__, dhdif->name));
-		return 0;
-	}
 
 	dhd_net_if_lock_local(dhd);
 	memcpy(dhdif->mac_addr, sa->sa_data, ETHER_ADDR_LEN);
@@ -3498,6 +3488,9 @@ exit:
 	return ret;
 }
 
+#ifndef DHD_MONITOR_INTERFACE
+static
+#endif /* DHD_MONITOR_INTERFACE */
 #ifdef CFI_CHECK
 netdev_tx_t BCMFASTPATH
 #else /* CFI_CHECK */
@@ -5917,230 +5910,6 @@ dhd_monitor_start(struct sk_buff *skb, struct net_device *dev)
 #endif /* CFI_CHECK */
 }
 
-#if defined(BT_OVER_SDIO)
-
-void
-dhdsdio_bus_usr_cnt_inc(dhd_pub_t *dhdp)
-{
-	dhdp->info->bus_user_count++;
-}
-
-void
-dhdsdio_bus_usr_cnt_dec(dhd_pub_t *dhdp)
-{
-	dhdp->info->bus_user_count--;
-}
-
-/* Return values:
- * Success: Returns 0
- * Failure: Returns -1 or errono code
- */
-int
-dhd_bus_get(wlan_bt_handle_t handle, bus_owner_t owner)
-{
-	dhd_pub_t *dhdp = (dhd_pub_t *)handle;
-	dhd_info_t *dhd = (dhd_info_t *)dhdp->info;
-	int ret = 0;
-
-	mutex_lock(&dhd->bus_user_lock);
-	++dhd->bus_user_count;
-	if (dhd->bus_user_count < 0) {
-		DHD_ERROR(("%s(): bus_user_count is negative, which is invalid\n", __FUNCTION__));
-		ret = -1;
-		goto exit;
-	}
-
-	if (dhd->bus_user_count == 1) {
-
-		dhd->pub.hang_was_sent = 0;
-
-		/* First user, turn on WL_REG, start the bus */
-		DHD_ERROR(("%s(): First user Turn On WL_REG & start the bus", __FUNCTION__));
-
-		if (!wifi_platform_set_power(dhd->adapter, TRUE, WIFI_TURNON_DELAY)) {
-			/* Enable F1 */
-			ret = dhd_bus_resume(dhdp, 0);
-			if (ret) {
-				DHD_ERROR(("%s(): Failed to enable F1, err=%d\n",
-					__FUNCTION__, ret));
-				goto exit;
-			}
-		}
-
-		dhd_update_fw_nv_path(dhd);
-		/* update firmware and nvram path to sdio bus */
-		dhd_bus_update_fw_nv_path(dhd->pub.bus,
-			dhd->fw_path, dhd->nv_path);
-		/* download the firmware, Enable F2 */
-		/* TODO: Should be done only in case of FW switch */
-		ret = dhd_bus_devreset(dhdp, FALSE);
-		dhd_bus_resume(dhdp, 1);
-		if (!ret) {
-			if (dhd_sync_with_dongle(&dhd->pub) < 0) {
-				DHD_ERROR(("%s(): Sync with dongle failed!!\n", __FUNCTION__));
-				ret = -EFAULT;
-			}
-		} else {
-			DHD_ERROR(("%s(): Failed to download, err=%d\n", __FUNCTION__, ret));
-		}
-	} else {
-		DHD_ERROR(("%s(): BUS is already acquired, just increase the count %d \r\n",
-			__FUNCTION__, dhd->bus_user_count));
-	}
-exit:
-	mutex_unlock(&dhd->bus_user_lock);
-	return ret;
-}
-EXPORT_SYMBOL(dhd_bus_get);
-
-/* Return values:
- * Success: Returns 0
- * Failure: Returns -1 or errono code
- */
-int
-dhd_bus_put(wlan_bt_handle_t handle, bus_owner_t owner)
-{
-	dhd_pub_t *dhdp = (dhd_pub_t *)handle;
-	dhd_info_t *dhd = (dhd_info_t *)dhdp->info;
-	int ret = 0;
-	BCM_REFERENCE(owner);
-
-	mutex_lock(&dhd->bus_user_lock);
-	--dhd->bus_user_count;
-	if (dhd->bus_user_count < 0) {
-		DHD_ERROR(("%s(): bus_user_count is negative, which is invalid\n", __FUNCTION__));
-		dhd->bus_user_count = 0;
-		ret = -1;
-		goto exit;
-	}
-
-	if (dhd->bus_user_count == 0) {
-		/* Last user, stop the bus and turn Off WL_REG */
-		DHD_ERROR(("%s(): There are no owners left Trunf Off WL_REG & stop the bus \r\n",
-			__FUNCTION__));
-#ifdef PROP_TXSTATUS
-		if (dhd->pub.wlfc_enabled) {
-			dhd_wlfc_deinit(&dhd->pub);
-		}
-#endif /* PROP_TXSTATUS */
-#ifdef PNO_SUPPORT
-		if (dhd->pub.pno_state) {
-			dhd_pno_deinit(&dhd->pub);
-		}
-#endif /* PNO_SUPPORT */
-#ifdef RTT_SUPPORT
-		if (dhd->pub.rtt_state) {
-			dhd_rtt_deinit(&dhd->pub);
-		}
-#endif /* RTT_SUPPORT */
-		ret = dhd_bus_devreset(dhdp, TRUE);
-		if (!ret) {
-			dhd_bus_suspend(dhdp);
-			wifi_platform_set_power(dhd->adapter, FALSE, WIFI_TURNOFF_DELAY);
-		}
-	} else {
-		DHD_ERROR(("%s(): Other owners using bus, decrease the count %d \r\n",
-			__FUNCTION__, dhd->bus_user_count));
-	}
-exit:
-	mutex_unlock(&dhd->bus_user_lock);
-	return ret;
-}
-EXPORT_SYMBOL(dhd_bus_put);
-
-int
-dhd_net_bus_get(struct net_device *dev)
-{
-	dhd_info_t *dhd = DHD_DEV_INFO(dev);
-	return dhd_bus_get(&dhd->pub, WLAN_MODULE);
-}
-
-int
-dhd_net_bus_put(struct net_device *dev)
-{
-	dhd_info_t *dhd = DHD_DEV_INFO(dev);
-	return dhd_bus_put(&dhd->pub, WLAN_MODULE);
-}
-
-/*
- * Function to enable the Bus Clock
- * Returns BCME_OK on success and BCME_xxx on failure
- *
- * This function is not callable from non-sleepable context
- */
-int dhd_bus_clk_enable(wlan_bt_handle_t handle, bus_owner_t owner)
-{
-	dhd_pub_t *dhdp = (dhd_pub_t *)handle;
-
-	int ret;
-
-	dhd_os_sdlock(dhdp);
-	/*
-	 * The second argument is TRUE, that means, we expect
-	 * the function to "wait" until the clocks are really
-	 * available
-	 */
-	ret = __dhdsdio_clk_enable(dhdp->bus, owner, TRUE);
-	dhd_os_sdunlock(dhdp);
-
-	return ret;
-}
-EXPORT_SYMBOL(dhd_bus_clk_enable);
-
-/*
- * Function to disable the Bus Clock
- * Returns BCME_OK on success and BCME_xxx on failure
- *
- * This function is not callable from non-sleepable context
- */
-int dhd_bus_clk_disable(wlan_bt_handle_t handle, bus_owner_t owner)
-{
-	dhd_pub_t *dhdp = (dhd_pub_t *)handle;
-
-	int ret;
-
-	dhd_os_sdlock(dhdp);
-	/*
-	 * The second argument is TRUE, that means, we expect
-	 * the function to "wait" until the clocks are really
-	 * disabled
-	 */
-	ret = __dhdsdio_clk_disable(dhdp->bus, owner, TRUE);
-	dhd_os_sdunlock(dhdp);
-
-	return ret;
-}
-EXPORT_SYMBOL(dhd_bus_clk_disable);
-
-/*
- * Function to reset bt_use_count counter to zero.
- *
- * This function is not callable from non-sleepable context
- */
-void dhd_bus_reset_bt_use_count(wlan_bt_handle_t handle)
-{
-	dhd_pub_t *dhdp = (dhd_pub_t *)handle;
-
-	/* take the lock and reset bt use count */
-	dhd_os_sdlock(dhdp);
-	dhdsdio_reset_bt_use_count(dhdp->bus);
-	dhd_os_sdunlock(dhdp);
-}
-EXPORT_SYMBOL(dhd_bus_reset_bt_use_count);
-
-void dhd_bus_retry_hang_recovery(wlan_bt_handle_t handle)
-{
-	dhd_pub_t *dhdp = (dhd_pub_t *)handle;
-	dhd_info_t *dhd = (dhd_info_t*)dhdp->info;
-
-	dhdp->hang_was_sent = 0;
-
-	dhd_os_send_hang_message(&dhd->pub);
-}
-EXPORT_SYMBOL(dhd_bus_retry_hang_recovery);
-
-#endif /* BT_OVER_SDIO */
-
 static int
 dhd_monitor_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
@@ -6697,6 +6466,230 @@ dhd_ioctl_entry_wrapper(struct net_device *net, struct ifreq *ifr, int cmd)
 	return error;
 }
 #endif /* DHD_PCIE_NATIVE_RUNTIMEPM */
+
+#if defined(BT_OVER_SDIO)
+
+void
+dhdsdio_bus_usr_cnt_inc(dhd_pub_t *dhdp)
+{
+	dhdp->info->bus_user_count++;
+}
+
+void
+dhdsdio_bus_usr_cnt_dec(dhd_pub_t *dhdp)
+{
+	dhdp->info->bus_user_count--;
+}
+
+/* Return values:
+ * Success: Returns 0
+ * Failure: Returns -1 or errono code
+ */
+int
+dhd_bus_get(wlan_bt_handle_t handle, bus_owner_t owner)
+{
+	dhd_pub_t *dhdp = (dhd_pub_t *)handle;
+	dhd_info_t *dhd = (dhd_info_t *)dhdp->info;
+	int ret = 0;
+
+	mutex_lock(&dhd->bus_user_lock);
+	++dhd->bus_user_count;
+	if (dhd->bus_user_count < 0) {
+		DHD_ERROR(("%s(): bus_user_count is negative, which is invalid\n", __FUNCTION__));
+		ret = -1;
+		goto exit;
+	}
+
+	if (dhd->bus_user_count == 1) {
+
+		dhd->pub.hang_was_sent = 0;
+
+		/* First user, turn on WL_REG, start the bus */
+		DHD_ERROR(("%s(): First user Turn On WL_REG & start the bus", __FUNCTION__));
+
+		if (!wifi_platform_set_power(dhd->adapter, TRUE, WIFI_TURNON_DELAY)) {
+			/* Enable F1 */
+			ret = dhd_bus_resume(dhdp, 0);
+			if (ret) {
+				DHD_ERROR(("%s(): Failed to enable F1, err=%d\n",
+					__FUNCTION__, ret));
+				goto exit;
+			}
+		}
+
+		dhd_update_fw_nv_path(dhd);
+		/* update firmware and nvram path to sdio bus */
+		dhd_bus_update_fw_nv_path(dhd->pub.bus,
+			dhd->fw_path, dhd->nv_path);
+		/* download the firmware, Enable F2 */
+		/* TODO: Should be done only in case of FW switch */
+		ret = dhd_bus_devreset(dhdp, FALSE);
+		dhd_bus_resume(dhdp, 1);
+		if (!ret) {
+			if (dhd_sync_with_dongle(&dhd->pub) < 0) {
+				DHD_ERROR(("%s(): Sync with dongle failed!!\n", __FUNCTION__));
+				ret = -EFAULT;
+			}
+		} else {
+			DHD_ERROR(("%s(): Failed to download, err=%d\n", __FUNCTION__, ret));
+		}
+	} else {
+		DHD_ERROR(("%s(): BUS is already acquired, just increase the count %d \r\n",
+			__FUNCTION__, dhd->bus_user_count));
+	}
+exit:
+	mutex_unlock(&dhd->bus_user_lock);
+	return ret;
+}
+EXPORT_SYMBOL(dhd_bus_get);
+
+/* Return values:
+ * Success: Returns 0
+ * Failure: Returns -1 or errono code
+ */
+int
+dhd_bus_put(wlan_bt_handle_t handle, bus_owner_t owner)
+{
+	dhd_pub_t *dhdp = (dhd_pub_t *)handle;
+	dhd_info_t *dhd = (dhd_info_t *)dhdp->info;
+	int ret = 0;
+	BCM_REFERENCE(owner);
+
+	mutex_lock(&dhd->bus_user_lock);
+	--dhd->bus_user_count;
+	if (dhd->bus_user_count < 0) {
+		DHD_ERROR(("%s(): bus_user_count is negative, which is invalid\n", __FUNCTION__));
+		dhd->bus_user_count = 0;
+		ret = -1;
+		goto exit;
+	}
+
+	if (dhd->bus_user_count == 0) {
+		/* Last user, stop the bus and turn Off WL_REG */
+		DHD_ERROR(("%s(): There are no owners left Trunf Off WL_REG & stop the bus \r\n",
+			__FUNCTION__));
+#ifdef PROP_TXSTATUS
+		if (dhd->pub.wlfc_enabled) {
+			dhd_wlfc_deinit(&dhd->pub);
+		}
+#endif /* PROP_TXSTATUS */
+#ifdef PNO_SUPPORT
+		if (dhd->pub.pno_state) {
+			dhd_pno_deinit(&dhd->pub);
+		}
+#endif /* PNO_SUPPORT */
+#ifdef RTT_SUPPORT
+		if (dhd->pub.rtt_state) {
+			dhd_rtt_deinit(&dhd->pub);
+		}
+#endif /* RTT_SUPPORT */
+		ret = dhd_bus_devreset(dhdp, TRUE);
+		if (!ret) {
+			dhd_bus_suspend(dhdp);
+			wifi_platform_set_power(dhd->adapter, FALSE, WIFI_TURNOFF_DELAY);
+		}
+	} else {
+		DHD_ERROR(("%s(): Other owners using bus, decrease the count %d \r\n",
+			__FUNCTION__, dhd->bus_user_count));
+	}
+exit:
+	mutex_unlock(&dhd->bus_user_lock);
+	return ret;
+}
+EXPORT_SYMBOL(dhd_bus_put);
+
+int
+dhd_net_bus_get(struct net_device *dev)
+{
+	dhd_info_t *dhd = DHD_DEV_INFO(dev);
+	return dhd_bus_get(&dhd->pub, WLAN_MODULE);
+}
+
+int
+dhd_net_bus_put(struct net_device *dev)
+{
+	dhd_info_t *dhd = DHD_DEV_INFO(dev);
+	return dhd_bus_put(&dhd->pub, WLAN_MODULE);
+}
+
+/*
+ * Function to enable the Bus Clock
+ * Returns BCME_OK on success and BCME_xxx on failure
+ *
+ * This function is not callable from non-sleepable context
+ */
+int dhd_bus_clk_enable(wlan_bt_handle_t handle, bus_owner_t owner)
+{
+	dhd_pub_t *dhdp = (dhd_pub_t *)handle;
+
+	int ret;
+
+	dhd_os_sdlock(dhdp);
+	/*
+	 * The second argument is TRUE, that means, we expect
+	 * the function to "wait" until the clocks are really
+	 * available
+	 */
+	ret = __dhdsdio_clk_enable(dhdp->bus, owner, TRUE);
+	dhd_os_sdunlock(dhdp);
+
+	return ret;
+}
+EXPORT_SYMBOL(dhd_bus_clk_enable);
+
+/*
+ * Function to disable the Bus Clock
+ * Returns BCME_OK on success and BCME_xxx on failure
+ *
+ * This function is not callable from non-sleepable context
+ */
+int dhd_bus_clk_disable(wlan_bt_handle_t handle, bus_owner_t owner)
+{
+	dhd_pub_t *dhdp = (dhd_pub_t *)handle;
+
+	int ret;
+
+	dhd_os_sdlock(dhdp);
+	/*
+	 * The second argument is TRUE, that means, we expect
+	 * the function to "wait" until the clocks are really
+	 * disabled
+	 */
+	ret = __dhdsdio_clk_disable(dhdp->bus, owner, TRUE);
+	dhd_os_sdunlock(dhdp);
+
+	return ret;
+}
+EXPORT_SYMBOL(dhd_bus_clk_disable);
+
+/*
+ * Function to reset bt_use_count counter to zero.
+ *
+ * This function is not callable from non-sleepable context
+ */
+void dhd_bus_reset_bt_use_count(wlan_bt_handle_t handle)
+{
+	dhd_pub_t *dhdp = (dhd_pub_t *)handle;
+
+	/* take the lock and reset bt use count */
+	dhd_os_sdlock(dhdp);
+	dhdsdio_reset_bt_use_count(dhdp->bus);
+	dhd_os_sdunlock(dhdp);
+}
+EXPORT_SYMBOL(dhd_bus_reset_bt_use_count);
+
+void dhd_bus_retry_hang_recovery(wlan_bt_handle_t handle)
+{
+	dhd_pub_t *dhdp = (dhd_pub_t *)handle;
+	dhd_info_t *dhd = (dhd_info_t*)dhdp->info;
+
+	dhdp->hang_was_sent = 0;
+
+	dhd_os_send_hang_message(&dhd->pub);
+}
+EXPORT_SYMBOL(dhd_bus_retry_hang_recovery);
+
+#endif /* BT_OVER_SDIO */
 
 static int
 dhd_stop(struct net_device *net)
@@ -8125,34 +8118,35 @@ dhd_init_logstrs_array(osl_t *osh, dhd_event_log_t *temp)
 	struct file *filep = NULL;
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
 	struct kstat stat;
-	mm_segment_t fs;
 	int error = 0;
-#endif
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0) */
+#if defined(KERNEL_DS) && defined(USER_DS)
+	mm_segment_t fs;
+#endif /* KERNEL_DS && USER_DS */
 	char *raw_fmts =  NULL;
 	int logstrs_size = 0;
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 	fs = get_fs();
 	set_fs(KERNEL_DS);
-#endif
+#endif /* KERNEL_DS && USER_DS */
+
 	filep = filp_open(logstrs_path, O_RDONLY, 0);
 
 	if (IS_ERR(filep)) {
 		DHD_ERROR_NO_HW4(("%s: Failed to open the file %s \n", __FUNCTION__, logstrs_path));
 		goto fail;
 	}
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
-	logstrs_size = i_size_read(file_inode(filep));
-#else
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
 	error = vfs_stat(logstrs_path, &stat);
 	if (error) {
 		DHD_ERROR_NO_HW4(("%s: Failed to stat file %s \n", __FUNCTION__, logstrs_path));
 		goto fail;
 	}
 	logstrs_size = (int) stat.size;
-#endif
-
+#else
+	logstrs_size = i_size_read(file_inode(filep));
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0) */
 	if (logstrs_size == 0) {
 		DHD_ERROR(("%s: return as logstrs_size is 0\n", __FUNCTION__));
 		goto fail1;
@@ -8172,9 +8166,9 @@ dhd_init_logstrs_array(osl_t *osh, dhd_event_log_t *temp)
 	if (dhd_parse_logstrs_file(osh, raw_fmts, logstrs_size, temp)
 				== BCME_OK) {
 		filp_close(filep, NULL);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 		set_fs(fs);
-#endif
+#endif /* KERNEL_DS && USER_DS */
 		return BCME_OK;
 	}
 
@@ -8187,9 +8181,11 @@ fail:
 fail1:
 	if (!IS_ERR(filep))
 		filp_close(filep, NULL);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+
+#if defined(KERNEL_DS) && defined(USER_DS)
 	set_fs(fs);
-#endif
+#endif /* KERNEL_DS && USER_DS */
+
 	temp->fmts = NULL;
 	return BCME_ERROR;
 }
@@ -8199,9 +8195,10 @@ dhd_read_map(osl_t *osh, char *fname, uint32 *ramstart, uint32 *rodata_start,
 		uint32 *rodata_end)
 {
 	struct file *filep = NULL;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 	mm_segment_t fs;
-#endif
+#endif /* KERNEL_DS && USER_DS */
+
 	int err = BCME_ERROR;
 
 	if (fname == NULL) {
@@ -8209,10 +8206,10 @@ dhd_read_map(osl_t *osh, char *fname, uint32 *ramstart, uint32 *rodata_start,
 		return BCME_ERROR;
 	}
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 	fs = get_fs();
 	set_fs(KERNEL_DS);
-#endif
+#endif /* KERNEL_DS && USER_DS */
 
 	filep = filp_open(fname, O_RDONLY, 0);
 	if (IS_ERR(filep)) {
@@ -8228,9 +8225,9 @@ fail:
 	if (!IS_ERR(filep))
 		filp_close(filep, NULL);
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 	set_fs(fs);
-#endif
+#endif /* KERNEL_DS && USER_DS */
 
 	return err;
 }
@@ -8239,9 +8236,9 @@ static int
 dhd_init_static_strs_array(osl_t *osh, dhd_event_log_t *temp, char *str_file, char *map_file)
 {
 	struct file *filep = NULL;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 	mm_segment_t fs;
-#endif
+#endif /* KERNEL_DS && USER_DS */
 	char *raw_fmts =  NULL;
 	uint32 logstrs_size = 0;
 	int error = 0;
@@ -8264,10 +8261,10 @@ dhd_init_static_strs_array(osl_t *osh, dhd_event_log_t *temp, char *str_file, ch
 	DHD_ERROR(("ramstart: 0x%x, rodata_start: 0x%x, rodata_end:0x%x\n",
 		ramstart, rodata_start, rodata_end));
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 	fs = get_fs();
 	set_fs(KERNEL_DS);
-#endif
+#endif /* KERNEL_DS && USER_DS */
 
 	filep = filp_open(str_file, O_RDONLY, 0);
 	if (IS_ERR(filep)) {
@@ -8319,9 +8316,9 @@ dhd_init_static_strs_array(osl_t *osh, dhd_event_log_t *temp, char *str_file, ch
 	}
 
 	filp_close(filep, NULL);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 	set_fs(fs);
-#endif
+#endif /* KERNEL_DS && USER_DS */
 
 	return BCME_OK;
 
@@ -8335,9 +8332,9 @@ fail1:
 	if (!IS_ERR(filep))
 		filp_close(filep, NULL);
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 	set_fs(fs);
-#endif
+#endif /* KERNEL_DS && USER_DS */
 
 	if (strstr(str_file, ram_file_str) != NULL) {
 		temp->raw_sstr = NULL;
@@ -8447,6 +8444,15 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	}
 	memset(dhd, 0, sizeof(dhd_info_t));
 	dhd_state |= DHD_ATTACH_STATE_DHD_ALLOC;
+
+#ifdef SHOW_LOGTRACE
+	/* Create ring proc entries */
+	dhd_dbg_ring_proc_create(&dhd->pub);
+
+	if (dhd_init_logtrace_process(dhd) != BCME_OK) {
+		goto fail;
+	}
+#endif /* SHOW_LOGTRACE */
 
 	dhd->unit = dhd_found + instance_base; /* do not increment dhd_found, yet */
 
@@ -8616,9 +8622,11 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 		goto fail;
 	}
 
+#ifdef DHD_MONITOR_INTERFACE
 	dhd_monitor_init(&dhd->pub);
+#endif /* DHD_MONITOR_INTERFACE */
 	dhd_state |= DHD_ATTACH_STATE_CFG80211;
-#endif // endif
+#endif /* WL_CFG80211 */
 
 #if defined(WL_WIRELESS_EXT)
 	/* Attach and link in the iw */
@@ -8733,9 +8741,6 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 
 #ifdef SHOW_LOGTRACE
 	skb_queue_head_init(&dhd->evt_trace_queue);
-
-	/* Create ring proc entries */
-	dhd_dbg_ring_proc_create(&dhd->pub);
 #endif /* SHOW_LOGTRACE */
 
 	/* Set up the bottom half handler */
@@ -8910,12 +8915,6 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 #endif /* DNGL_AXI_ERROR_LOGGING */
 #endif /* BCMPCIE && ETD */
 
-#ifdef SHOW_LOGTRACE
-	if (dhd_init_logtrace_process(dhd) != BCME_OK) {
-		goto fail;
-	}
-#endif /* SHOW_LOGTRACE */
-
 	DHD_SSSR_MEMPOOL_INIT(&dhd->pub);
 
 #ifdef EWP_EDL
@@ -9057,7 +9056,6 @@ bool dhd_update_fw_nv_path(dhd_info_t *dhdinfo)
 #ifdef CONFIG_BCMDHD_FW_PATH
 		fw = VENDOR_PATH CONFIG_BCMDHD_FW_PATH;
 #endif /* CONFIG_BCMDHD_FW_PATH */
-
 #ifdef CONFIG_BCMDHD_NVRAM_PATH
 		nv = VENDOR_PATH CONFIG_BCMDHD_NVRAM_PATH;
 #endif /* CONFIG_BCMDHD_NVRAM_PATH */
@@ -9067,27 +9065,23 @@ bool dhd_update_fw_nv_path(dhd_info_t *dhdinfo)
 
 	/* check if we need to initialize the path */
 	if (dhdinfo->fw_path[0] == '\0') {
-		if (adapter && adapter->fw_path && adapter->fw_path[0] != '\0') {
+		if (adapter && adapter->fw_path && adapter->fw_path[0] != '\0')
 			fw = adapter->fw_path;
-		}
 	}
 	if (dhdinfo->nv_path[0] == '\0') {
-		if (adapter && adapter->nv_path && adapter->nv_path[0] != '\0') {
+		if (adapter && adapter->nv_path && adapter->nv_path[0] != '\0')
 			nv = adapter->nv_path;
-		}
 	}
 
 	/* Use module parameter if it is valid, EVEN IF the path has not been initialized
 	 *
 	 * TODO: need a solution for multi-chip, can't use the same firmware for all chips
 	 */
-	if (firmware_path[0] != '\0') {
+	if (firmware_path[0] != '\0')
 		fw = firmware_path;
-	}
 
-	if (nvram_path[0] != '\0') {
+	if (nvram_path[0] != '\0')
 		nv = nvram_path;
-	}
 
 	fw = "/vendor/etc/firmware/fw_bcm88459_pcie.bin";
 	nv = "/vendor/etc/firmware/nvram_cyw88459.txt";
@@ -11112,6 +11106,9 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 		setbit(eventmask_msg->mask, WLC_E_LDF_HOGGER);
 #endif /* ENABLE_HOGSQS */
 
+		/* over temp event */
+		setbit(eventmask_msg->mask, WLC_E_OVERTEMP);
+
 		/* Write updated Event mask */
 		eventmask_msg->ver = EVENTMSGS_VER;
 		eventmask_msg->command = EVENTMSGS_SET_MASK;
@@ -12247,7 +12244,7 @@ void dhd_detach(dhd_pub_t *dhdp)
 	dhd_info_t *dhd;
 	unsigned long flags;
 	int timer_valid = FALSE;
-	struct net_device *dev;
+	struct net_device *dev = NULL;
 #ifdef WL_CFG80211
 	struct bcm_cfg80211 *cfg = NULL;
 #endif // endif
@@ -12258,7 +12255,8 @@ void dhd_detach(dhd_pub_t *dhdp)
 	if (!dhd)
 		return;
 
-	dev = dhd->iflist[0]->net;
+	if (dhd->iflist[0])
+		dev = dhd->iflist[0]->net;
 
 	if (dev) {
 		rtnl_lock();
@@ -12504,10 +12502,12 @@ void dhd_detach(dhd_pub_t *dhdp)
 			ASSERT(0);
 		} else {
 			wl_cfg80211_detach(cfg);
+#ifdef DHD_MONITOR_INTERFACE
 			dhd_monitor_uninit();
+#endif /* DHD_MONITOR_INTERFACE */
 		}
 	}
-#endif // endif
+#endif /* WL_CFG80211 */
 
 #ifdef DHD_PCIE_NATIVE_RUNTIMEPM
 	destroy_workqueue(dhd->tx_wq);
@@ -15824,16 +15824,13 @@ int write_file(const char * file_name, uint32 flags, uint8 *buf, int size)
 {
 	int ret = 0;
 	struct file *fp = NULL;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
-	mm_segment_t old_fs;
-#endif
 	loff_t pos = 0;
 	/* change to KERNEL_DS address limit */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
+	mm_segment_t old_fs;
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
-#endif
-
+#endif /* KERNEL_DS && USER_DS */
 	/* open file to write */
 	fp = filp_open(file_name, flags, 0664);
 	if (IS_ERR(fp)) {
@@ -15862,10 +15859,9 @@ exit:
 		filp_close(fp, current->files);
 
 	/* restore previous address limit */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 	set_fs(old_fs);
-#endif
-
+#endif /* KERNEL_DS && USER_DS */
 	return ret;
 }
 #endif // endif
@@ -17301,9 +17297,9 @@ dhd_get_rnd_info(dhd_pub_t *dhd)
 	int ret = BCME_ERROR;
 	char *filepath = RND_IN;
 	uint32 file_mode =  O_RDONLY;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 	mm_segment_t old_fs;
-#endif
+#endif /* KERNEL_DS && USER_DS */
 	loff_t pos = 0;
 
 	/* Read memdump info from the file */
@@ -17328,10 +17324,10 @@ dhd_get_rnd_info(dhd_pub_t *dhd)
 #endif /* CONFIG_X86 && OEM_ANDROID */
 	}
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
-#endif
+#endif /* KERNEL_DS && USER_DS */
 
 	/* Handle success case */
 	ret = vfs_read(fp, (char *)&dhd->rnd_len, sizeof(dhd->rnd_len), &pos);
@@ -17352,9 +17348,9 @@ dhd_get_rnd_info(dhd_pub_t *dhd)
 		goto err3;
 	}
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 	set_fs(old_fs);
-#endif
+#endif /* KERNEL_DS && USER_DS */
 	filp_close(fp, NULL);
 
 	DHD_ERROR(("%s: RND read from %s\n", __FUNCTION__, filepath));
@@ -17364,9 +17360,9 @@ err3:
 	MFREE(dhd->osh, dhd->rnd_buf, dhd->rnd_len);
 	dhd->rnd_buf = NULL;
 err2:
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 	set_fs(old_fs);
-#endif
+#endif /* KERNEL_DS && USER_DS */
 	filp_close(fp, NULL);
 err1:
 	return BCME_ERROR;
@@ -17379,9 +17375,9 @@ dhd_dump_rnd_info(dhd_pub_t *dhd, uint8 *rnd_buf, uint32 rnd_len)
 	int ret = BCME_OK;
 	char *filepath = RND_OUT;
 	uint32 file_mode = O_CREAT | O_WRONLY | O_SYNC;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 	mm_segment_t old_fs;
-#endif
+#endif /* KERNEL_DS && USER_DS */
 	loff_t pos = 0;
 
 	/* Read memdump info from the file */
@@ -17406,10 +17402,11 @@ dhd_dump_rnd_info(dhd_pub_t *dhd, uint8 *rnd_buf, uint32 rnd_len)
 #endif /* CONFIG_X86 && OEM_ANDROID */
 	}
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
-#endif
+#endif /* KERNEL_DS && USER_DS */
+
 	/* Handle success case */
 	ret = vfs_write(fp, (char *)&rnd_len, sizeof(rnd_len), &pos);
 	if (ret < 0) {
@@ -17423,17 +17420,17 @@ dhd_dump_rnd_info(dhd_pub_t *dhd, uint8 *rnd_buf, uint32 rnd_len)
 		goto err2;
 	}
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 	set_fs(old_fs);
-#endif
+#endif /* KERNEL_DS && USER_DS */
 	filp_close(fp, NULL);
 	DHD_ERROR(("%s: RND written to %s\n", __FUNCTION__, filepath));
 	return BCME_OK;
 
 err2:
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 	set_fs(old_fs);
-#endif
+#endif /* KERNEL_DS && USER_DS */
 	filp_close(fp, NULL);
 err1:
 	return BCME_ERROR;
@@ -18936,18 +18933,20 @@ do_dhd_log_dump(dhd_pub_t *dhdp, log_dump_type_t *type)
 {
 	int ret = 0, i = 0;
 	struct file *fp = NULL;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
-	struct kstat stat;
+#if defined(KERNEL_DS) && defined(USER_DS)
 	mm_segment_t old_fs;
-#else
-	int isize = 0;	
-#endif
+#endif /* KERNEL_DS && USER_DS */
 	loff_t pos = 0;
 	char dump_path[128];
 	uint32 file_mode;
 	unsigned long flags = 0;
 	size_t log_size = 0;
 	size_t fspace_remain = 0;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
+	int isize = 0;
+#else
+	struct kstat stat;
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0) */
 	char time_str[128];
 	unsigned int len = 0;
 	log_dump_section_hdr_t sec_hdr;
@@ -18967,11 +18966,10 @@ do_dhd_log_dump(dhd_pub_t *dhdp, log_dump_type_t *type)
 		goto exit1;
 	}
 	/* change to KERNEL_DS address limit */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
-#endif
-
+#endif /* KERNEL_DS && USER_DS */
 	dhd_get_debug_dump_file_name(NULL, dhdp, dump_path, sizeof(dump_path));
 
 	DHD_ERROR(("debug_dump_path = %s\n", dump_path));
@@ -19036,8 +19034,7 @@ do_dhd_log_dump(dhd_pub_t *dhdp, log_dump_type_t *type)
 			stat.size < dhdp->last_file_posn) {
 		dhdp->last_file_posn = 0;
 	}
-#endif
-
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0) */
 	if (dhdp->logdump_periodic_flush) {
 		log_size = strlen(time_str) + strlen(DHD_DUMP_LOG_HDR) + sizeof(sec_hdr);
 		/* calculate the amount of space required to dump all logs */
@@ -19172,9 +19169,9 @@ exit2:
 		DHD_ERROR(("%s: Finished writing log dump to file - '%s' \n",
 				__FUNCTION__, dump_path));
 	}
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 	set_fs(old_fs);
-#endif
+#endif /* KERNEL_DS && USER_DS */
 exit1:
 	if (type) {
 		MFREE(dhdp->osh, type, sizeof(*type));
@@ -20554,7 +20551,7 @@ void
 dhd_set_blob_support(dhd_pub_t *dhdp, char *fw_path)
 {
 	struct file *fp;
-	char *filepath = "/vendor/etc/firmware/4359_cypress_auto.clm_blob";//VENDOR_PATH CONFIG_BCMDHD_CLM_PATH;
+	char *filepath = VENDOR_PATH CONFIG_BCMDHD_CLM_PATH;
 	fp = filp_open(filepath, O_RDONLY, 0);
 	if (IS_ERR(fp)) {
 		DHD_ERROR(("%s: ----- blob file doesn't exist (%s) -----\n", __FUNCTION__,
@@ -20664,16 +20661,14 @@ int
 dhd_write_file(const char *filepath, char *buf, int buf_len)
 {
 	struct file *fp = NULL;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
-	mm_segment_t old_fs;
-#endif
 	int ret = 0;
-
 	/* change to KERNEL_DS address limit */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
+	mm_segment_t old_fs;
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
-#endif
+#endif /* KERNEL_DS && USER_DS */
+
 	/* File is always created. */
 	fp = filp_open(filepath, O_RDWR | O_CREAT, 0664);
 	if (IS_ERR(fp)) {
@@ -20695,9 +20690,9 @@ dhd_write_file(const char *filepath, char *buf, int buf_len)
 	}
 
 	/* restore previous address limit */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 	set_fs(old_fs);
-#endif
+#endif /* KERNEL_DS && USER_DS */
 
 	return ret;
 }
@@ -20706,21 +20701,18 @@ int
 dhd_read_file(const char *filepath, char *buf, int buf_len)
 {
 	struct file *fp = NULL;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
-	mm_segment_t old_fs;
-#endif
 	int ret;
-
 	/* change to KERNEL_DS address limit */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
+	mm_segment_t old_fs;
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
-#endif
+#endif /* KERNEL_DS && USER_DS */
 	fp = filp_open(filepath, O_RDONLY, 0);
 	if (IS_ERR(fp)) {
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 		set_fs(old_fs);
-#endif
+#endif /* KERNEL_DS && USER_DS */
 		DHD_ERROR(("%s: File %s doesn't exist\n", __FUNCTION__, filepath));
 		return BCME_ERROR;
 	}
@@ -20729,9 +20721,9 @@ dhd_read_file(const char *filepath, char *buf, int buf_len)
 	filp_close(fp, NULL);
 
 	/* restore previous address limit */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+#if defined(KERNEL_DS) && defined(USER_DS)
 	set_fs(old_fs);
-#endif
+#endif /* KERNEL_DS && USER_DS */
 
 	/* Return the number of bytes read */
 	if (ret > 0) {
@@ -21303,31 +21295,20 @@ void dhd_schedule_gather_ap_stadata(void *bcm_cfg, void *ndev, const wl_event_ms
 void
 get_debug_dump_time(char *str)
 {
-	struct timeval curtime;
-	unsigned long local_time;
+	struct timespec64 curtime;
+	unsigned long long local_time;
+
 	struct rtc_time tm;
 
 	if (!strlen(str)) {
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
-		do_gettimeofday(&curtime);
-#else
-		curtime = do_gettimeofday();
-#endif
-		local_time = (u32)(curtime.tv_sec -
+		ktime_get_real_ts64(&curtime);
+		local_time = (u64)(curtime.tv_sec -
 				(sys_tz.tz_minuteswest * DHD_LOG_DUMP_TS_MULTIPLIER_VALUE));
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
 		rtc_time_to_tm(local_time, &tm);
 
 		snprintf(str, DEBUG_DUMP_TIME_BUF_LEN, DHD_LOG_DUMP_TS_FMT_YYMMDDHHMMSSMSMS,
 				tm.tm_year - 100, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min,
-				tm.tm_sec, (int)(curtime.tv_usec/NSEC_PER_USEC));
-#else
-		tm = rtc_ktime_to_tm(local_time);
-
-		snprintf(str, DEBUG_DUMP_TIME_BUF_LEN, DHD_LOG_DUMP_TS_FMT_YYMMDDHHMMSSMSMS,
-				tm.tm_year - 100, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min,
-				tm.tm_sec, (int)(curtime.tv_usec));
-#endif
+				tm.tm_sec, (int)(curtime.tv_nsec/NSEC_PER_MSEC));
 	}
 }
 

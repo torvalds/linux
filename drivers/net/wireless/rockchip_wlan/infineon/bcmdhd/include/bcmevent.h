@@ -311,9 +311,10 @@ typedef union bcm_event_msg_u {
 #define WLC_E_IND_DOS_STATUS            191
 #define WLC_E_LDF_HOGGER		192 	/* Detection Hogger Squasher -Cambium */
 #define WLC_E_DLTRO         193     /*   DHCP lease time renew offload */
-#define WLC_E_LAST			194	/* highest val + 1 for range checking */
-#if (WLC_E_LAST > 194)
-#error "WLC_E_LAST: Invalid value for last event; must be <= 193."
+#define WLC_E_OVERTEMP			194	/* Overtemp notification */
+#define WLC_E_LAST			195	/* highest val + 1 for range checking */
+#if (WLC_E_LAST > 195)
+#error "WLC_E_LAST: Invalid value for last event; must be <= 195."
 #endif /* WLC_E_LAST */
 
 /* define an API for getting the string name of an event */

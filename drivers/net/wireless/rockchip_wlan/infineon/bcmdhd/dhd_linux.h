@@ -41,10 +41,6 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 1))
-#include <linux/time64.h>
-#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 1)) */
-
 #include <dngl_stats.h>
 #include <dhd.h>
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 1))

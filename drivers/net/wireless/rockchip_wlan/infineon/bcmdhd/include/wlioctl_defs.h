@@ -555,11 +555,21 @@
 #define WPA3_AUTH_PSK_SHA384		0x800000 /* PSK with SHA384 key derivation */
 #define WPA3_AUTH_1X_SHA384             0x2000000 /* 1x with SHA384 key derivation */
 
+/* WFA_AUTH_DPP */
+#define WPA2_WFA_AUTH_DPP		0x200000
+#define WFA_AUTH_DPP			0x100
+
 /* WPA2_AUTH_SHA256 not used anymore. Just kept here to avoid build issue in DINGO */
 #define WPA2_AUTH_SHA256		0x8000
 #define WPA_AUTH_PFN_ANY		0xffffffff	/* for PFN, match only ssid */
 
 #define WPA3_AUTH_SAE                  0x10000 /* SAE authentication with SHA-256 */
+
+#define WPA3_AUTH_MASK			(WPA3_AUTH_SAE_PSK | WPA3_AUTH_SAE_FBT |\
+					 WPA3_AUTH_OWE | WPA3_AUTH_1X_SUITE_B_SHA256 |\
+					 WPA3_AUTH_1X_SUITE_B_SHA384 | WPA3_AUTH_PSK_SHA384 |\
+					 WPA3_AUTH_1X_SHA384 | WPA3_AUTH_SAE)
+#define WPA3_AUTH_ENABLED(wpa_auth)	((wpa_auth) & WPA3_AUTH_MASK)
 
 /* pmkid */
 #define	MAXPMKID		16
@@ -1043,6 +1053,7 @@
 #define WL_CHAN_FREQ_RANGE_6G_BAND1     6
 #define WL_CHAN_FREQ_RANGE_6G_BAND2     7
 #define WL_CHAN_FREQ_RANGE_6G_BAND3     8
+#define WL_CHAN_FREQ_RANGE_6G_4BAND     18
 
 /* SROM12 */
 #define WL_CHAN_FREQ_RANGE_5G_BAND4 5

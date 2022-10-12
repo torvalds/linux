@@ -70,7 +70,8 @@ static const struct file_operations dhd_ring_proc_fops = {
 	.read = dhd_ring_proc_read,
 	.release = single_release,
 };
-#endif
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0) */
+
 static int
 dhd_ring_proc_open(struct inode *inode, struct file *file)
 {
@@ -756,11 +757,6 @@ get_assert_val_from_file(void)
 		filp_close(fp, NULL);
 	}
 
-#ifdef CUSTOMER_HW4_DEBUG
-	mem_val = (mem_val >= 0) ? mem_val : 1;
-#else
-	mem_val = (mem_val >= 0) ? mem_val : 0;
-#endif /* CUSTOMER_HW4_DEBUG */
 	return mem_val;
 }
 
@@ -770,8 +766,8 @@ void dhd_get_assert_info(dhd_pub_t *dhd)
 	int mem_val = -1;
 
 	mem_val = get_assert_val_from_file();
-
-	g_assert_type = mem_val;
+	if (mem_val != -1)
+		g_assert_type = mem_val;
 #endif /* !DHD_EXPORT_CNTL_FILE */
 }
 
@@ -1517,6 +1513,8 @@ void dhd_sysfs_exit(dhd_info_t *dhd)
 	}
 
 	/* Releae the kobject */
-	kobject_put(&dhd->dhd_kobj);
-	kobject_put(&dhd->dhd_conf_file_kobj);
+	if (dhd->dhd_kobj.state_initialized)
+		kobject_put(&dhd->dhd_kobj);
+	if (dhd->dhd_conf_file_kobj.state_initialized)
+		kobject_put(&dhd->dhd_conf_file_kobj);
 }

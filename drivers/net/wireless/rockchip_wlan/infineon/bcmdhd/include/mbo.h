@@ -177,10 +177,10 @@ typedef BWL_PRE_PACKED_STRUCT struct wifi_mbo_cell_data_conn_pref_attr_s {
 	uint8 cell_pref;
 } BWL_POST_PACKED_STRUCT wifi_mbo_cell_data_conn_pref_attr_t;
 
-/* Cellular Data Conn Pref attr: Cellular Pref field values */
+/* Cellular Data Conn Pref attr: Cellular Pref field values. Per MBO Spec. v1.1 */
 enum {
-	MBO_CELLULAR_DATA_CONN_EXCLUDED = 1,
-	MBO_CELLULAR_DATA_CONN_NOT_PREFERRED = 2,
+	MBO_CELLULAR_DATA_CONN_EXCLUDED = 0,
+	MBO_CELLULAR_DATA_CONN_NOT_PREFERRED = 1,
 	MBO_CELLULAR_DATA_CONN_PREFERRED = 255
 };
 
@@ -261,6 +261,9 @@ typedef BWL_PRE_PACKED_STRUCT struct wifi_mbo_anqp_elem_s {
 
 /* oui:3 bytes + oui type:1 byte + sub type:1 byte */
 #define MBO_ANQP_ELEM_NO_PAYLOAD_LEN  5
+
+#define MBO_ANQP_VS_ELEM_SIZE (sizeof(wifi_mbo_anqp_elem_t))
+#define MBO_ANQP_VS_ELEM_LENGTH (MBO_ANQP_VS_ELEM_SIZE - 4)
 
 /* MBO ANQP Subtype Values */
 enum {

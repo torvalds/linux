@@ -147,7 +147,11 @@ void bcmsdh_btsdio_interface_init(struct sdio_func *func,
 	BCMSDH_INFO(("%s: func %p \n", __FUNCTION__, func));
 	func_f3 = func;
 	processf3intr = f3intr_fun;
+#if defined(BCMLXSDMMC)
 	sdioh_sdmmc_card_enable_func_f3(bcmsdh->sdioh, func);
+#else
+	BCMSDH_ERROR(("bcmsdh_btsdio_interface_init: not support f3 enable on non-sdmmc build\n"));
+#endif /* defined(BCMLXSDMMC) */
 	process_dhd_hang_notification = hang_notification;
 
 } EXPORT_SYMBOL(bcmsdh_btsdio_interface_init);
@@ -614,7 +618,7 @@ bcmsdh_recv_buf(void *sdh, uint32 addr, uint fn, uint flags,
 
 	incr_fix = (flags & SDIO_REQ_FIXED) ? SDIOH_DATA_FIX : SDIOH_DATA_INC;
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
-	if (width == 4)
+	if (fn != SDIO_FUNC_3 && width == 4)
 		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
 	status = sdioh_request_buffer(bcmsdh->sdioh, SDIOH_DATA_PIO, incr_fix,
@@ -652,7 +656,7 @@ bcmsdh_send_buf(void *sdh, uint32 addr, uint fn, uint flags,
 
 	incr_fix = (flags & SDIO_REQ_FIXED) ? SDIOH_DATA_FIX : SDIOH_DATA_INC;
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
-	if (width == 4)
+	if (fn != SDIO_FUNC_3 && width == 4)
 		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
 	status = sdioh_request_buffer(bcmsdh->sdioh, SDIOH_DATA_PIO, incr_fix,

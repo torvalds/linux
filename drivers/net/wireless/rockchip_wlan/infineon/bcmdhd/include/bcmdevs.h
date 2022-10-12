@@ -358,6 +358,7 @@
 #define BCM4373_D11AC5G_ID	0x441a          /* 4373 802.11ac 5G device */
 
 #define CYW55560_WLAN_ID	0xBD31     /* CYW55560 802.11ax WLAN device ID */
+#define CYW89570_WLAN_ID	0xBD3f     /* CYW89570 802.11ax WLAN device ID */
 #define CYW55560_BT_ID		0xBD37     /* CYW55560 802.11ax BT device ID */
 
 #define	BCMGPRS_UART_ID		0x4333		/* Uart id used by 4306/gprs card */

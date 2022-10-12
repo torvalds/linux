@@ -247,7 +247,12 @@ wl_bcnrecv_result_handler(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
 	s32 err = BCME_OK;
 	struct wiphy *wiphy = NULL;
 	wl_bcnrecv_result_t *bcn_recv = NULL;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0))
+	struct timespec64 ts;
+#else
 	struct timespec ts;
+#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0)) */
+
 	if (!bi) {
 		WL_ERR(("%s: bi is NULL\n", __func__));
 		err = BCME_NORESOURCE;
@@ -280,11 +285,7 @@ wl_bcnrecv_result_handler(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
 		bcn_recv->beacon_interval = bi->beacon_period;
 
 		/* kernal timestamp */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0))
-		ktime_get_boottime_ts64(&ts);
-#else
 		get_monotonic_boottime(&ts);
-#endif
 		bcn_recv->system_time = ((u64)ts.tv_sec*1000000)
 				+ ts.tv_nsec / 1000;
 		bcn_recv->timestamp[0] = bi->timestamp[0];
@@ -976,6 +977,11 @@ wl_cfgscan_populate_scan_channels(struct bcm_cfg80211 *cfg, u16 *channel_list,
 			}
 #endif /* LINUX_VER >= 3.6 */
 
+#ifdef WL_6E
+			if (request->channels[i]->band == IEEE80211_BAND_6GHZ) {
+				chanspec |= WL_CHANSPEC_BAND_6G;
+			} else
+#endif /* WL_6E */
 			if (request->channels[i]->band == IEEE80211_BAND_2GHZ) {
 #ifdef WL_HOST_BAND_MGMT
 				if (cfg->curr_band == WLC_BAND_5G) {
@@ -1059,7 +1065,7 @@ wl_scan_prep(struct bcm_cfg80211 *cfg, void *scan_params, u32 len,
 {
 	wl_scan_params_t *params = NULL;
 	wl_scan_params_v2_t *params_v2 = NULL;
-	u32 scan_type = 0;
+	u32 scan_type = htod32(scan_type);
 	u32 scan_param_size = 0;
 	u32 n_channels = 0;
 	u32 n_ssids = 0;
@@ -1222,6 +1228,7 @@ wl_update_ap_chandef(struct net_device *ndev)
 					return err;
 				}
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0))
+				wl_cfg80211_ch_switch_notify(net, chanspec, bcmcfg_to_wiphy(cfg));
 				if (!cfg80211_chandef_valid(&wdev->chandef)) {
 					wl_cfg80211_ch_switch_notify(net,
 						0x1001, bcmcfg_to_wiphy(cfg));
@@ -1229,8 +1236,6 @@ wl_update_ap_chandef(struct net_device *ndev)
 						"it MUST be stopped or"
 						" moved to a valid channel immediately\n",
 						CHSPEC_CHANNEL(chanspec)));
-				}else {
-					wl_cfg80211_ch_switch_notify(net, chanspec, bcmcfg_to_wiphy(cfg));
 				}
 #endif /* LINUX_VERSION_CODE >= (3, 5, 0) */
 			}

@@ -355,6 +355,7 @@ typedef uint8 he_phy_cap_t[HE_PHY_CAP_INFO_SIZE];
 /* b1-b7: Channel Width Support field */
 #define HE_PHY_CH_WIDTH_2G_40		0x01
 #define HE_PHY_CH_WIDTH_5G_80		0x02
+#define HE_PHY_CH_WIDTH_6G_40_80	HE_PHY_CH_WIDTH_5G_80
 #define HE_PHY_CH_WIDTH_5G_160		0x04
 #define HE_PHY_CH_WIDTH_5G_80P80	0x08
 #define HE_PHY_CH_WIDTH_2G_40_RU	0x10
@@ -847,9 +848,6 @@ BWL_PRE_PACKED_STRUCT struct he_6gband_cap_ie {
 
 typedef struct he_6gband_cap_ie he_6gband_cap_ie_t;
 
-/* This marks the end of a packed structure section. */
-#include <packed_section_end.h>
-
 /* HE Action Frame */
 #define HE_AF_CAT_OFF	0
 #define HE_AF_ACT_OFF	1
@@ -1012,4 +1010,54 @@ typedef uint8 he_cba_bar_info_set_t[HE_BAR_INFO_SZ];
 #define HE_N_TAIL			6	/* tail field bits for BCC */
 #define HE_N_SERVICE			16	/* bits in service field */
 #define HE_T_MAX_PE			16	/* max Packet extension duration */
+
+/*  HE Transmit Power Envelope(TPE) IE related */
+
+/**
+ * ref: (802.11ax D8.0 Figure 9-617 Page 176)
+ *
+ *   Transmit Power Information field format
+ */
+#define HE_TPE_TX_PWR_INFO_COUNT_MASK        0x7
+#define HE_TPE_TX_PWR_INFO_COUNT_SHIFT       0
+#define HE_TPE_TX_PWR_INFO_INTERPRET_MASK    0x38
+#define HE_TPE_TX_PWR_INFO_INTERPRET_SHIFT   3
+#define HE_TPE_TX_PWR_INFO_CATEGORY_MASK     0xC0
+#define HE_TPE_TX_PWR_INFO_CATEGORY_SHIFT    6
+
+/**
+ *  ref: (802.11ax D8.0 Table 9-275a Page 177)
+ *
+ *    Maximum Transmit Power Interpretation subfield encoding
+ */
+#define HE_TPE_MAX_TX_PWR_INTERPRET_LOCAL_EIRP               0
+#define HE_TPE_MAX_TX_PWR_INTERPRET_LOCAL_EIRP_PSD           1
+#define HE_TPE_MAX_TX_PWR_INTERPRET_REGULATORY_EIRP          2
+#define HE_TPE_MAX_TX_PWR_INTERPRET_REGULATORY_EIRP_PSD      3
+
+/** Set Maximum Transmit Power Interpretation on TX PWR INFO field */
+#define HE_TX_PWR_INFO_LOC_EIRP ((HE_TPE_MAX_TX_PWR_INTERPRET_LOCAL_EIRP << \
+		HE_TPE_TX_PWR_INFO_INTERPRET_SHIFT) & HE_TPE_TX_PWR_INFO_INTERPRET_MASK)
+#define HE_TX_PWR_INFO_LOC_EIRP_PSD     ((HE_TPE_MAX_TX_PWR_INTERPRET_LOCAL_EIRP_PSD << \
+		HE_TPE_TX_PWR_INFO_INTERPRET_SHIFT) & HE_TPE_TX_PWR_INFO_INTERPRET_MASK)
+#define HE_TX_PWR_INFO_REG_EIRP         ((HE_TPE_MAX_TX_PWR_INTERPRET_REGULATORY_EIRP << \
+		HE_TPE_TX_PWR_INFO_INTERPRET_SHIFT) & HE_TPE_TX_PWR_INFO_INTERPRET_MASK)
+#define HE_TX_PWR_INFO_REG_EIRP_PSD     ((HE_TPE_MAX_TX_PWR_INTERPRET_REGULATORY_EIRP_PSD << \
+		HE_TPE_TX_PWR_INFO_INTERPRET_SHIFT) & HE_TPE_TX_PWR_INFO_INTERPRET_MASK)
+
+/** HE Transmit Power Envelope IE data structure */
+BWL_PRE_PACKED_STRUCT struct he_transmit_power_envelope {
+	uint8 id;                   /* id DOT11_MNG_TRANSMIT_POWER_ENVELOPE_ID */
+	uint8 len;                  /* length of IE */
+	uint8 transmit_power_info;
+	union {
+		uint8 max_transmit_power_20;
+		uint8 max_transmit_psd_1;
+	};
+} BWL_POST_PACKED_STRUCT;
+typedef struct he_transmit_power_envelope he_transmit_power_envelope_ie_t;
+
+/* This marks the end of a packed structure section. */
+#include <packed_section_end.h>
+
 #endif /* _802_11ax_h_ */

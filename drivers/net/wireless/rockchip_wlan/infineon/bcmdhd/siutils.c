@@ -224,6 +224,7 @@ si_pcie_enum_base(uint devid)
 {
 	switch (devid) {
 		case CYW55560_WLAN_ID:
+		case CYW89570_WLAN_ID:
 			return SI_ENUM_PCIE2_BASE;
 	}
 

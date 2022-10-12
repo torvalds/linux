@@ -2712,11 +2712,7 @@ dhd_rtt_convert_results_to_host_v1(rtt_result_t *rtt_result, const uint8 *p_data
 	/* time stamp */
 	/* get the time elapsed from boot time */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39))
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0))
-	ktime_get_boottime_ts64(&ts);
-#else
 	get_monotonic_boottime(&ts);
-#endif
 	rtt_report->ts = (uint64)TIMESPEC_TO_US(ts);
 #endif /* LINUX_VER >= 2.6.39 */
 
@@ -2972,11 +2968,7 @@ dhd_rtt_convert_results_to_host_v2(rtt_result_t *rtt_result, const uint8 *p_data
 	/* time stamp */
 	/* get the time elapsed from boot time */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39))
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0))
-	ktime_get_boottime_ts64(&ts);
-#else
 	get_monotonic_boottime(&ts);
-#endif
 	rtt_report->ts = (uint64)TIMESPEC_TO_US(ts);
 #endif /* LINUX_VER >= 2.6.39 */
 

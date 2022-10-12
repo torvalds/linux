@@ -1155,27 +1155,6 @@ osl_assert(const char *exp, const char *file, int line)
 	}
 }
 #endif // endif
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 1))
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
-void do_gettimeofday(struct timeval *tv)
-{
-	struct timespec64 ts;
-	ktime_get_real_ts64(&ts);
-	tv->tv_sec = ts.tv_sec;
-	tv->tv_usec = ts.tv_nsec;
-}
-#else
-struct timeval do_gettimeofday(void)
-{
-	struct timespec64 ts;
-	struct timeval tv;
-	ktime_get_real_ts64(&ts);
-	tv.tv_sec = ts.tv_sec;
-	tv.tv_usec = ts.tv_nsec;
-	return tv;
-}
-#endif  /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)  */
-#endif  /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 1) */
 void
 osl_delay(uint usec)
 {
@@ -1200,16 +1179,12 @@ osl_sleep(uint ms)
 uint64
 osl_sysuptime_us(void)
 {
-	struct timeval tv;
+	struct timespec64 ts;
 	uint64 usec;
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
-	do_gettimeofday(&tv);
-#else
-	tv = do_gettimeofday();
-#endif
+	ktime_get_real_ts64(&ts);
 	/* tv_usec content is fraction of a second */
-	usec = (uint64)tv.tv_sec * 1000000ul + tv.tv_usec;
+	usec = (uint64)ts.tv_sec * 1000000ul + (ts.tv_nsec / NSEC_PER_USEC);
 	return usec;
 }
 
@@ -1238,18 +1213,14 @@ osl_get_localtime(uint64 *sec, uint64 *usec)
 uint64
 osl_systztime_us(void)
 {
-	struct timeval tv;
+	struct timespec64 ts;
 	uint64 tzusec;
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
-	do_gettimeofday(&tv);
-#else
-	tv = do_gettimeofday();
-#endif
+	ktime_get_real_ts64(&ts);
 	/* apply timezone */
-	tzusec = (uint64)((tv.tv_sec - (sys_tz.tz_minuteswest * 60)) *
+	tzusec = (uint64)((ts.tv_sec - (sys_tz.tz_minuteswest * 60)) *
 		USEC_PER_SEC);
-	tzusec += tv.tv_usec;
+	tzusec += ts.tv_nsec / NSEC_PER_USEC;
 
 	return tzusec;
 }

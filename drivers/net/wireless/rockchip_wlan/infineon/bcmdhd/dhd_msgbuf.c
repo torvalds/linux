@@ -7696,7 +7696,6 @@ dhd_msgbuf_wait_ioctl_cmplt(dhd_pub_t *dhd, uint32 len, void *buf)
 
 	timeleft = dhd_os_ioctl_resp_wait(dhd, (uint *)&prot->ioctl_received);
 
-#ifdef DHD_RECOVER_TIMEOUT
 	if (prot->ioctl_received == 0) {
 		uint32 intstatus = si_corereg(dhd->bus->sih,
 			dhd->bus->sih->buscoreidx, dhd->bus->pcie_mailbox_int, 0, 0);
@@ -7714,7 +7713,6 @@ dhd_msgbuf_wait_ioctl_cmplt(dhd_pub_t *dhd, uint32 len, void *buf)
 			dhdpcie_bus_clear_intstatus(dhd->bus);
 		}
 	}
-#endif /* DHD_RECOVER_TIMEOUT */
 
 	if (timeleft == 0 && (!dhd_query_bus_erros(dhd))) {
 		/* check if resumed on time out related to scheduling issue */

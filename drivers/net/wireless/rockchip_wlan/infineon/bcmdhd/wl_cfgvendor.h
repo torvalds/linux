@@ -613,6 +613,7 @@ typedef enum wl_vendor_event {
 	NAN_ASYNC_RESPONSE_DISABLED		= 40,
 	BRCM_VENDOR_EVENT_RCC_INFO		= 41,
 	BRCM_VENDOR_EVENT_ACS			= 42,
+	BRCM_VENDOR_EVENT_OVERTEMP		= 43,
 	BRCM_VENDOR_EVENT_LAST
 } wl_vendor_event_t;
 
@@ -893,8 +894,7 @@ int wl_cfgvendor_notify_supp_event_str(const char *evt_name, const char *fmt, ..
 	/* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0) */
 
 #ifdef WL_CFGVENDOR_SEND_HANG_EVENT
-void wl_cfgvendor_send_hang_event(struct net_device *dev, u16 reason,
-	char *string, int hang_info_cnt);
+void wl_cfgvendor_send_hang_event(struct net_device *dev, u16 reason);
 void wl_copy_hang_info_if_falure(struct net_device *dev, u16 reason, s32 ret);
 #endif /* WL_CFGVENDOR_SEND_HANG_EVENT */
 #endif /* _wl_cfgvendor_h_ */

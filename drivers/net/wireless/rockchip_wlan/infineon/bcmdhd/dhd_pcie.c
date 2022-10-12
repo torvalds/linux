@@ -783,6 +783,7 @@ enumerate_module:
 		/* software resources */
 		if (!(bus->dhd = dhd_attach(osh, bus, PCMSGBUF_HDRLEN))) {
 			DHD_ERROR(("%s: dhd_attach failed\n", __FUNCTION__));
+			ret = BCME_ERROR;
 			break;
 		}
 
@@ -10286,7 +10287,7 @@ dhdpcie_chipmatch(uint16 vendor, uint16 device)
 #endif /* CHIPS_CUSTOMER_HW6 */
 
 	/* CYW55560 */
-	if (device == CYW55560_WLAN_ID) {
+	if ((device == CYW55560_WLAN_ID) || (device == CYW89570_WLAN_ID)) {
 		return 0;
 	}
 	DHD_ERROR(("%s: Unsupported vendor %x device %x\n", __FUNCTION__, vendor, device));

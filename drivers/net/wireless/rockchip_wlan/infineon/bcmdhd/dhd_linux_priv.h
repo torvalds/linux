@@ -321,6 +321,9 @@ typedef struct dhd_info {
 	uint32 *napi_rx_hist[HIST_BIN_SIZE];
 	uint32 *txc_hist[HIST_BIN_SIZE];
 	uint32 *rxc_hist[HIST_BIN_SIZE];
+
+	/* State returned by kernel function cpuhp_setup_state(). */
+	int cpuhp_setup_state;
 #endif /* DHD_LB */
 #if defined(DNGL_AXI_ERROR_LOGGING) && defined(DHD_USE_WQ_FOR_DNGL_AXI_ERROR)
 	struct work_struct	  axi_error_dispatcher_work;

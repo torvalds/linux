@@ -450,6 +450,8 @@ typedef union {
 
 #define CMD_CHANNEL_WIDTH "CHANNEL_WIDTH"
 #define CMD_TRANSITION_DISABLE "TRANSITION_DISABLE"
+#define CMD_SAE_PWE "SAE_PWE"
+#define CMD_MAXASSOC "MAXASSOC"
 
 #ifdef ENABLE_HOGSQS
 #define CMD_AP_HOGSQS  "HOGSQS"
@@ -474,6 +476,8 @@ struct connection_stats {
 	u8	chan_idle;
 };
 #endif /* CONNECTION_STATISTICS */
+
+#define CMD_SCAN_PROTECT_BSS "SCAN_PROTECT_BSS"
 
 #ifdef SUPPORT_LQCM
 #define CMD_SET_LQCM_ENABLE			"SET_LQCM_ENABLE"
@@ -1051,6 +1055,33 @@ wl_android_hogsqs(struct net_device *dev, char *command, int total_len)
 }
 #endif /* ENABLE_HOGSQS */
 
+/* The wl_android_scan_protect_bss function does both SET/GET based on parameters passed */
+static int wl_android_scan_protect_bss(struct net_device * dev, char * command, int total_len)
+{
+       int ret = 0, result = 0, bytes_written = 0;
+
+       if (*(command + strlen(CMD_SCAN_PROTECT_BSS)) == '\0') {
+               ret = wldev_iovar_getint(dev, "scan_protect_bss", &result);
+               if (ret) {
+                       DHD_ERROR(("%s: Failed to get scan_protect_bss\n", __FUNCTION__));
+                       return ret;
+               }
+               bytes_written = snprintf(command, total_len, "%s %d", CMD_SCAN_PROTECT_BSS, result);
+               return bytes_written;
+       }
+       command = (command + strlen(CMD_SCAN_PROTECT_BSS));
+       command++;
+       result = bcm_atoi(command);
+
+       DHD_INFO(("%s : scan_protect_bss = %d\n", __FUNCTION__, result));
+       ret = wldev_iovar_setint(dev, "scan_protect_bss", result);
+       if (ret) {
+               DHD_ERROR(("%s: Failed to set result to %d\n", __FUNCTION__, result));
+               return ret;
+       }
+       return 0;
+}
+
 #ifdef DHD_BANDSTEER
 static int
 wl_android_set_bandsteer(struct net_device *dev, char *command, int total_len)
@@ -1152,6 +1183,33 @@ wl_android_set_bandsteer(struct net_device *dev, char *command, int total_len)
 	return ret;
 }
 #endif /* DHD_BANDSTEER */
+
+static int
+wl_android_set_maxassoc_limit(struct net_device *dev, char *command, int total_len)
+{
+	int ret = 0, max_assoc = 0, bytes_written = 0;
+
+	if (*(command + strlen(CMD_MAXASSOC)) == '\0') {
+		ret = wldev_iovar_getint(dev, "maxassoc", &max_assoc);
+		if (ret) {
+			DHD_ERROR(("%s: Failed to get maxassoc limit\n", __FUNCTION__));
+			return ret;
+		}
+		bytes_written = snprintf(command, total_len, "%s %d", CMD_MAXASSOC, max_assoc);
+		return bytes_written;
+	}
+	command = (command + strlen(CMD_MAXASSOC));
+	command++;
+	max_assoc = bcm_atoi(command);
+
+	DHD_INFO(("%s : maxassoc limit = %d\n", __FUNCTION__, max_assoc));
+	ret = wldev_iovar_setint(dev, "maxassoc", max_assoc);
+	if (ret) {
+		DHD_ERROR(("%s: Failed to set maxassoc limit to %d\n", __FUNCTION__, max_assoc));
+		return ret;
+	}
+	return 0;
+}
 
 #ifdef WLWFDS
 static int wl_android_set_wfds_hash(
@@ -10059,6 +10117,16 @@ wl_handle_private_cmd(struct net_device *net, char *command, u32 cmd_len)
 	else if (strnicmp(command, CMD_TRANSITION_DISABLE, strlen(CMD_TRANSITION_DISABLE)) == 0) {
 		int transition_disabled = *(command + strlen(CMD_TRANSITION_DISABLE) + 1) - '0';
 		bytes_written = wl_cfg80211_set_transition_mode(net, transition_disabled);
+	}
+	else if (strnicmp(command, CMD_SAE_PWE, strlen(CMD_SAE_PWE)) == 0) {
+		u8 sae_pwe = *(command + strlen(CMD_SAE_PWE) + 1) - '0';
+		bytes_written = wl_cfg80211_set_sae_pwe(net, sae_pwe);
+	}
+	else if (strnicmp(command, CMD_MAXASSOC, strlen(CMD_MAXASSOC)) == 0) {
+		bytes_written = wl_android_set_maxassoc_limit(net, command, priv_cmd.total_len);
+	}
+	else if (strnicmp(command, CMD_SCAN_PROTECT_BSS, strlen(CMD_SCAN_PROTECT_BSS)) == 0) {
+		bytes_written = wl_android_scan_protect_bss(net, command, priv_cmd.total_len);
 	}
 	else {
 		DHD_ERROR(("Unknown PRIVATE command %s - ignored\n", command));

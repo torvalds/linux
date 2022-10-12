@@ -83,7 +83,7 @@ typedef struct sdioh_info sdioh_info_t;
 
 /* callback function, taking one arg */
 typedef void (*sdioh_cb_fn_t)(void *);
-#if defined(BT_OVER_SDIO)
+#if defined(BT_OVER_SDIO) && defined(BCMLXSDMMC)
 extern
 void sdioh_sdmmc_card_enable_func_f3(sdioh_info_t *sd, struct sdio_func *func);
 #endif /* defined (BT_OVER_SDIO) */

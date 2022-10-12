@@ -87,6 +87,15 @@
 #ifdef FORCE_TPOWERON
 extern uint32 tpoweron_scale;
 #endif /* FORCE_TPOWERON */
+
+#if defined(CONFIG_ARCH_MSM)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
+#ifndef MSM_PCIE_CONFIG_NO_CFG_RESTORE
+#define MSM_PCIE_CONFIG_NO_CFG_RESTORE	0
+#endif /* MSM_PCIE_CONFIG_NO_CFG_RESTORE */
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0) */
+#endif /* CONFIG_ARCH_MSM */
+
 /* user defined data structures  */
 
 typedef bool (*dhdpcie_cb_fn_t)(void *);
@@ -1756,8 +1765,10 @@ int dhdpcie_get_resource(dhdpcie_info_t *dhdpcie_info)
 		goto err;
 	}
 	DHD_ERROR(("PCIe:%s:enabled link\n", __FUNCTION__));
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 	/* recover the config space of both RC and Endpoint */
 	msm_pcie_recover_config(pdev);
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0) */
 #endif /* CONFIG_ARCH_MSM && !ENABLE_INSMOD_NO_FW_LOAD */
 #ifdef EXYNOS_PCIE_MODULE_PATCH
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
@@ -2329,7 +2340,9 @@ dhdpcie_start_host_pcieclock(dhd_bus_t *bus)
 	ret = msm_pcie_pm_control(MSM_PCIE_RESUME, bus->dev->bus->number,
 		bus->dev, NULL, options);
 	if (bus->no_cfg_restore && !ret) {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
 		msm_pcie_recover_config(bus->dev);
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0) */
 		bus->no_cfg_restore = 0;
 	}
 #else

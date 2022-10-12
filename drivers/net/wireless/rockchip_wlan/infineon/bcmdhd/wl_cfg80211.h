@@ -125,6 +125,7 @@ struct wl_ibss;
 /* Newer kernels use defines from nl80211.h */
 #define IEEE80211_BAND_2GHZ	NL80211_BAND_2GHZ
 #define IEEE80211_BAND_5GHZ	NL80211_BAND_5GHZ
+#define IEEE80211_BAND_6GHZ	NL80211_BAND_6GHZ
 #define IEEE80211_BAND_60GHZ NL80211_BAND_60GHZ
 #define IEEE80211_NUM_BANDS	NUM_NL80211_BANDS
 #endif /* LINUX_VER >= 4.7 */
@@ -340,11 +341,16 @@ do {									\
 #define WL_SCAN_JOIN_ACTIVE_DWELL_TIME_MS	320
 #define WL_SCAN_JOIN_PASSIVE_DWELL_TIME_MS	400
 #define WL_AF_TX_MAX_RETRY	5
+#ifdef WL_6E
+#define WL_SCAN_JOIN_ACTIVE_DWELL_TIME_MS_6E	80
+#define WL_SCAN_JOIN_PASSIVE_DWELL_TIME_MS_6E	130
+#endif /* WL_6E */
 
 #define WL_AF_SEARCH_TIME_MAX		450
 #define WL_AF_TX_EXTRA_TIME_MAX		200
 
-#define WL_SCAN_TIMER_INTERVAL_MS	10000 /* Scan timeout */
+/* Increase SCAN_TIMER_INTERVAL to 15secs from 10secs to accomodate 6Ghz Channels */
+#define WL_SCAN_TIMER_INTERVAL_MS	15000 /* Scan timeout */
 #ifdef WL_NAN
 #define WL_SCAN_TIMER_INTERVAL_MS_NAN	15000 /* Scan timeout */
 #endif /* WL_NAN */
@@ -405,14 +411,16 @@ do {									\
 /* TODO: even in upstream linux(v5.0), FT-1X-SHA384 isn't defined and supported yet.
  * need to revisit here to sync correct name later.
  */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0))
+#ifndef WLAN_AKM_SUITE_FT_8021X_SHA384
 #define WLAN_AKM_SUITE_FT_8021X_SHA384		0x000FAC0D
-#endif
+#endif /* WLAN_AKM_SUITE_FT_8021X_SHA384 */
 
 #define WL_AKM_SUITE_SHA256_1X  0x000FAC05
 #define WL_AKM_SUITE_SHA256_PSK 0x000FAC06
 #define WLAN_AKM_SUITE_DPP 0x506F9A02
-#define WFA_AUTH_DPP  0x200000 /* WFA DPP AUTH */
+#ifndef WPA2_WFA_AUTH_DPP
+#define WPA2_WFA_AUTH_DPP  0x200000 /* WFA DPP AUTH */
+#endif /* WPA2_WFA_AUTH_DPP */
 
 #ifndef WLAN_AKM_SUITE_FILS_SHA256
 #define WLAN_AKM_SUITE_FILS_SHA256		0x000FAC0E
@@ -2612,6 +2620,7 @@ extern s32 wl_release_vif_macaddr(struct bcm_cfg80211 *cfg, u8 *mac_addr, u16 wl
 extern int wl_cfg80211_ifstats_counters(struct net_device *dev, wl_if_stats_t *if_stats);
 extern s32 wl_cfg80211_set_dbg_verbose(struct net_device *ndev, u32 level);
 extern s32 wl_cfg80211_set_transition_mode(struct net_device *ndev, u32 transition_disabled);
+extern s32 wl_cfg80211_set_sae_pwe(struct net_device *ndev, u8 sae_pwe);
 extern int wl_cfg80211_deinit_p2p_discovery(struct bcm_cfg80211 * cfg);
 extern int wl_cfg80211_set_frameburst(struct bcm_cfg80211 *cfg, bool enable);
 extern int wl_cfg80211_determine_p2p_rsdb_mode(struct bcm_cfg80211 *cfg);
@@ -2642,6 +2651,8 @@ int wl_cfg80211_set_he_mode(struct net_device *dev, struct bcm_cfg80211 *cfg,
 #define WL_HE_FEATURES_HE_P2P		0x20
 #endif /* WL_DISABLE_HE_SOFTAP || WL_DISABLE_HE_P2P */
 extern s32 wl_cfg80211_config_suspend_events(struct net_device *ndev, bool enable);
+void wl_cfg80211_overtemp_event(struct net_device *ndev);
+
 #ifdef WL11U
 extern bcm_tlv_t *
 wl_cfg80211_find_interworking_ie(const u8 *parse, u32 len);

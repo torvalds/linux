@@ -641,16 +641,10 @@ static inline bool binary_sema_up(tsk_ctl_t *tsk)
 	return sem_up;
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0))
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0))
-#ifndef __alpha__
-#define SMP_RD_BARRIER_DEPENDS(x) do {} while(0)
-#else
-#define SMP_RD_BARRIER_DEPENDS(x) smp_rmb(x)
-#endif
-#else
+#if  (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0))
+#define SMP_RD_BARRIER_DEPENDS(x)
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0))
 #define SMP_RD_BARRIER_DEPENDS(x) smp_read_barrier_depends(x)
-#endif
 #else
 #define SMP_RD_BARRIER_DEPENDS(x) smp_rmb(x)
 #endif // endif
@@ -893,5 +887,15 @@ int kernel_read_compat(struct file *file, loff_t offset, char *addr, unsigned lo
 #else /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0) */
 #define kernel_read_compat(file, offset, addr, count) kernel_read(file, offset, addr, count)
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0) */
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0)
+#define timespec64 timespec
+#define ktime_get_real_ts64(timespec) ktime_get_real_ts(timespec)
+#define ktime_to_timespec64(timespec) ktime_to_timespec(timespec)
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(3, 17, 0) */
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
+#define rtc_time_to_tm(time, tm) rtc_time64_to_tm(time, tm)
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 6, 0) */
 
 #endif /* _linuxver_h_ */

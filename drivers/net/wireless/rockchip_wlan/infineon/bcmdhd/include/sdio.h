@@ -269,6 +269,7 @@ typedef volatile struct {
 #define SDIO_FUNC_0		0
 #define SDIO_FUNC_1		1
 #define SDIO_FUNC_2		2
+#define SDIO_FUNC_3		3
 #define SDIO_FUNC_4		4
 #define SDIO_FUNC_5		5
 #define SDIO_FUNC_6		6

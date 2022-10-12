@@ -89,6 +89,7 @@
 #include <dhd_wlfc.h>
 #endif // endif
 
+#include <dhd_linux_priv.h>
 #if defined(DHD_POST_EAPOL_M1_AFTER_ROAM_EVT)
 #include <dhd_linux.h>
 #endif // endif
@@ -3102,6 +3103,11 @@ wl_show_host_event(dhd_pub_t *dhd_pub, wl_event_msg_t *event, void *event_data,
 				elqm_basic->tx_rate, elqm_basic->rx_rate));
 			break;
 		}
+	case WLC_E_OVERTEMP:
+	{
+		DHD_EVENT(("MACEVENT: %s\n", event_name));
+		break;
+	}
 	default:
 		DHD_INFO(("MACEVENT: %s %d, MAC %s, status %d, reason %d, auth %d\n",
 		       event_name, event_type, eabuf, (int)status, (int)reason,
@@ -3563,6 +3569,13 @@ wl_process_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata, uint pktlen
 			dhd_event(dhd_pub->info, (char *)pvt_data, evlen, *ifidx);
 		break;
 	}
+#ifdef WL_CFG80211
+	case WLC_E_OVERTEMP:
+	{
+		wl_cfg80211_overtemp_event(dhd_idx2net(dhd_pub, event->ifidx));
+		break;
+	}
+#endif /* WL_CFG80211 */
 
 	case WLC_E_NDIS_LINK:
 		break;
@@ -3645,6 +3658,13 @@ wl_process_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata, uint pktlen
 		}
 		break;
 #endif /* DHD_POST_EAPOL_M1_AFTER_ROAM_EVT */
+#ifdef BCMSDIO
+	case WLC_E_AP_STARTED:
+		if (FW_SUPPORTED(dhd_pub, idsup)) {
+			dhd_pub->info->iflist[*ifidx]->role = WLC_E_IF_ROLE_AP;
+		}
+		break;
+#endif /* BCMSDIO */
 	case WLC_E_LINK:
 #ifdef PCIE_FULL_DONGLE
 		if (dhd_update_interface_link_status(dhd_pub, (uint8)dhd_ifname2idx(dhd_pub->info,
@@ -5695,13 +5715,12 @@ dhd_apply_default_clm(dhd_pub_t *dhd, char *clm_path)
 			DHD_ERROR(("clm path exceeds max len\n"));
 			return BCME_ERROR;
 		}
-		clm_blob_path = clm_path;
+		clm_blob_path = "/vendor/etc/firmware/4359_cypress_auto.clm_blob";//clm_path;
 		DHD_TRACE(("clm path from module param:%s\n", clm_path));
 	} else {
-		clm_blob_path = VENDOR_PATH CONFIG_BCMDHD_CLM_PATH;
+		clm_blob_path = "/vendor/etc/firmware/4359_cypress_auto.clm_blob";//VENDOR_PATH CONFIG_BCMDHD_CLM_PATH;
 	}
 
-	clm_blob_path = "/vendor/etc/firmware/4359_cypress_auto.clm_blob";
 	/* If CLM blob file is found on the filesystem, download the file.
 	 * After CLM file download or If the blob file is not present,
 	 * validate the country code before proceeding with the initialization.

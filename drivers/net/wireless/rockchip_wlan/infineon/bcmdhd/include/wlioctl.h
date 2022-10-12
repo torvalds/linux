@@ -17396,6 +17396,7 @@ enum wl_mbo_cmd_ids {
 	WL_MBO_CMD_DBG_EVENT_CHECK = 13,
 	WL_MBO_CMD_EVENT_MASK = 14,
 	WL_MBO_CMD_ASSOC_DISALLOWED = 15,
+	WL_MBO_CMD_CELLULAR_DATA_PREF = 16,
 	/* Add before this !! */
 	WL_MBO_CMD_LAST
 };
@@ -17413,7 +17414,8 @@ enum wl_mbo_xtlv_id {
 	WL_MBO_XTLV_BTQ_TRIG_RSSI_DELTA = 0xa,
 	WL_MBO_XTLV_ANQP_CELL_SUPP      = 0xb,
 	WL_MBO_XTLV_BIT_MASK		= 0xc,
-	WL_MBO_XTLV_ASSOC_DISALLOWED	= 0xd
+	WL_MBO_XTLV_ASSOC_DISALLOWED	= 0xd,
+	WL_MBO_XTLV_CELLULAR_DATA_PREF = 0xe
 };
 
 /* event bit mask flags for MBO */

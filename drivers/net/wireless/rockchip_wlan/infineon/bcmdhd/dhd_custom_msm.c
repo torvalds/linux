@@ -36,7 +36,12 @@
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/skbuff.h>
+#if defined(CONFIG_WIFI_CONTROL_FUNC)
 #include <linux/wlan_plat.h>
+#else
+#include <linux/version.h>
+#include <dhd_linux.h>
+#endif /* CONFIG_WIFI_CONTROL_FUNC */
 #include <linux/mmc/host.h>
 #include <linux/msm_pcie.h>
 #include <linux/fcntl.h>
@@ -55,7 +60,9 @@ extern int dhd_init_wlan_mem(void);
 extern void *dhd_wlan_mem_prealloc(int section, unsigned long size);
 #endif /* CONFIG_BROADCOM_WIFI_RESERVED_MEM */
 
-#define WIFI_TURNON_DELAY       200
+#ifndef WIFI_TURNON_DELAY
+#define WIFI_TURNON_DELAY	200
+#endif /* WIFI_TURNON_DELAY */
 static int wlan_reg_on = -1;
 #ifdef CUSTOM_DT_COMPAT_ENTRY
 #define DHD_DT_COMPAT_ENTRY		CUSTOM_DT_COMPAT_ENTRY

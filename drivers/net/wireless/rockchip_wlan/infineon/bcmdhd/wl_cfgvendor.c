@@ -9538,6 +9538,7 @@ static const struct  nl80211_vendor_cmd_info wl_vendor_events [] = {
 		{ OUI_BRCM, NAN_ASYNC_RESPONSE_DISABLED},
 		{ OUI_BRCM, BRCM_VENDOR_EVENT_RCC_INFO},
 		{ OUI_BRCM, BRCM_VENDOR_EVENT_ACS},
+		{ OUI_BRCM, BRCM_VENDOR_EVENT_OVERTEMP},
 };
 
 int wl_cfgvendor_attach(struct wiphy *wiphy, dhd_pub_t *dhd)
@@ -9583,108 +9584,62 @@ int wl_cfgvendor_detach(struct wiphy *wiphy)
 #endif /* (LINUX_VERSION_CODE > KERNEL_VERSION(3, 13, 0)) || defined(WL_VENDOR_EXT_SUPPORT) */
 
 #ifdef WL_CFGVENDOR_SEND_HANG_EVENT
+#define WL_VENDOR_STR_MAX_LEN 128
 void
-wl_cfgvendor_send_hang_event(struct net_device *dev, u16 reason, char *string, int hang_info_cnt)
+wl_cfgvendor_send_hang_event(struct net_device *dev, u16 reason)
 {
-	struct bcm_cfg80211 *cfg = wl_get_cfg(dev);
+	struct bcm_cfg80211 *cfg;
 	struct wiphy *wiphy;
-	char *hang_info;
+	struct sk_buff *skb;
+	dhd_pub_t *dhdp;
+	gfp_t kflags;
 	int len = 0;
-	int bytes_written;
-	uint32 dummy_data = 0;
-	int reason_hang_info = 0;
-	int cnt = 0;
-	dhd_pub_t *dhd;
-	int hang_reason_mismatch = FALSE;
+	char reason_str[WL_VENDOR_STR_MAX_LEN] = {0x00, };
 
+	cfg = wl_cfg80211_get_bcmcfg();
 	if (!cfg || !cfg->wdev) {
 		WL_ERR(("cfg=%p wdev=%p\n", cfg, (cfg ? cfg->wdev : NULL)));
 		return;
 	}
 
 	wiphy = cfg->wdev->wiphy;
-
 	if (!wiphy) {
 		WL_ERR(("wiphy is NULL\n"));
 		return;
 	}
 
-	hang_info = MALLOCZ(cfg->osh, VENDOR_SEND_HANG_EXT_INFO_LEN);
-	if (hang_info == NULL) {
-		WL_ERR(("alloc hang_info failed\n"));
+	dhdp = (dhd_pub_t *)(cfg->pub);
+	if (!dhdp) {
+		WL_ERR(("dhdp is NULL\n"));
 		return;
 	}
 
-	dhd = (dhd_pub_t *)(cfg->pub);
+	kflags = in_atomic() ? GFP_ATOMIC : GFP_KERNEL;
 
-#ifdef WL_BCNRECV
-	/* check fakeapscan in progress then stop scan */
-	if (cfg->bcnrecv_info.bcnrecv_state == BEACON_RECV_STARTED) {
-		wl_android_bcnrecv_stop(dev, WL_BCNRECV_HANG);
+#ifdef DHD_FW_COREDUMP
+	len = snprintf(reason_str, WL_VENDOR_STR_MAX_LEN,
+		"memdump_type = 0x%x, ", dhdp->memdump_type);
+#endif // endif
+	len = snprintf(reason_str + len, WL_VENDOR_STR_MAX_LEN,
+		"HANG reason = 0x%x", reason);
+
+	/* Alloc the SKB for vendor_event */
+#if (defined(CONFIG_ARCH_MSM) && defined(SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)) || \
+	LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
+	skb = cfg80211_vendor_event_alloc(wiphy, ndev_to_wdev(dev), WL_VENDOR_STR_MAX_LEN,
+		BRCM_VENDOR_EVENT_HANGED, kflags);
+#else
+	skb = cfg80211_vendor_event_alloc(wiphy, len, BRCM_VENDOR_EVENT_HANGED, kflags);
+#endif /* (defined(CONFIG_ARCH_MSM) && defined(SUPPORT_WDEV_CFG80211_VENDOR_EVENT_ALLOC)) || */
+		/* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0) */
+
+	if (!skb) {
+		WL_ERR(("skb allocation is failed\n"));
+		return;
 	}
-#endif /* WL_BCNRECV */
-	sscanf(string, "%d", &reason_hang_info);
-	bytes_written = 0;
-	len = VENDOR_SEND_HANG_EXT_INFO_LEN - bytes_written;
-	if (strlen(string) == 0 || (reason_hang_info != reason)) {
-		WL_ERR(("hang reason mismatch: string len %d reason_hang_info %d\n",
-			(int)strlen(string), reason_hang_info));
-		hang_reason_mismatch = TRUE;
-		if (dhd) {
-			get_debug_dump_time(dhd->debug_dump_time_hang_str);
-			copy_debug_dump_time(dhd->debug_dump_time_str,
-					dhd->debug_dump_time_hang_str);
-		}
-		bytes_written += scnprintf(&hang_info[bytes_written], len,
-				"%d %d %s %08x %08x %08x %08x %08x %08x %08x",
-				reason, VENDOR_SEND_HANG_EXT_INFO_VER,
-				dhd->debug_dump_time_hang_str,
-				0, 0, 0, 0, 0, 0, 0);
-		if (dhd) {
-			clear_debug_dump_time(dhd->debug_dump_time_hang_str);
-		}
-	} else {
-		bytes_written += scnprintf(&hang_info[bytes_written], len, "%s", string);
-	}
-
-	WL_ERR(("hang reason: %d info cnt: %d\n", reason, hang_info_cnt));
-
-	if (hang_reason_mismatch == FALSE) {
-		cnt = hang_info_cnt;
-	} else {
-		cnt = HANG_FIELD_MISMATCH_CNT;
-	}
-
-	while (cnt < HANG_FIELD_CNT_MAX) {
-		len = VENDOR_SEND_HANG_EXT_INFO_LEN - bytes_written;
-		if (len <= 0) {
-			break;
-		}
-		bytes_written += scnprintf(&hang_info[bytes_written], len,
-				"%c%08x", HANG_RAW_DEL, dummy_data);
-		cnt++;
-	}
-
-	WL_ERR(("hang info cnt: %d len: %d\n", cnt, (int)strlen(hang_info)));
-	WL_ERR(("hang info data: %s\n", hang_info));
-
-	wl_cfgvendor_send_async_event(wiphy,
-			bcmcfg_to_prmry_ndev(cfg), BRCM_VENDOR_EVENT_HANGED,
-			hang_info, (int)strlen(hang_info));
-
-	memset(string, 0, VENDOR_SEND_HANG_EXT_INFO_LEN);
-
-	if (hang_info) {
-		MFREE(cfg->osh, hang_info, VENDOR_SEND_HANG_EXT_INFO_LEN);
-	}
-
-#ifdef DHD_LOG_DUMP
-	dhd_logdump_cookie_save(dhd, dhd->debug_dump_time_hang_str, "HANG");
-#endif /*  DHD_LOG_DUMP */
-
-	if (dhd) {
-		clear_debug_dump_time(dhd->debug_dump_time_str);
-	}
+	WL_INFORM_MEM(("%s\n", reason_str));
+	nla_put(skb, DEBUG_ATTRIBUTE_HANG_REASON, strlen(reason_str), reason_str);
+	cfg80211_vendor_event(skb, kflags);
 }
 
 void

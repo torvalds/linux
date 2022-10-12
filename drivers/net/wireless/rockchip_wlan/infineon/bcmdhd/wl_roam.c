@@ -56,7 +56,7 @@ typedef struct {
 static int n_roam_cache = 0;
 static int roam_band = WLC_BAND_AUTO;
 static roam_channel_cache roam_cache[MAX_ROAM_CACHE];
-static uint band2G, band5G, band_bw;
+static uint band2G, band5G, band6G, band_bw;
 
 #ifdef WES_SUPPORT
 static int roamscan_mode = ROAMSCAN_MODE_NORMAL;
@@ -86,11 +86,13 @@ int init_roam_cache(struct bcm_cfg80211 *cfg, int ioctl_ver)
 	} else {
 		band2G = WL_CHANSPEC_BAND_2G;
 		band5G = WL_CHANSPEC_BAND_5G;
+		band6G = WL_CHANSPEC_BAND_6G;
 		band_bw = WL_CHANSPEC_BW_20;
 	}
 #else
 	band2G = WL_CHANSPEC_BAND_2G;
 	band5G = WL_CHANSPEC_BAND_5G;
+	band6G = WL_CHANSPEC_BAND_6G;
 	band_bw = WL_CHANSPEC_BW_20 | WL_CHANSPEC_CTL_SB_NONE;
 #endif /* D11AC_IOTYPES */
 
@@ -248,7 +250,8 @@ void add_roam_cache(struct bcm_cfg80211 *cfg, wl_bss_info_t *bi)
 	channel = wf_chspec_ctlchan(bi->chanspec);
 	WL_DBG(("CHSPEC  = %s, CTL %d\n", wf_chspec_ntoa_ex(bi->chanspec, chanbuf), channel));
 	roam_cache[n_roam_cache].chanspec =
-		(channel <= CH_MAX_2G_CHANNEL ? band2G : band5G) | band_bw | channel;
+		(CHSPEC_IS6G(wl_chspec_driver_to_host(bi->chanspec))?
+		band6G : (channel <= CH_MAX_2G_CHANNEL ? band2G : band5G)) | band_bw | channel;
 	(void)memcpy_s(roam_cache[n_roam_cache].ssid, bi->SSID_len, bi->SSID, bi->SSID_len);
 
 	n_roam_cache++;
@@ -267,7 +270,8 @@ static bool is_duplicated_channel(const chanspec_t *channels, int n_channels, ch
 }
 
 int get_roam_channel_list(int target_chan,
-	chanspec_t *channels, int n_channels, const wlc_ssid_t *ssid, int ioctl_ver)
+	chanspec_t *channels, int n_channels, const wlc_ssid_t *ssid, int ioctl_ver,
+	struct ieee80211_channel *chan)
 {
 	int i, n = 1;
 	char chanbuf[CHANSPEC_STR_LEN];
@@ -275,7 +279,8 @@ int get_roam_channel_list(int target_chan,
 	/* first index is filled with the given target channel */
 	if (target_chan) {
 		channels[0] = (target_chan & WL_CHANSPEC_CHAN_MASK) |
-			(target_chan <= CH_MAX_2G_CHANNEL ? band2G : band5G) | band_bw;
+			(chan->center_freq > FREQ_START_6G_CHANNEL ?
+			band6G : (target_chan <= CH_MAX_2G_CHANNEL ? band2G : band5G)) | band_bw;
 	} else {
 		/* If target channel is not provided, set the index to 0 */
 		n = 0;
@@ -289,11 +294,15 @@ int get_roam_channel_list(int target_chan,
 			chanspec_t ch = roam_cache[i].chanspec;
 			bool is_2G = ioctl_ver == 1 ? LCHSPEC_IS2G(ch) : CHSPEC_IS2G(ch);
 			bool is_5G = ioctl_ver == 1 ? LCHSPEC_IS5G(ch) : CHSPEC_IS5G(ch);
+			bool is_6G = CHSPEC_IS6G(ch);
 			bool band_match = ((roam_band == WLC_BAND_AUTO) ||
 				((roam_band == WLC_BAND_2G) && is_2G) ||
-				((roam_band == WLC_BAND_5G) && is_5G));
+				((roam_band == WLC_BAND_5G) && is_5G) ||
+				((roam_band == WLC_BAND_6G) && is_6G));
 
 			ch = CHSPEC_CHANNEL(ch) | (is_2G ? band2G : band5G) | band_bw;
+			ch = CHSPEC_CHANNEL(ch) |
+				(is_6G ? band6G : (is_2G ? band2G : band5G)) | band_bw;
 			if (band_match && !is_duplicated_channel(channels, n, ch)) {
 				WL_DBG(("%s: Chanspec = %s\n", __FUNCTION__,
 					wf_chspec_ntoa_ex(ch, chanbuf)));
@@ -313,11 +322,13 @@ int get_roam_channel_list(int target_chan,
 		chanspec_t ch = roam_cache[i].chanspec;
 		bool is_2G = ioctl_ver == 1 ? LCHSPEC_IS2G(ch) : CHSPEC_IS2G(ch);
 		bool is_5G = ioctl_ver == 1 ? LCHSPEC_IS5G(ch) : CHSPEC_IS5G(ch);
+		bool is_6G = CHSPEC_IS6G(ch);
 		bool band_match = ((roam_band == WLC_BAND_AUTO) ||
 			((roam_band == WLC_BAND_2G) && is_2G) ||
-			((roam_band == WLC_BAND_5G) && is_5G));
+			((roam_band == WLC_BAND_5G) && is_5G) ||
+			((roam_band == WLC_BAND_6G) && is_6G));
 
-		ch = CHSPEC_CHANNEL(ch) | (is_2G ? band2G : band5G) | band_bw;
+		ch = CHSPEC_CHANNEL(ch) | (is_6G ? band6G : (is_2G ? band2G : band5G)) | band_bw;
 		if ((roam_cache[i].ssid_len == ssid->SSID_len) &&
 			band_match && !is_duplicated_channel(channels, n, ch) &&
 			(memcmp(roam_cache[i].ssid, ssid->SSID, ssid->SSID_len) == 0)) {
@@ -418,14 +429,17 @@ void update_roam_cache(struct bcm_cfg80211 *cfg, int ioctl_ver)
 		chanspec_t ch = roam_cache[i].chanspec;
 		bool is_2G = ioctl_ver == 1 ? LCHSPEC_IS2G(ch) : CHSPEC_IS2G(ch);
 		bool is_5G = ioctl_ver == 1 ? LCHSPEC_IS5G(ch) : CHSPEC_IS5G(ch);
+		bool is_6G = CHSPEC_IS6G(ch);
 		bool band_match = ((roam_band == WLC_BAND_AUTO) ||
 			((roam_band == WLC_BAND_2G) && is_2G) ||
-			((roam_band == WLC_BAND_5G) && is_5G));
+			((roam_band == WLC_BAND_5G) && is_5G) ||
+			((roam_band == WLC_BAND_6G) && is_6G));
 
 		if ((roam_cache[i].ssid_len == ssid.SSID_len) &&
 			band_match && (memcmp(roam_cache[i].ssid, ssid.SSID, ssid.SSID_len) == 0)) {
 			/* match found, add it */
-			ch = CHSPEC_CHANNEL(ch) | (is_2G ? band2G : band5G) | band_bw;
+			ch = CHSPEC_CHANNEL(ch) |
+				(is_6G ? band6G : (is_2G ? band2G : band5G)) | band_bw;
 			add_roamcache_channel(&channel_list, ch);
 		}
 	}
@@ -464,8 +478,9 @@ void wl_update_roamscan_cache_by_band(struct net_device *dev, int band)
 		for (n = 0; n < n_roam_cache; n++) {
 			chanspec_t ch = roam_cache[n].chanspec;
 			bool is_2G = ioctl_ver == 1 ? LCHSPEC_IS2G(ch) : CHSPEC_IS2G(ch);
+			bool is_6G = CHSPEC_IS6G(ch);
 			chanlist_before.channels[n] = CHSPEC_CHANNEL(ch) |
-				(is_2G ? band2G : band5G) | band_bw;
+				(is_6G ? band6G : (is_2G ? band2G : band5G)) | band_bw;
 		}
 	} else {
 		if (band == WLC_BAND_AUTO) {
@@ -484,9 +499,11 @@ void wl_update_roamscan_cache_by_band(struct net_device *dev, int band)
 		chanspec_t chspec = chanlist_before.channels[i];
 		bool is_2G = ioctl_ver == 1 ? LCHSPEC_IS2G(chspec) : CHSPEC_IS2G(chspec);
 		bool is_5G = ioctl_ver == 1 ? LCHSPEC_IS5G(chspec) : CHSPEC_IS5G(chspec);
+		bool is_6G = CHSPEC_IS6G(chspec);
 		bool band_match = ((band == WLC_BAND_AUTO) ||
 				((band == WLC_BAND_2G) && is_2G) ||
-				((band == WLC_BAND_5G) && is_5G));
+				((band == WLC_BAND_5G) && is_5G) ||
+				((band == WLC_BAND_6G) && is_6G));
 		if (band_match) {
 			chanlist_after.channels[chanlist_after.n++] = chspec;
 		}

@@ -52,12 +52,15 @@ typedef uint16 chanspec_subband_t;
 #define CH_MIN_2G_40M_CHANNEL             3u    /* Min 40MHz center channel in 2G band */
 #define CH_MAX_2G_40M_CHANNEL            11u    /* Max 40MHz center channel in 2G band */
 
+#define CH_MIN_6G_CHANNEL                 1u    /* Min channel in 6G band */
+#define CH_MAX_6G_CHANNEL               233u    /* Max channel in 6G band */
+
 /* maximum # channels the s/w supports */
-#define MAXCHANNEL		224	/* max # supported channels. The max channel no is above,
-					 * this is that + 1 rounded up to a multiple of NBBY (8).
+#define MAXCHANNEL		240	/* max # supported channels. The max channel no is 233,
+					 * this is that + 7 rounded up to a multiple of NBBY (8).
 					 * DO NOT MAKE it > 255: channels are uint8's all over
 					 */
-#define MAXCHANNEL_NUM	(MAXCHANNEL - 1)	/* max channel number */
+#define MAXCHANNEL_NUM (MAXCHANNEL - 7)        /* max channel number */
 
 #define INVCHANNEL              255     /* error value for a bad channel */
 
@@ -501,6 +504,12 @@ extern bool wf_chspec_coexist(chanspec_t chspec1, chanspec_t chspec2);
 #define WF_CHAN_FACTOR_4_G		8000	/* 4.9 GHz band for Japan */
 
 #define WLC_2G_25MHZ_OFFSET		5	/* 2.4GHz band channel offset */
+
+/**
+ * Starting frequence of 6 GHz channels.
+ * Wi-Fi 6E operates in the 6 GHz band from 5.925 to 7.125 GHz.
+ */
+#define FREQ_START_6G_CHANNEL		5925	/* 6G band starting frequence */
 
 /**
  *  No of sub-band vlaue of the specified Mhz chanspec

@@ -26,14 +26,9 @@
 # <<Broadcom-WL-IPTag/Open:>>
 #
 
-CONFIG_BCMDHD := m
-
-#CONFIG_BCMDHD_SDIO := y
-#CONFIG_BCMDHD_PCIE := y
-#CONFIG_BCMDHD_USB := y
-CONFIG_BCMDHD_OOB_HOST_WAKE := y
-
 CONFIG_ANDROID := y
+CONFIG_ANDROID12 := y
+CONFIG_BCMDHD_OOB_HOST_WAKE := y
 
 #####################
 # SDIO Basic feature
@@ -48,7 +43,7 @@ DHDCFLAGS += -Wall -Wstrict-prototypes -Dlinux -DLINUX -DBCMDRIVER            \
 	-DGET_CUSTOM_MAC_ENABLE      \
 	-DSEC_ENHANCEMENT -DDHD_FW_COREDUMP -DCHIPS_CUSTOMER_HW6	\
 	-DDHD_RND_DEBUG -DDHD_DUMP_FILE_WRITE_FROM_KERNEL		\
-	-DDHD_DONOT_FORWARD_BCMEVENT_AS_NETWORK_PKT
+	-DDHD_DONOT_FORWARD_BCMEVENT_AS_NETWORK_PKT -DWL11AX
 
 GCCVERSIONGTEQ9 := $(shell expr `$(CROSS_COMPILE)gcc -dumpversion | cut -f1 -d.` \>= 9)
 ifeq "$(GCCVERSIONGTEQ9)" "1"
@@ -56,8 +51,8 @@ ifeq "$(GCCVERSIONGTEQ9)" "1"
 endif
 DHDCFLAGS += $(call cc-disable-warning, date-time)
 DHDCFLAGS += $(call cc-disable-warning, stringop-overflow)
-
 DHDCFLAGS += -Wno-implicit-function-declaration -Wno-incompatible-pointer-types
+DHDCFLAGS += -Wno-unused-const-variable -Wno-unused-function
 
 #################
 # Common feature
@@ -156,6 +151,12 @@ DHDCFLAGS += -DBCMCCX
 DHDCFLAGS += -DWBTEXT
 DHDCFLAGS += -DDHD_LOSSLESS_ROAMING
 
+# Hog flags
+#DHDCFLAGS += -DENABLE_HOGSQS
+#ifeq ($(ENABLE_HOGSQS), y)
+#DHDCFLAGS += -DM_HOGSQS_CFG=0x1910
+#endif // endif
+
 # For special PNO Event keep wake lock for 10sec
 DHDCFLAGS += -DCUSTOM_PNO_EVENT_LOCK_xTIME=10
 DHDCFLAGS += -DMIRACAST_AMPDU_SIZE=8
@@ -224,7 +225,9 @@ ifeq ($(CONFIG_ANDROID),y)
   DHDCFLAGS += -Wno-date-time
 
 # To support android12 Wifi-HAL
-# DHDCFLAGS += -DANDROID12_SUPPORT
+ifeq ($(CONFIG_ANDROID12),y)
+ DHDCFLAGS += -DANDROID12_SUPPORT
+endif
 
 # To support ACS on hostapd
 # DHDCFLAGS += -DWL_SUPPORT_ACS_OFFLOAD
@@ -256,6 +259,11 @@ endif
 
 ifneq ($(CONFIG_BCMDHD_PCIE),)
 DHDCFLAGS += -DDHD_4WAYM4_FAIL_DISCONNECT
+endif
+
+#6Ghz
+ifneq ($(CONFIG_BCMDHD_6E),)
+ DHDCFLAGS += -DWL_6E
 endif
 
 # Uncomment the below line for AP to receive disconnect management frame.
@@ -306,7 +314,12 @@ endif
 ifeq ($(CONFIG_BCMDHD_SDMMC),y)
   DHDCFLAGS += -DBCMLXSDMMC -DCUSTOM_TXGLOM=1
 ifneq ($(CONFIG_HAVE_IMX8_SOC),)
-  DHDCFLAGS += -DCONFIG_DTS -DPLATFORM_IMX
+  DHDCFLAGS += \
+  	-DCONFIG_DTS \
+	-DOEM_EMBEDDED_LINUX \
+	-DPLATFORM_IMX \
+	-DSDIO_ISR_THREAD \
+	-DWL_VIF_SUPPORT
 endif
 endif
 
@@ -342,6 +355,11 @@ endif
 
   DHDCFLAGS += -DWLFC_STATE_PREALLOC
   DHDCFLAGS += -DREVERSE_AIFSN
+
+# btsharedsdio
+ifneq  ($(CONFIG_BT_OVER_SDIO),)
+  DHDCFLAGS += -DBT_OVER_SDIO
+endif
 endif
 
 # Expand TCP tx queue to 10 times of default size
@@ -496,11 +514,16 @@ DHDOFILES += dhd_pno.o dhd_common.o dhd_ip.o dhd_custom_gpio.o \
     dhd_linux.o dhd_linux_sched.o dhd_cfg80211.o dhd_linux_wq.o aiutils.o \
     bcmevent.o bcmutils.o bcmwifi_channels.o hndpmu.o linux_osl.o linux_pkt.o \
     sbutils.o siutils.o wl_android.o wl_roam.o wl_cfg80211.o wl_cfgscan.o wl_cfgp2p.o \
-    wl_cfg_btcoex.o wldev_common.o wl_linux_mon.o dhd_linux_platdev.o \
+    wl_cfg_btcoex.o wldev_common.o dhd_linux_platdev.o \
     dhd_pno.o dhd_linux_pktdump.o wl_cfg_btcoex.o hnd_pktq.o \
     hnd_pktpool.o wl_cfgvendor.o bcmxtlv.o bcm_app_utils.o dhd_debug.o \
     dhd_debug_linux.o dhd_mschdbg.o bcmbloom.o dhd_dbg_ring.o bcmstdlib_s.o \
     dhd_linux_exportfs.o
+
+ifneq ($(CONFIG_DHD_MONITOR_INTERFACE),)
+    DHDCFLAGS += -DDHD_MONITOR_INTERFACE
+    DHDOFILES += wl_linux_mon.o
+endif
 
 ifneq ($(CONFIG_DHD_OF_SUPPORT),)
     DHDCFLAGS += -DDHD_OF_SUPPORT
