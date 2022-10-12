@@ -702,6 +702,7 @@ properties:
               - oneplus,fajita
               - qcom,sdm845-mtp
               - shift,axolotl
+              - samsung,starqltechn
               - samsung,w737
               - sony,akari-row
               - sony,akatsuki-row
