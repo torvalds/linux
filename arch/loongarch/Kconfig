@@ -62,6 +62,7 @@ config LOONGARCH
 	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_ENTRY
 	select GENERIC_GETTIMEOFDAY
+	select GENERIC_IOREMAP if !ARCH_IOREMAP
 	select GENERIC_IRQ_MULTI_HANDLER
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
@@ -167,6 +168,9 @@ config MACH_LOONGSON32
 
 config MACH_LOONGSON64
 	def_bool 64BIT
+
+config FIX_EARLYCON_MEM
+	def_bool y
 
 config PAGE_SIZE_4KB
 	bool
@@ -403,6 +407,13 @@ config FORCE_MAX_ZONEORDER
 
 	  The page size is not necessarily 4KB.  Keep this in mind
 	  when choosing a value for this option.
+
+config ARCH_IOREMAP
+	bool "Enable LoongArch DMW-based ioremap()"
+	help
+	  We use generic TLB-based ioremap() by default since it has page
+	  protection support. However, you can enable LoongArch DMW-based
+	  ioremap() for better performance.
 
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"

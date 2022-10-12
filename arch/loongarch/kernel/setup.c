@@ -348,10 +348,10 @@ void __init setup_arch(char **cmdline_p)
 	init_environ();
 	efi_init();
 	memblock_init();
+	pagetable_init();
 	parse_early_param();
 
 	platform_init();
-	pagetable_init();
 	arch_mem_init(cmdline_p);
 
 	resource_init();
