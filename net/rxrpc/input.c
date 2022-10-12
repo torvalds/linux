@@ -12,8 +12,7 @@
 static void rxrpc_proto_abort(const char *why,
 			      struct rxrpc_call *call, rxrpc_seq_t seq)
 {
-	if (rxrpc_abort_call(why, call, seq, RX_PROTOCOL_ERROR, -EBADMSG))
-		rxrpc_send_abort_packet(call);
+	rxrpc_abort_call(why, call, seq, RX_PROTOCOL_ERROR, -EBADMSG);
 }
 
 /*
@@ -1007,8 +1006,7 @@ void rxrpc_implicit_end_call(struct rxrpc_call *call, struct sk_buff *skb)
 	case RXRPC_CALL_COMPLETE:
 		break;
 	default:
-		if (rxrpc_abort_call("IMP", call, 0, RX_CALL_DEAD, -ESHUTDOWN))
-			rxrpc_send_abort_packet(call);
+		rxrpc_abort_call("IMP", call, 0, RX_CALL_DEAD, -ESHUTDOWN);
 		trace_rxrpc_improper_term(call);
 		break;
 	}

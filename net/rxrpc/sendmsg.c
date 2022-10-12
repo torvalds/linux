@@ -18,6 +18,26 @@
 #include "ar-internal.h"
 
 /*
+ * Propose an abort to be made in the I/O thread.
+ */
+bool rxrpc_propose_abort(struct rxrpc_call *call,
+			 u32 abort_code, int error, const char *why)
+{
+	_enter("{%d},%d,%d,%s", call->debug_id, abort_code, error, why);
+
+	if (!call->send_abort && call->state < RXRPC_CALL_COMPLETE) {
+		call->send_abort_why = why;
+		call->send_abort_err = error;
+		/* Request abort locklessly vs rxrpc_input_call_event(). */
+		smp_store_release(&call->send_abort, abort_code);
+		rxrpc_poke_call(call, rxrpc_call_poke_abort);
+		return true;
+	}
+
+	return false;
+}
+
+/*
  * Return true if there's sufficient Tx queue space.
  */
 static bool rxrpc_check_tx_space(struct rxrpc_call *call, rxrpc_seq_t *_tx_win)
@@ -663,9 +683,8 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		/* it's too late for this call */
 		ret = -ESHUTDOWN;
 	} else if (p.command == RXRPC_CMD_SEND_ABORT) {
+		rxrpc_propose_abort(call, p.abort_code, -ECONNABORTED, "CMD");
 		ret = 0;
-		if (rxrpc_abort_call("CMD", call, 0, p.abort_code, -ECONNABORTED))
-			ret = rxrpc_send_abort_packet(call);
 	} else if (p.command != RXRPC_CMD_SEND_DATA) {
 		ret = -EINVAL;
 	} else {
@@ -760,11 +779,7 @@ bool rxrpc_kernel_abort_call(struct socket *sock, struct rxrpc_call *call,
 	_enter("{%d},%d,%d,%s", call->debug_id, abort_code, error, why);
 
 	mutex_lock(&call->user_mutex);
-
-	aborted = rxrpc_abort_call(why, call, 0, abort_code, error);
-	if (aborted)
-		rxrpc_send_abort_packet(call);
-
+	aborted = rxrpc_propose_abort(call, abort_code, error, why);
 	mutex_unlock(&call->user_mutex);
 	return aborted;
 }

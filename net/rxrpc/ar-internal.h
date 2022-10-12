@@ -625,7 +625,10 @@ struct rxrpc_call {
 	unsigned long		events;
 	spinlock_t		notify_lock;	/* Kernel notification lock */
 	rwlock_t		state_lock;	/* lock for state transition */
-	u32			abort_code;	/* Local/remote abort code */
+	const char		*send_abort_why; /* String indicating why the abort was sent */
+	s32			send_abort;	/* Abort code to be sent */
+	short			send_abort_err;	/* Error to be associated with the abort */
+	s32			abort_code;	/* Local/remote abort code */
 	int			error;		/* Local error incurred */
 	enum rxrpc_call_state	state;		/* current state of call */
 	enum rxrpc_call_completion completion;	/* Call completion condition */
@@ -1146,6 +1149,8 @@ struct key *rxrpc_look_up_server_security(struct rxrpc_connection *,
 /*
  * sendmsg.c
  */
+bool rxrpc_propose_abort(struct rxrpc_call *call,
+			 u32 abort_code, int error, const char *why);
 int rxrpc_do_sendmsg(struct rxrpc_sock *, struct msghdr *, size_t);
 
 /*
