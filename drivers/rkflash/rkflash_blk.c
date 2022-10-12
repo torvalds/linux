@@ -223,20 +223,26 @@ static int rkflash_blk_xfer(struct flash_blk_dev *dev,
 static int rkflash_blk_check_buffer_align(struct request *req, char **pbuf)
 {
 	int nr_vec = 0;
-	struct bio_vec bvec;
+	struct bio_vec bv;
 	struct req_iterator iter;
 	char *buffer;
 	void *firstbuf = 0;
 	char *nextbuffer = 0;
 
-	rq_for_each_segment(bvec, req, iter) {
-		buffer = page_address(bvec.bv_page) + bvec.bv_offset;
+	rq_for_each_segment(bv, req, iter) {
+		/* high mem return 0 and using kernel buffer */
+		if (PageHighMem(bv.bv_page))
+			return 0;
+
+		buffer = page_address(bv.bv_page) + bv.bv_offset;
+		if (!buffer)
+			return 0;
 		if (!firstbuf)
 			firstbuf = buffer;
 		nr_vec++;
 		if (nextbuffer && nextbuffer != buffer)
 			return 0;
-		nextbuffer = buffer + bvec.bv_len;
+		nextbuffer = buffer + bv.bv_len;
 	}
 	*pbuf = firstbuf;
 	return 1;
@@ -247,12 +253,11 @@ static blk_status_t do_blktrans_all_request(struct flash_blk_ops *tr,
 			       struct request *req)
 {
 	unsigned long block, nsect;
-	char *buf = NULL;
+	char *buf = NULL, *page_buf;
 	struct req_iterator rq_iter;
 	struct bio_vec bvec;
 	int ret;
 	unsigned long totle_nsect;
-	unsigned long rq_len = 0;
 
 	block = blk_rq_pos(req);
 	nsect = blk_rq_cur_bytes(req) >> 9;
@@ -281,11 +286,13 @@ static blk_status_t do_blktrans_all_request(struct flash_blk_ops *tr,
 			char *p = buf;
 
 			rq_for_each_segment(bvec, req, rq_iter) {
-				memcpy(page_address(bvec.bv_page) +
-					bvec.bv_offset,
-					p,
-					bvec.bv_len);
+				page_buf = kmap_atomic(bvec.bv_page);
+				memcpy(page_buf +
+				       bvec.bv_offset,
+				       p,
+				       bvec.bv_len);
 				p += bvec.bv_len;
+				kunmap_atomic(page_buf);
 			}
 		}
 
@@ -296,30 +303,26 @@ static blk_status_t do_blktrans_all_request(struct flash_blk_ops *tr,
 	case REQ_OP_WRITE:
 		rkflash_print_bio("%s write block=%lx nsec=%lx\n", __func__, block, totle_nsect);
 
-		rq_for_each_segment(bvec, req, rq_iter) {
-			if ((page_address(bvec.bv_page) + bvec.bv_offset) == (buf + rq_len)) {
-				rq_len += bvec.bv_len;
-			} else {
-				if (rq_len) {
-					ret = rkflash_blk_xfer(dev,
-							       block,
-							       rq_len >> 9,
-							       buf,
-							       REQ_OP_WRITE);
-				}
-				block += rq_len >> 9;
-				buf = (page_address(bvec.bv_page) + bvec.bv_offset);
-				rq_len = bvec.bv_len;
+		buf = mtd_read_temp_buffer;
+		rkflash_blk_check_buffer_align(req, &buf);
+		if (buf == mtd_read_temp_buffer) {
+			char *p = buf;
+
+			rq_for_each_segment(bvec, req, rq_iter) {
+				page_buf = kmap_atomic(bvec.bv_page);
+				memcpy(p,
+					page_buf +
+					bvec.bv_offset,
+					bvec.bv_len);
+				p += bvec.bv_len;
+				kunmap_atomic(page_buf);
 			}
 		}
-
-		if (rq_len) {
-			ret = rkflash_blk_xfer(dev,
-					       block,
-					       rq_len >> 9,
-					       buf,
-					       REQ_OP_WRITE);
-		}
+		ret = rkflash_blk_xfer(dev,
+					block,
+					totle_nsect,
+					buf,
+					REQ_OP_WRITE);
 
 		if (ret)
 			return BLK_STS_IOERR;
