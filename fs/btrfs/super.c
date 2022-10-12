@@ -2694,7 +2694,7 @@ static __cold void btrfs_interface_exit(void)
 	misc_deregister(&btrfs_misc);
 }
 
-static void __init btrfs_print_mod_info(void)
+static int __init btrfs_print_mod_info(void)
 {
 	static const char options[] = ""
 #ifdef CONFIG_BTRFS_DEBUG
@@ -2721,143 +2721,133 @@ static void __init btrfs_print_mod_info(void)
 #endif
 			;
 	pr_info("Btrfs loaded, crc32c=%s%s\n", crc32c_impl(), options);
+	return 0;
+}
+
+static int register_btrfs(void)
+{
+	return register_filesystem(&btrfs_fs_type);
+}
+
+static void unregister_btrfs(void)
+{
+	unregister_filesystem(&btrfs_fs_type);
+}
+
+/* Helper structure for long init/exit functions. */
+struct init_sequence {
+	int (*init_func)(void);
+	/* Can be NULL if the init_func doesn't need cleanup. */
+	void (*exit_func)(void);
+};
+
+static const struct init_sequence mod_init_seq[] = {
+	{
+		.init_func = btrfs_props_init,
+		.exit_func = NULL,
+	}, {
+		.init_func = btrfs_init_sysfs,
+		.exit_func = btrfs_exit_sysfs,
+	}, {
+		.init_func = btrfs_init_compress,
+		.exit_func = btrfs_exit_compress,
+	}, {
+		.init_func = btrfs_init_cachep,
+		.exit_func = btrfs_destroy_cachep,
+	}, {
+		.init_func = btrfs_transaction_init,
+		.exit_func = btrfs_transaction_exit,
+	}, {
+		.init_func = btrfs_ctree_init,
+		.exit_func = btrfs_ctree_exit,
+	}, {
+		.init_func = btrfs_free_space_init,
+		.exit_func = btrfs_free_space_exit,
+	}, {
+		.init_func = extent_state_init_cachep,
+		.exit_func = extent_state_free_cachep,
+	}, {
+		.init_func = extent_buffer_init_cachep,
+		.exit_func = extent_buffer_free_cachep,
+	}, {
+		.init_func = btrfs_bioset_init,
+		.exit_func = btrfs_bioset_exit,
+	}, {
+		.init_func = extent_map_init,
+		.exit_func = extent_map_exit,
+	}, {
+		.init_func = ordered_data_init,
+		.exit_func = ordered_data_exit,
+	}, {
+		.init_func = btrfs_delayed_inode_init,
+		.exit_func = btrfs_delayed_inode_exit,
+	}, {
+		.init_func = btrfs_auto_defrag_init,
+		.exit_func = btrfs_auto_defrag_exit,
+	}, {
+		.init_func = btrfs_delayed_ref_init,
+		.exit_func = btrfs_delayed_ref_exit,
+	}, {
+		.init_func = btrfs_prelim_ref_init,
+		.exit_func = btrfs_prelim_ref_exit,
+	}, {
+		.init_func = btrfs_interface_init,
+		.exit_func = btrfs_interface_exit,
+	}, {
+		.init_func = btrfs_print_mod_info,
+		.exit_func = NULL,
+	}, {
+		.init_func = btrfs_run_sanity_tests,
+		.exit_func = NULL,
+	}, {
+		.init_func = register_btrfs,
+		.exit_func = unregister_btrfs,
+	}
+};
+
+static bool mod_init_result[ARRAY_SIZE(mod_init_seq)];
+
+static void __exit exit_btrfs_fs(void)
+{
+	int i;
+
+	for (i = ARRAY_SIZE(mod_init_seq) - 1; i >= 0; i--) {
+		if (!mod_init_result[i])
+			continue;
+		if (mod_init_seq[i].exit_func)
+			mod_init_seq[i].exit_func();
+		mod_init_result[i] = false;
+	}
 }
 
 static int __init init_btrfs_fs(void)
 {
-	int err;
+	int ret;
+	int i;
 
-	btrfs_props_init();
-
-	err = btrfs_init_sysfs();
-	if (err)
-		return err;
-
-	btrfs_init_compress();
-
-	err = btrfs_init_cachep();
-	if (err)
-		goto free_compress;
-
-	err = btrfs_transaction_init();
-	if (err)
-		goto free_cachep;
-
-	err = btrfs_ctree_init();
-	if (err)
-		goto free_transaction;
-
-	err = btrfs_free_space_init();
-	if (err)
-		goto free_ctree;
-
-	err = extent_state_init_cachep();
-	if (err)
-		goto free_free_space;
-
-	err = extent_buffer_init_cachep();
-	if (err)
-		goto free_extent_cachep;
-
-	err = btrfs_bioset_init();
-	if (err)
-		goto free_eb_cachep;
-
-	err = extent_map_init();
-	if (err)
-		goto free_bioset;
-
-	err = ordered_data_init();
-	if (err)
-		goto free_extent_map;
-
-	err = btrfs_delayed_inode_init();
-	if (err)
-		goto free_ordered_data;
-
-	err = btrfs_auto_defrag_init();
-	if (err)
-		goto free_delayed_inode;
-
-	err = btrfs_delayed_ref_init();
-	if (err)
-		goto free_auto_defrag;
-
-	err = btrfs_prelim_ref_init();
-	if (err)
-		goto free_delayed_ref;
-
-	err = btrfs_interface_init();
-	if (err)
-		goto free_prelim_ref;
-
-	btrfs_print_mod_info();
-
-	err = btrfs_run_sanity_tests();
-	if (err)
-		goto unregister_ioctl;
-
-	err = register_filesystem(&btrfs_fs_type);
-	if (err)
-		goto unregister_ioctl;
-
+	for (i = 0; i < ARRAY_SIZE(mod_init_seq); i++) {
+		ASSERT(!mod_init_result[i]);
+		ret = mod_init_seq[i].init_func();
+		if (ret < 0)
+			goto error;
+		mod_init_result[i] = true;
+	}
 	return 0;
 
-unregister_ioctl:
-	btrfs_interface_exit();
-free_prelim_ref:
-	btrfs_prelim_ref_exit();
-free_delayed_ref:
-	btrfs_delayed_ref_exit();
-free_auto_defrag:
-	btrfs_auto_defrag_exit();
-free_delayed_inode:
-	btrfs_delayed_inode_exit();
-free_ordered_data:
-	ordered_data_exit();
-free_extent_map:
-	extent_map_exit();
-free_bioset:
-	btrfs_bioset_exit();
-free_eb_cachep:
-	extent_buffer_free_cachep();
-free_extent_cachep:
-	extent_state_free_cachep();
-free_free_space:
-	btrfs_free_space_exit();
-free_ctree:
-	btrfs_ctree_exit();
-free_transaction:
-	btrfs_transaction_exit();
-free_cachep:
-	btrfs_destroy_cachep();
-free_compress:
-	btrfs_exit_compress();
-	btrfs_exit_sysfs();
-
-	return err;
-}
-
-static void __exit exit_btrfs_fs(void)
-{
-	btrfs_free_space_exit();
-	btrfs_ctree_exit();
-	btrfs_transaction_exit();
-	btrfs_destroy_cachep();
-	btrfs_delayed_ref_exit();
-	btrfs_auto_defrag_exit();
-	btrfs_delayed_inode_exit();
-	btrfs_prelim_ref_exit();
-	ordered_data_exit();
-	extent_map_exit();
-	btrfs_bioset_exit();
-	extent_state_free_cachep();
-	extent_buffer_free_cachep();
-	btrfs_interface_exit();
-	unregister_filesystem(&btrfs_fs_type);
-	btrfs_exit_sysfs();
-	btrfs_cleanup_fs_uuids();
-	btrfs_exit_compress();
+error:
+	/*
+	 * If we call exit_btrfs_fs() it would cause section mismatch.
+	 * As init_btrfs_fs() belongs to .init.text, while exit_btrfs_fs()
+	 * belongs to .exit.text.
+	 */
+	for (i = ARRAY_SIZE(mod_init_seq) - 1; i >= 0; i--) {
+		if (!mod_init_result[i])
+			continue;
+		if (mod_init_seq[i].exit_func)
+			mod_init_seq[i].exit_func();
+		mod_init_result[i] = false;
+	}
+	return ret;
 }
 
 late_initcall(init_btrfs_fs);
