@@ -196,9 +196,6 @@ struct qmp_phy_cfg {
 
 	/* array of registers with different offsets */
 	const unsigned int *regs;
-
-	unsigned int start_ctrl;
-	unsigned int pwrdn_ctrl;
 };
 
 /**
@@ -311,9 +308,6 @@ static const struct qmp_phy_cfg msm8996_pciephy_cfg = {
 	.vreg_list		= qmp_phy_vreg_l,
 	.num_vregs		= ARRAY_SIZE(qmp_phy_vreg_l),
 	.regs			= pciephy_regs_layout,
-
-	.start_ctrl		= PCS_START | PLL_READY_GATE_EN,
-	.pwrdn_ctrl		= SW_PWRDN | REFCLK_DRV_DSBL,
 };
 
 static void qmp_pcie_msm8996_configure_lane(void __iomem *base,
@@ -503,7 +497,8 @@ static int qmp_pcie_msm8996_power_on(struct phy *phy)
 	 * Pull out PHY from POWER DOWN state.
 	 * This is active low enable signal to power-down PHY.
 	 */
-	qphy_setbits(pcs, QPHY_V2_PCS_POWER_DOWN_CONTROL, cfg->pwrdn_ctrl);
+	qphy_setbits(pcs, QPHY_V2_PCS_POWER_DOWN_CONTROL,
+			SW_PWRDN | REFCLK_DRV_DSBL);
 
 	usleep_range(POWER_DOWN_DELAY_US_MIN, POWER_DOWN_DELAY_US_MAX);
 
@@ -511,7 +506,8 @@ static int qmp_pcie_msm8996_power_on(struct phy *phy)
 	qphy_clrbits(pcs, cfg->regs[QPHY_SW_RESET], SW_RESET);
 
 	/* start SerDes and Phy-Coding-Sublayer */
-	qphy_setbits(pcs, cfg->regs[QPHY_START_CTRL], cfg->start_ctrl);
+	qphy_setbits(pcs, cfg->regs[QPHY_START_CTRL],
+			PCS_START | PLL_READY_GATE_EN);
 
 	status = pcs + cfg->regs[QPHY_PCS_STATUS];
 	ret = readl_poll_timeout(status, val, !(val & PHYSTATUS), 200,
@@ -542,11 +538,12 @@ static int qmp_pcie_msm8996_power_off(struct phy *phy)
 	qphy_setbits(qphy->pcs, cfg->regs[QPHY_SW_RESET], SW_RESET);
 
 	/* stop SerDes and Phy-Coding-Sublayer */
-	qphy_clrbits(qphy->pcs, cfg->regs[QPHY_START_CTRL], cfg->start_ctrl);
+	qphy_clrbits(qphy->pcs, cfg->regs[QPHY_START_CTRL],
+			SERDES_START | PCS_START);
 
 	/* Put PHY into POWER DOWN state: active low */
 	qphy_clrbits(qphy->pcs, QPHY_V2_PCS_POWER_DOWN_CONTROL,
-			cfg->pwrdn_ctrl);
+			SW_PWRDN | REFCLK_DRV_DSBL);
 
 	return 0;
 }
