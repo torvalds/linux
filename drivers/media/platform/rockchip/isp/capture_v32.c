@@ -1645,6 +1645,11 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 	int ret = -EINVAL;
 
 	mutex_lock(&dev->hw_dev->dev_lock);
+	if (dev->is_pre_on &&
+	    !dev->hw_dev->is_single &&
+	    !atomic_read(&dev->hw_dev->refcnt) &&
+	    !atomic_read(&dev->cap_dev.refcnt))
+		rkisp_hw_enum_isp_size(dev->hw_dev);
 
 	v4l2_dbg(1, rkisp_debug, v4l2_dev, "%s %s id:%d\n",
 		 __func__, node->vdev.name, stream->id);

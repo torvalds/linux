@@ -805,9 +805,9 @@ static void rkisp_rdbk_trigger_handle(struct rkisp_device *dev, u32 cmd)
 		goto end;
 
 	if (max) {
-		v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
-			 "trigger fifo len:%d\n", max);
 		isp = hw->isp[id];
+		v4l2_dbg(2, rkisp_debug, &isp->v4l2_dev,
+			 "trigger fifo len:%d\n", max);
 		rkisp_rdbk_trigger_event(isp, T_CMD_DEQUEUE, &t);
 		isp->dmarx_dev.pre_frame = isp->dmarx_dev.cur_frame;
 		if (t.frame_id > isp->dmarx_dev.pre_frame.id &&

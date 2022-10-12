@@ -990,28 +990,18 @@ static int __maybe_unused rkisp_runtime_suspend(struct device *dev)
 	return pinctrl_pm_select_sleep_state(dev);
 }
 
-static int __maybe_unused rkisp_runtime_resume(struct device *dev)
+void rkisp_hw_enum_isp_size(struct rkisp_hw_dev *hw_dev)
 {
-	struct rkisp_hw_dev *hw_dev = dev_get_drvdata(dev);
-	void __iomem *base = hw_dev->base_addr;
 	struct rkisp_device *isp;
-	int mult = hw_dev->is_unite ? 2 : 1;
-	int ret, i;
+	u32 w, h, i;
 
-	ret = pinctrl_pm_select_default_state(dev);
-	if (ret < 0)
-		return ret;
-
-	enable_sys_clk(hw_dev);
 	memset(hw_dev->isp_size, 0, sizeof(hw_dev->isp_size));
 	if (!hw_dev->max_in.is_fix) {
 		hw_dev->max_in.w = 0;
 		hw_dev->max_in.h = 0;
 	}
+	hw_dev->dev_link_num = 0;
 	for (i = 0; i < hw_dev->dev_num; i++) {
-		void *buf;
-		u32 w, h;
-
 		isp = hw_dev->isp[i];
 		if (!isp || (isp && !isp->is_hw_link))
 			continue;
@@ -1030,6 +1020,33 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 			if (hw_dev->max_in.h < h)
 				hw_dev->max_in.h = h;
 		}
+	}
+	for (i = 0; i < hw_dev->dev_num; i++) {
+		isp = hw_dev->isp[i];
+		if (!isp || (isp && !isp->is_hw_link))
+			continue;
+		rkisp_params_check_bigmode(&isp->params_vdev);
+	}
+}
+
+static int __maybe_unused rkisp_runtime_resume(struct device *dev)
+{
+	struct rkisp_hw_dev *hw_dev = dev_get_drvdata(dev);
+	void __iomem *base = hw_dev->base_addr;
+	struct rkisp_device *isp;
+	int mult = hw_dev->is_unite ? 2 : 1;
+	int ret, i;
+	void *buf;
+
+	ret = pinctrl_pm_select_default_state(dev);
+	if (ret < 0)
+		return ret;
+
+	enable_sys_clk(hw_dev);
+	for (i = 0; i < hw_dev->dev_num; i++) {
+		isp = hw_dev->isp[i];
+		if (!isp)
+			continue;
 		buf = isp->sw_base_addr;
 		memset(buf, 0, RKISP_ISP_SW_MAX_SIZE * mult);
 		memcpy_fromio(buf, base, RKISP_ISP_SW_REG_SIZE);
@@ -1040,12 +1057,7 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 		}
 		default_sw_reg_flag(hw_dev->isp[i]);
 	}
-	for (i = 0; i < hw_dev->dev_num; i++) {
-		isp = hw_dev->isp[i];
-		if (!isp || (isp && !isp->is_hw_link))
-			continue;
-		rkisp_params_check_bigmode(&isp->params_vdev);
-	}
+	rkisp_hw_enum_isp_size(hw_dev);
 	hw_dev->monitor.is_en = rkisp_monitor;
 	return 0;
 }

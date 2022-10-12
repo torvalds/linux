@@ -1561,6 +1561,9 @@ static void rkisp_stream_fast(struct work_struct *work)
 		ispdev->is_thunderboot = false;
 		return;
 	}
+
+	if (ispdev->hw_dev->dev_num > 1)
+		ispdev->hw_dev->is_single = false;
 	ispdev->is_pre_on = true;
 	ispdev->is_rdbk_auto = true;
 	ispdev->pipe.open(&ispdev->pipe, &stream->vnode.vdev.entity, true);

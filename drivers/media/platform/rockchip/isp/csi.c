@@ -592,7 +592,7 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 			if (dev->hdr.op_mode == HDR_NORMAL || dev->hdr.op_mode == HDR_COMPR)
 				dev->hdr.op_mode = HDR_RDBK_FRAME1;
 
-			if (dev->isp_inp == INP_CIF && dev->hw_dev->is_single && dev->isp_ver > ISP_V21)
+			if (dev->isp_inp == INP_CIF && dev->isp_ver > ISP_V21)
 				mode.rdbk_mode = dev->is_rdbk_auto ? RKISP_VICAP_RDBK_AUTO : RKISP_VICAP_ONLINE;
 			else
 				mode.rdbk_mode = RKISP_VICAP_RDBK_AIQ;
