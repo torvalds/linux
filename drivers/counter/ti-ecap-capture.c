@@ -480,8 +480,8 @@ static int ecap_cnt_probe(struct platform_device *pdev)
 	int ret;
 
 	counter_dev = devm_counter_alloc(dev, sizeof(*ecap_dev));
-	if (IS_ERR(counter_dev))
-		return PTR_ERR(counter_dev);
+	if (!counter_dev)
+		return -ENOMEM;
 
 	counter_dev->name = ECAP_DRV_NAME;
 	counter_dev->parent = dev;
