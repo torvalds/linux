@@ -617,21 +617,9 @@ int ping_getfrag(void *from, char *to,
 {
 	struct pingfakehdr *pfh = from;
 
-	if (offset == 0) {
-		fraglen -= sizeof(struct icmphdr);
-		if (fraglen < 0)
-			BUG();
-		if (!csum_and_copy_from_iter_full(to + sizeof(struct icmphdr),
-			    fraglen, &pfh->wcheck,
-			    &pfh->msg->msg_iter))
-			return -EFAULT;
-	} else if (offset < sizeof(struct icmphdr)) {
-			BUG();
-	} else {
-		if (!csum_and_copy_from_iter_full(to, fraglen, &pfh->wcheck,
-					    &pfh->msg->msg_iter))
-			return -EFAULT;
-	}
+	if (!csum_and_copy_from_iter_full(to, fraglen, &pfh->wcheck,
+					  &pfh->msg->msg_iter))
+		return -EFAULT;
 
 #if IS_ENABLED(CONFIG_IPV6)
 	/* For IPv6, checksum each skb as we go along, as expected by
@@ -639,7 +627,7 @@ int ping_getfrag(void *from, char *to,
 	 * wcheck, it will be finalized in ping_v4_push_pending_frames.
 	 */
 	if (pfh->family == AF_INET6) {
-		skb->csum = pfh->wcheck;
+		skb->csum = csum_block_add(skb->csum, pfh->wcheck, odd);
 		skb->ip_summed = CHECKSUM_NONE;
 		pfh->wcheck = 0;
 	}
@@ -842,7 +830,8 @@ back_from_confirm:
 	pfh.family = AF_INET;
 
 	err = ip_append_data(sk, &fl4, ping_getfrag, &pfh, len,
-			0, &ipc, &rt, msg->msg_flags);
+			     sizeof(struct icmphdr), &ipc, &rt,
+			     msg->msg_flags);
 	if (err)
 		ip_flush_pending_frames(sk);
 	else
