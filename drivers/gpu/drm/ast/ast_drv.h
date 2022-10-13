@@ -112,9 +112,9 @@ enum ast_tx_chip {
 struct ast_plane {
 	struct drm_plane base;
 
-	struct drm_gem_vram_object *gbo;
-	struct iosys_map map;
-	u64 off;
+	void __iomem *vaddr;
+	u64 offset;
+	unsigned long size;
 };
 
 static inline struct ast_plane *to_ast_plane(struct drm_plane *plane)
@@ -172,7 +172,12 @@ struct ast_private {
 	uint32_t dram_type;
 	uint32_t mclk;
 
-	struct drm_plane primary_plane;
+	void __iomem	*vram;
+	unsigned long	vram_base;
+	unsigned long	vram_size;
+	unsigned long	vram_fb_available;
+
+	struct ast_plane primary_plane;
 	struct ast_plane cursor_plane;
 	struct drm_crtc crtc;
 	struct {
