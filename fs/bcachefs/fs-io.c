@@ -1517,7 +1517,7 @@ out:
 	if (!bch2_page_state_create(page, __GFP_NOFAIL)->uptodate) {
 		ret = bch2_page_state_set(c, inode_inum(inode), &page, 1);
 		if (ret)
-			goto out;
+			goto err;
 	}
 
 	ret = bch2_page_reservation_get(c, inode, page, res,
