@@ -87,7 +87,7 @@ enum ast_tx_chip {
 #define AST_DRAM_8Gx16   8
 
 /*
- * Cursor plane
+ * Hardware cursor
  */
 
 #define AST_MAX_HWC_WIDTH	64
@@ -105,7 +105,11 @@ enum ast_tx_chip {
 #define AST_HWC_SIGNATURE_HOTSPOTX	0x14
 #define AST_HWC_SIGNATURE_HOTSPOTY	0x18
 
-struct ast_cursor_plane {
+/*
+ * Planes
+ */
+
+struct ast_plane {
 	struct drm_plane base;
 
 	struct drm_gem_vram_object *gbo;
@@ -113,10 +117,9 @@ struct ast_cursor_plane {
 	u64 off;
 };
 
-static inline struct ast_cursor_plane *
-to_ast_cursor_plane(struct drm_plane *plane)
+static inline struct ast_plane *to_ast_plane(struct drm_plane *plane)
 {
-	return container_of(plane, struct ast_cursor_plane, base);
+	return container_of(plane, struct ast_plane, base);
 }
 
 /*
@@ -170,7 +173,7 @@ struct ast_private {
 	uint32_t mclk;
 
 	struct drm_plane primary_plane;
-	struct ast_cursor_plane cursor_plane;
+	struct ast_plane cursor_plane;
 	struct drm_crtc crtc;
 	struct {
 		struct {

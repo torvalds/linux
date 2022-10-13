@@ -829,7 +829,7 @@ static void
 ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 				      struct drm_atomic_state *state)
 {
-	struct ast_cursor_plane *ast_cursor_plane = to_ast_cursor_plane(plane);
+	struct ast_plane *ast_plane = to_ast_plane(plane);
 	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
 									   plane);
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
@@ -837,8 +837,8 @@ ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(new_state);
 	struct drm_framebuffer *fb = new_state->fb;
 	struct ast_private *ast = to_ast_private(plane->dev);
-	struct iosys_map dst_map = ast_cursor_plane->map;
-	u64 dst_off = ast_cursor_plane->off;
+	struct iosys_map dst_map = ast_plane->map;
+	u64 dst_off = ast_plane->off;
 	struct iosys_map src_map = shadow_plane_state->data[0];
 	unsigned int offset_x, offset_y;
 	u16 x, y;
@@ -910,9 +910,9 @@ static const struct drm_plane_helper_funcs ast_cursor_plane_helper_funcs = {
 
 static void ast_cursor_plane_destroy(struct drm_plane *plane)
 {
-	struct ast_cursor_plane *ast_cursor_plane = to_ast_cursor_plane(plane);
-	struct drm_gem_vram_object *gbo = ast_cursor_plane->gbo;
-	struct iosys_map map = ast_cursor_plane->map;
+	struct ast_plane *ast_plane = to_ast_plane(plane);
+	struct drm_gem_vram_object *gbo = ast_plane->gbo;
+	struct iosys_map map = ast_plane->map;
 
 	drm_gem_vram_vunmap(gbo, &map);
 	drm_gem_vram_unpin(gbo);
@@ -931,8 +931,8 @@ static const struct drm_plane_funcs ast_cursor_plane_funcs = {
 static int ast_cursor_plane_init(struct ast_private *ast)
 {
 	struct drm_device *dev = &ast->base;
-	struct ast_cursor_plane *ast_cursor_plane = &ast->cursor_plane;
-	struct drm_plane *cursor_plane = &ast_cursor_plane->base;
+	struct ast_plane *ast_plane = &ast->cursor_plane;
+	struct drm_plane *cursor_plane = &ast_plane->base;
 	size_t size;
 	struct drm_gem_vram_object *gbo;
 	struct iosys_map map;
@@ -963,9 +963,9 @@ static int ast_cursor_plane_init(struct ast_private *ast)
 		goto err_drm_gem_vram_vunmap;
 	}
 
-	ast_cursor_plane->gbo = gbo;
-	ast_cursor_plane->map = map;
-	ast_cursor_plane->off = off;
+	ast_plane->gbo = gbo;
+	ast_plane->map = map;
+	ast_plane->off = off;
 
 	/*
 	 * Create the cursor plane. The plane's destroy callback will release
