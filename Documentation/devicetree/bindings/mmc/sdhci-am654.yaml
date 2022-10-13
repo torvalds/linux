@@ -159,6 +159,12 @@ properties:
     minimum: 0
     maximum: 0x1f
 
+  ti,itap-del-sel-ddr50:
+    description: Input tap delay for MMC DDR50 timing
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 0x1f
+
   ti,itap-del-sel-ddr52:
     description: Input tap delay for MMC DDR52 timing
     $ref: "/schemas/types.yaml#/definitions/uint32"
