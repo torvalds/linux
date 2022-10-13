@@ -1663,11 +1663,11 @@ void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				mgmt->u.action.u.chan_switch.variable,
 				ies_len, true, mgmt->bssid, NULL);
 
-			if (!elems || elems->parse_error)
-				break;
-
-			ieee80211_rx_mgmt_spectrum_mgmt(sdata, mgmt, skb->len,
-							rx_status, elems);
+			if (elems && !elems->parse_error)
+				ieee80211_rx_mgmt_spectrum_mgmt(sdata, mgmt,
+								skb->len,
+								rx_status,
+								elems);
 			kfree(elems);
 			break;
 		}

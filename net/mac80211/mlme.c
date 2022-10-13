@@ -3374,8 +3374,10 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 			bss_ies = kmemdup(ies, sizeof(*ies) + ies->len,
 					  GFP_ATOMIC);
 		rcu_read_unlock();
-		if (!bss_ies)
-			return false;
+		if (!bss_ies) {
+			ret = false;
+			goto out;
+		}
 
 		bss_elems = ieee802_11_parse_elems(bss_ies->data, bss_ies->len,
 						   false, mgmt->bssid,
@@ -4358,13 +4360,11 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 					mgmt->u.action.u.chan_switch.variable,
 					ies_len, true, mgmt->bssid, NULL);
 
-			if (!elems || elems->parse_error)
-				break;
-
-			ieee80211_sta_process_chanswitch(sdata,
-						 rx_status->mactime,
-						 rx_status->device_timestamp,
-						 elems, false);
+			if (elems && !elems->parse_error)
+				ieee80211_sta_process_chanswitch(sdata,
+								 rx_status->mactime,
+								 rx_status->device_timestamp,
+								 elems, false);
 			kfree(elems);
 		} else if (mgmt->u.action.category == WLAN_CATEGORY_PUBLIC) {
 			struct ieee802_11_elems *elems;
@@ -4384,17 +4384,17 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 					mgmt->u.action.u.ext_chan_switch.variable,
 					ies_len, true, mgmt->bssid, NULL);
 
-			if (!elems || elems->parse_error)
-				break;
+			if (elems && !elems->parse_error) {
+				/* for the handling code pretend it was an IE */
+				elems->ext_chansw_ie =
+					&mgmt->u.action.u.ext_chan_switch.data;
 
-			/* for the handling code pretend this was also an IE */
-			elems->ext_chansw_ie =
-				&mgmt->u.action.u.ext_chan_switch.data;
+				ieee80211_sta_process_chanswitch(sdata,
+								 rx_status->mactime,
+								 rx_status->device_timestamp,
+								 elems, false);
+			}
 
-			ieee80211_sta_process_chanswitch(sdata,
-						 rx_status->mactime,
-						 rx_status->device_timestamp,
-						 elems, false);
 			kfree(elems);
 		}
 		break;
