@@ -29,6 +29,7 @@ description: |
         apq8074
         apq8084
         apq8096
+        ipq4018
         ipq6018
         ipq8074
         mdm9615
@@ -245,6 +246,12 @@ properties:
               - sony,xperia-maple
               - sony,xperia-poplar
           - const: qcom,msm8998
+
+      - items:
+          - enum:
+              - 8dev,jalapeno
+              - alfa-network,ap120c-ac
+          - const: qcom,ipq4018
 
       - items:
           - enum:
