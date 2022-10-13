@@ -671,10 +671,19 @@ static void ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
 		ast_handle_damage(ast_plane, shadow_plane_state->data, fb, &damage);
 	}
 
-	ast_set_offset_reg(ast, fb);
-	ast_set_start_address_crt1(ast, (u32)ast_plane->offset);
-
-	ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0x00);
+	/*
+	 * Some BMCs stop scanning out the video signal after the driver
+	 * reprogrammed the offset or scanout address. This stalls display
+	 * output for several seconds and makes the display unusable.
+	 * Therefore only update the offset if it changes and reprogram the
+	 * address after enabling the plane.
+	 */
+	if (!old_fb || old_fb->pitches[0] != fb->pitches[0])
+		ast_set_offset_reg(ast, fb);
+	if (!old_fb) {
+		ast_set_start_address_crt1(ast, (u32)ast_plane->offset);
+		ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0x00);
+	}
 }
 
 static void ast_primary_plane_helper_atomic_disable(struct drm_plane *plane,
