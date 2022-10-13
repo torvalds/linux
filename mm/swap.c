@@ -295,8 +295,20 @@ void folio_rotate_reclaimable(struct folio *folio)
 	}
 }
 
-void lru_note_cost(struct lruvec *lruvec, bool file, unsigned int nr_pages)
+void lru_note_cost(struct lruvec *lruvec, bool file,
+		   unsigned int nr_io, unsigned int nr_rotated)
 {
+	unsigned long cost;
+
+	/*
+	 * Reflect the relative cost of incurring IO and spending CPU
+	 * time on rotations. This doesn't attempt to make a precise
+	 * comparison, it just says: if reloads are about comparable
+	 * between the LRU lists, or rotations are overwhelmingly
+	 * different between them, adjust scan balance for CPU work.
+	 */
+	cost = nr_io * SWAP_CLUSTER_MAX + nr_rotated;
+
 	do {
 		unsigned long lrusize;
 
@@ -310,9 +322,9 @@ void lru_note_cost(struct lruvec *lruvec, bool file, unsigned int nr_pages)
 		spin_lock_irq(&lruvec->lru_lock);
 		/* Record cost event */
 		if (file)
-			lruvec->file_cost += nr_pages;
+			lruvec->file_cost += cost;
 		else
-			lruvec->anon_cost += nr_pages;
+			lruvec->anon_cost += cost;
 
 		/*
 		 * Decay previous events
@@ -335,10 +347,10 @@ void lru_note_cost(struct lruvec *lruvec, bool file, unsigned int nr_pages)
 	} while ((lruvec = parent_lruvec(lruvec)));
 }
 
-void lru_note_cost_folio(struct folio *folio)
+void lru_note_cost_refault(struct folio *folio)
 {
 	lru_note_cost(folio_lruvec(folio), folio_is_file_lru(folio),
-			folio_nr_pages(folio));
+		      folio_nr_pages(folio), 0);
 }
 
 static void folio_activate_fn(struct lruvec *lruvec, struct folio *folio)
