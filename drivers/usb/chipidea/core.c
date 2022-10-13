@@ -637,6 +637,49 @@ static int ci_usb_role_switch_set(struct usb_role_switch *sw,
 	return 0;
 }
 
+static enum ci_role ci_get_role(struct ci_hdrc *ci)
+{
+	enum ci_role role;
+
+	if (ci->roles[CI_ROLE_HOST] && ci->roles[CI_ROLE_GADGET]) {
+		if (ci->is_otg) {
+			role = ci_otg_role(ci);
+			hw_write_otgsc(ci, OTGSC_IDIE, OTGSC_IDIE);
+		} else {
+			/*
+			 * If the controller is not OTG capable, but support
+			 * role switch, the defalt role is gadget, and the
+			 * user can switch it through debugfs.
+			 */
+			role = CI_ROLE_GADGET;
+		}
+	} else {
+		role = ci->roles[CI_ROLE_HOST] ? CI_ROLE_HOST
+					: CI_ROLE_GADGET;
+	}
+
+	return role;
+}
+
+static void ci_handle_power_lost(struct ci_hdrc *ci)
+{
+	enum ci_role role;
+
+	disable_irq_nosync(ci->irq);
+	if (!ci_otg_is_fsm_mode(ci)) {
+		role = ci_get_role(ci);
+
+		if (ci->role != role) {
+			ci_handle_id_switch(ci);
+		} else if (role == CI_ROLE_GADGET) {
+			if (ci->is_otg && hw_read_otgsc(ci, OTGSC_BSV))
+				usb_gadget_vbus_connect(&ci->gadget);
+		}
+	}
+
+	enable_irq(ci->irq);
+}
+
 static struct usb_role_switch_desc ci_role_switch = {
 	.set = ci_usb_role_switch_set,
 	.get = ci_usb_role_switch_get,
@@ -1134,25 +1177,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (ci->roles[CI_ROLE_HOST] && ci->roles[CI_ROLE_GADGET]) {
-		if (ci->is_otg) {
-			ci->role = ci_otg_role(ci);
-			/* Enable ID change irq */
-			hw_write_otgsc(ci, OTGSC_IDIE, OTGSC_IDIE);
-		} else {
-			/*
-			 * If the controller is not OTG capable, but support
-			 * role switch, the defalt role is gadget, and the
-			 * user can switch it through debugfs.
-			 */
-			ci->role = CI_ROLE_GADGET;
-		}
-	} else {
-		ci->role = ci->roles[CI_ROLE_HOST]
-			? CI_ROLE_HOST
-			: CI_ROLE_GADGET;
-	}
-
+	ci->role = ci_get_role(ci);
 	if (!ci_otg_is_fsm_mode(ci)) {
 		/* only update vbus status for peripheral */
 		if (ci->role == CI_ROLE_GADGET) {
@@ -1374,7 +1399,15 @@ static int ci_suspend(struct device *dev)
 static int ci_resume(struct device *dev)
 {
 	struct ci_hdrc *ci = dev_get_drvdata(dev);
+	bool power_lost;
 	int ret;
+
+	/* Since ASYNCLISTADDR (host mode) and ENDPTLISTADDR (device
+	 * mode) share the same register address. We can check if
+	 * controller resume from power lost based on this address
+	 * due to this register will be reset after power lost.
+	 */
+	power_lost = !hw_read(ci, OP_ENDPTLISTADDR, ~0);
 
 	if (device_may_wakeup(dev))
 		disable_irq_wake(ci->irq);
@@ -1382,6 +1415,15 @@ static int ci_resume(struct device *dev)
 	ret = ci_controller_resume(dev);
 	if (ret)
 		return ret;
+
+	if (power_lost) {
+		/* shutdown and re-init for phy */
+		ci_usb_phy_exit(ci);
+		ci_usb_phy_init(ci);
+	}
+
+	if (power_lost)
+		ci_handle_power_lost(ci);
 
 	if (ci->supports_runtime_pm) {
 		pm_runtime_disable(dev);
