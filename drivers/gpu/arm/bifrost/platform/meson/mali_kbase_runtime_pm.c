@@ -149,7 +149,7 @@ static int pm_callback_power_on(struct kbase_device *kbdev)
 	int ret = 1; /* Assume GPU has been powered off */
 	int error;
 
-	dev_dbg(kbdev->dev, "%s %p\n", __func__, (void *)kbdev->dev->pm_domain);
+	dev_dbg(kbdev->dev, "%s %pK\n", __func__, (void *)kbdev->dev->pm_domain);
 
 #ifdef KBASE_PM_RUNTIME
 	error = pm_runtime_get_sync(kbdev->dev);

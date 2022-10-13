@@ -269,6 +269,37 @@ int kbase_pm_wait_for_desired_state(struct kbase_device *kbdev);
  */
 int kbase_pm_wait_for_l2_powered(struct kbase_device *kbdev);
 
+#if MALI_USE_CSF
+/**
+ * kbase_pm_wait_for_cores_down_scale - Wait for the downscaling of shader cores
+ *
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * This function can be called to ensure that the downscaling of cores is
+ * effectively complete and it would be safe to lower the voltage.
+ * The function assumes that caller had exercised the MCU state machine for the
+ * downscale request through the kbase_pm_update_state() function.
+ *
+ * This function needs to be used by the caller to safely wait for the completion
+ * of downscale request, instead of kbase_pm_wait_for_desired_state().
+ * The downscale request would trigger a state change in MCU state machine
+ * and so when MCU reaches the stable ON state, it can be inferred that
+ * downscaling is complete. But it has been observed that the wake up of the
+ * waiting thread can get delayed by few milli seconds and by the time the
+ * thread wakes up the power down transition could have started (after the
+ * completion of downscale request).
+ * On the completion of power down transition another wake up signal would be
+ * sent, but again by the time thread wakes up the power up transition can begin.
+ * And the power up transition could then get blocked inside the platform specific
+ * callback_power_on() function due to the thread that called into Kbase (from the
+ * platform specific code) to perform the downscaling and then ended up waiting
+ * for the completion of downscale request.
+ *
+ * Return: 0 on success, error code on error or remaining jiffies on timeout.
+ */
+int kbase_pm_wait_for_cores_down_scale(struct kbase_device *kbdev);
+#endif
+
 /**
  * kbase_pm_update_dynamic_cores_onoff - Update the L2 and shader power state
  *                                       machines after changing shader core

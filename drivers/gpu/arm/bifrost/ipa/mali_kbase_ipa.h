@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2016-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2016-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -271,7 +271,6 @@ int kbase_get_real_power(struct devfreq *df, u32 *power,
 				unsigned long freq,
 				unsigned long voltage);
 
-#if MALI_UNIT_TEST
 /* Called by kbase_get_real_power() to invoke the power models.
  * Must be called with kbdev->ipa.lock held.
  * This function is only exposed for use by unit tests.
@@ -279,7 +278,6 @@ int kbase_get_real_power(struct devfreq *df, u32 *power,
 int kbase_get_real_power_locked(struct kbase_device *kbdev, u32 *power,
 				unsigned long freq,
 				unsigned long voltage);
-#endif /* MALI_UNIT_TEST */
 
 extern struct devfreq_cooling_power kbase_ipa_power_model_ops;
 

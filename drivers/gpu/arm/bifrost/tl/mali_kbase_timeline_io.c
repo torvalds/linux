@@ -24,9 +24,11 @@
 #include "mali_kbase_tracepoints.h"
 #include "mali_kbase_timeline.h"
 
-#include <linux/delay.h>
+#include <device/mali_kbase_device.h>
+
 #include <linux/poll.h>
 #include <linux/version_compat_defs.h>
+#include <linux/anon_inodes.h>
 
 /* The timeline stream file operations functions. */
 static ssize_t kbasep_timeline_io_read(struct file *filp, char __user *buffer,
@@ -35,15 +37,6 @@ static __poll_t kbasep_timeline_io_poll(struct file *filp, poll_table *wait);
 static int kbasep_timeline_io_release(struct inode *inode, struct file *filp);
 static int kbasep_timeline_io_fsync(struct file *filp, loff_t start, loff_t end,
 				    int datasync);
-
-/* The timeline stream file operations structure. */
-const struct file_operations kbasep_tlstream_fops = {
-	.owner = THIS_MODULE,
-	.release = kbasep_timeline_io_release,
-	.read = kbasep_timeline_io_read,
-	.poll = kbasep_timeline_io_poll,
-	.fsync = kbasep_timeline_io_fsync,
-};
 
 /**
  * kbasep_timeline_io_packet_pending - check timeline streams for pending
@@ -290,7 +283,8 @@ static ssize_t kbasep_timeline_io_read(struct file *filp, char __user *buffer,
  * @filp: Pointer to file structure
  * @wait: Pointer to poll table
  *
- * Return: POLLIN if data can be read without blocking, otherwise zero
+ * Return: EPOLLIN | EPOLLRDNORM if data can be read without blocking,
+ *         otherwise zero, or EPOLLHUP | EPOLLERR on error.
  */
 static __poll_t kbasep_timeline_io_poll(struct file *filp, poll_table *wait)
 {
@@ -302,19 +296,90 @@ static __poll_t kbasep_timeline_io_poll(struct file *filp, poll_table *wait)
 	KBASE_DEBUG_ASSERT(wait);
 
 	if (WARN_ON(!filp->private_data))
-		return (__poll_t)-EFAULT;
+		return EPOLLHUP | EPOLLERR;
 
 	timeline = (struct kbase_timeline *)filp->private_data;
 
 	/* If there are header bytes to copy, read will not block */
 	if (kbasep_timeline_has_header_data(timeline))
-		return POLLIN;
+		return EPOLLIN | EPOLLRDNORM;
 
 	poll_wait(filp, &timeline->event_queue, wait);
 	if (kbasep_timeline_io_packet_pending(timeline, &stream, &rb_idx))
-		return POLLIN;
-	return 0;
+		return EPOLLIN | EPOLLRDNORM;
+
+	return (__poll_t)0;
 }
+
+int kbase_timeline_io_acquire(struct kbase_device *kbdev, u32 flags)
+{
+	/* The timeline stream file operations structure. */
+	static const struct file_operations kbasep_tlstream_fops = {
+		.owner = THIS_MODULE,
+		.release = kbasep_timeline_io_release,
+		.read = kbasep_timeline_io_read,
+		.poll = kbasep_timeline_io_poll,
+		.fsync = kbasep_timeline_io_fsync,
+	};
+	int err;
+
+	if (WARN_ON(!kbdev) || (flags & ~BASE_TLSTREAM_FLAGS_MASK))
+		return -EINVAL;
+
+	err = kbase_timeline_acquire(kbdev, flags);
+	if (err)
+		return err;
+
+	err = anon_inode_getfd("[mali_tlstream]", &kbasep_tlstream_fops, kbdev->timeline,
+			       O_RDONLY | O_CLOEXEC);
+	if (err < 0)
+		kbase_timeline_release(kbdev->timeline);
+
+	return err;
+}
+
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+static int kbasep_timeline_io_open(struct inode *in, struct file *file)
+{
+	struct kbase_device *const kbdev = in->i_private;
+
+	if (WARN_ON(!kbdev))
+		return -EFAULT;
+
+	file->private_data = kbdev->timeline;
+	return kbase_timeline_acquire(kbdev, BASE_TLSTREAM_FLAGS_MASK &
+						     ~BASE_TLSTREAM_JOB_DUMPING_ENABLED);
+}
+
+void kbase_timeline_io_debugfs_init(struct kbase_device *const kbdev)
+{
+	static const struct file_operations kbasep_tlstream_debugfs_fops = {
+		.owner = THIS_MODULE,
+		.open = kbasep_timeline_io_open,
+		.release = kbasep_timeline_io_release,
+		.read = kbasep_timeline_io_read,
+		.poll = kbasep_timeline_io_poll,
+		.fsync = kbasep_timeline_io_fsync,
+	};
+	struct dentry *file;
+
+	if (WARN_ON(!kbdev) || WARN_ON(IS_ERR_OR_NULL(kbdev->mali_debugfs_directory)))
+		return;
+
+	file = debugfs_create_file("tlstream", 0444, kbdev->mali_debugfs_directory, kbdev,
+				   &kbasep_tlstream_debugfs_fops);
+
+	if (IS_ERR_OR_NULL(file))
+		dev_warn(kbdev->dev, "Unable to create timeline debugfs entry");
+}
+#else
+/*
+ * Stub function for when debugfs is disabled
+ */
+void kbase_timeline_io_debugfs_init(struct kbase_device *const kbdev)
+{
+}
+#endif
 
 /**
  * kbasep_timeline_io_release - release timeline stream descriptor
@@ -325,55 +390,18 @@ static __poll_t kbasep_timeline_io_poll(struct file *filp, poll_table *wait)
  */
 static int kbasep_timeline_io_release(struct inode *inode, struct file *filp)
 {
-	struct kbase_timeline *timeline;
-	ktime_t elapsed_time;
-	s64 elapsed_time_ms, time_to_sleep;
-
-	KBASE_DEBUG_ASSERT(inode);
-	KBASE_DEBUG_ASSERT(filp);
-	KBASE_DEBUG_ASSERT(filp->private_data);
-
 	CSTD_UNUSED(inode);
 
-	timeline = (struct kbase_timeline *)filp->private_data;
-
-	/* Get the amount of time passed since the timeline was acquired and ensure
-	 * we sleep for long enough such that it has been at least
-	 * TIMELINE_HYSTERESIS_TIMEOUT_MS amount of time between acquire and release.
-	 * This prevents userspace from spamming acquire and release too quickly.
-	 */
-	elapsed_time = ktime_sub(ktime_get_raw(), timeline->last_acquire_time);
-	elapsed_time_ms = ktime_to_ms(elapsed_time);
-	time_to_sleep = MIN(TIMELINE_HYSTERESIS_TIMEOUT_MS,
-		TIMELINE_HYSTERESIS_TIMEOUT_MS - elapsed_time_ms);
-	if (time_to_sleep > 0)
-		msleep(time_to_sleep);
-
-#if MALI_USE_CSF
-	kbase_csf_tl_reader_stop(&timeline->csf_tl_reader);
-#endif
-
-	/* Stop autoflush timer before releasing access to streams. */
-	atomic_set(&timeline->autoflush_timer_active, 0);
-	del_timer_sync(&timeline->autoflush_timer);
-
-	atomic_set(timeline->timeline_flags, 0);
+	kbase_timeline_release(filp->private_data);
 	return 0;
 }
 
 static int kbasep_timeline_io_fsync(struct file *filp, loff_t start, loff_t end,
 				    int datasync)
 {
-	struct kbase_timeline *timeline;
-
 	CSTD_UNUSED(start);
 	CSTD_UNUSED(end);
 	CSTD_UNUSED(datasync);
 
-	if (WARN_ON(!filp->private_data))
-		return -EFAULT;
-
-	timeline = (struct kbase_timeline *)filp->private_data;
-
-	return kbase_timeline_streams_flush(timeline);
+	return kbase_timeline_streams_flush(filp->private_data);
 }

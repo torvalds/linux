@@ -825,7 +825,7 @@ static void *mali_kutf_clk_rate_trace_create_fixture(
 	if (!data)
 		return NULL;
 
-	*data = (const struct kutf_clk_rate_trace_fixture_data){ NULL };
+	memset(data, 0, sizeof(*data));
 	pr_debug("Hooking up the test portal to kbdev clk rate trace\n");
 	spin_lock(&kbdev->pm.clk_rtm.lock);
 

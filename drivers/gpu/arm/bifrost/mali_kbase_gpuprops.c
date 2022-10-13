@@ -677,9 +677,11 @@ int kbase_gpuprops_update_l2_features(struct kbase_device *kbdev)
 			int idx;
 			const bool asn_he = regdump.l2_config &
 					    L2_CONFIG_ASN_HASH_ENABLE_MASK;
+#if !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
 			if (!asn_he && kbdev->l2_hash_values_override)
 				dev_err(kbdev->dev,
 					"Failed to use requested ASN_HASH, fallback to default");
+#endif
 			for (idx = 0; idx < ASN_HASH_COUNT; idx++)
 				dev_info(kbdev->dev,
 					 "%s ASN_HASH[%d] is [0x%08x]\n",
@@ -705,10 +707,6 @@ static struct {
 #define PROP(name, member) \
 	{KBASE_GPUPROP_ ## name, offsetof(struct base_gpu_props, member), \
 		sizeof(((struct base_gpu_props *)0)->member)}
-#define BACKWARDS_COMPAT_PROP(name, type)                                                          \
-	{                                                                                          \
-		KBASE_GPUPROP_##name, SIZE_MAX, sizeof(type)                                       \
-	}
 	PROP(PRODUCT_ID, core_props.product_id),
 	PROP(VERSION_STATUS, core_props.version_status),
 	PROP(MINOR_REVISION, core_props.minor_revision),
@@ -722,6 +720,10 @@ static struct {
 	PROP(GPU_AVAILABLE_MEMORY_SIZE, core_props.gpu_available_memory_size),
 
 #if MALI_USE_CSF
+#define BACKWARDS_COMPAT_PROP(name, type)                                                          \
+	{                                                                                          \
+		KBASE_GPUPROP_##name, SIZE_MAX, sizeof(type)                                       \
+	}
 	BACKWARDS_COMPAT_PROP(NUM_EXEC_ENGINES, u8),
 #else
 	PROP(NUM_EXEC_ENGINES, core_props.num_exec_engines),
@@ -820,7 +822,7 @@ int kbase_gpuprops_populate_user_buffer(struct kbase_device *kbdev)
 	}
 
 	kprops->prop_buffer_size = size;
-	kprops->prop_buffer = kmalloc(size, GFP_KERNEL);
+	kprops->prop_buffer = kzalloc(size, GFP_KERNEL);
 
 	if (!kprops->prop_buffer) {
 		kprops->prop_buffer_size = 0;

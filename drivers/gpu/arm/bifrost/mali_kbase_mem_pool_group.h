@@ -86,10 +86,9 @@ void kbase_mem_pool_group_config_set_max_size(
  *
  * Return: 0 on success, otherwise a negative error code
  */
-int kbase_mem_pool_group_init(struct kbase_mem_pool_group *mem_pools,
-	struct kbase_device *kbdev,
-	const struct kbase_mem_pool_group_config *configs,
-	struct kbase_mem_pool_group *next_pools);
+int kbase_mem_pool_group_init(struct kbase_mem_pool_group *mem_pools, struct kbase_device *kbdev,
+			      const struct kbase_mem_pool_group_config *configs,
+			      struct kbase_mem_pool_group *next_pools);
 
 /**
  * kbase_mem_pool_group_mark_dying - Mark a set of memory pools as dying

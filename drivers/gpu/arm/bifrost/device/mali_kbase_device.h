@@ -130,7 +130,11 @@ bool kbase_is_gpu_removed(struct kbase_device *kbdev);
  *
  * Return: 0 if successful or a negative error code on failure.
  */
-#define kbase_gpu_cache_flush_pa_range_and_busy_wait(kbdev, phys, nr_bytes, flush_op) (0)
+#if MALI_USE_CSF
+int kbase_gpu_cache_flush_pa_range_and_busy_wait(struct kbase_device *kbdev, phys_addr_t phys,
+						 size_t nr_bytes, u32 flush_op);
+#endif /* MALI_USE_CSF */
+
 /**
  * kbase_gpu_cache_flush_and_busy_wait - Start a cache flush and busy wait
  * @kbdev: Kbase device

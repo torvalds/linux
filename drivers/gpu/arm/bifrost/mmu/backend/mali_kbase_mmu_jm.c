@@ -94,6 +94,7 @@ void kbase_gpu_report_bus_fault_and_kill(struct kbase_context *kctx,
 				 KBASE_MMU_FAULT_TYPE_BUS_UNEXPECTED);
 	kbase_mmu_hw_enable_fault(kbdev, as,
 				 KBASE_MMU_FAULT_TYPE_BUS_UNEXPECTED);
+
 }
 
 /*

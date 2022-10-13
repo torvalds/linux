@@ -32,12 +32,12 @@
  */
 #include <mali_kbase_config.h>
 
+#ifndef CONFIG_OF
+
 #define PLATFORM_CONFIG_RESOURCE_COUNT 4
-#define PLATFORM_CONFIG_IRQ_RES_COUNT  3
 
 static struct platform_device *mali_device;
 
-#ifndef CONFIG_OF
 /**
  * kbasep_config_parse_io_resources - Convert data in struct kbase_io_resources
  * struct to Linux-specific resources
@@ -73,14 +73,11 @@ static void kbasep_config_parse_io_resources(const struct kbase_io_resources *io
 	linux_resources[3].end   = io_resources->gpu_irq_number;
 	linux_resources[3].flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL;
 }
-#endif /* CONFIG_OF */
 
 int kbase_platform_register(void)
 {
 	struct kbase_platform_config *config;
-#ifndef CONFIG_OF
 	struct resource resources[PLATFORM_CONFIG_RESOURCE_COUNT];
-#endif
 	int err;
 
 	config = kbase_get_platform_config(); /* declared in midgard/mali_kbase_config.h but defined in platform folder */
@@ -93,7 +90,6 @@ int kbase_platform_register(void)
 	if (mali_device == NULL)
 		return -ENOMEM;
 
-#ifndef CONFIG_OF
 	kbasep_config_parse_io_resources(config->io_resources, resources);
 	err = platform_device_add_resources(mali_device, resources, PLATFORM_CONFIG_RESOURCE_COUNT);
 	if (err) {
@@ -101,7 +97,6 @@ int kbase_platform_register(void)
 		mali_device = NULL;
 		return err;
 	}
-#endif /* CONFIG_OF */
 
 	err = platform_device_add(mali_device);
 	if (err) {
@@ -120,3 +115,5 @@ void kbase_platform_unregister(void)
 		platform_device_unregister(mali_device);
 }
 EXPORT_SYMBOL(kbase_platform_unregister);
+
+#endif /* CONFIG_OF */

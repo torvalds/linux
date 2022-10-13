@@ -621,6 +621,7 @@ void kbasep_js_devdata_term(struct kbase_device *kbdev)
 {
 	struct kbasep_js_device_data *js_devdata;
 	s8 zero_ctx_attr_ref_count[KBASEP_JS_CTX_ATTR_COUNT] = { 0, };
+	CSTD_UNUSED(js_devdata);
 
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 
@@ -638,14 +639,11 @@ void kbasep_js_devdata_term(struct kbase_device *kbdev)
 
 int kbasep_js_kctx_init(struct kbase_context *const kctx)
 {
-	struct kbase_device *kbdev;
 	struct kbasep_js_kctx_info *js_kctx_info;
 	int i, j;
+	CSTD_UNUSED(js_kctx_info);
 
 	KBASE_DEBUG_ASSERT(kctx != NULL);
-
-	kbdev = kctx->kbdev;
-	KBASE_DEBUG_ASSERT(kbdev != NULL);
 
 	for (i = 0; i < BASE_JM_MAX_NR_SLOTS; ++i)
 		INIT_LIST_HEAD(&kctx->jctx.sched_info.ctx.ctx_list_entry[i]);
@@ -688,6 +686,7 @@ void kbasep_js_kctx_term(struct kbase_context *kctx)
 	int js;
 	bool update_ctx_count = false;
 	unsigned long flags;
+	CSTD_UNUSED(js_kctx_info);
 
 	KBASE_DEBUG_ASSERT(kctx != NULL);
 
@@ -1800,6 +1799,7 @@ static kbasep_js_release_result kbasep_js_runpool_release_ctx_internal(
 	bool runpool_ctx_attr_change = false;
 	int kctx_as_nr;
 	int new_ref_count;
+	CSTD_UNUSED(kctx_as_nr);
 
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 	KBASE_DEBUG_ASSERT(kctx != NULL);
@@ -2183,6 +2183,7 @@ static bool kbasep_js_schedule_ctx(struct kbase_device *kbdev,
 #endif
 		/* Cause it to leave at some later point */
 		bool retained;
+		CSTD_UNUSED(retained);
 
 		retained = kbase_ctx_sched_inc_refcount_nolock(kctx);
 		KBASE_DEBUG_ASSERT(retained);
@@ -3918,6 +3919,7 @@ void kbase_js_zap_context(struct kbase_context *kctx)
 	} else {
 		unsigned long flags;
 		bool was_retained;
+		CSTD_UNUSED(was_retained);
 
 		/* Case c: didn't evict, but it is scheduled - it's in the Run
 		 * Pool

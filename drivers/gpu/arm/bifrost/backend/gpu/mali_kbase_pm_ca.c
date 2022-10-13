@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2013-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2013-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -92,29 +92,10 @@ void kbase_devfreq_set_core_mask(struct kbase_device *kbdev, u64 core_mask)
 	 * for those cores to get powered down
 	 */
 	if ((core_mask & old_core_mask) != old_core_mask) {
-		bool can_wait;
-
-		spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-		can_wait = kbdev->pm.backend.gpu_ready && kbase_pm_is_mcu_desired(kbdev);
-		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
-
-		/* This check is ideally not required, the wait function can
-		 * deal with the GPU power down. But it has been added to
-		 * address the scenario where down-scaling request comes from
-		 * the platform specific code soon after the GPU power down
-		 * and at the time same time application thread tries to
-		 * power up the GPU (on the flush of GPU queue).
-		 * The platform specific @ref callback_power_on that gets
-		 * invoked on power up does not return until down-scaling
-		 * request is complete. The check mitigates the race caused by
-		 * the problem in platform specific code.
-		 */
-		if (likely(can_wait)) {
-			if (kbase_pm_wait_for_desired_state(kbdev)) {
-				dev_warn(kbdev->dev,
-					 "Wait for update of core_mask from %llx to %llx failed",
-					 old_core_mask, core_mask);
-			}
+		if (kbase_pm_wait_for_cores_down_scale(kbdev)) {
+			dev_warn(kbdev->dev,
+				 "Wait for update of core_mask from %llx to %llx failed",
+				 old_core_mask, core_mask);
 		}
 	}
 #endif

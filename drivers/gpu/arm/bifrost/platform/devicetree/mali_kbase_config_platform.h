@@ -33,13 +33,12 @@
  * Attached value: pointer to @ref kbase_platform_funcs_conf
  * Default value: See @ref kbase_platform_funcs_conf
  */
-#define PLATFORM_FUNCS (&platform_funcs)
+#define PLATFORM_FUNCS (NULL)
 
 #define CLK_RATE_TRACE_OPS (&clk_rate_trace_ops)
 
 extern struct kbase_pm_callback_conf pm_callbacks;
 extern struct kbase_clk_rate_trace_op_conf clk_rate_trace_ops;
-extern struct kbase_platform_funcs_conf platform_funcs;
 /**
  * AUTO_SUSPEND_DELAY - Autosuspend delay
  *

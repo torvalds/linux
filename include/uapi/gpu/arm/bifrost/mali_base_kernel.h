@@ -197,55 +197,6 @@ struct base_mem_aliasing_info {
  */
 #define BASE_JIT_ALLOC_COUNT (255)
 
-/* base_jit_alloc_info in use for kernel driver versions 10.2 to early 11.5
- *
- * jit_version is 1
- *
- * Due to the lack of padding specified, user clients between 32 and 64-bit
- * may have assumed a different size of the struct
- *
- * An array of structures was not supported
- */
-struct base_jit_alloc_info_10_2 {
-	__u64 gpu_alloc_addr;
-	__u64 va_pages;
-	__u64 commit_pages;
-	__u64 extension;
-	__u8 id;
-};
-
-/* base_jit_alloc_info introduced by kernel driver version 11.5, and in use up
- * to 11.19
- *
- * This structure had a number of modifications during and after kernel driver
- * version 11.5, but remains size-compatible throughout its version history, and
- * with earlier variants compatible with future variants by requiring
- * zero-initialization to the unused space in the structure.
- *
- * jit_version is 2
- *
- * Kernel driver version history:
- * 11.5: Initial introduction with 'usage_id' and padding[5]. All padding bytes
- *       must be zero. Kbase minor version was not incremented, so some
- *       versions of 11.5 do not have this change.
- * 11.5: Added 'bin_id' and 'max_allocations', replacing 2 padding bytes (Kbase
- *       minor version not incremented)
- * 11.6: Added 'flags', replacing 1 padding byte
- * 11.10: Arrays of this structure are supported
- */
-struct base_jit_alloc_info_11_5 {
-	__u64 gpu_alloc_addr;
-	__u64 va_pages;
-	__u64 commit_pages;
-	__u64 extension;
-	__u8 id;
-	__u8 bin_id;
-	__u8 max_allocations;
-	__u8 flags;
-	__u8 padding[2];
-	__u16 usage_id;
-};
-
 /**
  * struct base_jit_alloc_info - Structure which describes a JIT allocation
  *                              request.
@@ -274,16 +225,6 @@ struct base_jit_alloc_info_11_5 {
  *                              allocation with the same usage_id
  * @heap_info_gpu_addr:         Pointer to an object in GPU memory describing
  *                              the actual usage of the region.
- *
- * jit_version is 3.
- *
- * When modifications are made to this structure, it is still compatible with
- * jit_version 3 when: a) the size is unchanged, and b) new members only
- * replace the padding bytes.
- *
- * Previous jit_version history:
- * jit_version == 1, refer to &base_jit_alloc_info_10_2
- * jit_version == 2, refer to &base_jit_alloc_info_11_5
  *
  * Kbase version history:
  * 11.20: added @heap_info_gpu_addr

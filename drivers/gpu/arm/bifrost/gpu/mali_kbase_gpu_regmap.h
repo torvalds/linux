@@ -45,9 +45,6 @@
 /* Begin Register Offsets */
 /* GPU control registers */
 
-#define GPU_CONTROL_BASE        0x0000
-#define GPU_CONTROL_REG(r)      (GPU_CONTROL_BASE + (r))
-#define GPU_ID                  0x000   /* (RO) GPU and revision identifier */
 #define L2_FEATURES             0x004   /* (RO) Level 2 cache features */
 #define TILER_FEATURES          0x00C   /* (RO) Tiler Features */
 #define MEM_FEATURES            0x010   /* (RO) Memory system features */
@@ -100,6 +97,10 @@
 
 #define TEXTURE_FEATURES_REG(n) GPU_CONTROL_REG(TEXTURE_FEATURES_0 + ((n) << 2))
 
+#define GPU_COMMAND_ARG0_LO 0x0D0 /* (RW) Additional parameter 0 for GPU commands, low word */
+#define GPU_COMMAND_ARG0_HI 0x0D4 /* (RW) Additional parameter 0 for GPU commands, high word */
+#define GPU_COMMAND_ARG1_LO 0x0D8 /* (RW) Additional parameter 1 for GPU commands, low word */
+#define GPU_COMMAND_ARG1_HI 0x0DC /* (RW) Additional parameter 1 for GPU commands, high word */
 
 #define SHADER_PRESENT_LO       0x100   /* (RO) Shader core present bitmap, low word */
 #define SHADER_PRESENT_HI       0x104   /* (RO) Shader core present bitmap, high word */
@@ -113,26 +114,10 @@
 #define STACK_PRESENT_LO        0xE00   /* (RO) Core stack present bitmap, low word */
 #define STACK_PRESENT_HI        0xE04   /* (RO) Core stack present bitmap, high word */
 
-#define SHADER_READY_LO         0x140   /* (RO) Shader core ready bitmap, low word */
-#define SHADER_READY_HI         0x144   /* (RO) Shader core ready bitmap, high word */
-
-#define TILER_READY_LO          0x150   /* (RO) Tiler core ready bitmap, low word */
-#define TILER_READY_HI          0x154   /* (RO) Tiler core ready bitmap, high word */
-
-#define L2_READY_LO             0x160   /* (RO) Level 2 cache ready bitmap, low word */
-#define L2_READY_HI             0x164   /* (RO) Level 2 cache ready bitmap, high word */
-
 #define STACK_READY_LO          0xE10   /* (RO) Core stack ready bitmap, low word */
 #define STACK_READY_HI          0xE14   /* (RO) Core stack ready bitmap, high word */
 
-#define SHADER_PWRON_LO         0x180   /* (WO) Shader core power on bitmap, low word */
-#define SHADER_PWRON_HI         0x184   /* (WO) Shader core power on bitmap, high word */
-
-#define TILER_PWRON_LO          0x190   /* (WO) Tiler core power on bitmap, low word */
-#define TILER_PWRON_HI          0x194   /* (WO) Tiler core power on bitmap, high word */
-
-#define L2_PWRON_LO             0x1A0   /* (WO) Level 2 cache power on bitmap, low word */
-#define L2_PWRON_HI             0x1A4   /* (WO) Level 2 cache power on bitmap, high word */
+#define SHADER_PWRFEATURES      0x188   /* (RW) Shader core power features */
 
 #define STACK_PWRON_LO          0xE20   /* (RO) Core stack power on bitmap, low word */
 #define STACK_PWRON_HI          0xE24   /* (RO) Core stack power on bitmap, high word */
@@ -181,6 +166,8 @@
 #define COHERENCY_FEATURES      0x300   /* (RO) Coherency features present */
 #define COHERENCY_ENABLE        0x304   /* (RW) Coherency enable */
 
+#define AMBA_FEATURES           0x300   /* (RO) AMBA bus supported features */
+#define AMBA_ENABLE             0x304   /* (RW) AMBA features enable */
 
 #define SHADER_CONFIG           0xF04   /* (RW) Shader core configuration (implementation-specific) */
 #define TILER_CONFIG            0xF08   /* (RW) Tiler core configuration (implementation-specific) */
@@ -188,13 +175,7 @@
 
 /* Job control registers */
 
-#define JOB_CONTROL_BASE        0x1000
-
-#define JOB_CONTROL_REG(r)      (JOB_CONTROL_BASE + (r))
-
 #define JOB_IRQ_RAWSTAT         0x000   /* Raw interrupt status register */
-#define JOB_IRQ_CLEAR           0x004   /* Interrupt clear register */
-#define JOB_IRQ_MASK            0x008   /* Interrupt mask register */
 #define JOB_IRQ_STATUS          0x00C   /* Interrupt status register */
 
 /* MMU control registers */
@@ -203,7 +184,6 @@
 #define MMU_IRQ_MASK            0x008   /* (RW) Interrupt mask register */
 #define MMU_IRQ_STATUS          0x00C   /* (RO) Interrupt status register */
 
-#define MMU_AS0                 0x400   /* Configuration registers for address space 0 */
 #define MMU_AS1                 0x440   /* Configuration registers for address space 1 */
 #define MMU_AS2                 0x480   /* Configuration registers for address space 2 */
 #define MMU_AS3                 0x4C0   /* Configuration registers for address space 3 */
@@ -221,25 +201,13 @@
 #define MMU_AS15                0x7C0   /* Configuration registers for address space 15 */
 
 /* MMU address space control registers */
-
-#define MMU_AS_REG(n, r)        (MMU_REG(MMU_AS0 + ((n) << 6)) + (r))
-
-#define AS_TRANSTAB_LO         0x00	/* (RW) Translation Table Base Address for address space n, low word */
-#define AS_TRANSTAB_HI         0x04	/* (RW) Translation Table Base Address for address space n, high word */
-#define AS_MEMATTR_LO          0x08	/* (RW) Memory attributes for address space n, low word. */
-#define AS_MEMATTR_HI          0x0C	/* (RW) Memory attributes for address space n, high word. */
 #define AS_LOCKADDR_LO         0x10	/* (RW) Lock region address for address space n, low word */
 #define AS_LOCKADDR_HI         0x14	/* (RW) Lock region address for address space n, high word */
-#define AS_COMMAND             0x18	/* (WO) MMU command register for address space n */
 #define AS_FAULTSTATUS         0x1C	/* (RO) MMU fault status register for address space n */
 #define AS_FAULTADDRESS_LO     0x20	/* (RO) Fault Address for address space n, low word */
 #define AS_FAULTADDRESS_HI     0x24	/* (RO) Fault Address for address space n, high word */
 #define AS_STATUS              0x28	/* (RO) Status flags for address space n */
 
-/* (RW) Translation table configuration for address space n, low word */
-#define AS_TRANSCFG_LO         0x30
-/* (RW) Translation table configuration for address space n, high word */
-#define AS_TRANSCFG_HI         0x34
 /* (RO) Secondary fault address for address space n, low word */
 #define AS_FAULTEXTRA_LO       0x38
 /* (RO) Secondary fault address for address space n, high word */
@@ -464,6 +432,80 @@
 #define L2_CONFIG_ASN_HASH_ENABLE_MASK         (1ul << L2_CONFIG_ASN_HASH_ENABLE_SHIFT)
 /* End L2_CONFIG register */
 
+/* AMBA_FEATURES register */
+#define AMBA_FEATURES_ACE_LITE_SHIFT GPU_U(0)
+#define AMBA_FEATURES_ACE_LITE_MASK (GPU_U(0x1) << AMBA_FEATURES_ACE_LITE_SHIFT)
+#define AMBA_FEATURES_ACE_LITE_GET(reg_val)                                    \
+	(((reg_val)&AMBA_FEATURES_ACE_LITE_MASK) >>                            \
+	 AMBA_FEATURES_ACE_LITE_SHIFT)
+#define AMBA_FEATURES_ACE_LITE_SET(reg_val, value)                             \
+	(((reg_val) & ~AMBA_FEATURES_ACE_LITE_MASK) |                          \
+	 (((value) << AMBA_FEATURES_ACE_LITE_SHIFT) &                          \
+	  AMBA_FEATURES_ACE_LITE_MASK))
+#define AMBA_FEATURES_ACE_SHIFT GPU_U(1)
+#define AMBA_FEATURES_ACE_MASK (GPU_U(0x1) << AMBA_FEATURES_ACE_SHIFT)
+#define AMBA_FEATURES_ACE_GET(reg_val)                                         \
+	(((reg_val)&AMBA_FEATURES_ACE_MASK) >> AMBA_FEATURES_ACE_SHIFT)
+#define AMBA_FEATURES_ACE_SET(reg_val, value)                                  \
+	(((reg_val) & ~AMBA_FEATURES_ACE_MASK) |                               \
+	 (((value) << AMBA_FEATURES_ACE_SHIFT) & AMBA_FEATURES_ACE_MASK))
+#define AMBA_FEATURES_MEMORY_CACHE_SUPPORT_SHIFT GPU_U(5)
+#define AMBA_FEATURES_MEMORY_CACHE_SUPPORT_MASK                                \
+	(GPU_U(0x1) << AMBA_FEATURES_MEMORY_CACHE_SUPPORT_SHIFT)
+#define AMBA_FEATURES_MEMORY_CACHE_SUPPORT_GET(reg_val)                        \
+	(((reg_val)&AMBA_FEATURES_MEMORY_CACHE_SUPPORT_MASK) >>                \
+	 AMBA_FEATURES_MEMORY_CACHE_SUPPORT_SHIFT)
+#define AMBA_FEATURES_MEMORY_CACHE_SUPPORT_SET(reg_val, value)                 \
+	(((reg_val) & ~AMBA_FEATURES_MEMORY_CACHE_SUPPORT_MASK) |              \
+	 (((value) << AMBA_FEATURES_MEMORY_CACHE_SUPPORT_SHIFT) &              \
+	  AMBA_FEATURES_MEMORY_CACHE_SUPPORT_MASK))
+#define AMBA_FEATURES_INVALIDATE_HINT_SHIFT GPU_U(6)
+#define AMBA_FEATURES_INVALIDATE_HINT_MASK                                     \
+	(GPU_U(0x1) << AMBA_FEATURES_INVALIDATE_HINT_SHIFT)
+#define AMBA_FEATURES_INVALIDATE_HINT_GET(reg_val)                             \
+	(((reg_val)&AMBA_FEATURES_INVALIDATE_HINT_MASK) >>                     \
+	 AMBA_FEATURES_INVALIDATE_HINT_SHIFT)
+#define AMBA_FEATURES_INVALIDATE_HINT_SET(reg_val, value)                      \
+	(((reg_val) & ~AMBA_FEATURES_INVALIDATE_HINT_MASK) |                   \
+	 (((value) << AMBA_FEATURES_INVALIDATE_HINT_SHIFT) &                   \
+	  AMBA_FEATURES_INVALIDATE_HINT_MASK))
+
+/* AMBA_ENABLE register */
+#define AMBA_ENABLE_COHERENCY_PROTOCOL_SHIFT GPU_U(0)
+#define AMBA_ENABLE_COHERENCY_PROTOCOL_MASK                                    \
+	(GPU_U(0x1F) << AMBA_ENABLE_COHERENCY_PROTOCOL_SHIFT)
+#define AMBA_ENABLE_COHERENCY_PROTOCOL_GET(reg_val)                            \
+	(((reg_val)&AMBA_ENABLE_COHERENCY_PROTOCOL_MASK) >>                    \
+	 AMBA_ENABLE_COHERENCY_PROTOCOL_SHIFT)
+#define AMBA_ENABLE_COHERENCY_PROTOCOL_SET(reg_val, value)                     \
+	(((reg_val) & ~AMBA_ENABLE_COHERENCY_PROTOCOL_MASK) |                  \
+	 (((value) << AMBA_ENABLE_COHERENCY_PROTOCOL_SHIFT) &                  \
+	  AMBA_ENABLE_COHERENCY_PROTOCOL_MASK))
+/* AMBA_ENABLE_coherency_protocol values */
+#define AMBA_ENABLE_COHERENCY_PROTOCOL_ACE_LITE 0x0
+#define AMBA_ENABLE_COHERENCY_PROTOCOL_ACE 0x1
+#define AMBA_ENABLE_COHERENCY_PROTOCOL_NO_COHERENCY 0x1F
+/* End of AMBA_ENABLE_coherency_protocol values */
+#define AMBA_ENABLE_MEMORY_CACHE_SUPPORT_SHIFT GPU_U(5)
+#define AMBA_ENABLE_MEMORY_CACHE_SUPPORT_MASK                                  \
+	(GPU_U(0x1) << AMBA_ENABLE_MEMORY_CACHE_SUPPORT_SHIFT)
+#define AMBA_ENABLE_MEMORY_CACHE_SUPPORT_GET(reg_val)                          \
+	(((reg_val)&AMBA_ENABLE_MEMORY_CACHE_SUPPORT_MASK) >>                  \
+	 AMBA_ENABLE_MEMORY_CACHE_SUPPORT_SHIFT)
+#define AMBA_ENABLE_MEMORY_CACHE_SUPPORT_SET(reg_val, value)                   \
+	(((reg_val) & ~AMBA_ENABLE_MEMORY_CACHE_SUPPORT_MASK) |                \
+	 (((value) << AMBA_ENABLE_MEMORY_CACHE_SUPPORT_SHIFT) &                \
+	  AMBA_ENABLE_MEMORY_CACHE_SUPPORT_MASK))
+#define AMBA_ENABLE_INVALIDATE_HINT_SHIFT GPU_U(6)
+#define AMBA_ENABLE_INVALIDATE_HINT_MASK                                       \
+	(GPU_U(0x1) << AMBA_ENABLE_INVALIDATE_HINT_SHIFT)
+#define AMBA_ENABLE_INVALIDATE_HINT_GET(reg_val)                               \
+	(((reg_val)&AMBA_ENABLE_INVALIDATE_HINT_MASK) >>                       \
+	 AMBA_ENABLE_INVALIDATE_HINT_SHIFT)
+#define AMBA_ENABLE_INVALIDATE_HINT_SET(reg_val, value)                        \
+	(((reg_val) & ~AMBA_ENABLE_INVALIDATE_HINT_MASK) |                     \
+	 (((value) << AMBA_ENABLE_INVALIDATE_HINT_SHIFT) &                     \
+	  AMBA_ENABLE_INVALIDATE_HINT_MASK))
 
 /* IDVS_GROUP register */
 #define IDVS_GROUP_SIZE_SHIFT (16)

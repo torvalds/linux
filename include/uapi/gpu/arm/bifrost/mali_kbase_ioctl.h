@@ -219,52 +219,6 @@ struct kbase_ioctl_get_ddk_version {
 	_IOW(KBASE_IOCTL_TYPE, 13, struct kbase_ioctl_get_ddk_version)
 
 /**
- * struct kbase_ioctl_mem_jit_init_10_2 - Initialize the just-in-time memory
- *                                        allocator (between kernel driver
- *                                        version 10.2--11.4)
- * @va_pages: Number of VA pages to reserve for JIT
- *
- * Note that depending on the VA size of the application and GPU, the value
- * specified in @va_pages may be ignored.
- *
- * New code should use KBASE_IOCTL_MEM_JIT_INIT instead, this is kept for
- * backwards compatibility.
- */
-struct kbase_ioctl_mem_jit_init_10_2 {
-	__u64 va_pages;
-};
-
-#define KBASE_IOCTL_MEM_JIT_INIT_10_2 \
-	_IOW(KBASE_IOCTL_TYPE, 14, struct kbase_ioctl_mem_jit_init_10_2)
-
-/**
- * struct kbase_ioctl_mem_jit_init_11_5 - Initialize the just-in-time memory
- *                                        allocator (between kernel driver
- *                                        version 11.5--11.19)
- * @va_pages: Number of VA pages to reserve for JIT
- * @max_allocations: Maximum number of concurrent allocations
- * @trim_level: Level of JIT allocation trimming to perform on free (0 - 100%)
- * @group_id: Group ID to be used for physical allocations
- * @padding: Currently unused, must be zero
- *
- * Note that depending on the VA size of the application and GPU, the value
- * specified in @va_pages may be ignored.
- *
- * New code should use KBASE_IOCTL_MEM_JIT_INIT instead, this is kept for
- * backwards compatibility.
- */
-struct kbase_ioctl_mem_jit_init_11_5 {
-	__u64 va_pages;
-	__u8 max_allocations;
-	__u8 trim_level;
-	__u8 group_id;
-	__u8 padding[5];
-};
-
-#define KBASE_IOCTL_MEM_JIT_INIT_11_5 \
-	_IOW(KBASE_IOCTL_TYPE, 14, struct kbase_ioctl_mem_jit_init_11_5)
-
-/**
  * struct kbase_ioctl_mem_jit_init - Initialize the just-in-time memory
  *                                   allocator
  * @va_pages: Number of GPU virtual address pages to reserve for just-in-time

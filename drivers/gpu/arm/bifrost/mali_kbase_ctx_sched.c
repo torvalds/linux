@@ -327,16 +327,14 @@ struct kbase_context *kbase_ctx_sched_as_to_ctx_nolock(
 bool kbase_ctx_sched_inc_refcount_nolock(struct kbase_context *kctx)
 {
 	bool result = false;
-	int as_nr;
 
 	if (WARN_ON(kctx == NULL))
 		return result;
 
 	lockdep_assert_held(&kctx->kbdev->hwaccess_lock);
 
-	as_nr = kctx->as_nr;
 	if (atomic_read(&kctx->refcount) > 0) {
-		KBASE_DEBUG_ASSERT(as_nr >= 0);
+		KBASE_DEBUG_ASSERT(kctx->as_nr >= 0);
 
 		kbase_ctx_sched_retain_ctx_refcount(kctx);
 		KBASE_KTRACE_ADD(kctx->kbdev, SCHED_RETAIN_CTX_NOLOCK, kctx,

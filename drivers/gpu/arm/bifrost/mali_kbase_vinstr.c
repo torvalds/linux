@@ -20,11 +20,11 @@
  */
 
 #include "mali_kbase_vinstr.h"
-#include "mali_kbase_hwcnt_virtualizer.h"
-#include "mali_kbase_hwcnt_types.h"
+#include "hwcnt/mali_kbase_hwcnt_virtualizer.h"
+#include "hwcnt/mali_kbase_hwcnt_types.h"
 #include <uapi/gpu/arm/bifrost/mali_kbase_hwcnt_reader.h>
-#include "mali_kbase_hwcnt_gpu.h"
-#include "mali_kbase_hwcnt_gpu_narrow.h"
+#include "hwcnt/mali_kbase_hwcnt_gpu.h"
+#include "hwcnt/mali_kbase_hwcnt_gpu_narrow.h"
 #include <uapi/gpu/arm/bifrost/mali_kbase_ioctl.h>
 #include "mali_malisw.h"
 #include "mali_kbase_debug.h"
@@ -1034,24 +1034,25 @@ static long kbasep_vinstr_hwcnt_reader_ioctl(
  * @filp: Non-NULL pointer to file structure.
  * @wait: Non-NULL pointer to poll table.
  *
- * Return: POLLIN if data can be read without blocking, 0 if data can not be
- *         read without blocking, else error code.
+ * Return: EPOLLIN | EPOLLRDNORM if data can be read without blocking, 0 if
+ *         data can not be read without blocking, else EPOLLHUP | EPOLLERR.
  */
 static __poll_t kbasep_vinstr_hwcnt_reader_poll(struct file *filp, poll_table *wait)
 {
 	struct kbase_vinstr_client *cli;
 
 	if (!filp || !wait)
-		return (__poll_t)-EINVAL;
+		return EPOLLHUP | EPOLLERR;
 
 	cli = filp->private_data;
 	if (!cli)
-		return (__poll_t)-EINVAL;
+		return EPOLLHUP | EPOLLERR;
 
 	poll_wait(filp, &cli->waitq, wait);
 	if (kbasep_vinstr_hwcnt_reader_buffer_ready(cli))
-		return POLLIN;
-	return 0;
+		return EPOLLIN | EPOLLRDNORM;
+
+	return (__poll_t)0;
 }
 
 /**

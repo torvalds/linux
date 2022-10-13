@@ -60,10 +60,22 @@
  * - Dummy model (no mali) backend will now clear HWC values after each sample
  * 1.12:
  * - Added support for incremental rendering flag in CSG create call
+ * 1.13:
+ * - Added ioctl to query a register of USER page.
+ * 1.14:
+ * - Added support for passing down the buffer descriptor VA in tiler heap init
+ * 1.15:
+ * - Enable new sync_wait GE condition
+ * 1.16:
+ * - Remove legacy definitions:
+ *   - base_jit_alloc_info_10_2
+ *   - base_jit_alloc_info_11_5
+ *   - kbase_ioctl_mem_jit_init_10_2
+ *   - kbase_ioctl_mem_jit_init_11_5
  */
 
 #define BASE_UK_VERSION_MAJOR 1
-#define BASE_UK_VERSION_MINOR 12
+#define BASE_UK_VERSION_MINOR 16
 
 /**
  * struct kbase_ioctl_version_check - Check version compatibility between
@@ -271,9 +283,9 @@ union kbase_ioctl_cs_queue_group_create {
 		__u8 csi_handlers;
 		__u8 padding[2];
 		/**
-		 * @in.reserved: Reserved
+		 * @in.dvs_buf: buffer for deferred vertex shader
 		 */
-		__u64 reserved;
+		__u64 dvs_buf;
 	} in;
 	struct {
 		__u8 group_handle;
@@ -361,6 +373,7 @@ struct kbase_ioctl_kcpu_queue_enqueue {
  *                     allowed.
  * @in.group_id:       Group ID to be used for physical allocations.
  * @in.padding:        Padding
+ * @in.buf_desc_va:    Buffer descriptor GPU VA for tiler heap reclaims.
  * @out:               Output parameters
  * @out.gpu_heap_va:   GPU VA (virtual address) of Heap context that was set up
  *                     for the heap.
@@ -376,6 +389,7 @@ union kbase_ioctl_cs_tiler_heap_init {
 		__u16 target_in_flight;
 		__u8 group_id;
 		__u8 padding;
+		__u64 buf_desc_va;
 	} in;
 	struct {
 		__u64 gpu_heap_va;
@@ -385,6 +399,43 @@ union kbase_ioctl_cs_tiler_heap_init {
 
 #define KBASE_IOCTL_CS_TILER_HEAP_INIT \
 	_IOWR(KBASE_IOCTL_TYPE, 48, union kbase_ioctl_cs_tiler_heap_init)
+
+/**
+ * union kbase_ioctl_cs_tiler_heap_init_1_13 - Initialize chunked tiler memory heap,
+ *                                             earlier version upto 1.13
+ * @in:                Input parameters
+ * @in.chunk_size:     Size of each chunk.
+ * @in.initial_chunks: Initial number of chunks that heap will be created with.
+ * @in.max_chunks:     Maximum number of chunks that the heap is allowed to use.
+ * @in.target_in_flight: Number of render-passes that the driver should attempt to
+ *                     keep in flight for which allocation of new chunks is
+ *                     allowed.
+ * @in.group_id:       Group ID to be used for physical allocations.
+ * @in.padding:        Padding
+ * @out:               Output parameters
+ * @out.gpu_heap_va:   GPU VA (virtual address) of Heap context that was set up
+ *                     for the heap.
+ * @out.first_chunk_va: GPU VA of the first chunk allocated for the heap,
+ *                     actually points to the header of heap chunk and not to
+ *                     the low address of free memory in the chunk.
+ */
+union kbase_ioctl_cs_tiler_heap_init_1_13 {
+	struct {
+		__u32 chunk_size;
+		__u32 initial_chunks;
+		__u32 max_chunks;
+		__u16 target_in_flight;
+		__u8 group_id;
+		__u8 padding;
+	} in;
+	struct {
+		__u64 gpu_heap_va;
+		__u64 first_chunk_va;
+	} out;
+};
+
+#define KBASE_IOCTL_CS_TILER_HEAP_INIT_1_13                                                        \
+	_IOWR(KBASE_IOCTL_TYPE, 48, union kbase_ioctl_cs_tiler_heap_init_1_13)
 
 /**
  * struct kbase_ioctl_cs_tiler_heap_term - Terminate a chunked tiler heap
@@ -486,6 +537,29 @@ union kbase_ioctl_mem_alloc_ex {
 };
 
 #define KBASE_IOCTL_MEM_ALLOC_EX _IOWR(KBASE_IOCTL_TYPE, 59, union kbase_ioctl_mem_alloc_ex)
+
+/**
+ * union kbase_ioctl_read_user_page - Read a register of USER page
+ *
+ * @in:               Input parameters.
+ * @in.offset:        Register offset in USER page.
+ * @in.padding:       Padding to round up to a multiple of 8 bytes, must be zero.
+ * @out:              Output parameters.
+ * @out.val_lo:       Value of 32bit register or the 1st half of 64bit register to be read.
+ * @out.val_hi:       Value of the 2nd half of 64bit register to be read.
+ */
+union kbase_ioctl_read_user_page {
+	struct {
+		__u32 offset;
+		__u32 padding;
+	} in;
+	struct {
+		__u32 val_lo;
+		__u32 val_hi;
+	} out;
+};
+
+#define KBASE_IOCTL_READ_USER_PAGE _IOWR(KBASE_IOCTL_TYPE, 60, union kbase_ioctl_read_user_page)
 
 /***************
  * test ioctls *

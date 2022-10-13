@@ -236,9 +236,11 @@ struct kbase_kcpu_command {
 /**
  * struct kbase_kcpu_command_queue - a command queue executed by the kernel
  *
+ * @lock:			Lock to protect accesses to this queue.
  * @kctx:			The context to which this command queue belongs.
  * @commands:			Array of commands which have been successfully
  *				enqueued to this command queue.
+ * @wq:				Dedicated workqueue for processing commands.
  * @work:			struct work_struct which contains a pointer to
  *				the function which handles processing of kcpu
  *				commands enqueued into a kcpu command queue;
@@ -274,8 +276,10 @@ struct kbase_kcpu_command {
  * @fence_timeout:		Timer used to detect the fence wait timeout.
  */
 struct kbase_kcpu_command_queue {
+	struct mutex lock;
 	struct kbase_context *kctx;
 	struct kbase_kcpu_command commands[KBASEP_KCPU_QUEUE_SIZE];
+	struct workqueue_struct *wq;
 	struct work_struct work;
 	u8 start_offset;
 	u8 id;

@@ -35,10 +35,7 @@
 #define MCU_SUBSYSTEM_BASE 0x20000
 
 /* IPA control registers */
-#define IPA_CONTROL_BASE       0x40000
-#define IPA_CONTROL_REG(r)     (IPA_CONTROL_BASE+(r))
 #define COMMAND                0x000 /* (WO) Command register */
-#define STATUS                 0x004 /* (RO) Status register */
 #define TIMER                  0x008 /* (RW) Timer control register */
 
 #define SELECT_CSHW_LO         0x010 /* (RW) Counter select for CS hardware, low word */
@@ -127,8 +124,16 @@
 
 #define MCU_STATUS_HALTED        (1 << 1)
 
+#define L2_CONFIG_PBHA_HWU_SHIFT GPU_U(12)
+#define L2_CONFIG_PBHA_HWU_MASK (GPU_U(0xF) << L2_CONFIG_PBHA_HWU_SHIFT)
+#define L2_CONFIG_PBHA_HWU_GET(reg_val)                                                            \
+	(((reg_val)&L2_CONFIG_PBHA_HWU_MASK) >> L2_CONFIG_PBHA_HWU_SHIFT)
+#define L2_CONFIG_PBHA_HWU_SET(reg_val, value)                                                     \
+	(((reg_val) & ~L2_CONFIG_PBHA_HWU_MASK) |                                                  \
+	 (((value) << L2_CONFIG_PBHA_HWU_SHIFT) & L2_CONFIG_PBHA_HWU_MASK))
+
 /* JOB IRQ flags */
-#define JOB_IRQ_GLOBAL_IF       (1 << 31)   /* Global interface interrupt received */
+#define JOB_IRQ_GLOBAL_IF (1u << 31) /* Global interface interrupt received */
 
 /* GPU_COMMAND codes */
 #define GPU_COMMAND_CODE_NOP                0x00 /* No operation, nothing happens */

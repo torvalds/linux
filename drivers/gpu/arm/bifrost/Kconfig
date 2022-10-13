@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2012-2021 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012-2022 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -91,16 +91,6 @@ config MALI_BIFROST_ENABLE_TRACE
 	  Enables tracing in kbase. Trace log available through
 	  the "mali_trace" debugfs file, when the CONFIG_DEBUG_FS is enabled
 
-config MALI_BIFROST_DMA_FENCE
-	bool "Enable DMA_BUF fence support for Mali"
-	depends on MALI_BIFROST
-	default n
-	help
-	  Support DMA_BUF fences for Mali.
-
-	  This option should only be enabled if the Linux Kernel has built in
-	  support for DMA_BUF fences.
-
 config MALI_ARBITER_SUPPORT
 	bool "Enable arbiter support for Mali"
 	depends on MALI_BIFROST && !MALI_CSF_SUPPORT
@@ -117,7 +107,7 @@ config MALI_DMA_BUF_MAP_ON_DEMAND
 	depends on MALI_BIFROST
 	default n
 	help
-	  This option caused kbase to set up the GPU mapping of imported
+	  This option will cause kbase to set up the GPU mapping of imported
 	  dma-buf when needed to run atoms. This is the legacy behavior.
 
 	  This is intended for testing and the option will get removed in the
@@ -237,7 +227,7 @@ config MALI_BIFROST_DEBUG
 
 config MALI_BIFROST_FENCE_DEBUG
 	bool "Enable debug sync fence usage"
-	depends on MALI_BIFROST && MALI_BIFROST_EXPERT && (SYNC || SYNC_FILE)
+	depends on MALI_BIFROST && MALI_BIFROST_EXPERT && SYNC_FILE
 	default y if MALI_BIFROST_DEBUG
 	help
 	  Select this option to enable additional checking and reporting on the
@@ -385,9 +375,6 @@ config MALI_ARBITRATION
 	  virtualization setup for Mali
 	  If unsure, say N.
 
-if MALI_ARBITRATION
-source "drivers/gpu/arm/bifrost/arbitration/Kconfig"
-endif
 
 # source "drivers/gpu/arm/bifrost/tests/Kconfig"
 

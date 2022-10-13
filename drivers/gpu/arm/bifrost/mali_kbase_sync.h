@@ -30,9 +30,6 @@
 
 #include <linux/fdtable.h>
 #include <linux/syscalls.h>
-#if IS_ENABLED(CONFIG_SYNC)
-#include <sync.h>
-#endif
 #if IS_ENABLED(CONFIG_SYNC_FILE)
 #include "mali_kbase_fence_defs.h"
 #include <linux/sync_file.h>
@@ -181,7 +178,7 @@ int kbase_sync_fence_out_info_get(struct kbase_jd_atom *katom,
 				  struct kbase_sync_fence_info *info);
 #endif /* !MALI_USE_CSF */
 
-#if defined(CONFIG_SYNC_FILE)
+#if IS_ENABLED(CONFIG_SYNC_FILE)
 #if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
 void kbase_sync_fence_info_get(struct fence *fence,
 			       struct kbase_sync_fence_info *info);

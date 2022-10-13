@@ -122,6 +122,8 @@ void kbase_mmu_report_mcu_as_fault_and_reset(struct kbase_device *kbdev,
 		access_type, kbase_gpu_access_type_name(fault->status),
 		source_id);
 
+	kbase_debug_csf_fault_notify(kbdev, NULL, DF_GPU_PAGE_FAULT);
+
 	/* Report MMU fault for all address spaces (except MCU_AS_NR) */
 	for (as_no = 1; as_no < kbdev->nr_hw_address_spaces; as_no++)
 		submit_work_pagefault(kbdev, as_no, fault);
@@ -188,6 +190,7 @@ void kbase_gpu_report_bus_fault_and_kill(struct kbase_context *kctx,
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND),
 			GPU_COMMAND_CLEAR_FAULT);
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+
 }
 
 /*
@@ -249,6 +252,7 @@ void kbase_mmu_report_fault_and_kill(struct kbase_context *kctx,
 	mutex_unlock(&kbdev->mmu_hw_mutex);
 	/* AS transaction end */
 
+	kbase_debug_csf_fault_notify(kbdev, kctx, DF_GPU_PAGE_FAULT);
 	/* Switching to UNMAPPED mode above would have enabled the firmware to
 	 * recover from the fault (if the memory access was made by firmware)
 	 * and it can then respond to CSG termination requests to be sent now.
@@ -262,6 +266,7 @@ void kbase_mmu_report_fault_and_kill(struct kbase_context *kctx,
 			KBASE_MMU_FAULT_TYPE_PAGE_UNEXPECTED);
 	kbase_mmu_hw_enable_fault(kbdev, as,
 			KBASE_MMU_FAULT_TYPE_PAGE_UNEXPECTED);
+
 }
 
 /**

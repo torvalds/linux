@@ -43,6 +43,8 @@ struct memory_group_manager_import_data;
  * @mgm_free_page:            Callback to free physical memory in a group
  * @mgm_get_import_memory_id: Callback to get the group ID for imported memory
  * @mgm_update_gpu_pte:       Callback to modify a GPU page table entry
+ * @mgm_pte_to_original_pte:  Callback to get the original PTE entry as given
+ *                            to mgm_update_gpu_pte
  * @mgm_vmf_insert_pfn_prot:  Callback to map a physical memory page for the CPU
  */
 struct memory_group_manager_ops {
@@ -120,7 +122,8 @@ struct memory_group_manager_ops {
 	 * This function allows the memory group manager to modify a GPU page
 	 * table entry before it is stored by the kbase module (controller
 	 * driver). It may set certain bits in the page table entry attributes
-	 * or in the physical address, based on the physical memory group ID.
+	 * or modify the physical address, based on the physical memory group ID
+	 * and/or additional data in struct memory_group_manager_device.
 	 *
 	 * Return: A modified GPU page table entry to be stored in a page table.
 	 */
@@ -128,6 +131,17 @@ struct memory_group_manager_ops {
 			int group_id, int mmu_level, u64 pte);
 
 	/*
+	 * mgm_pte_to_original_pte - Undo any modification done during mgm_update_gpu_pte()
+	 *
+	 * @mgm_dev:   The memory group manager through which the request
+	 *             is being made.
+	 * @group_id:  A physical memory group ID. The meaning of this is
+	 *             defined by the systems integrator. Its valid range is
+	 *             0 .. MEMORY_GROUP_MANAGER_NR_GROUPS-1.
+	 * @mmu_level: The level of the page table entry in @ate.
+	 * @pte:       The page table entry to restore the original representation for,
+	 *             in LPAE or AArch64 format (depending on the driver's configuration).
+	 *
 	 * Undo any modifications done during mgm_update_gpu_pte().
 	 * This function allows getting back the original PTE entry as given
 	 * to mgm_update_gpu_pte().

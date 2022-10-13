@@ -20,12 +20,14 @@
  */
 
 #include "mali_kbase_pbha_debugfs.h"
-
 #include "mali_kbase_pbha.h"
-
 #include <device/mali_kbase_device.h>
 #include <mali_kbase_reset_gpu.h>
 #include <mali_kbase.h>
+
+#if MALI_USE_CSF
+#include "backend/gpu/mali_kbase_pm_internal.h"
+#endif
 
 static int int_id_overrides_show(struct seq_file *sfile, void *data)
 {
@@ -108,6 +110,90 @@ static int int_id_overrides_open(struct inode *in, struct file *file)
 	return single_open(file, int_id_overrides_show, in->i_private);
 }
 
+#if MALI_USE_CSF
+/**
+ * propagate_bits_show - Read PBHA bits from L2_CONFIG out to debugfs.
+ *
+ * @sfile: The debugfs entry.
+ * @data: Data associated with the entry.
+ *
+ * Return: 0 in all cases.
+ */
+static int propagate_bits_show(struct seq_file *sfile, void *data)
+{
+	struct kbase_device *kbdev = sfile->private;
+	u32 l2_config_val;
+
+	kbase_csf_scheduler_pm_active(kbdev);
+	kbase_pm_wait_for_l2_powered(kbdev);
+	l2_config_val = L2_CONFIG_PBHA_HWU_GET(kbase_reg_read(kbdev, GPU_CONTROL_REG(L2_CONFIG)));
+	kbase_csf_scheduler_pm_idle(kbdev);
+
+	seq_printf(sfile, "PBHA Propagate Bits: 0x%x\n", l2_config_val);
+	return 0;
+}
+
+static int propagate_bits_open(struct inode *in, struct file *file)
+{
+	return single_open(file, propagate_bits_show, in->i_private);
+}
+
+/**
+ * propagate_bits_write - Write input value from debugfs to PBHA bits of L2_CONFIG register.
+ *
+ * @file:     Pointer to file struct of debugfs node.
+ * @ubuf:     Pointer to user buffer with value to be written.
+ * @count:    Size of user buffer.
+ * @ppos:     Not used.
+ *
+ * Return: Size of buffer passed in when successful, but error code E2BIG/EINVAL otherwise.
+ */
+static ssize_t propagate_bits_write(struct file *file, const char __user *ubuf, size_t count,
+				    loff_t *ppos)
+{
+	struct seq_file *sfile = file->private_data;
+	struct kbase_device *kbdev = sfile->private;
+	/* 32 characters should be enough for the input string in any base */
+	char raw_str[32];
+	unsigned long propagate_bits;
+
+	if (count >= sizeof(raw_str))
+		return -E2BIG;
+	if (copy_from_user(raw_str, ubuf, count))
+		return -EINVAL;
+	raw_str[count] = '\0';
+	if (kstrtoul(raw_str, 0, &propagate_bits))
+		return -EINVAL;
+
+	/* Check propagate_bits input argument does not
+	 * exceed the maximum size of the propagate_bits mask.
+	 */
+	if (propagate_bits > (L2_CONFIG_PBHA_HWU_MASK >> L2_CONFIG_PBHA_HWU_SHIFT))
+		return -EINVAL;
+	/* Cast to u8 is safe as check is done already to ensure size is within
+	 * correct limits.
+	 */
+	kbdev->pbha_propagate_bits = (u8)propagate_bits;
+
+	/* GPU Reset will set new values in L2 config */
+	if (kbase_prepare_to_reset_gpu(kbdev, RESET_FLAGS_NONE)) {
+		kbase_reset_gpu(kbdev);
+		kbase_reset_gpu_wait(kbdev);
+	}
+
+	return count;
+}
+
+static const struct file_operations pbha_propagate_bits_fops = {
+	.owner = THIS_MODULE,
+	.open = propagate_bits_open,
+	.read = seq_read,
+	.write = propagate_bits_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+#endif /* MALI_USE_CSF */
+
 static const struct file_operations pbha_int_id_overrides_fops = {
 	.owner = THIS_MODULE,
 	.open = int_id_overrides_open,
@@ -132,5 +218,10 @@ void kbase_pbha_debugfs_init(struct kbase_device *kbdev)
 
 		debugfs_create_file("int_id_overrides", mode, debugfs_pbha_dir,
 				    kbdev, &pbha_int_id_overrides_fops);
+#if MALI_USE_CSF
+		if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_PBHA_HWU))
+			debugfs_create_file("propagate_bits", mode, debugfs_pbha_dir, kbdev,
+					    &pbha_propagate_bits_fops);
+#endif /* MALI_USE_CSF */
 	}
 }

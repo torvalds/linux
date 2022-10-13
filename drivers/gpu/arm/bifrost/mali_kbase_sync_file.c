@@ -21,9 +21,6 @@
 
 /*
  * Code for supporting explicit Linux fences (CONFIG_SYNC_FILE)
- * Introduced in kernel 4.9.
- * Android explicit fences (CONFIG_SYNC) can be used for older kernels
- * (see mali_kbase_sync_android.c)
  */
 
 #include <linux/sched.h>
@@ -112,10 +109,13 @@ int kbase_sync_fence_in_from_fd(struct kbase_jd_atom *katom, int fd)
 	struct dma_fence *fence = sync_file_get_fence(fd);
 #endif
 
+	lockdep_assert_held(&katom->kctx->jctx.lock);
+
 	if (!fence)
 		return -ENOENT;
 
 	kbase_fence_fence_in_set(katom, fence);
+	katom->dma_fence.fence_cb_added = false;
 
 	return 0;
 }
@@ -167,36 +167,31 @@ static void kbase_fence_wait_callback(struct dma_fence *fence,
 				      struct dma_fence_cb *cb)
 #endif
 {
-	struct kbase_fence_cb *kcb = container_of(cb,
-				struct kbase_fence_cb,
-				fence_cb);
-	struct kbase_jd_atom *katom = kcb->katom;
+	struct kbase_jd_atom *katom = container_of(cb, struct kbase_jd_atom,
+						   dma_fence.fence_cb);
 	struct kbase_context *kctx = katom->kctx;
 
 	/* Cancel atom if fence is erroneous */
+	if (dma_fence_is_signaled(katom->dma_fence.fence_in) &&
 #if (KERNEL_VERSION(4, 11, 0) <= LINUX_VERSION_CODE || \
 	 (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE && \
 	  KERNEL_VERSION(4, 9, 68) <= LINUX_VERSION_CODE))
-	if (dma_fence_is_signaled(kcb->fence) && kcb->fence->error < 0)
+	    katom->dma_fence.fence_in->error < 0)
 #else
-	if (dma_fence_is_signaled(kcb->fence) && kcb->fence->status < 0)
+	    katom->dma_fence.fence_in->status < 0)
 #endif
 		katom->event_code = BASE_JD_EVENT_JOB_CANCELLED;
 
-	if (kbase_fence_dep_count_dec_and_test(katom)) {
-		/* We take responsibility of handling this */
-		kbase_fence_dep_count_set(katom, -1);
 
-		/* To prevent a potential deadlock we schedule the work onto the
-		 * job_done_wq workqueue
-		 *
-		 * The issue is that we may signal the timeline while holding
-		 * kctx->jctx.lock and the callbacks are run synchronously from
-		 * sync_timeline_signal. So we simply defer the work.
-		 */
-		INIT_WORK(&katom->work, kbase_sync_fence_wait_worker);
-		queue_work(kctx->jctx.job_done_wq, &katom->work);
-	}
+	/* To prevent a potential deadlock we schedule the work onto the
+	 * job_done_wq workqueue
+	 *
+	 * The issue is that we may signal the timeline while holding
+	 * kctx->jctx.lock and the callbacks are run synchronously from
+	 * sync_timeline_signal. So we simply defer the work.
+	 */
+	INIT_WORK(&katom->work, kbase_sync_fence_wait_worker);
+	queue_work(kctx->jctx.job_done_wq, &katom->work);
 }
 
 int kbase_sync_fence_in_wait(struct kbase_jd_atom *katom)
@@ -208,53 +203,77 @@ int kbase_sync_fence_in_wait(struct kbase_jd_atom *katom)
 	struct dma_fence *fence;
 #endif
 
-	fence = kbase_fence_in_get(katom);
+	lockdep_assert_held(&katom->kctx->jctx.lock);
+
+	fence = katom->dma_fence.fence_in;
 	if (!fence)
 		return 0; /* no input fence to wait for, good to go! */
 
-	kbase_fence_dep_count_set(katom, 1);
+	err = dma_fence_add_callback(fence, &katom->dma_fence.fence_cb,
+				     kbase_fence_wait_callback);
+	if (err == -ENOENT) {
+		int fence_status = dma_fence_get_status(fence);
 
-	err = kbase_fence_add_callback(katom, fence, kbase_fence_wait_callback);
-
-	kbase_fence_put(fence);
-
-	if (likely(!err)) {
-		/* Test if the callbacks are already triggered */
-		if (kbase_fence_dep_count_dec_and_test(katom)) {
-			kbase_fence_free_callbacks(katom);
-			kbase_fence_dep_count_set(katom, -1);
-			return 0; /* Already signaled, good to go right now */
+		if (fence_status == 1) {
+			/* Fence is already signaled with no error. The completion
+			 * for FENCE_WAIT softjob can be done right away.
+			 */
+			return 0;
 		}
 
-		/* Callback installed, so we just need to wait for it... */
-	} else {
-		/* Failure */
-		kbase_fence_free_callbacks(katom);
-		kbase_fence_dep_count_set(katom, -1);
+		/* Fence shouldn't be in not signaled state */
+		if (!fence_status) {
+			struct kbase_sync_fence_info info;
 
-		katom->event_code = BASE_JD_EVENT_JOB_CANCELLED;
+			kbase_sync_fence_in_info_get(katom, &info);
 
-		/* We should cause the dependent jobs in the bag to be failed,
-		 * to do this we schedule the work queue to complete this job
+			dev_warn(katom->kctx->kbdev->dev,
+				 "Unexpected status for fence %s of ctx:%d_%d atom:%d",
+				 info.name, katom->kctx->tgid, katom->kctx->id,
+				 kbase_jd_atom_id(katom->kctx, katom));
+		}
+
+		/* If fence is signaled with an error, then the FENCE_WAIT softjob is
+		 * considered to be failed.
 		 */
-		INIT_WORK(&katom->work, kbase_sync_fence_wait_worker);
-		queue_work(katom->kctx->jctx.job_done_wq, &katom->work);
 	}
 
-	return 1; /* completion to be done later by callback/worker */
+	if (unlikely(err)) {
+		/* We should cause the dependent jobs in the bag to be failed. */
+		katom->event_code = BASE_JD_EVENT_JOB_CANCELLED;
+
+		/* The completion for FENCE_WAIT softjob can be done right away. */
+		return 0;
+	}
+
+	/* Callback was successfully installed */
+	katom->dma_fence.fence_cb_added = true;
+
+	/* Completion to be done later by callback/worker */
+	return 1;
 }
 
 void kbase_sync_fence_in_cancel_wait(struct kbase_jd_atom *katom)
 {
-	if (!kbase_fence_free_callbacks(katom)) {
-		/* The wait wasn't cancelled -
-		 * leave the cleanup for kbase_fence_wait_callback
-		 */
-		return;
-	}
+	lockdep_assert_held(&katom->kctx->jctx.lock);
 
-	/* Take responsibility of completion */
-	kbase_fence_dep_count_set(katom, -1);
+	if (katom->dma_fence.fence_cb_added) {
+		if (!dma_fence_remove_callback(katom->dma_fence.fence_in,
+					       &katom->dma_fence.fence_cb)) {
+			/* The callback is already removed so leave the cleanup
+			 * for kbase_fence_wait_callback.
+			 */
+			return;
+		}
+	} else {
+		struct kbase_sync_fence_info info;
+
+		kbase_sync_fence_in_info_get(katom, &info);
+		dev_warn(katom->kctx->kbdev->dev,
+			 "Callback was not added earlier for fence %s of ctx:%d_%d atom:%d",
+			 info.name, katom->kctx->tgid, katom->kctx->id,
+			 kbase_jd_atom_id(katom->kctx, katom));
+	}
 
 	/* Wait was cancelled - zap the atoms */
 	katom->event_code = BASE_JD_EVENT_JOB_CANCELLED;
@@ -273,8 +292,29 @@ void kbase_sync_fence_out_remove(struct kbase_jd_atom *katom)
 
 void kbase_sync_fence_in_remove(struct kbase_jd_atom *katom)
 {
-	kbase_fence_free_callbacks(katom);
+	lockdep_assert_held(&katom->kctx->jctx.lock);
+
+	if (katom->dma_fence.fence_cb_added) {
+		bool removed = dma_fence_remove_callback(katom->dma_fence.fence_in,
+							 &katom->dma_fence.fence_cb);
+
+		/* Here it is expected that the callback should have already been removed
+		 * previously either by kbase_sync_fence_in_cancel_wait() or when the fence
+		 * was signaled and kbase_sync_fence_wait_worker() was called.
+		 */
+		if (removed) {
+			struct kbase_sync_fence_info info;
+
+			kbase_sync_fence_in_info_get(katom, &info);
+			dev_warn(katom->kctx->kbdev->dev,
+				 "Callback was not removed earlier for fence %s of ctx:%d_%d atom:%d",
+				 info.name, katom->kctx->tgid, katom->kctx->id,
+				 kbase_jd_atom_id(katom->kctx, katom));
+		}
+	}
+
 	kbase_fence_in_remove(katom);
+	katom->dma_fence.fence_cb_added = false;
 }
 #endif /* !MALI_USE_CSF */
 
@@ -288,7 +328,7 @@ void kbase_sync_fence_info_get(struct dma_fence *fence,
 {
 	info->fence = fence;
 
-	/* translate into CONFIG_SYNC status:
+	/* Translate into the following status, with support for error handling:
 	 * < 0 : error
 	 * 0 : active
 	 * 1 : signaled

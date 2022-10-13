@@ -1024,6 +1024,7 @@ struct base_dump_cpu_gpu_counters {
  *   is a bitpattern where a set bit indicates that the format is supported.
  *   Before using a texture format, it is recommended that the corresponding
  *   bit be checked.
+ * @paddings_1: Padding bytes.
  * @gpu_available_memory_size: Theoretical maximum memory available to the GPU.
  *   It is unlikely that a client will be able to allocate all of this memory
  *   for their own purposes, but this at least provides an upper bound on the
@@ -1034,6 +1035,7 @@ struct base_dump_cpu_gpu_counters {
  * @num_exec_engines: The number of execution engines. Only valid for tGOX
  *   (Bifrost) GPUs, where GPU_HAS_REG_CORE_FEATURES is defined. Otherwise,
  *   this is always 0.
+ * @paddings_2: Padding bytes.
  */
 struct mali_base_gpu_core_props {
 	__u32 product_id;
@@ -1044,8 +1046,10 @@ struct mali_base_gpu_core_props {
 	__u32 gpu_freq_khz_max;
 	__u32 log2_program_counter_size;
 	__u32 texture_features[BASE_GPU_NUM_TEXTURE_FEATURES_REGISTERS];
+	__u8 paddings_1[4];
 	__u64 gpu_available_memory_size;
 	__u8 num_exec_engines;
+	__u8 paddings_2[7];
 };
 
 #endif /* _UAPI_BASE_JM_KERNEL_H_ */

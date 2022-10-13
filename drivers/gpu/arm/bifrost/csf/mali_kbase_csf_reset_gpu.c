@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -21,7 +21,7 @@
 
 #include <mali_kbase.h>
 #include <mali_kbase_ctx_sched.h>
-#include <mali_kbase_hwcnt_context.h>
+#include <hwcnt/mali_kbase_hwcnt_context.h>
 #include <device/mali_kbase_device.h>
 #include <backend/gpu/mali_kbase_irq_internal.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
@@ -29,7 +29,7 @@
 #include <csf/mali_kbase_csf_trace_buffer.h>
 #include <csf/ipa_control/mali_kbase_csf_ipa_control.h>
 #include <mali_kbase_reset_gpu.h>
-#include <linux/string.h>
+#include <csf/mali_kbase_csf_firmware_log.h>
 
 enum kbasep_soft_reset_status {
 	RESET_SUCCESS = 0,
@@ -257,68 +257,6 @@ static void kbase_csf_debug_dump_registers(struct kbase_device *kbdev)
 		kbase_reg_read(kbdev, GPU_CONTROL_REG(TILER_CONFIG)));
 }
 
-static void kbase_csf_dump_firmware_trace_buffer(struct kbase_device *kbdev)
-{
-	u8 *buf, *p, *pnewline, *pend, *pendbuf;
-	unsigned int read_size, remaining_size;
-	struct firmware_trace_buffer *tb =
-		kbase_csf_firmware_get_trace_buffer(kbdev, FW_TRACE_BUF_NAME);
-
-	if (tb == NULL) {
-		dev_dbg(kbdev->dev, "Can't get the trace buffer, firmware trace dump skipped");
-		return;
-	}
-
-	buf = kmalloc(PAGE_SIZE + 1, GFP_KERNEL);
-	if (buf == NULL) {
-		dev_err(kbdev->dev, "Short of memory, firmware trace dump skipped");
-		return;
-	}
-
-	buf[PAGE_SIZE] = 0;
-
-	p = buf;
-	pendbuf = &buf[PAGE_SIZE];
-
-	dev_err(kbdev->dev, "Firmware trace buffer dump:");
-	while ((read_size = kbase_csf_firmware_trace_buffer_read_data(tb, p,
-								pendbuf - p))) {
-		pend = p + read_size;
-		p = buf;
-
-		while (p < pend && (pnewline = memchr(p, '\n', pend - p))) {
-			/* Null-terminate the string */
-			*pnewline = 0;
-
-			dev_err(kbdev->dev, "FW> %s", p);
-
-			p = pnewline + 1;
-		}
-
-		remaining_size = pend - p;
-
-		if (!remaining_size) {
-			p = buf;
-		} else if (remaining_size < PAGE_SIZE) {
-			/* Copy unfinished string to the start of the buffer */
-			memmove(buf, p, remaining_size);
-			p = &buf[remaining_size];
-		} else {
-			/* Print abnormal page-long string without newlines */
-			dev_err(kbdev->dev, "FW> %s", buf);
-			p = buf;
-		}
-	}
-
-	if (p != buf) {
-		/* Null-terminate and print last unfinished string */
-		*p = 0;
-		dev_err(kbdev->dev, "FW> %s", buf);
-	}
-
-	kfree(buf);
-}
-
 /**
  * kbase_csf_hwcnt_on_reset_error() - Sets HWCNT to appropriate state in the
  *                                    event of an error during GPU reset.
@@ -378,7 +316,6 @@ static enum kbasep_soft_reset_status kbase_csf_reset_gpu_once(struct kbase_devic
 		"The flush has completed so reset the active indicator\n");
 	kbdev->irq_reset_flush = false;
 
-	mutex_lock(&kbdev->pm.lock);
 	if (!silent)
 		dev_err(kbdev->dev, "Resetting GPU (allowing up to %d ms)",
 								RESET_TIMEOUT);
@@ -389,7 +326,7 @@ static enum kbasep_soft_reset_status kbase_csf_reset_gpu_once(struct kbase_devic
 	if (!silent) {
 		kbase_csf_debug_dump_registers(kbdev);
 		if (likely(firmware_inited))
-			kbase_csf_dump_firmware_trace_buffer(kbdev);
+			kbase_csf_firmware_log_dump_buffer(kbdev);
 	}
 
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
@@ -403,6 +340,7 @@ static enum kbasep_soft_reset_status kbase_csf_reset_gpu_once(struct kbase_devic
 	 */
 	kbase_hwcnt_backend_csf_on_before_reset(&kbdev->hwcnt_gpu_iface);
 
+	mutex_lock(&kbdev->pm.lock);
 	/* Reset the GPU */
 	err = kbase_pm_init_hw(kbdev, 0);
 
@@ -631,6 +569,11 @@ bool kbase_reset_gpu_is_active(struct kbase_device *kbdev)
 	 * complete
 	 */
 	return kbase_csf_reset_state_is_active(reset_state);
+}
+
+bool kbase_reset_gpu_is_not_pending(struct kbase_device *kbdev)
+{
+	return atomic_read(&kbdev->csf.reset.state) == KBASE_CSF_RESET_GPU_NOT_PENDING;
 }
 
 int kbase_reset_gpu_wait(struct kbase_device *kbdev)

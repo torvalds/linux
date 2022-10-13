@@ -236,6 +236,7 @@ Description:
 		device-driver that supports a CSF GPU. The duration value unit
 		is in milliseconds and is used for configuring csf scheduling
 		tick duration.
+
 What:		/sys/class/misc/mali%u/device/reset_timeout
 Description:
 		This attribute is used to set the number of milliseconds to

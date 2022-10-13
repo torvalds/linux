@@ -35,7 +35,6 @@
 #include <tl/mali_kbase_tracepoints.h>
 #include <mali_linux_trace.h>
 
-#include "mali_kbase_dma_fence.h"
 #include <mali_kbase_cs_experimental.h>
 
 #include <mali_kbase_caps.h>
@@ -158,25 +157,12 @@ void kbase_jd_dep_clear_locked(struct kbase_jd_atom *katom)
 
 void kbase_jd_free_external_resources(struct kbase_jd_atom *katom)
 {
-#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
-	/* Flush dma-fence workqueue to ensure that any callbacks that may have
-	 * been queued are done before continuing.
-	 * Any successfully completed atom would have had all it's callbacks
-	 * completed before the atom was run, so only flush for failed atoms.
-	 */
-	if (katom->event_code != BASE_JD_EVENT_DONE)
-		flush_workqueue(katom->kctx->dma_fence.wq);
-#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
 }
 
 static void kbase_jd_post_external_resources(struct kbase_jd_atom *katom)
 {
 	KBASE_DEBUG_ASSERT(katom);
 	KBASE_DEBUG_ASSERT(katom->core_req & BASE_JD_REQ_EXTERNAL_RESOURCES);
-
-#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
-	kbase_dma_fence_signal(katom);
-#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
 
 	kbase_gpu_vm_lock(katom->kctx);
 	/* only roll back if extres is non-NULL */
@@ -185,13 +171,7 @@ static void kbase_jd_post_external_resources(struct kbase_jd_atom *katom)
 
 		res_no = katom->nr_extres;
 		while (res_no-- > 0) {
-			struct kbase_mem_phy_alloc *alloc = katom->extres[res_no].alloc;
-			struct kbase_va_region *reg;
-
-			reg = kbase_region_tracker_find_region_base_address(
-					katom->kctx,
-					katom->extres[res_no].gpu_address);
-			kbase_unmap_external_resource(katom->kctx, reg, alloc);
+			kbase_unmap_external_resource(katom->kctx, katom->extres[res_no]);
 		}
 		kfree(katom->extres);
 		katom->extres = NULL;
@@ -207,26 +187,8 @@ static void kbase_jd_post_external_resources(struct kbase_jd_atom *katom)
 
 static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const struct base_jd_atom *user_atom)
 {
-	int err_ret_val = -EINVAL;
+	int err = -EINVAL;
 	u32 res_no;
-#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
-	struct kbase_dma_fence_resv_info info = {
-		.resv_objs = NULL,
-		.dma_fence_resv_count = 0,
-		.dma_fence_excl_bitmap = NULL
-	};
-#if defined(CONFIG_SYNC) || defined(CONFIG_SYNC_FILE)
-	/*
-	 * When both dma-buf fence and Android native sync is enabled, we
-	 * disable dma-buf fence for contexts that are using Android native
-	 * fences.
-	 */
-	const bool implicit_sync = !kbase_ctx_flag(katom->kctx,
-						   KCTX_NO_IMPLICIT_SYNC);
-#else /* CONFIG_SYNC || CONFIG_SYNC_FILE*/
-	const bool implicit_sync = true;
-#endif /* CONFIG_SYNC || CONFIG_SYNC_FILE */
-#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
 	struct base_external_resource *input_extres;
 
 	KBASE_DEBUG_ASSERT(katom);
@@ -240,47 +202,18 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 	if (!katom->extres)
 		return -ENOMEM;
 
-	/* copy user buffer to the end of our real buffer.
-	 * Make sure the struct sizes haven't changed in a way
-	 * we don't support
-	 */
-	BUILD_BUG_ON(sizeof(*input_extres) > sizeof(*katom->extres));
-	input_extres = (struct base_external_resource *)
-			(((unsigned char *)katom->extres) +
-			(sizeof(*katom->extres) - sizeof(*input_extres)) *
-			katom->nr_extres);
+	input_extres = kmalloc_array(katom->nr_extres, sizeof(*input_extres), GFP_KERNEL);
+	if (!input_extres) {
+		err = -ENOMEM;
+		goto failed_input_alloc;
+	}
 
 	if (copy_from_user(input_extres,
 			get_compat_pointer(katom->kctx, user_atom->extres_list),
 			sizeof(*input_extres) * katom->nr_extres) != 0) {
-		err_ret_val = -EINVAL;
-		goto early_err_out;
+		err = -EINVAL;
+		goto failed_input_copy;
 	}
-
-#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
-	if (implicit_sync) {
-		info.resv_objs =
-			kmalloc_array(katom->nr_extres,
-#if (KERNEL_VERSION(5, 4, 0) > LINUX_VERSION_CODE)
-				      sizeof(struct reservation_object *),
-#else
-				      sizeof(struct dma_resv *),
-#endif
-				      GFP_KERNEL);
-		if (!info.resv_objs) {
-			err_ret_val = -ENOMEM;
-			goto early_err_out;
-		}
-
-		info.dma_fence_excl_bitmap =
-				kcalloc(BITS_TO_LONGS(katom->nr_extres),
-					sizeof(unsigned long), GFP_KERNEL);
-		if (!info.dma_fence_excl_bitmap) {
-			err_ret_val = -ENOMEM;
-			goto early_err_out;
-		}
-	}
-#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
 
 	/* Take the processes mmap lock */
 	down_read(kbase_mem_get_process_mmap_lock());
@@ -288,20 +221,13 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 	/* need to keep the GPU VM locked while we set up UMM buffers */
 	kbase_gpu_vm_lock(katom->kctx);
 	for (res_no = 0; res_no < katom->nr_extres; res_no++) {
-		struct base_external_resource *res = &input_extres[res_no];
+		struct base_external_resource *user_res = &input_extres[res_no];
 		struct kbase_va_region *reg;
-		struct kbase_mem_phy_alloc *alloc;
-#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
-		bool exclusive;
 
-		exclusive = (res->ext_resource & BASE_EXT_RES_ACCESS_EXCLUSIVE)
-				? true : false;
-#endif
 		reg = kbase_region_tracker_find_region_enclosing_address(
-				katom->kctx,
-				res->ext_resource & ~BASE_EXT_RES_ACCESS_EXCLUSIVE);
+			katom->kctx, user_res->ext_resource & ~BASE_EXT_RES_ACCESS_EXCLUSIVE);
 		/* did we find a matching region object? */
-		if (kbase_is_region_invalid_or_free(reg)) {
+		if (unlikely(kbase_is_region_invalid_or_free(reg))) {
 			/* roll back */
 			goto failed_loop;
 		}
@@ -311,36 +237,11 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 			katom->atom_flags |= KBASE_KATOM_FLAG_PROTECTED;
 		}
 
-		alloc = kbase_map_external_resource(katom->kctx, reg,
-				current->mm);
-		if (!alloc) {
-			err_ret_val = -EINVAL;
+		err = kbase_map_external_resource(katom->kctx, reg, current->mm);
+		if (err)
 			goto failed_loop;
-		}
 
-#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
-		if (implicit_sync &&
-		    reg->gpu_alloc->type == KBASE_MEM_TYPE_IMPORTED_UMM) {
-#if (KERNEL_VERSION(5, 4, 0) > LINUX_VERSION_CODE)
-			struct reservation_object *resv;
-#else
-			struct dma_resv *resv;
-#endif
-			resv = reg->gpu_alloc->imported.umm.dma_buf->resv;
-			if (resv)
-				kbase_dma_fence_add_reservation(resv, &info,
-								exclusive);
-		}
-#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
-
-		/* finish with updating out array with the data we found */
-		/* NOTE: It is important that this is the last thing we do (or
-		 * at least not before the first write) as we overwrite elements
-		 * as we loop and could be overwriting ourself, so no writes
-		 * until the last read for an element.
-		 */
-		katom->extres[res_no].gpu_address = reg->start_pfn << PAGE_SHIFT; /* save the start_pfn (as an address, not pfn) to use fast lookup later */
-		katom->extres[res_no].alloc = alloc;
+		katom->extres[res_no] = reg;
 	}
 	/* successfully parsed the extres array */
 	/* drop the vm lock now */
@@ -349,57 +250,33 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 	/* Release the processes mmap lock */
 	up_read(kbase_mem_get_process_mmap_lock());
 
-#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
-	if (implicit_sync) {
-		if (info.dma_fence_resv_count) {
-			int ret;
-
-			ret = kbase_dma_fence_wait(katom, &info);
-			if (ret < 0)
-				goto failed_dma_fence_setup;
-		}
-
-		kfree(info.resv_objs);
-		kfree(info.dma_fence_excl_bitmap);
-	}
-#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
+	/* Free the buffer holding data from userspace */
+	kfree(input_extres);
 
 	/* all done OK */
 	return 0;
 
 /* error handling section */
-
-#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
-failed_dma_fence_setup:
-	/* Lock the processes mmap lock */
-	down_read(kbase_mem_get_process_mmap_lock());
-
-	/* lock before we unmap */
-	kbase_gpu_vm_lock(katom->kctx);
-#endif
-
- failed_loop:
-	/* undo the loop work */
+failed_loop:
+	/* undo the loop work. We are guaranteed to have access to the VA region
+	 * as we hold a reference to it until it's unmapped
+	 */
 	while (res_no-- > 0) {
-		struct kbase_mem_phy_alloc *alloc = katom->extres[res_no].alloc;
+		struct kbase_va_region *reg = katom->extres[res_no];
 
-		kbase_unmap_external_resource(katom->kctx, NULL, alloc);
+		kbase_unmap_external_resource(katom->kctx, reg);
 	}
 	kbase_gpu_vm_unlock(katom->kctx);
 
 	/* Release the processes mmap lock */
 	up_read(kbase_mem_get_process_mmap_lock());
 
- early_err_out:
+failed_input_copy:
+	kfree(input_extres);
+failed_input_alloc:
 	kfree(katom->extres);
 	katom->extres = NULL;
-#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
-	if (implicit_sync) {
-		kfree(info.resv_objs);
-		kfree(info.dma_fence_excl_bitmap);
-	}
-#endif
-	return err_ret_val;
+	return err;
 }
 
 static inline void jd_resolve_dep(struct list_head *out_list,
@@ -422,10 +299,6 @@ static inline void jd_resolve_dep(struct list_head *out_list,
 
 		if (katom->event_code != BASE_JD_EVENT_DONE &&
 			(dep_type != BASE_JD_DEP_TYPE_ORDER)) {
-#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
-			kbase_dma_fence_cancel_callbacks(dep_atom);
-#endif
-
 			dep_atom->event_code = katom->event_code;
 			KBASE_DEBUG_ASSERT(dep_atom->status !=
 						KBASE_JD_ATOM_STATE_UNUSED);
@@ -439,35 +312,8 @@ static inline void jd_resolve_dep(struct list_head *out_list,
 				(IS_GPU_ATOM(dep_atom) && !ctx_is_dying &&
 				!dep_atom->will_fail_event_code &&
 				!other_dep_atom->will_fail_event_code))) {
-			bool dep_satisfied = true;
-#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
-			int dep_count;
-
-			dep_count = kbase_fence_dep_count_read(dep_atom);
-			if (likely(dep_count == -1)) {
-				dep_satisfied = true;
-			} else {
-				/*
-				 * There are either still active callbacks, or
-				 * all fences for this @dep_atom has signaled,
-				 * but the worker that will queue the atom has
-				 * not yet run.
-				 *
-				 * Wait for the fences to signal and the fence
-				 * worker to run and handle @dep_atom. If
-				 * @dep_atom was completed due to error on
-				 * @katom, then the fence worker will pick up
-				 * the complete status and error code set on
-				 * @dep_atom above.
-				 */
-				dep_satisfied = false;
-			}
-#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
-
-			if (dep_satisfied) {
-				dep_atom->in_jd_list = true;
-				list_add_tail(&dep_atom->jd_item, out_list);
-			}
+			dep_atom->in_jd_list = true;
+			list_add_tail(&dep_atom->jd_item, out_list);
 		}
 	}
 }
@@ -526,33 +372,8 @@ static void jd_try_submitting_deps(struct list_head *out_list,
 						dep_atom->dep[0].atom);
 				bool dep1_valid = is_dep_valid(
 						dep_atom->dep[1].atom);
-				bool dep_satisfied = true;
-#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
-				int dep_count;
 
-				dep_count = kbase_fence_dep_count_read(
-								dep_atom);
-				if (likely(dep_count == -1)) {
-					dep_satisfied = true;
-				} else {
-				/*
-				 * There are either still active callbacks, or
-				 * all fences for this @dep_atom has signaled,
-				 * but the worker that will queue the atom has
-				 * not yet run.
-				 *
-				 * Wait for the fences to signal and the fence
-				 * worker to run and handle @dep_atom. If
-				 * @dep_atom was completed due to error on
-				 * @katom, then the fence worker will pick up
-				 * the complete status and error code set on
-				 * @dep_atom above.
-				 */
-					dep_satisfied = false;
-				}
-#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
-
-				if (dep0_valid && dep1_valid && dep_satisfied) {
+				if (dep0_valid && dep1_valid) {
 					dep_atom->in_jd_list = true;
 					list_add(&dep_atom->jd_item, out_list);
 				}
@@ -963,9 +784,6 @@ static bool jd_submit_atom(struct kbase_context *const kctx,
 
 	INIT_LIST_HEAD(&katom->queue);
 	INIT_LIST_HEAD(&katom->jd_item);
-#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
-	kbase_fence_dep_count_set(katom, -1);
-#endif
 
 	/* Don't do anything if there is a mess up with dependencies.
 	 * This is done in a separate cycle to check both the dependencies at ones, otherwise
@@ -1185,12 +1003,6 @@ static bool jd_submit_atom(struct kbase_context *const kctx,
 	if (queued && !IS_GPU_ATOM(katom))
 		return false;
 
-#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
-	if (kbase_fence_dep_count_read(katom) != -1)
-		return false;
-
-#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
-
 	if (katom->core_req & BASE_JD_REQ_SOFT_JOB) {
 		if (kbase_process_soft_job(katom) == 0) {
 			kbase_finish_soft_job(katom);
@@ -1273,7 +1085,7 @@ int kbase_jd_submit(struct kbase_context *kctx,
 		if (unlikely(jd_atom_is_v2)) {
 			if (copy_from_user(&user_atom.jc, user_addr, sizeof(struct base_jd_atom_v2)) != 0) {
 				dev_dbg(kbdev->dev,
-					"Invalid atom address %p passed to job_submit\n",
+					"Invalid atom address %pK passed to job_submit\n",
 					user_addr);
 				err = -EFAULT;
 				break;
@@ -1284,7 +1096,7 @@ int kbase_jd_submit(struct kbase_context *kctx,
 		} else {
 			if (copy_from_user(&user_atom, user_addr, stride) != 0) {
 				dev_dbg(kbdev->dev,
-					"Invalid atom address %p passed to job_submit\n",
+					"Invalid atom address %pK passed to job_submit\n",
 					user_addr);
 				err = -EFAULT;
 				break;
@@ -1599,6 +1411,7 @@ static void jd_cancel_worker(struct work_struct *data)
 	bool need_to_try_schedule_context;
 	bool attr_state_changed;
 	struct kbase_device *kbdev;
+	CSTD_UNUSED(need_to_try_schedule_context);
 
 	/* Soft jobs should never reach this function */
 	KBASE_DEBUG_ASSERT((katom->core_req & BASE_JD_REQ_SOFT_JOB) == 0);
@@ -1746,19 +1559,7 @@ void kbase_jd_zap_context(struct kbase_context *kctx)
 		kbase_cancel_soft_job(katom);
 	}
 
-
-#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
-	kbase_dma_fence_cancel_all_atoms(kctx);
-#endif
-
 	mutex_unlock(&kctx->jctx.lock);
-
-#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
-	/* Flush dma-fence workqueue to ensure that any callbacks that may have
-	 * been queued are done before continuing.
-	 */
-	flush_workqueue(kctx->dma_fence.wq);
-#endif
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 	kbase_debug_job_fault_kctx_unblock(kctx);
@@ -1796,11 +1597,10 @@ int kbase_jd_init(struct kbase_context *kctx)
 		kctx->jctx.atoms[i].event_code = BASE_JD_EVENT_JOB_INVALID;
 		kctx->jctx.atoms[i].status = KBASE_JD_ATOM_STATE_UNUSED;
 
-#if defined(CONFIG_MALI_BIFROST_DMA_FENCE) || defined(CONFIG_SYNC_FILE)
+#if IS_ENABLED(CONFIG_SYNC_FILE)
 		kctx->jctx.atoms[i].dma_fence.context =
 						dma_fence_context_alloc(1);
 		atomic_set(&kctx->jctx.atoms[i].dma_fence.seqno, 0);
-		INIT_LIST_HEAD(&kctx->jctx.atoms[i].dma_fence.callbacks);
 #endif
 	}
 

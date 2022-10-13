@@ -117,4 +117,12 @@ void kbase_timeline_post_kbase_context_destroy(struct kbase_context *kctx);
 void kbase_timeline_stats(struct kbase_timeline *timeline, u32 *bytes_collected, u32 *bytes_generated);
 #endif /* MALI_UNIT_TEST */
 
+/**
+ * kbase_timeline_io_debugfs_init - Add a debugfs entry for reading timeline stream data
+ *
+ * @kbdev: An instance of the GPU platform device, allocated from the probe
+ *         method of the driver.
+ */
+void kbase_timeline_io_debugfs_init(struct kbase_device *kbdev);
+
 #endif /* _KBASE_TIMELINE_H */

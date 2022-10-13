@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2014, 2018, 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014, 2018, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -98,6 +98,9 @@ DEFINE_MALI_ADD_EVENT(PM_WAKE_WAITERS);
 DEFINE_MALI_ADD_EVENT(PM_POWEROFF_WAIT_WQ);
 DEFINE_MALI_ADD_EVENT(PM_RUNTIME_SUSPEND_CALLBACK);
 DEFINE_MALI_ADD_EVENT(PM_RUNTIME_RESUME_CALLBACK);
+#define KBASEP_L2_STATE(n) DEFINE_MALI_ADD_EVENT(PM_L2_ ## n);
+#include "backend/gpu/mali_kbase_pm_l2_states.h"
+#undef KBASEP_L2_STATE
 DEFINE_MALI_ADD_EVENT(SCHED_RETAIN_CTX_NOLOCK);
 DEFINE_MALI_ADD_EVENT(SCHED_RELEASE_CTX);
 #ifdef CONFIG_MALI_ARBITER_SUPPORT

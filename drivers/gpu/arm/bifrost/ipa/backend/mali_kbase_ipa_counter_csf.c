@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -58,9 +58,6 @@
 		.counter_block_offset = cnt_idx,		\
 		.counter_block_type = block_type,		\
 	}
-
-#define CSHW_COUNTER_DEF(cnt_name, coeff, cnt_idx)	\
-	COUNTER_DEF(cnt_name, coeff, cnt_idx, KBASE_IPA_CORE_TYPE_CSHW)
 
 #define MEMSYS_COUNTER_DEF(cnt_name, coeff, cnt_idx)	\
 	COUNTER_DEF(cnt_name, coeff, cnt_idx, KBASE_IPA_CORE_TYPE_MEMSYS)

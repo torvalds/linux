@@ -26,8 +26,8 @@ menuconfig MALI_KUTF
 	  This option will build the Mali testing framework modules.
 
 	  Modules:
-	   - kutf.ko
-	   - kutf_test.ko
+	  - kutf.ko
+	  - kutf_test.ko
 
 config MALI_KUTF_IRQ_TEST
 	bool "Build Mali KUTF IRQ test module"
@@ -38,7 +38,7 @@ config MALI_KUTF_IRQ_TEST
 	  It can determine the latency of the Mali GPU IRQ on your system.
 
 	  Modules:
-	    - mali_kutf_irq_test.ko
+	  - mali_kutf_irq_test.ko
 
 config MALI_KUTF_CLK_RATE_TRACE
 	bool "Build Mali KUTF Clock rate trace test module"
@@ -50,7 +50,7 @@ config MALI_KUTF_CLK_RATE_TRACE
 	  basic trace test in the system.
 
 	  Modules:
-	    - mali_kutf_clk_rate_trace_test_portal.ko
+	  - mali_kutf_clk_rate_trace_test_portal.ko
 
 config MALI_KUTF_MGM_INTEGRATION_TEST
 	bool "Build Mali KUTF MGM integration test module"
@@ -62,12 +62,12 @@ config MALI_KUTF_MGM_INTEGRATION_TEST
 	  group ids.
 
 	  Modules:
-	    - mali_kutf_mgm_integration_test.ko
+	  - mali_kutf_mgm_integration_test.ko
 
 
 # Enable MALI_BIFROST_DEBUG for KUTF modules support
 
 config UNIT_TEST_KERNEL_MODULES
-       bool
-       default y if UNIT_TEST_CODE && BACKEND_KERNEL
-       default n
+	bool
+	default y if UNIT_TEST_CODE && BACKEND_KERNEL
+	default n

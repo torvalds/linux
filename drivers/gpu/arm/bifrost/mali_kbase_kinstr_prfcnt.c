@@ -21,8 +21,8 @@
 
 #include "mali_kbase.h"
 #include "mali_kbase_kinstr_prfcnt.h"
-#include "mali_kbase_hwcnt_virtualizer.h"
-#include "mali_kbase_hwcnt_gpu.h"
+#include "hwcnt/mali_kbase_hwcnt_virtualizer.h"
+#include "hwcnt/mali_kbase_hwcnt_gpu.h"
 #include <uapi/gpu/arm/bifrost/mali_kbase_ioctl.h>
 #include "mali_malisw.h"
 #include "mali_kbase_debug.h"
@@ -46,9 +46,6 @@
 
 /* The maximum allowed buffers per client */
 #define MAX_BUFFER_COUNT 32
-
-/* The module printing prefix */
-#define KINSTR_PRFCNT_PREFIX "mali_kbase_kinstr_prfcnt: "
 
 /**
  * struct kbase_kinstr_prfcnt_context - IOCTL interface for userspace hardware
@@ -224,8 +221,8 @@ static struct prfcnt_enum_item kinstr_prfcnt_supported_requests[] = {
  * @filp: Non-NULL pointer to file structure.
  * @wait: Non-NULL pointer to poll table.
  *
- * Return: POLLIN if data can be read without blocking, 0 if data can not be
- *         read without blocking, else error code.
+ * Return: EPOLLIN | EPOLLRDNORM if data can be read without blocking, 0 if
+ *         data can not be read without blocking, else EPOLLHUP | EPOLLERR.
  */
 static __poll_t
 kbasep_kinstr_prfcnt_hwcnt_reader_poll(struct file *filp,
@@ -234,19 +231,19 @@ kbasep_kinstr_prfcnt_hwcnt_reader_poll(struct file *filp,
 	struct kbase_kinstr_prfcnt_client *cli;
 
 	if (!filp || !wait)
-		return (__poll_t)-EINVAL;
+		return EPOLLHUP | EPOLLERR;
 
 	cli = filp->private_data;
 
 	if (!cli)
-		return (__poll_t)-EINVAL;
+		return EPOLLHUP | EPOLLERR;
 
 	poll_wait(filp, &cli->waitq, wait);
 
 	if (atomic_read(&cli->write_idx) != atomic_read(&cli->fetch_idx))
-		return POLLIN;
+		return EPOLLIN | EPOLLRDNORM;
 
-	return 0;
+	return (__poll_t)0;
 }
 
 /**

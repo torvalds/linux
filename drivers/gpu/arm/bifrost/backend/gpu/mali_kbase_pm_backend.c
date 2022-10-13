@@ -36,7 +36,7 @@
 #include <linux/pm_runtime.h>
 #include <mali_kbase_reset_gpu.h>
 #endif /* !MALI_USE_CSF */
-#include <mali_kbase_hwcnt_context.h>
+#include <hwcnt/mali_kbase_hwcnt_context.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
 #include <backend/gpu/mali_kbase_devfreq.h>
 #include <mali_kbase_dummy_job_wa.h>

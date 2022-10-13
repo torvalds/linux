@@ -163,6 +163,8 @@
 #define CSG_PROTM_SUSPEND_BUF_HI 0x004C /* () Protected mode suspend buffer, high word */
 #define CSG_CONFIG 0x0050 /* () CSG configuration options */
 #define CSG_ITER_TRACE_CONFIG 0x0054 /* () CSG trace configuration */
+#define CSG_DVS_BUF_LO 0x0060 /* () Normal mode deferred vertex shading work buffer, low word */
+#define CSG_DVS_BUF_HI 0x0064 /* () Normal mode deferred vertex shading work buffer, high word */
 
 /* CSG_OUTPUT_BLOCK register offsets */
 #define CSG_ACK 0x0000 /* () CSG acknowledge flags */
@@ -547,6 +549,13 @@
 #define CS_STATUS_WAIT_SB_MASK_SET(reg_val, value) \
 	(((reg_val) & ~CS_STATUS_WAIT_SB_MASK_MASK) |  \
 	 (((value) << CS_STATUS_WAIT_SB_MASK_SHIFT) & CS_STATUS_WAIT_SB_MASK_MASK))
+#define CS_STATUS_WAIT_SB_SOURCE_SHIFT 16
+#define CS_STATUS_WAIT_SB_SOURCE_MASK (0xF << CS_STATUS_WAIT_SB_SOURCE_SHIFT)
+#define CS_STATUS_WAIT_SB_SOURCE_GET(reg_val)                                                      \
+	(((reg_val)&CS_STATUS_WAIT_SB_SOURCE_MASK) >> CS_STATUS_WAIT_SB_SOURCE_SHIFT)
+#define CS_STATUS_WAIT_SB_SOURCE_SET(reg_val, value)                                               \
+	(((reg_val) & ~CS_STATUS_WAIT_SB_SOURCE_MASK) |                                            \
+	 (((value) << CS_STATUS_WAIT_SB_SOURCE_SHIFT) & CS_STATUS_WAIT_SB_SOURCE_MASK))
 #define CS_STATUS_WAIT_SYNC_WAIT_CONDITION_SHIFT 24
 #define CS_STATUS_WAIT_SYNC_WAIT_CONDITION_MASK (0xF << CS_STATUS_WAIT_SYNC_WAIT_CONDITION_SHIFT)
 #define CS_STATUS_WAIT_SYNC_WAIT_CONDITION_GET(reg_val) \
@@ -557,6 +566,7 @@
 /* CS_STATUS_WAIT_SYNC_WAIT_CONDITION values */
 #define CS_STATUS_WAIT_SYNC_WAIT_CONDITION_LE 0x0
 #define CS_STATUS_WAIT_SYNC_WAIT_CONDITION_GT 0x1
+#define CS_STATUS_WAIT_SYNC_WAIT_CONDITION_GE 0x5
 /* End of CS_STATUS_WAIT_SYNC_WAIT_CONDITION values */
 #define CS_STATUS_WAIT_PROGRESS_WAIT_SHIFT 28
 #define CS_STATUS_WAIT_PROGRESS_WAIT_MASK (0x1 << CS_STATUS_WAIT_PROGRESS_WAIT_SHIFT)
@@ -835,11 +845,6 @@
 #define CSG_REQ_IDLE_GET(reg_val) (((reg_val)&CSG_REQ_IDLE_MASK) >> CSG_REQ_IDLE_SHIFT)
 #define CSG_REQ_IDLE_SET(reg_val, value) \
 	(((reg_val) & ~CSG_REQ_IDLE_MASK) | (((value) << CSG_REQ_IDLE_SHIFT) & CSG_REQ_IDLE_MASK))
-#define CSG_REQ_DOORBELL_SHIFT 30
-#define CSG_REQ_DOORBELL_MASK (0x1 << CSG_REQ_DOORBELL_SHIFT)
-#define CSG_REQ_DOORBELL_GET(reg_val) (((reg_val)&CSG_REQ_DOORBELL_MASK) >> CSG_REQ_DOORBELL_SHIFT)
-#define CSG_REQ_DOORBELL_SET(reg_val, value) \
-	(((reg_val) & ~CSG_REQ_DOORBELL_MASK) | (((value) << CSG_REQ_DOORBELL_SHIFT) & CSG_REQ_DOORBELL_MASK))
 #define CSG_REQ_PROGRESS_TIMER_EVENT_SHIFT 31
 #define CSG_REQ_PROGRESS_TIMER_EVENT_MASK (0x1 << CSG_REQ_PROGRESS_TIMER_EVENT_SHIFT)
 #define CSG_REQ_PROGRESS_TIMER_EVENT_GET(reg_val) \
@@ -956,6 +961,21 @@
 	(((reg_val) & ~CSG_PROTM_SUSPEND_BUF_POINTER_MASK) |  \
 	 (((value) << CSG_PROTM_SUSPEND_BUF_POINTER_SHIFT) & CSG_PROTM_SUSPEND_BUF_POINTER_MASK))
 
+/* CSG_DVS_BUF_BUFFER register */
+#define CSG_DVS_BUF_BUFFER_SIZE_SHIFT GPU_U(0)
+#define CSG_DVS_BUF_BUFFER_SIZE_MASK (GPU_U(0xFFF) << CSG_DVS_BUF_BUFFER_SIZE_SHIFT)
+#define CSG_DVS_BUF_BUFFER_SIZE_GET(reg_val) (((reg_val)&CSG_DVS_BUF_BUFFER_SIZE_MASK) >> CSG_DVS_BUF_BUFFER_SIZE_SHIFT)
+#define CSG_DVS_BUF_BUFFER_SIZE_SET(reg_val, value) \
+	(((reg_val) & ~CSG_DVS_BUF_BUFFER_SIZE_MASK) |  \
+	 (((value) << CSG_DVS_BUF_BUFFER_SIZE_SHIFT) & CSG_DVS_BUF_BUFFER_SIZE_MASK))
+#define CSG_DVS_BUF_BUFFER_POINTER_SHIFT GPU_U(12)
+#define CSG_DVS_BUF_BUFFER_POINTER_MASK                                                            \
+	(GPU_ULL(0xFFFFFFFFFFFFF) << CSG_DVS_BUF_BUFFER_POINTER_SHIFT)
+#define CSG_DVS_BUF_BUFFER_POINTER_GET(reg_val) \
+	(((reg_val)&CSG_DVS_BUF_BUFFER_POINTER_MASK) >> CSG_DVS_BUF_BUFFER_POINTER_SHIFT)
+#define CSG_DVS_BUF_BUFFER_POINTER_SET(reg_val, value) \
+	(((reg_val) & ~CSG_DVS_BUF_BUFFER_POINTER_MASK) |  \
+	 (((value) << CSG_DVS_BUF_BUFFER_POINTER_SHIFT) & CSG_DVS_BUF_BUFFER_POINTER_MASK))
 
 /* End of CSG_INPUT_BLOCK register set definitions */
 

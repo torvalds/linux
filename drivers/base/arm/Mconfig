@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2021 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2021-2022 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -26,16 +26,6 @@ menuconfig MALI_BASE_MODULES
 	  Those modules provide extra features or debug interfaces and,
 	  are optional for the use of the Mali GPU modules.
 
-config DMA_BUF_LOCK
-	bool "Build dma-buf lock module"
-	depends on MALI_BASE_MODULES && MALI_DMA_FENCE
-	default y
-	help
-	  This option will build the dma_buf_lock module.
-
-	  Modules:
-	    - dma_buf_lock.ko
-
 config DMA_SHARED_BUFFER_TEST_EXPORTER
 	bool "Build dma-buf framework test exporter module"
 	depends on MALI_BASE_MODULES
@@ -45,7 +35,7 @@ config DMA_SHARED_BUFFER_TEST_EXPORTER
 	  Usable to help test importers.
 
 	  Modules:
-	    - dma-buf-test-exporter.ko
+	  - dma-buf-test-exporter.ko
 
 config MALI_MEMORY_GROUP_MANAGER
 	bool "Build Mali Memory Group Manager module"
@@ -57,7 +47,7 @@ config MALI_MEMORY_GROUP_MANAGER
 	  for memory pools managed by Mali GPU device drivers.
 
 	  Modules:
-	    - memory_group_manager.ko
+	  - memory_group_manager.ko
 
 config MALI_PROTECTED_MEMORY_ALLOCATOR
 	bool "Build Mali Protected Memory Allocator module"
@@ -70,5 +60,5 @@ config MALI_PROTECTED_MEMORY_ALLOCATOR
 	  of Mali GPU device drivers.
 
 	  Modules:
-	    - protected_memory_allocator.ko
+	  - protected_memory_allocator.ko
 

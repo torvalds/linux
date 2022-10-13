@@ -23,8 +23,8 @@
 #define _KBASE_IPA_COUNTER_COMMON_JM_H_
 
 #include "mali_kbase.h"
-#include "mali_kbase_hwcnt_virtualizer.h"
-#include "mali_kbase_hwcnt_types.h"
+#include "hwcnt/mali_kbase_hwcnt_virtualizer.h"
+#include "hwcnt/mali_kbase_hwcnt_types.h"
 
 /* Maximum number of IPA groups for an IPA model. */
 #define KBASE_IPA_MAX_GROUP_DEF_NUM  16

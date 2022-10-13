@@ -19,7 +19,7 @@
  *
  */
 
-#include <linux/dma-buf-test-exporter.h>
+#include <uapi/base/arm/dma_buf_test_exporter/dma-buf-test-exporter.h>
 #include <linux/dma-buf.h>
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
@@ -31,6 +31,9 @@
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/dma-mapping.h>
+
+#define DMA_BUF_TE_VER_MAJOR 1
+#define DMA_BUF_TE_VER_MINOR 0
 
 /* Maximum size allowed in a single DMA_BUF_TE_ALLOC call */
 #define DMA_BUF_TE_ALLOC_MAX_SIZE ((8ull << 30) >> PAGE_SHIFT) /* 8 GB */

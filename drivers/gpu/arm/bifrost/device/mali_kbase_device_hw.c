@@ -27,9 +27,6 @@
 #include <mali_kbase_reset_gpu.h>
 #include <mmu/mali_kbase_mmu.h>
 
-#define U64_LO_MASK ((1ULL << 32) - 1)
-#define U64_HI_MASK (~U64_LO_MASK)
-
 #if !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
 bool kbase_is_gpu_removed(struct kbase_device *kbdev)
 {
@@ -86,7 +83,38 @@ static int busy_wait_on_irq(struct kbase_device *kbdev, u32 irq_bit)
 	return 0;
 }
 
-#define kbase_gpu_cache_flush_pa_range_and_busy_wait(kbdev, phys, nr_bytes, flush_op) (0)
+#if MALI_USE_CSF
+#define U64_LO_MASK ((1ULL << 32) - 1)
+#define U64_HI_MASK (~U64_LO_MASK)
+
+int kbase_gpu_cache_flush_pa_range_and_busy_wait(struct kbase_device *kbdev, phys_addr_t phys,
+						 size_t nr_bytes, u32 flush_op)
+{
+	u64 start_pa, end_pa;
+	int ret = 0;
+
+	lockdep_assert_held(&kbdev->hwaccess_lock);
+
+	/* 1. Clear the interrupt FLUSH_PA_RANGE_COMPLETED bit. */
+	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_CLEAR), FLUSH_PA_RANGE_COMPLETED);
+
+	/* 2. Issue GPU_CONTROL.COMMAND.FLUSH_PA_RANGE operation. */
+	start_pa = phys;
+	end_pa = start_pa + nr_bytes - 1;
+
+	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND_ARG0_LO), start_pa & U64_LO_MASK);
+	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND_ARG0_HI),
+			(start_pa & U64_HI_MASK) >> 32);
+	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND_ARG1_LO), end_pa & U64_LO_MASK);
+	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND_ARG1_HI), (end_pa & U64_HI_MASK) >> 32);
+	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND), flush_op);
+
+	/* 3. Busy-wait irq status to be enabled. */
+	ret = busy_wait_on_irq(kbdev, (u32)FLUSH_PA_RANGE_COMPLETED);
+
+	return ret;
+}
+#endif /* MALI_USE_CSF */
 
 int kbase_gpu_cache_flush_and_busy_wait(struct kbase_device *kbdev,
 					u32 flush_op)

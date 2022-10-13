@@ -29,7 +29,7 @@
 #include <mali_kbase_jm.h>
 #include <mali_kbase_js.h>
 #include <tl/mali_kbase_tracepoints.h>
-#include <mali_kbase_hwcnt_context.h>
+#include <hwcnt/mali_kbase_hwcnt_context.h>
 #include <mali_kbase_reset_gpu.h>
 #include <mali_kbase_kinstr_jm.h>
 #include <backend/gpu/mali_kbase_cache_policy_backend.h>

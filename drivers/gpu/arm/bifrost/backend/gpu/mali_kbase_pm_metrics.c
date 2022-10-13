@@ -38,11 +38,13 @@
 #include <backend/gpu/mali_kbase_pm_defs.h>
 #include <mali_linux_trace.h>
 
+#if defined(CONFIG_MALI_BIFROST_DEVFREQ) || defined(CONFIG_MALI_BIFROST_DVFS) || !MALI_USE_CSF
 /* Shift used for kbasep_pm_metrics_data.time_busy/idle - units of (1 << 8) ns
  * This gives a maximum period between samples of 2^(32+8)/100 ns = slightly
  * under 11s. Exceeding this will cause overflow
  */
 #define KBASE_PM_TIME_SHIFT			8
+#endif
 
 #if MALI_USE_CSF
 /* To get the GPU_ACTIVE value in nano seconds unit */

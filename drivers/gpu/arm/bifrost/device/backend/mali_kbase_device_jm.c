@@ -27,9 +27,9 @@
 #include <mali_kbase_hwaccess_backend.h>
 #include <mali_kbase_ctx_sched.h>
 #include <mali_kbase_reset_gpu.h>
-#include <mali_kbase_hwcnt_watchdog_if_timer.h>
-#include <mali_kbase_hwcnt_backend_jm.h>
-#include <mali_kbase_hwcnt_backend_jm_watchdog.h>
+#include <hwcnt/mali_kbase_hwcnt_watchdog_if_timer.h>
+#include <hwcnt/backend/mali_kbase_hwcnt_backend_jm.h>
+#include <hwcnt/backend/mali_kbase_hwcnt_backend_jm_watchdog.h>
 
 #if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
 #include <backend/gpu/mali_kbase_model_linux.h>

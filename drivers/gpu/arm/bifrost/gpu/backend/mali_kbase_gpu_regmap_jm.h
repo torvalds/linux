@@ -127,29 +127,12 @@
 
 #define JOB_SLOT_REG(n, r)      (JOB_CONTROL_REG(JOB_SLOT0 + ((n) << 7)) + (r))
 
-#define JS_HEAD_LO             0x00	/* (RO) Job queue head pointer for job slot n, low word */
-#define JS_HEAD_HI             0x04	/* (RO) Job queue head pointer for job slot n, high word */
-#define JS_TAIL_LO             0x08	/* (RO) Job queue tail pointer for job slot n, low word */
-#define JS_TAIL_HI             0x0C	/* (RO) Job queue tail pointer for job slot n, high word */
-#define JS_AFFINITY_LO         0x10	/* (RO) Core affinity mask for job slot n, low word */
-#define JS_AFFINITY_HI         0x14	/* (RO) Core affinity mask for job slot n, high word */
-#define JS_CONFIG              0x18	/* (RO) Configuration settings for job slot n */
-/* (RO) Extended affinity mask for job slot n*/
-#define JS_XAFFINITY           0x1C
+#define JS_XAFFINITY           0x1C /* (RO) Extended affinity mask for job slot n*/
 
 #define JS_COMMAND             0x20	/* (WO) Command register for job slot n */
 #define JS_STATUS              0x24	/* (RO) Status register for job slot n */
 
-#define JS_HEAD_NEXT_LO        0x40	/* (RW) Next job queue head pointer for job slot n, low word */
-#define JS_HEAD_NEXT_HI        0x44	/* (RW) Next job queue head pointer for job slot n, high word */
-
-#define JS_AFFINITY_NEXT_LO    0x50	/* (RW) Next core affinity mask for job slot n, low word */
-#define JS_AFFINITY_NEXT_HI    0x54	/* (RW) Next core affinity mask for job slot n, high word */
-#define JS_CONFIG_NEXT         0x58	/* (RW) Next configuration settings for job slot n */
-/* (RW) Next extended affinity mask for job slot n */
-#define JS_XAFFINITY_NEXT      0x5C
-
-#define JS_COMMAND_NEXT        0x60	/* (RW) Next command register for job slot n */
+#define JS_XAFFINITY_NEXT      0x5C /* (RW) Next extended affinity mask for job slot n */
 
 #define JS_FLUSH_ID_NEXT       0x70	/* (RW) Next job slot n cache flush ID */
 

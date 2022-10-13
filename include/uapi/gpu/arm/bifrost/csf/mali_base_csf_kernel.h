@@ -573,6 +573,7 @@ struct base_csf_notification {
  *   is a bitpattern where a set bit indicates that the format is supported.
  *   Before using a texture format, it is recommended that the corresponding
  *   bit be checked.
+ * @paddings: Padding bytes.
  * @gpu_available_memory_size: Theoretical maximum memory available to the GPU.
  *   It is unlikely that a client will be able to allocate all of this memory
  *   for their own purposes, but this at least provides an upper bound on the
@@ -590,6 +591,7 @@ struct mali_base_gpu_core_props {
 	__u32 gpu_freq_khz_max;
 	__u32 log2_program_counter_size;
 	__u32 texture_features[BASE_GPU_NUM_TEXTURE_FEATURES_REGISTERS];
+	__u8 paddings[4];
 	__u64 gpu_available_memory_size;
 };
 

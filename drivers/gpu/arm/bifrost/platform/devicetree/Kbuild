@@ -20,6 +20,5 @@
 
 bifrost_kbase-y += \
     platform/$(MALI_PLATFORM_DIR)/mali_kbase_config_devicetree.o \
-    platform/$(MALI_PLATFORM_DIR)/mali_kbase_config_platform.o \
     platform/$(MALI_PLATFORM_DIR)/mali_kbase_runtime_pm.o \
     platform/$(MALI_PLATFORM_DIR)/mali_kbase_clk_rate_trace.o

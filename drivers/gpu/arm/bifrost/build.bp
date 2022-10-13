@@ -32,6 +32,7 @@ bob_defaults {
         kbuild_options: [
             "CONFIG_MALI_BIFROST_NO_MALI=y",
             "CONFIG_MALI_NO_MALI_DEFAULT_GPU={{.gpu}}",
+            "CONFIG_GPU_HWVER={{.hwver}}",
         ],
     },
     mali_platform_dt_pin_rst: {
@@ -52,9 +53,6 @@ bob_defaults {
     mali_midgard_enable_trace: {
         kbuild_options: ["CONFIG_MALI_BIFROST_ENABLE_TRACE=y"],
     },
-    mali_dma_fence: {
-        kbuild_options: ["CONFIG_MALI_BIFROST_DMA_FENCE=y"],
-    },
     mali_arbiter_support: {
         kbuild_options: ["CONFIG_MALI_ARBITER_SUPPORT=y"],
     },
@@ -64,7 +62,7 @@ bob_defaults {
     mali_dma_buf_legacy_compat: {
         kbuild_options: ["CONFIG_MALI_DMA_BUF_LEGACY_COMPAT=y"],
     },
-    mali_2mb_alloc: {
+    large_page_alloc: {
         kbuild_options: ["CONFIG_MALI_2MB_ALLOC=y"],
     },
     mali_memory_fully_backed: {
@@ -89,7 +87,7 @@ bob_defaults {
         kbuild_options: ["CONFIG_MALI_BIFROST_ERROR_INJECT=y"],
     },
     mali_gem5_build: {
-       kbuild_options: ["CONFIG_MALI_GEM5_BUILD=y"],
+        kbuild_options: ["CONFIG_MALI_GEM5_BUILD=y"],
     },
     mali_debug: {
         kbuild_options: [
@@ -163,9 +161,7 @@ bob_defaults {
         // (catch-all for experimental CS code without separating it into
         // different features).
         "MALI_INCREMENTAL_RENDERING_JM={{.incremental_rendering_jm}}",
-        "MALI_GPU_TIMESTAMP_CORRECTION={{.gpu_timestamp_correction}}",
         "MALI_BASE_CSF_PERFORMANCE_TESTS={{.base_csf_performance_tests}}",
-        "MALI_GPU_TIMESTAMP_INTERPOLATION={{.gpu_timestamp_interpolation}}",
     ],
 }
 
@@ -184,6 +180,10 @@ bob_kernel_module {
         "context/*.c",
         "context/*.h",
         "context/Kbuild",
+        "hwcnt/*.c",
+        "hwcnt/*.h",
+        "hwcnt/backend/*.h",
+        "hwcnt/Kbuild",
         "ipa/*.c",
         "ipa/*.h",
         "ipa/Kbuild",
@@ -217,6 +217,10 @@ bob_kernel_module {
             "device/backend/*_jm.c",
             "gpu/backend/*_jm.c",
             "gpu/backend/*_jm.h",
+            "hwcnt/backend/*_jm.c",
+            "hwcnt/backend/*_jm.h",
+            "hwcnt/backend/*_jm_*.c",
+            "hwcnt/backend/*_jm_*.h",
             "jm/*.h",
             "tl/backend/*_jm.c",
             "mmu/backend/*_jm.c",
@@ -238,6 +242,10 @@ bob_kernel_module {
             "device/backend/*_csf.c",
             "gpu/backend/*_csf.c",
             "gpu/backend/*_csf.h",
+            "hwcnt/backend/*_csf.c",
+            "hwcnt/backend/*_csf.h",
+            "hwcnt/backend/*_csf_*.c",
+            "hwcnt/backend/*_csf_*.h",
             "tl/backend/*_csf.c",
             "mmu/backend/*_csf.c",
             "ipa/backend/*_csf.c",

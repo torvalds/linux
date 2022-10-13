@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2012-2021 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012-2022 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -59,10 +59,8 @@ ifeq ($(CONFIG_MALI_PRFCNT_SET_SELECT_VIA_DEBUG_FS), y)
 endif
 
 ifeq ($(CONFIG_MALI_BIFROST_FENCE_DEBUG), y)
-    ifneq ($(CONFIG_SYNC), y)
-        ifneq ($(CONFIG_SYNC_FILE), y)
-            $(error CONFIG_MALI_BIFROST_FENCE_DEBUG depends on CONFIG_SYNC || CONFIG_SYNC_FILE to be set in Kernel configuration)
-        endif
+    ifneq ($(CONFIG_SYNC_FILE), y)
+        $(error CONFIG_MALI_BIFROST_FENCE_DEBUG depends on CONFIG_SYNC_FILE to be set in Kernel configuration)
     endif
 endif
 
@@ -71,7 +69,7 @@ endif
 #
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= '"g13p0-01eac0"'
+MALI_RELEASE_NAME ?= '"g15p0-01eac0"'
 # Set up defaults if not defined by build system
 ifeq ($(CONFIG_MALI_BIFROST_DEBUG), y)
     MALI_UNIT_TEST = 1
@@ -151,6 +149,7 @@ bifrost_kbase-y := \
     mali_kbase_cache_policy.o \
     mali_kbase_ccswe.o \
     mali_kbase_mem.o \
+    mali_kbase_mem_migrate.o \
     mali_kbase_mem_pool_group.o \
     mali_kbase_native_mgm.o \
     mali_kbase_ctx_sched.o \
@@ -159,12 +158,6 @@ bifrost_kbase-y := \
     mali_kbase_config.o \
     mali_kbase_kinstr_prfcnt.o \
     mali_kbase_vinstr.o \
-    mali_kbase_hwcnt.o \
-    mali_kbase_hwcnt_gpu.o \
-    mali_kbase_hwcnt_gpu_narrow.o \
-    mali_kbase_hwcnt_types.o \
-    mali_kbase_hwcnt_virtualizer.o \
-    mali_kbase_hwcnt_watchdog_if_timer.o \
     mali_kbase_softjobs.o \
     mali_kbase_hw.o \
     mali_kbase_debug.o \
@@ -175,6 +168,7 @@ bifrost_kbase-y := \
     mali_kbase_disjoint_events.o \
     mali_kbase_debug_mem_view.o \
     mali_kbase_debug_mem_zones.o \
+    mali_kbase_debug_mem_allocs.o \
     mali_kbase_smc.o \
     mali_kbase_mem_pool.o \
     mali_kbase_mem_pool_debugfs.o \
@@ -191,24 +185,14 @@ bifrost_kbase-$(CONFIG_DEBUG_FS) += mali_kbase_pbha_debugfs.o
 
 bifrost_kbase-$(CONFIG_MALI_CINSTR_GWT) += mali_kbase_gwt.o
 
-bifrost_kbase-$(CONFIG_SYNC) += \
-    mali_kbase_sync_android.o \
-    mali_kbase_sync_common.o
-
 bifrost_kbase-$(CONFIG_SYNC_FILE) += \
     mali_kbase_fence_ops.o \
     mali_kbase_sync_file.o \
     mali_kbase_sync_common.o
 
-ifeq ($(CONFIG_MALI_CSF_SUPPORT),y)
-    bifrost_kbase-y += \
-        mali_kbase_hwcnt_backend_csf.o \
-        mali_kbase_hwcnt_backend_csf_if_fw.o
-else
+ifneq ($(CONFIG_MALI_CSF_SUPPORT),y)
     bifrost_kbase-y += \
         mali_kbase_jm.o \
-        mali_kbase_hwcnt_backend_jm.o \
-        mali_kbase_hwcnt_backend_jm_watchdog.o \
         mali_kbase_dummy_job_wa.o \
         mali_kbase_debug_job_fault.o \
         mali_kbase_event.o \
@@ -217,11 +201,6 @@ else
         mali_kbase_js.o \
         mali_kbase_js_ctx_attr.o \
         mali_kbase_kinstr_jm.o
-
-    bifrost_kbase-$(CONFIG_MALI_BIFROST_DMA_FENCE) += \
-        mali_kbase_fence_ops.o \
-        mali_kbase_dma_fence.o \
-        mali_kbase_fence.o
 
     bifrost_kbase-$(CONFIG_SYNC_FILE) += \
         mali_kbase_fence_ops.o \
@@ -236,6 +215,7 @@ INCLUDE_SUBDIR = \
     $(src)/backend/gpu/Kbuild \
     $(src)/mmu/Kbuild \
     $(src)/tl/Kbuild \
+    $(src)/hwcnt/Kbuild \
     $(src)/gpu/Kbuild \
     $(src)/thirdparty/Kbuild \
     $(src)/platform/$(MALI_PLATFORM_DIR)/Kbuild

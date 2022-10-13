@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2016, 2018-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016, 2018-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -163,7 +163,6 @@ static irq_handler_t kbase_handler_table[] = {
 
 #ifdef CONFIG_MALI_BIFROST_DEBUG
 #define  JOB_IRQ_HANDLER JOB_IRQ_TAG
-#define  MMU_IRQ_HANDLER MMU_IRQ_TAG
 #define  GPU_IRQ_HANDLER GPU_IRQ_TAG
 
 /**

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -43,29 +43,22 @@ void kbase_mem_pool_group_config_set_max_size(
 	}
 }
 
-int kbase_mem_pool_group_init(
-	struct kbase_mem_pool_group *const mem_pools,
-	struct kbase_device *const kbdev,
-	const struct kbase_mem_pool_group_config *const configs,
-	struct kbase_mem_pool_group *next_pools)
+int kbase_mem_pool_group_init(struct kbase_mem_pool_group *const mem_pools,
+			      struct kbase_device *const kbdev,
+			      const struct kbase_mem_pool_group_config *const configs,
+			      struct kbase_mem_pool_group *next_pools)
 {
 	int gid, err = 0;
 
 	for (gid = 0; gid < MEMORY_GROUP_MANAGER_NR_GROUPS; ++gid) {
-		err = kbase_mem_pool_init(&mem_pools->small[gid],
-			&configs->small[gid],
-			KBASE_MEM_POOL_4KB_PAGE_TABLE_ORDER,
-			gid,
-			kbdev,
-			next_pools ? &next_pools->small[gid] : NULL);
+		err = kbase_mem_pool_init(&mem_pools->small[gid], &configs->small[gid],
+					  KBASE_MEM_POOL_4KB_PAGE_TABLE_ORDER, gid, kbdev,
+					  next_pools ? &next_pools->small[gid] : NULL);
 
 		if (!err) {
-			err = kbase_mem_pool_init(&mem_pools->large[gid],
-				&configs->large[gid],
-				KBASE_MEM_POOL_2MB_PAGE_TABLE_ORDER,
-				gid,
-				kbdev,
-				next_pools ? &next_pools->large[gid] : NULL);
+			err = kbase_mem_pool_init(&mem_pools->large[gid], &configs->large[gid],
+						  KBASE_MEM_POOL_2MB_PAGE_TABLE_ORDER, gid, kbdev,
+						  next_pools ? &next_pools->large[gid] : NULL);
 			if (err)
 				kbase_mem_pool_term(&mem_pools->small[gid]);
 		}

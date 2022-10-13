@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2011-2015, 2018-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2015, 2018-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -141,6 +141,11 @@ int dummy_array[] = {
 	KBASE_KTRACE_CODE_MAKE_CODE(PM_POWEROFF_WAIT_WQ),
 	KBASE_KTRACE_CODE_MAKE_CODE(PM_RUNTIME_SUSPEND_CALLBACK),
 	KBASE_KTRACE_CODE_MAKE_CODE(PM_RUNTIME_RESUME_CALLBACK),
+
+	/* info_val = l2 state */
+#define KBASEP_L2_STATE(n) KBASE_KTRACE_CODE_MAKE_CODE(PM_L2_ ## n),
+#include "backend/gpu/mali_kbase_pm_l2_states.h"
+#undef KBASEP_L2_STATE
 
 	/*
 	 * Context Scheduler events

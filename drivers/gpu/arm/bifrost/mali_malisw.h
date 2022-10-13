@@ -97,16 +97,12 @@
  */
 #define CSTD_STR2(x)	CSTD_STR1(x)
 
-/* LINUX_VERSION_CODE < 5.4 */
-#if (KERNEL_VERSION(5, 4, 0) > LINUX_VERSION_CODE)
-#if defined(GCC_VERSION) && GCC_VERSION >= 70000
+ #ifndef fallthrough
+ #define fallthrough    __fallthrough
+ #endif /* fallthrough */
+
 #ifndef __fallthrough
 #define __fallthrough  __attribute__((fallthrough))
 #endif /* __fallthrough */
-#define fallthrough    __fallthrough
-#else
-#define fallthrough	   CSTD_NOP(...) /* fallthrough */
-#endif /* GCC_VERSION >= 70000 */
-#endif /* KERNEL_VERSION(5, 4, 0) */
 
 #endif /* _MALISW_H_ */

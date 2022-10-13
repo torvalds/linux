@@ -165,7 +165,9 @@ int kbase_context_common_init(struct kbase_context *kctx)
 	atomic64_set(&kctx->num_fixed_allocs, 0);
 #endif
 
+	kbase_gpu_vm_lock(kctx);
 	bitmap_copy(kctx->cookies, &cookies_mask, BITS_PER_LONG);
+	kbase_gpu_vm_unlock(kctx);
 
 	kctx->id = atomic_add_return(1, &(kctx->kbdev->ctx_num)) - 1;
 
@@ -274,10 +276,8 @@ void kbase_context_common_term(struct kbase_context *kctx)
 
 int kbase_context_mem_pool_group_init(struct kbase_context *kctx)
 {
-	return kbase_mem_pool_group_init(&kctx->mem_pools,
-		kctx->kbdev,
-		&kctx->kbdev->mem_pool_defaults,
-		&kctx->kbdev->mem_pools);
+	return kbase_mem_pool_group_init(&kctx->mem_pools, kctx->kbdev,
+					 &kctx->kbdev->mem_pool_defaults, &kctx->kbdev->mem_pools);
 }
 
 void kbase_context_mem_pool_group_term(struct kbase_context *kctx)

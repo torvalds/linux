@@ -24,8 +24,7 @@
 #include <linux/seq_file.h>
 #include <mali_kbase.h>
 #include <mali_kbase_jd_debugfs.h>
-#include <mali_kbase_dma_fence.h>
-#if defined(CONFIG_SYNC) || defined(CONFIG_SYNC_FILE)
+#if IS_ENABLED(CONFIG_SYNC_FILE)
 #include <mali_kbase_sync.h>
 #endif
 #include <uapi/gpu/arm/bifrost/mali_kbase_ioctl.h>
@@ -38,7 +37,7 @@ struct kbase_jd_debugfs_depinfo {
 static void kbase_jd_debugfs_fence_info(struct kbase_jd_atom *atom,
 					struct seq_file *sfile)
 {
-#if defined(CONFIG_SYNC) || defined(CONFIG_SYNC_FILE)
+#if IS_ENABLED(CONFIG_SYNC_FILE)
 	struct kbase_sync_fence_info info;
 	int res;
 
@@ -58,51 +57,7 @@ static void kbase_jd_debugfs_fence_info(struct kbase_jd_atom *atom,
 	default:
 		break;
 	}
-#endif /* CONFIG_SYNC || CONFIG_SYNC_FILE */
-
-#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
-	if (atom->core_req & BASE_JD_REQ_EXTERNAL_RESOURCES) {
-		struct kbase_fence_cb *cb;
-
-		if (atom->dma_fence.fence) {
-#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
-			struct fence *fence = atom->dma_fence.fence;
-#else
-			struct dma_fence *fence = atom->dma_fence.fence;
-#endif
-
-			seq_printf(sfile,
-#if (KERNEL_VERSION(5, 1, 0) > LINUX_VERSION_CODE)
-				   "Sd(%llu#%u: %s) ",
-#else
-				   "Sd(%llu#%llu: %s) ",
-#endif
-				   fence->context, fence->seqno,
-				   dma_fence_is_signaled(fence) ? "signaled" :
-								  "active");
-		}
-
-		list_for_each_entry(cb, &atom->dma_fence.callbacks,
-				    node) {
-#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
-			struct fence *fence = cb->fence;
-#else
-			struct dma_fence *fence = cb->fence;
-#endif
-
-			seq_printf(sfile,
-#if (KERNEL_VERSION(5, 1, 0) > LINUX_VERSION_CODE)
-				   "Wd(%llu#%u: %s) ",
-#else
-				   "Wd(%llu#%llu: %s) ",
-#endif
-				   fence->context, fence->seqno,
-				   dma_fence_is_signaled(fence) ? "signaled" :
-								  "active");
-		}
-	}
-#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
-
+#endif /* CONFIG_SYNC_FILE */
 }
 
 static void kbasep_jd_debugfs_atom_deps(

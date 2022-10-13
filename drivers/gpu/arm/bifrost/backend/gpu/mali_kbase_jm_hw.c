@@ -34,7 +34,7 @@
 #include <mali_kbase_ctx_sched.h>
 #include <mali_kbase_kinstr_jm.h>
 #include <mali_kbase_hwaccess_instr.h>
-#include <mali_kbase_hwcnt_context.h>
+#include <hwcnt/mali_kbase_hwcnt_context.h>
 #include <device/mali_kbase_device.h>
 #include <backend/gpu/mali_kbase_irq_internal.h>
 #include <backend/gpu/mali_kbase_jm_internal.h>
@@ -1438,6 +1438,11 @@ bool kbase_reset_gpu_is_active(struct kbase_device *kbdev)
 		return false;
 
 	return true;
+}
+
+bool kbase_reset_gpu_is_not_pending(struct kbase_device *kbdev)
+{
+	return atomic_read(&kbdev->hwaccess.backend.reset_gpu) == KBASE_RESET_GPU_NOT_PENDING;
 }
 
 int kbase_reset_gpu_wait(struct kbase_device *kbdev)

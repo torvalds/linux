@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -197,6 +197,33 @@ void kbase_ipa_control_handle_gpu_reset_pre(struct kbase_device *kbdev);
  * This function is called after the GPU has been reset.
  */
 void kbase_ipa_control_handle_gpu_reset_post(struct kbase_device *kbdev);
+
+#ifdef KBASE_PM_RUNTIME
+/**
+ * kbase_ipa_control_handle_gpu_sleep_enter - Handle the pre GPU Sleep event
+ *
+ * @kbdev:          Pointer to kbase device.
+ *
+ * This function is called after MCU has been put to sleep state & L2 cache has
+ * been powered down. The top level part of GPU is still powered up when this
+ * function is called.
+ */
+void kbase_ipa_control_handle_gpu_sleep_enter(struct kbase_device *kbdev);
+
+/**
+ * kbase_ipa_control_handle_gpu_sleep_exit - Handle the post GPU Sleep event
+ *
+ * @kbdev:          Pointer to kbase device.
+ *
+ * This function is called when L2 needs to be powered up and MCU can exit the
+ * sleep state. The top level part of GPU is powered up when this function is
+ * called.
+ *
+ * This function must be called only if kbase_ipa_control_handle_gpu_sleep_enter()
+ * was called previously.
+ */
+void kbase_ipa_control_handle_gpu_sleep_exit(struct kbase_device *kbdev);
+#endif
 
 #if MALI_UNIT_TEST
 /**

@@ -217,6 +217,26 @@ int kbase_mem_evictable_make(struct kbase_mem_phy_alloc *gpu_alloc);
  */
 bool kbase_mem_evictable_unmake(struct kbase_mem_phy_alloc *alloc);
 
+typedef unsigned int kbase_vmap_flag;
+
+/* Sync operations are needed on beginning and ending of access to kernel-mapped GPU memory.
+ *
+ * This is internal to the struct kbase_vmap_struct and should not be passed in by callers of
+ * kbase_vmap-related functions.
+ */
+#define KBASE_VMAP_FLAG_SYNC_NEEDED (((kbase_vmap_flag)1) << 0)
+
+/* Permanently mapped memory accounting (including enforcing limits) should be done on the
+ * kernel-mapped GPU memory.
+ *
+ * This should be used if the kernel mapping is going to live for a potentially long time, for
+ * example if it will persist after the caller has returned.
+ */
+#define KBASE_VMAP_FLAG_PERMANENT_MAP_ACCOUNTING (((kbase_vmap_flag)1) << 1)
+
+/* Set of flags that can be passed into kbase_vmap-related functions */
+#define KBASE_VMAP_INPUT_FLAGS (KBASE_VMAP_FLAG_PERMANENT_MAP_ACCOUNTING)
+
 struct kbase_vmap_struct {
 	off_t offset_in_page;
 	struct kbase_mem_phy_alloc *cpu_alloc;
@@ -225,9 +245,55 @@ struct kbase_vmap_struct {
 	struct tagged_addr *gpu_pages;
 	void *addr;
 	size_t size;
-	bool sync_needed;
+	kbase_vmap_flag flags;
 };
 
+/**
+ * kbase_mem_shrink_gpu_mapping - Shrink the GPU mapping of an allocation
+ * @kctx:      Context the region belongs to
+ * @reg:       The GPU region or NULL if there isn't one
+ * @new_pages: The number of pages after the shrink
+ * @old_pages: The number of pages before the shrink
+ *
+ * Return: 0 on success, negative -errno on error
+ *
+ * Unmap the shrunk pages from the GPU mapping. Note that the size of the region
+ * itself is unmodified as we still need to reserve the VA, only the page tables
+ * will be modified by this function.
+ */
+int kbase_mem_shrink_gpu_mapping(struct kbase_context *kctx, struct kbase_va_region *reg,
+				 u64 new_pages, u64 old_pages);
+
+/**
+ * kbase_vmap_reg - Map part of an existing region into the kernel safely, only if the requested
+ *                  access permissions are supported
+ * @kctx:         Context @reg belongs to
+ * @reg:          The GPU region to map part of
+ * @gpu_addr:     Start address of VA range to map, which must be within @reg
+ * @size:         Size of VA range, which when added to @gpu_addr must be within @reg
+ * @prot_request: Flags indicating how the caller will then access the memory
+ * @map:          Structure to be given to kbase_vunmap() on freeing
+ * @vmap_flags:   Flags of type kbase_vmap_flag
+ *
+ * Return: Kernel-accessible CPU pointer to the VA range, or NULL on error
+ *
+ * Variant of kbase_vmap_prot() that can be used given an existing region.
+ *
+ * The caller must satisfy one of the following for @reg:
+ * * It must have been obtained by finding it on the region tracker, and the region lock must not
+ *   have been released in the mean time.
+ * * Or, it must have been refcounted with a call to kbase_va_region_alloc_get(), and the region
+ *   lock is now held again.
+ * * Or, @reg has had KBASE_REG_NO_USER_FREE set at creation time or under the region lock, and the
+ *   region lock is now held again.
+ *
+ * The acceptable @vmap_flags are those in %KBASE_VMAP_INPUT_FLAGS.
+ *
+ * Refer to kbase_vmap_prot() for more information on the operation of this function.
+ */
+void *kbase_vmap_reg(struct kbase_context *kctx, struct kbase_va_region *reg, u64 gpu_addr,
+		     size_t size, unsigned long prot_request, struct kbase_vmap_struct *map,
+		     kbase_vmap_flag vmap_flags);
 
 /**
  * kbase_vmap_prot - Map a GPU VA range into the kernel safely, only if the

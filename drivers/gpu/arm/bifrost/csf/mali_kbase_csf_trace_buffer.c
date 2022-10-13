@@ -119,7 +119,7 @@ static const struct firmware_trace_buffer_data trace_buffer_data[] = {
 #if MALI_UNIT_TEST
 	{ "fwutf", { 0 }, 1 },
 #endif
-	{ FW_TRACE_BUF_NAME, { 0 }, 4 },
+	{ FIRMWARE_LOG_BUF_NAME, { 0 }, 4 },
 	{ "benchmark", { 0 }, 2 },
 	{ "timeline", { 0 }, KBASE_CSF_TL_BUFFER_NR_PAGES },
 };
@@ -506,10 +506,16 @@ unsigned int kbase_csf_firmware_trace_buffer_read_data(
 }
 EXPORT_SYMBOL(kbase_csf_firmware_trace_buffer_read_data);
 
-#if IS_ENABLED(CONFIG_DEBUG_FS)
+static void update_trace_buffer_active_mask64(struct firmware_trace_buffer *tb, u64 mask)
+{
+	unsigned int i;
+
+	for (i = 0; i < tb->trace_enable_entry_count; i++)
+		kbasep_csf_firmware_trace_buffer_update_trace_enable_bit(tb, i, (mask >> i) & 1);
+}
 
 #define U32_BITS 32
-static u64 get_trace_buffer_active_mask64(struct firmware_trace_buffer *tb)
+u64 kbase_csf_firmware_trace_buffer_get_active_mask64(struct firmware_trace_buffer *tb)
 {
 	u64 active_mask = tb->trace_enable_init_mask[0];
 
@@ -519,18 +525,7 @@ static u64 get_trace_buffer_active_mask64(struct firmware_trace_buffer *tb)
 	return active_mask;
 }
 
-static void update_trace_buffer_active_mask64(struct firmware_trace_buffer *tb,
-		u64 mask)
-{
-	unsigned int i;
-
-	for (i = 0; i < tb->trace_enable_entry_count; i++)
-		kbasep_csf_firmware_trace_buffer_update_trace_enable_bit(
-			tb, i, (mask >> i) & 1);
-}
-
-static int set_trace_buffer_active_mask64(struct firmware_trace_buffer *tb,
-		u64 mask)
+int kbase_csf_firmware_trace_buffer_set_active_mask64(struct firmware_trace_buffer *tb, u64 mask)
 {
 	struct kbase_device *kbdev = tb->kbdev;
 	unsigned long flags;
@@ -558,123 +553,3 @@ static int set_trace_buffer_active_mask64(struct firmware_trace_buffer *tb,
 
 	return err;
 }
-
-static int kbase_csf_firmware_trace_enable_mask_read(void *data, u64 *val)
-{
-	struct kbase_device *kbdev = (struct kbase_device *)data;
-	struct firmware_trace_buffer *tb =
-		kbase_csf_firmware_get_trace_buffer(kbdev, FW_TRACE_BUF_NAME);
-
-	if (tb == NULL) {
-		dev_err(kbdev->dev, "Couldn't get the firmware trace buffer");
-		return -EIO;
-	}
-	/* The enabled traces limited to u64 here, regarded practical */
-	*val = get_trace_buffer_active_mask64(tb);
-	return 0;
-}
-
-static int kbase_csf_firmware_trace_enable_mask_write(void *data, u64 val)
-{
-	struct kbase_device *kbdev = (struct kbase_device *)data;
-	struct firmware_trace_buffer *tb =
-		kbase_csf_firmware_get_trace_buffer(kbdev, FW_TRACE_BUF_NAME);
-	u64 new_mask;
-	unsigned int enable_bits_count;
-
-	if (tb == NULL) {
-		dev_err(kbdev->dev, "Couldn't get the firmware trace buffer");
-		return -EIO;
-	}
-
-	/* Ignore unsupported types */
-	enable_bits_count =
-	    kbase_csf_firmware_trace_buffer_get_trace_enable_bits_count(tb);
-	if (enable_bits_count > 64) {
-		dev_dbg(kbdev->dev, "Limit enabled bits count from %u to 64",
-			enable_bits_count);
-		enable_bits_count = 64;
-	}
-	new_mask = val & ((1 << enable_bits_count) - 1);
-
-	if (new_mask != get_trace_buffer_active_mask64(tb))
-		return set_trace_buffer_active_mask64(tb, new_mask);
-	else
-		return 0;
-}
-
-static int kbasep_csf_firmware_trace_debugfs_open(struct inode *in,
-		struct file *file)
-{
-	struct kbase_device *kbdev = in->i_private;
-
-	file->private_data = kbdev;
-	dev_dbg(kbdev->dev, "Opened firmware trace buffer dump debugfs file");
-
-	return 0;
-}
-
-static ssize_t kbasep_csf_firmware_trace_debugfs_read(struct file *file,
-		char __user *buf, size_t size, loff_t *ppos)
-{
-	struct kbase_device *kbdev = file->private_data;
-	u8 *pbyte;
-	unsigned int n_read;
-	unsigned long not_copied;
-	/* Limit the kernel buffer to no more than two pages */
-	size_t mem = MIN(size, 2 * PAGE_SIZE);
-	unsigned long flags;
-
-	struct firmware_trace_buffer *tb =
-		kbase_csf_firmware_get_trace_buffer(kbdev, FW_TRACE_BUF_NAME);
-
-	if (tb == NULL) {
-		dev_err(kbdev->dev, "Couldn't get the firmware trace buffer");
-		return -EIO;
-	}
-
-	pbyte = kmalloc(mem, GFP_KERNEL);
-	if (pbyte == NULL) {
-		dev_err(kbdev->dev, "Couldn't allocate memory for trace buffer dump");
-		return -ENOMEM;
-	}
-
-	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-	n_read = kbase_csf_firmware_trace_buffer_read_data(tb, pbyte, mem);
-	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
-
-	/* Do the copy, if we have obtained some trace data */
-	not_copied = (n_read) ? copy_to_user(buf, pbyte, n_read) : 0;
-	kfree(pbyte);
-
-	if (!not_copied) {
-		*ppos += n_read;
-		return n_read;
-	}
-
-	dev_err(kbdev->dev, "Couldn't copy trace buffer data to user space buffer");
-	return -EFAULT;
-}
-
-DEFINE_DEBUGFS_ATTRIBUTE(kbase_csf_firmware_trace_enable_mask_fops,
-			 kbase_csf_firmware_trace_enable_mask_read,
-			 kbase_csf_firmware_trace_enable_mask_write, "%llx\n");
-
-static const struct file_operations kbasep_csf_firmware_trace_debugfs_fops = {
-	.owner = THIS_MODULE,
-	.open = kbasep_csf_firmware_trace_debugfs_open,
-	.read = kbasep_csf_firmware_trace_debugfs_read,
-	.llseek = no_llseek,
-};
-
-void kbase_csf_firmware_trace_buffer_debugfs_init(struct kbase_device *kbdev)
-{
-	debugfs_create_file("fw_trace_enable_mask", 0644,
-			    kbdev->mali_debugfs_directory, kbdev,
-			    &kbase_csf_firmware_trace_enable_mask_fops);
-
-	debugfs_create_file("fw_traces", 0444,
-			    kbdev->mali_debugfs_directory, kbdev,
-			    &kbasep_csf_firmware_trace_debugfs_fops);
-}
-#endif /* CONFIG_DEBUG_FS */

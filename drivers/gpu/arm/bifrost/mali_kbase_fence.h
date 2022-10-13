@@ -23,12 +23,11 @@
 #define _KBASE_FENCE_H_
 
 /*
- * mali_kbase_fence.[hc] has common fence code used by both
- * - CONFIG_MALI_BIFROST_DMA_FENCE - implicit DMA fences
- * - CONFIG_SYNC_FILE      - explicit fences beginning with 4.9 kernel
+ * mali_kbase_fence.[hc] has fence code used only by
+ * - CONFIG_SYNC_FILE      - explicit fences
  */
 
-#if defined(CONFIG_MALI_BIFROST_DMA_FENCE) || defined(CONFIG_SYNC_FILE)
+#if IS_ENABLED(CONFIG_SYNC_FILE)
 
 #include <linux/list.h>
 #include "mali_kbase_fence_defs.h"
@@ -39,25 +38,6 @@ extern const struct fence_ops kbase_fence_ops;
 #else
 extern const struct dma_fence_ops kbase_fence_ops;
 #endif
-
-/**
- * struct kbase_fence_cb - Mali dma-fence callback data struct
- * @fence_cb: Callback function
- * @katom:    Pointer to katom that is waiting on this callback
- * @fence:    Pointer to the fence object on which this callback is waiting
- * @node:     List head for linking this callback to the katom
- */
-struct kbase_fence_cb {
-#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
-	struct fence_cb fence_cb;
-	struct fence *fence;
-#else
-	struct dma_fence_cb fence_cb;
-	struct dma_fence *fence;
-#endif
-	struct kbase_jd_atom *katom;
-	struct list_head node;
-};
 
 /**
  * kbase_fence_out_new() - Creates a new output fence and puts it on the atom
@@ -71,7 +51,7 @@ struct fence *kbase_fence_out_new(struct kbase_jd_atom *katom);
 struct dma_fence *kbase_fence_out_new(struct kbase_jd_atom *katom);
 #endif
 
-#if defined(CONFIG_SYNC_FILE)
+#if IS_ENABLED(CONFIG_SYNC_FILE)
 /**
  * kbase_fence_fence_in_set() - Assign input fence to atom
  * @katom: Atom to assign input fence to
@@ -102,7 +82,7 @@ static inline void kbase_fence_out_remove(struct kbase_jd_atom *katom)
 	}
 }
 
-#if defined(CONFIG_SYNC_FILE)
+#if IS_ENABLED(CONFIG_SYNC_FILE)
 /**
  * kbase_fence_in_remove() - Removes the input fence from atom
  * @katom: Atom to remove input fence for
@@ -153,101 +133,7 @@ static inline int kbase_fence_out_signal(struct kbase_jd_atom *katom,
 	return dma_fence_signal(katom->dma_fence.fence);
 }
 
-/**
- * kbase_fence_add_callback() - Add callback on @fence to block @katom
- * @katom: Pointer to katom that will be blocked by @fence
- * @fence: Pointer to fence on which to set up the callback
- * @callback: Pointer to function to be called when fence is signaled
- *
- * Caller needs to hold a reference to @fence when calling this function, and
- * the caller is responsible for releasing that reference.  An additional
- * reference to @fence will be taken when the callback was successfully set up
- * and @fence needs to be kept valid until the callback has been called and
- * cleanup have been done.
- *
- * Return: 0 on success: fence was either already signaled, or callback was
- * set up. Negative error code is returned on error.
- */
-#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
-int kbase_fence_add_callback(struct kbase_jd_atom *katom,
-			     struct fence *fence,
-			     fence_func_t callback);
-#else
-int kbase_fence_add_callback(struct kbase_jd_atom *katom,
-			     struct dma_fence *fence,
-			     dma_fence_func_t callback);
-#endif
-
-/**
- * kbase_fence_dep_count_set() - Set dep_count value on atom to specified value
- * @katom: Atom to set dep_count for
- * @val: value to set dep_count to
- *
- * The dep_count is available to the users of this module so that they can
- * synchronize completion of the wait with cancellation and adding of more
- * callbacks. For instance, a user could do the following:
- *
- * dep_count set to 1
- * callback #1 added, dep_count is increased to 2
- *                             callback #1 happens, dep_count decremented to 1
- *                             since dep_count > 0, no completion is done
- * callback #2 is added, dep_count is increased to 2
- * dep_count decremented to 1
- *                             callback #2 happens, dep_count decremented to 0
- *                             since dep_count now is zero, completion executes
- *
- * The dep_count can also be used to make sure that the completion only
- * executes once. This is typically done by setting dep_count to -1 for the
- * thread that takes on this responsibility.
- */
-static inline void
-kbase_fence_dep_count_set(struct kbase_jd_atom *katom, int val)
-{
-	atomic_set(&katom->dma_fence.dep_count, val);
-}
-
-/**
- * kbase_fence_dep_count_dec_and_test() - Decrements dep_count
- * @katom: Atom to decrement dep_count for
- *
- * See @kbase_fence_dep_count_set for general description about dep_count
- *
- * Return: true if value was decremented to zero, otherwise false
- */
-static inline bool
-kbase_fence_dep_count_dec_and_test(struct kbase_jd_atom *katom)
-{
-	return atomic_dec_and_test(&katom->dma_fence.dep_count);
-}
-
-/**
- * kbase_fence_dep_count_read() - Returns the current dep_count value
- * @katom: Pointer to katom
- *
- * See @kbase_fence_dep_count_set for general description about dep_count
- *
- * Return: The current dep_count value
- */
-static inline int kbase_fence_dep_count_read(struct kbase_jd_atom *katom)
-{
-	return atomic_read(&katom->dma_fence.dep_count);
-}
-
-/**
- * kbase_fence_free_callbacks() - Free dma-fence callbacks on a katom
- * @katom: Pointer to katom
- *
- * This function will free all fence callbacks on the katom's list of
- * callbacks. Callbacks that have not yet been called, because their fence
- * hasn't yet signaled, will first be removed from the fence.
- *
- * Locking: katom->dma_fence.callbacks list assumes jctx.lock is held.
- *
- * Return: true if dep_count reached 0, otherwise false.
- */
-bool kbase_fence_free_callbacks(struct kbase_jd_atom *katom);
-
-#if defined(CONFIG_SYNC_FILE)
+#if IS_ENABLED(CONFIG_SYNC_FILE)
 /**
  * kbase_fence_in_get() - Retrieve input fence for atom.
  * @katom: Atom to get input fence from
@@ -288,6 +174,6 @@ bool kbase_fence_free_callbacks(struct kbase_jd_atom *katom);
 #define kbase_fence_put(fence) dma_fence_put(fence)
 
 
-#endif /* CONFIG_MALI_BIFROST_DMA_FENCE || defined(CONFIG_SYNC_FILE */
+#endif /* IS_ENABLED(CONFIG_SYNC_FILE) */
 
 #endif /* _KBASE_FENCE_H_ */

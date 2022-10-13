@@ -26,7 +26,6 @@
 #include <context/mali_kbase_context_internal.h>
 #include <gpu/mali_kbase_gpu_regmap.h>
 #include <mali_kbase.h>
-#include <mali_kbase_dma_fence.h>
 #include <mali_kbase_mem_linux.h>
 #include <mali_kbase_mem_pool_group.h>
 #include <mmu/mali_kbase_mmu.h>
@@ -39,12 +38,14 @@
 #include <csf/mali_kbase_csf_cpu_queue_debugfs.h>
 #include <mali_kbase_debug_mem_view.h>
 #include <mali_kbase_debug_mem_zones.h>
+#include <mali_kbase_debug_mem_allocs.h>
 #include <mali_kbase_mem_pool_debugfs.h>
 
 void kbase_context_debugfs_init(struct kbase_context *const kctx)
 {
 	kbase_debug_mem_view_init(kctx);
 	kbase_debug_mem_zones_init(kctx);
+	kbase_debug_mem_allocs_init(kctx);
 	kbase_mem_pool_debugfs_init(kctx->kctx_dentry, kctx);
 	kbase_jit_debugfs_init(kctx);
 	kbase_csf_queue_group_debugfs_init(kctx);

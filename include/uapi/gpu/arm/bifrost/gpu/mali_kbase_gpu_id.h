@@ -126,6 +126,8 @@
 #define GPU_ID2_PRODUCT_LODX              GPU_ID2_MODEL_MAKE(10, 7)
 #define GPU_ID2_PRODUCT_TTUX              GPU_ID2_MODEL_MAKE(11, 2)
 #define GPU_ID2_PRODUCT_LTUX              GPU_ID2_MODEL_MAKE(11, 3)
+#define GPU_ID2_PRODUCT_TTIX              GPU_ID2_MODEL_MAKE(12, 0)
+#define GPU_ID2_PRODUCT_LTIX              GPU_ID2_MODEL_MAKE(12, 1)
 
 /**
  * GPU_ID_MAKE - Helper macro to generate GPU_ID using id, major, minor, status

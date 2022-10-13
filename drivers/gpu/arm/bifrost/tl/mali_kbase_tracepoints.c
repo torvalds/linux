@@ -100,14 +100,14 @@ enum tl_msg_id_obj {
 	KBASE_TL_KBASE_KCPUQUEUE_ENQUEUE_MAP_IMPORT,
 	KBASE_TL_KBASE_KCPUQUEUE_ENQUEUE_UNMAP_IMPORT,
 	KBASE_TL_KBASE_KCPUQUEUE_ENQUEUE_UNMAP_IMPORT_FORCE,
-	KBASE_TL_KBASE_KCPUQUEUE_ENQUEUE_ERROR_BARRIER,
-	KBASE_TL_KBASE_KCPUQUEUE_ENQUEUE_GROUP_SUSPEND,
 	KBASE_TL_KBASE_ARRAY_BEGIN_KCPUQUEUE_ENQUEUE_JIT_ALLOC,
 	KBASE_TL_KBASE_ARRAY_ITEM_KCPUQUEUE_ENQUEUE_JIT_ALLOC,
 	KBASE_TL_KBASE_ARRAY_END_KCPUQUEUE_ENQUEUE_JIT_ALLOC,
 	KBASE_TL_KBASE_ARRAY_BEGIN_KCPUQUEUE_ENQUEUE_JIT_FREE,
 	KBASE_TL_KBASE_ARRAY_ITEM_KCPUQUEUE_ENQUEUE_JIT_FREE,
 	KBASE_TL_KBASE_ARRAY_END_KCPUQUEUE_ENQUEUE_JIT_FREE,
+	KBASE_TL_KBASE_KCPUQUEUE_ENQUEUE_ERROR_BARRIER,
+	KBASE_TL_KBASE_KCPUQUEUE_ENQUEUE_GROUP_SUSPEND,
 	KBASE_TL_KBASE_KCPUQUEUE_EXECUTE_FENCE_SIGNAL_START,
 	KBASE_TL_KBASE_KCPUQUEUE_EXECUTE_FENCE_SIGNAL_END,
 	KBASE_TL_KBASE_KCPUQUEUE_EXECUTE_FENCE_WAIT_START,
@@ -416,14 +416,6 @@ enum tl_msg_id_obj {
 		"KCPU Queue enqueues Unmap Import ignoring reference count", \
 		"@pL", \
 		"kcpu_queue,map_import_buf_gpu_addr") \
-	TRACEPOINT_DESC(KBASE_TL_KBASE_KCPUQUEUE_ENQUEUE_ERROR_BARRIER, \
-		"KCPU Queue enqueues Error Barrier", \
-		"@p", \
-		"kcpu_queue") \
-	TRACEPOINT_DESC(KBASE_TL_KBASE_KCPUQUEUE_ENQUEUE_GROUP_SUSPEND, \
-		"KCPU Queue enqueues Group Suspend", \
-		"@ppI", \
-		"kcpu_queue,group_suspend_buf,gpu_cmdq_grp_handle") \
 	TRACEPOINT_DESC(KBASE_TL_KBASE_ARRAY_BEGIN_KCPUQUEUE_ENQUEUE_JIT_ALLOC, \
 		"Begin array of KCPU Queue enqueues JIT Alloc", \
 		"@p", \
@@ -448,6 +440,14 @@ enum tl_msg_id_obj {
 		"End array of KCPU Queue enqueues JIT Free", \
 		"@p", \
 		"kcpu_queue") \
+	TRACEPOINT_DESC(KBASE_TL_KBASE_KCPUQUEUE_ENQUEUE_ERROR_BARRIER, \
+		"KCPU Queue enqueues Error Barrier", \
+		"@p", \
+		"kcpu_queue") \
+	TRACEPOINT_DESC(KBASE_TL_KBASE_KCPUQUEUE_ENQUEUE_GROUP_SUSPEND, \
+		"KCPU Queue enqueues Group Suspend", \
+		"@ppI", \
+		"kcpu_queue,group_suspend_buf,gpu_cmdq_grp_handle") \
 	TRACEPOINT_DESC(KBASE_TL_KBASE_KCPUQUEUE_EXECUTE_FENCE_SIGNAL_START, \
 		"KCPU Queue starts a Signal on Fence", \
 		"@p", \
@@ -465,15 +465,15 @@ enum tl_msg_id_obj {
 		"@pI", \
 		"kcpu_queue,execute_error") \
 	TRACEPOINT_DESC(KBASE_TL_KBASE_KCPUQUEUE_EXECUTE_CQS_WAIT_START, \
-		"KCPU Queue starts a Wait on an array of Cross Queue Sync Objects", \
+		"KCPU Queue starts a Wait on Cross Queue Sync Object", \
 		"@p", \
 		"kcpu_queue") \
 	TRACEPOINT_DESC(KBASE_TL_KBASE_KCPUQUEUE_EXECUTE_CQS_WAIT_END, \
-		"KCPU Queue ends a Wait on an array of Cross Queue Sync Objects", \
+		"KCPU Queue ends a Wait on Cross Queue Sync Object", \
 		"@pI", \
 		"kcpu_queue,execute_error") \
 	TRACEPOINT_DESC(KBASE_TL_KBASE_KCPUQUEUE_EXECUTE_CQS_SET, \
-		"KCPU Queue executes a Set on an array of Cross Queue Sync Objects", \
+		"KCPU Queue executes a Set on Cross Queue Sync Object", \
 		"@pI", \
 		"kcpu_queue,execute_error") \
 	TRACEPOINT_DESC(KBASE_TL_KBASE_KCPUQUEUE_EXECUTE_MAP_IMPORT_START, \
@@ -2540,60 +2540,6 @@ void __kbase_tlstream_tl_kbase_kcpuqueue_enqueue_unmap_import_force(
 	kbase_tlstream_msgbuf_release(stream, acq_flags);
 }
 
-void __kbase_tlstream_tl_kbase_kcpuqueue_enqueue_error_barrier(
-	struct kbase_tlstream *stream,
-	const void *kcpu_queue
-)
-{
-	const u32 msg_id = KBASE_TL_KBASE_KCPUQUEUE_ENQUEUE_ERROR_BARRIER;
-	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
-		+ sizeof(kcpu_queue)
-		;
-	char *buffer;
-	unsigned long acq_flags;
-	size_t pos = 0;
-
-	buffer = kbase_tlstream_msgbuf_acquire(stream, msg_size, &acq_flags);
-
-	pos = kbasep_serialize_bytes(buffer, pos, &msg_id, sizeof(msg_id));
-	pos = kbasep_serialize_timestamp(buffer, pos);
-	pos = kbasep_serialize_bytes(buffer,
-		pos, &kcpu_queue, sizeof(kcpu_queue));
-
-	kbase_tlstream_msgbuf_release(stream, acq_flags);
-}
-
-void __kbase_tlstream_tl_kbase_kcpuqueue_enqueue_group_suspend(
-	struct kbase_tlstream *stream,
-	const void *kcpu_queue,
-	const void *group_suspend_buf,
-	u32 gpu_cmdq_grp_handle
-)
-{
-	const u32 msg_id = KBASE_TL_KBASE_KCPUQUEUE_ENQUEUE_GROUP_SUSPEND;
-	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
-		+ sizeof(kcpu_queue)
-		+ sizeof(group_suspend_buf)
-		+ sizeof(gpu_cmdq_grp_handle)
-		;
-	char *buffer;
-	unsigned long acq_flags;
-	size_t pos = 0;
-
-	buffer = kbase_tlstream_msgbuf_acquire(stream, msg_size, &acq_flags);
-
-	pos = kbasep_serialize_bytes(buffer, pos, &msg_id, sizeof(msg_id));
-	pos = kbasep_serialize_timestamp(buffer, pos);
-	pos = kbasep_serialize_bytes(buffer,
-		pos, &kcpu_queue, sizeof(kcpu_queue));
-	pos = kbasep_serialize_bytes(buffer,
-		pos, &group_suspend_buf, sizeof(group_suspend_buf));
-	pos = kbasep_serialize_bytes(buffer,
-		pos, &gpu_cmdq_grp_handle, sizeof(gpu_cmdq_grp_handle));
-
-	kbase_tlstream_msgbuf_release(stream, acq_flags);
-}
-
 void __kbase_tlstream_tl_kbase_array_begin_kcpuqueue_enqueue_jit_alloc(
 	struct kbase_tlstream *stream,
 	const void *kcpu_queue
@@ -2768,6 +2714,60 @@ void __kbase_tlstream_tl_kbase_array_end_kcpuqueue_enqueue_jit_free(
 	pos = kbasep_serialize_timestamp(buffer, pos);
 	pos = kbasep_serialize_bytes(buffer,
 		pos, &kcpu_queue, sizeof(kcpu_queue));
+
+	kbase_tlstream_msgbuf_release(stream, acq_flags);
+}
+
+void __kbase_tlstream_tl_kbase_kcpuqueue_enqueue_error_barrier(
+	struct kbase_tlstream *stream,
+	const void *kcpu_queue
+)
+{
+	const u32 msg_id = KBASE_TL_KBASE_KCPUQUEUE_ENQUEUE_ERROR_BARRIER;
+	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
+		+ sizeof(kcpu_queue)
+		;
+	char *buffer;
+	unsigned long acq_flags;
+	size_t pos = 0;
+
+	buffer = kbase_tlstream_msgbuf_acquire(stream, msg_size, &acq_flags);
+
+	pos = kbasep_serialize_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_serialize_timestamp(buffer, pos);
+	pos = kbasep_serialize_bytes(buffer,
+		pos, &kcpu_queue, sizeof(kcpu_queue));
+
+	kbase_tlstream_msgbuf_release(stream, acq_flags);
+}
+
+void __kbase_tlstream_tl_kbase_kcpuqueue_enqueue_group_suspend(
+	struct kbase_tlstream *stream,
+	const void *kcpu_queue,
+	const void *group_suspend_buf,
+	u32 gpu_cmdq_grp_handle
+)
+{
+	const u32 msg_id = KBASE_TL_KBASE_KCPUQUEUE_ENQUEUE_GROUP_SUSPEND;
+	const size_t msg_size = sizeof(msg_id) + sizeof(u64)
+		+ sizeof(kcpu_queue)
+		+ sizeof(group_suspend_buf)
+		+ sizeof(gpu_cmdq_grp_handle)
+		;
+	char *buffer;
+	unsigned long acq_flags;
+	size_t pos = 0;
+
+	buffer = kbase_tlstream_msgbuf_acquire(stream, msg_size, &acq_flags);
+
+	pos = kbasep_serialize_bytes(buffer, pos, &msg_id, sizeof(msg_id));
+	pos = kbasep_serialize_timestamp(buffer, pos);
+	pos = kbasep_serialize_bytes(buffer,
+		pos, &kcpu_queue, sizeof(kcpu_queue));
+	pos = kbasep_serialize_bytes(buffer,
+		pos, &group_suspend_buf, sizeof(group_suspend_buf));
+	pos = kbasep_serialize_bytes(buffer,
+		pos, &gpu_cmdq_grp_handle, sizeof(gpu_cmdq_grp_handle));
 
 	kbase_tlstream_msgbuf_release(stream, acq_flags);
 }

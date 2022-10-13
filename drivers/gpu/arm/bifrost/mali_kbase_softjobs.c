@@ -23,7 +23,7 @@
 
 #include <linux/dma-buf.h>
 #include <asm/cacheflush.h>
-#if defined(CONFIG_SYNC) || defined(CONFIG_SYNC_FILE)
+#if IS_ENABLED(CONFIG_SYNC_FILE)
 #include <mali_kbase_sync.h>
 #endif
 #include <linux/dma-mapping.h>
@@ -204,7 +204,7 @@ static int kbase_dump_cpu_gpu_time(struct kbase_jd_atom *katom)
 	return 0;
 }
 
-#if defined(CONFIG_SYNC) || defined(CONFIG_SYNC_FILE)
+#if IS_ENABLED(CONFIG_SYNC_FILE)
 /* Called by the explicit fence mechanism when a fence wait has completed */
 void kbase_soft_event_wait_callback(struct kbase_jd_atom *katom)
 {
@@ -925,26 +925,6 @@ int kbasep_jit_alloc_validate(struct kbase_context *kctx,
 
 #if !MALI_USE_CSF
 
-/*
- * Sizes of user data to copy for each just-in-time memory interface version
- *
- * In interface version 2 onwards this is the same as the struct size, allowing
- * copying of arrays of structures from userspace.
- *
- * In interface version 1 the structure size was variable, and hence arrays of
- * structures cannot be supported easily, and were not a feature present in
- * version 1 anyway.
- */
-static const size_t jit_info_copy_size_for_jit_version[] = {
-	/* in jit_version 1, the structure did not have any end padding, hence
-	 * it could be a different size on 32 and 64-bit clients. We therefore
-	 * do not copy past the last member
-	 */
-	[1] = offsetofend(struct base_jit_alloc_info_10_2, id),
-	[2] = sizeof(struct base_jit_alloc_info_11_5),
-	[3] = sizeof(struct base_jit_alloc_info)
-};
-
 static int kbase_jit_allocate_prepare(struct kbase_jd_atom *katom)
 {
 	__user u8 *data = (__user u8 *)(uintptr_t) katom->jc;
@@ -954,18 +934,11 @@ static int kbase_jit_allocate_prepare(struct kbase_jd_atom *katom)
 	u32 count;
 	int ret;
 	u32 i;
-	size_t jit_info_user_copy_size;
-
-	WARN_ON(kctx->jit_version >=
-		ARRAY_SIZE(jit_info_copy_size_for_jit_version));
-	jit_info_user_copy_size =
-			jit_info_copy_size_for_jit_version[kctx->jit_version];
-	WARN_ON(jit_info_user_copy_size > sizeof(*info));
 
 	/* For backwards compatibility, and to prevent reading more than 1 jit
 	 * info struct on jit version 1
 	 */
-	if (katom->nr_extres == 0 || kctx->jit_version == 1)
+	if (katom->nr_extres == 0)
 		katom->nr_extres = 1;
 	count = katom->nr_extres;
 
@@ -985,8 +958,8 @@ static int kbase_jit_allocate_prepare(struct kbase_jd_atom *katom)
 
 	katom->softjob_data = info;
 
-	for (i = 0; i < count; i++, info++, data += jit_info_user_copy_size) {
-		if (copy_from_user(info, data, jit_info_user_copy_size) != 0) {
+	for (i = 0; i < count; i++, info++, data += sizeof(*info)) {
+		if (copy_from_user(info, data, sizeof(*info)) != 0) {
 			ret = -EINVAL;
 			goto free_info;
 		}
@@ -994,8 +967,7 @@ static int kbase_jit_allocate_prepare(struct kbase_jd_atom *katom)
 		 * kernel struct. For jit version 1, this also clears the
 		 * padding bytes
 		 */
-		memset(((u8 *)info) + jit_info_user_copy_size, 0,
-				sizeof(*info) - jit_info_user_copy_size);
+		memset(((u8 *)info) + sizeof(*info), 0, sizeof(*info) - sizeof(*info));
 
 		ret = kbasep_jit_alloc_validate(kctx, info);
 		if (ret)
@@ -1476,10 +1448,11 @@ static void kbase_ext_res_process(struct kbase_jd_atom *katom, bool map)
 			if (!kbase_sticky_resource_acquire(katom->kctx,
 					gpu_addr))
 				goto failed_loop;
-		} else
+		} else {
 			if (!kbase_sticky_resource_release_force(katom->kctx, NULL,
 					gpu_addr))
 				failed = true;
+		}
 	}
 
 	/*
@@ -1539,7 +1512,7 @@ int kbase_process_soft_job(struct kbase_jd_atom *katom)
 		ret = kbase_dump_cpu_gpu_time(katom);
 		break;
 
-#if defined(CONFIG_SYNC) || defined(CONFIG_SYNC_FILE)
+#if IS_ENABLED(CONFIG_SYNC_FILE)
 	case BASE_JD_REQ_SOFT_FENCE_TRIGGER:
 		katom->event_code = kbase_sync_fence_out_trigger(katom,
 				katom->event_code == BASE_JD_EVENT_DONE ?
@@ -1599,7 +1572,7 @@ int kbase_process_soft_job(struct kbase_jd_atom *katom)
 void kbase_cancel_soft_job(struct kbase_jd_atom *katom)
 {
 	switch (katom->core_req & BASE_JD_REQ_SOFT_JOB_TYPE) {
-#if defined(CONFIG_SYNC) || defined(CONFIG_SYNC_FILE)
+#if IS_ENABLED(CONFIG_SYNC_FILE)
 	case BASE_JD_REQ_SOFT_FENCE_WAIT:
 		kbase_sync_fence_in_cancel_wait(katom);
 		break;
@@ -1622,7 +1595,7 @@ int kbase_prepare_soft_job(struct kbase_jd_atom *katom)
 				return -EINVAL;
 		}
 		break;
-#if defined(CONFIG_SYNC) || defined(CONFIG_SYNC_FILE)
+#if IS_ENABLED(CONFIG_SYNC_FILE)
 	case BASE_JD_REQ_SOFT_FENCE_TRIGGER:
 		{
 			struct base_fence fence;
@@ -1668,20 +1641,9 @@ int kbase_prepare_soft_job(struct kbase_jd_atom *katom)
 							  fence.basep.fd);
 			if (ret < 0)
 				return ret;
-
-#ifdef CONFIG_MALI_BIFROST_DMA_FENCE
-			/*
-			 * Set KCTX_NO_IMPLICIT_FENCE in the context the first
-			 * time a soft fence wait job is observed. This will
-			 * prevent the implicit dma-buf fence to conflict with
-			 * the Android native sync fences.
-			 */
-			if (!kbase_ctx_flag(katom->kctx, KCTX_NO_IMPLICIT_SYNC))
-				kbase_ctx_flag_set(katom->kctx, KCTX_NO_IMPLICIT_SYNC);
-#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
 		}
 		break;
-#endif /* CONFIG_SYNC || CONFIG_SYNC_FILE */
+#endif /* CONFIG_SYNC_FILE */
 	case BASE_JD_REQ_SOFT_JIT_ALLOC:
 		return kbase_jit_allocate_prepare(katom);
 	case BASE_JD_REQ_SOFT_JIT_FREE:
@@ -1714,7 +1676,7 @@ void kbase_finish_soft_job(struct kbase_jd_atom *katom)
 	case BASE_JD_REQ_SOFT_DUMP_CPU_GPU_TIME:
 		/* Nothing to do */
 		break;
-#if defined(CONFIG_SYNC) || defined(CONFIG_SYNC_FILE)
+#if IS_ENABLED(CONFIG_SYNC_FILE)
 	case BASE_JD_REQ_SOFT_FENCE_TRIGGER:
 		/* If fence has not yet been signaled, do it now */
 		kbase_sync_fence_out_trigger(katom, katom->event_code ==
@@ -1724,7 +1686,7 @@ void kbase_finish_soft_job(struct kbase_jd_atom *katom)
 		/* Release katom's reference to fence object */
 		kbase_sync_fence_in_remove(katom);
 		break;
-#endif /* CONFIG_SYNC || CONFIG_SYNC_FILE */
+#endif /* CONFIG_SYNC_FILE */
 	case BASE_JD_REQ_SOFT_DEBUG_COPY:
 		kbase_debug_copy_finish(katom);
 		break;

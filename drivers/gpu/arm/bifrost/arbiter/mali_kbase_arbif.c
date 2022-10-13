@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -28,12 +28,12 @@
 #include <tl/mali_kbase_tracepoints.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
-#include "mali_kbase_arbiter_interface.h"
+#include "linux/mali_arbiter_interface.h"
 
 /* Arbiter interface version against which was implemented this module */
 #define MALI_REQUIRED_KBASE_ARBITER_INTERFACE_VERSION 5
 #if MALI_REQUIRED_KBASE_ARBITER_INTERFACE_VERSION != \
-			MALI_KBASE_ARBITER_INTERFACE_VERSION
+			MALI_ARBITER_INTERFACE_VERSION
 #error "Unsupported Mali Arbiter interface version."
 #endif
 
@@ -205,6 +205,7 @@ int kbase_arbif_init(struct kbase_device *kbdev)
 
 	if (!pdev->dev.driver || !try_module_get(pdev->dev.driver->owner)) {
 		dev_err(kbdev->dev, "arbiter_if driver not available\n");
+		put_device(&pdev->dev);
 		return -EPROBE_DEFER;
 	}
 	kbdev->arb.arb_dev = &pdev->dev;
@@ -212,6 +213,7 @@ int kbase_arbif_init(struct kbase_device *kbdev)
 	if (!arb_if) {
 		dev_err(kbdev->dev, "arbiter_if driver not ready\n");
 		module_put(pdev->dev.driver->owner);
+		put_device(&pdev->dev);
 		return -EPROBE_DEFER;
 	}
 
@@ -233,6 +235,7 @@ int kbase_arbif_init(struct kbase_device *kbdev)
 		if (err) {
 			dev_err(&pdev->dev, "Failed to register with arbiter\n");
 			module_put(pdev->dev.driver->owner);
+			put_device(&pdev->dev);
 			if (err != -EPROBE_DEFER)
 				err = -EFAULT;
 			return err;
@@ -262,8 +265,10 @@ void kbase_arbif_destroy(struct kbase_device *kbdev)
 		arb_if->vm_ops.vm_arb_unregister_dev(kbdev->arb.arb_if);
 	}
 	kbdev->arb.arb_if = NULL;
-	if (kbdev->arb.arb_dev)
+	if (kbdev->arb.arb_dev) {
 		module_put(kbdev->arb.arb_dev->driver->owner);
+		put_device(kbdev->arb.arb_dev);
+	}
 	kbdev->arb.arb_dev = NULL;
 }
 

@@ -38,11 +38,9 @@ ifeq ($(CONFIG_MALI_BASE_MODULES),y)
     CONFIG_MALI_CSF_SUPPORT ?= n
 
     ifneq ($(CONFIG_DMA_SHARED_BUFFER),n)
-        CONFIG_DMA_BUF_LOCK ?= y
         CONFIG_DMA_SHARED_BUFFER_TEST_EXPORTER ?= y
     else
         # Prevent misuse when CONFIG_DMA_SHARED_BUFFER=n
-        CONFIG_DMA_BUF_LOCK = n
         CONFIG_DMA_SHARED_BUFFER_TEST_EXPORTER = n
     endif
 
@@ -54,7 +52,6 @@ ifeq ($(CONFIG_MALI_BASE_MODULES),y)
 
 else
     # Prevent misuse when CONFIG_MALI_BASE_MODULES=n
-    CONFIG_DMA_BUF_LOCK = n
     CONFIG_DMA_SHARED_BUFFER_TEST_EXPORTER = n
     CONFIG_MALI_MEMORY_GROUP_MANAGER = n
     CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR = n
@@ -64,10 +61,9 @@ endif
 CONFIGS := \
     CONFIG_MALI_BASE_MODULES \
     CONFIG_MALI_CSF_SUPPORT \
-    CONFIG_DMA_BUF_LOCK \
     CONFIG_DMA_SHARED_BUFFER_TEST_EXPORTER \
     CONFIG_MALI_MEMORY_GROUP_MANAGER \
-    CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR
+    CONFIG_MALI_PROTECTED_MEMORY_ALLOCATOR \
 
 
 #
@@ -92,25 +88,46 @@ EXTRA_CFLAGS := $(foreach config,$(CONFIGS), \
                     $(if $(filter y m,$(value $(value config))), \
                         -D$(value config)=1))
 
-# The following were added to align with W=1 in scripts/Makefile.extrawarn
-# from the Linux source tree
 KBUILD_CFLAGS += -Wall -Werror
+
+# The following were added to align with W=1 in scripts/Makefile.extrawarn
+# from the Linux source tree (v5.18.14)
 KBUILD_CFLAGS += -Wextra -Wunused -Wno-unused-parameter
 KBUILD_CFLAGS += -Wmissing-declarations
 KBUILD_CFLAGS += -Wmissing-format-attribute
 KBUILD_CFLAGS += -Wmissing-prototypes
 KBUILD_CFLAGS += -Wold-style-definition
-KBUILD_CFLAGS += -Wmissing-include-dirs
+# The -Wmissing-include-dirs cannot be enabled as the path to some of the
+# included directories change depending on whether it is an in-tree or
+# out-of-tree build.
 KBUILD_CFLAGS += $(call cc-option, -Wunused-but-set-variable)
 KBUILD_CFLAGS += $(call cc-option, -Wunused-const-variable)
 KBUILD_CFLAGS += $(call cc-option, -Wpacked-not-aligned)
 KBUILD_CFLAGS += $(call cc-option, -Wstringop-truncation)
 # The following turn off the warnings enabled by -Wextra
-KBUILD_CFLAGS += -Wno-missing-field-initializers
 KBUILD_CFLAGS += -Wno-sign-compare
-KBUILD_CFLAGS += -Wno-type-limits
+KBUILD_CFLAGS += -Wno-shift-negative-value
+# This flag is needed to avoid build errors on older kernels
+KBUILD_CFLAGS += $(call cc-option, -Wno-cast-function-type)
 
 KBUILD_CPPFLAGS += -DKBUILD_EXTRA_WARN1
+
+# The following were added to align with W=2 in scripts/Makefile.extrawarn
+# from the Linux source tree (v5.18.14)
+KBUILD_CFLAGS += -Wdisabled-optimization
+# The -Wshadow flag cannot be enabled unless upstream kernels are
+# patched to fix redefinitions of certain built-in functions and
+# global variables.
+KBUILD_CFLAGS += $(call cc-option, -Wlogical-op)
+KBUILD_CFLAGS += -Wmissing-field-initializers
+KBUILD_CFLAGS += -Wtype-limits
+KBUILD_CFLAGS += $(call cc-option, -Wmaybe-uninitialized)
+KBUILD_CFLAGS += $(call cc-option, -Wunused-macros)
+
+KBUILD_CPPFLAGS += -DKBUILD_EXTRA_WARN2
+
+# This warning is disabled to avoid build failures in some kernel versions
+KBUILD_CFLAGS += -Wno-ignored-qualifiers
 
 all:
 	$(MAKE) -C $(KDIR) M=$(CURDIR) $(MAKE_ARGS) EXTRA_CFLAGS="$(EXTRA_CFLAGS)" KBUILD_EXTRA_SYMBOLS="$(EXTRA_SYMBOLS)" modules

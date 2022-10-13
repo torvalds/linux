@@ -23,13 +23,6 @@
 #include <linux/random.h>
 #include "backend/gpu/mali_kbase_model_dummy.h"
 
-/* all the error conditions supported by the model */
-#define TOTAL_FAULTS 27
-/* maximum number of levels in the MMU translation table tree */
-#define MAX_MMU_TABLE_LEVEL 4
-/* worst case scenario is <1 MMU fault + 1 job fault + 2 GPU faults> */
-#define MAX_CONCURRENT_FAULTS 3
-
 static struct kbase_error_atom *error_track_list;
 
 unsigned int rand_seed;
@@ -40,6 +33,14 @@ unsigned int error_probability = 50;	/* to be set between 0 and 100 */
 unsigned int multiple_error_probability = 50;
 
 #ifdef CONFIG_MALI_ERROR_INJECT_RANDOM
+
+/* all the error conditions supported by the model */
+#define TOTAL_FAULTS 27
+/* maximum number of levels in the MMU translation table tree */
+#define MAX_MMU_TABLE_LEVEL 4
+/* worst case scenario is <1 MMU fault + 1 job fault + 2 GPU faults> */
+#define MAX_CONCURRENT_FAULTS 3
+
 /**
  * gpu_generate_error - Generate GPU error
  */

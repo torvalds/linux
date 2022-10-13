@@ -115,6 +115,9 @@ void kbase_gpu_interrupt(struct kbase_device *kbdev, u32 val)
 									GPU_EXCEPTION_TYPE_SW_FAULT_0,
 							} } };
 
+			kbase_debug_csf_fault_notify(kbdev, scheduler->active_protm_grp->kctx,
+						     DF_GPU_PROTECTED_FAULT);
+
 			scheduler->active_protm_grp->faulted = true;
 			kbase_csf_add_group_fatal_error(
 				scheduler->active_protm_grp, &err_payload);
@@ -201,8 +204,11 @@ static bool kbase_is_register_accessible(u32 offset)
 
 void kbase_reg_write(struct kbase_device *kbdev, u32 offset, u32 value)
 {
-	KBASE_DEBUG_ASSERT(kbdev->pm.backend.gpu_powered);
-	KBASE_DEBUG_ASSERT(kbdev->dev != NULL);
+	if (WARN_ON(!kbdev->pm.backend.gpu_powered))
+		return;
+
+	if (WARN_ON(kbdev->dev == NULL))
+		return;
 
 	if (!kbase_is_register_accessible(offset))
 		return;
@@ -222,8 +228,11 @@ u32 kbase_reg_read(struct kbase_device *kbdev, u32 offset)
 {
 	u32 val;
 
-	KBASE_DEBUG_ASSERT(kbdev->pm.backend.gpu_powered);
-	KBASE_DEBUG_ASSERT(kbdev->dev != NULL);
+	if (WARN_ON(!kbdev->pm.backend.gpu_powered))
+		return 0;
+
+	if (WARN_ON(kbdev->dev == NULL))
+		return 0;
 
 	if (!kbase_is_register_accessible(offset))
 		return 0;

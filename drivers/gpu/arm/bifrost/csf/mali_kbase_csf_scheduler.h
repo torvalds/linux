@@ -36,7 +36,9 @@
  * If the CSG is already scheduled and resident, the CSI will be started
  * right away, otherwise once the group is made resident.
  *
- * Return: 0 on success, or negative on failure.
+ * Return: 0 on success, or negative on failure. -EBUSY is returned to
+ * indicate to the caller that queue could not be enabled due to Scheduler
+ * state and the caller can try to enable the queue after sometime.
  */
 int kbase_csf_scheduler_queue_start(struct kbase_queue *queue);
 
@@ -530,10 +532,28 @@ static inline void kbase_csf_scheduler_invoke_tick(struct kbase_device *kbdev)
 	struct kbase_csf_scheduler *const scheduler = &kbdev->csf.scheduler;
 	unsigned long flags;
 
+	KBASE_KTRACE_ADD(kbdev, SCHEDULER_TICK_INVOKE, NULL, 0u);
 	spin_lock_irqsave(&scheduler->interrupt_lock, flags);
 	if (!scheduler->tick_timer_active)
 		queue_work(scheduler->wq, &scheduler->tick_work);
 	spin_unlock_irqrestore(&scheduler->interrupt_lock, flags);
+}
+
+/**
+ * kbase_csf_scheduler_invoke_tock() - Invoke the scheduling tock
+ *
+ * @kbdev: Pointer to the device
+ *
+ * This function will queue the scheduling tock work item for immediate
+ * execution.
+ */
+static inline void kbase_csf_scheduler_invoke_tock(struct kbase_device *kbdev)
+{
+	struct kbase_csf_scheduler *const scheduler = &kbdev->csf.scheduler;
+
+	KBASE_KTRACE_ADD(kbdev, SCHEDULER_TOCK_INVOKE, NULL, 0u);
+	if (atomic_cmpxchg(&scheduler->pending_tock_work, false, true) == false)
+		mod_delayed_work(scheduler->wq, &scheduler->tock_work, 0);
 }
 
 /**

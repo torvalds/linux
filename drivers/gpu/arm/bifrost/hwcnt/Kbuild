@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+#
+# (C) COPYRIGHT 2022 ARM Limited. All rights reserved.
+#
+# This program is free software and is provided to you under the terms of the
+# GNU General Public License version 2 as published by the Free Software
+# Foundation, and any use by you of this program is subject to the terms
+# of such GNU license.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, you can access it online at
+# http://www.gnu.org/licenses/gpl-2.0.html.
+#
+#
+
+bifrost_kbase-y += \
+    hwcnt/mali_kbase_hwcnt.o \
+    hwcnt/mali_kbase_hwcnt_gpu.o \
+    hwcnt/mali_kbase_hwcnt_gpu_narrow.o \
+    hwcnt/mali_kbase_hwcnt_types.o \
+    hwcnt/mali_kbase_hwcnt_virtualizer.o \
+    hwcnt/mali_kbase_hwcnt_watchdog_if_timer.o
+
+ifeq ($(CONFIG_MALI_CSF_SUPPORT),y)
+    bifrost_kbase-y += \
+        hwcnt/backend/mali_kbase_hwcnt_backend_csf.o \
+        hwcnt/backend/mali_kbase_hwcnt_backend_csf_if_fw.o
+else
+    bifrost_kbase-y += \
+        hwcnt/backend/mali_kbase_hwcnt_backend_jm.o \
+        hwcnt/backend/mali_kbase_hwcnt_backend_jm_watchdog.o
+endif
