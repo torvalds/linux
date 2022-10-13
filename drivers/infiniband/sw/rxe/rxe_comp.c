@@ -200,6 +200,10 @@ static inline enum comp_state check_psn(struct rxe_qp *qp,
 		 */
 		if (pkt->psn == wqe->last_psn)
 			return COMPST_COMP_ACK;
+		else if (pkt->opcode == IB_OPCODE_RC_ACKNOWLEDGE &&
+			 (qp->comp.opcode == IB_OPCODE_RC_RDMA_READ_RESPONSE_FIRST ||
+			  qp->comp.opcode == IB_OPCODE_RC_RDMA_READ_RESPONSE_MIDDLE))
+			return COMPST_CHECK_ACK;
 		else
 			return COMPST_DONE;
 	} else if ((diff > 0) && (wqe->mask & WR_ATOMIC_OR_READ_MASK)) {
@@ -228,6 +232,10 @@ static inline enum comp_state check_ack(struct rxe_qp *qp,
 
 	case IB_OPCODE_RC_RDMA_READ_RESPONSE_FIRST:
 	case IB_OPCODE_RC_RDMA_READ_RESPONSE_MIDDLE:
+		/* Check NAK code to handle a remote error */
+		if (pkt->opcode == IB_OPCODE_RC_ACKNOWLEDGE)
+			break;
+
 		if (pkt->opcode != IB_OPCODE_RC_RDMA_READ_RESPONSE_MIDDLE &&
 		    pkt->opcode != IB_OPCODE_RC_RDMA_READ_RESPONSE_LAST) {
 			/* read retries of partial data may restart from
