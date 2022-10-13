@@ -49,16 +49,16 @@ static const struct alpha_pll_config video_cc_pll0_config = {
 	.l = 0x1E,
 	.cal_l = 0x44,
 	.cal_l_ringosc = 0x44,
-	.alpha = 0x0,
+	.alpha = 0xA000,
 	.config_ctl_val = 0x20485699,
 	.config_ctl_hi_val = 0x00182261,
 	.config_ctl_hi1_val = 0x82AA299C,
 	.test_ctl_val = 0x00000000,
-	.test_ctl_hi_val = 0x00000000,
-	.test_ctl_hi1_val = 0x00008000,
-	.test_ctl_hi2_val = 0x00000032,
-	.user_ctl_val = 0x00000001,
-	.user_ctl_hi_val = 0x00000805,
+	.test_ctl_hi_val = 0x00000003,
+	.test_ctl_hi1_val = 0x00009000,
+	.test_ctl_hi2_val = 0x00000034,
+	.user_ctl_val = 0x00000000,
+	.user_ctl_hi_val = 0x00000005,
 };
 
 static struct clk_alpha_pll video_cc_pll0 = {
@@ -89,19 +89,19 @@ static struct clk_alpha_pll video_cc_pll0 = {
 };
 
 static const struct alpha_pll_config video_cc_pll1_config = {
-	.l = 0x36,
+	.l = 0x2B,
 	.cal_l = 0x44,
 	.cal_l_ringosc = 0x44,
-	.alpha = 0xB000,
+	.alpha = 0xC000,
 	.config_ctl_val = 0x20485699,
 	.config_ctl_hi_val = 0x00182261,
 	.config_ctl_hi1_val = 0x82AA299C,
 	.test_ctl_val = 0x00000000,
-	.test_ctl_hi_val = 0x00000000,
-	.test_ctl_hi1_val = 0x00008000,
-	.test_ctl_hi2_val = 0x00000032,
-	.user_ctl_val = 0x00000001,
-	.user_ctl_hi_val = 0x00000805,
+	.test_ctl_hi_val = 0x00000003,
+	.test_ctl_hi1_val = 0x00009000,
+	.test_ctl_hi2_val = 0x00000034,
+	.user_ctl_val = 0x00000000,
+	.user_ctl_hi_val = 0x00000005,
 };
 
 static struct clk_alpha_pll video_cc_pll1 = {
@@ -190,10 +190,11 @@ static struct clk_rcg2 video_cc_ahb_clk_src = {
 };
 
 static const struct freq_tbl ftbl_video_cc_mvs0_clk_src[] = {
-	F(576000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
-	F(798000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
-	F(1098000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
-	F(1332000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
+	F(588000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
+	F(840000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
+	F(1140000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
+	F(1305000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
+	F(1440000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
 	F(1600000000, P_VIDEO_CC_PLL0_OUT_MAIN, 1, 0, 0),
 	{ }
 };
@@ -218,18 +219,19 @@ static struct clk_rcg2 video_cc_mvs0_clk_src = {
 		.num_vdd_classes = ARRAY_SIZE(video_cc_pineapple_regulators),
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
-			[VDD_LOWER_D1] = 630000000,
-			[VDD_LOWER] = 900000000,
-			[VDD_LOW] = 1200000000,
+			[VDD_LOWER_D1] = 588000000,
+			[VDD_LOWER] = 840000000,
+			[VDD_LOW] = 1140000000,
 			[VDD_LOW_L1] = 1305000000,
 			[VDD_NOMINAL] = 1440000000,
-			[VDD_HIGH] = 1680000000},
+			[VDD_HIGH] = 1600000000},
 	},
 };
 
 static const struct freq_tbl ftbl_video_cc_mvs1_clk_src[] = {
+	F(840000000, P_VIDEO_CC_PLL1_OUT_MAIN, 1, 0, 0),
 	F(1050000000, P_VIDEO_CC_PLL1_OUT_MAIN, 1, 0, 0),
-	F(1260000000, P_VIDEO_CC_PLL1_OUT_MAIN, 1, 0, 0),
+	F(1350000000, P_VIDEO_CC_PLL1_OUT_MAIN, 1, 0, 0),
 	F(1500000000, P_VIDEO_CC_PLL1_OUT_MAIN, 1, 0, 0),
 	F(1650000000, P_VIDEO_CC_PLL1_OUT_MAIN, 1, 0, 0),
 	{ }
@@ -255,8 +257,8 @@ static struct clk_rcg2 video_cc_mvs1_clk_src = {
 		.num_vdd_classes = ARRAY_SIZE(video_cc_pineapple_regulators),
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
-			[VDD_LOWER_D1] = 882000000,
-			[VDD_LOWER] = 1260000000,
+			[VDD_LOWER_D1] = 840000000,
+			[VDD_LOWER] = 1050000000,
 			[VDD_LOW] = 1350000000,
 			[VDD_LOW_L1] = 1500000000,
 			[VDD_NOMINAL] = 1650000000},
