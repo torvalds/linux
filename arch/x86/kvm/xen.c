@@ -272,7 +272,7 @@ static void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, bool atomic)
 	 * gfn_to_pfn caches that cover the region.
 	 */
 	read_lock_irqsave(&gpc1->lock, flags);
-	while (!kvm_gpc_check(v->kvm, gpc1, gpc1->gpa, user_len1)) {
+	while (!kvm_gpc_check(gpc1, gpc1->gpa, user_len1)) {
 		read_unlock_irqrestore(&gpc1->lock, flags);
 
 		/* When invoked from kvm_sched_out() we cannot sleep */
@@ -308,7 +308,7 @@ static void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, bool atomic)
 		 */
 		read_lock(&gpc2->lock);
 
-		if (!kvm_gpc_check(v->kvm, gpc2, gpc2->gpa, user_len2)) {
+		if (!kvm_gpc_check(gpc2, gpc2->gpa, user_len2)) {
 			read_unlock(&gpc2->lock);
 			read_unlock_irqrestore(&gpc1->lock, flags);
 
@@ -488,8 +488,7 @@ void kvm_xen_inject_pending_events(struct kvm_vcpu *v)
 	 * little more honest about it.
 	 */
 	read_lock_irqsave(&gpc->lock, flags);
-	while (!kvm_gpc_check(v->kvm, gpc, gpc->gpa,
-			      sizeof(struct vcpu_info))) {
+	while (!kvm_gpc_check(gpc, gpc->gpa, sizeof(struct vcpu_info))) {
 		read_unlock_irqrestore(&gpc->lock, flags);
 
 		if (kvm_gpc_refresh(v->kvm, gpc, gpc->gpa,
@@ -553,8 +552,7 @@ int __kvm_xen_has_interrupt(struct kvm_vcpu *v)
 		     sizeof_field(struct compat_vcpu_info, evtchn_upcall_pending));
 
 	read_lock_irqsave(&gpc->lock, flags);
-	while (!kvm_gpc_check(v->kvm, gpc, gpc->gpa,
-			      sizeof(struct vcpu_info))) {
+	while (!kvm_gpc_check(gpc, gpc->gpa, sizeof(struct vcpu_info))) {
 		read_unlock_irqrestore(&gpc->lock, flags);
 
 		/*
@@ -1158,7 +1156,7 @@ static bool wait_pending_event(struct kvm_vcpu *vcpu, int nr_ports,
 
 	read_lock_irqsave(&gpc->lock, flags);
 	idx = srcu_read_lock(&kvm->srcu);
-	if (!kvm_gpc_check(kvm, gpc, gpc->gpa, PAGE_SIZE))
+	if (!kvm_gpc_check(gpc, gpc->gpa, PAGE_SIZE))
 		goto out_rcu;
 
 	ret = false;
@@ -1580,7 +1578,7 @@ int kvm_xen_set_evtchn_fast(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 	idx = srcu_read_lock(&kvm->srcu);
 
 	read_lock_irqsave(&gpc->lock, flags);
-	if (!kvm_gpc_check(kvm, gpc, gpc->gpa, PAGE_SIZE))
+	if (!kvm_gpc_check(gpc, gpc->gpa, PAGE_SIZE))
 		goto out_rcu;
 
 	if (IS_ENABLED(CONFIG_64BIT) && kvm->arch.xen.long_mode) {
@@ -1614,7 +1612,7 @@ int kvm_xen_set_evtchn_fast(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 		gpc = &vcpu->arch.xen.vcpu_info_cache;
 
 		read_lock_irqsave(&gpc->lock, flags);
-		if (!kvm_gpc_check(kvm, gpc, gpc->gpa, sizeof(struct vcpu_info))) {
+		if (!kvm_gpc_check(gpc, gpc->gpa, sizeof(struct vcpu_info))) {
 			/*
 			 * Could not access the vcpu_info. Set the bit in-kernel
 			 * and prod the vCPU to deliver it for itself.
