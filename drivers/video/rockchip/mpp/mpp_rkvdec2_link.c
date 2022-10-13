@@ -19,7 +19,7 @@
 #include "hack/mpp_rkvdec2_link_hack_rk3568.c"
 
 #define WORK_TIMEOUT_MS		(200)
-#define WAIT_TIMEOUT_MS		(500)
+#define WAIT_TIMEOUT_MS		(2000)
 
 /* vdpu381 link hw info for rk3588 */
 struct rkvdec_link_info rkvdec_link_v2_hw_info = {
