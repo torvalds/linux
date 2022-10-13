@@ -478,7 +478,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 				     size_t len)
 {
 	u16 capab, tid, timeout, ba_policy, buf_size, start_seq_num;
-	struct ieee802_11_elems elems = { };
+	struct ieee802_11_elems *elems = NULL;
 	u8 dialog_token;
 	int ies_len;
 
@@ -496,16 +496,17 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	ies_len = len - offsetof(struct ieee80211_mgmt,
 				 u.action.u.addba_req.variable);
 	if (ies_len) {
-		ieee802_11_parse_elems(mgmt->u.action.u.addba_req.variable,
-                                ies_len, true, &elems, mgmt->bssid, NULL);
-		if (elems.parse_error)
+		elems = ieee802_11_parse_elems(mgmt->u.action.u.addba_req.variable,
+					       ies_len, true, mgmt->bssid, NULL);
+		if (!elems || elems->parse_error)
 			return;
 	}
 
 	__ieee80211_start_rx_ba_session(sta, dialog_token, timeout,
 					start_seq_num, ba_policy, tid,
 					buf_size, true, false,
-					elems.addba_ext_ie);
+					elems ? elems->addba_ext_ie : NULL);
+	kfree(elems);
 }
 
 void ieee80211_manage_rx_ba_offl(struct ieee80211_vif *vif,
