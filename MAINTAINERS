@@ -22800,7 +22800,7 @@ ZSTD
 M:	Nick Terrell <terrelln@fb.com>
 S:	Maintained
 B:	https://github.com/facebook/zstd/issues
-T:	git git://github.com/terrelln/linux.git
+T:	git https://github.com/terrelln/linux.git
 F:	include/linux/zstd*
 F:	lib/zstd/
 F:	lib/decompress_unzstd.c
