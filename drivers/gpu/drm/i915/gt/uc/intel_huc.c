@@ -52,10 +52,12 @@
  * guaranteed for this to happen during boot, so the big timeout is a safety net
  * that we never expect to need.
  * MEI-PXP + HuC load usually takes ~300ms, but if the GSC needs to be resumed
- * and/or reset, this can take longer.
+ * and/or reset, this can take longer. Note that the kernel might schedule
+ * other work between the i915 init/resume and the MEI one, which can add to
+ * the delay.
  */
 #define GSC_INIT_TIMEOUT_MS 10000
-#define PXP_INIT_TIMEOUT_MS 2000
+#define PXP_INIT_TIMEOUT_MS 5000
 
 static int sw_fence_dummy_notify(struct i915_sw_fence *sf,
 				 enum i915_sw_fence_notify state)
@@ -104,8 +106,14 @@ static enum hrtimer_restart huc_delayed_load_timer_callback(struct hrtimer *hrti
 	struct intel_huc *huc = container_of(hrtimer, struct intel_huc, delayed_load.timer);
 
 	if (!intel_huc_is_authenticated(huc)) {
-		drm_err(&huc_to_gt(huc)->i915->drm,
-			"timed out waiting for GSC init to load HuC\n");
+		if (huc->delayed_load.status == INTEL_HUC_WAITING_ON_GSC)
+			drm_notice(&huc_to_gt(huc)->i915->drm,
+				   "timed out waiting for MEI GSC init to load HuC\n");
+		else if (huc->delayed_load.status == INTEL_HUC_WAITING_ON_PXP)
+			drm_notice(&huc_to_gt(huc)->i915->drm,
+				   "timed out waiting for MEI PXP init to load HuC\n");
+		else
+			MISSING_CASE(huc->delayed_load.status);
 
 		__gsc_init_error(huc);
 	}
