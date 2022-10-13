@@ -2237,6 +2237,19 @@ static int test__pmu_events(struct test_suite *test __maybe_unused, int subtest 
 			pr_debug("Test PMU event failed for '%s'", name);
 			ret = combine_test_results(ret, test_ret);
 		}
+		/*
+		 * Names containing '-' are recognized as prefixes and suffixes
+		 * due to '-' being a legacy PMU separator. This fails when the
+		 * prefix or suffix collides with an existing legacy token. For
+		 * example, branch-brs has a prefix (branch) that collides with
+		 * a PE_NAME_CACHE_TYPE token causing a parse error as a suffix
+		 * isn't expected after this. As event names in the config
+		 * slashes are allowed a '-' in the name we check this works
+		 * above.
+		 */
+		if (strchr(ent->d_name, '-'))
+			continue;
+
 		snprintf(name, sizeof(name), "%s:u,cpu/event=%s/u", ent->d_name, ent->d_name);
 		e.name  = name;
 		e.check = test__checkevent_pmu_events_mix;
