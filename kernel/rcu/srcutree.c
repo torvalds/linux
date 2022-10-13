@@ -1158,6 +1158,11 @@ static unsigned long srcu_gp_start_if_needed(struct srcu_struct *ssp,
 	int ss_state;
 
 	check_init_srcu_struct(ssp);
+	/*
+	 * While starting a new grace period, make sure we are in an
+	 * SRCU read-side critical section so that the grace-period
+	 * sequence number cannot wrap around in the meantime.
+	 */
 	idx = __srcu_read_lock_nmisafe(ssp, false);
 	ss_state = smp_load_acquire(&ssp->srcu_size_state);
 	if (ss_state < SRCU_SIZE_WAIT_CALL)
