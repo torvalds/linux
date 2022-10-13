@@ -345,6 +345,8 @@ void kvm_gpc_init(struct gfn_to_pfn_cache *gpc, struct kvm *kvm,
 	gpc->kvm = kvm;
 	gpc->vcpu = vcpu;
 	gpc->usage = usage;
+	gpc->pfn = KVM_PFN_ERR_FAULT;
+	gpc->uhva = KVM_HVA_ERR_BAD;
 }
 EXPORT_SYMBOL_GPL(kvm_gpc_init);
 
@@ -353,10 +355,8 @@ int kvm_gpc_activate(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned long len)
 	struct kvm *kvm = gpc->kvm;
 
 	if (!gpc->active) {
-		gpc->khva = NULL;
-		gpc->pfn = KVM_PFN_ERR_FAULT;
-		gpc->uhva = KVM_HVA_ERR_BAD;
-		gpc->valid = false;
+		if (KVM_BUG_ON(gpc->valid, kvm))
+			return -EIO;
 
 		spin_lock(&kvm->gpc_lock);
 		list_add(&gpc->list, &kvm->gpc_list);
