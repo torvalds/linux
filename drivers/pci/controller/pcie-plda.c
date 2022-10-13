@@ -28,6 +28,7 @@
 #include <linux/pci.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
@@ -49,6 +50,10 @@
 #define PLDA_EP_ENABLE			0
 #define PLDA_RP_ENABLE			1
 
+#define PLDA_LINK_UP			1
+#define PLDA_LINK_DOWN			0
+
+#define PLDA_DATA_LINK_ACTIVE		BIT(5)
 #define PREF_MEM_WIN_64_SUPPORT		BIT(3)
 #define PMSG_LTR_SUPPORT		BIT(2)
 #define PDLA_LINK_SPEED_GEN2		BIT(12)
@@ -139,6 +144,7 @@ struct plda_pcie {
 	u32 stg_arfun;
 	u32 stg_awfun;
 	u32 stg_rp_nep;
+	u32 stg_lnksta;
 	int			irq;
 	struct irq_domain	*legacy_irq_domain;
 	struct pci_host_bridge  *bridge;
@@ -150,6 +156,7 @@ struct plda_pcie {
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *perst_state_def;
 	struct pinctrl_state *perst_state_active;
+	struct pinctrl_state *power_state_def;
 	struct pinctrl_state *power_state_active;
 };
 
@@ -593,7 +600,7 @@ static int plda_pcie_parse_dt(struct plda_pcie *pcie)
 	}
 
 	ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node,
-							"starfive,stg-syscon", 3, 0, &args);
+							"starfive,stg-syscon", 4, 0, &args);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to parse starfive,stg-syscon\n");
 		return -EINVAL;
@@ -607,6 +614,7 @@ static int plda_pcie_parse_dt(struct plda_pcie *pcie)
 	pcie->stg_arfun = args.args[0];
 	pcie->stg_awfun = args.args[1];
 	pcie->stg_rp_nep = args.args[2];
+	pcie->stg_lnksta = args.args[3];
 
 	/* Clear all interrupts */
 	plda_writel(pcie, 0xffffffff, ISTATUS_LOCAL);
@@ -734,10 +742,17 @@ int plda_pinctrl_init(struct plda_pcie *pcie)
 		return -EINVAL;
 	}
 
+	pcie->power_state_def
+		= pinctrl_lookup_state(pcie->pinctrl, "power-default");
+	if (IS_ERR_OR_NULL(pcie->power_state_def)) {
+		dev_err(dev, "Failed to get the power-default pinctrl handle\n");
+		return -EINVAL;
+	}
+
 	pcie->power_state_active
 		= pinctrl_lookup_state(pcie->pinctrl, "power-active");
 	if (IS_ERR_OR_NULL(pcie->power_state_active)) {
-		dev_err(dev, "Failed to get the power-default pinctrl handle\n");
+		dev_err(dev, "Failed to get the power-active pinctrl handle\n");
 		return -EINVAL;
 	}
 
@@ -828,7 +843,32 @@ static void plda_pcie_hw_init(struct plda_pcie *pcie)
 		if (ret)
 			dev_err(dev, "Cannot set reset pin to high\n");
 	}
+}
 
+static int plda_pcie_is_link_up(struct plda_pcie *pcie)
+{
+	struct device *dev = &pcie->pdev->dev;
+	int ret;
+	u32 stg_reg_val;
+
+	/* 100ms timeout value should be enough for Gen1/2 training */
+	ret = regmap_read_poll_timeout(pcie->reg_syscon,
+					pcie->stg_lnksta,
+					stg_reg_val,
+					stg_reg_val & PLDA_DATA_LINK_ACTIVE,
+					10 * 1000, 100 * 1000);
+
+	/* If the link is down (no device in slot), then exit. */
+	if (ret == -ETIMEDOUT) {
+		dev_info(dev, "Port link down, exit.\n");
+		return PLDA_LINK_DOWN;
+	} else if (ret == 0) {
+		dev_info(dev, "Port link up.\n");
+		return PLDA_LINK_UP;
+	}
+
+	dev_warn(dev, "Read stg_linksta failed.\n");
+	return ret;
 }
 
 static int plda_pcie_probe(struct platform_device *pdev)
@@ -893,6 +933,9 @@ static int plda_pcie_probe(struct platform_device *pdev)
 		goto exit;
 	}
 
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
+
 	/* Set default bus ops */
 	bridge->ops = &plda_pcie_ops;
 	bridge->sysdata = pcie;
@@ -900,19 +943,39 @@ static int plda_pcie_probe(struct platform_device *pdev)
 
 	plda_pcie_hw_init(pcie);
 
+	if (plda_pcie_is_link_up(pcie) == PLDA_LINK_DOWN)
+		goto release;
+
 	ret = pci_host_probe(bridge);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to pci host probe: %d\n", ret);
-		goto exit;
+		goto release;
 	}
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		ret = plda_pcie_enable_msi(pcie, bus);
-		if (ret < 0)
+		if (ret < 0) {
 			dev_err(&pdev->dev,	"Failed to enable MSI support: %d\n", ret);
+			goto release;
+		}
 	}
 
 exit:
+	return ret;
+
+release:
+	if (pcie->power_state_def &&
+	    pinctrl_select_state(pcie->pinctrl, pcie->power_state_def))
+		dev_err(dev, "Cannot set power pin to low\n");
+	plda_clk_rst_deinit(pcie);
+
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+
+	pci_free_host_bridge(pcie->bridge);
+	devm_kfree(&pdev->dev, pcie);
+	platform_set_drvdata(pdev, NULL);
+
 	return ret;
 }
 
@@ -926,7 +989,6 @@ static int plda_pcie_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
 
 static const struct of_device_id plda_pcie_of_match[] = {
 	{ .compatible = "plda,pci-xpressrich3-axi"},

@@ -1335,6 +1335,16 @@
 		};
 	};
 
+	pcie0_power_default: pcie0_power_default {
+		power-pins {
+			starfive,pins = <PAD_GPIO32>;
+			starfive,pinmux = <PAD_GPIO32_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-dout = <GPO_LOW>;
+			starfive,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
 	pcie0_power_active: pcie0_power_active {
 		power-pins {
 			starfive,pins = <PAD_GPIO32>;
@@ -1359,6 +1369,16 @@
 		perst-pins {
 			starfive,pins = <PAD_GPIO28>;
 			starfive,pinmux = <PAD_GPIO28_FUNC_SEL 0>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-dout = <GPO_LOW>;
+			starfive,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
+	pcie1_power_default: pcie1_power_default {
+		power-pins {
+			starfive,pins = <PAD_GPIO21>;
+			starfive,pinmux = <PAD_GPIO21_FUNC_SEL 0>;
 			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
 			starfive,pin-gpio-dout = <GPO_LOW>;
 			starfive,pin-gpio-doen = <OEN_LOW>;
