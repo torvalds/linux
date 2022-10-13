@@ -1299,12 +1299,12 @@ static void macsec_aso_build_wqe_ctrl_seg(struct mlx5e_macsec_aso *macsec_aso,
 					  struct mlx5_wqe_aso_ctrl_seg *aso_ctrl,
 					  struct mlx5_aso_ctrl_param *param)
 {
+	struct mlx5e_macsec_umr *umr = macsec_aso->umr;
+
 	memset(aso_ctrl, 0, sizeof(*aso_ctrl));
-	if (macsec_aso->umr->dma_addr) {
-		aso_ctrl->va_l  = cpu_to_be32(macsec_aso->umr->dma_addr | ASO_CTRL_READ_EN);
-		aso_ctrl->va_h  = cpu_to_be32((u64)macsec_aso->umr->dma_addr >> 32);
-		aso_ctrl->l_key = cpu_to_be32(macsec_aso->umr->mkey);
-	}
+	aso_ctrl->va_l = cpu_to_be32(umr->dma_addr | ASO_CTRL_READ_EN);
+	aso_ctrl->va_h = cpu_to_be32((u64)umr->dma_addr >> 32);
+	aso_ctrl->l_key = cpu_to_be32(umr->mkey);
 
 	if (!param)
 		return;
