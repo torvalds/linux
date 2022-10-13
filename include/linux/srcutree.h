@@ -43,10 +43,6 @@ struct srcu_data {
 	struct srcu_struct *ssp;
 };
 
-#define SRCU_NMI_UNKNOWN	0x0
-#define SRCU_NMI_NMI_UNSAFE	0x1
-#define SRCU_NMI_NMI_SAFE	0x2
-
 /*
  * Node in SRCU combining tree, similar in function to rcu_data.
  */
