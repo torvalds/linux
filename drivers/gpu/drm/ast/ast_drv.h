@@ -96,8 +96,6 @@ enum ast_tx_chip {
 #define AST_HWC_SIZE		(AST_MAX_HWC_WIDTH * AST_MAX_HWC_HEIGHT * 2)
 #define AST_HWC_SIGNATURE_SIZE	32
 
-#define AST_DEFAULT_HWC_NUM	2
-
 /* define for signature structure */
 #define AST_HWC_SIGNATURE_CHECKSUM	0x00
 #define AST_HWC_SIGNATURE_SizeX		0x04
@@ -110,13 +108,9 @@ enum ast_tx_chip {
 struct ast_cursor_plane {
 	struct drm_plane base;
 
-	struct {
-		struct drm_gem_vram_object *gbo;
-		struct iosys_map map;
-		u64 off;
-	} hwc[AST_DEFAULT_HWC_NUM];
-
-	unsigned int next_hwc_index;
+	struct drm_gem_vram_object *gbo;
+	struct iosys_map map;
+	u64 off;
 };
 
 static inline struct ast_cursor_plane *

@@ -837,10 +837,8 @@ ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(new_state);
 	struct drm_framebuffer *fb = new_state->fb;
 	struct ast_private *ast = to_ast_private(plane->dev);
-	struct iosys_map dst_map =
-		ast_cursor_plane->hwc[ast_cursor_plane->next_hwc_index].map;
-	u64 dst_off =
-		ast_cursor_plane->hwc[ast_cursor_plane->next_hwc_index].off;
+	struct iosys_map dst_map = ast_cursor_plane->map;
+	u64 dst_off = ast_cursor_plane->off;
 	struct iosys_map src_map = shadow_plane_state->data[0];
 	unsigned int offset_x, offset_y;
 	u16 x, y;
@@ -860,12 +858,8 @@ ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 
 	ast_update_cursor_image(dst, src, fb->width, fb->height);
 
-	if (new_state->fb != old_state->fb) {
+	if (new_state->fb != old_state->fb)
 		ast_set_cursor_base(ast, dst_off);
-
-		++ast_cursor_plane->next_hwc_index;
-		ast_cursor_plane->next_hwc_index %= ARRAY_SIZE(ast_cursor_plane->hwc);
-	}
 
 	/*
 	 * Update location in HWC signature and registers.
@@ -917,17 +911,12 @@ static const struct drm_plane_helper_funcs ast_cursor_plane_helper_funcs = {
 static void ast_cursor_plane_destroy(struct drm_plane *plane)
 {
 	struct ast_cursor_plane *ast_cursor_plane = to_ast_cursor_plane(plane);
-	size_t i;
-	struct drm_gem_vram_object *gbo;
-	struct iosys_map map;
+	struct drm_gem_vram_object *gbo = ast_cursor_plane->gbo;
+	struct iosys_map map = ast_cursor_plane->map;
 
-	for (i = 0; i < ARRAY_SIZE(ast_cursor_plane->hwc); ++i) {
-		gbo = ast_cursor_plane->hwc[i].gbo;
-		map = ast_cursor_plane->hwc[i].map;
-		drm_gem_vram_vunmap(gbo, &map);
-		drm_gem_vram_unpin(gbo);
-		drm_gem_vram_put(gbo);
-	}
+	drm_gem_vram_vunmap(gbo, &map);
+	drm_gem_vram_unpin(gbo);
+	drm_gem_vram_put(gbo);
 
 	drm_plane_cleanup(plane);
 }
@@ -944,7 +933,7 @@ static int ast_cursor_plane_init(struct ast_private *ast)
 	struct drm_device *dev = &ast->base;
 	struct ast_cursor_plane *ast_cursor_plane = &ast->cursor_plane;
 	struct drm_plane *cursor_plane = &ast_cursor_plane->base;
-	size_t size, i;
+	size_t size;
 	struct drm_gem_vram_object *gbo;
 	struct iosys_map map;
 	int ret;
@@ -957,28 +946,26 @@ static int ast_cursor_plane_init(struct ast_private *ast)
 
 	size = roundup(AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE, PAGE_SIZE);
 
-	for (i = 0; i < ARRAY_SIZE(ast_cursor_plane->hwc); ++i) {
-		gbo = drm_gem_vram_create(dev, size, 0);
-		if (IS_ERR(gbo)) {
-			ret = PTR_ERR(gbo);
-			goto err_hwc;
-		}
-		ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM |
-					    DRM_GEM_VRAM_PL_FLAG_TOPDOWN);
-		if (ret)
-			goto err_drm_gem_vram_put;
-		ret = drm_gem_vram_vmap(gbo, &map);
-		if (ret)
-			goto err_drm_gem_vram_unpin;
-		off = drm_gem_vram_offset(gbo);
-		if (off < 0) {
-			ret = off;
-			goto err_drm_gem_vram_vunmap;
-		}
-		ast_cursor_plane->hwc[i].gbo = gbo;
-		ast_cursor_plane->hwc[i].map = map;
-		ast_cursor_plane->hwc[i].off = off;
+	gbo = drm_gem_vram_create(dev, size, 0);
+	if (IS_ERR(gbo))
+		return PTR_ERR(gbo);
+
+	ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM |
+				    DRM_GEM_VRAM_PL_FLAG_TOPDOWN);
+	if (ret)
+		goto err_drm_gem_vram_put;
+	ret = drm_gem_vram_vmap(gbo, &map);
+	if (ret)
+		goto err_drm_gem_vram_unpin;
+	off = drm_gem_vram_offset(gbo);
+	if (off < 0) {
+		ret = off;
+		goto err_drm_gem_vram_vunmap;
 	}
+
+	ast_cursor_plane->gbo = gbo;
+	ast_cursor_plane->map = map;
+	ast_cursor_plane->off = off;
 
 	/*
 	 * Create the cursor plane. The plane's destroy callback will release
@@ -992,24 +979,18 @@ static int ast_cursor_plane_init(struct ast_private *ast)
 				       NULL, DRM_PLANE_TYPE_CURSOR, NULL);
 	if (ret) {
 		drm_err(dev, "drm_universal_plane failed(): %d\n", ret);
-		goto err_hwc;
+		goto err_drm_gem_vram_vunmap;
 	}
 	drm_plane_helper_add(cursor_plane, &ast_cursor_plane_helper_funcs);
 
 	return 0;
 
-err_hwc:
-	while (i) {
-		--i;
-		gbo = ast_cursor_plane->hwc[i].gbo;
-		map = ast_cursor_plane->hwc[i].map;
 err_drm_gem_vram_vunmap:
-		drm_gem_vram_vunmap(gbo, &map);
+	drm_gem_vram_vunmap(gbo, &map);
 err_drm_gem_vram_unpin:
-		drm_gem_vram_unpin(gbo);
+	drm_gem_vram_unpin(gbo);
 err_drm_gem_vram_put:
-		drm_gem_vram_put(gbo);
-	}
+	drm_gem_vram_put(gbo);
 	return ret;
 }
 
