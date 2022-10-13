@@ -43,6 +43,29 @@
 
 static DEFINE_RAW_SPINLOCK(native_tlbie_lock);
 
+#ifdef CONFIG_LOCKDEP
+static struct lockdep_map hpte_lock_map =
+	STATIC_LOCKDEP_MAP_INIT("hpte_lock", &hpte_lock_map);
+
+static void acquire_hpte_lock(void)
+{
+	lock_map_acquire(&hpte_lock_map);
+}
+
+static void release_hpte_lock(void)
+{
+	lock_map_release(&hpte_lock_map);
+}
+#else
+static void acquire_hpte_lock(void)
+{
+}
+
+static void release_hpte_lock(void)
+{
+}
+#endif
+
 static inline unsigned long  ___tlbie(unsigned long vpn, int psize,
 						int apsize, int ssize)
 {
@@ -220,6 +243,7 @@ static inline void native_lock_hpte(struct hash_pte *hptep)
 {
 	unsigned long *word = (unsigned long *)&hptep->v;
 
+	acquire_hpte_lock();
 	while (1) {
 		if (!test_and_set_bit_lock(HPTE_LOCK_BIT, word))
 			break;
@@ -234,6 +258,7 @@ static inline void native_unlock_hpte(struct hash_pte *hptep)
 {
 	unsigned long *word = (unsigned long *)&hptep->v;
 
+	release_hpte_lock();
 	clear_bit_unlock(HPTE_LOCK_BIT, word);
 }
 
@@ -279,6 +304,7 @@ static long native_hpte_insert(unsigned long hpte_group, unsigned long vpn,
 		hpte_v = hpte_old_to_new_v(hpte_v);
 	}
 
+	release_hpte_lock();
 	hptep->r = cpu_to_be64(hpte_r);
 	/* Guarantee the second dword is visible before the valid bit */
 	eieio();
@@ -327,6 +353,7 @@ static long native_hpte_remove(unsigned long hpte_group)
 		return -1;
 
 	/* Invalidate the hpte. NOTE: this also unlocks it */
+	release_hpte_lock();
 	hptep->v = 0;
 
 	return i;
@@ -517,10 +544,11 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long vpn,
 		/* recheck with locks held */
 		hpte_v = hpte_get_old_v(hptep);
 
-		if (HPTE_V_COMPARE(hpte_v, want_v) && (hpte_v & HPTE_V_VALID))
+		if (HPTE_V_COMPARE(hpte_v, want_v) && (hpte_v & HPTE_V_VALID)) {
 			/* Invalidate the hpte. NOTE: this also unlocks it */
+			release_hpte_lock();
 			hptep->v = 0;
-		else
+		} else
 			native_unlock_hpte(hptep);
 	}
 	/*
@@ -580,10 +608,8 @@ static void native_hugepage_invalidate(unsigned long vsid,
 			hpte_v = hpte_get_old_v(hptep);
 
 			if (HPTE_V_COMPARE(hpte_v, want_v) && (hpte_v & HPTE_V_VALID)) {
-				/*
-				 * Invalidate the hpte. NOTE: this also unlocks it
-				 */
-
+				/* Invalidate the hpte. NOTE: this also unlocks it */
+				release_hpte_lock();
 				hptep->v = 0;
 			} else
 				native_unlock_hpte(hptep);
@@ -765,8 +791,10 @@ static void native_flush_hash_range(unsigned long number, int local)
 
 			if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID))
 				native_unlock_hpte(hptep);
-			else
+			else {
+				release_hpte_lock();
 				hptep->v = 0;
+			}
 
 		} pte_iterate_hashed_end();
 	}
