@@ -24,6 +24,10 @@
 
 #define PA_MAX				((phys_addr_t)SZ_1G * NR_GIGABYTES)
 
+#define SYNC_MAX_RETRIES		5
+#define SYNC_TIMEOUT			5
+#define SYNC_TIMEOUT_MULTIPLIER		3
+
 #define CTX_CFG_ENTRY(ctxid, nr_ctx, vid) \
 	(CONTEXT_CFG_VALID_VID_CTX_VID(ctxid, vid) \
 	 | (((ctxid) < (nr_ctx)) ? CONTEXT_CFG_VALID_VID_CTX_VALID(ctxid) : 0))
@@ -158,11 +162,20 @@ static void __set_control_regs(struct pkvm_iommu *dev)
 	writel_relaxed(ctrl0, dev->va + REG_NS_CTRL0);
 }
 
-/* Poll the given SFR until its value has all bits of a given mask set. */
-static void __wait_until(void __iomem *addr, u32 mask)
+/*
+ * Poll the given SFR until its value has all bits of a given mask set.
+ * Returns true if successful, false if not successful after a given number of
+ * attempts.
+ */
+static bool __wait_until(void __iomem *addr, u32 mask, size_t max_attempts)
 {
-	while ((readl_relaxed(addr) & mask) != mask)
-		continue;
+	size_t i;
+
+	for (i = 0; i < max_attempts; i++) {
+		if ((readl_relaxed(addr) & mask) == mask)
+			return true;
+	}
+	return false;
 }
 
 /* Poll the given SFR as long as its value has all bits of a given mask set. */
@@ -175,14 +188,27 @@ static void __wait_while(void __iomem *addr, u32 mask)
 static void __wait_for_invalidation_complete(struct pkvm_iommu *dev)
 {
 	struct pkvm_iommu *sync;
+	size_t i, timeout;
 
 	/*
 	 * Wait for transactions to drain if SysMMU_SYNCs were registered.
 	 * Assumes that they are in the same power domain as the S2MPU.
+	 *
+	 * The algorithm will try initiating the SYNC if the SYNC_COMP_COMPLETE
+	 * bit has not been set after a given number of attempts, increasing the
+	 * timeout exponentially each time. If this cycle fails a given number
+	 * of times, the algorithm will give up completely to avoid deadlock.
 	 */
 	for_each_child(sync, dev) {
-		writel_relaxed(SYNC_CMD_SYNC, sync->va + REG_NS_SYNC_CMD);
-		__wait_until(sync->va + REG_NS_SYNC_COMP, SYNC_COMP_COMPLETE);
+		timeout = SYNC_TIMEOUT;
+		for (i = 0; i < SYNC_MAX_RETRIES; i++) {
+			writel_relaxed(SYNC_CMD_SYNC, sync->va + REG_NS_SYNC_CMD);
+			if (__wait_until(sync->va + REG_NS_SYNC_COMP,
+					 SYNC_COMP_COMPLETE, timeout)) {
+				break;
+			}
+			timeout *= SYNC_TIMEOUT_MULTIPLIER;
+		}
 	}
 
 	/* Must not access SFRs while S2MPU is busy invalidating (v9 only). */
