@@ -3113,6 +3113,10 @@ long bch2_fallocate_dispatch(struct file *file, int mode,
 	inode_dio_wait(&inode->v);
 	bch2_pagecache_block_get(&inode->ei_pagecache_lock);
 
+	ret = file_modified(file);
+	if (ret)
+		goto err;
+
 	if (!(mode & ~(FALLOC_FL_KEEP_SIZE|FALLOC_FL_ZERO_RANGE)))
 		ret = bchfs_fallocate(inode, mode, offset, len);
 	else if (mode == (FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE))
@@ -3123,8 +3127,7 @@ long bch2_fallocate_dispatch(struct file *file, int mode,
 		ret = bchfs_fcollapse_finsert(inode, offset, len, false);
 	else
 		ret = -EOPNOTSUPP;
-
-
+err:
 	bch2_pagecache_block_put(&inode->ei_pagecache_lock);
 	inode_unlock(&inode->v);
 	percpu_ref_put(&c->writes);
