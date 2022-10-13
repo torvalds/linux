@@ -1765,7 +1765,8 @@ retry:
 		qca_debugfs_init(hdev);
 		hu->hdev->hw_error = qca_hw_error;
 		hu->hdev->cmd_timeout = qca_cmd_timeout;
-		hu->hdev->wakeup = qca_wakeup;
+		if (device_can_wakeup(hu->serdev->ctrl->dev.parent))
+			hu->hdev->wakeup = qca_wakeup;
 	} else if (ret == -ENOENT) {
 		/* No patch/nvm-config found, run with original fw/config */
 		set_bit(QCA_ROM_FW, &qca->flags);
