@@ -2538,7 +2538,7 @@ static void dump_turbo_ratio_limits(int trl_msr_offset, int family, int model)
 
 	get_msr(base_cpu, trl_msr_offset, &msr);
 	fprintf(outf, "cpu%d: MSR_%sTURBO_RATIO_LIMIT: 0x%08llx\n",
-		base_cpu, trl_msr_offset == MSR_SECONDARY_TURBO_RATIO_LIMIT ? "SECONDARY" : "", msr);
+		base_cpu, trl_msr_offset == MSR_SECONDARY_TURBO_RATIO_LIMIT ? "SECONDARY_" : "", msr);
 
 	if (has_turbo_ratio_group_limits(family, model)) {
 		get_msr(base_cpu, MSR_TURBO_RATIO_LIMIT1, &core_counts);
