@@ -55,6 +55,8 @@ static inline void riscv_init_cbom_blocksize(void) { }
 
 #ifdef CONFIG_RISCV_DMA_NONCOHERENT
 void riscv_noncoherent_supported(void);
+#else
+static inline void riscv_noncoherent_supported(void) {}
 #endif
 
 /*
