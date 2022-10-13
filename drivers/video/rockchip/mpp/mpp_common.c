@@ -819,6 +819,7 @@ static int mpp_task_run(struct mpp_dev *mpp,
 	 */
 	mpp_reset_down_read(mpp->reset_group);
 
+	mpp_iommu_dev_activate(mpp->iommu_info, mpp);
 	if (mpp->dev_ops->run)
 		mpp->dev_ops->run(mpp, task);
 
@@ -2032,35 +2033,17 @@ int mpp_task_dump_reg(struct mpp_dev *mpp,
 
 int mpp_task_dump_hw_reg(struct mpp_dev *mpp)
 {
-	if (mpp_debug_unlikely(DEBUG_DUMP_ERR_REG)) {
-		u32 i;
-		u32 s = mpp->var->hw_info->reg_start;
-		u32 e = mpp->var->hw_info->reg_end;
+	u32 i;
+	u32 s = mpp->var->hw_info->reg_start;
+	u32 e = mpp->var->hw_info->reg_end;
 
-		mpp_err("--- dump hardware register ---\n");
-		for (i = s; i <= e; i++) {
-			u32 reg = i * sizeof(u32);
+	mpp_err("--- dump hardware register ---\n");
+	for (i = s; i <= e; i++) {
+		u32 reg = i * sizeof(u32);
 
-			mpp_err("reg[%03d]: %04x: 0x%08x\n",
+		mpp_err("reg[%03d]: %04x: 0x%08x\n",
 				i, reg, readl_relaxed(mpp->reg_base + reg));
-		}
 	}
-
-	return 0;
-}
-
-static int mpp_iommu_handle(struct iommu_domain *iommu,
-			    struct device *iommu_dev,
-			    unsigned long iova,
-			    int status, void *arg)
-{
-	struct mpp_dev *mpp = (struct mpp_dev *)arg;
-
-	dev_err(mpp->dev, "fault addr 0x%08lx status %x\n", iova, status);
-	mpp_task_dump_hw_reg(mpp);
-
-	if (mpp->iommu_info->hdl)
-		mpp->iommu_info->hdl(iommu, iommu_dev, iova, status, arg);
 
 	return 0;
 }
@@ -2167,10 +2150,6 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 		if (ret)
 			goto failed;
 	}
-	/* set iommu fault handler */
-	if (mpp->iommu_info)
-		iommu_set_fault_handler(mpp->iommu_info->domain,
-					mpp_iommu_handle, mpp);
 
 	/* read hardware id */
 	if (hw_info->reg_id >= 0) {
@@ -2270,6 +2249,7 @@ irqreturn_t mpp_dev_irq(int irq, void *param)
 			/* normal condition, set state and wake up isr thread */
 			set_bit(TASK_STATE_IRQ, &task->state);
 		}
+		mpp_iommu_dev_deactivate(mpp->iommu_info, mpp);
 	} else {
 		mpp_debug(DEBUG_IRQ_CHECK, "error, task is null\n");
 	}

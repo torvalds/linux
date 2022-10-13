@@ -1200,9 +1200,10 @@ static int rkvenc_isr(struct mpp_dev *mpp)
 
 	if (task->irq_status & enc->hw_info->err_mask) {
 		atomic_inc(&mpp->reset_request);
-		/* dump register */
 
-		mpp_task_dump_hw_reg(mpp);
+		/* dump register */
+		if (mpp_debug_unlikely(DEBUG_DUMP_ERR_REG))
+			mpp_task_dump_hw_reg(mpp);
 	}
 
 	mpp_task_finish(mpp_task->session, mpp_task);

@@ -64,6 +64,8 @@ struct mpp_rk_iommu {
 	u32 is_paged;
 };
 
+struct mpp_dev;
+
 struct mpp_iommu_info {
 	struct rw_semaphore rw_sem;
 
@@ -73,6 +75,10 @@ struct mpp_iommu_info {
 	struct iommu_group *group;
 	struct mpp_rk_iommu *iommu;
 	iommu_fault_handler_t hdl;
+
+	spinlock_t dev_lock;
+	struct mpp_dev *dev_active;
+
 	u32 av1d_iommu;
 	int irq;
 	int got_irq;
@@ -109,6 +115,9 @@ int mpp_iommu_refresh(struct mpp_iommu_info *info, struct device *dev);
 int mpp_iommu_flush_tlb(struct mpp_iommu_info *info);
 int mpp_av1_iommu_disable(struct device *dev);
 int mpp_av1_iommu_enable(struct device *dev);
+
+int mpp_iommu_dev_activate(struct mpp_iommu_info *info, struct mpp_dev *dev);
+int mpp_iommu_dev_deactivate(struct mpp_iommu_info *info, struct mpp_dev *dev);
 
 static inline int mpp_iommu_down_read(struct mpp_iommu_info *info)
 {

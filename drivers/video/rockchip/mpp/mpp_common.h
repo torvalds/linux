@@ -191,6 +191,7 @@ struct mpp_task;
 struct mpp_session;
 struct mpp_dma_session;
 struct mpp_taskqueue;
+struct iommu_domain;
 
 /* data common struct for parse out */
 struct mpp_request {
@@ -342,6 +343,8 @@ struct mpp_dev {
 	void __iomem *reg_base;
 	struct mpp_grf_info *grf_info;
 	struct mpp_iommu_info *iommu_info;
+	int (*fault_handler)(struct iommu_domain *iommu, struct device *iommu_dev,
+			     unsigned long iova, int status, void *arg);
 
 	atomic_t reset_request;
 	atomic_t session_index;
