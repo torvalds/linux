@@ -1606,6 +1606,24 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 			up_write(&space_info->groups_sem);
 			goto next;
 		}
+		if (bg->used == 0) {
+			/*
+			 * It is possible that we trigger relocation on a block
+			 * group as its extents are deleted and it first goes
+			 * below the threshold, then shortly after goes empty.
+			 *
+			 * In this case, relocating it does delete it, but has
+			 * some overhead in relocation specific metadata, looking
+			 * for the non-existent extents and running some extra
+			 * transactions, which we can avoid by using one of the
+			 * other mechanisms for dealing with empty block groups.
+			 */
+			if (!btrfs_test_opt(fs_info, DISCARD_ASYNC))
+				btrfs_mark_bg_unused(bg);
+			spin_unlock(&bg->lock);
+			up_write(&space_info->groups_sem);
+			goto next;
+		}
 		spin_unlock(&bg->lock);
 
 		/* Get out fast, in case we're unmounting the filesystem */
