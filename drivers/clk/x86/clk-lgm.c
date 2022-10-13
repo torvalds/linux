@@ -444,7 +444,6 @@ static int lgm_cgu_probe(struct platform_device *pdev)
 
 	ctx->np = np;
 	ctx->dev = dev;
-	spin_lock_init(&ctx->lock);
 
 	ret = lgm_clk_register_plls(ctx, lgm_pll_clks,
 				    ARRAY_SIZE(lgm_pll_clks));
