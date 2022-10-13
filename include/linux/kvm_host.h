@@ -1299,7 +1299,6 @@ int kvm_gpc_activate(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned long len)
  * kvm_gpc_check - check validity of a gfn_to_pfn_cache.
  *
  * @gpc:	   struct gfn_to_pfn_cache object.
- * @gpa:	   current guest physical address to map.
  * @len:	   sanity check; the range being access must fit a single page.
  *
  * @return:	   %true if the cache is still valid and the address matches.
@@ -1312,15 +1311,14 @@ int kvm_gpc_activate(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned long len)
  * Callers in IN_GUEST_MODE may do so without locking, although they should
  * still hold a read lock on kvm->scru for the memslot checks.
  */
-bool kvm_gpc_check(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned long len);
+bool kvm_gpc_check(struct gfn_to_pfn_cache *gpc, unsigned long len);
 
 /**
  * kvm_gpc_refresh - update a previously initialized cache.
  *
  * @gpc:	   struct gfn_to_pfn_cache object.
- * @gpa:	   updated guest physical address to map.
  * @len:	   sanity check; the range being access must fit a single page.
-
+ *
  * @return:	   0 for success.
  *		   -EINVAL for a mapping which would cross a page boundary.
  *		   -EFAULT for an untranslatable guest physical address.
@@ -1331,7 +1329,7 @@ bool kvm_gpc_check(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned long len);
  * still lock and check the cache status, as this function does not return
  * with the lock still held to permit access.
  */
-int kvm_gpc_refresh(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned long len);
+int kvm_gpc_refresh(struct gfn_to_pfn_cache *gpc, unsigned long len);
 
 /**
  * kvm_gpc_deactivate - deactivate and unlink a gfn_to_pfn_cache.
