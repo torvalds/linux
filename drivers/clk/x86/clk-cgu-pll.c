@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
+ * Copyright (C) 2020-2022 MaxLinear, Inc.
  * Copyright (C) 2020 Intel Corporation.
- * Zhu YiXin <yixin.zhu@intel.com>
- * Rahul Tanwar <rahul.tanwar@intel.com>
+ * Zhu Yixin <yzhu@maxlinear.com>
+ * Rahul Tanwar <rtanwar@maxlinear.com>
  */
 
 #include <linux/clk-provider.h>
@@ -76,8 +77,9 @@ static int lgm_pll_enable(struct clk_hw *hw)
 
 	spin_lock_irqsave(&pll->lock, flags);
 	lgm_set_clk_val(pll->membase, pll->reg, 0, 1, 1);
-	ret = readl_poll_timeout_atomic(pll->membase + pll->reg,
-					val, (val & 0x1), 1, 100);
+	ret = regmap_read_poll_timeout_atomic(pll->membase, pll->reg,
+					      val, (val & 0x1), 1, 100);
+
 	spin_unlock_irqrestore(&pll->lock, flags);
 
 	return ret;
