@@ -809,10 +809,14 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 	if (!skb)
 		return RESPST_ERR_RNR;
 
-	rxe_mr_copy(mr, res->read.va, payload_addr(&ack_pkt),
-		    payload, RXE_FROM_MR_OBJ);
+	err = rxe_mr_copy(mr, res->read.va, payload_addr(&ack_pkt),
+			  payload, RXE_FROM_MR_OBJ);
 	if (mr)
 		rxe_put(mr);
+	if (err) {
+		kfree_skb(skb);
+		return RESPST_ERR_RKEY_VIOLATION;
+	}
 
 	if (bth_pad(&ack_pkt)) {
 		u8 *pad = payload_addr(&ack_pkt) + payload;
