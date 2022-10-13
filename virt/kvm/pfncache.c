@@ -138,7 +138,7 @@ static inline bool mmu_notifier_retry_cache(struct kvm *kvm, unsigned long mmu_s
 	return kvm->mmu_invalidate_seq != mmu_seq;
 }
 
-static kvm_pfn_t hva_to_pfn_retry(struct kvm *kvm, struct gfn_to_pfn_cache *gpc)
+static kvm_pfn_t hva_to_pfn_retry(struct gfn_to_pfn_cache *gpc)
 {
 	/* Note, the new page offset may be different than the old! */
 	void *old_khva = gpc->khva - offset_in_page(gpc->khva);
@@ -158,7 +158,7 @@ static kvm_pfn_t hva_to_pfn_retry(struct kvm *kvm, struct gfn_to_pfn_cache *gpc)
 	gpc->valid = false;
 
 	do {
-		mmu_seq = kvm->mmu_invalidate_seq;
+		mmu_seq = gpc->kvm->mmu_invalidate_seq;
 		smp_rmb();
 
 		write_unlock_irq(&gpc->lock);
@@ -216,7 +216,7 @@ static kvm_pfn_t hva_to_pfn_retry(struct kvm *kvm, struct gfn_to_pfn_cache *gpc)
 		 * attempting to refresh.
 		 */
 		WARN_ON_ONCE(gpc->valid);
-	} while (mmu_notifier_retry_cache(kvm, mmu_seq));
+	} while (mmu_notifier_retry_cache(gpc->kvm, mmu_seq));
 
 	gpc->valid = true;
 	gpc->pfn = new_pfn;
@@ -294,7 +294,7 @@ int kvm_gpc_refresh(struct kvm *kvm, struct gfn_to_pfn_cache *gpc, gpa_t gpa,
 	 * drop the lock and do the HVA to PFN lookup again.
 	 */
 	if (!gpc->valid || old_uhva != gpc->uhva) {
-		ret = hva_to_pfn_retry(kvm, gpc);
+		ret = hva_to_pfn_retry(gpc);
 	} else {
 		/*
 		 * If the HVA→PFN mapping was already valid, don't unmap it.
