@@ -18,6 +18,8 @@ enum rga_mm_flag {
 	RGA_MEM_NEED_USE_IOMMU		= 1 << 1,
 	/* Flag this is a physical contiguous memory. */
 	RGA_MEM_PHYSICAL_CONTIGUOUS	= 1 << 2,
+	/* need force flush cache */
+	RGA_MEM_FORCE_FLUSH_CACHE	= 1 << 3,
 };
 
 struct rga_mm {

@@ -577,6 +577,13 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 		mm_flag |= RGA_MEM_PHYSICAL_CONTIGUOUS;
 	}
 
+	/*
+	 * Some userspace virtual addresses do not have an
+	 * interface for flushing the cache, so it is mandatory
+	 * to flush the cache when the virtual address is used.
+	 */
+	mm_flag |= RGA_MEM_FORCE_FLUSH_CACHE;
+
 	if (!rga_mm_check_memory_limit(scheduler, mm_flag)) {
 		pr_err("scheduler core[%d] unsupported mm_flag[0x%x]!\n",
 		       scheduler->core, mm_flag);
@@ -1434,7 +1441,7 @@ static int rga_mm_get_buffer(struct rga_mm *mm,
 		goto put_internal_buffer;
 	}
 
-	if (internal_buffer->type == RGA_VIRTUAL_ADDRESS) {
+	if (internal_buffer->mm_flag & RGA_MEM_FORCE_FLUSH_CACHE) {
 		/*
 		 * Some userspace virtual addresses do not have an
 		 * interface for flushing the cache, so it is mandatory
@@ -1463,7 +1470,7 @@ static void rga_mm_put_buffer(struct rga_mm *mm,
 			      struct rga_internal_buffer *internal_buffer,
 			      enum dma_data_direction dir)
 {
-	if (internal_buffer->type == RGA_VIRTUAL_ADDRESS && dir != DMA_NONE)
+	if (internal_buffer->mm_flag & RGA_MEM_FORCE_FLUSH_CACHE && dir != DMA_NONE)
 		if (rga_mm_sync_dma_sg_for_cpu(internal_buffer, job, dir))
 			pr_err("sync sgt for cpu error!\n");
 
@@ -1765,7 +1772,7 @@ static void rga_mm_unmap_channel_job_buffer(struct rga_job *job,
 					    struct rga_job_buffer *job_buffer,
 					    enum dma_data_direction dir)
 {
-	if (job_buffer->addr->type == RGA_VIRTUAL_ADDRESS && dir != DMA_NONE)
+	if (job_buffer->addr->mm_flag & RGA_MEM_FORCE_FLUSH_CACHE && dir != DMA_NONE)
 		if (rga_mm_sync_dma_sg_for_cpu(job_buffer->addr, job, dir))
 			pr_err("sync sgt for cpu error!\n");
 
@@ -1802,12 +1809,7 @@ static int rga_mm_map_channel_job_buffer(struct rga_job *job,
 		goto error_unmap_buffer;
 	}
 
-	if (buffer->type == RGA_VIRTUAL_ADDRESS) {
-		/*
-		 * Some userspace virtual addresses do not have an
-		 * interface for flushing the cache, so it is mandatory
-		 * to flush the cache when the virtual address is used.
-		 */
+	if (buffer->mm_flag & RGA_MEM_FORCE_FLUSH_CACHE) {
 		ret = rga_mm_sync_dma_sg_for_device(buffer, job, dir);
 		if (ret < 0) {
 			pr_err("sync sgt for device error!\n");
