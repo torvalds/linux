@@ -5210,7 +5210,6 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 
 	reset_context->job = job;
 	reset_context->hive = hive;
-
 	/*
 	 * Build list of devices to reset.
 	 * In case we are in XGMI hive mode, resort the device list
@@ -5337,11 +5336,8 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 			amdgpu_ras_resume(adev);
 	} else {
 		r = amdgpu_do_asic_reset(device_list_handle, reset_context);
-		if (r && r == -EAGAIN) {
-			set_bit(AMDGPU_SKIP_MODE2_RESET, &reset_context->flags);
-			adev->asic_reset_res = 0;
+		if (r && r == -EAGAIN)
 			goto retry;
-		}
 
 		if (!r && gpu_reset_for_dev_remove)
 			goto recover_end;
@@ -5777,7 +5773,6 @@ pci_ers_result_t amdgpu_pci_slot_reset(struct pci_dev *pdev)
 	reset_context.reset_req_dev = adev;
 	set_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
 	set_bit(AMDGPU_SKIP_HW_RESET, &reset_context.flags);
-	set_bit(AMDGPU_SKIP_MODE2_RESET, &reset_context.flags);
 
 	adev->no_hw_access = true;
 	r = amdgpu_device_pre_asic_reset(adev, &reset_context);

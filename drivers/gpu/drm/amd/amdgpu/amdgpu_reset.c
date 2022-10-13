@@ -74,9 +74,6 @@ int amdgpu_reset_prepare_hwcontext(struct amdgpu_device *adev,
 {
 	struct amdgpu_reset_handler *reset_handler = NULL;
 
-	if (test_bit(AMDGPU_SKIP_MODE2_RESET, &reset_context->flags))
-		return -ENOSYS;
-
 	if (adev->reset_cntl && adev->reset_cntl->get_reset_handler)
 		reset_handler = adev->reset_cntl->get_reset_handler(
 			adev->reset_cntl, reset_context);
@@ -92,9 +89,6 @@ int amdgpu_reset_perform_reset(struct amdgpu_device *adev,
 {
 	int ret;
 	struct amdgpu_reset_handler *reset_handler = NULL;
-
-	if (test_bit(AMDGPU_SKIP_MODE2_RESET, &reset_context->flags))
-		return -ENOSYS;
 
 	if (adev->reset_cntl)
 		reset_handler = adev->reset_cntl->get_reset_handler(
