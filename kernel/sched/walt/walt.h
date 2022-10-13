@@ -992,8 +992,16 @@ struct compute_energy_output {
 
 bool walt_halt_check_last(int cpu);
 extern struct cpumask __cpu_halt_mask;
+extern struct cpumask __cpu_partial_halt_mask;
+
 #define cpu_halt_mask ((struct cpumask *)&__cpu_halt_mask)
+#define cpu_partial_halt_mask ((struct cpumask *)&__cpu_partial_halt_mask)
+
+/* a halted cpu must NEVER be used for tasks, as this is the thermal indication to avoid a cpu */
 #define cpu_halted(cpu) cpumask_test_cpu((cpu), cpu_halt_mask)
+
+/* a partially halted may be used for helping smaller cpus with small tasks */
+#define cpu_partial_halted(cpu) cpumask_test_cpu((cpu), cpu_partial_halt_mask)
 
 /* walt_find_and_choose_cluster_packing_cpu - Return a packing_cpu choice common for this cluster.
  * @start_cpu:  The cpu from the cluster to choose from
