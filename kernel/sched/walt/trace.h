@@ -951,7 +951,7 @@ TRACE_EVENT(sched_cpu_util,
 		__entry->irqload		= sched_irqload(cpu);
 		__entry->online			= cpu_online(cpu);
 		__entry->inactive		= !cpu_active(cpu);
-		__entry->halted			= cpu_halted(cpu);
+		__entry->halted			= (cpu_halted(cpu)<<1) + cpu_partial_halted(cpu);
 		__entry->reserved		= is_reserved(cpu);
 		__entry->high_irq_load		= sched_cpu_high_irqload(cpu);
 		__entry->nr_rtg_high_prio_tasks	= walt_nr_rtg_high_prio(cpu);
@@ -1396,17 +1396,20 @@ TRACE_EVENT(halt_cpus_start,
 	    TP_STRUCT__entry(
 		    __field(unsigned int,   cpus)
 		    __field(unsigned int,   halted_cpus)
+		    __field(unsigned int,   partial_halted_cpus)
 		    __field(unsigned char,  halt)
 		    ),
 
 	    TP_fast_assign(
 		    __entry->cpus        = cpumask_bits(cpus)[0];
 		    __entry->halted_cpus = cpumask_bits(cpu_halt_mask)[0];
+		    __entry->partial_halted_cpus = cpumask_bits(cpu_partial_halt_mask)[0];
 		    __entry->halt        = halt;
 		    ),
 
-	    TP_printk("req_cpus=0x%x halt_cpus=0x%x halt=%d",
-		      __entry->cpus, __entry->halted_cpus, __entry->halt)
+	    TP_printk("req_cpus=0x%x halt_cpus=0x%x partial_halt_cpus=0x%x halt=%d",
+		      __entry->cpus, __entry->halted_cpus,
+		      __entry->partial_halted_cpus, __entry->halt)
 
 );
 
@@ -1418,6 +1421,7 @@ TRACE_EVENT(halt_cpus,
 	    TP_STRUCT__entry(
 		    __field(unsigned int,   cpus)
 		    __field(unsigned int,   halted_cpus)
+		    __field(unsigned int,   partial_halted_cpus)
 		    __field(unsigned int,   time)
 		    __field(unsigned char,  halt)
 		    __field(unsigned char,  success)
@@ -1426,13 +1430,14 @@ TRACE_EVENT(halt_cpus,
 	    TP_fast_assign(
 		    __entry->cpus        = cpumask_bits(cpus)[0];
 		    __entry->halted_cpus = cpumask_bits(cpu_halt_mask)[0];
+		    __entry->partial_halted_cpus = cpumask_bits(cpu_partial_halt_mask)[0];
 		    __entry->time        = div64_u64(sched_clock() - start_time, 1000);
 		    __entry->halt        = halt;
 		    __entry->success     = ((err >= 0)?1:0);
 		    ),
 
-	    TP_printk("req_cpus=0x%x halt_cpus=0x%x time=%u us halt=%d success=%d",
-		      __entry->cpus, __entry->halted_cpus,
+	    TP_printk("req_cpus=0x%x halt_cpus=0x%x partial_halt_cpus=0x%x time=%u us halt=%d success=%d",
+		      __entry->cpus, __entry->halted_cpus, __entry->partial_halted_cpus,
 		      __entry->time, __entry->halt, __entry->success)
 );
 
