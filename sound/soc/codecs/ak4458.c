@@ -13,6 +13,7 @@
 #include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 #include <sound/initval.h>
 #include <sound/pcm_params.h>
@@ -46,6 +47,7 @@ struct ak4458_priv {
 	struct device *dev;
 	struct regmap *regmap;
 	struct gpio_desc *reset_gpiod;
+	struct reset_control *reset;
 	struct gpio_desc *mute_gpiod;
 	int digfil;	/* SSLOW, SD, SLOW bits */
 	int fs;		/* sampling rate */
@@ -633,6 +635,12 @@ static void ak4458_reset(struct ak4458_priv *ak4458, bool active)
 	if (ak4458->reset_gpiod) {
 		gpiod_set_value_cansleep(ak4458->reset_gpiod, active);
 		usleep_range(1000, 2000);
+	} else if (!IS_ERR_OR_NULL(ak4458->reset)) {
+		if (active)
+			reset_control_assert(ak4458->reset);
+		else
+			reset_control_deassert(ak4458->reset);
+		usleep_range(1000, 2000);
 	}
 }
 
@@ -668,7 +676,6 @@ static int __maybe_unused ak4458_runtime_resume(struct device *dev)
 	if (ak4458->mute_gpiod)
 		gpiod_set_value_cansleep(ak4458->mute_gpiod, 1);
 
-	ak4458_reset(ak4458, true);
 	ak4458_reset(ak4458, false);
 
 	regcache_cache_only(ak4458->regmap, false);
@@ -747,6 +754,10 @@ static int ak4458_i2c_probe(struct i2c_client *i2c)
 	ak4458->dev = &i2c->dev;
 
 	ak4458->drvdata = of_device_get_match_data(&i2c->dev);
+
+	ak4458->reset = devm_reset_control_get_optional_shared(ak4458->dev, NULL);
+	if (IS_ERR(ak4458->reset))
+		return PTR_ERR(ak4458->reset);
 
 	ak4458->reset_gpiod = devm_gpiod_get_optional(ak4458->dev, "reset",
 						      GPIOD_OUT_LOW);
