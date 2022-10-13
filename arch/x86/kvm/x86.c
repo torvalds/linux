@@ -3039,7 +3039,7 @@ static void kvm_setup_guest_pvclock(struct kvm_vcpu *v,
 			      offset + sizeof(*guest_hv_clock))) {
 		read_unlock_irqrestore(&gpc->lock, flags);
 
-		if (kvm_gpc_refresh(v->kvm, gpc, gpc->gpa,
+		if (kvm_gpc_refresh(gpc, gpc->gpa,
 				    offset + sizeof(*guest_hv_clock)))
 			return;
 
