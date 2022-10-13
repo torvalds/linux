@@ -120,7 +120,7 @@ required delays, as defined per the RGMII standard, several options may be
 available:
 
 * Some SoCs may offer a pin pad/mux/controller capable of configuring a given
-  set of pins'strength, delays, and voltage; and it may be a suitable
+  set of pins' strength, delays, and voltage; and it may be a suitable
   option to insert the expected 2ns RGMII delay.
 
 * Modifying the PCB design to include a fixed delay (e.g: using a specifically
