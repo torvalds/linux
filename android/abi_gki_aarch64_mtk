@@ -3216,6 +3216,7 @@
   update_devfreq
   usb_add_phy_dev
   usb_assign_descriptors
+  usb_clear_halt
   usb_copy_descriptors
   usb_ep_alloc_request
   usb_ep_autoconfig
@@ -3239,6 +3240,7 @@
   usb_phy_set_charger_current
   usb_remove_phy
   usb_role_switch_set_role
+  usb_unlink_urb
   v4l2_async_notifier_add_subdev
   v4l2_async_notifier_cleanup
   v4l2_async_subdev_notifier_register
