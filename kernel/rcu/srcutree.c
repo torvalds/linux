@@ -642,6 +642,8 @@ static void srcu_check_nmi_safety(struct srcu_struct *ssp, bool nmi_safe)
 
 	if (!IS_ENABLED(CONFIG_PROVE_RCU))
 		return;
+	/* NMI-unsafe use in NMI is a bad sign */
+	WARN_ON_ONCE(!nmi_safe && in_nmi());
 	sdp = raw_cpu_ptr(ssp->sda);
 	old_nmi_safe_mask = READ_ONCE(sdp->srcu_nmi_safety);
 	if (!old_nmi_safe_mask) {
