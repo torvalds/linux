@@ -579,16 +579,15 @@ static int ast_primary_plane_helper_atomic_check(struct drm_plane *plane,
 						 struct drm_atomic_state *state)
 {
 	struct drm_device *dev = plane->dev;
-	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
-										 plane);
-	struct drm_crtc_state *crtc_state = NULL;
-	struct ast_crtc_state *ast_crtc_state;
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state, plane);
+	struct drm_crtc_state *new_crtc_state = NULL;
+	struct ast_crtc_state *new_ast_crtc_state;
 	int ret;
 
 	if (new_plane_state->crtc)
-		crtc_state = drm_atomic_get_new_crtc_state(state, new_plane_state->crtc);
+		new_crtc_state = drm_atomic_get_new_crtc_state(state, new_plane_state->crtc);
 
-	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
+	ret = drm_atomic_helper_check_plane_state(new_plane_state, new_crtc_state,
 						  DRM_PLANE_NO_SCALING,
 						  DRM_PLANE_NO_SCALING,
 						  false, true);
@@ -601,30 +600,28 @@ static int ast_primary_plane_helper_atomic_check(struct drm_plane *plane,
 			return 0;
 	}
 
-	ast_crtc_state = to_ast_crtc_state(crtc_state);
+	new_ast_crtc_state = to_ast_crtc_state(new_crtc_state);
 
-	ast_crtc_state->format = new_plane_state->fb->format;
+	new_ast_crtc_state->format = new_plane_state->fb->format;
 
 	return 0;
 }
 
-static void
-ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
-				       struct drm_atomic_state *state)
+static void ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
+						   struct drm_atomic_state *state)
 {
-	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
-									   plane);
 	struct drm_device *dev = plane->dev;
 	struct ast_private *ast = to_ast_private(dev);
-	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
-									   plane);
+	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
+	struct drm_framebuffer *fb = plane_state->fb;
+	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
+	struct drm_framebuffer *old_fb = old_plane_state->fb;
 	struct drm_gem_vram_object *gbo;
 	s64 gpu_addr;
-	struct drm_framebuffer *fb = new_state->fb;
-	struct drm_framebuffer *old_fb = old_state->fb;
 
 	if (!old_fb || (fb->format != old_fb->format)) {
-		struct drm_crtc_state *crtc_state = new_state->crtc->state;
+		struct drm_crtc *crtc = plane_state->crtc;
+		struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 		struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
 		struct ast_vbios_mode_info *vbios_mode_info = &ast_crtc_state->vbios_mode_info;
 
@@ -643,9 +640,8 @@ ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
 	ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0x00);
 }
 
-static void
-ast_primary_plane_helper_atomic_disable(struct drm_plane *plane,
-					struct drm_atomic_state *state)
+static void ast_primary_plane_helper_atomic_disable(struct drm_plane *plane,
+						    struct drm_atomic_state *state)
 {
 	struct ast_private *ast = to_ast_private(plane->dev);
 
@@ -803,39 +799,36 @@ static const uint32_t ast_cursor_plane_formats[] = {
 static int ast_cursor_plane_helper_atomic_check(struct drm_plane *plane,
 						struct drm_atomic_state *state)
 {
-	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
-										 plane);
-	struct drm_framebuffer *fb = new_plane_state->fb;
-	struct drm_crtc_state *crtc_state = NULL;
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state, plane);
+	struct drm_framebuffer *new_fb = new_plane_state->fb;
+	struct drm_crtc_state *new_crtc_state = NULL;
 	int ret;
 
 	if (new_plane_state->crtc)
-		crtc_state = drm_atomic_get_new_crtc_state(state, new_plane_state->crtc);
+		new_crtc_state = drm_atomic_get_new_crtc_state(state, new_plane_state->crtc);
 
-	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
+	ret = drm_atomic_helper_check_plane_state(new_plane_state, new_crtc_state,
 						  DRM_PLANE_NO_SCALING,
 						  DRM_PLANE_NO_SCALING,
 						  true, true);
 	if (ret || !new_plane_state->visible)
 		return ret;
 
-	if (fb->width > AST_MAX_HWC_WIDTH || fb->height > AST_MAX_HWC_HEIGHT)
+	if (new_fb->width > AST_MAX_HWC_WIDTH || new_fb->height > AST_MAX_HWC_HEIGHT)
 		return -EINVAL;
 
 	return 0;
 }
 
-static void
-ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
-				      struct drm_atomic_state *state)
+static void ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
+						  struct drm_atomic_state *state)
 {
 	struct ast_plane *ast_plane = to_ast_plane(plane);
-	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state,
-									   plane);
-	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
-									   plane);
-	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(new_state);
-	struct drm_framebuffer *fb = new_state->fb;
+	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
+	struct drm_framebuffer *fb = plane_state->fb;
+	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
+	struct drm_framebuffer *old_fb = old_plane_state->fb;
 	struct ast_private *ast = to_ast_private(plane->dev);
 	struct iosys_map dst_map = ast_plane->map;
 	u64 dst_off = ast_plane->off;
@@ -858,32 +851,32 @@ ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 
 	ast_update_cursor_image(dst, src, fb->width, fb->height);
 
-	if (new_state->fb != old_state->fb)
+	if (fb != old_fb)
 		ast_set_cursor_base(ast, dst_off);
 
 	/*
 	 * Update location in HWC signature and registers.
 	 */
 
-	writel(new_state->crtc_x, sig + AST_HWC_SIGNATURE_X);
-	writel(new_state->crtc_y, sig + AST_HWC_SIGNATURE_Y);
+	writel(plane_state->crtc_x, sig + AST_HWC_SIGNATURE_X);
+	writel(plane_state->crtc_y, sig + AST_HWC_SIGNATURE_Y);
 
 	offset_x = AST_MAX_HWC_WIDTH - fb->width;
 	offset_y = AST_MAX_HWC_HEIGHT - fb->height;
 
-	if (new_state->crtc_x < 0) {
-		x_offset = (-new_state->crtc_x) + offset_x;
+	if (plane_state->crtc_x < 0) {
+		x_offset = (-plane_state->crtc_x) + offset_x;
 		x = 0;
 	} else {
 		x_offset = offset_x;
-		x = new_state->crtc_x;
+		x = plane_state->crtc_x;
 	}
-	if (new_state->crtc_y < 0) {
-		y_offset = (-new_state->crtc_y) + offset_y;
+	if (plane_state->crtc_y < 0) {
+		y_offset = (-plane_state->crtc_y) + offset_y;
 		y = 0;
 	} else {
 		y_offset = offset_y;
-		y = new_state->crtc_y;
+		y = plane_state->crtc_y;
 	}
 
 	ast_set_cursor_location(ast, x, y, x_offset, y_offset);
@@ -892,9 +885,8 @@ ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 	ast_set_cursor_enabled(ast, true);
 }
 
-static void
-ast_cursor_plane_helper_atomic_disable(struct drm_plane *plane,
-				       struct drm_atomic_state *state)
+static void ast_cursor_plane_helper_atomic_disable(struct drm_plane *plane,
+						   struct drm_atomic_state *state)
 {
 	struct ast_private *ast = to_ast_private(plane->dev);
 
@@ -1204,13 +1196,11 @@ ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 		ast_dp_set_mode(crtc, vbios_mode_info);
 }
 
-static void
-ast_crtc_helper_atomic_enable(struct drm_crtc *crtc,
-			      struct drm_atomic_state *state)
+static void ast_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct ast_private *ast = to_ast_private(dev);
-	struct drm_crtc_state *crtc_state = crtc->state;
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
 	struct ast_vbios_mode_info *vbios_mode_info =
 		&ast_crtc_state->vbios_mode_info;
@@ -1227,12 +1217,9 @@ ast_crtc_helper_atomic_enable(struct drm_crtc *crtc,
 	ast_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 }
 
-static void
-ast_crtc_helper_atomic_disable(struct drm_crtc *crtc,
-			       struct drm_atomic_state *state)
+static void ast_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
-	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state,
-									      crtc);
+	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state, crtc);
 	struct drm_device *dev = crtc->dev;
 	struct ast_private *ast = to_ast_private(dev);
 
@@ -1786,7 +1773,6 @@ int ast_mode_config_init(struct ast_private *ast)
 	}
 
 	dev->mode_config.helper_private = &ast_mode_config_helper_funcs;
-
 
 	ret = ast_primary_plane_init(ast);
 	if (ret)
