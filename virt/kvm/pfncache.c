@@ -301,9 +301,8 @@ static int __kvm_gpc_refresh(struct gfn_to_pfn_cache *gpc, gpa_t gpa,
 		 * may have changed.
 		 */
 		gpc->khva = old_khva + page_offset;
-		old_pfn = KVM_PFN_ERR_FAULT;
-		old_khva = NULL;
 		ret = 0;
+		goto out_unlock;
 	}
 
  out:
