@@ -1539,6 +1539,30 @@ static inline bool btrfs_should_reclaim(struct btrfs_fs_info *fs_info)
 	return true;
 }
 
+static bool should_reclaim_block_group(struct btrfs_block_group *bg, u64 bytes_freed)
+{
+	const struct btrfs_space_info *space_info = bg->space_info;
+	const int reclaim_thresh = READ_ONCE(space_info->bg_reclaim_threshold);
+	const u64 new_val = bg->used;
+	const u64 old_val = new_val + bytes_freed;
+	u64 thresh;
+
+	if (reclaim_thresh == 0)
+		return false;
+
+	thresh = div_factor_fine(bg->length, reclaim_thresh);
+
+	/*
+	 * If we were below the threshold before don't reclaim, we are likely a
+	 * brand new block group and we don't want to relocate new block groups.
+	 */
+	if (old_val < thresh)
+		return false;
+	if (new_val >= thresh)
+		return false;
+	return true;
+}
+
 void btrfs_reclaim_bgs_work(struct work_struct *work)
 {
 	struct btrfs_fs_info *fs_info =
@@ -1620,6 +1644,22 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 			 */
 			if (!btrfs_test_opt(fs_info, DISCARD_ASYNC))
 				btrfs_mark_bg_unused(bg);
+			spin_unlock(&bg->lock);
+			up_write(&space_info->groups_sem);
+			goto next;
+
+		}
+		/*
+		 * The block group might no longer meet the reclaim condition by
+		 * the time we get around to reclaiming it, so to avoid
+		 * reclaiming overly full block_groups, skip reclaiming them.
+		 *
+		 * Since the decision making process also depends on the amount
+		 * being freed, pass in a fake giant value to skip that extra
+		 * check, which is more meaningful when adding to the list in
+		 * the first place.
+		 */
+		if (!should_reclaim_block_group(bg, bg->length)) {
 			spin_unlock(&bg->lock);
 			up_write(&space_info->groups_sem);
 			goto next;
@@ -3239,31 +3279,6 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans)
 
 	btrfs_free_path(path);
 	return ret;
-}
-
-static inline bool should_reclaim_block_group(struct btrfs_block_group *bg,
-					      u64 bytes_freed)
-{
-	const struct btrfs_space_info *space_info = bg->space_info;
-	const int reclaim_thresh = READ_ONCE(space_info->bg_reclaim_threshold);
-	const u64 new_val = bg->used;
-	const u64 old_val = new_val + bytes_freed;
-	u64 thresh;
-
-	if (reclaim_thresh == 0)
-		return false;
-
-	thresh = div_factor_fine(bg->length, reclaim_thresh);
-
-	/*
-	 * If we were below the threshold before don't reclaim, we are likely a
-	 * brand new block group and we don't want to relocate new block groups.
-	 */
-	if (old_val < thresh)
-		return false;
-	if (new_val >= thresh)
-		return false;
-	return true;
 }
 
 int btrfs_update_block_group(struct btrfs_trans_handle *trans,
