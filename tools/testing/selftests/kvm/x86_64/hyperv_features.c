@@ -34,22 +34,36 @@ struct hcall_data {
 	bool ud_expected;
 };
 
+static bool is_write_only_msr(uint32_t msr)
+{
+	return msr == HV_X64_MSR_EOI;
+}
+
 static void guest_msr(struct msr_data *msr)
 {
-	uint64_t ignored;
-	uint8_t vector;
+	uint8_t vector = 0;
+	uint64_t msr_val = 0;
 
 	GUEST_ASSERT(msr->idx);
 
-	if (!msr->write)
-		vector = rdmsr_safe(msr->idx, &ignored);
-	else
+	if (msr->write)
 		vector = wrmsr_safe(msr->idx, msr->write_val);
 
+	if (!vector && (!msr->write || !is_write_only_msr(msr->idx)))
+		vector = rdmsr_safe(msr->idx, &msr_val);
+
 	if (msr->fault_expected)
-		GUEST_ASSERT_2(vector == GP_VECTOR, msr->idx, vector);
+		GUEST_ASSERT_3(vector == GP_VECTOR, msr->idx, vector, GP_VECTOR);
 	else
-		GUEST_ASSERT_2(!vector, msr->idx, vector);
+		GUEST_ASSERT_3(!vector, msr->idx, vector, 0);
+
+	if (vector || is_write_only_msr(msr->idx))
+		goto done;
+
+	if (msr->write)
+		GUEST_ASSERT_3(msr_val == msr->write_val, msr->idx,
+			       msr_val, msr->write_val);
+done:
 	GUEST_DONE();
 }
 
@@ -239,6 +253,12 @@ static void guest_test_msrs_access(void)
 		case 16:
 			msr->idx = HV_X64_MSR_RESET;
 			msr->write = true;
+			/*
+			 * TODO: the test only writes '0' to HV_X64_MSR_RESET
+			 * at the moment, writing some other value there will
+			 * trigger real vCPU reset and the code is not prepared
+			 * to handle it yet.
+			 */
 			msr->write_val = 0;
 			msr->fault_expected = false;
 			break;
@@ -433,7 +453,7 @@ static void guest_test_msrs_access(void)
 
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
-			REPORT_GUEST_ASSERT_2(uc, "MSR = %lx, vector = %lx");
+			REPORT_GUEST_ASSERT_3(uc, "MSR = %lx, arg1 = %lx, arg2 = %lx");
 			return;
 		case UCALL_DONE:
 			break;
