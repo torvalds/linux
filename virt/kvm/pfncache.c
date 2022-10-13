@@ -362,25 +362,29 @@ void kvm_gpc_unmap(struct kvm *kvm, struct gfn_to_pfn_cache *gpc)
 }
 EXPORT_SYMBOL_GPL(kvm_gpc_unmap);
 
-void kvm_gpc_init(struct gfn_to_pfn_cache *gpc)
+void kvm_gpc_init(struct gfn_to_pfn_cache *gpc, struct kvm *kvm,
+		  struct kvm_vcpu *vcpu, enum pfn_cache_usage usage)
 {
+	WARN_ON_ONCE(!usage || (usage & KVM_GUEST_AND_HOST_USE_PFN) != usage);
+	WARN_ON_ONCE((usage & KVM_GUEST_USES_PFN) && !vcpu);
+
 	rwlock_init(&gpc->lock);
 	mutex_init(&gpc->refresh_lock);
+
+	gpc->kvm = kvm;
+	gpc->vcpu = vcpu;
+	gpc->usage = usage;
 }
 EXPORT_SYMBOL_GPL(kvm_gpc_init);
 
-int kvm_gpc_activate(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
-		     struct kvm_vcpu *vcpu, enum pfn_cache_usage usage,
-		     gpa_t gpa, unsigned long len)
+int kvm_gpc_activate(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned long len)
 {
-	WARN_ON_ONCE(!usage || (usage & KVM_GUEST_AND_HOST_USE_PFN) != usage);
+	struct kvm *kvm = gpc->kvm;
 
 	if (!gpc->active) {
 		gpc->khva = NULL;
 		gpc->pfn = KVM_PFN_ERR_FAULT;
 		gpc->uhva = KVM_HVA_ERR_BAD;
-		gpc->vcpu = vcpu;
-		gpc->usage = usage;
 		gpc->valid = false;
 
 		spin_lock(&kvm->gpc_lock);
@@ -400,8 +404,10 @@ int kvm_gpc_activate(struct kvm *kvm, struct gfn_to_pfn_cache *gpc,
 }
 EXPORT_SYMBOL_GPL(kvm_gpc_activate);
 
-void kvm_gpc_deactivate(struct kvm *kvm, struct gfn_to_pfn_cache *gpc)
+void kvm_gpc_deactivate(struct gfn_to_pfn_cache *gpc)
 {
+	struct kvm *kvm = gpc->kvm;
+
 	if (gpc->active) {
 		/*
 		 * Deactivate the cache before removing it from the list, KVM

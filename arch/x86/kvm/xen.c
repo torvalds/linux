@@ -42,13 +42,12 @@ static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 	int idx = srcu_read_lock(&kvm->srcu);
 
 	if (gfn == GPA_INVALID) {
-		kvm_gpc_deactivate(kvm, gpc);
+		kvm_gpc_deactivate(gpc);
 		goto out;
 	}
 
 	do {
-		ret = kvm_gpc_activate(kvm, gpc, NULL, KVM_HOST_USES_PFN, gpa,
-				       PAGE_SIZE);
+		ret = kvm_gpc_activate(gpc, gpa, PAGE_SIZE);
 		if (ret)
 			goto out;
 
@@ -323,8 +322,8 @@ static void kvm_xen_update_runstate_guest(struct kvm_vcpu *v, bool atomic)
 			 * to the second page now because the guest changed to
 			 * 64-bit mode, the second GPC won't have been set up.
 			 */
-			if (kvm_gpc_activate(v->kvm, gpc2, NULL, KVM_HOST_USES_PFN,
-					     gpc1->gpa + user_len1, user_len2))
+			if (kvm_gpc_activate(gpc2, gpc1->gpa + user_len1,
+					     user_len2))
 				return;
 
 			/*
@@ -711,15 +710,13 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 			     offsetof(struct compat_vcpu_info, time));
 
 		if (data->u.gpa == GPA_INVALID) {
-			kvm_gpc_deactivate(vcpu->kvm, &vcpu->arch.xen.vcpu_info_cache);
+			kvm_gpc_deactivate(&vcpu->arch.xen.vcpu_info_cache);
 			r = 0;
 			break;
 		}
 
-		r = kvm_gpc_activate(vcpu->kvm,
-				     &vcpu->arch.xen.vcpu_info_cache, NULL,
-				     KVM_HOST_USES_PFN, data->u.gpa,
-				     sizeof(struct vcpu_info));
+		r = kvm_gpc_activate(&vcpu->arch.xen.vcpu_info_cache,
+				     data->u.gpa, sizeof(struct vcpu_info));
 		if (!r)
 			kvm_make_request(KVM_REQ_CLOCK_UPDATE, vcpu);
 
@@ -727,15 +724,13 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 
 	case KVM_XEN_VCPU_ATTR_TYPE_VCPU_TIME_INFO:
 		if (data->u.gpa == GPA_INVALID) {
-			kvm_gpc_deactivate(vcpu->kvm,
-					   &vcpu->arch.xen.vcpu_time_info_cache);
+			kvm_gpc_deactivate(&vcpu->arch.xen.vcpu_time_info_cache);
 			r = 0;
 			break;
 		}
 
-		r = kvm_gpc_activate(vcpu->kvm,
-				     &vcpu->arch.xen.vcpu_time_info_cache,
-				     NULL, KVM_HOST_USES_PFN, data->u.gpa,
+		r = kvm_gpc_activate(&vcpu->arch.xen.vcpu_time_info_cache,
+				     data->u.gpa,
 				     sizeof(struct pvclock_vcpu_time_info));
 		if (!r)
 			kvm_make_request(KVM_REQ_CLOCK_UPDATE, vcpu);
@@ -751,10 +746,8 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 		if (data->u.gpa == GPA_INVALID) {
 			r = 0;
 		deactivate_out:
-			kvm_gpc_deactivate(vcpu->kvm,
-					   &vcpu->arch.xen.runstate_cache);
-			kvm_gpc_deactivate(vcpu->kvm,
-					   &vcpu->arch.xen.runstate2_cache);
+			kvm_gpc_deactivate(&vcpu->arch.xen.runstate_cache);
+			kvm_gpc_deactivate(&vcpu->arch.xen.runstate2_cache);
 			break;
 		}
 
@@ -770,20 +763,18 @@ int kvm_xen_vcpu_set_attr(struct kvm_vcpu *vcpu, struct kvm_xen_vcpu_attr *data)
 
 		/* How much fits in the (first) page? */
 		sz1 = PAGE_SIZE - (data->u.gpa & ~PAGE_MASK);
-		r = kvm_gpc_activate(vcpu->kvm, &vcpu->arch.xen.runstate_cache,
-				     NULL, KVM_HOST_USES_PFN, data->u.gpa, sz1);
+		r = kvm_gpc_activate(&vcpu->arch.xen.runstate_cache,
+				     data->u.gpa, sz1);
 		if (r)
 			goto deactivate_out;
 
 		/* Either map the second page, or deactivate the second GPC */
 		if (sz1 >= sz) {
-			kvm_gpc_deactivate(vcpu->kvm,
-					   &vcpu->arch.xen.runstate2_cache);
+			kvm_gpc_deactivate(&vcpu->arch.xen.runstate2_cache);
 		} else {
 			sz2 = sz - sz1;
 			BUG_ON((data->u.gpa + sz1) & ~PAGE_MASK);
-			r = kvm_gpc_activate(vcpu->kvm, &vcpu->arch.xen.runstate2_cache,
-					     NULL, KVM_HOST_USES_PFN,
+			r = kvm_gpc_activate(&vcpu->arch.xen.runstate2_cache,
 					     data->u.gpa + sz1, sz2);
 			if (r)
 				goto deactivate_out;
@@ -2051,10 +2042,14 @@ void kvm_xen_init_vcpu(struct kvm_vcpu *vcpu)
 
 	timer_setup(&vcpu->arch.xen.poll_timer, cancel_evtchn_poll, 0);
 
-	kvm_gpc_init(&vcpu->arch.xen.runstate_cache);
-	kvm_gpc_init(&vcpu->arch.xen.runstate2_cache);
-	kvm_gpc_init(&vcpu->arch.xen.vcpu_info_cache);
-	kvm_gpc_init(&vcpu->arch.xen.vcpu_time_info_cache);
+	kvm_gpc_init(&vcpu->arch.xen.runstate_cache, vcpu->kvm, NULL,
+		     KVM_HOST_USES_PFN);
+	kvm_gpc_init(&vcpu->arch.xen.runstate2_cache, vcpu->kvm, NULL,
+		     KVM_HOST_USES_PFN);
+	kvm_gpc_init(&vcpu->arch.xen.vcpu_info_cache, vcpu->kvm, NULL,
+		     KVM_HOST_USES_PFN);
+	kvm_gpc_init(&vcpu->arch.xen.vcpu_time_info_cache, vcpu->kvm, NULL,
+		     KVM_HOST_USES_PFN);
 }
 
 void kvm_xen_destroy_vcpu(struct kvm_vcpu *vcpu)
@@ -2062,10 +2057,10 @@ void kvm_xen_destroy_vcpu(struct kvm_vcpu *vcpu)
 	if (kvm_xen_timer_enabled(vcpu))
 		kvm_xen_stop_timer(vcpu);
 
-	kvm_gpc_deactivate(vcpu->kvm, &vcpu->arch.xen.runstate_cache);
-	kvm_gpc_deactivate(vcpu->kvm, &vcpu->arch.xen.runstate2_cache);
-	kvm_gpc_deactivate(vcpu->kvm, &vcpu->arch.xen.vcpu_info_cache);
-	kvm_gpc_deactivate(vcpu->kvm, &vcpu->arch.xen.vcpu_time_info_cache);
+	kvm_gpc_deactivate(&vcpu->arch.xen.runstate_cache);
+	kvm_gpc_deactivate(&vcpu->arch.xen.runstate2_cache);
+	kvm_gpc_deactivate(&vcpu->arch.xen.vcpu_info_cache);
+	kvm_gpc_deactivate(&vcpu->arch.xen.vcpu_time_info_cache);
 
 	del_timer_sync(&vcpu->arch.xen.poll_timer);
 }
@@ -2073,7 +2068,7 @@ void kvm_xen_destroy_vcpu(struct kvm_vcpu *vcpu)
 void kvm_xen_init_vm(struct kvm *kvm)
 {
 	idr_init(&kvm->arch.xen.evtchn_ports);
-	kvm_gpc_init(&kvm->arch.xen.shinfo_cache);
+	kvm_gpc_init(&kvm->arch.xen.shinfo_cache, kvm, NULL, KVM_HOST_USES_PFN);
 }
 
 void kvm_xen_destroy_vm(struct kvm *kvm)
@@ -2081,7 +2076,7 @@ void kvm_xen_destroy_vm(struct kvm *kvm)
 	struct evtchnfd *evtchnfd;
 	int i;
 
-	kvm_gpc_deactivate(kvm, &kvm->arch.xen.shinfo_cache);
+	kvm_gpc_deactivate(&kvm->arch.xen.shinfo_cache);
 
 	idr_for_each_entry(&kvm->arch.xen.evtchn_ports, evtchnfd, i) {
 		if (!evtchnfd->deliver.port.port)
