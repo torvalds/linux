@@ -264,8 +264,7 @@
 &nand {
 	status = "okay";
 
-	nandcs@0 {
-		compatible = "qcom,nandcs";
+	nand@0 {
 		reg = <0>;
 
 		nand-ecc-strength = <4>;
