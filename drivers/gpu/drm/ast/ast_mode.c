@@ -1200,20 +1200,6 @@ out:
 	return drm_atomic_add_affected_planes(state, crtc);
 }
 
-static void ast_crtc_helper_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_state *state)
-{
-	struct drm_device *dev = crtc->dev;
-	struct ast_private *ast = to_ast_private(dev);
-
-	/*
-	 * Concurrent operations could possibly trigger a call to
-	 * drm_connector_helper_funcs.get_modes by trying to read the
-	 * display modes. Protect access to I/O registers by acquiring
-	 * the I/O-register lock. Released in atomic_flush().
-	 */
-	mutex_lock(&ast->ioregs_lock);
-}
-
 static void
 ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 			     struct drm_atomic_state *state)
@@ -1241,8 +1227,6 @@ ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 	//Set Aspeed Display-Port
 	if (ast->tx_chip_types & AST_TX_ASTDP_BIT)
 		ast_dp_set_mode(crtc, vbios_mode_info);
-
-	mutex_unlock(&ast->ioregs_lock);
 }
 
 static void
@@ -1301,7 +1285,6 @@ ast_crtc_helper_atomic_disable(struct drm_crtc *crtc,
 static const struct drm_crtc_helper_funcs ast_crtc_helper_funcs = {
 	.mode_valid = ast_crtc_helper_mode_valid,
 	.atomic_check = ast_crtc_helper_atomic_check,
-	.atomic_begin = ast_crtc_helper_atomic_begin,
 	.atomic_flush = ast_crtc_helper_atomic_flush,
 	.atomic_enable = ast_crtc_helper_atomic_enable,
 	.atomic_disable = ast_crtc_helper_atomic_disable,
@@ -1771,8 +1754,23 @@ static int ast_astdp_output_init(struct ast_private *ast)
  * Mode config
  */
 
+static void ast_mode_config_helper_atomic_commit_tail(struct drm_atomic_state *state)
+{
+	struct ast_private *ast = to_ast_private(state->dev);
+
+	/*
+	 * Concurrent operations could possibly trigger a call to
+	 * drm_connector_helper_funcs.get_modes by trying to read the
+	 * display modes. Protect access to I/O registers by acquiring
+	 * the I/O-register lock. Released in atomic_flush().
+	 */
+	mutex_lock(&ast->ioregs_lock);
+	drm_atomic_helper_commit_tail_rpm(state);
+	mutex_unlock(&ast->ioregs_lock);
+}
+
 static const struct drm_mode_config_helper_funcs ast_mode_config_helper_funcs = {
-	.atomic_commit_tail = drm_atomic_helper_commit_tail_rpm,
+	.atomic_commit_tail = ast_mode_config_helper_atomic_commit_tail,
 };
 
 static const struct drm_mode_config_funcs ast_mode_config_funcs = {
