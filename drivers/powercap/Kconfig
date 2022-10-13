@@ -44,6 +44,19 @@ config IDLE_INJECT
 	  synchronously on a set of specified CPUs or alternatively
 	  on a per CPU basis.
 
+config ARM_SCMI_POWERCAP
+	tristate "ARM SCMI Powercap driver"
+	depends on ARM_SCMI_PROTOCOL
+	help
+	  This enables support for the ARM Powercap based on ARM SCMI
+	  Powercap protocol.
+
+	  ARM SCMI Powercap protocol allows power limits to be enforced
+	  and monitored against the SCMI Powercap domains advertised as
+	  available by the SCMI platform firmware.
+
+	  When compiled as module it will be called arm_scmi_powercap.ko.
+
 config DTPM
 	bool "Power capping for Dynamic Thermal Power Management (EXPERIMENTAL)"
 	depends on OF
