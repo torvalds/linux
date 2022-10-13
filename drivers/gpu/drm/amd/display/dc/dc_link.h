@@ -138,6 +138,10 @@ struct dc_panel_config {
 		bool disable_dsc_edp;
 		unsigned int force_dsc_edp_policy;
 	} dsc;
+	/* eDP ILR */
+	struct ilr {
+		bool optimize_edp_link_rate; /* eDP ILR */
+	} ilr;
 };
 /*
  * A link contains one or more sinks and their connected status.

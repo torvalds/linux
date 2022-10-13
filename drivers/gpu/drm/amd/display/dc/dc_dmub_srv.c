@@ -30,6 +30,7 @@
 #include "dc_hw_types.h"
 #include "core_types.h"
 #include "../basics/conversion.h"
+#include "cursor_reg_cache.h"
 
 #define CTX dc_dmub_srv->ctx
 #define DC_LOGGER CTX->logger
@@ -780,7 +781,7 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 		// Store the original watermark value for this SubVP config so we can lower it when the
 		// MCLK switch starts
 		wm_val_refclk = context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns *
-				dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000 / 1000;
+				(dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000) / 1000;
 
 		cmd.fw_assisted_mclk_switch_v2.config_data.watermark_a_cache = wm_val_refclk < 0xFFFF ? wm_val_refclk : 0xFFFF;
 	}
@@ -879,4 +880,148 @@ void dc_dmub_srv_log_diagnostic_data(struct dc_dmub_srv *dc_dmub_srv)
 		diag_data.is_traceport_en,
 		diag_data.is_cw0_enabled,
 		diag_data.is_cw6_enabled);
+}
+
+static bool dc_dmub_should_update_cursor_data(struct pipe_ctx *pipe_ctx)
+{
+	if (pipe_ctx->plane_state != NULL) {
+		if (pipe_ctx->plane_state->address.type == PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
+			return false;
+	}
+
+	if ((pipe_ctx->stream->link->psr_settings.psr_version == DC_PSR_VERSION_SU_1 ||
+		pipe_ctx->stream->link->psr_settings.psr_version == DC_PSR_VERSION_1) &&
+		pipe_ctx->stream->ctx->dce_version >= DCN_VERSION_3_1)
+		return true;
+
+	return false;
+}
+
+static void dc_build_cursor_update_payload0(
+		struct pipe_ctx *pipe_ctx, uint8_t p_idx,
+		struct dmub_cmd_update_cursor_payload0 *payload)
+{
+	struct hubp *hubp = pipe_ctx->plane_res.hubp;
+	unsigned int panel_inst = 0;
+
+	if (!dc_get_edp_link_panel_inst(hubp->ctx->dc,
+		pipe_ctx->stream->link, &panel_inst))
+		return;
+
+	/* Payload: Cursor Rect is built from position & attribute
+	 * x & y are obtained from postion
+	 */
+	payload->cursor_rect.x = hubp->cur_rect.x;
+	payload->cursor_rect.y = hubp->cur_rect.y;
+	/* w & h are obtained from attribute */
+	payload->cursor_rect.width  = hubp->cur_rect.w;
+	payload->cursor_rect.height = hubp->cur_rect.h;
+
+	payload->enable      = hubp->pos.cur_ctl.bits.cur_enable;
+	payload->pipe_idx    = p_idx;
+	payload->cmd_version = DMUB_CMD_PSR_CONTROL_VERSION_1;
+	payload->panel_inst  = panel_inst;
+}
+
+static void dc_send_cmd_to_dmu(struct dc_dmub_srv *dmub_srv,
+		union dmub_rb_cmd *cmd)
+{
+	dc_dmub_srv_cmd_queue(dmub_srv, cmd);
+	dc_dmub_srv_cmd_execute(dmub_srv);
+	dc_dmub_srv_wait_idle(dmub_srv);
+}
+
+static void dc_build_cursor_position_update_payload0(
+		struct dmub_cmd_update_cursor_payload0 *pl, const uint8_t p_idx,
+		const struct hubp *hubp, const struct dpp *dpp)
+{
+	/* Hubp */
+	pl->position_cfg.pHubp.cur_ctl.raw  = hubp->pos.cur_ctl.raw;
+	pl->position_cfg.pHubp.position.raw = hubp->pos.position.raw;
+	pl->position_cfg.pHubp.hot_spot.raw = hubp->pos.hot_spot.raw;
+	pl->position_cfg.pHubp.dst_offset.raw = hubp->pos.dst_offset.raw;
+
+	/* dpp */
+	pl->position_cfg.pDpp.cur0_ctl.raw = dpp->pos.cur0_ctl.raw;
+	pl->position_cfg.pipe_idx = p_idx;
+}
+
+static void dc_build_cursor_attribute_update_payload1(
+		struct dmub_cursor_attributes_cfg *pl_A, const uint8_t p_idx,
+		const struct hubp *hubp, const struct dpp *dpp)
+{
+	/* Hubp */
+	pl_A->aHubp.SURFACE_ADDR_HIGH = hubp->att.SURFACE_ADDR_HIGH;
+	pl_A->aHubp.SURFACE_ADDR = hubp->att.SURFACE_ADDR;
+	pl_A->aHubp.cur_ctl.raw  = hubp->att.cur_ctl.raw;
+	pl_A->aHubp.size.raw     = hubp->att.size.raw;
+	pl_A->aHubp.settings.raw = hubp->att.settings.raw;
+
+	/* dpp */
+	pl_A->aDpp.cur0_ctl.raw = dpp->att.cur0_ctl.raw;
+}
+
+/**
+ * ***************************************************************************************
+ * dc_send_update_cursor_info_to_dmu: Populate the DMCUB Cursor update info command
+ *
+ * This function would store the cursor related information and pass it into dmub
+ *
+ * @param [in] pCtx: pipe context
+ * @param [in] pipe_idx: pipe index
+ *
+ * @return: void
+ *
+ * ***************************************************************************************
+ */
+
+void dc_send_update_cursor_info_to_dmu(
+		struct pipe_ctx *pCtx, uint8_t pipe_idx)
+{
+	union dmub_rb_cmd cmd = { 0 };
+	union dmub_cmd_update_cursor_info_data *update_cursor_info =
+					&cmd.update_cursor_info.update_cursor_info_data;
+
+	if (!dc_dmub_should_update_cursor_data(pCtx))
+		return;
+	/*
+	 * Since we use multi_cmd_pending for dmub command, the 2nd command is
+	 * only assigned to store cursor attributes info.
+	 * 1st command can view as 2 parts, 1st is for PSR/Replay data, the other
+	 * is to store cursor position info.
+	 *
+	 * Command heaer type must be the same type if using  multi_cmd_pending.
+	 * Besides, while process 2nd command in DMU, the sub type is useless.
+	 * So it's meanless to pass the sub type header with different type.
+	 */
+
+	{
+		/* Build Payload#0 Header */
+		cmd.update_cursor_info.header.type = DMUB_CMD__UPDATE_CURSOR_INFO;
+		cmd.update_cursor_info.header.payload_bytes =
+				sizeof(cmd.update_cursor_info.update_cursor_info_data);
+		cmd.update_cursor_info.header.multi_cmd_pending = 1; /* To combine multi dmu cmd, 1st cmd */
+
+		/* Prepare Payload */
+		dc_build_cursor_update_payload0(pCtx, pipe_idx, &update_cursor_info->payload0);
+
+		dc_build_cursor_position_update_payload0(&update_cursor_info->payload0, pipe_idx,
+				pCtx->plane_res.hubp, pCtx->plane_res.dpp);
+		/* Send update_curosr_info to queue */
+		dc_dmub_srv_cmd_queue(pCtx->stream->ctx->dmub_srv, &cmd);
+	}
+	{
+		/* Build Payload#1 Header */
+		memset(update_cursor_info, 0, sizeof(union dmub_cmd_update_cursor_info_data));
+		cmd.update_cursor_info.header.type = DMUB_CMD__UPDATE_CURSOR_INFO;
+		cmd.update_cursor_info.header.payload_bytes = sizeof(struct cursor_attributes_cfg);
+		cmd.update_cursor_info.header.multi_cmd_pending = 0; /* Indicate it's the last command. */
+
+		dc_build_cursor_attribute_update_payload1(
+				&cmd.update_cursor_info.update_cursor_info_data.payload1.attribute_cfg,
+				pipe_idx, pCtx->plane_res.hubp, pCtx->plane_res.dpp);
+
+		/* Combine 2nd cmds update_curosr_info to DMU */
+		dc_send_cmd_to_dmu(pCtx->stream->ctx->dmub_srv, &cmd);
+	}
 }
