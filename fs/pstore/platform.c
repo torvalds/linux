@@ -393,6 +393,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 	const char	*why;
 	unsigned int	part = 1;
 	unsigned long	flags = 0;
+	int		saved_ret = 0;
 	int		ret;
 
 	why = kmsg_dump_reason_str(reason);
@@ -463,12 +464,21 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		if (ret == 0 && reason == KMSG_DUMP_OOPS) {
 			pstore_new_entry = 1;
 			pstore_timer_kick();
+		} else {
+			/* Preserve only the first non-zero returned value. */
+			if (!saved_ret)
+				saved_ret = ret;
 		}
 
 		total += record.size;
 		part++;
 	}
 	spin_unlock_irqrestore(&psinfo->buf_lock, flags);
+
+	if (saved_ret) {
+		pr_err_once("backend (%s) writing error (%d)\n", psinfo->name,
+			    saved_ret);
+	}
 }
 
 static struct kmsg_dumper pstore_dumper = {
