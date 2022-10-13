@@ -21,13 +21,27 @@ There are now two ways to integrate the drivers code into the kernel target bran
 Merge the stmems_iio_github/master with your target kernel source branch (i.e branch linux-5.4.y):
 
 ```bash
-git merge --no-fork-point \
+git merge --allow-unrelated-histories \
           linux-5.4.y \
           stmems_iio_github/master
 ```
 
 ### rebase
 Rebase the stmems_iio_github/master on top of your target kernel source branch (i.e branch linux-5.4.y):
+
+```bash
+git rebase --no-fork-point \
+           linux-5.4.y \
+           stmems_iio_github/master
+```
+
+Note: older git versions (i.e.: 2.7.4) would require to use sligthly different options:
+
+```bash
+git merge --no-fork-point \
+          linux-5.4.y \
+          stmems_iio_github/master
+```
 
 ```bash
 git rebase -Xno-renames \
