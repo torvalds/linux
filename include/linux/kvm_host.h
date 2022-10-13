@@ -1334,18 +1334,6 @@ bool kvm_gpc_check(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned long len);
 int kvm_gpc_refresh(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned long len);
 
 /**
- * kvm_gpc_unmap - temporarily unmap a gfn_to_pfn_cache.
- *
- * @kvm:	   pointer to kvm instance.
- * @gpc:	   struct gfn_to_pfn_cache object.
- *
- * This unmaps the referenced page. The cache is left in the invalid state
- * but at least the mapping from GPA to userspace HVA will remain cached
- * and can be reused on a subsequent refresh.
- */
-void kvm_gpc_unmap(struct kvm *kvm, struct gfn_to_pfn_cache *gpc);
-
-/**
  * kvm_gpc_deactivate - deactivate and unlink a gfn_to_pfn_cache.
  *
  * @gpc:	   struct gfn_to_pfn_cache object.
