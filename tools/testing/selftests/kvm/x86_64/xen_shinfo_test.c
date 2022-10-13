@@ -132,7 +132,7 @@ struct {
 	struct kvm_irq_routing_entry entries[2];
 } irq_routes;
 
-bool guest_saw_irq;
+static volatile bool guest_saw_irq;
 
 static void evtchn_handler(struct ex_regs *regs)
 {
