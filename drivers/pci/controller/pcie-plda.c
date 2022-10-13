@@ -990,6 +990,40 @@ static int plda_pcie_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int __maybe_unused plda_pcie_suspend_noirq(struct device *dev)
+{
+	struct plda_pcie *pcie = dev_get_drvdata(dev);
+
+	if (!pcie)
+		return 0;
+
+	clk_bulk_disable_unprepare(pcie->num_clks, pcie->clks);
+
+	return 0;
+}
+
+static int __maybe_unused plda_pcie_resume_noirq(struct device *dev)
+{
+	struct plda_pcie *pcie = dev_get_drvdata(dev);
+	int ret;
+
+	if (!pcie)
+		return 0;
+
+	ret = clk_bulk_prepare_enable(pcie->num_clks, pcie->clks);
+	if (ret)
+		dev_err(dev, "Failed to enable clocks\n");
+
+	return ret;
+}
+
+static const struct dev_pm_ops plda_pcie_pm_ops = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(plda_pcie_suspend_noirq,
+				      plda_pcie_resume_noirq)
+};
+#endif
+
 static const struct of_device_id plda_pcie_of_match[] = {
 	{ .compatible = "plda,pci-xpressrich3-axi"},
 	{ .compatible = "starfive,jh7110-pcie"},
@@ -1001,6 +1035,9 @@ static struct platform_driver plda_pcie_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.of_match_table = of_match_ptr(plda_pcie_of_match),
+#ifdef CONFIG_PM_SLEEP
+		.pm = &plda_pcie_pm_ops,
+#endif
 	},
 	.probe = plda_pcie_probe,
 	.remove = plda_pcie_remove,
