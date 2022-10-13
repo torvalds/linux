@@ -1025,6 +1025,7 @@ static const struct usbmisc_ops imx7ulp_usbmisc_ops = {
 	.set_wakeup = usbmisc_imx7d_set_wakeup,
 	.hsic_set_connect = usbmisc_imx6_hsic_set_connect,
 	.hsic_set_clk = usbmisc_imx6_hsic_set_clk,
+	.power_lost_check = usbmisc_imx7d_power_lost_check,
 };
 
 static inline bool is_imx53_usbmisc(struct imx_usbmisc_data *data)
