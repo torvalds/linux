@@ -15,7 +15,7 @@
 
 struct msr_data {
 	uint32_t idx;
-	bool available;
+	bool fault_expected;
 	bool write;
 	u64 write_val;
 };
@@ -38,10 +38,10 @@ static void guest_msr(struct msr_data *msr)
 	else
 		vector = wrmsr_safe(msr->idx, msr->write_val);
 
-	if (msr->available)
-		GUEST_ASSERT_2(!vector, msr->idx, vector);
-	else
+	if (msr->fault_expected)
 		GUEST_ASSERT_2(vector == GP_VECTOR, msr->idx, vector);
+	else
+		GUEST_ASSERT_2(!vector, msr->idx, vector);
 	GUEST_DONE();
 }
 
@@ -134,13 +134,13 @@ static void guest_test_msrs_access(void)
 			 * Only available when Hyper-V identification is set
 			 */
 			msr->idx = HV_X64_MSR_GUEST_OS_ID;
-			msr->write = 0;
-			msr->available = 0;
+			msr->write = false;
+			msr->fault_expected = true;
 			break;
 		case 1:
 			msr->idx = HV_X64_MSR_HYPERCALL;
-			msr->write = 0;
-			msr->available = 0;
+			msr->write = false;
+			msr->fault_expected = true;
 			break;
 		case 2:
 			feat->eax |= HV_MSR_HYPERCALL_AVAILABLE;
@@ -149,118 +149,118 @@ static void guest_test_msrs_access(void)
 			 * HV_X64_MSR_HYPERCALL available.
 			 */
 			msr->idx = HV_X64_MSR_GUEST_OS_ID;
-			msr->write = 1;
+			msr->write = true;
 			msr->write_val = HYPERV_LINUX_OS_ID;
-			msr->available = 1;
+			msr->fault_expected = false;
 			break;
 		case 3:
 			msr->idx = HV_X64_MSR_GUEST_OS_ID;
-			msr->write = 0;
-			msr->available = 1;
+			msr->write = false;
+			msr->fault_expected = false;
 			break;
 		case 4:
 			msr->idx = HV_X64_MSR_HYPERCALL;
-			msr->write = 0;
-			msr->available = 1;
+			msr->write = false;
+			msr->fault_expected = false;
 			break;
 
 		case 5:
 			msr->idx = HV_X64_MSR_VP_RUNTIME;
-			msr->write = 0;
-			msr->available = 0;
+			msr->write = false;
+			msr->fault_expected = true;
 			break;
 		case 6:
 			feat->eax |= HV_MSR_VP_RUNTIME_AVAILABLE;
 			msr->idx = HV_X64_MSR_VP_RUNTIME;
-			msr->write = 0;
-			msr->available = 1;
+			msr->write = false;
+			msr->fault_expected = false;
 			break;
 		case 7:
 			/* Read only */
 			msr->idx = HV_X64_MSR_VP_RUNTIME;
-			msr->write = 1;
+			msr->write = true;
 			msr->write_val = 1;
-			msr->available = 0;
+			msr->fault_expected = true;
 			break;
 
 		case 8:
 			msr->idx = HV_X64_MSR_TIME_REF_COUNT;
-			msr->write = 0;
-			msr->available = 0;
+			msr->write = false;
+			msr->fault_expected = true;
 			break;
 		case 9:
 			feat->eax |= HV_MSR_TIME_REF_COUNT_AVAILABLE;
 			msr->idx = HV_X64_MSR_TIME_REF_COUNT;
-			msr->write = 0;
-			msr->available = 1;
+			msr->write = false;
+			msr->fault_expected = false;
 			break;
 		case 10:
 			/* Read only */
 			msr->idx = HV_X64_MSR_TIME_REF_COUNT;
-			msr->write = 1;
+			msr->write = true;
 			msr->write_val = 1;
-			msr->available = 0;
+			msr->fault_expected = true;
 			break;
 
 		case 11:
 			msr->idx = HV_X64_MSR_VP_INDEX;
-			msr->write = 0;
-			msr->available = 0;
+			msr->write = false;
+			msr->fault_expected = true;
 			break;
 		case 12:
 			feat->eax |= HV_MSR_VP_INDEX_AVAILABLE;
 			msr->idx = HV_X64_MSR_VP_INDEX;
-			msr->write = 0;
-			msr->available = 1;
+			msr->write = false;
+			msr->fault_expected = false;
 			break;
 		case 13:
 			/* Read only */
 			msr->idx = HV_X64_MSR_VP_INDEX;
-			msr->write = 1;
+			msr->write = true;
 			msr->write_val = 1;
-			msr->available = 0;
+			msr->fault_expected = true;
 			break;
 
 		case 14:
 			msr->idx = HV_X64_MSR_RESET;
-			msr->write = 0;
-			msr->available = 0;
+			msr->write = false;
+			msr->fault_expected = true;
 			break;
 		case 15:
 			feat->eax |= HV_MSR_RESET_AVAILABLE;
 			msr->idx = HV_X64_MSR_RESET;
-			msr->write = 0;
-			msr->available = 1;
+			msr->write = false;
+			msr->fault_expected = false;
 			break;
 		case 16:
 			msr->idx = HV_X64_MSR_RESET;
-			msr->write = 1;
+			msr->write = true;
 			msr->write_val = 0;
-			msr->available = 1;
+			msr->fault_expected = false;
 			break;
 
 		case 17:
 			msr->idx = HV_X64_MSR_REFERENCE_TSC;
-			msr->write = 0;
-			msr->available = 0;
+			msr->write = false;
+			msr->fault_expected = true;
 			break;
 		case 18:
 			feat->eax |= HV_MSR_REFERENCE_TSC_AVAILABLE;
 			msr->idx = HV_X64_MSR_REFERENCE_TSC;
-			msr->write = 0;
-			msr->available = 1;
+			msr->write = false;
+			msr->fault_expected = false;
 			break;
 		case 19:
 			msr->idx = HV_X64_MSR_REFERENCE_TSC;
-			msr->write = 1;
+			msr->write = true;
 			msr->write_val = 0;
-			msr->available = 1;
+			msr->fault_expected = false;
 			break;
 
 		case 20:
 			msr->idx = HV_X64_MSR_EOM;
-			msr->write = 0;
-			msr->available = 0;
+			msr->write = false;
+			msr->fault_expected = true;
 			break;
 		case 21:
 			/*
@@ -268,146 +268,146 @@ static void guest_test_msrs_access(void)
 			 * capability enabled and guest visible CPUID bit unset.
 			 */
 			msr->idx = HV_X64_MSR_EOM;
-			msr->write = 0;
-			msr->available = 0;
+			msr->write = false;
+			msr->fault_expected = true;
 			break;
 		case 22:
 			feat->eax |= HV_MSR_SYNIC_AVAILABLE;
 			msr->idx = HV_X64_MSR_EOM;
-			msr->write = 0;
-			msr->available = 1;
+			msr->write = false;
+			msr->fault_expected = false;
 			break;
 		case 23:
 			msr->idx = HV_X64_MSR_EOM;
-			msr->write = 1;
+			msr->write = true;
 			msr->write_val = 0;
-			msr->available = 1;
+			msr->fault_expected = false;
 			break;
 
 		case 24:
 			msr->idx = HV_X64_MSR_STIMER0_CONFIG;
-			msr->write = 0;
-			msr->available = 0;
+			msr->write = false;
+			msr->fault_expected = true;
 			break;
 		case 25:
 			feat->eax |= HV_MSR_SYNTIMER_AVAILABLE;
 			msr->idx = HV_X64_MSR_STIMER0_CONFIG;
-			msr->write = 0;
-			msr->available = 1;
+			msr->write = false;
+			msr->fault_expected = false;
 			break;
 		case 26:
 			msr->idx = HV_X64_MSR_STIMER0_CONFIG;
-			msr->write = 1;
+			msr->write = true;
 			msr->write_val = 0;
-			msr->available = 1;
+			msr->fault_expected = false;
 			break;
 		case 27:
 			/* Direct mode test */
 			msr->idx = HV_X64_MSR_STIMER0_CONFIG;
-			msr->write = 1;
+			msr->write = true;
 			msr->write_val = 1 << 12;
-			msr->available = 0;
+			msr->fault_expected = true;
 			break;
 		case 28:
 			feat->edx |= HV_STIMER_DIRECT_MODE_AVAILABLE;
 			msr->idx = HV_X64_MSR_STIMER0_CONFIG;
-			msr->write = 1;
+			msr->write = true;
 			msr->write_val = 1 << 12;
-			msr->available = 1;
+			msr->fault_expected = false;
 			break;
 
 		case 29:
 			msr->idx = HV_X64_MSR_EOI;
-			msr->write = 0;
-			msr->available = 0;
+			msr->write = false;
+			msr->fault_expected = true;
 			break;
 		case 30:
 			feat->eax |= HV_MSR_APIC_ACCESS_AVAILABLE;
 			msr->idx = HV_X64_MSR_EOI;
-			msr->write = 1;
+			msr->write = true;
 			msr->write_val = 1;
-			msr->available = 1;
+			msr->fault_expected = false;
 			break;
 
 		case 31:
 			msr->idx = HV_X64_MSR_TSC_FREQUENCY;
-			msr->write = 0;
-			msr->available = 0;
+			msr->write = false;
+			msr->fault_expected = true;
 			break;
 		case 32:
 			feat->eax |= HV_ACCESS_FREQUENCY_MSRS;
 			msr->idx = HV_X64_MSR_TSC_FREQUENCY;
-			msr->write = 0;
-			msr->available = 1;
+			msr->write = false;
+			msr->fault_expected = false;
 			break;
 		case 33:
 			/* Read only */
 			msr->idx = HV_X64_MSR_TSC_FREQUENCY;
-			msr->write = 1;
+			msr->write = true;
 			msr->write_val = 1;
-			msr->available = 0;
+			msr->fault_expected = true;
 			break;
 
 		case 34:
 			msr->idx = HV_X64_MSR_REENLIGHTENMENT_CONTROL;
-			msr->write = 0;
-			msr->available = 0;
+			msr->write = false;
+			msr->fault_expected = true;
 			break;
 		case 35:
 			feat->eax |= HV_ACCESS_REENLIGHTENMENT;
 			msr->idx = HV_X64_MSR_REENLIGHTENMENT_CONTROL;
-			msr->write = 0;
-			msr->available = 1;
+			msr->write = false;
+			msr->fault_expected = false;
 			break;
 		case 36:
 			msr->idx = HV_X64_MSR_REENLIGHTENMENT_CONTROL;
-			msr->write = 1;
+			msr->write = true;
 			msr->write_val = 1;
-			msr->available = 1;
+			msr->fault_expected = false;
 			break;
 		case 37:
 			/* Can only write '0' */
 			msr->idx = HV_X64_MSR_TSC_EMULATION_STATUS;
-			msr->write = 1;
+			msr->write = true;
 			msr->write_val = 1;
-			msr->available = 0;
+			msr->fault_expected = true;
 			break;
 
 		case 38:
 			msr->idx = HV_X64_MSR_CRASH_P0;
-			msr->write = 0;
-			msr->available = 0;
+			msr->write = false;
+			msr->fault_expected = true;
 			break;
 		case 39:
 			feat->edx |= HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE;
 			msr->idx = HV_X64_MSR_CRASH_P0;
-			msr->write = 0;
-			msr->available = 1;
+			msr->write = false;
+			msr->fault_expected = false;
 			break;
 		case 40:
 			msr->idx = HV_X64_MSR_CRASH_P0;
-			msr->write = 1;
+			msr->write = true;
 			msr->write_val = 1;
-			msr->available = 1;
+			msr->fault_expected = false;
 			break;
 
 		case 41:
 			msr->idx = HV_X64_MSR_SYNDBG_STATUS;
-			msr->write = 0;
-			msr->available = 0;
+			msr->write = false;
+			msr->fault_expected = true;
 			break;
 		case 42:
 			feat->edx |= HV_FEATURE_DEBUG_MSRS_AVAILABLE;
 			dbg->eax |= HV_X64_SYNDBG_CAP_ALLOW_KERNEL_DEBUGGING;
 			msr->idx = HV_X64_MSR_SYNDBG_STATUS;
-			msr->write = 0;
-			msr->available = 1;
+			msr->write = false;
+			msr->fault_expected = false;
 			break;
 		case 43:
 			msr->idx = HV_X64_MSR_SYNDBG_STATUS;
-			msr->write = 1;
+			msr->write = true;
 			msr->write_val = 0;
-			msr->available = 1;
+			msr->fault_expected = false;
 			break;
 
 		case 44:
