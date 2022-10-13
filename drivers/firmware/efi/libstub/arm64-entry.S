@@ -8,6 +8,16 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 
+	/*
+	 * The entrypoint of a arm64 bare metal image is at offset #0 of the
+	 * image, so this is a reasonable default for primary_entry_offset.
+	 * Only when the EFI stub is integrated into the core kernel, it is not
+	 * guaranteed that the PE/COFF header has been copied to memory too, so
+	 * in this case, primary_entry_offset should be overridden by the
+	 * linker and point to primary_entry() directly.
+	 */
+	.weak	primary_entry_offset
+
 SYM_CODE_START(efi_enter_kernel)
 	/*
 	 * efi_pe_entry() will have copied the kernel image if necessary and we

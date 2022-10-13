@@ -986,4 +986,8 @@ void efi_retrieve_tpm2_eventlog(void);
 struct screen_info *alloc_screen_info(void);
 void free_screen_info(struct screen_info *si);
 
+void efi_cache_sync_image(unsigned long image_base,
+			  unsigned long alloc_size,
+			  unsigned long code_size);
+
 #endif
