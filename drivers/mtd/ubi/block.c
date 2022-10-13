@@ -354,9 +354,12 @@ static int calc_disk_capacity(struct ubi_volume_info *vi, u64 *disk_capacity)
 	u64 size = vi->used_bytes >> 9;
 
 	if (vi->used_bytes % 512) {
-		pr_warn("UBI: block: volume size is not a multiple of 512, "
-			"last %llu bytes are ignored!\n",
-			vi->used_bytes - (size << 9));
+		if (vi->vol_type == UBI_DYNAMIC_VOLUME)
+			pr_warn("UBI: block: volume size is not a multiple of 512, last %llu bytes are ignored!\n",
+				vi->used_bytes - (size << 9));
+		else
+			pr_info("UBI: block: volume size is not a multiple of 512, last %llu bytes are ignored!\n",
+				vi->used_bytes - (size << 9));
 	}
 
 	if ((sector_t)size != size)
