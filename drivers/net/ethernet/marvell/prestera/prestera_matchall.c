@@ -96,6 +96,8 @@ int prestera_mall_replace(struct prestera_flow_block *block,
 
 	list_for_each_entry(binding, &block->binding_list, list) {
 		err = prestera_span_rule_add(binding, port, block->ingress);
+		if (err == -EEXIST)
+			return err;
 		if (err)
 			goto rollback;
 	}
