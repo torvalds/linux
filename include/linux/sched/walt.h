@@ -191,6 +191,8 @@ extern cpumask_t walt_get_cpus_taken(void);
 
 extern int walt_pause_cpus(struct cpumask *cpus, enum pause_client client);
 extern int walt_resume_cpus(struct cpumask *cpus, enum pause_client client);
+extern int walt_partial_pause_cpus(struct cpumask *cpus, enum pause_client client);
+extern int walt_partial_resume_cpus(struct cpumask *cpus, enum pause_client client);
 #else
 static inline int sched_lpm_disallowed_time(int cpu, u64 *timeout)
 {
@@ -233,6 +235,15 @@ static inline int walt_pause_cpus(struct cpumask *cpus, enum pause_client client
 	return 0;
 }
 static inline int walt_resume_cpus(struct cpumask *cpus, enum pause_client client)
+{
+	return 0;
+}
+
+inline int walt_partial_pause_cpus(struct cpumask *cpus, enum pause_client client)
+{
+	return 0;
+}
+inline int walt_partial_resume_cpus(struct cpumask *cpus, enum pause_client client)
 {
 	return 0;
 }
