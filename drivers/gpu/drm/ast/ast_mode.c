@@ -578,27 +578,28 @@ static const uint32_t ast_primary_plane_formats[] = {
 static int ast_primary_plane_helper_atomic_check(struct drm_plane *plane,
 						 struct drm_atomic_state *state)
 {
+	struct drm_device *dev = plane->dev;
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
 										 plane);
-	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_state *crtc_state = NULL;
 	struct ast_crtc_state *ast_crtc_state;
 	int ret;
 
-	if (!new_plane_state->crtc)
-		return 0;
-
-	crtc_state = drm_atomic_get_new_crtc_state(state,
-						   new_plane_state->crtc);
+	if (new_plane_state->crtc)
+		crtc_state = drm_atomic_get_new_crtc_state(state, new_plane_state->crtc);
 
 	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
 						  DRM_PLANE_NO_SCALING,
 						  DRM_PLANE_NO_SCALING,
 						  false, true);
-	if (ret)
+	if (ret) {
 		return ret;
-
-	if (!new_plane_state->visible)
-		return 0;
+	} else if (!new_plane_state->visible) {
+		if (drm_WARN_ON(dev, new_plane_state->crtc)) /* cannot legally happen */
+			return -EINVAL;
+		else
+			return 0;
+	}
 
 	ast_crtc_state = to_ast_crtc_state(crtc_state);
 
@@ -805,24 +806,18 @@ static int ast_cursor_plane_helper_atomic_check(struct drm_plane *plane,
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
 										 plane);
 	struct drm_framebuffer *fb = new_plane_state->fb;
-	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_state *crtc_state = NULL;
 	int ret;
 
-	if (!new_plane_state->crtc)
-		return 0;
-
-	crtc_state = drm_atomic_get_new_crtc_state(state,
-						   new_plane_state->crtc);
+	if (new_plane_state->crtc)
+		crtc_state = drm_atomic_get_new_crtc_state(state, new_plane_state->crtc);
 
 	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
 						  DRM_PLANE_NO_SCALING,
 						  DRM_PLANE_NO_SCALING,
 						  true, true);
-	if (ret)
+	if (ret || !new_plane_state->visible)
 		return ret;
-
-	if (!new_plane_state->visible)
-		return 0;
 
 	if (fb->width > AST_MAX_HWC_WIDTH || fb->height > AST_MAX_HWC_HEIGHT)
 		return -EINVAL;
