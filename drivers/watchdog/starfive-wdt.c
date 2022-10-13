@@ -107,7 +107,8 @@ MODULE_PARM_DESC(tmr_atboot,
 			__MODULE_STRING(STARFIVE_WATCHDOG_ATBOOT));
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 			__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
-MODULE_PARM_DESC(soft_noboot, "Watchdog action, set to 1 to ignore reboots, 0 to reboot (default 0)");
+MODULE_PARM_DESC(soft_noboot,
+	"Watchdog action, set to 1 to ignore reboots, 0 to reboot (default 0)");
 
 struct starfive_wdt_variant_t {
 	u32 unlock_key;
@@ -184,10 +185,8 @@ static const struct starfive_wdt_variant drv_data_jh7110 = {
 };
 
 static const struct of_device_id starfive_wdt_match[] = {
-	{ .compatible = "starfive,jh7100-wdt",
-		.data = &drv_data_jh7100 },
-	{ .compatible = "starfive,jh7110-wdt",
-		.data = &drv_data_jh7110 },
+	{ .compatible = "starfive,jh7100-wdt", .data = &drv_data_jh7100 },
+	{ .compatible = "starfive,jh7110-wdt", .data = &drv_data_jh7110 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, starfive_wdt_match);
@@ -501,6 +500,14 @@ static int starfive_wdt_stop(struct watchdog_device *wdd)
 
 	spin_unlock(&wdt->lock);
 
+	return 0;
+}
+
+static int starfive_wdt_pm_stop(struct watchdog_device *wdd)
+{
+	struct starfive_wdt *wdt = watchdog_get_drvdata(wdd);
+
+	starfive_wdt_stop(wdd);
 	pm_runtime_put(wdt->dev);
 
 	return 0;
@@ -611,7 +618,7 @@ static const struct watchdog_info starfive_wdt_ident = {
 static const struct watchdog_ops starfive_wdt_ops = {
 	.owner = THIS_MODULE,
 	.start = starfive_wdt_start,
-	.stop = starfive_wdt_stop,
+	.stop = starfive_wdt_pm_stop,
 	.ping = starfive_wdt_keepalive,
 	.set_timeout = starfive_wdt_set_timeout,
 	.restart = starfive_wdt_restart,
@@ -735,10 +742,8 @@ static int starfive_wdt_probe(struct platform_device *pdev)
 		 * disabled if it has been left running from the bootloader
 		 * or other source.
 		 */
-		pm_runtime_get_noresume(dev);
 		starfive_wdt_stop(&wdt->wdt_device);
 	}
-
 	clk_disable_unprepare(wdt->core_clk);
 	clk_disable_unprepare(wdt->apb_clk);
 
@@ -746,10 +751,9 @@ static int starfive_wdt_probe(struct platform_device *pdev)
 
 	return 0;
 
- err_unregister:
+err_unregister:
 	watchdog_unregister_device(&wdt->wdt_device);
-
- err:
+err:
 	return ret;
 }
 
@@ -765,6 +769,7 @@ static int starfive_wdt_remove(struct platform_device *dev)
 	watchdog_unregister_device(&wdt->wdt_device);
 
 	clk_disable_unprepare(wdt->core_clk);
+	clk_disable_unprepare(wdt->apb_clk);
 	pm_runtime_disable(wdt->dev);
 
 	return 0;
@@ -776,7 +781,7 @@ static void starfive_wdt_shutdown(struct platform_device *dev)
 
 	starfive_wdt_mask_and_disable_reset(wdt, true);
 
-	starfive_wdt_stop(&wdt->wdt_device);
+	starfive_wdt_pm_stop(&wdt->wdt_device);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -797,6 +802,7 @@ static int starfive_wdt_suspend(struct device *dev)
 
 	/* Note that WTCNT doesn't need to be saved. */
 	starfive_wdt_stop(&wdt->wdt_device);
+	pm_runtime_force_suspend(dev);
 
 	starfive_wdt_lock(wdt);
 
@@ -814,13 +820,15 @@ static int starfive_wdt_resume(struct device *dev)
 	/* Restore watchdog state. */
 	starfive_wdt_set_relod_count(wdt, wdt->reload);
 
+	pm_runtime_force_resume(dev);
+
+	starfive_wdt_restart(&wdt->wdt_device, 0, NULL);
+
 	ret = starfive_wdt_mask_and_disable_reset(wdt, false);
 	if (ret < 0)
 		return ret;
 
 	starfive_wdt_lock(wdt);
-
-	dev_info(dev, "watchdog resume\n")
 
 	return 0;
 }
@@ -852,6 +860,7 @@ static int starfive_wdt_runtime_resume(struct device *dev)
 
 static const struct dev_pm_ops starfive_wdt_pm_ops = {
 	SET_RUNTIME_PM_OPS(starfive_wdt_runtime_suspend, starfive_wdt_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(starfive_wdt_suspend, starfive_wdt_resume)
 };
 
 static struct platform_driver starfive_starfive_wdt_driver = {
@@ -861,11 +870,6 @@ static struct platform_driver starfive_starfive_wdt_driver = {
 	.id_table	= starfive_wdt_ids,
 	.driver		= {
 		.name	= "starfive-wdt",
-#if 1
-		/* Currently wdt suspend & resume will cause system reboot.
-		 * Comment the pm operation for now, will add it back once
-		 * the feature is ready.
-		 */
 		.pm	= &starfive_wdt_pm_ops,
 		.of_match_table = of_match_ptr(starfive_wdt_match),
 	},
