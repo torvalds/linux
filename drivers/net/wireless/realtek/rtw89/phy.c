@@ -2276,6 +2276,10 @@ void rtw89_phy_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 		if (func < RTW89_PHY_C2H_FUNC_RA_MAX)
 			handler = rtw89_phy_c2h_ra_handler[func];
 		break;
+	case RTW89_PHY_C2H_CLASS_DM:
+		if (func == RTW89_PHY_C2H_DM_FUNC_LOWRT_RTY)
+			return;
+		fallthrough;
 	default:
 		rtw89_info(rtwdev, "c2h class %d not support\n", class);
 		return;
