@@ -514,9 +514,7 @@ static int hw_break_set(struct task_struct *target,
 
 	/* Resource info and pad */
 	offset = offsetof(struct user_hwdebug_state, dbg_regs);
-	ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, 0, offset);
-	if (ret)
-		return ret;
+	user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, 0, offset);
 
 	/* (address, ctrl) registers */
 	limit = regset->n * regset->size;
@@ -543,11 +541,8 @@ static int hw_break_set(struct task_struct *target,
 			return ret;
 		offset += PTRACE_HBP_CTRL_SZ;
 
-		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
-						offset,
-						offset + PTRACE_HBP_PAD_SZ);
-		if (ret)
-			return ret;
+		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+					  offset, offset + PTRACE_HBP_PAD_SZ);
 		offset += PTRACE_HBP_PAD_SZ;
 		idx++;
 	}
@@ -954,10 +949,7 @@ static int sve_set_common(struct task_struct *target,
 
 	start = end;
 	end = SVE_PT_SVE_FPSR_OFFSET(vq);
-	ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
-					start, end);
-	if (ret)
-		goto out;
+	user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, start, end);
 
 	/*
 	 * Copy fpsr, and fpcr which must follow contiguously in
