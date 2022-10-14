@@ -1102,6 +1102,20 @@ static int bq25890_vbus_get_voltage(struct regulator_dev *rdev)
 	return bq25890_get_vbus_voltage(bq);
 }
 
+static int bq25890_vsys_get_voltage(struct regulator_dev *rdev)
+{
+	struct bq25890_device *bq = rdev_get_drvdata(rdev);
+	int ret;
+
+	/* Should be some output voltage ? */
+	ret = bq25890_field_read(bq, F_SYSV); /* read measured value */
+	if (ret < 0)
+		return ret;
+
+	/* converted_val = 2.304V + ADC_val * 20mV (table 10.3.15) */
+	return 2304000 + ret * 20000;
+}
+
 static const struct regulator_ops bq25890_vbus_ops = {
 	.enable = bq25890_vbus_enable,
 	.disable = bq25890_vbus_disable,
@@ -1115,6 +1129,18 @@ static const struct regulator_desc bq25890_vbus_desc = {
 	.type = REGULATOR_VOLTAGE,
 	.owner = THIS_MODULE,
 	.ops = &bq25890_vbus_ops,
+};
+
+static const struct regulator_ops bq25890_vsys_ops = {
+	.get_voltage = bq25890_vsys_get_voltage,
+};
+
+static const struct regulator_desc bq25890_vsys_desc = {
+	.name = "vsys",
+	.of_match = "vsys",
+	.type = REGULATOR_VOLTAGE,
+	.owner = THIS_MODULE,
+	.ops = &bq25890_vsys_ops,
 };
 
 static int bq25890_register_regulator(struct bq25890_device *bq)
@@ -1133,6 +1159,12 @@ static int bq25890_register_regulator(struct bq25890_device *bq)
 	if (IS_ERR(reg)) {
 		return dev_err_probe(bq->dev, PTR_ERR(reg),
 				     "registering vbus regulator");
+	}
+
+	reg = devm_regulator_register(bq->dev, &bq25890_vsys_desc, &cfg);
+	if (IS_ERR(reg)) {
+		return dev_err_probe(bq->dev, PTR_ERR(reg),
+				     "registering vsys regulator");
 	}
 
 	return 0;
