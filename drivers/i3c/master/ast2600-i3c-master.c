@@ -334,6 +334,24 @@
 #define ADDR_HID_MASK			GENMASK(2, 0)
 #define ADDR_HID(x)			((x) & ADDR_HID_MASK)
 
+/* Data Transfer Speed and Mode */
+enum aspeed_cmd_mode {
+	MODE_I3C_SDR0		= 0x0,
+	MODE_I3C_SDR1		= 0x1,
+	MODE_I3C_SDR2		= 0x2,
+	MODE_I3C_SDR3		= 0x3,
+	MODE_I3C_SDR4		= 0x4,
+	MODE_I3C_HDR_TSx	= 0x5,
+	MODE_I3C_HDR_DDR	= 0x6,
+	MODE_I3C_HDR_BT		= 0x7,
+	MODE_I3C_Fm_FmP		= 0x8,
+	MODE_I2C_Fm		= 0x0,
+	MODE_I2C_FmP		= 0x1,
+	MODE_I2C_UD1		= 0x2,
+	MODE_I2C_UD2		= 0x3,
+	MODE_I2C_UD3		= 0x4,
+};
+
 struct aspeed_i3c_master_caps {
 	u8 cmdfifodepth;
 	u8 datafifodepth;
@@ -1144,6 +1162,7 @@ static int aspeed_i3c_master_set_info(struct aspeed_i3c_master *master,
 	info->bcr = SLV_CHAR_GET_BCR(reg);
 	info->pid = (u64)readl(master->regs + SLV_MIPI_PID_VALUE) << 32;
 	info->pid |= readl(master->regs + SLV_PID_VALUE);
+	info->hdr_cap = I3C_CCC_HDR_MODE(I3C_HDR_DDR);
 
 	return 0;
 };
@@ -1641,6 +1660,98 @@ static int aspeed_i3c_master_priv_xfers(struct i3c_dev_desc *dev,
 
 		if (i3c_xfers[i].rnw)
 			i3c_xfers[i].len = cmd->rx_len;
+	}
+
+	ret = xfer->ret;
+	if (ret)
+		dev_err(master->dev, "xfer error: %x\n", xfer->cmds[0].error);
+	aspeed_i3c_master_free_xfer(xfer);
+
+	return ret;
+}
+
+static int aspeed_i3c_master_send_hdr_cmd(struct i3c_master_controller *m,
+					  struct i3c_hdr_cmd *cmds,
+					  int ncmds)
+{
+	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
+	u8 dat_index;
+	int ret, i, ntxwords = 0, nrxwords = 0;
+	struct aspeed_i3c_xfer *xfer;
+
+	if (ncmds < 1)
+		return 0;
+
+	dev_dbg(master->dev, "ncmds = %x", ncmds);
+
+	if (ncmds > master->caps.cmdfifodepth)
+		return -ENOTSUPP;
+
+	for (i = 0; i < ncmds; i++) {
+		dev_dbg(master->dev, "cmds[%d] mode = %x", i, cmds[i].mode);
+		if (cmds[i].mode != I3C_HDR_DDR)
+			return -ENOTSUPP;
+		if (cmds[i].code & 0x80)
+			nrxwords += DIV_ROUND_UP(cmds[i].ndatawords, 2);
+		else
+			ntxwords += DIV_ROUND_UP(cmds[i].ndatawords, 2);
+	}
+	dev_dbg(master->dev, "ntxwords = %x, nrxwords = %x", ntxwords,
+		 nrxwords);
+	if (ntxwords > master->caps.datafifodepth ||
+	    nrxwords > master->caps.datafifodepth)
+		return -ENOTSUPP;
+
+	xfer = aspeed_i3c_master_alloc_xfer(master, ncmds);
+	if (!xfer)
+		return -ENOMEM;
+
+	for (i = 0; i < ncmds; i++) {
+		struct aspeed_i3c_cmd *cmd = &xfer->cmds[i];
+
+		dat_index = aspeed_i3c_master_sync_hw_dat(master, cmds[i].addr);
+
+		cmd->cmd_hi = COMMAND_PORT_ARG_DATA_LEN(cmds[i].ndatawords << 1) |
+			      COMMAND_PORT_TRANSFER_ARG;
+
+		if (cmds[i].code & 0x80) {
+			cmd->rx_buf = cmds[i].data.in;
+			cmd->rx_len = cmds[i].ndatawords << 1;
+			cmd->cmd_lo = COMMAND_PORT_READ_TRANSFER |
+				      COMMAND_PORT_CP |
+				      COMMAND_PORT_CMD(cmds[i].code) |
+				      COMMAND_PORT_SPEED(MODE_I3C_HDR_DDR);
+
+		} else {
+			cmd->tx_buf = cmds[i].data.out;
+			cmd->tx_len = cmds[i].ndatawords << 1;
+			cmd->cmd_lo = COMMAND_PORT_CP |
+				      COMMAND_PORT_CMD(cmds[i].code) |
+				      COMMAND_PORT_SPEED(MODE_I3C_HDR_DDR);
+		}
+
+		cmd->cmd_lo |= COMMAND_PORT_TID(i) |
+			       COMMAND_PORT_DEV_INDEX(dat_index) |
+			       COMMAND_PORT_ROC;
+
+		if (i == (ncmds - 1))
+			cmd->cmd_lo |= COMMAND_PORT_TOC;
+
+		dev_dbg(master->dev,
+			 "%s:cmd_hi=0x%08x cmd_lo=0x%08x tx_len=%d rx_len=%d\n",
+			 __func__, cmd->cmd_hi, cmd->cmd_lo, cmd->tx_len,
+			 cmd->rx_len);
+	}
+
+	aspeed_i3c_master_enqueue_xfer(master, xfer);
+	if (!wait_for_completion_timeout(&xfer->comp, XFER_TIMEOUT))
+		aspeed_i3c_master_dequeue_xfer(master, xfer);
+
+	for (i = 0; i < ncmds; i++) {
+		struct aspeed_i3c_cmd *cmd = &xfer->cmds[i];
+
+		if (cmds[i].code & 0x80)
+			cmds[i].ndatawords = DIV_ROUND_UP(cmd->rx_len, 2);
 	}
 
 	ret = xfer->ret;
@@ -2323,6 +2434,7 @@ static const struct i3c_master_controller_ops aspeed_i3c_ops = {
 	.do_daa = aspeed_i3c_master_daa,
 	.supports_ccc_cmd = aspeed_i3c_master_supports_ccc_cmd,
 	.send_ccc_cmd = aspeed_i3c_master_send_ccc_cmd,
+	.send_hdr_cmds = aspeed_i3c_master_send_hdr_cmd,
 	.priv_xfers = aspeed_i3c_master_priv_xfers,
 	.attach_i2c_dev = aspeed_i3c_master_attach_i2c_dev,
 	.detach_i2c_dev = aspeed_i3c_master_detach_i2c_dev,
