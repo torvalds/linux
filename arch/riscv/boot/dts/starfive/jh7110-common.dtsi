@@ -7,6 +7,7 @@
 /dts-v1/;
 #include "jh7110.dtsi"
 #include "jh7110-evb-pinctrl.dtsi"
+#include "codecs/sf_hdmi.dtsi"
 
 / {
 	aliases {
@@ -430,7 +431,7 @@
 
 &spdif0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spdif0_pins &mclk_ext_pins>;
+	pinctrl-0 = <&spdif0_pins>;
 	status = "disabled";
 };
 
@@ -446,7 +447,7 @@
 
 &pdm {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pdm0_pins &mclk_ext_pins>;
+	pinctrl-0 = <&pdm0_pins>;
 	status = "disabled";
 };
 
@@ -463,7 +464,9 @@
 };
 
 &i2stx_4ch0 {
-	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mclk_ext_pins>;
+	status = "okay";
 };
 
 &i2stx_4ch1 {

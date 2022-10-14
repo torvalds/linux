@@ -296,12 +296,6 @@ static int sf_pdm_clock_init(struct platform_device *pdev, struct sf_pdm *priv)
 		goto exit;
 	}
 
-	ret = clk_set_parent(priv->clk_mclk, priv->clk_mclk_ext);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to set parent clk_mclk ret=%d\n", ret);
-		goto exit;
-	}
-
 	ret = clk_prepare_enable(priv->clk_mclk);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to prepare enable clk_mclk\n");
@@ -335,6 +329,12 @@ static int sf_pdm_clock_init(struct platform_device *pdev, struct sf_pdm *priv)
 	ret = reset_control_deassert(priv->rst_pdm_apb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to deassert pdm_apb\n");
+		goto err_clk_disable;
+	}
+
+	ret = clk_set_parent(priv->clk_mclk, priv->clk_mclk_ext);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to set parent clk_mclk ret=%d\n", ret);
 		goto err_clk_disable;
 	}
 

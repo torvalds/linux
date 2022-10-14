@@ -8,6 +8,14 @@
 #ifndef __INNO_HDMI_H__
 #define __INNO_HDMI_H__
 
+#include <drm/drm_scdc_helper.h>
+#include <drm/bridge/dw_hdmi.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_of.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
+
 #define DDC_SEGMENT_ADDR		0x30
 
 enum PWR_MODE {
@@ -542,5 +550,49 @@ typedef struct register_value {
 	u16 reg;
 	u8 value;
 } reg_value_t;
+
+struct hdmi_data_info {
+	int vic;
+	bool sink_is_hdmi;
+	bool sink_has_audio;
+	unsigned int enc_in_format;
+	unsigned int enc_out_format;
+	unsigned int colorimetry;
+};
+
+struct inno_hdmi {
+	struct device *dev;
+	struct drm_device *drm_dev;
+
+	int irq;
+	struct clk *pclk;
+	struct clk *sys_clk;
+	struct clk *mclk;
+	struct clk *bclk;
+	struct clk *phy_clk;
+	struct reset_control *tx_rst;
+	void __iomem *regs;
+
+	struct drm_connector	connector;
+	struct drm_encoder	encoder;
+
+	struct inno_hdmi_i2c *i2c;
+	struct i2c_adapter *ddc;
+
+	unsigned long tmds_rate;
+
+	struct hdmi_data_info	hdmi_data;
+	struct drm_display_mode previous_mode;
+	struct regulator *hdmi_1p8;
+	struct regulator *hdmi_0p9;
+	const struct pre_pll_config 	*pre_cfg;
+	const struct post_pll_config 	*post_cfg;
+};
+
+int starfive_hdmi_audio_init(struct inno_hdmi *hdmi);
+inline u8 hdmi_readb(struct inno_hdmi *hdmi, u16 offset);
+inline void hdmi_writeb(struct inno_hdmi *hdmi, u16 offset, u32 val);
+inline void hdmi_modb(struct inno_hdmi *hdmi, u16 offset,
+			     u32 msk, u32 val);
 
 #endif /* __INNO_HDMI_H__ */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (ST) 2012 Rajeev Kumar (rajeevkumar.linux@gmail.com)
  *
@@ -6,8 +7,8 @@
  * warranty of any kind, whether express or implied.
  */
 
-#ifndef __DESIGNWARE_LOCAL_H
-#define __DESIGNWARE_LOCAL_H
+#ifndef __STARFIVE_I2S_H
+#define __STARFIVE_I2S_H
 
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -108,13 +109,16 @@ struct dw_i2s_dev {
 	u32 syscon_offset_34;
 
 	struct clk *clk_apb0;
-	struct clk *clk_i2srx_apb;
-	struct clk *clk_i2srx_bclk_mst;
-	struct clk *clk_i2srx_lrck_mst;
-	struct clk *clk_i2srx_bclk;
-	struct clk *clk_i2srx_lrck;
-	struct reset_control *rst_i2srx_apb;
-	struct reset_control *rst_i2srx_bclk;
+	struct clk *clk_i2s_apb;
+	struct clk *clk_i2s_bclk_mst;
+	struct clk *clk_i2s_lrck_mst;
+	struct clk *clk_i2s_bclk;
+	struct clk *clk_i2s_lrck;
+	struct clk *clk_mclk;
+	struct clk *clk_mclk_ext;
+	struct clk *clk_mclk_inner;
+	struct reset_control *rst_i2s_apb;
+	struct reset_control *rst_i2s_bclk;
 
 	/* data related to DMA transfers b/w i2s and DMAC */
 	union dw_i2s_snd_dma_data play_dma_data;

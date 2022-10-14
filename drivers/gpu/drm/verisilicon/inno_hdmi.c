@@ -31,15 +31,6 @@
 
 #define to_inno_hdmi(x)	container_of(x, struct inno_hdmi, x)
 
-struct hdmi_data_info {
-	int vic;
-	bool sink_is_hdmi;
-	bool sink_has_audio;
-	unsigned int enc_in_format;
-	unsigned int enc_out_format;
-	unsigned int colorimetry;
-};
-
 struct inno_hdmi_i2c {
 	struct i2c_adapter adap;
 
@@ -48,34 +39,6 @@ struct inno_hdmi_i2c {
 
 	struct mutex lock;
 	struct completion cmp;
-};
-
-struct inno_hdmi {
-	struct device *dev;
-	struct drm_device *drm_dev;
-
-	int irq;
-	struct clk *pclk;
-	struct clk *sys_clk;
-	struct clk *mclk;
-	struct clk *bclk;
-	struct reset_control *tx_rst;
-	void __iomem *regs;
-
-	struct drm_connector	connector;
-	struct drm_encoder	encoder;
-
-	struct inno_hdmi_i2c *i2c;
-	struct i2c_adapter *ddc;
-
-	unsigned long tmds_rate;
-
-	struct hdmi_data_info	hdmi_data;
-	struct drm_display_mode previous_mode;
-	struct regulator *hdmi_1p8;
-	struct regulator *hdmi_0p9;
-	const struct pre_pll_config 	*pre_cfg;
-	const struct post_pll_config 	*post_cfg;
 };
 
 enum {
@@ -133,17 +96,17 @@ static const struct post_pll_config post_pll_cfg_table[] = {
 	{ /* sentinel */ }
 };
 
-static inline u8 hdmi_readb(struct inno_hdmi *hdmi, u16 offset)
+inline u8 hdmi_readb(struct inno_hdmi *hdmi, u16 offset)
 {
 	return readl_relaxed(hdmi->regs + (offset) * 0x04);
 }
 
-static inline void hdmi_writeb(struct inno_hdmi *hdmi, u16 offset, u32 val)
+inline void hdmi_writeb(struct inno_hdmi *hdmi, u16 offset, u32 val)
 {
 	writel_relaxed(val, hdmi->regs + (offset) * 0x04);
 }
 
-static inline void hdmi_modb(struct inno_hdmi *hdmi, u16 offset,
+inline void hdmi_modb(struct inno_hdmi *hdmi, u16 offset,
 			     u32 msk, u32 val)
 {
 	u8 temp = hdmi_readb(hdmi, offset) & ~msk;
@@ -492,11 +455,6 @@ static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 	inno_hdmi_tx_phy_power_down(hdmi);
 
 	inno_hdmi_tx_ctrl(hdmi);
-
-	hdmi_writeb(hdmi, 0x35, 0x01);
-	hdmi_writeb(hdmi, 0x38, 0x04);
-	hdmi_writeb(hdmi, 0x40, 0x18);
-	hdmi_writeb(hdmi, 0x41, 0x80);
 
 	inno_hdmi_tx_phy_power_on(hdmi);
 	inno_hdmi_tmds_driver_on(hdmi);
@@ -970,6 +928,10 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 					dev_name(dev), hdmi);
 	if (ret < 0)
 		goto err_cleanup_hdmi;
+
+	ret = starfive_hdmi_audio_init(hdmi);
+	if (ret)
+		dev_err(dev, "failed to audio init\n");
 
 	return 0;
 err_cleanup_hdmi:
