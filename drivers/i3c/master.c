@@ -3149,6 +3149,50 @@ int i3c_unregister(struct i3c_master_controller *master)
 }
 EXPORT_SYMBOL_GPL(i3c_unregister);
 
+int i3c_master_send_hdr_cmds_locked(struct i3c_master_controller *master,
+				    struct i3c_hdr_cmd *cmds, int ncmds)
+{
+	int i;
+
+	if (!cmds || !master || ncmds <= 0)
+		return -EINVAL;
+
+	if (!master->ops->send_hdr_cmds)
+		return -ENOTSUPP;
+
+	for (i = 0; i < ncmds; i++) {
+		if (!(master->this->info.hdr_cap & BIT(cmds[i].mode)))
+			return -ENOTSUPP;
+	}
+
+	return master->ops->send_hdr_cmds(master, cmds, ncmds);
+}
+
+/**
+ * i3c_master_send_hdr_cmds() - send HDR commands on the I3C bus
+ * @master: master used to send frames on the bus
+ * @cmds: array of HDR commands
+ * @ncmds: number of commands to send
+ *
+ * Send one or several HDR commands.
+ *
+ * This function can sleep and thus cannot be called in atomic context.
+ *
+ * Return: 0 in case of success, a negative error code otherwise.
+ */
+int i3c_master_send_hdr_cmds(struct i3c_master_controller *master,
+			     struct i3c_hdr_cmd *cmds, int ncmds)
+{
+	int ret;
+
+	i3c_bus_normaluse_lock(&master->bus);
+	ret = i3c_master_send_hdr_cmds_locked(master, cmds, ncmds);
+	i3c_bus_normaluse_unlock(&master->bus);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i3c_master_send_hdr_cmds);
+
 int i3c_dev_do_priv_xfers_locked(struct i3c_dev_desc *dev,
 				 struct i3c_priv_xfer *xfers,
 				 int nxfers)

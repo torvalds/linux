@@ -51,6 +51,50 @@ int i3c_device_do_priv_xfers(struct i3c_device *dev,
 EXPORT_SYMBOL_GPL(i3c_device_do_priv_xfers);
 
 /**
+ * i3c_device_send_hdr_cmds() - send HDR commands to a specific device
+ *
+ * @dev: device to which these commands should be sent
+ * @cmds: array of commands
+ * @ncmds: number of commands
+ *
+ * Send one or several HDR commands to @dev.
+ *
+ * This function can sleep and thus cannot be called in atomic context.
+ *
+ * Return: 0 in case of success, a negative error core otherwise.
+ */
+int i3c_device_send_hdr_cmds(struct i3c_device *dev, struct i3c_hdr_cmd *cmds,
+			     int ncmds)
+{
+	struct i3c_master_controller *master;
+	enum i3c_hdr_mode mode;
+	int ret, i;
+
+	if (ncmds < 1)
+		return 0;
+
+	mode = cmds[0].mode;
+	for (i = 1; i < ncmds; i++) {
+		if (mode != cmds[i].mode)
+			return -EINVAL;
+	}
+
+	master = i3c_dev_get_master(dev->desc);
+	if (!master)
+		return -EINVAL;
+
+	i3c_bus_normaluse_lock(&master->bus);
+	for (i = 0; i < ncmds; i++)
+		cmds[i].addr = dev->desc->info.dyn_addr;
+
+	ret = i3c_master_send_hdr_cmds_locked(master, cmds, ncmds);
+	i3c_bus_normaluse_unlock(&master->bus);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i3c_device_send_hdr_cmds);
+
+/**
  * i3c_device_generate_ibi() - request In-Band Interrupt
  *
  * @dev: target device
