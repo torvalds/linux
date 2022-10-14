@@ -222,7 +222,7 @@ static int nft_quota_dump(struct sk_buff *skb,
 {
 	struct nft_quota *priv = nft_expr_priv(expr);
 
-	return nft_quota_do_dump(skb, priv, false);
+	return nft_quota_do_dump(skb, priv, reset);
 }
 
 static void nft_quota_destroy(const struct nft_ctx *ctx,

@@ -359,7 +359,7 @@ static int nft_inner_dump(struct sk_buff *skb,
 		goto nla_put_failure;
 
 	if (nft_expr_dump(skb, NFTA_INNER_EXPR,
-			  (struct nft_expr *)&priv->expr) < 0)
+			  (struct nft_expr *)&priv->expr, reset) < 0)
 		goto nla_put_failure;
 
 	return 0;
