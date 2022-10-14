@@ -2492,7 +2492,7 @@ int ceph_getattr(struct user_namespace *mnt_userns, const struct path *path,
 			struct inode *parent;
 
 			parent = ceph_lookup_inode(sb, ceph_ino(inode));
-			if (!parent)
+			if (IS_ERR(parent))
 				return PTR_ERR(parent);
 
 			pci = ceph_inode(parent);
