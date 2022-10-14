@@ -1089,7 +1089,6 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "ScaleUnit": "4Bytes",
         "UMask": "0x01",
         "Unit": "IIO"
     },
@@ -1101,7 +1100,6 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "ScaleUnit": "4Bytes",
         "UMask": "0x01",
         "Unit": "IIO"
     },
@@ -1113,7 +1111,6 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "ScaleUnit": "4Bytes",
         "UMask": "0x01",
         "Unit": "IIO"
     },
@@ -1125,7 +1122,6 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "ScaleUnit": "4Bytes",
         "UMask": "0x01",
         "Unit": "IIO"
     },
@@ -1196,7 +1192,6 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x01",
-        "ScaleUnit": "4Bytes",
         "UMask": "0x04",
         "Unit": "IIO"
     },
@@ -1208,7 +1203,6 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x02",
-        "ScaleUnit": "4Bytes",
         "UMask": "0x04",
         "Unit": "IIO"
     },
@@ -1220,7 +1214,6 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x04",
-        "ScaleUnit": "4Bytes",
         "UMask": "0x04",
         "Unit": "IIO"
     },
@@ -1232,7 +1225,6 @@
         "FCMask": "0x07",
         "PerPkg": "1",
         "PortMask": "0x08",
-        "ScaleUnit": "4Bytes",
         "UMask": "0x04",
         "Unit": "IIO"
     },
@@ -1974,20 +1966,19 @@
         "Unit": "UPI LL"
     },
     {
+        "BriefDescription": "Valid data FLITs transmitted via any slot",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_UPI_TxL_FLITS.ALL_DATA",
+        "PerPkg": "1",
+        "UMask": "0x0F",
+        "Unit": "UPI LL"
+    },
+    {
         "BriefDescription": "UPI interconnect send bandwidth for payload. Derived from unc_upi_txl_flits.all_data",
         "Counter": "0,1,2,3",
         "EventCode": "0x2",
         "EventName": "UPI_DATA_BANDWIDTH_TX",
-        "PerPkg": "1",
-        "ScaleUnit": "7.11E-06Bytes",
-        "UMask": "0xf",
-        "Unit": "UPI LL"
-    },
-    {
-        "BriefDescription": "UPI interconnect send bandwidth for payload",
-        "Counter": "0,1,2,3",
-        "EventCode": "0x2",
-        "EventName": "UNC_UPI_TxL_FLITS.ALL_DATA",
         "PerPkg": "1",
         "ScaleUnit": "7.11E-06Bytes",
         "UMask": "0xf",

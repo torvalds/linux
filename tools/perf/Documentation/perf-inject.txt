@@ -25,10 +25,17 @@ OPTIONS
 -------
 -b::
 --build-ids::
-        Inject build-ids into the output stream
+	Inject build-ids of DSOs hit by samples into the output stream.
+	This means it needs to process all SAMPLE records to find the DSOs.
 
---buildid-all:
-	Inject build-ids of all DSOs into the output stream
+--buildid-all::
+	Inject build-ids of all DSOs into the output stream regardless of hits
+	and skip SAMPLE processing.
+
+--known-build-ids=::
+	Override build-ids to inject using these comma-separated pairs of
+	build-id and path. Understands file://filename to read these pairs
+	from a file, which can be generated with perf buildid-list.
 
 -v::
 --verbose::
