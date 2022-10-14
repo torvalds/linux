@@ -111,7 +111,7 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 	tag += 2;
 
 	if (type == ACT_ADDBAREQ) {
-		memcpy(tag, (u8 *)&(pBA->ba_start_seq_ctrl), 2);
+		memcpy(tag, (u8 *)&pBA->ba_start_seq_ctrl, 2);
 		tag += 2;
 	}
 
@@ -253,7 +253,7 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 			    ieee->pHTInfo->bCurrentHTSupport);
 		goto OnADDBAReq_Fail;
 	}
-	if (!GetTs(ieee, (struct ts_common_info **)(&pTS), dst,
+	if (!GetTs(ieee, (struct ts_common_info **)&pTS, dst,
 	    (u8)(pBaParamSet->field.tid), RX_DIR, true)) {
 		rc = ADDBA_STATUS_REFUSED;
 		netdev_warn(ieee->dev, "%s(): can't get TS\n", __func__);
@@ -337,7 +337,7 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 		goto OnADDBARsp_Reject;
 	}
 
-	if (!GetTs(ieee, (struct ts_common_info **)(&pTS), dst,
+	if (!GetTs(ieee, (struct ts_common_info **)&pTS, dst,
 		   (u8)(pBaParamSet->field.tid), TX_DIR, false)) {
 		netdev_warn(ieee->dev, "%s(): can't get TS\n", __func__);
 		ReasonCode = DELBA_REASON_UNKNOWN_BA;
