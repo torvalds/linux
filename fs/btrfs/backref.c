@@ -2650,12 +2650,11 @@ void free_ipath(struct inode_fs_paths *ipath)
 	kfree(ipath);
 }
 
-struct btrfs_backref_iter *btrfs_backref_iter_alloc(
-		struct btrfs_fs_info *fs_info, gfp_t gfp_flag)
+struct btrfs_backref_iter *btrfs_backref_iter_alloc(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_backref_iter *ret;
 
-	ret = kzalloc(sizeof(*ret), gfp_flag);
+	ret = kzalloc(sizeof(*ret), GFP_NOFS);
 	if (!ret)
 		return NULL;
 

@@ -473,7 +473,7 @@ static noinline_for_stack struct btrfs_backref_node *build_backref_tree(
 	int ret;
 	int err = 0;
 
-	iter = btrfs_backref_iter_alloc(rc->extent_root->fs_info, GFP_NOFS);
+	iter = btrfs_backref_iter_alloc(rc->extent_root->fs_info);
 	if (!iter)
 		return ERR_PTR(-ENOMEM);
 	path = btrfs_alloc_path();
