@@ -897,9 +897,9 @@ static void end_sector_io(struct page *page, u64 offset, bool uptodate)
 	end_page_read(page, uptodate, offset, sectorsize);
 	if (uptodate)
 		set_extent_uptodate(&inode->io_tree, offset,
-				    offset + sectorsize - 1, &cached, GFP_ATOMIC);
-	unlock_extent_atomic(&inode->io_tree, offset, offset + sectorsize - 1,
-			     &cached);
+				    offset + sectorsize - 1, &cached, GFP_NOFS);
+	unlock_extent(&inode->io_tree, offset, offset + sectorsize - 1,
+		      &cached);
 }
 
 static void submit_data_read_repair(struct inode *inode,
@@ -1103,7 +1103,7 @@ static void endio_readpage_release_extent(struct processed_extent *processed,
 	 * Now we don't have range contiguous to the processed range, release
 	 * the processed range now.
 	 */
-	unlock_extent_atomic(tree, processed->start, processed->end, &cached);
+	unlock_extent(tree, processed->start, processed->end, &cached);
 
 update:
 	/* Update processed to current range */
