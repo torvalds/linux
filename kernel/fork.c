@@ -97,7 +97,6 @@
 #include <linux/scs.h>
 #include <linux/io_uring.h>
 #include <linux/bpf.h>
-#include <linux/sched/mm.h>
 #include <linux/cpufreq_times.h>
 
 #include <asm/pgalloc.h>

@@ -186,9 +186,6 @@ struct pt_regs;
 void show_registers(struct pt_regs *regs);
 void show_cacheinfo(struct seq_file *m);
 
-/* Free all resources held by a thread. */
-static inline void release_thread(struct task_struct *tsk) { }
-
 /* Free guarded storage control block */
 void guarded_storage_release(struct task_struct *tsk);
 void gs_load_bc_cb(struct pt_regs *regs);

@@ -184,6 +184,10 @@ void put_task_struct_rcu_user(struct task_struct *task)
 		call_rcu(&task->rcu, delayed_put_task_struct);
 }
 
+void __weak release_thread(struct task_struct *dead_task)
+{
+}
+
 void release_task(struct task_struct *p)
 {
 	struct task_struct *leader;
