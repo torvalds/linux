@@ -367,7 +367,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 				mode_lib->vba.OutputBpp[k], mode_lib->vba.HActive[k], mode_lib->vba.HTotal[k],
 				mode_lib->vba.NumberOfDSCSlices[k], mode_lib->vba.OutputFormat[k],
 				mode_lib->vba.Output[k], mode_lib->vba.PixelClock[k],
-				mode_lib->vba.PixelClockBackEnd[k]);
+				mode_lib->vba.PixelClockBackEnd[k], mode_lib->vba.ip.dsc_delay_factor_wa);
 	}
 
 	for (k = 0; k < mode_lib->vba.NumberOfActiveSurfaces; ++k)
@@ -2475,7 +2475,8 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					mode_lib->vba.OutputBppPerState[i][k], mode_lib->vba.HActive[k],
 					mode_lib->vba.HTotal[k], mode_lib->vba.NumberOfDSCSlices[k],
 					mode_lib->vba.OutputFormat[k], mode_lib->vba.Output[k],
-					mode_lib->vba.PixelClock[k], mode_lib->vba.PixelClockBackEnd[k]);
+					mode_lib->vba.PixelClock[k], mode_lib->vba.PixelClockBackEnd[k],
+					mode_lib->vba.ip.dsc_delay_factor_wa);
 		}
 
 		for (k = 0; k <= mode_lib->vba.NumberOfActiveSurfaces - 1; k++) {
