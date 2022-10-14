@@ -613,6 +613,7 @@ static int rockchip_pdm_runtime_resume(struct device *dev)
 		return ret;
 	}
 
+	rockchip_pdm_rxctrl(pdm, 0);
 	regcache_cache_only(pdm->regmap, false);
 	regcache_mark_dirty(pdm->regmap);
 	ret = regcache_sync(pdm->regmap);
