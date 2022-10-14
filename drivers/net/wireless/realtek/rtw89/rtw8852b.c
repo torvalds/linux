@@ -1513,6 +1513,43 @@ static void rtw8852b_set_channel_help(struct rtw89_dev *rtwdev, bool enter,
 	}
 }
 
+static void rtw8852b_rfk_init(struct rtw89_dev *rtwdev)
+{
+	rtwdev->is_tssi_mode[RF_PATH_A] = false;
+	rtwdev->is_tssi_mode[RF_PATH_B] = false;
+
+	rtw8852b_dpk_init(rtwdev);
+	rtw8852b_rck(rtwdev);
+	rtw8852b_dack(rtwdev);
+	rtw8852b_rx_dck(rtwdev, RTW89_PHY_0);
+}
+
+static void rtw8852b_rfk_channel(struct rtw89_dev *rtwdev)
+{
+	enum rtw89_phy_idx phy_idx = RTW89_PHY_0;
+
+	rtw8852b_rx_dck(rtwdev, phy_idx);
+	rtw8852b_iqk(rtwdev, phy_idx);
+	rtw8852b_tssi(rtwdev, phy_idx, true);
+	rtw8852b_dpk(rtwdev, phy_idx);
+}
+
+static void rtw8852b_rfk_band_changed(struct rtw89_dev *rtwdev,
+				      enum rtw89_phy_idx phy_idx)
+{
+	rtw8852b_tssi_scan(rtwdev, phy_idx);
+}
+
+static void rtw8852b_rfk_scan(struct rtw89_dev *rtwdev, bool start)
+{
+	rtw8852b_wifi_scan_notify(rtwdev, start, RTW89_PHY_0);
+}
+
+static void rtw8852b_rfk_track(struct rtw89_dev *rtwdev)
+{
+	rtw8852b_dpk_track(rtwdev);
+}
+
 static u32 rtw8852b_bb_cal_txpwr_ref(struct rtw89_dev *rtwdev,
 				     enum rtw89_phy_idx phy_idx, s16 ref)
 {
@@ -2346,6 +2383,11 @@ static const struct rtw89_chip_ops rtw8852b_chip_ops = {
 	.read_efuse		= rtw8852b_read_efuse,
 	.read_phycap		= rtw8852b_read_phycap,
 	.fem_setup		= NULL,
+	.rfk_init		= rtw8852b_rfk_init,
+	.rfk_channel		= rtw8852b_rfk_channel,
+	.rfk_band_changed	= rtw8852b_rfk_band_changed,
+	.rfk_scan		= rtw8852b_rfk_scan,
+	.rfk_track		= rtw8852b_rfk_track,
 	.power_trim		= rtw8852b_power_trim,
 	.set_txpwr		= rtw8852b_set_txpwr,
 	.set_txpwr_ctrl		= rtw8852b_set_txpwr_ctrl,
