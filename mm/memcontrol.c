@@ -5104,8 +5104,8 @@ struct mem_cgroup *mem_cgroup_get_from_ino(unsigned long ino)
 	struct mem_cgroup *memcg;
 
 	cgrp = cgroup_get_from_id(ino);
-	if (!cgrp)
-		return ERR_PTR(-ENOENT);
+	if (IS_ERR(cgrp))
+		return ERR_CAST(cgrp);
 
 	css = cgroup_get_e_css(cgrp, &memory_cgrp_subsys);
 	if (css)
