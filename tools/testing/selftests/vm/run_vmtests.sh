@@ -5,7 +5,6 @@
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
 
-mnt=./huge
 exitcode=0
 
 #get huge pagesize and freepages from /proc/meminfo
@@ -84,9 +83,6 @@ run_test() {
 	fi
 }
 
-mkdir "$mnt"
-mount -t hugetlbfs none "$mnt"
-
 run_test ./hugepage-mmap
 
 shmmax=$(cat /proc/sys/kernel/shmmax)
@@ -98,14 +94,9 @@ echo "$shmmax" > /proc/sys/kernel/shmmax
 echo "$shmall" > /proc/sys/kernel/shmall
 
 run_test ./map_hugetlb
-
-run_test ./hugepage-mremap "$mnt"/huge_mremap
-rm -f "$mnt"/huge_mremap
-
+run_test ./hugepage-mremap
 run_test ./hugepage-vmemmap
-
-run_test ./hugetlb-madvise "$mnt"/madvise-test
-rm -f "$mnt"/madvise-test
+run_test ./hugetlb-madvise
 
 echo "NOTE: The above hugetlb tests provide minimal coverage.  Use"
 echo "      https://github.com/libhugetlbfs/libhugetlbfs.git for"
@@ -126,14 +117,11 @@ for mod in "${uffd_mods[@]}"; do
 	# Hugetlb tests require source and destination huge pages. Pass in half
 	# the size ($half_ufd_size_MB), which is used for *each*.
 	run_test ./userfaultfd hugetlb${mod} "$half_ufd_size_MB" 32
-	run_test ./userfaultfd hugetlb_shared${mod} "$half_ufd_size_MB" 32 "$mnt"/uffd-test
-	rm -f "$mnt"/uffd-test
+	run_test ./userfaultfd hugetlb_shared${mod} "$half_ufd_size_MB" 32
 	run_test ./userfaultfd shmem${mod} 20 16
 done
 
 #cleanup
-umount "$mnt"
-rm -rf "$mnt"
 echo "$nr_hugepgs" > /proc/sys/vm/nr_hugepages
 
 run_test ./compaction_test
