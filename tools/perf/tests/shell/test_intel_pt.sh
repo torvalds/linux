@@ -23,6 +23,7 @@ errfile="${temp_dir}/test-err.txt"
 workload="${temp_dir}/workload"
 awkscript="${temp_dir}/awkscript"
 jitdump_workload="${temp_dir}/jitdump_workload"
+maxbrstack="${temp_dir}/maxbrstack.py"
 
 cleanup()
 {
@@ -422,10 +423,193 @@ test_jitdump()
 	# Should be no errors
 	if [ "${decode_err_cnt}" -ne 0 ] ; then
 		echo "Decode failed, ${decode_err_cnt} errors"
-		perf script -i "${perfdatafile}" --itrace=e-o-l
+		perf script -i "${perfdatafile}" --itrace=e-o-l --show-mmap-events | cat
 		return 1
 	fi
 
+	echo OK
+	return 0
+}
+
+test_packet_filter()
+{
+	echo "--- Test with MTC and TSC disabled ---"
+	# Disable MTC and TSC
+	perf_record_no_decode -o "${perfdatafile}" -e intel_pt/mtc=0,tsc=0/u uname
+	# Should not get MTC packet
+	mtc_cnt=$(perf script -i "${perfdatafile}" -D 2>/dev/null | grep -c "MTC 0x")
+	if [ "${mtc_cnt}" -ne 0 ] ; then
+		echo "Failed to filter with mtc=0"
+		return 1
+	fi
+	# Should not get TSC package
+	tsc_cnt=$(perf script -i "${perfdatafile}" -D 2>/dev/null | grep -c "TSC 0x")
+	if [ "${tsc_cnt}" -ne 0 ] ; then
+		echo "Failed to filter with tsc=0"
+		return 1
+	fi
+	echo OK
+	return 0
+}
+
+test_disable_branch()
+{
+	echo "--- Test with branches disabled ---"
+	# Disable branch
+	perf_record_no_decode -o "${perfdatafile}" -e intel_pt/branch=0/u uname
+	# Should not get branch related packets
+	tnt_cnt=$(perf script -i "${perfdatafile}" -D 2>/dev/null | grep -c "TNT 0x")
+	tip_cnt=$(perf script -i "${perfdatafile}" -D 2>/dev/null | grep -c "TIP 0x")
+	fup_cnt=$(perf script -i "${perfdatafile}" -D 2>/dev/null | grep -c "FUP 0x")
+	if [ "${tnt_cnt}" -ne 0 ] || [ "${tip_cnt}" -ne 0 ] || [ "${fup_cnt}" -ne 0 ] ; then
+		echo "Failed to disable branches"
+		return 1
+	fi
+	echo OK
+	return 0
+}
+
+test_time_cyc()
+{
+	echo "--- Test with/without CYC ---"
+	# Check if CYC is supported
+	cyc=$(cat /sys/bus/event_source/devices/intel_pt/caps/psb_cyc)
+	if [ "${cyc}" != "1" ] ; then
+		echo "SKIP: CYC is not supported"
+		return 2
+	fi
+	# Enable CYC
+	perf_record_no_decode -o "${perfdatafile}" -e intel_pt/cyc/u uname
+	# should get CYC packets
+	cyc_cnt=$(perf script -i "${perfdatafile}" -D 2>/dev/null | grep -c "CYC 0x")
+	if [ "${cyc_cnt}" = "0" ] ; then
+		echo "Failed to get CYC packet"
+		return 1
+	fi
+	# Without CYC
+	perf_record_no_decode -o "${perfdatafile}" -e intel_pt//u uname
+	# Should not get CYC packets
+	cyc_cnt=$(perf script -i "${perfdatafile}" -D 2>/dev/null | grep -c "CYC 0x")
+	if [ "${cyc_cnt}" -gt 0 ] ; then
+		echo "Still get CYC packet without cyc"
+		return 1
+	fi
+	echo OK
+	return 0
+}
+
+test_sample()
+{
+	echo "--- Test recording with sample mode ---"
+	# Check if recording with sample mode is working
+	if ! perf_record_no_decode -o "${perfdatafile}" --aux-sample=8192 -e '{intel_pt//u,branch-misses:u}' uname ; then
+		echo "perf record failed with --aux-sample"
+		return 1
+	fi
+	echo OK
+	return 0
+}
+
+test_kernel_trace()
+{
+	echo "--- Test with kernel trace ---"
+	# Check if recording with kernel trace is working
+	can_kernel || return 2
+	if ! perf_record_no_decode -o "${perfdatafile}" -e intel_pt//k -m1,128 uname ; then
+		echo "perf record failed with intel_pt//k"
+		return 1
+	fi
+	echo OK
+	return 0
+}
+
+test_virtual_lbr()
+{
+	echo "--- Test virtual LBR ---"
+
+	# Python script to determine the maximum size of branch stacks
+	cat << "_end_of_file_" > "${maxbrstack}"
+from __future__ import print_function
+
+bmax = 0
+
+def process_event(param_dict):
+	if "brstack" in param_dict:
+		brstack = param_dict["brstack"]
+		n = len(brstack)
+		global bmax
+		if n > bmax:
+			bmax = n
+
+def trace_end():
+	print("max brstack", bmax)
+_end_of_file_
+
+	# Check if virtual lbr is working
+	perf_record_no_bpf -o "${perfdatafile}" --aux-sample -e '{intel_pt//,cycles}:u' uname
+	times_val=$(perf script -i "${perfdatafile}" --itrace=L -s "${maxbrstack}" 2>/dev/null | grep "max brstack " | cut -d " " -f 3)
+	case "${times_val}" in
+		[0-9]*)	;;
+		*)	times_val=0;;
+	esac
+	if [ "${times_val}" -lt 2 ] ; then
+		echo "Failed with virtual lbr"
+		return 1
+	fi
+	echo OK
+	return 0
+}
+
+test_power_event()
+{
+	echo "--- Test power events ---"
+	# Check if power events are supported
+	power_event=$(cat /sys/bus/event_source/devices/intel_pt/caps/power_event_trace)
+	if [ "${power_event}" != "1" ] ; then
+		echo "SKIP: power_event_trace is not supported"
+		return 2
+	fi
+	if ! perf_record_no_decode -o "${perfdatafile}" -a -e intel_pt/pwr_evt/u uname ; then
+		echo "perf record failed with pwr_evt"
+		return 1
+	fi
+	echo OK
+	return 0
+}
+
+test_no_tnt()
+{
+	echo "--- Test with TNT packets disabled  ---"
+	# Check if TNT disable is supported
+	notnt=$(cat /sys/bus/event_source/devices/intel_pt/caps/tnt_disable)
+	if [ "${notnt}" != "1" ] ; then
+		echo "SKIP: tnt_disable is not supported"
+		return 2
+	fi
+	perf_record_no_decode -o "${perfdatafile}" -e intel_pt/notnt/u uname
+	# Should be no TNT packets
+	tnt_cnt=$(perf script -i "${perfdatafile}" -D | grep -c TNT)
+	if [ "${tnt_cnt}" -ne 0 ] ; then
+		echo "TNT packets still there after notnt"
+		return 1
+	fi
+	echo OK
+	return 0
+}
+
+test_event_trace()
+{
+	echo "--- Test with event_trace ---"
+	# Check if event_trace is supported
+	event_trace=$(cat /sys/bus/event_source/devices/intel_pt/caps/event_trace)
+	if [ "${event_trace}" != 1 ] ; then
+		echo "SKIP: event_trace is not supported"
+		return 2
+	fi
+	if ! perf_record_no_decode -o "${perfdatafile}" -e intel_pt/event/u uname ; then
+		echo "perf record failed with event trace"
+		return 1
+	fi
 	echo OK
 	return 0
 }
@@ -448,6 +632,15 @@ test_system_wide_side_band		|| ret=$? ; count_result $ret ; ret=0
 test_per_thread "" ""			|| ret=$? ; count_result $ret ; ret=0
 test_per_thread "k" "(incl. kernel) "	|| ret=$? ; count_result $ret ; ret=0
 test_jitdump				|| ret=$? ; count_result $ret ; ret=0
+test_packet_filter			|| ret=$? ; count_result $ret ; ret=0
+test_disable_branch			|| ret=$? ; count_result $ret ; ret=0
+test_time_cyc				|| ret=$? ; count_result $ret ; ret=0
+test_sample				|| ret=$? ; count_result $ret ; ret=0
+test_kernel_trace			|| ret=$? ; count_result $ret ; ret=0
+test_virtual_lbr			|| ret=$? ; count_result $ret ; ret=0
+test_power_event			|| ret=$? ; count_result $ret ; ret=0
+test_no_tnt				|| ret=$? ; count_result $ret ; ret=0
+test_event_trace			|| ret=$? ; count_result $ret ; ret=0
 
 cleanup
 
