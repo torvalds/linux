@@ -529,24 +529,6 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
 		break;
 
-	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
-		if (!state.online) {
-			val->intval = 0;
-			break;
-		}
-
-		ret = bq25890_field_read(bq, F_BATV); /* read measured value */
-		if (ret < 0)
-			return ret;
-
-		/* converted_val = 2.304V + ADC_val * 20mV (table 10.3.15) */
-		val->intval = 2304000 + ret * 20000;
-		break;
-
-	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX:
-		val->intval = bq25890_find_val(bq->init_data.vreg, TBL_VREG);
-		break;
-
 	case POWER_SUPPLY_PROP_PRECHARGE_CURRENT:
 		val->intval = bq25890_find_val(bq->init_data.iprechg, TBL_ITERM);
 		break;
@@ -561,15 +543,6 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 			return ret;
 
 		val->intval = bq25890_find_val(ret, TBL_IINLIM);
-		break;
-
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		ret = bq25890_field_read(bq, F_SYSV); /* read measured value */
-		if (ret < 0)
-			return ret;
-
-		/* converted_val = 2.304V + ADC_val * 20mV (table 10.3.15) */
-		val->intval = 2304000 + ret * 20000;
 		break;
 
 	case POWER_SUPPLY_PROP_CURRENT_NOW:	/* I_BAT now */
@@ -626,6 +599,51 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 		 * This value is constant for each battery and set from DT.
 		 */
 		val->intval = bq25890_find_val(bq->init_data.ichg, TBL_ICHG);
+		break;
+
+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:	/* V_BAT now */
+		/*
+		 * This is ADC-sampled immediate charge voltage supplied
+		 * from charger to battery. The property name is confusing,
+		 * for clarification refer to:
+		 * Documentation/ABI/testing/sysfs-class-power
+		 * /sys/class/power_supply/<supply_name>/voltage_now
+		 */
+		ret = bq25890_field_read(bq, F_BATV); /* read measured value */
+		if (ret < 0)
+			return ret;
+
+		/* converted_val = 2.304V + ADC_val * 20mV (table 10.3.15) */
+		val->intval = 2304000 + ret * 20000;
+		break;
+
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:	/* V_BAT user limit */
+		/*
+		 * This is user-configured constant charge voltage supplied
+		 * from charger to battery in second phase of charging, when
+		 * battery voltage reached constant charge voltage.
+		 *
+		 * This value reflects the current hardware setting.
+		 *
+		 * The POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX is the
+		 * maximum value of this property.
+		 */
+		ret = bq25890_field_read(bq, F_VREG);
+		if (ret < 0)
+			return ret;
+
+		val->intval = bq25890_find_val(ret, TBL_VREG);
+		break;
+
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX:	/* V_BAT max */
+		/*
+		 * This is maximum allowed constant charge voltage supplied
+		 * from charger to battery in second phase of charging, when
+		 * battery voltage reached constant charge voltage.
+		 *
+		 * This value is constant for each battery and set from DT.
+		 */
+		val->intval = bq25890_find_val(bq->init_data.vreg, TBL_VREG);
 		break;
 
 	case POWER_SUPPLY_PROP_TEMP:
