@@ -603,21 +603,6 @@ config SERIAL_MUX_CONSOLE
 	select SERIAL_CORE_CONSOLE
 	default y
 
-config PDC_CONSOLE
-	bool "PDC software console support"
-	depends on PARISC && !SERIAL_MUX && VT
-	help
-	  Saying Y here will enable the software based PDC console to be 
-	  used as the system console.  This is useful for machines in 
-	  which the hardware based console has not been written yet.  The
-	  following steps must be completed to use the PDC console:
-
-	    1. create the device entry (mknod /dev/ttyB0 c 11 0)
-	    2. Edit the /etc/inittab to start a getty listening on /dev/ttyB0
-	    3. Add device ttyB0 to /etc/securetty (if you want to log on as
-		 root on this console.)
-	    4. Change the kernel command console parameter to: console=ttyB0
-
 config SERIAL_SUNSAB
 	tristate "Sun Siemens SAB82532 serial support"
 	depends on SPARC && PCI
