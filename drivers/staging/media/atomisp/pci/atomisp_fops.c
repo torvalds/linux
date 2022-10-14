@@ -992,7 +992,7 @@ static int remove_pad_from_frame(struct atomisp_device *isp,
 		if (ret < 0)
 			goto remove_pad_error;
 
-		load  += in_frame->info.padded_width;
+		load  += in_frame->frame_info.padded_width;
 		store += width;
 	}
 

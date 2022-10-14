@@ -146,7 +146,7 @@ enum ia_css_frame_flash_state {
  *  This is the main structure used for all input and output images.
  */
 struct ia_css_frame {
-	struct ia_css_frame_info info; /** info struct describing the frame */
+	struct ia_css_frame_info frame_info; /** info struct describing the frame */
 	ia_css_ptr   data;	       /** pointer to start of image data */
 	unsigned int data_bytes;       /** size of image data in bytes */
 	/* LA: move this to ia_css_buffer */
@@ -184,7 +184,7 @@ struct ia_css_frame {
 };
 
 #define DEFAULT_FRAME { \
-	.info			= IA_CSS_BINARY_DEFAULT_FRAME_INFO, \
+	.frame_info		= IA_CSS_BINARY_DEFAULT_FRAME_INFO, \
 	.dynamic_queue_id	= SH_CSS_INVALID_QUEUE_ID, \
 	.buf_type		= IA_CSS_BUFFER_TYPE_INVALID, \
 	.flash_state		= IA_CSS_FRAME_FLASH_STATE_NONE, \
@@ -319,5 +319,11 @@ ia_css_frame_map(struct ia_css_frame **frame,
  */
 void
 ia_css_frame_unmap(struct ia_css_frame *frame);
+
+static inline const struct ia_css_frame_info *
+ia_css_frame_get_info(const struct ia_css_frame *frame)
+{
+	return frame ? &frame->frame_info : NULL;
+}
 
 #endif /* __IA_CSS_FRAME_PUBLIC_H */

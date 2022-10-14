@@ -3060,7 +3060,7 @@ init_vf_frameinfo_defaults(struct ia_css_pipe *pipe,
 
 	assert(vf_frame);
 
-	sh_css_pipe_get_viewfinder_frame_info(pipe, &vf_frame->info, idx);
+	sh_css_pipe_get_viewfinder_frame_info(pipe, &vf_frame->frame_info, idx);
 	vf_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_NONE;
 	ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
 	ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_VF_OUTPUT_FRAME + idx, thread_id, &queue_id);
@@ -3229,31 +3229,31 @@ init_in_frameinfo_memory_defaults(struct ia_css_pipe *pipe,
 	assert(frame);
 	in_frame = frame;
 
-	in_frame->info.format = format;
+	in_frame->frame_info.format = format;
 
 #ifdef ISP2401
 	if (format == IA_CSS_FRAME_FORMAT_RAW)
-		in_frame->info.format = (pipe->stream->config.pack_raw_pixels) ?
+		in_frame->frame_info.format = (pipe->stream->config.pack_raw_pixels) ?
 		IA_CSS_FRAME_FORMAT_RAW_PACKED : IA_CSS_FRAME_FORMAT_RAW;
 #endif
 
-	in_frame->info.res.width = pipe->stream->config.input_config.input_res.width;
-	in_frame->info.res.height = pipe->stream->config.input_config.input_res.height;
-	in_frame->info.raw_bit_depth =
-	ia_css_pipe_util_pipe_input_format_bpp(pipe);
-	ia_css_frame_info_set_width(&in_frame->info, pipe->stream->config.input_config.input_res.width, 0);
+	in_frame->frame_info.res.width = pipe->stream->config.input_config.input_res.width;
+	in_frame->frame_info.res.height = pipe->stream->config.input_config.input_res.height;
+	in_frame->frame_info.raw_bit_depth = ia_css_pipe_util_pipe_input_format_bpp(pipe);
+	ia_css_frame_info_set_width(&in_frame->frame_info,
+				    pipe->stream->config.input_config.input_res.width, 0);
 	in_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_NONE;
 	ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
 	ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_INPUT_FRAME, thread_id, &queue_id);
 	in_frame->dynamic_queue_id = queue_id;
 	in_frame->buf_type = IA_CSS_BUFFER_TYPE_INPUT_FRAME;
 #ifdef ISP2401
-	ia_css_get_crop_offsets(pipe, &in_frame->info);
+	ia_css_get_crop_offsets(pipe, &in_frame->frame_info);
 #endif
 	err = ia_css_frame_init_planes(in_frame);
 
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
-			    "init_in_frameinfo_memory_defaults() bayer_order = %d:\n", in_frame->info.raw_bayer_order);
+	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, "%s() bayer_order = %d\n",
+			    __func__, in_frame->frame_info.raw_bayer_order);
 
 	return err;
 }
@@ -3268,7 +3268,7 @@ init_out_frameinfo_defaults(struct ia_css_pipe *pipe,
 
 	assert(out_frame);
 
-	sh_css_pipe_get_output_frame_info(pipe, &out_frame->info, idx);
+	sh_css_pipe_get_output_frame_info(pipe, &out_frame->frame_info, idx);
 	out_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_NONE;
 	ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
 	ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_OUTPUT_FRAME + idx, thread_id, &queue_id);
@@ -4146,7 +4146,7 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
 				if (!frame->valid)
 					pipe->num_invalid_frames--;
 
-				if (frame->info.format == IA_CSS_FRAME_FORMAT_BINARY_8) {
+				if (frame->frame_info.format == IA_CSS_FRAME_FORMAT_BINARY_8) {
 #ifdef ISP2401
 					frame->planes.binary.size = frame->data_bytes;
 #else
@@ -7102,7 +7102,7 @@ create_host_yuvpp_pipeline(struct ia_css_pipe *pipe)
 			/* we use output port 1 as internal output port */
 			tmp_in_frame = yuv_scaler_stage->args.out_frame[1];
 			if (pipe->pipe_settings.yuvpp.is_output_stage[i]) {
-				if (tmp_vf_frame && (tmp_vf_frame->info.res.width != 0)) {
+				if (tmp_vf_frame && (tmp_vf_frame->frame_info.res.width != 0)) {
 					in_frame = yuv_scaler_stage->args.out_vf_frame;
 					err = add_vf_pp_stage(pipe, in_frame,
 							      tmp_vf_frame,
@@ -7118,7 +7118,7 @@ create_host_yuvpp_pipeline(struct ia_css_pipe *pipe)
 			}
 		}
 	} else if (copy_stage) {
-		if (vf_frame[0] && vf_frame[0]->info.res.width != 0) {
+		if (vf_frame[0] && vf_frame[0]->frame_info.res.width != 0) {
 			in_frame = copy_stage->args.out_vf_frame;
 			err = add_vf_pp_stage(pipe, in_frame, vf_frame[0],
 					      &vf_pp_binary[0], &vf_pp_stage);
@@ -7158,10 +7158,10 @@ create_host_copy_pipeline(struct ia_css_pipe *pipe,
 
 	if (copy_on_sp(pipe) &&
 	    pipe->stream->config.input_config.format == ATOMISP_INPUT_FORMAT_BINARY_8) {
-		ia_css_frame_info_init(&out_frame->info, JPEG_BYTES, 1,
+		ia_css_frame_info_init(&out_frame->frame_info, JPEG_BYTES, 1,
 				       IA_CSS_FRAME_FORMAT_BINARY_8, 0);
-	} else if (out_frame->info.format == IA_CSS_FRAME_FORMAT_RAW) {
-		out_frame->info.raw_bit_depth =
+	} else if (out_frame->frame_info.format == IA_CSS_FRAME_FORMAT_RAW) {
+		out_frame->frame_info.raw_bit_depth =
 		ia_css_pipe_util_pipe_input_format_bpp(pipe);
 	}
 
@@ -7200,7 +7200,7 @@ create_host_isyscopy_capture_pipeline(struct ia_css_pipe *pipe)
 	ia_css_pipeline_clean(me);
 
 	/* Construct out_frame info */
-	err = sh_css_pipe_get_output_frame_info(pipe, &out_frame->info, 0);
+	err = sh_css_pipe_get_output_frame_info(pipe, &out_frame->frame_info, 0);
 	if (err)
 		return err;
 	out_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_NONE;
