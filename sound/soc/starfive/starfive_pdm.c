@@ -11,6 +11,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/regmap.h>
+#include <linux/pm_runtime.h>
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
 #include <sound/pcm_params.h>
@@ -239,9 +240,73 @@ static int pdm_probe(struct snd_soc_component *component)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int sf_pdm_runtime_suspend(struct device *dev)
+{
+	struct sf_pdm *priv = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(priv->clk_pdm_apb);
+	clk_disable_unprepare(priv->clk_pdm_mclk);
+	clk_disable_unprepare(priv->clk_mclk);
+
+	return 0;
+}
+
+static int sf_pdm_runtime_resume(struct device *dev)
+{
+	struct sf_pdm *priv = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(priv->clk_mclk);
+	if (ret) {
+		dev_err(dev, "failed to prepare enable clk_mclk\n");
+		return ret;
+	}
+
+	ret = clk_prepare_enable(priv->clk_pdm_mclk);
+	if (ret) {
+		dev_err(dev, "failed to prepare enable clk_pdm_mclk\n");
+		goto disable_mclk;
+	}
+
+	ret = clk_prepare_enable(priv->clk_pdm_apb);
+	if (ret) {
+		dev_err(dev, "failed to prepare enable clk_pdm_apb\n");
+		goto disable_pdm_mclk;
+	}
+
+	return 0;
+
+disable_pdm_mclk:
+	clk_disable_unprepare(priv->clk_pdm_mclk);
+disable_mclk:
+	clk_disable_unprepare(priv->clk_mclk);
+
+	return ret;
+}
+#endif
+
+#ifdef CONFIG_PM_SLEEP
+static int sf_pdm_suspend(struct snd_soc_component *component)
+{
+	return pm_runtime_force_suspend(component->dev);
+}
+
+static int sf_pdm_resume(struct snd_soc_component *component)
+{
+	return pm_runtime_force_resume(component->dev);
+}
+
+#else
+#define sf_tdm_suspend	NULL
+#define sf_tdm_resume	NULL
+#endif
+
 static const struct snd_soc_component_driver sf_pdm_component_drv = {
 	.name = "jh7110-pdm",
 	.probe = pdm_probe,
+	.suspend = sf_pdm_suspend,
+	.resume = sf_pdm_resume,
 };
 
 static const struct regmap_config sf_pdm_regmap_cfg = {
@@ -386,12 +451,22 @@ static int sf_pdm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	return devm_snd_soc_register_component(&pdev->dev, &sf_pdm_component_drv,
+	dev_set_drvdata(&pdev->dev, priv);
+
+	ret = devm_snd_soc_register_component(&pdev->dev, &sf_pdm_component_drv,
 					       &sf_pdm_dai_drv, 1);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register pdm dai\n");
+		return ret;
+	}
+
+	pm_runtime_enable(&pdev->dev);
+	return 0;
 }
 
 static int sf_pdm_dev_remove(struct platform_device *pdev)
 {
+	pm_runtime_disable(&pdev->dev);
 	return 0;
 }
 
@@ -401,10 +476,18 @@ static const struct of_device_id sf_pdm_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, sf_pdm_of_match);
 
+static const struct dev_pm_ops sf_pdm_pm_ops = {
+	SET_RUNTIME_PM_OPS(sf_pdm_runtime_suspend,
+			sf_pdm_runtime_resume, NULL)
+};
+
 static struct platform_driver sf_pdm_driver = {
 	.driver = {
 		.name = "jh7110-pdm",
 		.of_match_table = sf_pdm_of_match,
+#ifdef CONFIG_PM
+		.pm = &sf_pdm_pm_ops,
+#endif
 	},
 	.probe = sf_pdm_probe,
 	.remove = sf_pdm_dev_remove,

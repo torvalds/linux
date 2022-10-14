@@ -26,6 +26,11 @@
 	#define MS_BIT			1
 #define TDM_PCMTXCR			0x04
 	#define PCMTXCR_TXEN		BIT(0)
+	#define IFL_BIT			11
+	#define WL_BIT			8
+	#define SSCALE_BIT		4
+	#define SL_BIT			2
+	#define LRJ_BIT			1
 #define TDM_PCMRXCR			0x08
 	#define PCMRXCR_RXEN		BIT(0)
 	#define PCMRXCR_RXSL_MASK	0xc
@@ -36,8 +41,7 @@
 #define TDM_PCMDIV			0x0c
 
 /*  DMA registers */
-#define TDM_FIFO		0x170c0000
-//#define TDM_FIFO_DEPTH			16
+#define TDM_FIFO			0x170c0000
 #define TDM_FIFO_DEPTH			32
 
 #define ONE_CHANNEL_SUPPORT		1

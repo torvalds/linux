@@ -11,6 +11,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/regmap.h>
+#include <linux/pm_runtime.h>
 #include <linux/dma/starfive-dma.h>
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
@@ -90,7 +91,10 @@ static void sf_tdm_contrl(struct sf_tdm_dev *dev)
 {
 	u32 data;
 
-	data = (dev->clkpolity << 5) | (dev->elm << 3) | (dev->syncm << 2) | (dev->ms_mode << 1);
+	data = (dev->clkpolity << CLKPOL_BIT) |
+		(dev->elm << ELM_BIT) |
+		(dev->syncm << SYNCM_BIT) |
+		(dev->ms_mode << MS_BIT);
 	sf_tdm_writel(dev, TDM_PCMGBCR, data);
 }
 
@@ -101,11 +105,17 @@ static void sf_tdm_config(struct sf_tdm_dev *dev, struct snd_pcm_substream *subs
 	sf_tdm_contrl(dev);
 	sf_tdm_syncdiv(dev);
 
-	datarx = (dev->rx.ifl << 11) | (dev->rx.wl << 8) | (dev->rx.sscale << 4) |
-		(dev->rx.sl << 2) | (dev->rx.lrj << 1);
+	datarx = (dev->rx.ifl << IFL_BIT) |
+		(dev->rx.wl << WL_BIT) |
+		(dev->rx.sscale << SSCALE_BIT) |
+		(dev->rx.sl << SL_BIT) |
+		(dev->rx.lrj << LRJ_BIT);
 
-	datatx = (dev->tx.ifl << 11) | (dev->tx.wl << 8) | (dev->tx.sscale << 4) |
-		(dev->tx.sl << 2) | (dev->tx.lrj << 1);
+	datatx = (dev->tx.ifl << IFL_BIT) |
+		(dev->tx.wl << WL_BIT) |
+		(dev->tx.sscale << SSCALE_BIT) |
+		(dev->tx.sl << SL_BIT) |
+		(dev->tx.lrj << LRJ_BIT);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		sf_tdm_writel(dev, TDM_PCMTXCR, datatx);
@@ -113,13 +123,98 @@ static void sf_tdm_config(struct sf_tdm_dev *dev, struct snd_pcm_substream *subs
 		sf_tdm_writel(dev, TDM_PCMRXCR, datarx);
 }
 
+#ifdef CONFIG_PM
+static int sf_tdm_runtime_suspend(struct device *dev)
+{
+	struct sf_tdm_dev *priv = dev_get_drvdata(dev);
 
+	clk_disable_unprepare(priv->clk_tdm);
+	clk_disable_unprepare(priv->clk_tdm_ext);
+	clk_disable_unprepare(priv->clk_tdm_internal);
+	clk_disable_unprepare(priv->clk_tdm_apb);
+	clk_disable_unprepare(priv->clk_tdm_ahb);
+	clk_disable_unprepare(priv->clk_mclk_inner);
+
+	return 0;
+}
+
+static int sf_tdm_runtime_resume(struct device *dev)
+{
+	struct sf_tdm_dev *priv = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(priv->clk_mclk_inner);
+	if (ret) {
+		dev_err(dev, "failed to prepare enable clk_mclk_inner\n");
+		return ret;
+	}
+
+	ret = clk_prepare_enable(priv->clk_tdm_ahb);
+	if (ret) {
+		dev_err(dev, "Failed to prepare enable clk_tdm_ahb\n");
+		goto dis_mclk_inner;
+	}
+
+	ret = clk_prepare_enable(priv->clk_tdm_apb);
+	if (ret) {
+		dev_err(dev, "Failed to prepare enable clk_tdm_apb\n");
+		goto dis_tdm_ahb;
+	}
+
+	ret = clk_prepare_enable(priv->clk_tdm_internal);
+	if (ret) {
+		dev_err(dev, "Failed to prepare enable clk_tdm_intl\n");
+		goto dis_tdm_apb;
+	}
+
+	ret = clk_prepare_enable(priv->clk_tdm_ext);
+	if (ret) {
+		dev_err(dev, "Failed to prepare enable clk_tdm_ext\n");
+		goto dis_tdm_internal;
+	}
+
+	ret = clk_prepare_enable(priv->clk_tdm);
+	if (ret) {
+		dev_err(dev, "Failed to prepare enable clk_tdm\n");
+		goto dis_tdm_ext;
+	}
+
+	return 0;
+
+dis_tdm_ext:
+	clk_disable_unprepare(priv->clk_tdm_ext);
+dis_tdm_internal:
+	clk_disable_unprepare(priv->clk_tdm_internal);
+dis_tdm_apb:
+	clk_disable_unprepare(priv->clk_tdm_apb);
+dis_tdm_ahb:
+	clk_disable_unprepare(priv->clk_tdm_ahb);
+dis_mclk_inner:
+	clk_disable_unprepare(priv->clk_mclk_inner);
+
+	return ret;
+}
+#endif
+
+#ifdef CONFIG_PM_SLEEP
+static int sf_tdm_suspend(struct snd_soc_component *component)
+{
+	return pm_runtime_force_suspend(component->dev);
+}
+
+static int sf_tdm_resume(struct snd_soc_component *component)
+{
+	return pm_runtime_force_resume(component->dev);
+}
+
+#else
 #define sf_tdm_suspend	NULL
 #define sf_tdm_resume	NULL
+#endif
 
-/* 
+/*
  * To stop dma first, we must implement this function, because it is
- * called before stopping the stream. 
+ * called before stopping the stream.
  */
 static int sf_pcm_trigger(struct snd_soc_component *component,
 			      struct snd_pcm_substream *substream, int cmd)
@@ -177,35 +272,29 @@ static int sf_tdm_hw_params(struct snd_pcm_substream *substream,
 	/*  There are some limitation when using 8k sample rate  */
 	case 8000:
 		mclk_rate = 12288000;
-		dev->pcmclk = 512000;
 		if ((data_width == 16) || (channels == 1)) {
 			pr_err("TDM: not support 16bit or 1-channel when using 8k sample rate\n");
 			return -EINVAL;
 		}
 		break;
 	case 11025:
-		mclk_rate = 11289600; //sysclk
-		dev->pcmclk = 352800; //bit clock, for 16-bit
+		/* sysclk */
+		mclk_rate = 11289600;
 		break;
 	case 16000:
-		mclk_rate = 12288000; //sysclk
-		dev->pcmclk = 512000; //bit clock
+		mclk_rate = 12288000;
 		break;
 	case 22050:
 		mclk_rate = 11289600;
-		dev->pcmclk = 705600;
 		break;
 	case 32000:
 		mclk_rate = 12288000;
-		dev->pcmclk = 1024000;
 		break;
 	case 44100:
 		mclk_rate = 11289600;
-		dev->pcmclk = 1411200;
 		break;
 	case 48000:
 		mclk_rate = 12288000;
-		dev->pcmclk = 1536000;
 		break;
 	default:
 		pr_err("TDM: not support sample rate:%d\n", dev->samplerate);
@@ -491,60 +580,68 @@ static int sf_tdm_clk_reset_init(struct platform_device *pdev, struct sf_tdm_dev
 	ret = clk_prepare_enable(dev->clk_ahb0);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to prepare enable clk_ahb0\n");
-		goto err_dis_ahb0;
+		goto dis_mclk_inner;
 	}
 
 	ret = clk_prepare_enable(dev->clk_tdm_ahb);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to prepare enable clk_tdm_ahb\n");
-		goto err_dis_tdm_ahb;
+		goto dis_ahb0;
 	}
 
 	ret = clk_prepare_enable(dev->clk_apb0);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to prepare enable clk_apb0\n");
-		goto err_dis_apb0;
+		goto dis_tdm_ahb;
 	}
 
 	ret = clk_prepare_enable(dev->clk_tdm_apb);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to prepare enable clk_tdm_apb\n");
-		goto err_dis_tdm_apb;
+		goto dis_apb0;
 	}
 
 	ret = clk_prepare_enable(dev->clk_tdm_internal);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to prepare enable clk_tdm_intl\n");
-		goto err_dis_tdm_internal;
+		goto dis_tdm_apb;
 	}
 
 	ret = clk_prepare_enable(dev->clk_tdm_ext);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to prepare enable clk_tdm_ext\n");
-		goto err_dis_tdm_ext;
+		goto dis_tdm_internal;
+	}
+
+	ret = clk_prepare_enable(dev->clk_tdm);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to prepare enable clk_tdm\n");
+		goto dis_tdm_ext;
 	}
 
 	ret = reset_control_deassert(dev->resets);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to deassert tdm resets\n");
-		goto err_clk_disable;
+		goto dis_tdm_clk;
 	}
 
 	return 0;
 
-err_clk_disable:
+dis_tdm_clk:
+	clk_disable_unprepare(dev->clk_tdm);
+dis_tdm_ext:
 	clk_disable_unprepare(dev->clk_tdm_ext);
-err_dis_tdm_ext:
+dis_tdm_internal:
 	clk_disable_unprepare(dev->clk_tdm_internal);
-err_dis_tdm_internal:
+dis_tdm_apb:
 	clk_disable_unprepare(dev->clk_tdm_apb);
-err_dis_tdm_apb:
+dis_apb0:
 	clk_disable_unprepare(dev->clk_apb0);
-err_dis_apb0:
+dis_tdm_ahb:
 	clk_disable_unprepare(dev->clk_tdm_ahb);
-err_dis_tdm_ahb:
+dis_ahb0:
 	clk_disable_unprepare(dev->clk_ahb0);
-err_dis_ahb0:
+dis_mclk_inner:
 	clk_disable_unprepare(dev->clk_mclk_inner);
 exit:
 	return ret;
@@ -575,8 +672,8 @@ static int sf_tdm_probe(struct platform_device *pdev)
 
 	dev->frame_mode = SHORT_LATER;
 	tdm_init_params(dev);
-
 	dev_set_drvdata(&pdev->dev, dev);
+
 	ret = devm_snd_soc_register_component(&pdev->dev, &sf_tdm_component,
 					 &sf_tdm_dai, 1);
 	if (ret != 0) {
@@ -592,11 +689,13 @@ static int sf_tdm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	pm_runtime_enable(&pdev->dev);
 	return 0;
 }
 
 static int sf_tdm_dev_remove(struct platform_device *pdev)
 {
+	pm_runtime_disable(&pdev->dev);
 	return 0;
 }
 static const struct of_device_id sf_tdm_of_match[] = {
@@ -605,10 +704,18 @@ static const struct of_device_id sf_tdm_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, sf_tdm_of_match);
 
+static const struct dev_pm_ops sf_tdm_pm_ops = {
+	SET_RUNTIME_PM_OPS(sf_tdm_runtime_suspend,
+			sf_tdm_runtime_resume, NULL)
+};
+
 static struct platform_driver sf_tdm_driver = {
 	.driver = {
 		.name = "jh7110-tdm",
 		.of_match_table = sf_tdm_of_match,
+#ifdef CONFIG_PM
+		.pm = &sf_tdm_pm_ops,
+#endif
 	},
 	.probe = sf_tdm_probe,
 	.remove = sf_tdm_dev_remove,
