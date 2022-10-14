@@ -265,13 +265,12 @@ count_result()
 		return
 	fi
 	err_cnt=$((err_cnt + 1))
-	ret=0
 }
 
 ret=0
-test_system_wide_side_band || ret=$? ; count_result $ret
-test_per_thread "" "" || ret=$? ; count_result $ret
-test_per_thread "k" "(incl. kernel) " || ret=$? ; count_result $ret
+test_system_wide_side_band || ret=$? ; count_result $ret ; ret=0
+test_per_thread "" "" || ret=$? ; count_result $ret ; ret=0
+test_per_thread "k" "(incl. kernel) " || ret=$? ; count_result $ret ; ret=0
 
 cleanup
 
