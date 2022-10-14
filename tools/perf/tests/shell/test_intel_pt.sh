@@ -117,7 +117,14 @@ test_system_wide_side_band()
 
 can_kernel()
 {
-	perf_record_no_decode -o "${tmpfile}" -e dummy:k true >/dev/null 2>&1 || return 2
+	if [ -z "${can_kernel_trace}" ] ; then
+		can_kernel_trace=0
+		perf_record_no_decode -o "${tmpfile}" -e dummy:k true >/dev/null 2>&1 && can_kernel_trace=1
+	fi
+	if [ ${can_kernel_trace} -eq 0 ] ; then
+		echo "SKIP: no kernel tracing"
+		return 2
+	fi
 	return 0
 }
 
