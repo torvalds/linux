@@ -36,6 +36,7 @@
 #include "ivsrcid/nbio/irqsrcs_nbif_7_4.h"
 #include "atom.h"
 #include "amdgpu_reset.h"
+#include "umc_v6_7.h"
 
 #ifdef CONFIG_X86_MCE_AMD
 #include <asm/mce.h>
@@ -2899,10 +2900,17 @@ static int amdgpu_bad_page_notifier(struct notifier_block *nb,
 	/*
 	 * Translate UMC channel address to Physical address
 	 */
-	if (adev->umc.ras &&
-	    adev->umc.ras->convert_ras_error_address)
-		adev->umc.ras->convert_ras_error_address(adev,
-			&err_data, m->addr, ch_inst, umc_inst);
+	switch (adev->ip_versions[UMC_HWIP][0]) {
+	case IP_VERSION(6, 7, 0):
+		umc_v6_7_convert_error_address(adev,
+				&err_data, m->addr, ch_inst, umc_inst);
+		break;
+	default:
+		dev_warn(adev->dev,
+			 "UMC address to Physical address translation is not supported\n");
+		kfree(err_data.err_addr);
+		return NOTIFY_DONE;
+	}
 
 	if (amdgpu_bad_page_threshold != 0) {
 		amdgpu_ras_add_bad_pages(adev, err_data.err_addr,

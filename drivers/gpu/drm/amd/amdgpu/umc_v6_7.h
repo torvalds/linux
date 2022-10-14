@@ -71,5 +71,7 @@ extern const uint32_t
 	umc_v6_7_channel_idx_tbl_second[UMC_V6_7_UMC_INSTANCE_NUM][UMC_V6_7_CHANNEL_INSTANCE_NUM];
 extern const uint32_t
 	umc_v6_7_channel_idx_tbl_first[UMC_V6_7_UMC_INSTANCE_NUM][UMC_V6_7_CHANNEL_INSTANCE_NUM];
-
+void umc_v6_7_convert_error_address(struct amdgpu_device *adev,
+                                    struct ras_err_data *err_data, uint64_t err_addr,
+                                    uint32_t ch_inst, uint32_t umc_inst);
 #endif
