@@ -764,7 +764,7 @@ static int btree_path_prefetch(struct btree_trans *trans, struct btree_path *pat
 
 	bch2_bkey_buf_init(&tmp);
 
-	while (nr && !ret) {
+	while (nr-- && !ret) {
 		if (!bch2_btree_node_relock(trans, path, path->level))
 			break;
 
@@ -799,7 +799,7 @@ static int btree_path_prefetch_j(struct btree_trans *trans, struct btree_path *p
 
 	bch2_bkey_buf_init(&tmp);
 
-	while (nr && !ret) {
+	while (nr-- && !ret) {
 		if (!bch2_btree_node_relock(trans, path, path->level))
 			break;
 
