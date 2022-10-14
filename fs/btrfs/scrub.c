@@ -297,7 +297,7 @@ static struct scrub_block *alloc_scrub_block(struct scrub_ctx *sctx,
  * Will also allocate new pages for @sblock if needed.
  */
 static struct scrub_sector *alloc_scrub_sector(struct scrub_block *sblock,
-					       u64 logical, gfp_t gfp)
+					       u64 logical)
 {
 	const pgoff_t page_index = (logical - sblock->logical) >> PAGE_SHIFT;
 	struct scrub_sector *ssector;
@@ -305,7 +305,7 @@ static struct scrub_sector *alloc_scrub_sector(struct scrub_block *sblock,
 	/* We must never have scrub_block exceed U32_MAX in size. */
 	ASSERT(logical - sblock->logical < U32_MAX);
 
-	ssector = kzalloc(sizeof(*ssector), gfp);
+	ssector = kzalloc(sizeof(*ssector), GFP_KERNEL);
 	if (!ssector)
 		return NULL;
 
@@ -313,7 +313,7 @@ static struct scrub_sector *alloc_scrub_sector(struct scrub_block *sblock,
 	if (!sblock->pages[page_index]) {
 		int ret;
 
-		sblock->pages[page_index] = alloc_page(gfp);
+		sblock->pages[page_index] = alloc_page(GFP_KERNEL);
 		if (!sblock->pages[page_index]) {
 			kfree(ssector);
 			return NULL;
@@ -1516,7 +1516,7 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 			sblock = sblocks_for_recheck[mirror_index];
 			sblock->sctx = sctx;
 
-			sector = alloc_scrub_sector(sblock, logical, GFP_KERNEL);
+			sector = alloc_scrub_sector(sblock, logical);
 			if (!sector) {
 				spin_lock(&sctx->stat_lock);
 				sctx->stat.malloc_errors++;
@@ -2438,7 +2438,7 @@ static int scrub_sectors(struct scrub_ctx *sctx, u64 logical, u32 len,
 		 */
 		u32 l = min(sectorsize, len);
 
-		sector = alloc_scrub_sector(sblock, logical, GFP_KERNEL);
+		sector = alloc_scrub_sector(sblock, logical);
 		if (!sector) {
 			spin_lock(&sctx->stat_lock);
 			sctx->stat.malloc_errors++;
@@ -2769,7 +2769,7 @@ static int scrub_sectors_for_parity(struct scrub_parity *sparity,
 	for (index = 0; len > 0; index++) {
 		struct scrub_sector *sector;
 
-		sector = alloc_scrub_sector(sblock, logical, GFP_KERNEL);
+		sector = alloc_scrub_sector(sblock, logical);
 		if (!sector) {
 			spin_lock(&sctx->stat_lock);
 			sctx->stat.malloc_errors++;
