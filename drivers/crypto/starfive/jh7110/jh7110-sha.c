@@ -646,10 +646,8 @@ static int jh7110_hash_cra_init_algs(struct crypto_tfm *tfm,
 	ctx->fallback.shash = crypto_alloc_shash(alg_name, 0,
 			CRYPTO_ALG_NEED_FALLBACK);
 
-	if (IS_ERR(ctx->fallback.shash)) {
-		pr_err("fallback unavailable for '%s'\n", alg_name);
+	if (IS_ERR(ctx->fallback.shash))
 		ctx->fallback_available = false;
-	}
 
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
 			sizeof(struct jh7110_sec_request_ctx));
