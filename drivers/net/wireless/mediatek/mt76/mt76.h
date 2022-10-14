@@ -1149,6 +1149,7 @@ void mt76_update_survey(struct mt76_phy *phy);
 void mt76_update_survey_active_time(struct mt76_phy *phy, ktime_t time);
 int mt76_get_survey(struct ieee80211_hw *hw, int idx,
 		    struct survey_info *survey);
+int mt76_rx_signal(u8 chain_mask, s8 *chain_signal);
 void mt76_set_stream_caps(struct mt76_phy *phy, bool vht);
 
 int mt76_rx_aggr_start(struct mt76_dev *dev, struct mt76_wcid *wcid, u8 tid,

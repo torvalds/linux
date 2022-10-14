@@ -951,14 +951,12 @@ void mt76_wcid_key_setup(struct mt76_dev *dev, struct mt76_wcid *wcid,
 }
 EXPORT_SYMBOL(mt76_wcid_key_setup);
 
-static int
-mt76_rx_signal(struct mt76_rx_status *status)
+int mt76_rx_signal(u8 chain_mask, s8 *chain_signal)
 {
-	s8 *chain_signal = status->chain_signal;
 	int signal = -128;
 	u8 chains;
 
-	for (chains = status->chains; chains; chains >>= 1, chain_signal++) {
+	for (chains = chain_mask; chains; chains >>= 1, chain_signal++) {
 		int cur, diff;
 
 		cur = *chain_signal;
@@ -980,6 +978,7 @@ mt76_rx_signal(struct mt76_rx_status *status)
 
 	return signal;
 }
+EXPORT_SYMBOL(mt76_rx_signal);
 
 static void
 mt76_rx_convert(struct mt76_dev *dev, struct sk_buff *skb,
@@ -1009,7 +1008,7 @@ mt76_rx_convert(struct mt76_dev *dev, struct sk_buff *skb,
 	status->ampdu_reference = mstat.ampdu_ref;
 	status->device_timestamp = mstat.timestamp;
 	status->mactime = mstat.timestamp;
-	status->signal = mt76_rx_signal(&mstat);
+	status->signal = mt76_rx_signal(mstat.chains, mstat.chain_signal);
 	if (status->signal <= -128)
 		status->flag |= RX_FLAG_NO_SIGNAL_VAL;
 
