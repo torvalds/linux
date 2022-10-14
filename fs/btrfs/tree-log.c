@@ -749,8 +749,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 		 */
 		ret = btrfs_qgroup_trace_extent(trans,
 				btrfs_file_extent_disk_bytenr(eb, item),
-				btrfs_file_extent_disk_num_bytes(eb, item),
-				GFP_NOFS);
+				btrfs_file_extent_disk_num_bytes(eb, item));
 		if (ret < 0)
 			goto out;
 

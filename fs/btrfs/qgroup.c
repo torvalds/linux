@@ -1842,7 +1842,7 @@ int btrfs_qgroup_trace_extent_post(struct btrfs_trans_handle *trans,
 }
 
 int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans, u64 bytenr,
-			      u64 num_bytes, gfp_t gfp_flag)
+			      u64 num_bytes)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_qgroup_extent_record *record;
@@ -1852,7 +1852,7 @@ int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans, u64 bytenr,
 	if (!test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags)
 	    || bytenr == 0 || num_bytes == 0)
 		return 0;
-	record = kzalloc(sizeof(*record), gfp_flag);
+	record = kzalloc(sizeof(*record), GFP_NOFS);
 	if (!record)
 		return -ENOMEM;
 
@@ -1904,8 +1904,7 @@ int btrfs_qgroup_trace_leaf_items(struct btrfs_trans_handle *trans,
 
 		num_bytes = btrfs_file_extent_disk_num_bytes(eb, fi);
 
-		ret = btrfs_qgroup_trace_extent(trans, bytenr, num_bytes,
-						GFP_NOFS);
+		ret = btrfs_qgroup_trace_extent(trans, bytenr, num_bytes);
 		if (ret)
 			return ret;
 	}
@@ -2104,12 +2103,11 @@ static int qgroup_trace_extent_swap(struct btrfs_trans_handle* trans,
 	 * blocks for qgroup accounting.
 	 */
 	ret = btrfs_qgroup_trace_extent(trans, src_path->nodes[dst_level]->start,
-			nodesize, GFP_NOFS);
+					nodesize);
 	if (ret < 0)
 		goto out;
-	ret = btrfs_qgroup_trace_extent(trans,
-			dst_path->nodes[dst_level]->start,
-			nodesize, GFP_NOFS);
+	ret = btrfs_qgroup_trace_extent(trans, dst_path->nodes[dst_level]->start,
+					nodesize);
 	if (ret < 0)
 		goto out;
 
@@ -2393,8 +2391,7 @@ walk_down:
 			path->locks[level] = BTRFS_READ_LOCK;
 
 			ret = btrfs_qgroup_trace_extent(trans, child_bytenr,
-							fs_info->nodesize,
-							GFP_NOFS);
+							fs_info->nodesize);
 			if (ret)
 				goto out;
 		}
