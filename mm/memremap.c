@@ -138,8 +138,11 @@ void memunmap_pages(struct dev_pagemap *pgmap)
 	int i;
 
 	percpu_ref_kill(&pgmap->ref);
-	for (i = 0; i < pgmap->nr_range; i++)
-		percpu_ref_put_many(&pgmap->ref, pfn_len(pgmap, i));
+	if (pgmap->type != MEMORY_DEVICE_PRIVATE &&
+	    pgmap->type != MEMORY_DEVICE_COHERENT)
+		for (i = 0; i < pgmap->nr_range; i++)
+			percpu_ref_put_many(&pgmap->ref, pfn_len(pgmap, i));
+
 	wait_for_completion(&pgmap->done);
 
 	for (i = 0; i < pgmap->nr_range; i++)
@@ -264,7 +267,9 @@ static int pagemap_range(struct dev_pagemap *pgmap, struct mhp_params *params,
 	memmap_init_zone_device(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
 				PHYS_PFN(range->start),
 				PHYS_PFN(range_len(range)), pgmap);
-	percpu_ref_get_many(&pgmap->ref, pfn_len(pgmap, range_id));
+	if (pgmap->type != MEMORY_DEVICE_PRIVATE &&
+	    pgmap->type != MEMORY_DEVICE_COHERENT)
+		percpu_ref_get_many(&pgmap->ref, pfn_len(pgmap, range_id));
 	return 0;
 
 err_add_memory:
@@ -502,11 +507,28 @@ void free_zone_device_page(struct page *page)
 	page->mapping = NULL;
 	page->pgmap->ops->page_free(page);
 
-	/*
-	 * Reset the page count to 1 to prepare for handing out the page again.
-	 */
-	set_page_count(page, 1);
+	if (page->pgmap->type != MEMORY_DEVICE_PRIVATE &&
+	    page->pgmap->type != MEMORY_DEVICE_COHERENT)
+		/*
+		 * Reset the page count to 1 to prepare for handing out the page
+		 * again.
+		 */
+		set_page_count(page, 1);
+	else
+		put_dev_pagemap(page->pgmap);
 }
+
+void zone_device_page_init(struct page *page)
+{
+	/*
+	 * Drivers shouldn't be allocating pages after calling
+	 * memunmap_pages().
+	 */
+	WARN_ON_ONCE(!percpu_ref_tryget_live(&page->pgmap->ref));
+	set_page_count(page, 1);
+	lock_page(page);
+}
+EXPORT_SYMBOL_GPL(zone_device_page_init);
 
 #ifdef CONFIG_FS_DAX
 bool __put_devmap_managed_page_refs(struct page *page, int refs)

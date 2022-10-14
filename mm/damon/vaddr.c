@@ -72,7 +72,7 @@ static int damon_va_evenly_split_region(struct damon_target *t,
 		return -EINVAL;
 
 	orig_end = r->ar.end;
-	sz_orig = r->ar.end - r->ar.start;
+	sz_orig = damon_sz_region(r);
 	sz_piece = ALIGN_DOWN(sz_orig / nr_pieces, DAMON_MIN_REGION);
 
 	if (!sz_piece)
@@ -618,7 +618,7 @@ static unsigned long damos_madvise(struct damon_target *target,
 {
 	struct mm_struct *mm;
 	unsigned long start = PAGE_ALIGN(r->ar.start);
-	unsigned long len = PAGE_ALIGN(r->ar.end - r->ar.start);
+	unsigned long len = PAGE_ALIGN(damon_sz_region(r));
 	unsigned long applied;
 
 	mm = damon_get_mm(target);
