@@ -283,9 +283,9 @@ count_result()
 }
 
 ret=0
-test_system_wide_side_band || ret=$? ; count_result $ret ; ret=0
-test_per_thread "" "" || ret=$? ; count_result $ret ; ret=0
-test_per_thread "k" "(incl. kernel) " || ret=$? ; count_result $ret ; ret=0
+test_system_wide_side_band		|| ret=$? ; count_result $ret ; ret=0
+test_per_thread "" ""			|| ret=$? ; count_result $ret ; ret=0
+test_per_thread "k" "(incl. kernel) "	|| ret=$? ; count_result $ret ; ret=0
 
 cleanup
 
