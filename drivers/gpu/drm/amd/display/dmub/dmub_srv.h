@@ -248,6 +248,7 @@ struct dmub_srv_hw_params {
 	bool disable_dpia;
 	bool usb4_cm_version;
 	bool fw_in_system_memory;
+	bool dpia_hpd_int_enable_supported;
 };
 
 /**

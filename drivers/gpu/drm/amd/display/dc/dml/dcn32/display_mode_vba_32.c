@@ -733,6 +733,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 				mode_lib->vba.FCLKChangeLatency, v->UrgentLatency,
 				mode_lib->vba.SREnterPlusExitTime);
 
+			memset(&v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.myPipe, 0, sizeof(DmlPipe));
+
 			v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.myPipe.Dppclk = mode_lib->vba.DPPCLK[k];
 			v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.myPipe.Dispclk = mode_lib->vba.DISPCLK;
 			v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.myPipe.PixelClock = mode_lib->vba.PixelClock[k];
@@ -2252,9 +2254,8 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	for (k = 0; k <= mode_lib->vba.NumberOfActiveSurfaces - 1; k++) {
 		if (!(mode_lib->vba.DSCInputBitPerComponent[k] == 12.0
 				|| mode_lib->vba.DSCInputBitPerComponent[k] == 10.0
-				|| mode_lib->vba.DSCInputBitPerComponent[k] == 8.0
-				|| mode_lib->vba.DSCInputBitPerComponent[k] >
-				mode_lib->vba.MaximumDSCBitsPerComponent)) {
+				|| mode_lib->vba.DSCInputBitPerComponent[k] == 8.0)
+				|| mode_lib->vba.DSCInputBitPerComponent[k] > mode_lib->vba.MaximumDSCBitsPerComponent) {
 			mode_lib->vba.NonsupportedDSCInputBPC = true;
 		}
 	}
@@ -2330,16 +2331,15 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				if (mode_lib->vba.OutputMultistreamId[k] == k && mode_lib->vba.ForcedOutputLinkBPP[k] == 0)
 					mode_lib->vba.BPPForMultistreamNotIndicated = true;
 				for (j = 0; j < mode_lib->vba.NumberOfActiveSurfaces; ++j) {
-					if (mode_lib->vba.OutputMultistreamId[k] == j && mode_lib->vba.OutputMultistreamEn[k]
+					if (mode_lib->vba.OutputMultistreamId[k] == j
 						&& mode_lib->vba.ForcedOutputLinkBPP[k] == 0)
 						mode_lib->vba.BPPForMultistreamNotIndicated = true;
 				}
 			}
 
 			if ((mode_lib->vba.Output[k] == dm_edp || mode_lib->vba.Output[k] == dm_hdmi)) {
-				if (mode_lib->vba.OutputMultistreamId[k] == k && mode_lib->vba.OutputMultistreamEn[k])
+				if (mode_lib->vba.OutputMultistreamEn[k] == true && mode_lib->vba.OutputMultistreamId[k] == k)
 					mode_lib->vba.MultistreamWithHDMIOreDP = true;
-
 				for (j = 0; j < mode_lib->vba.NumberOfActiveSurfaces; ++j) {
 					if (mode_lib->vba.OutputMultistreamEn[k] == true && mode_lib->vba.OutputMultistreamId[k] == j)
 						mode_lib->vba.MultistreamWithHDMIOreDP = true;
@@ -2477,8 +2477,6 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					mode_lib->vba.OutputFormat[k], mode_lib->vba.Output[k],
 					mode_lib->vba.PixelClock[k], mode_lib->vba.PixelClockBackEnd[k]);
 		}
-
-		m = 0;
 
 		for (k = 0; k <= mode_lib->vba.NumberOfActiveSurfaces - 1; k++) {
 			for (m = 0; m <= mode_lib->vba.NumberOfActiveSurfaces - 1; m++) {
@@ -2855,8 +2853,6 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					&mode_lib->vba.ProjectedDCFCLKDeepSleep[i][j]);
 		}
 	}
-
-	m = 0;
 
 	//Calculate Return BW
 	for (i = 0; i < (int) v->soc.num_states; ++i) {
@@ -3618,11 +3614,10 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			mode_lib->vba.ModeIsSupported = mode_lib->vba.ModeSupport[i][0] == true
 					|| mode_lib->vba.ModeSupport[i][1] == true;
 
-			if (mode_lib->vba.ModeSupport[i][0] == true) {
+			if (mode_lib->vba.ModeSupport[i][0] == true)
 				MaximumMPCCombine = 0;
-			} else {
+			else
 				MaximumMPCCombine = 1;
-			}
 		}
 	}
 

@@ -944,6 +944,23 @@ enum dc_status dp_get_lane_status_and_lane_adjust(
 	return status;
 }
 
+static enum dc_status dpcd_128b_132b_set_lane_settings(
+		struct dc_link *link,
+		const struct link_training_settings *link_training_setting)
+{
+	enum dc_status status = core_link_write_dpcd(link,
+			DP_TRAINING_LANE0_SET,
+			(uint8_t *)(link_training_setting->dpcd_lane_settings),
+			sizeof(link_training_setting->dpcd_lane_settings));
+
+	DC_LOG_HW_LINK_TRAINING("%s:\n 0x%X TX_FFE_PRESET_VALUE = %x\n",
+			__func__,
+			DP_TRAINING_LANE0_SET,
+			link_training_setting->dpcd_lane_settings[0].tx_ffe.PRESET_VALUE);
+	return status;
+}
+
+
 enum dc_status dpcd_set_lane_settings(
 	struct dc_link *link,
 	const struct link_training_settings *link_training_setting,
@@ -964,16 +981,6 @@ enum dc_status dpcd_set_lane_settings(
 		link_training_setting->link_settings.lane_count);
 
 	if (is_repeater(link_training_setting, offset)) {
-		if (dp_get_link_encoding_format(&link_training_setting->link_settings) ==
-				DP_128b_132b_ENCODING)
-			DC_LOG_HW_LINK_TRAINING("%s:\n LTTPR Repeater ID: %d\n"
-					" 0x%X TX_FFE_PRESET_VALUE = %x\n",
-					__func__,
-					offset,
-					lane0_set_address,
-					link_training_setting->dpcd_lane_settings[0].tx_ffe.PRESET_VALUE);
-		else if (dp_get_link_encoding_format(&link_training_setting->link_settings) ==
-				DP_8b_10b_ENCODING)
 		DC_LOG_HW_LINK_TRAINING("%s\n LTTPR Repeater ID: %d\n"
 				" 0x%X VS set = %x  PE set = %x max VS Reached = %x  max PE Reached = %x\n",
 			__func__,
@@ -985,14 +992,6 @@ enum dc_status dpcd_set_lane_settings(
 			link_training_setting->dpcd_lane_settings[0].bits.MAX_PRE_EMPHASIS_REACHED);
 
 	} else {
-		if (dp_get_link_encoding_format(&link_training_setting->link_settings) ==
-				DP_128b_132b_ENCODING)
-			DC_LOG_HW_LINK_TRAINING("%s:\n 0x%X TX_FFE_PRESET_VALUE = %x\n",
-					__func__,
-					lane0_set_address,
-					link_training_setting->dpcd_lane_settings[0].tx_ffe.PRESET_VALUE);
-		else if (dp_get_link_encoding_format(&link_training_setting->link_settings) ==
-				DP_8b_10b_ENCODING)
 		DC_LOG_HW_LINK_TRAINING("%s\n 0x%X VS set = %x  PE set = %x max VS Reached = %x  max PE Reached = %x\n",
 			__func__,
 			lane0_set_address,
@@ -2023,7 +2022,7 @@ static enum link_training_result dp_perform_128b_132b_channel_eq_done_sequence(
 			result = DP_128b_132b_LT_FAILED;
 		} else {
 			dp_set_hw_lane_settings(link, link_res, lt_settings, DPRX);
-			dpcd_set_lane_settings(link, lt_settings, DPRX);
+			dpcd_128b_132b_set_lane_settings(link, lt_settings);
 		}
 		loop_count++;
 	}
@@ -5090,6 +5089,7 @@ bool dp_retrieve_lttpr_cap(struct dc_link *link)
 			(dp_convert_to_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt) == 0)) {
 		ASSERT(0);
 		link->dpcd_caps.lttpr_caps.phy_repeater_cnt = 0x80;
+		DC_LOG_DC("lttpr_caps forced phy_repeater_cnt = %d\n", link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 	}
 
 	/* Attempt to train in LTTPR transparent mode if repeater count exceeds 8. */
@@ -5098,6 +5098,7 @@ bool dp_retrieve_lttpr_cap(struct dc_link *link)
 	if (is_lttpr_present)
 		CONN_DATA_DETECT(link, lttpr_dpcd_data, sizeof(lttpr_dpcd_data), "LTTPR Caps: ");
 
+	DC_LOG_DC("is_lttpr_present = %d\n", is_lttpr_present);
 	return is_lttpr_present;
 }
 
@@ -5134,6 +5135,7 @@ void dp_get_lttpr_mode_override(struct dc_link *link, enum lttpr_mode *override)
 	} else if (link->dc->debug.lttpr_mode_override == LTTPR_MODE_NON_LTTPR) {
 		*override = LTTPR_MODE_NON_LTTPR;
 	}
+	DC_LOG_DC("lttpr_mode_override chose LTTPR_MODE = %d\n", (uint8_t)(*override));
 }
 
 enum lttpr_mode dp_decide_8b_10b_lttpr_mode(struct dc_link *link)
@@ -5146,22 +5148,34 @@ enum lttpr_mode dp_decide_8b_10b_lttpr_mode(struct dc_link *link)
 		return LTTPR_MODE_NON_LTTPR;
 
 	if (vbios_lttpr_aware) {
-		if (vbios_lttpr_force_non_transparent)
+		if (vbios_lttpr_force_non_transparent) {
+			DC_LOG_DC("chose LTTPR_MODE_NON_TRANSPARENT due to VBIOS DCE_INFO_CAPS_LTTPR_SUPPORT_ENABLE set to 1.\n");
 			return LTTPR_MODE_NON_TRANSPARENT;
-		else
+		} else {
+			DC_LOG_DC("chose LTTPR_MODE_NON_TRANSPARENT by default due to VBIOS not set DCE_INFO_CAPS_LTTPR_SUPPORT_ENABLE set to 1.\n");
 			return LTTPR_MODE_TRANSPARENT;
+		}
 	}
 
 	if (link->dc->config.allow_lttpr_non_transparent_mode.bits.DP1_4A &&
-			link->dc->caps.extended_aux_timeout_support)
+			link->dc->caps.extended_aux_timeout_support) {
+		DC_LOG_DC("chose LTTPR_MODE_NON_TRANSPARENT by default and dc->config.allow_lttpr_non_transparent_mode.bits.DP1_4A set to 1.\n");
 		return LTTPR_MODE_NON_TRANSPARENT;
+	}
 
+	DC_LOG_DC("chose LTTPR_MODE_NON_LTTPR.\n");
 	return LTTPR_MODE_NON_LTTPR;
 }
 
 enum lttpr_mode dp_decide_128b_132b_lttpr_mode(struct dc_link *link)
 {
-	return dp_is_lttpr_present(link) ? LTTPR_MODE_NON_TRANSPARENT : LTTPR_MODE_NON_LTTPR;
+	enum lttpr_mode mode = LTTPR_MODE_NON_LTTPR;
+
+	if (dp_is_lttpr_present(link))
+		mode = LTTPR_MODE_NON_TRANSPARENT;
+
+	DC_LOG_DC("128b_132b chose LTTPR_MODE %d.\n", mode);
+	return mode;
 }
 
 static bool get_usbc_cable_id(struct dc_link *link, union dp_cable_id *cable_id)
@@ -5179,9 +5193,10 @@ static bool get_usbc_cable_id(struct dc_link *link, union dp_cable_id *cable_id)
 	cmd.cable_id.data.input.phy_inst = resource_transmitter_to_phy_idx(
 			link->dc, link->link_enc->transmitter);
 	if (dc_dmub_srv_cmd_with_reply_data(link->ctx->dmub_srv, &cmd) &&
-			cmd.cable_id.header.ret_status == 1)
+			cmd.cable_id.header.ret_status == 1) {
 		cable_id->raw = cmd.cable_id.data.output_raw;
-
+		DC_LOG_DC("usbc_cable_id = %d.\n", cable_id->raw);
+	}
 	return cmd.cable_id.header.ret_status == 1;
 }
 
@@ -5228,6 +5243,7 @@ static enum dc_status wa_try_to_wake_dprx(struct dc_link *link, uint64_t timeout
 
 	lttpr_present = dp_is_lttpr_present(link) ||
 			(!vbios_lttpr_interop || !link->dc->caps.extended_aux_timeout_support);
+	DC_LOG_DC("lttpr_present = %d.\n", lttpr_present ? 1 : 0);
 
 	/* Issue an AUX read to test DPRX responsiveness. If LTTPR is supported the first read is expected to
 	 * be to determine LTTPR capabilities. Otherwise trying to read power state should be an innocuous AUX read.
@@ -5795,7 +5811,7 @@ void detect_edp_sink_caps(struct dc_link *link)
 	 * Per VESA eDP spec, "The DPCD revision for eDP v1.4 is 13h"
 	 */
 	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_13 &&
-			(link->dc->debug.optimize_edp_link_rate ||
+			(link->panel_config.ilr.optimize_edp_link_rate ||
 			link->reported_link_cap.link_rate == LINK_RATE_UNKNOWN)) {
 		// Read DPCD 00010h - 0001Fh 16 bytes at one shot
 		core_link_read_dpcd(link, DP_SUPPORTED_LINK_RATES,
@@ -6744,7 +6760,7 @@ bool is_edp_ilr_optimization_required(struct dc_link *link, struct dc_crtc_timin
 	ASSERT(link || crtc_timing); // invalid input
 
 	if (link->dpcd_caps.edp_supported_link_rates_count == 0 ||
-			!link->dc->debug.optimize_edp_link_rate)
+			!link->panel_config.ilr.optimize_edp_link_rate)
 		return false;
 
 
