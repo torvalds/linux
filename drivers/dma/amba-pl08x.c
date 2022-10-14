@@ -60,9 +60,7 @@
  *    after the final transfer signalled by LBREQ or LSREQ.  The DMAC
  *    will then move to the next LLI entry. Unsupported by PL080S.
  */
-#ifndef CONFIG_SOC_STARFIVE_JH7110
 #include <linux/amba/bus.h>
-#endif
 #include <linux/amba/pl08x.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
@@ -76,10 +74,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_dma.h>
-#ifdef CONFIG_SOC_STARFIVE_JH7110
-#include <linux/of_device.h>
-#include <linux/platform_device.h>
-#endif
 #include <linux/pm_runtime.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
@@ -96,9 +90,7 @@
 	BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) | \
 	BIT(DMA_SLAVE_BUSWIDTH_4_BYTES)
 
-#ifndef CONFIG_SOC_STARFIVE_JH7110
 static struct amba_driver pl08x_amba_driver;
-#endif
 struct pl08x_driver_data;
 
 /**
@@ -261,9 +253,6 @@ struct pl08x_dma_chan {
 	struct pl08x_txd *at;
 	struct pl08x_driver_data *host;
 	enum pl08x_dma_chan_state state;
-#ifdef CONFIG_SOC_STARFIVE_JH7110
-	int chan_id;
-#endif
 	bool slave;
 	int signal;
 	unsigned mux_use;
@@ -291,11 +280,7 @@ struct pl08x_driver_data {
 	struct dma_device memcpy;
 	bool has_slave;
 	void __iomem *base;
-#ifdef CONFIG_SOC_STARFIVE_JH7110
-	struct platform_device *adev;
-#else
 	struct amba_device *adev;
-#endif
 	const struct vendor_data *vd;
 	struct pl08x_platform_data *pd;
 	struct pl08x_phy_chan *phy_chans;
@@ -837,19 +822,6 @@ pl08x_get_phy_channel(struct pl08x_driver_data *pl08x,
 	unsigned long flags;
 	int i;
 
-#ifdef CONFIG_SOC_STARFIVE_JH7110
-	ch = &pl08x->phy_chans[virt_chan->chan_id];
-
-	spin_lock_irqsave(&ch->lock, flags);
-
-	if (!ch->locked && !ch->serving) {
-		ch->serving = virt_chan;
-		spin_unlock_irqrestore(&ch->lock, flags);
-		return ch;
-	}
-
-	spin_unlock_irqrestore(&ch->lock, flags);
-#endif
 	for (i = 0; i < pl08x->vd->channels; i++) {
 		ch = &pl08x->phy_chans[i];
 
@@ -1769,9 +1741,6 @@ static void pl08x_issue_pending(struct dma_chan *chan)
 	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
 	unsigned long flags;
 
-#ifdef CONFIG_SOC_STARFIVE_JH7110
-	plchan->chan_id = chan->chan_id;
-#endif
 	spin_lock_irqsave(&plchan->vc.lock, flags);
 	if (vchan_issue_pending(&plchan->vc)) {
 		if (!plchan->phychan && plchan->state != PL08X_CHAN_WAITING)
@@ -1937,8 +1906,6 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_memcpy(
 	dsg = kzalloc(sizeof(struct pl08x_sg), GFP_NOWAIT);
 	if (!dsg) {
 		pl08x_free_txd(pl08x, txd);
-		dev_err(&pl08x->adev->dev,
-			"%s no memory for kzalloc\n", __func__);
 		return NULL;
 	}
 	list_add_tail(&dsg->node, &txd->dsg_list);
@@ -1960,8 +1927,6 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_memcpy(
 	ret = pl08x_fill_llis_for_desc(plchan->host, txd);
 	if (!ret) {
 		pl08x_free_txd(pl08x, txd);
-		dev_err(&pl08x->adev->dev,
-			"%s pl08x_fill_llis_for_desc error\n", __func__);
 		return NULL;
 	}
 
@@ -2279,7 +2244,6 @@ static int pl08x_resume(struct dma_chan *chan)
 	return 0;
 }
 
-#ifndef CONFIG_SOC_STARFIVE_JH7110
 bool pl08x_filter_id(struct dma_chan *chan, void *chan_id)
 {
 	struct pl08x_dma_chan *plchan;
@@ -2298,7 +2262,6 @@ bool pl08x_filter_id(struct dma_chan *chan, void *chan_id)
 	return false;
 }
 EXPORT_SYMBOL_GPL(pl08x_filter_id);
-#endif
 
 static bool pl08x_filter_fn(struct dma_chan *chan, void *chan_id)
 {
@@ -2606,11 +2569,7 @@ static struct dma_chan *pl08x_of_xlate(struct of_phandle_args *dma_spec,
 	return dma_get_slave_channel(dma_chan);
 }
 
-#ifdef CONFIG_SOC_STARFIVE_JH7110
-static int pl08x_of_probe(struct platform_device *adev,
-#else
 static int pl08x_of_probe(struct amba_device *adev,
-#endif
 			  struct pl08x_driver_data *pl08x,
 			  struct device_node *np)
 {
@@ -2731,11 +2690,7 @@ static int pl08x_of_probe(struct amba_device *adev,
 					  pl08x);
 }
 #else
-#ifdef CONFIG_SOC_STARFIVE_JH7110
-static inline int pl08x_of_probe(struct platform_device *adev,
-#else
 static inline int pl08x_of_probe(struct amba_device *adev,
-#endif
 				 struct pl08x_driver_data *pl08x,
 				 struct device_node *np)
 {
@@ -2743,67 +2698,36 @@ static inline int pl08x_of_probe(struct amba_device *adev,
 }
 #endif
 
-#ifdef CONFIG_SOC_STARFIVE_JH7110
-static int pl08x_probe(struct platform_device *adev) //, const struct amba_id *id)
-#else
 static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
-#endif
 {
 	struct pl08x_driver_data *pl08x;
+	struct vendor_data *vd = id->data;
 	struct device_node *np = adev->dev.of_node;
 	u32 tsfr_size;
-#ifdef CONFIG_SOC_STARFIVE_JH7110
-	struct vendor_data *vd;
-	struct resource *res;
-	int irq, ret = 0;
-#else
-	struct vendor_data *vd = id->data;
 	int ret = 0;
-#endif
 	int i;
 
-#ifndef CONFIG_SOC_STARFIVE_JH7110
 	ret = amba_request_regions(adev, NULL);
 	if (ret)
 		return ret;
 
-#endif
 	/* Ensure that we can do DMA */
 	ret = dma_set_mask_and_coherent(&adev->dev, DMA_BIT_MASK(32));
-#ifdef CONFIG_SOC_STARFIVE_JH7110
-	if (ret)
-		return ret;
-#else
 	if (ret)
 		goto out_no_pl08x;
-#endif
 
 	/* Create the driver state holder */
 	pl08x = kzalloc(sizeof(*pl08x), GFP_KERNEL);
 	if (!pl08x) {
 		ret = -ENOMEM;
-#ifdef CONFIG_SOC_STARFIVE_JH7110
-		return ret;
-#else
 		goto out_no_pl08x;
-#endif
 	}
 
 	/* Assign useful pointers to the driver state */
 	pl08x->adev = adev;
-#ifdef CONFIG_SOC_STARFIVE_JH7110
-	vd = (struct vendor_data *)of_device_get_match_data(&adev->dev);
-	if(!vd)
-		return -ENODEV;
-#endif
 	pl08x->vd = vd;
 
-#ifdef CONFIG_SOC_STARFIVE_JH7110
-	res = platform_get_resource_byname(adev, IORESOURCE_MEM, "sec_dma");
-	pl08x->base = devm_ioremap_resource(&adev->dev, res);
-#else
 	pl08x->base = ioremap(adev->res.start, resource_size(&adev->res));
-#endif
 	if (!pl08x->base) {
 		ret = -ENOMEM;
 		goto out_no_ioremap;
@@ -2934,24 +2858,10 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	writel(0x000000FF, pl08x->base + PL080_TC_CLEAR);
 
 	/* Attach the interrupt handler */
-#ifdef CONFIG_SOC_STARFIVE_JH7110
-	irq = platform_get_irq(adev, 0);
-	if (irq < 0) {
-		dev_err(&adev->dev, "Cannot get IRQ resource\n");
-		return irq;
-	}
-
-	ret = request_irq(irq, pl08x_irq, 0, DRIVER_NAME, pl08x);
-#else
 	ret = request_irq(adev->irq[0], pl08x_irq, 0, DRIVER_NAME, pl08x);
-#endif
 	if (ret) {
 		dev_err(&adev->dev, "%s failed to request interrupt %d\n",
-#ifdef CONFIG_SOC_STARFIVE_JH7110
-			__func__, irq);
-#else
 			__func__, adev->irq[0]);
-#endif
 		goto out_no_irq;
 	}
 
@@ -3048,20 +2958,11 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 		}
 	}
 
-#ifdef CONFIG_SOC_STARFIVE_JH7110
-	platform_set_drvdata(adev, pl08x);
-#else
 	amba_set_drvdata(adev, pl08x);
-#endif
 	init_pl08x_debugfs(pl08x);
-#ifdef CONFIG_SOC_STARFIVE_JH7110
-	dev_dbg(&pl08x->adev->dev, "DMA: PL080  at 0x%08llx irq %d\n",
-		 (unsigned long long)res->start, irq);
-#else
 	dev_info(&pl08x->adev->dev, "DMA: PL%03x%s rev%u at 0x%08llx irq %d\n",
 		 amba_part(adev), pl08x->vd->pl080s ? "s" : "", amba_rev(adev),
 		 (unsigned long long)adev->res.start, adev->irq[0]);
-#endif
 
 	return 0;
 
@@ -3075,11 +2976,7 @@ out_no_slave:
 out_no_memcpy:
 	kfree(pl08x->phy_chans);
 out_no_phychans:
-#ifdef CONFIG_SOC_STARFIVE_JH7110
-	free_irq(irq, pl08x);
-#else
 	free_irq(adev->irq[0], pl08x);
-#endif
 out_no_irq:
 	dma_pool_destroy(pl08x->pool);
 out_no_lli_pool:
@@ -3087,11 +2984,8 @@ out_no_platdata:
 	iounmap(pl08x->base);
 out_no_ioremap:
 	kfree(pl08x);
-
-#ifndef CONFIG_SOC_STARFIVE_JH7110
 out_no_pl08x:
 	amba_release_regions(adev);
-#endif
 	return ret;
 }
 
@@ -3103,26 +2997,7 @@ static struct vendor_data vendor_pl080 = {
 	.dualmaster = true,
 	.max_transfer_size = PL080_CONTROL_TRANSFER_SIZE_MASK,
 };
-#ifdef CONFIG_SOC_STARFIVE_JH7110
-static const struct of_device_id jh7110_dma_ids[] = {
-	{ .compatible = "starfive,jh7110-pl080", .data = &vendor_pl080},
-	{},
-};
-MODULE_DEVICE_TABLE(of, jh7110_dma_ids);
 
-static struct platform_driver jh7110_pl08x_driver = {
-	.probe  = pl08x_probe,
-	.driver = {
-		.name           = DRIVER_NAME,
-		.of_match_table = jh7110_dma_ids,
-	},
-};
-
-module_platform_driver(jh7110_pl08x_driver);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Huan Feng <huan.feng@starfivetech.com>");
-#else
 static struct vendor_data vendor_nomadik = {
 	.config_offset = PL080_CH_CONFIG,
 	.channels = 8,
@@ -3207,4 +3082,3 @@ static int __init pl08x_init(void)
 	return retval;
 }
 subsys_initcall(pl08x_init);
-#endif

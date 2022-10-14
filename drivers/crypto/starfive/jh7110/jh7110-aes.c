@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
+#include <linux/amba/pl080.h>
 #include <crypto/hash.h>
 #include <crypto/gcm.h>
 
@@ -31,7 +32,6 @@
 #include <crypto/internal/hash.h>
 #include <crypto/internal/skcipher.h>
 
-#include "jh7110-pl080.h"
 #include "jh7110-str.h"
 
 /* Mode mask = bits [3..0] */

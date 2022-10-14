@@ -21,14 +21,13 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
-
+#include <linux/amba/pl080.h>
 #include <linux/dma-direct.h>
 #include <crypto/hash.h>
 #include <crypto/sm3.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/internal/hash.h>
 
-#include "jh7110-pl080.h"
 #include "jh7110-str.h"
 
 #define HASH_OP_UPDATE			1
