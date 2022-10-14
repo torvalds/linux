@@ -654,7 +654,7 @@ static inline __alloc_size(1, 2) void *kcalloc(size_t n, size_t size, gfp_t flag
 }
 
 void *__kmalloc_node_track_caller(size_t size, gfp_t flags, int node,
-				  unsigned long caller) __alloc_size(1);
+				  unsigned long caller);
 #define kmalloc_node_track_caller(size, flags, node) \
 	__kmalloc_node_track_caller(size, flags, node, \
 				    _RET_IP_)
