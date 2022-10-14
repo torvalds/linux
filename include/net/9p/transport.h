@@ -19,6 +19,10 @@
  * @list: used to maintain a list of currently available transports
  * @name: the human-readable name of the transport
  * @maxsize: transport provided maximum packet size
+ * @pooled_rbuffers: currently only set for RDMA transport which pulls the
+ *                   response buffers from a shared pool, and accordingly
+ *                   we're less flexible when choosing the response message
+ *                   size in this case
  * @def: set if this transport should be considered the default
  * @create: member function to create a new connection on this transport
  * @close: member function to discard a connection on this transport
@@ -38,6 +42,7 @@ struct p9_trans_module {
 	struct list_head list;
 	char *name;		/* name of transport */
 	int maxsize;		/* max message size of transport */
+	bool pooled_rbuffers;
 	int def;		/* this transport should be default */
 	struct module *owner;
 	int (*create)(struct p9_client *client,

@@ -153,26 +153,16 @@ struct session_key {
 	char *response;
 };
 
-/* crypto security descriptor definition */
-struct sdesc {
-	struct shash_desc shash;
-	char ctx[];
-};
-
 /* crypto hashing related structure/fields, not specific to a sec mech */
 struct cifs_secmech {
-	struct crypto_shash *hmacmd5; /* hmac-md5 hash function */
-	struct crypto_shash *md5; /* md5 hash function */
-	struct crypto_shash *hmacsha256; /* hmac-sha256 hash function */
-	struct crypto_shash *cmacaes; /* block-cipher based MAC function */
-	struct crypto_shash *sha512; /* sha512 hash function */
-	struct sdesc *sdeschmacmd5;  /* ctxt to generate ntlmv2 hash, CR1 */
-	struct sdesc *sdescmd5; /* ctxt to generate cifs/smb signature */
-	struct sdesc *sdeschmacsha256;  /* ctxt to generate smb2 signature */
-	struct sdesc *sdesccmacaes;  /* ctxt to generate smb3 signature */
-	struct sdesc *sdescsha512; /* ctxt to generate smb3.11 signing key */
-	struct crypto_aead *ccmaesencrypt; /* smb3 encryption aead */
-	struct crypto_aead *ccmaesdecrypt; /* smb3 decryption aead */
+	struct shash_desc *hmacmd5; /* hmacmd5 hash function, for NTLMv2/CR1 hashes */
+	struct shash_desc *md5; /* md5 hash function, for CIFS/SMB1 signatures */
+	struct shash_desc *hmacsha256; /* hmac-sha256 hash function, for SMB2 signatures */
+	struct shash_desc *sha512; /* sha512 hash function, for SMB3.1.1 preauth hash */
+	struct shash_desc *aes_cmac; /* block-cipher based MAC function, for SMB3 signatures */
+
+	struct crypto_aead *enc; /* smb3 encryption AEAD TFM (AES-CCM and AES-GCM) */
+	struct crypto_aead *dec; /* smb3 decryption AEAD TFM (AES-CCM and AES-GCM) */
 };
 
 /* per smb session structure/fields */
@@ -1149,7 +1139,7 @@ struct cifs_tcon {
 	struct list_head openFileList;
 	spinlock_t open_file_lock; /* protects list above */
 	struct cifs_ses *ses;	/* pointer to session associated with */
-	char treeName[MAX_TREE_SIZE + 1]; /* UNC name of resource in ASCII */
+	char tree_name[MAX_TREE_SIZE + 1]; /* UNC name of resource in ASCII */
 	char *nativeFileSystem;
 	char *password;		/* for share-level security */
 	__u32 tid;		/* The 4 byte tree id */
@@ -1228,7 +1218,7 @@ struct cifs_tcon {
 	struct fscache_volume *fscache;	/* cookie for share */
 #endif
 	struct list_head pending_opens;	/* list of incomplete opens */
-	struct cached_fid *cfid; /* Cached root fid */
+	struct cached_fids *cfids;
 	/* BB add field for back pointer to sb struct(s)? */
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	struct list_head ulist; /* cache update list */

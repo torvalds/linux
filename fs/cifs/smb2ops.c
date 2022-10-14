@@ -512,8 +512,7 @@ smb3_negotiate_rsize(struct cifs_tcon *tcon, struct smb3_fs_context *ctx)
 
 static int
 parse_server_interfaces(struct network_interface_info_ioctl_rsp *buf,
-			size_t buf_len,
-			struct cifs_ses *ses)
+			size_t buf_len, struct cifs_ses *ses, bool in_mount)
 {
 	struct network_interface_info_ioctl_rsp *p;
 	struct sockaddr_in *addr4;
@@ -542,6 +541,20 @@ parse_server_interfaces(struct network_interface_info_ioctl_rsp *buf,
 		kref_put(&iface->refcount, release_iface);
 	}
 	spin_unlock(&ses->iface_lock);
+
+	/*
+	 * Samba server e.g. can return an empty interface list in some cases,
+	 * which would only be a problem if we were requesting multichannel
+	 */
+	if (bytes_left == 0) {
+		/* avoid spamming logs every 10 minutes, so log only in mount */
+		if ((ses->chan_max > 1) && in_mount)
+			cifs_dbg(VFS,
+				 "empty network interface list returned by server %s\n",
+				 ses->server->hostname);
+		rc = -EINVAL;
+		goto out;
+	}
 
 	while (bytes_left >= sizeof(*p)) {
 		memset(&tmp_iface, 0, sizeof(tmp_iface));
@@ -673,7 +686,7 @@ out:
 }
 
 int
-SMB3_request_interfaces(const unsigned int xid, struct cifs_tcon *tcon)
+SMB3_request_interfaces(const unsigned int xid, struct cifs_tcon *tcon, bool in_mount)
 {
 	int rc;
 	unsigned int ret_data_len = 0;
@@ -693,7 +706,7 @@ SMB3_request_interfaces(const unsigned int xid, struct cifs_tcon *tcon)
 		goto out;
 	}
 
-	rc = parse_server_interfaces(out_buf, ret_data_len, ses);
+	rc = parse_server_interfaces(out_buf, ret_data_len, ses, in_mount);
 	if (rc)
 		goto out;
 
@@ -729,7 +742,7 @@ smb3_qfs_tcon(const unsigned int xid, struct cifs_tcon *tcon,
 	if (rc)
 		return;
 
-	SMB3_request_interfaces(xid, tcon);
+	SMB3_request_interfaces(xid, tcon, true /* called during  mount */);
 
 	SMB2_QFS_attr(xid, tcon, fid.persistent_fid, fid.volatile_fid,
 			FS_ATTRIBUTE_INFORMATION);
@@ -1327,7 +1340,7 @@ SMB2_request_res_key(const unsigned int xid, struct cifs_tcon *tcon,
 			CIFSMaxBufSize, (char **)&res_key, &ret_data_len);
 
 	if (rc == -EOPNOTSUPP) {
-		pr_warn_once("Server share %s does not support copy range\n", tcon->treeName);
+		pr_warn_once("Server share %s does not support copy range\n", tcon->tree_name);
 		goto req_res_key_exit;
 	} else if (rc) {
 		cifs_tcon_dbg(VFS, "refcpy ioctl error %d getting resume key\n", rc);
@@ -2289,7 +2302,7 @@ smb2_is_network_name_deleted(char *buf, struct TCP_Server_Info *server)
 				spin_unlock(&tcon->tc_lock);
 				spin_unlock(&cifs_tcp_ses_lock);
 				pr_warn_once("Server share %s deleted.\n",
-					     tcon->treeName);
+					     tcon->tree_name);
 				return;
 			}
 		}
@@ -2498,7 +2511,7 @@ smb2_query_info_compound(const unsigned int xid, struct cifs_tcon *tcon,
 		if (rc == -EREMCHG) {
 			tcon->need_reconnect = true;
 			pr_warn_once("server share %s deleted\n",
-				     tcon->treeName);
+				     tcon->tree_name);
 		}
 		goto qic_exit;
 	}
@@ -4344,8 +4357,7 @@ crypt_message(struct TCP_Server_Info *server, int num_rqst,
 		return rc;
 	}
 
-	tfm = enc ? server->secmech.ccmaesencrypt :
-						server->secmech.ccmaesdecrypt;
+	tfm = enc ? server->secmech.enc : server->secmech.dec;
 
 	if ((server->cipher_type == SMB2_ENCRYPTION_AES256_CCM) ||
 		(server->cipher_type == SMB2_ENCRYPTION_AES256_GCM))
@@ -4410,11 +4422,11 @@ crypt_message(struct TCP_Server_Info *server, int num_rqst,
 	if (!rc && enc)
 		memcpy(&tr_hdr->Signature, sign, SMB2_SIGNATURE_SIZE);
 
-	kfree(iv);
+	kfree_sensitive(iv);
 free_sg:
-	kfree(sg);
+	kfree_sensitive(sg);
 free_req:
-	kfree(req);
+	kfree_sensitive(req);
 	return rc;
 }
 

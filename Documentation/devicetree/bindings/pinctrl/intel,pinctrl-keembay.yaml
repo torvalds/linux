@@ -44,6 +44,7 @@ properties:
 patternProperties:
   '^gpio@[0-9a-f]*$':
     type: object
+    additionalProperties: false
 
     description:
       Child nodes can be specified to contain pin configuration information,

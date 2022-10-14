@@ -189,3 +189,9 @@ Gamepads report the following events:
 - Rumble:
 
   Rumble is advertised as FF_RUMBLE.
+
+- Profile:
+
+  Some pads provide a multi-value profile selection switch.  An example is the
+  XBox Adaptive and the XBox Elite 2 controllers.  When the active profile is
+  switched, its newly selected value is emitted as an ABS_PROFILE event.

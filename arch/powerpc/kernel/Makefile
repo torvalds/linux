@@ -121,7 +121,7 @@ obj-$(CONFIG_PPC_BOOK3S_32)	+= head_book3s_32.o
 obj-$(CONFIG_40x)		+= head_40x.o
 obj-$(CONFIG_44x)		+= head_44x.o
 obj-$(CONFIG_PPC_8xx)		+= head_8xx.o
-obj-$(CONFIG_FSL_BOOKE)		+= head_85xx.o
+obj-$(CONFIG_PPC_85xx)		+= head_85xx.o
 extra-y				+= vmlinux.lds
 
 obj-$(CONFIG_RELOCATABLE)	+= reloc_$(BITS).o

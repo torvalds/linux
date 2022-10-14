@@ -465,7 +465,7 @@ CIFSSMBNegotiate(const unsigned int xid,
 	for (i = 0; i < CIFS_NUM_PROT; i++) {
 		size_t len = strlen(protocols[i].name) + 1;
 
-		memcpy(pSMB->DialectsArray+count, protocols[i].name, len);
+		memcpy(&pSMB->DialectsArray[count], protocols[i].name, len);
 		count += len;
 	}
 	inc_rfc1001_len(pSMB, count);

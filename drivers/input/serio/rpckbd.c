@@ -8,9 +8,6 @@
  * Acorn RiscPC PS/2 keyboard controller driver for Linux/ARM
  */
 
-/*
- */
-
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/serio.h>
@@ -128,8 +125,8 @@ static int rpckbd_probe(struct platform_device *dev)
 	serio->close		= rpckbd_close;
 	serio->dev.parent	= &dev->dev;
 	serio->port_data	= rpckbd;
-	strlcpy(serio->name, "RiscPC PS/2 kbd port", sizeof(serio->name));
-	strlcpy(serio->phys, "rpckbd/serio0", sizeof(serio->phys));
+	strscpy(serio->name, "RiscPC PS/2 kbd port", sizeof(serio->name));
+	strscpy(serio->phys, "rpckbd/serio0", sizeof(serio->phys));
 
 	platform_set_drvdata(dev, serio);
 	serio_register_port(serio);
