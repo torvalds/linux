@@ -2877,9 +2877,9 @@ static int amdgpu_bad_page_notifier(struct notifier_block *nb,
 	err_data.err_addr =
 		kcalloc(adev->umc.max_ras_err_cnt_per_query,
 			sizeof(struct eeprom_table_record), GFP_KERNEL);
-	if(!err_data.err_addr) {
-		dev_warn(adev->dev, "Failed to alloc memory for "
-				"umc error address record in mca notifier!\n");
+	if (!err_data.err_addr) {
+		dev_warn(adev->dev,
+			"Failed to alloc memory for umc error record in mca notifier!\n");
 		return NOTIFY_DONE;
 	}
 
@@ -2889,7 +2889,7 @@ static int amdgpu_bad_page_notifier(struct notifier_block *nb,
 	if (adev->umc.ras &&
 	    adev->umc.ras->convert_ras_error_address)
 		adev->umc.ras->convert_ras_error_address(adev,
-			&err_data, 0, ch_inst, umc_inst, m->addr);
+			&err_data, m->addr, ch_inst, umc_inst);
 
 	if (amdgpu_bad_page_threshold != 0) {
 		amdgpu_ras_add_bad_pages(adev, err_data.err_addr,

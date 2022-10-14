@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.205"
+#define DC_VER "3.2.207"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -821,7 +821,6 @@ struct dc_debug_options {
 	/* Enable dmub aux for legacy ddc */
 	bool enable_dmub_aux_for_legacy_ddc;
 	bool disable_fams;
-	bool optimize_edp_link_rate; /* eDP ILR */
 	/* FEC/PSR1 sequence enable delay in 100us */
 	uint8_t fec_enable_delay_in100us;
 	bool enable_driver_sequence_debug;
@@ -1192,6 +1191,8 @@ struct dc_plane_state {
 	enum dc_irq_source irq_source;
 	struct kref refcount;
 	struct tg_color visual_confirm_color;
+
+	bool is_statically_allocated;
 };
 
 struct dc_plane_info {
@@ -1610,6 +1611,9 @@ enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
 				uint32_t link_index,
 				uint8_t mst_alloc_slots,
 				uint8_t *mst_slots_in_use);
+
+void dc_process_dmub_dpia_hpd_int_enable(const struct dc *dc,
+				uint32_t hpd_int_enable);
 
 /*******************************************************************************
  * DSC Interfaces

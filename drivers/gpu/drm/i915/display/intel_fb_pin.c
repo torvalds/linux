@@ -26,9 +26,16 @@ intel_pin_fb_obj_dpt(struct drm_framebuffer *fb,
 	struct drm_device *dev = fb->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
+	struct i915_gem_ww_ctx ww;
 	struct i915_vma *vma;
 	u32 alignment;
 	int ret;
+
+	/*
+	 * We are not syncing against the binding (and potential migrations)
+	 * below, so this vm must never be async.
+	 */
+	GEM_WARN_ON(vm->bind_async_flags);
 
 	if (WARN_ON(!i915_gem_object_is_framebuffer(obj)))
 		return ERR_PTR(-EINVAL);
@@ -37,29 +44,48 @@ intel_pin_fb_obj_dpt(struct drm_framebuffer *fb,
 
 	atomic_inc(&dev_priv->gpu_error.pending_fb_pin);
 
-	ret = i915_gem_object_lock_interruptible(obj, NULL);
-	if (!ret) {
-		ret = i915_gem_object_set_cache_level(obj, I915_CACHE_NONE);
-		i915_gem_object_unlock(obj);
-	}
-	if (ret) {
-		vma = ERR_PTR(ret);
-		goto err;
-	}
+	for_i915_gem_ww(&ww, ret, true) {
+		ret = i915_gem_object_lock(obj, &ww);
+		if (ret)
+			continue;
 
-	vma = i915_vma_instance(obj, vm, view);
-	if (IS_ERR(vma))
-		goto err;
+		if (HAS_LMEM(dev_priv)) {
+			unsigned int flags = obj->flags;
 
-	if (i915_vma_misplaced(vma, 0, alignment, 0)) {
-		ret = i915_vma_unbind_unlocked(vma);
-		if (ret) {
-			vma = ERR_PTR(ret);
-			goto err;
+			/*
+			 * For this type of buffer we need to able to read from the CPU
+			 * the clear color value found in the buffer, hence we need to
+			 * ensure it is always in the mappable part of lmem, if this is
+			 * a small-bar device.
+			 */
+			if (intel_fb_rc_ccs_cc_plane(fb) >= 0)
+				flags &= ~I915_BO_ALLOC_GPU_ONLY;
+			ret = __i915_gem_object_migrate(obj, &ww, INTEL_REGION_LMEM_0,
+							flags);
+			if (ret)
+				continue;
 		}
-	}
 
-	ret = i915_vma_pin(vma, 0, alignment, PIN_GLOBAL);
+		ret = i915_gem_object_set_cache_level(obj, I915_CACHE_NONE);
+		if (ret)
+			continue;
+
+		vma = i915_vma_instance(obj, vm, view);
+		if (IS_ERR(vma)) {
+			ret = PTR_ERR(vma);
+			continue;
+		}
+
+		if (i915_vma_misplaced(vma, 0, alignment, 0)) {
+			ret = i915_vma_unbind(vma);
+			if (ret)
+				continue;
+		}
+
+		ret = i915_vma_pin_ww(vma, &ww, 0, alignment, PIN_GLOBAL);
+		if (ret)
+			continue;
+	}
 	if (ret) {
 		vma = ERR_PTR(ret);
 		goto err;

@@ -1680,6 +1680,8 @@ static void dcn32_enable_phantom_plane(struct dc *dc,
 		phantom_plane->clip_rect.y = 0;
 		phantom_plane->clip_rect.height = phantom_stream->timing.v_addressable;
 
+		phantom_plane->is_phantom = true;
+
 		dc_add_plane_to_context(dc, phantom_stream, phantom_plane, context);
 
 		curr_pipe = curr_pipe->bottom_pipe;
@@ -1749,6 +1751,10 @@ bool dcn32_remove_phantom_pipes(struct dc *dc, struct dc_state *context)
 			pipe->stream->mall_stream_config.type = SUBVP_NONE;
 			pipe->stream->mall_stream_config.paired_stream = NULL;
 		}
+
+		if (pipe->plane_state) {
+			pipe->plane_state->is_phantom = false;
+		}
 	}
 	return removed_pipe;
 }
@@ -1798,13 +1804,38 @@ bool dcn32_validate_bandwidth(struct dc *dc,
 	int vlevel = 0;
 	int pipe_cnt = 0;
 	display_e2e_pipe_params_st *pipes = kzalloc(dc->res_pool->pipe_count * sizeof(display_e2e_pipe_params_st), GFP_KERNEL);
+	struct mall_temp_config mall_temp_config;
+
+	/* To handle Freesync properly, setting FreeSync DML parameters
+	 * to its default state for the first stage of validation
+	 */
+	context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = false;
+	context->bw_ctx.dml.soc.dram_clock_change_requirement_final = true;
+
 	DC_LOGGER_INIT(dc->ctx->logger);
+
+	/* For fast validation, there are situations where a shallow copy of
+	 * of the dc->current_state is created for the validation. In this case
+	 * we want to save and restore the mall config because we always
+	 * teardown subvp at the beginning of validation (and don't attempt
+	 * to add it back if it's fast validation). If we don't restore the
+	 * subvp config in cases of fast validation + shallow copy of the
+	 * dc->current_state, the dc->current_state will have a partially
+	 * removed subvp state when we did not intend to remove it.
+	 */
+	if (fast_validate) {
+		memset(&mall_temp_config, 0, sizeof(mall_temp_config));
+		dcn32_save_mall_state(dc, context, &mall_temp_config);
+	}
 
 	BW_VAL_TRACE_COUNT();
 
 	DC_FP_START();
 	out = dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, fast_validate);
 	DC_FP_END();
+
+	if (fast_validate)
+		dcn32_restore_mall_state(dc, context, &mall_temp_config);
 
 	if (pipe_cnt == 0)
 		goto validate_out;
