@@ -197,12 +197,11 @@ static inline bool tree_mod_need_log(const struct btrfs_fs_info *fs_info,
 
 static struct tree_mod_elem *alloc_tree_mod_elem(struct extent_buffer *eb,
 						 int slot,
-						 enum btrfs_mod_log_op op,
-						 gfp_t flags)
+						 enum btrfs_mod_log_op op)
 {
 	struct tree_mod_elem *tm;
 
-	tm = kzalloc(sizeof(*tm), flags);
+	tm = kzalloc(sizeof(*tm), GFP_NOFS);
 	if (!tm)
 		return NULL;
 
@@ -220,7 +219,7 @@ static struct tree_mod_elem *alloc_tree_mod_elem(struct extent_buffer *eb,
 }
 
 int btrfs_tree_mod_log_insert_key(struct extent_buffer *eb, int slot,
-				  enum btrfs_mod_log_op op, gfp_t flags)
+				  enum btrfs_mod_log_op op)
 {
 	struct tree_mod_elem *tm;
 	int ret;
@@ -228,7 +227,7 @@ int btrfs_tree_mod_log_insert_key(struct extent_buffer *eb, int slot,
 	if (!tree_mod_need_log(eb->fs_info, eb))
 		return 0;
 
-	tm = alloc_tree_mod_elem(eb, slot, op, flags);
+	tm = alloc_tree_mod_elem(eb, slot, op);
 	if (!tm)
 		return -ENOMEM;
 
@@ -276,7 +275,7 @@ int btrfs_tree_mod_log_insert_move(struct extent_buffer *eb,
 
 	for (i = 0; i + dst_slot < src_slot && i < nr_items; i++) {
 		tm_list[i] = alloc_tree_mod_elem(eb, i + dst_slot,
-				BTRFS_MOD_LOG_KEY_REMOVE_WHILE_MOVING, GFP_NOFS);
+				BTRFS_MOD_LOG_KEY_REMOVE_WHILE_MOVING);
 		if (!tm_list[i]) {
 			ret = -ENOMEM;
 			goto free_tms;
@@ -364,7 +363,7 @@ int btrfs_tree_mod_log_insert_root(struct extent_buffer *old_root,
 		}
 		for (i = 0; i < nritems; i++) {
 			tm_list[i] = alloc_tree_mod_elem(old_root, i,
-			    BTRFS_MOD_LOG_KEY_REMOVE_WHILE_FREEING, GFP_NOFS);
+			    BTRFS_MOD_LOG_KEY_REMOVE_WHILE_FREEING);
 			if (!tm_list[i]) {
 				ret = -ENOMEM;
 				goto free_tms;
@@ -502,14 +501,14 @@ int btrfs_tree_mod_log_eb_copy(struct extent_buffer *dst,
 	tm_list_rem = tm_list + nr_items;
 	for (i = 0; i < nr_items; i++) {
 		tm_list_rem[i] = alloc_tree_mod_elem(src, i + src_offset,
-		    BTRFS_MOD_LOG_KEY_REMOVE, GFP_NOFS);
+						     BTRFS_MOD_LOG_KEY_REMOVE);
 		if (!tm_list_rem[i]) {
 			ret = -ENOMEM;
 			goto free_tms;
 		}
 
 		tm_list_add[i] = alloc_tree_mod_elem(dst, i + dst_offset,
-						BTRFS_MOD_LOG_KEY_ADD, GFP_NOFS);
+						     BTRFS_MOD_LOG_KEY_ADD);
 		if (!tm_list_add[i]) {
 			ret = -ENOMEM;
 			goto free_tms;
@@ -564,7 +563,7 @@ int btrfs_tree_mod_log_free_eb(struct extent_buffer *eb)
 
 	for (i = 0; i < nritems; i++) {
 		tm_list[i] = alloc_tree_mod_elem(eb, i,
-		    BTRFS_MOD_LOG_KEY_REMOVE_WHILE_FREEING, GFP_NOFS);
+				    BTRFS_MOD_LOG_KEY_REMOVE_WHILE_FREEING);
 		if (!tm_list[i]) {
 			ret = -ENOMEM;
 			goto free_tms;
