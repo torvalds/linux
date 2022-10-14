@@ -1095,10 +1095,18 @@ static int bq25890_vbus_is_enabled(struct regulator_dev *rdev)
 	return bq25890_field_read(bq, F_OTG_CFG);
 }
 
+static int bq25890_vbus_get_voltage(struct regulator_dev *rdev)
+{
+	struct bq25890_device *bq = rdev_get_drvdata(rdev);
+
+	return bq25890_get_vbus_voltage(bq);
+}
+
 static const struct regulator_ops bq25890_vbus_ops = {
 	.enable = bq25890_vbus_enable,
 	.disable = bq25890_vbus_disable,
 	.is_enabled = bq25890_vbus_is_enabled,
+	.get_voltage = bq25890_vbus_get_voltage,
 };
 
 static const struct regulator_desc bq25890_vbus_desc = {
@@ -1107,8 +1115,6 @@ static const struct regulator_desc bq25890_vbus_desc = {
 	.type = REGULATOR_VOLTAGE,
 	.owner = THIS_MODULE,
 	.ops = &bq25890_vbus_ops,
-	.fixed_uV = 5000000,
-	.n_voltages = 1,
 };
 
 static int bq25890_register_regulator(struct bq25890_device *bq)
@@ -1119,9 +1125,6 @@ static int bq25890_register_regulator(struct bq25890_device *bq)
 		.driver_data = bq,
 	};
 	struct regulator_dev *reg;
-
-	if (!IS_ERR_OR_NULL(bq->usb_phy))
-		return 0;
 
 	if (pdata)
 		cfg.init_data = pdata->regulator_init_data;
