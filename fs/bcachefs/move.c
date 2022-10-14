@@ -608,7 +608,8 @@ failed_to_evacuate:
 		bch2_trans_begin(trans);
 
 		ret = bch2_get_next_backpointer(trans, bucket, gen,
-						&bp_offset, &bp);
+						&bp_offset, &bp,
+						BTREE_ITER_CACHED);
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			continue;
 		if (ret)
@@ -681,7 +682,8 @@ int __bch2_evacuate_bucket(struct moving_context *ctxt,
 		bch2_trans_begin(&trans);
 
 		ret = bch2_get_next_backpointer(&trans, bucket, gen,
-						&bp_offset, &bp);
+						&bp_offset, &bp,
+						BTREE_ITER_CACHED);
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			continue;
 		if (ret)

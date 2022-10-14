@@ -118,7 +118,7 @@ static inline void bch2_extent_ptr_to_bp(struct bch_fs *c,
 }
 
 int bch2_get_next_backpointer(struct btree_trans *, struct bpos, int,
-			      u64 *, struct bch_backpointer *);
+			      u64 *, struct bch_backpointer *, unsigned);
 struct bkey_s_c bch2_backpointer_get_key(struct btree_trans *, struct btree_iter *,
 					 struct bpos, u64, struct bch_backpointer);
 struct btree *bch2_backpointer_get_node(struct btree_trans *, struct btree_iter *,

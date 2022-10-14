@@ -352,7 +352,8 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 		u64 bp_offset = 0;
 
 		ret = bch2_get_next_backpointer(trans, POS(ca->dev_idx, b), -1,
-						&bp_offset, &bp);
+						&bp_offset, &bp,
+						BTREE_ITER_NOPRESERVE);
 		if (ret) {
 			ob = ERR_PTR(ret);
 			goto err;

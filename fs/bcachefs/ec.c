@@ -841,7 +841,8 @@ static int ec_stripe_update_extent(struct btree_trans *trans,
 	struct bkey_i *n;
 	int ret, dev, block;
 
-	ret = bch2_get_next_backpointer(trans, bucket, gen, bp_offset, &bp);
+	ret = bch2_get_next_backpointer(trans, bucket, gen,
+				bp_offset, &bp, BTREE_ITER_CACHED);
 	if (ret)
 		return ret;
 	if (*bp_offset == U64_MAX)

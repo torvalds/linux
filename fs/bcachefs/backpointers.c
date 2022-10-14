@@ -300,7 +300,8 @@ err:
 int bch2_get_next_backpointer(struct btree_trans *trans,
 			      struct bpos bucket, int gen,
 			      u64 *bp_offset,
-			      struct bch_backpointer *dst)
+			      struct bch_backpointer *dst,
+			      unsigned iter_flags)
 {
 	struct bch_fs *c = trans->c;
 	struct bpos bp_pos, bp_end_pos;
@@ -921,7 +922,7 @@ static int check_one_backpointer(struct btree_trans *trans,
 	struct printbuf buf = PRINTBUF;
 	int ret;
 
-	ret = bch2_get_next_backpointer(trans, bucket, -1, bp_offset, &bp);
+	ret = bch2_get_next_backpointer(trans, bucket, -1, bp_offset, &bp, 0);
 	if (ret || *bp_offset == U64_MAX)
 		return ret;
 
