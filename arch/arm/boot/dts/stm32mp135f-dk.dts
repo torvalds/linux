@@ -59,6 +59,14 @@
 		};
 	};
 
+	v3v3_sw: v3v3-sw {
+		compatible = "regulator-fixed";
+		regulator-name = "v3v3_sw";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
 	vdd_adc: vdd-adc {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_adc";
@@ -72,6 +80,14 @@
 		regulator-name = "vdd_sd";
 		regulator-min-microvolt = <2900000>;
 		regulator-max-microvolt = <2900000>;
+		regulator-always-on;
+	};
+
+	vdd_usb: vdd-usb {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_usb";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
 	};
 };
