@@ -188,19 +188,17 @@ static blk_status_t do_blktrans_all_request(struct nand_blk_dev *dev,
 					    struct request *req)
 {
 	unsigned long block, nsect;
-	char *buf = NULL;
+	char *buf = NULL, *page_buf;
 	struct req_iterator rq_iter;
 	struct bio_vec bvec;
 	int ret = BLK_STS_IOERR;
 	unsigned long totle_nsect;
-	unsigned long rq_len = 0;
 
 	block = blk_rq_pos(req);
 	nsect = blk_rq_cur_bytes(req) >> 9;
 	totle_nsect = (req->__data_len) >> 9;
 
-	if (blk_rq_pos(req) + blk_rq_cur_sectors(req) >
-	    get_capacity(req->rq_disk))
+	if (blk_rq_pos(req) + blk_rq_cur_sectors(req) > get_capacity(req->rq_disk))
 		return BLK_STS_IOERR;
 
 	switch (req_op(req)) {
@@ -211,20 +209,16 @@ static blk_status_t do_blktrans_all_request(struct nand_blk_dev *dev,
 	case REQ_OP_READ:
 		buf = mtd_read_temp_buffer;
 		req_check_buffer_align(req, &buf);
-		ret = nand_dev_transfer(dev,
-				       block,
-				       totle_nsect,
-				       buf,
-				       REQ_OP_READ);
+		ret = nand_dev_transfer(dev, block, totle_nsect, buf, REQ_OP_READ);
 		if (buf == mtd_read_temp_buffer) {
 			char *p = buf;
 
 			rq_for_each_segment(bvec, req, rq_iter) {
-				memcpy(page_address(bvec.bv_page) +
-					bvec.bv_offset,
-					p,
-					bvec.bv_len);
+				page_buf = kmap_atomic(bvec.bv_page);
+
+				memcpy(page_buf + bvec.bv_offset, p, bvec.bv_len);
 				p += bvec.bv_len;
+				kunmap_atomic(page_buf);
 			}
 		}
 
@@ -233,34 +227,21 @@ static blk_status_t do_blktrans_all_request(struct nand_blk_dev *dev,
 		else
 			return BLK_STS_OK;
 	case REQ_OP_WRITE:
-		rq_for_each_segment(bvec, req, rq_iter) {
-			if ((page_address(bvec.bv_page) + bvec.bv_offset) == (buf + rq_len)) {
-				rq_len += bvec.bv_len;
-			} else {
-				if (rq_len) {
-					ret = nand_dev_transfer(dev,
-							       block,
-							       rq_len >> 9,
-							       buf,
-							       REQ_OP_WRITE);
-					if (ret)
-						return BLK_STS_IOERR;
-					else
-						return BLK_STS_OK;
-				}
-				block += rq_len >> 9;
-				buf = (page_address(bvec.bv_page) + bvec.bv_offset);
-				rq_len = bvec.bv_len;
+		buf = mtd_read_temp_buffer;
+		req_check_buffer_align(req, &buf);
+
+		if (buf == mtd_read_temp_buffer) {
+			char *p = buf;
+
+			rq_for_each_segment(bvec, req, rq_iter) {
+				page_buf = kmap_atomic(bvec.bv_page);
+				memcpy(p, page_buf + bvec.bv_offset, bvec.bv_len);
+				p += bvec.bv_len;
+				kunmap_atomic(page_buf);
 			}
 		}
 
-		if (rq_len) {
-			ret = nand_dev_transfer(dev,
-					       block,
-					       rq_len >> 9,
-					       buf,
-					       REQ_OP_WRITE);
-		}
+		ret = nand_dev_transfer(dev, block, totle_nsect, buf, REQ_OP_WRITE);
 
 		if (ret)
 			return BLK_STS_IOERR;
