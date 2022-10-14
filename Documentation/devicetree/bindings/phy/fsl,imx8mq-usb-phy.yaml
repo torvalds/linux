@@ -28,6 +28,9 @@ properties:
     items:
       - const: phy
 
+  power-domains:
+    maxItems: 1
+
   vbus-supply:
     description:
       A phandle to the regulator for USB VBUS.
