@@ -328,7 +328,7 @@ static long __must_check guc_mmio_reg_add(struct intel_gt *gt,
 
 static long __must_check guc_mcr_reg_add(struct intel_gt *gt,
 					 struct temp_regset *regset,
-					 i915_reg_t reg, u32 flags)
+					 i915_mcr_reg_t reg, u32 flags)
 {
 	u8 group, inst;
 

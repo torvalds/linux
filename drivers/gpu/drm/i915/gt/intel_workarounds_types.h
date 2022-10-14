@@ -11,7 +11,10 @@
 #include "i915_reg_defs.h"
 
 struct i915_wa {
-	i915_reg_t	reg;
+	union {
+		i915_reg_t	reg;
+		i915_mcr_reg_t	mcr_reg;
+	};
 	u32		clr;
 	u32		set;
 	u32		read;

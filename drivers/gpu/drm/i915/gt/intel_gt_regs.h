@@ -8,7 +8,18 @@
 
 #include "i915_reg_defs.h"
 
-#define MCR_REG(offset)	_MMIO(offset)
+#define MCR_REG(offset)	((const i915_mcr_reg_t){ .reg = (offset) })
+
+/*
+ * The perf control registers are technically multicast registers, but the
+ * driver never needs to read/write them directly; we only use them to build
+ * lists of registers (where they're mixed in with other non-MCR registers)
+ * and then operate on the offset directly.  For now we'll just define them
+ * as non-multicast so we can place them on the same list, but we may want
+ * to try to come up with a better way to handle heterogeneous lists of
+ * registers in the future.
+ */
+#define PERF_REG(offset)			_MMIO(offset)
 
 /* RPM unit config (Gen8+) */
 #define RPM_CONFIG0				_MMIO(0xd00)
@@ -1113,8 +1124,8 @@
 #define   FLOAT_BLEND_OPTIMIZATION_ENABLE	REG_BIT(4)
 #define   ENABLE_PREFETCH_INTO_IC		REG_BIT(3)
 
-#define EU_PERF_CNTL0				MCR_REG(0xe458)
-#define EU_PERF_CNTL4				MCR_REG(0xe45c)
+#define EU_PERF_CNTL0				PERF_REG(0xe458)
+#define EU_PERF_CNTL4				PERF_REG(0xe45c)
 
 #define GEN9_ROW_CHICKEN4			MCR_REG(0xe48c)
 #define   GEN12_DISABLE_GRF_CLEAR		REG_BIT(13)
@@ -1151,16 +1162,16 @@
 #define   STACKID_CTRL				REG_GENMASK(6, 5)
 #define   STACKID_CTRL_512			REG_FIELD_PREP(STACKID_CTRL, 0x2)
 
-#define EU_PERF_CNTL1				MCR_REG(0xe558)
-#define EU_PERF_CNTL5				MCR_REG(0xe55c)
+#define EU_PERF_CNTL1				PERF_REG(0xe558)
+#define EU_PERF_CNTL5				PERF_REG(0xe55c)
 
 #define XEHP_HDC_CHICKEN0			MCR_REG(0xe5f0)
 #define   LSC_L1_FLUSH_CTL_3D_DATAPORT_FLUSH_EVENTS_MASK	REG_GENMASK(13, 11)
 #define ICL_HDC_MODE				MCR_REG(0xe5f4)
 
-#define EU_PERF_CNTL2				MCR_REG(0xe658)
-#define EU_PERF_CNTL6				MCR_REG(0xe65c)
-#define EU_PERF_CNTL3				MCR_REG(0xe758)
+#define EU_PERF_CNTL2				PERF_REG(0xe658)
+#define EU_PERF_CNTL6				PERF_REG(0xe65c)
+#define EU_PERF_CNTL3				PERF_REG(0xe758)
 
 #define LSC_CHICKEN_BIT_0			MCR_REG(0xe7c8)
 #define   DISABLE_D8_D16_COASLESCE		REG_BIT(30)

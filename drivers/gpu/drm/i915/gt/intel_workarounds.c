@@ -166,11 +166,11 @@ static void wa_add(struct i915_wa_list *wal, i915_reg_t reg,
 	_wa_add(wal, &wa);
 }
 
-static void wa_mcr_add(struct i915_wa_list *wal, i915_reg_t reg,
+static void wa_mcr_add(struct i915_wa_list *wal, i915_mcr_reg_t reg,
 		       u32 clear, u32 set, u32 read_mask, bool masked_reg)
 {
 	struct i915_wa wa = {
-		.reg  = reg,
+		.mcr_reg = reg,
 		.clr  = clear,
 		.set  = set,
 		.read = read_mask,
@@ -188,7 +188,7 @@ wa_write_clr_set(struct i915_wa_list *wal, i915_reg_t reg, u32 clear, u32 set)
 }
 
 static void
-wa_mcr_write_clr_set(struct i915_wa_list *wal, i915_reg_t reg, u32 clear, u32 set)
+wa_mcr_write_clr_set(struct i915_wa_list *wal, i915_mcr_reg_t reg, u32 clear, u32 set)
 {
 	wa_mcr_add(wal, reg, clear, set, clear, false);
 }
@@ -206,7 +206,7 @@ wa_write_or(struct i915_wa_list *wal, i915_reg_t reg, u32 set)
 }
 
 static void
-wa_mcr_write_or(struct i915_wa_list *wal, i915_reg_t reg, u32 set)
+wa_mcr_write_or(struct i915_wa_list *wal, i915_mcr_reg_t reg, u32 set)
 {
 	wa_mcr_write_clr_set(wal, reg, set, set);
 }
@@ -218,7 +218,7 @@ wa_write_clr(struct i915_wa_list *wal, i915_reg_t reg, u32 clr)
 }
 
 static void
-wa_mcr_write_clr(struct i915_wa_list *wal, i915_reg_t reg, u32 clr)
+wa_mcr_write_clr(struct i915_wa_list *wal, i915_mcr_reg_t reg, u32 clr)
 {
 	wa_mcr_write_clr_set(wal, reg, clr, 0);
 }
@@ -241,7 +241,7 @@ wa_masked_en(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
 }
 
 static void
-wa_mcr_masked_en(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
+wa_mcr_masked_en(struct i915_wa_list *wal, i915_mcr_reg_t reg, u32 val)
 {
 	wa_mcr_add(wal, reg, 0, _MASKED_BIT_ENABLE(val), val, true);
 }
@@ -253,7 +253,7 @@ wa_masked_dis(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
 }
 
 static void
-wa_mcr_masked_dis(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
+wa_mcr_masked_dis(struct i915_wa_list *wal, i915_mcr_reg_t reg, u32 val)
 {
 	wa_mcr_add(wal, reg, 0, _MASKED_BIT_DISABLE(val), val, true);
 }
@@ -266,7 +266,7 @@ wa_masked_field_set(struct i915_wa_list *wal, i915_reg_t reg,
 }
 
 static void
-wa_mcr_masked_field_set(struct i915_wa_list *wal, i915_reg_t reg,
+wa_mcr_masked_field_set(struct i915_wa_list *wal, i915_mcr_reg_t reg,
 			u32 mask, u32 val)
 {
 	wa_mcr_add(wal, reg, 0, _MASKED_FIELD(mask, val), mask, true);
@@ -1692,19 +1692,19 @@ wa_list_apply(struct intel_gt *gt, const struct i915_wa_list *wal)
 		/* open-coded rmw due to steering */
 		if (wa->clr)
 			old = wa->is_mcr ?
-				intel_gt_mcr_read_any_fw(gt, wa->reg) :
+				intel_gt_mcr_read_any_fw(gt, wa->mcr_reg) :
 				intel_uncore_read_fw(uncore, wa->reg);
 		val = (old & ~wa->clr) | wa->set;
 		if (val != old || !wa->clr) {
 			if (wa->is_mcr)
-				intel_gt_mcr_multicast_write_fw(gt, wa->reg, val);
+				intel_gt_mcr_multicast_write_fw(gt, wa->mcr_reg, val);
 			else
 				intel_uncore_write_fw(uncore, wa->reg, val);
 		}
 
 		if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)) {
 			u32 val = wa->is_mcr ?
-				intel_gt_mcr_read_any_fw(gt, wa->reg) :
+				intel_gt_mcr_read_any_fw(gt, wa->mcr_reg) :
 				intel_uncore_read_fw(uncore, wa->reg);
 
 			wa_verify(wa, val, wal->name, "application");
@@ -1738,7 +1738,7 @@ static bool wa_list_verify(struct intel_gt *gt,
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
 		ok &= wa_verify(wa, wa->is_mcr ?
-				intel_gt_mcr_read_any_fw(gt, wa->reg) :
+				intel_gt_mcr_read_any_fw(gt, wa->mcr_reg) :
 				intel_uncore_read_fw(uncore, wa->reg),
 				wal->name, from);
 
@@ -1786,10 +1786,10 @@ whitelist_reg_ext(struct i915_wa_list *wal, i915_reg_t reg, u32 flags)
 }
 
 static void
-whitelist_mcr_reg_ext(struct i915_wa_list *wal, i915_reg_t reg, u32 flags)
+whitelist_mcr_reg_ext(struct i915_wa_list *wal, i915_mcr_reg_t reg, u32 flags)
 {
 	struct i915_wa wa = {
-		.reg = reg,
+		.mcr_reg = reg,
 		.is_mcr = 1,
 	};
 
@@ -1799,7 +1799,7 @@ whitelist_mcr_reg_ext(struct i915_wa_list *wal, i915_reg_t reg, u32 flags)
 	if (GEM_DEBUG_WARN_ON(!is_nonpriv_flags_valid(flags)))
 		return;
 
-	wa.reg.reg |= flags;
+	wa.mcr_reg.reg |= flags;
 	_wa_add(wal, &wa);
 }
 
@@ -1810,7 +1810,7 @@ whitelist_reg(struct i915_wa_list *wal, i915_reg_t reg)
 }
 
 static void
-whitelist_mcr_reg(struct i915_wa_list *wal, i915_reg_t reg)
+whitelist_mcr_reg(struct i915_wa_list *wal, i915_mcr_reg_t reg)
 {
 	whitelist_mcr_reg_ext(wal, reg, RING_FORCE_TO_NONPRIV_ACCESS_RW);
 }

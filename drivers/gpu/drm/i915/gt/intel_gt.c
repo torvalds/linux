@@ -991,7 +991,10 @@ void intel_gt_info_print(const struct intel_gt_info *info,
 }
 
 struct reg_and_bit {
-	i915_reg_t reg;
+	union {
+		i915_reg_t reg;
+		i915_mcr_reg_t mcr_reg;
+	};
 	u32 bit;
 };
 
@@ -1033,7 +1036,7 @@ get_reg_and_bit(const struct intel_engine_cs *engine, const bool gen8,
 static int wait_for_invalidate(struct intel_gt *gt, struct reg_and_bit rb)
 {
 	if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 50))
-		return intel_gt_mcr_wait_for_reg_fw(gt, rb.reg, rb.bit, 0,
+		return intel_gt_mcr_wait_for_reg_fw(gt, rb.mcr_reg, rb.bit, 0,
 						    TLB_INVAL_TIMEOUT_US,
 						    TLB_INVAL_TIMEOUT_MS);
 	else
@@ -1058,7 +1061,7 @@ static void mmio_invalidate_full(struct intel_gt *gt)
 		[COPY_ENGINE_CLASS]		= GEN12_BLT_TLB_INV_CR,
 		[COMPUTE_CLASS]			= GEN12_COMPCTX_TLB_INV_CR,
 	};
-	static const i915_reg_t xehp_regs[] = {
+	static const i915_mcr_reg_t xehp_regs[] = {
 		[RENDER_CLASS]			= XEHP_GFX_TLB_INV_CR,
 		[VIDEO_DECODE_CLASS]		= XEHP_VD_TLB_INV_CR,
 		[VIDEO_ENHANCEMENT_CLASS]	= XEHP_VE_TLB_INV_CR,
@@ -1131,7 +1134,12 @@ static void mmio_invalidate_full(struct intel_gt *gt)
 	for_each_engine_masked(engine, gt, awake, tmp) {
 		struct reg_and_bit rb;
 
-		rb = get_reg_and_bit(engine, regs == gen8_regs, regs, num);
+		if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
+			rb.mcr_reg = xehp_regs[engine->class];
+			rb.bit = BIT(engine->instance);
+		} else {
+			rb = get_reg_and_bit(engine, regs == gen8_regs, regs, num);
+		}
 
 		if (wait_for_invalidate(gt, rb))
 			drm_err_ratelimited(&gt->i915->drm,
