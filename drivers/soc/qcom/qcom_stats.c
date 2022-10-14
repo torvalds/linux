@@ -6,6 +6,7 @@
 
 #include <linux/cdev.h>
 #include <linux/debugfs.h>
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -17,7 +18,9 @@
 #include <linux/string.h>
 #include <linux/uaccess.h>
 
+#include <linux/soc/qcom/qcom_aoss.h>
 #include <linux/soc/qcom/smem.h>
+#include <soc/qcom/qcom_stats.h>
 #include <clocksource/arm_arch_timer.h>
 
 #define RPM_DYNAMIC_ADDR	0x14
@@ -32,6 +35,12 @@
 
 #define DDR_STATS_MAGIC_KEY	0xA1157A75
 #define DDR_STATS_MAX_NUM_MODES	0x14
+#define MAX_DRV			18
+#define MAX_MSG_LEN		64
+#define DRV_ABSENT		0xdeaddead
+#define DRV_INVALID		0xffffdead
+#define VOTE_MASK		0x3fff
+#define VOTE_X_SHIFT		14
 
 #define DDR_STATS_MAGIC_KEY_ADDR	0x0
 #define DDR_STATS_NUM_MODES_ADDR	0x4
@@ -104,6 +113,7 @@ struct stats_config {
 	bool appended_stats_avail;
 	bool dynamic_offset;
 	bool subsystem_stats_in_smem;
+	bool read_ddr_votes;
 };
 
 struct stats_data {
@@ -121,7 +131,11 @@ struct stats_drvdata {
 	struct device	*stats_device;
 	struct cdev	stats_cdev;
 	struct mutex lock;
+	struct qmp *qmp;
+	ktime_t ddr_freqsync_msg_time;
 };
+
+static struct stats_drvdata *drv;
 
 struct sleep_stats {
 	u32 stat_type;
@@ -204,6 +218,65 @@ static int qcom_stats_device_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int qcom_stats_ddr_freqsync_msg(void)
+{
+	static const char buf[MAX_MSG_LEN] = "{class: ddr, action: freqsync}";
+	int ret = 0;
+
+	if (!drv || !drv->qmp || !drv->config->read_ddr_votes)
+		return -ENODEV;
+
+	mutex_lock(&drv->lock);
+	ret = qmp_send(drv->qmp, buf, sizeof(buf));
+	if (ret) {
+		pr_err("Error sending qmp message: %d\n", ret);
+		mutex_unlock(&drv->lock);
+		return ret;
+	}
+
+	mutex_unlock(&drv->lock);
+
+	drv->ddr_freqsync_msg_time = ktime_get_boottime();
+
+	return ret;
+}
+
+static int qcom_stats_ddr_freq_sync(int *modes, struct sleep_stats *stat)
+{
+	void __iomem *reg = NULL;
+	u32 entry_count, name;
+	ktime_t now;
+	int i, j, ret;
+
+	if (drv->config->read_ddr_votes) {
+		ret = qcom_stats_ddr_freqsync_msg();
+		if (ret)
+			return ret;
+
+		now = ktime_get_boottime();
+		while (now < drv->ddr_freqsync_msg_time) {
+			udelay(500);
+			now = ktime_get_boottime();
+		}
+	}
+
+	reg = drv->base + drv->config->ddr_stats_offset;
+	qcom_stats_fill_ddr_stats(reg, stat, &entry_count);
+
+	if (drv->config->read_ddr_votes) {
+		for (i = 0, j = 0; i < entry_count; i++) {
+			name = (stat[i].stat_type >> 8) & 0xFF;
+			if (name == 0x1 && !stat[i].count)
+				break;
+			++j;
+		}
+		if (j < DDR_STATS_MAX_NUM_MODES)
+			*modes = j;
+	}
+
+	return 0;
+}
+
 static long qcom_stats_device_ioctl(struct file *file, unsigned int cmd,
 			     unsigned long arg)
 {
@@ -213,7 +286,7 @@ static long qcom_stats_device_ioctl(struct file *file, unsigned int cmd,
 	struct sleep_stats *temp;
 	void __iomem *reg = NULL;
 	unsigned long size = sizeof(struct sleep_stats);
-	u32 stats_id, entry_count;
+	u32 stats_id;
 	int ret;
 
 	mutex_lock(&drv->lock);
@@ -302,9 +375,9 @@ static long qcom_stats_device_ioctl(struct file *file, unsigned int cmd,
 	} else {
 		int modes = DDR_STATS_MAX_NUM_MODES;
 
-		reg = drv->base + drv->config->ddr_stats_offset;
-
-		qcom_stats_fill_ddr_stats(reg, stat, &entry_count);
+		ret = qcom_stats_ddr_freq_sync(&modes, stat);
+		if (ret)
+			goto exit;
 
 		ret = qcom_stats_copy_to_user(arg, stat, modes * size);
 	}
@@ -320,6 +393,139 @@ static const struct file_operations qcom_stats_device_fops = {
 	.open		=	qcom_stats_device_open,
 	.unlocked_ioctl =	qcom_stats_device_ioctl,
 };
+
+int ddr_stats_get_freq_count(void)
+{
+	u32 entry_count, name;
+	u32 freq_count = 0;
+	void __iomem *reg;
+	int i;
+
+	if (!drv || !drv->qmp || !drv->config->read_ddr_votes)
+		return -ENODEV;
+
+	reg = drv->base + drv->config->ddr_stats_offset;
+	entry_count = readl_relaxed(reg + DDR_STATS_NUM_MODES_ADDR);
+	if (entry_count > DDR_STATS_MAX_NUM_MODES) {
+		pr_err("Invalid entry count\n");
+		return 0;
+	}
+
+	reg += DDR_STATS_NUM_MODES_ADDR + 0x4;
+
+	for (i = 0; i < entry_count; i++) {
+		name = readl_relaxed(reg + DDR_STATS_NAME_ADDR);
+		name = (name >> 8) & 0xFF;
+		if (name == 0x1)
+			freq_count++;
+
+		reg += sizeof(struct sleep_stats) - 2 * sizeof(u64);
+	}
+
+	return freq_count;
+}
+EXPORT_SYMBOL(ddr_stats_get_freq_count);
+
+int ddr_stats_get_residency(int freq_count, struct ddr_freq_residency *data)
+{
+	struct sleep_stats stat[DDR_STATS_MAX_NUM_MODES];
+	void __iomem *reg;
+	u32 name, entry_count;
+	ktime_t now;
+	int i, j;
+
+	if (freq_count < 0 || !data)
+		return -EINVAL;
+
+	if (!drv || !drv->qmp || !drv->config->read_ddr_votes)
+		return -ENODEV;
+
+	now = ktime_get_boottime();
+	while (now < drv->ddr_freqsync_msg_time) {
+		udelay(500);
+		now = ktime_get_boottime();
+	}
+
+	mutex_lock(&drv->lock);
+
+	reg = drv->base + drv->config->ddr_stats_offset;
+	qcom_stats_fill_ddr_stats(reg, stat, &entry_count);
+
+	for (i = 0, j = 0; i < entry_count; i++) {
+		name = stat[i].stat_type;
+		if (((name >> 8) & 0xFF) == 0x1 && stat[i].count) {
+			data[j].freq = name >> 16;
+			data[j].residency = stat[i].accumulated;
+			if (++j > freq_count)
+				break;
+		}
+	}
+
+	mutex_unlock(&drv->lock);
+
+	return j;
+}
+EXPORT_SYMBOL(ddr_stats_get_residency);
+
+int ddr_stats_get_ss_count(void)
+{
+	return drv->config->read_ddr_votes ? MAX_DRV : -EOPNOTSUPP;
+}
+EXPORT_SYMBOL(ddr_stats_get_ss_count);
+
+int ddr_stats_get_ss_vote_info(int ss_count,
+			       struct ddr_stats_ss_vote_info *vote_info)
+{
+	static const char buf[MAX_MSG_LEN] = "{class: ddr, res: drvs_ddr_votes}";
+	u32 vote_offset, val[MAX_DRV];
+	void __iomem *reg;
+	u32 entry_count;
+	int ret, i;
+
+	if (!vote_info || !(ss_count == MAX_DRV) || !drv)
+		return -ENODEV;
+
+	if (!drv->qmp)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&drv->lock);
+	ret = qmp_send(drv->qmp, buf, sizeof(buf));
+	if (ret) {
+		pr_err("Error sending qmp message: %d\n", ret);
+		mutex_unlock(&drv->lock);
+		return ret;
+	}
+
+	entry_count = readl_relaxed(drv->base + DDR_STATS_NUM_MODES_ADDR);
+	if (entry_count > DDR_STATS_MAX_NUM_MODES) {
+		pr_err("Invalid entry count\n");
+		mutex_unlock(&drv->lock);
+		return -EINVAL;
+	}
+
+	vote_offset = entry_count * (sizeof(struct sleep_stats) - sizeof(u64));
+	reg = drv->base + drv->config->ddr_stats_offset;
+
+	for (i = 0; i < ss_count; i++, reg += sizeof(u32)) {
+		val[i] = readl_relaxed(reg + vote_offset);
+		if (val[i] == DRV_ABSENT) {
+			vote_info[i].ab = DRV_ABSENT;
+			vote_info[i].ib = DRV_ABSENT;
+			continue;
+		} else if (val[i] == DRV_INVALID) {
+			vote_info[i].ab = DRV_INVALID;
+			vote_info[i].ib = DRV_INVALID;
+			continue;
+		}
+
+		vote_info[i].ab = (val[i] >> VOTE_X_SHIFT) & VOTE_MASK;
+		vote_info[i].ib = val[i] & VOTE_MASK;
+	}
+
+	mutex_unlock(&drv->lock);
+	return 0;
+}
+EXPORT_SYMBOL(ddr_stats_get_ss_vote_info);
 
 static void qcom_print_stats(struct seq_file *s, const struct sleep_stats *stat)
 {
@@ -375,7 +581,7 @@ static void print_ddr_stats(struct seq_file *s, int *count,
 			     struct sleep_stats *data, u64 accumulated_duration)
 {
 	u32 cp_idx = 0;
-	u32 name, duration;
+	u32 name, duration = 0;
 
 	if (accumulated_duration)
 		duration = (data->accumulated * 100) / accumulated_duration;
@@ -554,7 +760,6 @@ static int qcom_stats_probe(struct platform_device *pdev)
 	struct dentry *root;
 	const struct stats_config *config;
 	struct stats_data *d;
-	struct stats_drvdata *drv;
 	int i;
 	int ret;
 
@@ -588,7 +793,14 @@ static int qcom_stats_probe(struct platform_device *pdev)
 	drv->config = config;
 	drv->base = reg;
 	drv->root = root;
+	drv->ddr_freqsync_msg_time = 0;
 	mutex_init(&drv->lock);
+
+	if (config->read_ddr_votes && config->ddr_stats_offset) {
+		drv->qmp = qmp_get(&pdev->dev);
+		if (IS_ERR(drv->qmp))
+			return PTR_ERR(drv->qmp);
+	}
 
 	ret = qcom_create_stats_device(drv);
 	if (ret)
@@ -639,6 +851,16 @@ static const struct stats_config rpmh_data = {
 	.subsystem_stats_in_smem = true,
 };
 
+static const struct stats_config rpmh_v2_data = {
+	.stats_offset = 0x48,
+	.ddr_stats_offset = 0xb8,
+	.num_records = 3,
+	.appended_stats_avail = false,
+	.dynamic_offset = false,
+	.subsystem_stats_in_smem = true,
+	.read_ddr_votes = true,
+};
+
 static const struct of_device_id qcom_stats_table[] = {
 	{ .compatible = "qcom,apq8084-rpm-stats", .data = &rpm_data_dba0 },
 	{ .compatible = "qcom,msm8226-rpm-stats", .data = &rpm_data_dba0 },
@@ -646,6 +868,7 @@ static const struct of_device_id qcom_stats_table[] = {
 	{ .compatible = "qcom,msm8974-rpm-stats", .data = &rpm_data_dba0 },
 	{ .compatible = "qcom,rpm-stats", .data = &rpm_data },
 	{ .compatible = "qcom,rpmh-stats", .data = &rpmh_data },
+	{ .compatible = "qcom,rpmh-stats-v2", .data = &rpmh_v2_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, qcom_stats_table);
