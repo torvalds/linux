@@ -30,8 +30,8 @@ config VIDEO_ROCKCHIP_ISP_VERSION_V30
 	default y if CPU_RK3588
 
 config VIDEO_ROCKCHIP_ISP_VERSION_V32
-	bool "isp32 for rv1106"
-	default y if CPU_RV1106
+	bool "isp32 for rv1106 rk3562"
+	default y if CPU_RV1106 || CPU_RK3562
 
 config VIDEO_ROCKCHIP_THUNDER_BOOT_ISP
 	bool "Rockchip Image Signal Processing Thunderboot helper"

@@ -348,6 +348,12 @@ int rkisp_register_irq(struct rkisp_hw_dev *hw_dev)
 	return 0;
 }
 
+static const char * const rk3562_isp_clks[] = {
+	"clk_isp_core",
+	"aclk_isp",
+	"hclk_isp",
+};
+
 static const char * const rk3568_isp_clks[] = {
 	"clk_isp",
 	"aclk_isp",
@@ -386,6 +392,22 @@ static const char * const rv1126_isp_clks[] = {
 	"clk_isp",
 	"aclk_isp",
 	"hclk_isp",
+};
+
+static const struct isp_clk_info rk3562_isp_clk_rate[] = {
+	{
+		.clk_rate = 300,
+		.refer_data = 1920, //width
+	}, {
+		.clk_rate = 400,
+		.refer_data = 2688,
+	}, {
+		.clk_rate = 500,
+		.refer_data = 3072,
+	}, {
+		.clk_rate = 600,
+		.refer_data = 3840,
+	}
 };
 
 static const struct isp_clk_info rk3568_isp_clk_rate[] = {
@@ -455,6 +477,12 @@ static const struct isp_clk_info rv1126_isp_clk_rate[] = {
 	}
 };
 
+static struct isp_irqs_data rk3562_isp_irqs[] = {
+	{"isp_irq", isp_irq_hdl},
+	{"mi_irq", mi_irq_hdl},
+	{"mipi_irq", mipi_irq_hdl}
+};
+
 static struct isp_irqs_data rk3568_isp_irqs[] = {
 	{"isp_irq", isp_irq_hdl},
 	{"mi_irq", mi_irq_hdl},
@@ -501,6 +529,17 @@ static const struct isp_match_data rv1126_isp_match_data = {
 	.unite = false,
 };
 
+static const struct isp_match_data rk3562_isp_match_data = {
+	.clks = rk3562_isp_clks,
+	.num_clks = ARRAY_SIZE(rk3562_isp_clks),
+	.isp_ver = ISP_V32_L,
+	.clk_rate_tbl = rk3562_isp_clk_rate,
+	.num_clk_rate_tbl = ARRAY_SIZE(rk3562_isp_clk_rate),
+	.irqs = rk3562_isp_irqs,
+	.num_irqs = ARRAY_SIZE(rk3562_isp_irqs),
+	.unite = false,
+};
+
 static const struct isp_match_data rk3568_isp_match_data = {
 	.clks = rk3568_isp_clks,
 	.num_clks = ARRAY_SIZE(rk3568_isp_clks),
@@ -535,6 +574,12 @@ static const struct isp_match_data rk3588_isp_unite_match_data = {
 };
 
 static const struct of_device_id rkisp_hw_of_match[] = {
+#ifdef CONFIG_CPU_RK3562
+	{
+		.compatible = "rockchip,rk3562-rkisp",
+		.data = &rk3562_isp_match_data,
+	},
+#endif
 #ifdef CONFIG_CPU_RK3568
 	{
 		.compatible = "rockchip,rk3568-rkisp",
