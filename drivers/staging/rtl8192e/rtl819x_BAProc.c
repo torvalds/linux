@@ -159,7 +159,6 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	*tag++ = ACT_CAT_BA;
 	*tag++ = ACT_DELBA;
 
-
 	put_unaligned_le16(DelbaParamSet.short_data, tag);
 	tag += 2;
 
@@ -373,7 +372,6 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 			ReasonCode = DELBA_REASON_END_BA;
 			goto OnADDBARsp_Reject;
 		}
-
 
 		pAdmittedBA->dialog_token = *pDialogToken;
 		pAdmittedBA->ba_timeout_value = *pBaTimeoutVal;
