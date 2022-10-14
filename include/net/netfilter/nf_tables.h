@@ -32,8 +32,8 @@ struct nft_pktinfo {
 	u8				flags;
 	u8				tprot;
 	u16				fragoff;
-	unsigned int			thoff;
-	unsigned int			inneroff;
+	u16				thoff;
+	u16				inneroff;
 };
 
 static inline struct sock *nft_sk(const struct nft_pktinfo *pkt)
