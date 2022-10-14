@@ -42,6 +42,7 @@ static const char * const intel_steering_types[] = {
 	"LNCF",
 	"GAM",
 	"DSS",
+	"OADDRM",
 	"INSTANCE 0",
 };
 
@@ -129,6 +130,11 @@ static const struct intel_mmio_range xelpg_dss_steering_table[] = {
 	{ 0x00DE80, 0x00E8FF },		/* DSS (0xE000-0xE0FF reserved) */
 };
 
+static const struct intel_mmio_range xelpmp_oaddrm_steering_table[] = {
+	{ 0x393200, 0x39323F },
+	{ 0x393400, 0x3934FF },
+};
+
 void intel_gt_mcr_init(struct intel_gt *gt)
 {
 	struct drm_i915_private *i915 = gt->i915;
@@ -151,8 +157,9 @@ void intel_gt_mcr_init(struct intel_gt *gt)
 			drm_warn(&i915->drm, "mslice mask all zero!\n");
 	}
 
-	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 70) &&
-	    gt->type == GT_PRIMARY) {
+	if (MEDIA_VER(i915) >= 13 && gt->type == GT_MEDIA) {
+		gt->steering_table[OADDRM] = xelpmp_oaddrm_steering_table;
+	} else if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 70)) {
 		fuse = REG_FIELD_GET(GT_L3_EXC_MASK,
 				     intel_uncore_read(gt->uncore, XEHP_FUSE4));
 
@@ -512,6 +519,13 @@ static void get_nonterminated_steering(struct intel_gt *gt,
 		 * will always provide a non-terminated value.
 		 */
 		*group = 0;
+		*instance = 0;
+		break;
+	case OADDRM:
+		if ((VDBOX_MASK(gt) | VEBOX_MASK(gt) | gt->info.sfc_mask) & BIT(0))
+			*group = 0;
+		else
+			*group = 1;
 		*instance = 0;
 		break;
 	default:

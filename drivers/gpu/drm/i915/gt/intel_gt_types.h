@@ -61,6 +61,7 @@ enum intel_steering_type {
 	LNCF,
 	GAM,
 	DSS,
+	OADDRM,
 
 	/*
 	 * On some platforms there are multiple types of MCR registers that

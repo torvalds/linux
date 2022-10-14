@@ -1599,13 +1599,26 @@ xelpg_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 }
 
 static void
+xelpmp_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
+{
+	/* FIXME: Actual workarounds will be added in future patch(es) */
+
+	debug_dump_steering(gt);
+}
+
+static void
 gt_init_workarounds(struct intel_gt *gt, struct i915_wa_list *wal)
 {
 	struct drm_i915_private *i915 = gt->i915;
 
-	/* FIXME: Media GT handling will be added in an upcoming patch */
-	if (gt->type == GT_MEDIA)
+	if (gt->type == GT_MEDIA) {
+		if (MEDIA_VER(i915) >= 13)
+			xelpmp_gt_workarounds_init(gt, wal);
+		else
+			MISSING_CASE(MEDIA_VER(i915));
+
 		return;
+	}
 
 	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 70))
 		xelpg_gt_workarounds_init(gt, wal);
