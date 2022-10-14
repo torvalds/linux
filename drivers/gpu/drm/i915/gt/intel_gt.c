@@ -314,7 +314,11 @@ static void gen8_check_faults(struct intel_gt *gt)
 	i915_reg_t fault_reg, fault_data0_reg, fault_data1_reg;
 	u32 fault;
 
-	if (GRAPHICS_VER(gt->i915) >= 12) {
+	if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 50)) {
+		fault_reg = XEHP_RING_FAULT_REG;
+		fault_data0_reg = XEHP_FAULT_TLB_DATA0;
+		fault_data1_reg = XEHP_FAULT_TLB_DATA1;
+	} else if (GRAPHICS_VER(gt->i915) >= 12) {
 		fault_reg = GEN12_RING_FAULT_REG;
 		fault_data0_reg = GEN12_FAULT_TLB_DATA0;
 		fault_data1_reg = GEN12_FAULT_TLB_DATA1;
@@ -990,6 +994,13 @@ static void mmio_invalidate_full(struct intel_gt *gt)
 		[COPY_ENGINE_CLASS]		= GEN12_BLT_TLB_INV_CR,
 		[COMPUTE_CLASS]			= GEN12_COMPCTX_TLB_INV_CR,
 	};
+	static const i915_reg_t xehp_regs[] = {
+		[RENDER_CLASS]			= XEHP_GFX_TLB_INV_CR,
+		[VIDEO_DECODE_CLASS]		= XEHP_VD_TLB_INV_CR,
+		[VIDEO_ENHANCEMENT_CLASS]	= XEHP_VE_TLB_INV_CR,
+		[COPY_ENGINE_CLASS]		= XEHP_BLT_TLB_INV_CR,
+		[COMPUTE_CLASS]			= XEHP_COMPCTX_TLB_INV_CR,
+	};
 	struct drm_i915_private *i915 = gt->i915;
 	struct intel_uncore *uncore = gt->uncore;
 	struct intel_engine_cs *engine;
@@ -998,7 +1009,10 @@ static void mmio_invalidate_full(struct intel_gt *gt)
 	const i915_reg_t *regs;
 	unsigned int num = 0;
 
-	if (GRAPHICS_VER(i915) == 12) {
+	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
+		regs = xehp_regs;
+		num = ARRAY_SIZE(xehp_regs);
+	} else if (GRAPHICS_VER(i915) == 12) {
 		regs = gen12_regs;
 		num = ARRAY_SIZE(gen12_regs);
 	} else if (GRAPHICS_VER(i915) >= 8 && GRAPHICS_VER(i915) <= 11) {

@@ -616,7 +616,10 @@ static void init_l3cc_table(struct intel_uncore *uncore,
 	u32 l3cc;
 
 	for_each_l3cc(l3cc, table, i)
-		intel_uncore_write_fw(uncore, GEN9_LNCFCMOCS(i), l3cc);
+		if (GRAPHICS_VER_FULL(uncore->i915) >= IP_VER(12, 50))
+			intel_uncore_write_fw(uncore, XEHP_LNCFCMOCS(i), l3cc);
+		else
+			intel_uncore_write_fw(uncore, GEN9_LNCFCMOCS(i), l3cc);
 }
 
 void intel_mocs_init_engine(struct intel_engine_cs *engine)

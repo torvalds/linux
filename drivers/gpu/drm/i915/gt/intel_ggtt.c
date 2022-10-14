@@ -986,7 +986,7 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 
 	ggtt->vm.pte_encode = gen8_ggtt_pte_encode;
 
-	setup_private_pat(ggtt->vm.gt->uncore);
+	setup_private_pat(ggtt->vm.gt);
 
 	return ggtt_probe_common(ggtt, size);
 }
@@ -1308,7 +1308,7 @@ void i915_ggtt_resume(struct i915_ggtt *ggtt)
 		wbinvd_on_all_cpus();
 
 	if (GRAPHICS_VER(ggtt->vm.i915) >= 8)
-		setup_private_pat(ggtt->vm.gt->uncore);
+		setup_private_pat(ggtt->vm.gt);
 
 	intel_ggtt_restore_fences(ggtt);
 }
