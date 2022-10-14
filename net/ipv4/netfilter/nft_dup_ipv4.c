@@ -52,7 +52,8 @@ static int nft_dup_ipv4_init(const struct nft_ctx *ctx,
 	return err;
 }
 
-static int nft_dup_ipv4_dump(struct sk_buff *skb, const struct nft_expr *expr)
+static int nft_dup_ipv4_dump(struct sk_buff *skb,
+			     const struct nft_expr *expr, bool reset)
 {
 	struct nft_dup_ipv4 *priv = nft_expr_priv(expr);
 

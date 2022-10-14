@@ -24,10 +24,10 @@ int nft_meta_set_init(const struct nft_ctx *ctx,
 		      const struct nlattr * const tb[]);
 
 int nft_meta_get_dump(struct sk_buff *skb,
-		      const struct nft_expr *expr);
+		      const struct nft_expr *expr, bool reset);
 
 int nft_meta_set_dump(struct sk_buff *skb,
-		      const struct nft_expr *expr);
+		      const struct nft_expr *expr, bool reset);
 
 void nft_meta_get_eval(const struct nft_expr *expr,
 		       struct nft_regs *regs,

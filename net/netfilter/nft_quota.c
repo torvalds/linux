@@ -217,7 +217,8 @@ static int nft_quota_init(const struct nft_ctx *ctx,
 	return nft_quota_do_init(tb, priv);
 }
 
-static int nft_quota_dump(struct sk_buff *skb, const struct nft_expr *expr)
+static int nft_quota_dump(struct sk_buff *skb,
+			  const struct nft_expr *expr, bool reset)
 {
 	struct nft_quota *priv = nft_expr_priv(expr);
 

@@ -347,7 +347,8 @@ static int nft_inner_init(const struct nft_ctx *ctx,
 	return 0;
 }
 
-static int nft_inner_dump(struct sk_buff *skb, const struct nft_expr *expr)
+static int nft_inner_dump(struct sk_buff *skb,
+			  const struct nft_expr *expr, bool reset)
 {
 	const struct nft_inner *priv = nft_expr_priv(expr);
 

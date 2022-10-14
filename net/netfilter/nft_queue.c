@@ -152,7 +152,8 @@ static int nft_queue_sreg_init(const struct nft_ctx *ctx,
 	return 0;
 }
 
-static int nft_queue_dump(struct sk_buff *skb, const struct nft_expr *expr)
+static int nft_queue_dump(struct sk_buff *skb,
+			  const struct nft_expr *expr, bool reset)
 {
 	const struct nft_queue *priv = nft_expr_priv(expr);
 
@@ -168,7 +169,8 @@ nla_put_failure:
 }
 
 static int
-nft_queue_sreg_dump(struct sk_buff *skb, const struct nft_expr *expr)
+nft_queue_sreg_dump(struct sk_buff *skb,
+		    const struct nft_expr *expr, bool reset)
 {
 	const struct nft_queue *priv = nft_expr_priv(expr);
 

@@ -2769,7 +2769,7 @@ static int nf_tables_fill_expr_info(struct sk_buff *skb,
 							    NFTA_EXPR_DATA);
 		if (data == NULL)
 			goto nla_put_failure;
-		if (expr->ops->dump(skb, expr) < 0)
+		if (expr->ops->dump(skb, expr, false) < 0)
 			goto nla_put_failure;
 		nla_nest_end(skb, data);
 	}

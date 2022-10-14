@@ -231,7 +231,8 @@ static int nft_payload_init(const struct nft_ctx *ctx,
 					priv->len);
 }
 
-static int nft_payload_dump(struct sk_buff *skb, const struct nft_expr *expr)
+static int nft_payload_dump(struct sk_buff *skb,
+			    const struct nft_expr *expr, bool reset)
 {
 	const struct nft_payload *priv = nft_expr_priv(expr);
 
@@ -919,7 +920,8 @@ static int nft_payload_set_init(const struct nft_ctx *ctx,
 				       priv->len);
 }
 
-static int nft_payload_set_dump(struct sk_buff *skb, const struct nft_expr *expr)
+static int nft_payload_set_dump(struct sk_buff *skb,
+				const struct nft_expr *expr, bool reset)
 {
 	const struct nft_payload_set *priv = nft_expr_priv(expr);
 
