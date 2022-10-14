@@ -1128,18 +1128,23 @@ static void __set_mcr_steering(struct i915_wa_list *wal,
 	wa_write_clr_set(wal, steering_reg, mcr_mask, mcr);
 }
 
-static void __add_mcr_wa(struct intel_gt *gt, struct i915_wa_list *wal,
-			 unsigned int slice, unsigned int subslice)
+static void debug_dump_steering(struct intel_gt *gt)
 {
 	struct drm_printer p = drm_debug_printer("MCR Steering:");
 
+	if (drm_debug_enabled(DRM_UT_DRIVER))
+		intel_gt_mcr_report_steering(&p, gt, false);
+}
+
+static void __add_mcr_wa(struct intel_gt *gt, struct i915_wa_list *wal,
+			 unsigned int slice, unsigned int subslice)
+{
 	__set_mcr_steering(wal, GEN8_MCR_SELECTOR, slice, subslice);
 
 	gt->default_steering.groupid = slice;
 	gt->default_steering.instanceid = subslice;
 
-	if (drm_debug_enabled(DRM_UT_DRIVER))
-		intel_gt_mcr_report_steering(&p, gt, false);
+	debug_dump_steering(gt);
 }
 
 static void
@@ -1582,11 +1587,29 @@ pvc_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 }
 
 static void
+xelpg_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
+{
+	/* FIXME: Actual workarounds will be added in future patch(es) */
+
+	/*
+	 * Unlike older platforms, we no longer setup implicit steering here;
+	 * all MCR accesses are explicitly steered.
+	 */
+	debug_dump_steering(gt);
+}
+
+static void
 gt_init_workarounds(struct intel_gt *gt, struct i915_wa_list *wal)
 {
 	struct drm_i915_private *i915 = gt->i915;
 
-	if (IS_PONTEVECCHIO(i915))
+	/* FIXME: Media GT handling will be added in an upcoming patch */
+	if (gt->type == GT_MEDIA)
+		return;
+
+	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 70))
+		xelpg_gt_workarounds_init(gt, wal);
+	else if (IS_PONTEVECCHIO(i915))
 		pvc_gt_workarounds_init(gt, wal);
 	else if (IS_DG2(i915))
 		dg2_gt_workarounds_init(gt, wal);

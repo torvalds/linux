@@ -56,6 +56,7 @@
 #define FORCEWAKE_ACK_GT_MTL			_MMIO(0xdfc)
 
 #define MCFG_MCR_SELECTOR			_MMIO(0xfd0)
+#define MTL_MCR_SELECTOR			_MMIO(0xfd4)
 #define SF_MCR_SELECTOR				_MMIO(0xfd8)
 #define GEN8_MCR_SELECTOR			_MMIO(0xfdc)
 #define GAM_MCR_SELECTOR			_MMIO(0xfe0)
@@ -68,6 +69,8 @@
 #define   GEN11_MCR_SLICE_MASK			GEN11_MCR_SLICE(0xf)
 #define   GEN11_MCR_SUBSLICE(subslice)		(((subslice) & 0x7) << 24)
 #define   GEN11_MCR_SUBSLICE_MASK		GEN11_MCR_SUBSLICE(0x7)
+#define   MTL_MCR_GROUPID			REG_GENMASK(11, 8)
+#define   MTL_MCR_INSTANCEID			REG_GENMASK(3, 0)
 
 #define IPEIR_I965				_MMIO(0x2064)
 #define IPEHR_I965				_MMIO(0x2068)
@@ -528,6 +531,8 @@
 #define   GEN6_MBCTL_BOOT_FETCH_MECH		(1 << 0)
 
 /* Fuse readout registers for GT */
+#define XEHP_FUSE4				_MMIO(0x9114)
+#define   GT_L3_EXC_MASK			REG_GENMASK(6, 4)
 #define	GEN10_MIRROR_FUSE3			_MMIO(0x9118)
 #define   GEN10_L3BANK_PAIR_COUNT		4
 #define   GEN10_L3BANK_MASK			0x0F
