@@ -42,6 +42,14 @@ trap_cleanup()
 
 trap trap_cleanup EXIT TERM INT
 
+# perf record for testing without decoding
+perf_record_no_decode()
+{
+	# Options to speed up recording: no post-processing, no build-id cache update,
+	# and no BPF events.
+	perf record -B -N --no-bpf-event "$@"
+}
+
 have_workload=false
 cat << _end_of_file_ | /usr/bin/cc -o "${workload}" -xc - -pthread && have_workload=true
 #include <time.h>
@@ -76,7 +84,7 @@ _end_of_file_
 can_cpu_wide()
 {
 	echo "Checking for CPU-wide recording on CPU $1"
-	if ! perf record -o "${tmpfile}" -B -N --no-bpf-event -e dummy:u -C "$1" true >/dev/null 2>&1 ; then
+	if ! perf_record_no_decode -o "${tmpfile}" -e dummy:u -C "$1" true >/dev/null 2>&1 ; then
 		echo "No so skipping"
 		return 2
 	fi
@@ -93,7 +101,7 @@ test_system_wide_side_band()
 	can_cpu_wide 1 || return $?
 
 	# Record on CPU 0 a task running on CPU 1
-	perf record -B -N --no-bpf-event -o "${perfdatafile}" -e intel_pt//u -C 0 -- taskset --cpu-list 1 uname
+	perf_record_no_decode -o "${perfdatafile}" -e intel_pt//u -C 0 -- taskset --cpu-list 1 uname
 
 	# Should get MMAP events from CPU 1 because they can be needed to decode
 	mmap_cnt=$(perf script -i "${perfdatafile}" --no-itrace --show-mmap-events -C 1 2>/dev/null | grep -c MMAP)
@@ -109,7 +117,7 @@ test_system_wide_side_band()
 
 can_kernel()
 {
-	perf record -o "${tmpfile}" -B -N --no-bpf-event -e dummy:k true >/dev/null 2>&1 || return 2
+	perf_record_no_decode -o "${tmpfile}" -e dummy:k true >/dev/null 2>&1 || return 2
 	return 0
 }
 
@@ -235,7 +243,7 @@ test_per_thread()
 	wait_for_threads ${w1} 2
 	wait_for_threads ${w2} 2
 
-	perf record -B -N --no-bpf-event -o "${perfdatafile}" -e intel_pt//u"${k}" -vvv --per-thread -p "${w1},${w2}" 2>"${errfile}" >"${outfile}" &
+	perf_record_no_decode -o "${perfdatafile}" -e intel_pt//u"${k}" -vvv --per-thread -p "${w1},${w2}" 2>"${errfile}" >"${outfile}" &
 	ppid=$!
 	echo "perf PID is $ppid"
 	wait_for_perf_to_start ${ppid} "${errfile}" || return 1
