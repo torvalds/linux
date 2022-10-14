@@ -31,7 +31,6 @@ struct bnxt_ulp_ops {
 	void (*ulp_stop)(void *);
 	void (*ulp_start)(void *);
 	void (*ulp_sriov_config)(void *, int);
-	void (*ulp_shutdown)(void *);
 	void (*ulp_irq_stop)(void *);
 	void (*ulp_irq_restart)(void *, struct bnxt_msix_entry *);
 };
@@ -107,6 +106,4 @@ void bnxt_ulp_irq_restart(struct bnxt *bp, int err);
 void bnxt_ulp_async_events(struct bnxt *bp, struct hwrm_async_event_cmpl *cmpl);
 void bnxt_rdma_aux_device_uninit(struct bnxt *bp);
 void bnxt_rdma_aux_device_init(struct bnxt *bp);
-struct bnxt_en_dev *bnxt_ulp_probe(struct net_device *dev);
-
 #endif

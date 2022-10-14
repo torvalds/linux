@@ -19,6 +19,7 @@
 #include <linux/irq.h>
 #include <asm/byteorder.h>
 #include <linux/bitmap.h>
+#include <linux/auxiliary_bus.h>
 
 #include "bnxt_hsi.h"
 #include "bnxt.h"
@@ -72,8 +73,6 @@ static int bnxt_unregister_dev(struct bnxt_en_dev *edev, unsigned int ulp_id)
 
 	if (ulp_id >= BNXT_MAX_ULP)
 		return -EINVAL;
-
-	edev->flags |= BNXT_EN_FLAG_ULP_STOPPED;
 
 	ulp = &edev->ulp_tbl[ulp_id];
 	if (!rcu_access_pointer(ulp->ulp_ops)) {
@@ -562,29 +561,3 @@ aux_dev_uninit:
 exit:
 	bp->flags &= ~BNXT_FLAG_ROCE_CAP;
 }
-
-struct bnxt_en_dev *bnxt_ulp_probe(struct net_device *dev)
-{
-	struct bnxt *bp = netdev_priv(dev);
-	struct bnxt_en_dev *edev;
-
-	edev = bp->edev;
-	if (!edev) {
-		edev = kzalloc(sizeof(*edev), GFP_KERNEL);
-		if (!edev)
-			return ERR_PTR(-ENOMEM);
-		edev->en_ops = &bnxt_en_ops_tbl;
-		edev->net = dev;
-		edev->pdev = bp->pdev;
-		edev->l2_db_size = bp->db_size;
-		edev->l2_db_size_nc = bp->db_size;
-		bp->edev = edev;
-	}
-	edev->flags &= ~BNXT_EN_FLAG_ROCE_CAP;
-	if (bp->flags & BNXT_FLAG_ROCEV1_CAP)
-		edev->flags |= BNXT_EN_FLAG_ROCEV1_CAP;
-	if (bp->flags & BNXT_FLAG_ROCEV2_CAP)
-		edev->flags |= BNXT_EN_FLAG_ROCEV2_CAP;
-	return bp->edev;
-}
-EXPORT_SYMBOL(bnxt_ulp_probe);

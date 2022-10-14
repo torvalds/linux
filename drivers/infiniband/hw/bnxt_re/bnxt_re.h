@@ -89,13 +89,6 @@ struct bnxt_re_ring_attr {
 	u8		mode;
 };
 
-struct bnxt_re_work {
-	struct work_struct	work;
-	unsigned long		event;
-	struct bnxt_re_dev      *rdev;
-	struct net_device	*vlan_dev;
-};
-
 struct bnxt_re_sqp_entries {
 	struct bnxt_qplib_sge sge;
 	u64 wrid;
@@ -132,6 +125,7 @@ struct bnxt_re_dev {
 #define BNXT_RE_FLAG_ERR_DEVICE_DETACHED       17
 #define BNXT_RE_FLAG_ISSUE_ROCE_STATS          29
 	struct net_device		*netdev;
+	struct notifier_block		nb;
 	unsigned int			version, major, minor;
 	struct bnxt_qplib_chip_ctx	*chip_ctx;
 	struct bnxt_en_dev		*en_dev;
@@ -194,5 +188,4 @@ static inline struct device *rdev_to_dev(struct bnxt_re_dev *rdev)
 		return  &rdev->ibdev.dev;
 	return NULL;
 }
-
 #endif
