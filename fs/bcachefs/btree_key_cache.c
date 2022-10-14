@@ -228,6 +228,7 @@ bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path)
 		return ck;
 	}
 
+	/* GFP_NOFS because we're holding btree locks: */
 	ck = kmem_cache_alloc(bch2_key_cache, GFP_NOFS|__GFP_ZERO);
 	if (likely(ck)) {
 		INIT_LIST_HEAD(&ck->list);
@@ -767,12 +768,7 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 	unsigned start, flags;
 	int srcu_idx;
 
-	/* Return -1 if we can't do anything right now */
-	if (sc->gfp_mask & __GFP_FS)
-		mutex_lock(&bc->lock);
-	else if (!mutex_trylock(&bc->lock))
-		return -1;
-
+	mutex_lock(&bc->lock);
 	srcu_idx = srcu_read_lock(&c->btree_trans_barrier);
 	flags = memalloc_nofs_save();
 
