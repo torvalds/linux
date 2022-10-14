@@ -1493,7 +1493,7 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 			return -EIO;
 		}
 
-		recover = kzalloc(sizeof(struct scrub_recover), GFP_NOFS);
+		recover = kzalloc(sizeof(struct scrub_recover), GFP_KERNEL);
 		if (!recover) {
 			btrfs_put_bioc(bioc);
 			btrfs_bio_counter_dec(fs_info);
@@ -1516,7 +1516,7 @@ static int scrub_setup_recheck_block(struct scrub_block *original_sblock,
 			sblock = sblocks_for_recheck[mirror_index];
 			sblock->sctx = sctx;
 
-			sector = alloc_scrub_sector(sblock, logical, GFP_NOFS);
+			sector = alloc_scrub_sector(sblock, logical, GFP_KERNEL);
 			if (!sector) {
 				spin_lock(&sctx->stat_lock);
 				sctx->stat.malloc_errors++;
