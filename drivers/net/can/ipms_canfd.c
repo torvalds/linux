@@ -186,10 +186,10 @@ struct ipms_canfd_priv {
 static struct can_bittiming_const canfd_bittiming_const = {
 	.name = DRIVER_NAME,
 	.tseg1_min = 2,
-	.tseg1_max = 17,
+	.tseg1_max = 65,
 	.tseg2_min = 1,
 	.tseg2_max = 8,
-	.sjw_max = 8,
+	.sjw_max = 16,
 	.brp_min = 1,
 	.brp_max = 512,
 	.brp_inc = 1,
@@ -199,10 +199,10 @@ static struct can_bittiming_const canfd_bittiming_const = {
 static struct can_bittiming_const canfd_data_bittiming_const = {
 	.name = DRIVER_NAME,
 	.tseg1_min = 2,
-	.tseg1_max = 65,
+	.tseg1_max = 17,
 	.tseg2_min = 1,
 	.tseg2_max = 8,
-	.sjw_max = 16,
+	.sjw_max = 8,
 	.brp_min = 1,
 	.brp_max = 512,
 	.brp_inc = 1,
@@ -1045,6 +1045,7 @@ static int canfd_driver_probe(struct platform_device *pdev)
 	struct ipms_canfd_priv *priv;
 	void __iomem *addr;
 	int ret;
+	u32 frq;
 
 	addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(addr)) {
@@ -1106,6 +1107,9 @@ static int canfd_driver_probe(struct platform_device *pdev)
 		ret = PTR_ERR(priv->can_clk);
 		goto reset_exit;
 	}
+
+	device_property_read_u32(priv->dev, "frequency", &frq);
+	clk_set_rate(priv->can_clk, frq);
 
 	priv->can.clock.freq = clk_get_rate(priv->can_clk);
 	ndev->irq = platform_get_irq(pdev, 0);
