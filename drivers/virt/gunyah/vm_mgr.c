@@ -18,7 +18,15 @@
 static void gh_vm_free(struct work_struct *work)
 {
 	struct gh_vm *ghvm = container_of(work, struct gh_vm, free_work);
+	struct gh_vm_mem *mapping, *tmp;
 	int ret;
+
+	mutex_lock(&ghvm->mm_lock);
+	list_for_each_entry_safe(mapping, tmp, &ghvm->memory_mappings, list) {
+		gh_vm_mem_reclaim(ghvm, mapping);
+		kfree(mapping);
+	}
+	mutex_unlock(&ghvm->mm_lock);
 
 	ret = gh_rm_dealloc_vmid(ghvm->rm, ghvm->vmid);
 	if (ret)
@@ -47,9 +55,42 @@ static __must_check struct gh_vm *gh_vm_alloc(struct gh_rm *rm)
 	ghvm->vmid = vmid;
 	ghvm->rm = rm;
 
+	mutex_init(&ghvm->mm_lock);
+	INIT_LIST_HEAD(&ghvm->memory_mappings);
 	INIT_WORK(&ghvm->free_work, gh_vm_free);
 
 	return ghvm;
+}
+
+static long gh_vm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	struct gh_vm *ghvm = filp->private_data;
+	void __user *argp = (void __user *)arg;
+	long r;
+
+	switch (cmd) {
+	case GH_VM_SET_USER_MEM_REGION: {
+		struct gh_userspace_memory_region region;
+
+		if (!gh_api_has_feature(GH_FEATURE_MEMEXTENT))
+			return -EOPNOTSUPP;
+
+		if (copy_from_user(&region, argp, sizeof(region)))
+			return -EFAULT;
+
+		/* All other flag bits are reserved for future use */
+		if (region.flags & ~(GH_MEM_ALLOW_READ | GH_MEM_ALLOW_WRITE | GH_MEM_ALLOW_EXEC))
+			return -EINVAL;
+
+		r = gh_vm_mem_alloc(ghvm, &region);
+		break;
+	}
+	default:
+		r = -ENOTTY;
+		break;
+	}
+
+	return r;
 }
 
 static int gh_vm_release(struct inode *inode, struct file *filp)
@@ -64,6 +105,9 @@ static int gh_vm_release(struct inode *inode, struct file *filp)
 }
 
 static const struct file_operations gh_vm_fops = {
+	.owner = THIS_MODULE,
+	.unlocked_ioctl = gh_vm_ioctl,
+	.compat_ioctl	= compat_ptr_ioctl,
 	.release = gh_vm_release,
 	.llseek = noop_llseek,
 };
