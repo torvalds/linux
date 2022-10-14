@@ -299,17 +299,22 @@ invalid_pm_state:
 }
 
 void mhi_free_bhie_table(struct mhi_controller *mhi_cntrl,
-			 struct image_info *image_info)
+			 struct image_info **image_info)
 {
 	int i;
-	struct mhi_buf *mhi_buf = image_info->mhi_buf;
+	struct mhi_buf *mhi_buf = (*image_info)->mhi_buf;
 
-	for (i = 0; i < image_info->entries; i++, mhi_buf++)
+	if (mhi_cntrl->img_pre_alloc)
+		return;
+
+	for (i = 0; i < (*image_info)->entries; i++, mhi_buf++)
 		dma_free_coherent(mhi_cntrl->cntrl_dev, mhi_buf->len,
 				  mhi_buf->buf, mhi_buf->dma_addr);
 
-	kfree(image_info->mhi_buf);
-	kfree(image_info);
+	kfree((*image_info)->mhi_buf);
+	kfree(*image_info);
+
+	*image_info = NULL;
 }
 
 int mhi_alloc_bhie_table(struct mhi_controller *mhi_cntrl,
@@ -321,6 +326,9 @@ int mhi_alloc_bhie_table(struct mhi_controller *mhi_cntrl,
 	int i;
 	struct image_info *img_info;
 	struct mhi_buf *mhi_buf;
+
+	if (mhi_cntrl->img_pre_alloc)
+		return 0;
 
 	img_info = kzalloc(sizeof(*img_info), GFP_KERNEL);
 	if (!img_info)
@@ -435,8 +443,20 @@ void mhi_fw_load_handler(struct mhi_controller *mhi_cntrl)
 
 	ret = request_firmware(&firmware, fw_name, dev);
 	if (ret) {
-		dev_err(dev, "Error loading firmware: %d\n", ret);
-		goto error_fw_load;
+		if (!mhi_cntrl->fallback_fw_image) {
+			dev_err(dev, "Error loading firmware: %d\n", ret);
+			goto error_fw_load;
+		}
+
+		ret = request_firmware(&firmware,
+				       mhi_cntrl->fallback_fw_image,
+				       dev);
+		if (ret) {
+			dev_err(dev, "Error loading fallback firmware: %d\n",
+				ret);
+			goto error_fw_load;
+		}
+		mhi_cntrl->status_cb(mhi_cntrl, MHI_CB_FALLBACK_IMG);
 	}
 
 	size = (mhi_cntrl->fbc_download) ? mhi_cntrl->sbl_size : firmware->size;
@@ -504,10 +524,8 @@ fw_load_ready_state:
 	return;
 
 error_ready_state:
-	if (mhi_cntrl->fbc_download) {
-		mhi_free_bhie_table(mhi_cntrl, mhi_cntrl->fbc_image);
-		mhi_cntrl->fbc_image = NULL;
-	}
+	if (mhi_cntrl->fbc_download)
+		mhi_free_bhie_table(mhi_cntrl, &mhi_cntrl->fbc_image);
 
 error_fw_load:
 	mhi_cntrl->pm_state = MHI_PM_FW_DL_ERR;

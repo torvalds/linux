@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  *
  */
 
@@ -563,6 +563,8 @@ int mhi_init_mmio(struct mhi_controller *mhi_cntrl)
 		return ret;
 	}
 
+	mhi_misc_init_mmio(mhi_cntrl);
+
 	return 0;
 }
 
@@ -687,8 +689,7 @@ static int parse_ev_cfg(struct mhi_controller *mhi_cntrl,
 				&mhi_cntrl->mhi_chan[mhi_event->chan];
 		}
 
-		/* Priority is fixed to 1 for now */
-		mhi_event->priority = 1;
+		mhi_event->priority = event_cfg->priority;
 
 		mhi_event->db_cfg.brstmode = event_cfg->mode;
 		if (MHI_INVALID_BRSTMODE(mhi_event->db_cfg.brstmode))
@@ -707,6 +708,9 @@ static int parse_ev_cfg(struct mhi_controller *mhi_cntrl,
 			break;
 		case MHI_ER_CTRL:
 			mhi_event->process_event = mhi_process_ctrl_ev_ring;
+			break;
+		case MHI_ER_BW_SCALE:
+			mhi_event->process_event = mhi_process_misc_bw_ev_ring;
 			break;
 		default:
 			dev_err(dev, "Event Ring type not supported\n");
@@ -1041,8 +1045,15 @@ void mhi_unregister_controller(struct mhi_controller *mhi_cntrl)
 	unsigned int i;
 
 	mhi_deinit_free_irq(mhi_cntrl);
+	/* Free the memory controller wanted to preserve for BHIe images */
+	if (mhi_cntrl->img_pre_alloc) {
+		mhi_cntrl->img_pre_alloc = false;
+		if (mhi_cntrl->fbc_image)
+			mhi_free_bhie_table(mhi_cntrl, &mhi_cntrl->fbc_image);
+		if (mhi_cntrl->rddm_image)
+			mhi_free_bhie_table(mhi_cntrl, &mhi_cntrl->rddm_image);
+	}
 	mhi_destroy_debugfs(mhi_cntrl);
-
 	destroy_workqueue(mhi_cntrl->hiprio_wq);
 	kfree(mhi_cntrl->mhi_cmd);
 	kfree(mhi_cntrl->mhi_event);
@@ -1163,15 +1174,8 @@ EXPORT_SYMBOL_GPL(mhi_prepare_for_power_up);
 
 void mhi_unprepare_after_power_down(struct mhi_controller *mhi_cntrl)
 {
-	if (mhi_cntrl->fbc_image) {
-		mhi_free_bhie_table(mhi_cntrl, mhi_cntrl->fbc_image);
-		mhi_cntrl->fbc_image = NULL;
-	}
-
-	if (mhi_cntrl->rddm_image) {
-		mhi_free_bhie_table(mhi_cntrl, mhi_cntrl->rddm_image);
-		mhi_cntrl->rddm_image = NULL;
-	}
+	if (mhi_cntrl->rddm_image)
+		mhi_free_bhie_table(mhi_cntrl, &mhi_cntrl->rddm_image);
 
 	mhi_cntrl->bhi = NULL;
 	mhi_cntrl->bhie = NULL;
@@ -1359,6 +1363,7 @@ static int mhi_driver_remove(struct device *dev)
 
 		if ((ch_state[dir] == MHI_CH_STATE_ENABLED ||
 		     ch_state[dir] == MHI_CH_STATE_STOP) &&
+		    mhi_chan->ch_state != MHI_CH_STATE_DISABLED &&
 		    !mhi_chan->offload_ch)
 			mhi_deinit_chan_ctxt(mhi_cntrl, mhi_chan);
 
