@@ -68,7 +68,7 @@ static int audit_resource(struct aa_profile *profile, unsigned int resource,
 }
 
 /**
- * aa_map_resouce - map compiled policy resource to internal #
+ * aa_map_resource - map compiled policy resource to internal #
  * @resource: flattened policy resource number
  *
  * Returns: resource # for the current architecture.
