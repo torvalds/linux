@@ -287,6 +287,7 @@ void bnxt_ulp_stop(struct bnxt *bp)
 			pm_message_t pm = {};
 
 			adrv = to_auxiliary_drv(adev->dev.driver);
+			edev->en_state = bp->state;
 			adrv->suspend(adev, pm);
 		}
 	}
@@ -313,6 +314,7 @@ void bnxt_ulp_start(struct bnxt *bp, int err)
 			struct auxiliary_driver *adrv;
 
 			adrv = to_auxiliary_drv(adev->dev.driver);
+			edev->en_state = bp->state;
 			adrv->resume(adev);
 		}
 	}
@@ -444,6 +446,13 @@ static void bnxt_set_edev_info(struct bnxt_en_dev *edev, struct bnxt *bp)
 		edev->flags |= BNXT_EN_FLAG_ROCEV1_CAP;
 	if (bp->flags & BNXT_FLAG_ROCEV2_CAP)
 		edev->flags |= BNXT_EN_FLAG_ROCEV2_CAP;
+	if (bp->flags & BNXT_FLAG_VF)
+		edev->flags |= BNXT_EN_FLAG_VF;
+
+	edev->chip_num = bp->chip_num;
+	edev->hw_ring_stats_size = bp->hw_ring_stats_size;
+	edev->pf_port_id = bp->pf.port_id;
+	edev->en_state = bp->state;
 }
 
 void bnxt_rdma_aux_device_init(struct bnxt *bp)
