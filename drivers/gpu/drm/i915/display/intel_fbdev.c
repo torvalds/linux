@@ -175,7 +175,7 @@ static int intelfb_alloc(struct drm_fb_helper *helper,
 	}
 
 	if (IS_ERR(obj)) {
-		drm_err(&dev_priv->drm, "failed to allocate framebuffer\n");
+		drm_err(&dev_priv->drm, "failed to allocate framebuffer (%pe)\n", obj);
 		return PTR_ERR(obj);
 	}
 
@@ -256,7 +256,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 
 	info = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(info)) {
-		drm_err(&dev_priv->drm, "Failed to allocate fb_info\n");
+		drm_err(&dev_priv->drm, "Failed to allocate fb_info (%pe)\n", info);
 		ret = PTR_ERR(info);
 		goto out_unpin;
 	}
@@ -291,7 +291,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	vaddr = i915_vma_pin_iomap(vma);
 	if (IS_ERR(vaddr)) {
 		drm_err(&dev_priv->drm,
-			"Failed to remap framebuffer into virtual memory\n");
+			"Failed to remap framebuffer into virtual memory (%pe)\n", vaddr);
 		ret = PTR_ERR(vaddr);
 		goto out_unpin;
 	}
