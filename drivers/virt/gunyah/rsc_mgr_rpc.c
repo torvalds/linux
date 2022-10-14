@@ -6,6 +6,12 @@
 #include <linux/gunyah_rsc_mgr.h>
 #include "rsc_mgr.h"
 
+/* Message IDs: Memory Management */
+#define GH_RM_RPC_MEM_LEND			0x51000012
+#define GH_RM_RPC_MEM_SHARE			0x51000013
+#define GH_RM_RPC_MEM_RECLAIM			0x51000015
+#define GH_RM_RPC_MEM_APPEND			0x51000018
+
 /* Message IDs: VM Management */
 #define GH_RM_RPC_VM_ALLOC_VMID			0x56000001
 #define GH_RM_RPC_VM_DEALLOC_VMID		0x56000002
@@ -20,6 +26,46 @@
 struct gh_rm_vm_common_vmid_req {
 	__le16 vmid;
 	__le16 _padding;
+} __packed;
+
+/* Call: MEM_LEND, MEM_SHARE */
+#define GH_MEM_SHARE_REQ_FLAGS_APPEND		BIT(1)
+
+struct gh_rm_mem_share_req_header {
+	u8 mem_type;
+	u8 _padding0;
+	u8 flags;
+	u8 _padding1;
+	__le32 label;
+} __packed;
+
+struct gh_rm_mem_share_req_acl_section {
+	__le32 n_entries;
+	struct gh_rm_mem_acl_entry entries[];
+};
+
+struct gh_rm_mem_share_req_mem_section {
+	__le16 n_entries;
+	__le16 _padding;
+	struct gh_rm_mem_entry entries[];
+};
+
+/* Call: MEM_RELEASE */
+struct gh_rm_mem_release_req {
+	__le32 mem_handle;
+	u8 flags; /* currently not used */
+	u8 _padding0;
+	__le16 _padding1;
+} __packed;
+
+/* Call: MEM_APPEND */
+#define GH_MEM_APPEND_REQ_FLAGS_END	BIT(0)
+
+struct gh_rm_mem_append_req_header {
+	__le32 mem_handle;
+	u8 flags;
+	u8 _padding0;
+	__le16 _padding1;
 } __packed;
 
 /* Call: VM_ALLOC */
@@ -51,6 +97,8 @@ struct gh_rm_vm_config_image_req {
 	__le64 dtb_size;
 } __packed;
 
+#define GH_RM_MAX_MEM_ENTRIES	512
+
 /*
  * Several RM calls take only a VMID as a parameter and give only standard
  * response back. Deduplicate boilerplate code by using this common call.
@@ -62,6 +110,181 @@ static int gh_rm_common_vmid_call(struct gh_rm *rm, u32 message_id, u16 vmid)
 	};
 
 	return gh_rm_call(rm, message_id, &req_payload, sizeof(req_payload), NULL, NULL);
+}
+
+static int _gh_rm_mem_append(struct gh_rm *rm, u32 mem_handle, bool end_append,
+			struct gh_rm_mem_entry *mem_entries, size_t n_mem_entries)
+{
+	struct gh_rm_mem_share_req_mem_section *mem_section;
+	struct gh_rm_mem_append_req_header *req_header;
+	size_t msg_size = 0;
+	void *msg;
+	int ret;
+
+	msg_size += sizeof(struct gh_rm_mem_append_req_header);
+	msg_size += struct_size(mem_section, entries, n_mem_entries);
+
+	msg = kzalloc(msg_size, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	req_header = msg;
+	mem_section = (void *)req_header + sizeof(struct gh_rm_mem_append_req_header);
+
+	req_header->mem_handle = cpu_to_le32(mem_handle);
+	if (end_append)
+		req_header->flags |= GH_MEM_APPEND_REQ_FLAGS_END;
+
+	mem_section->n_entries = cpu_to_le16(n_mem_entries);
+	memcpy(mem_section->entries, mem_entries, sizeof(*mem_entries) * n_mem_entries);
+
+	ret = gh_rm_call(rm, GH_RM_RPC_MEM_APPEND, msg, msg_size, NULL, NULL);
+	kfree(msg);
+
+	return ret;
+}
+
+static int gh_rm_mem_append(struct gh_rm *rm, u32 mem_handle,
+			struct gh_rm_mem_entry *mem_entries, size_t n_mem_entries)
+{
+	bool end_append;
+	int ret = 0;
+	size_t n;
+
+	while (n_mem_entries) {
+		if (n_mem_entries > GH_RM_MAX_MEM_ENTRIES) {
+			end_append = false;
+			n = GH_RM_MAX_MEM_ENTRIES;
+		} else {
+			end_append = true;
+			n = n_mem_entries;
+		}
+
+		ret = _gh_rm_mem_append(rm, mem_handle, end_append, mem_entries, n);
+		if (ret)
+			break;
+
+		mem_entries += n;
+		n_mem_entries -= n;
+	}
+
+	return ret;
+}
+
+static int gh_rm_mem_lend_common(struct gh_rm *rm, u32 message_id, struct gh_rm_mem_parcel *p)
+{
+	size_t msg_size = 0, initial_mem_entries = p->n_mem_entries, resp_size;
+	struct gh_rm_mem_share_req_acl_section *acl_section;
+	struct gh_rm_mem_share_req_mem_section *mem_section;
+	struct gh_rm_mem_share_req_header *req_header;
+	u32 *attr_section;
+	__le32 *resp;
+	void *msg;
+	int ret;
+
+	if (!p->acl_entries || !p->n_acl_entries || !p->mem_entries || !p->n_mem_entries ||
+	    p->n_acl_entries > U8_MAX || p->mem_handle != GH_MEM_HANDLE_INVAL)
+		return -EINVAL;
+
+	if (initial_mem_entries > GH_RM_MAX_MEM_ENTRIES)
+		initial_mem_entries = GH_RM_MAX_MEM_ENTRIES;
+
+	/* The format of the message goes:
+	 * request header
+	 * ACL entries (which VMs get what kind of access to this memory parcel)
+	 * Memory entries (list of memory regions to share)
+	 * Memory attributes (currently unused, we'll hard-code the size to 0)
+	 */
+	msg_size += sizeof(struct gh_rm_mem_share_req_header);
+	msg_size += struct_size(acl_section, entries, p->n_acl_entries);
+	msg_size += struct_size(mem_section, entries, initial_mem_entries);
+	msg_size += sizeof(u32); /* for memory attributes, currently unused */
+
+	msg = kzalloc(msg_size, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	req_header = msg;
+	acl_section = (void *)req_header + sizeof(*req_header);
+	mem_section = (void *)acl_section + struct_size(acl_section, entries, p->n_acl_entries);
+	attr_section = (void *)mem_section + struct_size(mem_section, entries, initial_mem_entries);
+
+	req_header->mem_type = p->mem_type;
+	if (initial_mem_entries != p->n_mem_entries)
+		req_header->flags |= GH_MEM_SHARE_REQ_FLAGS_APPEND;
+	req_header->label = cpu_to_le32(p->label);
+
+	acl_section->n_entries = cpu_to_le32(p->n_acl_entries);
+	memcpy(acl_section->entries, p->acl_entries, sizeof(*(p->acl_entries)) * p->n_acl_entries);
+
+	mem_section->n_entries = cpu_to_le16(initial_mem_entries);
+	memcpy(mem_section->entries, p->mem_entries,
+		sizeof(*(p->mem_entries)) * initial_mem_entries);
+
+	/* Set n_entries for memory attribute section to 0 */
+	*attr_section = 0;
+
+	ret = gh_rm_call(rm, message_id, msg, msg_size, (void **)&resp, &resp_size);
+	kfree(msg);
+
+	if (ret)
+		return ret;
+
+	p->mem_handle = le32_to_cpu(*resp);
+
+	if (initial_mem_entries != p->n_mem_entries) {
+		ret = gh_rm_mem_append(rm, p->mem_handle,
+					&p->mem_entries[initial_mem_entries],
+					p->n_mem_entries - initial_mem_entries);
+		if (ret) {
+			gh_rm_mem_reclaim(rm, p);
+			p->mem_handle = GH_MEM_HANDLE_INVAL;
+		}
+	}
+
+	kfree(resp);
+	return ret;
+}
+
+/**
+ * gh_rm_mem_lend() - Lend memory to other virtual machines.
+ * @rm: Handle to a Gunyah resource manager
+ * @parcel: Package the memory information of the memory to be lent.
+ *
+ * Lending removes Linux's access to the memory while the memory parcel is lent.
+ */
+int gh_rm_mem_lend(struct gh_rm *rm, struct gh_rm_mem_parcel *parcel)
+{
+	return gh_rm_mem_lend_common(rm, GH_RM_RPC_MEM_LEND, parcel);
+}
+
+
+/**
+ * gh_rm_mem_share() - Share memory with other virtual machines.
+ * @rm: Handle to a Gunyah resource manager
+ * @parcel: Package the memory information of the memory to be shared.
+ *
+ * Sharing keeps Linux's access to the memory while the memory parcel is shared.
+ */
+int gh_rm_mem_share(struct gh_rm *rm, struct gh_rm_mem_parcel *parcel)
+{
+	return gh_rm_mem_lend_common(rm, GH_RM_RPC_MEM_SHARE, parcel);
+}
+
+/**
+ * gh_rm_mem_reclaim() - Reclaim a memory parcel
+ * @rm: Handle to a Gunyah resource manager
+ * @parcel: Package the memory information of the memory to be reclaimed.
+ *
+ * RM maps the associated memory back into the stage-2 page tables of the owner VM.
+ */
+int gh_rm_mem_reclaim(struct gh_rm *rm, struct gh_rm_mem_parcel *parcel)
+{
+	struct gh_rm_mem_release_req req = {
+		.mem_handle = cpu_to_le32(parcel->mem_handle),
+	};
+
+	return gh_rm_call(rm, GH_RM_RPC_MEM_RECLAIM, &req, sizeof(req), NULL, NULL);
 }
 
 /**
