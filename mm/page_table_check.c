@@ -53,7 +53,7 @@ static struct page_table_check *get_page_table_check(struct page_ext *page_ext)
 }
 
 /*
- * An enty is removed from the page table, decrement the counters for that page
+ * An entry is removed from the page table, decrement the counters for that page
  * verify that it is of correct type and counters do not become negative.
  */
 static void page_table_check_clear(struct mm_struct *mm, unsigned long addr,
@@ -87,7 +87,7 @@ static void page_table_check_clear(struct mm_struct *mm, unsigned long addr,
 }
 
 /*
- * A new enty is added to the page table, increment the counters for that page
+ * A new entry is added to the page table, increment the counters for that page
  * verify that it is of correct type and is not being mapped with a different
  * type to a different process.
  */

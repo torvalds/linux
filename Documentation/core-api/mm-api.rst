@@ -19,9 +19,6 @@ User Space Memory Access
 Memory Allocation Controls
 ==========================
 
-.. kernel-doc:: include/linux/gfp.h
-   :internal:
-
 .. kernel-doc:: include/linux/gfp_types.h
    :doc: Page mobility and placement hints
 

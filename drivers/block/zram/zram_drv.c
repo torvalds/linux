@@ -329,8 +329,8 @@ static ssize_t idle_store(struct device *dev,
 
 	if (!sysfs_streq(buf, "all")) {
 		/*
-		 * If it did not parse as 'all' try to treat it as an integer when
-		 * we have memory tracking enabled.
+		 * If it did not parse as 'all' try to treat it as an integer
+		 * when we have memory tracking enabled.
 		 */
 		u64 age_sec;
 
@@ -345,7 +345,10 @@ static ssize_t idle_store(struct device *dev,
 	if (!init_done(zram))
 		goto out_unlock;
 
-	/* A cutoff_time of 0 marks everything as idle, this is the "all" behavior */
+	/*
+	 * A cutoff_time of 0 marks everything as idle, this is the
+	 * "all" behavior.
+	 */
 	mark_idle(zram, cutoff_time);
 	rv = len;
 
@@ -1416,11 +1419,11 @@ compress_again:
 		if (comp_len != PAGE_SIZE)
 			goto compress_again;
 		/*
-		 * If the page is not compressible, you need to acquire the lock and
-		 * execute the code below. The zcomp_stream_get() call is needed to
-		 * disable the cpu hotplug and grab the zstrm buffer back.
-		 * It is necessary that the dereferencing of the zstrm variable below
-		 * occurs correctly.
+		 * If the page is not compressible, you need to acquire the
+		 * lock and execute the code below. The zcomp_stream_get()
+		 * call is needed to disable the cpu hotplug and grab the
+		 * zstrm buffer back. It is necessary that the dereferencing
+		 * of the zstrm variable below occurs correctly.
 		 */
 		zstrm = zcomp_stream_get(zram->comp);
 	}
@@ -2130,6 +2133,8 @@ static void destroy_devices(void)
 static int __init zram_init(void)
 {
 	int ret;
+
+	BUILD_BUG_ON(__NR_ZRAM_PAGEFLAGS > BITS_PER_LONG);
 
 	ret = cpuhp_setup_state_multi(CPUHP_ZCOMP_PREPARE, "block/zram:prepare",
 				      zcomp_cpu_up_prepare, zcomp_cpu_dead);

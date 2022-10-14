@@ -164,6 +164,15 @@ _c_flags += $(if $(patsubst n%,, \
 endif
 endif
 
+ifeq ($(CONFIG_KMSAN),y)
+_c_flags += $(if $(patsubst n%,, \
+		$(KMSAN_SANITIZE_$(basetarget).o)$(KMSAN_SANITIZE)y), \
+		$(CFLAGS_KMSAN))
+_c_flags += $(if $(patsubst n%,, \
+		$(KMSAN_ENABLE_CHECKS_$(basetarget).o)$(KMSAN_ENABLE_CHECKS)y), \
+		, -mllvm -msan-disable-checks=1)
+endif
+
 ifeq ($(CONFIG_UBSAN),y)
 _c_flags += $(if $(patsubst n%,, \
 		$(UBSAN_SANITIZE_$(basetarget).o)$(UBSAN_SANITIZE)$(CONFIG_UBSAN_SANITIZE_ALL)), \

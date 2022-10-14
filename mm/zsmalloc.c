@@ -472,12 +472,12 @@ static inline struct page *get_first_page(struct zspage *zspage)
 	return first_page;
 }
 
-static inline int get_first_obj_offset(struct page *page)
+static inline unsigned int get_first_obj_offset(struct page *page)
 {
 	return page->page_type;
 }
 
-static inline void set_first_obj_offset(struct page *page, int offset)
+static inline void set_first_obj_offset(struct page *page, unsigned int offset)
 {
 	page->page_type = offset;
 }
@@ -1592,7 +1592,7 @@ static void zs_object_copy(struct size_class *class, unsigned long dst,
 static unsigned long find_alloced_obj(struct size_class *class,
 					struct page *page, int *obj_idx)
 {
-	int offset = 0;
+	unsigned int offset;
 	int index = *obj_idx;
 	unsigned long handle = 0;
 	void *addr = kmap_atomic(page);
@@ -1846,7 +1846,7 @@ static int zs_page_migrate(struct page *newpage, struct page *page,
 	struct zspage *zspage;
 	struct page *dummy;
 	void *s_addr, *d_addr, *addr;
-	int offset;
+	unsigned int offset;
 	unsigned long handle;
 	unsigned long old_obj, new_obj;
 	unsigned int obj_idx;

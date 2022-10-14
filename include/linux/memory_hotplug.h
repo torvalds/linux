@@ -43,11 +43,6 @@ extern void arch_refresh_nodedata(int nid, pg_data_t *pgdat);
 ({								\
 	memblock_alloc(sizeof(*pgdat), SMP_CACHE_BYTES);	\
 })
-/*
- * This definition is just for error path in node hotadd.
- * For node hotremove, we have to replace this.
- */
-#define generic_free_nodedata(pgdat)	kfree(pgdat)
 
 extern pg_data_t *node_data[];
 static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
@@ -62,9 +57,6 @@ static inline pg_data_t *generic_alloc_nodedata(int nid)
 {
 	BUG();
 	return NULL;
-}
-static inline void generic_free_nodedata(pg_data_t *pgdat)
-{
 }
 static inline void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
 {

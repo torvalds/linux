@@ -632,22 +632,23 @@ bool filemap_range_has_writeback(struct address_space *mapping,
 {
 	XA_STATE(xas, &mapping->i_pages, start_byte >> PAGE_SHIFT);
 	pgoff_t max = end_byte >> PAGE_SHIFT;
-	struct page *page;
+	struct folio *folio;
 
 	if (end_byte < start_byte)
 		return false;
 
 	rcu_read_lock();
-	xas_for_each(&xas, page, max) {
-		if (xas_retry(&xas, page))
+	xas_for_each(&xas, folio, max) {
+		if (xas_retry(&xas, folio))
 			continue;
-		if (xa_is_value(page))
+		if (xa_is_value(folio))
 			continue;
-		if (PageDirty(page) || PageLocked(page) || PageWriteback(page))
+		if (folio_test_dirty(folio) || folio_test_locked(folio) ||
+				folio_test_writeback(folio))
 			break;
 	}
 	rcu_read_unlock();
-	return page != NULL;
+	return folio != NULL;
 }
 EXPORT_SYMBOL_GPL(filemap_range_has_writeback);
 
@@ -1459,7 +1460,7 @@ EXPORT_SYMBOL(folio_wait_bit_killable);
  *
  * Return: 0 if the folio was unlocked or -EINTR if interrupted by a signal.
  */
-int folio_put_wait_locked(struct folio *folio, int state)
+static int folio_put_wait_locked(struct folio *folio, int state)
 {
 	return folio_wait_bit_common(folio, PG_locked, state, DROP);
 }
@@ -3726,7 +3727,7 @@ ssize_t generic_perform_write(struct kiocb *iocb, struct iov_iter *i)
 		unsigned long offset;	/* Offset into pagecache page */
 		unsigned long bytes;	/* Bytes to write to page */
 		size_t copied;		/* Bytes copied from user */
-		void *fsdata;
+		void *fsdata = NULL;
 
 		offset = (pos & (PAGE_SIZE - 1));
 		bytes = min_t(unsigned long, PAGE_SIZE - offset,
