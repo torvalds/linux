@@ -123,7 +123,7 @@ int smb2_open_file(const unsigned int xid, struct cifs_open_parms *oparms, __u32
 
 		if (unlikely(!err_iov.iov_base || err_buftype == CIFS_NO_BUFFER))
 			rc = -ENOMEM;
-		else if (hdr->Status == STATUS_STOPPED_ON_SYMLINK && oparms->cifs_sb) {
+		else if (hdr->Status == STATUS_STOPPED_ON_SYMLINK) {
 			rc = smb2_parse_symlink_response(oparms->cifs_sb, &err_iov,
 							 &data->symlink_target);
 			if (!rc) {
