@@ -2816,6 +2816,9 @@
 			* [no]setxfer: Indicate if transfer speed mode setting
 			  should be skipped.
 
+			* [no]fua: Disable or enable FUA (Force Unit Access)
+			  support for devices supporting this feature.
+
 			* dump_id: Dump IDENTIFY data.
 
 			* disable: Disable this device.
