@@ -302,6 +302,34 @@ void intel_gt_mcr_multicast_write_fw(struct intel_gt *gt, i915_reg_t reg, u32 va
 	intel_uncore_write_fw(gt->uncore, reg, value);
 }
 
+/**
+ * intel_gt_mcr_multicast_rmw - Performs a multicast RMW operations
+ * @gt: GT structure
+ * @reg: the MCR register to read and write
+ * @clear: bits to clear during RMW
+ * @set: bits to set during RMW
+ *
+ * Performs a read-modify-write on an MCR register in a multicast manner.
+ * This operation only makes sense on MCR registers where all instances are
+ * expected to have the same value.  The read will target any non-terminated
+ * instance and the write will be applied to all instances.
+ *
+ * This function assumes the caller is already holding any necessary forcewake
+ * domains; use intel_gt_mcr_multicast_rmw() in cases where forcewake should
+ * be obtained automatically.
+ *
+ * Returns the old (unmodified) value read.
+ */
+u32 intel_gt_mcr_multicast_rmw(struct intel_gt *gt, i915_reg_t reg,
+			       u32 clear, u32 set)
+{
+	u32 val = intel_gt_mcr_read_any(gt, reg);
+
+	intel_gt_mcr_multicast_write(gt, reg, (val & ~clear) | set);
+
+	return val;
+}
+
 /*
  * reg_needs_read_steering - determine whether a register read requires
  *     explicit steering

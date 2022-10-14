@@ -24,6 +24,9 @@ void intel_gt_mcr_multicast_write(struct intel_gt *gt,
 void intel_gt_mcr_multicast_write_fw(struct intel_gt *gt,
 				     i915_reg_t reg, u32 value);
 
+u32 intel_gt_mcr_multicast_rmw(struct intel_gt *gt, i915_reg_t reg,
+			       u32 clear, u32 set);
+
 void intel_gt_mcr_get_nonterminated_steering(struct intel_gt *gt,
 					     i915_reg_t reg,
 					     u8 *group, u8 *instance);
