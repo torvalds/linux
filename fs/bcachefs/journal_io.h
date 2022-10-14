@@ -8,6 +8,7 @@
  */
 struct journal_replay {
 	struct journal_ptr {
+		bool		csum_good;
 		u8		dev;
 		u32		bucket;
 		u32		bucket_offset;
@@ -15,8 +16,7 @@ struct journal_replay {
 	}			ptrs[BCH_REPLICAS_MAX];
 	unsigned		nr_ptrs;
 
-	/* checksum error, but we may want to try using it anyways: */
-	bool			bad;
+	bool			csum_good;
 	bool			ignore;
 	/* must be last: */
 	struct jset		j;

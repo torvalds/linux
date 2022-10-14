@@ -16,6 +16,23 @@
 #include "replicas.h"
 #include "trace.h"
 
+static struct nonce journal_nonce(const struct jset *jset)
+{
+	return (struct nonce) {{
+		[0] = 0,
+		[1] = ((__le32 *) &jset->seq)[0],
+		[2] = ((__le32 *) &jset->seq)[1],
+		[3] = BCH_NONCE_JOURNAL,
+	}};
+}
+
+static bool jset_csum_good(struct bch_fs *c, struct jset *j)
+{
+	return bch2_checksum_type_valid(c, JSET_CSUM_TYPE(j)) &&
+		!bch2_crc_cmp(j->csum,
+			      csum_vstruct(c, JSET_CSUM_TYPE(j), journal_nonce(j), j));
+}
+
 static inline u32 journal_entry_radix_idx(struct bch_fs *c, u64 seq)
 {
 	return (seq - c->journal_entries_base_seq) & (~0U >> 1);
@@ -58,8 +75,7 @@ struct journal_list {
  */
 static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
 			     struct journal_ptr entry_ptr,
-			     struct journal_list *jlist, struct jset *j,
-			     bool bad)
+			     struct journal_list *jlist, struct jset *j)
 {
 	struct genradix_iter iter;
 	struct journal_replay **_i, *i, *dup;
@@ -110,38 +126,53 @@ static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
 	 */
 	dup = *_i;
 	if (dup) {
-		if (dup->bad) {
-			/* we'll replace @dup: */
-		} else if (bad) {
-			i = dup;
-			goto found;
-		} else {
-			fsck_err_on(bytes != vstruct_bytes(&dup->j) ||
-				    memcmp(j, &dup->j, bytes), c,
-				    "found duplicate but non identical journal entries (seq %llu)",
-				    le64_to_cpu(j->seq));
+		if (bytes == vstruct_bytes(&dup->j) &&
+		    !memcmp(j, &dup->j, bytes)) {
 			i = dup;
 			goto found;
 		}
-	}
 
+		if (!entry_ptr.csum_good) {
+			i = dup;
+			goto found;
+		}
+
+		if (!dup->csum_good)
+			goto replace;
+
+		fsck_err(c, "found duplicate but non identical journal entries (seq %llu)",
+			 le64_to_cpu(j->seq));
+		i = dup;
+		goto found;
+	}
+replace:
 	i = kvpmalloc(offsetof(struct journal_replay, j) + bytes, GFP_KERNEL);
 	if (!i)
 		return -ENOMEM;
 
-	i->nr_ptrs	 = 0;
-	i->bad		= bad;
+	i->nr_ptrs	= 0;
+	i->csum_good	= entry_ptr.csum_good;
 	i->ignore	= false;
 	unsafe_memcpy(&i->j, j, bytes, "embedded variable length struct");
+	i->ptrs[i->nr_ptrs++] = entry_ptr;
 
 	if (dup) {
-		i->nr_ptrs = dup->nr_ptrs;
-		memcpy(i->ptrs, dup->ptrs, sizeof(dup->ptrs));
+		if (dup->nr_ptrs >= ARRAY_SIZE(dup->ptrs)) {
+			bch_err(c, "found too many copies of journal entry %llu",
+				le64_to_cpu(i->j.seq));
+			dup->nr_ptrs = ARRAY_SIZE(dup->ptrs) - 1;
+		}
+
+		/* The first ptr should represent the jset we kept: */
+		memcpy(i->ptrs + i->nr_ptrs,
+		       dup->ptrs,
+		       sizeof(dup->ptrs[0]) * dup->nr_ptrs);
+		i->nr_ptrs += dup->nr_ptrs;
 		__journal_replay_free(c, dup);
 	}
 
-
 	*_i = i;
+	return 0;
 found:
 	for (ptr = i->ptrs; ptr < i->ptrs + i->nr_ptrs; ptr++) {
 		if (ptr->dev == ca->dev_idx) {
@@ -161,16 +192,6 @@ found:
 out:
 fsck_err:
 	return ret;
-}
-
-static struct nonce journal_nonce(const struct jset *jset)
-{
-	return (struct nonce) {{
-		[0] = 0,
-		[1] = ((__le32 *) &jset->seq)[0],
-		[2] = ((__le32 *) &jset->seq)[1],
-		[3] = BCH_NONCE_JOURNAL,
-	}};
 }
 
 /* this fills in a range with empty jset_entries: */
@@ -838,7 +859,7 @@ static int journal_read_bucket(struct bch_dev *ca,
 	unsigned sectors, sectors_read = 0;
 	u64 offset = bucket_to_sector(ca, ja->buckets[bucket]),
 	    end = offset + ca->mi.bucket_size;
-	bool saw_bad = false;
+	bool saw_bad = false, csum_good;
 	int ret = 0;
 
 	pr_debug("reading %u", bucket);
@@ -921,14 +942,19 @@ reread:
 
 		ja->bucket_seq[bucket] = le64_to_cpu(j->seq);
 
+		csum_good = jset_csum_good(c, j);
+		if (!csum_good)
+			saw_bad = true;
+
 		mutex_lock(&jlist->lock);
 		ret = journal_entry_add(c, ca, (struct journal_ptr) {
+					.csum_good	= csum_good,
 					.dev		= ca->dev_idx,
 					.bucket		= bucket,
 					.bucket_offset	= offset -
 						bucket_to_sector(ca, ja->buckets[bucket]),
 					.sector		= offset,
-					}, jlist, j, ret != 0);
+					}, jlist, j);
 		mutex_unlock(&jlist->lock);
 
 		switch (ret) {
