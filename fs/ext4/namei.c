@@ -2854,7 +2854,7 @@ retry:
 }
 
 static int ext4_tmpfile(struct user_namespace *mnt_userns, struct inode *dir,
-			struct dentry *dentry, umode_t mode)
+			struct file *file, umode_t mode)
 {
 	handle_t *handle;
 	struct inode *inode;
@@ -2876,7 +2876,7 @@ retry:
 		inode->i_op = &ext4_file_inode_operations;
 		inode->i_fop = &ext4_file_operations;
 		ext4_set_aops(inode);
-		d_tmpfile(dentry, inode);
+		d_tmpfile(file, inode);
 		err = ext4_orphan_add(handle, inode);
 		if (err)
 			goto err_unlock_inode;
@@ -2887,7 +2887,7 @@ retry:
 		ext4_journal_stop(handle);
 	if (err == -ENOSPC && ext4_should_retry_alloc(dir->i_sb, &retries))
 		goto retry;
-	return err;
+	return finish_open_simple(file, err);
 err_unlock_inode:
 	ext4_journal_stop(handle);
 	unlock_new_inode(inode);
