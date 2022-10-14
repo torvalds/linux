@@ -14,6 +14,7 @@
 #include <linux/qcom-cpufreq-hw.h>
 #include <linux/cpumask.h>
 #include <linux/arch_topology.h>
+#include <linux/cpu.h>
 
 #include <trace/hooks/sched.h>
 #include <trace/hooks/cpufreq.h>
@@ -4443,12 +4444,37 @@ static void android_rvh_update_thermal_stats(void *unused, int cpu)
 }
 
 static DECLARE_COMPLETION(rebuild_domains_completion);
+static void rebuild_sd_workfn(struct work_struct *work);
+static DECLARE_WORK(rebuild_sd_work, rebuild_sd_workfn);
+
+/** rebuild_sd_workfn
+ *
+ * rebuild the sched domains (and therefore the perf
+ * domains). It is absolutely necessary that the
+ * em_pds are created for each cpu device before
+ * proceeding, and this must complete for walt to
+ * function properly.
+ */
 static void rebuild_sd_workfn(struct work_struct *work)
 {
+	int cpu;
+	struct device *cpu_dev;
+
+	for_each_possible_cpu(cpu) {
+		cpu_dev = get_cpu_device(cpu);
+		if (cpu_dev->em_pd)
+			continue;
+
+		WARN_ONCE(true, "must wait for perf domains to be created");
+		schedule_work(&rebuild_sd_work);
+
+		/* do not rebuild domains yet, and do not complete this action */
+		return;
+	}
+
 	rebuild_sched_domains();
 	complete(&rebuild_domains_completion);
 }
-static DECLARE_WORK(rebuild_sd_work, rebuild_sd_workfn);
 
 static void walt_do_sched_yield(void *unused, struct rq *rq)
 {
@@ -4585,8 +4611,22 @@ static void walt_init(struct work_struct *work)
 	walt_cfs_init();
 	walt_halt_init();
 	wait_for_completion_interruptible(&tick_sched_clock_completion);
-	schedule_work(&rebuild_sd_work);
-	wait_for_completion_interruptible(&rebuild_domains_completion);
+
+	if (!rcu_dereference(rd->pd)) {
+		/*
+		 * perf domains not properly configured.  this is a must as
+		 * create_util_to_cost depends on rd->pd being properly
+		 * initialized.
+		 */
+		schedule_work(&rebuild_sd_work);
+		wait_for_completion_interruptible(&rebuild_domains_completion);
+	}
+
+	if (!rcu_dereference(rd->pd))
+		WALT_BUG(WALT_BUG_WALT, NULL,
+			 "root domain's perf-domain values not initialized rd->pd=%d.",
+			 rd->pd);
+
 	stop_machine(walt_init_stop_handler, NULL, NULL);
 
 	hdr = register_sysctl_table(walt_base_table);
@@ -4604,11 +4644,6 @@ static void walt_init(struct work_struct *work)
 	}
 
 	topology_clear_scale_freq_source(SCALE_FREQ_SOURCE_ARCH, cpu_online_mask);
-
-	if (!rcu_dereference(rd->pd))
-		WALT_BUG(WALT_BUG_WALT, NULL,
-			 "root domain's perf-domain values not initialized rd->pd=%d.",
-			 rd->pd);
 }
 
 static DECLARE_WORK(walt_init_work, walt_init);
