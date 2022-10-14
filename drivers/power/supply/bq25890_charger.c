@@ -529,22 +529,6 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_HEALTH_UNSPEC_FAILURE;
 		break;
 
-	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
-		val->intval = bq25890_find_val(bq->init_data.ichg, TBL_ICHG);
-
-		/* When temperature is too low, charge current is decreased */
-		if (bq->state.ntc_fault == NTC_FAULT_COOL) {
-			ret = bq25890_field_read(bq, F_JEITA_ISET);
-			if (ret < 0)
-				return ret;
-
-			if (ret)
-				val->intval /= 5;
-			else
-				val->intval /= 2;
-		}
-		break;
-
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
 		if (!state.online) {
 			val->intval = 0;
@@ -602,6 +586,46 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 
 		/* converted_val = ADC_val * 50mA (table 10.3.19) */
 		val->intval = ret * -50000;
+		break;
+
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:	/* I_BAT user limit */
+		/*
+		 * This is user-configured constant charge current supplied
+		 * from charger to battery in first phase of charging, when
+		 * battery voltage is below constant charge voltage.
+		 *
+		 * This value reflects the current hardware setting.
+		 *
+		 * The POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX is the
+		 * maximum value of this property.
+		 */
+		ret = bq25890_field_read(bq, F_ICHG);
+		if (ret < 0)
+			return ret;
+		val->intval = bq25890_find_val(ret, TBL_ICHG);
+
+		/* When temperature is too low, charge current is decreased */
+		if (bq->state.ntc_fault == NTC_FAULT_COOL) {
+			ret = bq25890_field_read(bq, F_JEITA_ISET);
+			if (ret < 0)
+				return ret;
+
+			if (ret)
+				val->intval /= 5;
+			else
+				val->intval /= 2;
+		}
+		break;
+
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:	/* I_BAT max */
+		/*
+		 * This is maximum allowed constant charge current supplied
+		 * from charger to battery in first phase of charging, when
+		 * battery voltage is below constant charge voltage.
+		 *
+		 * This value is constant for each battery and set from DT.
+		 */
+		val->intval = bq25890_find_val(bq->init_data.ichg, TBL_ICHG);
 		break;
 
 	case POWER_SUPPLY_PROP_TEMP:
@@ -887,6 +911,7 @@ static const enum power_supply_property bq25890_power_supply_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_HEALTH,
+	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
 	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE_MAX,
