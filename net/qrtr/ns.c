@@ -6,6 +6,8 @@
  * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#define pr_fmt(fmt) "qrtr: %s(): " fmt, __func__
+
 #include <linux/module.h>
 #include <linux/qrtr.h>
 #include <linux/workqueue.h>
@@ -23,8 +25,9 @@ static struct {
 	struct socket *sock;
 	struct sockaddr_qrtr bcast_sq;
 	struct list_head lookups;
-	struct workqueue_struct *workqueue;
-	struct work_struct work;
+	struct kthread_worker kworker;
+	struct kthread_work work;
+	struct task_struct *task;
 	int local_node;
 } qrtr_ns;
 
@@ -155,8 +158,8 @@ static int service_announce_del(struct sockaddr_qrtr *dest,
 	msg.msg_namelen = sizeof(*dest);
 
 	ret = kernel_sendmsg(qrtr_ns.sock, &msg, &iv, 1, sizeof(pkt));
-	if (ret < 0)
-		pr_err("failed to announce del service\n");
+	if (ret < 0 && ret != -ENODEV)
+		pr_err("failed to announce del service %d\n", ret);
 
 	return ret;
 }
@@ -186,8 +189,8 @@ static void lookup_notify(struct sockaddr_qrtr *to, struct qrtr_server *srv,
 	msg.msg_namelen = sizeof(*to);
 
 	ret = kernel_sendmsg(qrtr_ns.sock, &msg, &iv, 1, sizeof(pkt));
-	if (ret < 0)
-		pr_err("failed to send lookup notification\n");
+	if (ret < 0 && ret != -ENODEV)
+		pr_err("failed to send lookup notification %d\n", ret);
 }
 
 static int announce_servers(struct sockaddr_qrtr *sq)
@@ -205,7 +208,10 @@ static int announce_servers(struct sockaddr_qrtr *sq)
 	xa_for_each(&node->servers, index, srv) {
 		ret = service_announce_new(sq, srv);
 		if (ret < 0) {
-			pr_err("failed to announce new service\n");
+			if (ret == -ENODEV)
+				continue;
+
+			pr_err("failed to announce new service %d\n", ret);
 			return ret;
 		}
 	}
@@ -310,7 +316,7 @@ static int say_hello(struct sockaddr_qrtr *dest)
 
 	ret = kernel_sendmsg(qrtr_ns.sock, &msg, &iv, 1, sizeof(pkt));
 	if (ret < 0)
-		pr_err("failed to send hello msg\n");
+		pr_err("failed to send hello msg %d\n", ret);
 
 	return ret;
 }
@@ -368,8 +374,8 @@ static int ctrl_cmd_bye(struct sockaddr_qrtr *from)
 		msg.msg_namelen = sizeof(sq);
 
 		ret = kernel_sendmsg(qrtr_ns.sock, &msg, &iv, 1, sizeof(pkt));
-		if (ret < 0) {
-			pr_err("failed to send bye cmd\n");
+		if (ret < 0 && ret != -ENODEV) {
+			pr_err("failed to send bye cmd %d\n", ret);
 			return ret;
 		}
 	}
@@ -436,8 +442,8 @@ static int ctrl_cmd_del_client(struct sockaddr_qrtr *from,
 		msg.msg_namelen = sizeof(sq);
 
 		ret = kernel_sendmsg(qrtr_ns.sock, &msg, &iv, 1, sizeof(pkt));
-		if (ret < 0) {
-			pr_err("failed to send del client cmd\n");
+		if (ret < 0 && ret != -ENODEV) {
+			pr_err("failed to send del client cmd %d\n", ret);
 			return ret;
 		}
 	}
@@ -467,7 +473,7 @@ static int ctrl_cmd_new_server(struct sockaddr_qrtr *from,
 	if (srv->node == qrtr_ns.local_node) {
 		ret = service_announce_new(&qrtr_ns.bcast_sq, srv);
 		if (ret < 0) {
-			pr_err("failed to announce new service\n");
+			pr_err("failed to announce new service %d\n", ret);
 			return ret;
 		}
 	}
@@ -574,7 +580,7 @@ static void ctrl_cmd_del_lookup(struct sockaddr_qrtr *from,
 	}
 }
 
-static void qrtr_ns_worker(struct work_struct *work)
+static void qrtr_ns_worker(struct kthread_work *work)
 {
 	const struct qrtr_ctrl_pkt *pkt;
 	size_t recv_buf_size = 4096;
@@ -668,16 +674,18 @@ static void qrtr_ns_worker(struct work_struct *work)
 
 static void qrtr_ns_data_ready(struct sock *sk)
 {
-	queue_work(qrtr_ns.workqueue, &qrtr_ns.work);
+	kthread_queue_work(&qrtr_ns.kworker, &qrtr_ns.work);
 }
 
 int qrtr_ns_init(void)
 {
 	struct sockaddr_qrtr sq;
+	int rx_buf_sz = INT_MAX;
 	int ret;
 
 	INIT_LIST_HEAD(&qrtr_ns.lookups);
-	INIT_WORK(&qrtr_ns.work, qrtr_ns_worker);
+	kthread_init_worker(&qrtr_ns.kworker);
+	kthread_init_work(&qrtr_ns.work, qrtr_ns_worker);
 
 	ret = sock_create_kern(&init_net, AF_QIPCRTR, SOCK_DGRAM,
 			       PF_QIPCRTR, &qrtr_ns.sock);
@@ -690,9 +698,11 @@ int qrtr_ns_init(void)
 		goto err_sock;
 	}
 
-	qrtr_ns.workqueue = alloc_workqueue("qrtr_ns_handler", WQ_UNBOUND, 1);
-	if (!qrtr_ns.workqueue) {
-		ret = -ENOMEM;
+	qrtr_ns.task = kthread_run(kthread_worker_fn, &qrtr_ns.kworker,
+				   "qrtr_ns");
+	if (IS_ERR(qrtr_ns.task)) {
+		pr_err("failed to spawn worker thread %ld\n",
+		       PTR_ERR(qrtr_ns.task));
 		goto err_sock;
 	}
 
@@ -707,6 +717,9 @@ int qrtr_ns_init(void)
 		goto err_wq;
 	}
 
+	sock_setsockopt(qrtr_ns.sock, SOL_SOCKET, SO_RCVBUF,
+			KERNEL_SOCKPTR((void *)&rx_buf_sz), sizeof(rx_buf_sz));
+
 	qrtr_ns.bcast_sq.sq_family = AF_QIPCRTR;
 	qrtr_ns.bcast_sq.sq_node = QRTR_NODE_BCAST;
 	qrtr_ns.bcast_sq.sq_port = QRTR_PORT_CTRL;
@@ -718,7 +731,7 @@ int qrtr_ns_init(void)
 	return 0;
 
 err_wq:
-	destroy_workqueue(qrtr_ns.workqueue);
+	kthread_stop(qrtr_ns.task);
 err_sock:
 	sock_release(qrtr_ns.sock);
 	return ret;
@@ -727,8 +740,8 @@ EXPORT_SYMBOL_GPL(qrtr_ns_init);
 
 void qrtr_ns_remove(void)
 {
-	cancel_work_sync(&qrtr_ns.work);
-	destroy_workqueue(qrtr_ns.workqueue);
+	kthread_flush_worker(&qrtr_ns.kworker);
+	kthread_stop(qrtr_ns.task);
 	sock_release(qrtr_ns.sock);
 }
 EXPORT_SYMBOL_GPL(qrtr_ns_remove);
