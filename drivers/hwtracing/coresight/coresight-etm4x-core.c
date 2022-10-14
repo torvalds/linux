@@ -26,6 +26,7 @@
 #include <linux/amba/bus.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
+#include <linux/of.h>
 #include <linux/perf_event.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -1966,7 +1967,8 @@ static int etm4_probe(struct device *dev, void __iomem *base, u32 etm_pid)
 		type_name = "etm";
 	}
 
-	desc.name = devm_kasprintf(dev, GFP_KERNEL,
+	if (of_property_read_string(dev->of_node, "coresight-name", &desc.name))
+		desc.name = devm_kasprintf(dev, GFP_KERNEL,
 				   "%s%d", type_name, drvdata->cpu);
 	if (!desc.name)
 		return -ENOMEM;
