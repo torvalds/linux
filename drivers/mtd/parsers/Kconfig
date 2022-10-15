@@ -123,6 +123,21 @@ config MTD_AFS_PARTS
 	  for your particular device. It won't happen automatically. The
 	  'physmap' map driver (CONFIG_MTD_PHYSMAP) does this, for example.
 
+config MTD_PARSER_TPLINK_SAFELOADER
+	tristate "TP-Link Safeloader partitions parser"
+	depends on MTD && (ARCH_BCM_5301X || ATH79 || SOC_MT7620 || SOC_MT7621 || COMPILE_TEST)
+	help
+	  TP-Link home routers use flash partitions to store various data. Info
+	  about flash space layout is stored in a partitions table using a
+	  custom ASCII-based format.
+
+	  That format was first found in devices with SafeLoader bootloader and
+	  was named after it. Later it was adapted to CFE and U-Boot
+	  bootloaders.
+
+	  This driver reads partitions table, parses it and creates MTD
+	  partitions.
+
 config MTD_PARSER_TRX
 	tristate "Parser for TRX format partitions"
 	depends on MTD && (BCM47XX || ARCH_BCM_5301X || ARCH_MEDIATEK || RALINK || COMPILE_TEST)
