@@ -17,6 +17,7 @@ properties:
       - ti,j721e-wiz-10g
       - ti,am64-wiz-10g
       - ti,j7200-wiz-10g
+      - ti,j784s4-wiz-10g
 
   power-domains:
     maxItems: 1
