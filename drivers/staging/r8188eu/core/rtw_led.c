@@ -42,8 +42,10 @@ static void SwLedOn(struct led_priv *pLed)
 	pLed->bLedOn = true;
 }
 
-static void SwLedOff(struct adapter *padapter, struct led_priv *pLed)
+static void SwLedOff(struct led_priv *pLed)
 {
+	struct adapter *padapter = container_of(pLed, struct adapter, ledpriv);
+
 	if (padapter->bDriverStopped)
 		return;
 
@@ -61,13 +63,13 @@ static void blink_work(struct work_struct *work)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	if (padapter->pwrctrlpriv.rf_pwrstate != rf_on) {
-		SwLedOff(padapter, pLed);
+		SwLedOff(pLed);
 		ResetLedStatus(pLed);
 		return;
 	}
 
 	if (pLed->bLedOn)
-		SwLedOff(padapter, pLed);
+		SwLedOff(pLed);
 	else
 		SwLedOn(pLed);
 
@@ -141,7 +143,7 @@ void rtl8188eu_DeInitSwLeds(struct adapter *padapter)
 
 	cancel_delayed_work_sync(&ledpriv->blink_work);
 	ResetLedStatus(ledpriv);
-	SwLedOff(padapter, ledpriv);
+	SwLedOff(ledpriv);
 }
 
 void rtw_led_control(struct adapter *padapter, enum LED_CTL_MODE LedAction)
@@ -258,7 +260,7 @@ void rtw_led_control(struct adapter *padapter, enum LED_CTL_MODE LedAction)
 		pLed->bLedWPSBlinkInProgress = false;
 		pLed->bLedScanBlinkInProgress = false;
 		cancel_delayed_work(&pLed->blink_work);
-		SwLedOff(padapter, pLed);
+		SwLedOff(pLed);
 		break;
 	default:
 		break;
