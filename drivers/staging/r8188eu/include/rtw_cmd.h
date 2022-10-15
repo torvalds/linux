@@ -8,12 +8,8 @@
 #include "rtw_rf.h"
 #include "rtw_led.h"
 
-#define C2H_MEM_SZ (16*1024)
-
 #include "osdep_service.h"
 #include "ieee80211.h" /*  <ieee80211/ieee80211.h> */
-
-#define FREE_CMDOBJ_SZ	128
 
 #define MAX_CMDSZ	1024
 #define MAX_RSPSZ	512
