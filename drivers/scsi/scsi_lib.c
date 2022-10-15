@@ -308,6 +308,18 @@ static void scsi_kick_queue(struct request_queue *q)
 }
 
 /*
+ * Kick the queue of SCSI device @sdev if @sdev != current_sdev. Called with
+ * interrupts disabled.
+ */
+static void scsi_kick_sdev_queue(struct scsi_device *sdev, void *data)
+{
+	struct scsi_device *current_sdev = data;
+
+	if (sdev != current_sdev)
+		blk_mq_run_hw_queues(sdev->request_queue, true);
+}
+
+/*
  * Called for single_lun devices on IO completion. Clear starget_sdev_user,
  * and call blk_run_queue for all the scsi_devices on the target -
  * including current_sdev first.
@@ -317,7 +329,6 @@ static void scsi_kick_queue(struct request_queue *q)
 static void scsi_single_lun_run(struct scsi_device *current_sdev)
 {
 	struct Scsi_Host *shost = current_sdev->host;
-	struct scsi_device *sdev, *tmp;
 	struct scsi_target *starget = scsi_target(current_sdev);
 	unsigned long flags;
 
@@ -334,22 +345,9 @@ static void scsi_single_lun_run(struct scsi_device *current_sdev)
 	scsi_kick_queue(current_sdev->request_queue);
 
 	spin_lock_irqsave(shost->host_lock, flags);
-	if (starget->starget_sdev_user)
-		goto out;
-	list_for_each_entry_safe(sdev, tmp, &starget->devices,
-			same_target_siblings) {
-		if (sdev == current_sdev)
-			continue;
-		if (scsi_device_get(sdev))
-			continue;
-
-		spin_unlock_irqrestore(shost->host_lock, flags);
-		scsi_kick_queue(sdev->request_queue);
-		spin_lock_irqsave(shost->host_lock, flags);
-
-		scsi_device_put(sdev);
-	}
- out:
+	if (!starget->starget_sdev_user)
+		__starget_for_each_device(starget, current_sdev,
+					  scsi_kick_sdev_queue);
 	spin_unlock_irqrestore(shost->host_lock, flags);
 }
 
