@@ -90,6 +90,7 @@ static void blink_work(struct work_struct *work)
 				pLed->CurrLedState = LED_BLINK_SLOWLY;
 				schedule_delayed_work(&pLed->blink_work, LED_BLINK_NO_LINK_INTVL);
 			}
+			pLed->bLedBlinkInProgress = false;
 			pLed->bLedScanBlinkInProgress = false;
 		} else {
 			schedule_delayed_work(&pLed->blink_work, LED_BLINK_SCAN_INTVL);
@@ -106,6 +107,7 @@ static void blink_work(struct work_struct *work)
 				schedule_delayed_work(&pLed->blink_work, LED_BLINK_NO_LINK_INTVL);
 			}
 			pLed->bLedBlinkInProgress = false;
+			pLed->bLedScanBlinkInProgress = false;
 		} else {
 			schedule_delayed_work(&pLed->blink_work, LED_BLINK_FASTER_INTVL);
 		}
