@@ -2787,7 +2787,7 @@ u32 bch2_trans_begin(struct btree_trans *trans)
 
 	if (!trans->restarted &&
 	    (need_resched() ||
-	     ktime_get_ns() - trans->last_begin_time > BTREE_TRANS_MAX_LOCK_HOLD_TIME_NS)) {
+	     local_clock() - trans->last_begin_time > BTREE_TRANS_MAX_LOCK_HOLD_TIME_NS)) {
 		bch2_trans_unlock(trans);
 		cond_resched();
 		bch2_trans_relock(trans);
@@ -2797,7 +2797,7 @@ u32 bch2_trans_begin(struct btree_trans *trans)
 	if (trans->restarted)
 		bch2_btree_path_traverse_all(trans);
 
-	trans->last_begin_time = ktime_get_ns();
+	trans->last_begin_time = local_clock();
 	return trans->restart_count;
 }
 
@@ -2851,7 +2851,7 @@ void __bch2_trans_init(struct btree_trans *trans, struct bch_fs *c, const char *
 	memset(trans, 0, sizeof(*trans));
 	trans->c		= c;
 	trans->fn		= fn;
-	trans->last_begin_time	= ktime_get_ns();
+	trans->last_begin_time	= local_clock();
 	trans->fn_idx		= bch2_trans_get_fn_idx(trans, c, fn);
 	trans->locking_wait.task = current;
 	trans->journal_replay_not_finished =

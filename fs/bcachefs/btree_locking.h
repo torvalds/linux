@@ -87,7 +87,7 @@ static inline void mark_btree_node_locked(struct btree_trans *trans,
 {
 	mark_btree_node_locked_noreset(path, level, type);
 #ifdef CONFIG_BCACHEFS_LOCK_TIME_STATS
-	path->l[level].lock_taken_time = ktime_get_ns();
+	path->l[level].lock_taken_time = local_clock();
 #endif
 }
 
@@ -119,7 +119,7 @@ static void btree_trans_lock_hold_time_update(struct btree_trans *trans,
 	if (s)
 		__bch2_time_stats_update(&s->lock_hold_times,
 					 path->l[level].lock_taken_time,
-					 ktime_get_ns());
+					 local_clock());
 #endif
 }
 
@@ -259,7 +259,7 @@ static inline int btree_node_lock(struct btree_trans *trans,
 	    btree_node_lock_increment(trans, b, level, type) ||
 	    !(ret = btree_node_lock_nopath(trans, b, type))) {
 #ifdef CONFIG_BCACHEFS_LOCK_TIME_STATS
-		path->l[b->level].lock_taken_time = ktime_get_ns();
+		path->l[b->level].lock_taken_time = local_clock();
 #endif
 	}
 
