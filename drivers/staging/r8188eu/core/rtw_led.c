@@ -29,8 +29,10 @@ static void ResetLedStatus(struct led_priv *pLed)
 	pLed->bLedScanBlinkInProgress = false;
 }
 
-static void SwLedOn(struct adapter *padapter, struct led_priv *pLed)
+static void SwLedOn(struct led_priv *pLed)
 {
+	struct adapter *padapter = container_of(pLed, struct adapter, ledpriv);
+
 	if (padapter->bDriverStopped)
 		return;
 
@@ -67,7 +69,7 @@ static void blink_work(struct work_struct *work)
 	if (pLed->bLedOn)
 		SwLedOff(padapter, pLed);
 	else
-		SwLedOn(padapter, pLed);
+		SwLedOn(pLed);
 
 	switch (pLed->CurrLedState) {
 	case LED_BLINK_SLOWLY:
