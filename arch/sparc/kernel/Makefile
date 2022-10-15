@@ -7,8 +7,6 @@
 asflags-y := -ansi
 ccflags-y := -Werror
 
-extra-y     := head_$(BITS).o
-
 # Undefine sparc when processing vmlinux.lds - it is used
 # And teach CPP we are doing $(BITS) builds (for this case)
 CPPFLAGS_vmlinux.lds := -Usparc -m$(BITS)
@@ -22,6 +20,7 @@ CFLAGS_REMOVE_perf_event.o := -pg
 CFLAGS_REMOVE_pcr.o := -pg
 endif
 
+obj-y                   := head_$(BITS).o
 obj-$(CONFIG_SPARC64)   += urtt_fill.o
 obj-$(CONFIG_SPARC32)   += entry.o wof.o wuf.o
 obj-$(CONFIG_SPARC32)   += etrap_32.o
