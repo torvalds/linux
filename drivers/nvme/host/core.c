@@ -4846,7 +4846,7 @@ int nvme_alloc_admin_tag_set(struct nvme_ctrl *ctrl, struct blk_mq_tag_set *set,
 	return 0;
 
 out_cleanup_admin_q:
-	blk_mq_destroy_queue(ctrl->fabrics_q);
+	blk_mq_destroy_queue(ctrl->admin_q);
 out_free_tagset:
 	blk_mq_free_tag_set(ctrl->admin_tagset);
 	return ret;
