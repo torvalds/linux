@@ -43,10 +43,11 @@ static void SwLedOn(struct adapter *padapter, struct led_priv *pLed)
 static void SwLedOff(struct adapter *padapter, struct led_priv *pLed)
 {
 	if (padapter->bDriverStopped)
-		goto exit;
+		return;
 
-	rtw_write8(padapter, REG_LEDCFG2, BIT(5) | BIT(3));
-exit:
+	if (rtw_write8(padapter, REG_LEDCFG2, BIT(5) | BIT(3)) != _SUCCESS)
+		return;
+
 	pLed->bLedOn = false;
 }
 
