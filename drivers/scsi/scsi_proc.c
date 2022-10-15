@@ -108,20 +108,25 @@ static const struct proc_ops proc_scsi_ops = {
  *
  * Sets sht->proc_dir to the new directory.
  */
-
-void scsi_proc_hostdir_add(struct scsi_host_template *sht)
+int scsi_proc_hostdir_add(struct scsi_host_template *sht)
 {
+	int ret = 0;
+
 	if (!sht->show_info)
-		return;
+		return 0;
 
 	mutex_lock(&global_host_template_mutex);
 	if (!sht->present++) {
 		sht->proc_dir = proc_mkdir(sht->proc_name, proc_scsi);
-        	if (!sht->proc_dir)
+		if (!sht->proc_dir) {
 			printk(KERN_ERR "%s: proc_mkdir failed for %s\n",
 			       __func__, sht->proc_name);
+			ret = -ENOMEM;
+		}
 	}
 	mutex_unlock(&global_host_template_mutex);
+
+	return ret;
 }
 
 /**
