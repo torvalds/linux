@@ -236,7 +236,6 @@ struct scsi_device {
 	struct device		sdev_gendev,
 				sdev_dev;
 
-	struct execute_work	ew; /* used to get process context on put */
 	struct work_struct	requeue_work;
 
 	struct scsi_device_handler *handler;
