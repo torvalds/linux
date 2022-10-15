@@ -832,8 +832,6 @@ int rga_request_release_signal(struct rga_scheduler_t *scheduler, struct rga_job
 	rga_request_get(request);
 	mutex_unlock(&request_manager->lock);
 
-	rga_job_cleanup(job);
-
 	spin_lock_irqsave(&request->lock, flags);
 
 	if (job->ret < 0) {
@@ -847,6 +845,8 @@ int rga_request_release_signal(struct rga_scheduler_t *scheduler, struct rga_job
 	finished_count = request->finished_task_count;
 
 	spin_unlock_irqrestore(&request->lock, flags);
+
+	rga_job_cleanup(job);
 
 	if ((failed_count + finished_count) >= request->task_count) {
 		spin_lock_irqsave(&request->lock, flags);
