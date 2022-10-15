@@ -467,7 +467,7 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 	struct tcon_link *tlink;
 	struct cifs_tcon *tcon;
 	struct TCP_Server_Info *server;
-	struct cifs_fid fid;
+	struct cifs_fid fid = {};
 	struct cifs_pending_open open;
 	__u32 oplock;
 	struct cifsFileInfo *file_info;
