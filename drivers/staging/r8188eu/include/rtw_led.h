@@ -33,8 +33,6 @@ enum LED_STATE_871x {
 };
 
 struct led_priv {
-	struct adapter *padapter;
-
 	bool bRegUseLed;
 
 	enum LED_STATE_871x	CurrLedState; /*  Current LED state. */

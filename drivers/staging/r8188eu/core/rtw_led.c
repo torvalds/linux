@@ -59,7 +59,7 @@ static void blink_work(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct led_priv *pLed = container_of(dwork, struct led_priv, blink_work);
-	struct adapter *padapter = pLed->padapter;
+	struct adapter *padapter = container_of(pLed, struct adapter, ledpriv);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	if (padapter->pwrctrlpriv.rf_pwrstate != rf_on) {
@@ -132,7 +132,6 @@ void rtl8188eu_InitSwLeds(struct adapter *padapter)
 {
 	struct led_priv *pledpriv = &padapter->ledpriv;
 
-	pledpriv->padapter = padapter;
 	ResetLedStatus(pledpriv);
 	INIT_DELAYED_WORK(&pledpriv->blink_work, blink_work);
 }
