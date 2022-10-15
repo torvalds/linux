@@ -1493,7 +1493,7 @@ unsigned int OnDeAuth(struct adapter *padapter, struct recv_frame *precv_frame)
 
 		associated_clients_update(padapter, updated);
 	} else {
-		int	ignore_received_deauth = 0;
+		bool ignore_received_deauth = false;
 
 		/* Before sending the auth frame to start the STA/GC mode connection with AP/GO,
 		 *	we will send the deauth first.
@@ -1502,10 +1502,10 @@ unsigned int OnDeAuth(struct adapter *padapter, struct recv_frame *precv_frame)
 		 */
 		if (pmlmeinfo->state & (WIFI_FW_AUTH_STATE | WIFI_FW_ASSOC_STATE)) {
 			if (reason == WLAN_REASON_CLASS2_FRAME_FROM_NONAUTH_STA) {
-				ignore_received_deauth = 1;
+				ignore_received_deauth = true;
 			} else if (reason == WLAN_REASON_PREV_AUTH_NOT_VALID) {
 				// TODO: 802.11r
-				ignore_received_deauth = 1;
+				ignore_received_deauth = true;
 			}
 		}
 
