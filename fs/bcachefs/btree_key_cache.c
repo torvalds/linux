@@ -112,6 +112,7 @@ static void bkey_cached_move_to_freelist(struct btree_key_cache *bc,
 	BUG_ON(test_bit(BKEY_CACHED_DIRTY, &ck->flags));
 
 	if (!ck->c.lock.readers) {
+#ifdef __KERNEL__
 		preempt_disable();
 		f = this_cpu_ptr(bc->pcpu_freed);
 
@@ -136,6 +137,11 @@ static void bkey_cached_move_to_freelist(struct btree_key_cache *bc,
 			list_move_tail(&ck->list, &bc->freed_nonpcpu);
 			mutex_unlock(&bc->lock);
 		}
+#else
+		mutex_lock(&bc->lock);
+		list_move_tail(&ck->list, &bc->freed_nonpcpu);
+		mutex_unlock(&bc->lock);
+#endif
 	} else {
 		mutex_lock(&bc->lock);
 		list_move_tail(&ck->list, &bc->freed_pcpu);
@@ -174,6 +180,7 @@ bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path)
 	bool pcpu_readers = btree_uses_pcpu_readers(path->btree_id);
 
 	if (!pcpu_readers) {
+#ifdef __KERNEL__
 		preempt_disable();
 		f = this_cpu_ptr(bc->pcpu_freed);
 		if (f->nr)
@@ -196,6 +203,14 @@ bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path)
 			preempt_enable();
 			mutex_unlock(&bc->lock);
 		}
+#else
+		mutex_lock(&bc->lock);
+		if (!list_empty(&bc->freed_nonpcpu)) {
+			ck = list_last_entry(&bc->freed_nonpcpu, struct bkey_cached, list);
+			list_del_init(&ck->list);
+		}
+		mutex_unlock(&bc->lock);
+#endif
 	} else {
 		mutex_lock(&bc->lock);
 		if (!list_empty(&bc->freed_pcpu)) {
@@ -254,6 +269,7 @@ bkey_cached_reuse(struct btree_key_cache *c)
 	struct bkey_cached *ck;
 	unsigned i;
 
+	mutex_lock(&c->lock);
 	rcu_read_lock();
 	tbl = rht_dereference_rcu(c->table.tbl, &c->table);
 	for (i = 0; i < tbl->size; i++)
@@ -261,13 +277,14 @@ bkey_cached_reuse(struct btree_key_cache *c)
 			if (!test_bit(BKEY_CACHED_DIRTY, &ck->flags) &&
 			    bkey_cached_lock_for_evict(ck)) {
 				bkey_cached_evict(c, ck);
-				rcu_read_unlock();
-				return ck;
+				goto out;
 			}
 		}
+	ck = NULL;
+out:
 	rcu_read_unlock();
-
-	return NULL;
+	mutex_unlock(&c->lock);
+	return ck;
 }
 
 static struct bkey_cached *
@@ -873,23 +890,31 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 	struct bkey_cached *ck, *n;
 	struct rhash_head *pos;
 	unsigned i;
+#ifdef __KERNEL__
 	int cpu;
+#endif
 
 	if (bc->shrink.list.next)
 		unregister_shrinker(&bc->shrink);
 
 	mutex_lock(&bc->lock);
 
-	rcu_read_lock();
-	tbl = rht_dereference_rcu(bc->table.tbl, &bc->table);
-	if (tbl)
-		for (i = 0; i < tbl->size; i++)
-			rht_for_each_entry_rcu(ck, pos, tbl, i, hash) {
-				bkey_cached_evict(bc, ck);
-				list_add(&ck->list, &bc->freed_nonpcpu);
-			}
-	rcu_read_unlock();
+	/*
+	 * The loop is needed to guard against racing with rehash:
+	 */
+	while (atomic_long_read(&bc->nr_keys)) {
+		rcu_read_lock();
+		tbl = rht_dereference_rcu(bc->table.tbl, &bc->table);
+		if (tbl)
+			for (i = 0; i < tbl->size; i++)
+				rht_for_each_entry_rcu(ck, pos, tbl, i, hash) {
+					bkey_cached_evict(bc, ck);
+					list_add(&ck->list, &bc->freed_nonpcpu);
+				}
+		rcu_read_unlock();
+	}
 
+#ifdef __KERNEL__
 	for_each_possible_cpu(cpu) {
 		struct btree_key_cache_freelist *f =
 			per_cpu_ptr(bc->pcpu_freed, cpu);
@@ -899,6 +924,7 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 			list_add(&ck->list, &bc->freed_nonpcpu);
 		}
 	}
+#endif
 
 	list_splice(&bc->freed_pcpu, &bc->freed_nonpcpu);
 
@@ -914,10 +940,15 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 		kmem_cache_free(bch2_key_cache, ck);
 	}
 
-	BUG_ON(atomic_long_read(&bc->nr_dirty) &&
-	       !bch2_journal_error(&c->journal) &&
-	       test_bit(BCH_FS_WAS_RW, &c->flags));
-	BUG_ON(atomic_long_read(&bc->nr_keys));
+	if (atomic_long_read(&bc->nr_dirty) &&
+	    !bch2_journal_error(&c->journal) &&
+	    test_bit(BCH_FS_WAS_RW, &c->flags))
+		panic("btree key cache shutdown error: nr_dirty nonzero (%li)\n",
+		      atomic_long_read(&bc->nr_dirty));
+
+	if (atomic_long_read(&bc->nr_keys))
+		panic("btree key cache shutdown error: nr_keys nonzero (%li)\n",
+		      atomic_long_read(&bc->nr_keys));
 
 	mutex_unlock(&bc->lock);
 
@@ -939,9 +970,11 @@ int bch2_fs_btree_key_cache_init(struct btree_key_cache *bc)
 	struct bch_fs *c = container_of(bc, struct bch_fs, btree_key_cache);
 	int ret;
 
+#ifdef __KERNEL__
 	bc->pcpu_freed = alloc_percpu(struct btree_key_cache_freelist);
 	if (!bc->pcpu_freed)
 		return -ENOMEM;
+#endif
 
 	ret = rhashtable_init(&bc->table, &bch2_btree_key_cache_params);
 	if (ret)
