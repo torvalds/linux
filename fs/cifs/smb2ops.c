@@ -2018,9 +2018,10 @@ smb3_enum_snapshots(const unsigned int xid, struct cifs_tcon *tcon,
 
 static int
 smb3_notify(const unsigned int xid, struct file *pfile,
-	    void __user *ioc_buf)
+	    void __user *ioc_buf, bool return_changes)
 {
-	struct smb3_notify notify;
+	struct smb3_notify_info notify;
+	struct smb3_notify_info __user *pnotify_buf;
 	struct dentry *dentry = pfile->f_path.dentry;
 	struct inode *inode = file_inode(pfile);
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
@@ -2028,10 +2029,12 @@ smb3_notify(const unsigned int xid, struct file *pfile,
 	struct cifs_fid fid;
 	struct cifs_tcon *tcon;
 	const unsigned char *path;
+	char *returned_ioctl_info = NULL;
 	void *page = alloc_dentry_path();
 	__le16 *utf16_path = NULL;
 	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 	int rc = 0;
+	__u32 ret_len = 0;
 
 	path = build_path_from_dentry(dentry, page);
 	if (IS_ERR(path)) {
@@ -2045,9 +2048,17 @@ smb3_notify(const unsigned int xid, struct file *pfile,
 		goto notify_exit;
 	}
 
-	if (copy_from_user(&notify, ioc_buf, sizeof(struct smb3_notify))) {
-		rc = -EFAULT;
-		goto notify_exit;
+	if (return_changes) {
+		if (copy_from_user(&notify, ioc_buf, sizeof(struct smb3_notify_info))) {
+			rc = -EFAULT;
+			goto notify_exit;
+		}
+	} else {
+		if (copy_from_user(&notify, ioc_buf, sizeof(struct smb3_notify))) {
+			rc = -EFAULT;
+			goto notify_exit;
+		}
+		notify.data_len = 0;
 	}
 
 	tcon = cifs_sb_master_tcon(cifs_sb);
@@ -2064,12 +2075,22 @@ smb3_notify(const unsigned int xid, struct file *pfile,
 		goto notify_exit;
 
 	rc = SMB2_change_notify(xid, tcon, fid.persistent_fid, fid.volatile_fid,
-				notify.watch_tree, notify.completion_filter);
+				notify.watch_tree, notify.completion_filter,
+				notify.data_len, &returned_ioctl_info, &ret_len);
 
 	SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
 
 	cifs_dbg(FYI, "change notify for path %s rc %d\n", path, rc);
-
+	if (return_changes && (ret_len > 0) && (notify.data_len > 0)) {
+		if (ret_len > notify.data_len)
+			ret_len = notify.data_len;
+		pnotify_buf = (struct smb3_notify_info __user *)ioc_buf;
+		if (copy_to_user(pnotify_buf->notify_data, returned_ioctl_info, ret_len))
+			rc = -EFAULT;
+		else if (copy_to_user(&pnotify_buf->data_len, &ret_len, sizeof(ret_len)))
+			rc = -EFAULT;
+	}
+	kfree(returned_ioctl_info);
 notify_exit:
 	free_dentry_path(page);
 	kfree(utf16_path);

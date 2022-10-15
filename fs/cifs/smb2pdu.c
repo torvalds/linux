@@ -3710,11 +3710,13 @@ SMB2_notify_init(const unsigned int xid, struct smb_rqst *rqst,
 int
 SMB2_change_notify(const unsigned int xid, struct cifs_tcon *tcon,
 		u64 persistent_fid, u64 volatile_fid, bool watch_tree,
-		u32 completion_filter)
+		u32 completion_filter, u32 max_out_data_len, char **out_data,
+		u32 *plen /* returned data len */)
 {
 	struct cifs_ses *ses = tcon->ses;
 	struct TCP_Server_Info *server = cifs_pick_channel(ses);
 	struct smb_rqst rqst;
+	struct smb2_change_notify_rsp *smb_rsp;
 	struct kvec iov[1];
 	struct kvec rsp_iov = {NULL, 0};
 	int resp_buftype = CIFS_NO_BUFFER;
@@ -3730,6 +3732,9 @@ SMB2_change_notify(const unsigned int xid, struct cifs_tcon *tcon,
 
 	memset(&rqst, 0, sizeof(struct smb_rqst));
 	memset(&iov, 0, sizeof(iov));
+	if (plen)
+		*plen = 0;
+
 	rqst.rq_iov = iov;
 	rqst.rq_nvec = 1;
 
@@ -3748,9 +3753,28 @@ SMB2_change_notify(const unsigned int xid, struct cifs_tcon *tcon,
 		cifs_stats_fail_inc(tcon, SMB2_CHANGE_NOTIFY_HE);
 		trace_smb3_notify_err(xid, persistent_fid, tcon->tid, ses->Suid,
 				(u8)watch_tree, completion_filter, rc);
-	} else
+	} else {
 		trace_smb3_notify_done(xid, persistent_fid, tcon->tid,
-				ses->Suid, (u8)watch_tree, completion_filter);
+			ses->Suid, (u8)watch_tree, completion_filter);
+		/* validate that notify information is plausible */
+		if ((rsp_iov.iov_base == NULL) ||
+		    (rsp_iov.iov_len < sizeof(struct smb2_change_notify_rsp)))
+			goto cnotify_exit;
+
+		smb_rsp = (struct smb2_change_notify_rsp *)rsp_iov.iov_base;
+
+		smb2_validate_iov(le16_to_cpu(smb_rsp->OutputBufferOffset),
+				le32_to_cpu(smb_rsp->OutputBufferLength), &rsp_iov,
+				sizeof(struct file_notify_information));
+
+		*out_data = kmemdup((char *)smb_rsp + le16_to_cpu(smb_rsp->OutputBufferOffset),
+				le32_to_cpu(smb_rsp->OutputBufferLength), GFP_KERNEL);
+		if (*out_data == NULL) {
+			rc = -ENOMEM;
+			goto cnotify_exit;
+		} else
+			*plen = le32_to_cpu(smb_rsp->OutputBufferLength);
+	}
 
  cnotify_exit:
 	if (rqst.rq_iov)
