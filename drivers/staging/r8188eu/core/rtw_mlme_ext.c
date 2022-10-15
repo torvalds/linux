@@ -1492,8 +1492,6 @@ unsigned int OnDeAuth(struct adapter *padapter, struct recv_frame *precv_frame)
 		spin_unlock_bh(&pstapriv->asoc_list_lock);
 
 		associated_clients_update(padapter, updated);
-
-		return _SUCCESS;
 	} else {
 		int	ignore_received_deauth = 0;
 
