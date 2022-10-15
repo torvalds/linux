@@ -377,7 +377,7 @@ static unsigned __bio_compress(struct bch_fs *c,
 
 	/* If it's only one block, don't bother trying to compress: */
 	if (src->bi_iter.bi_size <= c->opts.block_size)
-		return 0;
+		return BCH_COMPRESSION_TYPE_incompressible;
 
 	dst_data = bio_map_or_bounce(c, dst, WRITE);
 	src_data = bio_map_or_bounce(c, src, READ);
