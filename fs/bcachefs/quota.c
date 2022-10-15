@@ -332,34 +332,20 @@ static int bch2_quota_check_limit(struct bch_fs *c,
 	if (qc->hardlimit &&
 	    qc->hardlimit < n &&
 	    !ignore_hardlimit(q)) {
-		if (mode == KEY_TYPE_QUOTA_PREALLOC)
-			return -EDQUOT;
-
 		prepare_warning(qc, qtype, counter, msgs, HARDWARN);
+		return -EDQUOT;
 	}
 
 	if (qc->softlimit &&
-	    qc->softlimit < n &&
-	    qc->timer &&
-	    ktime_get_real_seconds() >= qc->timer &&
-	    !ignore_hardlimit(q)) {
-		if (mode == KEY_TYPE_QUOTA_PREALLOC)
+	    qc->softlimit < n) {
+		if (qc->timer == 0) {
+			qc->timer = ktime_get_real_seconds() + q->limits[counter].timelimit;
+			prepare_warning(qc, qtype, counter, msgs, SOFTWARN);
+		} else if (ktime_get_real_seconds() >= qc->timer &&
+			   !ignore_hardlimit(q)) {
+			prepare_warning(qc, qtype, counter, msgs, SOFTLONGWARN);
 			return -EDQUOT;
-
-		prepare_warning(qc, qtype, counter, msgs, SOFTLONGWARN);
-	}
-
-	if (qc->softlimit &&
-	    qc->softlimit < n &&
-	    qc->timer == 0) {
-		if (mode == KEY_TYPE_QUOTA_PREALLOC)
-			return -EDQUOT;
-
-		prepare_warning(qc, qtype, counter, msgs, SOFTWARN);
-
-		/* XXX is this the right one? */
-		qc->timer = ktime_get_real_seconds() +
-			q->limits[counter].warnlimit;
+		}
 	}
 
 	return 0;
@@ -469,7 +455,8 @@ err:
 	return ret;
 }
 
-static int __bch2_quota_set(struct bch_fs *c, struct bkey_s_c k)
+static int __bch2_quota_set(struct bch_fs *c, struct bkey_s_c k,
+			    struct qc_dqblk *qdq)
 {
 	struct bkey_s_c_quota dq;
 	struct bch_memquota_type *q;
@@ -497,6 +484,15 @@ static int __bch2_quota_set(struct bch_fs *c, struct bkey_s_c k)
 			mq->c[i].hardlimit = le64_to_cpu(dq.v->c[i].hardlimit);
 			mq->c[i].softlimit = le64_to_cpu(dq.v->c[i].softlimit);
 		}
+
+		if (qdq && qdq->d_fieldmask & QC_SPC_TIMER)
+			mq->c[Q_SPC].timer	= cpu_to_le64(qdq->d_spc_timer);
+		if (qdq && qdq->d_fieldmask & QC_SPC_WARNS)
+			mq->c[Q_SPC].warns	= cpu_to_le64(qdq->d_spc_warns);
+		if (qdq && qdq->d_fieldmask & QC_INO_TIMER)
+			mq->c[Q_INO].timer	= cpu_to_le64(qdq->d_ino_timer);
+		if (qdq && qdq->d_fieldmask & QC_INO_WARNS)
+			mq->c[Q_INO].warns	= cpu_to_le64(qdq->d_ino_warns);
 
 		mutex_unlock(&q->lock);
 	}
@@ -618,7 +614,7 @@ int bch2_fs_quota_read(struct bch_fs *c)
 
 	ret = for_each_btree_key2(&trans, iter, BTREE_ID_quotas,
 			POS_MIN, BTREE_ITER_PREFETCH, k,
-		__bch2_quota_set(c, k)) ?:
+		__bch2_quota_set(c, k, NULL)) ?:
 	      for_each_btree_key2(&trans, iter, BTREE_ID_inodes,
 			POS_MIN, BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
 		bch2_fs_quota_read_inode(&trans, &iter, k));
@@ -961,7 +957,7 @@ static int bch2_set_quota(struct super_block *sb, struct kqid qid,
 
 	ret = bch2_trans_do(c, NULL, NULL, 0,
 			    bch2_set_quota_trans(&trans, &new_quota, qdq)) ?:
-		__bch2_quota_set(c, bkey_i_to_s_c(&new_quota.k_i));
+		__bch2_quota_set(c, bkey_i_to_s_c(&new_quota.k_i), qdq);
 
 	return ret;
 }

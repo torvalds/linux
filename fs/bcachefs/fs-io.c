@@ -605,7 +605,7 @@ static void bch2_page_reservation_put(struct bch_fs *c,
 static int bch2_page_reservation_get(struct bch_fs *c,
 			struct bch_inode_info *inode, struct page *page,
 			struct bch2_page_reservation *res,
-			unsigned offset, unsigned len, bool check_enospc)
+			unsigned offset, unsigned len)
 {
 	struct bch_page_state *s = bch2_page_state_create(page, 0);
 	unsigned i, disk_sectors = 0, quota_sectors = 0;
@@ -625,19 +625,14 @@ static int bch2_page_reservation_get(struct bch_fs *c,
 	}
 
 	if (disk_sectors) {
-		ret = bch2_disk_reservation_add(c, &res->disk,
-						disk_sectors,
-						!check_enospc
-						? BCH_DISK_RESERVATION_NOFAIL
-						: 0);
+		ret = bch2_disk_reservation_add(c, &res->disk, disk_sectors, 0);
 		if (unlikely(ret))
 			return ret;
 	}
 
 	if (quota_sectors) {
 		ret = bch2_quota_reservation_add(c, inode, &res->quota,
-						 quota_sectors,
-						 check_enospc);
+						 quota_sectors, true);
 		if (unlikely(ret)) {
 			struct disk_reservation tmp = {
 				.sectors = disk_sectors
@@ -821,7 +816,7 @@ vm_fault_t bch2_page_mkwrite(struct vm_fault *vmf)
 		}
 	}
 
-	if (bch2_page_reservation_get(c, inode, page, &res, 0, len, true)) {
+	if (bch2_page_reservation_get(c, inode, page, &res, 0, len)) {
 		unlock_page(page);
 		ret = VM_FAULT_SIGBUS;
 		goto out;
@@ -1520,8 +1515,7 @@ out:
 			goto err;
 	}
 
-	ret = bch2_page_reservation_get(c, inode, page, res,
-					offset, len, true);
+	ret = bch2_page_reservation_get(c, inode, page, res, offset, len);
 	if (ret) {
 		if (!PageUptodate(page)) {
 			/*
@@ -1663,7 +1657,7 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 		}
 
 		ret = bch2_page_reservation_get(c, inode, page, &res,
-						pg_offset, pg_len, true);
+						pg_offset, pg_len);
 		if (ret)
 			goto out;
 
