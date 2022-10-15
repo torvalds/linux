@@ -34,7 +34,9 @@ static void SwLedOn(struct adapter *padapter, struct led_priv *pLed)
 	if (padapter->bDriverStopped)
 		return;
 
-	rtw_write8(padapter, REG_LEDCFG2, BIT(5)); /*  SW control led0 on. */
+	if (rtw_write8(padapter, REG_LEDCFG2, BIT(5)) != _SUCCESS)
+		return;
+
 	pLed->bLedOn = true;
 }
 
