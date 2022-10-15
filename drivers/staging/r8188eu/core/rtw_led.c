@@ -81,21 +81,6 @@ static void blink_work(struct work_struct *work)
 		schedule_delayed_work(&pLed->blink_work, LED_BLINK_LINK_INTVL);
 		break;
 	case LED_BLINK_SCAN:
-		pLed->BlinkTimes--;
-		if (pLed->BlinkTimes == 0) {
-			if (check_fwstate(pmlmepriv, _FW_LINKED)) {
-				pLed->CurrLedState = LED_BLINK_NORMAL;
-				schedule_delayed_work(&pLed->blink_work, LED_BLINK_LINK_INTVL);
-			} else {
-				pLed->CurrLedState = LED_BLINK_SLOWLY;
-				schedule_delayed_work(&pLed->blink_work, LED_BLINK_NO_LINK_INTVL);
-			}
-			pLed->bLedBlinkInProgress = false;
-			pLed->bLedScanBlinkInProgress = false;
-		} else {
-			schedule_delayed_work(&pLed->blink_work, LED_BLINK_SCAN_INTVL);
-		}
-		break;
 	case LED_BLINK_TXRX:
 		pLed->BlinkTimes--;
 		if (pLed->BlinkTimes == 0) {
@@ -109,7 +94,9 @@ static void blink_work(struct work_struct *work)
 			pLed->bLedBlinkInProgress = false;
 			pLed->bLedScanBlinkInProgress = false;
 		} else {
-			schedule_delayed_work(&pLed->blink_work, LED_BLINK_FASTER_INTVL);
+			schedule_delayed_work(&pLed->blink_work,
+					      pLed->CurrLedState == LED_BLINK_SCAN ?
+					      LED_BLINK_SCAN_INTVL : LED_BLINK_FASTER_INTVL);
 		}
 		break;
 	case LED_BLINK_WPS:
