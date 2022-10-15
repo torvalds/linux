@@ -1479,7 +1479,7 @@ unsigned int OnDeAuth(struct adapter *padapter, struct recv_frame *precv_frame)
 		struct sta_info *psta;
 		struct sta_priv *pstapriv = &padapter->stapriv;
 
-		psta = rtw_get_stainfo(pstapriv, GetAddr2Ptr(pframe));
+		psta = rtw_get_stainfo(pstapriv, mgmt->sa);
 		if (psta) {
 			u8 updated = 0;
 
