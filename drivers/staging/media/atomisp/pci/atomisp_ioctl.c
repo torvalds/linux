@@ -665,6 +665,14 @@ static int atomisp_g_input(struct file *file, void *fh, unsigned int *input)
 	return 0;
 }
 
+static int atomisp_s_fmt_cap(struct file *file, void *fh,
+			     struct v4l2_format *f)
+{
+	struct video_device *vdev = video_devdata(file);
+
+	return atomisp_set_fmt(vdev, f);
+}
+
 /*
  * set input are used to set current primary/secondary camera
  */
@@ -2399,7 +2407,7 @@ const struct v4l2_ioctl_ops atomisp_ioctl_ops = {
 	.vidioc_enum_fmt_vid_cap = atomisp_enum_fmt_cap,
 	.vidioc_try_fmt_vid_cap = atomisp_try_fmt_cap,
 	.vidioc_g_fmt_vid_cap = atomisp_g_fmt_cap,
-	.vidioc_s_fmt_vid_cap = atomisp_set_fmt,
+	.vidioc_s_fmt_vid_cap = atomisp_s_fmt_cap,
 	.vidioc_reqbufs = vb2_ioctl_reqbufs,
 	.vidioc_querybuf = vb2_ioctl_querybuf,
 	.vidioc_qbuf = atomisp_qbuf_wrapper,
