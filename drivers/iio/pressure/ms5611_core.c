@@ -380,40 +380,21 @@ static const struct iio_info ms5611_info = {
 static int ms5611_init(struct iio_dev *indio_dev)
 {
 	int ret;
-	struct ms5611_state *st = iio_priv(indio_dev);
 
 	/* Enable attached regulator if any. */
-	st->vdd = devm_regulator_get(indio_dev->dev.parent, "vdd");
-	if (IS_ERR(st->vdd))
-		return PTR_ERR(st->vdd);
-
-	ret = regulator_enable(st->vdd);
-	if (ret) {
-		dev_err(indio_dev->dev.parent,
-			"failed to enable Vdd supply: %d\n", ret);
+	ret = devm_regulator_get_enable(indio_dev->dev.parent, "vdd");
+	if (ret)
 		return ret;
-	}
 
 	ret = ms5611_reset(indio_dev);
 	if (ret < 0)
-		goto err_regulator_disable;
+		return ret;
 
 	ret = ms5611_read_prom(indio_dev);
 	if (ret < 0)
-		goto err_regulator_disable;
+		return ret;
 
 	return 0;
-
-err_regulator_disable:
-	regulator_disable(st->vdd);
-	return ret;
-}
-
-static void ms5611_fini(const struct iio_dev *indio_dev)
-{
-	const struct ms5611_state *st = iio_priv(indio_dev);
-
-	regulator_disable(st->vdd);
 }
 
 int ms5611_probe(struct iio_dev *indio_dev, struct device *dev,
@@ -457,7 +438,7 @@ int ms5611_probe(struct iio_dev *indio_dev, struct device *dev,
 					 ms5611_trigger_handler, NULL);
 	if (ret < 0) {
 		dev_err(dev, "iio triggered buffer setup failed\n");
-		goto err_fini;
+		return ret;
 	}
 
 	ret = iio_device_register(indio_dev);
@@ -470,8 +451,6 @@ int ms5611_probe(struct iio_dev *indio_dev, struct device *dev,
 
 err_buffer_cleanup:
 	iio_triggered_buffer_cleanup(indio_dev);
-err_fini:
-	ms5611_fini(indio_dev);
 	return ret;
 }
 EXPORT_SYMBOL_NS(ms5611_probe, IIO_MS5611);
@@ -480,7 +459,6 @@ void ms5611_remove(struct iio_dev *indio_dev)
 {
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
-	ms5611_fini(indio_dev);
 }
 EXPORT_SYMBOL_NS(ms5611_remove, IIO_MS5611);
 
