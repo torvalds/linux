@@ -790,10 +790,10 @@ static int imx290_get_regulators(struct device *dev, struct imx290 *imx290)
 {
 	unsigned int i;
 
-	for (i = 0; i < IMX290_NUM_SUPPLIES; i++)
+	for (i = 0; i < ARRAY_SIZE(imx290->supplies); i++)
 		imx290->supplies[i].supply = imx290_supply_name[i];
 
-	return devm_regulator_bulk_get(dev, IMX290_NUM_SUPPLIES,
+	return devm_regulator_bulk_get(dev, ARRAY_SIZE(imx290->supplies),
 				       imx290->supplies);
 }
 
@@ -852,7 +852,8 @@ static int imx290_power_on(struct device *dev)
 		return ret;
 	}
 
-	ret = regulator_bulk_enable(IMX290_NUM_SUPPLIES, imx290->supplies);
+	ret = regulator_bulk_enable(ARRAY_SIZE(imx290->supplies),
+				    imx290->supplies);
 	if (ret) {
 		dev_err(dev, "Failed to enable regulators\n");
 		clk_disable_unprepare(imx290->xclk);
@@ -876,7 +877,7 @@ static int imx290_power_off(struct device *dev)
 
 	clk_disable_unprepare(imx290->xclk);
 	gpiod_set_value_cansleep(imx290->rst_gpio, 1);
-	regulator_bulk_disable(IMX290_NUM_SUPPLIES, imx290->supplies);
+	regulator_bulk_disable(ARRAY_SIZE(imx290->supplies), imx290->supplies);
 
 	return 0;
 }
