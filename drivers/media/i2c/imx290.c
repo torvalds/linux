@@ -1043,6 +1043,7 @@ static int imx290_probe(struct i2c_client *client)
 	imx290_entity_init_cfg(&imx290->sd, NULL);
 
 	v4l2_ctrl_handler_init(&imx290->ctrls, 4);
+	imx290->ctrls.lock = &imx290->lock;
 
 	v4l2_ctrl_new_std(&imx290->ctrls, &imx290_ctrl_ops,
 			  V4L2_CID_GAIN, 0, 72, 1, 0);
