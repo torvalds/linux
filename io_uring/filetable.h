@@ -25,6 +25,7 @@ unsigned int io_file_get_flags(struct file *file);
 
 static inline void io_file_bitmap_clear(struct io_file_table *table, int bit)
 {
+	WARN_ON_ONCE(!test_bit(bit, table->bitmap));
 	__clear_bit(bit, table->bitmap);
 	table->alloc_hint = bit;
 }
