@@ -352,23 +352,16 @@ static int cc10001_adc_probe(struct platform_device *pdev)
 	if (IS_ERR(adc_dev->reg_base))
 		return PTR_ERR(adc_dev->reg_base);
 
-	adc_dev->adc_clk = devm_clk_get(dev, "adc");
+	adc_dev->adc_clk = devm_clk_get_enabled(dev, "adc");
 	if (IS_ERR(adc_dev->adc_clk)) {
-		dev_err(dev, "failed to get the clock\n");
+		dev_err(dev, "failed to get/enable the clock\n");
 		return PTR_ERR(adc_dev->adc_clk);
-	}
-
-	ret = clk_prepare_enable(adc_dev->adc_clk);
-	if (ret) {
-		dev_err(dev, "failed to enable the clock\n");
-		return ret;
 	}
 
 	adc_clk_rate = clk_get_rate(adc_dev->adc_clk);
 	if (!adc_clk_rate) {
-		ret = -EINVAL;
 		dev_err(dev, "null clock rate!\n");
-		goto err_disable_clk;
+		return -EINVAL;
 	}
 
 	adc_dev->eoc_delay_ns = NSEC_PER_SEC / adc_clk_rate;
@@ -385,14 +378,14 @@ static int cc10001_adc_probe(struct platform_device *pdev)
 	/* Setup the ADC channels available on the device */
 	ret = cc10001_adc_channel_init(indio_dev, channel_map);
 	if (ret < 0)
-		goto err_disable_clk;
+		return ret;
 
 	mutex_init(&adc_dev->lock);
 
 	ret = iio_triggered_buffer_setup(indio_dev, NULL,
 					 &cc10001_adc_trigger_h, NULL);
 	if (ret < 0)
-		goto err_disable_clk;
+		return ret;
 
 	ret = iio_device_register(indio_dev);
 	if (ret < 0)
@@ -404,8 +397,6 @@ static int cc10001_adc_probe(struct platform_device *pdev)
 
 err_cleanup_buffer:
 	iio_triggered_buffer_cleanup(indio_dev);
-err_disable_clk:
-	clk_disable_unprepare(adc_dev->adc_clk);
 	return ret;
 }
 
@@ -417,7 +408,6 @@ static int cc10001_adc_remove(struct platform_device *pdev)
 	cc10001_adc_power_down(adc_dev);
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
-	clk_disable_unprepare(adc_dev->adc_clk);
 
 	return 0;
 }
