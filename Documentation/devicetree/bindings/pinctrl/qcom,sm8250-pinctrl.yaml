@@ -64,6 +64,7 @@ patternProperties:
     if:
       type: object
     then:
+      $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
       properties:
         pins:
           description:
@@ -99,34 +100,18 @@ patternProperties:
                   tsif0_en, tsif0_error, tsif0_sync, tsif1_clk, tsif1_data, tsif1_en,
                   tsif1_error, tsif1_sync, usb2phy_ac, usb_phy, vsense_trigger ]
 
-        drive-strength:
-          enum: [2, 4, 6, 8, 10, 12, 14, 16]
-          default: 2
-          description:
-            Selects the drive strength for the specified pins, in mA.
-
         bias-pull-down: true
 
         bias-pull-up: true
 
         bias-disable: true
-
+        drive-strength: true
         output-high: true
 
         output-low: true
 
       required:
         - pins
-
-      allOf:
-        - $ref: "qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state"
-        - if:
-            properties:
-              pins:
-                pattern: "^gpio([0-9]|[1-9][0-9]|1[0-7][0-9])$"
-          then:
-            required:
-              - function
 
       additionalProperties: false
 
