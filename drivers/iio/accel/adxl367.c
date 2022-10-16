@@ -160,8 +160,6 @@ struct adxl367_state {
 	struct device			*dev;
 	struct regmap			*regmap;
 
-	struct regulator_bulk_data	regulators[2];
-
 	/*
 	 * Synchronize access to members of driver state, and ensure atomicity
 	 * of consecutive regmap operations.
@@ -1487,16 +1485,10 @@ static int adxl367_setup(struct adxl367_state *st)
 	return adxl367_set_measure_en(st, true);
 }
 
-static void adxl367_disable_regulators(void *data)
-{
-	struct adxl367_state *st = data;
-
-	regulator_bulk_disable(ARRAY_SIZE(st->regulators), st->regulators);
-}
-
 int adxl367_probe(struct device *dev, const struct adxl367_ops *ops,
 		  void *context, struct regmap *regmap, int irq)
 {
+	static const char * const regulator_names[] = { "vdd", "vddio" };
 	struct iio_dev *indio_dev;
 	struct adxl367_state *st;
 	int ret;
@@ -1520,24 +1512,12 @@ int adxl367_probe(struct device *dev, const struct adxl367_ops *ops,
 	indio_dev->info = &adxl367_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	st->regulators[0].supply = "vdd";
-	st->regulators[1].supply = "vddio";
-
-	ret = devm_regulator_bulk_get(st->dev, ARRAY_SIZE(st->regulators),
-				      st->regulators);
+	ret = devm_regulator_bulk_get_enable(st->dev,
+					     ARRAY_SIZE(regulator_names),
+					     regulator_names);
 	if (ret)
 		return dev_err_probe(st->dev, ret,
 				     "Failed to get regulators\n");
-
-	ret = regulator_bulk_enable(ARRAY_SIZE(st->regulators), st->regulators);
-	if (ret)
-		return dev_err_probe(st->dev, ret,
-				     "Failed to enable regulators\n");
-
-	ret = devm_add_action_or_reset(st->dev, adxl367_disable_regulators, st);
-	if (ret)
-		return dev_err_probe(st->dev, ret,
-				     "Failed to add regulators disable action\n");
 
 	ret = regmap_write(st->regmap, ADXL367_REG_RESET, ADXL367_RESET_CODE);
 	if (ret)
