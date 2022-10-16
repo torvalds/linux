@@ -32,12 +32,11 @@
 #define IMX290_REGHOLD					IMX290_REG_8BIT(0x3001)
 #define IMX290_XMSTA					IMX290_REG_8BIT(0x3002)
 #define IMX290_FR_FDG_SEL				IMX290_REG_8BIT(0x3009)
-#define IMX290_BLKLEVEL_LOW				IMX290_REG_8BIT(0x300a)
-#define IMX290_BLKLEVEL_HIGH				IMX290_REG_8BIT(0x300b)
+#define IMX290_BLKLEVEL					IMX290_REG_16BIT(0x300a)
 #define IMX290_GAIN					IMX290_REG_8BIT(0x3014)
-#define IMX290_HMAX_LOW					IMX290_REG_8BIT(0x301c)
-#define IMX290_HMAX_HIGH				IMX290_REG_8BIT(0x301d)
+#define IMX290_HMAX					IMX290_REG_16BIT(0x301c)
 #define IMX290_PGCTRL					IMX290_REG_8BIT(0x308c)
+#define IMX290_CHIP_ID					IMX290_REG_16BIT(0x319a)
 #define IMX290_PHY_LANE_NUM				IMX290_REG_8BIT(0x3407)
 #define IMX290_CSI_LANE_MODE				IMX290_REG_8BIT(0x3443)
 
@@ -461,8 +460,7 @@ static int imx290_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		if (ctrl->val) {
-			imx290_write_reg(imx290, IMX290_BLKLEVEL_LOW, 0x00);
-			imx290_write_reg(imx290, IMX290_BLKLEVEL_HIGH, 0x00);
+			imx290_write_reg(imx290, IMX290_BLKLEVEL, 0);
 			usleep_range(10000, 11000);
 			imx290_write_reg(imx290, IMX290_PGCTRL,
 					 (u8)(IMX290_PGCTRL_REGEN |
@@ -472,12 +470,11 @@ static int imx290_set_ctrl(struct v4l2_ctrl *ctrl)
 			imx290_write_reg(imx290, IMX290_PGCTRL, 0x00);
 			usleep_range(10000, 11000);
 			if (imx290->bpp == 10)
-				imx290_write_reg(imx290, IMX290_BLKLEVEL_LOW,
+				imx290_write_reg(imx290, IMX290_BLKLEVEL,
 						 0x3c);
 			else /* 12 bits per pixel */
-				imx290_write_reg(imx290, IMX290_BLKLEVEL_LOW,
+				imx290_write_reg(imx290, IMX290_BLKLEVEL,
 						 0xf0);
-			imx290_write_reg(imx290, IMX290_BLKLEVEL_HIGH, 0x00);
 		}
 		break;
 	default:
@@ -669,25 +666,6 @@ static int imx290_write_current_format(struct imx290 *imx290)
 	return 0;
 }
 
-static int imx290_set_hmax(struct imx290 *imx290, u32 val)
-{
-	int ret;
-
-	ret = imx290_write_reg(imx290, IMX290_HMAX_LOW, (val & 0xff));
-	if (ret) {
-		dev_err(imx290->dev, "Error setting HMAX register\n");
-		return ret;
-	}
-
-	ret = imx290_write_reg(imx290, IMX290_HMAX_HIGH, ((val >> 8) & 0xff));
-	if (ret) {
-		dev_err(imx290->dev, "Error setting HMAX register\n");
-		return ret;
-	}
-
-	return 0;
-}
-
 /* Start streaming */
 static int imx290_start_streaming(struct imx290 *imx290)
 {
@@ -716,8 +694,9 @@ static int imx290_start_streaming(struct imx290 *imx290)
 		dev_err(imx290->dev, "Could not set current mode\n");
 		return ret;
 	}
-	ret = imx290_set_hmax(imx290, imx290->current_mode->hmax);
-	if (ret < 0)
+
+	ret = imx290_write_reg(imx290, IMX290_HMAX, imx290->current_mode->hmax);
+	if (ret)
 		return ret;
 
 	/* Apply customized values from user */
