@@ -413,41 +413,11 @@ static int imx290_set_register_array(struct imx290 *imx290,
 	return 0;
 }
 
-static int imx290_write_buffered_reg(struct imx290 *imx290, u16 address_low,
-				     u8 nr_regs, u32 value)
-{
-	unsigned int i;
-	int ret;
-
-	ret = imx290_write_reg(imx290, IMX290_REGHOLD, 0x01);
-	if (ret) {
-		dev_err(imx290->dev, "Error setting hold register\n");
-		return ret;
-	}
-
-	for (i = 0; i < nr_regs; i++) {
-		ret = imx290_write_reg(imx290, address_low + i,
-				       (u8)(value >> (i * 8)));
-		if (ret) {
-			dev_err(imx290->dev, "Error writing buffered registers\n");
-			return ret;
-		}
-	}
-
-	ret = imx290_write_reg(imx290, IMX290_REGHOLD, 0x00);
-	if (ret) {
-		dev_err(imx290->dev, "Error setting hold register\n");
-		return ret;
-	}
-
-	return ret;
-}
-
 static int imx290_set_gain(struct imx290 *imx290, u32 value)
 {
 	int ret;
 
-	ret = imx290_write_buffered_reg(imx290, IMX290_GAIN, 1, value);
+	ret = imx290_write_reg(imx290, IMX290_GAIN, value);
 	if (ret)
 		dev_err(imx290->dev, "Unable to write gain\n");
 
