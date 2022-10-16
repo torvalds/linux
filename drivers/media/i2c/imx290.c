@@ -1019,8 +1019,21 @@ static int imx290_probe(struct i2c_client *client)
 	v4l2_ctrl_handler_init(&imx290->ctrls, 5);
 	imx290->ctrls.lock = &imx290->lock;
 
+	/*
+	 * The sensor has an analog gain and a digital gain, both controlled
+	 * through a single gain value, expressed in 0.3dB increments. Values
+	 * from 0.0dB (0) to 30.0dB (100) apply analog gain only, higher values
+	 * up to 72.0dB (240) add further digital gain. Limit the range to
+	 * analog gain only, support for digital gain can be added separately
+	 * if needed.
+	 *
+	 * The IMX327 and IMX462 are largely compatible with the IMX290, but
+	 * have an analog gain range of 0.0dB to 29.4dB and 42dB of digital
+	 * gain. When support for those sensors gets added to the driver, the
+	 * gain control should be adjusted accordingly.
+	 */
 	v4l2_ctrl_new_std(&imx290->ctrls, &imx290_ctrl_ops,
-			  V4L2_CID_GAIN, 0, 72, 1, 0);
+			  V4L2_CID_GAIN, 0, 100, 1, 0);
 
 	v4l2_ctrl_new_std(&imx290->ctrls, &imx290_ctrl_ops,
 			  V4L2_CID_EXPOSURE, 1, IMX290_VMAX_DEFAULT - 2, 1,
