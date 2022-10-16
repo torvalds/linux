@@ -347,22 +347,6 @@ static void iser_device_try_release(struct iser_device *device)
 	mutex_unlock(&ig.device_list_mutex);
 }
 
-/*
- * Called with state mutex held
- */
-static int iser_conn_state_comp_exch(struct iser_conn *iser_conn,
-				     enum iser_conn_state comp,
-				     enum iser_conn_state exch)
-{
-	int ret;
-
-	ret = (iser_conn->state == comp);
-	if (ret)
-		iser_conn->state = exch;
-
-	return ret;
-}
-
 void iser_release_work(struct work_struct *work)
 {
 	struct iser_conn *iser_conn;
@@ -465,10 +449,10 @@ int iser_conn_terminate(struct iser_conn *iser_conn)
 	int err = 0;
 
 	/* terminate the iser conn only if the conn state is UP */
-	if (!iser_conn_state_comp_exch(iser_conn, ISER_CONN_UP,
-				       ISER_CONN_TERMINATING))
+	if (iser_conn->state != ISER_CONN_UP)
 		return 0;
 
+	iser_conn->state = ISER_CONN_TERMINATING;
 	iser_info("iser_conn %p state %d\n", iser_conn, iser_conn->state);
 
 	/* suspend queuing of new iscsi commands */
