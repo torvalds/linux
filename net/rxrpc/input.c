@@ -368,6 +368,7 @@ static void rxrpc_input_data_one(struct rxrpc_call *call, struct sk_buff *skb,
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct sk_buff *oos;
 	rxrpc_serial_t serial = sp->hdr.serial;
+	unsigned int sack = call->ackr_sack_base;
 	rxrpc_seq_t window = call->ackr_window;
 	rxrpc_seq_t wtop = call->ackr_wtop;
 	rxrpc_seq_t wlimit = window + call->rx_winsize - 1;
@@ -410,9 +411,6 @@ static void rxrpc_input_data_one(struct rxrpc_call *call, struct sk_buff *skb,
 
 	/* Queue the packet. */
 	if (seq == window) {
-		rxrpc_seq_t reset_from;
-		bool reset_sack = false;
-
 		if (sp->hdr.flags & RXRPC_REQUEST_ACK)
 			ack_reason = RXRPC_ACK_REQUESTED;
 		/* Send an immediate ACK if we fill in a hole */
@@ -422,8 +420,14 @@ static void rxrpc_input_data_one(struct rxrpc_call *call, struct sk_buff *skb,
 			call->ackr_nr_unacked++;
 
 		window++;
-		if (after(window, wtop))
+		if (after(window, wtop)) {
+			trace_rxrpc_sack(call, seq, sack, rxrpc_sack_none);
 			wtop = window;
+		} else {
+			trace_rxrpc_sack(call, seq, sack, rxrpc_sack_advance);
+			sack = (sack + 1) % RXRPC_SACK_SIZE;
+		}
+
 
 		rxrpc_get_skb(skb, rxrpc_skb_get_to_recvmsg);
 
@@ -440,41 +444,37 @@ static void rxrpc_input_data_one(struct rxrpc_call *call, struct sk_buff *skb,
 			__skb_unlink(oos, &call->rx_oos_queue);
 			last = osp->hdr.flags & RXRPC_LAST_PACKET;
 			seq = osp->hdr.seq;
-			if (!reset_sack) {
-				reset_from = seq;
-				reset_sack = true;
-			}
+			call->ackr_sack_table[sack] = 0;
+			trace_rxrpc_sack(call, seq, sack, rxrpc_sack_fill);
+			sack = (sack + 1) % RXRPC_SACK_SIZE;
 
 			window++;
 			rxrpc_input_queue_data(call, oos, window, wtop,
-						 rxrpc_receive_queue_oos);
+					       rxrpc_receive_queue_oos);
 		}
 
 		spin_unlock(&call->recvmsg_queue.lock);
 
-		if (reset_sack) {
-			do {
-				call->ackr_sack_table[reset_from % RXRPC_SACK_SIZE] = 0;
-			} while (reset_from++, before(reset_from, window));
-		}
+		call->ackr_sack_base = sack;
 	} else {
-		bool keep = false;
+		unsigned int slot;
 
 		ack_reason = RXRPC_ACK_OUT_OF_SEQUENCE;
 
-		if (!call->ackr_sack_table[seq % RXRPC_SACK_SIZE]) {
-			call->ackr_sack_table[seq % RXRPC_SACK_SIZE] = 1;
-			keep = 1;
+		slot = seq - window;
+		sack = (sack + slot) % RXRPC_SACK_SIZE;
+
+		if (call->ackr_sack_table[sack % RXRPC_SACK_SIZE]) {
+			ack_reason = RXRPC_ACK_DUPLICATE;
+			goto send_ack;
 		}
+
+		call->ackr_sack_table[sack % RXRPC_SACK_SIZE] |= 1;
+		trace_rxrpc_sack(call, seq, sack, rxrpc_sack_oos);
 
 		if (after(seq + 1, wtop)) {
 			wtop = seq + 1;
 			rxrpc_input_update_ack_window(call, window, wtop);
-		}
-
-		if (!keep) {
-			ack_reason = RXRPC_ACK_DUPLICATE;
-			goto send_ack;
 		}
 
 		skb_queue_walk(&call->rx_oos_queue, oos) {

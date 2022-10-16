@@ -422,6 +422,13 @@
 	EM(RXRPC_ACK_IDLE,			"IDL") \
 	E_(RXRPC_ACK__INVALID,			"-?-")
 
+#define rxrpc_sack_traces \
+	EM(rxrpc_sack_advance,			"ADV")	\
+	EM(rxrpc_sack_fill,			"FIL")	\
+	EM(rxrpc_sack_nack,			"NAK")	\
+	EM(rxrpc_sack_none,			"---")	\
+	E_(rxrpc_sack_oos,			"OOS")
+
 #define rxrpc_completions \
 	EM(RXRPC_CALL_SUCCEEDED,		"Succeeded") \
 	EM(RXRPC_CALL_REMOTELY_ABORTED,		"RemoteAbort") \
@@ -497,6 +504,7 @@ enum rxrpc_recvmsg_trace	{ rxrpc_recvmsg_traces } __mode(byte);
 enum rxrpc_req_ack_trace	{ rxrpc_req_ack_traces } __mode(byte);
 enum rxrpc_rtt_rx_trace		{ rxrpc_rtt_rx_traces } __mode(byte);
 enum rxrpc_rtt_tx_trace		{ rxrpc_rtt_tx_traces } __mode(byte);
+enum rxrpc_sack_trace		{ rxrpc_sack_traces } __mode(byte);
 enum rxrpc_skb_trace		{ rxrpc_skb_traces } __mode(byte);
 enum rxrpc_timer_trace		{ rxrpc_timer_traces } __mode(byte);
 enum rxrpc_tx_point		{ rxrpc_tx_points } __mode(byte);
@@ -531,6 +539,7 @@ rxrpc_recvmsg_traces;
 rxrpc_req_ack_traces;
 rxrpc_rtt_rx_traces;
 rxrpc_rtt_tx_traces;
+rxrpc_sack_traces;
 rxrpc_skb_traces;
 rxrpc_timer_traces;
 rxrpc_tx_points;
@@ -1927,6 +1936,33 @@ TRACE_EVENT(rxrpc_call_poked,
 
 	    TP_printk("c=%08x",
 		      __entry->call_debug_id)
+	    );
+
+TRACE_EVENT(rxrpc_sack,
+	    TP_PROTO(struct rxrpc_call *call, rxrpc_seq_t seq,
+		     unsigned int sack, enum rxrpc_sack_trace what),
+
+	    TP_ARGS(call, seq, sack, what),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		call_debug_id)
+		    __field(rxrpc_seq_t,		seq)
+		    __field(unsigned int,		sack)
+		    __field(enum rxrpc_sack_trace,	what)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call_debug_id = call->debug_id;
+		    __entry->seq = seq;
+		    __entry->sack = sack;
+		    __entry->what = what;
+			   ),
+
+	    TP_printk("c=%08x q=%08x %s k=%x",
+		      __entry->call_debug_id,
+		      __entry->seq,
+		      __print_symbolic(__entry->what, rxrpc_sack_traces),
+		      __entry->sack)
 	    );
 
 #undef EM
