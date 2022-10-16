@@ -390,33 +390,12 @@ static int cc10001_adc_probe(struct platform_device *pdev)
 
 	mutex_init(&adc_dev->lock);
 
-	ret = iio_triggered_buffer_setup(indio_dev, NULL,
-					 &cc10001_adc_trigger_h, NULL);
+	ret = devm_iio_triggered_buffer_setup(dev, indio_dev, NULL,
+					      &cc10001_adc_trigger_h, NULL);
 	if (ret < 0)
 		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0)
-		goto err_cleanup_buffer;
-
-	platform_set_drvdata(pdev, indio_dev);
-
-	return 0;
-
-err_cleanup_buffer:
-	iio_triggered_buffer_cleanup(indio_dev);
-	return ret;
-}
-
-static int cc10001_adc_remove(struct platform_device *pdev)
-{
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-	struct cc10001_adc_device *adc_dev = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	return 0;
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 static const struct of_device_id cc10001_adc_dt_ids[] = {
@@ -431,7 +410,6 @@ static struct platform_driver cc10001_adc_driver = {
 		.of_match_table = cc10001_adc_dt_ids,
 	},
 	.probe	= cc10001_adc_probe,
-	.remove	= cc10001_adc_remove,
 };
 module_platform_driver(cc10001_adc_driver);
 
