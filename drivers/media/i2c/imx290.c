@@ -370,7 +370,8 @@ static inline int __always_unused imx290_read_reg(struct imx290 *imx290, u16 add
 
 	ret = regmap_read(imx290->regmap, addr, &regval);
 	if (ret) {
-		dev_err(imx290->dev, "I2C read failed for addr: %x\n", addr);
+		dev_err(imx290->dev, "Failed to read register 0x%04x: %d\n",
+			addr, ret);
 		return ret;
 	}
 
@@ -385,7 +386,8 @@ static int imx290_write_reg(struct imx290 *imx290, u16 addr, u8 value)
 
 	ret = regmap_write(imx290->regmap, addr, value);
 	if (ret) {
-		dev_err(imx290->dev, "I2C write failed for addr: %x\n", addr);
+		dev_err(imx290->dev, "Failed to write register 0x%04x: %d\n",
+			addr, ret);
 		return ret;
 	}
 
