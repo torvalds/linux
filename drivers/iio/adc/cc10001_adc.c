@@ -305,6 +305,11 @@ static int cc10001_adc_channel_init(struct iio_dev *indio_dev,
 	return 0;
 }
 
+static void cc10001_reg_disable(void *priv)
+{
+	regulator_disable(priv);
+}
+
 static int cc10001_adc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -335,27 +340,28 @@ static int cc10001_adc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ret = devm_add_action_or_reset(dev, cc10001_reg_disable, adc_dev->reg);
+	if (ret)
+		return ret;
+
 	indio_dev->name = dev_name(dev);
 	indio_dev->info = &cc10001_adc_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	adc_dev->reg_base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(adc_dev->reg_base)) {
-		ret = PTR_ERR(adc_dev->reg_base);
-		goto err_disable_reg;
-	}
+	if (IS_ERR(adc_dev->reg_base))
+		return PTR_ERR(adc_dev->reg_base);
 
 	adc_dev->adc_clk = devm_clk_get(dev, "adc");
 	if (IS_ERR(adc_dev->adc_clk)) {
 		dev_err(dev, "failed to get the clock\n");
-		ret = PTR_ERR(adc_dev->adc_clk);
-		goto err_disable_reg;
+		return PTR_ERR(adc_dev->adc_clk);
 	}
 
 	ret = clk_prepare_enable(adc_dev->adc_clk);
 	if (ret) {
 		dev_err(dev, "failed to enable the clock\n");
-		goto err_disable_reg;
+		return ret;
 	}
 
 	adc_clk_rate = clk_get_rate(adc_dev->adc_clk);
@@ -400,8 +406,6 @@ err_cleanup_buffer:
 	iio_triggered_buffer_cleanup(indio_dev);
 err_disable_clk:
 	clk_disable_unprepare(adc_dev->adc_clk);
-err_disable_reg:
-	regulator_disable(adc_dev->reg);
 	return ret;
 }
 
@@ -414,7 +418,6 @@ static int cc10001_adc_remove(struct platform_device *pdev)
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	clk_disable_unprepare(adc_dev->adc_clk);
-	regulator_disable(adc_dev->reg);
 
 	return 0;
 }
