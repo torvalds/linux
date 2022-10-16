@@ -878,29 +878,8 @@ static int atomisp_adjust_fmt(struct v4l2_format *f)
 	u32 padded_width;
 
 	format_bridge = atomisp_get_format_bridge(f->fmt.pix.pixelformat);
-
-	padded_width = f->fmt.pix.width + pad_w;
-
-	if (format_bridge->planar) {
-		f->fmt.pix.bytesperline = padded_width;
-		f->fmt.pix.sizeimage = PAGE_ALIGN(f->fmt.pix.height *
-						  DIV_ROUND_UP(format_bridge->depth *
-						  padded_width, 8));
-	} else {
-		f->fmt.pix.bytesperline = DIV_ROUND_UP(format_bridge->depth *
-						      padded_width, 8);
-		f->fmt.pix.sizeimage = PAGE_ALIGN(f->fmt.pix.height * f->fmt.pix.bytesperline);
-	}
-
-	if (f->fmt.pix.field == V4L2_FIELD_ANY)
-		f->fmt.pix.field = V4L2_FIELD_NONE;
-
-	format_bridge = atomisp_get_format_bridge(f->fmt.pix.pixelformat);
-	if (!format_bridge)
-		return -EINVAL;
-
 	/* Currently, raw formats are broken!!! */
-	if (format_bridge->sh_fmt == IA_CSS_FRAME_FORMAT_RAW) {
+	if (!format_bridge || format_bridge->sh_fmt == IA_CSS_FRAME_FORMAT_RAW) {
 		f->fmt.pix.pixelformat = V4L2_PIX_FMT_YUV420;
 
 		format_bridge = atomisp_get_format_bridge(f->fmt.pix.pixelformat);
