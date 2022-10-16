@@ -175,6 +175,15 @@ static const SNDRV_CTL_TLVD_DECLARE_DB_RANGE(jz4725b_out_tlv,
 	12, 23, TLV_DB_SCALE_ITEM(-1050, 100, 0),
 	24, 31, TLV_DB_SCALE_ITEM(  100,  50, 0),
 );
+static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(jz4725b_mic_boost_tlv, 0, 2000, 0);
+
+static const char * const jz4725b_mic_mode_texts[] = {
+	"Single Ended", "Differential",
+};
+
+static const struct soc_enum jz4725b_mic_mode_enum =
+	SOC_ENUM_SINGLE(JZ4725B_CODEC_REG_CR3, REG_CR3_MICDIFF_OFFSET,
+			2, jz4725b_mic_mode_texts);
 
 static const struct snd_kcontrol_new jz4725b_codec_controls[] = {
 	SOC_DOUBLE_TLV("DAC Playback Volume",
@@ -219,6 +228,13 @@ static const struct snd_kcontrol_new jz4725b_codec_controls[] = {
 	SOC_SINGLE("High-Pass Filter Capture Switch",
 		   JZ4725B_CODEC_REG_CR2,
 		   REG_CR2_ADC_HPF_OFFSET, 1, 0),
+
+	SOC_ENUM("Mic Mode Capture Switch", jz4725b_mic_mode_enum),
+
+	SOC_SINGLE_TLV("Mic1 Boost Capture Volume",
+		       JZ4725B_CODEC_REG_PMR2,
+		       REG_PMR2_GIM_OFFSET,
+		       1, 0, jz4725b_mic_boost_tlv),
 };
 
 static const char * const jz4725b_codec_adc_src_texts[] = {
