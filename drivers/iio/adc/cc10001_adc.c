@@ -310,6 +310,11 @@ static void cc10001_reg_disable(void *priv)
 	regulator_disable(priv);
 }
 
+static void cc10001_pd_cb(void *priv)
+{
+	cc10001_adc_power_down(priv);
+}
+
 static int cc10001_adc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -375,6 +380,9 @@ static int cc10001_adc_probe(struct platform_device *pdev)
 	if (adc_dev->shared)
 		cc10001_adc_power_up(adc_dev);
 
+	ret = devm_add_action_or_reset(dev, cc10001_pd_cb, adc_dev);
+	if (ret)
+		return ret;
 	/* Setup the ADC channels available on the device */
 	ret = cc10001_adc_channel_init(indio_dev, channel_map);
 	if (ret < 0)
@@ -405,7 +413,6 @@ static int cc10001_adc_remove(struct platform_device *pdev)
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct cc10001_adc_device *adc_dev = iio_priv(indio_dev);
 
-	cc10001_adc_power_down(adc_dev);
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 
