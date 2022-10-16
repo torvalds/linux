@@ -201,40 +201,6 @@ out:
 	return rc;
 }
 
-static int
-query_mf_symlink(const unsigned int xid, struct cifs_tcon *tcon,
-		 struct cifs_sb_info *cifs_sb, const unsigned char *path,
-		 char **symlinkinfo)
-{
-	int rc;
-	u8 *buf = NULL;
-	unsigned int link_len = 0;
-	unsigned int bytes_read = 0;
-
-	buf = kmalloc(CIFS_MF_SYMLINK_FILE_SIZE, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	if (tcon->ses->server->ops->query_mf_symlink)
-		rc = tcon->ses->server->ops->query_mf_symlink(xid, tcon,
-					      cifs_sb, path, buf, &bytes_read);
-	else
-		rc = -ENOSYS;
-
-	if (rc)
-		goto out;
-
-	if (bytes_read == 0) { /* not a symlink */
-		rc = -EINVAL;
-		goto out;
-	}
-
-	rc = parse_mf_symlink(buf, bytes_read, &link_len, symlinkinfo);
-out:
-	kfree(buf);
-	return rc;
-}
-
 int
 check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 		 struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
@@ -244,6 +210,7 @@ check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	u8 *buf = NULL;
 	unsigned int link_len = 0;
 	unsigned int bytes_read = 0;
+	char *symlink = NULL;
 
 	if (!couldbe_mf_symlink(fattr))
 		/* it's not a symlink */
@@ -265,7 +232,7 @@ check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	if (bytes_read == 0) /* not a symlink */
 		goto out;
 
-	rc = parse_mf_symlink(buf, bytes_read, &link_len, NULL);
+	rc = parse_mf_symlink(buf, bytes_read, &link_len, &symlink);
 	if (rc == -EINVAL) {
 		/* it's not a symlink */
 		rc = 0;
@@ -280,6 +247,7 @@ check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	fattr->cf_mode &= ~S_IFMT;
 	fattr->cf_mode |= S_IFLNK | S_IRWXU | S_IRWXG | S_IRWXO;
 	fattr->cf_dtype = DT_LNK;
+	fattr->cf_symlink_target = symlink;
 out:
 	kfree(buf);
 	return rc;
@@ -597,75 +565,6 @@ cifs_hl_exit:
 	free_xid(xid);
 	cifs_put_tlink(tlink);
 	return rc;
-}
-
-const char *
-cifs_get_link(struct dentry *direntry, struct inode *inode,
-	      struct delayed_call *done)
-{
-	int rc = -ENOMEM;
-	unsigned int xid;
-	const char *full_path;
-	void *page;
-	char *target_path = NULL;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
-	struct tcon_link *tlink = NULL;
-	struct cifs_tcon *tcon;
-	struct TCP_Server_Info *server;
-
-	if (!direntry)
-		return ERR_PTR(-ECHILD);
-
-	xid = get_xid();
-
-	tlink = cifs_sb_tlink(cifs_sb);
-	if (IS_ERR(tlink)) {
-		free_xid(xid);
-		return ERR_CAST(tlink);
-	}
-	tcon = tlink_tcon(tlink);
-	server = tcon->ses->server;
-
-	page = alloc_dentry_path();
-	full_path = build_path_from_dentry(direntry, page);
-	if (IS_ERR(full_path)) {
-		free_xid(xid);
-		cifs_put_tlink(tlink);
-		free_dentry_path(page);
-		return ERR_CAST(full_path);
-	}
-
-	cifs_dbg(FYI, "Full path: %s inode = 0x%p\n", full_path, inode);
-
-	rc = -EACCES;
-	/*
-	 * First try Minshall+French Symlinks, if configured
-	 * and fallback to UNIX Extensions Symlinks.
-	 */
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS)
-		rc = query_mf_symlink(xid, tcon, cifs_sb, full_path,
-				      &target_path);
-
-	if (rc != 0 && server->ops->query_symlink) {
-		struct cifsInodeInfo *cifsi = CIFS_I(inode);
-		bool reparse_point = false;
-
-		if (cifsi->cifsAttrs & ATTR_REPARSE)
-			reparse_point = true;
-
-		rc = server->ops->query_symlink(xid, tcon, cifs_sb, full_path,
-						&target_path, reparse_point);
-	}
-
-	free_dentry_path(page);
-	free_xid(xid);
-	cifs_put_tlink(tlink);
-	if (rc != 0) {
-		kfree(target_path);
-		return ERR_PTR(rc);
-	}
-	set_delayed_call(done, kfree_link, target_path);
-	return target_path;
 }
 
 int

@@ -396,6 +396,7 @@ cifs_alloc_inode(struct super_block *sb)
 	cifs_inode->epoch = 0;
 	spin_lock_init(&cifs_inode->open_file_lock);
 	generate_random_uuid(cifs_inode->lease_key);
+	cifs_inode->symlink_target = NULL;
 
 	/*
 	 * Can not set i_flags here - they get immediately overwritten to zero
@@ -412,7 +413,11 @@ cifs_alloc_inode(struct super_block *sb)
 static void
 cifs_free_inode(struct inode *inode)
 {
-	kmem_cache_free(cifs_inode_cachep, CIFS_I(inode));
+	struct cifsInodeInfo *cinode = CIFS_I(inode);
+
+	if (S_ISLNK(inode->i_mode))
+		kfree(cinode->symlink_target);
+	kmem_cache_free(cifs_inode_cachep, cinode);
 }
 
 static void
@@ -1139,7 +1144,7 @@ const struct inode_operations cifs_file_inode_ops = {
 };
 
 const struct inode_operations cifs_symlink_inode_ops = {
-	.get_link = cifs_get_link,
+	.get_link = simple_get_link,
 	.permission = cifs_permission,
 	.listxattr = cifs_listxattr,
 };
