@@ -2718,8 +2718,6 @@ static void io_req_io_end(struct io_kiocb *req)
 {
 	struct io_rw *rw = &req->rw;
 
-	WARN_ON(!in_task());
-
 	if (rw->kiocb.ki_flags & IOCB_WRITE) {
 		kiocb_end_write(req);
 		fsnotify_modify(req->file);
