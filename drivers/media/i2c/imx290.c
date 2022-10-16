@@ -105,6 +105,53 @@
 
 #define IMX290_VMAX_DEFAULT				1125
 
+
+/*
+ * The IMX290 pixel array is organized as follows:
+ *
+ *     +------------------------------------+
+ *     |           Optical Black            |     }  Vertical effective optical black (10)
+ * +---+------------------------------------+---+
+ * |   |                                    |   | }  Effective top margin (8)
+ * |   |   +----------------------------+   |   | \
+ * |   |   |                            |   |   |  |
+ * |   |   |                            |   |   |  |
+ * |   |   |                            |   |   |  |
+ * |   |   |    Recording Pixel Area    |   |   |  | Recommended height (1080)
+ * |   |   |                            |   |   |  |
+ * |   |   |                            |   |   |  |
+ * |   |   |                            |   |   |  |
+ * |   |   +----------------------------+   |   | /
+ * |   |                                    |   | }  Effective bottom margin (9)
+ * +---+------------------------------------+---+
+ *  <-> <-> <--------------------------> <-> <->
+ *                                            \----  Ignored right margin (4)
+ *                                        \--------  Effective right margin (9)
+ *                       \-------------------------  Recommended width (1920)
+ *       \-----------------------------------------  Effective left margin (8)
+ *   \---------------------------------------------  Ignored left margin (4)
+ *
+ * The optical black lines are output over CSI-2 with a separate data type.
+ *
+ * The pixel array is meant to have 1920x1080 usable pixels after image
+ * processing in an ISP. It has 8 (9) extra active pixels usable for color
+ * processing in the ISP on the top and left (bottom and right) sides of the
+ * image. In addition, 4 additional pixels are present on the left and right
+ * sides of the image, documented as "ignored area".
+ *
+ * As far as is understood, all pixels of the pixel array (ignored area, color
+ * processing margins and recording area) can be output by the sensor.
+ */
+
+#define IMX290_PIXEL_ARRAY_WIDTH			1945
+#define IMX290_PIXEL_ARRAY_HEIGHT			1097
+#define IMX920_PIXEL_ARRAY_MARGIN_LEFT			12
+#define IMX920_PIXEL_ARRAY_MARGIN_RIGHT			13
+#define IMX920_PIXEL_ARRAY_MARGIN_TOP			8
+#define IMX920_PIXEL_ARRAY_MARGIN_BOTTOM		9
+#define IMX290_PIXEL_ARRAY_RECORDING_WIDTH		1920
+#define IMX290_PIXEL_ARRAY_RECORDING_HEIGHT		1080
+
 static const char * const imx290_supply_name[] = {
 	"vdda",
 	"vddd",
@@ -667,6 +714,52 @@ static int imx290_set_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int imx290_get_selection(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *sd_state,
+				struct v4l2_subdev_selection *sel)
+{
+	struct imx290 *imx290 = to_imx290(sd);
+	struct v4l2_mbus_framefmt *format;
+
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP: {
+		format = imx290_get_pad_format(imx290, sd_state, sel->which);
+
+		mutex_lock(&imx290->lock);
+
+		sel->r.top = IMX920_PIXEL_ARRAY_MARGIN_TOP
+			   + (IMX290_PIXEL_ARRAY_RECORDING_HEIGHT - format->height) / 2;
+		sel->r.left = IMX920_PIXEL_ARRAY_MARGIN_LEFT
+			    + (IMX290_PIXEL_ARRAY_RECORDING_WIDTH - format->width) / 2;
+		sel->r.width = format->width;
+		sel->r.height = format->height;
+
+		mutex_unlock(&imx290->lock);
+		return 0;
+	}
+
+	case V4L2_SEL_TGT_NATIVE_SIZE:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		sel->r.top = 0;
+		sel->r.left = 0;
+		sel->r.width = IMX290_PIXEL_ARRAY_WIDTH;
+		sel->r.height = IMX290_PIXEL_ARRAY_HEIGHT;
+
+		return 0;
+
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		sel->r.top = IMX920_PIXEL_ARRAY_MARGIN_TOP;
+		sel->r.left = IMX920_PIXEL_ARRAY_MARGIN_LEFT;
+		sel->r.width = IMX290_PIXEL_ARRAY_RECORDING_WIDTH;
+		sel->r.height = IMX290_PIXEL_ARRAY_RECORDING_HEIGHT;
+
+		return 0;
+
+	default:
+		return -EINVAL;
+	}
+}
+
 static int imx290_entity_init_cfg(struct v4l2_subdev *subdev,
 				  struct v4l2_subdev_state *sd_state)
 {
@@ -883,6 +976,7 @@ static const struct v4l2_subdev_pad_ops imx290_pad_ops = {
 	.enum_frame_size = imx290_enum_frame_size,
 	.get_fmt = imx290_get_fmt,
 	.set_fmt = imx290_set_fmt,
+	.get_selection = imx290_get_selection,
 };
 
 static const struct v4l2_subdev_ops imx290_subdev_ops = {
