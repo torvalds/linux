@@ -258,7 +258,27 @@ struct usb_interface {
 	struct device *usb_dev;
 	struct work_struct reset_ws;	/* for resets in atomic context */
 };
-#define	to_usb_interface(d) container_of(d, struct usb_interface, dev)
+
+static inline struct usb_interface *__to_usb_interface(struct device *d)
+{
+	return container_of(d, struct usb_interface, dev);
+}
+
+static inline const struct usb_interface *__to_usb_interface_const(const struct device *d)
+{
+	return container_of(d, struct usb_interface, dev);
+}
+
+/*
+ * container_of() will happily take a const * and spit back a non-const * as it
+ * is just doing pointer math.  But we want to be a bit more careful in the USB
+ * driver code, so manually force any const * of a device to also be a const *
+ * to a usb_device.
+ */
+#define to_usb_interface(dev)						\
+	_Generic((dev),							\
+		 const struct device *: __to_usb_interface_const,	\
+		 struct device *: __to_usb_interface)(dev)
 
 static inline void *usb_get_intfdata(struct usb_interface *intf)
 {
@@ -709,12 +729,41 @@ struct usb_device {
 	u16 hub_delay;
 	unsigned use_generic_driver:1;
 };
-#define	to_usb_device(d) container_of(d, struct usb_device, dev)
 
-static inline struct usb_device *interface_to_usbdev(struct usb_interface *intf)
+static inline struct usb_device *__to_usb_device(struct device *d)
+{
+	return container_of(d, struct usb_device, dev);
+}
+
+static inline const struct usb_device *__to_usb_device_const(const struct device *d)
+{
+	return container_of(d, struct usb_device, dev);
+}
+
+/*
+ * container_of() will happily take a const * and spit back a non-const * as it
+ * is just doing pointer math.  But we want to be a bit more careful in the USB
+ * driver code, so manually force any const * of a device to also be a const *
+ * to a usb_device.
+ */
+#define to_usb_device(dev)					\
+	_Generic((dev),						\
+		 const struct device *: __to_usb_device_const,	\
+		 struct device *: __to_usb_device)(dev)
+
+static inline struct usb_device *__intf_to_usbdev(struct usb_interface *intf)
 {
 	return to_usb_device(intf->dev.parent);
 }
+static inline const struct usb_device *__intf_to_usbdev_const(const struct usb_interface *intf)
+{
+	return to_usb_device((const struct device *)intf->dev.parent);
+}
+
+#define interface_to_usbdev(intf)					\
+	_Generic((intf),						\
+		 const struct usb_interface *: __intf_to_usbdev_const,	\
+		 struct usb_interface *: __intf_to_usbdev)(intf)
 
 extern struct usb_device *usb_get_dev(struct usb_device *dev);
 extern void usb_put_dev(struct usb_device *dev);
