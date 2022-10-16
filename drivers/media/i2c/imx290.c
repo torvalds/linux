@@ -97,7 +97,6 @@ static const struct imx290_pixfmt imx290_formats[] = {
 static const struct regmap_config imx290_regmap_config = {
 	.reg_bits = 16,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
 };
 
 static const char * const imx290_test_pattern_menu[] = {
