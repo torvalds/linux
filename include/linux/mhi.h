@@ -38,6 +38,8 @@ struct mhi_buf_info;
  * @MHI_CB_FATAL_ERROR: MHI device entered fatal error state
  * @MHI_CB_BW_REQ: Received a bandwidth switch request from device
  * @MHI_CB_FALLBACK_IMG: MHI device was loaded with the provided fallback image
+ * @MHI_CB_DTR_SIGNAL: DTR signaling update
+ * @MHI_CB_DTR_START_CHANNELS: DTR signal for client driver to start channels
  */
 enum mhi_callback {
 	MHI_CB_IDLE,
@@ -50,6 +52,8 @@ enum mhi_callback {
 	MHI_CB_FATAL_ERROR,
 	MHI_CB_BW_REQ,
 	MHI_CB_FALLBACK_IMG,
+	MHI_CB_DTR_SIGNAL,
+	MHI_CB_DTR_START_CHANNELS,
 };
 
 /**
@@ -191,21 +195,25 @@ enum mhi_ch_ee_mask {
  * @MHI_ER_DATA: Only client data over this ring
  * @MHI_ER_CTRL: MHI control data and client data
  * @MHI_ER_BW_SCALE: MHI controller bandwidth scale functionality
+ * @MHI_ER_TIMESYNC: MHI controller time synchronization DB mode functionality
  */
 enum mhi_er_data_type {
 	MHI_ER_DATA,
 	MHI_ER_CTRL,
 	MHI_ER_BW_SCALE,
+	MHI_ER_TIMESYNC,
 };
 
 /**
  * enum mhi_er_priority - Event ring processing priority
  * @MHI_ER_PRIORITY_DEFAULT_NOSLEEP: processed by tasklet
  * @MHI_ER_PRIORITY_HI_NOSLEEP: processed by hi-priority tasklet
+ * @MHI_ER_PRIORITY_HI_SLEEP: processed by hi-priority wq
  */
 enum mhi_er_priority {
 	MHI_ER_PRIORITY_DEFAULT_NOSLEEP,
 	MHI_ER_PRIORITY_HI_NOSLEEP,
+	MHI_ER_PRIORITY_HI_SLEEP,
 };
 
 /**
@@ -352,7 +360,7 @@ struct mhi_controller_config {
  * @dev_state: MHI device state
  * @dev_wake: Device wakeup count
  * @pending_pkts: Pending packets for the controller
- * @M0, M2, M3: Counters to track number of device MHI state changes
+ * @M0, M2, M3, M3_fast: Counters to track number of device MHI state changes
  * @transition_list: List of MHI state transitions
  * @transition_lock: Lock for protecting MHI state transition list
  * @wlock: Lock for protecting device wakeup
@@ -366,6 +374,7 @@ struct mhi_controller_config {
  * @wake_toggle: CB function to assert and de-assert device wake (optional)
  * @runtime_get: CB function to controller runtime resume (required)
  * @runtime_put: CB function to decrement pm usage (required)
+ * @runtime_last_busy: CB function for controller to mark last busy (optional)
  * @map_single: CB function to create TRE buffer
  * @unmap_single: CB function to destroy TRE buffer
  * @read_reg: Read a MHI register via the physical link (required)
@@ -427,6 +436,7 @@ struct mhi_controller {
 	u32 minor_version;
 	u32 serial_number;
 	u32 oem_pk_hash[MHI_MAX_OEM_PK_HASH_SEGMENTS];
+	u32 session_id;
 
 	struct mhi_event *mhi_event;
 	struct mhi_cmd *mhi_cmd;
@@ -441,7 +451,7 @@ struct mhi_controller {
 	enum mhi_state dev_state;
 	atomic_t dev_wake;
 	atomic_t pending_pkts;
-	u32 M0, M2, M3;
+	u32 M0, M2, M3, M3_fast;
 	struct list_head transition_list;
 	spinlock_t transition_lock;
 	spinlock_t wlock;
@@ -457,6 +467,7 @@ struct mhi_controller {
 	void (*wake_toggle)(struct mhi_controller *mhi_cntrl);
 	int (*runtime_get)(struct mhi_controller *mhi_cntrl);
 	void (*runtime_put)(struct mhi_controller *mhi_cntrl);
+	void (*runtime_last_busy)(struct mhi_controller *mhi_cntrl);
 	int (*map_single)(struct mhi_controller *mhi_cntrl,
 			  struct mhi_buf_info *buf);
 	void (*unmap_single)(struct mhi_controller *mhi_cntrl,
@@ -488,8 +499,11 @@ struct mhi_controller {
  * @dev: Driver model device node for the MHI device
  * @dev_type: MHI device type
  * @ul_chan_id: MHI channel id for UL transfer
+ * @ul_event_id: MHI event ring id for UL transfer
  * @dl_chan_id: MHI channel id for DL transfer
+ * @ul_event_id: MHI event ring id for DL transfer
  * @dev_wake: Device wakeup counter
+ * @tiocm: Device current terminal settings
  */
 struct mhi_device {
 	const struct mhi_device_id *id;
@@ -500,8 +514,11 @@ struct mhi_device {
 	struct device dev;
 	enum mhi_device_type dev_type;
 	int ul_chan_id;
+	int ul_event_id;
 	int dl_chan_id;
+	int dl_event_id;
 	u32 dev_wake;
+	u32 tiocm;
 };
 
 /**

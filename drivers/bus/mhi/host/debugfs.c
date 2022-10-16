@@ -25,8 +25,8 @@ static int mhi_debugfs_states_show(struct seq_file *m, void *d)
 		   mhi_cntrl->wake_set ? "true" : "false");
 
 	/* counters */
-	seq_printf(m, "M0: %u M2: %u M3: %u", mhi_cntrl->M0, mhi_cntrl->M2,
-		   mhi_cntrl->M3);
+	seq_printf(m, "M0: %u M2: %u M3: %u, M3_fast: %u", mhi_cntrl->M0,
+		   mhi_cntrl->M2, mhi_cntrl->M3, mhi_cntrl->M3_fast);
 
 	seq_printf(m, " device wake: %u pending packets: %u\n",
 		   atomic_read(&mhi_cntrl->dev_wake),
@@ -71,7 +71,8 @@ static int mhi_debugfs_events_show(struct seq_file *m, void *d)
 		seq_printf(m, " rp: 0x%llx wp: 0x%llx", le64_to_cpu(er_ctxt->rp),
 			   le64_to_cpu(er_ctxt->wp));
 
-		seq_printf(m, " local rp: 0x%pK db: 0x%pad\n", ring->rp,
+		seq_printf(m, " local rp: 0x%llx db: 0x%pad\n",
+			   (u64)mhi_to_physical(ring, ring->rp),
 			   &mhi_event->db_cfg.db_val);
 	}
 
@@ -119,8 +120,9 @@ static int mhi_debugfs_channels_show(struct seq_file *m, void *d)
 			   le64_to_cpu(chan_ctxt->rbase), le64_to_cpu(chan_ctxt->rlen),
 			   le64_to_cpu(chan_ctxt->rp), le64_to_cpu(chan_ctxt->wp));
 
-		seq_printf(m, " local rp: 0x%pK local wp: 0x%pK db: 0x%pad\n",
-			   ring->rp, ring->wp,
+		seq_printf(m, " local rp: 0x%llx local wp: 0x%llx db: 0x%pad\n",
+			   (u64)mhi_to_physical(ring, ring->rp),
+			   (u64)mhi_to_physical(ring, ring->wp),
 			   &mhi_chan->db_cfg.db_val);
 	}
 

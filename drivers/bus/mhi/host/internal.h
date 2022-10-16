@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  *
  */
 
@@ -201,6 +201,7 @@ struct mhi_event {
 	struct mhi_ring ring;
 	struct db_cfg db_cfg;
 	struct tasklet_struct task;
+	struct work_struct work;
 	spinlock_t lock;
 	int (*process_event)(struct mhi_controller *mhi_cntrl,
 			     struct mhi_event *mhi_event,
@@ -295,6 +296,7 @@ int __mhi_device_get_sync(struct mhi_controller *mhi_cntrl);
 int mhi_send_cmd(struct mhi_controller *mhi_cntrl, struct mhi_chan *mhi_chan,
 		 enum mhi_cmd_type cmd);
 int mhi_download_amss_image(struct mhi_controller *mhi_cntrl);
+int mhi_rddm_download_status(struct mhi_controller *mhi_cntrl);
 static inline bool mhi_is_active(struct mhi_controller *mhi_cntrl)
 {
 	return (mhi_cntrl->dev_state >= MHI_STATE_M0 &&
@@ -333,6 +335,7 @@ void mhi_write_db(struct mhi_controller *mhi_cntrl, void __iomem *db_addr,
 void mhi_ring_cmd_db(struct mhi_controller *mhi_cntrl, struct mhi_cmd *mhi_cmd);
 void mhi_ring_chan_db(struct mhi_controller *mhi_cntrl,
 		      struct mhi_chan *mhi_chan);
+dma_addr_t mhi_to_physical(struct mhi_ring *ring, void *addr);
 
 /* Initialization methods */
 int mhi_init_mmio(struct mhi_controller *mhi_cntrl);
@@ -359,6 +362,8 @@ void mhi_reset_chan(struct mhi_controller *mhi_cntrl,
 /* Event processing methods */
 void mhi_ctrl_ev_task(unsigned long data);
 void mhi_ev_task(unsigned long data);
+void mhi_process_ev_work(struct work_struct *work);
+void mhi_process_sleeping_events(struct mhi_controller *mhi_cntrl);
 int mhi_process_data_event_ring(struct mhi_controller *mhi_cntrl,
 				struct mhi_event *mhi_event, u32 event_quota);
 int mhi_process_ctrl_ev_ring(struct mhi_controller *mhi_cntrl,

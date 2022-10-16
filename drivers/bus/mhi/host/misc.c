@@ -1364,7 +1364,7 @@ int mhi_process_misc_bw_ev_ring(struct mhi_controller *mhi_cntrl,
 	struct mhi_link_info link_info, *cur_info = &mhi_cntrl->mhi_link_info;
 	struct device *dev = &mhi_cntrl->mhi_dev->dev;
 	struct mhi_private *mhi_priv = dev_get_drvdata(dev);
-	u32 result = MHI_BW_SCALE_NACK;
+	enum mhi_bw_scale_req_status result = MHI_BW_SCALE_NACK;
 	int ret = -EINVAL;
 
 	if (!MHI_IN_MISSION_MODE(mhi_cntrl->ee))
@@ -1428,7 +1428,9 @@ int mhi_process_misc_bw_ev_ring(struct mhi_controller *mhi_cntrl,
 	ret = mhi_priv->bw_scale(mhi_cntrl, &link_info);
 	if (!ret) {
 		*cur_info = link_info;
-		result = 0;
+		result = MHI_BW_SCALE_SUCCESS;
+	} else if (ret == -EINVAL) {
+		result = MHI_BW_SCALE_INVALID;
 	}
 
 	write_lock_bh(&mhi_cntrl->pm_lock);
@@ -1889,6 +1891,24 @@ error_unlock:
 	return ret;
 }
 EXPORT_SYMBOL(mhi_get_remote_time);
+
+/* MHI host reset request*/
+int mhi_force_reset(struct mhi_controller *mhi_cntrl)
+{
+	struct device *dev = &mhi_cntrl->mhi_dev->dev;
+
+	MHI_VERB(dev, "Entered with pm_state:%s dev_state:%s ee:%s\n",
+		 to_mhi_pm_state_str(mhi_cntrl->pm_state),
+		 mhi_state_str(mhi_cntrl->dev_state),
+		 TO_MHI_EXEC_STR(mhi_cntrl->ee));
+
+	/* notify critical clients in absence of RDDM */
+	mhi_report_error(mhi_cntrl);
+
+	mhi_soc_reset(mhi_cntrl);
+	return mhi_rddm_download_status(mhi_cntrl);
+}
+EXPORT_SYMBOL(mhi_force_reset);
 
 /* Get SoC info before registering mhi controller */
 int mhi_get_soc_info(struct mhi_controller *mhi_cntrl)
