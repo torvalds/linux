@@ -103,6 +103,8 @@
 #define IMX290_PGCTRL_THRU				BIT(1)
 #define IMX290_PGCTRL_MODE(n)				((n) << 4)
 
+#define IMX290_VMAX_DEFAULT				1125
+
 static const char * const imx290_supply_name[] = {
 	"vdda",
 	"vddd",
@@ -176,7 +178,7 @@ static const char * const imx290_test_pattern_menu[] = {
 
 static const struct imx290_regval imx290_global_init_settings[] = {
 	{ IMX290_CTRL_07, IMX290_WINMODE_1080P },
-	{ IMX290_VMAX, 1125 },
+	{ IMX290_VMAX, IMX290_VMAX_DEFAULT },
 	{ IMX290_EXTCK_FREQ, 0x2520 },
 	{ IMX290_WINWV_OB, 12 },
 	{ IMX290_WINPH, 0 },
@@ -480,6 +482,12 @@ static int imx290_set_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_GAIN:
 		ret = imx290_write(imx290, IMX290_GAIN, ctrl->val, NULL);
 		break;
+
+	case V4L2_CID_EXPOSURE:
+		ret = imx290_write(imx290, IMX290_SHS1,
+				   IMX290_VMAX_DEFAULT - ctrl->val - 1, NULL);
+		break;
+
 	case V4L2_CID_TEST_PATTERN:
 		if (ctrl->val) {
 			imx290_write(imx290, IMX290_BLKLEVEL, 0, &ret);
@@ -1008,11 +1016,15 @@ static int imx290_probe(struct i2c_client *client)
 	 */
 	imx290_entity_init_cfg(&imx290->sd, NULL);
 
-	v4l2_ctrl_handler_init(&imx290->ctrls, 4);
+	v4l2_ctrl_handler_init(&imx290->ctrls, 5);
 	imx290->ctrls.lock = &imx290->lock;
 
 	v4l2_ctrl_new_std(&imx290->ctrls, &imx290_ctrl_ops,
 			  V4L2_CID_GAIN, 0, 72, 1, 0);
+
+	v4l2_ctrl_new_std(&imx290->ctrls, &imx290_ctrl_ops,
+			  V4L2_CID_EXPOSURE, 1, IMX290_VMAX_DEFAULT - 2, 1,
+			  IMX290_VMAX_DEFAULT - 2);
 
 	imx290->link_freq =
 		v4l2_ctrl_new_int_menu(&imx290->ctrls, &imx290_ctrl_ops,
