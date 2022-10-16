@@ -146,6 +146,8 @@ struct imx290 {
 	struct v4l2_ctrl_handler ctrls;
 	struct v4l2_ctrl *link_freq;
 	struct v4l2_ctrl *pixel_rate;
+	struct v4l2_ctrl *hblank;
+	struct v4l2_ctrl *vblank;
 
 	struct mutex lock;
 };
@@ -642,6 +644,20 @@ static int imx290_set_fmt(struct v4l2_subdev *sd,
 		if (imx290->pixel_rate)
 			__v4l2_ctrl_s_ctrl_int64(imx290->pixel_rate,
 						 imx290_calc_pixel_rate(imx290));
+
+		if (imx290->hblank) {
+			unsigned int hblank = mode->hmax - mode->width;
+
+			__v4l2_ctrl_modify_range(imx290->hblank, hblank, hblank,
+						 1, hblank);
+		}
+
+		if (imx290->vblank) {
+			unsigned int vblank = IMX290_VMAX_DEFAULT - mode->height;
+
+			__v4l2_ctrl_modify_range(imx290->vblank, vblank, vblank,
+						 1, vblank);
+		}
 	}
 
 	*format = fmt->format;
@@ -880,9 +896,10 @@ static const struct media_entity_operations imx290_subdev_entity_ops = {
 
 static int imx290_ctrl_init(struct imx290 *imx290)
 {
+	unsigned int blank;
 	int ret;
 
-	v4l2_ctrl_handler_init(&imx290->ctrls, 5);
+	v4l2_ctrl_handler_init(&imx290->ctrls, 7);
 	imx290->ctrls.lock = &imx290->lock;
 
 	/*
@@ -922,6 +939,20 @@ static int imx290_ctrl_init(struct imx290 *imx290)
 				     V4L2_CID_TEST_PATTERN,
 				     ARRAY_SIZE(imx290_test_pattern_menu) - 1,
 				     0, 0, imx290_test_pattern_menu);
+
+	blank = imx290->current_mode->hmax - imx290->current_mode->width;
+	imx290->hblank = v4l2_ctrl_new_std(&imx290->ctrls, &imx290_ctrl_ops,
+					   V4L2_CID_HBLANK, blank, blank, 1,
+					   blank);
+	if (imx290->hblank)
+		imx290->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+
+	blank = IMX290_VMAX_DEFAULT - imx290->current_mode->height;
+	imx290->vblank = v4l2_ctrl_new_std(&imx290->ctrls, &imx290_ctrl_ops,
+					   V4L2_CID_VBLANK, blank, blank, 1,
+					   blank);
+	if (imx290->vblank)
+		imx290->vblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	imx290->sd.ctrl_handler = &imx290->ctrls;
 
