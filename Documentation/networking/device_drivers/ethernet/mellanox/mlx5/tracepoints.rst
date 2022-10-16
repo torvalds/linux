@@ -165,6 +165,20 @@ SF tracepoints:
     ...
     devlink-9830    [038] ..... 26300.404749: mlx5_sf_free: (0000:06:00.0) port_index=32768 controller=0 hw_id=0x8000
 
+- mlx5_sf_activate: trace activation of the SF port::
+
+    $ echo mlx5:mlx5_sf_activate >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    devlink-29841   [008] .....  3669.635095: mlx5_sf_activate: (0000:08:00.0) port_index=32768 controller=0 hw_id=0x8000
+
+- mlx5_sf_deactivate: trace deactivation of the SF port::
+
+    $ echo mlx5:mlx5_sf_deactivate >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    devlink-29994   [008] .....  4015.969467: mlx5_sf_deactivate: (0000:08:00.0) port_index=32768 controller=0 hw_id=0x8000
+
 - mlx5_sf_hwc_alloc: trace allocating of the hardware SF context::
 
     $ echo mlx5:mlx5_sf_hwc_alloc >> /sys/kernel/debug/tracing/set_event
@@ -179,12 +193,19 @@ SF tracepoints:
     ...
     kworker/u128:3-9093    [046] ..... 24625.365771: mlx5_sf_hwc_free: (0000:06:00.0) hw_id=0x8000
 
-- mlx5_sf_hwc_deferred_free : trace deferred freeing of the hardware SF context::
+- mlx5_sf_hwc_deferred_free: trace deferred freeing of the hardware SF context::
 
     $ echo mlx5:mlx5_sf_hwc_deferred_free >> /sys/kernel/debug/tracing/set_event
     $ cat /sys/kernel/debug/tracing/trace
     ...
     devlink-9519    [046] ..... 24624.400271: mlx5_sf_hwc_deferred_free: (0000:06:00.0) hw_id=0x8000
+
+- mlx5_sf_update_state: trace state updates for SF contexts::
+
+    $ echo mlx5:mlx5_sf_update_state >> /sys/kernel/debug/tracing/set_event
+    $ cat /sys/kernel/debug/tracing/trace
+    ...
+    kworker/u20:3-29490   [009] .....  4141.453530: mlx5_sf_update_state: (0000:08:00.0) port_index=32768 controller=0 hw_id=0x8000 state=2
 
 - mlx5_sf_vhca_event: trace SF vhca event and state::
 
@@ -193,14 +214,14 @@ SF tracepoints:
     ...
     kworker/u128:3-9093    [046] ..... 24625.365525: mlx5_sf_vhca_event: (0000:06:00.0) hw_id=0x8000 sfnum=88 vhca_state=1
 
-- mlx5_sf_dev_add : trace SF device add event::
+- mlx5_sf_dev_add: trace SF device add event::
 
     $ echo mlx5:mlx5_sf_dev_add>> /sys/kernel/debug/tracing/set_event
     $ cat /sys/kernel/debug/tracing/trace
     ...
     kworker/u128:3-9093    [000] ..... 24616.524495: mlx5_sf_dev_add: (0000:06:00.0) sfdev=00000000fc5d96fd aux_id=4 hw_id=0x8000 sfnum=88
 
-- mlx5_sf_dev_del : trace SF device delete event::
+- mlx5_sf_dev_del: trace SF device delete event::
 
     $ echo mlx5:mlx5_sf_dev_del >> /sys/kernel/debug/tracing/set_event
     $ cat /sys/kernel/debug/tracing/trace
