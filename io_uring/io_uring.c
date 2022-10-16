@@ -1587,8 +1587,6 @@ unsigned int io_file_get_flags(struct file *file)
 		res |= FFS_ISREG;
 	if (__io_file_supports_nowait(file, mode))
 		res |= FFS_NOWAIT;
-	if (io_file_need_scm(file))
-		res |= FFS_SCM;
 	return res;
 }
 
