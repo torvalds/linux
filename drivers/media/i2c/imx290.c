@@ -192,6 +192,7 @@ static const struct imx290_regval imx290_global_init_settings[] = {
 	{ IMX290_REG_8BIT(0x300f), 0x00 },
 	{ IMX290_REG_8BIT(0x3010), 0x21 },
 	{ IMX290_REG_8BIT(0x3012), 0x64 },
+	{ IMX290_REG_8BIT(0x3013), 0x00 },
 	{ IMX290_REG_8BIT(0x3016), 0x09 },
 	{ IMX290_REG_8BIT(0x3070), 0x02 },
 	{ IMX290_REG_8BIT(0x3071), 0x11 },
@@ -230,6 +231,7 @@ static const struct imx290_regval imx290_global_init_settings[] = {
 	{ IMX290_REG_8BIT(0x33b0), 0x50 },
 	{ IMX290_REG_8BIT(0x33b2), 0x1a },
 	{ IMX290_REG_8BIT(0x33b3), 0x04 },
+	{ IMX290_REG_8BIT(0x3480), 0x49 },
 };
 
 static const struct imx290_regval imx290_1080p_settings[] = {
@@ -239,15 +241,12 @@ static const struct imx290_regval imx290_1080p_settings[] = {
 	{ IMX290_OPB_SIZE_V, 10 },
 	{ IMX290_X_OUT_SIZE, 1920 },
 	{ IMX290_Y_OUT_SIZE, 1080 },
-	{ IMX290_REG_8BIT(0x3012), 0x64 },
-	{ IMX290_REG_8BIT(0x3013), 0x00 },
 	{ IMX290_INCKSEL1, 0x18 },
 	{ IMX290_INCKSEL2, 0x03 },
 	{ IMX290_INCKSEL3, 0x20 },
 	{ IMX290_INCKSEL4, 0x01 },
 	{ IMX290_INCKSEL5, 0x1a },
 	{ IMX290_INCKSEL6, 0x1a },
-	{ IMX290_REG_8BIT(0x3480), 0x49 },
 	/* data rate settings */
 	{ IMX290_REPETITION, 0x10 },
 	{ IMX290_TCLKPOST, 87 },
@@ -267,15 +266,12 @@ static const struct imx290_regval imx290_720p_settings[] = {
 	{ IMX290_OPB_SIZE_V, 4 },
 	{ IMX290_X_OUT_SIZE, 1280 },
 	{ IMX290_Y_OUT_SIZE, 720 },
-	{ IMX290_REG_8BIT(0x3012), 0x64 },
-	{ IMX290_REG_8BIT(0x3013), 0x00 },
 	{ IMX290_INCKSEL1, 0x20 },
 	{ IMX290_INCKSEL2, 0x00 },
 	{ IMX290_INCKSEL3, 0x20 },
 	{ IMX290_INCKSEL4, 0x01 },
 	{ IMX290_INCKSEL5, 0x1a },
 	{ IMX290_INCKSEL6, 0x1a },
-	{ IMX290_REG_8BIT(0x3480), 0x49 },
 	/* data rate settings */
 	{ IMX290_REPETITION, 0x10 },
 	{ IMX290_TCLKPOST, 79 },
