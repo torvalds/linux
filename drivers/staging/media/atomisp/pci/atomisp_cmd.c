@@ -754,93 +754,6 @@ static void atomisp_recover_params_queue(struct atomisp_video_pipe *pipe)
 	atomisp_handle_parameter_and_buffer(pipe);
 }
 
-/* find atomisp_video_pipe with css pipe id, buffer type and atomisp run_mode */
-static struct atomisp_video_pipe *__atomisp_get_pipe(
-    struct atomisp_sub_device *asd,
-    enum atomisp_input_stream_id stream_id,
-    enum ia_css_pipe_id css_pipe_id,
-    enum ia_css_buffer_type buf_type)
-{
-	/* video is same in online as in continuouscapture mode */
-	if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_LOWLAT) {
-		/*
-		 * Disable vf_pp and run CSS in still capture mode. In this
-		 * mode, CSS does not cause extra latency with buffering, but
-		 * scaling is not available.
-		 */
-		return &asd->video_out_capture;
-	} else if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_SCALER) {
-		/*
-		 * Disable vf_pp and run CSS in video mode. This allows using
-		 * ISP scaling but it has one frame delay due to CSS internal
-		 * buffering.
-		 */
-		return &asd->video_out_video_capture;
-	} else if (css_pipe_id == IA_CSS_PIPE_ID_YUVPP) {
-		/*
-		 * to SOC camera, yuvpp pipe is run for capture/video/SDV/ZSL.
-		 */
-		if (asd->continuous_mode->val) {
-			if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
-				/* SDV case */
-				switch (buf_type) {
-				case IA_CSS_BUFFER_TYPE_SEC_OUTPUT_FRAME:
-					return &asd->video_out_video_capture;
-				case IA_CSS_BUFFER_TYPE_SEC_VF_OUTPUT_FRAME:
-					return &asd->video_out_preview;
-				case IA_CSS_BUFFER_TYPE_OUTPUT_FRAME:
-					return &asd->video_out_capture;
-				default:
-					return &asd->video_out_vf;
-				}
-			} else if (asd->run_mode->val == ATOMISP_RUN_MODE_PREVIEW) {
-				/* ZSL case */
-				switch (buf_type) {
-				case IA_CSS_BUFFER_TYPE_SEC_OUTPUT_FRAME:
-					return &asd->video_out_preview;
-				case IA_CSS_BUFFER_TYPE_OUTPUT_FRAME:
-					return &asd->video_out_capture;
-				default:
-					return &asd->video_out_vf;
-				}
-			}
-		} else if (buf_type == IA_CSS_BUFFER_TYPE_OUTPUT_FRAME) {
-			switch (asd->run_mode->val) {
-			case ATOMISP_RUN_MODE_VIDEO:
-				return &asd->video_out_video_capture;
-			case ATOMISP_RUN_MODE_PREVIEW:
-				return &asd->video_out_preview;
-			default:
-				return &asd->video_out_capture;
-			}
-		} else if (buf_type == IA_CSS_BUFFER_TYPE_VF_OUTPUT_FRAME) {
-			if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO)
-				return &asd->video_out_preview;
-			else
-				return &asd->video_out_vf;
-		}
-	} else if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
-		/* For online video or SDV video pipe. */
-		if (css_pipe_id == IA_CSS_PIPE_ID_VIDEO ||
-		    css_pipe_id == IA_CSS_PIPE_ID_COPY ||
-		    css_pipe_id == IA_CSS_PIPE_ID_YUVPP) {
-			if (buf_type == IA_CSS_BUFFER_TYPE_OUTPUT_FRAME)
-				return &asd->video_out_video_capture;
-			return &asd->video_out_preview;
-		}
-	} else if (asd->run_mode->val == ATOMISP_RUN_MODE_PREVIEW) {
-		/* For online preview or ZSL preview pipe. */
-		if (css_pipe_id == IA_CSS_PIPE_ID_PREVIEW ||
-		    css_pipe_id == IA_CSS_PIPE_ID_COPY ||
-		    css_pipe_id == IA_CSS_PIPE_ID_YUVPP)
-			return &asd->video_out_preview;
-	}
-	/* For capture pipe. */
-	if (buf_type == IA_CSS_BUFFER_TYPE_VF_OUTPUT_FRAME)
-		return &asd->video_out_vf;
-	return &asd->video_out_capture;
-}
-
 enum atomisp_metadata_type
 atomisp_get_metadata_type(struct atomisp_sub_device *asd,
 			  enum ia_css_pipe_id pipe_id)
@@ -895,13 +808,6 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 	if (err) {
 		dev_err(isp->dev,
 			"atomisp_css_dequeue_buffer failed: 0x%x\n", err);
-		return;
-	}
-
-	/* need to know the atomisp pipe for frame buffers */
-	pipe = __atomisp_get_pipe(asd, stream_id, css_pipe_id, buf_type);
-	if (!pipe) {
-		dev_err(isp->dev, "error getting atomisp pipe\n");
 		return;
 	}
 
@@ -987,6 +893,8 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 		if (!frame->valid)
 			error = true;
 
+		pipe = vb_to_pipe(&frame->vb.vb2_buf);
+
 		/* FIXME:
 		 * YUVPP doesn't set postview exp_id correctlly in SDV mode.
 		 * This is a WORKAROUND to set exp_id. see HSDES-1503911606.
@@ -1035,6 +943,8 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 
 		if (!frame->valid)
 			error = true;
+
+		pipe = vb_to_pipe(&frame->vb.vb2_buf);
 
 		/* FIXME:
 		 * YUVPP doesn't set preview exp_id correctlly in ZSL mode.
