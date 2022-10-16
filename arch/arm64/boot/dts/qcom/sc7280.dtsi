@@ -5355,7 +5355,7 @@
 		};
 
 		cpufreq_hw: cpufreq@18591000 {
-			compatible = "qcom,cpufreq-epss";
+			compatible = "qcom,sc7280-cpufreq-epss", "qcom,cpufreq-epss";
 			reg = <0 0x18591000 0 0x1000>,
 			      <0 0x18592000 0 0x1000>,
 			      <0 0x18593000 0 0x1000>;
