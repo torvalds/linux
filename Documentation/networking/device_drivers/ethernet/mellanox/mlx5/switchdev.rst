@@ -7,6 +7,8 @@ Switchdev
 
 :Copyright: |copy| 2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 
+.. _mlx5_bridge_offload:
+
 Bridge offload
 ==============
 
