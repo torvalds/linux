@@ -651,19 +651,6 @@ static void iser_connected_handler(struct rdma_cm_id *cma_id,
 	complete(&iser_conn->up_completion);
 }
 
-static void iser_disconnected_handler(struct rdma_cm_id *cma_id)
-{
-	struct iser_conn *iser_conn = cma_id->context;
-
-	if (iser_conn_terminate(iser_conn)) {
-		if (iser_conn->iscsi_conn)
-			iscsi_conn_failure(iser_conn->iscsi_conn,
-					   ISCSI_ERR_CONN_FAILED);
-		else
-			iser_err("iscsi_iser connection isn't bound\n");
-	}
-}
-
 /*
  * Called with state mutex held
  */
@@ -678,7 +665,13 @@ static void iser_cleanup_handler(struct rdma_cm_id *cma_id,
 	 * by now, call it here to be safe that we handle CM drep
 	 * and flush errors.
 	 */
-	iser_disconnected_handler(cma_id);
+	if (iser_conn_terminate(iser_conn)) {
+		if (iser_conn->iscsi_conn)
+			iscsi_conn_failure(iser_conn->iscsi_conn,
+					   ISCSI_ERR_CONN_FAILED);
+		else
+			iser_err("iscsi_iser connection isn't bound\n");
+	}
 	iser_free_ib_conn_res(iser_conn, destroy);
 	complete(&iser_conn->ib_completion);
 }
