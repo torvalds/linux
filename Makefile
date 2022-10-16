@@ -1979,6 +1979,8 @@ endif
 
 single-goals := $(addprefix $(build-dir)/, $(single-no-ko))
 
+KBUILD_MODULES := 1
+
 endif
 
 # Preset locale variables to speed up the build process. Limit locale
