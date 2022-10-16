@@ -50,7 +50,7 @@ static struct inode *f2fs_new_inode(struct user_namespace *mnt_userns,
 	inode->i_blocks = 0;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
 	F2FS_I(inode)->i_crtime = inode->i_mtime;
-	inode->i_generation = prandom_u32();
+	inode->i_generation = get_random_u32();
 
 	if (S_ISDIR(inode->i_mode))
 		F2FS_I(inode)->i_current_depth = 1;

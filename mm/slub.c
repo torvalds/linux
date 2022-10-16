@@ -1881,7 +1881,7 @@ static bool shuffle_freelist(struct kmem_cache *s, struct slab *slab)
 		return false;
 
 	freelist_count = oo_objects(s->oo);
-	pos = get_random_int() % freelist_count;
+	pos = prandom_u32_max(freelist_count);
 
 	page_limit = slab->objects * s->size;
 	start = fixup_red_left(s, slab_address(slab));

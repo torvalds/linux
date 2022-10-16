@@ -2332,7 +2332,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, struct inode *dir,
 		inode_init_owner(&init_user_ns, inode, dir, mode);
 		inode->i_blocks = 0;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
-		inode->i_generation = prandom_u32();
+		inode->i_generation = get_random_u32();
 		info = SHMEM_I(inode);
 		memset(info, 0, (char *)inode - (char *)info);
 		spin_lock_init(&info->lock);

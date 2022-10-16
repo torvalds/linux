@@ -341,7 +341,7 @@ static int kprobes_test_init(struct kunit *test)
 	stacktrace_driver = kprobe_stacktrace_driver;
 
 	do {
-		rand1 = prandom_u32();
+		rand1 = get_random_u32();
 	} while (rand1 <= div_factor);
 	return 0;
 }

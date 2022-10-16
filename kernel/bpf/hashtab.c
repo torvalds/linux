@@ -527,7 +527,7 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 	if (htab->map.map_flags & BPF_F_ZERO_SEED)
 		htab->hashrnd = 0;
 	else
-		htab->hashrnd = get_random_int();
+		htab->hashrnd = get_random_u32();
 
 	htab_init_buckets(htab);
 

@@ -4375,8 +4375,8 @@ nfsd4_init_leases_net(struct nfsd_net *nn)
 	nn->nfsd4_grace = 90;
 	nn->somebody_reclaimed = false;
 	nn->track_reclaim_completes = false;
-	nn->clverifier_counter = prandom_u32();
-	nn->clientid_base = prandom_u32();
+	nn->clverifier_counter = get_random_u32();
+	nn->clientid_base = get_random_u32();
 	nn->clientid_counter = nn->clientid_base + 1;
 	nn->s2s_cp_cl_id = nn->clientid_counter++;
 

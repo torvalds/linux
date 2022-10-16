@@ -2109,7 +2109,7 @@ static inline kuid_t sock_net_uid(const struct net *net, const struct sock *sk)
 
 static inline u32 net_tx_rndhash(void)
 {
-	u32 v = prandom_u32();
+	u32 v = get_random_u32();
 
 	return v ?: 1;
 }
