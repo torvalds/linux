@@ -680,10 +680,26 @@ struct device_link {
 	bool supplier_preactivated; /* Owned by consumer probe. */
 };
 
-static inline struct device *kobj_to_dev(struct kobject *kobj)
+static inline struct device *__kobj_to_dev(struct kobject *kobj)
 {
 	return container_of(kobj, struct device, kobj);
 }
+
+static inline const struct device *__kobj_to_dev_const(const struct kobject *kobj)
+{
+	return container_of(kobj, const struct device, kobj);
+}
+
+/*
+ * container_of() will happily take a const * and spit back a non-const * as it
+ * is just doing pointer math.  But we want to be a bit more careful in the
+ * driver code, so manually force any const * of a kobject to also be a const *
+ * to a device.
+ */
+#define kobj_to_dev(kobj)					\
+	_Generic((kobj),					\
+		 const struct kobject *: __kobj_to_dev_const,	\
+		 struct kobject *: __kobj_to_dev)(kobj)
 
 /**
  * device_iommu_mapped - Returns true when the device DMA is translated
