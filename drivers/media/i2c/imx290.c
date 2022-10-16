@@ -367,7 +367,7 @@ static inline struct imx290 *to_imx290(struct v4l2_subdev *_sd)
 	return container_of(_sd, struct imx290, sd);
 }
 
-static int __always_unused imx290_read_reg(struct imx290 *imx290, u32 addr, u32 *value)
+static int __always_unused imx290_read(struct imx290 *imx290, u32 addr, u32 *value)
 {
 	u8 data[3] = { 0, 0, 0 };
 	int ret;
@@ -385,17 +385,23 @@ static int __always_unused imx290_read_reg(struct imx290 *imx290, u32 addr, u32 
 	return 0;
 }
 
-static int imx290_write_reg(struct imx290 *imx290, u32 addr, u32 value)
+static int imx290_write(struct imx290 *imx290, u32 addr, u32 value, int *err)
 {
 	u8 data[3] = { value & 0xff, (value >> 8) & 0xff, value >> 16 };
 	int ret;
 
+	if (err && *err)
+		return *err;
+
 	ret = regmap_raw_write(imx290->regmap, addr & IMX290_REG_ADDR_MASK,
 			       data, (addr >> IMX290_REG_SIZE_SHIFT) & 3);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(imx290->dev, "%u-bit write to 0x%04x failed: %d\n",
 			 ((addr >> IMX290_REG_SIZE_SHIFT) & 3) * 8,
 			 addr & IMX290_REG_ADDR_MASK, ret);
+		if (err)
+			*err = ret;
+	}
 
 	return ret;
 }
@@ -408,7 +414,7 @@ static int imx290_set_register_array(struct imx290 *imx290,
 	int ret;
 
 	for (i = 0; i < num_settings; ++i, ++settings) {
-		ret = imx290_write_reg(imx290, settings->reg, settings->val);
+		ret = imx290_write(imx290, settings->reg, settings->val, NULL);
 		if (ret < 0)
 			return ret;
 	}
@@ -419,29 +425,16 @@ static int imx290_set_register_array(struct imx290 *imx290,
 	return 0;
 }
 
-static int imx290_set_gain(struct imx290 *imx290, u32 value)
-{
-	int ret;
-
-	ret = imx290_write_reg(imx290, IMX290_GAIN, value);
-	if (ret)
-		dev_err(imx290->dev, "Unable to write gain\n");
-
-	return ret;
-}
-
 /* Stop streaming */
 static int imx290_stop_streaming(struct imx290 *imx290)
 {
-	int ret;
+	int ret = 0;
 
-	ret = imx290_write_reg(imx290, IMX290_STANDBY, 0x01);
-	if (ret < 0)
-		return ret;
+	imx290_write(imx290, IMX290_STANDBY, 0x01, &ret);
 
 	msleep(30);
 
-	return imx290_write_reg(imx290, IMX290_XMSTA, 0x01);
+	return imx290_write(imx290, IMX290_XMSTA, 0x01, &ret);
 }
 
 static int imx290_set_ctrl(struct v4l2_ctrl *ctrl)
@@ -456,25 +449,25 @@ static int imx290_set_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_GAIN:
-		ret = imx290_set_gain(imx290, ctrl->val);
+		ret = imx290_write(imx290, IMX290_GAIN, ctrl->val, NULL);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		if (ctrl->val) {
-			imx290_write_reg(imx290, IMX290_BLKLEVEL, 0);
+			imx290_write(imx290, IMX290_BLKLEVEL, 0, &ret);
 			usleep_range(10000, 11000);
-			imx290_write_reg(imx290, IMX290_PGCTRL,
-					 (u8)(IMX290_PGCTRL_REGEN |
-					 IMX290_PGCTRL_THRU |
-					 IMX290_PGCTRL_MODE(ctrl->val)));
+			imx290_write(imx290, IMX290_PGCTRL,
+				     (u8)(IMX290_PGCTRL_REGEN |
+				     IMX290_PGCTRL_THRU |
+				     IMX290_PGCTRL_MODE(ctrl->val)), &ret);
 		} else {
-			imx290_write_reg(imx290, IMX290_PGCTRL, 0x00);
+			imx290_write(imx290, IMX290_PGCTRL, 0x00, &ret);
 			usleep_range(10000, 11000);
 			if (imx290->bpp == 10)
-				imx290_write_reg(imx290, IMX290_BLKLEVEL,
-						 0x3c);
+				imx290_write(imx290, IMX290_BLKLEVEL, 0x3c,
+					     &ret);
 			else /* 12 bits per pixel */
-				imx290_write_reg(imx290, IMX290_BLKLEVEL,
-						 0xf0);
+				imx290_write(imx290, IMX290_BLKLEVEL, 0xf0,
+					     &ret);
 		}
 		break;
 	default:
@@ -695,7 +688,8 @@ static int imx290_start_streaming(struct imx290 *imx290)
 		return ret;
 	}
 
-	ret = imx290_write_reg(imx290, IMX290_HMAX, imx290->current_mode->hmax);
+	ret = imx290_write(imx290, IMX290_HMAX, imx290->current_mode->hmax,
+			   NULL);
 	if (ret)
 		return ret;
 
@@ -706,14 +700,12 @@ static int imx290_start_streaming(struct imx290 *imx290)
 		return ret;
 	}
 
-	ret = imx290_write_reg(imx290, IMX290_STANDBY, 0x00);
-	if (ret < 0)
-		return ret;
+	imx290_write(imx290, IMX290_STANDBY, 0x00, &ret);
 
 	msleep(30);
 
 	/* Start streaming */
-	return imx290_write_reg(imx290, IMX290_XMSTA, 0x00);
+	return imx290_write(imx290, IMX290_XMSTA, 0x00, &ret);
 }
 
 static int imx290_set_stream(struct v4l2_subdev *sd, int enable)
@@ -772,27 +764,13 @@ static int imx290_set_data_lanes(struct imx290 *imx290)
 		 * validated in probe itself
 		 */
 		dev_err(imx290->dev, "Lane configuration not supported\n");
-		ret = -EINVAL;
-		goto exit;
+		return -EINVAL;
 	}
 
-	ret = imx290_write_reg(imx290, IMX290_PHY_LANE_NUM, laneval);
-	if (ret) {
-		dev_err(imx290->dev, "Error setting Physical Lane number register\n");
-		goto exit;
-	}
+	imx290_write(imx290, IMX290_PHY_LANE_NUM, laneval, &ret);
+	imx290_write(imx290, IMX290_CSI_LANE_MODE, laneval, &ret);
+	imx290_write(imx290, IMX290_FR_FDG_SEL, frsel, &ret);
 
-	ret = imx290_write_reg(imx290, IMX290_CSI_LANE_MODE, laneval);
-	if (ret) {
-		dev_err(imx290->dev, "Error setting CSI Lane mode register\n");
-		goto exit;
-	}
-
-	ret = imx290_write_reg(imx290, IMX290_FR_FDG_SEL, frsel);
-	if (ret)
-		dev_err(imx290->dev, "Error setting FR/FDG SEL register\n");
-
-exit:
 	return ret;
 }
 
