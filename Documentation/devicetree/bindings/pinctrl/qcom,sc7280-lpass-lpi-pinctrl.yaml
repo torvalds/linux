@@ -23,7 +23,6 @@ properties:
     type: boolean
 
   reg:
-    minItems: 2
     maxItems: 2
 
   gpio-controller: true

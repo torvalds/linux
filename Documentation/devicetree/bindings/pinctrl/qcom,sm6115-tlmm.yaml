@@ -18,7 +18,6 @@ properties:
     const: qcom,sm6115-tlmm
 
   reg:
-    minItems: 3
     maxItems: 3
 
   reg-names:
