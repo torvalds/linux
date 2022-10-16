@@ -2688,7 +2688,7 @@ int atomisp_get_css_frame_info(struct atomisp_sub_device *asd,
 
 	if (0 != ia_css_pipe_get_info(asd->stream_env[stream_index]
 		.pipes[pipe_index], &info)) {
-		dev_err(isp->dev, "ia_css_pipe_get_info FAILED");
+		dev_dbg(isp->dev, "ia_css_pipe_get_info FAILED");
 		return -EINVAL;
 	}
 
