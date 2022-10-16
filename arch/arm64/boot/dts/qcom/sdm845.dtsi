@@ -3008,6 +3008,28 @@
 				};
 			};
 
+			qup_uart6_4pin: qup-uart6-4pin-state {
+
+				cts-pins {
+					pins = "gpio45";
+					function = "qup6";
+					bias-pull-down;
+				};
+
+				rts-tx-pins {
+					pins = "gpio46", "gpio47";
+					function = "qup6";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				rx-pins {
+					pins = "gpio48";
+					function = "qup6";
+					bias-pull-up;
+				};
+			};
+
 			qup_uart7_default: qup-uart7-default {
 				pinmux {
 					pins = "gpio95", "gpio96";
