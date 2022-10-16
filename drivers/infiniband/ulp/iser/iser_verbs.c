@@ -448,6 +448,8 @@ int iser_conn_terminate(struct iser_conn *iser_conn)
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
 	int err = 0;
 
+	lockdep_assert_held(&iser_conn->state_mutex);
+
 	/* terminate the iser conn only if the conn state is UP */
 	if (iser_conn->state != ISER_CONN_UP)
 		return 0;
@@ -482,9 +484,10 @@ int iser_conn_terminate(struct iser_conn *iser_conn)
  */
 static void iser_connect_error(struct rdma_cm_id *cma_id)
 {
-	struct iser_conn *iser_conn;
+	struct iser_conn *iser_conn = cma_id->context;
 
-	iser_conn = cma_id->context;
+	lockdep_assert_held(&iser_conn->state_mutex);
+
 	iser_conn->state = ISER_CONN_TERMINATING;
 }
 
@@ -526,12 +529,13 @@ static void iser_calc_scsi_params(struct iser_conn *iser_conn,
  */
 static void iser_addr_handler(struct rdma_cm_id *cma_id)
 {
+	struct iser_conn *iser_conn = cma_id->context;
 	struct iser_device *device;
-	struct iser_conn *iser_conn;
 	struct ib_conn *ib_conn;
 	int    ret;
 
-	iser_conn = cma_id->context;
+	lockdep_assert_held(&iser_conn->state_mutex);
+
 	if (iser_conn->state != ISER_CONN_PENDING)
 		/* bailout */
 		return;
@@ -581,6 +585,8 @@ static void iser_route_handler(struct rdma_cm_id *cma_id)
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
 	struct ib_device *ib_dev = ib_conn->device->ib_device;
 
+	lockdep_assert_held(&iser_conn->state_mutex);
+
 	if (iser_conn->state != ISER_CONN_PENDING)
 		/* bailout */
 		return;
@@ -613,14 +619,18 @@ failure:
 	iser_connect_error(cma_id);
 }
 
+/*
+ * Called with state mutex held
+ */
 static void iser_connected_handler(struct rdma_cm_id *cma_id,
 				   const void *private_data)
 {
-	struct iser_conn *iser_conn;
+	struct iser_conn *iser_conn = cma_id->context;
 	struct ib_qp_attr attr;
 	struct ib_qp_init_attr init_attr;
 
-	iser_conn = cma_id->context;
+	lockdep_assert_held(&iser_conn->state_mutex);
+
 	if (iser_conn->state != ISER_CONN_PENDING)
 		/* bailout */
 		return;
@@ -654,11 +664,15 @@ static void iser_disconnected_handler(struct rdma_cm_id *cma_id)
 	}
 }
 
+/*
+ * Called with state mutex held
+ */
 static void iser_cleanup_handler(struct rdma_cm_id *cma_id,
 				 bool destroy)
 {
 	struct iser_conn *iser_conn = cma_id->context;
 
+	lockdep_assert_held(&iser_conn->state_mutex);
 	/*
 	 * We are not guaranteed that we visited disconnected_handler
 	 * by now, call it here to be safe that we handle CM drep
