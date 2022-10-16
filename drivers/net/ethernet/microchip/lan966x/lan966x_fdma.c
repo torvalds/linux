@@ -425,7 +425,8 @@ static struct sk_buff *lan966x_fdma_rx_get_frame(struct lan966x_rx *rx)
 	lan966x_ifh_get_src_port(skb->data, &src_port);
 	lan966x_ifh_get_timestamp(skb->data, &timestamp);
 
-	WARN_ON(src_port >= lan966x->num_phys_ports);
+	if (WARN_ON(src_port >= lan966x->num_phys_ports))
+		goto free_skb;
 
 	skb->dev = lan966x->ports[src_port]->dev;
 	skb_pull(skb, IFH_LEN * sizeof(u32));
@@ -449,6 +450,8 @@ static struct sk_buff *lan966x_fdma_rx_get_frame(struct lan966x_rx *rx)
 
 	return skb;
 
+free_skb:
+	kfree_skb(skb);
 unmap_page:
 	dma_unmap_page(lan966x->dev, (dma_addr_t)db->dataptr,
 		       FDMA_DCB_STATUS_BLOCKL(db->status),

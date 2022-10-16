@@ -17,7 +17,7 @@ struct drm_device;
 
 void gma_irq_preinstall(struct drm_device *dev);
 void gma_irq_postinstall(struct drm_device *dev);
-int  gma_irq_install(struct drm_device *dev, unsigned int irq);
+int  gma_irq_install(struct drm_device *dev);
 void gma_irq_uninstall(struct drm_device *dev);
 
 int  gma_crtc_enable_vblank(struct drm_crtc *crtc);

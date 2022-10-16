@@ -141,6 +141,14 @@ struct gpio_desc;
  *	Locking: none.
  *	Interrupts: caller dependent.
  *
+ * @start_rx: ``void ()(struct uart_port *port)``
+ *
+ *	Start receiving characters.
+ *
+ *	Locking: @port->lock taken.
+ *	Interrupts: locally disabled.
+ *	This call must not sleep
+ *
  * @stop_rx: ``void ()(struct uart_port *port)``
  *
  *	Stop receiving characters; the @port is in the process of being closed.
@@ -615,6 +623,23 @@ struct uart_state {
 
 /* number of characters left in xmit buffer before we ask for more */
 #define WAKEUP_CHARS		256
+
+/**
+ * uart_xmit_advance - Advance xmit buffer and account Tx'ed chars
+ * @up: uart_port structure describing the port
+ * @chars: number of characters sent
+ *
+ * This function advances the tail of circular xmit buffer by the number of
+ * @chars transmitted and handles accounting of transmitted bytes (into
+ * @up's icount.tx).
+ */
+static inline void uart_xmit_advance(struct uart_port *up, unsigned int chars)
+{
+	struct circ_buf *xmit = &up->state->xmit;
+
+	xmit->tail = (xmit->tail + chars) & (UART_XMIT_SIZE - 1);
+	up->icount.tx += chars;
+}
 
 struct module;
 struct tty_driver;

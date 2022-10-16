@@ -2413,6 +2413,7 @@ int tb_switch_configure(struct tb_switch *sw)
 		 * additional capabilities.
 		 */
 		sw->config.cmuv = USB4_VERSION_1_0;
+		sw->config.plug_events_delay = 0xa;
 
 		/* Enumerate the switch */
 		ret = tb_sw_write(sw, (u32 *)&sw->config + 1, TB_CFG_SWITCH,
@@ -3786,14 +3787,18 @@ int tb_switch_pcie_l1_enable(struct tb_switch *sw)
  */
 int tb_switch_xhci_connect(struct tb_switch *sw)
 {
-	bool usb_port1, usb_port3, xhci_port1, xhci_port3;
 	struct tb_port *port1, *port3;
 	int ret;
+
+	if (sw->generation != 3)
+		return 0;
 
 	port1 = &sw->ports[1];
 	port3 = &sw->ports[3];
 
 	if (tb_switch_is_alpine_ridge(sw)) {
+		bool usb_port1, usb_port3, xhci_port1, xhci_port3;
+
 		usb_port1 = tb_lc_is_usb_plugged(port1);
 		usb_port3 = tb_lc_is_usb_plugged(port3);
 		xhci_port1 = tb_lc_is_xhci_connected(port1);

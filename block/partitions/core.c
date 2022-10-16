@@ -596,6 +596,9 @@ static int blk_add_partitions(struct gendisk *disk)
 	if (disk->flags & GENHD_FL_NO_PART)
 		return 0;
 
+	if (test_bit(GD_SUPPRESS_PART_SCAN, &disk->state))
+		return 0;
+
 	state = check_partition(disk);
 	if (!state)
 		return 0;
