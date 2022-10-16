@@ -311,7 +311,6 @@ struct svc_rqst {
 	struct auth_domain *	rq_gssclient;	/* "gss/"-style peer info */
 	struct svc_cacherep *	rq_cacherep;	/* cache info */
 	struct task_struct	*rq_task;	/* service thread */
-	spinlock_t		rq_lock;	/* per-request lock */
 	struct net		*rq_bc_net;	/* pointer to backchannel's
 						 * net namespace
 						 */

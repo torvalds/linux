@@ -638,7 +638,6 @@ svc_rqst_alloc(struct svc_serv *serv, struct svc_pool *pool, int node)
 		return rqstp;
 
 	__set_bit(RQ_BUSY, &rqstp->rq_flags);
-	spin_lock_init(&rqstp->rq_lock);
 	rqstp->rq_server = serv;
 	rqstp->rq_pool = pool;
 
