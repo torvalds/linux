@@ -39,6 +39,8 @@ struct genl_info;
  *	undo operations done by pre_doit, for example release locks
  * @mcgrps: multicast groups used by this family
  * @n_mcgrps: number of multicast groups
+ * @resv_start_op: first operation for which reserved fields of the header
+ *	can be validated, new families should leave this field at zero
  * @mcgrp_offset: starting number of multicast group IDs in this family
  *	(private)
  * @ops: the operations supported by this family
@@ -58,6 +60,7 @@ struct genl_family {
 	u8			n_ops;
 	u8			n_small_ops;
 	u8			n_mcgrps;
+	u8			resv_start_op;
 	const struct nla_policy *policy;
 	int			(*pre_doit)(const struct genl_ops *ops,
 					    struct sk_buff *skb,
@@ -106,6 +109,13 @@ static inline void genl_info_net_set(struct genl_info *info, struct net *net)
 }
 
 #define GENL_SET_ERR_MSG(info, msg) NL_SET_ERR_MSG((info)->extack, msg)
+
+/* Report that a root attribute is missing */
+#define GENL_REQ_ATTR_CHECK(info, attr) ({				\
+	struct genl_info *__info = (info);				\
+									\
+	NL_REQ_ATTR_CHECK(__info->extack, NULL, __info->attrs, (attr)); \
+})
 
 enum genl_validate_flags {
 	GENL_DONT_VALIDATE_STRICT		= BIT(0),

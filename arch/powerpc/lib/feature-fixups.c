@@ -550,7 +550,7 @@ void do_barrier_nospec_fixups(bool enable)
 }
 #endif /* CONFIG_PPC_BARRIER_NOSPEC */
 
-#ifdef CONFIG_PPC_FSL_BOOK3E
+#ifdef CONFIG_PPC_E500
 void do_barrier_nospec_fixups_range(bool enable, void *fixup_start, void *fixup_end)
 {
 	unsigned int instr[2], *dest;
@@ -602,7 +602,7 @@ void __init do_btb_flush_fixups(void)
 	for (; start < end; start += 2)
 		patch_btb_flush_section(start);
 }
-#endif /* CONFIG_PPC_FSL_BOOK3E */
+#endif /* CONFIG_PPC_E500 */
 
 void do_lwsync_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 {

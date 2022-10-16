@@ -7,7 +7,7 @@
 #include <linux/gfp.h>
 #include <linux/cache.h>
 #include <linux/dma-map-ops.h>
-#include <linux/dma-iommu.h>
+#include <linux/iommu.h>
 #include <xen/xen.h>
 
 #include <asm/cacheflush.h>
@@ -36,7 +36,7 @@ void arch_dma_prep_coherent(struct page *page, size_t size)
 {
 	unsigned long start = (unsigned long)page_address(page);
 
-	dcache_clean_inval_poc(start, start + size);
+	dcache_clean_poc(start, start + size);
 }
 
 #ifdef CONFIG_IOMMU_DMA

@@ -8,6 +8,7 @@ RISC-V architecture
     boot-image-header
     vm-layout
     patch-acceptance
+    uabi
 
     features
 

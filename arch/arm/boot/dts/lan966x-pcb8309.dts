@@ -42,6 +42,34 @@
 		};
 	};
 
+	leds {
+		compatible = "gpio-leds";
+
+		led-s0-green {
+			label = "s0:green";
+			gpios = <&sgpio_out 2 0 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led-s0-red {
+			label = "s0:red";
+			gpios = <&sgpio_out 2 1 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led-s1-green {
+			label = "s1:green";
+			gpios = <&sgpio_out 3 0 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led-s1-red {
+			label = "s1:red";
+			gpios = <&sgpio_out 3 1 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+	};
+
 	mux: mux-controller {
 		compatible = "gpio-mux";
 		#mux-control-cells = <0>;
@@ -67,6 +95,10 @@
 		mod-def0-gpios = <&sgpio_in  3 1 GPIO_ACTIVE_LOW>;
 		tx-fault-gpios = <&sgpio_in  1 1 GPIO_ACTIVE_HIGH>;
 	};
+};
+
+&aes {
+	status = "disabled"; /* Reserved by secure OS */
 };
 
 &flx3 {

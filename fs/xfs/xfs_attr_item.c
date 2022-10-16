@@ -86,8 +86,6 @@ xfs_attri_log_nameval_alloc(
 	 */
 	nv = xlog_kvmalloc(sizeof(struct xfs_attri_log_nameval) +
 					name_len + value_len);
-	if (!nv)
-		return nv;
 
 	nv->name.i_addr = nv + 1;
 	nv->name.i_len = name_len;
@@ -441,8 +439,6 @@ xfs_attr_create_intent(
 		attr->xattri_nameval = xfs_attri_log_nameval_alloc(args->name,
 				args->namelen, args->value, args->valuelen);
 	}
-	if (!attr->xattri_nameval)
-		return ERR_PTR(-ENOMEM);
 
 	attrip = xfs_attri_init(mp, attr->xattri_nameval);
 	xfs_trans_add_item(tp, &attrip->attri_item);
@@ -762,8 +758,6 @@ xlog_recover_attri_commit_pass2(
 	nv = xfs_attri_log_nameval_alloc(attr_name,
 			attri_formatp->alfi_name_len, attr_value,
 			attri_formatp->alfi_value_len);
-	if (!nv)
-		return -ENOMEM;
 
 	attrip = xfs_attri_init(mp, nv);
 	error = xfs_attri_copy_format(&item->ri_buf[0], &attrip->attri_format);

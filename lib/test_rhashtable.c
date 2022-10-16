@@ -291,7 +291,7 @@ static int __init test_rhltable(unsigned int entries)
 	if (WARN_ON(err))
 		goto out_free;
 
-	k = prandom_u32();
+	k = get_random_u32();
 	ret = 0;
 	for (i = 0; i < entries; i++) {
 		rhl_test_objects[i].value.id = k;
@@ -369,12 +369,12 @@ static int __init test_rhltable(unsigned int entries)
 	pr_info("test %d random rhlist add/delete operations\n", entries);
 	for (j = 0; j < entries; j++) {
 		u32 i = prandom_u32_max(entries);
-		u32 prand = prandom_u32();
+		u32 prand = get_random_u32();
 
 		cond_resched();
 
 		if (prand == 0)
-			prand = prandom_u32();
+			prand = get_random_u32();
 
 		if (prand & 1) {
 			prand >>= 1;

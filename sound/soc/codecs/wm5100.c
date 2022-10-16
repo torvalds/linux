@@ -2635,7 +2635,7 @@ err:
 	return ret;
 }
 
-static int wm5100_i2c_remove(struct i2c_client *i2c)
+static void wm5100_i2c_remove(struct i2c_client *i2c)
 {
 	struct wm5100_priv *wm5100 = i2c_get_clientdata(i2c);
 
@@ -2651,8 +2651,6 @@ static int wm5100_i2c_remove(struct i2c_client *i2c)
 		gpio_set_value_cansleep(wm5100->pdata.ldo_ena, 0);
 		gpio_free(wm5100->pdata.ldo_ena);
 	}
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

@@ -145,7 +145,6 @@ static int rxe_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		goto drop;
 
 	if (skb_linearize(skb)) {
-		pr_err("skb_linearize failed\n");
 		ib_device_put(&rxe->ib_dev);
 		goto drop;
 	}

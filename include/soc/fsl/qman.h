@@ -1172,6 +1172,15 @@ int qman_delete_cgr(struct qman_cgr *cgr);
 void qman_delete_cgr_safe(struct qman_cgr *cgr);
 
 /**
+ * qman_update_cgr_safe - Modifies a congestion group object from any CPU
+ * @cgr: the 'cgr' object to modify
+ * @opts: state of the CGR settings
+ *
+ * This will select the proper CPU and modify the CGR settings.
+ */
+int qman_update_cgr_safe(struct qman_cgr *cgr, struct qm_mcc_initcgr *opts);
+
+/**
  * qman_query_cgr_congested - Queries CGR's congestion status
  * @cgr: the 'cgr' object to query
  * @result: returns 'cgr's congestion status, 1 (true) if congested

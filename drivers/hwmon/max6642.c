@@ -148,7 +148,7 @@ static int max6642_detect(struct i2c_client *client,
 	if ((reg_status & 0x2b) != 0x00)
 		return -ENODEV;
 
-	strlcpy(info->type, "max6642", I2C_NAME_SIZE);
+	strscpy(info->type, "max6642", I2C_NAME_SIZE);
 
 	return 0;
 }

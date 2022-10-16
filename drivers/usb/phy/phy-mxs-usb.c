@@ -144,8 +144,8 @@
 #define MXS_PHY_NEED_IP_FIX			BIT(3)
 
 /* Minimum and maximum values for device tree entries */
-#define MXS_PHY_TX_CAL45_MIN			30
-#define MXS_PHY_TX_CAL45_MAX			55
+#define MXS_PHY_TX_CAL45_MIN			35
+#define MXS_PHY_TX_CAL45_MAX			54
 #define MXS_PHY_TX_D_CAL_MIN			79
 #define MXS_PHY_TX_D_CAL_MAX			119
 

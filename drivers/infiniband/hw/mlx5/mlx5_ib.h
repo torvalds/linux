@@ -1541,6 +1541,18 @@ int mlx5_ib_test_wc(struct mlx5_ib_dev *dev);
 
 static inline bool mlx5_ib_lag_should_assign_affinity(struct mlx5_ib_dev *dev)
 {
+	/*
+	 * If the driver is in hash mode and the port_select_flow_table_bypass cap
+	 * is supported, it means that the driver no longer needs to assign the port
+	 * affinity by default. If a user wants to set the port affinity explicitly,
+	 * the user has a dedicated API to do that, so there is no need to assign
+	 * the port affinity by default.
+	 */
+	if (dev->lag_active &&
+	    mlx5_lag_mode_is_hash(dev->mdev) &&
+	    MLX5_CAP_PORT_SELECTION(dev->mdev, port_select_flow_table_bypass))
+		return 0;
+
 	return dev->lag_active ||
 		(MLX5_CAP_GEN(dev->mdev, num_lag_ports) > 1 &&
 		 MLX5_CAP_GEN(dev->mdev, lag_tx_port_affinity));
@@ -1551,4 +1563,40 @@ static inline bool rt_supported(int ts_cap)
 	return ts_cap == MLX5_TIMESTAMP_FORMAT_CAP_REAL_TIME ||
 	       ts_cap == MLX5_TIMESTAMP_FORMAT_CAP_FREE_RUNNING_AND_REAL_TIME;
 }
+
+/*
+ * PCI Peer to Peer is a trainwreck. If no switch is present then things
+ * sometimes work, depending on the pci_distance_p2p logic for excluding broken
+ * root complexes. However if a switch is present in the path, then things get
+ * really ugly depending on how the switch is setup. This table assumes that the
+ * root complex is strict and is validating that all req/reps are matches
+ * perfectly - so any scenario where it sees only half the transaction is a
+ * failure.
+ *
+ * CR/RR/DT  ATS RO P2P
+ * 00X       X   X  OK
+ * 010       X   X  fails (request is routed to root but root never sees comp)
+ * 011       0   X  fails (request is routed to root but root never sees comp)
+ * 011       1   X  OK
+ * 10X       X   1  OK
+ * 101       X   0  fails (completion is routed to root but root didn't see req)
+ * 110       X   0  SLOW
+ * 111       0   0  SLOW
+ * 111       1   0  fails (completion is routed to root but root didn't see req)
+ * 111       1   1  OK
+ *
+ * Unfortunately we cannot reliably know if a switch is present or what the
+ * CR/RR/DT ACS settings are, as in a VM that is all hidden. Assume that
+ * CR/RR/DT is 111 if the ATS cap is enabled and follow the last three rows.
+ *
+ * For now assume if the umem is a dma_buf then it is P2P.
+ */
+static inline bool mlx5_umem_needs_ats(struct mlx5_ib_dev *dev,
+				       struct ib_umem *umem, int access_flags)
+{
+	if (!MLX5_CAP_GEN(dev->mdev, ats) || !umem->is_dmabuf)
+		return false;
+	return access_flags & IB_ACCESS_RELAXED_ORDERING;
+}
+
 #endif /* MLX5_IB_H */

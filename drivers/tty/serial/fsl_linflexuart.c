@@ -401,7 +401,7 @@ static void linflex_shutdown(struct uart_port *port)
 
 static void
 linflex_set_termios(struct uart_port *port, struct ktermios *termios,
-		    struct ktermios *old)
+		    const struct ktermios *old)
 {
 	unsigned long flags;
 	unsigned long cr, old_cr, cr1;

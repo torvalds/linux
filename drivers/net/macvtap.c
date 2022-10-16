@@ -207,7 +207,7 @@ static struct notifier_block macvtap_notifier_block __read_mostly = {
 	.notifier_call	= macvtap_device_event,
 };
 
-static int macvtap_init(void)
+static int __init macvtap_init(void)
 {
 	int err;
 
@@ -241,7 +241,7 @@ out1:
 }
 module_init(macvtap_init);
 
-static void macvtap_exit(void)
+static void __exit macvtap_exit(void)
 {
 	rtnl_link_unregister(&macvtap_link_ops);
 	unregister_netdevice_notifier(&macvtap_notifier_block);

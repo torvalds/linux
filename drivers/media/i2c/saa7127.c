@@ -785,14 +785,13 @@ static int saa7127_probe(struct i2c_client *client,
 
 /* ----------------------------------------------------------------------- */
 
-static int saa7127_remove(struct i2c_client *client)
+static void saa7127_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
 	v4l2_device_unregister_subdev(sd);
 	/* Turn off TV output */
 	saa7127_set_video_enable(sd, 0);
-	return 0;
 }
 
 /* ----------------------------------------------------------------------- */

@@ -52,21 +52,11 @@ load_driver()
 			usage
 		fi
 	fi
-	if [ $? == 0 ]; then
-		major=$(awk "\$2==\"HMM_DMIRROR\" {print \$1}" /proc/devices)
-		mknod /dev/hmm_dmirror0 c $major 0
-		mknod /dev/hmm_dmirror1 c $major 1
-		if [ $# -eq 2 ]; then
-			mknod /dev/hmm_dmirror2 c $major 2
-			mknod /dev/hmm_dmirror3 c $major 3
-		fi
-	fi
 }
 
 unload_driver()
 {
 	modprobe -r $DRIVER > /dev/null 2>&1
-	rm -f /dev/hmm_dmirror?
 }
 
 run_smoke()

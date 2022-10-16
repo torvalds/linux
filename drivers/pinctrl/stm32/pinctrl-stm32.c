@@ -1603,10 +1603,9 @@ int stm32_pctl_probe(struct platform_device *pdev)
 
 		bank->clk = of_clk_get_by_name(np, NULL);
 		if (IS_ERR(bank->clk)) {
-			if (PTR_ERR(bank->clk) != -EPROBE_DEFER)
-				dev_err(dev, "failed to get clk (%ld)\n", PTR_ERR(bank->clk));
 			fwnode_handle_put(child);
-			return PTR_ERR(bank->clk);
+			return dev_err_probe(dev, PTR_ERR(bank->clk),
+					     "failed to get clk\n");
 		}
 		i++;
 	}

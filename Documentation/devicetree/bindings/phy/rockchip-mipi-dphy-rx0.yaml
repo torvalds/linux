@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/phy/rockchip-mipi-dphy-rx0.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Rockchip SoC MIPI RX0 D-PHY Device Tree Bindings
+title: Rockchip SoC MIPI RX0 D-PHY
 
 maintainers:
   - Helen Koike <helen.koike@collabora.com>

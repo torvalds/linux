@@ -39,41 +39,32 @@ static void hyp_prepare_backtrace(unsigned long fp, unsigned long pc)
 
 DEFINE_PER_CPU(unsigned long [NVHE_STACKTRACE_SIZE/sizeof(long)], pkvm_stacktrace);
 
-static bool on_overflow_stack(unsigned long sp, unsigned long size,
-			      struct stack_info *info)
+static struct stack_info stackinfo_get_overflow(void)
 {
 	unsigned long low = (unsigned long)this_cpu_ptr(overflow_stack);
 	unsigned long high = low + OVERFLOW_STACK_SIZE;
 
-	return on_stack(sp, size, low, high, STACK_TYPE_OVERFLOW, info);
+	return (struct stack_info) {
+		.low = low,
+		.high = high,
+	};
 }
 
-static bool on_hyp_stack(unsigned long sp, unsigned long size,
-			      struct stack_info *info)
+static struct stack_info stackinfo_get_hyp(void)
 {
 	struct kvm_nvhe_init_params *params = this_cpu_ptr(&kvm_init_params);
 	unsigned long high = params->stack_hyp_va;
 	unsigned long low = high - PAGE_SIZE;
 
-	return on_stack(sp, size, low, high, STACK_TYPE_HYP, info);
-}
-
-static bool on_accessible_stack(const struct task_struct *tsk,
-				unsigned long sp, unsigned long size,
-				struct stack_info *info)
-{
-	if (info)
-		info->type = STACK_TYPE_UNKNOWN;
-
-	return (on_overflow_stack(sp, size, info) ||
-		on_hyp_stack(sp, size, info));
+	return (struct stack_info) {
+		.low = low,
+		.high = high,
+	};
 }
 
 static int unwind_next(struct unwind_state *state)
 {
-	struct stack_info info;
-
-	return unwind_next_common(state, &info, on_accessible_stack, NULL);
+	return unwind_next_frame_record(state);
 }
 
 static void notrace unwind(struct unwind_state *state,
@@ -129,7 +120,14 @@ static bool pkvm_save_backtrace_entry(void *arg, unsigned long where)
  */
 static void pkvm_save_backtrace(unsigned long fp, unsigned long pc)
 {
-	struct unwind_state state;
+	struct stack_info stacks[] = {
+		stackinfo_get_overflow(),
+		stackinfo_get_hyp(),
+	};
+	struct unwind_state state = {
+		.stacks = stacks,
+		.nr_stacks = ARRAY_SIZE(stacks),
+	};
 	int idx = 0;
 
 	kvm_nvhe_unwind_init(&state, fp, pc);

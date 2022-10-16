@@ -4,13 +4,7 @@
 /*          Kai Shen <kaishen@linux.alibaba.com> */
 /* Copyright (c) 2020-2022, Alibaba Group. */
 
-#include <linux/kernel.h>
-#include <linux/pci.h>
-#include <linux/types.h>
-
 #include "erdma.h"
-#include "erdma_hw.h"
-#include "erdma_verbs.h"
 
 static void arm_cmdq_cq(struct erdma_cmdq *cmdq)
 {
@@ -441,7 +435,7 @@ void erdma_cmdq_build_reqhdr(u64 *hdr, u32 mod, u32 op)
 	       FIELD_PREP(ERDMA_CMD_HDR_OPCODE_MASK, op);
 }
 
-int erdma_post_cmd_wait(struct erdma_cmdq *cmdq, u64 *req, u32 req_size,
+int erdma_post_cmd_wait(struct erdma_cmdq *cmdq, void *req, u32 req_size,
 			u64 *resp0, u64 *resp1)
 {
 	struct erdma_comp_wait *comp_wait;

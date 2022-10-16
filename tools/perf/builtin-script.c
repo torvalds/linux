@@ -882,7 +882,7 @@ static int print_bstack_flags(FILE *fp, struct branch_entry *br)
 		       br->flags.in_tx ? 'X' : '-',
 		       br->flags.abort ? 'A' : '-',
 		       br->flags.cycles,
-		       br->flags.type ? branch_type_name(br->flags.type) : "-");
+		       get_branch_type(br));
 }
 
 static int perf_sample__fprintf_brstack(struct perf_sample *sample,
@@ -2242,9 +2242,6 @@ static void __process_stat(struct evsel *counter, u64 tstamp)
 	int idx, thread;
 	struct perf_cpu cpu;
 	static int header_printed;
-
-	if (counter->core.system_wide)
-		nthreads = 1;
 
 	if (!header_printed) {
 		printf("%3s %8s %15s %15s %15s %15s %s\n",
@@ -3849,9 +3846,10 @@ int cmd_script(int argc, const char **argv)
 		     "Valid types: hw,sw,trace,raw,synth. "
 		     "Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,"
 		     "addr,symoff,srcline,period,iregs,uregs,brstack,"
-		     "brstacksym,flags,bpf-output,brstackinsn,brstackinsnlen,brstackoff,"
-		     "callindent,insn,insnlen,synth,phys_addr,metric,misc,ipc,tod,"
-		     "data_page_size,code_page_size,ins_lat",
+		     "brstacksym,flags,data_src,weight,bpf-output,brstackinsn,"
+		     "brstackinsnlen,brstackoff,callindent,insn,insnlen,synth,"
+		     "phys_addr,metric,misc,srccode,ipc,tod,data_page_size,"
+		     "code_page_size,ins_lat",
 		     parse_output_fields),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 		    "system-wide collection from all CPUs"),

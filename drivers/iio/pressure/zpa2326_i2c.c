@@ -53,11 +53,9 @@ static int zpa2326_probe_i2c(struct i2c_client          *client,
 			     zpa2326_i2c_hwid(client), regmap);
 }
 
-static int zpa2326_remove_i2c(struct i2c_client *client)
+static void zpa2326_remove_i2c(struct i2c_client *client)
 {
 	zpa2326_remove(&client->dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id zpa2326_i2c_ids[] = {

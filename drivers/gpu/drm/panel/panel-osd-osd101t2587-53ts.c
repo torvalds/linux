@@ -206,7 +206,7 @@ static int osd101t2587_panel_probe(struct mipi_dsi_device *dsi)
 	return ret;
 }
 
-static int osd101t2587_panel_remove(struct mipi_dsi_device *dsi)
+static void osd101t2587_panel_remove(struct mipi_dsi_device *dsi)
 {
 	struct osd101t2587_panel *osd101t2587 = mipi_dsi_get_drvdata(dsi);
 	int ret;
@@ -221,8 +221,6 @@ static int osd101t2587_panel_remove(struct mipi_dsi_device *dsi)
 	ret = mipi_dsi_detach(dsi);
 	if (ret < 0)
 		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n", ret);
-
-	return ret;
 }
 
 static void osd101t2587_panel_shutdown(struct mipi_dsi_device *dsi)

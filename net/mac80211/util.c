@@ -954,9 +954,11 @@ void ieee80211_queue_delayed_work(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(ieee80211_queue_delayed_work);
 
-static void ieee80211_parse_extension_element(u32 *crc,
-					      const struct element *elem,
-					      struct ieee802_11_elems *elems)
+static void
+ieee80211_parse_extension_element(u32 *crc,
+				  const struct element *elem,
+				  struct ieee802_11_elems *elems,
+				  struct ieee80211_elems_parse_params *params)
 {
 	const void *data = elem->data + 1;
 	u8 len;
@@ -1013,7 +1015,8 @@ static void ieee80211_parse_extension_element(u32 *crc,
 		break;
 	case WLAN_EID_EXT_EHT_CAPABILITY:
 		if (ieee80211_eht_capa_size_ok(elems->he_cap,
-					       data, len)) {
+					       data, len,
+					       params->from_ap)) {
 			elems->eht_cap = data;
 			elems->eht_cap_len = len;
 		}
@@ -1385,7 +1388,7 @@ _ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params,
 		case WLAN_EID_EXTENSION:
 			ieee80211_parse_extension_element(calc_crc ?
 								&crc : NULL,
-							  elem, elems);
+							  elem, elems, params);
 			break;
 		case WLAN_EID_S1G_CAPABILITIES:
 			if (elen >= sizeof(*elems->s1g_capab))
@@ -1441,6 +1444,8 @@ static size_t ieee802_11_find_bssid_profile(const u8 *start, size_t len,
 
 	for_each_element_id(elem, WLAN_EID_MULTIPLE_BSSID, start, len) {
 		if (elem->datalen < 2)
+			continue;
+		if (elem->data[0] < 1 || elem->data[0] > 8)
 			continue;
 
 		for_each_element(sub, elem->data + 1, elem->datalen - 1) {
@@ -1501,24 +1506,26 @@ ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params)
 	const struct element *non_inherit = NULL;
 	u8 *nontransmitted_profile;
 	int nontransmitted_profile_len = 0;
+	size_t scratch_len = params->len;
 
-	elems = kzalloc(sizeof(*elems), GFP_ATOMIC);
+	elems = kzalloc(sizeof(*elems) + scratch_len, GFP_ATOMIC);
 	if (!elems)
 		return NULL;
 	elems->ie_start = params->start;
 	elems->total_len = params->len;
+	elems->scratch_len = scratch_len;
+	elems->scratch_pos = elems->scratch;
 
-	nontransmitted_profile = kmalloc(params->len, GFP_ATOMIC);
-	if (nontransmitted_profile) {
-		nontransmitted_profile_len =
-			ieee802_11_find_bssid_profile(params->start, params->len,
-						      elems, params->bss,
-						      nontransmitted_profile);
-		non_inherit =
-			cfg80211_find_ext_elem(WLAN_EID_EXT_NON_INHERITANCE,
-					       nontransmitted_profile,
-					       nontransmitted_profile_len);
-	}
+	nontransmitted_profile = elems->scratch_pos;
+	nontransmitted_profile_len =
+		ieee802_11_find_bssid_profile(params->start, params->len,
+					      elems, params->bss,
+					      nontransmitted_profile);
+	elems->scratch_pos += nontransmitted_profile_len;
+	elems->scratch_len -= nontransmitted_profile_len;
+	non_inherit = cfg80211_find_ext_elem(WLAN_EID_EXT_NON_INHERITANCE,
+					     nontransmitted_profile,
+					     nontransmitted_profile_len);
 
 	elems->crc = _ieee802_11_parse_elems_full(params, elems, non_inherit);
 
@@ -1551,8 +1558,6 @@ ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params)
 	    elems->bssid_index_len >=
 	    offsetofend(struct ieee80211_bssid_index, dtim_count))
 		elems->dtim_count = elems->bssid_index->dtim_count;
-
-	kfree(nontransmitted_profile);
 
 	return elems;
 }
@@ -2025,7 +2030,8 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 	    cfg80211_any_usable_channels(local->hw.wiphy, BIT(sband->band),
 					 IEEE80211_CHAN_NO_HE |
 					 IEEE80211_CHAN_NO_EHT)) {
-		pos = ieee80211_ie_build_eht_cap(pos, he_cap, eht_cap, end);
+		pos = ieee80211_ie_build_eht_cap(pos, he_cap, eht_cap, end,
+						 sdata->vif.type == NL80211_IFTYPE_AP);
 		if (!pos)
 			goto out_err;
 	}
@@ -2042,7 +2048,7 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 		if (he_cap) {
 			enum nl80211_iftype iftype =
 				ieee80211_vif_type_p2p(&sdata->vif);
-			__le16 cap = ieee80211_get_he_6ghz_capa(sband, iftype);
+			__le16 cap = ieee80211_get_he_6ghz_capa(sband6, iftype);
 
 			pos = ieee80211_write_he_6ghz_cap(pos, cap, end);
 		}
@@ -2526,7 +2532,6 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			if (link)
 				ieee80211_assign_chanctx(local, sdata, link);
 		}
-		sdata_unlock(sdata);
 
 		switch (sdata->vif.type) {
 		case NL80211_IFTYPE_AP_VLAN:
@@ -2545,6 +2550,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 					    &sdata->deflink.tx_conf[i]);
 			break;
 		}
+		sdata_unlock(sdata);
 
 		/* common change flags for all interface types */
 		changed = BSS_CHANGED_ERP_CTS_PROT |
@@ -2653,23 +2659,21 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	}
 
 	/* APs are now beaconing, add back stations */
-	mutex_lock(&local->sta_mtx);
-	list_for_each_entry(sta, &local->sta_list, list) {
-		enum ieee80211_sta_state state;
-
-		if (!sta->uploaded)
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		if (!ieee80211_sdata_running(sdata))
 			continue;
 
-		if (sta->sdata->vif.type != NL80211_IFTYPE_AP &&
-		    sta->sdata->vif.type != NL80211_IFTYPE_AP_VLAN)
-			continue;
-
-		for (state = IEEE80211_STA_NOTEXIST;
-		     state < sta->sta_state; state++)
-			WARN_ON(drv_sta_state(local, sta->sdata, sta, state,
-					      state + 1));
+		sdata_lock(sdata);
+		switch (sdata->vif.type) {
+		case NL80211_IFTYPE_AP_VLAN:
+		case NL80211_IFTYPE_AP:
+			ieee80211_reconfig_stations(sdata);
+			break;
+		default:
+			break;
+		}
+		sdata_unlock(sdata);
 	}
-	mutex_unlock(&local->sta_mtx);
 
 	/* add back keys */
 	list_for_each_entry(sdata, &local->interfaces, list)
@@ -2898,7 +2902,7 @@ void ieee80211_recalc_min_chandef(struct ieee80211_sub_if_data *sdata,
 		 */
 		rcu_read_unlock();
 
-		if (WARN_ON_ONCE(!chanctx_conf))
+		if (!chanctx_conf)
 			goto unlock;
 
 		chanctx = container_of(chanctx_conf, struct ieee80211_chanctx,
@@ -3080,6 +3084,7 @@ end:
 }
 
 void ieee80211_ie_build_he_6ghz_cap(struct ieee80211_sub_if_data *sdata,
+				    enum ieee80211_smps_mode smps_mode,
 				    struct sk_buff *skb)
 {
 	struct ieee80211_supported_band *sband;
@@ -3106,7 +3111,7 @@ void ieee80211_ie_build_he_6ghz_cap(struct ieee80211_sub_if_data *sdata,
 	cap = le16_to_cpu(iftd->he_6ghz_capa.capa);
 	cap &= ~IEEE80211_HE_6GHZ_CAP_SM_PS;
 
-	switch (sdata->deflink.smps_mode) {
+	switch (smps_mode) {
 	case IEEE80211_SMPS_AUTOMATIC:
 	case IEEE80211_SMPS_NUM_MODES:
 		WARN_ON(1);
@@ -3507,8 +3512,7 @@ bool ieee80211_chandef_vht_oper(struct ieee80211_hw *hw, u32 vht_cap_info,
 	return true;
 }
 
-void ieee80211_chandef_eht_oper(struct ieee80211_sub_if_data *sdata,
-				const struct ieee80211_eht_operation *eht_oper,
+void ieee80211_chandef_eht_oper(const struct ieee80211_eht_operation *eht_oper,
 				bool support_160, bool support_320,
 				struct cfg80211_chan_def *chandef)
 {
@@ -3684,7 +3688,7 @@ bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_sub_if_data *sdata,
 		support_320 =
 			eht_phy_cap & IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ;
 
-		ieee80211_chandef_eht_oper(sdata, eht_oper, support_160,
+		ieee80211_chandef_eht_oper(eht_oper, support_160,
 					   support_320, &he_chandef);
 	}
 
@@ -4770,6 +4774,7 @@ u8 ieee80211_ie_len_eht_cap(struct ieee80211_sub_if_data *sdata, u8 iftype)
 	const struct ieee80211_sta_he_cap *he_cap;
 	const struct ieee80211_sta_eht_cap *eht_cap;
 	struct ieee80211_supported_band *sband;
+	bool is_ap;
 	u8 n;
 
 	sband = ieee80211_get_sband(sdata);
@@ -4781,8 +4786,12 @@ u8 ieee80211_ie_len_eht_cap(struct ieee80211_sub_if_data *sdata, u8 iftype)
 	if (!he_cap || !eht_cap)
 		return 0;
 
+	is_ap = iftype == NL80211_IFTYPE_AP ||
+		iftype == NL80211_IFTYPE_P2P_GO;
+
 	n = ieee80211_eht_mcs_nss_size(&he_cap->he_cap_elem,
-				       &eht_cap->eht_cap_elem);
+				       &eht_cap->eht_cap_elem,
+				       is_ap);
 	return 2 + 1 +
 	       sizeof(he_cap->he_cap_elem) + n +
 	       ieee80211_eht_ppe_size(eht_cap->eht_ppe_thres[0],
@@ -4793,7 +4802,8 @@ u8 ieee80211_ie_len_eht_cap(struct ieee80211_sub_if_data *sdata, u8 iftype)
 u8 *ieee80211_ie_build_eht_cap(u8 *pos,
 			       const struct ieee80211_sta_he_cap *he_cap,
 			       const struct ieee80211_sta_eht_cap *eht_cap,
-			       u8 *end)
+			       u8 *end,
+			       bool for_ap)
 {
 	u8 mcs_nss_len, ppet_len;
 	u8 ie_len;
@@ -4804,7 +4814,8 @@ u8 *ieee80211_ie_build_eht_cap(u8 *pos,
 		return orig_pos;
 
 	mcs_nss_len = ieee80211_eht_mcs_nss_size(&he_cap->he_cap_elem,
-						 &eht_cap->eht_cap_elem);
+						 &eht_cap->eht_cap_elem,
+						 for_ap);
 	ppet_len = ieee80211_eht_ppe_size(eht_cap->eht_ppe_thres[0],
 					  eht_cap->eht_cap_elem.phy_cap_info);
 

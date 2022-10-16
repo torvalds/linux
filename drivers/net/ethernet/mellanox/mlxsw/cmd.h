@@ -703,6 +703,9 @@ MLXSW_ITEM32(cmd_mbox, config_profile, max_vepa_channels, 0x10, 0, 8);
 
 /* cmd_mbox_config_profile_max_lag
  * Maximum number of LAG IDs requested.
+ * Reserved when Spectrum-1/2/3, supported from Spectrum-4 and above.
+ * For Spectrum-4, firmware sets 128 for values between 1-128 and 256 for values
+ * between 129-256.
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, max_lag, 0x14, 0, 16);
 

@@ -613,6 +613,33 @@ static int bq25890_power_supply_get_property(struct power_supply *psy,
 	return 0;
 }
 
+static int bq25890_power_supply_set_property(struct power_supply *psy,
+					     enum power_supply_property psp,
+					     const union power_supply_propval *val)
+{
+	struct bq25890_device *bq = power_supply_get_drvdata(psy);
+	u8 lval;
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		lval = bq25890_find_idx(val->intval, TBL_IINLIM);
+		return bq25890_field_write(bq, F_IINLIM, lval);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int bq25890_power_supply_property_is_writeable(struct power_supply *psy,
+						      enum power_supply_property psp)
+{
+	switch (psp) {
+	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
+		return true;
+	default:
+		return false;
+	}
+}
+
 /* On the BQ25892 try to get charger-type info from our supplier */
 static void bq25890_charger_external_power_changed(struct power_supply *psy)
 {
@@ -874,6 +901,8 @@ static const struct power_supply_desc bq25890_power_supply_desc = {
 	.properties = bq25890_power_supply_props,
 	.num_properties = ARRAY_SIZE(bq25890_power_supply_props),
 	.get_property = bq25890_power_supply_get_property,
+	.set_property = bq25890_power_supply_set_property,
+	.property_is_writeable = bq25890_power_supply_property_is_writeable,
 	.external_power_changed	= bq25890_charger_external_power_changed,
 };
 
@@ -946,6 +975,7 @@ static void bq25890_pump_express_work(struct work_struct *data)
 
 	return;
 error_print:
+	bq25890_field_write(bq, F_PUMPX_EN, 0);
 	dev_err(bq->dev, "Failed to request hi-voltage charging\n");
 }
 
@@ -1258,7 +1288,7 @@ err_unregister_usb_notifier:
 	return ret;
 }
 
-static int bq25890_remove(struct i2c_client *client)
+static void bq25890_remove(struct i2c_client *client)
 {
 	struct bq25890_device *bq = i2c_get_clientdata(client);
 
@@ -1269,8 +1299,6 @@ static int bq25890_remove(struct i2c_client *client)
 		/* reset all registers to default values */
 		bq25890_chip_reset(bq);
 	}
-
-	return 0;
 }
 
 static void bq25890_shutdown(struct i2c_client *client)

@@ -14,13 +14,53 @@
 
 #include <asm/param.h> /* for HZ */
 
+struct rcu_gp_oldstate {
+	unsigned long rgos_norm;
+};
+
+// Maximum number of rcu_gp_oldstate values corresponding to
+// not-yet-completed RCU grace periods.
+#define NUM_ACTIVE_RCU_POLL_FULL_OLDSTATE 2
+
+/*
+ * Are the two oldstate values the same?  See the Tree RCU version for
+ * docbook header.
+ */
+static inline bool same_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp1,
+						   struct rcu_gp_oldstate *rgosp2)
+{
+	return rgosp1->rgos_norm == rgosp2->rgos_norm;
+}
+
 unsigned long get_state_synchronize_rcu(void);
+
+static inline void get_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp)
+{
+	rgosp->rgos_norm = get_state_synchronize_rcu();
+}
+
 unsigned long start_poll_synchronize_rcu(void);
+
+static inline void start_poll_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp)
+{
+	rgosp->rgos_norm = start_poll_synchronize_rcu();
+}
+
 bool poll_state_synchronize_rcu(unsigned long oldstate);
+
+static inline bool poll_state_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp)
+{
+	return poll_state_synchronize_rcu(rgosp->rgos_norm);
+}
 
 static inline void cond_synchronize_rcu(unsigned long oldstate)
 {
 	might_sleep();
+}
+
+static inline void cond_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp)
+{
+	cond_synchronize_rcu(rgosp->rgos_norm);
 }
 
 static inline unsigned long start_poll_synchronize_rcu_expedited(void)
@@ -28,9 +68,19 @@ static inline unsigned long start_poll_synchronize_rcu_expedited(void)
 	return start_poll_synchronize_rcu();
 }
 
+static inline void start_poll_synchronize_rcu_expedited_full(struct rcu_gp_oldstate *rgosp)
+{
+	rgosp->rgos_norm = start_poll_synchronize_rcu_expedited();
+}
+
 static inline void cond_synchronize_rcu_expedited(unsigned long oldstate)
 {
 	cond_synchronize_rcu(oldstate);
+}
+
+static inline void cond_synchronize_rcu_expedited_full(struct rcu_gp_oldstate *rgosp)
+{
+	cond_synchronize_rcu_expedited(rgosp->rgos_norm);
 }
 
 extern void rcu_barrier(void);

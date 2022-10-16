@@ -100,6 +100,7 @@
  *
  */
 
+#include <linux/aperture.h>
 #include <linux/version.h>
 
 #include "matroxfb_base.h"
@@ -2043,6 +2044,10 @@ static int matroxfb_probe(struct pci_dev* pdev, const struct pci_device_id* dumm
 	int err;
 	u_int32_t cmd;
 	DBG(__func__)
+
+	err = aperture_remove_conflicting_pci_devices(pdev, "matroxfb");
+	if (err)
+		return err;
 
 	svid = pdev->subsystem_vendor;
 	sid = pdev->subsystem_device;
