@@ -922,6 +922,7 @@ static int atomisp_try_fmt_cap(struct file *file, void *fh,
 			       struct v4l2_format *f)
 {
 	struct video_device *vdev = video_devdata(file);
+	u32 pixfmt = f->fmt.pix.pixelformat;
 	int ret;
 
 	/*
@@ -934,6 +935,12 @@ static int atomisp_try_fmt_cap(struct file *file, void *fh,
 	ret = atomisp_try_fmt(vdev, &f->fmt.pix, NULL);
 	if (ret)
 		return ret;
+
+	/*
+	 * atomisp_try_fmt() replaces pixelformat with the sensors native
+	 * format, restore the actual format requested by userspace.
+	 */
+	f->fmt.pix.pixelformat = pixfmt;
 
 	return atomisp_adjust_fmt(f);
 }
