@@ -896,10 +896,15 @@ static const struct media_entity_operations imx290_subdev_entity_ops = {
 
 static int imx290_ctrl_init(struct imx290 *imx290)
 {
+	struct v4l2_fwnode_device_properties props;
 	unsigned int blank;
 	int ret;
 
-	v4l2_ctrl_handler_init(&imx290->ctrls, 7);
+	ret = v4l2_fwnode_device_parse(imx290->dev, &props);
+	if (ret < 0)
+		return ret;
+
+	v4l2_ctrl_handler_init(&imx290->ctrls, 9);
 	imx290->ctrls.lock = &imx290->lock;
 
 	/*
@@ -953,6 +958,9 @@ static int imx290_ctrl_init(struct imx290 *imx290)
 					   blank);
 	if (imx290->vblank)
 		imx290->vblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+
+	v4l2_ctrl_new_fwnode_properties(&imx290->ctrls, &imx290_ctrl_ops,
+					&props);
 
 	imx290->sd.ctrl_handler = &imx290->ctrls;
 
