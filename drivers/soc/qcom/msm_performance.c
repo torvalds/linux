@@ -19,6 +19,7 @@
 #include <linux/kthread.h>
 #include <linux/sched/walt.h>
 #include <soc/qcom/msm_performance.h>
+#include <soc/qcom/pmu_lib.h>
 #include <linux/spinlock.h>
 #include <linux/circ_buf.h>
 #include <linux/ktime.h>
@@ -38,8 +39,6 @@
 #define INIT "Init"
 #define CPU_CYCLE_THRESHOLD 650000
 
-
-static DEFINE_PER_CPU(bool, cpu_is_idle);
 static DEFINE_PER_CPU(bool, cpu_is_hp);
 static DEFINE_MUTEX(perfevent_lock);
 
@@ -182,7 +181,7 @@ static struct queue_indicies curr_pos;
 static DEFINE_SPINLOCK(gfx_circ_buff_lock);
 
 struct event_data {
-	struct perf_event *pevent;
+	u32 event_id;
 	u64 prev_count;
 	u64 cur_delta;
 	u64 cached_total_count;
@@ -551,29 +550,16 @@ static struct kobject *notify_kobj;
 /*******************************sysfs ends************************************/
 
 /*****************PMU Data Collection*****************/
-static struct perf_event_attr attr;
-static void msm_perf_init_attr(void)
-{
-	memset(&attr, 0, sizeof(struct perf_event_attr));
-
-	attr.type = PERF_TYPE_RAW;
-	attr.size = sizeof(struct perf_event_attr);
-	attr.pinned = 1;
-}
-
 static int set_event(struct event_data *ev, int cpu)
 {
-	struct perf_event *pevent;
+	int ret;
 
-	pevent = perf_event_create_kernel_counter(&attr,
-				cpu, NULL, NULL, NULL);
-	if (IS_ERR(pevent)) {
-		pr_err("msm_perf: %s failed, eventId:0x%x, cpu:%d, error code:%ld\n",
-				__func__, attr.config, cpu, PTR_ERR(pevent));
-		return PTR_ERR(pevent);
+	ret = qcom_pmu_event_supported(ev->event_id, cpu);
+	if (ret) {
+		pr_err("msm_perf: %s failed, eventId:0x%x, cpu:%d, error code:%d\n",
+				__func__, ev->event_id, cpu, ret);
+		return ret;
 	}
-	ev->pevent = pevent;
-	perf_event_enable(pevent);
 
 	return 0;
 }
@@ -586,11 +572,6 @@ static void free_pmu_counters(unsigned int cpu)
 		pmu_events[i][cpu].prev_count = 0;
 		pmu_events[i][cpu].cur_delta = 0;
 		pmu_events[i][cpu].cached_total_count = 0;
-		if (pmu_events[i][cpu].pevent) {
-			perf_event_disable(pmu_events[i][cpu].pevent);
-			perf_event_release_kernel(pmu_events[i][cpu].pevent);
-			pmu_events[i][cpu].pevent = NULL;
-		}
 	}
 }
 
@@ -603,7 +584,6 @@ static int init_pmu_counter(void)
 	int i = 0, j = 0;
 	int no_of_cpus = 0;
 
-	msm_perf_init_attr();
 	for_each_possible_cpu(cpu)
 		no_of_cpus++;
 
@@ -626,12 +606,12 @@ static int init_pmu_counter(void)
 	/* Create events per CPU */
 	for_each_possible_cpu(cpu) {
 		/* create Instruction event */
-		attr.config = INST_EV;
+		pmu_events[INST_EVENT][cpu].event_id = INST_EV;
 		ret = set_event(&pmu_events[INST_EVENT][cpu], cpu);
 		if (ret < 0)
 			return ret;
 		/* create cycle event */
-		attr.config = CYC_EV;
+		pmu_events[CYC_EVENT][cpu].event_id = CYC_EV;
 		ret = set_event(&pmu_events[CYC_EVENT][cpu], cpu);
 		if (ret < 0) {
 			free_pmu_counters(cpu);
@@ -645,20 +625,25 @@ static int init_pmu_counter(void)
 	return 0;
 }
 
-static inline void msm_perf_read_event(struct event_data *event)
+static inline void msm_perf_read_event(struct event_data *event, int cpu)
 {
 	u64 ev_count = 0;
-	u64 total, enabled, running;
+	int ret;
+	u64 total;
 
 	mutex_lock(&perfevent_lock);
-	if (!event->pevent) {
+	if (!event->event_id) {
 		mutex_unlock(&perfevent_lock);
 		return;
 	}
 
-	if (!per_cpu(cpu_is_idle, event->pevent->cpu) &&
-				!per_cpu(cpu_is_hp, event->pevent->cpu))
-		total = perf_event_read_value(event->pevent, &enabled, &running);
+	if (!per_cpu(cpu_is_hp, cpu)) {
+		ret = qcom_pmu_read(cpu, event->event_id, &total);
+		if (ret) {
+			mutex_unlock(&perfevent_lock);
+			return;
+		}
+	}
 	else
 		total = event->cached_total_count;
 
@@ -681,9 +666,9 @@ static ssize_t get_cpu_total_instruction(struct kobject *kobj,
 
 	for_each_possible_cpu(cpu) {
 		/* Read Instruction event */
-		msm_perf_read_event(&pmu_events[INST_EVENT][cpu]);
+		msm_perf_read_event(&pmu_events[INST_EVENT][cpu], cpu);
 		/* Read Cycle event */
-		msm_perf_read_event(&pmu_events[CYC_EVENT][cpu]);
+		msm_perf_read_event(&pmu_events[CYC_EVENT][cpu], cpu);
 		instruction = pmu_events[INST_EVENT][cpu].cur_delta;
 		cycles = pmu_events[CYC_EVENT][cpu].cur_delta;
 		/* collecting max inst and ipc for max cap and min cap cpus */
@@ -707,37 +692,11 @@ static ssize_t get_cpu_total_instruction(struct kobject *kobj,
 	return cnt;
 }
 
-static int restart_events(unsigned int cpu, bool cpu_up)
-{
-	int ret = 0;
-
-	msm_perf_init_attr();
-
-	if (cpu_up) {
-		/* create Instruction event */
-		attr.config = INST_EV;
-		ret = set_event(&pmu_events[INST_EVENT][cpu], cpu);
-		if (ret < 0)
-			return ret;
-		/* create cycle event */
-		attr.config = CYC_EV;
-		ret = set_event(&pmu_events[CYC_EVENT][cpu], cpu);
-		if (ret < 0) {
-			free_pmu_counters(cpu);
-			return ret;
-		}
-	} else {
-		free_pmu_counters(cpu);
-	}
-
-	return 0;
-}
-
 static int hotplug_notify_down(unsigned int cpu)
 {
 	mutex_lock(&perfevent_lock);
 	per_cpu(cpu_is_hp, cpu) = true;
-	restart_events(cpu, false);
+	free_pmu_counters(cpu);
 	mutex_unlock(&perfevent_lock);
 
 	return 0;
@@ -748,7 +707,6 @@ static int hotplug_notify_up(unsigned int cpu)
 	unsigned long flags;
 
 	mutex_lock(&perfevent_lock);
-	restart_events(cpu, true);
 	per_cpu(cpu_is_hp, cpu) = false;
 	mutex_unlock(&perfevent_lock);
 
@@ -760,31 +718,6 @@ static int hotplug_notify_up(unsigned int cpu)
 	}
 
 	return 0;
-}
-
-static int msm_perf_idle_read_events(unsigned int cpu)
-{
-	int ret = 0, i;
-
-	for (i = 0; i < NO_OF_EVENT; i++) {
-		if (pmu_events[i][cpu].pevent)
-			ret = perf_event_read_local(pmu_events[i][cpu].pevent,
-					&pmu_events[i][cpu].cached_total_count, NULL, NULL);
-	}
-
-	return ret;
-}
-
-static void msm_perf_idle_notif(void *unused, unsigned int state,
-							unsigned int cpu)
-{
-	if (state == PWR_EVENT_EXIT) {
-		__this_cpu_write(cpu_is_idle, false);
-	} else {
-		__this_cpu_write(cpu_is_idle, true);
-		if (!per_cpu(cpu_is_hp, cpu))
-			msm_perf_idle_read_events(cpu);
-	}
 }
 
 static int events_notify_userspace(void *data)
@@ -1224,7 +1157,6 @@ static int __init msm_performance_init(void)
 	init_notify_group();
 	init_pmu_counter();
 
-	register_trace_cpu_idle(msm_perf_idle_notif, NULL);
 	return 0;
 }
 MODULE_LICENSE("GPL v2");
