@@ -12,6 +12,8 @@ struct ht_iterator {
 	struct hyp_entry_hdr *ent;
 	struct trace_seq seq;
 	u64 ts;
+	void *spare;
+	size_t copy_leftover;
 	size_t ent_size;
 	struct delayed_work poke_work;
 	unsigned long lost_events;

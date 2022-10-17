@@ -5771,9 +5771,6 @@ void *ring_buffer_alloc_read_page(struct trace_buffer *buffer, int cpu)
 	unsigned long flags;
 	struct page *page;
 
-	if (unlikely(has_ext_writer(buffer)))
-		return ERR_PTR(-EINVAL);
-
 	if (!cpumask_test_cpu(cpu, buffer->cpumask))
 		return ERR_PTR(-ENODEV);
 
@@ -5888,9 +5885,6 @@ int ring_buffer_read_page(struct trace_buffer *buffer,
 	u64 save_timestamp;
 	int ret = -1;
 
-	if (unlikely(has_ext_writer(buffer)))
-		goto out;
-
 	if (!cpumask_test_cpu(cpu, buffer->cpumask))
 		goto out;
 
@@ -5997,14 +5991,21 @@ int ring_buffer_read_page(struct trace_buffer *buffer,
 		cpu_buffer->read += rb_page_entries(reader);
 		cpu_buffer->read_bytes += BUF_PAGE_SIZE;
 
-		/* swap the pages */
-		rb_init_page(bpage);
-		bpage = reader->page;
-		reader->page = *data_page;
-		local_set(&reader->write, 0);
-		local_set(&reader->entries, 0);
-		reader->read = 0;
-		*data_page = bpage;
+		if (unlikely(has_ext_writer(buffer))) {
+			u64 commit = local_read(&reader->page->commit);
+
+			memcpy(bpage, reader->page,
+			       BUF_PAGE_HDR_SIZE + commit);
+		} else {
+			/* swap the pages */
+			rb_init_page(bpage);
+			bpage = reader->page;
+			reader->page = *data_page;
+			local_set(&reader->write, 0);
+			local_set(&reader->entries, 0);
+			reader->read = 0;
+			*data_page = bpage;
+		}
 
 		/*
 		 * Use the real_end for the data size,

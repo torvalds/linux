@@ -641,6 +641,85 @@ static const struct file_operations hyp_trace_pipe_fops = {
 	.llseek		= no_llseek,
 };
 
+static ssize_t
+hyp_trace_raw_read(struct file *file, char __user *ubuf,
+		    size_t cnt, loff_t *ppos)
+{
+	struct ht_iterator *iter = (struct ht_iterator *)file->private_data;
+	struct trace_buffer *trace_buffer = iter->trace_buffer;
+	size_t size;
+	int ret;
+
+	if (iter->copy_leftover)
+		goto read;
+again:
+	hyp_trace_read_start(iter->cpu);
+	ret = ring_buffer_read_page(trace_buffer, &iter->spare,
+				    cnt, iter->cpu, 0);
+	hyp_trace_read_stop(iter->cpu);
+	if (ret < 0) {
+		if (!ring_buffer_empty_cpu(iter->trace_buffer, iter->cpu))
+			return 0;
+
+		ret = ring_buffer_wait(trace_buffer, iter->cpu, 0);
+		if (ret < 0)
+			return ret;
+
+		goto again;
+	}
+
+	iter->copy_leftover = 0;
+read:
+	size = PAGE_SIZE - iter->copy_leftover;
+	if (size > cnt)
+		size = cnt;
+
+	ret = copy_to_user(ubuf, iter->spare + PAGE_SIZE - size, size);
+	if (ret == size)
+		return -EFAULT;
+
+	size -= ret;
+	*ppos += size;
+	iter->copy_leftover = ret;
+
+	return size;
+}
+
+static int hyp_trace_raw_open(struct inode *inode, struct file *file)
+{
+	int ret = hyp_trace_pipe_open(inode, file);
+	struct ht_iterator *iter;
+
+	if (ret)
+		return ret;
+
+	iter = file->private_data;
+	iter->spare = ring_buffer_alloc_read_page(iter->trace_buffer, iter->cpu);
+	if (IS_ERR(iter->spare)) {
+		ret = PTR_ERR(iter->spare);
+		iter->spare = NULL;
+		return ret;
+	}
+
+	return 0;
+}
+
+static int hyp_trace_raw_release(struct inode *inode, struct file *file)
+{
+	struct ht_iterator *iter = file->private_data;
+
+	ring_buffer_free_read_page(iter->trace_buffer, iter->cpu, iter->spare);
+
+	return hyp_trace_pipe_release(inode, file);
+}
+
+static const struct file_operations hyp_trace_raw_fops = {
+	.open		= hyp_trace_raw_open,
+	.read		= hyp_trace_raw_read,
+	.release	= hyp_trace_raw_release,
+	.llseek		= no_llseek,
+};
+
 static void hyp_tracefs_create_cpu_file(const char *file_name,
 					unsigned long cpu,
 					const struct file_operations *fops,
@@ -700,6 +779,8 @@ int init_hyp_tracefs(void)
 		hyp_tracefs_create_cpu_file("trace", cpu, &hyp_trace_fops, dir);
 		hyp_tracefs_create_cpu_file("trace_pipe", cpu,
 					    &hyp_trace_pipe_fops, dir);
+		hyp_tracefs_create_cpu_file("trace_pipe_raw", cpu,
+					    &hyp_trace_raw_fops, dir);
 	}
 
 	kvm_hyp_init_events_tracefs(root_dir);
