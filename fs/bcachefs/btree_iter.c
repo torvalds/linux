@@ -2841,15 +2841,16 @@ static void bch2_trans_alloc_paths(struct btree_trans *trans, struct bch_fs *c)
 	trans->updates		= p; p += updates_bytes;
 }
 
-static inline unsigned bch2_trans_get_fn_idx(struct btree_trans *trans, struct bch_fs *c,
-					const char *fn)
+const char *bch2_btree_transaction_fns[BCH_TRANSACTIONS_NR];
+
+unsigned bch2_trans_get_fn_idx(const char *fn)
 {
 	unsigned i;
 
-	for (i = 0; i < ARRAY_SIZE(c->btree_transaction_fns); i++)
-		if (!c->btree_transaction_fns[i] ||
-		    c->btree_transaction_fns[i] == fn) {
-			c->btree_transaction_fns[i] = fn;
+	for (i = 0; i < ARRAY_SIZE(bch2_btree_transaction_fns); i++)
+		if (!bch2_btree_transaction_fns[i] ||
+		    bch2_btree_transaction_fns[i] == fn) {
+			bch2_btree_transaction_fns[i] = fn;
 			return i;
 		}
 
@@ -2857,16 +2858,17 @@ static inline unsigned bch2_trans_get_fn_idx(struct btree_trans *trans, struct b
 	return i;
 }
 
-void __bch2_trans_init(struct btree_trans *trans, struct bch_fs *c, const char *fn)
+void __bch2_trans_init(struct btree_trans *trans, struct bch_fs *c, unsigned fn_idx)
 	__acquires(&c->btree_trans_barrier)
 {
 	struct btree_transaction_stats *s;
 
 	memset(trans, 0, sizeof(*trans));
 	trans->c		= c;
-	trans->fn		= fn;
+	trans->fn		= fn_idx < ARRAY_SIZE(bch2_btree_transaction_fns)
+		? bch2_btree_transaction_fns[fn_idx] : NULL;
 	trans->last_begin_time	= local_clock();
-	trans->fn_idx		= bch2_trans_get_fn_idx(trans, c, fn);
+	trans->fn_idx		= fn_idx;
 	trans->locking_wait.task = current;
 	trans->journal_replay_not_finished =
 		!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags);

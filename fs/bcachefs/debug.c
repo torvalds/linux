@@ -638,11 +638,11 @@ static ssize_t lock_held_stats_read(struct file *file, char __user *buf,
 		if (!i->size)
 			break;
 
-		if (i->iter == ARRAY_SIZE(c->btree_transaction_fns) ||
-		    !c->btree_transaction_fns[i->iter])
+		if (i->iter == ARRAY_SIZE(bch2_btree_transaction_fns) ||
+		    !bch2_btree_transaction_fns[i->iter])
 			break;
 
-		prt_printf(&i->buf, "%s: ", c->btree_transaction_fns[i->iter]);
+		prt_printf(&i->buf, "%s: ", bch2_btree_transaction_fns[i->iter]);
 		prt_newline(&i->buf);
 		printbuf_indent_add(&i->buf, 2);
 

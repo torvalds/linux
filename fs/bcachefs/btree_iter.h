@@ -587,10 +587,21 @@ void bch2_btree_path_to_text(struct printbuf *, struct btree_path *);
 void bch2_trans_paths_to_text(struct printbuf *, struct btree_trans *);
 void bch2_dump_trans_updates(struct btree_trans *);
 void bch2_dump_trans_paths_updates(struct btree_trans *);
-void __bch2_trans_init(struct btree_trans *, struct bch_fs *, const char *);
+void __bch2_trans_init(struct btree_trans *, struct bch_fs *, unsigned);
 void bch2_trans_exit(struct btree_trans *);
 
-#define bch2_trans_init(_trans, _c, _nr_iters, _mem) __bch2_trans_init(_trans, _c, __func__)
+extern const char *bch2_btree_transaction_fns[BCH_TRANSACTIONS_NR];
+unsigned bch2_trans_get_fn_idx(const char *);
+
+#define bch2_trans_init(_trans, _c, _nr_iters, _mem)			\
+do {									\
+	static unsigned trans_fn_idx;					\
+									\
+	if (unlikely(!trans_fn_idx))					\
+		trans_fn_idx = bch2_trans_get_fn_idx(__func__);		\
+									\
+	__bch2_trans_init(_trans, _c, trans_fn_idx);			\
+} while (0)
 
 void bch2_btree_trans_to_text(struct printbuf *, struct btree_trans *);
 
