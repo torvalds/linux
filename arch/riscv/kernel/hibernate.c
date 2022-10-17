@@ -30,6 +30,9 @@
  */
 static int sleep_cpu = -EINVAL;
 
+/* CPU context to be saved */
+struct suspend_context context = { 0 };
+
 /*
  * Values that may not change over hibernate/resume. We put the build number
  * and date in here so that we guarantee not to resume with a different
@@ -123,7 +126,25 @@ EXPORT_SYMBOL(arch_hibernation_header_restore);
 
 int swsusp_arch_suspend(void)
 {
-	return 0;
+	int ret = 0;
+
+	if (__cpu_suspend_enter(&context)) {
+		sleep_cpu = smp_processor_id();
+		suspend_save_csrs(&context);
+		ret = swsusp_save();
+	} else {
+		local_flush_icache_all();
+
+		/*
+		 * Tell the hibernation core that we've just restored
+		 * the memory
+		 */
+		in_suspend = 0;
+
+		sleep_cpu = -EINVAL;
+	}
+
+	return ret;
 }
 
 int swsusp_arch_resume(void)

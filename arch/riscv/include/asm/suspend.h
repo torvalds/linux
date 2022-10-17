@@ -21,6 +21,11 @@ struct suspend_context {
 #endif
 };
 
+/* This value will be assigned to 0 during resume and will be used by
+ * hibernation core for the subsequent resume sequence
+ */
+extern int in_suspend;
+
 /* Low-level CPU suspend entry function */
 int __cpu_suspend_enter(struct suspend_context *context);
 
@@ -42,4 +47,7 @@ int arch_hibernation_header_restore(void *addr);
 /* Used to resume on the CPU we hibernated on */
 int hibernate_resume_nonboot_cpu_disable(void);
 
+/* Used to save and restore the csr */
+void suspend_save_csrs(struct suspend_context *context);
+void suspend_restore_csrs(struct suspend_context *context);
 #endif
