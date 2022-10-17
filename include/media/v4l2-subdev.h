@@ -440,8 +440,10 @@ enum v4l2_subdev_pre_streamon_flags {
  * @g_input_status: get input status. Same as the status field in the
  *	&struct v4l2_input
  *
- * @s_stream: used to notify the driver that a video stream will start or has
- *	stopped.
+ * @s_stream: start (enabled == 1) or stop (enabled == 0) streaming on the
+ *	sub-device. Failure on stop will remove any resources acquired in
+ *	streaming start, while the error code is still returned by the driver.
+ *	Also see call_s_stream wrapper in v4l2-subdev.c.
  *
  * @g_pixelaspect: callback to return the pixelaspect ratio.
  *
