@@ -237,6 +237,35 @@ st_lis2duxs12_get_mlc_odr_val(struct st_lis2duxs12_hw *hw, u8 val_odr)
 	return -EINVAL;
 }
 
+/* checks mlc/fsm program consistence with hw device id */
+static int st_lis2duxs12_check_valid_mlc(const struct firmware *fw,
+					 struct st_lis2duxs12_hw *hw)
+{
+	bool stmc_page = false;
+	u8 reg, val;
+	int i = 0;
+
+	while (i < fw->size) {
+		reg = fw->data[i++];
+		val = fw->data[i++];
+		if ((reg == ST_LIS2DUXS12_FUNC_CFG_ACCESS_ADDR) &&
+		    (val & ST_LIS2DUXS12_EMB_FUNC_REG_ACCESS_MASK)) {
+			stmc_page = true;
+		} else if ((reg == ST_LIS2DUXS12_FUNC_CFG_ACCESS_ADDR) &&
+			   (val & ST_LIS2DUXS12_EMB_FUNC_REG_ACCESS_MASK) == 0) {
+			stmc_page = false;
+		} else if (stmc_page) {
+			continue;
+		} else if (reg == ST_LIS2DUXS12_AH_QVAR_CFG_ADDR) {
+			if (!hw->settings->st_qvar_support)
+				return -EINVAL;
+			break;
+		}
+	}
+
+	return 0;
+}
+
 /* parse and program mlc fragments */
 static int st_lis2duxs12_program_mlc(const struct firmware *fw,
 				     struct st_lis2duxs12_hw *hw)
@@ -362,6 +391,14 @@ static void st_lis2duxs12_mlc_update(const struct firmware *fw, void *context)
 
 	if (!fw) {
 		dev_err(hw->dev, "could not get binary firmware\n");
+
+		return;
+	}
+
+	ret = st_lis2duxs12_check_valid_mlc(fw, hw);
+	if (ret < 0) {
+		dev_err(hw->dev, "unsupported mlc version for hw_id %d\n",
+			hw->settings->id.hw_id);
 
 		return;
 	}

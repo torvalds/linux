@@ -45,6 +45,10 @@ static int st_lis2duxs12_spi_remove(struct spi_device *spi)
 
 static const struct of_device_id st_lis2duxs12_spi_of_match[] = {
 	{
+		.compatible = "st," ST_LIS2DUX12_DEV_NAME,
+		.data = (void *)ST_LIS2DUX12_ID,
+	},
+	{
 		.compatible = "st," ST_LIS2DUXS12_DEV_NAME,
 		.data = (void *)ST_LIS2DUXS12_ID,
 	},
@@ -53,6 +57,7 @@ static const struct of_device_id st_lis2duxs12_spi_of_match[] = {
 MODULE_DEVICE_TABLE(of, st_lis2duxs12_spi_of_match);
 
 static const struct spi_device_id st_lis2duxs12_spi_id_table[] = {
+	{ ST_LIS2DUX12_DEV_NAME, ST_LIS2DUX12_ID },
 	{ ST_LIS2DUXS12_DEV_NAME, ST_LIS2DUXS12_ID },
 	{},
 };

@@ -45,6 +45,10 @@ static int st_lis2duxs12_i2c_remove(struct i2c_client *client)
 
 static const struct of_device_id st_lis2duxs12_i2c_of_match[] = {
 	{
+		.compatible = "st," ST_LIS2DUX12_DEV_NAME,
+		.data = (void *)ST_LIS2DUX12_ID,
+	},
+	{
 		.compatible = "st," ST_LIS2DUXS12_DEV_NAME,
 		.data = (void *)ST_LIS2DUXS12_ID,
 	},
@@ -53,6 +57,7 @@ static const struct of_device_id st_lis2duxs12_i2c_of_match[] = {
 MODULE_DEVICE_TABLE(of, st_lis2duxs12_i2c_of_match);
 
 static const struct i2c_device_id st_lis2duxs12_i2c_id_table[] = {
+	{ ST_LIS2DUX12_DEV_NAME, ST_LIS2DUX12_ID },
 	{ ST_LIS2DUXS12_DEV_NAME, ST_LIS2DUXS12_ID },
 	{},
 };

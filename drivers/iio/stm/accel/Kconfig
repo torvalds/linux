@@ -160,7 +160,7 @@ config IIO_ST_LIS2HH12_SPI
         depends on IIO_ST_LIS2HH12
 
 config IIO_ST_LIS2DUXS12
-        tristate "STMicroelectronics LIS2DUXS12 sensor"
+        tristate "STMicroelectronics LIS2DUX12/LIS2DUXS12 sensors"
         depends on (I2C || SPI || I3C)
         select IIO_BUFFER
         select IIO_KFIFO_BUF
@@ -168,8 +168,8 @@ config IIO_ST_LIS2DUXS12
         select IIO_ST_LIS2DUXS12_SPI if (SPI_MASTER)
         select IIO_ST_LIS2DUXS12_I3C if (I3C)
         help
-          Say yes here to build support for STMicroelectronics LIS2DUXS12 accel
-          sensor.
+          Say yes here to build support for STMicroelectronics LIS2DUX(S)12 accel
+          sensors.
 
           To compile this driver as a module, choose M here: the module
           will be called lis2duxs12.

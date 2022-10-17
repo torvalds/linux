@@ -18,6 +18,7 @@
 
 #define ST_LIS2DUXS12_ODR_EXPAND(odr, uodr)	(((odr) * 1000000) + (uodr))
 
+#define ST_LIS2DUX12_DEV_NAME			"lis2dux12"
 #define ST_LIS2DUXS12_DEV_NAME			"lis2duxs12"
 
 /* default configuration values */
@@ -580,6 +581,7 @@ enum {
 };
 
 enum st_lis2duxs12_hw_id {
+	ST_LIS2DUX12_ID,
 	ST_LIS2DUXS12_ID,
 	ST_LIS2DUXS12_MAX_ID,
 };

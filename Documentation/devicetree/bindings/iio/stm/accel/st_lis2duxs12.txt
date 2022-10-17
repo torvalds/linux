@@ -2,6 +2,7 @@
 
 Required properties for all bus drivers:
 - compatible: must be one of:
+              "st,lis2dux12"
               "st,lis2duxs12"
 
 Required properties for the i2c bindings:

@@ -158,6 +158,12 @@ st_lis2duxs12_fs_table_entry st_lis2duxs12_fs_table[] = {
 static const struct st_lis2duxs12_settings st_lis2duxs12_sensor_settings[] = {
 	{
 		.id = {
+			.hw_id = ST_LIS2DUX12_ID,
+			.name = ST_LIS2DUX12_DEV_NAME,
+		},
+	},
+	{
+		.id = {
 			.hw_id = ST_LIS2DUXS12_ID,
 			.name = ST_LIS2DUXS12_DEV_NAME,
 		},
