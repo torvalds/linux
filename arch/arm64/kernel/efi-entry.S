@@ -21,40 +21,41 @@ SYM_CODE_START(efi_enter_kernel)
 	 */
 	ldr	w2, =primary_entry_offset
 	add	x19, x0, x2		// relocated Image entrypoint
-	mov	x20, x1			// DTB address
+
+	mov	x0, x1			// DTB address
+	mov	x1, xzr
+	mov	x2, xzr
+	mov	x3, xzr
 
 	/*
 	 * Clean the remainder of this routine to the PoC
 	 * so that we can safely disable the MMU and caches.
 	 */
-	adr	x0, 0f
-	adr	x1, 3f
-	bl	dcache_clean_poc
-0:
+	adr	x4, 1f
+	dc	civac, x4
+	dsb	sy
+
 	/* Turn off Dcache and MMU */
-	mrs	x0, CurrentEL
-	cmp	x0, #CurrentEL_EL2
-	b.ne	1f
-	mrs	x0, sctlr_el2
-	bic	x0, x0, #1 << 0	// clear SCTLR.M
-	bic	x0, x0, #1 << 2	// clear SCTLR.C
-	pre_disable_mmu_workaround
-	msr	sctlr_el2, x0
-	isb
+	mrs	x4, CurrentEL
+	cmp	x4, #CurrentEL_EL2
+	mrs	x4, sctlr_el1
+	b.ne	0f
+	mrs	x4, sctlr_el2
+0:	bic	x4, x4, #SCTLR_ELx_M
+	bic	x4, x4, #SCTLR_ELx_C
+	b.eq	1f
 	b	2f
-1:
-	mrs	x0, sctlr_el1
-	bic	x0, x0, #1 << 0	// clear SCTLR.M
-	bic	x0, x0, #1 << 2	// clear SCTLR.C
-	pre_disable_mmu_workaround
-	msr	sctlr_el1, x0
+
+	.balign	32
+1:	pre_disable_mmu_workaround
+	msr	sctlr_el2, x4
 	isb
-2:
-	/* Jump to kernel entry point */
-	mov	x0, x20
-	mov	x1, xzr
-	mov	x2, xzr
-	mov	x3, xzr
-	br	x19
-3:
+	br	x19		// jump to kernel entrypoint
+
+2:	pre_disable_mmu_workaround
+	msr	sctlr_el1, x4
+	isb
+	br	x19		// jump to kernel entrypoint
+
+	.org	1b + 32
 SYM_CODE_END(efi_enter_kernel)
