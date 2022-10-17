@@ -174,8 +174,13 @@ static int nft_inner_parse_tunhdr(const struct nft_inner *priv,
 				  const struct nft_pktinfo *pkt,
 				  struct nft_inner_tun_ctx *ctx, u32 *off)
 {
-	if (pkt->tprot != IPPROTO_UDP ||
-	    pkt->tprot != IPPROTO_GRE)
+	if (pkt->tprot == IPPROTO_GRE) {
+		ctx->inner_tunoff = pkt->thoff;
+		ctx->flags |= NFT_PAYLOAD_CTX_INNER_TUN;
+		return 0;
+	}
+
+	if (pkt->tprot != IPPROTO_UDP)
 		return -1;
 
 	ctx->inner_tunoff = *off;
