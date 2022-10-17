@@ -250,7 +250,7 @@ static int macsec_fs_tx_create(struct mlx5e_macsec_fs *macsec_fs)
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_spec *spec;
 	u32 *flow_group_in;
-	int err = 0;
+	int err;
 
 	ns = mlx5_get_flow_namespace(macsec_fs->mdev, MLX5_FLOW_NAMESPACE_EGRESS_MACSEC);
 	if (!ns)
@@ -261,8 +261,10 @@ static int macsec_fs_tx_create(struct mlx5e_macsec_fs *macsec_fs)
 		return -ENOMEM;
 
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
-	if (!flow_group_in)
+	if (!flow_group_in) {
+		err = -ENOMEM;
 		goto out_spec;
+	}
 
 	tx_tables = &tx_fs->tables;
 	ft_crypto = &tx_tables->ft_crypto;
@@ -898,7 +900,7 @@ static int macsec_fs_rx_create(struct mlx5e_macsec_fs *macsec_fs)
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_spec *spec;
 	u32 *flow_group_in;
-	int err = 0;
+	int err;
 
 	ns = mlx5_get_flow_namespace(macsec_fs->mdev, MLX5_FLOW_NAMESPACE_KERNEL_RX_MACSEC);
 	if (!ns)
@@ -909,8 +911,10 @@ static int macsec_fs_rx_create(struct mlx5e_macsec_fs *macsec_fs)
 		return -ENOMEM;
 
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
-	if (!flow_group_in)
+	if (!flow_group_in) {
+		err = -ENOMEM;
 		goto free_spec;
+	}
 
 	rx_tables = &rx_fs->tables;
 	ft_crypto = &rx_tables->ft_crypto;
