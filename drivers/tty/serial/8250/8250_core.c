@@ -32,6 +32,7 @@
 #include <linux/nmi.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/string_helpers.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #ifdef CONFIG_SPARC
@@ -1175,8 +1176,8 @@ static int __init serial8250_init(void)
 
 	serial8250_isa_init_ports();
 
-	pr_info("Serial: 8250/16550 driver, %d ports, IRQ sharing %sabled\n",
-		nr_uarts, share_irqs ? "en" : "dis");
+	pr_info("Serial: 8250/16550 driver, %d ports, IRQ sharing %s\n",
+		nr_uarts, str_enabled_disabled(share_irqs));
 
 #ifdef CONFIG_SPARC
 	ret = sunserial_register_minors(&serial8250_reg, UART_NR);
