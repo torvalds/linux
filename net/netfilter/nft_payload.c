@@ -19,6 +19,7 @@
 /* For layer 4 checksum field offset. */
 #include <linux/tcp.h>
 #include <linux/udp.h>
+#include <net/gre.h>
 #include <linux/icmpv6.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
@@ -98,6 +99,37 @@ static int __nft_payload_inner_offset(struct nft_pktinfo *pkt)
 			return -1;
 
 		pkt->inneroff = thoff + __tcp_hdrlen(th);
+		}
+		break;
+	case IPPROTO_GRE: {
+		u32 offset = sizeof(struct gre_base_hdr), version;
+		struct gre_base_hdr *gre, _gre;
+
+		gre = skb_header_pointer(pkt->skb, thoff, sizeof(_gre), &_gre);
+		if (!gre)
+			return -1;
+
+		version = gre->flags & GRE_VERSION;
+		switch (version) {
+		case GRE_VERSION_0:
+			if (gre->flags & GRE_ROUTING)
+				return -1;
+
+			if (gre->flags & GRE_CSUM) {
+				offset += sizeof_field(struct gre_full_hdr, csum) +
+					  sizeof_field(struct gre_full_hdr, reserved1);
+			}
+			if (gre->flags & GRE_KEY)
+				offset += sizeof_field(struct gre_full_hdr, key);
+
+			if (gre->flags & GRE_SEQ)
+				offset += sizeof_field(struct gre_full_hdr, seq);
+			break;
+		default:
+			return -1;
+		}
+
+		pkt->inneroff = thoff + offset;
 		}
 		break;
 	default:
