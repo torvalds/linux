@@ -349,7 +349,7 @@ static int sleepmon_send_ssr_command(void)
 #if IS_ENABLED(CONFIG_QCOM_ADSP_SLEEPMON_RPROC_RESTART)
 		if (g_adspsleepmon.adsp_rproc) {
 			pr_info("Setting recovery flag for ADSP SSR\n");
-			rproc_update_recovery_status(g_adspsleepmon.adsp_rproc, true);
+			qcom_rproc_update_recovery_status(g_adspsleepmon.adsp_rproc, true);
 		} else {
 			pr_info("Couldn't find rproc handle for ADSP\n");
 		}
@@ -369,7 +369,7 @@ static int sleepmon_send_ssr_command(void)
 #if IS_ENABLED(CONFIG_QCOM_ADSP_SLEEPMON_RPROC_RESTART)
 			if (g_adspsleepmon.adsp_rproc) {
 				pr_info("Resetting recovery flag for ADSP SSR\n");
-				rproc_update_recovery_status(
+				qcom_rproc_update_recovery_status(
 					g_adspsleepmon.adsp_rproc, false);
 			}
 #endif
@@ -1574,7 +1574,7 @@ static int sleepmon_rpmsg_probe(struct rpmsg_device *dev)
 
 	if (g_adspsleepmon.adsp_rproc) {
 		pr_info("Resetting recovery flag for ADSP SSR\n");
-		rproc_update_recovery_status(
+		qcom_rproc_update_recovery_status(
 				g_adspsleepmon.adsp_rproc, false);
 	}
 #endif
