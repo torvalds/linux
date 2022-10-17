@@ -22,13 +22,6 @@
 
 #define ITERS_PER_TEST 2000
 
-/* Test requirements. */
-static bool __init test_requires(void)
-{
-	/* random should be initialized for the below tests */
-	return get_random_u32() + get_random_u32() != 0;
-}
-
 /*
  * Test watchpoint encode and decode: check that encoding some access's info,
  * and then subsequent decode preserves the access's info.
@@ -259,7 +252,6 @@ static int __init kcsan_selftest(void)
 			pr_err("selftest: " #do_test " failed");               \
 	} while (0)
 
-	RUN_TEST(test_requires);
 	RUN_TEST(test_encode_decode);
 	RUN_TEST(test_matching_access);
 	RUN_TEST(test_barrier);
