@@ -24,15 +24,6 @@ SYM_CODE_START(efi_enter_kernel)
 	mov	x20, x1			// DTB address
 
 	/*
-	 * Clean the copied Image to the PoC, and ensure it is not shadowed by
-	 * stale icache entries from before relocation.
-	 */
-	ldr	w1, =kernel_size
-	add	x1, x0, x1
-	bl	dcache_clean_poc
-	ic	ialluis
-
-	/*
 	 * Clean the remainder of this routine to the PoC
 	 * so that we can safely disable the MMU and caches.
 	 */
