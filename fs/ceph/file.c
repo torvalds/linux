@@ -534,14 +534,23 @@ static void wake_async_create_waiters(struct inode *inode,
 				      struct ceph_mds_session *session)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
+	bool check_cap = false;
 
 	spin_lock(&ci->i_ceph_lock);
 	if (ci->i_ceph_flags & CEPH_I_ASYNC_CREATE) {
 		ci->i_ceph_flags &= ~CEPH_I_ASYNC_CREATE;
 		wake_up_bit(&ci->i_ceph_flags, CEPH_ASYNC_CREATE_BIT);
+
+		if (ci->i_ceph_flags & CEPH_I_ASYNC_CHECK_CAPS) {
+			ci->i_ceph_flags &= ~CEPH_I_ASYNC_CHECK_CAPS;
+			check_cap = true;
+		}
 	}
 	ceph_kick_flushing_inode_caps(session, ci);
 	spin_unlock(&ci->i_ceph_lock);
+
+	if (check_cap)
+		ceph_check_caps(ci, CHECK_CAPS_FLUSH);
 }
 
 static void ceph_async_create_cb(struct ceph_mds_client *mdsc,

@@ -593,6 +593,8 @@ static inline struct inode *ceph_find_inode(struct super_block *sb,
 #define CEPH_ASYNC_CREATE_BIT	(12)	  /* async create in flight for this */
 #define CEPH_I_ASYNC_CREATE	(1 << CEPH_ASYNC_CREATE_BIT)
 #define CEPH_I_SHUTDOWN		(1 << 13) /* inode is no longer usable */
+#define CEPH_I_ASYNC_CHECK_CAPS	(1 << 14) /* check caps immediately after async
+					     creating finishes */
 
 /*
  * Masks of ceph inode work.
