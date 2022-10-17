@@ -460,8 +460,12 @@ static int qrtr_node_enqueue(struct qrtr_node *node, struct sk_buff *skb,
 	 * confirm_rx flag if we dropped this one */
 	if (rc && confirm_rx)
 		qrtr_tx_flow_failed(node, to->sq_node, to->sq_port);
-	if (!rc && type == QRTR_TYPE_HELLO)
-		atomic_inc(&node->hello_sent);
+	if (type == QRTR_TYPE_HELLO) {
+		if (!rc)
+			atomic_inc(&node->hello_sent);
+		else
+			kthread_queue_work(&node->kworker, &node->say_hello);
+	}
 
 	return rc;
 }
