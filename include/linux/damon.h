@@ -484,6 +484,12 @@ static inline struct damon_region *damon_first_region(struct damon_target *t)
 	return list_first_entry(&t->regions_list, struct damon_region, list);
 }
 
+static inline unsigned long damon_sz_region(struct damon_region *r)
+{
+	return r->ar.end - r->ar.start;
+}
+
+
 #define damon_for_each_region(r, t) \
 	list_for_each_entry(r, &t->regions_list, list)
 
