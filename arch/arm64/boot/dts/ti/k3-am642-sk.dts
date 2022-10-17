@@ -566,11 +566,3 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_ecap0_pins_default>;
 };
-
-&gpmc0 {
-	status = "disabled";
-};
-
-&elm0 {
-	status = "disabled";
-};
