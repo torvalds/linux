@@ -442,7 +442,7 @@
 };
 
 &tlmm {
-	ts_int_pin: touch-int {
+	ts_int_pin: touch-int-state {
 		pins = "gpio61";
 		function = "gpio";
 		drive-strength = <2>;
@@ -450,34 +450,34 @@
 		input-enable;
 	};
 
-	sdc1_on: sdc1-on {
-		clk {
+	sdc1_on: sdc1-on-state {
+		clk-pins {
 			pins = "sdc1_clk";
 			drive-strength = <16>;
 			bias-disable;
 		};
 
-		cmd-data {
+		cmd-data-pins {
 			pins = "sdc1_cmd", "sdc1_data";
 			drive-strength = <10>;
 			bias-pull-up;
 		};
 	};
 
-	sdc2_on: sdc-on {
-		clk {
+	sdc2_on: sdc-on-state {
+		clk-pins {
 			pins = "sdc2_clk";
 			drive-strength = <10>;
 			bias-disable;
 		};
 
-		cmd-data {
+		cmd-data-pins {
 			pins = "sdc2_cmd", "sdc2_data";
 			drive-strength = <6>;
 			bias-pull-up;
 		};
 
-		cd {
+		cd-pins {
 			pins = "gpio62";
 			function = "gpio";
 			drive-strength = <2>;

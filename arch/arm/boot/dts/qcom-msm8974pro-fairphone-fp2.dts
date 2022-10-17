@@ -409,36 +409,36 @@
 };
 
 &tlmm {
-	sdc1_on: sdc1-on {
-		clk {
+	sdc1_on: sdc1-on-state {
+		clk-pins {
 			pins = "sdc1_clk";
 			drive-strength = <16>;
 			bias-disable;
 		};
 
-		cmd-data {
+		cmd-data-pins {
 			pins = "sdc1_cmd", "sdc1_data";
 			drive-strength = <10>;
 			bias-pull-up;
 		};
 	};
 
-	sdc2_on: sdc2-on {
-		clk {
+	sdc2_on: sdc2-on-state {
+		clk-pins {
 			pins = "sdc2_clk";
 			drive-strength = <10>;
 			bias-disable;
 		};
 
-		cmd-data {
+		cmd-data-pins {
 			pins = "sdc2_cmd", "sdc2_data";
 			drive-strength = <6>;
 			bias-pull-up;
 		};
 	};
 
-	wcnss_pin_a: wcnss-pin-active {
-		wlan {
+	wcnss_pin_a: wcnss-pin-active-state {
+		wlan-pins {
 			pins =  "gpio36", "gpio37", "gpio38", "gpio39", "gpio40";
 			function = "wlan";
 
@@ -446,7 +446,7 @@
 			bias-pull-down;
 		};
 
-		bt {
+		bt-pins {
 			pins = "gpio35", "gpio43", "gpio44";
 			function = "bt";
 
@@ -454,7 +454,7 @@
 			bias-pull-down;
 		};
 
-		fm {
+		fm-pins {
 			pins = "gpio41", "gpio42";
 			function = "fm";
 
