@@ -60,9 +60,9 @@ static int inode_decode_field(const u8 *in, const u8 *end,
 	return bytes;
 }
 
-void bch2_inode_pack(struct bch_fs *c,
-		     struct bkey_inode_buf *packed,
-		     const struct bch_inode_unpacked *inode)
+static inline void bch2_inode_pack_inlined(struct bch_fs *c,
+					   struct bkey_inode_buf *packed,
+					   const struct bch_inode_unpacked *inode)
 {
 	struct bkey_i_inode_v2 *k = &packed->inode;
 	u8 *out = k->v.fields;
@@ -128,6 +128,13 @@ void bch2_inode_pack(struct bch_fs *c,
 		BCH_INODE_FIELDS()
 #undef  x
 	}
+}
+
+void bch2_inode_pack(struct bch_fs *c,
+		     struct bkey_inode_buf *packed,
+		     const struct bch_inode_unpacked *inode)
+{
+	bch2_inode_pack_inlined(c, packed, inode);
 }
 
 static noinline int bch2_inode_unpack_v1(struct bkey_s_c_inode inode,
@@ -288,7 +295,7 @@ int bch2_inode_write(struct btree_trans *trans,
 	if (IS_ERR(inode_p))
 		return PTR_ERR(inode_p);
 
-	bch2_inode_pack(trans->c, inode_p, inode);
+	bch2_inode_pack_inlined(trans->c, inode_p, inode);
 	inode_p->inode.k.p.snapshot = iter->snapshot;
 	return bch2_trans_update(trans, iter, &inode_p->inode.k_i, 0);
 }
