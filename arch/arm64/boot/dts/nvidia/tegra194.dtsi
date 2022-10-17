@@ -809,8 +809,6 @@
 			clock-names = "div-clk";
 			resets = <&bpmp TEGRA194_RESET_I2C1>;
 			reset-names = "i2c";
-			iommus = <&smmu TEGRA194_SID_GPCDMA_0>;
-			dma-coherent;
 			dmas = <&gpcdma 21>, <&gpcdma 21>;
 			dma-names = "rx", "tx";
 			status = "disabled";
@@ -838,8 +836,6 @@
 			clock-names = "div-clk";
 			resets = <&bpmp TEGRA194_RESET_I2C3>;
 			reset-names = "i2c";
-			iommus = <&smmu TEGRA194_SID_GPCDMA_0>;
-			dma-coherent;
 			dmas = <&gpcdma 23>, <&gpcdma 23>;
 			dma-names = "rx", "tx";
 			status = "disabled";
@@ -859,8 +855,6 @@
 			pinctrl-0 = <&state_dpaux1_i2c>;
 			pinctrl-1 = <&state_dpaux1_off>;
 			pinctrl-names = "default", "idle";
-			iommus = <&smmu TEGRA194_SID_GPCDMA_0>;
-			dma-coherent;
 			dmas = <&gpcdma 26>, <&gpcdma 26>;
 			dma-names = "rx", "tx";
 			status = "disabled";
@@ -880,8 +874,6 @@
 			pinctrl-0 = <&state_dpaux0_i2c>;
 			pinctrl-1 = <&state_dpaux0_off>;
 			pinctrl-names = "default", "idle";
-			iommus = <&smmu TEGRA194_SID_GPCDMA_0>;
-			dma-coherent;
 			dmas = <&gpcdma 30>, <&gpcdma 30>;
 			dma-names = "rx", "tx";
 			status = "disabled";
@@ -901,8 +893,6 @@
 			pinctrl-0 = <&state_dpaux2_i2c>;
 			pinctrl-1 = <&state_dpaux2_off>;
 			pinctrl-names = "default", "idle";
-			iommus = <&smmu TEGRA194_SID_GPCDMA_0>;
-			dma-coherent;
 			dmas = <&gpcdma 27>, <&gpcdma 27>;
 			dma-names = "rx", "tx";
 			status = "disabled";
@@ -922,8 +912,6 @@
 			pinctrl-0 = <&state_dpaux3_i2c>;
 			pinctrl-1 = <&state_dpaux3_off>;
 			pinctrl-names = "default", "idle";
-			iommus = <&smmu TEGRA194_SID_GPCDMA_0>;
-			dma-coherent;
 			dmas = <&gpcdma 31>, <&gpcdma 31>;
 			dma-names = "rx", "tx";
 			status = "disabled";
@@ -1605,8 +1593,6 @@
 			clock-names = "div-clk";
 			resets = <&bpmp TEGRA194_RESET_I2C2>;
 			reset-names = "i2c";
-			iommus = <&smmu TEGRA194_SID_GPCDMA_0>;
-			dma-coherent;
 			dmas = <&gpcdma 22>, <&gpcdma 22>;
 			dma-names = "rx", "tx";
 			status = "disabled";
@@ -1622,8 +1608,6 @@
 			clock-names = "div-clk";
 			resets = <&bpmp TEGRA194_RESET_I2C8>;
 			reset-names = "i2c";
-			iommus = <&smmu TEGRA194_SID_GPCDMA_0>;
-			dma-coherent;
 			dmas = <&gpcdma 0>, <&gpcdma 0>;
 			dma-names = "rx", "tx";
 			status = "disabled";
