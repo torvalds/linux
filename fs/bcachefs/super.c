@@ -332,25 +332,11 @@ static int bch2_fs_read_write_late(struct bch_fs *c)
 {
 	int ret;
 
-	ret = bch2_gc_thread_start(c);
-	if (ret) {
-		bch_err(c, "error starting gc thread");
-		return ret;
-	}
-
-	ret = bch2_copygc_start(c);
-	if (ret) {
-		bch_err(c, "error starting copygc thread");
-		return ret;
-	}
-
 	ret = bch2_rebalance_start(c);
 	if (ret) {
 		bch_err(c, "error starting rebalance thread");
 		return ret;
 	}
-
-	schedule_work(&c->ec_stripe_delete_work);
 
 	return 0;
 }
@@ -397,6 +383,18 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 	for_each_rw_member(ca, c, i)
 		bch2_dev_allocator_add(c, ca);
 	bch2_recalc_capacity(c);
+
+	ret = bch2_gc_thread_start(c);
+	if (ret) {
+		bch_err(c, "error starting gc thread");
+		return ret;
+	}
+
+	ret = bch2_copygc_start(c);
+	if (ret) {
+		bch_err(c, "error starting copygc thread");
+		return ret;
+	}
 
 	if (!early) {
 		ret = bch2_fs_read_write_late(c);
