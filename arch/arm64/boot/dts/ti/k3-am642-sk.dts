@@ -349,15 +349,8 @@
 	status = "reserved";
 };
 
-&mcu_i2c0 {
-	status = "disabled";
-};
-
-&mcu_i2c1 {
-	status = "disabled";
-};
-
 &main_i2c1 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_i2c1_pins_default>;
 	clock-frequency = <400000>;
@@ -380,10 +373,6 @@
 		#gpio-cells = <2>;
 		gpio-line-names = "LED1","LED2","LED3","LED4","LED5","LED6","LED7","LED8";
 	};
-};
-
-&main_i2c3 {
-	status = "disabled";
 };
 
 &mcu_spi0 {
