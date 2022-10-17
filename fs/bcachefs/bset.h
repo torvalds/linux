@@ -212,20 +212,19 @@ __bkey_unpack_key_format_checked(const struct btree *b,
 			       struct bkey *dst,
 			       const struct bkey_packed *src)
 {
-#ifdef HAVE_BCACHEFS_COMPILED_UNPACK
-	{
+	if (IS_ENABLED(HAVE_BCACHEFS_COMPILED_UNPACK)) {
 		compiled_unpack_fn unpack_fn = b->aux_data;
 		unpack_fn(dst, src);
 
-		if (bch2_expensive_debug_checks) {
+		if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG) &&
+		    bch2_expensive_debug_checks) {
 			struct bkey dst2 = __bch2_bkey_unpack_key(&b->format, src);
 
 			BUG_ON(memcmp(dst, &dst2, sizeof(*dst)));
 		}
+	} else {
+		*dst = __bch2_bkey_unpack_key(&b->format, src);
 	}
-#else
-	*dst = __bch2_bkey_unpack_key(&b->format, src);
-#endif
 }
 
 static inline struct bkey
