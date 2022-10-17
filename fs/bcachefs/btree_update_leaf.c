@@ -339,7 +339,7 @@ btree_key_can_insert_cached(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_cached *ck = (void *) path->l[0].b;
-	unsigned old_u64s = ck->u64s, new_u64s;
+	unsigned new_u64s;
 	struct bkey_i *new_k;
 
 	EBUG_ON(path->level);
@@ -368,12 +368,7 @@ btree_key_can_insert_cached(struct btree_trans *trans,
 
 	ck->u64s	= new_u64s;
 	ck->k		= new_k;
-	/*
-	 * Keys returned by peek() are no longer valid pointers, so we need a
-	 * transaction restart:
-	 */
-	trace_and_count(c, trans_restart_key_cache_key_realloced, trans, _RET_IP_, path, old_u64s, new_u64s);
-	return btree_trans_restart_nounlock(trans, BCH_ERR_transaction_restart_key_cache_realloced);
+	return 0;
 }
 
 /* Triggers: */
