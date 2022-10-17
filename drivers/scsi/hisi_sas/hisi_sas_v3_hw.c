@@ -428,6 +428,8 @@
 #define CMPLT_HDR_DEV_ID_OFF		16
 #define CMPLT_HDR_DEV_ID_MSK		(0xffff << CMPLT_HDR_DEV_ID_OFF)
 /* dw3 */
+#define SATA_DISK_IN_ERROR_STATUS_OFF	8
+#define SATA_DISK_IN_ERROR_STATUS_MSK	(0x1 << SATA_DISK_IN_ERROR_STATUS_OFF)
 #define CMPLT_HDR_SATA_DISK_ERR_OFF	16
 #define CMPLT_HDR_SATA_DISK_ERR_MSK	(0x1 << CMPLT_HDR_SATA_DISK_ERR_OFF)
 #define CMPLT_HDR_IO_IN_TARGET_OFF	17
@@ -2219,7 +2221,8 @@ slot_err_v3_hw(struct hisi_hba *hisi_hba, struct sas_task *task,
 		} else if (dma_rx_err_type & RX_DATA_LEN_UNDERFLOW_MSK) {
 			ts->residual = trans_tx_fail_type;
 			ts->stat = SAS_DATA_UNDERRUN;
-		} else if (dw3 & CMPLT_HDR_IO_IN_TARGET_MSK) {
+		} else if ((dw3 & CMPLT_HDR_IO_IN_TARGET_MSK) ||
+			   (dw3 & SATA_DISK_IN_ERROR_STATUS_MSK)) {
 			ts->stat = SAS_PHY_DOWN;
 			slot->abort = 1;
 		} else {
