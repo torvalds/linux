@@ -6,11 +6,7 @@
  * Author: Mark Salter <msalter@redhat.com>
  */
 #include <linux/linkage.h>
-#include <linux/init.h>
-
 #include <asm/assembler.h>
-
-	__INIT
 
 SYM_CODE_START(efi_enter_kernel)
 	/*
