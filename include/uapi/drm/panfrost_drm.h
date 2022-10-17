@@ -242,7 +242,7 @@ struct panfrost_dump_object_header {
 	__le32 file_offset;
 
 	union {
-		struct pan_reg_hdr {
+		struct {
 			__le64 jc;
 			__le32 gpu_id;
 			__le32 major;
@@ -250,7 +250,7 @@ struct panfrost_dump_object_header {
 			__le64 nbos;
 		} reghdr;
 
-		struct pan_bomap_hdr {
+		struct {
 			__le32 valid;
 			__le64 iova;
 			__le32 data[2];
