@@ -6,6 +6,7 @@
 
 /dts-v1/;
 #include "jh7110-visionfive-v2.dtsi"
+#include "codecs/sf_hdmi.dtsi"
 
 / {
 	model = "StarFive VisionFive V2";
@@ -152,6 +153,15 @@
 			starfive,pin-gpio-din =  <GPI_HDMI0_HPD>;
 		};
 	};
+
+	mclk_ext_pins: mclk_ext_pins {
+		mclk_ext_pins {
+			starfive,pins = <PAD_GPIO4>;
+			starfive,pin-ioconfig = <IO(GPIO_IE(1))>;
+			starfive,pin-gpio-din = <GPI_CRG0_EXT_MCLK>;
+			starfive,pin-gpio-doen = <OEN_HIGH>;
+		};
+	};
 };
 
 &uart0 {
@@ -183,4 +193,10 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&inno_hdmi_pins>;
+};
+
+&i2stx_4ch0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mclk_ext_pins>;
+	status = "okay";
 };
