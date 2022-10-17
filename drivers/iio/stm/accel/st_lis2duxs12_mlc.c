@@ -604,7 +604,7 @@ iio_dev *st_lis2duxs12_mlc_alloc_iio_dev(struct st_lis2duxs12_hw *hw,
 		iio_dev->num_channels = ARRAY_SIZE(st_lis2duxs12_mlc_channels);
 		iio_dev->info = &st_lis2duxs12_mlc_event_info;
 		scnprintf(sensor->name, sizeof(sensor->name),
-			  ST_LIS2DUXS12_DEV_NAME "_mlc");
+			  "%s_mlc", hw->settings->id.name);
 		break;
 	}
 	case ST_LIS2DUXS12_ID_MLC_0:
@@ -629,7 +629,7 @@ iio_dev *st_lis2duxs12_mlc_alloc_iio_dev(struct st_lis2duxs12_hw *hw,
 		iio_dev->num_channels = ARRAY_SIZE(st_lis2duxs12_mlc_x_ch);
 		iio_dev->info = &st_lis2duxs12_mlc_x_event_info;
 		scnprintf(sensor->name, sizeof(sensor->name),
-			  ST_LIS2DUXS12_DEV_NAME "_mlc_%d",
+			  "%s_mlc_%d", hw->settings->id.name,
 			  id - ST_LIS2DUXS12_ID_MLC_0);
 		sensor->outreg_addr = ST_LIS2DUXS12_MLC1_SRC_ADDR + id -
 				      ST_LIS2DUXS12_ID_MLC_0;
@@ -664,7 +664,7 @@ iio_dev *st_lis2duxs12_mlc_alloc_iio_dev(struct st_lis2duxs12_hw *hw,
 		iio_dev->num_channels = ARRAY_SIZE(st_lis2duxs12_fsm_x_ch);
 		iio_dev->info = &st_lis2duxs12_mlc_x_event_info;
 		scnprintf(sensor->name, sizeof(sensor->name),
-			  ST_LIS2DUXS12_DEV_NAME "_fsm_%d",
+			  "%s_fsm_%d", hw->settings->id.name,
 			  id - ST_LIS2DUXS12_ID_FSM_0);
 		sensor->outreg_addr = ST_LIS2DUXS12_FSM_OUTS1_ADDR +
 				id - ST_LIS2DUXS12_ID_FSM_0;

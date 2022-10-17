@@ -742,7 +742,8 @@ st_lis2duxs12_alloc_event_iiodev(struct st_lis2duxs12_hw *hw,
 	case ST_LIS2DUXS12_ID_WK:
 		iio_dev->channels = st_lis2duxs12_wk_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_lis2duxs12_wk_channels);
-		iio_dev->name = ST_LIS2DUXS12_DEV_NAME "_wk";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_wk", hw->settings->id.name);
 		iio_dev->info = &st_lis2duxs12_wk_info;
 		/* request ODR @50 Hz to works properly */
 		sensor->odr = 50;
@@ -751,7 +752,8 @@ st_lis2duxs12_alloc_event_iiodev(struct st_lis2duxs12_hw *hw,
 	case ST_LIS2DUXS12_ID_FF:
 		iio_dev->channels = st_lis2duxs12_ff_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_lis2duxs12_ff_channels);
-		iio_dev->name = ST_LIS2DUXS12_DEV_NAME "_ff";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_ff", hw->settings->id.name);
 		iio_dev->info = &st_lis2duxs12_ff_info;
 		/* request ODR @50 Hz to works properly */
 		sensor->odr = 50;
@@ -760,7 +762,8 @@ st_lis2duxs12_alloc_event_iiodev(struct st_lis2duxs12_hw *hw,
 	case ST_LIS2DUXS12_ID_SC:
 		iio_dev->channels = st_lis2duxs12_sleepchange_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_lis2duxs12_sleepchange_channels);
-		iio_dev->name = ST_LIS2DUXS12_DEV_NAME "_sc";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_sc", hw->settings->id.name);
 		iio_dev->info = &st_lis2duxs12_sc_info;
 		/* request ODR @50 Hz to works properly */
 		sensor->odr = 50;
@@ -769,7 +772,8 @@ st_lis2duxs12_alloc_event_iiodev(struct st_lis2duxs12_hw *hw,
 	case ST_LIS2DUXS12_ID_6D:
 		iio_dev->channels = st_lis2duxs12_6D_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_lis2duxs12_6D_channels);
-		iio_dev->name = ST_LIS2DUXS12_DEV_NAME "_6d";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_6d", hw->settings->id.name);
 		iio_dev->info = &st_lis2duxs12_6D_info;
 		/* request ODR @50 Hz to works properly */
 		sensor->odr = 50;
@@ -778,7 +782,8 @@ st_lis2duxs12_alloc_event_iiodev(struct st_lis2duxs12_hw *hw,
 	case ST_LIS2DUXS12_ID_TAP:
 		iio_dev->channels = st_lis2duxs12_tap_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_lis2duxs12_tap_channels);
-		iio_dev->name = ST_LIS2DUXS12_DEV_NAME "_tap";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_tap", hw->settings->id.name);
 		iio_dev->info = &st_lis2duxs12_tap_info;
 		/* request ODR @400 Hz to works properly */
 		sensor->odr = 400;
@@ -787,7 +792,8 @@ st_lis2duxs12_alloc_event_iiodev(struct st_lis2duxs12_hw *hw,
 	case ST_LIS2DUXS12_ID_DTAP:
 		iio_dev->channels = st_lis2duxs12_dtap_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_lis2duxs12_dtap_channels);
-		iio_dev->name = ST_LIS2DUXS12_DEV_NAME "_dtap";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_dtap", hw->settings->id.name);
 		iio_dev->info = &st_lis2duxs12_dtap_info;
 		/* request ODR @400 Hz to works properly */
 		sensor->odr = 400;
@@ -796,7 +802,8 @@ st_lis2duxs12_alloc_event_iiodev(struct st_lis2duxs12_hw *hw,
 	case ST_LIS2DUXS12_ID_TTAP:
 		iio_dev->channels = st_lis2duxs12_ttap_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_lis2duxs12_ttap_channels);
-		iio_dev->name = ST_LIS2DUXS12_DEV_NAME "_ttap";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_ttap", hw->settings->id.name);
 		iio_dev->info = &st_lis2duxs12_ttap_info;
 		/* request ODR @400 Hz to works properly */
 		sensor->odr = 400;
@@ -805,6 +812,8 @@ st_lis2duxs12_alloc_event_iiodev(struct st_lis2duxs12_hw *hw,
 	default:
 		return NULL;
 	}
+
+	iio_dev->name = sensor->name;
 
 	return iio_dev;
 }

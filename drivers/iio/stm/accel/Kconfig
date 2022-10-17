@@ -174,12 +174,6 @@ config IIO_ST_LIS2DUXS12
           To compile this driver as a module, choose M here: the module
           will be called lis2duxs12.
 
-config IIO_ST_LIS2DUXS12_QVAR
-	bool "Enable QVAR"
-	depends on IIO_ST_LIS2DUXS12
-	help
-	  Enable support to QVAR sensor.
-
 config IIO_ST_LIS2DUXS12_I2C
         tristate
         select REGMAP_I2C

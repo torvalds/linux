@@ -429,8 +429,6 @@ static int st_lis2duxs12_update_fifo(struct iio_dev *iio_dev, bool enable)
 	mutex_lock(&hw->fifo_lock);
 
 	switch (sensor->id) {
-
-#ifdef CONFIG_IIO_ST_LIS2DUXS12_QVAR
 	case ST_LIS2DUXS12_ID_QVAR: {
 		u8 xl_only = enable ? 0 : 1;
 
@@ -460,8 +458,6 @@ static int st_lis2duxs12_update_fifo(struct iio_dev *iio_dev, bool enable)
 		hw->xl_only = !!xl_only;
 		break;
 	}
-#endif /* CONFIG_IIO_ST_LIS2DUXS12_QVAR */
-
 	case ST_LIS2DUXS12_ID_TEMP: {
 		u8 xl_only = enable ? 0 : 1;
 
@@ -667,35 +663,38 @@ int st_lis2duxs12_buffers_setup(struct st_lis2duxs12_hw *hw)
 			return err;
 	}
 
-#ifdef CONFIG_IIO_ST_LIS2DUXS12_QVAR
-	if (hw->int_pin != 1) {
-		dev_err(hw->dev,
-			"if qvar enabled only irq pin 1 can be used\n");
+	if (hw->settings->st_qvar_support) {
+		if (hw->int_pin == 1) {
+			/*
+			 * route on RES pin the interrupt pin configured when
+			 * qvar supported
+			 */
+			err = regmap_update_bits(hw->regmap,
+					 ST_LIS2DUXS12_CTRL1_ADDR,
+					 ST_LIS2DUXS12_INT1_ON_RES_MASK,
+					 FIELD_PREP(ST_LIS2DUXS12_INT1_ON_RES_MASK, 1));
+			if (err < 0)
+				return err;
+		} else  {
+			dev_err(hw->dev,
+				"if qvar enabled only irq pin 1 can be used\n");
 
-		return err;
-	}
-
-	/* route on RES pin the interrupt pin configured */
-	err = regmap_update_bits(hw->regmap,
-			 ST_LIS2DUXS12_CTRL1_ADDR,
-			 ST_LIS2DUXS12_INT1_ON_RES_MASK,
-			 FIELD_PREP(ST_LIS2DUXS12_INT1_ON_RES_MASK, 1));
-	if (err < 0)
-		return err;
-#else /* CONFIG_IIO_ST_LIS2DUXS12_QVAR */
-	/*
-	 * check pull down disable on int2 pin property (not supported
-	 * when qvar enabled)
-	 */
-	if (np && of_property_read_bool(np, "pd_dis_int2")) {
-		err = regmap_update_bits(hw->regmap,
-			ST_LIS2DUXS12_PIN_CTRL_ADDR,
-			ST_LIS2DUXS12_PD_DIS_INT2_MASK,
-			FIELD_PREP(ST_LIS2DUXS12_PD_DIS_INT2_MASK, 1));
-		if (err < 0)
 			return err;
+		}
+	} else {
+		/*
+		 * check pull down disable on int2 pin property (not
+		 * supported when qvar enabled)
+		 */
+		if (np && of_property_read_bool(np, "pd_dis_int2")) {
+			err = regmap_update_bits(hw->regmap,
+				ST_LIS2DUXS12_PIN_CTRL_ADDR,
+				ST_LIS2DUXS12_PD_DIS_INT2_MASK,
+				FIELD_PREP(ST_LIS2DUXS12_PD_DIS_INT2_MASK, 1));
+			if (err < 0)
+				return err;
+		}
 	}
-#endif /* CONFIG_IIO_ST_LIS2DUXS12_QVAR */
 
 	err = devm_request_threaded_irq(hw->dev, hw->irq,
 					st_lis2duxs12_handler_irq,
@@ -706,6 +705,7 @@ int st_lis2duxs12_buffers_setup(struct st_lis2duxs12_hw *hw)
 		dev_err(hw->dev,
 			"failed to request trigger irq %d\n",
 			hw->irq);
+
 		return err;
 	}
 

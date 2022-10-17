@@ -149,6 +149,22 @@ st_lis2duxs12_fs_table_entry st_lis2duxs12_fs_table[] = {
 	},
 };
 
+/**
+ * List of supported device settings
+ *
+ * The following table list all device features in terms of supported
+ * features.
+ */
+static const struct st_lis2duxs12_settings st_lis2duxs12_sensor_settings[] = {
+	{
+		.id = {
+			.hw_id = ST_LIS2DUXS12_ID,
+			.name = ST_LIS2DUXS12_DEV_NAME,
+		},
+		.st_qvar_support = true,
+	},
+};
+
 static const struct iio_mount_matrix *
 st_lis2duxs12_get_mount_matrix(const struct iio_dev *iio_dev,
 			       const struct iio_chan_spec *ch)
@@ -295,10 +311,22 @@ static int st_lis2duxs12_power_up_command(struct st_lis2duxs12_hw *hw)
 	return data;
 }
 
-static int st_lis2duxs12_check_whoami(struct st_lis2duxs12_hw *hw)
+static int st_lis2duxs12_check_whoami(struct st_lis2duxs12_hw *hw,
+				      enum st_lis2duxs12_hw_id hw_id)
 {
-	int data;
-	int err;
+	int data, err, i;
+
+	for (i = 0; i < ARRAY_SIZE(st_lis2duxs12_sensor_settings); i++) {
+		if (st_lis2duxs12_sensor_settings[i].id.name &&
+		    st_lis2duxs12_sensor_settings[i].id.hw_id == hw_id)
+			break;
+	}
+
+	if (i == ARRAY_SIZE(st_lis2duxs12_sensor_settings)) {
+		dev_err(hw->dev, "unsupported hw id [%02x]\n", hw_id);
+
+		return -ENODEV;
+	}
 
 	err = st_lis2duxs12_set_emb_access(hw, false);
 	if (err < 0)
@@ -314,6 +342,8 @@ static int st_lis2duxs12_check_whoami(struct st_lis2duxs12_hw *hw)
 		dev_err(hw->dev, "unsupported whoami [%02x]\n", data);
 		return -ENODEV;
 	}
+
+	hw->settings = &st_lis2duxs12_sensor_settings[i];
 
 	return 0;
 }
@@ -426,8 +456,8 @@ static int st_lis2duxs12_set_odr(struct st_lis2duxs12_sensor *sensor,
 	case ST_LIS2DUXS12_ID_MLC_1:
 	case ST_LIS2DUXS12_ID_MLC_2:
 	case ST_LIS2DUXS12_ID_MLC_3:
-#ifdef CONFIG_IIO_ST_LIS2DUXS12_QVAR
-		if ((hw->mlc_config->requested_device &
+		if ((hw->settings->st_qvar_support) &&
+		    (hw->mlc_config->requested_device &
 		     BIT(ST_LIS2DUXS12_ID_QVAR)) &&
 		    !(hw->enable_mask & BIT(ST_LIS2DUXS12_ID_QVAR))) {
 			err = st_lis2duxs12_write_with_mask_locked(hw,
@@ -437,7 +467,6 @@ static int st_lis2duxs12_set_odr(struct st_lis2duxs12_sensor *sensor,
 			if (err < 0)
 				return err;
 		}
-#endif /* CONFIG_IIO_ST_LIS2DUXS12_QVAR */
 		break;
 	default:
 		break;
@@ -1314,7 +1343,8 @@ iio_dev *st_lis2duxs12_alloc_iiodev(struct st_lis2duxs12_hw *hw,
 		iio_dev->channels = st_lis2duxs12_acc_channels;
 		iio_dev->num_channels =
 				ARRAY_SIZE(st_lis2duxs12_acc_channels);
-		iio_dev->name = ST_LIS2DUXS12_DEV_NAME "_accel";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_accel", hw->settings->id.name);
 		iio_dev->info = &st_lis2duxs12_acc_info;
 		iio_dev->available_scan_masks =
 				st_lis2duxs12_available_scan_masks;
@@ -1334,7 +1364,8 @@ iio_dev *st_lis2duxs12_alloc_iiodev(struct st_lis2duxs12_hw *hw,
 		iio_dev->channels = st_lis2duxs12_temp_channels;
 		iio_dev->num_channels =
 				ARRAY_SIZE(st_lis2duxs12_temp_channels);
-		iio_dev->name = ST_LIS2DUXS12_DEV_NAME "_temp";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_temp", hw->settings->id.name);
 		iio_dev->info = &st_lis2duxs12_temp_info;
 		iio_dev->available_scan_masks =
 				st_lis2duxs12_temp_available_scan_masks;
@@ -1352,7 +1383,8 @@ iio_dev *st_lis2duxs12_alloc_iiodev(struct st_lis2duxs12_hw *hw,
 		iio_dev->channels = st_lis2duxs12_step_counter_channels;
 		iio_dev->num_channels =
 			ARRAY_SIZE(st_lis2duxs12_step_counter_channels);
-		iio_dev->name = ST_LIS2DUXS12_DEV_NAME  "_step_c";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_step_c", hw->settings->id.name);
 		iio_dev->info = &st_lis2duxs12_sc_info;
 		iio_dev->available_scan_masks =
 				st_lis2duxs12_emb_available_scan_masks;
@@ -1366,7 +1398,8 @@ iio_dev *st_lis2duxs12_alloc_iiodev(struct st_lis2duxs12_hw *hw,
 		iio_dev->channels = st_lis2duxs12_step_detector_channels;
 		iio_dev->num_channels =
 			ARRAY_SIZE(st_lis2duxs12_step_detector_channels);
-		iio_dev->name = ST_LIS2DUXS12_DEV_NAME  "_step_d";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_step_d", hw->settings->id.name);
 		iio_dev->info = &st_lis2duxs12_sd_info;
 		iio_dev->available_scan_masks =
 				st_lis2duxs12_emb_available_scan_masks;
@@ -1379,7 +1412,8 @@ iio_dev *st_lis2duxs12_alloc_iiodev(struct st_lis2duxs12_hw *hw,
 		iio_dev->channels = st_lis2duxs12_sign_motion_channels;
 		iio_dev->num_channels =
 			ARRAY_SIZE(st_lis2duxs12_sign_motion_channels);
-		iio_dev->name = ST_LIS2DUXS12_DEV_NAME  "_sign_motion";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_sign_motion", hw->settings->id.name);
 		iio_dev->info = &st_lis2duxs12_sm_info;
 		iio_dev->available_scan_masks =
 				st_lis2duxs12_emb_available_scan_masks;
@@ -1391,7 +1425,8 @@ iio_dev *st_lis2duxs12_alloc_iiodev(struct st_lis2duxs12_hw *hw,
 	case ST_LIS2DUXS12_ID_TILT:
 		iio_dev->channels = st_lis2duxs12_tilt_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_lis2duxs12_tilt_channels);
-		iio_dev->name = ST_LIS2DUXS12_DEV_NAME  "_tilt";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_tilt", hw->settings->id.name);
 		iio_dev->info = &st_lis2duxs12_tilt_info;
 		iio_dev->available_scan_masks =
 				st_lis2duxs12_emb_available_scan_masks;
@@ -1403,6 +1438,8 @@ iio_dev *st_lis2duxs12_alloc_iiodev(struct st_lis2duxs12_hw *hw,
 	default:
 		return NULL;
 	}
+
+	iio_dev->name = sensor->name;
 
 	return iio_dev;
 }
@@ -1460,7 +1497,8 @@ static int st_lis2duxs12_enable_regulator(struct st_lis2duxs12_hw *hw)
 	return err;
 }
 
-int st_lis2duxs12_probe(struct device *dev, int irq, struct regmap *regmap)
+int st_lis2duxs12_probe(struct device *dev, int irq,
+			enum st_lis2duxs12_hw_id hw_id, struct regmap *regmap)
 {
 	enum st_lis2duxs12_sensor_id id;
 	struct st_lis2duxs12_hw *hw;
@@ -1487,7 +1525,7 @@ int st_lis2duxs12_probe(struct device *dev, int irq, struct regmap *regmap)
 
 	st_lis2duxs12_power_up_command(hw);
 
-	err = st_lis2duxs12_check_whoami(hw);
+	err = st_lis2duxs12_check_whoami(hw, hw_id);
 	if (err < 0)
 		return err;
 
@@ -1520,11 +1558,11 @@ int st_lis2duxs12_probe(struct device *dev, int irq, struct regmap *regmap)
 			return -ENOMEM;
 	}
 
-#ifdef CONFIG_IIO_ST_LIS2DUXS12_QVAR
-	err = st_lis2duxs12_qvar_probe(hw);
-	if (err)
-		return err;
-#endif /* CONFIG_IIO_ST_LIS2DUXS12_QVAR */
+	if (hw->settings->st_qvar_support) {
+		err = st_lis2duxs12_qvar_probe(hw);
+		if (err)
+			return err;
+	}
 
 	err = st_lis2duxs12_probe_basicfunc(hw);
 	if (err < 0)

@@ -579,6 +579,25 @@ enum {
 	ST_LIS2DUXS12_HW_OPERATIONAL,
 };
 
+enum st_lis2duxs12_hw_id {
+	ST_LIS2DUXS12_ID,
+	ST_LIS2DUXS12_MAX_ID,
+};
+
+/**
+ * struct st_lis2duxs12_settings - ST IMU sensor settings
+ *
+ * @hw_id: Hw id supported by the driver configuration.
+ * @name: Device name supported by the driver configuration.
+ * @st_qvar_support: QVAR supported flag.
+ */
+struct st_lis2duxs12_settings {
+	struct {
+		enum st_lis2duxs12_hw_id hw_id;
+		const char *name;
+	} id;
+	bool st_qvar_support;
+};
 /**
  * struct st_lis2duxs12_sensor - ST ACC sensor instance
  */
@@ -669,6 +688,7 @@ struct st_lis2duxs12_hw {
 	u8 emb_int_reg;
 
 	struct iio_dev *iio_devs[ST_LIS2DUXS12_ID_MAX];
+	const struct st_lis2duxs12_settings *settings;
 };
 
 extern const struct dev_pm_ops st_lis2duxs12_pm_ops;
@@ -840,7 +860,8 @@ st_lis2duxs12_update_page_bits_locked(struct st_lis2duxs12_hw *hw,
 	return err;
 }
 
-int st_lis2duxs12_probe(struct device *dev, int irq, struct regmap *regmap);
+int st_lis2duxs12_probe(struct device *dev, int irq,
+			enum st_lis2duxs12_hw_id hw_id, struct regmap *regmap);
 int st_lis2duxs12_remove(struct device *dev);
 int st_lis2duxs12_sensor_set_enable(struct st_lis2duxs12_sensor *sensor,
 				    bool enable);
@@ -877,10 +898,8 @@ int st_lis2duxs12_embfunc_sensor_set_enable(struct st_lis2duxs12_sensor *sensor,
 int st_lis2duxs12_probe_basicfunc(struct st_lis2duxs12_hw *hw);
 int st_lis2duxs12_event_handler(struct st_lis2duxs12_hw *hw);
 
-#ifdef CONFIG_IIO_ST_LIS2DUXS12_QVAR
 /* qvar */
 int st_lis2duxs12_qvar_probe(struct st_lis2duxs12_hw *hw);
 int st_lis2duxs12_qvar_set_enable(struct st_lis2duxs12_sensor *sensor,
 				  bool enable);
-#endif /* CONFIG_IIO_ST_LIS2DUXS12_QVAR */
 #endif /* ST_LIS2DUXS12_H */

@@ -43,7 +43,8 @@ static int st_lis2duxs12_i3c_probe(struct i3c_device *i3cdev)
 		return PTR_ERR(regmap);
 	}
 
-	return st_lis2duxs12_probe(&i3cdev->dev, 0, regmap);
+	return st_lis2duxs12_probe(&i3cdev->dev, 0,
+				   (uintptr_t)id->data, regmap);
 }
 
 static struct i3c_driver st_lis2duxs12_driver = {
