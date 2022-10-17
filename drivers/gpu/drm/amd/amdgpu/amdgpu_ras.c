@@ -36,7 +36,6 @@
 #include "ivsrcid/nbio/irqsrcs_nbif_7_4.h"
 #include "atom.h"
 #include "amdgpu_reset.h"
-#include "umc_v6_7.h"
 
 #ifdef CONFIG_X86_MCE_AMD
 #include <asm/mce.h>
@@ -2849,7 +2848,6 @@ static int amdgpu_bad_page_notifier(struct notifier_block *nb,
 	struct amdgpu_device *adev = NULL;
 	uint32_t gpu_id = 0;
 	uint32_t umc_inst = 0, ch_inst = 0;
-	struct ras_err_data err_data = {0, 0, 0, NULL};
 
 	/*
 	 * If the error was generated in UMC_V2, which belongs to GPU UMCs,
@@ -2888,38 +2886,10 @@ static int amdgpu_bad_page_notifier(struct notifier_block *nb,
 	dev_info(adev->dev, "Uncorrectable error detected in UMC inst: %d, chan_idx: %d",
 			     umc_inst, ch_inst);
 
-	err_data.err_addr =
-		kcalloc(adev->umc.max_ras_err_cnt_per_query,
-			sizeof(struct eeprom_table_record), GFP_KERNEL);
-	if (!err_data.err_addr) {
-		dev_warn(adev->dev,
-			"Failed to alloc memory for umc error record in mca notifier!\n");
+	if (!amdgpu_umc_page_retirement_mca(adev, m->addr, ch_inst, umc_inst))
+		return NOTIFY_OK;
+	else
 		return NOTIFY_DONE;
-	}
-
-	/*
-	 * Translate UMC channel address to Physical address
-	 */
-	switch (adev->ip_versions[UMC_HWIP][0]) {
-	case IP_VERSION(6, 7, 0):
-		umc_v6_7_convert_error_address(adev,
-				&err_data, m->addr, ch_inst, umc_inst);
-		break;
-	default:
-		dev_warn(adev->dev,
-			 "UMC address to Physical address translation is not supported\n");
-		kfree(err_data.err_addr);
-		return NOTIFY_DONE;
-	}
-
-	if (amdgpu_bad_page_threshold != 0) {
-		amdgpu_ras_add_bad_pages(adev, err_data.err_addr,
-						err_data.err_addr_cnt);
-		amdgpu_ras_save_bad_pages(adev);
-	}
-
-	kfree(err_data.err_addr);
-	return NOTIFY_OK;
 }
 
 static struct notifier_block amdgpu_bad_page_nb = {
