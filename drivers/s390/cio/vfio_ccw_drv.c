@@ -12,7 +12,6 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/mdev.h>
 
@@ -142,7 +141,6 @@ static struct vfio_ccw_private *vfio_ccw_alloc_private(struct subchannel *sch)
 	INIT_LIST_HEAD(&private->crw);
 	INIT_WORK(&private->io_work, vfio_ccw_sch_io_todo);
 	INIT_WORK(&private->crw_work, vfio_ccw_crw_todo);
-	atomic_set(&private->avail, 1);
 
 	private->cp.guest_cp = kcalloc(CCWCHAIN_LEN_MAX, sizeof(struct ccw1),
 				       GFP_KERNEL);
@@ -203,7 +201,6 @@ static void vfio_ccw_free_private(struct vfio_ccw_private *private)
 	mutex_destroy(&private->io_mutex);
 	kfree(private);
 }
-
 static int vfio_ccw_sch_probe(struct subchannel *sch)
 {
 	struct pmcw *pmcw = &sch->schib.pmcw;
@@ -222,7 +219,12 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 
 	dev_set_drvdata(&sch->dev, private);
 
-	ret = mdev_register_device(&sch->dev, &vfio_ccw_mdev_driver);
+	private->mdev_type.sysfs_name = "io";
+	private->mdev_type.pretty_name = "I/O subchannel (Non-QDIO)";
+	private->mdev_types[0] = &private->mdev_type;
+	ret = mdev_register_parent(&private->parent, &sch->dev,
+				   &vfio_ccw_mdev_driver,
+				   private->mdev_types, 1);
 	if (ret)
 		goto out_free;
 
@@ -241,7 +243,7 @@ static void vfio_ccw_sch_remove(struct subchannel *sch)
 {
 	struct vfio_ccw_private *private = dev_get_drvdata(&sch->dev);
 
-	mdev_unregister_device(&sch->dev);
+	mdev_unregister_parent(&private->parent);
 
 	dev_set_drvdata(&sch->dev, NULL);
 

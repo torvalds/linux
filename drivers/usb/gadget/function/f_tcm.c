@@ -2306,7 +2306,7 @@ static struct usb_function *tcm_alloc(struct usb_function_instance *fi)
 
 DECLARE_USB_FUNCTION(tcm, tcm_alloc_inst, tcm_alloc);
 
-static int tcm_init(void)
+static int __init tcm_init(void)
 {
 	int ret;
 
@@ -2322,7 +2322,7 @@ static int tcm_init(void)
 }
 module_init(tcm_init);
 
-static void tcm_exit(void)
+static void __exit tcm_exit(void)
 {
 	target_unregister_template(&usbg_ops);
 	usb_function_unregister(&tcmusb_func);

@@ -21,7 +21,7 @@ enum {
 
 static void
 fill_static_params(struct mlx5_wqe_tls_static_params_seg *params,
-		   struct tls12_crypto_info_aes_gcm_128 *info,
+		   union mlx5e_crypto_info *crypto_info,
 		   u32 key_id, u32 resync_tcp_sn)
 {
 	char *initial_rn, *gcm_iv;
@@ -32,7 +32,26 @@ fill_static_params(struct mlx5_wqe_tls_static_params_seg *params,
 
 	ctx = params->ctx;
 
-	EXTRACT_INFO_FIELDS;
+	switch (crypto_info->crypto_info.cipher_type) {
+	case TLS_CIPHER_AES_GCM_128: {
+		struct tls12_crypto_info_aes_gcm_128 *info =
+			&crypto_info->crypto_info_128;
+
+		EXTRACT_INFO_FIELDS;
+		break;
+	}
+	case TLS_CIPHER_AES_GCM_256: {
+		struct tls12_crypto_info_aes_gcm_256 *info =
+			&crypto_info->crypto_info_256;
+
+		EXTRACT_INFO_FIELDS;
+		break;
+	}
+	default:
+		WARN_ONCE(1, "Unsupported cipher type %u\n",
+			  crypto_info->crypto_info.cipher_type);
+		return;
+	}
 
 	gcm_iv      = MLX5_ADDR_OF(tls_static_params, ctx, gcm_iv);
 	initial_rn  = MLX5_ADDR_OF(tls_static_params, ctx, initial_record_number);
@@ -54,7 +73,7 @@ fill_static_params(struct mlx5_wqe_tls_static_params_seg *params,
 void
 mlx5e_ktls_build_static_params(struct mlx5e_set_tls_static_params_wqe *wqe,
 			       u16 pc, u32 sqn,
-			       struct tls12_crypto_info_aes_gcm_128 *info,
+			       union mlx5e_crypto_info *crypto_info,
 			       u32 tis_tir_num, u32 key_id, u32 resync_tcp_sn,
 			       bool fence, enum tls_offload_ctx_dir direction)
 {
@@ -75,7 +94,7 @@ mlx5e_ktls_build_static_params(struct mlx5e_set_tls_static_params_wqe *wqe,
 	ucseg->flags = MLX5_UMR_INLINE;
 	ucseg->bsf_octowords = cpu_to_be16(MLX5_ST_SZ_BYTES(tls_static_params) / 16);
 
-	fill_static_params(&wqe->params, info, key_id, resync_tcp_sn);
+	fill_static_params(&wqe->params, crypto_info, key_id, resync_tcp_sn);
 }
 
 static void

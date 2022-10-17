@@ -82,7 +82,7 @@ static int fair_share_throttle(struct thermal_zone_device *tz, int trip)
 	int total_instance = 0;
 	int cur_trip_level = get_trip_level(tz);
 
-	mutex_lock(&tz->lock);
+	lockdep_assert_held(&tz->lock);
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		if (instance->trip != trip)
@@ -112,7 +112,6 @@ static int fair_share_throttle(struct thermal_zone_device *tz, int trip)
 		mutex_unlock(&cdev->lock);
 	}
 
-	mutex_unlock(&tz->lock);
 	return 0;
 }
 

@@ -12,6 +12,7 @@
  *  more details.
  */
 
+#include <linux/aperture.h>
 #include <linux/bitrev.h>
 #include <linux/compiler.h>
 #include <linux/delay.h>
@@ -106,6 +107,12 @@ static struct pci_driver tgafb_pci_driver = {
 static int tgafb_pci_register(struct pci_dev *pdev,
 			      const struct pci_device_id *ent)
 {
+	int ret;
+
+	ret = aperture_remove_conflicting_pci_devices(pdev, "tgafb");
+	if (ret)
+		return ret;
+
 	return tgafb_register(&pdev->dev);
 }
 
@@ -729,7 +736,7 @@ tgafb_mono_imageblit(struct fb_info *info, const struct fb_image *image)
 
 		/* Handle another common case in which accel_putcs
 		   generates a large bitmap, which happens to be aligned.
-		   Allow the tail to be misaligned.  This case is 
+		   Allow the tail to be misaligned.  This case is
 		   interesting because we've not got to hold partial
 		   bytes across the words being written.  */
 
@@ -908,9 +915,9 @@ tgafb_imageblit(struct fb_info *info, const struct fb_image *image)
 }
 
 /**
- *      tgafb_fillrect - REQUIRED function. Can use generic routines if 
+ *      tgafb_fillrect - REQUIRED function. Can use generic routines if
  *                       non acclerated hardware and packed pixel based.
- *                       Draws a rectangle on the screen.               
+ *                       Draws a rectangle on the screen.
  *
  *      @info: frame buffer structure that represents a single frame buffer
  *      @rect: structure defining the rectagle and operation.
@@ -1044,7 +1051,7 @@ tgafb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 
 /* Handle the special case of copying entire lines, e.g. during scrolling.
    We can avoid a lot of needless computation in this case.  In the 8bpp
-   case we need to use the COPY64 registers instead of mask writes into 
+   case we need to use the COPY64 registers instead of mask writes into
    the frame buffer to achieve maximum performance.  */
 
 static inline void
@@ -1251,7 +1258,7 @@ copyarea_8bpp(struct fb_info *info, u32 dx, u32 dy, u32 sx, u32 sy,
 }
 
 static void
-tgafb_copyarea(struct fb_info *info, const struct fb_copyarea *area) 
+tgafb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 {
 	unsigned long dx, dy, width, height, sx, sy, vxres, vyres;
 	unsigned long line_length, bpp;
@@ -1344,7 +1351,7 @@ tgafb_init_fix(struct fb_info *info)
 		memory_size = 16777216;
 	}
 
-	strlcpy(info->fix.id, tga_type_name, sizeof(info->fix.id));
+	strscpy(info->fix.id, tga_type_name, sizeof(info->fix.id));
 
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.type_aux = 0;

@@ -3882,11 +3882,11 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 		for (i = 0; i < adapter->num_rx_queues; i++) {
 			netif_napi_add(adapter->netdev,
 				       &adapter->rx_queue[i].napi,
-				       vmxnet3_poll_rx_only, 64);
+				       vmxnet3_poll_rx_only);
 		}
 	} else {
 		netif_napi_add(adapter->netdev, &adapter->rx_queue[0].napi,
-			       vmxnet3_poll, 64);
+			       vmxnet3_poll);
 	}
 
 	netif_set_real_num_tx_queues(adapter->netdev, adapter->num_tx_queues);

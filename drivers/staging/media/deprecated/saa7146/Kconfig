@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+source "drivers/staging/media/deprecated/saa7146/common/Kconfig"
+source "drivers/staging/media/deprecated/saa7146/av7110/Kconfig"
+source "drivers/staging/media/deprecated/saa7146/saa7146/Kconfig"
+source "drivers/staging/media/deprecated/saa7146/ttpci/Kconfig"

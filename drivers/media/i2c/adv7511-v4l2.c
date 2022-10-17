@@ -943,8 +943,8 @@ static int adv7511_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 		v4l2_dbg(1, debug, sd, "%s: cec msg len %d\n", __func__,
 			 msg.len);
 
-		if (msg.len > 16)
-			msg.len = 16;
+		if (msg.len > CEC_MAX_MSG_SIZE)
+			msg.len = CEC_MAX_MSG_SIZE;
 
 		if (msg.len) {
 			u8 i;

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/nvmem/nintendo-otp.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Nintendo Wii and Wii U OTP Device Tree Bindings
+title: Nintendo Wii and Wii U OTP
 
 description: |
   This binding represents the OTP memory as found on a Nintendo Wii or Wii U,

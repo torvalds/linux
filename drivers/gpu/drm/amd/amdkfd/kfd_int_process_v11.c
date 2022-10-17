@@ -350,11 +350,11 @@ static void event_interrupt_wq_v11(struct kfd_dev *dev,
 				print_sq_intr_info_inst(context_id0, context_id1);
 				sq_int_priv = REG_GET_FIELD(context_id0,
 						SQ_INTERRUPT_WORD_WAVE_CTXID0, PRIV);
-				if (sq_int_priv /*&& (kfd_set_dbg_ev_from_interrupt(dev, pasid,
+				/*if (sq_int_priv && (kfd_set_dbg_ev_from_interrupt(dev, pasid,
 						KFD_CTXID0_DOORBELL_ID(context_id0),
 						KFD_CTXID0_TRAP_CODE(context_id0),
-						NULL, 0))*/)
-					return;
+						NULL, 0)))
+					return;*/
 				break;
 			case SQ_INTERRUPT_WORD_ENCODING_ERROR:
 				print_sq_intr_info_error(context_id0, context_id1);

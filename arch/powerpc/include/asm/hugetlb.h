@@ -7,8 +7,8 @@
 
 #ifdef CONFIG_PPC_BOOK3S_64
 #include <asm/book3s/64/hugetlb.h>
-#elif defined(CONFIG_PPC_FSL_BOOK3E)
-#include <asm/nohash/hugetlb-book3e.h>
+#elif defined(CONFIG_PPC_E500)
+#include <asm/nohash/hugetlb-e500.h>
 #elif defined(CONFIG_PPC_8xx)
 #include <asm/nohash/32/hugetlb-8xx.h>
 #endif /* CONFIG_PPC_BOOK3S_64 */

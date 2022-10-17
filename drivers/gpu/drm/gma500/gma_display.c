@@ -532,15 +532,18 @@ int gma_crtc_page_flip(struct drm_crtc *crtc,
 		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
 
 		gma_crtc->page_flip_event = event;
+		spin_unlock_irqrestore(&dev->event_lock, flags);
 
 		/* Call this locked if we want an event at vblank interrupt. */
 		ret = crtc_funcs->mode_set_base(crtc, crtc->x, crtc->y, old_fb);
 		if (ret) {
-			gma_crtc->page_flip_event = NULL;
-			drm_crtc_vblank_put(crtc);
+			spin_lock_irqsave(&dev->event_lock, flags);
+			if (gma_crtc->page_flip_event) {
+				gma_crtc->page_flip_event = NULL;
+				drm_crtc_vblank_put(crtc);
+			}
+			spin_unlock_irqrestore(&dev->event_lock, flags);
 		}
-
-		spin_unlock_irqrestore(&dev->event_lock, flags);
 	} else {
 		ret = crtc_funcs->mode_set_base(crtc, crtc->x, crtc->y, old_fb);
 	}
@@ -552,28 +555,11 @@ int gma_crtc_page_flip(struct drm_crtc *crtc,
 	return ret;
 }
 
-int gma_crtc_set_config(struct drm_mode_set *set,
-			struct drm_modeset_acquire_ctx *ctx)
-{
-	struct drm_device *dev = set->crtc->dev;
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	int ret;
-
-	if (!dev_priv->rpm_enabled)
-		return drm_crtc_helper_set_config(set, ctx);
-
-	pm_runtime_forbid(dev->dev);
-	ret = drm_crtc_helper_set_config(set, ctx);
-	pm_runtime_allow(dev->dev);
-
-	return ret;
-}
-
 const struct drm_crtc_funcs gma_crtc_funcs = {
 	.cursor_set = gma_crtc_cursor_set,
 	.cursor_move = gma_crtc_cursor_move,
 	.gamma_set = gma_crtc_gamma_set,
-	.set_config = gma_crtc_set_config,
+	.set_config = drm_crtc_helper_set_config,
 	.destroy = gma_crtc_destroy,
 	.page_flip = gma_crtc_page_flip,
 	.enable_vblank = gma_crtc_enable_vblank,

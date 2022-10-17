@@ -808,9 +808,6 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt,
 	unsigned drop_len = 0;
 	u32 fq_log;
 
-	if (!opt)
-		return -EINVAL;
-
 	err = nla_parse_nested_deprecated(tb, TCA_FQ_MAX, opt, fq_policy,
 					  NULL);
 	if (err < 0)

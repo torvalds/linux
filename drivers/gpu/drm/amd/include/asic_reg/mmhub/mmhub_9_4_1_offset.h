@@ -4409,6 +4409,10 @@
 #define mmVMSHAREDPF0_MC_VM_XGMI_LFB_SIZE_BASE_IDX                                                     1
 #define mmVMSHAREDPF0_MC_VM_CACHEABLE_DRAM_CNTL                                                        0x0af9
 #define mmVMSHAREDPF0_MC_VM_CACHEABLE_DRAM_CNTL_BASE_IDX                                               1
+#define mmMC_VM_XGMI_LFB_CNTL                                                                          0x0823
+#define mmMC_VM_XGMI_LFB_CNTL_BASE_IDX                                                                 0
+#define mmMC_VM_XGMI_LFB_SIZE                                                                          0x0824
+#define mmMC_VM_XGMI_LFB_SIZE_BASE_IDX                                                                 0
 
 
 // addressBlock: mmhub_utcl2_vmsharedvcdec

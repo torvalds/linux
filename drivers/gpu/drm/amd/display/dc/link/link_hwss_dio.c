@@ -130,7 +130,7 @@ void enable_dio_dp_link_output(struct dc_link *link,
 	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_LINK_PHY);
 }
 
-void disable_dio_dp_link_output(struct dc_link *link,
+void disable_dio_link_output(struct dc_link *link,
 		const struct link_resource *link_res,
 		enum signal_type signal)
 {
@@ -174,10 +174,10 @@ static const struct link_hwss dio_link_hwss = {
 	.setup_stream_encoder = setup_dio_stream_encoder,
 	.reset_stream_encoder = reset_dio_stream_encoder,
 	.setup_stream_attribute = setup_dio_stream_attribute,
+	.disable_link_output = disable_dio_link_output,
 	.ext = {
 		.set_throttled_vcp_size = set_dio_throttled_vcp_size,
 		.enable_dp_link_output = enable_dio_dp_link_output,
-		.disable_dp_link_output = disable_dio_dp_link_output,
 		.set_dp_link_test_pattern = set_dio_dp_link_test_pattern,
 		.set_dp_lane_settings = set_dio_dp_lane_settings,
 		.update_stream_allocation_table = update_dio_stream_allocation_table,

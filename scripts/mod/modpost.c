@@ -2021,13 +2021,11 @@ static void add_exported_symbols(struct buffer *buf, struct module *mod)
 	/* record CRCs for exported symbols */
 	buf_printf(buf, "\n");
 	list_for_each_entry(sym, &mod->exported_symbols, list) {
-		if (!sym->crc_valid) {
+		if (!sym->crc_valid)
 			warn("EXPORT symbol \"%s\" [%s%s] version generation failed, symbol will not be versioned.\n"
 			     "Is \"%s\" prototyped in <asm/asm-prototypes.h>?\n",
 			     sym->name, mod->name, mod->is_vmlinux ? "" : ".ko",
 			     sym->name);
-			continue;
-		}
 
 		buf_printf(buf, "SYMBOL_CRC(%s, 0x%08x, \"%s\");\n",
 			   sym->name, sym->crc, sym->is_gpl_only ? "_gpl" : "");

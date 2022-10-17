@@ -724,7 +724,8 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.dwb_fi_phase = -1, // -1 = disable,
 	.dmub_command_table = true,
 	.disable_psr = false,
-	.use_max_lb = true
+	.use_max_lb = true,
+	.exit_idle_opt_for_cursor_updates = true
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -1654,6 +1655,9 @@ noinline bool dcn30_internal_validate_bw(
 	if (!pipes)
 		return false;
 
+	context->bw_ctx.dml.vba.maxMpcComb = 0;
+	context->bw_ctx.dml.vba.VoltageLevel = 0;
+	context->bw_ctx.dml.vba.DRAMClockChangeSupport[0][0] = dm_dram_clock_change_vactive;
 	dc->res_pool->funcs->update_soc_for_wm_a(dc, context);
 	pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, fast_validate);
 
@@ -1872,6 +1876,7 @@ noinline bool dcn30_internal_validate_bw(
 
 	if (repopulate_pipes)
 		pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, fast_validate);
+	context->bw_ctx.dml.vba.VoltageLevel = vlevel;
 	*vlevel_out = vlevel;
 	*pipe_cnt_out = pipe_cnt;
 
@@ -1916,7 +1921,7 @@ static int get_refresh_rate(struct dc_state *context)
  */
 #define V_SCALE (10000 / MAX_STRETCHED_V_BLANK)
 
-int get_frame_rate_at_max_stretch_100hz(struct dc_state *context)
+static int get_frame_rate_at_max_stretch_100hz(struct dc_state *context)
 {
 	struct dc_crtc_timing *timing = NULL;
 	uint32_t sec_per_100_lines;
@@ -1946,7 +1951,7 @@ int get_frame_rate_at_max_stretch_100hz(struct dc_state *context)
 	return scaled_refresh_rate;
 }
 
-bool is_refresh_rate_support_mclk_switch_using_fw_based_vblank_stretch(struct dc_state *context)
+static bool is_refresh_rate_support_mclk_switch_using_fw_based_vblank_stretch(struct dc_state *context)
 {
 	int refresh_rate_max_stretch_100hz;
 	int min_refresh_100hz;

@@ -5,7 +5,7 @@ config DRM_SHMOBILE
 	depends on ARCH_SHMOBILE || COMPILE_TEST
 	select BACKLIGHT_CLASS_DEVICE
 	select DRM_KMS_HELPER
-	select DRM_GEM_CMA_HELPER
+	select DRM_GEM_DMA_HELPER
 	help
 	  Choose this option if you have an SH Mobile chipset.
 	  If M is selected the module will be called shmob-drm.

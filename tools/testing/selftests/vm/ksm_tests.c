@@ -11,7 +11,7 @@
 #include <err.h>
 
 #include "../kselftest.h"
-#include "../../../../include/vdso/time64.h"
+#include <include/vdso/time64.h>
 #include "util.h"
 
 #define KSM_SYSFS_PATH "/sys/kernel/mm/ksm/"

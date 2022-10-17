@@ -30,6 +30,9 @@ enum hclge_opcode_type;
 #define HCLGE_TM_PF_MAX_PRI_NUM		8
 #define HCLGE_TM_PF_MAX_QSET_NUM	8
 
+#define HCLGE_DSCP_MAP_TC_BD_NUM	2
+#define HCLGE_DSCP_TC_SHIFT(n)		(((n) & 1) * 4)
+
 struct hclge_pg_to_pri_link_cmd {
 	u8 pg_id;
 	u8 rsvd1[3];
@@ -262,4 +265,6 @@ int hclge_tm_get_pg_shaper(struct hclge_dev *hdev, u8 pg_id,
 			   struct hclge_tm_shaper_para *para);
 int hclge_tm_get_port_shaper(struct hclge_dev *hdev,
 			     struct hclge_tm_shaper_para *para);
+int hclge_up_to_tc_map(struct hclge_dev *hdev);
+int hclge_dscp_to_tc_map(struct hclge_dev *hdev);
 #endif

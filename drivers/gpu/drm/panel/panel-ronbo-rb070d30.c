@@ -208,14 +208,12 @@ static int rb070d30_panel_dsi_probe(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static int rb070d30_panel_dsi_remove(struct mipi_dsi_device *dsi)
+static void rb070d30_panel_dsi_remove(struct mipi_dsi_device *dsi)
 {
 	struct rb070d30_panel *ctx = mipi_dsi_get_drvdata(dsi);
 
 	mipi_dsi_detach(dsi);
 	drm_panel_remove(&ctx->panel);
-
-	return 0;
 }
 
 static const struct of_device_id rb070d30_panel_of_match[] = {

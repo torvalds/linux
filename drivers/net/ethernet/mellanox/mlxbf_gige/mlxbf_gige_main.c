@@ -156,7 +156,7 @@ static int mlxbf_gige_open(struct net_device *netdev)
 
 	phy_start(phydev);
 
-	netif_napi_add(netdev, &priv->napi, mlxbf_gige_poll, NAPI_POLL_WEIGHT);
+	netif_napi_add(netdev, &priv->napi, mlxbf_gige_poll);
 	napi_enable(&priv->napi);
 	netif_start_queue(netdev);
 

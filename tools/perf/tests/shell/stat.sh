@@ -28,6 +28,24 @@ test_stat_record_report() {
   echo "stat record and report test [Success]"
 }
 
+test_stat_repeat_weak_groups() {
+  echo "stat repeat weak groups test"
+  if ! perf stat -e '{cycles,cycles,cycles,cycles,cycles,cycles,cycles,cycles,cycles,cycles}' \
+     true 2>&1 | grep -q 'seconds time elapsed'
+  then
+    echo "stat repeat weak groups test [Skipped event parsing failed]"
+    return
+  fi
+  if ! perf stat -r2 -e '{cycles,cycles,cycles,cycles,cycles,cycles,cycles,cycles,cycles,cycles}:W' \
+    true > /dev/null 2>&1
+  then
+    echo "stat repeat weak groups test [Failed]"
+    err=1
+    return
+  fi
+  echo "stat repeat weak groups test [Success]"
+}
+
 test_topdown_groups() {
   # Topdown events must be grouped with the slots event first. Test that
   # parse-events reorders this.
@@ -75,6 +93,7 @@ test_topdown_weak_groups() {
 
 test_default_stat
 test_stat_record_report
+test_stat_repeat_weak_groups
 test_topdown_groups
 test_topdown_weak_groups
 exit $err

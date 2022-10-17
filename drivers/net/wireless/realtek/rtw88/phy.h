@@ -114,7 +114,7 @@ const struct rtw_table name ## _tbl = {			\
 
 static inline const struct rtw_rfe_def *rtw_get_rfe_def(struct rtw_dev *rtwdev)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_efuse *efuse = &rtwdev->efuse;
 	const struct rtw_rfe_def *rfe_def = NULL;
 

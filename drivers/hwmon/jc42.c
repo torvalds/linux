@@ -441,7 +441,7 @@ static int jc42_detect(struct i2c_client *client, struct i2c_board_info *info)
 		struct jc42_chips *chip = &jc42_chips[i];
 		if (manid == chip->manid &&
 		    (devid & chip->devid_mask) == chip->devid) {
-			strlcpy(info->type, "jc42", I2C_NAME_SIZE);
+			strscpy(info->type, "jc42", I2C_NAME_SIZE);
 			return 0;
 		}
 	}

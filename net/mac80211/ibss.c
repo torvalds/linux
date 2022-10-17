@@ -530,6 +530,10 @@ int ieee80211_ibss_finish_csa(struct ieee80211_sub_if_data *sdata)
 
 	sdata_assert_lock(sdata);
 
+	/* When not connected/joined, sending CSA doesn't make sense. */
+	if (ifibss->state != IEEE80211_IBSS_MLME_JOINED)
+		return -ENOLINK;
+
 	/* update cfg80211 bss information with the new channel */
 	if (!is_zero_ether_addr(ifibss->bssid)) {
 		cbss = cfg80211_get_bss(sdata->local->hw.wiphy,
@@ -1346,10 +1350,10 @@ static void ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
 				  capability, 0, true);
 }
 
-static unsigned ibss_setup_channels(struct wiphy *wiphy,
-				    struct ieee80211_channel **channels,
-				    unsigned int channels_max,
-				    u32 center_freq, u32 width)
+static unsigned int ibss_setup_channels(struct wiphy *wiphy,
+					struct ieee80211_channel **channels,
+					unsigned int channels_max,
+					u32 center_freq, u32 width)
 {
 	struct ieee80211_channel *chan = NULL;
 	unsigned int n_chan = 0;

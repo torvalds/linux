@@ -375,6 +375,11 @@ static int __maybe_unused ps8640_resume(struct device *dev)
 	gpiod_set_value(ps_bridge->gpio_reset, 1);
 	usleep_range(2000, 2500);
 	gpiod_set_value(ps_bridge->gpio_reset, 0);
+	/* Double reset for T4 and T5 */
+	msleep(50);
+	gpiod_set_value(ps_bridge->gpio_reset, 1);
+	msleep(50);
+	gpiod_set_value(ps_bridge->gpio_reset, 0);
 
 	/*
 	 * Mystery 200 ms delay for the "MCU to be ready". It's unclear if
@@ -631,8 +636,8 @@ static int ps8640_probe(struct i2c_client *client)
 	if (!ps_bridge)
 		return -ENOMEM;
 
-	ps_bridge->supplies[0].supply = "vdd33";
-	ps_bridge->supplies[1].supply = "vdd12";
+	ps_bridge->supplies[0].supply = "vdd12";
+	ps_bridge->supplies[1].supply = "vdd33";
 	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(ps_bridge->supplies),
 				      ps_bridge->supplies);
 	if (ret)

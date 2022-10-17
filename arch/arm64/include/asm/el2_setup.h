@@ -40,7 +40,7 @@
 
 .macro __init_el2_debug
 	mrs	x1, id_aa64dfr0_el1
-	sbfx	x0, x1, #ID_AA64DFR0_PMUVER_SHIFT, #4
+	sbfx	x0, x1, #ID_AA64DFR0_EL1_PMUVer_SHIFT, #4
 	cmp	x0, #1
 	b.lt	.Lskip_pmu_\@			// Skip if no PMU present
 	mrs	x0, pmcr_el0			// Disable debug access traps
@@ -49,7 +49,7 @@
 	csel	x2, xzr, x0, lt			// all PMU counters from EL1
 
 	/* Statistical profiling */
-	ubfx	x0, x1, #ID_AA64DFR0_PMSVER_SHIFT, #4
+	ubfx	x0, x1, #ID_AA64DFR0_EL1_PMSVer_SHIFT, #4
 	cbz	x0, .Lskip_spe_\@		// Skip if SPE not present
 
 	mrs_s	x0, SYS_PMBIDR_EL1              // If SPE available at EL2,
@@ -65,7 +65,7 @@
 
 .Lskip_spe_\@:
 	/* Trace buffer */
-	ubfx	x0, x1, #ID_AA64DFR0_TRBE_SHIFT, #4
+	ubfx	x0, x1, #ID_AA64DFR0_EL1_TraceBuffer_SHIFT, #4
 	cbz	x0, .Lskip_trace_\@		// Skip if TraceBuffer is not present
 
 	mrs_s	x0, SYS_TRBIDR_EL1
@@ -83,7 +83,7 @@
 /* LORegions */
 .macro __init_el2_lor
 	mrs	x1, id_aa64mmfr1_el1
-	ubfx	x0, x1, #ID_AA64MMFR1_LOR_SHIFT, 4
+	ubfx	x0, x1, #ID_AA64MMFR1_EL1_LO_SHIFT, 4
 	cbz	x0, .Lskip_lor_\@
 	msr_s	SYS_LORC_EL1, xzr
 .Lskip_lor_\@:
@@ -97,7 +97,7 @@
 /* GICv3 system register access */
 .macro __init_el2_gicv3
 	mrs	x0, id_aa64pfr0_el1
-	ubfx	x0, x0, #ID_AA64PFR0_GIC_SHIFT, #4
+	ubfx	x0, x0, #ID_AA64PFR0_EL1_GIC_SHIFT, #4
 	cbz	x0, .Lskip_gicv3_\@
 
 	mrs_s	x0, SYS_ICC_SRE_EL2
@@ -132,12 +132,12 @@
 /* Disable any fine grained traps */
 .macro __init_el2_fgt
 	mrs	x1, id_aa64mmfr0_el1
-	ubfx	x1, x1, #ID_AA64MMFR0_FGT_SHIFT, #4
+	ubfx	x1, x1, #ID_AA64MMFR0_EL1_FGT_SHIFT, #4
 	cbz	x1, .Lskip_fgt_\@
 
 	mov	x0, xzr
 	mrs	x1, id_aa64dfr0_el1
-	ubfx	x1, x1, #ID_AA64DFR0_PMSVER_SHIFT, #4
+	ubfx	x1, x1, #ID_AA64DFR0_EL1_PMSVer_SHIFT, #4
 	cmp	x1, #3
 	b.lt	.Lset_debug_fgt_\@
 	/* Disable PMSNEVFR_EL1 read and write traps */
@@ -149,7 +149,7 @@
 
 	mov	x0, xzr
 	mrs	x1, id_aa64pfr1_el1
-	ubfx	x1, x1, #ID_AA64PFR1_SME_SHIFT, #4
+	ubfx	x1, x1, #ID_AA64PFR1_EL1_SME_SHIFT, #4
 	cbz	x1, .Lset_fgt_\@
 
 	/* Disable nVHE traps of TPIDR2 and SMPRI */
@@ -162,7 +162,7 @@
 	msr_s	SYS_HFGITR_EL2, xzr
 
 	mrs	x1, id_aa64pfr0_el1		// AMU traps UNDEF without AMU
-	ubfx	x1, x1, #ID_AA64PFR0_AMU_SHIFT, #4
+	ubfx	x1, x1, #ID_AA64PFR0_EL1_AMU_SHIFT, #4
 	cbz	x1, .Lskip_fgt_\@
 
 	msr_s	SYS_HAFGRTR_EL2, xzr

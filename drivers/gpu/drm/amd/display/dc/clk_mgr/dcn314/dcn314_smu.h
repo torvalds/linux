@@ -36,6 +36,37 @@ typedef enum {
 	WCK_RATIO_MAX
 } WCK_RATIO_e;
 
+typedef struct {
+  uint32_t FClk;
+  uint32_t MemClk;
+  uint32_t Voltage;
+  uint8_t  WckRatio;
+  uint8_t  Spare[3];
+} DfPstateTable314_t;
+
+//Freq in MHz
+//Voltage in milli volts with 2 fractional bits
+typedef struct {
+  uint32_t DcfClocks[NUM_DCFCLK_DPM_LEVELS];
+  uint32_t DispClocks[NUM_DISPCLK_DPM_LEVELS];
+  uint32_t DppClocks[NUM_DPPCLK_DPM_LEVELS];
+  uint32_t SocClocks[NUM_SOCCLK_DPM_LEVELS];
+  uint32_t VClocks[NUM_VCN_DPM_LEVELS];
+  uint32_t DClocks[NUM_VCN_DPM_LEVELS];
+  uint32_t SocVoltage[NUM_SOC_VOLTAGE_LEVELS];
+  DfPstateTable314_t DfPstateTable[NUM_DF_PSTATE_LEVELS];
+
+  uint8_t  NumDcfClkLevelsEnabled;
+  uint8_t  NumDispClkLevelsEnabled; //Applies to both Dispclk and Dppclk
+  uint8_t  NumSocClkLevelsEnabled;
+  uint8_t  VcnClkLevelsEnabled;     //Applies to both Vclk and Dclk
+  uint8_t  NumDfPstatesEnabled;
+  uint8_t  spare[3];
+
+  uint32_t MinGfxClk;
+  uint32_t MaxGfxClk;
+} DpmClocks314_t;
+
 struct dcn314_watermarks {
 	// Watermarks
 	WatermarkRowGeneric_t WatermarkRow[WM_COUNT][NUM_WM_RANGES];
@@ -43,7 +74,7 @@ struct dcn314_watermarks {
 };
 
 struct dcn314_smu_dpm_clks {
-	DpmClocks_t *dpm_clks;
+	DpmClocks314_t *dpm_clks;
 	union large_integer mc_address;
 };
 

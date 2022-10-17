@@ -73,8 +73,6 @@ static void lan9303_i2c_remove(struct i2c_client *client)
 		return;
 
 	lan9303_remove(&sw_dev->chip);
-
-	i2c_set_clientdata(client, NULL);
 }
 
 static void lan9303_i2c_shutdown(struct i2c_client *client)

@@ -924,15 +924,9 @@ Current IOREG MAP
 #define _LLT_OP_VALUE(x)		(((x) >> 30) & 0x3)
 
 /* 	0x0200h ~ 0x027Fh	TXDMA Configuration */
-/* 2RQPN */
-#define _HPQ(x)				((x) & 0xFF)
-#define _LPQ(x)				(((x) & 0xFF) << 8)
-#define _PUBQ(x)			(((x) & 0xFF) << 16)
-/*  NOTE: in RQPN_NPQ register */
-#define _NPQ(x)				((x) & 0xFF)
 
-#define HPQ_PUBLIC_DIS			BIT(24)
-#define LPQ_PUBLIC_DIS			BIT(25)
+#define NUM_HQ 0x29
+
 #define LD_RQPN				BIT(31)
 
 /* 2TDECTRL */

@@ -103,7 +103,7 @@ static int xprt_switch_alloc_id(struct rpc_xprt_switch *xps, gfp_t gfp_flags)
 {
 	int id;
 
-	id = ida_simple_get(&rpc_xprtswitch_ids, 0, 0, gfp_flags);
+	id = ida_alloc(&rpc_xprtswitch_ids, gfp_flags);
 	if (id < 0)
 		return id;
 
@@ -113,7 +113,7 @@ static int xprt_switch_alloc_id(struct rpc_xprt_switch *xps, gfp_t gfp_flags)
 
 static void xprt_switch_free_id(struct rpc_xprt_switch *xps)
 {
-	ida_simple_remove(&rpc_xprtswitch_ids, xps->xps_id);
+	ida_free(&rpc_xprtswitch_ids, xps->xps_id);
 }
 
 /**

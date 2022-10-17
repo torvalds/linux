@@ -96,7 +96,7 @@ static int brcm_nvram_parse(struct brcm_nvram *priv)
 
 	len = le32_to_cpu(header.len);
 
-	data = kcalloc(1, len, GFP_KERNEL);
+	data = kzalloc(len, GFP_KERNEL);
 	memcpy_fromio(data, priv->base, len);
 	data[len - 1] = '\0';
 

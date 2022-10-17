@@ -41,7 +41,7 @@ enum {
 struct mt7921_mcu_eeprom_info {
 	__le32 addr;
 	__le32 valid;
-	u8 data[16];
+	u8 data[MT7921_EEPROM_BLOCK_SIZE];
 } __packed;
 
 #define MT_RA_RATE_NSS			GENMASK(8, 6)

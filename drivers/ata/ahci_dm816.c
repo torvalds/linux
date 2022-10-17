@@ -69,12 +69,12 @@ static int ahci_dm816_phy_init(struct ahci_host_priv *hpriv, struct device *dev)
 	 * keep-alive clock and the external reference clock. We need the
 	 * rate of the latter to calculate the correct value of MPY bits.
 	 */
-	if (!hpriv->clks[1]) {
+	if (hpriv->n_clks < 2) {
 		dev_err(dev, "reference clock not supplied\n");
 		return -EINVAL;
 	}
 
-	refclk_rate = clk_get_rate(hpriv->clks[1]);
+	refclk_rate = clk_get_rate(hpriv->clks[1].clk);
 	if ((refclk_rate % 100) != 0) {
 		dev_err(dev, "reference clock rate must be divisible by 100\n");
 		return -EINVAL;

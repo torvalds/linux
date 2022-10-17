@@ -27,7 +27,7 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if
 // any structure is changed in this file
-#define PMFW_DRIVER_IF_VERSION 4
+#define PMFW_DRIVER_IF_VERSION 5
 
 typedef struct {
   int32_t value;
@@ -197,6 +197,8 @@ typedef struct {
 
   uint16_t SkinTemp;
   uint16_t DeviceState;
+  uint16_t CurTemp;                     //[centi-Celsius]
+  uint16_t spare2;
 } SmuMetrics_t;
 
 typedef struct {
