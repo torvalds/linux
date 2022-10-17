@@ -1482,8 +1482,7 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 
 	ssp = &pdata->ssp;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ssp->mmio_base = devm_ioremap_resource(&pdev->dev, res);
+	ssp->mmio_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(ssp->mmio_base))
 		return ERR_CAST(ssp->mmio_base);
 
