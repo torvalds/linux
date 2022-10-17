@@ -278,6 +278,9 @@ HWCAP2_SVE_EBF16
 HWCAP2_CSSC
     Functionality implied by ID_AA64ISAR2_EL1.CSSC == 0b0001.
 
+HWCAP2_RPRFM
+    Functionality implied by ID_AA64ISAR2_EL1.RPRFM == 0b0001.
+
 4. Unused AT_HWCAP bits
 -----------------------
 
