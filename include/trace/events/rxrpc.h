@@ -360,11 +360,12 @@
 	EM(rxrpc_propose_ack_client_tx_end,	"ClTxEnd") \
 	EM(rxrpc_propose_ack_input_data,	"DataIn ") \
 	EM(rxrpc_propose_ack_input_data_hole,	"DataInH") \
-	EM(rxrpc_propose_ack_ping_for_check_life, "ChkLife") \
 	EM(rxrpc_propose_ack_ping_for_keepalive, "KeepAlv") \
 	EM(rxrpc_propose_ack_ping_for_lost_ack,	"LostAck") \
 	EM(rxrpc_propose_ack_ping_for_lost_reply, "LostRpl") \
+	EM(rxrpc_propose_ack_ping_for_old_rtt,	"OldRtt ") \
 	EM(rxrpc_propose_ack_ping_for_params,	"Params ") \
+	EM(rxrpc_propose_ack_ping_for_rtt,	"Rtt    ") \
 	EM(rxrpc_propose_ack_processing_op,	"ProcOp ") \
 	EM(rxrpc_propose_ack_respond_to_ack,	"Rsp2Ack") \
 	EM(rxrpc_propose_ack_respond_to_ping,	"Rsp2Png") \

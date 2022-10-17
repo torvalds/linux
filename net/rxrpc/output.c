@@ -253,12 +253,15 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	iov_iter_kvec(&msg.msg_iter, WRITE, iov, 1, len);
 	ret = do_udp_sendmsg(conn->local->socket, &msg, len);
 	call->peer->last_tx_at = ktime_get_seconds();
-	if (ret < 0)
+	if (ret < 0) {
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
 				    rxrpc_tx_point_call_ack);
-	else
+	} else {
 		trace_rxrpc_tx_packet(call->debug_id, &txb->wire,
 				      rxrpc_tx_point_call_ack);
+		if (txb->wire.flags & RXRPC_REQUEST_ACK)
+			call->peer->rtt_last_req = ktime_get_real();
+	}
 	rxrpc_tx_backoff(call, ret);
 
 	if (!__rxrpc_call_is_complete(call)) {
