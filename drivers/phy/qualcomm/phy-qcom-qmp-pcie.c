@@ -1462,6 +1462,10 @@ static inline void qphy_clrbits(void __iomem *base, u32 offset, u32 val)
 }
 
 /* list of clocks required by phy */
+static const char * const ipq8074_pciephy_clk_l[] = {
+	"aux", "cfg_ahb",
+};
+
 static const char * const msm8996_phy_clk_l[] = {
 	"aux", "cfg_ahb", "ref",
 };
@@ -1474,10 +1478,6 @@ static const char * const sdm845_pciephy_clk_l[] = {
 /* list of regulators */
 static const char * const qmp_phy_vreg_l[] = {
 	"vdda-phy", "vdda-pll",
-};
-
-static const char * const ipq8074_pciephy_clk_l[] = {
-	"aux", "cfg_ahb",
 };
 
 /* list of resets */
