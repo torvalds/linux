@@ -567,14 +567,6 @@
 	pinctrl-0 = <&main_ecap0_pins_default>;
 };
 
-&main_mcan0 {
-	status = "disabled";
-};
-
-&main_mcan1 {
-	status = "disabled";
-};
-
 &gpmc0 {
 	status = "disabled";
 };
