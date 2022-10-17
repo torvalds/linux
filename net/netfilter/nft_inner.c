@@ -21,6 +21,8 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 
+static DEFINE_PER_CPU(struct nft_inner_tun_ctx, nft_pcpu_tun_ctx);
+
 /* Same layout as nft_expr but it embeds the private expression data area. */
 struct __nft_expr {
 	const struct nft_expr_ops	*ops;
@@ -180,7 +182,7 @@ static int nft_inner_parse_tunhdr(const struct nft_inner *priv,
 }
 
 static int nft_inner_parse(const struct nft_inner *priv,
-			   const struct nft_pktinfo *pkt,
+			   struct nft_pktinfo *pkt,
 			   struct nft_inner_tun_ctx *tun_ctx)
 {
 	struct nft_inner_tun_ctx ctx = {};
@@ -199,25 +201,41 @@ static int nft_inner_parse(const struct nft_inner *priv,
 	}
 
 	*tun_ctx = ctx;
+	tun_ctx->type = priv->type;
+	pkt->flags |= NFT_PKTINFO_INNER_FULL;
 
 	return 0;
+}
+
+static bool nft_inner_parse_needed(const struct nft_inner *priv,
+				   const struct nft_pktinfo *pkt,
+				   const struct nft_inner_tun_ctx *tun_ctx)
+{
+	if (!(pkt->flags & NFT_PKTINFO_INNER_FULL))
+		return true;
+
+	if (priv->type != tun_ctx->type)
+		return true;
+
+	return false;
 }
 
 static void nft_inner_eval(const struct nft_expr *expr, struct nft_regs *regs,
 			   const struct nft_pktinfo *pkt)
 {
+	struct nft_inner_tun_ctx *tun_ctx = this_cpu_ptr(&nft_pcpu_tun_ctx);
 	const struct nft_inner *priv = nft_expr_priv(expr);
-	struct nft_inner_tun_ctx tun_ctx = {};
 
 	if (nft_payload_inner_offset(pkt) < 0)
 		goto err;
 
-	if (nft_inner_parse(priv, pkt, &tun_ctx) < 0)
+	if (nft_inner_parse_needed(priv, pkt, tun_ctx) &&
+	    nft_inner_parse(priv, (struct nft_pktinfo *)pkt, tun_ctx) < 0)
 		goto err;
 
 	switch (priv->expr_type) {
 	case NFT_INNER_EXPR_PAYLOAD:
-		nft_payload_inner_eval((struct nft_expr *)&priv->expr, regs, pkt, &tun_ctx);
+		nft_payload_inner_eval((struct nft_expr *)&priv->expr, regs, pkt, tun_ctx);
 		break;
 	default:
 		WARN_ON_ONCE(1);
