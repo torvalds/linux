@@ -191,6 +191,66 @@ err_free_mem:
 	return ret;
 }
 
+static int
+i3cdev_send_hdr_xfer(struct i3c_device *dev, struct i3c_ioc_priv_xfer *xfers,
+		    unsigned int nxfers)
+{
+	struct i3c_hdr_cmd *k_xfers;
+	u8 **data_ptrs;
+	int i, ret = 0;
+
+	/* Since we have nxfers we may allocate k_xfer + *data_ptrs together */
+	k_xfers = kcalloc(nxfers, sizeof(*k_xfers) + sizeof(*data_ptrs),
+			  GFP_KERNEL);
+	if (!k_xfers)
+		return -ENOMEM;
+
+	/* set data_ptrs to be after nxfers * i3c_priv_xfer */
+	data_ptrs = (void *)k_xfers + (nxfers * sizeof(*k_xfers));
+
+	for (i = 0; i < nxfers; i++) {
+		data_ptrs[i] = memdup_user((const u8 __user *)
+					   (uintptr_t)xfers[i].data,
+					   xfers[i].len);
+		if (IS_ERR(data_ptrs[i])) {
+			ret = PTR_ERR(data_ptrs[i]);
+			break;
+		}
+		k_xfers[i].mode = I3C_HDR_DDR;
+		k_xfers[i].ndatawords = DIV_ROUND_UP(xfers[i].len, 2);
+		if (xfers[i].rnw) {
+			k_xfers[i].code = 0x80;
+			k_xfers[i].data.in = data_ptrs[i];
+		} else {
+			k_xfers[i].code = 0;
+			k_xfers[i].data.out = data_ptrs[i];
+		}
+	}
+
+	if (ret < 0) {
+		i--;
+		goto err_free_mem;
+	}
+
+	ret = i3c_device_send_hdr_cmds(dev, k_xfers, nxfers);
+	if (ret)
+		goto err_free_mem;
+
+	for (i = 0; i < nxfers; i++) {
+		if (xfers[i].rnw) {
+			if (copy_to_user(u64_to_user_ptr(xfers[i].data),
+					 data_ptrs[i], xfers[i].len))
+				ret = -EFAULT;
+		}
+	}
+
+err_free_mem:
+	for (; i >= 0; i--)
+		kfree(data_ptrs[i]);
+	kfree(k_xfers);
+	return ret;
+}
+
 static struct i3c_ioc_priv_xfer *
 i3cdev_get_ioc_priv_xfer(unsigned int cmd, struct i3c_ioc_priv_xfer *u_xfers,
 			 unsigned int *nxfers)
@@ -219,7 +279,11 @@ i3cdev_ioc_priv_xfer(struct i3c_device *i3c, unsigned int cmd,
 	if (IS_ERR(k_xfers))
 		return PTR_ERR(k_xfers);
 
-	ret = i3cdev_do_priv_xfer(i3c, k_xfers, nxfers);
+	if (i3c->desc->info.hdr_cap & BIT(I3C_HDR_DDR) &&
+	    IS_ENABLED(CONFIG_I3CDEV_XFER_HDR_DDR))
+		ret = i3cdev_send_hdr_xfer(i3c, k_xfers, nxfers);
+	else
+		ret = i3cdev_do_priv_xfer(i3c, k_xfers, nxfers);
 
 	kfree(k_xfers);
 
