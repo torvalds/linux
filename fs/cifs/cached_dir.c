@@ -253,8 +253,10 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 		dentry = dget(cifs_sb->root);
 	else {
 		dentry = path_to_dentry(cifs_sb, path);
-		if (IS_ERR(dentry))
+		if (IS_ERR(dentry)) {
+			rc = -ENOENT;
 			goto oshr_free;
+		}
 	}
 	cfid->dentry = dentry;
 	cfid->tcon = tcon;
@@ -385,13 +387,13 @@ void invalidate_all_cached_dirs(struct cifs_tcon *tcon)
 		list_move(&cfid->entry, &entry);
 		cfids->num_entries--;
 		cfid->is_open = false;
+		cfid->on_list = false;
 		/* To prevent race with smb2_cached_lease_break() */
 		kref_get(&cfid->refcount);
 	}
 	spin_unlock(&cfids->cfid_list_lock);
 
 	list_for_each_entry_safe(cfid, q, &entry, entry) {
-		cfid->on_list = false;
 		list_del(&cfid->entry);
 		cancel_work_sync(&cfid->lease_break);
 		if (cfid->has_lease) {
