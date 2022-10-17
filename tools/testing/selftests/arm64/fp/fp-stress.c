@@ -549,6 +549,9 @@ int main(int argc, char **argv)
 			all_children_started = true;
 		}
 
+		ksft_print_msg("Sending signals, timeout remaining: %d\n",
+			       timeout);
+
 		for (i = 0; i < num_children; i++)
 			child_tickle(&children[i]);
 
