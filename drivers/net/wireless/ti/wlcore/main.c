@@ -6100,7 +6100,7 @@ static int wl1271_register_hw(struct wl1271 *wl)
 			wl1271_warning("Fuse mac address is zero. using random mac");
 			/* Use TI oui and a random nic */
 			oui_addr = WLCORE_TI_OUI_ADDRESS;
-			nic_addr = get_random_int();
+			nic_addr = get_random_u32();
 		} else {
 			oui_addr = wl->fuse_oui_addr;
 			/* fuse has the BD_ADDR, the WLAN addresses are the next two */

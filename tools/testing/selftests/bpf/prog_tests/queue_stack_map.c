@@ -28,9 +28,9 @@ static void test_queue_stack_map_by_type(int type)
 		vals[i] = rand();
 
 	if (type == QUEUE)
-		strncpy(file, "./test_queue_map.o", sizeof(file));
+		strncpy(file, "./test_queue_map.bpf.o", sizeof(file));
 	else if (type == STACK)
-		strncpy(file, "./test_stack_map.o", sizeof(file));
+		strncpy(file, "./test_stack_map.bpf.o", sizeof(file));
 	else
 		return;
 

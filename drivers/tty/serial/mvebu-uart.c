@@ -564,7 +564,7 @@ static unsigned int mvebu_uart_baud_rate_set(struct uart_port *port, unsigned in
 
 static void mvebu_uart_set_termios(struct uart_port *port,
 				   struct ktermios *termios,
-				   struct ktermios *old)
+				   const struct ktermios *old)
 {
 	unsigned long flags;
 	unsigned int baud, min_baud, max_baud;

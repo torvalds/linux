@@ -148,10 +148,6 @@ static ssize_t flash_count_show(struct device *dev,
 	stride = regmap_get_reg_stride(sec->m10bmc->regmap);
 	num_bits = FLASH_COUNT_SIZE * 8;
 
-	flash_buf = kmalloc(FLASH_COUNT_SIZE, GFP_KERNEL);
-	if (!flash_buf)
-		return -ENOMEM;
-
 	if (FLASH_COUNT_SIZE % stride) {
 		dev_err(sec->dev,
 			"FLASH_COUNT_SIZE (0x%x) not aligned to stride (0x%x)\n",
@@ -159,6 +155,10 @@ static ssize_t flash_count_show(struct device *dev,
 		WARN_ON_ONCE(1);
 		return -EINVAL;
 	}
+
+	flash_buf = kmalloc(FLASH_COUNT_SIZE, GFP_KERNEL);
+	if (!flash_buf)
+		return -ENOMEM;
 
 	ret = regmap_bulk_read(sec->m10bmc->regmap, STAGING_FLASH_COUNT,
 			       flash_buf, FLASH_COUNT_SIZE / stride);
@@ -604,6 +604,9 @@ static int m10bmc_sec_remove(struct platform_device *pdev)
 static const struct platform_device_id intel_m10bmc_sec_ids[] = {
 	{
 		.name = "n3000bmc-sec-update",
+	},
+	{
+		.name = "d5005bmc-sec-update",
 	},
 	{ }
 };

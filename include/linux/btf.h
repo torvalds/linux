@@ -49,6 +49,17 @@
  * for this case.
  */
 #define KF_TRUSTED_ARGS (1 << 4) /* kfunc only takes trusted pointer arguments */
+#define KF_SLEEPABLE    (1 << 5) /* kfunc may sleep */
+#define KF_DESTRUCTIVE  (1 << 6) /* kfunc performs destructive actions */
+
+/*
+ * Return the name of the passed struct, if exists, or halt the build if for
+ * example the structure gets renamed. In this way, developers have to revisit
+ * the code using that structure name, and update it accordingly.
+ */
+#define stringify_struct(x)			\
+	({ BUILD_BUG_ON(sizeof(struct x) < 0);	\
+	   __stringify(x); })
 
 struct btf;
 struct btf_member;
@@ -438,5 +449,15 @@ static inline int register_btf_id_dtor_kfuncs(const struct btf_id_dtor_kfunc *dt
 	return 0;
 }
 #endif
+
+static inline bool btf_type_is_struct_ptr(struct btf *btf, const struct btf_type *t)
+{
+	if (!btf_type_is_ptr(t))
+		return false;
+
+	t = btf_type_skip_modifiers(btf, t->type, NULL);
+
+	return btf_type_is_struct(t);
+}
 
 #endif

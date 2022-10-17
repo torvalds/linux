@@ -969,7 +969,7 @@ disable_pm:
 	return ret;
 }
 
-static int ak8974_remove(struct i2c_client *i2c)
+static void ak8974_remove(struct i2c_client *i2c)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(i2c);
 	struct ak8974 *ak8974 = iio_priv(indio_dev);
@@ -981,8 +981,6 @@ static int ak8974_remove(struct i2c_client *i2c)
 	pm_runtime_disable(&i2c->dev);
 	ak8974_set_power(ak8974, AK8974_PWR_OFF);
 	regulator_bulk_disable(ARRAY_SIZE(ak8974->regs), ak8974->regs);
-
-	return 0;
 }
 
 static int ak8974_runtime_suspend(struct device *dev)

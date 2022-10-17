@@ -755,7 +755,7 @@ static void set_clock_mux(struct uart_port *up, struct brcmuart_priv *priv,
 
 static void brcmstb_set_termios(struct uart_port *up,
 				struct ktermios *termios,
-				struct ktermios *old)
+				const struct ktermios *old)
 {
 	struct uart_8250_port *p8250 = up_to_u8250p(up);
 	struct brcmuart_priv *priv = up->private_data;

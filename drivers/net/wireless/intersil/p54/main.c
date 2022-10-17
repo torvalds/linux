@@ -635,7 +635,7 @@ static int p54_get_survey(struct ieee80211_hw *dev, int idx,
 				/*
 				 * hw/fw has not accumulated enough sample sets.
 				 * Wait for 100ms, this ought to be enough to
-				 * to get at least one non-null set of channel
+				 * get at least one non-null set of channel
 				 * usage statistics.
 				 */
 				msleep(100);

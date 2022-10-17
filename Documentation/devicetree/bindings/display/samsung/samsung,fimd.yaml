@@ -27,7 +27,6 @@ properties:
     const: 1
 
   clocks:
-    minItems: 2
     maxItems: 2
 
   clock-names:
@@ -40,6 +39,7 @@ properties:
 
   i80-if-timings:
     type: object
+    additionalProperties: false
     description: |
       Timing configuration for lcd i80 interface support.
       The parameters are defined as::

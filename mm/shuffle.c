@@ -12,23 +12,22 @@
 DEFINE_STATIC_KEY_FALSE(page_alloc_shuffle_key);
 
 static bool shuffle_param;
-static int shuffle_show(char *buffer, const struct kernel_param *kp)
-{
-	return sprintf(buffer, "%c\n", shuffle_param ? 'Y' : 'N');
-}
 
-static __meminit int shuffle_store(const char *val,
+static __meminit int shuffle_param_set(const char *val,
 		const struct kernel_param *kp)
 {
-	int rc = param_set_bool(val, kp);
-
-	if (rc < 0)
-		return rc;
-	if (shuffle_param)
+	if (param_set_bool(val, kp))
+		return -EINVAL;
+	if (*(bool *)kp->arg)
 		static_branch_enable(&page_alloc_shuffle_key);
 	return 0;
 }
-module_param_call(shuffle, shuffle_store, shuffle_show, &shuffle_param, 0400);
+
+static const struct kernel_param_ops shuffle_param_ops = {
+	.set = shuffle_param_set,
+	.get = param_get_bool,
+};
+module_param_cb(shuffle, &shuffle_param_ops, &shuffle_param, 0400);
 
 /*
  * For two pages to be swapped in the shuffle, they must be free (on a

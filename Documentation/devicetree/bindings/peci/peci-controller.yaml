@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/peci/peci-controller.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Generic Device Tree Bindings for PECI
+title: Generic for PECI
 
 maintainers:
   - Iwona Winiarska <iwona.winiarska@intel.com>

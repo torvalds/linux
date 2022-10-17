@@ -76,7 +76,6 @@ eth1: ethernet@1a000000 {
 
 				switch_port0: port@0 {
 					reg = <0x0>;
-					label = "cpu";
 					ethernet = <&eth1>;
 
 					phy-mode = "gmii";

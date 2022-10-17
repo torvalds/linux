@@ -175,8 +175,6 @@ static int cmdq_allocate_page(struct hinic_cmdq_pages *cmdq_pages)
 /**
  * cmdq_free_page - free page from cmdq
  * @cmdq_pages: the pages of the cmdq queue struct that hold the page
- *
- * Return 0 - Success, negative - Failure
  **/
 static void cmdq_free_page(struct hinic_cmdq_pages *cmdq_pages)
 {

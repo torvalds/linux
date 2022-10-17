@@ -347,11 +347,9 @@ static int venc_runtime_get(void)
 
 	DSSDBG("venc_runtime_get\n");
 
-	r = pm_runtime_get_sync(&venc.pdev->dev);
-	if (WARN_ON(r < 0)) {
-		pm_runtime_put_sync(&venc.pdev->dev);
+	r = pm_runtime_resume_and_get(&venc.pdev->dev);
+	if (WARN_ON(r < 0))
 		return r;
-	}
 	return 0;
 }
 

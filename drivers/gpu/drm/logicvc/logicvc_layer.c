@@ -10,11 +10,10 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_blend.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_dma_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_plane.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_print.h>
 
 #include "logicvc_crtc.h"
@@ -117,8 +116,8 @@ static int logicvc_plane_atomic_check(struct drm_plane *drm_plane,
 		}
 	}
 
-	min_scale = DRM_PLANE_HELPER_NO_SCALING;
-	max_scale = DRM_PLANE_HELPER_NO_SCALING;
+	min_scale = DRM_PLANE_NO_SCALING;
+	max_scale = DRM_PLANE_NO_SCALING;
 
 	can_position = (drm_plane->type == DRM_PLANE_TYPE_OVERLAY &&
 			layer->index != (logicvc->config.layers_count - 1) &&
@@ -158,7 +157,7 @@ static void logicvc_plane_atomic_update(struct drm_plane *drm_plane,
 		     new_state->crtc_h - 1);
 
 	if (logicvc->caps->layer_address) {
-		phys_addr_t fb_addr = drm_fb_cma_get_gem_addr(fb, new_state, 0);
+		phys_addr_t fb_addr = drm_fb_dma_get_gem_addr(fb, new_state, 0);
 
 		regmap_write(logicvc->regmap, LOGICVC_LAYER_ADDRESS_REG(index),
 			     fb_addr);
@@ -281,7 +280,7 @@ int logicvc_layer_buffer_find_setup(struct logicvc_drm *logicvc,
 		return -ENOMEM;
 	}
 
-	fb_addr = drm_fb_cma_get_gem_addr(fb, state, 0);
+	fb_addr = drm_fb_dma_get_gem_addr(fb, state, 0);
 	if (fb_addr < logicvc->reserved_mem_base) {
 		drm_err(drm_dev,
 			"Framebuffer memory below reserved memory base!\n");

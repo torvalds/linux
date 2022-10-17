@@ -256,7 +256,7 @@ static int steam_get_serial(struct steam_device *steam)
 	if (reply[0] != 0xae || reply[1] != 0x15 || reply[2] != 0x01)
 		return -EIO;
 	reply[3 + STEAM_SERIAL_LEN] = 0;
-	strlcpy(steam->serial_no, reply + 3, sizeof(steam->serial_no));
+	strscpy(steam->serial_no, reply + 3, sizeof(steam->serial_no));
 	return 0;
 }
 
@@ -524,7 +524,7 @@ static int steam_register(struct steam_device *steam)
 		 */
 		mutex_lock(&steam->mutex);
 		if (steam_get_serial(steam) < 0)
-			strlcpy(steam->serial_no, "XXXXXXXXXX",
+			strscpy(steam->serial_no, "XXXXXXXXXX",
 					sizeof(steam->serial_no));
 		mutex_unlock(&steam->mutex);
 
@@ -699,9 +699,9 @@ static struct hid_device *steam_create_client_hid(struct hid_device *hdev)
 	client_hdev->version = hdev->version;
 	client_hdev->type = hdev->type;
 	client_hdev->country = hdev->country;
-	strlcpy(client_hdev->name, hdev->name,
+	strscpy(client_hdev->name, hdev->name,
 			sizeof(client_hdev->name));
-	strlcpy(client_hdev->phys, hdev->phys,
+	strscpy(client_hdev->phys, hdev->phys,
 			sizeof(client_hdev->phys));
 	/*
 	 * Since we use the same device info than the real interface to

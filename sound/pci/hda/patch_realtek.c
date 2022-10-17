@@ -6654,13 +6654,8 @@ static int comp_bind(struct device *dev)
 {
 	struct hda_codec *cdc = dev_to_hda_codec(dev);
 	struct alc_spec *spec = cdc->spec;
-	int ret;
 
-	ret = component_bind_all(dev, spec->comps);
-	if (ret)
-		return ret;
-
-	return 0;
+	return component_bind_all(dev, spec->comps);
 }
 
 static void comp_unbind(struct device *dev)

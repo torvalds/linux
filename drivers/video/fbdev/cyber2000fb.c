@@ -33,6 +33,7 @@
  * (which, incidentally, is about the same saving as a 2.5in hard disk
  * entering standby mode.)
  */
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -1719,6 +1720,10 @@ static int cyberpro_pci_probe(struct pci_dev *dev,
 	int err;
 
 	sprintf(name, "CyberPro%4X", id->device);
+
+	err = aperture_remove_conflicting_pci_devices(dev, name);
+	if (err)
+		return err;
 
 	err = pci_enable_device(dev);
 	if (err)

@@ -44,7 +44,9 @@
  * This allows us to perform the check, i.e, perfmon_capable(),
  * in the context of the event owner, once, during the event_init().
  */
-#define SPE_PMU_HW_FLAGS_CX			BIT(0)
+#define SPE_PMU_HW_FLAGS_CX			0x00001
+
+static_assert((PERF_EVENT_FLAG_ARCH & SPE_PMU_HW_FLAGS_CX) == SPE_PMU_HW_FLAGS_CX);
 
 static void set_spe_event_has_cx(struct perf_event *event)
 {
@@ -674,9 +676,9 @@ static irqreturn_t arm_spe_pmu_irq_handler(int irq, void *dev)
 static u64 arm_spe_pmsevfr_res0(u16 pmsver)
 {
 	switch (pmsver) {
-	case ID_AA64DFR0_PMSVER_8_2:
+	case ID_AA64DFR0_EL1_PMSVer_IMP:
 		return SYS_PMSEVFR_EL1_RES0_8_2;
-	case ID_AA64DFR0_PMSVER_8_3:
+	case ID_AA64DFR0_EL1_PMSVer_V1P1:
 	/* Return the highest version we support in default */
 	default:
 		return SYS_PMSEVFR_EL1_RES0_8_3;
@@ -958,7 +960,7 @@ static void __arm_spe_pmu_dev_probe(void *info)
 	struct device *dev = &spe_pmu->pdev->dev;
 
 	fld = cpuid_feature_extract_unsigned_field(read_cpuid(ID_AA64DFR0_EL1),
-						   ID_AA64DFR0_PMSVER_SHIFT);
+						   ID_AA64DFR0_EL1_PMSVer_SHIFT);
 	if (!fld) {
 		dev_err(dev,
 			"unsupported ID_AA64DFR0_EL1.PMSVer [%d] on CPU %d\n",

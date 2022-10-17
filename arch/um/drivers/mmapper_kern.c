@@ -122,7 +122,7 @@ static int __init mmapper_init(void)
 	return 0;
 }
 
-static void mmapper_exit(void)
+static void __exit mmapper_exit(void)
 {
 	misc_deregister(&mmapper_dev);
 }

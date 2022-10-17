@@ -278,7 +278,7 @@ static void fintek_8250_set_max_fifo(struct fintek_8250 *pdata)
 
 static void fintek_8250_set_termios(struct uart_port *port,
 				    struct ktermios *termios,
-				    struct ktermios *old)
+				    const struct ktermios *old)
 {
 	struct fintek_8250 *pdata = port->private_data;
 	unsigned int baud = tty_termios_baud_rate(termios);

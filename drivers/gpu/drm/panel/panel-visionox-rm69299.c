@@ -256,7 +256,7 @@ err_dsi_attach:
 	return ret;
 }
 
-static int visionox_rm69299_remove(struct mipi_dsi_device *dsi)
+static void visionox_rm69299_remove(struct mipi_dsi_device *dsi)
 {
 	struct visionox_rm69299 *ctx = mipi_dsi_get_drvdata(dsi);
 
@@ -264,7 +264,6 @@ static int visionox_rm69299_remove(struct mipi_dsi_device *dsi)
 	mipi_dsi_device_unregister(ctx->dsi);
 
 	drm_panel_remove(&ctx->panel);
-	return 0;
 }
 
 static const struct of_device_id visionox_rm69299_of_match[] = {

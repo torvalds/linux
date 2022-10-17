@@ -159,7 +159,6 @@ examples:
 
                 port@0 {
                     reg = <0>;
-                    label = "cpu";
                     ethernet = <&gmac1>;
                     phy-mode = "rgmii";
 
@@ -221,7 +220,6 @@ examples:
 
                 port@0 {
                     reg = <0>;
-                    label = "cpu";
                     ethernet = <&gmac1>;
                     phy-mode = "rgmii";
 
@@ -268,7 +266,6 @@ examples:
 
                 port@6 {
                     reg = <0>;
-                    label = "cpu";
                     ethernet = <&gmac1>;
                     phy-mode = "sgmii";
 

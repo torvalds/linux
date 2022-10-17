@@ -230,7 +230,7 @@ union el_lca {
 	} while (0)
 
 
-__EXTERN_INLINE unsigned int lca_ioread8(const void __iomem *xaddr)
+__EXTERN_INLINE u8 lca_ioread8(const void __iomem *xaddr)
 {
 	unsigned long addr = (unsigned long) xaddr;
 	unsigned long result, base_and_type;
@@ -266,7 +266,7 @@ __EXTERN_INLINE void lca_iowrite8(u8 b, void __iomem *xaddr)
 	*(vuip) ((addr << 5) + base_and_type) = w;
 }
 
-__EXTERN_INLINE unsigned int lca_ioread16(const void __iomem *xaddr)
+__EXTERN_INLINE u16 lca_ioread16(const void __iomem *xaddr)
 {
 	unsigned long addr = (unsigned long) xaddr;
 	unsigned long result, base_and_type;
@@ -302,7 +302,7 @@ __EXTERN_INLINE void lca_iowrite16(u16 b, void __iomem *xaddr)
 	*(vuip) ((addr << 5) + base_and_type) = w;
 }
 
-__EXTERN_INLINE unsigned int lca_ioread32(const void __iomem *xaddr)
+__EXTERN_INLINE u32 lca_ioread32(const void __iomem *xaddr)
 {
 	unsigned long addr = (unsigned long) xaddr;
 	if (addr < LCA_DENSE_MEM)
@@ -316,6 +316,22 @@ __EXTERN_INLINE void lca_iowrite32(u32 b, void __iomem *xaddr)
 	if (addr < LCA_DENSE_MEM)
 		addr = ((addr - LCA_IO) << 5) + LCA_IO + 0x18;
 	*(vuip)addr = b;
+}
+
+__EXTERN_INLINE u64 lca_ioread64(const void __iomem *xaddr)
+{
+	unsigned long addr = (unsigned long) xaddr;
+	if (addr < LCA_DENSE_MEM)
+		addr = ((addr - LCA_IO) << 5) + LCA_IO + 0x18;
+	return *(vulp)addr;
+}
+
+__EXTERN_INLINE void lca_iowrite64(u64 b, void __iomem *xaddr)
+{
+	unsigned long addr = (unsigned long) xaddr;
+	if (addr < LCA_DENSE_MEM)
+		addr = ((addr - LCA_IO) << 5) + LCA_IO + 0x18;
+	*(vulp)addr = b;
 }
 
 __EXTERN_INLINE void __iomem *lca_ioportmap(unsigned long addr)

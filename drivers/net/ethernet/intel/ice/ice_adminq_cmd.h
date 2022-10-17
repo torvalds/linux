@@ -1423,6 +1423,56 @@ struct ice_aqc_set_port_id_led {
 	u8 rsvd[13];
 };
 
+/* Get Port Options (indirect, 0x06EA) */
+struct ice_aqc_get_port_options {
+	u8 lport_num;
+	u8 lport_num_valid;
+	u8 port_options_count;
+#define ICE_AQC_PORT_OPT_COUNT_M	GENMASK(3, 0)
+#define ICE_AQC_PORT_OPT_MAX		16
+
+	u8 innermost_phy_index;
+	u8 port_options;
+#define ICE_AQC_PORT_OPT_ACTIVE_M	GENMASK(3, 0)
+#define ICE_AQC_PORT_OPT_VALID		BIT(7)
+
+	u8 pending_port_option_status;
+#define ICE_AQC_PENDING_PORT_OPT_IDX_M	GENMASK(3, 0)
+#define ICE_AQC_PENDING_PORT_OPT_VALID	BIT(7)
+
+	u8 rsvd[2];
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+struct ice_aqc_get_port_options_elem {
+	u8 pmd;
+#define ICE_AQC_PORT_OPT_PMD_COUNT_M	GENMASK(3, 0)
+
+	u8 max_lane_speed;
+#define ICE_AQC_PORT_OPT_MAX_LANE_M	GENMASK(3, 0)
+#define ICE_AQC_PORT_OPT_MAX_LANE_100M	0
+#define ICE_AQC_PORT_OPT_MAX_LANE_1G	1
+#define ICE_AQC_PORT_OPT_MAX_LANE_2500M	2
+#define ICE_AQC_PORT_OPT_MAX_LANE_5G	3
+#define ICE_AQC_PORT_OPT_MAX_LANE_10G	4
+#define ICE_AQC_PORT_OPT_MAX_LANE_25G	5
+#define ICE_AQC_PORT_OPT_MAX_LANE_50G	6
+#define ICE_AQC_PORT_OPT_MAX_LANE_100G	7
+
+	u8 global_scid[2];
+	u8 phy_scid[2];
+	u8 pf2port_cid[2];
+};
+
+/* Set Port Option (direct, 0x06EB) */
+struct ice_aqc_set_port_option {
+	u8 lport_num;
+	u8 lport_num_valid;
+	u8 selected_port_option;
+	u8 rsvd[13];
+};
+
 /* Set/Get GPIO (direct, 0x06EC/0x06ED) */
 struct ice_aqc_gpio {
 	__le16 gpio_ctrl_handle;
@@ -1489,6 +1539,12 @@ struct ice_aqc_nvm {
 #define ICE_AQC_NVM_PERST_FLAG		1
 #define ICE_AQC_NVM_EMPR_FLAG		2
 #define ICE_AQC_NVM_EMPR_ENA		BIT(0) /* Write Activate reply only */
+	/* For Write Activate, several flags are sent as part of a separate
+	 * flags2 field using a separate byte. For simplicity of the software
+	 * interface, we pass the flags as a 16 bit value so these flags are
+	 * all offset by 8 bits
+	 */
+#define ICE_AQC_NVM_ACTIV_REQ_EMPR	BIT(8) /* NVM Write Activate only */
 	__le16 module_typeid;
 	__le16 length;
 #define ICE_AQC_NVM_ERASE_LEN	0xFFFF
@@ -2082,6 +2138,8 @@ struct ice_aq_desc {
 		struct ice_aqc_gpio read_write_gpio;
 		struct ice_aqc_sff_eeprom read_write_sff_param;
 		struct ice_aqc_set_port_id_led set_port_id_led;
+		struct ice_aqc_get_port_options get_port_options;
+		struct ice_aqc_set_port_option set_port_option;
 		struct ice_aqc_get_sw_cfg get_sw_conf;
 		struct ice_aqc_set_port_params set_port_params;
 		struct ice_aqc_sw_rules sw_rules;
@@ -2243,6 +2301,8 @@ enum ice_adminq_opc {
 	ice_aqc_opc_read_i2c				= 0x06E2,
 	ice_aqc_opc_write_i2c				= 0x06E3,
 	ice_aqc_opc_set_port_id_led			= 0x06E9,
+	ice_aqc_opc_get_port_options			= 0x06EA,
+	ice_aqc_opc_set_port_option			= 0x06EB,
 	ice_aqc_opc_set_gpio				= 0x06EC,
 	ice_aqc_opc_get_gpio				= 0x06ED,
 	ice_aqc_opc_sff_eeprom				= 0x06EE,

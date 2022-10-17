@@ -917,14 +917,10 @@ EXPORT_SYMBOL(ec_read);
 
 int ec_write(u8 addr, u8 val)
 {
-	int err;
-
 	if (!first_ec)
 		return -ENODEV;
 
-	err = acpi_ec_write(first_ec, addr, val);
-
-	return err;
+	return acpi_ec_write(first_ec, addr, val);
 }
 EXPORT_SYMBOL(ec_write);
 

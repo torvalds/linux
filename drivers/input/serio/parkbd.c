@@ -169,7 +169,7 @@ static struct serio *parkbd_allocate_serio(void)
 	if (serio) {
 		serio->id.type = parkbd_mode;
 		serio->write = parkbd_write;
-		strlcpy(serio->name, "PARKBD AT/XT keyboard adapter", sizeof(serio->name));
+		strscpy(serio->name, "PARKBD AT/XT keyboard adapter", sizeof(serio->name));
 		snprintf(serio->phys, sizeof(serio->phys), "%s/serio0", parkbd_dev->port->name);
 	}
 

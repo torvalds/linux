@@ -73,8 +73,8 @@ extern int delayacct_add_tsk(struct taskstats *, struct task_struct *);
 extern __u64 __delayacct_blkio_ticks(struct task_struct *);
 extern void __delayacct_freepages_start(void);
 extern void __delayacct_freepages_end(void);
-extern void __delayacct_thrashing_start(void);
-extern void __delayacct_thrashing_end(void);
+extern void __delayacct_thrashing_start(bool *in_thrashing);
+extern void __delayacct_thrashing_end(bool *in_thrashing);
 extern void __delayacct_swapin_start(void);
 extern void __delayacct_swapin_end(void);
 extern void __delayacct_compact_start(void);
@@ -143,22 +143,22 @@ static inline void delayacct_freepages_end(void)
 		__delayacct_freepages_end();
 }
 
-static inline void delayacct_thrashing_start(void)
+static inline void delayacct_thrashing_start(bool *in_thrashing)
 {
 	if (!static_branch_unlikely(&delayacct_key))
 		return;
 
 	if (current->delays)
-		__delayacct_thrashing_start();
+		__delayacct_thrashing_start(in_thrashing);
 }
 
-static inline void delayacct_thrashing_end(void)
+static inline void delayacct_thrashing_end(bool *in_thrashing)
 {
 	if (!static_branch_unlikely(&delayacct_key))
 		return;
 
 	if (current->delays)
-		__delayacct_thrashing_end();
+		__delayacct_thrashing_end(in_thrashing);
 }
 
 static inline void delayacct_swapin_start(void)
@@ -237,9 +237,9 @@ static inline void delayacct_freepages_start(void)
 {}
 static inline void delayacct_freepages_end(void)
 {}
-static inline void delayacct_thrashing_start(void)
+static inline void delayacct_thrashing_start(bool *in_thrashing)
 {}
-static inline void delayacct_thrashing_end(void)
+static inline void delayacct_thrashing_end(bool *in_thrashing)
 {}
 static inline void delayacct_swapin_start(void)
 {}

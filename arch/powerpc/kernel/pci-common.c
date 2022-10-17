@@ -135,7 +135,7 @@ struct pci_controller *pcibios_alloc_controller(struct device_node *dev)
 	list_add_tail(&phb->list_node, &hose_list);
 	spin_unlock(&hose_spinlock);
 
-	phb->dn = dev;
+	phb->dn = of_node_get(dev);
 	phb->is_dynamic = slab_is_available();
 #ifdef CONFIG_PPC64
 	if (dev) {
@@ -158,7 +158,7 @@ void pcibios_free_controller(struct pci_controller *phb)
 	/* Clear bit of phb_bitmap to allow reuse of this PHB number. */
 	if (phb->global_number < MAX_PHBS)
 		clear_bit(phb->global_number, phb_bitmap);
-
+	of_node_put(phb->dn);
 	list_del(&phb->list_node);
 	spin_unlock(&hose_spinlock);
 

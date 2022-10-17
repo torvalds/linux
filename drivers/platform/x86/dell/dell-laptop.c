@@ -2193,7 +2193,7 @@ static int __init dell_init(void)
 	ret = platform_driver_register(&platform_driver);
 	if (ret)
 		goto fail_platform_driver;
-	platform_device = platform_device_alloc("dell-laptop", -1);
+	platform_device = platform_device_alloc("dell-laptop", PLATFORM_DEVID_NONE);
 	if (!platform_device) {
 		ret = -ENOMEM;
 		goto fail_platform_device1;

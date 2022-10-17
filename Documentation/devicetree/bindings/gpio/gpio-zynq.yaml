@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/gpio/gpio-zynq.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Xilinx Zynq GPIO controller Device Tree Bindings
+title: Xilinx Zynq GPIO controller
 
 maintainers:
   - Michal Simek <michal.simek@xilinx.com>

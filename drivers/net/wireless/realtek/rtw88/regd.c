@@ -479,6 +479,7 @@ void rtw_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 	rtw_dbg(rtwdev, RTW_DBG_REGD, "regd state: %d -> %d\n",
 		rtwdev->regd.state, next_regd.state);
 
+	mutex_lock(&rtwdev->mutex);
 	rtwdev->regd = next_regd;
 	rtw_dbg_regd_dump(rtwdev, "get alpha2 %c%c from initiator %d: ",
 			  request->alpha2[0],
@@ -487,6 +488,7 @@ void rtw_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 
 	rtw_phy_adaptivity_set_mode(rtwdev);
 	rtw_phy_set_tx_power_level(rtwdev, hal->current_channel);
+	mutex_unlock(&rtwdev->mutex);
 }
 
 u8 rtw_regd_get(struct rtw_dev *rtwdev)

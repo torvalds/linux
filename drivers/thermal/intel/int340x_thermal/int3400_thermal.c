@@ -614,9 +614,8 @@ static int int3400_thermal_probe(struct platform_device *pdev)
 
 free_sysfs:
 	cleanup_odvp(priv);
-	if (priv->data_vault) {
-		if (!ZERO_OR_NULL_PTR(priv->data_vault))
-			sysfs_remove_group(&pdev->dev.kobj, &data_attribute_group);
+	if (!ZERO_OR_NULL_PTR(priv->data_vault)) {
+		sysfs_remove_group(&pdev->dev.kobj, &data_attribute_group);
 		kfree(priv->data_vault);
 	}
 free_uuid:

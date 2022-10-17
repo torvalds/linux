@@ -21,7 +21,7 @@
  * that maps a queue to the CPUs that have irq affinity for the corresponding
  * vector.
  */
-int blk_mq_virtio_map_queues(struct blk_mq_queue_map *qmap,
+void blk_mq_virtio_map_queues(struct blk_mq_queue_map *qmap,
 		struct virtio_device *vdev, int first_vec)
 {
 	const struct cpumask *mask;
@@ -39,8 +39,9 @@ int blk_mq_virtio_map_queues(struct blk_mq_queue_map *qmap,
 			qmap->mq_map[cpu] = qmap->queue_offset + queue;
 	}
 
-	return 0;
+	return;
+
 fallback:
-	return blk_mq_map_queues(qmap);
+	blk_mq_map_queues(qmap);
 }
 EXPORT_SYMBOL_GPL(blk_mq_virtio_map_queues);

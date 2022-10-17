@@ -21,6 +21,7 @@
 #include "util/data.h"
 #include "util/auxtrace.h"
 #include "util/jit.h"
+#include "util/string2.h"
 #include "util/symbol.h"
 #include "util/synthetic-events.h"
 #include "util/thread.h"
@@ -38,6 +39,7 @@
 #include <linux/string.h>
 #include <linux/zalloc.h>
 #include <linux/hash.h>
+#include <ctype.h>
 #include <errno.h>
 #include <signal.h>
 #include <inttypes.h>
@@ -123,6 +125,7 @@ struct perf_inject {
 	char			event_copy[PERF_SAMPLE_MAX_SIZE];
 	struct perf_file_section secs[HEADER_FEAT_BITS];
 	struct guest_session	guest_session;
+	struct strlist		*known_build_ids;
 };
 
 struct event_entry {
@@ -433,8 +436,10 @@ static struct dso *findnew_dso(int pid, int tid, const char *filename,
 	}
 
 	if (dso) {
+		mutex_lock(&dso->lock);
 		nsinfo__put(dso->nsinfo);
 		dso->nsinfo = nsi;
+		mutex_unlock(&dso->lock);
 	} else
 		nsinfo__put(nsi);
 
@@ -617,6 +622,7 @@ static int dso__read_build_id(struct dso *dso)
 	if (dso->has_build_id)
 		return 0;
 
+	mutex_lock(&dso->lock);
 	nsinfo__mountns_enter(dso->nsinfo, &nsc);
 	if (filename__read_build_id(dso->long_name, &dso->bid) > 0)
 		dso->has_build_id = true;
@@ -630,19 +636,88 @@ static int dso__read_build_id(struct dso *dso)
 		free(new_name);
 	}
 	nsinfo__mountns_exit(&nsc);
+	mutex_unlock(&dso->lock);
 
 	return dso->has_build_id ? 0 : -1;
+}
+
+static struct strlist *perf_inject__parse_known_build_ids(
+	const char *known_build_ids_string)
+{
+	struct str_node *pos, *tmp;
+	struct strlist *known_build_ids;
+	int bid_len;
+
+	known_build_ids = strlist__new(known_build_ids_string, NULL);
+	if (known_build_ids == NULL)
+		return NULL;
+	strlist__for_each_entry_safe(pos, tmp, known_build_ids) {
+		const char *build_id, *dso_name;
+
+		build_id = skip_spaces(pos->s);
+		dso_name = strchr(build_id, ' ');
+		if (dso_name == NULL) {
+			strlist__remove(known_build_ids, pos);
+			continue;
+		}
+		bid_len = dso_name - pos->s;
+		dso_name = skip_spaces(dso_name);
+		if (bid_len % 2 != 0 || bid_len >= SBUILD_ID_SIZE) {
+			strlist__remove(known_build_ids, pos);
+			continue;
+		}
+		for (int ix = 0; 2 * ix + 1 < bid_len; ++ix) {
+			if (!isxdigit(build_id[2 * ix]) ||
+			    !isxdigit(build_id[2 * ix + 1])) {
+				strlist__remove(known_build_ids, pos);
+				break;
+			}
+		}
+	}
+	return known_build_ids;
+}
+
+static bool perf_inject__lookup_known_build_id(struct perf_inject *inject,
+					       struct dso *dso)
+{
+	struct str_node *pos;
+	int bid_len;
+
+	strlist__for_each_entry(pos, inject->known_build_ids) {
+		const char *build_id, *dso_name;
+
+		build_id = skip_spaces(pos->s);
+		dso_name = strchr(build_id, ' ');
+		bid_len = dso_name - pos->s;
+		dso_name = skip_spaces(dso_name);
+		if (strcmp(dso->long_name, dso_name))
+			continue;
+		for (int ix = 0; 2 * ix + 1 < bid_len; ++ix) {
+			dso->bid.data[ix] = (hex(build_id[2 * ix]) << 4 |
+					     hex(build_id[2 * ix + 1]));
+		}
+		dso->bid.size = bid_len / 2;
+		dso->has_build_id = 1;
+		return true;
+	}
+	return false;
 }
 
 static int dso__inject_build_id(struct dso *dso, struct perf_tool *tool,
 				struct machine *machine, u8 cpumode, u32 flags)
 {
+	struct perf_inject *inject = container_of(tool, struct perf_inject,
+						  tool);
 	int err;
 
 	if (is_anon_memory(dso->long_name) || flags & MAP_HUGETLB)
 		return 0;
 	if (is_no_dso_memory(dso->long_name))
 		return 0;
+
+	if (inject->known_build_ids != NULL &&
+	    perf_inject__lookup_known_build_id(inject, dso))
+		return 1;
 
 	if (dso__read_build_id(dso) < 0) {
 		pr_debug("no build_id found for %s\n", dso->long_name);
@@ -2112,12 +2187,16 @@ int cmd_inject(int argc, const char **argv)
 	};
 	int ret;
 	bool repipe = true;
+	const char *known_build_ids = NULL;
 
 	struct option options[] = {
 		OPT_BOOLEAN('b', "build-ids", &inject.build_ids,
 			    "Inject build-ids into the output stream"),
 		OPT_BOOLEAN(0, "buildid-all", &inject.build_id_all,
 			    "Inject build-ids of all DSOs into the output stream"),
+		OPT_STRING(0, "known-build-ids", &known_build_ids,
+			   "buildid path [,buildid path...]",
+			   "build-ids to use for given paths"),
 		OPT_STRING('i', "input", &inject.input_name, "file",
 			   "input file name"),
 		OPT_STRING('o', "output", &inject.output.path, "file",
@@ -2257,6 +2336,15 @@ int cmd_inject(int argc, const char **argv)
 		 */
 		inject.tool.ordered_events = true;
 		inject.tool.ordering_requires_timestamps = true;
+		if (known_build_ids != NULL) {
+			inject.known_build_ids =
+				perf_inject__parse_known_build_ids(known_build_ids);
+
+			if (inject.known_build_ids == NULL) {
+				pr_err("Couldn't parse known build ids.\n");
+				goto out_delete;
+			}
+		}
 	}
 
 	if (inject.sched_stat) {
@@ -2285,6 +2373,7 @@ int cmd_inject(int argc, const char **argv)
 	guest_session__exit(&inject.guest_session);
 
 out_delete:
+	strlist__delete(inject.known_build_ids);
 	zstd_fini(&(inject.session->zstd_data));
 	perf_session__delete(inject.session);
 out_close_output:

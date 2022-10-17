@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/media/allwinner,sun4i-a10-ir.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A10 Infrared Controller Device Tree Bindings
+title: Allwinner A10 Infrared Controller
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

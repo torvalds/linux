@@ -152,7 +152,11 @@ static const struct dma_map_ops ibmebus_dma_ops = {
 static int ibmebus_match_path(struct device *dev, const void *data)
 {
 	struct device_node *dn = to_platform_device(dev)->dev.of_node;
-	return (of_find_node_by_path(data) == dn);
+	struct device_node *tn = of_find_node_by_path(data);
+
+	of_node_put(tn);
+
+	return (tn == dn);
 }
 
 static int ibmebus_match_node(struct device *dev, const void *data)
