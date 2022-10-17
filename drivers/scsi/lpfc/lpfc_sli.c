@@ -1848,6 +1848,18 @@ lpfc_cmf_sync_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				  phba->cmf_link_byte_count);
 		bwpcent = div64_u64(bw * 100 + slop,
 				    phba->cmf_link_byte_count);
+
+		if (phba->cmf_max_bytes_per_interval < bw &&
+		    bwpcent > 95)
+			lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+					"6208 Congestion bandwidth "
+					"limits removed\n");
+		else if ((phba->cmf_max_bytes_per_interval > bw) &&
+			 ((bwpcent + pcent) <= 100) && ((bwpcent + pcent) > 95))
+			lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+					"6209 Congestion bandwidth "
+					"limits in effect\n");
+
 		if (asig) {
 			lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
 					"6237 BW Threshold %lld%% (%lld): "
