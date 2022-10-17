@@ -139,8 +139,8 @@ static void sas_ata_task_done(struct sas_task *task)
 				qc->flags |= ATA_QCFLAG_FAILED;
 			}
 
-			dev->sata_dev.fis[3] = 0x04; /* status err */
-			dev->sata_dev.fis[2] = ATA_ERR;
+			dev->sata_dev.fis[2] = ATA_ERR | ATA_DRDY; /* tf status */
+			dev->sata_dev.fis[3] = ATA_ABORTED; /* tf error */
 		}
 	}
 
