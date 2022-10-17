@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/seq_file.h>
+#include <linux/string_helpers.h>
 #include <linux/time.h>
 
 #include <linux/pinctrl/consumer.h>
@@ -1167,7 +1168,7 @@ static int intel_gpio_irq_wake(struct irq_data *d, unsigned int on)
 	else
 		disable_irq_wake(pctrl->irq);
 
-	dev_dbg(pctrl->dev, "%sable wake for pin %u\n", on ? "en" : "dis", pin);
+	dev_dbg(pctrl->dev, "%s wake for pin %u\n", str_enable_disable(on), pin);
 	return 0;
 }
 
