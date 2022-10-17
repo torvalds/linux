@@ -325,6 +325,7 @@
 };
 
 &main_uart0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart0_pins_default>;
 };
@@ -332,34 +333,6 @@
 /* main_uart1 is reserved for firmware usage */
 &main_uart1 {
 	status = "reserved";
-};
-
-&main_uart2 {
-	status = "disabled";
-};
-
-&main_uart3 {
-	status = "disabled";
-};
-
-&main_uart4 {
-	status = "disabled";
-};
-
-&main_uart5 {
-	status = "disabled";
-};
-
-&main_uart6 {
-	status = "disabled";
-};
-
-&mcu_uart0 {
-	status = "disabled";
-};
-
-&mcu_uart1 {
-	status = "disabled";
 };
 
 &main_i2c1 {
