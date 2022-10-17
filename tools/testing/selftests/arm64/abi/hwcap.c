@@ -62,6 +62,12 @@ static void sve2_sigill(void)
 	asm volatile(".inst 0x4408A000" : : : "z0");
 }
 
+static void sve2p1_sigill(void)
+{
+	/* BFADD Z0.H, Z0.H, Z0.H */
+	asm volatile(".inst 0x65000000" : : : "z0");
+}
+
 static void sveaes_sigill(void)
 {
 	/* AESD z0.b, z0.b, z0.b */
@@ -166,6 +172,13 @@ static const struct hwcap_data {
 		.hwcap_bit = HWCAP2_SVE2,
 		.cpuinfo = "sve2",
 		.sigill_fn = sve2_sigill,
+	},
+	{
+		.name = "SVE 2.1",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_SVE2P1,
+		.cpuinfo = "sve2p1",
+		.sigill_fn = sve2p1_sigill,
 	},
 	{
 		.name = "SVE AES",
