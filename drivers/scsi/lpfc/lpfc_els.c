@@ -7190,6 +7190,134 @@ rdp_fail:
 	return 1;
 }
 
+int lpfc_get_sfp_info_wait(struct lpfc_hba *phba,
+			   struct lpfc_rdp_context *rdp_context)
+{
+	LPFC_MBOXQ_t *mbox = NULL;
+	int rc;
+	struct lpfc_dmabuf *mp;
+	struct lpfc_dmabuf *mpsave;
+	void *virt;
+	MAILBOX_t *mb;
+
+	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mbox) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX | LOG_ELS,
+				"7205 failed to allocate mailbox memory");
+		return 1;
+	}
+
+	if (lpfc_sli4_dump_page_a0(phba, mbox))
+		goto sfp_fail;
+	mp = mbox->ctx_buf;
+	mpsave = mp;
+	virt = mp->virt;
+	if (phba->sli_rev < LPFC_SLI_REV4) {
+		mb = &mbox->u.mb;
+		mb->un.varDmp.cv = 1;
+		mb->un.varDmp.co = 1;
+		mb->un.varWords[2] = 0;
+		mb->un.varWords[3] = DMP_SFF_PAGE_A0_SIZE / 4;
+		mb->un.varWords[4] = 0;
+		mb->un.varWords[5] = 0;
+		mb->un.varWords[6] = 0;
+		mb->un.varWords[7] = 0;
+		mb->un.varWords[8] = 0;
+		mb->un.varWords[9] = 0;
+		mb->un.varWords[10] = 0;
+		mbox->in_ext_byte_len = DMP_SFF_PAGE_A0_SIZE;
+		mbox->out_ext_byte_len = DMP_SFF_PAGE_A0_SIZE;
+		mbox->mbox_offset_word = 5;
+		mbox->ctx_buf = virt;
+	} else {
+		bf_set(lpfc_mbx_memory_dump_type3_length,
+		       &mbox->u.mqe.un.mem_dump_type3, DMP_SFF_PAGE_A0_SIZE);
+		mbox->u.mqe.un.mem_dump_type3.addr_lo = putPaddrLow(mp->phys);
+		mbox->u.mqe.un.mem_dump_type3.addr_hi = putPaddrHigh(mp->phys);
+	}
+	mbox->vport = phba->pport;
+	mbox->ctx_ndlp = (struct lpfc_rdp_context *)rdp_context;
+
+	rc = lpfc_sli_issue_mbox_wait(phba, mbox, 30);
+	if (rc == MBX_NOT_FINISHED) {
+		rc = 1;
+		goto error;
+	}
+
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		mp = (struct lpfc_dmabuf *)(mbox->ctx_buf);
+	else
+		mp = mpsave;
+
+	if (bf_get(lpfc_mqe_status, &mbox->u.mqe)) {
+		rc = 1;
+		goto error;
+	}
+
+	lpfc_sli_bemem_bcopy(mp->virt, &rdp_context->page_a0,
+			     DMP_SFF_PAGE_A0_SIZE);
+
+	memset(mbox, 0, sizeof(*mbox));
+	memset(mp->virt, 0, DMP_SFF_PAGE_A2_SIZE);
+	INIT_LIST_HEAD(&mp->list);
+
+	/* save address for completion */
+	mbox->ctx_buf = mp;
+	mbox->vport = phba->pport;
+
+	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_DUMP_MEMORY);
+	bf_set(lpfc_mbx_memory_dump_type3_type,
+	       &mbox->u.mqe.un.mem_dump_type3, DMP_LMSD);
+	bf_set(lpfc_mbx_memory_dump_type3_link,
+	       &mbox->u.mqe.un.mem_dump_type3, phba->sli4_hba.physical_port);
+	bf_set(lpfc_mbx_memory_dump_type3_page_no,
+	       &mbox->u.mqe.un.mem_dump_type3, DMP_PAGE_A2);
+	if (phba->sli_rev < LPFC_SLI_REV4) {
+		mb = &mbox->u.mb;
+		mb->un.varDmp.cv = 1;
+		mb->un.varDmp.co = 1;
+		mb->un.varWords[2] = 0;
+		mb->un.varWords[3] = DMP_SFF_PAGE_A2_SIZE / 4;
+		mb->un.varWords[4] = 0;
+		mb->un.varWords[5] = 0;
+		mb->un.varWords[6] = 0;
+		mb->un.varWords[7] = 0;
+		mb->un.varWords[8] = 0;
+		mb->un.varWords[9] = 0;
+		mb->un.varWords[10] = 0;
+		mbox->in_ext_byte_len = DMP_SFF_PAGE_A2_SIZE;
+		mbox->out_ext_byte_len = DMP_SFF_PAGE_A2_SIZE;
+		mbox->mbox_offset_word = 5;
+		mbox->ctx_buf = virt;
+	} else {
+		bf_set(lpfc_mbx_memory_dump_type3_length,
+		       &mbox->u.mqe.un.mem_dump_type3, DMP_SFF_PAGE_A2_SIZE);
+		mbox->u.mqe.un.mem_dump_type3.addr_lo = putPaddrLow(mp->phys);
+		mbox->u.mqe.un.mem_dump_type3.addr_hi = putPaddrHigh(mp->phys);
+	}
+
+	mbox->ctx_ndlp = (struct lpfc_rdp_context *)rdp_context;
+	rc = lpfc_sli_issue_mbox_wait(phba, mbox, 30);
+	if (bf_get(lpfc_mqe_status, &mbox->u.mqe)) {
+		rc = 1;
+		goto error;
+	}
+	rc = 0;
+
+	lpfc_sli_bemem_bcopy(mp->virt, &rdp_context->page_a2,
+			     DMP_SFF_PAGE_A2_SIZE);
+
+error:
+	mbox->ctx_buf = mpsave;
+	lpfc_mbox_rsrc_cleanup(phba, mbox, MBOX_THD_UNLOCKED);
+
+	return rc;
+
+sfp_fail:
+	mempool_free(mbox, phba->mbox_mem_pool);
+	return 1;
+}
+
 /*
  * lpfc_els_rcv_rdp - Process an unsolicited RDP ELS.
  * @vport: pointer to a host virtual N_Port data structure.

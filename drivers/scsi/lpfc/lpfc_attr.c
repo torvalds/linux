@@ -1877,6 +1877,122 @@ lpfc_set_trunking(struct lpfc_hba *phba, char *buff_out)
 	return 0;
 }
 
+static ssize_t
+lpfc_xcvr_data_show(struct device *dev, struct device_attribute *attr,
+		    char *buf)
+{
+	struct Scsi_Host  *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	int rc;
+	int len = 0;
+	struct lpfc_rdp_context	*rdp_context;
+	u16 temperature;
+	u16 rx_power;
+	u16 tx_bias;
+	u16 tx_power;
+	u16 vcc;
+	char chbuf[128];
+	u16 wavelength = 0;
+	struct sff_trasnceiver_codes_byte7 *trasn_code_byte7;
+
+	/* Get transceiver information */
+	rdp_context = kmalloc(sizeof(*rdp_context), GFP_KERNEL);
+
+	rc = lpfc_get_sfp_info_wait(phba, rdp_context);
+	if (rc) {
+		len = scnprintf(buf, PAGE_SIZE - len, "SFP info NA:\n");
+		goto out_free_rdp;
+	}
+
+	strncpy(chbuf, &rdp_context->page_a0[SSF_VENDOR_NAME], 16);
+	chbuf[16] = 0;
+
+	len = scnprintf(buf, PAGE_SIZE - len, "VendorName:\t%s\n", chbuf);
+	len += scnprintf(buf + len, PAGE_SIZE - len,
+			 "VendorOUI:\t%02x-%02x-%02x\n",
+			 (uint8_t)rdp_context->page_a0[SSF_VENDOR_OUI],
+			 (uint8_t)rdp_context->page_a0[SSF_VENDOR_OUI + 1],
+			 (uint8_t)rdp_context->page_a0[SSF_VENDOR_OUI + 2]);
+	strncpy(chbuf, &rdp_context->page_a0[SSF_VENDOR_PN], 16);
+	chbuf[16] = 0;
+	len += scnprintf(buf + len, PAGE_SIZE - len, "VendorPN:\t%s\n", chbuf);
+	strncpy(chbuf, &rdp_context->page_a0[SSF_VENDOR_SN], 16);
+	chbuf[16] = 0;
+	len += scnprintf(buf + len, PAGE_SIZE - len, "VendorSN:\t%s\n", chbuf);
+	strncpy(chbuf, &rdp_context->page_a0[SSF_VENDOR_REV], 4);
+	chbuf[4] = 0;
+	len += scnprintf(buf + len, PAGE_SIZE - len, "VendorRev:\t%s\n", chbuf);
+	strncpy(chbuf, &rdp_context->page_a0[SSF_DATE_CODE], 8);
+	chbuf[8] = 0;
+	len += scnprintf(buf + len, PAGE_SIZE - len, "DateCode:\t%s\n", chbuf);
+	len += scnprintf(buf + len, PAGE_SIZE - len, "Identifier:\t%xh\n",
+			 (uint8_t)rdp_context->page_a0[SSF_IDENTIFIER]);
+	len += scnprintf(buf + len, PAGE_SIZE - len, "ExtIdentifier:\t%xh\n",
+			 (uint8_t)rdp_context->page_a0[SSF_EXT_IDENTIFIER]);
+	len += scnprintf(buf + len, PAGE_SIZE - len, "Connector:\t%xh\n",
+			 (uint8_t)rdp_context->page_a0[SSF_CONNECTOR]);
+	wavelength = (rdp_context->page_a0[SSF_WAVELENGTH_B1] << 8) |
+		      rdp_context->page_a0[SSF_WAVELENGTH_B0];
+
+	len += scnprintf(buf + len, PAGE_SIZE - len, "Wavelength:\t%d nm\n",
+			 wavelength);
+	trasn_code_byte7 = (struct sff_trasnceiver_codes_byte7 *)
+			&rdp_context->page_a0[SSF_TRANSCEIVER_CODE_B7];
+
+	len += scnprintf(buf + len, PAGE_SIZE - len, "Speeds: \t");
+		if (*(uint8_t *)trasn_code_byte7 == 0) {
+			len += scnprintf(buf + len, PAGE_SIZE - len,
+					 "Unknown\n");
+		} else {
+			if (trasn_code_byte7->fc_sp_100MB)
+				len += scnprintf(buf + len, PAGE_SIZE - len,
+						 "1 ");
+			if (trasn_code_byte7->fc_sp_200mb)
+				len += scnprintf(buf + len, PAGE_SIZE - len,
+						 "2 ");
+			if (trasn_code_byte7->fc_sp_400MB)
+				len += scnprintf(buf + len, PAGE_SIZE - len,
+						 "4 ");
+			if (trasn_code_byte7->fc_sp_800MB)
+				len += scnprintf(buf + len, PAGE_SIZE - len,
+						 "8 ");
+			if (trasn_code_byte7->fc_sp_1600MB)
+				len += scnprintf(buf + len, PAGE_SIZE - len,
+						 "16 ");
+			if (trasn_code_byte7->fc_sp_3200MB)
+				len += scnprintf(buf + len, PAGE_SIZE - len,
+						 "32 ");
+			if (trasn_code_byte7->speed_chk_ecc)
+				len += scnprintf(buf + len, PAGE_SIZE - len,
+						 "64 ");
+			len += scnprintf(buf + len, PAGE_SIZE - len, "GB\n");
+		}
+	temperature = (rdp_context->page_a2[SFF_TEMPERATURE_B1] << 8 |
+		       rdp_context->page_a2[SFF_TEMPERATURE_B0]);
+	vcc = (rdp_context->page_a2[SFF_VCC_B1] << 8 |
+	       rdp_context->page_a2[SFF_VCC_B0]);
+	tx_power = (rdp_context->page_a2[SFF_TXPOWER_B1] << 8 |
+		    rdp_context->page_a2[SFF_TXPOWER_B0]);
+	tx_bias = (rdp_context->page_a2[SFF_TX_BIAS_CURRENT_B1] << 8 |
+		   rdp_context->page_a2[SFF_TX_BIAS_CURRENT_B0]);
+	rx_power = (rdp_context->page_a2[SFF_RXPOWER_B1] << 8 |
+		    rdp_context->page_a2[SFF_RXPOWER_B0]);
+
+	len += scnprintf(buf + len, PAGE_SIZE - len,
+			 "Temperature:\tx%04x C\n", temperature);
+	len += scnprintf(buf + len, PAGE_SIZE - len, "Vcc:\t\tx%04x V\n", vcc);
+	len += scnprintf(buf + len, PAGE_SIZE - len,
+			 "TxBiasCurrent:\tx%04x mA\n", tx_bias);
+	len += scnprintf(buf + len, PAGE_SIZE - len, "TxPower:\tx%04x mW\n",
+			 tx_power);
+	len += scnprintf(buf + len, PAGE_SIZE - len, "RxPower:\tx%04x mW\n",
+			 rx_power);
+out_free_rdp:
+	kfree(rdp_context);
+	return len;
+}
+
 /**
  * lpfc_board_mode_show - Return the state of the board
  * @dev: class device that is converted into a Scsi_host.
@@ -2810,6 +2926,7 @@ static DEVICE_ATTR_RO(lpfc_drvr_version);
 static DEVICE_ATTR_RO(lpfc_enable_fip);
 static DEVICE_ATTR(board_mode, S_IRUGO | S_IWUSR,
 		   lpfc_board_mode_show, lpfc_board_mode_store);
+static DEVICE_ATTR_RO(lpfc_xcvr_data);
 static DEVICE_ATTR(issue_reset, S_IWUSR, NULL, lpfc_issue_reset);
 static DEVICE_ATTR(max_vpi, S_IRUGO, lpfc_max_vpi_show, NULL);
 static DEVICE_ATTR(used_vpi, S_IRUGO, lpfc_used_vpi_show, NULL);
@@ -5906,6 +6023,7 @@ static struct attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_fcp_wait_abts_rsp.attr,
 	&dev_attr_nport_evt_cnt.attr,
 	&dev_attr_board_mode.attr,
+	&dev_attr_lpfc_xcvr_data.attr,
 	&dev_attr_max_vpi.attr,
 	&dev_attr_used_vpi.attr,
 	&dev_attr_max_rpi.attr,
