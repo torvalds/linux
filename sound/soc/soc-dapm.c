@@ -652,10 +652,8 @@ static void soc_dapm_async_complete(struct snd_soc_dapm_context *dapm)
 }
 
 static struct snd_soc_dapm_widget *
-dapm_wcache_lookup(struct snd_soc_dapm_wcache *wcache, const char *name)
+dapm_wcache_lookup(struct snd_soc_dapm_widget *w, const char *name)
 {
-	struct snd_soc_dapm_widget *w = wcache->widget;
-
 	if (w) {
 		struct list_head *wlist = &w->dapm->card->widgets;
 		const int depth = 2;
@@ -671,12 +669,6 @@ dapm_wcache_lookup(struct snd_soc_dapm_wcache *wcache, const char *name)
 	}
 
 	return NULL;
-}
-
-static inline void dapm_wcache_update(struct snd_soc_dapm_wcache *wcache,
-				      struct snd_soc_dapm_widget *w)
-{
-	wcache->widget = w;
 }
 
 /**
@@ -2516,12 +2508,6 @@ void snd_soc_dapm_free_widget(struct snd_soc_dapm_widget *w)
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_free_widget);
 
-void snd_soc_dapm_reset_cache(struct snd_soc_dapm_context *dapm)
-{
-	dapm->path_sink_cache.widget = NULL;
-	dapm->path_source_cache.widget = NULL;
-}
-
 /* free all dapm widgets and resources */
 static void dapm_free_widgets(struct snd_soc_dapm_context *dapm)
 {
@@ -2532,7 +2518,9 @@ static void dapm_free_widgets(struct snd_soc_dapm_context *dapm)
 			continue;
 		snd_soc_dapm_free_widget(w);
 	}
-	snd_soc_dapm_reset_cache(dapm);
+
+	dapm->wcache_sink	= NULL;
+	dapm->wcache_source	= NULL;
 }
 
 static struct snd_soc_dapm_widget *dapm_find_widget(
@@ -2961,8 +2949,8 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 		source = route->source;
 	}
 
-	wsource = dapm_wcache_lookup(&dapm->path_source_cache, source);
-	wsink = dapm_wcache_lookup(&dapm->path_sink_cache, sink);
+	wsource	= dapm_wcache_lookup(dapm->wcache_source, source);
+	wsink	= dapm_wcache_lookup(dapm->wcache_sink,   sink);
 
 	if (wsink && wsource)
 		goto skip_search;
@@ -3018,8 +3006,9 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 	}
 
 skip_search:
-	dapm_wcache_update(&dapm->path_sink_cache, wsink);
-	dapm_wcache_update(&dapm->path_source_cache, wsource);
+	/* update cache */
+	dapm->wcache_sink	= wsink;
+	dapm->wcache_source	= wsource;
 
 	ret = snd_soc_dapm_add_path(dapm, wsource, wsink, route->control,
 		route->connected);
