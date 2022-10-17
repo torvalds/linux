@@ -1976,7 +1976,6 @@ static int qmp_pcie_init(struct phy *phy)
 	struct qmp_phy *qphy = phy_get_drvdata(phy);
 	struct qcom_qmp *qmp = qphy->qmp;
 	const struct qmp_phy_cfg *cfg = qphy->cfg;
-	void __iomem *pcs = qphy->pcs;
 	int ret;
 
 	/* turn on regulator supplies */
@@ -2001,9 +2000,6 @@ static int qmp_pcie_init(struct phy *phy)
 	ret = clk_bulk_prepare_enable(cfg->num_clks, qmp->clks);
 	if (ret)
 		goto err_assert_reset;
-
-	qphy_setbits(pcs, cfg->regs[QPHY_PCS_POWER_DOWN_CONTROL],
-			cfg->pwrdn_ctrl);
 
 	return 0;
 
@@ -2040,6 +2036,9 @@ static int qmp_pcie_power_on(struct phy *phy)
 	void __iomem *status;
 	unsigned int mask, val, ready;
 	int ret;
+
+	qphy_setbits(pcs, cfg->regs[QPHY_PCS_POWER_DOWN_CONTROL],
+			cfg->pwrdn_ctrl);
 
 	if (qphy->mode == PHY_MODE_PCIE_RC)
 		mode_tables = cfg->tables_rc;
