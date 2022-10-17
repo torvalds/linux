@@ -871,6 +871,7 @@
 		ranges = <0x01000000 0x00 0x68001000  0x00 0x68001000  0x00 0x0010000>,
 			 <0x02000000 0x00 0x68011000  0x00 0x68011000  0x00 0x7fef000>;
 		dma-ranges = <0x02000000 0x0 0x0 0x0 0x0 0x00000010 0x0>;
+		status = "disabled";
 	};
 
 	pcie0_ep: pcie-ep@f102000 {
@@ -889,6 +890,7 @@
 		clocks = <&k3_clks 114 0>;
 		clock-names = "fck";
 		max-functions = /bits/ 8 <1>;
+		status = "disabled";
 	};
 
 	epwm0: pwm@23000000 {
