@@ -139,6 +139,12 @@ static const struct hwcap_data {
 		.sigill_fn = rng_sigill,
 	},
 	{
+		.name = "RPRFM",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_RPRFM,
+		.cpuinfo = "rprfm",
+	},
+	{
 		.name = "SME",
 		.at_hwcap = AT_HWCAP2,
 		.hwcap_bit = HWCAP2_SME,
