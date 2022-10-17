@@ -1079,6 +1079,29 @@ void dcn20_blank_pixel_data(
 				0);
 	}
 
+	if (!blank && dc->debug.enable_single_display_2to1_odm_policy) {
+		/* when exiting dynamic ODM need to reinit DPG state for unused pipes */
+		struct pipe_ctx *old_odm_pipe = dc->current_state->res_ctx.pipe_ctx[pipe_ctx->pipe_idx].next_odm_pipe;
+
+		odm_pipe = pipe_ctx->next_odm_pipe;
+
+		while (old_odm_pipe) {
+			if (!odm_pipe || old_odm_pipe->pipe_idx != odm_pipe->pipe_idx)
+				dc->hwss.set_disp_pattern_generator(dc,
+						old_odm_pipe,
+						CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
+						CONTROLLER_DP_COLOR_SPACE_UDEFINED,
+						COLOR_DEPTH_888,
+						NULL,
+						0,
+						0,
+						0);
+			old_odm_pipe = old_odm_pipe->next_odm_pipe;
+			if (odm_pipe)
+				odm_pipe = odm_pipe->next_odm_pipe;
+		}
+	}
+
 	if (!blank)
 		if (stream_res->abm) {
 			dc->hwss.set_pipe(pipe_ctx);
