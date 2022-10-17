@@ -182,7 +182,6 @@ struct imx290 {
 	struct media_pad pad;
 
 	const struct imx290_mode *current_mode;
-	u8 bpp;
 
 	struct regulator_bulk_data supplies[IMX290_NUM_SUPPLIES];
 	struct gpio_desc *rst_gpio;
@@ -414,15 +413,40 @@ static inline int imx290_modes_num(const struct imx290 *imx290)
 		return ARRAY_SIZE(imx290_modes_4lanes);
 }
 
-struct imx290_pixfmt {
+struct imx290_format_info {
 	u32 code;
 	u8 bpp;
+	const struct imx290_regval *regs;
+	unsigned int num_regs;
 };
 
-static const struct imx290_pixfmt imx290_formats[] = {
-	{ MEDIA_BUS_FMT_SRGGB10_1X10, 10 },
-	{ MEDIA_BUS_FMT_SRGGB12_1X12, 12 },
+static const struct imx290_format_info imx290_formats[] = {
+	{
+		.code = MEDIA_BUS_FMT_SRGGB10_1X10,
+		.bpp = 10,
+		.regs = imx290_10bit_settings,
+		.num_regs = ARRAY_SIZE(imx290_10bit_settings),
+	}, {
+		.code = MEDIA_BUS_FMT_SRGGB12_1X12,
+		.bpp = 12,
+		.regs = imx290_12bit_settings,
+		.num_regs = ARRAY_SIZE(imx290_12bit_settings),
+	}
 };
+
+static const struct imx290_format_info *imx290_format_info(u32 code)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(imx290_formats); ++i) {
+		const struct imx290_format_info *info = &imx290_formats[i];
+
+		if (info->code == code)
+			return info;
+	}
+
+	return NULL;
+}
 
 /* -----------------------------------------------------------------------------
  * Register access
@@ -516,40 +540,31 @@ static int imx290_set_data_lanes(struct imx290 *imx290)
 }
 
 static int imx290_set_black_level(struct imx290 *imx290,
+				  const struct v4l2_mbus_framefmt *format,
 				  unsigned int black_level, int *err)
 {
+	unsigned int bpp = imx290_format_info(format->code)->bpp;
+
 	return imx290_write(imx290, IMX290_BLKLEVEL,
-			    black_level >> (16 - imx290->bpp), err);
+			    black_level >> (16 - bpp), err);
 }
 
 static int imx290_setup_format(struct imx290 *imx290,
 			       const struct v4l2_mbus_framefmt *format)
 {
-	const struct imx290_regval *regs;
-	unsigned int num_regs;
+	const struct imx290_format_info *info;
 	int ret;
 
-	switch (format->code) {
-	case MEDIA_BUS_FMT_SRGGB10_1X10:
-		regs = imx290_10bit_settings;
-		num_regs = ARRAY_SIZE(imx290_10bit_settings);
-		break;
-	case MEDIA_BUS_FMT_SRGGB12_1X12:
-		regs = imx290_12bit_settings;
-		num_regs = ARRAY_SIZE(imx290_12bit_settings);
-		break;
-	default:
-		dev_err(imx290->dev, "Unknown pixel format\n");
-		return -EINVAL;
-	}
+	info = imx290_format_info(format->code);
 
-	ret = imx290_set_register_array(imx290, regs, num_regs);
+	ret = imx290_set_register_array(imx290, info->regs, info->num_regs);
 	if (ret < 0) {
 		dev_err(imx290->dev, "Could not set format registers\n");
 		return ret;
 	}
 
-	return imx290_set_black_level(imx290, IMX290_BLACK_LEVEL_DEFAULT, &ret);
+	return imx290_set_black_level(imx290, format,
+				      IMX290_BLACK_LEVEL_DEFAULT, &ret);
 }
 
 /* ----------------------------------------------------------------------------
@@ -560,6 +575,8 @@ static int imx290_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct imx290 *imx290 = container_of(ctrl->handler,
 					     struct imx290, ctrls);
+	const struct v4l2_mbus_framefmt *format;
+	struct v4l2_subdev_state *state;
 	int ret = 0;
 
 	/*
@@ -575,6 +592,9 @@ static int imx290_set_ctrl(struct v4l2_ctrl *ctrl)
 	if (!pm_runtime_get_if_in_use(imx290->dev))
 		return 0;
 
+	state = v4l2_subdev_get_locked_active_state(&imx290->sd);
+	format = v4l2_subdev_get_pad_format(&imx290->sd, state, 0);
+
 	switch (ctrl->id) {
 	case V4L2_CID_ANALOGUE_GAIN:
 		ret = imx290_write(imx290, IMX290_GAIN, ctrl->val, NULL);
@@ -587,7 +607,7 @@ static int imx290_set_ctrl(struct v4l2_ctrl *ctrl)
 
 	case V4L2_CID_TEST_PATTERN:
 		if (ctrl->val) {
-			imx290_set_black_level(imx290, 0, &ret);
+			imx290_set_black_level(imx290, format, 0, &ret);
 			usleep_range(10000, 11000);
 			imx290_write(imx290, IMX290_PGCTRL,
 				     (u8)(IMX290_PGCTRL_REGEN |
@@ -596,8 +616,8 @@ static int imx290_set_ctrl(struct v4l2_ctrl *ctrl)
 		} else {
 			imx290_write(imx290, IMX290_PGCTRL, 0x00, &ret);
 			usleep_range(10000, 11000);
-			imx290_set_black_level(imx290, IMX290_BLACK_LEVEL_DEFAULT,
-					       &ret);
+			imx290_set_black_level(imx290, format,
+					       IMX290_BLACK_LEVEL_DEFAULT, &ret);
 		}
 		break;
 
@@ -627,6 +647,7 @@ static const char * const imx290_test_pattern_menu[] = {
 };
 
 static void imx290_ctrl_update(struct imx290 *imx290,
+			       const struct v4l2_mbus_framefmt *format,
 			       const struct imx290_mode *mode)
 {
 	unsigned int hblank = mode->hmax - mode->width;
@@ -636,7 +657,7 @@ static void imx290_ctrl_update(struct imx290 *imx290,
 
 	/* pixel rate = link_freq * 2 * nr_of_lanes / bits_per_sample */
 	pixel_rate = link_freq * 2 * imx290->nlanes;
-	do_div(pixel_rate, imx290->bpp);
+	do_div(pixel_rate, imx290_format_info(format->code)->bpp);
 
 	__v4l2_ctrl_s_ctrl(imx290->link_freq, mode->link_freq_index);
 	__v4l2_ctrl_s_ctrl_int64(imx290->pixel_rate, pixel_rate);
@@ -838,8 +859,7 @@ static int imx290_enum_frame_size(struct v4l2_subdev *sd,
 	const struct imx290 *imx290 = to_imx290(sd);
 	const struct imx290_mode *imx290_modes = imx290_modes_ptr(imx290);
 
-	if ((fse->code != imx290_formats[0].code) &&
-	    (fse->code != imx290_formats[1].code))
+	if (!imx290_format_info(fse->code))
 		return -EINVAL;
 
 	if (fse->index >= imx290_modes_num(imx290))
@@ -860,7 +880,6 @@ static int imx290_set_fmt(struct v4l2_subdev *sd,
 	struct imx290 *imx290 = to_imx290(sd);
 	const struct imx290_mode *mode;
 	struct v4l2_mbus_framefmt *format;
-	unsigned int i;
 
 	mode = v4l2_find_nearest_size(imx290_modes_ptr(imx290),
 				      imx290_modes_num(imx290), width, height,
@@ -869,23 +888,17 @@ static int imx290_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 
-	for (i = 0; i < ARRAY_SIZE(imx290_formats); i++)
-		if (imx290_formats[i].code == fmt->format.code)
-			break;
+	if (!imx290_format_info(fmt->format.code))
+		fmt->format.code = imx290_formats[0].code;
 
-	if (i >= ARRAY_SIZE(imx290_formats))
-		i = 0;
-
-	fmt->format.code = imx290_formats[i].code;
 	fmt->format.field = V4L2_FIELD_NONE;
 
 	format = v4l2_subdev_get_pad_format(sd, sd_state, 0);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		imx290->current_mode = mode;
-		imx290->bpp = imx290_formats[i].bpp;
 
-		imx290_ctrl_update(imx290, mode);
+		imx290_ctrl_update(imx290, &fmt->format, mode);
 	}
 
 	*format = fmt->format;
@@ -976,10 +989,11 @@ static const struct media_entity_operations imx290_subdev_entity_ops = {
 static int imx290_subdev_init(struct imx290 *imx290)
 {
 	struct i2c_client *client = to_i2c_client(imx290->dev);
+	const struct v4l2_mbus_framefmt *format;
+	struct v4l2_subdev_state *state;
 	int ret;
 
 	imx290->current_mode = &imx290_modes_ptr(imx290)[0];
-	imx290->bpp = imx290_formats[0].bpp;
 
 	v4l2_i2c_subdev_init(&imx290->sd, client, &imx290_subdev_ops);
 	imx290->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -1008,7 +1022,10 @@ static int imx290_subdev_init(struct imx290 *imx290)
 		goto err_ctrls;
 	}
 
-	imx290_ctrl_update(imx290, imx290->current_mode);
+	state = v4l2_subdev_lock_and_get_active_state(&imx290->sd);
+	format = v4l2_subdev_get_pad_format(&imx290->sd, state, 0);
+	imx290_ctrl_update(imx290, format, imx290->current_mode);
+	v4l2_subdev_unlock_state(state);
 
 	return 0;
 
