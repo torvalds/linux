@@ -91,6 +91,7 @@ struct qrtr_gunyah_dev {
 };
 
 static void qrtr_gunyah_read(struct qrtr_gunyah_dev *qdev);
+static void qrtr_gunyah_fifo_init(struct qrtr_gunyah_dev *qdev);
 
 static void qrtr_gunyah_kick(struct qrtr_gunyah_dev *qdev)
 {
@@ -411,6 +412,22 @@ static int qrtr_gunyah_share_mem(struct qrtr_gunyah_dev *qdev, gh_vmid_t self,
 	return ret;
 }
 
+static void qrtr_gunyah_unshare_mem(struct qrtr_gunyah_dev *qdev,
+				    gh_vmid_t self, gh_vmid_t peer)
+{
+	int dst_perms[2] = {PERM_READ | PERM_WRITE | PERM_EXEC};
+	int src_vmlist[2] = {self, peer};
+	u32 dst_vmlist[1] = {self};
+	int ret;
+
+	ret = gh_rm_mem_reclaim(qdev->memparcel, 0);
+	if (ret)
+		pr_err("%s: Gunyah reclaim failed\n", __func__);
+
+	hyp_assign_phys(qdev->res.start, resource_size(&qdev->res),
+			src_vmlist, 2, dst_vmlist, dst_perms, 1);
+}
+
 static int qrtr_gunyah_rm_cb(struct notifier_block *nb, unsigned long cmd,
 			     void *data)
 {
@@ -425,7 +442,8 @@ static int qrtr_gunyah_rm_cb(struct notifier_block *nb, unsigned long cmd,
 		return NOTIFY_DONE;
 
 	vm_status_payload = data;
-	if (vm_status_payload->vm_status != GH_RM_VM_STATUS_READY)
+	if (vm_status_payload->vm_status != GH_RM_VM_STATUS_READY &&
+	    vm_status_payload->vm_status != GH_RM_VM_STATUS_RESET)
 		return NOTIFY_DONE;
 	if (gh_rm_get_vmid(qdev->peer_name, &peer_vmid))
 		return NOTIFY_DONE;
@@ -434,8 +452,21 @@ static int qrtr_gunyah_rm_cb(struct notifier_block *nb, unsigned long cmd,
 	if (peer_vmid != vm_status_payload->vmid)
 		return NOTIFY_DONE;
 
-	if (qrtr_gunyah_share_mem(qdev, self_vmid, peer_vmid))
-		pr_err("%s: failed to share memory\n", __func__);
+	if (vm_status_payload->vm_status == GH_RM_VM_STATUS_READY) {
+		qrtr_gunyah_fifo_init(qdev);
+		if (qrtr_endpoint_register(&qdev->ep, QRTR_EP_NET_ID_AUTO, false)) {
+			pr_err("%s: endpoint register failed\n", __func__);
+			return NOTIFY_DONE;
+		}
+		if (qrtr_gunyah_share_mem(qdev, self_vmid, peer_vmid)) {
+			pr_err("%s: failed to share memory\n", __func__);
+			return NOTIFY_DONE;
+		}
+	}
+	if (vm_status_payload->vm_status == GH_RM_VM_STATUS_RESET) {
+		qrtr_endpoint_unregister(&qdev->ep);
+		qrtr_gunyah_unshare_mem(qdev, self_vmid, peer_vmid);
+	}
 
 	return NOTIFY_DONE;
 }
@@ -592,7 +623,8 @@ static int qrtr_gunyah_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	qrtr_gunyah_fifo_init(qdev);
+	if (!qdev->master)
+		qrtr_gunyah_fifo_init(qdev);
 	init_waitqueue_head(&qdev->tx_avail_notify);
 
 	if (qdev->master) {
@@ -622,12 +654,14 @@ static int qrtr_gunyah_probe(struct platform_device *pdev)
 	}
 
 	qdev->ep.xmit = qrtr_gunyah_send;
-	ret = qrtr_endpoint_register(&qdev->ep, QRTR_EP_NET_ID_AUTO, false);
-	if (ret)
-		goto register_fail;
+	if (!qdev->master) {
+		ret = qrtr_endpoint_register(&qdev->ep, QRTR_EP_NET_ID_AUTO, false);
+		if (ret)
+			goto register_fail;
 
-	if (gunyah_rx_avail(&qdev->rx_pipe))
-		qrtr_gunyah_read(qdev);
+		if (gunyah_rx_avail(&qdev->rx_pipe))
+			qrtr_gunyah_read(qdev);
+	}
 
 	return 0;
 
