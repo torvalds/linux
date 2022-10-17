@@ -436,7 +436,7 @@ static void bch2_pr_time_units_aligned(struct printbuf *out, u64 ns)
 
 static inline void pr_name_and_units(struct printbuf *out, const char *name, u64 ns)
 {
-	prt_printf(out, name);
+	prt_str(out, name);
 	prt_tab(out);
 	bch2_pr_time_units_aligned(out, ns);
 	prt_newline(out);
