@@ -752,6 +752,17 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 		};
+
+		wlan_smp2p_out: wlan-ap-to-wpss {
+			qcom,entry-name = "wlan";
+			#qcom,smem-state-cells = <1>;
+		};
+
+		wlan_smp2p_in: wlan-wpss-to-ap {
+			qcom,entry-name = "wlan";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
 	};
 
 	pmu {
@@ -2036,6 +2047,8 @@
 			qcom,rproc = <&remoteproc_wpss>;
 			memory-region = <&wlan_fw_mem>, <&wlan_ce_mem>;
 			status = "disabled";
+			qcom,smem-states = <&wlan_smp2p_out 0>;
+			qcom,smem-state-names = "wlan-smp2p-out";
 		};
 
 		pcie1: pci@1c08000 {
