@@ -2826,7 +2826,6 @@ static int snd_soc_dapm_add_path(struct snd_soc_dapm_context *dapm,
 	int (*connected)(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink))
 {
-	struct snd_soc_dapm_widget *widgets[2];
 	enum snd_soc_dapm_direction dir;
 	struct snd_soc_dapm_path *path;
 	int ret;
@@ -2862,8 +2861,6 @@ static int snd_soc_dapm_add_path(struct snd_soc_dapm_context *dapm,
 
 	path->node[SND_SOC_DAPM_DIR_IN] = wsource;
 	path->node[SND_SOC_DAPM_DIR_OUT] = wsink;
-	widgets[SND_SOC_DAPM_DIR_IN] = wsource;
-	widgets[SND_SOC_DAPM_DIR_OUT] = wsink;
 
 	path->connected = connected;
 	INIT_LIST_HEAD(&path->list);
@@ -2905,12 +2902,13 @@ static int snd_soc_dapm_add_path(struct snd_soc_dapm_context *dapm,
 	}
 
 	list_add(&path->list, &dapm->card->paths);
+
 	snd_soc_dapm_for_each_direction(dir)
-		list_add(&path->list_node[dir], &widgets[dir]->edges[dir]);
+		list_add(&path->list_node[dir], &path->node[dir]->edges[dir]);
 
 	snd_soc_dapm_for_each_direction(dir) {
-		dapm_update_widget_flags(widgets[dir]);
-		dapm_mark_dirty(widgets[dir], "Route added");
+		dapm_update_widget_flags(path->node[dir]);
+		dapm_mark_dirty(path->node[dir], "Route added");
 	}
 
 	if (dapm->card->instantiated && path->connect)
