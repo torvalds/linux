@@ -2994,16 +2994,11 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 	if (!wsource)
 		wsource = wtsource;
 
-	if (wsource == NULL) {
-		dev_err(dapm->dev, "ASoC: no source widget found for %s\n",
-			route->source);
-		return -ENODEV;
-	}
-	if (wsink == NULL) {
-		dev_err(dapm->dev, "ASoC: no sink widget found for %s\n",
-			route->sink);
-		return -ENODEV;
-	}
+	ret = -ENODEV;
+	if (!wsource)
+		goto err;
+	if (!wsink)
+		goto err;
 
 skip_search:
 	/* update cache */
@@ -3012,13 +3007,14 @@ skip_search:
 
 	ret = snd_soc_dapm_add_path(dapm, wsource, wsink, route->control,
 		route->connected);
-	if (ret)
-		goto err;
-
-	return 0;
 err:
-	dev_warn(dapm->dev, "ASoC: no dapm match for %s --> %s --> %s\n",
-		 source, route->control, sink);
+	if (ret)
+		dev_err(dapm->dev, "ASoC: Failed to add route %s%s -%s%s%s> %s%s\n",
+			source, !wsource ? "(*)" : "",
+			!route->control ? "" : "> [",
+			!route->control ? "" : route->control,
+			!route->control ? "" : "] -",
+			sink,  !wsink ? "(*)" : "");
 	return ret;
 }
 
@@ -3104,13 +3100,8 @@ int snd_soc_dapm_add_routes(struct snd_soc_dapm_context *dapm,
 	mutex_lock_nested(&dapm->card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 	for (i = 0; i < num; i++) {
 		int r = snd_soc_dapm_add_route(dapm, route);
-		if (r < 0) {
-			dev_err(dapm->dev, "ASoC: Failed to add route %s -> %s -> %s\n",
-				route->source,
-				route->control ? route->control : "direct",
-				route->sink);
+		if (r < 0)
 			ret = r;
-		}
 		route++;
 	}
 	mutex_unlock(&dapm->card->dapm_mutex);
