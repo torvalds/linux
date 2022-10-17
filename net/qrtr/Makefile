@@ -8,3 +8,5 @@ obj-$(CONFIG_QRTR_TUN) += qrtr-tun.o
 qrtr-tun-y	:= tun.o
 obj-$(CONFIG_QRTR_MHI) += qrtr-mhi.o
 qrtr-mhi-y	:= mhi.o
+obj-$(CONFIG_QRTR_GUNYAH) += qrtr-gunyah.o
+qrtr-gunyah-y	:= gunyah.o

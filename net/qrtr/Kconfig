@@ -35,4 +35,12 @@ config QRTR_MHI
 	  Say Y here to support MHI based ipcrouter channels. MHI is the
 	  transport used for communicating to external modems.
 
+config QRTR_GUNYAH
+	tristate "Gunyah IPC Router channels"
+	help
+	  Say Y here to support a fifo based ipcrouter channel with gunyah
+	  hypervisor signaling. The gunyah transport layer enables IPC
+	  Router communication between two virtual machines. The transport
+	  uses dynamically shared memory and gunyah doorbells.
+
 endif # QRTR
