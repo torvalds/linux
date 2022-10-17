@@ -12,6 +12,7 @@
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables_core.h>
 #include <net/netfilter/nf_tables.h>
+#include <net/netfilter/nft_meta.h>
 #include <net/netfilter/nf_tables_offload.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
@@ -28,11 +29,13 @@ struct __nft_expr {
 	const struct nft_expr_ops	*ops;
 	union {
 		struct nft_payload	payload;
+		struct nft_meta		meta;
 	} __attribute__((aligned(__alignof__(u64))));
 };
 
 enum {
 	NFT_INNER_EXPR_PAYLOAD,
+	NFT_INNER_EXPR_META,
 };
 
 struct nft_inner {
@@ -237,6 +240,9 @@ static void nft_inner_eval(const struct nft_expr *expr, struct nft_regs *regs,
 	case NFT_INNER_EXPR_PAYLOAD:
 		nft_payload_inner_eval((struct nft_expr *)&priv->expr, regs, pkt, tun_ctx);
 		break;
+	case NFT_INNER_EXPR_META:
+		nft_meta_inner_eval((struct nft_expr *)&priv->expr, regs, pkt, tun_ctx);
+		break;
 	default:
 		WARN_ON_ONCE(1);
 		goto err;
@@ -306,6 +312,8 @@ static int nft_inner_init(const struct nft_ctx *ctx,
 
 	if (!strcmp(expr_info.ops->type->name, "payload"))
 		priv->expr_type = NFT_INNER_EXPR_PAYLOAD;
+	else if (!strcmp(expr_info.ops->type->name, "meta"))
+		priv->expr_type = NFT_INNER_EXPR_META;
 	else
 		return -EINVAL;
 
