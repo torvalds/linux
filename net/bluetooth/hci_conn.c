@@ -1067,9 +1067,20 @@ int hci_conn_del(struct hci_conn *conn)
 			hdev->acl_cnt += conn->sent;
 	} else {
 		struct hci_conn *acl = conn->link;
+
 		if (acl) {
 			acl->link = NULL;
 			hci_conn_drop(acl);
+		}
+
+		/* Unacked ISO frames */
+		if (conn->type == ISO_LINK) {
+			if (hdev->iso_pkts)
+				hdev->iso_cnt += conn->sent;
+			else if (hdev->le_pkts)
+				hdev->le_cnt += conn->sent;
+			else
+				hdev->acl_cnt += conn->sent;
 		}
 	}
 
