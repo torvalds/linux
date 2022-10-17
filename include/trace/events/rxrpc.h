@@ -1152,7 +1152,8 @@ TRACE_EVENT(rxrpc_receive,
 		    __field(enum rxrpc_receive_trace,	why)
 		    __field(rxrpc_serial_t,		serial)
 		    __field(rxrpc_seq_t,		seq)
-		    __field(u64,			window)
+		    __field(rxrpc_seq_t,		window)
+		    __field(rxrpc_seq_t,		wtop)
 			     ),
 
 	    TP_fast_assign(
@@ -1160,7 +1161,8 @@ TRACE_EVENT(rxrpc_receive,
 		    __entry->why = why;
 		    __entry->serial = serial;
 		    __entry->seq = seq;
-		    __entry->window = atomic64_read(&call->ackr_window);
+		    __entry->window = call->ackr_window;
+		    __entry->wtop = call->ackr_wtop;
 			   ),
 
 	    TP_printk("c=%08x %s r=%08x q=%08x w=%08x-%08x",
@@ -1168,8 +1170,8 @@ TRACE_EVENT(rxrpc_receive,
 		      __print_symbolic(__entry->why, rxrpc_receive_traces),
 		      __entry->serial,
 		      __entry->seq,
-		      lower_32_bits(__entry->window),
-		      upper_32_bits(__entry->window))
+		      __entry->window,
+		      __entry->wtop)
 	    );
 
 TRACE_EVENT(rxrpc_recvmsg,

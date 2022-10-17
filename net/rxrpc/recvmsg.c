@@ -95,7 +95,7 @@ static int rxrpc_recvmsg_term(struct rxrpc_call *call, struct msghdr *msg)
 	}
 
 	trace_rxrpc_recvdata(call, rxrpc_recvmsg_terminal,
-			     lower_32_bits(atomic64_read(&call->ackr_window)) - 1,
+			     call->ackr_window - 1,
 			     call->rx_pkt_offset, call->rx_pkt_len, ret);
 	return ret;
 }
@@ -175,13 +175,13 @@ static int rxrpc_recvmsg_data(struct socket *sock, struct rxrpc_call *call,
 	rx_pkt_len = call->rx_pkt_len;
 
 	if (rxrpc_call_has_failed(call)) {
-		seq = lower_32_bits(atomic64_read(&call->ackr_window)) - 1;
+		seq = call->ackr_window - 1;
 		ret = -EIO;
 		goto done;
 	}
 
 	if (test_bit(RXRPC_CALL_RECVMSG_READ_ALL, &call->flags)) {
-		seq = lower_32_bits(atomic64_read(&call->ackr_window)) - 1;
+		seq = call->ackr_window - 1;
 		ret = 1;
 		goto done;
 	}

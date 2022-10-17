@@ -86,20 +86,18 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_connection *conn,
 	unsigned int qsize;
 	rxrpc_seq_t window, wtop, wrap_point, ix, first;
 	int rsize;
-	u64 wtmp;
 	u32 mtu, jmax;
 	u8 *ackp = txb->acks;
 	u8 sack_buffer[sizeof(call->ackr_sack_table)] __aligned(8);
 
-	atomic_set(&call->ackr_nr_unacked, 0);
+	call->ackr_nr_unacked = 0;
 	atomic_set(&call->ackr_nr_consumed, 0);
 	rxrpc_inc_stat(call->rxnet, stat_tx_ack_fill);
 
 	/* Barrier against rxrpc_input_data(). */
 retry:
-	wtmp   = atomic64_read_acquire(&call->ackr_window);
-	window = lower_32_bits(wtmp);
-	wtop   = upper_32_bits(wtmp);
+	window = call->ackr_window;
+	wtop   = call->ackr_wtop;
 	txb->ack.firstPacket = htonl(window);
 	txb->ack.nAcks = 0;
 
@@ -111,9 +109,8 @@ retry:
 		 */
 		memcpy(sack_buffer, call->ackr_sack_table, sizeof(sack_buffer));
 		wrap_point = window + RXRPC_SACK_SIZE - 1;
-		wtmp   = atomic64_read_acquire(&call->ackr_window);
-		window = lower_32_bits(wtmp);
-		wtop   = upper_32_bits(wtmp);
+		window = call->ackr_window;
+		wtop   = call->ackr_wtop;
 		if (after(wtop, wrap_point)) {
 			cond_resched();
 			goto retry;
