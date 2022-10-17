@@ -994,19 +994,23 @@ err:
 	return ret;
 }
 
-static inline bool btree_path_good_node(struct btree_trans *trans,
-					struct btree_path *path,
-					unsigned l, int check_pos)
+static inline bool btree_path_check_pos_in_node(struct btree_path *path,
+						unsigned l, int check_pos)
 {
-	if (!is_btree_node(path, l) ||
-	    !bch2_btree_node_relock(trans, path, l))
-		return false;
-
 	if (check_pos < 0 && btree_path_pos_before_node(path, path->l[l].b))
 		return false;
 	if (check_pos > 0 && btree_path_pos_after_node(path, path->l[l].b))
 		return false;
 	return true;
+}
+
+static inline bool btree_path_good_node(struct btree_trans *trans,
+					struct btree_path *path,
+					unsigned l, int check_pos)
+{
+	return is_btree_node(path, l) &&
+		bch2_btree_node_relock(trans, path, l) &&
+		btree_path_check_pos_in_node(path, l, check_pos);
 }
 
 static void btree_path_set_level_down(struct btree_trans *trans,
@@ -1025,9 +1029,9 @@ static void btree_path_set_level_down(struct btree_trans *trans,
 	bch2_btree_path_verify(trans, path);
 }
 
-static inline unsigned btree_path_up_until_good_node(struct btree_trans *trans,
-						     struct btree_path *path,
-						     int check_pos)
+static noinline unsigned __btree_path_up_until_good_node(struct btree_trans *trans,
+							 struct btree_path *path,
+							 int check_pos)
 {
 	unsigned i, l = path->level;
 again:
@@ -1046,6 +1050,16 @@ again:
 		}
 
 	return l;
+}
+
+static inline unsigned btree_path_up_until_good_node(struct btree_trans *trans,
+						     struct btree_path *path,
+						     int check_pos)
+{
+	return likely(btree_node_locked(path, path->level) &&
+		      btree_path_check_pos_in_node(path, path->level, check_pos))
+		? path->level
+		: __btree_path_up_until_good_node(trans, path, check_pos);
 }
 
 /*
