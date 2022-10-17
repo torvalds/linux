@@ -772,7 +772,7 @@ static inline void ufshcd_utrl_clear(struct ufs_hba *hba, u32 mask)
 }
 
 /**
- * ufshcd_utmrl_clear - Clear a bit in UTRMLCLR register
+ * ufshcd_utmrl_clear - Clear a bit in UTMRLCLR register
  * @hba: per adapter instance
  * @pos: position of the bit to be cleared
  */
