@@ -1409,11 +1409,41 @@ static int need_whiteout_for_snapshot(struct btree_trans *trans,
 static int __must_check
 bch2_trans_update_by_path_trace(struct btree_trans *trans, struct btree_path *path,
 				struct bkey_i *k, enum btree_update_flags flags,
+				unsigned long ip);
+
+static noinline int flush_new_cached_update(struct btree_trans *trans,
+					    struct btree_path *path,
+					    struct btree_insert_entry *i,
+					    enum btree_update_flags flags,
+					    unsigned long ip)
+{
+	struct btree_path *btree_path;
+	int ret;
+
+	i->key_cache_already_flushed = true;
+	i->flags |= BTREE_TRIGGER_NORUN;
+
+	btree_path = bch2_path_get(trans, path->btree_id, path->pos, 1, 0,
+				   BTREE_ITER_INTENT);
+
+	ret = bch2_btree_path_traverse(trans, btree_path, 0);
+	if (ret)
+		goto err;
+
+	btree_path_set_should_be_locked(btree_path);
+	ret = bch2_trans_update_by_path_trace(trans, btree_path, i->k, flags, ip);
+err:
+	bch2_path_put(trans, btree_path, true);
+	return ret;
+}
+
+static int __must_check
+bch2_trans_update_by_path_trace(struct btree_trans *trans, struct btree_path *path,
+				struct bkey_i *k, enum btree_update_flags flags,
 				unsigned long ip)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i, n;
-	int ret = 0;
 
 	BUG_ON(!path->should_be_locked);
 
@@ -1484,26 +1514,10 @@ bch2_trans_update_by_path_trace(struct btree_trans *trans, struct btree_path *pa
 	 */
 	if (path->cached &&
 	    bkey_deleted(&i->old_k) &&
-	    !(flags & BTREE_UPDATE_NO_KEY_CACHE_COHERENCY)) {
-		struct btree_path *btree_path;
+	    !(flags & BTREE_UPDATE_NO_KEY_CACHE_COHERENCY))
+		return flush_new_cached_update(trans, path, i, flags, ip);
 
-		i->key_cache_already_flushed = true;
-		i->flags |= BTREE_TRIGGER_NORUN;
-
-		btree_path = bch2_path_get(trans, path->btree_id, path->pos,
-					   1, 0, BTREE_ITER_INTENT);
-
-		ret = bch2_btree_path_traverse(trans, btree_path, 0);
-		if (ret)
-			goto err;
-
-		btree_path_set_should_be_locked(btree_path);
-		ret = bch2_trans_update_by_path_trace(trans, btree_path, k, flags, ip);
-err:
-		bch2_path_put(trans, btree_path, true);
-	}
-
-	return ret;
+	return 0;
 }
 
 static int __must_check
