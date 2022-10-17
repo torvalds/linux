@@ -440,6 +440,7 @@
 };
 
 &cpsw3g_mdio {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mdio1_pins_default>;
 
@@ -573,14 +574,6 @@
 	/* PWM is available on Pin 1 of header J12 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_ecap0_pins_default>;
-};
-
-&icssg0_mdio {
-	status = "disabled";
-};
-
-&icssg1_mdio {
-	status = "disabled";
 };
 
 &main_mcan0 {
