@@ -8354,6 +8354,7 @@ no_cmf:
 			phba->cgn_i = NULL;
 			/* Ensure CGN Mode is off */
 			phba->cmf_active_mode = LPFC_CFG_OFF;
+			sli4_params->cmf = 0;
 			return 0;
 		}
 	}
