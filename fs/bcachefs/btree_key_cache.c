@@ -103,16 +103,34 @@ static void bkey_cached_free(struct btree_key_cache *bc,
 	six_unlock_intent(&ck->c.lock);
 }
 
+#ifdef __KERNEL__
+static void __bkey_cached_move_to_freelist_ordered(struct btree_key_cache *bc,
+						   struct bkey_cached *ck)
+{
+	struct bkey_cached *pos;
+
+	list_for_each_entry_reverse(pos, &bc->freed_nonpcpu, list) {
+		if (ULONG_CMP_GE(ck->btree_trans_barrier_seq,
+				 pos->btree_trans_barrier_seq)) {
+			list_move(&ck->list, &pos->list);
+			return;
+		}
+	}
+
+	list_move(&ck->list, &bc->freed_nonpcpu);
+}
+#endif
+
 static void bkey_cached_move_to_freelist(struct btree_key_cache *bc,
 					 struct bkey_cached *ck)
 {
-	struct btree_key_cache_freelist *f;
-	bool freed = false;
-
 	BUG_ON(test_bit(BKEY_CACHED_DIRTY, &ck->flags));
 
 	if (!ck->c.lock.readers) {
 #ifdef __KERNEL__
+		struct btree_key_cache_freelist *f;
+		bool freed = false;
+
 		preempt_disable();
 		f = this_cpu_ptr(bc->pcpu_freed);
 
@@ -130,11 +148,11 @@ static void bkey_cached_move_to_freelist(struct btree_key_cache *bc,
 			while (f->nr > ARRAY_SIZE(f->objs) / 2) {
 				struct bkey_cached *ck2 = f->objs[--f->nr];
 
-				list_move_tail(&ck2->list, &bc->freed_nonpcpu);
+				__bkey_cached_move_to_freelist_ordered(bc, ck2);
 			}
 			preempt_enable();
 
-			list_move_tail(&ck->list, &bc->freed_nonpcpu);
+			__bkey_cached_move_to_freelist_ordered(bc, ck);
 			mutex_unlock(&bc->lock);
 		}
 #else
@@ -176,11 +194,12 @@ bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path)
 	struct bch_fs *c = trans->c;
 	struct btree_key_cache *bc = &c->btree_key_cache;
 	struct bkey_cached *ck = NULL;
-	struct btree_key_cache_freelist *f;
 	bool pcpu_readers = btree_uses_pcpu_readers(path->btree_id);
 
 	if (!pcpu_readers) {
 #ifdef __KERNEL__
+		struct btree_key_cache_freelist *f;
+
 		preempt_disable();
 		f = this_cpu_ptr(bc->pcpu_freed);
 		if (f->nr)
@@ -982,7 +1001,7 @@ int bch2_fs_btree_key_cache_init(struct btree_key_cache *bc)
 
 	bc->table_init_done = true;
 
-	bc->shrink.seeks		= 1;
+	bc->shrink.seeks		= 0;
 	bc->shrink.count_objects	= bch2_btree_key_cache_count;
 	bc->shrink.scan_objects		= bch2_btree_key_cache_scan;
 	return register_shrinker(&bc->shrink, "%s/btree_key_cache", c->name);
@@ -990,9 +1009,12 @@ int bch2_fs_btree_key_cache_init(struct btree_key_cache *bc)
 
 void bch2_btree_key_cache_to_text(struct printbuf *out, struct btree_key_cache *c)
 {
-	prt_printf(out, "nr_freed:\t%zu\n",	atomic_long_read(&c->nr_freed));
-	prt_printf(out, "nr_keys:\t%lu\n",	atomic_long_read(&c->nr_keys));
-	prt_printf(out, "nr_dirty:\t%lu\n",	atomic_long_read(&c->nr_dirty));
+	prt_printf(out, "nr_freed:\t%zu",	atomic_long_read(&c->nr_freed));
+	prt_newline(out);
+	prt_printf(out, "nr_keys:\t%lu",	atomic_long_read(&c->nr_keys));
+	prt_newline(out);
+	prt_printf(out, "nr_dirty:\t%lu",	atomic_long_read(&c->nr_dirty));
+	prt_newline(out);
 }
 
 void bch2_btree_key_cache_exit(void)
