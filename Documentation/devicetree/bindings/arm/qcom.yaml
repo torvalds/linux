@@ -264,6 +264,7 @@ properties:
 
       - items:
           - enum:
+              - mikrotik,rb3011
               - qcom,ipq8064-ap148
           - const: qcom,ipq8064
 
