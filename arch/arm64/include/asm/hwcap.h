@@ -120,6 +120,7 @@
 #define KERNEL_HWCAP_WFXT		__khwcap2_feature(WFXT)
 #define KERNEL_HWCAP_EBF16		__khwcap2_feature(EBF16)
 #define KERNEL_HWCAP_SVE_EBF16		__khwcap2_feature(SVE_EBF16)
+#define KERNEL_HWCAP_CSSC		__khwcap2_feature(CSSC)
 
 /*
  * This yields a mask that user programs can use to figure out what

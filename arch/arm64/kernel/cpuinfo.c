@@ -116,6 +116,7 @@ static const char *const hwcap_str[] = {
 	[KERNEL_HWCAP_WFXT]		= "wfxt",
 	[KERNEL_HWCAP_EBF16]		= "ebf16",
 	[KERNEL_HWCAP_SVE_EBF16]	= "sveebf16",
+	[KERNEL_HWCAP_CSSC]		= "cssc",
 };
 
 #ifdef CONFIG_COMPAT
