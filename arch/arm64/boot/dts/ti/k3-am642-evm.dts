@@ -567,17 +567,10 @@
 };
 
 &ecap0 {
+	status = "okay";
 	/* PWM is available on Pin 1 of header J12 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_ecap0_pins_default>;
-};
-
-&ecap1 {
-	status = "disabled";
-};
-
-&ecap2 {
-	status = "disabled";
 };
 
 &icssg0_mdio {

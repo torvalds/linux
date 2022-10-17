@@ -988,6 +988,7 @@
 		power-domains = <&k3_pds 51 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 51 0>;
 		clock-names = "fck";
+		status = "disabled";
 	};
 
 	ecap1: pwm@23110000 {
@@ -997,6 +998,7 @@
 		power-domains = <&k3_pds 52 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 52 0>;
 		clock-names = "fck";
+		status = "disabled";
 	};
 
 	ecap2: pwm@23120000 {
@@ -1006,6 +1008,7 @@
 		power-domains = <&k3_pds 53 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 53 0>;
 		clock-names = "fck";
+		status = "disabled";
 	};
 
 	main_rti0: watchdog@e000000 {
