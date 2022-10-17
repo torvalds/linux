@@ -95,5 +95,6 @@
 #define HWCAP2_SVE_EBF16	(1UL << 33)
 #define HWCAP2_CSSC		(1UL << 34)
 #define HWCAP2_RPRFM		(1UL << 35)
+#define HWCAP2_SVE2P1		(1UL << 36)
 
 #endif /* _UAPI__ASM_HWCAP_H */
