@@ -308,8 +308,6 @@ static void evsel__copy_prev_raw_counts(struct evsel *evsel)
 				*perf_counts(evsel->prev_raw_counts, idx, thread);
 		}
 	}
-
-	evsel->counts->aggr = evsel->prev_raw_counts->aggr;
 }
 
 void evlist__copy_prev_raw_counts(struct evlist *evlist)
@@ -318,26 +316,6 @@ void evlist__copy_prev_raw_counts(struct evlist *evlist)
 
 	evlist__for_each_entry(evlist, evsel)
 		evsel__copy_prev_raw_counts(evsel);
-}
-
-void evlist__save_aggr_prev_raw_counts(struct evlist *evlist)
-{
-	struct evsel *evsel;
-
-	/*
-	 * To collect the overall statistics for interval mode,
-	 * we copy the counts from evsel->prev_raw_counts to
-	 * evsel->counts. The perf_stat_process_counter creates
-	 * aggr values from per cpu values, but the per cpu values
-	 * are 0 for AGGR_GLOBAL. So we use a trick that saves the
-	 * previous aggr value to the first member of perf_counts,
-	 * then aggr calculation in process_counter_values can work
-	 * correctly.
-	 */
-	evlist__for_each_entry(evlist, evsel) {
-		*perf_counts(evsel->prev_raw_counts, 0, 0) =
-			evsel->prev_raw_counts->aggr;
-	}
 }
 
 static size_t pkg_id_hash(const void *__key, void *ctx __maybe_unused)
@@ -442,7 +420,6 @@ process_counter_values(struct perf_stat_config *config, struct evsel *evsel,
 		       int cpu_map_idx, int thread,
 		       struct perf_counts_values *count)
 {
-	struct perf_counts_values *aggr = &evsel->counts->aggr;
 	struct perf_stat_evsel *ps = evsel->stats;
 	static struct perf_counts_values zero;
 	bool skip = false;
@@ -511,12 +488,6 @@ process_counter_values(struct perf_stat_config *config, struct evsel *evsel,
 		}
 	}
 
-	if (config->aggr_mode == AGGR_GLOBAL) {
-		aggr->val += count->val;
-		aggr->ena += count->ena;
-		aggr->run += count->run;
-	}
-
 	return 0;
 }
 
@@ -541,12 +512,9 @@ static int process_counter_maps(struct perf_stat_config *config,
 int perf_stat_process_counter(struct perf_stat_config *config,
 			      struct evsel *counter)
 {
-	struct perf_counts_values *aggr = &counter->counts->aggr;
 	struct perf_stat_evsel *ps = counter->stats;
-	u64 *count = counter->counts->aggr.values;
+	u64 *count;
 	int ret;
-
-	aggr->val = aggr->ena = aggr->run = 0;
 
 	if (counter->per_pkg)
 		evsel__zero_per_pkg(counter);
@@ -558,6 +526,11 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 	if (config->aggr_mode != AGGR_GLOBAL)
 		return 0;
 
+	/*
+	 * GLOBAL aggregation mode only has a single aggr counts,
+	 * so we can use ps->aggr[0] as the actual output.
+	 */
+	count = ps->aggr[0].counts.values;
 	update_stats(&ps->res_stats, *count);
 
 	if (verbose > 0) {
