@@ -105,6 +105,8 @@ static void memcpy_test(struct kunit *test)
 #undef TEST_OP
 }
 
+static unsigned char larger_array [2048];
+
 static void memmove_test(struct kunit *test)
 {
 #define TEST_OP "memmove"
@@ -179,6 +181,26 @@ static void memmove_test(struct kunit *test)
 	ptr = &overlap.data[2];
 	memmove(ptr, overlap.data, 5);
 	compare("overlapping write", overlap, overlap_expected);
+
+	/* Verify larger overlapping moves. */
+	larger_array[256] = 0xAAu;
+	/*
+	 * Test a backwards overlapping memmove first. 256 and 1024 are
+	 * important for i386 to use rep movsl.
+	 */
+	memmove(larger_array, larger_array + 256, 1024);
+	KUNIT_ASSERT_EQ(test, larger_array[0], 0xAAu);
+	KUNIT_ASSERT_EQ(test, larger_array[256], 0x00);
+	KUNIT_ASSERT_NULL(test,
+		memchr(larger_array + 1, 0xaa, ARRAY_SIZE(larger_array) - 1));
+	/* Test a forwards overlapping memmove. */
+	larger_array[0] = 0xBBu;
+	memmove(larger_array + 256, larger_array, 1024);
+	KUNIT_ASSERT_EQ(test, larger_array[0], 0xBBu);
+	KUNIT_ASSERT_EQ(test, larger_array[256], 0xBBu);
+	KUNIT_ASSERT_NULL(test, memchr(larger_array + 1, 0xBBu, 256 - 1));
+	KUNIT_ASSERT_NULL(test,
+		memchr(larger_array + 257, 0xBBu, ARRAY_SIZE(larger_array) - 257));
 #undef TEST_OP
 }
 
