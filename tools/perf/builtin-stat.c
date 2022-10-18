@@ -1458,8 +1458,9 @@ static int perf_stat_init_aggr_mode(void)
 	aggr_cpu_id_get_t get_id = aggr_mode__get_aggr(stat_config.aggr_mode);
 
 	if (get_id) {
+		bool needs_sort = stat_config.aggr_mode != AGGR_NONE;
 		stat_config.aggr_map = cpu_aggr_map__new(evsel_list->core.user_requested_cpus,
-							 get_id, /*data=*/NULL);
+							 get_id, /*data=*/NULL, needs_sort);
 		if (!stat_config.aggr_map) {
 			pr_err("cannot build %s map", aggr_mode__string[stat_config.aggr_mode]);
 			return -1;
@@ -1674,11 +1675,13 @@ static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
 {
 	struct perf_env *env = &st->session->header.env;
 	aggr_cpu_id_get_t get_id = aggr_mode__get_aggr_file(stat_config.aggr_mode);
+	bool needs_sort = stat_config.aggr_mode != AGGR_NONE;
 
 	if (!get_id)
 		return 0;
 
-	stat_config.aggr_map = cpu_aggr_map__new(evsel_list->core.user_requested_cpus, get_id, env);
+	stat_config.aggr_map = cpu_aggr_map__new(evsel_list->core.user_requested_cpus,
+						 get_id, env, needs_sort);
 	if (!stat_config.aggr_map) {
 		pr_err("cannot build %s map", aggr_mode__string[stat_config.aggr_mode]);
 		return -1;
