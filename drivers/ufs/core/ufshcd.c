@@ -8797,6 +8797,39 @@ static void ufshcd_hba_exit(struct ufs_hba *hba)
 	}
 }
 
+static int ufshcd_execute_start_stop(struct scsi_device *sdev,
+				     enum ufs_dev_pwr_mode pwr_mode,
+				     struct scsi_sense_hdr *sshdr)
+{
+	unsigned char cdb[6] = { START_STOP, 0, 0, 0, pwr_mode << 4, 0 };
+	struct request *req;
+	struct scsi_cmnd *scmd;
+	int ret;
+
+	req = scsi_alloc_request(sdev->request_queue, REQ_OP_DRV_IN,
+				 BLK_MQ_REQ_PM);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	scmd = blk_mq_rq_to_pdu(req);
+	scmd->cmd_len = COMMAND_SIZE(cdb[0]);
+	memcpy(scmd->cmnd, cdb, scmd->cmd_len);
+	scmd->allowed = 0/*retries*/;
+	req->timeout = 1 * HZ;
+	req->rq_flags |= RQF_PM | RQF_QUIET;
+
+	blk_execute_rq(req, /*at_head=*/true);
+
+	if (sshdr)
+		scsi_normalize_sense(scmd->sense_buffer, scmd->sense_len,
+				     sshdr);
+	ret = scmd->result;
+
+	blk_mq_free_request(req);
+
+	return ret;
+}
+
 /**
  * ufshcd_set_dev_pwr_mode - sends START STOP UNIT command to set device
  *			     power mode
@@ -8809,7 +8842,6 @@ static void ufshcd_hba_exit(struct ufs_hba *hba)
 static int ufshcd_set_dev_pwr_mode(struct ufs_hba *hba,
 				     enum ufs_dev_pwr_mode pwr_mode)
 {
-	unsigned char cmd[6] = { START_STOP };
 	struct scsi_sense_hdr sshdr;
 	struct scsi_device *sdp;
 	unsigned long flags;
@@ -8834,16 +8866,13 @@ static int ufshcd_set_dev_pwr_mode(struct ufs_hba *hba,
 	 */
 	hba->host->eh_noresume = 1;
 
-	cmd[4] = pwr_mode << 4;
-
 	/*
 	 * Current function would be generally called from the power management
 	 * callbacks hence set the RQF_PM flag so that it doesn't resume the
 	 * already suspended childs.
 	 */
 	for (retries = 3; retries > 0; --retries) {
-		ret = scsi_execute(sdp, cmd, DMA_NONE, NULL, 0, NULL, &sshdr,
-				   HZ, 0, 0, RQF_PM, NULL);
+		ret = ufshcd_execute_start_stop(sdp, pwr_mode, &sshdr);
 		/*
 		 * scsi_execute() only returns a negative value if the request
 		 * queue is dying.
