@@ -9,8 +9,6 @@
 
 static int cru_debug;
 
-#define PLL_RATE_MIN	30000000
-
 #define cru_dbg(format, ...) do {				\
 		if (cru_debug)					\
 			pr_info("%s: " format, __func__, ## __VA_ARGS__); \
@@ -157,6 +155,7 @@ static long clk_virtual_round_rate(struct clk_hw *hw, unsigned long rate,
 
 	vop2_clk->rate = rate;
 
+	cru_dbg("%s rate: %ld\n", clk_hw_get_name(hw), rate);
 	return rate;
 }
 
@@ -245,10 +244,6 @@ static long vop2_clk_div_round_rate(struct clk_hw *hw, unsigned long rate,
 
 		if ((*prate % rate))
 			*prate = rate;
-
-		/* SOC PLL can't output a too low pll freq */
-		if (*prate < PLL_RATE_MIN)
-			*prate = rate << vop2_clk->div.width;
 	}
 
 	cru_dbg("%s rate: %ld(prate: %ld)\n", clk_hw_get_name(hw), rate, *prate);
