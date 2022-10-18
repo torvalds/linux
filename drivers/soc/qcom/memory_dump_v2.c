@@ -1068,7 +1068,7 @@ static int mem_dump_alloc(struct platform_device *pdev)
 	uint32_t ns_vmids[] = {VMID_HLOS};
 	uint32_t ns_vm_perms[] = {PERM_READ | PERM_WRITE};
 	u64 shm_bridge_handle;
-	int initialized;
+	int initialized = 0;
 
 	if (mem_dump_reserve_mem(&pdev->dev) != 0)
 		return -ENOMEM;
