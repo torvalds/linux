@@ -270,8 +270,8 @@ int rga_kernel_commit(struct rga_req *cmd)
 	struct rga_pending_request_manager *request_manager = rga_drvdata->pend_request_manager;
 
 	session = rga_session_init();
-	if (!session)
-		return -ENOMEM;
+	if (IS_ERR(session))
+		return PTR_ERR(session);
 
 	request_id = rga_request_alloc(0, session);
 	if (request_id < 0) {
@@ -561,22 +561,38 @@ static int rga_session_manager_remove(struct rga_session_manager **session_manag
 
 static struct rga_session *rga_session_init(void)
 {
+	int new_id;
+
 	struct rga_session_manager *session_manager = NULL;
-	struct rga_session *session = kzalloc(sizeof(*session), GFP_KERNEL);
+	struct rga_session *session = NULL;
 
 	session_manager = rga_drvdata->session_manager;
 	if (session_manager == NULL) {
 		pr_err("rga_session_manager is null!\n");
-		kfree(session);
-		return NULL;
+		return ERR_PTR(-EFAULT);
+	}
+
+	session = kzalloc(sizeof(*session), GFP_KERNEL);
+	if (!session) {
+		pr_err("rga_session alloc failed\n");
+		return ERR_PTR(-ENOMEM);
 	}
 
 	mutex_lock(&session_manager->lock);
 
 	idr_preload(GFP_KERNEL);
-	session->id = idr_alloc(&session_manager->ctx_id_idr, session, 1, 0, GFP_ATOMIC);
-	session_manager->session_cnt++;
+	new_id = idr_alloc_cyclic(&session_manager->ctx_id_idr, session, 1, 0, GFP_NOWAIT);
 	idr_preload_end();
+	if (new_id < 0) {
+		mutex_unlock(&session_manager->lock);
+
+		pr_err("rga_session alloc id failed!\n");
+		kfree(session);
+		return ERR_PTR(new_id);
+	}
+
+	session->id = new_id;
+	session_manager->session_cnt++;
 
 	mutex_unlock(&session_manager->lock);
 
@@ -1140,8 +1156,8 @@ static int rga_open(struct inode *inode, struct file *file)
 	struct rga_session *session = NULL;
 
 	session = rga_session_init();
-	if (!session)
-		return -ENOMEM;
+	if (IS_ERR(session))
+		return PTR_ERR(session);
 
 	file->private_data = (void *)session;
 

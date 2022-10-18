@@ -1869,7 +1869,7 @@ void rga_mm_unmap_job_info(struct rga_job *job)
 uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
 			      struct rga_session *session)
 {
-	int ret = 0;
+	int ret = 0, new_id;
 	struct rga_mm *mm;
 	struct rga_internal_buffer *internal_buffer;
 
@@ -1911,9 +1911,14 @@ uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
 	 * allocation under our spinlock.
 	 */
 	idr_preload(GFP_KERNEL);
-	internal_buffer->handle = idr_alloc(&mm->memory_idr, internal_buffer, 1, 0, GFP_KERNEL);
+	new_id = idr_alloc_cyclic(&mm->memory_idr, internal_buffer, 1, 0, GFP_NOWAIT);
 	idr_preload_end();
+	if (new_id < 0) {
+		pr_err("internal_buffer alloc id failed!\n");
+		goto FREE_INTERNAL_BUFFER;
+	}
 
+	internal_buffer->handle = new_id;
 	mm->buffer_count++;
 
 	if (DEBUGGER_EN(MM)) {
