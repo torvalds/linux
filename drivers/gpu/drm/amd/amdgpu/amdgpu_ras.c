@@ -1561,7 +1561,6 @@ static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *
 {
 	bool poison_stat = false;
 	struct amdgpu_device *adev = obj->adev;
-	struct ras_err_data err_data = {0, 0, 0, NULL};
 	struct amdgpu_ras_block_object *block_obj =
 		amdgpu_ras_get_ras_block(adev, obj->head.block, 0);
 
@@ -1584,7 +1583,7 @@ static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *
 	}
 
 	if (!adev->gmc.xgmi.connected_to_cpu)
-		amdgpu_umc_poison_handler(adev, &err_data, false);
+		amdgpu_umc_poison_handler(adev, false);
 
 	if (block_obj->hw_ops->handle_poison_consumption)
 		poison_stat = block_obj->hw_ops->handle_poison_consumption(adev);
