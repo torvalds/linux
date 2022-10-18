@@ -13,9 +13,7 @@
 void erofs_unmap_metabuf(struct erofs_buf *buf)
 {
 	if (buf->kmap_type == EROFS_KMAP)
-		kunmap(buf->page);
-	else if (buf->kmap_type == EROFS_KMAP_ATOMIC)
-		kunmap_atomic(buf->base);
+		kunmap_local(buf->base);
 	buf->base = NULL;
 	buf->kmap_type = EROFS_NO_KMAP;
 }
@@ -54,9 +52,7 @@ void *erofs_bread(struct erofs_buf *buf, struct inode *inode,
 	}
 	if (buf->kmap_type == EROFS_NO_KMAP) {
 		if (type == EROFS_KMAP)
-			buf->base = kmap(page);
-		else if (type == EROFS_KMAP_ATOMIC)
-			buf->base = kmap_atomic(page);
+			buf->base = kmap_local_page(page);
 		buf->kmap_type = type;
 	} else if (buf->kmap_type != type) {
 		DBG_BUGON(1);

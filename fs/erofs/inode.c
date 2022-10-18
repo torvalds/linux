@@ -268,6 +268,7 @@ static int erofs_fill_inode(struct inode *inode)
 	case S_IFDIR:
 		inode->i_op = &erofs_dir_iops;
 		inode->i_fop = &erofs_dir_fops;
+		inode_nohighmem(inode);
 		break;
 	case S_IFLNK:
 		err = erofs_fill_symlink(inode, kaddr, ofs);

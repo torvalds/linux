@@ -255,8 +255,7 @@ static inline int erofs_wait_on_workgroup_freezed(struct erofs_workgroup *grp)
 
 enum erofs_kmap_type {
 	EROFS_NO_KMAP,		/* don't map the buffer */
-	EROFS_KMAP,		/* use kmap() to map the buffer */
-	EROFS_KMAP_ATOMIC,	/* use kmap_atomic() to map the buffer */
+	EROFS_KMAP,		/* use kmap_local_page() to map the buffer */
 };
 
 struct erofs_buf {
