@@ -3098,7 +3098,7 @@ static int ufshcd_query_flag_retry(struct ufs_hba *hba,
 
 	if (ret)
 		dev_err(hba->dev,
-			"%s: query attribute, opcode %d, idn %d, failed with error %d after %d retries\n",
+			"%s: query flag, opcode %d, idn %d, failed with error %d after %d retries\n",
 			__func__, opcode, idn, ret, retries);
 	return ret;
 }
