@@ -977,7 +977,7 @@ static void ioc_adjust_base_vrate(struct ioc *ioc, u32 rq_wait_pct,
 
 	if (!ioc->busy_level || (ioc->busy_level < 0 && nr_lagging)) {
 		if (ioc->busy_level != prev_busy_level || nr_lagging)
-			trace_iocost_ioc_vrate_adj(ioc, atomic64_read(&ioc->vtime_rate),
+			trace_iocost_ioc_vrate_adj(ioc, vrate,
 						   missed_ppm, rq_wait_pct,
 						   nr_lagging, nr_shortages);
 

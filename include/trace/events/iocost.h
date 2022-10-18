@@ -38,7 +38,7 @@ DECLARE_EVENT_CLASS(iocost_iocg_state,
 		__assign_str(cgroup, path);
 		__entry->now = now->now;
 		__entry->vnow = now->vnow;
-		__entry->vrate = now->vrate;
+		__entry->vrate = iocg->ioc->vtime_base_rate;
 		__entry->last_period = last_period;
 		__entry->cur_period = cur_period;
 		__entry->vtime = vtime;
@@ -160,7 +160,7 @@ TRACE_EVENT(iocost_ioc_vrate_adj,
 
 	TP_fast_assign(
 		__assign_str(devname, ioc_name(ioc));
-		__entry->old_vrate = atomic64_read(&ioc->vtime_rate);
+		__entry->old_vrate = ioc->vtime_base_rate;
 		__entry->new_vrate = new_vrate;
 		__entry->busy_level = ioc->busy_level;
 		__entry->read_missed_ppm = missed_ppm[READ];
