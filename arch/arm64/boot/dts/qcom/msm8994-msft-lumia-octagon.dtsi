@@ -881,28 +881,28 @@
 };
 
 &tlmm {
-	grip_default: grip-default {
+	grip_default: grip-default-state {
 		pins = "gpio39";
 		function = "gpio";
 		drive-strength = <6>;
 		bias-pull-down;
 	};
 
-	grip_sleep: grip-sleep {
+	grip_sleep: grip-sleep-state {
 		pins = "gpio39";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-down;
 	};
 
-	hall_front_default: hall-front-default {
+	hall_front_default: hall-front-default-state {
 		pins = "gpio42";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
 	};
 
-	hall_back_default: hall-back-default {
+	hall_back_default: hall-back-default-state {
 		pins = "gpio75";
 		function = "gpio";
 		drive-strength = <2>;
