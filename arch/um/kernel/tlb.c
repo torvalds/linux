@@ -597,6 +597,8 @@ void force_flush_all(void)
 	struct vm_area_struct *vma;
 	VMA_ITERATOR(vmi, mm, 0);
 
+	mmap_read_lock(mm);
 	for_each_vma(vmi, vma)
 		fix_range(mm, vma->vm_start, vma->vm_end, 1);
+	mmap_read_unlock(mm);
 }
