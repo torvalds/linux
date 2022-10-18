@@ -3603,6 +3603,22 @@ TEST_F_FORK(ftruncate, open_and_ftruncate_in_different_processes)
 	ASSERT_EQ(0, close(socket_fds[1]));
 }
 
+TEST(memfd_ftruncate)
+{
+	int fd;
+
+	fd = memfd_create("name", MFD_CLOEXEC);
+	ASSERT_LE(0, fd);
+
+	/*
+	 * Checks that ftruncate is permitted on file descriptors that are
+	 * created in ways other than open(2).
+	 */
+	EXPECT_EQ(0, test_ftruncate(fd));
+
+	ASSERT_EQ(0, close(fd));
+}
+
 /* clang-format off */
 FIXTURE(layout1_bind) {};
 /* clang-format on */
