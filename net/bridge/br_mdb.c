@@ -866,7 +866,6 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 	unsigned long now = jiffies;
 	unsigned char flags = 0;
 	u8 filter_mode;
-	int err;
 
 	__mdb_entry_to_br_ip(entry, &group, mdb_attrs);
 
@@ -892,13 +891,9 @@ static int br_mdb_add_group(struct net_bridge *br, struct net_bridge_port *port,
 		return -EINVAL;
 	}
 
-	mp = br_mdb_ip_get(br, &group);
-	if (!mp) {
-		mp = br_multicast_new_group(br, &group);
-		err = PTR_ERR_OR_ZERO(mp);
-		if (err)
-			return err;
-	}
+	mp = br_multicast_new_group(br, &group);
+	if (IS_ERR(mp))
+		return PTR_ERR(mp);
 
 	/* host join */
 	if (!port) {
