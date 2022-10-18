@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <linux/landlock.h>
 #include <sys/capability.h>
+#include <sys/socket.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -188,4 +189,70 @@ static void __maybe_unused clear_cap(struct __test_metadata *const _metadata,
 				     const cap_value_t caps)
 {
 	_effective_cap(_metadata, caps, CAP_CLEAR);
+}
+
+/* Receives an FD from a UNIX socket. Returns the received FD, or -errno. */
+static int __maybe_unused recv_fd(int usock)
+{
+	int fd_rx;
+	union {
+		/* Aligned ancillary data buffer. */
+		char buf[CMSG_SPACE(sizeof(fd_rx))];
+		struct cmsghdr _align;
+	} cmsg_rx = {};
+	char data = '\0';
+	struct iovec io = {
+		.iov_base = &data,
+		.iov_len = sizeof(data),
+	};
+	struct msghdr msg = {
+		.msg_iov = &io,
+		.msg_iovlen = 1,
+		.msg_control = &cmsg_rx.buf,
+		.msg_controllen = sizeof(cmsg_rx.buf),
+	};
+	struct cmsghdr *cmsg;
+	int res;
+
+	res = recvmsg(usock, &msg, MSG_CMSG_CLOEXEC);
+	if (res < 0)
+		return -errno;
+
+	cmsg = CMSG_FIRSTHDR(&msg);
+	if (cmsg->cmsg_len != CMSG_LEN(sizeof(fd_rx)))
+		return -EIO;
+
+	memcpy(&fd_rx, CMSG_DATA(cmsg), sizeof(fd_rx));
+	return fd_rx;
+}
+
+/* Sends an FD on a UNIX socket. Returns 0 on success or -errno. */
+static int __maybe_unused send_fd(int usock, int fd_tx)
+{
+	union {
+		/* Aligned ancillary data buffer. */
+		char buf[CMSG_SPACE(sizeof(fd_tx))];
+		struct cmsghdr _align;
+	} cmsg_tx = {};
+	char data_tx = '.';
+	struct iovec io = {
+		.iov_base = &data_tx,
+		.iov_len = sizeof(data_tx),
+	};
+	struct msghdr msg = {
+		.msg_iov = &io,
+		.msg_iovlen = 1,
+		.msg_control = &cmsg_tx.buf,
+		.msg_controllen = sizeof(cmsg_tx.buf),
+	};
+	struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+
+	cmsg->cmsg_len = CMSG_LEN(sizeof(fd_tx));
+	cmsg->cmsg_level = SOL_SOCKET;
+	cmsg->cmsg_type = SCM_RIGHTS;
+	memcpy(CMSG_DATA(cmsg), &fd_tx, sizeof(fd_tx));
+
+	if (sendmsg(usock, &msg, 0) < 0)
+		return -errno;
+	return 0;
 }

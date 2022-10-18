@@ -3541,6 +3541,68 @@ TEST_F_FORK(ftruncate, open_and_ftruncate)
 	}
 }
 
+TEST_F_FORK(ftruncate, open_and_ftruncate_in_different_processes)
+{
+	int child, fd, status;
+	int socket_fds[2];
+
+	ASSERT_EQ(0, socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0,
+				socket_fds));
+
+	child = fork();
+	ASSERT_LE(0, child);
+	if (child == 0) {
+		/*
+		 * Enables Landlock in the child process, open a file descriptor
+		 * where truncation is forbidden and send it to the
+		 * non-landlocked parent process.
+		 */
+		const char *const path = file1_s1d1;
+		const struct rule rules[] = {
+			{
+				.path = path,
+				.access = variant->permitted,
+			},
+			{},
+		};
+		int fd, ruleset_fd;
+
+		ruleset_fd = create_ruleset(_metadata, variant->handled, rules);
+		ASSERT_LE(0, ruleset_fd);
+		enforce_ruleset(_metadata, ruleset_fd);
+		ASSERT_EQ(0, close(ruleset_fd));
+
+		fd = open(path, O_WRONLY);
+		ASSERT_EQ(variant->expected_open_result, (fd < 0 ? errno : 0));
+
+		if (fd >= 0) {
+			ASSERT_EQ(0, send_fd(socket_fds[0], fd));
+			ASSERT_EQ(0, close(fd));
+		}
+
+		ASSERT_EQ(0, close(socket_fds[0]));
+
+		_exit(_metadata->passed ? EXIT_SUCCESS : EXIT_FAILURE);
+		return;
+	}
+
+	if (variant->expected_open_result == 0) {
+		fd = recv_fd(socket_fds[1]);
+		ASSERT_LE(0, fd);
+
+		EXPECT_EQ(variant->expected_ftruncate_result,
+			  test_ftruncate(fd));
+		ASSERT_EQ(0, close(fd));
+	}
+
+	ASSERT_EQ(child, waitpid(child, &status, 0));
+	ASSERT_EQ(1, WIFEXITED(status));
+	ASSERT_EQ(EXIT_SUCCESS, WEXITSTATUS(status));
+
+	ASSERT_EQ(0, close(socket_fds[0]));
+	ASSERT_EQ(0, close(socket_fds[1]));
+}
+
 /* clang-format off */
 FIXTURE(layout1_bind) {};
 /* clang-format on */
