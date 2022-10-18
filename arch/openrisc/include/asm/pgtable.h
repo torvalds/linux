@@ -395,8 +395,6 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
 
-#define kern_addr_valid(addr)           (1)
-
 typedef pte_t *pte_addr_t;
 
 #endif /* __ASSEMBLY__ */

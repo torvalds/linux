@@ -540,25 +540,17 @@ read_kcore(struct file *file, char __user *buffer, size_t buflen, loff_t *fpos)
 			fallthrough;
 		case KCORE_VMEMMAP:
 		case KCORE_TEXT:
-			if (kern_addr_valid(start)) {
-				/*
-				 * Using bounce buffer to bypass the
-				 * hardened user copy kernel text checks.
-				 */
-				if (copy_from_kernel_nofault(buf, (void *)start,
-						tsz)) {
-					if (clear_user(buffer, tsz)) {
-						ret = -EFAULT;
-						goto out;
-					}
-				} else {
-					if (copy_to_user(buffer, buf, tsz)) {
-						ret = -EFAULT;
-						goto out;
-					}
+			/*
+			 * Using bounce buffer to bypass the
+			 * hardened user copy kernel text checks.
+			 */
+			if (copy_from_kernel_nofault(buf, (void *)start, tsz)) {
+				if (clear_user(buffer, tsz)) {
+					ret = -EFAULT;
+					goto out;
 				}
 			} else {
-				if (clear_user(buffer, tsz)) {
+				if (copy_to_user(buffer, buf, tsz)) {
 					ret = -EFAULT;
 					goto out;
 				}

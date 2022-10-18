@@ -1416,47 +1416,6 @@ void mark_rodata_ro(void)
 	debug_checkwx();
 }
 
-int kern_addr_valid(unsigned long addr)
-{
-	unsigned long above = ((long)addr) >> __VIRTUAL_MASK_SHIFT;
-	pgd_t *pgd;
-	p4d_t *p4d;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-
-	if (above != 0 && above != -1UL)
-		return 0;
-
-	pgd = pgd_offset_k(addr);
-	if (pgd_none(*pgd))
-		return 0;
-
-	p4d = p4d_offset(pgd, addr);
-	if (!p4d_present(*p4d))
-		return 0;
-
-	pud = pud_offset(p4d, addr);
-	if (!pud_present(*pud))
-		return 0;
-
-	if (pud_large(*pud))
-		return pfn_valid(pud_pfn(*pud));
-
-	pmd = pmd_offset(pud, addr);
-	if (!pmd_present(*pmd))
-		return 0;
-
-	if (pmd_large(*pmd))
-		return pfn_valid(pmd_pfn(*pmd));
-
-	pte = pte_offset_kernel(pmd, addr);
-	if (pte_none(*pte))
-		return 0;
-
-	return pfn_valid(pte_pfn(*pte));
-}
-
 /*
  * Block size is the minimum amount of memory which can be hotplugged or
  * hotremoved. It must be power of two and must be equal or larger than

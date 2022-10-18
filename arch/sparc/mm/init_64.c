@@ -1667,7 +1667,6 @@ bool kern_addr_valid(unsigned long addr)
 
 	return pfn_valid(pte_pfn(*pte));
 }
-EXPORT_SYMBOL(kern_addr_valid);
 
 static unsigned long __ref kernel_map_hugepud(unsigned long vstart,
 					      unsigned long vend,
