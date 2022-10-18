@@ -595,6 +595,102 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 	return 0;
 }
 
+static int evsel__merge_aggr_counters(struct evsel *evsel, struct evsel *alias)
+{
+	struct perf_stat_evsel *ps_a = evsel->stats;
+	struct perf_stat_evsel *ps_b = alias->stats;
+	int i;
+
+	if (ps_a->aggr == NULL && ps_b->aggr == NULL)
+		return 0;
+
+	if (ps_a->nr_aggr != ps_b->nr_aggr) {
+		pr_err("Unmatched aggregation mode between aliases\n");
+		return -1;
+	}
+
+	for (i = 0; i < ps_a->nr_aggr; i++) {
+		struct perf_counts_values *aggr_counts_a = &ps_a->aggr[i].counts;
+		struct perf_counts_values *aggr_counts_b = &ps_b->aggr[i].counts;
+
+		/* NB: don't increase aggr.nr for aliases */
+
+		aggr_counts_a->val += aggr_counts_b->val;
+		aggr_counts_a->ena += aggr_counts_b->ena;
+		aggr_counts_a->run += aggr_counts_b->run;
+	}
+
+	return 0;
+}
+/* events should have the same name, scale, unit, cgroup but on different PMUs */
+static bool evsel__is_alias(struct evsel *evsel_a, struct evsel *evsel_b)
+{
+	if (strcmp(evsel__name(evsel_a), evsel__name(evsel_b)))
+		return false;
+
+	if (evsel_a->scale != evsel_b->scale)
+		return false;
+
+	if (evsel_a->cgrp != evsel_b->cgrp)
+		return false;
+
+	if (strcmp(evsel_a->unit, evsel_b->unit))
+		return false;
+
+	if (evsel__is_clock(evsel_a) != evsel__is_clock(evsel_b))
+		return false;
+
+	return !!strcmp(evsel_a->pmu_name, evsel_b->pmu_name);
+}
+
+static void evsel__merge_aliases(struct evsel *evsel)
+{
+	struct evlist *evlist = evsel->evlist;
+	struct evsel *alias;
+
+	alias = list_prepare_entry(evsel, &(evlist->core.entries), core.node);
+	list_for_each_entry_continue(alias, &evlist->core.entries, core.node) {
+		/* Merge the same events on different PMUs. */
+		if (evsel__is_alias(evsel, alias)) {
+			evsel__merge_aggr_counters(evsel, alias);
+			alias->merged_stat = true;
+		}
+	}
+}
+
+static bool evsel__should_merge_hybrid(struct evsel *evsel, struct perf_stat_config *config)
+{
+	struct perf_pmu *pmu;
+
+	if (!config->hybrid_merge)
+		return false;
+
+	pmu = evsel__find_pmu(evsel);
+	return pmu && pmu->is_hybrid;
+}
+
+static void evsel__merge_stats(struct evsel *evsel, struct perf_stat_config *config)
+{
+	/* this evsel is already merged */
+	if (evsel->merged_stat)
+		return;
+
+	if (evsel->auto_merge_stats || evsel__should_merge_hybrid(evsel, config))
+		evsel__merge_aliases(evsel);
+}
+
+/* merge the same uncore and hybrid events if requested */
+void perf_stat_merge_counters(struct perf_stat_config *config, struct evlist *evlist)
+{
+	struct evsel *evsel;
+
+	if (config->no_merge)
+		return;
+
+	evlist__for_each_entry(evlist, evsel)
+		evsel__merge_stats(evsel, config);
+}
+
 int perf_event__process_stat_event(struct perf_session *session,
 				   union perf_event *event)
 {

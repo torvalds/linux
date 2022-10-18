@@ -486,6 +486,8 @@ static void process_counters(void)
 			pr_warning("failed to process counter %s\n", counter->name);
 		counter->err = 0;
 	}
+
+	perf_stat_merge_counters(&stat_config, evsel_list);
 }
 
 static void process_interval(void)
