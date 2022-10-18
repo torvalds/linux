@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/dmapool.h>
 #include <linux/dma-mapping.h>
+#include <linux/genalloc.h>
 
 #include "xhci.h"
 #include "xhci-trace.h"
@@ -1835,6 +1836,7 @@ void xhci_free_erst(struct xhci_hcd *xhci, struct xhci_erst *erst)
 void xhci_mem_cleanup(struct xhci_hcd *xhci)
 {
 	struct device	*dev = xhci_to_hcd(xhci)->self.sysdev;
+	struct xhci_lowmem_pool *pool;
 	int i, j, num_ports;
 
 	cancel_delayed_work_sync(&xhci->cmd_timer);
@@ -1885,6 +1887,13 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 	xhci->medium_streams_pool = NULL;
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"Freed medium stream array pool");
+
+	if (xhci->lowmem_pool.pool) {
+		pool = &xhci->lowmem_pool;
+		dma_free_coherent(dev, pool->size, (void *)pool->cached_base, pool->dma_addr);
+		gen_pool_destroy(pool->pool);
+		pool->pool = NULL;
+	}
 
 	if (xhci->dcbaa)
 		dma_free_coherent(dev, sizeof(*xhci->dcbaa),
@@ -2377,6 +2386,55 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 	return 0;
 }
 
+int xhci_setup_local_lowmem(struct xhci_hcd *xhci, size_t size)
+{
+	int err;
+	void *buffer;
+	dma_addr_t dma_addr;
+	struct usb_hcd *hcd = xhci_to_hcd(xhci);
+	struct xhci_lowmem_pool *pool = &xhci->lowmem_pool;
+
+	if (!pool->pool) {
+		/* minimal alloc one page */
+		pool->pool = gen_pool_create(PAGE_SHIFT, dev_to_node(hcd->self.sysdev));
+		if (IS_ERR(pool->pool))
+			return PTR_ERR(pool->pool);
+	}
+
+	buffer = dma_alloc_coherent(hcd->self.sysdev, size, &dma_addr,
+			GFP_KERNEL | GFP_DMA32);
+
+	if (IS_ERR(buffer)) {
+		err = PTR_ERR(buffer);
+		goto destroy_pool;
+	}
+
+	/*
+	 * Here we pass a dma_addr_t but the arg type is a phys_addr_t.
+	 * It's not backed by system memory and thus there's no kernel mapping
+	 * for it.
+	 */
+	err = gen_pool_add_virt(pool->pool, (unsigned long)buffer,
+				dma_addr, size, dev_to_node(hcd->self.sysdev));
+	if (err < 0) {
+		dev_err(hcd->self.sysdev, "gen_pool_add_virt failed with %d\n",
+			err);
+		dma_free_coherent(hcd->self.sysdev, size, buffer, dma_addr);
+		goto destroy_pool;
+	}
+
+	pool->cached_base = (u64)buffer;
+	pool->dma_addr = dma_addr;
+
+	return 0;
+
+destroy_pool:
+	gen_pool_destroy(pool->pool);
+	pool->pool = NULL;
+	return err;
+}
+EXPORT_SYMBOL_GPL(xhci_setup_local_lowmem);
+
 int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 {
 	dma_addr_t	dma;
@@ -2549,6 +2607,12 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 			"Wrote ERST address to ir_set 0.");
 
 	xhci->isoc_bei_interval = AVOID_BEI_INTERVAL_MAX;
+
+	if (xhci->quirks & XHCI_LOCAL_BUFFER) {
+		if (xhci_setup_local_lowmem(xhci,
+			xhci->lowmem_pool.size))
+			goto fail;
+	}
 
 	/*
 	 * XXX: Might need to set the Interrupter Moderation Register to
