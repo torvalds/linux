@@ -124,7 +124,7 @@ struct ublk_queue {
 	bool force_abort;
 	unsigned short nr_io_ready;	/* how many ios setup */
 	struct ublk_device *dev;
-	struct ublk_io ios[0];
+	struct ublk_io ios[];
 };
 
 #define UBLK_DAEMON_MONITOR_PERIOD	(5 * HZ)
