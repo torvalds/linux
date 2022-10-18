@@ -1336,6 +1336,12 @@ static struct aggr_cpu_id perf_stat__get_global(struct perf_stat_config *config 
 	return aggr_cpu_id__global(cpu, /*data=*/NULL);
 }
 
+static struct aggr_cpu_id perf_stat__get_cpu(struct perf_stat_config *config __maybe_unused,
+					     struct perf_cpu cpu)
+{
+	return aggr_cpu_id__cpu(cpu, /*data=*/NULL);
+}
+
 static struct aggr_cpu_id perf_stat__get_aggr(struct perf_stat_config *config,
 					      aggr_get_id_t get_id, struct perf_cpu cpu)
 {
@@ -1378,6 +1384,12 @@ static struct aggr_cpu_id perf_stat__get_global_cached(struct perf_stat_config *
 	return perf_stat__get_aggr(config, perf_stat__get_global, cpu);
 }
 
+static struct aggr_cpu_id perf_stat__get_cpu_cached(struct perf_stat_config *config,
+						    struct perf_cpu cpu)
+{
+	return perf_stat__get_aggr(config, perf_stat__get_cpu, cpu);
+}
+
 static bool term_percore_set(void)
 {
 	struct evsel *counter;
@@ -1404,8 +1416,7 @@ static aggr_cpu_id_get_t aggr_mode__get_aggr(enum aggr_mode aggr_mode)
 	case AGGR_NONE:
 		if (term_percore_set())
 			return aggr_cpu_id__core;
-
-		return NULL;
+		return aggr_cpu_id__cpu;
 	case AGGR_GLOBAL:
 		return aggr_cpu_id__global;
 	case AGGR_THREAD:
@@ -1428,10 +1439,9 @@ static aggr_get_id_t aggr_mode__get_id(enum aggr_mode aggr_mode)
 	case AGGR_NODE:
 		return perf_stat__get_node_cached;
 	case AGGR_NONE:
-		if (term_percore_set()) {
+		if (term_percore_set())
 			return perf_stat__get_core_cached;
-		}
-		return NULL;
+		return perf_stat__get_cpu_cached;
 	case AGGR_GLOBAL:
 		return perf_stat__get_global_cached;
 	case AGGR_THREAD:
@@ -1541,6 +1551,26 @@ static struct aggr_cpu_id perf_env__get_core_aggr_by_cpu(struct perf_cpu cpu, vo
 	return id;
 }
 
+static struct aggr_cpu_id perf_env__get_cpu_aggr_by_cpu(struct perf_cpu cpu, void *data)
+{
+	struct perf_env *env = data;
+	struct aggr_cpu_id id = aggr_cpu_id__empty();
+
+	if (cpu.cpu != -1) {
+		/*
+		 * core_id is relative to socket and die,
+		 * we need a global id. So we set
+		 * socket, die id and core id
+		 */
+		id.socket = env->cpu[cpu.cpu].socket_id;
+		id.die = env->cpu[cpu.cpu].die_id;
+		id.core = env->cpu[cpu.cpu].core_id;
+		id.cpu = cpu;
+	}
+
+	return id;
+}
+
 static struct aggr_cpu_id perf_env__get_node_aggr_by_cpu(struct perf_cpu cpu, void *data)
 {
 	struct aggr_cpu_id id = aggr_cpu_id__empty();
@@ -1576,6 +1606,12 @@ static struct aggr_cpu_id perf_stat__get_core_file(struct perf_stat_config *conf
 	return perf_env__get_core_aggr_by_cpu(cpu, &perf_stat.session->header.env);
 }
 
+static struct aggr_cpu_id perf_stat__get_cpu_file(struct perf_stat_config *config __maybe_unused,
+						  struct perf_cpu cpu)
+{
+	return perf_env__get_cpu_aggr_by_cpu(cpu, &perf_stat.session->header.env);
+}
+
 static struct aggr_cpu_id perf_stat__get_node_file(struct perf_stat_config *config __maybe_unused,
 						   struct perf_cpu cpu)
 {
@@ -1602,6 +1638,7 @@ static aggr_cpu_id_get_t aggr_mode__get_aggr_file(enum aggr_mode aggr_mode)
 	case AGGR_GLOBAL:
 		return perf_env__get_global_aggr_by_cpu;
 	case AGGR_NONE:
+		return perf_env__get_cpu_aggr_by_cpu;
 	case AGGR_THREAD:
 	case AGGR_UNSET:
 	case AGGR_MAX:
@@ -1624,6 +1661,7 @@ static aggr_get_id_t aggr_mode__get_id_file(enum aggr_mode aggr_mode)
 	case AGGR_GLOBAL:
 		return perf_stat__get_global_file;
 	case AGGR_NONE:
+		return perf_stat__get_cpu_file;
 	case AGGR_THREAD:
 	case AGGR_UNSET:
 	case AGGR_MAX:
