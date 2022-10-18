@@ -390,6 +390,11 @@ static struct gpio_desc *of_find_gpio_rename(struct device_node *np,
 #if IS_ENABLED(CONFIG_MFD_ARIZONA)
 		{ "wlf,reset",	NULL,		NULL },
 #endif
+#if IS_ENABLED(CONFIG_RTC_DRV_MOXART)
+		{ "rtc-data",	"gpio-rtc-data",	"moxa,moxart-rtc" },
+		{ "rtc-sclk",	"gpio-rtc-sclk",	"moxa,moxart-rtc" },
+		{ "rtc-reset",	"gpio-rtc-reset",	"moxa,moxart-rtc" },
+#endif
 #if IS_ENABLED(CONFIG_NFC_MRVL_I2C)
 		{ "reset",	"reset-n-io",	"marvell,nfc-i2c" },
 #endif
