@@ -364,9 +364,11 @@ static void scale_cookie_change(struct blk_iolatency *blkiolat,
 }
 
 /*
- * Change the queue depth of the iolatency_grp.  We add/subtract 1/16th of the
+ * Change the queue depth of the iolatency_grp.  We add 1/16th of the
  * queue depth at a time so we don't get wild swings and hopefully dial in to
- * fairer distribution of the overall queue depth.
+ * fairer distribution of the overall queue depth.  We halve the queue depth
+ * at a time so we can scale down queue depth quickly from default unlimited
+ * to target.
  */
 static void scale_change(struct iolatency_grp *iolat, bool up)
 {
