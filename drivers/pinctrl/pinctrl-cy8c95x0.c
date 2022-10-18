@@ -1107,12 +1107,12 @@ static int cy8c95x0_pinmux_mode(struct cy8c95x0_pinctrl *chip,
 	u8 bit = cypress_get_pin_mask(chip, group);
 	int ret;
 
-	if (selector == 0)
-		return cy8c95x0_set_mode(chip, group, false);
-
-	ret = cy8c95x0_set_mode(chip, group, true);
+	ret = cy8c95x0_set_mode(chip, group, selector);
 	if (ret < 0)
 		return ret;
+
+	if (selector == 0)
+		return 0;
 
 	/* Set direction to output & set output to 1 so that PWM can work */
 	ret = regmap_write_bits(chip->regmap, CY8C95X0_DIRECTION, bit, bit);
