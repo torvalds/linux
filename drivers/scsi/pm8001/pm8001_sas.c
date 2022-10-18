@@ -65,8 +65,11 @@ static int pm8001_find_tag(struct sas_task *task, u32 *tag)
   */
 void pm8001_tag_free(struct pm8001_hba_info *pm8001_ha, u32 tag)
 {
-	void *bitmap = pm8001_ha->tags;
+	void *bitmap = pm8001_ha->rsvd_tags;
 	unsigned long flags;
+
+	if (tag >= PM8001_RESERVE_SLOT)
+		return;
 
 	spin_lock_irqsave(&pm8001_ha->bitmap_lock, flags);
 	__clear_bit(tag, bitmap);
@@ -80,18 +83,20 @@ void pm8001_tag_free(struct pm8001_hba_info *pm8001_ha, u32 tag)
   */
 int pm8001_tag_alloc(struct pm8001_hba_info *pm8001_ha, u32 *tag_out)
 {
-	void *bitmap = pm8001_ha->tags;
+	void *bitmap = pm8001_ha->rsvd_tags;
 	unsigned long flags;
 	unsigned int tag;
 
 	spin_lock_irqsave(&pm8001_ha->bitmap_lock, flags);
-	tag = find_first_zero_bit(bitmap, pm8001_ha->tags_num);
-	if (tag >= pm8001_ha->tags_num) {
+	tag = find_first_zero_bit(bitmap, PM8001_RESERVE_SLOT);
+	if (tag >= PM8001_RESERVE_SLOT) {
 		spin_unlock_irqrestore(&pm8001_ha->bitmap_lock, flags);
 		return -SAS_QUEUE_FULL;
 	}
 	__set_bit(tag, bitmap);
 	spin_unlock_irqrestore(&pm8001_ha->bitmap_lock, flags);
+
+	/* reserved tags are in the lower region of the tagset */
 	*tag_out = tag;
 	return 0;
 }

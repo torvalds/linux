@@ -4247,25 +4247,12 @@ static int check_enc_sat_cmd(struct sas_task *task)
 
 static u32 pm80xx_chip_get_q_index(struct sas_task *task)
 {
-	struct scsi_cmnd *scmd = NULL;
-	u32 blk_tag;
+	struct request *rq = sas_task_find_rq(task);
 
-	if (task->uldd_task) {
-		struct ata_queued_cmd *qc;
-
-		if (dev_is_sata(task->dev)) {
-			qc = task->uldd_task;
-			scmd = qc->scsicmd;
-		} else {
-			scmd = task->uldd_task;
-		}
-	}
-
-	if (!scmd)
+	if (!rq)
 		return 0;
 
-	blk_tag = blk_mq_unique_tag(scsi_cmd_to_rq(scmd));
-	return blk_mq_unique_tag_to_hwq(blk_tag);
+	return blk_mq_unique_tag_to_hwq(blk_mq_unique_tag(rq));
 }
 
 /**
