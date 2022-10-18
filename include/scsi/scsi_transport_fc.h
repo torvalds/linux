@@ -862,7 +862,7 @@ struct fc_vport *fc_vport_create(struct Scsi_Host *shost, int channel,
 int fc_vport_terminate(struct fc_vport *vport);
 int fc_block_rport(struct fc_rport *rport);
 int fc_block_scsi_eh(struct scsi_cmnd *cmnd);
-enum blk_eh_timer_return fc_eh_timed_out(struct scsi_cmnd *scmd);
+enum scsi_timeout_action fc_eh_timed_out(struct scsi_cmnd *scmd);
 bool fc_eh_should_retry_cmd(struct scsi_cmnd *scmd);
 
 static inline struct Scsi_Host *fc_bsg_to_shost(struct bsg_job *job)
