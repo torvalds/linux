@@ -963,9 +963,6 @@ try_again_reset:
 		init_stats(&walltime_nsecs_stats);
 		update_stats(&walltime_nsecs_stats, t1 - t0);
 
-		if (stat_config.aggr_mode == AGGR_GLOBAL)
-			evlist__save_aggr_prev_raw_counts(evsel_list);
-
 		evlist__copy_prev_raw_counts(evsel_list);
 		evlist__reset_prev_raw_counts(evsel_list);
 		perf_stat__reset_shadow_per_stat(&rt_stat);

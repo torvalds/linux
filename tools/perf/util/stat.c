@@ -387,6 +387,7 @@ process_counter_values(struct perf_stat_config *config, struct evsel *evsel,
 		       struct perf_counts_values *count)
 {
 	struct perf_counts_values *aggr = &evsel->counts->aggr;
+	struct perf_stat_evsel *ps = evsel->stats;
 	static struct perf_counts_values zero;
 	bool skip = false;
 
@@ -398,6 +399,44 @@ process_counter_values(struct perf_stat_config *config, struct evsel *evsel,
 	if (skip)
 		count = &zero;
 
+	if (!evsel->snapshot)
+		evsel__compute_deltas(evsel, cpu_map_idx, thread, count);
+	perf_counts_values__scale(count, config->scale, NULL);
+
+	if (ps->aggr) {
+		struct perf_cpu cpu = perf_cpu_map__cpu(evsel->core.cpus, cpu_map_idx);
+		struct aggr_cpu_id aggr_id = config->aggr_get_id(config, cpu);
+		struct perf_stat_aggr *ps_aggr;
+		int i;
+
+		for (i = 0; i < ps->nr_aggr; i++) {
+			if (!aggr_cpu_id__equal(&aggr_id, &config->aggr_map->map[i]))
+				continue;
+
+			ps_aggr = &ps->aggr[i];
+			ps_aggr->nr++;
+
+			/*
+			 * When any result is bad, make them all to give
+			 * consistent output in interval mode.
+			 */
+			if (count->ena == 0 || count->run == 0 ||
+			    evsel->counts->scaled == -1) {
+				ps_aggr->counts.val = 0;
+				ps_aggr->counts.ena = 0;
+				ps_aggr->counts.run = 0;
+				ps_aggr->failed = true;
+			}
+
+			if (!ps_aggr->failed) {
+				ps_aggr->counts.val += count->val;
+				ps_aggr->counts.ena += count->ena;
+				ps_aggr->counts.run += count->run;
+			}
+			break;
+		}
+	}
+
 	switch (config->aggr_mode) {
 	case AGGR_THREAD:
 	case AGGR_CORE:
@@ -405,9 +444,6 @@ process_counter_values(struct perf_stat_config *config, struct evsel *evsel,
 	case AGGR_SOCKET:
 	case AGGR_NODE:
 	case AGGR_NONE:
-		if (!evsel->snapshot)
-			evsel__compute_deltas(evsel, cpu_map_idx, thread, count);
-		perf_counts_values__scale(count, config->scale, NULL);
 		if ((config->aggr_mode == AGGR_NONE) && (!evsel->percore)) {
 			perf_stat__update_shadow_stats(evsel, count->val,
 						       cpu_map_idx, &rt_stat);
@@ -468,10 +504,6 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 
 	if (config->aggr_mode != AGGR_GLOBAL)
 		return 0;
-
-	if (!counter->snapshot)
-		evsel__compute_deltas(counter, -1, -1, aggr);
-	perf_counts_values__scale(aggr, config->scale, &counter->counts->scaled);
 
 	update_stats(&ps->res_stats, *count);
 
