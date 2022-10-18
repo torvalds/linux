@@ -1581,9 +1581,9 @@ static int rsnd_hw_params(struct snd_soc_component *component,
 				hw_params->cmask |= SNDRV_PCM_HW_PARAM_RATE;
 			} else if (params_rate(hw_params) * k_up < io->converted_rate) {
 				hw_param_interval(hw_params, SNDRV_PCM_HW_PARAM_RATE)->min =
-					(io->converted_rate + k_up - 1) / k_up;
+					DIV_ROUND_UP(io->converted_rate, k_up);
 				hw_param_interval(hw_params, SNDRV_PCM_HW_PARAM_RATE)->max =
-					(io->converted_rate + k_up - 1) / k_up;
+					DIV_ROUND_UP(io->converted_rate, k_up);
 				hw_params->cmask |= SNDRV_PCM_HW_PARAM_RATE;
 			}
 
