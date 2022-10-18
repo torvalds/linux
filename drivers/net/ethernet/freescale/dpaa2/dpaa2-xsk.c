@@ -113,6 +113,8 @@ static void dpaa2_xsk_rx(struct dpaa2_eth_priv *priv,
 	void *vaddr;
 	u32 xdp_act;
 
+	trace_dpaa2_rx_xsk_fd(priv->net_dev, fd);
+
 	vaddr = dpaa2_iova_to_virt(priv->iommu_domain, addr);
 	percpu_stats = this_cpu_ptr(priv->percpu_stats);
 
@@ -416,6 +418,8 @@ bool dpaa2_xsk_tx(struct dpaa2_eth_priv *priv,
 			batch = i;
 			break;
 		}
+
+		trace_dpaa2_tx_xsk_fd(priv->net_dev, &fds[i]);
 	}
 
 	/* Enqueue all the created FDs */

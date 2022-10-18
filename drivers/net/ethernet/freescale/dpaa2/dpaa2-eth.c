@@ -1731,6 +1731,12 @@ static int dpaa2_eth_add_bufs(struct dpaa2_eth_priv *priv,
 				goto err_map;
 
 			buf_array[i] = addr;
+
+			trace_dpaa2_xsk_buf_seed(priv->net_dev,
+						 xdp_buffs[i]->data_hard_start,
+						 DPAA2_ETH_RX_BUF_RAW_SIZE,
+						 addr, priv->rx_buf_size,
+						 ch->bp->bpid);
 		}
 	}
 
