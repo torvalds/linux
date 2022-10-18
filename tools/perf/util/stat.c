@@ -565,11 +565,6 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 			evsel__name(counter), count[0], count[1], count[2]);
 	}
 
-	/*
-	 * Save the full runtime - to allow normalization during printout:
-	 */
-	perf_stat__update_shadow_stats(counter, *count, 0, &rt_stat);
-
 	return 0;
 }
 

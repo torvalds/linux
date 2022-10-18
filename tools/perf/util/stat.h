@@ -224,15 +224,6 @@ static inline void update_rusage_stats(struct rusage_stats *ru_stats, struct rus
 struct evsel;
 struct evlist;
 
-struct perf_aggr_thread_value {
-	struct evsel *counter;
-	struct aggr_cpu_id id;
-	double uval;
-	u64 val;
-	u64 run;
-	u64 ena;
-};
-
 bool __perf_stat_evsel__is(struct evsel *evsel, enum perf_stat_evsel_id id);
 
 #define perf_stat_evsel__is(evsel, id) \
