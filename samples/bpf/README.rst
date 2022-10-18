@@ -37,8 +37,8 @@ user, simply call::
 
  make headers_install
 
-This will creates a local "usr/include" directory in the git/build top
-level directory, that the make system automatically pickup first.
+This will create a local "usr/include" directory in the git/build top
+level directory, that the make system will automatically pick up first.
 
 Compiling
 =========
