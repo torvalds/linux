@@ -465,15 +465,19 @@ static int read_bpf_map_counters(void)
 	return 0;
 }
 
-static void read_counters(struct timespec *rs)
+static int read_counters(struct timespec *rs)
 {
-	struct evsel *counter;
-
 	if (!stat_config.stop_read_counter) {
 		if (read_bpf_map_counters() ||
 		    read_affinity_counters(rs))
-			return;
+			return -1;
 	}
+	return 0;
+}
+
+static void process_counters(void)
+{
+	struct evsel *counter;
 
 	evlist__for_each_entry(evsel_list, counter) {
 		if (counter->err)
@@ -494,7 +498,8 @@ static void process_interval(void)
 	perf_stat__reset_shadow_per_stat(&rt_stat);
 	evlist__reset_aggr_stats(evsel_list);
 
-	read_counters(&rs);
+	if (read_counters(&rs) == 0)
+		process_counters();
 
 	if (STAT_RECORD) {
 		if (WRITE_STAT_ROUND_EVENT(rs.tv_sec * NSEC_PER_SEC + rs.tv_nsec, INTERVAL))
@@ -980,7 +985,8 @@ try_again_reset:
 	 * avoid arbitrary skew, we must read all counters before closing any
 	 * group leaders.
 	 */
-	read_counters(&(struct timespec) { .tv_nsec = t1-t0 });
+	if (read_counters(&(struct timespec) { .tv_nsec = t1-t0 }) == 0)
+		process_counters();
 
 	/*
 	 * We need to keep evsel_list alive, because it's processed
@@ -2099,13 +2105,11 @@ static int process_stat_round_event(struct perf_session *session,
 				    union perf_event *event)
 {
 	struct perf_record_stat_round *stat_round = &event->stat_round;
-	struct evsel *counter;
 	struct timespec tsh, *ts = NULL;
 	const char **argv = session->header.env.cmdline_argv;
 	int argc = session->header.env.nr_cmdline;
 
-	evlist__for_each_entry(evsel_list, counter)
-		perf_stat_process_counter(&stat_config, counter);
+	process_counters();
 
 	if (stat_round->type == PERF_STAT_ROUND_TYPE__FINAL)
 		update_stats(&walltime_nsecs_stats, stat_round->time);
