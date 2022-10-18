@@ -1505,19 +1505,19 @@ static void program_timing_sync(
 	}
 }
 
-static bool context_changed(
-		struct dc *dc,
-		struct dc_state *context)
+static bool streams_changed(struct dc *dc,
+			    struct dc_stream_state *streams[],
+			    uint8_t stream_count)
 {
 	uint8_t i;
 
-	if (context->stream_count != dc->current_state->stream_count)
+	if (stream_count != dc->current_state->stream_count)
 		return true;
 
 	for (i = 0; i < dc->current_state->stream_count; i++) {
-		if (dc->current_state->streams[i] != context->streams[i])
+		if (dc->current_state->streams[i] != streams[i])
 			return true;
-		if (!context->streams[i]->link->link_state_valid)
+		if (!streams[i]->link->link_state_valid)
 			return true;
 	}
 
@@ -1918,7 +1918,7 @@ bool dc_commit_state(struct dc *dc, struct dc_state *context)
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	int i;
 
-	if (!context_changed(dc, context))
+	if (!streams_changed(dc, context->streams, context->stream_count))
 		return DC_OK;
 
 	DC_LOG_DC("%s: %d streams\n",
