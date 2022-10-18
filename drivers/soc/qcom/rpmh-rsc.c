@@ -14,10 +14,13 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/pm_domain.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
@@ -834,6 +837,50 @@ static int rpmh_rsc_cpu_pm_callback(struct notifier_block *nfb,
 	return ret;
 }
 
+/**
+ * rpmh_rsc_pd_callback() - Check if any of the AMCs are busy.
+ * @nfb:    Pointer to the genpd notifier block in struct rsc_drv.
+ * @action: GENPD_NOTIFY_PRE_OFF, GENPD_NOTIFY_OFF, GENPD_NOTIFY_PRE_ON or GENPD_NOTIFY_ON.
+ * @v:      Unused
+ *
+ * This function is given to dev_pm_genpd_add_notifier() so we can be informed
+ * about when cluster-pd is going down. When cluster go down we know no more active
+ * transfers will be started so we write sleep/wake sets. This function gets
+ * called from cpuidle code paths and also at system suspend time.
+ *
+ * If AMCs are not busy then writes cached sleep and wake messages to TCSes.
+ * The firmware then takes care of triggering them when entering deepest low power modes.
+ *
+ * Return:
+ * * NOTIFY_OK          - success
+ * * NOTIFY_BAD         - failure
+ */
+static int rpmh_rsc_pd_callback(struct notifier_block *nfb,
+				unsigned long action, void *v)
+{
+	struct rsc_drv *drv = container_of(nfb, struct rsc_drv, genpd_nb);
+
+	/* We don't need to lock as genpd on/off are serialized */
+	if ((action == GENPD_NOTIFY_PRE_OFF) &&
+	    (rpmh_rsc_ctrlr_is_busy(drv) || rpmh_flush(&drv->client)))
+		return NOTIFY_BAD;
+
+	return NOTIFY_OK;
+}
+
+static int rpmh_rsc_pd_attach(struct rsc_drv *drv, struct device *dev)
+{
+	int ret;
+
+	pm_runtime_enable(dev);
+	drv->genpd_nb.notifier_call = rpmh_rsc_pd_callback;
+	ret = dev_pm_genpd_add_notifier(dev, &drv->genpd_nb);
+	if (ret)
+		pm_runtime_disable(dev);
+
+	return ret;
+}
+
 static int rpmh_probe_tcs_config(struct platform_device *pdev,
 				 struct rsc_drv *drv, void __iomem *base)
 {
@@ -963,7 +1010,7 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 		return ret;
 
 	/*
-	 * CPU PM notification are not required for controllers that support
+	 * CPU PM/genpd notification are not required for controllers that support
 	 * 'HW solver' mode where they can be in autonomous mode executing low
 	 * power mode to power down.
 	 */
@@ -971,8 +1018,14 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 	solver_config &= DRV_HW_SOLVER_MASK << DRV_HW_SOLVER_SHIFT;
 	solver_config = solver_config >> DRV_HW_SOLVER_SHIFT;
 	if (!solver_config) {
-		drv->rsc_pm.notifier_call = rpmh_rsc_cpu_pm_callback;
-		cpu_pm_register_notifier(&drv->rsc_pm);
+		if (pdev->dev.pm_domain) {
+			ret = rpmh_rsc_pd_attach(drv, &pdev->dev);
+			if (ret)
+				return ret;
+		} else {
+			drv->rsc_pm.notifier_call = rpmh_rsc_cpu_pm_callback;
+			cpu_pm_register_notifier(&drv->rsc_pm);
+		}
 	}
 
 	/* Enable the active TCS to send requests immediately */
@@ -985,7 +1038,13 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, drv);
 
-	return devm_of_platform_populate(&pdev->dev);
+	ret = devm_of_platform_populate(&pdev->dev);
+	if (ret && pdev->dev.pm_domain) {
+		dev_pm_genpd_remove_notifier(&pdev->dev);
+		pm_runtime_disable(&pdev->dev);
+	}
+
+	return ret;
 }
 
 static const struct of_device_id rpmh_drv_match[] = {
