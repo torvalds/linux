@@ -135,6 +135,9 @@ static void hl_asic_dma_free_common(struct hl_device *hdev, size_t size, void *c
 					dma_addr_t dma_handle, enum dma_alloc_type alloc_type,
 					const char *caller)
 {
+	/* this is needed to avoid warning on using freed pointer */
+	u64 store_cpu_addr = (u64) (uintptr_t) cpu_addr;
+
 	switch (alloc_type) {
 	case DMA_ALLOC_COHERENT:
 		hdev->asic_funcs->asic_dma_free_coherent(hdev, size, cpu_addr, dma_handle);
@@ -147,7 +150,7 @@ static void hl_asic_dma_free_common(struct hl_device *hdev, size_t size, void *c
 		break;
 	}
 
-	trace_habanalabs_dma_free(hdev->dev, (u64) (uintptr_t) cpu_addr, dma_handle, size, caller);
+	trace_habanalabs_dma_free(hdev->dev, store_cpu_addr, dma_handle, size, caller);
 }
 
 void *hl_asic_dma_alloc_coherent_caller(struct hl_device *hdev, size_t size, dma_addr_t *dma_handle,
