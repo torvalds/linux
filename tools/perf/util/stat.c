@@ -691,6 +691,77 @@ void perf_stat_merge_counters(struct perf_stat_config *config, struct evlist *ev
 		evsel__merge_stats(evsel, config);
 }
 
+static void evsel__update_percore_stats(struct evsel *evsel, struct aggr_cpu_id *core_id)
+{
+	struct perf_stat_evsel *ps = evsel->stats;
+	struct perf_counts_values counts = { 0, };
+	struct aggr_cpu_id id;
+	struct perf_cpu cpu;
+	int idx;
+
+	/* collect per-core counts */
+	perf_cpu_map__for_each_cpu(cpu, idx, evsel->core.cpus) {
+		struct perf_stat_aggr *aggr = &ps->aggr[idx];
+
+		id = aggr_cpu_id__core(cpu, NULL);
+		if (!aggr_cpu_id__equal(core_id, &id))
+			continue;
+
+		counts.val += aggr->counts.val;
+		counts.ena += aggr->counts.ena;
+		counts.run += aggr->counts.run;
+	}
+
+	/* update aggregated per-core counts for each CPU */
+	perf_cpu_map__for_each_cpu(cpu, idx, evsel->core.cpus) {
+		struct perf_stat_aggr *aggr = &ps->aggr[idx];
+
+		id = aggr_cpu_id__core(cpu, NULL);
+		if (!aggr_cpu_id__equal(core_id, &id))
+			continue;
+
+		aggr->counts.val = counts.val;
+		aggr->counts.ena = counts.ena;
+		aggr->counts.run = counts.run;
+
+		aggr->used = true;
+	}
+}
+
+/* we have an aggr_map for cpu, but want to aggregate the counters per-core */
+static void evsel__process_percore(struct evsel *evsel)
+{
+	struct perf_stat_evsel *ps = evsel->stats;
+	struct aggr_cpu_id core_id;
+	struct perf_cpu cpu;
+	int idx;
+
+	if (!evsel->percore)
+		return;
+
+	perf_cpu_map__for_each_cpu(cpu, idx, evsel->core.cpus) {
+		struct perf_stat_aggr *aggr = &ps->aggr[idx];
+
+		if (aggr->used)
+			continue;
+
+		core_id = aggr_cpu_id__core(cpu, NULL);
+		evsel__update_percore_stats(evsel, &core_id);
+	}
+}
+
+/* process cpu stats on per-core events */
+void perf_stat_process_percore(struct perf_stat_config *config, struct evlist *evlist)
+{
+	struct evsel *evsel;
+
+	if (config->aggr_mode != AGGR_NONE)
+		return;
+
+	evlist__for_each_entry(evlist, evsel)
+		evsel__process_percore(evsel);
+}
+
 int perf_event__process_stat_event(struct perf_session *session,
 				   union perf_event *event)
 {
