@@ -4,6 +4,7 @@
  */
 
 #include <linux/linkage.h>
+#include <linux/cfi_types.h>
 #include <asm/ptrace.h>
 #include <asm/ftrace.h>
 #include <asm/export.h>
@@ -129,6 +130,14 @@
 
 	.endm
 
+SYM_TYPED_FUNC_START(ftrace_stub)
+	RET
+SYM_FUNC_END(ftrace_stub)
+
+SYM_TYPED_FUNC_START(ftrace_stub_graph)
+	RET
+SYM_FUNC_END(ftrace_stub_graph)
+
 #ifdef CONFIG_DYNAMIC_FTRACE
 
 SYM_FUNC_START(__fentry__)
@@ -175,11 +184,6 @@ SYM_INNER_LABEL(ftrace_caller_end, SYM_L_GLOBAL)
 	RET
 SYM_FUNC_END(ftrace_caller);
 STACK_FRAME_NON_STANDARD_FP(ftrace_caller)
-
-SYM_FUNC_START(ftrace_stub)
-	UNWIND_HINT_FUNC
-	RET
-SYM_FUNC_END(ftrace_stub)
 
 SYM_FUNC_START(ftrace_regs_caller)
 	/* Save the current flags before any operations that can change them */
@@ -282,9 +286,6 @@ STACK_FRAME_NON_STANDARD_FP(ftrace_regs_caller)
 SYM_FUNC_START(__fentry__)
 	cmpq $ftrace_stub, ftrace_trace_function
 	jnz trace
-
-SYM_INNER_LABEL(ftrace_stub, SYM_L_GLOBAL)
-	ENDBR
 	RET
 
 trace:
