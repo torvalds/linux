@@ -408,6 +408,7 @@
   dev_fwnode
   __dev_get_by_index
   dev_get_by_index
+  dev_get_by_index_rcu
   dev_get_by_name
   dev_get_regmap
   dev_get_stats
@@ -1658,7 +1659,9 @@
   net_ratelimit
   nf_ct_attach
   nf_ct_delete
+  nf_register_net_hook
   nf_register_net_hooks
+  nf_unregister_net_hook
   nf_unregister_net_hooks
   nla_find
   nla_memcpy
@@ -2286,6 +2289,7 @@
   rtc_update_irq
   rtc_valid_tm
   rtnl_is_locked
+  __rtnl_link_unregister
   rtnl_lock
   rtnl_unlock
   runqueues
