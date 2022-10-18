@@ -95,7 +95,7 @@ static int hps_i2c_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int hps_i2c_remove(struct i2c_client *client)
+static void hps_i2c_remove(struct i2c_client *client)
 {
 	struct hps_drvdata *hps = i2c_get_clientdata(client);
 
@@ -107,8 +107,6 @@ static int hps_i2c_remove(struct i2c_client *client)
 	 * (i.e. powered on).
 	 */
 	hps_set_power(hps, true);
-
-	return 0;
 }
 
 static int hps_suspend(struct device *dev)
