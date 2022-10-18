@@ -284,7 +284,7 @@ static enum led_brightness qpnp_vib_brightness_get(struct led_classdev *cdev)
 	return chip->state;
 }
 
-static void qpnp_vib_brightness_set(struct led_classdev *cdev,
+static int qpnp_vib_brightness_set(struct led_classdev *cdev,
 			enum led_brightness level)
 {
 	struct vib_ldo_chip *chip = container_of(cdev, struct vib_ldo_chip,
@@ -302,10 +302,11 @@ static void qpnp_vib_brightness_set(struct led_classdev *cdev,
 			hrtimer_cancel(&chip->overdrive_timer);
 			cancel_work_sync(&chip->overdrive_work);
 		}
-		qpnp_vib_ldo_enable(chip, false);
+		ret = qpnp_vib_ldo_enable(chip, false);
 	}
 
 	pr_debug("vibrator state=%d\n", chip->state);
+	return ret;
 }
 
 static int qpnp_vibrator_ldo_suspend(struct device *dev)
@@ -365,7 +366,7 @@ static int qpnp_vibrator_ldo_probe(struct platform_device *pdev)
 
 	chip->cdev.name = "vibrator";
 	chip->cdev.brightness_get = qpnp_vib_brightness_get;
-	chip->cdev.brightness_set = qpnp_vib_brightness_set;
+	chip->cdev.brightness_set_blocking = qpnp_vib_brightness_set;
 	chip->cdev.max_brightness = 100;
 	ret = devm_led_classdev_register(&pdev->dev, &chip->cdev);
 	if (ret < 0) {
