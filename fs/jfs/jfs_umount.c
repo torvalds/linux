@@ -68,7 +68,6 @@ int jfs_umount(struct super_block *sb)
 	/*
 	 * close secondary aggregate inode allocation map
 	 */
-	ipaimap2 = sbi->ipaimap2;
 	if (ipaimap2) {
 		diUnmount(ipaimap2, 0);
 		diFreeSpecial(ipaimap2);
@@ -78,7 +77,6 @@ int jfs_umount(struct super_block *sb)
 	/*
 	 * close aggregate inode allocation map
 	 */
-	ipaimap = sbi->ipaimap;
 	diUnmount(ipaimap, 0);
 	diFreeSpecial(ipaimap);
 	sbi->ipaimap = NULL;
