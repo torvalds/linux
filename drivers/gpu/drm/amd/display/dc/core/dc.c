@@ -1913,22 +1913,43 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	return result;
 }
 
-enum dc_status dc_commit_streams(struct dc *dc, struct dc_state *context)
+/**
+ * dc_commit_streams - Commit current stream state
+ *
+ * @dc: DC object with the commit state to be configured in the hardware
+ * @streams: Array with a list of stream state
+ * @stream_count: Total of streams
+ *
+ * Function responsible for commit streams change to the hardware.
+ *
+ * Return:
+ * Return DC_OK if everything work as expected, otherwise, return a dc_status
+ * code.
+ */
+enum dc_status dc_commit_streams(struct dc *dc,
+				 struct dc_stream_state *streams[],
+				 uint8_t stream_count)
 {
-	enum dc_status res = DC_OK;
 	int i;
+	struct dc_state *context;
+	enum dc_status res = DC_OK;
 
-	if (!streams_changed(dc, context->streams, context->stream_count))
+	if (!streams_changed(dc, streams, stream_count))
 		return res;
 
-	DC_LOG_DC("%s: %d streams\n",
-				__func__, context->stream_count);
+	DC_LOG_DC("%s: %d streams\n", __func__, stream_count);
 
-	for (i = 0; i < context->stream_count; i++) {
-		struct dc_stream_state *stream = context->streams[i];
+	for (i = 0; i < stream_count; i++) {
+		struct dc_stream_state *stream = streams[i];
 
 		dc_stream_log(dc, stream);
 	}
+
+	context = dc_create_state(dc);
+	if (!context)
+		goto context_alloc_fail;
+
+	dc_resource_state_copy_construct_current(dc, context);
 
 	/*
 	 * Previous validation was perfomred with fast_validation = true and
@@ -1945,6 +1966,10 @@ enum dc_status dc_commit_streams(struct dc *dc, struct dc_state *context)
 
 	res = dc_commit_state_no_check(dc, context);
 
+context_alloc_fail:
+
+	DC_LOG_DC("%s Finished.\n", __func__);
+
 	return (res == DC_OK);
 }
 
@@ -1960,7 +1985,7 @@ bool dc_commit_state(struct dc *dc, struct dc_state *context)
 	 * we get more confident about this change we'll need to enable
 	 * the new sequence for all ASICs. */
 	if (dc->ctx->dce_version >= DCN_VERSION_3_2) {
-		result = dc_commit_streams(dc, context);
+		result = dc_commit_streams(dc, context->streams, context->stream_count);
 		return result == DC_OK;
 	}
 

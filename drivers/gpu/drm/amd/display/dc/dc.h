@@ -1326,7 +1326,9 @@ void dc_resource_state_destruct(struct dc_state *context);
 
 bool dc_resource_is_dsc_encoding_supported(const struct dc *dc);
 
-enum dc_status dc_commit_streams(struct dc *dc, struct dc_state *context);
+enum dc_status dc_commit_streams(struct dc *dc,
+				 struct dc_stream_state *streams[],
+				 uint8_t stream_count);
 
 /* TODO: When the transition to the new commit sequence is done, remove this
  * function in favor of dc_commit_streams. */
