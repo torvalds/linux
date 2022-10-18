@@ -141,6 +141,31 @@ static void evsel__reset_stat_priv(struct evsel *evsel)
 		memset(aggr, 0, sizeof(*aggr) * ps->nr_aggr);
 }
 
+static int evsel__alloc_aggr_stats(struct evsel *evsel, int nr_aggr)
+{
+	struct perf_stat_evsel *ps = evsel->stats;
+
+	if (ps == NULL)
+		return 0;
+
+	ps->nr_aggr = nr_aggr;
+	ps->aggr = calloc(nr_aggr, sizeof(*ps->aggr));
+	if (ps->aggr == NULL)
+		return -ENOMEM;
+
+	return 0;
+}
+
+int evlist__alloc_aggr_stats(struct evlist *evlist, int nr_aggr)
+{
+	struct evsel *evsel;
+
+	evlist__for_each_entry(evlist, evsel) {
+		if (evsel__alloc_aggr_stats(evsel, nr_aggr) < 0)
+			return -1;
+	}
+	return 0;
+}
 
 static int evsel__alloc_stat_priv(struct evsel *evsel, int nr_aggr)
 {
@@ -150,16 +175,14 @@ static int evsel__alloc_stat_priv(struct evsel *evsel, int nr_aggr)
 	if (ps == NULL)
 		return -ENOMEM;
 
-	if (nr_aggr) {
-		ps->nr_aggr = nr_aggr;
-		ps->aggr = calloc(nr_aggr, sizeof(*ps->aggr));
-		if (ps->aggr == NULL) {
-			free(ps);
-			return -ENOMEM;
-		}
+	evsel->stats = ps;
+
+	if (nr_aggr && evsel__alloc_aggr_stats(evsel, nr_aggr) < 0) {
+		evsel->stats = NULL;
+		free(ps);
+		return -ENOMEM;
 	}
 
-	evsel->stats = ps;
 	perf_stat_evsel_id_init(evsel);
 	evsel__reset_stat_priv(evsel);
 	return 0;

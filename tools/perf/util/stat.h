@@ -275,6 +275,8 @@ void evlist__reset_prev_raw_counts(struct evlist *evlist);
 void evlist__copy_prev_raw_counts(struct evlist *evlist);
 void evlist__save_aggr_prev_raw_counts(struct evlist *evlist);
 
+int evlist__alloc_aggr_stats(struct evlist *evlist, int nr_aggr);
+
 int perf_stat_process_counter(struct perf_stat_config *config,
 			      struct evsel *counter);
 struct perf_tool;

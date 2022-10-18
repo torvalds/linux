@@ -1342,7 +1342,11 @@ static struct aggr_cpu_id perf_stat__get_cpu(struct perf_stat_config *config __m
 static struct aggr_cpu_id perf_stat__get_aggr(struct perf_stat_config *config,
 					      aggr_get_id_t get_id, struct perf_cpu cpu)
 {
-	struct aggr_cpu_id id = aggr_cpu_id__empty();
+	struct aggr_cpu_id id;
+
+	/* per-process mode - should use global aggr mode */
+	if (cpu.cpu == -1)
+		return get_id(config, cpu);
 
 	if (aggr_cpu_id__is_empty(&config->cpus_aggr_map->map[cpu.cpu]))
 		config->cpus_aggr_map->map[cpu.cpu] = get_id(config, cpu);
@@ -2125,17 +2129,23 @@ int process_stat_config_event(struct perf_session *session,
 	if (perf_cpu_map__empty(st->cpus)) {
 		if (st->aggr_mode != AGGR_UNSET)
 			pr_warning("warning: processing task data, aggregation mode not set\n");
-		return 0;
-	}
-
-	if (st->aggr_mode != AGGR_UNSET)
+	} else if (st->aggr_mode != AGGR_UNSET) {
 		stat_config.aggr_mode = st->aggr_mode;
+	}
 
 	if (perf_stat.data.is_pipe)
 		perf_stat_init_aggr_mode();
 	else
 		perf_stat_init_aggr_mode_file(st);
 
+	if (stat_config.aggr_map) {
+		int nr_aggr = stat_config.aggr_map->nr;
+
+		if (evlist__alloc_aggr_stats(session->evlist, nr_aggr) < 0) {
+			pr_err("cannot allocate aggr counts\n");
+			return -1;
+		}
+	}
 	return 0;
 }
 
