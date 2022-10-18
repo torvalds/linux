@@ -612,6 +612,7 @@
 		power-domains = <&k3_pds 86 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&epwm_tbclk 0>, <&k3_clks 86 0>;
 		clock-names = "tbclk", "fck";
+		status = "disabled";
 	};
 
 	epwm1: pwm@23010000 {
@@ -621,6 +622,7 @@
 		power-domains = <&k3_pds 87 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&epwm_tbclk 1>, <&k3_clks 87 0>;
 		clock-names = "tbclk", "fck";
+		status = "disabled";
 	};
 
 	epwm2: pwm@23020000 {
@@ -630,5 +632,6 @@
 		power-domains = <&k3_pds 88 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&epwm_tbclk 2>, <&k3_clks 88 0>;
 		clock-names = "tbclk", "fck";
+		status = "disabled";
 	};
 };
