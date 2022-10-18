@@ -112,6 +112,7 @@ struct rpmh_ctrlr {
  * @tcs_wait:           Wait queue used to wait for @tcs_in_use to free up a
  *                      slot
  * @client:             Handle to the DRV's client.
+ * @dev:                RSC device.
  */
 struct rsc_drv {
 	const char *name;
@@ -127,12 +128,14 @@ struct rsc_drv {
 	spinlock_t lock;
 	wait_queue_head_t tcs_wait;
 	struct rpmh_ctrlr client;
+	struct device *dev;
 };
 
 int rpmh_rsc_send_data(struct rsc_drv *drv, const struct tcs_request *msg);
 int rpmh_rsc_write_ctrl_data(struct rsc_drv *drv,
 			     const struct tcs_request *msg);
 void rpmh_rsc_invalidate(struct rsc_drv *drv);
+void rpmh_rsc_write_next_wakeup(struct rsc_drv *drv);
 
 void rpmh_tx_done(const struct tcs_request *msg, int r);
 int rpmh_flush(struct rpmh_ctrlr *ctrlr);

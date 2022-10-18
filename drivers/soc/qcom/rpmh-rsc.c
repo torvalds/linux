@@ -12,6 +12,7 @@
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
+#include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
@@ -25,6 +26,7 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 
+#include <clocksource/arm_arch_timer.h>
 #include <soc/qcom/cmd-db.h>
 #include <soc/qcom/tcs.h>
 #include <dt-bindings/soc/qcom,rpmh-rsc.h>
@@ -48,6 +50,14 @@
 #define DRV_NUM_TCS_SHIFT		6
 #define DRV_NCPT_MASK			0x1F
 #define DRV_NCPT_SHIFT			27
+
+/* Offsets for CONTROL TCS Registers */
+#define RSC_DRV_CTL_TCS_DATA_HI		0x38
+#define RSC_DRV_CTL_TCS_DATA_HI_MASK	0xFFFFFF
+#define RSC_DRV_CTL_TCS_DATA_HI_VALID	BIT(31)
+#define RSC_DRV_CTL_TCS_DATA_LO		0x40
+#define RSC_DRV_CTL_TCS_DATA_LO_MASK	0xFFFFFFFF
+#define RSC_DRV_CTL_TCS_DATA_SIZE	32
 
 /* Offsets for common TCS Registers, one bit per TCS */
 #define RSC_DRV_IRQ_ENABLE		0x00
@@ -141,6 +151,14 @@
  *  |                      ......                       |
  *  +---------------------------------------------------+
  */
+
+#define USECS_TO_CYCLES(time_usecs)			\
+	xloops_to_cycles((time_usecs) * 0x10C7UL)
+
+static inline unsigned long xloops_to_cycles(u64 xloops)
+{
+	return (xloops * loops_per_jiffy * HZ) >> 32;
+}
 
 static inline void __iomem *
 tcs_reg_addr(const struct rsc_drv *drv, int reg, int tcs_id)
@@ -757,6 +775,48 @@ static bool rpmh_rsc_ctrlr_is_busy(struct rsc_drv *drv)
 }
 
 /**
+ * rpmh_rsc_write_next_wakeup() - Write next wakeup in CONTROL_TCS.
+ * @drv: The controller
+ *
+ * Writes maximum wakeup cycles when called from suspend.
+ * Writes earliest hrtimer wakeup when called from idle.
+ */
+void rpmh_rsc_write_next_wakeup(struct rsc_drv *drv)
+{
+	ktime_t now, wakeup;
+	u64 wakeup_us, wakeup_cycles = ~0;
+	u32 lo, hi;
+
+	if (!drv->tcs[CONTROL_TCS].num_tcs || !drv->genpd_nb.notifier_call)
+		return;
+
+	/* Set highest time when system (timekeeping) is suspended */
+	if (system_state == SYSTEM_SUSPEND)
+		goto exit;
+
+	/* Find the earliest hrtimer wakeup from online cpus */
+	wakeup = dev_pm_genpd_get_next_hrtimer(drv->dev);
+
+	/* Find the relative wakeup in kernel time scale */
+	now = ktime_get();
+	wakeup = ktime_sub(wakeup, now);
+	wakeup_us = ktime_to_us(wakeup);
+
+	/* Convert the wakeup to arch timer scale */
+	wakeup_cycles = USECS_TO_CYCLES(wakeup_us);
+	wakeup_cycles += arch_timer_read_counter();
+
+exit:
+	lo = wakeup_cycles & RSC_DRV_CTL_TCS_DATA_LO_MASK;
+	hi = wakeup_cycles >> RSC_DRV_CTL_TCS_DATA_SIZE;
+	hi &= RSC_DRV_CTL_TCS_DATA_HI_MASK;
+	hi |= RSC_DRV_CTL_TCS_DATA_HI_VALID;
+
+	writel_relaxed(lo, drv->base + RSC_DRV_CTL_TCS_DATA_LO);
+	writel_relaxed(hi, drv->base + RSC_DRV_CTL_TCS_DATA_HI);
+}
+
+/**
  * rpmh_rsc_cpu_pm_callback() - Check if any of the AMCs are busy.
  * @nfb:    Pointer to the notifier block in struct rsc_drv.
  * @action: CPU_PM_ENTER, CPU_PM_ENTER_FAILED, or CPU_PM_EXIT.
@@ -1035,6 +1095,7 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&drv->client.batch_cache);
 
 	dev_set_drvdata(&pdev->dev, drv);
+	drv->dev = &pdev->dev;
 
 	ret = devm_of_platform_populate(&pdev->dev);
 	if (ret && pdev->dev.pm_domain) {
