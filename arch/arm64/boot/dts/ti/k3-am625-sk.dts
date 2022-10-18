@@ -282,11 +282,8 @@
 	status = "reserved";
 };
 
-&mcu_uart0 {
-	status = "disabled";
-};
-
 &main_uart0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart0_pins_default>;
 };
@@ -294,26 +291,6 @@
 &main_uart1 {
 	/* Main UART1 is used by TIFS firmware */
 	status = "reserved";
-};
-
-&main_uart2 {
-	status = "disabled";
-};
-
-&main_uart3 {
-	status = "disabled";
-};
-
-&main_uart4 {
-	status = "disabled";
-};
-
-&main_uart5 {
-	status = "disabled";
-};
-
-&main_uart6 {
-	status = "disabled";
 };
 
 &mcu_i2c0 {
