@@ -326,6 +326,7 @@ static int st_lsm6dsvx_check_whoami(struct st_lsm6dsvx_hw *hw, int id)
 	}
 
 	hw->settings = &st_lsm6dsvx_sensor_settings[i];
+	hw->fs_table = st_lsm6dsvx_fs_table;
 	hw->odr_table = st_lsm6dsvx_odr_table;
 
 	return 0;
@@ -560,6 +561,12 @@ static int st_lsm6dsvx_set_odr(struct st_lsm6dsvx_sensor *sensor,
 	case ST_LSM6DSVX_ID_STEP_DETECTOR:
 	case ST_LSM6DSVX_ID_SIGN_MOTION:
 	case ST_LSM6DSVX_ID_TILT:
+	case ST_LSM6DSVX_ID_TAP:
+	case ST_LSM6DSVX_ID_DTAP:
+	case ST_LSM6DSVX_ID_WK:
+	case ST_LSM6DSVX_ID_FF:
+	case ST_LSM6DSVX_ID_SLPCHG:
+	case ST_LSM6DSVX_ID_6D:
 	case ST_LSM6DSVX_ID_ACC:
 		odr = st_lsm6dsvx_check_acc_odr_dependency(sensor, req_odr,
 							   req_uodr);
@@ -1612,6 +1619,10 @@ int st_lsm6dsvx_probe(struct device *dev, int irq, int hw_id,
 
 	/* allocate step counter before buffer setup because use FIFO */
 	err = st_lsm6dsvx_probe_embfunc(hw);
+	if (err < 0)
+		return err;
+
+	err = st_lsm6dsvx_probe_event(hw);
 	if (err < 0)
 		return err;
 

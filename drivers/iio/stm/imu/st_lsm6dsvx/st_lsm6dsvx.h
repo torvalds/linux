@@ -84,6 +84,16 @@
 #define ST_LSM6DSVX_REG_FIFO_STATUS1_ADDR	0x1b
 #define ST_LSM6DSVX_FIFO_DIFF_MASK		GENMASK(8, 0)
 
+#define ST_LSM6DSVX_REG_ALL_INT_SRC_ADDR	0x1d
+#define ST_LSM6DSVX_FF_IA_MASK			BIT(0)
+#define ST_LSM6DSVX_WU_IA_MASK			BIT(1)
+#define ST_LSM6DSVX_TAP_IA_MASK			BIT(2)
+#define ST_LSM6DSVX_D6D_IA_MASK			BIT(4)
+#define ST_LSM6DSVX_SLEEP_CHANGE_MASK		BIT(5)
+
+#define ST_LSM6DSVX_REG_D6D_SRC_ADDR           0x1d
+#define ST_LSM6DSVX_D6D_EVENT_MASK             GENMASK(5, 0)
+
 #define ST_LSM6DSVX_REG_STATUS_REG_ADDR		0x1e
 #define ST_LSM6DSVX_XLDA_MASK			BIT(0)
 #define ST_LSM6DSVX_GDA_MASK			BIT(1)
@@ -102,6 +112,9 @@
 
 #define ST_LSM6DSVX_REG_TIMESTAMP2_ADDR		0x42
 
+#define ST_LSM6DSVX_REG_WAKE_UP_SRC_ADDR       0x45
+#define ST_LSM6DSVX_WAKE_UP_EVENT_MASK         GENMASK(3, 0)
+
 #define ST_LSM6DSVX_REG_EMB_FUNC_STATUS_MAINPAGE_ADDR	0x49
 #define ST_LSM6DSVX_IS_STEP_DET_MASK		BIT(3)
 #define ST_LSM6DSVX_IS_TILT_MASK		BIT(4)
@@ -114,13 +127,51 @@
 
 #define ST_LSM6DSVX_REG_FUNCTIONS_ENABLE_ADDR	0x50
 #define ST_LSM6DSVX_TIMESTAMP_EN_MASK		BIT(6)
+#define ST_LSM6DSVX_INTERRUPTS_ENABLE_MASK	BIT(7)
 
 #define ST_LSM6DSVX_REG_TAP_CFG0_ADDR		0x56
 #define ST_LSM6DSVX_LIR_MASK			BIT(0)
+#define ST_LSM6DSVX_REG_TAP_Z_EN_MASK		BIT(1)
+#define ST_LSM6DSVX_REG_TAP_Y_EN_MASK		BIT(2)
+#define ST_LSM6DSVX_REG_TAP_X_EN_MASK		BIT(3)
+#define ST_LSM6DSVX_REG_TAP_EN_MASK		GENMASK(3, 1)
+
+#define ST_LSM6DSVX_REG_TAP_CFG1_ADDR		0x57
+#define ST_LSM6DSVX_TAP_THS_X_MASK		GENMASK(4, 0)
+#define ST_LSM6DSVX_TAP_PRIORITY_MASK		GENMASK(7, 5)
+
+#define ST_LSM6DSVX_REG_TAP_CFG2_ADDR		0x58
+#define ST_LSM6DSVX_TAP_THS_Y_MASK		GENMASK(4, 0)
+
+#define ST_LSM6DSVX_REG_TAP_THS_6D_ADDR		0x59
+#define ST_LSM6DSVX_TAP_THS_Z_MASK		GENMASK(4, 0)
+#define ST_LSM6DSVX_SIXD_THS_MASK		GENMASK(6, 5)
+
+#define ST_LSM6DSVX_REG_TAP_DUR_ADDR		0x5a
+#define ST_LSM6DSVX_SHOCK_MASK			GENMASK(1, 0)
+#define ST_LSM6DSVX_QUIET_MASK			GENMASK(3, 2)
+#define ST_LSM6DSVX_DUR_MASK			GENMASK(7, 4)
+
+#define ST_LSM6DSVX_REG_WAKE_UP_THS_ADDR	0x5b
+#define ST_LSM6DSVX_WK_THS_MASK			GENMASK(5, 0)
+#define ST_LSM6DSVX_SINGLE_DOUBLE_TAP_MASK	BIT(7)
+
+#define ST_LSM6DSVX_REG_WAKE_UP_DUR_ADDR	0x5c
+#define ST_LSM6DSVX_WAKE_DUR_MASK		GENMASK(6, 5)
+
+#define ST_LSM6DSVX_REG_FREE_FALL_ADDR		0x5d
+#define ST_LSM6DSVX_FF_THS_MASK			GENMASK(2, 0)
 
 #define ST_LSM6DSVX_REG_MD1_CFG_ADDR		0x5e
 #define ST_LSM6DSVX_REG_MD2_CFG_ADDR		0x5f
+#define ST_LSM6DSVX_REG_INT2_TIMESTAMP_MASK	BIT(0)
 #define ST_LSM6DSVX_REG_INT_EMB_FUNC_MASK	BIT(1)
+#define ST_LSM6DSVX_INT_6D_MASK			BIT(2)
+#define ST_LSM6DSVX_INT_DOUBLE_TAP_MASK		BIT(3)
+#define ST_LSM6DSVX_INT_FF_MASK			BIT(4)
+#define ST_LSM6DSVX_INT_WU_MASK			BIT(5)
+#define ST_LSM6DSVX_INT_SINGLE_TAP_MASK		BIT(6)
+#define ST_LSM6DSVX_INT_SLEEP_CHANGE_MASK	BIT(7)
 
 #define ST_LSM6DSVX_REG_FIFO_DATA_OUT_TAG_ADDR	0x78
 
@@ -425,6 +476,12 @@ enum st_lsm6dsvx_sensor_id {
 	ST_LSM6DSVX_ID_STEP_DETECTOR,
 	ST_LSM6DSVX_ID_SIGN_MOTION,
 	ST_LSM6DSVX_ID_TILT,
+	ST_LSM6DSVX_ID_TAP,
+	ST_LSM6DSVX_ID_DTAP,
+	ST_LSM6DSVX_ID_FF,
+	ST_LSM6DSVX_ID_SLPCHG,
+	ST_LSM6DSVX_ID_WK,
+	ST_LSM6DSVX_ID_6D,
 	ST_LSM6DSVX_ID_MAX,
 };
 
@@ -479,6 +536,12 @@ static const enum st_lsm6dsvx_sensor_id st_lsm6dsvx_acc_dep_sensor_list[] = {
 	[20] = ST_LSM6DSVX_ID_STEP_DETECTOR,
 	[21] = ST_LSM6DSVX_ID_SIGN_MOTION,
 	[22] = ST_LSM6DSVX_ID_TILT,
+	[23] = ST_LSM6DSVX_ID_TAP,
+	[24] = ST_LSM6DSVX_ID_DTAP,
+	[25] = ST_LSM6DSVX_ID_FF,
+	[26] = ST_LSM6DSVX_ID_SLPCHG,
+	[27] = ST_LSM6DSVX_ID_WK,
+	[28] = ST_LSM6DSVX_ID_6D,
 };
 
 static const enum st_lsm6dsvx_sensor_id st_lsm6dsvx_buffered_sensor_list[] = {
@@ -526,6 +589,27 @@ static const enum st_lsm6dsvx_sensor_id st_lsm6dsvx_embfunc_sensor_list[] = {
 	[3] = ST_LSM6DSVX_ID_TILT,
 };
 
+/**
+ * The low power event only sensor list
+ */
+static const enum st_lsm6dsvx_sensor_id st_lsm6dsvx_event_sensor_list[] = {
+	[0] = ST_LSM6DSVX_ID_TAP,
+	[1] = ST_LSM6DSVX_ID_DTAP,
+	[2] = ST_LSM6DSVX_ID_FF,
+	[3] = ST_LSM6DSVX_ID_SLPCHG,
+	[4] = ST_LSM6DSVX_ID_WK,
+	[5] = ST_LSM6DSVX_ID_6D,
+};
+
+/**
+ * The low power event triggered only sensor list
+ */
+static const enum st_lsm6dsvx_sensor_id
+st_lsm6dsvx_event_trigger_sensor_list[] = {
+	[0] = ST_LSM6DSVX_ID_WK,
+	[1] = ST_LSM6DSVX_ID_6D,
+};
+
 #define ST_LSM6DSVX_ID_ALL_FSM_MLC (BIT(ST_LSM6DSVX_ID_MLC_0)  | \
 				    BIT(ST_LSM6DSVX_ID_MLC_1)  | \
 				    BIT(ST_LSM6DSVX_ID_MLC_2)  | \
@@ -559,6 +643,7 @@ enum {
  * @id: Sensor identifier.
  * @hw: Pointer to instance of struct st_lsm6dsvx_hw.
  * @ext_dev_info: Sensor hub i2c slave settings.
+ * @trig: Trigger used by IIO event sensors.
  * @odr: Output data rate of the sensor [Hz].
  * @uodr: Output data rate of the sensor [uHz].
  * @gain: Configured sensor sensitivity.
@@ -580,6 +665,8 @@ enum {
  * @status_reg: MLC/FSM IIO event sensor status register.
  * @outreg_addr: MLC/FSM IIO event sensor output register.
  * @status: MLC/FSM enabled IIO event sensor status.
+ * @conf: Used in case of IIO sensor event to store configuration.
+ * @scan: Scan buffer for triggered sensors event.
  */
 struct st_lsm6dsvx_sensor {
 	char name[32];
@@ -587,6 +674,8 @@ struct st_lsm6dsvx_sensor {
 	struct st_lsm6dsvx_hw *hw;
 
 	struct st_lsm6dsvx_ext_dev_info ext_dev_info;
+
+	struct iio_trigger *trig;
 
 	int odr;
 	int uodr;
@@ -627,6 +716,17 @@ struct st_lsm6dsvx_sensor {
 			uint8_t outreg_addr;
 			enum st_lsm6dsvx_fsm_mlc_enable_id status;
 		};
+
+		struct {
+			/* event sensor, data configuration */
+			u32 conf[6];
+
+			/* ensure natural alignment of timestamp */
+			struct {
+				u8 event;
+				s64 ts __aligned(8);
+			} scan;
+		};
 	};
 };
 
@@ -660,6 +760,7 @@ struct st_lsm6dsvx_sensor {
  * @qvar_workqueue: QVAR workqueue (if enabled in Kconfig).
  * @iio_devs: Pointers to acc/gyro iio_dev instances.
  * @settings: ST IMU sensor settings.
+ * @fs_table: ST IMU full scale table.
  * @odr_table: ST IMU output data rate table.
  */
 struct st_lsm6dsvx_hw {
@@ -696,7 +797,28 @@ struct st_lsm6dsvx_hw {
 	struct iio_dev *iio_devs[ST_LSM6DSVX_ID_MAX];
 
 	const struct st_lsm6dsvx_settings *settings;
+	const struct st_lsm6dsvx_fs_table_entry *fs_table;
 	const struct st_lsm6dsvx_odr_table_entry *odr_table;
+};
+
+/**
+ * struct st_lsm6dsvx_ff_th - Free Fall threshold table
+ * @mg: Threshold in mg.
+ * @val: Register value.
+ */
+struct st_lsm6dsvx_ff_th {
+	u32 mg;
+	u8 val;
+};
+
+/**
+ * struct st_lsm6dsvx_6D_th - 6D threshold table
+ * @deg: Threshold in degrees.
+ * @val: Register value.
+ */
+struct st_lsm6dsvx_6D_th {
+	u8 deg;
+	u8 val;
 };
 
 extern const struct dev_pm_ops st_lsm6dsvx_pm_ops;
@@ -754,6 +876,25 @@ st_lsm6dsvx_write_locked(struct st_lsm6dsvx_hw *hw, unsigned int addr,
 	return err;
 }
 
+static inline int
+st_lsm6dsvx_read_with_mask(struct st_lsm6dsvx_hw *hw, u8 addr, u8 mask,
+			   u8 *val)
+{
+	u8 data;
+	int err;
+
+	mutex_lock(&hw->page_lock);
+	err = regmap_bulk_read(hw->regmap, addr, &data, sizeof(data));
+	if (err < 0)
+		goto out;
+
+	*val = (data & mask) >> __ffs(mask);
+
+out:
+	mutex_unlock(&hw->page_lock);
+
+	return (err < 0) ? err : 0;
+}
 static inline int st_lsm6dsvx_set_page_access(struct st_lsm6dsvx_hw *hw,
 					      unsigned int mask,
 					      unsigned int data)
@@ -826,6 +967,9 @@ int st_lsm6dsvx_mlc_probe(struct st_lsm6dsvx_hw *hw);
 int st_lsm6dsvx_mlc_remove(struct device *dev);
 int st_lsm6dsvx_mlc_check_status(struct st_lsm6dsvx_hw *hw);
 int st_lsm6dsvx_mlc_init_preload(struct st_lsm6dsvx_hw *hw);
+
+int st_lsm6dsvx_probe_event(struct st_lsm6dsvx_hw *hw);
+int st_lsm6dsvx_event_handler(struct st_lsm6dsvx_hw *hw);
 
 int st_lsm6dsvx_probe_embfunc(struct st_lsm6dsvx_hw *hw);
 int st_lsm6dsvx_embfunc_handler_thread(struct st_lsm6dsvx_hw *hw);
