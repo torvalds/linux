@@ -1465,6 +1465,21 @@ static int perf_stat_init_aggr_mode(void)
 		stat_config.aggr_get_id = aggr_mode__get_id(stat_config.aggr_mode);
 	}
 
+	if (stat_config.aggr_mode == AGGR_THREAD) {
+		nr = perf_thread_map__nr(evsel_list->core.threads);
+		stat_config.aggr_map = cpu_aggr_map__empty_new(nr);
+		if (stat_config.aggr_map == NULL)
+			return -ENOMEM;
+
+		for (int s = 0; s < nr; s++) {
+			struct aggr_cpu_id id = aggr_cpu_id__empty();
+
+			id.thread_idx = s;
+			stat_config.aggr_map->map[s] = id;
+		}
+		return 0;
+	}
+
 	/*
 	 * The evsel_list->cpus is the base we operate on,
 	 * taking the highest cpu number to be the size of
@@ -1673,6 +1688,22 @@ static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
 	struct perf_env *env = &st->session->header.env;
 	aggr_cpu_id_get_t get_id = aggr_mode__get_aggr_file(stat_config.aggr_mode);
 	bool needs_sort = stat_config.aggr_mode != AGGR_NONE;
+
+	if (stat_config.aggr_mode == AGGR_THREAD) {
+		int nr = perf_thread_map__nr(evsel_list->core.threads);
+
+		stat_config.aggr_map = cpu_aggr_map__empty_new(nr);
+		if (stat_config.aggr_map == NULL)
+			return -ENOMEM;
+
+		for (int s = 0; s < nr; s++) {
+			struct aggr_cpu_id id = aggr_cpu_id__empty();
+
+			id.thread_idx = s;
+			stat_config.aggr_map->map[s] = id;
+		}
+		return 0;
+	}
 
 	if (!get_id)
 		return 0;

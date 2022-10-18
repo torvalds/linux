@@ -422,6 +422,24 @@ process_counter_values(struct perf_stat_config *config, struct evsel *evsel,
 		evsel__compute_deltas(evsel, cpu_map_idx, thread, count);
 	perf_counts_values__scale(count, config->scale, NULL);
 
+	if (config->aggr_mode == AGGR_THREAD) {
+		struct perf_counts_values *aggr_counts = &ps->aggr[thread].counts;
+
+		/*
+		 * Skip value 0 when enabling --per-thread globally,
+		 * otherwise too many 0 output.
+		 */
+		if (count->val == 0 && config->system_wide)
+			return 0;
+
+		ps->aggr[thread].nr++;
+
+		aggr_counts->val += count->val;
+		aggr_counts->ena += count->ena;
+		aggr_counts->run += count->run;
+		goto update;
+	}
+
 	if (ps->aggr) {
 		struct perf_cpu cpu = perf_cpu_map__cpu(evsel->core.cpus, cpu_map_idx);
 		struct aggr_cpu_id aggr_id = config->aggr_get_id(config, cpu);
@@ -436,8 +454,9 @@ process_counter_values(struct perf_stat_config *config, struct evsel *evsel,
 			ps_aggr->nr++;
 
 			/*
-			 * When any result is bad, make them all to give
-			 * consistent output in interval mode.
+			 * When any result is bad, make them all to give consistent output
+			 * in interval mode.  But per-task counters can have 0 enabled time
+			 * when some tasks are idle.
 			 */
 			if (evsel__count_has_error(evsel, count, config) && !ps_aggr->failed) {
 				ps_aggr->counts.val = 0;
@@ -455,6 +474,7 @@ process_counter_values(struct perf_stat_config *config, struct evsel *evsel,
 		}
 	}
 
+update:
 	switch (config->aggr_mode) {
 	case AGGR_THREAD:
 	case AGGR_CORE:
