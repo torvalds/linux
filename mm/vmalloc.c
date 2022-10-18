@@ -1730,6 +1730,7 @@ static void purge_fragmented_blocks_allcpus(void);
 static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
 {
 	unsigned long resched_threshold;
+	unsigned int num_purged_areas = 0;
 	struct list_head local_purge_list;
 	struct vmap_area *va, *n_va;
 
@@ -1741,7 +1742,7 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
 	spin_unlock(&purge_vmap_area_lock);
 
 	if (unlikely(list_empty(&local_purge_list)))
-		return false;
+		goto out;
 
 	start = min(start,
 		list_first_entry(&local_purge_list,
@@ -1776,12 +1777,16 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
 					      va->va_start, va->va_end);
 
 		atomic_long_sub(nr, &vmap_lazy_nr);
+		num_purged_areas++;
 
 		if (atomic_long_read(&vmap_lazy_nr) < resched_threshold)
 			cond_resched_lock(&free_vmap_area_lock);
 	}
 	spin_unlock(&free_vmap_area_lock);
-	return true;
+
+out:
+	trace_purge_vmap_area_lazy(start, end, num_purged_areas);
+	return num_purged_areas > 0;
 }
 
 /*
