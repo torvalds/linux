@@ -340,6 +340,27 @@ smb2_close_cached_fid(struct kref *ref)
 	free_cached_dir(cfid);
 }
 
+void drop_cached_dir_by_name(const unsigned int xid, struct cifs_tcon *tcon,
+			     const char *name, struct cifs_sb_info *cifs_sb)
+{
+	struct cached_fid *cfid = NULL;
+	int rc;
+
+	rc = open_cached_dir(xid, tcon, name, cifs_sb, true, &cfid);
+	if (rc) {
+		cifs_dbg(FYI, "no cached dir found for rmdir(%s)\n", name);
+		return;
+	}
+	spin_lock(&cfid->cfids->cfid_list_lock);
+	if (cfid->has_lease) {
+		cfid->has_lease = false;
+		kref_put(&cfid->refcount, smb2_close_cached_fid);
+	}
+	spin_unlock(&cfid->cfids->cfid_list_lock);
+	close_cached_dir(cfid);
+}
+
+
 void close_cached_dir(struct cached_fid *cfid)
 {
 	kref_put(&cfid->refcount, smb2_close_cached_fid);
