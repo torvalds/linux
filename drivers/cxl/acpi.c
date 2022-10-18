@@ -282,12 +282,9 @@ static int add_host_bridge_dport(struct device *match, void *arg)
 	}
 
 	dport = devm_cxl_add_dport(root_port, match, uid, ctx.chbcr);
-	if (IS_ERR(dport)) {
-		dev_err(host, "failed to add downstream port: %s\n",
-			dev_name(match));
+	if (IS_ERR(dport))
 		return PTR_ERR(dport);
-	}
-	dev_dbg(host, "add dport%llu: %s\n", uid, dev_name(match));
+
 	return 0;
 }
 

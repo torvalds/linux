@@ -634,7 +634,6 @@ static int mock_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 
 static int mock_cxl_port_enumerate_dports(struct cxl_port *port)
 {
-	struct device *dev = &port->dev;
 	struct platform_device **array;
 	int i, array_size;
 
@@ -684,14 +683,8 @@ static int mock_cxl_port_enumerate_dports(struct cxl_port *port)
 		dport = devm_cxl_add_dport(port, &pdev->dev, pdev->id,
 					   CXL_RESOURCE_NONE);
 
-		if (IS_ERR(dport)) {
-			dev_err(dev, "failed to add dport: %s (%ld)\n",
-				dev_name(&pdev->dev), PTR_ERR(dport));
+		if (IS_ERR(dport))
 			return PTR_ERR(dport);
-		}
-
-		dev_dbg(dev, "add dport%d: %s\n", pdev->id,
-			dev_name(&pdev->dev));
 	}
 
 	return 0;

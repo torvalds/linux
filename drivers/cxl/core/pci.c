@@ -62,8 +62,6 @@ static int match_add_dports(struct pci_dev *pdev, void *data)
 	}
 	ctx->count++;
 
-	dev_dbg(&port->dev, "add dport%d: %s\n", port_num, dev_name(&pdev->dev));
-
 	return 0;
 }
 
