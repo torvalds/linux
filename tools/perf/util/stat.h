@@ -267,7 +267,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 				   struct runtime_stat *st);
 void perf_stat__collect_metric_expr(struct evlist *);
 
-int evlist__alloc_stats(struct evlist *evlist, bool alloc_raw);
+int evlist__alloc_stats(struct perf_stat_config *config,
+			struct evlist *evlist, bool alloc_raw);
 void evlist__free_stats(struct evlist *evlist);
 void evlist__reset_stats(struct evlist *evlist);
 void evlist__reset_prev_raw_counts(struct evlist *evlist);

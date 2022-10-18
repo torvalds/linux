@@ -211,12 +211,17 @@ static int evsel__alloc_stats(struct evsel *evsel, int nr_aggr, bool alloc_raw)
 	return 0;
 }
 
-int evlist__alloc_stats(struct evlist *evlist, bool alloc_raw)
+int evlist__alloc_stats(struct perf_stat_config *config,
+			struct evlist *evlist, bool alloc_raw)
 {
 	struct evsel *evsel;
+	int nr_aggr = 0;
+
+	if (config && config->aggr_map)
+		nr_aggr = config->aggr_map->nr;
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel__alloc_stats(evsel, 0, alloc_raw))
+		if (evsel__alloc_stats(evsel, nr_aggr, alloc_raw))
 			goto out_free;
 	}
 

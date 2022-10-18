@@ -2121,7 +2121,7 @@ static int set_maps(struct perf_stat *st)
 
 	perf_evlist__set_maps(&evsel_list->core, st->cpus, st->threads);
 
-	if (evlist__alloc_stats(evsel_list, true))
+	if (evlist__alloc_stats(&stat_config, evsel_list, /*alloc_raw=*/true))
 		return -ENOMEM;
 
 	st->maps_allocated = true;
@@ -2568,10 +2568,10 @@ int cmd_stat(int argc, const char **argv)
 		goto out;
 	}
 
-	if (evlist__alloc_stats(evsel_list, interval))
+	if (perf_stat_init_aggr_mode())
 		goto out;
 
-	if (perf_stat_init_aggr_mode())
+	if (evlist__alloc_stats(&stat_config, evsel_list, interval))
 		goto out;
 
 	/*
