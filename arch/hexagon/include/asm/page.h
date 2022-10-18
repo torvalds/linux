@@ -131,13 +131,6 @@ static inline void clear_page(void *page)
 
 #define page_to_virt(page)	__va(page_to_phys(page))
 
-/*
- * For port to Hexagon Virtual Machine, MAYBE we check for attempts
- * to reference reserved HVM space, but in any case, the VM will be
- * protected.
- */
-#define kern_addr_valid(addr)   (1)
-
 #include <asm/mem-layout.h>
 #include <asm-generic/memory_model.h>
 /* XXX Todo: implement assembly-optimized version of getorder. */
