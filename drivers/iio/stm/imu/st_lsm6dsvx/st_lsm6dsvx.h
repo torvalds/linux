@@ -10,6 +10,7 @@
 #ifndef ST_LSM6DSVX_H
 #define ST_LSM6DSVX_H
 
+#include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/iio/iio.h>
@@ -101,6 +102,11 @@
 
 #define ST_LSM6DSVX_REG_TIMESTAMP2_ADDR		0x42
 
+#define ST_LSM6DSVX_REG_EMB_FUNC_STATUS_MAINPAGE_ADDR	0x49
+#define ST_LSM6DSVX_IS_STEP_DET_MASK		BIT(3)
+#define ST_LSM6DSVX_IS_TILT_MASK		BIT(4)
+#define ST_LSM6DSVX_IS_SIGMOT_MASK		BIT(5)
+
 #define ST_LSM6DSVX_REG_FSM_STATUS_MAINPAGE_ADDR	0x4a
 #define ST_LSM6DSVX_REG_MLC_STATUS_MAINPAGE_ADDR	0x4b
 
@@ -112,6 +118,10 @@
 #define ST_LSM6DSVX_REG_TAP_CFG0_ADDR		0x56
 #define ST_LSM6DSVX_LIR_MASK			BIT(0)
 
+#define ST_LSM6DSVX_REG_MD1_CFG_ADDR		0x5e
+#define ST_LSM6DSVX_REG_MD2_CFG_ADDR		0x5f
+#define ST_LSM6DSVX_REG_INT_EMB_FUNC_MASK	BIT(1)
+
 #define ST_LSM6DSVX_REG_FIFO_DATA_OUT_TAG_ADDR	0x78
 
 /* embedded function registers */
@@ -119,6 +129,9 @@
 
 #define ST_LSM6DSVX_REG_EMB_FUNC_EN_A_ADDR	0x04
 #define ST_LSM6DSVX_SFLP_GAME_EN_MASK		BIT(1)
+#define ST_LSM6DSVX_REG_PEDO_EN_MASK		BIT(3)
+#define ST_LSM6DSVX_REG_TILT_EN_MASK		BIT(4)
+#define ST_LSM6DSVX_REG_SIGN_MOTION_EN_MASK	BIT(5)
 
 #define ST_LSM6DSVX_REG_EMB_FUNC_EN_B_ADDR	0x05
 #define ST_LSM6DSVX_FSM_EN_MASK			BIT(0)
@@ -127,8 +140,14 @@
 #define ST_LSM6DSVX_REG_PAGE_ADDRESS_ADDR	0x08
 #define ST_LSM6DSVX_REG_PAGE_VALUE_ADDR		0x09
 
+#define ST_LSM6DSVX_REG_EMB_FUNC_INT1_ADDR	0x0a
+#define ST_LSM6DSVX_INT_STEP_DETECTOR_MASK	BIT(3)
+#define ST_LSM6DSVX_INT_TILT_MASK		BIT(4)
+#define ST_LSM6DSVX_INT_SIG_MOT_MASK		BIT(5)
+
 #define ST_LSM6DSVX_REG_FSM_INT1_ADDR		0x0b
 #define ST_LSM6DSVX_REG_MLC_INT1_ADDR		0x0d
+#define ST_LSM6DSVX_REG_EMB_FUNC_INT2_ADDR	0x0e
 #define ST_LSM6DSVX_REG_FSM_INT2_ADDR		0x0f
 #define ST_LSM6DSVX_REG_MLC_INT2_ADDR		0x11
 
@@ -136,11 +155,13 @@
 #define ST_LSM6DSVX_REG_MLC_STATUS_ADDR		0x15
 
 #define ST_LSM6DSVX_REG_PAGE_RW_ADDR		0x17
+#define ST_LSM6DSVX_EMB_FUNC_LIR_MASK		BIT(7)
 
 #define ST_LSM6DSVX_REG_EMB_FUNC_FIFO_EN_A_ADDR	0x44
 #define ST_LSM6DSVX_SFLP_GAME_FIFO_EN		BIT(1)
 #define ST_LSM6DSVX_SFLP_GRAVITY_FIFO_EN	BIT(4)
 #define ST_LSM6DSVX_SFLP_GBIAS_FIFO_EN_MASK	BIT(5)
+#define ST_LSM6DSVX_STEP_COUNTER_FIFO_EN_MASK	BIT(6)
 
 #define ST_LSM6DSVX_REG_FSM_ENABLE_ADDR		0x46
 
@@ -154,6 +175,15 @@
 
 #define ST_LSM6DSVX_REG_MLC_ODR_ADDR		0x60
 #define ST_LSM6DSVX_MLC_ODR_MASK		GENMASK(6, 4)
+
+#define ST_LSM6DSVX_REG_STEP_COUNTER_L_ADDR	0x62
+
+#define ST_LSM6DSVX_REG_EMB_FUNC_SRC_ADDR	0x64
+#define ST_LSM6DSVX_STEPCOUNTER_BIT_SET_MASK	BIT(2)
+#define ST_LSM6DSVX_STEP_OVERFLOW_MASK		BIT(3)
+#define ST_LSM6DSVX_STEP_COUNT_DELTA_IA_MASK	BIT(4)
+#define ST_LSM6DSVX_STEP_DETECTED_MASK		BIT(5)
+#define ST_LSM6DSVX_PEDO_RST_STEP_MASK		BIT(7)
 
 #define ST_LSM6DSVX_REG_EMB_FUNC_INIT_A_ADDR	0x66
 #define ST_LSM6DSVX_SFLP_GAME_INIT_MASK		BIT(1)
@@ -391,6 +421,10 @@ enum st_lsm6dsvx_sensor_id {
 	ST_LSM6DSVX_ID_FSM_5,
 	ST_LSM6DSVX_ID_FSM_6,
 	ST_LSM6DSVX_ID_FSM_7,
+	ST_LSM6DSVX_ID_STEP_COUNTER,
+	ST_LSM6DSVX_ID_STEP_DETECTOR,
+	ST_LSM6DSVX_ID_SIGN_MOTION,
+	ST_LSM6DSVX_ID_TILT,
 	ST_LSM6DSVX_ID_MAX,
 };
 
@@ -441,6 +475,10 @@ static const enum st_lsm6dsvx_sensor_id st_lsm6dsvx_acc_dep_sensor_list[] = {
 	[16] = ST_LSM6DSVX_ID_FSM_5,
 	[17] = ST_LSM6DSVX_ID_FSM_6,
 	[18] = ST_LSM6DSVX_ID_FSM_7,
+	[19] = ST_LSM6DSVX_ID_STEP_COUNTER,
+	[20] = ST_LSM6DSVX_ID_STEP_DETECTOR,
+	[21] = ST_LSM6DSVX_ID_SIGN_MOTION,
+	[22] = ST_LSM6DSVX_ID_TILT,
 };
 
 static const enum st_lsm6dsvx_sensor_id st_lsm6dsvx_buffered_sensor_list[] = {
@@ -451,6 +489,7 @@ static const enum st_lsm6dsvx_sensor_id st_lsm6dsvx_buffered_sensor_list[] = {
 	[4] = ST_LSM6DSVX_ID_QVAR,
 	[5] = ST_LSM6DSVX_ID_EXT0,
 	[6] = ST_LSM6DSVX_ID_EXT1,
+	[7] = ST_LSM6DSVX_ID_STEP_COUNTER,
 };
 
 /**
@@ -475,6 +514,16 @@ static const enum st_lsm6dsvx_sensor_id st_lsm6dsvx_fsm_sensor_list[] = {
 	[5] = ST_LSM6DSVX_ID_FSM_5,
 	[6] = ST_LSM6DSVX_ID_FSM_6,
 	[7] = ST_LSM6DSVX_ID_FSM_7,
+};
+
+/**
+ * The low power embedded function only sensor list
+ */
+static const enum st_lsm6dsvx_sensor_id st_lsm6dsvx_embfunc_sensor_list[] = {
+	[0] = ST_LSM6DSVX_ID_STEP_COUNTER,
+	[1] = ST_LSM6DSVX_ID_STEP_DETECTOR,
+	[2] = ST_LSM6DSVX_ID_SIGN_MOTION,
+	[3] = ST_LSM6DSVX_ID_TILT,
 };
 
 #define ST_LSM6DSVX_ID_ALL_FSM_MLC (BIT(ST_LSM6DSVX_ID_MLC_0)  | \
@@ -611,6 +660,7 @@ struct st_lsm6dsvx_sensor {
  * @qvar_workqueue: QVAR workqueue (if enabled in Kconfig).
  * @iio_devs: Pointers to acc/gyro iio_dev instances.
  * @settings: ST IMU sensor settings.
+ * @odr_table: ST IMU output data rate table.
  */
 struct st_lsm6dsvx_hw {
 	struct device *dev;
@@ -646,6 +696,7 @@ struct st_lsm6dsvx_hw {
 	struct iio_dev *iio_devs[ST_LSM6DSVX_ID_MAX];
 
 	const struct st_lsm6dsvx_settings *settings;
+	const struct st_lsm6dsvx_odr_table_entry *odr_table;
 };
 
 extern const struct dev_pm_ops st_lsm6dsvx_pm_ops;
@@ -776,4 +827,8 @@ int st_lsm6dsvx_mlc_remove(struct device *dev);
 int st_lsm6dsvx_mlc_check_status(struct st_lsm6dsvx_hw *hw);
 int st_lsm6dsvx_mlc_init_preload(struct st_lsm6dsvx_hw *hw);
 
+int st_lsm6dsvx_probe_embfunc(struct st_lsm6dsvx_hw *hw);
+int st_lsm6dsvx_embfunc_handler_thread(struct st_lsm6dsvx_hw *hw);
+int st_lsm6dsvx_step_counter_set_enable(struct st_lsm6dsvx_sensor *sensor,
+					bool enable);
 #endif /* ST_LSM6DSVX_H */

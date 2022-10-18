@@ -33,6 +33,7 @@ enum {
 	ST_LSM6DSVX_TS_TAG = 0x04,
 	ST_LSM6DSVX_EXT0_TAG = 0x0f,
 	ST_LSM6DSVX_EXT1_TAG = 0x10,
+	ST_LSM6DSVX_STEPC_TAG = 0x12,
 	ST_LSM6DSVX_GAMEROT_TAG = 0x13,
 #ifdef CONFIG_IIO_ST_LSM6DSVX_QVAR_IN_FIFO
 	ST_LSM6DSVX_QVAR_TAG = 0x1B,
@@ -209,6 +210,9 @@ st_lsm6dsvx_get_iiodev_from_tag(struct st_lsm6dsvx_hw *hw, u8 tag)
 	case ST_LSM6DSVX_TEMP_TAG:
 		iio_dev = hw->iio_devs[ST_LSM6DSVX_ID_TEMP];
 		break;
+	case ST_LSM6DSVX_STEPC_TAG:
+		iio_dev = hw->iio_devs[ST_LSM6DSVX_ID_STEP_COUNTER];
+		break;
 
 #ifdef CONFIG_IIO_ST_LSM6DSVX_QVAR_IN_FIFO
 	case ST_LSM6DSVX_QVAR_TAG:
@@ -322,6 +326,14 @@ static int st_lsm6dsvx_read_fifo(struct st_lsm6dsvx_hw *hw)
 					if (unlikely(drdymask >= ST_LSM6DSVX_SAMPLE_DISCHARD))
 						continue;
 
+					/*
+					 * hw ts in not queued in FIFO if only step
+					 * counter enabled
+					 */
+					if (sensor->id == ST_LSM6DSVX_ID_STEP_COUNTER) {
+						val = get_unaligned_le32(ptr + 2);
+						hw->tsample = val * hw->ts_delta_ns;
+					}
 					memcpy(iio_buf, ptr,
 					       ST_LSM6DSVX_SAMPLE_SIZE);
 
@@ -488,6 +500,12 @@ int st_lsm6dsvx_update_fifo(struct iio_dev *iio_dev, bool enable)
 		if (err < 0)
 			goto out;
 		break;
+	case ST_LSM6DSVX_ID_STEP_COUNTER:
+		err = st_lsm6dsvx_step_counter_set_enable(sensor,
+							  enable);
+		if (err < 0)
+			goto out;
+		break;
 	case ST_LSM6DSVX_ID_TEMP: {
 		u8 data = 0;
 		/*
@@ -587,6 +605,8 @@ static irqreturn_t st_lsm6dsvx_handler_thread(int irq, void *private)
 	st_lsm6dsvx_read_fifo(hw);
 	clear_bit(ST_LSM6DSVX_HW_FLUSH, &hw->state);
 	mutex_unlock(&hw->fifo_lock);
+
+	st_lsm6dsvx_embfunc_handler_thread(hw);
 
 	return IRQ_HANDLED;
 }
