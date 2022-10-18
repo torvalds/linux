@@ -201,7 +201,7 @@
 #define MAX_PROP_SIZE (32)
 #define MAX_RC_NAME_LEN (15)
 #define MSM_PCIE_MAX_VREG (6)
-#define MAX_RC_NUM (3)
+#define MAX_RC_NUM (5)
 #define MAX_DEVICE_NUM (20)
 #define PCIE_TLP_RD_SIZE (0x5)
 #define PCIE_LOG_PAGES (50)
@@ -565,6 +565,12 @@ struct msm_pcie_phy_info_t {
 	u32 offset;
 	u32 val;
 	u32 delay;
+};
+
+/* tcsr info structure */
+struct msm_pcie_tcsr_info_t {
+	u32 offset;
+	u32 val;
 };
 
 /* sid info structure */
@@ -981,6 +987,8 @@ struct msm_pcie_dev_t {
 	u32 num_parf_testbus_sel;
 	u32 phy_len;
 	struct msm_pcie_phy_info_t *phy_sequence;
+	u32 tcsr_len;
+	struct msm_pcie_tcsr_info_t *tcsr_config;
 	u32 sid_info_len;
 	struct msm_pcie_sid_info_t *sid_info;
 	bool bridge_found;
@@ -1100,6 +1108,20 @@ msm_pcie_reset_info[MAX_RC_NUM][MSM_PCIE_MAX_RESET] = {
 		{NULL, "pcie_phy_com_reset", false},
 		{NULL, "pcie_phy_nocsr_com_phy_reset", false},
 		{NULL, "pcie_2_phy_reset", false}
+	},
+	{
+		{NULL, "pcie_3_core_reset", false},
+		{NULL, "pcie_phy_reset", false},
+		{NULL, "pcie_phy_com_reset", false},
+		{NULL, "pcie_phy_nocsr_com_phy_reset", false},
+		{NULL, "pcie_3_phy_reset", false}
+	},
+	{
+		{NULL, "pcie_4_core_reset", false},
+		{NULL, "pcie_phy_reset", false},
+		{NULL, "pcie_phy_com_reset", false},
+		{NULL, "pcie_phy_nocsr_com_phy_reset", false},
+		{NULL, "pcie_4_phy_reset", false}
 	}
 };
 
@@ -1114,6 +1136,12 @@ msm_pcie_pipe_reset_info[MAX_RC_NUM][MSM_PCIE_MAX_PIPE_RESET] = {
 	},
 	{
 		{NULL, "pcie_2_phy_pipe_reset", false}
+	},
+	{
+		{NULL, "pcie_3_phy_pipe_reset", false}
+	},
+	{
+		{NULL, "pcie_4_phy_pipe_reset", false}
 	}
 };
 
@@ -1247,6 +1275,21 @@ static void pcie_phy_dump(struct msm_pcie_dev_t *dev)
 			readl_relaxed(dev->phy + (i + 20)),
 			readl_relaxed(dev->phy + (i + 24)),
 			readl_relaxed(dev->phy + (i + 28)));
+	}
+}
+
+static void pcie_tcsr_init(struct msm_pcie_dev_t *dev)
+{
+	int i;
+	struct msm_pcie_tcsr_info_t *tcsr_cfg;
+
+	i = dev->tcsr_len;
+	tcsr_cfg = dev->tcsr_config;
+	while (i--) {
+		msm_pcie_write_reg(dev->tcsr,
+			tcsr_cfg->offset,
+			tcsr_cfg->val);
+		tcsr_cfg++;
 	}
 }
 
@@ -4060,6 +4103,34 @@ static int msm_pcie_get_reg(struct msm_pcie_dev_t *pcie_dev)
 	return 0;
 }
 
+static int msm_pcie_get_tcsr_values(struct msm_pcie_dev_t *dev,
+					struct platform_device *pdev)
+{
+	int size = 0, ret = 0;
+
+	of_get_property(pdev->dev.of_node, "qcom,tcsr", &size);
+
+	if (!size) {
+		PCIE_DBG(dev, "PCIe: RC%d: tcsr is not present in DT\n",
+			dev->rc_idx);
+		return 0;
+	}
+
+	dev->tcsr_config = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+
+	if (!dev->tcsr_config)
+		return -ENOMEM;
+
+	dev->tcsr_len = size / sizeof(*dev->tcsr_config);
+
+	of_property_read_u32_array(pdev->dev.of_node,
+		"qcom,tcsr",
+		(unsigned int *)dev->tcsr_config,
+		size / sizeof(dev->tcsr_config->offset));
+
+	return ret;
+}
+
 static int msm_pcie_get_resources(struct msm_pcie_dev_t *dev,
 					struct platform_device *pdev)
 {
@@ -4093,6 +4164,10 @@ static int msm_pcie_get_resources(struct msm_pcie_dev_t *dev,
 					irq_info->num);
 		}
 	}
+
+	ret = msm_pcie_get_tcsr_values(dev, pdev);
+	if (ret)
+		return ret;
 
 	ret = msm_pcie_get_clk(dev);
 	if (ret)
@@ -4357,6 +4432,10 @@ static int msm_pcie_enable(struct msm_pcie_dev_t *dev)
 		readl_relaxed(dev->parf + PCIE20_PARF_AXI_MSTR_WR_ADDR_HALT);
 	msm_pcie_write_reg(dev->parf, PCIE20_PARF_AXI_MSTR_WR_ADDR_HALT,
 				BIT(31) | val);
+
+	/* init tcsr */
+	if (dev->tcsr_config)
+		pcie_tcsr_init(dev);
 
 	/* init PCIe PHY */
 	ret = pcie_phy_init(dev);
