@@ -190,10 +190,8 @@ int kernfs_iop_getattr(struct user_namespace *mnt_userns,
 	struct kernfs_root *root = kernfs_root(kn);
 
 	down_read(&root->kernfs_rwsem);
-	spin_lock(&inode->i_lock);
 	kernfs_refresh_inode(kn, inode);
 	generic_fillattr(&init_user_ns, inode, stat);
-	spin_unlock(&inode->i_lock);
 	up_read(&root->kernfs_rwsem);
 
 	return 0;
@@ -288,10 +286,8 @@ int kernfs_iop_permission(struct user_namespace *mnt_userns,
 	root = kernfs_root(kn);
 
 	down_read(&root->kernfs_rwsem);
-	spin_lock(&inode->i_lock);
 	kernfs_refresh_inode(kn, inode);
 	ret = generic_permission(&init_user_ns, inode, mask);
-	spin_unlock(&inode->i_lock);
 	up_read(&root->kernfs_rwsem);
 
 	return ret;
