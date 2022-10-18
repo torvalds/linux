@@ -1930,9 +1930,10 @@ enum dc_status dc_commit_streams(struct dc *dc,
 				 struct dc_stream_state *streams[],
 				 uint8_t stream_count)
 {
-	int i;
+	int i, j;
 	struct dc_state *context;
 	enum dc_status res = DC_OK;
+	struct dc_validation_set set[MAX_STREAMS] = {0};
 
 	if (!streams_changed(dc, streams, stream_count))
 		return res;
@@ -1941,8 +1942,17 @@ enum dc_status dc_commit_streams(struct dc *dc,
 
 	for (i = 0; i < stream_count; i++) {
 		struct dc_stream_state *stream = streams[i];
+		struct dc_stream_status *status = dc_stream_get_status(stream);
 
 		dc_stream_log(dc, stream);
+
+		set[i].stream = stream;
+
+		if (status) {
+			set[i].plane_count = status->plane_count;
+			for (j = 0; j < status->plane_count; j++)
+				set[i].plane_states[j] = status->plane_states[j];
+		}
 	}
 
 	context = dc_create_state(dc);
