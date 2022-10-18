@@ -38,5 +38,6 @@
 		power-domains = <&k3_pds 107 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 107 4>;
 		clock-names = "fck";
+		status = "disabled";
 	};
 };

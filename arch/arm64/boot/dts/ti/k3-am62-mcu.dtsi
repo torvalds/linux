@@ -33,6 +33,7 @@
 		power-domains = <&k3_pds 106 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 106 2>;
 		clock-names = "fck";
+		status = "disabled";
 	};
 
 	mcu_spi0: spi@4b00000 {
