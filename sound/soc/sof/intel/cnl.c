@@ -72,6 +72,7 @@ irqreturn_t cnl_ipc4_irq_thread(int irq, void *context)
 				spin_lock_irq(&sdev->ipc_lock);
 
 				snd_sof_ipc_get_reply(sdev);
+				cnl_ipc_host_done(sdev);
 				snd_sof_ipc_reply(sdev, data->primary);
 
 				spin_unlock_irq(&sdev->ipc_lock);
@@ -88,10 +89,10 @@ irqreturn_t cnl_ipc4_irq_thread(int irq, void *context)
 			sdev->ipc->msg.rx_data = &notification_data;
 			snd_sof_ipc_msgs_rx(sdev);
 			sdev->ipc->msg.rx_data = NULL;
-		}
 
-		/* Let DSP know that we have finished processing the message */
-		cnl_ipc_host_done(sdev);
+			/* Let DSP know that we have finished processing the message */
+			cnl_ipc_host_done(sdev);
+		}
 
 		ipc_irq = true;
 	}

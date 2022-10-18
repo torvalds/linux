@@ -540,6 +540,7 @@ static irqreturn_t mtl_ipc_irq_thread(int irq, void *context)
 				spin_lock_irq(&sdev->ipc_lock);
 
 				snd_sof_ipc_get_reply(sdev);
+				mtl_ipc_host_done(sdev);
 				snd_sof_ipc_reply(sdev, data->primary);
 
 				spin_unlock_irq(&sdev->ipc_lock);
@@ -556,9 +557,9 @@ static irqreturn_t mtl_ipc_irq_thread(int irq, void *context)
 			sdev->ipc->msg.rx_data = &notification_data;
 			snd_sof_ipc_msgs_rx(sdev);
 			sdev->ipc->msg.rx_data = NULL;
-		}
 
-		mtl_ipc_host_done(sdev);
+			mtl_ipc_host_done(sdev);
+		}
 
 		ipc_irq = true;
 	}
