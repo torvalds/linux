@@ -220,8 +220,10 @@ static inline void avs_ipc_err(struct avs_dev *adev, struct avs_ipc_msg *tx,
 	/*
 	 * If IPC channel is blocked e.g.: due to ongoing recovery,
 	 * -EPERM error code is expected and thus it's not an actual error.
+	 *
+	 * Unsupported IPCs are of no harm either.
 	 */
-	if (error == -EPERM)
+	if (error == -EPERM || error == AVS_IPC_NOT_SUPPORTED)
 		dev_dbg(adev->dev, "%s 0x%08x 0x%08x failed: %d\n", name,
 			tx->glb.primary, tx->glb.ext.val, error);
 	else
