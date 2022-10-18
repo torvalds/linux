@@ -18,14 +18,18 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - qcom,sc7280-gpi-dma
-      - qcom,sdm845-gpi-dma
-      - qcom,sm6350-gpi-dma
-      - qcom,sm8150-gpi-dma
-      - qcom,sm8250-gpi-dma
-      - qcom,sm8350-gpi-dma
-      - qcom,sm8450-gpi-dma
+    oneOf:
+      - enum:
+          - qcom,sc7280-gpi-dma
+          - qcom,sdm845-gpi-dma
+          - qcom,sm6350-gpi-dma
+          - qcom,sm8350-gpi-dma
+          - qcom,sm8450-gpi-dma
+      - items:
+          - enum:
+              - qcom,sm8150-gpi-dma
+              - qcom,sm8250-gpi-dma
+          - const: qcom,sdm845-gpi-dma
 
   reg:
     maxItems: 1
