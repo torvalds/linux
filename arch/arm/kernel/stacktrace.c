@@ -127,12 +127,12 @@ int notrace unwind_frame(struct stackframe *frame)
 #endif
 
 void notrace walk_stackframe(struct stackframe *frame,
-		     int (*fn)(struct stackframe *, void *), void *data)
+		     bool (*fn)(void *, unsigned long), void *data)
 {
 	while (1) {
 		int ret;
 
-		if (fn(frame, data))
+		if (!fn(data, frame->pc))
 			break;
 		ret = unwind_frame(frame);
 		if (ret < 0)
@@ -148,21 +148,20 @@ struct stack_trace_data {
 	unsigned int skip;
 };
 
-static int save_trace(struct stackframe *frame, void *d)
+static bool save_trace(void *d, unsigned long addr)
 {
 	struct stack_trace_data *data = d;
 	struct stack_trace *trace = data->trace;
-	unsigned long addr = frame->pc;
 
 	if (data->no_sched_functions && in_sched_functions(addr))
-		return 0;
+		return true;
 	if (data->skip) {
 		data->skip--;
-		return 0;
+		return true;
 	}
 
 	trace->entries[trace->nr_entries++] = addr;
-	return trace->nr_entries >= trace->max_entries;
+	return trace->nr_entries < trace->max_entries;
 }
 
 /* This must be noinline to so that our skip calculation works correctly */
