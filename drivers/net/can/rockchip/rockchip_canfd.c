@@ -230,6 +230,7 @@ struct rockchip_canfd {
 	u32 rx_fifo_mask;
 	bool txtorx;
 	u32 tx_invalid[4];
+	struct delayed_work tx_err_work;
 };
 
 static inline u32 rockchip_canfd_read(const struct rockchip_canfd *priv,
@@ -483,6 +484,25 @@ static int rockchip_canfd_set_mode(struct net_device *ndev,
 	return 0;
 }
 
+static void rockchip_canfd_tx_err_delay_work(struct work_struct *work)
+{
+	struct rockchip_canfd *rcan =
+		container_of(work, struct rockchip_canfd, tx_err_work.work);
+	u32 mode, err_code, id;
+
+	id = rockchip_canfd_read(rcan, CAN_TXID);
+	err_code = rockchip_canfd_read(rcan, CAN_ERR_CODE);
+	if (err_code & 0x1fe0000) {
+		mode = rockchip_canfd_read(rcan, CAN_MODE);
+		rockchip_canfd_write(rcan, CAN_MODE, 0);
+		rockchip_canfd_write(rcan, CAN_MODE, mode);
+		rockchip_canfd_write(rcan, CAN_CMD, CAN_TX0_REQ);
+		schedule_delayed_work(&rcan->tx_err_work, 1);
+	} else if (rcan->txtorx && rcan->mode >= ROCKCHIP_CAN_MODE && id & CAN_EFF_FLAG) {
+		schedule_delayed_work(&rcan->tx_err_work, 1);
+	}
+}
+
 /* transmit a CAN message
  * message layout in the sk_buff should be like this:
  * xx xx xx xx         ff         ll 00 11 22 33 44 55 66 77
@@ -564,6 +584,9 @@ static int rockchip_canfd_start_xmit(struct sk_buff *skb,
 				     *(u32 *)(cf->data + i));
 
 	rockchip_canfd_write(rcan, CAN_CMD, CAN_TX1_REQ);
+
+	if (rcan->txtorx && rcan->mode >= ROCKCHIP_CAN_MODE && cf->can_id & CAN_EFF_FLAG)
+		schedule_delayed_work(&rcan->tx_err_work, 1);
 
 	can_put_echo_skb(skb, ndev, 0);
 
@@ -706,7 +729,7 @@ static int rockchip_canfd_err(struct net_device *ndev, u32 isr)
 
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
-	netif_receive_skb(skb);
+	netif_rx(skb);
 
 	return 0;
 }
@@ -732,6 +755,7 @@ static irqreturn_t rockchip_canfd_interrupt(int irq, void *dev_id)
 			stats->tx_bytes += (dlc & DLC_MASK);
 		stats->tx_packets++;
 		if (rcan->txtorx && rcan->mode >= ROCKCHIP_CAN_MODE && dlc & FORMAT_MASK) {
+			cancel_delayed_work(&rcan->tx_err_work);
 			rockchip_canfd_write(rcan, CAN_TX_CHECK_FIC, FORMAT_MASK);
 			quota = (rockchip_canfd_read(rcan, CAN_RXFC) &
 				 rcan->rx_fifo_mask) >>
@@ -814,6 +838,7 @@ static int rockchip_canfd_close(struct net_device *ndev)
 	close_candev(ndev);
 	can_led_event(ndev, CAN_LED_EVENT_STOP);
 	pm_runtime_put(rcan->dev);
+	cancel_delayed_work_sync(&rcan->tx_err_work);
 
 	netdev_dbg(ndev, "%s\n", __func__);
 	return 0;
@@ -1035,6 +1060,8 @@ static int rockchip_canfd_probe(struct platform_device *pdev)
 	ndev->irq = irq;
 	ndev->flags |= IFF_ECHO;
 	rcan->can.restart_ms = 1;
+
+	INIT_DELAYED_WORK(&rcan->tx_err_work, rockchip_canfd_tx_err_delay_work);
 
 	platform_set_drvdata(pdev, ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
