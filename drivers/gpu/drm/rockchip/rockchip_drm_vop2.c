@@ -56,6 +56,7 @@
 #include "rockchip_drm_fb.h"
 #include "rockchip_drm_vop.h"
 #include "rockchip_vop_reg.h"
+#include "rockchip_post_csc.h"
 
 #define _REG_SET(vop2, name, off, reg, mask, v, relaxed) \
 		vop2_mask_write(vop2, off + reg.offset, mask, reg.shift, v, reg.write_mask, relaxed)
@@ -737,6 +738,17 @@ struct vop2_video_port {
 
 	bool hdr_ext_data_change;
 	int hdrvivid_mode;
+
+
+	/**
+	 * @acm_lut_data_prop: acm lut data interaction with userspace
+	 */
+	struct drm_property *acm_lut_data_prop;
+	/**
+	 * @post_csc_data_prop: post csc data interaction with userspace
+	 */
+	struct drm_property *post_csc_data_prop;
+
 	/**
 	 * @primary_plane_phy_id: vp primary plane phy id, the primary plane
 	 * will be used to show uboot logo and kernel logo
@@ -9088,6 +9100,166 @@ static void vop2_tv_config_update(struct drm_crtc *crtc,
 	}
 }
 
+static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, struct post_csc *csc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+	struct vop2 *vop2 = vp->vop2;
+	struct post_csc_coef csc_coef;
+	bool acm_enable;
+	bool is_input_yuv = false;
+	bool is_output_yuv = false;
+	bool post_r2y_en = false;
+	bool post_csc_en = false;
+	int range_type;
+
+	if (!acm)
+		acm_enable = false;
+	else
+		acm_enable = acm->acm_enable;
+
+	if (acm_enable) {
+		if (!vcstate->yuv_overlay)
+			post_r2y_en = true;
+
+		/* do y2r in csc module */
+		if (!is_yuv_output(vcstate->bus_format))
+			post_csc_en = true;
+	} else {
+		if (!vcstate->yuv_overlay && is_yuv_output(vcstate->bus_format))
+			post_r2y_en = true;
+
+		/* do y2r in csc module */
+		if (vcstate->yuv_overlay && !is_yuv_output(vcstate->bus_format))
+			post_csc_en = true;
+	}
+
+	if (csc && csc->csc_enable)
+		post_csc_en = true;
+
+	if (vcstate->yuv_overlay || post_r2y_en)
+		is_input_yuv = true;
+
+	if (is_yuv_output(vcstate->bus_format))
+		is_output_yuv = true;
+
+	vcstate->post_csc_mode = vop2_convert_csc_mode(vcstate->color_space, CSC_10BIT_DEPTH);
+
+	if (post_csc_en) {
+		rockchip_calc_post_csc(csc, &csc_coef, vcstate->post_csc_mode, is_input_yuv,
+				       is_output_yuv);
+
+		VOP_MODULE_SET(vop2, vp, csc_coe00, csc_coef.csc_coef00);
+		VOP_MODULE_SET(vop2, vp, csc_coe01, csc_coef.csc_coef01);
+		VOP_MODULE_SET(vop2, vp, csc_coe02, csc_coef.csc_coef02);
+		VOP_MODULE_SET(vop2, vp, csc_coe10, csc_coef.csc_coef10);
+		VOP_MODULE_SET(vop2, vp, csc_coe11, csc_coef.csc_coef11);
+		VOP_MODULE_SET(vop2, vp, csc_coe12, csc_coef.csc_coef12);
+		VOP_MODULE_SET(vop2, vp, csc_coe20, csc_coef.csc_coef20);
+		VOP_MODULE_SET(vop2, vp, csc_coe21, csc_coef.csc_coef21);
+		VOP_MODULE_SET(vop2, vp, csc_coe22, csc_coef.csc_coef22);
+		VOP_MODULE_SET(vop2, vp, csc_offset0, csc_coef.csc_dc0);
+		VOP_MODULE_SET(vop2, vp, csc_offset1, csc_coef.csc_dc1);
+		VOP_MODULE_SET(vop2, vp, csc_offset2, csc_coef.csc_dc2);
+
+		range_type = csc_coef.range_type ? 0 : 1;
+		range_type <<= is_input_yuv ? 0 : 1;
+		VOP_MODULE_SET(vop2, vp, csc_mode, range_type);
+
+		/* rgb input rgb output for csc need rg swap and bg swap */
+		if (!is_input_yuv && !is_output_yuv)
+			VOP_MODULE_SET(vop2, vp, dsp_data_swap, DSP_RG_SWAP | DSP_BG_SWAP);
+
+		/* rgb input yuv output for csc need rg swap */
+		if (!is_input_yuv && is_output_yuv)
+			VOP_MODULE_SET(vop2, vp, dsp_data_swap, DSP_RG_SWAP);
+
+		/* yuv input yuv output for csc need rg swap */
+		if (is_input_yuv && is_output_yuv)
+			VOP_MODULE_SET(vop2, vp, dsp_data_swap, DSP_RG_SWAP);
+	} else {
+		if (vop2_output_uv_swap(vcstate->bus_format, vcstate->output_mode))
+			VOP_MODULE_SET(vop2, vp, dsp_data_swap, DSP_RB_SWAP);
+		else
+			VOP_MODULE_SET(vop2, vp, dsp_data_swap, 0);
+	}
+
+	VOP_MODULE_SET(vop2, vp, acm_r2y_en, post_r2y_en ? 1 : 0);
+	VOP_MODULE_SET(vop2, vp, csc_en, post_csc_en ? 1 : 0);
+	VOP_MODULE_SET(vop2, vp, acm_r2y_mode, vcstate->post_csc_mode);
+}
+
+static void vop3_post_acm_config(struct drm_crtc *crtc, struct post_acm *acm)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
+	s16 *lut_y;
+	s16 *lut_h;
+	s16 *lut_s;
+	u32 value;
+	int i;
+
+	if (!acm) {
+		writel(0x2, vop2->acm_regs + RK3528_ACM_CTRL);
+		VOP_MODULE_SET(vop2, vp, acm_bypass_en, 1);
+		return;
+	}
+
+	writel(1, vop2->acm_regs + RK3528_ACM_FETCH_START);
+
+	value = (acm->acm_enable & 0x1) + ((adjusted_mode->hdisplay & 0xfff) << 8) +
+		((adjusted_mode->vdisplay & 0xfff) << 20);
+	writel(value, vop2->acm_regs + RK3528_ACM_CTRL);
+	VOP_MODULE_SET(vop2, vp, acm_bypass_en, acm->acm_enable ? 0 : 1);
+
+	value = (acm->y_gain & 0x3ff) + ((acm->h_gain << 10) & 0xffc00) +
+		((acm->s_gain << 20) & 0x3ff00000);
+	writel(value, vop2->acm_regs + RK3528_ACM_DELTA_RANGE);
+
+	lut_y = &acm->gain_lut_hy[0];
+	lut_h = &acm->gain_lut_hy[ACM_GAIN_LUT_HY_LENGTH];
+	lut_s = &acm->gain_lut_hy[ACM_GAIN_LUT_HY_LENGTH * 2];
+	for (i = 0; i < ACM_GAIN_LUT_HY_LENGTH; i++) {
+		value = (lut_y[i] & 0xff) + ((lut_h[i] << 8) & 0xff00) +
+			((lut_s[i] << 16) & 0xff0000);
+		writel(value, vop2->acm_regs + RK3528_ACM_YHS_DEL_HY_SEG0 + (i << 2));
+	}
+
+	lut_y = &acm->gain_lut_hs[0];
+	lut_h = &acm->gain_lut_hs[ACM_GAIN_LUT_HS_LENGTH];
+	lut_s = &acm->gain_lut_hs[ACM_GAIN_LUT_HS_LENGTH * 2];
+	for (i = 0; i < ACM_GAIN_LUT_HS_LENGTH; i++) {
+		value = (lut_y[i] & 0xff) + ((lut_h[i] << 8) & 0xff00) +
+			((lut_s[i] << 16) & 0xff0000);
+		writel(value, vop2->acm_regs + RK3528_ACM_YHS_DEL_HS_SEG0 + (i << 2));
+	}
+
+	lut_y = &acm->delta_lut_h[0];
+	lut_h = &acm->delta_lut_h[ACM_DELTA_LUT_H_LENGTH];
+	lut_s = &acm->delta_lut_h[ACM_DELTA_LUT_H_LENGTH * 2];
+	for (i = 0; i < ACM_DELTA_LUT_H_LENGTH; i++) {
+		value = (lut_y[i] & 0x3ff) + ((lut_h[i] << 12) & 0xff000) +
+			((lut_s[i] << 20) & 0x3ff00000);
+		writel(value, vop2->acm_regs + RK3528_ACM_YHS_DEL_HGAIN_SEG0 + (i << 2));
+	}
+
+	writel(1, vop2->acm_regs + RK3528_ACM_FETCH_DONE);
+}
+
+static void vop3_post_config(struct drm_crtc *crtc)
+{
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+	struct post_acm *acm;
+	struct post_csc *csc;
+
+	acm = vcstate->acm_lut_data ? (struct post_acm *)vcstate->acm_lut_data->data : NULL;
+	vop3_post_acm_config(crtc, acm);
+
+	csc = vcstate->post_csc_data ? (struct post_csc *)vcstate->post_csc_data->data : NULL;
+	vop3_post_csc_config(crtc, acm, csc);
+}
+
 static void vop2_cfg_update(struct drm_crtc *crtc,
 			    struct drm_crtc_state *old_crtc_state)
 {
@@ -9145,6 +9317,9 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 
 	if (vp_data->feature & VOP_FEATURE_OVERSCAN)
 		vop2_post_config(crtc);
+
+	if (vp_data->feature & (VOP_FEATURE_POST_ACM | VOP_FEATURE_POST_CSC))
+		vop3_post_config(crtc);
 
 	spin_unlock(&vop2->reg_lock);
 }
@@ -9435,6 +9610,12 @@ static int vop2_crtc_atomic_get_property(struct drm_crtc *crtc,
 	if (property == vp->hdr_ext_data_prop)
 		return 0;
 
+	if (property == vp->acm_lut_data_prop)
+		return 0;
+
+	if (property == vp->post_csc_data_prop)
+		return 0;
+
 	DRM_ERROR("failed to get vop2 crtc property: %s\n", property->name);
 
 	return -EINVAL;
@@ -9538,6 +9719,24 @@ static int vop2_crtc_atomic_set_property(struct drm_crtc *crtc,
 								&vcstate->hdr_ext_data,
 								val,
 								-1, -1,
+								&replaced);
+		return ret;
+	}
+
+	if (property == vp->acm_lut_data_prop) {
+		ret = vop2_atomic_replace_property_blob_from_id(drm_dev,
+								&vcstate->acm_lut_data,
+								val,
+								sizeof(struct post_acm), -1,
+								&replaced);
+		return ret;
+	}
+
+	if (property == vp->post_csc_data_prop) {
+		ret = vop2_atomic_replace_property_blob_from_id(drm_dev,
+								&vcstate->post_csc_data,
+								val,
+								sizeof(struct post_csc), -1,
 								&replaced);
 		return ret;
 	}
@@ -10173,6 +10372,37 @@ static int vop2_crtc_create_hdr_property(struct vop2 *vop2, struct drm_crtc *crt
 	return 0;
 }
 
+static int vop2_crtc_create_post_acm_property(struct vop2 *vop2, struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct drm_property *prop;
+
+	prop = drm_property_create(vop2->drm_dev, DRM_MODE_PROP_BLOB, "ACM_LUT_DATA", 0);
+	if (!prop) {
+		DRM_DEV_ERROR(vop2->dev, "create acm lut data prop for vp%d failed\n", vp->id);
+		return -ENOMEM;
+	}
+	vp->acm_lut_data_prop = prop;
+	drm_object_attach_property(&crtc->base, vp->acm_lut_data_prop, 0);
+
+	return 0;
+}
+
+static int vop2_crtc_create_post_csc_property(struct vop2 *vop2, struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct drm_property *prop;
+
+	prop = drm_property_create(vop2->drm_dev, DRM_MODE_PROP_BLOB, "POST_CSC_DATA", 0);
+	if (!prop) {
+		DRM_DEV_ERROR(vop2->dev, "create post csc data prop for vp%d failed\n", vp->id);
+		return -ENOMEM;
+	}
+	vp->post_csc_data_prop = prop;
+	drm_object_attach_property(&crtc->base, vp->post_csc_data_prop, 0);
+
+	return 0;
+}
 #define RK3566_MIRROR_PLANE_MASK (BIT(ROCKCHIP_VOP2_CLUSTER1) | BIT(ROCKCHIP_VOP2_ESMART1) | \
 				  BIT(ROCKCHIP_VOP2_SMART1))
 
@@ -10401,6 +10631,11 @@ static int vop2_create_crtc(struct vop2 *vop2)
 				return -ENOMEM;
 			}
 		}
+		if (vp_data->feature & VOP_FEATURE_POST_ACM)
+			vop2_crtc_create_post_acm_property(vop2, crtc);
+		if (vp_data->feature & VOP_FEATURE_POST_CSC)
+			vop2_crtc_create_post_csc_property(vop2, crtc);
+
 		registered_num_crtcs++;
 	}
 

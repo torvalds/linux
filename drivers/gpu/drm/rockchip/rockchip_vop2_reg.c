@@ -824,6 +824,23 @@ static const struct vop2_video_port_regs rk3528_vop_vp0_regs = {
 	.hdr_vivid_bypass_en = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 2),
 	.hdr_vivid_path_mode = VOP_REG(RK3528_HDRVIVID_CTRL, 0x7, 3),
 	.hdr_vivid_dstgamut = VOP_REG(RK3528_HDRVIVID_CTRL, 0x1, 6),
+	.acm_bypass_en = VOP_REG(RK3528_VP0_ACM_CTRL, 0x1, 0),
+	.csc_en = VOP_REG(RK3528_VP0_ACM_CTRL, 0x1, 1),
+	.acm_r2y_en = VOP_REG(RK3528_VP0_ACM_CTRL, 0x1, 2),
+	.csc_mode = VOP_REG(RK3528_VP0_ACM_CTRL, 0x1, 3),
+	.acm_r2y_mode = VOP_REG(RK3528_VP0_ACM_CTRL, 0x7, 8),
+	.csc_coe00 = VOP_REG(RK3528_VP0_ACM_CTRL, 0xffff, 16),
+	.csc_coe01 = VOP_REG(RK3528_VP0_CSC_COE01_02, 0xffff, 0),
+	.csc_coe02 = VOP_REG(RK3528_VP0_CSC_COE01_02, 0xffff, 16),
+	.csc_coe10 = VOP_REG(RK3528_VP0_CSC_COE10_11, 0xffff, 0),
+	.csc_coe11 = VOP_REG(RK3528_VP0_CSC_COE10_11, 0xffff, 16),
+	.csc_coe12 = VOP_REG(RK3528_VP0_CSC_COE12_20, 0xffff, 0),
+	.csc_coe20 = VOP_REG(RK3528_VP0_CSC_COE12_20, 0xffff, 16),
+	.csc_coe21 = VOP_REG(RK3528_VP0_CSC_COE21_22, 0xffff, 0),
+	.csc_coe22 = VOP_REG(RK3528_VP0_CSC_COE21_22, 0xffff, 16),
+	.csc_offset0 = VOP_REG(RK3528_VP0_CSC_OFFSET0, 0xffffffff, 0),
+	.csc_offset1 = VOP_REG(RK3528_VP0_CSC_OFFSET1, 0xffffffff, 0),
+	.csc_offset2 = VOP_REG(RK3528_VP0_CSC_OFFSET2, 0xffffffff, 0),
 };
 
 static const struct vop2_video_port_regs rk3528_vop_vp1_regs = {
@@ -910,7 +927,8 @@ static const struct vop2_video_port_data rk3528_vop_video_ports[] = {
 	 .id = 0,
 	 .soc_id = { 0x3528, 0x3528 },
 	 .lut_dma_rid = 14,
-	 .feature = VOP_FEATURE_ALPHA_SCALE | VOP_FEATURE_OVERSCAN | VOP_FEATURE_VIVID_HDR,
+	 .feature = VOP_FEATURE_ALPHA_SCALE | VOP_FEATURE_OVERSCAN | VOP_FEATURE_VIVID_HDR |
+		    VOP_FEATURE_POST_ACM | VOP_FEATURE_POST_CSC,
 	 .gamma_lut_len = 1024,
 	 .max_output = { 4096, 4096 },
 	 .hdrvivid_dly = {17, 29, 32, 44, 15, 38, 1, 29, 0, 0},

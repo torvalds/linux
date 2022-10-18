@@ -240,6 +240,8 @@ struct rockchip_crtc_state {
 	struct rockchip_dsc_sink_cap dsc_sink_cap;
 	struct rockchip_hdr_state hdr;
 	struct drm_property_blob *hdr_ext_data;
+	struct drm_property_blob *acm_lut_data;
+	struct drm_property_blob *post_csc_data;
 
 	int request_refresh_rate;
 	int max_refresh_rate;
