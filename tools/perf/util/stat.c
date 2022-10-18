@@ -130,15 +130,21 @@ static void perf_stat_evsel_id_init(struct evsel *evsel)
 	}
 }
 
-static void evsel__reset_stat_priv(struct evsel *evsel)
+static void evsel__reset_aggr_stats(struct evsel *evsel)
 {
 	struct perf_stat_evsel *ps = evsel->stats;
 	struct perf_stat_aggr *aggr = ps->aggr;
 
-	init_stats(&ps->res_stats);
-
 	if (aggr)
 		memset(aggr, 0, sizeof(*aggr) * ps->nr_aggr);
+}
+
+static void evsel__reset_stat_priv(struct evsel *evsel)
+{
+	struct perf_stat_evsel *ps = evsel->stats;
+
+	init_stats(&ps->res_stats);
+	evsel__reset_aggr_stats(evsel);
 }
 
 static int evsel__alloc_aggr_stats(struct evsel *evsel, int nr_aggr)
@@ -274,6 +280,14 @@ void evlist__reset_stats(struct evlist *evlist)
 		evsel__reset_stat_priv(evsel);
 		evsel__reset_counts(evsel);
 	}
+}
+
+void evlist__reset_aggr_stats(struct evlist *evlist)
+{
+	struct evsel *evsel;
+
+	evlist__for_each_entry(evlist, evsel)
+		evsel__reset_aggr_stats(evsel);
 }
 
 void evlist__reset_prev_raw_counts(struct evlist *evlist)

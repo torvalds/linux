@@ -492,6 +492,8 @@ static void process_interval(void)
 	diff_timespec(&rs, &ts, &ref_time);
 
 	perf_stat__reset_shadow_per_stat(&rt_stat);
+	evlist__reset_aggr_stats(evsel_list);
+
 	read_counters(&rs);
 
 	if (STAT_RECORD) {
@@ -965,6 +967,7 @@ try_again_reset:
 
 		evlist__copy_prev_raw_counts(evsel_list);
 		evlist__reset_prev_raw_counts(evsel_list);
+		evlist__reset_aggr_stats(evsel_list);
 		perf_stat__reset_shadow_per_stat(&rt_stat);
 	} else {
 		update_stats(&walltime_nsecs_stats, t1 - t0);
