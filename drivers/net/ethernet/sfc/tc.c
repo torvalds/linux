@@ -137,17 +137,16 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 		flow_rule_match_control(rule, &fm);
 
 		if (fm.mask->flags) {
-			efx_tc_err(efx, "Unsupported match on control.flags %#x\n",
-				   fm.mask->flags);
-			NL_SET_ERR_MSG_MOD(extack, "Unsupported match on control.flags");
+			NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported match on control.flags %#x",
+					       fm.mask->flags);
 			return -EOPNOTSUPP;
 		}
 	}
 	if (dissector->used_keys &
 	    ~(BIT(FLOW_DISSECTOR_KEY_CONTROL) |
 	      BIT(FLOW_DISSECTOR_KEY_BASIC))) {
-		efx_tc_err(efx, "Unsupported flower keys %#x\n", dissector->used_keys);
-		NL_SET_ERR_MSG_MOD(extack, "Unsupported flower keys encountered");
+		NL_SET_ERR_MSG_FMT_MOD(extack, "Unsupported flower keys %#x",
+				       dissector->used_keys);
 		return -EOPNOTSUPP;
 	}
 
@@ -156,11 +155,11 @@ static int efx_tc_flower_parse_match(struct efx_nic *efx,
 
 		flow_rule_match_basic(rule, &fm);
 		if (fm.mask->n_proto) {
-			EFX_TC_ERR_MSG(efx, extack, "Unsupported eth_proto match\n");
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported eth_proto match");
 			return -EOPNOTSUPP;
 		}
 		if (fm.mask->ip_proto) {
-			EFX_TC_ERR_MSG(efx, extack, "Unsupported ip_proto match\n");
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported ip_proto match");
 			return -EOPNOTSUPP;
 		}
 	}
@@ -200,13 +199,9 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 
 	if (efv != from_efv) {
 		/* can't happen */
-		efx_tc_err(efx, "for %s efv is %snull but from_efv is %snull\n",
-			   netdev_name(net_dev), efv ? "non-" : "",
-			   from_efv ? "non-" : "");
-		if (efv)
-			NL_SET_ERR_MSG_MOD(extack, "vfrep filter has PF net_dev (can't happen)");
-		else
-			NL_SET_ERR_MSG_MOD(extack, "PF filter has vfrep net_dev (can't happen)");
+		NL_SET_ERR_MSG_FMT_MOD(extack, "for %s efv is %snull but from_efv is %snull (can't happen)",
+				       netdev_name(net_dev), efv ? "non-" : "",
+				       from_efv ? "non-" : "");
 		return -EINVAL;
 	}
 
@@ -214,7 +209,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 	memset(&match, 0, sizeof(match));
 	rc = efx_tc_flower_external_mport(efx, from_efv);
 	if (rc < 0) {
-		EFX_TC_ERR_MSG(efx, extack, "Failed to identify ingress m-port");
+		NL_SET_ERR_MSG_MOD(extack, "Failed to identify ingress m-port");
 		return rc;
 	}
 	match.value.ingress_port = rc;
@@ -224,7 +219,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 		return rc;
 
 	if (tc->common.chain_index) {
-		EFX_TC_ERR_MSG(efx, extack, "No support for nonzero chain_index");
+		NL_SET_ERR_MSG_MOD(extack, "No support for nonzero chain_index");
 		return -EOPNOTSUPP;
 	}
 	match.mask.recirc_id = 0xff;
@@ -261,7 +256,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 
 		if (!act) {
 			/* more actions after a non-pipe action */
-			EFX_TC_ERR_MSG(efx, extack, "Action follows non-pipe action");
+			NL_SET_ERR_MSG_MOD(extack, "Action follows non-pipe action");
 			rc = -EINVAL;
 			goto release;
 		}
@@ -270,7 +265,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 		case FLOW_ACTION_DROP:
 			rc = efx_mae_alloc_action_set(efx, act);
 			if (rc) {
-				EFX_TC_ERR_MSG(efx, extack, "Failed to write action set to hw (drop)");
+				NL_SET_ERR_MSG_MOD(extack, "Failed to write action set to hw (drop)");
 				goto release;
 			}
 			list_add_tail(&act->list, &rule->acts.list);
@@ -281,20 +276,20 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 			save = *act;
 			to_efv = efx_tc_flower_lookup_efv(efx, fa->dev);
 			if (IS_ERR(to_efv)) {
-				EFX_TC_ERR_MSG(efx, extack, "Mirred egress device not on switch");
+				NL_SET_ERR_MSG_MOD(extack, "Mirred egress device not on switch");
 				rc = PTR_ERR(to_efv);
 				goto release;
 			}
 			rc = efx_tc_flower_external_mport(efx, to_efv);
 			if (rc < 0) {
-				EFX_TC_ERR_MSG(efx, extack, "Failed to identify egress m-port");
+				NL_SET_ERR_MSG_MOD(extack, "Failed to identify egress m-port");
 				goto release;
 			}
 			act->dest_mport = rc;
 			act->deliver = 1;
 			rc = efx_mae_alloc_action_set(efx, act);
 			if (rc) {
-				EFX_TC_ERR_MSG(efx, extack, "Failed to write action set to hw (mirred)");
+				NL_SET_ERR_MSG_MOD(extack, "Failed to write action set to hw (mirred)");
 				goto release;
 			}
 			list_add_tail(&act->list, &rule->acts.list);
@@ -310,9 +305,9 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 			*act = save;
 			break;
 		default:
-			efx_tc_err(efx, "Unhandled action %u\n", fa->id);
+			NL_SET_ERR_MSG_FMT_MOD(extack, "Unhandled action %u",
+					       fa->id);
 			rc = -EOPNOTSUPP;
-			NL_SET_ERR_MSG_MOD(extack, "Unsupported action");
 			goto release;
 		}
 	}
@@ -334,7 +329,7 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 		act->deliver = 1;
 		rc = efx_mae_alloc_action_set(efx, act);
 		if (rc) {
-			EFX_TC_ERR_MSG(efx, extack, "Failed to write action set to hw (deliver)");
+			NL_SET_ERR_MSG_MOD(extack, "Failed to write action set to hw (deliver)");
 			goto release;
 		}
 		list_add_tail(&act->list, &rule->acts.list);
@@ -349,13 +344,13 @@ static int efx_tc_flower_replace(struct efx_nic *efx,
 
 	rc = efx_mae_alloc_action_set_list(efx, &rule->acts);
 	if (rc) {
-		EFX_TC_ERR_MSG(efx, extack, "Failed to write action set list to hw");
+		NL_SET_ERR_MSG_MOD(extack, "Failed to write action set list to hw");
 		goto release;
 	}
 	rc = efx_mae_insert_rule(efx, &rule->match, EFX_TC_PRIO_TC,
 				 rule->acts.fw_id, &rule->fw_id);
 	if (rc) {
-		EFX_TC_ERR_MSG(efx, extack, "Failed to insert rule in hw");
+		NL_SET_ERR_MSG_MOD(extack, "Failed to insert rule in hw");
 		goto release_acts;
 	}
 	return 0;

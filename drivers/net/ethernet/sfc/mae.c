@@ -265,9 +265,8 @@ int efx_mae_match_check_caps(struct efx_nic *efx,
 	rc = efx_mae_match_check_cap_typ(supported_fields[MAE_FIELD_INGRESS_PORT],
 					 ingress_port_mask_type);
 	if (rc) {
-		efx_tc_err(efx, "No support for %s mask in field ingress_port\n",
-			   mask_type_name(ingress_port_mask_type));
-		NL_SET_ERR_MSG_MOD(extack, "Unsupported mask type for ingress_port");
+		NL_SET_ERR_MSG_FMT_MOD(extack, "No support for %s mask in field ingress_port",
+				       mask_type_name(ingress_port_mask_type));
 		return rc;
 	}
 	return 0;
