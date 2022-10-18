@@ -341,6 +341,8 @@ static const struct iio_info st_lsm6dsrx_tilt_info = {
 
 static int st_lsm6dsrx_embfunc_init(struct st_lsm6dsrx_hw *hw)
 {
+	u8 int_reg = hw->int_pin == 1 ? ST_LSM6DSRX_REG_MD1_CFG_ADDR :
+					ST_LSM6DSRX_REG_MD2_CFG_ADDR;
 	int err;
 
 	mutex_lock(&hw->page_lock);
@@ -356,6 +358,10 @@ static int st_lsm6dsrx_embfunc_init(struct st_lsm6dsrx_hw *hw)
 	st_lsm6dsrx_set_page_access(hw, 0,
 				    ST_LSM6DSRX_REG_FUNC_CFG_MASK);
 
+	/* enable embedded function interrupt by default */
+	err = __st_lsm6dsrx_write_with_mask(hw, int_reg,
+					    ST_LSM6DSRX_REG_INT_EMB_FUNC_MASK,
+					    1);
 unlock_page:
 	mutex_unlock(&hw->page_lock);
 
