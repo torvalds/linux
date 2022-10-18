@@ -17,6 +17,10 @@
 
 #include "../kselftest_harness.h"
 
+#ifndef __maybe_unused
+#define __maybe_unused __attribute__((__unused__))
+#endif
+
 /*
  * TEST_F_FORK() is useful when a test drop privileges but the corresponding
  * FIXTURE_TEARDOWN() requires them (e.g. to remove files from a directory
@@ -140,14 +144,12 @@ static void _init_caps(struct __test_metadata *const _metadata, bool drop_all)
 }
 
 /* We cannot put such helpers in a library because of kselftest_harness.h . */
-__attribute__((__unused__)) static void
-disable_caps(struct __test_metadata *const _metadata)
+static void __maybe_unused disable_caps(struct __test_metadata *const _metadata)
 {
 	_init_caps(_metadata, false);
 }
 
-__attribute__((__unused__)) static void
-drop_caps(struct __test_metadata *const _metadata)
+static void __maybe_unused drop_caps(struct __test_metadata *const _metadata)
 {
 	_init_caps(_metadata, true);
 }
@@ -176,14 +178,14 @@ static void _effective_cap(struct __test_metadata *const _metadata,
 	}
 }
 
-__attribute__((__unused__)) static void
-set_cap(struct __test_metadata *const _metadata, const cap_value_t caps)
+static void __maybe_unused set_cap(struct __test_metadata *const _metadata,
+				   const cap_value_t caps)
 {
 	_effective_cap(_metadata, caps, CAP_SET);
 }
 
-__attribute__((__unused__)) static void
-clear_cap(struct __test_metadata *const _metadata, const cap_value_t caps)
+static void __maybe_unused clear_cap(struct __test_metadata *const _metadata,
+				     const cap_value_t caps)
 {
 	_effective_cap(_metadata, caps, CAP_CLEAR);
 }
