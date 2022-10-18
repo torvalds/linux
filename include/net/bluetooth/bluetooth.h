@@ -627,6 +627,7 @@ static inline bool iso_enabled(void)
 
 int mgmt_init(void);
 void mgmt_exit(void);
+void mgmt_cleanup(struct sock *sk);
 
 void bt_sock_reclassify_lock(struct sock *sk, int proto);
 

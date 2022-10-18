@@ -108,7 +108,7 @@ static ssize_t aoedisk_show_payload(struct device *dev,
 	return sysfs_emit(page, "%lu\n", d->maxbcnt);
 }
 
-static int aoedisk_debugfs_show(struct seq_file *s, void *ignored)
+static int aoe_debugfs_show(struct seq_file *s, void *ignored)
 {
 	struct aoedev *d;
 	struct aoetgt **t, **te;
@@ -151,11 +151,7 @@ static int aoedisk_debugfs_show(struct seq_file *s, void *ignored)
 
 	return 0;
 }
-
-static int aoe_debugfs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, aoedisk_debugfs_show, inode->i_private);
-}
+DEFINE_SHOW_ATTRIBUTE(aoe_debugfs);
 
 static DEVICE_ATTR(state, 0444, aoedisk_show_state, NULL);
 static DEVICE_ATTR(mac, 0444, aoedisk_show_mac, NULL);
@@ -182,13 +178,6 @@ static const struct attribute_group aoe_attr_group = {
 static const struct attribute_group *aoe_attr_groups[] = {
 	&aoe_attr_group,
 	NULL,
-};
-
-static const struct file_operations aoe_debugfs_fops = {
-	.open = aoe_debugfs_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
 };
 
 static void

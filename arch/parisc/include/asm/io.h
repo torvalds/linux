@@ -128,98 +128,16 @@ static inline void gsc_writeq(unsigned long long val, unsigned long addr)
 void __iomem *ioremap(unsigned long offset, unsigned long size);
 #define ioremap_wc			ioremap
 #define ioremap_uc			ioremap
+#define pci_iounmap			pci_iounmap
 
 extern void iounmap(const volatile void __iomem *addr);
-
-static inline unsigned char __raw_readb(const volatile void __iomem *addr)
-{
-	return (*(volatile unsigned char __force *) (addr));
-}
-static inline unsigned short __raw_readw(const volatile void __iomem *addr)
-{
-	return *(volatile unsigned short __force *) addr;
-}
-static inline unsigned int __raw_readl(const volatile void __iomem *addr)
-{
-	return *(volatile unsigned int __force *) addr;
-}
-static inline unsigned long long __raw_readq(const volatile void __iomem *addr)
-{
-	return *(volatile unsigned long long __force *) addr;
-}
-
-static inline void __raw_writeb(unsigned char b, volatile void __iomem *addr)
-{
-	*(volatile unsigned char __force *) addr = b;
-}
-static inline void __raw_writew(unsigned short b, volatile void __iomem *addr)
-{
-	*(volatile unsigned short __force *) addr = b;
-}
-static inline void __raw_writel(unsigned int b, volatile void __iomem *addr)
-{
-	*(volatile unsigned int __force *) addr = b;
-}
-static inline void __raw_writeq(unsigned long long b, volatile void __iomem *addr)
-{
-	*(volatile unsigned long long __force *) addr = b;
-}
-
-static inline unsigned char readb(const volatile void __iomem *addr)
-{
-	return __raw_readb(addr);
-}
-static inline unsigned short readw(const volatile void __iomem *addr)
-{
-	return le16_to_cpu((__le16 __force) __raw_readw(addr));
-}
-static inline unsigned int readl(const volatile void __iomem *addr)
-{
-	return le32_to_cpu((__le32 __force) __raw_readl(addr));
-}
-static inline unsigned long long readq(const volatile void __iomem *addr)
-{
-	return le64_to_cpu((__le64 __force) __raw_readq(addr));
-}
-
-static inline void writeb(unsigned char b, volatile void __iomem *addr)
-{
-	__raw_writeb(b, addr);
-}
-static inline void writew(unsigned short w, volatile void __iomem *addr)
-{
-	__raw_writew((__u16 __force) cpu_to_le16(w), addr);
-}
-static inline void writel(unsigned int l, volatile void __iomem *addr)
-{
-	__raw_writel((__u32 __force) cpu_to_le32(l), addr);
-}
-static inline void writeq(unsigned long long q, volatile void __iomem *addr)
-{
-	__raw_writeq((__u64 __force) cpu_to_le64(q), addr);
-}
-
-#define	readb	readb
-#define	readw	readw
-#define	readl	readl
-#define readq	readq
-#define writeb	writeb
-#define writew	writew
-#define writel	writel
-#define writeq	writeq
-
-#define readb_relaxed(addr)	readb(addr)
-#define readw_relaxed(addr)	readw(addr)
-#define readl_relaxed(addr)	readl(addr)
-#define readq_relaxed(addr)	readq(addr)
-#define writeb_relaxed(b, addr)	writeb(b, addr)
-#define writew_relaxed(w, addr)	writew(w, addr)
-#define writel_relaxed(l, addr)	writel(l, addr)
-#define writeq_relaxed(q, addr)	writeq(q, addr)
 
 void memset_io(volatile void __iomem *addr, unsigned char val, int count);
 void memcpy_fromio(void *dst, const volatile void __iomem *src, int count);
 void memcpy_toio(volatile void __iomem *dst, const void *src, int count);
+#define memset_io memset_io
+#define memcpy_fromio memcpy_fromio
+#define memcpy_toio memcpy_toio
 
 /* Port-space IO */
 
@@ -241,10 +159,15 @@ extern void eisa_out32(unsigned int data, unsigned short port);
 extern unsigned char inb(int addr);
 extern unsigned short inw(int addr);
 extern unsigned int inl(int addr);
-
 extern void outb(unsigned char b, int addr);
 extern void outw(unsigned short b, int addr);
 extern void outl(unsigned int b, int addr);
+#define inb inb
+#define inw inw
+#define inl inl
+#define outb outb
+#define outw outw
+#define outl outl
 #elif defined(CONFIG_EISA)
 #define inb eisa_in8
 #define inw eisa_in16
@@ -270,7 +193,9 @@ static inline int inl(unsigned long addr)
 	BUG();
 	return -1;
 }
-
+#define inb inb
+#define inw inw
+#define inl inl
 #define outb(x, y)	({(void)(x); (void)(y); BUG(); 0;})
 #define outw(x, y)	({(void)(x); (void)(y); BUG(); 0;})
 #define outl(x, y)	({(void)(x); (void)(y); BUG(); 0;})
@@ -285,7 +210,12 @@ extern void insl (unsigned long port, void *dst, unsigned long count);
 extern void outsb (unsigned long port, const void *src, unsigned long count);
 extern void outsw (unsigned long port, const void *src, unsigned long count);
 extern void outsl (unsigned long port, const void *src, unsigned long count);
-
+#define insb insb
+#define insw insw
+#define insl insl
+#define outsb outsb
+#define outsw outsw
+#define outsl outsl
 
 /* IO Port space is :      BBiiii   where BB is HBA number. */
 #define IO_SPACE_LIMIT 0x00ffffff
@@ -297,6 +227,7 @@ extern void outsl (unsigned long port, const void *src, unsigned long count);
  * value for either 32 or 64 bit mode */
 #define F_EXTEND(x) ((unsigned long)((x) | (0xffffffff00000000ULL)))
 
+#ifdef CONFIG_64BIT
 #define ioread64 ioread64
 #define ioread64be ioread64be
 #define iowrite64 iowrite64
@@ -305,8 +236,31 @@ extern u64 ioread64(const void __iomem *addr);
 extern u64 ioread64be(const void __iomem *addr);
 extern void iowrite64(u64 val, void __iomem *addr);
 extern void iowrite64be(u64 val, void __iomem *addr);
+#endif
 
 #include <asm-generic/iomap.h>
+/*
+ * These get provided from <asm-generic/iomap.h> since parisc does not
+ * select GENERIC_IOMAP.
+ */
+#define ioport_map ioport_map
+#define ioport_unmap ioport_unmap
+#define ioread8 ioread8
+#define ioread16 ioread16
+#define ioread32 ioread32
+#define ioread16be ioread16be
+#define ioread32be ioread32be
+#define iowrite8 iowrite8
+#define iowrite16 iowrite16
+#define iowrite32 iowrite32
+#define iowrite16be iowrite16be
+#define iowrite32be iowrite32be
+#define ioread8_rep ioread8_rep
+#define ioread16_rep ioread16_rep
+#define ioread32_rep ioread32_rep
+#define iowrite8_rep iowrite8_rep
+#define iowrite16_rep iowrite16_rep
+#define iowrite32_rep iowrite32_rep
 
 /*
  * Convert a physical pointer to a virtual kernel pointer for /dev/mem
@@ -315,5 +269,7 @@ extern void iowrite64be(u64 val, void __iomem *addr);
 #define xlate_dev_mem_ptr(p)	__va(p)
 
 extern int devmem_is_allowed(unsigned long pfn);
+
+#include <asm-generic/io.h>
 
 #endif

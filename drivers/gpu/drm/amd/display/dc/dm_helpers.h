@@ -173,7 +173,8 @@ void dm_helpers_smu_timeout(struct dc_context *ctx, unsigned int msg_id, unsigne
 	(result == 0x0)
 void dm_helpers_init_panel_settings(
 	struct dc_context *ctx,
-	struct dc_panel_config *config);
+	struct dc_panel_config *config,
+	struct dc_sink *sink);
 void dm_helpers_override_panel_settings(
 	struct dc_context *ctx,
 	struct dc_panel_config *config);

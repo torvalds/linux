@@ -37,7 +37,6 @@ properties:
 
   qcom,phy-rescode-offset-top:
     $ref: /schemas/types.yaml#/definitions/int8-array
-    minItems: 5
     maxItems: 5
     description:
       Integer array of offset for pull-up legs rescode for all five lanes.
@@ -49,7 +48,6 @@ properties:
 
   qcom,phy-rescode-offset-bot:
     $ref: /schemas/types.yaml#/definitions/int8-array
-    minItems: 5
     maxItems: 5
     description:
       Integer array of offset for pull-down legs rescode for all five lanes.

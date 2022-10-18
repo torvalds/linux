@@ -92,11 +92,6 @@ static int octeon_console_debug_enabled(u32 console)
 /* time to wait for possible in-flight requests in milliseconds */
 #define WAIT_INFLIGHT_REQUEST	msecs_to_jiffies(1000)
 
-struct lio_trusted_vf_ctx {
-	struct completion complete;
-	int status;
-};
-
 struct oct_link_status_resp {
 	u64 rh;
 	struct oct_link_info link_info;

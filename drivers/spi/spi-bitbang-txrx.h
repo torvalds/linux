@@ -116,6 +116,7 @@ bitbang_txrx_le_cpha0(struct spi_device *spi,
 {
 	/* if (cpol == 0) this is SPI_MODE_0; else this is SPI_MODE_2 */
 
+	u8 rxbit = bits - 1;
 	u32 oldbit = !(word & 1);
 	/* clock starts at inactive polarity */
 	for (; likely(bits); bits--) {
@@ -135,7 +136,7 @@ bitbang_txrx_le_cpha0(struct spi_device *spi,
 		/* sample LSB (from slave) on leading edge */
 		word >>= 1;
 		if ((flags & SPI_MASTER_NO_RX) == 0)
-			word |= getmiso(spi) << (bits - 1);
+			word |= getmiso(spi) << rxbit;
 		setsck(spi, cpol);
 	}
 	return word;
@@ -148,6 +149,7 @@ bitbang_txrx_le_cpha1(struct spi_device *spi,
 {
 	/* if (cpol == 0) this is SPI_MODE_1; else this is SPI_MODE_3 */
 
+	u8 rxbit = bits - 1;
 	u32 oldbit = !(word & 1);
 	/* clock starts at inactive polarity */
 	for (; likely(bits); bits--) {
@@ -168,7 +170,7 @@ bitbang_txrx_le_cpha1(struct spi_device *spi,
 		/* sample LSB (from slave) on trailing edge */
 		word >>= 1;
 		if ((flags & SPI_MASTER_NO_RX) == 0)
-			word |= getmiso(spi) << (bits - 1);
+			word |= getmiso(spi) << rxbit;
 	}
 	return word;
 }

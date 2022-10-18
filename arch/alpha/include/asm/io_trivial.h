@@ -6,13 +6,13 @@
 /* This file may be included multiple times.  */
 
 #if IO_CONCAT(__IO_PREFIX,trivial_io_bw)
-__EXTERN_INLINE unsigned int
+__EXTERN_INLINE u8
 IO_CONCAT(__IO_PREFIX,ioread8)(const void __iomem *a)
 {
 	return __kernel_ldbu(*(const volatile u8 __force *)a);
 }
 
-__EXTERN_INLINE unsigned int
+__EXTERN_INLINE u16
 IO_CONCAT(__IO_PREFIX,ioread16)(const void __iomem *a)
 {
 	return __kernel_ldwu(*(const volatile u16 __force *)a);
@@ -32,7 +32,7 @@ IO_CONCAT(__IO_PREFIX,iowrite16)(u16 b, void __iomem *a)
 #endif
 
 #if IO_CONCAT(__IO_PREFIX,trivial_io_lq)
-__EXTERN_INLINE unsigned int
+__EXTERN_INLINE u32
 IO_CONCAT(__IO_PREFIX,ioread32)(const void __iomem *a)
 {
 	return *(const volatile u32 __force *)a;
@@ -42,6 +42,18 @@ __EXTERN_INLINE void
 IO_CONCAT(__IO_PREFIX,iowrite32)(u32 b, void __iomem *a)
 {
 	*(volatile u32 __force *)a = b;
+}
+
+__EXTERN_INLINE u64
+IO_CONCAT(__IO_PREFIX,ioread64)(const void __iomem *a)
+{
+	return *(const volatile u64 __force *)a;
+}
+
+__EXTERN_INLINE void
+IO_CONCAT(__IO_PREFIX,iowrite64)(u64 b, void __iomem *a)
+{
+	*(volatile u64 __force *)a = b;
 }
 #endif
 

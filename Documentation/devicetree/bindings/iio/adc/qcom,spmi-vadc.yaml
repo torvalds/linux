@@ -58,6 +58,7 @@ required:
 patternProperties:
   "^.*@[0-9a-f]+$":
     type: object
+    additionalProperties: false
     description: |
       Represents the external channels which are connected to the ADC.
       For compatible property "qcom,spmi-vadc" following channels, also known as

@@ -246,7 +246,7 @@
 #define PPC47x_MCSR_FPR	0x00800000 /* FPR parity error */
 #define PPC47x_MCSR_IPR	0x00400000 /* Imprecise Machine Check Exception */
 
-#ifdef CONFIG_E500
+#ifdef CONFIG_PPC_E500
 /* All e500 */
 #define MCSR_MCP 	0x80000000UL /* Machine Check Input Pin */
 #define MCSR_ICPERR 	0x40000000UL /* I-Cache Parity Error */
@@ -282,7 +282,7 @@
 #endif
 
 /* Bit definitions for the HID1 */
-#ifdef CONFIG_E500
+#ifdef CONFIG_PPC_E500
 /* e500v1/v2 */
 #define HID1_PLL_CFG_MASK 0xfc000000	/* PLL_CFG input pins */
 #define HID1_RFXE	0x00020000	/* Read fault exception enable */
@@ -545,7 +545,7 @@
 #define TCR_FIE		0x00800000	/* FIT Interrupt Enable */
 #define TCR_ARE		0x00400000	/* Auto Reload Enable */
 
-#ifdef CONFIG_E500
+#ifdef CONFIG_PPC_E500
 #define TCR_GET_WP(tcr)  ((((tcr) & 0xC0000000) >> 30) | \
 			      (((tcr) & 0x1E0000) >> 15))
 #else

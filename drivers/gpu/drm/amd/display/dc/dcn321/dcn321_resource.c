@@ -93,34 +93,7 @@
 #include "vm_helper.h"
 #include "dcn20/dcn20_vmid.h"
 
-#define DCN_BASE__INST0_SEG1                       0x000000C0
-#define DCN_BASE__INST0_SEG2                       0x000034C0
-#define DCN_BASE__INST0_SEG3                       0x00009000
-#define NBIO_BASE__INST0_SEG1                      0x00000014
-
-#define MAX_INSTANCE                                        8
-#define MAX_SEGMENT                                         6
-
-struct IP_BASE_INSTANCE {
-	unsigned int segment[MAX_SEGMENT];
-};
-
-struct IP_BASE {
-	struct IP_BASE_INSTANCE instance[MAX_INSTANCE];
-};
-
-static const struct IP_BASE DCN_BASE = { { { { 0x00000012, 0x000000C0, 0x000034C0, 0x00009000, 0x02403C00, 0 } },
-					{ { 0, 0, 0, 0, 0, 0 } },
-					{ { 0, 0, 0, 0, 0, 0 } },
-					{ { 0, 0, 0, 0, 0, 0 } },
-					{ { 0, 0, 0, 0, 0, 0 } },
-					{ { 0, 0, 0, 0, 0, 0 } },
-					{ { 0, 0, 0, 0, 0, 0 } },
-					{ { 0, 0, 0, 0, 0, 0 } } } };
-
 #define DC_LOGGER_INIT(logger)
-#define fixed16_to_double(x) (((double)x) / ((double) (1 << 16)))
-#define fixed16_to_double_to_cpu(x) fixed16_to_double(le32_to_cpu(x))
 
 enum dcn321_clk_src_array_id {
 	DCN321_CLK_SRC_PLL0,
@@ -157,6 +130,13 @@ enum dcn321_clk_src_array_id {
 
 #define SRI_ARR(reg_name, block, id)\
 	REG_STRUCT[id].reg_name = BASE(reg ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
+		reg ## block ## id ## _ ## reg_name
+
+#define SR_ARR_I2C(reg_name, id) \
+	REG_STRUCT[id-1].reg_name = BASE(reg##reg_name##_BASE_IDX) + reg##reg_name
+
+#define SRI_ARR_I2C(reg_name, block, id)\
+	REG_STRUCT[id-1].reg_name = BASE(reg ## block ## id ## _ ## reg_name ## _BASE_IDX) + \
 		reg ## block ## id ## _ ## reg_name
 
 #define SRI_ARR_ALPHABET(reg_name, block, index, id)\
@@ -466,21 +446,15 @@ static const struct dcn20_dsc_mask dsc_mask = {
 
 static struct dcn30_mpc_registers mpc_regs;
 #define dcn_mpc_regs_init()\
-		( \
-		MPC_REG_LIST_DCN3_0_RI(0),\
-		MPC_REG_LIST_DCN3_0_RI(1),\
-		MPC_REG_LIST_DCN3_0_RI(2),\
-		MPC_REG_LIST_DCN3_0_RI(3),\
-		MPC_OUT_MUX_REG_LIST_DCN3_0_RI(0),\
-		MPC_OUT_MUX_REG_LIST_DCN3_0_RI(1),\
-		MPC_OUT_MUX_REG_LIST_DCN3_0_RI(2),\
-		MPC_OUT_MUX_REG_LIST_DCN3_0_RI(3),\
-		MPC_MCM_REG_LIST_DCN32_RI(0),\
-		MPC_MCM_REG_LIST_DCN32_RI(1),\
-		MPC_MCM_REG_LIST_DCN32_RI(2),\
-		MPC_MCM_REG_LIST_DCN32_RI(3),\
-		MPC_DWB_MUX_REG_LIST_DCN3_0_RI(0)\
-		)
+	MPC_REG_LIST_DCN3_2_RI(0),\
+	MPC_REG_LIST_DCN3_2_RI(1),\
+	MPC_REG_LIST_DCN3_2_RI(2),\
+	MPC_REG_LIST_DCN3_2_RI(3),\
+	MPC_OUT_MUX_REG_LIST_DCN3_0_RI(0),\
+	MPC_OUT_MUX_REG_LIST_DCN3_0_RI(1),\
+	MPC_OUT_MUX_REG_LIST_DCN3_0_RI(2),\
+	MPC_OUT_MUX_REG_LIST_DCN3_0_RI(3),\
+	MPC_DWB_MUX_REG_LIST_DCN3_0_RI(0)
 
 static const struct dcn30_mpc_shift mpc_shift = {
 	MPC_COMMON_MASK_SH_LIST_DCN32(__SHIFT)
@@ -742,7 +716,12 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.force_disable_subvp = false,
 	.exit_idle_opt_for_cursor_updates = true,
 	.enable_single_display_2to1_odm_policy = true,
+
+	/*must match enable_single_display_2to1_odm_policy to support dynamic ODM transitions*/
+	.enable_double_buffered_dsc_pg_support = true,
 	.enable_dp_dig_pixel_rate_div_policy = 1,
+	.allow_sw_cursor_fallback = false,
+	.alloc_extra_way_for_cursor = true,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -796,7 +775,7 @@ static struct dce_aux *dcn321_aux_engine_create(
 #define i2c_inst_regs_init(id)\
 	I2C_HW_ENGINE_COMMON_REG_LIST_DCN30_RI(id)
 
-static struct dce_i2c_registers i2c_hw_regs[6];
+static struct dce_i2c_registers i2c_hw_regs[5];
 
 static const struct dce_i2c_shift i2c_shifts = {
 		I2C_COMMON_MASK_SH_LIST_DCN30(__SHIFT)
@@ -818,11 +797,11 @@ static struct dce_i2c_hw *dcn321_i2c_hw_create(
 
 #undef REG_STRUCT
 #define REG_STRUCT i2c_hw_regs
-		i2c_inst_regs_init(1),
-		i2c_inst_regs_init(2),
-		i2c_inst_regs_init(3),
-		i2c_inst_regs_init(4),
-		i2c_inst_regs_init(5);
+	i2c_inst_regs_init(1),
+	i2c_inst_regs_init(2),
+	i2c_inst_regs_init(3),
+	i2c_inst_regs_init(4),
+	i2c_inst_regs_init(5);
 
 	dcn2_i2c_hw_construct(dce_i2c_hw, ctx, inst,
 				    &i2c_hw_regs[inst], &i2c_shifts, &i2c_masks);
@@ -920,10 +899,10 @@ static struct hubp *dcn321_hubp_create(
 
 #undef REG_STRUCT
 #define REG_STRUCT hubp_regs
-		hubp_regs_init(0),
-		hubp_regs_init(1),
-		hubp_regs_init(2),
-		hubp_regs_init(3);
+	hubp_regs_init(0),
+	hubp_regs_init(1),
+	hubp_regs_init(2),
+	hubp_regs_init(3);
 
 	if (hubp32_construct(hubp2, ctx, inst,
 			&hubp_regs[inst], &hubp_shift, &hubp_mask))
@@ -1625,7 +1604,7 @@ static struct resource_funcs dcn321_res_pool_funcs = {
 	.validate_bandwidth = dcn32_validate_bandwidth,
 	.calculate_wm_and_dlg = dcn32_calculate_wm_and_dlg,
 	.populate_dml_pipes = dcn32_populate_dml_pipes_from_context,
-	.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
+	.acquire_idle_pipe_for_head_pipe_in_layer = dcn32_acquire_idle_pipe_for_head_pipe_in_layer,
 	.add_stream_to_ctx = dcn30_add_stream_to_ctx,
 	.add_dsc_to_stream_resource = dcn20_add_dsc_to_stream_resource,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
@@ -1668,14 +1647,14 @@ static bool dcn321_resource_construct(
 
 #undef REG_STRUCT
 #define REG_STRUCT abm_regs
-		abm_regs_init(0),
-		abm_regs_init(1),
-		abm_regs_init(2),
-		abm_regs_init(3);
+	abm_regs_init(0),
+	abm_regs_init(1),
+	abm_regs_init(2),
+	abm_regs_init(3);
 
 #undef REG_STRUCT
 #define REG_STRUCT dccg_regs
-		dccg_regs_init();
+	dccg_regs_init();
 
 
 	ctx->dc_bios->regs = &bios_regs;
@@ -1713,7 +1692,8 @@ static bool dcn321_resource_construct(
 	dc->caps.max_downscale_ratio = 600;
 	dc->caps.i2c_speed_in_khz = 100;
 	dc->caps.i2c_speed_in_khz_hdcp = 100; /*1.4 w/a applied by default*/
-	dc->caps.max_cursor_size = 256;
+	/* TODO: Bring max cursor size back to 256 after subvp cursor corruption is fixed*/
+	dc->caps.max_cursor_size = 64;
 	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dmdata_alloc_size = 2048;
 	dc->caps.mall_size_per_mem_channel = 0;

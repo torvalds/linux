@@ -223,14 +223,13 @@ static int vangogh_tables_init(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *tables = smu_table->tables;
-	struct amdgpu_device *adev = smu->adev;
 	uint32_t if_version;
+	uint32_t smu_version;
 	uint32_t ret = 0;
 
-	ret = smu_cmn_get_smc_version(smu, &if_version, NULL);
+	ret = smu_cmn_get_smc_version(smu, &if_version, &smu_version);
 	if (ret) {
-		dev_err(adev->dev, "Failed to get smu if version!\n");
-		goto err0_out;
+		return ret;
 	}
 
 	SMU_TABLE_INIT(tables, SMU_TABLE_WATERMARKS, sizeof(Watermarks_t),
@@ -255,7 +254,10 @@ static int vangogh_tables_init(struct smu_context *smu)
 		goto err0_out;
 	smu_table->metrics_time = 0;
 
-	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v2_2);
+	if (smu_version >= 0x043F3E00)
+		smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v2_3);
+	else
+		smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v2_2);
 	smu_table->gpu_metrics_table = kzalloc(smu_table->gpu_metrics_table_size, GFP_KERNEL);
 	if (!smu_table->gpu_metrics_table)
 		goto err1_out;
@@ -1648,6 +1650,63 @@ static int vangogh_set_watermarks_table(struct smu_context *smu,
 	return 0;
 }
 
+static ssize_t vangogh_get_legacy_gpu_metrics_v2_3(struct smu_context *smu,
+				      void **table)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct gpu_metrics_v2_3 *gpu_metrics =
+		(struct gpu_metrics_v2_3 *)smu_table->gpu_metrics_table;
+	SmuMetrics_legacy_t metrics;
+	int ret = 0;
+
+	ret = smu_cmn_get_metrics_table(smu, &metrics, true);
+	if (ret)
+		return ret;
+
+	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 2, 3);
+
+	gpu_metrics->temperature_gfx = metrics.GfxTemperature;
+	gpu_metrics->temperature_soc = metrics.SocTemperature;
+	memcpy(&gpu_metrics->temperature_core[0],
+		&metrics.CoreTemperature[0],
+		sizeof(uint16_t) * 4);
+	gpu_metrics->temperature_l3[0] = metrics.L3Temperature[0];
+
+	gpu_metrics->average_gfx_activity = metrics.GfxActivity;
+	gpu_metrics->average_mm_activity = metrics.UvdActivity;
+
+	gpu_metrics->average_socket_power = metrics.CurrentSocketPower;
+	gpu_metrics->average_cpu_power = metrics.Power[0];
+	gpu_metrics->average_soc_power = metrics.Power[1];
+	gpu_metrics->average_gfx_power = metrics.Power[2];
+	memcpy(&gpu_metrics->average_core_power[0],
+		&metrics.CorePower[0],
+		sizeof(uint16_t) * 4);
+
+	gpu_metrics->average_gfxclk_frequency = metrics.GfxclkFrequency;
+	gpu_metrics->average_socclk_frequency = metrics.SocclkFrequency;
+	gpu_metrics->average_uclk_frequency = metrics.MemclkFrequency;
+	gpu_metrics->average_fclk_frequency = metrics.MemclkFrequency;
+	gpu_metrics->average_vclk_frequency = metrics.VclkFrequency;
+	gpu_metrics->average_dclk_frequency = metrics.DclkFrequency;
+
+	memcpy(&gpu_metrics->current_coreclk[0],
+		&metrics.CoreFrequency[0],
+		sizeof(uint16_t) * 4);
+	gpu_metrics->current_l3clk[0] = metrics.L3Frequency[0];
+
+	gpu_metrics->throttle_status = metrics.ThrottlerStatus;
+	gpu_metrics->indep_throttle_status =
+			smu_cmn_get_indep_throttler_status(metrics.ThrottlerStatus,
+							   vangogh_throttler_map);
+
+	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
+
+	*table = (void *)gpu_metrics;
+
+	return sizeof(struct gpu_metrics_v2_3);
+}
+
 static ssize_t vangogh_get_legacy_gpu_metrics(struct smu_context *smu,
 				      void **table)
 {
@@ -1703,6 +1762,77 @@ static ssize_t vangogh_get_legacy_gpu_metrics(struct smu_context *smu,
 	*table = (void *)gpu_metrics;
 
 	return sizeof(struct gpu_metrics_v2_2);
+}
+
+static ssize_t vangogh_get_gpu_metrics_v2_3(struct smu_context *smu,
+				      void **table)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct gpu_metrics_v2_3 *gpu_metrics =
+		(struct gpu_metrics_v2_3 *)smu_table->gpu_metrics_table;
+	SmuMetrics_t metrics;
+	int ret = 0;
+
+	ret = smu_cmn_get_metrics_table(smu, &metrics, true);
+	if (ret)
+		return ret;
+
+	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 2, 3);
+
+	gpu_metrics->temperature_gfx = metrics.Current.GfxTemperature;
+	gpu_metrics->temperature_soc = metrics.Current.SocTemperature;
+	memcpy(&gpu_metrics->temperature_core[0],
+		&metrics.Current.CoreTemperature[0],
+		sizeof(uint16_t) * 4);
+	gpu_metrics->temperature_l3[0] = metrics.Current.L3Temperature[0];
+
+	gpu_metrics->average_temperature_gfx = metrics.Average.GfxTemperature;
+	gpu_metrics->average_temperature_soc = metrics.Average.SocTemperature;
+	memcpy(&gpu_metrics->average_temperature_core[0],
+		&metrics.Average.CoreTemperature[0],
+		sizeof(uint16_t) * 4);
+	gpu_metrics->average_temperature_l3[0] = metrics.Average.L3Temperature[0];
+
+	gpu_metrics->average_gfx_activity = metrics.Current.GfxActivity;
+	gpu_metrics->average_mm_activity = metrics.Current.UvdActivity;
+
+	gpu_metrics->average_socket_power = metrics.Current.CurrentSocketPower;
+	gpu_metrics->average_cpu_power = metrics.Current.Power[0];
+	gpu_metrics->average_soc_power = metrics.Current.Power[1];
+	gpu_metrics->average_gfx_power = metrics.Current.Power[2];
+	memcpy(&gpu_metrics->average_core_power[0],
+		&metrics.Average.CorePower[0],
+		sizeof(uint16_t) * 4);
+
+	gpu_metrics->average_gfxclk_frequency = metrics.Average.GfxclkFrequency;
+	gpu_metrics->average_socclk_frequency = metrics.Average.SocclkFrequency;
+	gpu_metrics->average_uclk_frequency = metrics.Average.MemclkFrequency;
+	gpu_metrics->average_fclk_frequency = metrics.Average.MemclkFrequency;
+	gpu_metrics->average_vclk_frequency = metrics.Average.VclkFrequency;
+	gpu_metrics->average_dclk_frequency = metrics.Average.DclkFrequency;
+
+	gpu_metrics->current_gfxclk = metrics.Current.GfxclkFrequency;
+	gpu_metrics->current_socclk = metrics.Current.SocclkFrequency;
+	gpu_metrics->current_uclk = metrics.Current.MemclkFrequency;
+	gpu_metrics->current_fclk = metrics.Current.MemclkFrequency;
+	gpu_metrics->current_vclk = metrics.Current.VclkFrequency;
+	gpu_metrics->current_dclk = metrics.Current.DclkFrequency;
+
+	memcpy(&gpu_metrics->current_coreclk[0],
+		&metrics.Current.CoreFrequency[0],
+		sizeof(uint16_t) * 4);
+	gpu_metrics->current_l3clk[0] = metrics.Current.L3Frequency[0];
+
+	gpu_metrics->throttle_status = metrics.Current.ThrottlerStatus;
+	gpu_metrics->indep_throttle_status =
+			smu_cmn_get_indep_throttler_status(metrics.Current.ThrottlerStatus,
+							   vangogh_throttler_map);
+
+	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
+
+	*table = (void *)gpu_metrics;
+
+	return sizeof(struct gpu_metrics_v2_3);
 }
 
 static ssize_t vangogh_get_gpu_metrics(struct smu_context *smu,
@@ -1772,20 +1902,26 @@ static ssize_t vangogh_get_gpu_metrics(struct smu_context *smu,
 static ssize_t vangogh_common_get_gpu_metrics(struct smu_context *smu,
 				      void **table)
 {
-	struct amdgpu_device *adev = smu->adev;
 	uint32_t if_version;
+	uint32_t smu_version;
 	int ret = 0;
 
-	ret = smu_cmn_get_smc_version(smu, &if_version, NULL);
+	ret = smu_cmn_get_smc_version(smu, &if_version, &smu_version);
 	if (ret) {
-		dev_err(adev->dev, "Failed to get smu if version!\n");
 		return ret;
 	}
 
-	if (if_version < 0x3)
-		ret = vangogh_get_legacy_gpu_metrics(smu, table);
-	else
-		ret = vangogh_get_gpu_metrics(smu, table);
+	if (smu_version >= 0x043F3E00) {
+		if (if_version < 0x3)
+			ret = vangogh_get_legacy_gpu_metrics_v2_3(smu, table);
+		else
+			ret = vangogh_get_gpu_metrics_v2_3(smu, table);
+	} else {
+		if (if_version < 0x3)
+			ret = vangogh_get_legacy_gpu_metrics(smu, table);
+		else
+			ret = vangogh_get_gpu_metrics(smu, table);
+	}
 
 	return ret;
 }

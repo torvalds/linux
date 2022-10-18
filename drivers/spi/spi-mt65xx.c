@@ -1184,6 +1184,11 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	if (!dev->dma_mask)
 		dev->dma_mask = &dev->coherent_dma_mask;
 
+	if (mdata->dev_comp->ipm_design)
+		dma_set_max_seg_size(dev, SZ_16M);
+	else
+		dma_set_max_seg_size(dev, SZ_256K);
+
 	ret = devm_request_irq(dev, irq, mtk_spi_interrupt,
 			       IRQF_TRIGGER_NONE, dev_name(dev), master);
 	if (ret)

@@ -36,24 +36,6 @@ struct guc_log_section {
 	const char *name;
 };
 
-static s32 scale_log_param(struct intel_guc_log *log, const struct guc_log_section *section,
-			   s32 param)
-{
-	/* -1 means default */
-	if (param < 0)
-		return section->default_val;
-
-	/* Check for 32-bit overflow */
-	if (param >= SZ_4K) {
-		drm_err(&guc_to_gt(log_to_guc(log))->i915->drm, "Size too large for GuC %s log: %dMB!",
-			section->name, param);
-		return section->default_val;
-	}
-
-	/* Param units are 1MB */
-	return param * SZ_1M;
-}
-
 static void _guc_log_init_sizes(struct intel_guc_log *log)
 {
 	struct intel_guc *guc = log_to_guc(log);
@@ -78,15 +60,10 @@ static void _guc_log_init_sizes(struct intel_guc_log *log)
 			"capture",
 		}
 	};
-	s32 params[GUC_LOG_SECTIONS_LIMIT] = {
-		GUC_LOG_DEFAULT_CRASH_BUFFER_SIZE / SZ_1M,
-		GUC_LOG_DEFAULT_DEBUG_BUFFER_SIZE / SZ_1M,
-		GUC_LOG_DEFAULT_CAPTURE_BUFFER_SIZE / SZ_1M,
-	};
 	int i;
 
 	for (i = 0; i < GUC_LOG_SECTIONS_LIMIT; i++)
-		log->sizes[i].bytes = scale_log_param(log, sections + i, params[i]);
+		log->sizes[i].bytes = sections[i].default_val;
 
 	/* If debug size > 1MB then bump default crash size to keep the same units */
 	if (log->sizes[GUC_LOG_SECTIONS_DEBUG].bytes >= SZ_1M &&

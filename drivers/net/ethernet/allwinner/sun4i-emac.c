@@ -331,8 +331,8 @@ prepare_err:
 static void emac_get_drvinfo(struct net_device *dev,
 			      struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
-	strlcpy(info->bus_info, dev_name(&dev->dev), sizeof(info->bus_info));
+	strscpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strscpy(info->bus_info, dev_name(&dev->dev), sizeof(info->bus_info));
 }
 
 static u32 emac_get_msglevel(struct net_device *dev)

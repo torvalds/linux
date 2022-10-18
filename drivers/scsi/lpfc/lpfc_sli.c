@@ -1916,6 +1916,7 @@ lpfc_issue_cmf_sync_wqe(struct lpfc_hba *phba, u32 ms, u64 total)
 	unsigned long iflags;
 	u32 ret_val;
 	u32 atot, wtot, max;
+	u16 warn_sync_period = 0;
 
 	/* First address any alarm / warning activity */
 	atot = atomic_xchg(&phba->cgn_sync_alarm_cnt, 0);
@@ -1970,10 +1971,14 @@ lpfc_issue_cmf_sync_wqe(struct lpfc_hba *phba, u32 ms, u64 total)
 				lpfc_acqe_cgn_frequency;
 			bf_set(cmf_sync_wsigmax, &wqe->cmf_sync, max);
 			bf_set(cmf_sync_wsigcnt, &wqe->cmf_sync, wtot);
+			warn_sync_period = lpfc_acqe_cgn_frequency;
 		} else {
 			/* We hit a FPIN warning condition */
 			bf_set(cmf_sync_wfpinmax, &wqe->cmf_sync, 1);
 			bf_set(cmf_sync_wfpincnt, &wqe->cmf_sync, 1);
+			if (phba->cgn_fpin_frequency != LPFC_FPIN_INIT_FREQ)
+				warn_sync_period =
+				LPFC_MSECS_TO_SECS(phba->cgn_fpin_frequency);
 		}
 	}
 
@@ -1989,6 +1994,7 @@ initpath:
 	bf_set(cmf_sync_reqtag, &wqe->cmf_sync, sync_buf->iotag);
 
 	bf_set(cmf_sync_qosd, &wqe->cmf_sync, 1);
+	bf_set(cmf_sync_period, &wqe->cmf_sync, warn_sync_period);
 
 	bf_set(cmf_sync_cmd_type, &wqe->cmf_sync, CMF_SYNC_COMMAND);
 	bf_set(cmf_sync_wqec, &wqe->cmf_sync, 1);
@@ -2850,6 +2856,7 @@ void
 lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport  *vport = pmb->vport;
+	struct lpfc_dmabuf *mp;
 	struct lpfc_nodelist *ndlp;
 	struct Scsi_Host *shost;
 	uint16_t rpi, vpi;
@@ -2862,6 +2869,12 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	if (!(phba->pport->load_flag & FC_UNLOADING) &&
 	    pmb->u.mb.mbxCommand == MBX_REG_LOGIN64 &&
 	    !pmb->u.mb.mbxStatus) {
+		mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
+		if (mp) {
+			pmb->ctx_buf = NULL;
+			lpfc_mbuf_free(phba, mp->virt, mp->phys);
+			kfree(mp);
+		}
 		rpi = pmb->u.mb.un.varWords[0];
 		vpi = pmb->u.mb.un.varRegLogin.vpi;
 		if (phba->sli_rev == LPFC_SLI_REV4)
@@ -6202,6 +6215,9 @@ lpfc_sli4_get_avail_extnt_rsrc(struct lpfc_hba *phba, uint16_t type,
 	struct lpfc_mbx_get_rsrc_extent_info *rsrc_info;
 	LPFC_MBOXQ_t *mbox;
 
+	*extnt_count = 0;
+	*extnt_size = 0;
+
 	mbox = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mbox)
 		return -ENOMEM;
@@ -6817,8 +6833,13 @@ lpfc_set_features(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox,
 		bf_set(lpfc_mbx_set_feature_mi, &mbox->u.mqe.un.set_feature,
 		       phba->sli4_hba.pc_sli4_params.mi_ver);
 		break;
+	case LPFC_SET_LD_SIGNAL:
+		mbox->u.mqe.un.set_feature.feature = LPFC_SET_LD_SIGNAL;
+		mbox->u.mqe.un.set_feature.param_len = 16;
+		bf_set(lpfc_mbx_set_feature_lds_qry,
+		       &mbox->u.mqe.un.set_feature, LPFC_QUERY_LDS_OP);
+		break;
 	case LPFC_SET_ENABLE_CMF:
-		bf_set(lpfc_mbx_set_feature_dd, &mbox->u.mqe.un.set_feature, 1);
 		mbox->u.mqe.un.set_feature.feature = LPFC_SET_ENABLE_CMF;
 		mbox->u.mqe.un.set_feature.param_len = 4;
 		bf_set(lpfc_mbx_set_feature_cmf,
@@ -7814,6 +7835,62 @@ lpfc_post_rq_buffer(struct lpfc_hba *phba, struct lpfc_queue *hrq,
 }
 
 static void
+lpfc_mbx_cmpl_read_lds_params(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
+{
+	union lpfc_sli4_cfg_shdr *shdr;
+	u32 shdr_status, shdr_add_status;
+
+	shdr = (union lpfc_sli4_cfg_shdr *)
+		&pmb->u.mqe.un.sli4_config.header.cfg_shdr;
+	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
+	if (shdr_status || shdr_add_status || pmb->u.mb.mbxStatus) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_LDS_EVENT | LOG_MBOX,
+				"4622 SET_FEATURE (x%x) mbox failed, "
+				"status x%x add_status x%x, mbx status x%x\n",
+				LPFC_SET_LD_SIGNAL, shdr_status,
+				shdr_add_status, pmb->u.mb.mbxStatus);
+		phba->degrade_activate_threshold = 0;
+		phba->degrade_deactivate_threshold = 0;
+		phba->fec_degrade_interval = 0;
+		goto out;
+	}
+
+	phba->degrade_activate_threshold = pmb->u.mqe.un.set_feature.word7;
+	phba->degrade_deactivate_threshold = pmb->u.mqe.un.set_feature.word8;
+	phba->fec_degrade_interval = pmb->u.mqe.un.set_feature.word10;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_LDS_EVENT,
+			"4624 Success: da x%x dd x%x interval x%x\n",
+			phba->degrade_activate_threshold,
+			phba->degrade_deactivate_threshold,
+			phba->fec_degrade_interval);
+out:
+	mempool_free(pmb, phba->mbox_mem_pool);
+}
+
+int
+lpfc_read_lds_params(struct lpfc_hba *phba)
+{
+	LPFC_MBOXQ_t *mboxq;
+	int rc;
+
+	mboxq = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq)
+		return -ENOMEM;
+
+	lpfc_set_features(phba, mboxq, LPFC_SET_LD_SIGNAL);
+	mboxq->vport = phba->pport;
+	mboxq->mbox_cmpl = lpfc_mbx_cmpl_read_lds_params;
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
+	if (rc == MBX_NOT_FINISHED) {
+		mempool_free(mboxq, phba->mbox_mem_pool);
+		return -EIO;
+	}
+	return 0;
+}
+
+static void
 lpfc_mbx_cmpl_cgn_set_ftrs(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport *vport = pmb->vport;
@@ -7957,6 +8034,172 @@ static void lpfc_sli4_dip(struct lpfc_hba *phba)
 					"2904 Firmware Dump Image Present"
 					" on Adapter");
 	}
+}
+
+/**
+ * lpfc_rx_monitor_create_ring - Initialize ring buffer for rx_monitor
+ * @rx_monitor: Pointer to lpfc_rx_info_monitor object
+ * @entries: Number of rx_info_entry objects to allocate in ring
+ *
+ * Return:
+ * 0 - Success
+ * ENOMEM - Failure to kmalloc
+ **/
+int lpfc_rx_monitor_create_ring(struct lpfc_rx_info_monitor *rx_monitor,
+				u32 entries)
+{
+	rx_monitor->ring = kmalloc_array(entries, sizeof(struct rx_info_entry),
+					 GFP_KERNEL);
+	if (!rx_monitor->ring)
+		return -ENOMEM;
+
+	rx_monitor->head_idx = 0;
+	rx_monitor->tail_idx = 0;
+	spin_lock_init(&rx_monitor->lock);
+	rx_monitor->entries = entries;
+
+	return 0;
+}
+
+/**
+ * lpfc_rx_monitor_destroy_ring - Free ring buffer for rx_monitor
+ * @rx_monitor: Pointer to lpfc_rx_info_monitor object
+ **/
+void lpfc_rx_monitor_destroy_ring(struct lpfc_rx_info_monitor *rx_monitor)
+{
+	spin_lock(&rx_monitor->lock);
+	kfree(rx_monitor->ring);
+	rx_monitor->ring = NULL;
+	rx_monitor->entries = 0;
+	rx_monitor->head_idx = 0;
+	rx_monitor->tail_idx = 0;
+	spin_unlock(&rx_monitor->lock);
+}
+
+/**
+ * lpfc_rx_monitor_record - Insert an entry into rx_monitor's ring
+ * @rx_monitor: Pointer to lpfc_rx_info_monitor object
+ * @entry: Pointer to rx_info_entry
+ *
+ * Used to insert an rx_info_entry into rx_monitor's ring.  Note that this is a
+ * deep copy of rx_info_entry not a shallow copy of the rx_info_entry ptr.
+ *
+ * This is called from lpfc_cmf_timer, which is in timer/softirq context.
+ *
+ * In cases of old data overflow, we do a best effort of FIFO order.
+ **/
+void lpfc_rx_monitor_record(struct lpfc_rx_info_monitor *rx_monitor,
+			    struct rx_info_entry *entry)
+{
+	struct rx_info_entry *ring = rx_monitor->ring;
+	u32 *head_idx = &rx_monitor->head_idx;
+	u32 *tail_idx = &rx_monitor->tail_idx;
+	spinlock_t *ring_lock = &rx_monitor->lock;
+	u32 ring_size = rx_monitor->entries;
+
+	spin_lock(ring_lock);
+	memcpy(&ring[*tail_idx], entry, sizeof(*entry));
+	*tail_idx = (*tail_idx + 1) % ring_size;
+
+	/* Best effort of FIFO saved data */
+	if (*tail_idx == *head_idx)
+		*head_idx = (*head_idx + 1) % ring_size;
+
+	spin_unlock(ring_lock);
+}
+
+/**
+ * lpfc_rx_monitor_report - Read out rx_monitor's ring
+ * @phba: Pointer to lpfc_hba object
+ * @rx_monitor: Pointer to lpfc_rx_info_monitor object
+ * @buf: Pointer to char buffer that will contain rx monitor info data
+ * @buf_len: Length buf including null char
+ * @max_read_entries: Maximum number of entries to read out of ring
+ *
+ * Used to dump/read what's in rx_monitor's ring buffer.
+ *
+ * If buf is NULL || buf_len == 0, then it is implied that we want to log the
+ * information to kmsg instead of filling out buf.
+ *
+ * Return:
+ * Number of entries read out of the ring
+ **/
+u32 lpfc_rx_monitor_report(struct lpfc_hba *phba,
+			   struct lpfc_rx_info_monitor *rx_monitor, char *buf,
+			   u32 buf_len, u32 max_read_entries)
+{
+	struct rx_info_entry *ring = rx_monitor->ring;
+	struct rx_info_entry *entry;
+	u32 *head_idx = &rx_monitor->head_idx;
+	u32 *tail_idx = &rx_monitor->tail_idx;
+	spinlock_t *ring_lock = &rx_monitor->lock;
+	u32 ring_size = rx_monitor->entries;
+	u32 cnt = 0;
+	char tmp[DBG_LOG_STR_SZ] = {0};
+	bool log_to_kmsg = (!buf || !buf_len) ? true : false;
+
+	if (!log_to_kmsg) {
+		/* clear the buffer to be sure */
+		memset(buf, 0, buf_len);
+
+		scnprintf(buf, buf_len, "\t%-16s%-16s%-16s%-16s%-8s%-8s%-8s"
+					"%-8s%-8s%-8s%-16s\n",
+					"MaxBPI", "Tot_Data_CMF",
+					"Tot_Data_Cmd", "Tot_Data_Cmpl",
+					"Lat(us)", "Avg_IO", "Max_IO", "Bsy",
+					"IO_cnt", "Info", "BWutil(ms)");
+	}
+
+	/* Needs to be _bh because record is called from timer interrupt
+	 * context
+	 */
+	spin_lock_bh(ring_lock);
+	while (*head_idx != *tail_idx) {
+		entry = &ring[*head_idx];
+
+		/* Read out this entry's data. */
+		if (!log_to_kmsg) {
+			/* If !log_to_kmsg, then store to buf. */
+			scnprintf(tmp, sizeof(tmp),
+				  "%03d:\t%-16llu%-16llu%-16llu%-16llu%-8llu"
+				  "%-8llu%-8llu%-8u%-8u%-8u%u(%u)\n",
+				  *head_idx, entry->max_bytes_per_interval,
+				  entry->cmf_bytes, entry->total_bytes,
+				  entry->rcv_bytes, entry->avg_io_latency,
+				  entry->avg_io_size, entry->max_read_cnt,
+				  entry->cmf_busy, entry->io_cnt,
+				  entry->cmf_info, entry->timer_utilization,
+				  entry->timer_interval);
+
+			/* Check for buffer overflow */
+			if ((strlen(buf) + strlen(tmp)) >= buf_len)
+				break;
+
+			/* Append entry's data to buffer */
+			strlcat(buf, tmp, buf_len);
+		} else {
+			lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+					"4410 %02u: MBPI %llu Xmit %llu "
+					"Cmpl %llu Lat %llu ASz %llu Info %02u "
+					"BWUtil %u Int %u slot %u\n",
+					cnt, entry->max_bytes_per_interval,
+					entry->total_bytes, entry->rcv_bytes,
+					entry->avg_io_latency,
+					entry->avg_io_size, entry->cmf_info,
+					entry->timer_utilization,
+					entry->timer_interval, *head_idx);
+		}
+
+		*head_idx = (*head_idx + 1) % ring_size;
+
+		/* Don't feed more than max_read_entries */
+		cnt++;
+		if (cnt >= max_read_entries)
+			break;
+	}
+	spin_unlock_bh(ring_lock);
+
+	return cnt;
 }
 
 /**
@@ -8133,19 +8376,29 @@ no_cmf:
 	phba->cmf_interval_rate = LPFC_CMF_INTERVAL;
 
 	/* Allocate RX Monitor Buffer */
-	if (!phba->rxtable) {
-		phba->rxtable = kmalloc_array(LPFC_MAX_RXMONITOR_ENTRY,
-					      sizeof(struct rxtable_entry),
-					      GFP_KERNEL);
-		if (!phba->rxtable) {
+	if (!phba->rx_monitor) {
+		phba->rx_monitor = kzalloc(sizeof(*phba->rx_monitor),
+					   GFP_KERNEL);
+
+		if (!phba->rx_monitor) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"2644 Failed to alloc memory "
 					"for RX Monitor Buffer\n");
 			return -ENOMEM;
 		}
+
+		/* Instruct the rx_monitor object to instantiate its ring */
+		if (lpfc_rx_monitor_create_ring(phba->rx_monitor,
+						LPFC_MAX_RXMONITOR_ENTRY)) {
+			kfree(phba->rx_monitor);
+			phba->rx_monitor = NULL;
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"2645 Failed to alloc memory "
+					"for RX Monitor's Ring\n");
+			return -ENOMEM;
+		}
 	}
-	atomic_set(&phba->rxtable_idx_head, 0);
-	atomic_set(&phba->rxtable_idx_tail, 0);
+
 	return 0;
 }
 
@@ -10322,12 +10575,10 @@ static int
 __lpfc_sli_issue_fcp_io_s4(struct lpfc_hba *phba, uint32_t ring_number,
 			   struct lpfc_iocbq *piocb, uint32_t flag)
 {
-	int rc;
 	struct lpfc_io_buf *lpfc_cmd = piocb->io_buf;
 
 	lpfc_prep_embed_io(phba, lpfc_cmd);
-	rc = lpfc_sli4_issue_wqe(phba, lpfc_cmd->hdwq, piocb);
-	return rc;
+	return lpfc_sli4_issue_wqe(phba, lpfc_cmd->hdwq, piocb);
 }
 
 void

@@ -2097,7 +2097,7 @@
         "EventCode": "0x33",
         "EventName": "UNC_R3_VNA_CREDITS_ACQUIRED",
         "PerPkg": "1",
-        "PublicDescription": "Number of QPI VNA Credit acquisitions.  This event can be used in conjunction with the VNA In-Use Accumulator to calculate the average lifetime of a credit holder.  VNA credits are used by all message classes in order to communicate across QPI.  If a packet is unable to acquire credits, it will then attempt to use credts from the VN0 pool.  Note that a single packet may require multiple flit buffers (i.e. when data is being transfered).  Therefore, this event will increment by the number of credits acquired in each cycle.  Filtering based on message class is not provided.  One can count the number of packets transfered in a given message class using an qfclk event.",
+        "PublicDescription": "Number of QPI VNA Credit acquisitions.  This event can be used in conjunction with the VNA In-Use Accumulator to calculate the average lifetime of a credit holder.  VNA credits are used by all message classes in order to communicate across QPI.  If a packet is unable to acquire credits, it will then attempt to use credits from the VN0 pool.  Note that a single packet may require multiple flit buffers (i.e. when data is being transferred).  Therefore, this event will increment by the number of credits acquired in each cycle.  Filtering based on message class is not provided.  One can count the number of packets transferred in a given message class using an qfclk event.",
         "Unit": "R3QPI"
     },
     {
@@ -2106,7 +2106,7 @@
         "EventCode": "0x33",
         "EventName": "UNC_R3_VNA_CREDITS_ACQUIRED.AD",
         "PerPkg": "1",
-        "PublicDescription": "Number of QPI VNA Credit acquisitions.  This event can be used in conjunction with the VNA In-Use Accumulator to calculate the average lifetime of a credit holder.  VNA credits are used by all message classes in order to communicate across QPI.  If a packet is unable to acquire credits, it will then attempt to use credts from the VN0 pool.  Note that a single packet may require multiple flit buffers (i.e. when data is being transfered).  Therefore, this event will increment by the number of credits acquired in each cycle.  Filtering based on message class is not provided.  One can count the number of packets transfered in a given message class using an qfclk event.; Filter for the Home (HOM) message class.  HOM is generally used to send requests, request responses, and snoop responses.",
+        "PublicDescription": "Number of QPI VNA Credit acquisitions.  This event can be used in conjunction with the VNA In-Use Accumulator to calculate the average lifetime of a credit holder.  VNA credits are used by all message classes in order to communicate across QPI.  If a packet is unable to acquire credits, it will then attempt to use credits from the VN0 pool.  Note that a single packet may require multiple flit buffers (i.e. when data is being transferred).  Therefore, this event will increment by the number of credits acquired in each cycle.  Filtering based on message class is not provided.  One can count the number of packets transferred in a given message class using an qfclk event.; Filter for the Home (HOM) message class.  HOM is generally used to send requests, request responses, and snoop responses.",
         "UMask": "0x1",
         "Unit": "R3QPI"
     },
@@ -2116,7 +2116,7 @@
         "EventCode": "0x33",
         "EventName": "UNC_R3_VNA_CREDITS_ACQUIRED.BL",
         "PerPkg": "1",
-        "PublicDescription": "Number of QPI VNA Credit acquisitions.  This event can be used in conjunction with the VNA In-Use Accumulator to calculate the average lifetime of a credit holder.  VNA credits are used by all message classes in order to communicate across QPI.  If a packet is unable to acquire credits, it will then attempt to use credts from the VN0 pool.  Note that a single packet may require multiple flit buffers (i.e. when data is being transfered).  Therefore, this event will increment by the number of credits acquired in each cycle.  Filtering based on message class is not provided.  One can count the number of packets transfered in a given message class using an qfclk event.; Filter for the Home (HOM) message class.  HOM is generally used to send requests, request responses, and snoop responses.",
+        "PublicDescription": "Number of QPI VNA Credit acquisitions.  This event can be used in conjunction with the VNA In-Use Accumulator to calculate the average lifetime of a credit holder.  VNA credits are used by all message classes in order to communicate across QPI.  If a packet is unable to acquire credits, it will then attempt to use credits from the VN0 pool.  Note that a single packet may require multiple flit buffers (i.e. when data is being transferred).  Therefore, this event will increment by the number of credits acquired in each cycle.  Filtering based on message class is not provided.  One can count the number of packets transferred in a given message class using an qfclk event.; Filter for the Home (HOM) message class.  HOM is generally used to send requests, request responses, and snoop responses.",
         "UMask": "0x4",
         "Unit": "R3QPI"
     },

@@ -1374,6 +1374,7 @@ static struct genl_family netlbl_unlabel_gnl_family __ro_after_init = {
 	.module = THIS_MODULE,
 	.small_ops = netlbl_unlabel_genl_ops,
 	.n_small_ops = ARRAY_SIZE(netlbl_unlabel_genl_ops),
+	.resv_start_op = NLBL_UNLABEL_C_STATICLISTDEF + 1,
 };
 
 /*

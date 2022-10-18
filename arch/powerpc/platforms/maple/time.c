@@ -153,6 +153,7 @@ time64_t __init maple_get_boot_time(void)
 		       maple_rtc_addr);
 	}
  bail:
+	of_node_put(rtcs);
 	if (maple_rtc_addr == 0) {
 		maple_rtc_addr = RTC_PORT(0); /* legacy address */
 		printk(KERN_INFO "Maple: No device node for RTC, assuming "

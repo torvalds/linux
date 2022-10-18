@@ -55,8 +55,6 @@ ap_ts_pen_1v8: &i2c4 {
 };
 
 &pm6150_adc {
-	status = "disabled";
-
 	/delete-node/ charger-thermistor@4f;
 };
 

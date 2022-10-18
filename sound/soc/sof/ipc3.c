@@ -9,6 +9,7 @@
 
 #include <sound/sof/stream.h>
 #include <sound/sof/control.h>
+#include <trace/events/sof.h>
 #include "sof-priv.h"
 #include "sof-audio.h"
 #include "ipc3-priv.h"
@@ -23,7 +24,7 @@ static void ipc3_log_header(struct device *dev, u8 *text, u32 cmd)
 	u8 *str2 = NULL;
 	u32 glb;
 	u32 type;
-	bool vdbg = false;
+	bool is_sof_ipc_stream_position = false;
 
 	glb = cmd & SOF_GLB_TYPE_MASK;
 	type = cmd & SOF_CMD_TYPE_MASK;
@@ -118,7 +119,7 @@ static void ipc3_log_header(struct device *dev, u8 *text, u32 cmd)
 		case SOF_IPC_STREAM_TRIG_XRUN:
 			str2 = "TRIG_XRUN"; break;
 		case SOF_IPC_STREAM_POSITION:
-			vdbg = true;
+			is_sof_ipc_stream_position = true;
 			str2 = "POSITION"; break;
 		case SOF_IPC_STREAM_VORBIS_PARAMS:
 			str2 = "VORBIS_PARAMS"; break;
@@ -206,8 +207,8 @@ static void ipc3_log_header(struct device *dev, u8 *text, u32 cmd)
 	}
 
 	if (str2) {
-		if (vdbg)
-			dev_vdbg(dev, "%s: 0x%x: %s: %s\n", text, cmd, str, str2);
+		if (is_sof_ipc_stream_position)
+			trace_sof_stream_position_ipc_rx(dev);
 		else
 			dev_dbg(dev, "%s: 0x%x: %s: %s\n", text, cmd, str, str2);
 	} else {
@@ -852,8 +853,7 @@ static void ipc3_period_elapsed(struct snd_sof_dev *sdev, u32 msg_id)
 		return;
 	}
 
-	dev_vdbg(sdev->dev, "posn : host 0x%llx dai 0x%llx wall 0x%llx\n",
-		 posn.host_posn, posn.dai_posn, posn.wallclock);
+	trace_sof_ipc3_period_elapsed_position(sdev, &posn);
 
 	memcpy(&stream->posn, &posn, sizeof(posn));
 

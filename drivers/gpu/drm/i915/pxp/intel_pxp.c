@@ -169,11 +169,11 @@ static void pxp_queue_termination(struct intel_pxp *pxp)
 	 * We want to get the same effect as if we received a termination
 	 * interrupt, so just pretend that we did.
 	 */
-	spin_lock_irq(&gt->irq_lock);
+	spin_lock_irq(gt->irq_lock);
 	intel_pxp_mark_termination_in_progress(pxp);
 	pxp->session_events |= PXP_TERMINATION_REQUEST;
 	queue_work(system_unbound_wq, &pxp->session_work);
-	spin_unlock_irq(&gt->irq_lock);
+	spin_unlock_irq(gt->irq_lock);
 }
 
 static bool pxp_component_bound(struct intel_pxp *pxp)

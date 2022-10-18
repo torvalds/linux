@@ -42,11 +42,21 @@ properties:
 
   pgc:
     type: object
+    additionalProperties: false
     description: list of power domains provided by this controller.
 
+    properties:
+      '#address-cells':
+        const: 1
+
+      '#size-cells':
+        const: 0
+
     patternProperties:
-      "power-domain@[0-9]$":
+      "power-domain@[0-9a-f]+$":
         type: object
+        additionalProperties: false
+
         properties:
 
           '#power-domain-cells':
@@ -84,6 +94,10 @@ properties:
         required:
           - '#power-domain-cells'
           - reg
+
+    required:
+      - '#address-cells'
+      - '#size-cells'
 
 required:
   - compatible

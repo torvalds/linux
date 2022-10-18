@@ -883,7 +883,7 @@ static void ffb_init_fix(struct fb_info *info)
 	} else
 		ffb_type_name = "Elite 3D";
 
-	strlcpy(info->fix.id, ffb_type_name, sizeof(info->fix.id));
+	strscpy(info->fix.id, ffb_type_name, sizeof(info->fix.id));
 
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.visual = FB_VISUAL_TRUECOLOR;

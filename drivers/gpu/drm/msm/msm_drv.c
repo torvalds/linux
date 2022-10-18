@@ -6,6 +6,7 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <linux/fault-inject.h>
 #include <linux/kthread.h>
 #include <linux/sched/mm.h>
 #include <linux/uaccess.h>
@@ -77,6 +78,11 @@ module_param(dumpstate, bool, 0600);
 static bool modeset = true;
 MODULE_PARM_DESC(modeset, "Use kernel modesetting [KMS] (1=on (default), 0=disable)");
 module_param(modeset, bool, 0600);
+
+#ifdef CONFIG_FAULT_INJECTION
+DECLARE_FAULT_ATTR(fail_gem_alloc);
+DECLARE_FAULT_ATTR(fail_gem_iova);
+#endif
 
 static irqreturn_t msm_irq(int irq, void *arg)
 {
@@ -418,14 +424,18 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 	INIT_LIST_HEAD(&priv->objects);
 	mutex_init(&priv->obj_lock);
 
-	INIT_LIST_HEAD(&priv->inactive_willneed);
-	INIT_LIST_HEAD(&priv->inactive_dontneed);
-	INIT_LIST_HEAD(&priv->inactive_unpinned);
-	mutex_init(&priv->mm_lock);
+	/*
+	 * Initialize the LRUs:
+	 */
+	mutex_init(&priv->lru.lock);
+	drm_gem_lru_init(&priv->lru.unbacked, &priv->lru.lock);
+	drm_gem_lru_init(&priv->lru.pinned,   &priv->lru.lock);
+	drm_gem_lru_init(&priv->lru.willneed, &priv->lru.lock);
+	drm_gem_lru_init(&priv->lru.dontneed, &priv->lru.lock);
 
 	/* Teach lockdep about lock ordering wrt. shrinker: */
 	fs_reclaim_acquire(GFP_KERNEL);
-	might_lock(&priv->mm_lock);
+	might_lock(&priv->lru.lock);
 	fs_reclaim_release(GFP_KERNEL);
 
 	drm_mode_config_init(ddev);
@@ -468,6 +478,8 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 			goto err_msm_uninit;
 		}
 	}
+
+	drm_helper_move_panel_connectors_to_head(ddev);
 
 	ddev->mode_config.funcs = &mode_config_funcs;
 	ddev->mode_config.helper_private = &mode_config_helper_funcs;
@@ -697,6 +709,9 @@ static int msm_ioctl_gem_new(struct drm_device *dev, void *data,
 		flags |= MSM_BO_WC;
 	}
 
+	if (should_fail(&fail_gem_alloc, args->size))
+		return -ENOMEM;
+
 	return msm_gem_new_handle(dev, file, args->size,
 			args->flags, &args->handle, NULL);
 }
@@ -758,6 +773,9 @@ static int msm_ioctl_gem_info_iova(struct drm_device *dev,
 	if (!priv->gpu)
 		return -EINVAL;
 
+	if (should_fail(&fail_gem_iova, obj->size))
+		return -ENOMEM;
+
 	/*
 	 * Don't pin the memory here - just get an address so that userspace can
 	 * be productive
@@ -778,6 +796,9 @@ static int msm_ioctl_gem_info_set_iova(struct drm_device *dev,
 	/* Only supported if per-process address space is supported: */
 	if (priv->gpu->aspace == ctx->aspace)
 		return -EOPNOTSUPP;
+
+	if (should_fail(&fail_gem_iova, obj->size))
+		return -ENOMEM;
 
 	return msm_gem_set_iova(obj, ctx->aspace, iova);
 }
@@ -883,13 +904,13 @@ static int wait_fence(struct msm_gpu_submitqueue *queue, uint32_t fence_id,
 	 * retired, so if the fence is not found it means there is nothing
 	 * to wait for
 	 */
-	ret = mutex_lock_interruptible(&queue->lock);
+	ret = mutex_lock_interruptible(&queue->idr_lock);
 	if (ret)
 		return ret;
 	fence = idr_find(&queue->fence_idr, fence_id);
 	if (fence)
 		fence = dma_fence_get_rcu(fence);
-	mutex_unlock(&queue->lock);
+	mutex_unlock(&queue->idr_lock);
 
 	if (!fence)
 		return 0;

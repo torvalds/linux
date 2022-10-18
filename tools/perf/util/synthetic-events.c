@@ -364,28 +364,58 @@ static bool read_proc_maps_line(struct io *io, __u64 *start, __u64 *end,
 }
 
 static void perf_record_mmap2__read_build_id(struct perf_record_mmap2 *event,
+					     struct machine *machine,
 					     bool is_kernel)
 {
 	struct build_id bid;
+	struct nsinfo *nsi;
+	struct nscookie nc;
+	struct dso *dso = NULL;
+	struct dso_id id;
 	int rc;
 
-	if (is_kernel)
+	if (is_kernel) {
 		rc = sysfs__read_build_id("/sys/kernel/notes", &bid);
-	else
-		rc = filename__read_build_id(event->filename, &bid) > 0 ? 0 : -1;
+		goto out;
+	}
 
+	id.maj = event->maj;
+	id.min = event->min;
+	id.ino = event->ino;
+	id.ino_generation = event->ino_generation;
+
+	dso = dsos__findnew_id(&machine->dsos, event->filename, &id);
+	if (dso && dso->has_build_id) {
+		bid = dso->bid;
+		rc = 0;
+		goto out;
+	}
+
+	nsi = nsinfo__new(event->pid);
+	nsinfo__mountns_enter(nsi, &nc);
+
+	rc = filename__read_build_id(event->filename, &bid) > 0 ? 0 : -1;
+
+	nsinfo__mountns_exit(&nc);
+	nsinfo__put(nsi);
+
+out:
 	if (rc == 0) {
 		memcpy(event->build_id, bid.data, sizeof(bid.data));
 		event->build_id_size = (u8) bid.size;
 		event->header.misc |= PERF_RECORD_MISC_MMAP_BUILD_ID;
 		event->__reserved_1 = 0;
 		event->__reserved_2 = 0;
+
+		if (dso && !dso->has_build_id)
+			dso__set_build_id(dso, &bid);
 	} else {
 		if (event->filename[0] == '/') {
 			pr_debug2("Failed to read build ID for %s\n",
 				  event->filename);
 		}
 	}
+	dso__put(dso);
 }
 
 int perf_event__synthesize_mmap_events(struct perf_tool *tool,
@@ -496,7 +526,7 @@ out:
 		event->mmap2.tid = pid;
 
 		if (symbol_conf.buildid_mmap2)
-			perf_record_mmap2__read_build_id(&event->mmap2, false);
+			perf_record_mmap2__read_build_id(&event->mmap2, machine, false);
 
 		if (perf_tool__process_synth_event(tool, event, machine, process) != 0) {
 			rc = -1;
@@ -679,7 +709,7 @@ int perf_event__synthesize_modules(struct perf_tool *tool, perf_event__handler_t
 			memcpy(event->mmap2.filename, pos->dso->long_name,
 			       pos->dso->long_name_len + 1);
 
-			perf_record_mmap2__read_build_id(&event->mmap2, false);
+			perf_record_mmap2__read_build_id(&event->mmap2, machine, false);
 		} else {
 			size = PERF_ALIGN(pos->dso->long_name_len + 1, sizeof(u64));
 			event->mmap.header.type = PERF_RECORD_MMAP;
@@ -1115,7 +1145,7 @@ static int __perf_event__synthesize_kernel_mmap(struct perf_tool *tool,
 		event->mmap2.len   = map->end - event->mmap.start;
 		event->mmap2.pid   = machine->pid;
 
-		perf_record_mmap2__read_build_id(&event->mmap2, true);
+		perf_record_mmap2__read_build_id(&event->mmap2, machine, true);
 	} else {
 		size = snprintf(event->mmap.filename, sizeof(event->mmap.filename),
 				"%s%s", machine->mmap_name, kmap->ref_reloc_sym->name) + 1;
@@ -1184,93 +1214,97 @@ int perf_event__synthesize_thread_map2(struct perf_tool *tool,
 	return err;
 }
 
-static void synthesize_cpus(struct perf_record_cpu_map_data *data,
-			    const struct perf_cpu_map *map)
+struct synthesize_cpu_map_data {
+	const struct perf_cpu_map *map;
+	int nr;
+	int min_cpu;
+	int max_cpu;
+	int has_any_cpu;
+	int type;
+	size_t size;
+	struct perf_record_cpu_map_data *data;
+};
+
+static void synthesize_cpus(struct synthesize_cpu_map_data *data)
 {
-	int i, map_nr = perf_cpu_map__nr(map);
-
-	data->cpus_data.nr = map_nr;
-
-	for (i = 0; i < map_nr; i++)
-		data->cpus_data.cpu[i] = perf_cpu_map__cpu(map, i).cpu;
+	data->data->type = PERF_CPU_MAP__CPUS;
+	data->data->cpus_data.nr = data->nr;
+	for (int i = 0; i < data->nr; i++)
+		data->data->cpus_data.cpu[i] = perf_cpu_map__cpu(data->map, i).cpu;
 }
 
-static void synthesize_mask(struct perf_record_cpu_map_data *data,
-			    const struct perf_cpu_map *map, int max)
+static void synthesize_mask(struct synthesize_cpu_map_data *data)
 {
 	int idx;
 	struct perf_cpu cpu;
 
 	/* Due to padding, the 4bytes per entry mask variant is always smaller. */
-	data->mask32_data.nr = BITS_TO_U32(max);
-	data->mask32_data.long_size = 4;
+	data->data->type = PERF_CPU_MAP__MASK;
+	data->data->mask32_data.nr = BITS_TO_U32(data->max_cpu);
+	data->data->mask32_data.long_size = 4;
 
-	perf_cpu_map__for_each_cpu(cpu, idx, map) {
+	perf_cpu_map__for_each_cpu(cpu, idx, data->map) {
 		int bit_word = cpu.cpu / 32;
-		__u32 bit_mask = 1U << (cpu.cpu & 31);
+		u32 bit_mask = 1U << (cpu.cpu & 31);
 
-		data->mask32_data.mask[bit_word] |= bit_mask;
+		data->data->mask32_data.mask[bit_word] |= bit_mask;
 	}
 }
 
-static size_t cpus_size(const struct perf_cpu_map *map)
+static void synthesize_range_cpus(struct synthesize_cpu_map_data *data)
 {
-	return sizeof(struct cpu_map_entries) + perf_cpu_map__nr(map) * sizeof(u16);
+	data->data->type = PERF_CPU_MAP__RANGE_CPUS;
+	data->data->range_cpu_data.any_cpu = data->has_any_cpu;
+	data->data->range_cpu_data.start_cpu = data->min_cpu;
+	data->data->range_cpu_data.end_cpu = data->max_cpu;
 }
 
-static size_t mask_size(const struct perf_cpu_map *map, int *max)
-{
-	*max = perf_cpu_map__max(map).cpu;
-	return sizeof(struct perf_record_mask_cpu_map32) + BITS_TO_U32(*max) * sizeof(__u32);
-}
-
-static void *cpu_map_data__alloc(const struct perf_cpu_map *map, size_t *size,
-				 u16 *type, int *max)
+static void *cpu_map_data__alloc(struct synthesize_cpu_map_data *syn_data,
+				 size_t header_size)
 {
 	size_t size_cpus, size_mask;
-	bool is_dummy = perf_cpu_map__empty(map);
 
-	/*
-	 * Both array and mask data have variable size based
-	 * on the number of cpus and their actual values.
-	 * The size of the 'struct perf_record_cpu_map_data' is:
-	 *
-	 *   array = size of 'struct cpu_map_entries' +
-	 *           number of cpus * sizeof(u64)
-	 *
-	 *   mask  = size of 'struct perf_record_record_cpu_map' +
-	 *           maximum cpu bit converted to size of longs
-	 *
-	 * and finally + the size of 'struct perf_record_cpu_map_data'.
-	 */
-	size_cpus = cpus_size(map);
-	size_mask = mask_size(map, max);
+	syn_data->nr = perf_cpu_map__nr(syn_data->map);
+	syn_data->has_any_cpu = (perf_cpu_map__cpu(syn_data->map, 0).cpu == -1) ? 1 : 0;
 
-	if (is_dummy || (size_cpus < size_mask)) {
-		*size += size_cpus;
-		*type  = PERF_CPU_MAP__CPUS;
-	} else {
-		*size += size_mask;
-		*type  = PERF_CPU_MAP__MASK;
+	syn_data->min_cpu = perf_cpu_map__cpu(syn_data->map, syn_data->has_any_cpu).cpu;
+	syn_data->max_cpu = perf_cpu_map__max(syn_data->map).cpu;
+	if (syn_data->max_cpu - syn_data->min_cpu + 1 == syn_data->nr - syn_data->has_any_cpu) {
+		/* A consecutive range of CPUs can be encoded using a range. */
+		assert(sizeof(u16) + sizeof(struct perf_record_range_cpu_map) == sizeof(u64));
+		syn_data->type = PERF_CPU_MAP__RANGE_CPUS;
+		syn_data->size = header_size + sizeof(u64);
+		return zalloc(syn_data->size);
 	}
 
-	*size += sizeof(__u16); /* For perf_record_cpu_map_data.type. */
-	*size = PERF_ALIGN(*size, sizeof(u64));
-	return zalloc(*size);
+	size_cpus = sizeof(u16) + sizeof(struct cpu_map_entries) + syn_data->nr * sizeof(u16);
+	/* Due to padding, the 4bytes per entry mask variant is always smaller. */
+	size_mask = sizeof(u16) + sizeof(struct perf_record_mask_cpu_map32) +
+		BITS_TO_U32(syn_data->max_cpu) * sizeof(__u32);
+	if (syn_data->has_any_cpu || size_cpus < size_mask) {
+		/* Follow the CPU map encoding. */
+		syn_data->type = PERF_CPU_MAP__CPUS;
+		syn_data->size = header_size + PERF_ALIGN(size_cpus, sizeof(u64));
+		return zalloc(syn_data->size);
+	}
+	/* Encode using a bitmask. */
+	syn_data->type = PERF_CPU_MAP__MASK;
+	syn_data->size = header_size + PERF_ALIGN(size_mask, sizeof(u64));
+	return zalloc(syn_data->size);
 }
 
-static void cpu_map_data__synthesize(struct perf_record_cpu_map_data *data,
-				     const struct perf_cpu_map *map,
-				     u16 type, int max)
+static void cpu_map_data__synthesize(struct synthesize_cpu_map_data *data)
 {
-	data->type = type;
-
-	switch (type) {
+	switch (data->type) {
 	case PERF_CPU_MAP__CPUS:
-		synthesize_cpus(data, map);
+		synthesize_cpus(data);
 		break;
 	case PERF_CPU_MAP__MASK:
-		synthesize_mask(data, map, max);
+		synthesize_mask(data);
+		break;
+	case PERF_CPU_MAP__RANGE_CPUS:
+		synthesize_range_cpus(data);
+		break;
 	default:
 		break;
 	}
@@ -1278,22 +1312,21 @@ static void cpu_map_data__synthesize(struct perf_record_cpu_map_data *data,
 
 static struct perf_record_cpu_map *cpu_map_event__new(const struct perf_cpu_map *map)
 {
-	size_t size = sizeof(struct perf_event_header);
+	struct synthesize_cpu_map_data syn_data = { .map = map };
 	struct perf_record_cpu_map *event;
-	int max;
-	u16 type;
 
-	event = cpu_map_data__alloc(map, &size, &type, &max);
+
+	event = cpu_map_data__alloc(&syn_data, sizeof(struct perf_event_header));
 	if (!event)
 		return NULL;
 
+	syn_data.data = &event->data;
 	event->header.type = PERF_RECORD_CPU_MAP;
-	event->header.size = size;
-	event->data.type   = type;
-
-	cpu_map_data__synthesize(&event->data, map, type, max);
+	event->header.size = syn_data.size;
+	cpu_map_data__synthesize(&syn_data);
 	return event;
 }
+
 
 int perf_event__synthesize_cpu_map(struct perf_tool *tool,
 				   const struct perf_cpu_map *map,
@@ -1944,7 +1977,7 @@ int perf_event__synthesize_event_update_unit(struct perf_tool *tool, struct evse
 	if (ev == NULL)
 		return -ENOMEM;
 
-	strlcpy(ev->data, evsel->unit, size + 1);
+	strlcpy(ev->unit, evsel->unit, size + 1);
 	err = process(tool, (union perf_event *)ev, NULL, NULL);
 	free(ev);
 	return err;
@@ -1961,8 +1994,7 @@ int perf_event__synthesize_event_update_scale(struct perf_tool *tool, struct evs
 	if (ev == NULL)
 		return -ENOMEM;
 
-	ev_data = (struct perf_record_event_update_scale *)ev->data;
-	ev_data->scale = evsel->scale;
+	ev->scale.scale = evsel->scale;
 	err = process(tool, (union perf_event *)ev, NULL, NULL);
 	free(ev);
 	return err;
@@ -1979,7 +2011,7 @@ int perf_event__synthesize_event_update_name(struct perf_tool *tool, struct evse
 	if (ev == NULL)
 		return -ENOMEM;
 
-	strlcpy(ev->data, evsel->name, len + 1);
+	strlcpy(ev->name, evsel->name, len + 1);
 	err = process(tool, (union perf_event *)ev, NULL, NULL);
 	free(ev);
 	return err;
@@ -1988,25 +2020,20 @@ int perf_event__synthesize_event_update_name(struct perf_tool *tool, struct evse
 int perf_event__synthesize_event_update_cpus(struct perf_tool *tool, struct evsel *evsel,
 					     perf_event__handler_t process)
 {
-	size_t size = sizeof(struct perf_record_event_update);
+	struct synthesize_cpu_map_data syn_data = { .map = evsel->core.own_cpus };
 	struct perf_record_event_update *ev;
-	int max, err;
-	u16 type;
+	int err;
 
-	if (!evsel->core.own_cpus)
-		return 0;
-
-	ev = cpu_map_data__alloc(evsel->core.own_cpus, &size, &type, &max);
+	ev = cpu_map_data__alloc(&syn_data, sizeof(struct perf_event_header) + 2 * sizeof(u64));
 	if (!ev)
 		return -ENOMEM;
 
+	syn_data.data = &ev->cpus.cpus;
 	ev->header.type = PERF_RECORD_EVENT_UPDATE;
-	ev->header.size = (u16)size;
+	ev->header.size = (u16)syn_data.size;
 	ev->type	= PERF_EVENT_UPDATE__CPUS;
 	ev->id		= evsel->core.id[0];
-
-	cpu_map_data__synthesize((struct perf_record_cpu_map_data *)ev->data,
-				 evsel->core.own_cpus, type, max);
+	cpu_map_data__synthesize(&syn_data);
 
 	err = process(tool, (union perf_event *)ev, NULL, NULL);
 	free(ev);

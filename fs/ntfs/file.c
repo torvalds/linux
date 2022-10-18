@@ -527,12 +527,12 @@ err_out:
 	goto out;
 }
 
-static inline int ntfs_submit_bh_for_read(struct buffer_head *bh)
+static inline void ntfs_submit_bh_for_read(struct buffer_head *bh)
 {
 	lock_buffer(bh);
 	get_bh(bh);
 	bh->b_end_io = end_buffer_read_sync;
-	return submit_bh(REQ_OP_READ, bh);
+	submit_bh(REQ_OP_READ, bh);
 }
 
 /**

@@ -32,6 +32,7 @@ properties:
 
   motor-driver:
     type: object
+    additionalProperties: false
     properties:
       compatible:
         const: maxim,max77843-haptic

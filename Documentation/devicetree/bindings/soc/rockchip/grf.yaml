@@ -16,9 +16,12 @@ properties:
           - enum:
               - rockchip,rk3288-sgrf
               - rockchip,rk3566-pipe-grf
+              - rockchip,rk3568-pcie3-phy-grf
               - rockchip,rk3568-pipe-grf
               - rockchip,rk3568-pipe-phy-grf
               - rockchip,rk3568-usb2phy-grf
+              - rockchip,rk3588-pcie3-phy-grf
+              - rockchip,rk3588-pcie3-pipe-grf
               - rockchip,rv1108-usbgrf
           - const: syscon
       - items:
@@ -28,6 +31,7 @@ properties:
               - rockchip,px30-usb2phy-grf
               - rockchip,rk3036-grf
               - rockchip,rk3066-grf
+              - rockchip,rk3128-grf
               - rockchip,rk3188-grf
               - rockchip,rk3228-grf
               - rockchip,rk3288-grf
@@ -45,6 +49,8 @@ properties:
               - rockchip,rk3568-pmugrf
               - rockchip,rv1108-grf
               - rockchip,rv1108-pmugrf
+              - rockchip,rv1126-grf
+              - rockchip,rv1126-pmugrf
           - const: syscon
           - const: simple-mfd
 
@@ -178,6 +184,7 @@ allOf:
           contains:
             enum:
               - rockchip,px30-usb2phy-grf
+              - rockchip,rk3128-grf
               - rockchip,rk3228-grf
               - rockchip,rk3308-usb2phy-grf
               - rockchip,rk3328-usb2phy-grf

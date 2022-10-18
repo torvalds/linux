@@ -389,7 +389,7 @@ exit:
 	return err;
 }
 
-static int tsl2550_remove(struct i2c_client *client)
+static void tsl2550_remove(struct i2c_client *client)
 {
 	sysfs_remove_group(&client->dev.kobj, &tsl2550_attr_group);
 
@@ -397,8 +397,6 @@ static int tsl2550_remove(struct i2c_client *client)
 	tsl2550_set_power_state(client, 0);
 
 	kfree(i2c_get_clientdata(client));
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

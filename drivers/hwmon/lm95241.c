@@ -389,7 +389,7 @@ static int lm95241_detect(struct i2c_client *new_client,
 	}
 
 	/* Fill the i2c board info */
-	strlcpy(info->type, name, I2C_NAME_SIZE);
+	strscpy(info->type, name, I2C_NAME_SIZE);
 	return 0;
 }
 

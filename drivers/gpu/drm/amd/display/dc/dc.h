@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.201"
+#define DC_VER "3.2.207"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -406,6 +406,9 @@ struct dc_config {
 	bool ignore_dpref_ss;
 	bool enable_mipi_converter_optimization;
 	bool use_default_clock_table;
+	bool force_bios_enable_lttpr;
+	uint8_t force_bios_fixed_vs;
+
 };
 
 enum visual_confirm {
@@ -818,7 +821,6 @@ struct dc_debug_options {
 	/* Enable dmub aux for legacy ddc */
 	bool enable_dmub_aux_for_legacy_ddc;
 	bool disable_fams;
-	bool optimize_edp_link_rate; /* eDP ILR */
 	/* FEC/PSR1 sequence enable delay in 100us */
 	uint8_t fec_enable_delay_in100us;
 	bool enable_driver_sequence_debug;
@@ -830,6 +832,10 @@ struct dc_debug_options {
 	bool disable_fixed_vs_aux_timeout_wa;
 	bool force_disable_subvp;
 	bool force_subvp_mclk_switch;
+	bool allow_sw_cursor_fallback;
+	unsigned int force_subvp_num_ways;
+	unsigned int force_mall_ss_num_ways;
+	bool alloc_extra_way_for_cursor;
 	bool force_usr_allow;
 	/* uses value at boot and disables switch */
 	bool disable_dtb_ref_clk_switch;
@@ -843,6 +849,7 @@ struct dc_debug_options {
 	bool use_legacy_soc_bb_mechanism;
 	bool exit_idle_opt_for_cursor_updates;
 	bool enable_single_display_2to1_odm_policy;
+	bool enable_double_buffered_dsc_pg_support;
 	bool enable_dp_dig_pixel_rate_div_policy;
 	enum lttpr_mode lttpr_mode_override;
 };
@@ -1114,6 +1121,7 @@ union surface_update_flags {
 		uint32_t clock_change:1;
 		uint32_t stereo_format_change:1;
 		uint32_t lut_3d:1;
+		uint32_t tmz_changed:1;
 		uint32_t full_update:1;
 	} bits;
 
@@ -1183,6 +1191,8 @@ struct dc_plane_state {
 	enum dc_irq_source irq_source;
 	struct kref refcount;
 	struct tg_color visual_confirm_color;
+
+	bool is_statically_allocated;
 };
 
 struct dc_plane_info {
@@ -1601,6 +1611,9 @@ enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
 				uint32_t link_index,
 				uint8_t mst_alloc_slots,
 				uint8_t *mst_slots_in_use);
+
+void dc_process_dmub_dpia_hpd_int_enable(const struct dc *dc,
+				uint32_t hpd_int_enable);
 
 /*******************************************************************************
  * DSC Interfaces

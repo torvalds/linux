@@ -510,6 +510,7 @@ struct _vcs_dpi_display_pipe_dest_params_st {
 	unsigned int htotal;
 	unsigned int vtotal;
 	unsigned int vfront_porch;
+	unsigned int vblank_nom;
 	unsigned int vactive;
 	unsigned int hactive;
 	unsigned int vstartup_start;

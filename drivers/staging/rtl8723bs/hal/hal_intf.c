@@ -400,11 +400,6 @@ c2h_id_filter rtw_hal_c2h_id_filter_ccx(struct adapter *adapter)
 	return adapter->HalFunc.c2h_id_filter_ccx;
 }
 
-s32 rtw_hal_is_disable_sw_channel_plan(struct adapter *padapter)
-{
-	return GET_HAL_DATA(padapter)->bDisableSWChannelPlan;
-}
-
 s32 rtw_hal_macid_sleep(struct adapter *padapter, u32 macid)
 {
 	u8 support;

@@ -558,22 +558,27 @@ int inet_dgram_connect(struct socket *sock, struct sockaddr *uaddr,
 		       int addr_len, int flags)
 {
 	struct sock *sk = sock->sk;
+	const struct proto *prot;
 	int err;
 
 	if (addr_len < sizeof(uaddr->sa_family))
 		return -EINVAL;
+
+	/* IPV6_ADDRFORM can change sk->sk_prot under us. */
+	prot = READ_ONCE(sk->sk_prot);
+
 	if (uaddr->sa_family == AF_UNSPEC)
-		return sk->sk_prot->disconnect(sk, flags);
+		return prot->disconnect(sk, flags);
 
 	if (BPF_CGROUP_PRE_CONNECT_ENABLED(sk)) {
-		err = sk->sk_prot->pre_connect(sk, uaddr, addr_len);
+		err = prot->pre_connect(sk, uaddr, addr_len);
 		if (err)
 			return err;
 	}
 
 	if (data_race(!inet_sk(sk)->inet_num) && inet_autobind(sk))
 		return -EAGAIN;
-	return sk->sk_prot->connect(sk, uaddr, addr_len);
+	return prot->connect(sk, uaddr, addr_len);
 }
 EXPORT_SYMBOL(inet_dgram_connect);
 
@@ -734,10 +739,11 @@ EXPORT_SYMBOL(inet_stream_connect);
 int inet_accept(struct socket *sock, struct socket *newsock, int flags,
 		bool kern)
 {
-	struct sock *sk1 = sock->sk;
+	struct sock *sk1 = sock->sk, *sk2;
 	int err = -EINVAL;
-	struct sock *sk2 = sk1->sk_prot->accept(sk1, flags, &err, kern);
 
+	/* IPV6_ADDRFORM can change sk->sk_prot under us. */
+	sk2 = READ_ONCE(sk1->sk_prot)->accept(sk1, flags, &err, kern);
 	if (!sk2)
 		goto do_err;
 
@@ -825,12 +831,15 @@ ssize_t inet_sendpage(struct socket *sock, struct page *page, int offset,
 		      size_t size, int flags)
 {
 	struct sock *sk = sock->sk;
+	const struct proto *prot;
 
 	if (unlikely(inet_send_prepare(sk)))
 		return -EAGAIN;
 
-	if (sk->sk_prot->sendpage)
-		return sk->sk_prot->sendpage(sk, page, offset, size, flags);
+	/* IPV6_ADDRFORM can change sk->sk_prot under us. */
+	prot = READ_ONCE(sk->sk_prot);
+	if (prot->sendpage)
+		return prot->sendpage(sk, page, offset, size, flags);
 	return sock_no_sendpage(sock, page, offset, size, flags);
 }
 EXPORT_SYMBOL(inet_sendpage);
@@ -1219,6 +1228,7 @@ EXPORT_SYMBOL(inet_unregister_protosw);
 
 static int inet_sk_reselect_saddr(struct sock *sk)
 {
+	struct inet_bind_hashbucket *prev_addr_hashbucket;
 	struct inet_sock *inet = inet_sk(sk);
 	__be32 old_saddr = inet->inet_saddr;
 	__be32 daddr = inet->inet_daddr;
@@ -1226,6 +1236,7 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 	struct rtable *rt;
 	__be32 new_saddr;
 	struct ip_options_rcu *inet_opt;
+	int err;
 
 	inet_opt = rcu_dereference_protected(inet->inet_opt,
 					     lockdep_sock_is_held(sk));
@@ -1240,19 +1251,33 @@ static int inet_sk_reselect_saddr(struct sock *sk)
 	if (IS_ERR(rt))
 		return PTR_ERR(rt);
 
-	sk_setup_caps(sk, &rt->dst);
-
 	new_saddr = fl4->saddr;
 
-	if (new_saddr == old_saddr)
+	if (new_saddr == old_saddr) {
+		sk_setup_caps(sk, &rt->dst);
 		return 0;
+	}
+
+	prev_addr_hashbucket =
+		inet_bhashfn_portaddr(tcp_or_dccp_get_hashinfo(sk), sk,
+				      sock_net(sk), inet->inet_num);
+
+	inet->inet_saddr = inet->inet_rcv_saddr = new_saddr;
+
+	err = inet_bhash2_update_saddr(prev_addr_hashbucket, sk);
+	if (err) {
+		inet->inet_saddr = old_saddr;
+		inet->inet_rcv_saddr = old_saddr;
+		ip_rt_put(rt);
+		return err;
+	}
+
+	sk_setup_caps(sk, &rt->dst);
 
 	if (READ_ONCE(sock_net(sk)->ipv4.sysctl_ip_dynaddr) > 1) {
 		pr_info("%s(): shifting inet->saddr from %pI4 to %pI4\n",
 			__func__, &old_saddr, &new_saddr);
 	}
-
-	inet->inet_saddr = inet->inet_rcv_saddr = new_saddr;
 
 	/*
 	 * XXX The only one ugly spot where we need to
@@ -1448,12 +1473,9 @@ struct sk_buff *inet_gro_receive(struct list_head *head, struct sk_buff *skb)
 
 	off = skb_gro_offset(skb);
 	hlen = off + sizeof(*iph);
-	iph = skb_gro_header_fast(skb, off);
-	if (skb_gro_header_hard(skb, hlen)) {
-		iph = skb_gro_header_slow(skb, hlen, off);
-		if (unlikely(!iph))
-			goto out;
-	}
+	iph = skb_gro_header(skb, hlen, off);
+	if (unlikely(!iph))
+		goto out;
 
 	proto = iph->protocol;
 

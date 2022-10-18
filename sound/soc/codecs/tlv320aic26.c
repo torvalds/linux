@@ -271,7 +271,7 @@ static ssize_t keyclick_show(struct device *dev,
 	freq = (125 << ((val >> 8) & 0x7)) >> 1;
 	len = 2 * (1 + ((val >> 4) & 0xf));
 
-	return sprintf(buf, "amp=%x freq=%iHz len=%iclks\n", amp, freq, len);
+	return sysfs_emit(buf, "amp=%x freq=%iHz len=%iclks\n", amp, freq, len);
 }
 
 /* Any write to the keyclick attribute will trigger the keyclick event */

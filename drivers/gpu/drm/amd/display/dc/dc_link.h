@@ -117,11 +117,31 @@ struct psr_settings {
  * Add a struct dc_panel_config under dc_link
  */
 struct dc_panel_config {
+	// extra panel power sequence parameters
+	struct pps {
+		unsigned int extra_t3_ms;
+		unsigned int extra_t7_ms;
+		unsigned int extra_delay_backlight_off;
+		unsigned int extra_post_t7_ms;
+		unsigned int extra_pre_t11_ms;
+		unsigned int extra_t12_ms;
+		unsigned int extra_post_OUI_ms;
+	} pps;
+	// ABM
+	struct varib {
+		unsigned int varibright_feature_enable;
+		unsigned int def_varibright_level;
+		unsigned int abm_config_setting;
+	} varib;
 	// edp DSC
 	struct dsc {
 		bool disable_dsc_edp;
 		unsigned int force_dsc_edp_policy;
 	} dsc;
+	/* eDP ILR */
+	struct ilr {
+		bool optimize_edp_link_rate; /* eDP ILR */
+	} ilr;
 };
 /*
  * A link contains one or more sinks and their connected status.
@@ -141,7 +161,6 @@ struct dc_link {
 	bool link_state_valid;
 	bool aux_access_disabled;
 	bool sync_lt_in_progress;
-	enum lttpr_mode lttpr_mode;
 	bool is_internal_display;
 
 	/* TODO: Rename. Flag an endpoint as having a programmable mapping to a
@@ -244,7 +263,7 @@ struct dc_link {
 	struct gpio *hpd_gpio;
 	enum dc_link_fec_state fec_state;
 	struct dc_panel_config panel_config;
-	enum phy_state phy_state;
+	struct phy_state phy_state;
 };
 
 const struct dc_link_status *dc_link_get_status(const struct dc_link *dc_link);

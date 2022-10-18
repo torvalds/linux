@@ -265,18 +265,17 @@ static int gamecube_rtc_read_offset_from_sram(struct priv *d)
 	 * SRAM address as on previous consoles.
 	 */
 	ret = regmap_read(d->regmap, RTC_SRAM_BIAS, &d->rtc_bias);
-	if (ret) {
-		pr_err("failed to get the RTC bias\n");
-		iounmap(hw_srnprot);
-		return -1;
-	}
 
 	/* Reset SRAM access to how it was before, our job here is done. */
 	if (old != 0x7bf)
 		iowrite32be(old, hw_srnprot);
+
 	iounmap(hw_srnprot);
 
-	return 0;
+	if (ret)
+		pr_err("failed to get the RTC bias\n");
+
+	return ret;
 }
 
 static const struct regmap_range rtc_rd_ranges[] = {
