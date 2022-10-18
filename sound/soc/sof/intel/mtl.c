@@ -497,6 +497,7 @@ static irqreturn_t mtl_ipc_irq_thread(int irq, void *context)
 	u32 hipctdr;
 
 	hipcida = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFIPCXIDA);
+	hipctdr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFIPCXTDR);
 
 	/* reply message from DSP */
 	if (hipcida & MTL_DSP_REG_HFIPCXIDA_DONE) {
@@ -509,7 +510,6 @@ static irqreturn_t mtl_ipc_irq_thread(int irq, void *context)
 		ipc_irq = true;
 	}
 
-	hipctdr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFIPCXTDR);
 	if (hipctdr & MTL_DSP_REG_HFIPCXTDR_BUSY) {
 		/* Message from DSP (reply or notification) */
 		u32 extension = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFIPCXTDDY);

@@ -126,6 +126,8 @@ irqreturn_t hda_dsp_ipc4_irq_thread(int irq, void *context)
 	u32 hipcie, hipct;
 
 	hipcie = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCIE);
+	hipct = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCT);
+
 	if (hipcie & HDA_DSP_REG_HIPCIE_DONE) {
 		/* DSP received the message */
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCCTL,
@@ -135,7 +137,6 @@ irqreturn_t hda_dsp_ipc4_irq_thread(int irq, void *context)
 		ipc_irq = true;
 	}
 
-	hipct = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCT);
 	if (hipct & HDA_DSP_REG_HIPCT_BUSY) {
 		/* Message from DSP (reply or notification) */
 		u32 hipcte = snd_sof_dsp_read(sdev, HDA_DSP_BAR,

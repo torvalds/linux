@@ -41,6 +41,7 @@ irqreturn_t cnl_ipc4_irq_thread(int irq, void *context)
 	u32 hipcida, hipctdr;
 
 	hipcida = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDA);
+	hipctdr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCTDR);
 	if (hipcida & CNL_DSP_REG_HIPCIDA_DONE) {
 		/* DSP received the message */
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
@@ -51,7 +52,6 @@ irqreturn_t cnl_ipc4_irq_thread(int irq, void *context)
 		ipc_irq = true;
 	}
 
-	hipctdr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCTDR);
 	if (hipctdr & CNL_DSP_REG_HIPCTDR_BUSY) {
 		/* Message from DSP (reply or notification) */
 		u32 hipctdd = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
