@@ -1091,7 +1091,8 @@ static void print_percore(struct perf_stat_config *config,
 {
 	bool metric_only = config->metric_only;
 	FILE *output = config->output;
-	int s;
+	struct cpu_aggr_map *core_map;
+	int s, c, i;
 	bool first = true;
 
 	if (!config->aggr_map || !config->aggr_get_id)
@@ -1100,13 +1101,35 @@ static void print_percore(struct perf_stat_config *config,
 	if (config->percore_show_thread)
 		return print_counter(config, counter, prefix);
 
-	for (s = 0; s < config->aggr_map->nr; s++) {
+	core_map = cpu_aggr_map__empty_new(config->aggr_map->nr);
+	if (core_map == NULL) {
+		fprintf(output, "Cannot allocate per-core aggr map for display\n");
+		return;
+	}
+
+	for (s = 0, c = 0; s < config->aggr_map->nr; s++) {
+		struct perf_cpu curr_cpu = config->aggr_map->map[s].cpu;
+		struct aggr_cpu_id core_id = aggr_cpu_id__core(curr_cpu, NULL);
+		bool found = false;
+
+		for (i = 0; i < c; i++) {
+			if (aggr_cpu_id__equal(&core_map->map[i], &core_id)) {
+				found = true;
+				break;
+			}
+		}
+		if (found)
+			continue;
+
 		if (prefix && metric_only)
 			fprintf(output, "%s", prefix);
 
 		print_counter_aggrdata(config, counter, s,
 				       prefix, metric_only, &first);
+
+		core_map->map[c++] = core_id;
 	}
+	free(core_map);
 
 	if (metric_only)
 		fputc('\n', output);
