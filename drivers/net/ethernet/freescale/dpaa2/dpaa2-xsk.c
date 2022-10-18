@@ -196,6 +196,7 @@ static int dpaa2_xsk_disable_pool(struct net_device *dev, u16 qid)
 
 	ch->xsk_zc = false;
 	ch->xsk_pool = NULL;
+	ch->xsk_tx_pkts_sent = 0;
 	ch->bp = priv->bp[DPAA2_ETH_DEFAULT_BP_IDX];
 
 	dpaa2_eth_setup_consume_func(priv, ch, DPAA2_RX_FQ, dpaa2_eth_rx);
@@ -324,4 +325,126 @@ int dpaa2_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags)
 		napi_schedule(&ch->napi);
 
 	return 0;
+}
+
+static int dpaa2_xsk_tx_build_fd(struct dpaa2_eth_priv *priv,
+				 struct dpaa2_eth_channel *ch,
+				 struct dpaa2_fd *fd,
+				 struct xdp_desc *xdp_desc)
+{
+	struct device *dev = priv->net_dev->dev.parent;
+	struct dpaa2_sg_entry *sgt;
+	struct dpaa2_eth_swa *swa;
+	void *sgt_buf = NULL;
+	dma_addr_t sgt_addr;
+	int sgt_buf_size;
+	dma_addr_t addr;
+	int err = 0;
+
+	/* Prepare the HW SGT structure */
+	sgt_buf_size = priv->tx_data_offset + sizeof(struct dpaa2_sg_entry);
+	sgt_buf = dpaa2_eth_sgt_get(priv);
+	if (unlikely(!sgt_buf))
+		return -ENOMEM;
+	sgt = (struct dpaa2_sg_entry *)(sgt_buf + priv->tx_data_offset);
+
+	/* Get the address of the XSK Tx buffer */
+	addr = xsk_buff_raw_get_dma(ch->xsk_pool, xdp_desc->addr);
+	xsk_buff_raw_dma_sync_for_device(ch->xsk_pool, addr, xdp_desc->len);
+
+	/* Fill in the HW SGT structure */
+	dpaa2_sg_set_addr(sgt, addr);
+	dpaa2_sg_set_len(sgt, xdp_desc->len);
+	dpaa2_sg_set_final(sgt, true);
+
+	/* Store the necessary info in the SGT buffer */
+	swa = (struct dpaa2_eth_swa *)sgt_buf;
+	swa->type = DPAA2_ETH_SWA_XSK;
+	swa->xsk.sgt_size = sgt_buf_size;
+
+	/* Separately map the SGT buffer */
+	sgt_addr = dma_map_single(dev, sgt_buf, sgt_buf_size, DMA_BIDIRECTIONAL);
+	if (unlikely(dma_mapping_error(dev, sgt_addr))) {
+		err = -ENOMEM;
+		goto sgt_map_failed;
+	}
+
+	/* Initialize FD fields */
+	memset(fd, 0, sizeof(struct dpaa2_fd));
+	dpaa2_fd_set_offset(fd, priv->tx_data_offset);
+	dpaa2_fd_set_format(fd, dpaa2_fd_sg);
+	dpaa2_fd_set_addr(fd, sgt_addr);
+	dpaa2_fd_set_len(fd, xdp_desc->len);
+	dpaa2_fd_set_ctrl(fd, FD_CTRL_PTA);
+
+	return 0;
+
+sgt_map_failed:
+	dpaa2_eth_sgt_recycle(priv, sgt_buf);
+
+	return err;
+}
+
+bool dpaa2_xsk_tx(struct dpaa2_eth_priv *priv,
+		  struct dpaa2_eth_channel *ch)
+{
+	struct xdp_desc *xdp_descs = ch->xsk_pool->tx_descs;
+	struct dpaa2_eth_drv_stats *percpu_extras;
+	struct rtnl_link_stats64 *percpu_stats;
+	int budget = DPAA2_ETH_TX_ZC_PER_NAPI;
+	int total_enqueued, enqueued;
+	int retries, max_retries;
+	struct dpaa2_eth_fq *fq;
+	struct dpaa2_fd *fds;
+	int batch, i, err;
+
+	percpu_stats = this_cpu_ptr(priv->percpu_stats);
+	percpu_extras = this_cpu_ptr(priv->percpu_extras);
+	fds = (this_cpu_ptr(priv->fd))->array;
+
+	/* Use the FQ with the same idx as the affine CPU */
+	fq = &priv->fq[ch->nctx.desired_cpu];
+
+	batch = xsk_tx_peek_release_desc_batch(ch->xsk_pool, budget);
+	if (!batch)
+		return false;
+
+	/* Create a FD for each XSK frame to be sent */
+	for (i = 0; i < batch; i++) {
+		err = dpaa2_xsk_tx_build_fd(priv, ch, &fds[i], &xdp_descs[i]);
+		if (err) {
+			batch = i;
+			break;
+		}
+	}
+
+	/* Enqueue all the created FDs */
+	max_retries = batch * DPAA2_ETH_ENQUEUE_RETRIES;
+	total_enqueued = 0;
+	enqueued = 0;
+	retries = 0;
+	while (total_enqueued < batch && retries < max_retries) {
+		err = priv->enqueue(priv, fq, &fds[total_enqueued], 0,
+				    batch - total_enqueued, &enqueued);
+		if (err == -EBUSY) {
+			retries++;
+			continue;
+		}
+
+		total_enqueued += enqueued;
+	}
+	percpu_extras->tx_portal_busy += retries;
+
+	/* Update statistics */
+	percpu_stats->tx_packets += total_enqueued;
+	for (i = 0; i < total_enqueued; i++)
+		percpu_stats->tx_bytes += dpaa2_fd_get_len(&fds[i]);
+	for (i = total_enqueued; i < batch; i++) {
+		dpaa2_eth_free_tx_fd(priv, ch, fq, &fds[i], false);
+		percpu_stats->tx_errors++;
+	}
+
+	xsk_tx_release(ch->xsk_pool);
+
+	return total_enqueued == budget ? true : false;
 }
