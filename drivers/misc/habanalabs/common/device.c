@@ -1320,6 +1320,10 @@ static void handle_reset_trigger(struct hl_device *hdev, u32 flags)
 {
 	u32 cur_reset_trigger = HL_RESET_TRIGGER_DEFAULT;
 
+	/* No consecutive mechanism when user context exists */
+	if (hdev->is_compute_ctx_active)
+		return;
+
 	/*
 	 * 'reset cause' is being updated here, because getting here
 	 * means that it's the 1st time and the last time we're here
