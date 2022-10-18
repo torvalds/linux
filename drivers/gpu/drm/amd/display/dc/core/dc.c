@@ -1913,10 +1913,56 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	return result;
 }
 
+enum dc_status dc_commit_streams(struct dc *dc, struct dc_state *context)
+{
+	enum dc_status res = DC_OK;
+	int i;
+
+	if (!streams_changed(dc, context->streams, context->stream_count))
+		return res;
+
+	DC_LOG_DC("%s: %d streams\n",
+				__func__, context->stream_count);
+
+	for (i = 0; i < context->stream_count; i++) {
+		struct dc_stream_state *stream = context->streams[i];
+
+		dc_stream_log(dc, stream);
+	}
+
+	/*
+	 * Previous validation was perfomred with fast_validation = true and
+	 * the full DML state required for hardware programming was skipped.
+	 *
+	 * Re-validate here to calculate these parameters / watermarks.
+	 */
+	res = dc_validate_global_state(dc, context, false);
+	if (res != DC_OK) {
+		DC_LOG_ERROR("DC commit global validation failure: %s (%d)",
+			     dc_status_to_str(res), res);
+		return res;
+	}
+
+	res = dc_commit_state_no_check(dc, context);
+
+	return (res == DC_OK);
+}
+
+/* TODO: When the transition to the new commit sequence is done, remove this
+ * function in favor of dc_commit_streams. */
 bool dc_commit_state(struct dc *dc, struct dc_state *context)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	int i;
+
+	/* TODO: Since change commit sequence can have a huge impact,
+	 * we decided to only enable it for DCN3x. However, as soon as
+	 * we get more confident about this change we'll need to enable
+	 * the new sequence for all ASICs. */
+	if (dc->ctx->dce_version >= DCN_VERSION_3_2) {
+		result = dc_commit_streams(dc, context);
+		return result == DC_OK;
+	}
 
 	if (!streams_changed(dc, context->streams, context->stream_count))
 		return DC_OK;
