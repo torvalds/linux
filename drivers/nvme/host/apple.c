@@ -1507,15 +1507,6 @@ static int apple_nvme_probe(struct platform_device *pdev)
 		goto put_dev;
 	}
 
-	if (!blk_get_queue(anv->ctrl.admin_q)) {
-		nvme_start_admin_queue(&anv->ctrl);
-		blk_mq_destroy_queue(anv->ctrl.admin_q);
-		blk_put_queue(anv->ctrl.admin_q);
-		anv->ctrl.admin_q = NULL;
-		ret = -ENODEV;
-		goto put_dev;
-	}
-
 	nvme_reset_ctrl(&anv->ctrl);
 	async_schedule(apple_nvme_async_probe, anv);
 
