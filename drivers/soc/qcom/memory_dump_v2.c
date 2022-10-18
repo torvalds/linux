@@ -1059,7 +1059,7 @@ static int mem_dump_alloc(struct platform_device *pdev)
 	struct msm_dump_entry dump_entry;
 	struct md_region md_entry;
 	size_t total_size;
-	u32 size, id;
+	u32 size, id = 0;
 	int ret, no_of_nodes;
 	dma_addr_t dma_handle;
 	phys_addr_t phys_addr, mini_phys_addr;
