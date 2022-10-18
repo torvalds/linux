@@ -41,7 +41,9 @@
 #include <soc/rockchip/rockchip_opp_select.h>
 #include <soc/rockchip/rockchip_system_monitor.h>
 #include <soc/rockchip/rockchip_ipa.h>
+#ifdef CONFIG_PM_DEVFREQ
 #include <../drivers/devfreq/governor.h>
+#endif
 #endif
 
 #include "rknpu_ioctl.h"
@@ -1062,6 +1064,7 @@ static struct devfreq_dev_profile npu_devfreq_profile = {
 	.get_cur_freq = npu_devfreq_get_cur_freq,
 };
 
+#ifdef CONFIG_PM_DEVFREQ
 static int devfreq_rknpu_ondemand_func(struct devfreq *df, unsigned long *freq)
 {
 	struct rknpu_device *rknpu_dev = df->data;
@@ -1085,6 +1088,7 @@ static struct devfreq_governor devfreq_rknpu_ondemand = {
 	.get_target_freq = devfreq_rknpu_ondemand_func,
 	.event_handler = devfreq_rknpu_ondemand_handler,
 };
+#endif
 
 static unsigned long npu_get_static_power(struct devfreq *devfreq,
 					  unsigned long voltage)
@@ -1191,11 +1195,13 @@ static int rknpu_devfreq_init(struct rknpu_device *rknpu_dev)
 	dev_pm_opp_put(opp);
 	dp->initial_freq = rknpu_dev->current_freq;
 
+#ifdef CONFIG_PM_DEVFREQ
 	ret = devfreq_add_governor(&devfreq_rknpu_ondemand);
 	if (ret) {
 		LOG_DEV_ERROR(dev, "failed to add rknpu_ondemand governor\n");
 		goto err_remove_table;
 	}
+#endif
 
 	rknpu_dev->devfreq = devm_devfreq_add_device(dev, dp, "rknpu_ondemand",
 						     (void *)rknpu_dev);
@@ -1247,7 +1253,9 @@ out:
 	return 0;
 
 err_remove_governor:
+#ifdef CONFIG_PM_DEVFREQ
 	devfreq_remove_governor(&devfreq_rknpu_ondemand);
+#endif
 err_remove_table:
 	dev_pm_opp_of_remove_table(dev);
 
@@ -1325,11 +1333,13 @@ static int rknpu_devfreq_init(struct rknpu_device *rknpu_dev)
 	}
 	dp->initial_freq = rknpu_dev->current_freq;
 
+#ifdef CONFIG_PM_DEVFREQ
 	ret = devfreq_add_governor(&devfreq_rknpu_ondemand);
 	if (ret) {
 		LOG_DEV_ERROR(dev, "failed to add rknpu_ondemand governor\n");
 		goto err_remove_table;
 	}
+#endif
 
 	rknpu_dev->devfreq = devm_devfreq_add_device(dev, dp, "rknpu_ondemand",
 						     (void *)rknpu_dev);
@@ -1380,7 +1390,9 @@ out:
 	return 0;
 
 err_remove_governor:
+#ifdef CONFIG_PM_DEVFREQ
 	devfreq_remove_governor(&devfreq_rknpu_ondemand);
+#endif
 err_remove_table:
 	dev_pm_opp_of_remove_table(dev);
 
@@ -1396,7 +1408,9 @@ static int rknpu_devfreq_remove(struct rknpu_device *rknpu_dev)
 		devfreq_unregister_opp_notifier(rknpu_dev->dev,
 						rknpu_dev->devfreq);
 		dev_pm_opp_of_remove_table(rknpu_dev->dev);
+#ifdef CONFIG_PM_DEVFREQ
 		devfreq_remove_governor(&devfreq_rknpu_ondemand);
+#endif
 	}
 
 	return 0;
