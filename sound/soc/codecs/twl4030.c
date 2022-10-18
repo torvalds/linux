@@ -700,8 +700,10 @@ static void headset_ramp(struct snd_soc_component *component, int ramp)
 	struct twl4030_priv *twl4030 = snd_soc_component_get_drvdata(component);
 	struct twl4030_board_params *board_params = twl4030->board_params;
 	/* Base values for ramp delay calculation: 2^19 - 2^26 */
-	unsigned int ramp_base[] = {524288, 1048576, 2097152, 4194304,
-				    8388608, 16777216, 33554432, 67108864};
+	static const unsigned int ramp_base[] = {
+		524288, 1048576, 2097152, 4194304,
+		8388608, 16777216, 33554432, 67108864
+	};
 	unsigned int delay;
 
 	hs_gain = twl4030_read(component, TWL4030_REG_HS_GAIN_SET);
