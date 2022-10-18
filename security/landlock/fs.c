@@ -430,7 +430,7 @@ is_eacces(const layer_mask_t (*const layer_masks)[LANDLOCK_NUM_ACCESS_FS],
 }
 
 /**
- * check_access_path_dual - Check accesses for requests with a common path
+ * is_access_to_paths_allowed - Check accesses for requests with a common path
  *
  * @domain: Domain to check against.
  * @path: File hierarchy to walk through.
@@ -465,14 +465,10 @@ is_eacces(const layer_mask_t (*const layer_masks)[LANDLOCK_NUM_ACCESS_FS],
  * allow the request.
  *
  * Returns:
- * - 0 if the access request is granted;
- * - -EACCES if it is denied because of access right other than
- *   LANDLOCK_ACCESS_FS_REFER;
- * - -EXDEV if the renaming or linking would be a privileged escalation
- *   (according to each layered policies), or if LANDLOCK_ACCESS_FS_REFER is
- *   not allowed by the source or the destination.
+ * - true if the access request is granted;
+ * - false otherwise.
  */
-static int check_access_path_dual(
+static bool is_access_to_paths_allowed(
 	const struct landlock_ruleset *const domain,
 	const struct path *const path,
 	const access_mask_t access_request_parent1,
@@ -492,17 +488,17 @@ static int check_access_path_dual(
 	(*layer_masks_child2)[LANDLOCK_NUM_ACCESS_FS] = NULL;
 
 	if (!access_request_parent1 && !access_request_parent2)
-		return 0;
+		return true;
 	if (WARN_ON_ONCE(!domain || !path))
-		return 0;
+		return true;
 	if (is_nouser_or_private(path->dentry))
-		return 0;
+		return true;
 	if (WARN_ON_ONCE(domain->num_layers < 1 || !layer_masks_parent1))
-		return -EACCES;
+		return false;
 
 	if (unlikely(layer_masks_parent2)) {
 		if (WARN_ON_ONCE(!dentry_child1))
-			return -EACCES;
+			return false;
 		/*
 		 * For a double request, first check for potential privilege
 		 * escalation by looking at domain handled accesses (which are
@@ -513,7 +509,7 @@ static int check_access_path_dual(
 		is_dom_check = true;
 	} else {
 		if (WARN_ON_ONCE(dentry_child1 || dentry_child2))
-			return -EACCES;
+			return false;
 		/* For a simple request, only check for requested accesses. */
 		access_masked_parent1 = access_request_parent1;
 		access_masked_parent2 = access_request_parent2;
@@ -622,24 +618,7 @@ jump_up:
 	}
 	path_put(&walker_path);
 
-	if (allowed_parent1 && allowed_parent2)
-		return 0;
-
-	/*
-	 * This prioritizes EACCES over EXDEV for all actions, including
-	 * renames with RENAME_EXCHANGE.
-	 */
-	if (likely(is_eacces(layer_masks_parent1, access_request_parent1) ||
-		   is_eacces(layer_masks_parent2, access_request_parent2)))
-		return -EACCES;
-
-	/*
-	 * Gracefully forbids reparenting if the destination directory
-	 * hierarchy is not a superset of restrictions of the source directory
-	 * hierarchy, or if LANDLOCK_ACCESS_FS_REFER is not allowed by the
-	 * source or the destination.
-	 */
-	return -EXDEV;
+	return allowed_parent1 && allowed_parent2;
 }
 
 static inline int check_access_path(const struct landlock_ruleset *const domain,
@@ -649,8 +628,10 @@ static inline int check_access_path(const struct landlock_ruleset *const domain,
 	layer_mask_t layer_masks[LANDLOCK_NUM_ACCESS_FS] = {};
 
 	access_request = init_layer_masks(domain, access_request, &layer_masks);
-	return check_access_path_dual(domain, path, access_request,
-				      &layer_masks, NULL, 0, NULL, NULL);
+	if (is_access_to_paths_allowed(domain, path, access_request,
+				       &layer_masks, NULL, 0, NULL, NULL))
+		return 0;
+	return -EACCES;
 }
 
 static inline int current_check_access_path(const struct path *const path,
@@ -711,8 +692,9 @@ static inline access_mask_t maybe_remove(const struct dentry *const dentry)
  * file.  While walking from @dir to @mnt_root, we record all the domain's
  * allowed accesses in @layer_masks_dom.
  *
- * This is similar to check_access_path_dual() but much simpler because it only
- * handles walking on the same mount point and only checks one set of accesses.
+ * This is similar to is_access_to_paths_allowed() but much simpler because it
+ * only handles walking on the same mount point and only checks one set of
+ * accesses.
  *
  * Returns:
  * - true if all the domain access rights are allowed for @dir;
@@ -857,10 +839,11 @@ static int current_check_refer_path(struct dentry *const old_dentry,
 		access_request_parent1 = init_layer_masks(
 			dom, access_request_parent1 | access_request_parent2,
 			&layer_masks_parent1);
-		return check_access_path_dual(dom, new_dir,
-					      access_request_parent1,
-					      &layer_masks_parent1, NULL, 0,
-					      NULL, NULL);
+		if (is_access_to_paths_allowed(
+			    dom, new_dir, access_request_parent1,
+			    &layer_masks_parent1, NULL, 0, NULL, NULL))
+			return 0;
+		return -EACCES;
 	}
 
 	access_request_parent1 |= LANDLOCK_ACCESS_FS_REFER;
@@ -886,11 +869,27 @@ static int current_check_refer_path(struct dentry *const old_dentry,
 	 * parent access rights.  This will be useful to compare with the
 	 * destination parent access rights.
 	 */
-	return check_access_path_dual(dom, &mnt_dir, access_request_parent1,
-				      &layer_masks_parent1, old_dentry,
-				      access_request_parent2,
-				      &layer_masks_parent2,
-				      exchange ? new_dentry : NULL);
+	if (is_access_to_paths_allowed(
+		    dom, &mnt_dir, access_request_parent1, &layer_masks_parent1,
+		    old_dentry, access_request_parent2, &layer_masks_parent2,
+		    exchange ? new_dentry : NULL))
+		return 0;
+
+	/*
+	 * This prioritizes EACCES over EXDEV for all actions, including
+	 * renames with RENAME_EXCHANGE.
+	 */
+	if (likely(is_eacces(&layer_masks_parent1, access_request_parent1) ||
+		   is_eacces(&layer_masks_parent2, access_request_parent2)))
+		return -EACCES;
+
+	/*
+	 * Gracefully forbids reparenting if the destination directory
+	 * hierarchy is not a superset of restrictions of the source directory
+	 * hierarchy, or if LANDLOCK_ACCESS_FS_REFER is not allowed by the
+	 * source or the destination.
+	 */
+	return -EXDEV;
 }
 
 /* Inode hooks */
