@@ -407,6 +407,7 @@
 		ti,otap-del-sel-mmc-hs = <0x0>;
 		ti,otap-del-sel-ddr52 = <0x9>;
 		ti,otap-del-sel-hs200 = <0x6>;
+		status = "disabled";
 	};
 
 	sdhci1: mmc@fa00000 {
@@ -430,6 +431,7 @@
 		ti,itap-del-sel-sdr25 = <0x0>;
 		ti,clkbuf-sel = <0x7>;
 		bus-width = <4>;
+		status = "disabled";
 	};
 
 	sdhci2: mmc@fa20000 {
@@ -452,6 +454,7 @@
 		ti,itap-del-sel-sdr12 = <0x0>;
 		ti,itap-del-sel-sdr25 = <0x0>;
 		ti,clkbuf-sel = <0x7>;
+		status = "disabled";
 	};
 
 	fss: bus@fc00000 {
