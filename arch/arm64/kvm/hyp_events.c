@@ -8,12 +8,15 @@
 
 #include <asm/kvm_host.h>
 #include <asm/kvm_hypevents_defs.h>
+#include <asm/setup.h>
 
 #include "hyp_trace.h"
 
+#define HYP_EVENT_NAME_MAX 32
+
 struct hyp_event {
 	struct trace_event_call *call;
-	char name[32];
+	char name[HYP_EVENT_NAME_MAX];
 	bool *enabled;
 };
 
@@ -81,12 +84,41 @@ extern struct hyp_event __stop_hyp_events[];
 extern struct hyp_event_id __hyp_event_ids_start[];
 extern struct hyp_event_id __hyp_event_ids_end[];
 
+static struct hyp_event *find_hyp_event(const char *name)
+{
+	struct hyp_event *event = __start_hyp_events;
+
+	for (; (unsigned long)event < (unsigned long)__stop_hyp_events;
+		event++) {
+		if (!strncmp(name, event->name, HYP_EVENT_NAME_MAX))
+			return event;
+	}
+
+	return NULL;
+}
+
+static int enable_hyp_event(struct hyp_event *event, bool enable)
+{
+	unsigned short id = event->call->event.type;
+	int ret;
+
+	if (enable == *event->enabled)
+		return 0;
+
+	ret = kvm_call_hyp_nvhe(__pkvm_enable_event, id, enable);
+	if (ret)
+		return ret;
+
+	*event->enabled = enable;
+
+	return 0;
+}
+
 static ssize_t
 hyp_event_write(struct file *filp, const char __user *ubuf, size_t cnt, loff_t *ppos)
 {
 	struct seq_file *seq_file = (struct seq_file *)filp->private_data;
 	struct hyp_event *evt = (struct hyp_event *)seq_file->private;
-	unsigned short id = evt->call->event.type;
 	bool enabling;
 	int ret;
 	char c;
@@ -108,13 +140,9 @@ hyp_event_write(struct file *filp, const char __user *ubuf, size_t cnt, loff_t *
 		return -EINVAL;
 	}
 
-	if (enabling != *evt->enabled) {
-		ret = kvm_call_hyp_nvhe(__pkvm_enable_event, id, enabling);
-		if (ret)
-			return ret;
-	}
-
-	*evt->enabled = enabling;
+	ret = enable_hyp_event(evt, enabling);
+	if (ret)
+		return ret;
 
 	return cnt;
 }
@@ -162,6 +190,51 @@ static const struct file_operations hyp_event_id_fops = {
 	.llseek = seq_lseek,
 	.release = single_release,
 };
+
+static char early_events[COMMAND_LINE_SIZE];
+
+static __init int setup_hyp_event_early(char *str)
+{
+	strscpy(early_events, str, COMMAND_LINE_SIZE);
+
+	return 1;
+}
+__setup("hyp_event=", setup_hyp_event_early);
+
+bool kvm_hyp_events_enable_early(void)
+{
+	char *token, *buf = early_events;
+	bool enabled = false;
+
+	while (true) {
+		token = strsep(&buf, ",");
+
+		if (!token)
+			break;
+
+		if (*token) {
+			struct hyp_event *event;
+			int ret;
+
+			event = find_hyp_event(token);
+			if (event) {
+				ret = enable_hyp_event(event, true);
+				if (ret)
+					pr_warn("Couldn't enable hyp event %s:%d\n",
+						token, ret);
+				else
+					enabled = true;
+			} else {
+				pr_warn("Couldn't find hyp event %s\n", token);
+			}
+		}
+
+		if (buf)
+			*(buf - 1) = ',';
+	}
+
+	return enabled;
+}
 
 void kvm_hyp_init_events_tracefs(struct dentry *parent)
 {

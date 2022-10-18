@@ -730,12 +730,14 @@ static void hyp_tracefs_create_cpu_file(const char *file_name,
 }
 
 void kvm_hyp_init_events_tracefs(struct dentry *parent);
+bool kvm_hyp_events_enable_early(void);
 
 int init_hyp_tracefs(void)
 {
 	struct dentry *d, *root_dir, *per_cpu_root_dir;
 	char per_cpu_name[16];
 	unsigned long cpu;
+	int err;
 
 	if (!is_protected_kvm_enabled())
 		return 0;
@@ -784,6 +786,11 @@ int init_hyp_tracefs(void)
 	}
 
 	kvm_hyp_init_events_tracefs(root_dir);
+	if (kvm_hyp_events_enable_early()) {
+		err = hyp_start_tracing();
+		if (err)
+			pr_warn("Failed to start early events tracing: %d\n", err);
+	}
 
 	return 0;
 }
