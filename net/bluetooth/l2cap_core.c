@@ -8461,9 +8461,8 @@ void l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 		 * expected length.
 		 */
 		if (skb->len < L2CAP_LEN_SIZE) {
-			if (l2cap_recv_frag(conn, skb, conn->mtu) < 0)
-				goto drop;
-			return;
+			l2cap_recv_frag(conn, skb, conn->mtu);
+			break;
 		}
 
 		len = get_unaligned_le16(skb->data) + L2CAP_HDR_SIZE;
@@ -8507,7 +8506,7 @@ void l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 
 			/* Header still could not be read just continue */
 			if (conn->rx_skb->len < L2CAP_LEN_SIZE)
-				return;
+				break;
 		}
 
 		if (skb->len > conn->rx_len) {
