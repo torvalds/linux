@@ -1749,7 +1749,6 @@ static void nvme_dev_remove_admin(struct nvme_dev *dev)
 		 */
 		nvme_start_admin_queue(&dev->ctrl);
 		blk_mq_destroy_queue(dev->ctrl.admin_q);
-		blk_put_queue(dev->ctrl.admin_q);
 		blk_mq_free_tag_set(&dev->admin_tagset);
 	}
 }
@@ -1777,11 +1776,6 @@ static int nvme_pci_alloc_admin_tag_set(struct nvme_dev *dev)
 		blk_mq_free_tag_set(set);
 		dev->ctrl.admin_q = NULL;
 		return -ENOMEM;
-	}
-	if (!blk_get_queue(dev->ctrl.admin_q)) {
-		nvme_dev_remove_admin(dev);
-		dev->ctrl.admin_q = NULL;
-		return -ENODEV;
 	}
 	return 0;
 }
