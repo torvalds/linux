@@ -221,6 +221,8 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 	if (IS_ERR(port))
 		return PTR_ERR(port);
 
+	dev_info(pci_root->bus->bridge, "host supports CXL\n");
+
 	return 0;
 }
 
@@ -264,10 +266,11 @@ static int add_host_bridge_dport(struct device *match, void *arg)
 	status = acpi_evaluate_integer(bridge->handle, METHOD_NAME__UID, NULL,
 				       &uid);
 	if (status != AE_OK) {
-		dev_err(host, "unable to retrieve _UID of %s\n",
-			dev_name(match));
+		dev_err(match, "unable to retrieve _UID\n");
 		return -ENODEV;
 	}
+
+	dev_dbg(match, "UID found: %lld\n", uid);
 
 	ctx = (struct cxl_chbs_context) {
 		.dev = host,
@@ -276,10 +279,11 @@ static int add_host_bridge_dport(struct device *match, void *arg)
 	acpi_table_parse_cedt(ACPI_CEDT_TYPE_CHBS, cxl_get_chbcr, &ctx);
 
 	if (ctx.chbcr == 0) {
-		dev_warn(host, "No CHBS found for Host Bridge: %s\n",
-			 dev_name(match));
+		dev_warn(match, "No CHBS found for Host Bridge (UID %lld)\n", uid);
 		return 0;
 	}
+
+	dev_dbg(match, "CHBCR found: 0x%08llx\n", (u64)ctx.chbcr);
 
 	dport = devm_cxl_add_dport(root_port, match, uid, ctx.chbcr);
 	if (IS_ERR(dport))
