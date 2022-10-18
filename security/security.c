@@ -185,11 +185,12 @@ static void __init lsm_set_blob_size(int *need, int *lbs)
 {
 	int offset;
 
-	if (*need > 0) {
-		offset = *lbs;
-		*lbs += *need;
-		*need = offset;
-	}
+	if (*need <= 0)
+		return;
+
+	offset = ALIGN(*lbs, sizeof(void *));
+	*lbs = offset + *need;
+	*need = offset;
 }
 
 static void __init lsm_set_blob_sizes(struct lsm_blob_sizes *needed)
