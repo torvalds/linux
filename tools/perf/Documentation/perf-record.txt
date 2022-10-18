@@ -282,7 +282,7 @@ OPTIONS
 
 -q::
 --quiet::
-	Don't print any message, useful for scripting.
+	Don't print any warnings or messages, useful for scripting.
 
 -v::
 --verbose::
