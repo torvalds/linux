@@ -670,7 +670,8 @@ static int perf_instr_count_open(int cpu_num)
 	/* counter for cpu_num, including user + kernel and all processes */
 	fd = perf_event_open(&pea, -1, cpu_num, -1, 0);
 	if (fd == -1) {
-		warn("cpu%d: perf instruction counter", cpu_num);
+		warnx("capget(CAP_PERFMON) failed, try \"# setcap cap_sys_admin=ep %s\"",
+		      progname);
 		BIC_NOT_PRESENT(BIC_IPC);
 	}
 
@@ -3502,9 +3503,6 @@ release_msr:
 /*
  * set_my_sched_priority(pri)
  * return previous
- *
- * if non-root, do this:
- * # /sbin/setcap cap_sys_rawio,cap_sys_nice=+ep /usr/bin/turbostat
  */
 int set_my_sched_priority(int priority)
 {
@@ -3518,7 +3516,8 @@ int set_my_sched_priority(int priority)
 
 	retval = setpriority(PRIO_PROCESS, 0, priority);
 	if (retval)
-		err(retval, "setpriority(%d)", priority);
+		errx(retval, "capget(CAP_SYS_NICE) failed,try \"# setcap cap_sys_nice=ep %s\"",
+		     progname);
 
 	errno = 0;
 	retval = getpriority(PRIO_PROCESS, 0);
@@ -5476,7 +5475,8 @@ void print_dev_latency(void)
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0) {
-		warn("fopen %s\n", path);
+		warnx("capget(CAP_SYS_ADMIN) failed, try \"# setcap cap_sys_admin=ep %s\"",
+		      progname);
 		return;
 	}
 
