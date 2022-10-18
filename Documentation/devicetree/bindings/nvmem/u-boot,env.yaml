@@ -38,6 +38,8 @@ properties:
         const: u-boot,env-redundant-bool
       - description: Two redundant blocks with active having higher counter
         const: u-boot,env-redundant-count
+      - description: Broadcom's variant with custom header
+        const: brcm,env
 
   reg:
     maxItems: 1
@@ -70,6 +72,25 @@ examples:
             reg = <0x40000 0x10000>;
 
             mac: ethaddr {
+            };
+        };
+    };
+  - |
+    partitions {
+        compatible = "fixed-partitions";
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        partition@0 {
+            reg = <0x0 0x100000>;
+            compatible = "brcm,u-boot";
+            label = "u-boot";
+
+            partition-u-boot-env {
+                compatible = "brcm,env";
+
+                ethaddr {
+                };
             };
         };
     };
