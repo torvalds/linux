@@ -450,18 +450,6 @@
 	};
 };
 
-&ecap0 {
-	status = "disabled";
-};
-
-&ecap1 {
-	status = "disabled";
-};
-
-&ecap2 {
-	status = "disabled";
-};
-
 &main_mcan0 {
 	status = "disabled";
 };
