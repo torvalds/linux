@@ -156,6 +156,7 @@ enum m_can_reg {
 #define PSR_EW		BIT(6)
 #define PSR_EP		BIT(5)
 #define PSR_LEC_MASK	GENMASK(2, 0)
+#define PSR_DLEC_MASK	GENMASK(10, 8)
 
 /* Interrupt Register (IR) */
 #define IR_ALL_INT	0xffffffff
@@ -875,9 +876,17 @@ static int m_can_handle_bus_errors(struct net_device *dev, u32 irqstatus,
 	/* handle lec errors on the bus */
 	if (cdev->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING) {
 		u8 lec = FIELD_GET(PSR_LEC_MASK, psr);
+		u8 dlec = FIELD_GET(PSR_DLEC_MASK, psr);
 
-		if (is_lec_err(lec))
+		if (is_lec_err(lec)) {
+			netdev_dbg(dev, "Arbitration phase error detected\n");
 			work_done += m_can_handle_lec_err(dev, lec);
+		}
+		
+		if (is_lec_err(dlec)) {
+			netdev_dbg(dev, "Data phase error detected\n");
+			work_done += m_can_handle_lec_err(dev, dlec);
+		}
 	}
 
 	/* handle protocol errors in arbitration phase */
