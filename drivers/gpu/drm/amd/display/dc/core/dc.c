@@ -1500,6 +1500,8 @@ static bool context_changed(
 	for (i = 0; i < dc->current_state->stream_count; i++) {
 		if (dc->current_state->streams[i] != context->streams[i])
 			return true;
+		if (!context->streams[i]->link->link_state_valid)
+			return true;
 	}
 
 	return false;
