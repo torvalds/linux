@@ -183,16 +183,16 @@ static int hisi_sas_slot_index_alloc(struct hisi_hba *hisi_hba,
 	void *bitmap = hisi_hba->slot_index_tags;
 
 	if (rq)
-		return rq->tag;
+		return rq->tag + HISI_SAS_RESERVED_IPTT;
 
 	spin_lock(&hisi_hba->lock);
-	index = find_next_zero_bit(bitmap, hisi_hba->slot_index_count,
+	index = find_next_zero_bit(bitmap, HISI_SAS_RESERVED_IPTT,
 				   hisi_hba->last_slot_index + 1);
-	if (index >= hisi_hba->slot_index_count) {
+	if (index >= HISI_SAS_RESERVED_IPTT) {
 		index = find_next_zero_bit(bitmap,
-				hisi_hba->slot_index_count,
-				HISI_SAS_UNRESERVED_IPTT);
-		if (index >= hisi_hba->slot_index_count) {
+				HISI_SAS_RESERVED_IPTT,
+				0);
+		if (index >= HISI_SAS_RESERVED_IPTT) {
 			spin_unlock(&hisi_hba->lock);
 			return -SAS_QUEUE_FULL;
 		}
@@ -2216,7 +2216,7 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 	if (!hisi_hba->sata_breakpoint)
 		goto err_out;
 
-	hisi_hba->last_slot_index = HISI_SAS_UNRESERVED_IPTT;
+	hisi_hba->last_slot_index = 0;
 
 	hisi_hba->wq = create_singlethread_workqueue(dev_name(dev));
 	if (!hisi_hba->wq) {
