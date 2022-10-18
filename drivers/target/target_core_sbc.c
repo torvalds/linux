@@ -270,14 +270,6 @@ static inline unsigned long long transport_lba_64(unsigned char *cdb)
 	return get_unaligned_be64(&cdb[2]);
 }
 
-/*
- * For VARIABLE_LENGTH_CDB w/ 32 byte extended CDBs
- */
-static inline unsigned long long transport_lba_64_ext(unsigned char *cdb)
-{
-	return get_unaligned_be64(&cdb[12]);
-}
-
 static sense_reason_t
 sbc_setup_write_same(struct se_cmd *cmd, unsigned char flags, struct sbc_ops *ops)
 {
