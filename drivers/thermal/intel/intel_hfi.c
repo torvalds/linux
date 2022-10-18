@@ -137,7 +137,7 @@ struct hfi_instance {
  * Parameters and supported features that are common to all HFI instances
  */
 struct hfi_features {
-	unsigned int	nr_table_pages;
+	size_t		nr_table_pages;
 	unsigned int	cpu_stride;
 	unsigned int	hdr_size;
 };
