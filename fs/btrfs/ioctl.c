@@ -3274,7 +3274,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 
 			dentry = btrfs_get_dentry(fs_info->sb,
 					BTRFS_FIRST_FREE_OBJECTID,
-					vol_args2->subvolid, 0, 0);
+					vol_args2->subvolid, 0);
 			if (IS_ERR(dentry)) {
 				err = PTR_ERR(dentry);
 				goto out_drop_write;
