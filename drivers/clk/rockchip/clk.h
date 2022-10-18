@@ -958,15 +958,24 @@ struct clk *rockchip_clk_register_halfdiv(const char *name,
 					  spinlock_t *lock);
 
 #ifdef CONFIG_RESET_CONTROLLER
-void rockchip_register_softrst(struct device_node *np,
-			       unsigned int num_regs,
-			       void __iomem *base, u8 flags);
+void rockchip_register_softrst_lut(struct device_node *np,
+				   const int *lookup_table,
+				   unsigned int num_regs,
+				   void __iomem *base, u8 flags);
 #else
-static inline void rockchip_register_softrst(struct device_node *np,
-			       unsigned int num_regs,
-			       void __iomem *base, u8 flags)
+static inline void rockchip_register_softrst_lut(struct device_node *np,
+				   const int *lookup_table,
+				   unsigned int num_regs,
+				   void __iomem *base, u8 flags)
 {
 }
 #endif
+
+static inline void rockchip_register_softrst(struct device_node *np,
+					     unsigned int num_regs,
+					     void __iomem *base, u8 flags)
+{
+	return rockchip_register_softrst_lut(np, NULL, num_regs, base, flags);
+}
 
 #endif
