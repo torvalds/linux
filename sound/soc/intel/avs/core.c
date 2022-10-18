@@ -23,6 +23,7 @@
 #include <sound/hdaudio_ext.h>
 #include <sound/intel-dsp-config.h>
 #include <sound/intel-nhlt.h>
+#include "../../codecs/hda.h"
 #include "avs.h"
 #include "cldma.h"
 
@@ -356,7 +357,7 @@ static int avs_bus_init(struct avs_dev *adev, struct pci_dev *pci, const struct 
 	struct device *dev = &pci->dev;
 	int ret;
 
-	ret = snd_hdac_ext_bus_init(&bus->core, dev, NULL, NULL);
+	ret = snd_hdac_ext_bus_init(&bus->core, dev, NULL, &soc_hda_ext_bus_ops);
 	if (ret < 0)
 		return ret;
 
@@ -439,12 +440,9 @@ static int avs_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	if (bus->mlcap)
 		snd_hdac_ext_bus_get_ml_capabilities(bus);
 
-	if (!dma_set_mask(dev, DMA_BIT_MASK(64))) {
-		dma_set_coherent_mask(dev, DMA_BIT_MASK(64));
-	} else {
-		dma_set_mask(dev, DMA_BIT_MASK(32));
-		dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
-	}
+	if (!dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64)))
+		dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
+	dma_set_max_seg_size(dev, UINT_MAX);
 
 	ret = avs_hdac_bus_init_streams(bus);
 	if (ret < 0) {
@@ -468,7 +466,7 @@ static int avs_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 
 err_acquire_irq:
 	snd_hdac_bus_free_stream_pages(bus);
-	snd_hdac_stream_free_all(bus);
+	snd_hdac_ext_stream_free_all(bus);
 err_init_streams:
 	iounmap(adev->dsp_ba);
 err_remap_bar4:
@@ -504,7 +502,7 @@ static void avs_pci_remove(struct pci_dev *pci)
 		snd_hda_codec_unregister(hdac_to_hda_codec(hdev));
 
 	snd_hdac_bus_free_stream_pages(bus);
-	snd_hdac_stream_free_all(bus);
+	snd_hdac_ext_stream_free_all(bus);
 	/* reverse ml_capabilities */
 	snd_hdac_link_free_all(bus);
 	snd_hdac_ext_bus_exit(bus);
@@ -555,6 +553,7 @@ static int __maybe_unused avs_suspend_common(struct avs_dev *adev)
 		return AVS_IPC_RET(ret);
 	}
 
+	avs_ipc_block(adev->ipc);
 	avs_dsp_op(adev, int_control, false);
 	snd_hdac_ext_bus_ppcap_int_enable(bus, false);
 

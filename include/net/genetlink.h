@@ -11,6 +11,7 @@
 /**
  * struct genl_multicast_group - generic netlink multicast group
  * @name: name of the multicast group, names are per-family
+ * @flags: GENL_* flags (%GENL_ADMIN_PERM or %GENL_UNS_ADMIN_PERM)
  */
 struct genl_multicast_group {
 	char			name[GENL_NAMSIZ];
@@ -38,6 +39,8 @@ struct genl_info;
  *	undo operations done by pre_doit, for example release locks
  * @mcgrps: multicast groups used by this family
  * @n_mcgrps: number of multicast groups
+ * @resv_start_op: first operation for which reserved fields of the header
+ *	can be validated, new families should leave this field at zero
  * @mcgrp_offset: starting number of multicast group IDs in this family
  *	(private)
  * @ops: the operations supported by this family
@@ -57,6 +60,7 @@ struct genl_family {
 	u8			n_ops;
 	u8			n_small_ops;
 	u8			n_mcgrps;
+	u8			resv_start_op;
 	const struct nla_policy *policy;
 	int			(*pre_doit)(const struct genl_ops *ops,
 					    struct sk_buff *skb,
@@ -106,6 +110,13 @@ static inline void genl_info_net_set(struct genl_info *info, struct net *net)
 
 #define GENL_SET_ERR_MSG(info, msg) NL_SET_ERR_MSG((info)->extack, msg)
 
+/* Report that a root attribute is missing */
+#define GENL_REQ_ATTR_CHECK(info, attr) ({				\
+	struct genl_info *__info = (info);				\
+									\
+	NL_REQ_ATTR_CHECK(__info->extack, NULL, __info->attrs, (attr)); \
+})
+
 enum genl_validate_flags {
 	GENL_DONT_VALIDATE_STRICT		= BIT(0),
 	GENL_DONT_VALIDATE_DUMP			= BIT(1),
@@ -116,7 +127,7 @@ enum genl_validate_flags {
  * struct genl_small_ops - generic netlink operations (small version)
  * @cmd: command identifier
  * @internal_flags: flags used by the family
- * @flags: flags
+ * @flags: GENL_* flags (%GENL_ADMIN_PERM or %GENL_UNS_ADMIN_PERM)
  * @validate: validation flags from enum genl_validate_flags
  * @doit: standard command callback
  * @dumpit: callback for dumpers
@@ -137,7 +148,7 @@ struct genl_small_ops {
  * struct genl_ops - generic netlink operations
  * @cmd: command identifier
  * @internal_flags: flags used by the family
- * @flags: flags
+ * @flags: GENL_* flags (%GENL_ADMIN_PERM or %GENL_UNS_ADMIN_PERM)
  * @maxattr: maximum number of attributes supported
  * @policy: netlink policy (takes precedence over family policy)
  * @validate: validation flags from enum genl_validate_flags

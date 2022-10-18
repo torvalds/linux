@@ -201,7 +201,7 @@ static void owl_uart_send_chars(struct uart_port *port)
 
 		ch = xmit->buf[xmit->tail];
 		owl_uart_write(port, ch, OWL_UART_TXDAT);
-		xmit->tail = (xmit->tail + 1) & (SERIAL_XMIT_SIZE - 1);
+		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		port->icount.tx++;
 	}
 
@@ -328,7 +328,7 @@ static void owl_uart_change_baudrate(struct owl_uart_port *owl_port,
 
 static void owl_uart_set_termios(struct uart_port *port,
 				 struct ktermios *termios,
-				 struct ktermios *old)
+				 const struct ktermios *old)
 {
 	struct owl_uart_port *owl_port = to_owl_uart_port(port);
 	unsigned int baud;

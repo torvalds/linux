@@ -443,11 +443,16 @@ static int tegra_i2c_init_dma(struct tegra_i2c_dev *i2c_dev)
 	u32 *dma_buf;
 	int err;
 
-	if (!i2c_dev->hw->has_apb_dma || i2c_dev->is_vi)
+	if (i2c_dev->is_vi)
 		return 0;
 
-	if (!IS_ENABLED(CONFIG_TEGRA20_APB_DMA)) {
-		dev_dbg(i2c_dev->dev, "DMA support not enabled\n");
+	if (!i2c_dev->hw->has_apb_dma) {
+		if (!IS_ENABLED(CONFIG_TEGRA20_APB_DMA)) {
+			dev_dbg(i2c_dev->dev, "APB DMA support not enabled\n");
+			return 0;
+		}
+	} else if (!IS_ENABLED(CONFIG_TEGRA186_GPC_DMA)) {
+		dev_dbg(i2c_dev->dev, "GPC DMA support not enabled\n");
 		return 0;
 	}
 
@@ -1825,7 +1830,7 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	if (i2c_dev->hw->supports_bus_clear)
 		i2c_dev->adapter.bus_recovery_info = &tegra_i2c_recovery_info;
 
-	strlcpy(i2c_dev->adapter.name, dev_name(i2c_dev->dev),
+	strscpy(i2c_dev->adapter.name, dev_name(i2c_dev->dev),
 		sizeof(i2c_dev->adapter.name));
 
 	err = i2c_add_numbered_adapter(&i2c_dev->adapter);

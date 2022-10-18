@@ -13,6 +13,8 @@
 #include <linux/pm_runtime.h>
 #include <sound/pcm_params.h>
 #include <sound/sof.h>
+#include <trace/events/sof.h>
+#include "sof-of-dev.h"
 #include "sof-priv.h"
 #include "sof-audio.h"
 #include "sof-utils.h"
@@ -383,9 +385,7 @@ static snd_pcm_uframes_t sof_pcm_pointer(struct snd_soc_component *component,
 	dai = bytes_to_frames(substream->runtime,
 			      spcm->stream[substream->stream].posn.dai_posn);
 
-	dev_vdbg(component->dev,
-		 "PCM: stream %d dir %d DMA position %lu DAI position %lu\n",
-		 spcm->pcm.pcm_id, substream->stream, host, dai);
+	trace_sof_pcm_pointer_position(sdev, spcm, substream, host, dai);
 
 	return host;
 }
@@ -604,6 +604,14 @@ static int sof_pcm_probe(struct snd_soc_component *component)
 	const char *tplg_filename;
 	int ret;
 
+	/*
+	 * make sure the device is pm_runtime_active before loading the
+	 * topology and initiating IPC or bus transactions
+	 */
+	ret = pm_runtime_resume_and_get(component->dev);
+	if (ret < 0 && ret != -EACCES)
+		return ret;
+
 	/* load the default topology */
 	sdev->component = component;
 
@@ -620,6 +628,9 @@ static int sof_pcm_probe(struct snd_soc_component *component)
 			ret);
 		return ret;
 	}
+
+	pm_runtime_mark_last_busy(component->dev);
+	pm_runtime_put_autosuspend(component->dev);
 
 	return ret;
 }
@@ -644,7 +655,12 @@ void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
 	struct snd_sof_pdata *plat_data = sdev->pdata;
 	const char *drv_name;
 
-	drv_name = plat_data->machine->drv_name;
+	if (plat_data->machine)
+		drv_name = plat_data->machine->drv_name;
+	else if (plat_data->of_machine)
+		drv_name = plat_data->of_machine->drv_name;
+	else
+		drv_name = NULL;
 
 	pd->name = "sof-audio-component";
 	pd->probe = sof_pcm_probe;
@@ -671,4 +687,6 @@ void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
 
 	 /* increment module refcount when a pcm is opened */
 	pd->module_get_upon_open = 1;
+
+	pd->legacy_dai_naming = 1;
 }

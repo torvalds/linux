@@ -127,6 +127,7 @@ config SERIAL_SB1250_DUART_CONSOLE
 
 config SERIAL_ATMEL
 	bool "AT91 on-chip serial port support"
+	depends on COMMON_CLK
 	depends on ARCH_AT91 || COMPILE_TEST
 	select SERIAL_CORE
 	select SERIAL_MCTRL_GPIO if GPIOLIB
@@ -324,6 +325,7 @@ config SERIAL_MAX310X
 	depends on SPI_MASTER
 	select SERIAL_CORE
 	select REGMAP_SPI if SPI_MASTER
+	select REGMAP_I2C if I2C
 	help
 	  This selects support for an advanced UART from Maxim (Dallas).
 	  Supported ICs are MAX3107, MAX3108, MAX3109, MAX14830.
@@ -426,7 +428,7 @@ config SERIAL_PXA
 
 config SERIAL_PXA_NON8250
 	bool
-	depends on !SERIAL_8250
+	depends on !SERIAL_8250 || COMPILE_TEST
 
 config SERIAL_PXA_CONSOLE
 	bool "Console on PXA serial port (DEPRECATED)"
@@ -889,23 +891,6 @@ config SERIAL_TXX9_STDSERIAL
 	bool "TX39XX/49XX SIO act as standard serial"
 	depends on !SERIAL_8250 && SERIAL_TXX9
 
-config SERIAL_VR41XX
-	tristate "NEC VR4100 series Serial Interface Unit support"
-	depends on CPU_VR41XX
-	select SERIAL_CORE
-	help
-	  If you have a NEC VR4100 series processor and you want to use
-	  Serial Interface Unit(SIU) or Debug Serial Interface Unit(DSIU)
-	  (not include VR4111/VR4121 DSIU), say Y.  Otherwise, say N.
-
-config SERIAL_VR41XX_CONSOLE
-	bool "Enable NEC VR4100 series Serial Interface Unit console"
-	depends on SERIAL_VR41XX=y
-	select SERIAL_CORE_CONSOLE
-	help
-	  If you have a NEC VR4100 series processor and you want to use
-	  a console on a serial port, say Y.  Otherwise, say N.
-
 config SERIAL_JSM
 	tristate "Digi International NEO and Classic PCI Support"
 	depends on PCI
@@ -1099,8 +1084,8 @@ config SERIAL_TIMBERDALE
 config SERIAL_BCM63XX
 	tristate "Broadcom BCM63xx/BCM33xx UART support"
 	select SERIAL_CORE
-	depends on ARCH_BCM4908 || ARCH_BCMBCA || BCM63XX || BMIPS_GENERIC || COMPILE_TEST
-	default ARCH_BCM4908 || ARCH_BCMBCA || BCM63XX || BMIPS_GENERIC
+	depends on ARCH_BCMBCA || BCM63XX || BMIPS_GENERIC || COMPILE_TEST
+	default ARCH_BCMBCA || BCM63XX || BMIPS_GENERIC
 	help
 	  This enables the driver for the onchip UART core found on
 	  the following chipsets:
@@ -1341,7 +1326,7 @@ config SERIAL_FSL_LPUART
 
 config SERIAL_FSL_LPUART_CONSOLE
 	bool "Console on Freescale lpuart serial port"
-	depends on SERIAL_FSL_LPUART=y
+	depends on SERIAL_FSL_LPUART
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
 	help

@@ -284,6 +284,9 @@ void octeon_crash_smp_send_stop(void)
 
 #endif /* CONFIG_KEXEC */
 
+uint64_t octeon_reserve32_memory;
+EXPORT_SYMBOL(octeon_reserve32_memory);
+
 #ifdef CONFIG_KEXEC
 /* crashkernel cmdline parameter is parsed _after_ memory setup
  * we also parse it here (workaround for EHB5200) */
@@ -527,7 +530,7 @@ void octeon_user_io_init(void)
 	/* Get the current settings for CP0_CVMMEMCTL_REG */
 	cvmmemctl.u64 = read_c0_cvmmemctl();
 	/* R/W If set, marked write-buffer entries time out the same
-	 * as as other entries; if clear, marked write-buffer entries
+	 * as other entries; if clear, marked write-buffer entries
 	 * use the maximum timeout. */
 	cvmmemctl.s.dismarkwblongto = 1;
 	/* R/W If set, a merged store does not clear the write-buffer
@@ -661,7 +664,6 @@ void __init prom_init(void)
 	int i;
 	u64 t;
 	int argc;
-
 	/*
 	 * The bootloader passes a pointer to the boot descriptor in
 	 * $a3, this is available as fw_arg3.
@@ -775,6 +777,27 @@ void __init prom_init(void)
 		cvmx_write_csr(CVMX_LED_UDD_DATX(0), 0);
 		cvmx_write_csr(CVMX_LED_UDD_DATX(1), 0);
 		cvmx_write_csr(CVMX_LED_EN, 1);
+	}
+
+	/*
+	 * We need to temporarily allocate all memory in the reserve32
+	 * region. This makes sure the kernel doesn't allocate this
+	 * memory when it is getting memory from the
+	 * bootloader. Later, after the memory allocations are
+	 * complete, the reserve32 will be freed.
+	 *
+	 * Allocate memory for RESERVED32 aligned on 2MB boundary. This
+	 * is in case we later use hugetlb entries with it.
+	 */
+	if (CONFIG_CAVIUM_RESERVE32) {
+		int64_t addr =
+			cvmx_bootmem_phy_named_block_alloc(CONFIG_CAVIUM_RESERVE32 << 20,
+							   0, 0, 2 << 20,
+							   "CAVIUM_RESERVE32", 0);
+		if (addr < 0)
+			pr_err("Failed to allocate CAVIUM_RESERVE32 memory area\n");
+		else
+			octeon_reserve32_memory = addr;
 	}
 
 #ifdef CONFIG_CAVIUM_OCTEON_LOCK_L2
@@ -1052,6 +1075,14 @@ void __init plat_mem_setup(void)
 	}
 	cvmx_bootmem_unlock();
 #endif /* CONFIG_CRASH_DUMP */
+
+	/*
+	 * Now that we've allocated the kernel memory it is safe to
+	 * free the reserved region. We free it here so that builtin
+	 * drivers can use the memory.
+	 */
+	if (octeon_reserve32_memory)
+		cvmx_bootmem_free_named("CAVIUM_RESERVE32");
 
 	if (total == 0)
 		panic("Unable to allocate memory from "

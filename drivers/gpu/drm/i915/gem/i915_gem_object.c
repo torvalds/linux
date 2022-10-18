@@ -238,7 +238,7 @@ static void __i915_gem_object_free_mmaps(struct drm_i915_gem_object *obj)
 {
 	/* Skip serialisation and waking the device if known to be not used. */
 
-	if (obj->userfault_count)
+	if (obj->userfault_count && !IS_DGFX(to_i915(obj->base.dev)))
 		i915_gem_object_release_mmap_gtt(obj);
 
 	if (!RB_EMPTY_ROOT(&obj->mmo.offsets)) {
@@ -268,7 +268,7 @@ static void __i915_gem_object_free_mmaps(struct drm_i915_gem_object *obj)
  */
 void __i915_gem_object_pages_fini(struct drm_i915_gem_object *obj)
 {
-	assert_object_held(obj);
+	assert_object_held_shared(obj);
 
 	if (!list_empty(&obj->vma.list)) {
 		struct i915_vma *vma;
@@ -331,15 +331,7 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 			continue;
 		}
 
-		if (!i915_gem_object_trylock(obj, NULL)) {
-			/* busy, toss it back to the pile */
-			if (llist_add(&obj->freed, &i915->mm.free_list))
-				queue_delayed_work(i915->wq, &i915->mm.free_work, msecs_to_jiffies(10));
-			continue;
-		}
-
 		__i915_gem_object_pages_fini(obj);
-		i915_gem_object_unlock(obj);
 		__i915_gem_free_object(obj);
 
 		/* But keep the pointer alive for RCU-protected lookups */
@@ -359,7 +351,7 @@ void i915_gem_flush_free_objects(struct drm_i915_private *i915)
 static void __i915_gem_free_work(struct work_struct *work)
 {
 	struct drm_i915_private *i915 =
-		container_of(work, struct drm_i915_private, mm.free_work.work);
+		container_of(work, struct drm_i915_private, mm.free_work);
 
 	i915_gem_flush_free_objects(i915);
 }
@@ -391,7 +383,7 @@ static void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	 */
 
 	if (llist_add(&obj->freed, &i915->mm.free_list))
-		queue_delayed_work(i915->wq, &i915->mm.free_work, 0);
+		queue_work(i915->wq, &i915->mm.free_work);
 }
 
 void __i915_gem_object_flush_frontbuffer(struct drm_i915_gem_object *obj,
@@ -731,6 +723,9 @@ bool i915_gem_object_needs_ccs_pages(struct drm_i915_gem_object *obj)
 	bool lmem_placement = false;
 	int i;
 
+	if (!HAS_FLAT_CCS(to_i915(obj->base.dev)))
+		return false;
+
 	for (i = 0; i < obj->mm.n_placements; i++) {
 		/* Compression is not allowed for the objects with smem placement */
 		if (obj->mm.placements[i]->type == INTEL_MEMORY_SYSTEM)
@@ -745,7 +740,7 @@ bool i915_gem_object_needs_ccs_pages(struct drm_i915_gem_object *obj)
 
 void i915_gem_init__objects(struct drm_i915_private *i915)
 {
-	INIT_DELAYED_WORK(&i915->mm.free_work, __i915_gem_free_work);
+	INIT_WORK(&i915->mm.free_work, __i915_gem_free_work);
 }
 
 void i915_objects_module_exit(void)

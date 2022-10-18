@@ -34,6 +34,7 @@
  *
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -1999,7 +2000,7 @@ static int cirrusfb_set_fbinfo(struct fb_info *info)
 	}
 
 	/* Fill fix common fields */
-	strlcpy(info->fix.id, cirrusfb_board_info[cinfo->btype].name,
+	strscpy(info->fix.id, cirrusfb_board_info[cinfo->btype].name,
 		sizeof(info->fix.id));
 
 	/* monochrome: only 1 memory plane */
@@ -2084,6 +2085,10 @@ static int cirrusfb_pci_register(struct pci_dev *pdev,
 	struct fb_info *info;
 	unsigned long board_addr, board_size;
 	int ret;
+
+	ret = aperture_remove_conflicting_pci_devices(pdev, "cirrusfb");
+	if (ret)
+		return ret;
 
 	ret = pci_enable_device(pdev);
 	if (ret < 0) {
@@ -2301,7 +2306,7 @@ err_release_fb:
 	return error;
 }
 
-void cirrusfb_zorro_unregister(struct zorro_dev *z)
+static void cirrusfb_zorro_unregister(struct zorro_dev *z)
 {
 	struct fb_info *info = zorro_get_drvdata(z);
 

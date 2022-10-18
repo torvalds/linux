@@ -576,6 +576,51 @@ ieee80211_tx_h_check_control_port_protocol(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
+static struct ieee80211_key *
+ieee80211_select_link_key(struct ieee80211_tx_data *tx)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
+	enum {
+		USE_NONE,
+		USE_MGMT_KEY,
+		USE_MCAST_KEY,
+	} which_key = USE_NONE;
+	struct ieee80211_link_data *link;
+	unsigned int link_id;
+
+	if (ieee80211_is_group_privacy_action(tx->skb))
+		which_key = USE_MCAST_KEY;
+	else if (ieee80211_is_mgmt(hdr->frame_control) &&
+		 is_multicast_ether_addr(hdr->addr1) &&
+		 ieee80211_is_robust_mgmt_frame(tx->skb))
+		which_key = USE_MGMT_KEY;
+	else if (is_multicast_ether_addr(hdr->addr1))
+		which_key = USE_MCAST_KEY;
+	else
+		return NULL;
+
+	link_id = u32_get_bits(info->control.flags, IEEE80211_TX_CTRL_MLO_LINK);
+	if (link_id == IEEE80211_LINK_UNSPECIFIED) {
+		link = &tx->sdata->deflink;
+	} else {
+		link = rcu_dereference(tx->sdata->link[link_id]);
+		if (!link)
+			return NULL;
+	}
+
+	switch (which_key) {
+	case USE_NONE:
+		break;
+	case USE_MGMT_KEY:
+		return rcu_dereference(link->default_mgmt_key);
+	case USE_MCAST_KEY:
+		return rcu_dereference(link->default_multicast_key);
+	}
+
+	return NULL;
+}
+
 static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 {
@@ -591,16 +636,7 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 	if (tx->sta &&
 	    (key = rcu_dereference(tx->sta->ptk[tx->sta->ptk_idx])))
 		tx->key = key;
-	else if (ieee80211_is_group_privacy_action(tx->skb) &&
-		(key = rcu_dereference(tx->sdata->deflink.default_multicast_key)))
-		tx->key = key;
-	else if (ieee80211_is_mgmt(hdr->frame_control) &&
-		 is_multicast_ether_addr(hdr->addr1) &&
-		 ieee80211_is_robust_mgmt_frame(tx->skb) &&
-		 (key = rcu_dereference(tx->sdata->deflink.default_mgmt_key)))
-		tx->key = key;
-	else if (is_multicast_ether_addr(hdr->addr1) &&
-		 (key = rcu_dereference(tx->sdata->deflink.default_multicast_key)))
+	else if ((key = ieee80211_select_link_key(tx)))
 		tx->key = key;
 	else if (!is_multicast_ether_addr(hdr->addr1) &&
 		 (key = rcu_dereference(tx->sdata->default_unicast_key)))
@@ -2640,7 +2676,8 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 				goto free;
 			}
 			memcpy(hdr.addr2, link->conf->addr, ETH_ALEN);
-		} else if (link_id == IEEE80211_LINK_UNSPECIFIED) {
+		} else if (link_id == IEEE80211_LINK_UNSPECIFIED ||
+			   (sta && sta->sta.mlo)) {
 			memcpy(hdr.addr2, sdata->vif.addr, ETH_ALEN);
 		} else {
 			struct ieee80211_bss_conf *conf;
@@ -3350,7 +3387,7 @@ static bool ieee80211_amsdu_aggregate(struct ieee80211_sub_if_data *sdata,
 	int subframe_len = skb->len - ETH_ALEN;
 	u8 max_subframes = sta->sta.max_amsdu_subframes;
 	int max_frags = local->hw.max_tx_fragments;
-	int max_amsdu_len = sta->sta.max_amsdu_len;
+	int max_amsdu_len = sta->sta.cur->max_amsdu_len;
 	int orig_truesize;
 	u32 flow_idx;
 	__be16 len;
@@ -3376,13 +3413,13 @@ static bool ieee80211_amsdu_aggregate(struct ieee80211_sub_if_data *sdata,
 	if (test_bit(IEEE80211_TXQ_NO_AMSDU, &txqi->flags))
 		return false;
 
-	if (sta->sta.max_rc_amsdu_len)
+	if (sta->sta.cur->max_rc_amsdu_len)
 		max_amsdu_len = min_t(int, max_amsdu_len,
-				      sta->sta.max_rc_amsdu_len);
+				      sta->sta.cur->max_rc_amsdu_len);
 
-	if (sta->sta.max_tid_amsdu_len[tid])
+	if (sta->sta.cur->max_tid_amsdu_len[tid])
 		max_amsdu_len = min_t(int, max_amsdu_len,
-				      sta->sta.max_tid_amsdu_len[tid]);
+				      sta->sta.cur->max_tid_amsdu_len[tid]);
 
 	flow_idx = fq_flow_idx(fq, skb);
 
@@ -3735,8 +3772,8 @@ begin:
 			     !test_sta_flag(tx.sta, WLAN_STA_AUTHORIZED) &&
 			     (!(info->control.flags &
 				IEEE80211_TX_CTRL_PORT_CTRL_PROTO) ||
-			      !ether_addr_equal(tx.sdata->vif.addr,
-						hdr->addr2)))) {
+			      !ieee80211_is_our_addr(tx.sdata, hdr->addr2,
+						     NULL)))) {
 			I802_DEBUG_INC(local->tx_handlers_drop_unauth_port);
 			ieee80211_free_txskb(&local->hw, skb);
 			goto begin;
@@ -5061,6 +5098,8 @@ ieee80211_beacon_get_finish(struct ieee80211_hw *hw,
 	rate_control_get_rate(sdata, NULL, &txrc);
 
 	info->control.vif = vif;
+	info->control.flags |= u32_encode_bits(link->link_id,
+					       IEEE80211_TX_CTRL_MLO_LINK);
 	info->flags |= IEEE80211_TX_CTL_CLEAR_PS_FILT |
 		       IEEE80211_TX_CTL_ASSIGN_SEQ |
 		       IEEE80211_TX_CTL_FIRST_FRAGMENT;
@@ -5430,33 +5469,39 @@ EXPORT_SYMBOL(ieee80211_pspoll_get);
 
 struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
-				       bool qos_ok)
+				       int link_id, bool qos_ok)
 {
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_link_data *link = NULL;
 	struct ieee80211_hdr_3addr *nullfunc;
-	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_local *local;
 	struct sk_buff *skb;
 	bool qos = false;
 
 	if (WARN_ON(vif->type != NL80211_IFTYPE_STATION))
 		return NULL;
 
-	sdata = vif_to_sdata(vif);
-	local = sdata->local;
-
-	if (qos_ok) {
-		struct sta_info *sta;
-
-		rcu_read_lock();
-		sta = sta_info_get(sdata, sdata->deflink.u.mgd.bssid);
-		qos = sta && sta->sta.wme;
-		rcu_read_unlock();
-	}
-
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
 			    sizeof(*nullfunc) + 2);
 	if (!skb)
 		return NULL;
+
+	rcu_read_lock();
+	if (qos_ok) {
+		struct sta_info *sta;
+
+		sta = sta_info_get(sdata, vif->cfg.ap_addr);
+		qos = sta && sta->sta.wme;
+	}
+
+	if (link_id >= 0) {
+		link = rcu_dereference(sdata->link[link_id]);
+		if (WARN_ON_ONCE(!link)) {
+			rcu_read_unlock();
+			kfree_skb(skb);
+			return NULL;
+		}
+	}
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
@@ -5477,9 +5522,16 @@ struct sk_buff *ieee80211_nullfunc_get(struct ieee80211_hw *hw,
 		skb_put_data(skb, &qoshdr, sizeof(qoshdr));
 	}
 
-	memcpy(nullfunc->addr1, sdata->deflink.u.mgd.bssid, ETH_ALEN);
-	memcpy(nullfunc->addr2, vif->addr, ETH_ALEN);
-	memcpy(nullfunc->addr3, sdata->deflink.u.mgd.bssid, ETH_ALEN);
+	if (link) {
+		memcpy(nullfunc->addr1, link->conf->bssid, ETH_ALEN);
+		memcpy(nullfunc->addr2, link->conf->addr, ETH_ALEN);
+		memcpy(nullfunc->addr3, link->conf->bssid, ETH_ALEN);
+	} else {
+		memcpy(nullfunc->addr1, vif->cfg.ap_addr, ETH_ALEN);
+		memcpy(nullfunc->addr2, vif->addr, ETH_ALEN);
+		memcpy(nullfunc->addr3, vif->cfg.ap_addr, ETH_ALEN);
+	}
+	rcu_read_unlock();
 
 	return skb;
 }
@@ -5878,6 +5930,9 @@ int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,
 	skb_reset_network_header(skb);
 	skb_reset_mac_header(skb);
 
+	if (local->hw.queues < IEEE80211_NUM_ACS)
+		goto start_xmit;
+
 	/* update QoS header to prioritize control port frames if possible,
 	 * priorization also happens for control port frames send over
 	 * AF_PACKET
@@ -5885,6 +5940,7 @@ int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,
 	rcu_read_lock();
 	err = ieee80211_lookup_ra_sta(sdata, skb, &sta);
 	if (err) {
+		dev_kfree_skb(skb);
 		rcu_read_unlock();
 		return err;
 	}
@@ -5899,11 +5955,12 @@ int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,
 		 * for MLO STA, the SA should be the AP MLD address, but
 		 * the link ID has been selected already
 		 */
-		if (sta->sta.mlo)
+		if (sta && sta->sta.mlo)
 			memcpy(ehdr->h_source, sdata->vif.addr, ETH_ALEN);
 	}
 	rcu_read_unlock();
 
+start_xmit:
 	/* mutex lock is only needed for incrementing the cookie counter */
 	mutex_lock(&local->mtx);
 

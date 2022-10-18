@@ -889,9 +889,8 @@ static const struct dc_debug_options debug_defaults_drv = {
 	},
 	.disable_z10 = true,
 	.optimize_edp_link_rate = true,
-	.enable_sw_cntl_psr = true,
 	.enable_z9_disable_interface = true, /* Allow support for the PMFW interface for disable Z9*/
-	.dml_hostvm_override = DML_HOSTVM_OVERRIDE_FALSE,
+	.dml_hostvm_override = DML_HOSTVM_NO_OVERRIDE,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -2153,7 +2152,7 @@ static bool dcn31_resource_construct(
 		pool->base.usb4_dpia_count = 4;
 	}
 
-	if (dc->ctx->asic_id.chip_family == AMDGPU_FAMILY_GC_11_0_2)
+	if (dc->ctx->asic_id.chip_family == AMDGPU_FAMILY_GC_11_0_1)
 		pool->base.usb4_dpia_count = 4;
 
 	/* Audio, Stream Encoders including HPO and virtual, MPC 3D LUTs */

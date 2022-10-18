@@ -7,15 +7,7 @@
 #ifndef __ERDMA_VERBS_H__
 #define __ERDMA_VERBS_H__
 
-#include <linux/errno.h>
-
-#include <rdma/ib_verbs.h>
-#include <rdma/ib_user_verbs.h>
-#include <rdma/iw_cm.h>
-
 #include "erdma.h"
-#include "erdma_cm.h"
-#include "erdma_hw.h"
 
 /* RDMA Capability. */
 #define ERDMA_MAX_PD (128 * 1024)
@@ -338,5 +330,6 @@ struct ib_mr *erdma_ib_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
 int erdma_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 		    unsigned int *sg_offset);
 void erdma_port_event(struct erdma_dev *dev, enum ib_event_type reason);
+void erdma_set_mtu(struct erdma_dev *dev, u32 mtu);
 
 #endif

@@ -212,8 +212,17 @@
 #define MAX98396_CLK_MON_AUTO_RESTART_MASK	(0x1 << 0)
 #define MAX98396_CLK_MON_AUTO_RESTART_SHIFT	(0)
 
+/* MAX98396_R2039_DATA_MON_CTRL */
+#define MAX98396_DMON_MAG_THRESH_SHIFT		(4)
+#define MAX98396_DMON_MAG_THRESH_MASK		(0x3 << MAX98396_DMON_MAG_THRESH_SHIFT)
+#define MAX98396_DMON_STUCK_THRESH_SHIFT	(2)
+#define MAX98396_DMON_STUCK_THRESH_MASK		(0x3 << MAX98396_DMON_STUCK_THRESH_SHIFT)
+#define MAX98396_DMON_DURATION_MASK		(0x3)
+
 /* MAX98396_R203F_ENABLE_CTRLS */
 #define MAX98396_CTRL_CMON_EN_SHIFT		(0)
+#define MAX98396_CTRL_DMON_STUCK_EN_MASK	(0x1 << 1)
+#define MAX98396_CTRL_DMON_MAG_EN_MASK		(0x1 << 2)
 
 /* MAX98396_R2041_PCM_MODE_CFG */
 #define MAX98396_PCM_MODE_CFG_FORMAT_MASK	(0x7 << 3)
@@ -274,6 +283,9 @@
 #define MAX98396_DSP_SPK_SAFE_EN_SHIFT		(5)
 #define MAX98396_DSP_SPK_WB_FLT_EN_SHIFT	(6)
 
+/* MAX98396_R20A0_AMP_SUPPLY_CTL */
+#define MAX98396_AMP_SUPPLY_NOVBAT		(0x1 << 0)
+
 /* MAX98396_R20E0_IV_SENSE_PATH_CFG */
 #define MAX98396_IV_SENSE_DCBLK_EN_MASK		(0x3 << 0)
 #define MAX98396_IV_SENSE_DCBLK_EN_SHIFT	(0)
@@ -291,15 +303,25 @@ enum {
 	CODEC_TYPE_MAX98397,
 };
 
+#define  MAX98396_NUM_CORE_SUPPLIES 3
+
 struct max98396_priv {
 	struct regmap *regmap;
 	struct gpio_desc *reset_gpio;
+	struct regulator_bulk_data core_supplies[MAX98396_NUM_CORE_SUPPLIES];
+	struct regulator *pvdd, *vbat;
 	unsigned int v_slot;
 	unsigned int i_slot;
+	unsigned int spkfb_slot;
 	unsigned int bypass_slot;
+	bool dmon_stuck_enable;
+	unsigned int dmon_stuck_threshold;
+	bool dmon_mag_enable;
+	unsigned int dmon_mag_threshold;
+	unsigned int dmon_duration;
 	bool interleave_mode;
-	unsigned int ch_size;
 	bool tdm_mode;
+	int tdm_max_samplerate;
 	int device_id;
 };
 #endif

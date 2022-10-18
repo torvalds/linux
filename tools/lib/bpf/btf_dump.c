@@ -2385,7 +2385,7 @@ int btf_dump__dump_type_data(struct btf_dump *d, __u32 id,
 	d->typed_dump->indent_lvl = OPTS_GET(opts, indent_level, 0);
 
 	/* default indent string is a tab */
-	if (!opts->indent_str)
+	if (!OPTS_GET(opts, indent_str, NULL))
 		d->typed_dump->indent_str[0] = '\t';
 	else
 		libbpf_strlcpy(d->typed_dump->indent_str, opts->indent_str,

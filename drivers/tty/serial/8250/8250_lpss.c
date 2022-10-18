@@ -70,7 +70,7 @@ static inline struct lpss8250 *to_lpss8250(struct dw8250_port_data *data)
 }
 
 static void byt_set_termios(struct uart_port *p, struct ktermios *termios,
-			    struct ktermios *old)
+			    const struct ktermios *old)
 {
 	unsigned int baud = tty_termios_baud_rate(termios);
 	struct lpss8250 *lpss = to_lpss8250(p->private_data);
@@ -330,7 +330,7 @@ static int lpss8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	uart.port.irq = pci_irq_vector(pdev, 0);
 	uart.port.private_data = &lpss->data;
 	uart.port.type = PORT_16550A;
-	uart.port.iotype = UPIO_MEM;
+	uart.port.iotype = UPIO_MEM32;
 	uart.port.regshift = 2;
 	uart.port.uartclk = lpss->board->base_baud * 16;
 	uart.port.flags = UPF_SHARE_IRQ | UPF_FIXED_PORT | UPF_FIXED_TYPE;

@@ -44,6 +44,9 @@ static void iso_sock_kill(struct sock *sk);
 /* ----- ISO socket info ----- */
 #define iso_pi(sk) ((struct iso_pinfo *)sk)
 
+#define EIR_SERVICE_DATA_LENGTH 4
+#define BASE_MAX_LENGTH (HCI_MAX_PER_AD_LENGTH - EIR_SERVICE_DATA_LENGTH)
+
 struct iso_pinfo {
 	struct bt_sock		bt;
 	bdaddr_t		src;
@@ -57,7 +60,7 @@ struct iso_pinfo {
 	__u32			flags;
 	struct bt_iso_qos	qos;
 	__u8			base_len;
-	__u8			base[HCI_MAX_PER_AD_LENGTH];
+	__u8			base[BASE_MAX_LENGTH];
 	struct iso_conn		*conn;
 };
 
@@ -370,15 +373,24 @@ done:
 	return err;
 }
 
+static struct bt_iso_qos *iso_sock_get_qos(struct sock *sk)
+{
+	if (sk->sk_state == BT_CONNECTED || sk->sk_state == BT_CONNECT2)
+		return &iso_pi(sk)->conn->hcon->iso_qos;
+
+	return &iso_pi(sk)->qos;
+}
+
 static int iso_send_frame(struct sock *sk, struct sk_buff *skb)
 {
 	struct iso_conn *conn = iso_pi(sk)->conn;
+	struct bt_iso_qos *qos = iso_sock_get_qos(sk);
 	struct hci_iso_data_hdr *hdr;
 	int len = 0;
 
 	BT_DBG("sk %p len %d", sk, skb->len);
 
-	if (skb->len > iso_pi(sk)->qos.out.sdu)
+	if (skb->len > qos->out.sdu)
 		return -EMSGSIZE;
 
 	len = skb->len;
@@ -1177,8 +1189,10 @@ static int iso_sock_setsockopt(struct socket *sock, int level, int optname,
 		}
 
 		len = min_t(unsigned int, sizeof(qos), optlen);
-		if (len != sizeof(qos))
-			return -EINVAL;
+		if (len != sizeof(qos)) {
+			err = -EINVAL;
+			break;
+		}
 
 		memset(&qos, 0, sizeof(qos));
 
@@ -1233,7 +1247,7 @@ static int iso_sock_getsockopt(struct socket *sock, int level, int optname,
 {
 	struct sock *sk = sock->sk;
 	int len, err = 0;
-	struct bt_iso_qos qos;
+	struct bt_iso_qos *qos;
 	u8 base_len;
 	u8 *base;
 
@@ -1246,7 +1260,7 @@ static int iso_sock_getsockopt(struct socket *sock, int level, int optname,
 
 	switch (optname) {
 	case BT_DEFER_SETUP:
-		if (sk->sk_state != BT_BOUND && sk->sk_state != BT_LISTEN) {
+		if (sk->sk_state == BT_CONNECTED) {
 			err = -EINVAL;
 			break;
 		}
@@ -1258,13 +1272,10 @@ static int iso_sock_getsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case BT_ISO_QOS:
-		if (sk->sk_state == BT_CONNECTED || sk->sk_state == BT_CONNECT2)
-			qos = iso_pi(sk)->conn->hcon->iso_qos;
-		else
-			qos = iso_pi(sk)->qos;
+		qos = iso_sock_get_qos(sk);
 
-		len = min_t(unsigned int, len, sizeof(qos));
-		if (copy_to_user(optval, (char *)&qos, len))
+		len = min_t(unsigned int, len, sizeof(*qos));
+		if (copy_to_user(optval, qos, len))
 			err = -EFAULT;
 
 		break;
@@ -1298,7 +1309,7 @@ static int iso_sock_shutdown(struct socket *sock, int how)
 	struct sock *sk = sock->sk;
 	int err = 0;
 
-	BT_DBG("sock %p, sk %p", sock, sk);
+	BT_DBG("sock %p, sk %p, how %d", sock, sk, how);
 
 	if (!sk)
 		return 0;
@@ -1306,17 +1317,32 @@ static int iso_sock_shutdown(struct socket *sock, int how)
 	sock_hold(sk);
 	lock_sock(sk);
 
-	if (!sk->sk_shutdown) {
-		sk->sk_shutdown = SHUTDOWN_MASK;
-		iso_sock_clear_timer(sk);
-		__iso_sock_close(sk);
-
-		if (sock_flag(sk, SOCK_LINGER) && sk->sk_lingertime &&
-		    !(current->flags & PF_EXITING))
-			err = bt_sock_wait_state(sk, BT_CLOSED,
-						 sk->sk_lingertime);
+	switch (how) {
+	case SHUT_RD:
+		if (sk->sk_shutdown & RCV_SHUTDOWN)
+			goto unlock;
+		sk->sk_shutdown |= RCV_SHUTDOWN;
+		break;
+	case SHUT_WR:
+		if (sk->sk_shutdown & SEND_SHUTDOWN)
+			goto unlock;
+		sk->sk_shutdown |= SEND_SHUTDOWN;
+		break;
+	case SHUT_RDWR:
+		if (sk->sk_shutdown & SHUTDOWN_MASK)
+			goto unlock;
+		sk->sk_shutdown |= SHUTDOWN_MASK;
+		break;
 	}
 
+	iso_sock_clear_timer(sk);
+	__iso_sock_close(sk);
+
+	if (sock_flag(sk, SOCK_LINGER) && sk->sk_lingertime &&
+	    !(current->flags & PF_EXITING))
+		err = bt_sock_wait_state(sk, BT_CLOSED, sk->sk_lingertime);
+
+unlock:
 	release_sock(sk);
 	sock_put(sk);
 

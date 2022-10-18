@@ -32,10 +32,9 @@ int __cifs_calc_signature(struct smb_rqst *rqst,
 	int rc;
 	struct kvec *iov = rqst->rq_iov;
 	int n_vec = rqst->rq_nvec;
-	int is_smb2 = server->vals->header_preamble_size == 0;
 
 	/* iov[0] is actual data and not the rfc1002 length for SMB2+ */
-	if (is_smb2) {
+	if (!is_smb1(server)) {
 		if (iov[0].iov_len <= 4)
 			return -EIO;
 		i = 0;
@@ -141,13 +140,13 @@ int cifs_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 	if ((cifs_pdu == NULL) || (server == NULL))
 		return -EINVAL;
 
-	spin_lock(&cifs_tcp_ses_lock);
+	spin_lock(&server->srv_lock);
 	if (!(cifs_pdu->Flags2 & SMBFLG2_SECURITY_SIGNATURE) ||
 	    server->tcpStatus == CifsNeedNegotiate) {
-		spin_unlock(&cifs_tcp_ses_lock);
+		spin_unlock(&server->srv_lock);
 		return rc;
 	}
-	spin_unlock(&cifs_tcp_ses_lock);
+	spin_unlock(&server->srv_lock);
 
 	if (!server->session_estab) {
 		memcpy(cifs_pdu->Signature.SecuritySignature, "BSRSPYL", 8);

@@ -3,6 +3,7 @@
  *Copyright (C) 2011 LAPIS Semiconductor Co., Ltd.
  */
 #include <linux/kernel.h>
+#include <linux/serial.h>
 #include <linux/serial_reg.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -188,8 +189,6 @@ enum {
 #define PCH_UART_HAL_OUT		(PCH_UART_MCR_OUT)
 #define PCH_UART_HAL_LOOP		(PCH_UART_MCR_LOOP)
 #define PCH_UART_HAL_AFE		(PCH_UART_MCR_AFE)
-
-#define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
 
 #define DEFAULT_UARTCLK   1843200 /*   1.8432 MHz */
 #define CMITC_UARTCLK   192000000 /* 192.0000 MHz */
@@ -899,9 +898,7 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
 		fifo_size--;
 	}
 
-	bytes = min((int)CIRC_CNT(xmit->head, xmit->tail,
-			     UART_XMIT_SIZE), CIRC_CNT_TO_END(xmit->head,
-			     xmit->tail, UART_XMIT_SIZE));
+	bytes = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
 	if (!bytes) {
 		dev_dbg(priv->port.dev, "%s 0 bytes return\n", __func__);
 		pch_uart_hal_disable_interrupt(priv, PCH_UART_HAL_TX_INT);
@@ -1302,7 +1299,8 @@ static void pch_uart_shutdown(struct uart_port *port)
  *bits.  Update read_status_mask and ignore_status_mask to indicate
  *the types of events we are interested in receiving.  */
 static void pch_uart_set_termios(struct uart_port *port,
-				 struct ktermios *termios, struct ktermios *old)
+				 struct ktermios *termios,
+				 const struct ktermios *old)
 {
 	int rtn;
 	unsigned int baud, parity, bits, stb;
@@ -1516,7 +1514,7 @@ static void pch_uart_put_poll_char(struct uart_port *port,
 	 * Finally, wait for transmitter to become empty
 	 * and restore the IER
 	 */
-	wait_for_xmitr(priv, BOTH_EMPTY);
+	wait_for_xmitr(priv, UART_LSR_BOTH_EMPTY);
 	iowrite8(ier, priv->membase + UART_IER);
 }
 #endif /* CONFIG_CONSOLE_POLL */
@@ -1602,7 +1600,7 @@ pch_console_write(struct console *co, const char *s, unsigned int count)
 	 *	Finally, wait for transmitter to become empty
 	 *	and restore the IER
 	 */
-	wait_for_xmitr(priv, BOTH_EMPTY);
+	wait_for_xmitr(priv, UART_LSR_BOTH_EMPTY);
 	iowrite8(ier, priv->membase + UART_IER);
 
 	if (port_locked)

@@ -249,7 +249,7 @@ config COMMON_CLK_GEMINI
 	  platform, also known as SL3516 or CS3516.
 
 config COMMON_CLK_LAN966X
-	bool "Generic Clock Controller driver for LAN966X SoC"
+	tristate "Generic Clock Controller driver for LAN966X SoC"
 	depends on HAS_IOMEM
 	depends on OF
 	depends on SOC_LAN966 || COMPILE_TEST
@@ -376,6 +376,15 @@ config COMMON_CLK_VC5
 	help
 	  This driver supports the IDT VersaClock 5 and VersaClock 6
 	  programmable clock generators.
+
+config COMMON_CLK_VC7
+	tristate "Clock driver for Renesas Versaclock 7 devices"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	  Renesas Versaclock7 is a family of configurable clock generator
+	  and jitter attenuator ICs with fractional and integer dividers.
 
 config COMMON_CLK_STM32MP135
 	def_bool COMMON_CLK && MACH_STM32MP13

@@ -206,7 +206,7 @@ static void mchp_corei2c_empty_rx(struct mchp_corei2c_dev *idev)
 		idev->msg_len--;
 	}
 
-	if (idev->msg_len == 0) {
+	if (idev->msg_len <= 1) {
 		ctrl = readb(idev->base + CORE_I2C_CTRL);
 		ctrl &= ~CTRL_AA;
 		writeb(ctrl, idev->base + CORE_I2C_CTRL);

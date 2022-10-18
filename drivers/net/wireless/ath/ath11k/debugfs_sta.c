@@ -751,6 +751,102 @@ static const struct file_operations fops_htt_peer_stats_reset = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath11k_dbg_sta_read_peer_ps_state(struct file *file,
+						 char __user *user_buf,
+						 size_t count, loff_t *ppos)
+{
+	struct ieee80211_sta *sta = file->private_data;
+	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k *ar = arsta->arvif->ar;
+	char buf[20];
+	int len;
+
+	spin_lock_bh(&ar->data_lock);
+
+	len = scnprintf(buf, sizeof(buf), "%d\n", arsta->peer_ps_state);
+
+	spin_unlock_bh(&ar->data_lock);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_peer_ps_state = {
+	.open = simple_open,
+	.read = ath11k_dbg_sta_read_peer_ps_state,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static ssize_t ath11k_dbg_sta_read_current_ps_duration(struct file *file,
+						       char __user *user_buf,
+						       size_t count,
+						       loff_t *ppos)
+{
+	struct ieee80211_sta *sta = file->private_data;
+	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k *ar = arsta->arvif->ar;
+	u64 time_since_station_in_power_save;
+	char buf[20];
+	int len;
+
+	spin_lock_bh(&ar->data_lock);
+
+	if (arsta->peer_ps_state == WMI_PEER_PS_STATE_ON &&
+	    arsta->peer_current_ps_valid)
+		time_since_station_in_power_save = jiffies_to_msecs(jiffies
+						- arsta->ps_start_jiffies);
+	else
+		time_since_station_in_power_save = 0;
+
+	len = scnprintf(buf, sizeof(buf), "%llu\n",
+			time_since_station_in_power_save);
+	spin_unlock_bh(&ar->data_lock);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_current_ps_duration = {
+	.open = simple_open,
+	.read = ath11k_dbg_sta_read_current_ps_duration,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static ssize_t ath11k_dbg_sta_read_total_ps_duration(struct file *file,
+						     char __user *user_buf,
+						     size_t count, loff_t *ppos)
+{
+	struct ieee80211_sta *sta = file->private_data;
+	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k *ar = arsta->arvif->ar;
+	char buf[20];
+	u64 power_save_duration;
+	int len;
+
+	spin_lock_bh(&ar->data_lock);
+
+	if (arsta->peer_ps_state == WMI_PEER_PS_STATE_ON &&
+	    arsta->peer_current_ps_valid)
+		power_save_duration = jiffies_to_msecs(jiffies
+						- arsta->ps_start_jiffies)
+						+ arsta->ps_total_duration;
+	else
+		power_save_duration = arsta->ps_total_duration;
+
+	len = scnprintf(buf, sizeof(buf), "%llu\n", power_save_duration);
+
+	spin_unlock_bh(&ar->data_lock);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_total_ps_duration = {
+	.open = simple_open,
+	.read = ath11k_dbg_sta_read_total_ps_duration,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 void ath11k_debugfs_sta_op_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			       struct ieee80211_sta *sta, struct dentry *dir)
 {
@@ -778,4 +874,15 @@ void ath11k_debugfs_sta_op_add(struct ieee80211_hw *hw, struct ieee80211_vif *vi
 		     ar->ab->wmi_ab.svc_map))
 		debugfs_create_file("htt_peer_stats_reset", 0600, dir, sta,
 				    &fops_htt_peer_stats_reset);
+
+	debugfs_create_file("peer_ps_state", 0400, dir, sta,
+			    &fops_peer_ps_state);
+
+	if (test_bit(WMI_TLV_SERVICE_PEER_POWER_SAVE_DURATION_SUPPORT,
+		     ar->ab->wmi_ab.svc_map)) {
+		debugfs_create_file("current_ps_duration", 0440, dir, sta,
+				    &fops_current_ps_duration);
+		debugfs_create_file("total_ps_duration", 0440, dir, sta,
+				    &fops_total_ps_duration);
+	}
 }

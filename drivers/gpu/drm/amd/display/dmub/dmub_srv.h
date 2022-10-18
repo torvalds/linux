@@ -441,6 +441,7 @@ struct dmub_srv {
 
 	/* Feature capabilities reported by fw */
 	struct dmub_feature_caps feature_caps;
+	struct dmub_visual_confirm_color visual_confirm_color;
 };
 
 /**

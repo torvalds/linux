@@ -35,8 +35,8 @@
  * This is a private UAPI to the kernel test module so it isn't exported
  * in the usual include/uapi/... directory.
  */
-#include "../../../../lib/test_hmm_uapi.h"
-#include "../../../../mm/gup_test.h"
+#include <lib/test_hmm_uapi.h>
+#include <mm/gup_test.h>
 
 struct hmm_buffer {
 	void		*ptr;

@@ -6798,12 +6798,12 @@ static void niu_get_drvinfo(struct net_device *dev,
 	struct niu *np = netdev_priv(dev);
 	struct niu_vpd *vpd = &np->vpd;
 
-	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
+	strscpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
+	strscpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 	snprintf(info->fw_version, sizeof(info->fw_version), "%d.%d",
 		vpd->fcode_major, vpd->fcode_minor);
 	if (np->parent->plat_type != PLAT_TYPE_NIU)
-		strlcpy(info->bus_info, pci_name(np->pdev),
+		strscpy(info->bus_info, pci_name(np->pdev),
 			sizeof(info->bus_info));
 }
 
@@ -9115,7 +9115,7 @@ static int niu_ldg_init(struct niu *np)
 	for (i = 0; i < np->num_ldg; i++) {
 		struct niu_ldg *lp = &np->ldg[i];
 
-		netif_napi_add(np->dev, &lp->napi, niu_poll, 64);
+		netif_napi_add(np->dev, &lp->napi, niu_poll);
 
 		lp->np = np;
 		lp->ldg_num = ldg_num_map[i];

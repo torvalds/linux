@@ -18,7 +18,7 @@ Description:
 		on the signal from which time of flight measurements are
 		taken.
 		The appropriate values to take is dependent on both the
-		sensor and it's operating environment:
+		sensor and its operating environment:
 		* as3935 (0-31 range)
 		18 = indoors (default)
 		14 = outdoors

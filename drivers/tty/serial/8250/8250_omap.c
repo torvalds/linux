@@ -342,6 +342,9 @@ static void omap8250_restore_regs(struct uart_8250_port *up)
 	omap8250_update_mdr1(up, priv);
 
 	up->port.ops->set_mctrl(&up->port, up->port.mctrl);
+
+	if (up->port.rs485.flags & SER_RS485_ENABLED)
+		serial8250_em485_stop_tx(up);
 }
 
 /*
@@ -350,7 +353,7 @@ static void omap8250_restore_regs(struct uart_8250_port *up)
  */
 static void omap_8250_set_termios(struct uart_port *port,
 				  struct ktermios *termios,
-				  struct ktermios *old)
+				  const struct ktermios *old)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
 	struct omap8250_priv *priv = up->port.private_data;
@@ -984,9 +987,7 @@ static void omap_8250_dma_tx_complete(void *param)
 
 	dma->tx_running = 0;
 
-	xmit->tail += dma->tx_size;
-	xmit->tail &= UART_XMIT_SIZE - 1;
-	p->port.icount.tx += dma->tx_size;
+	uart_xmit_advance(&p->port, dma->tx_size);
 
 	if (priv->delayed_restore) {
 		priv->delayed_restore = 0;
@@ -1115,8 +1116,7 @@ static bool handle_rx_dma(struct uart_8250_port *up, unsigned int iir)
 	return omap_8250_rx_dma(up);
 }
 
-static unsigned char omap_8250_handle_rx_dma(struct uart_8250_port *up,
-					     u8 iir, unsigned char status)
+static u16 omap_8250_handle_rx_dma(struct uart_8250_port *up, u8 iir, u16 status)
 {
 	if ((status & (UART_LSR_DR | UART_LSR_BI)) &&
 	    (iir & UART_IIR_RDI)) {
@@ -1130,7 +1130,7 @@ static unsigned char omap_8250_handle_rx_dma(struct uart_8250_port *up,
 }
 
 static void am654_8250_handle_rx_dma(struct uart_8250_port *up, u8 iir,
-				     unsigned char status)
+				     u16 status)
 {
 	/*
 	 * Queue a new transfer if FIFO has data.
@@ -1164,7 +1164,7 @@ static int omap_8250_dma_handle_irq(struct uart_port *port)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
 	struct omap8250_priv *priv = up->port.private_data;
-	unsigned char status;
+	u16 status;
 	u8 iir;
 
 	serial8250_rpm_get(up);
@@ -1335,6 +1335,7 @@ static int omap8250_probe(struct platform_device *pdev)
 	up.port.throttle = omap_8250_throttle;
 	up.port.unthrottle = omap_8250_unthrottle;
 	up.port.rs485_config = serial8250_em485_config;
+	up.port.rs485_supported = serial8250_em485_supported;
 	up.rs485_start_tx = serial8250_em485_start_tx;
 	up.rs485_stop_tx = serial8250_em485_stop_tx;
 	up.port.has_sysrq = IS_ENABLED(CONFIG_SERIAL_8250_CONSOLE);

@@ -2321,7 +2321,7 @@ static const char *lm90_detect_nuvoton(struct i2c_client *client, int chip_id,
 	const char *name = NULL;
 
 	if (config2 < 0)
-		return ERR_PTR(-ENODEV);
+		return NULL;
 
 	if (address == 0x4c && !(config1 & 0x2a) && !(config2 & 0xf8)) {
 		if (chip_id == 0x01 && convrate <= 0x09) {
@@ -2547,7 +2547,7 @@ static int lm90_detect(struct i2c_client *client, struct i2c_board_info *info)
 		return -ENODEV;
 	}
 
-	strlcpy(info->type, name, I2C_NAME_SIZE);
+	strscpy(info->type, name, I2C_NAME_SIZE);
 
 	return 0;
 }
@@ -2956,7 +2956,7 @@ static void lm90_alert(struct i2c_client *client, enum i2c_alert_protocol type,
 	}
 }
 
-static int __maybe_unused lm90_suspend(struct device *dev)
+static int lm90_suspend(struct device *dev)
 {
 	struct lm90_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -2967,7 +2967,7 @@ static int __maybe_unused lm90_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused lm90_resume(struct device *dev)
+static int lm90_resume(struct device *dev)
 {
 	struct lm90_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -2978,14 +2978,14 @@ static int __maybe_unused lm90_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(lm90_pm_ops, lm90_suspend, lm90_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(lm90_pm_ops, lm90_suspend, lm90_resume);
 
 static struct i2c_driver lm90_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "lm90",
 		.of_match_table = of_match_ptr(lm90_of_match),
-		.pm	= &lm90_pm_ops,
+		.pm	= pm_sleep_ptr(&lm90_pm_ops),
 	},
 	.probe_new	= lm90_probe,
 	.alert		= lm90_alert,

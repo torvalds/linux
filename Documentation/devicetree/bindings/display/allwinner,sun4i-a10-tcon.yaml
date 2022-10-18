@@ -233,6 +233,7 @@ allOf:
               - allwinner,sun8i-a83t-tcon-lcd
               - allwinner,sun8i-v3s-tcon
               - allwinner,sun9i-a80-tcon-lcd
+              - allwinner,sun20i-d1-tcon-lcd
 
     then:
       properties:
@@ -252,6 +253,7 @@ allOf:
               - allwinner,sun8i-a83t-tcon-tv
               - allwinner,sun8i-r40-tcon-tv
               - allwinner,sun9i-a80-tcon-tv
+              - allwinner,sun20i-d1-tcon-tv
 
     then:
       properties:
@@ -278,6 +280,7 @@ allOf:
               - allwinner,sun9i-a80-tcon-lcd
               - allwinner,sun4i-a10-tcon
               - allwinner,sun8i-a83t-tcon-lcd
+              - allwinner,sun20i-d1-tcon-lcd
 
     then:
       required:
@@ -294,6 +297,7 @@ allOf:
               - allwinner,sun8i-a23-tcon
               - allwinner,sun8i-a33-tcon
               - allwinner,sun8i-a83t-tcon-lcd
+              - allwinner,sun20i-d1-tcon-lcd
 
     then:
       properties:

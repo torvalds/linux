@@ -1067,7 +1067,7 @@ mutex_cleanup:
 	return ret;
 }
 
-static int mipid02_remove(struct i2c_client *client)
+static void mipid02_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct mipid02_dev *bridge = to_mipid02_dev(sd);
@@ -1078,8 +1078,6 @@ static int mipid02_remove(struct i2c_client *client)
 	mipid02_set_power_off(bridge);
 	media_entity_cleanup(&bridge->sd.entity);
 	mutex_destroy(&bridge->lock);
-
-	return 0;
 }
 
 static const struct of_device_id mipid02_dt_ids[] = {

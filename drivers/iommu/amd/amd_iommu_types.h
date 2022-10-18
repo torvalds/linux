@@ -67,6 +67,7 @@
 #define MMIO_INTCAPXT_EVT_OFFSET	0x0170
 #define MMIO_INTCAPXT_PPR_OFFSET	0x0178
 #define MMIO_INTCAPXT_GALOG_OFFSET	0x0180
+#define MMIO_EXT_FEATURES2	0x01A0
 #define MMIO_CMD_HEAD_OFFSET	0x2000
 #define MMIO_CMD_TAIL_OFFSET	0x2008
 #define MMIO_EVT_HEAD_OFFSET	0x2010
@@ -101,6 +102,12 @@
 
 #define FEATURE_GLXVAL_SHIFT	14
 #define FEATURE_GLXVAL_MASK	(0x03ULL << FEATURE_GLXVAL_SHIFT)
+
+/* Extended Feature 2 Bits */
+#define FEATURE_SNPAVICSUP_SHIFT	5
+#define FEATURE_SNPAVICSUP_MASK		(0x07ULL << FEATURE_SNPAVICSUP_SHIFT)
+#define FEATURE_SNPAVICSUP_GAM(x) \
+	((x & FEATURE_SNPAVICSUP_MASK) >> FEATURE_SNPAVICSUP_SHIFT == 0x1)
 
 /* Note:
  * The current driver only support 16-bit PASID.
@@ -143,27 +150,28 @@
 #define EVENT_FLAG_I		0x008
 
 /* feature control bits */
-#define CONTROL_IOMMU_EN        0x00ULL
-#define CONTROL_HT_TUN_EN       0x01ULL
-#define CONTROL_EVT_LOG_EN      0x02ULL
-#define CONTROL_EVT_INT_EN      0x03ULL
-#define CONTROL_COMWAIT_EN      0x04ULL
-#define CONTROL_INV_TIMEOUT	0x05ULL
-#define CONTROL_PASSPW_EN       0x08ULL
-#define CONTROL_RESPASSPW_EN    0x09ULL
-#define CONTROL_COHERENT_EN     0x0aULL
-#define CONTROL_ISOC_EN         0x0bULL
-#define CONTROL_CMDBUF_EN       0x0cULL
-#define CONTROL_PPRLOG_EN       0x0dULL
-#define CONTROL_PPRINT_EN       0x0eULL
-#define CONTROL_PPR_EN          0x0fULL
-#define CONTROL_GT_EN           0x10ULL
-#define CONTROL_GA_EN           0x11ULL
-#define CONTROL_GAM_EN          0x19ULL
-#define CONTROL_GALOG_EN        0x1CULL
-#define CONTROL_GAINT_EN        0x1DULL
-#define CONTROL_XT_EN           0x32ULL
-#define CONTROL_INTCAPXT_EN     0x33ULL
+#define CONTROL_IOMMU_EN	0
+#define CONTROL_HT_TUN_EN	1
+#define CONTROL_EVT_LOG_EN	2
+#define CONTROL_EVT_INT_EN	3
+#define CONTROL_COMWAIT_EN	4
+#define CONTROL_INV_TIMEOUT	5
+#define CONTROL_PASSPW_EN	8
+#define CONTROL_RESPASSPW_EN	9
+#define CONTROL_COHERENT_EN	10
+#define CONTROL_ISOC_EN		11
+#define CONTROL_CMDBUF_EN	12
+#define CONTROL_PPRLOG_EN	13
+#define CONTROL_PPRINT_EN	14
+#define CONTROL_PPR_EN		15
+#define CONTROL_GT_EN		16
+#define CONTROL_GA_EN		17
+#define CONTROL_GAM_EN		25
+#define CONTROL_GALOG_EN	28
+#define CONTROL_GAINT_EN	29
+#define CONTROL_XT_EN		50
+#define CONTROL_INTCAPXT_EN	51
+#define CONTROL_SNPAVIC_EN	61
 
 #define CTRL_INV_TO_MASK	(7 << CONTROL_INV_TIMEOUT)
 #define CTRL_INV_TO_NONE	0
@@ -445,8 +453,6 @@ struct irq_remap_table {
 	u32 *table;
 };
 
-extern struct irq_remap_table **irq_lookup_table;
-
 /* Interrupt remapping feature used? */
 extern bool amd_iommu_irq_remap;
 
@@ -456,6 +462,16 @@ extern bool amdr_ivrs_remap_support;
 /* kmem_cache to get tables with 128 byte alignement */
 extern struct kmem_cache *amd_iommu_irq_cache;
 
+#define PCI_SBDF_TO_SEGID(sbdf)		(((sbdf) >> 16) & 0xffff)
+#define PCI_SBDF_TO_DEVID(sbdf)		((sbdf) & 0xffff)
+#define PCI_SEG_DEVID_TO_SBDF(seg, devid)	((((u32)(seg) & 0xffff) << 16) | \
+						 ((devid) & 0xffff))
+
+/* Make iterating over all pci segment easier */
+#define for_each_pci_segment(pci_seg) \
+	list_for_each_entry((pci_seg), &amd_iommu_pci_seg_list, list)
+#define for_each_pci_segment_safe(pci_seg, next) \
+	list_for_each_entry_safe((pci_seg), (next), &amd_iommu_pci_seg_list, list)
 /*
  * Make iterating over all IOMMUs easier
  */
@@ -478,13 +494,14 @@ extern struct kmem_cache *amd_iommu_irq_cache;
 struct amd_iommu_fault {
 	u64 address;    /* IO virtual address of the fault*/
 	u32 pasid;      /* Address space identifier */
-	u16 device_id;  /* Originating PCI device id */
+	u32 sbdf;	/* Originating PCI device id */
 	u16 tag;        /* PPR tag */
 	u16 flags;      /* Fault flags */
 
 };
 
 
+struct amd_iommu;
 struct iommu_domain;
 struct irq_domain;
 struct amd_irte_ops;
@@ -531,6 +548,75 @@ struct protection_domain {
 };
 
 /*
+ * This structure contains information about one PCI segment in the system.
+ */
+struct amd_iommu_pci_seg {
+	/* List with all PCI segments in the system */
+	struct list_head list;
+
+	/* List of all available dev_data structures */
+	struct llist_head dev_data_list;
+
+	/* PCI segment number */
+	u16 id;
+
+	/* Largest PCI device id we expect translation requests for */
+	u16 last_bdf;
+
+	/* Size of the device table */
+	u32 dev_table_size;
+
+	/* Size of the alias table */
+	u32 alias_table_size;
+
+	/* Size of the rlookup table */
+	u32 rlookup_table_size;
+
+	/*
+	 * device table virtual address
+	 *
+	 * Pointer to the per PCI segment device table.
+	 * It is indexed by the PCI device id or the HT unit id and contains
+	 * information about the domain the device belongs to as well as the
+	 * page table root pointer.
+	 */
+	struct dev_table_entry *dev_table;
+
+	/*
+	 * The rlookup iommu table is used to find the IOMMU which is
+	 * responsible for a specific device. It is indexed by the PCI
+	 * device id.
+	 */
+	struct amd_iommu **rlookup_table;
+
+	/*
+	 * This table is used to find the irq remapping table for a given
+	 * device id quickly.
+	 */
+	struct irq_remap_table **irq_lookup_table;
+
+	/*
+	 * Pointer to a device table which the content of old device table
+	 * will be copied to. It's only be used in kdump kernel.
+	 */
+	struct dev_table_entry *old_dev_tbl_cpy;
+
+	/*
+	 * The alias table is a driver specific data structure which contains the
+	 * mappings of the PCI device ids to the actual requestor ids on the IOMMU.
+	 * More than one device can share the same requestor id.
+	 */
+	u16 *alias_table;
+
+	/*
+	 * A list of required unity mappings we find in ACPI. It is not locked
+	 * because as runtime it is only read. It is created at ACPI table
+	 * parsing time.
+	 */
+	struct list_head unity_map;
+};
+
+/*
  * Structure where we save information about one hardware AMD IOMMU in the
  * system.
  */
@@ -567,6 +653,9 @@ struct amd_iommu {
 	/* Extended features */
 	u64 features;
 
+	/* Extended features 2 */
+	u64 features2;
+
 	/* IOMMUv2 */
 	bool is_iommu_v2;
 
@@ -581,7 +670,7 @@ struct amd_iommu {
 	u16 cap_ptr;
 
 	/* pci domain of this IOMMU */
-	u16 pci_seg;
+	struct amd_iommu_pci_seg *pci_seg;
 
 	/* start of exclusion range of that IOMMU */
 	u64 exclusion_start;
@@ -666,8 +755,8 @@ struct acpihid_map_entry {
 	struct list_head list;
 	u8 uid[ACPIHID_UID_LEN];
 	u8 hid[ACPIHID_HID_LEN];
-	u16 devid;
-	u16 root_devid;
+	u32 devid;
+	u32 root_devid;
 	bool cmd_line;
 	struct iommu_group *group;
 };
@@ -675,7 +764,7 @@ struct acpihid_map_entry {
 struct devid_map {
 	struct list_head list;
 	u8 id;
-	u16 devid;
+	u32 devid;
 	bool cmd_line;
 };
 
@@ -689,7 +778,7 @@ struct iommu_dev_data {
 	struct list_head list;		  /* For domain->dev_list */
 	struct llist_node dev_data_list;  /* For global dev_data_list */
 	struct protection_domain *domain; /* Domain the device is bound to */
-	struct pci_dev *pdev;
+	struct device *dev;
 	u16 devid;			  /* PCI Device ID */
 	bool iommu_v2;			  /* Device can make use of IOMMUv2 */
 	struct {
@@ -708,6 +797,12 @@ struct iommu_dev_data {
 extern struct list_head ioapic_map;
 extern struct list_head hpet_map;
 extern struct list_head acpihid_map;
+
+/*
+ * List with all PCI segments in the system. This list is not locked because
+ * it is only written at driver initialization time
+ */
+extern struct list_head amd_iommu_pci_seg_list;
 
 /*
  * List with all IOMMUs in the system. This list is not locked because it is
@@ -749,37 +844,11 @@ struct unity_map_entry {
 };
 
 /*
- * List of all unity mappings. It is not locked because as runtime it is only
- * read. It is created at ACPI table parsing time.
- */
-extern struct list_head amd_iommu_unity_map;
-
-/*
  * Data structures for device handling
  */
 
-/*
- * Device table used by hardware. Read and write accesses by software are
- * locked with the amd_iommu_pd_table lock.
- */
-extern struct dev_table_entry *amd_iommu_dev_table;
-
-/*
- * Alias table to find requestor ids to device ids. Not locked because only
- * read on runtime.
- */
-extern u16 *amd_iommu_alias_table;
-
-/*
- * Reverse lookup table to find the IOMMU which translates a specific device.
- */
-extern struct amd_iommu **amd_iommu_rlookup_table;
-
 /* size of the dma_ops aperture as power of 2 */
 extern unsigned amd_iommu_aperture_order;
-
-/* largest PCI device id we expect translation requests for */
-extern u16 amd_iommu_last_bdf;
 
 /* allocation bitmap for domain ids */
 extern unsigned long *amd_iommu_pd_alloc_bitmap;
@@ -913,6 +982,7 @@ struct irq_2_irte {
 
 struct amd_ir_data {
 	u32 cached_ga_tag;
+	struct amd_iommu *iommu;
 	struct irq_2_irte irq_2_irte;
 	struct msi_msg msi_entry;
 	void *entry;    /* Pointer to union irte or struct irte_ga */
@@ -930,9 +1000,9 @@ struct amd_ir_data {
 
 struct amd_irte_ops {
 	void (*prepare)(void *, u32, bool, u8, u32, int);
-	void (*activate)(void *, u16, u16);
-	void (*deactivate)(void *, u16, u16);
-	void (*set_affinity)(void *, u16, u16, u8, u32);
+	void (*activate)(struct amd_iommu *iommu, void *, u16, u16);
+	void (*deactivate)(struct amd_iommu *iommu, void *, u16, u16);
+	void (*set_affinity)(struct amd_iommu *iommu, void *, u16, u16, u8, u32);
 	void *(*get)(struct irq_remap_table *, int);
 	void (*set_allocated)(struct irq_remap_table *, int);
 	bool (*is_allocated)(struct irq_remap_table *, int);

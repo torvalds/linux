@@ -1049,7 +1049,7 @@ out_err:
 	return ret;
 }
 
-module_cpu_feature_match(MSA, aes_s390_init);
+module_cpu_feature_match(S390_CPU_FEATURE_MSA, aes_s390_init);
 module_exit(aes_s390_fini);
 
 MODULE_ALIAS_CRYPTO("aes-all");

@@ -17,6 +17,7 @@
 #include <linux/debugfs.h>
 #include <linux/panic_notifier.h>
 #include <linux/reboot.h>
+#include <linux/uio.h>
 
 #include <asm/asm-offsets.h>
 #include <asm/ipl.h>
@@ -29,6 +30,7 @@
 #include <asm/checksum.h>
 #include <asm/os_info.h>
 #include <asm/switch_to.h>
+#include <asm/maccess.h>
 #include "sclp.h"
 
 #define TRACE(x...) debug_sprintf_event(zcore_dbf, 1, x)
@@ -50,36 +52,41 @@ static struct dentry *zcore_reipl_file;
 static struct dentry *zcore_hsa_file;
 static struct ipl_parameter_block *zcore_ipl_block;
 
+static DEFINE_MUTEX(hsa_buf_mutex);
 static char hsa_buf[PAGE_SIZE] __aligned(PAGE_SIZE);
 
 /*
- * Copy memory from HSA to user memory (not reentrant):
+ * Copy memory from HSA to iterator (not reentrant):
  *
- * @dest:  User buffer where memory should be copied to
+ * @iter:  Iterator where memory should be copied to
  * @src:   Start address within HSA where data should be copied
  * @count: Size of buffer, which should be copied
  */
-int memcpy_hsa_user(void __user *dest, unsigned long src, size_t count)
+size_t memcpy_hsa_iter(struct iov_iter *iter, unsigned long src, size_t count)
 {
-	unsigned long offset, bytes;
+	size_t bytes, copied, res = 0;
+	unsigned long offset;
 
 	if (!hsa_available)
-		return -ENODATA;
+		return 0;
 
+	mutex_lock(&hsa_buf_mutex);
 	while (count) {
 		if (sclp_sdias_copy(hsa_buf, src / PAGE_SIZE + 2, 1)) {
 			TRACE("sclp_sdias_copy() failed\n");
-			return -EIO;
+			break;
 		}
 		offset = src % PAGE_SIZE;
 		bytes = min(PAGE_SIZE - offset, count);
-		if (copy_to_user(dest, hsa_buf + offset, bytes))
-			return -EFAULT;
-		src += bytes;
-		dest += bytes;
-		count -= bytes;
+		copied = copy_to_iter(hsa_buf + offset, bytes, iter);
+		count -= copied;
+		src += copied;
+		res += copied;
+		if (copied < bytes)
+			break;
 	}
-	return 0;
+	mutex_unlock(&hsa_buf_mutex);
+	return res;
 }
 
 /*
@@ -89,25 +96,16 @@ int memcpy_hsa_user(void __user *dest, unsigned long src, size_t count)
  * @src:   Start address within HSA where data should be copied
  * @count: Size of buffer, which should be copied
  */
-int memcpy_hsa_kernel(void *dest, unsigned long src, size_t count)
+static inline int memcpy_hsa_kernel(void *dst, unsigned long src, size_t count)
 {
-	unsigned long offset, bytes;
+	struct iov_iter iter;
+	struct kvec kvec;
 
-	if (!hsa_available)
-		return -ENODATA;
-
-	while (count) {
-		if (sclp_sdias_copy(hsa_buf, src / PAGE_SIZE + 2, 1)) {
-			TRACE("sclp_sdias_copy() failed\n");
-			return -EIO;
-		}
-		offset = src % PAGE_SIZE;
-		bytes = min(PAGE_SIZE - offset, count);
-		memcpy(dest, hsa_buf + offset, bytes);
-		src += bytes;
-		dest += bytes;
-		count -= bytes;
-	}
+	kvec.iov_base = dst;
+	kvec.iov_len = count;
+	iov_iter_kvec(&iter, WRITE, &kvec, 1, count);
+	if (memcpy_hsa_iter(&iter, src, count) < count)
+		return -EIO;
 	return 0;
 }
 

@@ -74,6 +74,7 @@ struct aa_ns {
 	struct dentry *dents[AAFS_NS_SIZEOF];
 };
 
+extern struct aa_label *kernel_t;
 extern struct aa_ns *root_ns;
 
 extern const char *aa_hidden_ns_name;

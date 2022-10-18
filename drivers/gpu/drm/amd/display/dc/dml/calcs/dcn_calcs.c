@@ -736,30 +736,13 @@ static void hack_bounding_box(struct dcn_bw_internal_vars *v,
 		hack_force_pipe_split(v, context->streams[0]->timing.pix_clk_100hz);
 }
 
-static unsigned int get_highest_allowed_voltage_level(uint32_t chip_family,
-						      uint32_t hw_internal_rev,
-						      uint32_t pci_revision_id)
+static unsigned int get_highest_allowed_voltage_level(bool is_vmin_only_asic)
 {
 	/* for low power RV2 variants, the highest voltage level we want is 0 */
-	if ((chip_family == FAMILY_RV) &&
-	     ASICREV_IS_RAVEN2(hw_internal_rev))
-		switch (pci_revision_id) {
-		case PRID_DALI_DE:
-		case PRID_DALI_DF:
-		case PRID_DALI_E3:
-		case PRID_DALI_E4:
-		case PRID_POLLOCK_94:
-		case PRID_POLLOCK_95:
-		case PRID_POLLOCK_E9:
-		case PRID_POLLOCK_EA:
-		case PRID_POLLOCK_EB:
-			return 0;
-		default:
-			break;
-		}
-
-	/* we are ok with all levels */
-	return 4;
+	if (is_vmin_only_asic)
+		return 0;
+	else	/* we are ok with all levels */
+		return 4;
 }
 
 bool dcn_validate_bandwidth(
@@ -1323,10 +1306,7 @@ bool dcn_validate_bandwidth(
 	PERFORMANCE_TRACE_END();
 	BW_VAL_TRACE_FINISH();
 
-	if (bw_limit_pass && v->voltage_level <= get_highest_allowed_voltage_level(
-							dc->ctx->asic_id.chip_family,
-							dc->ctx->asic_id.hw_internal_rev,
-							dc->ctx->asic_id.pci_revision_id))
+	if (bw_limit_pass && v->voltage_level <= get_highest_allowed_voltage_level(dc->config.is_vmin_only_asic))
 		return true;
 	else
 		return false;

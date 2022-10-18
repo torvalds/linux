@@ -184,6 +184,8 @@ struct io_ev_fd {
 	struct eventfd_ctx	*cq_ev_fd;
 	unsigned int		eventfd_async: 1;
 	struct rcu_head		rcu;
+	atomic_t		refs;
+	atomic_t		ops;
 };
 
 struct io_alloc_cache {
@@ -300,6 +302,8 @@ struct io_ring_ctx {
 		struct io_wq_work_list	iopoll_list;
 		struct io_hash_table	cancel_table;
 		bool			poll_multi_queue;
+
+		struct llist_head	work_llist;
 
 		struct list_head	io_buffers_comp;
 	} ____cacheline_aligned_in_smp;
@@ -491,7 +495,14 @@ struct io_cmd_data {
 	__u8			data[56];
 };
 
-#define io_kiocb_to_cmd(req)	((void *) &(req)->cmd)
+static inline void io_kiocb_cmd_sz_check(size_t cmd_sz)
+{
+	BUILD_BUG_ON(cmd_sz > sizeof(struct io_cmd_data));
+}
+#define io_kiocb_to_cmd(req, cmd_type) ( \
+	io_kiocb_cmd_sz_check(sizeof(cmd_type)) , \
+	((cmd_type *)&(req)->cmd) \
+)
 #define cmd_to_io_kiocb(ptr)	((struct io_kiocb *) ptr)
 
 struct io_kiocb {

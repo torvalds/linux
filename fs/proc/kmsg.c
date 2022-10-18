@@ -15,10 +15,7 @@
 #include <linux/fs.h>
 #include <linux/syslog.h>
 
-#include <linux/uaccess.h>
 #include <asm/io.h>
-
-extern wait_queue_head_t log_wait;
 
 static int kmsg_open(struct inode * inode, struct file * file)
 {

@@ -102,6 +102,10 @@
 #define   GUC_SEND_TRIGGER		  (1<<0)
 #define GEN11_GUC_HOST_INTERRUPT	_MMIO(0x1901f0)
 
+#define GEN12_GUC_SEM_INTR_ENABLES	_MMIO(0xc71c)
+#define   GUC_SEM_INTR_ROUTE_TO_GUC	BIT(31)
+#define   GUC_SEM_INTR_ENABLE_ALL	(0xff)
+
 #define GUC_NUM_DOORBELLS		256
 
 /* format of the HW-monitored doorbell cacheline */

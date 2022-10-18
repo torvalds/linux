@@ -5,8 +5,6 @@
 
 #include "mmu_internal.h"
 
-extern bool __read_mostly enable_mmio_caching;
-
 /*
  * A MMU present SPTE is backed by actual memory and may or may not be present
  * in hardware.  E.g. MMIO SPTEs are not considered present.  Use bit 11, as it
@@ -124,6 +122,20 @@ static_assert(!(EPT_SPTE_MMU_WRITABLE & SHADOW_ACC_TRACK_SAVED_MASK));
 						    MMIO_SPTE_GEN_HIGH_START)
 static_assert(!(SPTE_MMU_PRESENT_MASK &
 		(MMIO_SPTE_GEN_LOW_MASK | MMIO_SPTE_GEN_HIGH_MASK)));
+
+/*
+ * The SPTE MMIO mask must NOT overlap the MMIO generation bits or the
+ * MMU-present bit.  The generation obviously co-exists with the magic MMIO
+ * mask/value, and MMIO SPTEs are considered !MMU-present.
+ *
+ * The SPTE MMIO mask is allowed to use hardware "present" bits (i.e. all EPT
+ * RWX bits), all physical address bits (legal PA bits are used for "fast" MMIO
+ * and so they're off-limits for generation; additional checks ensure the mask
+ * doesn't overlap legal PA bits), and bit 63 (carved out for future usage).
+ */
+#define SPTE_MMIO_ALLOWED_MASK (BIT_ULL(63) | GENMASK_ULL(51, 12) | GENMASK_ULL(2, 0))
+static_assert(!(SPTE_MMIO_ALLOWED_MASK &
+		(SPTE_MMU_PRESENT_MASK | MMIO_SPTE_GEN_LOW_MASK | MMIO_SPTE_GEN_HIGH_MASK)));
 
 #define MMIO_SPTE_GEN_LOW_BITS		(MMIO_SPTE_GEN_LOW_END - MMIO_SPTE_GEN_LOW_START + 1)
 #define MMIO_SPTE_GEN_HIGH_BITS		(MMIO_SPTE_GEN_HIGH_END - MMIO_SPTE_GEN_HIGH_START + 1)
@@ -331,7 +343,7 @@ static __always_inline bool is_rsvd_spte(struct rsvd_bits_validate *rsvd_check,
 }
 
 /*
- * An shadow-present leaf SPTE may be non-writable for 3 possible reasons:
+ * A shadow-present leaf SPTE may be non-writable for 4 possible reasons:
  *
  *  1. To intercept writes for dirty logging. KVM write-protects huge pages
  *     so that they can be split be split down into the dirty logging
@@ -349,8 +361,13 @@ static __always_inline bool is_rsvd_spte(struct rsvd_bits_validate *rsvd_check,
  *     read-only memslot or guest memory backed by a read-only VMA. Writes to
  *     such pages are disallowed entirely.
  *
- * To keep track of why a given SPTE is write-protected, KVM uses 2
- * software-only bits in the SPTE:
+ *  4. To emulate the Accessed bit for SPTEs without A/D bits.  Note, in this
+ *     case, the SPTE is access-protected, not just write-protected!
+ *
+ * For cases #1 and #4, KVM can safely make such SPTEs writable without taking
+ * mmu_lock as capturing the Accessed/Dirty state doesn't require taking it.
+ * To differentiate #1 and #4 from #2 and #3, KVM uses two software-only bits
+ * in the SPTE:
  *
  *  shadow_mmu_writable_mask, aka MMU-writable -
  *    Cleared on SPTEs that KVM is currently write-protecting for shadow paging
@@ -379,7 +396,8 @@ static __always_inline bool is_rsvd_spte(struct rsvd_bits_validate *rsvd_check,
  * shadow page tables between vCPUs. Write-protecting an SPTE for dirty logging
  * (which does not clear the MMU-writable bit), does not flush TLBs before
  * dropping the lock, as it only needs to synchronize guest writes with the
- * dirty bitmap.
+ * dirty bitmap. Similarly, making the SPTE inaccessible (and non-writable) for
+ * access-tracking via the clear_young() MMU notifier also does not flush TLBs.
  *
  * So, there is the problem: clearing the MMU-writable bit can encounter a
  * write-protected SPTE while CPUs still have writable mappings for that SPTE
@@ -450,6 +468,7 @@ static inline u64 restore_acc_track_spte(u64 spte)
 
 u64 kvm_mmu_changed_pte_notifier_make_spte(u64 old_spte, kvm_pfn_t new_pfn);
 
+void __init kvm_mmu_spte_module_init(void);
 void kvm_mmu_reset_all_pte_masks(void);
 
 #endif

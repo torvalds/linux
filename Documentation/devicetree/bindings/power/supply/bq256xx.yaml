@@ -8,7 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: TI bq256xx Switch Mode Buck Charger
 
 maintainers:
-  - Ricardo Rivera-Matos <r-rivera-matos@ti.com>
+  - Andrew Davis <afd@ti.com>
 
 description: |
   The bq256xx devices are a family of highly-integrated battery charge

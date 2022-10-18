@@ -116,7 +116,7 @@ static void setup_hpo_dp_stream_encoder(struct pipe_ctx *pipe_ctx)
 	dto_params.timing = &pipe_ctx->stream->timing;
 	dto_params.ref_dtbclk_khz = dc->clk_mgr->funcs->get_dtb_ref_clk_frequency(dc->clk_mgr);
 
-	dccg->funcs->set_dpstreamclk(dccg, DTBCLK0, tg->inst, link_enc->inst);
+	dccg->funcs->set_dpstreamclk(dccg, DTBCLK0, tg->inst, stream_enc->inst);
 	dccg->funcs->enable_symclk32_se(dccg, stream_enc->inst, phyd32clk);
 	dccg->funcs->set_dtbclk_dto(dccg, &dto_params);
 	stream_enc->funcs->enable_stream(stream_enc);
@@ -137,7 +137,7 @@ static void reset_hpo_dp_stream_encoder(struct pipe_ctx *pipe_ctx)
 	stream_enc->funcs->disable(stream_enc);
 	dccg->funcs->set_dtbclk_dto(dccg, &dto_params);
 	dccg->funcs->disable_symclk32_se(dccg, stream_enc->inst);
-	dccg->funcs->set_dpstreamclk(dccg, REFCLK, tg->inst,  pipe_ctx->link_res.hpo_dp_link_enc->inst);
+	dccg->funcs->set_dpstreamclk(dccg, REFCLK, tg->inst, stream_enc->inst);
 }
 
 static void setup_hpo_dp_stream_attribute(struct pipe_ctx *pipe_ctx)
@@ -266,11 +266,11 @@ static const struct link_hwss hpo_dp_link_hwss = {
 	.setup_stream_encoder = setup_hpo_dp_stream_encoder,
 	.reset_stream_encoder = reset_hpo_dp_stream_encoder,
 	.setup_stream_attribute = setup_hpo_dp_stream_attribute,
+	.disable_link_output = disable_hpo_dp_link_output,
 	.ext = {
 		.set_throttled_vcp_size = set_hpo_dp_throttled_vcp_size,
 		.set_hblank_min_symbol_width = set_hpo_dp_hblank_min_symbol_width,
 		.enable_dp_link_output = enable_hpo_dp_link_output,
-		.disable_dp_link_output = disable_hpo_dp_link_output,
 		.set_dp_link_test_pattern  = set_hpo_dp_link_test_pattern,
 		.set_dp_lane_settings = set_hpo_dp_lane_settings,
 		.update_stream_allocation_table = update_hpo_dp_stream_allocation_table,

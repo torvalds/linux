@@ -343,8 +343,10 @@ $(KERNEL_BZIMAGE): $(TOOLCHAIN_PATH)/.installed $(KERNEL_BUILD_PATH)/.config $(B
 .PHONY: $(KERNEL_BZIMAGE)
 
 $(TOOLCHAIN_PATH)/$(CHOST)/include/linux/.installed: | $(KERNEL_BUILD_PATH)/.config $(TOOLCHAIN_PATH)/.installed
+ifneq ($(ARCH),um)
 	rm -rf $(TOOLCHAIN_PATH)/$(CHOST)/include/linux
 	$(MAKE) -C $(KERNEL_PATH) O=$(KERNEL_BUILD_PATH) INSTALL_HDR_PATH=$(TOOLCHAIN_PATH)/$(CHOST) ARCH=$(KERNEL_ARCH) CROSS_COMPILE=$(CROSS_COMPILE) headers_install
+endif
 	touch $@
 
 $(TOOLCHAIN_PATH)/.installed: $(TOOLCHAIN_TAR)

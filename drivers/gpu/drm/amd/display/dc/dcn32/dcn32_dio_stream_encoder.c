@@ -60,7 +60,7 @@ static void enc32_dp_set_odm_combine(
 }
 
 /* setup stream encoder in dvi mode */
-void enc32_stream_encoder_dvi_set_stream_attribute(
+static void enc32_stream_encoder_dvi_set_stream_attribute(
 	struct stream_encoder *enc,
 	struct dc_crtc_timing *crtc_timing,
 	bool is_dual_link)
@@ -309,6 +309,11 @@ static void enc32_stream_encoder_dp_unblank(
 	 */
 	// TODO: Confirm if we need to wait for DIG_SYMCLK_FE_ON
 	REG_WAIT(DIG_FE_CNTL, DIG_SYMCLK_FE_ON, 1, 10, 5000);
+
+	/* read start level = 0 will bring underflow / overflow and DIG_FIFO_ERROR = 1
+	 * so set it to 1/2 full = 7 before reset as suggested by hardware team.
+	 */
+	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_READ_START_LEVEL, 0x7);
 
 	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_RESET, 1);
 

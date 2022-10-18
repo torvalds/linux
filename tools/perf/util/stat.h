@@ -57,6 +57,7 @@ enum aggr_mode {
 	AGGR_THREAD,
 	AGGR_UNSET,
 	AGGR_NODE,
+	AGGR_MAX
 };
 
 enum {
@@ -121,6 +122,7 @@ struct perf_stat_config {
 	bool			 no_inherit;
 	bool			 identifier;
 	bool			 csv_output;
+	bool			 json_output;
 	bool			 interval_clear;
 	bool			 metric_only;
 	bool			 null_run;

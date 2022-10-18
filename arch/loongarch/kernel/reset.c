@@ -15,10 +15,16 @@
 #include <acpi/reboot.h>
 #include <asm/idle.h>
 #include <asm/loongarch.h>
-#include <asm/reboot.h>
 
-static void default_halt(void)
+void (*pm_power_off)(void);
+EXPORT_SYMBOL(pm_power_off);
+
+void machine_halt(void)
 {
+#ifdef CONFIG_SMP
+	preempt_disable();
+	smp_send_stop();
+#endif
 	local_irq_disable();
 	clear_csr_ecfg(ECFG0_IM);
 
@@ -30,18 +36,29 @@ static void default_halt(void)
 	}
 }
 
-static void default_poweroff(void)
+void machine_power_off(void)
 {
+#ifdef CONFIG_SMP
+	preempt_disable();
+	smp_send_stop();
+#endif
+	do_kernel_power_off();
 #ifdef CONFIG_EFI
 	efi.reset_system(EFI_RESET_SHUTDOWN, EFI_SUCCESS, 0, NULL);
 #endif
+
 	while (true) {
 		__arch_cpu_idle();
 	}
 }
 
-static void default_restart(void)
+void machine_restart(char *command)
 {
+#ifdef CONFIG_SMP
+	preempt_disable();
+	smp_send_stop();
+#endif
+	do_kernel_restart(command);
 #ifdef CONFIG_EFI
 	if (efi_capsule_pending(NULL))
 		efi_reboot(REBOOT_WARM, NULL);
@@ -55,47 +72,3 @@ static void default_restart(void)
 		__arch_cpu_idle();
 	}
 }
-
-void (*pm_restart)(void);
-EXPORT_SYMBOL(pm_restart);
-
-void (*pm_power_off)(void);
-EXPORT_SYMBOL(pm_power_off);
-
-void machine_halt(void)
-{
-#ifdef CONFIG_SMP
-	preempt_disable();
-	smp_send_stop();
-#endif
-	default_halt();
-}
-
-void machine_power_off(void)
-{
-#ifdef CONFIG_SMP
-	preempt_disable();
-	smp_send_stop();
-#endif
-	pm_power_off();
-}
-
-void machine_restart(char *command)
-{
-#ifdef CONFIG_SMP
-	preempt_disable();
-	smp_send_stop();
-#endif
-	do_kernel_restart(command);
-	pm_restart();
-}
-
-static int __init loongarch_reboot_setup(void)
-{
-	pm_restart = default_restart;
-	pm_power_off = default_poweroff;
-
-	return 0;
-}
-
-arch_initcall(loongarch_reboot_setup);

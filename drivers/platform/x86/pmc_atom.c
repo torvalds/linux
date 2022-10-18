@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Intel Atom SOC Power Management Controller Driver
- * Copyright (c) 2014, Intel Corporation.
+ * Intel Atom SoC Power Management Controller Driver
+ * Copyright (c) 2014-2015,2017,2022 Intel Corporation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -60,7 +60,7 @@ static const struct pmc_clk byt_clks[] = {
 		.freq = 19200000,
 		.parent_name = "xtal",
 	},
-	{},
+	{}
 };
 
 static const struct pmc_clk cht_clks[] = {
@@ -69,7 +69,7 @@ static const struct pmc_clk cht_clks[] = {
 		.freq = 19200000,
 		.parent_name = NULL,
 	},
-	{},
+	{}
 };
 
 static const struct pmc_bit_map d3_sts_0_map[] = {
@@ -105,7 +105,7 @@ static const struct pmc_bit_map d3_sts_0_map[] = {
 	{"LPSS2_F5_I2C5",	BIT_LPSS2_F5_I2C5},
 	{"LPSS2_F6_I2C6",	BIT_LPSS2_F6_I2C6},
 	{"LPSS2_F7_I2C7",	BIT_LPSS2_F7_I2C7},
-	{},
+	{}
 };
 
 static struct pmc_bit_map byt_d3_sts_1_map[] = {
@@ -113,21 +113,21 @@ static struct pmc_bit_map byt_d3_sts_1_map[] = {
 	{"OTG_SS_PHY",		BIT_OTG_SS_PHY},
 	{"USH_SS_PHY",		BIT_USH_SS_PHY},
 	{"DFX",			BIT_DFX},
-	{},
+	{}
 };
 
 static struct pmc_bit_map cht_d3_sts_1_map[] = {
 	{"SMB",			BIT_SMB},
 	{"GMM",			BIT_STS_GMM},
 	{"ISH",			BIT_STS_ISH},
-	{},
+	{}
 };
 
 static struct pmc_bit_map cht_func_dis_2_map[] = {
 	{"SMB",			BIT_SMB},
 	{"GMM",			BIT_FD_GMM},
 	{"ISH",			BIT_FD_ISH},
-	{},
+	{}
 };
 
 static const struct pmc_bit_map byt_pss_map[] = {
@@ -149,7 +149,7 @@ static const struct pmc_bit_map byt_pss_map[] = {
 	{"OTG_VCCA",		PMC_PSS_BIT_OTG_VCCA},
 	{"USB",			PMC_PSS_BIT_USB},
 	{"USB_SUS",		PMC_PSS_BIT_USB_SUS},
-	{},
+	{}
 };
 
 static const struct pmc_bit_map cht_pss_map[] = {
@@ -172,7 +172,7 @@ static const struct pmc_bit_map cht_pss_map[] = {
 	{"DFX_CLUSTER3",	PMC_PSS_BIT_CHT_DFX_CLUSTER3},
 	{"DFX_CLUSTER4",	PMC_PSS_BIT_CHT_DFX_CLUSTER4},
 	{"DFX_CLUSTER5",	PMC_PSS_BIT_CHT_DFX_CLUSTER5},
-	{},
+	{}
 };
 
 static const struct pmc_reg_map byt_reg_map = {
@@ -232,7 +232,7 @@ static void pmc_power_off(void)
 	pm1_cnt_port = acpi_base_addr + PM1_CNT;
 
 	pm1_cnt_value = inl(pm1_cnt_port);
-	pm1_cnt_value &= SLEEP_TYPE_MASK;
+	pm1_cnt_value &= ~SLEEP_TYPE_MASK;
 	pm1_cnt_value |= SLEEP_TYPE_S5;
 	pm1_cnt_value |= SLEEP_ENABLE;
 
@@ -354,7 +354,7 @@ static bool pmc_clk_is_critical = true;
 
 static int dmi_callback(const struct dmi_system_id *d)
 {
-	pr_info("%s critclks quirk enabled\n", d->ident);
+	pr_info("%s: PMC critical clocks quirk enabled\n", d->ident);
 
 	return 1;
 }
@@ -417,8 +417,7 @@ static const struct dmi_system_id critclk_systems[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "SIEMENS AG"),
 		},
 	},
-
-	{ /*sentinel*/ }
+	{}
 };
 
 static int pmc_setup_clks(struct pci_dev *pdev, void __iomem *pmc_regmap,
@@ -490,15 +489,11 @@ static int pmc_setup_dev(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return ret;
 }
 
-/*
- * Data for PCI driver interface
- *
- * used by pci_match_id() call below.
- */
+/* Data for PCI driver interface used by pci_match_id() call below */
 static const struct pci_device_id pmc_pci_ids[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_VLV_PMC), (kernel_ulong_t)&byt_data },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_CHT_PMC), (kernel_ulong_t)&cht_data },
-	{ 0, },
+	{}
 };
 
 static int __init pmc_atom_init(void)
@@ -506,8 +501,9 @@ static int __init pmc_atom_init(void)
 	struct pci_dev *pdev = NULL;
 	const struct pci_device_id *ent;
 
-	/* We look for our device - PCU PMC
-	 * we assume that there is max. one device.
+	/*
+	 * We look for our device - PCU PMC.
+	 * We assume that there is maximum one device.
 	 *
 	 * We can't use plain pci_driver mechanism,
 	 * as the device is really a multiple function device,
@@ -519,7 +515,7 @@ static int __init pmc_atom_init(void)
 		if (ent)
 			return pmc_setup_dev(pdev, ent);
 	}
-	/* Device not found. */
+	/* Device not found */
 	return -ENODEV;
 }
 
@@ -527,6 +523,6 @@ device_initcall(pmc_atom_init);
 
 /*
 MODULE_AUTHOR("Aubrey Li <aubrey.li@linux.intel.com>");
-MODULE_DESCRIPTION("Intel Atom SOC Power Management Controller Interface");
+MODULE_DESCRIPTION("Intel Atom SoC Power Management Controller Interface");
 MODULE_LICENSE("GPL v2");
 */

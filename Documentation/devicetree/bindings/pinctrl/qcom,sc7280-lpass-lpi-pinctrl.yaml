@@ -8,7 +8,6 @@ title: Qualcomm Technologies, Inc. Low Power Audio SubSystem (LPASS)
   Low Power Island (LPI) TLMM block
 
 maintainers:
-  - Srinivasa Rao Mandadapu <srivasam@codeaurora.org>
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 
 description: |
@@ -18,6 +17,11 @@ description: |
 properties:
   compatible:
     const: qcom,sc7280-lpass-lpi-pinctrl
+
+  qcom,adsp-bypass-mode:
+    description:
+      Tells ADSP is in bypass mode.
+    type: boolean
 
   reg:
     minItems: 2

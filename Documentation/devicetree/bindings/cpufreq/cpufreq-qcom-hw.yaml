@@ -25,6 +25,7 @@ properties:
       - description: v2 of CPUFREQ HW (EPSS)
         items:
           - enum:
+              - qcom,sm6375-cpufreq-epss
               - qcom,sm8250-cpufreq-epss
           - const: qcom,cpufreq-epss
 

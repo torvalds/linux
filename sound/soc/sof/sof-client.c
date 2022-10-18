@@ -383,8 +383,8 @@ void sof_client_ipc_rx_dispatcher(struct snd_sof_dev *sdev, void *msg_buf)
 
 		msg_type = SOF_IPC4_NOTIFICATION_TYPE_GET(msg->primary);
 	} else {
-		dev_dbg_once(sdev->dev, "%s: Not supported IPC version: %d\n",
-			     __func__, sdev->pdata->ipc_type);
+		dev_dbg_once(sdev->dev, "Not supported IPC version: %d\n",
+			     sdev->pdata->ipc_type);
 		return;
 	}
 

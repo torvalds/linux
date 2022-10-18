@@ -27,6 +27,7 @@
 #include <linux/stddef.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/cpufeature.h>
 
 #include <asm/uvdevice.h>
 #include <asm/uv.h>
@@ -244,12 +245,10 @@ static void __exit uvio_dev_exit(void)
 
 static int __init uvio_dev_init(void)
 {
-	if (!test_facility(158))
-		return -ENXIO;
 	return misc_register(&uvio_dev_miscdev);
 }
 
-module_init(uvio_dev_init);
+module_cpu_feature_match(S390_CPU_FEATURE_UV, uvio_dev_init);
 module_exit(uvio_dev_exit);
 
 MODULE_AUTHOR("IBM Corporation");

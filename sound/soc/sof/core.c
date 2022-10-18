@@ -15,6 +15,9 @@
 #include "sof-priv.h"
 #include "ops.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/sof.h>
+
 /* see SOF_DBG_ flags */
 static int sof_core_debug =  IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_FIRMWARE_TRACE);
 module_param_named(sof_debug, sof_core_debug, int, 0444);
@@ -189,7 +192,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	ret = snd_sof_probe(sdev);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to probe DSP %d\n", ret);
-		return ret;
+		goto probe_err;
 	}
 
 	sof_set_fw_state(sdev, SOF_FW_BOOT_PREPARE);
@@ -317,6 +320,8 @@ dbg_err:
 	snd_sof_free_debug(sdev);
 dsp_err:
 	snd_sof_remove(sdev);
+probe_err:
+	sof_ops_free(sdev);
 
 	/* all resources freed, update state to match */
 	sof_set_fw_state(sdev, SOF_FW_BOOT_NOT_STARTED);
@@ -374,6 +379,7 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 	    !sof_ops(sdev)->block_read || !sof_ops(sdev)->block_write ||
 	    !sof_ops(sdev)->send_msg || !sof_ops(sdev)->load_firmware ||
 	    !sof_ops(sdev)->ipc_msg_data) {
+		sof_ops_free(sdev);
 		dev_err(dev, "error: missing mandatory ops\n");
 		return -EINVAL;
 	}
@@ -456,6 +462,8 @@ int snd_sof_device_remove(struct device *dev)
 		snd_sof_free_debug(sdev);
 		snd_sof_remove(sdev);
 	}
+
+	sof_ops_free(sdev);
 
 	/* release firmware */
 	snd_sof_fw_unload(sdev);

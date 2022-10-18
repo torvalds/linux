@@ -525,6 +525,7 @@ struct nau8821 {
 	int jack_eject_debounce;
 	int fs;
 	int dmic_clk_threshold;
+	int key_enable;
 };
 
 int nau8821_enable_jack_detect(struct snd_soc_component *component,

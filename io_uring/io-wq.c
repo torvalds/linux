@@ -624,8 +624,6 @@ static int io_wqe_worker(void *data)
 	snprintf(buf, sizeof(buf), "iou-wrk-%d", wq->task->pid);
 	set_task_comm(current, buf);
 
-	audit_alloc_kernel(current);
-
 	while (!test_bit(IO_WQ_BIT_EXIT, &wq->state)) {
 		long ret;
 
@@ -660,7 +658,6 @@ static int io_wqe_worker(void *data)
 	if (test_bit(IO_WQ_BIT_EXIT, &wq->state))
 		io_worker_handle_work(worker);
 
-	audit_free(current);
 	io_worker_exit(worker);
 	return 0;
 }

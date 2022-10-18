@@ -169,6 +169,14 @@ extern const size_t uclogic_rdesc_ugee_v2_pen_template_size;
 extern const __u8 uclogic_rdesc_ugee_v2_frame_btn_template_arr[];
 extern const size_t uclogic_rdesc_ugee_v2_frame_btn_template_size;
 
+/* Fixed report descriptor template for UGEE v2 frame reports (dial) */
+extern const __u8 uclogic_rdesc_ugee_v2_frame_dial_template_arr[];
+extern const size_t uclogic_rdesc_ugee_v2_frame_dial_template_size;
+
+/* Fixed report descriptor template for UGEE v2 frame reports (mouse) */
+extern const __u8 uclogic_rdesc_ugee_v2_frame_mouse_template_arr[];
+extern const size_t uclogic_rdesc_ugee_v2_frame_mouse_template_size;
+
 /* Fixed report descriptor for Ugee EX07 frame */
 extern const __u8 uclogic_rdesc_ugee_ex07_frame_arr[];
 extern const size_t uclogic_rdesc_ugee_ex07_frame_size;

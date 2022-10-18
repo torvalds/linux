@@ -59,9 +59,6 @@
 /* Check the phy status every half a second. */
 #define CHECK_PHY_INTERVAL (HZ/2)
 
-static int tsi108_init_one(struct platform_device *pdev);
-static int tsi108_ether_remove(struct platform_device *pdev);
-
 struct tsi108_prv_data {
 	void  __iomem *regs;	/* Base of normal regs */
 	void  __iomem *phyregs;	/* Base of register bank used for PHY access */
@@ -142,16 +139,6 @@ struct tsi108_prv_data {
 	unsigned int init_media;
 
 	struct platform_device *pdev;
-};
-
-/* Structure for a device driver */
-
-static struct platform_driver tsi_eth_driver = {
-	.probe = tsi108_init_one,
-	.remove = tsi108_ether_remove,
-	.driver	= {
-		.name = "tsi-ethernet",
-	},
 };
 
 static void tsi108_timed_checker(struct timer_list *t);
@@ -1598,7 +1585,7 @@ tsi108_init_one(struct platform_device *pdev)
 	data->phy_type = einfo->phy_type;
 	data->irq_num = einfo->irq_num;
 	data->id = pdev->id;
-	netif_napi_add(dev, &data->napi, tsi108_poll, 64);
+	netif_napi_add(dev, &data->napi, tsi108_poll);
 	dev->netdev_ops = &tsi108_netdev_ops;
 	dev->ethtool_ops = &tsi108_ethtool_ops;
 
@@ -1683,6 +1670,16 @@ static int tsi108_ether_remove(struct platform_device *pdev)
 
 	return 0;
 }
+
+/* Structure for a device driver */
+
+static struct platform_driver tsi_eth_driver = {
+	.probe = tsi108_init_one,
+	.remove = tsi108_ether_remove,
+	.driver	= {
+		.name = "tsi-ethernet",
+	},
+};
 module_platform_driver(tsi_eth_driver);
 
 MODULE_AUTHOR("Tundra Semiconductor Corporation");

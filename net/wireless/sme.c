@@ -747,6 +747,9 @@ void __cfg80211_connect_result(struct net_device *dev,
 			if (WARN_ON(!cr->links[link].addr))
 				goto out;
 		}
+
+		if (WARN_ON(wdev->connect_keys))
+			goto out;
 	}
 
 	wdev->unprot_beacon_reported = 0;
@@ -782,9 +785,11 @@ void __cfg80211_connect_result(struct net_device *dev,
 #endif
 
 	if (cr->status == WLAN_STATUS_SUCCESS) {
-		for_each_valid_link(cr, link) {
-			if (WARN_ON_ONCE(!cr->links[link].bss))
-				break;
+		if (!wiphy_to_rdev(wdev->wiphy)->ops->connect) {
+			for_each_valid_link(cr, link) {
+				if (WARN_ON_ONCE(!cr->links[link].bss))
+					break;
+			}
 		}
 
 		for_each_valid_link(cr, link) {
@@ -1323,7 +1328,7 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 			    NL80211_EXT_FEATURE_BEACON_PROTECTION_CLIENT))
 			max_key_idx = 7;
 		for (i = 0; i <= max_key_idx; i++)
-			rdev_del_key(rdev, dev, i, false, NULL);
+			rdev_del_key(rdev, dev, -1, i, false, NULL);
 	}
 
 	rdev_set_qos_map(rdev, dev, NULL);

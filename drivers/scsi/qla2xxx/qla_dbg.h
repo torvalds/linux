@@ -385,3 +385,46 @@ ql_mask_match(uint level)
 
 	return level && ((level & ql2xextended_error_logging) == level);
 }
+
+static inline int
+ql_mask_match_ext(uint level, int *log_tunable)
+{
+	if (*log_tunable == 1)
+		*log_tunable = QL_DBG_DEFAULT1_MASK;
+
+	return (level & *log_tunable) == level;
+}
+
+/* Assumes local variable pbuf and pbuf_ready present. */
+#define ql_ktrace(dbg_msg, level, pbuf, pdev, vha, id, fmt) do {	\
+	struct va_format _vaf;						\
+	va_list _va;							\
+	u32 dbg_off = dbg_msg ? ql_dbg_offset : 0;			\
+									\
+	pbuf[0] = 0;							\
+	if (!trace_ql_dbg_log_enabled())				\
+		break;							\
+									\
+	if (dbg_msg && !ql_mask_match_ext(level,			\
+				&ql2xextended_error_logging_ktrace))	\
+		break;							\
+									\
+	ql_dbg_prefix(pbuf, ARRAY_SIZE(pbuf), pdev, vha, id + dbg_off);	\
+									\
+	va_start(_va, fmt);						\
+	_vaf.fmt = fmt;							\
+	_vaf.va = &_va;							\
+									\
+	trace_ql_dbg_log(pbuf, &_vaf);					\
+									\
+	va_end(_va);							\
+} while (0)
+
+#define QLA_ENABLE_KERNEL_TRACING
+
+#ifdef QLA_ENABLE_KERNEL_TRACING
+#define QLA_TRACE_ENABLE(_tr) \
+	trace_array_set_clr_event(_tr, "qla", NULL, true)
+#else /* QLA_ENABLE_KERNEL_TRACING */
+#define QLA_TRACE_ENABLE(_tr)
+#endif /* QLA_ENABLE_KERNEL_TRACING */

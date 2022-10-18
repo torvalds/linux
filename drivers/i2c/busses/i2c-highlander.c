@@ -402,7 +402,7 @@ static int highlander_i2c_probe(struct platform_device *pdev)
 	i2c_set_adapdata(adap, dev);
 	adap->owner = THIS_MODULE;
 	adap->class = I2C_CLASS_HWMON;
-	strlcpy(adap->name, "HL FPGA I2C adapter", sizeof(adap->name));
+	strscpy(adap->name, "HL FPGA I2C adapter", sizeof(adap->name));
 	adap->algo = &highlander_i2c_algo;
 	adap->dev.parent = &pdev->dev;
 	adap->nr = pdev->id;

@@ -48,7 +48,7 @@ void __init __acpi_unmap_table(void __iomem *map, unsigned long size)
 	early_memunmap(map, size);
 }
 
-void __init __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
+void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
 {
 	if (!memblock_is_memory(phys))
 		return ioremap(phys, size);
@@ -104,6 +104,39 @@ static int set_processor_mask(u32 id, u32 flags)
 }
 #endif
 
+static int __init
+acpi_parse_processor(union acpi_subtable_headers *header, const unsigned long end)
+{
+	struct acpi_madt_core_pic *processor = NULL;
+
+	processor = (struct acpi_madt_core_pic *)header;
+	if (BAD_MADT_ENTRY(processor, end))
+		return -EINVAL;
+
+	acpi_table_print_madt_entry(&header->common);
+#ifdef CONFIG_SMP
+	set_processor_mask(processor->core_id, processor->flags);
+#endif
+
+	return 0;
+}
+
+static int __init
+acpi_parse_eio_master(union acpi_subtable_headers *header, const unsigned long end)
+{
+	static int core = 0;
+	struct acpi_madt_eio_pic *eiointc = NULL;
+
+	eiointc = (struct acpi_madt_eio_pic *)header;
+	if (BAD_MADT_ENTRY(eiointc, end))
+		return -EINVAL;
+
+	core = eiointc->node * CORES_PER_EIO_NODE;
+	set_bit(core, &(loongson_sysconf.cores_io_master));
+
+	return 0;
+}
+
 static void __init acpi_process_madt(void)
 {
 #ifdef CONFIG_SMP
@@ -114,6 +147,11 @@ static void __init acpi_process_madt(void)
 		__cpu_logical_map[i] = -1;
 	}
 #endif
+	acpi_table_parse_madt(ACPI_MADT_TYPE_CORE_PIC,
+			acpi_parse_processor, MAX_CORE_PIC);
+
+	acpi_table_parse_madt(ACPI_MADT_TYPE_EIO_PIC,
+			acpi_parse_eio_master, MAX_IO_PICS);
 
 	loongson_sysconf.nr_cpus = num_processors;
 }

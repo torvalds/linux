@@ -46,6 +46,7 @@
 #include "netlink.h"
 #endif
 #include "fs_context.h"
+#include "cached_dir.h"
 
 /*
  * DOS dates from 1980/1/1 through 2107/12/31
@@ -68,6 +69,34 @@ bool enable_negotiate_signing; /* false by default */
 unsigned int global_secflags = CIFSSEC_DEF;
 /* unsigned int ntlmv2_support = 0; */
 unsigned int sign_CIFS_PDUs = 1;
+
+/*
+ * Global transaction id (XID) information
+ */
+unsigned int GlobalCurrentXid;	/* protected by GlobalMid_Sem */
+unsigned int GlobalTotalActiveXid; /* prot by GlobalMid_Sem */
+unsigned int GlobalMaxActiveXid;	/* prot by GlobalMid_Sem */
+spinlock_t GlobalMid_Lock; /* protects above & list operations on midQ entries */
+
+/*
+ *  Global counters, updated atomically
+ */
+atomic_t sesInfoAllocCount;
+atomic_t tconInfoAllocCount;
+atomic_t tcpSesNextId;
+atomic_t tcpSesAllocCount;
+atomic_t tcpSesReconnectCount;
+atomic_t tconInfoReconnectCount;
+
+atomic_t mid_count;
+atomic_t buf_alloc_count;
+atomic_t small_buf_alloc_count;
+#ifdef CONFIG_CIFS_STATS2
+atomic_t total_buf_alloc_count;
+atomic_t total_small_buf_alloc_count;
+#endif/* STATS2 */
+struct list_head	cifs_tcp_ses_list;
+spinlock_t		cifs_tcp_ses_lock;
 static const struct super_operations cifs_super_ops;
 unsigned int CIFSMaxBufSize = CIFS_MAX_MSGSIZE;
 module_param(CIFSMaxBufSize, uint, 0444);
@@ -255,30 +284,13 @@ out_no_root:
 static void cifs_kill_sb(struct super_block *sb)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
-	struct cifs_tcon *tcon;
-	struct cached_fid *cfid;
-	struct rb_root *root = &cifs_sb->tlink_tree;
-	struct rb_node *node;
-	struct tcon_link *tlink;
 
 	/*
 	 * We ned to release all dentries for the cached directories
 	 * before we kill the sb.
 	 */
 	if (cifs_sb->root) {
-		for (node = rb_first(root); node; node = rb_next(node)) {
-			tlink = rb_entry(node, struct tcon_link, tl_rbnode);
-			tcon = tlink_tcon(tlink);
-			if (IS_ERR(tcon))
-				continue;
-			cfid = &tcon->crfid;
-			mutex_lock(&cfid->fid_mutex);
-			if (cfid->dentry) {
-				dput(cfid->dentry);
-				cfid->dentry = NULL;
-			}
-			mutex_unlock(&cfid->fid_mutex);
-		}
+		close_all_cached_dirs(cifs_sb);
 
 		/* finally release root dentry */
 		dput(cifs_sb->root);
@@ -681,6 +693,7 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 		seq_printf(s, ",acdirmax=%lu", cifs_sb->ctx->acdirmax / HZ);
 		seq_printf(s, ",acregmax=%lu", cifs_sb->ctx->acregmax / HZ);
 	}
+	seq_printf(s, ",closetimeo=%lu", cifs_sb->ctx->closetimeo / HZ);
 
 	if (tcon->ses->chan_max > 1)
 		seq_printf(s, ",multichannel,max_channels=%zu",
@@ -703,14 +716,17 @@ static void cifs_umount_begin(struct super_block *sb)
 	tcon = cifs_sb_master_tcon(cifs_sb);
 
 	spin_lock(&cifs_tcp_ses_lock);
+	spin_lock(&tcon->tc_lock);
 	if ((tcon->tc_count > 1) || (tcon->status == TID_EXITING)) {
 		/* we have other mounts to same share or we have
 		   already tried to force umount this and woken up
 		   all waiting network requests, nothing to do */
+		spin_unlock(&tcon->tc_lock);
 		spin_unlock(&cifs_tcp_ses_lock);
 		return;
 	} else if (tcon->tc_count == 1)
 		tcon->status = TID_EXITING;
+	spin_unlock(&tcon->tc_lock);
 	spin_unlock(&cifs_tcp_ses_lock);
 
 	/* cancel_brl_requests(tcon); */ /* BB mark all brl mids as exiting */
@@ -1232,6 +1248,12 @@ ssize_t cifs_file_copychunk_range(unsigned int xid,
 	lock_two_nondirectories(target_inode, src_inode);
 
 	cifs_dbg(FYI, "about to flush pages\n");
+
+	rc = filemap_write_and_wait_range(src_inode->i_mapping, off,
+					  off + len - 1);
+	if (rc)
+		goto out;
+
 	/* should we flush first and last page first */
 	truncate_inode_pages(&target_inode->i_data, 0);
 
@@ -1537,8 +1559,7 @@ cifs_destroy_request_bufs(void)
 	kmem_cache_destroy(cifs_sm_req_cachep);
 }
 
-static int
-cifs_init_mids(void)
+static int init_mids(void)
 {
 	cifs_mid_cachep = kmem_cache_create("cifs_mpx_ids",
 					    sizeof(struct mid_q_entry), 0,
@@ -1556,8 +1577,7 @@ cifs_init_mids(void)
 	return 0;
 }
 
-static void
-cifs_destroy_mids(void)
+static void destroy_mids(void)
 {
 	mempool_destroy(cifs_mid_poolp);
 	kmem_cache_destroy(cifs_mid_cachep);
@@ -1579,11 +1599,11 @@ init_cifs(void)
 	atomic_set(&tcpSesReconnectCount, 0);
 	atomic_set(&tconInfoReconnectCount, 0);
 
-	atomic_set(&bufAllocCount, 0);
-	atomic_set(&smBufAllocCount, 0);
+	atomic_set(&buf_alloc_count, 0);
+	atomic_set(&small_buf_alloc_count, 0);
 #ifdef CONFIG_CIFS_STATS2
-	atomic_set(&totBufAllocCount, 0);
-	atomic_set(&totSmBufAllocCount, 0);
+	atomic_set(&total_buf_alloc_count, 0);
+	atomic_set(&total_small_buf_alloc_count, 0);
 	if (slow_rsp_threshold < 1)
 		cifs_dbg(FYI, "slow_response_threshold msgs disabled\n");
 	else if (slow_rsp_threshold > 32767)
@@ -1591,7 +1611,7 @@ init_cifs(void)
 		       "slow response threshold set higher than recommended (0 to 32767)\n");
 #endif /* CONFIG_CIFS_STATS2 */
 
-	atomic_set(&midCount, 0);
+	atomic_set(&mid_count, 0);
 	GlobalCurrentXid = 0;
 	GlobalTotalActiveXid = 0;
 	GlobalMaxActiveXid = 0;
@@ -1654,7 +1674,7 @@ init_cifs(void)
 	if (rc)
 		goto out_destroy_deferredclose_wq;
 
-	rc = cifs_init_mids();
+	rc = init_mids();
 	if (rc)
 		goto out_destroy_inodecache;
 
@@ -1711,7 +1731,7 @@ out_destroy_request_bufs:
 #endif
 	cifs_destroy_request_bufs();
 out_destroy_mids:
-	cifs_destroy_mids();
+	destroy_mids();
 out_destroy_inodecache:
 	cifs_destroy_inodecache();
 out_destroy_deferredclose_wq:
@@ -1747,7 +1767,7 @@ exit_cifs(void)
 	dfs_cache_destroy();
 #endif
 	cifs_destroy_request_bufs();
-	cifs_destroy_mids();
+	destroy_mids();
 	cifs_destroy_inodecache();
 	destroy_workqueue(deferredclose_wq);
 	destroy_workqueue(cifsoplockd_wq);

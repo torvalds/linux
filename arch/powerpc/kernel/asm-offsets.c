@@ -59,7 +59,7 @@
 #endif
 #endif
 
-#if defined(CONFIG_PPC_FSL_BOOK3E)
+#if defined(CONFIG_PPC_E500)
 #include "../mm/mmu_decl.h"
 #endif
 
@@ -197,7 +197,7 @@ int main(void)
 	OFFSET(PACAIRQHAPPENED, paca_struct, irq_happened);
 	OFFSET(PACA_FTRACE_ENABLED, paca_struct, ftrace_enabled);
 
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 	OFFSET(PACAPGD, paca_struct, pgd);
 	OFFSET(PACA_KERNELPGD, paca_struct, kernel_pgd);
 	OFFSET(PACA_EXGEN, paca_struct, exgen);
@@ -213,7 +213,7 @@ int main(void)
 	OFFSET(TCD_ESEL_NEXT, tlb_core_data, esel_next);
 	OFFSET(TCD_ESEL_MAX, tlb_core_data, esel_max);
 	OFFSET(TCD_ESEL_FIRST, tlb_core_data, esel_first);
-#endif /* CONFIG_PPC_BOOK3E */
+#endif /* CONFIG_PPC_BOOK3E_64 */
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	OFFSET(PACA_EXGEN, paca_struct, exgen);
@@ -248,7 +248,7 @@ int main(void)
 #ifdef CONFIG_PPC64
 	OFFSET(PACA_EXIT_SAVE_R1, paca_struct, exit_save_r1);
 #endif
-#ifdef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_BOOK3E_64
 	OFFSET(PACA_TRAP_SAVE, paca_struct, trap_save);
 #endif
 	OFFSET(PACA_SPRG_VDSO, paca_struct, sprg_vdso);
@@ -379,7 +379,7 @@ int main(void)
 	OFFSET(VCPU_SPRG2, kvm_vcpu, arch.shregs.sprg2);
 	OFFSET(VCPU_SPRG3, kvm_vcpu, arch.shregs.sprg3);
 #endif
-#ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
+#ifdef CONFIG_KVM_BOOK3S_HV_P8_TIMING
 	OFFSET(VCPU_TB_RMENTRY, kvm_vcpu, arch.rm_entry);
 	OFFSET(VCPU_TB_RMINTR, kvm_vcpu, arch.rm_intr);
 	OFFSET(VCPU_TB_RMEXIT, kvm_vcpu, arch.rm_exit);
@@ -651,7 +651,7 @@ int main(void)
 	DEFINE(PGD_T_LOG2, PGD_T_LOG2);
 	DEFINE(PTE_T_LOG2, PTE_T_LOG2);
 #endif
-#ifdef CONFIG_PPC_FSL_BOOK3E
+#ifdef CONFIG_PPC_E500
 	DEFINE(TLBCAM_SIZE, sizeof(struct tlbcam));
 	OFFSET(TLBCAM_MAS0, tlbcam, MAS0);
 	OFFSET(TLBCAM_MAS1, tlbcam, MAS1);

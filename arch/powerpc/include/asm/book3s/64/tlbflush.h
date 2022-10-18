@@ -138,10 +138,86 @@ static inline void flush_all_mm(struct mm_struct *mm)
 static inline void flush_tlb_fix_spurious_fault(struct vm_area_struct *vma,
 						unsigned long address)
 {
-	/* See ptep_set_access_flags comment */
-	if (atomic_read(&vma->vm_mm->context.copros) > 0)
-		flush_tlb_page(vma, address);
+	/*
+	 * Book3S 64 does not require spurious fault flushes because the PTE
+	 * must be re-fetched in case of an access permission problem. So the
+	 * only reason for a spurious fault should be concurrent modification
+	 * to the PTE, in which case the PTE will eventually be re-fetched by
+	 * the MMU when it attempts the access again.
+	 *
+	 * See: Power ISA Version 3.1B, 6.10.1.2 Modifying a Translation Table
+	 * Entry, Setting a Reference or Change Bit or Upgrading Access
+	 * Authority (PTE Subject to Atomic Hardware Updates):
+	 *
+	 * "If the only change being made to a valid PTE that is subject to
+	 *  atomic hardware updates is to set the Reference or Change bit to
+	 *  1 or to upgrade access authority, a simpler sequence suffices
+	 *  because the translation hardware will refetch the PTE if an
+	 *  access is attempted for which the only problems were reference
+	 *  and/or change bits needing to be set or insufficient access
+	 *  authority."
+	 *
+	 * The nest MMU in POWER9 does not perform this PTE re-fetch, but
+	 * it avoids the spurious fault problem by flushing the TLB before
+	 * upgrading PTE permissions, see radix__ptep_set_access_flags.
+	 */
 }
+
+static inline bool __pte_flags_need_flush(unsigned long oldval,
+					  unsigned long newval)
+{
+	unsigned long delta = oldval ^ newval;
+
+	/*
+	 * The return value of this function doesn't matter for hash,
+	 * ptep_modify_prot_start() does a pte_update() which does or schedules
+	 * any necessary hash table update and flush.
+	 */
+	if (!radix_enabled())
+		return true;
+
+	/*
+	 * We do not expect kernel mappings or non-PTEs or not-present PTEs.
+	 */
+	VM_WARN_ON_ONCE(oldval & _PAGE_PRIVILEGED);
+	VM_WARN_ON_ONCE(newval & _PAGE_PRIVILEGED);
+	VM_WARN_ON_ONCE(!(oldval & _PAGE_PTE));
+	VM_WARN_ON_ONCE(!(newval & _PAGE_PTE));
+	VM_WARN_ON_ONCE(!(oldval & _PAGE_PRESENT));
+	VM_WARN_ON_ONCE(!(newval & _PAGE_PRESENT));
+
+	/*
+	*  Must flush on any change except READ, WRITE, EXEC, DIRTY, ACCESSED.
+	*
+	 * In theory, some changed software bits could be tolerated, in
+	 * practice those should rarely if ever matter.
+	 */
+
+	if (delta & ~(_PAGE_RWX | _PAGE_DIRTY | _PAGE_ACCESSED))
+		return true;
+
+	/*
+	 * If any of the above was present in old but cleared in new, flush.
+	 * With the exception of _PAGE_ACCESSED, don't worry about flushing
+	 * if that was cleared (see the comment in ptep_clear_flush_young()).
+	 */
+	if ((delta & ~_PAGE_ACCESSED) & oldval)
+		return true;
+
+	return false;
+}
+
+static inline bool pte_needs_flush(pte_t oldpte, pte_t newpte)
+{
+	return __pte_flags_need_flush(pte_val(oldpte), pte_val(newpte));
+}
+#define pte_needs_flush pte_needs_flush
+
+static inline bool huge_pmd_needs_flush(pmd_t oldpmd, pmd_t newpmd)
+{
+	return __pte_flags_need_flush(pmd_val(oldpmd), pmd_val(newpmd));
+}
+#define huge_pmd_needs_flush huge_pmd_needs_flush
 
 extern bool tlbie_capable;
 extern bool tlbie_enabled;

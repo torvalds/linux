@@ -445,7 +445,7 @@ static inline void rvt_set_ibdev_name(struct rvt_dev_info *rdi,
 	 * to work by setting the name manually here.
 	 */
 	dev_set_name(&rdi->ibdev.dev, fmt, name, unit);
-	strlcpy(rdi->ibdev.name, dev_name(&rdi->ibdev.dev), IB_DEVICE_NAME_MAX);
+	strscpy(rdi->ibdev.name, dev_name(&rdi->ibdev.dev), IB_DEVICE_NAME_MAX);
 }
 
 /**

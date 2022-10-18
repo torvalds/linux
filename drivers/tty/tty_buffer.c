@@ -5,6 +5,7 @@
 
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/minmax.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
@@ -104,6 +105,7 @@ static void tty_buffer_reset(struct tty_buffer *p, size_t size)
 	p->size = size;
 	p->next = NULL;
 	p->commit = 0;
+	p->lookahead = 0;
 	p->read = 0;
 	p->flags = 0;
 }
@@ -234,6 +236,7 @@ void tty_buffer_flush(struct tty_struct *tty, struct tty_ldisc *ld)
 		buf->head = next;
 	}
 	buf->head->read = buf->head->commit;
+	buf->head->lookahead = buf->head->read;
 
 	if (ld && ld->ops->flush_buffer)
 		ld->ops->flush_buffer(tty);
@@ -276,13 +279,15 @@ static int __tty_buffer_request_room(struct tty_port *port, size_t size,
 		if (n != NULL) {
 			n->flags = flags;
 			buf->tail = n;
-			/* paired w/ acquire in flush_to_ldisc(); ensures
-			 * flush_to_ldisc() sees buffer data.
+			/*
+			 * Paired w/ acquire in flush_to_ldisc() and lookahead_bufs()
+			 * ensures they see all buffer data.
 			 */
 			smp_store_release(&b->commit, b->used);
-			/* paired w/ acquire in flush_to_ldisc(); ensures the
-			 * latest commit value can be read before the head is
-			 * advanced to the next buffer
+			/*
+			 * Paired w/ acquire in flush_to_ldisc() and lookahead_bufs()
+			 * ensures the latest commit value can be read before the head
+			 * is advanced to the next buffer.
 			 */
 			smp_store_release(&b->next, n);
 		} else if (change)
@@ -459,6 +464,44 @@ int tty_ldisc_receive_buf(struct tty_ldisc *ld, const unsigned char *p,
 }
 EXPORT_SYMBOL_GPL(tty_ldisc_receive_buf);
 
+static void lookahead_bufs(struct tty_port *port, struct tty_buffer *head)
+{
+	head->lookahead = max(head->lookahead, head->read);
+
+	while (head) {
+		struct tty_buffer *next;
+		unsigned int count;
+
+		/*
+		 * Paired w/ release in __tty_buffer_request_room();
+		 * ensures commit value read is not stale if the head
+		 * is advancing to the next buffer.
+		 */
+		next = smp_load_acquire(&head->next);
+		/*
+		 * Paired w/ release in __tty_buffer_request_room() or in
+		 * tty_buffer_flush(); ensures we see the committed buffer data.
+		 */
+		count = smp_load_acquire(&head->commit) - head->lookahead;
+		if (!count) {
+			head = next;
+			continue;
+		}
+
+		if (port->client_ops->lookahead_buf) {
+			unsigned char *p, *f = NULL;
+
+			p = char_buf_ptr(head, head->lookahead);
+			if (~head->flags & TTYB_NORMAL)
+				f = flag_buf_ptr(head, head->lookahead);
+
+			port->client_ops->lookahead_buf(port, p, f, count);
+		}
+
+		head->lookahead += count;
+	}
+}
+
 static int
 receive_buf(struct tty_port *port, struct tty_buffer *head, int count)
 {
@@ -496,7 +539,7 @@ static void flush_to_ldisc(struct work_struct *work)
 	while (1) {
 		struct tty_buffer *head = buf->head;
 		struct tty_buffer *next;
-		int count;
+		int count, rcvd;
 
 		/* Ldisc or user is trying to gain exclusive access */
 		if (atomic_read(&buf->priority))
@@ -519,10 +562,12 @@ static void flush_to_ldisc(struct work_struct *work)
 			continue;
 		}
 
-		count = receive_buf(port, head, count);
-		if (!count)
+		rcvd = receive_buf(port, head, count);
+		head->read += rcvd;
+		if (rcvd < count)
+			lookahead_bufs(port, head);
+		if (!rcvd)
 			break;
-		head->read += count;
 
 		if (need_resched())
 			cond_resched();

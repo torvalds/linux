@@ -9,6 +9,7 @@
 
 #include <sound/sof/stream.h>
 #include <sound/sof/control.h>
+#include <trace/events/sof.h>
 #include "sof-priv.h"
 #include "sof-audio.h"
 #include "ipc3-priv.h"
@@ -23,7 +24,7 @@ static void ipc3_log_header(struct device *dev, u8 *text, u32 cmd)
 	u8 *str2 = NULL;
 	u32 glb;
 	u32 type;
-	bool vdbg = false;
+	bool is_sof_ipc_stream_position = false;
 
 	glb = cmd & SOF_GLB_TYPE_MASK;
 	type = cmd & SOF_CMD_TYPE_MASK;
@@ -118,7 +119,7 @@ static void ipc3_log_header(struct device *dev, u8 *text, u32 cmd)
 		case SOF_IPC_STREAM_TRIG_XRUN:
 			str2 = "TRIG_XRUN"; break;
 		case SOF_IPC_STREAM_POSITION:
-			vdbg = true;
+			is_sof_ipc_stream_position = true;
 			str2 = "POSITION"; break;
 		case SOF_IPC_STREAM_VORBIS_PARAMS:
 			str2 = "VORBIS_PARAMS"; break;
@@ -147,6 +148,8 @@ static void ipc3_log_header(struct device *dev, u8 *text, u32 cmd)
 		case SOF_IPC_TRACE_DMA_PARAMS:
 			str2 = "DMA_PARAMS"; break;
 		case SOF_IPC_TRACE_DMA_POSITION:
+			if (!sof_debug_check_flag(SOF_DBG_PRINT_DMA_POSITION_UPDATE_LOGS))
+				return;
 			str2 = "DMA_POSITION"; break;
 		case SOF_IPC_TRACE_DMA_PARAMS_EXT:
 			str2 = "DMA_PARAMS_EXT"; break;
@@ -204,8 +207,8 @@ static void ipc3_log_header(struct device *dev, u8 *text, u32 cmd)
 	}
 
 	if (str2) {
-		if (vdbg)
-			dev_vdbg(dev, "%s: 0x%x: %s: %s\n", text, cmd, str, str2);
+		if (is_sof_ipc_stream_position)
+			trace_sof_stream_position_ipc_rx(dev);
 		else
 			dev_dbg(dev, "%s: 0x%x: %s: %s\n", text, cmd, str, str2);
 	} else {
@@ -290,7 +293,7 @@ static int ipc3_wait_tx_done(struct snd_sof_ipc *ipc, void *reply_data)
 		dev_err(sdev->dev,
 			"ipc tx timed out for %#x (msg/reply size: %d/%zu)\n",
 			hdr->cmd, hdr->size, msg->reply_size);
-		snd_sof_handle_fw_exception(ipc->sdev);
+		snd_sof_handle_fw_exception(ipc->sdev, "IPC timeout");
 		ret = -ETIMEDOUT;
 	} else {
 		ret = msg->reply_error;
@@ -299,7 +302,8 @@ static int ipc3_wait_tx_done(struct snd_sof_ipc *ipc, void *reply_data)
 				"ipc tx error for %#x (msg/reply size: %d/%zu): %d\n",
 				hdr->cmd, hdr->size, msg->reply_size, ret);
 		} else {
-			ipc3_log_header(sdev->dev, "ipc tx succeeded", hdr->cmd);
+			if (sof_debug_check_flag(SOF_DBG_PRINT_IPC_SUCCESS_LOGS))
+				ipc3_log_header(sdev->dev, "ipc tx succeeded", hdr->cmd);
 			if (msg->reply_size)
 				/* copy the data returned from DSP */
 				memcpy(reply_data, msg->reply_data,
@@ -755,13 +759,10 @@ int sof_ipc3_validate_fw_version(struct snd_sof_dev *sdev)
 		return -EINVAL;
 	}
 
-	if (SOF_ABI_VERSION_MINOR(v->abi_version) > SOF_ABI_MINOR) {
-		if (!IS_ENABLED(CONFIG_SND_SOC_SOF_STRICT_ABI_CHECKS)) {
-			dev_warn(sdev->dev, "FW ABI is more recent than kernel\n");
-		} else {
-			dev_err(sdev->dev, "FW ABI is more recent than kernel\n");
-			return -EINVAL;
-		}
+	if (IS_ENABLED(CONFIG_SND_SOC_SOF_STRICT_ABI_CHECKS) &&
+	    SOF_ABI_VERSION_MINOR(v->abi_version) > SOF_ABI_MINOR) {
+		dev_err(sdev->dev, "FW ABI is more recent than kernel\n");
+		return -EINVAL;
 	}
 
 	if (ready->flags & SOF_IPC_INFO_BUILD) {
@@ -852,8 +853,7 @@ static void ipc3_period_elapsed(struct snd_sof_dev *sdev, u32 msg_id)
 		return;
 	}
 
-	dev_vdbg(sdev->dev, "posn : host 0x%llx dai 0x%llx wall 0x%llx\n",
-		 posn.host_posn, posn.dai_posn, posn.wallclock);
+	trace_sof_ipc3_period_elapsed_position(sdev, &posn);
 
 	memcpy(&stream->posn, &posn, sizeof(posn));
 
@@ -1037,6 +1037,23 @@ static void sof_ipc3_rx_msg(struct snd_sof_dev *sdev)
 	ipc3_log_header(sdev->dev, "ipc rx done", hdr.cmd);
 }
 
+static int sof_ipc3_set_core_state(struct snd_sof_dev *sdev, int core_idx, bool on)
+{
+	struct sof_ipc_pm_core_config core_cfg = {
+		.hdr.size = sizeof(core_cfg),
+		.hdr.cmd = SOF_IPC_GLB_PM_MSG | SOF_IPC_PM_CORE_ENABLE,
+	};
+	struct sof_ipc_reply reply;
+
+	if (on)
+		core_cfg.enable_mask = sdev->enabled_cores_mask | BIT(core_idx);
+	else
+		core_cfg.enable_mask = sdev->enabled_cores_mask & ~BIT(core_idx);
+
+	return sof_ipc3_tx_msg(sdev, &core_cfg, sizeof(core_cfg),
+			       &reply, sizeof(reply), false);
+}
+
 static int sof_ipc3_ctx_ipc(struct snd_sof_dev *sdev, int cmd)
 {
 	struct sof_ipc_pm_ctx pm_ctx = {
@@ -1063,6 +1080,7 @@ static int sof_ipc3_ctx_restore(struct snd_sof_dev *sdev)
 static const struct sof_ipc_pm_ops ipc3_pm_ops = {
 	.ctx_save = sof_ipc3_ctx_save,
 	.ctx_restore = sof_ipc3_ctx_restore,
+	.set_core_state = sof_ipc3_set_core_state,
 };
 
 const struct sof_ipc_ops ipc3_ops = {

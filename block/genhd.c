@@ -602,7 +602,6 @@ void del_gendisk(struct gendisk *disk)
 	 * Prevent new I/O from crossing bio_queue_enter().
 	 */
 	blk_queue_start_drain(q);
-	blk_mq_freeze_queue_wait(q);
 
 	if (!(disk->flags & GENHD_FL_HIDDEN)) {
 		sysfs_remove_link(&disk_to_dev(disk)->kobj, "bdi");
@@ -626,7 +625,9 @@ void del_gendisk(struct gendisk *disk)
 	pm_runtime_set_memalloc_noio(disk_to_dev(disk), false);
 	device_del(disk_to_dev(disk));
 
-	blk_throtl_cancel_bios(disk->queue);
+	blk_mq_freeze_queue_wait(q);
+
+	blk_throtl_cancel_bios(disk);
 
 	blk_sync_queue(q);
 	blk_flush_integrity();
@@ -1150,7 +1151,8 @@ static void disk_release(struct device *dev)
 	    !test_bit(GD_ADDED, &disk->state))
 		blk_mq_exit_queue(disk->queue);
 
-	blkcg_exit_queue(disk->queue);
+	blkcg_exit_disk(disk);
+
 	bioset_exit(&disk->bio_split);
 
 	disk_release_events(disk);
@@ -1341,7 +1343,7 @@ struct gendisk *__alloc_disk_node(struct request_queue *q, int node_id,
 
 	disk = kzalloc_node(sizeof(struct gendisk), GFP_KERNEL, node_id);
 	if (!disk)
-		goto out_put_queue;
+		return NULL;
 
 	if (bioset_init(&disk->bio_split, BIO_POOL_SIZE, 0, 0))
 		goto out_free_disk;
@@ -1363,7 +1365,7 @@ struct gendisk *__alloc_disk_node(struct request_queue *q, int node_id,
 	if (xa_insert(&disk->part_tbl, 0, disk->part0, GFP_KERNEL))
 		goto out_destroy_part_tbl;
 
-	if (blkcg_init_queue(q))
+	if (blkcg_init_disk(disk))
 		goto out_erase_part0;
 
 	rand_initialize_disk(disk);
@@ -1390,8 +1392,6 @@ out_free_bioset:
 	bioset_exit(&disk->bio_split);
 out_free_disk:
 	kfree(disk);
-out_put_queue:
-	blk_put_queue(q);
 	return NULL;
 }
 

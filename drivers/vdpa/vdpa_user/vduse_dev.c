@@ -21,6 +21,8 @@
 #include <linux/uio.h>
 #include <linux/vdpa.h>
 #include <linux/nospec.h>
+#include <linux/vmalloc.h>
+#include <linux/sched/mm.h>
 #include <uapi/linux/vduse.h>
 #include <uapi/linux/vdpa.h>
 #include <uapi/linux/virtio_config.h>
@@ -64,6 +66,13 @@ struct vduse_vdpa {
 	struct vduse_dev *dev;
 };
 
+struct vduse_umem {
+	unsigned long iova;
+	unsigned long npages;
+	struct page **pages;
+	struct mm_struct *mm;
+};
+
 struct vduse_dev {
 	struct vduse_vdpa *vdev;
 	struct device *dev;
@@ -95,6 +104,8 @@ struct vduse_dev {
 	u8 status;
 	u32 vq_num;
 	u32 vq_align;
+	struct vduse_umem *umem;
+	struct mutex mem_lock;
 };
 
 struct vduse_dev_msg {
@@ -662,9 +673,14 @@ static void vduse_vdpa_get_config(struct vdpa_device *vdpa, unsigned int offset,
 {
 	struct vduse_dev *dev = vdpa_to_vduse(vdpa);
 
-	if (offset > dev->config_size ||
-	    len > dev->config_size - offset)
+	/* Initialize the buffer in case of partial copy. */
+	memset(buf, 0, len);
+
+	if (offset > dev->config_size)
 		return;
+
+	if (len > dev->config_size - offset)
+		len = dev->config_size - offset;
 
 	memcpy(buf, dev->config + offset, len);
 }
@@ -917,6 +933,102 @@ unlock:
 	return ret;
 }
 
+static int vduse_dev_dereg_umem(struct vduse_dev *dev,
+				u64 iova, u64 size)
+{
+	int ret;
+
+	mutex_lock(&dev->mem_lock);
+	ret = -ENOENT;
+	if (!dev->umem)
+		goto unlock;
+
+	ret = -EINVAL;
+	if (dev->umem->iova != iova || size != dev->domain->bounce_size)
+		goto unlock;
+
+	vduse_domain_remove_user_bounce_pages(dev->domain);
+	unpin_user_pages_dirty_lock(dev->umem->pages,
+				    dev->umem->npages, true);
+	atomic64_sub(dev->umem->npages, &dev->umem->mm->pinned_vm);
+	mmdrop(dev->umem->mm);
+	vfree(dev->umem->pages);
+	kfree(dev->umem);
+	dev->umem = NULL;
+	ret = 0;
+unlock:
+	mutex_unlock(&dev->mem_lock);
+	return ret;
+}
+
+static int vduse_dev_reg_umem(struct vduse_dev *dev,
+			      u64 iova, u64 uaddr, u64 size)
+{
+	struct page **page_list = NULL;
+	struct vduse_umem *umem = NULL;
+	long pinned = 0;
+	unsigned long npages, lock_limit;
+	int ret;
+
+	if (!dev->domain->bounce_map ||
+	    size != dev->domain->bounce_size ||
+	    iova != 0 || uaddr & ~PAGE_MASK)
+		return -EINVAL;
+
+	mutex_lock(&dev->mem_lock);
+	ret = -EEXIST;
+	if (dev->umem)
+		goto unlock;
+
+	ret = -ENOMEM;
+	npages = size >> PAGE_SHIFT;
+	page_list = __vmalloc(array_size(npages, sizeof(struct page *)),
+			      GFP_KERNEL_ACCOUNT);
+	umem = kzalloc(sizeof(*umem), GFP_KERNEL);
+	if (!page_list || !umem)
+		goto unlock;
+
+	mmap_read_lock(current->mm);
+
+	lock_limit = PFN_DOWN(rlimit(RLIMIT_MEMLOCK));
+	if (npages + atomic64_read(&current->mm->pinned_vm) > lock_limit)
+		goto out;
+
+	pinned = pin_user_pages(uaddr, npages, FOLL_LONGTERM | FOLL_WRITE,
+				page_list, NULL);
+	if (pinned != npages) {
+		ret = pinned < 0 ? pinned : -ENOMEM;
+		goto out;
+	}
+
+	ret = vduse_domain_add_user_bounce_pages(dev->domain,
+						 page_list, pinned);
+	if (ret)
+		goto out;
+
+	atomic64_add(npages, &current->mm->pinned_vm);
+
+	umem->pages = page_list;
+	umem->npages = pinned;
+	umem->iova = iova;
+	umem->mm = current->mm;
+	mmgrab(current->mm);
+
+	dev->umem = umem;
+out:
+	if (ret && pinned > 0)
+		unpin_user_pages(page_list, pinned);
+
+	mmap_read_unlock(current->mm);
+unlock:
+	if (ret) {
+		vfree(page_list);
+		kfree(umem);
+	}
+	mutex_unlock(&dev->mem_lock);
+	return ret;
+}
+
 static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg)
 {
@@ -1089,6 +1201,77 @@ static long vduse_dev_ioctl(struct file *file, unsigned int cmd,
 		ret = vduse_dev_queue_irq_work(dev, &dev->vqs[index].inject);
 		break;
 	}
+	case VDUSE_IOTLB_REG_UMEM: {
+		struct vduse_iova_umem umem;
+
+		ret = -EFAULT;
+		if (copy_from_user(&umem, argp, sizeof(umem)))
+			break;
+
+		ret = -EINVAL;
+		if (!is_mem_zero((const char *)umem.reserved,
+				 sizeof(umem.reserved)))
+			break;
+
+		ret = vduse_dev_reg_umem(dev, umem.iova,
+					 umem.uaddr, umem.size);
+		break;
+	}
+	case VDUSE_IOTLB_DEREG_UMEM: {
+		struct vduse_iova_umem umem;
+
+		ret = -EFAULT;
+		if (copy_from_user(&umem, argp, sizeof(umem)))
+			break;
+
+		ret = -EINVAL;
+		if (!is_mem_zero((const char *)umem.reserved,
+				 sizeof(umem.reserved)))
+			break;
+
+		ret = vduse_dev_dereg_umem(dev, umem.iova,
+					   umem.size);
+		break;
+	}
+	case VDUSE_IOTLB_GET_INFO: {
+		struct vduse_iova_info info;
+		struct vhost_iotlb_map *map;
+		struct vduse_iova_domain *domain = dev->domain;
+
+		ret = -EFAULT;
+		if (copy_from_user(&info, argp, sizeof(info)))
+			break;
+
+		ret = -EINVAL;
+		if (info.start > info.last)
+			break;
+
+		if (!is_mem_zero((const char *)info.reserved,
+				 sizeof(info.reserved)))
+			break;
+
+		spin_lock(&domain->iotlb_lock);
+		map = vhost_iotlb_itree_first(domain->iotlb,
+					      info.start, info.last);
+		if (map) {
+			info.start = map->start;
+			info.last = map->last;
+			info.capability = 0;
+			if (domain->bounce_map && map->start == 0 &&
+			    map->last == domain->bounce_size - 1)
+				info.capability |= VDUSE_IOVA_CAP_UMEM;
+		}
+		spin_unlock(&domain->iotlb_lock);
+		if (!map)
+			break;
+
+		ret = -EFAULT;
+		if (copy_to_user(argp, &info, sizeof(info)))
+			break;
+
+		ret = 0;
+		break;
+	}
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1101,6 +1284,7 @@ static int vduse_dev_release(struct inode *inode, struct file *file)
 {
 	struct vduse_dev *dev = file->private_data;
 
+	vduse_dev_dereg_umem(dev, 0, dev->domain->bounce_size);
 	spin_lock(&dev->msg_lock);
 	/* Make sure the inflight messages can processed after reconncection */
 	list_splice_init(&dev->recv_list, &dev->send_list);
@@ -1163,6 +1347,7 @@ static struct vduse_dev *vduse_dev_create(void)
 		return NULL;
 
 	mutex_init(&dev->lock);
+	mutex_init(&dev->mem_lock);
 	spin_lock_init(&dev->msg_lock);
 	INIT_LIST_HEAD(&dev->send_list);
 	INIT_LIST_HEAD(&dev->recv_list);

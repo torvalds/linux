@@ -10,7 +10,7 @@
 #include <linux/cdev.h>
 #include <linux/dmi.h>
 #include <linux/firmware.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of_gpio.h>
@@ -160,8 +160,6 @@ static struct reg_default max98390_reg_defaults[] = {
 	{MAX98390_R23E1_DSP_GLOBAL_EN, 0x00},
 	{MAX98390_R23FF_GLOBAL_EN, 0x00},
 };
-
-static int max98390_dsm_calibrate(struct snd_soc_component *component);
 
 static int max98390_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
@@ -635,10 +633,48 @@ static int max98390_dsm_calib_get(struct snd_kcontrol *kcontrol,
 static int max98390_dsm_calib_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component =
-		snd_soc_kcontrol_component(kcontrol);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct max98390_priv *max98390 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	unsigned int rdc, rdc_cal_result, rdc_integer, rdc_factor, temp, val;
 
-	max98390_dsm_calibrate(component);
+	snd_soc_dapm_mutex_lock(dapm);
+
+	regmap_read(max98390->regmap, MAX98390_R23FF_GLOBAL_EN, &val);
+	if (!val) {
+		/* Enable the codec for the duration of calibration readout */
+		regmap_update_bits(max98390->regmap, MAX98390_R203A_AMP_EN,
+				   MAX98390_AMP_EN_MASK, 1);
+		regmap_update_bits(max98390->regmap, MAX98390_R23FF_GLOBAL_EN,
+				   MAX98390_GLOBAL_EN_MASK, 1);
+	}
+
+	regmap_read(max98390->regmap, THERMAL_RDC_RD_BACK_BYTE1, &rdc);
+	regmap_read(max98390->regmap, THERMAL_RDC_RD_BACK_BYTE0, &rdc_cal_result);
+	regmap_read(max98390->regmap, MAX98390_MEAS_ADC_CH2_READ, &temp);
+
+	if (!val) {
+		/* Disable the codec if it was disabled */
+		regmap_update_bits(max98390->regmap, MAX98390_R23FF_GLOBAL_EN,
+				   MAX98390_GLOBAL_EN_MASK, 0);
+		regmap_update_bits(max98390->regmap, MAX98390_R203A_AMP_EN,
+				   MAX98390_AMP_EN_MASK, 0);
+	}
+
+	snd_soc_dapm_mutex_unlock(dapm);
+
+	rdc_cal_result |= (rdc << 8) & 0x0000FFFF;
+	if (rdc_cal_result)
+		max98390->ref_rdc_value = 268435456U / rdc_cal_result;
+
+	max98390->ambient_temp_value = temp * 52 - 1188;
+
+	rdc_integer =  rdc_cal_result * 937  / 65536;
+	rdc_factor = ((rdc_cal_result * 937 * 100) / 65536) - (rdc_integer * 100);
+
+	dev_info(component->dev,
+		 "rdc resistance about %d.%02d ohm, reg=0x%X temp reg=0x%X\n",
+		 rdc_integer, rdc_factor, rdc_cal_result, temp);
 
 	return 0;
 }
@@ -819,40 +855,6 @@ err:
 	return ret;
 }
 
-static int max98390_dsm_calibrate(struct snd_soc_component *component)
-{
-	unsigned int rdc, rdc_cal_result, temp;
-	unsigned int rdc_integer, rdc_factor;
-	struct max98390_priv *max98390 =
-		snd_soc_component_get_drvdata(component);
-
-	regmap_write(max98390->regmap, MAX98390_R203A_AMP_EN, 0x81);
-	regmap_write(max98390->regmap, MAX98390_R23FF_GLOBAL_EN, 0x01);
-
-	regmap_read(max98390->regmap,
-		THERMAL_RDC_RD_BACK_BYTE1, &rdc);
-	regmap_read(max98390->regmap,
-		THERMAL_RDC_RD_BACK_BYTE0, &rdc_cal_result);
-	rdc_cal_result |= (rdc << 8) & 0x0000FFFF;
-	if (rdc_cal_result)
-		max98390->ref_rdc_value = 268435456U / rdc_cal_result;
-
-	regmap_read(max98390->regmap, MAX98390_MEAS_ADC_CH2_READ, &temp);
-	max98390->ambient_temp_value = temp * 52 - 1188;
-
-	rdc_integer =  rdc_cal_result * 937  / 65536;
-	rdc_factor = ((rdc_cal_result * 937 * 100) / 65536)
-					- (rdc_integer * 100);
-
-	dev_info(component->dev, "rdc resistance about %d.%02d ohm, reg=0x%X temp reg=0x%X\n",
-		 rdc_integer, rdc_factor, rdc_cal_result, temp);
-
-	regmap_write(max98390->regmap, MAX98390_R23FF_GLOBAL_EN, 0x00);
-	regmap_write(max98390->regmap, MAX98390_R203A_AMP_EN, 0x80);
-
-	return 0;
-}
-
 static void max98390_init_regs(struct snd_soc_component *component)
 {
 	struct max98390_priv *max98390 =
@@ -983,7 +985,6 @@ static const struct snd_soc_component_driver soc_codec_dev_max98390 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config max98390_regmap = {

@@ -57,10 +57,11 @@ void uv_query_info(void)
 }
 
 #if IS_ENABLED(CONFIG_KVM)
-void adjust_to_uv_max(unsigned long *vmax)
+unsigned long adjust_to_uv_max(unsigned long limit)
 {
 	if (is_prot_virt_host() && uv_info.max_sec_stor_addr)
-		*vmax = min_t(unsigned long, *vmax, uv_info.max_sec_stor_addr);
+		limit = min_t(unsigned long, limit, uv_info.max_sec_stor_addr);
+	return limit;
 }
 
 static int is_prot_virt_host_capable(void)

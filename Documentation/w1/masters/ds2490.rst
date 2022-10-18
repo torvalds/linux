@@ -52,7 +52,7 @@ Notes and limitations.
   clear the entire bulk in buffer.  It would be possible to read the
   maximum buffer size to not run into this error condition, only extra
   bytes in the buffer is a logic error in the driver.  The code should
-  should match reads and writes as well as data sizes.  Reads and
+  match reads and writes as well as data sizes.  Reads and
   writes are serialized and the status verifies that the chip is idle
   (and data is available) before the read is executed, so it should
   not happen.

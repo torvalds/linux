@@ -48,8 +48,8 @@ struct policy_unpack_fixture {
 	size_t e_size;
 };
 
-struct aa_ext *build_aa_ext_struct(struct policy_unpack_fixture *puf,
-				   struct kunit *test, size_t buf_size)
+static struct aa_ext *build_aa_ext_struct(struct policy_unpack_fixture *puf,
+					  struct kunit *test, size_t buf_size)
 {
 	char *buf;
 	struct aa_ext *e;
@@ -439,7 +439,7 @@ static void policy_unpack_test_unpack_u32_with_null_name(struct kunit *test)
 {
 	struct policy_unpack_fixture *puf = test->priv;
 	bool success;
-	u32 data;
+	u32 data = 0;
 
 	puf->e->pos += TEST_U32_BUF_OFFSET;
 
@@ -456,7 +456,7 @@ static void policy_unpack_test_unpack_u32_with_name(struct kunit *test)
 	struct policy_unpack_fixture *puf = test->priv;
 	const char name[] = TEST_U32_NAME;
 	bool success;
-	u32 data;
+	u32 data = 0;
 
 	puf->e->pos += TEST_NAMED_U32_BUF_OFFSET;
 
@@ -473,7 +473,7 @@ static void policy_unpack_test_unpack_u32_out_of_bounds(struct kunit *test)
 	struct policy_unpack_fixture *puf = test->priv;
 	const char name[] = TEST_U32_NAME;
 	bool success;
-	u32 data;
+	u32 data = 0;
 
 	puf->e->pos += TEST_NAMED_U32_BUF_OFFSET;
 	puf->e->end = puf->e->start + TEST_U32_BUF_OFFSET + sizeof(u32);
@@ -489,7 +489,7 @@ static void policy_unpack_test_unpack_u64_with_null_name(struct kunit *test)
 {
 	struct policy_unpack_fixture *puf = test->priv;
 	bool success;
-	u64 data;
+	u64 data = 0;
 
 	puf->e->pos += TEST_U64_BUF_OFFSET;
 
@@ -506,7 +506,7 @@ static void policy_unpack_test_unpack_u64_with_name(struct kunit *test)
 	struct policy_unpack_fixture *puf = test->priv;
 	const char name[] = TEST_U64_NAME;
 	bool success;
-	u64 data;
+	u64 data = 0;
 
 	puf->e->pos += TEST_NAMED_U64_BUF_OFFSET;
 
@@ -523,7 +523,7 @@ static void policy_unpack_test_unpack_u64_out_of_bounds(struct kunit *test)
 	struct policy_unpack_fixture *puf = test->priv;
 	const char name[] = TEST_U64_NAME;
 	bool success;
-	u64 data;
+	u64 data = 0;
 
 	puf->e->pos += TEST_NAMED_U64_BUF_OFFSET;
 	puf->e->end = puf->e->start + TEST_U64_BUF_OFFSET + sizeof(u64);

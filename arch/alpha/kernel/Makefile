@@ -9,7 +9,7 @@ ccflags-y	:= -Wno-sign-compare
 
 obj-y    := entry.o traps.o process.o osf_sys.o irq.o \
 	    irq_alpha.o signal.o setup.o ptrace.o time.o \
-	    systbls.o err_common.o io.o bugs.o
+	    systbls.o err_common.o io.o bugs.o termios.o
 
 obj-$(CONFIG_VGA_HOSE)	+= console.o
 obj-$(CONFIG_SMP)	+= smp.o
@@ -46,10 +46,6 @@ else
 
 # Misc support
 obj-$(CONFIG_ALPHA_SRM)		+= srmcons.o
-
-ifdef CONFIG_BINFMT_AOUT
-obj-y	+= binfmt_loader.o
-endif
 
 # Core logic support
 obj-$(CONFIG_ALPHA_APECS)	+= core_apecs.o

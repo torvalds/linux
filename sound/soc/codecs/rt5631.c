@@ -1666,7 +1666,6 @@ static const struct snd_soc_component_driver soc_component_dev_rt5631 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct i2c_device_id rt5631_i2c_id[] = {
@@ -1721,10 +1720,8 @@ static int rt5631_i2c_probe(struct i2c_client *i2c)
 	return ret;
 }
 
-static int rt5631_i2c_remove(struct i2c_client *client)
-{
-	return 0;
-}
+static void rt5631_i2c_remove(struct i2c_client *client)
+{}
 
 static struct i2c_driver rt5631_i2c_driver = {
 	.driver = {

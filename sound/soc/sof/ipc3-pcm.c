@@ -115,6 +115,9 @@ static int sof_ipc3_pcm_hw_params(struct snd_soc_component *component,
 			pcm.params.no_stream_position = 1;
 	}
 
+	if (platform_params->cont_update_posn)
+		pcm.params.cont_update_posn = 1;
+
 	dev_dbg(component->dev, "stream_tag %d", pcm.params.stream_tag);
 
 	/* send hw_params IPC to the DSP */
@@ -343,11 +346,20 @@ static int sof_ipc3_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 		dev_dbg(component->dev, "AMD_SP channels_min: %d channels_max: %d\n",
 			channels->min, channels->max);
 		break;
+	case SOF_DAI_AMD_HS:
+		rate->min = private->dai_config->acphs.fsync_rate;
+		rate->max = private->dai_config->acphs.fsync_rate;
+		channels->min = private->dai_config->acphs.tdm_slots;
+		channels->max = private->dai_config->acphs.tdm_slots;
+
+		dev_dbg(component->dev,
+			"AMD_HS channel_max: %d rate_max: %d\n", channels->max, rate->max);
+		break;
 	case SOF_DAI_AMD_DMIC:
-		rate->min = private->dai_config->acpdmic.fsync_rate;
-		rate->max = private->dai_config->acpdmic.fsync_rate;
-		channels->min = private->dai_config->acpdmic.tdm_slots;
-		channels->max = private->dai_config->acpdmic.tdm_slots;
+		rate->min = private->dai_config->acpdmic.pdm_rate;
+		rate->max = private->dai_config->acpdmic.pdm_rate;
+		channels->min = private->dai_config->acpdmic.pdm_ch;
+		channels->max = private->dai_config->acpdmic.pdm_ch;
 
 		dev_dbg(component->dev,
 			"AMD_DMIC rate_min: %d rate_max: %d\n", rate->min, rate->max);

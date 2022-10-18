@@ -36,11 +36,11 @@
 };
 
 &ethsc {
-	interrupts = <0 8>;
+	interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 };
 
 &serialsc {
-	interrupts = <0 8>;
+	interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
 };
 
 &serial0 {
@@ -56,7 +56,7 @@
 };
 
 &gpio {
-	xirq0 {
+	xirq0-hog {
 		gpio-hog;
 		gpios = <UNIPHIER_GPIO_IRQ(0) 0>;
 		input;

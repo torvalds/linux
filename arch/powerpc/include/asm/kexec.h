@@ -3,7 +3,7 @@
 #define _ASM_POWERPC_KEXEC_H
 #ifdef __KERNEL__
 
-#if defined(CONFIG_FSL_BOOKE) || defined(CONFIG_44x)
+#if defined(CONFIG_PPC_85xx) || defined(CONFIG_44x)
 
 /*
  * On FSL-BookE we setup a 1:1 mapping which covers the first 2GiB of memory
@@ -83,6 +83,7 @@ extern void default_machine_crash_shutdown(struct pt_regs *regs);
 extern int crash_shutdown_register(crash_shutdown_t handler);
 extern int crash_shutdown_unregister(crash_shutdown_t handler);
 
+extern void crash_kexec_prepare(void);
 extern void crash_kexec_secondary(struct pt_regs *regs);
 int __init overlaps_crashkernel(unsigned long start, unsigned long size);
 extern void reserve_crashkernel(void);

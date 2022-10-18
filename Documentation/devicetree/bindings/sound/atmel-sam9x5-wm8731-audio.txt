@@ -16,7 +16,7 @@ Board connectors:
  * Line In Jack
 
 wm8731 pins:
-cf Documentation/devicetree/bindings/sound/wm8731.txt
+cf Documentation/devicetree/bindings/sound/wlf,wm8731.yaml
 
 Example:
 sound {

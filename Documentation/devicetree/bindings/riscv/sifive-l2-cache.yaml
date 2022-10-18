@@ -17,9 +17,6 @@ description:
   acts as directory-based coherency manager.
   All the properties in ePAPR/DeviceTree specification applies for this platform.
 
-allOf:
-  - $ref: /schemas/cache-controller.yaml#
-
 select:
   properties:
     compatible:
@@ -33,11 +30,16 @@ select:
 
 properties:
   compatible:
-    items:
-      - enum:
-          - sifive,fu540-c000-ccache
-          - sifive,fu740-c000-ccache
-      - const: cache
+    oneOf:
+      - items:
+          - enum:
+              - sifive,fu540-c000-ccache
+              - sifive,fu740-c000-ccache
+          - const: cache
+      - items:
+          - const: microchip,mpfs-ccache
+          - const: sifive,fu540-c000-ccache
+          - const: cache
 
   cache-block-size:
     const: 64
@@ -46,7 +48,7 @@ properties:
     const: 2
 
   cache-sets:
-    const: 1024
+    enum: [1024, 2048]
 
   cache-size:
     const: 2097152
@@ -72,25 +74,46 @@ properties:
       The reference to the reserved-memory for the L2 Loosely Integrated Memory region.
       The reserved memory node should be defined as per the bindings in reserved-memory.txt.
 
-if:
-  properties:
-    compatible:
-      contains:
-        const: sifive,fu540-c000-ccache
+allOf:
+  - $ref: /schemas/cache-controller.yaml#
 
-then:
-  properties:
-    interrupts:
-      description: |
-        Must contain entries for DirError, DataError and DataFail signals.
-      maxItems: 3
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - sifive,fu740-c000-ccache
+              - microchip,mpfs-ccache
 
-else:
-  properties:
-    interrupts:
-      description: |
-        Must contain entries for DirError, DataError, DataFail, DirFail signals.
-      minItems: 4
+    then:
+      properties:
+        interrupts:
+          description: |
+            Must contain entries for DirError, DataError, DataFail, DirFail signals.
+          minItems: 4
+
+    else:
+      properties:
+        interrupts:
+          description: |
+            Must contain entries for DirError, DataError and DataFail signals.
+          maxItems: 3
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: sifive,fu740-c000-ccache
+
+    then:
+      properties:
+        cache-sets:
+          const: 2048
+
+    else:
+      properties:
+        cache-sets:
+          const: 1024
 
 additionalProperties: false
 

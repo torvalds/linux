@@ -33,11 +33,9 @@ static int fxas21002c_i2c_probe(struct i2c_client *i2c)
 	return fxas21002c_core_probe(&i2c->dev, regmap, i2c->irq, i2c->name);
 }
 
-static int fxas21002c_i2c_remove(struct i2c_client *i2c)
+static void fxas21002c_i2c_remove(struct i2c_client *i2c)
 {
 	fxas21002c_core_remove(&i2c->dev);
-
-	return 0;
 }
 
 static const struct i2c_device_id fxas21002c_i2c_id[] = {

@@ -1536,7 +1536,6 @@ static const struct snd_soc_component_driver sgtl5000_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config sgtl5000_regmap = {
@@ -1791,7 +1790,7 @@ disable_regs:
 	return ret;
 }
 
-static int sgtl5000_i2c_remove(struct i2c_client *client)
+static void sgtl5000_i2c_remove(struct i2c_client *client)
 {
 	struct sgtl5000_priv *sgtl5000 = i2c_get_clientdata(client);
 
@@ -1801,8 +1800,6 @@ static int sgtl5000_i2c_remove(struct i2c_client *client)
 	clk_disable_unprepare(sgtl5000->mclk);
 	regulator_bulk_disable(sgtl5000->num_supplies, sgtl5000->supplies);
 	regulator_bulk_free(sgtl5000->num_supplies, sgtl5000->supplies);
-
-	return 0;
 }
 
 static void sgtl5000_i2c_shutdown(struct i2c_client *client)

@@ -2030,7 +2030,7 @@ pl011_setup_status_masks(struct uart_port *port, struct ktermios *termios)
 
 static void
 pl011_set_termios(struct uart_port *port, struct ktermios *termios,
-		     struct ktermios *old)
+		  const struct ktermios *old)
 {
 	struct uart_amba_port *uap =
 	    container_of(port, struct uart_amba_port, port);
@@ -2162,7 +2162,7 @@ pl011_set_termios(struct uart_port *port, struct ktermios *termios,
 
 static void
 sbsa_uart_set_termios(struct uart_port *port, struct ktermios *termios,
-		      struct ktermios *old)
+		      const struct ktermios *old)
 {
 	struct uart_amba_port *uap =
 	    container_of(port, struct uart_amba_port, port);
@@ -2214,7 +2214,7 @@ static int pl011_verify_port(struct uart_port *port, struct serial_struct *ser)
 	return ret;
 }
 
-static int pl011_rs485_config(struct uart_port *port,
+static int pl011_rs485_config(struct uart_port *port, struct ktermios *termios,
 			      struct serial_rs485 *rs485)
 {
 	struct uart_amba_port *uap =
@@ -2700,16 +2700,11 @@ static int pl011_find_free_port(void)
 static int pl011_get_rs485_mode(struct uart_amba_port *uap)
 {
 	struct uart_port *port = &uap->port;
-	struct serial_rs485 *rs485 = &port->rs485;
 	int ret;
 
 	ret = uart_get_rs485_mode(port);
 	if (ret)
 		return ret;
-
-	/* clamp the delays to [0, 100ms] */
-	rs485->delay_rts_before_send = min(rs485->delay_rts_before_send, 100U);
-	rs485->delay_rts_after_send = min(rs485->delay_rts_after_send, 100U);
 
 	return 0;
 }
@@ -2770,11 +2765,19 @@ static int pl011_register_port(struct uart_amba_port *uap)
 	return ret;
 }
 
+static const struct serial_rs485 pl011_rs485_supported = {
+	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND | SER_RS485_RTS_AFTER_SEND |
+		 SER_RS485_RX_DURING_TX,
+	.delay_rts_before_send = 1,
+	.delay_rts_after_send = 1,
+};
+
 static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 {
 	struct uart_amba_port *uap;
 	struct vendor_data *vendor = id->data;
 	int portnr, ret;
+	u32 val;
 
 	portnr = pl011_find_free_port();
 	if (portnr < 0)
@@ -2796,7 +2799,23 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 	uap->port.irq = dev->irq[0];
 	uap->port.ops = &amba_pl011_pops;
 	uap->port.rs485_config = pl011_rs485_config;
+	uap->port.rs485_supported = pl011_rs485_supported;
 	snprintf(uap->type, sizeof(uap->type), "PL011 rev%u", amba_rev(dev));
+
+	if (device_property_read_u32(&dev->dev, "reg-io-width", &val) == 0) {
+		switch (val) {
+		case 1:
+			uap->port.iotype = UPIO_MEM;
+			break;
+		case 4:
+			uap->port.iotype = UPIO_MEM32;
+			break;
+		default:
+			dev_warn(&dev->dev, "unsupported reg-io-width (%d)\n",
+				 val);
+			return -EINVAL;
+		}
+	}
 
 	ret = pl011_setup_port(&dev->dev, uap, &dev->res, portnr);
 	if (ret)

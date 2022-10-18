@@ -129,15 +129,15 @@ static void dsi_20nm_phy_disable(struct msm_dsi_phy *phy)
 	dsi_20nm_phy_regulator_ctrl(phy, false);
 }
 
+static const struct regulator_bulk_data dsi_phy_20nm_regulators[] = {
+	{ .supply = "vddio", .init_load_uA = 100000 },	/* 1.8 V */
+	{ .supply = "vcca", .init_load_uA = 10000 },	/* 1.0 V */
+};
+
 const struct msm_dsi_phy_cfg dsi_phy_20nm_cfgs = {
 	.has_phy_regulator = true,
-	.reg_cfg = {
-		.num = 2,
-		.regs = {
-			{"vddio", 100000, 100},	/* 1.8 V */
-			{"vcca", 10000, 100},	/* 1.0 V */
-		},
-	},
+	.regulator_data = dsi_phy_20nm_regulators,
+	.num_regulators = ARRAY_SIZE(dsi_phy_20nm_regulators),
 	.ops = {
 		.enable = dsi_20nm_phy_enable,
 		.disable = dsi_20nm_phy_disable,

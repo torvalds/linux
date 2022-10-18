@@ -216,6 +216,7 @@ enum node_stat_item {
 	NR_KERNEL_SCS_KB,	/* measured in KiB */
 #endif
 	NR_PAGETABLE,		/* used for pagetables */
+	NR_SECONDARY_PAGETABLE, /* secondary pagetables, e.g. KVM pagetables */
 #ifdef CONFIG_SWAP
 	NR_SWAPCACHE,
 #endif

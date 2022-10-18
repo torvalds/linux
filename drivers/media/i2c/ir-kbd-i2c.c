@@ -915,7 +915,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	return err;
 }
 
-static int ir_remove(struct i2c_client *client)
+static void ir_remove(struct i2c_client *client)
 {
 	struct IR_i2c *ir = i2c_get_clientdata(client);
 
@@ -924,8 +924,6 @@ static int ir_remove(struct i2c_client *client)
 	i2c_unregister_device(ir->tx_c);
 
 	rc_unregister_device(ir->rc);
-
-	return 0;
 }
 
 static const struct i2c_device_id ir_kbd_id[] = {

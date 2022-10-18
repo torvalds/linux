@@ -18,11 +18,11 @@ void dump_tlb_regs(void)
 {
 	const int field = 2 * sizeof(unsigned long);
 
-	pr_info("Index    : %0x\n", read_csr_tlbidx());
-	pr_info("PageSize : %0x\n", read_csr_pagesize());
-	pr_info("EntryHi  : %0*llx\n", field, read_csr_entryhi());
-	pr_info("EntryLo0 : %0*llx\n", field, read_csr_entrylo0());
-	pr_info("EntryLo1 : %0*llx\n", field, read_csr_entrylo1());
+	pr_info("Index    : 0x%0x\n", read_csr_tlbidx());
+	pr_info("PageSize : 0x%0x\n", read_csr_pagesize());
+	pr_info("EntryHi  : 0x%0*llx\n", field, read_csr_entryhi());
+	pr_info("EntryLo0 : 0x%0*llx\n", field, read_csr_entrylo0());
+	pr_info("EntryLo1 : 0x%0*llx\n", field, read_csr_entrylo1());
 }
 
 static void dump_tlb(int first, int last)
@@ -33,8 +33,8 @@ static void dump_tlb(int first, int last)
 	unsigned int s_index, s_asid;
 	unsigned int pagesize, c0, c1, i;
 	unsigned long asidmask = cpu_asid_mask(&current_cpu_data);
-	int pwidth = 11;
-	int vwidth = 11;
+	int pwidth = 16;
+	int vwidth = 16;
 	int asidwidth = DIV_ROUND_UP(ilog2(asidmask) + 1, 4);
 
 	s_entryhi = read_csr_entryhi();
@@ -64,22 +64,22 @@ static void dump_tlb(int first, int last)
 		/*
 		 * Only print entries in use
 		 */
-		pr_info("Index: %2d pgsize=%x ", i, (1 << pagesize));
+		pr_info("Index: %4d pgsize=0x%x ", i, (1 << pagesize));
 
 		c0 = (entrylo0 & ENTRYLO_C) >> ENTRYLO_C_SHIFT;
 		c1 = (entrylo1 & ENTRYLO_C) >> ENTRYLO_C_SHIFT;
 
-		pr_cont("va=%0*lx asid=%0*lx",
+		pr_cont("va=0x%0*lx asid=0x%0*lx",
 			vwidth, (entryhi & ~0x1fffUL), asidwidth, asid & asidmask);
 
 		/* NR/NX are in awkward places, so mask them off separately */
 		pa = entrylo0 & ~(ENTRYLO_NR | ENTRYLO_NX);
 		pa = pa & PAGE_MASK;
 		pr_cont("\n\t[");
-		pr_cont("ri=%d xi=%d ",
+		pr_cont("nr=%d nx=%d ",
 			(entrylo0 & ENTRYLO_NR) ? 1 : 0,
 			(entrylo0 & ENTRYLO_NX) ? 1 : 0);
-		pr_cont("pa=%0*llx c=%d d=%d v=%d g=%d plv=%lld] [",
+		pr_cont("pa=0x%0*llx c=%d d=%d v=%d g=%d plv=%lld] [",
 			pwidth, pa, c0,
 			(entrylo0 & ENTRYLO_D) ? 1 : 0,
 			(entrylo0 & ENTRYLO_V) ? 1 : 0,
@@ -88,10 +88,10 @@ static void dump_tlb(int first, int last)
 		/* NR/NX are in awkward places, so mask them off separately */
 		pa = entrylo1 & ~(ENTRYLO_NR | ENTRYLO_NX);
 		pa = pa & PAGE_MASK;
-		pr_cont("ri=%d xi=%d ",
+		pr_cont("nr=%d nx=%d ",
 			(entrylo1 & ENTRYLO_NR) ? 1 : 0,
 			(entrylo1 & ENTRYLO_NX) ? 1 : 0);
-		pr_cont("pa=%0*llx c=%d d=%d v=%d g=%d plv=%lld]\n",
+		pr_cont("pa=0x%0*llx c=%d d=%d v=%d g=%d plv=%lld]\n",
 			pwidth, pa, c1,
 			(entrylo1 & ENTRYLO_D) ? 1 : 0,
 			(entrylo1 & ENTRYLO_V) ? 1 : 0,

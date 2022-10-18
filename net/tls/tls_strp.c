@@ -41,7 +41,7 @@ static struct sk_buff *tls_strp_msg_make_copy(struct tls_strparser *strp)
 	struct sk_buff *skb;
 	int i, err, offset;
 
-	skb = alloc_skb_with_frags(0, strp->anchor->len, TLS_PAGE_ORDER,
+	skb = alloc_skb_with_frags(0, strp->stm.full_len, TLS_PAGE_ORDER,
 				   &err, strp->sk->sk_allocation);
 	if (!skb)
 		return NULL;

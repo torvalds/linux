@@ -385,6 +385,14 @@ struct sof_ipc4_fw_version {
 	uint16_t build;
 } __packed;
 
+/* Payload data for SOF_IPC4_MOD_SET_DX */
+struct sof_ipc4_dx_state_info {
+	/* core(s) to apply the change */
+	uint32_t core_mask;
+	/* core state: 0: put core_id to D3; 1: put core_id to D0 */
+	uint32_t dx_mask;
+} __packed __aligned(4);
+
 /* Reply messages */
 
 /*
@@ -418,6 +426,11 @@ struct sof_ipc4_fw_version {
 #define SOF_IPC4_NOTIFICATION_TYPE_MASK		GENMASK(23, 16)
 #define SOF_IPC4_NOTIFICATION_TYPE_GET(x)	(((x) & SOF_IPC4_NOTIFICATION_TYPE_MASK) >> \
 						 SOF_IPC4_NOTIFICATION_TYPE_SHIFT)
+
+#define SOF_IPC4_LOG_CORE_SHIFT			12
+#define SOF_IPC4_LOG_CORE_MASK			GENMASK(15, 12)
+#define SOF_IPC4_LOG_CORE_GET(x)		(((x) & SOF_IPC4_LOG_CORE_MASK) >> \
+						 SOF_IPC4_LOG_CORE_SHIFT)
 
 /* Value of notification type field - must fit into 8 bits */
 enum sof_ipc4_notification_type {

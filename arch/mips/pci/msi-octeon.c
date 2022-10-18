@@ -46,16 +46,17 @@ static DEFINE_SPINLOCK(msi_free_irq_bitmask_lock);
 static int msi_irq_size;
 
 /**
- * Called when a driver request MSI interrupts instead of the
+ * arch_setup_msi_irq() - setup MSI IRQs for a device
+ * @dev:    Device requesting MSI interrupts
+ * @desc:   MSI descriptor
+ *
+ * Called when a driver requests MSI interrupts instead of the
  * legacy INT A-D. This routine will allocate multiple interrupts
  * for MSI devices that support them. A device can override this by
  * programming the MSI control bits [6:4] before calling
  * pci_enable_msi().
  *
- * @dev:    Device requesting MSI interrupts
- * @desc:   MSI descriptor
- *
- * Returns 0 on success.
+ * Return: %0 on success, non-%0 on error.
  */
 int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
 {
@@ -186,10 +187,11 @@ msi_irq_allocated:
 }
 
 /**
+ * arch_teardown_msi_irq() - release MSI IRQs for a device
+ * @irq:    The devices first irq number. There may be multiple in sequence.
+ *
  * Called when a device no longer needs its MSI interrupts. All
  * MSI interrupts for the device are freed.
- *
- * @irq:    The devices first irq number. There may be multple in sequence.
  */
 void arch_teardown_msi_irq(unsigned int irq)
 {

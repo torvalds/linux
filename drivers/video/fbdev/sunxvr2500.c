@@ -5,6 +5,7 @@
  * Copyright (C) 2007 David S. Miller (davem@davemloft.net)
  */
 
+#include <linux/aperture.h>
 #include <linux/kernel.h>
 #include <linux/fb.h>
 #include <linux/pci.h>
@@ -84,7 +85,7 @@ static int s3d_set_fbinfo(struct s3d_info *sp)
 	info->pseudo_palette = sp->pseudo_palette;
 
 	/* Fill fix common fields */
-	strlcpy(info->fix.id, "s3d", sizeof(info->fix.id));
+	strscpy(info->fix.id, "s3d", sizeof(info->fix.id));
         info->fix.smem_start = sp->fb_base_phys;
         info->fix.smem_len = sp->fb_size;
         info->fix.type = FB_TYPE_PACKED_PIXELS;
@@ -122,6 +123,10 @@ static int s3d_pci_register(struct pci_dev *pdev,
 	struct fb_info *info;
 	struct s3d_info *sp;
 	int err;
+
+	err = aperture_remove_conflicting_pci_devices(pdev, "s3dfb");
+	if (err)
+		return err;
 
 	err = pci_enable_device(pdev);
 	if (err < 0) {

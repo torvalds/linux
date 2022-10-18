@@ -11,7 +11,7 @@ allOf:
   - $ref: "ethernet-controller.yaml#"
 
 maintainers:
-  - Dan Murphy <dmurphy@ti.com>
+  - Andrew Davis <afd@ti.com>
 
 description: |
   The DP83867 device is a robust, low power, fully featured Physical Layer

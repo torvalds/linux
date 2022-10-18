@@ -149,6 +149,7 @@ config ARM64
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_BITREVERSE
 	select HAVE_ARCH_COMPILER_H
+	select HAVE_ARCH_HUGE_VMALLOC
 	select HAVE_ARCH_HUGE_VMAP
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_JUMP_LABEL_RELATIVE
@@ -194,7 +195,6 @@ config ARM64
 	select HAVE_IRQ_TIME_ACCOUNTING
 	select HAVE_KVM
 	select HAVE_NMI
-	select HAVE_PATA_PLATFORM
 	select HAVE_PERF_EVENTS
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
@@ -230,6 +230,7 @@ config ARM64
 	select HAVE_ARCH_USERFAULTFD_MINOR if USERFAULTFD
 	select TRACE_IRQFLAGS_SUPPORT
 	select TRACE_IRQFLAGS_NMI_SUPPORT
+	select HAVE_SOFTIRQ_ON_OWN_STACK
 	help
 	  ARM 64-bit (AArch64) Linux support.
 
@@ -733,6 +734,19 @@ config ARM64_ERRATUM_2077057
 
 	  If unsure, say Y.
 
+config ARM64_ERRATUM_2658417
+	bool "Cortex-A510: 2658417: remove BF16 support due to incorrect result"
+	default y
+	help
+	  This option adds the workaround for ARM Cortex-A510 erratum 2658417.
+	  Affected Cortex-A510 (r0p0 to r1p1) may produce the wrong result for
+	  BFMMLA or VMMLA instructions in rare circumstances when a pair of
+	  A510 CPUs are using shared neon hardware. As the sharing is not
+	  discoverable by the kernel, hide the BF16 HWCAP to indicate that
+	  user-space should not be using these instructions.
+
+	  If unsure, say Y.
+
 config ARM64_ERRATUM_2119858
 	bool "Cortex-A710/X2: 2119858: workaround TRBE overwriting trace data in FILL mode"
 	default y
@@ -914,6 +928,23 @@ config ARM64_ERRATUM_1902691
 	  affected cpus. The firmware must have disabled the access to TRBE for the kernel
 	  on such implementations. This will cover the kernel for any firmware that doesn't
 	  do this already.
+
+	  If unsure, say Y.
+
+config ARM64_ERRATUM_2457168
+	bool "Cortex-A510: 2457168: workaround for AMEVCNTR01 incrementing incorrectly"
+	depends on ARM64_AMU_EXTN
+	default y
+	help
+	  This option adds the workaround for ARM Cortex-A510 erratum 2457168.
+
+	  The AMU counter AMEVCNTR01 (constant counter) should increment at the same rate
+	  as the system counter. On affected Cortex-A510 cores AMEVCNTR01 increments
+	  incorrectly giving a significantly higher output value.
+
+	  Work around this problem by returning 0 when reading the affected counter in
+	  key locations that results in disabling all users of this counter. This effect
+	  is the same to firmware disabling affected counters.
 
 	  If unsure, say Y.
 
@@ -1545,6 +1576,9 @@ config THUMB2_COMPAT_VDSO
 	  Compile the compat vDSO with '-mthumb -fomit-frame-pointer' if y,
 	  otherwise with '-marm'.
 
+config COMPAT_ALIGNMENT_FIXUPS
+	bool "Fix up misaligned multi-word loads and stores in user space"
+
 menuconfig ARMV8_DEPRECATED
 	bool "Emulate deprecated/obsolete ARMv8 instructions"
 	depends on SYSCTL
@@ -1870,6 +1904,8 @@ config ARM64_BTI_KERNEL
 	depends on CC_HAS_BRANCH_PROT_PAC_RET_BTI
 	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=94697
 	depends on !CC_IS_GCC || GCC_VERSION >= 100100
+	# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=106671
+	depends on !CC_IS_GCC
 	# https://github.com/llvm/llvm-project/commit/a88c722e687e6780dcd6a58718350dc76fcc4cc9
 	depends on !CC_IS_CLANG || CLANG_VERSION >= 120000
 	depends on (!FUNCTION_GRAPH_TRACER || DYNAMIC_FTRACE_WITH_REGS)

@@ -590,7 +590,19 @@ static struct sdw_slave_ops rt1316_slave_ops = {
 	.update_status = rt1316_update_status,
 };
 
+static int rt1316_sdw_component_probe(struct snd_soc_component *component)
+{
+	int ret;
+
+	ret = pm_runtime_resume(component->dev);
+	if (ret < 0 && ret != -EACCES)
+		return ret;
+
+	return 0;
+}
+
 static const struct snd_soc_component_driver soc_component_sdw_rt1316 = {
+	.probe = rt1316_sdw_component_probe,
 	.controls = rt1316_snd_controls,
 	.num_controls = ARRAY_SIZE(rt1316_snd_controls),
 	.dapm_widgets = rt1316_dapm_widgets,
@@ -722,6 +734,8 @@ static int __maybe_unused rt1316_dev_resume(struct device *dev)
 				msecs_to_jiffies(RT1316_PROBE_TIMEOUT));
 	if (!time) {
 		dev_err(&slave->dev, "Initialization not complete, timed out\n");
+		sdw_show_ping_status(slave->bus, true);
+
 		return -ETIMEDOUT;
 	}
 

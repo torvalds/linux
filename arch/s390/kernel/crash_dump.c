@@ -21,6 +21,7 @@
 #include <asm/elf.h>
 #include <asm/ipl.h>
 #include <asm/sclp.h>
+#include <asm/maccess.h>
 
 #define PTR_ADD(x, y) (((char *) (x)) + ((unsigned long) (y)))
 #define PTR_SUB(x, y) (((char *) (x)) - ((unsigned long) (y)))
@@ -63,7 +64,7 @@ struct save_area * __init save_area_alloc(bool is_boot_cpu)
 
 	sa = memblock_alloc(sizeof(*sa), 8);
 	if (!sa)
-		panic("Failed to allocate save area\n");
+		return NULL;
 
 	if (is_boot_cpu)
 		list_add(&sa->list, &dump_save_areas);
@@ -114,99 +115,47 @@ void __init save_area_add_vxrs(struct save_area *sa, __vector128 *vxrs)
 	memcpy(sa->vxrs_high, vxrs + 16, 16 * sizeof(__vector128));
 }
 
-/*
- * Return physical address for virtual address
- */
-static inline void *load_real_addr(void *addr)
+static size_t copy_oldmem_iter(struct iov_iter *iter, unsigned long src, size_t count)
 {
-	unsigned long real_addr;
+	size_t len, copied, res = 0;
 
-	asm volatile(
-		   "	lra     %0,0(%1)\n"
-		   "	jz	0f\n"
-		   "	la	%0,0\n"
-		   "0:"
-		   : "=a" (real_addr) : "a" (addr) : "cc");
-	return (void *)real_addr;
+	while (count) {
+		if (!oldmem_data.start && src < sclp.hsa_size) {
+			/* Copy from zfcp/nvme dump HSA area */
+			len = min(count, sclp.hsa_size - src);
+			copied = memcpy_hsa_iter(iter, src, len);
+		} else {
+			/* Check for swapped kdump oldmem areas */
+			if (oldmem_data.start && src - oldmem_data.start < oldmem_data.size) {
+				src -= oldmem_data.start;
+				len = min(count, oldmem_data.size - src);
+			} else if (oldmem_data.start && src < oldmem_data.size) {
+				len = min(count, oldmem_data.size - src);
+				src += oldmem_data.start;
+			} else {
+				len = count;
+			}
+			copied = memcpy_real_iter(iter, src, len);
+		}
+		count -= copied;
+		src += copied;
+		res += copied;
+		if (copied < len)
+			break;
+	}
+	return res;
 }
 
-/*
- * Copy memory of the old, dumped system to a kernel space virtual address
- */
 int copy_oldmem_kernel(void *dst, unsigned long src, size_t count)
 {
-	unsigned long len;
-	void *ra;
-	int rc;
+	struct iov_iter iter;
+	struct kvec kvec;
 
-	while (count) {
-		if (!oldmem_data.start && src < sclp.hsa_size) {
-			/* Copy from zfcp/nvme dump HSA area */
-			len = min(count, sclp.hsa_size - src);
-			rc = memcpy_hsa_kernel(dst, src, len);
-			if (rc)
-				return rc;
-		} else {
-			/* Check for swapped kdump oldmem areas */
-			if (oldmem_data.start && src - oldmem_data.start < oldmem_data.size) {
-				src -= oldmem_data.start;
-				len = min(count, oldmem_data.size - src);
-			} else if (oldmem_data.start && src < oldmem_data.size) {
-				len = min(count, oldmem_data.size - src);
-				src += oldmem_data.start;
-			} else {
-				len = count;
-			}
-			if (is_vmalloc_or_module_addr(dst)) {
-				ra = load_real_addr(dst);
-				len = min(PAGE_SIZE - offset_in_page(ra), len);
-			} else {
-				ra = dst;
-			}
-			if (memcpy_real(ra, src, len))
-				return -EFAULT;
-		}
-		dst += len;
-		src += len;
-		count -= len;
-	}
-	return 0;
-}
-
-/*
- * Copy memory of the old, dumped system to a user space virtual address
- */
-static int copy_oldmem_user(void __user *dst, unsigned long src, size_t count)
-{
-	unsigned long len;
-	int rc;
-
-	while (count) {
-		if (!oldmem_data.start && src < sclp.hsa_size) {
-			/* Copy from zfcp/nvme dump HSA area */
-			len = min(count, sclp.hsa_size - src);
-			rc = memcpy_hsa_user(dst, src, len);
-			if (rc)
-				return rc;
-		} else {
-			/* Check for swapped kdump oldmem areas */
-			if (oldmem_data.start && src - oldmem_data.start < oldmem_data.size) {
-				src -= oldmem_data.start;
-				len = min(count, oldmem_data.size - src);
-			} else if (oldmem_data.start && src < oldmem_data.size) {
-				len = min(count, oldmem_data.size - src);
-				src += oldmem_data.start;
-			} else {
-				len = count;
-			}
-			rc = copy_to_user_real(dst, src, count);
-			if (rc)
-				return rc;
-		}
-		dst += len;
-		src += len;
-		count -= len;
-	}
+	kvec.iov_base = dst;
+	kvec.iov_len = count;
+	iov_iter_kvec(&iter, WRITE, &kvec, 1, count);
+	if (copy_oldmem_iter(&iter, src, count) < count)
+		return -EFAULT;
 	return 0;
 }
 
@@ -217,26 +166,9 @@ ssize_t copy_oldmem_page(struct iov_iter *iter, unsigned long pfn, size_t csize,
 			 unsigned long offset)
 {
 	unsigned long src;
-	int rc;
 
-	if (!(iter_is_iovec(iter) || iov_iter_is_kvec(iter)))
-		return -EINVAL;
-	/* Multi-segment iterators are not supported */
-	if (iter->nr_segs > 1)
-		return -EINVAL;
-	if (!csize)
-		return 0;
 	src = pfn_to_phys(pfn) + offset;
-
-	/* XXX: pass the iov_iter down to a common function */
-	if (iter_is_iovec(iter))
-		rc = copy_oldmem_user(iter->iov->iov_base, src, csize);
-	else
-		rc = copy_oldmem_kernel(iter->kvec->iov_base, src, csize);
-	if (rc < 0)
-		return rc;
-	iov_iter_advance(iter, csize);
-	return csize;
+	return copy_oldmem_iter(iter, src, csize);
 }
 
 /*

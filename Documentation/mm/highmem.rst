@@ -60,16 +60,39 @@ list shows them in order of preference of use.
   This function should be preferred, where feasible, over all the others.
 
   These mappings are thread-local and CPU-local, meaning that the mapping
-  can only be accessed from within this thread and the thread is bound the
-  CPU while the mapping is active. Even if the thread is preempted (since
-  preemption is never disabled by the function) the CPU can not be
-  unplugged from the system via CPU-hotplug until the mapping is disposed.
+  can only be accessed from within this thread and the thread is bound to the
+  CPU while the mapping is active. Although preemption is never disabled by
+  this function, the CPU can not be unplugged from the system via
+  CPU-hotplug until the mapping is disposed.
 
   It's valid to take pagefaults in a local kmap region, unless the context
   in which the local mapping is acquired does not allow it for other reasons.
 
+  As said, pagefaults and preemption are never disabled. There is no need to
+  disable preemption because, when context switches to a different task, the
+  maps of the outgoing task are saved and those of the incoming one are
+  restored.
+
   kmap_local_page() always returns a valid virtual address and it is assumed
   that kunmap_local() will never fail.
+
+  On CONFIG_HIGHMEM=n kernels and for low memory pages this returns the
+  virtual address of the direct mapping. Only real highmem pages are
+  temporarily mapped. Therefore, users may call a plain page_address()
+  for pages which are known to not come from ZONE_HIGHMEM. However, it is
+  always safe to use kmap_local_page() / kunmap_local().
+
+  While it is significantly faster than kmap(), for the higmem case it
+  comes with restrictions about the pointers validity. Contrary to kmap()
+  mappings, the local mappings are only valid in the context of the caller
+  and cannot be handed to other contexts. This implies that users must
+  be absolutely sure to keep the use of the return address local to the
+  thread which mapped it.
+
+  Most code can be designed to use thread local mappings. User should
+  therefore try to design their code to avoid the use of kmap() by mapping
+  pages in the same thread the address will be used and prefer
+  kmap_local_page().
 
   Nesting kmap_local_page() and kmap_atomic() mappings is allowed to a certain
   extent (up to KMAP_TYPE_NR) but their invocations have to be strictly ordered

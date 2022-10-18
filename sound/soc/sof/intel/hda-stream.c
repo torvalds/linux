@@ -19,6 +19,7 @@
 #include <sound/hdaudio_ext.h>
 #include <sound/hda_register.h>
 #include <sound/sof.h>
+#include <trace/events/sof_intel.h>
 #include "../ops.h"
 #include "../sof-audio.h"
 #include "hda.h"
@@ -93,9 +94,6 @@ static int hda_setup_bdle(struct snd_sof_dev *sdev,
 		bdl++;
 		hstream->frags++;
 		offset += chunk;
-
-		dev_vdbg(sdev->dev, "bdl, frags:%d, chunk size:0x%x;\n",
-			 hstream->frags, chunk);
 	}
 
 	*bdlp = bdl;
@@ -116,13 +114,13 @@ int hda_dsp_stream_setup_bdl(struct snd_sof_dev *sdev,
 	int remain, ioc;
 
 	period_bytes = hstream->period_bytes;
-	dev_dbg(sdev->dev, "%s: period_bytes:0x%x\n", __func__, period_bytes);
+	dev_dbg(sdev->dev, "period_bytes:0x%x\n", period_bytes);
 	if (!period_bytes)
 		period_bytes = hstream->bufsize;
 
 	periods = hstream->bufsize / period_bytes;
 
-	dev_dbg(sdev->dev, "%s: periods:%d\n", __func__, periods);
+	dev_dbg(sdev->dev, "periods:%d\n", periods);
 
 	remain = hstream->bufsize % period_bytes;
 	if (remain)
@@ -271,7 +269,7 @@ int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag)
 					HDA_VS_INTEL_EM2_L1SEN, HDA_VS_INTEL_EM2_L1SEN);
 
 	if (!found) {
-		dev_dbg(sdev->dev, "%s: stream_tag %d not opened!\n",
+		dev_err(sdev->dev, "%s: stream_tag %d not opened!\n",
 			__func__, stream_tag);
 		return -ENODEV;
 	}
@@ -411,6 +409,11 @@ int hda_dsp_iccmax_stream_hw_params(struct snd_sof_dev *sdev, struct hdac_ext_st
 		return -ENODEV;
 	}
 
+	if (!dmab) {
+		dev_err(sdev->dev, "error: no dma buffer allocated!\n");
+		return -ENODEV;
+	}
+
 	if (hstream->posbuf)
 		*hstream->posbuf = 0;
 
@@ -485,15 +488,15 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 		return -ENODEV;
 	}
 
-	/* decouple host and link DMA */
-	mask = 0x1 << hstream->index;
-	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
-				mask, mask);
-
 	if (!dmab) {
 		dev_err(sdev->dev, "error: no dma buffer allocated!\n");
 		return -ENODEV;
 	}
+
+	/* decouple host and link DMA */
+	mask = 0x1 << hstream->index;
+	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
+				mask, mask);
 
 	/* clear stream status */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, sd_offset,
@@ -695,7 +698,7 @@ bool hda_dsp_check_stream_irq(struct snd_sof_dev *sdev)
 	spin_lock_irq(&bus->reg_lock);
 
 	status = snd_hdac_chip_readl(bus, INTSTS);
-	dev_vdbg(bus->dev, "stream irq, INTSTS status: 0x%x\n", status);
+	trace_sof_intel_hda_dsp_check_stream_irq(sdev, status);
 
 	/* if Register inaccessible, ignore it.*/
 	if (status != 0xffffffff)
@@ -734,8 +737,7 @@ static bool hda_dsp_stream_check(struct hdac_bus *bus, u32 status)
 		if (status & BIT(s->index) && s->opened) {
 			sd_status = snd_hdac_stream_readb(s, SD_STS);
 
-			dev_vdbg(bus->dev, "stream %d status 0x%x\n",
-				 s->index, sd_status);
+			trace_sof_intel_hda_dsp_stream_status(bus->dev, s, sd_status);
 
 			snd_hdac_stream_writeb(s, SD_STS, sd_status);
 

@@ -16,6 +16,7 @@
  *	timing value tweaking so it looks good on every monitor in every mode
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/fb.h>
 #include <linux/init.h>
@@ -270,7 +271,7 @@ static int tridentfb_setup_ddc_bus(struct fb_info *info)
 {
 	struct tridentfb_par *par = info->par;
 
-	strlcpy(par->ddc_adapter.name, info->fix.id,
+	strscpy(par->ddc_adapter.name, info->fix.id,
 		sizeof(par->ddc_adapter.name));
 	par->ddc_adapter.owner		= THIS_MODULE;
 	par->ddc_adapter.class		= I2C_CLASS_DDC;
@@ -1469,6 +1470,10 @@ static int trident_pci_probe(struct pci_dev *dev,
 	int chip3D;
 	int chip_id;
 	bool found = false;
+
+	err = aperture_remove_conflicting_pci_devices(dev, "tridentfb");
+	if (err)
+		return err;
 
 	err = pci_enable_device(dev);
 	if (err)

@@ -47,6 +47,7 @@ struct dwc3_xlnx {
 	struct device			*dev;
 	void __iomem			*regs;
 	int				(*pltfm_init)(struct dwc3_xlnx *data);
+	struct phy			*usb3_phy;
 };
 
 static void dwc3_xlnx_mask_phy_rst(struct dwc3_xlnx *priv_data, bool mask)
@@ -100,13 +101,12 @@ static int dwc3_xlnx_init_zynqmp(struct dwc3_xlnx *priv_data)
 	struct device		*dev = priv_data->dev;
 	struct reset_control	*crst, *hibrst, *apbrst;
 	struct gpio_desc	*reset_gpio;
-	struct phy		*usb3_phy;
 	int			ret = 0;
 	u32			reg;
 
-	usb3_phy = devm_phy_optional_get(dev, "usb3-phy");
-	if (IS_ERR(usb3_phy)) {
-		ret = PTR_ERR(usb3_phy);
+	priv_data->usb3_phy = devm_phy_optional_get(dev, "usb3-phy");
+	if (IS_ERR(priv_data->usb3_phy)) {
+		ret = PTR_ERR(priv_data->usb3_phy);
 		dev_err_probe(dev, ret,
 			      "failed to get USB3 PHY\n");
 		goto err;
@@ -121,7 +121,7 @@ static int dwc3_xlnx_init_zynqmp(struct dwc3_xlnx *priv_data)
 	 * in use but the usb3-phy entry is missing from the device tree.
 	 * Therefore, skip these operations in this case.
 	 */
-	if (!usb3_phy)
+	if (!priv_data->usb3_phy)
 		goto skip_usb3_phy;
 
 	crst = devm_reset_control_get_exclusive(dev, "usb_crst");
@@ -166,9 +166,9 @@ static int dwc3_xlnx_init_zynqmp(struct dwc3_xlnx *priv_data)
 		goto err;
 	}
 
-	ret = phy_init(usb3_phy);
+	ret = phy_init(priv_data->usb3_phy);
 	if (ret < 0) {
-		phy_exit(usb3_phy);
+		phy_exit(priv_data->usb3_phy);
 		goto err;
 	}
 
@@ -196,9 +196,9 @@ static int dwc3_xlnx_init_zynqmp(struct dwc3_xlnx *priv_data)
 		goto err;
 	}
 
-	ret = phy_power_on(usb3_phy);
+	ret = phy_power_on(priv_data->usb3_phy);
 	if (ret < 0) {
-		phy_exit(usb3_phy);
+		phy_exit(priv_data->usb3_phy);
 		goto err;
 	}
 
@@ -322,7 +322,7 @@ static int dwc3_xlnx_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused dwc3_xlnx_suspend_common(struct device *dev)
+static int __maybe_unused dwc3_xlnx_runtime_suspend(struct device *dev)
 {
 	struct dwc3_xlnx *priv_data = dev_get_drvdata(dev);
 
@@ -331,7 +331,7 @@ static int __maybe_unused dwc3_xlnx_suspend_common(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused dwc3_xlnx_resume_common(struct device *dev)
+static int __maybe_unused dwc3_xlnx_runtime_resume(struct device *dev)
 {
 	struct dwc3_xlnx *priv_data = dev_get_drvdata(dev);
 
@@ -346,8 +346,45 @@ static int __maybe_unused dwc3_xlnx_runtime_idle(struct device *dev)
 	return 0;
 }
 
-static UNIVERSAL_DEV_PM_OPS(dwc3_xlnx_dev_pm_ops, dwc3_xlnx_suspend_common,
-			    dwc3_xlnx_resume_common, dwc3_xlnx_runtime_idle);
+static int __maybe_unused dwc3_xlnx_suspend(struct device *dev)
+{
+	struct dwc3_xlnx *priv_data = dev_get_drvdata(dev);
+
+	phy_exit(priv_data->usb3_phy);
+
+	/* Disable the clocks */
+	clk_bulk_disable(priv_data->num_clocks, priv_data->clks);
+
+	return 0;
+}
+
+static int __maybe_unused dwc3_xlnx_resume(struct device *dev)
+{
+	struct dwc3_xlnx *priv_data = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_bulk_enable(priv_data->num_clocks, priv_data->clks);
+	if (ret)
+		return ret;
+
+	ret = phy_init(priv_data->usb3_phy);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_power_on(priv_data->usb3_phy);
+	if (ret < 0) {
+		phy_exit(priv_data->usb3_phy);
+		return ret;
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops dwc3_xlnx_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(dwc3_xlnx_suspend, dwc3_xlnx_resume)
+	SET_RUNTIME_PM_OPS(dwc3_xlnx_runtime_suspend,
+			   dwc3_xlnx_runtime_resume, dwc3_xlnx_runtime_idle)
+};
 
 static struct platform_driver dwc3_xlnx_driver = {
 	.probe		= dwc3_xlnx_probe,
