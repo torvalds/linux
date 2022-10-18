@@ -222,9 +222,13 @@ static void __free_rcu(struct rcu_head *head)
 
 static void __free_rcu_tasks_trace(struct rcu_head *head)
 {
-	struct bpf_mem_cache *c = container_of(head, struct bpf_mem_cache, rcu);
-
-	call_rcu(&c->rcu, __free_rcu);
+	/* If RCU Tasks Trace grace period implies RCU grace period,
+	 * there is no need to invoke call_rcu().
+	 */
+	if (rcu_trace_implies_rcu_gp())
+		__free_rcu(head);
+	else
+		call_rcu(head, __free_rcu);
 }
 
 static void enque_to_free(struct bpf_mem_cache *c, void *obj)
@@ -253,8 +257,9 @@ static void do_call_rcu(struct bpf_mem_cache *c)
 		 */
 		__llist_add(llnode, &c->waiting_for_gp);
 	/* Use call_rcu_tasks_trace() to wait for sleepable progs to finish.
-	 * Then use call_rcu() to wait for normal progs to finish
-	 * and finally do free_one() on each element.
+	 * If RCU Tasks Trace grace period implies RCU grace period, free
+	 * these elements directly, else use call_rcu() to wait for normal
+	 * progs to finish and finally do free_one() on each element.
 	 */
 	call_rcu_tasks_trace(&c->rcu, __free_rcu_tasks_trace);
 }
