@@ -135,9 +135,7 @@ static const char DC_BUILD_ID[] = "production-build";
  * one or two (in the pipe-split case).
  */
 
-/*******************************************************************************
- * Private functions
- ******************************************************************************/
+/* Private functions */
 
 static inline void elevate_update_type(enum surface_update_type *original, enum surface_update_type new)
 {
@@ -429,18 +427,14 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 }
 
 /**
- *****************************************************************************
- *  Function: dc_stream_get_last_vrr_vtotal
+ * dc_stream_get_last_used_drr_vtotal - dc_stream_get_last_vrr_vtotal
  *
- *  @brief
- *     Looks up the pipe context of dc_stream_state and gets the
- *     last VTOTAL used by DRR (Dynamic Refresh Rate)
+ * @dc: [in] dc reference
+ * @stream: [in] Initial dc stream state
+ * @adjust: [in] Updated parameters for vertical_total_min and
  *
- *  @param [in] dc: dc reference
- *  @param [in] stream: Initial dc stream state
- *  @param [in] adjust: Updated parameters for vertical_total_min and
- *  vertical_total_max
- *****************************************************************************
+ * Looks up the pipe context of dc_stream_state and gets the last VTOTAL used
+ * by DRR (Dynamic Refresh Rate)
  */
 bool dc_stream_get_last_used_drr_vtotal(struct dc *dc,
 		struct dc_stream_state *stream,
@@ -1236,9 +1230,7 @@ static void wait_for_no_pipes_pending(struct dc *dc, struct dc_state *context)
 	PERF_TRACE();
 }
 
-/*******************************************************************************
- * Public functions
- ******************************************************************************/
+/* Public functions */
 
 struct dc *dc_create(const struct dc_init_data *init_params)
 {
@@ -4560,21 +4552,17 @@ void dc_mclk_switch_using_fw_based_vblank_stretch_shut_down(struct dc *dc)
 		dc->current_state->bw_ctx.bw.dcn.clk.fw_based_mclk_switching_shut_down = true;
 }
 
-/*
- *****************************************************************************
- * Function: dc_is_dmub_outbox_supported -
+/**
+ * dc_is_dmub_outbox_supported - Check if DMUB firmware support outbox notification
  *
- * @brief
- *      Checks whether DMUB FW supports outbox notifications, if supported
- *		DM should register outbox interrupt prior to actually enabling interrupts
- *		via dc_enable_dmub_outbox
+ * @dc: [in] dc structure
  *
- *  @param
- *		[in] dc: dc structure
+ * Checks whether DMUB FW supports outbox notifications, if supported DM
+ * should register outbox interrupt prior to actually enabling interrupts
+ * via dc_enable_dmub_outbox
  *
- *  @return
- *		True if DMUB FW supports outbox notifications, False otherwise
- *****************************************************************************
+ * Return:
+ * True if DMUB FW supports outbox notifications, False otherwise
  */
 bool dc_is_dmub_outbox_supported(struct dc *dc)
 {
@@ -4592,21 +4580,17 @@ bool dc_is_dmub_outbox_supported(struct dc *dc)
 	return dc->debug.enable_dmub_aux_for_legacy_ddc;
 }
 
-/*
- *****************************************************************************
- *  Function: dc_enable_dmub_notifications
+/**
+ * dc_enable_dmub_notifications - Check if dmub fw supports outbox
  *
- *  @brief
- *		Calls dc_is_dmub_outbox_supported to check if dmub fw supports outbox
- *		notifications. All DMs shall switch to dc_is_dmub_outbox_supported.
- *		This API shall be removed after switching.
+ * @dc: [in] dc structure
  *
- *  @param
- *		[in] dc: dc structure
+ * Calls dc_is_dmub_outbox_supported to check if dmub fw supports outbox
+ * notifications. All DMs shall switch to dc_is_dmub_outbox_supported.  This
+ * API shall be removed after switching.
  *
- *  @return
- *		True if DMUB FW supports outbox notifications, False otherwise
- *****************************************************************************
+ * Return:
+ * True if DMUB FW supports outbox notifications, False otherwise
  */
 bool dc_enable_dmub_notifications(struct dc *dc)
 {
@@ -4614,18 +4598,11 @@ bool dc_enable_dmub_notifications(struct dc *dc)
 }
 
 /**
- *****************************************************************************
- *  Function: dc_enable_dmub_outbox
+ * dc_enable_dmub_outbox - Enables DMUB unsolicited notification
  *
- *  @brief
- *		Enables DMUB unsolicited notifications to x86 via outbox
+ * dc: [in] dc structure
  *
- *  @param
- *		[in] dc: dc structure
- *
- *  @return
- *		None
- *****************************************************************************
+ * Enables DMUB unsolicited notifications to x86 via outbox.
  */
 void dc_enable_dmub_outbox(struct dc *dc)
 {
@@ -4726,21 +4703,17 @@ uint8_t get_link_index_from_dpia_port_index(const struct dc *dc,
 }
 
 /**
- *****************************************************************************
- *  Function: dc_process_dmub_set_config_async
+ * dc_process_dmub_set_config_async - Submits set_config command
  *
- *  @brief
- *		Submits set_config command to dmub via inbox message
+ * @dc: [in] dc structure
+ * @link_index: [in] link_index: link index
+ * @payload: [in] aux payload
+ * @notify: [out] set_config immediate reply
  *
- *  @param
- *		[in] dc: dc structure
- *		[in] link_index: link index
- *		[in] payload: aux payload
- *		[out] notify: set_config immediate reply
+ * Submits set_config command to dmub via inbox message.
  *
- *  @return
- *		True if successful, False if failure
- *****************************************************************************
+ * Return:
+ * True if successful, False if failure
  */
 bool dc_process_dmub_set_config_async(struct dc *dc,
 				uint32_t link_index,
@@ -4776,21 +4749,17 @@ bool dc_process_dmub_set_config_async(struct dc *dc,
 }
 
 /**
- *****************************************************************************
- *  Function: dc_process_dmub_set_mst_slots
+ * dc_process_dmub_set_mst_slots - Submits MST solt allocation
  *
- *  @brief
- *		Submits mst slot allocation command to dmub via inbox message
+ * @dc: [in] dc structure
+ * @link_index: [in] link index
+ * @mst_alloc_slots: [in] mst slots to be allotted
+ * @mst_slots_in_use: [out] mst slots in use returned in failure case
  *
- *  @param
- *		[in] dc: dc structure
- *		[in] link_index: link index
- *		[in] mst_alloc_slots: mst slots to be allotted
- *		[out] mst_slots_in_use: mst slots in use returned in failure case
+ * Submits mst slot allocation command to dmub via inbox message
  *
- *	@return
- *		DC_OK if successful, DC_ERROR if failure
- *****************************************************************************
+ * Return:
+ * DC_OK if successful, DC_ERROR if failure
  */
 enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
 				uint32_t link_index,
@@ -4830,19 +4799,12 @@ enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
 }
 
 /**
- *****************************************************************************
- *  Function: dc_process_dmub_dpia_hpd_int_enable
+ * dc_process_dmub_dpia_hpd_int_enable - Submits DPIA DPD interruption
  *
- *  @brief
- *		Submits dpia hpd int enable command to dmub via inbox message
+ * @dc [in]: dc structure
+ * @hpd_int_enable [in]: 1 for hpd int enable, 0 to disable
  *
- *  @param
- *		[in] dc: dc structure
- *		[in] hpd_int_enable: 1 for hpd int enable, 0 to disable
- *
- *	@return
- *		None
- *****************************************************************************
+ * Submits dpia hpd int enable command to dmub via inbox message
  */
 void dc_process_dmub_dpia_hpd_int_enable(const struct dc *dc,
 				uint32_t hpd_int_enable)
@@ -4871,16 +4833,13 @@ void dc_disable_accelerated_mode(struct dc *dc)
 
 
 /**
- *****************************************************************************
- *  dc_notify_vsync_int_state() - notifies vsync enable/disable state
+ *  dc_notify_vsync_int_state - notifies vsync enable/disable state
  *  @dc: dc structure
- *	@stream: stream where vsync int state changed
- *	@enable: whether vsync is enabled or disabled
+ *  @stream: stream where vsync int state changed
+ *  @enable: whether vsync is enabled or disabled
  *
- *  Called when vsync is enabled/disabled
- *	Will notify DMUB to start/stop ABM interrupts after steady state is reached
- *
- *****************************************************************************
+ *  Called when vsync is enabled/disabled Will notify DMUB to start/stop ABM
+ *  interrupts after steady state is reached.
  */
 void dc_notify_vsync_int_state(struct dc *dc, struct dc_stream_state *stream, bool enable)
 {
@@ -4922,14 +4881,18 @@ void dc_notify_vsync_int_state(struct dc *dc, struct dc_stream_state *stream, bo
 	if (pipe->stream_res.abm && pipe->stream_res.abm->funcs->set_abm_pause)
 		pipe->stream_res.abm->funcs->set_abm_pause(pipe->stream_res.abm, !enable, i, pipe->stream_res.tg->inst);
 }
-/*
- * dc_extended_blank_supported: Decide whether extended blank is supported
+
+/**
+ * dc_extended_blank_supported 0 Decide whether extended blank is supported
  *
- * Extended blank is a freesync optimization feature to be enabled in the future.
- * During the extra vblank period gained from freesync, we have the ability to enter z9/z10.
+ * @dc: [in] Current DC state
  *
- * @param [in] dc: Current DC state
- * @return: Indicate whether extended blank is supported (true or false)
+ * Extended blank is a freesync optimization feature to be enabled in the
+ * future.  During the extra vblank period gained from freesync, we have the
+ * ability to enter z9/z10.
+ *
+ * Return:
+ * Indicate whether extended blank is supported (true or false)
  */
 bool dc_extended_blank_supported(struct dc *dc)
 {
