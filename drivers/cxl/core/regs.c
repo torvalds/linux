@@ -7,6 +7,8 @@
 #include <cxlmem.h>
 #include <cxlpci.h>
 
+#include "core.h"
+
 /**
  * DOC: cxl registers
  *
