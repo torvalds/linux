@@ -1463,6 +1463,7 @@ static void clk_core_init_rate_req(struct clk_core * const core,
 		return;
 
 	memset(req, 0, sizeof(*req));
+	req->max_rate = ULONG_MAX;
 
 	if (!core)
 		return;
