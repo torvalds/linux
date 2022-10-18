@@ -403,9 +403,6 @@ static void check_scale_change(struct iolatency_grp *iolat)
 	u64 scale_lat;
 	int direction = 0;
 
-	if (lat_to_blkg(iolat)->parent == NULL)
-		return;
-
 	parent = blkg_to_lat(lat_to_blkg(iolat)->parent);
 	if (!parent)
 		return;
