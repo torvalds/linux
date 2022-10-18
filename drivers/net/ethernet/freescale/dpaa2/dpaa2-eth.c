@@ -2626,7 +2626,7 @@ static int dpaa2_eth_setup_xdp(struct net_device *dev, struct bpf_prog *prog)
 	need_update = (!!priv->xdp_prog != !!prog);
 
 	if (up)
-		dpaa2_eth_stop(dev);
+		dev_close(dev);
 
 	/* While in xdp mode, enforce a maximum Rx frame size based on MTU.
 	 * Also, when switching between xdp/non-xdp modes we need to reconfigure
@@ -2654,7 +2654,7 @@ static int dpaa2_eth_setup_xdp(struct net_device *dev, struct bpf_prog *prog)
 	}
 
 	if (up) {
-		err = dpaa2_eth_open(dev);
+		err = dev_open(dev, NULL);
 		if (err)
 			return err;
 	}
@@ -2665,7 +2665,7 @@ out_err:
 	if (prog)
 		bpf_prog_sub(prog, priv->num_channels);
 	if (up)
-		dpaa2_eth_open(dev);
+		dev_open(dev, NULL);
 
 	return err;
 }
