@@ -69,7 +69,15 @@ int hda_dsp_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 
 int hda_dsp_ipc4_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 {
+	struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
 	struct sof_ipc4_msg *msg_data = msg->msg_data;
+
+	if (hda_ipc4_tx_is_busy(sdev)) {
+		hdev->delayed_ipc_tx_msg = msg;
+		return 0;
+	}
+
+	hdev->delayed_ipc_tx_msg = NULL;
 
 	/* send the message via mailbox */
 	if (msg_data->data_size)
@@ -122,6 +130,7 @@ irqreturn_t hda_dsp_ipc4_irq_thread(int irq, void *context)
 {
 	struct sof_ipc4_msg notification_data = {{ 0 }};
 	struct snd_sof_dev *sdev = context;
+	bool ack_received = false;
 	bool ipc_irq = false;
 	u32 hipcie, hipct;
 
@@ -135,6 +144,7 @@ irqreturn_t hda_dsp_ipc4_irq_thread(int irq, void *context)
 		hda_dsp_ipc_dsp_done(sdev);
 
 		ipc_irq = true;
+		ack_received = true;
 	}
 
 	if (hipct & HDA_DSP_REG_HIPCT_BUSY) {
@@ -186,6 +196,13 @@ irqreturn_t hda_dsp_ipc4_irq_thread(int irq, void *context)
 	if (!ipc_irq)
 		/* This interrupt is not shared so no need to return IRQ_NONE. */
 		dev_dbg_ratelimited(sdev->dev, "nothing to do in IPC IRQ thread\n");
+
+	if (ack_received) {
+		struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
+
+		if (hdev->delayed_ipc_tx_msg)
+			hda_dsp_ipc4_send_msg(sdev, hdev->delayed_ipc_tx_msg);
+	}
 
 	return IRQ_HANDLED;
 }

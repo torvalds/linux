@@ -521,6 +521,14 @@ struct sof_intel_hda_dev {
 
 	/* Intel NHLT information */
 	struct nhlt_acpi_table *nhlt;
+
+	/*
+	 * Pointing to the IPC message if immediate sending was not possible
+	 * because the downlink communication channel was BUSY at the time.
+	 * The message will be re-tried when the channel becomes free (the ACK
+	 * is received from the DSP for the previous message)
+	 */
+	struct snd_sof_ipc_msg *delayed_ipc_tx_msg;
 };
 
 static inline struct hdac_bus *sof_to_bus(struct snd_sof_dev *s)
@@ -852,6 +860,7 @@ int hda_dsp_core_stall_reset(struct snd_sof_dev *sdev, unsigned int core_mask);
 irqreturn_t cnl_ipc4_irq_thread(int irq, void *context);
 int cnl_ipc4_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg);
 irqreturn_t hda_dsp_ipc4_irq_thread(int irq, void *context);
+bool hda_ipc4_tx_is_busy(struct snd_sof_dev *sdev);
 int hda_dsp_ipc4_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg);
 void hda_ipc4_dump(struct snd_sof_dev *sdev);
 extern struct sdw_intel_ops sdw_callback;
