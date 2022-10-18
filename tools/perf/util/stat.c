@@ -381,6 +381,25 @@ static int check_per_pkg(struct evsel *counter, struct perf_counts_values *vals,
 	return ret;
 }
 
+static bool evsel__count_has_error(struct evsel *evsel,
+				   struct perf_counts_values *count,
+				   struct perf_stat_config *config)
+{
+	/* the evsel was failed already */
+	if (evsel->err || evsel->counts->scaled == -1)
+		return true;
+
+	/* this is meaningful for CPU aggregation modes only */
+	if (config->aggr_mode == AGGR_GLOBAL)
+		return false;
+
+	/* it's considered ok when it actually ran */
+	if (count->ena != 0 && count->run != 0)
+		return false;
+
+	return true;
+}
+
 static int
 process_counter_values(struct perf_stat_config *config, struct evsel *evsel,
 		       int cpu_map_idx, int thread,
@@ -420,8 +439,7 @@ process_counter_values(struct perf_stat_config *config, struct evsel *evsel,
 			 * When any result is bad, make them all to give
 			 * consistent output in interval mode.
 			 */
-			if (count->ena == 0 || count->run == 0 ||
-			    evsel->counts->scaled == -1) {
+			if (evsel__count_has_error(evsel, count, config) && !ps_aggr->failed) {
 				ps_aggr->counts.val = 0;
 				ps_aggr->counts.ena = 0;
 				ps_aggr->counts.run = 0;
