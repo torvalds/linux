@@ -474,7 +474,7 @@ process_counter_values(struct perf_stat_config *config, struct evsel *evsel,
 		aggr_counts->val += count->val;
 		aggr_counts->ena += count->ena;
 		aggr_counts->run += count->run;
-		goto update;
+		return 0;
 	}
 
 	if (ps->aggr) {
@@ -511,32 +511,10 @@ process_counter_values(struct perf_stat_config *config, struct evsel *evsel,
 		}
 	}
 
-update:
-	switch (config->aggr_mode) {
-	case AGGR_THREAD:
-	case AGGR_CORE:
-	case AGGR_DIE:
-	case AGGR_SOCKET:
-	case AGGR_NODE:
-	case AGGR_NONE:
-		if ((config->aggr_mode == AGGR_NONE) && (!evsel->percore)) {
-			perf_stat__update_shadow_stats(evsel, count->val,
-						       cpu_map_idx, &rt_stat);
-		}
-
-		if (config->aggr_mode == AGGR_THREAD) {
-			perf_stat__update_shadow_stats(evsel, count->val,
-						       thread, &rt_stat);
-		}
-		break;
-	case AGGR_GLOBAL:
+	if (config->aggr_mode == AGGR_GLOBAL) {
 		aggr->val += count->val;
 		aggr->ena += count->ena;
 		aggr->run += count->run;
-	case AGGR_UNSET:
-	case AGGR_MAX:
-	default:
-		break;
 	}
 
 	return 0;
@@ -760,6 +738,30 @@ void perf_stat_process_percore(struct perf_stat_config *config, struct evlist *e
 
 	evlist__for_each_entry(evlist, evsel)
 		evsel__process_percore(evsel);
+}
+
+static void evsel__update_shadow_stats(struct evsel *evsel)
+{
+	struct perf_stat_evsel *ps = evsel->stats;
+	int i;
+
+	if (ps->aggr == NULL)
+		return;
+
+	for (i = 0; i < ps->nr_aggr; i++) {
+		struct perf_counts_values *aggr_counts = &ps->aggr[i].counts;
+
+		perf_stat__update_shadow_stats(evsel, aggr_counts->val, i, &rt_stat);
+	}
+}
+
+void perf_stat_process_shadow_stats(struct perf_stat_config *config __maybe_unused,
+				    struct evlist *evlist)
+{
+	struct evsel *evsel;
+
+	evlist__for_each_entry(evlist, evsel)
+		evsel__update_shadow_stats(evsel);
 }
 
 int perf_event__process_stat_event(struct perf_session *session,
