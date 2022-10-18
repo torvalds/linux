@@ -43,6 +43,9 @@
 #include <asm/tlbflush.h>
 #include <asm/shmparam.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/vmalloc.h>
+
 #include "internal.h"
 #include "pgalloc-track.h"
 
@@ -1619,6 +1622,8 @@ retry:
 	addr = __alloc_vmap_area(&free_vmap_area_root, &free_vmap_area_list,
 		size, align, vstart, vend);
 	spin_unlock(&free_vmap_area_lock);
+
+	trace_alloc_vmap_area(addr, size, align, vstart, vend, addr == vend);
 
 	/*
 	 * If an allocation fails, the "vend" address is
