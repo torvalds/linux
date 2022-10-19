@@ -616,6 +616,7 @@ struct st_asm330lhhx_settings {
  * @outreg_addr: MLC/FSM output data registers.
  * @status: MLC/FSM enable status.
  * @conf: Used in case of sensor event to manage configuration.
+ * @scan: Scan buffer for triggered sensors event.
  */
 struct st_asm330lhhx_sensor {
 	char name[32];
@@ -657,6 +658,12 @@ struct st_asm330lhhx_sensor {
 		/* sensor specific data configuration */
 		struct {
 			u32 conf[6];
+
+			/* ensure natural alignment of timestamp */
+			struct {
+				u8 event;
+				s64 ts __aligned(8);
+			} scan;
 		};
 	};
 };

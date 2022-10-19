@@ -17,6 +17,7 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/trigger.h>
 #include <linux/iio/buffer.h>
+#include <linux/version.h>
 
 #include "st_asm330lhhx.h"
 
@@ -90,6 +91,10 @@ int st_asm330lhhx_event_sensor_set_enable(struct st_asm330lhhx_sensor *sensor,
 	struct st_asm330lhhx_hw *hw = sensor->hw;
 	u8 int_reg = hw->int_pin == 1 ? ST_ASM330LHHX_REG_MD1_CFG_ADDR :
 					ST_ASM330LHHX_REG_MD2_CFG_ADDR;
+
+	err = st_asm330lhhx_sensor_set_enable(sensor, enable);
+	if (err < 0)
+		return err;
 
 	switch (sensor->id) {
 	case ST_ASM330LHHX_ID_WK:
@@ -404,7 +409,7 @@ struct iio_dev *st_asm330lhhx_alloc_event_iiodev(struct st_asm330lhhx_hw *hw,
 	sensor->id = id;
 	sensor->hw = hw;
 	sensor->watermark = 1;
-
+	sensor->odr = 26;
 	iio_dev->available_scan_masks = st_asm330lhhx_event_available_scan_masks;
 
 	switch (id) {
@@ -511,10 +516,9 @@ static irqreturn_t st_asm330lhhx_6D_handler_thread(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *iio_dev = pf->indio_dev;
 	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
-	u8 buffer[sizeof(u8) + sizeof(s64)];
 
-	st_asm330lhhx_get_6D(sensor->hw, buffer);
-	iio_push_to_buffers_with_timestamp(iio_dev, buffer,
+	st_asm330lhhx_get_6D(sensor->hw, &sensor->scan.event);
+	iio_push_to_buffers_with_timestamp(iio_dev, &sensor->scan.event,
 					   st_asm330lhhx_get_time_ns(iio_dev));
 	iio_trigger_notify_done(sensor->trig);
 
@@ -526,18 +530,27 @@ static irqreturn_t st_asm330lhhx_wk_handler_thread(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *iio_dev = pf->indio_dev;
 	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
-	u8 buffer[sizeof(u8) + sizeof(s64)];
 
-	st_asm330lhhx_get_wk(sensor->hw, buffer);
-	iio_push_to_buffers_with_timestamp(iio_dev, buffer,
+	st_asm330lhhx_get_wk(sensor->hw, &sensor->scan.event);
+	iio_push_to_buffers_with_timestamp(iio_dev, &sensor->scan.event,
 					   st_asm330lhhx_get_time_ns(iio_dev));
 	iio_trigger_notify_done(sensor->trig);
 
 	return IRQ_HANDLED;
 }
 
+int st_asm330lhhx_trig_set_state(struct iio_trigger *trig, bool state)
+{
+	struct iio_dev *iio_dev = iio_trigger_get_drvdata(trig);
+	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
+
+	dev_info(sensor->hw->dev, "trigger set %d\n", state);
+
+	return 0;
+}
+
 static const struct iio_trigger_ops st_asm330lhhx_trigger_ops = {
-	NULL,
+	.set_trigger_state = &st_asm330lhhx_trig_set_state,
 };
 
 static int st_asm330lhhx_buffer_preenable(struct iio_dev *iio_dev)
@@ -552,6 +565,10 @@ static int st_asm330lhhx_buffer_postdisable(struct iio_dev *iio_dev)
 
 static const struct iio_buffer_setup_ops st_asm330lhhx_buffer_ops = {
 	.preenable = st_asm330lhhx_buffer_preenable,
+#if KERNEL_VERSION(5, 10, 0) > LINUX_VERSION_CODE
+	.postenable = iio_triggered_buffer_postenable,
+	.predisable = iio_triggered_buffer_predisable,
+#endif /* LINUX_VERSION_CODE */
 	.postdisable = st_asm330lhhx_buffer_postdisable,
 };
 
