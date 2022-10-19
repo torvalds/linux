@@ -1901,6 +1901,8 @@
   find_vpid
   finish_wait
   firmware_request_nowarn
+  fixed_phy_register
+  fixed_phy_unregister
   fixed_size_llseek
   flow_keys_basic_dissector
   flush_dcache_page
@@ -2327,6 +2329,7 @@
   irq_create_mapping_affinity
   irq_create_of_mapping
   irq_dispose_mapping
+  irq_domain_add_simple
   irq_domain_alloc_irqs_parent
   irq_domain_create_hierarchy
   irq_domain_free_irqs_common
@@ -3023,6 +3026,7 @@
   phy_ethtool_get_link_ksettings
   phy_ethtool_nway_reset
   phy_ethtool_set_link_ksettings
+  phy_ethtool_set_wol
   phy_exit
   phy_find_first
   phy_get_pause
@@ -3034,9 +3038,12 @@
   phy_power_off
   phy_power_on
   phy_print_status
+  phy_register_fixup_for_uid
+  phy_save_page
   phy_set_mode_ext
   phy_start
   phy_stop
+  phy_unregister_fixup_for_uid
   pick_highest_pushable_task
   pid_nr_ns
   pid_task
@@ -4066,6 +4073,7 @@
   ttm_tt_populate
   ttm_tt_set_placement_caching
   ttm_unmap_and_unpopulate_pages
+  tty_encode_baud_rate
   tty_flip_buffer_push
   tty_insert_flip_string_fixed_flag
   tty_kref_put
@@ -4214,8 +4222,10 @@
   usb_asmedia_modifyflowcontrol
   usb_assign_descriptors
   usb_autopm_get_interface
+  usb_autopm_get_interface_async
   usb_autopm_get_interface_no_resume
   usb_autopm_put_interface
+  usb_autopm_put_interface_async
   usb_bulk_msg
   usb_calc_bus_time
   usb_choose_configuration
@@ -4293,6 +4303,7 @@
   usb_ifnum_to_if
   usb_initialize_gadget
   usb_interface_id
+  usb_interrupt_msg
   usb_kill_urb
   usb_match_id
   usb_match_one_id
