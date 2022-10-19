@@ -33,6 +33,7 @@
 #include "block-group.h"
 #include "discard.h"
 #include "zoned.h"
+#include "fs.h"
 
 static struct bio_set btrfs_bioset;
 

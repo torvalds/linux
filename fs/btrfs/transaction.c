@@ -23,6 +23,7 @@
 #include "block-group.h"
 #include "space-info.h"
 #include "zoned.h"
+#include "fs.h"
 
 static struct kmem_cache *btrfs_trans_handle_cachep;
 

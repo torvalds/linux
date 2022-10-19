@@ -55,6 +55,7 @@
 #include "zoned.h"
 #include "subpage.h"
 #include "inode-item.h"
+#include "fs.h"
 
 struct btrfs_iget_args {
 	u64 ino;

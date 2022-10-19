@@ -28,6 +28,7 @@
 #include "zoned.h"
 #include "inode-item.h"
 #include "space-info.h"
+#include "fs.h"
 
 /*
  * Relocation overview

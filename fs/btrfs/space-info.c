@@ -10,6 +10,7 @@
 #include "transaction.h"
 #include "block-group.h"
 #include "zoned.h"
+#include "fs.h"
 
 /*
  * HOW DOES SPACE RESERVATION WORK

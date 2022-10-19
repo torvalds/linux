@@ -21,6 +21,7 @@
 #include "raid56.h"
 #include "block-group.h"
 #include "zoned.h"
+#include "fs.h"
 
 /*
  * This is only the first step towards a full-features scrub. It reads all

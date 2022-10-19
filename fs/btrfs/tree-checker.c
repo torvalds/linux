@@ -25,6 +25,7 @@
 #include "volumes.h"
 #include "misc.h"
 #include "btrfs_inode.h"
+#include "fs.h"
 
 /*
  * Error message should follow the following format:

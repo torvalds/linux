@@ -49,6 +49,7 @@
 #include "discard.h"
 #include "qgroup.h"
 #include "raid56.h"
+#include "fs.h"
 #define CREATE_TRACE_POINTS
 #include <trace/events/btrfs.h>
 

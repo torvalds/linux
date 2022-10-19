@@ -36,6 +36,7 @@
 #include "rcu-string.h"
 #include "zoned.h"
 #include "dev-replace.h"
+#include "fs.h"
 
 #undef SCRAMBLE_DELAYED_REFS
 

@@ -30,6 +30,7 @@
 #include "delalloc-space.h"
 #include "reflink.h"
 #include "subpage.h"
+#include "fs.h"
 
 static struct kmem_cache *btrfs_inode_defrag_cachep;
 /*
