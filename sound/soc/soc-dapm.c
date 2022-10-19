@@ -71,9 +71,9 @@ static int dapm_up_seq[] = {
 	[snd_soc_dapm_pinctrl] = 2,
 	[snd_soc_dapm_clock_supply] = 2,
 	[snd_soc_dapm_supply] = 3,
+	[snd_soc_dapm_dai_link] = 3,
 	[snd_soc_dapm_micbias] = 4,
 	[snd_soc_dapm_vmid] = 4,
-	[snd_soc_dapm_dai_link] = 3,
 	[snd_soc_dapm_dai_in] = 5,
 	[snd_soc_dapm_dai_out] = 5,
 	[snd_soc_dapm_aif_in] = 5,
@@ -1873,11 +1873,25 @@ static void dapm_widget_set_peer_power(struct snd_soc_dapm_widget *peer,
 		dapm_mark_dirty(peer, "peer state change");
 }
 
-static void dapm_widget_set_power(struct snd_soc_dapm_widget *w, bool power,
+static void dapm_power_one_widget(struct snd_soc_dapm_widget *w,
 				  struct list_head *up_list,
 				  struct list_head *down_list)
 {
 	struct snd_soc_dapm_path *path;
+	int power;
+
+	switch (w->id) {
+	case snd_soc_dapm_pre:
+		power = 0;
+		goto end;
+	case snd_soc_dapm_post:
+		power = 1;
+		goto end;
+	default:
+		break;
+	}
+
+	power = dapm_widget_power_check(w);
 
 	if (w->power == power)
 		return;
@@ -1898,32 +1912,11 @@ static void dapm_widget_set_power(struct snd_soc_dapm_widget *w, bool power,
 		snd_soc_dapm_widget_for_each_sink_path(w, path)
 			dapm_widget_set_peer_power(path->sink, power, path->connect);
 
+end:
 	if (power)
 		dapm_seq_insert(w, up_list, true);
 	else
 		dapm_seq_insert(w, down_list, false);
-}
-
-static void dapm_power_one_widget(struct snd_soc_dapm_widget *w,
-				  struct list_head *up_list,
-				  struct list_head *down_list)
-{
-	int power;
-
-	switch (w->id) {
-	case snd_soc_dapm_pre:
-		dapm_seq_insert(w, down_list, false);
-		break;
-	case snd_soc_dapm_post:
-		dapm_seq_insert(w, up_list, true);
-		break;
-
-	default:
-		power = dapm_widget_power_check(w);
-
-		dapm_widget_set_power(w, power, up_list, down_list);
-		break;
-	}
 }
 
 static bool dapm_idle_bias_off(struct snd_soc_dapm_context *dapm)
@@ -4139,56 +4132,53 @@ snd_soc_dapm_new_dai(struct snd_soc_card *card,
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dapm_widget template;
 	struct snd_soc_dapm_widget *w;
+	const struct snd_kcontrol_new *kcontrol_news;
+	int num_kcontrols;
 	const char **w_param_text;
 	unsigned long private_value = 0;
 	char *link_name;
-	int ret;
+	int ret = -ENOMEM;
 
 	link_name = devm_kasprintf(card->dev, GFP_KERNEL, "%s-%s",
 				   rtd->dai_link->name, id);
 	if (!link_name)
-		return ERR_PTR(-ENOMEM);
-
-	memset(&template, 0, sizeof(template));
-	template.reg = SND_SOC_NOPM;
-	template.id = snd_soc_dapm_dai_link;
-	template.name = link_name;
-	template.event = snd_soc_dai_link_event;
-	template.event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
-		SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD;
-	template.kcontrol_news = NULL;
+		goto name_fail;
 
 	/* allocate memory for control, only in case of multiple configs */
+	w_param_text	= NULL;
+	kcontrol_news	= NULL;
+	num_kcontrols	= 0;
 	if (rtd->dai_link->num_params > 1) {
 		w_param_text = devm_kcalloc(card->dev,
 					    rtd->dai_link->num_params,
 					    sizeof(char *), GFP_KERNEL);
-		if (!w_param_text) {
-			ret = -ENOMEM;
+		if (!w_param_text)
 			goto param_fail;
-		}
 
-		template.num_kcontrols = 1;
-		template.kcontrol_news =
-					snd_soc_dapm_alloc_kcontrol(card,
-						link_name,
-						rtd->dai_link->params,
-						rtd->dai_link->num_params,
-						w_param_text, &private_value);
-		if (!template.kcontrol_news) {
-			ret = -ENOMEM;
+		num_kcontrols = 1;
+		kcontrol_news = snd_soc_dapm_alloc_kcontrol(card, link_name,
+							    rtd->dai_link->params,
+							    rtd->dai_link->num_params,
+							    w_param_text, &private_value);
+		if (!kcontrol_news)
 			goto param_fail;
-		}
-	} else {
-		w_param_text = NULL;
 	}
+
+	memset(&template, 0, sizeof(template));
+	template.reg		= SND_SOC_NOPM;
+	template.id		= snd_soc_dapm_dai_link;
+	template.name		= link_name;
+	template.event		= snd_soc_dai_link_event;
+	template.event_flags	= SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+				  SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMD;
+	template.kcontrol_news	= kcontrol_news;
+	template.num_kcontrols	= num_kcontrols;
+
 	dev_dbg(card->dev, "ASoC: adding %s widget\n", link_name);
 
 	w = snd_soc_dapm_new_control_unlocked(&card->dapm, &template);
 	if (IS_ERR(w)) {
 		ret = PTR_ERR(w);
-		dev_err(rtd->dev, "ASoC: Failed to create %s widget: %d\n",
-			link_name, ret);
 		goto outfree_kcontrol_news;
 	}
 
@@ -4202,6 +4192,9 @@ outfree_kcontrol_news:
 				   rtd->dai_link->num_params, w_param_text);
 param_fail:
 	devm_kfree(card->dev, link_name);
+name_fail:
+	dev_err(rtd->dev, "ASoC: Failed to create %s-%s widget: %d\n",
+		rtd->dai_link->name, id, ret);
 	return ERR_PTR(ret);
 }
 
