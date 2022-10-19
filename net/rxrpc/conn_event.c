@@ -100,9 +100,7 @@ void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 	/* If the last call got moved on whilst we were waiting to run, just
 	 * ignore this packet.
 	 */
-	call_id = READ_ONCE(chan->last_call);
-	/* Sync with __rxrpc_disconnect_call() */
-	smp_rmb();
+	call_id = chan->last_call;
 	if (skb && call_id != sp->hdr.callNumber)
 		return;
 
@@ -119,9 +117,12 @@ void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 	iov[2].iov_base	= &ack_info;
 	iov[2].iov_len	= sizeof(ack_info);
 
+	serial = atomic_inc_return(&conn->serial);
+
 	pkt.whdr.epoch		= htonl(conn->proto.epoch);
 	pkt.whdr.cid		= htonl(conn->proto.cid | channel);
 	pkt.whdr.callNumber	= htonl(call_id);
+	pkt.whdr.serial		= htonl(serial);
 	pkt.whdr.seq		= 0;
 	pkt.whdr.type		= chan->last_type;
 	pkt.whdr.flags		= conn->out_clientflag;
@@ -158,31 +159,15 @@ void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 		iov[0].iov_len += sizeof(pkt.ack);
 		len += sizeof(pkt.ack) + 3 + sizeof(ack_info);
 		ioc = 3;
-		break;
 
-	default:
-		return;
-	}
-
-	/* Resync with __rxrpc_disconnect_call() and check that the last call
-	 * didn't get advanced whilst we were filling out the packets.
-	 */
-	smp_rmb();
-	if (READ_ONCE(chan->last_call) != call_id)
-		return;
-
-	serial = atomic_inc_return(&conn->serial);
-	pkt.whdr.serial = htonl(serial);
-
-	switch (chan->last_type) {
-	case RXRPC_PACKET_TYPE_ABORT:
-		break;
-	case RXRPC_PACKET_TYPE_ACK:
 		trace_rxrpc_tx_ack(chan->call_debug_id, serial,
 				   ntohl(pkt.ack.firstPacket),
 				   ntohl(pkt.ack.serial),
 				   pkt.ack.reason, 0);
 		break;
+
+	default:
+		return;
 	}
 
 	ret = kernel_sendmsg(conn->local->socket, &msg, iov, ioc, len);
@@ -207,12 +192,8 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn)
 
 	_enter("{%d},%x", conn->debug_id, conn->abort_code);
 
-	spin_lock(&conn->bundle->channel_lock);
-
 	for (i = 0; i < RXRPC_MAXCALLS; i++) {
-		call = rcu_dereference_protected(
-			conn->channels[i].call,
-			lockdep_is_held(&conn->bundle->channel_lock));
+		call = conn->channels[i].call;
 		if (call)
 			rxrpc_set_call_completion(call,
 						  conn->completion,
@@ -220,7 +201,6 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn)
 						  conn->error);
 	}
 
-	spin_unlock(&conn->bundle->channel_lock);
 	_leave("");
 }
 
@@ -316,9 +296,7 @@ again:
 		if (!test_bit(RXRPC_CONN_FINAL_ACK_0 + channel, &conn->flags))
 			continue;
 
-		smp_rmb(); /* vs rxrpc_disconnect_client_call */
-		ack_at = READ_ONCE(chan->final_ack_at);
-
+		ack_at = chan->final_ack_at;
 		if (time_before(j, ack_at) && !force) {
 			if (time_before(ack_at, next_j)) {
 				next_j = ack_at;
@@ -446,15 +424,8 @@ void rxrpc_input_conn_event(struct rxrpc_connection *conn, struct sk_buff *skb)
 		if (conn->state != RXRPC_CONN_SERVICE)
 			break;
 
-		spin_lock(&conn->bundle->channel_lock);
-
 		for (loop = 0; loop < RXRPC_MAXCALLS; loop++)
-			rxrpc_call_is_secure(
-				rcu_dereference_protected(
-					conn->channels[loop].call,
-					lockdep_is_held(&conn->bundle->channel_lock)));
-
-		spin_unlock(&conn->bundle->channel_lock);
+			rxrpc_call_is_secure(conn->channels[loop].call);
 		break;
 	}
 

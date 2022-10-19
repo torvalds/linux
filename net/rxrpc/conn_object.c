@@ -67,6 +67,7 @@ struct rxrpc_connection *rxrpc_alloc_connection(struct rxrpc_net *rxnet,
 		INIT_WORK(&conn->destructor, rxrpc_clean_up_connection);
 		INIT_LIST_HEAD(&conn->proc_link);
 		INIT_LIST_HEAD(&conn->link);
+		mutex_init(&conn->security_lock);
 		skb_queue_head_init(&conn->rx_queue);
 		conn->rxnet = rxnet;
 		conn->security = &rxrpc_no_security;
@@ -157,7 +158,7 @@ void __rxrpc_disconnect_call(struct rxrpc_connection *conn,
 
 	_enter("%d,%x", conn->debug_id, call->cid);
 
-	if (rcu_access_pointer(chan->call) == call) {
+	if (chan->call == call) {
 		/* Save the result of the call so that we can repeat it if necessary
 		 * through the channel, whilst disposing of the actual call record.
 		 */
@@ -177,12 +178,9 @@ void __rxrpc_disconnect_call(struct rxrpc_connection *conn,
 			break;
 		}
 
-		/* Sync with rxrpc_conn_retransmit(). */
-		smp_wmb();
 		chan->last_call = chan->call_id;
 		chan->call_id = chan->call_counter;
-
-		rcu_assign_pointer(chan->call, NULL);
+		chan->call = NULL;
 	}
 
 	_leave("");
@@ -210,10 +208,7 @@ void rxrpc_disconnect_call(struct rxrpc_call *call)
 	if (rxrpc_is_client_call(call)) {
 		rxrpc_disconnect_client_call(call->bundle, call);
 	} else {
-		spin_lock(&conn->bundle->channel_lock);
 		__rxrpc_disconnect_call(conn, call);
-		spin_unlock(&conn->bundle->channel_lock);
-
 		conn->idle_timestamp = jiffies;
 		if (atomic_dec_and_test(&conn->active))
 			rxrpc_set_service_reap_timer(conn->rxnet,
@@ -316,10 +311,10 @@ static void rxrpc_clean_up_connection(struct work_struct *work)
 		container_of(work, struct rxrpc_connection, destructor);
 	struct rxrpc_net *rxnet = conn->rxnet;
 
-	ASSERT(!rcu_access_pointer(conn->channels[0].call) &&
-	       !rcu_access_pointer(conn->channels[1].call) &&
-	       !rcu_access_pointer(conn->channels[2].call) &&
-	       !rcu_access_pointer(conn->channels[3].call));
+	ASSERT(!conn->channels[0].call &&
+	       !conn->channels[1].call &&
+	       !conn->channels[2].call &&
+	       !conn->channels[3].call);
 	ASSERT(list_empty(&conn->cache_link));
 
 	del_timer_sync(&conn->timer);

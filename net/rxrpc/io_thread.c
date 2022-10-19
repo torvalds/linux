@@ -369,10 +369,7 @@ static int rxrpc_input_packet_on_conn(struct rxrpc_connection *conn,
 		return just_discard;
 	}
 
-	rcu_read_lock();
-	call = rxrpc_try_get_call(rcu_dereference(chan->call),
-				  rxrpc_call_get_input);
-	rcu_read_unlock();
+	call = rxrpc_try_get_call(chan->call, rxrpc_call_get_input);
 
 	if (sp->hdr.callNumber > chan->call_id) {
 		if (rxrpc_to_client(sp)) {
@@ -453,6 +450,9 @@ int rxrpc_io_thread(void *data)
 			continue;
 		}
 
+		if (!list_empty(&local->new_client_calls))
+			rxrpc_connect_client_calls(local);
+
 		/* Process received packets and errors. */
 		if ((skb = __skb_dequeue(&rx_queue))) {
 			struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
@@ -492,7 +492,10 @@ int rxrpc_io_thread(void *data)
 		should_stop = kthread_should_stop();
 		if (!skb_queue_empty(&local->rx_queue) ||
 		    !list_empty(&local->call_attend_q) ||
-		    !list_empty(&local->conn_attend_q)) {
+		    !list_empty(&local->conn_attend_q) ||
+		    !list_empty(&local->new_client_calls) ||
+		    test_bit(RXRPC_CLIENT_CONN_REAP_TIMER,
+			     &local->client_conn_flags)) {
 			__set_current_state(TASK_RUNNING);
 			continue;
 		}

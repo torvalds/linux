@@ -150,7 +150,7 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
 	timer_setup(&call->timer, rxrpc_call_timer_expired, 0);
 	INIT_WORK(&call->destroyer, rxrpc_destroy_call);
 	INIT_LIST_HEAD(&call->link);
-	INIT_LIST_HEAD(&call->chan_wait_link);
+	INIT_LIST_HEAD(&call->wait_link);
 	INIT_LIST_HEAD(&call->accept_link);
 	INIT_LIST_HEAD(&call->recvmsg_link);
 	INIT_LIST_HEAD(&call->sock_link);
@@ -242,7 +242,7 @@ static struct rxrpc_call *rxrpc_alloc_client_call(struct rxrpc_sock *rx,
 /*
  * Initiate the call ack/resend/expiry timer.
  */
-static void rxrpc_start_call_timer(struct rxrpc_call *call)
+void rxrpc_start_call_timer(struct rxrpc_call *call)
 {
 	unsigned long now = jiffies;
 	unsigned long j = now + MAX_JIFFY_OFFSET;
@@ -284,6 +284,39 @@ static void rxrpc_put_call_slot(struct rxrpc_call *call)
 	if (test_bit(RXRPC_CALL_KERNEL, &call->flags))
 		limiter = &rxrpc_kernel_call_limiter;
 	up(limiter);
+}
+
+/*
+ * Start the process of connecting a call.  We obtain a peer and a connection
+ * bundle, but the actual association of a call with a connection is offloaded
+ * to the I/O thread to simplify locking.
+ */
+static int rxrpc_connect_call(struct rxrpc_call *call, gfp_t gfp)
+{
+	struct rxrpc_local *local = call->local;
+	int ret = 0;
+
+	_enter("{%d,%lx},", call->debug_id, call->user_call_ID);
+
+	call->peer = rxrpc_lookup_peer(local, &call->dest_srx, gfp);
+	if (!call->peer)
+		goto error;
+
+	ret = rxrpc_look_up_bundle(call, gfp);
+	if (ret < 0)
+		goto error;
+
+	trace_rxrpc_client(NULL, -1, rxrpc_client_queue_new_call);
+	rxrpc_get_call(call, rxrpc_call_get_io_thread);
+	spin_lock(&local->client_call_lock);
+	list_add_tail(&call->wait_link, &local->new_client_calls);
+	spin_unlock(&local->client_call_lock);
+	rxrpc_wake_up_io_thread(local);
+	return 0;
+
+error:
+	__set_bit(RXRPC_CALL_DISCONNECTED, &call->flags);
+	return ret;
 }
 
 /*
@@ -369,10 +402,6 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 	if (ret < 0)
 		goto error_attached_to_socket;
 
-	rxrpc_see_call(call, rxrpc_call_see_connected);
-
-	rxrpc_start_call_timer(call);
-
 	_leave(" = %p [new]", call);
 	return call;
 
@@ -387,22 +416,20 @@ error_dup_user_ID:
 	rxrpc_prefail_call(call, RXRPC_CALL_LOCAL_ERROR, -EEXIST);
 	trace_rxrpc_call(call->debug_id, refcount_read(&call->ref), 0,
 			 rxrpc_call_see_userid_exists);
-	rxrpc_release_call(rx, call);
 	mutex_unlock(&call->user_mutex);
 	rxrpc_put_call(call, rxrpc_call_put_userid_exists);
 	_leave(" = -EEXIST");
 	return ERR_PTR(-EEXIST);
 
 	/* We got an error, but the call is attached to the socket and is in
-	 * need of release.  However, we might now race with recvmsg() when
-	 * completing the call queues it.  Return 0 from sys_sendmsg() and
+	 * need of release.  However, we might now race with recvmsg() when it
+	 * completion notifies the socket.  Return 0 from sys_sendmsg() and
 	 * leave the error to recvmsg() to deal with.
 	 */
 error_attached_to_socket:
 	trace_rxrpc_call(call->debug_id, refcount_read(&call->ref), ret,
 			 rxrpc_call_see_connect_failed);
-	set_bit(RXRPC_CALL_DISCONNECTED, &call->flags);
-	rxrpc_prefail_call(call, RXRPC_CALL_LOCAL_ERROR, ret);
+	rxrpc_set_call_completion(call, RXRPC_CALL_LOCAL_ERROR, 0, ret);
 	_leave(" = c=%08x [err]", call->debug_id);
 	return call;
 }
@@ -460,7 +487,7 @@ void rxrpc_incoming_call(struct rxrpc_sock *rx,
 	chan = sp->hdr.cid & RXRPC_CHANNELMASK;
 	conn->channels[chan].call_counter = call->call_id;
 	conn->channels[chan].call_id = call->call_id;
-	rcu_assign_pointer(conn->channels[chan].call, call);
+	conn->channels[chan].call = call;
 	spin_unlock(&conn->state_lock);
 
 	spin_lock(&conn->peer->lock);
@@ -520,7 +547,7 @@ static void rxrpc_cleanup_ring(struct rxrpc_call *call)
 void rxrpc_release_call(struct rxrpc_sock *rx, struct rxrpc_call *call)
 {
 	struct rxrpc_connection *conn = call->conn;
-	bool put = false;
+	bool put = false, putu = false;
 
 	_enter("{%d,%d}", call->debug_id, refcount_read(&call->ref));
 
@@ -555,13 +582,16 @@ void rxrpc_release_call(struct rxrpc_sock *rx, struct rxrpc_call *call)
 	if (test_and_clear_bit(RXRPC_CALL_HAS_USERID, &call->flags)) {
 		rb_erase(&call->sock_node, &rx->calls);
 		memset(&call->sock_node, 0xdd, sizeof(call->sock_node));
-		rxrpc_put_call(call, rxrpc_call_put_userid_exists);
+		putu = true;
 	}
 
 	list_del(&call->sock_link);
 	write_unlock(&rx->call_lock);
 
 	_debug("RELEASE CALL %p (%d CONN %p)", call, call->debug_id, conn);
+
+	if (putu)
+		rxrpc_put_call(call, rxrpc_call_put_userid);
 
 	_leave("");
 }

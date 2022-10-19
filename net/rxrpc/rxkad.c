@@ -1122,36 +1122,31 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 		goto protocol_error_free;
 	}
 
-	spin_lock(&conn->bundle->channel_lock);
 	for (i = 0; i < RXRPC_MAXCALLS; i++) {
-		struct rxrpc_call *call;
 		u32 call_id = ntohl(response->encrypted.call_id[i]);
+		u32 counter = READ_ONCE(conn->channels[i].call_counter);
 
 		if (call_id > INT_MAX) {
 			rxrpc_abort_conn(conn, skb, RXKADSEALEDINCON, -EPROTO,
 					 rxkad_abort_resp_bad_callid);
-			goto protocol_error_unlock;
+			goto protocol_error_free;
 		}
 
-		if (call_id < conn->channels[i].call_counter) {
+		if (call_id < counter) {
 			rxrpc_abort_conn(conn, skb, RXKADSEALEDINCON, -EPROTO,
 					 rxkad_abort_resp_call_ctr);
-			goto protocol_error_unlock;
+			goto protocol_error_free;
 		}
 
-		if (call_id > conn->channels[i].call_counter) {
-			call = rcu_dereference_protected(
-				conn->channels[i].call,
-				lockdep_is_held(&conn->bundle->channel_lock));
-			if (call && !__rxrpc_call_is_complete(call)) {
+		if (call_id > counter) {
+			if (conn->channels[i].call) {
 				rxrpc_abort_conn(conn, skb, RXKADSEALEDINCON, -EPROTO,
 						 rxkad_abort_resp_call_state);
-				goto protocol_error_unlock;
+				goto protocol_error_free;
 			}
 			conn->channels[i].call_counter = call_id;
 		}
 	}
-	spin_unlock(&conn->bundle->channel_lock);
 
 	if (ntohl(response->encrypted.inc_nonce) != conn->rxkad.nonce + 1) {
 		rxrpc_abort_conn(conn, skb, RXKADOUTOFSEQUENCE, -EPROTO,
@@ -1179,8 +1174,6 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 	_leave(" = 0");
 	return 0;
 
-protocol_error_unlock:
-	spin_unlock(&conn->bundle->channel_lock);
 protocol_error_free:
 	kfree(ticket);
 protocol_error:

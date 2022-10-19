@@ -40,60 +40,18 @@ static void rxrpc_activate_bundle(struct rxrpc_bundle *bundle)
 }
 
 /*
- * Get a connection ID and epoch for a client connection from the global pool.
- * The connection struct pointer is then recorded in the idr radix tree.  The
- * epoch doesn't change until the client is rebooted (or, at least, unless the
- * module is unloaded).
- */
-static int rxrpc_get_client_connection_id(struct rxrpc_connection *conn,
-					  gfp_t gfp)
-{
-	struct rxrpc_local *local = conn->local;
-	int id;
-
-	_enter("");
-
-	idr_preload(gfp);
-	spin_lock(&local->conn_lock);
-
-	id = idr_alloc_cyclic(&local->conn_ids, conn,
-			      1, 0x40000000, GFP_NOWAIT);
-	if (id < 0)
-		goto error;
-
-	spin_unlock(&local->conn_lock);
-	idr_preload_end();
-
-	conn->proto.epoch = local->rxnet->epoch;
-	conn->proto.cid = id << RXRPC_CIDSHIFT;
-	set_bit(RXRPC_CONN_HAS_IDR, &conn->flags);
-	_leave(" [CID %x]", conn->proto.cid);
-	return 0;
-
-error:
-	spin_unlock(&local->conn_lock);
-	idr_preload_end();
-	_leave(" = %d", id);
-	return id;
-}
-
-/*
  * Release a connection ID for a client connection.
  */
 static void rxrpc_put_client_connection_id(struct rxrpc_local *local,
 					   struct rxrpc_connection *conn)
 {
-	if (test_bit(RXRPC_CONN_HAS_IDR, &conn->flags)) {
-		spin_lock(&local->conn_lock);
-		idr_remove(&local->conn_ids, conn->proto.cid >> RXRPC_CIDSHIFT);
-		spin_unlock(&local->conn_lock);
-	}
+	idr_remove(&local->conn_ids, conn->proto.cid >> RXRPC_CIDSHIFT);
 }
 
 /*
  * Destroy the client connection ID tree.
  */
-void rxrpc_destroy_client_conn_ids(struct rxrpc_local *local)
+static void rxrpc_destroy_client_conn_ids(struct rxrpc_local *local)
 {
 	struct rxrpc_connection *conn;
 	int id;
@@ -129,7 +87,6 @@ static struct rxrpc_bundle *rxrpc_alloc_bundle(struct rxrpc_call *call,
 		bundle->security_level	= call->security_level;
 		refcount_set(&bundle->ref, 1);
 		atomic_set(&bundle->active, 1);
-		spin_lock_init(&bundle->channel_lock);
 		INIT_LIST_HEAD(&bundle->waiting_calls);
 		trace_rxrpc_bundle(bundle->debug_id, 1, rxrpc_bundle_new);
 	}
@@ -170,68 +127,67 @@ void rxrpc_put_bundle(struct rxrpc_bundle *bundle, enum rxrpc_bundle_trace why)
 }
 
 /*
+ * Get rid of outstanding client connection preallocations when a local
+ * endpoint is destroyed.
+ */
+void rxrpc_purge_client_connections(struct rxrpc_local *local)
+{
+	rxrpc_destroy_client_conn_ids(local);
+}
+
+/*
  * Allocate a client connection.
  */
 static struct rxrpc_connection *
-rxrpc_alloc_client_connection(struct rxrpc_bundle *bundle, gfp_t gfp)
+rxrpc_alloc_client_connection(struct rxrpc_bundle *bundle)
 {
 	struct rxrpc_connection *conn;
-	struct rxrpc_net *rxnet = bundle->local->rxnet;
-	int ret;
+	struct rxrpc_local *local = bundle->local;
+	struct rxrpc_net *rxnet = local->rxnet;
+	int id;
 
 	_enter("");
 
-	conn = rxrpc_alloc_connection(rxnet, gfp);
-	if (!conn) {
-		_leave(" = -ENOMEM");
+	conn = rxrpc_alloc_connection(rxnet, GFP_ATOMIC | __GFP_NOWARN);
+	if (!conn)
 		return ERR_PTR(-ENOMEM);
+
+	id = idr_alloc_cyclic(&local->conn_ids, conn, 1, 0x40000000,
+			      GFP_ATOMIC | __GFP_NOWARN);
+	if (id < 0) {
+		kfree(conn);
+		return ERR_PTR(id);
 	}
 
 	refcount_set(&conn->ref, 1);
-	conn->bundle		= bundle;
-	conn->local		= bundle->local;
-	conn->peer		= bundle->peer;
-	conn->key		= bundle->key;
+	conn->proto.cid		= id << RXRPC_CIDSHIFT;
+	conn->proto.epoch	= local->rxnet->epoch;
+	conn->out_clientflag	= RXRPC_CLIENT_INITIATED;
+	conn->bundle		= rxrpc_get_bundle(bundle, rxrpc_bundle_get_client_conn);
+	conn->local		= rxrpc_get_local(bundle->local, rxrpc_local_get_client_conn);
+	conn->peer		= rxrpc_get_peer(bundle->peer, rxrpc_peer_get_client_conn);
+	conn->key		= key_get(bundle->key);
+	conn->security		= bundle->security;
 	conn->exclusive		= bundle->exclusive;
 	conn->upgrade		= bundle->upgrade;
 	conn->orig_service_id	= bundle->service_id;
 	conn->security_level	= bundle->security_level;
-	conn->out_clientflag	= RXRPC_CLIENT_INITIATED;
-	conn->state		= RXRPC_CONN_CLIENT;
+	conn->state		= RXRPC_CONN_CLIENT_UNSECURED;
 	conn->service_id	= conn->orig_service_id;
 
-	ret = rxrpc_get_client_connection_id(conn, gfp);
-	if (ret < 0)
-		goto error_0;
-
-	ret = rxrpc_init_client_conn_security(conn);
-	if (ret < 0)
-		goto error_1;
+	if (conn->security == &rxrpc_no_security)
+		conn->state	= RXRPC_CONN_CLIENT;
 
 	atomic_inc(&rxnet->nr_conns);
 	write_lock(&rxnet->conn_lock);
 	list_add_tail(&conn->proc_link, &rxnet->conn_proc_list);
 	write_unlock(&rxnet->conn_lock);
 
-	rxrpc_get_bundle(bundle, rxrpc_bundle_get_client_conn);
-	rxrpc_get_peer(conn->peer, rxrpc_peer_get_client_conn);
-	rxrpc_get_local(conn->local, rxrpc_local_get_client_conn);
-	key_get(conn->key);
-
-	trace_rxrpc_conn(conn->debug_id, refcount_read(&conn->ref),
-			 rxrpc_conn_new_client);
+	rxrpc_see_connection(conn, rxrpc_conn_new_client);
 
 	atomic_inc(&rxnet->nr_client_conns);
 	trace_rxrpc_client(conn, -1, rxrpc_client_alloc);
-	_leave(" = %p", conn);
 	return conn;
-
-error_1:
-	rxrpc_put_client_connection_id(bundle->local, conn);
-error_0:
-	kfree(conn);
-	_leave(" = %d", ret);
-	return ERR_PTR(ret);
 }
 
 /*
@@ -249,7 +205,8 @@ static bool rxrpc_may_reuse_conn(struct rxrpc_connection *conn)
 	if (test_bit(RXRPC_CONN_DONT_REUSE, &conn->flags))
 		goto dont_reuse;
 
-	if (conn->state != RXRPC_CONN_CLIENT ||
+	if ((conn->state != RXRPC_CONN_CLIENT_UNSECURED &&
+	     conn->state != RXRPC_CONN_CLIENT) ||
 	    conn->proto.epoch != rxnet->epoch)
 		goto mark_dont_reuse;
 
@@ -280,7 +237,7 @@ dont_reuse:
  * Look up the conn bundle that matches the connection parameters, adding it if
  * it doesn't yet exist.
  */
-static struct rxrpc_bundle *rxrpc_look_up_bundle(struct rxrpc_call *call, gfp_t gfp)
+int rxrpc_look_up_bundle(struct rxrpc_call *call, gfp_t gfp)
 {
 	static atomic_t rxrpc_bundle_id;
 	struct rxrpc_bundle *bundle, *candidate;
@@ -295,7 +252,7 @@ static struct rxrpc_bundle *rxrpc_look_up_bundle(struct rxrpc_call *call, gfp_t 
 
 	if (test_bit(RXRPC_CALL_EXCLUSIVE, &call->flags)) {
 		call->bundle = rxrpc_alloc_bundle(call, gfp);
-		return call->bundle;
+		return call->bundle ? 0 : -ENOMEM;
 	}
 
 	/* First, see if the bundle is already there. */
@@ -324,7 +281,7 @@ static struct rxrpc_bundle *rxrpc_look_up_bundle(struct rxrpc_call *call, gfp_t 
 	/* It wasn't.  We need to add one. */
 	candidate = rxrpc_alloc_bundle(call, gfp);
 	if (!candidate)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	_debug("search 2");
 	spin_lock(&local->client_bundles_lock);
@@ -355,7 +312,7 @@ static struct rxrpc_bundle *rxrpc_look_up_bundle(struct rxrpc_call *call, gfp_t 
 	call->bundle = rxrpc_get_bundle(candidate, rxrpc_bundle_get_client_call);
 	spin_unlock(&local->client_bundles_lock);
 	_leave(" = B=%u [new]", call->bundle->debug_id);
-	return call->bundle;
+	return 0;
 
 found_bundle_free:
 	rxrpc_free_bundle(candidate);
@@ -364,160 +321,77 @@ found_bundle:
 	rxrpc_activate_bundle(bundle);
 	spin_unlock(&local->client_bundles_lock);
 	_leave(" = B=%u [found]", call->bundle->debug_id);
-	return call->bundle;
-}
-
-/*
- * Create or find a client bundle to use for a call.
- *
- * If we return with a connection, the call will be on its waiting list.  It's
- * left to the caller to assign a channel and wake up the call.
- */
-static struct rxrpc_bundle *rxrpc_prep_call(struct rxrpc_call *call, gfp_t gfp)
-{
-	struct rxrpc_bundle *bundle;
-
-	_enter("{%d,%lx},", call->debug_id, call->user_call_ID);
-
-	call->peer = rxrpc_lookup_peer(call->local, &call->dest_srx, gfp);
-	if (!call->peer)
-		goto error;
-
-	call->tx_last_sent = ktime_get_real();
-	call->cong_ssthresh = call->peer->cong_ssthresh;
-	if (call->cong_cwnd >= call->cong_ssthresh)
-		call->cong_mode = RXRPC_CALL_CONGEST_AVOIDANCE;
-	else
-		call->cong_mode = RXRPC_CALL_SLOW_START;
-
-	/* Find the client connection bundle. */
-	bundle = rxrpc_look_up_bundle(call, gfp);
-	if (!bundle)
-		goto error;
-
-	/* Get this call queued.  Someone else may activate it whilst we're
-	 * lining up a new connection, but that's fine.
-	 */
-	spin_lock(&bundle->channel_lock);
-	list_add_tail(&call->chan_wait_link, &bundle->waiting_calls);
-	spin_unlock(&bundle->channel_lock);
-
-	_leave(" = [B=%x]", bundle->debug_id);
-	return bundle;
-
-error:
-	_leave(" = -ENOMEM");
-	return ERR_PTR(-ENOMEM);
+	return 0;
 }
 
 /*
  * Allocate a new connection and add it into a bundle.
  */
-static void rxrpc_add_conn_to_bundle(struct rxrpc_bundle *bundle, gfp_t gfp)
-	__releases(bundle->channel_lock)
+static bool rxrpc_add_conn_to_bundle(struct rxrpc_bundle *bundle,
+				     unsigned int slot)
 {
-	struct rxrpc_connection *candidate = NULL, *old = NULL;
-	bool conflict;
-	int i;
+	struct rxrpc_connection *conn, *old;
+	unsigned int shift = slot * RXRPC_MAXCALLS;
+	unsigned int i;
 
-	_enter("");
-
-	conflict = bundle->alloc_conn;
-	if (!conflict)
-		bundle->alloc_conn = true;
-	spin_unlock(&bundle->channel_lock);
-	if (conflict) {
-		_leave(" [conf]");
-		return;
+	old = bundle->conns[slot];
+	if (old) {
+		bundle->conns[slot] = NULL;
+		trace_rxrpc_client(old, -1, rxrpc_client_replace);
+		rxrpc_put_connection(old, rxrpc_conn_put_noreuse);
 	}
 
-	candidate = rxrpc_alloc_client_connection(bundle, gfp);
-
-	spin_lock(&bundle->channel_lock);
-	bundle->alloc_conn = false;
-
-	if (IS_ERR(candidate)) {
-		bundle->alloc_error = PTR_ERR(candidate);
-		spin_unlock(&bundle->channel_lock);
-		_leave(" [err %ld]", PTR_ERR(candidate));
-		return;
+	conn = rxrpc_alloc_client_connection(bundle);
+	if (IS_ERR(conn)) {
+		bundle->alloc_error = PTR_ERR(conn);
+		return false;
 	}
 
-	bundle->alloc_error = 0;
-
-	for (i = 0; i < ARRAY_SIZE(bundle->conns); i++) {
-		unsigned int shift = i * RXRPC_MAXCALLS;
-		int j;
-
-		old = bundle->conns[i];
-		if (!rxrpc_may_reuse_conn(old)) {
-			if (old)
-				trace_rxrpc_client(old, -1, rxrpc_client_replace);
-			candidate->bundle_shift = shift;
-			rxrpc_activate_bundle(bundle);
-			bundle->conns[i] = candidate;
-			for (j = 0; j < RXRPC_MAXCALLS; j++)
-				set_bit(shift + j, &bundle->avail_chans);
-			candidate = NULL;
-			break;
-		}
-
-		old = NULL;
-	}
-
-	spin_unlock(&bundle->channel_lock);
-
-	if (candidate) {
-		_debug("discard C=%x", candidate->debug_id);
-		trace_rxrpc_client(candidate, -1, rxrpc_client_duplicate);
-		rxrpc_put_connection(candidate, rxrpc_conn_put_discard);
-	}
-
-	rxrpc_put_connection(old, rxrpc_conn_put_noreuse);
-	_leave("");
+	rxrpc_activate_bundle(bundle);
+	conn->bundle_shift = shift;
+	bundle->conns[slot] = conn;
+	for (i = 0; i < RXRPC_MAXCALLS; i++)
+		set_bit(shift + i, &bundle->avail_chans);
+	return true;
 }
 
 /*
  * Add a connection to a bundle if there are no usable connections or we have
  * connections waiting for extra capacity.
  */
-static void rxrpc_maybe_add_conn(struct rxrpc_bundle *bundle, gfp_t gfp)
+static bool rxrpc_bundle_has_space(struct rxrpc_bundle *bundle)
 {
-	struct rxrpc_call *call;
-	int i, usable;
+	int slot = -1, i, usable;
 
 	_enter("");
 
-	spin_lock(&bundle->channel_lock);
+	bundle->alloc_error = 0;
 
 	/* See if there are any usable connections. */
 	usable = 0;
-	for (i = 0; i < ARRAY_SIZE(bundle->conns); i++)
+	for (i = 0; i < ARRAY_SIZE(bundle->conns); i++) {
 		if (rxrpc_may_reuse_conn(bundle->conns[i]))
 			usable++;
-
-	if (!usable && !list_empty(&bundle->waiting_calls)) {
-		call = list_first_entry(&bundle->waiting_calls,
-					struct rxrpc_call, chan_wait_link);
-		if (test_bit(RXRPC_CALL_UPGRADE, &call->flags))
-			bundle->try_upgrade = true;
+		else if (slot == -1)
+			slot = i;
 	}
+
+	if (!usable && bundle->upgrade)
+		bundle->try_upgrade = true;
 
 	if (!usable)
 		goto alloc_conn;
 
 	if (!bundle->avail_chans &&
 	    !bundle->try_upgrade &&
-	    !list_empty(&bundle->waiting_calls) &&
 	    usable < ARRAY_SIZE(bundle->conns))
 		goto alloc_conn;
 
-	spin_unlock(&bundle->channel_lock);
 	_leave("");
-	return;
+	return usable;
 
 alloc_conn:
-	return rxrpc_add_conn_to_bundle(bundle, gfp);
+	return slot >= 0 ? rxrpc_add_conn_to_bundle(bundle, slot) : false;
 }
 
 /*
@@ -531,10 +405,12 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 	struct rxrpc_channel *chan = &conn->channels[channel];
 	struct rxrpc_bundle *bundle = conn->bundle;
 	struct rxrpc_call *call = list_entry(bundle->waiting_calls.next,
-					     struct rxrpc_call, chan_wait_link);
+					     struct rxrpc_call, wait_link);
 	u32 call_id = chan->call_counter + 1;
 
 	_enter("C=%x,%u", conn->debug_id, channel);
+
+	list_del_init(&call->wait_link);
 
 	trace_rxrpc_client(conn, channel, rxrpc_client_chan_activate);
 
@@ -545,64 +421,49 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 	clear_bit(conn->bundle_shift + channel, &bundle->avail_chans);
 
 	rxrpc_see_call(call, rxrpc_call_see_activate_client);
-	list_del_init(&call->chan_wait_link);
 	call->conn	= rxrpc_get_connection(conn, rxrpc_conn_get_activate_call);
 	call->cid	= conn->proto.cid | channel;
 	call->call_id	= call_id;
 	call->dest_srx.srx_service = conn->service_id;
-
-	trace_rxrpc_connect_call(call);
-
-	rxrpc_set_call_state(call, RXRPC_CALL_CLIENT_SEND_REQUEST);
-
-	/* Paired with the read barrier in rxrpc_connect_call().  This orders
-	 * cid and epoch in the connection wrt to call_id without the need to
-	 * take the channel_lock.
-	 *
-	 * We provisionally assign a callNumber at this point, but we don't
-	 * confirm it until the call is about to be exposed.
-	 *
-	 * TODO: Pair with a barrier in the data_ready handler when that looks
-	 * at the call ID through a connection channel.
-	 */
-	smp_wmb();
+	call->cong_ssthresh = call->peer->cong_ssthresh;
+	if (call->cong_cwnd >= call->cong_ssthresh)
+		call->cong_mode = RXRPC_CALL_CONGEST_AVOIDANCE;
+	else
+		call->cong_mode = RXRPC_CALL_SLOW_START;
 
 	chan->call_id		= call_id;
 	chan->call_debug_id	= call->debug_id;
-	rcu_assign_pointer(chan->call, call);
+	chan->call		= call;
+
+	rxrpc_see_call(call, rxrpc_call_see_connected);
+	trace_rxrpc_connect_call(call);
+	call->tx_last_sent = ktime_get_real();
+	rxrpc_start_call_timer(call);
+	rxrpc_set_call_state(call, RXRPC_CALL_CLIENT_SEND_REQUEST);
 	wake_up(&call->waitq);
 }
 
 /*
  * Remove a connection from the idle list if it's on it.
  */
-static void rxrpc_unidle_conn(struct rxrpc_bundle *bundle, struct rxrpc_connection *conn)
+static void rxrpc_unidle_conn(struct rxrpc_connection *conn)
 {
-	struct rxrpc_local *local = bundle->local;
-	bool drop_ref;
-
 	if (!list_empty(&conn->cache_link)) {
-		drop_ref = false;
-		spin_lock(&local->client_conn_cache_lock);
-		if (!list_empty(&conn->cache_link)) {
-			list_del_init(&conn->cache_link);
-			drop_ref = true;
-		}
-		spin_unlock(&local->client_conn_cache_lock);
-		if (drop_ref)
-			rxrpc_put_connection(conn, rxrpc_conn_put_unidle);
+		list_del_init(&conn->cache_link);
+		rxrpc_put_connection(conn, rxrpc_conn_put_unidle);
 	}
 }
 
 /*
- * Assign channels and callNumbers to waiting calls with channel_lock
- * held by caller.
+ * Assign channels and callNumbers to waiting calls.
  */
-static void rxrpc_activate_channels_locked(struct rxrpc_bundle *bundle)
+static void rxrpc_activate_channels(struct rxrpc_bundle *bundle)
 {
 	struct rxrpc_connection *conn;
 	unsigned long avail, mask;
 	unsigned int channel, slot;
+
+	trace_rxrpc_client(NULL, -1, rxrpc_client_activate_chans);
 
 	if (bundle->try_upgrade)
 		mask = 1;
@@ -623,7 +484,7 @@ static void rxrpc_activate_channels_locked(struct rxrpc_bundle *bundle)
 
 		if (bundle->try_upgrade)
 			set_bit(RXRPC_CONN_PROBING_FOR_UPGRADE, &conn->flags);
-		rxrpc_unidle_conn(bundle, conn);
+		rxrpc_unidle_conn(conn);
 
 		channel &= (RXRPC_MAXCALLS - 1);
 		conn->act_chans	|= 1 << channel;
@@ -632,125 +493,24 @@ static void rxrpc_activate_channels_locked(struct rxrpc_bundle *bundle)
 }
 
 /*
- * Assign channels and callNumbers to waiting calls.
+ * Connect waiting channels (called from the I/O thread).
  */
-static void rxrpc_activate_channels(struct rxrpc_bundle *bundle)
+void rxrpc_connect_client_calls(struct rxrpc_local *local)
 {
-	_enter("B=%x", bundle->debug_id);
+	struct rxrpc_call *call;
 
-	trace_rxrpc_client(NULL, -1, rxrpc_client_activate_chans);
+	while ((call = list_first_entry_or_null(&local->new_client_calls,
+						struct rxrpc_call, wait_link))
+	       ) {
+		struct rxrpc_bundle *bundle = call->bundle;
 
-	if (!bundle->avail_chans)
-		return;
+		spin_lock(&local->client_call_lock);
+		list_move_tail(&call->wait_link, &bundle->waiting_calls);
+		spin_unlock(&local->client_call_lock);
 
-	spin_lock(&bundle->channel_lock);
-	rxrpc_activate_channels_locked(bundle);
-	spin_unlock(&bundle->channel_lock);
-	_leave("");
-}
-
-/*
- * Wait for a callNumber and a channel to be granted to a call.
- */
-static int rxrpc_wait_for_channel(struct rxrpc_bundle *bundle,
-				  struct rxrpc_call *call, gfp_t gfp)
-{
-	DECLARE_WAITQUEUE(myself, current);
-	int ret = 0;
-
-	_enter("%d", call->debug_id);
-
-	if (!gfpflags_allow_blocking(gfp)) {
-		rxrpc_maybe_add_conn(bundle, gfp);
-		rxrpc_activate_channels(bundle);
-		ret = bundle->alloc_error ?: -EAGAIN;
-		goto out;
+		if (rxrpc_bundle_has_space(bundle))
+			rxrpc_activate_channels(bundle);
 	}
-
-	add_wait_queue_exclusive(&call->waitq, &myself);
-	for (;;) {
-		rxrpc_maybe_add_conn(bundle, gfp);
-		rxrpc_activate_channels(bundle);
-		ret = bundle->alloc_error;
-		if (ret < 0)
-			break;
-
-		switch (call->interruptibility) {
-		case RXRPC_INTERRUPTIBLE:
-		case RXRPC_PREINTERRUPTIBLE:
-			set_current_state(TASK_INTERRUPTIBLE);
-			break;
-		case RXRPC_UNINTERRUPTIBLE:
-		default:
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			break;
-		}
-		if (rxrpc_call_state(call) != RXRPC_CALL_CLIENT_AWAIT_CONN)
-			break;
-		if ((call->interruptibility == RXRPC_INTERRUPTIBLE ||
-		     call->interruptibility == RXRPC_PREINTERRUPTIBLE) &&
-		    signal_pending(current)) {
-			ret = -ERESTARTSYS;
-			break;
-		}
-		schedule();
-	}
-	remove_wait_queue(&call->waitq, &myself);
-	__set_current_state(TASK_RUNNING);
-
-out:
-	_leave(" = %d", ret);
-	return ret;
-}
-
-/*
- * find a connection for a call
- * - called in process context with IRQs enabled
- */
-int rxrpc_connect_call(struct rxrpc_call *call, gfp_t gfp)
-{
-	struct rxrpc_bundle *bundle;
-	int ret = 0;
-
-	_enter("{%d,%lx},", call->debug_id, call->user_call_ID);
-
-	rxrpc_get_call(call, rxrpc_call_get_io_thread);
-
-	bundle = rxrpc_prep_call(call, gfp);
-	if (IS_ERR(bundle)) {
-		rxrpc_put_call(call, rxrpc_call_get_io_thread);
-		ret = PTR_ERR(bundle);
-		goto out;
-	}
-
-	if (rxrpc_call_state(call) == RXRPC_CALL_CLIENT_AWAIT_CONN) {
-		ret = rxrpc_wait_for_channel(bundle, call, gfp);
-		if (ret < 0)
-			goto wait_failed;
-	}
-
-granted_channel:
-	/* Paired with the write barrier in rxrpc_activate_one_channel(). */
-	smp_rmb();
-
-out:
-	_leave(" = %d", ret);
-	return ret;
-
-wait_failed:
-	spin_lock(&bundle->channel_lock);
-	list_del_init(&call->chan_wait_link);
-	spin_unlock(&bundle->channel_lock);
-
-	if (rxrpc_call_state(call) != RXRPC_CALL_CLIENT_AWAIT_CONN) {
-		ret = 0;
-		goto granted_channel;
-	}
-
-	trace_rxrpc_client(call->conn, ret, rxrpc_client_chan_wait_failed);
-	rxrpc_set_call_completion(call, RXRPC_CALL_LOCAL_ERROR, 0, ret);
-	rxrpc_disconnect_client_call(bundle, call);
-	goto out;
 }
 
 /*
@@ -808,8 +568,6 @@ void rxrpc_disconnect_client_call(struct rxrpc_bundle *bundle, struct rxrpc_call
 
 	_enter("c=%x", call->debug_id);
 
-	spin_lock(&bundle->channel_lock);
-
 	/* Calls that have never actually been assigned a channel can simply be
 	 * discarded.
 	 */
@@ -818,8 +576,8 @@ void rxrpc_disconnect_client_call(struct rxrpc_bundle *bundle, struct rxrpc_call
 		_debug("call is waiting");
 		ASSERTCMP(call->call_id, ==, 0);
 		ASSERT(!test_bit(RXRPC_CALL_EXPOSED, &call->flags));
-		list_del_init(&call->chan_wait_link);
-		goto out;
+		list_del_init(&call->wait_link);
+		return;
 	}
 
 	cid = call->cid;
@@ -827,10 +585,8 @@ void rxrpc_disconnect_client_call(struct rxrpc_bundle *bundle, struct rxrpc_call
 	chan = &conn->channels[channel];
 	trace_rxrpc_client(conn, channel, rxrpc_client_chan_disconnect);
 
-	if (rcu_access_pointer(chan->call) != call) {
-		spin_unlock(&bundle->channel_lock);
-		BUG();
-	}
+	if (WARN_ON(chan->call != call))
+		return;
 
 	may_reuse = rxrpc_may_reuse_conn(conn);
 
@@ -851,16 +607,15 @@ void rxrpc_disconnect_client_call(struct rxrpc_bundle *bundle, struct rxrpc_call
 			trace_rxrpc_client(conn, channel, rxrpc_client_to_active);
 			bundle->try_upgrade = false;
 			if (may_reuse)
-				rxrpc_activate_channels_locked(bundle);
+				rxrpc_activate_channels(bundle);
 		}
-
 	}
 
 	/* See if we can pass the channel directly to another call. */
 	if (may_reuse && !list_empty(&bundle->waiting_calls)) {
 		trace_rxrpc_client(conn, channel, rxrpc_client_chan_pass);
 		rxrpc_activate_one_channel(conn, channel);
-		goto out;
+		return;
 	}
 
 	/* Schedule the final ACK to be transmitted in a short while so that it
@@ -878,7 +633,7 @@ void rxrpc_disconnect_client_call(struct rxrpc_bundle *bundle, struct rxrpc_call
 	}
 
 	/* Deactivate the channel. */
-	rcu_assign_pointer(chan->call, NULL);
+	chan->call = NULL;
 	set_bit(conn->bundle_shift + channel, &conn->bundle->avail_chans);
 	conn->act_chans	&= ~(1 << channel);
 
@@ -891,15 +646,10 @@ void rxrpc_disconnect_client_call(struct rxrpc_bundle *bundle, struct rxrpc_call
 		conn->idle_timestamp = jiffies;
 
 		rxrpc_get_connection(conn, rxrpc_conn_get_idle);
-		spin_lock(&local->client_conn_cache_lock);
 		list_move_tail(&conn->cache_link, &local->idle_client_conns);
-		spin_unlock(&local->client_conn_cache_lock);
 
 		rxrpc_set_client_reap_timer(local);
 	}
-
-out:
-	spin_unlock(&bundle->channel_lock);
 }
 
 /*
@@ -909,7 +659,6 @@ static void rxrpc_unbundle_conn(struct rxrpc_connection *conn)
 {
 	struct rxrpc_bundle *bundle = conn->bundle;
 	unsigned int bindex;
-	bool need_drop = false;
 	int i;
 
 	_enter("C=%x", conn->debug_id);
@@ -917,18 +666,13 @@ static void rxrpc_unbundle_conn(struct rxrpc_connection *conn)
 	if (conn->flags & RXRPC_CONN_FINAL_ACK_MASK)
 		rxrpc_process_delayed_final_acks(conn, true);
 
-	spin_lock(&bundle->channel_lock);
 	bindex = conn->bundle_shift / RXRPC_MAXCALLS;
 	if (bundle->conns[bindex] == conn) {
 		_debug("clear slot %u", bindex);
 		bundle->conns[bindex] = NULL;
 		for (i = 0; i < RXRPC_MAXCALLS; i++)
 			clear_bit(conn->bundle_shift + i, &bundle->avail_chans);
-		need_drop = true;
-	}
-	spin_unlock(&bundle->channel_lock);
-
-	if (need_drop) {
+		rxrpc_put_client_connection_id(bundle->local, conn);
 		rxrpc_deactivate_bundle(bundle);
 		rxrpc_put_connection(conn, rxrpc_conn_put_unbundle);
 	}
@@ -990,24 +734,16 @@ void rxrpc_discard_expired_client_conns(struct rxrpc_local *local)
 
 	_enter("");
 
-	if (list_empty(&local->idle_client_conns)) {
-		_leave(" [empty]");
-		return;
-	}
-
 	/* We keep an estimate of what the number of conns ought to be after
 	 * we've discarded some so that we don't overdo the discarding.
 	 */
 	nr_conns = atomic_read(&local->rxnet->nr_client_conns);
 
 next:
-	spin_lock(&local->client_conn_cache_lock);
-
-	if (list_empty(&local->idle_client_conns))
-		goto out;
-
-	conn = list_entry(local->idle_client_conns.next,
-			  struct rxrpc_connection, cache_link);
+	conn = list_first_entry_or_null(&local->idle_client_conns,
+					struct rxrpc_connection, cache_link);
+	if (!conn)
+		return;
 
 	if (!local->kill_all_client_conns) {
 		/* If the number of connections is over the reap limit, we
@@ -1032,8 +768,6 @@ next:
 	trace_rxrpc_client(conn, -1, rxrpc_client_discard);
 	list_del_init(&conn->cache_link);
 
-	spin_unlock(&local->client_conn_cache_lock);
-
 	rxrpc_unbundle_conn(conn);
 	/* Drop the ->cache_link ref */
 	rxrpc_put_connection(conn, rxrpc_conn_put_discard_idle);
@@ -1053,8 +787,6 @@ not_yet_expired:
 	if (!local->kill_all_client_conns)
 		timer_reduce(&local->client_conn_reap_timer, conn_expires_at);
 
-out:
-	spin_unlock(&local->client_conn_cache_lock);
 	_leave("");
 }
 
@@ -1063,34 +795,19 @@ out:
  */
 void rxrpc_clean_up_local_conns(struct rxrpc_local *local)
 {
-	struct rxrpc_connection *conn, *tmp;
-	LIST_HEAD(graveyard);
+	struct rxrpc_connection *conn;
 
 	_enter("");
 
-	spin_lock(&local->client_conn_cache_lock);
 	local->kill_all_client_conns = true;
-	spin_unlock(&local->client_conn_cache_lock);
 
 	del_timer_sync(&local->client_conn_reap_timer);
 
-	spin_lock(&local->client_conn_cache_lock);
-
-	list_for_each_entry_safe(conn, tmp, &local->idle_client_conns,
-				 cache_link) {
-		if (conn->local == local) {
-			atomic_dec(&conn->active);
-			trace_rxrpc_client(conn, -1, rxrpc_client_discard);
-			list_move(&conn->cache_link, &graveyard);
-		}
-	}
-
-	spin_unlock(&local->client_conn_cache_lock);
-
-	while (!list_empty(&graveyard)) {
-		conn = list_entry(graveyard.next,
-				  struct rxrpc_connection, cache_link);
+	while ((conn = list_first_entry_or_null(&local->idle_client_conns,
+						struct rxrpc_connection, cache_link))) {
 		list_del_init(&conn->cache_link);
+		atomic_dec(&conn->active);
+		trace_rxrpc_client(conn, -1, rxrpc_client_discard);
 		rxrpc_unbundle_conn(conn);
 		rxrpc_put_connection(conn, rxrpc_conn_put_local_dead);
 	}

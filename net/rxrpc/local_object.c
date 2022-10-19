@@ -117,7 +117,6 @@ static struct rxrpc_local *rxrpc_alloc_local(struct net *net,
 		local->client_bundles = RB_ROOT;
 		spin_lock_init(&local->client_bundles_lock);
 		local->kill_all_client_conns = false;
-		spin_lock_init(&local->client_conn_cache_lock);
 		INIT_LIST_HEAD(&local->idle_client_conns);
 		timer_setup(&local->client_conn_reap_timer,
 			    rxrpc_client_conn_reap_timeout, 0);
@@ -133,7 +132,8 @@ static struct rxrpc_local *rxrpc_alloc_local(struct net *net,
 		if (tmp == 0)
 			tmp = 1;
 		idr_set_cursor(&local->conn_ids, tmp);
-		spin_lock_init(&local->conn_lock);
+		INIT_LIST_HEAD(&local->new_client_calls);
+		spin_lock_init(&local->client_call_lock);
 
 		trace_rxrpc_local(local->debug_id, rxrpc_local_new, 1, 1);
 	}
@@ -435,7 +435,7 @@ void rxrpc_destroy_local(struct rxrpc_local *local)
 	 * local endpoint.
 	 */
 	rxrpc_purge_queue(&local->rx_queue);
-	rxrpc_destroy_client_conn_ids(local);
+	rxrpc_purge_client_connections(local);
 }
 
 /*

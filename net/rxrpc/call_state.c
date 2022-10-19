@@ -65,5 +65,5 @@ void rxrpc_prefail_call(struct rxrpc_call *call, enum rxrpc_call_completion comp
 	call->completion	= compl;
 	call->_state		= RXRPC_CALL_COMPLETE;
 	trace_rxrpc_call_complete(call);
-	__set_bit(RXRPC_CALL_RELEASED, &call->flags);
+	WARN_ON_ONCE(__test_and_set_bit(RXRPC_CALL_RELEASED, &call->flags));
 }

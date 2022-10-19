@@ -292,7 +292,6 @@ struct rxrpc_local {
 	struct rb_root		client_bundles;	/* Client connection bundles by socket params */
 	spinlock_t		client_bundles_lock; /* Lock for client_bundles */
 	bool			kill_all_client_conns;
-	spinlock_t		client_conn_cache_lock; /* Lock for ->*_client_conns */
 	struct list_head	idle_client_conns;
 	struct timer_list	client_conn_reap_timer;
 	unsigned long		client_conn_flags;
@@ -304,7 +303,8 @@ struct rxrpc_local {
 	bool			dead;
 	bool			service_closed;	/* Service socket closed */
 	struct idr		conn_ids;	/* List of connection IDs */
-	spinlock_t		conn_lock;	/* Lock for client connection pool */
+	struct list_head	new_client_calls; /* Newly created client calls need connection */
+	spinlock_t		client_call_lock; /* Lock for ->new_client_calls */
 	struct sockaddr_rxrpc	srx;		/* local address */
 };
 
@@ -385,7 +385,6 @@ enum rxrpc_call_completion {
  * Bits in the connection flags.
  */
 enum rxrpc_conn_flag {
-	RXRPC_CONN_HAS_IDR,		/* Has a client conn ID assigned */
 	RXRPC_CONN_IN_SERVICE_CONNS,	/* Conn is in peer->service_conns */
 	RXRPC_CONN_DONT_REUSE,		/* Don't reuse this connection */
 	RXRPC_CONN_PROBING_FOR_UPGRADE,	/* Probing for service upgrade */
@@ -413,6 +412,7 @@ enum rxrpc_conn_event {
  */
 enum rxrpc_conn_proto_state {
 	RXRPC_CONN_UNUSED,		/* Connection not yet attempted */
+	RXRPC_CONN_CLIENT_UNSECURED,	/* Client connection needs security init */
 	RXRPC_CONN_CLIENT,		/* Client connection */
 	RXRPC_CONN_SERVICE_PREALLOC,	/* Service connection preallocation */
 	RXRPC_CONN_SERVICE_UNSECURED,	/* Service unsecured connection */
@@ -436,11 +436,9 @@ struct rxrpc_bundle {
 	u32			security_level;	/* Security level selected */
 	u16			service_id;	/* Service ID for this connection */
 	bool			try_upgrade;	/* True if the bundle is attempting upgrade */
-	bool			alloc_conn;	/* True if someone's getting a conn */
 	bool			exclusive;	/* T if conn is exclusive */
 	bool			upgrade;	/* T if service ID can be upgraded */
-	short			alloc_error;	/* Error from last conn allocation */
-	spinlock_t		channel_lock;
+	unsigned short		alloc_error;	/* Error from last conn allocation */
 	struct rb_node		local_node;	/* Node in local->client_conns */
 	struct list_head	waiting_calls;	/* Calls waiting for channels */
 	unsigned long		avail_chans;	/* Mask of available channels */
@@ -468,7 +466,7 @@ struct rxrpc_connection {
 	unsigned char		act_chans;	/* Mask of active channels */
 	struct rxrpc_channel {
 		unsigned long		final_ack_at;	/* Time at which to issue final ACK */
-		struct rxrpc_call __rcu	*call;		/* Active call */
+		struct rxrpc_call	*call;		/* Active call */
 		unsigned int		call_debug_id;	/* call->debug_id */
 		u32			call_id;	/* ID of current call */
 		u32			call_counter;	/* Call ID counter */
@@ -489,6 +487,7 @@ struct rxrpc_connection {
 	struct list_head	link;		/* link in master connection list */
 	struct sk_buff_head	rx_queue;	/* received conn-level packets */
 
+	struct mutex		security_lock;	/* Lock for security management */
 	const struct rxrpc_security *security;	/* applied security module */
 	union {
 		struct {
@@ -619,7 +618,7 @@ struct rxrpc_call {
 	struct work_struct	destroyer;	/* In-process-context destroyer */
 	rxrpc_notify_rx_t	notify_rx;	/* kernel service Rx notification function */
 	struct list_head	link;		/* link in master call list */
-	struct list_head	chan_wait_link;	/* Link in conn->bundle->waiting_calls */
+	struct list_head	wait_link;	/* Link in local->new_client_calls */
 	struct hlist_node	error_link;	/* link in error distribution list */
 	struct list_head	accept_link;	/* Link in rx->acceptq */
 	struct list_head	recvmsg_link;	/* Link in rx->recvmsg_q */
@@ -866,6 +865,7 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *,
 					 struct sockaddr_rxrpc *,
 					 struct rxrpc_call_params *, gfp_t,
 					 unsigned int);
+void rxrpc_start_call_timer(struct rxrpc_call *call);
 void rxrpc_incoming_call(struct rxrpc_sock *, struct rxrpc_call *,
 			 struct sk_buff *);
 void rxrpc_release_call(struct rxrpc_sock *, struct rxrpc_call *);
@@ -905,6 +905,7 @@ static inline void rxrpc_set_call_state(struct rxrpc_call *call,
 {
 	/* Order write of completion info before write of ->state. */
 	smp_store_release(&call->_state, state);
+	wake_up(&call->waitq);
 }
 
 static inline enum rxrpc_call_state __rxrpc_call_state(const struct rxrpc_call *call)
@@ -940,10 +941,11 @@ extern unsigned int rxrpc_reap_client_connections;
 extern unsigned long rxrpc_conn_idle_client_expiry;
 extern unsigned long rxrpc_conn_idle_client_fast_expiry;
 
-void rxrpc_destroy_client_conn_ids(struct rxrpc_local *local);
+void rxrpc_purge_client_connections(struct rxrpc_local *local);
 struct rxrpc_bundle *rxrpc_get_bundle(struct rxrpc_bundle *, enum rxrpc_bundle_trace);
 void rxrpc_put_bundle(struct rxrpc_bundle *, enum rxrpc_bundle_trace);
-int rxrpc_connect_call(struct rxrpc_call *call, gfp_t gfp);
+int rxrpc_look_up_bundle(struct rxrpc_call *call, gfp_t gfp);
+void rxrpc_connect_client_calls(struct rxrpc_local *local);
 void rxrpc_expose_client_call(struct rxrpc_call *);
 void rxrpc_disconnect_client_call(struct rxrpc_bundle *, struct rxrpc_call *);
 void rxrpc_deactivate_bundle(struct rxrpc_bundle *bundle);

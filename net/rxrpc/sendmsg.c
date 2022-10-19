@@ -39,6 +39,60 @@ bool rxrpc_propose_abort(struct rxrpc_call *call, s32 abort_code, int error,
 }
 
 /*
+ * Wait for a call to become connected.  Interruption here doesn't cause the
+ * call to be aborted.
+ */
+static int rxrpc_wait_to_be_connected(struct rxrpc_call *call, long *timeo)
+{
+	DECLARE_WAITQUEUE(myself, current);
+	int ret = 0;
+
+	_enter("%d", call->debug_id);
+
+	if (rxrpc_call_state(call) != RXRPC_CALL_CLIENT_AWAIT_CONN)
+		return call->error;
+
+	add_wait_queue_exclusive(&call->waitq, &myself);
+
+	for (;;) {
+		ret = call->error;
+		if (ret < 0)
+			break;
+
+		switch (call->interruptibility) {
+		case RXRPC_INTERRUPTIBLE:
+		case RXRPC_PREINTERRUPTIBLE:
+			set_current_state(TASK_INTERRUPTIBLE);
+			break;
+		case RXRPC_UNINTERRUPTIBLE:
+		default:
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			break;
+		}
+		if (rxrpc_call_state(call) != RXRPC_CALL_CLIENT_AWAIT_CONN) {
+			ret = call->error;
+			break;
+		}
+		if ((call->interruptibility == RXRPC_INTERRUPTIBLE ||
+		     call->interruptibility == RXRPC_PREINTERRUPTIBLE) &&
+		    signal_pending(current)) {
+			ret = sock_intr_errno(*timeo);
+			break;
+		}
+		*timeo = schedule_timeout(*timeo);
+	}
+
+	remove_wait_queue(&call->waitq, &myself);
+	__set_current_state(TASK_RUNNING);
+
+	if (ret == 0 && rxrpc_call_is_complete(call))
+		ret = call->error;
+
+	_leave(" = %d", ret);
+	return ret;
+}
+
+/*
  * Return true if there's sufficient Tx queue space.
  */
 static bool rxrpc_check_tx_space(struct rxrpc_call *call, rxrpc_seq_t *_tx_win)
@@ -238,6 +292,16 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 	int ret, copied = 0;
 
 	timeo = sock_sndtimeo(sk, msg->msg_flags & MSG_DONTWAIT);
+
+	ret = rxrpc_wait_to_be_connected(call, &timeo);
+	if (ret < 0)
+		return ret;
+
+	if (call->conn->state == RXRPC_CONN_CLIENT_UNSECURED) {
+		ret = rxrpc_init_client_conn_security(call->conn);
+		if (ret < 0)
+			return ret;
+	}
 
 	/* this should be in poll */
 	sk_clear_bit(SOCKWQ_ASYNC_NOSPACE, sk);
