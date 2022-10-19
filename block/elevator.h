@@ -104,7 +104,8 @@ struct elevator_queue
 	DECLARE_HASHTABLE(hash, ELV_HASH_BITS);
 };
 
-#define ELEVATOR_FLAG_REGISTERED 0
+#define ELEVATOR_FLAG_REGISTERED	0
+#define ELEVATOR_FLAG_DISABLE_WBT	1
 
 /*
  * block elevator interface
