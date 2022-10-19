@@ -198,8 +198,8 @@ int skl_pcm_link_dma_prepare(struct device *dev, struct skl_pipe_params *params)
 	if (stream->hstream.direction == SNDRV_PCM_STREAM_PLAYBACK) {
 		list_for_each_entry(link, &bus->hlink_list, list) {
 			if (link->index == params->link_index)
-				snd_hdac_ext_link_set_stream_id(link,
-								stream_tag);
+				snd_hdac_ext_bus_link_set_stream_id(link,
+								    stream_tag);
 		}
 	}
 
@@ -649,7 +649,7 @@ static int skl_link_hw_free(struct snd_pcm_substream *substream,
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		stream_tag = hdac_stream(link_dev)->stream_tag;
-		snd_hdac_ext_link_clear_stream_id(link, stream_tag);
+		snd_hdac_ext_bus_link_clear_stream_id(link, stream_tag);
 	}
 
 	snd_hdac_ext_stream_release(link_dev, HDAC_EXT_STREAM_TYPE_LINK);

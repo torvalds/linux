@@ -297,7 +297,7 @@ static int avs_dai_hda_be_hw_free(struct snd_pcm_substream *substream, struct sn
 		return -EINVAL;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		snd_hdac_ext_link_clear_stream_id(link, hdac_stream(link_stream)->stream_tag);
+		snd_hdac_ext_bus_link_clear_stream_id(link, hdac_stream(link_stream)->stream_tag);
 
 	return 0;
 }
@@ -330,7 +330,7 @@ static int avs_dai_hda_be_prepare(struct snd_pcm_substream *substream, struct sn
 		return -EINVAL;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		snd_hdac_ext_link_set_stream_id(link, hdac_stream(link_stream)->stream_tag);
+		snd_hdac_ext_bus_link_set_stream_id(link, hdac_stream(link_stream)->stream_tag);
 
 	ret = avs_dai_prepare(to_avs_dev(dai->dev), substream, dai);
 	if (ret)

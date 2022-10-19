@@ -253,6 +253,30 @@ int snd_hdac_ext_bus_link_power_down_all(struct hdac_bus *bus)
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_power_down_all);
 
+/**
+ * snd_hdac_ext_bus_link_set_stream_id - maps stream id to link output
+ * @link: HD-audio ext link to set up
+ * @stream: stream id
+ */
+void snd_hdac_ext_bus_link_set_stream_id(struct hdac_ext_link *link,
+					 int stream)
+{
+	snd_hdac_updatew(link->ml_addr, AZX_REG_ML_LOSIDV, (1 << stream), 1 << stream);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_set_stream_id);
+
+/**
+ * snd_hdac_ext_bus_link_clear_stream_id - maps stream id to link output
+ * @link: HD-audio ext link to set up
+ * @stream: stream id
+ */
+void snd_hdac_ext_bus_link_clear_stream_id(struct hdac_ext_link *link,
+					   int stream)
+{
+	snd_hdac_updatew(link->ml_addr, AZX_REG_ML_LOSIDV, (1 << stream), 0);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_clear_stream_id);
+
 int snd_hdac_ext_bus_link_get(struct hdac_bus *bus,
 				struct hdac_ext_link *hlink)
 {

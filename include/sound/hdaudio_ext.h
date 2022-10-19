@@ -121,10 +121,10 @@ int snd_hdac_ext_bus_link_power_up(struct hdac_ext_link *hlink);
 int snd_hdac_ext_bus_link_power_down(struct hdac_ext_link *hlink);
 int snd_hdac_ext_bus_link_power_up_all(struct hdac_bus *bus);
 int snd_hdac_ext_bus_link_power_down_all(struct hdac_bus *bus);
-void snd_hdac_ext_link_set_stream_id(struct hdac_ext_link *hlink,
-				     int stream);
-void snd_hdac_ext_link_clear_stream_id(struct hdac_ext_link *hlink,
-				       int stream);
+void snd_hdac_ext_bus_link_set_stream_id(struct hdac_ext_link *hlink,
+					 int stream);
+void snd_hdac_ext_bus_link_clear_stream_id(struct hdac_ext_link *hlink,
+					   int stream);
 
 int snd_hdac_ext_bus_link_get(struct hdac_bus *bus, struct hdac_ext_link *hlink);
 int snd_hdac_ext_bus_link_put(struct hdac_bus *bus, struct hdac_ext_link *hlink);
