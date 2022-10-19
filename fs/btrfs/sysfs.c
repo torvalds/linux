@@ -249,7 +249,7 @@ static ssize_t btrfs_feature_attr_store(struct kobject *kobj,
 	/*
 	 * We don't want to do full transaction commit from inside sysfs
 	 */
-	btrfs_set_pending(fs_info, COMMIT);
+	set_bit(BTRFS_FS_NEED_TRANS_COMMIT, &fs_info->flags);
 	wake_up_process(fs_info->transaction_kthread);
 
 	return count;
@@ -960,7 +960,7 @@ static ssize_t btrfs_label_store(struct kobject *kobj,
 	/*
 	 * We don't want to do full transaction commit from inside sysfs
 	 */
-	btrfs_set_pending(fs_info, COMMIT);
+	set_bit(BTRFS_FS_NEED_TRANS_COMMIT, &fs_info->flags);
 	wake_up_process(fs_info->transaction_kthread);
 
 	return len;
