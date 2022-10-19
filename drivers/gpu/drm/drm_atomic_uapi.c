@@ -498,8 +498,13 @@ drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 		*val = state->scaling_filter;
 	else if (crtc->funcs->atomic_get_property)
 		return crtc->funcs->atomic_get_property(crtc, state, property, val);
-	else
+	else {
+		drm_dbg_atomic(dev,
+			       "[CRTC:%d:%s] unknown property [PROP:%d:%s]\n",
+			       crtc->base.id, crtc->name,
+			       property->base.id, property->name);
 		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -645,6 +650,10 @@ drm_atomic_plane_get_property(struct drm_plane *plane,
 	} else if (plane->funcs->atomic_get_property) {
 		return plane->funcs->atomic_get_property(plane, state, property, val);
 	} else {
+		drm_dbg_atomic(dev,
+			       "[PLANE:%d:%s] unknown property [PROP:%d:%s]\n",
+			       plane->base.id, plane->name,
+			       property->base.id, property->name);
 		return -EINVAL;
 	}
 
@@ -865,6 +874,10 @@ drm_atomic_connector_get_property(struct drm_connector *connector,
 		return connector->funcs->atomic_get_property(connector,
 				state, property, val);
 	} else {
+		drm_dbg_atomic(dev,
+			       "[CONNECTOR:%d:%s] unknown property [PROP:%d:%s]\n",
+			       connector->base.id, connector->name,
+			       property->base.id, property->name);
 		return -EINVAL;
 	}
 
@@ -903,6 +916,7 @@ int drm_atomic_get_property(struct drm_mode_object *obj,
 		break;
 	}
 	default:
+		drm_dbg_atomic(dev, "[OBJECT:%d] has no properties\n", obj->id);
 		ret = -EINVAL;
 		break;
 	}
@@ -1039,6 +1053,7 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
 		break;
 	}
 	default:
+		drm_dbg_atomic(prop->dev, "[OBJECT:%d] has no properties\n", obj->id);
 		ret = -EINVAL;
 		break;
 	}
