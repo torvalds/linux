@@ -374,16 +374,25 @@ drm_atomic_replace_property_blob_from_id(struct drm_device *dev,
 
 	if (blob_id != 0) {
 		new_blob = drm_property_lookup_blob(dev, blob_id);
-		if (new_blob == NULL)
+		if (new_blob == NULL) {
+			drm_dbg_atomic(dev,
+				       "cannot find blob ID %llu\n", blob_id);
 			return -EINVAL;
+		}
 
 		if (expected_size > 0 &&
 		    new_blob->length != expected_size) {
+			drm_dbg_atomic(dev,
+				       "[BLOB:%d] length %zu different from expected %zu\n",
+				       new_blob->base.id, new_blob->length, expected_size);
 			drm_property_blob_put(new_blob);
 			return -EINVAL;
 		}
 		if (expected_elem_size > 0 &&
 		    new_blob->length % expected_elem_size != 0) {
+			drm_dbg_atomic(dev,
+				       "[BLOB:%d] length %zu not divisible by element size %zu\n",
+				       new_blob->base.id, new_blob->length, expected_elem_size);
 			drm_property_blob_put(new_blob);
 			return -EINVAL;
 		}
