@@ -291,7 +291,7 @@ bool bch2_extent_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_c r)
 		if (lp.crc.offset + lp.crc.live_size + rp.crc.live_size <=
 		    lp.crc.uncompressed_size) {
 			/* can use left extent's crc entry */
-		} else if (lp.crc.live_size <= rp.crc.offset ) {
+		} else if (lp.crc.live_size <= rp.crc.offset) {
 			/* can use right extent's crc entry */
 		} else {
 			/* check if checksums can be merged: */
@@ -350,7 +350,7 @@ bool bch2_extent_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_c r)
 			if (crc_l.offset + crc_l.live_size + crc_r.live_size <=
 			    crc_l.uncompressed_size) {
 				/* can use left extent's crc entry */
-			} else if (crc_l.live_size <= crc_r.offset ) {
+			} else if (crc_l.live_size <= crc_r.offset) {
 				/* can use right extent's crc entry */
 				crc_r.offset -= crc_l.live_size;
 				bch2_extent_crc_pack(entry_to_crc(en_l), crc_r,

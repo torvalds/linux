@@ -2832,7 +2832,7 @@ static void bch2_trans_alloc_paths(struct btree_trans *trans, struct bch_fs *c)
 	BUG_ON(trans->used_mempool);
 
 #ifdef __KERNEL__
-	p = this_cpu_xchg(c->btree_paths_bufs->path , NULL);
+	p = this_cpu_xchg(c->btree_paths_bufs->path, NULL);
 #endif
 	if (!p)
 		p = mempool_alloc(&trans->c->btree_paths_pool, GFP_NOFS);
@@ -3002,7 +3002,7 @@ bch2_btree_bkey_cached_common_to_text(struct printbuf *out,
 
 	rcu_read_lock();
 	owner = READ_ONCE(b->lock.owner);
-	pid = owner ? owner->pid : 0;;
+	pid = owner ? owner->pid : 0;
 	rcu_read_unlock();
 
 	prt_tab(out);

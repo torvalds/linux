@@ -340,7 +340,7 @@ static inline void bkey_init(struct bkey *k)
  *   number.
  *
  * - WHITEOUT: for hash table btrees
-*/
+ */
 #define BCH_BKEY_TYPES()				\
 	x(deleted,		0)			\
 	x(whiteout,		1)			\
@@ -783,16 +783,16 @@ enum {
 	 * User flags (get/settable with FS_IOC_*FLAGS, correspond to FS_*_FL
 	 * flags)
 	 */
-	__BCH_INODE_SYNC	= 0,
-	__BCH_INODE_IMMUTABLE	= 1,
-	__BCH_INODE_APPEND	= 2,
-	__BCH_INODE_NODUMP	= 3,
-	__BCH_INODE_NOATIME	= 4,
+	__BCH_INODE_SYNC		= 0,
+	__BCH_INODE_IMMUTABLE		= 1,
+	__BCH_INODE_APPEND		= 2,
+	__BCH_INODE_NODUMP		= 3,
+	__BCH_INODE_NOATIME		= 4,
 
-	__BCH_INODE_I_SIZE_DIRTY= 5,
-	__BCH_INODE_I_SECTORS_DIRTY= 6,
-	__BCH_INODE_UNLINKED	= 7,
-	__BCH_INODE_BACKPTR_UNTRUSTED = 8,
+	__BCH_INODE_I_SIZE_DIRTY	= 5,
+	__BCH_INODE_I_SECTORS_DIRTY	= 6,
+	__BCH_INODE_UNLINKED		= 7,
+	__BCH_INODE_BACKPTR_UNTRUSTED	= 8,
 
 	/* bits 20+ reserved for packed fields below: */
 };

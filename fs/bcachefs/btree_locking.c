@@ -681,7 +681,7 @@ int bch2_trans_relock(struct btree_trans *trans)
 	struct btree_path *path;
 
 	if (unlikely(trans->restarted))
-		return - ((int) trans->restarted);
+		return -((int) trans->restarted);
 
 	trans_for_each_path(trans, path)
 		if (path->should_be_locked &&

@@ -142,8 +142,9 @@ int bkey_cmp_left_packed(const struct btree *b,
 }
 
 /*
- * we prefer to pass bpos by ref, but it's often enough terribly convenient to
- * pass it by by val... as much as I hate c++, const ref would be nice here:
+ * The compiler generates better code when we pass bpos by ref, but it's often
+ * enough terribly convenient to pass it by val... as much as I hate c++, const
+ * ref would be nice here:
  */
 __pure __flatten
 static inline int bkey_cmp_left_packed_byval(const struct btree *b,

@@ -479,7 +479,7 @@ static int __bch2_move_data(struct moving_context *ctxt,
 		/*
 		 * The iterator gets unlocked by __bch2_read_extent - need to
 		 * save a copy of @k elsewhere:
-		  */
+		 */
 		bch2_bkey_buf_reassemble(&sk, c, k);
 		k = bkey_i_to_s_c(sk.k);
 
@@ -667,7 +667,7 @@ static bool migrate_pred(struct bch_fs *c, void *arg,
 		i++;
 	}
 
-	return data_opts->rewrite_ptrs != 0;;
+	return data_opts->rewrite_ptrs != 0;
 }
 
 static bool rereplicate_btree_pred(struct bch_fs *c, void *arg,

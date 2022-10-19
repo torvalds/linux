@@ -315,7 +315,7 @@ int bch2_data_update_init(struct bch_fs *c, struct data_update *m,
 	bch2_write_op_init(&m->op, c, io_opts);
 	m->op.pos	= bkey_start_pos(k.k);
 	m->op.version	= k.k->version;
-	m->op.target	= data_opts.target,
+	m->op.target	= data_opts.target;
 	m->op.write_point = wp;
 	m->op.flags	|= BCH_WRITE_PAGES_STABLE|
 		BCH_WRITE_PAGES_OWNED|

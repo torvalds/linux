@@ -314,7 +314,7 @@ static int __bch2_inode_invalid(struct bkey_s_c k, struct printbuf *err)
 		return -EINVAL;
 	}
 
-	if (bch2_inode_unpack(k, &unpacked)){
+	if (bch2_inode_unpack(k, &unpacked)) {
 		prt_printf(err, "invalid variable length fields");
 		return -EINVAL;
 	}

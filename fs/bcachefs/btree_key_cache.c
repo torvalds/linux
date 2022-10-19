@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
 #include "btree_cache.h"
@@ -315,7 +316,7 @@ btree_key_cache_create(struct btree_trans *trans, struct btree_path *path)
 	bool was_new = true;
 
 	ck = bkey_cached_alloc(trans, path);
-	if (unlikely(IS_ERR(ck)))
+	if (IS_ERR(ck))
 		return ck;
 
 	if (unlikely(!ck)) {
@@ -435,7 +436,7 @@ err:
 	return ret;
 }
 
-noinline static int
+static noinline int
 bch2_btree_path_traverse_cached_slowpath(struct btree_trans *trans, struct btree_path *path,
 					 unsigned flags)
 {
@@ -616,7 +617,7 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 	 * Since journal reclaim depends on us making progress here, and the
 	 * allocator/copygc depend on journal reclaim making progress, we need
 	 * to be using alloc reserves:
-	 * */
+	 */
 	ret   = bch2_btree_iter_traverse(&b_iter) ?:
 		bch2_trans_update(trans, &b_iter, ck->k,
 				  BTREE_UPDATE_KEY_CACHE_RECLAIM|
@@ -1019,8 +1020,7 @@ void bch2_btree_key_cache_to_text(struct printbuf *out, struct btree_key_cache *
 
 void bch2_btree_key_cache_exit(void)
 {
-	if (bch2_key_cache)
-		kmem_cache_destroy(bch2_key_cache);
+	kmem_cache_destroy(bch2_key_cache);
 }
 
 int __init bch2_btree_key_cache_init(void)

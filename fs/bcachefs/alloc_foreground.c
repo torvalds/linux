@@ -490,7 +490,7 @@ again:
  * bch_bucket_alloc - allocate a single bucket from a specific device
  *
  * Returns index of bucket on success, 0 on failure
- * */
+ */
 static struct open_bucket *bch2_bucket_alloc_trans(struct btree_trans *trans,
 				      struct bch_dev *ca,
 				      enum alloc_reserve reserve,

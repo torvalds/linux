@@ -103,7 +103,7 @@ int bch2_dirent_invalid(const struct bch_fs *c, struct bkey_s_c k,
 
 	if (bkey_val_u64s(k.k) > dirent_val_u64s(len)) {
 		prt_printf(err, "value too big (%zu > %u)",
-		       bkey_val_u64s(k.k),dirent_val_u64s(len));
+		       bkey_val_u64s(k.k), dirent_val_u64s(len));
 		return -EINVAL;
 	}
 

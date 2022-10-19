@@ -173,7 +173,7 @@ bch2_acl_to_xattr(struct btree_trans *trans,
 	bkey_xattr_init(&xattr->k_i);
 	xattr->k.u64s		= u64s;
 	xattr->v.x_type		= acl_to_xattr_type(type);
-	xattr->v.x_name_len	= 0,
+	xattr->v.x_name_len	= 0;
 	xattr->v.x_val_len	= cpu_to_le16(acl_len);
 
 	acl_header = xattr_val(&xattr->v);

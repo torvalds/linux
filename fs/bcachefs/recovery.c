@@ -224,7 +224,7 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 			.size			= max_t(size_t, keys->size, 8) * 2,
 		};
 
-		new_keys.d = kvmalloc(sizeof(new_keys.d[0]) * new_keys.size, GFP_KERNEL);
+		new_keys.d = kvmalloc_array(new_keys.size, sizeof(new_keys.d[0]), GFP_KERNEL);
 		if (!new_keys.d) {
 			bch_err(c, "%s: error allocating new key array (size %zu)",
 				__func__, new_keys.size);
@@ -501,7 +501,7 @@ static int journal_keys_sort(struct bch_fs *c)
 
 	keys->size = roundup_pow_of_two(nr_keys);
 
-	keys->d = kvmalloc(sizeof(keys->d[0]) * keys->size, GFP_KERNEL);
+	keys->d = kvmalloc_array(keys->size, sizeof(keys->d[0]), GFP_KERNEL);
 	if (!keys->d)
 		return -ENOMEM;
 

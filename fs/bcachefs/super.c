@@ -461,8 +461,8 @@ static void __bch2_fs_free(struct bch_fs *c)
 	kfree(c->unused_inode_hints);
 	free_heap(&c->copygc_heap);
 
-	if (c->io_complete_wq )
-		destroy_workqueue(c->io_complete_wq );
+	if (c->io_complete_wq)
+		destroy_workqueue(c->io_complete_wq);
 	if (c->copygc_wq)
 		destroy_workqueue(c->copygc_wq);
 	if (c->btree_io_complete_wq)
@@ -712,7 +712,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 		goto err;
 
 	pr_uuid(&name, c->sb.user_uuid.b);
-	strlcpy(c->name, name.buf, sizeof(c->name));
+	strscpy(c->name, name.buf, sizeof(c->name));
 	printbuf_exit(&name);
 
 	ret = name.allocation_failure ? -ENOMEM : 0;
@@ -1786,9 +1786,8 @@ int bch2_dev_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	}
 
 	ret = bch2_trans_mark_dev_sb(c, ca);
-	if (ret) {
+	if (ret)
 		goto err;
-	}
 
 	mutex_lock(&c->sb_lock);
 	mi = &bch2_sb_get_members(c->disk_sb.sb)->members[ca->dev_idx];

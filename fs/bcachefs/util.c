@@ -789,8 +789,6 @@ void memcpy_from_bio(void *dst, struct bio *src, struct bvec_iter src_iter)
 	}
 }
 
-#include "eytzinger.h"
-
 static int alignment_ok(const void *base, size_t align)
 {
 	return IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) ||

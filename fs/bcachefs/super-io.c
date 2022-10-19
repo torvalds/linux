@@ -101,8 +101,7 @@ void bch2_sb_field_delete(struct bch_sb_handle *sb,
 
 void bch2_free_super(struct bch_sb_handle *sb)
 {
-	if (sb->bio)
-		kfree(sb->bio);
+	kfree(sb->bio);
 	if (!IS_ERR_OR_NULL(sb->bdev))
 		blkdev_put(sb->bdev, sb->holder);
 	kfree(sb->holder);
@@ -151,8 +150,7 @@ int bch2_sb_realloc(struct bch_sb_handle *sb, unsigned u64s)
 
 		bio_init(bio, NULL, bio->bi_inline_vecs, nr_bvecs, 0);
 
-		if (sb->bio)
-			kfree(sb->bio);
+		kfree(sb->bio);
 		sb->bio = bio;
 	}
 

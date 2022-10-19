@@ -933,7 +933,7 @@ int bch2_mark_extent(struct btree_trans *trans,
 {
 	u64 journal_seq = trans->journal_res.seq;
 	struct bch_fs *c = trans->c;
-	struct bkey_s_c k = flags & BTREE_TRIGGER_OVERWRITE ? old: new;
+	struct bkey_s_c k = flags & BTREE_TRIGGER_OVERWRITE ? old : new;
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
@@ -1152,7 +1152,7 @@ int bch2_mark_reservation(struct btree_trans *trans,
 			  unsigned flags)
 {
 	struct bch_fs *c = trans->c;
-	struct bkey_s_c k = flags & BTREE_TRIGGER_OVERWRITE ? old: new;
+	struct bkey_s_c k = flags & BTREE_TRIGGER_OVERWRITE ? old : new;
 	struct bch_fs_usage __percpu *fs_usage;
 	unsigned replicas = bkey_s_c_to_reservation(k).v->nr_replicas;
 	s64 sectors = (s64) k.k->size;
@@ -1231,7 +1231,7 @@ int bch2_mark_reflink_p(struct btree_trans *trans,
 			unsigned flags)
 {
 	struct bch_fs *c = trans->c;
-	struct bkey_s_c k = flags & BTREE_TRIGGER_OVERWRITE ? old: new;
+	struct bkey_s_c k = flags & BTREE_TRIGGER_OVERWRITE ? old : new;
 	struct bkey_s_c_reflink_p p = bkey_s_c_to_reflink_p(k);
 	struct reflink_gc *ref;
 	size_t l, r, m;
@@ -2102,5 +2102,5 @@ int bch2_dev_buckets_alloc(struct bch_fs *c, struct bch_dev *ca)
 			return -ENOMEM;
 	}
 
-	return bch2_dev_buckets_resize(c, ca, ca->mi.nbuckets);;
+	return bch2_dev_buckets_resize(c, ca, ca->mi.nbuckets);
 }

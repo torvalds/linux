@@ -318,7 +318,7 @@ static int btree_repair_node_boundaries(struct bch_fs *c, struct btree *b,
 				"  node %s",
 				bch2_btree_ids[b->c.btree_id], b->c.level,
 				buf1.buf, buf2.buf))
-		    ret = set_node_min(c, cur, expected_start);
+			ret = set_node_min(c, cur, expected_start);
 	}
 out:
 fsck_err:

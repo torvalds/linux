@@ -31,7 +31,7 @@ static int bch2_sb_journal_validate(struct bch_sb *sb,
 	if (!nr)
 		return 0;
 
-	b = kmalloc_array(sizeof(u64), nr, GFP_KERNEL);
+	b = kmalloc_array(nr, sizeof(u64), GFP_KERNEL);
 	if (!b)
 		return -ENOMEM;
 
@@ -114,7 +114,7 @@ static int bch2_sb_journal_v2_validate(struct bch_sb *sb,
 	if (!nr)
 		return 0;
 
-	b = kmalloc_array(sizeof(*b), nr, GFP_KERNEL);
+	b = kmalloc_array(nr, sizeof(*b), GFP_KERNEL);
 	if (!b)
 		return -ENOMEM;
 

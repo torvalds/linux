@@ -528,7 +528,7 @@ static int bch2_symlink(struct mnt_idmap *idmap,
 
 	inode = __bch2_create(idmap, dir, dentry, S_IFLNK|S_IRWXUGO, 0,
 			      (subvol_inum) { 0 }, BCH_CREATE_TMPFILE);
-	if (unlikely(IS_ERR(inode)))
+	if (IS_ERR(inode))
 		return bch2_err_class(PTR_ERR(inode));
 
 	inode_lock(&inode->v);
@@ -1847,7 +1847,7 @@ got_sb:
 	sb->s_time_min		= div_s64(S64_MIN, c->sb.time_units_per_sec) + 1;
 	sb->s_time_max		= div_s64(S64_MAX, c->sb.time_units_per_sec);
 	c->vfs_sb		= sb;
-	strlcpy(sb->s_id, c->name, sizeof(sb->s_id));
+	strscpy(sb->s_id, c->name, sizeof(sb->s_id));
 
 	ret = super_setup_bdi(sb);
 	if (ret)
@@ -1918,8 +1918,7 @@ MODULE_ALIAS_FS("bcachefs");
 void bch2_vfs_exit(void)
 {
 	unregister_filesystem(&bcache_fs_type);
-	if (bch2_inode_cache)
-		kmem_cache_destroy(bch2_inode_cache);
+	kmem_cache_destroy(bch2_inode_cache);
 }
 
 int __init bch2_vfs_init(void)

@@ -2044,7 +2044,8 @@ static int add_nlink(struct bch_fs *c, struct nlink_table *t,
 {
 	if (t->nr == t->size) {
 		size_t new_size = max_t(size_t, 128UL, t->size * 2);
-		void *d = kvmalloc(new_size * sizeof(t->d[0]), GFP_KERNEL);
+		void *d = kvmalloc_array(new_size, sizeof(t->d[0]), GFP_KERNEL);
+
 		if (!d) {
 			bch_err(c, "fsck: error allocating memory for nlink_table, size %zu",
 				new_size);

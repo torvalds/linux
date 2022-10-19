@@ -232,7 +232,7 @@ void bch2_journal_space_available(struct journal *j)
 	if ((j->space[journal_space_clean_ondisk].next_entry <
 	     j->space[journal_space_clean_ondisk].total) &&
 	    (clean - clean_ondisk <= total / 8) &&
-	    (clean_ondisk * 2 > clean ))
+	    (clean_ondisk * 2 > clean))
 		set_bit(JOURNAL_MAY_SKIP_FLUSH, &j->flags);
 	else
 		clear_bit(JOURNAL_MAY_SKIP_FLUSH, &j->flags);

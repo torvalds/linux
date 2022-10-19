@@ -476,7 +476,7 @@ static ssize_t bch2_cached_btree_nodes_read(struct file *file, char __user *buf,
 		if (i->iter < tbl->size) {
 			rht_for_each_entry_rcu(b, pos, tbl, i->iter, hash)
 				bch2_cached_btree_node_to_text(&i->buf, c, b);
-			i->iter++;;
+			i->iter++;
 		} else {
 			done = true;
 		}

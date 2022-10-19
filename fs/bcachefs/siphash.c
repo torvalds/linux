@@ -160,7 +160,7 @@ u64 SipHash_End(SIPHASH_CTX *ctx, int rc, int rf)
 
 	r = (ctx->v[0] ^ ctx->v[1]) ^ (ctx->v[2] ^ ctx->v[3]);
 	memset(ctx, 0, sizeof(*ctx));
-	return (r);
+	return r;
 }
 
 u64 SipHash(const SIPHASH_KEY *key, int rc, int rf, const void *src, size_t len)

@@ -487,11 +487,11 @@ int bch2_rename_trans(struct btree_trans *trans,
 	ret =   bch2_inode_write(trans, &src_dir_iter, src_dir_u) ?:
 		(src_dir.inum != dst_dir.inum
 		 ? bch2_inode_write(trans, &dst_dir_iter, dst_dir_u)
-		 : 0 ) ?:
+		 : 0) ?:
 		bch2_inode_write(trans, &src_inode_iter, src_inode_u) ?:
 		(dst_inum.inum
 		 ? bch2_inode_write(trans, &dst_inode_iter, dst_inode_u)
-		 : 0 );
+		 : 0);
 err:
 	bch2_trans_iter_exit(trans, &dst_inode_iter);
 	bch2_trans_iter_exit(trans, &src_inode_iter);

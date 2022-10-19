@@ -2724,7 +2724,7 @@ static long bchfs_fpunch(struct bch_inode_info *inode, loff_t offset, loff_t len
 
 	truncate_pagecache_range(&inode->v, offset, end - 1);
 
-	if (block_start < block_end ) {
+	if (block_start < block_end) {
 		s64 i_sectors_delta = 0;
 
 		ret = bch2_fpunch(c, inode_inum(inode),

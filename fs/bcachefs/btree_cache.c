@@ -819,7 +819,7 @@ struct btree *bch2_btree_node_get(struct btree_trans *trans, struct btree_path *
 	if (likely(c->opts.btree_node_mem_ptr_optimization &&
 		   b &&
 		   b->hash_val == btree_ptr_hash_val(k)))
-			goto lock_node;
+		goto lock_node;
 retry:
 	b = btree_cache_find(bc, k);
 	if (unlikely(!b)) {
@@ -1059,7 +1059,7 @@ wait_on_io:
 
 	/* XXX we're called from btree_gc which will be holding other btree
 	 * nodes locked
-	 * */
+	 */
 	__bch2_btree_node_wait_on_read(b);
 	__bch2_btree_node_wait_on_write(b);
 

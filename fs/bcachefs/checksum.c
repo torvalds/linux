@@ -131,7 +131,7 @@ static inline int do_encrypt(struct crypto_sync_skcipher *tfm,
 		size_t orig_len = len;
 		int ret, i;
 
-		sg = kmalloc_array(sizeof(*sg), pages, GFP_KERNEL);
+		sg = kmalloc_array(pages, sizeof(*sg), GFP_KERNEL);
 		if (!sg)
 			return -ENOMEM;
 

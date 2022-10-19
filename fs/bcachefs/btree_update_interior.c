@@ -2047,7 +2047,7 @@ static int async_btree_node_rewrite_trans(struct btree_trans *trans,
 		goto out;
 
 	ret = bch2_btree_node_rewrite(trans, &iter, b, 0);
-out :
+out:
 	bch2_trans_iter_exit(trans, &iter);
 
 	return ret;

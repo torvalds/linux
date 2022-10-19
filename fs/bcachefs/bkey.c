@@ -1113,10 +1113,10 @@ int bch2_bkey_cmp_packed(const struct btree *b,
 
 	if (bkey_packed(l)) {
 		__bkey_unpack_key_format_checked(b, &unpacked, l);
-		l = (void*) &unpacked;
+		l = (void *) &unpacked;
 	} else if (bkey_packed(r)) {
 		__bkey_unpack_key_format_checked(b, &unpacked, r);
-		r = (void*) &unpacked;
+		r = (void *) &unpacked;
 	}
 
 	return bpos_cmp(((struct bkey *) l)->p, ((struct bkey *) r)->p);

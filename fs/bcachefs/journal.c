@@ -738,7 +738,7 @@ int bch2_journal_log_msg(struct journal *j, const char *fmt, ...)
 		return ret;
 
 	entry = container_of(journal_res_entry(j, &res),
-			     struct jset_entry_log, entry);;
+			     struct jset_entry_log, entry);
 	memset(entry, 0, u64s * sizeof(u64));
 	entry->entry.type = BCH_JSET_ENTRY_log;
 	entry->entry.u64s = u64s - 1;
@@ -795,10 +795,10 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 		bch2_journal_block(&c->journal);
 	}
 
-	bu		= kzalloc(nr_want * sizeof(*bu), GFP_KERNEL);
-	ob		= kzalloc(nr_want * sizeof(*ob), GFP_KERNEL);
-	new_buckets	= kzalloc(nr * sizeof(u64), GFP_KERNEL);
-	new_bucket_seq	= kzalloc(nr * sizeof(u64), GFP_KERNEL);
+	bu		= kcalloc(nr_want, sizeof(*bu), GFP_KERNEL);
+	ob		= kcalloc(nr_want, sizeof(*ob), GFP_KERNEL);
+	new_buckets	= kcalloc(nr, sizeof(u64), GFP_KERNEL);
+	new_bucket_seq	= kcalloc(nr, sizeof(u64), GFP_KERNEL);
 	if (!bu || !ob || !new_buckets || !new_bucket_seq) {
 		ret = -ENOMEM;
 		goto err_unblock;
@@ -1264,7 +1264,7 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	rcu_read_lock();
 	s = READ_ONCE(j->reservations);
 
-	prt_printf(out, "dirty journal entries:\t%llu/%llu\n",fifo_used(&j->pin), j->pin.size);
+	prt_printf(out, "dirty journal entries:\t%llu/%llu\n",	fifo_used(&j->pin), j->pin.size);
 	prt_printf(out, "seq:\t\t\t%llu\n",			journal_cur_seq(j));
 	prt_printf(out, "seq_ondisk:\t\t%llu\n",		j->seq_ondisk);
 	prt_printf(out, "last_seq:\t\t%llu\n",		journal_last_seq(j));
