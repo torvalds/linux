@@ -464,11 +464,8 @@ static void msm_complete_tx_dma(void *args)
 	}
 
 	count = dma->count - state.residue;
-	port->icount.tx += count;
+	uart_xmit_advance(port, count);
 	dma->count = 0;
-
-	xmit->tail += count;
-	xmit->tail &= UART_XMIT_SIZE - 1;
 
 	/* Restore "Tx FIFO below watermark" interrupt */
 	msm_port->imr |= MSM_UART_IMR_TXLEV;
@@ -866,13 +863,11 @@ static void msm_handle_tx_pio(struct uart_port *port, unsigned int tx_count)
 		else
 			num_chars = 1;
 
-		for (i = 0; i < num_chars; i++) {
+		for (i = 0; i < num_chars; i++)
 			buf[i] = xmit->buf[xmit->tail + i];
-			port->icount.tx++;
-		}
 
 		iowrite32_rep(tf, buf, 1);
-		xmit->tail = (xmit->tail + num_chars) & (UART_XMIT_SIZE - 1);
+		uart_xmit_advance(port, num_chars);
 		tf_pointer += num_chars;
 	}
 
