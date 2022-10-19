@@ -80,6 +80,12 @@
 			gpios = <&gpio5 13 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "timer";
 		};
+
+		led-1 {
+			label = "tolinoshine2hd:white:backlightboost";
+			gpios = <&gpio1 29 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "off";
+		};
 	};
 
 	memory@80000000 {
@@ -404,7 +410,8 @@
 
 	pinctrl_led: ledgrp {
 		fsl,pins = <
-			MX6SL_PAD_SD1_DAT2__GPIO5_IO13 0x17059
+			MX6SL_PAD_SD1_DAT2__GPIO5_IO13    0x17059
+			MX6SL_PAD_EPDC_SDCE2__GPIO1_IO29  0x17059
 		>;
 	};
 
