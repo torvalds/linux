@@ -115,12 +115,12 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_get_ml_capabilities);
 
 void snd_hdac_link_free_all(struct hdac_bus *bus)
 {
-	struct hdac_ext_link *l;
+	struct hdac_ext_link *hlink;
 
 	while (!list_empty(&bus->hlink_list)) {
-		l = list_first_entry(&bus->hlink_list, struct hdac_ext_link, list);
-		list_del(&l->list);
-		kfree(l);
+		hlink = list_first_entry(&bus->hlink_list, struct hdac_ext_link, list);
+		list_del(&hlink->list);
+		kfree(hlink);
 	}
 }
 EXPORT_SYMBOL_GPL(snd_hdac_link_free_all);
@@ -166,7 +166,7 @@ struct hdac_ext_link *snd_hdac_ext_bus_get_link(struct hdac_bus *bus,
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_get_link);
 
-static int check_hdac_link_power_active(struct hdac_ext_link *link, bool enable)
+static int check_hdac_link_power_active(struct hdac_ext_link *hlink, bool enable)
 {
 	int timeout;
 	u32 val;
@@ -176,7 +176,7 @@ static int check_hdac_link_power_active(struct hdac_ext_link *link, bool enable)
 	timeout = 150;
 
 	do {
-		val = readl(link->ml_addr + AZX_REG_ML_LCTL);
+		val = readl(hlink->ml_addr + AZX_REG_ML_LCTL);
 		if (enable) {
 			if (((val & mask) >> AZX_ML_LCTL_CPA_SHIFT))
 				return 0;
@@ -192,26 +192,26 @@ static int check_hdac_link_power_active(struct hdac_ext_link *link, bool enable)
 
 /**
  * snd_hdac_ext_bus_link_power_up -power up hda link
- * @link: HD-audio extended link
+ * @hlink: HD-audio extended link
  */
-int snd_hdac_ext_bus_link_power_up(struct hdac_ext_link *link)
+int snd_hdac_ext_bus_link_power_up(struct hdac_ext_link *hlink)
 {
-	snd_hdac_updatel(link->ml_addr, AZX_REG_ML_LCTL,
+	snd_hdac_updatel(hlink->ml_addr, AZX_REG_ML_LCTL,
 			 AZX_ML_LCTL_SPA, AZX_ML_LCTL_SPA);
 
-	return check_hdac_link_power_active(link, true);
+	return check_hdac_link_power_active(hlink, true);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_power_up);
 
 /**
  * snd_hdac_ext_bus_link_power_down -power down hda link
- * @link: HD-audio extended link
+ * @hlink: HD-audio extended link
  */
-int snd_hdac_ext_bus_link_power_down(struct hdac_ext_link *link)
+int snd_hdac_ext_bus_link_power_down(struct hdac_ext_link *hlink)
 {
-	snd_hdac_updatel(link->ml_addr, AZX_REG_ML_LCTL, AZX_ML_LCTL_SPA, 0);
+	snd_hdac_updatel(hlink->ml_addr, AZX_REG_ML_LCTL, AZX_ML_LCTL_SPA, 0);
 
-	return check_hdac_link_power_active(link, false);
+	return check_hdac_link_power_active(hlink, false);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_power_down);
 
@@ -254,7 +254,7 @@ int snd_hdac_ext_bus_link_power_down_all(struct hdac_bus *bus)
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_power_down_all);
 
 int snd_hdac_ext_bus_link_get(struct hdac_bus *bus,
-				struct hdac_ext_link *link)
+				struct hdac_ext_link *hlink)
 {
 	unsigned long codec_mask;
 	int ret = 0;
@@ -265,18 +265,18 @@ int snd_hdac_ext_bus_link_get(struct hdac_bus *bus,
 	 * if we move from 0 to 1, count will be 1 so power up this link
 	 * as well, also check the dma status and trigger that
 	 */
-	if (++link->ref_count == 1) {
+	if (++hlink->ref_count == 1) {
 		if (!bus->cmd_dma_state) {
 			snd_hdac_bus_init_cmd_io(bus);
 			bus->cmd_dma_state = true;
 		}
 
-		ret = snd_hdac_ext_bus_link_power_up(link);
+		ret = snd_hdac_ext_bus_link_power_up(hlink);
 
 		/*
 		 * clear the register to invalidate all the output streams
 		 */
-		snd_hdac_updatew(link->ml_addr, AZX_REG_ML_LOSIDV,
+		snd_hdac_updatew(hlink->ml_addr, AZX_REG_ML_LOSIDV,
 				 AZX_ML_LOSIDV_STREAM_MASK, 0);
 		/*
 		 *  wait for 521usec for codec to report status
@@ -296,10 +296,10 @@ int snd_hdac_ext_bus_link_get(struct hdac_bus *bus,
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_get);
 
 int snd_hdac_ext_bus_link_put(struct hdac_bus *bus,
-				struct hdac_ext_link *link)
+			      struct hdac_ext_link *hlink)
 {
 	int ret = 0;
-	struct hdac_ext_link *hlink;
+	struct hdac_ext_link *hlink_tmp;
 	bool link_up = false;
 
 	mutex_lock(&bus->lock);
@@ -308,15 +308,15 @@ int snd_hdac_ext_bus_link_put(struct hdac_bus *bus,
 	 * if we move from 1 to 0, count will be 0
 	 * so power down this link as well
 	 */
-	if (--link->ref_count == 0) {
-		ret = snd_hdac_ext_bus_link_power_down(link);
+	if (--hlink->ref_count == 0) {
+		ret = snd_hdac_ext_bus_link_power_down(hlink);
 
 		/*
 		 * now check if all links are off, if so turn off
 		 * cmd dma as well
 		 */
-		list_for_each_entry(hlink, &bus->hlink_list, list) {
-			if (hlink->ref_count) {
+		list_for_each_entry(hlink_tmp, &bus->hlink_list, list) {
+			if (hlink_tmp->ref_count) {
 				link_up = true;
 				break;
 			}
