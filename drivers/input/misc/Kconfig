@@ -662,17 +662,6 @@ config INPUT_DA9063_ONKEY
 	  To compile this driver as a module, choose M here: the module
 	  will be called da9063_onkey.
 
-config INPUT_DM355EVM
-	tristate "TI DaVinci DM355 EVM Keypad and IR Remote"
-	depends on MFD_DM355EVM_MSP
-	select INPUT_SPARSEKMAP
-	help
-	  Supports the pushbuttons and IR remote used with
-	  the DM355 EVM board.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called dm355evm_keys.
-
 config INPUT_WM831X_ON
 	tristate "WM831X ON pin"
 	depends on MFD_WM831X
