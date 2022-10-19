@@ -319,60 +319,6 @@ void reload_early_microcode(void)
 	}
 }
 
-static void collect_cpu_info_local(void *arg)
-{
-	struct cpu_info_ctx *ctx = arg;
-
-	ctx->err = microcode_ops->collect_cpu_info(smp_processor_id(),
-						   ctx->cpu_sig);
-}
-
-static int collect_cpu_info_on_target(int cpu, struct cpu_signature *cpu_sig)
-{
-	struct cpu_info_ctx ctx = { .cpu_sig = cpu_sig, .err = 0 };
-	int ret;
-
-	ret = smp_call_function_single(cpu, collect_cpu_info_local, &ctx, 1);
-	if (!ret)
-		ret = ctx.err;
-
-	return ret;
-}
-
-static int collect_cpu_info(int cpu)
-{
-	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
-	int ret;
-
-	memset(uci, 0, sizeof(*uci));
-
-	ret = collect_cpu_info_on_target(cpu, &uci->cpu_sig);
-	if (!ret)
-		uci->valid = 1;
-
-	return ret;
-}
-
-static void apply_microcode_local(void *arg)
-{
-	enum ucode_state *err = arg;
-
-	*err = microcode_ops->apply_microcode(smp_processor_id());
-}
-
-static int apply_microcode_on_target(int cpu)
-{
-	enum ucode_state err;
-	int ret;
-
-	ret = smp_call_function_single(cpu, apply_microcode_local, &err, 1);
-	if (!ret) {
-		if (err == UCODE_ERROR)
-			ret = 1;
-	}
-	return ret;
-}
-
 /* fake device for request_firmware */
 static struct platform_device	*microcode_pdev;
 
@@ -458,7 +404,7 @@ static int __reload_late(void *info)
 	 * below.
 	 */
 	if (cpumask_first(topology_sibling_cpumask(cpu)) == cpu)
-		apply_microcode_local(&err);
+		err = microcode_ops->apply_microcode(cpu);
 	else
 		goto wait_for_siblings;
 
@@ -480,7 +426,7 @@ wait_for_siblings:
 	 * revision.
 	 */
 	if (cpumask_first(topology_sibling_cpumask(cpu)) != cpu)
-		apply_microcode_local(&err);
+		err = microcode_ops->apply_microcode(cpu);
 
 	return ret;
 }
@@ -589,51 +535,15 @@ static void microcode_fini_cpu(int cpu)
 		microcode_ops->microcode_fini_cpu(cpu);
 }
 
-static enum ucode_state microcode_resume_cpu(int cpu)
-{
-	if (apply_microcode_on_target(cpu))
-		return UCODE_ERROR;
-
-	pr_debug("CPU%d updated upon resume\n", cpu);
-
-	return UCODE_OK;
-}
-
-static enum ucode_state microcode_init_cpu(int cpu, bool refresh_fw)
-{
-	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
-	enum ucode_state ustate;
-
-	if (uci->valid)
-		return UCODE_OK;
-
-	if (collect_cpu_info(cpu))
-		return UCODE_ERROR;
-
-	/* --dimm. Trigger a delayed update? */
-	if (system_state != SYSTEM_RUNNING)
-		return UCODE_NFOUND;
-
-	ustate = microcode_ops->request_microcode_fw(cpu, &microcode_pdev->dev, refresh_fw);
-	if (ustate == UCODE_NEW) {
-		pr_debug("CPU%d updated upon init\n", cpu);
-		apply_microcode_on_target(cpu);
-	}
-
-	return ustate;
-}
-
-static enum ucode_state microcode_update_cpu(int cpu)
+static enum ucode_state microcode_init_cpu(int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 
-	/* Refresh CPU microcode revision after resume. */
-	collect_cpu_info(cpu);
+	memset(uci, 0, sizeof(*uci));
 
-	if (uci->valid)
-		return microcode_resume_cpu(cpu);
+	microcode_ops->collect_cpu_info(cpu, &uci->cpu_sig);
 
-	return microcode_init_cpu(cpu, false);
+	return microcode_ops->apply_microcode(cpu);
 }
 
 /**
@@ -651,14 +561,14 @@ void microcode_bsp_resume(void)
 }
 
 static struct syscore_ops mc_syscore_ops = {
-	.resume			= microcode_bsp_resume,
+	.resume	= microcode_bsp_resume,
 };
 
 static int mc_cpu_starting(unsigned int cpu)
 {
-	microcode_update_cpu(cpu);
-	pr_debug("CPU%d added\n", cpu);
-	return 0;
+	enum ucode_state err = microcode_ops->apply_microcode(cpu);
+
+	return err == UCODE_ERROR;
 }
 
 static int mc_cpu_online(unsigned int cpu)
@@ -688,11 +598,13 @@ static int mc_cpu_down_prep(unsigned int cpu)
 static void setup_online_cpu(struct work_struct *work)
 {
 	int cpu = smp_processor_id();
-	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+	enum ucode_state err;
 
-	memset(uci, 0, sizeof(*uci));
-
-	microcode_ops->collect_cpu_info(cpu, &uci->cpu_sig);
+	err = microcode_init_cpu(cpu);
+	if (err == UCODE_ERROR) {
+		pr_err("Error applying microcode on CPU%d\n", cpu);
+		return;
+	}
 
 	mc_cpu_online(cpu);
 }
