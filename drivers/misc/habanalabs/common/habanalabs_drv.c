@@ -595,15 +595,16 @@ hl_pci_err_detected(struct pci_dev *pdev, pci_channel_state_t state)
 
 	switch (state) {
 	case pci_channel_io_normal:
+		dev_warn(hdev->dev, "PCI normal state error detected\n");
 		return PCI_ERS_RESULT_CAN_RECOVER;
 
 	case pci_channel_io_frozen:
-		dev_warn(hdev->dev, "frozen state error detected\n");
+		dev_warn(hdev->dev, "PCI frozen state error detected\n");
 		result = PCI_ERS_RESULT_NEED_RESET;
 		break;
 
 	case pci_channel_io_perm_failure:
-		dev_warn(hdev->dev, "failure state error detected\n");
+		dev_warn(hdev->dev, "PCI failure state error detected\n");
 		result = PCI_ERS_RESULT_DISCONNECT;
 		break;
 
@@ -639,6 +640,10 @@ static void hl_pci_err_resume(struct pci_dev *pdev)
  */
 static pci_ers_result_t hl_pci_err_slot_reset(struct pci_dev *pdev)
 {
+	struct hl_device *hdev = pci_get_drvdata(pdev);
+
+	dev_warn(hdev->dev, "PCI slot reset detected\n");
+
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
