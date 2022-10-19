@@ -463,7 +463,7 @@ static int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 		return crtc->funcs->atomic_set_property(crtc, state, property, val);
 	} else {
 		drm_dbg_atomic(crtc->dev,
-			       "[CRTC:%d:%s] unknown property [PROP:%d:%s]]\n",
+			       "[CRTC:%d:%s] unknown property [PROP:%d:%s]\n",
 			       crtc->base.id, crtc->name,
 			       property->base.id, property->name);
 		return -EINVAL;
@@ -586,7 +586,7 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 				property, val);
 	} else {
 		drm_dbg_atomic(plane->dev,
-			       "[PLANE:%d:%s] unknown property [PROP:%d:%s]]\n",
+			       "[PLANE:%d:%s] unknown property [PROP:%d:%s]\n",
 			       plane->base.id, plane->name,
 			       property->base.id, property->name);
 		return -EINVAL;
@@ -783,7 +783,7 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 				state, property, val);
 	} else {
 		drm_dbg_atomic(connector->dev,
-			       "[CONNECTOR:%d:%s] unknown property [PROP:%d:%s]]\n",
+			       "[CONNECTOR:%d:%s] unknown property [PROP:%d:%s]\n",
 			       connector->base.id, connector->name,
 			       property->base.id, property->name);
 		return -EINVAL;
