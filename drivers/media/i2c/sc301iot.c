@@ -24,6 +24,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
+#include "../platform/rockchip/isp/rkisp_tb_helper.h"
 
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x00)
 
@@ -169,6 +170,8 @@ struct SC301IOT {
 	u32			cur_vts;
 	bool			has_init_exp;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
+	bool			is_thunderboot;
+	bool			is_first_streamoff;
 	u32         sync_mode;
 };
 
@@ -1546,49 +1549,51 @@ static int __SC301IOT_start_stream(struct SC301IOT *SC301IOT)
 {
 	int ret;
 
-	ret = SC301IOT_write_array(SC301IOT->client, SC301IOT->cur_mode->reg_list);
-	if (ret)
-		return ret;
-
-	/* In case these controls are set before streaming */
-	ret = __v4l2_ctrl_handler_setup(&SC301IOT->ctrl_handler);
-	if (ret)
-		return ret;
-	if (SC301IOT->has_init_exp && SC301IOT->cur_mode->hdr_mode != NO_HDR) {
-		ret = SC301IOT_ioctl(&SC301IOT->subdev, PREISP_CMD_SET_HDRAE_EXP,
-				&SC301IOT->init_hdrae_exp);
-		if (ret) {
-			dev_err(&SC301IOT->client->dev,
-				"init exp fail in hdr mode\n");
+	if (!SC301IOT->is_thunderboot) {
+		ret = SC301IOT_write_array(SC301IOT->client, SC301IOT->cur_mode->reg_list);
+		if (ret)
 			return ret;
+
+		/* In case these controls are set before streaming */
+		ret = __v4l2_ctrl_handler_setup(&SC301IOT->ctrl_handler);
+		if (ret)
+			return ret;
+		if (SC301IOT->has_init_exp && SC301IOT->cur_mode->hdr_mode != NO_HDR) {
+			ret = SC301IOT_ioctl(&SC301IOT->subdev, PREISP_CMD_SET_HDRAE_EXP,
+					&SC301IOT->init_hdrae_exp);
+			if (ret) {
+				dev_err(&SC301IOT->client->dev,
+					"init exp fail in hdr mode\n");
+				return ret;
+			}
+		}
+
+		if (SC301IOT->sync_mode == SLAVE_MODE) {
+			SC301IOT_write_reg(SC301IOT->client, 0x3222,
+					SC301IOT_REG_VALUE_08BIT, 0x01);
+			SC301IOT_write_reg(SC301IOT->client, 0x3223,
+					SC301IOT_REG_VALUE_08BIT, 0xc8);
+			SC301IOT_write_reg(SC301IOT->client, 0x3225,
+					SC301IOT_REG_VALUE_08BIT, 0x10);
+			SC301IOT_write_reg(SC301IOT->client, 0x322e,
+					SC301IOT_REG_VALUE_08BIT, (SC301IOT->cur_vts - 4) >> 8);
+			SC301IOT_write_reg(SC301IOT->client, 0x322f,
+					SC301IOT_REG_VALUE_08BIT, (SC301IOT->cur_vts - 4) & 0xff);
+		} else if (SC301IOT->sync_mode == NO_SYNC_MODE) {
+			SC301IOT_write_reg(SC301IOT->client, 0x3222,
+						SC301IOT_REG_VALUE_08BIT, 0x00);
+			SC301IOT_write_reg(SC301IOT->client, 0x3223,
+						SC301IOT_REG_VALUE_08BIT, 0xd0);
+			SC301IOT_write_reg(SC301IOT->client, 0x3225,
+						SC301IOT_REG_VALUE_08BIT, 0x00);
+			SC301IOT_write_reg(SC301IOT->client, 0x322e,
+						SC301IOT_REG_VALUE_08BIT, 0x00);
+			SC301IOT_write_reg(SC301IOT->client, 0x322f,
+						SC301IOT_REG_VALUE_08BIT, 0x02);
 		}
 	}
 
-	if (SC301IOT->sync_mode == SLAVE_MODE) {
-		SC301IOT_write_reg(SC301IOT->client, 0x3222,
-				SC301IOT_REG_VALUE_08BIT, 0x01);
-		SC301IOT_write_reg(SC301IOT->client, 0x3223,
-				SC301IOT_REG_VALUE_08BIT, 0xc8);
-		SC301IOT_write_reg(SC301IOT->client, 0x3225,
-				SC301IOT_REG_VALUE_08BIT, 0x10);
-		SC301IOT_write_reg(SC301IOT->client, 0x322e,
-				SC301IOT_REG_VALUE_08BIT, (SC301IOT->cur_vts - 4) >> 8);
-		SC301IOT_write_reg(SC301IOT->client, 0x322f,
-				SC301IOT_REG_VALUE_08BIT, (SC301IOT->cur_vts - 4) & 0xff);
-	} else if (SC301IOT->sync_mode == NO_SYNC_MODE) {
-		SC301IOT_write_reg(SC301IOT->client, 0x3222,
-					SC301IOT_REG_VALUE_08BIT, 0x00);
-		SC301IOT_write_reg(SC301IOT->client, 0x3223,
-					SC301IOT_REG_VALUE_08BIT, 0xd0);
-		SC301IOT_write_reg(SC301IOT->client, 0x3225,
-					SC301IOT_REG_VALUE_08BIT, 0x00);
-		SC301IOT_write_reg(SC301IOT->client, 0x322e,
-					SC301IOT_REG_VALUE_08BIT, 0x00);
-		SC301IOT_write_reg(SC301IOT->client, 0x322f,
-					SC301IOT_REG_VALUE_08BIT, 0x02);
-	}
-
-	dev_info(&SC301IOT->client->dev, "start stream\n");
+	dev_dbg(&SC301IOT->client->dev, "start stream\n");
 	return SC301IOT_write_reg(SC301IOT->client, SC301IOT_REG_CTRL_MODE,
 				 SC301IOT_REG_VALUE_08BIT, SC301IOT_MODE_STREAMING);
 }
@@ -1596,11 +1601,14 @@ static int __SC301IOT_start_stream(struct SC301IOT *SC301IOT)
 static int __SC301IOT_stop_stream(struct SC301IOT *SC301IOT)
 {
 	SC301IOT->has_init_exp = false;
-	dev_info(&SC301IOT->client->dev, "stop stream\n");
+	dev_dbg(&SC301IOT->client->dev, "stop stream\n");
+	if (SC301IOT->is_thunderboot)
+		SC301IOT->is_first_streamoff = true;
 	return SC301IOT_write_reg(SC301IOT->client, SC301IOT_REG_CTRL_MODE,
 				 SC301IOT_REG_VALUE_08BIT, SC301IOT_MODE_SW_STANDBY);
 }
 
+static int __SC301IOT_power_on(struct SC301IOT *SC301IOT);
 static int SC301IOT_s_stream(struct v4l2_subdev *sd, int on)
 {
 	struct SC301IOT *SC301IOT = to_SC301IOT(sd);
@@ -1613,6 +1621,11 @@ static int SC301IOT_s_stream(struct v4l2_subdev *sd, int on)
 		goto unlock_and_return;
 
 	if (on) {
+		if (SC301IOT->is_thunderboot && rkisp_tb_get_state() == RKISP_TB_NG) {
+			SC301IOT->is_thunderboot = false;
+			__SC301IOT_power_on(SC301IOT);
+		}
+
 		ret = pm_runtime_get_sync(&client->dev);
 		if (ret < 0) {
 			pm_runtime_put_noidle(&client->dev);
@@ -1657,11 +1670,13 @@ static int SC301IOT_s_power(struct v4l2_subdev *sd, int on)
 			goto unlock_and_return;
 		}
 
-		ret = SC301IOT_write_array(SC301IOT->client, SC301IOT_global_regs);
-		if (ret) {
-			v4l2_err(sd, "could not set init registers\n");
-			pm_runtime_put_noidle(&client->dev);
-			goto unlock_and_return;
+		if (!SC301IOT->is_thunderboot) {
+			ret = SC301IOT_write_array(SC301IOT->client, SC301IOT_global_regs);
+			if (ret) {
+				v4l2_err(sd, "could not set init registers\n");
+				pm_runtime_put_noidle(&client->dev);
+				goto unlock_and_return;
+			}
 		}
 
 		SC301IOT->power_on = true;
@@ -1712,6 +1727,8 @@ static int __SC301IOT_power_on(struct SC301IOT *SC301IOT)
 		dev_err(dev, "Failed to enable regulators\n");
 		goto disable_clk;
 	}
+	if (SC301IOT->is_thunderboot)
+		return 0;
 
 	if (!IS_ERR(SC301IOT->reset_gpio))
 		gpiod_set_value_cansleep(SC301IOT->reset_gpio, 1);
@@ -1728,8 +1745,8 @@ static int __SC301IOT_power_on(struct SC301IOT *SC301IOT)
 		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
 	ret = clk_prepare_enable(SC301IOT->xvclk);
 	if (ret < 0) {
-		dev_err(dev, "Failed to enable xvclk\n");
-		return ret;
+		dev_err(dev, "Failed to enable regulators\n");
+		goto disable_clk;
 	}
 
 	if (!IS_ERR(SC301IOT->reset_gpio))
@@ -1754,9 +1771,18 @@ static void __SC301IOT_power_off(struct SC301IOT *SC301IOT)
 	int ret;
 	struct device *dev = &SC301IOT->client->dev;
 
+	clk_disable_unprepare(SC301IOT->xvclk);
+	if (SC301IOT->is_thunderboot) {
+		if (SC301IOT->is_first_streamoff) {
+			SC301IOT->is_thunderboot = false;
+			SC301IOT->is_first_streamoff = false;
+		} else {
+			return;
+		}
+	}
+
 	if (!IS_ERR(SC301IOT->pwdn_gpio))
 		gpiod_set_value_cansleep(SC301IOT->pwdn_gpio, 0);
-	clk_disable_unprepare(SC301IOT->xvclk);
 	if (!IS_ERR(SC301IOT->reset_gpio))
 		gpiod_set_value_cansleep(SC301IOT->reset_gpio, 0);
 	if (!IS_ERR_OR_NULL(SC301IOT->pins_sleep)) {
@@ -2049,6 +2075,11 @@ static int SC301IOT_check_sensor_id(struct SC301IOT *SC301IOT,
 	u32 id = 0;
 	int ret;
 
+	if (SC301IOT->is_thunderboot) {
+		dev_info(dev, "Enable thunderboot mode, skip sensor id check\n");
+		return 0;
+	}
+
 	ret = SC301IOT_read_reg(client, SC301IOT_REG_CHIP_ID,
 			       SC301IOT_REG_VALUE_16BIT, &id);
 	if (id != CHIP_ID) {
@@ -2108,6 +2139,7 @@ static int SC301IOT_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
+	SC301IOT->is_thunderboot = IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP);
 	SC301IOT->sync_mode = NO_SYNC_MODE;
 	ret = of_property_read_string(node, RKMODULE_CAMERA_SYNC_MODE, &sync_mode_name);
 	if (!ret) {
@@ -2147,13 +2179,23 @@ static int SC301IOT_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	SC301IOT->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
-	if (IS_ERR(SC301IOT->reset_gpio))
-		dev_warn(dev, "Failed to get reset-gpios\n");
+	if (SC301IOT->is_thunderboot) {
+		SC301IOT->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
+		if (IS_ERR(SC301IOT->reset_gpio))
+			dev_warn(dev, "Failed to get reset-gpios\n");
 
-	SC301IOT->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
-	if (IS_ERR(SC301IOT->pwdn_gpio))
-		dev_warn(dev, "Failed to get pwdn-gpios\n");
+		SC301IOT->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_ASIS);
+		if (IS_ERR(SC301IOT->pwdn_gpio))
+			dev_warn(dev, "Failed to get pwdn-gpios\n");
+	} else {
+		SC301IOT->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+		if (IS_ERR(SC301IOT->reset_gpio))
+			dev_warn(dev, "Failed to get reset-gpios\n");
+
+		SC301IOT->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
+		if (IS_ERR(SC301IOT->pwdn_gpio))
+			dev_warn(dev, "Failed to get pwdn-gpios\n");
+	}
 
 	SC301IOT->pinctrl = devm_pinctrl_get(dev);
 	if (!IS_ERR(SC301IOT->pinctrl)) {
@@ -2296,7 +2338,11 @@ static void __exit sensor_mod_exit(void)
 	i2c_del_driver(&SC301IOT_i2c_driver);
 }
 
+#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP) && !defined(CONFIG_INITCALL_ASYNC)
+subsys_initcall(sensor_mod_init);
+#else
 device_initcall_sync(sensor_mod_init);
+#endif
 module_exit(sensor_mod_exit);
 
 MODULE_DESCRIPTION("smartsens SC301IOT sensor driver");
