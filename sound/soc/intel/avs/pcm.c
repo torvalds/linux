@@ -292,7 +292,7 @@ static int avs_dai_hda_be_hw_free(struct snd_pcm_substream *substream, struct sn
 
 	/* clear link <-> stream mapping */
 	codec = dev_to_hda_codec(asoc_rtd_to_codec(rtd, 0)->dev);
-	link = snd_hdac_ext_bus_link_at(&codec->bus->core, codec->core.addr);
+	link = snd_hdac_ext_bus_get_hlink_by_addr(&codec->bus->core, codec->core.addr);
 	if (!link)
 		return -EINVAL;
 
@@ -325,7 +325,7 @@ static int avs_dai_hda_be_prepare(struct snd_pcm_substream *substream, struct sn
 	snd_hdac_ext_link_stream_reset(link_stream);
 	snd_hdac_ext_link_stream_setup(link_stream, format_val);
 
-	link = snd_hdac_ext_bus_link_at(bus, codec->core.addr);
+	link = snd_hdac_ext_bus_get_hlink_by_addr(bus, codec->core.addr);
 	if (!link)
 		return -EINVAL;
 
