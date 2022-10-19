@@ -806,10 +806,9 @@ st_asm330lhhx_write_with_mask_locked(struct st_asm330lhhx_hw *hw,
 				 unsigned int data)
 {
 	int err;
-	unsigned int val = ST_ASM330LHHX_SHIFT_VAL(mask, data);
 
 	mutex_lock(&hw->page_lock);
-	err = regmap_update_bits(hw->regmap, addr, mask, val);
+	err = __st_asm330lhhx_write_with_mask(hw, addr, mask, data);
 	mutex_unlock(&hw->page_lock);
 
 	return err;
