@@ -402,12 +402,7 @@ static int call_undef_hook(struct pt_regs *regs)
 	int (*fn)(struct pt_regs *regs, u32 instr) = NULL;
 	unsigned long pc = instruction_pointer(regs);
 
-	if (!user_mode(regs)) {
-		__le32 instr_le;
-		if (get_kernel_nofault(instr_le, (__le32 *)pc))
-			goto exit;
-		instr = le32_to_cpu(instr_le);
-	} else if (compat_thumb_mode(regs)) {
+	if (compat_thumb_mode(regs)) {
 		/* 16-bit Thumb instruction */
 		__le16 instr_le;
 		if (get_user(instr_le, (__le16 __user *)pc))
@@ -500,9 +495,15 @@ void do_el0_undef(struct pt_regs *regs, unsigned long esr)
 
 void do_el1_undef(struct pt_regs *regs, unsigned long esr)
 {
-	if (call_undef_hook(regs) == 0)
+	u32 insn;
+
+	if (aarch64_insn_read((void *)regs->pc, &insn))
+		goto out_err;
+
+	if (try_emulate_el1_ssbs(regs, insn))
 		return;
 
+out_err:
 	die("Oops - Undefined instruction", regs, esr);
 }
 
