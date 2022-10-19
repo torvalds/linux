@@ -255,7 +255,7 @@ static int amdgpu_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_str
 	 * becoming writable and makes is_cow_mapping(vm_flags) false.
 	 */
 	if (is_cow_mapping(vma->vm_flags) &&
-	    !(vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC)))
+	    !(vma->vm_flags & VM_ACCESS_FLAGS))
 		vma->vm_flags &= ~VM_MAYWRITE;
 
 	return drm_gem_ttm_mmap(obj, vma);
