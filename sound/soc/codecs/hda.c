@@ -130,10 +130,8 @@ static void hda_codec_unregister_dais(struct hda_codec *codec,
 			if (strcmp(dai->driver->name, pcm->name))
 				continue;
 
-			if (dai->playback_widget)
-				snd_soc_dapm_free_widget(dai->playback_widget);
-			if (dai->capture_widget)
-				snd_soc_dapm_free_widget(dai->capture_widget);
+			snd_soc_dapm_free_widget(dai->playback_widget);
+			snd_soc_dapm_free_widget(dai->capture_widget);
 			snd_soc_unregister_dai(dai);
 			break;
 		}
