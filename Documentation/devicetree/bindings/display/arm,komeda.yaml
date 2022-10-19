@@ -58,6 +58,7 @@ properties:
 patternProperties:
   '^pipeline@[01]$':
     type: object
+    additionalProperties: false
     description:
       clocks
 

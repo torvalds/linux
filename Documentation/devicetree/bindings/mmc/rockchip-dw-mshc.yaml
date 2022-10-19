@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mmc/rockchip-dw-mshc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Rockchip designware mobile storage host controller device tree bindings
+title: Rockchip designware mobile storage host controller
 
 description:
   Rockchip uses the Synopsys designware mobile storage host controller

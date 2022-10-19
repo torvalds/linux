@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/nvmem/nvmem.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: NVMEM (Non Volatile Memory) Device Tree Bindings
+title: NVMEM (Non Volatile Memory)
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
