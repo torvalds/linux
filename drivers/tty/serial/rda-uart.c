@@ -353,8 +353,7 @@ static void rda_uart_send_chars(struct uart_port *port)
 
 		ch = xmit->buf[xmit->tail];
 		rda_uart_write(port, ch, RDA_UART_RXTX_BUFFER);
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		port->icount.tx++;
+		uart_xmit_advance(port, 1);
 	}
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
