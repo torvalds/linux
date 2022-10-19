@@ -7901,7 +7901,7 @@ long btrfs_ioctl_send(struct inode *inode, struct btrfs_ioctl_send_args *arg)
 	if (sctx->proto >= 2) {
 		u32 send_buf_num_pages;
 
-		sctx->send_max_size = ALIGN(SZ_16K + BTRFS_MAX_COMPRESSED, PAGE_SIZE);
+		sctx->send_max_size = BTRFS_SEND_BUF_SIZE_V2;
 		sctx->send_buf = vmalloc(sctx->send_max_size);
 		if (!sctx->send_buf) {
 			ret = -ENOMEM;
