@@ -518,14 +518,15 @@ dc_stream_forward_dmcu_crc_window(struct dmcu *dmcu,
 }
 
 bool
-dc_stream_forward_crc_window(struct dc *dc,
-		struct rect *rect, struct dc_stream_state *stream, bool is_stop)
+dc_stream_forward_crc_window(struct dc_stream_state *stream,
+		struct rect *rect, bool is_stop)
 {
 	struct dmcu *dmcu;
 	struct dc_dmub_srv *dmub_srv;
 	struct otg_phy_mux mux_mapping;
 	struct pipe_ctx *pipe;
 	int i;
+	struct dc *dc = stream->ctx->dc;
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
