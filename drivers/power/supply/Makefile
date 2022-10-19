@@ -104,7 +104,6 @@ obj-$(CONFIG_CHARGER_BD70528)	+= bd70528-charger.o
 obj-$(CONFIG_CHARGER_BD99954)	+= bd99954-charger.o
 obj-$(CONFIG_CHARGER_WILCO)	+= wilco-charger.o
 obj-$(CONFIG_RN5T618_POWER)	+= rn5t618_power.o
-obj-$(CONFIG_BATTERY_CW2015)	+= cw2015_battery.o
 obj-$(CONFIG_BATTERY_RK816)	+= rk816_battery.o
 obj-$(CONFIG_BATTERY_RK817)	+= rk817_battery.o
 obj-$(CONFIG_CHARGER_RK817)	+= rk817_charger.o
