@@ -2489,6 +2489,9 @@ void snd_soc_dapm_free_widget(struct snd_soc_dapm_widget *w)
 	struct snd_soc_dapm_path *p, *next_p;
 	enum snd_soc_dapm_direction dir;
 
+	if (!w)
+		return;
+
 	list_del(&w->list);
 	list_del(&w->dirty);
 	/*

@@ -1016,10 +1016,8 @@ static void avs_component_hda_unregister_dais(struct snd_soc_component *componen
 		if (!strstr(dai->driver->name, name))
 			continue;
 
-		if (dai->playback_widget)
-			snd_soc_dapm_free_widget(dai->playback_widget);
-		if (dai->capture_widget)
-			snd_soc_dapm_free_widget(dai->capture_widget);
+		snd_soc_dapm_free_widget(dai->playback_widget);
+		snd_soc_dapm_free_widget(dai->capture_widget);
 		snd_soc_unregister_dai(dai);
 	}
 }
