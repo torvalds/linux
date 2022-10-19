@@ -100,6 +100,13 @@ struct kvm_mmu_page {
 		};
 	};
 
+	/*
+	 * Tracks shadow pages that, if zapped, would allow KVM to create an NX
+	 * huge page.  A shadow page will have lpage_disallowed set but not be
+	 * on the list if a huge page is disallowed for other reasons, e.g.
+	 * because KVM is shadowing a PTE at the same gfn, the memslot isn't
+	 * properly aligned, etc...
+	 */
 	struct list_head lpage_disallowed_link;
 #ifdef CONFIG_X86_32
 	/*
@@ -315,7 +322,8 @@ void disallowed_hugepage_adjust(struct kvm_page_fault *fault, u64 spte, int cur_
 
 void *mmu_memory_cache_alloc(struct kvm_mmu_memory_cache *mc);
 
-void account_huge_nx_page(struct kvm *kvm, struct kvm_mmu_page *sp);
+void account_huge_nx_page(struct kvm *kvm, struct kvm_mmu_page *sp,
+			  bool nx_huge_page_possible);
 void unaccount_huge_nx_page(struct kvm *kvm, struct kvm_mmu_page *sp);
 
 #endif /* __KVM_X86_MMU_INTERNAL_H */

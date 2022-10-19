@@ -803,15 +803,25 @@ static void account_shadowed(struct kvm *kvm, struct kvm_mmu_page *sp)
 		kvm_flush_remote_tlbs_with_address(kvm, gfn, 1);
 }
 
-void account_huge_nx_page(struct kvm *kvm, struct kvm_mmu_page *sp)
+void account_huge_nx_page(struct kvm *kvm, struct kvm_mmu_page *sp,
+			  bool nx_huge_page_possible)
 {
-	if (sp->lpage_disallowed)
+	sp->lpage_disallowed = true;
+
+	/*
+	 * If it's possible to replace the shadow page with an NX huge page,
+	 * i.e. if the shadow page is the only thing currently preventing KVM
+	 * from using a huge page, add the shadow page to the list of "to be
+	 * zapped for NX recovery" pages.  Note, the shadow page can already be
+	 * on the list if KVM is reusing an existing shadow page, i.e. if KVM
+	 * links a shadow page at multiple points.
+	 */
+	if (!nx_huge_page_possible || !list_empty(&sp->lpage_disallowed_link))
 		return;
 
 	++kvm->stat.nx_lpage_splits;
 	list_add_tail(&sp->lpage_disallowed_link,
 		      &kvm->arch.lpage_disallowed_mmu_pages);
-	sp->lpage_disallowed = true;
 }
 
 static void unaccount_shadowed(struct kvm *kvm, struct kvm_mmu_page *sp)
@@ -833,9 +843,13 @@ static void unaccount_shadowed(struct kvm *kvm, struct kvm_mmu_page *sp)
 
 void unaccount_huge_nx_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
-	--kvm->stat.nx_lpage_splits;
 	sp->lpage_disallowed = false;
-	list_del(&sp->lpage_disallowed_link);
+
+	if (list_empty(&sp->lpage_disallowed_link))
+		return;
+
+	--kvm->stat.nx_lpage_splits;
+	list_del_init(&sp->lpage_disallowed_link);
 }
 
 static struct kvm_memory_slot *
@@ -2130,6 +2144,8 @@ static struct kvm_mmu_page *kvm_mmu_alloc_shadow_page(struct kvm *kvm,
 
 	set_page_private(virt_to_page(sp->spt), (unsigned long)sp);
 
+	INIT_LIST_HEAD(&sp->lpage_disallowed_link);
+
 	/*
 	 * active_mmu_pages must be a FIFO list, as kvm_zap_obsolete_pages()
 	 * depends on valid pages being added to the head of the list.  See
@@ -3127,9 +3143,9 @@ static int __direct_map(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 			continue;
 
 		link_shadow_page(vcpu, it.sptep, sp);
-		if (fault->is_tdp && fault->huge_page_disallowed &&
-		    fault->req_level >= it.level)
-			account_huge_nx_page(vcpu->kvm, sp);
+		if (fault->is_tdp && fault->huge_page_disallowed)
+			account_huge_nx_page(vcpu->kvm, sp,
+					     fault->req_level >= it.level);
 	}
 
 	if (WARN_ON_ONCE(it.level != fault->goal_level))
