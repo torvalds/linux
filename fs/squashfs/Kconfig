@@ -73,11 +73,10 @@ config SQUASHFS_CHOICE_DECOMP_BY_MOUNT
 	select SQUASHFS_DECOMP_SINGLE
 	select SQUASHFS_DECOMP_MULTI
 	select SQUASHFS_DECOMP_MULTI_PERCPU
+	select SQUASHFS_MOUNT_DECOMP_THREADS
 	help
 	  Compile all parallel decompression modes and specify the
 	  decompression mode by setting "threads=" during mount.
-	    threads=<single|multi|percpu>
-
 	  default Decompressor parallelisation is SQUASHFS_DECOMP_SINGLE
 
 choice
@@ -126,6 +125,19 @@ config SQUASHFS_COMPILE_DECOMP_MULTI_PERCPU
 	  decompressor per core.  It uses percpu variables to ensure
 	  decompression is load-balanced across the cores.
 endchoice
+
+config SQUASHFS_MOUNT_DECOMP_THREADS
+	bool "Add the mount parameter 'threads=' for squashfs"
+	depends on SQUASHFS
+	depends on SQUASHFS_DECOMP_MULTI
+	default n
+	help
+	  Use threads= to set the decompression parallel mode and the number of threads.
+	  If SQUASHFS_CHOICE_DECOMP_BY_MOUNT=y
+	      threads=<single|multi|percpu|1|2|3|...>
+	  else
+	      threads=<2|3|...>
+	  The upper limit is num_online_cpus() * 2.
 
 config SQUASHFS_XATTR
 	bool "Squashfs XATTR support"

@@ -67,5 +67,6 @@ struct squashfs_sb_info {
 	unsigned int				ids;
 	bool					panic_on_errors;
 	const struct squashfs_decompressor_thread_ops *thread_ops;
+	int					max_thread_num;
 };
 #endif
