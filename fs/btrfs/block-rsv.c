@@ -8,6 +8,7 @@
 #include "block-group.h"
 #include "disk-io.h"
 #include "fs.h"
+#include "accessors.h"
 
 /*
  * HOW DO BLOCK RESERVES WORK

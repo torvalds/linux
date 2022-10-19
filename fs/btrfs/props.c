@@ -13,6 +13,7 @@
 #include "compression.h"
 #include "space-info.h"
 #include "fs.h"
+#include "accessors.h"
 
 #define BTRFS_PROP_HANDLERS_HT_BITS 8
 static DEFINE_HASHTABLE(prop_handlers_ht, BTRFS_PROP_HANDLERS_HT_BITS);

@@ -11,6 +11,7 @@
 #include "../qgroup.h"
 #include "../backref.h"
 #include "../fs.h"
+#include "../accessors.h"
 
 static int insert_normal_tree_ref(struct btrfs_root *root, u64 bytenr,
 				  u64 num_bytes, u64 parent, u64 root_objectid)

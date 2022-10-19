@@ -34,6 +34,7 @@
 #include "discard.h"
 #include "zoned.h"
 #include "fs.h"
+#include "accessors.h"
 
 static struct bio_set btrfs_bioset;
 

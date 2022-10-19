@@ -12,6 +12,7 @@
 #include "delayed-ref.h"
 #include "ref-verify.h"
 #include "fs.h"
+#include "accessors.h"
 
 /*
  * Used to keep track the roots and number of refs each root has for a given

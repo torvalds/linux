@@ -24,6 +24,7 @@
 #include "space-info.h"
 #include "zoned.h"
 #include "fs.h"
+#include "accessors.h"
 
 static struct kmem_cache *btrfs_trans_handle_cachep;
 

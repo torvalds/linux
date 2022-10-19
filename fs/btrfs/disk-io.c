@@ -44,6 +44,7 @@
 #include "zoned.h"
 #include "subpage.h"
 #include "fs.h"
+#include "accessors.h"
 
 #define BTRFS_SUPER_FLAG_SUPP	(BTRFS_HEADER_FLAG_WRITTEN |\
 				 BTRFS_HEADER_FLAG_RELOC |\

@@ -31,6 +31,7 @@
 #include "block-group.h"
 #include "compression.h"
 #include "fs.h"
+#include "accessors.h"
 
 static struct kmem_cache *extent_buffer_cache;
 

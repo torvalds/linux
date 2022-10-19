@@ -11,6 +11,7 @@
 #include "../extent_io.h"
 #include "../volumes.h"
 #include "../compression.h"
+#include "../accessors.h"
 
 static void insert_extent(struct btrfs_root *root, u64 start, u64 len,
 			  u64 ram_bytes, u64 offset, u64 disk_bytenr,

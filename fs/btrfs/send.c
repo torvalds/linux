@@ -27,6 +27,7 @@
 #include "compression.h"
 #include "xattr.h"
 #include "print-tree.h"
+#include "accessors.h"
 
 /*
  * Maximum number of references an extent can have in order for us to attempt to

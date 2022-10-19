@@ -11,6 +11,7 @@
 #include "reflink.h"
 #include "transaction.h"
 #include "subpage.h"
+#include "accessors.h"
 
 #define BTRFS_MAX_DEDUPE_LEN	SZ_16M
 

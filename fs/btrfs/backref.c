@@ -16,6 +16,7 @@
 #include "misc.h"
 #include "tree-mod-log.h"
 #include "fs.h"
+#include "accessors.h"
 
 /* Just arbitrary numbers so we can be sure one of these happened. */
 #define BACKREF_FOUND_SHARED     6

@@ -11,6 +11,7 @@
 #include "transaction.h"
 #include "print-tree.h"
 #include "space-info.h"
+#include "accessors.h"
 
 struct btrfs_inode_ref *btrfs_find_name_in_backref(struct extent_buffer *leaf,
 						   int slot, const char *name,

@@ -31,6 +31,7 @@
 #include "reflink.h"
 #include "subpage.h"
 #include "fs.h"
+#include "accessors.h"
 
 static struct kmem_cache *btrfs_inode_defrag_cachep;
 /*

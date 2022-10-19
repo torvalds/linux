@@ -24,6 +24,7 @@
 #include "zoned.h"
 #include "block-group.h"
 #include "fs.h"
+#include "accessors.h"
 
 /*
  * Device replace overview

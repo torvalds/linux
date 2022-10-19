@@ -23,6 +23,7 @@
 #include "qgroup.h"
 #include "misc.h"
 #include "fs.h"
+#include "accessors.h"
 
 /*
  * Structure name                       Path

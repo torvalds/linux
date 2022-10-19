@@ -9,6 +9,7 @@
 #include "print-tree.h"
 #include "transaction.h"
 #include "locking.h"
+#include "accessors.h"
 
 /*
  * Defrag all the leaves in a given btree.
