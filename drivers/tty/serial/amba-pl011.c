@@ -677,8 +677,7 @@ static int pl011_dma_tx_refill(struct uart_amba_port *uap)
 	 * Now we know that DMA will fire, so advance the ring buffer
 	 * with the stuff we just dispatched.
 	 */
-	xmit->tail = (xmit->tail + count) & (UART_XMIT_SIZE - 1);
-	uap->port.icount.tx += count;
+	uart_xmit_advance(&uap->port, count);
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(&uap->port);
