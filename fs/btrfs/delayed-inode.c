@@ -6,12 +6,13 @@
 
 #include <linux/slab.h>
 #include <linux/iversion.h>
+#include "ctree.h"
+#include "fs.h"
 #include "messages.h"
 #include "misc.h"
 #include "delayed-inode.h"
 #include "disk-io.h"
 #include "transaction.h"
-#include "ctree.h"
 #include "qgroup.h"
 #include "locking.h"
 #include "inode-item.h"

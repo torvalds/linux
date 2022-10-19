@@ -23,6 +23,7 @@
 #include "sysfs.h"
 #include "zoned.h"
 #include "block-group.h"
+#include "fs.h"
 
 /*
  * Device replace overview

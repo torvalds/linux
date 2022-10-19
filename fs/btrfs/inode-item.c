@@ -3,8 +3,9 @@
  * Copyright (C) 2007 Oracle.  All rights reserved.
  */
 
-#include "messages.h"
 #include "ctree.h"
+#include "fs.h"
+#include "messages.h"
 #include "inode-item.h"
 #include "disk-io.h"
 #include "transaction.h"

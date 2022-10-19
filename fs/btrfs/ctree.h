@@ -67,37 +67,6 @@ static inline unsigned long btrfs_chunk_item_size(int num_stripes)
 		sizeof(struct btrfs_stripe) * (num_stripes - 1);
 }
 
-/*
- * Runtime (in-memory) states of filesystem
- */
-enum {
-	/* Global indicator of serious filesystem errors */
-	BTRFS_FS_STATE_ERROR,
-	/*
-	 * Filesystem is being remounted, allow to skip some operations, like
-	 * defrag
-	 */
-	BTRFS_FS_STATE_REMOUNTING,
-	/* Filesystem in RO mode */
-	BTRFS_FS_STATE_RO,
-	/* Track if a transaction abort has been reported on this filesystem */
-	BTRFS_FS_STATE_TRANS_ABORTED,
-	/*
-	 * Bio operations should be blocked on this filesystem because a source
-	 * or target device is being destroyed as part of a device replace
-	 */
-	BTRFS_FS_STATE_DEV_REPLACING,
-	/* The btrfs_fs_info created for self-tests */
-	BTRFS_FS_STATE_DUMMY_FS_INFO,
-
-	BTRFS_FS_STATE_NO_CSUMS,
-
-	/* Indicates there was an error cleaning up a log tree. */
-	BTRFS_FS_STATE_LOG_CLEANUP_ERROR,
-
-	BTRFS_FS_STATE_COUNT
-};
-
 #define BTRFS_SUPER_INFO_OFFSET			SZ_64K
 #define BTRFS_SUPER_INFO_SIZE			4096
 static_assert(sizeof(struct btrfs_super_block) == BTRFS_SUPER_INFO_SIZE);
@@ -3224,12 +3193,6 @@ static inline unsigned long get_eb_page_index(unsigned long offset)
 #define EXPORT_FOR_TESTS
 #endif
 
-#define BTRFS_FS_ERROR(fs_info)	(unlikely(test_bit(BTRFS_FS_STATE_ERROR, \
-						   &(fs_info)->fs_state)))
-#define BTRFS_FS_LOG_CLEANUP_ERROR(fs_info)				\
-	(unlikely(test_bit(BTRFS_FS_STATE_LOG_CLEANUP_ERROR,		\
-			   &(fs_info)->fs_state)))
-
 /* acl.c */
 #ifdef CONFIG_BTRFS_FS_POSIX_ACL
 struct posix_acl *btrfs_get_acl(struct inode *inode, int type, bool rcu);
@@ -3327,15 +3290,6 @@ static inline int btrfs_get_verity_descriptor(struct inode *inode, void *buf,
 /* Sanity test specific functions */
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 void btrfs_test_destroy_inode(struct inode *inode);
-static inline int btrfs_is_testing(struct btrfs_fs_info *fs_info)
-{
-	return test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state);
-}
-#else
-static inline int btrfs_is_testing(struct btrfs_fs_info *fs_info)
-{
-	return 0;
-}
 #endif
 
 static inline bool btrfs_is_data_reloc_root(const struct btrfs_root *root)

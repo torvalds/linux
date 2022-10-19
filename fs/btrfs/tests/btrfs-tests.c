@@ -16,6 +16,7 @@
 #include "../disk-io.h"
 #include "../qgroup.h"
 #include "../block-group.h"
+#include "../fs.h"
 
 static struct vfsmount *test_mnt = NULL;
 

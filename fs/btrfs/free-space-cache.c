@@ -11,9 +11,10 @@
 #include <linux/ratelimit.h>
 #include <linux/error-injection.h>
 #include <linux/sched/mm.h>
+#include "ctree.h"
+#include "fs.h"
 #include "messages.h"
 #include "misc.h"
-#include "ctree.h"
 #include "free-space-cache.h"
 #include "transaction.h"
 #include "disk-io.h"

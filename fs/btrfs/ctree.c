@@ -18,6 +18,7 @@
 #include "qgroup.h"
 #include "tree-mod-log.h"
 #include "tree-checker.h"
+#include "fs.h"
 
 static struct kmem_cache *btrfs_path_cachep;
 

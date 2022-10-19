@@ -5,8 +5,9 @@
 
 #include <linux/err.h>
 #include <linux/uuid.h>
-#include "messages.h"
 #include "ctree.h"
+#include "fs.h"
+#include "messages.h"
 #include "transaction.h"
 #include "disk-io.h"
 #include "print-tree.h"

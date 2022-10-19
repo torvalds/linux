@@ -2,9 +2,10 @@
 
 #include <linux/blkdev.h>
 #include <linux/iversion.h>
+#include "ctree.h"
+#include "fs.h"
 #include "messages.h"
 #include "compression.h"
-#include "ctree.h"
 #include "delalloc-space.h"
 #include "disk-io.h"
 #include "reflink.h"

@@ -23,6 +23,7 @@
 #include <crypto/hash.h>
 #include "misc.h"
 #include "ctree.h"
+#include "fs.h"
 #include "disk-io.h"
 #include "transaction.h"
 #include "btrfs_inode.h"

@@ -9,6 +9,7 @@
 #include "transaction.h"
 #include "qgroup.h"
 #include "block-group.h"
+#include "fs.h"
 
 /*
  * HOW DOES THIS WORK
