@@ -1387,7 +1387,8 @@ static int bcmgenet_validate_flow(struct net_device *dev,
 	struct ethtool_usrip4_spec *l4_mask;
 	struct ethhdr *eth_mask;
 
-	if (cmd->fs.location >= MAX_NUM_OF_FS_RULES) {
+	if (cmd->fs.location >= MAX_NUM_OF_FS_RULES &&
+	    cmd->fs.location != RX_CLS_LOC_ANY) {
 		netdev_err(dev, "rxnfc: Invalid location (%d)\n",
 			   cmd->fs.location);
 		return -EINVAL;
@@ -1452,7 +1453,7 @@ static int bcmgenet_insert_flow(struct net_device *dev,
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct bcmgenet_rxnfc_rule *loc_rule;
-	int err;
+	int err, i;
 
 	if (priv->hw_params->hfb_filter_size < 128) {
 		netdev_err(dev, "rxnfc: Not supported by this device\n");
@@ -1470,7 +1471,29 @@ static int bcmgenet_insert_flow(struct net_device *dev,
 	if (err)
 		return err;
 
-	loc_rule = &priv->rxnfc_rules[cmd->fs.location];
+	if (cmd->fs.location == RX_CLS_LOC_ANY) {
+		list_for_each_entry(loc_rule, &priv->rxnfc_list, list) {
+			cmd->fs.location = loc_rule->fs.location;
+			err = memcmp(&loc_rule->fs, &cmd->fs,
+				     sizeof(struct ethtool_rx_flow_spec));
+			if (!err)
+				/* rule exists so return current location */
+				return 0;
+		}
+		for (i = 0; i < MAX_NUM_OF_FS_RULES; i++) {
+			loc_rule = &priv->rxnfc_rules[i];
+			if (loc_rule->state == BCMGENET_RXNFC_STATE_UNUSED) {
+				cmd->fs.location = i;
+				break;
+			}
+		}
+		if (i == MAX_NUM_OF_FS_RULES) {
+			cmd->fs.location = RX_CLS_LOC_ANY;
+			return -ENOSPC;
+		}
+	} else {
+		loc_rule = &priv->rxnfc_rules[cmd->fs.location];
+	}
 	if (loc_rule->state == BCMGENET_RXNFC_STATE_ENABLED)
 		bcmgenet_hfb_disable_filter(priv, cmd->fs.location);
 	if (loc_rule->state != BCMGENET_RXNFC_STATE_UNUSED) {
@@ -1583,7 +1606,7 @@ static int bcmgenet_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 		break;
 	case ETHTOOL_GRXCLSRLCNT:
 		cmd->rule_cnt = bcmgenet_get_num_flows(priv);
-		cmd->data = MAX_NUM_OF_FS_RULES;
+		cmd->data = MAX_NUM_OF_FS_RULES | RX_CLS_LOC_SPECIAL;
 		break;
 	case ETHTOOL_GRXCLSRULE:
 		err = bcmgenet_get_flow(dev, cmd, cmd->fs.location);
