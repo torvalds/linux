@@ -445,7 +445,7 @@ static int skl_free(struct hdac_bus *bus)
 		free_irq(bus->irq, (void *)bus);
 	snd_hdac_bus_free_stream_pages(bus);
 	snd_hdac_ext_stream_free_all(bus);
-	snd_hdac_link_free_all(bus);
+	snd_hdac_ext_link_free_all(bus);
 
 	if (bus->remap_addr)
 		iounmap(bus->remap_addr);

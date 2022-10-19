@@ -108,12 +108,12 @@ int snd_hdac_ext_bus_get_ml_capabilities(struct hdac_bus *bus)
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_get_ml_capabilities);
 
 /**
- * snd_hdac_link_free_all- free hdac extended link objects
+ * snd_hdac_ext_link_free_all- free hdac extended link objects
  *
  * @bus: the pointer to HDAC bus object
  */
 
-void snd_hdac_link_free_all(struct hdac_bus *bus)
+void snd_hdac_ext_link_free_all(struct hdac_bus *bus)
 {
 	struct hdac_ext_link *hlink;
 
@@ -123,7 +123,7 @@ void snd_hdac_link_free_all(struct hdac_bus *bus)
 		kfree(hlink);
 	}
 }
-EXPORT_SYMBOL_GPL(snd_hdac_link_free_all);
+EXPORT_SYMBOL_GPL(snd_hdac_ext_link_free_all);
 
 /**
  * snd_hdac_ext_bus_get_hlink_by_addr - get hlink at specified address
