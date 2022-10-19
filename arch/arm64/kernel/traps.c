@@ -499,6 +499,9 @@ void do_el0_undef(struct pt_regs *regs, unsigned long esr)
 	if (user_insn_read(regs, &insn))
 		goto out_err;
 
+	if (try_emulate_mrs(regs, insn))
+		return;
+
 	if (call_undef_hook(regs, insn) == 0)
 		return;
 

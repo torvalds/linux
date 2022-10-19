@@ -3435,9 +3435,12 @@ int do_emulate_mrs(struct pt_regs *regs, u32 sys_reg, u32 rt)
 	return rc;
 }
 
-static int emulate_mrs(struct pt_regs *regs, u32 insn)
+bool try_emulate_mrs(struct pt_regs *regs, u32 insn)
 {
 	u32 sys_reg, rt;
+
+	if (compat_user_mode(regs) || !aarch64_insn_is_mrs(insn))
+		return false;
 
 	/*
 	 * sys_reg values are defined as used in mrs/msr instruction.
@@ -3445,24 +3448,8 @@ static int emulate_mrs(struct pt_regs *regs, u32 insn)
 	 */
 	sys_reg = (u32)aarch64_insn_decode_immediate(AARCH64_INSN_IMM_16, insn) << 5;
 	rt = aarch64_insn_decode_register(AARCH64_INSN_REGTYPE_RT, insn);
-	return do_emulate_mrs(regs, sys_reg, rt);
+	return do_emulate_mrs(regs, sys_reg, rt) == 0;
 }
-
-static struct undef_hook mrs_hook = {
-	.instr_mask = 0xffff0000,
-	.instr_val  = 0xd5380000,
-	.pstate_mask = PSR_AA32_MODE_MASK,
-	.pstate_val = PSR_MODE_EL0t,
-	.fn = emulate_mrs,
-};
-
-static int __init enable_mrs_emulation(void)
-{
-	register_undef_hook(&mrs_hook);
-	return 0;
-}
-
-core_initcall(enable_mrs_emulation);
 
 enum mitigation_state arm64_get_meltdown_state(void)
 {
