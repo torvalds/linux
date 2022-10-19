@@ -29,11 +29,11 @@ RS485 Serial Communications
 3. Data Structures Already Available in the Kernel
 ==================================================
 
-   The Linux kernel provides the serial_rs485 structure (see [1]) to handle
-   RS485 communications. This data structure is used to set and configure RS485
+   The Linux kernel provides the serial_rs485 structure to handle RS485
+   communications. This data structure is used to set and configure RS485
    parameters in the platform data and in ioctls.
 
-   The device tree can also provide RS485 boot time parameters (see [2]
+   The device tree can also provide RS485 boot time parameters (see [1]
    for bindings). The driver is in charge of filling this data structure from
    the values given by the device tree.
 
@@ -46,6 +46,9 @@ RS485 Serial Communications
    using rs485_supported that indicates what RS485 features the driver supports
    for the uart_port. TIOCGRS485 ioctl can be used to read back the
    serial_rs485 structure matching to the current configuration.
+
+.. kernel-doc:: include/uapi/linux/serial.h
+   :identifiers: serial_rs485
 
 4. Usage from user-level
 ========================
@@ -126,6 +129,4 @@ RS485 Serial Communications
 6. References
 =============
 
- [1]	include/uapi/linux/serial.h
-
- [2]	Documentation/devicetree/bindings/serial/rs485.txt
+ [1]	Documentation/devicetree/bindings/serial/rs485.txt
