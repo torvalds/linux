@@ -51,11 +51,6 @@
 	msr	daif, \flags
 	.endm
 
-	/* IRQ/FIQ are the lowest priority flags, unconditionally unmask the rest. */
-	.macro enable_da
-	msr	daifclr, #(8 | 4)
-	.endm
-
 /*
  * Save/restore interrupts.
  */
