@@ -34,8 +34,9 @@ RS485 Serial Communications
    parameters in the platform data and in ioctls.
 
    The device tree can also provide RS485 boot time parameters
-   [#DT-bindings]_. The driver is in charge of filling this data structure
-   from the values given by the device tree.
+   [#DT-bindings]_. The serial core fills the struct serial_rs485 from the
+   values given by the device tree when the driver calls
+   uart_get_rs485_mode().
 
    Any driver for devices capable of working both as RS232 and RS485 should
    implement the rs485_config callback and provide rs485_supported in the
@@ -48,7 +49,7 @@ RS485 Serial Communications
    serial_rs485 structure matching to the current configuration.
 
 .. kernel-doc:: include/uapi/linux/serial.h
-   :identifiers: serial_rs485
+   :identifiers: serial_rs485 uart_get_rs485_mode
 
 4. Usage from user-level
 ========================
