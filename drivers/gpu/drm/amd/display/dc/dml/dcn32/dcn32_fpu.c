@@ -1736,10 +1736,12 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 		 * ensure all the params are calculated correctly. We do not need to run the
 		 * pipe split check again after this call (pipes are already split / merged).
 		 * */
-		if (!fast_validate) {
-			context->bw_ctx.dml.soc.allow_for_pstate_or_stutter_in_vblank_final =
-						dm_prefetch_support_uclk_fclk_and_stutter_if_possible;
-			vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
+		context->bw_ctx.dml.soc.allow_for_pstate_or_stutter_in_vblank_final =
+					dm_prefetch_support_uclk_fclk_and_stutter_if_possible;
+		vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
+		if (vlevel == context->bw_ctx.dml.soc.num_states) {
+			/* failed after DET size changes */
+			goto validate_fail;
 		}
 	}
 	*vlevel_out = vlevel;
