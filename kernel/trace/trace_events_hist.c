@@ -69,7 +69,8 @@
 	C(INVALID_STR_OPERAND,	"String type can not be an operand in expression"), \
 	C(EXPECT_NUMBER,	"Expecting numeric literal"),		\
 	C(UNARY_MINUS_SUBEXPR,	"Unary minus not supported in sub-expressions"), \
-	C(DIVISION_BY_ZERO,	"Division by zero"),
+	C(DIVISION_BY_ZERO,	"Division by zero"),			\
+	C(NEED_NOHC_VAL,	"Non-hitcount value is required for 'nohitcount'"),
 
 #undef C
 #define C(a, b)		HIST_ERR_##a
@@ -526,6 +527,7 @@ struct hist_trigger_attrs {
 	bool		cont;
 	bool		clear;
 	bool		ts_in_usecs;
+	bool		no_hitcount;
 	unsigned int	map_bits;
 
 	char		*assignment_str[TRACING_MAP_VARS_MAX];
@@ -1550,7 +1552,10 @@ parse_hist_trigger_attrs(struct trace_array *tr, char *trigger_str)
 			ret = parse_assignment(tr, str, attrs);
 			if (ret)
 				goto free;
-		} else if (strcmp(str, "pause") == 0)
+		} else if (strcmp(str, "nohitcount") == 0 ||
+			   strcmp(str, "NOHC") == 0)
+			attrs->no_hitcount = true;
+		else if (strcmp(str, "pause") == 0)
 			attrs->pause = true;
 		else if ((strcmp(str, "cont") == 0) ||
 			 (strcmp(str, "continue") == 0))
@@ -4377,6 +4382,12 @@ static int create_val_fields(struct hist_trigger_data *hist_data,
 	if (fields_str && (strcmp(fields_str, "hitcount") != 0))
 		ret = -EINVAL;
  out:
+	/* There is only raw hitcount but nohitcount suppresses it. */
+	if (j == 1 && hist_data->attrs->no_hitcount) {
+		hist_err(hist_data->event_file->tr, HIST_ERR_NEED_NOHC_VAL, 0);
+		ret = -ENOENT;
+	}
+
 	return ret;
 }
 
@@ -5388,13 +5399,13 @@ static void hist_trigger_entry_print(struct seq_file *m,
 
 	hist_trigger_print_key(m, hist_data, key, elt);
 
-	/* At first, show the raw hitcount always */
-	hist_trigger_print_val(m, i, "hitcount", 0, stats, elt);
+	/* At first, show the raw hitcount if !nohitcount */
+	if (!hist_data->attrs->no_hitcount)
+		hist_trigger_print_val(m, i, "hitcount", 0, stats, elt);
 
 	for (i = 1; i < hist_data->n_vals; i++) {
 		field_name = hist_field_name(hist_data->fields[i], 0);
 		flags = hist_data->fields[i]->flags;
-
 		if (flags & HIST_FIELD_FL_VAR || flags & HIST_FIELD_FL_EXPR)
 			continue;
 
@@ -5839,6 +5850,7 @@ static int event_hist_trigger_print(struct seq_file *m,
 	struct hist_trigger_data *hist_data = data->private_data;
 	struct hist_field *field;
 	bool have_var = false;
+	bool show_val = false;
 	unsigned int i;
 
 	seq_puts(m, HIST_PREFIX);
@@ -5869,12 +5881,16 @@ static int event_hist_trigger_print(struct seq_file *m,
 			continue;
 		}
 
-		if (i == HITCOUNT_IDX)
+		if (i == HITCOUNT_IDX) {
+			if (hist_data->attrs->no_hitcount)
+				continue;
 			seq_puts(m, "hitcount");
-		else {
-			seq_puts(m, ",");
+		} else {
+			if (show_val)
+				seq_puts(m, ",");
 			hist_field_print(m, field);
 		}
+		show_val = true;
 	}
 
 	if (have_var) {
@@ -5925,6 +5941,8 @@ static int event_hist_trigger_print(struct seq_file *m,
 	seq_printf(m, ":size=%u", (1 << hist_data->map->map_bits));
 	if (hist_data->enable_timestamps)
 		seq_printf(m, ":clock=%s", hist_data->attrs->clock);
+	if (hist_data->attrs->no_hitcount)
+		seq_puts(m, ":nohitcount");
 
 	print_actions_spec(m, hist_data);
 
