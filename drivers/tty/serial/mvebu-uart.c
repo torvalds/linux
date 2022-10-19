@@ -223,8 +223,7 @@ static void mvebu_uart_start_tx(struct uart_port *port)
 
 	if (IS_EXTENDED(port) && !uart_circ_empty(xmit)) {
 		writel(xmit->buf[xmit->tail], port->membase + UART_TSH(port));
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		port->icount.tx++;
+		uart_xmit_advance(port, 1);
 	}
 
 	ctl = readl(port->membase + UART_INTR(port));
