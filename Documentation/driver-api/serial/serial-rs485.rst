@@ -29,7 +29,7 @@ RS485 Serial Communications
 3. Data Structures Already Available in the Kernel
 ==================================================
 
-   The Linux kernel provides the serial_rs485 structure to handle RS485
+   The Linux kernel provides the struct serial_rs485 to handle RS485
    communications. This data structure is used to set and configure RS485
    parameters in the platform data and in ioctls.
 
@@ -40,13 +40,14 @@ RS485 Serial Communications
 
    Any driver for devices capable of working both as RS232 and RS485 should
    implement the rs485_config callback and provide rs485_supported in the
-   uart_port structure. The serial core calls rs485_config to do the device
-   specific part in response to TIOCSRS485 ioctl (see below). The rs485_config
-   callback receives a pointer to a sanitizated serial_rs485 structure. The
-   serial_rs485 userspace provides is sanitized before calling rs485_config
-   using rs485_supported that indicates what RS485 features the driver supports
-   for the uart_port. TIOCGRS485 ioctl can be used to read back the
-   serial_rs485 structure matching to the current configuration.
+   struct uart_port. The serial core calls rs485_config to do the device
+   specific part in response to TIOCSRS485 ioctl (see below). The
+   rs485_config callback receives a pointer to a sanitizated struct
+   serial_rs485. The struct serial_rs485 userspace provides is sanitized
+   before calling rs485_config using rs485_supported that indicates what
+   RS485 features the driver supports for the struct uart_port. TIOCGRS485
+   ioctl can be used to read back the struct serial_rs485 matching to the
+   current configuration.
 
 .. kernel-doc:: include/uapi/linux/serial.h
    :identifiers: serial_rs485 uart_get_rs485_mode
@@ -108,8 +109,8 @@ RS485 Serial Communications
 
    The Linux kernel provides addressing mode for multipoint RS-485 serial
    communications line. The addressing mode is enabled with SER_RS485_ADDRB
-   flag in serial_rs485. Struct serial_rs485 has two additional flags and
-   fields for enabling receive and destination addresses.
+   flag in struct serial_rs485. The struct serial_rs485 has two additional
+   flags and fields for enabling receive and destination addresses.
 
    Address mode flags:
 	- SER_RS485_ADDRB: Enabled addressing mode (sets also ADDRB in termios).
