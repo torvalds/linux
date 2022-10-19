@@ -33,9 +33,9 @@ RS485 Serial Communications
    communications. This data structure is used to set and configure RS485
    parameters in the platform data and in ioctls.
 
-   The device tree can also provide RS485 boot time parameters (see [1]
-   for bindings). The driver is in charge of filling this data structure from
-   the values given by the device tree.
+   The device tree can also provide RS485 boot time parameters
+   [#DT-bindings]_. The driver is in charge of filling this data structure
+   from the values given by the device tree.
 
    Any driver for devices capable of working both as RS232 and RS485 should
    implement the rs485_config callback and provide rs485_supported in the
@@ -129,4 +129,4 @@ RS485 Serial Communications
 6. References
 =============
 
- [1]	Documentation/devicetree/bindings/serial/rs485.txt
+.. [#DT-bindings]	Documentation/devicetree/bindings/serial/rs485.txt
