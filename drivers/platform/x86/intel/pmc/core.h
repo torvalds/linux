@@ -264,7 +264,7 @@ struct pmc_bit_map {
  * @slp_s0_offset:	PWRMBASE offset to read SLP_S0 residency
  * @ltr_ignore_offset:	PWRMBASE offset to read/write LTR ignore bit
  * @regmap_length:	Length of memory to map from PWRMBASE address to access
- * @ppfear0_offset:	PWRMBASE offset to to read PPFEAR*
+ * @ppfear0_offset:	PWRMBASE offset to read PPFEAR*
  * @ppfear_buckets:	Number of 8 bits blocks to read all IP blocks from
  *			PPFEAR
  * @pm_cfg_offset:	PWRMBASE offset to PM_CFG register
