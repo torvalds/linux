@@ -2305,8 +2305,13 @@ static void hl_capture_user_mappings(struct hl_device *hdev, bool is_pmmu)
 	}
 
 	mutex_lock(&ctx->mem_hash_lock);
-	hash_for_each(ctx->mem_hash, i, hnode, node)
-		pgf_info->num_of_user_mappings++;
+	hash_for_each(ctx->mem_hash, i, hnode, node) {
+		vm_type = hnode->ptr;
+		if (((*vm_type == VM_TYPE_USERPTR) && is_pmmu) ||
+				((*vm_type == VM_TYPE_PHYS_PACK) && !is_pmmu))
+			pgf_info->num_of_user_mappings++;
+
+	}
 
 	if (!pgf_info->num_of_user_mappings)
 		goto finish;
