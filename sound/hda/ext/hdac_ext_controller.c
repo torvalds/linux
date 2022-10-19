@@ -135,12 +135,10 @@ EXPORT_SYMBOL_GPL(snd_hdac_ext_link_free_all);
 struct hdac_ext_link *snd_hdac_ext_bus_get_hlink_by_addr(struct hdac_bus *bus, int addr)
 {
 	struct hdac_ext_link *hlink;
-	int i;
 
 	list_for_each_entry(hlink, &bus->hlink_list, list)
-		for (i = 0; i < HDA_MAX_CODECS; i++)
-			if (hlink->lsdiid & (0x1 << addr))
-				return hlink;
+		if (hlink->lsdiid & (0x1 << addr))
+			return hlink;
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_get_hlink_by_addr);
