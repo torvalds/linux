@@ -39,15 +39,15 @@ RS485 Serial Communications
    uart_get_rs485_mode().
 
    Any driver for devices capable of working both as RS232 and RS485 should
-   implement the rs485_config callback and provide rs485_supported in the
-   struct uart_port. The serial core calls rs485_config to do the device
-   specific part in response to TIOCSRS485 ioctl (see below). The
-   rs485_config callback receives a pointer to a sanitizated struct
+   implement the ``rs485_config`` callback and provide ``rs485_supported``
+   in the ``struct uart_port``. The serial core calls ``rs485_config`` to do
+   the device specific part in response to TIOCSRS485 ioctl (see below). The
+   ``rs485_config`` callback receives a pointer to a sanitizated struct
    serial_rs485. The struct serial_rs485 userspace provides is sanitized
-   before calling rs485_config using rs485_supported that indicates what
-   RS485 features the driver supports for the struct uart_port. TIOCGRS485
-   ioctl can be used to read back the struct serial_rs485 matching to the
-   current configuration.
+   before calling ``rs485_config`` using ``rs485_supported`` that indicates
+   what RS485 features the driver supports for the ``struct uart_port``.
+   TIOCGRS485 ioctl can be used to read back the struct serial_rs485
+   matching to the current configuration.
 
 .. kernel-doc:: include/uapi/linux/serial.h
    :identifiers: serial_rs485 uart_get_rs485_mode
@@ -108,23 +108,24 @@ RS485 Serial Communications
 ========================
 
    The Linux kernel provides addressing mode for multipoint RS-485 serial
-   communications line. The addressing mode is enabled with SER_RS485_ADDRB
-   flag in struct serial_rs485. The struct serial_rs485 has two additional
-   flags and fields for enabling receive and destination addresses.
+   communications line. The addressing mode is enabled with
+   ``SER_RS485_ADDRB`` flag in struct serial_rs485. The struct serial_rs485
+   has two additional flags and fields for enabling receive and destination
+   addresses.
 
    Address mode flags:
-	- SER_RS485_ADDRB: Enabled addressing mode (sets also ADDRB in termios).
-	- SER_RS485_ADDR_RECV: Receive (filter) address enabled.
-	- SER_RS485_ADDR_DEST: Set destination address.
+	- ``SER_RS485_ADDRB``: Enabled addressing mode (sets also ADDRB in termios).
+	- ``SER_RS485_ADDR_RECV``: Receive (filter) address enabled.
+	- ``SER_RS485_ADDR_DEST``: Set destination address.
 
-   Address fields (enabled with corresponding SER_RS485_ADDR_* flag):
-	- addr_recv: Receive address.
-	- addr_dest: Destination address.
+   Address fields (enabled with corresponding ``SER_RS485_ADDR_*`` flag):
+	- ``addr_recv``: Receive address.
+	- ``addr_dest``: Destination address.
 
    Once a receive address is set, the communication can occur only with the
    particular device and other peers are filtered out. It is left up to the
    receiver side to enforce the filtering. Receive address will be cleared
-   if SER_RS485_ADDR_RECV is not set.
+   if ``SER_RS485_ADDR_RECV`` is not set.
 
    Note: not all devices supporting RS485 support multipoint addressing.
 
