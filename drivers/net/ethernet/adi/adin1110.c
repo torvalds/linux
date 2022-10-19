@@ -1082,8 +1082,29 @@ static void adin1110_adjust_link(struct net_device *dev)
  */
 static int adin1110_check_spi(struct adin1110_priv *priv)
 {
+	struct gpio_desc *reset_gpio;
 	int ret;
 	u32 val;
+
+	reset_gpio = devm_gpiod_get_optional(&priv->spidev->dev, "reset",
+					     GPIOD_OUT_LOW);
+	if (reset_gpio) {
+		/* MISO pin is used for internal configuration, can't have
+		 * anyone else disturbing the SDO line.
+		 */
+		spi_bus_lock(priv->spidev->controller);
+
+		gpiod_set_value(reset_gpio, 1);
+		fsleep(10000);
+		gpiod_set_value(reset_gpio, 0);
+
+		/* Need to wait 90 ms before interacting with
+		 * the MAC after a HW reset.
+		 */
+		fsleep(90000);
+
+		spi_bus_unlock(priv->spidev->controller);
+	}
 
 	ret = adin1110_read_reg(priv, ADIN1110_PHY_ID, &val);
 	if (ret < 0)
