@@ -57,7 +57,13 @@ struct kvm_mmu_page {
 	bool tdp_mmu_page;
 	bool unsync;
 	u8 mmu_valid_gen;
-	bool lpage_disallowed; /* Can't be replaced by an equiv large page */
+
+	 /*
+	  * The shadow page can't be replaced by an equivalent huge page
+	  * because it is being used to map an executable page in the guest
+	  * and the NX huge page mitigation is enabled.
+	  */
+	bool nx_huge_page_disallowed;
 
 	/*
 	 * The following two entries are used to key the shadow page in the
@@ -102,12 +108,12 @@ struct kvm_mmu_page {
 
 	/*
 	 * Tracks shadow pages that, if zapped, would allow KVM to create an NX
-	 * huge page.  A shadow page will have lpage_disallowed set but not be
-	 * on the list if a huge page is disallowed for other reasons, e.g.
-	 * because KVM is shadowing a PTE at the same gfn, the memslot isn't
-	 * properly aligned, etc...
+	 * huge page.  A shadow page will have nx_huge_page_disallowed set but
+	 * not be on the list if a huge page is disallowed for other reasons,
+	 * e.g. because KVM is shadowing a PTE at the same gfn, the memslot
+	 * isn't properly aligned, etc...
 	 */
-	struct list_head lpage_disallowed_link;
+	struct list_head possible_nx_huge_page_link;
 #ifdef CONFIG_X86_32
 	/*
 	 * Used out of the mmu-lock to avoid reading spte values while an
@@ -322,8 +328,8 @@ void disallowed_hugepage_adjust(struct kvm_page_fault *fault, u64 spte, int cur_
 
 void *mmu_memory_cache_alloc(struct kvm_mmu_memory_cache *mc);
 
-void account_huge_nx_page(struct kvm *kvm, struct kvm_mmu_page *sp,
+void account_nx_huge_page(struct kvm *kvm, struct kvm_mmu_page *sp,
 			  bool nx_huge_page_possible);
-void unaccount_huge_nx_page(struct kvm *kvm, struct kvm_mmu_page *sp);
+void unaccount_nx_huge_page(struct kvm *kvm, struct kvm_mmu_page *sp);
 
 #endif /* __KVM_X86_MMU_INTERNAL_H */

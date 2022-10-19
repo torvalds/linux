@@ -714,7 +714,7 @@ static int FNAME(fetch)(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 
 		link_shadow_page(vcpu, it.sptep, sp);
 		if (fault->huge_page_disallowed)
-			account_huge_nx_page(vcpu->kvm, sp,
+			account_nx_huge_page(vcpu->kvm, sp,
 					     fault->req_level >= it.level);
 	}
 
