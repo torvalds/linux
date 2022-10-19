@@ -357,14 +357,6 @@ config INTEL_IOATDMA
 
 	  If unsure, say N.
 
-config INTEL_IOP_ADMA
-	tristate "Intel IOP32x ADMA support"
-	depends on ARCH_IOP32X || COMPILE_TEST
-	select DMA_ENGINE
-	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
-	help
-	  Enable support for the Intel(R) IOP Series RAID engines.
-
 config K3_DMA
 	tristate "Hisilicon K3 DMA support"
 	depends on ARCH_HI3xxx || ARCH_HISI || COMPILE_TEST
