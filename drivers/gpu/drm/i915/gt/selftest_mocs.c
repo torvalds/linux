@@ -7,6 +7,7 @@
 #include "gt/intel_gpu_commands.h"
 #include "i915_selftest.h"
 
+#include "gem/selftests/igt_gem_utils.h"
 #include "gem/selftests/mock_context.h"
 #include "selftests/igt_reset.h"
 #include "selftests/igt_spinner.h"
