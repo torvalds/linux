@@ -38,8 +38,7 @@ static void sctp_ulpq_reasm_drain(struct sctp_ulpq *ulpq);
 /* 1st Level Abstractions */
 
 /* Initialize a ULP queue from a block of memory.  */
-struct sctp_ulpq *sctp_ulpq_init(struct sctp_ulpq *ulpq,
-				 struct sctp_association *asoc)
+void sctp_ulpq_init(struct sctp_ulpq *ulpq, struct sctp_association *asoc)
 {
 	memset(ulpq, 0, sizeof(struct sctp_ulpq));
 
@@ -48,8 +47,6 @@ struct sctp_ulpq *sctp_ulpq_init(struct sctp_ulpq *ulpq,
 	skb_queue_head_init(&ulpq->reasm_uo);
 	skb_queue_head_init(&ulpq->lobby);
 	ulpq->pd_mode  = 0;
-
-	return ulpq;
 }
 
 
