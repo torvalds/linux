@@ -22,7 +22,6 @@
 #include "probe-file.h"
 #include "string2.h"
 #include "strlist.h"
-#include "thread_map.h"
 #include "tracepoint.h"
 #include "pfm.h"
 #include "pmu-hybrid.h"
@@ -237,44 +236,6 @@ void print_sdt_events(const char *subsys_glob, const char *event_glob,
 		}
 	}
 	strlist__delete(sdtlist);
-}
-
-static bool is_event_supported(u8 type, unsigned int config)
-{
-	bool ret = true;
-	int open_return;
-	struct evsel *evsel;
-	struct perf_event_attr attr = {
-		.type = type,
-		.config = config,
-		.disabled = 1,
-	};
-	struct perf_thread_map *tmap = thread_map__new_by_tid(0);
-
-	if (tmap == NULL)
-		return false;
-
-	evsel = evsel__new(&attr);
-	if (evsel) {
-		open_return = evsel__open(evsel, NULL, tmap);
-		ret = open_return >= 0;
-
-		if (open_return == -EACCES) {
-			/*
-			 * This happens if the paranoid value
-			 * /proc/sys/kernel/perf_event_paranoid is set to 2
-			 * Re-run with exclude_kernel set; we don't do that
-			 * by default as some ARM machines do not support it.
-			 *
-			 */
-			evsel->core.attr.exclude_kernel = 1;
-			ret = evsel__open(evsel, NULL, tmap) >= 0;
-		}
-		evsel__delete(evsel);
-	}
-
-	perf_thread_map__put(tmap);
-	return ret;
 }
 
 int print_hwcache_events(const char *event_glob, bool name_only)

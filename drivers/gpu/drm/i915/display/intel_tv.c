@@ -39,6 +39,7 @@
 #include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
+#include "intel_dpll.h"
 #include "intel_hotplug.h"
 #include "intel_tv.h"
 
@@ -982,10 +983,10 @@ intel_tv_mode_vdisplay(const struct tv_mode *tv_mode)
 
 static void
 intel_tv_mode_to_mode(struct drm_display_mode *mode,
-		      const struct tv_mode *tv_mode)
+		      const struct tv_mode *tv_mode,
+		      int clock)
 {
-	mode->clock = tv_mode->clock /
-		(tv_mode->oversample >> !tv_mode->progressive);
+	mode->clock = clock / (tv_mode->oversample >> !tv_mode->progressive);
 
 	/*
 	 * tv_mode horizontal timings:
@@ -1143,7 +1144,7 @@ intel_tv_get_config(struct intel_encoder *encoder,
 	xsize = tmp >> 16;
 	ysize = tmp & 0xffff;
 
-	intel_tv_mode_to_mode(&mode, &tv_mode);
+	intel_tv_mode_to_mode(&mode, &tv_mode, pipe_config->port_clock);
 
 	drm_dbg_kms(&dev_priv->drm, "TV mode: " DRM_MODE_FMT "\n",
 		    DRM_MODE_ARG(&mode));
@@ -1184,6 +1185,9 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_state *pipe_config,
 			struct drm_connector_state *conn_state)
 {
+	struct intel_atomic_state *state =
+		to_intel_atomic_state(pipe_config->uapi.state);
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_tv_connector_state *tv_conn_state =
 		to_intel_tv_connector_state(conn_state);
@@ -1192,6 +1196,7 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 		&pipe_config->hw.adjusted_mode;
 	int hdisplay = adjusted_mode->crtc_hdisplay;
 	int vdisplay = adjusted_mode->crtc_vdisplay;
+	int ret;
 
 	if (!tv_mode)
 		return -EINVAL;
@@ -1206,7 +1211,13 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 
 	pipe_config->port_clock = tv_mode->clock;
 
-	intel_tv_mode_to_mode(adjusted_mode, tv_mode);
+	ret = intel_dpll_crtc_compute_clock(state, crtc);
+	if (ret)
+		return ret;
+
+	pipe_config->clock_set = true;
+
+	intel_tv_mode_to_mode(adjusted_mode, tv_mode, pipe_config->port_clock);
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
 	if (intel_tv_source_too_wide(dev_priv, hdisplay) ||
@@ -1804,7 +1815,7 @@ intel_tv_get_modes(struct drm_connector *connector)
 		 * about the actual timings of the mode. We
 		 * do ignore the margins though.
 		 */
-		intel_tv_mode_to_mode(mode, tv_mode);
+		intel_tv_mode_to_mode(mode, tv_mode, tv_mode->clock);
 		if (count == 0) {
 			drm_dbg_kms(&dev_priv->drm, "TV mode: " DRM_MODE_FMT "\n",
 				    DRM_MODE_ARG(mode));

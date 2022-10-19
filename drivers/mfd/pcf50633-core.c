@@ -273,7 +273,7 @@ err2:
 	return ret;
 }
 
-static int pcf50633_remove(struct i2c_client *client)
+static void pcf50633_remove(struct i2c_client *client)
 {
 	struct pcf50633 *pcf = i2c_get_clientdata(client);
 	int i;
@@ -289,8 +289,6 @@ static int pcf50633_remove(struct i2c_client *client)
 
 	for (i = 0; i < PCF50633_NUM_REGULATORS; i++)
 		platform_device_unregister(pcf->regulator_pdev[i]);
-
-	return 0;
 }
 
 static const struct i2c_device_id pcf50633_id_table[] = {

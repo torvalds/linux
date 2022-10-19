@@ -300,15 +300,13 @@ static int isl29125_powerdown(struct isl29125_data *data)
 		(data->conf1 & ~ISL29125_MODE_MASK) | ISL29125_MODE_PD);
 }
 
-static int isl29125_remove(struct i2c_client *client)
+static void isl29125_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
 	iio_device_unregister(indio_dev);
 	iio_triggered_buffer_cleanup(indio_dev);
 	isl29125_powerdown(iio_priv(indio_dev));
-
-	return 0;
 }
 
 static int isl29125_suspend(struct device *dev)

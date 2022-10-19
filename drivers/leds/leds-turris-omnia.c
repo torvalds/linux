@@ -242,7 +242,7 @@ static int omnia_leds_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int omnia_leds_remove(struct i2c_client *client)
+static void omnia_leds_remove(struct i2c_client *client)
 {
 	u8 buf[5];
 
@@ -258,8 +258,6 @@ static int omnia_leds_remove(struct i2c_client *client)
 	buf[4] = 255;
 
 	i2c_master_send(client, buf, 5);
-
-	return 0;
 }
 
 static const struct of_device_id of_omnia_leds_match[] = {

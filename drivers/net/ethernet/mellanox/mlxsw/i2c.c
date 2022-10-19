@@ -9,6 +9,7 @@
 #include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
+#include <linux/platform_data/mlxreg.h>
 #include <linux/slab.h>
 
 #include "cmd.h"
@@ -51,6 +52,15 @@
 #define MLXSW_I2C_TIMEOUT_MSECS		5000
 #define MLXSW_I2C_MAX_DATA_SIZE		256
 
+/* Driver can be initialized by kernel platform driver or from the user
+ * space. In the first case IRQ line number is passed through the platform
+ * data, otherwise default IRQ line is to be used. Default IRQ is relevant
+ * only for specific I2C slave address, allowing 3.4 MHz I2C path to the chip
+ * (special hardware feature for I2C acceleration).
+ */
+#define MLXSW_I2C_DEFAULT_IRQ		17
+#define MLXSW_FAST_I2C_SLAVE		0x37
+
 /**
  * struct mlxsw_i2c - device private data:
  * @cmd: command attributes;
@@ -63,6 +73,9 @@
  * @core: switch core pointer;
  * @bus_info: bus info block;
  * @block_size: maximum block size allowed to pass to under layer;
+ * @pdata: device platform data;
+ * @irq_work: interrupts work item;
+ * @irq: IRQ line number;
  */
 struct mlxsw_i2c {
 	struct {
@@ -76,6 +89,9 @@ struct mlxsw_i2c {
 	struct mlxsw_core *core;
 	struct mlxsw_bus_info bus_info;
 	u16 block_size;
+	struct mlxreg_core_hotplug_platform_data *pdata;
+	struct work_struct irq_work;
+	int irq;
 };
 
 #define MLXSW_I2C_READ_MSG(_client, _addr_buf, _buf, _len) {	\
@@ -546,6 +562,67 @@ static void mlxsw_i2c_fini(void *bus_priv)
 	mlxsw_i2c->core = NULL;
 }
 
+static void mlxsw_i2c_work_handler(struct work_struct *work)
+{
+	struct mlxsw_i2c *mlxsw_i2c;
+
+	mlxsw_i2c = container_of(work, struct mlxsw_i2c, irq_work);
+	mlxsw_core_irq_event_handlers_call(mlxsw_i2c->core);
+}
+
+static irqreturn_t mlxsw_i2c_irq_handler(int irq, void *dev)
+{
+	struct mlxsw_i2c *mlxsw_i2c = dev;
+
+	mlxsw_core_schedule_work(&mlxsw_i2c->irq_work);
+
+	/* Interrupt handler shares IRQ line with 'main' interrupt handler.
+	 * Return here IRQ_NONE, while main handler will return IRQ_HANDLED.
+	 */
+	return IRQ_NONE;
+}
+
+static int mlxsw_i2c_irq_init(struct mlxsw_i2c *mlxsw_i2c, u8 addr)
+{
+	int err;
+
+	/* Initialize interrupt handler if system hotplug driver is reachable,
+	 * otherwise interrupt line is not enabled and interrupts will not be
+	 * raised to CPU. Also request_irq() call will be not valid.
+	 */
+	if (!IS_REACHABLE(CONFIG_MLXREG_HOTPLUG))
+		return 0;
+
+	/* Set default interrupt line. */
+	if (mlxsw_i2c->pdata && mlxsw_i2c->pdata->irq)
+		mlxsw_i2c->irq = mlxsw_i2c->pdata->irq;
+	else if (addr == MLXSW_FAST_I2C_SLAVE)
+		mlxsw_i2c->irq = MLXSW_I2C_DEFAULT_IRQ;
+
+	if (!mlxsw_i2c->irq)
+		return 0;
+
+	INIT_WORK(&mlxsw_i2c->irq_work, mlxsw_i2c_work_handler);
+	err = request_irq(mlxsw_i2c->irq, mlxsw_i2c_irq_handler,
+			  IRQF_TRIGGER_FALLING | IRQF_SHARED, "mlxsw-i2c",
+			  mlxsw_i2c);
+	if (err) {
+		dev_err(mlxsw_i2c->bus_info.dev, "Failed to request irq: %d\n",
+			err);
+		return err;
+	}
+
+	return 0;
+}
+
+static void mlxsw_i2c_irq_fini(struct mlxsw_i2c *mlxsw_i2c)
+{
+	if (!IS_REACHABLE(CONFIG_MLXREG_HOTPLUG) || !mlxsw_i2c->irq)
+		return;
+	cancel_work_sync(&mlxsw_i2c->irq_work);
+	free_irq(mlxsw_i2c->irq, mlxsw_i2c);
+}
+
 static const struct mlxsw_bus mlxsw_i2c_bus = {
 	.kind			= "i2c",
 	.init			= mlxsw_i2c_init,
@@ -638,17 +715,24 @@ static int mlxsw_i2c_probe(struct i2c_client *client,
 	mlxsw_i2c->bus_info.dev = &client->dev;
 	mlxsw_i2c->bus_info.low_frequency = true;
 	mlxsw_i2c->dev = &client->dev;
+	mlxsw_i2c->pdata = client->dev.platform_data;
+
+	err = mlxsw_i2c_irq_init(mlxsw_i2c, client->addr);
+	if (err)
+		goto errout;
 
 	err = mlxsw_core_bus_device_register(&mlxsw_i2c->bus_info,
 					     &mlxsw_i2c_bus, mlxsw_i2c, false,
 					     NULL, NULL);
 	if (err) {
 		dev_err(&client->dev, "Fail to register core bus\n");
-		return err;
+		goto err_bus_device_register;
 	}
 
 	return 0;
 
+err_bus_device_register:
+	mlxsw_i2c_irq_fini(mlxsw_i2c);
 errout:
 	mutex_destroy(&mlxsw_i2c->cmd.lock);
 	i2c_set_clientdata(client, NULL);
@@ -656,14 +740,13 @@ errout:
 	return err;
 }
 
-static int mlxsw_i2c_remove(struct i2c_client *client)
+static void mlxsw_i2c_remove(struct i2c_client *client)
 {
 	struct mlxsw_i2c *mlxsw_i2c = i2c_get_clientdata(client);
 
 	mlxsw_core_bus_device_unregister(mlxsw_i2c->core, false);
+	mlxsw_i2c_irq_fini(mlxsw_i2c);
 	mutex_destroy(&mlxsw_i2c->cmd.lock);
-
-	return 0;
 }
 
 int mlxsw_i2c_driver_register(struct i2c_driver *i2c_driver)

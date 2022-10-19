@@ -259,6 +259,9 @@
 #define   GEN9_PREEMPT_GPGPU_COMMAND_LEVEL	GEN9_PREEMPT_GPGPU_LEVEL(1, 0)
 #define   GEN9_PREEMPT_GPGPU_LEVEL_MASK		GEN9_PREEMPT_GPGPU_LEVEL(1, 1)
 
+#define DRAW_WATERMARK				_MMIO(0x26c0)
+#define   VERT_WM_VAL				REG_GENMASK(9, 0)
+
 #define GEN12_GLOBAL_MOCS(i)			_MMIO(0x4000 + (i) * 4) /* Global MOCS regs */
 
 #define RENDER_HWS_PGA_GEN7			_MMIO(0x4080)
@@ -373,6 +376,9 @@
 
 #define CHICKEN_RASTER_1			_MMIO(0x6204)
 #define   DIS_SF_ROUND_NEAREST_EVEN		REG_BIT(8)
+
+#define CHICKEN_RASTER_2			_MMIO(0x6208)
+#define   TBIMR_FAST_CLIP			REG_BIT(5)
 
 #define VFLSKPD					_MMIO(0x62a8)
 #define   DIS_OVER_FETCH_CACHE			REG_BIT(1)
@@ -1007,6 +1013,8 @@
 #define   GEN11_LSN_UNSLCVC_GAFS_HALF_CL2_MAXALLOC	(1 << 9)
 #define   GEN11_LSN_UNSLCVC_GAFS_HALF_SF_MAXALLOC	(1 << 7)
 
+#define GUCPMTIMESTAMP				_MMIO(0xc3e8)
+
 #define __GEN9_RCS0_MOCS0			0xc800
 #define GEN9_GFX_MOCS(i)			_MMIO(__GEN9_RCS0_MOCS0 + (i) * 4)
 #define __GEN9_VCS0_MOCS0			0xc900
@@ -1078,6 +1086,7 @@
 
 #define GEN10_SAMPLER_MODE			_MMIO(0xe18c)
 #define   ENABLE_SMALLPL			REG_BIT(15)
+#define   SC_DISABLE_POWER_OPTIMIZATION_EBB	REG_BIT(9)
 #define   GEN11_SAMPLER_ENABLE_HEADLESS_MSG	REG_BIT(5)
 
 #define GEN9_HALF_SLICE_CHICKEN7		_MMIO(0xe194)
@@ -1101,6 +1110,8 @@
 #define   GEN12_DISABLE_TDL_PUSH		REG_BIT(9)
 #define   GEN11_DIS_PICK_2ND_EU			REG_BIT(7)
 #define   GEN12_DISABLE_HDR_PAST_PAYLOAD_HOLD_FIX	REG_BIT(4)
+#define   THREAD_EX_ARB_MODE			REG_GENMASK(3, 2)
+#define   THREAD_EX_ARB_MODE_RR_AFTER_DEP	REG_FIELD_PREP(THREAD_EX_ARB_MODE, 0x2)
 
 #define HSW_ROW_CHICKEN3			_MMIO(0xe49c)
 #define   HSW_ROW_CHICKEN3_L3_GLOBAL_ATOMICS_DISABLE	(1 << 6)
@@ -1123,6 +1134,8 @@
 
 #define RT_CTRL					_MMIO(0xe530)
 #define   DIS_NULL_QUERY			REG_BIT(10)
+#define   STACKID_CTRL				REG_GENMASK(6, 5)
+#define   STACKID_CTRL_512			REG_FIELD_PREP(STACKID_CTRL, 0x2)
 
 #define EU_PERF_CNTL1				_MMIO(0xe558)
 #define EU_PERF_CNTL5				_MMIO(0xe55c)
@@ -1541,6 +1554,8 @@
 #define   OTHER_GTPM_INSTANCE			1
 #define   OTHER_KCR_INSTANCE			4
 #define   OTHER_GSC_INSTANCE			6
+#define   OTHER_MEDIA_GUC_INSTANCE		16
+#define   OTHER_MEDIA_GTPM_INSTANCE		17
 
 #define GEN11_IIR_REG_SELECTOR(x)		_MMIO(0x190070 + ((x) * 4))
 
@@ -1564,5 +1579,13 @@
 #define XEHPC_BCS7_BCS8_INTR_MASK		_MMIO(0x19011c)
 
 #define GEN12_SFC_DONE(n)			_MMIO(0x1cc000 + (n) * 0x1000)
+
+/*
+ * Standalone Media's non-engine GT registers are located at their regular GT
+ * offsets plus 0x380000.  This extra offset is stored inside the intel_uncore
+ * structure so that the existing code can be used for both GTs without
+ * modification.
+ */
+#define MTL_MEDIA_GSI_BASE			0x380000
 
 #endif /* __INTEL_GT_REGS__ */

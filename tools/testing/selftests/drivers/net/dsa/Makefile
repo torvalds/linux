@@ -8,9 +8,10 @@ TEST_PROGS = bridge_locked_port.sh \
 	bridge_vlan_unaware.sh \
 	local_termination.sh \
 	no_forwarding.sh \
+	tc_actions.sh \
 	test_bridge_fdb_stress.sh
 
-TEST_PROGS_EXTENDED := lib.sh
+TEST_PROGS_EXTENDED := lib.sh tc_common.sh
 
 TEST_FILES := forwarding.config
 

@@ -151,13 +151,6 @@ extern bool mempolicy_in_oom_domain(struct task_struct *tsk,
 				const nodemask_t *mask);
 extern nodemask_t *policy_nodemask(gfp_t gfp, struct mempolicy *policy);
 
-static inline nodemask_t *policy_nodemask_current(gfp_t gfp)
-{
-	struct mempolicy *mpol = get_task_policy(current);
-
-	return policy_nodemask(gfp, mpol);
-}
-
 extern unsigned int mempolicy_slab_node(void);
 
 extern enum zone_type policy_zone;
@@ -189,6 +182,7 @@ static inline bool mpol_is_preferred_many(struct mempolicy *pol)
 	return  (pol->mode == MPOL_PREFERRED_MANY);
 }
 
+extern bool apply_policy_zone(struct mempolicy *policy, enum zone_type zone);
 
 #else
 
@@ -292,11 +286,6 @@ static inline int mpol_misplaced(struct page *page, struct vm_area_struct *vma,
 
 static inline void mpol_put_task_policy(struct task_struct *task)
 {
-}
-
-static inline nodemask_t *policy_nodemask_current(gfp_t gfp)
-{
-	return NULL;
 }
 
 static inline bool mpol_is_preferred_many(struct mempolicy *pol)

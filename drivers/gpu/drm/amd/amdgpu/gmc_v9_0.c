@@ -1103,10 +1103,13 @@ static void gmc_v9_0_get_vm_pde(struct amdgpu_device *adev, int level,
 			*flags |= AMDGPU_PDE_BFS(0x9);
 
 	} else if (level == AMDGPU_VM_PDB0) {
-		if (*flags & AMDGPU_PDE_PTE)
+		if (*flags & AMDGPU_PDE_PTE) {
 			*flags &= ~AMDGPU_PDE_PTE;
-		else
+			if (!(*flags & AMDGPU_PTE_VALID))
+				*addr |= 1 << PAGE_SHIFT;
+		} else {
 			*flags |= AMDGPU_PTE_TF;
+		}
 	}
 }
 

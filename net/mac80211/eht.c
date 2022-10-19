@@ -30,7 +30,9 @@ ieee80211_eht_cap_ie_to_sta_eht_cap(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	mcs_nss_size = ieee80211_eht_mcs_nss_size(he_cap_ie_elem,
-						  &eht_cap_ie_elem->fixed);
+						  &eht_cap_ie_elem->fixed,
+						  sdata->vif.type ==
+							NL80211_IFTYPE_STATION);
 
 	eht_total_size += mcs_nss_size;
 

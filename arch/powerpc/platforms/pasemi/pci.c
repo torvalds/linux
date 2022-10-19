@@ -270,18 +270,12 @@ static int __init pas_add_bridge(struct device_node *dev)
 
 void __init pas_pci_init(void)
 {
-	struct device_node *np, *root;
+	struct device_node *np;
 	int res;
-
-	root = of_find_node_by_path("/");
-	if (!root) {
-		pr_crit("pas_pci_init: can't find root of device tree\n");
-		return;
-	}
 
 	pci_set_flags(PCI_SCAN_ALL_PCIE_DEVS);
 
-	np = of_find_compatible_node(root, NULL, "pasemi,rootbus");
+	np = of_find_compatible_node(of_root, NULL, "pasemi,rootbus");
 	if (np) {
 		res = pas_add_bridge(np);
 		of_node_put(np);

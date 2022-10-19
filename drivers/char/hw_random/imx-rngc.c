@@ -245,7 +245,7 @@ static int imx_rngc_probe(struct platform_device *pdev)
 	if (IS_ERR(rngc->base))
 		return PTR_ERR(rngc->base);
 
-	rngc->clk = devm_clk_get(&pdev->dev, NULL);
+	rngc->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(rngc->clk)) {
 		dev_err(&pdev->dev, "Can not get rng_clk\n");
 		return PTR_ERR(rngc->clk);
@@ -255,27 +255,14 @@ static int imx_rngc_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	ret = clk_prepare_enable(rngc->clk);
-	if (ret)
-		return ret;
-
 	ver_id = readl(rngc->base + RNGC_VER_ID);
 	rng_type = ver_id >> RNGC_TYPE_SHIFT;
 	/*
 	 * This driver supports only RNGC and RNGB. (There's a different
 	 * driver for RNGA.)
 	 */
-	if (rng_type != RNGC_TYPE_RNGC && rng_type != RNGC_TYPE_RNGB) {
-		ret = -ENODEV;
-		goto err;
-	}
-
-	ret = devm_request_irq(&pdev->dev,
-			irq, imx_rngc_irq, 0, pdev->name, (void *)rngc);
-	if (ret) {
-		dev_err(rngc->dev, "Can't get interrupt working.\n");
-		goto err;
-	}
+	if (rng_type != RNGC_TYPE_RNGC && rng_type != RNGC_TYPE_RNGB)
+		return -ENODEV;
 
 	init_completion(&rngc->rng_op_done);
 
@@ -290,40 +277,31 @@ static int imx_rngc_probe(struct platform_device *pdev)
 
 	imx_rngc_irq_mask_clear(rngc);
 
+	ret = devm_request_irq(&pdev->dev,
+			irq, imx_rngc_irq, 0, pdev->name, (void *)rngc);
+	if (ret) {
+		dev_err(rngc->dev, "Can't get interrupt working.\n");
+		return ret;
+	}
+
 	if (self_test) {
 		ret = imx_rngc_self_test(rngc);
 		if (ret) {
 			dev_err(rngc->dev, "self test failed\n");
-			goto err;
+			return ret;
 		}
 	}
 
-	ret = hwrng_register(&rngc->rng);
+	ret = devm_hwrng_register(&pdev->dev, &rngc->rng);
 	if (ret) {
 		dev_err(&pdev->dev, "hwrng registration failed\n");
-		goto err;
+		return ret;
 	}
 
 	dev_info(&pdev->dev,
 		"Freescale RNG%c registered (HW revision %d.%02d)\n",
 		rng_type == RNGC_TYPE_RNGB ? 'B' : 'C',
 		(ver_id >> RNGC_VER_MAJ_SHIFT) & 0xff, ver_id & 0xff);
-	return 0;
-
-err:
-	clk_disable_unprepare(rngc->clk);
-
-	return ret;
-}
-
-static int __exit imx_rngc_remove(struct platform_device *pdev)
-{
-	struct imx_rngc *rngc = platform_get_drvdata(pdev);
-
-	hwrng_unregister(&rngc->rng);
-
-	clk_disable_unprepare(rngc->clk);
-
 	return 0;
 }
 
@@ -355,11 +333,10 @@ MODULE_DEVICE_TABLE(of, imx_rngc_dt_ids);
 
 static struct platform_driver imx_rngc_driver = {
 	.driver = {
-		.name = "imx_rngc",
+		.name = KBUILD_MODNAME,
 		.pm = &imx_rngc_pm_ops,
 		.of_match_table = imx_rngc_dt_ids,
 	},
-	.remove = __exit_p(imx_rngc_remove),
 };
 
 module_platform_driver_probe(imx_rngc_driver, imx_rngc_probe);

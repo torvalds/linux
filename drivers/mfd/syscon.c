@@ -66,14 +66,6 @@ static struct syscon *of_syscon_register(struct device_node *np, bool check_clk)
 		goto err_map;
 	}
 
-	/* Parse the device's DT node for an endianness specification */
-	if (of_property_read_bool(np, "big-endian"))
-		syscon_config.val_format_endian = REGMAP_ENDIAN_BIG;
-	else if (of_property_read_bool(np, "little-endian"))
-		syscon_config.val_format_endian = REGMAP_ENDIAN_LITTLE;
-	else if (of_property_read_bool(np, "native-endian"))
-		syscon_config.val_format_endian = REGMAP_ENDIAN_NATIVE;
-
 	/*
 	 * search for reg-io-width property in DT. If it is not provided,
 	 * default to 4 bytes. regmap_init_mmio will return an error if values

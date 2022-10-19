@@ -268,8 +268,7 @@ static noinline void do_sigbus(struct pt_regs *regs)
 			(void __user *)(regs->int_parm_long & __FAIL_ADDR_MASK));
 }
 
-static noinline void do_fault_error(struct pt_regs *regs, int access,
-					vm_fault_t fault)
+static noinline void do_fault_error(struct pt_regs *regs, vm_fault_t fault)
 {
 	int si_code;
 
@@ -516,7 +515,7 @@ void do_protection_exception(struct pt_regs *regs)
 		fault = do_exception(regs, access);
 	}
 	if (unlikely(fault))
-		do_fault_error(regs, access, fault);
+		do_fault_error(regs, fault);
 }
 NOKPROBE_SYMBOL(do_protection_exception);
 
@@ -528,7 +527,7 @@ void do_dat_exception(struct pt_regs *regs)
 	access = VM_ACCESS_FLAGS;
 	fault = do_exception(regs, access);
 	if (unlikely(fault))
-		do_fault_error(regs, access, fault);
+		do_fault_error(regs, fault);
 }
 NOKPROBE_SYMBOL(do_dat_exception);
 
@@ -803,7 +802,7 @@ void do_secure_storage_access(struct pt_regs *regs)
 		addr = __gmap_translate(gmap, addr);
 		mmap_read_unlock(mm);
 		if (IS_ERR_VALUE(addr)) {
-			do_fault_error(regs, VM_ACCESS_FLAGS, VM_FAULT_BADMAP);
+			do_fault_error(regs, VM_FAULT_BADMAP);
 			break;
 		}
 		fallthrough;
@@ -813,7 +812,7 @@ void do_secure_storage_access(struct pt_regs *regs)
 		vma = find_vma(mm, addr);
 		if (!vma) {
 			mmap_read_unlock(mm);
-			do_fault_error(regs, VM_READ | VM_WRITE, VM_FAULT_BADMAP);
+			do_fault_error(regs, VM_FAULT_BADMAP);
 			break;
 		}
 		page = follow_page(vma, addr, FOLL_WRITE | FOLL_GET);
@@ -836,7 +835,7 @@ void do_secure_storage_access(struct pt_regs *regs)
 			BUG();
 		break;
 	default:
-		do_fault_error(regs, VM_READ | VM_WRITE, VM_FAULT_BADMAP);
+		do_fault_error(regs, VM_FAULT_BADMAP);
 		WARN_ON_ONCE(1);
 	}
 }
@@ -848,7 +847,7 @@ void do_non_secure_storage_access(struct pt_regs *regs)
 	struct gmap *gmap = (struct gmap *)S390_lowcore.gmap;
 
 	if (get_fault_type(regs) != GMAP_FAULT) {
-		do_fault_error(regs, VM_READ | VM_WRITE, VM_FAULT_BADMAP);
+		do_fault_error(regs, VM_FAULT_BADMAP);
 		WARN_ON_ONCE(1);
 		return;
 	}

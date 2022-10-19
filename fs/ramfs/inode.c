@@ -146,15 +146,15 @@ static int ramfs_symlink(struct user_namespace *mnt_userns, struct inode *dir,
 }
 
 static int ramfs_tmpfile(struct user_namespace *mnt_userns,
-			 struct inode *dir, struct dentry *dentry, umode_t mode)
+			 struct inode *dir, struct file *file, umode_t mode)
 {
 	struct inode *inode;
 
 	inode = ramfs_get_inode(dir->i_sb, dir, mode, 0);
 	if (!inode)
 		return -ENOSPC;
-	d_tmpfile(dentry, inode);
-	return 0;
+	d_tmpfile(file, inode);
+	return finish_open_simple(file, 0);
 }
 
 static const struct inode_operations ramfs_dir_inode_operations = {

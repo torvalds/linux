@@ -29,11 +29,6 @@ properties:
     description:
       Chip select used by the device.
 
-  spi-3wire:
-    $ref: /schemas/types.yaml#/definitions/flag
-    description:
-      The device requires 3-wire mode.
-
   spi-cs-high:
     $ref: /schemas/types.yaml#/definitions/flag
     description:

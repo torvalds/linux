@@ -30,6 +30,7 @@
 #include "dc_hw_types.h"
 #include "core_types.h"
 #include "../basics/conversion.h"
+#include "cursor_reg_cache.h"
 
 #define CTX dc_dmub_srv->ctx
 #define DC_LOGGER CTX->logger
@@ -323,10 +324,12 @@ bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, stru
 	struct dmub_cmd_fw_assisted_mclk_switch_config *config_data = &cmd.fw_assisted_mclk_switch.config_data;
 	int i = 0;
 	int ramp_up_num_steps = 1; // TODO: Ramp is currently disabled. Reenable it.
-	uint8_t visual_confirm_enabled = dc->debug.visual_confirm == VISUAL_CONFIRM_FAMS;
+	uint8_t visual_confirm_enabled;
 
 	if (dc == NULL)
 		return false;
+
+	visual_confirm_enabled = dc->debug.visual_confirm == VISUAL_CONFIRM_FAMS;
 
 	// Format command.
 	cmd.fw_assisted_mclk_switch.header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
@@ -387,6 +390,37 @@ void dc_dmub_srv_query_caps_cmd(struct dmub_srv *dmub)
 	}
 }
 
+void dc_dmub_srv_get_visual_confirm_color_cmd(struct dc *dc, struct pipe_ctx *pipe_ctx)
+{
+	union dmub_rb_cmd cmd = { 0 };
+	enum dmub_status status;
+	unsigned int panel_inst = 0;
+
+	dc_get_edp_link_panel_inst(dc, pipe_ctx->stream->link, &panel_inst);
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	// Prepare fw command
+	cmd.visual_confirm_color.header.type = DMUB_CMD__GET_VISUAL_CONFIRM_COLOR;
+	cmd.visual_confirm_color.header.sub_type = 0;
+	cmd.visual_confirm_color.header.ret_status = 1;
+	cmd.visual_confirm_color.header.payload_bytes = sizeof(struct dmub_cmd_visual_confirm_color_data);
+	cmd.visual_confirm_color.visual_confirm_color_data.visual_confirm_color.panel_inst = panel_inst;
+
+	// Send command to fw
+	status = dmub_srv_cmd_with_reply_data(dc->ctx->dmub_srv->dmub, &cmd);
+
+	ASSERT(status == DMUB_STATUS_OK);
+
+	// If command was processed, copy feature caps to dmub srv
+	if (status == DMUB_STATUS_OK &&
+		cmd.visual_confirm_color.header.ret_status == 0) {
+		memcpy(&dc->ctx->dmub_srv->dmub->visual_confirm_color,
+			&cmd.visual_confirm_color.visual_confirm_color_data,
+			sizeof(struct dmub_visual_confirm_color));
+	}
+}
+
 #ifdef CONFIG_DRM_AMD_DC_DCN
 /**
  * ***********************************************************************************************
@@ -417,44 +451,42 @@ static void populate_subvp_cmd_drr_info(struct dc *dc,
 	struct dc_crtc_timing *main_timing = &subvp_pipe->stream->timing;
 	struct dc_crtc_timing *phantom_timing = &subvp_pipe->stream->mall_stream_config.paired_stream->timing;
 	struct dc_crtc_timing *drr_timing = &vblank_pipe->stream->timing;
-	int16_t drr_frame_us = 0;
-	int16_t min_drr_supported_us = 0;
-	int16_t max_drr_supported_us = 0;
-	int16_t max_drr_vblank_us = 0;
-	int16_t max_drr_mallregion_us = 0;
-	int16_t mall_region_us = 0;
-	int16_t prefetch_us = 0;
-	int16_t subvp_active_us = 0;
-	int16_t drr_active_us = 0;
-	int16_t min_vtotal_supported = 0;
-	int16_t max_vtotal_supported = 0;
+	uint16_t drr_frame_us = 0;
+	uint16_t min_drr_supported_us = 0;
+	uint16_t max_drr_supported_us = 0;
+	uint16_t max_drr_vblank_us = 0;
+	uint16_t max_drr_mallregion_us = 0;
+	uint16_t mall_region_us = 0;
+	uint16_t prefetch_us = 0;
+	uint16_t subvp_active_us = 0;
+	uint16_t drr_active_us = 0;
+	uint16_t min_vtotal_supported = 0;
+	uint16_t max_vtotal_supported = 0;
 
 	pipe_data->pipe_config.vblank_data.drr_info.drr_in_use = true;
 	pipe_data->pipe_config.vblank_data.drr_info.use_ramping = false; // for now don't use ramping
 	pipe_data->pipe_config.vblank_data.drr_info.drr_window_size_ms = 4; // hardcode 4ms DRR window for now
 
-	drr_frame_us = div64_s64(drr_timing->v_total * drr_timing->h_total,
-				 (int64_t)(drr_timing->pix_clk_100hz * 100) * 1000000);
+	drr_frame_us = div64_u64(((uint64_t)drr_timing->v_total * drr_timing->h_total * 1000000),
+			(((uint64_t)drr_timing->pix_clk_100hz * 100)));
 	// P-State allow width and FW delays already included phantom_timing->v_addressable
-	mall_region_us = div64_s64(phantom_timing->v_addressable * phantom_timing->h_total,
-				   (int64_t)(phantom_timing->pix_clk_100hz * 100) * 1000000);
+	mall_region_us = div64_u64(((uint64_t)phantom_timing->v_addressable * phantom_timing->h_total * 1000000),
+			(((uint64_t)phantom_timing->pix_clk_100hz * 100)));
 	min_drr_supported_us = drr_frame_us + mall_region_us + SUBVP_DRR_MARGIN_US;
-	min_vtotal_supported = div64_s64(drr_timing->pix_clk_100hz * 100 *
-					 (div64_s64((int64_t)min_drr_supported_us, 1000000)),
-					 (int64_t)drr_timing->h_total);
+	min_vtotal_supported = div64_u64(((uint64_t)drr_timing->pix_clk_100hz * 100 * min_drr_supported_us),
+			(((uint64_t)drr_timing->h_total * 1000000)));
 
-	prefetch_us = div64_s64((phantom_timing->v_total - phantom_timing->v_front_porch) * phantom_timing->h_total,
-				(int64_t)(phantom_timing->pix_clk_100hz * 100) * 1000000 +
-				dc->caps.subvp_prefetch_end_to_mall_start_us);
-	subvp_active_us = div64_s64(main_timing->v_addressable * main_timing->h_total,
-				    (int64_t)(main_timing->pix_clk_100hz * 100) * 1000000);
-	drr_active_us = div64_s64(drr_timing->v_addressable * drr_timing->h_total,
-				  (int64_t)(drr_timing->pix_clk_100hz * 100) * 1000000);
-	max_drr_vblank_us = div64_s64((int64_t)(subvp_active_us - prefetch_us - drr_active_us), 2) + drr_active_us;
+	prefetch_us = div64_u64(((uint64_t)(phantom_timing->v_total - phantom_timing->v_front_porch) * phantom_timing->h_total * 1000000),
+			(((uint64_t)phantom_timing->pix_clk_100hz * 100) + dc->caps.subvp_prefetch_end_to_mall_start_us));
+	subvp_active_us = div64_u64(((uint64_t)main_timing->v_addressable * main_timing->h_total * 1000000),
+			(((uint64_t)main_timing->pix_clk_100hz * 100)));
+	drr_active_us = div64_u64(((uint64_t)drr_timing->v_addressable * drr_timing->h_total * 1000000),
+			(((uint64_t)drr_timing->pix_clk_100hz * 100)));
+	max_drr_vblank_us = div64_u64((subvp_active_us - prefetch_us - drr_active_us), 2) + drr_active_us;
 	max_drr_mallregion_us = subvp_active_us - prefetch_us - mall_region_us;
 	max_drr_supported_us = max_drr_vblank_us > max_drr_mallregion_us ? max_drr_vblank_us : max_drr_mallregion_us;
-	max_vtotal_supported = div64_s64(drr_timing->pix_clk_100hz * 100 * (div64_s64((int64_t)max_drr_supported_us, 1000000)),
-					 (int64_t)drr_timing->h_total);
+	max_vtotal_supported = div64_u64(((uint64_t)drr_timing->pix_clk_100hz * 100 * max_drr_supported_us),
+			(((uint64_t)drr_timing->h_total * 1000000)));
 
 	pipe_data->pipe_config.vblank_data.drr_info.min_vtotal_supported = min_vtotal_supported;
 	pipe_data->pipe_config.vblank_data.drr_info.max_vtotal_supported = max_vtotal_supported;
@@ -548,10 +580,12 @@ static void update_subvp_prefetch_end_to_mall_start(struct dc *dc,
 	struct dc_crtc_timing *phantom_timing1 = &subvp_pipes[1]->stream->mall_stream_config.paired_stream->timing;
 	struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 *pipe_data = NULL;
 
-	subvp0_prefetch_us = div64_s64((phantom_timing0->v_total - phantom_timing0->v_front_porch) * phantom_timing0->h_total,
-				       (int64_t)(phantom_timing0->pix_clk_100hz * 100) * 1000000 + dc->caps.subvp_prefetch_end_to_mall_start_us);
-	subvp1_prefetch_us = div64_s64((phantom_timing1->v_total - phantom_timing1->v_front_porch) * phantom_timing1->h_total,
-				       (int64_t)(phantom_timing1->pix_clk_100hz * 100) * 1000000 + dc->caps.subvp_prefetch_end_to_mall_start_us);
+	subvp0_prefetch_us = div64_u64(((uint64_t)(phantom_timing0->v_total - phantom_timing0->v_front_porch) *
+			(uint64_t)phantom_timing0->h_total * 1000000),
+			(((uint64_t)phantom_timing0->pix_clk_100hz * 100) + dc->caps.subvp_prefetch_end_to_mall_start_us));
+	subvp1_prefetch_us = div64_u64(((uint64_t)(phantom_timing1->v_total - phantom_timing1->v_front_porch) *
+			(uint64_t)phantom_timing1->h_total * 1000000),
+			(((uint64_t)phantom_timing1->pix_clk_100hz * 100) + dc->caps.subvp_prefetch_end_to_mall_start_us));
 
 	// Whichever SubVP PIPE has the smaller prefetch (including the prefetch end to mall start time)
 	// should increase it's prefetch time to match the other
@@ -559,16 +593,17 @@ static void update_subvp_prefetch_end_to_mall_start(struct dc *dc,
 		pipe_data = &cmd->fw_assisted_mclk_switch_v2.config_data.pipe_data[1];
 		prefetch_delta_us = subvp0_prefetch_us - subvp1_prefetch_us;
 		pipe_data->pipe_config.subvp_data.prefetch_to_mall_start_lines =
-			div64_s64(((div64_s64((int64_t)(dc->caps.subvp_prefetch_end_to_mall_start_us + prefetch_delta_us), 1000000)) *
-				   (phantom_timing1->pix_clk_100hz * 100) + phantom_timing1->h_total - 1),
-				  (int64_t)phantom_timing1->h_total);
+				div64_u64(((uint64_t)(dc->caps.subvp_prefetch_end_to_mall_start_us + prefetch_delta_us) *
+					((uint64_t)phantom_timing1->pix_clk_100hz * 100) + ((uint64_t)phantom_timing1->h_total * 1000000 - 1)),
+					((uint64_t)phantom_timing1->h_total * 1000000));
+
 	} else if (subvp1_prefetch_us >  subvp0_prefetch_us) {
 		pipe_data = &cmd->fw_assisted_mclk_switch_v2.config_data.pipe_data[0];
 		prefetch_delta_us = subvp1_prefetch_us - subvp0_prefetch_us;
 		pipe_data->pipe_config.subvp_data.prefetch_to_mall_start_lines =
-			div64_s64(((div64_s64((int64_t)(dc->caps.subvp_prefetch_end_to_mall_start_us + prefetch_delta_us), 1000000)) *
-				   (phantom_timing0->pix_clk_100hz * 100) + phantom_timing0->h_total - 1),
-				  (int64_t)phantom_timing0->h_total);
+				div64_u64(((uint64_t)(dc->caps.subvp_prefetch_end_to_mall_start_us + prefetch_delta_us) *
+					((uint64_t)phantom_timing0->pix_clk_100hz * 100) + ((uint64_t)phantom_timing0->h_total * 1000000 - 1)),
+					((uint64_t)phantom_timing0->h_total * 1000000));
 	}
 }
 
@@ -601,7 +636,7 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 			&cmd->fw_assisted_mclk_switch_v2.config_data.pipe_data[cmd_pipe_index];
 	struct dc_crtc_timing *main_timing = &subvp_pipe->stream->timing;
 	struct dc_crtc_timing *phantom_timing = &subvp_pipe->stream->mall_stream_config.paired_stream->timing;
-	uint32_t out_num, out_den;
+	uint32_t out_num_stream, out_den_stream, out_num_plane, out_den_plane, out_num, out_den;
 
 	pipe_data->mode = SUBVP;
 	pipe_data->pipe_config.subvp_data.pix_clk_100hz = subvp_pipe->stream->timing.pix_clk_100hz;
@@ -618,11 +653,16 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 	/* Calculate the scaling factor from the src and dst height.
 	 * e.g. If 3840x2160 being downscaled to 1920x1080, the scaling factor is 1/2.
 	 * Reduce the fraction 1080/2160 = 1/2 for the "scaling factor"
+	 *
+	 * Make sure to combine stream and plane scaling together.
 	 */
-	reduce_fraction(subvp_pipe->stream->src.height, subvp_pipe->stream->dst.height, &out_num, &out_den);
-	// TODO: Uncomment below lines once DMCUB include headers are promoted
-	//pipe_data->pipe_config.subvp_data.scale_factor_numerator = out_num;
-	//pipe_data->pipe_config.subvp_data.scale_factor_denominator = out_den;
+	reduce_fraction(subvp_pipe->stream->src.height, subvp_pipe->stream->dst.height,
+			&out_num_stream, &out_den_stream);
+	reduce_fraction(subvp_pipe->plane_state->src_rect.height, subvp_pipe->plane_state->dst_rect.height,
+			&out_num_plane, &out_den_plane);
+	reduce_fraction(out_num_stream * out_num_plane, out_den_stream * out_den_plane, &out_num, &out_den);
+	pipe_data->pipe_config.subvp_data.scale_factor_numerator = out_num;
+	pipe_data->pipe_config.subvp_data.scale_factor_denominator = out_den;
 
 	// Prefetch lines is equal to VACTIVE + BP + VSYNC
 	pipe_data->pipe_config.subvp_data.prefetch_lines =
@@ -630,19 +670,33 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 
 	// Round up
 	pipe_data->pipe_config.subvp_data.prefetch_to_mall_start_lines =
-		div64_s64(((div64_s64((int64_t)dc->caps.subvp_prefetch_end_to_mall_start_us, 1000000)) *
-			   (phantom_timing->pix_clk_100hz * 100) + phantom_timing->h_total - 1),
-			  (int64_t)phantom_timing->h_total);
+			div64_u64(((uint64_t)dc->caps.subvp_prefetch_end_to_mall_start_us * ((uint64_t)phantom_timing->pix_clk_100hz * 100) +
+					((uint64_t)phantom_timing->h_total * 1000000 - 1)), ((uint64_t)phantom_timing->h_total * 1000000));
 	pipe_data->pipe_config.subvp_data.processing_delay_lines =
-		div64_s64(((div64_s64((int64_t)dc->caps.subvp_fw_processing_delay_us, 1000000)) *
-			   (phantom_timing->pix_clk_100hz * 100) + phantom_timing->h_total - 1),
-			  (int64_t)phantom_timing->h_total);
+			div64_u64(((uint64_t)(dc->caps.subvp_fw_processing_delay_us) * ((uint64_t)phantom_timing->pix_clk_100hz * 100) +
+					((uint64_t)phantom_timing->h_total * 1000000 - 1)), ((uint64_t)phantom_timing->h_total * 1000000));
+
+	if (subvp_pipe->bottom_pipe) {
+		pipe_data->pipe_config.subvp_data.main_split_pipe_index = subvp_pipe->bottom_pipe->pipe_idx;
+	} else if (subvp_pipe->next_odm_pipe) {
+		pipe_data->pipe_config.subvp_data.main_split_pipe_index = subvp_pipe->next_odm_pipe->pipe_idx;
+	} else {
+		pipe_data->pipe_config.subvp_data.main_split_pipe_index = 0;
+	}
+
 	// Find phantom pipe index based on phantom stream
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {
 		struct pipe_ctx *phantom_pipe = &context->res_ctx.pipe_ctx[j];
 
 		if (phantom_pipe->stream == subvp_pipe->stream->mall_stream_config.paired_stream) {
 			pipe_data->pipe_config.subvp_data.phantom_pipe_index = phantom_pipe->pipe_idx;
+			if (phantom_pipe->bottom_pipe) {
+				pipe_data->pipe_config.subvp_data.phantom_split_pipe_index = phantom_pipe->bottom_pipe->pipe_idx;
+			} else if (phantom_pipe->next_odm_pipe) {
+				pipe_data->pipe_config.subvp_data.phantom_split_pipe_index = phantom_pipe->next_odm_pipe->pipe_idx;
+			} else {
+				pipe_data->pipe_config.subvp_data.phantom_split_pipe_index = 0;
+			}
 			break;
 		}
 	}
@@ -687,7 +741,9 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 		if (!pipe->stream)
 			continue;
 
-		if (pipe->plane_state && !pipe->top_pipe &&
+		/* For SubVP pipe count, only count the top most (ODM / MPC) pipe
+		 */
+		if (pipe->plane_state && !pipe->top_pipe && !pipe->prev_odm_pipe &&
 				pipe->stream->mall_stream_config.type == SUBVP_MAIN)
 			subvp_pipes[subvp_count++] = pipe;
 	}
@@ -700,7 +756,12 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 			if (!pipe->stream)
 				continue;
 
+			/* When populating subvp cmd info, only pass in the top most (ODM / MPC) pipe.
+			 * Any ODM or MPC splits being used in SubVP will be handled internally in
+			 * populate_subvp_cmd_pipe_info
+			 */
 			if (pipe->plane_state && pipe->stream->mall_stream_config.paired_stream &&
+					!pipe->top_pipe && !pipe->prev_odm_pipe &&
 					pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
 				populate_subvp_cmd_pipe_info(dc, context, &cmd, pipe, cmd_pipe_index++);
 			} else if (pipe->plane_state && pipe->stream->mall_stream_config.type == SUBVP_NONE) {
@@ -720,7 +781,7 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 		// Store the original watermark value for this SubVP config so we can lower it when the
 		// MCLK switch starts
 		wm_val_refclk = context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns *
-				dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000 / 1000;
+				(dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000) / 1000;
 
 		cmd.fw_assisted_mclk_switch_v2.config_data.watermark_a_cache = wm_val_refclk < 0xFFFF ? wm_val_refclk : 0xFFFF;
 	}
@@ -819,4 +880,148 @@ void dc_dmub_srv_log_diagnostic_data(struct dc_dmub_srv *dc_dmub_srv)
 		diag_data.is_traceport_en,
 		diag_data.is_cw0_enabled,
 		diag_data.is_cw6_enabled);
+}
+
+static bool dc_dmub_should_update_cursor_data(struct pipe_ctx *pipe_ctx)
+{
+	if (pipe_ctx->plane_state != NULL) {
+		if (pipe_ctx->plane_state->address.type == PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
+			return false;
+	}
+
+	if ((pipe_ctx->stream->link->psr_settings.psr_version == DC_PSR_VERSION_SU_1 ||
+		pipe_ctx->stream->link->psr_settings.psr_version == DC_PSR_VERSION_1) &&
+		pipe_ctx->stream->ctx->dce_version >= DCN_VERSION_3_1)
+		return true;
+
+	return false;
+}
+
+static void dc_build_cursor_update_payload0(
+		struct pipe_ctx *pipe_ctx, uint8_t p_idx,
+		struct dmub_cmd_update_cursor_payload0 *payload)
+{
+	struct hubp *hubp = pipe_ctx->plane_res.hubp;
+	unsigned int panel_inst = 0;
+
+	if (!dc_get_edp_link_panel_inst(hubp->ctx->dc,
+		pipe_ctx->stream->link, &panel_inst))
+		return;
+
+	/* Payload: Cursor Rect is built from position & attribute
+	 * x & y are obtained from postion
+	 */
+	payload->cursor_rect.x = hubp->cur_rect.x;
+	payload->cursor_rect.y = hubp->cur_rect.y;
+	/* w & h are obtained from attribute */
+	payload->cursor_rect.width  = hubp->cur_rect.w;
+	payload->cursor_rect.height = hubp->cur_rect.h;
+
+	payload->enable      = hubp->pos.cur_ctl.bits.cur_enable;
+	payload->pipe_idx    = p_idx;
+	payload->cmd_version = DMUB_CMD_PSR_CONTROL_VERSION_1;
+	payload->panel_inst  = panel_inst;
+}
+
+static void dc_send_cmd_to_dmu(struct dc_dmub_srv *dmub_srv,
+		union dmub_rb_cmd *cmd)
+{
+	dc_dmub_srv_cmd_queue(dmub_srv, cmd);
+	dc_dmub_srv_cmd_execute(dmub_srv);
+	dc_dmub_srv_wait_idle(dmub_srv);
+}
+
+static void dc_build_cursor_position_update_payload0(
+		struct dmub_cmd_update_cursor_payload0 *pl, const uint8_t p_idx,
+		const struct hubp *hubp, const struct dpp *dpp)
+{
+	/* Hubp */
+	pl->position_cfg.pHubp.cur_ctl.raw  = hubp->pos.cur_ctl.raw;
+	pl->position_cfg.pHubp.position.raw = hubp->pos.position.raw;
+	pl->position_cfg.pHubp.hot_spot.raw = hubp->pos.hot_spot.raw;
+	pl->position_cfg.pHubp.dst_offset.raw = hubp->pos.dst_offset.raw;
+
+	/* dpp */
+	pl->position_cfg.pDpp.cur0_ctl.raw = dpp->pos.cur0_ctl.raw;
+	pl->position_cfg.pipe_idx = p_idx;
+}
+
+static void dc_build_cursor_attribute_update_payload1(
+		struct dmub_cursor_attributes_cfg *pl_A, const uint8_t p_idx,
+		const struct hubp *hubp, const struct dpp *dpp)
+{
+	/* Hubp */
+	pl_A->aHubp.SURFACE_ADDR_HIGH = hubp->att.SURFACE_ADDR_HIGH;
+	pl_A->aHubp.SURFACE_ADDR = hubp->att.SURFACE_ADDR;
+	pl_A->aHubp.cur_ctl.raw  = hubp->att.cur_ctl.raw;
+	pl_A->aHubp.size.raw     = hubp->att.size.raw;
+	pl_A->aHubp.settings.raw = hubp->att.settings.raw;
+
+	/* dpp */
+	pl_A->aDpp.cur0_ctl.raw = dpp->att.cur0_ctl.raw;
+}
+
+/**
+ * ***************************************************************************************
+ * dc_send_update_cursor_info_to_dmu: Populate the DMCUB Cursor update info command
+ *
+ * This function would store the cursor related information and pass it into dmub
+ *
+ * @param [in] pCtx: pipe context
+ * @param [in] pipe_idx: pipe index
+ *
+ * @return: void
+ *
+ * ***************************************************************************************
+ */
+
+void dc_send_update_cursor_info_to_dmu(
+		struct pipe_ctx *pCtx, uint8_t pipe_idx)
+{
+	union dmub_rb_cmd cmd = { 0 };
+	union dmub_cmd_update_cursor_info_data *update_cursor_info =
+					&cmd.update_cursor_info.update_cursor_info_data;
+
+	if (!dc_dmub_should_update_cursor_data(pCtx))
+		return;
+	/*
+	 * Since we use multi_cmd_pending for dmub command, the 2nd command is
+	 * only assigned to store cursor attributes info.
+	 * 1st command can view as 2 parts, 1st is for PSR/Replay data, the other
+	 * is to store cursor position info.
+	 *
+	 * Command heaer type must be the same type if using  multi_cmd_pending.
+	 * Besides, while process 2nd command in DMU, the sub type is useless.
+	 * So it's meanless to pass the sub type header with different type.
+	 */
+
+	{
+		/* Build Payload#0 Header */
+		cmd.update_cursor_info.header.type = DMUB_CMD__UPDATE_CURSOR_INFO;
+		cmd.update_cursor_info.header.payload_bytes =
+				sizeof(cmd.update_cursor_info.update_cursor_info_data);
+		cmd.update_cursor_info.header.multi_cmd_pending = 1; /* To combine multi dmu cmd, 1st cmd */
+
+		/* Prepare Payload */
+		dc_build_cursor_update_payload0(pCtx, pipe_idx, &update_cursor_info->payload0);
+
+		dc_build_cursor_position_update_payload0(&update_cursor_info->payload0, pipe_idx,
+				pCtx->plane_res.hubp, pCtx->plane_res.dpp);
+		/* Send update_curosr_info to queue */
+		dc_dmub_srv_cmd_queue(pCtx->stream->ctx->dmub_srv, &cmd);
+	}
+	{
+		/* Build Payload#1 Header */
+		memset(update_cursor_info, 0, sizeof(union dmub_cmd_update_cursor_info_data));
+		cmd.update_cursor_info.header.type = DMUB_CMD__UPDATE_CURSOR_INFO;
+		cmd.update_cursor_info.header.payload_bytes = sizeof(struct cursor_attributes_cfg);
+		cmd.update_cursor_info.header.multi_cmd_pending = 0; /* Indicate it's the last command. */
+
+		dc_build_cursor_attribute_update_payload1(
+				&cmd.update_cursor_info.update_cursor_info_data.payload1.attribute_cfg,
+				pipe_idx, pCtx->plane_res.hubp, pCtx->plane_res.dpp);
+
+		/* Combine 2nd cmds update_curosr_info to DMU */
+		dc_send_cmd_to_dmu(pCtx->stream->ctx->dmub_srv, &cmd);
+	}
 }

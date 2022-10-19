@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/memory-controllers/xlnx,zynq-ddrc-a05.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Zynq A05 DDR Memory Controller
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+  - Manish Narani <manish.narani@xilinx.com>
+  - Michal Simek <michal.simek@xilinx.com>
+
+description:
+  The Zynq DDR ECC controller has an optional ECC support in half-bus width
+  (16-bit) configuration. It is cappable of correcting single bit ECC errors
+  and detecting double bit ECC errors.
+
+properties:
+  compatible:
+    const: xlnx,zynq-ddrc-a05
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    memory-controller@f8006000 {
+      compatible = "xlnx,zynq-ddrc-a05";
+      reg = <0xf8006000 0x1000>;
+    };
+...

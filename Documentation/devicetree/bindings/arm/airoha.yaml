@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/airoha.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Airoha SoC based Platforms Device Tree Bindings
+title: Airoha SoC based Platforms
 
 maintainers:
   - Felix Fietkau <nbd@nbd.name>

@@ -189,8 +189,8 @@ static int usb_console_setup(struct console *co, char *options)
 	info->port = NULL;
 	usb_autopm_put_interface(serial->interface);
  error_get_interface:
-	usb_serial_put(serial);
 	mutex_unlock(&serial->disc_mutex);
+	usb_serial_put(serial);
 	return retval;
 }
 

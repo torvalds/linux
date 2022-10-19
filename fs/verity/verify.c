@@ -39,16 +39,6 @@ static void hash_at_level(const struct merkle_tree_params *params,
 		   (params->log_blocksize - params->log_arity);
 }
 
-/* Extract a hash from a hash page */
-static void extract_hash(struct page *hpage, unsigned int hoffset,
-			 unsigned int hsize, u8 *out)
-{
-	void *virt = kmap_atomic(hpage);
-
-	memcpy(out, virt + hoffset, hsize);
-	kunmap_atomic(virt);
-}
-
 static inline int cmp_hashes(const struct fsverity_info *vi,
 			     const u8 *want_hash, const u8 *real_hash,
 			     pgoff_t index, int level)
@@ -129,7 +119,7 @@ static bool verify_page(struct inode *inode, const struct fsverity_info *vi,
 		}
 
 		if (PageChecked(hpage)) {
-			extract_hash(hpage, hoffset, hsize, _want_hash);
+			memcpy_from_page(_want_hash, hpage, hoffset, hsize);
 			want_hash = _want_hash;
 			put_page(hpage);
 			pr_debug_ratelimited("Hash page already checked, want %s:%*phN\n",
@@ -158,7 +148,7 @@ descend:
 		if (err)
 			goto out;
 		SetPageChecked(hpage);
-		extract_hash(hpage, hoffset, hsize, _want_hash);
+		memcpy_from_page(_want_hash, hpage, hoffset, hsize);
 		want_hash = _want_hash;
 		put_page(hpage);
 		pr_debug("Verified hash page at level %d, now want %s:%*phN\n",
