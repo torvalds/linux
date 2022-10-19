@@ -2007,6 +2007,11 @@
 			status = "okay";
 		};
 
+		serial@31d0000 {
+			current-speed = <115200>;
+			status = "okay";
+		};
+
 		pwm@32a0000 {
 			assigned-clocks = <&bpmp TEGRA234_CLK_PWM3>;
 			assigned-clock-parents = <&bpmp TEGRA234_CLK_PLLP_OUT0>;

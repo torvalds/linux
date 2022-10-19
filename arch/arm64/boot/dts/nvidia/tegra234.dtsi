@@ -872,6 +872,13 @@
 			dma-names = "rx", "tx";
 		};
 
+		uarti: serial@31d0000 {
+			compatible = "arm,sbsa-uart";
+			reg = <0x31d0000 0x10000>;
+			interrupts = <GIC_SPI 285 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
 		dp_aux_ch3_i2c: i2c@31e0000 {
 			compatible = "nvidia,tegra194-i2c";
 			reg = <0x31e0000 0x100>;
