@@ -22,6 +22,7 @@
 #include "zoned.h"
 #include "inode-item.h"
 #include "fs.h"
+#include "accessors.h"
 
 #define MAX_CONFLICT_INODES 10
 
