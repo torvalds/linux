@@ -28,13 +28,15 @@ enum {
 };
 
 /*
- * Enable states. Either off, or on by default (done at init time),
- * or on through manual setup in sysfs.
+ * If current state is WBT_STATE_ON/OFF_DEFAULT, it can be covered to any other
+ * state, if current state is WBT_STATE_ON/OFF_MANUAL, it can only be covered
+ * to WBT_STATE_OFF/ON_MANUAL.
  */
 enum {
-	WBT_STATE_ON_DEFAULT	= 1,
-	WBT_STATE_ON_MANUAL	= 2,
-	WBT_STATE_OFF_DEFAULT
+	WBT_STATE_ON_DEFAULT	= 1,	/* on by default */
+	WBT_STATE_ON_MANUAL	= 2,	/* on manually by sysfs */
+	WBT_STATE_OFF_DEFAULT	= 3,	/* off by default */
+	WBT_STATE_OFF_MANUAL	= 4,	/* off manually by sysfs */
 };
 
 struct rq_wb {

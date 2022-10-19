@@ -435,8 +435,13 @@ void wbt_set_min_lat(struct request_queue *q, u64 val)
 	struct rq_qos *rqos = wbt_rq_qos(q);
 	if (!rqos)
 		return;
+
 	RQWB(rqos)->min_lat_nsec = val;
-	RQWB(rqos)->enable_state = WBT_STATE_ON_MANUAL;
+	if (val)
+		RQWB(rqos)->enable_state = WBT_STATE_ON_MANUAL;
+	else
+		RQWB(rqos)->enable_state = WBT_STATE_OFF_MANUAL;
+
 	wbt_update_limits(RQWB(rqos));
 }
 
