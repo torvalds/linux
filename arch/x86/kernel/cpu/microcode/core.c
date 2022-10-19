@@ -601,8 +601,8 @@ static enum ucode_state microcode_resume_cpu(int cpu)
 
 static enum ucode_state microcode_init_cpu(int cpu, bool refresh_fw)
 {
-	enum ucode_state ustate;
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+	enum ucode_state ustate;
 
 	if (uci->valid)
 		return UCODE_OK;
@@ -635,44 +635,6 @@ static enum ucode_state microcode_update_cpu(int cpu)
 
 	return microcode_init_cpu(cpu, false);
 }
-
-static int mc_device_add(struct device *dev, struct subsys_interface *sif)
-{
-	int err, cpu = dev->id;
-
-	if (!cpu_online(cpu))
-		return 0;
-
-	pr_debug("CPU%d added\n", cpu);
-
-	err = sysfs_create_group(&dev->kobj, &mc_attr_group);
-	if (err)
-		return err;
-
-	if (microcode_init_cpu(cpu, true) == UCODE_ERROR)
-		return -EINVAL;
-
-	return err;
-}
-
-static void mc_device_remove(struct device *dev, struct subsys_interface *sif)
-{
-	int cpu = dev->id;
-
-	if (!cpu_online(cpu))
-		return;
-
-	pr_debug("CPU%d removed\n", cpu);
-	microcode_fini_cpu(cpu);
-	sysfs_remove_group(&dev->kobj, &mc_attr_group);
-}
-
-static struct subsys_interface mc_cpu_interface = {
-	.name			= "microcode",
-	.subsys			= &cpu_subsys,
-	.add_dev		= mc_device_add,
-	.remove_dev		= mc_device_remove,
-};
 
 /**
  * microcode_bsp_resume - Update boot CPU microcode during resume.
@@ -713,11 +675,26 @@ static int mc_cpu_down_prep(unsigned int cpu)
 	struct device *dev;
 
 	dev = get_cpu_device(cpu);
+
+	microcode_fini_cpu(cpu);
+
 	/* Suspend is in progress, only remove the interface */
 	sysfs_remove_group(&dev->kobj, &mc_attr_group);
 	pr_debug("CPU%d removed\n", cpu);
 
 	return 0;
+}
+
+static void setup_online_cpu(struct work_struct *work)
+{
+	int cpu = smp_processor_id();
+	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+
+	memset(uci, 0, sizeof(*uci));
+
+	microcode_ops->collect_cpu_info(cpu, &uci->cpu_sig);
+
+	mc_cpu_online(cpu);
 }
 
 static struct attribute *cpu_root_microcode_attrs[] = {
@@ -755,22 +732,16 @@ static int __init microcode_init(void)
 	if (IS_ERR(microcode_pdev))
 		return PTR_ERR(microcode_pdev);
 
-	cpus_read_lock();
-	mutex_lock(&microcode_mutex);
-	error = subsys_interface_register(&mc_cpu_interface);
-	mutex_unlock(&microcode_mutex);
-	cpus_read_unlock();
-
-	if (error)
-		goto out_pdev;
-
 	error = sysfs_create_group(&cpu_subsys.dev_root->kobj,
 				   &cpu_root_microcode_group);
 
 	if (error) {
 		pr_err("Error creating microcode group!\n");
-		goto out_driver;
+		goto out_pdev;
 	}
+
+	/* Do per-CPU setup */
+	schedule_on_each_cpu(setup_online_cpu);
 
 	register_syscore_ops(&mc_syscore_ops);
 	cpuhp_setup_state_nocalls(CPUHP_AP_MICROCODE_LOADER, "x86/microcode:starting",
@@ -781,15 +752,6 @@ static int __init microcode_init(void)
 	pr_info("Microcode Update Driver: v%s.", DRIVER_VERSION);
 
 	return 0;
-
- out_driver:
-	cpus_read_lock();
-	mutex_lock(&microcode_mutex);
-
-	subsys_interface_unregister(&mc_cpu_interface);
-
-	mutex_unlock(&microcode_mutex);
-	cpus_read_unlock();
 
  out_pdev:
 	platform_device_unregister(microcode_pdev);
