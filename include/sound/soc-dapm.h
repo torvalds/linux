@@ -450,7 +450,6 @@ int snd_soc_dapm_del_routes(struct snd_soc_dapm_context *dapm,
 int snd_soc_dapm_weak_routes(struct snd_soc_dapm_context *dapm,
 			     const struct snd_soc_dapm_route *route, int num);
 void snd_soc_dapm_free_widget(struct snd_soc_dapm_widget *w);
-void snd_soc_dapm_reset_cache(struct snd_soc_dapm_context *dapm);
 
 /* dapm events */
 void snd_soc_dapm_stream_event(struct snd_soc_pcm_runtime *rtd, int stream,
@@ -680,10 +679,6 @@ struct snd_soc_dapm_update {
 	bool has_second_set;
 };
 
-struct snd_soc_dapm_wcache {
-	struct snd_soc_dapm_widget *widget;
-};
-
 /* DAPM context */
 struct snd_soc_dapm_context {
 	enum snd_soc_bias_level bias_level;
@@ -699,8 +694,8 @@ struct snd_soc_dapm_context {
 	enum snd_soc_bias_level target_bias_level;
 	struct list_head list;
 
-	struct snd_soc_dapm_wcache path_sink_cache;
-	struct snd_soc_dapm_wcache path_source_cache;
+	struct snd_soc_dapm_widget *wcache_sink;
+	struct snd_soc_dapm_widget *wcache_source;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_dapm;
