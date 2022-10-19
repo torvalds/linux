@@ -10,17 +10,9 @@
 
 #ifdef __KERNEL__
 
-/* Set to 1 to use kernel-wide empty_zero_page */
-#define RAID6_USE_EMPTY_ZERO_PAGE 0
 #include <linux/blkdev.h>
 
-/* We need a pre-zeroed page... if we don't want to use the kernel-provided
-   one define it here */
-#if RAID6_USE_EMPTY_ZERO_PAGE
-# define raid6_empty_zero_page empty_zero_page
-#else
 extern const char raid6_empty_zero_page[PAGE_SIZE];
-#endif
 
 #else /* ! __KERNEL__ */
 /* Used for testing in user space */
