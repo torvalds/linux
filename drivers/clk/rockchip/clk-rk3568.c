@@ -958,7 +958,7 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 	COMPOSITE_NODIV(HCLK_USB, "hclk_usb", gpll150_gpll100_gpll75_xin24m_p, CLK_IS_CRITICAL,
 			RK3568_CLKSEL_CON(32), 2, 2, MFLAGS,
 			RK3568_CLKGATE_CON(16), 1, GFLAGS),
-	COMPOSITE_NOMUX(PCLK_USB, "pclk_usb", "aclk_usb", 0,
+	COMPOSITE_NOMUX(PCLK_USB, "pclk_usb", "aclk_usb", CLK_IS_CRITICAL,
 			RK3568_CLKSEL_CON(32), 4, 4, DFLAGS,
 			RK3568_CLKGATE_CON(16), 2, GFLAGS),
 	GATE(HCLK_USB2HOST0, "hclk_usb2host0", "hclk_usb", 0,
