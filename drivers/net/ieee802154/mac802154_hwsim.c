@@ -90,46 +90,20 @@ static int hwsim_hw_ed(struct ieee802154_hw *hw, u8 *level)
 	return 0;
 }
 
-static int hwsim_hw_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
+static int hwsim_update_pib(struct ieee802154_hw *hw, u8 page, u8 channel,
+			    struct ieee802154_hw_addr_filt *filt)
 {
 	struct hwsim_phy *phy = hw->priv;
 	struct hwsim_pib *pib, *pib_old;
 
-	pib = kzalloc(sizeof(*pib), GFP_KERNEL);
+	pib = kzalloc(sizeof(*pib), GFP_ATOMIC);
 	if (!pib)
 		return -ENOMEM;
+
+	pib_old = rtnl_dereference(phy->pib);
 
 	pib->page = page;
 	pib->channel = channel;
-
-	pib_old = rtnl_dereference(phy->pib);
-
-	pib->filt.short_addr = pib_old->filt.short_addr;
-	pib->filt.pan_id = pib_old->filt.pan_id;
-	pib->filt.ieee_addr = pib_old->filt.ieee_addr;
-	pib->filt.pan_coord = pib_old->filt.pan_coord;
-
-	rcu_assign_pointer(phy->pib, pib);
-	kfree_rcu(pib_old, rcu);
-	return 0;
-}
-
-static int hwsim_hw_addr_filt(struct ieee802154_hw *hw,
-			      struct ieee802154_hw_addr_filt *filt,
-			      unsigned long changed)
-{
-	struct hwsim_phy *phy = hw->priv;
-	struct hwsim_pib *pib, *pib_old;
-
-	pib = kzalloc(sizeof(*pib), GFP_KERNEL);
-	if (!pib)
-		return -ENOMEM;
-
-	pib_old = rtnl_dereference(phy->pib);
-
-	pib->page = pib_old->page;
-	pib->channel = pib_old->channel;
-
 	pib->filt.short_addr = filt->short_addr;
 	pib->filt.pan_id = filt->pan_id;
 	pib->filt.ieee_addr = filt->ieee_addr;
@@ -138,6 +112,36 @@ static int hwsim_hw_addr_filt(struct ieee802154_hw *hw,
 	rcu_assign_pointer(phy->pib, pib);
 	kfree_rcu(pib_old, rcu);
 	return 0;
+}
+
+static int hwsim_hw_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
+{
+	struct hwsim_phy *phy = hw->priv;
+	struct hwsim_pib *pib;
+	int ret;
+
+	rcu_read_lock();
+	pib = rcu_dereference(phy->pib);
+	ret = hwsim_update_pib(hw, page, channel, &pib->filt);
+	rcu_read_unlock();
+
+	return ret;
+}
+
+static int hwsim_hw_addr_filt(struct ieee802154_hw *hw,
+			      struct ieee802154_hw_addr_filt *filt,
+			      unsigned long changed)
+{
+	struct hwsim_phy *phy = hw->priv;
+	struct hwsim_pib *pib;
+	int ret;
+
+	rcu_read_lock();
+	pib = rcu_dereference(phy->pib);
+	ret = hwsim_update_pib(hw, pib->page, pib->channel, filt);
+	rcu_read_unlock();
+
+	return ret;
 }
 
 static void hwsim_hw_receive(struct ieee802154_hw *hw, struct sk_buff *skb,
