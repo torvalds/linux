@@ -90,7 +90,15 @@ static bool mtl_dsp_check_sdw_irq(struct snd_sof_dev *sdev)
 
 static int mtl_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 {
+	struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
 	struct sof_ipc4_msg *msg_data = msg->msg_data;
+
+	if (hda_ipc4_tx_is_busy(sdev)) {
+		hdev->delayed_ipc_tx_msg = msg;
+		return 0;
+	}
+
+	hdev->delayed_ipc_tx_msg = NULL;
 
 	/* send the message via mailbox */
 	if (msg_data->data_size)
@@ -492,11 +500,13 @@ static irqreturn_t mtl_ipc_irq_thread(int irq, void *context)
 {
 	struct sof_ipc4_msg notification_data = {{ 0 }};
 	struct snd_sof_dev *sdev = context;
+	bool ack_received = false;
 	bool ipc_irq = false;
 	u32 hipcida;
 	u32 hipctdr;
 
 	hipcida = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFIPCXIDA);
+	hipctdr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFIPCXTDR);
 
 	/* reply message from DSP */
 	if (hipcida & MTL_DSP_REG_HFIPCXIDA_DONE) {
@@ -507,9 +517,9 @@ static irqreturn_t mtl_ipc_irq_thread(int irq, void *context)
 		mtl_ipc_dsp_done(sdev);
 
 		ipc_irq = true;
+		ack_received = true;
 	}
 
-	hipctdr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFIPCXTDR);
 	if (hipctdr & MTL_DSP_REG_HFIPCXTDR_BUSY) {
 		/* Message from DSP (reply or notification) */
 		u32 extension = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFIPCXTDDY);
@@ -530,6 +540,7 @@ static irqreturn_t mtl_ipc_irq_thread(int irq, void *context)
 				spin_lock_irq(&sdev->ipc_lock);
 
 				snd_sof_ipc_get_reply(sdev);
+				mtl_ipc_host_done(sdev);
 				snd_sof_ipc_reply(sdev, data->primary);
 
 				spin_unlock_irq(&sdev->ipc_lock);
@@ -546,9 +557,9 @@ static irqreturn_t mtl_ipc_irq_thread(int irq, void *context)
 			sdev->ipc->msg.rx_data = &notification_data;
 			snd_sof_ipc_msgs_rx(sdev);
 			sdev->ipc->msg.rx_data = NULL;
-		}
 
-		mtl_ipc_host_done(sdev);
+			mtl_ipc_host_done(sdev);
+		}
 
 		ipc_irq = true;
 	}
@@ -556,6 +567,13 @@ static irqreturn_t mtl_ipc_irq_thread(int irq, void *context)
 	if (!ipc_irq) {
 		/* This interrupt is not shared so no need to return IRQ_NONE. */
 		dev_dbg_ratelimited(sdev->dev, "nothing to do in IPC IRQ thread\n");
+	}
+
+	if (ack_received) {
+		struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
+
+		if (hdev->delayed_ipc_tx_msg)
+			mtl_ipc_send_msg(sdev, hdev->delayed_ipc_tx_msg);
 	}
 
 	return IRQ_HANDLED;

@@ -342,6 +342,8 @@ static int ipc4_tx_msg_unlocked(struct snd_sof_ipc *ipc,
 	if (msg_bytes > ipc->max_payload_size || reply_bytes > ipc->max_payload_size)
 		return -EINVAL;
 
+	sof_ipc4_log_header(sdev->dev, "ipc tx      ", msg_data, true);
+
 	ret = sof_ipc_send_msg(sdev, msg_data, msg_bytes, reply_bytes);
 	if (ret) {
 		dev_err_ratelimited(sdev->dev,
@@ -349,8 +351,6 @@ static int ipc4_tx_msg_unlocked(struct snd_sof_ipc *ipc,
 				    __func__, ipc4_msg->primary, ipc4_msg->extension, ret);
 		return ret;
 	}
-
-	sof_ipc4_log_header(sdev->dev, "ipc tx      ", msg_data, true);
 
 	/* now wait for completion */
 	return ipc4_wait_tx_done(ipc, reply_data);
