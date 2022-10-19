@@ -67,9 +67,7 @@ bias_to_this_cpu(struct task_struct *p, int cpu, int start_cpu)
 	bool base_test = cpumask_test_cpu(cpu, p->cpus_ptr) &&
 						cpu_active(cpu);
 
-	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
-	struct walt_rq *start_wrq = &per_cpu(walt_rq, start_cpu);
-	bool start_cap_test = (wrq->cluster->id >= start_wrq->cluster->id);
+	bool start_cap_test = !check_for_higher_capacity(start_cpu, cpu);
 
 	return base_test && start_cap_test;
 }
@@ -748,12 +746,10 @@ static inline bool select_cpu_same_energy(int cpu, int best_cpu, int prev_cpu)
 {
 	bool new_cpu_is_idle = available_idle_cpu(cpu);
 	bool best_cpu_is_idle = available_idle_cpu(best_cpu);
-	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
-	struct walt_rq *best_wrq = &per_cpu(walt_rq, best_cpu);
 
-	if (best_wrq->cluster->id < wrq->cluster->id)
+	if (check_for_higher_capacity(cpu, best_cpu))
 		return false;
-	if (wrq->cluster->id < best_wrq->cluster->id)
+	if (check_for_higher_capacity(best_cpu, cpu))
 		return true;
 
 	if (best_cpu_is_idle && walt_get_idle_exit_latency(cpu_rq(best_cpu)) <= 1)
@@ -806,8 +802,6 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	int first_cpu;
 	bool energy_eval_needed = true;
 	struct compute_energy_output output;
-	struct walt_rq *prev_wrq = &per_cpu(walt_rq, prev_cpu);
-	struct walt_rq *start_wrq;
 
 	if (walt_is_many_wakeup(sibling_count_hint) && prev_cpu != cpu &&
 			cpumask_test_cpu(prev_cpu, p->cpus_ptr))
@@ -819,7 +813,6 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	walt_get_indicies(p, &order_index, &end_index, task_boost, uclamp_boost,
 								&energy_eval_needed);
 	start_cpu = cpumask_first(&cpu_array[order_index][0]);
-	start_wrq = &per_cpu(walt_rq, start_cpu);
 
 	is_rtg = task_in_related_thread_group(p);
 	curr_is_rtg = task_in_related_thread_group(cpu_rq(cpu)->curr);
@@ -953,7 +946,7 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	    walt_get_idle_exit_latency(cpu_rq(best_energy_cpu)) <= 1) &&
 	    (prev_energy != ULONG_MAX) && (best_energy_cpu != prev_cpu) &&
 	    ((prev_energy - best_energy) <= prev_energy >> 5) &&
-	    (prev_wrq->cluster->id <= start_wrq->cluster->id))
+	    !check_for_higher_capacity(prev_cpu, start_cpu))
 		best_energy_cpu = prev_cpu;
 
 unlock:
