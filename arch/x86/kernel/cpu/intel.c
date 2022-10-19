@@ -210,7 +210,6 @@ int intel_cpu_collect_info(struct ucode_cpu_info *uci)
 	csig.rev = intel_get_microcode_revision();
 
 	uci->cpu_sig = csig;
-	uci->valid = 1;
 
 	return 0;
 }
