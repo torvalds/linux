@@ -2837,7 +2837,7 @@ static const struct init_sequence mod_init_seq[] = {
 
 static bool mod_init_result[ARRAY_SIZE(mod_init_seq)];
 
-static void __exit exit_btrfs_fs(void)
+static __always_inline void btrfs_exit_btrfs_fs(void)
 {
 	int i;
 
@@ -2850,6 +2850,11 @@ static void __exit exit_btrfs_fs(void)
 	}
 }
 
+static void __exit exit_btrfs_fs(void)
+{
+	btrfs_exit_btrfs_fs();
+}
+
 static int __init init_btrfs_fs(void)
 {
 	int ret;
@@ -2858,26 +2863,13 @@ static int __init init_btrfs_fs(void)
 	for (i = 0; i < ARRAY_SIZE(mod_init_seq); i++) {
 		ASSERT(!mod_init_result[i]);
 		ret = mod_init_seq[i].init_func();
-		if (ret < 0)
-			goto error;
+		if (ret < 0) {
+			btrfs_exit_btrfs_fs();
+			return ret;
+		}
 		mod_init_result[i] = true;
 	}
 	return 0;
-
-error:
-	/*
-	 * If we call exit_btrfs_fs() it would cause section mismatch.
-	 * As init_btrfs_fs() belongs to .init.text, while exit_btrfs_fs()
-	 * belongs to .exit.text.
-	 */
-	for (i = ARRAY_SIZE(mod_init_seq) - 1; i >= 0; i--) {
-		if (!mod_init_result[i])
-			continue;
-		if (mod_init_seq[i].exit_func)
-			mod_init_seq[i].exit_func();
-		mod_init_result[i] = false;
-	}
-	return ret;
 }
 
 late_initcall(init_btrfs_fs);
