@@ -1518,7 +1518,8 @@ static int rsnd_hw_params(struct snd_soc_component *component,
 		int stream = substream->stream;
 
 		for_each_dpcm_be(fe, stream, dpcm) {
-			struct snd_pcm_hw_params *be_params = &dpcm->hw_params;
+			struct snd_soc_pcm_runtime *be = dpcm->be;
+			struct snd_pcm_hw_params *be_params = &be->dpcm[stream].hw_params;
 
 			if (params_channels(hw_params) != params_channels(be_params))
 				io->converted_chan = params_channels(be_params);
