@@ -1727,6 +1727,7 @@
   regmap_write
   regulator_allow_bypass
   regulator_bulk_disable
+  regulator_bulk_enable
   regulator_count_voltages
   regulator_disable
   regulator_disable_regmap
