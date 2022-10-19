@@ -120,10 +120,10 @@ struct rxrpc_connection *rxrpc_find_connection_rcu(struct rxrpc_local *local,
 		}
 
 		if (conn->proto.epoch != k.epoch ||
-		    conn->params.local != local)
+		    conn->local != local)
 			goto not_found;
 
-		peer = conn->params.peer;
+		peer = conn->peer;
 		switch (srx.transport.family) {
 		case AF_INET:
 			if (peer->srx.transport.sin.sin_port !=
@@ -231,7 +231,7 @@ void rxrpc_disconnect_call(struct rxrpc_call *call)
  */
 void rxrpc_kill_connection(struct rxrpc_connection *conn)
 {
-	struct rxrpc_net *rxnet = conn->params.local->rxnet;
+	struct rxrpc_net *rxnet = conn->local->rxnet;
 
 	ASSERT(!rcu_access_pointer(conn->channels[0].call) &&
 	       !rcu_access_pointer(conn->channels[1].call) &&
@@ -340,7 +340,7 @@ void rxrpc_put_service_conn(struct rxrpc_connection *conn)
 	__refcount_dec(&conn->ref, &r);
 	trace_rxrpc_conn(debug_id, rxrpc_conn_put_service, r - 1, here);
 	if (r - 1 == 1)
-		rxrpc_set_service_reap_timer(conn->params.local->rxnet,
+		rxrpc_set_service_reap_timer(conn->local->rxnet,
 					     jiffies + rxrpc_connection_expiry);
 }
 
@@ -360,13 +360,13 @@ static void rxrpc_destroy_connection(struct rcu_head *rcu)
 	rxrpc_purge_queue(&conn->rx_queue);
 
 	conn->security->clear(conn);
-	key_put(conn->params.key);
+	key_put(conn->key);
 	rxrpc_put_bundle(conn->bundle);
-	rxrpc_put_peer(conn->params.peer);
+	rxrpc_put_peer(conn->peer);
 
-	if (atomic_dec_and_test(&conn->params.local->rxnet->nr_conns))
-		wake_up_var(&conn->params.local->rxnet->nr_conns);
-	rxrpc_put_local(conn->params.local);
+	if (atomic_dec_and_test(&conn->local->rxnet->nr_conns))
+		wake_up_var(&conn->local->rxnet->nr_conns);
+	rxrpc_put_local(conn->local);
 
 	kfree(conn);
 	_leave("");
@@ -397,10 +397,10 @@ void rxrpc_service_connection_reaper(struct work_struct *work)
 		if (conn->state == RXRPC_CONN_SERVICE_PREALLOC)
 			continue;
 
-		if (rxnet->live && !conn->params.local->dead) {
+		if (rxnet->live && !conn->local->dead) {
 			idle_timestamp = READ_ONCE(conn->idle_timestamp);
 			expire_at = idle_timestamp + rxrpc_connection_expiry * HZ;
-			if (conn->params.local->service_closed)
+			if (conn->local->service_closed)
 				expire_at = idle_timestamp + rxrpc_closed_conn_expiry * HZ;
 
 			_debug("reap CONN %d { u=%d,t=%ld }",

@@ -164,7 +164,7 @@ void rxrpc_new_incoming_connection(struct rxrpc_sock *rx,
 
 	conn->proto.epoch	= sp->hdr.epoch;
 	conn->proto.cid		= sp->hdr.cid & RXRPC_CIDMASK;
-	conn->params.service_id	= sp->hdr.serviceId;
+	conn->orig_service_id	= sp->hdr.serviceId;
 	conn->service_id	= sp->hdr.serviceId;
 	conn->security_ix	= sp->hdr.securityIndex;
 	conn->out_clientflag	= 0;
@@ -183,7 +183,7 @@ void rxrpc_new_incoming_connection(struct rxrpc_sock *rx,
 		conn->service_id = rx->service_upgrade.to;
 
 	/* Make the connection a target for incoming packets. */
-	rxrpc_publish_service_conn(conn->params.peer, conn);
+	rxrpc_publish_service_conn(conn->peer, conn);
 }
 
 /*
@@ -192,7 +192,7 @@ void rxrpc_new_incoming_connection(struct rxrpc_sock *rx,
  */
 void rxrpc_unpublish_service_conn(struct rxrpc_connection *conn)
 {
-	struct rxrpc_peer *peer = conn->params.peer;
+	struct rxrpc_peer *peer = conn->peer;
 
 	write_seqlock_bh(&peer->service_conn_lock);
 	if (test_and_clear_bit(RXRPC_CONN_IN_SERVICE_CONNS, &conn->flags))

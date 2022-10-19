@@ -305,8 +305,8 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 		b->conn_backlog[conn_tail] = NULL;
 		smp_store_release(&b->conn_backlog_tail,
 				  (conn_tail + 1) & (RXRPC_BACKLOG_MAX - 1));
-		conn->params.local = rxrpc_get_local(local);
-		conn->params.peer = peer;
+		conn->local = rxrpc_get_local(local);
+		conn->peer = peer;
 		rxrpc_see_connection(conn);
 		rxrpc_new_incoming_connection(rx, conn, sec, skb);
 	} else {
@@ -323,7 +323,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 	call->conn = conn;
 	call->security = conn->security;
 	call->security_ix = conn->security_ix;
-	call->peer = rxrpc_get_peer(conn->params.peer);
+	call->peer = rxrpc_get_peer(conn->peer);
 	call->cong_ssthresh = call->peer->cong_ssthresh;
 	call->tx_last_sent = ktime_get_real();
 	return call;

@@ -51,7 +51,7 @@ static void rxrpc_deactivate_bundle(struct rxrpc_bundle *bundle);
 static int rxrpc_get_client_connection_id(struct rxrpc_connection *conn,
 					  gfp_t gfp)
 {
-	struct rxrpc_net *rxnet = conn->params.local->rxnet;
+	struct rxrpc_net *rxnet = conn->local->rxnet;
 	int id;
 
 	_enter("");
@@ -122,8 +122,13 @@ static struct rxrpc_bundle *rxrpc_alloc_bundle(struct rxrpc_conn_parameters *cp,
 
 	bundle = kzalloc(sizeof(*bundle), gfp);
 	if (bundle) {
-		bundle->params = *cp;
-		rxrpc_get_peer(bundle->params.peer);
+		bundle->local		= cp->local;
+		bundle->peer		= rxrpc_get_peer(cp->peer);
+		bundle->key		= cp->key;
+		bundle->exclusive	= cp->exclusive;
+		bundle->upgrade		= cp->upgrade;
+		bundle->service_id	= cp->service_id;
+		bundle->security_level	= cp->security_level;
 		refcount_set(&bundle->ref, 1);
 		atomic_set(&bundle->active, 1);
 		spin_lock_init(&bundle->channel_lock);
@@ -140,7 +145,7 @@ struct rxrpc_bundle *rxrpc_get_bundle(struct rxrpc_bundle *bundle)
 
 static void rxrpc_free_bundle(struct rxrpc_bundle *bundle)
 {
-	rxrpc_put_peer(bundle->params.peer);
+	rxrpc_put_peer(bundle->peer);
 	kfree(bundle);
 }
 
@@ -164,7 +169,7 @@ static struct rxrpc_connection *
 rxrpc_alloc_client_connection(struct rxrpc_bundle *bundle, gfp_t gfp)
 {
 	struct rxrpc_connection *conn;
-	struct rxrpc_net *rxnet = bundle->params.local->rxnet;
+	struct rxrpc_net *rxnet = bundle->local->rxnet;
 	int ret;
 
 	_enter("");
@@ -177,10 +182,16 @@ rxrpc_alloc_client_connection(struct rxrpc_bundle *bundle, gfp_t gfp)
 
 	refcount_set(&conn->ref, 1);
 	conn->bundle		= bundle;
-	conn->params		= bundle->params;
+	conn->local		= bundle->local;
+	conn->peer		= bundle->peer;
+	conn->key		= bundle->key;
+	conn->exclusive		= bundle->exclusive;
+	conn->upgrade		= bundle->upgrade;
+	conn->orig_service_id	= bundle->service_id;
+	conn->security_level	= bundle->security_level;
 	conn->out_clientflag	= RXRPC_CLIENT_INITIATED;
 	conn->state		= RXRPC_CONN_CLIENT;
-	conn->service_id	= conn->params.service_id;
+	conn->service_id	= conn->orig_service_id;
 
 	ret = rxrpc_get_client_connection_id(conn, gfp);
 	if (ret < 0)
@@ -196,9 +207,9 @@ rxrpc_alloc_client_connection(struct rxrpc_bundle *bundle, gfp_t gfp)
 	write_unlock(&rxnet->conn_lock);
 
 	rxrpc_get_bundle(bundle);
-	rxrpc_get_peer(conn->params.peer);
-	rxrpc_get_local(conn->params.local);
-	key_get(conn->params.key);
+	rxrpc_get_peer(conn->peer);
+	rxrpc_get_local(conn->local);
+	key_get(conn->key);
 
 	trace_rxrpc_conn(conn->debug_id, rxrpc_conn_new_client,
 			 refcount_read(&conn->ref),
@@ -228,7 +239,7 @@ static bool rxrpc_may_reuse_conn(struct rxrpc_connection *conn)
 	if (!conn)
 		goto dont_reuse;
 
-	rxnet = conn->params.local->rxnet;
+	rxnet = conn->local->rxnet;
 	if (test_bit(RXRPC_CONN_DONT_REUSE, &conn->flags))
 		goto dont_reuse;
 
@@ -285,7 +296,7 @@ static struct rxrpc_bundle *rxrpc_look_up_bundle(struct rxrpc_conn_parameters *c
 	while (p) {
 		bundle = rb_entry(p, struct rxrpc_bundle, local_node);
 
-#define cmp(X) ((long)bundle->params.X - (long)cp->X)
+#define cmp(X) ((long)bundle->X - (long)cp->X)
 		diff = (cmp(peer) ?:
 			cmp(key) ?:
 			cmp(security_level) ?:
@@ -314,7 +325,7 @@ static struct rxrpc_bundle *rxrpc_look_up_bundle(struct rxrpc_conn_parameters *c
 		parent = *pp;
 		bundle = rb_entry(parent, struct rxrpc_bundle, local_node);
 
-#define cmp(X) ((long)bundle->params.X - (long)cp->X)
+#define cmp(X) ((long)bundle->X - (long)cp->X)
 		diff = (cmp(peer) ?:
 			cmp(key) ?:
 			cmp(security_level) ?:
@@ -532,7 +543,7 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 
 	rxrpc_see_call(call);
 	list_del_init(&call->chan_wait_link);
-	call->peer	= rxrpc_get_peer(conn->params.peer);
+	call->peer	= rxrpc_get_peer(conn->peer);
 	call->conn	= rxrpc_get_connection(conn);
 	call->cid	= conn->proto.cid | channel;
 	call->call_id	= call_id;
@@ -569,7 +580,7 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
  */
 static void rxrpc_unidle_conn(struct rxrpc_bundle *bundle, struct rxrpc_connection *conn)
 {
-	struct rxrpc_net *rxnet = bundle->params.local->rxnet;
+	struct rxrpc_net *rxnet = bundle->local->rxnet;
 	bool drop_ref;
 
 	if (!list_empty(&conn->cache_link)) {
@@ -795,7 +806,7 @@ void rxrpc_disconnect_client_call(struct rxrpc_bundle *bundle, struct rxrpc_call
 {
 	struct rxrpc_connection *conn;
 	struct rxrpc_channel *chan = NULL;
-	struct rxrpc_net *rxnet = bundle->params.local->rxnet;
+	struct rxrpc_net *rxnet = bundle->local->rxnet;
 	unsigned int channel;
 	bool may_reuse;
 	u32 cid;
@@ -936,11 +947,11 @@ static void rxrpc_unbundle_conn(struct rxrpc_connection *conn)
  */
 static void rxrpc_deactivate_bundle(struct rxrpc_bundle *bundle)
 {
-	struct rxrpc_local *local = bundle->params.local;
+	struct rxrpc_local *local = bundle->local;
 	bool need_put = false;
 
 	if (atomic_dec_and_lock(&bundle->active, &local->client_bundles_lock)) {
-		if (!bundle->params.exclusive) {
+		if (!bundle->exclusive) {
 			_debug("erase bundle");
 			rb_erase(&bundle->local_node, &local->client_bundles);
 			need_put = true;
@@ -957,7 +968,7 @@ static void rxrpc_deactivate_bundle(struct rxrpc_bundle *bundle)
  */
 static void rxrpc_kill_client_conn(struct rxrpc_connection *conn)
 {
-	struct rxrpc_local *local = conn->params.local;
+	struct rxrpc_local *local = conn->local;
 	struct rxrpc_net *rxnet = local->rxnet;
 
 	_enter("C=%x", conn->debug_id);
@@ -1036,7 +1047,7 @@ next:
 		expiry = rxrpc_conn_idle_client_expiry;
 		if (nr_conns > rxrpc_reap_client_connections)
 			expiry = rxrpc_conn_idle_client_fast_expiry;
-		if (conn->params.local->service_closed)
+		if (conn->local->service_closed)
 			expiry = rxrpc_closed_conn_expiry * HZ;
 
 		conn_expires_at = conn->idle_timestamp + expiry;
@@ -1110,7 +1121,7 @@ void rxrpc_clean_up_local_conns(struct rxrpc_local *local)
 
 	list_for_each_entry_safe(conn, tmp, &rxnet->idle_client_conns,
 				 cache_link) {
-		if (conn->params.local == local) {
+		if (conn->local == local) {
 			trace_rxrpc_client(conn, -1, rxrpc_client_discard);
 			list_move(&conn->cache_link, &graveyard);
 		}

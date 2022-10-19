@@ -52,8 +52,8 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 	if (skb && call_id != sp->hdr.callNumber)
 		return;
 
-	msg.msg_name	= &conn->params.peer->srx.transport;
-	msg.msg_namelen	= conn->params.peer->srx.transport_len;
+	msg.msg_name	= &conn->peer->srx.transport;
+	msg.msg_namelen	= conn->peer->srx.transport_len;
 	msg.msg_control	= NULL;
 	msg.msg_controllen = 0;
 	msg.msg_flags	= 0;
@@ -86,8 +86,8 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 		break;
 
 	case RXRPC_PACKET_TYPE_ACK:
-		mtu = conn->params.peer->if_mtu;
-		mtu -= conn->params.peer->hdrsize;
+		mtu = conn->peer->if_mtu;
+		mtu -= conn->peer->hdrsize;
 		pkt.ack.bufferSpace	= 0;
 		pkt.ack.maxSkew		= htons(skb ? skb->priority : 0);
 		pkt.ack.firstPacket	= htonl(chan->last_seq + 1);
@@ -131,8 +131,8 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 		break;
 	}
 
-	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, ioc, len);
-	conn->params.peer->last_tx_at = ktime_get_seconds();
+	ret = kernel_sendmsg(conn->local->socket, &msg, iov, ioc, len);
+	conn->peer->last_tx_at = ktime_get_seconds();
 	if (ret < 0)
 		trace_rxrpc_tx_fail(chan->call_debug_id, serial, ret,
 				    rxrpc_tx_point_call_final_resend);
@@ -211,8 +211,8 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 	set_bit(RXRPC_CONN_DONT_REUSE, &conn->flags);
 	spin_unlock_bh(&conn->state_lock);
 
-	msg.msg_name	= &conn->params.peer->srx.transport;
-	msg.msg_namelen	= conn->params.peer->srx.transport_len;
+	msg.msg_name	= &conn->peer->srx.transport;
+	msg.msg_namelen	= conn->peer->srx.transport_len;
 	msg.msg_control	= NULL;
 	msg.msg_controllen = 0;
 	msg.msg_flags	= 0;
@@ -241,7 +241,7 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 	rxrpc_abort_calls(conn, RXRPC_CALL_LOCALLY_ABORTED, serial);
 	whdr.serial = htonl(serial);
 
-	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
+	ret = kernel_sendmsg(conn->local->socket, &msg, iov, 2, len);
 	if (ret < 0) {
 		trace_rxrpc_tx_fail(conn->debug_id, serial, ret,
 				    rxrpc_tx_point_conn_abort);
@@ -251,7 +251,7 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 
 	trace_rxrpc_tx_packet(conn->debug_id, &whdr, rxrpc_tx_point_conn_abort);
 
-	conn->params.peer->last_tx_at = ktime_get_seconds();
+	conn->peer->last_tx_at = ktime_get_seconds();
 
 	_leave(" = 0");
 	return 0;
@@ -330,7 +330,7 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 			return ret;
 
 		ret = conn->security->init_connection_security(
-			conn, conn->params.key->payload.data[0]);
+			conn, conn->key->payload.data[0]);
 		if (ret < 0)
 			return ret;
 
@@ -484,9 +484,9 @@ void rxrpc_process_connection(struct work_struct *work)
 
 	rxrpc_see_connection(conn);
 
-	if (__rxrpc_use_local(conn->params.local)) {
+	if (__rxrpc_use_local(conn->local)) {
 		rxrpc_do_process_connection(conn);
-		rxrpc_unuse_local(conn->params.local);
+		rxrpc_unuse_local(conn->local);
 	}
 
 	rxrpc_put_connection(conn);

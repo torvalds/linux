@@ -417,9 +417,9 @@ void rxrpc_incoming_call(struct rxrpc_sock *rx,
 	conn->channels[chan].call_id = call->call_id;
 	rcu_assign_pointer(conn->channels[chan].call, call);
 
-	spin_lock(&conn->params.peer->lock);
-	hlist_add_head_rcu(&call->error_link, &conn->params.peer->error_targets);
-	spin_unlock(&conn->params.peer->lock);
+	spin_lock(&conn->peer->lock);
+	hlist_add_head_rcu(&call->error_link, &conn->peer->error_targets);
+	spin_unlock(&conn->peer->lock);
 
 	rxrpc_start_call_timer(call);
 	_leave("");

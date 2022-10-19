@@ -69,7 +69,7 @@ int rxrpc_init_client_conn_security(struct rxrpc_connection *conn)
 {
 	const struct rxrpc_security *sec;
 	struct rxrpc_key_token *token;
-	struct key *key = conn->params.key;
+	struct key *key = conn->key;
 	int ret;
 
 	_enter("{%d},{%x}", conn->debug_id, key_serial(key));
@@ -163,7 +163,7 @@ struct key *rxrpc_look_up_server_security(struct rxrpc_connection *conn,
 
 	rcu_read_lock();
 
-	rx = rcu_dereference(conn->params.local->service);
+	rx = rcu_dereference(conn->local->service);
 	if (!rx)
 		goto out;
 

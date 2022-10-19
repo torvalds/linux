@@ -513,7 +513,7 @@ int rxrpc_get_server_data_key(struct rxrpc_connection *conn,
 	if (ret < 0)
 		goto error;
 
-	conn->params.key = key;
+	conn->key = key;
 	_leave(" = 0 [%d]", key_serial(key));
 	return 0;
 

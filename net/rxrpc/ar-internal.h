@@ -403,12 +403,18 @@ enum rxrpc_conn_proto_state {
  * RxRPC client connection bundle.
  */
 struct rxrpc_bundle {
-	struct rxrpc_conn_parameters params;
+	struct rxrpc_local	*local;		/* Representation of local endpoint */
+	struct rxrpc_peer	*peer;		/* Remote endpoint */
+	struct key		*key;		/* Security details */
 	refcount_t		ref;
 	atomic_t		active;		/* Number of active users */
 	unsigned int		debug_id;
+	u32			security_level;	/* Security level selected */
+	u16			service_id;	/* Service ID for this connection */
 	bool			try_upgrade;	/* True if the bundle is attempting upgrade */
 	bool			alloc_conn;	/* True if someone's getting a conn */
+	bool			exclusive;	/* T if conn is exclusive */
+	bool			upgrade;	/* T if service ID can be upgraded */
 	short			alloc_error;	/* Error from last conn allocation */
 	spinlock_t		channel_lock;
 	struct rb_node		local_node;	/* Node in local->client_conns */
@@ -424,7 +430,9 @@ struct rxrpc_bundle {
  */
 struct rxrpc_connection {
 	struct rxrpc_conn_proto	proto;
-	struct rxrpc_conn_parameters params;
+	struct rxrpc_local	*local;		/* Representation of local endpoint */
+	struct rxrpc_peer	*peer;		/* Remote endpoint */
+	struct key		*key;		/* Security details */
 
 	refcount_t		ref;
 	struct rcu_head		rcu;
@@ -471,9 +479,13 @@ struct rxrpc_connection {
 	atomic_t		serial;		/* packet serial number counter */
 	unsigned int		hi_serial;	/* highest serial number received */
 	u32			service_id;	/* Service ID, possibly upgraded */
+	u32			security_level;	/* Security level selected */
 	u8			security_ix;	/* security type */
 	u8			out_clientflag;	/* RXRPC_CLIENT_INITIATED if we are client */
 	u8			bundle_shift;	/* Index into bundle->avail_chans */
+	bool			exclusive;	/* T if conn is exclusive */
+	bool			upgrade;	/* T if service ID can be upgraded */
+	u16			orig_service_id; /* Originally requested service ID */
 	short			error;		/* Local error code */
 };
 

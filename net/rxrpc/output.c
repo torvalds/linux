@@ -142,8 +142,8 @@ retry:
 		txb->ack.reason = RXRPC_ACK_IDLE;
 	}
 
-	mtu = conn->params.peer->if_mtu;
-	mtu -= conn->params.peer->hdrsize;
+	mtu = conn->peer->if_mtu;
+	mtu -= conn->peer->hdrsize;
 	jmax = rxrpc_rx_jumbo_max;
 	qsize = (window - 1) - call->rx_consumed;
 	rsize = max_t(int, call->rx_winsize - qsize, 0);
@@ -259,7 +259,7 @@ static int rxrpc_send_ack_packet(struct rxrpc_local *local, struct rxrpc_txbuf *
 	txb->ack.previousPacket	= htonl(call->rx_highest_seq);
 
 	iov_iter_kvec(&msg.msg_iter, WRITE, iov, 1, len);
-	ret = do_udp_sendmsg(conn->params.local->socket, &msg, len);
+	ret = do_udp_sendmsg(conn->local->socket, &msg, len);
 	call->peer->last_tx_at = ktime_get_seconds();
 	if (ret < 0)
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
@@ -368,8 +368,8 @@ int rxrpc_send_abort_packet(struct rxrpc_call *call)
 	pkt.whdr.serial = htonl(serial);
 
 	iov_iter_kvec(&msg.msg_iter, WRITE, iov, 1, sizeof(pkt));
-	ret = do_udp_sendmsg(conn->params.local->socket, &msg, sizeof(pkt));
-	conn->params.peer->last_tx_at = ktime_get_seconds();
+	ret = do_udp_sendmsg(conn->local->socket, &msg, sizeof(pkt));
+	conn->peer->last_tx_at = ktime_get_seconds();
 	if (ret < 0)
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
 				    rxrpc_tx_point_call_abort);
@@ -473,7 +473,7 @@ dont_set_request_ack:
 	if (txb->len >= call->peer->maxdata)
 		goto send_fragmentable;
 
-	down_read(&conn->params.local->defrag_sem);
+	down_read(&conn->local->defrag_sem);
 
 	txb->last_sent = ktime_get_real();
 	if (txb->wire.flags & RXRPC_REQUEST_ACK)
@@ -486,10 +486,10 @@ dont_set_request_ack:
 	 *     message and update the peer record
 	 */
 	rxrpc_inc_stat(call->rxnet, stat_tx_data_send);
-	ret = do_udp_sendmsg(conn->params.local->socket, &msg, len);
-	conn->params.peer->last_tx_at = ktime_get_seconds();
+	ret = do_udp_sendmsg(conn->local->socket, &msg, len);
+	conn->peer->last_tx_at = ktime_get_seconds();
 
-	up_read(&conn->params.local->defrag_sem);
+	up_read(&conn->local->defrag_sem);
 	if (ret < 0) {
 		rxrpc_cancel_rtt_probe(call, serial, rtt_slot);
 		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
@@ -549,22 +549,22 @@ send_fragmentable:
 	/* attempt to send this message with fragmentation enabled */
 	_debug("send fragment");
 
-	down_write(&conn->params.local->defrag_sem);
+	down_write(&conn->local->defrag_sem);
 
 	txb->last_sent = ktime_get_real();
 	if (txb->wire.flags & RXRPC_REQUEST_ACK)
 		rtt_slot = rxrpc_begin_rtt_probe(call, serial, rxrpc_rtt_tx_data);
 
-	switch (conn->params.local->srx.transport.family) {
+	switch (conn->local->srx.transport.family) {
 	case AF_INET6:
 	case AF_INET:
-		ip_sock_set_mtu_discover(conn->params.local->socket->sk,
+		ip_sock_set_mtu_discover(conn->local->socket->sk,
 					 IP_PMTUDISC_DONT);
 		rxrpc_inc_stat(call->rxnet, stat_tx_data_send_frag);
-		ret = do_udp_sendmsg(conn->params.local->socket, &msg, len);
-		conn->params.peer->last_tx_at = ktime_get_seconds();
+		ret = do_udp_sendmsg(conn->local->socket, &msg, len);
+		conn->peer->last_tx_at = ktime_get_seconds();
 
-		ip_sock_set_mtu_discover(conn->params.local->socket->sk,
+		ip_sock_set_mtu_discover(conn->local->socket->sk,
 					 IP_PMTUDISC_DO);
 		break;
 
@@ -582,7 +582,7 @@ send_fragmentable:
 	}
 	rxrpc_tx_backoff(call, ret);
 
-	up_write(&conn->params.local->defrag_sem);
+	up_write(&conn->local->defrag_sem);
 	goto done;
 }
 

@@ -172,9 +172,9 @@ static int rxrpc_connection_seq_show(struct seq_file *seq, void *v)
 		goto print;
 	}
 
-	sprintf(lbuff, "%pISpc", &conn->params.local->srx.transport);
+	sprintf(lbuff, "%pISpc", &conn->local->srx.transport);
 
-	sprintf(rbuff, "%pISpc", &conn->params.peer->srx.transport);
+	sprintf(rbuff, "%pISpc", &conn->peer->srx.transport);
 print:
 	seq_printf(seq,
 		   "UDP   %-47.47s %-47.47s %4x %08x %s %3u"
@@ -186,7 +186,7 @@ print:
 		   rxrpc_conn_is_service(conn) ? "Svc" : "Clt",
 		   refcount_read(&conn->ref),
 		   rxrpc_conn_states[conn->state],
-		   key_serial(conn->params.key),
+		   key_serial(conn->key),
 		   atomic_read(&conn->serial),
 		   conn->hi_serial,
 		   conn->channels[0].call_id,
