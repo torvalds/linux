@@ -16,6 +16,14 @@
 
 #include <crypto/aria.h>
 
+static const u32 key_rc[20] = {
+	0x517cc1b7, 0x27220a94, 0xfe13abe8, 0xfa9a6ee0,
+	0x6db14acc, 0x9e21c820, 0xff28b1d5, 0xef5de2b0,
+	0xdb92371d, 0x2126e970, 0x03249775, 0x04e8c90e,
+	0x517cc1b7, 0x27220a94, 0xfe13abe8, 0xfa9a6ee0,
+	0x6db14acc, 0x9e21c820, 0xff28b1d5, 0xef5de2b0
+};
+
 static void aria_set_encrypt_key(struct aria_ctx *ctx, const u8 *in_key,
 				 unsigned int key_len)
 {
@@ -25,7 +33,7 @@ static void aria_set_encrypt_key(struct aria_ctx *ctx, const u8 *in_key,
 	const u32 *ck;
 	int rkidx = 0;
 
-	ck = &key_rc[(key_len - 16) / 8][0];
+	ck = &key_rc[(key_len - 16) / 2];
 
 	w0[0] = be32_to_cpu(key[0]);
 	w0[1] = be32_to_cpu(key[1]);
@@ -163,8 +171,7 @@ static void aria_set_decrypt_key(struct aria_ctx *ctx)
 	}
 }
 
-static int aria_set_key(struct crypto_tfm *tfm, const u8 *in_key,
-			unsigned int key_len)
+int aria_set_key(struct crypto_tfm *tfm, const u8 *in_key, unsigned int key_len)
 {
 	struct aria_ctx *ctx = crypto_tfm_ctx(tfm);
 
@@ -179,6 +186,7 @@ static int aria_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(aria_set_key);
 
 static void __aria_crypt(struct aria_ctx *ctx, u8 *out, const u8 *in,
 			 u32 key[][ARIA_RD_KEY_WORDS])
@@ -235,14 +243,30 @@ static void __aria_crypt(struct aria_ctx *ctx, u8 *out, const u8 *in,
 	dst[3] = cpu_to_be32(reg3);
 }
 
-static void aria_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
+void aria_encrypt(void *_ctx, u8 *out, const u8 *in)
+{
+	struct aria_ctx *ctx = (struct aria_ctx *)_ctx;
+
+	__aria_crypt(ctx, out, in, ctx->enc_key);
+}
+EXPORT_SYMBOL_GPL(aria_encrypt);
+
+void aria_decrypt(void *_ctx, u8 *out, const u8 *in)
+{
+	struct aria_ctx *ctx = (struct aria_ctx *)_ctx;
+
+	__aria_crypt(ctx, out, in, ctx->dec_key);
+}
+EXPORT_SYMBOL_GPL(aria_decrypt);
+
+static void __aria_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	struct aria_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	__aria_crypt(ctx, out, in, ctx->enc_key);
 }
 
-static void aria_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
+static void __aria_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	struct aria_ctx *ctx = crypto_tfm_ctx(tfm);
 
@@ -263,8 +287,8 @@ static struct crypto_alg aria_alg = {
 			.cia_min_keysize	=	ARIA_MIN_KEY_SIZE,
 			.cia_max_keysize	=	ARIA_MAX_KEY_SIZE,
 			.cia_setkey		=	aria_set_key,
-			.cia_encrypt		=	aria_encrypt,
-			.cia_decrypt		=	aria_decrypt
+			.cia_encrypt		=	__aria_encrypt,
+			.cia_decrypt		=	__aria_decrypt
 		}
 	}
 };
@@ -286,3 +310,4 @@ MODULE_DESCRIPTION("ARIA Cipher Algorithm");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Taehee Yoo <ap420073@gmail.com>");
 MODULE_ALIAS_CRYPTO("aria");
+MODULE_ALIAS_CRYPTO("aria-generic");

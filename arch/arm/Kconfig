@@ -1850,8 +1850,4 @@ config ARCH_HIBERNATION_POSSIBLE
 
 endmenu
 
-if CRYPTO
-source "arch/arm/crypto/Kconfig"
-endif
-
 source "arch/arm/Kconfig.assembler"

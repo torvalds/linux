@@ -59,10 +59,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <crypto/algapi.h>
 #include <asm/unaligned.h>
-
-#ifndef __HAVE_ARCH_CRYPTO_MEMNEQ
+#include <crypto/algapi.h>
+#include <linux/module.h>
 
 /* Generic path for arbitrary size */
 static inline unsigned long
@@ -172,5 +171,3 @@ noinline unsigned long __crypto_memneq(const void *a, const void *b,
 	}
 }
 EXPORT_SYMBOL(__crypto_memneq);
-
-#endif /* __HAVE_ARCH_CRYPTO_MEMNEQ */
