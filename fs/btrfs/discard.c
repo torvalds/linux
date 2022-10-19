@@ -11,6 +11,7 @@
 #include "block-group.h"
 #include "discard.h"
 #include "free-space-cache.h"
+#include "fs.h"
 
 /*
  * This contains the logic to handle async discard.

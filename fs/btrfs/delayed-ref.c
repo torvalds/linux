@@ -13,6 +13,7 @@
 #include "qgroup.h"
 #include "space-info.h"
 #include "tree-mod-log.h"
+#include "fs.h"
 
 struct kmem_cache *btrfs_delayed_ref_head_cachep;
 struct kmem_cache *btrfs_delayed_tree_ref_cachep;
