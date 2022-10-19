@@ -21,6 +21,11 @@ Linux 内核用户空间API指南
 
 	   目录
 
+.. toctree::
+   :maxdepth: 2
+
+   ebpf/index
+
 TODOList:
 
 * no_new_privs
@@ -29,7 +34,6 @@ TODOList:
 * unshare
 * spec_ctrl
 * accelerators/ocxl
-* ebpf/index
 * ioctl/index
 * iommu
 * media/index
