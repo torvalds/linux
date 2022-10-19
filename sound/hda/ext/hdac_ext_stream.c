@@ -224,8 +224,8 @@ int snd_hdac_ext_stream_setup(struct hdac_ext_stream *hext_stream, int fmt)
 EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_setup);
 
 static struct hdac_ext_stream *
-hdac_ext_link_stream_assign(struct hdac_bus *bus,
-			    struct snd_pcm_substream *substream)
+hdac_ext_link_dma_stream_assign(struct hdac_bus *bus,
+				struct snd_pcm_substream *substream)
 {
 	struct hdac_ext_stream *res = NULL;
 	struct hdac_stream *hstream = NULL;
@@ -260,8 +260,8 @@ hdac_ext_link_stream_assign(struct hdac_bus *bus,
 }
 
 static struct hdac_ext_stream *
-hdac_ext_host_stream_assign(struct hdac_bus *bus,
-			    struct snd_pcm_substream *substream)
+hdac_ext_host_dma_stream_assign(struct hdac_bus *bus,
+				struct snd_pcm_substream *substream)
 {
 	struct hdac_ext_stream *res = NULL;
 	struct hdac_stream *hstream = NULL;
@@ -329,10 +329,10 @@ struct hdac_ext_stream *snd_hdac_ext_stream_assign(struct hdac_bus *bus,
 		return hext_stream;
 
 	case HDAC_EXT_STREAM_TYPE_HOST:
-		return hdac_ext_host_stream_assign(bus, substream);
+		return hdac_ext_host_dma_stream_assign(bus, substream);
 
 	case HDAC_EXT_STREAM_TYPE_LINK:
-		return hdac_ext_link_stream_assign(bus, substream);
+		return hdac_ext_link_dma_stream_assign(bus, substream);
 
 	default:
 		return NULL;
