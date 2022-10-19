@@ -677,10 +677,6 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 
 static int hda_resume(struct snd_sof_dev *sdev, bool runtime_resume)
 {
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
-	struct hdac_bus *bus = sof_to_bus(sdev);
-	struct hdac_ext_link *hlink = NULL;
-#endif
 	int ret;
 
 	/* display codec must be powered before link reset */
@@ -707,16 +703,6 @@ static int hda_resume(struct snd_sof_dev *sdev, bool runtime_resume)
 		if (sdev->system_suspend_target == SOF_SUSPEND_NONE)
 			hda_codec_jack_check(sdev);
 	}
-
-	/* turn off the links that were off before suspend */
-	list_for_each_entry(hlink, &bus->hlink_list, list) {
-		if (!hlink->ref_count)
-			snd_hdac_ext_bus_link_power_down(hlink);
-	}
-
-	/* check dma status and clean up CORB/RIRB buffers */
-	if (!bus->cmd_dma_state)
-		snd_hdac_bus_stop_cmd_io(bus);
 #endif
 
 	/* enable ppcap interrupt */

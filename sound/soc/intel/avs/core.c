@@ -580,7 +580,6 @@ static int __maybe_unused avs_suspend_common(struct avs_dev *adev)
 static int __maybe_unused avs_resume_common(struct avs_dev *adev, bool purge)
 {
 	struct hdac_bus *bus = &adev->base.core;
-	struct hdac_ext_link *hlink;
 	int ret;
 
 	snd_hdac_display_power(bus, HDA_CODEC_IDX_CONTROLLER, true);
@@ -594,16 +593,6 @@ static int __maybe_unused avs_resume_common(struct avs_dev *adev, bool purge)
 		dev_err(adev->dev, "firmware boot failed: %d\n", ret);
 		return ret;
 	}
-
-	/* turn off the links that were off before suspend */
-	list_for_each_entry(hlink, &bus->hlink_list, list) {
-		if (!hlink->ref_count)
-			snd_hdac_ext_bus_link_power_down(hlink);
-	}
-
-	/* check dma status and clean up CORB/RIRB buffers */
-	if (!bus->cmd_dma_state)
-		snd_hdac_bus_stop_cmd_io(bus);
 
 	return 0;
 }
