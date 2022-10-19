@@ -8,6 +8,7 @@
 #include <dt-bindings/pwm/pwm.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/pwm.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
@@ -78,19 +79,23 @@ static void starfive_pwm_ptc_get_state(struct pwm_chip *chip,
 				       struct pwm_state *state)
 {
 	struct starfive_pwm_ptc_device *pwm = chip_to_starfive_ptc(chip);
-	u32 data_lrc;
-	u32 data_hrc;
+	u32 data_lrc, data_hrc, data_ctrl;
 	u32 pwm_clk_ns = 0;
+
+	pm_runtime_get_sync(chip->dev);
 
 	data_lrc = ioread32(REG_PTC_RPTC_LRC(pwm->regs, dev->hwpwm));
 	data_hrc = ioread32(REG_PTC_RPTC_HRC(pwm->regs, dev->hwpwm));
+	data_ctrl = ioread32(REG_PTC_RPTC_CTRL(pwm->regs, dev->hwpwm));
 
 	pwm_clk_ns = NS_PER_SECOND / pwm->approx_freq;
 
 	state->period = data_lrc * pwm_clk_ns;
 	state->duty_cycle = data_hrc * pwm_clk_ns;
 	state->polarity = PWM_POLARITY_NORMAL;
-	state->enabled = 1;
+	state->enabled = (data_ctrl & PTC_EN) ? true : false;
+
+	pm_runtime_put(chip->dev);
 }
 
 static int starfive_pwm_ptc_apply(struct pwm_chip *chip,
@@ -105,6 +110,24 @@ static int starfive_pwm_ptc_apply(struct pwm_chip *chip,
 	s64 multi = pwm->approx_freq;
 	s64 div = NS_PER_SECOND;
 	void __iomem *reg_addr;
+	u32 val;
+
+	if (state->enabled) {
+		if (!pwm_is_enabled(dev)) {
+			pm_runtime_get_sync(chip->dev);
+			reg_addr = REG_PTC_RPTC_CTRL(pwm->regs, dev->hwpwm);
+			val = ioread32(reg_addr);
+			iowrite32(val | PTC_EN | PTC_OE, reg_addr);
+		}
+	} else if (pwm_is_enabled(dev)) {
+		reg_addr = REG_PTC_RPTC_CTRL(pwm->regs, dev->hwpwm);
+		val = ioread32(reg_addr);
+		iowrite32(val & ~(PTC_EN | PTC_OE), reg_addr);
+		pm_runtime_put(chip->dev);
+		return 0;
+	} else {
+		return 0;
+	}
 
 	if (state->duty_cycle > state->period)
 		state->duty_cycle = state->period;
@@ -120,15 +143,11 @@ static int starfive_pwm_ptc_apply(struct pwm_chip *chip,
 	    (state->period > 0 && period_data == 0))
 		period_data += 1;
 
-	if (state->enabled) {
-		duty_data = (u32)(state->duty_cycle * multi / div);
-		if (abs(duty_data * div / multi - state->duty_cycle)
-		    > abs((duty_data + 1) * div / multi - state->duty_cycle) ||
-		    (state->duty_cycle > 0 && duty_data == 0))
-			duty_data += 1;
-	} else {
-		duty_data = 0;
-	}
+	duty_data = (u32)(state->duty_cycle * multi / div);
+	if (abs(duty_data * div / multi - state->duty_cycle)
+	    > abs((duty_data + 1) * div / multi - state->duty_cycle) ||
+	    (state->duty_cycle > 0 && duty_data == 0))
+		duty_data += 1;
 
 	if (state->polarity == PWM_POLARITY_NORMAL)
 		data_hrc = period_data - duty_data;
@@ -145,9 +164,6 @@ static int starfive_pwm_ptc_apply(struct pwm_chip *chip,
 
 	reg_addr = REG_PTC_RPTC_CNTR(pwm->regs, dev->hwpwm);
 	iowrite32(0, reg_addr);
-
-	reg_addr = REG_PTC_RPTC_CTRL(pwm->regs, dev->hwpwm);
-	iowrite32(PTC_EN | PTC_OE, reg_addr);
 
 	return 0;
 }
@@ -201,14 +217,6 @@ static int starfive_pwm_ptc_probe(struct platform_device *pdev)
 		return PTR_ERR(pwm->rst);
 	}
 
-	ret = clk_prepare_enable(pwm->clk);
-	if (ret) {
-		dev_err(dev,
-			"Failed to enable pwm clock, %d\n", ret);
-		return ret;
-	}
-	reset_control_deassert(pwm->rst);
-
 	ret = of_property_read_u32(node, "starfive,approx-freq",
 				   &clk_apb_freq);
 	if (!ret)
@@ -232,6 +240,8 @@ static int starfive_pwm_ptc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pwm);
 
+	pm_runtime_enable(dev);
+
 	return 0;
 }
 
@@ -243,8 +253,40 @@ static int starfive_pwm_ptc_remove(struct platform_device *dev)
 	clk_disable_unprepare(pwm->clk);
 	pwmchip_remove(chip);
 
+	pm_runtime_disable(&dev->dev);
+
 	return 0;
 }
+
+#if defined(CONFIG_PM) || defined(CONFIG_PM_SLEEP)
+static int __maybe_unused starfive_pwm_suspend(struct device *dev)
+{
+	struct starfive_pwm_ptc_device *pwm = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "starfive pwm runtime suspending..");
+	reset_control_assert(pwm->rst);
+	clk_disable_unprepare(pwm->clk);
+
+	return 0;
+}
+
+static int __maybe_unused starfive_pwm_resume(struct device *dev)
+{
+	struct starfive_pwm_ptc_device *pwm = dev_get_drvdata(dev);
+	int ret;
+
+	dev_dbg(dev, "starfive pwm runtime resuming..");
+	ret = clk_prepare_enable(pwm->clk);
+	if (ret)
+		dev_err(dev,
+			"Failed to resume pwm clock, %d\n", ret);
+	reset_control_deassert(pwm->rst);
+	return ret;
+}
+#endif
+
+static UNIVERSAL_DEV_PM_OPS(starfive_pwm_pm_ops, starfive_pwm_suspend,
+			    starfive_pwm_resume, NULL);
 
 static const struct of_device_id starfive_pwm_ptc_of_match[] = {
 	{ .compatible = "starfive,jh7110-pwm" },
@@ -258,6 +300,7 @@ static struct platform_driver starfive_pwm_ptc_driver = {
 	.driver = {
 		.name = "pwm-starfive-ptc",
 		.of_match_table = of_match_ptr(starfive_pwm_ptc_of_match),
+		.pm = &starfive_pwm_pm_ops,
 	},
 };
 module_platform_driver(starfive_pwm_ptc_driver);
