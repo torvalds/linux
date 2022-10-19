@@ -1298,6 +1298,9 @@ struct kvm_arch {
 	 */
 	bool tdp_mmu_enabled;
 
+	/* The number of TDP MMU pages across all roots. */
+	atomic64_t tdp_mmu_pages;
+
 	/*
 	 * List of kvm_mmu_page structs being used as roots.
 	 * All kvm_mmu_page structs in the list should have
@@ -1319,17 +1322,9 @@ struct kvm_arch {
 	struct list_head tdp_mmu_roots;
 
 	/*
-	 * List of kvm_mmu_page structs not being used as roots.
-	 * All kvm_mmu_page structs in the list should have
-	 * tdp_mmu_page set and a tdp_mmu_root_count of 0.
-	 */
-	struct list_head tdp_mmu_pages;
-
-	/*
 	 * Protects accesses to the following fields when the MMU lock
 	 * is held in read mode:
 	 *  - tdp_mmu_roots (above)
-	 *  - tdp_mmu_pages (above)
 	 *  - the link field of kvm_mmu_page structs used by the TDP MMU
 	 *  - possible_nx_huge_pages;
 	 *  - the possible_nx_huge_page_link field of kvm_mmu_page structs used
