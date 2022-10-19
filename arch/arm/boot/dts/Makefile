@@ -139,6 +139,7 @@ dtb-$(CONFIG_ARCH_BCM_5301X) += \
 	bcm47094-netgear-r8500.dtb \
 	bcm47094-phicomm-k3.dtb \
 	bcm53015-meraki-mr26.dtb \
+	bcm53016-dlink-dwl-8610ap.dtb \
 	bcm53016-meraki-mr32.dtb \
 	bcm94708.dtb \
 	bcm94709.dtb \
