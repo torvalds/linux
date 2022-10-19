@@ -1873,11 +1873,25 @@ static void dapm_widget_set_peer_power(struct snd_soc_dapm_widget *peer,
 		dapm_mark_dirty(peer, "peer state change");
 }
 
-static void dapm_widget_set_power(struct snd_soc_dapm_widget *w, bool power,
+static void dapm_power_one_widget(struct snd_soc_dapm_widget *w,
 				  struct list_head *up_list,
 				  struct list_head *down_list)
 {
 	struct snd_soc_dapm_path *path;
+	int power;
+
+	switch (w->id) {
+	case snd_soc_dapm_pre:
+		power = 0;
+		goto end;
+	case snd_soc_dapm_post:
+		power = 1;
+		goto end;
+	default:
+		break;
+	}
+
+	power = dapm_widget_power_check(w);
 
 	if (w->power == power)
 		return;
@@ -1897,33 +1911,11 @@ static void dapm_widget_set_power(struct snd_soc_dapm_widget *w, bool power,
 	if (!w->is_supply)
 		snd_soc_dapm_widget_for_each_sink_path(w, path)
 			dapm_widget_set_peer_power(path->sink, power, path->connect);
-
+end:
 	if (power)
 		dapm_seq_insert(w, up_list, true);
 	else
 		dapm_seq_insert(w, down_list, false);
-}
-
-static void dapm_power_one_widget(struct snd_soc_dapm_widget *w,
-				  struct list_head *up_list,
-				  struct list_head *down_list)
-{
-	int power;
-
-	switch (w->id) {
-	case snd_soc_dapm_pre:
-		dapm_seq_insert(w, down_list, false);
-		break;
-	case snd_soc_dapm_post:
-		dapm_seq_insert(w, up_list, true);
-		break;
-
-	default:
-		power = dapm_widget_power_check(w);
-
-		dapm_widget_set_power(w, power, up_list, down_list);
-		break;
-	}
 }
 
 static bool dapm_idle_bias_off(struct snd_soc_dapm_context *dapm)
