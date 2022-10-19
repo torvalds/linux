@@ -98,6 +98,17 @@ static const struct spm_reg_data spm_reg_8916_cpu = {
 	.start_index[PM_SLEEP_MODE_SPC] = 5,
 };
 
+static const struct spm_reg_data spm_reg_8939_cpu = {
+	.reg_offset = spm_reg_offset_v3_0,
+	.spm_cfg = 0x1,
+	.spm_dly = 0x3C102800,
+	.seq = { 0x60, 0x03, 0x60, 0x0B, 0x0F, 0x20, 0x50, 0x1B, 0x10, 0x80,
+		0x30, 0x90, 0x5B, 0x60, 0x50, 0x03, 0x60, 0x76, 0x76, 0x0B,
+		0x50, 0x1B, 0x94, 0x5B, 0x80, 0x10, 0x26, 0x30, 0x50, 0x0F },
+	.start_index[PM_SLEEP_MODE_STBY] = 0,
+	.start_index[PM_SLEEP_MODE_SPC] = 5,
+};
+
 static const u16 spm_reg_offset_v2_1[SPM_REG_NR] = {
 	[SPM_REG_CFG]		= 0x08,
 	[SPM_REG_SPM_CTL]	= 0x30,
@@ -211,6 +222,8 @@ static const struct of_device_id spm_match_table[] = {
 	  .data = &spm_reg_8909_cpu },
 	{ .compatible = "qcom,msm8916-saw2-v3.0-cpu",
 	  .data = &spm_reg_8916_cpu },
+	{ .compatible = "qcom,msm8939-saw2-v3.0-cpu",
+	  .data = &spm_reg_8939_cpu },
 	{ .compatible = "qcom,msm8974-saw2-v2.1-cpu",
 	  .data = &spm_reg_8974_8084_cpu },
 	{ .compatible = "qcom,msm8998-gold-saw2-v4.1-l2",
