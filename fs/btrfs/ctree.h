@@ -280,69 +280,6 @@ struct btrfs_discard_ctl {
 	atomic64_t discard_bytes_saved;
 };
 
-enum {
-	BTRFS_FS_CLOSING_START,
-	BTRFS_FS_CLOSING_DONE,
-	BTRFS_FS_LOG_RECOVERING,
-	BTRFS_FS_OPEN,
-	BTRFS_FS_QUOTA_ENABLED,
-	BTRFS_FS_UPDATE_UUID_TREE_GEN,
-	BTRFS_FS_CREATING_FREE_SPACE_TREE,
-	BTRFS_FS_BTREE_ERR,
-	BTRFS_FS_LOG1_ERR,
-	BTRFS_FS_LOG2_ERR,
-	BTRFS_FS_QUOTA_OVERRIDE,
-	/* Used to record internally whether fs has been frozen */
-	BTRFS_FS_FROZEN,
-	/*
-	 * Indicate that balance has been set up from the ioctl and is in the
-	 * main phase. The fs_info::balance_ctl is initialized.
-	 */
-	BTRFS_FS_BALANCE_RUNNING,
-
-	/*
-	 * Indicate that relocation of a chunk has started, it's set per chunk
-	 * and is toggled between chunks.
-	 */
-	BTRFS_FS_RELOC_RUNNING,
-
-	/* Indicate that the cleaner thread is awake and doing something. */
-	BTRFS_FS_CLEANER_RUNNING,
-
-	/*
-	 * The checksumming has an optimized version and is considered fast,
-	 * so we don't need to offload checksums to workqueues.
-	 */
-	BTRFS_FS_CSUM_IMPL_FAST,
-
-	/* Indicate that the discard workqueue can service discards. */
-	BTRFS_FS_DISCARD_RUNNING,
-
-	/* Indicate that we need to cleanup space cache v1 */
-	BTRFS_FS_CLEANUP_SPACE_CACHE_V1,
-
-	/* Indicate that we can't trust the free space tree for caching yet */
-	BTRFS_FS_FREE_SPACE_TREE_UNTRUSTED,
-
-	/* Indicate whether there are any tree modification log users */
-	BTRFS_FS_TREE_MOD_LOG_USERS,
-
-	/* Indicate that we want the transaction kthread to commit right now. */
-	BTRFS_FS_COMMIT_TRANS,
-
-	/* Indicate we have half completed snapshot deletions pending. */
-	BTRFS_FS_UNFINISHED_DROPS,
-
-	/* Indicate we have to finish a zone to do next allocation. */
-	BTRFS_FS_NEED_ZONE_FINISH,
-
-#if BITS_PER_LONG == 32
-	/* Indicate if we have error/warn message printed on 32bit systems */
-	BTRFS_FS_32BIT_ERROR,
-	BTRFS_FS_32BIT_WARN,
-#endif
-};
-
 /*
  * Exclusive operations (device replace, resize, device add/remove, balance)
  */
@@ -1036,11 +973,6 @@ enum btrfs_lockdep_trans_states {
 		lockdep_init_map(&owner->btrfs_state_change_map[state], #lock,	\
 				 &lock##_key, 0);				\
 	} while (0)
-
-static inline void btrfs_wake_unfinished_drop(struct btrfs_fs_info *fs_info)
-{
-	clear_and_wake_up_bit(BTRFS_FS_UNFINISHED_DROPS, &fs_info->flags);
-}
 
 /*
  * Record swapped tree blocks of a subvolume tree for delayed subtree trace
