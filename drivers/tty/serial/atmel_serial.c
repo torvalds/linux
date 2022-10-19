@@ -859,10 +859,7 @@ static void atmel_complete_tx_dma(void *arg)
 
 	if (chan)
 		dmaengine_terminate_all(chan);
-	xmit->tail += atmel_port->tx_len;
-	xmit->tail &= UART_XMIT_SIZE - 1;
-
-	port->icount.tx += atmel_port->tx_len;
+	uart_xmit_advance(port, atmel_port->tx_len);
 
 	spin_lock_irq(&atmel_port->lock_tx);
 	async_tx_ack(atmel_port->desc_tx);
@@ -1455,11 +1452,7 @@ static void atmel_tx_pdc(struct uart_port *port)
 	/* nothing left to transmit? */
 	if (atmel_uart_readl(port, ATMEL_PDC_TCR))
 		return;
-
-	xmit->tail += pdc->ofs;
-	xmit->tail &= UART_XMIT_SIZE - 1;
-
-	port->icount.tx += pdc->ofs;
+	uart_xmit_advance(port, pdc->ofs);
 	pdc->ofs = 0;
 
 	/* more to transmit - setup next transfer */
