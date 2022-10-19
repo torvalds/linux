@@ -72,19 +72,17 @@ bias_to_this_cpu(struct task_struct *p, int cpu, int start_cpu)
 	return base_test && start_cap_test;
 }
 
-static inline bool task_demand_fits(struct task_struct *p, int cpu)
+static inline bool task_demand_fits(struct task_struct *p, int dst_cpu)
 {
-	unsigned long capacity = capacity_orig_of(cpu);
-
-	if (is_max_cluster_cpu(cpu))
+	if (is_max_cluster_cpu(dst_cpu))
 		return true;
 
 	if (!task_in_related_thread_group(p) && p->prio >= 124 &&
-			!is_min_cluster_cpu(cpu) && !is_max_cluster_cpu(cpu)) {
+			!is_min_cluster_cpu(dst_cpu) && !is_max_cluster_cpu(dst_cpu)) {
 		/* a non topapp low prio task fits on gold */
 		return true;
 	}
-	return task_fits_capacity(p, capacity, cpu);
+	return task_fits_capacity(p, dst_cpu);
 }
 
 struct find_best_target_env {

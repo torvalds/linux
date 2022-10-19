@@ -772,20 +772,20 @@ static bool check_for_higher_capacity(int cpu1, int cpu2)
 extern unsigned int sysctl_sched_early_up[MAX_MARGIN_LEVELS];
 extern unsigned int sysctl_sched_early_down[MAX_MARGIN_LEVELS];
 static inline bool task_fits_capacity(struct task_struct *p,
-					long capacity,
-					int cpu)
+					int dst_cpu)
 {
 	unsigned int margin;
+	unsigned long capacity = capacity_orig_of(dst_cpu);
 
 	/*
 	 * Derive upmigration/downmigrate margin wrt the src/dest CPU.
 	 */
-	if (check_for_higher_capacity(task_cpu(p), cpu)) {
-		margin = sched_capacity_margin_down[cpu];
+	if (check_for_higher_capacity(task_cpu(p), dst_cpu)) {
+		margin = sched_capacity_margin_down[dst_cpu];
 		if (task_in_related_thread_group(p)) {
-			if (is_min_cluster_cpu(cpu))
+			if (is_min_cluster_cpu(dst_cpu))
 				margin = sysctl_sched_early_down[0];
-			else if (!is_max_cluster_cpu(cpu))
+			else if (!is_max_cluster_cpu(dst_cpu))
 				margin = sysctl_sched_early_down[1];
 		}
 	} else {
@@ -801,19 +801,18 @@ static inline bool task_fits_capacity(struct task_struct *p,
 	return capacity * 1024 > uclamp_task_util(p) * margin;
 }
 
-static inline bool task_fits_max(struct task_struct *p, int cpu)
+static inline bool task_fits_max(struct task_struct *p, int dst_cpu)
 {
-	unsigned long capacity = capacity_orig_of(cpu);
 	unsigned long task_boost = per_task_boost(p);
 
-	if (is_max_cluster_cpu(cpu))
+	if (is_max_cluster_cpu(dst_cpu))
 		return true;
 
-	if (is_min_cluster_cpu(cpu)) {
+	if (is_min_cluster_cpu(dst_cpu)) {
 		if (task_boost_policy(p) == SCHED_BOOST_ON_BIG ||
 				task_boost > 0 ||
 				walt_uclamp_boosted(p) ||
-				walt_should_kick_upmigrate(p, cpu))
+				walt_should_kick_upmigrate(p, dst_cpu))
 			return false;
 	} else { /* mid cap cpu */
 		if (task_boost > TASK_BOOST_ON_MID)
@@ -823,7 +822,7 @@ static inline bool task_fits_max(struct task_struct *p, int cpu)
 			return true;
 	}
 
-	return task_fits_capacity(p, capacity, cpu);
+	return task_fits_capacity(p, dst_cpu);
 }
 
 extern struct sched_avg_stats *sched_get_nr_running_avg(void);
