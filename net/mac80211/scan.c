@@ -227,6 +227,8 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 						rx_status, beacon);
 	}
 
+	kfree(elems.nontx_profile);
+
 	return bss;
 }
 
