@@ -376,8 +376,7 @@ static void pic32_uart_do_tx(struct uart_port *port)
 
 		pic32_uart_writel(sport, PIC32_UART_TX, c);
 
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		port->icount.tx++;
+		uart_xmit_advance(port, 1);
 		if (uart_circ_empty(xmit))
 			break;
 		if (--max_count == 0)
