@@ -18,7 +18,7 @@ source "$lib_dir"/lag_lib.sh
 
 destroy()
 {
-	local ifnames=(dummy0 dummy1 team0 mv0)
+	local ifnames=(dummy1 dummy2 team0 mv0)
 	local ifname
 
 	for ifname in "${ifnames[@]}"; do
