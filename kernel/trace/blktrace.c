@@ -379,6 +379,7 @@ static int blk_trace_stop(struct blk_trace *bt)
 
 static void blk_trace_cleanup(struct request_queue *q, struct blk_trace *bt)
 {
+	blk_trace_stop(bt);
 	synchronize_rcu();
 	blk_trace_free(q, bt);
 	put_probe_ref();
@@ -393,8 +394,7 @@ static int __blk_trace_remove(struct request_queue *q)
 	if (!bt)
 		return -EINVAL;
 
-	if (bt->trace_state != Blktrace_running)
-		blk_trace_cleanup(q, bt);
+	blk_trace_cleanup(q, bt);
 
 	return 0;
 }
