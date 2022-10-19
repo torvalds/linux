@@ -1884,18 +1884,19 @@ static void dapm_widget_set_power(struct snd_soc_dapm_widget *w, bool power,
 
 	trace_snd_soc_dapm_widget_power(w, power);
 
-	/* If we changed our power state perhaps our neigbours changed
-	 * also.
+	/*
+	 * If we changed our power state perhaps our neigbours
+	 * changed also.
 	 */
 	snd_soc_dapm_widget_for_each_source_path(w, path)
 		dapm_widget_set_peer_power(path->source, power, path->connect);
 
-	/* Supplies can't affect their outputs, only their inputs */
-	if (!w->is_supply) {
+	/*
+	 * Supplies can't affect their outputs, only their inputs
+	 */
+	if (!w->is_supply)
 		snd_soc_dapm_widget_for_each_sink_path(w, path)
-			dapm_widget_set_peer_power(path->sink, power,
-						   path->connect);
-	}
+			dapm_widget_set_peer_power(path->sink, power, path->connect);
 
 	if (power)
 		dapm_seq_insert(w, up_list, true);
