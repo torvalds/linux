@@ -1524,7 +1524,6 @@
 		gen8_i2c: i2c@c250000 {
 			compatible = "nvidia,tegra194-i2c";
 			reg = <0xc250000 0x100>;
-			nvidia,hw-instance-id = <0x7>;
 			interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 			clock-frequency = <400000>;
