@@ -18,6 +18,21 @@
 	model = "Tolino Shine 2 HD";
 	compatible = "kobo,tolino-shine2hd", "fsl,imx6sl";
 
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&ec 0 50000>;
+		power-supply = <&backlight_regulator>;
+	};
+
+	backlight_regulator: regulator-backlight {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_backlight_power>;
+		regulator-name = "backlight";
+		gpio = <&gpio2 10 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
 	chosen {
 		stdout-path = &uart1;
 	};
@@ -298,6 +313,12 @@
 &iomuxc {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_hog>;
+
+	pinctrl_backlight_power: backlight-powergrp {
+		fsl,pins = <
+			MX6SL_PAD_EPDC_PWRCTRL3__GPIO2_IO10 0x10059
+		>;
+	};
 
 	pinctrl_gpio_keys: gpio-keysgrp {
 		fsl,pins = <
