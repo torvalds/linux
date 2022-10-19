@@ -21,7 +21,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/uaccess.h>
 #include <linux/mfd/syscon.h>
-#include <linux/clk-provider.h>
 
 #include <linux/videodev2.h>
 
@@ -72,7 +71,6 @@ static struct clk_bulk_data stfcamss_clocks[] = {
 	{ .id = "clk_m31dphy_txclkesc_lan0" },
 	{ .id = "clk_ispcore_2x" },
 	{ .id = "clk_isp_axi" },
-	{ .id = "clk_noc_bus_clk_isp_axi" },
 };
 
 static struct reset_control_bulk_data stfcamss_resets[] = {
@@ -1296,11 +1294,6 @@ err:
 static int stfcamss_runtime_suspend(struct device *dev)
 {
 	struct stfcamss *stfcamss = dev_get_drvdata(dev);
-
-	if (!__clk_is_enabled(stfcamss->sys_clk[STFCLK_NOC_BUS_CLK_ISP_AXI].clk))
-		clk_prepare_enable(stfcamss->sys_clk[STFCLK_NOC_BUS_CLK_ISP_AXI].clk);
-	else
-		st_warn(ST_VIN, "noc_bus_clk_isp_axi already enable\n");
 
 	reset_control_assert(stfcamss->sys_rst[STFRST_ISP_TOP_AXI].rstc);
 	reset_control_assert(stfcamss->sys_rst[STFRST_ISP_TOP_N].rstc);
