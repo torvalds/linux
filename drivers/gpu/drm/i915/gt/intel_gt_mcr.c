@@ -249,7 +249,7 @@ static u32 rw_with_mcr_steering_fw(struct intel_uncore *uncore,
 		intel_uncore_write_fw(uncore, MTL_MCR_SELECTOR,
 				      REG_FIELD_PREP(MTL_MCR_GROUPID, group) |
 				      REG_FIELD_PREP(MTL_MCR_INSTANCEID, instance) |
-				      (rw_flag == FW_REG_READ) ? GEN11_MCR_MULTICAST : 0);
+				      (rw_flag == FW_REG_READ ? GEN11_MCR_MULTICAST : 0));
 	} else if (GRAPHICS_VER(uncore->i915) >= 11) {
 		mcr_mask = GEN11_MCR_SLICE_MASK | GEN11_MCR_SUBSLICE_MASK;
 		mcr_ss = GEN11_MCR_SLICE(group) | GEN11_MCR_SUBSLICE(instance);
