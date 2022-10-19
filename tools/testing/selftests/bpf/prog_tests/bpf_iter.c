@@ -3,6 +3,7 @@
 #include <test_progs.h>
 #include <unistd.h>
 #include <sys/syscall.h>
+#include <task_local_storage_helpers.h>
 #include "bpf_iter_ipv6_route.skel.h"
 #include "bpf_iter_netlink.skel.h"
 #include "bpf_iter_bpf_map.skel.h"
@@ -175,11 +176,6 @@ static void test_bpf_map(void)
 	bpf_iter_bpf_map__destroy(skel);
 }
 
-static int pidfd_open(pid_t pid, unsigned int flags)
-{
-	return syscall(SYS_pidfd_open, pid, flags);
-}
-
 static void check_bpf_link_info(const struct bpf_program *prog)
 {
 	LIBBPF_OPTS(bpf_iter_attach_opts, opts);
@@ -295,8 +291,8 @@ static void test_task_pidfd(void)
 	union bpf_iter_link_info linfo;
 	int pidfd;
 
-	pidfd = pidfd_open(getpid(), 0);
-	if (!ASSERT_GT(pidfd, 0, "pidfd_open"))
+	pidfd = sys_pidfd_open(getpid(), 0);
+	if (!ASSERT_GT(pidfd, 0, "sys_pidfd_open"))
 		return;
 
 	memset(&linfo, 0, sizeof(linfo));
@@ -1498,7 +1494,6 @@ static noinline int trigger_func(int arg)
 static void test_task_vma_offset_common(struct bpf_iter_attach_opts *opts, bool one_proc)
 {
 	struct bpf_iter_vma_offset *skel;
-	struct bpf_link *link;
 	char buf[16] = {};
 	int iter_fd, len;
 	int pgsz, shift;
@@ -1513,11 +1508,11 @@ static void test_task_vma_offset_common(struct bpf_iter_attach_opts *opts, bool 
 		;
 	skel->bss->page_shift = shift;
 
-	link = bpf_program__attach_iter(skel->progs.get_vma_offset, opts);
-	if (!ASSERT_OK_PTR(link, "attach_iter"))
-		return;
+	skel->links.get_vma_offset = bpf_program__attach_iter(skel->progs.get_vma_offset, opts);
+	if (!ASSERT_OK_PTR(skel->links.get_vma_offset, "attach_iter"))
+		goto exit;
 
-	iter_fd = bpf_iter_create(bpf_link__fd(link));
+	iter_fd = bpf_iter_create(bpf_link__fd(skel->links.get_vma_offset));
 	if (!ASSERT_GT(iter_fd, 0, "create_iter"))
 		goto exit;
 
@@ -1535,7 +1530,7 @@ static void test_task_vma_offset_common(struct bpf_iter_attach_opts *opts, bool 
 	close(iter_fd);
 
 exit:
-	bpf_link__destroy(link);
+	bpf_iter_vma_offset__destroy(skel);
 }
 
 static void test_task_vma_offset(void)

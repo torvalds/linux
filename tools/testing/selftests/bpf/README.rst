@@ -14,10 +14,11 @@ It's now possible to run the selftests using ``tools/testing/selftests/bpf/vmtes
 The script tries to ensure that the tests are run with the same environment as they
 would be run post-submit in the CI used by the Maintainers.
 
-This script downloads a suitable Kconfig and VM userspace image from the system used by
-the CI. It builds the kernel (without overwriting your existing Kconfig), recompiles the
-bpf selftests, runs them (by default ``tools/testing/selftests/bpf/test_progs``) and
-saves the resulting output (by default in ``~/.bpf_selftests``).
+This script uses the in-tree kernel configuration and downloads a VM userspace
+image from the system used by the CI. It builds the kernel (without overwriting
+your existing Kconfig), recompiles the bpf selftests, runs them (by default
+``tools/testing/selftests/bpf/test_progs``) and saves the resulting output (by
+default in ``~/.bpf_selftests``).
 
 Script dependencies:
 - clang (preferably built from sources, https://github.com/llvm/llvm-project);
@@ -26,7 +27,7 @@ Script dependencies:
 - docutils (for ``rst2man``);
 - libcap-devel.
 
-For more information on about using the script, run:
+For more information about using the script, run:
 
 .. code-block:: console
 
