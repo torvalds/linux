@@ -21,7 +21,7 @@
 #include "tty.h"
 
 #define MIN_TTYB_SIZE	256
-#define TTYB_ALIGN_MASK	255
+#define TTYB_ALIGN_MASK	0xff
 
 /*
  * Byte threshold to limit memory consumption for flip buffers.
@@ -37,7 +37,7 @@
  * logic this must match.
  */
 
-#define TTY_BUFFER_PAGE	(((PAGE_SIZE - sizeof(struct tty_buffer)) / 2) & ~0xFF)
+#define TTY_BUFFER_PAGE	(((PAGE_SIZE - sizeof(struct tty_buffer)) / 2) & ~TTYB_ALIGN_MASK)
 
 /**
  * tty_buffer_lock_exclusive	-	gain exclusive access to buffer
