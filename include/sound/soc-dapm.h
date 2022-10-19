@@ -735,7 +735,7 @@ enum snd_soc_dapm_direction {
 #define SND_SOC_DAPM_EP_SINK	SND_SOC_DAPM_DIR_TO_EP(SND_SOC_DAPM_DIR_OUT)
 
 /**
- * snd_soc_dapm_widget_for_each_sink_path - Iterates over all paths in the
+ * snd_soc_dapm_widget_for_each_path - Iterates over all paths in the
  *   specified direction of a widget
  * @w: The widget
  * @dir: Whether to iterate over the paths where the specified widget is the
@@ -746,7 +746,7 @@ enum snd_soc_dapm_direction {
 	list_for_each_entry(p, &w->edges[dir], list_node[dir])
 
 /**
- * snd_soc_dapm_widget_for_each_sink_path_safe - Iterates over all paths in the
+ * snd_soc_dapm_widget_for_each_path_safe - Iterates over all paths in the
  *   specified direction of a widget
  * @w: The widget
  * @dir: Whether to iterate over the paths where the specified widget is the
@@ -754,7 +754,7 @@ enum snd_soc_dapm_direction {
  * @p: The path iterator variable
  * @next_p: Temporary storage for the next path
  *
- *  This function works like snd_soc_dapm_widget_for_each_sink_path, expect that
+ *  This function works like snd_soc_dapm_widget_for_each_path, expect that
  *  it is safe to remove the current path from the list while iterating
  */
 #define snd_soc_dapm_widget_for_each_path_safe(w, dir, p, next_p) \
