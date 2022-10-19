@@ -1481,7 +1481,7 @@ static int etm4_set_event_filters(struct etmv4_drvdata *drvdata,
 			/*
 			 * If filters::ssstatus == 1, trace acquisition was
 			 * started but the process was yanked away before the
-			 * the stop address was hit.  As such the start/stop
+			 * stop address was hit.  As such the start/stop
 			 * logic needs to be re-started so that tracing can
 			 * resume where it left.
 			 *
