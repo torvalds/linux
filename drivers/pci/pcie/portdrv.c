@@ -21,6 +21,15 @@
 #include "../pci.h"
 #include "portdrv.h"
 
+/*
+ * The PCIe Capability Interrupt Message Number (PCIe r3.1, sec 7.8.2) must
+ * be one of the first 32 MSI-X entries.  Per PCI r3.0, sec 6.8.3.1, MSI
+ * supports a maximum of 32 vectors per function.
+ */
+#define PCIE_PORT_MAX_MSI_ENTRIES	32
+
+#define get_descriptor_id(type, service) (((type - 4) << 8) | service)
+
 struct portdrv_service_data {
 	struct pcie_port_service_driver *drv;
 	struct device *dev;
