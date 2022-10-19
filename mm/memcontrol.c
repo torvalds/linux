@@ -5648,15 +5648,21 @@ static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
 static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
 			unsigned long addr, pte_t ptent)
 {
+	unsigned long index;
+	struct folio *folio;
+
 	if (!vma->vm_file) /* anonymous vma */
 		return NULL;
 	if (!(mc.flags & MOVE_FILE))
 		return NULL;
 
-	/* page is moved even if it's not RSS of this task(page-faulted). */
+	/* folio is moved even if it's not RSS of this task(page-faulted). */
 	/* shmem/tmpfs may report page out on swap: account for that too. */
-	return find_get_incore_page(vma->vm_file->f_mapping,
-			linear_page_index(vma, addr));
+	index = linear_page_index(vma, addr);
+	folio = filemap_get_incore_folio(vma->vm_file->f_mapping, index);
+	if (!folio)
+		return NULL;
+	return folio_file_page(folio, index);
 }
 
 /**

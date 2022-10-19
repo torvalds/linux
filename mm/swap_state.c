@@ -373,16 +373,17 @@ struct folio *swap_cache_get_folio(swp_entry_t entry,
 }
 
 /**
- * find_get_incore_page - Find and get a page from the page or swap caches.
+ * filemap_get_incore_folio - Find and get a folio from the page or swap caches.
  * @mapping: The address_space to search.
  * @index: The page cache index.
  *
- * This differs from find_get_page() in that it will also look for the
- * page in the swap cache.
+ * This differs from filemap_get_folio() in that it will also look for the
+ * folio in the swap cache.
  *
- * Return: The found page or %NULL.
+ * Return: The found folio or %NULL.
  */
-struct page *find_get_incore_page(struct address_space *mapping, pgoff_t index)
+struct folio *filemap_get_incore_folio(struct address_space *mapping,
+		pgoff_t index)
 {
 	swp_entry_t swp;
 	struct swap_info_struct *si;
@@ -405,9 +406,7 @@ struct page *find_get_incore_page(struct address_space *mapping, pgoff_t index)
 	folio = filemap_get_folio(swap_address_space(swp), index);
 	put_swap_device(si);
 out:
-	if (!folio)
-		return NULL;
-	return folio_file_page(folio, index);
+	return folio;
 }
 
 struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
