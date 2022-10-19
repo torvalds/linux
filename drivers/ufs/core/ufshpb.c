@@ -383,7 +383,7 @@ int ufshpb_prep(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 	rgn = hpb->rgn_tbl + rgn_idx;
 	srgn = rgn->srgn_tbl + srgn_idx;
 
-	/* If command type is WRITE or DISCARD, set bitmap as drity */
+	/* If command type is WRITE or DISCARD, set bitmap as dirty */
 	if (ufshpb_is_write_or_discard(cmd)) {
 		ufshpb_iterate_rgn(hpb, rgn_idx, srgn_idx, srgn_offset,
 				   transfer_len, true);
