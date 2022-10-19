@@ -711,6 +711,9 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 		 * is done in legacy setprop path for us.  Disallow (for
 		 * now?) atomic writes to DPMS property:
 		 */
+		drm_dbg_atomic(dev,
+			       "legacy [PROP:%d:%s] can only be set via legacy uAPI\n",
+			       property->base.id, property->name);
 		return -EINVAL;
 	} else if (property == config->tv_select_subconnector_property) {
 		state->tv.select_subconnector = val;
