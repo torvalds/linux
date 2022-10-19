@@ -625,9 +625,7 @@ static void gen5_rps_disable(struct intel_rps *rps)
 	rgvswctl = intel_uncore_read16(uncore, MEMSWCTL);
 
 	/* Ack interrupts, disable EFC interrupt */
-	intel_uncore_write(uncore, MEMINTREN,
-			   intel_uncore_read(uncore, MEMINTREN) &
-			   ~MEMINT_EVAL_CHG_EN);
+	intel_uncore_rmw(uncore, MEMINTREN, MEMINT_EVAL_CHG_EN, 0);
 	intel_uncore_write(uncore, MEMINTRSTS, MEMINT_EVAL_CHG);
 
 	/* Go back to the starting frequency */
