@@ -54,7 +54,8 @@ void __iomem *jh7110_clk_reg_addr_get(struct jh7110_clk *clk)
 static u32 jh7110_clk_reg_get(struct jh7110_clk *clk)
 {
 	void __iomem *reg = jh7110_clk_reg_addr_get(clk);
-	if (clk->reg_flags == JH7110_CLK_ISP_FLAG) {
+
+	if ((clk->reg_flags == JH7110_CLK_ISP_FLAG) || (clk->reg_flags == JH7110_CLK_VOUT_FLAG)) {
 		int ret;
 		struct jh7110_clk_priv *priv = jh7110_priv_from(clk);
 
