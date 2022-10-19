@@ -10,7 +10,7 @@
 #include <linux/completion.h>
 #include <linux/bug.h>
 #include <crypto/hash.h>
-
+#include "messages.h"
 #include "ctree.h"
 #include "discard.h"
 #include "disk-io.h"

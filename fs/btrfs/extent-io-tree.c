@@ -2,6 +2,7 @@
 
 #include <linux/slab.h>
 #include <trace/events/btrfs.h>
+#include "messages.h"
 #include "ctree.h"
 #include "extent-io-tree.h"
 #include "btrfs_inode.h"

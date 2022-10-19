@@ -5,6 +5,7 @@
 
 #include <linux/uuid.h>
 #include <asm/unaligned.h>
+#include "messages.h"
 #include "ctree.h"
 #include "transaction.h"
 #include "disk-io.h"

@@ -3,6 +3,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include "messages.h"
 #include "ctree.h"
 #include "volumes.h"
 #include "extent_map.h"

@@ -5,6 +5,7 @@
 
 #include <linux/err.h>
 #include <linux/uuid.h>
+#include "messages.h"
 #include "ctree.h"
 #include "transaction.h"
 #include "disk-io.h"

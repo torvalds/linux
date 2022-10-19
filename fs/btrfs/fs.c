@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include "messages.h"
 #include "ctree.h"
 #include "fs.h"
 

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include "messages.h"
 #include "tree-mod-log.h"
 #include "disk-io.h"
 
