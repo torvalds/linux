@@ -373,27 +373,6 @@ void arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size)
 		regs->pstate &= ~PSR_BTYPE_MASK;
 }
 
-static LIST_HEAD(undef_hook);
-static DEFINE_RAW_SPINLOCK(undef_lock);
-
-void register_undef_hook(struct undef_hook *hook)
-{
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&undef_lock, flags);
-	list_add(&hook->node, &undef_hook);
-	raw_spin_unlock_irqrestore(&undef_lock, flags);
-}
-
-void unregister_undef_hook(struct undef_hook *hook)
-{
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&undef_lock, flags);
-	list_del(&hook->node);
-	raw_spin_unlock_irqrestore(&undef_lock, flags);
-}
-
 static int user_insn_read(struct pt_regs *regs, u32 *insnp)
 {
 	u32 instr;
@@ -423,23 +402,6 @@ static int user_insn_read(struct pt_regs *regs, u32 *insnp)
 
 	*insnp = instr;
 	return 0;
-}
-
-static int call_undef_hook(struct pt_regs *regs, u32 instr)
-{
-	struct undef_hook *hook;
-	unsigned long flags;
-	int (*fn)(struct pt_regs *regs, u32 instr) = NULL;
-
-	raw_spin_lock_irqsave(&undef_lock, flags);
-	list_for_each_entry(hook, &undef_hook, node)
-		if ((instr & hook->instr_mask) == hook->instr_val &&
-			(regs->pstate & hook->pstate_mask) == hook->pstate_val)
-			fn = hook->fn;
-
-	raw_spin_unlock_irqrestore(&undef_lock, flags);
-
-	return fn ? fn(regs, instr) : 1;
 }
 
 void force_signal_inject(int signal, int code, unsigned long address, unsigned long err)
@@ -502,7 +464,7 @@ void do_el0_undef(struct pt_regs *regs, unsigned long esr)
 	if (try_emulate_mrs(regs, insn))
 		return;
 
-	if (call_undef_hook(regs, insn) == 0)
+	if (try_emulate_armv8_deprecated(regs, insn))
 		return;
 
 out_err:
