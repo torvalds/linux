@@ -1026,7 +1026,7 @@ static int stfcamss_probe(struct platform_device *pdev)
 	stfcamss->nrsts = ARRAY_SIZE(stfcamss_resets);
 	stfcamss->sys_rst = stfcamss_resets;
 
-	ret = devm_reset_control_bulk_get_exclusive(dev, stfcamss->nrsts,
+	ret = devm_reset_control_bulk_get_shared(dev, stfcamss->nrsts,
 		stfcamss->sys_rst);
 	if (ret) {
 		st_err(ST_CAMSS, "Failed to get reset controls\n");
