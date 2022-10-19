@@ -61,7 +61,7 @@ static const int32_t numerator01[] = { 31308,   180000, 0,  0,  0};
 static const int32_t numerator02[] = { 12920,   4500,   0,  0,  0};
 static const int32_t numerator03[] = { 55,      99,     0,  0,  0};
 static const int32_t numerator04[] = { 55,      99,     0,  0,  0};
-static const int32_t numerator05[] = { 2400,    2200,   2200, 2400, 2600};
+static const int32_t numerator05[] = { 2400,    2222,   2200, 2400, 2600};
 
 /* one-time setup of X points */
 void setup_x_points_distribution(void)
