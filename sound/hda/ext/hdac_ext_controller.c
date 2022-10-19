@@ -225,9 +225,7 @@ int snd_hdac_ext_bus_link_power_up_all(struct hdac_bus *bus)
 	int ret;
 
 	list_for_each_entry(hlink, &bus->hlink_list, list) {
-		snd_hdac_updatel(hlink->ml_addr, AZX_REG_ML_LCTL,
-				 AZX_ML_LCTL_SPA, AZX_ML_LCTL_SPA);
-		ret = check_hdac_link_power_active(hlink, true);
+		ret = snd_hdac_ext_bus_link_power_up(hlink);
 		if (ret < 0)
 			return ret;
 	}
@@ -246,9 +244,7 @@ int snd_hdac_ext_bus_link_power_down_all(struct hdac_bus *bus)
 	int ret;
 
 	list_for_each_entry(hlink, &bus->hlink_list, list) {
-		snd_hdac_updatel(hlink->ml_addr, AZX_REG_ML_LCTL,
-				 AZX_ML_LCTL_SPA, 0);
-		ret = check_hdac_link_power_active(hlink, false);
+		ret = snd_hdac_ext_bus_link_power_down(hlink);
 		if (ret < 0)
 			return ret;
 	}
