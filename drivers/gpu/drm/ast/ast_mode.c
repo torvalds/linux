@@ -1767,7 +1767,6 @@ static const struct drm_mode_config_funcs ast_mode_config_funcs = {
 int ast_mode_config_init(struct ast_private *ast)
 {
 	struct drm_device *dev = &ast->base;
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	int ret;
 
 	ret = drmm_mode_config_init(dev);
@@ -1778,7 +1777,6 @@ int ast_mode_config_init(struct ast_private *ast)
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
 	dev->mode_config.preferred_depth = 24;
-	dev->mode_config.fb_base = pci_resource_start(pdev, 0);
 
 	if (ast->chip == AST2100 ||
 	    ast->chip == AST2200 ||
