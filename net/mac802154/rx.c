@@ -34,6 +34,7 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 		       struct sk_buff *skb, const struct ieee802154_hdr *hdr)
 {
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct wpan_phy *wpan_phy = sdata->local->hw.phy;
 	__le16 span, sshort;
 	int rc;
 
@@ -41,6 +42,17 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 
 	span = wpan_dev->pan_id;
 	sshort = wpan_dev->short_addr;
+
+	/* Level 3 filtering: Only beacons are accepted during scans */
+	if (sdata->required_filtering == IEEE802154_FILTERING_3_SCAN &&
+	    sdata->required_filtering > wpan_phy->filtering) {
+		if (mac_cb(skb)->type != IEEE802154_FC_TYPE_BEACON) {
+			dev_dbg(&sdata->dev->dev,
+				"drop non-beacon frame (0x%x) during scan\n",
+				mac_cb(skb)->type);
+			goto fail;
+		}
+	}
 
 	switch (mac_cb(skb)->dest.mode) {
 	case IEEE802154_ADDR_NONE:
@@ -276,10 +288,6 @@ void ieee802154_rx(struct ieee802154_local *local, struct sk_buff *skb)
 	rcu_read_lock();
 
 	ieee802154_monitors_rx(local, skb);
-
-	/* TODO: Handle upcomming receive path where the PHY is at the
-	 * IEEE802154_FILTERING_NONE level during a scan.
-	 */
 
 	/* Level 1 filtering: Check the FCS by software when relevant */
 	if (local->hw.phy->filtering == IEEE802154_FILTERING_NONE) {
