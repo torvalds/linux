@@ -44,6 +44,12 @@ void __btrfs_set_fs_compat_ro(struct btrfs_fs_info *fs_info, u64 flag,
 void __btrfs_clear_fs_compat_ro(struct btrfs_fs_info *fs_info, u64 flag,
 				const char *name);
 
+#define __btrfs_fs_incompat(fs_info, flags)				\
+	(!!(btrfs_super_incompat_flags((fs_info)->super_copy) & (flags)))
+
+#define __btrfs_fs_compat_ro(fs_info, flags)				\
+	(!!(btrfs_super_compat_ro_flags((fs_info)->super_copy) & (flags)))
+
 #define btrfs_set_fs_incompat(__fs_info, opt)				\
 	__btrfs_set_fs_incompat((__fs_info), BTRFS_FEATURE_INCOMPAT_##opt, #opt)
 
@@ -61,20 +67,6 @@ void __btrfs_clear_fs_compat_ro(struct btrfs_fs_info *fs_info, u64 flag,
 
 #define btrfs_fs_compat_ro(fs_info, opt)				\
 	__btrfs_fs_compat_ro((fs_info), BTRFS_FEATURE_COMPAT_RO_##opt)
-
-static inline bool __btrfs_fs_incompat(struct btrfs_fs_info *fs_info, u64 flag)
-{
-	struct btrfs_super_block *disk_super;
-	disk_super = fs_info->super_copy;
-	return !!(btrfs_super_incompat_flags(disk_super) & flag);
-}
-
-static inline int __btrfs_fs_compat_ro(struct btrfs_fs_info *fs_info, u64 flag)
-{
-	struct btrfs_super_block *disk_super;
-	disk_super = fs_info->super_copy;
-	return !!(btrfs_super_compat_ro_flags(disk_super) & flag);
-}
 
 static inline int btrfs_fs_closing(struct btrfs_fs_info *fs_info)
 {
