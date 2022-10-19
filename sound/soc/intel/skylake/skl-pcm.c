@@ -190,9 +190,9 @@ int skl_pcm_link_dma_prepare(struct device *dev, struct skl_pipe_params *params)
 	dev_dbg(dev, "format_val=%d, rate=%d, ch=%d, format=%d\n",
 		format_val, params->s_freq, params->ch, params->format);
 
-	snd_hdac_ext_link_stream_reset(stream);
+	snd_hdac_ext_stream_reset(stream);
 
-	snd_hdac_ext_link_stream_setup(stream, format_val);
+	snd_hdac_ext_stream_setup(stream, format_val);
 
 	stream_tag = hstream->stream_tag;
 	if (stream->hstream.direction == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -612,13 +612,13 @@ static int skl_link_pcm_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		snd_hdac_ext_link_stream_start(link_dev);
+		snd_hdac_ext_stream_start(link_dev);
 		break;
 
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
-		snd_hdac_ext_link_stream_clear(link_dev);
+		snd_hdac_ext_stream_clear(link_dev);
 		if (cmd == SNDRV_PCM_TRIGGER_SUSPEND)
 			snd_hdac_ext_stream_decouple(bus, stream, false);
 		break;

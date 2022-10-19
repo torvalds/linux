@@ -154,7 +154,7 @@ static int hda_link_dma_cleanup(struct snd_pcm_substream *substream,
 		return -EINVAL;
 
 	if (trigger_suspend_stop)
-		snd_hdac_ext_link_stream_clear(hext_stream);
+		snd_hdac_ext_stream_clear(hext_stream);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		stream_tag = hdac_stream(hext_stream)->stream_tag;
@@ -180,7 +180,7 @@ static int hda_link_dma_params(struct hdac_ext_stream *hext_stream,
 	struct hdac_ext_link *hlink;
 	unsigned int format_val;
 
-	snd_hdac_ext_link_stream_reset(hext_stream);
+	snd_hdac_ext_stream_reset(hext_stream);
 
 	format_val = snd_hdac_calc_stream_format(params->s_freq, params->ch,
 						 params->format,
@@ -189,7 +189,7 @@ static int hda_link_dma_params(struct hdac_ext_stream *hext_stream,
 	dev_dbg(bus->dev, "format_val=%d, rate=%d, ch=%d, format=%d\n",
 		format_val, params->s_freq, params->ch, params->format);
 
-	snd_hdac_ext_link_stream_setup(hext_stream, format_val);
+	snd_hdac_ext_stream_setup(hext_stream, format_val);
 
 	if (hext_stream->hstream.direction == SNDRV_PCM_STREAM_PLAYBACK) {
 		list_for_each_entry(hlink, &bus->hlink_list, list) {
@@ -270,7 +270,7 @@ static int hda_link_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		snd_hdac_ext_link_stream_start(hext_stream);
+		snd_hdac_ext_stream_start(hext_stream);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -280,7 +280,7 @@ static int hda_link_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		snd_hdac_ext_link_stream_clear(hext_stream);
+		snd_hdac_ext_stream_clear(hext_stream);
 
 		break;
 	default:
@@ -476,7 +476,7 @@ static int ipc4_hda_dai_trigger(struct snd_pcm_substream *substream,
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		snd_hdac_ext_link_stream_start(hext_stream);
+		snd_hdac_ext_stream_start(hext_stream);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -491,7 +491,7 @@ static int ipc4_hda_dai_trigger(struct snd_pcm_substream *substream,
 
 		pipeline->state = SOF_IPC4_PIPE_PAUSED;
 
-		snd_hdac_ext_link_stream_clear(hext_stream);
+		snd_hdac_ext_stream_clear(hext_stream);
 
 		ret = sof_ipc4_set_pipeline_state(sdev, swidget->pipeline_id,
 						  SOF_IPC4_PIPE_RESET);
@@ -519,7 +519,7 @@ static int ipc4_hda_dai_trigger(struct snd_pcm_substream *substream,
 
 		pipeline->state = SOF_IPC4_PIPE_PAUSED;
 
-		snd_hdac_ext_link_stream_clear(hext_stream);
+		snd_hdac_ext_stream_clear(hext_stream);
 		break;
 	}
 	default:

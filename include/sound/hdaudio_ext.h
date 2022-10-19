@@ -100,10 +100,10 @@ int snd_hdac_ext_stream_set_dpibr(struct hdac_bus *bus,
 				struct hdac_ext_stream *hext_stream, u32 value);
 int snd_hdac_ext_stream_set_lpib(struct hdac_ext_stream *hext_stream, u32 value);
 
-void snd_hdac_ext_link_stream_start(struct hdac_ext_stream *hext_stream);
-void snd_hdac_ext_link_stream_clear(struct hdac_ext_stream *hext_stream);
-void snd_hdac_ext_link_stream_reset(struct hdac_ext_stream *hext_stream);
-int snd_hdac_ext_link_stream_setup(struct hdac_ext_stream *hext_stream, int fmt);
+void snd_hdac_ext_stream_start(struct hdac_ext_stream *hext_stream);
+void snd_hdac_ext_stream_clear(struct hdac_ext_stream *hext_stream);
+void snd_hdac_ext_stream_reset(struct hdac_ext_stream *hext_stream);
+int snd_hdac_ext_stream_setup(struct hdac_ext_stream *hext_stream, int fmt);
 
 struct hdac_ext_link {
 	struct hdac_bus *bus;

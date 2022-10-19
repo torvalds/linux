@@ -140,36 +140,36 @@ void snd_hdac_ext_stream_decouple(struct hdac_bus *bus,
 EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_decouple);
 
 /**
- * snd_hdac_ext_link_stream_start - start a stream
+ * snd_hdac_ext_stream_start - start a stream
  * @hext_stream: HD-audio ext core stream to start
  */
-void snd_hdac_ext_link_stream_start(struct hdac_ext_stream *hext_stream)
+void snd_hdac_ext_stream_start(struct hdac_ext_stream *hext_stream)
 {
 	snd_hdac_updatel(hext_stream->pplc_addr, AZX_REG_PPLCCTL,
 			 AZX_PPLCCTL_RUN, AZX_PPLCCTL_RUN);
 }
-EXPORT_SYMBOL_GPL(snd_hdac_ext_link_stream_start);
+EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_start);
 
 /**
- * snd_hdac_ext_link_stream_clear - stop a stream DMA
+ * snd_hdac_ext_stream_clear - stop a stream DMA
  * @hext_stream: HD-audio ext core stream to stop
  */
-void snd_hdac_ext_link_stream_clear(struct hdac_ext_stream *hext_stream)
+void snd_hdac_ext_stream_clear(struct hdac_ext_stream *hext_stream)
 {
 	snd_hdac_updatel(hext_stream->pplc_addr, AZX_REG_PPLCCTL, AZX_PPLCCTL_RUN, 0);
 }
-EXPORT_SYMBOL_GPL(snd_hdac_ext_link_stream_clear);
+EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_clear);
 
 /**
- * snd_hdac_ext_link_stream_reset - reset a stream
+ * snd_hdac_ext_stream_reset - reset a stream
  * @hext_stream: HD-audio ext core stream to reset
  */
-void snd_hdac_ext_link_stream_reset(struct hdac_ext_stream *hext_stream)
+void snd_hdac_ext_stream_reset(struct hdac_ext_stream *hext_stream)
 {
 	unsigned char val;
 	int timeout;
 
-	snd_hdac_ext_link_stream_clear(hext_stream);
+	snd_hdac_ext_stream_clear(hext_stream);
 
 	snd_hdac_updatel(hext_stream->pplc_addr, AZX_REG_PPLCCTL,
 			 AZX_PPLCCTL_STRST, AZX_PPLCCTL_STRST);
@@ -196,20 +196,20 @@ void snd_hdac_ext_link_stream_reset(struct hdac_ext_stream *hext_stream)
 	} while (--timeout);
 
 }
-EXPORT_SYMBOL_GPL(snd_hdac_ext_link_stream_reset);
+EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_reset);
 
 /**
- * snd_hdac_ext_link_stream_setup -  set up the SD for streaming
+ * snd_hdac_ext_stream_setup -  set up the SD for streaming
  * @hext_stream: HD-audio ext core stream to set up
  * @fmt: stream format
  */
-int snd_hdac_ext_link_stream_setup(struct hdac_ext_stream *hext_stream, int fmt)
+int snd_hdac_ext_stream_setup(struct hdac_ext_stream *hext_stream, int fmt)
 {
 	struct hdac_stream *hstream = &hext_stream->hstream;
 	unsigned int val;
 
 	/* make sure the run bit is zero for SD */
-	snd_hdac_ext_link_stream_clear(hext_stream);
+	snd_hdac_ext_stream_clear(hext_stream);
 	/* program the stream_tag */
 	val = readl(hext_stream->pplc_addr + AZX_REG_PPLCCTL);
 	val = (val & ~AZX_PPLCCTL_STRM_MASK) |
@@ -221,7 +221,7 @@ int snd_hdac_ext_link_stream_setup(struct hdac_ext_stream *hext_stream, int fmt)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_hdac_ext_link_stream_setup);
+EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_setup);
 
 /**
  * snd_hdac_ext_link_set_stream_id - maps stream id to link output
