@@ -216,9 +216,6 @@ int stf_vin_subdev_init(struct stfcamss *stfcamss)
 		goto out;
 	}
 
-	vin_dev->hw_ops->vin_wr_irq_enable(vin_dev, 1);
-	vin_dev->hw_ops->vin_wr_irq_enable(vin_dev, 0);
-
 	mutex_init(&vin_dev->power_lock);
 	vin_dev->power_count = 0;
 
