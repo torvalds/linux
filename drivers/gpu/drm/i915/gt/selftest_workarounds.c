@@ -139,9 +139,7 @@ read_nonprivs(struct intel_context *ce)
 	}
 
 	i915_vma_lock(vma);
-	err = i915_request_await_object(rq, vma->obj, true);
-	if (err == 0)
-		err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
 	i915_vma_unlock(vma);
 	if (err)
 		goto err_req;
@@ -632,16 +630,12 @@ retry:
 				goto err_request;
 		}
 
-		err = i915_request_await_object(rq, batch->obj, false);
-		if (err == 0)
-			err = i915_vma_move_to_active(batch, rq, 0);
+		err = i915_vma_move_to_active(batch, rq, 0);
 		if (err)
 			goto err_request;
 
-		err = i915_request_await_object(rq, scratch->obj, true);
-		if (err == 0)
-			err = i915_vma_move_to_active(scratch, rq,
-						      EXEC_OBJECT_WRITE);
+		err = i915_vma_move_to_active(scratch, rq,
+					      EXEC_OBJECT_WRITE);
 		if (err)
 			goto err_request;
 
@@ -860,9 +854,7 @@ static int read_whitelisted_registers(struct intel_context *ce,
 		return PTR_ERR(rq);
 
 	i915_vma_lock(results);
-	err = i915_request_await_object(rq, results->obj, true);
-	if (err == 0)
-		err = i915_vma_move_to_active(results, rq, EXEC_OBJECT_WRITE);
+	err = i915_vma_move_to_active(results, rq, EXEC_OBJECT_WRITE);
 	i915_vma_unlock(results);
 	if (err)
 		goto err_req;
@@ -944,9 +936,7 @@ static int scrub_whitelisted_registers(struct intel_context *ce)
 	}
 
 	i915_vma_lock(batch);
-	err = i915_request_await_object(rq, batch->obj, false);
-	if (err == 0)
-		err = i915_vma_move_to_active(batch, rq, 0);
+	err = i915_vma_move_to_active(batch, rq, 0);
 	i915_vma_unlock(batch);
 	if (err)
 		goto err_request;

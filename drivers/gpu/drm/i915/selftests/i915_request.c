@@ -1223,9 +1223,7 @@ static int live_all_engines(void *arg)
 			goto out_request;
 		}
 
-		err = i915_request_await_object(request[idx], batch->obj, 0);
-		if (err == 0)
-			err = i915_vma_move_to_active(batch, request[idx], 0);
+		err = i915_vma_move_to_active(batch, request[idx], 0);
 		GEM_BUG_ON(err);
 
 		err = engine->emit_bb_start(request[idx],
@@ -1352,10 +1350,7 @@ static int live_sequential_engines(void *arg)
 			}
 		}
 
-		err = i915_request_await_object(request[idx],
-						batch->obj, false);
-		if (err == 0)
-			err = i915_vma_move_to_active(batch, request[idx], 0);
+		err = i915_vma_move_to_active(batch, request[idx], 0);
 		GEM_BUG_ON(err);
 
 		err = engine->emit_bb_start(request[idx],

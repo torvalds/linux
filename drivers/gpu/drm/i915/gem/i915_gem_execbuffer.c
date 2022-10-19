@@ -53,13 +53,13 @@ enum {
 #define DBG_FORCE_RELOC 0 /* choose one of the above! */
 };
 
-/* __EXEC_OBJECT_NO_RESERVE is BIT(31), defined in i915_vma.h */
-#define __EXEC_OBJECT_HAS_PIN		BIT(30)
-#define __EXEC_OBJECT_HAS_FENCE		BIT(29)
-#define __EXEC_OBJECT_USERPTR_INIT	BIT(28)
-#define __EXEC_OBJECT_NEEDS_MAP		BIT(27)
-#define __EXEC_OBJECT_NEEDS_BIAS	BIT(26)
-#define __EXEC_OBJECT_INTERNAL_FLAGS	(~0u << 26) /* all of the above + */
+/* __EXEC_OBJECT_ flags > BIT(29) defined in i915_vma.h */
+#define __EXEC_OBJECT_HAS_PIN		BIT(29)
+#define __EXEC_OBJECT_HAS_FENCE		BIT(28)
+#define __EXEC_OBJECT_USERPTR_INIT	BIT(27)
+#define __EXEC_OBJECT_NEEDS_MAP		BIT(26)
+#define __EXEC_OBJECT_NEEDS_BIAS	BIT(25)
+#define __EXEC_OBJECT_INTERNAL_FLAGS	(~0u << 25) /* all of the above + */
 #define __EXEC_OBJECT_RESERVED (__EXEC_OBJECT_HAS_PIN | __EXEC_OBJECT_HAS_FENCE)
 
 #define __EXEC_HAS_RELOC	BIT(31)
@@ -2101,7 +2101,8 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 						       eb->composite_fence ?
 						       eb->composite_fence :
 						       &eb->requests[j]->fence,
-						       flags | __EXEC_OBJECT_NO_RESERVE);
+						       flags | __EXEC_OBJECT_NO_RESERVE |
+						       __EXEC_OBJECT_NO_REQUEST_AWAIT);
 		}
 	}
 

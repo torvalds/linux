@@ -1844,6 +1844,11 @@ int _i915_vma_move_to_active(struct i915_vma *vma,
 
 	GEM_BUG_ON(!vma->pages);
 
+	if (!(flags & __EXEC_OBJECT_NO_REQUEST_AWAIT)) {
+		err = i915_request_await_object(rq, vma->obj, flags & EXEC_OBJECT_WRITE);
+		if (unlikely(err))
+			return err;
+	}
 	err = __i915_vma_move_to_active(vma, rq);
 	if (unlikely(err))
 		return err;

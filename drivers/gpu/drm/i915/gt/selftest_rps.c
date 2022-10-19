@@ -652,9 +652,7 @@ int live_rps_frequency_cs(void *arg)
 			goto err_vma;
 		}
 
-		err = i915_request_await_object(rq, vma->obj, false);
-		if (!err)
-			err = i915_vma_move_to_active(vma, rq, 0);
+		err = i915_vma_move_to_active(vma, rq, 0);
 		if (!err)
 			err = rq->engine->emit_bb_start(rq,
 							vma->node.start,
@@ -793,9 +791,7 @@ int live_rps_frequency_srm(void *arg)
 			goto err_vma;
 		}
 
-		err = i915_request_await_object(rq, vma->obj, false);
-		if (!err)
-			err = i915_vma_move_to_active(vma, rq, 0);
+		err = i915_vma_move_to_active(vma, rq, 0);
 		if (!err)
 			err = rq->engine->emit_bb_start(rq,
 							vma->node.start,

@@ -464,9 +464,7 @@ static int move_to_active(struct i915_vma *vma,
 	int err;
 
 	i915_vma_lock(vma);
-	err = i915_request_await_object(rq, vma->obj, false);
-	if (err == 0)
-		err = i915_vma_move_to_active(vma, rq, flags);
+	err = i915_vma_move_to_active(vma, rq, flags);
 	i915_vma_unlock(vma);
 
 	return err;

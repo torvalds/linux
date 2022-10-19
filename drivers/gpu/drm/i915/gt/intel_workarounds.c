@@ -3189,9 +3189,7 @@ retry:
 		goto err_vma;
 	}
 
-	err = i915_request_await_object(rq, vma->obj, true);
-	if (err == 0)
-		err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
+	err = i915_vma_move_to_active(vma, rq, EXEC_OBJECT_WRITE);
 	if (err == 0)
 		err = wa_list_srm(rq, wal, vma);
 

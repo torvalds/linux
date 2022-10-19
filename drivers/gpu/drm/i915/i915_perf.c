@@ -2253,9 +2253,7 @@ retry:
 			goto err_add_request;
 	}
 
-	err = i915_request_await_object(rq, vma->obj, 0);
-	if (!err)
-		err = i915_vma_move_to_active(vma, rq, 0);
+	err = i915_vma_move_to_active(vma, rq, 0);
 	if (err)
 		goto err_add_request;
 
