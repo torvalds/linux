@@ -23,9 +23,6 @@ void snd_hdac_ext_bus_device_remove(struct hdac_bus *bus);
 void snd_hdac_ext_bus_ppcap_enable(struct hdac_bus *chip, bool enable);
 void snd_hdac_ext_bus_ppcap_int_enable(struct hdac_bus *chip, bool enable);
 
-void snd_hdac_ext_stream_spbcap_enable(struct hdac_bus *chip,
-				 bool enable, int index);
-
 int snd_hdac_ext_bus_get_ml_capabilities(struct hdac_bus *bus);
 struct hdac_ext_link *snd_hdac_ext_bus_get_hlink_by_addr(struct hdac_bus *bus, int addr);
 struct hdac_ext_link *snd_hdac_ext_bus_get_hlink_by_name(struct hdac_bus *bus,
@@ -43,11 +40,6 @@ enum hdac_ext_stream_type {
  * @hstream: hdac_stream
  * @pphc_addr: processing pipe host stream pointer
  * @pplc_addr: processing pipe link stream pointer
- * @spib_addr: software position in buffers stream pointer
- * @fifo_addr: software position Max fifos stream pointer
- * @dpibr_addr: DMA position in buffer resume pointer
- * @dpib: DMA position in buffer
- * @lpib: Linear position in buffer
  * @decoupled: stream host and link is decoupled
  * @link_locked: link is locked
  * @link_prepared: link is prepared
@@ -59,13 +51,6 @@ struct hdac_ext_stream {
 	void __iomem *pphc_addr;
 	void __iomem *pplc_addr;
 
-	void __iomem *spib_addr;
-	void __iomem *fifo_addr;
-
-	void __iomem *dpibr_addr;
-
-	u32 dpib;
-	u32 lpib;
 	bool decoupled:1;
 	bool link_locked:1;
 	bool link_prepared;
@@ -89,16 +74,6 @@ void snd_hdac_ext_stream_decouple_locked(struct hdac_bus *bus,
 					 struct hdac_ext_stream *hext_stream, bool decouple);
 void snd_hdac_ext_stream_decouple(struct hdac_bus *bus,
 				struct hdac_ext_stream *azx_dev, bool decouple);
-
-int snd_hdac_ext_stream_set_spib(struct hdac_bus *bus,
-				 struct hdac_ext_stream *hext_stream, u32 value);
-int snd_hdac_ext_stream_get_spbmaxfifo(struct hdac_bus *bus,
-				       struct hdac_ext_stream *hext_stream);
-void snd_hdac_ext_stream_drsm_enable(struct hdac_bus *bus,
-				bool enable, int index);
-int snd_hdac_ext_stream_set_dpibr(struct hdac_bus *bus,
-				struct hdac_ext_stream *hext_stream, u32 value);
-int snd_hdac_ext_stream_set_lpib(struct hdac_ext_stream *hext_stream, u32 value);
 
 void snd_hdac_ext_stream_start(struct hdac_ext_stream *hext_stream);
 void snd_hdac_ext_stream_clear(struct hdac_ext_stream *hext_stream);
@@ -130,15 +105,6 @@ int snd_hdac_ext_bus_link_get(struct hdac_bus *bus, struct hdac_ext_link *hlink)
 int snd_hdac_ext_bus_link_put(struct hdac_bus *bus, struct hdac_ext_link *hlink);
 
 void snd_hdac_ext_bus_link_power(struct hdac_device *codec, bool enable);
-
-/* update register macro */
-#define snd_hdac_updatel(addr, reg, mask, val)		\
-	writel(((readl(addr + reg) & ~(mask)) | (val)), \
-		addr + reg)
-
-#define snd_hdac_updatew(addr, reg, mask, val)		\
-	writew(((readw(addr + reg) & ~(mask)) | (val)), \
-		addr + reg)
 
 #define snd_hdac_adsp_writeb(chip, reg, value) \
 	snd_hdac_reg_writeb(chip, (chip)->dsp_ba + (reg), value)

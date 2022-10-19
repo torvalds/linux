@@ -467,6 +467,7 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct skl_module_cfg *mconfig;
 	struct hdac_bus *bus = get_bus_ctx(substream);
 	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
+	struct hdac_stream *hstream = hdac_stream(stream);
 	struct snd_soc_dapm_widget *w;
 	int ret;
 
@@ -484,11 +485,9 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 			 * dpib & lpib position to resume before starting the
 			 * DMA
 			 */
-			snd_hdac_ext_stream_drsm_enable(bus, true,
-						hdac_stream(stream)->index);
-			snd_hdac_ext_stream_set_dpibr(bus, stream,
-							stream->lpib);
-			snd_hdac_ext_stream_set_lpib(stream, stream->lpib);
+			snd_hdac_stream_drsm_enable(bus, true, hstream->index);
+			snd_hdac_stream_set_dpibr(bus, hstream, hstream->lpib);
+			snd_hdac_stream_set_lpib(hstream, hstream->lpib);
 		}
 		fallthrough;
 
@@ -520,13 +519,13 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 		ret = skl_decoupled_trigger(substream, cmd);
 		if ((cmd == SNDRV_PCM_TRIGGER_SUSPEND) && !w->ignore_suspend) {
 			/* save the dpib and lpib positions */
-			stream->dpib = readl(bus->remap_addr +
+			hstream->dpib = readl(bus->remap_addr +
 					AZX_REG_VS_SDXDPIB_XBASE +
 					(AZX_REG_VS_SDXDPIB_XINTERVAL *
-					hdac_stream(stream)->index));
+					hstream->index));
 
-			stream->lpib = snd_hdac_stream_get_pos_lpib(
-							hdac_stream(stream));
+			hstream->lpib = snd_hdac_stream_get_pos_lpib(hstream);
+
 			snd_hdac_ext_stream_decouple(bus, stream, false);
 		}
 		break;
