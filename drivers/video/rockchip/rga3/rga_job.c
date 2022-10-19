@@ -14,42 +14,6 @@
 #include "rga_iommu.h"
 #include "rga_debugger.h"
 
-struct rga_job *
-rga_scheduler_get_pending_job_list(struct rga_scheduler_t *scheduler)
-{
-	unsigned long flags;
-	struct rga_job *job;
-
-	spin_lock_irqsave(&scheduler->irq_lock, flags);
-
-	job = list_first_entry_or_null(&scheduler->todo_list,
-		struct rga_job, head);
-
-	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
-
-	return job;
-}
-
-struct rga_job *
-rga_scheduler_get_running_job(struct rga_scheduler_t *scheduler)
-{
-	unsigned long flags;
-	struct rga_job *job;
-
-	spin_lock_irqsave(&scheduler->irq_lock, flags);
-
-	job = scheduler->running_job;
-
-	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
-
-	return job;
-}
-
-struct rga_scheduler_t *rga_job_get_scheduler(struct rga_job *job)
-{
-	return job->scheduler;
-}
-
 static void rga_job_free(struct rga_job *job)
 {
 	free_page((unsigned long)job);
@@ -411,7 +375,7 @@ static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
 		job->scheduler = rga_drvdata->scheduler[0];
 	}
 
-	scheduler = rga_job_get_scheduler(job);
+	scheduler = job->scheduler;
 	if (scheduler == NULL) {
 		pr_err("failed to get scheduler, %s(%d)\n", __func__, __LINE__);
 		job->ret = -EFAULT;
