@@ -49,6 +49,7 @@ struct hwsim_pib {
 	u8 page;
 	u8 channel;
 	struct ieee802154_hw_addr_filt filt;
+	enum ieee802154_filtering_level filt_level;
 
 	struct rcu_head rcu;
 };
@@ -91,7 +92,8 @@ static int hwsim_hw_ed(struct ieee802154_hw *hw, u8 *level)
 }
 
 static int hwsim_update_pib(struct ieee802154_hw *hw, u8 page, u8 channel,
-			    struct ieee802154_hw_addr_filt *filt)
+			    struct ieee802154_hw_addr_filt *filt,
+			    enum ieee802154_filtering_level filt_level)
 {
 	struct hwsim_phy *phy = hw->priv;
 	struct hwsim_pib *pib, *pib_old;
@@ -108,6 +110,7 @@ static int hwsim_update_pib(struct ieee802154_hw *hw, u8 page, u8 channel,
 	pib->filt.pan_id = filt->pan_id;
 	pib->filt.ieee_addr = filt->ieee_addr;
 	pib->filt.pan_coord = filt->pan_coord;
+	pib->filt_level = filt_level;
 
 	rcu_assign_pointer(phy->pib, pib);
 	kfree_rcu(pib_old, rcu);
@@ -122,7 +125,7 @@ static int hwsim_hw_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 
 	rcu_read_lock();
 	pib = rcu_dereference(phy->pib);
-	ret = hwsim_update_pib(hw, page, channel, &pib->filt);
+	ret = hwsim_update_pib(hw, page, channel, &pib->filt, pib->filt_level);
 	rcu_read_unlock();
 
 	return ret;
@@ -138,7 +141,7 @@ static int hwsim_hw_addr_filt(struct ieee802154_hw *hw,
 
 	rcu_read_lock();
 	pib = rcu_dereference(phy->pib);
-	ret = hwsim_update_pib(hw, pib->page, pib->channel, filt);
+	ret = hwsim_update_pib(hw, pib->page, pib->channel, filt, pib->filt_level);
 	rcu_read_unlock();
 
 	return ret;
@@ -162,7 +165,7 @@ static void hwsim_hw_receive(struct ieee802154_hw *hw, struct sk_buff *skb,
 	memcpy(&hdr, skb->data, 3);
 
 	/* Level 4 filtering: Frame fields validity */
-	if (hw->phy->filtering == IEEE802154_FILTERING_4_FRAME_FIELDS) {
+	if (pib->filt_level == IEEE802154_FILTERING_4_FRAME_FIELDS) {
 		/* a) Drop reserved frame types */
 		switch (mac_cb(skb)->type) {
 		case IEEE802154_FC_TYPE_BEACON:
@@ -305,7 +308,22 @@ static void hwsim_hw_stop(struct ieee802154_hw *hw)
 static int
 hwsim_set_promiscuous_mode(struct ieee802154_hw *hw, const bool on)
 {
-	return 0;
+	enum ieee802154_filtering_level filt_level;
+	struct hwsim_phy *phy = hw->priv;
+	struct hwsim_pib *pib;
+	int ret;
+
+	if (on)
+		filt_level = IEEE802154_FILTERING_NONE;
+	else
+		filt_level = IEEE802154_FILTERING_4_FRAME_FIELDS;
+
+	rcu_read_lock();
+	pib = rcu_dereference(phy->pib);
+	ret = hwsim_update_pib(hw, pib->page, pib->channel, &pib->filt, filt_level);
+	rcu_read_unlock();
+
+	return ret;
 }
 
 static const struct ieee802154_ops hwsim_ops = {
