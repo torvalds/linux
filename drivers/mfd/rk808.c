@@ -1302,7 +1302,7 @@ static int rk808_probe(struct i2c_client *client,
 	}
 
 	ret = regmap_add_irq_chip(rk808->regmap, client->irq,
-				  IRQF_ONESHOT, -1,
+				  IRQF_ONESHOT | IRQF_SHARED, -1,
 				  rk808->regmap_irq_chip, &rk808->irq_data);
 	if (ret) {
 		dev_err(&client->dev, "Failed to add irq_chip %d\n", ret);
