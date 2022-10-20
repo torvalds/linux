@@ -263,13 +263,11 @@ struct rxrpc_security {
 
 	/* respond to a challenge */
 	int (*respond_to_challenge)(struct rxrpc_connection *,
-				    struct sk_buff *,
-				    u32 *);
+				    struct sk_buff *);
 
 	/* verify a response */
 	int (*verify_response)(struct rxrpc_connection *,
-			       struct sk_buff *,
-			       u32 *);
+			       struct sk_buff *);
 
 	/* clear connection security */
 	void (*clear)(struct rxrpc_connection *);
@@ -368,6 +366,18 @@ struct rxrpc_conn_parameters {
 };
 
 /*
+ * Call completion condition (state == RXRPC_CALL_COMPLETE).
+ */
+enum rxrpc_call_completion {
+	RXRPC_CALL_SUCCEEDED,		/* - Normal termination */
+	RXRPC_CALL_REMOTELY_ABORTED,	/* - call aborted by peer */
+	RXRPC_CALL_LOCALLY_ABORTED,	/* - call aborted locally on error or close */
+	RXRPC_CALL_LOCAL_ERROR,		/* - call failed due to local error */
+	RXRPC_CALL_NETWORK_ERROR,	/* - call terminated by network error */
+	NR__RXRPC_CALL_COMPLETIONS
+};
+
+/*
  * Bits in the connection flags.
  */
 enum rxrpc_conn_flag {
@@ -391,6 +401,7 @@ enum rxrpc_conn_flag {
  */
 enum rxrpc_conn_event {
 	RXRPC_CONN_EV_CHALLENGE,	/* Send challenge packet */
+	RXRPC_CONN_EV_ABORT_CALLS,	/* Abort attached calls */
 };
 
 /*
@@ -403,8 +414,7 @@ enum rxrpc_conn_proto_state {
 	RXRPC_CONN_SERVICE_UNSECURED,	/* Service unsecured connection */
 	RXRPC_CONN_SERVICE_CHALLENGING,	/* Service challenging for security */
 	RXRPC_CONN_SERVICE,		/* Service secured connection */
-	RXRPC_CONN_REMOTELY_ABORTED,	/* Conn aborted by peer */
-	RXRPC_CONN_LOCALLY_ABORTED,	/* Conn aborted locally */
+	RXRPC_CONN_ABORTED,		/* Conn aborted */
 	RXRPC_CONN__NR_STATES
 };
 
@@ -487,7 +497,8 @@ struct rxrpc_connection {
 	unsigned long		idle_timestamp;	/* Time at which last became idle */
 	spinlock_t		state_lock;	/* state-change lock */
 	enum rxrpc_conn_proto_state state;	/* current state of connection */
-	u32			abort_code;	/* Abort code of connection abort */
+	enum rxrpc_call_completion completion;	/* Completion condition */
+	s32			abort_code;	/* Abort code of connection abort */
 	int			debug_id;	/* debug ID for printks */
 	atomic_t		serial;		/* packet serial number counter */
 	unsigned int		hi_serial;	/* highest serial number received */
@@ -559,18 +570,6 @@ enum rxrpc_call_state {
 	RXRPC_CALL_SERVER_AWAIT_ACK,	/* - server awaiting final ACK */
 	RXRPC_CALL_COMPLETE,		/* - call complete */
 	NR__RXRPC_CALL_STATES
-};
-
-/*
- * Call completion condition (state == RXRPC_CALL_COMPLETE).
- */
-enum rxrpc_call_completion {
-	RXRPC_CALL_SUCCEEDED,		/* - Normal termination */
-	RXRPC_CALL_REMOTELY_ABORTED,	/* - call aborted by peer */
-	RXRPC_CALL_LOCALLY_ABORTED,	/* - call aborted locally on error or close */
-	RXRPC_CALL_LOCAL_ERROR,		/* - call failed due to local error */
-	RXRPC_CALL_NETWORK_ERROR,	/* - call terminated by network error */
-	NR__RXRPC_CALL_COMPLETIONS
 };
 
 /*
@@ -905,10 +904,18 @@ void rxrpc_clean_up_local_conns(struct rxrpc_local *);
  */
 void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn, struct sk_buff *skb,
 				unsigned int channel);
+int rxrpc_abort_conn(struct rxrpc_connection *conn, struct sk_buff *skb,
+		     s32 abort_code, int err, const char *why);
 void rxrpc_process_connection(struct work_struct *);
 void rxrpc_process_delayed_final_acks(struct rxrpc_connection *, bool);
 int rxrpc_input_conn_packet(struct rxrpc_connection *conn, struct sk_buff *skb);
 void rxrpc_input_conn_event(struct rxrpc_connection *conn, struct sk_buff *skb);
+
+static inline bool rxrpc_is_conn_aborted(const struct rxrpc_connection *conn)
+{
+	/* Order reading the abort info after the state check. */
+	return smp_load_acquire(&conn->state) == RXRPC_CONN_ABORTED;
+}
 
 /*
  * conn_object.c
@@ -1059,6 +1066,7 @@ static inline struct rxrpc_net *rxrpc_net(struct net *net)
 int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb);
 int rxrpc_send_abort_packet(struct rxrpc_call *);
 int rxrpc_send_data_packet(struct rxrpc_call *, struct rxrpc_txbuf *);
+void rxrpc_send_conn_abort(struct rxrpc_connection *conn);
 void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb);
 void rxrpc_send_keepalive(struct rxrpc_peer *);
 void rxrpc_transmit_one(struct rxrpc_call *call, struct rxrpc_txbuf *txb);

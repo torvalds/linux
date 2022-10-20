@@ -17,8 +17,7 @@ static const char *const rxrpc_conn_states[RXRPC_CONN__NR_STATES] = {
 	[RXRPC_CONN_SERVICE_UNSECURED]		= "SvUnsec ",
 	[RXRPC_CONN_SERVICE_CHALLENGING]	= "SvChall ",
 	[RXRPC_CONN_SERVICE]			= "SvSecure",
-	[RXRPC_CONN_REMOTELY_ABORTED]		= "RmtAbort",
-	[RXRPC_CONN_LOCALLY_ABORTED]		= "LocAbort",
+	[RXRPC_CONN_ABORTED]			= "Aborted ",
 };
 
 /*
@@ -143,6 +142,7 @@ static int rxrpc_connection_seq_show(struct seq_file *seq, void *v)
 {
 	struct rxrpc_connection *conn;
 	struct rxrpc_net *rxnet = rxrpc_net(seq_file_net(seq));
+	const char *state;
 	char lbuff[50], rbuff[50];
 
 	if (v == &rxnet->conn_proc_list) {
@@ -163,9 +163,11 @@ static int rxrpc_connection_seq_show(struct seq_file *seq, void *v)
 	}
 
 	sprintf(lbuff, "%pISpc", &conn->local->srx.transport);
-
 	sprintf(rbuff, "%pISpc", &conn->peer->srx.transport);
 print:
+	state = rxrpc_is_conn_aborted(conn) ?
+		rxrpc_call_completions[conn->completion] :
+		rxrpc_conn_states[conn->state];
 	seq_printf(seq,
 		   "UDP   %-47.47s %-47.47s %4x %08x %s %3u %3d"
 		   " %s %08x %08x %08x %08x %08x %08x %08x\n",
@@ -176,7 +178,7 @@ print:
 		   rxrpc_conn_is_service(conn) ? "Svc" : "Clt",
 		   refcount_read(&conn->ref),
 		   atomic_read(&conn->active),
-		   rxrpc_conn_states[conn->state],
+		   state,
 		   key_serial(conn->key),
 		   atomic_read(&conn->serial),
 		   conn->hi_serial,

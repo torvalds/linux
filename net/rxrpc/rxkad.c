@@ -821,8 +821,7 @@ static int rxkad_encrypt_response(struct rxrpc_connection *conn,
  * respond to a challenge packet
  */
 static int rxkad_respond_to_challenge(struct rxrpc_connection *conn,
-				      struct sk_buff *skb,
-				      u32 *_abort_code)
+				      struct sk_buff *skb)
 {
 	const struct rxrpc_key_token *token;
 	struct rxkad_challenge challenge;
@@ -898,7 +897,7 @@ protocol_error:
 	trace_rxrpc_rx_eproto(NULL, sp->hdr.serial, eproto);
 	ret = -EPROTO;
 other_error:
-	*_abort_code = abort_code;
+	rxrpc_abort_conn(conn, skb, abort_code, ret, "RXK");
 	return ret;
 }
 
@@ -910,8 +909,7 @@ static int rxkad_decrypt_ticket(struct rxrpc_connection *conn,
 				struct sk_buff *skb,
 				void *ticket, size_t ticket_len,
 				struct rxrpc_crypt *_session_key,
-				time64_t *_expiry,
-				u32 *_abort_code)
+				time64_t *_expiry)
 {
 	struct skcipher_request *req;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
@@ -1042,8 +1040,7 @@ bad_ticket:
 	abort_code = RXKADBADTICKET;
 	ret = -EPROTO;
 other_error:
-	*_abort_code = abort_code;
-	return ret;
+	return rxrpc_abort_conn(conn, skb, abort_code, ret, "RXK");
 temporary_error:
 	return ret;
 }
@@ -1086,8 +1083,7 @@ static void rxkad_decrypt_response(struct rxrpc_connection *conn,
  * verify a response
  */
 static int rxkad_verify_response(struct rxrpc_connection *conn,
-				 struct sk_buff *skb,
-				 u32 *_abort_code)
+				 struct sk_buff *skb)
 {
 	struct rxkad_response *response;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
@@ -1115,11 +1111,8 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 			abort_code = RXKADNOAUTH;
 			break;
 		}
-		trace_rxrpc_abort(0, "SVK",
-				  sp->hdr.cid, sp->hdr.callNumber, sp->hdr.seq,
-				  abort_code, PTR_ERR(server_key));
-		*_abort_code = abort_code;
-		return -EPROTO;
+		return rxrpc_abort_conn(conn, skb, abort_code,
+					PTR_ERR(server_key), "RXK");
 	}
 
 	ret = -ENOMEM;
@@ -1168,7 +1161,7 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 		goto temporary_error_free_ticket;
 
 	ret = rxkad_decrypt_ticket(conn, server_key, skb, ticket, ticket_len,
-				   &session_key, &expiry, _abort_code);
+				   &session_key, &expiry);
 	if (ret < 0)
 		goto temporary_error_free_ticket;
 
@@ -1246,10 +1239,9 @@ protocol_error_free:
 	kfree(ticket);
 protocol_error:
 	kfree(response);
-	trace_rxrpc_rx_eproto(NULL, sp->hdr.serial, eproto);
 	key_put(server_key);
-	*_abort_code = abort_code;
-	return -EPROTO;
+	trace_rxrpc_rx_eproto(NULL, sp->hdr.serial, eproto);
+	return rxrpc_abort_conn(conn, skb, abort_code, -EPROTO, "RXK");
 
 temporary_error_free_ticket:
 	kfree(ticket);

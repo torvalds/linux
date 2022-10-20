@@ -443,13 +443,9 @@ void rxrpc_incoming_call(struct rxrpc_sock *rx,
 		call->state = RXRPC_CALL_SERVER_RECV_REQUEST;
 		break;
 
-	case RXRPC_CONN_REMOTELY_ABORTED:
-		__rxrpc_set_call_completion(call, RXRPC_CALL_REMOTELY_ABORTED,
+	case RXRPC_CONN_ABORTED:
+		__rxrpc_set_call_completion(call, conn->completion,
 					    conn->abort_code, conn->error);
-		break;
-	case RXRPC_CONN_LOCALLY_ABORTED:
-		__rxrpc_abort_call("CON", call, 1,
-				   conn->abort_code, conn->error);
 		break;
 	default:
 		BUG();
