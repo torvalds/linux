@@ -1468,7 +1468,7 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 	if (pcidev)
 		pcidev_id = pci_match_id(pxa2xx_spi_pci_compound_match, pcidev);
 
-	match = device_get_match_data(&pdev->dev);
+	match = device_get_match_data(dev);
 	if (match)
 		type = (enum pxa_ssp_type)match;
 	else if (pcidev_id)
@@ -1476,7 +1476,7 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 	else
 		return ERR_PTR(-EINVAL);
 
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
@@ -1496,7 +1496,7 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 	}
 #endif
 
-	ssp->clk = devm_clk_get(&pdev->dev, NULL);
+	ssp->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(ssp->clk))
 		return ERR_CAST(ssp->clk);
 
@@ -1505,7 +1505,7 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 		return ERR_PTR(ssp->irq);
 
 	ssp->type = type;
-	ssp->dev = &pdev->dev;
+	ssp->dev = dev;
 
 	status = acpi_dev_uid_to_integer(ACPI_COMPANION(dev), &uid);
 	if (status)
@@ -1513,7 +1513,7 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 	else
 		ssp->port_id = uid;
 
-	pdata->is_slave = device_property_read_bool(&pdev->dev, "spi-slave");
+	pdata->is_slave = device_property_read_bool(dev, "spi-slave");
 	pdata->num_chipselect = 1;
 	pdata->enable_dma = true;
 	pdata->dma_burst_size = 1;
