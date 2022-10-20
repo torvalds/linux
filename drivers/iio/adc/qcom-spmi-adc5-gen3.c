@@ -402,18 +402,26 @@ static int adc5_gen3_configure(struct adc5_chip *adc,
 #define ADC5_GEN3_HS_DELAY_MAX_US		110
 #define ADC5_GEN3_HS_RETRY_COUNT		150
 
-static int adc5_gen3_poll_wait_hs(struct adc5_chip *adc, struct adc5_channel_prop *prop)
+static int adc5_gen3_poll_wait_hs(struct adc5_chip *adc,
+				unsigned int sdam_index)
 {
 	int ret, count;
-	u8 status = 0;
+	u8 status = 0, conv_req = ADC5_GEN3_CONV_REQ_REQ;
 
 	for (count = 0; count < ADC5_GEN3_HS_RETRY_COUNT; count++) {
-		ret = adc5_read(adc, prop->sdam_index, ADC5_GEN3_HS, &status, 1);
+		ret = adc5_read(adc, sdam_index, ADC5_GEN3_HS, &status, 1);
 		if (ret < 0)
 			return ret;
 
-		if (status == ADC5_GEN3_HS_READY)
-			break;
+		if (status == ADC5_GEN3_HS_READY) {
+			ret = adc5_read(adc, sdam_index, ADC5_GEN3_CONV_REQ,
+					&conv_req, 1);
+			if (ret < 0)
+				return ret;
+
+			if (!conv_req)
+				break;
+		}
 
 		usleep_range(ADC5_GEN3_HS_DELAY_MIN_US,
 			ADC5_GEN3_HS_DELAY_MAX_US);
@@ -439,7 +447,7 @@ static int adc5_gen3_do_conversion(struct adc5_chip *adc,
 	u8 val;
 
 	mutex_lock(&adc->lock);
-	ret = adc5_gen3_poll_wait_hs(adc, prop);
+	ret = adc5_gen3_poll_wait_hs(adc, 0);
 	if (ret < 0)
 		goto unlock;
 
@@ -808,7 +816,7 @@ static int adc_tm5_gen3_configure(struct adc5_channel_prop *prop)
 	u32 mask = 0;
 	struct adc5_chip *adc = prop->chip;
 
-	ret = adc5_gen3_poll_wait_hs(adc, prop);
+	ret = adc5_gen3_poll_wait_hs(adc, prop->sdam_index);
 	if (ret < 0)
 		return ret;
 
