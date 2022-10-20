@@ -64,6 +64,7 @@ static int qcom_smd_qrtr_probe(struct rpmsg_device *rpdev)
 {
 	struct qrtr_smd_dev *qdev;
 	u32 net_id;
+	bool rt;
 	int rc;
 
 	qdev = devm_kzalloc(&rpdev->dev, sizeof(*qdev), GFP_KERNEL);
@@ -78,9 +79,11 @@ static int qcom_smd_qrtr_probe(struct rpmsg_device *rpdev)
 	if (rc < 0)
 		net_id = QRTR_EP_NET_ID_AUTO;
 
-	rc = qrtr_endpoint_register(&qdev->ep, net_id);
+	rt = of_property_read_bool(rpdev->dev.of_node, "qcom,low-latency");
+
+	rc = qrtr_endpoint_register(&qdev->ep, net_id, rt);
 	if (rc) {
-		dev_err(qdev->dev, "endpoint register failed: %d\n", rc);
+		dev_err(qdev->dev, "endpoint register failed: %d\n", rc, rt);
 		return rc;
 	}
 
