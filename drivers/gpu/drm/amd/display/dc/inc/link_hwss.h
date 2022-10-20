@@ -79,6 +79,8 @@ struct link_hwss {
 	void (*disable_link_output)(struct dc_link *link,
 			const struct link_resource *link_res,
 			enum signal_type signal);
+	void (*enable_audio_packet)(struct pipe_ctx *pipe_ctx);
+	void (*disable_audio_packet)(struct pipe_ctx *pipe_ctx);
 };
 #endif /* __DC_LINK_HWSS_H__ */
 

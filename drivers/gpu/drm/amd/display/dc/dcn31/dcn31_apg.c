@@ -134,8 +134,6 @@ static void apg31_se_audio_setup(
 
 	/* Disable forced mem power off */
 	REG_UPDATE(APG_MEM_PWR, APG_MEM_PWR_FORCE, 0);
-
-	apg31_enable(apg);
 }
 
 static void apg31_audio_mute_control(
