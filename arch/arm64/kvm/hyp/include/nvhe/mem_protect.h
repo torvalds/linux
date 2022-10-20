@@ -44,13 +44,13 @@ static inline enum pkvm_page_state pkvm_getstate(enum kvm_pgtable_prot prot)
 	return prot & PKVM_PAGE_STATE_PROT_MASK;
 }
 
-struct host_kvm {
+struct host_mmu {
 	struct kvm_arch arch;
 	struct kvm_pgtable pgt;
 	struct kvm_pgtable_mm_ops mm_ops;
 	hyp_spinlock_t lock;
 };
-extern struct host_kvm host_kvm;
+extern struct host_mmu host_mmu;
 
 /* This corresponds to page-table locking order */
 enum pkvm_component_id {
@@ -76,7 +76,7 @@ void hyp_unpin_shared_mem(void *from, void *to);
 static __always_inline void __load_host_stage2(void)
 {
 	if (static_branch_likely(&kvm_protected_mode_initialized))
-		__load_stage2(&host_kvm.arch.mmu, &host_kvm.arch);
+		__load_stage2(&host_mmu.arch.mmu, &host_mmu.arch);
 	else
 		write_sysreg(0, vttbr_el2);
 }

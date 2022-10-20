@@ -22,18 +22,18 @@
 #define KVM_HOST_S2_FLAGS (KVM_PGTABLE_S2_NOFWB | KVM_PGTABLE_S2_IDMAP)
 
 extern unsigned long hyp_nr_cpus;
-struct host_kvm host_kvm;
+struct host_mmu host_mmu;
 
 static struct hyp_pool host_s2_pool;
 
 static void host_lock_component(void)
 {
-	hyp_spin_lock(&host_kvm.lock);
+	hyp_spin_lock(&host_mmu.lock);
 }
 
 static void host_unlock_component(void)
 {
-	hyp_spin_unlock(&host_kvm.lock);
+	hyp_spin_unlock(&host_mmu.lock);
 }
 
 static void hyp_lock_component(void)
@@ -88,7 +88,7 @@ static int prepare_s2_pool(void *pgt_pool_base)
 	if (ret)
 		return ret;
 
-	host_kvm.mm_ops = (struct kvm_pgtable_mm_ops) {
+	host_mmu.mm_ops = (struct kvm_pgtable_mm_ops) {
 		.zalloc_pages_exact = host_s2_zalloc_pages_exact,
 		.zalloc_page = host_s2_zalloc_page,
 		.phys_to_virt = hyp_phys_to_virt,
@@ -109,7 +109,7 @@ static void prepare_host_vtcr(void)
 	parange = kvm_get_parange(id_aa64mmfr0_el1_sys_val);
 	phys_shift = id_aa64mmfr0_parange_to_phys_shift(parange);
 
-	host_kvm.arch.vtcr = kvm_get_vtcr(id_aa64mmfr0_el1_sys_val,
+	host_mmu.arch.vtcr = kvm_get_vtcr(id_aa64mmfr0_el1_sys_val,
 					  id_aa64mmfr1_el1_sys_val, phys_shift);
 }
 
@@ -117,25 +117,25 @@ static bool host_stage2_force_pte_cb(u64 addr, u64 end, enum kvm_pgtable_prot pr
 
 int kvm_host_prepare_stage2(void *pgt_pool_base)
 {
-	struct kvm_s2_mmu *mmu = &host_kvm.arch.mmu;
+	struct kvm_s2_mmu *mmu = &host_mmu.arch.mmu;
 	int ret;
 
 	prepare_host_vtcr();
-	hyp_spin_lock_init(&host_kvm.lock);
-	mmu->arch = &host_kvm.arch;
+	hyp_spin_lock_init(&host_mmu.lock);
+	mmu->arch = &host_mmu.arch;
 
 	ret = prepare_s2_pool(pgt_pool_base);
 	if (ret)
 		return ret;
 
-	ret = __kvm_pgtable_stage2_init(&host_kvm.pgt, mmu,
-					&host_kvm.mm_ops, KVM_HOST_S2_FLAGS,
+	ret = __kvm_pgtable_stage2_init(&host_mmu.pgt, mmu,
+					&host_mmu.mm_ops, KVM_HOST_S2_FLAGS,
 					host_stage2_force_pte_cb);
 	if (ret)
 		return ret;
 
-	mmu->pgd_phys = __hyp_pa(host_kvm.pgt.pgd);
-	mmu->pgt = &host_kvm.pgt;
+	mmu->pgd_phys = __hyp_pa(host_mmu.pgt.pgd);
+	mmu->pgt = &host_mmu.pgt;
 	atomic64_set(&mmu->vmid.id, 0);
 
 	return 0;
@@ -143,19 +143,19 @@ int kvm_host_prepare_stage2(void *pgt_pool_base)
 
 int __pkvm_prot_finalize(void)
 {
-	struct kvm_s2_mmu *mmu = &host_kvm.arch.mmu;
+	struct kvm_s2_mmu *mmu = &host_mmu.arch.mmu;
 	struct kvm_nvhe_init_params *params = this_cpu_ptr(&kvm_init_params);
 
 	if (params->hcr_el2 & HCR_VM)
 		return -EPERM;
 
 	params->vttbr = kvm_get_vttbr(mmu);
-	params->vtcr = host_kvm.arch.vtcr;
+	params->vtcr = host_mmu.arch.vtcr;
 	params->hcr_el2 |= HCR_VM;
 	kvm_flush_dcache_to_poc(params, sizeof(*params));
 
 	write_sysreg(params->hcr_el2, hcr_el2);
-	__load_stage2(&host_kvm.arch.mmu, &host_kvm.arch);
+	__load_stage2(&host_mmu.arch.mmu, &host_mmu.arch);
 
 	/*
 	 * Make sure to have an ISB before the TLB maintenance below but only
@@ -173,7 +173,7 @@ int __pkvm_prot_finalize(void)
 
 static int host_stage2_unmap_dev_all(void)
 {
-	struct kvm_pgtable *pgt = &host_kvm.pgt;
+	struct kvm_pgtable *pgt = &host_mmu.pgt;
 	struct memblock_region *reg;
 	u64 addr = 0;
 	int i, ret;
@@ -258,7 +258,7 @@ static bool range_is_memory(u64 start, u64 end)
 static inline int __host_stage2_idmap(u64 start, u64 end,
 				      enum kvm_pgtable_prot prot)
 {
-	return kvm_pgtable_stage2_map(&host_kvm.pgt, start, end - start, start,
+	return kvm_pgtable_stage2_map(&host_mmu.pgt, start, end - start, start,
 				      prot, &host_s2_pool);
 }
 
@@ -271,7 +271,7 @@ static inline int __host_stage2_idmap(u64 start, u64 end,
 #define host_stage2_try(fn, ...)					\
 	({								\
 		int __ret;						\
-		hyp_assert_lock_held(&host_kvm.lock);			\
+		hyp_assert_lock_held(&host_mmu.lock);			\
 		__ret = fn(__VA_ARGS__);				\
 		if (__ret == -ENOMEM) {					\
 			__ret = host_stage2_unmap_dev_all();		\
@@ -294,8 +294,8 @@ static int host_stage2_adjust_range(u64 addr, struct kvm_mem_range *range)
 	u32 level;
 	int ret;
 
-	hyp_assert_lock_held(&host_kvm.lock);
-	ret = kvm_pgtable_get_leaf(&host_kvm.pgt, addr, &pte, &level);
+	hyp_assert_lock_held(&host_mmu.lock);
+	ret = kvm_pgtable_get_leaf(&host_mmu.pgt, addr, &pte, &level);
 	if (ret)
 		return ret;
 
@@ -327,7 +327,7 @@ int host_stage2_idmap_locked(phys_addr_t addr, u64 size,
 
 int host_stage2_set_owner_locked(phys_addr_t addr, u64 size, u8 owner_id)
 {
-	return host_stage2_try(kvm_pgtable_stage2_set_owner, &host_kvm.pgt,
+	return host_stage2_try(kvm_pgtable_stage2_set_owner, &host_mmu.pgt,
 			       addr, size, &host_s2_pool, owner_id);
 }
 
@@ -468,8 +468,8 @@ static int __host_check_page_state_range(u64 addr, u64 size,
 		.get_page_state	= host_get_page_state,
 	};
 
-	hyp_assert_lock_held(&host_kvm.lock);
-	return check_page_state_range(&host_kvm.pgt, addr, size, &d);
+	hyp_assert_lock_held(&host_mmu.lock);
+	return check_page_state_range(&host_mmu.pgt, addr, size, &d);
 }
 
 static int __host_set_page_state_range(u64 addr, u64 size,
