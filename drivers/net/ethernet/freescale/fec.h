@@ -658,6 +658,8 @@ struct fec_enet_private {
 	unsigned int reload_period;
 	int pps_enable;
 	unsigned int next_counter;
+	struct hrtimer perout_timer;
+	u64 perout_stime;
 
 	struct imx_sc_ipc *ipc_handle;
 
