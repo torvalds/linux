@@ -751,15 +751,12 @@ static int elevator_change(struct request_queue *q, const char *elevator_name)
 		return elevator_switch(q, NULL);
 	}
 
+	if (q->elevator && elevator_match(q->elevator->type, elevator_name, 0))
+		return 0;
+
 	e = elevator_get(q, elevator_name, true);
 	if (!e)
 		return -EINVAL;
-
-	if (q->elevator &&
-	    elevator_match(q->elevator->type, elevator_name, 0)) {
-		elevator_put(e);
-		return 0;
-	}
 
 	return elevator_switch(q, e);
 }
