@@ -21,18 +21,18 @@ trap trap_cleanup exit term int
 
 test_per_thread() {
   echo "Basic --per-thread mode test"
-  if ! perf record -e instructions:u -o ${perfdata} --quiet true 2> /dev/null
+  if ! perf record -o /dev/null --quiet true 2> /dev/null
   then
-    echo "Per-thread record [Skipped instructions:u not supported]"
+    echo "Per-thread record [Skipped event not supported]"
     if [ $err -ne 1 ]
     then
       err=2
     fi
     return
   fi
-  if ! perf record -e instructions:u --per-thread -o ${perfdata} true 2> /dev/null
+  if ! perf record --per-thread -o ${perfdata} true 2> /dev/null
   then
-    echo "Per-thread record of instructions:u [Failed]"
+    echo "Per-thread record [Failed record]"
     err=1
     return
   fi
@@ -49,7 +49,7 @@ test_register_capture() {
   echo "Register capture test"
   if ! perf list | egrep -q 'br_inst_retired.near_call'
   then
-    echo "Register capture test [Skipped missing instruction]"
+    echo "Register capture test [Skipped missing event]"
     if [ $err -ne 1 ]
     then
       err=2
