@@ -378,7 +378,7 @@ static struct rxrpc_bundle *rxrpc_prep_call(struct rxrpc_sock *rx,
 
 	_enter("{%d,%lx},", call->debug_id, call->user_call_ID);
 
-	cp->peer = rxrpc_lookup_peer(rx, cp->local, srx, gfp);
+	cp->peer = rxrpc_lookup_peer(cp->local, srx, gfp);
 	if (!cp->peer)
 		goto error;
 

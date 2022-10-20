@@ -85,7 +85,7 @@ static long rxrpc_local_cmp_key(const struct rxrpc_local *local,
 /*
  * Allocate a new local endpoint.
  */
-static struct rxrpc_local *rxrpc_alloc_local(struct rxrpc_net *rxnet,
+static struct rxrpc_local *rxrpc_alloc_local(struct net *net,
 					     const struct sockaddr_rxrpc *srx)
 {
 	struct rxrpc_local *local;
@@ -94,7 +94,8 @@ static struct rxrpc_local *rxrpc_alloc_local(struct rxrpc_net *rxnet,
 	if (local) {
 		refcount_set(&local->ref, 1);
 		atomic_set(&local->active_users, 1);
-		local->rxnet = rxnet;
+		local->net = net;
+		local->rxnet = rxrpc_net(net);
 		INIT_HLIST_NODE(&local->link);
 		init_rwsem(&local->defrag_sem);
 		init_completion(&local->io_thread_ready);
@@ -248,7 +249,7 @@ struct rxrpc_local *rxrpc_lookup_local(struct net *net,
 		goto found;
 	}
 
-	local = rxrpc_alloc_local(rxnet, srx);
+	local = rxrpc_alloc_local(net, srx);
 	if (!local)
 		goto nomem;
 
