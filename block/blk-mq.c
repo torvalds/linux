@@ -4591,6 +4591,8 @@ static void blk_mq_elv_switch_back(struct list_head *head,
 
 	mutex_lock(&q->sysfs_lock);
 	elevator_switch(q, t);
+	/* drop the reference acquired in blk_mq_elv_switch_none */
+	elevator_put(t);
 	mutex_unlock(&q->sysfs_lock);
 }
 

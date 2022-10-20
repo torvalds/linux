@@ -165,6 +165,7 @@ struct elevator_queue *elevator_alloc(struct request_queue *q,
 	if (unlikely(!eq))
 		return NULL;
 
+	__elevator_get(e);
 	eq->type = e;
 	kobject_init(&eq->kobj, &elv_ktype);
 	mutex_init(&eq->sysfs_lock);
@@ -704,8 +705,9 @@ void elevator_init_mq(struct request_queue *q)
 	if (err) {
 		pr_warn("\"%s\" elevator initialization failed, "
 			"falling back to \"none\"\n", e->elevator_name);
-		elevator_put(e);
 	}
+
+	elevator_put(e);
 }
 
 /*
@@ -737,6 +739,7 @@ int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 static int elevator_change(struct request_queue *q, const char *elevator_name)
 {
 	struct elevator_type *e;
+	int ret;
 
 	/* Make sure queue is not in the middle of being removed */
 	if (!blk_queue_registered(q))
@@ -757,8 +760,9 @@ static int elevator_change(struct request_queue *q, const char *elevator_name)
 	e = elevator_get(q, elevator_name, true);
 	if (!e)
 		return -EINVAL;
-
-	return elevator_switch(q, e);
+	ret = elevator_switch(q, e);
+	elevator_put(e);
+	return ret;
 }
 
 ssize_t elv_iosched_store(struct request_queue *q, const char *buf,
