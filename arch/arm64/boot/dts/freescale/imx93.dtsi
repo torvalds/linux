@@ -145,6 +145,7 @@
 				interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&osc_24m>;
 				clock-names = "per";
+				nxp,no-divider;
 			};
 
 			lpi2c1: i2c@44340000 {
