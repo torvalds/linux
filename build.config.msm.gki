@@ -34,6 +34,7 @@ function sanity_check_abi() {
 		# In that case, turn on some options for trimming and strict mode
 		# which would normally be disabled because they conflict with
 		# mixed build
+		PREPARE_SYSTEM_DLKM=0
 		if [ "${VARIANT}" = gki ]; then
 			TRIM_NONLISTED_KMI=1
 			KMI_SYMBOL_LIST_STRICT_MODE=1

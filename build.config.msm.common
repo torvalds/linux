@@ -161,10 +161,23 @@ if [ -e "${KERNEL_DIR}/modules.blocklist.${CONFIG_TARGET}" ]; then
   VENDOR_DLKM_MODULES_BLOCKLIST="${KERNEL_DIR}/modules.blocklist.${CONFIG_TARGET}"
 fi
 
+if [ "${BUILD_VENDOR_DLKM}" == "1" ]; then
+  COMBINED_MODULE_LIST=$(mktemp)
+fi
+
+if [[ "${PREPARE_SYSTEM_DLKM}" == "1"  && ! -z "${SYSTEM_DLKM_MODULES_LIST}" ]]; then
+  {
+    awk -F'/' '{print $NF}' ${SYSTEM_DLKM_MODULES_LIST}
+    [ -f "${MODULES_LIST}" ] && cat "${MODULES_LIST}"
+  } > ${COMBINED_MODULE_LIST}
+fi
+
 function prepare_vendor_dlkm() {
   if [ -z "${VENDOR_DLKM_MODULES_LIST}" ]; then
     local module_list_flag=
-    if [ -e "${MODULES_LIST}" ]; then
+    if [ -s "${COMBINED_MODULE_LIST}" ]; then
+      module_list_flag="-f ${COMBINED_MODULE_LIST}"
+    elif [ -e "${MODULES_LIST}" ]; then
       module_list_flag="-f ${MODULES_LIST}"
     else
       module_list_flag="-e ''"
@@ -175,14 +188,38 @@ function prepare_vendor_dlkm() {
     VENDOR_DLKM_MODULES_LIST="${MODULES_STAGING_DIR}/vendor_dlkm.modules.load"
   fi
 
-  SUPER_IMAGE_CONTENTS+="${DIST_DIR}/vendor_dlkm.img"
+  SUPER_IMAGE_CONTENTS+=("${DIST_DIR}/vendor_dlkm.img")
+  rm ${COMBINED_MODULE_LIST}
 }
+
 if [ "${BUILD_VENDOR_DLKM}" == "1" ]; then
   append_cmd DIST_CMDS 'prepare_vendor_dlkm'
   if [ -e "${KERNEL_DIR}/modules.vendor_blocklist.${CONFIG_TARGET}" ]; then
     VENDOR_DLKM_MODULES_BLOCKLIST="${KERNEL_DIR}/modules.vendor_blocklist.${CONFIG_TARGET}"
   fi
 fi
+
+function prepare_system_dlkm() {
+  if [ "${PREPARE_SYSTEM_DLKM}" == "1" ]; then
+    if [ -e "${KERNEL_DIR}/modules.systemdlkm_blocklist.${CONFIG_TARGET}" ]; then
+      SYSTEM_DLKM_MODULES_BLOCKLIST="${KERNEL_DIR}/modules.systemdlkm_blocklist.${CONFIG_TARGET}"
+      cp $SYSTEM_DLKM_MODULES_BLOCKLIST ${DIST_DIR}/system_dlkm.modules.blocklist
+
+      if [ "${APPEND_SYSTEM_DLKM_BLOCKLIST_TO_VENDOR_RAMDISK}" == "1" ]; then
+        (cd ${DIST_DIR} && find -name system_dlkm.modules.blocklist | cpio -H newc -o) > ${DIST_DIR}/system_dlkm_blocklist.cpio
+        if [ -n "${TARGET_HAS_SEPARATE_RD}" ]; then
+          ${RAMDISK_COMPRESS} "${DIST_DIR}/system_dlkm_blocklist.cpio" >"${DIST_DIR}/system_dlkm_blocklist.${RAMDISK_EXT}"
+          cat "${DIST_DIR}/system_dlkm_blocklist.${RAMDISK_EXT}" >>"${VENDOR_RAMDISK_BINARY}"
+        else
+	  VENDOR_RAMDISK_BINARY+=" ${DIST_DIR}/system_dlkm_blocklist.cpio"
+        fi
+      fi
+
+    fi
+    SUPER_IMAGE_CONTENTS+=("${DIST_DIR}/system_dlkm.img")
+  fi
+}
+append_cmd DIST_CMDS 'prepare_system_dlkm'
 
 KERNEL_BINARY=Image
 
@@ -222,7 +259,7 @@ fi
 ################################################################################
 ## Miscellaneous
 if [ -n "${EXTRA_CONFIGS}" ]; then
-  for extra_config in "${EXTRA_CONFIGS}"
+  for extra_config in "${EXTRA_CONFIGS[@]}"
   do
     . ${extra_config}
   done
