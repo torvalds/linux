@@ -731,7 +731,7 @@ static int mcp_get_i2c_eng_state(struct mcp2221 *mcp,
 static int mcp2221_raw_event(struct hid_device *hdev,
 				struct hid_report *report, u8 *data, int size)
 {
-	u8 *buf, tmp;
+	u8 *buf;
 	struct mcp2221 *mcp = hid_get_drvdata(hdev);
 
 	switch (data[0]) {
@@ -875,19 +875,22 @@ static int mcp2221_raw_event(struct hid_device *hdev,
 			}
 
 #if IS_REACHABLE(CONFIG_IIO)
-			/* DAC scale value */
-			tmp = FIELD_GET(GENMASK(7, 6), data[6]);
-			if ((data[6] & BIT(5)) && tmp)
-				mcp->dac_scale = tmp + 4;
-			else
-				mcp->dac_scale = 5;
+			{
+				u8 tmp;
+				/* DAC scale value */
+				tmp = FIELD_GET(GENMASK(7, 6), data[6]);
+				if ((data[6] & BIT(5)) && tmp)
+					mcp->dac_scale = tmp + 4;
+				else
+					mcp->dac_scale = 5;
 
-			/* ADC scale value */
-			tmp = FIELD_GET(GENMASK(4, 3), data[7]);
-			if ((data[7] & BIT(2)) && tmp)
-				mcp->adc_scale = tmp - 1;
-			else
-				mcp->adc_scale = 0;
+				/* ADC scale value */
+				tmp = FIELD_GET(GENMASK(4, 3), data[7]);
+				if ((data[7] & BIT(2)) && tmp)
+					mcp->adc_scale = tmp - 1;
+				else
+					mcp->adc_scale = 0;
+			}
 #endif
 
 			break;
