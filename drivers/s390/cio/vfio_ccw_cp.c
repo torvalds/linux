@@ -509,6 +509,7 @@ static int ccw_count_idaws(struct ccw1 *ccw,
 	struct vfio_device *vdev =
 		&container_of(cp, struct vfio_ccw_private, cp)->vdev;
 	u64 iova;
+	int size = cp->orb.cmd.c64 ? sizeof(u64) : sizeof(u32);
 	int ret;
 	int bytes = 1;
 
@@ -516,11 +517,18 @@ static int ccw_count_idaws(struct ccw1 *ccw,
 		bytes = ccw->count;
 
 	if (ccw_is_idal(ccw)) {
-		/* Read first IDAW to see if it's 4K-aligned or not. */
-		/* All subsequent IDAws will be 4K-aligned. */
-		ret = vfio_dma_rw(vdev, ccw->cda, &iova, sizeof(iova), false);
+		/* Read first IDAW to check its starting address. */
+		/* All subsequent IDAWs will be 2K- or 4K-aligned. */
+		ret = vfio_dma_rw(vdev, ccw->cda, &iova, size, false);
 		if (ret)
 			return ret;
+
+		/*
+		 * Format-1 IDAWs only occupy the first 32 bits,
+		 * and bit 0 is always off.
+		 */
+		if (!cp->orb.cmd.c64)
+			iova = iova >> 32;
 	} else {
 		iova = ccw->cda;
 	}
