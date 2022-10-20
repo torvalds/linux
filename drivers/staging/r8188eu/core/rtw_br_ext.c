@@ -649,9 +649,8 @@ void *scdb_findEntry(struct adapter *priv, unsigned char *ip_addr)
 	hash = __nat25_network_hash(addr);
 	db = priv->nethash[hash];
 	while (db) {
-		if (!memcmp(db->networkAddr, addr, MAX_NETWORK_ADDR_LEN)) {
+		if (!memcmp(db->networkAddr, addr, MAX_NETWORK_ADDR_LEN))
 			return (void *)db;
-		}
 
 		db = db->next_hash;
 	}
