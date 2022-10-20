@@ -4,6 +4,9 @@
 
 set -e
 
+shelldir=$(dirname "$0")
+. "${shelldir}"/lib/waiting.sh
+
 err=0
 perfdata=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
 testprog=$(mktemp /tmp/__perf_test.prog.XXXXXX)
@@ -96,6 +99,30 @@ test_per_thread() {
     err=1
     return
   fi
+
+  # run the test program in background (forever)
+  ${testprog} 1 &
+  TESTPID=$!
+
+  rm -f "${perfdata}"
+
+  wait_for_threads ${TESTPID} 2
+  perf record -p "${TESTPID}" --per-thread -o "${perfdata}" sleep 1 2> /dev/null
+  kill ${TESTPID}
+
+  if [ ! -e "${perfdata}" ]
+  then
+    echo "Per-thread record [Failed record -p]"
+    err=1
+    return
+  fi
+  if ! perf report -i "${perfdata}" -q | grep -q "${testsym}"
+  then
+    echo "Per-thread record [Failed -p missing output]"
+    err=1
+    return
+  fi
+
   echo "Basic --per-thread mode test [Success]"
 }
 
