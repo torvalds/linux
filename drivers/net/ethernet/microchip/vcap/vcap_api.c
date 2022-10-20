@@ -21,6 +21,17 @@ struct vcap_rule_internal {
 	u32 addr; /* address in the VCAP at insertion */
 };
 
+/* Return the list of keyfields for the keyset */
+static const struct vcap_field *vcap_keyfields(struct vcap_control *vctrl,
+					       enum vcap_type vt,
+					       enum vcap_keyfield_set keyset)
+{
+	/* Check that the keyset exists in the vcap keyset list */
+	if (keyset >= vctrl->vcaps[vt].keyfield_set_size)
+		return NULL;
+	return vctrl->vcaps[vt].keyfield_set_map[keyset];
+}
+
 /* Update the keyset for the rule */
 int vcap_set_rule_set_keyset(struct vcap_rule *rule,
 			     enum vcap_keyfield_set keyset)
@@ -227,6 +238,24 @@ int vcap_del_rule(struct vcap_control *vctrl, struct net_device *ndev, u32 id)
 }
 EXPORT_SYMBOL_GPL(vcap_del_rule);
 
+/* Find information on a key field in a rule */
+const struct vcap_field *vcap_lookup_keyfield(struct vcap_rule *rule,
+					      enum vcap_key_field key)
+{
+	struct vcap_rule_internal *ri = (struct vcap_rule_internal *)rule;
+	enum vcap_keyfield_set keyset = rule->keyset;
+	enum vcap_type vt = ri->admin->vtype;
+	const struct vcap_field *fields;
+
+	if (keyset == VCAP_KFS_NO_VALUE)
+		return NULL;
+	fields = vcap_keyfields(ri->vctrl, vt, keyset);
+	if (!fields)
+		return NULL;
+	return &fields[key];
+}
+EXPORT_SYMBOL_GPL(vcap_lookup_keyfield);
+
 static void vcap_copy_from_client_keyfield(struct vcap_rule *rule,
 					   struct vcap_client_keyfield *field,
 					   struct vcap_client_keyfield_data *data)
@@ -253,6 +282,47 @@ static int vcap_rule_add_key(struct vcap_rule *rule,
 	return 0;
 }
 
+static void vcap_rule_set_key_bitsize(struct vcap_u1_key *u1, enum vcap_bit val)
+{
+	switch (val) {
+	case VCAP_BIT_0:
+		u1->value = 0;
+		u1->mask = 1;
+		break;
+	case VCAP_BIT_1:
+		u1->value = 1;
+		u1->mask = 1;
+		break;
+	case VCAP_BIT_ANY:
+		u1->value = 0;
+		u1->mask = 0;
+		break;
+	}
+}
+
+/* Add a bit key with value and mask to the rule */
+int vcap_rule_add_key_bit(struct vcap_rule *rule, enum vcap_key_field key,
+			  enum vcap_bit val)
+{
+	struct vcap_client_keyfield_data data;
+
+	vcap_rule_set_key_bitsize(&data.u1, val);
+	return vcap_rule_add_key(rule, key, VCAP_FIELD_BIT, &data);
+}
+EXPORT_SYMBOL_GPL(vcap_rule_add_key_bit);
+
+/* Add a 32 bit key field with value and mask to the rule */
+int vcap_rule_add_key_u32(struct vcap_rule *rule, enum vcap_key_field key,
+			  u32 value, u32 mask)
+{
+	struct vcap_client_keyfield_data data;
+
+	data.u32.value = value;
+	data.u32.mask = mask;
+	return vcap_rule_add_key(rule, key, VCAP_FIELD_U32, &data);
+}
+EXPORT_SYMBOL_GPL(vcap_rule_add_key_u32);
+
 /* Add a 48 bit key with value and mask to the rule */
 int vcap_rule_add_key_u48(struct vcap_rule *rule, enum vcap_key_field key,
 			  struct vcap_u48_key *fieldval)
@@ -263,6 +333,17 @@ int vcap_rule_add_key_u48(struct vcap_rule *rule, enum vcap_key_field key,
 	return vcap_rule_add_key(rule, key, VCAP_FIELD_U48, &data);
 }
 EXPORT_SYMBOL_GPL(vcap_rule_add_key_u48);
+
+/* Add a 72 bit key with value and mask to the rule */
+int vcap_rule_add_key_u72(struct vcap_rule *rule, enum vcap_key_field key,
+			  struct vcap_u72_key *fieldval)
+{
+	struct vcap_client_keyfield_data data;
+
+	memcpy(&data.u72, fieldval, sizeof(data.u72));
+	return vcap_rule_add_key(rule, key, VCAP_FIELD_U72, &data);
+}
+EXPORT_SYMBOL_GPL(vcap_rule_add_key_u72);
 
 static void vcap_copy_from_client_actionfield(struct vcap_rule *rule,
 					      struct vcap_client_actionfield *field,

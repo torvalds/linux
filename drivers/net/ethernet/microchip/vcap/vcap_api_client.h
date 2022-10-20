@@ -174,6 +174,8 @@ int vcap_rule_add_key_u32(struct vcap_rule *rule, enum vcap_key_field key,
 			  u32 value, u32 mask);
 int vcap_rule_add_key_u48(struct vcap_rule *rule, enum vcap_key_field key,
 			  struct vcap_u48_key *fieldval);
+int vcap_rule_add_key_u72(struct vcap_rule *rule, enum vcap_key_field key,
+			  struct vcap_u72_key *fieldval);
 int vcap_rule_add_action_bit(struct vcap_rule *rule,
 			     enum vcap_action_field action, enum vcap_bit val);
 int vcap_rule_add_action_u32(struct vcap_rule *rule,
@@ -182,6 +184,9 @@ int vcap_rule_add_action_u32(struct vcap_rule *rule,
 /* VCAP lookup operations */
 /* Lookup a vcap instance using chain id */
 struct vcap_admin *vcap_find_admin(struct vcap_control *vctrl, int cid);
+/* Find information on a key field in a rule */
+const struct vcap_field *vcap_lookup_keyfield(struct vcap_rule *rule,
+					      enum vcap_key_field key);
 /* Find a rule id with a provided cookie */
 int vcap_lookup_rule_by_cookie(struct vcap_control *vctrl, u64 cookie);
 
