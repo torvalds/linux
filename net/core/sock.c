@@ -2094,6 +2094,9 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 		if (likely(sk->sk_net_refcnt)) {
 			get_net_track(net, &sk->ns_tracker, priority);
 			sock_inuse_add(net, 1);
+		} else {
+			__netns_tracker_alloc(net, &sk->ns_tracker,
+					      false, priority);
 		}
 
 		sock_net_set(sk, net);
@@ -2149,6 +2152,9 @@ static void __sk_destruct(struct rcu_head *head)
 
 	if (likely(sk->sk_net_refcnt))
 		put_net_track(sock_net(sk), &sk->ns_tracker);
+	else
+		__netns_tracker_free(sock_net(sk), &sk->ns_tracker, false);
+
 	sk_prot_free(sk->sk_prot_creator, sk);
 }
 
@@ -2237,6 +2243,14 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 	if (likely(newsk->sk_net_refcnt)) {
 		get_net_track(sock_net(newsk), &newsk->ns_tracker, priority);
 		sock_inuse_add(sock_net(newsk), 1);
+	} else {
+		/* Kernel sockets are not elevating the struct net refcount.
+		 * Instead, use a tracker to more easily detect if a layer
+		 * is not properly dismantling its kernel sockets at netns
+		 * destroy time.
+		 */
+		__netns_tracker_alloc(sock_net(newsk), &newsk->ns_tracker,
+				      false, priority);
 	}
 	sk_node_init(&newsk->sk_node);
 	sock_lock_init(newsk);
