@@ -41,6 +41,10 @@
 #define ST_LSM6DSO16IS_PP_OD_MASK		BIT(4)
 #define ST_LSM6DSO16IS_SW_RESET_MASK		BIT(0)
 
+#define ST_LSM6DSO16IS_REG_CTRL5_C_ADDR		0x14
+#define ST_LSM6DSO16IS_ST_G_MASK		GENMASK(3, 2)
+#define ST_LSM6DSO16IS_ST_XL_MASK		GENMASK(1, 0)
+
 #define ST_LSM6DSO16IS_REG_STATUS_ADDR		0x1e
 #define ST_LSM6DSO16IS_STATUS_TDA		BIT(2)
 #define ST_LSM6DSO16IS_STATUS_XLDA		BIT(0)
@@ -53,6 +57,16 @@
 #define ST_LSM6DSO16IS_REG_OUTX_L_A_ADDR	0x28
 #define ST_LSM6DSO16IS_REG_OUTY_L_A_ADDR	0x2a
 #define ST_LSM6DSO16IS_REG_OUTZ_L_A_ADDR	0x2c
+
+#define ST_LSM6DSO16IS_ST_ACCEL_MIN		737
+#define ST_LSM6DSO16IS_ST_ACCEL_MAX		13934
+#define ST_LSM6DSO16IS_ST_GYRO_MIN		2142
+#define ST_LSM6DSO16IS_ST_GYRO_MAX		10000
+
+#define ST_LSM6DSO16IS_ST_DISABLED_VAL		0
+#define ST_LSM6DSO16IS_ST_POS_SIGN_VAL		1
+#define ST_LSM6DSO16IS_ST_NEG_ACCEL_SIGN_VAL	2
+#define ST_LSM6DSO16IS_ST_NEG_GYRO_SIGN_VAL	3
 
 /* Temperature in uC */
 #define ST_LSM6DSO16IS_TEMP_GAIN		256
@@ -165,6 +179,9 @@ static const enum st_lsm6dso16is_sensor_id st_lsm6dso16is_main_sensor_list[] = {
  * @offset: Sensor data offset.
  * @gain: Configured sensor sensitivity.
  * @mhz: Output data rate of the sensor [milli Hz].
+ * @selftest_status: Report last self test status.
+ * @min_st: Min self test raw data value.
+ * @max_st: Max self test raw data value.
  */
 struct st_lsm6dso16is_sensor {
 	enum st_lsm6dso16is_sensor_id id;
@@ -174,6 +191,11 @@ struct st_lsm6dso16is_sensor {
 	u32 offset;
 	u32 gain;
 	u32 mhz;
+
+	/* self test */
+	int8_t selftest_status;
+	int min_st;
+	int max_st;
 };
 
 /**
