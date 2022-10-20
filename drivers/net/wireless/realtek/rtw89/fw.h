@@ -176,6 +176,8 @@ struct rtw89_fw_hdr_section_info {
 struct rtw89_fw_bin_info {
 	u8 section_num;
 	u32 hdr_len;
+	bool dynamic_hdr_en;
+	u32 dynamic_hdr_len;
 	struct rtw89_fw_hdr_section_info section_info[FWDL_SECTION_MAX_NUM];
 };
 
@@ -495,6 +497,8 @@ static inline void RTW89_SET_EDCA_PARAM(void *cmd, u32 val)
 	le32_get_bits(*((const __le32 *)(fwhdr) + 1), GENMASK(23, 16))
 #define GET_FW_HDR_SUBINDEX(fwhdr)	\
 	le32_get_bits(*((const __le32 *)(fwhdr) + 1), GENMASK(31, 24))
+#define GET_FW_HDR_LEN(fwhdr)	\
+	le32_get_bits(*((const __le32 *)(fwhdr) + 3), GENMASK(23, 16))
 #define GET_FW_HDR_MONTH(fwhdr)		\
 	le32_get_bits(*((const __le32 *)(fwhdr) + 4), GENMASK(7, 0))
 #define GET_FW_HDR_DATE(fwhdr)		\
@@ -507,8 +511,16 @@ static inline void RTW89_SET_EDCA_PARAM(void *cmd, u32 val)
 	le32_get_bits(*((const __le32 *)(fwhdr) + 5), GENMASK(31, 0))
 #define GET_FW_HDR_SEC_NUM(fwhdr)	\
 	le32_get_bits(*((const __le32 *)(fwhdr) + 6), GENMASK(15, 8))
+#define GET_FW_HDR_DYN_HDR(fwhdr)	\
+	le32_get_bits(*((const __le32 *)(fwhdr) + 7), BIT(16))
 #define GET_FW_HDR_CMD_VERSERION(fwhdr)	\
 	le32_get_bits(*((const __le32 *)(fwhdr) + 7), GENMASK(31, 24))
+
+#define GET_FW_DYNHDR_LEN(fwdynhdr)	\
+	le32_get_bits(*((const __le32 *)(fwdynhdr)), GENMASK(31, 0))
+#define GET_FW_DYNHDR_COUNT(fwdynhdr)	\
+	le32_get_bits(*((const __le32 *)(fwdynhdr) + 1), GENMASK(31, 0))
+
 static inline void SET_FW_HDR_PART_SIZE(void *fwhdr, u32 val)
 {
 	le32p_replace_bits((__le32 *)fwhdr + 7, val, GENMASK(15, 0));
