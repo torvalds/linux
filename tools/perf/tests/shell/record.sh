@@ -13,8 +13,8 @@ testprog=$(mktemp /tmp/__perf_test.prog.XXXXXX)
 testsym="test_loop"
 
 cleanup() {
-  rm -f "${perfdata}"
-  rm -f "${perfdata}".old
+  rm -rf "${perfdata}"
+  rm -rf "${perfdata}".old
 
   if [ "${testprog}" != "true" ]; then
     rm -f "${testprog}"
@@ -171,6 +171,19 @@ test_system_wide() {
     err=1
     return
   fi
+  if ! perf record -aB --synth=no -e cpu-clock,cs --threads=cpu \
+    -o "${perfdata}" ${testprog} 2> /dev/null
+  then
+    echo "System-wide record [Failed record --threads option]"
+    err=1
+    return
+  fi
+  if ! perf report -i "${perfdata}" -q | grep -q "${testsym}"
+  then
+    echo "System-wide record [Failed --threads missing output]"
+    err=1
+    return
+  fi
   echo "Basic --system-wide mode test [Success]"
 }
 
@@ -185,6 +198,19 @@ test_workload() {
   if ! perf report -i "${perfdata}" -q | grep -q "${testsym}"
   then
     echo "Workload record [Failed missing output]"
+    err=1
+    return
+  fi
+  if ! perf record -e cpu-clock,cs --threads=package \
+    -o "${perfdata}" ${testprog} 2> /dev/null
+  then
+    echo "Workload record [Failed record --threads option]"
+    err=1
+    return
+  fi
+  if ! perf report -i "${perfdata}" -q | grep -q "${testsym}"
+  then
+    echo "Workload record [Failed --threads missing output]"
     err=1
     return
   fi
