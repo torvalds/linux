@@ -13,6 +13,7 @@
 #include "vcap_api.h"
 #include "sparx5_main_regs.h"
 #include "sparx5_main.h"
+#include "sparx5_vcap_ag_api.h"
 
 /* Allocate a vcap control and vcap instances and configure the system */
 int sparx5_vcap_init(struct sparx5 *sparx5)
@@ -28,6 +29,9 @@ int sparx5_vcap_init(struct sparx5 *sparx5)
 		return -ENOMEM;
 
 	sparx5->vcap_ctrl = ctrl;
+	/* select the sparx5 VCAP model */
+	ctrl->vcaps = sparx5_vcaps;
+	ctrl->stats = &sparx5_vcap_stats;
 
 	return 0;
 }
