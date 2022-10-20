@@ -141,6 +141,20 @@ int kvm_host_prepare_stage2(void *pgt_pool_base)
 	return 0;
 }
 
+int kvm_guest_prepare_stage2(struct pkvm_hyp_vm *vm, void *pgd)
+{
+	vm->pgt.pgd = pgd;
+	return 0;
+}
+
+void reclaim_guest_pages(struct pkvm_hyp_vm *vm)
+{
+	unsigned long nr_pages;
+
+	nr_pages = kvm_pgtable_stage2_pgd_size(vm->kvm.arch.vtcr) >> PAGE_SHIFT;
+	WARN_ON(__pkvm_hyp_donate_host(hyp_virt_to_pfn(vm->pgt.pgd), nr_pages));
+}
+
 int __pkvm_prot_finalize(void)
 {
 	struct kvm_s2_mmu *mmu = &host_mmu.arch.mmu;

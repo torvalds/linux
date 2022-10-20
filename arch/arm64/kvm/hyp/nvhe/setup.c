@@ -16,6 +16,7 @@
 #include <nvhe/memory.h>
 #include <nvhe/mem_protect.h>
 #include <nvhe/mm.h>
+#include <nvhe/pkvm.h>
 #include <nvhe/trap_handler.h>
 
 unsigned long hyp_nr_cpus;
@@ -24,6 +25,7 @@ unsigned long hyp_nr_cpus;
 			 (unsigned long)__per_cpu_start)
 
 static void *vmemmap_base;
+static void *vm_table_base;
 static void *hyp_pgt_base;
 static void *host_s2_pgt_base;
 static struct kvm_pgtable_mm_ops pkvm_pgtable_mm_ops;
@@ -38,6 +40,11 @@ static int divide_memory_pool(void *virt, unsigned long size)
 	nr_pages = hyp_vmemmap_pages(sizeof(struct hyp_page));
 	vmemmap_base = hyp_early_alloc_contig(nr_pages);
 	if (!vmemmap_base)
+		return -ENOMEM;
+
+	nr_pages = hyp_vm_table_pages();
+	vm_table_base = hyp_early_alloc_contig(nr_pages);
+	if (!vm_table_base)
 		return -ENOMEM;
 
 	nr_pages = hyp_s1_pgtable_pages();
@@ -314,6 +321,7 @@ void __noreturn __pkvm_init_finalise(void)
 	if (ret)
 		goto out;
 
+	pkvm_hyp_vm_table_init(vm_table_base);
 out:
 	/*
 	 * We tail-called to here from handle___pkvm_init() and will not return,

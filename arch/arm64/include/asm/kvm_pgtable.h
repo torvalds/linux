@@ -297,6 +297,14 @@ u64 kvm_pgtable_hyp_unmap(struct kvm_pgtable *pgt, u64 addr, u64 size);
 u64 kvm_get_vtcr(u64 mmfr0, u64 mmfr1, u32 phys_shift);
 
 /**
+ * kvm_pgtable_stage2_pgd_size() - Helper to compute size of a stage-2 PGD
+ * @vtcr:	Content of the VTCR register.
+ *
+ * Return: the size (in bytes) of the stage-2 PGD
+ */
+size_t kvm_pgtable_stage2_pgd_size(u64 vtcr);
+
+/**
  * __kvm_pgtable_stage2_init() - Initialise a guest stage-2 page-table.
  * @pgt:	Uninitialised page-table structure to initialise.
  * @mmu:	S2 MMU context for this S2 translation

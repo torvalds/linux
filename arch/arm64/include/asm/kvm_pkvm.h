@@ -9,6 +9,9 @@
 #include <linux/memblock.h>
 #include <asm/kvm_pgtable.h>
 
+/* Maximum number of VMs that can co-exist under pKVM. */
+#define KVM_MAX_PVMS 255
+
 #define HYP_MEMBLOCK_REGIONS 128
 
 extern struct memblock_region kvm_nvhe_sym(hyp_memory)[];
@@ -38,6 +41,11 @@ static inline unsigned long hyp_vmemmap_pages(size_t vmemmap_entry_size)
 	}
 
 	return res >> PAGE_SHIFT;
+}
+
+static inline unsigned long hyp_vm_table_pages(void)
+{
+	return PAGE_ALIGN(KVM_MAX_PVMS * sizeof(void *)) >> PAGE_SHIFT;
 }
 
 static inline unsigned long __hyp_pgtable_max_pages(unsigned long nr_pages)
