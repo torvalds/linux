@@ -494,14 +494,13 @@ static int cl_copy_fw_skl(struct snd_sof_dev *sdev,
 			  struct snd_dma_buffer *dmab)
 
 {
-	struct snd_sof_pdata *plat_data = sdev->pdata;
-	const struct firmware *fw =  plat_data->fw;
+	const struct firmware *fw =  sdev->basefw.fw;
 	struct firmware stripped_firmware;
 	unsigned int bufsize = HDA_SKL_CLDMA_MAX_BUFFER_SIZE;
 	int ret;
 
-	stripped_firmware.data = plat_data->fw->data + plat_data->fw_offset;
-	stripped_firmware.size = plat_data->fw->size - plat_data->fw_offset;
+	stripped_firmware.data = fw->data + sdev->basefw.payload_offset;
+	stripped_firmware.size = fw->size - sdev->basefw.payload_offset;
 
 	dev_dbg(sdev->dev, "firmware size: %#zx buffer size %#x\n", fw->size, bufsize);
 
