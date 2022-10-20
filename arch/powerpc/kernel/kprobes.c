@@ -158,9 +158,7 @@ int arch_prepare_kprobe(struct kprobe *p)
 		printk("Cannot register a kprobe on the second word of prefixed instruction\n");
 		ret = -EINVAL;
 	}
-	preempt_disable();
 	prev = get_kprobe(p->addr - 1);
-	preempt_enable_no_resched();
 
 	/*
 	 * When prev is a ftrace-based kprobe, we don't have an insn, and it
