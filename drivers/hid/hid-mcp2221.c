@@ -950,7 +950,7 @@ static int mcp2221_read_raw(struct iio_dev *indio_dev,
 		ret = mcp_chk_last_cmd_status(mcp);
 
 		if (!ret) {
-			*val = le16_to_cpu(mcp->adc_values[channel->address]);
+			*val = le16_to_cpu((__force __le16) mcp->adc_values[channel->address]);
 			if (*val >= BIT(10))
 				ret =  -EINVAL;
 			else
