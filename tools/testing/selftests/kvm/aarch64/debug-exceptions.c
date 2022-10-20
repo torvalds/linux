@@ -420,12 +420,11 @@ static int debug_version(uint64_t id_aa64dfr0)
 	return FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_DEBUGVER), id_aa64dfr0);
 }
 
-static void test_guest_debug_exceptions(uint64_t aa64dfr0)
+static void test_guest_debug_exceptions(uint8_t bpn, uint8_t wpn, uint8_t ctx_bpn)
 {
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	struct ucall uc;
-	uint8_t brp_num;
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 	ucall_init(vm, NULL);
@@ -444,15 +443,9 @@ static void test_guest_debug_exceptions(uint64_t aa64dfr0)
 	vm_install_sync_handler(vm, VECTOR_SYNC_CURRENT,
 				ESR_EC_SVC64, guest_svc_handler);
 
-	/* Number of breakpoints */
-	brp_num = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_BRPS), aa64dfr0) + 1;
-	__TEST_REQUIRE(brp_num >= 2, "At least two breakpoints are required");
-
-	/*
-	 * Run tests with breakpoint#0, watchpoint#0, and the higiest
-	 * numbered (context-aware) breakpoint.
-	 */
-	vcpu_args_set(vcpu, 3, 0, 0, brp_num - 1);
+	/* Specify bpn/wpn/ctx_bpn to be tested */
+	vcpu_args_set(vcpu, 3, bpn, wpn, ctx_bpn);
+	pr_debug("Use bpn#%d, wpn#%d and ctx_bpn#%d\n", bpn, wpn, ctx_bpn);
 
 	vcpu_run(vcpu);
 	switch (get_ucall(vcpu, &uc)) {
@@ -535,6 +528,43 @@ void test_single_step_from_userspace(int test_cnt)
 	kvm_vm_free(vm);
 }
 
+/*
+ * Run debug testing using the various breakpoint#, watchpoint# and
+ * context-aware breakpoint# with the given ID_AA64DFR0_EL1 configuration.
+ */
+void test_guest_debug_exceptions_all(uint64_t aa64dfr0)
+{
+	uint8_t brp_num, wrp_num, ctx_brp_num, normal_brp_num, ctx_brp_base;
+	int b, w, c;
+
+	/* Number of breakpoints */
+	brp_num = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_BRPS), aa64dfr0) + 1;
+	__TEST_REQUIRE(brp_num >= 2, "At least two breakpoints are required");
+
+	/* Number of watchpoints */
+	wrp_num = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_WRPS), aa64dfr0) + 1;
+
+	/* Number of context aware breakpoints */
+	ctx_brp_num = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_CTX_CMPS), aa64dfr0) + 1;
+
+	pr_debug("%s brp_num:%d, wrp_num:%d, ctx_brp_num:%d\n", __func__,
+		 brp_num, wrp_num, ctx_brp_num);
+
+	/* Number of normal (non-context aware) breakpoints */
+	normal_brp_num = brp_num - ctx_brp_num;
+
+	/* Lowest context aware breakpoint number */
+	ctx_brp_base = normal_brp_num;
+
+	/* Run tests with all supported breakpoints/watchpoints */
+	for (c = ctx_brp_base; c < ctx_brp_base + ctx_brp_num; c++) {
+		for (b = 0; b < normal_brp_num; b++) {
+			for (w = 0; w < wrp_num; w++)
+				test_guest_debug_exceptions(b, w, c);
+		}
+	}
+}
+
 static void help(char *name)
 {
 	puts("");
@@ -569,7 +599,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	test_guest_debug_exceptions(aa64dfr0);
+	test_guest_debug_exceptions_all(aa64dfr0);
 	test_single_step_from_userspace(ss_iteration);
 
 	return 0;
