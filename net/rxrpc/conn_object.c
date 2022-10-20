@@ -356,8 +356,6 @@ static void rxrpc_destroy_connection(struct rcu_head *rcu)
 
 	ASSERTCMP(refcount_read(&conn->ref), ==, 0);
 
-	_net("DESTROY CONN %d", conn->debug_id);
-
 	del_timer_sync(&conn->timer);
 	rxrpc_purge_queue(&conn->rx_queue);
 

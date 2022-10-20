@@ -184,8 +184,6 @@ void rxrpc_new_incoming_connection(struct rxrpc_sock *rx,
 
 	/* Make the connection a target for incoming packets. */
 	rxrpc_publish_service_conn(conn->params.peer, conn);
-
-	_net("CONNECTION new %d {%x}", conn->debug_id, conn->proto.cid);
 }
 
 /*

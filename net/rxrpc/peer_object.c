@@ -138,10 +138,8 @@ struct rxrpc_peer *rxrpc_lookup_peer_rcu(struct rxrpc_local *local,
 	unsigned long hash_key = rxrpc_peer_hash_key(local, srx);
 
 	peer = __rxrpc_lookup_peer_rcu(local, srx, hash_key);
-	if (peer) {
-		_net("PEER %d {%pISp}", peer->debug_id, &peer->srx.transport);
+	if (peer)
 		_leave(" = %p {u=%d}", peer, refcount_read(&peer->ref));
-	}
 	return peer;
 }
 
@@ -370,8 +368,6 @@ struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_sock *rx,
 		else
 			peer = candidate;
 	}
-
-	_net("PEER %d {%pISp}", peer->debug_id, &peer->srx.transport);
 
 	_leave(" = %p {u=%d}", peer, refcount_read(&peer->ref));
 	return peer;

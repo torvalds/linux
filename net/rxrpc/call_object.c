@@ -349,8 +349,6 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 
 	rxrpc_start_call_timer(call);
 
-	_net("CALL new %d on CONN %d", call->debug_id, call->conn->debug_id);
-
 	_leave(" = %p [new]", call);
 	return call;
 
@@ -422,8 +420,6 @@ void rxrpc_incoming_call(struct rxrpc_sock *rx,
 	spin_lock(&conn->params.peer->lock);
 	hlist_add_head_rcu(&call->error_link, &conn->params.peer->error_targets);
 	spin_unlock(&conn->params.peer->lock);
-
-	_net("CALL incoming %d on CONN %d", call->debug_id, call->conn->debug_id);
 
 	rxrpc_start_call_timer(call);
 	_leave("");
@@ -668,8 +664,6 @@ static void rxrpc_rcu_destroy_call(struct rcu_head *rcu)
 void rxrpc_cleanup_call(struct rxrpc_call *call)
 {
 	struct rxrpc_txbuf *txb;
-
-	_net("DESTROY CALL %d", call->debug_id);
 
 	memset(&call->sock_node, 0xcd, sizeof(call->sock_node));
 

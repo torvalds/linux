@@ -48,13 +48,11 @@ static struct rxrpc_peer *rxrpc_lookup_peer_local_rcu(struct rxrpc_local *local,
 		srx->transport.sin.sin_port = serr->port;
 		switch (serr->ee.ee_origin) {
 		case SO_EE_ORIGIN_ICMP:
-			_net("Rx ICMP");
 			memcpy(&srx->transport.sin.sin_addr,
 			       skb_network_header(skb) + serr->addr_offset,
 			       sizeof(struct in_addr));
 			break;
 		case SO_EE_ORIGIN_ICMP6:
-			_net("Rx ICMP6 on v4 sock");
 			memcpy(&srx->transport.sin.sin_addr,
 			       skb_network_header(skb) + serr->addr_offset + 12,
 			       sizeof(struct in_addr));
@@ -70,14 +68,12 @@ static struct rxrpc_peer *rxrpc_lookup_peer_local_rcu(struct rxrpc_local *local,
 	case AF_INET6:
 		switch (serr->ee.ee_origin) {
 		case SO_EE_ORIGIN_ICMP6:
-			_net("Rx ICMP6");
 			srx->transport.sin6.sin6_port = serr->port;
 			memcpy(&srx->transport.sin6.sin6_addr,
 			       skb_network_header(skb) + serr->addr_offset,
 			       sizeof(struct in6_addr));
 			break;
 		case SO_EE_ORIGIN_ICMP:
-			_net("Rx ICMP on v6 sock");
 			srx->transport_len = sizeof(srx->transport.sin);
 			srx->transport.family = AF_INET;
 			srx->transport.sin.sin_port = serr->port;
@@ -106,13 +102,9 @@ static struct rxrpc_peer *rxrpc_lookup_peer_local_rcu(struct rxrpc_local *local,
  */
 static void rxrpc_adjust_mtu(struct rxrpc_peer *peer, unsigned int mtu)
 {
-	_net("Rx ICMP Fragmentation Needed (%d)", mtu);
-
 	/* wind down the local interface MTU */
-	if (mtu > 0 && peer->if_mtu == 65535 && mtu < peer->if_mtu) {
+	if (mtu > 0 && peer->if_mtu == 65535 && mtu < peer->if_mtu)
 		peer->if_mtu = mtu;
-		_net("I/F MTU %u", mtu);
-	}
 
 	if (mtu == 0) {
 		/* they didn't give us a size, estimate one */
@@ -133,8 +125,6 @@ static void rxrpc_adjust_mtu(struct rxrpc_peer *peer, unsigned int mtu)
 		peer->mtu = mtu;
 		peer->maxdata = peer->mtu - peer->hdrsize;
 		spin_unlock_bh(&peer->lock);
-		_net("Net MTU %u (maxdata %u)",
-		     peer->mtu, peer->maxdata);
 	}
 }
 
@@ -222,41 +212,6 @@ static void rxrpc_store_error(struct rxrpc_peer *peer,
 	err = ee->ee_errno;
 
 	switch (ee->ee_origin) {
-	case SO_EE_ORIGIN_ICMP:
-		switch (ee->ee_type) {
-		case ICMP_DEST_UNREACH:
-			switch (ee->ee_code) {
-			case ICMP_NET_UNREACH:
-				_net("Rx Received ICMP Network Unreachable");
-				break;
-			case ICMP_HOST_UNREACH:
-				_net("Rx Received ICMP Host Unreachable");
-				break;
-			case ICMP_PORT_UNREACH:
-				_net("Rx Received ICMP Port Unreachable");
-				break;
-			case ICMP_NET_UNKNOWN:
-				_net("Rx Received ICMP Unknown Network");
-				break;
-			case ICMP_HOST_UNKNOWN:
-				_net("Rx Received ICMP Unknown Host");
-				break;
-			default:
-				_net("Rx Received ICMP DestUnreach code=%u",
-				     ee->ee_code);
-				break;
-			}
-			break;
-
-		case ICMP_TIME_EXCEEDED:
-			_net("Rx Received ICMP TTL Exceeded");
-			break;
-
-		default:
-			break;
-		}
-		break;
-
 	case SO_EE_ORIGIN_NONE:
 	case SO_EE_ORIGIN_LOCAL:
 		compl = RXRPC_CALL_LOCAL_ERROR;
@@ -266,6 +221,7 @@ static void rxrpc_store_error(struct rxrpc_peer *peer,
 		if (err == EACCES)
 			err = EHOSTUNREACH;
 		fallthrough;
+	case SO_EE_ORIGIN_ICMP:
 	default:
 		break;
 	}

@@ -725,7 +725,6 @@ static void rxrpc_input_ackinfo(struct rxrpc_call *call, struct sk_buff *skb,
 		peer->maxdata = mtu;
 		peer->mtu = mtu + peer->hdrsize;
 		spin_unlock_bh(&peer->lock);
-		_net("Net MTU %u (maxdata %u)", peer->mtu, peer->maxdata);
 	}
 
 	if (wake)

@@ -541,8 +541,6 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 	call->service_id = conn->service_id;
 
 	trace_rxrpc_connect_call(call);
-	_net("CONNECT call %08x:%08x as call %d on conn %d",
-	     call->cid, call->call_id, call->debug_id, conn->debug_id);
 
 	write_lock_bh(&call->state_lock);
 	call->state = RXRPC_CALL_CLIENT_SEND_REQUEST;
