@@ -1956,7 +1956,6 @@ static int ftdi_elan_synchronize(struct usb_ftdi *ftdi)
 	int long_stop = 10;
 	int retry_on_timeout = 5;
 	int retry_on_empty = 10;
-	int err_count = 0;
 	retval = ftdi_elan_flush_input_fifo(ftdi);
 	if (retval)
 		return retval;
@@ -2051,7 +2050,6 @@ static int ftdi_elan_synchronize(struct usb_ftdi *ftdi)
 					continue;
 				}
 			} else {
-				err_count += 1;
 				dev_err(&ftdi->udev->dev, "error = %d\n",
 					retval);
 				if (read_stop-- > 0) {
