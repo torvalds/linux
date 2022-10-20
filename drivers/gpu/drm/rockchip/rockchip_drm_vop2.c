@@ -3705,6 +3705,13 @@ static void vop2_initial(struct drm_crtc *crtc)
 		if (is_vop3(vop2))
 			VOP_CTRL_SET(vop2, esmart_lb_mode, vop2->data->esmart_lb_mode);
 
+		/*
+		 * This is unused and error init value for rk3528 vp1, if less of this config,
+		 * vp1 can't display normally.
+		 */
+		if (vop2->version == VOP_VERSION_RK3528)
+			vop2_mask_write(vop2, 0x700, 0x3, 4, 0, 0, true);
+
 		VOP_CTRL_SET(vop2, cfg_done_en, 1);
 		/*
 		 * Disable auto gating, this is a workaround to
