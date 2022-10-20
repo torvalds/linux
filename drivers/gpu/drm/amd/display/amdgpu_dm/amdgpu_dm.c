@@ -6156,6 +6156,70 @@ static void handle_edid_mgmt(struct amdgpu_dm_connector *aconnector)
 	create_eml_sink(aconnector);
 }
 
+static enum dc_status dm_validate_stream_and_context(struct dc *dc,
+						struct dc_stream_state *stream)
+{
+	enum dc_status dc_result = DC_ERROR_UNEXPECTED;
+	struct dc_plane_state *dc_plane_state = NULL;
+	struct dc_state *dc_state = NULL;
+
+	if (!stream)
+		goto cleanup;
+
+	dc_plane_state = dc_create_plane_state(dc);
+	if (!dc_plane_state)
+		goto cleanup;
+
+	dc_state = dc_create_state(dc);
+	if (!dc_state)
+		goto cleanup;
+
+	/* populate stream to plane */
+	dc_plane_state->src_rect.height  = stream->src.height;
+	dc_plane_state->src_rect.width   = stream->src.width;
+	dc_plane_state->dst_rect.height  = stream->src.height;
+	dc_plane_state->dst_rect.width   = stream->src.width;
+	dc_plane_state->clip_rect.height = stream->src.height;
+	dc_plane_state->clip_rect.width  = stream->src.width;
+	dc_plane_state->plane_size.surface_pitch = ((stream->src.width + 255) / 256) * 256;
+	dc_plane_state->plane_size.surface_size.height = stream->src.height;
+	dc_plane_state->plane_size.surface_size.width  = stream->src.width;
+	dc_plane_state->plane_size.chroma_size.height  = stream->src.height;
+	dc_plane_state->plane_size.chroma_size.width   = stream->src.width;
+	dc_plane_state->tiling_info.gfx9.swizzle =  DC_SW_UNKNOWN;
+	dc_plane_state->format = SURFACE_PIXEL_FORMAT_GRPH_ARGB8888;
+	dc_plane_state->tiling_info.gfx9.swizzle = DC_SW_UNKNOWN;
+	dc_plane_state->rotation = ROTATION_ANGLE_0;
+	dc_plane_state->is_tiling_rotated = false;
+	dc_plane_state->tiling_info.gfx8.array_mode = DC_ARRAY_LINEAR_GENERAL;
+
+	dc_result = dc_validate_stream(dc, stream);
+	if (dc_result == DC_OK)
+		dc_result = dc_validate_plane(dc, dc_plane_state);
+
+	if (dc_result == DC_OK)
+		dc_result = dc_add_stream_to_ctx(dc, dc_state, stream);
+
+	if (dc_result == DC_OK && !dc_add_plane_to_context(
+						dc,
+						stream,
+						dc_plane_state,
+						dc_state))
+		dc_result = DC_FAIL_ATTACH_SURFACES;
+
+	if (dc_result == DC_OK)
+		dc_result = dc_validate_global_state(dc, dc_state, true);
+
+cleanup:
+	if (dc_state)
+		dc_release_state(dc_state);
+
+	if (dc_plane_state)
+		dc_plane_state_release(dc_plane_state);
+
+	return dc_result;
+}
+
 struct dc_stream_state *
 create_validate_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 				const struct drm_display_mode *drm_mode,
@@ -6181,6 +6245,9 @@ create_validate_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		dc_result = dc_validate_stream(adev->dm.dc, stream);
 		if (dc_result == DC_OK && stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 			dc_result = dm_dp_mst_is_port_support_mode(aconnector, stream);
+
+		if (dc_result == DC_OK)
+			dc_result = dm_validate_stream_and_context(adev->dm.dc, stream);
 
 		if (dc_result != DC_OK) {
 			DRM_DEBUG_KMS("Mode %dx%d (clk %d) failed DC validation with error %d (%s)\n",
