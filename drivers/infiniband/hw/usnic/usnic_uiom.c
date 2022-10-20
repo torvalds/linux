@@ -95,7 +95,6 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
 	int ret;
 	int off;
 	int i;
-	int flags;
 	dma_addr_t pa;
 	unsigned int gup_flags;
 	struct mm_struct *mm;
@@ -132,8 +131,6 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
 		goto out;
 	}
 
-	flags = IOMMU_READ | IOMMU_CACHE;
-	flags |= (writable) ? IOMMU_WRITE : 0;
 	gup_flags = FOLL_WRITE;
 	gup_flags |= (writable) ? 0 : FOLL_FORCE;
 	cur_base = addr & PAGE_MASK;

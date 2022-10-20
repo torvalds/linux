@@ -42,7 +42,7 @@
 		touchscreen-size-x = <720>;
 		touchscreen-size-y = <1280>;
 
-		avdd-supply = <&reg_vdd_tsp>;
+		avdd-supply = <&reg_vdd_tsp_a>;
 		vdd-supply = <&pm8916_l6>;
 
 		pinctrl-names = "default";

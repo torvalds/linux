@@ -231,12 +231,15 @@ static const char * const iio_ev_type_text[] = {
 	[IIO_EV_TYPE_MAG_ADAPTIVE] = "mag_adaptive",
 	[IIO_EV_TYPE_CHANGE] = "change",
 	[IIO_EV_TYPE_MAG_REFERENCED] = "mag_referenced",
+	[IIO_EV_TYPE_GESTURE] = "gesture",
 };
 
 static const char * const iio_ev_dir_text[] = {
 	[IIO_EV_DIR_EITHER] = "either",
 	[IIO_EV_DIR_RISING] = "rising",
-	[IIO_EV_DIR_FALLING] = "falling"
+	[IIO_EV_DIR_FALLING] = "falling",
+	[IIO_EV_DIR_SINGLETAP] = "singletap",
+	[IIO_EV_DIR_DOUBLETAP] = "doubletap",
 };
 
 static const char * const iio_ev_info_text[] = {
@@ -247,6 +250,8 @@ static const char * const iio_ev_info_text[] = {
 	[IIO_EV_INFO_HIGH_PASS_FILTER_3DB] = "high_pass_filter_3db",
 	[IIO_EV_INFO_LOW_PASS_FILTER_3DB] = "low_pass_filter_3db",
 	[IIO_EV_INFO_TIMEOUT] = "timeout",
+	[IIO_EV_INFO_RESET_TIMEOUT] = "reset_timeout",
+	[IIO_EV_INFO_TAP2_MIN_DELAY] = "tap2_min_delay",
 };
 
 static enum iio_event_direction iio_ev_attr_dir(struct iio_dev_attr *attr)
@@ -354,9 +359,10 @@ static int iio_device_add_event(struct iio_dev *indio_dev,
 	enum iio_shared_by shared_by, const unsigned long *mask)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
-	ssize_t (*show)(struct device *, struct device_attribute *, char *);
-	ssize_t (*store)(struct device *, struct device_attribute *,
-		const char *, size_t);
+	ssize_t (*show)(struct device *dev, struct device_attribute *attr,
+		char *buf);
+	ssize_t (*store)(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t len);
 	unsigned int attrcount = 0;
 	unsigned int i;
 	char *postfix;

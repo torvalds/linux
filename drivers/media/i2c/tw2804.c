@@ -405,14 +405,13 @@ static int tw2804_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int tw2804_remove(struct i2c_client *client)
+static void tw2804_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct tw2804 *state = to_state(sd);
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&state->hdl);
-	return 0;
 }
 
 static const struct i2c_device_id tw2804_id[] = {

@@ -248,7 +248,7 @@ static int hclge_fill_pri_array(struct hclge_dev *hdev, u8 *pri, u8 pri_id)
 	return 0;
 }
 
-static int hclge_up_to_tc_map(struct hclge_dev *hdev)
+int hclge_up_to_tc_map(struct hclge_dev *hdev)
 {
 	struct hclge_desc desc;
 	u8 *pri = (u8 *)desc.data;
@@ -264,6 +264,47 @@ static int hclge_up_to_tc_map(struct hclge_dev *hdev)
 	}
 
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
+}
+
+static void hclge_dscp_to_prio_map_init(struct hclge_dev *hdev)
+{
+	u8 i;
+
+	hdev->vport[0].nic.kinfo.tc_map_mode = HNAE3_TC_MAP_MODE_PRIO;
+	hdev->vport[0].nic.kinfo.dscp_app_cnt = 0;
+	for (i = 0; i < HNAE3_MAX_DSCP; i++)
+		hdev->vport[0].nic.kinfo.dscp_prio[i] = HNAE3_PRIO_ID_INVALID;
+}
+
+int hclge_dscp_to_tc_map(struct hclge_dev *hdev)
+{
+	struct hclge_desc desc[HCLGE_DSCP_MAP_TC_BD_NUM];
+	u8 *req0 = (u8 *)desc[0].data;
+	u8 *req1 = (u8 *)desc[1].data;
+	u8 pri_id, tc_id, i, j;
+
+	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_QOS_MAP, false);
+	desc[0].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
+	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_OPC_QOS_MAP, false);
+
+	/* The low 32 dscp setting use bd0, high 32 dscp setting use bd1 */
+	for (i = 0; i < HNAE3_MAX_DSCP / HCLGE_DSCP_MAP_TC_BD_NUM; i++) {
+		pri_id = hdev->vport[0].nic.kinfo.dscp_prio[i];
+		pri_id = pri_id == HNAE3_PRIO_ID_INVALID ? 0 : pri_id;
+		tc_id = hdev->tm_info.prio_tc[pri_id];
+		/* Each dscp setting has 4 bits, so each byte saves two dscp
+		 * setting
+		 */
+		req0[i >> 1] |= tc_id << HCLGE_DSCP_TC_SHIFT(i);
+
+		j = i + HNAE3_MAX_DSCP / HCLGE_DSCP_MAP_TC_BD_NUM;
+		pri_id = hdev->vport[0].nic.kinfo.dscp_prio[j];
+		pri_id = pri_id == HNAE3_PRIO_ID_INVALID ? 0 : pri_id;
+		tc_id = hdev->tm_info.prio_tc[pri_id];
+		req1[i >> 1] |= tc_id << HCLGE_DSCP_TC_SHIFT(i);
+	}
+
+	return hclge_cmd_send(&hdev->hw, desc, HCLGE_DSCP_MAP_TC_BD_NUM);
 }
 
 static int hclge_tm_pg_to_pri_map_cfg(struct hclge_dev *hdev,
@@ -1275,6 +1316,12 @@ static int hclge_tm_map_cfg(struct hclge_dev *hdev)
 	if (ret)
 		return ret;
 
+	if (hdev->vport[0].nic.kinfo.tc_map_mode == HNAE3_TC_MAP_MODE_DSCP) {
+		ret = hclge_dscp_to_tc_map(hdev);
+		if (ret)
+			return ret;
+	}
+
 	ret = hclge_tm_pg_to_pri_map(hdev);
 	if (ret)
 		return ret;
@@ -1646,6 +1693,7 @@ int hclge_tm_schd_init(struct hclge_dev *hdev)
 		return -EINVAL;
 
 	hclge_tm_schd_info_init(hdev);
+	hclge_dscp_to_prio_map_init(hdev);
 
 	return hclge_tm_init_hw(hdev, true);
 }

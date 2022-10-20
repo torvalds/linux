@@ -261,7 +261,7 @@ static void xs_format_common_peer_addresses(struct rpc_xprt *xprt)
 	switch (sap->sa_family) {
 	case AF_LOCAL:
 		sun = xs_addr_un(xprt);
-		strlcpy(buf, sun->sun_path, sizeof(buf));
+		strscpy(buf, sun->sun_path, sizeof(buf));
 		xprt->address_strings[RPC_DISPLAY_ADDR] =
 						kstrdup(buf, GFP_KERNEL);
 		break;
@@ -1619,7 +1619,7 @@ static int xs_get_random_port(void)
 	if (max < min)
 		return -EADDRINUSE;
 	range = max - min + 1;
-	rand = (unsigned short) prandom_u32() % range;
+	rand = prandom_u32_max(range);
 	return rand + min;
 }
 
@@ -1978,8 +1978,7 @@ static void xs_local_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 		 * we'll need to figure out how to pass a namespace to
 		 * connect.
 		 */
-		task->tk_rpc_status = -ENOTCONN;
-		rpc_exit(task, -ENOTCONN);
+		rpc_task_set_rpc_status(task, -ENOTCONN);
 		goto out_wake;
 	}
 	ret = xs_local_setup_socket(transport);

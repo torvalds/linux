@@ -68,63 +68,10 @@ int __hci_req_sync(struct hci_dev *hdev, int (*func)(struct hci_request *req,
 struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode, u32 plen,
 				const void *param);
 
-void __hci_req_write_fast_connectable(struct hci_request *req, bool enable);
-void __hci_req_update_name(struct hci_request *req);
-void __hci_req_update_eir(struct hci_request *req);
-
 void hci_req_add_le_scan_disable(struct hci_request *req, bool rpa_le_conn);
 void hci_req_add_le_passive_scan(struct hci_request *req);
 
 void hci_req_prepare_suspend(struct hci_dev *hdev, enum suspended_state next);
-
-void hci_req_disable_address_resolution(struct hci_dev *hdev);
-void hci_req_reenable_advertising(struct hci_dev *hdev);
-void __hci_req_enable_advertising(struct hci_request *req);
-void __hci_req_disable_advertising(struct hci_request *req);
-void __hci_req_update_adv_data(struct hci_request *req, u8 instance);
-int hci_req_update_adv_data(struct hci_dev *hdev, u8 instance);
-int hci_req_start_per_adv(struct hci_dev *hdev, u8 instance, u32 flags,
-			  u16 min_interval, u16 max_interval,
-			  u16 sync_interval);
-void __hci_req_update_scan_rsp_data(struct hci_request *req, u8 instance);
-
-int __hci_req_schedule_adv_instance(struct hci_request *req, u8 instance,
-				    bool force);
-void hci_req_clear_adv_instance(struct hci_dev *hdev, struct sock *sk,
-				struct hci_request *req, u8 instance,
-				bool force);
-
-int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance);
-int __hci_req_setup_per_adv_instance(struct hci_request *req, u8 instance,
-				     u16 min_interval, u16 max_interval);
-int __hci_req_start_ext_adv(struct hci_request *req, u8 instance);
-int __hci_req_start_per_adv(struct hci_request *req, u8 instance, u32 flags,
-			    u16 min_interval, u16 max_interval,
-			    u16 sync_interval);
-int __hci_req_enable_ext_advertising(struct hci_request *req, u8 instance);
-int __hci_req_enable_per_advertising(struct hci_request *req, u8 instance);
-int __hci_req_disable_ext_adv_instance(struct hci_request *req, u8 instance);
-int __hci_req_remove_ext_adv_instance(struct hci_request *req, u8 instance);
-void __hci_req_clear_ext_adv_sets(struct hci_request *req);
-int hci_get_random_address(struct hci_dev *hdev, bool require_privacy,
-			   bool use_rpa, struct adv_info *adv_instance,
-			   u8 *own_addr_type, bdaddr_t *rand_addr);
-
-void __hci_req_update_class(struct hci_request *req);
-
-/* Returns true if HCI commands were queued */
-bool hci_req_stop_discovery(struct hci_request *req);
-
-int hci_req_configure_datapath(struct hci_dev *hdev, struct bt_codec *codec);
-
-void __hci_req_update_scan(struct hci_request *req);
-
-int hci_update_random_address(struct hci_request *req, bool require_privacy,
-			      bool use_rpa, u8 *own_addr_type);
-
-int hci_abort_conn(struct hci_conn *conn, u8 reason);
-void __hci_abort_conn(struct hci_request *req, struct hci_conn *conn,
-		      u8 reason);
 
 void hci_request_setup(struct hci_dev *hdev);
 void hci_request_cancel_all(struct hci_dev *hdev);

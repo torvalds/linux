@@ -131,10 +131,10 @@ int wl18xx_process_mailbox_events(struct wl1271 *wl)
 
 	if (vector & TIME_SYNC_EVENT_ID)
 		wlcore_event_time_sync(wl,
-			mbox->time_sync_tsf_high_msb,
-			mbox->time_sync_tsf_high_lsb,
-			mbox->time_sync_tsf_low_msb,
-			mbox->time_sync_tsf_low_lsb);
+			le16_to_cpu(mbox->time_sync_tsf_high_msb),
+			le16_to_cpu(mbox->time_sync_tsf_high_lsb),
+			le16_to_cpu(mbox->time_sync_tsf_low_msb),
+			le16_to_cpu(mbox->time_sync_tsf_low_lsb));
 
 	if (vector & RADAR_DETECTED_EVENT_ID) {
 		wl1271_info("radar event: channel %d type %s",

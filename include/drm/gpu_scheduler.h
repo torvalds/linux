@@ -338,10 +338,10 @@ enum drm_gpu_sched_stat {
 };
 
 /**
- * struct drm_sched_backend_ops
+ * struct drm_sched_backend_ops - Define the backend operations
+ *	called by the scheduler
  *
- * Define the backend operations called by the scheduler,
- * these functions should be implemented in driver side.
+ * These functions should be implemented in the driver side.
  */
 struct drm_sched_backend_ops {
 	/**
@@ -418,7 +418,7 @@ struct drm_sched_backend_ops {
 };
 
 /**
- * struct drm_gpu_scheduler
+ * struct drm_gpu_scheduler - scheduler instance-specific data
  *
  * @ops: backend operations provided by the driver.
  * @hw_submission_limit: the max size of the hardware queue.
@@ -444,6 +444,7 @@ struct drm_sched_backend_ops {
  * @_score: score used when the driver doesn't provide one
  * @ready: marks if the underlying HW is ready to work
  * @free_guilty: A hit to time out handler to free the guilty job.
+ * @dev: system &struct device
  *
  * One scheduler is implemented for each hardware ring.
  */

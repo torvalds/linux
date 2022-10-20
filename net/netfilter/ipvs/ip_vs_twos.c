@@ -71,8 +71,8 @@ static struct ip_vs_dest *ip_vs_twos_schedule(struct ip_vs_service *svc,
 	 * from 0 to total_weight
 	 */
 	total_weight += 1;
-	rweight1 = prandom_u32() % total_weight;
-	rweight2 = prandom_u32() % total_weight;
+	rweight1 = prandom_u32_max(total_weight);
+	rweight2 = prandom_u32_max(total_weight);
 
 	/* Pick two weighted servers */
 	list_for_each_entry_rcu(dest, &svc->destinations, n_list) {

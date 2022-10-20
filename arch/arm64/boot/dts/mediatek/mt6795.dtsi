@@ -230,6 +230,14 @@
 			reg = <0 0x10200620 0 0x20>;
 		};
 
+		systimer: timer@10200670 {
+			compatible = "mediatek,mt6795-systimer";
+			reg = <0 0x10200670 0 0x10>;
+			interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&system_clk>;
+			clock-names = "clk13m";
+		};
+
 		gic: interrupt-controller@10221000 {
 			compatible = "arm,gic-400";
 			#interrupt-cells = <3>;

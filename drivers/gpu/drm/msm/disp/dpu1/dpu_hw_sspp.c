@@ -780,8 +780,7 @@ static const struct dpu_sspp_cfg *_sspp_offset(enum dpu_sspp sspp,
 }
 
 struct dpu_hw_pipe *dpu_hw_sspp_init(enum dpu_sspp idx,
-		void __iomem *addr, const struct dpu_mdss_cfg *catalog,
-		bool is_virtual_pipe)
+		void __iomem *addr, const struct dpu_mdss_cfg *catalog)
 {
 	struct dpu_hw_pipe *hw_pipe;
 	const struct dpu_sspp_cfg *cfg;

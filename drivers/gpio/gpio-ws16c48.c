@@ -27,7 +27,8 @@ module_param_hw_array(base, uint, ioport, &num_ws16c48, 0);
 MODULE_PARM_DESC(base, "WinSystems WS16C48 base addresses");
 
 static unsigned int irq[MAX_NUM_WS16C48];
-module_param_hw_array(irq, uint, irq, NULL, 0);
+static unsigned int num_irq;
+module_param_hw_array(irq, uint, irq, &num_irq, 0);
 MODULE_PARM_DESC(irq, "WinSystems WS16C48 interrupt line numbers");
 
 /**
@@ -265,6 +266,7 @@ static void ws16c48_irq_mask(struct irq_data *data)
 	raw_spin_lock_irqsave(&ws16c48gpio->lock, flags);
 
 	ws16c48gpio->irq_mask &= ~mask;
+	gpiochip_disable_irq(chip, offset);
 	port_state = ws16c48gpio->irq_mask >> (8 * port);
 
 	/* Select Register Page 2; Unlock all I/O ports */
@@ -295,6 +297,7 @@ static void ws16c48_irq_unmask(struct irq_data *data)
 
 	raw_spin_lock_irqsave(&ws16c48gpio->lock, flags);
 
+	gpiochip_enable_irq(chip, offset);
 	ws16c48gpio->irq_mask |= mask;
 	port_state = ws16c48gpio->irq_mask >> (8 * port);
 
@@ -356,12 +359,14 @@ static int ws16c48_irq_set_type(struct irq_data *data, unsigned flow_type)
 	return 0;
 }
 
-static struct irq_chip ws16c48_irqchip = {
+static const struct irq_chip ws16c48_irqchip = {
 	.name = "ws16c48",
 	.irq_ack = ws16c48_irq_ack,
 	.irq_mask = ws16c48_irq_mask,
 	.irq_unmask = ws16c48_irq_unmask,
-	.irq_set_type = ws16c48_irq_set_type
+	.irq_set_type = ws16c48_irq_set_type,
+	.flags = IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static irqreturn_t ws16c48_irq_handler(int irq, void *dev_id)
@@ -463,7 +468,7 @@ static int ws16c48_probe(struct device *dev, unsigned int id)
 	ws16c48gpio->chip.set_multiple = ws16c48_gpio_set_multiple;
 
 	girq = &ws16c48gpio->chip.irq;
-	girq->chip = &ws16c48_irqchip;
+	gpio_irq_chip_set_chip(girq, &ws16c48_irqchip);
 	/* This will let us handle the parent IRQ in the driver */
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;
@@ -497,7 +502,7 @@ static struct isa_driver ws16c48_driver = {
 	},
 };
 
-module_isa_driver(ws16c48_driver, num_ws16c48);
+module_isa_driver_with_irq(ws16c48_driver, num_ws16c48, num_irq);
 
 MODULE_AUTHOR("William Breathitt Gray <vilhelm.gray@gmail.com>");
 MODULE_DESCRIPTION("WinSystems WS16C48 GPIO driver");

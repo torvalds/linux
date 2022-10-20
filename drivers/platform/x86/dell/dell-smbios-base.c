@@ -441,7 +441,7 @@ static ssize_t location_show(struct device *dev,
 
 	i = match_attribute(dev, attr);
 	if (i > 0)
-		return scnprintf(buf, PAGE_SIZE, "%08x", da_tokens[i].location);
+		return sysfs_emit(buf, "%08x", da_tokens[i].location);
 	return 0;
 }
 
@@ -455,7 +455,7 @@ static ssize_t value_show(struct device *dev,
 
 	i = match_attribute(dev, attr);
 	if (i > 0)
-		return scnprintf(buf, PAGE_SIZE, "%08x", da_tokens[i].value);
+		return sysfs_emit(buf, "%08x", da_tokens[i].value);
 	return 0;
 }
 

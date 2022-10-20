@@ -17,6 +17,7 @@
 
 #include <sound/sof/ext_manifest4.h>
 #include <sound/sof/ipc4/header.h>
+#include <trace/events/sof_intel.h>
 #include "../ipc4-priv.h"
 #include "../ops.h"
 #include "hda.h"
@@ -121,9 +122,7 @@ irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 		msg_ext = hipci & CNL_DSP_REG_HIPCIDR_MSG_MASK;
 		msg = hipcida & CNL_DSP_REG_HIPCIDA_MSG_MASK;
 
-		dev_vdbg(sdev->dev,
-			 "ipc: firmware response, msg:0x%x, msg_ext:0x%x\n",
-			 msg, msg_ext);
+		trace_sof_intel_ipc_firmware_response(sdev, msg, msg_ext);
 
 		/* mask Done interrupt */
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
@@ -153,9 +152,7 @@ irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 		msg = hipctdr & CNL_DSP_REG_HIPCTDR_MSG_MASK;
 		msg_ext = hipctdd & CNL_DSP_REG_HIPCTDD_MSG_MASK;
 
-		dev_vdbg(sdev->dev,
-			 "ipc: firmware initiated, msg:0x%x, msg_ext:0x%x\n",
-			 msg, msg_ext);
+		trace_sof_intel_ipc_firmware_initiated(sdev, msg, msg_ext);
 
 		/* handle messages from DSP */
 		if ((hipctdr & SOF_IPC_PANIC_MAGIC_MASK) == SOF_IPC_PANIC_MAGIC) {
@@ -335,6 +332,27 @@ void cnl_ipc_dump(struct snd_sof_dev *sdev)
 		hipcida, hipctdr, hipcctl);
 }
 
+void cnl_ipc4_dump(struct snd_sof_dev *sdev)
+{
+	u32 hipcidr, hipcidd, hipcida, hipctdr, hipctdd, hipctda, hipcctl;
+
+	hda_ipc_irq_dump(sdev);
+
+	hipcidr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDR);
+	hipcidd = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDD);
+	hipcida = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDA);
+	hipctdr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCTDR);
+	hipctdd = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCTDD);
+	hipctda = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCTDA);
+	hipcctl = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCCTL);
+
+	/* dump the IPC regs */
+	/* TODO: parse the raw msg */
+	dev_err(sdev->dev,
+		"Host IPC initiator: %#x|%#x|%#x, target: %#x|%#x|%#x, ctl: %#x\n",
+		hipcidr, hipcidd, hipcida, hipctdr, hipctdd, hipctda, hipcctl);
+}
+
 /* cannonlake ops */
 struct snd_sof_dsp_ops sof_cnl_ops;
 EXPORT_SYMBOL_NS(sof_cnl_ops, SND_SOC_SOF_INTEL_HDA_COMMON);
@@ -354,6 +372,9 @@ int sof_cnl_ops_init(struct snd_sof_dev *sdev)
 
 		/* ipc */
 		sof_cnl_ops.send_msg	= cnl_ipc_send_msg;
+
+		/* debug */
+		sof_cnl_ops.ipc_dump	= cnl_ipc_dump;
 	}
 
 	if (sdev->pdata->ipc_type == SOF_INTEL_IPC4) {
@@ -366,11 +387,16 @@ int sof_cnl_ops_init(struct snd_sof_dev *sdev)
 		ipc4_data = sdev->private;
 		ipc4_data->manifest_fw_hdr_offset = SOF_MAN4_FW_HDR_OFFSET;
 
+		ipc4_data->mtrace_type = SOF_IPC4_MTRACE_INTEL_CAVS_1_8;
+
 		/* doorbell */
 		sof_cnl_ops.irq_thread	= cnl_ipc4_irq_thread;
 
 		/* ipc */
 		sof_cnl_ops.send_msg	= cnl_ipc4_send_msg;
+
+		/* debug */
+		sof_cnl_ops.ipc_dump	= cnl_ipc4_dump;
 	}
 
 	/* set DAI driver ops */
@@ -379,7 +405,6 @@ int sof_cnl_ops_init(struct snd_sof_dev *sdev)
 	/* debug */
 	sof_cnl_ops.debug_map	= cnl_dsp_debugfs;
 	sof_cnl_ops.debug_map_count	= ARRAY_SIZE(cnl_dsp_debugfs);
-	sof_cnl_ops.ipc_dump	= cnl_ipc_dump;
 
 	/* pre/post fw run */
 	sof_cnl_ops.post_fw_run = hda_dsp_post_fw_run;
@@ -413,6 +438,8 @@ const struct sof_intel_dsp_desc cnl_chip_info = {
 	.check_sdw_irq	= hda_common_check_sdw_irq,
 	.check_ipc_irq	= hda_dsp_check_ipc_irq,
 	.cl_init = cl_dsp_init,
+	.power_down_dsp = hda_power_down_dsp,
+	.disable_interrupts = hda_dsp_disable_interrupts,
 	.hw_ip_version = SOF_INTEL_CAVS_1_8,
 };
 EXPORT_SYMBOL_NS(cnl_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);
@@ -443,6 +470,8 @@ const struct sof_intel_dsp_desc jsl_chip_info = {
 	.check_sdw_irq	= hda_common_check_sdw_irq,
 	.check_ipc_irq	= hda_dsp_check_ipc_irq,
 	.cl_init = cl_dsp_init,
+	.power_down_dsp = hda_power_down_dsp,
+	.disable_interrupts = hda_dsp_disable_interrupts,
 	.hw_ip_version = SOF_INTEL_CAVS_2_0,
 };
 EXPORT_SYMBOL_NS(jsl_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);

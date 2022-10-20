@@ -915,7 +915,7 @@ static int anfc_check_op(struct nand_chip *chip,
 			if (instr->ctx.data.len > ANFC_MAX_CHUNK_SIZE)
 				return -ENOTSUPP;
 
-			if (anfc_pkt_len_config(instr->ctx.data.len, 0, 0))
+			if (anfc_pkt_len_config(instr->ctx.data.len, NULL, NULL))
 				return -ENOTSUPP;
 
 			break;

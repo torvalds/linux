@@ -30,6 +30,7 @@
 #include <asm/checksum.h>
 #include <asm/os_info.h>
 #include <asm/switch_to.h>
+#include <asm/maccess.h>
 #include "sclp.h"
 
 #define TRACE(x...) debug_sprintf_event(zcore_dbf, 1, x)

@@ -6,15 +6,6 @@
 /* Authors: Bernard Metzler <bmt@zurich.ibm.com> */
 /* Copyright (c) 2008-2019, IBM Corporation */
 
-#include <linux/errno.h>
-#include <linux/pci.h>
-#include <linux/scatterlist.h>
-#include <linux/types.h>
-
-#include <rdma/ib_user_verbs.h>
-#include <rdma/ib_verbs.h>
-
-#include "erdma.h"
 #include "erdma_cm.h"
 #include "erdma_verbs.h"
 
@@ -105,8 +96,7 @@ static int erdma_modify_qp_state_to_rts(struct erdma_qp *qp,
 		req.send_nxt += MPA_DEFAULT_HDR_LEN + qp->attrs.pd_len;
 	req.recv_nxt = tp->rcv_nxt;
 
-	return erdma_post_cmd_wait(&dev->cmdq, (u64 *)&req, sizeof(req), NULL,
-				   NULL);
+	return erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL);
 }
 
 static int erdma_modify_qp_state_to_stop(struct erdma_qp *qp,
@@ -124,8 +114,7 @@ static int erdma_modify_qp_state_to_stop(struct erdma_qp *qp,
 	req.cfg = FIELD_PREP(ERDMA_CMD_MODIFY_QP_STATE_MASK, attrs->state) |
 		  FIELD_PREP(ERDMA_CMD_MODIFY_QP_QPN_MASK, QP_ID(qp));
 
-	return erdma_post_cmd_wait(&dev->cmdq, (u64 *)&req, sizeof(req), NULL,
-				   NULL);
+	return erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL);
 }
 
 int erdma_modify_qp_internal(struct erdma_qp *qp, struct erdma_qp_attrs *attrs,
@@ -407,7 +396,7 @@ static int erdma_push_one_sqe(struct erdma_qp *qp, u16 *pi,
 			     to_erdma_access_flags(reg_wr(send_wr)->access);
 		regmr_sge->addr = cpu_to_le64(mr->ibmr.iova);
 		regmr_sge->length = cpu_to_le32(mr->ibmr.length);
-		regmr_sge->stag = cpu_to_le32(mr->ibmr.lkey);
+		regmr_sge->stag = cpu_to_le32(reg_wr(send_wr)->key);
 		attrs = FIELD_PREP(ERDMA_SQE_MR_MODE_MASK, 0) |
 			FIELD_PREP(ERDMA_SQE_MR_ACCESS_MASK, mr->access) |
 			FIELD_PREP(ERDMA_SQE_MR_MTT_CNT_MASK,

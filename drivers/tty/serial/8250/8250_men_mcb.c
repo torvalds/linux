@@ -7,7 +7,6 @@
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 #include <linux/serial_8250.h>
-#include <uapi/linux/serial_core.h>
 
 #define MEN_UART_ID_Z025 0x19
 #define MEN_UART_ID_Z057 0x39

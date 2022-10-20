@@ -291,14 +291,16 @@ static int vm_show(struct seq_file *s, void *data)
 		if (ctx->asid != HL_KERNEL_ASID_ID &&
 		    !list_empty(&ctx->hw_block_mem_list)) {
 			seq_puts(s, "\nhw_block mappings:\n\n");
-			seq_puts(s, "    virtual address    size    HW block id\n");
-			seq_puts(s, "-------------------------------------------\n");
+			seq_puts(s,
+				"    virtual address    block size    mapped size    HW block id\n");
+			seq_puts(s,
+				"---------------------------------------------------------------\n");
 			mutex_lock(&ctx->hw_block_list_lock);
-			list_for_each_entry(lnode, &ctx->hw_block_mem_list,
-					    node) {
+			list_for_each_entry(lnode, &ctx->hw_block_mem_list, node) {
 				seq_printf(s,
-					"    0x%-14lx   %-6u      %-9u\n",
-					lnode->vaddr, lnode->size, lnode->id);
+					"    0x%-14lx   %-6u        %-6u             %-9u\n",
+					lnode->vaddr, lnode->block_size, lnode->mapped_size,
+					lnode->id);
 			}
 			mutex_unlock(&ctx->hw_block_list_lock);
 		}
@@ -591,6 +593,7 @@ static int engines_show(struct seq_file *s, void *data)
 	struct hl_debugfs_entry *entry = s->private;
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_device *hdev = dev_entry->hdev;
+	struct engines_data eng_data;
 
 	if (hdev->reset_info.in_reset) {
 		dev_warn_ratelimited(hdev->dev,
@@ -598,7 +601,25 @@ static int engines_show(struct seq_file *s, void *data)
 		return 0;
 	}
 
-	hdev->asic_funcs->is_device_idle(hdev, NULL, 0, s);
+	eng_data.actual_size = 0;
+	eng_data.allocated_buf_size = HL_ENGINES_DATA_MAX_SIZE;
+	eng_data.buf = vmalloc(eng_data.allocated_buf_size);
+	if (!eng_data.buf)
+		return -ENOMEM;
+
+	hdev->asic_funcs->is_device_idle(hdev, NULL, 0, &eng_data);
+
+	if (eng_data.actual_size > eng_data.allocated_buf_size) {
+		dev_err(hdev->dev,
+				"Engines data size (%d Bytes) is bigger than allocated size (%u Bytes)\n",
+				eng_data.actual_size, eng_data.allocated_buf_size);
+		vfree(eng_data.buf);
+		return -ENOMEM;
+	}
+
+	seq_write(s, eng_data.buf, eng_data.actual_size);
+
+	vfree(eng_data.buf);
 
 	return 0;
 }

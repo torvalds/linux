@@ -16,7 +16,6 @@
 #define SEC_CORE_INT_STATUS		0x301008
 #define HPRE_HAC_INT_STATUS		0x301800
 #define HZIP_CORE_INT_STATUS		0x3010AC
-#define QM_QUE_ISO_CFG			0x301154
 
 #define QM_VFT_CFG_RDY			0x10006c
 #define QM_VFT_CFG_OP_WR		0x100058
@@ -80,7 +79,7 @@ struct acc_vf_data {
 	/* QM reserved 5 regs */
 	u32 qm_rsv_regs[5];
 	u32 padding;
-	/* qm memory init information */
+	/* QM memory init information */
 	u64 eqe_dma;
 	u64 aeqe_dma;
 	u64 sqc_dma;
@@ -99,7 +98,7 @@ struct hisi_acc_vf_migration_file {
 struct hisi_acc_vf_core_device {
 	struct vfio_pci_core_device core_device;
 	u8 deferred_reset:1;
-	/* for migration state */
+	/* For migration state */
 	struct mutex state_mutex;
 	enum vfio_device_mig_state mig_state;
 	struct pci_dev *pf_dev;
@@ -108,7 +107,7 @@ struct hisi_acc_vf_core_device {
 	struct hisi_qm vf_qm;
 	u32 vf_qm_state;
 	int vf_id;
-	/* for reset handler */
+	/* For reset handler */
 	spinlock_t reset_lock;
 	struct hisi_acc_vf_migration_file *resuming_migf;
 	struct hisi_acc_vf_migration_file *saving_migf;

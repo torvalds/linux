@@ -584,3 +584,8 @@ devlink_cell_size_get()
 	devlink sb pool show "$DEVLINK_DEV" pool 0 -j \
 	    | jq '.pool[][].cell_size'
 }
+
+devlink_pool_size_get()
+{
+	devlink sb show "$DEVLINK_DEV" -j | jq '.[][][]["size"]'
+}

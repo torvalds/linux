@@ -30,7 +30,6 @@
 #include <linux/etherdevice.h>
 #include <net/ife.h>
 
-static unsigned int ife_net_id;
 static int max_metacnt = IFE_META_MAX + 1;
 static struct tc_action_ops act_ife_ops;
 
@@ -482,7 +481,7 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 			struct tcf_proto *tp, u32 flags,
 			struct netlink_ext_ack *extack)
 {
-	struct tc_action_net *tn = net_generic(net, ife_net_id);
+	struct tc_action_net *tn = net_generic(net, act_ife_ops.net_id);
 	bool bind = flags & TCA_ACT_FLAGS_BIND;
 	struct nlattr *tb[TCA_IFE_MAX + 1];
 	struct nlattr *tb2[IFE_META_MAX + 1];
@@ -878,23 +877,6 @@ static int tcf_ife_act(struct sk_buff *skb, const struct tc_action *a,
 	return tcf_ife_decode(skb, a, res);
 }
 
-static int tcf_ife_walker(struct net *net, struct sk_buff *skb,
-			  struct netlink_callback *cb, int type,
-			  const struct tc_action_ops *ops,
-			  struct netlink_ext_ack *extack)
-{
-	struct tc_action_net *tn = net_generic(net, ife_net_id);
-
-	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
-}
-
-static int tcf_ife_search(struct net *net, struct tc_action **a, u32 index)
-{
-	struct tc_action_net *tn = net_generic(net, ife_net_id);
-
-	return tcf_idr_search(tn, a, index);
-}
-
 static struct tc_action_ops act_ife_ops = {
 	.kind = "ife",
 	.id = TCA_ID_IFE,
@@ -903,27 +885,25 @@ static struct tc_action_ops act_ife_ops = {
 	.dump = tcf_ife_dump,
 	.cleanup = tcf_ife_cleanup,
 	.init = tcf_ife_init,
-	.walk = tcf_ife_walker,
-	.lookup = tcf_ife_search,
 	.size =	sizeof(struct tcf_ife_info),
 };
 
 static __net_init int ife_init_net(struct net *net)
 {
-	struct tc_action_net *tn = net_generic(net, ife_net_id);
+	struct tc_action_net *tn = net_generic(net, act_ife_ops.net_id);
 
 	return tc_action_net_init(net, tn, &act_ife_ops);
 }
 
 static void __net_exit ife_exit_net(struct list_head *net_list)
 {
-	tc_action_net_exit(net_list, ife_net_id);
+	tc_action_net_exit(net_list, act_ife_ops.net_id);
 }
 
 static struct pernet_operations ife_net_ops = {
 	.init = ife_init_net,
 	.exit_batch = ife_exit_net,
-	.id   = &ife_net_id,
+	.id   = &act_ife_ops.net_id,
 	.size = sizeof(struct tc_action_net),
 };
 

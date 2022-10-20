@@ -16,6 +16,7 @@
 #include "rtrs-log.h"
 #include <rdma/ib_cm.h>
 #include <rdma/ib_verbs.h>
+#include "rtrs-srv-trace.h"
 
 MODULE_DESCRIPTION("RDMA Transport Server");
 MODULE_LICENSE("GPL");
@@ -55,11 +56,6 @@ static struct workqueue_struct *rtrs_wq;
 static inline struct rtrs_srv_con *to_srv_con(struct rtrs_con *c)
 {
 	return container_of(c, struct rtrs_srv_con, c);
-}
-
-static inline struct rtrs_srv_path *to_srv_path(struct rtrs_path *s)
-{
-	return container_of(s, struct rtrs_srv_path, s);
 }
 
 static bool rtrs_srv_change_state(struct rtrs_srv_path *srv_path,
@@ -375,6 +371,8 @@ static int send_io_resp_imm(struct rtrs_srv_con *con, struct rtrs_srv_op *id,
 		}
 	}
 
+	trace_send_io_resp_imm(id, need_inval, always_invalidate, errno);
+
 	if (need_inval && always_invalidate) {
 		wr = &inv_wr;
 		inv_wr.next = &rwr.wr;
@@ -595,7 +593,7 @@ static int map_cont_bufs(struct rtrs_srv_path *srv_path)
 		struct sg_table *sgt = &srv_mr->sgt;
 		struct scatterlist *s;
 		struct ib_mr *mr;
-		int nr, chunks;
+		int nr, nr_sgt, chunks;
 
 		chunks = chunks_per_mr * mri;
 		if (!always_invalidate)
@@ -610,19 +608,19 @@ static int map_cont_bufs(struct rtrs_srv_path *srv_path)
 			sg_set_page(s, srv->chunks[chunks + i],
 				    max_chunk_size, 0);
 
-		nr = ib_dma_map_sg(srv_path->s.dev->ib_dev, sgt->sgl,
+		nr_sgt = ib_dma_map_sg(srv_path->s.dev->ib_dev, sgt->sgl,
 				   sgt->nents, DMA_BIDIRECTIONAL);
-		if (nr < sgt->nents) {
-			err = nr < 0 ? nr : -EINVAL;
+		if (!nr_sgt) {
+			err = -EINVAL;
 			goto free_sg;
 		}
 		mr = ib_alloc_mr(srv_path->s.dev->ib_pd, IB_MR_TYPE_MEM_REG,
-				 sgt->nents);
+				 nr_sgt);
 		if (IS_ERR(mr)) {
 			err = PTR_ERR(mr);
 			goto unmap_sg;
 		}
-		nr = ib_map_mr_sg(mr, sgt->sgl, sgt->nents,
+		nr = ib_map_mr_sg(mr, sgt->sgl, nr_sgt,
 				  NULL, max_chunk_size);
 		if (nr < 0 || nr < sgt->nents) {
 			err = nr < 0 ? nr : -EINVAL;
@@ -641,7 +639,7 @@ static int map_cont_bufs(struct rtrs_srv_path *srv_path)
 			}
 		}
 		/* Eventually dma addr for each chunk can be cached */
-		for_each_sg(sgt->sgl, s, sgt->orig_nents, i)
+		for_each_sg(sgt->sgl, s, nr_sgt, i)
 			srv_path->dma_addr[chunks + i] = sg_dma_address(s);
 
 		ib_update_fast_reg_key(mr, ib_inc_rkey(mr->rkey));
@@ -1024,7 +1022,7 @@ static void process_read(struct rtrs_srv_con *con,
 	usr_len = le16_to_cpu(msg->usr_len);
 	data_len = off - usr_len;
 	data = page_address(srv->chunks[buf_id]);
-	ret = ctx->ops.rdma_ev(srv->priv, id, READ, data, data_len,
+	ret = ctx->ops.rdma_ev(srv->priv, id, data, data_len,
 			   data + data_len, usr_len);
 
 	if (ret) {
@@ -1077,7 +1075,7 @@ static void process_write(struct rtrs_srv_con *con,
 	usr_len = le16_to_cpu(req->usr_len);
 	data_len = off - usr_len;
 	data = page_address(srv->chunks[buf_id]);
-	ret = ctx->ops.rdma_ev(srv->priv, id, WRITE, data, data_len,
+	ret = ctx->ops.rdma_ev(srv->priv, id, data, data_len,
 			       data + data_len, usr_len);
 	if (ret) {
 		rtrs_err_rl(s,

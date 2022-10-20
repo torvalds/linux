@@ -396,6 +396,7 @@ cifs_alloc_inode(struct super_block *sb)
 	cifs_inode->epoch = 0;
 	spin_lock_init(&cifs_inode->open_file_lock);
 	generate_random_uuid(cifs_inode->lease_key);
+	cifs_inode->symlink_target = NULL;
 
 	/*
 	 * Can not set i_flags here - they get immediately overwritten to zero
@@ -412,7 +413,11 @@ cifs_alloc_inode(struct super_block *sb)
 static void
 cifs_free_inode(struct inode *inode)
 {
-	kmem_cache_free(cifs_inode_cachep, CIFS_I(inode));
+	struct cifsInodeInfo *cinode = CIFS_I(inode);
+
+	if (S_ISLNK(inode->i_mode))
+		kfree(cinode->symlink_target);
+	kmem_cache_free(cifs_inode_cachep, cinode);
 }
 
 static void
@@ -1139,7 +1144,7 @@ const struct inode_operations cifs_file_inode_ops = {
 };
 
 const struct inode_operations cifs_symlink_inode_ops = {
-	.get_link = cifs_get_link,
+	.get_link = simple_get_link,
 	.permission = cifs_permission,
 	.listxattr = cifs_listxattr,
 };
@@ -1248,6 +1253,12 @@ ssize_t cifs_file_copychunk_range(unsigned int xid,
 	lock_two_nondirectories(target_inode, src_inode);
 
 	cifs_dbg(FYI, "about to flush pages\n");
+
+	rc = filemap_write_and_wait_range(src_inode->i_mapping, off,
+					  off + len - 1);
+	if (rc)
+		goto out;
+
 	/* should we flush first and last page first */
 	truncate_inode_pages(&target_inode->i_data, 0);
 

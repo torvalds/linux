@@ -555,28 +555,11 @@ int gma_crtc_page_flip(struct drm_crtc *crtc,
 	return ret;
 }
 
-int gma_crtc_set_config(struct drm_mode_set *set,
-			struct drm_modeset_acquire_ctx *ctx)
-{
-	struct drm_device *dev = set->crtc->dev;
-	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	int ret;
-
-	if (!dev_priv->rpm_enabled)
-		return drm_crtc_helper_set_config(set, ctx);
-
-	pm_runtime_forbid(dev->dev);
-	ret = drm_crtc_helper_set_config(set, ctx);
-	pm_runtime_allow(dev->dev);
-
-	return ret;
-}
-
 const struct drm_crtc_funcs gma_crtc_funcs = {
 	.cursor_set = gma_crtc_cursor_set,
 	.cursor_move = gma_crtc_cursor_move,
 	.gamma_set = gma_crtc_gamma_set,
-	.set_config = gma_crtc_set_config,
+	.set_config = drm_crtc_helper_set_config,
 	.destroy = gma_crtc_destroy,
 	.page_flip = gma_crtc_page_flip,
 	.enable_vblank = gma_crtc_enable_vblank,

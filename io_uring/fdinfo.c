@@ -60,13 +60,15 @@ static __cold void __io_uring_show_fdinfo(struct io_ring_ctx *ctx,
 	unsigned int cq_head = READ_ONCE(r->cq.head);
 	unsigned int cq_tail = READ_ONCE(r->cq.tail);
 	unsigned int cq_shift = 0;
+	unsigned int sq_shift = 0;
 	unsigned int sq_entries, cq_entries;
 	bool has_lock;
-	bool is_cqe32 = (ctx->flags & IORING_SETUP_CQE32);
 	unsigned int i;
 
-	if (is_cqe32)
+	if (ctx->flags & IORING_SETUP_CQE32)
 		cq_shift = 1;
+	if (ctx->flags & IORING_SETUP_SQE128)
+		sq_shift = 1;
 
 	/*
 	 * we may get imprecise sqe and cqe info if uring is actively running
@@ -82,19 +84,36 @@ static __cold void __io_uring_show_fdinfo(struct io_ring_ctx *ctx,
 	seq_printf(m, "CqHead:\t%u\n", cq_head);
 	seq_printf(m, "CqTail:\t%u\n", cq_tail);
 	seq_printf(m, "CachedCqTail:\t%u\n", ctx->cached_cq_tail);
-	seq_printf(m, "SQEs:\t%u\n", sq_tail - ctx->cached_sq_head);
+	seq_printf(m, "SQEs:\t%u\n", sq_tail - sq_head);
 	sq_entries = min(sq_tail - sq_head, ctx->sq_entries);
 	for (i = 0; i < sq_entries; i++) {
 		unsigned int entry = i + sq_head;
-		unsigned int sq_idx = READ_ONCE(ctx->sq_array[entry & sq_mask]);
 		struct io_uring_sqe *sqe;
+		unsigned int sq_idx;
 
+		sq_idx = READ_ONCE(ctx->sq_array[entry & sq_mask]);
 		if (sq_idx > sq_mask)
 			continue;
-		sqe = &ctx->sq_sqes[sq_idx];
-		seq_printf(m, "%5u: opcode:%d, fd:%d, flags:%x, user_data:%llu\n",
-			   sq_idx, sqe->opcode, sqe->fd, sqe->flags,
-			   sqe->user_data);
+		sqe = &ctx->sq_sqes[sq_idx << sq_shift];
+		seq_printf(m, "%5u: opcode:%s, fd:%d, flags:%x, off:%llu, "
+			      "addr:0x%llx, rw_flags:0x%x, buf_index:%d "
+			      "user_data:%llu",
+			   sq_idx, io_uring_get_opcode(sqe->opcode), sqe->fd,
+			   sqe->flags, (unsigned long long) sqe->off,
+			   (unsigned long long) sqe->addr, sqe->rw_flags,
+			   sqe->buf_index, sqe->user_data);
+		if (sq_shift) {
+			u64 *sqeb = (void *) (sqe + 1);
+			int size = sizeof(struct io_uring_sqe) / sizeof(u64);
+			int j;
+
+			for (j = 0; j < size; j++) {
+				seq_printf(m, ", e%d:0x%llx", j,
+						(unsigned long long) *sqeb);
+				sqeb++;
+			}
+		}
+		seq_printf(m, "\n");
 	}
 	seq_printf(m, "CQEs:\t%u\n", cq_tail - cq_head);
 	cq_entries = min(cq_tail - cq_head, ctx->cq_entries);
@@ -102,16 +121,13 @@ static __cold void __io_uring_show_fdinfo(struct io_ring_ctx *ctx,
 		unsigned int entry = i + cq_head;
 		struct io_uring_cqe *cqe = &r->cqes[(entry & cq_mask) << cq_shift];
 
-		if (!is_cqe32) {
-			seq_printf(m, "%5u: user_data:%llu, res:%d, flag:%x\n",
+		seq_printf(m, "%5u: user_data:%llu, res:%d, flag:%x",
 			   entry & cq_mask, cqe->user_data, cqe->res,
 			   cqe->flags);
-		} else {
-			seq_printf(m, "%5u: user_data:%llu, res:%d, flag:%x, "
-				"extra1:%llu, extra2:%llu\n",
-				entry & cq_mask, cqe->user_data, cqe->res,
-				cqe->flags, cqe->big_cqe[0], cqe->big_cqe[1]);
-		}
+		if (cq_shift)
+			seq_printf(m, ", extra1:%llu, extra2:%llu\n",
+					cqe->big_cqe[0], cqe->big_cqe[1]);
+		seq_printf(m, "\n");
 	}
 
 	/*

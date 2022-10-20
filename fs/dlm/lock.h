@@ -36,7 +36,7 @@ static inline void dlm_adjust_timeouts(struct dlm_ls *ls) { }
 int dlm_master_lookup(struct dlm_ls *ls, int nodeid, char *name, int len,
 		      unsigned int flags, int *r_nodeid, int *result);
 
-int dlm_search_rsb_tree(struct rb_root *tree, char *name, int len,
+int dlm_search_rsb_tree(struct rb_root *tree, const void *name, int len,
 			struct dlm_rsb **r_ret);
 
 void dlm_recover_purge(struct dlm_ls *ls);

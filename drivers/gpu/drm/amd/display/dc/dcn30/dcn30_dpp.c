@@ -244,8 +244,6 @@ void dpp3_cnv_setup (
 		select = INPUT_CSC_SELECT_ICSC;
 		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
-		pixel_format = 22;
-		break;
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616:
 		pixel_format = 26; /* ARGB16161616_UNORM */
 		break;
@@ -374,6 +372,10 @@ void dpp3_set_cursor_attributes(
 		REG_UPDATE(CURSOR0_COLOR1,
 				CUR0_COLOR1, 0xFFFFFFFF);
 	}
+
+	dpp_base->att.cur0_ctl.bits.expansion_mode = 0;
+	dpp_base->att.cur0_ctl.bits.cur0_rom_en = cur_rom_en;
+	dpp_base->att.cur0_ctl.bits.mode = color_format;
 }
 
 

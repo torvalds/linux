@@ -1979,7 +1979,6 @@ static int cadence_nand_force_byte_access(struct nand_chip *chip,
 					  bool force_8bit)
 {
 	struct cdns_nand_ctrl *cdns_ctrl = to_cdns_nand_ctrl(chip->controller);
-	int status;
 
 	/*
 	 * Callers of this function do not verify if the NAND is using a 16-bit
@@ -1990,9 +1989,7 @@ static int cadence_nand_force_byte_access(struct nand_chip *chip,
 	if (!(chip->options & NAND_BUSWIDTH_16))
 		return 0;
 
-	status = cadence_nand_set_access_width16(cdns_ctrl, !force_8bit);
-
-	return status;
+	return cadence_nand_set_access_width16(cdns_ctrl, !force_8bit);
 }
 
 static int cadence_nand_cmd_opcode(struct nand_chip *chip,

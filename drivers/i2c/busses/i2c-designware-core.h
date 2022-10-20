@@ -126,8 +126,9 @@
  * status codes
  */
 #define STATUS_IDLE			0x0
-#define STATUS_WRITE_IN_PROGRESS	0x1
-#define STATUS_READ_IN_PROGRESS		0x2
+#define STATUS_ACTIVE			0x1
+#define STATUS_WRITE_IN_PROGRESS	0x2
+#define STATUS_READ_IN_PROGRESS		0x4
 
 /*
  * operation modes
@@ -334,12 +335,14 @@ void i2c_dw_disable_int(struct dw_i2c_dev *dev);
 
 static inline void __i2c_dw_enable(struct dw_i2c_dev *dev)
 {
+	dev->status |= STATUS_ACTIVE;
 	regmap_write(dev->map, DW_IC_ENABLE, 1);
 }
 
 static inline void __i2c_dw_disable_nowait(struct dw_i2c_dev *dev)
 {
 	regmap_write(dev->map, DW_IC_ENABLE, 0);
+	dev->status &= ~STATUS_ACTIVE;
 }
 
 void __i2c_dw_disable(struct dw_i2c_dev *dev);

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/media/allwinner,sun6i-a31-mipi-csi2.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A31 MIPI CSI-2 Device Tree Bindings
+title: Allwinner A31 MIPI CSI-2
 
 maintainers:
   - Paul Kocialkowski <paul.kocialkowski@bootlin.com>

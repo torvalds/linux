@@ -2963,6 +2963,48 @@ static int hns3_nic_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	return h->ae_algo->ops->set_vf_mac(h, vf_id, mac);
 }
 
+#define HNS3_INVALID_DSCP		0xff
+#define HNS3_DSCP_SHIFT			2
+
+static u8 hns3_get_skb_dscp(struct sk_buff *skb)
+{
+	__be16 protocol = skb->protocol;
+	u8 dscp = HNS3_INVALID_DSCP;
+
+	if (protocol == htons(ETH_P_8021Q))
+		protocol = vlan_get_protocol(skb);
+
+	if (protocol == htons(ETH_P_IP))
+		dscp = ipv4_get_dsfield(ip_hdr(skb)) >> HNS3_DSCP_SHIFT;
+	else if (protocol == htons(ETH_P_IPV6))
+		dscp = ipv6_get_dsfield(ipv6_hdr(skb)) >> HNS3_DSCP_SHIFT;
+
+	return dscp;
+}
+
+static u16 hns3_nic_select_queue(struct net_device *netdev,
+				 struct sk_buff *skb,
+				 struct net_device *sb_dev)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+	u8 dscp;
+
+	if (h->kinfo.tc_map_mode != HNAE3_TC_MAP_MODE_DSCP ||
+	    !h->ae_algo->ops->get_dscp_prio)
+		goto out;
+
+	dscp = hns3_get_skb_dscp(skb);
+	if (unlikely(dscp >= HNAE3_MAX_DSCP))
+		goto out;
+
+	skb->priority = h->kinfo.dscp_prio[dscp];
+	if (skb->priority == HNAE3_PRIO_ID_INVALID)
+		skb->priority = 0;
+
+out:
+	return netdev_pick_tx(netdev, skb, sb_dev);
+}
+
 static const struct net_device_ops hns3_nic_netdev_ops = {
 	.ndo_open		= hns3_nic_net_open,
 	.ndo_stop		= hns3_nic_net_stop,
@@ -2988,6 +3030,7 @@ static const struct net_device_ops hns3_nic_netdev_ops = {
 	.ndo_set_vf_link_state	= hns3_nic_set_vf_link_state,
 	.ndo_set_vf_rate	= hns3_nic_set_vf_rate,
 	.ndo_set_vf_mac		= hns3_nic_set_vf_mac,
+	.ndo_select_queue	= hns3_nic_select_queue,
 };
 
 bool hns3_is_phys_func(struct pci_dev *pdev)
@@ -3271,12 +3314,11 @@ static void hns3_set_default_feature(struct net_device *netdev)
 		NETIF_F_GSO_GRE_CSUM | NETIF_F_GSO_UDP_TUNNEL |
 		NETIF_F_SCTP_CRC | NETIF_F_FRAGLIST;
 
-	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V2) {
+	if (hnae3_ae_dev_gro_supported(ae_dev))
 		netdev->features |= NETIF_F_GRO_HW;
 
-		if (!(h->flags & HNAE3_SUPPORT_VF))
-			netdev->features |= NETIF_F_NTUPLE;
-	}
+	if (hnae3_ae_dev_fd_supported(ae_dev))
+		netdev->features |= NETIF_F_NTUPLE;
 
 	if (test_bit(HNAE3_DEV_SUPPORT_UDP_GSO_B, ae_dev->caps))
 		netdev->features |= NETIF_F_GSO_UDP_L4;
@@ -4650,7 +4692,7 @@ static int hns3_nic_init_vector_data(struct hns3_nic_priv *priv)
 			goto map_ring_fail;
 
 		netif_napi_add(priv->netdev, &tqp_vector->napi,
-			       hns3_nic_common_poll, NAPI_POLL_WEIGHT);
+			       hns3_nic_common_poll);
 	}
 
 	return 0;
@@ -5780,6 +5822,57 @@ int hns3_set_channels(struct net_device *netdev,
 	}
 
 	return 0;
+}
+
+void hns3_external_lb_prepare(struct net_device *ndev, bool if_running)
+{
+	struct hns3_nic_priv *priv = netdev_priv(ndev);
+	struct hnae3_handle *h = priv->ae_handle;
+	int i;
+
+	if (!if_running)
+		return;
+
+	netif_carrier_off(ndev);
+	netif_tx_disable(ndev);
+
+	for (i = 0; i < priv->vector_num; i++)
+		hns3_vector_disable(&priv->tqp_vector[i]);
+
+	for (i = 0; i < h->kinfo.num_tqps; i++)
+		hns3_tqp_disable(h->kinfo.tqp[i]);
+
+	/* delay ring buffer clearing to hns3_reset_notify_uninit_enet
+	 * during reset process, because driver may not be able
+	 * to disable the ring through firmware when downing the netdev.
+	 */
+	if (!hns3_nic_resetting(ndev))
+		hns3_nic_reset_all_ring(priv->ae_handle);
+
+	hns3_reset_tx_queue(priv->ae_handle);
+}
+
+void hns3_external_lb_restore(struct net_device *ndev, bool if_running)
+{
+	struct hns3_nic_priv *priv = netdev_priv(ndev);
+	struct hnae3_handle *h = priv->ae_handle;
+	int i;
+
+	if (!if_running)
+		return;
+
+	hns3_nic_reset_all_ring(priv->ae_handle);
+
+	for (i = 0; i < priv->vector_num; i++)
+		hns3_vector_enable(&priv->tqp_vector[i]);
+
+	for (i = 0; i < h->kinfo.num_tqps; i++)
+		hns3_tqp_enable(h->kinfo.tqp[i]);
+
+	netif_tx_wake_all_queues(ndev);
+
+	if (h->ae_algo->ops->get_status(h))
+		netif_carrier_on(ndev);
 }
 
 static const struct hns3_hw_error_info hns3_hw_err[] = {
