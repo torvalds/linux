@@ -80,8 +80,8 @@ int kvm_s390_pv_create_cpu(struct kvm_vcpu *vcpu, u16 *rc, u16 *rrc)
 	/* Input */
 	uvcb.guest_handle = kvm_s390_pv_get_handle(vcpu->kvm);
 	uvcb.num = vcpu->arch.sie_block->icpua;
-	uvcb.state_origin = (u64)vcpu->arch.sie_block;
-	uvcb.stor_origin = (u64)vcpu->arch.pv.stor_base;
+	uvcb.state_origin = virt_to_phys(vcpu->arch.sie_block);
+	uvcb.stor_origin = virt_to_phys((void *)vcpu->arch.pv.stor_base);
 
 	/* Alloc Secure Instruction Data Area Designation */
 	sida_addr = (void *)__get_free_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
@@ -228,8 +228,9 @@ int kvm_s390_pv_init_vm(struct kvm *kvm, u16 *rc, u16 *rrc)
 	uvcb.guest_stor_origin = 0; /* MSO is 0 for KVM */
 	uvcb.guest_stor_len = kvm->arch.pv.guest_len;
 	uvcb.guest_asce = kvm->arch.gmap->asce;
-	uvcb.guest_sca = (unsigned long)kvm->arch.sca;
-	uvcb.conf_base_stor_origin = (u64)kvm->arch.pv.stor_base;
+	uvcb.guest_sca = virt_to_phys(kvm->arch.sca);
+	uvcb.conf_base_stor_origin =
+		virt_to_phys((void *)kvm->arch.pv.stor_base);
 	uvcb.conf_virt_stor_origin = (u64)kvm->arch.pv.stor_var;
 
 	cc = uv_call_sched(0, (u64)&uvcb);
