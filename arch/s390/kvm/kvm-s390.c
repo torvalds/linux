@@ -3329,28 +3329,30 @@ static void sca_del_vcpu(struct kvm_vcpu *vcpu)
 static void sca_add_vcpu(struct kvm_vcpu *vcpu)
 {
 	if (!kvm_s390_use_sca_entries()) {
-		struct bsca_block *sca = vcpu->kvm->arch.sca;
+		phys_addr_t sca_phys = virt_to_phys(vcpu->kvm->arch.sca);
 
 		/* we still need the basic sca for the ipte control */
-		vcpu->arch.sie_block->scaoh = (__u32)(((__u64)sca) >> 32);
-		vcpu->arch.sie_block->scaol = (__u32)(__u64)sca;
+		vcpu->arch.sie_block->scaoh = sca_phys >> 32;
+		vcpu->arch.sie_block->scaol = sca_phys;
 		return;
 	}
 	read_lock(&vcpu->kvm->arch.sca_lock);
 	if (vcpu->kvm->arch.use_esca) {
 		struct esca_block *sca = vcpu->kvm->arch.sca;
+		phys_addr_t sca_phys = virt_to_phys(sca);
 
-		sca->cpu[vcpu->vcpu_id].sda = (__u64) vcpu->arch.sie_block;
-		vcpu->arch.sie_block->scaoh = (__u32)(((__u64)sca) >> 32);
-		vcpu->arch.sie_block->scaol = (__u32)(__u64)sca & ~0x3fU;
+		sca->cpu[vcpu->vcpu_id].sda = virt_to_phys(vcpu->arch.sie_block);
+		vcpu->arch.sie_block->scaoh = sca_phys >> 32;
+		vcpu->arch.sie_block->scaol = sca_phys & ESCA_SCAOL_MASK;
 		vcpu->arch.sie_block->ecb2 |= ECB2_ESCA;
 		set_bit_inv(vcpu->vcpu_id, (unsigned long *) sca->mcn);
 	} else {
 		struct bsca_block *sca = vcpu->kvm->arch.sca;
+		phys_addr_t sca_phys = virt_to_phys(sca);
 
-		sca->cpu[vcpu->vcpu_id].sda = (__u64) vcpu->arch.sie_block;
-		vcpu->arch.sie_block->scaoh = (__u32)(((__u64)sca) >> 32);
-		vcpu->arch.sie_block->scaol = (__u32)(__u64)sca;
+		sca->cpu[vcpu->vcpu_id].sda = virt_to_phys(vcpu->arch.sie_block);
+		vcpu->arch.sie_block->scaoh = sca_phys >> 32;
+		vcpu->arch.sie_block->scaol = sca_phys;
 		set_bit_inv(vcpu->vcpu_id, (unsigned long *) &sca->mcn);
 	}
 	read_unlock(&vcpu->kvm->arch.sca_lock);
@@ -3381,6 +3383,7 @@ static int sca_switch_to_extended(struct kvm *kvm)
 	struct kvm_vcpu *vcpu;
 	unsigned long vcpu_idx;
 	u32 scaol, scaoh;
+	phys_addr_t new_sca_phys;
 
 	if (kvm->arch.use_esca)
 		return 0;
@@ -3389,8 +3392,9 @@ static int sca_switch_to_extended(struct kvm *kvm)
 	if (!new_sca)
 		return -ENOMEM;
 
-	scaoh = (u32)((u64)(new_sca) >> 32);
-	scaol = (u32)(u64)(new_sca) & ~0x3fU;
+	new_sca_phys = virt_to_phys(new_sca);
+	scaoh = new_sca_phys >> 32;
+	scaol = new_sca_phys & ESCA_SCAOL_MASK;
 
 	kvm_s390_vcpu_block_all(kvm);
 	write_lock(&kvm->arch.sca_lock);
@@ -3610,15 +3614,18 @@ static void kvm_s390_vcpu_crypto_setup(struct kvm_vcpu *vcpu)
 
 void kvm_s390_vcpu_unsetup_cmma(struct kvm_vcpu *vcpu)
 {
-	free_page(vcpu->arch.sie_block->cbrlo);
+	free_page((unsigned long)phys_to_virt(vcpu->arch.sie_block->cbrlo));
 	vcpu->arch.sie_block->cbrlo = 0;
 }
 
 int kvm_s390_vcpu_setup_cmma(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.sie_block->cbrlo = get_zeroed_page(GFP_KERNEL_ACCOUNT);
-	if (!vcpu->arch.sie_block->cbrlo)
+	void *cbrlo_page = (void *)get_zeroed_page(GFP_KERNEL_ACCOUNT);
+
+	if (!cbrlo_page)
 		return -ENOMEM;
+
+	vcpu->arch.sie_block->cbrlo = virt_to_phys(cbrlo_page);
 	return 0;
 }
 
@@ -3628,7 +3635,7 @@ static void kvm_s390_vcpu_setup_model(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.sie_block->ibc = model->ibc;
 	if (test_kvm_facility(vcpu->kvm, 7))
-		vcpu->arch.sie_block->fac = (u32)(u64) model->fac_list;
+		vcpu->arch.sie_block->fac = virt_to_phys(model->fac_list);
 }
 
 static int kvm_s390_vcpu_setup(struct kvm_vcpu *vcpu)
@@ -3685,9 +3692,8 @@ static int kvm_s390_vcpu_setup(struct kvm_vcpu *vcpu)
 		VCPU_EVENT(vcpu, 3, "AIV gisa format-%u enabled for cpu %03u",
 			   vcpu->arch.sie_block->gd & 0x3, vcpu->vcpu_id);
 	}
-	vcpu->arch.sie_block->sdnxo = ((unsigned long) &vcpu->run->s.regs.sdnx)
-					| SDNXC;
-	vcpu->arch.sie_block->riccbd = (unsigned long) &vcpu->run->s.regs.riccb;
+	vcpu->arch.sie_block->sdnxo = virt_to_phys(&vcpu->run->s.regs.sdnx) | SDNXC;
+	vcpu->arch.sie_block->riccbd = virt_to_phys(&vcpu->run->s.regs.riccb);
 
 	if (sclp.has_kss)
 		kvm_s390_set_cpuflags(vcpu, CPUSTAT_KSS);
@@ -3737,7 +3743,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 		return -ENOMEM;
 
 	vcpu->arch.sie_block = &sie_page->sie_block;
-	vcpu->arch.sie_block->itdba = (unsigned long) &sie_page->itdb;
+	vcpu->arch.sie_block->itdba = virt_to_phys(&sie_page->itdb);
 
 	/* the real guest size will always be smaller than msl */
 	vcpu->arch.sie_block->mso = 0;

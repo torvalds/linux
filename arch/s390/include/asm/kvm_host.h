@@ -276,6 +276,7 @@ struct kvm_s390_sie_block {
 #define ECB3_AES 0x04
 #define ECB3_RI  0x01
 	__u8    ecb3;			/* 0x0063 */
+#define ESCA_SCAOL_MASK ~0x3fU
 	__u32	scaol;			/* 0x0064 */
 	__u8	sdf;			/* 0x0068 */
 	__u8    epdx;			/* 0x0069 */

@@ -217,7 +217,7 @@ static int handle_itdb(struct kvm_vcpu *vcpu)
 		return 0;
 	if (current->thread.per_flags & PER_FLAG_NO_TE)
 		return 0;
-	itdb = (struct kvm_s390_itdb *)vcpu->arch.sie_block->itdba;
+	itdb = phys_to_virt(vcpu->arch.sie_block->itdba);
 	rc = write_guest_lc(vcpu, __LC_PGM_TDB, itdb, sizeof(*itdb));
 	if (rc)
 		return rc;
