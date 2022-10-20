@@ -73,6 +73,7 @@
 };
 
 &main_mcan16 {
+	status = "okay";
 	pinctrl-0 = <&main_mcan16_pins_default>;
 	pinctrl-names = "default";
 	phys = <&transceiver0>;
