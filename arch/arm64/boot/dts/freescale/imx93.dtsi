@@ -501,7 +501,7 @@
 			reg = <0x47520000 0x10000>;
 			interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "txirq", "rxirq";
+			interrupt-names = "tx", "rx";
 			#mbox-cells = <2>;
 		};
 
