@@ -2,6 +2,7 @@
 #include <test_util.h>
 #include <kvm_util.h>
 #include <processor.h>
+#include <linux/bitfield.h>
 
 #define MDSCR_KDE	(1 << 13)
 #define MDSCR_MDE	(1 << 15)
@@ -284,7 +285,7 @@ static int debug_version(struct kvm_vcpu *vcpu)
 	uint64_t id_aa64dfr0;
 
 	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64DFR0_EL1), &id_aa64dfr0);
-	return id_aa64dfr0 & 0xf;
+	return FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_DEBUGVER), id_aa64dfr0);
 }
 
 static void test_guest_debug_exceptions(void)
