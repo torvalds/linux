@@ -165,15 +165,15 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 	if (sdev->fw_state == SOF_FW_BOOT_READY_FAILED)
 		return -EIO; /* FW boots but fw_ready op failed */
 
+	dev_dbg(sdev->dev, "firmware boot complete\n");
+	sof_set_fw_state(sdev, SOF_FW_BOOT_COMPLETE);
+
 	/* perform post fw run operations */
 	ret = snd_sof_dsp_post_fw_run(sdev);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed post fw run op\n");
 		return ret;
 	}
-
-	dev_dbg(sdev->dev, "firmware boot complete\n");
-	sof_set_fw_state(sdev, SOF_FW_BOOT_COMPLETE);
 
 	if (sdev->first_boot && sdev->ipc->ops->fw_loader->query_fw_configuration)
 		return sdev->ipc->ops->fw_loader->query_fw_configuration(sdev);
