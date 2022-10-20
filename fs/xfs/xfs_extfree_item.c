@@ -76,7 +76,7 @@ xfs_efi_item_sizeof(
 	struct xfs_efi_log_item *efip)
 {
 	return sizeof(struct xfs_efi_log_format) +
-	       (efip->efi_format.efi_nextents - 1) * sizeof(xfs_extent_t);
+	       efip->efi_format.efi_nextents * sizeof(xfs_extent_t);
 }
 
 STATIC void
@@ -160,7 +160,7 @@ xfs_efi_init(
 	ASSERT(nextents > 0);
 	if (nextents > XFS_EFI_MAX_FAST_EXTENTS) {
 		size = (uint)(sizeof(struct xfs_efi_log_item) +
-			((nextents - 1) * sizeof(xfs_extent_t)));
+			(nextents * sizeof(xfs_extent_t)));
 		efip = kmem_zalloc(size, 0);
 	} else {
 		efip = kmem_cache_zalloc(xfs_efi_cache,
@@ -189,14 +189,19 @@ xfs_efi_copy_format(xfs_log_iovec_t *buf, xfs_efi_log_format_t *dst_efi_fmt)
 	xfs_efi_log_format_t *src_efi_fmt = buf->i_addr;
 	uint i;
 	uint len = sizeof(xfs_efi_log_format_t) +
-		(src_efi_fmt->efi_nextents - 1) * sizeof(xfs_extent_t);
+		src_efi_fmt->efi_nextents * sizeof(xfs_extent_t);
 	uint len32 = sizeof(xfs_efi_log_format_32_t) +
-		(src_efi_fmt->efi_nextents - 1) * sizeof(xfs_extent_32_t);
+		src_efi_fmt->efi_nextents * sizeof(xfs_extent_32_t);
 	uint len64 = sizeof(xfs_efi_log_format_64_t) +
-		(src_efi_fmt->efi_nextents - 1) * sizeof(xfs_extent_64_t);
+		src_efi_fmt->efi_nextents * sizeof(xfs_extent_64_t);
 
 	if (buf->i_len == len) {
-		memcpy((char *)dst_efi_fmt, (char*)src_efi_fmt, len);
+		memcpy(dst_efi_fmt, src_efi_fmt,
+		       offsetof(struct xfs_efi_log_format, efi_extents));
+		for (i = 0; i < src_efi_fmt->efi_nextents; i++)
+			memcpy(&dst_efi_fmt->efi_extents[i],
+			       &src_efi_fmt->efi_extents[i],
+			       sizeof(struct xfs_extent));
 		return 0;
 	} else if (buf->i_len == len32) {
 		xfs_efi_log_format_32_t *src_efi_fmt_32 = buf->i_addr;
@@ -256,7 +261,7 @@ xfs_efd_item_sizeof(
 	struct xfs_efd_log_item *efdp)
 {
 	return sizeof(xfs_efd_log_format_t) +
-	       (efdp->efd_format.efd_nextents - 1) * sizeof(xfs_extent_t);
+	       efdp->efd_format.efd_nextents * sizeof(xfs_extent_t);
 }
 
 STATIC void
@@ -341,7 +346,7 @@ xfs_trans_get_efd(
 
 	if (nextents > XFS_EFD_MAX_FAST_EXTENTS) {
 		efdp = kmem_zalloc(sizeof(struct xfs_efd_log_item) +
-				(nextents - 1) * sizeof(struct xfs_extent),
+				nextents * sizeof(struct xfs_extent),
 				0);
 	} else {
 		efdp = kmem_cache_zalloc(xfs_efd_cache,
@@ -733,6 +738,12 @@ xlog_recover_efi_commit_pass2(
 
 	efi_formatp = item->ri_buf[0].i_addr;
 
+	if (item->ri_buf[0].i_len <
+			offsetof(struct xfs_efi_log_format, efi_extents)) {
+		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, log->l_mp);
+		return -EFSCORRUPTED;
+	}
+
 	efip = xfs_efi_init(mp, efi_formatp->efi_nextents);
 	error = xfs_efi_copy_format(&item->ri_buf[0], &efip->efi_format);
 	if (error) {
@@ -772,9 +783,9 @@ xlog_recover_efd_commit_pass2(
 
 	efd_formatp = item->ri_buf[0].i_addr;
 	ASSERT((item->ri_buf[0].i_len == (sizeof(xfs_efd_log_format_32_t) +
-		((efd_formatp->efd_nextents - 1) * sizeof(xfs_extent_32_t)))) ||
+		(efd_formatp->efd_nextents * sizeof(xfs_extent_32_t)))) ||
 	       (item->ri_buf[0].i_len == (sizeof(xfs_efd_log_format_64_t) +
-		((efd_formatp->efd_nextents - 1) * sizeof(xfs_extent_64_t)))));
+		(efd_formatp->efd_nextents * sizeof(xfs_extent_64_t)))));
 
 	xlog_recover_release_intent(log, XFS_LI_EFI, efd_formatp->efd_efi_id);
 	return 0;
