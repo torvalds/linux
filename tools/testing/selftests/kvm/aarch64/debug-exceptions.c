@@ -181,22 +181,16 @@ static volatile char write_data;
 
 static void guest_code(uint8_t bpn, uint8_t wpn)
 {
-	GUEST_SYNC(0);
-
 	/* Software-breakpoint */
 	reset_debug_state();
 	asm volatile("sw_bp: brk #0");
 	GUEST_ASSERT_EQ(sw_bp_addr, PC(sw_bp));
-
-	GUEST_SYNC(1);
 
 	/* Hardware-breakpoint */
 	reset_debug_state();
 	install_hw_bp(bpn, PC(hw_bp));
 	asm volatile("hw_bp: nop");
 	GUEST_ASSERT_EQ(hw_bp_addr, PC(hw_bp));
-
-	GUEST_SYNC(2);
 
 	/* Hardware-breakpoint + svc */
 	reset_debug_state();
@@ -205,8 +199,6 @@ static void guest_code(uint8_t bpn, uint8_t wpn)
 	GUEST_ASSERT_EQ(hw_bp_addr, PC(bp_svc));
 	GUEST_ASSERT_EQ(svc_addr, PC(bp_svc) + 4);
 
-	GUEST_SYNC(3);
-
 	/* Hardware-breakpoint + software-breakpoint */
 	reset_debug_state();
 	install_hw_bp(bpn, PC(bp_brk));
@@ -214,16 +206,12 @@ static void guest_code(uint8_t bpn, uint8_t wpn)
 	GUEST_ASSERT_EQ(sw_bp_addr, PC(bp_brk));
 	GUEST_ASSERT_EQ(hw_bp_addr, PC(bp_brk));
 
-	GUEST_SYNC(4);
-
 	/* Watchpoint */
 	reset_debug_state();
 	install_wp(wpn, PC(write_data));
 	write_data = 'x';
 	GUEST_ASSERT_EQ(write_data, 'x');
 	GUEST_ASSERT_EQ(wp_data_addr, PC(write_data));
-
-	GUEST_SYNC(5);
 
 	/* Single-step */
 	reset_debug_state();
@@ -238,16 +226,12 @@ static void guest_code(uint8_t bpn, uint8_t wpn)
 	GUEST_ASSERT_EQ(ss_addr[1], PC(ss_start) + 4);
 	GUEST_ASSERT_EQ(ss_addr[2], PC(ss_start) + 8);
 
-	GUEST_SYNC(6);
-
 	/* OS Lock does not block software-breakpoint */
 	reset_debug_state();
 	enable_os_lock();
 	sw_bp_addr = 0;
 	asm volatile("sw_bp2: brk #0");
 	GUEST_ASSERT_EQ(sw_bp_addr, PC(sw_bp2));
-
-	GUEST_SYNC(7);
 
 	/* OS Lock blocking hardware-breakpoint */
 	reset_debug_state();
@@ -256,8 +240,6 @@ static void guest_code(uint8_t bpn, uint8_t wpn)
 	hw_bp_addr = 0;
 	asm volatile("hw_bp2: nop");
 	GUEST_ASSERT_EQ(hw_bp_addr, 0);
-
-	GUEST_SYNC(8);
 
 	/* OS Lock blocking watchpoint */
 	reset_debug_state();
@@ -268,8 +250,6 @@ static void guest_code(uint8_t bpn, uint8_t wpn)
 	write_data = 'x';
 	GUEST_ASSERT_EQ(write_data, 'x');
 	GUEST_ASSERT_EQ(wp_data_addr, 0);
-
-	GUEST_SYNC(9);
 
 	/* OS Lock blocking single-step */
 	reset_debug_state();
@@ -370,7 +350,6 @@ static void test_guest_debug_exceptions(void)
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	struct ucall uc;
-	int stage;
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 	ucall_init(vm, NULL);
@@ -391,23 +370,16 @@ static void test_guest_debug_exceptions(void)
 
 	/* Run tests with breakpoint#0 and watchpoint#0. */
 	vcpu_args_set(vcpu, 2, 0, 0);
-	for (stage = 0; stage < 11; stage++) {
-		vcpu_run(vcpu);
 
-		switch (get_ucall(vcpu, &uc)) {
-		case UCALL_SYNC:
-			TEST_ASSERT(uc.args[1] == stage,
-				"Stage %d: Unexpected sync ucall, got %lx",
-				stage, (ulong)uc.args[1]);
-			break;
-		case UCALL_ABORT:
-			REPORT_GUEST_ASSERT_2(uc, "values: %#lx, %#lx");
-			break;
-		case UCALL_DONE:
-			goto done;
-		default:
-			TEST_FAIL("Unknown ucall %lu", uc.cmd);
-		}
+	vcpu_run(vcpu);
+	switch (get_ucall(vcpu, &uc)) {
+	case UCALL_ABORT:
+		REPORT_GUEST_ASSERT_2(uc, "values: %#lx, %#lx");
+		break;
+	case UCALL_DONE:
+		goto done;
+	default:
+		TEST_FAIL("Unknown ucall %lu", uc.cmd);
 	}
 
 done:
