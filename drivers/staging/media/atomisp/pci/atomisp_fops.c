@@ -181,8 +181,7 @@ static int atomisp_q_one_s3a_buffer(struct atomisp_sub_device *asd,
 	} else {
 		list_add_tail(&s3a_buf->list, &asd->s3a_stats_in_css);
 		if (s3a_list == &asd->s3a_stats_ready)
-			dev_warn(asd->isp->dev, "%s: drop one s3a stat which has exp_id %d!\n",
-				 __func__, exp_id);
+			dev_dbg(asd->isp->dev, "drop one s3a stat with exp_id %d\n", exp_id);
 	}
 
 	asd->s3a_bufs_in_css[css_pipe_id]++;
