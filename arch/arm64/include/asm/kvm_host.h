@@ -117,6 +117,16 @@ struct kvm_smccc_features {
 
 typedef unsigned int pkvm_handle_t;
 
+struct kvm_protected_vm {
+	pkvm_handle_t handle;
+
+	struct {
+		void *pgd;
+		void *vm;
+		void *vcpus[KVM_MAX_VCPUS];
+	} hyp_donations;
+};
+
 struct kvm_arch {
 	struct kvm_s2_mmu mmu;
 
@@ -170,10 +180,10 @@ struct kvm_arch {
 	struct kvm_smccc_features smccc_feat;
 
 	/*
-	 * For an untrusted host VM, 'pkvm_handle' is used to lookup
+	 * For an untrusted host VM, 'pkvm.handle' is used to lookup
 	 * the associated pKVM instance in the hypervisor.
 	 */
-	pkvm_handle_t pkvm_handle;
+	struct kvm_protected_vm pkvm;
 };
 
 struct kvm_vcpu_fault_info {
