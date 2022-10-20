@@ -445,6 +445,8 @@ struct sof_ipc_pcm_ops;
  *
  * @init:	Optional pointer for IPC related initialization
  * @exit:	Optional pointer for IPC related cleanup
+ * @post_fw_boot: Optional pointer to execute IPC related tasks after firmware
+ *		boot.
  *
  * @tx_msg:	Function pointer for sending a 'short' IPC message
  * @set_get_data: Function pointer for set/get data ('large' IPC message). This
@@ -469,6 +471,7 @@ struct sof_ipc_ops {
 
 	int (*init)(struct snd_sof_dev *sdev);
 	void (*exit)(struct snd_sof_dev *sdev);
+	int (*post_fw_boot)(struct snd_sof_dev *sdev);
 
 	int (*tx_msg)(struct snd_sof_dev *sdev, void *msg_data, size_t msg_bytes,
 		      void *reply_data, size_t reply_bytes, bool no_pm);
