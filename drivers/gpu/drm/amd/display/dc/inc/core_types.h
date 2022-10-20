@@ -514,29 +514,47 @@ struct bw_context {
 	union bw_output bw;
 	struct display_mode_lib dml;
 };
+
 /**
- * struct dc_state - The full description of a state requested by a user
- *
- * @streams: Stream properties
- * @stream_status: The planes on a given stream
- * @res_ctx: Persistent state of resources
- * @bw_ctx: The output from bandwidth and watermark calculations and the DML
- * @pp_display_cfg: PowerPlay clocks and settings
- * @dcn_bw_vars: non-stack memory to support bandwidth calculations
- *
+ * struct dc_state - The full description of a state requested by users
  */
 struct dc_state {
+	/**
+	 * @streams: Stream state properties
+	 */
 	struct dc_stream_state *streams[MAX_PIPES];
+
+	/**
+	 * @stream_status: Planes status on a given stream
+	 */
 	struct dc_stream_status stream_status[MAX_PIPES];
+
+	/**
+	 * @stream_count: Total of streams in use
+	 */
 	uint8_t stream_count;
 	uint8_t stream_mask;
 
+	/**
+	 * @res_ctx: Persistent state of resources
+	 */
 	struct resource_context res_ctx;
 
+	/**
+	 * @bw_ctx: The output from bandwidth and watermark calculations and the DML
+	 */
 	struct bw_context bw_ctx;
 
-	/* Note: these are big structures, do *not* put on stack! */
+	/**
+	 * @pp_display_cfg: PowerPlay clocks and settings
+	 * Note: this is a big struct, do *not* put on stack!
+	 */
 	struct dm_pp_display_configuration pp_display_cfg;
+
+	/**
+	 * @dcn_bw_vars: non-stack memory to support bandwidth calculations
+	 * Note: this is a big struct, do *not* put on stack!
+	 */
 	struct dcn_bw_internal_vars dcn_bw_vars;
 
 	struct clk_mgr *clk_mgr;

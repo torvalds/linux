@@ -2562,9 +2562,12 @@ enum dc_status resource_map_pool_resources(
 
 /**
  * dc_resource_state_copy_construct_current() - Creates a new dc_state from existing state
- * Is a shallow copy.  Increments refcounts on existing streams and planes.
+ *
  * @dc: copy out of dc->current_state
  * @dst_ctx: copy into this
+ *
+ * This function makes a shallow copy of the current DC state and increments
+ * refcounts on existing streams and planes.
  */
 void dc_resource_state_copy_construct_current(
 		const struct dc *dc,
