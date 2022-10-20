@@ -878,73 +878,29 @@
 };
 
 &mcu_mcan0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcu_mcan0_pins_default>;
 	phys = <&transceiver1>;
 };
 
 &mcu_mcan1 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcu_mcan1_pins_default>;
 	phys = <&transceiver2>;
 };
 
 &main_mcan0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mcan0_pins_default>;
 	phys = <&transceiver3>;
 };
 
-&main_mcan1 {
-	status = "disabled";
-};
-
 &main_mcan2 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mcan2_pins_default>;
 	phys = <&transceiver4>;
-};
-
-&main_mcan3 {
-	status = "disabled";
-};
-
-&main_mcan4 {
-	status = "disabled";
-};
-
-&main_mcan5 {
-	status = "disabled";
-};
-
-&main_mcan6 {
-	status = "disabled";
-};
-
-&main_mcan7 {
-	status = "disabled";
-};
-
-&main_mcan8 {
-	status = "disabled";
-};
-
-&main_mcan9 {
-	status = "disabled";
-};
-
-&main_mcan10 {
-	status = "disabled";
-};
-
-&main_mcan11 {
-	status = "disabled";
-};
-
-&main_mcan12 {
-	status = "disabled";
-};
-
-&main_mcan13 {
-	status = "disabled";
 };
