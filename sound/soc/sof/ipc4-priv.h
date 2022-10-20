@@ -66,6 +66,8 @@ struct sof_ipc4_fw_library {
  * @mtrace_log_bytes: log bytes as reported by the firmware via fw_config reply
  * @max_libs_count: Maximum number of libraries support by the FW including the
  *		    base firmware
+ *
+ * @load_library: Callback function for platform dependent library loading
  */
 struct sof_ipc4_fw_data {
 	u32 manifest_fw_hdr_offset;
@@ -74,6 +76,9 @@ struct sof_ipc4_fw_data {
 	enum sof_ipc4_mtrace_type mtrace_type;
 	u32 mtrace_log_bytes;
 	u32 max_libs_count;
+
+	int (*load_library)(struct snd_sof_dev *sdev,
+			    struct sof_ipc4_fw_library *fw_lib, bool reload);
 };
 
 extern const struct sof_ipc_fw_loader_ops ipc4_loader_ops;
