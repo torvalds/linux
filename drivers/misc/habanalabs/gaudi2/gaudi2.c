@@ -4695,30 +4695,6 @@ static void gaudi2_init_dec(struct hl_device *hdev)
 	}
 }
 
-static void gaudi2_init_msix_gw_table(struct hl_device *hdev)
-{
-	u32 first_reg_offset, last_reg_offset, msix_gw_table_base;
-	u8 first_bit, last_bit;
-	int i;
-
-	msix_gw_table_base = mmPCIE_WRAP_MSIX_GW_TABLE_0;
-	first_reg_offset = (GAUDI2_IRQ_NUM_USER_FIRST >> 5) << 2;
-	first_bit = GAUDI2_IRQ_NUM_USER_FIRST % 32;
-	last_reg_offset = (GAUDI2_IRQ_NUM_USER_LAST >> 5) << 2;
-	last_bit = GAUDI2_IRQ_NUM_USER_LAST % 32;
-
-	if (first_reg_offset == last_reg_offset) {
-		WREG32(msix_gw_table_base + first_reg_offset, GENMASK(last_bit, first_bit));
-		return;
-	}
-
-	WREG32(msix_gw_table_base + first_reg_offset, GENMASK(31, first_bit));
-	WREG32(msix_gw_table_base + last_reg_offset, GENMASK(last_bit, 0));
-
-	for (i = first_reg_offset + 4; i < last_reg_offset ; i += 4)
-		WREG32(msix_gw_table_base + i, 0xFFFFFFFF);
-}
-
 static int gaudi2_mmu_update_asid_hop0_addr(struct hl_device *hdev,
 					u32 stlb_base, u32 asid, u64 phys_addr)
 {
@@ -5231,8 +5207,6 @@ static int gaudi2_hw_init(struct hl_device *hdev)
 		dev_err(hdev->dev, "failed to initialize CPU\n");
 		return rc;
 	}
-
-	gaudi2_init_msix_gw_table(hdev);
 
 	gaudi2_init_scrambler_hbm(hdev);
 	gaudi2_init_kdma(hdev);
