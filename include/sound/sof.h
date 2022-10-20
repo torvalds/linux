@@ -59,14 +59,10 @@ enum sof_ipc_type {
  * SOF Platform data.
  */
 struct snd_sof_pdata {
-	const struct firmware *fw;
 	const char *name;
 	const char *platform;
 
 	struct device *dev;
-
-	/* indicate how many first bytes shouldn't be loaded into DSP memory. */
-	size_t fw_offset;
 
 	/*
 	 * notification callback used if the hardware initialization
