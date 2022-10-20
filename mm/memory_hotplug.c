@@ -1940,8 +1940,8 @@ int __ref offline_pages(unsigned long start_pfn, unsigned long nr_pages,
 
 	node_states_clear_node(node, &arg);
 	if (arg.status_change_nid >= 0) {
-		kswapd_stop(node);
 		kcompactd_stop(node);
+		kswapd_stop(node);
 	}
 
 	writeback_set_ratelimit();
@@ -1969,11 +1969,10 @@ failed_removal:
 
 static int check_memblock_offlined_cb(struct memory_block *mem, void *arg)
 {
-	int ret = !is_memblock_offlined(mem);
 	int *nid = arg;
 
 	*nid = mem->nid;
-	if (unlikely(ret)) {
+	if (unlikely(mem->state != MEM_OFFLINE)) {
 		phys_addr_t beginpa, endpa;
 
 		beginpa = PFN_PHYS(section_nr_to_pfn(mem->start_section_nr));

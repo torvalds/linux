@@ -23,7 +23,7 @@ menuconfig SWAP
 	  in your computer.  If unsure say Y.
 
 config ZSWAP
-	bool "Compressed cache for swap pages (EXPERIMENTAL)"
+	bool "Compressed cache for swap pages"
 	depends on SWAP
 	select FRONTSWAP
 	select CRYPTO
@@ -35,12 +35,6 @@ config ZSWAP
 	  This can result in a significant I/O reduction on swap device and,
 	  in the case where decompressing from RAM is faster than swap device
 	  reads, can also improve workload performance.
-
-	  This is marked experimental because it is a new feature (as of
-	  v3.11) that interacts heavily with memory reclaim.  While these
-	  interactions don't cause any known issues on simple memory setups,
-	  they have not be fully explored on the large set of potential
-	  configurations and workloads that exist.
 
 config ZSWAP_DEFAULT_ON
 	bool "Enable the compressed cache for swap pages by default"
