@@ -135,6 +135,12 @@ static int vcn_v4_0_sw_init(void *handle)
 		if (r)
 			return r;
 
+		/* VCN POISON TRAP */
+		r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_vcns[i],
+				VCN_4_0__SRCID_UVD_POISON, &adev->vcn.inst[i].irq);
+		if (r)
+			return r;
+
 		ring = &adev->vcn.inst[i].ring_enc[0];
 		ring->use_doorbell = true;
 		if (amdgpu_sriov_vf(adev))
@@ -299,6 +305,7 @@ static int vcn_v4_0_hw_fini(void *handle)
 			}
 		}
 
+		amdgpu_irq_put(adev, &adev->vcn.inst[i].irq, 0);
 	}
 
 	return 0;
@@ -1941,6 +1948,9 @@ static int vcn_v4_0_process_interrupt(struct amdgpu_device *adev, struct amdgpu_
 	switch (entry->src_id) {
 	case VCN_4_0__SRCID__UVD_ENC_GENERAL_PURPOSE:
 		amdgpu_fence_process(&adev->vcn.inst[ip_instance].ring_enc[0]);
+		break;
+	case VCN_4_0__SRCID_UVD_POISON:
+		amdgpu_vcn_process_poison_irq(adev, source, entry);
 		break;
 	default:
 		DRM_ERROR("Unhandled interrupt: %d %d\n",
