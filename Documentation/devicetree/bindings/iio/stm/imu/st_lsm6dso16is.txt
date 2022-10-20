@@ -23,6 +23,10 @@ Optional properties  for all bus drivers:
 - mount-matrix:      mount rotation matrix.
                      Refer to iio/mount-matrix.txt for details.
 
+- enable-sensor-hub: enable i2c master interface. Default is disabled.
+
+- drive-pullup-shub: enable pullup on master i2c line.
+
 Example for an spi device node on CS0:
 
 lsm6dso16is-imu@0 {
@@ -34,6 +38,7 @@ lsm6dso16is-imu@0 {
 	mount-matrix = "1", "0", "0",
 		       "0", "1", "0",
 		       "0", "0", "1";
+	drive-pullup-shub;
 };
 
 Example for an i2c device node when SA0 tied to ground:
@@ -46,4 +51,5 @@ lsm6dso16is@6a {
 	mount-matrix = "1", "0", "0",
 		       "0", "1", "0",
 		       "0", "0", "1";
+	drive-pullup-shub;
 };

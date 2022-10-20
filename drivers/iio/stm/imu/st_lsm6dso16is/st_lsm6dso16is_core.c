@@ -312,6 +312,8 @@ static int st_lsm6dso16is_set_odr(struct st_lsm6dso16is_sensor *sensor, u32 mhz)
 	int val, err, odr, modr;
 
 	switch (id) {
+	case ST_LSM6DSO16IS_ID_EXT0:
+	case ST_LSM6DSO16IS_ID_EXT1:
 	case ST_LSM6DSO16IS_ID_TEMP:
 	case ST_LSM6DSO16IS_ID_ACC: {
 		int i;
@@ -341,9 +343,8 @@ static int st_lsm6dso16is_set_odr(struct st_lsm6dso16is_sensor *sensor, u32 mhz)
 					val);
 }
 
-static int
-st_lsm6dso16is_sensor_set_enable(struct st_lsm6dso16is_sensor *sensor,
-				 bool enable)
+int st_lsm6dso16is_sensor_set_enable(struct st_lsm6dso16is_sensor *sensor,
+				     bool enable)
 {
 	int mhz = enable ? sensor->mhz : 0;
 	int err;
@@ -1126,7 +1127,14 @@ int st_lsm6dso16is_probe(struct device *dev, int irq, struct regmap *regmap)
 
 		hw->iio_devs[id] = st_lsm6dso16is_alloc_iiodev(hw, id);
 		if (!hw->iio_devs[id])
-			return -ENOMEM;
+			continue;
+	}
+
+	if (!dev_fwnode(dev) ||
+	    device_property_read_bool(dev, "enable-sensor-hub")) {
+		err = st_lsm6dso16is_shub_probe(hw);
+		if (err < 0)
+			return err;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(st_lsm6dso16is_main_sensor_list); i++) {

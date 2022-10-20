@@ -19,6 +19,7 @@
 #define ST_LSM6DSO16IS_DEV_NAME			"lsm6dso16is"
 
 #define ST_LSM6DSO16IS_REG_FUNC_CFG_ACCESS_ADDR	0x01
+#define ST_LSM6DSO16IS_SHUB_REG_MASK		BIT(6)
 
 #define ST_LSM6DSO16IS_REG_PIN_CTRL_ADDR	0x02
 #define ST_LSM6DSO16IS_SDO_PU_EN_MASK		BIT(6)
@@ -67,6 +68,30 @@
 #define ST_LSM6DSO16IS_ST_POS_SIGN_VAL		1
 #define ST_LSM6DSO16IS_ST_NEG_ACCEL_SIGN_VAL	2
 #define ST_LSM6DSO16IS_ST_NEG_GYRO_SIGN_VAL	3
+
+/* shub registers */
+#define ST_LSM6DSO16IS_REG_SENSOR_HUB_1_ADDR	0x02
+
+#define ST_LSM6DSO16IS_REG_MASTER_CONFIG_ADDR	0x14
+#define ST_LSM6DSO16IS_WRITE_ONCE_MASK		BIT(6)
+#define ST_LSM6DSO16IS_SHUB_PU_EN_MASK		BIT(3)
+#define ST_LSM6DSO16IS_MASTER_ON_MASK		BIT(2)
+#define ST_LSM6DSO16IS_AUX_SENS_ON_MASK		GENMASK(1, 0)
+
+#define ST_LSM6DSO16IS_REG_SLV0_ADDR		0x15
+#define ST_LSM6DSO16IS_REG_SLV0_CFG		0x17
+#define ST_LSM6DSO16IS_REG_SLV1_ADDR		0x18
+#define ST_LSM6DSO16IS_REG_SLV2_ADDR		0x1b
+#define ST_LSM6DSO16IS_REG_SLV3_ADDR		0x1e
+
+#define ST_LSM6DSO16IS_REG_DATAWRITE_SLV0_ADDR	0x21
+#define ST_LSM6DSO16IS_SLAVE_NUMOP_MASK		GENMASK(2, 0)
+
+#define ST_LSM6DSO16IS_REG_STATUS_MASTER_ADDR	0x22
+#define ST_LSM6DSO16IS_SENS_HUB_ENDOP_MASK	BIT(0)
+
+/* Timestamp Tick 25us/LSB */
+#define ST_LSM6DSO16IS_TS_DELTA_NS		25000ULL
 
 /* Temperature in uC */
 #define ST_LSM6DSO16IS_TEMP_GAIN		256
@@ -158,6 +183,8 @@ enum st_lsm6dso16is_sensor_id {
 	ST_LSM6DSO16IS_ID_GYRO = 0,
 	ST_LSM6DSO16IS_ID_ACC,
 	ST_LSM6DSO16IS_ID_TEMP,
+	ST_LSM6DSO16IS_ID_EXT0,
+	ST_LSM6DSO16IS_ID_EXT1,
 	ST_LSM6DSO16IS_ID_MAX,
 };
 
@@ -169,10 +196,18 @@ static const enum st_lsm6dso16is_sensor_id st_lsm6dso16is_main_sensor_list[] = {
 	[0] = ST_LSM6DSO16IS_ID_GYRO,
 	[1] = ST_LSM6DSO16IS_ID_ACC,
 	[2] = ST_LSM6DSO16IS_ID_TEMP,
+	[3] = ST_LSM6DSO16IS_ID_EXT0,
+	[4] = ST_LSM6DSO16IS_ID_EXT1,
+};
+
+struct st_lsm6dso16is_ext_dev_info {
+	const struct st_lsm6dso16is_ext_dev_settings *ext_dev_settings;
+	u8 ext_dev_i2c_addr;
 };
 
 /**
  * struct st_lsm6dso16is_sensor - ST IMU sensor instance
+ * @ext_dev_info: For sensor hub indicate device info struct.
  * @id: Sensor identifier.
  * @hw: Pointer to instance of struct st_lsm6dso16is_hw.
  * @name: Sensor name.
@@ -184,6 +219,7 @@ static const enum st_lsm6dso16is_sensor_id st_lsm6dso16is_main_sensor_list[] = {
  * @max_st: Max self test raw data value.
  */
 struct st_lsm6dso16is_sensor {
+	struct st_lsm6dso16is_ext_dev_info ext_dev_info;
 	enum st_lsm6dso16is_sensor_id id;
 	struct st_lsm6dso16is_hw *hw;
 	char name[32];
@@ -277,5 +313,19 @@ st_lsm6dso16is_write_locked(struct st_lsm6dso16is_hw *hw, unsigned int addr,
 	return err;
 }
 
+static inline int
+st_lsm6dso16is_set_page_access(struct st_lsm6dso16is_hw *hw, unsigned int mask,
+			       unsigned int val)
+{
+	return __st_lsm6dso16is_write_with_mask(hw,
+					ST_LSM6DSO16IS_REG_FUNC_CFG_ACCESS_ADDR,
+					mask, val);
+}
+
 int st_lsm6dso16is_probe(struct device *dev, int irq, struct regmap *regmap);
+int st_lsm6dso16is_sensor_set_enable(struct st_lsm6dso16is_sensor *sensor,
+				     bool enable);
+int st_lsm6dso16is_shub_probe(struct st_lsm6dso16is_hw *hw);
+int st_lsm6dso16is_shub_set_enable(struct st_lsm6dso16is_sensor *sensor,
+				   bool enable);
 #endif /* ST_LSM6DSO16IS_H */
