@@ -81,10 +81,6 @@ test_per_thread() {
   if ! perf record -o /dev/null --quiet ${testprog} 2> /dev/null
   then
     echo "Per-thread record [Skipped event not supported]"
-    if [ $err -ne 1 ]
-    then
-      err=2
-    fi
     return
   fi
   if ! perf record --per-thread -o "${perfdata}" ${testprog} 2> /dev/null
@@ -131,10 +127,6 @@ test_register_capture() {
   if ! perf list | grep -q 'br_inst_retired.near_call'
   then
     echo "Register capture test [Skipped missing event]"
-    if [ $err -ne 1 ]
-    then
-      err=2
-    fi
     return
   fi
   if ! perf record --intr-regs=\? 2>&1 | grep -q 'available registers: AX BX CX DX SI DI BP SP IP FLAGS CS SS R8 R9 R10 R11 R12 R13 R14 R15'
@@ -159,10 +151,6 @@ test_system_wide() {
   if ! perf record -aB --synth=no -o "${perfdata}" ${testprog} 2> /dev/null
   then
     echo "System-wide record [Skipped not supported]"
-    if [ $err -ne 1 ]
-    then
-      err=2
-    fi
     return
   fi
   if ! perf report -i "${perfdata}" -q | grep -q "${testsym}"
