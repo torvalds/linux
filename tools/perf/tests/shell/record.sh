@@ -6,10 +6,17 @@ set -e
 
 err=0
 perfdata=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
+testprog=$(mktemp /tmp/__perf_test.prog.XXXXXX)
+testsym="test_loop"
 
 cleanup() {
   rm -f "${perfdata}"
   rm -f "${perfdata}".old
+
+  if [ "${testprog}" != "true" ]; then
+    rm -f "${testprog}"
+  fi
+
   trap - EXIT TERM INT
 }
 
@@ -19,9 +26,56 @@ trap_cleanup() {
 }
 trap trap_cleanup EXIT TERM INT
 
+build_test_program() {
+  if ! [ -x "$(command -v cc)" ]; then
+    # No CC found. Fall back to 'true'
+    testprog=true
+    testsym=true
+    return
+  fi
+
+  echo "Build a test program"
+  cat <<EOF | cc -o ${testprog} -xc - -pthread
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+
+void test_loop(void) {
+  volatile int count = 1000000;
+
+  while (count--)
+    continue;
+}
+
+void *thfunc(void *arg) {
+  int forever = *(int *)arg;
+
+  do {
+    test_loop();
+  } while (forever);
+
+  return NULL;
+}
+
+int main(int argc, char *argv[]) {
+  pthread_t th;
+  int forever = 0;
+
+  if (argc > 1)
+    forever = atoi(argv[1]);
+
+  pthread_create(&th, NULL, thfunc, &forever);
+  test_loop();
+  pthread_join(th, NULL);
+
+  return 0;
+}
+EOF
+}
+
 test_per_thread() {
   echo "Basic --per-thread mode test"
-  if ! perf record -o /dev/null --quiet true 2> /dev/null
+  if ! perf record -o /dev/null --quiet ${testprog} 2> /dev/null
   then
     echo "Per-thread record [Skipped event not supported]"
     if [ $err -ne 1 ]
@@ -30,13 +84,13 @@ test_per_thread() {
     fi
     return
   fi
-  if ! perf record --per-thread -o "${perfdata}" true 2> /dev/null
+  if ! perf record --per-thread -o "${perfdata}" ${testprog} 2> /dev/null
   then
     echo "Per-thread record [Failed record]"
     err=1
     return
   fi
-  if ! perf report -i "${perfdata}" -q | grep -q true
+  if ! perf report -i "${perfdata}" -q | grep -q "${testsym}"
   then
     echo "Per-thread record [Failed missing output]"
     err=1
@@ -62,7 +116,7 @@ test_register_capture() {
     return
   fi
   if ! perf record -o - --intr-regs=di,r8,dx,cx -e br_inst_retired.near_call:p \
-    -c 1000 --per-thread true 2> /dev/null \
+    -c 1000 --per-thread ${testprog} 2> /dev/null \
     | perf script -F ip,sym,iregs -i - 2> /dev/null \
     | grep -q "DI:"
   then
@@ -72,6 +126,8 @@ test_register_capture() {
   fi
   echo "Register capture test [Success]"
 }
+
+build_test_program
 
 test_per_thread
 test_register_capture
