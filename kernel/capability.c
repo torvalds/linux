@@ -489,8 +489,8 @@ bool privileged_wrt_inode_uidgid(struct user_namespace *ns,
 				 struct user_namespace *mnt_userns,
 				 const struct inode *inode)
 {
-	return kuid_has_mapping(ns, i_uid_into_mnt(mnt_userns, inode)) &&
-	       kgid_has_mapping(ns, i_gid_into_mnt(mnt_userns, inode));
+	return vfsuid_has_mapping(ns, i_uid_into_vfsuid(mnt_userns, inode)) &&
+	       vfsgid_has_mapping(ns, i_gid_into_vfsgid(mnt_userns, inode));
 }
 
 /**
