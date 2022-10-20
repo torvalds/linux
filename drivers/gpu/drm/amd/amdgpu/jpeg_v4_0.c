@@ -27,6 +27,7 @@
 #include "soc15.h"
 #include "soc15d.h"
 #include "jpeg_v2_0.h"
+#include "jpeg_v4_0.h"
 
 #include "vcn/vcn_4_0_0_offset.h"
 #include "vcn/vcn_4_0_0_sh_mask.h"
@@ -38,6 +39,7 @@ static void jpeg_v4_0_set_dec_ring_funcs(struct amdgpu_device *adev);
 static void jpeg_v4_0_set_irq_funcs(struct amdgpu_device *adev);
 static int jpeg_v4_0_set_powergating_state(void *handle,
 				enum amd_powergating_state state);
+static void jpeg_v4_0_set_ras_funcs(struct amdgpu_device *adev);
 
 /**
  * jpeg_v4_0_early_init - set function pointers
@@ -55,6 +57,7 @@ static int jpeg_v4_0_early_init(void *handle)
 
 	jpeg_v4_0_set_dec_ring_funcs(adev);
 	jpeg_v4_0_set_irq_funcs(adev);
+	jpeg_v4_0_set_ras_funcs(adev);
 
 	return 0;
 }
@@ -607,3 +610,63 @@ const struct amdgpu_ip_block_version jpeg_v4_0_ip_block = {
 	.rev = 0,
 	.funcs = &jpeg_v4_0_ip_funcs,
 };
+
+static uint32_t jpeg_v4_0_query_poison_by_instance(struct amdgpu_device *adev,
+		uint32_t instance, uint32_t sub_block)
+{
+	uint32_t poison_stat = 0, reg_value = 0;
+
+	switch (sub_block) {
+	case AMDGPU_JPEG_V4_0_JPEG0:
+		reg_value = RREG32_SOC15(JPEG, instance, regUVD_RAS_JPEG0_STATUS);
+		poison_stat = REG_GET_FIELD(reg_value, UVD_RAS_JPEG0_STATUS, POISONED_PF);
+		break;
+	case AMDGPU_JPEG_V4_0_JPEG1:
+		reg_value = RREG32_SOC15(JPEG, instance, regUVD_RAS_JPEG1_STATUS);
+		poison_stat = REG_GET_FIELD(reg_value, UVD_RAS_JPEG1_STATUS, POISONED_PF);
+		break;
+	default:
+		break;
+	}
+
+	if (poison_stat)
+		dev_info(adev->dev, "Poison detected in JPEG%d sub_block%d\n",
+			instance, sub_block);
+
+	return poison_stat;
+}
+
+static bool jpeg_v4_0_query_ras_poison_status(struct amdgpu_device *adev)
+{
+	uint32_t inst = 0, sub = 0, poison_stat = 0;
+
+	for (inst = 0; inst < adev->jpeg.num_jpeg_inst; inst++)
+		for (sub = 0; sub < AMDGPU_JPEG_V4_0_MAX_SUB_BLOCK; sub++)
+			poison_stat +=
+				jpeg_v4_0_query_poison_by_instance(adev, inst, sub);
+
+	return !!poison_stat;
+}
+
+const struct amdgpu_ras_block_hw_ops jpeg_v4_0_ras_hw_ops = {
+	.query_poison_status = jpeg_v4_0_query_ras_poison_status,
+};
+
+static struct amdgpu_jpeg_ras jpeg_v4_0_ras = {
+	.ras_block = {
+		.hw_ops = &jpeg_v4_0_ras_hw_ops,
+	},
+};
+
+static void jpeg_v4_0_set_ras_funcs(struct amdgpu_device *adev)
+{
+	switch (adev->ip_versions[JPEG_HWIP][0]) {
+	case IP_VERSION(4, 0, 0):
+		adev->jpeg.ras = &jpeg_v4_0_ras;
+		break;
+	default:
+		break;
+	}
+
+	jpeg_set_ras_funcs(adev);
+}
