@@ -25,29 +25,8 @@ enum sof_ipc4_mtrace_type {
 };
 
 /**
- * struct sof_ipc4_fw_data - IPC4-specific data
- * @manifest_fw_hdr_offset: FW header offset in the manifest
- * @num_fw_modules : Number of modules in base FW
- * @fw_modules: Array of base FW modules
- * @nhlt: NHLT table either from the BIOS or the topology manifest
- * @mtrace_type: mtrace type supported on the booted platform
- * @mtrace_log_bytes: log bytes as reported by the firmware via fw_config reply
- * @max_libs_count: Maximum number of libraries support by the FW including the
- *		    base firmware
- */
-struct sof_ipc4_fw_data {
-	u32 manifest_fw_hdr_offset;
-	int num_fw_modules;
-	void *fw_modules;
-	void *nhlt;
-	enum sof_ipc4_mtrace_type mtrace_type;
-	u32 mtrace_log_bytes;
-	u32 max_libs_count;
-};
-
-/**
  * struct sof_ipc4_fw_module - IPC4 module info
- * @sof_man4_module : Module info
+ * @sof_man4_module: Module info
  * @m_ida: Module instance identifier
  * @bss_size: Module object size
  * @private: Module private data
@@ -57,6 +36,44 @@ struct sof_ipc4_fw_module {
 	struct ida m_ida;
 	u32 bss_size;
 	void *private;
+};
+
+/**
+ * struct sof_ipc4_fw_library - IPC4 library information
+ * @sof_fw: SOF Firmware of the library
+ * @id: Library ID. 0 is reserved for basefw, external libraries must have unique
+ *	ID number between 1 and (sof_ipc4_fw_data.max_libs_count - 1)
+ *	Note: sof_ipc4_fw_data.max_libs_count == 1 implies that external libraries
+ *	are not supported
+ * @num_modules : Number of FW modules in the library
+ * @modules: Array of FW modules
+ */
+struct sof_ipc4_fw_library {
+	struct sof_firmware sof_fw;
+	u32 id;
+	int num_modules;
+	struct sof_ipc4_fw_module *modules;
+};
+
+/**
+ * struct sof_ipc4_fw_data - IPC4-specific data
+ * @manifest_fw_hdr_offset: FW header offset in the manifest
+ * @fw_lib_xa: XArray for firmware libraries, including basefw (ID = 0)
+ *	       Used to store the FW libraries and to manage the unique IDs of the
+ *	       libraries.
+ * @nhlt: NHLT table either from the BIOS or the topology manifest
+ * @mtrace_type: mtrace type supported on the booted platform
+ * @mtrace_log_bytes: log bytes as reported by the firmware via fw_config reply
+ * @max_libs_count: Maximum number of libraries support by the FW including the
+ *		    base firmware
+ */
+struct sof_ipc4_fw_data {
+	u32 manifest_fw_hdr_offset;
+	struct xarray fw_lib_xa;
+	void *nhlt;
+	enum sof_ipc4_mtrace_type mtrace_type;
+	u32 mtrace_log_bytes;
+	u32 max_libs_count;
 };
 
 extern const struct sof_ipc_fw_loader_ops ipc4_loader_ops;

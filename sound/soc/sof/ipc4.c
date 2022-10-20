@@ -8,6 +8,7 @@
 // Authors: Rander Wang <rander.wang@linux.intel.com>
 //	    Peter Ujfalusi <peter.ujfalusi@linux.intel.com>
 //
+#include <linux/firmware.h>
 #include <sound/sof/header.h>
 #include <sound/sof/ipc4/header.h>
 #include "sof-priv.h"
@@ -657,7 +658,38 @@ static const struct sof_ipc_pm_ops ipc4_pm_ops = {
 	.set_core_state = sof_ipc4_set_core_state,
 };
 
+static int sof_ipc4_init(struct snd_sof_dev *sdev)
+{
+	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
+
+	xa_init_flags(&ipc4_data->fw_lib_xa, XA_FLAGS_ALLOC);
+
+	return 0;
+}
+
+static void sof_ipc4_exit(struct snd_sof_dev *sdev)
+{
+	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
+	struct sof_ipc4_fw_library *fw_lib;
+	unsigned long lib_id;
+
+	xa_for_each(&ipc4_data->fw_lib_xa, lib_id, fw_lib) {
+		/*
+		 * The basefw (ID == 0) is handled by generic code, it is not
+		 * loaded by IPC4 code.
+		 */
+		if (lib_id != 0)
+			release_firmware(fw_lib->sof_fw.fw);
+
+		fw_lib->sof_fw.fw = NULL;
+	}
+
+	xa_destroy(&ipc4_data->fw_lib_xa);
+}
+
 const struct sof_ipc_ops ipc4_ops = {
+	.init = sof_ipc4_init,
+	.exit = sof_ipc4_exit,
 	.tx_msg = sof_ipc4_tx_msg,
 	.rx_msg = sof_ipc4_rx_msg,
 	.set_get_data = sof_ipc4_set_get_data,

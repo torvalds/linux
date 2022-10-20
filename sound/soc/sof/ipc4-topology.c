@@ -290,19 +290,19 @@ static int sof_ipc4_widget_set_module_info(struct snd_sof_widget *swidget)
 	struct snd_soc_component *scomp = swidget->scomp;
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
-	struct sof_ipc4_fw_module *fw_modules = ipc4_data->fw_modules;
+	struct sof_ipc4_fw_library *fw_lib;
+	unsigned long lib_id;
 	int i;
 
-	if (!fw_modules) {
-		dev_err(sdev->dev, "no fw_module information\n");
-		return -EINVAL;
-	}
+	xa_for_each(&ipc4_data->fw_lib_xa, lib_id, fw_lib) {
+		/* set module info */
+		for (i = 0; i < fw_lib->num_modules; i++) {
+			struct sof_ipc4_fw_module *module = &fw_lib->modules[i];
 
-	/* set module info */
-	for (i = 0; i < ipc4_data->num_fw_modules; i++) {
-		if (guid_equal(&swidget->uuid, &fw_modules[i].man4_module_entry.uuid)) {
-			swidget->module_info = &fw_modules[i];
-			return 0;
+			if (guid_equal(&swidget->uuid, &module->man4_module_entry.uuid)) {
+				swidget->module_info = module;
+				return 0;
+			}
 		}
 	}
 

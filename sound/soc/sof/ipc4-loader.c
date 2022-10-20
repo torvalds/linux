@@ -14,11 +14,12 @@
 #include "sof-priv.h"
 #include "ops.h"
 
-static size_t sof_ipc4_fw_parse_ext_man(struct snd_sof_dev *sdev)
+static size_t sof_ipc4_fw_parse_ext_man(struct snd_sof_dev *sdev,
+					struct sof_ipc4_fw_library *fw_lib)
 {
 	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
+	const struct firmware *fw = fw_lib->sof_fw.fw;
 	struct sof_man4_fw_binary_header *fw_header;
-	const struct firmware *fw = sdev->basefw.fw;
 	struct sof_ext_manifest4_hdr *ext_man_hdr;
 	struct sof_man4_module_config *fm_config;
 	struct sof_ipc4_fw_module *fw_module;
@@ -76,14 +77,13 @@ static size_t sof_ipc4_fw_parse_ext_man(struct snd_sof_dev *sdev)
 	dev_dbg(sdev->dev, "Firmware name: %s, header length: %u, module count: %u\n",
 		fw_header->name, fw_header->len, fw_header->num_module_entries);
 
-	ipc4_data->fw_modules = devm_kmalloc_array(sdev->dev,
-						   fw_header->num_module_entries,
-						   sizeof(*fw_module), GFP_KERNEL);
-	if (!ipc4_data->fw_modules)
+	fw_lib->modules = devm_kmalloc_array(sdev->dev, fw_header->num_module_entries,
+					     sizeof(*fw_module), GFP_KERNEL);
+	if (!fw_lib->modules)
 		return -ENOMEM;
 
-	ipc4_data->num_fw_modules = fw_header->num_module_entries;
-	fw_module = ipc4_data->fw_modules;
+	fw_lib->num_modules = fw_header->num_module_entries;
+	fw_module = fw_lib->modules;
 
 	fm_entry = (struct sof_man4_module *)((u8 *)fw_header + fw_header->len);
 	remaining -= fw_header->len;
@@ -131,6 +131,33 @@ static size_t sof_ipc4_fw_parse_ext_man(struct snd_sof_dev *sdev)
 	}
 
 	return ext_man_hdr->len;
+}
+
+static size_t sof_ipc4_fw_parse_basefw_ext_man(struct snd_sof_dev *sdev)
+{
+	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
+	struct sof_ipc4_fw_library *fw_lib;
+	size_t payload_offset;
+	int ret;
+
+	fw_lib = devm_kzalloc(sdev->dev, sizeof(*fw_lib), GFP_KERNEL);
+	if (!fw_lib)
+		return -ENOMEM;
+
+	fw_lib->sof_fw.fw = sdev->basefw.fw;
+
+	payload_offset = sof_ipc4_fw_parse_ext_man(sdev, fw_lib);
+	if (payload_offset > 0) {
+		fw_lib->sof_fw.payload_offset = payload_offset;
+
+		/* basefw ID is 0 */
+		fw_lib->id = 0;
+		ret = xa_insert(&ipc4_data->fw_lib_xa, 0, fw_lib, GFP_KERNEL);
+		if (ret)
+			return ret;
+	}
+
+	return payload_offset;
 }
 
 static int sof_ipc4_validate_firmware(struct snd_sof_dev *sdev)
@@ -224,6 +251,6 @@ out:
 
 const struct sof_ipc_fw_loader_ops ipc4_loader_ops = {
 	.validate = sof_ipc4_validate_firmware,
-	.parse_ext_manifest = sof_ipc4_fw_parse_ext_man,
+	.parse_ext_manifest = sof_ipc4_fw_parse_basefw_ext_man,
 	.query_fw_configuration = sof_ipc4_query_fw_configuration,
 };
