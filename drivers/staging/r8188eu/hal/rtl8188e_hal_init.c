@@ -355,7 +355,7 @@ void rtl8188e_EfusePowerSwitch(struct adapter *pAdapter, u8 PwrState)
 	if (PwrState) {
 		rtw_write8(pAdapter, REG_EFUSE_ACCESS, EFUSE_ACCESS_ON);
 
-		/*  1.2V Power: From VDDON with Power Cut(0x0000h[15]), defualt valid */
+		/*  1.2V Power: From VDDON with Power Cut(0x0000h[15]), default valid */
 		res = rtw_read16(pAdapter, REG_SYS_ISO_CTRL, &tmpV16);
 		if (res)
 			return;

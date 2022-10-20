@@ -2647,7 +2647,7 @@ static int rtw_p2p_connect(struct net_device *dev,
 	u32 peer_channel = 0;
 
 	/*	Commented by Albert 20110304 */
-	/*	The input data contains two informations. */
+	/*	The input data contains two information. */
 	/*	1. First information is the MAC address which wants to formate with */
 	/*	2. Second information is the WPS PINCode or "pbc" string for push button method */
 	/*	Format: 00:E0:4C:00:00:05 */
@@ -2721,7 +2721,7 @@ static void rtw_p2p_invite_req(struct net_device *dev,
 	uint p2pielen = 0, attr_contentlen = 0;
 	struct tx_invite_req_info *pinvite_req_info = &pwdinfo->invitereq_info;
 
-	/*	The input data contains two informations. */
+	/*	The input data contains two information items. */
 	/*	1. First information is the P2P device address which you want to send to. */
 	/*	2. Second information is the group id which combines with GO's mac address, space and GO's ssid. */
 	/*	Command line sample: iwpriv wlan0 p2p_set invite ="00:11:22:33:44:55 00:E0:4C:00:00:05 DIRECT-xy" */
@@ -2845,7 +2845,7 @@ static void rtw_p2p_prov_disc(struct net_device *dev,
 	u8 *p2pie;
 	uint p2pielen = 0, attr_contentlen = 0;
 
-	/*	The input data contains two informations. */
+	/*	The input data contains two information items. */
 	/*	1. First information is the MAC address which wants to issue the provisioning discovery request frame. */
 	/*	2. Second information is the WPS configuration method which wants to discovery */
 	/*	Format: 00:E0:4C:00:00:05_display */

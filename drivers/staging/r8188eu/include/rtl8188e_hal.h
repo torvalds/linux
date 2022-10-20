@@ -87,7 +87,7 @@ struct txpowerinfo24g {
 /*  9bytes + 1byt + 5bytes and pre 1byte. */
 /*  For worst case: */
 /*  | 2byte|----8bytes----|1byte|--7bytes--| 92D */
-/*  PG data exclude header, dummy 7 bytes frome CP test and reserved 1byte. */
+/*  PG data exclude header, dummy 7 bytes from CP test and reserved 1byte. */
 #define		EFUSE_OOB_PROTECT_BYTES_88E	18
 
 #define EFUSE_PROTECT_BYTES_BANK	16
