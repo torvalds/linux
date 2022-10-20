@@ -337,11 +337,8 @@ static void guest_code_ss(int test_cnt)
 	GUEST_DONE();
 }
 
-static int debug_version(struct kvm_vcpu *vcpu)
+static int debug_version(uint64_t id_aa64dfr0)
 {
-	uint64_t id_aa64dfr0;
-
-	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64DFR0_EL1), &id_aa64dfr0);
 	return FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_DEBUGVER), id_aa64dfr0);
 }
 
@@ -466,9 +463,11 @@ int main(int argc, char *argv[])
 	struct kvm_vm *vm;
 	int opt;
 	int ss_iteration = 10000;
+	uint64_t aa64dfr0;
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
-	__TEST_REQUIRE(debug_version(vcpu) >= 6,
+	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64DFR0_EL1), &aa64dfr0);
+	__TEST_REQUIRE(debug_version(aa64dfr0) >= 6,
 		       "Armv8 debug architecture not supported.");
 	kvm_vm_free(vm);
 
