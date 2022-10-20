@@ -181,7 +181,7 @@ static int hda_codec_probe(struct snd_soc_component *component)
 		!pm_runtime_status_suspended(&hdev->dev));
 #endif
 
-	hlink = snd_hdac_ext_bus_link_at(bus, hdev->addr);
+	hlink = snd_hdac_ext_bus_get_hlink_by_addr(bus, hdev->addr);
 	if (!hlink) {
 		dev_err(&hdev->dev, "hdac link not found\n");
 		return -EIO;
@@ -289,7 +289,7 @@ static void hda_codec_remove(struct snd_soc_component *component)
 	if (hda_codec_is_display(codec))
 		snd_hdac_display_power(bus, hdev->addr, false);
 
-	hlink = snd_hdac_ext_bus_link_at(bus, hdev->addr);
+	hlink = snd_hdac_ext_bus_get_hlink_by_addr(bus, hdev->addr);
 	if (hlink)
 		snd_hdac_ext_bus_link_put(bus, hlink);
 	/*
