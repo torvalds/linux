@@ -63,6 +63,10 @@ EXPORT_SYMBOL_GPL(nr_swap_pages);
 /* protected with swap_lock. reading in vm_swap_full() doesn't need lock */
 long total_swap_pages;
 static int least_priority = -1;
+unsigned long swapfile_maximum_size;
+#ifdef CONFIG_MIGRATION
+bool swap_migration_ad_supported;
+#endif	/* CONFIG_MIGRATION */
 
 static const char Bad_file[] = "Bad swap file entry ";
 static const char Unused_file[] = "Unused swap file entry ";
@@ -2816,7 +2820,7 @@ unsigned long generic_max_swapfile_size(void)
 }
 
 /* Can be overridden by an architecture for additional checks. */
-__weak unsigned long max_swapfile_size(void)
+__weak unsigned long arch_max_swapfile_size(void)
 {
 	return generic_max_swapfile_size();
 }
@@ -2856,7 +2860,7 @@ static unsigned long read_swap_header(struct swap_info_struct *p,
 	p->cluster_next = 1;
 	p->cluster_nr = 0;
 
-	maxpages = max_swapfile_size();
+	maxpages = swapfile_maximum_size;
 	last_page = swap_header->info.last_page;
 	if (!last_page) {
 		pr_warn("Empty swap-file\n");
@@ -3676,6 +3680,13 @@ static int __init swapfile_init(void)
 
 	for_each_node(nid)
 		plist_head_init(&swap_avail_heads[nid]);
+
+	swapfile_maximum_size = arch_max_swapfile_size();
+
+#ifdef CONFIG_MIGRATION
+	if (swapfile_maximum_size >= (1UL << SWP_MIG_TOTAL_BITS))
+		swap_migration_ad_supported = true;
+#endif	/* CONFIG_MIGRATION */
 
 	return 0;
 }

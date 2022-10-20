@@ -2438,6 +2438,8 @@ int madvise_collapse(struct vm_area_struct *vma, struct vm_area_struct **prev,
 				last_fail = result;
 				goto out_nolock;
 			}
+
+			hend = vma->vm_end & HPAGE_PMD_MASK;
 		}
 		mmap_assert_locked(mm);
 		memset(cc->node_load, 0, sizeof(cc->node_load));

@@ -158,6 +158,13 @@ struct folio *try_grab_folio(struct page *page, int refs, unsigned int flags)
 		else
 			folio_ref_add(folio,
 					refs * (GUP_PIN_COUNTING_BIAS - 1));
+		/*
+		 * Adjust the pincount before re-checking the PTE for changes.
+		 * This is essentially a smp_mb() and is paired with a memory
+		 * barrier in page_try_share_anon_rmap().
+		 */
+		smp_mb__after_atomic();
+
 		node_stat_mod_folio(folio, NR_FOLL_PIN_ACQUIRED, refs);
 
 		return folio;

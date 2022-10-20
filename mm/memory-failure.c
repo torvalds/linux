@@ -277,7 +277,7 @@ static int kill_proc(struct to_kill *tk, unsigned long pfn, int flags)
 		 * to SIG_IGN, but hopefully no one will do that?
 		 */
 		ret = send_sig_mceerr(BUS_MCEERR_AO, (void __user *)tk->addr,
-				      addr_lsb, t);  /* synchronous? */
+				      addr_lsb, t);
 	if (ret < 0)
 		pr_info("Error sending signal to %s:%d: %d\n",
 			t->comm, t->pid, ret);
@@ -521,11 +521,11 @@ static void collect_procs_anon(struct page *page, struct list_head *to_kill,
 		anon_vma_interval_tree_foreach(vmac, &av->rb_root,
 					       pgoff, pgoff) {
 			vma = vmac->vma;
+			if (vma->vm_mm != t->mm)
+				continue;
 			if (!page_mapped_in_vma(page, vma))
 				continue;
-			if (vma->vm_mm == t->mm)
-				add_to_kill(t, page, FSDAX_INVALID_PGOFF, vma,
-					    to_kill);
+			add_to_kill(t, page, FSDAX_INVALID_PGOFF, vma, to_kill);
 		}
 	}
 	read_unlock(&tasklist_lock);
@@ -635,7 +635,7 @@ static int check_hwpoisoned_entry(pte_t pte, unsigned long addr, short shift,
 		swp_entry_t swp = pte_to_swp_entry(pte);
 
 		if (is_hwpoison_entry(swp))
-			pfn = hwpoison_entry_to_pfn(swp);
+			pfn = swp_offset_pfn(swp);
 	}
 
 	if (!pfn || pfn != poisoned_pfn)
@@ -1249,9 +1249,9 @@ static int __get_hwpoison_page(struct page *page, unsigned long flags)
 		return ret;
 
 	/*
-	 * This check prevents from calling get_hwpoison_unless_zero()
-	 * for any unsupported type of page in order to reduce the risk of
-	 * unexpected races caused by taking a page refcount.
+	 * This check prevents from calling get_page_unless_zero() for any
+	 * unsupported type of page in order to reduce the risk of unexpected
+	 * races caused by taking a page refcount.
 	 */
 	if (!HWPoisonHandlable(head, flags))
 		return -EBUSY;
@@ -1409,7 +1409,7 @@ static bool hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	 * Here we are interested only in user-mapped pages, so skip any
 	 * other types of pages.
 	 */
-	if (PageReserved(p) || PageSlab(p))
+	if (PageReserved(p) || PageSlab(p) || PageTable(p))
 		return true;
 	if (!(PageLRU(hpage) || PageHuge(p)))
 		return true;
@@ -2028,7 +2028,7 @@ try_again:
 	/*
 	 * We need/can do nothing about count=0 pages.
 	 * 1) it's a free page, and therefore in safe hand:
-	 *    prep_new_page() will be the gate keeper.
+	 *    check_new_page() will be the gate keeper.
 	 * 2) it's part of a non-compound high order page.
 	 *    Implies some kernel user: cannot stop them from
 	 *    R/W the page; let's pray that the page has been
@@ -2131,7 +2131,7 @@ try_again:
 	page_flags = p->flags;
 
 	if (hwpoison_filter(p)) {
-		TestClearPageHWPoison(p);
+		ClearPageHWPoison(p);
 		unlock_page(p);
 		put_page(p);
 		res = -EOPNOTSUPP;
@@ -2407,23 +2407,25 @@ EXPORT_SYMBOL(unpoison_memory);
 static bool isolate_page(struct page *page, struct list_head *pagelist)
 {
 	bool isolated = false;
-	bool lru = PageLRU(page);
 
 	if (PageHuge(page)) {
 		isolated = !isolate_hugetlb(page, pagelist);
 	} else {
+		bool lru = !__PageMovable(page);
+
 		if (lru)
 			isolated = !isolate_lru_page(page);
 		else
-			isolated = !isolate_movable_page(page, ISOLATE_UNEVICTABLE);
+			isolated = !isolate_movable_page(page,
+							 ISOLATE_UNEVICTABLE);
 
-		if (isolated)
+		if (isolated) {
 			list_add(&page->lru, pagelist);
+			if (lru)
+				inc_node_page_state(page, NR_ISOLATED_ANON +
+						    page_is_file_lru(page));
+		}
 	}
-
-	if (isolated && lru)
-		inc_node_page_state(page, NR_ISOLATED_ANON +
-				    page_is_file_lru(page));
 
 	/*
 	 * If we succeed to isolate the page, we grabbed another refcount on
@@ -2600,7 +2602,7 @@ retry:
 
 void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
 {
-	int i;
+	int i, total = 0;
 
 	/*
 	 * A further optimization is to have per section refcounted
@@ -2613,8 +2615,10 @@ void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
 
 	for (i = 0; i < nr_pages; i++) {
 		if (PageHWPoison(&memmap[i])) {
-			num_poisoned_pages_dec();
+			total++;
 			ClearPageHWPoison(&memmap[i]);
 		}
 	}
+	if (total)
+		num_poisoned_pages_sub(total);
 }
