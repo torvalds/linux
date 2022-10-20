@@ -20,17 +20,20 @@
 #include <unistd.h>
 
 #include <linux/compiler.h>
+#include <linux/sizes.h>
 
 #include <test_util.h>
 #include <kvm_util.h>
 #include <processor.h>
 
-#define MEM_SIZE		((512U << 20) + 4096)
-#define MEM_GPA		0x10000000UL
+#define MEM_EXTRA_SIZE		SZ_64K
+
+#define MEM_SIZE		(SZ_512M + MEM_EXTRA_SIZE)
+#define MEM_GPA			SZ_256M
 #define MEM_AUX_GPA		MEM_GPA
 #define MEM_SYNC_GPA		MEM_AUX_GPA
-#define MEM_TEST_GPA		(MEM_AUX_GPA + 4096)
-#define MEM_TEST_SIZE		(MEM_SIZE - 4096)
+#define MEM_TEST_GPA		(MEM_AUX_GPA + MEM_EXTRA_SIZE)
+#define MEM_TEST_SIZE		(MEM_SIZE - MEM_EXTRA_SIZE)
 
 /*
  * 32 MiB is max size that gets well over 100 iterations on 509 slots.
@@ -38,8 +41,8 @@
  * 8194 slots in use can then be tested (although with slightly
  * limited resolution).
  */
-#define MEM_SIZE_MAP		((32U << 20) + 4096)
-#define MEM_TEST_MAP_SIZE	(MEM_SIZE_MAP - 4096)
+#define MEM_SIZE_MAP		(SZ_32M + MEM_EXTRA_SIZE)
+#define MEM_TEST_MAP_SIZE	(MEM_SIZE_MAP - MEM_EXTRA_SIZE)
 
 /*
  * 128 MiB is min size that fills 32k slots with at least one page in each
@@ -47,8 +50,8 @@
  *
  * 2 MiB chunk size like a typical huge page
  */
-#define MEM_TEST_UNMAP_SIZE		(128U << 20)
-#define MEM_TEST_UNMAP_CHUNK_SIZE	(2U << 20)
+#define MEM_TEST_UNMAP_SIZE		SZ_128M
+#define MEM_TEST_UNMAP_CHUNK_SIZE	SZ_2M
 
 /*
  * For the move active test the middle of the test area is placed on
@@ -64,12 +67,12 @@
  *
  * architecture   slots    memory-per-slot    memory-on-last-slot
  * --------------------------------------------------------------
- * x86-4KB        32763    16KB               100KB
- * arm64-4KB      32766    16KB               52KB
- * arm64-16KB     32766    16KB               48KB
- * arm64-64KB     8192     64KB               64KB
+ * x86-4KB        32763    16KB               160KB
+ * arm64-4KB      32766    16KB               112KB
+ * arm64-16KB     32766    16KB               112KB
+ * arm64-64KB     8192     64KB               128KB
  */
-#define MEM_TEST_MOVE_SIZE		0x10000
+#define MEM_TEST_MOVE_SIZE		(3 * SZ_64K)
 #define MEM_TEST_MOVE_GPA_DEST		(MEM_GPA + MEM_SIZE)
 static_assert(MEM_TEST_MOVE_SIZE <= MEM_TEST_SIZE,
 	      "invalid move test region size");
@@ -533,7 +536,6 @@ static bool test_memslot_move_prepare(struct vm_data *data,
 				      uint64_t *maxslots, bool isactive)
 {
 	uint32_t guest_page_size = data->vm->page_size;
-	uint64_t move_pages = MEM_TEST_MOVE_SIZE / guest_page_size;
 	uint64_t movesrcgpa, movetestgpa;
 
 	movesrcgpa = vm_slot2gpa(data, data->nslots - 1);
@@ -542,7 +544,7 @@ static bool test_memslot_move_prepare(struct vm_data *data,
 		uint64_t lastpages;
 
 		vm_gpa2hva(data, movesrcgpa, &lastpages);
-		if (lastpages < move_pages / 2) {
+		if (lastpages * guest_page_size < MEM_TEST_MOVE_SIZE / 2) {
 			*maxslots = 0;
 			return false;
 		}
@@ -808,13 +810,13 @@ static const struct test_data tests[] = {
 	},
 	{
 		.name = "unmap",
-		.mem_size = MEM_TEST_UNMAP_SIZE + 4096,
+		.mem_size = MEM_TEST_UNMAP_SIZE + MEM_EXTRA_SIZE,
 		.guest_code = guest_code_test_memslot_unmap,
 		.loop = test_memslot_unmap_loop,
 	},
 	{
 		.name = "unmap chunked",
-		.mem_size = MEM_TEST_UNMAP_SIZE + 4096,
+		.mem_size = MEM_TEST_UNMAP_SIZE + MEM_EXTRA_SIZE,
 		.guest_code = guest_code_test_memslot_unmap,
 		.loop = test_memslot_unmap_loop_chunked,
 	},
@@ -874,7 +876,14 @@ static void help(char *name, struct test_args *targs)
 
 static bool check_memory_sizes(void)
 {
+	uint32_t host_page_size = getpagesize();
 	uint32_t guest_page_size = vm_guest_mode_params[VM_MODE_DEFAULT].page_size;
+
+	if (host_page_size > SZ_64K || guest_page_size > SZ_64K) {
+		pr_info("Unsupported page size on host (0x%x) or guest (0x%x)\n",
+			host_page_size, guest_page_size);
+		return false;
+	}
 
 	if (MEM_SIZE % guest_page_size ||
 	    MEM_TEST_SIZE % guest_page_size) {
