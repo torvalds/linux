@@ -100,10 +100,10 @@ struct rxrpc_connection *rxrpc_find_client_connection_rcu(struct rxrpc_local *lo
 
 	_enter(",%x", sp->hdr.cid & RXRPC_CIDMASK);
 
-	/* Look up client connections by connection ID alone as their IDs are
-	 * unique for this machine.
+	/* Look up client connections by connection ID alone as their
+	 * IDs are unique for this machine.
 	 */
-	conn = idr_find(&rxrpc_client_conn_ids, sp->hdr.cid >> RXRPC_CIDSHIFT);
+	conn = idr_find(&local->conn_ids, sp->hdr.cid >> RXRPC_CIDSHIFT);
 	if (!conn || refcount_read(&conn->ref) == 0) {
 		_debug("no conn");
 		goto not_found;

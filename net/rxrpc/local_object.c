@@ -89,6 +89,7 @@ static struct rxrpc_local *rxrpc_alloc_local(struct net *net,
 					     const struct sockaddr_rxrpc *srx)
 {
 	struct rxrpc_local *local;
+	u32 tmp;
 
 	local = kzalloc(sizeof(struct rxrpc_local), GFP_KERNEL);
 	if (local) {
@@ -109,6 +110,14 @@ static struct rxrpc_local *rxrpc_alloc_local(struct net *net,
 		local->debug_id = atomic_inc_return(&rxrpc_debug_id);
 		memcpy(&local->srx, srx, sizeof(*srx));
 		local->srx.srx_service = 0;
+		idr_init(&local->conn_ids);
+		get_random_bytes(&tmp, sizeof(tmp));
+		tmp &= 0x3fffffff;
+		if (tmp == 0)
+			tmp = 1;
+		idr_set_cursor(&local->conn_ids, tmp);
+		spin_lock_init(&local->conn_lock);
+
 		trace_rxrpc_local(local->debug_id, rxrpc_local_new, 1, 1);
 	}
 
@@ -409,6 +418,7 @@ void rxrpc_destroy_local(struct rxrpc_local *local)
 	 * local endpoint.
 	 */
 	rxrpc_purge_queue(&local->rx_queue);
+	rxrpc_destroy_client_conn_ids(local);
 }
 
 /*

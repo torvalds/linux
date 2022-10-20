@@ -34,12 +34,6 @@ __read_mostly unsigned int rxrpc_reap_client_connections = 900;
 __read_mostly unsigned long rxrpc_conn_idle_client_expiry = 2 * 60 * HZ;
 __read_mostly unsigned long rxrpc_conn_idle_client_fast_expiry = 2 * HZ;
 
-/*
- * We use machine-unique IDs for our client connections.
- */
-DEFINE_IDR(rxrpc_client_conn_ids);
-static DEFINE_SPINLOCK(rxrpc_conn_id_lock);
-
 static void rxrpc_deactivate_bundle(struct rxrpc_bundle *bundle);
 
 /*
@@ -51,65 +45,65 @@ static void rxrpc_deactivate_bundle(struct rxrpc_bundle *bundle);
 static int rxrpc_get_client_connection_id(struct rxrpc_connection *conn,
 					  gfp_t gfp)
 {
-	struct rxrpc_net *rxnet = conn->rxnet;
+	struct rxrpc_local *local = conn->local;
 	int id;
 
 	_enter("");
 
 	idr_preload(gfp);
-	spin_lock(&rxrpc_conn_id_lock);
+	spin_lock(&local->conn_lock);
 
-	id = idr_alloc_cyclic(&rxrpc_client_conn_ids, conn,
+	id = idr_alloc_cyclic(&local->conn_ids, conn,
 			      1, 0x40000000, GFP_NOWAIT);
 	if (id < 0)
 		goto error;
 
-	spin_unlock(&rxrpc_conn_id_lock);
+	spin_unlock(&local->conn_lock);
 	idr_preload_end();
 
-	conn->proto.epoch = rxnet->epoch;
+	conn->proto.epoch = local->rxnet->epoch;
 	conn->proto.cid = id << RXRPC_CIDSHIFT;
 	set_bit(RXRPC_CONN_HAS_IDR, &conn->flags);
 	_leave(" [CID %x]", conn->proto.cid);
 	return 0;
 
 error:
-	spin_unlock(&rxrpc_conn_id_lock);
+	spin_unlock(&local->conn_lock);
 	idr_preload_end();
 	_leave(" = %d", id);
 	return id;
 }
 
 /*
- * Release a connection ID for a client connection from the global pool.
+ * Release a connection ID for a client connection.
  */
-static void rxrpc_put_client_connection_id(struct rxrpc_connection *conn)
+static void rxrpc_put_client_connection_id(struct rxrpc_local *local,
+					   struct rxrpc_connection *conn)
 {
 	if (test_bit(RXRPC_CONN_HAS_IDR, &conn->flags)) {
-		spin_lock(&rxrpc_conn_id_lock);
-		idr_remove(&rxrpc_client_conn_ids,
-			   conn->proto.cid >> RXRPC_CIDSHIFT);
-		spin_unlock(&rxrpc_conn_id_lock);
+		spin_lock(&local->conn_lock);
+		idr_remove(&local->conn_ids, conn->proto.cid >> RXRPC_CIDSHIFT);
+		spin_unlock(&local->conn_lock);
 	}
 }
 
 /*
  * Destroy the client connection ID tree.
  */
-void rxrpc_destroy_client_conn_ids(void)
+void rxrpc_destroy_client_conn_ids(struct rxrpc_local *local)
 {
 	struct rxrpc_connection *conn;
 	int id;
 
-	if (!idr_is_empty(&rxrpc_client_conn_ids)) {
-		idr_for_each_entry(&rxrpc_client_conn_ids, conn, id) {
+	if (!idr_is_empty(&local->conn_ids)) {
+		idr_for_each_entry(&local->conn_ids, conn, id) {
 			pr_err("AF_RXRPC: Leaked client conn %p {%d}\n",
 			       conn, refcount_read(&conn->ref));
 		}
 		BUG();
 	}
 
-	idr_destroy(&rxrpc_client_conn_ids);
+	idr_destroy(&local->conn_ids);
 }
 
 /*
@@ -225,7 +219,7 @@ rxrpc_alloc_client_connection(struct rxrpc_bundle *bundle, gfp_t gfp)
 	return conn;
 
 error_1:
-	rxrpc_put_client_connection_id(conn);
+	rxrpc_put_client_connection_id(bundle->local, conn);
 error_0:
 	kfree(conn);
 	_leave(" = %d", ret);
@@ -257,7 +251,7 @@ static bool rxrpc_may_reuse_conn(struct rxrpc_connection *conn)
 	 * times the maximum number of client conns away from the current
 	 * allocation point to try and keep the IDs concentrated.
 	 */
-	id_cursor = idr_get_cursor(&rxrpc_client_conn_ids);
+	id_cursor = idr_get_cursor(&conn->local->conn_ids);
 	id = conn->proto.cid >> RXRPC_CIDSHIFT;
 	distance = id - id_cursor;
 	if (distance < 0)
@@ -982,7 +976,7 @@ void rxrpc_kill_client_conn(struct rxrpc_connection *conn)
 	trace_rxrpc_client(conn, -1, rxrpc_client_cleanup);
 	atomic_dec(&rxnet->nr_client_conns);
 
-	rxrpc_put_client_connection_id(conn);
+	rxrpc_put_client_connection_id(local, conn);
 }
 
 /*

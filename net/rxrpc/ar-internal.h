@@ -300,6 +300,8 @@ struct rxrpc_local {
 	int			debug_id;	/* debug ID for printks */
 	bool			dead;
 	bool			service_closed;	/* Service socket closed */
+	struct idr		conn_ids;	/* List of connection IDs */
+	spinlock_t		conn_lock;	/* Lock for client connection pool */
 	struct sockaddr_rxrpc	srx;		/* local address */
 };
 
@@ -887,9 +889,8 @@ static inline bool rxrpc_is_client_call(const struct rxrpc_call *call)
 extern unsigned int rxrpc_reap_client_connections;
 extern unsigned long rxrpc_conn_idle_client_expiry;
 extern unsigned long rxrpc_conn_idle_client_fast_expiry;
-extern struct idr rxrpc_client_conn_ids;
 
-void rxrpc_destroy_client_conn_ids(void);
+void rxrpc_destroy_client_conn_ids(struct rxrpc_local *local);
 struct rxrpc_bundle *rxrpc_get_bundle(struct rxrpc_bundle *, enum rxrpc_bundle_trace);
 void rxrpc_put_bundle(struct rxrpc_bundle *, enum rxrpc_bundle_trace);
 int rxrpc_connect_call(struct rxrpc_sock *, struct rxrpc_call *,
