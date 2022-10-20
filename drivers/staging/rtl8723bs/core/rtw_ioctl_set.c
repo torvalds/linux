@@ -462,11 +462,11 @@ exit:
 }
 
 /*
-* rtw_get_cur_max_rate -
-* @adapter: pointer to struct adapter structure
-*
-* Return 0 or 100Kbps
-*/
+ * rtw_get_cur_max_rate -
+ * @adapter: pointer to struct adapter structure
+ *
+ * Return 0 or 100Kbps
+ */
 u16 rtw_get_cur_max_rate(struct adapter *adapter)
 {
 	int	i = 0;
