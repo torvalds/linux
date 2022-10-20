@@ -1,0 +1,49 @@
+* st_lsm6dso16is driver for imu MEMS sensors
+
+Required properties for all bus drivers:
+- compatible: must be one of:
+              "st,lsm6dso16is"
+
+Required properties for the i2c bindings:
+- reg: i2c slave address
+
+Required properties for the spi bindings:
+- reg:               the chipselect index
+
+- spi-max-frequency: maximal bus speed, should be set to 1000000 unless
+                     constrained by external circuitry.
+
+Optional properties  for all bus drivers:
+- vdd-supply:        an optional regulator that needs to be on to provide VDD
+                     power to the sensor.
+
+- vddio-supply:      an optional regulator that needs to be on to provide the
+                     VDD IO power to the sensor.
+
+- mount-matrix:      mount rotation matrix.
+                     Refer to iio/mount-matrix.txt for details.
+
+Example for an spi device node on CS0:
+
+lsm6dso16is-imu@0 {
+	compatible = "st,lsm6dso16is";
+	reg = <0x0>;
+	spi-max-frequency = <1000000>;
+	vddio-supply = <&sensors_vddio>;
+	vdd-supply = <&sensors_vdd>;
+	mount-matrix = "1", "0", "0",
+		       "0", "1", "0",
+		       "0", "0", "1";
+};
+
+Example for an i2c device node when SA0 tied to ground:
+
+lsm6dso16is@6a {
+	compatible = "st,lsm6dso16is";
+	reg = <0x6a>;
+	vddio-supply = <&sensors_vddio>;
+	vdd-supply = <&sensors_vdd>;
+	mount-matrix = "1", "0", "0",
+		       "0", "1", "0",
+		       "0", "0", "1";
+};
