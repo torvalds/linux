@@ -493,7 +493,7 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 static inline void
 dc_stream_forward_dmub_crc_window(struct dc_dmub_srv *dmub_srv,
-		struct crc_region *roi, struct otg_phy_mux *mux_mapping, bool is_stop)
+		struct rect *rect, struct otg_phy_mux *mux_mapping, bool is_stop)
 {
 	union dmub_rb_cmd cmd = {0};
 
@@ -506,10 +506,10 @@ dc_stream_forward_dmub_crc_window(struct dc_dmub_srv *dmub_srv,
 	} else {
 		cmd.secure_display.header.type = DMUB_CMD__SECURE_DISPLAY;
 		cmd.secure_display.header.sub_type = DMUB_CMD__SECURE_DISPLAY_CRC_WIN_NOTIFY;
-		cmd.secure_display.roi_info.x_start = roi->x_start;
-		cmd.secure_display.roi_info.y_start = roi->y_start;
-		cmd.secure_display.roi_info.x_end = roi->x_end;
-		cmd.secure_display.roi_info.y_end = roi->y_end;
+		cmd.secure_display.roi_info.x_start = rect->x;
+		cmd.secure_display.roi_info.y_start = rect->y;
+		cmd.secure_display.roi_info.x_end = rect->x + rect->width;
+		cmd.secure_display.roi_info.y_end = rect->y + rect->height;
 	}
 
 	dc_dmub_srv_cmd_queue(dmub_srv, &cmd);
@@ -518,17 +518,17 @@ dc_stream_forward_dmub_crc_window(struct dc_dmub_srv *dmub_srv,
 
 static inline void
 dc_stream_forward_dmcu_crc_window(struct dmcu *dmcu,
-		struct crc_region *roi, struct otg_phy_mux *mux_mapping, bool is_stop)
+		struct rect *rect, struct otg_phy_mux *mux_mapping, bool is_stop)
 {
 	if (is_stop)
 		dmcu->funcs->stop_crc_win_update(dmcu, mux_mapping);
 	else
-		dmcu->funcs->forward_crc_window(dmcu, roi, mux_mapping);
+		dmcu->funcs->forward_crc_window(dmcu, rect, mux_mapping);
 }
 
 bool
 dc_stream_forward_crc_window(struct dc *dc,
-		struct crc_region *roi, struct dc_stream_state *stream, bool is_stop)
+		struct rect *rect, struct dc_stream_state *stream, bool is_stop)
 {
 	struct dmcu *dmcu;
 	struct dc_dmub_srv *dmub_srv;
@@ -554,10 +554,10 @@ dc_stream_forward_crc_window(struct dc *dc,
 
 	/* forward to dmub */
 	if (dmub_srv)
-		dc_stream_forward_dmub_crc_window(dmub_srv, roi, &mux_mapping, is_stop);
+		dc_stream_forward_dmub_crc_window(dmub_srv, rect, &mux_mapping, is_stop);
 	/* forward to dmcu */
 	else if (dmcu && dmcu->funcs->is_dmcu_initialized(dmcu))
-		dc_stream_forward_dmcu_crc_window(dmcu, roi, &mux_mapping, is_stop);
+		dc_stream_forward_dmcu_crc_window(dmcu, rect, &mux_mapping, is_stop);
 	else
 		return false;
 

@@ -86,7 +86,7 @@ struct dmcu_funcs {
 	bool (*recv_edid_cea_ack)(struct dmcu *dmcu, int *offset);
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 	void (*forward_crc_window)(struct dmcu *dmcu,
-			struct crc_region *crc_win,
+			struct rect *rect,
 			struct otg_phy_mux *mux_mapping);
 	void (*stop_crc_win_update)(struct dmcu *dmcu,
 			struct otg_phy_mux *mux_mapping);

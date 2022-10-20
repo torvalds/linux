@@ -41,7 +41,10 @@ enum amdgpu_dm_pipe_crc_source {
 
 #ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
 struct crc_window_param {
-	struct crc_region roi;
+	uint16_t x_start;
+	uint16_t y_start;
+	uint16_t x_end;
+	uint16_t y_end;
 	/* CRC windwo is activated or not*/
 	bool activated;
 	/* Update crc window during vertical blank or not */
@@ -64,7 +67,7 @@ struct crc_fw_work {
 	struct work_struct forward_roi_work;
 	struct amdgpu_display_manager *dm;
 	struct dc_stream_state *stream;
-	struct crc_region roi;
+	struct rect rect;
 	bool is_stop_cmd;
 };
 #endif

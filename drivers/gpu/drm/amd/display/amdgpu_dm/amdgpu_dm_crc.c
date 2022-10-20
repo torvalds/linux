@@ -89,10 +89,10 @@ static void amdgpu_dm_set_crc_window_default(struct drm_crtc *crtc)
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
 	spin_lock_irq(&drm_dev->event_lock);
-	acrtc->dm_irq_params.window_param.roi.x_start = 0;
-	acrtc->dm_irq_params.window_param.roi.y_start = 0;
-	acrtc->dm_irq_params.window_param.roi.x_end = 0;
-	acrtc->dm_irq_params.window_param.roi.y_end = 0;
+	acrtc->dm_irq_params.window_param.x_start = 0;
+	acrtc->dm_irq_params.window_param.y_start = 0;
+	acrtc->dm_irq_params.window_param.x_end = 0;
+	acrtc->dm_irq_params.window_param.y_end = 0;
 	acrtc->dm_irq_params.window_param.activated = false;
 	acrtc->dm_irq_params.window_param.update_win = false;
 	acrtc->dm_irq_params.window_param.skip_frame_cnt = 0;
@@ -145,7 +145,7 @@ amdgpu_dm_forward_crc_window(struct work_struct *work)
 	dm = crc_fw_wrk->dm;
 
 	mutex_lock(&dm->dc_lock);
-	dc_stream_forward_crc_window(dm->dc, &crc_fw_wrk->roi, crc_fw_wrk->stream, crc_fw_wrk->is_stop_cmd);
+	dc_stream_forward_crc_window(dm->dc, &crc_fw_wrk->rect, crc_fw_wrk->stream, crc_fw_wrk->is_stop_cmd);
 	mutex_unlock(&dm->dc_lock);
 
 	kfree(crc_fw_wrk);
@@ -496,10 +496,12 @@ void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
 		INIT_WORK(&crc_fw_wrk->forward_roi_work, amdgpu_dm_forward_crc_window);
 		crc_fw_wrk->dm = &adev->dm;
 		crc_fw_wrk->stream = stream_state;
-		crc_fw_wrk->roi.x_start = acrtc->dm_irq_params.window_param.roi.x_start;
-		crc_fw_wrk->roi.y_start = acrtc->dm_irq_params.window_param.roi.y_start;
-		crc_fw_wrk->roi.x_end = acrtc->dm_irq_params.window_param.roi.x_end;
-		crc_fw_wrk->roi.y_end = acrtc->dm_irq_params.window_param.roi.y_end;
+		crc_fw_wrk->rect.x = acrtc->dm_irq_params.window_param.x_start;
+		crc_fw_wrk->rect.y = acrtc->dm_irq_params.window_param.y_start;
+		crc_fw_wrk->rect.width = acrtc->dm_irq_params.window_param.x_end -
+								acrtc->dm_irq_params.window_param.x_start;
+		crc_fw_wrk->rect.height = acrtc->dm_irq_params.window_param.y_end -
+								acrtc->dm_irq_params.window_param.y_start;
 		schedule_work(&crc_fw_wrk->forward_roi_work);
 
 		acrtc->dm_irq_params.window_param.update_win = false;
