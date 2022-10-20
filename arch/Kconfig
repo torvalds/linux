@@ -1088,7 +1088,6 @@ config HAVE_ARCH_COMPAT_MMAP_BASES
 config PAGE_SIZE_LESS_THAN_64KB
 	def_bool y
 	depends on !ARM64_64K_PAGES
-	depends on !IA64_PAGE_SIZE_64KB
 	depends on !PAGE_SIZE_64KB
 	depends on !PARISC_PAGE_SIZE_64KB
 	depends on PAGE_SIZE_LESS_THAN_256KB

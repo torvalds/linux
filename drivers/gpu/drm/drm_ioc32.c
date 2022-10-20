@@ -945,11 +945,11 @@ static struct {
 	DRM_IOCTL32_DEF(DRM_IOCTL_SG_ALLOC, compat_drm_sg_alloc),
 	DRM_IOCTL32_DEF(DRM_IOCTL_SG_FREE, compat_drm_sg_free),
 #endif
-#if defined(CONFIG_X86) || defined(CONFIG_IA64)
+#if defined(CONFIG_X86)
 	DRM_IOCTL32_DEF(DRM_IOCTL_UPDATE_DRAW, compat_drm_update_draw),
 #endif
 	DRM_IOCTL32_DEF(DRM_IOCTL_WAIT_VBLANK, compat_drm_wait_vblank),
-#if defined(CONFIG_X86) || defined(CONFIG_IA64)
+#if defined(CONFIG_X86)
 	DRM_IOCTL32_DEF(DRM_IOCTL_MODE_ADDFB2, compat_drm_mode_addfb2),
 #endif
 };

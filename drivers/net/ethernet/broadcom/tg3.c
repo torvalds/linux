@@ -17005,7 +17005,7 @@ static u32 tg3_calc_dma_bndry(struct tg3 *tp, u32 val)
 	    !tg3_flag(tp, PCI_EXPRESS))
 		goto out;
 
-#if defined(CONFIG_PPC64) || defined(CONFIG_IA64) || defined(CONFIG_PARISC)
+#if defined(CONFIG_PPC64) || defined(CONFIG_PARISC)
 	goal = BOUNDARY_MULTI_CACHELINE;
 #else
 #if defined(CONFIG_SPARC64) || defined(CONFIG_ALPHA)

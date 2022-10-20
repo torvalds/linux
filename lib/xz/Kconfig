@@ -19,11 +19,6 @@ config XZ_DEC_POWERPC
 	default y
 	select XZ_DEC_BCJ
 
-config XZ_DEC_IA64
-	bool "IA-64 BCJ filter decoder" if EXPERT
-	default y
-	select XZ_DEC_BCJ
-
 config XZ_DEC_ARM
 	bool "ARM BCJ filter decoder" if EXPERT
 	default y

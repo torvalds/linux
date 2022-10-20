@@ -556,7 +556,7 @@ EXPORT_SYMBOL(vga_put);
 
 static bool vga_is_firmware_default(struct pci_dev *pdev)
 {
-#if defined(CONFIG_X86) || defined(CONFIG_IA64)
+#if defined(CONFIG_X86)
 	u64 base = screen_info.lfb_base;
 	u64 size = screen_info.lfb_size;
 	struct resource *r;

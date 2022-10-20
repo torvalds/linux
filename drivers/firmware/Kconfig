@@ -77,30 +77,6 @@ config FIRMWARE_MEMMAP
 
       See also Documentation/ABI/testing/sysfs-firmware-memmap.
 
-config EFI_PCDP
-	bool "Console device selection via EFI PCDP or HCDP table"
-	depends on ACPI && EFI && IA64
-	default y if IA64
-	help
-	  If your firmware supplies the PCDP table, and you want to
-	  automatically use the primary console device it describes
-	  as the Linux console, say Y here.
-
-	  If your firmware supplies the HCDP table, and you want to
-	  use the first serial port it describes as the Linux console,
-	  say Y here.  If your EFI ConOut path contains only a UART
-	  device, it will become the console automatically.  Otherwise,
-	  you must specify the "console=hcdp" kernel boot argument.
-
-	  Neither the PCDP nor the HCDP affects naming of serial devices,
-	  so a serial console may be /dev/ttyS0, /dev/ttyS1, etc, depending
-	  on how the driver discovers devices.
-
-	  You must also enable the appropriate drivers (serial, VGA, etc.)
-
-	  See DIG64_HCDPv20_042804.pdf available from
-	  <http://www.dig64.org/specifications/> 
-
 config DMIID
     bool "Export DMI identification via sysfs to userspace"
     depends on DMI

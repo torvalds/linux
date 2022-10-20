@@ -22,7 +22,7 @@
 /*
  * On intel, even if sizes match, alignment and/or padding may differ.
  */
-#if defined(CONFIG_IA64) || defined(CONFIG_X86_64)
+#if defined(CONFIG_X86_64)
 #define BROKEN_X86_ALIGNMENT
 #define __compat_packed __attribute__((packed))
 #else

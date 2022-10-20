@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 menuconfig AGP
 	tristate "/dev/agpgart (AGP Support)"
-	depends on ALPHA || IA64 || PARISC || PPC || X86
+	depends on ALPHA || PARISC || PPC || X86
 	depends on PCI
 	help
 	  AGP (Accelerated Graphics Port) is a bus system mainly used to
@@ -108,20 +108,6 @@ config AGP_VIA
 	help
 	  This option gives you AGP support for the GLX component of
 	  X on VIA MVP3/Apollo Pro chipsets.
-
-config AGP_I460
-	tristate "Intel 460GX chipset support"
-	depends on AGP && IA64
-	help
-	  This option gives you AGP GART support for the Intel 460GX chipset
-	  for IA64 processors.
-
-config AGP_HP_ZX1
-	tristate "HP ZX1 chipset AGP support"
-	depends on AGP && IA64
-	help
-	  This option gives you AGP GART support for the HP ZX1 chipset
-	  for IA64 processors.
 
 config AGP_PARISC
 	tristate "HP Quicksilver AGP support"

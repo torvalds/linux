@@ -233,9 +233,7 @@ static int nx_set_dma_mask(struct netxen_adapter *adapter)
 	cmask = DMA_BIT_MASK(32);
 
 	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
-#ifndef CONFIG_IA64
 		mask = DMA_BIT_MASK(35);
-#endif
 	} else {
 		mask = DMA_BIT_MASK(39);
 		cmask = mask;

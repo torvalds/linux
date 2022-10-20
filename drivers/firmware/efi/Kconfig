@@ -4,7 +4,7 @@ menu "EFI (Extensible Firmware Interface) Support"
 
 config EFI_ESRT
 	bool
-	depends on EFI && !IA64
+	depends on EFI
 	default y
 
 config EFI_VARS_PSTORE
@@ -123,7 +123,7 @@ config EFI_BOOTLOADER_CONTROL
 
 config EFI_CAPSULE_LOADER
 	tristate "EFI capsule loader"
-	depends on EFI && !IA64
+	depends on EFI
 	help
 	  This option exposes a loader interface "/dev/efi_capsule_loader" for
 	  users to load EFI capsules. This driver requires working runtime
@@ -224,7 +224,7 @@ config EFI_DISABLE_PCI_DMA
 
 config EFI_EARLYCON
 	def_bool y
-	depends on SERIAL_EARLYCON && !ARM && !IA64
+	depends on SERIAL_EARLYCON && !ARM
 	select FONT_SUPPORT
 	select ARCH_USE_MEMREMAP_PROT
 
