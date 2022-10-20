@@ -450,13 +450,6 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 			};
-			sdio_vdd: ALDO4 {
-				regulator-boot-on;
-				regulator-compatible = "sdio_vdd";
-				regulator-name = "sdio_vdd";
-				regulator-min-microvolt = <1800000>;
-				regulator-max-microvolt = <1800000>;
-			};
 			cpu_vdd: DCDC2 {
 				regulator-boot-on;
 				regulator-always-on;
@@ -515,7 +508,6 @@
 	non-removable;
 	cap-mmc-hw-reset;
 	post-power-on-delay-ms = <200>;
-	vqmmc-supply = <&sdio_vdd>;
 	status = "okay";
 };
 
