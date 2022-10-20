@@ -734,9 +734,8 @@ int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 /*
  * Switch this queue to the given IO scheduler.
  */
-static int __elevator_change(struct request_queue *q, const char *name)
+static int elevator_change(struct request_queue *q, const char *elevator_name)
 {
-	char elevator_name[ELV_NAME_MAX];
 	struct elevator_type *e;
 
 	/* Make sure queue is not in the middle of being removed */
@@ -746,14 +745,13 @@ static int __elevator_change(struct request_queue *q, const char *name)
 	/*
 	 * Special case for mq, turn off scheduling
 	 */
-	if (!strncmp(name, "none", 4)) {
+	if (!strncmp(elevator_name, "none", 4)) {
 		if (!q->elevator)
 			return 0;
 		return elevator_switch(q, NULL);
 	}
 
-	strlcpy(elevator_name, name, sizeof(elevator_name));
-	e = elevator_get(q, strstrip(elevator_name), true);
+	e = elevator_get(q, elevator_name, true);
 	if (!e)
 		return -EINVAL;
 
@@ -766,18 +764,19 @@ static int __elevator_change(struct request_queue *q, const char *name)
 	return elevator_switch(q, e);
 }
 
-ssize_t elv_iosched_store(struct request_queue *q, const char *name,
+ssize_t elv_iosched_store(struct request_queue *q, const char *buf,
 			  size_t count)
 {
+	char elevator_name[ELV_NAME_MAX];
 	int ret;
 
 	if (!elv_support_iosched(q))
 		return count;
 
-	ret = __elevator_change(q, name);
+	strlcpy(elevator_name, buf, sizeof(elevator_name));
+	ret = elevator_change(q, strstrip(elevator_name));
 	if (!ret)
 		return count;
-
 	return ret;
 }
 
