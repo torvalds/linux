@@ -171,7 +171,7 @@ bool rtw89_ra_report_to_bitrate(struct rtw89_dev *rtwdev, u8 rpt_rate, u16 *bitr
 	return true;
 }
 
-static struct ieee80211_supported_band rtw89_sband_2ghz = {
+static const struct ieee80211_supported_band rtw89_sband_2ghz = {
 	.band		= NL80211_BAND_2GHZ,
 	.channels	= rtw89_channels_2ghz,
 	.n_channels	= ARRAY_SIZE(rtw89_channels_2ghz),
@@ -181,7 +181,7 @@ static struct ieee80211_supported_band rtw89_sband_2ghz = {
 	.vht_cap	= {0},
 };
 
-static struct ieee80211_supported_band rtw89_sband_5ghz = {
+static const struct ieee80211_supported_band rtw89_sband_5ghz = {
 	.band		= NL80211_BAND_5GHZ,
 	.channels	= rtw89_channels_5ghz,
 	.n_channels	= ARRAY_SIZE(rtw89_channels_5ghz),
@@ -193,7 +193,7 @@ static struct ieee80211_supported_band rtw89_sband_5ghz = {
 	.vht_cap	= {0},
 };
 
-static struct ieee80211_supported_band rtw89_sband_6ghz = {
+static const struct ieee80211_supported_band rtw89_sband_6ghz = {
 	.band		= NL80211_BAND_6GHZ,
 	.channels	= rtw89_channels_6ghz,
 	.n_channels	= ARRAY_SIZE(rtw89_channels_6ghz),
