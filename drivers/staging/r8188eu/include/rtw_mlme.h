@@ -101,17 +101,17 @@ struct rt_link_detect {
 
 struct profile_info {
 	u8	ssidlen;
-	u8	ssid[ WLAN_SSID_MAXLEN ];
-	u8	peermac[ ETH_ALEN ];
+	u8	ssid[WLAN_SSID_MAXLEN];
+	u8	peermac[ETH_ALEN];
 };
 
 struct tx_invite_req_info {
 	u8	token;
 	u8	benable;
-	u8	go_ssid[ WLAN_SSID_MAXLEN ];
+	u8	go_ssid[WLAN_SSID_MAXLEN];
 	u8	ssidlen;
-	u8	go_bssid[ ETH_ALEN ];
-	u8	peer_macaddr[ ETH_ALEN ];
+	u8	go_bssid[ETH_ALEN];
+	u8	peer_macaddr[ETH_ALEN];
 	u8	operating_ch;	/* This information will be set by using the
 				 * p2p_set op_ch=x */
 	u8	peer_ch;	/* The listen channel for peer P2P device */
@@ -154,9 +154,9 @@ struct tx_nego_req_info {
 };
 
 struct group_id_info {
-	u8	go_device_addr[ ETH_ALEN ];	/* The GO's device address of
+	u8	go_device_addr[ETH_ALEN];	/* The GO's device address of
 						 * this P2P group */
-	u8	ssid[ WLAN_SSID_MAXLEN ];	/* The SSID of this P2P group */
+	u8	ssid[WLAN_SSID_MAXLEN];	/* The SSID of this P2P group */
 };
 
 struct scan_limit_info {
@@ -459,7 +459,7 @@ static inline void set_fwstate(struct mlme_priv *pmlmepriv, int state)
 {
 	pmlmepriv->fw_state |= state;
 	/* FOR HW integration */
-	if (_FW_UNDER_SURVEY==state)
+	if (_FW_UNDER_SURVEY == state)
 		pmlmepriv->bScanInProcess = true;
 }
 
@@ -467,7 +467,7 @@ static inline void _clr_fwstate_(struct mlme_priv *pmlmepriv, int state)
 {
 	pmlmepriv->fw_state &= ~state;
 	/* FOR HW integration */
-	if (_FW_UNDER_SURVEY==state)
+	if (_FW_UNDER_SURVEY == state)
 		pmlmepriv->bScanInProcess = false;
 }
 

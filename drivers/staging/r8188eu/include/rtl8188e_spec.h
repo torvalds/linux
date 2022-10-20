@@ -900,12 +900,12 @@ Current IOREG MAP
 #define HQSEL_HIQ			BIT(5)
 
 /*  For normal driver, 0x10C */
-#define _TXDMA_HIQ_MAP(x)		(((x)&0x3) << 14)
-#define _TXDMA_MGQ_MAP(x)		(((x)&0x3) << 12)
-#define _TXDMA_BKQ_MAP(x)		(((x)&0x3) << 10)
-#define _TXDMA_BEQ_MAP(x)		(((x)&0x3) << 8 )
-#define _TXDMA_VIQ_MAP(x)		(((x)&0x3) << 6 )
-#define _TXDMA_VOQ_MAP(x)		(((x)&0x3) << 4 )
+#define _TXDMA_HIQ_MAP(x)		(((x) & 0x3) << 14)
+#define _TXDMA_MGQ_MAP(x)		(((x) & 0x3) << 12)
+#define _TXDMA_BKQ_MAP(x)		(((x) & 0x3) << 10)
+#define _TXDMA_BEQ_MAP(x)		(((x) & 0x3) << 8)
+#define _TXDMA_VIQ_MAP(x)		(((x) & 0x3) << 6)
+#define _TXDMA_VOQ_MAP(x)		(((x) & 0x3) << 4)
 
 #define QUEUE_LOW			1
 #define QUEUE_NORMAL			2
