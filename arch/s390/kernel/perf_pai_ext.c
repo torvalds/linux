@@ -28,12 +28,6 @@
 static debug_info_t *paiext_dbg;
 static unsigned int paiext_cnt;	/* Extracted with QPACI instruction */
 
-enum paiext_mode {
-	PAI_MODE_NONE,
-	PAI_MODE_SAMPLING,
-	PAI_MODE_COUNTER,
-};
-
 struct pai_userdata {
 	u16 num;
 	u64 value;
@@ -54,7 +48,7 @@ struct paiext_cb {		/* PAI extension 1 control block */
 struct paiext_map {
 	unsigned long *area;		/* Area for CPU to store counters */
 	struct pai_userdata *save;	/* Area to store non-zero counters */
-	enum paiext_mode mode;		/* Type of event */
+	enum paievt_mode mode;		/* Type of event */
 	unsigned int active_events;	/* # of PAI Extension users */
 	unsigned int refcnt;
 	struct perf_event *event;	/* Perf event for sampling */
@@ -192,14 +186,14 @@ static int paiext_alloc(struct perf_event_attr *a, struct perf_event *event)
 			goto unlock;
 		}
 		cpump->mode = a->sample_period ? PAI_MODE_SAMPLING
-					       : PAI_MODE_COUNTER;
+					       : PAI_MODE_COUNTING;
 	} else {
 		/* Multiple invocation, check whats active.
 		 * Supported are multiple counter events or only one sampling
 		 * event concurrently at any one time.
 		 */
 		if (cpump->mode == PAI_MODE_SAMPLING ||
-		    (cpump->mode == PAI_MODE_COUNTER && a->sample_period)) {
+		    (cpump->mode == PAI_MODE_COUNTING && a->sample_period)) {
 			rc = -EBUSY;
 			goto unlock;
 		}
