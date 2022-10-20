@@ -396,11 +396,15 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 		dev_dbg(sdev->dev, "IMR restore supported, booting from IMR directly\n");
 		hda->boot_iteration = 0;
 		ret = hda_dsp_boot_imr(sdev);
-		if (!ret)
+		if (!ret) {
+			hda->booted_from_imr = true;
 			return 0;
+		}
 
 		dev_warn(sdev->dev, "IMR restore failed, trying to cold boot\n");
 	}
+
+	hda->booted_from_imr = false;
 
 	chip_info = desc->chip_info;
 

@@ -481,6 +481,7 @@ enum sof_hda_D0_substate {
 struct sof_intel_hda_dev {
 	bool imrboot_supported;
 	bool skip_imr_boot;
+	bool booted_from_imr;
 
 	int boot_iteration;
 
