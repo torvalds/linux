@@ -303,17 +303,3 @@ static inline int same_magic(const char *amagic, const char *bmagic, bool has_cr
 	return strcmp(amagic, bmagic) == 0;
 }
 #endif /* CONFIG_MODVERSIONS */
-
-#ifdef CONFIG_MODULE_SIG_PROTECT
-extern bool gki_is_module_exported_symbol(const char *name);
-extern bool gki_is_module_protected_symbol(const char *name);
-#else
-static inline bool gki_is_module_exported_symbol(const char *name)
-{
-	return 0;
-}
-static inline bool gki_is_module_protected_symbol(const char *name)
-{
-	return 0;
-}
-#endif /* CONFIG_MODULE_SIG_PROTECT */
