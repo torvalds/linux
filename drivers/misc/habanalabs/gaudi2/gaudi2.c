@@ -8300,11 +8300,10 @@ static void gaudi2_handle_mmu_spi_sei_generic(struct hl_device *hdev, const char
 	WREG32(mmu_base + MMU_INTERRUPT_CLR_OFFSET, interrupt_clr);
 }
 
-static bool gaudi2_handle_sm_err(struct hl_device *hdev, u8 sm_index)
+static void gaudi2_handle_sm_err(struct hl_device *hdev, u8 sm_index)
 {
 	u32 sei_cause_addr, sei_cause_val, sei_cause_cause, sei_cause_log;
 	u32 cq_intr_addr, cq_intr_val, cq_intr_queue_index;
-	bool reset = true;
 	int i;
 
 	sei_cause_addr = mmDCORE0_SYNC_MNGR_GLBL_SM_SEI_CAUSE + DCORE_OFFSET * sm_index;
@@ -8329,10 +8328,6 @@ static bool gaudi2_handle_sm_err(struct hl_device *hdev, u8 sm_index)
 					gaudi2_sm_sei_cause[i].cause_name,
 					gaudi2_sm_sei_cause[i].log_name,
 					sei_cause_log & gaudi2_sm_sei_cause[i].log_mask);
-
-			/* Due to a potential H/W issue, do not reset upon BRESP errors */
-			if (i == 2)
-				reset = false;
 			break;
 		}
 
@@ -8352,8 +8347,6 @@ static bool gaudi2_handle_sm_err(struct hl_device *hdev, u8 sm_index)
 		/* Clear CQ_INTR */
 		WREG32(cq_intr_addr, 0);
 	}
-
-	return reset;
 }
 
 static void gaudi2_handle_mmu_spi_sei_err(struct hl_device *hdev, u16 event_type, u64 *event_mask)
@@ -8755,8 +8748,8 @@ static void hl_arc_event_handle(struct hl_device *hdev,
 
 static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
 {
-	bool reset_required = false, skip_reset = false, is_critical = false;
 	struct gaudi2_device *gaudi2 = hdev->asic_specific;
+	bool reset_required = false, is_critical = false;
 	u32 ctl, reset_flags = HL_DRV_RESET_HARD;
 	int index, sbte_index;
 	u64 event_mask = 0;
@@ -9113,7 +9106,7 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 
 	case GAUDI2_EVENT_SM0_AXI_ERROR_RESPONSE ... GAUDI2_EVENT_SM3_AXI_ERROR_RESPONSE:
 		index = event_type - GAUDI2_EVENT_SM0_AXI_ERROR_RESPONSE;
-		skip_reset = !gaudi2_handle_sm_err(hdev, index);
+		gaudi2_handle_sm_err(hdev, index);
 		event_mask |= HL_NOTIFIER_EVENT_USER_ENGINE_ERR;
 		break;
 
@@ -9153,9 +9146,9 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 						event_type);
 	}
 
-	if ((gaudi2_irq_map_table[event_type].reset || reset_required) && !skip_reset &&
-			(hdev->hard_reset_on_fw_events ||
-			(hdev->asic_prop.fw_security_enabled && is_critical)))
+	if ((gaudi2_irq_map_table[event_type].reset || reset_required) &&
+				(hdev->hard_reset_on_fw_events ||
+				(hdev->asic_prop.fw_security_enabled && is_critical)))
 		goto reset_device;
 
 	/* Send unmask irq only for interrupts not classified as MSG */
