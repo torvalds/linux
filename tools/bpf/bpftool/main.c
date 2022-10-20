@@ -71,6 +71,27 @@ static int do_help(int argc, char **argv)
 	return 0;
 }
 
+static int do_batch(int argc, char **argv);
+static int do_version(int argc, char **argv);
+
+static const struct cmd commands[] = {
+	{ "help",	do_help },
+	{ "batch",	do_batch },
+	{ "prog",	do_prog },
+	{ "map",	do_map },
+	{ "link",	do_link },
+	{ "cgroup",	do_cgroup },
+	{ "perf",	do_perf },
+	{ "net",	do_net },
+	{ "feature",	do_feature },
+	{ "btf",	do_btf },
+	{ "gen",	do_gen },
+	{ "struct_ops",	do_struct_ops },
+	{ "iter",	do_iter },
+	{ "version",	do_version },
+	{ 0 }
+};
+
 #ifndef BPFTOOL_VERSION
 /* bpftool's major and minor version numbers are aligned on libbpf's. There is
  * an offset of 6 for the version number, because bpftool's version was higher
@@ -81,6 +102,15 @@ static int do_help(int argc, char **argv)
 #define BPFTOOL_MINOR_VERSION LIBBPF_MINOR_VERSION
 #define BPFTOOL_PATCH_VERSION 0
 #endif
+
+static void
+print_feature(const char *feature, bool state, unsigned int *nb_features)
+{
+	if (state) {
+		printf("%s %s", *nb_features ? "," : "", feature);
+		*nb_features = *nb_features + 1;
+	}
+}
 
 static int do_version(int argc, char **argv)
 {
@@ -94,6 +124,18 @@ static int do_version(int argc, char **argv)
 #else
 	const bool has_skeletons = true;
 #endif
+	bool bootstrap = false;
+	int i;
+
+	for (i = 0; commands[i].cmd; i++) {
+		if (!strcmp(commands[i].cmd, "prog")) {
+			/* Assume we run a bootstrap version if "bpftool prog"
+			 * is not available.
+			 */
+			bootstrap = !commands[i].func;
+			break;
+		}
+	}
 
 	if (json_output) {
 		jsonw_start_object(json_wtr);	/* root object */
@@ -114,6 +156,7 @@ static int do_version(int argc, char **argv)
 		jsonw_bool_field(json_wtr, "libbfd", has_libbfd);
 		jsonw_bool_field(json_wtr, "libbpf_strict", !legacy_libbpf);
 		jsonw_bool_field(json_wtr, "skeletons", has_skeletons);
+		jsonw_bool_field(json_wtr, "bootstrap", bootstrap);
 		jsonw_end_object(json_wtr);	/* features */
 
 		jsonw_end_object(json_wtr);	/* root object */
@@ -128,16 +171,10 @@ static int do_version(int argc, char **argv)
 #endif
 		printf("using libbpf %s\n", libbpf_version_string());
 		printf("features:");
-		if (has_libbfd) {
-			printf(" libbfd");
-			nb_features++;
-		}
-		if (!legacy_libbpf) {
-			printf("%s libbpf_strict", nb_features++ ? "," : "");
-			nb_features++;
-		}
-		if (has_skeletons)
-			printf("%s skeletons", nb_features++ ? "," : "");
+		print_feature("libbfd", has_libbfd, &nb_features);
+		print_feature("libbpf_strict", !legacy_libbpf, &nb_features);
+		print_feature("skeletons", has_skeletons, &nb_features);
+		print_feature("bootstrap", bootstrap, &nb_features);
 		printf("\n");
 	}
 	return 0;
@@ -279,26 +316,6 @@ static int make_args(char *line, char *n_argv[], int maxargs, int cmd_nb)
 	return n_argc;
 }
 
-static int do_batch(int argc, char **argv);
-
-static const struct cmd cmds[] = {
-	{ "help",	do_help },
-	{ "batch",	do_batch },
-	{ "prog",	do_prog },
-	{ "map",	do_map },
-	{ "link",	do_link },
-	{ "cgroup",	do_cgroup },
-	{ "perf",	do_perf },
-	{ "net",	do_net },
-	{ "feature",	do_feature },
-	{ "btf",	do_btf },
-	{ "gen",	do_gen },
-	{ "struct_ops",	do_struct_ops },
-	{ "iter",	do_iter },
-	{ "version",	do_version },
-	{ 0 }
-};
-
 static int do_batch(int argc, char **argv)
 {
 	char buf[BATCH_LINE_LEN_MAX], contline[BATCH_LINE_LEN_MAX];
@@ -386,7 +403,7 @@ static int do_batch(int argc, char **argv)
 			jsonw_name(json_wtr, "output");
 		}
 
-		err = cmd_select(cmds, n_argc, n_argv, do_help);
+		err = cmd_select(commands, n_argc, n_argv, do_help);
 
 		if (json_output)
 			jsonw_end_object(json_wtr);
@@ -528,7 +545,7 @@ int main(int argc, char **argv)
 	if (version_requested)
 		return do_version(argc, argv);
 
-	ret = cmd_select(cmds, argc, argv, do_help);
+	ret = cmd_select(commands, argc, argv, do_help);
 
 	if (json_output)
 		jsonw_destroy(&json_wtr);
