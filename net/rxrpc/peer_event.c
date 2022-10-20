@@ -253,15 +253,12 @@ static void rxrpc_store_error(struct rxrpc_peer *peer,
 			break;
 
 		default:
-			_proto("Rx Received ICMP error { type=%u code=%u }",
-			       ee->ee_type, ee->ee_code);
 			break;
 		}
 		break;
 
 	case SO_EE_ORIGIN_NONE:
 	case SO_EE_ORIGIN_LOCAL:
-		_proto("Rx Received local error { error=%d }", err);
 		compl = RXRPC_CALL_LOCAL_ERROR;
 		break;
 
@@ -270,7 +267,6 @@ static void rxrpc_store_error(struct rxrpc_peer *peer,
 			err = EHOSTUNREACH;
 		fallthrough;
 	default:
-		_proto("Rx Received error report { orig=%u }", ee->ee_origin);
 		break;
 	}
 

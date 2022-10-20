@@ -701,8 +701,6 @@ void rxrpc_send_keepalive(struct rxrpc_peer *peer)
 
 	len = iov[0].iov_len + iov[1].iov_len;
 
-	_proto("Tx VERSION (keepalive)");
-
 	iov_iter_kvec(&msg.msg_iter, WRITE, iov, 2, len);
 	ret = do_udp_sendmsg(peer->local->socket, &msg, len);
 	if (ret < 0)

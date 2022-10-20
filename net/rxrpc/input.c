@@ -551,9 +551,6 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 	       atomic64_read(&call->ackr_window), call->rx_highest_seq,
 	       skb->len, seq0);
 
-	_proto("Rx DATA %%%u { #%u f=%02x }",
-	       sp->hdr.serial, seq0, sp->hdr.flags);
-
 	state = READ_ONCE(call->state);
 	if (state >= RXRPC_CALL_COMPLETE) {
 		rxrpc_free_skb(skb, rxrpc_skb_freed);
@@ -708,11 +705,6 @@ static void rxrpc_input_ackinfo(struct rxrpc_call *call, struct sk_buff *skb,
 	bool wake = false;
 	u32 rwind = ntohl(ackinfo->rwind);
 
-	_proto("Rx ACK %%%u Info { rx=%u max=%u rwin=%u jm=%u }",
-	       sp->hdr.serial,
-	       ntohl(ackinfo->rxMTU), ntohl(ackinfo->maxMTU),
-	       rwind, ntohl(ackinfo->jumbo_max));
-
 	if (rwind > RXRPC_TX_MAX_WINDOW)
 		rwind = RXRPC_TX_MAX_WINDOW;
 	if (call->tx_winsize != rwind) {
@@ -855,7 +847,6 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	}
 
 	if (ack.reason == RXRPC_ACK_PING) {
-		_proto("Rx ACK %%%u PING Request", ack_serial);
 		rxrpc_send_ACK(call, RXRPC_ACK_PING_RESPONSE, ack_serial,
 			       rxrpc_propose_ack_respond_to_ping);
 	} else if (sp->hdr.flags & RXRPC_REQUEST_ACK) {
@@ -1014,9 +1005,6 @@ out_not_locked:
 static void rxrpc_input_ackall(struct rxrpc_call *call, struct sk_buff *skb)
 {
 	struct rxrpc_ack_summary summary = { 0 };
-	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-
-	_proto("Rx ACKALL %%%u", sp->hdr.serial);
 
 	spin_lock(&call->input_lock);
 
@@ -1043,8 +1031,6 @@ static void rxrpc_input_abort(struct rxrpc_call *call, struct sk_buff *skb)
 		abort_code = ntohl(wtmp);
 
 	trace_rxrpc_rx_abort(call, sp->hdr.serial, abort_code);
-
-	_proto("Rx ABORT %%%u { %x }", sp->hdr.serial, abort_code);
 
 	rxrpc_set_call_completion(call, RXRPC_CALL_REMOTELY_ABORTED,
 				  abort_code, -ECONNABORTED);
@@ -1081,8 +1067,6 @@ static void rxrpc_input_call_packet(struct rxrpc_call *call,
 		goto no_free;
 
 	case RXRPC_PACKET_TYPE_BUSY:
-		_proto("Rx BUSY %%%u", sp->hdr.serial);
-
 		/* Just ignore BUSY packets from the server; the retry and
 		 * lifespan timers will take care of business.  BUSY packets
 		 * from the client don't make sense.
@@ -1325,7 +1309,6 @@ int rxrpc_input_packet(struct sock *udp_sk, struct sk_buff *skb)
 		goto discard;
 
 	default:
-		_proto("Rx Bad Packet Type %u", sp->hdr.type);
 		goto bad_message;
 	}
 

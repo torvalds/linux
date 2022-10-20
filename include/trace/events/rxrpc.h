@@ -733,6 +733,66 @@ TRACE_EVENT(rxrpc_rx_abort,
 		      __entry->abort_code)
 	    );
 
+TRACE_EVENT(rxrpc_rx_challenge,
+	    TP_PROTO(struct rxrpc_connection *conn, rxrpc_serial_t serial,
+		     u32 version, u32 nonce, u32 min_level),
+
+	    TP_ARGS(conn, serial, version, nonce, min_level),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		conn		)
+		    __field(rxrpc_serial_t,		serial		)
+		    __field(u32,			version		)
+		    __field(u32,			nonce		)
+		    __field(u32,			min_level	)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->conn = conn->debug_id;
+		    __entry->serial = serial;
+		    __entry->version = version;
+		    __entry->nonce = nonce;
+		    __entry->min_level = min_level;
+			   ),
+
+	    TP_printk("C=%08x CHALLENGE %08x v=%x n=%x ml=%x",
+		      __entry->conn,
+		      __entry->serial,
+		      __entry->version,
+		      __entry->nonce,
+		      __entry->min_level)
+	    );
+
+TRACE_EVENT(rxrpc_rx_response,
+	    TP_PROTO(struct rxrpc_connection *conn, rxrpc_serial_t serial,
+		     u32 version, u32 kvno, u32 ticket_len),
+
+	    TP_ARGS(conn, serial, version, kvno, ticket_len),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		conn		)
+		    __field(rxrpc_serial_t,		serial		)
+		    __field(u32,			version		)
+		    __field(u32,			kvno		)
+		    __field(u32,			ticket_len	)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->conn = conn->debug_id;
+		    __entry->serial = serial;
+		    __entry->version = version;
+		    __entry->kvno = kvno;
+		    __entry->ticket_len = ticket_len;
+			   ),
+
+	    TP_printk("C=%08x RESPONSE %08x v=%x kvno=%x tl=%x",
+		      __entry->conn,
+		      __entry->serial,
+		      __entry->version,
+		      __entry->kvno,
+		      __entry->ticket_len)
+	    );
+
 TRACE_EVENT(rxrpc_rx_rwind_change,
 	    TP_PROTO(struct rxrpc_call *call, rxrpc_serial_t serial,
 		     u32 rwind, bool wake),

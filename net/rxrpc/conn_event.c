@@ -122,14 +122,12 @@ static void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 
 	switch (chan->last_type) {
 	case RXRPC_PACKET_TYPE_ABORT:
-		_proto("Tx ABORT %%%u { %d } [re]", serial, conn->abort_code);
 		break;
 	case RXRPC_PACKET_TYPE_ACK:
 		trace_rxrpc_tx_ack(chan->call_debug_id, serial,
 				   ntohl(pkt.ack.firstPacket),
 				   ntohl(pkt.ack.serial),
 				   pkt.ack.reason, 0);
-		_proto("Tx ACK %%%u [re]", serial);
 		break;
 	}
 
@@ -242,7 +240,6 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
 	serial = atomic_inc_return(&conn->serial);
 	rxrpc_abort_calls(conn, RXRPC_CALL_LOCALLY_ABORTED, serial);
 	whdr.serial = htonl(serial);
-	_proto("Tx CONN ABORT %%%u { %d }", serial, conn->abort_code);
 
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
 	if (ret < 0) {
@@ -315,7 +312,6 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 			return -EPROTO;
 		}
 		abort_code = ntohl(wtmp);
-		_proto("Rx ABORT %%%u { ac=%d }", sp->hdr.serial, abort_code);
 
 		conn->error = -ECONNABORTED;
 		conn->abort_code = abort_code;

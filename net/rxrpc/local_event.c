@@ -63,8 +63,6 @@ static void rxrpc_send_version_request(struct rxrpc_local *local,
 
 	len = iov[0].iov_len + iov[1].iov_len;
 
-	_proto("Tx VERSION (reply)");
-
 	ret = kernel_sendmsg(local->socket, &msg, iov, 2, len);
 	if (ret < 0)
 		trace_rxrpc_tx_fail(local->debug_id, 0, ret,
@@ -98,7 +96,6 @@ void rxrpc_process_local_events(struct rxrpc_local *local)
 			if (skb_copy_bits(skb, sizeof(struct rxrpc_wire_header),
 					  &v, 1) < 0)
 				return;
-			_proto("Rx VERSION { %02x }", v);
 			if (v == 0)
 				rxrpc_send_version_request(local, &sp->hdr, skb);
 			break;

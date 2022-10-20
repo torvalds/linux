@@ -704,7 +704,6 @@ static int rxkad_issue_challenge(struct rxrpc_connection *conn)
 
 	serial = atomic_inc_return(&conn->serial);
 	whdr.serial = htonl(serial);
-	_proto("Tx CHALLENGE %%%u", serial);
 
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 2, len);
 	if (ret < 0) {
@@ -762,7 +761,6 @@ static int rxkad_send_response(struct rxrpc_connection *conn,
 
 	serial = atomic_inc_return(&conn->serial);
 	whdr.serial = htonl(serial);
-	_proto("Tx RESPONSE %%%u", serial);
 
 	ret = kernel_sendmsg(conn->params.local->socket, &msg, iov, 3, len);
 	if (ret < 0) {
@@ -856,8 +854,7 @@ static int rxkad_respond_to_challenge(struct rxrpc_connection *conn,
 	nonce = ntohl(challenge.nonce);
 	min_level = ntohl(challenge.min_level);
 
-	_proto("Rx CHALLENGE %%%u { v=%u n=%u ml=%u }",
-	       sp->hdr.serial, version, nonce, min_level);
+	trace_rxrpc_rx_challenge(conn, sp->hdr.serial, version, nonce, min_level);
 
 	eproto = tracepoint_string("chall_ver");
 	abort_code = RXKADINCONSISTENCY;
@@ -1139,8 +1136,8 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 	version = ntohl(response->version);
 	ticket_len = ntohl(response->ticket_len);
 	kvno = ntohl(response->kvno);
-	_proto("Rx RESPONSE %%%u { v=%u kv=%u tl=%u }",
-	       sp->hdr.serial, version, kvno, ticket_len);
+
+	trace_rxrpc_rx_response(conn, sp->hdr.serial, version, kvno, ticket_len);
 
 	eproto = tracepoint_string("rxkad_rsp_ver");
 	abort_code = RXKADINCONSISTENCY;
