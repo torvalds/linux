@@ -692,7 +692,7 @@ static int sof_ipc4_post_boot(struct snd_sof_dev *sdev)
 	if (sdev->first_boot)
 		return sof_ipc4_query_fw_configuration(sdev);
 
-	return 0;
+	return sof_ipc4_reload_fw_libraries(sdev);
 }
 
 const struct sof_ipc_ops ipc4_ops = {
