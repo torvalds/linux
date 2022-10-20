@@ -278,6 +278,11 @@ struct ptp_ocp_signal {
 	bool		running;
 };
 
+struct ptp_ocp_serial_port {
+	int line;
+	int baud;
+};
+
 #define OCP_BOARD_ID_LEN		13
 #define OCP_SERIAL_LEN			6
 
@@ -318,10 +323,10 @@ struct ptp_ocp {
 	time64_t		gnss_lost;
 	int			id;
 	int			n_irqs;
-	int			gnss_port;
-	int			gnss2_port;
-	int			mac_port;	/* miniature atomic clock */
-	int			nmea_port;
+	struct ptp_ocp_serial_port	gnss_port;
+	struct ptp_ocp_serial_port	gnss2_port;
+	struct ptp_ocp_serial_port	mac_port;   /* miniature atomic clock */
+	struct ptp_ocp_serial_port	nmea_port;
 	bool			fw_loader;
 	u8			fw_tag;
 	u16			fw_version;
@@ -596,14 +601,23 @@ static struct ocp_resource ocp_fb_resource[] = {
 	{
 		OCP_SERIAL_RESOURCE(gnss_port),
 		.offset = 0x00160000 + 0x1000, .irq_vec = 3,
+		.extra = &(struct ptp_ocp_serial_port) {
+			.baud = 115200,
+		},
 	},
 	{
 		OCP_SERIAL_RESOURCE(gnss2_port),
 		.offset = 0x00170000 + 0x1000, .irq_vec = 4,
+		.extra = &(struct ptp_ocp_serial_port) {
+			.baud = 115200,
+		},
 	},
 	{
 		OCP_SERIAL_RESOURCE(mac_port),
 		.offset = 0x00180000 + 0x1000, .irq_vec = 5,
+		.extra = &(struct ptp_ocp_serial_port) {
+			.baud = 57600,
+		},
 	},
 	{
 		OCP_SERIAL_RESOURCE(nmea_port),
@@ -1872,11 +1886,15 @@ ptp_ocp_serial_line(struct ptp_ocp *bp, struct ocp_resource *r)
 static int
 ptp_ocp_register_serial(struct ptp_ocp *bp, struct ocp_resource *r)
 {
-	int port;
+	struct ptp_ocp_serial_port *p = (struct ptp_ocp_serial_port *)r->extra;
+	struct ptp_ocp_serial_port port = {};
 
-	port = ptp_ocp_serial_line(bp, r);
-	if (port < 0)
-		return port;
+	port.line = ptp_ocp_serial_line(bp, r);
+	if (port.line < 0)
+		return port.line;
+
+	if (p)
+		port.baud = p->baud;
 
 	bp_assign_entry(bp, r, port);
 
@@ -3177,14 +3195,16 @@ ptp_ocp_summary_show(struct seq_file *s, void *data)
 	bp = dev_get_drvdata(dev);
 
 	seq_printf(s, "%7s: /dev/ptp%d\n", "PTP", ptp_clock_index(bp->ptp));
-	if (bp->gnss_port != -1)
-		seq_printf(s, "%7s: /dev/ttyS%d\n", "GNSS1", bp->gnss_port);
-	if (bp->gnss2_port != -1)
-		seq_printf(s, "%7s: /dev/ttyS%d\n", "GNSS2", bp->gnss2_port);
-	if (bp->mac_port != -1)
-		seq_printf(s, "%7s: /dev/ttyS%d\n", "MAC", bp->mac_port);
-	if (bp->nmea_port != -1)
-		seq_printf(s, "%7s: /dev/ttyS%d\n", "NMEA", bp->nmea_port);
+	if (bp->gnss_port.line != -1)
+		seq_printf(s, "%7s: /dev/ttyS%d\n", "GNSS1",
+			   bp->gnss_port.line);
+	if (bp->gnss2_port.line != -1)
+		seq_printf(s, "%7s: /dev/ttyS%d\n", "GNSS2",
+			   bp->gnss2_port.line);
+	if (bp->mac_port.line != -1)
+		seq_printf(s, "%7s: /dev/ttyS%d\n", "MAC", bp->mac_port.line);
+	if (bp->nmea_port.line != -1)
+		seq_printf(s, "%7s: /dev/ttyS%d\n", "NMEA", bp->nmea_port.line);
 
 	memset(sma_val, 0xff, sizeof(sma_val));
 	if (bp->sma_map1) {
@@ -3508,10 +3528,10 @@ ptp_ocp_device_init(struct ptp_ocp *bp, struct pci_dev *pdev)
 
 	bp->ptp_info = ptp_ocp_clock_info;
 	spin_lock_init(&bp->lock);
-	bp->gnss_port = -1;
-	bp->gnss2_port = -1;
-	bp->mac_port = -1;
-	bp->nmea_port = -1;
+	bp->gnss_port.line = -1;
+	bp->gnss2_port.line = -1;
+	bp->mac_port.line = -1;
+	bp->nmea_port.line = -1;
 	bp->pdev = pdev;
 
 	device_initialize(&bp->dev);
@@ -3569,20 +3589,20 @@ ptp_ocp_complete(struct ptp_ocp *bp)
 	struct pps_device *pps;
 	char buf[32];
 
-	if (bp->gnss_port != -1) {
-		sprintf(buf, "ttyS%d", bp->gnss_port);
+	if (bp->gnss_port.line != -1) {
+		sprintf(buf, "ttyS%d", bp->gnss_port.line);
 		ptp_ocp_link_child(bp, buf, "ttyGNSS");
 	}
-	if (bp->gnss2_port != -1) {
-		sprintf(buf, "ttyS%d", bp->gnss2_port);
+	if (bp->gnss2_port.line != -1) {
+		sprintf(buf, "ttyS%d", bp->gnss2_port.line);
 		ptp_ocp_link_child(bp, buf, "ttyGNSS2");
 	}
-	if (bp->mac_port != -1) {
-		sprintf(buf, "ttyS%d", bp->mac_port);
+	if (bp->mac_port.line != -1) {
+		sprintf(buf, "ttyS%d", bp->mac_port.line);
 		ptp_ocp_link_child(bp, buf, "ttyMAC");
 	}
-	if (bp->nmea_port != -1) {
-		sprintf(buf, "ttyS%d", bp->nmea_port);
+	if (bp->nmea_port.line != -1) {
+		sprintf(buf, "ttyS%d", bp->nmea_port.line);
 		ptp_ocp_link_child(bp, buf, "ttyNMEA");
 	}
 	sprintf(buf, "ptp%d", ptp_clock_index(bp->ptp));
@@ -3638,16 +3658,20 @@ ptp_ocp_info(struct ptp_ocp *bp)
 
 	ptp_ocp_phc_info(bp);
 
-	ptp_ocp_serial_info(dev, "GNSS", bp->gnss_port, 115200);
-	ptp_ocp_serial_info(dev, "GNSS2", bp->gnss2_port, 115200);
-	ptp_ocp_serial_info(dev, "MAC", bp->mac_port, 57600);
-	if (bp->nmea_out && bp->nmea_port != -1) {
-		int baud = -1;
+	ptp_ocp_serial_info(dev, "GNSS", bp->gnss_port.line,
+			    bp->gnss_port.baud);
+	ptp_ocp_serial_info(dev, "GNSS2", bp->gnss2_port.line,
+			    bp->gnss2_port.baud);
+	ptp_ocp_serial_info(dev, "MAC", bp->mac_port.line, bp->mac_port.baud);
+	if (bp->nmea_out && bp->nmea_port.line != -1) {
+		bp->nmea_port.baud = -1;
 
 		reg = ioread32(&bp->nmea_out->uart_baud);
 		if (reg < ARRAY_SIZE(nmea_baud))
-			baud = nmea_baud[reg];
-		ptp_ocp_serial_info(dev, "NMEA", bp->nmea_port, baud);
+			bp->nmea_port.baud = nmea_baud[reg];
+
+		ptp_ocp_serial_info(dev, "NMEA", bp->nmea_port.line,
+				    bp->nmea_port.baud);
 	}
 }
 
@@ -3688,14 +3712,14 @@ ptp_ocp_detach(struct ptp_ocp *bp)
 	for (i = 0; i < 4; i++)
 		if (bp->signal_out[i])
 			ptp_ocp_unregister_ext(bp->signal_out[i]);
-	if (bp->gnss_port != -1)
-		serial8250_unregister_port(bp->gnss_port);
-	if (bp->gnss2_port != -1)
-		serial8250_unregister_port(bp->gnss2_port);
-	if (bp->mac_port != -1)
-		serial8250_unregister_port(bp->mac_port);
-	if (bp->nmea_port != -1)
-		serial8250_unregister_port(bp->nmea_port);
+	if (bp->gnss_port.line != -1)
+		serial8250_unregister_port(bp->gnss_port.line);
+	if (bp->gnss2_port.line != -1)
+		serial8250_unregister_port(bp->gnss2_port.line);
+	if (bp->mac_port.line != -1)
+		serial8250_unregister_port(bp->mac_port.line);
+	if (bp->nmea_port.line != -1)
+		serial8250_unregister_port(bp->nmea_port.line);
 	platform_device_unregister(bp->spi_flash);
 	platform_device_unregister(bp->i2c_ctrl);
 	if (bp->i2c_clk)
