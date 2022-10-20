@@ -22,7 +22,7 @@ int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev)
 	int ret;
 
 	/* Don't request firmware again if firmware is already requested */
-	if (plat_data->fw)
+	if (sdev->basefw.fw)
 		return 0;
 
 	fw_filename = kasprintf(GFP_KERNEL, "%s/%s",
@@ -31,7 +31,7 @@ int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev)
 	if (!fw_filename)
 		return -ENOMEM;
 
-	ret = request_firmware(&plat_data->fw, fw_filename, sdev->dev);
+	ret = request_firmware(&sdev->basefw.fw, fw_filename, sdev->dev);
 
 	if (ret < 0) {
 		dev_err(sdev->dev,
@@ -48,7 +48,7 @@ int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev)
 	ext_man_size = sdev->ipc->ops->fw_loader->parse_ext_manifest(sdev);
 	if (ext_man_size > 0) {
 		/* when no error occurred, drop extended manifest */
-		plat_data->fw_offset = ext_man_size;
+		sdev->basefw.payload_offset = ext_man_size;
 	} else if (!ext_man_size) {
 		/* No extended manifest, so nothing to skip during FW load */
 		dev_dbg(sdev->dev, "firmware doesn't contain extended manifest\n");
@@ -58,6 +58,12 @@ int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev)
 			fw_filename, ret);
 	}
 
+	/*
+	 * Until the platform code is switched to use the new container the fw
+	 * and payload offset must be set in plat_data
+	 */
+	plat_data->fw = sdev->basefw.fw;
+	plat_data->fw_offset = sdev->basefw.payload_offset;
 err:
 	kfree(fw_filename);
 
@@ -100,7 +106,8 @@ int snd_sof_load_firmware_memcpy(struct snd_sof_dev *sdev)
 	return 0;
 
 error:
-	release_firmware(plat_data->fw);
+	release_firmware(sdev->basefw.fw);
+	sdev->basefw.fw = NULL;
 	plat_data->fw = NULL;
 	return ret;
 
@@ -185,7 +192,8 @@ EXPORT_SYMBOL(snd_sof_run_firmware);
 void snd_sof_fw_unload(struct snd_sof_dev *sdev)
 {
 	/* TODO: support module unloading at runtime */
-	release_firmware(sdev->pdata->fw);
+	release_firmware(sdev->basefw.fw);
+	sdev->basefw.fw = NULL;
 	sdev->pdata->fw = NULL;
 }
 EXPORT_SYMBOL(snd_sof_fw_unload);
