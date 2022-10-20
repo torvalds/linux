@@ -1754,7 +1754,7 @@ static void _dpk_one_shot(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 		    id == 0x14 ? "PWR_CAL" :
 		    id == 0x15 ? "DPK_RXAGC" :
 		    id == 0x16 ? "KIP_PRESET" :
-		    id == 0x17 ? "KIP_RESOTRE" : "DPK_TXAGC",
+		    id == 0x17 ? "KIP_RESTORE" : "DPK_TXAGC",
 		    dpk_cmd);
 }
 
