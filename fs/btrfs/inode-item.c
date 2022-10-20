@@ -11,7 +11,7 @@
 
 struct btrfs_inode_ref *btrfs_find_name_in_backref(struct extent_buffer *leaf,
 						   int slot,
-						   const struct qstr *name)
+						   const struct fscrypt_str *name)
 {
 	struct btrfs_inode_ref *ref;
 	unsigned long ptr;
@@ -38,7 +38,7 @@ struct btrfs_inode_ref *btrfs_find_name_in_backref(struct extent_buffer *leaf,
 
 struct btrfs_inode_extref *btrfs_find_name_in_ext_backref(
 		struct extent_buffer *leaf, int slot, u64 ref_objectid,
-		const struct qstr *name)
+		const struct fscrypt_str *name)
 {
 	struct btrfs_inode_extref *extref;
 	unsigned long ptr;
@@ -77,7 +77,7 @@ struct btrfs_inode_extref *
 btrfs_lookup_inode_extref(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root,
 			  struct btrfs_path *path,
-			  const struct qstr *name,
+			  const struct fscrypt_str *name,
 			  u64 inode_objectid, u64 ref_objectid, int ins_len,
 			  int cow)
 {
@@ -100,7 +100,7 @@ btrfs_lookup_inode_extref(struct btrfs_trans_handle *trans,
 
 static int btrfs_del_inode_extref(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root,
-				  const struct qstr *name,
+				  const struct fscrypt_str *name,
 				  u64 inode_objectid, u64 ref_objectid,
 				  u64 *index)
 {
@@ -170,7 +170,7 @@ out:
 }
 
 int btrfs_del_inode_ref(struct btrfs_trans_handle *trans,
-			struct btrfs_root *root, const struct qstr *name,
+			struct btrfs_root *root, const struct fscrypt_str *name,
 			u64 inode_objectid, u64 ref_objectid, u64 *index)
 {
 	struct btrfs_path *path;
@@ -247,7 +247,7 @@ out:
  */
 static int btrfs_insert_inode_extref(struct btrfs_trans_handle *trans,
 				     struct btrfs_root *root,
-				     const struct qstr *name,
+				     const struct fscrypt_str *name,
 				     u64 inode_objectid, u64 ref_objectid,
 				     u64 index)
 {
@@ -302,7 +302,7 @@ out:
 
 /* Will return 0, -ENOMEM, -EMLINK, or -EEXIST or anything from the CoW path */
 int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
-			   struct btrfs_root *root, const struct qstr *name,
+			   struct btrfs_root *root, const struct fscrypt_str *name,
 			   u64 inode_objectid, u64 ref_objectid, u64 index)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;

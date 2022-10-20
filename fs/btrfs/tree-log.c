@@ -596,7 +596,7 @@ static int overwrite_item(struct btrfs_trans_handle *trans,
 }
 
 static int read_alloc_one_name(struct extent_buffer *eb, void *start, int len,
-			       struct qstr *name)
+			       struct fscrypt_str *name)
 {
 	char *buf;
 
@@ -916,7 +916,7 @@ out:
 static int unlink_inode_for_log_replay(struct btrfs_trans_handle *trans,
 				       struct btrfs_inode *dir,
 				       struct btrfs_inode *inode,
-				       const struct qstr *name)
+				       const struct fscrypt_str *name)
 {
 	int ret;
 
@@ -947,7 +947,7 @@ static noinline int drop_one_dir_item(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_root *root = dir->root;
 	struct inode *inode;
-	struct qstr name;
+	struct fscrypt_str name;
 	struct extent_buffer *leaf;
 	struct btrfs_key location;
 	int ret;
@@ -988,7 +988,7 @@ out:
 static noinline int inode_in_dir(struct btrfs_root *root,
 				 struct btrfs_path *path,
 				 u64 dirid, u64 objectid, u64 index,
-				 struct qstr *name)
+				 struct fscrypt_str *name)
 {
 	struct btrfs_dir_item *di;
 	struct btrfs_key location;
@@ -1035,7 +1035,7 @@ out:
 static noinline int backref_in_log(struct btrfs_root *log,
 				   struct btrfs_key *key,
 				   u64 ref_objectid,
-				   const struct qstr *name)
+				   const struct fscrypt_str *name)
 {
 	struct btrfs_path *path;
 	int ret;
@@ -1071,7 +1071,7 @@ static inline int __add_inode_ref(struct btrfs_trans_handle *trans,
 				  struct btrfs_inode *dir,
 				  struct btrfs_inode *inode,
 				  u64 inode_objectid, u64 parent_objectid,
-				  u64 ref_index, struct qstr *name)
+				  u64 ref_index, struct fscrypt_str *name)
 {
 	int ret;
 	struct extent_buffer *leaf;
@@ -1105,7 +1105,7 @@ again:
 		ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
 		ptr_end = ptr + btrfs_item_size(leaf, path->slots[0]);
 		while (ptr < ptr_end) {
-			struct qstr victim_name;
+			struct fscrypt_str victim_name;
 
 			victim_ref = (struct btrfs_inode_ref *)ptr;
 			ret = read_alloc_one_name(leaf, (victim_ref + 1),
@@ -1155,7 +1155,7 @@ again:
 		base = btrfs_item_ptr_offset(leaf, path->slots[0]);
 
 		while (cur_offset < item_size) {
-			struct qstr victim_name;
+			struct fscrypt_str victim_name;
 
 			extref = (struct btrfs_inode_extref *)(base + cur_offset);
 
@@ -1230,7 +1230,7 @@ next:
 }
 
 static int extref_get_fields(struct extent_buffer *eb, unsigned long ref_ptr,
-			     struct qstr *name, u64 *index,
+			     struct fscrypt_str *name, u64 *index,
 			     u64 *parent_objectid)
 {
 	struct btrfs_inode_extref *extref;
@@ -1252,7 +1252,7 @@ static int extref_get_fields(struct extent_buffer *eb, unsigned long ref_ptr,
 }
 
 static int ref_get_fields(struct extent_buffer *eb, unsigned long ref_ptr,
-			  struct qstr *name, u64 *index)
+			  struct fscrypt_str *name, u64 *index)
 {
 	struct btrfs_inode_ref *ref;
 	int ret;
@@ -1304,7 +1304,7 @@ again:
 	ref_ptr = btrfs_item_ptr_offset(eb, path->slots[0]);
 	ref_end = ref_ptr + btrfs_item_size(eb, path->slots[0]);
 	while (ref_ptr < ref_end) {
-		struct qstr name;
+		struct fscrypt_str name;
 		u64 parent_id;
 
 		if (key->type == BTRFS_INODE_EXTREF_KEY) {
@@ -1372,7 +1372,7 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 	struct inode *inode = NULL;
 	unsigned long ref_ptr;
 	unsigned long ref_end;
-	struct qstr name;
+	struct fscrypt_str name;
 	int ret;
 	int log_ref_ver = 0;
 	u64 parent_objectid;
@@ -1766,7 +1766,7 @@ static noinline int link_to_fixup_dir(struct btrfs_trans_handle *trans,
 static noinline int insert_one_name(struct btrfs_trans_handle *trans,
 				    struct btrfs_root *root,
 				    u64 dirid, u64 index,
-				    const struct qstr *name,
+				    const struct fscrypt_str *name,
 				    struct btrfs_key *location)
 {
 	struct inode *inode;
@@ -1844,7 +1844,7 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 				    struct btrfs_dir_item *di,
 				    struct btrfs_key *key)
 {
-	struct qstr name;
+	struct fscrypt_str name;
 	struct btrfs_dir_item *dir_dst_di;
 	struct btrfs_dir_item *index_dst_di;
 	bool dir_dst_matches = false;
@@ -2124,7 +2124,7 @@ static noinline int check_item_in_log(struct btrfs_trans_handle *trans,
 	struct extent_buffer *eb;
 	int slot;
 	struct btrfs_dir_item *di;
-	struct qstr name;
+	struct fscrypt_str name;
 	struct inode *inode = NULL;
 	struct btrfs_key location;
 
@@ -3417,7 +3417,7 @@ static int del_logged_dentry(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *log,
 			     struct btrfs_path *path,
 			     u64 dir_ino,
-			     const struct qstr *name,
+			     const struct fscrypt_str *name,
 			     u64 index)
 {
 	struct btrfs_dir_item *di;
@@ -3464,7 +3464,7 @@ static int del_logged_dentry(struct btrfs_trans_handle *trans,
  */
 void btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root,
-				  const struct qstr *name,
+				  const struct fscrypt_str *name,
 				  struct btrfs_inode *dir, u64 index)
 {
 	struct btrfs_path *path;
@@ -3503,7 +3503,7 @@ out_unlock:
 /* see comments for btrfs_del_dir_entries_in_log */
 void btrfs_del_inode_ref_in_log(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
-				const struct qstr *name,
+				const struct fscrypt_str *name,
 				struct btrfs_inode *inode, u64 dirid)
 {
 	struct btrfs_root *log;
@@ -5267,7 +5267,7 @@ static int btrfs_check_ref_name_override(struct extent_buffer *eb,
 		u32 this_len;
 		unsigned long name_ptr;
 		struct btrfs_dir_item *di;
-		struct qstr name_str;
+		struct fscrypt_str name_str;
 
 		if (key->type == BTRFS_INODE_REF_KEY) {
 			struct btrfs_inode_ref *iref;
@@ -7472,7 +7472,6 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 		struct btrfs_root *log = old_dir->root->log_root;
 		struct btrfs_path *path;
 		struct fscrypt_name fname;
-		struct qstr name;
 
 		ASSERT(old_dir_index >= BTRFS_DIR_START_INDEX);
 
@@ -7480,7 +7479,6 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 					     &old_dentry->d_name, 0, &fname);
 		if (ret)
 			goto out;
-		name = (struct qstr)FSTR_TO_QSTR(&fname.disk_name);
 		/*
 		 * We have two inodes to update in the log, the old directory and
 		 * the inode that got renamed, so we must pin the log to prevent
@@ -7516,7 +7514,7 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 		 */
 		mutex_lock(&old_dir->log_mutex);
 		ret = del_logged_dentry(trans, log, path, btrfs_ino(old_dir),
-					&name, old_dir_index);
+					&fname.disk_name, old_dir_index);
 		if (ret > 0) {
 			/*
 			 * The dentry does not exist in the log, so record its
