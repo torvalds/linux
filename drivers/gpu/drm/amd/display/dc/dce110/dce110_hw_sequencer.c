@@ -1455,6 +1455,9 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	unsigned int event_triggers = 0;
 	struct pipe_ctx *odm_pipe = pipe_ctx->next_odm_pipe;
 	struct dce_hwseq *hws = dc->hwseq;
+	const struct link_hwss *link_hwss = get_link_hwss(
+			link, &pipe_ctx->link_res);
+
 
 	if (hws->funcs.disable_stream_gating) {
 		hws->funcs.disable_stream_gating(dc, pipe_ctx);
@@ -1465,23 +1468,8 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 
 		build_audio_output(context, pipe_ctx, &audio_output);
 
-		if (dc_is_dp_signal(pipe_ctx->stream->signal))
-			if (is_dp_128b_132b_signal(pipe_ctx))
-				pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_audio_setup(
-						pipe_ctx->stream_res.hpo_dp_stream_enc,
-						pipe_ctx->stream_res.audio->inst,
-						&pipe_ctx->stream->audio_info);
-			else
-				pipe_ctx->stream_res.stream_enc->funcs->dp_audio_setup(
-						pipe_ctx->stream_res.stream_enc,
-						pipe_ctx->stream_res.audio->inst,
-						&pipe_ctx->stream->audio_info);
-		else
-			pipe_ctx->stream_res.stream_enc->funcs->hdmi_audio_setup(
-					pipe_ctx->stream_res.stream_enc,
-					pipe_ctx->stream_res.audio->inst,
-					&pipe_ctx->stream->audio_info,
-					&audio_output.crtc_info);
+		link_hwss->setup_audio_output(pipe_ctx, &audio_output,
+				pipe_ctx->stream_res.audio->inst);
 
 		pipe_ctx->stream_res.audio->funcs->az_configure(
 				pipe_ctx->stream_res.audio,

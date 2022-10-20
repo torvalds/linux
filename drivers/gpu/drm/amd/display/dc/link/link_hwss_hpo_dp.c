@@ -262,6 +262,15 @@ static void update_hpo_dp_stream_allocation_table(struct dc_link *link,
 			table);
 }
 
+static void setup_hpo_dp_audio_output(struct pipe_ctx *pipe_ctx,
+		struct audio_output *audio_output, uint32_t audio_inst)
+{
+	pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_audio_setup(
+			pipe_ctx->stream_res.hpo_dp_stream_enc,
+			audio_inst,
+			&pipe_ctx->stream->audio_info);
+}
+
 static void enable_hpo_dp_audio_packet(struct pipe_ctx *pipe_ctx)
 {
 	pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_audio_enable(
@@ -280,6 +289,7 @@ static const struct link_hwss hpo_dp_link_hwss = {
 	.reset_stream_encoder = reset_hpo_dp_stream_encoder,
 	.setup_stream_attribute = setup_hpo_dp_stream_attribute,
 	.disable_link_output = disable_hpo_dp_link_output,
+	.setup_audio_output = setup_hpo_dp_audio_output,
 	.enable_audio_packet = enable_hpo_dp_audio_packet,
 	.disable_audio_packet = disable_hpo_dp_audio_packet,
 	.ext = {

@@ -57,6 +57,7 @@ static const struct link_hwss dpia_link_hwss = {
 	.reset_stream_encoder = reset_dio_stream_encoder,
 	.setup_stream_attribute = setup_dio_stream_attribute,
 	.disable_link_output = disable_dio_link_output,
+	.setup_audio_output = setup_dio_audio_output,
 	.enable_audio_packet = enable_dio_audio_packet,
 	.disable_audio_packet = disable_dio_audio_packet,
 	.ext = {
