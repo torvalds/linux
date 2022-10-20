@@ -245,28 +245,6 @@ xfs_attri_init(
 	return attrip;
 }
 
-/*
- * Copy an attr format buffer from the given buf, and into the destination attr
- * format structure.
- */
-STATIC int
-xfs_attri_copy_format(
-	struct xfs_log_iovec		*buf,
-	struct xfs_attri_log_format	*dst_attr_fmt)
-{
-	struct xfs_attri_log_format	*src_attr_fmt = buf->i_addr;
-	size_t				len;
-
-	len = sizeof(struct xfs_attri_log_format);
-	if (buf->i_len != len) {
-		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, NULL);
-		return -EFSCORRUPTED;
-	}
-
-	memcpy((char *)dst_attr_fmt, (char *)src_attr_fmt, len);
-	return 0;
-}
-
 static inline struct xfs_attrd_log_item *ATTRD_ITEM(struct xfs_log_item *lip)
 {
 	return container_of(lip, struct xfs_attrd_log_item, attrd_item);
@@ -731,13 +709,26 @@ xlog_recover_attri_commit_pass2(
 	struct xfs_attri_log_nameval	*nv;
 	const void			*attr_value = NULL;
 	const void			*attr_name;
-	int                             error;
+	size_t				len;
 
 	attri_formatp = item->ri_buf[0].i_addr;
 	attr_name = item->ri_buf[1].i_addr;
 
 	/* Validate xfs_attri_log_format before the large memory allocation */
+	len = sizeof(struct xfs_attri_log_format);
+	if (item->ri_buf[0].i_len != len) {
+		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, mp);
+		return -EFSCORRUPTED;
+	}
+
 	if (!xfs_attri_validate(mp, attri_formatp)) {
+		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, mp);
+		return -EFSCORRUPTED;
+	}
+
+	/* Validate the attr name */
+	if (item->ri_buf[1].i_len !=
+			xlog_calc_iovec_len(attri_formatp->alfi_name_len)) {
 		XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, mp);
 		return -EFSCORRUPTED;
 	}
@@ -747,8 +738,15 @@ xlog_recover_attri_commit_pass2(
 		return -EFSCORRUPTED;
 	}
 
-	if (attri_formatp->alfi_value_len)
+	/* Validate the attr value, if present */
+	if (attri_formatp->alfi_value_len != 0) {
+		if (item->ri_buf[2].i_len != xlog_calc_iovec_len(attri_formatp->alfi_value_len)) {
+			XFS_ERROR_REPORT(__func__, XFS_ERRLEVEL_LOW, mp);
+			return -EFSCORRUPTED;
+		}
+
 		attr_value = item->ri_buf[2].i_addr;
+	}
 
 	/*
 	 * Memory alloc failure will cause replay to abort.  We attach the
@@ -760,9 +758,7 @@ xlog_recover_attri_commit_pass2(
 			attri_formatp->alfi_value_len);
 
 	attrip = xfs_attri_init(mp, nv);
-	error = xfs_attri_copy_format(&item->ri_buf[0], &attrip->attri_format);
-	if (error)
-		goto out;
+	memcpy(&attrip->attri_format, attri_formatp, len);
 
 	/*
 	 * The ATTRI has two references. One for the ATTRD and one for ATTRI to
@@ -774,10 +770,6 @@ xlog_recover_attri_commit_pass2(
 	xfs_attri_release(attrip);
 	xfs_attri_log_nameval_put(nv);
 	return 0;
-out:
-	xfs_attri_item_free(attrip);
-	xfs_attri_log_nameval_put(nv);
-	return error;
 }
 
 /*
