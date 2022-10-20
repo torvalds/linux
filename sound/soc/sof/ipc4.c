@@ -687,9 +687,18 @@ static void sof_ipc4_exit(struct snd_sof_dev *sdev)
 	xa_destroy(&ipc4_data->fw_lib_xa);
 }
 
+static int sof_ipc4_post_boot(struct snd_sof_dev *sdev)
+{
+	if (sdev->first_boot)
+		return sof_ipc4_query_fw_configuration(sdev);
+
+	return 0;
+}
+
 const struct sof_ipc_ops ipc4_ops = {
 	.init = sof_ipc4_init,
 	.exit = sof_ipc4_exit,
+	.post_fw_boot = sof_ipc4_post_boot,
 	.tx_msg = sof_ipc4_tx_msg,
 	.rx_msg = sof_ipc4_rx_msg,
 	.set_get_data = sof_ipc4_set_get_data,
