@@ -5634,17 +5634,6 @@ struct bpf_reg_types {
 	u32 *btf_id;
 };
 
-static const struct bpf_reg_types map_key_value_types = {
-	.types = {
-		PTR_TO_STACK,
-		PTR_TO_PACKET,
-		PTR_TO_PACKET_META,
-		PTR_TO_MAP_KEY,
-		PTR_TO_MAP_VALUE,
-		PTR_TO_MEM | MEM_ALLOC,
-	},
-};
-
 static const struct bpf_reg_types sock_types = {
 	.types = {
 		PTR_TO_SOCK_COMMON,
@@ -5711,8 +5700,8 @@ static const struct bpf_reg_types dynptr_types = {
 };
 
 static const struct bpf_reg_types *compatible_reg_types[__BPF_ARG_TYPE_MAX] = {
-	[ARG_PTR_TO_MAP_KEY]		= &map_key_value_types,
-	[ARG_PTR_TO_MAP_VALUE]		= &map_key_value_types,
+	[ARG_PTR_TO_MAP_KEY]		= &mem_types,
+	[ARG_PTR_TO_MAP_VALUE]		= &mem_types,
 	[ARG_CONST_SIZE]		= &scalar_types,
 	[ARG_CONST_SIZE_OR_ZERO]	= &scalar_types,
 	[ARG_CONST_ALLOC_SIZE_OR_ZERO]	= &scalar_types,
