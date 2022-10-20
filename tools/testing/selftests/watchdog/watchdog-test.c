@@ -1,6 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Watchdog Driver Test Program
+* Watchdog Driver Test Program
+* - Tests all ioctls except WDIOC_GETTEMP
+* - Tests Magic Close - CONFIG_WATCHDOG_NOWAYOUT
+* - Could be tested against softdog driver on systems that
+*   don't have watchdog hardware.
+* - TODO:
+* - WDIOC_GETSTATUS is called when WDIOC_GETBOOTSTATUS is called.
+* - Enhance the logic to call WDIOC_GETSTATUS and test return values.
+* - Enhance coverage of ioctl return values - flags and status.
+* - Enhance test to add coverage for WDIOC_GETTEMP.
+*
+* Reference: Documentation/watchdog/watchdog-api.rst
  */
 
 #include <errno.h>
@@ -91,6 +102,44 @@ static void usage(char *progname)
 	printf("Example: %s -t 12 -T -n 7 -N\n", progname);
 }
 
+struct wdiof_status {
+	int flag;
+	const char *status_str;
+};
+
+#define WDIOF_NUM_BOOTSTATUS 7
+
+static const struct wdiof_status wdiof_bootstatus[WDIOF_NUM_BOOTSTATUS] = {
+	{WDIOF_OVERHEAT, "Reset due to CPU overheat"},
+	{WDIOF_FANFAULT, "Fan failed"},
+	{WDIOF_EXTERN1, "External relay 1"},
+	{WDIOF_EXTERN2, "External relay 2"},
+	{WDIOF_POWERUNDER, "Power bad/power fault"},
+	{WDIOF_CARDRESET, "Card previously reset the CPU"},
+	{WDIOF_POWEROVER,  "Power over voltage"},
+};
+
+static void print_boot_status(int flags)
+{
+	int wdiof = 0;
+
+	if (flags == WDIOF_UNKNOWN) {
+		printf("Unknown flag error from WDIOC_GETBOOTSTATUS\n");
+		return;
+	}
+
+	if (flags == 0) {
+		printf("Last boot is caused by: Power-On-Reset\n");
+		return;
+	}
+
+	for (wdiof = 0; wdiof < WDIOF_NUM_BOOTSTATUS; wdiof++) {
+		if (flags & wdiof_bootstatus[wdiof].flag)
+			printf("Last boot is caused by: %s\n",
+				wdiof_bootstatus[wdiof].status_str);
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	int flags;
@@ -140,8 +189,7 @@ int main(int argc, char *argv[])
 			oneshot = 1;
 			ret = ioctl(fd, WDIOC_GETBOOTSTATUS, &flags);
 			if (!ret)
-				printf("Last boot is caused by: %s.\n", (flags != 0) ?
-					"Watchdog" : "Power-On-Reset");
+				print_boot_status(flags);
 			else
 				printf("WDIOC_GETBOOTSTATUS error '%s'\n", strerror(errno));
 			break;
@@ -249,6 +297,10 @@ int main(int argc, char *argv[])
 		sleep(ping_rate);
 	}
 end:
+	/*
+	 * Send specific magic character 'V' just in case Magic Close is
+	 * enabled to ensure watchdog gets disabled on close.
+	 */
 	ret = write(fd, &v, 1);
 	if (ret < 0)
 		printf("Stopping watchdog ticks failed (%d)...\n", errno);
