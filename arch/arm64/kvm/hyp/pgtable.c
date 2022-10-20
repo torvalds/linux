@@ -57,8 +57,6 @@ struct kvm_pgtable_walk_data {
 	u64				end;
 };
 
-#define KVM_PHYS_INVALID (-1ULL)
-
 static bool kvm_phys_is_valid(u64 phys)
 {
 	return phys < BIT(id_aa64mmfr0_parange_to_phys_shift(ID_AA64MMFR0_EL1_PARANGE_MAX));
@@ -120,16 +118,6 @@ static bool kvm_pte_table(kvm_pte_t pte, u32 level)
 		return false;
 
 	return FIELD_GET(KVM_PTE_TYPE, pte) == KVM_PTE_TYPE_TABLE;
-}
-
-static kvm_pte_t kvm_phys_to_pte(u64 pa)
-{
-	kvm_pte_t pte = pa & KVM_PTE_ADDR_MASK;
-
-	if (PAGE_SHIFT == 16)
-		pte |= FIELD_PREP(KVM_PTE_ADDR_51_48, pa >> 48);
-
-	return pte;
 }
 
 static kvm_pte_t *kvm_pte_follow(kvm_pte_t pte, struct kvm_pgtable_mm_ops *mm_ops)
