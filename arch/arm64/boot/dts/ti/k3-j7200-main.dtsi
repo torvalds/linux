@@ -439,6 +439,7 @@
 		clock-names = "fck";
 		clocks = <&k3_clks 187 1>;
 		power-domains = <&k3_pds 187 TI_SCI_PD_SHARED>;
+		status = "disabled";
 	};
 
 	main_i2c1: i2c@2010000 {
@@ -450,6 +451,7 @@
 		clock-names = "fck";
 		clocks = <&k3_clks 188 1>;
 		power-domains = <&k3_pds 188 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
 	};
 
 	main_i2c2: i2c@2020000 {
@@ -461,6 +463,7 @@
 		clock-names = "fck";
 		clocks = <&k3_clks 189 1>;
 		power-domains = <&k3_pds 189 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
 	};
 
 	main_i2c3: i2c@2030000 {
@@ -472,6 +475,7 @@
 		clock-names = "fck";
 		clocks = <&k3_clks 190 1>;
 		power-domains = <&k3_pds 190 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
 	};
 
 	main_i2c4: i2c@2040000 {
@@ -483,6 +487,7 @@
 		clock-names = "fck";
 		clocks = <&k3_clks 191 1>;
 		power-domains = <&k3_pds 191 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
 	};
 
 	main_i2c5: i2c@2050000 {
@@ -494,6 +499,7 @@
 		clock-names = "fck";
 		clocks = <&k3_clks 192 1>;
 		power-domains = <&k3_pds 192 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
 	};
 
 	main_i2c6: i2c@2060000 {
@@ -505,6 +511,7 @@
 		clock-names = "fck";
 		clocks = <&k3_clks 193 1>;
 		power-domains = <&k3_pds 193 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
 	};
 
 	main_sdhci0: mmc@4f80000 {
