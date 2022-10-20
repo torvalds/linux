@@ -155,6 +155,7 @@ static bool rxrpc_extract_abort(struct sk_buff *skb)
 static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff **_skb)
 {
 	struct rxrpc_connection *conn;
+	struct sockaddr_rxrpc peer_srx;
 	struct rxrpc_channel *chan;
 	struct rxrpc_call *call = NULL;
 	struct rxrpc_skb_priv *sp;
@@ -257,6 +258,18 @@ static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff **_skb)
 	if (sp->hdr.serviceId == 0)
 		goto bad_message;
 
+	if (WARN_ON_ONCE(rxrpc_extract_addr_from_skb(&peer_srx, skb) < 0))
+		return 0; /* Unsupported address type - discard. */
+
+	if (peer_srx.transport.family != local->srx.transport.family &&
+	    (peer_srx.transport.family == AF_INET &&
+	     local->srx.transport.family != AF_INET6)) {
+		pr_warn_ratelimited("AF_RXRPC: Protocol mismatch %u not %u\n",
+				    peer_srx.transport.family,
+				    local->srx.transport.family);
+		return 0; /* Wrong address type - discard. */
+	}
+
 	rcu_read_lock();
 
 	if (rxrpc_to_server(sp)) {
@@ -276,7 +289,7 @@ static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff **_skb)
 		}
 	}
 
-	conn = rxrpc_find_connection_rcu(local, skb, &peer);
+	conn = rxrpc_find_connection_rcu(local, &peer_srx, skb, &peer);
 	if (conn) {
 		if (sp->hdr.securityIndex != conn->security_ix)
 			goto wrong_security;
@@ -389,7 +402,7 @@ static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff **_skb)
 			rcu_read_unlock();
 			return 0;
 		}
-		call = rxrpc_new_incoming_call(local, rx, skb);
+		call = rxrpc_new_incoming_call(local, rx, &peer_srx, skb);
 		if (!call) {
 			rcu_read_unlock();
 			goto reject_packet;

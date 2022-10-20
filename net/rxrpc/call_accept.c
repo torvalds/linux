@@ -258,6 +258,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 						    struct rxrpc_peer *peer,
 						    struct rxrpc_connection *conn,
 						    const struct rxrpc_security *sec,
+						    struct sockaddr_rxrpc *peer_srx,
 						    struct sk_buff *skb)
 {
 	struct rxrpc_backlog *b = rx->backlog;
@@ -287,8 +288,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 			peer = NULL;
 		if (!peer) {
 			peer = b->peer_backlog[peer_tail];
-			if (rxrpc_extract_addr_from_skb(&peer->srx, skb) < 0)
-				return NULL;
+			peer->srx = *peer_srx;
 			b->peer_backlog[peer_tail] = NULL;
 			smp_store_release(&b->peer_backlog_tail,
 					  (peer_tail + 1) &
@@ -346,6 +346,7 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
  */
 struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 					   struct rxrpc_sock *rx,
+					   struct sockaddr_rxrpc *peer_srx,
 					   struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
@@ -371,7 +372,7 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 	 * we have to recheck the routing.  However, we're now holding
 	 * rx->incoming_lock, so the values should remain stable.
 	 */
-	conn = rxrpc_find_connection_rcu(local, skb, &peer);
+	conn = rxrpc_find_connection_rcu(local, peer_srx, skb, &peer);
 
 	if (!conn) {
 		sec = rxrpc_get_incoming_security(rx, skb);
@@ -379,7 +380,8 @@ struct rxrpc_call *rxrpc_new_incoming_call(struct rxrpc_local *local,
 			goto no_call;
 	}
 
-	call = rxrpc_alloc_incoming_call(rx, local, peer, conn, sec, skb);
+	call = rxrpc_alloc_incoming_call(rx, local, peer, conn, sec, peer_srx,
+					 skb);
 	if (!call) {
 		skb->mark = RXRPC_SKB_MARK_REJECT_BUSY;
 		goto no_call;
