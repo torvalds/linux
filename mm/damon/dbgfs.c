@@ -1053,7 +1053,7 @@ static int __init __damon_dbgfs_init(void)
 				fops[i]);
 	dbgfs_fill_ctx_dir(dbgfs_root, dbgfs_ctxs[0]);
 
-	dbgfs_dirs = kmalloc_array(1, sizeof(dbgfs_root), GFP_KERNEL);
+	dbgfs_dirs = kmalloc(sizeof(dbgfs_root), GFP_KERNEL);
 	if (!dbgfs_dirs) {
 		debugfs_remove(dbgfs_root);
 		return -ENOMEM;

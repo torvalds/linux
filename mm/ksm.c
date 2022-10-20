@@ -1134,6 +1134,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 {
 	struct mm_struct *mm = vma->vm_mm;
 	pmd_t *pmd;
+	pmd_t pmde;
 	pte_t *ptep;
 	pte_t newpte;
 	spinlock_t *ptl;
@@ -1147,6 +1148,15 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 
 	pmd = mm_find_pmd(mm, addr);
 	if (!pmd)
+		goto out;
+	/*
+	 * Some THP functions use the sequence pmdp_huge_clear_flush(), set_pmd_at()
+	 * without holding anon_vma lock for write.  So when looking for a
+	 * genuine pmde (in which to find pte), test present and !THP together.
+	 */
+	pmde = *pmd;
+	barrier();
+	if (!pmd_present(pmde) || pmd_trans_huge(pmde))
 		goto out;
 
 	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, vma, mm, addr,

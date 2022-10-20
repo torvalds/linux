@@ -1633,24 +1633,26 @@ EXPORT_SYMBOL(folio_end_writeback);
  */
 void page_endio(struct page *page, bool is_write, int err)
 {
+	struct folio *folio = page_folio(page);
+
 	if (!is_write) {
 		if (!err) {
-			SetPageUptodate(page);
+			folio_mark_uptodate(folio);
 		} else {
-			ClearPageUptodate(page);
-			SetPageError(page);
+			folio_clear_uptodate(folio);
+			folio_set_error(folio);
 		}
-		unlock_page(page);
+		folio_unlock(folio);
 	} else {
 		if (err) {
 			struct address_space *mapping;
 
-			SetPageError(page);
-			mapping = page_mapping(page);
+			folio_set_error(folio);
+			mapping = folio_mapping(folio);
 			if (mapping)
 				mapping_set_error(mapping, err);
 		}
-		end_page_writeback(page);
+		folio_end_writeback(folio);
 	}
 }
 EXPORT_SYMBOL_GPL(page_endio);

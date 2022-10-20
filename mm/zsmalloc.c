@@ -1555,6 +1555,13 @@ static void zs_object_copy(struct size_class *class, unsigned long dst,
 		d_off += size;
 		d_size -= size;
 
+		/*
+		 * Calling kunmap_atomic(d_addr) is necessary. kunmap_atomic()
+		 * calls must occurs in reverse order of calls to kmap_atomic().
+		 * So, to call kunmap_atomic(s_addr) we should first call
+		 * kunmap_atomic(d_addr).  For more details see
+		 * https://lore.kernel.org/linux-mm/5512421D.4000603@samsung.com/
+		 */
 		if (s_off >= PAGE_SIZE) {
 			kunmap_atomic(d_addr);
 			kunmap_atomic(s_addr);
@@ -2103,8 +2110,6 @@ unsigned long zs_compact(struct zs_pool *pool)
 
 	for (i = ZS_SIZE_CLASSES - 1; i >= 0; i--) {
 		class = pool->size_class[i];
-		if (!class)
-			continue;
 		if (class->index != i)
 			continue;
 		pages_freed += __zs_compact(pool, class);
@@ -2149,8 +2154,6 @@ static unsigned long zs_shrinker_count(struct shrinker *shrinker,
 
 	for (i = ZS_SIZE_CLASSES - 1; i >= 0; i--) {
 		class = pool->size_class[i];
-		if (!class)
-			continue;
 		if (class->index != i)
 			continue;
 
@@ -2307,9 +2310,6 @@ void zs_destroy_pool(struct zs_pool *pool)
 	for (i = 0; i < ZS_SIZE_CLASSES; i++) {
 		int fg;
 		struct size_class *class = pool->size_class[i];
-
-		if (!class)
-			continue;
 
 		if (class->index != i)
 			continue;

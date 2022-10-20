@@ -70,9 +70,8 @@ static atomic_t huge_zero_refcount;
 struct page *huge_zero_page __read_mostly;
 unsigned long huge_zero_pfn __read_mostly = ~0UL;
 
-bool hugepage_vma_check(struct vm_area_struct *vma,
-			unsigned long vm_flags,
-			bool smaps, bool in_pf)
+bool hugepage_vma_check(struct vm_area_struct *vma, unsigned long vm_flags,
+			bool smaps, bool in_pf, bool enforce_sysfs)
 {
 	if (!vma->vm_mm)		/* vdso */
 		return false;
@@ -121,11 +120,10 @@ bool hugepage_vma_check(struct vm_area_struct *vma,
 	if (!in_pf && shmem_file(vma->vm_file))
 		return shmem_huge_enabled(vma);
 
-	if (!hugepage_flags_enabled())
-		return false;
-
-	/* THP settings require madvise. */
-	if (!(vm_flags & VM_HUGEPAGE) && !hugepage_flags_always())
+	/* Enforce sysfs THP requirements as necessary */
+	if (enforce_sysfs &&
+	    (!hugepage_flags_enabled() || (!(vm_flags & VM_HUGEPAGE) &&
+					   !hugepage_flags_always())))
 		return false;
 
 	/* Only regular file is valid */
@@ -2288,24 +2286,10 @@ out:
 void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
 		bool freeze, struct folio *folio)
 {
-	pgd_t *pgd;
-	p4d_t *p4d;
-	pud_t *pud;
-	pmd_t *pmd;
+	pmd_t *pmd = mm_find_pmd(vma->vm_mm, address);
 
-	pgd = pgd_offset(vma->vm_mm, address);
-	if (!pgd_present(*pgd))
+	if (!pmd)
 		return;
-
-	p4d = p4d_offset(pgd, address);
-	if (!p4d_present(*p4d))
-		return;
-
-	pud = pud_offset(p4d, address);
-	if (!pud_present(*pud))
-		return;
-
-	pmd = pmd_offset(pud, address);
 
 	__split_huge_pmd(vma, pmd, address, freeze, folio);
 }
