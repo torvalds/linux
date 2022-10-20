@@ -412,7 +412,7 @@ static void rtl8188f_spur_calibration(struct rtl8xxxu_priv *priv, u8 channel)
 	};
 
 	const u8 threshold = 0x16;
-	bool do_notch, hw_ctrl, sw_ctrl, hw_ctrl_s1, sw_ctrl_s1;
+	bool do_notch, hw_ctrl, sw_ctrl, hw_ctrl_s1 = 0, sw_ctrl_s1 = 0;
 	u32 val32, initial_gain, reg948;
 
 	val32 = rtl8xxxu_read32(priv, REG_OFDM0_RX_D_SYNC_PATH);
