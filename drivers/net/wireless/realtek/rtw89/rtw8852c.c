@@ -1683,12 +1683,12 @@ static void rtw8852c_set_channel_bb(struct rtw89_dev *rtwdev,
 				    const struct rtw89_chan *chan,
 				    enum rtw89_phy_idx phy_idx)
 {
+	static const u32 ru_alloc_msk[2] = {B_P80_AT_HIGH_FREQ_RU_ALLOC_PHY0,
+					    B_P80_AT_HIGH_FREQ_RU_ALLOC_PHY1};
 	struct rtw89_hal *hal = &rtwdev->hal;
 	bool cck_en = chan->band_type == RTW89_BAND_2G;
 	u8 pri_ch_idx = chan->pri_ch_idx;
 	u32 mask, reg;
-	u32 ru_alloc_msk[2] = {B_P80_AT_HIGH_FREQ_RU_ALLOC_PHY0,
-			       B_P80_AT_HIGH_FREQ_RU_ALLOC_PHY1};
 	u8 ntx_path;
 
 	if (chan->band_type == RTW89_BAND_2G)
