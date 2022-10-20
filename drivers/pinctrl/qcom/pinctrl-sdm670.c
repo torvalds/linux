@@ -1294,7 +1294,7 @@ static const struct msm_pingroup sdm670_groups[] = {
 	SDC_QDSD_PINGROUP(sdc2_data, 0x9a000, 9, 0),
 };
 
-const int sdm670_reserved_gpios[] = {
+static const int sdm670_reserved_gpios[] = {
 	58, 59, 60, 61, 62, 63, 64, 69, 70, 71, 72, 73, 74, 104, -1
 };
 
