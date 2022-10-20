@@ -136,19 +136,8 @@ static void apg31_se_audio_setup(
 	REG_UPDATE(APG_MEM_PWR, APG_MEM_PWR_FORCE, 0);
 }
 
-static void apg31_audio_mute_control(
-	struct apg *apg,
-	bool mute)
-{
-	if (mute)
-		apg31_disable(apg);
-	else
-		apg31_enable(apg);
-}
-
 static struct apg_funcs dcn31_apg_funcs = {
 	.se_audio_setup			= apg31_se_audio_setup,
-	.audio_mute_control		= apg31_audio_mute_control,
 	.enable_apg			= apg31_enable,
 	.disable_apg			= apg31_disable,
 };

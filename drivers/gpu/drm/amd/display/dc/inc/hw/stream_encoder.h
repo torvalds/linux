@@ -317,9 +317,6 @@ struct hpo_dp_stream_encoder_funcs {
 			uint32_t stream_enc_inst,
 			uint32_t link_enc_inst);
 
-	void (*audio_mute_control)(
-			struct hpo_dp_stream_encoder *enc, bool mute);
-
 	void (*dp_audio_setup)(
 			struct hpo_dp_stream_encoder *enc,
 			unsigned int az_inst,
