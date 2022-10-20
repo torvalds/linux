@@ -56,20 +56,6 @@ struct dmcu {
 	bool auto_load_dmcu;
 };
 
-#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
-struct crc_region {
-	uint16_t x_start;
-	uint16_t y_start;
-	uint16_t x_end;
-	uint16_t y_end;
-};
-
-struct otg_phy_mux {
-	uint8_t phy_output_num;
-	uint8_t otg_output_num;
-};
-#endif
-
 struct dmcu_funcs {
 	bool (*dmcu_init)(struct dmcu *dmcu);
 	bool (*load_iram)(struct dmcu *dmcu,

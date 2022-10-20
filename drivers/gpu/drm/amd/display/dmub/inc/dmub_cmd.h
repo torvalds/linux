@@ -729,6 +729,10 @@ enum dmub_cmd_type {
 	/**
 	 * Command type used for all VBIOS interface commands.
 	 */
+	/**
+	 * Command type used for all SECURE_DISPLAY commands.
+	 */
+	DMUB_CMD__SECURE_DISPLAY = 85,
 
 	/**
 	 * Command type used to set DPIA HPD interrupt state
@@ -3143,6 +3147,24 @@ struct dmub_rb_cmd_get_usbc_cable_id {
 	} data;
 };
 
+enum dmub_cmd_secure_display_type {
+	DMUB_CMD__SECURE_DISPLAY_TEST_CMD = 0,
+	DMUB_CMD__SECURE_DISPLAY_CRC_STOP_UPDATE,
+	DMUB_CMD__SECURE_DISPLAY_CRC_WIN_NOTIFY
+};
+
+struct dmub_rb_cmd_secure_display {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_roi_info {
+		uint16_t x_start;
+		uint16_t x_end;
+		uint16_t y_start;
+		uint16_t y_end;
+		uint8_t otg_id;
+		uint8_t phy_id;
+	} roi_info;
+};
+
 /**
  * union dmub_rb_cmd - DMUB inbox command.
  */
@@ -3347,6 +3369,10 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__QUERY_HPD_STATE command.
 	 */
 	struct dmub_rb_cmd_query_hpd_state query_hpd;
+	/**
+	 * Definition of a DMUB_CMD__SECURE_DISPLAY command.
+	 */
+	struct dmub_rb_cmd_secure_display secure_display;
 	/**
 	 * Definition of a DMUB_CMD__DPIA_HPD_INT_ENABLE command.
 	 */

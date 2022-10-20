@@ -7840,6 +7840,9 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			 */
 			if (acrtc_state->stream->link->psr_settings.psr_version >= DC_PSR_VERSION_SU_1 &&
 			    acrtc_attach->dm_irq_params.allow_psr_entry &&
+#ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
+			    !amdgpu_dm_crc_window_is_activated(acrtc_state->base.crtc) &&
+#endif
 			    !acrtc_state->stream->link->psr_settings.psr_allow_active)
 				amdgpu_dm_psr_enable(acrtc_state->stream);
 		} else {
@@ -8301,8 +8304,8 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 				if (amdgpu_dm_crc_window_is_activated(crtc)) {
 					spin_lock_irqsave(&adev_to_drm(adev)->event_lock, flags);
-					acrtc->dm_irq_params.crc_window.update_win = true;
-					acrtc->dm_irq_params.crc_window.skip_frame_cnt = 2;
+					acrtc->dm_irq_params.window_param.update_win = true;
+					acrtc->dm_irq_params.window_param.skip_frame_cnt = 2;
 					spin_lock_irq(&crc_rd_wrk->crc_rd_work_lock);
 					crc_rd_wrk->crtc = crtc;
 					spin_unlock_irq(&crc_rd_wrk->crc_rd_work_lock);

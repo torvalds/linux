@@ -491,86 +491,79 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 }
 
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
-bool dc_stream_forward_dmcu_crc_window(struct dc *dc, struct dc_stream_state *stream,
-			     struct crc_params *crc_window)
+static inline void
+dc_stream_forward_dmub_crc_window(struct dc_dmub_srv *dmub_srv,
+		struct crc_region *roi, struct otg_phy_mux *mux_mapping, bool is_stop)
 {
-	int i;
-	struct dmcu *dmcu = dc->res_pool->dmcu;
-	struct pipe_ctx *pipe;
-	struct crc_region tmp_win, *crc_win;
-	struct otg_phy_mux mapping_tmp, *mux_mapping;
+	union dmub_rb_cmd cmd = {0};
 
-	/*crc window can't be null*/
-	if (!crc_window)
-		return false;
+	cmd.secure_display.roi_info.phy_id = mux_mapping->phy_output_num;
+	cmd.secure_display.roi_info.otg_id = mux_mapping->otg_output_num;
 
-	if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu))) {
-		crc_win = &tmp_win;
-		mux_mapping = &mapping_tmp;
-		/*set crc window*/
-		tmp_win.x_start = crc_window->windowa_x_start;
-		tmp_win.y_start = crc_window->windowa_y_start;
-		tmp_win.x_end = crc_window->windowa_x_end;
-		tmp_win.y_end = crc_window->windowa_y_end;
-
-		for (i = 0; i < MAX_PIPES; i++) {
-			pipe = &dc->current_state->res_ctx.pipe_ctx[i];
-			if (pipe->stream == stream && !pipe->top_pipe && !pipe->prev_odm_pipe)
-				break;
-		}
-
-		/* Stream not found */
-		if (i == MAX_PIPES)
-			return false;
-
-
-		/*set mux routing info*/
-		mapping_tmp.phy_output_num = stream->link->link_enc_hw_inst;
-		mapping_tmp.otg_output_num = pipe->stream_res.tg->inst;
-
-		dmcu->funcs->forward_crc_window(dmcu, crc_win, mux_mapping);
+	if (is_stop) {
+		cmd.secure_display.header.type = DMUB_CMD__SECURE_DISPLAY;
+		cmd.secure_display.header.sub_type = DMUB_CMD__SECURE_DISPLAY_CRC_STOP_UPDATE;
 	} else {
-		DC_LOG_DC("dmcu is not initialized");
-		return false;
+		cmd.secure_display.header.type = DMUB_CMD__SECURE_DISPLAY;
+		cmd.secure_display.header.sub_type = DMUB_CMD__SECURE_DISPLAY_CRC_WIN_NOTIFY;
+		cmd.secure_display.roi_info.x_start = roi->x_start;
+		cmd.secure_display.roi_info.y_start = roi->y_start;
+		cmd.secure_display.roi_info.x_end = roi->x_end;
+		cmd.secure_display.roi_info.y_end = roi->y_end;
 	}
 
-	return true;
+	dc_dmub_srv_cmd_queue(dmub_srv, &cmd);
+	dc_dmub_srv_cmd_execute(dmub_srv);
 }
 
-bool dc_stream_stop_dmcu_crc_win_update(struct dc *dc, struct dc_stream_state *stream)
+static inline void
+dc_stream_forward_dmcu_crc_window(struct dmcu *dmcu,
+		struct crc_region *roi, struct otg_phy_mux *mux_mapping, bool is_stop)
 {
-	int i;
-	struct dmcu *dmcu = dc->res_pool->dmcu;
-	struct pipe_ctx *pipe;
-	struct otg_phy_mux mapping_tmp, *mux_mapping;
-
-	if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu))) {
-		mux_mapping = &mapping_tmp;
-
-		for (i = 0; i < MAX_PIPES; i++) {
-			pipe = &dc->current_state->res_ctx.pipe_ctx[i];
-			if (pipe->stream == stream && !pipe->top_pipe && !pipe->prev_odm_pipe)
-				break;
-		}
-
-		/* Stream not found */
-		if (i == MAX_PIPES)
-			return false;
-
-
-		/*set mux routing info*/
-		mapping_tmp.phy_output_num = stream->link->link_enc_hw_inst;
-		mapping_tmp.otg_output_num = pipe->stream_res.tg->inst;
-
+	if (is_stop)
 		dmcu->funcs->stop_crc_win_update(dmcu, mux_mapping);
-	} else {
-		DC_LOG_DC("dmcu is not initialized");
-		return false;
+	else
+		dmcu->funcs->forward_crc_window(dmcu, roi, mux_mapping);
+}
+
+bool
+dc_stream_forward_crc_window(struct dc *dc,
+		struct crc_region *roi, struct dc_stream_state *stream, bool is_stop)
+{
+	struct dmcu *dmcu;
+	struct dc_dmub_srv *dmub_srv;
+	struct otg_phy_mux mux_mapping;
+	struct pipe_ctx *pipe;
+	int i;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe->stream == stream && !pipe->top_pipe && !pipe->prev_odm_pipe)
+			break;
 	}
+
+	/* Stream not found */
+	if (i == MAX_PIPES)
+		return false;
+
+	mux_mapping.phy_output_num = stream->link->link_enc_hw_inst;
+	mux_mapping.otg_output_num = pipe->stream_res.tg->inst;
+
+	dmcu = dc->res_pool->dmcu;
+	dmub_srv = dc->ctx->dmub_srv;
+
+	/* forward to dmub */
+	if (dmub_srv)
+		dc_stream_forward_dmub_crc_window(dmub_srv, roi, &mux_mapping, is_stop);
+	/* forward to dmcu */
+	else if (dmcu && dmcu->funcs->is_dmcu_initialized(dmcu))
+		dc_stream_forward_dmcu_crc_window(dmcu, roi, &mux_mapping, is_stop);
+	else
+		return false;
 
 	return true;
 }
-#endif
+#endif /* CONFIG_DRM_AMD_SECURE_DISPLAY */
 
 /**
  * dc_stream_configure_crc() - Configure CRC capture for the given stream.
