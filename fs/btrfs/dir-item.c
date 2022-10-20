@@ -106,7 +106,7 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
  * Will return 0 or -ENOMEM
  */
 int btrfs_insert_dir_item(struct btrfs_trans_handle *trans,
-			  const struct qstr *name, struct btrfs_inode *dir,
+			  const struct fscrypt_str *name, struct btrfs_inode *dir,
 			  struct btrfs_key *location, u8 type, u64 index)
 {
 	int ret = 0;
@@ -208,7 +208,7 @@ static struct btrfs_dir_item *btrfs_lookup_match_dir(
 struct btrfs_dir_item *btrfs_lookup_dir_item(struct btrfs_trans_handle *trans,
 					     struct btrfs_root *root,
 					     struct btrfs_path *path, u64 dir,
-					     const struct qstr *name,
+					     const struct fscrypt_str *name,
 					     int mod)
 {
 	struct btrfs_key key;
@@ -227,7 +227,7 @@ struct btrfs_dir_item *btrfs_lookup_dir_item(struct btrfs_trans_handle *trans,
 }
 
 int btrfs_check_dir_item_collision(struct btrfs_root *root, u64 dir,
-				   const struct qstr *name)
+				   const struct fscrypt_str *name)
 {
 	int ret;
 	struct btrfs_key key;
@@ -304,7 +304,7 @@ struct btrfs_dir_item *
 btrfs_lookup_dir_index_item(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root,
 			    struct btrfs_path *path, u64 dir,
-			    u64 index, const struct qstr *name, int mod)
+			    u64 index, const struct fscrypt_str *name, int mod)
 {
 	struct btrfs_dir_item *di;
 	struct btrfs_key key;
@@ -323,7 +323,7 @@ btrfs_lookup_dir_index_item(struct btrfs_trans_handle *trans,
 
 struct btrfs_dir_item *
 btrfs_search_dir_index_item(struct btrfs_root *root, struct btrfs_path *path,
-			    u64 dirid, const struct qstr *name)
+			    u64 dirid, const struct fscrypt_str *name)
 {
 	struct btrfs_dir_item *di;
 	struct btrfs_key key;
