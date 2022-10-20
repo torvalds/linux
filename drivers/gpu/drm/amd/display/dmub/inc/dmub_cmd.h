@@ -729,6 +729,7 @@ enum dmub_cmd_type {
 	/**
 	 * Command type used for all VBIOS interface commands.
 	 */
+
 	/**
 	 * Command type used for all SECURE_DISPLAY commands.
 	 */
@@ -3147,14 +3148,23 @@ struct dmub_rb_cmd_get_usbc_cable_id {
 	} data;
 };
 
+/**
+ * Command type of a DMUB_CMD__SECURE_DISPLAY command
+ */
 enum dmub_cmd_secure_display_type {
-	DMUB_CMD__SECURE_DISPLAY_TEST_CMD = 0,
+	DMUB_CMD__SECURE_DISPLAY_TEST_CMD = 0,		/* test command to only check if inbox message works */
 	DMUB_CMD__SECURE_DISPLAY_CRC_STOP_UPDATE,
 	DMUB_CMD__SECURE_DISPLAY_CRC_WIN_NOTIFY
 };
 
+/**
+ * Definition of a DMUB_CMD__SECURE_DISPLAY command
+ */
 struct dmub_rb_cmd_secure_display {
 	struct dmub_cmd_header header;
+	/**
+	 * Data passed from driver to dmub firmware.
+	 */
 	struct dmub_cmd_roi_info {
 		uint16_t x_start;
 		uint16_t x_end;
@@ -3373,6 +3383,7 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__SECURE_DISPLAY command.
 	 */
 	struct dmub_rb_cmd_secure_display secure_display;
+
 	/**
 	 * Definition of a DMUB_CMD__DPIA_HPD_INT_ENABLE command.
 	 */
