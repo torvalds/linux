@@ -173,7 +173,7 @@ int hda_dsp_stream_spib_config(struct snd_sof_dev *sdev,
 				enable << hstream->index);
 
 	/* set the SPIB value */
-	sof_io_write(sdev, hext_stream->spib_addr, size);
+	sof_io_write(sdev, hstream->spib_addr, size);
 
 	return 0;
 }
@@ -883,18 +883,19 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 			SOF_HDA_PPLC_BASE + SOF_HDA_PPLC_MULTI * num_total +
 			SOF_HDA_PPLC_INTERVAL * i;
 
+		hstream = &hext_stream->hstream;
+
 		/* do we support SPIB */
 		if (sdev->bar[HDA_DSP_SPIB_BAR]) {
-			hext_stream->spib_addr = sdev->bar[HDA_DSP_SPIB_BAR] +
+			hstream->spib_addr = sdev->bar[HDA_DSP_SPIB_BAR] +
 				SOF_HDA_SPIB_BASE + SOF_HDA_SPIB_INTERVAL * i +
 				SOF_HDA_SPIB_SPIB;
 
-			hext_stream->fifo_addr = sdev->bar[HDA_DSP_SPIB_BAR] +
+			hstream->fifo_addr = sdev->bar[HDA_DSP_SPIB_BAR] +
 				SOF_HDA_SPIB_BASE + SOF_HDA_SPIB_INTERVAL * i +
 				SOF_HDA_SPIB_MAXFIFO;
 		}
 
-		hstream = &hext_stream->hstream;
 		hstream->bus = bus;
 		hstream->sd_int_sta_mask = 1 << i;
 		hstream->index = i;
@@ -939,18 +940,19 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 			SOF_HDA_PPLC_BASE + SOF_HDA_PPLC_MULTI * num_total +
 			SOF_HDA_PPLC_INTERVAL * i;
 
+		hstream = &hext_stream->hstream;
+
 		/* do we support SPIB */
 		if (sdev->bar[HDA_DSP_SPIB_BAR]) {
-			hext_stream->spib_addr = sdev->bar[HDA_DSP_SPIB_BAR] +
+			hstream->spib_addr = sdev->bar[HDA_DSP_SPIB_BAR] +
 				SOF_HDA_SPIB_BASE + SOF_HDA_SPIB_INTERVAL * i +
 				SOF_HDA_SPIB_SPIB;
 
-			hext_stream->fifo_addr = sdev->bar[HDA_DSP_SPIB_BAR] +
+			hstream->fifo_addr = sdev->bar[HDA_DSP_SPIB_BAR] +
 				SOF_HDA_SPIB_BASE + SOF_HDA_SPIB_INTERVAL * i +
 				SOF_HDA_SPIB_MAXFIFO;
 		}
 
-		hstream = &hext_stream->hstream;
 		hstream->bus = bus;
 		hstream->sd_int_sta_mask = 1 << i;
 		hstream->index = i;

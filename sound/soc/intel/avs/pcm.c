@@ -292,12 +292,12 @@ static int avs_dai_hda_be_hw_free(struct snd_pcm_substream *substream, struct sn
 
 	/* clear link <-> stream mapping */
 	codec = dev_to_hda_codec(asoc_rtd_to_codec(rtd, 0)->dev);
-	link = snd_hdac_ext_bus_link_at(&codec->bus->core, codec->core.addr);
+	link = snd_hdac_ext_bus_get_hlink_by_addr(&codec->bus->core, codec->core.addr);
 	if (!link)
 		return -EINVAL;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		snd_hdac_ext_link_clear_stream_id(link, hdac_stream(link_stream)->stream_tag);
+		snd_hdac_ext_bus_link_clear_stream_id(link, hdac_stream(link_stream)->stream_tag);
 
 	return 0;
 }
@@ -322,15 +322,15 @@ static int avs_dai_hda_be_prepare(struct snd_pcm_substream *substream, struct sn
 						 runtime->sample_bits, 0);
 
 	snd_hdac_ext_stream_decouple(bus, link_stream, true);
-	snd_hdac_ext_link_stream_reset(link_stream);
-	snd_hdac_ext_link_stream_setup(link_stream, format_val);
+	snd_hdac_ext_stream_reset(link_stream);
+	snd_hdac_ext_stream_setup(link_stream, format_val);
 
-	link = snd_hdac_ext_bus_link_at(bus, codec->core.addr);
+	link = snd_hdac_ext_bus_get_hlink_by_addr(bus, codec->core.addr);
 	if (!link)
 		return -EINVAL;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		snd_hdac_ext_link_set_stream_id(link, hdac_stream(link_stream)->stream_tag);
+		snd_hdac_ext_bus_link_set_stream_id(link, hdac_stream(link_stream)->stream_tag);
 
 	ret = avs_dai_prepare(to_avs_dev(dai->dev), substream, dai);
 	if (ret)
@@ -355,7 +355,7 @@ static int avs_dai_hda_be_trigger(struct snd_pcm_substream *substream, int cmd,
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		snd_hdac_ext_link_stream_start(link_stream);
+		snd_hdac_ext_stream_start(link_stream);
 
 		ret = avs_path_run(data->path, AVS_TPLG_TRIGGER_AUTO);
 		if (ret < 0)
@@ -368,7 +368,7 @@ static int avs_dai_hda_be_trigger(struct snd_pcm_substream *substream, int cmd,
 		if (ret < 0)
 			dev_err(dai->dev, "pause BE path failed: %d\n", ret);
 
-		snd_hdac_ext_link_stream_clear(link_stream);
+		snd_hdac_ext_stream_clear(link_stream);
 
 		if (cmd == SNDRV_PCM_TRIGGER_STOP) {
 			ret = avs_path_reset(data->path);
