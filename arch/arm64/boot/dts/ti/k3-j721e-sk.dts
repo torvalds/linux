@@ -796,66 +796,6 @@
 	};
 };
 
-&mcasp0 {
-	/* Unused */
-	status = "disabled";
-};
-
-&mcasp1 {
-	/* Unused */
-	status = "disabled";
-};
-
-&mcasp2 {
-	/* Unused */
-	status = "disabled";
-};
-
-&mcasp3 {
-	/* Unused */
-	status = "disabled";
-};
-
-&mcasp4 {
-	/* Unused */
-	status = "disabled";
-};
-
-&mcasp5 {
-	/* Unused */
-	status = "disabled";
-};
-
-&mcasp6 {
-	/* Brought out on RPi header */
-	status = "disabled";
-};
-
-&mcasp7 {
-	/* Unused */
-	status = "disabled";
-};
-
-&mcasp8 {
-	/* Unused */
-	status = "disabled";
-};
-
-&mcasp9 {
-	/* Unused */
-	status = "disabled";
-};
-
-&mcasp10 {
-	/* Unused */
-	status = "disabled";
-};
-
-&mcasp11 {
-	/* Brought out on M.2 E Key */
-	status = "disabled";
-};
-
 &serdes0 {
 	serdes0_pcie_link: phy@0 {
 		reg = <0>;

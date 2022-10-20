@@ -709,47 +709,8 @@
 	};
 };
 
-&mcasp0 {
-	status = "disabled";
-};
-
-&mcasp1 {
-	status = "disabled";
-};
-
-&mcasp2 {
-	status = "disabled";
-};
-
-&mcasp3 {
-	status = "disabled";
-};
-
-&mcasp4 {
-	status = "disabled";
-};
-
-&mcasp5 {
-	status = "disabled";
-};
-
-&mcasp6 {
-	status = "disabled";
-};
-
-&mcasp7 {
-	status = "disabled";
-};
-
-&mcasp8 {
-	status = "disabled";
-};
-
-&mcasp9 {
-	status = "disabled";
-};
-
 &mcasp10 {
+	status = "okay";
 	#sound-dai-cells = <0>;
 
 	pinctrl-names = "default";
@@ -765,10 +726,6 @@
 	>;
 	tx-num-evt = <0>;
 	rx-num-evt = <0>;
-};
-
-&mcasp11 {
-	status = "disabled";
 };
 
 &cmn_refclk1 {
