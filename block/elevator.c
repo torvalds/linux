@@ -132,11 +132,6 @@ static struct elevator_type *elevator_find(const char *name,
 	return NULL;
 }
 
-static void elevator_put(struct elevator_type *e)
-{
-	module_put(e->elevator_owner);
-}
-
 static struct elevator_type *elevator_get(struct request_queue *q,
 					  const char *name, bool try_loading)
 {
@@ -152,7 +147,7 @@ static struct elevator_type *elevator_get(struct request_queue *q,
 		e = elevator_find(name, q->required_elevator_features);
 	}
 
-	if (e && !try_module_get(e->elevator_owner))
+	if (e && !elevator_tryget(e))
 		e = NULL;
 
 	spin_unlock(&elv_list_lock);
@@ -659,7 +654,7 @@ static struct elevator_type *elevator_get_by_features(struct request_queue *q)
 		}
 	}
 
-	if (found && !try_module_get(found->elevator_owner))
+	if (found && !elevator_tryget(found))
 		found = NULL;
 
 	spin_unlock(&elv_list_lock);

@@ -4554,17 +4554,10 @@ static bool blk_mq_elv_switch_none(struct list_head *head,
 
 	INIT_LIST_HEAD(&qe->node);
 	qe->q = q;
+	/* keep a reference to the elevator module as we'll switch back */
+	__elevator_get(qe->type);
 	qe->type = q->elevator->type;
 	list_add(&qe->node, head);
-
-	/*
-	 * After elevator_switch, the previous elevator_queue will be
-	 * released by elevator_release. The reference of the io scheduler
-	 * module get by elevator_get will also be put. So we need to get
-	 * a reference of the io scheduler module here to prevent it to be
-	 * removed.
-	 */
-	__module_get(qe->type->elevator_owner);
 	elevator_switch(q, NULL);
 	mutex_unlock(&q->sysfs_lock);
 
