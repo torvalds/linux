@@ -23,12 +23,30 @@ static void rxrpc_clean_up_connection(struct work_struct *work);
 static void rxrpc_set_service_reap_timer(struct rxrpc_net *rxnet,
 					 unsigned long reap_at);
 
+void rxrpc_poke_conn(struct rxrpc_connection *conn, enum rxrpc_conn_trace why)
+{
+	struct rxrpc_local *local = conn->local;
+	bool busy;
+
+	if (WARN_ON_ONCE(!local))
+		return;
+
+	spin_lock_bh(&local->lock);
+	busy = !list_empty(&conn->attend_link);
+	if (!busy) {
+		rxrpc_get_connection(conn, why);
+		list_add_tail(&conn->attend_link, &local->conn_attend_q);
+	}
+	spin_unlock_bh(&local->lock);
+	rxrpc_wake_up_io_thread(local);
+}
+
 static void rxrpc_connection_timer(struct timer_list *timer)
 {
 	struct rxrpc_connection *conn =
 		container_of(timer, struct rxrpc_connection, timer);
 
-	rxrpc_queue_conn(conn, rxrpc_conn_queue_timer);
+	rxrpc_poke_conn(conn, rxrpc_conn_get_poke_timer);
 }
 
 /*

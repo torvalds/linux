@@ -421,6 +421,7 @@ reject_packet:
  */
 int rxrpc_io_thread(void *data)
 {
+	struct rxrpc_connection *conn;
 	struct sk_buff_head rx_queue;
 	struct rxrpc_local *local = data;
 	struct rxrpc_call *call;
@@ -435,6 +436,20 @@ int rxrpc_io_thread(void *data)
 
 	for (;;) {
 		rxrpc_inc_stat(local->rxnet, stat_io_loop);
+
+		/* Deal with connections that want immediate attention. */
+		conn = list_first_entry_or_null(&local->conn_attend_q,
+						struct rxrpc_connection,
+						attend_link);
+		if (conn) {
+			spin_lock_bh(&local->lock);
+			list_del_init(&conn->attend_link);
+			spin_unlock_bh(&local->lock);
+
+			rxrpc_input_conn_event(conn, NULL);
+			rxrpc_put_connection(conn, rxrpc_conn_put_poke);
+			continue;
+		}
 
 		/* Deal with calls that want immediate attention. */
 		if ((call = list_first_entry_or_null(&local->call_attend_q,
@@ -463,6 +478,7 @@ int rxrpc_io_thread(void *data)
 				rxrpc_input_error(local, skb);
 				rxrpc_free_skb(skb, rxrpc_skb_put_error_report);
 				break;
+				break;
 			default:
 				WARN_ON_ONCE(1);
 				rxrpc_free_skb(skb, rxrpc_skb_put_unknown);
@@ -481,7 +497,8 @@ int rxrpc_io_thread(void *data)
 		set_current_state(TASK_INTERRUPTIBLE);
 		should_stop = kthread_should_stop();
 		if (!skb_queue_empty(&local->rx_queue) ||
-		    !list_empty(&local->call_attend_q)) {
+		    !list_empty(&local->call_attend_q) ||
+		    !list_empty(&local->conn_attend_q)) {
 			__set_current_state(TASK_RUNNING);
 			continue;
 		}
