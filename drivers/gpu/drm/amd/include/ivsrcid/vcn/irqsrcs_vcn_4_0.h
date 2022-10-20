@@ -38,4 +38,7 @@
 #define VCN_4_0__SRCID__JPEG6_DECODE					174		// 0xae JRBC6 Decode interrupt
 #define VCN_4_0__SRCID__JPEG7_DECODE					175		// 0xaf JRBC7 Decode interrupt
 
+#define VCN_4_0__SRCID_UVD_POISON					160
+#define VCN_4_0__SRCID_DJPEG0_POISON					161
+#define VCN_4_0__SRCID_EJPEG0_POISON					162
 #endif
