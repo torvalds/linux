@@ -1261,8 +1261,6 @@ static void intel_post_plane_update(struct intel_atomic_state *state,
 	if (needs_cursorclk_wa(old_crtc_state) &&
 	    !needs_cursorclk_wa(new_crtc_state))
 		icl_wa_cursorclkgating(dev_priv, pipe, false);
-
-	intel_drrs_activate(new_crtc_state);
 }
 
 static void intel_crtc_enable_flip_done(struct intel_atomic_state *state,
@@ -5646,39 +5644,6 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	PIPE_CONF_CHECK_I(name.y2); \
 } while (0)
 
-/* This is required for BDW+ where there is only one set of registers for
- * switching between high and low RR.
- * This macro can be used whenever a comparison has to be made between one
- * hw state and multiple sw state variables.
- */
-#define PIPE_CONF_CHECK_M_N_ALT(name, alt_name) do { \
-	if (!intel_compare_link_m_n(&current_config->name, \
-				    &pipe_config->name) && \
-	    !intel_compare_link_m_n(&current_config->alt_name, \
-				    &pipe_config->name)) { \
-		pipe_config_mismatch(fastset, crtc, __stringify(name), \
-				     "(expected tu %i data %i/%i link %i/%i, " \
-				     "or tu %i data %i/%i link %i/%i, " \
-				     "found tu %i, data %i/%i link %i/%i)", \
-				     current_config->name.tu, \
-				     current_config->name.data_m, \
-				     current_config->name.data_n, \
-				     current_config->name.link_m, \
-				     current_config->name.link_n, \
-				     current_config->alt_name.tu, \
-				     current_config->alt_name.data_m, \
-				     current_config->alt_name.data_n, \
-				     current_config->alt_name.link_m, \
-				     current_config->alt_name.link_n, \
-				     pipe_config->name.tu, \
-				     pipe_config->name.data_m, \
-				     pipe_config->name.data_n, \
-				     pipe_config->name.link_m, \
-				     pipe_config->name.link_n); \
-		ret = false; \
-	} \
-} while (0)
-
 #define PIPE_CONF_CHECK_FLAGS(name, mask) do { \
 	if ((current_config->name ^ pipe_config->name) & (mask)) { \
 		pipe_config_mismatch(fastset, crtc, __stringify(name), \
@@ -5747,7 +5712,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 
 	if (HAS_DOUBLE_BUFFERED_M_N(dev_priv)) {
 		if (!fastset || !pipe_config->seamless_m_n)
-			PIPE_CONF_CHECK_M_N_ALT(dp_m_n, dp_m2_n2);
+			PIPE_CONF_CHECK_M_N(dp_m_n);
 	} else {
 		PIPE_CONF_CHECK_M_N(dp_m_n);
 		PIPE_CONF_CHECK_M_N(dp_m2_n2);
@@ -7614,6 +7579,12 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 		intel_modeset_put_crtc_power_domains(crtc, &put_domains[crtc->pipe]);
 
 		intel_modeset_verify_crtc(crtc, state, old_crtc_state, new_crtc_state);
+
+		/*
+		 * Activate DRRS after state readout to avoid
+		 * dp_m_n vs. dp_m2_n2 confusion on BDW+.
+		 */
+		intel_drrs_activate(new_crtc_state);
 
 		/*
 		 * DSB cleanup is done in cleanup_work aligning with framebuffer
