@@ -29,7 +29,7 @@ const char *__window_print(struct trace_seq *p, const u32 *buf, int buf_len)
 
 static inline s64 __rq_update_sum(struct rq *rq, bool curr, bool new)
 {
-	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu_of(rq));
 
 	if (curr)
 		if (new)
@@ -45,7 +45,7 @@ static inline s64 __rq_update_sum(struct rq *rq, bool curr, bool new)
 
 static inline s64 __grp_update_sum(struct rq *rq, bool curr, bool new)
 {
-	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu_of(rq));
 
 	if (curr)
 		if (new)

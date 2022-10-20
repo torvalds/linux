@@ -11,7 +11,7 @@
 
 static inline unsigned long walt_lb_cpu_util(int cpu)
 {
-	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
 
 	return wrq->walt_stats.cumulative_runnable_avg_scaled;
 }
@@ -36,7 +36,7 @@ static int stop_walt_lb_active_migration(void *data)
 	int busiest_cpu = cpu_of(busiest_rq);
 	int target_cpu = busiest_rq->push_cpu;
 	struct rq *target_rq = cpu_rq(target_cpu);
-	struct walt_rq *wrq = (struct walt_rq *) busiest_rq->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, busiest_cpu);
 	struct task_struct *push_task;
 	int push_task_detached = 0;
 
@@ -235,7 +235,7 @@ static void walt_lb_check_for_rotation(struct rq *src_rq)
 static inline bool _walt_can_migrate_task(struct task_struct *p, int dst_cpu,
 					  bool to_lower, bool to_higher, bool force)
 {
-	struct walt_rq *wrq = (struct walt_rq *) task_rq(p)->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, task_cpu(p));
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
 	/* Don't detach task if it is under active migration */
@@ -271,8 +271,8 @@ static inline bool need_active_lb(struct task_struct *p, int dst_cpu,
 				  int src_cpu)
 {
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
-	struct walt_rq *src_wrq = (struct walt_rq *) cpu_rq(src_cpu)->android_vendor_data1;
-	struct walt_rq *dst_wrq = (struct walt_rq *) cpu_rq(dst_cpu)->android_vendor_data1;
+	struct walt_rq *src_wrq = &per_cpu(walt_rq, src_cpu);
+	struct walt_rq *dst_wrq = &per_cpu(walt_rq, dst_cpu);
 
 	if (cpu_rq(src_cpu)->active_balance)
 		return false;
@@ -293,8 +293,8 @@ static int walt_lb_pull_tasks(int dst_cpu, int src_cpu)
 	unsigned long flags;
 	struct task_struct *pulled_task = NULL, *p;
 	bool active_balance = false, to_lower, to_higher;
-	struct walt_rq *src_wrq = (struct walt_rq *) src_rq->android_vendor_data1;
-	struct walt_rq *dst_wrq = (struct walt_rq *) cpu_rq(dst_cpu)->android_vendor_data1;
+	struct walt_rq *src_wrq = &per_cpu(walt_rq, src_cpu);
+	struct walt_rq *dst_wrq = &per_cpu(walt_rq, dst_cpu);
 	struct walt_task_struct *wts;
 	struct task_struct *pull_me;
 	int task_visited;
@@ -469,7 +469,7 @@ static int walt_lb_find_busiest_similar_cap_cpu(int dst_cpu, const cpumask_t *sr
 	struct walt_rq *wrq;
 
 	for_each_cpu(i, src_mask) {
-		wrq = (struct walt_rq *) cpu_rq(i)->android_vendor_data1;
+		wrq = &per_cpu(walt_rq, i);
 		trace_walt_lb_cpu_util(i, wrq);
 
 		if (cpu_rq(i)->nr_running < 2 || !cpu_rq(i)->cfs.h_nr_running)
@@ -501,7 +501,7 @@ static int walt_lb_find_busiest_from_higher_cap_cpu(int dst_cpu, const cpumask_t
 		if (!cpu_active(i))
 			continue;
 
-		wrq = (struct walt_rq *) cpu_rq(i)->android_vendor_data1;
+		wrq = &per_cpu(walt_rq, i);
 		trace_walt_lb_cpu_util(i, wrq);
 
 		util = walt_lb_cpu_util(i);
@@ -566,7 +566,7 @@ static int walt_lb_find_busiest_from_lower_cap_cpu(int dst_cpu, const cpumask_t 
 	 * refactor this after final testing is done.
 	 */
 	for_each_cpu(i, src_mask) {
-		wrq = (struct walt_rq *) cpu_rq(i)->android_vendor_data1;
+		wrq = &per_cpu(walt_rq, i);
 
 		if (!cpu_active(i))
 			continue;
@@ -620,8 +620,8 @@ static int walt_lb_find_busiest_cpu(int dst_cpu, const cpumask_t *src_mask, int 
 {
 	int fsrc_cpu = cpumask_first(src_mask);
 	int busiest_cpu;
-	struct walt_rq *fsrc_wrq = (struct walt_rq *) cpu_rq(fsrc_cpu)->android_vendor_data1;
-	struct walt_rq *dst_wrq = (struct walt_rq *) cpu_rq(dst_cpu)->android_vendor_data1;
+	struct walt_rq *fsrc_wrq = &per_cpu(walt_rq, fsrc_cpu);
+	struct walt_rq *dst_wrq = &per_cpu(walt_rq, dst_cpu);
 
 	if (dst_wrq->cluster->id == fsrc_wrq->cluster->id)
 		busiest_cpu = walt_lb_find_busiest_similar_cap_cpu(dst_cpu,
@@ -642,7 +642,7 @@ void walt_lb_tick(struct rq *rq)
 	int prev_cpu = rq->cpu, new_cpu, ret;
 	struct task_struct *p = rq->curr;
 	unsigned long flags;
-	struct walt_rq *prev_wrq = (struct walt_rq *) rq->android_vendor_data1;
+	struct walt_rq *prev_wrq = &per_cpu(walt_rq, cpu_of(rq));
 	struct walt_rq *new_wrq;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
@@ -673,7 +673,7 @@ void walt_lb_tick(struct rq *rq)
 	new_cpu = walt_find_energy_efficient_cpu(p, prev_cpu, 0, 1);
 	rcu_read_unlock();
 
-	new_wrq = (struct walt_rq *) cpu_rq(new_cpu)->android_vendor_data1;
+	new_wrq = &per_cpu(walt_rq, new_cpu);
 
 	/* prevent active task migration to busy or same/lower capacity CPU */
 	if (!available_idle_cpu(new_cpu) || new_wrq->cluster->id <= prev_wrq->cluster->id)
@@ -787,7 +787,7 @@ static bool should_help_min_cap(int this_cpu)
 		return false;
 
 	for_each_cpu(cpu, &cpu_array[0][0]) {
-		struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+		struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
 
 		if (wrq->walt_stats.nr_big_tasks)
 			return true;
@@ -803,7 +803,7 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 				 int *done)
 {
 	int this_cpu = this_rq->cpu;
-	struct walt_rq *wrq = (struct walt_rq *) this_rq->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, this_cpu);
 	int order_index;
 	int busy_cpu = -1;
 	bool enough_idle = (this_rq->avg_idle > NEWIDLE_BALANCE_THRESHOLD);
@@ -1088,8 +1088,8 @@ static void walt_can_migrate_task(void *unused, struct task_struct *p,
 				  int dst_cpu, int *can_migrate)
 {
 	bool to_lower, to_higher;
-	struct walt_rq *dst_wrq = (struct walt_rq *) cpu_rq(dst_cpu)->android_vendor_data1;
-	struct walt_rq *task_wrq = (struct walt_rq *) cpu_rq(task_cpu(p))->android_vendor_data1;
+	struct walt_rq *dst_wrq = &per_cpu(walt_rq, dst_cpu);
+	struct walt_rq *task_wrq = &per_cpu(walt_rq, task_cpu(p));
 
 	if (unlikely(walt_disabled))
 		return;

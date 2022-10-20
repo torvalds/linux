@@ -130,7 +130,7 @@ struct sched_avg_stats *sched_get_nr_running_avg(void)
 		/* load is already scaled, see freq_policy_load/prev_runnable_sum */
 		for_each_cpu(cpu, &cluster->cpus) {
 			struct rq *rq = cpu_rq(cpu);
-			struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
+			struct walt_rq *wrq = &per_cpu(walt_rq, cpu_of(rq));
 
 			/* compute the % this cpu's utilization of the cpu capacity,
 			 * and sum it across all cpus
@@ -303,7 +303,7 @@ unsigned int sched_get_cpu_util_pct(int cpu)
 	u64 util;
 	unsigned long capacity, flags;
 	unsigned int busy;
-	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
 
 	raw_spin_lock_irqsave(&rq->__lock, flags);
 

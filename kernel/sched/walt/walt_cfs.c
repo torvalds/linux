@@ -18,7 +18,7 @@ static void create_util_to_cost_pd(struct em_perf_domain *pd)
 	int util, cpu = cpumask_first(to_cpumask(pd->cpus));
 	unsigned long fmax;
 	unsigned long scale_cpu;
-	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
 	struct walt_sched_cluster *cluster = wrq->cluster;
 
 	fmax = (u64)pd->table[pd->nr_perf_states - 1].frequency;
@@ -67,8 +67,8 @@ bias_to_this_cpu(struct task_struct *p, int cpu, int start_cpu)
 	bool base_test = cpumask_test_cpu(cpu, p->cpus_ptr) &&
 						cpu_active(cpu);
 
-	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
-	struct walt_rq *start_wrq = (struct walt_rq *) cpu_rq(start_cpu)->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
+	struct walt_rq *start_wrq = &per_cpu(walt_rq, start_cpu);
 	bool start_cap_test = (wrq->cluster->id >= start_wrq->cluster->id);
 
 	return base_test && start_cap_test;
@@ -259,12 +259,12 @@ static void walt_find_best_target(struct sched_domain *sd,
 	cpumask_t visit_cpus;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 	int packing_cpu;
-	struct walt_rq *prev_wrq = (struct walt_rq *) cpu_rq(prev_cpu)->android_vendor_data1;
+	struct walt_rq *prev_wrq = &per_cpu(walt_rq, prev_cpu);
 	struct walt_rq *start_wrq;
 
 	/* Find start CPU based on boost value */
 	start_cpu = fbt_env->start_cpu;
-	start_wrq = (struct walt_rq *) cpu_rq(start_cpu)->android_vendor_data1;
+	start_wrq = &per_cpu(walt_rq, start_cpu);
 
 	/*
 	 * For higher capacity worth I/O tasks, stop the search
@@ -318,7 +318,7 @@ static void walt_find_best_target(struct sched_domain *sd,
 			unsigned long wake_cpu_util, new_cpu_util, new_util_cuml;
 			long spare_cap;
 			unsigned int idle_exit_latency = UINT_MAX;
-			struct walt_rq *wrq = (struct walt_rq *) cpu_rq(i)->android_vendor_data1;
+			struct walt_rq *wrq = &per_cpu(walt_rq, i);
 
 			trace_sched_cpu_util(i, NULL);
 			/* record the prss as we visit cpus in a cluster */
@@ -506,7 +506,7 @@ out:
 static inline unsigned long
 cpu_util_next_walt(int cpu, struct task_struct *p, int dst_cpu)
 {
-	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
 	unsigned long util = wrq->walt_stats.cumulative_runnable_avg_scaled;
 	bool queued = task_on_rq_queued(p);
 
@@ -571,7 +571,7 @@ cpu_util_next_walt_prs(int cpu, struct task_struct *p, int dst_cpu, bool prev_ds
 
 static inline unsigned long get_util_to_cost(int cpu, unsigned long util)
 {
-	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
 
 	if (cpu == 0 && util > sysctl_em_inflate_thres)
 		return mult_frac(wrq->cluster->util_to_cost[util], sysctl_em_inflate_pct, 100);
@@ -748,8 +748,8 @@ static inline bool select_cpu_same_energy(int cpu, int best_cpu, int prev_cpu)
 {
 	bool new_cpu_is_idle = available_idle_cpu(cpu);
 	bool best_cpu_is_idle = available_idle_cpu(best_cpu);
-	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
-	struct walt_rq *best_wrq = (struct walt_rq *) cpu_rq(best_cpu)->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
+	struct walt_rq *best_wrq = &per_cpu(walt_rq, best_cpu);
 
 	if (best_wrq->cluster->id < wrq->cluster->id)
 		return false;
@@ -806,7 +806,7 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	int first_cpu;
 	bool energy_eval_needed = true;
 	struct compute_energy_output output;
-	struct walt_rq *prev_wrq = (struct walt_rq *) cpu_rq(prev_cpu)->android_vendor_data1;
+	struct walt_rq *prev_wrq = &per_cpu(walt_rq, prev_cpu);
 	struct walt_rq *start_wrq;
 
 	if (walt_is_many_wakeup(sibling_count_hint) && prev_cpu != cpu &&
@@ -819,7 +819,7 @@ int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 	walt_get_indicies(p, &order_index, &end_index, task_boost, uclamp_boost,
 								&energy_eval_needed);
 	start_cpu = cpumask_first(&cpu_array[order_index][0]);
-	start_wrq = (struct walt_rq *) cpu_rq(start_cpu)->android_vendor_data1;
+	start_wrq = &per_cpu(walt_rq, start_cpu);
 
 	is_rtg = task_in_related_thread_group(p);
 	curr_is_rtg = task_in_related_thread_group(cpu_rq(cpu)->curr);
@@ -1105,7 +1105,7 @@ static void walt_cfs_insert_mvp_task(struct walt_rq *wrq, struct walt_task_struc
 
 void walt_cfs_deactivate_mvp_task(struct rq *rq, struct task_struct *p)
 {
-	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu_of(rq));
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 
 	list_del_init(&wts->mvp_list);
@@ -1122,7 +1122,7 @@ void walt_cfs_deactivate_mvp_task(struct rq *rq, struct task_struct *p)
  */
 static void walt_cfs_account_mvp_runtime(struct rq *rq, struct task_struct *curr)
 {
-	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu_of(rq));
 	struct walt_task_struct *wts = (struct walt_task_struct *) curr->android_vendor_data1;
 	u64 slice;
 	unsigned int limit;
@@ -1178,7 +1178,7 @@ static void walt_cfs_account_mvp_runtime(struct rq *rq, struct task_struct *curr
 
 void walt_cfs_enqueue_task(struct rq *rq, struct task_struct *p)
 {
-	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu_of(rq));
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 	int mvp_prio = walt_get_mvp_task_prio(p);
 
@@ -1226,7 +1226,7 @@ void walt_cfs_dequeue_task(struct rq *rq, struct task_struct *p)
 
 void walt_cfs_tick(struct rq *rq)
 {
-	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu_of(rq));
 	struct walt_task_struct *wts = (struct walt_task_struct *) rq->curr->android_vendor_data1;
 
 	if (unlikely(walt_disabled))
@@ -1258,7 +1258,7 @@ static void walt_cfs_check_preempt_wakeup(void *unused, struct rq *rq, struct ta
 					  struct sched_entity *se, struct sched_entity *pse,
 					  int next_buddy_marked, unsigned int granularity)
 {
-	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu_of(rq));
 	struct walt_task_struct *wts_p = (struct walt_task_struct *) p->android_vendor_data1;
 	struct task_struct *c = rq->curr;
 	struct walt_task_struct *wts_c = (struct walt_task_struct *) rq->curr->android_vendor_data1;
@@ -1321,7 +1321,7 @@ static void walt_cfs_replace_next_task_fair(void *unused, struct rq *rq, struct 
 					    struct sched_entity **se, bool *repick, bool simple,
 					    struct task_struct *prev)
 {
-	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu_of(rq));
 	struct walt_task_struct *wts;
 	struct task_struct *mvp;
 	struct cfs_rq *cfs_rq;
