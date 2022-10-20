@@ -54,16 +54,19 @@ static int virtual_nci_send(struct nci_dev *ndev, struct sk_buff *skb)
 	mutex_lock(&nci_mutex);
 	if (state != virtual_ncidev_enabled) {
 		mutex_unlock(&nci_mutex);
+		kfree_skb(skb);
 		return 0;
 	}
 
 	if (send_buff) {
 		mutex_unlock(&nci_mutex);
+		kfree_skb(skb);
 		return -1;
 	}
 	send_buff = skb_copy(skb, GFP_KERNEL);
 	mutex_unlock(&nci_mutex);
 	wake_up_interruptible(&wq);
+	consume_skb(skb);
 
 	return 0;
 }
