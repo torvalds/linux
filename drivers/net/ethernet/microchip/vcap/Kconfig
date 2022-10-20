@@ -36,4 +36,17 @@ config VCAP
 	  characteristics. Look in the datasheet for the VCAP specifications for the
 	  specific switchcore.
 
+config VCAP_KUNIT_TEST
+	bool "KUnit test for VCAP library" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	depends on KUNIT=y && VCAP=y && y
+	default KUNIT_ALL_TESTS
+	help
+	  This builds unit tests for the VCAP library.
+
+	  For more information on KUnit and unit tests in general, please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.
+
 endif # NET_VENDOR_MICROCHIP

@@ -1178,3 +1178,7 @@ void vcap_set_tc_exterr(struct flow_cls_offload *fco, struct vcap_rule *vrule)
 	}
 }
 EXPORT_SYMBOL_GPL(vcap_set_tc_exterr);
+
+#ifdef CONFIG_VCAP_KUNIT_TEST
+#include "vcap_api_kunit.c"
+#endif

@@ -11,6 +11,9 @@
 #include <linux/netdevice.h>
 
 /* Use the generated API model */
+#ifdef CONFIG_VCAP_KUNIT_TEST
+#include "vcap_ag_api_kunit.h"
+#endif
 #include "vcap_ag_api.h"
 
 #define VCAP_CID_LOOKUP_SIZE          100000 /* Chains in a lookup */
