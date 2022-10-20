@@ -243,6 +243,9 @@ struct stream_encoder_funcs {
 			uint32_t hubp_requestor_id,
 			enum dynamic_metadata_mode dmdata_mode);
 
+	/**
+	 * @dp_set_odm_combine: Sets up DP stream encoder for ODM.
+	 */
 	void (*dp_set_odm_combine)(
 		struct stream_encoder *enc,
 		bool odm_combine);

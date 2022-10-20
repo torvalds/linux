@@ -1454,6 +1454,22 @@ enum dc_status dcn20_remove_stream_from_ctx(struct dc *dc, struct dc_state *new_
 	return result;
 }
 
+/**
+ * dcn20_split_stream_for_odm - Check if stream can be splited for ODM
+ *
+ * @dc: DC object with resource pool info required for pipe split
+ * @res_ctx: Persistent state of resources
+ * @prev_odm_pipe: Reference to the previous ODM pipe
+ * @next_odm_pipe: Reference to the next ODM pipe
+ *
+ * This function takes a logically active pipe and a logically free pipe and
+ * halves all the scaling parameters that need to be halved while populating
+ * the free pipe with the required resources and configuring the next/previous
+ * ODM pipe pointers.
+ *
+ * Return:
+ * Return true if split stream for ODM is possible, otherwise, return false.
+ */
 bool dcn20_split_stream_for_odm(
 		const struct dc *dc,
 		struct resource_context *res_ctx,
