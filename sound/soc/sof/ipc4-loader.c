@@ -202,6 +202,13 @@ static int sof_ipc4_query_fw_configuration(struct snd_sof_dev *sdev)
 			trace_sof_ipc4_fw_config(sdev, "Trace log size", *tuple->value);
 			ipc4_data->mtrace_log_bytes = *tuple->value;
 			break;
+		case SOF_IPC4_FW_CFG_MAX_LIBS_COUNT:
+			trace_sof_ipc4_fw_config(sdev, "maximum number of libraries",
+						 *tuple->value);
+			ipc4_data->max_libs_count = *tuple->value;
+			if (!ipc4_data->max_libs_count)
+				ipc4_data->max_libs_count = 1;
+			break;
 		default:
 			break;
 		}

@@ -32,6 +32,8 @@ enum sof_ipc4_mtrace_type {
  * @nhlt: NHLT table either from the BIOS or the topology manifest
  * @mtrace_type: mtrace type supported on the booted platform
  * @mtrace_log_bytes: log bytes as reported by the firmware via fw_config reply
+ * @max_libs_count: Maximum number of libraries support by the FW including the
+ *		    base firmware
  */
 struct sof_ipc4_fw_data {
 	u32 manifest_fw_hdr_offset;
@@ -40,6 +42,7 @@ struct sof_ipc4_fw_data {
 	void *nhlt;
 	enum sof_ipc4_mtrace_type mtrace_type;
 	u32 mtrace_log_bytes;
+	u32 max_libs_count;
 };
 
 /**
