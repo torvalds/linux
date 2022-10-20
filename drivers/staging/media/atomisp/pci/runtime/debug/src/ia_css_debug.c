@@ -133,7 +133,6 @@ static const char *const pipe_id_to_str[] = {
 	/* [IA_CSS_PIPE_ID_VIDEO]     =*/ "video",
 	/* [IA_CSS_PIPE_ID_CAPTURE]   =*/ "capture",
 	/* [IA_CSS_PIPE_ID_YUVPP]     =*/ "yuvpp",
-	/* [IA_CSS_PIPE_ID_ACC]       =*/ "accelerator"
 };
 
 static char dot_id_input_bin[SH_CSS_MAX_BINARY_NAME + 10];
@@ -2989,16 +2988,10 @@ ia_css_debug_dump_pipe_config(
 		ia_css_debug_dump_frame_info(&config->vf_output_info[i],
 					     "vf_output_info");
 	}
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "acc_extension: %p\n",
-			    config->acc_extension);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "num_acc_stages: %d\n",
-			    config->num_acc_stages);
 	ia_css_debug_dump_capture_config(&config->default_capture_config);
 	ia_css_debug_dump_resolution(&config->dvs_envelope, "dvs_envelope");
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "dvs_frame_delay: %d\n",
 			    config->dvs_frame_delay);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "acc_num_execs: %d\n",
-			    config->acc_num_execs);
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "enable_dz: %d\n",
 			    config->enable_dz);
 	IA_CSS_LEAVE_PRIVATE("");

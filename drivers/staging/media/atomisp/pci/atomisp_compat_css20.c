@@ -237,18 +237,6 @@ static void __dump_pipe_config(struct atomisp_sub_device *asd,
 			"pipe_config.isp_pipe_version:%d.\n",
 			p_config->isp_pipe_version);
 		dev_dbg(isp->dev,
-			"pipe_config.acc_extension=%p.\n",
-			p_config->acc_extension);
-		dev_dbg(isp->dev,
-			"pipe_config.acc_stages=%p.\n",
-			p_config->acc_stages);
-		dev_dbg(isp->dev,
-			"pipe_config.num_acc_stages=%d.\n",
-			p_config->num_acc_stages);
-		dev_dbg(isp->dev,
-			"pipe_config.acc_num_execs=%d.\n",
-			p_config->acc_num_execs);
-		dev_dbg(isp->dev,
 			"pipe_config.default_capture_config.capture_mode=%d.\n",
 			p_config->default_capture_config.mode);
 		dev_dbg(isp->dev,
@@ -629,10 +617,6 @@ static void __apply_additional_pipe_config(
 		else
 			stream_env->pipe_configs[pipe_id].enable_dz = false;
 		break;
-	case IA_CSS_PIPE_ID_ACC:
-		stream_env->pipe_configs[pipe_id].mode = IA_CSS_PIPE_MODE_ACC;
-		stream_env->pipe_configs[pipe_id].enable_dz = false;
-		break;
 	default:
 		break;
 	}
@@ -644,7 +628,7 @@ static bool is_pipe_valid_to_current_run_mode(struct atomisp_sub_device *asd,
 	if (!asd)
 		return false;
 
-	if (pipe_id == IA_CSS_PIPE_ID_ACC || pipe_id == IA_CSS_PIPE_ID_YUVPP)
+	if (pipe_id == IA_CSS_PIPE_ID_YUVPP)
 		return true;
 
 	if (asd->vfpp) {
@@ -718,12 +702,7 @@ static int __create_pipe(struct atomisp_sub_device *asd,
 	if (pipe_id >= IA_CSS_PIPE_ID_NUM)
 		return -EINVAL;
 
-	if (pipe_id != IA_CSS_PIPE_ID_ACC &&
-	    !stream_env->pipe_configs[pipe_id].output_info[0].res.width)
-		return 0;
-
-	if (pipe_id == IA_CSS_PIPE_ID_ACC &&
-	    !stream_env->pipe_configs[pipe_id].acc_extension)
+	if (!stream_env->pipe_configs[pipe_id].output_info[0].res.width)
 		return 0;
 
 	if (!is_pipe_valid_to_current_run_mode(asd, pipe_id))
@@ -2141,8 +2120,6 @@ static enum ia_css_pipe_mode __pipe_id_to_pipe_mode(
 		return IA_CSS_PIPE_MODE_CAPTURE;
 	case IA_CSS_PIPE_ID_VIDEO:
 		return IA_CSS_PIPE_MODE_VIDEO;
-	case IA_CSS_PIPE_ID_ACC:
-		return IA_CSS_PIPE_MODE_ACC;
 	case IA_CSS_PIPE_ID_YUVPP:
 		return IA_CSS_PIPE_MODE_YUVPP;
 	default:
