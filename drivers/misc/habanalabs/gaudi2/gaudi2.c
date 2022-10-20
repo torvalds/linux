@@ -4473,23 +4473,9 @@ static void gaudi2_init_sm(struct hl_device *hdev)
 	reg_val = FIELD_PREP(DCORE0_SYNC_MNGR_OBJS_MON_CONFIG_CQ_EN_MASK, 1);
 	WREG32(mmDCORE0_SYNC_MNGR_OBJS_MON_CONFIG_0 + (4 * i), reg_val);
 
-	/* Init CQ0 DB */
-	/* Configure the monitor to trigger MSI-X interrupt */
-	/* TODO:
-	 * Remove the if statement when virtual MSI-X doorbell is supported in simulator (SW-93022)
-	 * and in F/W (SW-93024).
-	 */
-	if (!hdev->pdev || hdev->asic_prop.fw_security_enabled) {
-		u64 msix_db_reg = CFG_BASE + mmPCIE_DBI_MSIX_DOORBELL_OFF;
-
-		WREG32(mmDCORE0_SYNC_MNGR_GLBL_LBW_ADDR_L_0, lower_32_bits(msix_db_reg));
-		WREG32(mmDCORE0_SYNC_MNGR_GLBL_LBW_ADDR_H_0, upper_32_bits(msix_db_reg));
-	} else {
-		WREG32(mmDCORE0_SYNC_MNGR_GLBL_LBW_ADDR_L_0,
-				lower_32_bits(gaudi2->virt_msix_db_dma_addr));
-		WREG32(mmDCORE0_SYNC_MNGR_GLBL_LBW_ADDR_H_0,
-				upper_32_bits(gaudi2->virt_msix_db_dma_addr));
-	}
+	/* Init CQ0 DB - configure the monitor to trigger MSI-X interrupt */
+	WREG32(mmDCORE0_SYNC_MNGR_GLBL_LBW_ADDR_L_0, lower_32_bits(gaudi2->virt_msix_db_dma_addr));
+	WREG32(mmDCORE0_SYNC_MNGR_GLBL_LBW_ADDR_H_0, upper_32_bits(gaudi2->virt_msix_db_dma_addr));
 	WREG32(mmDCORE0_SYNC_MNGR_GLBL_LBW_DATA_0, GAUDI2_IRQ_NUM_COMPLETION);
 
 	for (i = 0 ; i < GAUDI2_RESERVED_CQ_NUMBER ; i++) {
@@ -4656,20 +4642,6 @@ static void gaudi2_init_rotator(struct hl_device *hdev)
 static void gaudi2_init_vdec_brdg_ctrl(struct hl_device *hdev, u64 base_addr, u32 decoder_id)
 {
 	u32 sob_id;
-
-	/* TODO:
-	 * Remove when virtual MSI-X doorbell is supported in simulator (SW-93022) and in F/W
-	 * (SW-93024).
-	 */
-	if (!hdev->pdev || hdev->asic_prop.fw_security_enabled) {
-		u32 interrupt_id = GAUDI2_IRQ_NUM_DCORE0_DEC0_NRM + 2 * decoder_id;
-
-		WREG32(base_addr + BRDG_CTRL_NRM_MSIX_LBW_AWADDR, mmPCIE_DBI_MSIX_DOORBELL_OFF);
-		WREG32(base_addr + BRDG_CTRL_NRM_MSIX_LBW_WDATA, interrupt_id);
-		WREG32(base_addr + BRDG_CTRL_ABNRM_MSIX_LBW_AWADDR, mmPCIE_DBI_MSIX_DOORBELL_OFF);
-		WREG32(base_addr + BRDG_CTRL_ABNRM_MSIX_LBW_WDATA, interrupt_id + 1);
-		return;
-	}
 
 	/* VCMD normal interrupt */
 	sob_id = GAUDI2_RESERVED_SOB_DEC_NRM_FIRST + decoder_id;
