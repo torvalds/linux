@@ -166,7 +166,7 @@ static int lp55xx_init_led(struct lp55xx_led *led,
 	struct mc_subled *mc_led_info;
 	struct led_classdev *led_cdev;
 	char name[32];
-	int i, j = 0;
+	int i;
 	int ret;
 
 	if (chan >= max_channel) {
@@ -201,7 +201,6 @@ static int lp55xx_init_led(struct lp55xx_led *led,
 				pdata->led_config[chan].color_id[i];
 			mc_led_info[i].channel =
 					pdata->led_config[chan].output_num[i];
-			j++;
 		}
 
 		led->mc_cdev.subled_info = mc_led_info;
