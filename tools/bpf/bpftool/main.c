@@ -450,7 +450,7 @@ int main(int argc, char **argv)
 	json_output = false;
 	show_pinned = false;
 	block_mount = false;
-	bin_name = argv[0];
+	bin_name = "bpftool";
 
 	opterr = 0;
 	while ((opt = getopt_long(argc, argv, "VhpjfLmndB:l",
