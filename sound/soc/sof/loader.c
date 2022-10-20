@@ -174,14 +174,8 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 		return ret;
 	}
 
-	if (sdev->ipc->ops->post_fw_boot) {
-		ret = sdev->ipc->ops->post_fw_boot(sdev);
-		if (ret)
-			return ret;
-	}
-
-	if (sdev->first_boot && sdev->ipc->ops->fw_loader->query_fw_configuration)
-		return sdev->ipc->ops->fw_loader->query_fw_configuration(sdev);
+	if (sdev->ipc->ops->post_fw_boot)
+		return sdev->ipc->ops->post_fw_boot(sdev);
 
 	return 0;
 }
