@@ -196,4 +196,7 @@ void vcap_netbytes_copy(u8 *dst, u8 *src, int count);
 /* Convert validation error code into tc extact error message */
 void vcap_set_tc_exterr(struct flow_cls_offload *fco, struct vcap_rule *vrule);
 
+/* Cleanup a VCAP instance */
+int vcap_del_rules(struct vcap_control *vctrl, struct vcap_admin *admin);
+
 #endif /* __VCAP_API_CLIENT__ */
