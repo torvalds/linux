@@ -130,16 +130,9 @@ static void enable_os_lock(void)
 	GUEST_ASSERT(read_sysreg(oslsr_el1) & 2);
 }
 
-static void install_wp(uint8_t wpn, uint64_t addr)
+static void enable_monitor_debug_exceptions(void)
 {
-	uint32_t wcr;
 	uint32_t mdscr;
-
-	wcr = DBGWCR_LEN8 | DBGWCR_RD | DBGWCR_WR | DBGWCR_EL1 | DBGWCR_E;
-	write_dbgwcr(wpn, wcr);
-	write_dbgwvr(wpn, addr);
-
-	isb();
 
 	asm volatile("msr daifclr, #8");
 
@@ -148,21 +141,29 @@ static void install_wp(uint8_t wpn, uint64_t addr)
 	isb();
 }
 
+static void install_wp(uint8_t wpn, uint64_t addr)
+{
+	uint32_t wcr;
+
+	wcr = DBGWCR_LEN8 | DBGWCR_RD | DBGWCR_WR | DBGWCR_EL1 | DBGWCR_E;
+	write_dbgwcr(wpn, wcr);
+	write_dbgwvr(wpn, addr);
+
+	isb();
+
+	enable_monitor_debug_exceptions();
+}
+
 static void install_hw_bp(uint8_t bpn, uint64_t addr)
 {
 	uint32_t bcr;
-	uint32_t mdscr;
 
 	bcr = DBGBCR_LEN8 | DBGBCR_EXEC | DBGBCR_EL1 | DBGBCR_E;
 	write_dbgbcr(bpn, bcr);
 	write_dbgbvr(bpn, addr);
 	isb();
 
-	asm volatile("msr daifclr, #8");
-
-	mdscr = read_sysreg(mdscr_el1) | MDSCR_KDE | MDSCR_MDE;
-	write_sysreg(mdscr, mdscr_el1);
-	isb();
+	enable_monitor_debug_exceptions();
 }
 
 static void install_ss(void)
