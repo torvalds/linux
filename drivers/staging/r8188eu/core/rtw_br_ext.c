@@ -212,7 +212,7 @@ static int __nat25_network_hash(unsigned char *addr)
 		unsigned long x;
 
 		x = addr[1] ^ addr[2] ^ addr[3] ^ addr[4] ^ addr[5] ^
-			addr[6] ^ addr[7] ^ addr[8] ^ addr[9] ^ addr[10];
+		    addr[6] ^ addr[7] ^ addr[8] ^ addr[9] ^ addr[10];
 
 		return x & (NAT25_HASH_SIZE - 1);
 	} else if (addr[0] == NAT25_APPLE) {
@@ -224,16 +224,16 @@ static int __nat25_network_hash(unsigned char *addr)
 	} else if (addr[0] == NAT25_PPPOE) {
 		unsigned long x;
 
-		x = addr[0] ^ addr[1] ^ addr[2] ^ addr[3] ^ addr[4] ^ addr[5] ^ addr[6] ^ addr[7] ^ addr[8];
+		x = addr[0] ^ addr[1] ^ addr[2] ^ addr[3] ^ addr[4] ^
+		    addr[5] ^ addr[6] ^ addr[7] ^ addr[8];
 
 		return x & (NAT25_HASH_SIZE - 1);
 	} else if (addr[0] == NAT25_IPV6) {
 		unsigned long x;
 
-		x = addr[1] ^ addr[2] ^ addr[3] ^ addr[4] ^ addr[5] ^
-			addr[6] ^ addr[7] ^ addr[8] ^ addr[9] ^ addr[10] ^
-			addr[11] ^ addr[12] ^ addr[13] ^ addr[14] ^ addr[15] ^
-			addr[16];
+		x = addr[1] ^ addr[2] ^ addr[3] ^ addr[4] ^ addr[5] ^ addr[6] ^
+		    addr[7] ^ addr[8] ^ addr[9] ^ addr[10] ^ addr[11] ^ addr[12] ^
+		    addr[13] ^ addr[14] ^ addr[15] ^ addr[16];
 
 		return x & (NAT25_HASH_SIZE - 1);
 	} else {
