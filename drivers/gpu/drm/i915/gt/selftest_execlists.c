@@ -3475,12 +3475,14 @@ static int random_priority(struct rnd_state *rnd)
 
 struct preempt_smoke {
 	struct intel_gt *gt;
+	struct kthread_work work;
 	struct i915_gem_context **contexts;
 	struct intel_engine_cs *engine;
 	struct drm_i915_gem_object *batch;
 	unsigned int ncontext;
 	struct rnd_state prng;
 	unsigned long count;
+	int result;
 };
 
 static struct i915_gem_context *smoke_context(struct preempt_smoke *smoke)
@@ -3540,34 +3542,31 @@ unpin:
 	return err;
 }
 
-static int smoke_crescendo_thread(void *arg)
+static void smoke_crescendo_work(struct kthread_work *work)
 {
-	struct preempt_smoke *smoke = arg;
+	struct preempt_smoke *smoke = container_of(work, typeof(*smoke), work);
 	IGT_TIMEOUT(end_time);
 	unsigned long count;
 
 	count = 0;
 	do {
 		struct i915_gem_context *ctx = smoke_context(smoke);
-		int err;
 
-		err = smoke_submit(smoke,
-				   ctx, count % I915_PRIORITY_MAX,
-				   smoke->batch);
-		if (err)
-			return err;
+		smoke->result = smoke_submit(smoke, ctx,
+					     count % I915_PRIORITY_MAX,
+					     smoke->batch);
 
 		count++;
-	} while (count < smoke->ncontext && !__igt_timeout(end_time, NULL));
+	} while (!smoke->result && count < smoke->ncontext &&
+		 !__igt_timeout(end_time, NULL));
 
 	smoke->count = count;
-	return 0;
 }
 
 static int smoke_crescendo(struct preempt_smoke *smoke, unsigned int flags)
 #define BATCH BIT(0)
 {
-	struct task_struct *tsk[I915_NUM_ENGINES] = {};
+	struct kthread_worker *worker[I915_NUM_ENGINES] = {};
 	struct preempt_smoke *arg;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
@@ -3578,6 +3577,8 @@ static int smoke_crescendo(struct preempt_smoke *smoke, unsigned int flags)
 	if (!arg)
 		return -ENOMEM;
 
+	memset(arg, 0, I915_NUM_ENGINES * sizeof(*arg));
+
 	for_each_engine(engine, smoke->gt, id) {
 		arg[id] = *smoke;
 		arg[id].engine = engine;
@@ -3585,31 +3586,28 @@ static int smoke_crescendo(struct preempt_smoke *smoke, unsigned int flags)
 			arg[id].batch = NULL;
 		arg[id].count = 0;
 
-		tsk[id] = kthread_run(smoke_crescendo_thread, arg,
-				      "igt/smoke:%d", id);
-		if (IS_ERR(tsk[id])) {
-			err = PTR_ERR(tsk[id]);
+		worker[id] = kthread_create_worker(0, "igt/smoke:%d", id);
+		if (IS_ERR(worker[id])) {
+			err = PTR_ERR(worker[id]);
 			break;
 		}
-		get_task_struct(tsk[id]);
-	}
 
-	yield(); /* start all threads before we kthread_stop() */
+		kthread_init_work(&arg[id].work, smoke_crescendo_work);
+		kthread_queue_work(worker[id], &arg[id].work);
+	}
 
 	count = 0;
 	for_each_engine(engine, smoke->gt, id) {
-		int status;
-
-		if (IS_ERR_OR_NULL(tsk[id]))
+		if (IS_ERR_OR_NULL(worker[id]))
 			continue;
 
-		status = kthread_stop(tsk[id]);
-		if (status && !err)
-			err = status;
+		kthread_flush_work(&arg[id].work);
+		if (arg[id].result && !err)
+			err = arg[id].result;
 
 		count += arg[id].count;
 
-		put_task_struct(tsk[id]);
+		kthread_destroy_worker(worker[id]);
 	}
 
 	pr_info("Submitted %lu crescendo:%x requests across %d engines and %d contexts\n",
