@@ -1,0 +1,19 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1106g-evb1-v10-spi-nand.dts"
+#include "rv1106-evb-ext-rgb-v10.dtsi"
+
+/ {
+	model = "Rockchip RV1106G EVB1 V11 Board For CVR";
+	compatible = "rockchip,rv1106g-evb1-v11-spi-nand-cvr", "rockchip,rv1106";
+};
+
+&saradc {
+	status = "okay";
+	vref-supply = <&vcc_1v8>;
+};
