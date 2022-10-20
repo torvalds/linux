@@ -1714,8 +1714,13 @@ void dc_z10_save_init(struct dc *dc)
 		dc->hwss.z10_save_init(dc);
 }
 
-/*
- * Applies given context to HW and copy it into current context.
+/**
+ * dc_commit_state_no_check - Apply context to the hardware
+ *
+ * @dc: DC object with the current status to be updated
+ * @context: New state that will become the current status at the end of this function
+ *
+ * Applies given context to the hardware and copy it into current context.
  * It's up to the user to release the src context afterwards.
  */
 static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *context)
@@ -3651,10 +3656,24 @@ static void commit_planes_for_stream(struct dc *dc,
 	}
 }
 
-/* Determines if the incoming context requires a applying transition state with unnecessary
- * pipe splitting and ODM disabled, due to hardware limitations. In a case where
- * the OPP associated with an MPCC might change due to plane additions, this function
+/**
+ * could_mpcc_tree_change_for_active_pipes - Check if an OPP associated with MPCC might change
+ *
+ * @dc: Used to get the current state status
+ * @stream: Target stream, which we want to remove the attached planes
+ * @surface_count: Number of surface update
+ * @is_plane_addition: [in] Fill out with true if it is a plane addition case
+ *
+ * DCN32x and newer support a feature named Dynamic ODM which can conflict with
+ * the MPO if used simultaneously in some specific configurations (e.g.,
+ * 4k@144). This function checks if the incoming context requires applying a
+ * transition state with unnecessary pipe splitting and ODM disabled to
+ * circumvent our hardware limitations to prevent this edge case. If the OPP
+ * associated with an MPCC might change due to plane additions, this function
  * returns true.
+ *
+ * Return:
+ * Return true if OPP and MPCC might change, otherwise, return false.
  */
 static bool could_mpcc_tree_change_for_active_pipes(struct dc *dc,
 		struct dc_stream_state *stream,
@@ -3729,6 +3748,24 @@ static bool could_mpcc_tree_change_for_active_pipes(struct dc *dc,
 	return force_minimal_pipe_splitting;
 }
 
+/**
+ * commit_minimal_transition_state - Create a transition pipe split state
+ *
+ * @dc: Used to get the current state status
+ * @transition_base_context: New transition state
+ *
+ * In some specific configurations, such as pipe split on multi-display with
+ * MPO and/or Dynamic ODM, removing a plane may cause unsupported pipe
+ * programming when moving to new planes. To mitigate those types of problems,
+ * this function adds a transition state that minimizes pipe usage before
+ * programming the new configuration. When adding a new plane, the current
+ * state requires the least pipes, so it is applied without splitting. When
+ * removing a plane, the new state requires the least pipes, so it is applied
+ * without splitting.
+ *
+ * Return:
+ * Return false if something is wrong in the transition state.
+ */
 static bool commit_minimal_transition_state(struct dc *dc,
 		struct dc_state *transition_base_context)
 {
@@ -3742,6 +3779,10 @@ static bool commit_minimal_transition_state(struct dc *dc,
 
 	if (!transition_context)
 		return false;
+	/* Setup:
+	 * Store the current ODM and MPC config in some temp variables to be
+	 * restored after we commit the transition state.
+	 */
 
 	/* check current pipes in use*/
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -3777,7 +3818,7 @@ static bool commit_minimal_transition_state(struct dc *dc,
 
 	dc_resource_state_copy_construct(transition_base_context, transition_context);
 
-	//commit minimal state
+	/* commit minimal state */
 	if (dc->res_pool->funcs->validate_bandwidth(dc, transition_context, false)) {
 		for (i = 0; i < transition_context->stream_count; i++) {
 			struct dc_stream_status *stream_status = &transition_context->stream_status[i];
@@ -3795,10 +3836,12 @@ static bool commit_minimal_transition_state(struct dc *dc,
 		ret = dc_commit_state_no_check(dc, transition_context);
 	}
 
-	/*always release as dc_commit_state_no_check retains in good case*/
+	/* always release as dc_commit_state_no_check retains in good case */
 	dc_release_state(transition_context);
 
-	/*restore previous pipe split and odm policy*/
+	/* TearDown:
+	 * Restore original configuration for ODM and MPO.
+	 */
 	if (!dc->config.is_vmin_only_asic)
 		dc->debug.pipe_split_policy = tmp_mpc_policy;
 
@@ -3806,12 +3849,12 @@ static bool commit_minimal_transition_state(struct dc *dc,
 	dc->debug.force_disable_subvp = temp_subvp_policy;
 
 	if (ret != DC_OK) {
-		/*this should never happen*/
+		/* this should never happen */
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
 
-	/*force full surface update*/
+	/* force full surface update */
 	for (i = 0; i < dc->current_state->stream_count; i++) {
 		for (j = 0; j < dc->current_state->stream_status[i].plane_count; j++) {
 			dc->current_state->stream_status[i].plane_states[j]->update_flags.raw = 0xFFFFFFFF;

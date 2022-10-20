@@ -420,7 +420,10 @@ struct pipe_ctx {
 
 	struct pll_settings pll_settings;
 
-	/* link config records software decision for what link config should be
+	/**
+	 * @link_config:
+	 *
+	 * link config records software decision for what link config should be
 	 * enabled given current link capability and stream during hw resource
 	 * mapping. This is to decouple the dependency on link capability during
 	 * dc commit or update.
@@ -542,6 +545,10 @@ struct dc_state {
 
 	/**
 	 * @bw_ctx: The output from bandwidth and watermark calculations and the DML
+	 *
+	 * Each context must have its own instance of VBA, and in order to
+	 * initialize and obtain IP and SOC, the base DML instance from DC is
+	 * initially copied into every context.
 	 */
 	struct bw_context bw_ctx;
 
@@ -559,6 +566,13 @@ struct dc_state {
 
 	struct clk_mgr *clk_mgr;
 
+	/**
+	 * @refcount: refcount reference
+	 *
+	 * Notice that dc_state is used around the code to capture the current
+	 * context, so we need to pass it everywhere. That's why we want to use
+	 * kref in this struct.
+	 */
 	struct kref refcount;
 
 	struct {
