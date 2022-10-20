@@ -1559,8 +1559,8 @@ static void zs_object_copy(struct size_class *class, unsigned long dst,
 		 * Calling kunmap_atomic(d_addr) is necessary. kunmap_atomic()
 		 * calls must occurs in reverse order of calls to kmap_atomic().
 		 * So, to call kunmap_atomic(s_addr) we should first call
-		 * kunmap_atomic(d_addr).  For more details see
-		 * https://lore.kernel.org/linux-mm/5512421D.4000603@samsung.com/
+		 * kunmap_atomic(d_addr). For more details see
+		 * Documentation/mm/highmem.rst.
 		 */
 		if (s_off >= PAGE_SIZE) {
 			kunmap_atomic(d_addr);
