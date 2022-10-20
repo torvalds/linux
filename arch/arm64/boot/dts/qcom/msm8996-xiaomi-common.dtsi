@@ -691,35 +691,35 @@
 };
 
 &tlmm {
-	mdss_dsi_default: mdss_dsi_default {
+	mdss_dsi_default: mdss-dsi-default-state {
 		pins = "gpio8";
 		function = "gpio";
 		drive-strength = <8>;
 		bias-disable;
 	};
 
-	mdss_dsi_sleep: mdss_dsi_sleep {
+	mdss_dsi_sleep: mdss-dsi-sleep-state {
 		pins = "gpio8";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-down;
 	};
 
-	mdss_te_default: mdss_te_default {
+	mdss_te_default: mdss-te-default-state {
 		pins = "gpio10";
 		function = "mdp_vsync";
 		drive-strength = <2>;
 		bias-pull-down;
 	};
 
-	mdss_te_sleep: mdss_te_sleep {
+	mdss_te_sleep: mdss-te-sleep-state {
 		pins = "gpio10";
 		function = "mdp_vsync";
 		drive-strength = <2>;
 		bias-pull-down;
 	};
 
-	nfc_default: nfc_default {
+	nfc_default: nfc-default-state {
 		pins = "gpio12", "gpio21";
 		function = "gpio";
 		drive-strength = <16>;

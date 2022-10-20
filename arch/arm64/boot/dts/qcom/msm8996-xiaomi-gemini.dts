@@ -446,28 +446,28 @@
 		"RFFE1_DATA",		/* GPIO_148 */
 		"RFFE1_CLK";		/* GPIO_149 */
 
-	touchscreen_default: touchscreen_default {
+	touchscreen_default: touchscreen-default-state {
 		pins = "gpio89", "gpio125";
 		function = "gpio";
 		drive-strength = <10>;
 		bias-pull-up;
 	};
 
-	touchscreen_sleep: touchscreen_sleep {
+	touchscreen_sleep: touchscreen-sleep-state {
 		pins = "gpio89", "gpio125";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
 	};
 
-	vibrator_default: vibrator_default {
+	vibrator_default: vibrator-default-state {
 		pins = "gpio93";
 		function = "gpio";
 		drive-strength = <8>;
 		bias-pull-up;
 	};
 
-	vibrator_sleep: vibrator_sleep {
+	vibrator_sleep: vibrator-sleep-state {
 		pins = "gpio93";
 		function = "gpio";
 		drive-strength = <2>;
