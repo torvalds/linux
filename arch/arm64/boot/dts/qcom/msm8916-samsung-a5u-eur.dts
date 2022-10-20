@@ -50,6 +50,10 @@
 	};
 };
 
+&clk_pwm {
+	status = "okay";
+};
+
 &pronto {
 	iris {
 		compatible = "qcom,wcn3660b";
@@ -59,6 +63,10 @@
 &touchkey {
 	vcc-supply = <&reg_touch_key>;
 	vdd-supply = <&reg_touch_key>;
+};
+
+&vibrator {
+	status = "okay";
 };
 
 &msmgpio {

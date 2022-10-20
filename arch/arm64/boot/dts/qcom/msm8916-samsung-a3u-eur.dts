@@ -81,6 +81,10 @@
 	};
 };
 
+&clk_pwm {
+	status = "okay";
+};
+
 &dsi0 {
 	panel@0 {
 		reg = <0>;
@@ -102,6 +106,10 @@
 &dsi0_out {
 	data-lanes = <0 1>;
 	remote-endpoint = <&panel_in>;
+};
+
+&vibrator {
+	status = "okay";
 };
 
 &msmgpio {

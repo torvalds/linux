@@ -23,6 +23,17 @@
 		};
 	};
 
+	clk_pwm: pwm {
+		compatible = "clk-pwm";
+		#pwm-cells = <2>;
+
+		clocks = <&gcc GCC_GP2_CLK>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&motor_pwm_default>;
+		status = "disabled";
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -59,6 +70,24 @@
 			linux,code = <SW_LID>;
 			linux,can-disable;
 		};
+	};
+
+	/*
+	 * NOTE: A5 connects GPIO 76 to a reglator powering the motor
+	 * driver IC but A3 connects the same signal to an ENABLE pin of
+	 * the driver.
+	 */
+	reg_motor_vdd: regulator-motor-vdd {
+		compatible = "regulator-fixed";
+		regulator-name = "motor_vdd";
+		regulator-min-microvolt = <3000000>;
+		regulator-max-microvolt = <3000000>;
+
+		gpio = <&msmgpio 76 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&motor_en_default>;
 	};
 
 	reg_vdd_tsp_a: regulator-vdd-tsp-a {
@@ -152,6 +181,16 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&nfc_default &nfc_clk_req>;
 		};
+	};
+
+	vibrator: vibrator {
+		compatible = "pwm-vibrator";
+
+		pwms = <&clk_pwm 0 100000>;
+		pwm-names = "enable";
+
+		vcc-supply = <&reg_motor_vdd>;
+		status = "disabled";
 	};
 };
 
@@ -395,6 +434,19 @@
 			drive-strength = <2>;
 			bias-pull-down;
 		};
+	};
+
+	motor_en_default: motor-en-default {
+		pins = "gpio76";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	motor_pwm_default: motor-pwm-default {
+		pins = "gpio50";
+		function = "gcc_gp2_clk_a";
 	};
 
 	muic_i2c_default: muic-i2c-default {
