@@ -537,6 +537,7 @@
 };
 
 &main_i2c0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_i2c0_pins_default>;
 	clock-frequency = <400000>;
@@ -564,18 +565,15 @@
 };
 
 &main_i2c1 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_i2c1_pins_default>;
 	/* i2c1 is used for DVI DDC, so we need to use 100kHz */
 	clock-frequency = <100000>;
 };
 
-&main_i2c2 {
-	/* Unused */
-	status = "disabled";
-};
-
 &main_i2c3 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_i2c3_pins_default>;
 	clock-frequency = <400000>;
@@ -600,21 +598,6 @@
 			reg = <1>;
 		};
 	};
-};
-
-&main_i2c4 {
-	/* Unused */
-	status = "disabled";
-};
-
-&main_i2c5 {
-	/* Brought out on RPi Header */
-	status = "disabled";
-};
-
-&main_i2c6 {
-	/* Unused */
-	status = "disabled";
 };
 
 &main_gpio2 {
