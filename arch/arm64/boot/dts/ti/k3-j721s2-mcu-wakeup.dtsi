@@ -146,6 +146,7 @@
 		clocks = <&k3_clks 223 1>;
 		clock-names = "fck";
 		power-domains = <&k3_pds 223 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
 	};
 
 	mcu_i2c0: i2c@40b00000 {
@@ -157,6 +158,7 @@
 		clocks = <&k3_clks 221 1>;
 		clock-names = "fck";
 		power-domains = <&k3_pds 221 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
 	};
 
 	mcu_i2c1: i2c@40b10000 {
@@ -168,6 +170,7 @@
 		clocks = <&k3_clks 222 1>;
 		clock-names = "fck";
 		power-domains = <&k3_pds 222 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
 	};
 
 	mcu_mcan0: can@40528000 {
