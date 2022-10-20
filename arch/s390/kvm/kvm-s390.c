@@ -5167,6 +5167,7 @@ static long kvm_s390_vcpu_sida_op(struct kvm_vcpu *vcpu,
 				  struct kvm_s390_mem_op *mop)
 {
 	void __user *uaddr = (void __user *)mop->buf;
+	void *sida_addr;
 	int r = 0;
 
 	if (mop->flags || !mop->size)
@@ -5178,16 +5179,16 @@ static long kvm_s390_vcpu_sida_op(struct kvm_vcpu *vcpu,
 	if (!kvm_s390_pv_cpu_is_protected(vcpu))
 		return -EINVAL;
 
+	sida_addr = (char *)sida_addr(vcpu->arch.sie_block) + mop->sida_offset;
+
 	switch (mop->op) {
 	case KVM_S390_MEMOP_SIDA_READ:
-		if (copy_to_user(uaddr, (void *)(sida_origin(vcpu->arch.sie_block) +
-				 mop->sida_offset), mop->size))
+		if (copy_to_user(uaddr, sida_addr, mop->size))
 			r = -EFAULT;
 
 		break;
 	case KVM_S390_MEMOP_SIDA_WRITE:
-		if (copy_from_user((void *)(sida_origin(vcpu->arch.sie_block) +
-				   mop->sida_offset), uaddr, mop->size))
+		if (copy_from_user(sida_addr, uaddr, mop->size))
 			r = -EFAULT;
 		break;
 	}

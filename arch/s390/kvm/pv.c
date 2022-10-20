@@ -44,7 +44,7 @@ int kvm_s390_pv_destroy_cpu(struct kvm_vcpu *vcpu, u16 *rc, u16 *rrc)
 		free_pages(vcpu->arch.pv.stor_base,
 			   get_order(uv_info.guest_cpu_stor_len));
 
-	free_page(sida_origin(vcpu->arch.sie_block));
+	free_page((unsigned long)sida_addr(vcpu->arch.sie_block));
 	vcpu->arch.sie_block->pv_handle_cpu = 0;
 	vcpu->arch.sie_block->pv_handle_config = 0;
 	memset(&vcpu->arch.pv, 0, sizeof(vcpu->arch.pv));
@@ -66,6 +66,7 @@ int kvm_s390_pv_create_cpu(struct kvm_vcpu *vcpu, u16 *rc, u16 *rrc)
 		.header.cmd = UVC_CMD_CREATE_SEC_CPU,
 		.header.len = sizeof(uvcb),
 	};
+	void *sida_addr;
 	int cc;
 
 	if (kvm_s390_pv_cpu_get_handle(vcpu))
@@ -83,12 +84,13 @@ int kvm_s390_pv_create_cpu(struct kvm_vcpu *vcpu, u16 *rc, u16 *rrc)
 	uvcb.stor_origin = (u64)vcpu->arch.pv.stor_base;
 
 	/* Alloc Secure Instruction Data Area Designation */
-	vcpu->arch.sie_block->sidad = __get_free_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
-	if (!vcpu->arch.sie_block->sidad) {
+	sida_addr = (void *)__get_free_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
+	if (!sida_addr) {
 		free_pages(vcpu->arch.pv.stor_base,
 			   get_order(uv_info.guest_cpu_stor_len));
 		return -ENOMEM;
 	}
+	vcpu->arch.sie_block->sidad = virt_to_phys(sida_addr);
 
 	cc = uv_call(0, (u64)&uvcb);
 	*rc = uvcb.header.rc;
