@@ -19,6 +19,36 @@ static void rga_job_free(struct rga_job *job)
 	free_page((unsigned long)job);
 }
 
+static void rga_job_kref_release(struct kref *ref)
+{
+	struct rga_job *job;
+
+	job = container_of(ref, struct rga_job, refcount);
+
+	rga_job_free(job);
+}
+
+static int rga_job_put(struct rga_job *job)
+{
+	return kref_put(&job->refcount, rga_job_kref_release);
+}
+
+static void rga_job_get(struct rga_job *job)
+{
+	kref_get(&job->refcount);
+}
+
+static int rga_job_cleanup(struct rga_job *job)
+{
+	if (DEBUGGER_EN(TIME))
+		pr_err("(pid:%d) job clean use time = %lld\n", job->pid,
+			ktime_us_delta(ktime_get(), job->timestamp));
+
+	rga_job_put(job);
+
+	return 0;
+}
+
 void rga_job_session_destroy(struct rga_session *session)
 {
 	struct rga_scheduler_t *scheduler = NULL;
@@ -38,7 +68,7 @@ void rga_job_session_destroy(struct rga_session *session)
 
 				spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
-				rga_job_free(job_pos);
+				rga_job_cleanup(job_pos);
 
 				spin_lock_irqsave(&scheduler->irq_lock, flags);
 			}
@@ -46,17 +76,6 @@ void rga_job_session_destroy(struct rga_session *session)
 
 		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 	}
-}
-
-static int rga_job_cleanup(struct rga_job *job)
-{
-	if (DEBUGGER_EN(TIME))
-		pr_err("(pid:%d) job clean use time = %lld\n", job->pid,
-			ktime_us_delta(ktime_get(), job->timestamp));
-
-	rga_job_free(job);
-
-	return 0;
 }
 
 static int rga_job_judgment_support_core(struct rga_job *job)
@@ -129,6 +148,7 @@ static struct rga_job *rga_job_alloc(struct rga_req *rga_command_base)
 		return NULL;
 
 	INIT_LIST_HEAD(&job->head);
+	kref_init(&job->refcount);
 
 	job->timestamp = ktime_get();
 	job->pid = current->pid;
@@ -206,6 +226,7 @@ static int rga_job_run(struct rga_job *job, struct rga_scheduler_t *scheduler)
 
 static void rga_job_next(struct rga_scheduler_t *scheduler)
 {
+	int ret;
 	struct rga_job *job = NULL;
 	unsigned long flags;
 
@@ -225,25 +246,29 @@ next_job:
 	scheduler->job_count--;
 
 	scheduler->running_job = job;
+	rga_job_get(job);
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
-	job->ret = rga_job_run(job, scheduler);
+	ret = rga_job_run(job, scheduler);
 	/* If some error before hw run */
-	if (job->ret < 0) {
-		pr_err("some error on rga_job_run before hw start, %s(%d)\n",
-			__func__, __LINE__);
+	if (ret < 0) {
+		pr_err("some error on rga_job_run before hw start, %s(%d)\n", __func__, __LINE__);
 
 		spin_lock_irqsave(&scheduler->irq_lock, flags);
 
 		scheduler->running_job = NULL;
+		rga_job_put(job);
 
 		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
+		job->ret = ret;
 		rga_request_release_signal(scheduler, job);
 
 		goto next_job;
 	}
+
+	rga_job_put(job);
 }
 
 static void rga_job_finish_and_next(struct rga_scheduler_t *scheduler,

@@ -285,6 +285,8 @@ struct rga_job {
 	int ret;
 	pid_t pid;
 	bool use_batch_mode;
+
+	struct kref refcount;
 };
 
 struct rga_backend_ops {
