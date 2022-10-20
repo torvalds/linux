@@ -81,6 +81,18 @@ static int jpeg_v4_0_sw_init(void *handle)
 	if (r)
 		return r;
 
+	/* JPEG DJPEG POISON EVENT */
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VCN,
+			VCN_4_0__SRCID_DJPEG0_POISON, &adev->jpeg.inst->irq);
+	if (r)
+		return r;
+
+	/* JPEG EJPEG POISON EVENT */
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VCN,
+			VCN_4_0__SRCID_EJPEG0_POISON, &adev->jpeg.inst->irq);
+	if (r)
+		return r;
+
 	r = amdgpu_jpeg_sw_init(adev);
 	if (r)
 		return r;
@@ -169,6 +181,8 @@ static int jpeg_v4_0_hw_fini(void *handle)
 	if (adev->jpeg.cur_state != AMD_PG_STATE_GATE &&
 	      RREG32_SOC15(JPEG, 0, regUVD_JRBC_STATUS))
 		jpeg_v4_0_set_powergating_state(adev, AMD_PG_STATE_GATE);
+
+	amdgpu_irq_put(adev, &adev->jpeg.inst->irq, 0);
 
 	return 0;
 }
@@ -526,6 +540,10 @@ static int jpeg_v4_0_process_interrupt(struct amdgpu_device *adev,
 	switch (entry->src_id) {
 	case VCN_4_0__SRCID__JPEG_DECODE:
 		amdgpu_fence_process(&adev->jpeg.inst->ring_dec);
+		break;
+	case VCN_4_0__SRCID_DJPEG0_POISON:
+	case VCN_4_0__SRCID_EJPEG0_POISON:
+		amdgpu_jpeg_process_poison_irq(adev, source, entry);
 		break;
 	default:
 		DRM_DEV_ERROR(adev->dev, "Unhandled interrupt: %d %d\n",
