@@ -44,7 +44,7 @@ struct rxrpc_txbuf *rxrpc_alloc_txbuf(struct rxrpc_call *call, u8 packet_type,
 		txb->wire.userStatus	= 0;
 		txb->wire.securityIndex	= call->security_ix;
 		txb->wire._rsvd		= 0;
-		txb->wire.serviceId	= htons(call->service_id);
+		txb->wire.serviceId	= htons(call->dest_srx.srx_service);
 
 		trace_rxrpc_txbuf(txb->debug_id,
 				  txb->call_debug_id, txb->seq, 1,

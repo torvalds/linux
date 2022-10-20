@@ -49,8 +49,6 @@ static void rxrpc_call_seq_stop(struct seq_file *seq, void *v)
 static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 {
 	struct rxrpc_local *local;
-	struct rxrpc_sock *rx;
-	struct rxrpc_peer *peer;
 	struct rxrpc_call *call;
 	struct rxrpc_net *rxnet = rxrpc_net(seq_file_net(seq));
 	unsigned long timeout = 0;
@@ -69,22 +67,13 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 
 	call = list_entry(v, struct rxrpc_call, link);
 
-	rx = rcu_dereference(call->socket);
-	if (rx) {
-		local = READ_ONCE(rx->local);
-		if (local)
-			sprintf(lbuff, "%pISpc", &local->srx.transport);
-		else
-			strcpy(lbuff, "no_local");
-	} else {
-		strcpy(lbuff, "no_socket");
-	}
-
-	peer = call->peer;
-	if (peer)
-		sprintf(rbuff, "%pISpc", &peer->srx.transport);
+	local = call->local;
+	if (local)
+		sprintf(lbuff, "%pISpc", &local->srx.transport);
 	else
-		strcpy(rbuff, "no_connection");
+		strcpy(lbuff, "no_local");
+
+	sprintf(rbuff, "%pISpc", &call->dest_srx.transport);
 
 	if (call->state != RXRPC_CALL_SERVER_PREALLOC) {
 		timeout = READ_ONCE(call->expect_rx_by);
@@ -98,7 +87,7 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 		   " %-8.8s %08x %08x %08x %02x %08x %02x %08x %06lx\n",
 		   lbuff,
 		   rbuff,
-		   call->service_id,
+		   call->dest_srx.srx_service,
 		   call->cid,
 		   call->call_id,
 		   rxrpc_is_service_call(call) ? "Svc" : "Clt",

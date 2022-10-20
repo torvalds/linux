@@ -343,8 +343,8 @@ static int rxrpc_input_packet(struct rxrpc_local *local, struct sk_buff *skb)
 		}
 
 		if (call) {
-			if (sp->hdr.serviceId != call->service_id)
-				call->service_id = sp->hdr.serviceId;
+			if (sp->hdr.serviceId != call->dest_srx.srx_service)
+				call->dest_srx.srx_service = sp->hdr.serviceId;
 			if ((int)sp->hdr.serial - (int)call->rx_serial > 0)
 				call->rx_serial = sp->hdr.serial;
 			if (!test_bit(RXRPC_CALL_RX_HEARD, &call->flags))

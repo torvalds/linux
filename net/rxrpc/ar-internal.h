@@ -530,6 +530,7 @@ enum rxrpc_call_flag {
 	RXRPC_CALL_UPGRADE,		/* Service upgrade was requested for the call */
 	RXRPC_CALL_DELAY_ACK_PENDING,	/* DELAY ACK generation is pending */
 	RXRPC_CALL_IDLE_ACK_PENDING,	/* IDLE ACK generation is pending */
+	RXRPC_CALL_EXCLUSIVE,		/* The call uses a once-only connection */
 };
 
 /*
@@ -592,10 +593,13 @@ struct rxrpc_call {
 	struct rcu_head		rcu;
 	struct rxrpc_connection	*conn;		/* connection carrying call */
 	struct rxrpc_peer	*peer;		/* Peer record for remote address */
+	struct rxrpc_local	*local;		/* Representation of local endpoint */
 	struct rxrpc_sock __rcu	*socket;	/* socket responsible */
 	struct rxrpc_net	*rxnet;		/* Network namespace to which call belongs */
+	struct key		*key;		/* Security details */
 	const struct rxrpc_security *security;	/* applied security module */
 	struct mutex		user_mutex;	/* User access mutex */
+	struct sockaddr_rxrpc	dest_srx;	/* Destination address */
 	unsigned long		delay_ack_at;	/* When DELAY ACK needs to happen */
 	unsigned long		ack_lost_at;	/* When ACK is figured as lost */
 	unsigned long		resend_at;	/* When next resend needs to happen */
@@ -631,11 +635,11 @@ struct rxrpc_call {
 	enum rxrpc_call_state	state;		/* current state of call */
 	enum rxrpc_call_completion completion;	/* Call completion condition */
 	refcount_t		ref;
-	u16			service_id;	/* service ID */
 	u8			security_ix;	/* Security type */
 	enum rxrpc_interruptibility interruptibility; /* At what point call may be interrupted */
 	u32			call_id;	/* call ID on connection  */
 	u32			cid;		/* connection ID plus channel index */
+	u32			security_level;	/* Security level selected */
 	int			debug_id;	/* debug ID for printks */
 	unsigned short		rx_pkt_offset;	/* Current recvmsg packet offset */
 	unsigned short		rx_pkt_len;	/* Current recvmsg packet len */
@@ -1147,6 +1151,7 @@ extern const struct rxrpc_security rxkad;
 int __init rxrpc_init_security(void);
 const struct rxrpc_security *rxrpc_security_lookup(u8);
 void rxrpc_exit_security(void);
+int rxrpc_init_client_call_security(struct rxrpc_call *);
 int rxrpc_init_client_conn_security(struct rxrpc_connection *);
 const struct rxrpc_security *rxrpc_get_incoming_security(struct rxrpc_sock *,
 							 struct sk_buff *);

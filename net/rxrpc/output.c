@@ -357,7 +357,7 @@ int rxrpc_send_abort_packet(struct rxrpc_call *call)
 	pkt.whdr.userStatus	= 0;
 	pkt.whdr.securityIndex	= call->security_ix;
 	pkt.whdr._rsvd		= 0;
-	pkt.whdr.serviceId	= htons(call->service_id);
+	pkt.whdr.serviceId	= htons(call->dest_srx.srx_service);
 	pkt.abort_code		= htonl(call->abort_code);
 
 	iov[0].iov_base	= &pkt;

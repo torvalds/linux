@@ -490,11 +490,9 @@ try_again:
 	}
 
 	if (msg->msg_name && call->peer) {
-		struct sockaddr_rxrpc *srx = msg->msg_name;
-		size_t len = sizeof(call->peer->srx);
+		size_t len = sizeof(call->dest_srx);
 
-		memcpy(msg->msg_name, &call->peer->srx, len);
-		srx->srx_service = call->service_id;
+		memcpy(msg->msg_name, &call->dest_srx, len);
 		msg->msg_namelen = len;
 	}
 
@@ -639,7 +637,7 @@ read_phase_complete:
 out:
 	rxrpc_transmit_ack_packets(call->peer->local);
 	if (_service)
-		*_service = call->service_id;
+		*_service = call->dest_srx.srx_service;
 	mutex_unlock(&call->user_mutex);
 	_leave(" = %d [%zu,%d]", ret, iov_iter_count(iter), *_abort);
 	return ret;

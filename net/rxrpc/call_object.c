@@ -47,13 +47,8 @@ static struct semaphore rxrpc_kernel_call_limiter =
 
 void rxrpc_poke_call(struct rxrpc_call *call, enum rxrpc_call_poke_trace what)
 {
-	struct rxrpc_local *local;
-	struct rxrpc_peer *peer = call->peer;
+	struct rxrpc_local *local = call->local;
 	bool busy;
-
-	if (WARN_ON_ONCE(!peer))
-		return;
-	local = peer->local;
 
 	if (call->state < RXRPC_CALL_COMPLETE) {
 		spin_lock_bh(&local->lock);
@@ -200,22 +195,45 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
  */
 static struct rxrpc_call *rxrpc_alloc_client_call(struct rxrpc_sock *rx,
 						  struct sockaddr_rxrpc *srx,
+						  struct rxrpc_conn_parameters *cp,
+						  struct rxrpc_call_params *p,
 						  gfp_t gfp,
 						  unsigned int debug_id)
 {
 	struct rxrpc_call *call;
 	ktime_t now;
+	int ret;
 
 	_enter("");
 
 	call = rxrpc_alloc_call(rx, gfp, debug_id);
 	if (!call)
 		return ERR_PTR(-ENOMEM);
-	call->state = RXRPC_CALL_CLIENT_AWAIT_CONN;
-	call->service_id = srx->srx_service;
 	now = ktime_get_real();
-	call->acks_latest_ts = now;
-	call->cong_tstamp = now;
+	call->acks_latest_ts	= now;
+	call->cong_tstamp	= now;
+	call->state		= RXRPC_CALL_CLIENT_AWAIT_CONN;
+	call->dest_srx		= *srx;
+	call->interruptibility	= p->interruptibility;
+	call->tx_total_len	= p->tx_total_len;
+	call->key		= key_get(cp->key);
+	call->local		= rxrpc_get_local(cp->local, rxrpc_local_get_call);
+	if (p->kernel)
+		__set_bit(RXRPC_CALL_KERNEL, &call->flags);
+	if (cp->upgrade)
+		__set_bit(RXRPC_CALL_UPGRADE, &call->flags);
+	if (cp->exclusive)
+		__set_bit(RXRPC_CALL_EXCLUSIVE, &call->flags);
+
+	ret = rxrpc_init_client_call_security(call);
+	if (ret < 0) {
+		__rxrpc_set_call_completion(call, RXRPC_CALL_LOCAL_ERROR, 0, ret);
+		rxrpc_put_call(call, rxrpc_call_put_discard_error);
+		return ERR_PTR(ret);
+	}
+
+	trace_rxrpc_call(call->debug_id, refcount_read(&call->ref),
+			 p->user_call_ID, rxrpc_call_new_client);
 
 	_leave(" = %p", call);
 	return call;
@@ -295,20 +313,13 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 		return ERR_PTR(-ERESTARTSYS);
 	}
 
-	call = rxrpc_alloc_client_call(rx, srx, gfp, debug_id);
+	call = rxrpc_alloc_client_call(rx, srx, cp, p, gfp, debug_id);
 	if (IS_ERR(call)) {
 		release_sock(&rx->sk);
 		up(limiter);
 		_leave(" = %ld", PTR_ERR(call));
 		return call;
 	}
-
-	call->interruptibility = p->interruptibility;
-	call->tx_total_len = p->tx_total_len;
-	trace_rxrpc_call(call->debug_id, refcount_read(&call->ref),
-			 p->user_call_ID, rxrpc_call_new_client);
-	if (p->kernel)
-		__set_bit(RXRPC_CALL_KERNEL, &call->flags);
 
 	/* We need to protect a partially set up call against the user as we
 	 * will be acting outside the socket lock.
@@ -413,7 +424,7 @@ void rxrpc_incoming_call(struct rxrpc_sock *rx,
 
 	rcu_assign_pointer(call->socket, rx);
 	call->call_id		= sp->hdr.callNumber;
-	call->service_id	= sp->hdr.serviceId;
+	call->dest_srx.srx_service = sp->hdr.serviceId;
 	call->cid		= sp->hdr.cid;
 	call->state		= RXRPC_CALL_SERVER_SECURING;
 	call->cong_tstamp	= skb->tstamp;
@@ -639,6 +650,7 @@ static void rxrpc_destroy_call(struct work_struct *work)
 	rxrpc_free_skb(call->acks_soft_tbl, rxrpc_skb_put_ack);
 	rxrpc_put_connection(call->conn, rxrpc_conn_put_call);
 	rxrpc_put_peer(call->peer, rxrpc_peer_put_call);
+	rxrpc_put_local(call->local, rxrpc_local_put_call);
 	call_rcu(&call->rcu, rxrpc_rcu_free_call);
 }
 

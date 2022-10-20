@@ -63,6 +63,36 @@ const struct rxrpc_security *rxrpc_security_lookup(u8 security_index)
 }
 
 /*
+ * Initialise the security on a client call.
+ */
+int rxrpc_init_client_call_security(struct rxrpc_call *call)
+{
+	const struct rxrpc_security *sec;
+	struct rxrpc_key_token *token;
+	struct key *key = call->key;
+	int ret;
+
+	if (!key)
+		return 0;
+
+	ret = key_validate(key);
+	if (ret < 0)
+		return ret;
+
+	for (token = key->payload.data[0]; token; token = token->next) {
+		sec = rxrpc_security_lookup(token->security_index);
+		if (sec)
+			goto found;
+	}
+	return -EKEYREJECTED;
+
+found:
+	call->security = sec;
+	_leave(" = 0");
+	return 0;
+}
+
+/*
  * initialise the security on a client connection
  */
 int rxrpc_init_client_conn_security(struct rxrpc_connection *conn)

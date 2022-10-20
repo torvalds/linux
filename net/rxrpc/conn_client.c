@@ -553,7 +553,7 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 	call->call_id	= call_id;
 	call->security	= conn->security;
 	call->security_ix = conn->security_ix;
-	call->service_id = conn->service_id;
+	call->dest_srx.srx_service = conn->service_id;
 
 	trace_rxrpc_connect_call(call);
 

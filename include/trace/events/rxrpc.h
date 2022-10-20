@@ -52,6 +52,7 @@
 
 #define rxrpc_local_traces \
 	EM(rxrpc_local_free,			"FREE        ") \
+	EM(rxrpc_local_get_call,		"GET call    ") \
 	EM(rxrpc_local_get_client_conn,		"GET conn-cln") \
 	EM(rxrpc_local_get_for_use,		"GET for-use ") \
 	EM(rxrpc_local_get_peer,		"GET peer    ") \
@@ -61,6 +62,7 @@
 	EM(rxrpc_local_processing,		"PROCESSING  ") \
 	EM(rxrpc_local_put_already_queued,	"PUT alreadyq") \
 	EM(rxrpc_local_put_bind,		"PUT bind    ") \
+	EM(rxrpc_local_put_call,		"PUT call    ") \
 	EM(rxrpc_local_put_for_use,		"PUT for-use ") \
 	EM(rxrpc_local_put_kill_conn,		"PUT conn-kil") \
 	EM(rxrpc_local_put_peer,		"PUT peer    ") \
@@ -166,6 +168,7 @@
 	EM(rxrpc_call_new_client,		"NEW client  ") \
 	EM(rxrpc_call_new_prealloc_service,	"NEW prealloc") \
 	EM(rxrpc_call_put_discard_prealloc,	"PUT disc-pre") \
+	EM(rxrpc_call_put_discard_error,	"PUT disc-err") \
 	EM(rxrpc_call_put_input,		"PUT input   ") \
 	EM(rxrpc_call_put_kernel,		"PUT kernel  ") \
 	EM(rxrpc_call_put_poke,			"PUT poke    ") \

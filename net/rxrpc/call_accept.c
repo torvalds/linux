@@ -318,10 +318,12 @@ static struct rxrpc_call *rxrpc_alloc_incoming_call(struct rxrpc_sock *rx,
 			  (call_tail + 1) & (RXRPC_BACKLOG_MAX - 1));
 
 	rxrpc_see_call(call, rxrpc_call_see_accept);
+	call->local = rxrpc_get_local(conn->local, rxrpc_local_get_call);
 	call->conn = conn;
 	call->security = conn->security;
 	call->security_ix = conn->security_ix;
 	call->peer = rxrpc_get_peer(conn->peer, rxrpc_peer_get_accept);
+	call->dest_srx = peer->srx;
 	call->cong_ssthresh = call->peer->cong_ssthresh;
 	call->tx_last_sent = ktime_get_real();
 	return call;
