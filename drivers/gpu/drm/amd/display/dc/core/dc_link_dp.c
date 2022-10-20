@@ -2771,8 +2771,11 @@ bool perform_link_training_with_retries(
 					/* Update verified link settings to current one
 					 * Because DPIA LT might fallback to lower link setting.
 					 */
-					link->verified_link_cap.link_rate = link->cur_link_settings.link_rate;
-					link->verified_link_cap.lane_count = link->cur_link_settings.lane_count;
+					if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
+						link->verified_link_cap.link_rate = link->cur_link_settings.link_rate;
+						link->verified_link_cap.lane_count = link->cur_link_settings.lane_count;
+						dm_helpers_dp_mst_update_branch_bandwidth(link->ctx, link);
+					}
 				}
 			} else {
 				status = dc_link_dp_perform_link_training(link,
