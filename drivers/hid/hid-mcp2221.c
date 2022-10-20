@@ -585,6 +585,7 @@ static const struct i2c_algorithm mcp_i2c_algo = {
 	.functionality = mcp_i2c_func,
 };
 
+#if IS_REACHABLE(CONFIG_GPIOLIB)
 static int mcp_gpio_get(struct gpio_chip *gc,
 				unsigned int offset)
 {
@@ -688,6 +689,7 @@ static int mcp_gpio_get_direction(struct gpio_chip *gc,
 
 	return GPIO_LINE_DIRECTION_OUT;
 }
+#endif
 
 /* Gives current state of i2c engine inside mcp2221 */
 static int mcp_get_i2c_eng_state(struct mcp2221 *mcp,
@@ -1153,6 +1155,7 @@ static int mcp2221_probe(struct hid_device *hdev,
 	}
 	i2c_set_adapdata(&mcp->adapter, mcp);
 
+#if IS_REACHABLE(CONFIG_GPIOLIB)
 	/* Setup GPIO chip */
 	mcp->gc = devm_kzalloc(&hdev->dev, sizeof(*mcp->gc), GFP_KERNEL);
 	if (!mcp->gc)
@@ -1169,7 +1172,6 @@ static int mcp2221_probe(struct hid_device *hdev,
 	mcp->gc->can_sleep = 1;
 	mcp->gc->parent = &hdev->dev;
 
-#if IS_REACHABLE(CONFIG_GPIOLIB)
 	ret = devm_gpiochip_add_data(&hdev->dev, mcp->gc, mcp);
 	if (ret)
 		return ret;
