@@ -2348,7 +2348,8 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev)
 				adev->ras_hw_enabled |= ~(1 << AMDGPU_RAS_BLOCK__UMC |
 							    1 << AMDGPU_RAS_BLOCK__DF);
 
-				if (adev->ip_versions[VCN_HWIP][0] == IP_VERSION(2, 6, 0))
+				if (adev->ip_versions[VCN_HWIP][0] == IP_VERSION(2, 6, 0) ||
+				    adev->ip_versions[VCN_HWIP][0] == IP_VERSION(4, 0, 0))
 					adev->ras_hw_enabled |= (1 << AMDGPU_RAS_BLOCK__VCN |
 							1 << AMDGPU_RAS_BLOCK__JPEG);
 				else
