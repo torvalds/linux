@@ -2582,7 +2582,7 @@ static int lpfcdiag_loop_self_unreg(struct lpfc_hba *phba, uint16_t rpi)
  *
  * This function obtains the transmit and receive ids required to send
  * an unsolicited ct command with a payload. A special lpfc FsType and CmdRsp
- * flags are used to the unsolicted response handler is able to process
+ * flags are used to the unsolicited response handler is able to process
  * the ct command sent on the same port.
  **/
 static int lpfcdiag_loop_get_xri(struct lpfc_hba *phba, uint16_t rpi,
@@ -2874,7 +2874,7 @@ out:
  * @len: Number of data bytes
  *
  * This function allocates and posts a data buffer of sufficient size to receive
- * an unsolicted CT command.
+ * an unsolicited CT command.
  **/
 static int lpfcdiag_sli3_loop_post_rxbufs(struct lpfc_hba *phba, uint16_t rxxri,
 					  size_t len)

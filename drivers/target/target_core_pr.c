@@ -2956,12 +2956,27 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 			__core_scsi3_complete_pro_preempt(dev, pr_reg_n,
 				(preempt_type == PREEMPT_AND_ABORT) ? &preempt_and_abort_list : NULL,
 				type, scope, preempt_type);
-
-			if (preempt_type == PREEMPT_AND_ABORT)
-				core_scsi3_release_preempt_and_abort(
-					&preempt_and_abort_list, pr_reg_n);
 		}
+
 		spin_unlock(&dev->dev_reservation_lock);
+
+		/*
+		 * SPC-4 5.12.11.2.6 Preempting and aborting
+		 * The actions described in this subclause shall be performed
+		 * for all I_T nexuses that are registered with the non-zero
+		 * SERVICE ACTION RESERVATION KEY value, without regard for
+		 * whether the preempted I_T nexuses hold the persistent
+		 * reservation. If the SERVICE ACTION RESERVATION KEY field is
+		 * set to zero and an all registrants persistent reservation is
+		 * present, the device server shall abort all commands for all
+		 * registered I_T nexuses.
+		 */
+		if (preempt_type == PREEMPT_AND_ABORT) {
+			core_tmr_lun_reset(dev, NULL, &preempt_and_abort_list,
+					   cmd);
+			core_scsi3_release_preempt_and_abort(
+				&preempt_and_abort_list, pr_reg_n);
+		}
 
 		if (pr_tmpl->pr_aptpl_active)
 			core_scsi3_update_and_write_aptpl(cmd->se_dev, true);
@@ -3022,7 +3037,7 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 		if (calling_it_nexus)
 			continue;
 
-		if (pr_reg->pr_res_key != sa_res_key)
+		if (sa_res_key && pr_reg->pr_res_key != sa_res_key)
 			continue;
 
 		pr_reg_nacl = pr_reg->pr_reg_nacl;
@@ -3425,8 +3440,6 @@ after_iport_check:
 	 *       transport protocols where port names are not required;
 	 * d) Register the reservation key specified in the SERVICE ACTION
 	 *    RESERVATION KEY field;
-	 * e) Retain the reservation key specified in the SERVICE ACTION
-	 *    RESERVATION KEY field and associated information;
 	 *
 	 * Also, It is not an error for a REGISTER AND MOVE service action to
 	 * register an I_T nexus that is already registered with the same
@@ -3448,6 +3461,12 @@ after_iport_check:
 		dest_pr_reg = __core_scsi3_locate_pr_reg(dev, dest_node_acl,
 						iport_ptr);
 		new_reg = 1;
+	} else {
+		/*
+		 * e) Retain the reservation key specified in the SERVICE ACTION
+		 *    RESERVATION KEY field and associated information;
+		 */
+		dest_pr_reg->pr_res_key = sa_res_key;
 	}
 	/*
 	 * f) Release the persistent reservation for the persistent reservation
